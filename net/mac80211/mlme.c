@@ -192,33 +192,27 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-
 	prev_chantype = sdata->vif.bss_conf.channel_type;
 
-	/* HT is not supported */
-	if (!sband->ht_cap.ht_supported)
-		enable_ht = false;
 
-	if (enable_ht) {
-		hti_cfreq = ieee80211_channel_to_frequency(hti->control_chan,
-							   sband->band);
-		/* check that channel matches the right operating channel */
-		if (local->hw.conf.channel->center_freq != hti_cfreq) {
-			/* Some APs mess this up, evidently.
-			 * Netgear WNDR3700 sometimes reports 4 higher than
-			 * the actual channel, for instance.
-			 */
-			printk(KERN_DEBUG
-			       "%s: Wrong control channel in association"
-			       " response: configured center-freq: %d"
-			       " hti-cfreq: %d  hti->control_chan: %d"
-			       " band: %d.  Disabling HT.\n",
-			       sdata->name,
-			       local->hw.conf.channel->center_freq,
-			       hti_cfreq, hti->control_chan,
-			       sband->band);
-			enable_ht = false;
-		}
+	hti_cfreq = ieee80211_channel_to_frequency(hti->control_chan,
+						   sband->band);
+	/* check that channel matches the right operating channel */
+	if (local->hw.conf.channel->center_freq != hti_cfreq) {
+		/* Some APs mess this up, evidently.
+		 * Netgear WNDR3700 sometimes reports 4 higher than
+		 * the actual channel, for instance.
+		 */
+		printk(KERN_DEBUG
+		       "%s: Wrong control channel in association"
+		       " response: configured center-freq: %d"
+		       " hti-cfreq: %d  hti->control_chan: %d"
+		       " band: %d.  Disabling HT.\n",
+		       sdata->name,
+		       local->hw.conf.channel->center_freq,
+		       hti_cfreq, hti->control_chan,
+		       sband->band);
+		enable_ht = false;
 	}
 
 	if (enable_ht) {
@@ -335,9 +329,6 @@ static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 
 	BUILD_BUG_ON(sizeof(ht_cap) != sizeof(sband->ht_cap));
 
-	if (!sband->ht_cap.ht_supported)
-		return;
-
 	if (!ht_info_ie)
 		return;
 
@@ -405,7 +396,6 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	u16 capab;
 	struct ieee80211_supported_band *sband;
 	u32 rates = 0;
-	struct ieee80211_bss *bss = (void *)assoc_data->bss->priv;
 
 	lockdep_assert_held(&ifmgd->mtx);
 
@@ -566,8 +556,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		offset = noffset;
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_11N) &&
-	    bss->wmm_used && local->hw.queues >= 4)
+	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
 		ieee80211_add_ht_ie(sdata, skb, assoc_data->ht_information_ie,
 				    sband, local->oper_channel, ifmgd->ap_smps);
 
@@ -2147,7 +2136,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_QOS;
 
 	if (elems.ht_info_elem && elems.wmm_param &&
-	    (sdata->local->hw.queues >= 4) &&
 	    !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
 		changed |= ieee80211_enable_ht(sdata, elems.ht_info_elem,
 					       cbss->bssid, ap_ht_cap_flags,
@@ -3232,6 +3220,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)req->bss->priv;
 	struct ieee80211_mgd_assoc_data *assoc_data;
+	struct ieee80211_supported_band *sband;
 	struct sta_info *sta;
 	const u8 *ssidie;
 	int i, err;
@@ -3288,6 +3277,12 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
 
 	if (req->flags & ASSOC_REQ_DISABLE_HT)
+		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
+
+	/* Also disable HT if we don't support it or the AP doesn't use WMM */
+	sband = local->hw.wiphy->bands[req->bss->channel->band];
+	if (!sband->ht_cap.ht_supported ||
+	    local->hw.queues < 4 || !bss->wmm_used)
 		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
 
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
