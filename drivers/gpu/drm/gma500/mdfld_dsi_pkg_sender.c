@@ -482,7 +482,7 @@ int mdfld_dsi_send_gen_short(struct mdfld_dsi_pkg_sender *sender, u8 param0,
 	unsigned long flags;
 	u8 data_type;
 
-	if (!sender || param_num < 0 || param_num > 2) {
+	if (!sender || param_num > 2) {
 		DRM_ERROR("Invalid parameter\n");
 		return -EINVAL;
 	}
