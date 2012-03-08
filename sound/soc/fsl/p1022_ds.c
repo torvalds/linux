@@ -543,6 +543,11 @@ static struct platform_driver p1022_ds_driver = {
 	.probe = p1022_ds_probe,
 	.remove = __devexit_p(p1022_ds_remove),
 	.driver = {
+		/*
+		 * The name must match 'compatible' property in the device tree,
+		 * in lowercase letters.
+		 */
+		.name = "snd-soc-p1022ds",
 		.owner = THIS_MODULE,
 	},
 };
@@ -556,33 +561,6 @@ static int __init p1022_ds_init(void)
 {
 	struct device_node *guts_np;
 	struct resource res;
-	const char *sprop;
-
-	/*
-	 * Check if we're actually running on a P1022DS.  Older device trees
-	 * have a model of "fsl,P1022" and newer ones use "fsl,P1022DS", so we
-	 * need to support both.  The SSI driver uses that property to link to
-	 * the machine driver, so have to match it.
-	 */
-	sprop = of_get_property(of_find_node_by_path("/"), "model", NULL);
-	if (!sprop) {
-		pr_err("snd-soc-p1022ds: missing /model node");
-		return -ENODEV;
-	}
-
-	pr_debug("snd-soc-p1022ds: board model name is %s\n", sprop);
-
-	/*
-	 * The name of this board, taken from the device tree.  Normally, this is a*
-	 * fixed string, but some P1022DS device trees have a /model property of
-	 * "fsl,P1022", and others have "fsl,P1022DS".
-	 */
-	if (strcasecmp(sprop, "fsl,p1022ds") == 0)
-		p1022_ds_driver.driver.name = "snd-soc-p1022ds";
-	else if (strcasecmp(sprop, "fsl,p1022") == 0)
-		p1022_ds_driver.driver.name = "snd-soc-p1022";
-	else
-		return -ENODEV;
 
 	/* Get the physical address of the global utilities registers */
 	guts_np = of_find_compatible_node(NULL, NULL, "fsl,p1022-guts");

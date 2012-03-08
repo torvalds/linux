@@ -546,7 +546,7 @@ static struct platform_driver mpc8610_hpcd_driver = {
 	.probe = mpc8610_hpcd_probe,
 	.remove = __devexit_p(mpc8610_hpcd_remove),
 	.driver = {
-		/* The name must match the 'model' property in the device tree,
+		/* The name must match 'compatible' property in the device tree,
 		 * in lowercase letters.
 		 */
 		.name = "snd-soc-mpc8610hpcd",
