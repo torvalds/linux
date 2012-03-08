@@ -410,7 +410,7 @@ out_err:
 	return ret;
 }
 
-int psb_driver_device_is_agp(struct drm_device *dev)
+static int psb_driver_device_is_agp(struct drm_device *dev)
 {
 	return 0;
 }
@@ -601,7 +601,7 @@ static long psb_unlocked_ioctl(struct file *filp, unsigned int cmd,
 /* When a client dies:
  *    - Check for and clean up flipped page state
  */
-void psb_driver_preclose(struct drm_device *dev, struct drm_file *priv)
+static void psb_driver_preclose(struct drm_device *dev, struct drm_file *priv)
 {
 }
 
