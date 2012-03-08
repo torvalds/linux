@@ -115,7 +115,7 @@ static void oaktrail_clock(int refclk, struct oaktrail_clock_t *clock)
 	clock->dot = (refclk * clock->m) / (14 * clock->p1);
 }
 
-void mrstPrintPll(char *prefix, struct oaktrail_clock_t *clock)
+static void mrstPrintPll(char *prefix, struct oaktrail_clock_t *clock)
 {
 	pr_debug("%s: dotclock = %d,  m = %d, p1 = %d.\n",
 	     prefix, clock->dot, clock->m, clock->p1);
@@ -514,7 +514,7 @@ static bool oaktrail_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
-int oaktrail_pipe_set_base(struct drm_crtc *crtc,
+static int oaktrail_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
