@@ -344,7 +344,7 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 /*
  * Returns whether any encoder on the specified pipe is of the specified type
  */
-bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
+static bool cdv_intel_pipe_has_type(struct drm_crtc *crtc, int type)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
@@ -476,7 +476,7 @@ static bool cdv_intel_find_best_PLL(struct drm_crtc *crtc, int target,
 	return err != target;
 }
 
-int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
+static int cdv_intel_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
@@ -904,7 +904,7 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 }
 
 /** Loads the palette/gamma unit for the CRTC with the prepared values */
-void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
+static void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_psb_private *dev_priv =
