@@ -48,6 +48,7 @@ config SOC_IMX21
 config SOC_IMX25
 	bool
 	select ARCH_MX25
+	select COMMON_CLK
 	select CPU_ARM926T
 	select ARCH_MXC_IOMUX_V3
 	select MXC_AVIC
