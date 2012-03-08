@@ -84,7 +84,7 @@ EXPORT_SYMBOL_GPL(nf_ct_deliver_cached_events);
 int nf_conntrack_register_notifier(struct net *net,
 				   struct nf_ct_event_notifier *new)
 {
-	int ret = 0;
+	int ret;
 	struct nf_ct_event_notifier *notify;
 
 	mutex_lock(&nf_ct_ecache_mutex);
@@ -95,8 +95,7 @@ int nf_conntrack_register_notifier(struct net *net,
 		goto out_unlock;
 	}
 	rcu_assign_pointer(net->ct.nf_conntrack_event_cb, new);
-	mutex_unlock(&nf_ct_ecache_mutex);
-	return ret;
+	ret = 0;
 
 out_unlock:
 	mutex_unlock(&nf_ct_ecache_mutex);
@@ -121,7 +120,7 @@ EXPORT_SYMBOL_GPL(nf_conntrack_unregister_notifier);
 int nf_ct_expect_register_notifier(struct net *net,
 				   struct nf_exp_event_notifier *new)
 {
-	int ret = 0;
+	int ret;
 	struct nf_exp_event_notifier *notify;
 
 	mutex_lock(&nf_ct_ecache_mutex);
@@ -132,8 +131,7 @@ int nf_ct_expect_register_notifier(struct net *net,
 		goto out_unlock;
 	}
 	rcu_assign_pointer(net->ct.nf_expect_event_cb, new);
-	mutex_unlock(&nf_ct_ecache_mutex);
-	return ret;
+	ret = 0;
 
 out_unlock:
 	mutex_unlock(&nf_ct_ecache_mutex);
