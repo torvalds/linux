@@ -40,14 +40,33 @@
 #include <linux/tty_flip.h>
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
-#include <asm/uaccess.h>
 #include <linux/errno.h>
-#include "metro-usb.h"
 #include <linux/usb/serial.h>
+#include <asm/uaccess.h>
 
 /* Version Information */
 #define DRIVER_VERSION "v1.2.0.0"
 #define DRIVER_DESC "Metrologic Instruments Inc. - USB-POS driver"
+
+/* Product information. */
+#define FOCUS_VENDOR_ID			0x0C2E
+#define FOCUS_PRODUCT_ID		0x0720
+#define FOCUS_PRODUCT_ID_UNI		0x0710
+
+#define METROUSB_SET_REQUEST_TYPE	0x40
+#define METROUSB_SET_MODEM_CTRL_REQUEST	10
+#define METROUSB_SET_BREAK_REQUEST	0x40
+#define METROUSB_MCR_NONE		0x08	/* Deactivate DTR and RTS. */
+#define METROUSB_MCR_RTS		0x0a	/* Activate RTS. */
+#define METROUSB_MCR_DTR		0x09	/* Activate DTR. */
+#define WDR_TIMEOUT			5000 	/* default urb timeout. */
+
+/* Private data structure. */
+struct metrousb_private {
+	spinlock_t lock;
+	int throttled;
+	unsigned long control_state;
+};
 
 /* Device table list. */
 static struct usb_device_id id_table [] = {
