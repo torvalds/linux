@@ -88,27 +88,27 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
  * Standard IOCTLs.
  */
 
-#define DRM_IOCTL_PSB_ADB	\
+#define DRM_IOCTL_GMA_ADB	\
 		DRM_IOWR(DRM_GMA_ADB + DRM_COMMAND_BASE, uint32_t)
-#define DRM_IOCTL_PSB_MODE_OPERATION	\
+#define DRM_IOCTL_GMA_MODE_OPERATION	\
 		DRM_IOWR(DRM_GMA_MODE_OPERATION + DRM_COMMAND_BASE, \
 			 struct drm_psb_mode_operation_arg)
-#define DRM_IOCTL_PSB_STOLEN_MEMORY	\
+#define DRM_IOCTL_GMA_STOLEN_MEMORY	\
 		DRM_IOWR(DRM_GMA_STOLEN_MEMORY + DRM_COMMAND_BASE, \
 			 struct drm_psb_stolen_memory_arg)
-#define DRM_IOCTL_PSB_GAMMA	\
+#define DRM_IOCTL_GMA_GAMMA	\
 		DRM_IOWR(DRM_GMA_GAMMA + DRM_COMMAND_BASE, \
 			 struct drm_psb_dpst_lut_arg)
-#define DRM_IOCTL_PSB_DPST_BL	\
+#define DRM_IOCTL_GMA_DPST_BL	\
 		DRM_IOWR(DRM_GMA_DPST_BL + DRM_COMMAND_BASE, \
 			 uint32_t)
-#define DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID	\
+#define DRM_IOCTL_GMA_GET_PIPE_FROM_CRTC_ID	\
 		DRM_IOWR(DRM_GMA_GET_PIPE_FROM_CRTC_ID + DRM_COMMAND_BASE, \
 			 struct drm_psb_get_pipe_from_crtc_id_arg)
-#define DRM_IOCTL_PSB_GEM_CREATE	\
+#define DRM_IOCTL_GMA_GEM_CREATE	\
 		DRM_IOWR(DRM_GMA_GEM_CREATE + DRM_COMMAND_BASE, \
 			 struct drm_psb_gem_create)
-#define DRM_IOCTL_PSB_GEM_MMAP	\
+#define DRM_IOCTL_GMA_GEM_MMAP	\
 		DRM_IOWR(DRM_GMA_GEM_MMAP + DRM_COMMAND_BASE, \
 			 struct drm_psb_gem_mmap)
 
@@ -123,22 +123,19 @@ static int psb_gamma_ioctl(struct drm_device *dev, void *data,
 static int psb_dpst_bl_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 
-#define PSB_IOCTL_DEF(ioctl, func, flags) \
-	[DRM_IOCTL_NR(ioctl) - DRM_COMMAND_BASE] = {ioctl, flags, func}
-
 static struct drm_ioctl_desc psb_ioctls[] = {
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_ADB, psb_adb_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_MODE_OPERATION, psb_mode_operation_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_ADB, psb_adb_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(GMA_MODE_OPERATION, psb_mode_operation_ioctl,
 		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_STOLEN_MEMORY, psb_stolen_memory_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_STOLEN_MEMORY, psb_stolen_memory_ioctl,
 		      DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GAMMA, psb_gamma_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GET_PIPE_FROM_CRTC_ID,
+	DRM_IOCTL_DEF_DRV(GMA_GAMMA, psb_gamma_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(GMA_DPST_BL, psb_dpst_bl_ioctl, DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(GMA_GET_PIPE_FROM_CRTC_ID,
 					psb_intel_get_pipe_from_crtc_id, 0),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GEM_CREATE, psb_gem_create_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_GEM_CREATE, psb_gem_create_ioctl,
 						DRM_UNLOCKED | DRM_AUTH),
-	PSB_IOCTL_DEF(DRM_IOCTL_PSB_GEM_MMAP, psb_gem_mmap_ioctl,
+	DRM_IOCTL_DEF_DRV(GMA_GEM_MMAP, psb_gem_mmap_ioctl,
 						DRM_UNLOCKED | DRM_AUTH),
 };
 
