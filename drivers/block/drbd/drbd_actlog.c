@@ -1243,6 +1243,7 @@ int drbd_rs_del_all(struct drbd_conf *mdev)
 		put_ldev(mdev);
 	}
 	spin_unlock_irq(&mdev->al_lock);
+	wake_up(&mdev->al_wait);
 
 	return 0;
 }
