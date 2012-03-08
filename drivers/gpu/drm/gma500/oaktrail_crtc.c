@@ -169,7 +169,6 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int dspbase_reg = (pipe == 0) ? MRST_DSPABASE : DSPBBASE;
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	u32 temp;
-	bool enabled;
 
 	if (!gma_power_begin(dev, true))
 		return;
@@ -253,8 +252,6 @@ static void oaktrail_crtc_dpms(struct drm_crtc *crtc, int mode)
 		break;
 	}
 
-	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
-
 	/*Set FIFO Watermarks*/
 	REG_WRITE(DSPARB, 0x3FFF);
 	REG_WRITE(DSPFW1, 0x3F88080A);
@@ -310,7 +307,7 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 	struct oaktrail_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
 	bool ok, is_sdvo = false;
-	bool is_crt = false, is_lvds = false, is_tv = false;
+	bool is_lvds = false;
 	bool is_mipi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct psb_intel_encoder *psb_intel_encoder = NULL;
@@ -339,12 +336,6 @@ static int oaktrail_crtc_mode_set(struct drm_crtc *crtc,
 			break;
 		case INTEL_OUTPUT_SDVO:
 			is_sdvo = true;
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			is_crt = true;
 			break;
 		case INTEL_OUTPUT_MIPI:
 			is_mipi = true;
