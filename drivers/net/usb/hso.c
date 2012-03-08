@@ -1632,7 +1632,7 @@ static int hso_get_count(struct tty_struct *tty,
 	struct hso_serial *serial = get_serial_by_tty(tty);
 	struct hso_tiocmget  *tiocmget = serial->tiocmget;
 
-	memset(&icount, 0, sizeof(struct serial_icounter_struct));
+	memset(icount, 0, sizeof(struct serial_icounter_struct));
 
 	if (!tiocmget)
 		 return -ENOENT;

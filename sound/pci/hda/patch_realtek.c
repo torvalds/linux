@@ -802,7 +802,7 @@ static int alc_automute_mode_info(struct snd_kcontrol *kcontrol,
 		"Disabled", "Enabled"
 	};
 	static const char * const texts3[] = {
-		"Disabled", "Speaker Only", "Line-Out+Speaker"
+		"Disabled", "Speaker Only", "Line Out+Speaker"
 	};
 	const char * const *texts;
 
@@ -1856,7 +1856,7 @@ static const char * const alc_slave_vols[] = {
 	"Headphone Playback Volume",
 	"Speaker Playback Volume",
 	"Mono Playback Volume",
-	"Line-Out Playback Volume",
+	"Line Out Playback Volume",
 	"CLFE Playback Volume",
 	"Bass Speaker Playback Volume",
 	"PCM Playback Volume",
@@ -1873,7 +1873,7 @@ static const char * const alc_slave_sws[] = {
 	"Speaker Playback Switch",
 	"Mono Playback Switch",
 	"IEC958 Playback Switch",
-	"Line-Out Playback Switch",
+	"Line Out Playback Switch",
 	"CLFE Playback Switch",
 	"Bass Speaker Playback Switch",
 	"PCM Playback Switch",
@@ -3797,7 +3797,7 @@ static void alc_auto_init_input_src(struct hda_codec *codec)
 	else
 		nums = spec->num_adc_nids;
 	for (c = 0; c < nums; c++)
-		alc_mux_select(codec, 0, spec->cur_mux[c], true);
+		alc_mux_select(codec, c, spec->cur_mux[c], true);
 }
 
 /* add mic boosts if needed */
