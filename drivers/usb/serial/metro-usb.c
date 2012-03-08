@@ -56,17 +56,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 /* Input parameter constants. */
 static bool debug;
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Read the port from the read interrupt.
-
-  Input:
-	struct urb *: urb structure to get data.
-	struct pt_regs *: pt_regs structure.
-
-  Output:
-	None:
-*/
 static void metrousb_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
@@ -144,16 +133,6 @@ exit:
 	}
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Clean up any urbs and port information.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
 static void metrousb_cleanup(struct usb_serial_port *port)
 {
 	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
@@ -167,17 +146,6 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 	}
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Open the drivers serial port.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-	struct file *: pointer to a file structure.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
 static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
@@ -229,17 +197,6 @@ exit:
 	return result;
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Set the modem control state for the entered serial port.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-	unsigned int: control state value to set.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
 static int metrousb_set_modem_ctrl(struct usb_serial *serial, unsigned int control_state)
 {
 	int retval = 0;
@@ -263,17 +220,6 @@ static int metrousb_set_modem_ctrl(struct usb_serial *serial, unsigned int contr
 	return retval;
 }
 
-
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Shutdown the driver.
-
-  Input:
-	struct usb_serial *: pointer to a usb-serial structure.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
 static void metrousb_shutdown(struct usb_serial *serial)
 {
 	int i = 0;
@@ -293,16 +239,6 @@ static void metrousb_shutdown(struct usb_serial *serial)
 	}
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Startup the driver.
-
-  Input:
-	struct usb_serial *: pointer to a usb-serial structure.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
 static int metrousb_startup(struct usb_serial *serial)
 {
 	struct metrousb_private *metro_priv;
@@ -334,16 +270,6 @@ static int metrousb_startup(struct usb_serial *serial)
 	return 0;
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Set the serial port throttle to stop reading from the port.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-
-  Output:
-	None:
-*/
 static void metrousb_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -358,17 +284,6 @@ static void metrousb_throttle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&metro_priv->lock, flags);
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Get the serial port control line states.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-	struct file *: pointer to a file structure.
-
-  Output:
-	int: Returns the state of the control lines.
-*/
 static int metrousb_tiocmget(struct tty_struct *tty)
 {
 	unsigned long control_state = 0;
@@ -385,19 +300,6 @@ static int metrousb_tiocmget(struct tty_struct *tty)
 	return control_state;
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Set the serial port control line states.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-	struct file *: pointer to a file structure.
-	unsigned int: line state to set.
-	unsigned int: line state to clear.
-
-  Output:
-	int: Returns the state of the control lines.
-*/
 static int metrousb_tiocmset(struct tty_struct *tty,
 			     unsigned int set, unsigned int clear)
 {
@@ -427,16 +329,6 @@ static int metrousb_tiocmset(struct tty_struct *tty,
 	return metrousb_set_modem_ctrl(serial, control_state);
 }
 
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Set the serial port unthrottle to resume reading from the port.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-
-  Output:
-	None:
-*/
 static void metrousb_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
@@ -460,7 +352,6 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 	}
 }
 
-/* Driver structure. */
 static struct usb_driver metrousb_driver = {
 	.name =		"metro-usb",
 	.probe =	usb_serial_probe,
@@ -468,7 +359,6 @@ static struct usb_driver metrousb_driver = {
 	.id_table =	id_table
 };
 
-/* Device structure. */
 static struct usb_serial_driver metrousb_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
