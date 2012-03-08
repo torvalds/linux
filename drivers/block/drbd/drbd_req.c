@@ -1106,7 +1106,6 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
 	 */
 	D_ASSERT(bio->bi_size > 0);
 	D_ASSERT((bio->bi_size & 0x1ff) == 0);
-	D_ASSERT(bio->bi_idx == 0);
 
 	/* to make some things easier, force alignment of requests within the
 	 * granularity of our hash tables */

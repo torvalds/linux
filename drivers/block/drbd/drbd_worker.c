@@ -308,7 +308,7 @@ void drbd_csum_bio(struct drbd_conf *mdev, struct crypto_hash *tfm, struct bio *
 	sg_init_table(&sg, 1);
 	crypto_hash_init(&desc);
 
-	__bio_for_each_segment(bvec, bio, i, 0) {
+	bio_for_each_segment(bvec, bio, i) {
 		sg_set_page(&sg, bvec->bv_page, bvec->bv_len, bvec->bv_offset);
 		crypto_hash_update(&desc, &sg, sg.length);
 	}
