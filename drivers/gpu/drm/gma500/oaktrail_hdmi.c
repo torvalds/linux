@@ -365,7 +365,7 @@ failed_connector:
 
 static DEFINE_PCI_DEVICE_TABLE(hdmi_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080d) },
-	{}
+	{ 0 }
 };
 
 void oaktrail_hdmi_setup(struct drm_device *dev)
