@@ -451,27 +451,13 @@ void blkiocg_update_io_merged_stats(struct blkio_group *blkg,
 				    bool direction, bool sync)
 {
 	struct blkg_policy_data *pd = blkg->pd[pol->plid];
-	struct blkio_group_stats_cpu *stats_cpu;
+	struct blkio_group_stats *stats;
 	unsigned long flags;
 
-	/* If per cpu stats are not allocated yet, don't do any accounting. */
-	if (pd->stats_cpu == NULL)
-		return;
-
-	/*
-	 * Disabling interrupts to provide mutual exclusion between two
-	 * writes on same cpu. It probably is not needed for 64bit. Not
-	 * optimizing that case yet.
-	 */
-	local_irq_save(flags);
-
-	stats_cpu = this_cpu_ptr(pd->stats_cpu);
-
-	u64_stats_update_begin(&stats_cpu->syncp);
-	blkio_add_stat(stats_cpu->stat_arr_cpu[BLKIO_STAT_CPU_MERGED], 1,
-				direction, sync);
-	u64_stats_update_end(&stats_cpu->syncp);
-	local_irq_restore(flags);
+	spin_lock_irqsave(&blkg->stats_lock, flags);
+	stats = &pd->stats;
+	blkio_add_stat(stats->stat_arr[BLKIO_STAT_MERGED], 1, direction, sync);
+	spin_unlock_irqrestore(&blkg->stats_lock, flags);
 }
 EXPORT_SYMBOL_GPL(blkiocg_update_io_merged_stats);
 
@@ -1342,7 +1328,7 @@ static int blkiocg_file_read_map(struct cgroup *cgrp, struct cftype *cft,
 						BLKIO_STAT_WAIT_TIME, 1, 0);
 		case BLKIO_PROP_io_merged:
 			return blkio_read_blkg_stats(blkcg, cft, cb,
-						BLKIO_STAT_CPU_MERGED, 1, 1);
+						BLKIO_STAT_MERGED, 1, 0);
 		case BLKIO_PROP_io_queued:
 			return blkio_read_blkg_stats(blkcg, cft, cb,
 						BLKIO_STAT_QUEUED, 1, 0);

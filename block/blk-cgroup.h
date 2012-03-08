@@ -29,10 +29,12 @@ enum blkio_policy_id {
 #ifdef CONFIG_BLK_CGROUP
 
 enum stat_type {
+	/* Number of IOs merged */
+	BLKIO_STAT_MERGED,
 	/* Total time spent (in ns) between request dispatch to the driver and
 	 * request completion for IOs doen by this cgroup. This may not be
 	 * accurate when NCQ is turned on. */
-	BLKIO_STAT_SERVICE_TIME = 0,
+	BLKIO_STAT_SERVICE_TIME,
 	/* Total time spent waiting in scheduler queue in ns */
 	BLKIO_STAT_WAIT_TIME,
 	/* Number of IOs queued up */
@@ -57,8 +59,6 @@ enum stat_type_cpu {
 	BLKIO_STAT_CPU_SERVICE_BYTES,
 	/* Total IOs serviced, post merge */
 	BLKIO_STAT_CPU_SERVICED,
-	/* Number of IOs merged */
-	BLKIO_STAT_CPU_MERGED,
 	BLKIO_STAT_CPU_NR
 };
 
