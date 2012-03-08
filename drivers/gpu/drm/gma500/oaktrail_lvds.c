@@ -331,7 +331,6 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	struct drm_encoder *encoder;
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct edid *edid;
-	int ret = 0;
 	struct i2c_adapter *i2c_adap;
 	struct drm_display_mode *scan;	/* *modes, *bios_mode; */
 
@@ -400,7 +399,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 		if (edid) {
 			drm_mode_connector_update_edid_property(connector,
 									edid);
-			ret = drm_add_edid_modes(connector, edid);
+			drm_add_edid_modes(connector, edid);
 			kfree(edid);
 		}
 
