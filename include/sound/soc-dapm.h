@@ -487,7 +487,7 @@ struct snd_soc_dapm_widget {
 	struct regulator *regulator;		/* attached regulator */
 
 	/* dapm control */
-	short reg;						/* negative reg = no direct dapm */
+	int reg;				/* negative reg = no direct dapm */
 	unsigned char shift;			/* bits to shift */
 	unsigned int saved_value;		/* widget saved value */
 	unsigned int value;				/* widget current value */
