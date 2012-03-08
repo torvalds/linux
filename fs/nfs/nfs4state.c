@@ -886,28 +886,49 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
 	return 0;
 }
 
-/*
- * Byte-range lock aware utility to initialize the stateid of read/write
- * requests.
- */
-void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t fl_owner, pid_t fl_pid)
+static bool nfs4_copy_lock_stateid(nfs4_stateid *dst, struct nfs4_state *state,
+		fl_owner_t fl_owner, pid_t fl_pid)
 {
 	struct nfs4_lock_state *lsp;
+	bool ret = false;
+
+	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
+		goto out;
+
+	spin_lock(&state->state_lock);
+	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
+	if (lsp != NULL && (lsp->ls_flags & NFS_LOCK_INITIALIZED) != 0) {
+		nfs4_stateid_copy(dst, &lsp->ls_stateid);
+		ret = true;
+	}
+	spin_unlock(&state->state_lock);
+	nfs4_put_lock_state(lsp);
+out:
+	return ret;
+}
+
+static void nfs4_copy_open_stateid(nfs4_stateid *dst, struct nfs4_state *state)
+{
 	int seq;
 
 	do {
 		seq = read_seqbegin(&state->seqlock);
 		nfs4_stateid_copy(dst, &state->stateid);
 	} while (read_seqretry(&state->seqlock, seq));
-	if (test_bit(LK_STATE_IN_USE, &state->flags) == 0)
-		return;
+}
 
-	spin_lock(&state->state_lock);
-	lsp = __nfs4_find_lock_state(state, fl_owner, fl_pid, NFS4_ANY_LOCK_TYPE);
-	if (lsp != NULL && (lsp->ls_flags & NFS_LOCK_INITIALIZED) != 0)
-		nfs4_stateid_copy(dst, &lsp->ls_stateid);
-	spin_unlock(&state->state_lock);
-	nfs4_put_lock_state(lsp);
+/*
+ * Byte-range lock aware utility to initialize the stateid of read/write
+ * requests.
+ */
+void nfs4_select_rw_stateid(nfs4_stateid *dst, struct nfs4_state *state,
+		fmode_t fmode, fl_owner_t fl_owner, pid_t fl_pid)
+{
+	if (nfs4_copy_delegation_stateid(dst, state->inode, fmode))
+		return;
+	if (nfs4_copy_lock_stateid(dst, state, fl_owner, fl_pid))
+		return;
+	nfs4_copy_open_stateid(dst, state);
 }
 
 struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_mask)
