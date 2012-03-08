@@ -276,6 +276,123 @@ struct intel_gmbus {
 	u32 reg0;
 };
 
+/*
+ *	Register save state. This is used to hold the context when the
+ *	device is powered off. In the case of Oaktrail this can (but does not
+ *	yet) include screen blank. Operations occuring during the save
+ *	update the register cache instead.
+ */
+struct psb_state {
+	uint32_t saveDSPACNTR;
+	uint32_t saveDSPBCNTR;
+	uint32_t savePIPEACONF;
+	uint32_t savePIPEBCONF;
+	uint32_t savePIPEASRC;
+	uint32_t savePIPEBSRC;
+	uint32_t saveFPA0;
+	uint32_t saveFPA1;
+	uint32_t saveDPLL_A;
+	uint32_t saveDPLL_A_MD;
+	uint32_t saveHTOTAL_A;
+	uint32_t saveHBLANK_A;
+	uint32_t saveHSYNC_A;
+	uint32_t saveVTOTAL_A;
+	uint32_t saveVBLANK_A;
+	uint32_t saveVSYNC_A;
+	uint32_t saveDSPASTRIDE;
+	uint32_t saveDSPASIZE;
+	uint32_t saveDSPAPOS;
+	uint32_t saveDSPABASE;
+	uint32_t saveDSPASURF;
+	uint32_t saveDSPASTATUS;
+	uint32_t saveFPB0;
+	uint32_t saveFPB1;
+	uint32_t saveDPLL_B;
+	uint32_t saveDPLL_B_MD;
+	uint32_t saveHTOTAL_B;
+	uint32_t saveHBLANK_B;
+	uint32_t saveHSYNC_B;
+	uint32_t saveVTOTAL_B;
+	uint32_t saveVBLANK_B;
+	uint32_t saveVSYNC_B;
+	uint32_t saveDSPBSTRIDE;
+	uint32_t saveDSPBSIZE;
+	uint32_t saveDSPBPOS;
+	uint32_t saveDSPBBASE;
+	uint32_t saveDSPBSURF;
+	uint32_t saveDSPBSTATUS;
+	uint32_t saveVCLK_DIVISOR_VGA0;
+	uint32_t saveVCLK_DIVISOR_VGA1;
+	uint32_t saveVCLK_POST_DIV;
+	uint32_t saveVGACNTRL;
+	uint32_t saveADPA;
+	uint32_t saveLVDS;
+	uint32_t saveDVOA;
+	uint32_t saveDVOB;
+	uint32_t saveDVOC;
+	uint32_t savePP_ON;
+	uint32_t savePP_OFF;
+	uint32_t savePP_CONTROL;
+	uint32_t savePP_CYCLE;
+	uint32_t savePFIT_CONTROL;
+	uint32_t savePaletteA[256];
+	uint32_t savePaletteB[256];
+	uint32_t saveBLC_PWM_CTL2;
+	uint32_t saveBLC_PWM_CTL;
+	uint32_t saveCLOCKGATING;
+	uint32_t saveDSPARB;
+	uint32_t saveDSPATILEOFF;
+	uint32_t saveDSPBTILEOFF;
+	uint32_t saveDSPAADDR;
+	uint32_t saveDSPBADDR;
+	uint32_t savePFIT_AUTO_RATIOS;
+	uint32_t savePFIT_PGM_RATIOS;
+	uint32_t savePP_ON_DELAYS;
+	uint32_t savePP_OFF_DELAYS;
+	uint32_t savePP_DIVISOR;
+	uint32_t saveBSM;
+	uint32_t saveVBT;
+	uint32_t saveBCLRPAT_A;
+	uint32_t saveBCLRPAT_B;
+	uint32_t saveDSPALINOFF;
+	uint32_t saveDSPBLINOFF;
+	uint32_t savePERF_MODE;
+	uint32_t saveDSPFW1;
+	uint32_t saveDSPFW2;
+	uint32_t saveDSPFW3;
+	uint32_t saveDSPFW4;
+	uint32_t saveDSPFW5;
+	uint32_t saveDSPFW6;
+	uint32_t saveCHICKENBIT;
+	uint32_t saveDSPACURSOR_CTRL;
+	uint32_t saveDSPBCURSOR_CTRL;
+	uint32_t saveDSPACURSOR_BASE;
+	uint32_t saveDSPBCURSOR_BASE;
+	uint32_t saveDSPACURSOR_POS;
+	uint32_t saveDSPBCURSOR_POS;
+	uint32_t save_palette_a[256];
+	uint32_t save_palette_b[256];
+	uint32_t saveOV_OVADD;
+	uint32_t saveOV_OGAMC0;
+	uint32_t saveOV_OGAMC1;
+	uint32_t saveOV_OGAMC2;
+	uint32_t saveOV_OGAMC3;
+	uint32_t saveOV_OGAMC4;
+	uint32_t saveOV_OGAMC5;
+	uint32_t saveOVC_OVADD;
+	uint32_t saveOVC_OGAMC0;
+	uint32_t saveOVC_OGAMC1;
+	uint32_t saveOVC_OGAMC2;
+	uint32_t saveOVC_OGAMC3;
+	uint32_t saveOVC_OGAMC4;
+	uint32_t saveOVC_OGAMC5;
+
+	/* DPST register save */
+	uint32_t saveHISTOGRAM_INT_CONTROL_REG;
+	uint32_t saveHISTOGRAM_LOGIC_CONTROL_REG;
+	uint32_t savePWM_CONTROL_LOGIC;
+};
+
 struct psb_ops;
 
 #define PSB_NUM_PIPE		3
@@ -403,118 +520,11 @@ struct drm_psb_private {
 	/*
 	 * Register state
 	 */
-	uint32_t saveDSPACNTR;
-	uint32_t saveDSPBCNTR;
-	uint32_t savePIPEACONF;
-	uint32_t savePIPEBCONF;
-	uint32_t savePIPEASRC;
-	uint32_t savePIPEBSRC;
-	uint32_t saveFPA0;
-	uint32_t saveFPA1;
-	uint32_t saveDPLL_A;
-	uint32_t saveDPLL_A_MD;
-	uint32_t saveHTOTAL_A;
-	uint32_t saveHBLANK_A;
-	uint32_t saveHSYNC_A;
-	uint32_t saveVTOTAL_A;
-	uint32_t saveVBLANK_A;
-	uint32_t saveVSYNC_A;
-	uint32_t saveDSPASTRIDE;
-	uint32_t saveDSPASIZE;
-	uint32_t saveDSPAPOS;
-	uint32_t saveDSPABASE;
-	uint32_t saveDSPASURF;
-	uint32_t saveDSPASTATUS;
-	uint32_t saveFPB0;
-	uint32_t saveFPB1;
-	uint32_t saveDPLL_B;
-	uint32_t saveDPLL_B_MD;
-	uint32_t saveHTOTAL_B;
-	uint32_t saveHBLANK_B;
-	uint32_t saveHSYNC_B;
-	uint32_t saveVTOTAL_B;
-	uint32_t saveVBLANK_B;
-	uint32_t saveVSYNC_B;
-	uint32_t saveDSPBSTRIDE;
-	uint32_t saveDSPBSIZE;
-	uint32_t saveDSPBPOS;
-	uint32_t saveDSPBBASE;
-	uint32_t saveDSPBSURF;
-	uint32_t saveDSPBSTATUS;
-	uint32_t saveVCLK_DIVISOR_VGA0;
-	uint32_t saveVCLK_DIVISOR_VGA1;
-	uint32_t saveVCLK_POST_DIV;
-	uint32_t saveVGACNTRL;
-	uint32_t saveADPA;
-	uint32_t saveLVDS;
-	uint32_t saveDVOA;
-	uint32_t saveDVOB;
-	uint32_t saveDVOC;
-	uint32_t savePP_ON;
-	uint32_t savePP_OFF;
-	uint32_t savePP_CONTROL;
-	uint32_t savePP_CYCLE;
-	uint32_t savePFIT_CONTROL;
-	uint32_t savePaletteA[256];
-	uint32_t savePaletteB[256];
-	uint32_t saveBLC_PWM_CTL2;
-	uint32_t saveBLC_PWM_CTL;
-	uint32_t saveCLOCKGATING;
-	uint32_t saveDSPARB;
-	uint32_t saveDSPATILEOFF;
-	uint32_t saveDSPBTILEOFF;
-	uint32_t saveDSPAADDR;
-	uint32_t saveDSPBADDR;
-	uint32_t savePFIT_AUTO_RATIOS;
-	uint32_t savePFIT_PGM_RATIOS;
-	uint32_t savePP_ON_DELAYS;
-	uint32_t savePP_OFF_DELAYS;
-	uint32_t savePP_DIVISOR;
-	uint32_t saveBSM;
-	uint32_t saveVBT;
-	uint32_t saveBCLRPAT_A;
-	uint32_t saveBCLRPAT_B;
-	uint32_t saveDSPALINOFF;
-	uint32_t saveDSPBLINOFF;
-	uint32_t savePERF_MODE;
-	uint32_t saveDSPFW1;
-	uint32_t saveDSPFW2;
-	uint32_t saveDSPFW3;
-	uint32_t saveDSPFW4;
-	uint32_t saveDSPFW5;
-	uint32_t saveDSPFW6;
-	uint32_t saveCHICKENBIT;
-	uint32_t saveDSPACURSOR_CTRL;
-	uint32_t saveDSPBCURSOR_CTRL;
-	uint32_t saveDSPACURSOR_BASE;
-	uint32_t saveDSPBCURSOR_BASE;
-	uint32_t saveDSPACURSOR_POS;
-	uint32_t saveDSPBCURSOR_POS;
-	uint32_t save_palette_a[256];
-	uint32_t save_palette_b[256];
-	uint32_t saveOV_OVADD;
-	uint32_t saveOV_OGAMC0;
-	uint32_t saveOV_OGAMC1;
-	uint32_t saveOV_OGAMC2;
-	uint32_t saveOV_OGAMC3;
-	uint32_t saveOV_OGAMC4;
-	uint32_t saveOV_OGAMC5;
-	uint32_t saveOVC_OVADD;
-	uint32_t saveOVC_OGAMC0;
-	uint32_t saveOVC_OGAMC1;
-	uint32_t saveOVC_OGAMC2;
-	uint32_t saveOVC_OGAMC3;
-	uint32_t saveOVC_OGAMC4;
-	uint32_t saveOVC_OGAMC5;
-
+        struct psb_state regs;
 	/* MSI reg save */
 	uint32_t msi_addr;
 	uint32_t msi_data;
 
-	/* DPST register save */
-	uint32_t saveHISTOGRAM_INT_CONTROL_REG;
-	uint32_t saveHISTOGRAM_LOGIC_CONTROL_REG;
-	uint32_t savePWM_CONTROL_LOGIC;
 
 	/*
 	 * LID-Switch

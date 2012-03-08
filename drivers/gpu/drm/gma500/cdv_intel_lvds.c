@@ -78,7 +78,7 @@ static u32 cdv_intel_lvds_get_max_backlight(struct drm_device *dev)
 
 		gma_power_end(dev);
 	} else
-		retval = ((dev_priv->saveBLC_PWM_CTL &
+		retval = ((dev_priv->regs.saveBLC_PWM_CTL &
 			  BACKLIGHT_MODULATION_FREQ_MASK) >>
 			  BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
 
@@ -184,9 +184,9 @@ static void cdv_intel_lvds_set_backlight(struct drm_device *dev, int level)
 				(level << BACKLIGHT_DUTY_CYCLE_SHIFT)));
 		gma_power_end(dev);
 	} else {
-		blc_pwm_ctl = dev_priv->saveBLC_PWM_CTL &
+		blc_pwm_ctl = dev_priv->regs.saveBLC_PWM_CTL &
 				~BACKLIGHT_DUTY_CYCLE_MASK;
-		dev_priv->saveBLC_PWM_CTL = (blc_pwm_ctl |
+		dev_priv->regs.saveBLC_PWM_CTL = (blc_pwm_ctl |
 					(level << BACKLIGHT_DUTY_CYCLE_SHIFT));
 	}
 }

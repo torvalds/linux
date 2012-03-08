@@ -192,7 +192,7 @@ static u32 oaktrail_lvds_get_max_backlight(struct drm_device *dev)
 
 		gma_power_end(dev);
 	} else
-		ret = ((dev_priv->saveBLC_PWM_CTL &
+		ret = ((dev_priv->regs.saveBLC_PWM_CTL &
 			  BACKLIGHT_MODULATION_FREQ_MASK) >>
 			  BACKLIGHT_MODULATION_FREQ_SHIFT) * 2;
 
