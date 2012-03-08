@@ -879,13 +879,6 @@ enum bm_flag {
 	/* clear is not expected while bitmap is locked for bulk operation */
 };
 
-
-/* TODO sort members for performance
- * MAYBE group them further */
-
-/* THINK maybe we actually want to use the default "event/%s" worker threads
- * or similar in linux 2.6, which uses per cpu data and threads.
- */
 struct drbd_work_queue {
 	struct list_head q;
 	struct semaphore s; /* producers up it, worker down()s it */
