@@ -70,7 +70,7 @@ struct nouveau_mem;
 
 #define MAX_NUM_DCB_ENTRIES 16
 
-#define NOUVEAU_MAX_CHANNEL_NR 128
+#define NOUVEAU_MAX_CHANNEL_NR 4096
 #define NOUVEAU_MAX_TILE_NR 15
 
 struct nouveau_mem {
@@ -1259,6 +1259,14 @@ extern int  nvc0_fifo_create_context(struct nouveau_channel *);
 extern void nvc0_fifo_destroy_context(struct nouveau_channel *);
 extern int  nvc0_fifo_load_context(struct nouveau_channel *);
 extern int  nvc0_fifo_unload_context(struct drm_device *);
+
+/* nve0_fifo.c */
+extern int  nve0_fifo_init(struct drm_device *);
+extern void nve0_fifo_takedown(struct drm_device *);
+extern int  nve0_fifo_channel_id(struct drm_device *);
+extern int  nve0_fifo_create_context(struct nouveau_channel *);
+extern void nve0_fifo_destroy_context(struct nouveau_channel *);
+extern int  nve0_fifo_unload_context(struct drm_device *);
 
 /* nv04_graph.c */
 extern int  nv04_graph_create(struct drm_device *);
