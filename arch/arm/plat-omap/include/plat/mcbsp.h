@@ -31,18 +31,6 @@
 #define MCBSP_CONFIG_TYPE3	0x3
 #define MCBSP_CONFIG_TYPE4	0x4
 
-/* CLKR signal muxing options */
-#define CLKR_SRC_CLKR		0
-#define CLKR_SRC_CLKX		1
-
-/* FSR signal muxing options */
-#define FSR_SRC_FSR		0
-#define FSR_SRC_FSX		1
-
-/* McBSP functional clock sources */
-#define MCBSP_CLKS_PRCM_SRC	0
-#define MCBSP_CLKS_PAD_SRC	1
-
 /* Platform specific configuration */
 struct omap_mcbsp_ops {
 	void (*request)(unsigned int);

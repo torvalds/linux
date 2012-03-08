@@ -230,6 +230,18 @@ enum {
 #define XRDYEN			BIT(10)
 #define XEMPTYEOFEN		BIT(14)
 
+/* CLKR signal muxing options */
+#define CLKR_SRC_CLKR		0
+#define CLKR_SRC_CLKX		1
+
+/* FSR signal muxing options */
+#define FSR_SRC_FSR		0
+#define FSR_SRC_FSX		1
+
+/* McBSP functional clock sources */
+#define MCBSP_CLKS_PRCM_SRC	0
+#define MCBSP_CLKS_PAD_SRC	1
+
 /* we don't do multichannel for now */
 struct omap_mcbsp_reg_cfg {
 	u16 spcr2;
