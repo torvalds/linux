@@ -430,14 +430,13 @@ int mdfld_dsi_dpi_timing_calculation(struct drm_display_mode *mode,
 				int num_lane, int bpp)
 {
 	int pclk_hsync, pclk_hfp, pclk_hbp, pclk_hactive;
-	int pclk_vsync, pclk_vfp, pclk_vbp, pclk_vactive;
+	int pclk_vsync, pclk_vfp, pclk_vbp;
 
 	pclk_hactive = mode->hdisplay;
 	pclk_hfp = mode->hsync_start - mode->hdisplay;
 	pclk_hsync = mode->hsync_end - mode->hsync_start;
 	pclk_hbp = mode->htotal - mode->hsync_end;
 
-	pclk_vactive = mode->vdisplay;
 	pclk_vfp = mode->vsync_start - mode->vdisplay;
 	pclk_vsync = mode->vsync_end - mode->vsync_start;
 	pclk_vbp = mode->vtotal - mode->vsync_end;
@@ -641,10 +640,6 @@ static void mdfld_dsi_dpi_set_power(struct drm_encoder *encoder, bool on)
 	int pipe = mdfld_dsi_encoder_get_pipe(dsi_encoder);
 	struct drm_device *dev = dsi_config->dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	u32 pipeconf_reg = PIPEACONF;
-
-	if (pipe)
-		pipeconf_reg = PIPECCONF;
 
 	/*start up display island if it was shutdown*/
 	if (!gma_power_begin(dev, true))
@@ -942,7 +937,6 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 	struct mdfld_dsi_config *dsi_config;
 	struct drm_connector *connector = NULL;
 	struct drm_encoder *encoder = NULL;
-	struct drm_display_mode *fixed_mode = NULL;
 	int pipe;
 	u32 data;
 	int ret;
@@ -994,7 +988,6 @@ struct mdfld_dsi_encoder *mdfld_dsi_dpi_init(struct drm_device *dev,
 
 	/*get fixed mode*/
 	dsi_config = mdfld_dsi_get_config(dsi_connector);
-	fixed_mode = dsi_config->fixed_mode;
 
 	/*create drm encoder object*/
 	connector = &dsi_connector->base.base;
