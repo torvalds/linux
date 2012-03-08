@@ -829,11 +829,24 @@ static int omap_dsshw_remove(struct platform_device *pdev)
 static int dss_runtime_suspend(struct device *dev)
 {
 	dss_save_context();
+	dss_set_min_bus_tput(dev, 0);
 	return 0;
 }
 
 static int dss_runtime_resume(struct device *dev)
 {
+	int r;
+	/*
+	 * Set an arbitrarily high tput request to ensure OPP100.
+	 * What we should really do is to make a request to stay in OPP100,
+	 * without any tput requirements, but that is not currently possible
+	 * via the PM layer.
+	 */
+
+	r = dss_set_min_bus_tput(dev, 1000000000);
+	if (r)
+		return r;
+
 	dss_restore_context();
 	return 0;
 }

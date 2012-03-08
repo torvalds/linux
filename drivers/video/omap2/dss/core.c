@@ -87,6 +87,16 @@ struct regulator *dss_get_vdds_sdi(void)
 	return reg;
 }
 
+int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
+{
+	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;
+
+	if (pdata->set_min_bus_tput)
+		return pdata->set_min_bus_tput(dev, tput);
+	else
+		return 0;
+}
+
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 static int dss_debug_show(struct seq_file *s, void *unused)
 {

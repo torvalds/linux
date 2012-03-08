@@ -162,6 +162,7 @@ struct platform_device;
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
+int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
 
 /* apply */
 void dss_apply_init(void);
