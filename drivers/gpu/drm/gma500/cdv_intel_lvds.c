@@ -242,7 +242,7 @@ static void cdv_intel_lvds_restore(struct drm_connector *connector)
 {
 }
 
-int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
+static int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
 			      struct drm_display_mode *mode)
 {
 	struct drm_device *dev = connector->dev;
@@ -267,7 +267,7 @@ int cdv_intel_lvds_mode_valid(struct drm_connector *connector,
 	return MODE_OK;
 }
 
-bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
+static bool cdv_intel_lvds_mode_fixup(struct drm_encoder *encoder,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
@@ -436,7 +436,7 @@ static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
  * Unregister the DDC bus for this connector then free the driver private
  * structure.
  */
-void cdv_intel_lvds_destroy(struct drm_connector *connector)
+static void cdv_intel_lvds_destroy(struct drm_connector *connector)
 {
 	struct psb_intel_encoder *psb_intel_encoder =
 					psb_intel_attached_encoder(connector);
@@ -448,7 +448,7 @@ void cdv_intel_lvds_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
-int cdv_intel_lvds_set_property(struct drm_connector *connector,
+static int cdv_intel_lvds_set_property(struct drm_connector *connector,
 				       struct drm_property *property,
 				       uint64_t value)
 {
