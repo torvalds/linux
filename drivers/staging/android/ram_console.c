@@ -150,6 +150,9 @@ static int __init ram_console_late_init(void)
 	struct proc_dir_entry *entry;
 	struct persistent_ram_zone *prz = ram_console_zone;
 
+	if (!prz)
+		return 0;
+
 	if (persistent_ram_old_size(prz) == 0)
 		return 0;
 
