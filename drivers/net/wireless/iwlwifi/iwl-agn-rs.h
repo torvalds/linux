@@ -174,32 +174,6 @@ enum {
 	IWL_RATE_11M_IEEE = 22,
 };
 
-#define IWL_CCK_BASIC_RATES_MASK    \
-       (IWL_RATE_1M_MASK          | \
-	IWL_RATE_2M_MASK)
-
-#define IWL_CCK_RATES_MASK          \
-       (IWL_CCK_BASIC_RATES_MASK  | \
-	IWL_RATE_5M_MASK          | \
-	IWL_RATE_11M_MASK)
-
-#define IWL_OFDM_BASIC_RATES_MASK   \
-	(IWL_RATE_6M_MASK         | \
-	IWL_RATE_12M_MASK         | \
-	IWL_RATE_24M_MASK)
-
-#define IWL_OFDM_RATES_MASK         \
-       (IWL_OFDM_BASIC_RATES_MASK | \
-	IWL_RATE_9M_MASK          | \
-	IWL_RATE_18M_MASK         | \
-	IWL_RATE_36M_MASK         | \
-	IWL_RATE_48M_MASK         | \
-	IWL_RATE_54M_MASK)
-
-#define IWL_BASIC_RATES_MASK         \
-	(IWL_OFDM_BASIC_RATES_MASK | \
-	 IWL_CCK_BASIC_RATES_MASK)
-
 #define IWL_RATES_MASK ((1 << IWL_RATE_COUNT) - 1)
 
 #define IWL_INVALID_VALUE    -1
