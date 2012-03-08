@@ -333,7 +333,7 @@ void psb_intel_wait_for_vblank(struct drm_device *dev)
 	mdelay(20);
 }
 
-int psb_intel_pipe_set_base(struct drm_crtc *crtc,
+static int psb_intel_pipe_set_base(struct drm_crtc *crtc,
 			    int x, int y, struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
