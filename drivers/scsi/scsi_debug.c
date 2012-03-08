@@ -780,7 +780,7 @@ static int inquiry_evpd_b1(unsigned char *arr)
 /* Logical block provisioning VPD page (SBC-3) */
 static int inquiry_evpd_b2(unsigned char *arr)
 {
-	memset(arr, 0, 0x8);
+	memset(arr, 0, 0x4);
 	arr[0] = 0;			/* threshold exponent */
 
 	if (scsi_debug_lbpu)
@@ -795,7 +795,7 @@ static int inquiry_evpd_b2(unsigned char *arr)
 	if (scsi_debug_lbprz)
 		arr[1] |= 1 << 2;
 
-	return 0x8;
+	return 0x4;
 }
 
 #define SDEBUG_LONG_INQ_SZ 96
