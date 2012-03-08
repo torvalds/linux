@@ -646,7 +646,7 @@ static struct ieee80211_supported_band mwifiex_band_2ghz = {
 	.channels = mwifiex_channels_2ghz,
 	.n_channels = ARRAY_SIZE(mwifiex_channels_2ghz),
 	.bitrates = mwifiex_rates,
-	.n_bitrates = 14,
+	.n_bitrates = ARRAY_SIZE(mwifiex_rates),
 };
 
 static struct ieee80211_channel mwifiex_channels_5ghz[] = {
