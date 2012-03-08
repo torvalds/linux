@@ -177,7 +177,7 @@ static int psb_save_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	struct psb_state *regs = &dev_priv->regs;
+	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration control + watermarks */
 	regs->saveDSPARB = PSB_RVDC32(DSPARB);
@@ -214,7 +214,7 @@ static int psb_restore_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
-	struct psb_state *regs = &dev_priv->regs;
+	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration + watermarks */
 	PSB_WVDC32(regs->saveDSPARB, DSPARB);

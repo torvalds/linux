@@ -766,7 +766,7 @@ void oaktrail_hdmi_save(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct oaktrail_hdmi_dev *hdmi_dev = dev_priv->hdmi_priv;
-	struct psb_state *regs = &dev_priv->regs;
+	struct psb_state *regs = &dev_priv->regs.psb;
 	int i;
 
 	/* dpll */
@@ -818,7 +818,7 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct oaktrail_hdmi_dev *hdmi_dev = dev_priv->hdmi_priv;
-	struct psb_state *regs = &dev_priv->regs;
+	struct psb_state *regs = &dev_priv->regs.psb;
 	int i;
 
 	/* dpll */

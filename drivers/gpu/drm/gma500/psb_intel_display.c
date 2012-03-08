@@ -845,7 +845,7 @@ void psb_intel_crtc_load_lut(struct drm_crtc *crtc)
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
-			dev_priv->regs.save_palette_a[i] =
+			dev_priv->regs.psb.save_palette_a[i] =
 				  ((psb_intel_crtc->lut_r[i] +
 				  psb_intel_crtc->lut_adj[i]) << 16) |
 				  ((psb_intel_crtc->lut_g[i] +
@@ -1141,18 +1141,19 @@ static int psb_intel_crtc_clock_get(struct drm_device *dev,
 		gma_power_end(dev);
 	} else {
 		dpll = (pipe == 0) ?
-			dev_priv->regs.saveDPLL_A : dev_priv->regs.saveDPLL_B;
+			dev_priv->regs.psb.saveDPLL_A :
+			dev_priv->regs.psb.saveDPLL_B;
 
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
 			fp = (pipe == 0) ?
-				dev_priv->regs.saveFPA0 :
-				dev_priv->regs.saveFPB0;
+				dev_priv->regs.psb.saveFPA0 :
+				dev_priv->regs.psb.saveFPB0;
 		else
 			fp = (pipe == 0) ?
-				dev_priv->regs.saveFPA1 :
-				dev_priv->regs.saveFPB1;
+				dev_priv->regs.psb.saveFPA1 :
+				dev_priv->regs.psb.saveFPB1;
 
-		is_lvds = (pipe == 1) && (dev_priv->regs.saveLVDS &
+		is_lvds = (pipe == 1) && (dev_priv->regs.psb.saveLVDS &
 								LVDS_PORT_EN);
 	}
 
@@ -1219,17 +1220,17 @@ struct drm_display_mode *psb_intel_crtc_mode_get(struct drm_device *dev,
 		gma_power_end(dev);
 	} else {
 		htot = (pipe == 0) ?
-			dev_priv->regs.saveHTOTAL_A :
-			dev_priv->regs.saveHTOTAL_B;
+			dev_priv->regs.psb.saveHTOTAL_A :
+			dev_priv->regs.psb.saveHTOTAL_B;
 		hsync = (pipe == 0) ?
-			dev_priv->regs.saveHSYNC_A :
-			dev_priv->regs.saveHSYNC_B;
+			dev_priv->regs.psb.saveHSYNC_A :
+			dev_priv->regs.psb.saveHSYNC_B;
 		vtot = (pipe == 0) ?
-			dev_priv->regs.saveVTOTAL_A :
-			dev_priv->regs.saveVTOTAL_B;
+			dev_priv->regs.psb.saveVTOTAL_A :
+			dev_priv->regs.psb.saveVTOTAL_B;
 		vsync = (pipe == 0) ?
-			dev_priv->regs.saveVSYNC_A :
-			dev_priv->regs.saveVSYNC_B;
+			dev_priv->regs.psb.saveVSYNC_A :
+			dev_priv->regs.psb.saveVSYNC_B;
 	}
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);

@@ -337,8 +337,6 @@ struct psb_state {
 	uint32_t savePFIT_CONTROL;
 	uint32_t savePaletteA[256];
 	uint32_t savePaletteB[256];
-	uint32_t saveBLC_PWM_CTL2;
-	uint32_t saveBLC_PWM_CTL;
 	uint32_t saveCLOCKGATING;
 	uint32_t saveDSPARB;
 	uint32_t saveDSPATILEOFF;
@@ -350,8 +348,6 @@ struct psb_state {
 	uint32_t savePP_ON_DELAYS;
 	uint32_t savePP_OFF_DELAYS;
 	uint32_t savePP_DIVISOR;
-	uint32_t saveBSM;
-	uint32_t saveVBT;
 	uint32_t saveBCLRPAT_A;
 	uint32_t saveBCLRPAT_B;
 	uint32_t saveDSPALINOFF;
@@ -391,6 +387,16 @@ struct psb_state {
 	uint32_t saveHISTOGRAM_INT_CONTROL_REG;
 	uint32_t saveHISTOGRAM_LOGIC_CONTROL_REG;
 	uint32_t savePWM_CONTROL_LOGIC;
+};
+
+struct psb_save_area {
+	uint32_t saveBSM;
+	uint32_t saveVBT;
+	union {
+	        struct psb_state psb;
+	};
+	uint32_t saveBLC_PWM_CTL2;
+	uint32_t saveBLC_PWM_CTL;
 };
 
 struct psb_ops;
@@ -520,7 +526,9 @@ struct drm_psb_private {
 	/*
 	 * Register state
 	 */
-        struct psb_state regs;
+
+	struct psb_save_area regs;
+
 	/* MSI reg save */
 	uint32_t msi_addr;
 	uint32_t msi_data;
