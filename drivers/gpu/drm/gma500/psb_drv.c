@@ -80,7 +80,7 @@ static DEFINE_PCI_DEVICE_TABLE(pciidlist) = {
 	{ 0x8086, 0x0be6, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 	{ 0x8086, 0x0be7, PCI_ANY_ID, PCI_ANY_ID, 0, 0, (long) &cdv_chip_ops},
 #endif
-	{ 0, 0, 0}
+	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, pciidlist);
 
@@ -678,7 +678,9 @@ static struct pci_driver psb_pci_driver = {
 	.id_table = pciidlist,
 	.probe = psb_probe,
 	.remove = psb_remove,
-	.driver.pm = &psb_pm_ops,
+	.driver = {
+		.pm = &psb_pm_ops,
+	}
 };
 
 static int psb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
