@@ -712,7 +712,6 @@ struct drbd_request {
 	struct list_head tl_requests; /* ring list in the transfer log */
 	struct bio *master_bio;       /* master bio pointer */
 	unsigned long rq_state; /* see comments above _req_mod() */
-	int seq_num;
 	unsigned long start_time;
 };
 
