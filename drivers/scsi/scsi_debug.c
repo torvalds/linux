@@ -101,6 +101,7 @@ static const char * scsi_debug_version_date = "20100324";
 #define DEF_LBPU 0
 #define DEF_LBPWS 0
 #define DEF_LBPWS10 0
+#define DEF_LBPRZ 1
 #define DEF_LOWEST_ALIGNED 0
 #define DEF_NO_LUN_0   0
 #define DEF_NUM_PARTS   0
@@ -186,6 +187,7 @@ static int scsi_debug_vpd_use_hostno = DEF_VPD_USE_HOSTNO;
 static unsigned int scsi_debug_lbpu = DEF_LBPU;
 static unsigned int scsi_debug_lbpws = DEF_LBPWS;
 static unsigned int scsi_debug_lbpws10 = DEF_LBPWS10;
+static unsigned int scsi_debug_lbprz = DEF_LBPRZ;
 static unsigned int scsi_debug_unmap_alignment = DEF_UNMAP_ALIGNMENT;
 static unsigned int scsi_debug_unmap_granularity = DEF_UNMAP_GRANULARITY;
 static unsigned int scsi_debug_unmap_max_blocks = DEF_UNMAP_MAX_BLOCKS;
@@ -775,7 +777,7 @@ static int inquiry_evpd_b1(unsigned char *arr)
 	return 0x3c;
 }
 
-/* Thin provisioning VPD page (SBC-3) */
+/* Logical block provisioning VPD page (SBC-3) */
 static int inquiry_evpd_b2(unsigned char *arr)
 {
 	memset(arr, 0, 0x8);
@@ -789,6 +791,9 @@ static int inquiry_evpd_b2(unsigned char *arr)
 
 	if (scsi_debug_lbpws10)
 		arr[1] |= 1 << 5;
+
+	if (scsi_debug_lbprz)
+		arr[1] |= 1 << 2;
 
 	return 0x8;
 }
@@ -1071,8 +1076,11 @@ static int resp_readcap16(struct scsi_cmnd * scp,
 	arr[13] = scsi_debug_physblk_exp & 0xf;
 	arr[14] = (scsi_debug_lowest_aligned >> 8) & 0x3f;
 
-	if (scsi_debug_lbp())
+	if (scsi_debug_lbp()) {
 		arr[14] |= 0x80; /* LBPME */
+		if (scsi_debug_lbprz)
+			arr[14] |= 0x40; /* LBPRZ */
+	}
 
 	arr[15] = scsi_debug_lowest_aligned & 0xff;
 
@@ -2046,10 +2054,13 @@ static void unmap_region(sector_t lba, unsigned int len)
 		block = lba + alignment;
 		rem = do_div(block, granularity);
 
-		if (rem == 0 && lba + granularity <= end &&
-		    block < map_size)
+		if (rem == 0 && lba + granularity <= end && block < map_size) {
 			clear_bit(block, map_storep);
-
+			if (scsi_debug_lbprz)
+				memset(fake_storep +
+				       block * scsi_debug_sector_size, 0,
+				       scsi_debug_sector_size);
+		}
 		lba += granularity - rem;
 	}
 }
@@ -2731,6 +2742,7 @@ module_param_named(guard, scsi_debug_guard, int, S_IRUGO);
 module_param_named(lbpu, scsi_debug_lbpu, int, S_IRUGO);
 module_param_named(lbpws, scsi_debug_lbpws, int, S_IRUGO);
 module_param_named(lbpws10, scsi_debug_lbpws10, int, S_IRUGO);
+module_param_named(lbprz, scsi_debug_lbprz, int, S_IRUGO);
 module_param_named(lowest_aligned, scsi_debug_lowest_aligned, int, S_IRUGO);
 module_param_named(max_luns, scsi_debug_max_luns, int, S_IRUGO | S_IWUSR);
 module_param_named(max_queue, scsi_debug_max_queue, int, S_IRUGO | S_IWUSR);
@@ -2772,6 +2784,7 @@ MODULE_PARM_DESC(guard, "protection checksum: 0=crc, 1=ip (def=0)");
 MODULE_PARM_DESC(lbpu, "enable LBP, support UNMAP command (def=0)");
 MODULE_PARM_DESC(lbpws, "enable LBP, support WRITE SAME(16) with UNMAP bit (def=0)");
 MODULE_PARM_DESC(lbpws10, "enable LBP, support WRITE SAME(10) with UNMAP bit (def=0)");
+MODULE_PARM_DESC(lbprz, "unmapped blocks return 0 on read (def=1)");
 MODULE_PARM_DESC(lowest_aligned, "lowest aligned lba (def=0)");
 MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
 MODULE_PARM_DESC(max_queue, "max number of queued commands (1 to 255(def))");
