@@ -147,9 +147,7 @@ static int set_register_interruptible(struct ab8500 *ab8500, u8 bank,
 
 	dev_vdbg(ab8500->dev, "wr: addr %#x <= %#x\n", addr, data);
 
-	ret = mutex_lock_interruptible(&ab8500->lock);
-	if (ret)
-		return ret;
+	mutex_lock(&ab8500->lock);
 
 	ret = ab8500->write(ab8500, addr, data);
 	if (ret < 0)
@@ -176,9 +174,7 @@ static int get_register_interruptible(struct ab8500 *ab8500, u8 bank,
 	 * bank on higher 8 bits and reg in lower */
 	u16 addr = ((u16)bank) << 8 | reg;
 
-	ret = mutex_lock_interruptible(&ab8500->lock);
-	if (ret)
-		return ret;
+	mutex_lock(&ab8500->lock);
 
 	ret = ab8500->read(ab8500, addr);
 	if (ret < 0)
@@ -210,9 +206,7 @@ static int mask_and_set_register_interruptible(struct ab8500 *ab8500, u8 bank,
 	 * bank on higher 8 bits and reg in lower */
 	u16 addr = ((u16)bank) << 8 | reg;
 
-	ret = mutex_lock_interruptible(&ab8500->lock);
-	if (ret)
-		return ret;
+	mutex_lock(&ab8500->lock);
 
 	ret = ab8500->read(ab8500, addr);
 	if (ret < 0) {
