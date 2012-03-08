@@ -85,6 +85,7 @@ static u32 cdv_intel_lvds_get_max_backlight(struct drm_device *dev)
 	return retval;
 }
 
+#if 0
 /*
  * Set LVDS backlight level by I2C command
  */
@@ -165,6 +166,7 @@ void cdv_intel_lvds_set_brightness(struct drm_device *dev, int level)
 	else
 		cdv_lvds_pwm_set_brightness(dev, level);
 }
+#endif
 
 /**
  * Sets the backlight level.
