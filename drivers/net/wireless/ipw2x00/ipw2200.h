@@ -27,8 +27,6 @@
 #ifndef __ipw2200_h__
 #define __ipw2200_h__
 
-#define WEXT_USECHANNELS 1
-
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
