@@ -286,7 +286,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 		sg_dma_address(sg)	= vb2_dma_contig_plane_dma_addr(vb, 0);
 		sg_dma_len(sg)		= new_size;
 
-		txd = ichan->dma_chan.device->device_prep_slave_sg(
+		txd = dmaengine_prep_slave_sg(
 			&ichan->dma_chan, sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT);
 		if (!txd)

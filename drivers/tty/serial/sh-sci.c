@@ -1338,7 +1338,7 @@ static void sci_submit_rx(struct sci_port *s)
 		struct scatterlist *sg = &s->sg_rx[i];
 		struct dma_async_tx_descriptor *desc;
 
-		desc = chan->device->device_prep_slave_sg(chan,
+		desc = dmaengine_prep_slave_sg(chan,
 			sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
 
 		if (desc) {
@@ -1453,7 +1453,7 @@ static void work_fn_tx(struct work_struct *work)
 
 	BUG_ON(!sg_dma_len(sg));
 
-	desc = chan->device->device_prep_slave_sg(chan,
+	desc = dmaengine_prep_slave_sg(chan,
 			sg, s->sg_len_tx, DMA_MEM_TO_DEV,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {

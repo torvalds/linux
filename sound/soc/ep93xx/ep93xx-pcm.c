@@ -142,11 +142,10 @@ static int ep93xx_pcm_dma_submit(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct ep93xx_runtime_data *rtd = runtime->private_data;
 	struct dma_chan *chan = rtd->dma_chan;
-	struct dma_device *dma_dev = chan->device;
 	struct dma_async_tx_descriptor *desc;
 
 	rtd->pointer_bytes = 0;
-	desc = dma_dev->device_prep_dma_cyclic(chan, runtime->dma_addr,
+	desc = dmaengine_prep_dma_cyclic(chan, runtime->dma_addr,
 					       rtd->period_bytes * rtd->periods,
 					       rtd->period_bytes,
 					       rtd->dma_data.direction);

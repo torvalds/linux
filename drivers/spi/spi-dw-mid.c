@@ -146,7 +146,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	dws->tx_sgl.dma_address = dws->tx_dma;
 	dws->tx_sgl.length = dws->len;
 
-	txdesc = txchan->device->device_prep_slave_sg(txchan,
+	txdesc = dmaengine_prep_slave_sg(txchan,
 				&dws->tx_sgl,
 				1,
 				DMA_MEM_TO_DEV,
@@ -169,7 +169,7 @@ static int mid_spi_dma_transfer(struct dw_spi *dws, int cs_change)
 	dws->rx_sgl.dma_address = dws->rx_dma;
 	dws->rx_sgl.length = dws->len;
 
-	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
+	rxdesc = dmaengine_prep_slave_sg(rxchan,
 				&dws->rx_sgl,
 				1,
 				DMA_DEV_TO_MEM,

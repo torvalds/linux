@@ -783,9 +783,8 @@ static void usbhsf_dma_prepare_tasklet(unsigned long data)
 	sg_dma_address(&sg) = pkt->dma + pkt->actual;
 	sg_dma_len(&sg) = pkt->trans;
 
-	desc = chan->device->device_prep_slave_sg(chan, &sg, 1, dir,
-						  DMA_PREP_INTERRUPT |
-						  DMA_CTRL_ACK);
+	desc = dmaengine_prep_slave_sg(chan, &sg, 1, dir,
+					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc)
 		return;
 

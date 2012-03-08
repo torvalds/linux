@@ -255,7 +255,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	if (nents != data->sg_len)
 		return -EINVAL;
 
-	host->desc = host->dma->device->device_prep_slave_sg(host->dma,
+	host->desc = dmaengine_prep_slave_sg(host->dma,
 		data->sg, data->sg_len, slave_dirn,
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
