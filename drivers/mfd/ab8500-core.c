@@ -360,6 +360,8 @@ static int ab8500_irq_init(struct ab8500 *ab8500)
 
 	if (is_ab9540(ab8500))
 		num_irqs = AB9540_NR_IRQS;
+	else if (is_ab8505(ab8500))
+		num_irqs = AB8505_NR_IRQS;
 	else
 		num_irqs = AB8500_NR_IRQS;
 
@@ -386,6 +388,8 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 
 	if (is_ab9540(ab8500))
 		num_irqs = AB9540_NR_IRQS;
+	else if (is_ab8505(ab8500))
+		num_irqs = AB8505_NR_IRQS;
 	else
 		num_irqs = AB8500_NR_IRQS;
 
@@ -546,12 +550,6 @@ static struct resource __devinitdata ab8500_charger_resources[] = {
 		.flags = IORESOURCE_IRQ,
 	},
 	{
-		.name = "USB_CHARGE_DET_DONE",
-		.start = AB8500_INT_USB_CHG_DET_DONE,
-		.end = AB8500_INT_USB_CHG_DET_DONE,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
 		.name = "VBUS_OVV",
 		.start = AB8500_INT_VBUS_OVV,
 		.end = AB8500_INT_VBUS_OVV,
@@ -589,14 +587,8 @@ static struct resource __devinitdata ab8500_charger_resources[] = {
 	},
 	{
 		.name = "USB_CHARGER_NOT_OKR",
-		.start = AB8500_INT_USB_CHARGER_NOT_OK,
-		.end = AB8500_INT_USB_CHARGER_NOT_OK,
-		.flags = IORESOURCE_IRQ,
-	},
-	{
-		.name = "USB_CHARGER_NOT_OKF",
-		.start = AB8500_INT_USB_CHARGER_NOT_OKF,
-		.end = AB8500_INT_USB_CHARGER_NOT_OKF,
+		.start = AB8500_INT_USB_CHARGER_NOT_OKR,
+		.end = AB8500_INT_USB_CHARGER_NOT_OKR,
 		.flags = IORESOURCE_IRQ,
 	},
 	{
@@ -671,6 +663,12 @@ static struct resource __devinitdata ab8500_fg_resources[] = {
 		.end = AB8500_INT_CC_INT_CALIB,
 		.flags = IORESOURCE_IRQ,
 	},
+	{
+		.name = "CCEOC",
+		.start = AB8500_INT_CCEOC,
+		.end = AB8500_INT_CCEOC,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 static struct resource __devinitdata ab8500_chargalg_resources[] = {};
@@ -685,8 +683,8 @@ static struct resource __devinitdata ab8500_debug_resources[] = {
 	},
 	{
 		.name	= "IRQ_LAST",
-		.start	= AB8500_INT_USB_CHARGER_NOT_OKF,
-		.end	= AB8500_INT_USB_CHARGER_NOT_OKF,
+		.start	= AB8500_INT_XTAL32K_KO,
+		.end	= AB8500_INT_XTAL32K_KO,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -1033,7 +1031,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 			ab8500->chip_id & 0x0F);
 
 	/* Configure AB8500 or AB9540 IRQ */
-	if (is_ab9540(ab8500)) {
+	if (is_ab9540(ab8500) || is_ab8505(ab8500)) {
 		ab8500->mask_size = AB9540_NUM_IRQ_REGS;
 		ab8500->irq_reg_offset = ab9540_irq_regoffset;
 	} else {
