@@ -1173,7 +1173,7 @@ static inline struct sk_buff *__skb_dequeue_tail(struct sk_buff_head *list)
 }
 
 
-static inline int skb_is_nonlinear(const struct sk_buff *skb)
+static inline bool skb_is_nonlinear(const struct sk_buff *skb)
 {
 	return skb->data_len;
 }
@@ -2469,12 +2469,12 @@ static inline struct sec_path *skb_sec_path(struct sk_buff *skb)
 }
 #endif
 
-static inline int skb_is_gso(const struct sk_buff *skb)
+static inline bool skb_is_gso(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_size;
 }
 
-static inline int skb_is_gso_v6(const struct sk_buff *skb)
+static inline bool skb_is_gso_v6(const struct sk_buff *skb)
 {
 	return skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6;
 }
