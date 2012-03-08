@@ -2332,6 +2332,7 @@ int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(5))
 		cpu_relax();
 
+	writeb(0, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB5));
 	writeb(PRCMU_I2C_READ(slave), (tcdm_base + PRCM_REQ_MB5_I2C_SLAVE_OP));
 	writeb(PRCMU_I2C_STOP_EN, (tcdm_base + PRCM_REQ_MB5_I2C_HW_BITS));
 	writeb(reg, (tcdm_base + PRCM_REQ_MB5_I2C_REG));
@@ -2357,16 +2358,19 @@ int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 }
 
 /**
- * prcmu_abb_write() - Write register value(s) to the ABB.
+ * prcmu_abb_write_masked() - Write masked register value(s) to the ABB.
  * @slave:	The I2C slave address.
  * @reg:	The (start) register address.
  * @value:	The value(s) to write.
+ * @mask:	The mask(s) to use.
  * @size:	The number of registers to write.
  *
- * Reads register value(s) from the ABB.
+ * Writes masked register value(s) to the ABB.
+ * For each @value, only the bits set to 1 in the corresponding @mask
+ * will be written. The other bits are not changed.
  * @size has to be 1 for the current firmware version.
  */
-int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
+int prcmu_abb_write_masked(u8 slave, u8 reg, u8 *value, u8 *mask, u8 size)
 {
 	int r;
 
@@ -2378,6 +2382,7 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 	while (readl(PRCM_MBOX_CPU_VAL) & MBOX_BIT(5))
 		cpu_relax();
 
+	writeb(~*mask, (tcdm_base + PRCM_MBOX_HEADER_REQ_MB5));
 	writeb(PRCMU_I2C_WRITE(slave), (tcdm_base + PRCM_REQ_MB5_I2C_SLAVE_OP));
 	writeb(PRCMU_I2C_STOP_EN, (tcdm_base + PRCM_REQ_MB5_I2C_HW_BITS));
 	writeb(reg, (tcdm_base + PRCM_REQ_MB5_I2C_REG));
@@ -2397,6 +2402,23 @@ int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
 	mutex_unlock(&mb5_transfer.lock);
 
 	return r;
+}
+
+/**
+ * prcmu_abb_write() - Write register value(s) to the ABB.
+ * @slave:	The I2C slave address.
+ * @reg:	The (start) register address.
+ * @value:	The value(s) to write.
+ * @size:	The number of registers to write.
+ *
+ * Writes register value(s) to the ABB.
+ * @size has to be 1 for the current firmware version.
+ */
+int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
+{
+	u8 mask = ~0;
+
+	return prcmu_abb_write_masked(slave, reg, value, &mask, size);
 }
 
 /**

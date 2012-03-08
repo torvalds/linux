@@ -368,6 +368,7 @@ static inline void prcmu_get_abb_event_buffer(void __iomem **buf)
 
 int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size);
+int prcmu_abb_write_masked(u8 slave, u8 reg, u8 *value, u8 *mask, u8 size);
 
 int prcmu_config_clkout(u8 clkout, u8 source, u8 div);
 
@@ -616,6 +617,12 @@ static inline int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size)
 }
 
 static inline int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size)
+{
+	return -ENOSYS;
+}
+
+static inline int prcmu_abb_write_masked(u8 slave, u8 reg, u8 *value, u8 *mask,
+	u8 size)
 {
 	return -ENOSYS;
 }
