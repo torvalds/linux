@@ -465,7 +465,7 @@ void omap_hsmmc_late_init(struct omap2_hsmmc_info *c)
 
 #define MAX_OMAP_MMC_HWMOD_NAME_LEN		16
 
-static void omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
+static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
 					int ctrl_nr)
 {
 	struct omap_hwmod *oh;
