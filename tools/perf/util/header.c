@@ -1023,6 +1023,12 @@ write_it:
 	return do_write_string(fd, buffer);
 }
 
+static int write_branch_stack(int fd __used, struct perf_header *h __used,
+		       struct perf_evlist *evlist __used)
+{
+	return 0;
+}
+
 static void print_hostname(struct perf_header *ph, int fd, FILE *fp)
 {
 	char *str = do_read_string(fd, ph);
@@ -1315,6 +1321,12 @@ static void print_cpuid(struct perf_header *ph, int fd, FILE *fp)
 	free(str);
 }
 
+static void print_branch_stack(struct perf_header *ph __used, int fd __used,
+			       FILE *fp)
+{
+	fprintf(fp, "# contains samples with branch stack\n");
+}
+
 static int __event_process_build_id(struct build_id_event *bev,
 				    char *filename,
 				    struct perf_session *session)
@@ -1519,6 +1531,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_CMDLINE,	cmdline),
 	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
 	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
+	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
 };
 
 struct header_print_data {
