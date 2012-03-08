@@ -1025,7 +1025,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	struct kvm *kvm = vcpu->kvm;
 	u64 offset, ns, elapsed;
 	unsigned long flags;
-	s64 nsdiff;
+	s64 usdiff;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
@@ -1033,18 +1033,19 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	elapsed = ns - kvm->arch.last_tsc_nsec;
 
 	/* n.b - signed multiplication and division required */
-	nsdiff = data - kvm->arch.last_tsc_write;
+	usdiff = data - kvm->arch.last_tsc_write;
 #ifdef CONFIG_X86_64
-	nsdiff = (nsdiff * 1000) / vcpu->arch.virtual_tsc_khz;
+	usdiff = (usdiff * 1000) / vcpu->arch.virtual_tsc_khz;
 #else
 	/* do_div() only does unsigned */
 	asm("idivl %2; xor %%edx, %%edx"
-	    : "=A"(nsdiff)
-	    : "A"(nsdiff * 1000), "rm"(vcpu->arch.virtual_tsc_khz));
+	    : "=A"(usdiff)
+	    : "A"(usdiff * 1000), "rm"(vcpu->arch.virtual_tsc_khz));
 #endif
-	nsdiff -= elapsed;
-	if (nsdiff < 0)
-		nsdiff = -nsdiff;
+	do_div(elapsed, 1000);
+	usdiff -= elapsed;
+	if (usdiff < 0)
+		usdiff = -usdiff;
 
 	/*
 	 * Special case: TSC write with a small delta (1 second) of virtual
@@ -1056,7 +1057,7 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	 * compensation code attempt to catch up if we fall behind, but
 	 * it's better to try to match offsets from the beginning.
          */
-	if (nsdiff < NSEC_PER_SEC &&
+	if (usdiff < USEC_PER_SEC &&
 	    vcpu->arch.virtual_tsc_khz == kvm->arch.last_tsc_khz) {
 		if (!check_tsc_unstable()) {
 			offset = kvm->arch.cur_tsc_offset;
