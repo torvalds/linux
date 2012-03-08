@@ -774,8 +774,6 @@ MODULE_FIRMWARE(FIRMWARE_8105E_1);
 MODULE_FIRMWARE(FIRMWARE_8168F_1);
 MODULE_FIRMWARE(FIRMWARE_8168F_2);
 
-static irqreturn_t rtl8169_interrupt(int irq, void *dev_instance);
-
 static void rtl_lock_work(struct rtl8169_private *tp)
 {
 	mutex_lock(&tp->wk.mutex);
@@ -3289,15 +3287,6 @@ static void rtl8169_phy_timer(unsigned long __opaque)
 	rtl_schedule_task(tp, RTL_FLAG_TASK_PHY_PENDING);
 }
 
-#ifdef CONFIG_NET_POLL_CONTROLLER
-static void rtl8169_netpoll(struct net_device *dev)
-{
-	struct rtl8169_private *tp = netdev_priv(dev);
-
-	rtl8169_interrupt(tp->pci_dev->irq, dev);
-}
-#endif
-
 static void rtl8169_release_board(struct pci_dev *pdev, struct net_device *dev,
 				  void __iomem *ioaddr)
 {
@@ -5719,6 +5708,15 @@ static int rtl8169_close(struct net_device *dev)
 
 	return 0;
 }
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void rtl8169_netpoll(struct net_device *dev)
+{
+	struct rtl8169_private *tp = netdev_priv(dev);
+
+	rtl8169_interrupt(tp->pci_dev->irq, dev);
+}
+#endif
 
 static int rtl_open(struct net_device *dev)
 {
