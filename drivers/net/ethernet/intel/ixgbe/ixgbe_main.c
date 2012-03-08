@@ -1482,8 +1482,8 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 	struct sk_buff *skb;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 	const int current_node = numa_node_id();
-#ifdef IXGBE_FCOE
 	struct ixgbe_adapter *adapter = q_vector->adapter;
+#ifdef IXGBE_FCOE
 	int ddp_bytes = 0;
 #endif /* IXGBE_FCOE */
 	u16 i;
@@ -1612,7 +1612,8 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 
 		/* ERR_MASK will only have valid bits if EOP set */
 		if (unlikely(ixgbe_test_staterr(rx_desc,
-					    IXGBE_RXDADV_ERR_FRAME_ERR_MASK))) {
+					    IXGBE_RXDADV_ERR_FRAME_ERR_MASK) &&
+		    !(adapter->netdev->features & NETIF_F_RXALL))) {
 			dev_kfree_skb_any(skb);
 			goto next_desc;
 		}
@@ -3342,6 +3343,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 
 	/* set all bits that we expect to always be set */
+	fctrl &= ~IXGBE_FCTRL_SBP; /* disable store-bad-packets */
 	fctrl |= IXGBE_FCTRL_BAM;
 	fctrl |= IXGBE_FCTRL_DPF; /* discard pause frames when FC enabled */
 	fctrl |= IXGBE_FCTRL_PMCF;
@@ -3388,6 +3390,18 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 			 ~(IXGBE_VMOLR_MPE | IXGBE_VMOLR_ROMPE |
 			   IXGBE_VMOLR_ROPE);
 		IXGBE_WRITE_REG(hw, IXGBE_VMOLR(adapter->num_vfs), vmolr);
+	}
+
+	/* This is useful for sniffing bad packets. */
+	if (adapter->netdev->features & NETIF_F_RXALL) {
+		/* UPE and MPE will be handled by normal PROMISC logic
+		 * in e1000e_set_rx_mode */
+		fctrl |= (IXGBE_FCTRL_SBP | /* Receive bad packets */
+			  IXGBE_FCTRL_BAM | /* RX All Bcast Pkts */
+			  IXGBE_FCTRL_PMCF); /* RX All MAC Ctrl Pkts */
+
+		fctrl &= ~(IXGBE_FCTRL_DPF);
+		/* NOTE:  VLAN filtering is disabled by setting PROMISC */
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
@@ -7459,6 +7473,7 @@ static int ixgbe_set_features(struct net_device *netdev,
 	netdev_features_t data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	netdev_features_t changed = netdev->features ^ data;
 	bool need_reset = false;
 
 	/* Make sure RSC matches LRO, reset if change */
@@ -7495,6 +7510,10 @@ static int ixgbe_set_features(struct net_device *netdev,
 		need_reset = true;
 	}
 
+	if (changed & NETIF_F_RXALL)
+		need_reset = true;
+
+	netdev->features = data;
 	if (need_reset)
 		ixgbe_do_reset(netdev);
 
@@ -7772,6 +7791,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	default:
 		break;
 	}
+
+	netdev->hw_features |= NETIF_F_RXALL;
 
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;
