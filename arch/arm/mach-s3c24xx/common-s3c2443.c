@@ -1,9 +1,18 @@
-/* linux/arch/arm/plat-s3c24xx/s3c2443-clock.c
+/*
+ * Common code for SoCs starting with the S3C2443
  *
  * Copyright (c) 2007, 2010 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2443 Clock control suport - common code
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
 
 #include <linux/init.h>
@@ -12,7 +21,6 @@
 
 #include <mach/regs-s3c2443-clock.h>
 
-#include <plat/s3c2443.h>
 #include <plat/clock.h>
 #include <plat/clock-clksrc.h>
 #include <plat/cpu.h>
@@ -158,6 +166,44 @@ static struct clk clk_prediv = {
 	.ops		= &(struct clk_ops) {
 		.get_rate	= s3c2443_prediv_getrate,
 	},
+};
+
+/* hclk divider
+ *
+ * divides the prediv and provides the hclk.
+ */
+
+static unsigned long s3c2443_hclkdiv_getrate(struct clk *clk)
+{
+	unsigned long rate = clk_get_rate(clk->parent);
+	unsigned long clkdiv0 = __raw_readl(S3C2443_CLKDIV0);
+
+	clkdiv0 &= S3C2443_CLKDIV0_HCLKDIV_MASK;
+
+	return rate / (clkdiv0 + 1);
+}
+
+static struct clk_ops clk_h_ops = {
+	.get_rate	= s3c2443_hclkdiv_getrate,
+};
+
+/* pclk divider
+ *
+ * divides the hclk and provides the pclk.
+ */
+
+static unsigned long s3c2443_pclkdiv_getrate(struct clk *clk)
+{
+	unsigned long rate = clk_get_rate(clk->parent);
+	unsigned long clkdiv0 = __raw_readl(S3C2443_CLKDIV0);
+
+	clkdiv0 = ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 1 : 0);
+
+	return rate / (clkdiv0 + 1);
+}
+
+static struct clk_ops clk_p_ops = {
+	.get_rate	= s3c2443_pclkdiv_getrate,
 };
 
 /* armdiv
@@ -516,26 +562,15 @@ static struct clk hsmmc1_clk = {
 	.ctrlbit	= S3C2443_HCLKCON_HSMMC,
 };
 
-static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
-{
-	clkcon0 &= S3C2443_CLKDIV0_HCLKDIV_MASK;
-
-	return clkcon0 + 1;
-}
-
 /* EPLLCON compatible enough to get on/off information */
 
 void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
 {
 	unsigned long epllcon = __raw_readl(S3C2443_EPLLCON);
 	unsigned long mpllcon = __raw_readl(S3C2443_MPLLCON);
-	unsigned long clkdiv0 = __raw_readl(S3C2443_CLKDIV0);
 	struct clk *xtal_clk;
 	unsigned long xtal;
 	unsigned long pll;
-	unsigned long fclk;
-	unsigned long hclk;
-	unsigned long pclk;
 	int ptr;
 
 	xtal_clk = clk_get(NULL, "xtal");
@@ -544,18 +579,13 @@ void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
 
 	pll = get_mpll(mpllcon, xtal);
 	clk_msysclk.clk.rate = pll;
-
-	fclk = clk_get_rate(&clk_armdiv);
-	hclk = s3c2443_prediv_getrate(&clk_prediv);
-	hclk /= s3c2443_get_hdiv(clkdiv0);
-	pclk = hclk / ((clkdiv0 & S3C2443_CLKDIV0_HALF_PCLK) ? 2 : 1);
-
-	s3c24xx_setup_clocks(fclk, hclk, pclk);
+	clk_mpll.rate = pll;
 
 	printk("CPU: MPLL %s %ld.%03ld MHz, cpu %ld.%03ld MHz, mem %ld.%03ld MHz, pclk %ld.%03ld MHz\n",
-	       (mpllcon & S3C2443_PLLCON_OFF) ? "off":"on",
-	       print_mhz(pll), print_mhz(fclk),
-	       print_mhz(hclk), print_mhz(pclk));
+	       (mpllcon & S3C2443_PLLCON_OFF) ? "off" : "on",
+	       print_mhz(pll), print_mhz(clk_get_rate(&clk_armdiv)),
+	       print_mhz(clk_get_rate(&clk_h)),
+	       print_mhz(clk_get_rate(&clk_p)));
 
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrc_clks); ptr++)
 		s3c_set_clksrc(&clksrc_clks[ptr], true);
@@ -568,7 +598,7 @@ void __init_or_cpufreq s3c2443_common_setup_clocks(pll_fn get_mpll)
 	}
 
 	printk("CPU: EPLL %s %ld.%03ld MHz, usb-bus %ld.%03ld MHz\n",
-	       (epllcon & S3C2443_PLLCON_OFF) ? "off":"on",
+	       (epllcon & S3C2443_PLLCON_OFF) ? "off" : "on",
 	       print_mhz(clk_get_rate(&clk_epll)),
 	       print_mhz(clk_get_rate(&clk_usb_bus)));
 }
@@ -611,9 +641,13 @@ void __init s3c2443_common_init_clocks(int xtal, pll_fn get_mpll,
 	nr_armdiv = nr_divs;
 	armdivmask = divmask;
 
-	/* s3c2443 parents h and p clocks from prediv */
+	/* s3c2443 parents h clock from prediv */
 	clk_h.parent = &clk_prediv;
-	clk_p.parent = &clk_prediv;
+	clk_h.ops = &clk_h_ops;
+
+	/* and p clock from h clock */
+	clk_p.parent = &clk_h;
+	clk_p.ops = &clk_p_ops;
 
 	clk_usb_bus.parent = &clk_usb_bus_host.clk;
 	clk_epll.parent = &clk_epllref.clk;

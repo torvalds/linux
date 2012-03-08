@@ -51,7 +51,7 @@ static struct s3c24xx_dma_map __initdata s3c2443_dma_mappings[] = {
 		.name		= "xdreq1",
 		.channels	= MAP(S3C2443_DMAREQSEL_XDREQ1),
 	},
-	[DMACH_SDI] = {
+	[DMACH_SDI] = { /* only on S3C2443 */
 		.name		= "sdi",
 		.channels	= MAP(S3C2443_DMAREQSEL_SDI),
 	},
@@ -59,7 +59,7 @@ static struct s3c24xx_dma_map __initdata s3c2443_dma_mappings[] = {
 		.name		= "spi0",
 		.channels	= MAP(S3C2443_DMAREQSEL_SPI0TX),
 	},
-	[DMACH_SPI1] = {
+	[DMACH_SPI1] = { /* only on S3C2443/S3C2450 */
 		.name		= "spi1",
 		.channels	= MAP(S3C2443_DMAREQSEL_SPI1TX),
 	},
@@ -71,11 +71,11 @@ static struct s3c24xx_dma_map __initdata s3c2443_dma_mappings[] = {
 		.name		= "uart1",
 		.channels	= MAP(S3C2443_DMAREQSEL_UART1_0),
 	},
-      	[DMACH_UART2] = {
+	[DMACH_UART2] = {
 		.name		= "uart2",
 		.channels	= MAP(S3C2443_DMAREQSEL_UART2_0),
 	},
-      	[DMACH_UART3] = {
+	[DMACH_UART3] = {
 		.name		= "uart3",
 		.channels	= MAP(S3C2443_DMAREQSEL_UART3_0),
 	},
@@ -87,11 +87,11 @@ static struct s3c24xx_dma_map __initdata s3c2443_dma_mappings[] = {
 		.name		= "uart1",
 		.channels	= MAP(S3C2443_DMAREQSEL_UART1_1),
 	},
-      	[DMACH_UART2_SRC2] = {
+	[DMACH_UART2_SRC2] = {
 		.name		= "uart2",
 		.channels	= MAP(S3C2443_DMAREQSEL_UART2_1),
 	},
-      	[DMACH_UART3_SRC2] = {
+	[DMACH_UART3_SRC2] = {
 		.name		= "uart3",
 		.channels	= MAP(S3C2443_DMAREQSEL_UART3_1),
 	},
@@ -142,6 +142,23 @@ static int __init s3c2443_dma_add(struct device *dev,
 	return s3c24xx_dma_init_map(&s3c2443_dma_sel);
 }
 
+#ifdef CONFIG_CPU_S3C2416
+/* S3C2416 DMA contains the same selection table as the S3C2443 */
+static struct subsys_interface s3c2416_dma_interface = {
+	.name		= "s3c2416_dma",
+	.subsys		= &s3c2416_subsys,
+	.add_dev	= s3c2443_dma_add,
+};
+
+static int __init s3c2416_dma_init(void)
+{
+	return subsys_interface_register(&s3c2416_dma_interface);
+}
+
+arch_initcall(s3c2416_dma_init);
+#endif
+
+#ifdef CONFIG_CPU_S3C2443
 static struct subsys_interface s3c2443_dma_interface = {
 	.name		= "s3c2443_dma",
 	.subsys		= &s3c2443_subsys,
@@ -154,3 +171,4 @@ static int __init s3c2443_dma_init(void)
 }
 
 arch_initcall(s3c2443_dma_init);
+#endif

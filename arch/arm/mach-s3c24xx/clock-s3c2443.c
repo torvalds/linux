@@ -179,11 +179,6 @@ static struct clk *clks[] __initdata = {
 	&clk_hsmmc,
 };
 
-void __init_or_cpufreq s3c2443_setup_clocks(void)
-{
-	s3c2443_common_setup_clocks(s3c2443_get_mpll);
-}
-
 void __init s3c2443_init_clocks(int xtal)
 {
 	unsigned long epllcon = __raw_readl(S3C2443_EPLLCON);
@@ -195,8 +190,6 @@ void __init s3c2443_init_clocks(int xtal)
 	s3c2443_common_init_clocks(xtal, s3c2443_get_mpll,
 				   armdiv, ARRAY_SIZE(armdiv),
 				   S3C2443_CLKDIV0_ARMDIV_MASK);
-
-	s3c2443_setup_clocks();
 
 	s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
 

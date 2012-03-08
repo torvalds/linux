@@ -64,8 +64,7 @@
 #include <plat/gpio-cfg.h>
 #include <plat/audio-simtec.h>
 
-#include "usb-simtec.h"
-#include "nor-simtec.h"
+#include "simtec.h"
 #include "common.h"
 
 #define COPYRIGHT ", Copyright 2004-2008 Simtec Electronics"

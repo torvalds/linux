@@ -748,7 +748,7 @@ config HAVE_S3C_RTC
 
 config RTC_DRV_S3C
 	tristate "Samsung S3C series SoC RTC"
-	depends on ARCH_S3C2410 || ARCH_S3C64XX || HAVE_S3C_RTC
+	depends on ARCH_S3C64XX || HAVE_S3C_RTC
 	help
 	  RTC (Realtime Clock) driver for the clock inbuilt into the
 	  Samsung S3C24XX series of SoCs. This can provide periodic
