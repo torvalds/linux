@@ -933,11 +933,10 @@ simrs_init (void)
 		if (state->type == PORT_UNKNOWN) continue;
 
 		if (!state->irq) {
-			if ((rc = assign_irq_vector(AUTO_ASSIGN)) < 0)
+			if ((rc = hpsim_get_irq(KEYBOARD_INTR)) < 0)
 				panic("%s: out of interrupt vectors!\n",
 				      __func__);
 			state->irq = rc;
-			ia64_ssc_connect_irq(KEYBOARD_INTR, state->irq);
 		}
 
 		printk(KERN_INFO "ttyS%d at 0x%04lx (irq = %d) is a %s\n",
