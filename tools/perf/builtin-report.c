@@ -170,7 +170,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		return 0;
 
-	if (sort__branch_mode) {
+	if (sort__branch_mode == 1) {
 		if (perf_report__add_branch_hist_entry(tool, &al, sample,
 						       evsel, machine)) {
 			pr_debug("problem adding lbr entry, skipping event\n");
@@ -239,7 +239,7 @@ static int perf_report__setup_sample_type(struct perf_report *rep)
 			}
 	}
 
-	if (sort__branch_mode) {
+	if (sort__branch_mode == 1) {
 		if (!(self->sample_type & PERF_SAMPLE_BRANCH_STACK)) {
 			fprintf(stderr, "selected -b but no branch data."
 					" Did you call perf record without"
@@ -306,20 +306,13 @@ static int __cmd_report(struct perf_report *rep)
 {
 	int ret = -EINVAL;
 	u64 nr_samples;
-	struct perf_session *session;
+	struct perf_session *session = rep->session;
 	struct perf_evsel *pos;
 	struct map *kernel_map;
 	struct kmap *kernel_kmap;
 	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
 
 	signal(SIGINT, sig_handler);
-
-	session = perf_session__new(rep->input_name, O_RDONLY,
-				    rep->force, false, &rep->tool);
-	if (session == NULL)
-		return -ENOMEM;
-
-	rep->session = session;
 
 	if (rep->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, rep->cpu_list,
@@ -487,9 +480,19 @@ setup:
 	return 0;
 }
 
+static int
+parse_branch_mode(const struct option *opt __used, const char *str __used, int unset)
+{
+	sort__branch_mode = !unset;
+	return 0;
+}
+
 int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
+	struct perf_session *session;
 	struct stat st;
+	bool has_br_stack = false;
+	int ret = -1;
 	char callchain_default_opt[] = "fractal,0.5,callee";
 	const char * const report_usage[] = {
 		"perf report [<options>]",
@@ -578,8 +581,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
-	OPT_BOOLEAN('b', "branch-stack", &sort__branch_mode,
-		    "use branch records for histogram filling"),
+	OPT_CALLBACK_NOOPT('b', "branch-stack", &sort__branch_mode, "",
+		    "use branch records for histogram filling", parse_branch_mode),
 	OPT_END()
 	};
 
@@ -599,8 +602,20 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 		else
 			report.input_name = "perf.data";
 	}
+	session = perf_session__new(report.input_name, O_RDONLY,
+				    report.force, false, &report.tool);
+	if (session == NULL)
+		return -ENOMEM;
 
-	if (sort__branch_mode) {
+	report.session = session;
+
+	has_br_stack = perf_header__has_feat(&session->header,
+					     HEADER_BRANCH_STACK);
+
+	if (sort__branch_mode == -1 && has_br_stack)
+		sort__branch_mode = 1;
+
+	if (sort__branch_mode == 1) {
 		if (use_browser)
 			fprintf(stderr, "Warning: TUI interface not supported"
 					" in branch mode\n");
@@ -657,13 +672,13 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	}
 
 	if (symbol__init() < 0)
-		return -1;
+		goto error;
 
 	setup_sorting(report_usage, options);
 
 	if (parent_pattern != default_parent_pattern) {
 		if (sort_dimension__add("parent") < 0)
-			return -1;
+			goto error;
 
 		/*
 		 * Only show the parent fields if we explicitly
@@ -685,5 +700,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
 	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
 
-	return __cmd_report(&report);
+	ret = __cmd_report(&report);
+error:
+	perf_session__delete(session);
+	return ret;
 }

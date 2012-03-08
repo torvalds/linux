@@ -157,8 +157,11 @@ OPTIONS
 --branch-stack::
 	Use the addresses of sampled taken branches instead of the instruction
 	address to build the histograms. To generate meaningful output, the
-	perf.data file must have been obtained using perf record -b xxx where
-	xxx is a branch filter option.
+	perf.data file must have been obtained using perf record -b or
+	perf record --branch-filter xxx where xxx is a branch filter option.
+	perf report is able to auto-detect whether a perf.data file contains
+	branch stacks and it will automatically switch to the branch view mode,
+	unless --no-branch-stack is used.
 
 SEE ALSO
 --------
