@@ -767,7 +767,7 @@ static enum BC_STATUS crystalhd_hw_fill_desc(struct crystalhd_dio_req *ioreq,
 	crystalhd_hw_dump_desc(desc, last_desc_ix, 1);
 
 	if (count != xfr_sz) {
-		BCMLOG_ERR("interal error sz curr:%x exp:%x\n", count, xfr_sz);
+		BCMLOG_ERR("internal error sz curr:%x exp:%x\n", count, xfr_sz);
 		return BC_STS_ERROR;
 	}
 
