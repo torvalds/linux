@@ -389,11 +389,79 @@ struct psb_state {
 	uint32_t savePWM_CONTROL_LOGIC;
 };
 
+struct medfield_state {
+	uint32_t saveDPLL_A;
+	uint32_t saveFPA0;
+	uint32_t savePIPEACONF;
+	uint32_t saveHTOTAL_A;
+	uint32_t saveHBLANK_A;
+	uint32_t saveHSYNC_A;
+	uint32_t saveVTOTAL_A;
+	uint32_t saveVBLANK_A;
+	uint32_t saveVSYNC_A;
+	uint32_t savePIPEASRC;
+	uint32_t saveDSPASTRIDE;
+	uint32_t saveDSPALINOFF;
+	uint32_t saveDSPATILEOFF;
+	uint32_t saveDSPASIZE;
+	uint32_t saveDSPAPOS;
+	uint32_t saveDSPASURF;
+	uint32_t saveDSPACNTR;
+	uint32_t saveDSPASTATUS;
+	uint32_t save_palette_a[256];
+	uint32_t saveMIPI;
+
+	uint32_t saveDPLL_B;
+	uint32_t saveFPB0;
+	uint32_t savePIPEBCONF;
+	uint32_t saveHTOTAL_B;
+	uint32_t saveHBLANK_B;
+	uint32_t saveHSYNC_B;
+	uint32_t saveVTOTAL_B;
+	uint32_t saveVBLANK_B;
+	uint32_t saveVSYNC_B;
+	uint32_t savePIPEBSRC;
+	uint32_t saveDSPBSTRIDE;
+	uint32_t saveDSPBLINOFF;
+	uint32_t saveDSPBTILEOFF;
+	uint32_t saveDSPBSIZE;
+	uint32_t saveDSPBPOS;
+	uint32_t saveDSPBSURF;
+	uint32_t saveDSPBCNTR;
+	uint32_t saveDSPBSTATUS;
+	uint32_t save_palette_b[256];
+
+	uint32_t savePIPECCONF;
+	uint32_t saveHTOTAL_C;
+	uint32_t saveHBLANK_C;
+	uint32_t saveHSYNC_C;
+	uint32_t saveVTOTAL_C;
+	uint32_t saveVBLANK_C;
+	uint32_t saveVSYNC_C;
+	uint32_t savePIPECSRC;
+	uint32_t saveDSPCSTRIDE;
+	uint32_t saveDSPCLINOFF;
+	uint32_t saveDSPCTILEOFF;
+	uint32_t saveDSPCSIZE;
+	uint32_t saveDSPCPOS;
+	uint32_t saveDSPCSURF;
+	uint32_t saveDSPCCNTR;
+	uint32_t saveDSPCSTATUS;
+	uint32_t save_palette_c[256];
+	uint32_t saveMIPI_C;
+
+	uint32_t savePFIT_CONTROL;
+	uint32_t savePFIT_PGM_RATIOS;
+	uint32_t saveHDMIPHYMISCCTL;
+	uint32_t saveHDMIB_CONTROL;
+};
+
 struct psb_save_area {
 	uint32_t saveBSM;
 	uint32_t saveVBT;
 	union {
 	        struct psb_state psb;
+		struct medfield_state mdfld;
 	};
 	uint32_t saveBLC_PWM_CTL2;
 	uint32_t saveBLC_PWM_CTL;
@@ -563,6 +631,24 @@ struct drm_psb_private {
 
 	/* 2D acceleration */
 	spinlock_t lock_2d;
+
+	/*
+	 * Panel brightness
+	 */
+	int brightness;
+	int brightness_adjusted;
+
+	bool dsr_enable;
+	u32 dsr_fb_update;
+	bool dpi_panel_on[3];
+	void *dsi_configs[2];
+	u32 bpp;
+	u32 bpp2;
+
+	u32 pipeconf[3];
+	u32 dspcntr[3];
+
+	int mdfld_panel_id;
 };
 
 
@@ -757,6 +843,9 @@ extern const struct psb_ops psb_chip_ops;
 
 /* oaktrail_device.c */
 extern const struct psb_ops oaktrail_chip_ops;
+
+/* mdlfd_device.c */
+extern const struct psb_ops mdfld_chip_ops;
 
 /* cdv_device.c */
 extern const struct psb_ops cdv_chip_ops;
