@@ -24,13 +24,19 @@ struct persistent_ram_zone {
 	struct list_head node;
 	struct persistent_ram_buffer *buffer;
 	size_t buffer_size;
-#ifdef CONFIG_ANDROID_RAM_CONSOLE_ERROR_CORRECTION
+
+	/* ECC correction */
+	bool ecc;
 	char *par_buffer;
 	char *par_header;
 	struct rs_control *rs_decoder;
 	int corrected_bytes;
 	int bad_blocks;
-#endif
+	int ecc_block_size;
+	int ecc_size;
+	int ecc_symsize;
+	int ecc_poly;
+
 	char *old_log;
 	size_t old_log_size;
 	size_t old_log_footer_size;
@@ -38,7 +44,7 @@ struct persistent_ram_zone {
 };
 
 int persistent_ram_init_ringbuffer(struct persistent_ram_zone *prz,
-	void __iomem *buffer, size_t buffer_size);
+	void __iomem *buffer, size_t buffer_size, bool ecc);
 
 int persistent_ram_write(struct persistent_ram_zone *prz, const void *s,
 	unsigned int count);

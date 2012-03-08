@@ -76,7 +76,7 @@ static int ram_console_driver_probe(struct platform_device *pdev)
 	}
 
 	ret = persistent_ram_init_ringbuffer(&ram_console_zone, buffer,
-					     buffer_size);
+					     buffer_size, true);
 	if (ret)
 		goto err;
 
