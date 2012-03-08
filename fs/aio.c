@@ -228,12 +228,6 @@ static void __put_ioctx(struct kioctx *ctx)
 	call_rcu(&ctx->rcu_head, ctx_rcu_free);
 }
 
-static inline void get_ioctx(struct kioctx *kioctx)
-{
-	BUG_ON(atomic_read(&kioctx->users) <= 0);
-	atomic_inc(&kioctx->users);
-}
-
 static inline int try_get_ioctx(struct kioctx *kioctx)
 {
 	return atomic_inc_not_zero(&kioctx->users);
@@ -609,11 +603,16 @@ static void aio_fput_routine(struct work_struct *data)
 			fput(req->ki_filp);
 
 		/* Link the iocb into the context's free list */
+		rcu_read_lock();
 		spin_lock_irq(&ctx->ctx_lock);
 		really_put_req(ctx, req);
+		/*
+		 * at that point ctx might've been killed, but actual
+		 * freeing is RCU'd
+		 */
 		spin_unlock_irq(&ctx->ctx_lock);
+		rcu_read_unlock();
 
-		put_ioctx(ctx);
 		spin_lock_irq(&fput_lock);
 	}
 	spin_unlock_irq(&fput_lock);
@@ -644,7 +643,6 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 	 * this function will be executed w/out any aio kthread wakeup.
 	 */
 	if (unlikely(!fput_atomic(req->ki_filp))) {
-		get_ioctx(ctx);
 		spin_lock(&fput_lock);
 		list_add(&req->ki_list, &fput_head);
 		spin_unlock(&fput_lock);
