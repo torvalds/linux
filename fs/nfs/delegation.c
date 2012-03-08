@@ -694,21 +694,25 @@ int nfs_delegations_present(struct nfs_client *clp)
  * nfs4_copy_delegation_stateid - Copy inode's state ID information
  * @dst: stateid data structure to fill in
  * @inode: inode to check
+ * @flags: delegation type requirement
  *
- * Returns one and fills in "dst->data" * if inode had a delegation,
- * otherwise zero is returned.
+ * Returns "true" and fills in "dst->data" * if inode had a delegation,
+ * otherwise "false" is returned.
  */
-int nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode)
+bool nfs4_copy_delegation_stateid(nfs4_stateid *dst, struct inode *inode,
+		fmode_t flags)
 {
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_delegation *delegation;
-	int ret = 0;
+	bool ret;
 
+	flags &= FMODE_READ|FMODE_WRITE;
 	rcu_read_lock();
 	delegation = rcu_dereference(nfsi->delegation);
-	if (delegation != NULL) {
+	ret = (delegation != NULL && (delegation->type & flags) == flags);
+	if (ret) {
 		nfs4_stateid_copy(dst, &delegation->stateid);
-		ret = 1;
+		nfs_mark_delegation_referenced(delegation);
 	}
 	rcu_read_unlock();
 	return ret;

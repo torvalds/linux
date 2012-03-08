@@ -1929,7 +1929,7 @@ static int _nfs4_do_setattr(struct inode *inode, struct rpc_cred *cred,
 
 	nfs_fattr_init(fattr);
 
-	if (nfs4_copy_delegation_stateid(&arg.stateid, inode)) {
+	if (nfs4_copy_delegation_stateid(&arg.stateid, inode, FMODE_WRITE)) {
 		/* Use that stateid */
 	} else if (state != NULL) {
 		nfs4_select_rw_stateid(&arg.stateid, state, current->files, current->tgid);
