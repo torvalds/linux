@@ -488,15 +488,6 @@ struct psb_mmu_pd *psb_mmu_get_default_pd(struct psb_mmu_driver *driver)
 	return pd;
 }
 
-/* Returns the physical address of the PD shared by sgx/msvdx */
-uint32_t psb_get_default_pd_addr(struct psb_mmu_driver *driver)
-{
-	struct psb_mmu_pd *pd;
-
-	pd = psb_mmu_get_default_pd(driver);
-	return page_to_pfn(pd->p) << PAGE_SHIFT;
-}
-
 void psb_mmu_driver_takedown(struct psb_mmu_driver *driver)
 {
 	psb_mmu_free_pagedir(driver->default_pd);
