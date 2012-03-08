@@ -142,10 +142,10 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 		* smaller buffer than the FIFO size to avoid underruns
 		*/
 		snd_pcm_hw_rule_add(substream->runtime, 0,
-				    SNDRV_PCM_HW_PARAM_CHANNELS,
+				    SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
 				    omap_mcbsp_hwrule_min_buffersize,
 				    mcbsp,
-				    SNDRV_PCM_HW_PARAM_BUFFER_SIZE, -1);
+				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
 		/* Make sure, that the period size is always even */
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
