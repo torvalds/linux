@@ -42,17 +42,14 @@ static void mdfld_init_panel(struct drm_device *dev, int mipi_pipe,
 {
 	switch (p_type) {
 	case TPO_VID:
-		mdfld_dsi_output_init(dev, mipi_pipe, NULL,
-				&mdfld_tpo_vid_funcs);
+		mdfld_dsi_output_init(dev, mipi_pipe, &mdfld_tpo_vid_funcs);
 		break;
 	case TC35876X:
 		tc35876x_init(dev);
-		mdfld_dsi_output_init(dev, mipi_pipe, NULL,
-				&mdfld_tc35876x_funcs);
+		mdfld_dsi_output_init(dev, mipi_pipe, &mdfld_tc35876x_funcs);
 		break;
 	case TMD_VID:
-		mdfld_dsi_output_init(dev, mipi_pipe, NULL,
-				&mdfld_tmd_vid_funcs);
+		mdfld_dsi_output_init(dev, mipi_pipe, &mdfld_tmd_vid_funcs);
 		break;
 	case HDMI:
 /*		if (dev_priv->mdfld_hdmi_present)

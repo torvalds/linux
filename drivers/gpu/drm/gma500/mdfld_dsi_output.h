@@ -375,7 +375,6 @@ extern void mdfld_dsi_brightness_control(struct drm_device *dev, int pipe,
 					int level);
 extern void mdfld_dsi_output_init(struct drm_device *dev,
 					int pipe,
-					struct mdfld_dsi_config *config,
 					const struct panel_funcs *p_vid_funcs);
 extern void mdfld_dsi_controller_init(struct mdfld_dsi_config *dsi_config,
 					int pipe);

@@ -511,7 +511,6 @@ gpio_error:
  */
 void mdfld_dsi_output_init(struct drm_device *dev,
 			   int pipe,
-			   struct mdfld_dsi_config *config,
 			   const struct panel_funcs *p_vid_funcs)
 {
 	struct mdfld_dsi_config *dsi_config;
@@ -538,18 +537,13 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 
 	dsi_connector->pipe =  pipe;
 
-	/*set DSI config*/
-	if (config)
-		dsi_config = config;
-	else {
-		dsi_config = kzalloc(sizeof(struct mdfld_dsi_config),
-								GFP_KERNEL);
-		if (!dsi_config) {
-			DRM_ERROR("cannot allocate memory for DSI config\n");
-			goto dsi_init_err0;
-		}
-		mdfld_dsi_get_default_config(dev, dsi_config, pipe);
+	dsi_config = kzalloc(sizeof(struct mdfld_dsi_config),
+			GFP_KERNEL);
+	if (!dsi_config) {
+		DRM_ERROR("cannot allocate memory for DSI config\n");
+		goto dsi_init_err0;
 	}
+	mdfld_dsi_get_default_config(dev, dsi_config, pipe);
 
 	dsi_connector->private = dsi_config;
 
