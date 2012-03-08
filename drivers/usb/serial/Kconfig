@@ -426,6 +426,14 @@ config USB_SERIAL_MCT_U232
 	  To compile this driver as a module, choose M here: the
 	  module will be called mct_u232.
 
+config USB_SERIAL_METRO
+	tristate "USB Metrologic Instruments USB-POS Barcode Scanner Driver"
+	---help---
+	  Say Y here if you want to use a USB POS Metrologic barcode scanner.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called metro-usb.
+
 config USB_SERIAL_MOS7720
 	tristate "USB Moschip 7720 Serial Driver"
 	---help---
