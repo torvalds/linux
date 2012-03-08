@@ -205,17 +205,6 @@ int mdfld_dsi_get_power_mode(struct mdfld_dsi_config *dsi_config, u32 *mode,
 	return mdfld_dsi_get_panel_status(dsi_config, 0x0a, mode, hs);
 }
 
-int mdfld_dsi_get_diagnostic_result(struct mdfld_dsi_config *dsi_config,
-				u32 *result, bool hs)
-{
-	if (!dsi_config || !result) {
-		DRM_ERROR("Invalid parameter\n");
-		return -EINVAL;
-	}
-
-	return mdfld_dsi_get_panel_status(dsi_config, 0x0f, result, hs);
-}
-
 /*
  * NOTE: this function was used by OSPM.
  * TODO: will be removed later, should work out display interfaces for OSPM

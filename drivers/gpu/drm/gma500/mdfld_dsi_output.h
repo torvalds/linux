@@ -227,14 +227,6 @@ enum {
 #define DSI_DPI_COMPLETE_LAST_LINE			BIT(2)
 #define DSI_DPI_DISABLE_BTA					BIT(3)
 
-struct mdfld_dsi_connector_state {
-	u32 mipi_ctrl_reg;
-};
-
-struct mdfld_dsi_encoder_state {
-
-};
-
 struct mdfld_dsi_connector {
 	struct psb_intel_connector base;
 
@@ -381,8 +373,6 @@ extern void mdfld_dsi_controller_init(struct mdfld_dsi_config *dsi_config,
 
 extern int mdfld_dsi_get_power_mode(struct mdfld_dsi_config *dsi_config,
 					u32 *mode, bool hs);
-extern int mdfld_dsi_get_diagnostic_result(struct mdfld_dsi_config *dsi_config,
-					u32 *result, bool hs);
 extern int mdfld_dsi_panel_reset(int pipe);
 
 #endif /*__MDFLD_DSI_OUTPUT_H__*/
