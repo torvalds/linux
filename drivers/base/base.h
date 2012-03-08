@@ -59,6 +59,10 @@ struct driver_private {
  * @knode_parent - node in sibling list
  * @knode_driver - node in driver list
  * @knode_bus - node in bus list
+ * @deferred_probe - entry in deferred_probe_list which is used to retry the
+ *	binding of drivers which were unable to get all the resources needed by
+ *	the device; typically because it depends on another driver getting
+ *	probed first.
  * @driver_data - private pointer for driver specific info.  Will turn into a
  * list soon.
  * @device - pointer back to the struct class that this structure is
@@ -71,6 +75,7 @@ struct device_private {
 	struct klist_node knode_parent;
 	struct klist_node knode_driver;
 	struct klist_node knode_bus;
+	struct list_head deferred_probe;
 	void *driver_data;
 	struct device *device;
 };

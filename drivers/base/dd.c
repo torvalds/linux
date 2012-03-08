@@ -45,7 +45,7 @@
  * retry them.
  *
  * The deferred_probe_mutex must be held any time the deferred_probe_*_list
- * of the (struct device*)->deferred_probe pointers are manipulated
+ * of the (struct device*)->p->deferred_probe pointers are manipulated
  */
 static DEFINE_MUTEX(deferred_probe_mutex);
 static LIST_HEAD(deferred_probe_pending_list);
@@ -58,6 +58,7 @@ static struct workqueue_struct *deferred_wq;
 static void deferred_probe_work_func(struct work_struct *work)
 {
 	struct device *dev;
+	struct device_private *private;
 	/*
 	 * This block processes every device in the deferred 'active' list.
 	 * Each device is removed from the active list and passed to
@@ -72,9 +73,10 @@ static void deferred_probe_work_func(struct work_struct *work)
 	 */
 	mutex_lock(&deferred_probe_mutex);
 	while (!list_empty(&deferred_probe_active_list)) {
-		dev = list_first_entry(&deferred_probe_active_list,
-					typeof(*dev), deferred_probe);
-		list_del_init(&dev->deferred_probe);
+		private = list_first_entry(&deferred_probe_active_list,
+					typeof(*dev->p), deferred_probe);
+		dev = private->device;
+		list_del_init(&private->deferred_probe);
 
 		get_device(dev);
 
@@ -94,9 +96,9 @@ static DECLARE_WORK(deferred_probe_work, deferred_probe_work_func);
 static void driver_deferred_probe_add(struct device *dev)
 {
 	mutex_lock(&deferred_probe_mutex);
-	if (list_empty(&dev->deferred_probe)) {
+	if (list_empty(&dev->p->deferred_probe)) {
 		dev_dbg(dev, "Added to deferred list\n");
-		list_add(&dev->deferred_probe, &deferred_probe_pending_list);
+		list_add(&dev->p->deferred_probe, &deferred_probe_pending_list);
 	}
 	mutex_unlock(&deferred_probe_mutex);
 }
@@ -104,9 +106,9 @@ static void driver_deferred_probe_add(struct device *dev)
 void driver_deferred_probe_del(struct device *dev)
 {
 	mutex_lock(&deferred_probe_mutex);
-	if (!list_empty(&dev->deferred_probe)) {
+	if (!list_empty(&dev->p->deferred_probe)) {
 		dev_dbg(dev, "Removed from deferred list\n");
-		list_del_init(&dev->deferred_probe);
+		list_del_init(&dev->p->deferred_probe);
 	}
 	mutex_unlock(&deferred_probe_mutex);
 }
