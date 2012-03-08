@@ -668,6 +668,19 @@ static const char *phy_event_name(u32 event_code)
 		phy_to_host(iphy)->id, iphy->phy_index, \
 		phy_state_name(state), phy_event_name(code), code)
 
+
+void scu_link_layer_set_txcomsas_timeout(struct isci_phy *iphy, u32 timeout)
+{
+	u32 val;
+
+	/* Extend timeout */
+	val = readl(&iphy->link_layer_registers->transmit_comsas_signal);
+	val &= ~SCU_SAS_LLTXCOMSAS_GEN_VAL(NEGTIME, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_MASK);
+	val |= SCU_SAS_LLTXCOMSAS_GEN_VAL(NEGTIME, timeout);
+
+	writel(val, &iphy->link_layer_registers->transmit_comsas_signal);
+}
+
 enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 {
 	enum sci_phy_states state = iphy->sm.current_state_id;
@@ -683,6 +696,13 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_phy_start_sata_link_training(iphy);
 			iphy->is_in_link_training = true;
 			break;
+		case SCU_EVENT_RECEIVED_IDENTIFY_TIMEOUT:
+		       /* Extend timeout value */
+		       scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_EXTENDED);
+
+		       /* Start the oob/sn state machine over again */
+		       sci_change_state(&iphy->sm, SCI_PHY_STARTING);
+		       break;
 		default:
 			phy_event_dbg(iphy, state, event_code);
 			return SCI_FAILURE;
@@ -717,9 +737,19 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_phy_start_sata_link_training(iphy);
 			break;
 		case SCU_EVENT_LINK_FAILURE:
+			/* Change the timeout value to default */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+
 			/* Link failure change state back to the starting state */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
+		case SCU_EVENT_RECEIVED_IDENTIFY_TIMEOUT:
+		       /* Extend the timeout value */
+		       scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_EXTENDED);
+
+		       /* Start the oob/sn state machine over again */
+		       sci_change_state(&iphy->sm, SCI_PHY_STARTING);
+		       break;
 		default:
 			phy_event_warn(iphy, state, event_code);
 			return SCI_FAILURE;
@@ -740,7 +770,14 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			sci_phy_start_sata_link_training(iphy);
 			break;
 		case SCU_EVENT_RECEIVED_IDENTIFY_TIMEOUT:
+			/* Extend the timeout value */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_EXTENDED);
+
+			/* Start the oob/sn state machine over again */
+			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
+			break;
 		case SCU_EVENT_LINK_FAILURE:
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
 		case SCU_EVENT_HARD_RESET_RECEIVED:
 			/* Start the oob/sn state machine over again */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
@@ -753,6 +790,9 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 	case SCI_PHY_SUB_AWAIT_SAS_POWER:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
+			/* Change the timeout value to default */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+
 			/* Link failure change state back to the starting state */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
@@ -764,6 +804,9 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 	case SCI_PHY_SUB_AWAIT_SATA_POWER:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
+			/* Change the timeout value to default */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+
 			/* Link failure change state back to the starting state */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
@@ -788,6 +831,9 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 	case SCI_PHY_SUB_AWAIT_SATA_PHY_EN:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
+			/* Change the timeout value to default */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+
 			/* Link failure change state back to the starting state */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
@@ -836,6 +882,9 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 						       SCI_PHY_SUB_AWAIT_SIG_FIS_UF);
 			break;
 		case SCU_EVENT_LINK_FAILURE:
+			/* Change the timeout value to default */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+
 			/* Link failure change state back to the starting state */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
@@ -859,6 +908,9 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 			break;
 
 		case SCU_EVENT_LINK_FAILURE:
+			/* Change the timeout value to default */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+
 			/* Link failure change state back to the starting state */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
@@ -871,6 +923,9 @@ enum sci_status sci_phy_event_handler(struct isci_phy *iphy, u32 event_code)
 	case SCI_PHY_READY:
 		switch (scu_get_event_code(event_code)) {
 		case SCU_EVENT_LINK_FAILURE:
+			/* Set default timeout */
+			scu_link_layer_set_txcomsas_timeout(iphy, SCU_SAS_LINK_LAYER_TXCOMSAS_NEGTIME_DEFAULT);
+
 			/* Link failure change state back to the starting state */
 			sci_change_state(&iphy->sm, SCI_PHY_STARTING);
 			break;
