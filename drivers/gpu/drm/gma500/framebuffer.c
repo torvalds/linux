@@ -562,7 +562,7 @@ struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 	.fb_probe = psbfb_probe,
 };
 
-int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
+static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 {
 	struct fb_info *info;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
@@ -604,7 +604,7 @@ int psb_fbdev_init(struct drm_device *dev)
 	return 0;
 }
 
-void psb_fbdev_fini(struct drm_device *dev)
+static void psb_fbdev_fini(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
