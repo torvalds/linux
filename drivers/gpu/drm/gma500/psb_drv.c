@@ -275,10 +275,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct drm_psb_private *dev_priv;
 	unsigned long resource_start;
-	struct psb_gtt *pg;
 	unsigned long irqflags;
 	int ret = -ENOMEM;
-	uint32_t tt_pages;
 	struct drm_connector *connector;
 	struct psb_intel_encoder *psb_intel_encoder;
 
@@ -335,12 +333,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 					dev_priv);
 	if (!dev_priv->mmu)
 		goto out_err;
-
-	pg = &dev_priv->gtt;
-
-	tt_pages = (pg->gatt_pages < PSB_TT_PRIV0_PLIMIT) ?
-		(pg->gatt_pages) : PSB_TT_PRIV0_PLIMIT;
-
 
 	dev_priv->pf_pd = psb_mmu_alloc_pd(dev_priv->mmu, 1, 0);
 	if (!dev_priv->pf_pd)
