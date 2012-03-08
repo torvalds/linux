@@ -111,39 +111,6 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
         return 0;
 }
 
-void psbfb_suspend(struct drm_device *dev)
-{
-	struct drm_framebuffer *fb;
-
-	console_lock();
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
-		struct psb_framebuffer *psbfb = to_psb_fb(fb);
-		struct fb_info *info = psbfb->fbdev;
-		fb_set_suspend(info, 1);
-		drm_fb_helper_blank(FB_BLANK_POWERDOWN, info);
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-	console_unlock();
-}
-
-void psbfb_resume(struct drm_device *dev)
-{
-	struct drm_framebuffer *fb;
-
-	console_lock();
-	mutex_lock(&dev->mode_config.mutex);
-	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
-		struct psb_framebuffer *psbfb = to_psb_fb(fb);
-		struct fb_info *info = psbfb->fbdev;
-		fb_set_suspend(info, 0);
-		drm_fb_helper_blank(FB_BLANK_UNBLANK, info);
-	}
-	mutex_unlock(&dev->mode_config.mutex);
-	console_unlock();
-	drm_helper_disable_unused_functions(dev);
-}
-
 static int psbfb_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
