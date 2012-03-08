@@ -29,6 +29,14 @@
 			      <0xa0410100 0x100>;
 		};
 
+		L2: l2-cache {
+			compatible = "arm,pl310-cache";
+			reg = <0xa0412000 0x1000>;
+			interrupts = <0 13 4>;
+			cache-unified;
+			cache-level = <2>;
+		};
+
 		pmu {
 			compatible = "arm,cortex-a9-pmu";
 			interrupts = <0 7 0x4>;
