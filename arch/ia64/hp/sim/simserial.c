@@ -34,8 +34,11 @@
 #include <linux/sysrq.h>
 
 #include <asm/irq.h>
+#include <asm/hpsim.h>
 #include <asm/hw_irq.h>
 #include <asm/uaccess.h>
+
+#include "hpsim_ssc.h"
 
 #undef SIMSERIAL_DEBUG	/* define this to get some debug information */
 
@@ -44,11 +47,6 @@
 #define NR_PORTS	1	/* only one port for now */
 
 #define IRQ_T(info) ((info->flags & ASYNC_SHARE_IRQ) ? IRQF_SHARED : IRQF_DISABLED)
-
-#define SSC_GETCHAR	21
-
-extern long ia64_ssc (long, long, long, long, int);
-extern void ia64_ssc_connect_irq (long intr, long irq);
 
 static char *serial_name = "SimSerial driver";
 static char *serial_version = "0.6";
