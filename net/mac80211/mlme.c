@@ -1351,9 +1351,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	 */
 	bss_info_changed |= BSS_CHANGED_BASIC_RATES;
 
-	/* And the BSSID changed - we're associated now */
-	bss_info_changed |= BSS_CHANGED_BSSID;
-
 	/* Tell the driver to monitor connection quality (if supported) */
 	if (sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI &&
 	    bss_conf->cqm_rssi_thold)
