@@ -190,6 +190,8 @@ struct blkio_group {
 	spinlock_t stats_lock;
 	struct blkg_policy_data *pd[BLKIO_NR_POLICIES];
 
+	/* List of blkg waiting for per cpu stats memory to be allocated */
+	struct list_head alloc_node;
 	struct rcu_head rcu_head;
 };
 
