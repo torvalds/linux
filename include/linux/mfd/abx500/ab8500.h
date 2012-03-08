@@ -217,6 +217,7 @@ enum ab8500_version {
  * @version: chip version id (e.g. ab8500 or ab9540)
  * @chip_id: chip revision id
  * @write: register write
+ * @write_masked: masked register write
  * @read: register read
  * @rx_buf: rx buf for SPI
  * @tx_buf: tx buf for SPI
@@ -236,8 +237,9 @@ struct ab8500 {
 	enum ab8500_version version;
 	u8		chip_id;
 
-	int (*write) (struct ab8500 *a8500, u16 addr, u8 data);
-	int (*read) (struct ab8500 *a8500, u16 addr);
+	int (*write)(struct ab8500 *ab8500, u16 addr, u8 data);
+	int (*write_masked)(struct ab8500 *ab8500, u16 addr, u8 mask, u8 data);
+	int (*read)(struct ab8500 *ab8500, u16 addr);
 
 	unsigned long	tx_buf[4];
 	unsigned long	rx_buf[4];

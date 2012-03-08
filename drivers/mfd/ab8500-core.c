@@ -201,29 +201,38 @@ static int mask_and_set_register_interruptible(struct ab8500 *ab8500, u8 bank,
 	u8 reg, u8 bitmask, u8 bitvalues)
 {
 	int ret;
-	u8 data;
 	/* put the u8 bank and u8 reg together into a an u16.
 	 * bank on higher 8 bits and reg in lower */
 	u16 addr = ((u16)bank) << 8 | reg;
 
 	mutex_lock(&ab8500->lock);
 
-	ret = ab8500->read(ab8500, addr);
-	if (ret < 0) {
-		dev_err(ab8500->dev, "failed to read reg %#x: %d\n",
-			addr, ret);
+	if (ab8500->write_masked == NULL) {
+		u8 data;
+
+		ret = ab8500->read(ab8500, addr);
+		if (ret < 0) {
+			dev_err(ab8500->dev, "failed to read reg %#x: %d\n",
+				addr, ret);
+			goto out;
+		}
+
+		data = (u8)ret;
+		data = (~bitmask & data) | (bitmask & bitvalues);
+
+		ret = ab8500->write(ab8500, addr, data);
+		if (ret < 0)
+			dev_err(ab8500->dev, "failed to write reg %#x: %d\n",
+				addr, ret);
+
+		dev_vdbg(ab8500->dev, "mask: addr %#x => data %#x\n", addr,
+			data);
 		goto out;
 	}
-
-	data = (u8)ret;
-	data = (~bitmask & data) | (bitmask & bitvalues);
-
-	ret = ab8500->write(ab8500, addr, data);
+	ret = ab8500->write_masked(ab8500, addr, bitmask, bitvalues);
 	if (ret < 0)
-		dev_err(ab8500->dev, "failed to write reg %#x: %d\n",
-			addr, ret);
-
-	dev_vdbg(ab8500->dev, "mask: addr %#x => data %#x\n", addr, data);
+		dev_err(ab8500->dev, "failed to modify reg %#x: %d\n", addr,
+			ret);
 out:
 	mutex_unlock(&ab8500->lock);
 	return ret;

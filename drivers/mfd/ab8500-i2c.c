@@ -11,13 +11,25 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/abx500/ab8500.h>
-#include <linux/mfd/db8500-prcmu.h>
+#include <linux/mfd/dbx500-prcmu.h>
 
 static int ab8500_i2c_write(struct ab8500 *ab8500, u16 addr, u8 data)
 {
 	int ret;
 
 	ret = prcmu_abb_write((u8)(addr >> 8), (u8)(addr & 0xFF), &data, 1);
+	if (ret < 0)
+		dev_err(ab8500->dev, "prcmu i2c error %d\n", ret);
+	return ret;
+}
+
+static int ab8500_i2c_write_masked(struct ab8500 *ab8500, u16 addr, u8 mask,
+	u8 data)
+{
+	int ret;
+
+	ret = prcmu_abb_write_masked((u8)(addr >> 8), (u8)(addr & 0xFF), &data,
+		&mask, 1);
 	if (ret < 0)
 		dev_err(ab8500->dev, "prcmu i2c error %d\n", ret);
 	return ret;
@@ -59,6 +71,7 @@ static int __devinit ab8500_i2c_probe(struct platform_device *plf)
 
 	ab8500->read = ab8500_i2c_read;
 	ab8500->write = ab8500_i2c_write;
+	ab8500->write_masked = ab8500_i2c_write_masked;
 
 	platform_set_drvdata(plf, ab8500);
 
