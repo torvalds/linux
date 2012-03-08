@@ -101,8 +101,7 @@ static int max8649_set_voltage(struct regulator_dev *rdev,
 			min_uV, max_uV);
 		return -EINVAL;
 	}
-	data = (min_uV - MAX8649_DCDC_VMIN + MAX8649_DCDC_STEP - 1)
-		/ MAX8649_DCDC_STEP;
+	data = DIV_ROUND_UP(min_uV - MAX8649_DCDC_VMIN, MAX8649_DCDC_STEP);
 	mask = MAX8649_VOL_MASK;
 	*selector = data & mask;
 
