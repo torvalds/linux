@@ -380,7 +380,6 @@ static void mdfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 	u32 pipestat_reg = PIPEASTAT;
 	u32 pipeconf = dev_priv->pipeconf[pipe];
 	u32 temp;
-	bool enabled;
 	int timeout = 0;
 
 	dev_dbg(dev->dev, "mode = %d, pipe = %d\n", mode, pipe);
@@ -566,7 +565,6 @@ static void mdfld_crtc_dpms(struct drm_crtc *crtc, int mode)
 		}
 		break;
 	}
-	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
 	gma_power_end(dev);
 }
 
@@ -787,7 +785,6 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 	struct mrst_clock_t clock;
 	bool ok;
 	u32 dpll = 0, fp = 0;
-	bool is_crt = false, is_lvds = false, is_tv = false;
 	bool is_mipi = false, is_mipi2 = false, is_hdmi = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct psb_intel_encoder *psb_intel_encoder = NULL;
@@ -898,15 +895,6 @@ static int mdfld_crtc_mode_set(struct drm_crtc *crtc,
 		psb_intel_encoder = psb_intel_attached_encoder(connector);
 
 		switch (psb_intel_encoder->type) {
-		case INTEL_OUTPUT_LVDS:
-			is_lvds = true;
-			break;
-		case INTEL_OUTPUT_TVOUT:
-			is_tv = true;
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			is_crt = true;
-			break;
 		case INTEL_OUTPUT_MIPI:
 			is_mipi = true;
 			break;
