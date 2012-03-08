@@ -180,25 +180,7 @@ static int jc42_remove(struct i2c_client *client);
 static struct jc42_data *jc42_update_device(struct device *dev);
 
 static const struct i2c_device_id jc42_id[] = {
-	{ "adt7408", 0 },
-	{ "at30ts00", 0 },
-	{ "cat94ts02", 0 },
-	{ "cat6095", 0 },
 	{ "jc42", 0 },
-	{ "max6604", 0 },
-	{ "mcp9804", 0 },
-	{ "mcp9805", 0 },
-	{ "mcp98242", 0 },
-	{ "mcp98243", 0 },
-	{ "mcp9843", 0 },
-	{ "se97", 0 },
-	{ "se97b", 0 },
-	{ "se98", 0 },
-	{ "stts424", 0 },
-	{ "stts2002", 0 },
-	{ "stts3000", 0 },
-	{ "tse2002", 0 },
-	{ "ts3000", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, jc42_id);
