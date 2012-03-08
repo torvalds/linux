@@ -1,32 +1,9 @@
 /*
-  Date Created:	9/15/2006
-  File Name:		metro-usb.c
-  Description:	metro-usb.c is the drivers main source file. The driver is a USB to Serial converter.
-		The driver takes USB data and sends it to a virtual ttyUSB# serial port.
-		The driver interfaces with the usbserial.ko driver supplied by Linux.
-
-		NOTES:
-		To install the driver:
-		1. Install the usbserial.ko module supplied by Linux with: # insmod usbserial.ko
-		2. Install the metro-usb.ko module with: # insmod metro-usb.ko
-
-		Some of this code is credited to Linux USB open source files that are distributed with Linux.
+  Some of this code is credited to Linux USB open source files that are
+  distributed with Linux.
 
   Copyright:	2007 Metrologic Instruments. All rights reserved.
   Copyright:	2011 Azimut Ltd. <http://azimutrzn.ru/>
-  Requirements: gedit.exe, notepad.exe
- 
-  Revision History:
-
-  Date:			Developer:			Revisions:
-  ------------------------------------------------------------------------------
-  1/30/2007		Philip Nicastro		Initial release. (v1.0.0.0)
-  2/27/2007		Philip Nicastro		Changed the metrousb_read_int_callback function to use a loop with the tty_insert_flip_char function to copy each byte to the tty layer. Removed the tty_buffer_request_room and the tty_insert_flip_string function calls. These calls were not supported on Fedora.
-  2/27/2007		Philip Nicastro		Released. (v1.1.0.0)
-  10/07/2011		Aleksey Babahin		Update for new kernel (tested on 2.6.38)
-						Add unidirection mode support
- 
- 
 */
 
 #include <linux/kernel.h>
@@ -41,8 +18,8 @@
 #include <linux/moduleparam.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
+#include <linux/uaccess.h>
 #include <linux/usb/serial.h>
-#include <asm/uaccess.h>
 
 /* Version Information */
 #define DRIVER_VERSION "v1.2.0.0"
@@ -59,7 +36,7 @@
 #define METROUSB_MCR_NONE		0x08	/* Deactivate DTR and RTS. */
 #define METROUSB_MCR_RTS		0x0a	/* Activate RTS. */
 #define METROUSB_MCR_DTR		0x09	/* Activate DTR. */
-#define WDR_TIMEOUT			5000 	/* default urb timeout. */
+#define WDR_TIMEOUT			5000	/* default urb timeout. */
 
 /* Private data structure. */
 struct metrousb_private {
@@ -69,7 +46,7 @@ struct metrousb_private {
 };
 
 /* Device table list. */
-static struct usb_device_id id_table [] = {
+static struct usb_device_id id_table[] = {
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID) },
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_UNI) },
 	{ }, /* Terminating entry. */
@@ -80,12 +57,12 @@ MODULE_DEVICE_TABLE(usb, id_table);
 static bool debug;
 
 /* Function prototypes. */
-static void metrousb_cleanup (struct usb_serial_port *port);
-static void metrousb_close (struct usb_serial_port *port);
-static int  metrousb_open (struct tty_struct *tty, struct usb_serial_port *port);
-static void metrousb_read_int_callback (struct urb *urb);
-static void metrousb_shutdown (struct usb_serial *serial);
-static int metrousb_startup (struct usb_serial *serial);
+static void metrousb_cleanup(struct usb_serial_port *port);
+static void metrousb_close(struct usb_serial_port *port);
+static int  metrousb_open(struct tty_struct *tty, struct usb_serial_port *port);
+static void metrousb_read_int_callback(struct urb *urb);
+static void metrousb_shutdown(struct usb_serial *serial);
+static int metrousb_startup(struct usb_serial *serial);
 static void metrousb_throttle(struct tty_struct *tty);
 static int metrousb_tiocmget(struct tty_struct *tty);
 static int metrousb_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear);
@@ -105,18 +82,18 @@ static struct usb_serial_driver metrousb_device = {
 		.owner =	THIS_MODULE,
 		.name =		"metro-usb",
 	},
-	.description 		= "Metrologic USB to serial converter.",
-	.id_table 		= id_table,
-	.num_ports 		= 1,
-	.open 			= metrousb_open,
-	.close 			= metrousb_close,
-	.read_int_callback 	= metrousb_read_int_callback,
-	.attach 		= metrousb_startup,
-	.release 		= metrousb_shutdown,
-	.throttle          	= metrousb_throttle,
-	.unthrottle        	= metrousb_unthrottle,
-	.tiocmget          	= metrousb_tiocmget,
-	.tiocmset          	= metrousb_tiocmset,
+	.description		= "Metrologic USB to serial converter.",
+	.id_table		= id_table,
+	.num_ports		= 1,
+	.open			= metrousb_open,
+	.close			= metrousb_close,
+	.read_int_callback	= metrousb_read_int_callback,
+	.attach			= metrousb_startup,
+	.release		= metrousb_shutdown,
+	.throttle		= metrousb_throttle,
+	.unthrottle		= metrousb_unthrottle,
+	.tiocmget		= metrousb_tiocmget,
+	.tiocmset		= metrousb_tiocmset,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
@@ -134,7 +111,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
   Output:
 	int: Returns true (0) if successful, false otherwise.
 */
-static void metrousb_cleanup (struct usb_serial_port *port)
+static void metrousb_cleanup(struct usb_serial_port *port)
 {
 	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
 
@@ -144,12 +121,6 @@ static void metrousb_cleanup (struct usb_serial_port *port)
 			usb_unlink_urb(port->interrupt_in_urb);
 			usb_kill_urb(port->interrupt_in_urb);
 		}
-
-		// temp
-		// this will be needed for the write urb
-		/* Shutdown any interrupt_out_urbs. */
-		//if (serial->num_bulk_in)
-		//	usb_kill_urb(port->read_urb);
 	}
 }
 
@@ -164,7 +135,7 @@ static void metrousb_cleanup (struct usb_serial_port *port)
   Output:
 	int: Returns true (0) if successful, false otherwise.
 */
-static void metrousb_close (struct usb_serial_port *port)
+static void metrousb_close(struct usb_serial_port *port)
 {
 	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
 	metrousb_cleanup(port);
@@ -181,7 +152,7 @@ static void metrousb_close (struct usb_serial_port *port)
   Output:
 	int: Returns true (0) if successful, false otherwise.
 */
-static int metrousb_open (struct tty_struct *tty, struct usb_serial_port *port)
+static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
@@ -207,16 +178,15 @@ static int metrousb_open (struct tty_struct *tty, struct usb_serial_port *port)
 	 * through, otherwise it is scheduled, and with high data rates (like
 	 * with OHCI) data can get lost.
 	 */
-	if (tty) {
+	if (tty)
 		tty->low_latency = 1;
-	}
 
 	/* Clear the urb pipe. */
 	usb_clear_halt(serial->dev, port->interrupt_in_urb->pipe);
 
 	/* Start reading from the device */
-	usb_fill_int_urb (port->interrupt_in_urb, serial->dev,
-			   usb_rcvintpipe (serial->dev, port->interrupt_in_endpointAddress),
+	usb_fill_int_urb(port->interrupt_in_urb, serial->dev,
+			  usb_rcvintpipe(serial->dev, port->interrupt_in_endpointAddress),
 			   port->interrupt_in_urb->transfer_buffer,
 			   port->interrupt_in_urb->transfer_buffer_length,
 			   metrousb_read_int_callback, port, 1);
@@ -244,7 +214,7 @@ exit:
   Output:
 	None:
 */
-static void metrousb_read_int_callback (struct urb *urb)
+static void metrousb_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
@@ -257,20 +227,20 @@ static void metrousb_read_int_callback (struct urb *urb)
 	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
 
 	switch (urb->status) {
-		case 0:
-			/* Success status, read from the port. */
-			break;
-		case -ECONNRESET:
-		case -ENOENT:
-		case -ESHUTDOWN:
-			/* urb has been terminated. */
-			dbg("METRO-USB - %s - urb shutting down, port number=%d, error code=%d",
-				__FUNCTION__, port->number, result);
-			return;
-		default:
-			dbg("METRO-USB - %s - non-zero urb received, port number=%d, error code=%d",
-				__FUNCTION__, port->number, result);
-			goto exit;
+	case 0:
+		/* Success status, read from the port. */
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* urb has been terminated. */
+		dbg("METRO-USB - %s - urb shutting down, port number=%d, error code=%d",
+			__FUNCTION__, port->number, result);
+		return;
+	default:
+		dbg("METRO-USB - %s - non-zero urb received, port number=%d, error code=%d",
+			__FUNCTION__, port->number, result);
+		goto exit;
 	}
 
 
@@ -282,10 +252,10 @@ static void metrousb_read_int_callback (struct urb *urb)
 	}
 
 	if (tty && urb->actual_length) {
-		// Loop through the data copying each byte to the tty layer.
+		/* Loop through the data copying each byte to the tty layer. */
 		tty_insert_flip_string(tty, data, urb->actual_length);
 
-		// Force the data to the tty layer.
+		/* Force the data to the tty layer. */
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);
@@ -297,11 +267,11 @@ static void metrousb_read_int_callback (struct urb *urb)
 
 	/* Continue trying to read if set. */
 	if (!throttled) {
-		usb_fill_int_urb (port->interrupt_in_urb, port->serial->dev,
-				   usb_rcvintpipe (port->serial->dev, port->interrupt_in_endpointAddress),
-				   port->interrupt_in_urb->transfer_buffer,
-				   port->interrupt_in_urb->transfer_buffer_length,
-				   metrousb_read_int_callback, port, 1);
+		usb_fill_int_urb(port->interrupt_in_urb, port->serial->dev,
+				 usb_rcvintpipe(port->serial->dev, port->interrupt_in_endpointAddress),
+				 port->interrupt_in_urb->transfer_buffer,
+				 port->interrupt_in_urb->transfer_buffer_length,
+				 metrousb_read_int_callback, port, 1);
 
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 
@@ -314,7 +284,7 @@ static void metrousb_read_int_callback (struct urb *urb)
 
 exit:
 	/* Try to resubmit the urb. */
-	result = usb_submit_urb (urb, GFP_ATOMIC);
+	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result) {
 		dbg("METRO-USB - %s - failed submitting interrupt in urb for port number=%d, error code=%d",
 			__FUNCTION__, port->number, result);
@@ -366,14 +336,14 @@ static int metrousb_set_modem_ctrl(struct usb_serial *serial, unsigned int contr
   Output:
 	int: Returns true (0) if successful, false otherwise.
 */
-static void metrousb_shutdown (struct usb_serial *serial)
+static void metrousb_shutdown(struct usb_serial *serial)
 {
 	int i = 0;
 
 	dbg("METRO-USB - %s", __FUNCTION__);
 
 	/* Stop reading and writing on all ports. */
-	for (i=0; i < serial->num_ports; ++i) {
+	for (i = 0; i < serial->num_ports; ++i) {
 		/* Close any open urbs. */
 		metrousb_cleanup(serial->port[i]);
 
@@ -409,12 +379,12 @@ static int metrousb_startup(struct usb_serial *serial)
 		port = serial->port[i];
 
 		/* Declare memory. */
-		metro_priv = (struct metrousb_private *) kmalloc (sizeof(struct metrousb_private), GFP_KERNEL);
+		metro_priv = kmalloc(sizeof(struct metrousb_private), GFP_KERNEL);
 		if (!metro_priv)
 			return -ENOMEM;
 
 		/* Clear memory. */
-		memset (metro_priv, 0x00, sizeof(struct metrousb_private));
+		memset(metro_priv, 0x00, sizeof(struct metrousb_private));
 
 		/* Initialize memory. */
 		spin_lock_init(&metro_priv->lock);
@@ -436,7 +406,7 @@ static int metrousb_startup(struct usb_serial *serial)
   Output:
 	None:
 */
-static void metrousb_throttle (struct tty_struct *tty)
+static void metrousb_throttle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
@@ -461,7 +431,7 @@ static void metrousb_throttle (struct tty_struct *tty)
   Output:
 	int: Returns the state of the control lines.
 */
-static int metrousb_tiocmget (struct tty_struct *tty)
+static int metrousb_tiocmget(struct tty_struct *tty)
 {
 	unsigned long control_state = 0;
 	struct usb_serial_port *port = tty->driver_data;
@@ -490,8 +460,8 @@ static int metrousb_tiocmget (struct tty_struct *tty)
   Output:
 	int: Returns the state of the control lines.
 */
-static int metrousb_tiocmset (struct tty_struct *tty,
-			       unsigned int set, unsigned int clear)
+static int metrousb_tiocmset(struct tty_struct *tty,
+			     unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
@@ -504,7 +474,7 @@ static int metrousb_tiocmset (struct tty_struct *tty,
 	spin_lock_irqsave(&metro_priv->lock, flags);
 	control_state = metro_priv->control_state;
 
-	// Set the RTS and DTR values.
+	/* Set the RTS and DTR values. */
 	if (set & TIOCM_RTS)
 		control_state |= TIOCM_RTS;
 	if (set & TIOCM_DTR)
@@ -529,7 +499,7 @@ static int metrousb_tiocmset (struct tty_struct *tty,
   Output:
 	None:
 */
-static void metrousb_unthrottle (struct tty_struct *tty)
+static void metrousb_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
@@ -555,9 +525,9 @@ static void metrousb_unthrottle (struct tty_struct *tty)
 module_usb_serial_driver(metrousb_driver, serial_drivers);
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR( "Philip Nicastro" );
-MODULE_AUTHOR( "Aleksey Babahin <tamerlan311@gmail.com>" );
-MODULE_DESCRIPTION( DRIVER_DESC );
+MODULE_AUTHOR("Philip Nicastro");
+MODULE_AUTHOR("Aleksey Babahin <tamerlan311@gmail.com>");
+MODULE_DESCRIPTION(DRIVER_DESC);
 
 /* Module input parameters */
 module_param(debug, bool, S_IRUGO | S_IWUSR);
