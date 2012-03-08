@@ -56,153 +56,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 /* Input parameter constants. */
 static bool debug;
 
-/* Function prototypes. */
-static void metrousb_cleanup(struct usb_serial_port *port);
-static void metrousb_close(struct usb_serial_port *port);
-static int  metrousb_open(struct tty_struct *tty, struct usb_serial_port *port);
-static void metrousb_read_int_callback(struct urb *urb);
-static void metrousb_shutdown(struct usb_serial *serial);
-static int metrousb_startup(struct usb_serial *serial);
-static void metrousb_throttle(struct tty_struct *tty);
-static int metrousb_tiocmget(struct tty_struct *tty);
-static int metrousb_tiocmset(struct tty_struct *tty, unsigned int set, unsigned int clear);
-static void metrousb_unthrottle(struct tty_struct *tty);
-
-/* Driver structure. */
-static struct usb_driver metrousb_driver = {
-	.name =		"metro-usb",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.id_table =	id_table
-};
-
-/* Device structure. */
-static struct usb_serial_driver metrousb_device = {
-	.driver = {
-		.owner =	THIS_MODULE,
-		.name =		"metro-usb",
-	},
-	.description		= "Metrologic USB to serial converter.",
-	.id_table		= id_table,
-	.num_ports		= 1,
-	.open			= metrousb_open,
-	.close			= metrousb_close,
-	.read_int_callback	= metrousb_read_int_callback,
-	.attach			= metrousb_startup,
-	.release		= metrousb_shutdown,
-	.throttle		= metrousb_throttle,
-	.unthrottle		= metrousb_unthrottle,
-	.tiocmget		= metrousb_tiocmget,
-	.tiocmset		= metrousb_tiocmset,
-};
-
-static struct usb_serial_driver * const serial_drivers[] = {
-	&metrousb_device,
-	NULL,
-};
-
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Clean up any urbs and port information.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
-static void metrousb_cleanup(struct usb_serial_port *port)
-{
-	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
-
-	if (port->serial->dev) {
-		/* Shutdown any interrupt in urbs. */
-		if (port->interrupt_in_urb) {
-			usb_unlink_urb(port->interrupt_in_urb);
-			usb_kill_urb(port->interrupt_in_urb);
-		}
-	}
-}
-
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Close the open serial port. Cleanup any open serial port information.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-	struct file *: pointer to a file structure.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
-static void metrousb_close(struct usb_serial_port *port)
-{
-	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
-	metrousb_cleanup(port);
-}
-
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Open the drivers serial port.
-
-  Input:
-	struct usb_serial_port *: pointer to a usb_serial_port structure.
-	struct file *: pointer to a file structure.
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
-static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
-{
-	struct usb_serial *serial = port->serial;
-	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
-	unsigned long flags = 0;
-	int result = 0;
-
-	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
-
-	/* Make sure the urb is initialized. */
-	if (!port->interrupt_in_urb) {
-		dbg("METRO-USB - %s - interrupt urb not initialized for port number=%d", __FUNCTION__, port->number);
-		return -ENODEV;
-	}
-
-	/* Set the private data information for the port. */
-	spin_lock_irqsave(&metro_priv->lock, flags);
-	metro_priv->control_state = 0;
-	metro_priv->throttled = 0;
-	spin_unlock_irqrestore(&metro_priv->lock, flags);
-
-	/*
-	 * Force low_latency on so that our tty_push actually forces the data
-	 * through, otherwise it is scheduled, and with high data rates (like
-	 * with OHCI) data can get lost.
-	 */
-	if (tty)
-		tty->low_latency = 1;
-
-	/* Clear the urb pipe. */
-	usb_clear_halt(serial->dev, port->interrupt_in_urb->pipe);
-
-	/* Start reading from the device */
-	usb_fill_int_urb(port->interrupt_in_urb, serial->dev,
-			  usb_rcvintpipe(serial->dev, port->interrupt_in_endpointAddress),
-			   port->interrupt_in_urb->transfer_buffer,
-			   port->interrupt_in_urb->transfer_buffer_length,
-			   metrousb_read_int_callback, port, 1);
-	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
-
-	if (result) {
-		dbg("METRO-USB - %s - failed submitting interrupt in urb for port number=%d, error code=%d"
-			, __FUNCTION__, port->number, result);
-		goto exit;
-	}
-
-	dbg("METRO-USB - %s - port open for port number=%d", __FUNCTION__, port->number);
-exit:
-	return result;
-}
-
 /* ----------------------------------------------------------------------------------------------
   Description:
 	Read the port from the read interrupt.
@@ -289,6 +142,91 @@ exit:
 		dbg("METRO-USB - %s - failed submitting interrupt in urb for port number=%d, error code=%d",
 			__FUNCTION__, port->number, result);
 	}
+}
+
+/* ----------------------------------------------------------------------------------------------
+  Description:
+	Clean up any urbs and port information.
+
+  Input:
+	struct usb_serial_port *: pointer to a usb_serial_port structure.
+
+  Output:
+	int: Returns true (0) if successful, false otherwise.
+*/
+static void metrousb_cleanup(struct usb_serial_port *port)
+{
+	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
+
+	if (port->serial->dev) {
+		/* Shutdown any interrupt in urbs. */
+		if (port->interrupt_in_urb) {
+			usb_unlink_urb(port->interrupt_in_urb);
+			usb_kill_urb(port->interrupt_in_urb);
+		}
+	}
+}
+
+/* ----------------------------------------------------------------------------------------------
+  Description:
+	Open the drivers serial port.
+
+  Input:
+	struct usb_serial_port *: pointer to a usb_serial_port structure.
+	struct file *: pointer to a file structure.
+
+  Output:
+	int: Returns true (0) if successful, false otherwise.
+*/
+static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
+{
+	struct usb_serial *serial = port->serial;
+	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
+	unsigned long flags = 0;
+	int result = 0;
+
+	dbg("METRO-USB - %s - port number=%d", __FUNCTION__, port->number);
+
+	/* Make sure the urb is initialized. */
+	if (!port->interrupt_in_urb) {
+		dbg("METRO-USB - %s - interrupt urb not initialized for port number=%d", __FUNCTION__, port->number);
+		return -ENODEV;
+	}
+
+	/* Set the private data information for the port. */
+	spin_lock_irqsave(&metro_priv->lock, flags);
+	metro_priv->control_state = 0;
+	metro_priv->throttled = 0;
+	spin_unlock_irqrestore(&metro_priv->lock, flags);
+
+	/*
+	 * Force low_latency on so that our tty_push actually forces the data
+	 * through, otherwise it is scheduled, and with high data rates (like
+	 * with OHCI) data can get lost.
+	 */
+	if (tty)
+		tty->low_latency = 1;
+
+	/* Clear the urb pipe. */
+	usb_clear_halt(serial->dev, port->interrupt_in_urb->pipe);
+
+	/* Start reading from the device */
+	usb_fill_int_urb(port->interrupt_in_urb, serial->dev,
+			  usb_rcvintpipe(serial->dev, port->interrupt_in_endpointAddress),
+			   port->interrupt_in_urb->transfer_buffer,
+			   port->interrupt_in_urb->transfer_buffer_length,
+			   metrousb_read_int_callback, port, 1);
+	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
+
+	if (result) {
+		dbg("METRO-USB - %s - failed submitting interrupt in urb for port number=%d, error code=%d"
+			, __FUNCTION__, port->number, result);
+		goto exit;
+	}
+
+	dbg("METRO-USB - %s - port open for port number=%d", __FUNCTION__, port->number);
+exit:
+	return result;
 }
 
 /* ----------------------------------------------------------------------------------------------
@@ -521,6 +459,39 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 			__FUNCTION__, port->number, result);
 	}
 }
+
+/* Driver structure. */
+static struct usb_driver metrousb_driver = {
+	.name =		"metro-usb",
+	.probe =	usb_serial_probe,
+	.disconnect =	usb_serial_disconnect,
+	.id_table =	id_table
+};
+
+/* Device structure. */
+static struct usb_serial_driver metrousb_device = {
+	.driver = {
+		.owner =	THIS_MODULE,
+		.name =		"metro-usb",
+	},
+	.description		= "Metrologic USB to serial converter.",
+	.id_table		= id_table,
+	.num_ports		= 1,
+	.open			= metrousb_open,
+	.close			= metrousb_cleanup,
+	.read_int_callback	= metrousb_read_int_callback,
+	.attach			= metrousb_startup,
+	.release		= metrousb_shutdown,
+	.throttle		= metrousb_throttle,
+	.unthrottle		= metrousb_unthrottle,
+	.tiocmget		= metrousb_tiocmget,
+	.tiocmset		= metrousb_tiocmset,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&metrousb_device,
+	NULL,
+};
 
 module_usb_serial_driver(metrousb_driver, serial_drivers);
 
