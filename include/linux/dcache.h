@@ -54,18 +54,17 @@ extern struct dentry_stat_t dentry_stat;
 static inline int dentry_cmp(const unsigned char *cs, size_t scount,
 				const unsigned char *ct, size_t tcount)
 {
-	int ret;
 	if (scount != tcount)
 		return 1;
+
 	do {
-		ret = (*cs != *ct);
-		if (ret)
-			break;
+		if (*cs != *ct)
+			return 1;
 		cs++;
 		ct++;
 		tcount--;
 	} while (tcount);
-	return ret;
+	return 0;
 }
 
 /* Name hashing routines. Initial hash value */
@@ -89,14 +88,7 @@ static inline unsigned long end_name_hash(unsigned long hash)
 }
 
 /* Compute the hash for a name string. */
-static inline unsigned int
-full_name_hash(const unsigned char *name, unsigned int len)
-{
-	unsigned long hash = init_name_hash();
-	while (len--)
-		hash = partial_name_hash(*name++, hash);
-	return end_name_hash(hash);
-}
+extern unsigned int full_name_hash(const unsigned char *, unsigned int);
 
 /*
  * Try to keep struct dentry aligned on 64 byte cachelines (this will
@@ -309,7 +301,8 @@ extern struct dentry *d_ancestor(struct dentry *, struct dentry *);
 extern struct dentry *d_lookup(struct dentry *, struct qstr *);
 extern struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
 extern struct dentry *__d_lookup(struct dentry *, struct qstr *);
-extern struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
+extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
+				const struct qstr *name,
 				unsigned *seq, struct inode **inode);
 
 /**

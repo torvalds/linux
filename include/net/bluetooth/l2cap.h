@@ -611,7 +611,7 @@ static inline void l2cap_set_timer(struct l2cap_chan *chan,
 {
 	BT_DBG("chan %p state %d timeout %ld", chan, chan->state, timeout);
 
-	if (!__cancel_delayed_work(work))
+	if (!cancel_delayed_work(work))
 		l2cap_chan_hold(chan);
 	schedule_delayed_work(work, timeout);
 }
@@ -619,20 +619,20 @@ static inline void l2cap_set_timer(struct l2cap_chan *chan,
 static inline void l2cap_clear_timer(struct l2cap_chan *chan,
 					struct delayed_work *work)
 {
-	if (__cancel_delayed_work(work))
+	if (cancel_delayed_work(work))
 		l2cap_chan_put(chan);
 }
 
 #define __set_chan_timer(c, t) l2cap_set_timer(c, &c->chan_timer, (t))
 #define __clear_chan_timer(c) l2cap_clear_timer(c, &c->chan_timer)
 #define __set_retrans_timer(c) l2cap_set_timer(c, &c->retrans_timer, \
-		L2CAP_DEFAULT_RETRANS_TO);
+		msecs_to_jiffies(L2CAP_DEFAULT_RETRANS_TO));
 #define __clear_retrans_timer(c) l2cap_clear_timer(c, &c->retrans_timer)
 #define __set_monitor_timer(c) l2cap_set_timer(c, &c->monitor_timer, \
-		L2CAP_DEFAULT_MONITOR_TO);
+		msecs_to_jiffies(L2CAP_DEFAULT_MONITOR_TO));
 #define __clear_monitor_timer(c) l2cap_clear_timer(c, &c->monitor_timer)
 #define __set_ack_timer(c) l2cap_set_timer(c, &chan->ack_timer, \
-		L2CAP_DEFAULT_ACK_TO);
+		msecs_to_jiffies(L2CAP_DEFAULT_ACK_TO));
 #define __clear_ack_timer(c) l2cap_clear_timer(c, &c->ack_timer)
 
 static inline int __seq_offset(struct l2cap_chan *chan, __u16 seq1, __u16 seq2)
@@ -834,7 +834,7 @@ int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 struct l2cap_chan *l2cap_chan_create(struct sock *sk);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
 void l2cap_chan_destroy(struct l2cap_chan *chan);
-inline int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
+int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 								bdaddr_t *dst);
 int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 								u32 priority);

@@ -28,7 +28,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
-#include <linux/regulator/bq24022.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max1586.h>
 #include <linux/spi/ads7846.h>
@@ -45,6 +46,7 @@
 #include <mach/hx4700.h>
 #include <mach/irda.h>
 
+#include <sound/ak4641.h>
 #include <video/platform_lcd.h>
 #include <video/w100fb.h>
 
@@ -681,14 +683,34 @@ static struct regulator_init_data bq24022_init_data = {
 	.consumer_supplies      = bq24022_consumers,
 };
 
-static struct bq24022_mach_info bq24022_info = {
-	.gpio_nce   = GPIO72_HX4700_BQ24022_nCHARGE_EN,
-	.gpio_iset2 = GPIO96_HX4700_BQ24022_ISET2,
-	.init_data  = &bq24022_init_data,
+static struct gpio bq24022_gpios[] = {
+	{ GPIO96_HX4700_BQ24022_ISET2, GPIOF_OUT_INIT_LOW, "bq24022_iset2" },
+};
+
+static struct gpio_regulator_state bq24022_states[] = {
+	{ .value = 100000, .gpios = (0 << 0) },
+	{ .value = 500000, .gpios = (1 << 0) },
+};
+
+static struct gpio_regulator_config bq24022_info = {
+	.supply_name = "bq24022",
+
+	.enable_gpio = GPIO72_HX4700_BQ24022_nCHARGE_EN,
+	.enable_high = 0,
+	.enabled_at_boot = 0,
+
+	.gpios = bq24022_gpios,
+	.nr_gpios = ARRAY_SIZE(bq24022_gpios),
+
+	.states = bq24022_states,
+	.nr_states = ARRAY_SIZE(bq24022_states),
+
+	.type = REGULATOR_CURRENT,
+	.init_data = &bq24022_init_data,
 };
 
 static struct platform_device bq24022 = {
-	.name = "bq24022",
+	.name = "gpio-regulator",
 	.id   = -1,
 	.dev  = {
 		.platform_data = &bq24022_info,
@@ -765,6 +787,28 @@ static struct i2c_board_info __initdata pi2c_board_info[] = {
 };
 
 /*
+ * Asahi Kasei AK4641 on I2C
+ */
+
+static struct ak4641_platform_data ak4641_info = {
+	.gpio_power = GPIO27_HX4700_CODEC_ON,
+	.gpio_npdn  = GPIO109_HX4700_CODEC_nPDN,
+};
+
+static struct i2c_board_info i2c_board_info[] __initdata = {
+	{
+		I2C_BOARD_INFO("ak4641", 0x12),
+		.platform_data = &ak4641_info,
+	},
+};
+
+static struct platform_device audio = {
+	.name	= "hx4700-audio",
+	.id	= -1,
+};
+
+
+/*
  * PCMCIA
  */
 
@@ -790,6 +834,7 @@ static struct platform_device *devices[] __initdata = {
 	&gpio_vbus,
 	&power_supply,
 	&strataflash,
+	&audio,
 	&pcmcia,
 };
 
@@ -827,6 +872,7 @@ static void __init hx4700_init(void)
 	pxa_set_ficp_info(&ficp_info);
 	pxa27x_set_i2c_power_info(NULL);
 	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(i2c_board_info));
 	i2c_register_board_info(1, ARRAY_AND_SIZE(pi2c_board_info));
 	pxa2xx_set_spi_info(2, &pxa_ssp2_master_info);
 	spi_register_board_info(ARRAY_AND_SIZE(tsc2046_board_info));
