@@ -587,7 +587,8 @@ static void pd_issue_pending(struct dma_chan *chan)
 
 static struct dma_async_tx_descriptor *pd_prep_slave_sg(struct dma_chan *chan,
 			struct scatterlist *sgl, unsigned int sg_len,
-			enum dma_transfer_direction direction, unsigned long flags)
+			enum dma_transfer_direction direction, unsigned long flags,
+			void *context)
 {
 	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
 	struct pch_dma_slave *pd_slave = chan->private;

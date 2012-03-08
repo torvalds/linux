@@ -669,7 +669,8 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_memcpy(
 
 static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sgl, unsigned int sg_len,
-	enum dma_transfer_direction direction, unsigned long flags)
+	enum dma_transfer_direction direction, unsigned long flags,
+	void *context)
 {
 	struct sh_dmae_slave *param;
 	struct sh_dmae_chan *sh_chan;

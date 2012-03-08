@@ -975,13 +975,14 @@ fail:
  * @sg_len: number of entries in @sgl
  * @dir: direction of tha DMA transfer
  * @flags: flags for the descriptor
+ * @context: operation context (ignored)
  *
  * Returns a valid DMA descriptor or %NULL in case of failure.
  */
 static struct dma_async_tx_descriptor *
 ep93xx_dma_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			 unsigned int sg_len, enum dma_transfer_direction dir,
-			 unsigned long flags)
+			 unsigned long flags, void *context)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
 	struct ep93xx_dma_desc *desc, *first;
@@ -1048,6 +1049,7 @@ fail:
  * @buf_len: length of the buffer (in bytes)
  * @period_len: lenght of a single period
  * @dir: direction of the operation
+ * @context: operation context (ignored)
  *
  * Prepares a descriptor for cyclic DMA operation. This means that once the
  * descriptor is submitted, we will be submitting in a @period_len sized
@@ -1060,7 +1062,7 @@ fail:
 static struct dma_async_tx_descriptor *
 ep93xx_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t dma_addr,
 			   size_t buf_len, size_t period_len,
-			   enum dma_transfer_direction dir)
+			   enum dma_transfer_direction dir, void *context)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
 	struct ep93xx_dma_desc *desc, *first;
