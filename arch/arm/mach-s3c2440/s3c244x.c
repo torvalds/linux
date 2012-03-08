@@ -207,3 +207,4 @@ void s3c244x_restart(char mode, const char *cmd)
 
 	/* we'll take a jump through zero as a poor second */
 	soft_restart(0);
+}
