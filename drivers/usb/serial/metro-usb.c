@@ -153,47 +153,6 @@ static void metrousb_close (struct usb_serial_port *port)
 
 /* ----------------------------------------------------------------------------------------------
   Description:
-	Driver exit.
-
-  Input:
-	None:
-
-  Output:
-	None:
-*/
-static void __exit metrousb_exit(void)
-{
-	usb_serial_deregister_drivers(&metrousb_driver, serial_drivers);
-}
-
-/* ----------------------------------------------------------------------------------------------
-  Description:
-	Driver initialization.
-
-  Input:
-	None:
-
-  Output:
-	int: Returns true (0) if successful, false otherwise.
-*/
-static int __init metrousb_init(void)
-{
-	int retval = 0;
-
-	dbg("METRO-USB - %s", __FUNCTION__);
-
-	/* Register the devices. */
-	retval = usb_serial_register_drivers(&metrousb_driver, serial_drivers);
-	if (retval)
-		return retval;
-
-	printk(KERN_INFO DRIVER_DESC " : " DRIVER_VERSION);
-
-	return retval;
-}
-
-/* ----------------------------------------------------------------------------------------------
-  Description:
 	Open the drivers serial port.
 
   Input:
@@ -574,9 +533,8 @@ static void metrousb_unthrottle (struct tty_struct *tty)
 	}
 }
 
-/* Standard module function. */
-module_init(metrousb_init);
-module_exit(metrousb_exit);
+module_usb_serial_driver(metrousb_driver, serial_drivers);
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR( "Philip Nicastro" );
 MODULE_AUTHOR( "Aleksey Babahin <tamerlan311@gmail.com>" );
