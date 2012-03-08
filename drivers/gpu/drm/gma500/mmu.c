@@ -270,7 +270,7 @@ out_err1:
 	return NULL;
 }
 
-void psb_mmu_free_pt(struct psb_mmu_pt *pt)
+static void psb_mmu_free_pt(struct psb_mmu_pt *pt)
 {
 	__free_page(pt->p);
 	kfree(pt);
@@ -351,7 +351,7 @@ static struct psb_mmu_pt *psb_mmu_alloc_pt(struct psb_mmu_pd *pd)
 	return pt;
 }
 
-struct psb_mmu_pt *psb_mmu_pt_alloc_map_lock(struct psb_mmu_pd *pd,
+static struct psb_mmu_pt *psb_mmu_pt_alloc_map_lock(struct psb_mmu_pd *pd,
 					     unsigned long addr)
 {
 	uint32_t index = psb_mmu_pd_index(addr);
