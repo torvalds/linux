@@ -91,6 +91,9 @@ static int sysfs_link_sibling(struct sysfs_dirent *sd)
 	struct rb_node **node = &sd->s_parent->s_dir.children.rb_node;
 	struct rb_node *parent = NULL;
 
+	if (sysfs_type(sd) == SYSFS_DIR)
+		sd->s_parent->s_dir.subdirs++;
+
 	while (*node) {
 		struct sysfs_dirent *pos;
 		int result;
@@ -123,6 +126,9 @@ static int sysfs_link_sibling(struct sysfs_dirent *sd)
  */
 static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
 {
+	if (sysfs_type(sd) == SYSFS_DIR)
+		sd->s_parent->s_dir.subdirs--;
+
 	rb_erase(&sd->s_rb, &sd->s_parent->s_dir.children);
 }
 
