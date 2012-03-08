@@ -459,23 +459,39 @@ out:
 
 int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
+	unsigned long flags;
 	u8 link = find_first_zero_bit(wl->links_map, WL12XX_MAX_LINKS);
 	if (link >= WL12XX_MAX_LINKS)
 		return -EBUSY;
 
+	/* these bits are used by op_tx */
+	spin_lock_irqsave(&wl->wl_lock, flags);
 	__set_bit(link, wl->links_map);
 	__set_bit(link, wlvif->links_map);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 	*hlid = link;
 	return 0;
 }
 
 void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid)
 {
+	unsigned long flags;
+
 	if (*hlid == WL12XX_INVALID_LINK_ID)
 		return;
 
+	/* these bits are used by op_tx */
+	spin_lock_irqsave(&wl->wl_lock, flags);
 	__clear_bit(*hlid, wl->links_map);
 	__clear_bit(*hlid, wlvif->links_map);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
+
+	/*
+	 * At this point op_tx() will not add more packets to the queues. We
+	 * can purge them.
+	 */
+	wl1271_tx_reset_link_queues(wl, *hlid);
+
 	*hlid = WL12XX_INVALID_LINK_ID;
 }
 
@@ -515,7 +531,7 @@ static int wl12xx_cmd_role_start_dev(struct wl1271 *wl,
 			goto out_free;
 	}
 	cmd->device.hlid = wlvif->dev_hlid;
-	cmd->device.session = wlvif->session_counter;
+	cmd->device.session = wl12xx_get_new_session_id(wl, wlvif);
 
 	wl1271_debug(DEBUG_CMD, "role start: roleid=%d, hlid=%d, session=%d",
 		     cmd->role_id, cmd->device.hlid, cmd->device.session);
@@ -1802,6 +1818,14 @@ int wl12xx_croc(struct wl1271 *wl, u8 role_id)
 		goto out;
 
 	__clear_bit(role_id, wl->roc_map);
+
+	/*
+	 * Rearm the tx watchdog when removing the last ROC. This prevents
+	 * recoveries due to just finished ROCs - when Tx hasn't yet had
+	 * a chance to get out.
+	 */
+	if (find_first_bit(wl->roc_map, WL12XX_MAX_ROLES) >= WL12XX_MAX_ROLES)
+		wl12xx_rearm_tx_watchdog_locked(wl);
 out:
 	return ret;
 }

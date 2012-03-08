@@ -227,5 +227,6 @@ void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids);
 
 /* from main.c */
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid);
+void wl12xx_rearm_tx_watchdog_locked(struct wl1271 *wl);
 
 #endif
