@@ -690,7 +690,9 @@ int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
 int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux)
 {
 	const char *signal, *src;
-	int ret = 0;
+
+	if (mcbsp->pdata->mux_signal)
+		return -EINVAL;
 
 	switch (mux) {
 	case CLKR_SRC_CLKR:
@@ -713,10 +715,7 @@ int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux)
 		return -EINVAL;
 	}
 
-	if (mcbsp->pdata->mux_signal)
-		ret = mcbsp->pdata->mux_signal(mcbsp->dev, signal, src);
-
-	return ret;
+	return mcbsp->pdata->mux_signal(mcbsp->dev, signal, src);
 }
 
 #define max_thres(m)			(mcbsp->pdata->buffer_size)

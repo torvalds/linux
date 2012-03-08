@@ -511,17 +511,21 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 			return -EBUSY;
 	}
 
-	/* The McBSP signal muxing functions are only available on McBSP1 */
-	if (clk_id == OMAP_MCBSP_CLKR_SRC_CLKR ||
-	    clk_id == OMAP_MCBSP_CLKR_SRC_CLKX ||
-	    clk_id == OMAP_MCBSP_FSR_SRC_FSR ||
-	    clk_id == OMAP_MCBSP_FSR_SRC_FSX)
-		if (cpu_class_is_omap1() || cpu_dai->id != 1)
-			return -EINVAL;
-
-	mcbsp->in_freq = freq;
-	regs->srgr2	&= ~CLKSM;
-	regs->pcr0	&= ~SCLKME;
+	if (clk_id == OMAP_MCBSP_SYSCLK_CLK ||
+	    clk_id == OMAP_MCBSP_SYSCLK_CLKS_FCLK ||
+	    clk_id == OMAP_MCBSP_SYSCLK_CLKS_EXT ||
+	    clk_id == OMAP_MCBSP_SYSCLK_CLKX_EXT ||
+	    clk_id == OMAP_MCBSP_SYSCLK_CLKR_EXT) {
+		mcbsp->in_freq = freq;
+		regs->srgr2	&= ~CLKSM;
+		regs->pcr0	&= ~SCLKME;
+	} else if (cpu_class_is_omap1()) {
+		/*
+		 * McBSP CLKR/FSR signal muxing functions are only available on
+		 * OMAP2 or newer versions
+		 */
+		return -EINVAL;
+	}
 
 	switch (clk_id) {
 	case OMAP_MCBSP_SYSCLK_CLK:
@@ -552,23 +556,15 @@ static int omap_mcbsp_dai_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 
 
 	case OMAP_MCBSP_CLKR_SRC_CLKR:
-		if (cpu_class_is_omap1())
-			break;
 		err = omap_mcbsp_6pin_src_mux(mcbsp, CLKR_SRC_CLKR);
 		break;
 	case OMAP_MCBSP_CLKR_SRC_CLKX:
-		if (cpu_class_is_omap1())
-			break;
 		err = omap_mcbsp_6pin_src_mux(mcbsp, CLKR_SRC_CLKX);
 		break;
 	case OMAP_MCBSP_FSR_SRC_FSR:
-		if (cpu_class_is_omap1())
-			break;
 		err = omap_mcbsp_6pin_src_mux(mcbsp, FSR_SRC_FSR);
 		break;
 	case OMAP_MCBSP_FSR_SRC_FSX:
-		if (cpu_class_is_omap1())
-			break;
 		err = omap_mcbsp_6pin_src_mux(mcbsp, FSR_SRC_FSX);
 		break;
 	default:
