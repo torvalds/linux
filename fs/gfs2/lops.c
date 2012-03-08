@@ -12,6 +12,7 @@
 #include <linux/spinlock.h>
 #include <linux/completion.h>
 #include <linux/buffer_head.h>
+#include <linux/mempool.h>
 #include <linux/gfs2_ondisk.h>
 #include <linux/bio.h>
 #include <linux/fs.h>
@@ -199,7 +200,7 @@ static void gfs2_fake_write_endio(struct buffer_head *bh, int uptodate)
 	struct gfs2_sbd *sdp = bd->bd_gl->gl_sbd;
 
 	end_buffer_write_sync(bh, uptodate);
-	free_buffer_head(bh);
+	mempool_free(bh, gfs2_bh_pool);
 	unlock_buffer(real_bh);
 	brelse(real_bh);
 	if (atomic_dec_and_test(&sdp->sd_log_in_flight))
@@ -220,7 +221,7 @@ static struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 	u64 blkno = gfs2_log_bmap(sdp, sdp->sd_log_flush_head);
 	struct buffer_head *bh;
 
-	bh = alloc_buffer_head(GFP_NOFS | __GFP_NOFAIL);
+	bh = mempool_alloc(gfs2_bh_pool, GFP_NOFS);
 	atomic_set(&bh->b_count, 1);
 	bh->b_state = (1 << BH_Mapped) | (1 << BH_Uptodate) | (1 << BH_Lock);
 	set_bh_page(bh, real->b_page, bh_offset(real));
