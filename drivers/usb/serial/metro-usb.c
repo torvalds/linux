@@ -92,7 +92,6 @@ static struct usb_serial_driver metrousb_device = {
 	},
 	.description 		= "Metrologic USB to serial converter.",
 	.id_table 		= id_table,
-	.usb_driver		= &metrousb_driver,
 	.num_ports 		= 1,
 	.open 			= metrousb_open,
 	.close 			= metrousb_close,
@@ -103,6 +102,11 @@ static struct usb_serial_driver metrousb_device = {
 	.unthrottle        	= metrousb_unthrottle,
 	.tiocmget          	= metrousb_tiocmget,
 	.tiocmset          	= metrousb_tiocmset,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&metrousb_device,
+	NULL,
 };
 
 /* ----------------------------------------------------------------------------------------------
@@ -163,10 +167,7 @@ static void metrousb_close (struct usb_serial_port *port)
 */
 static void __exit metrousb_exit(void)
 {
-	dbg("METRO-USB - %s", __FUNCTION__);
-
-	usb_deregister(&metrousb_driver);
-	usb_serial_deregister(&metrousb_device);
+	usb_serial_deregister_drivers(&metrousb_driver, serial_drivers);
 }
 
 /* ----------------------------------------------------------------------------------------------
@@ -203,14 +204,9 @@ static int __init metrousb_init(void)
 	}
 
 	/* Register the devices. */
-	retval = usb_serial_register(&metrousb_device);
+	retval = usb_serial_register_drivers(&metrousb_driver, serial_drivers);
 	if (retval)
 		return retval;
-
-	/* Register the driver. */
-	retval = usb_register(&metrousb_driver);
-	if (retval)
-		usb_serial_deregister(&metrousb_device);
 
 	printk(KERN_INFO DRIVER_DESC " : " DRIVER_VERSION);
 
