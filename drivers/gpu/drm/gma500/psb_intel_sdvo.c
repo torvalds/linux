@@ -1301,7 +1301,7 @@ psb_intel_sdvo_get_analog_edid(struct drm_connector *connector)
 	return NULL;
 }
 
-enum drm_connector_status
+static enum drm_connector_status
 psb_intel_sdvo_hdmi_sink_detect(struct drm_connector *connector)
 {
 	struct psb_intel_sdvo *psb_intel_sdvo = intel_attached_sdvo(connector);
