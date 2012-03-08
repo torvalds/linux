@@ -39,7 +39,6 @@ menuconfig ANDROID_RAM_CONSOLE_ERROR_CORRECTION
 	bool "Android RAM Console Enable error correction"
 	default n
 	depends on ANDROID_RAM_CONSOLE
-	depends on !ANDROID_RAM_CONSOLE_EARLY_INIT
 	select REED_SOLOMON
 	select REED_SOLOMON_ENC8
 	select REED_SOLOMON_DEC8
@@ -69,21 +68,6 @@ config ANDROID_RAM_CONSOLE_ERROR_CORRECTION_POLYNOMIAL
 	default 0x11d if (ANDROID_RAM_CONSOLE_ERROR_CORRECTION_SYMBOL_SIZE = 8)
 
 endif # ANDROID_RAM_CONSOLE_ERROR_CORRECTION
-
-config ANDROID_RAM_CONSOLE_EARLY_INIT
-	bool "Start Android RAM console early"
-	default n
-	depends on ANDROID_RAM_CONSOLE
-
-config ANDROID_RAM_CONSOLE_EARLY_ADDR
-	hex "Android RAM console virtual address"
-	default 0
-	depends on ANDROID_RAM_CONSOLE_EARLY_INIT
-
-config ANDROID_RAM_CONSOLE_EARLY_SIZE
-	hex "Android RAM console buffer size"
-	default 0
-	depends on ANDROID_RAM_CONSOLE_EARLY_INIT
 
 config ANDROID_TIMED_OUTPUT
 	bool "Timed output class driver"
