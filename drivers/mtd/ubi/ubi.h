@@ -387,8 +387,8 @@ struct ubi_wl_entry;
  *                  time (MTD write buffer size)
  * @mtd: MTD device descriptor
  *
- * @peb_buf1: a buffer of PEB size used for different purposes
- * @buf_mutex: protects @peb_buf1
+ * @peb_buf: a buffer of PEB size used for different purposes
+ * @buf_mutex: protects @peb_buf
  * @ckvol_mutex: serializes static volume checking when opening
  *
  * @dbg: debugging information for this UBI device
@@ -470,7 +470,7 @@ struct ubi_device {
 	int max_write_size;
 	struct mtd_info *mtd;
 
-	void *peb_buf1;
+	void *peb_buf;
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
 
