@@ -3240,6 +3240,7 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 	svm_clear_vintr(svm);
 	svm->vmcb->control.int_ctl &= ~V_IRQ_MASK;
 	mark_dirty(svm->vmcb, VMCB_INTR);
+	++svm->vcpu.stat.irq_window_exits;
 	/*
 	 * If the user space waits to inject interrupts, exit as soon as
 	 * possible
@@ -3247,7 +3248,6 @@ static int interrupt_window_interception(struct vcpu_svm *svm)
 	if (!irqchip_in_kernel(svm->vcpu.kvm) &&
 	    kvm_run->request_interrupt_window &&
 	    !kvm_cpu_has_interrupt(&svm->vcpu)) {
-		++svm->vcpu.stat.irq_window_exits;
 		kvm_run->exit_reason = KVM_EXIT_IRQ_WINDOW_OPEN;
 		return 0;
 	}
