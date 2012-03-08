@@ -119,6 +119,7 @@ struct blkio_cgroup {
 };
 
 struct blkio_group_stats {
+	struct u64_stats_sync syncp;
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
 	uint64_t stat_arr[BLKIO_STAT_ARR_NR][BLKIO_STAT_TOTAL];
@@ -200,8 +201,6 @@ struct blkio_group {
 	/* reference count */
 	int refcnt;
 
-	/* Need to serialize the stats in the case of reset/update */
-	spinlock_t stats_lock;
 	struct blkg_policy_data *pd[BLKIO_NR_POLICIES];
 
 	/* List of blkg waiting for per cpu stats memory to be allocated */
