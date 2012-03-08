@@ -25,15 +25,19 @@ config ANDROID_LOGGER
 	tristate "Android log driver"
 	default n
 
+config ANDROID_PERSISTENT_RAM
+	bool
+
 config ANDROID_RAM_CONSOLE
 	bool "Android RAM buffer console"
 	depends on !S390 && !UML
+	select ANDROID_PERSISTENT_RAM
 	default n
 
 menuconfig ANDROID_RAM_CONSOLE_ERROR_CORRECTION
 	bool "Android RAM Console Enable error correction"
 	default n
-	depends on ANDROID_RAM_CONSOLE
+	depends on ANDROID_PERSISTENT_RAM
 	select REED_SOLOMON
 	select REED_SOLOMON_ENC8
 	select REED_SOLOMON_DEC8
