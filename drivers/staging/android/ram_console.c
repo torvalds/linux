@@ -24,7 +24,7 @@
 #include "persistent_ram.h"
 #include "ram_console.h"
 
-static struct persistent_ram_zone ram_console_zone;
+static struct persistent_ram_zone *ram_console_zone;
 static const char *bootinfo;
 static size_t bootinfo_size;
 
@@ -52,33 +52,13 @@ void ram_console_enable_console(int enabled)
 
 static int ram_console_driver_probe(struct platform_device *pdev)
 {
-	struct resource *res = pdev->resource;
-	size_t start;
-	size_t buffer_size;
-	void *buffer;
 	struct ram_console_platform_data *pdata = pdev->dev.platform_data;
-	int ret;
+	struct persistent_ram_zone *prz;
 
-	if (res == NULL || pdev->num_resources != 1 ||
-	    !(res->flags & IORESOURCE_MEM)) {
-		printk(KERN_ERR "ram_console: invalid resource, %p %d flags "
-		       "%lx\n", res, pdev->num_resources, res ? res->flags : 0);
-		return -ENXIO;
-	}
-	buffer_size = resource_size(res);
-	start = res->start;
-	printk(KERN_INFO "ram_console: got buffer at %zx, size %zx\n",
-	       start, buffer_size);
-	buffer = ioremap(res->start, buffer_size);
-	if (buffer == NULL) {
-		printk(KERN_ERR "ram_console: failed to map memory\n");
-		return -ENOMEM;
-	}
+	prz = persistent_ram_init_ringbuffer(&pdev->dev, true);
+	if (IS_ERR(prz))
+		return PTR_ERR(prz);
 
-	ret = persistent_ram_init_ringbuffer(&ram_console_zone, buffer,
-					     buffer_size, true);
-	if (ret)
-		goto err;
 
 	if (pdata) {
 		bootinfo = kstrdup(pdata->bootinfo, GFP_KERNEL);
@@ -86,14 +66,12 @@ static int ram_console_driver_probe(struct platform_device *pdev)
 			bootinfo_size = strlen(bootinfo);
 	}
 
-	ram_console.data = &ram_console_zone;
+	ram_console_zone = prz;
+	ram_console.data = prz;
 
 	register_console(&ram_console);
-	return 0;
 
-err:
-	iounmap(buffer);
-	return ret;
+	return 0;
 }
 
 static struct platform_driver ram_console_driver = {
@@ -115,7 +93,7 @@ static ssize_t ram_console_read_old(struct file *file, char __user *buf,
 {
 	loff_t pos = *offset;
 	ssize_t count;
-	struct persistent_ram_zone *prz = &ram_console_zone;
+	struct persistent_ram_zone *prz = ram_console_zone;
 	size_t old_log_size = persistent_ram_old_size(prz);
 	const char *old_log = persistent_ram_old(prz);
 	char *str;
@@ -170,7 +148,7 @@ static const struct file_operations ram_console_file_ops = {
 static int __init ram_console_late_init(void)
 {
 	struct proc_dir_entry *entry;
-	struct persistent_ram_zone *prz = &ram_console_zone;
+	struct persistent_ram_zone *prz = ram_console_zone;
 
 	if (persistent_ram_old_size(prz) == 0)
 		return 0;

@@ -15,13 +15,31 @@
 #ifndef __LINUX_PERSISTENT_RAM_H__
 #define __LINUX_PERSISTENT_RAM_H__
 
+#include <linux/device.h>
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/types.h>
 
 struct persistent_ram_buffer;
 
+struct persistent_ram_descriptor {
+	const char	*name;
+	phys_addr_t	size;
+};
+
+struct persistent_ram {
+	phys_addr_t	start;
+	phys_addr_t	size;
+
+	int					num_descs;
+	struct persistent_ram_descriptor	*descs;
+
+	struct list_head node;
+};
+
 struct persistent_ram_zone {
 	struct list_head node;
+	void *vaddr;
 	struct persistent_ram_buffer *buffer;
 	size_t buffer_size;
 
@@ -43,8 +61,10 @@ struct persistent_ram_zone {
 	bool early;
 };
 
-int persistent_ram_init_ringbuffer(struct persistent_ram_zone *prz,
-	void __iomem *buffer, size_t buffer_size, bool ecc);
+int persistent_ram_early_init(struct persistent_ram *ram);
+
+struct persistent_ram_zone *persistent_ram_init_ringbuffer(struct device *dev,
+		bool ecc);
 
 int persistent_ram_write(struct persistent_ram_zone *prz, const void *s,
 	unsigned int count);
