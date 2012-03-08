@@ -3274,6 +3274,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->beacon_crc_valid = false;
 
+	/*
+	 * IEEE802.11n does not allow TKIP/WEP as pairwise ciphers in HT mode.
+	 * We still associate in non-HT mode (11a/b/g) if any one of these
+	 * ciphers is configured as pairwise.
+	 * We can set this to true for non-11n hardware, that'll be checked
+	 * separately along with the peer capabilities.
+	 */
 	for (i = 0; i < req->crypto.n_ciphers_pairwise; i++)
 		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP ||
@@ -3302,13 +3309,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	} else
 		ifmgd->ap_smps = ifmgd->req_smps;
 
-	/*
-	 * IEEE802.11n does not allow TKIP/WEP as pairwise ciphers in HT mode.
-	 * We still associate in non-HT mode (11a/b/g) if any one of these
-	 * ciphers is configured as pairwise.
-	 * We can set this to true for non-11n hardware, that'll be checked
-	 * separately along with the peer capabilities.
-	 */
 	assoc_data->capability = req->bss->capability;
 	assoc_data->wmm_used = bss->wmm_used;
 	assoc_data->supp_rates = bss->supp_rates;
