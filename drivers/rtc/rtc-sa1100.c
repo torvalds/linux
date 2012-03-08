@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
 
@@ -349,6 +350,13 @@ static const struct dev_pm_ops sa1100_rtc_pm_ops = {
 };
 #endif
 
+static struct of_device_id sa1100_rtc_dt_ids[] = {
+	{ .compatible = "mrvl,sa1100-rtc", },
+	{ .compatible = "mrvl,mmp-rtc", },
+	{}
+};
+MODULE_DEVICE_TABLE(of, sa1100_rtc_dt_ids);
+
 static struct platform_driver sa1100_rtc_driver = {
 	.probe		= sa1100_rtc_probe,
 	.remove		= sa1100_rtc_remove,
@@ -357,6 +365,7 @@ static struct platform_driver sa1100_rtc_driver = {
 #ifdef CONFIG_PM
 		.pm	= &sa1100_rtc_pm_ops,
 #endif
+		.of_match_table = sa1100_rtc_dt_ids,
 	},
 };
 
