@@ -423,6 +423,14 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
+{
+	/* kvm common code refers to this, but never calls it */
+	BUG();
+	return 0;
+}
+
+
 static int kvm_arch_vcpu_ioctl_initial_reset(struct kvm_vcpu *vcpu)
 {
 	kvm_s390_vcpu_initial_reset(vcpu);

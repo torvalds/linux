@@ -1872,21 +1872,6 @@ void kvm_arch_hardware_unsetup(void)
 {
 }
 
-void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
-{
-	int me;
-	int cpu = vcpu->cpu;
-
-	if (waitqueue_active(&vcpu->wq))
-		wake_up_interruptible(&vcpu->wq);
-
-	me = get_cpu();
-	if (cpu != me && (unsigned) cpu < nr_cpu_ids && cpu_online(cpu))
-		if (!test_and_set_bit(KVM_REQ_KICK, &vcpu->requests))
-			smp_send_reschedule(cpu);
-	put_cpu();
-}
-
 int kvm_apic_set_irq(struct kvm_vcpu *vcpu, struct kvm_lapic_irq *irq)
 {
 	return __apic_accept_irq(vcpu, irq->vector);
@@ -1954,6 +1939,11 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 {
 	return (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE) ||
 		(kvm_highest_pending_irq(vcpu) != -1);
+}
+
+int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
+{
+	return (!test_and_set_bit(KVM_REQ_KICK, &vcpu->requests));
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,

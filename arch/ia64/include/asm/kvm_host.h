@@ -365,6 +365,7 @@ struct thash_cb {
 };
 
 struct kvm_vcpu_stat {
+	u32 halt_wakeup;
 };
 
 struct kvm_vcpu_arch {

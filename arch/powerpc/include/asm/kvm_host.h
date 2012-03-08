@@ -498,4 +498,10 @@ struct kvm_vcpu_arch {
 #define KVM_MMIO_REG_QPR	0x0040
 #define KVM_MMIO_REG_FQPR	0x0060
 
+#define __KVM_HAVE_ARCH_VCPU_GET_WQ 1
+static inline wait_queue_head *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.wqp;
+}
+
 #endif /* __POWERPC_KVM_HOST_H__ */

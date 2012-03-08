@@ -43,6 +43,11 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 	       v->requests;
 }
 
+int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
+{
+	return 1;
+}
+
 int kvmppc_kvm_pv(struct kvm_vcpu *vcpu)
 {
 	int nr = kvmppc_get_gpr(vcpu, 11);
@@ -588,21 +593,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 	return r;
 }
 
-void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
-{
-	int me;
-	int cpu = vcpu->cpu;
-
-	me = get_cpu();
-	if (waitqueue_active(vcpu->arch.wqp)) {
-		wake_up_interruptible(vcpu->arch.wqp);
-		vcpu->stat.halt_wakeup++;
-	} else if (cpu != me && cpu != -1) {
-		smp_send_reschedule(vcpu->cpu);
-	}
-	put_cpu();
-}
-
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
 	if (irq->irq == KVM_INTERRUPT_UNSET) {
@@ -611,6 +601,7 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 	}
 
 	kvmppc_core_queue_external(vcpu, irq);
+
 	kvm_vcpu_kick(vcpu);
 
 	return 0;
