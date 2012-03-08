@@ -433,7 +433,6 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int dspbase_reg = (pipe == 0) ? DSPABASE : DSPBBASE;
 	int pipeconf_reg = (pipe == 0) ? PIPEACONF : PIPEBCONF;
 	u32 temp;
-	bool enabled;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
@@ -517,8 +516,6 @@ static void psb_intel_crtc_dpms(struct drm_crtc *crtc, int mode)
 		udelay(150);
 		break;
 	}
-
-	enabled = crtc->enabled && mode != DRM_MODE_DPMS_OFF;
 
 	/*Set FIFO Watermarks*/
 	REG_WRITE(DSPARB, 0x3F3E);
@@ -611,8 +608,8 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 	int refclk;
 	struct psb_intel_clock_t clock;
 	u32 dpll = 0, fp = 0, dspcntr, pipeconf;
-	bool ok, is_sdvo = false, is_dvo = false;
-	bool is_crt = false, is_lvds = false, is_tv = false;
+	bool ok, is_sdvo = false;
+	bool is_lvds = false, is_tv = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct drm_connector *connector;
 
@@ -637,14 +634,8 @@ static int psb_intel_crtc_mode_set(struct drm_crtc *crtc,
 		case INTEL_OUTPUT_SDVO:
 			is_sdvo = true;
 			break;
-		case INTEL_OUTPUT_DVO:
-			is_dvo = true;
-			break;
 		case INTEL_OUTPUT_TVOUT:
 			is_tv = true;
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			is_crt = true;
 			break;
 		}
 	}
