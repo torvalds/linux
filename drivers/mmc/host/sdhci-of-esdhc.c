@@ -21,6 +21,32 @@
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 
+#define VENDOR_V_22	0x12
+static u32 esdhc_readl(struct sdhci_host *host, int reg)
+{
+	u32 ret;
+
+	ret = in_be32(host->ioaddr + reg);
+	/*
+	 * The bit of ADMA flag in eSDHC is not compatible with standard
+	 * SDHC register, so set fake flag SDHCI_CAN_DO_ADMA2 when ADMA is
+	 * supported by eSDHC.
+	 * And for many FSL eSDHC controller, the reset value of field
+	 * SDHCI_CAN_DO_ADMA1 is one, but some of them can't support ADMA,
+	 * only these vendor version is greater than 2.2/0x12 support ADMA.
+	 * For FSL eSDHC, must aligned 4-byte, so use 0xFC to read the
+	 * the verdor version number, oxFE is SDHCI_HOST_VERSION.
+	 */
+	if ((reg == SDHCI_CAPABILITIES) && (ret & SDHCI_CAN_DO_ADMA1)) {
+		u32 tmp = in_be32(host->ioaddr + SDHCI_SLOT_INT_STATUS);
+		tmp = (tmp & SDHCI_VENDOR_VER_MASK) >> SDHCI_VENDOR_VER_SHIFT;
+		if (tmp > VENDOR_V_22)
+			ret |= SDHCI_CAN_DO_ADMA2;
+	}
+
+	return ret;
+}
+
 static u16 esdhc_readw(struct sdhci_host *host, int reg)
 {
 	u16 ret;
@@ -144,7 +170,7 @@ static void esdhc_of_resume(struct sdhci_host *host)
 #endif
 
 static struct sdhci_ops sdhci_esdhc_ops = {
-	.read_l = sdhci_be32bs_readl,
+	.read_l = esdhc_readl,
 	.read_w = esdhc_readw,
 	.read_b = esdhc_readb,
 	.write_l = sdhci_be32bs_writel,
@@ -161,9 +187,13 @@ static struct sdhci_ops sdhci_esdhc_ops = {
 };
 
 static struct sdhci_pltfm_data sdhci_esdhc_pdata = {
-	/* card detection could be handled via GPIO */
+	/*
+	 * card detection could be handled via GPIO
+	 * eSDHC cannot support End Attribute in NOP ADMA descriptor
+	 */
 	.quirks = ESDHC_DEFAULT_QUIRKS | SDHCI_QUIRK_BROKEN_CARD_DETECTION
-		| SDHCI_QUIRK_NO_CARD_NO_RESET,
+		| SDHCI_QUIRK_NO_CARD_NO_RESET
+		| SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.ops = &sdhci_esdhc_ops,
 };
 
