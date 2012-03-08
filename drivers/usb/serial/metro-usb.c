@@ -58,7 +58,7 @@ static bool debug;
 
 static void metrousb_read_int_callback(struct urb *urb)
 {
-	struct usb_serial_port *port = (struct usb_serial_port *)urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct metrousb_private *metro_priv = usb_get_serial_port_data(port);
 	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
@@ -253,12 +253,9 @@ static int metrousb_startup(struct usb_serial *serial)
 		port = serial->port[i];
 
 		/* Declare memory. */
-		metro_priv = kmalloc(sizeof(struct metrousb_private), GFP_KERNEL);
+		metro_priv = kzalloc(sizeof(struct metrousb_private), GFP_KERNEL);
 		if (!metro_priv)
 			return -ENOMEM;
-
-		/* Clear memory. */
-		memset(metro_priv, 0x00, sizeof(struct metrousb_private));
 
 		/* Initialize memory. */
 		spin_lock_init(&metro_priv->lock);
