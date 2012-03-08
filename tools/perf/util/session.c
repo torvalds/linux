@@ -263,6 +263,7 @@ static void ip__resolve_ams(struct machine *self, struct thread *thread,
 	}
 found:
 	ams->addr = ip;
+	ams->al_addr = al.addr;
 	ams->sym = al.sym;
 	ams->map = al.map;
 }

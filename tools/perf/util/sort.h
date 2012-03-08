@@ -37,8 +37,10 @@ extern struct sort_entry sort_comm;
 extern struct sort_entry sort_dso;
 extern struct sort_entry sort_sym;
 extern struct sort_entry sort_parent;
-extern struct sort_entry sort_lbr_dso;
-extern struct sort_entry sort_lbr_sym;
+extern struct sort_entry sort_dso_from;
+extern struct sort_entry sort_dso_to;
+extern struct sort_entry sort_sym_from;
+extern struct sort_entry sort_sym_to;
 extern enum sort_type sort__first_dimension;
 
 /**

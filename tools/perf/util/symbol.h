@@ -97,7 +97,11 @@ struct symbol_conf {
 			*col_width_list_str;
        struct strlist	*dso_list,
 			*comm_list,
-			*sym_list;
+			*sym_list,
+			*dso_from_list,
+			*dso_to_list,
+			*sym_from_list,
+			*sym_to_list;
 	const char	*symfs;
 };
 
@@ -125,6 +129,7 @@ struct addr_map_symbol {
 	struct map    *map;
 	struct symbol *sym;
 	u64	      addr;
+	u64	      al_addr;
 };
 
 struct branch_info {

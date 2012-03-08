@@ -805,8 +805,11 @@ static struct hist_browser *hist_browser__new(struct hists *hists)
 		self->hists = hists;
 		self->b.refresh = hist_browser__refresh;
 		self->b.seek = ui_browser__hists_seek;
-		self->b.use_navkeypressed = true,
-		self->has_symbols = sort_sym.list.next != NULL;
+		self->b.use_navkeypressed = true;
+		if (sort__branch_mode == 1)
+			self->has_symbols = sort_sym_from.list.next != NULL;
+		else
+			self->has_symbols = sort_sym.list.next != NULL;
 	}
 
 	return self;
@@ -861,6 +864,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 {
 	struct hists *self = &evsel->hists;
 	struct hist_browser *browser = hist_browser__new(self);
+	struct branch_info *bi;
 	struct pstack *fstack;
 	int key = -1;
 
@@ -879,7 +883,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		char *options[16];
 		int nr_options = 0, choice = 0, i,
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2,
-		    browse_map = -2;
+		    annotate_f = -2, annotate_t = -2, browse_map = -2;
 
 		key = hist_browser__run(browser, ev_name, timer, arg, delay_secs);
 
@@ -887,7 +891,6 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			thread = hist_browser__selected_thread(browser);
 			dso = browser->selection->map ? browser->selection->map->dso : NULL;
 		}
-
 		switch (key) {
 		case K_TAB:
 		case K_UNTAB:
@@ -902,7 +905,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			if (!browser->has_symbols) {
 				ui_browser__warning(&browser->b, delay_secs * 2,
 			"Annotation is only available for symbolic views, "
-			"include \"sym\" in --sort to use it.");
+			"include \"sym*\" in --sort to use it.");
 				continue;
 			}
 
@@ -972,12 +975,32 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 		if (!browser->has_symbols)
 			goto add_exit_option;
 
-		if (browser->selection != NULL &&
-		    browser->selection->sym != NULL &&
-		    !browser->selection->map->dso->annotate_warned &&
-		    asprintf(&options[nr_options], "Annotate %s",
-			     browser->selection->sym->name) > 0)
-			annotate = nr_options++;
+		if (sort__branch_mode == 1) {
+			bi = browser->he_selection->branch_info;
+			if (browser->selection != NULL &&
+			    bi &&
+			    bi->from.sym != NULL &&
+			    !bi->from.map->dso->annotate_warned &&
+				asprintf(&options[nr_options], "Annotate %s",
+					 bi->from.sym->name) > 0)
+				annotate_f = nr_options++;
+
+			if (browser->selection != NULL &&
+			    bi &&
+			    bi->to.sym != NULL &&
+			    !bi->to.map->dso->annotate_warned &&
+				asprintf(&options[nr_options], "Annotate %s",
+					 bi->to.sym->name) > 0)
+				annotate_t = nr_options++;
+		} else {
+
+			if (browser->selection != NULL &&
+			    browser->selection->sym != NULL &&
+			    !browser->selection->map->dso->annotate_warned &&
+				asprintf(&options[nr_options], "Annotate %s",
+					 browser->selection->sym->name) > 0)
+				annotate = nr_options++;
+		}
 
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
@@ -1010,13 +1033,28 @@ add_exit_option:
 		if (choice == -1)
 			continue;
 
-		if (choice == annotate) {
+		if (choice == annotate || choice == annotate_t || choice == annotate_f) {
 			struct hist_entry *he;
 			int err;
 do_annotate:
 			he = hist_browser__selected_entry(browser);
 			if (he == NULL)
 				continue;
+
+			/*
+			 * we stash the branch_info symbol + map into the
+			 * the ms so we don't have to rewrite all the annotation
+			 * code to use branch_info.
+			 * in branch mode, the ms struct is not used
+			 */
+			if (choice == annotate_f) {
+				he->ms.sym = he->branch_info->from.sym;
+				he->ms.map = he->branch_info->from.map;
+			}  else if (choice == annotate_t) {
+				he->ms.sym = he->branch_info->to.sym;
+				he->ms.map = he->branch_info->to.map;
+			}
+
 			/*
 			 * Don't let this be freed, say, by hists__decay_entry.
 			 */

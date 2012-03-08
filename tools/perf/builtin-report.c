@@ -64,7 +64,7 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 	int err = 0;
 	unsigned i;
 	struct hist_entry *he;
-	struct branch_info *bi;
+	struct branch_info *bi, *bx;
 
 	if ((sort__has_parent || symbol_conf.use_callchain)
 	    && sample->callchain) {
@@ -87,13 +87,45 @@ static int perf_report__add_branch_hist_entry(struct perf_tool *tool,
 		 * and not events sampled. Thus we use a pseudo period of 1.
 		 */
 		he = __hists__add_branch_entry(&evsel->hists, al, parent,
-					       &bi[i], 1);
+				&bi[i], 1);
 		if (he) {
+			struct annotation *notes;
+			err = -ENOMEM;
+			bx = he->branch_info;
+			if (bx->from.sym && use_browser > 0) {
+				notes = symbol__annotation(bx->from.sym);
+				if (!notes->src
+				    && symbol__alloc_hist(bx->from.sym) < 0)
+					goto out;
+
+				err = symbol__inc_addr_samples(bx->from.sym,
+							       bx->from.map,
+							       evsel->idx,
+							       bx->from.al_addr);
+				if (err)
+					goto out;
+			}
+
+			if (bx->to.sym && use_browser > 0) {
+				notes = symbol__annotation(bx->to.sym);
+				if (!notes->src
+				    && symbol__alloc_hist(bx->to.sym) < 0)
+					goto out;
+
+				err = symbol__inc_addr_samples(bx->to.sym,
+							       bx->to.map,
+							       evsel->idx,
+							       bx->to.al_addr);
+				if (err)
+					goto out;
+			}
 			evsel->hists.stats.total_period += 1;
 			hists__inc_nr_events(&evsel->hists, PERF_RECORD_SAMPLE);
+			err = 0;
 		} else
 			return -ENOMEM;
 	}
+out:
 	return err;
 }
 
@@ -615,32 +647,19 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	if (sort__branch_mode == -1 && has_br_stack)
 		sort__branch_mode = 1;
 
+	/* sort__branch_mode could be 0 if --no-branch-stack */
 	if (sort__branch_mode == 1) {
-		if (use_browser)
-			fprintf(stderr, "Warning: TUI interface not supported"
-					" in branch mode\n");
-		if (symbol_conf.dso_list_str != NULL)
-			fprintf(stderr, "Warning: dso filtering not supported"
-					" in branch mode\n");
-		if (symbol_conf.sym_list_str != NULL)
-			fprintf(stderr, "Warning: symbol filtering not"
-					" supported in branch mode\n");
-
-		report.use_stdio = true;
-		use_browser = 0;
-		setup_browser(true);
-		symbol_conf.dso_list_str = NULL;
-		symbol_conf.sym_list_str = NULL;
-
 		/*
-		 * if no sort_order is provided, then specify branch-mode
-		 * specific order
+		 * if no sort_order is provided, then specify
+		 * branch-mode specific order
 		 */
 		if (sort_order == default_sort_order)
 			sort_order = "comm,dso_from,symbol_from,"
 				     "dso_to,symbol_to";
 
-	} else if (strcmp(report.input_name, "-") != 0) {
+	}
+
+	if (strcmp(report.input_name, "-") != 0) {
 		setup_browser(true);
 	} else {
 		use_browser = 0;
@@ -696,9 +715,17 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(report_usage, options);
 
-	sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
 	sort_entry__setup_elide(&sort_comm, symbol_conf.comm_list, "comm", stdout);
-	sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
+
+	if (sort__branch_mode == 1) {
+		sort_entry__setup_elide(&sort_dso_from, symbol_conf.dso_from_list, "dso_from", stdout);
+		sort_entry__setup_elide(&sort_dso_to, symbol_conf.dso_to_list, "dso_to", stdout);
+		sort_entry__setup_elide(&sort_sym_from, symbol_conf.sym_from_list, "sym_from", stdout);
+		sort_entry__setup_elide(&sort_sym_to, symbol_conf.sym_to_list, "sym_to", stdout);
+	} else {
+		sort_entry__setup_elide(&sort_dso, symbol_conf.dso_list, "dso", stdout);
+		sort_entry__setup_elide(&sort_sym, symbol_conf.sym_list, "symbol", stdout);
+	}
 
 	ret = __cmd_report(&report);
 error:
