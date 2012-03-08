@@ -93,7 +93,7 @@ int mdfld_set_brightness(struct backlight_device *bd)
 	return 0;
 }
 
-int mdfld_get_brightness(struct backlight_device *bd)
+static int mdfld_get_brightness(struct backlight_device *bd)
 {
 	struct drm_device *dev =
 		(struct drm_device *)bl_get_data(mdfld_backlight_device);
@@ -121,7 +121,7 @@ static int device_backlight_init(struct drm_device *dev)
 	return 0;
 }
 
-int mdfld_backlight_init(struct drm_device *dev)
+static int mdfld_backlight_init(struct drm_device *dev)
 {
 	struct backlight_properties props;
 	int ret = 0;
