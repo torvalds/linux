@@ -868,15 +868,6 @@ static void blkio_get_key_name(enum stat_sub_type type, const char *dname,
 	}
 }
 
-static uint64_t blkio_fill_stat(char *str, int chars_left, uint64_t val,
-				struct cgroup_map_cb *cb, const char *dname)
-{
-	blkio_get_key_name(0, dname, str, chars_left, true);
-	cb->fill(cb, str, val);
-	return val;
-}
-
-
 static uint64_t blkio_read_stat_cpu(struct blkio_group *blkg, int plid,
 			enum stat_type_cpu type, enum stat_sub_type sub_type)
 {
@@ -916,8 +907,9 @@ static uint64_t blkio_get_stat_cpu(struct blkio_group *blkg, int plid,
 
 	if (type == BLKIO_STAT_CPU_SECTORS) {
 		val = blkio_read_stat_cpu(blkg, plid, type, 0);
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1, val, cb,
-				       dname);
+		blkio_get_key_name(0, dname, key_str, MAX_KEY_LEN, true);
+		cb->fill(cb, key_str, val);
+		return val;
 	}
 
 	for (sub_type = BLKIO_STAT_READ; sub_type < BLKIO_STAT_TOTAL;
@@ -942,50 +934,60 @@ static uint64_t blkio_get_stat(struct blkio_group *blkg, int plid,
 			       struct cgroup_map_cb *cb, const char *dname,
 			       enum stat_type type)
 {
-	struct blkg_policy_data *pd = blkg->pd[plid];
-	uint64_t disk_total;
+	struct blkio_group_stats *stats = &blkg->pd[plid]->stats;
+	uint64_t v = 0, disk_total = 0;
 	char key_str[MAX_KEY_LEN];
-	enum stat_sub_type sub_type;
+	int st;
 
-	if (type == BLKIO_STAT_TIME)
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-					pd->stats.time, cb, dname);
+	if (type >= BLKIO_STAT_ARR_NR) {
+		switch (type) {
+		case BLKIO_STAT_TIME:
+			v = stats->time;
+			break;
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-	if (type == BLKIO_STAT_UNACCOUNTED_TIME)
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-				       pd->stats.unaccounted_time, cb, dname);
-	if (type == BLKIO_STAT_AVG_QUEUE_SIZE) {
-		uint64_t sum = pd->stats.avg_queue_size_sum;
-		uint64_t samples = pd->stats.avg_queue_size_samples;
-		if (samples)
-			do_div(sum, samples);
-		else
-			sum = 0;
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-				       sum, cb, dname);
-	}
-	if (type == BLKIO_STAT_GROUP_WAIT_TIME)
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-				       pd->stats.group_wait_time, cb, dname);
-	if (type == BLKIO_STAT_IDLE_TIME)
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-				       pd->stats.idle_time, cb, dname);
-	if (type == BLKIO_STAT_EMPTY_TIME)
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-				       pd->stats.empty_time, cb, dname);
-	if (type == BLKIO_STAT_DEQUEUE)
-		return blkio_fill_stat(key_str, MAX_KEY_LEN - 1,
-				       pd->stats.dequeue, cb, dname);
-#endif
+		case BLKIO_STAT_UNACCOUNTED_TIME:
+			v = stats->unaccounted_time;
+			break;
+		case BLKIO_STAT_AVG_QUEUE_SIZE: {
+			uint64_t samples = stats->avg_queue_size_samples;
 
-	for (sub_type = BLKIO_STAT_READ; sub_type < BLKIO_STAT_TOTAL;
-			sub_type++) {
-		blkio_get_key_name(sub_type, dname, key_str, MAX_KEY_LEN,
-				   false);
-		cb->fill(cb, key_str, pd->stats.stat_arr[type][sub_type]);
+			if (samples) {
+				v = stats->avg_queue_size_sum;
+				do_div(v, samples);
+			}
+			break;
+		}
+		case BLKIO_STAT_IDLE_TIME:
+			v = stats->idle_time;
+			break;
+		case BLKIO_STAT_EMPTY_TIME:
+			v = stats->empty_time;
+			break;
+		case BLKIO_STAT_DEQUEUE:
+			v = stats->dequeue;
+			break;
+		case BLKIO_STAT_GROUP_WAIT_TIME:
+			v = stats->group_wait_time;
+			break;
+#endif
+		default:
+			WARN_ON_ONCE(1);
+		}
+
+		blkio_get_key_name(0, dname, key_str, MAX_KEY_LEN, true);
+		cb->fill(cb, key_str, v);
+		return v;
 	}
-	disk_total = pd->stats.stat_arr[type][BLKIO_STAT_READ] +
-			pd->stats.stat_arr[type][BLKIO_STAT_WRITE];
+
+	for (st = BLKIO_STAT_READ; st < BLKIO_STAT_TOTAL; st++) {
+		v = stats->stat_arr[type][st];
+
+		blkio_get_key_name(st, dname, key_str, MAX_KEY_LEN, false);
+		cb->fill(cb, key_str, v);
+		if (st == BLKIO_STAT_READ || st == BLKIO_STAT_WRITE)
+			disk_total += v;
+	}
+
 	blkio_get_key_name(BLKIO_STAT_TOTAL, dname, key_str, MAX_KEY_LEN,
 			   false);
 	cb->fill(cb, key_str, disk_total);

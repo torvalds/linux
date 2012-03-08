@@ -39,6 +39,7 @@ enum stat_type {
 	BLKIO_STAT_WAIT_TIME,
 	/* Number of IOs queued up */
 	BLKIO_STAT_QUEUED,
+
 	/* All the single valued stats go below this */
 	BLKIO_STAT_TIME,
 #ifdef CONFIG_DEBUG_BLK_CGROUP
@@ -51,6 +52,9 @@ enum stat_type {
 	BLKIO_STAT_DEQUEUE
 #endif
 };
+
+/* Types lower than this live in stat_arr and have subtypes */
+#define BLKIO_STAT_ARR_NR	(BLKIO_STAT_QUEUED + 1)
 
 /* Per cpu stats */
 enum stat_type_cpu {
@@ -117,7 +121,7 @@ struct blkio_cgroup {
 struct blkio_group_stats {
 	/* total disk time and nr sectors dispatched by this group */
 	uint64_t time;
-	uint64_t stat_arr[BLKIO_STAT_QUEUED + 1][BLKIO_STAT_TOTAL];
+	uint64_t stat_arr[BLKIO_STAT_ARR_NR][BLKIO_STAT_TOTAL];
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	/* Time not charged to this cgroup */
 	uint64_t unaccounted_time;
