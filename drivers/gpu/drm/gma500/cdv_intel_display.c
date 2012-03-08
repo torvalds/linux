@@ -680,22 +680,6 @@ static void cdv_intel_crtc_commit(struct drm_crtc *crtc)
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_ON);
 }
 
-void cdv_intel_encoder_prepare(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs =
-	    encoder->helper_private;
-	/* lvds has its own version of prepare see cdv_intel_lvds_prepare */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_OFF);
-}
-
-void cdv_intel_encoder_commit(struct drm_encoder *encoder)
-{
-	struct drm_encoder_helper_funcs *encoder_funcs =
-	    encoder->helper_private;
-	/* lvds has its own version of commit see cdv_intel_lvds_commit */
-	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
-}
-
 static bool cdv_intel_crtc_mode_fixup(struct drm_crtc *crtc,
 				  struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
@@ -1481,34 +1465,3 @@ const struct drm_crtc_funcs cdv_intel_crtc_funcs = {
 	.set_config = cdv_crtc_set_config,
 	.destroy = cdv_intel_crtc_destroy,
 };
-
-/*
- * Set the default value of cursor control and base register
- * to zero. This is a workaround for h/w defect on oaktrail
- */
-void cdv_intel_cursor_init(struct drm_device *dev, int pipe)
-{
-	uint32_t control;
-	uint32_t base;
-
-	switch (pipe) {
-	case 0:
-		control = CURACNTR;
-		base = CURABASE;
-		break;
-	case 1:
-		control = CURBCNTR;
-		base = CURBBASE;
-		break;
-	case 2:
-		control = CURCCNTR;
-		base = CURCBASE;
-		break;
-	default:
-		return;
-	}
-
-	REG_WRITE(control, 0);
-	REG_WRITE(base, 0);
-}
-
