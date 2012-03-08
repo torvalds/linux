@@ -285,9 +285,6 @@ static int __init ram_console_init(struct ram_console_buffer *buffer,
 	buffer->size = 0;
 
 	register_console(&ram_console);
-#ifdef CONFIG_ANDROID_RAM_CONSOLE_ENABLE_VERBOSE
-	console_verbose();
-#endif
 	return 0;
 }
 
