@@ -230,13 +230,11 @@ enum {
 #define XRDYEN			BIT(10)
 #define XEMPTYEOFEN		BIT(14)
 
-/* CLKR signal muxing options */
-#define CLKR_SRC_CLKR		0
-#define CLKR_SRC_CLKX		1
-
-/* FSR signal muxing options */
-#define FSR_SRC_FSR		0
-#define FSR_SRC_FSX		1
+/* Clock signal muxing options */
+#define CLKR_SRC_CLKR		0 /* CLKR signal is from the CLKR pin */
+#define CLKR_SRC_CLKX		1 /* CLKR signal is from the CLKX pin */
+#define FSR_SRC_FSR		2 /* FSR signal is from the FSR pin */
+#define FSR_SRC_FSX		3 /* FSR signal is from the FSX pin */
 
 /* McBSP functional clock sources */
 #define MCBSP_CLKS_PRCM_SRC	0
@@ -333,8 +331,7 @@ void omap_mcbsp_stop(struct omap_mcbsp *mcbsp, int tx, int rx);
 int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id);
 
 /* McBSP signal muxing API */
-void omap2_mcbsp1_mux_clkr_src(struct omap_mcbsp *mcbsp, u8 mux);
-void omap2_mcbsp1_mux_fsr_src(struct omap_mcbsp *mcbsp, u8 mux);
+int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux);
 
 /* Sidetone specific API */
 int omap_st_set_chgain(struct omap_mcbsp *mcbsp, int channel, s16 chgain);

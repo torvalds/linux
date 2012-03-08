@@ -687,40 +687,36 @@ int omap2_mcbsp_set_clks_src(struct omap_mcbsp *mcbsp, u8 fck_src_id)
 		return -EINVAL;
 }
 
-void omap2_mcbsp1_mux_clkr_src(struct omap_mcbsp *mcbsp, u8 mux)
+int omap_mcbsp_6pin_src_mux(struct omap_mcbsp *mcbsp, u8 mux)
 {
-	const char *src;
+	const char *signal, *src;
+	int ret = 0;
 
-	if (mcbsp->id != 1)
-		return;
-
-	if (mux == CLKR_SRC_CLKR)
+	switch (mux) {
+	case CLKR_SRC_CLKR:
+		signal = "clkr";
 		src = "clkr";
-	else if (mux == CLKR_SRC_CLKX)
+		break;
+	case CLKR_SRC_CLKX:
+		signal = "clkr";
 		src = "clkx";
-	else
-		return;
-
-	if (mcbsp->pdata->mux_signal)
-		mcbsp->pdata->mux_signal(mcbsp->dev, "clkr", src);
-}
-
-void omap2_mcbsp1_mux_fsr_src(struct omap_mcbsp *mcbsp, u8 mux)
-{
-	const char *src;
-
-	if (mcbsp->id != 1)
-		return;
-
-	if (mux == FSR_SRC_FSR)
+		break;
+	case FSR_SRC_FSR:
+		signal = "fsr";
 		src = "fsr";
-	else if (mux == FSR_SRC_FSX)
+		break;
+	case FSR_SRC_FSX:
+		signal = "fsr";
 		src = "fsx";
-	else
-		return;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	if (mcbsp->pdata->mux_signal)
-		mcbsp->pdata->mux_signal(mcbsp->dev, "fsr", src);
+		ret = mcbsp->pdata->mux_signal(mcbsp->dev, signal, src);
+
+	return ret;
 }
 
 #define max_thres(m)			(mcbsp->pdata->buffer_size)
