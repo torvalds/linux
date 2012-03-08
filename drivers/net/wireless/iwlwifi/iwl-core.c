@@ -287,26 +287,7 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 
 void iwl_set_rate(struct iwl_priv *priv)
 {
-	const struct ieee80211_supported_band *hw = NULL;
-	struct ieee80211_rate *rate;
 	struct iwl_rxon_context *ctx;
-	int i;
-
-	hw = iwl_get_hw_mode(priv, priv->band);
-	if (!hw) {
-		IWL_ERR(priv, "Failed to set rate: unable to get hw mode\n");
-		return;
-	}
-
-	priv->active_rate = 0;
-
-	for (i = 0; i < hw->n_bitrates; i++) {
-		rate = &(hw->bitrates[i]);
-		if (rate->hw_value < IWL_RATE_COUNT_LEGACY)
-			priv->active_rate |= (1 << rate->hw_value);
-	}
-
-	IWL_DEBUG_RATE(priv, "Set active_rate = %0x\n", priv->active_rate);
 
 	for_each_context(priv, ctx) {
 		ctx->staging.cck_basic_rates =
