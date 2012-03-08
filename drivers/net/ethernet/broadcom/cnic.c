@@ -3584,7 +3584,11 @@ static int cnic_get_v6_route(struct sockaddr_in6 *dst_addr,
 		fl6.flowi6_oif = dst_addr->sin6_scope_id;
 
 	*dst = ip6_route_output(&init_net, NULL, &fl6);
-	if (*dst)
+	if ((*dst)->error) {
+		dst_release(*dst);
+		*dst = NULL;
+		return -ENETUNREACH;
+	} else
 		return 0;
 #endif
 

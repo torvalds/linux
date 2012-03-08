@@ -428,6 +428,7 @@ static int omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	return 0;
 }
 
+static int omap_hsmmc_done;
 #define MAX_OMAP_MMC_HWMOD_NAME_LEN		16
 
 void omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
@@ -490,6 +491,11 @@ done:
 void omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
 	u32 reg;
+
+	if (omap_hsmmc_done)
+		return;
+
+	omap_hsmmc_done = 1;
 
 	if (!cpu_is_omap44xx()) {
 		if (cpu_is_omap2430()) {
