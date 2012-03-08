@@ -80,8 +80,10 @@ static void deferred_probe_work_func(struct work_struct *work)
 
 		get_device(dev);
 
-		/* Drop the mutex while probing each device; the probe path
-		 * may manipulate the deferred list */
+		/*
+		 * Drop the mutex while probing each device; the probe path may
+		 * manipulate the deferred list
+		 */
 		mutex_unlock(&deferred_probe_mutex);
 		dev_dbg(dev, "Retrying from deferred list\n");
 		bus_probe_device(dev);
@@ -126,16 +128,20 @@ static void driver_deferred_probe_trigger(void)
 	if (!driver_deferred_probe_enable)
 		return;
 
-	/* A successful probe means that all the devices in the pending list
+	/*
+	 * A successful probe means that all the devices in the pending list
 	 * should be triggered to be reprobed.  Move all the deferred devices
-	 * into the active list so they can be retried by the workqueue */
+	 * into the active list so they can be retried by the workqueue
+	 */
 	mutex_lock(&deferred_probe_mutex);
 	list_splice_tail_init(&deferred_probe_pending_list,
 			      &deferred_probe_active_list);
 	mutex_unlock(&deferred_probe_mutex);
 
-	/* Kick the re-probe thread.  It may already be scheduled, but
-	 * it is safe to kick it again. */
+	/*
+	 * Kick the re-probe thread.  It may already be scheduled, but it is
+	 * safe to kick it again.
+	 */
 	queue_work(deferred_wq, &deferred_probe_work);
 }
 
@@ -171,8 +177,10 @@ static void driver_bound(struct device *dev)
 
 	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
 
-	/* Make sure the device is no longer in one of the deferred lists
-	 * and kick off retrying all pending devices */
+	/*
+	 * Make sure the device is no longer in one of the deferred lists and
+	 * kick off retrying all pending devices
+	 */
 	driver_deferred_probe_del(dev);
 	driver_deferred_probe_trigger();
 
