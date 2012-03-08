@@ -131,20 +131,30 @@ struct blkio_group_stats {
 
 	/* Total time spent waiting for it to be assigned a timeslice. */
 	uint64_t group_wait_time;
-	uint64_t start_group_wait_time;
 
 	/* Time spent idling for this blkio_group */
 	uint64_t idle_time;
-	uint64_t start_idle_time;
 	/*
 	 * Total time when we have requests queued and do not contain the
 	 * current active queue.
 	 */
 	uint64_t empty_time;
+
+	/* fields after this shouldn't be cleared on stat reset */
+	uint64_t start_group_wait_time;
+	uint64_t start_idle_time;
 	uint64_t start_empty_time;
 	uint16_t flags;
 #endif
 };
+
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+#define BLKG_STATS_DEBUG_CLEAR_START	\
+	offsetof(struct blkio_group_stats, unaccounted_time)
+#define BLKG_STATS_DEBUG_CLEAR_SIZE	\
+	(offsetof(struct blkio_group_stats, start_group_wait_time) - \
+	 BLKG_STATS_DEBUG_CLEAR_START)
+#endif
 
 /* Per cpu blkio group stats */
 struct blkio_group_stats_cpu {

@@ -779,83 +779,53 @@ EXPORT_SYMBOL_GPL(__blkg_release);
 static void blkio_reset_stats_cpu(struct blkio_group *blkg, int plid)
 {
 	struct blkg_policy_data *pd = blkg->pd[plid];
-	struct blkio_group_stats_cpu *stats_cpu;
-	int i, j, k;
+	int cpu;
 
 	if (pd->stats_cpu == NULL)
 		return;
-	/*
-	 * Note: On 64 bit arch this should not be an issue. This has the
-	 * possibility of returning some inconsistent value on 32bit arch
-	 * as 64bit update on 32bit is non atomic. Taking care of this
-	 * corner case makes code very complicated, like sending IPIs to
-	 * cpus, taking care of stats of offline cpus etc.
-	 *
-	 * reset stats is anyway more of a debug feature and this sounds a
-	 * corner case. So I am not complicating the code yet until and
-	 * unless this becomes a real issue.
-	 */
-	for_each_possible_cpu(i) {
-		stats_cpu = per_cpu_ptr(pd->stats_cpu, i);
-		stats_cpu->sectors = 0;
-		for(j = 0; j < BLKIO_STAT_CPU_NR; j++)
-			for (k = 0; k < BLKIO_STAT_TOTAL; k++)
-				stats_cpu->stat_arr_cpu[j][k] = 0;
+
+	for_each_possible_cpu(cpu) {
+		struct blkio_group_stats_cpu *sc =
+			per_cpu_ptr(pd->stats_cpu, cpu);
+
+		sc->sectors = 0;
+		memset(sc->stat_arr_cpu, 0, sizeof(sc->stat_arr_cpu));
 	}
 }
 
 static int
 blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 {
-	struct blkio_cgroup *blkcg;
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 	struct blkio_group *blkg;
-	struct blkio_group_stats *stats;
 	struct hlist_node *n;
-	uint64_t queued[BLKIO_STAT_TOTAL];
 	int i;
-#ifdef CONFIG_DEBUG_BLK_CGROUP
-	bool idling, waiting, empty;
-	unsigned long long now = sched_clock();
-#endif
 
-	blkcg = cgroup_to_blkio_cgroup(cgroup);
 	spin_lock(&blkio_list_lock);
 	spin_lock_irq(&blkcg->lock);
+
+	/*
+	 * Note that stat reset is racy - it doesn't synchronize against
+	 * stat updates.  This is a debug feature which shouldn't exist
+	 * anyway.  If you get hit by a race, retry.
+	 */
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
 		struct blkio_policy_type *pol;
 
 		list_for_each_entry(pol, &blkio_list, list) {
 			struct blkg_policy_data *pd = blkg->pd[pol->plid];
+			struct blkio_group_stats *stats = &pd->stats;
 
-			spin_lock(&blkg->stats_lock);
-			stats = &pd->stats;
+			/* queued stats shouldn't be cleared */
+			for (i = 0; i < ARRAY_SIZE(stats->stat_arr); i++)
+				if (i != BLKIO_STAT_QUEUED)
+					memset(stats->stat_arr[i], 0,
+					       sizeof(stats->stat_arr[i]));
+			stats->time = 0;
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-			idling = blkio_blkg_idling(stats);
-			waiting = blkio_blkg_waiting(stats);
-			empty = blkio_blkg_empty(stats);
+			memset((void *)stats + BLKG_STATS_DEBUG_CLEAR_START, 0,
+			       BLKG_STATS_DEBUG_CLEAR_SIZE);
 #endif
-			for (i = 0; i < BLKIO_STAT_TOTAL; i++)
-				queued[i] = stats->stat_arr[BLKIO_STAT_QUEUED][i];
-			memset(stats, 0, sizeof(struct blkio_group_stats));
-			for (i = 0; i < BLKIO_STAT_TOTAL; i++)
-				stats->stat_arr[BLKIO_STAT_QUEUED][i] = queued[i];
-#ifdef CONFIG_DEBUG_BLK_CGROUP
-			if (idling) {
-				blkio_mark_blkg_idling(stats);
-				stats->start_idle_time = now;
-			}
-			if (waiting) {
-				blkio_mark_blkg_waiting(stats);
-				stats->start_group_wait_time = now;
-			}
-			if (empty) {
-				blkio_mark_blkg_empty(stats);
-				stats->start_empty_time = now;
-			}
-#endif
-			spin_unlock(&blkg->stats_lock);
-
-			/* Reset Per cpu stats which don't take blkg->stats_lock */
 			blkio_reset_stats_cpu(blkg, pol->plid);
 		}
 	}
