@@ -141,7 +141,7 @@ static const struct backlight_ops oaktrail_ops = {
 	.update_status  = oaktrail_set_brightness,
 };
 
-int oaktrail_backlight_init(struct drm_device *dev)
+static int oaktrail_backlight_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	int ret;
