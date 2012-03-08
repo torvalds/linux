@@ -115,7 +115,7 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask)
 	}
 }
 
-void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
+static void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 {
 	if (gma_power_begin(dev_priv->dev, false)) {
 		u32 pipe_event = mid_pipe_event(pipe);
@@ -126,7 +126,7 @@ void mid_enable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 	}
 }
 
-void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
+static void mid_disable_pipe_event(struct drm_psb_private *dev_priv, int pipe)
 {
 	if (dev_priv->pipestat[pipe] == 0) {
 		if (gma_power_begin(dev_priv->dev, false)) {
