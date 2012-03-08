@@ -94,11 +94,10 @@ struct pnfs_layoutdriver_type {
 	const struct nfs_pageio_ops *pg_read_ops;
 	const struct nfs_pageio_ops *pg_write_ops;
 
-	/* Returns true if layoutdriver wants to divert this request to
-	 * driver's commit routine.
-	 */
-	bool (*mark_pnfs_commit)(struct pnfs_layout_segment *lseg);
-	struct list_head * (*choose_commit_list) (struct nfs_page *req);
+	struct list_head * (*choose_commit_list) (struct nfs_page *req,
+					struct pnfs_layout_segment *lseg);
+	struct pnfs_layout_segment *(*remove_commit_req) (struct nfs_page *req);
+	int (*scan_commit_lists) (struct inode *inode, int max);
 	int (*commit_pagelist)(struct inode *inode, struct list_head *mds_pages, int how);
 
 	/*
@@ -262,20 +261,6 @@ static inline int pnfs_enabled_sb(struct nfs_server *nfss)
 	return nfss->pnfs_curr_ld != NULL;
 }
 
-static inline void
-pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
-{
-	if (lseg) {
-		struct pnfs_layoutdriver_type *ld;
-
-		ld = NFS_SERVER(req->wb_page->mapping->host)->pnfs_curr_ld;
-		if (ld->mark_pnfs_commit && ld->mark_pnfs_commit(lseg)) {
-			set_bit(PG_PNFS_COMMIT, &req->wb_flags);
-			req->wb_commit_lseg = get_lseg(lseg);
-		}
-	}
-}
-
 static inline int
 pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
 {
@@ -285,26 +270,38 @@ pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
 }
 
 static inline struct list_head *
-pnfs_choose_commit_list(struct nfs_page *req, struct list_head *mds)
+pnfs_choose_commit_list(struct nfs_page *req, struct pnfs_layout_segment *lseg)
 {
+	struct inode *inode = req->wb_context->dentry->d_inode;
 	struct list_head *rv;
 
-	if (test_and_clear_bit(PG_PNFS_COMMIT, &req->wb_flags)) {
-		struct inode *inode = req->wb_commit_lseg->pls_layout->plh_inode;
-
-		set_bit(NFS_INO_PNFS_COMMIT, &NFS_I(inode)->flags);
-		rv = NFS_SERVER(inode)->pnfs_curr_ld->choose_commit_list(req);
-		/* matched by ref taken when PG_PNFS_COMMIT is set */
-		put_lseg(req->wb_commit_lseg);
-	} else
-		rv = mds;
+	if (lseg && NFS_SERVER(inode)->pnfs_curr_ld->choose_commit_list)
+		rv = NFS_SERVER(inode)->pnfs_curr_ld->choose_commit_list(req, lseg);
+	else
+		rv = &NFS_I(inode)->commit_list;
 	return rv;
 }
 
-static inline void pnfs_clear_request_commit(struct nfs_page *req)
+static inline struct pnfs_layout_segment *
+pnfs_clear_request_commit(struct nfs_page *req)
 {
-	if (test_and_clear_bit(PG_PNFS_COMMIT, &req->wb_flags))
-		put_lseg(req->wb_commit_lseg);
+	struct inode *inode = req->wb_context->dentry->d_inode;
+
+	if (NFS_SERVER(inode)->pnfs_curr_ld &&
+	    NFS_SERVER(inode)->pnfs_curr_ld->remove_commit_req)
+		return NFS_SERVER(inode)->pnfs_curr_ld->remove_commit_req(req);
+	else
+		return NULL;
+}
+
+static inline int
+pnfs_scan_commit_lists(struct inode *inode, int max)
+{
+	if (NFS_SERVER(inode)->pnfs_curr_ld &&
+	    NFS_SERVER(inode)->pnfs_curr_ld->scan_commit_lists)
+		return NFS_SERVER(inode)->pnfs_curr_ld->scan_commit_lists(inode, max);
+	else
+		return 0;
 }
 
 /* Should the pNFS client commit and return the layout upon a setattr */
@@ -400,11 +397,6 @@ static inline bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, st
 	return false;
 }
 
-static inline void
-pnfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg)
-{
-}
-
 static inline int
 pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
 {
@@ -412,13 +404,23 @@ pnfs_commit_list(struct inode *inode, struct list_head *mds_pages, int how)
 }
 
 static inline struct list_head *
-pnfs_choose_commit_list(struct nfs_page *req, struct list_head *mds)
+pnfs_choose_commit_list(struct nfs_page *req, struct pnfs_layout_segment *lseg)
 {
-	return mds;
+	struct inode *inode = req->wb_context->dentry->d_inode;
+
+	return &NFS_I(inode)->commit_list;
 }
 
-static inline void pnfs_clear_request_commit(struct nfs_page *req)
+static inline struct pnfs_layout_segment *
+pnfs_clear_request_commit(struct nfs_page *req)
 {
+	return NULL;
+}
+
+static inline int
+pnfs_scan_commit_lists(struct inode *inode, int max)
+{
+	return 0;
 }
 
 static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)

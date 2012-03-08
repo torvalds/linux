@@ -396,67 +396,6 @@ void nfs_pageio_cond_complete(struct nfs_pageio_descriptor *desc, pgoff_t index)
 	}
 }
 
-#define NFS_SCAN_MAXENTRIES 16
-/**
- * nfs_scan_list - Scan a list for matching requests
- * @nfsi: NFS inode
- * @dst: Destination list
- * @idx_start: lower bound of page->index to scan
- * @npages: idx_start + npages sets the upper bound to scan.
- * @tag: tag to scan for
- *
- * Moves elements from one of the inode request lists.
- * If the number of requests is set to 0, the entire address_space
- * starting at index idx_start, is scanned.
- * The requests are *not* checked to ensure that they form a contiguous set.
- * You must be holding the inode's i_lock when calling this function
- */
-int nfs_scan_list(struct nfs_inode *nfsi,
-		struct list_head *dst, pgoff_t idx_start,
-		unsigned int npages, int tag)
-{
-	struct nfs_page *pgvec[NFS_SCAN_MAXENTRIES];
-	struct nfs_page *req;
-	pgoff_t idx_end;
-	int found, i;
-	int res;
-	struct list_head *list;
-
-	res = 0;
-	if (npages == 0)
-		idx_end = ~0;
-	else
-		idx_end = idx_start + npages - 1;
-
-	for (;;) {
-		found = radix_tree_gang_lookup_tag(&nfsi->nfs_page_tree,
-				(void **)&pgvec[0], idx_start,
-				NFS_SCAN_MAXENTRIES, tag);
-		if (found <= 0)
-			break;
-		for (i = 0; i < found; i++) {
-			req = pgvec[i];
-			if (req->wb_index > idx_end)
-				goto out;
-			idx_start = req->wb_index + 1;
-			if (nfs_lock_request_dontget(req)) {
-				kref_get(&req->wb_kref);
-				radix_tree_tag_clear(&nfsi->nfs_page_tree,
-						req->wb_index, tag);
-				list = pnfs_choose_commit_list(req, dst);
-				nfs_list_add_request(req, list);
-				res++;
-				if (res == INT_MAX)
-					goto out;
-			}
-		}
-		/* for latency reduction */
-		cond_resched_lock(&nfsi->vfs_inode.i_lock);
-	}
-out:
-	return res;
-}
-
 int __init nfs_init_nfspagecache(void)
 {
 	nfs_page_cachep = kmem_cache_create("nfs_page",

@@ -171,13 +171,9 @@ struct nfs_inode {
 	 */
 	__be32			cookieverf[2];
 
-	/*
-	 * This is the list of dirty unwritten pages.
-	 */
-	struct radix_tree_root	nfs_page_tree;
-
 	unsigned long		npages;
 	unsigned long		ncommit;
+	struct list_head	commit_list;
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;

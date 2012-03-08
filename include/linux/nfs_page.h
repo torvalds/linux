@@ -19,11 +19,6 @@
 #include <linux/kref.h>
 
 /*
- * Valid flags for the radix tree
- */
-#define NFS_PAGE_TAG_COMMIT	1
-
-/*
  * Valid flags for a dirty buffer
  */
 enum {
@@ -32,16 +27,12 @@ enum {
 	PG_CLEAN,
 	PG_NEED_COMMIT,
 	PG_NEED_RESCHED,
-	PG_PNFS_COMMIT,
 	PG_PARTIAL_READ_FAILED,
 };
 
 struct nfs_inode;
 struct nfs_page {
-	union {
-		struct list_head	wb_list;	/* Defines state of page: */
-		struct pnfs_layout_segment *wb_commit_lseg; /* Used when PG_PNFS_COMMIT set */
-	};
+	struct list_head	wb_list;	/* Defines state of page: */
 	struct page		*wb_page;	/* page to read in/write out */
 	struct nfs_open_context	*wb_context;	/* File state context info */
 	struct nfs_lock_context	*wb_lock_context;	/* lock context info */
@@ -89,8 +80,6 @@ extern	struct nfs_page *nfs_create_request(struct nfs_open_context *ctx,
 extern	void nfs_release_request(struct nfs_page *req);
 
 
-extern	int nfs_scan_list(struct nfs_inode *nfsi, struct list_head *dst,
-			  pgoff_t idx_start, unsigned int npages, int tag);
 extern	void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 			     struct inode *inode,
 			     const struct nfs_pageio_ops *pg_ops,
