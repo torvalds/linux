@@ -176,10 +176,6 @@ int oaktrail_backlight_init(struct drm_device *dev)
  *	for power management
  */
 
-static void oaktrail_init_pm(struct drm_device *dev)
-{
-}
-
 /**
  *	oaktrail_save_display_registers	-	save registers lost on suspend
  *	@dev: our DRM device
@@ -504,7 +500,6 @@ const struct psb_ops oaktrail_chip_ops = {
 	.backlight_init = oaktrail_backlight_init,
 #endif
 
-	.init_pm = oaktrail_init_pm,
 	.save_regs = oaktrail_save_display_registers,
 	.restore_regs = oaktrail_restore_display_registers,
 	.power_down = oaktrail_power_down,

@@ -58,7 +58,8 @@ void gma_power_init(struct drm_device *dev)
 	spin_lock_init(&power_ctrl_lock);
 	mutex_init(&power_mutex);
 
-	dev_priv->ops->init_pm(dev);
+	if (dev_priv->ops->init_pm)
+		dev_priv->ops->init_pm(dev);
 }
 
 /**
