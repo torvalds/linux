@@ -8,8 +8,7 @@
 		NOTES:
 		To install the driver:
 		1. Install the usbserial.ko module supplied by Linux with: # insmod usbserial.ko
-		2. Install the metro-usb.ko module with: # insmod metro-usb.ko vender=0x#### product=0x#### debug=1
-		   The vendor, product and debug parameters are optional.
+		2. Install the metro-usb.ko module with: # insmod metro-usb.ko
 
 		Some of this code is credited to Linux USB open source files that are distributed with Linux.
 
@@ -54,15 +53,12 @@
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID) },
 	{ USB_DEVICE(FOCUS_VENDOR_ID, FOCUS_PRODUCT_ID_UNI) },
-	{ }, /* Optional paramenter entry. */
 	{ }, /* Terminating entry. */
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
 /* Input parameter constants. */
-static int debug;
-static __u16 vendor;
-static __u16 product;
+static bool debug;
 
 /* Function prototypes. */
 static void metrousb_cleanup (struct usb_serial_port *port);
@@ -183,25 +179,8 @@ static void __exit metrousb_exit(void)
 static int __init metrousb_init(void)
 {
 	int retval = 0;
-	int i = 0;
 
 	dbg("METRO-USB - %s", __FUNCTION__);
-
-	/* Add the device parameters if entered. */
-	if ((vendor > 0) && (product > 0)) {
-		struct usb_device_id usb_dev_temp[] = { {USB_DEVICE(vendor, product) } };
-
-		/* Find the last entry in id_table */
-		for (i=0; i < ARRAY_SIZE(id_table); i++) {
-			if (id_table[i].idVendor == 0) {
-				id_table[i] = usb_dev_temp[0];
-				break;
-			}
-		}
-
-		dbg("METRO-USB - %s - support added for unknown device: vendor=0x%x - product=0x%x", __FUNCTION__, vendor, product);
-		printk(KERN_INFO "Metro USB-POS support added for unknown device: vendor=0x%x - product=0x%x", vendor, product);
-	}
 
 	/* Register the devices. */
 	retval = usb_serial_register_drivers(&metrousb_driver, serial_drivers);
@@ -606,13 +585,3 @@ MODULE_DESCRIPTION( DRIVER_DESC );
 /* Module input parameters */
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Print debug info (bool 1=on, 0=off)");
-
-module_param(vendor, ushort, 0);
-MODULE_PARM_DESC(vendor, "User specified vendor ID (ushort)");
-
-module_param(product, ushort, 0);
-MODULE_PARM_DESC(product, "User specified product ID (ushort)");
-
-
-
-
