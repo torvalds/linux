@@ -264,7 +264,7 @@ static void smp_failure(struct l2cap_conn *conn, u8 reason, u8 send)
 
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->hcon->flags);
 	mgmt_auth_failed(conn->hcon->hdev, conn->dst, hcon->type,
-						hcon->dst_type, reason);
+			 hcon->dst_type, reason);
 
 	if (test_and_clear_bit(HCI_CONN_LE_SMP_PEND, &conn->hcon->flags)) {
 		cancel_delayed_work_sync(&conn->security_timer);
@@ -384,12 +384,11 @@ static void confirm_work(struct work_struct *work)
 
 	if (conn->hcon->out)
 		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp, 0,
-				conn->src, conn->hcon->dst_type, conn->dst,
-				res);
+			     conn->src, conn->hcon->dst_type, conn->dst, res);
 	else
 		ret = smp_c1(tfm, smp->tk, smp->prnd, smp->preq, smp->prsp,
-				conn->hcon->dst_type, conn->dst, 0, conn->src,
-				res);
+			     conn->hcon->dst_type, conn->dst, 0, conn->src,
+			     res);
 	if (ret) {
 		reason = SMP_UNSPECIFIED;
 		goto error;
@@ -424,12 +423,10 @@ static void random_work(struct work_struct *work)
 
 	if (hcon->out)
 		ret = smp_c1(tfm, smp->tk, smp->rrnd, smp->preq, smp->prsp, 0,
-				conn->src, hcon->dst_type, conn->dst,
-				res);
+			     conn->src, hcon->dst_type, conn->dst, res);
 	else
 		ret = smp_c1(tfm, smp->tk, smp->rrnd, smp->preq, smp->prsp,
-				hcon->dst_type, conn->dst, 0, conn->src,
-				res);
+			     hcon->dst_type, conn->dst, 0, conn->src, res);
 	if (ret) {
 		reason = SMP_UNSPECIFIED;
 		goto error;
@@ -454,7 +451,7 @@ static void random_work(struct work_struct *work)
 		swap128(key, stk);
 
 		memset(stk + smp->enc_key_size, 0,
-				SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
+		       SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
 		if (test_and_set_bit(HCI_CONN_ENCRYPT_PEND, &hcon->flags)) {
 			reason = SMP_UNSPECIFIED;
@@ -480,8 +477,8 @@ static void random_work(struct work_struct *work)
 				SMP_MAX_ENC_KEY_SIZE - smp->enc_key_size);
 
 		hci_add_ltk(hcon->hdev, conn->dst, hcon->dst_type,
-						HCI_SMP_STK_SLAVE, 0, 0, stk,
-						smp->enc_key_size, ediv, rand);
+			    HCI_SMP_STK_SLAVE, 0, 0, stk, smp->enc_key_size,
+			    ediv, rand);
 	}
 
 	return;
@@ -829,8 +826,8 @@ static int smp_cmd_master_ident(struct l2cap_conn *conn, struct sk_buff *skb)
 	hci_dev_lock(hdev);
 	authenticated = (conn->hcon->sec_level == BT_SECURITY_HIGH);
 	hci_add_ltk(conn->hcon->hdev, conn->dst, hcon->dst_type,
-					HCI_SMP_LTK, 1, authenticated, smp->tk,
-					smp->enc_key_size, rp->ediv, rp->rand);
+		    HCI_SMP_LTK, 1, authenticated, smp->tk, smp->enc_key_size,
+		    rp->ediv, rp->rand);
 	smp_distribute_keys(conn, 1);
 	hci_dev_unlock(hdev);
 
@@ -954,9 +951,8 @@ int smp_distribute_keys(struct l2cap_conn *conn, __u8 force)
 
 		authenticated = hcon->sec_level == BT_SECURITY_HIGH;
 		hci_add_ltk(conn->hcon->hdev, conn->dst, hcon->dst_type,
-					HCI_SMP_LTK_SLAVE, 1, authenticated,
-					enc.ltk, smp->enc_key_size,
-					ediv, ident.rand);
+			    HCI_SMP_LTK_SLAVE, 1, authenticated,
+			    enc.ltk, smp->enc_key_size, ediv, ident.rand);
 
 		ident.ediv = cpu_to_le16(ediv);
 

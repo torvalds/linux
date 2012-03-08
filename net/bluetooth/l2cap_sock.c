@@ -926,7 +926,8 @@ static void l2cap_sock_state_change_cb(void *data, int state)
 }
 
 static struct sk_buff *l2cap_sock_alloc_skb_cb(struct l2cap_chan *chan,
-					unsigned long len, int nb, int *err)
+					       unsigned long len, int nb,
+					       int *err)
 {
 	struct sock *sk = chan->sk;
 

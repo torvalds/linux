@@ -1546,7 +1546,9 @@ static void l2cap_send_srejtail(struct l2cap_chan *chan)
 	l2cap_send_sframe(chan, control);
 }
 
-static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan, struct msghdr *msg, int len, int count, struct sk_buff *skb)
+static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
+					 struct msghdr *msg, int len,
+					 int count, struct sk_buff *skb)
 {
 	struct l2cap_conn *conn = chan->conn;
 	struct sk_buff **frag;
@@ -1564,7 +1566,8 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan, struct msghdr 
 		count = min_t(unsigned int, conn->mtu, len);
 
 		*frag = chan->ops->alloc_skb(chan, count,
-					msg->msg_flags & MSG_DONTWAIT, &err);
+					     msg->msg_flags & MSG_DONTWAIT,
+					     &err);
 
 		if (!*frag)
 			return err;
@@ -1596,7 +1599,7 @@ static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan,
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
 	skb = chan->ops->alloc_skb(chan, count + hlen,
-					msg->msg_flags & MSG_DONTWAIT, &err);
+				   msg->msg_flags & MSG_DONTWAIT, &err);
 
 	if (!skb)
 		return ERR_PTR(err);
@@ -1631,7 +1634,7 @@ static struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan,
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
 	skb = chan->ops->alloc_skb(chan, count + hlen,
-					msg->msg_flags & MSG_DONTWAIT, &err);
+				   msg->msg_flags & MSG_DONTWAIT, &err);
 
 	if (!skb)
 		return ERR_PTR(err);
