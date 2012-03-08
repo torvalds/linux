@@ -3089,6 +3089,60 @@ int ieee80211_max_network_latency(struct notifier_block *nb,
 	return 0;
 }
 
+static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
+				     struct cfg80211_bss *bss, bool assoc)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct sta_info *sta;
+	bool have_sta = false;
+	int err;
+
+	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data))
+		return -EINVAL;
+
+	if (assoc) {
+		rcu_read_lock();
+		have_sta = sta_info_get(sdata, bss->bssid);
+		rcu_read_unlock();
+	}
+
+	if (!have_sta) {
+		sta = sta_info_alloc(sdata, bss->bssid, GFP_KERNEL);
+		if (!sta)
+			return -ENOMEM;
+	}
+
+	mutex_lock(&local->mtx);
+	ieee80211_recalc_idle(sdata->local);
+	mutex_unlock(&local->mtx);
+
+	/* switch to the right channel */
+	local->oper_channel = bss->channel;
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+
+	if (!have_sta) {
+		/* set BSSID - if STA already there this will be set too */
+		memcpy(ifmgd->bssid, bss->bssid, ETH_ALEN);
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
+
+		if (assoc)
+			sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+
+		err = sta_info_insert(sta);
+		sta = NULL;
+		if (err) {
+			printk(KERN_DEBUG
+			       "%s: failed to insert STA entry for the AP (error %d)\n",
+			       sdata->name, err);
+			return err;
+		}
+	} else
+		WARN_ON_ONCE(compare_ether_addr(ifmgd->bssid, bss->bssid));
+
+	return 0;
+}
+
 /* config hooks */
 int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 		       struct cfg80211_auth_request *req)
@@ -3096,7 +3150,6 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_auth_data *auth_data;
-	struct sta_info *sta;
 	u16 auth_alg;
 	int err;
 
@@ -3162,32 +3215,9 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: authenticate with %pM\n",
 	       sdata->name, req->bss->bssid);
 
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&local->mtx);
-
-	/* switch to the right channel */
-	local->oper_channel = req->bss->channel;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-
-	/* set BSSID */
-	memcpy(ifmgd->bssid, req->bss->bssid, ETH_ALEN);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
-
-	/* add station entry */
-	sta = sta_info_alloc(sdata, req->bss->bssid, GFP_KERNEL);
-	if (!sta) {
-		err = -ENOMEM;
+	err = ieee80211_prep_connection(sdata, req->bss, false);
+	if (err)
 		goto err_clear;
-	}
-
-	err = sta_info_insert(sta);
-	if (err) {
-		printk(KERN_DEBUG
-		       "%s: failed to insert STA entry for the AP %pM (error %d)\n",
-		       sdata->name, req->bss->bssid, err);
-		goto err_clear;
-	}
 
 	err = ieee80211_probe_auth(sdata);
 	if (err) {
@@ -3218,7 +3248,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss *bss = (void *)req->bss->priv;
 	struct ieee80211_mgd_assoc_data *assoc_data;
 	struct ieee80211_supported_band *sband;
-	struct sta_info *sta;
 	const u8 *ssidie;
 	int i, err;
 
@@ -3343,41 +3372,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->assoc_data = assoc_data;
 
-	mutex_lock(&local->mtx);
-	ieee80211_recalc_idle(sdata->local);
-	mutex_unlock(&local->mtx);
-
-	/* switch to the right channel */
-	local->oper_channel = req->bss->channel;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
-
-	rcu_read_lock();
-	sta = sta_info_get(sdata, req->bss->bssid);
-	rcu_read_unlock();
-
-	if (!sta) {
-		/* set BSSID */
-		memcpy(ifmgd->bssid, req->bss->bssid, ETH_ALEN);
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BSSID);
-
-		sta = sta_info_alloc(sdata, req->bss->bssid, GFP_KERNEL);
-		if (!sta) {
-			err = -ENOMEM;
-			goto err_clear;
-		}
-
-		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
-
-		err = sta_info_insert(sta);
-		sta = NULL;
-		if (err) {
-			printk(KERN_DEBUG
-			       "%s: failed to insert STA entry for the AP (error %d)\n",
-			       sdata->name, err);
-			goto err_clear;
-		}
-	} else
-		WARN_ON_ONCE(compare_ether_addr(ifmgd->bssid, req->bss->bssid));
+	err = ieee80211_prep_connection(sdata, req->bss, true);
+	if (err)
+		goto err_clear;
 
 	if (!bss->dtim_period &&
 	    sdata->local->hw.flags & IEEE80211_HW_NEED_DTIM_PERIOD) {
