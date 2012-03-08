@@ -756,17 +756,18 @@ prog_hwsq(struct drm_device *dev, struct hwsq_ucode *hwsq)
 	u32 hwsq_data, hwsq_kick;
 	int i;
 
-	if (dev_priv->chipset < 0x90) {
+	if (dev_priv->chipset < 0x94) {
 		hwsq_data = 0x001400;
 		hwsq_kick = 0x00000003;
 	} else {
 		hwsq_data = 0x080000;
 		hwsq_kick = 0x00000001;
 	}
-
 	/* upload hwsq ucode */
 	nv_mask(dev, 0x001098, 0x00000008, 0x00000000);
 	nv_wr32(dev, 0x001304, 0x00000000);
+	if (dev_priv->chipset >= 0x92)
+		nv_wr32(dev, 0x001318, 0x00000000);
 	for (i = 0; i < hwsq->len / 4; i++)
 		nv_wr32(dev, hwsq_data + (i * 4), hwsq->ptr.u32[i]);
 	nv_mask(dev, 0x001098, 0x00000018, 0x00000018);
