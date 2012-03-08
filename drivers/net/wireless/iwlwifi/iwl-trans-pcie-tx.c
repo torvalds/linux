@@ -397,7 +397,7 @@ static void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_trans *trans,
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
-	if (txq_id != trans->shrd->cmd_queue)
+	if (txq_id != trans_pcie->cmd_queue)
 		sta_id = tx_cmd->sta_id;
 
 	bc_ent = cpu_to_le16(1 | (sta_id << 12));
@@ -664,7 +664,7 @@ int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int sta_id, int tid)
 static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
+	struct iwl_tx_queue *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_queue *q = &txq->q;
 	struct iwl_device_cmd *out_cmd;
 	struct iwl_cmd_meta *out_meta;
@@ -737,7 +737,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	out_cmd->hdr.cmd = cmd->id;
 	out_cmd->hdr.flags = 0;
 	out_cmd->hdr.sequence =
-		cpu_to_le16(QUEUE_TO_SEQ(trans->shrd->cmd_queue) |
+		cpu_to_le16(QUEUE_TO_SEQ(trans_pcie->cmd_queue) |
 					 INDEX_TO_SEQ(q->write_ptr));
 
 	/* and copy the data that needs to be copied */
@@ -757,7 +757,7 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			get_cmd_string(out_cmd->hdr.cmd),
 			out_cmd->hdr.cmd,
 			le16_to_cpu(out_cmd->hdr.sequence), cmd_size,
-			q->write_ptr, idx, trans->shrd->cmd_queue);
+			q->write_ptr, idx, trans_pcie->cmd_queue);
 
 	phys_addr = dma_map_single(trans->dev, &out_cmd->hdr, copy_size,
 				DMA_BIDIRECTIONAL);
@@ -881,16 +881,16 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 	struct iwl_device_cmd *cmd;
 	struct iwl_cmd_meta *meta;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
+	struct iwl_tx_queue *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 
 	/* If a Tx command is being handled and it isn't in the actual
 	 * command queue then there a command routing bug has been introduced
 	 * in the queue management code. */
-	if (WARN(txq_id != trans->shrd->cmd_queue,
+	if (WARN(txq_id != trans_pcie->cmd_queue,
 		 "wrong command queue %d (should be %d), sequence 0x%X readp=%d writep=%d\n",
-		  txq_id, trans->shrd->cmd_queue, sequence,
-		  trans_pcie->txq[trans->shrd->cmd_queue].q.read_ptr,
-		  trans_pcie->txq[trans->shrd->cmd_queue].q.write_ptr)) {
+		  txq_id, trans_pcie->cmd_queue, sequence,
+		  trans_pcie->txq[trans_pcie->cmd_queue].q.read_ptr,
+		  trans_pcie->txq[trans_pcie->cmd_queue].q.write_ptr)) {
 		iwl_print_hex_error(trans, pkt, 32);
 		return;
 	}
@@ -997,7 +997,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	if (!ret) {
 		if (test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
 			struct iwl_tx_queue *txq =
-				&trans_pcie->txq[trans->shrd->cmd_queue];
+				&trans_pcie->txq[trans_pcie->cmd_queue];
 			struct iwl_queue *q = &txq->q;
 
 			IWL_ERR(trans,
@@ -1034,7 +1034,7 @@ cancel:
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source).
 		 */
-		trans_pcie->txq[trans->shrd->cmd_queue].meta[cmd_idx].flags &=
+		trans_pcie->txq[trans_pcie->cmd_queue].meta[cmd_idx].flags &=
 							~CMD_WANT_SKB;
 	}
 
@@ -1065,7 +1065,7 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 	int freed = 0;
 
 	/* This function is not meant to release cmd queue*/
-	if (WARN_ON(txq_id == trans->shrd->cmd_queue))
+	if (WARN_ON(txq_id == trans_pcie->cmd_queue))
 		return 0;
 
 	lockdep_assert_held(&txq->lock);

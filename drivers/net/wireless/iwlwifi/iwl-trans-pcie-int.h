@@ -248,6 +248,7 @@ struct iwl_tx_queue {
  * @ucode_write_complete: indicates that the ucode has been copied.
  * @ucode_write_waitq: wait queue for uCode load
  * @status - transport specific status flags
+ * @cmd_queue - command queue number
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -289,6 +290,7 @@ struct iwl_trans_pcie {
 	bool ucode_write_complete;
 	wait_queue_head_t ucode_write_waitq;
 	unsigned long status;
+	u8 cmd_queue;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
