@@ -192,7 +192,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
  * first.
  */
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
-		      struct mwifiex_802_11_ssid *req_ssid)
+		      struct cfg80211_ssid *req_ssid)
 {
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -249,6 +249,17 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		 * application retrieval */
 		priv->assoc_rsp_size = 0;
 		ret = mwifiex_associate(priv, bss_desc);
+
+		/* If auth type is auto and association fails using open mode,
+		 * try to connect using shared mode */
+		if (ret == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG &&
+		    priv->sec_info.is_authtype_auto &&
+		    priv->sec_info.wep_enabled) {
+			priv->sec_info.authentication_mode =
+						NL80211_AUTHTYPE_SHARED_KEY;
+			ret = mwifiex_associate(priv, bss_desc);
+		}
+
 		if (bss)
 			cfg80211_put_bss(bss);
 	} else {
@@ -453,8 +464,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bss_mode = priv->bss_mode;
 
-	memcpy(&info->ssid, &bss_desc->ssid,
-	       sizeof(struct mwifiex_802_11_ssid));
+	memcpy(&info->ssid, &bss_desc->ssid, sizeof(struct cfg80211_ssid));
 
 	memcpy(&info->bssid, &bss_desc->mac_address, ETH_ALEN);
 
@@ -471,7 +481,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bcn_nf_last = priv->bcn_nf_last;
 
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		info->wep_status = true;
 	else
 		info->wep_status = false;
@@ -599,7 +609,7 @@ static int mwifiex_bss_ioctl_ibss_channel(struct mwifiex_private *priv,
  *          - Start/Join the IBSS
  */
 int
-mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
+mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, u16 channel)
 {
 	int ret;
 	struct mwifiex_bss_info bss_info;
@@ -636,7 +646,7 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 	ret = mwifiex_deauthenticate(priv, ssid_bssid.bssid);
 
 	ret = mwifiex_bss_ioctl_ibss_channel(priv, HostCmd_ACT_GEN_SET,
-					     (u16 *) &channel);
+					     &channel);
 
 	/* Do specific SSID scanning */
 	if (mwifiex_request_scan(priv, &bss_info.ssid)) {
@@ -1020,7 +1030,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 	wep_key = &priv->wep_key[priv->wep_key_curr_index];
 	index = encrypt_key->key_index;
 	if (encrypt_key->key_disable) {
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_DISABLED;
+		priv->sec_info.wep_enabled = 0;
 	} else if (!encrypt_key->key_len) {
 		/* Copy the required key as the current key */
 		wep_key = &priv->wep_key[index];
@@ -1030,7 +1040,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			return -1;
 		}
 		priv->wep_key_curr_index = (u16) index;
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_ENABLED;
+		priv->sec_info.wep_enabled = 1;
 	} else {
 		wep_key = &priv->wep_key[index];
 		memset(wep_key, 0, sizeof(struct mwifiex_wep_key));
@@ -1040,7 +1050,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		       encrypt_key->key_len);
 		wep_key->key_index = index;
 		wep_key->key_length = encrypt_key->key_len;
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_ENABLED;
+		priv->sec_info.wep_enabled = 1;
 	}
 	if (wep_key->key_length) {
 		/* Send request to firmware */
@@ -1050,7 +1060,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		if (ret)
 			return ret;
 	}
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
 	else
 		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;

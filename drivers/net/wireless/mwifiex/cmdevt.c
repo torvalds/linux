@@ -391,7 +391,8 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 
 	if (skb) {
 		rx_info = MWIFIEX_SKB_RXCB(skb);
-		rx_info->bss_index = priv->bss_index;
+		rx_info->bss_num = priv->bss_num;
+		rx_info->bss_type = priv->bss_type;
 	}
 
 	if (eventcause != EVENT_PS_SLEEP && eventcause != EVENT_PS_AWAKE) {
@@ -770,7 +771,7 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 
 	/* Check init command response */
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING) {
-		if (ret == -1) {
+		if (ret) {
 			dev_err(adapter->dev, "%s: cmd %#x failed during "
 				"initialization\n", __func__, cmdresp_no);
 			mwifiex_init_fw_complete(adapter);
@@ -780,10 +781,8 @@ int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter)
 	}
 
 	if (adapter->curr_cmd) {
-		if (adapter->curr_cmd->wait_q_enabled && (!ret))
-			adapter->cmd_wait_q.status = 0;
-		else if (adapter->curr_cmd->wait_q_enabled && (ret == -1))
-			adapter->cmd_wait_q.status = -1;
+		if (adapter->curr_cmd->wait_q_enabled)
+			adapter->cmd_wait_q.status = ret;
 
 		/* Clean up and put current command back to cmd_free_q */
 		mwifiex_insert_cmd_to_free_q(adapter, adapter->curr_cmd);

@@ -14,6 +14,7 @@
 #include <linux/if_ether.h>
 #include <linux/workqueue.h>
 #include <linux/average.h>
+#include <linux/etherdevice.h>
 #include "key.h"
 
 /**
@@ -52,6 +53,8 @@
  * @WLAN_STA_SP: Station is in a service period, so don't try to
  *	reply to other uAPSD trigger frames or PS-Poll.
  * @WLAN_STA_4ADDR_EVENT: 4-addr event was already sent for this frame.
+ * @WLAN_STA_INSERTED: This station is inserted into the hash table.
+ * @WLAN_STA_RATE_CONTROL: rate control was initialized for this station.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH,
@@ -71,14 +74,8 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_UAPSD,
 	WLAN_STA_SP,
 	WLAN_STA_4ADDR_EVENT,
-};
-
-enum ieee80211_sta_state {
-	/* NOTE: These need to be ordered correctly! */
-	IEEE80211_STA_NONE,
-	IEEE80211_STA_AUTH,
-	IEEE80211_STA_ASSOC,
-	IEEE80211_STA_AUTHORIZED,
+	WLAN_STA_INSERTED,
+	WLAN_STA_RATE_CONTROL,
 };
 
 #define STA_TID_NUM 16
@@ -271,8 +268,6 @@ struct sta_ampdu_mlme {
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
  * @lost_packets: number of consecutive lost packets
- * @dummy: indicate a dummy station created for receiving
- *	EAP frames before association
  * @sta: station information we share with the driver
  * @sta_state: duplicates information about station state (for debug)
  * @beacon_loss_count: number of times beacon loss has triggered
@@ -370,9 +365,6 @@ struct sta_info {
 	unsigned int lost_packets;
 	unsigned int beacon_loss_count;
 
-	/* should be right in front of sta to be in the same cache line */
-	bool dummy;
-
 	/* keep last! */
 	struct ieee80211_sta sta;
 };
@@ -427,13 +419,17 @@ static inline int test_and_set_sta_flag(struct sta_info *sta,
 	return test_and_set_bit(flag, &sta->_flags);
 }
 
-int sta_info_move_state_checked(struct sta_info *sta,
-				enum ieee80211_sta_state new_state);
+int sta_info_move_state(struct sta_info *sta,
+			enum ieee80211_sta_state new_state);
 
-static inline void sta_info_move_state(struct sta_info *sta,
-				       enum ieee80211_sta_state new_state)
+static inline void sta_info_pre_move_state(struct sta_info *sta,
+					   enum ieee80211_sta_state new_state)
 {
-	int ret = sta_info_move_state_checked(sta, new_state);
+	int ret;
+
+	WARN_ON_ONCE(test_sta_flag(sta, WLAN_STA_INSERTED));
+
+	ret = sta_info_move_state(sta, new_state);
 	WARN_ON_ONCE(ret);
 }
 
@@ -470,13 +466,7 @@ rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
 struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 			      const u8 *addr);
 
-struct sta_info *sta_info_get_rx(struct ieee80211_sub_if_data *sdata,
-			      const u8 *addr);
-
 struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
-				  const u8 *addr);
-
-struct sta_info *sta_info_get_bss_rx(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr);
 
 static inline
@@ -487,23 +477,7 @@ void for_each_sta_info_type_check(struct ieee80211_local *local,
 {
 }
 
-#define for_each_sta_info(local, _addr, _sta, nxt) 			\
-	for (	/* initialise loop */					\
-		_sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
-		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL;	\
-		/* typecheck */						\
-		for_each_sta_info_type_check(local, (_addr), _sta, nxt),\
-		/* continue condition */				\
-		_sta;							\
-		/* advance loop */					\
-		_sta = nxt,						\
-		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
-	     )								\
-	/* run code only if address matches and it's not a dummy sta */	\
-	if (memcmp(_sta->sta.addr, (_addr), ETH_ALEN) == 0 &&		\
-		!_sta->dummy)
-
-#define for_each_sta_info_rx(local, _addr, _sta, nxt)			\
+#define for_each_sta_info(local, _addr, _sta, nxt)			\
 	for (	/* initialise loop */					\
 		_sta = rcu_dereference(local->sta_hash[STA_HASH(_addr)]),\
 		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL;	\
@@ -516,7 +490,7 @@ void for_each_sta_info_type_check(struct ieee80211_local *local,
 		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
 	     )								\
 	/* compare address and run code only if it matches */		\
-	if (memcmp(_sta->sta.addr, (_addr), ETH_ALEN) == 0)
+	if (compare_ether_addr(_sta->sta.addr, (_addr)) == 0)
 
 /*
  * Get STA info by index, BROKEN!
@@ -542,8 +516,8 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta);
  */
 int sta_info_insert(struct sta_info *sta);
 int sta_info_insert_rcu(struct sta_info *sta) __acquires(RCU);
-int sta_info_reinsert(struct sta_info *sta);
 
+int __must_check __sta_info_destroy(struct sta_info *sta);
 int sta_info_destroy_addr(struct ieee80211_sub_if_data *sdata,
 			  const u8 *addr);
 int sta_info_destroy_addr_bss(struct ieee80211_sub_if_data *sdata,
@@ -555,6 +529,9 @@ void sta_info_init(struct ieee80211_local *local);
 void sta_info_stop(struct ieee80211_local *local);
 int sta_info_flush(struct ieee80211_local *local,
 		   struct ieee80211_sub_if_data *sdata);
+void sta_set_rate_info_tx(struct sta_info *sta,
+			  const struct ieee80211_tx_rate *rate,
+			  struct rate_info *rinfo);
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
 

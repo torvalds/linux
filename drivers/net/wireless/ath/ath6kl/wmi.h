@@ -149,8 +149,7 @@ enum wmi_msg_type {
 #define WMI_DATA_HDR_PS_MASK        0x1
 #define WMI_DATA_HDR_PS_SHIFT       5
 
-#define WMI_DATA_HDR_MORE_MASK      0x1
-#define WMI_DATA_HDR_MORE_SHIFT     5
+#define WMI_DATA_HDR_MORE	0x20
 
 enum wmi_data_hdr_data_type {
 	WMI_DATA_HDR_DATA_TYPE_802_3 = 0,
@@ -158,6 +157,13 @@ enum wmi_data_hdr_data_type {
 
 	/* used to be used for the PAL */
 	WMI_DATA_HDR_DATA_TYPE_ACL,
+};
+
+/* Bitmap of data header flags */
+enum wmi_data_hdr_flags {
+	WMI_DATA_HDR_FLAGS_MORE = 0x1,
+	WMI_DATA_HDR_FLAGS_EOSP = 0x2,
+	WMI_DATA_HDR_FLAGS_UAPSD = 0x4,
 };
 
 #define WMI_DATA_HDR_DATA_TYPE_MASK     0x3
@@ -173,7 +179,11 @@ enum wmi_data_hdr_data_type {
 #define WMI_DATA_HDR_META_MASK      0x7
 #define WMI_DATA_HDR_META_SHIFT     13
 
+/* Macros for operating on WMI_DATA_HDR (info3) field */
 #define WMI_DATA_HDR_IF_IDX_MASK    0xF
+
+#define WMI_DATA_HDR_TRIG	    0x10
+#define WMI_DATA_HDR_EOSP	    0x10
 
 struct wmi_data_hdr {
 	s8 rssi;
@@ -203,7 +213,8 @@ struct wmi_data_hdr {
 	/*
 	 * usage of info3, 16-bit:
 	 * b3:b0	- Interface index
-	 * b15:b4	- Reserved
+	 * b4		- uAPSD trigger in rx & EOSP in tx
+	 * b15:b5	- Reserved
 	 */
 	__le16 info3;
 } __packed;
@@ -256,6 +267,9 @@ static inline u8 wmi_data_hdr_get_if_idx(struct wmi_data_hdr *dhdr)
 #define WMI_MAX_TX_META_SZ	12
 #define WMI_META_VERSION_1	0x01
 #define WMI_META_VERSION_2	0x02
+
+/* Flag to signal to FW to calculate TCP checksum */
+#define WMI_META_V2_FLAG_CSUM_OFFLOAD 0x01
 
 struct wmi_tx_meta_v1 {
 	/* packet ID to identify the tx request */
@@ -646,7 +660,6 @@ enum auth_mode {
 	WPA2_AUTH_CCKM = 0x40,
 };
 
-#define WMI_MIN_KEY_INDEX   0
 #define WMI_MAX_KEY_INDEX   3
 
 #define WMI_MAX_KEY_LEN     32
@@ -1237,6 +1250,15 @@ enum target_event_report_config {
 	NO_DISCONN_EVT_IN_RECONN
 };
 
+struct wmi_mcast_filter_cmd {
+	u8 mcast_all_enable;
+} __packed;
+
+#define ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE 6
+struct wmi_mcast_filter_add_del_cmd {
+	u8 mcast_mac[ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE];
+} __packed;
+
 /* Command Replies */
 
 /* WMI_GET_CHANNEL_LIST_CMDID reply */
@@ -1334,6 +1356,8 @@ enum wmi_event_id {
 
 	WMI_P2P_START_SDPD_EVENTID,
 	WMI_P2P_SDPD_RX_EVENTID,
+
+	WMI_SET_HOST_SLEEP_MODE_CMD_PROCESSED_EVENTID = 0x1047,
 
 	WMI_THIN_RESERVED_START_EVENTID = 0x8000,
 	/* Events in this range are reserved for thinmode */
@@ -1903,7 +1927,7 @@ struct wow_filter {
 
 struct wmi_set_ip_cmd {
 	/* IP in network byte order */
-	__le32 ips[MAX_IP_ADDRS];
+	__be32 ips[MAX_IP_ADDRS];
 } __packed;
 
 enum ath6kl_wow_filters {
@@ -2105,6 +2129,19 @@ struct wmi_rx_frame_format_cmd {
 } __packed;
 
 /* AP mode events */
+struct wmi_ap_set_apsd_cmd {
+	u8 enable;
+} __packed;
+
+enum wmi_ap_apsd_buffered_traffic_flags {
+	WMI_AP_APSD_NO_DELIVERY_FRAMES =  0x1,
+};
+
+struct wmi_ap_apsd_buffered_traffic_cmd {
+	__le16 aid;
+	__le16 bitmap;
+	__le32 flags;
+} __packed;
 
 /* WMI_PS_POLL_EVENT */
 struct wmi_pspoll_event {
@@ -2321,7 +2358,7 @@ enum htc_endpoint_id ath6kl_wmi_get_control_ep(struct wmi *wmi);
 void ath6kl_wmi_set_control_ep(struct wmi *wmi, enum htc_endpoint_id ep_id);
 int ath6kl_wmi_dix_2_dot3(struct wmi *wmi, struct sk_buff *skb);
 int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
-			    u8 msg_type, bool more_data,
+			    u8 msg_type, u32 flags,
 			    enum wmi_data_hdr_data_type data_type,
 			    u8 meta_ver, void *tx_meta_info, u8 if_idx);
 
@@ -2417,7 +2454,8 @@ int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 
 s32 ath6kl_wmi_get_rate(s8 rate_index);
 
-int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd);
+int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, u8 if_idx,
+			  __be32 ips0, __be32 ips1);
 int ath6kl_wmi_set_host_sleep_mode_cmd(struct wmi *wmi, u8 if_idx,
 				       enum ath6kl_host_mode host_mode);
 int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
@@ -2425,13 +2463,26 @@ int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
 				u32 filter, u16 host_req_delay);
 int ath6kl_wmi_add_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 				   u8 list_id, u8 filter_size,
-				   u8 filter_offset, u8 *filter, u8 *mask);
+				   u8 filter_offset, const u8 *filter,
+				   const u8 *mask);
 int ath6kl_wmi_del_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
 				   u16 list_id, u16 filter_id);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
 int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid);
 int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode);
+int ath6kl_wmi_mcast_filter_cmd(struct wmi *wmi, u8 if_idx, bool mc_all_on);
+int ath6kl_wmi_add_del_mcast_filter_cmd(struct wmi *wmi, u8 if_idx,
+					u8 *filter, bool add_filter);
+/* AP mode uAPSD */
+int ath6kl_wmi_ap_set_apsd(struct wmi *wmi, u8 if_idx, u8 enable);
 
+int ath6kl_wmi_set_apsd_bfrd_traf(struct wmi *wmi,
+						u8 if_idx, u16 aid,
+						u16 bitmap, u32 flags);
+
+u8 ath6kl_wmi_get_traffic_class(u8 user_priority);
+
+u8 ath6kl_wmi_determine_user_priority(u8 *pkt, u32 layer2_pri);
 /* AP mode */
 int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, u8 if_idx,
 				 struct wmi_connect_cmd *p);

@@ -417,7 +417,7 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 	auth_tlv = (struct mwifiex_ie_types_auth_type *) pos;
 	auth_tlv->header.type = cpu_to_le16(TLV_TYPE_AUTH_TYPE);
 	auth_tlv->header.len = cpu_to_le16(sizeof(auth_tlv->auth_type));
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		auth_tlv->auth_type = cpu_to_le16(
 				(u16) priv->sec_info.authentication_mode);
 	else
@@ -585,7 +585,7 @@ int mwifiex_ret_802_11_associate(struct mwifiex_private *priv,
 		       le16_to_cpu(assoc_rsp->cap_info_bitmap),
 		       le16_to_cpu(assoc_rsp->a_id));
 
-		ret = -1;
+		ret = le16_to_cpu(assoc_rsp->status_code);
 		goto done;
 	}
 
@@ -714,7 +714,7 @@ done:
 int
 mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 				struct host_cmd_ds_command *cmd,
-				struct mwifiex_802_11_ssid *req_ssid)
+				struct cfg80211_ssid *req_ssid)
 {
 	int rsn_ie_len = 0;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -1069,8 +1069,7 @@ mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
 	priv->curr_bss_params.bss_descriptor.channel = bss_desc->channel;
 	priv->curr_bss_params.band = (u8) bss_desc->bss_band;
 
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED
-	    || priv->sec_info.wpa_enabled)
+	if (priv->sec_info.wep_enabled || priv->sec_info.wpa_enabled)
 		tmp_cap |= WLAN_CAPABILITY_PRIVACY;
 
 	if (IS_SUPPORT_MULTI_BANDS(priv->adapter)) {
@@ -1246,7 +1245,7 @@ int mwifiex_associate(struct mwifiex_private *priv,
  */
 int
 mwifiex_adhoc_start(struct mwifiex_private *priv,
-		    struct mwifiex_802_11_ssid *adhoc_ssid)
+		    struct cfg80211_ssid *adhoc_ssid)
 {
 	dev_dbg(priv->adapter->dev, "info: Adhoc Channel = %d\n",
 		priv->adhoc_channel);

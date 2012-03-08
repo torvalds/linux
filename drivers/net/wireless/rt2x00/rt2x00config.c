@@ -232,6 +232,9 @@ void rt2x00lib_config(struct rt2x00_dev *rt2x00dev,
 		memcpy(&libconf.channel,
 		       &rt2x00dev->spec.channels_info[hw_value],
 		       sizeof(libconf.channel));
+
+		/* Used for VCO periodic calibration */
+		rt2x00dev->rf_channel = libconf.rf.channel;
 	}
 
 	if (test_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags) &&

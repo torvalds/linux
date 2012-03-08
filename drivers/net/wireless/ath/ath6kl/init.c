@@ -17,21 +17,15 @@
 
 #include <linux/moduleparam.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/of.h>
 #include <linux/mmc/sdio_func.h>
+
 #include "core.h"
 #include "cfg80211.h"
 #include "target.h"
 #include "debug.h"
 #include "hif-ops.h"
-
-unsigned int debug_mask;
-static unsigned int testmode;
-static bool suspend_cutpower;
-
-module_param(debug_mask, uint, 0644);
-module_param(testmode, uint, 0644);
-module_param(suspend_cutpower, bool, 0444);
 
 static const struct ath6kl_hw hw_list[] = {
 	{
@@ -47,11 +41,14 @@ static const struct ath6kl_hw hw_list[] = {
 		/* hw2.0 needs override address hardcoded */
 		.app_start_override_addr	= 0x944C00,
 
-		.fw_otp			= AR6003_HW_2_0_OTP_FILE,
-		.fw			= AR6003_HW_2_0_FIRMWARE_FILE,
-		.fw_tcmd		= AR6003_HW_2_0_TCMD_FIRMWARE_FILE,
-		.fw_patch		= AR6003_HW_2_0_PATCH_FILE,
-		.fw_api2		= AR6003_HW_2_0_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6003_HW_2_0_FW_DIR,
+			.otp		= AR6003_HW_2_0_OTP_FILE,
+			.fw		= AR6003_HW_2_0_FIRMWARE_FILE,
+			.tcmd		= AR6003_HW_2_0_TCMD_FIRMWARE_FILE,
+			.patch		= AR6003_HW_2_0_PATCH_FILE,
+		},
+
 		.fw_board		= AR6003_HW_2_0_BOARD_DATA_FILE,
 		.fw_default_board	= AR6003_HW_2_0_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -64,12 +61,18 @@ static const struct ath6kl_hw hw_list[] = {
 		.reserved_ram_size		= 512,
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 8,
+		.testscript_addr		= 0x57ef74,
 
-		.fw_otp			= AR6003_HW_2_1_1_OTP_FILE,
-		.fw			= AR6003_HW_2_1_1_FIRMWARE_FILE,
-		.fw_tcmd		= AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE,
-		.fw_patch		= AR6003_HW_2_1_1_PATCH_FILE,
-		.fw_api2		= AR6003_HW_2_1_1_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6003_HW_2_1_1_FW_DIR,
+			.otp		= AR6003_HW_2_1_1_OTP_FILE,
+			.fw		= AR6003_HW_2_1_1_FIRMWARE_FILE,
+			.tcmd		= AR6003_HW_2_1_1_TCMD_FIRMWARE_FILE,
+			.patch		= AR6003_HW_2_1_1_PATCH_FILE,
+			.utf		= AR6003_HW_2_1_1_UTF_FIRMWARE_FILE,
+			.testscript	= AR6003_HW_2_1_1_TESTSCRIPT_FILE,
+		},
+
 		.fw_board		= AR6003_HW_2_1_1_BOARD_DATA_FILE,
 		.fw_default_board	= AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -84,8 +87,11 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz			= 26000000,
 		.uarttx_pin			= 11,
 
-		.fw			= AR6004_HW_1_0_FIRMWARE_FILE,
-		.fw_api2		= AR6004_HW_1_0_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6004_HW_1_0_FW_DIR,
+			.fw		= AR6004_HW_1_0_FIRMWARE_FILE,
+		},
+
 		.fw_board		= AR6004_HW_1_0_BOARD_DATA_FILE,
 		.fw_default_board	= AR6004_HW_1_0_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -100,8 +106,11 @@ static const struct ath6kl_hw hw_list[] = {
 		.refclk_hz			= 40000000,
 		.uarttx_pin			= 11,
 
-		.fw			= AR6004_HW_1_1_FIRMWARE_FILE,
-		.fw_api2		= AR6004_HW_1_1_FIRMWARE_2_FILE,
+		.fw = {
+			.dir		= AR6004_HW_1_1_FW_DIR,
+			.fw		= AR6004_HW_1_1_FIRMWARE_FILE,
+		},
+
 		.fw_board		= AR6004_HW_1_1_BOARD_DATA_FILE,
 		.fw_default_board	= AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE,
 	},
@@ -452,6 +461,13 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	u8 fw_iftype, fw_mode = 0, fw_submode = 0;
 	int i, status;
 
+	param = !!(ar->conf_flags & ATH6KL_CONF_UART_DEBUG);
+	if (ath6kl_bmi_write(ar, ath6kl_get_hi_item_addr(ar,
+			     HI_ITEM(hi_serial_enable)), (u8 *)&param, 4)) {
+		ath6kl_err("bmi_write_memory for uart debug failed\n");
+		return -EIO;
+	}
+
 	/*
 	 * Note: Even though the firmware interface type is
 	 * chosen as BSS_STA for all three interfaces, can
@@ -573,36 +589,6 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	return 0;
 }
 
-void ath6kl_core_free(struct ath6kl *ar)
-{
-	wiphy_free(ar->wiphy);
-}
-
-void ath6kl_core_cleanup(struct ath6kl *ar)
-{
-	ath6kl_hif_power_off(ar);
-
-	destroy_workqueue(ar->ath6kl_wq);
-
-	if (ar->htc_target)
-		ath6kl_htc_cleanup(ar->htc_target);
-
-	ath6kl_cookie_cleanup(ar);
-
-	ath6kl_cleanup_amsdu_rxbufs(ar);
-
-	ath6kl_bmi_cleanup(ar);
-
-	ath6kl_debug_cleanup(ar);
-
-	kfree(ar->fw_board);
-	kfree(ar->fw_otp);
-	kfree(ar->fw);
-	kfree(ar->fw_patch);
-
-	ath6kl_deinit_ieee80211_hw(ar);
-}
-
 /* firmware upload */
 static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 			 u8 **fw, size_t *fw_len)
@@ -626,21 +612,6 @@ static int ath6kl_get_fw(struct ath6kl *ar, const char *filename,
 }
 
 #ifdef CONFIG_OF
-static const char *get_target_ver_dir(const struct ath6kl *ar)
-{
-	switch (ar->version.target_ver) {
-	case AR6003_HW_1_0_VERSION:
-		return "ath6k/AR6003/hw1.0";
-	case AR6003_HW_2_0_VERSION:
-		return "ath6k/AR6003/hw2.0";
-	case AR6003_HW_2_1_1_VERSION:
-		return "ath6k/AR6003/hw2.1.1";
-	}
-	ath6kl_warn("%s: unsupported target version 0x%x.\n", __func__,
-		    ar->version.target_ver);
-	return NULL;
-}
-
 /*
  * Check the device tree for a board-id and use it to construct
  * the pathname to the firmware file.  Used (for now) to find a
@@ -663,7 +634,7 @@ static bool check_device_tree(struct ath6kl *ar)
 			continue;
 		}
 		snprintf(board_filename, sizeof(board_filename),
-			 "%s/bdata.%s.bin", get_target_ver_dir(ar), board_id);
+			 "%s/bdata.%s.bin", ar->hw.fw.dir, board_id);
 
 		ret = ath6kl_get_fw(ar, board_filename, &ar->fw_board,
 				    &ar->fw_board_len);
@@ -730,19 +701,20 @@ static int ath6kl_fetch_board_file(struct ath6kl *ar)
 
 static int ath6kl_fetch_otp_file(struct ath6kl *ar)
 {
-	const char *filename;
+	char filename[100];
 	int ret;
 
 	if (ar->fw_otp != NULL)
 		return 0;
 
-	if (ar->hw.fw_otp == NULL) {
+	if (ar->hw.fw.otp == NULL) {
 		ath6kl_dbg(ATH6KL_DBG_BOOT,
 			   "no OTP file configured for this hw\n");
 		return 0;
 	}
 
-	filename = ar->hw.fw_otp;
+	snprintf(filename, sizeof(filename), "%s/%s",
+		 ar->hw.fw.dir, ar->hw.fw.otp);
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_otp,
 			    &ar->fw_otp_len);
@@ -755,33 +727,61 @@ static int ath6kl_fetch_otp_file(struct ath6kl *ar)
 	return 0;
 }
 
+static int ath6kl_fetch_testmode_file(struct ath6kl *ar)
+{
+	char filename[100];
+	int ret;
+
+	if (ar->testmode == 0)
+		return 0;
+
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "testmode %d\n", ar->testmode);
+
+	if (ar->testmode == 2) {
+		if (ar->hw.fw.utf == NULL) {
+			ath6kl_warn("testmode 2 not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		snprintf(filename, sizeof(filename), "%s/%s",
+			 ar->hw.fw.dir, ar->hw.fw.utf);
+	} else {
+		if (ar->hw.fw.tcmd == NULL) {
+			ath6kl_warn("testmode 1 not supported\n");
+			return -EOPNOTSUPP;
+		}
+
+		snprintf(filename, sizeof(filename), "%s/%s",
+			 ar->hw.fw.dir, ar->hw.fw.tcmd);
+	}
+
+	set_bit(TESTMODE, &ar->flag);
+
+	ret = ath6kl_get_fw(ar, filename, &ar->fw, &ar->fw_len);
+	if (ret) {
+		ath6kl_err("Failed to get testmode %d firmware file %s: %d\n",
+			   ar->testmode, filename, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int ath6kl_fetch_fw_file(struct ath6kl *ar)
 {
-	const char *filename;
+	char filename[100];
 	int ret;
 
 	if (ar->fw != NULL)
 		return 0;
 
-	if (testmode) {
-		if (ar->hw.fw_tcmd == NULL) {
-			ath6kl_warn("testmode not supported\n");
-			return -EOPNOTSUPP;
-		}
-
-		filename = ar->hw.fw_tcmd;
-
-		set_bit(TESTMODE, &ar->flag);
-
-		goto get_fw;
-	}
-
-	if (WARN_ON(ar->hw.fw == NULL))
+	/* FIXME: remove WARN_ON() as we won't support FW API 1 for long */
+	if (WARN_ON(ar->hw.fw.fw == NULL))
 		return -EINVAL;
 
-	filename = ar->hw.fw;
+	snprintf(filename, sizeof(filename), "%s/%s",
+		 ar->hw.fw.dir, ar->hw.fw.fw);
 
-get_fw:
 	ret = ath6kl_get_fw(ar, filename, &ar->fw, &ar->fw_len);
 	if (ret) {
 		ath6kl_err("Failed to get firmware file %s: %d\n",
@@ -794,22 +794,51 @@ get_fw:
 
 static int ath6kl_fetch_patch_file(struct ath6kl *ar)
 {
-	const char *filename;
+	char filename[100];
 	int ret;
 
 	if (ar->fw_patch != NULL)
 		return 0;
 
-	if (ar->hw.fw_patch == NULL)
+	if (ar->hw.fw.patch == NULL)
 		return 0;
 
-	filename = ar->hw.fw_patch;
+	snprintf(filename, sizeof(filename), "%s/%s",
+		 ar->hw.fw.dir, ar->hw.fw.patch);
 
 	ret = ath6kl_get_fw(ar, filename, &ar->fw_patch,
 			    &ar->fw_patch_len);
 	if (ret) {
 		ath6kl_err("Failed to get patch file %s: %d\n",
 			   filename, ret);
+		return ret;
+	}
+
+	return 0;
+}
+
+static int ath6kl_fetch_testscript_file(struct ath6kl *ar)
+{
+	char filename[100];
+	int ret;
+
+	if (ar->testmode != 2)
+		return 0;
+
+	if (ar->fw_testscript != NULL)
+		return 0;
+
+	if (ar->hw.fw.testscript == NULL)
+		return 0;
+
+	snprintf(filename, sizeof(filename), "%s/%s",
+		ar->hw.fw.dir, ar->hw.fw.testscript);
+
+	ret = ath6kl_get_fw(ar, filename, &ar->fw_testscript,
+				&ar->fw_testscript_len);
+	if (ret) {
+		ath6kl_err("Failed to get testscript file %s: %d\n",
+			filename, ret);
 		return ret;
 	}
 
@@ -832,23 +861,24 @@ static int ath6kl_fetch_fw_api1(struct ath6kl *ar)
 	if (ret)
 		return ret;
 
+	ret = ath6kl_fetch_testscript_file(ar);
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
-static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
+static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 {
 	size_t magic_len, len, ie_len;
 	const struct firmware *fw;
 	struct ath6kl_fw_ie *hdr;
-	const char *filename;
+	char filename[100];
 	const u8 *data;
 	int ret, ie_id, i, index, bit;
 	__le32 *val;
 
-	if (ar->hw.fw_api2 == NULL)
-		return -EOPNOTSUPP;
-
-	filename = ar->hw.fw_api2;
+	snprintf(filename, sizeof(filename), "%s/%s", ar->hw.fw.dir, name);
 
 	ret = request_firmware(&fw, filename, ar->dev);
 	if (ret)
@@ -906,6 +936,10 @@ static int ath6kl_fetch_fw_api2(struct ath6kl *ar)
 		case ATH6KL_FW_IE_FW_IMAGE:
 			ath6kl_dbg(ATH6KL_DBG_BOOT, "found fw image ie (%zd B)\n",
 				ie_len);
+
+			/* in testmode we already might have a fw file */
+			if (ar->fw != NULL)
+				break;
 
 			ar->fw = kmemdup(data, ie_len, GFP_KERNEL);
 
@@ -1010,7 +1044,7 @@ out:
 	return ret;
 }
 
-static int ath6kl_fetch_firmwares(struct ath6kl *ar)
+int ath6kl_init_fetch_firmwares(struct ath6kl *ar)
 {
 	int ret;
 
@@ -1018,17 +1052,30 @@ static int ath6kl_fetch_firmwares(struct ath6kl *ar)
 	if (ret)
 		return ret;
 
-	ret = ath6kl_fetch_fw_api2(ar);
+	ret = ath6kl_fetch_testmode_file(ar);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API3_FILE);
 	if (ret == 0) {
-		ath6kl_dbg(ATH6KL_DBG_BOOT, "using fw api 2\n");
-		return 0;
+		ar->fw_api = 3;
+		goto out;
+	}
+
+	ret = ath6kl_fetch_fw_apin(ar, ATH6KL_FW_API2_FILE);
+	if (ret == 0) {
+		ar->fw_api = 2;
+		goto out;
 	}
 
 	ret = ath6kl_fetch_fw_api1(ar);
 	if (ret)
 		return ret;
 
-	ath6kl_dbg(ATH6KL_DBG_BOOT, "using fw api 1\n");
+	ar->fw_api = 1;
+
+out:
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "using fw api %d\n", ar->fw_api);
 
 	return 0;
 }
@@ -1249,6 +1296,50 @@ static int ath6kl_upload_patch(struct ath6kl *ar)
 	return 0;
 }
 
+static int ath6kl_upload_testscript(struct ath6kl *ar)
+{
+	u32 address, param;
+	int ret;
+
+	if (ar->testmode != 2)
+		return 0;
+
+	if (ar->fw_testscript == NULL)
+		return 0;
+
+	address = ar->hw.testscript_addr;
+
+	ath6kl_dbg(ATH6KL_DBG_BOOT, "writing testscript to 0x%x (%zd B)\n",
+		address, ar->fw_testscript_len);
+
+	ret = ath6kl_bmi_write(ar, address, ar->fw_testscript,
+		ar->fw_testscript_len);
+	if (ret) {
+		ath6kl_err("Failed to write testscript file: %d\n", ret);
+		return ret;
+	}
+
+	param = address;
+	ath6kl_bmi_write(ar,
+			ath6kl_get_hi_item_addr(ar,
+			HI_ITEM(hi_ota_testscript)),
+			(unsigned char *) &param, 4);
+
+	param = 4096;
+	ath6kl_bmi_write(ar,
+			ath6kl_get_hi_item_addr(ar,
+			HI_ITEM(hi_end_ram_reserve_sz)),
+			(unsigned char *) &param, 4);
+
+	param = 1;
+	ath6kl_bmi_write(ar,
+			ath6kl_get_hi_item_addr(ar,
+			HI_ITEM(hi_test_apps_related)),
+			(unsigned char *) &param, 4);
+
+	return 0;
+}
+
 static int ath6kl_init_upload(struct ath6kl *ar)
 {
 	u32 param, options, sleep, address;
@@ -1357,6 +1448,11 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	if (status)
 		return status;
 
+	/* Download the test script */
+	status = ath6kl_upload_testscript(ar);
+	if (status)
+		return status;
+
 	/* Restore system sleep */
 	address = RTC_BASE_ADDRESS + SYSTEM_SLEEP_ADDRESS;
 	status = ath6kl_bmi_reg_write(ar, address, sleep);
@@ -1372,9 +1468,9 @@ static int ath6kl_init_upload(struct ath6kl *ar)
 	return status;
 }
 
-static int ath6kl_init_hw_params(struct ath6kl *ar)
+int ath6kl_init_hw_params(struct ath6kl *ar)
 {
-	const struct ath6kl_hw *hw;
+	const struct ath6kl_hw *uninitialized_var(hw);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(hw_list); i++) {
@@ -1481,10 +1577,11 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 
 
 	if (test_and_clear_bit(FIRST_BOOT, &ar->flag)) {
-		ath6kl_info("%s %s fw %s%s\n",
+		ath6kl_info("%s %s fw %s api %d%s\n",
 			    ar->hw.name,
 			    ath6kl_init_get_hif_name(ar->hif_type),
 			    ar->wiphy->fw_version,
+			    ar->fw_api,
 			    test_bit(TESTMODE, &ar->flag) ? " testmode" : "");
 	}
 
@@ -1549,173 +1646,7 @@ int ath6kl_init_hw_stop(struct ath6kl *ar)
 	return 0;
 }
 
-int ath6kl_core_init(struct ath6kl *ar)
-{
-	struct ath6kl_bmi_target_info targ_info;
-	struct net_device *ndev;
-	int ret = 0, i;
-
-	ar->ath6kl_wq = create_singlethread_workqueue("ath6kl");
-	if (!ar->ath6kl_wq)
-		return -ENOMEM;
-
-	ret = ath6kl_bmi_init(ar);
-	if (ret)
-		goto err_wq;
-
-	/*
-	 * Turn on power to get hardware (target) version and leave power
-	 * on delibrately as we will boot the hardware anyway within few
-	 * seconds.
-	 */
-	ret = ath6kl_hif_power_on(ar);
-	if (ret)
-		goto err_bmi_cleanup;
-
-	ret = ath6kl_bmi_get_target_info(ar, &targ_info);
-	if (ret)
-		goto err_power_off;
-
-	ar->version.target_ver = le32_to_cpu(targ_info.version);
-	ar->target_type = le32_to_cpu(targ_info.type);
-	ar->wiphy->hw_version = le32_to_cpu(targ_info.version);
-
-	ret = ath6kl_init_hw_params(ar);
-	if (ret)
-		goto err_power_off;
-
-	ar->htc_target = ath6kl_htc_create(ar);
-
-	if (!ar->htc_target) {
-		ret = -ENOMEM;
-		goto err_power_off;
-	}
-
-	ret = ath6kl_fetch_firmwares(ar);
-	if (ret)
-		goto err_htc_cleanup;
-
-	/* FIXME: we should free all firmwares in the error cases below */
-
-	/* Indicate that WMI is enabled (although not ready yet) */
-	set_bit(WMI_ENABLED, &ar->flag);
-	ar->wmi = ath6kl_wmi_init(ar);
-	if (!ar->wmi) {
-		ath6kl_err("failed to initialize wmi\n");
-		ret = -EIO;
-		goto err_htc_cleanup;
-	}
-
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: got wmi @ 0x%p.\n", __func__, ar->wmi);
-
-	ret = ath6kl_register_ieee80211_hw(ar);
-	if (ret)
-		goto err_node_cleanup;
-
-	ret = ath6kl_debug_init(ar);
-	if (ret) {
-		wiphy_unregister(ar->wiphy);
-		goto err_node_cleanup;
-	}
-
-	for (i = 0; i < ar->vif_max; i++)
-		ar->avail_idx_map |= BIT(i);
-
-	rtnl_lock();
-
-	/* Add an initial station interface */
-	ndev = ath6kl_interface_add(ar, "wlan%d", NL80211_IFTYPE_STATION, 0,
-				    INFRA_NETWORK);
-
-	rtnl_unlock();
-
-	if (!ndev) {
-		ath6kl_err("Failed to instantiate a network device\n");
-		ret = -ENOMEM;
-		wiphy_unregister(ar->wiphy);
-		goto err_debug_init;
-	}
-
-
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
-			__func__, ndev->name, ndev, ar);
-
-	/* setup access class priority mappings */
-	ar->ac_stream_pri_map[WMM_AC_BK] = 0; /* lowest  */
-	ar->ac_stream_pri_map[WMM_AC_BE] = 1;
-	ar->ac_stream_pri_map[WMM_AC_VI] = 2;
-	ar->ac_stream_pri_map[WMM_AC_VO] = 3; /* highest */
-
-	/* give our connected endpoints some buffers */
-	ath6kl_rx_refill(ar->htc_target, ar->ctrl_ep);
-	ath6kl_rx_refill(ar->htc_target, ar->ac2ep_map[WMM_AC_BE]);
-
-	/* allocate some buffers that handle larger AMSDU frames */
-	ath6kl_refill_amsdu_rxbufs(ar, ATH6KL_MAX_AMSDU_RX_BUFFERS);
-
-	ath6kl_cookie_init(ar);
-
-	ar->conf_flags = ATH6KL_CONF_IGNORE_ERP_BARKER |
-			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
-
-	if (suspend_cutpower)
-		ar->conf_flags |= ATH6KL_CONF_SUSPEND_CUTPOWER;
-
-	ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
-			    WIPHY_FLAG_HAVE_AP_SME |
-			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			    WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
-
-	if (test_bit(ATH6KL_FW_CAPABILITY_SCHED_SCAN, ar->fw_capabilities))
-		ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
-
-	ar->wiphy->probe_resp_offload =
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P |
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_80211U;
-
-	set_bit(FIRST_BOOT, &ar->flag);
-
-	ret = ath6kl_init_hw_start(ar);
-	if (ret) {
-		ath6kl_err("Failed to start hardware: %d\n", ret);
-		goto err_rxbuf_cleanup;
-	}
-
-	/*
-	 * Set mac address which is received in ready event
-	 * FIXME: Move to ath6kl_interface_add()
-	 */
-	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
-
-	return ret;
-
-err_rxbuf_cleanup:
-	ath6kl_htc_flush_rx_buf(ar->htc_target);
-	ath6kl_cleanup_amsdu_rxbufs(ar);
-	rtnl_lock();
-	ath6kl_deinit_if_data(netdev_priv(ndev));
-	rtnl_unlock();
-	wiphy_unregister(ar->wiphy);
-err_debug_init:
-	ath6kl_debug_cleanup(ar);
-err_node_cleanup:
-	ath6kl_wmi_shutdown(ar->wmi);
-	clear_bit(WMI_ENABLED, &ar->flag);
-	ar->wmi = NULL;
-err_htc_cleanup:
-	ath6kl_htc_cleanup(ar->htc_target);
-err_power_off:
-	ath6kl_hif_power_off(ar);
-err_bmi_cleanup:
-	ath6kl_bmi_cleanup(ar);
-err_wq:
-	destroy_workqueue(ar->ath6kl_wq);
-
-	return ret;
-}
-
+/* FIXME: move this to cfg80211.c and rename to ath6kl_cfg80211_vif_stop() */
 void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
 {
 	static u8 bcast_mac[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
@@ -1747,6 +1678,7 @@ void ath6kl_cleanup_vif(struct ath6kl_vif *vif, bool wmi_ready)
 void ath6kl_stop_txrx(struct ath6kl *ar)
 {
 	struct ath6kl_vif *vif, *tmp_vif;
+	int i;
 
 	set_bit(DESTROY_IN_PROGRESS, &ar->flag);
 
@@ -1755,13 +1687,16 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 		return;
 	}
 
+	for (i = 0; i < AP_MAX_NUM_STA; i++)
+		aggr_reset_state(ar->sta_list[i].aggr_conn);
+
 	spin_lock_bh(&ar->list_lock);
 	list_for_each_entry_safe(vif, tmp_vif, &ar->vif_list, list) {
 		list_del(&vif->list);
 		spin_unlock_bh(&ar->list_lock);
 		ath6kl_cleanup_vif(vif, test_bit(WMI_READY, &ar->flag));
 		rtnl_lock();
-		ath6kl_deinit_if_data(vif);
+		ath6kl_cfg80211_vif_cleanup(vif);
 		rtnl_unlock();
 		spin_lock_bh(&ar->list_lock);
 	}
@@ -1796,3 +1731,4 @@ void ath6kl_stop_txrx(struct ath6kl *ar)
 
 	clear_bit(WLAN_ENABLED, &ar->flag);
 }
+EXPORT_SYMBOL(ath6kl_stop_txrx);

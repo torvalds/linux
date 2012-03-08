@@ -340,9 +340,7 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		fastcc = false;
 
 	ath_dbg(common, CONFIG, "Reset to %u MHz, HT40: %d fastcc: %d\n",
-		hchan->channel, !!(hchan->channelFlags & (CHANNEL_HT40MINUS |
-							  CHANNEL_HT40PLUS)),
-		fastcc);
+		hchan->channel, IS_CHAN_HT40(hchan), fastcc);
 
 	r = ath9k_hw_reset(ah, hchan, caldata, fastcc);
 	if (r) {
@@ -373,11 +371,7 @@ static int ath_set_channel(struct ath_softc *sc, struct ieee80211_hw *hw,
 	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
-	ath9k_ps_wakeup(sc);
-
 	r = ath_reset_internal(sc, hchan, false);
-
-	ath9k_ps_restore(sc);
 
 	return r;
 }
@@ -741,12 +735,7 @@ void ath9k_tasklet(unsigned long data)
 			ath_tx_tasklet(sc);
 	}
 
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-		if (status & ATH9K_INT_GENTIMER)
-			ath_gen_timer_isr(sc->sc_ah);
-
-	if ((status & ATH9K_INT_MCI) && ATH9K_HW_CAP_MCI)
-		ath_mci_intr(sc);
+	ath9k_btcoex_handle_interrupt(sc, status);
 
 out:
 	/* re-enable hardware interrupt */
@@ -1081,16 +1070,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	spin_unlock_bh(&sc->sc_pcu_lock);
 
-	if ((ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) &&
-	    !ah->btcoex_hw.enabled) {
-		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
-			ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
-						   AR_STOMP_LOW_WLAN_WGHT);
-		ath9k_hw_btcoex_enable(ah);
-
-		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-			ath9k_btcoex_timer_resume(sc);
-	}
+	ath9k_start_btcoex(sc);
 
 	if (ah->caps.pcie_lcr_extsync_en && common->bus_ops->extn_synch_en)
 		common->bus_ops->extn_synch_en(common);
@@ -1191,13 +1171,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	/* Ensure HW is awake when we try to shut it down. */
 	ath9k_ps_wakeup(sc);
 
-	if (ah->btcoex_hw.enabled &&
-	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
-		ath9k_hw_btcoex_disable(ah);
-		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
-			ath9k_btcoex_timer_pause(sc);
-		ath_mci_flush_profile(&sc->btcoex.mci);
-	}
+	ath9k_stop_btcoex(sc);
 
 	spin_lock_bh(&sc->sc_pcu_lock);
 
@@ -1589,12 +1563,6 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	/*
-	 * Leave this as the first check because we need to turn on the
-	 * radio if it was disabled before prior to processing the rest
-	 * of the changes. Likewise we must only disable the radio towards
-	 * the end.
-	 */
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
 		sc->ps_idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 		if (sc->ps_idle)
@@ -2332,6 +2300,7 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	struct ath_vif *avp;
 	struct ath_buf *bf;
 	struct ath_tx_status ts;
+	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int status;
 
 	vif = sc->beacon.bslot[0];
@@ -2342,7 +2311,7 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	if (!avp->is_bslot_active)
 		return 0;
 
-	if (!sc->beacon.tx_processed) {
+	if (!sc->beacon.tx_processed && !edma) {
 		tasklet_disable(&sc->bcon_tasklet);
 
 		bf = avp->av_bcbuf;

@@ -20,23 +20,29 @@ __ieee80211_get_channel_mode(struct ieee80211_local *local,
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 
-		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_MONITOR:
 			continue;
-
-		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
-		    !sdata->u.mgd.associated)
-			continue;
-
-		if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
+		case NL80211_IFTYPE_STATION:
+			if (!sdata->u.mgd.associated)
+				continue;
+			break;
+		case NL80211_IFTYPE_ADHOC:
 			if (!sdata->u.ibss.ssid_len)
 				continue;
 			if (!sdata->u.ibss.fixed_channel)
 				return CHAN_MODE_HOPPING;
-		}
-
-		if (sdata->vif.type == NL80211_IFTYPE_AP &&
-		    !sdata->u.ap.beacon)
+			break;
+		case NL80211_IFTYPE_AP_VLAN:
+			/* will also have _AP interface */
 			continue;
+		case NL80211_IFTYPE_AP:
+			if (!sdata->u.ap.beacon)
+				continue;
+			break;
+		default:
+			break;
+		}
 
 		return CHAN_MODE_FIXED;
 	}

@@ -647,9 +647,8 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *tx_info;
 	struct ieee80211_tx_rate *rates;
-	struct ath_mci_profile *mci = &sc->btcoex.mci;
 	u32 max_4ms_framelen, frmlen;
-	u16 aggr_limit, legacy = 0;
+	u16 aggr_limit, bt_aggr_limit, legacy = 0;
 	int i;
 
 	skb = bf->bf_mpdu;
@@ -694,14 +693,14 @@ static u32 ath_lookup_rate(struct ath_softc *sc, struct ath_buf *bf,
 	if (tx_info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE || legacy)
 		return 0;
 
-	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_MCI) && mci->aggr_limit)
-		aggr_limit = (max_4ms_framelen * mci->aggr_limit) >> 4;
-	else if (sc->sc_flags & SC_OP_BT_PRIORITY_DETECTED)
-		aggr_limit = min((max_4ms_framelen * 3) / 8,
-				 (u32)ATH_AMPDU_LIMIT_MAX);
-	else
-		aggr_limit = min(max_4ms_framelen,
-				 (u32)ATH_AMPDU_LIMIT_MAX);
+	aggr_limit = min(max_4ms_framelen, (u32)ATH_AMPDU_LIMIT_MAX);
+
+	/*
+	 * Override the default aggregation limit for BTCOEX.
+	 */
+	bt_aggr_limit = ath9k_btcoex_aggr_limit(sc, max_4ms_framelen);
+	if (bt_aggr_limit)
+		aggr_limit = bt_aggr_limit;
 
 	/*
 	 * h/w can accept aggregates up to 16 bit lengths (65535).
@@ -2297,9 +2296,12 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 			break;
 		}
 
-		/* Skip beacon completions */
-		if (ts.qid == sc->beacon.beaconq)
+		/* Process beacon completions separately */
+		if (ts.qid == sc->beacon.beaconq) {
+			sc->beacon.tx_processed = true;
+			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
 			continue;
+		}
 
 		txq = &sc->tx.txq[ts.qid];
 

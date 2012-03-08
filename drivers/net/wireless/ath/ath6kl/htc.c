@@ -2062,6 +2062,7 @@ int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
 	enum htc_endpoint_id id;
 	int n_fetched = 0;
 
+	INIT_LIST_HEAD(&comp_pktq);
 	*num_pkts = 0;
 
 	/*
@@ -2543,6 +2544,12 @@ int ath6kl_htc_wait_target(struct htc_target *target)
 	struct htc_service_connect_resp resp;
 	int status;
 
+	/* FIXME: remove once USB support is implemented */
+	if (target->dev->ar->hif_type == ATH6KL_HIF_TYPE_USB) {
+		ath6kl_err("HTC doesn't support USB yet. Patience!\n");
+		return -EOPNOTSUPP;
+	}
+
 	/* we should be getting 1 control message that the target is ready */
 	packet = htc_wait_for_ctrl_msg(target);
 
@@ -2772,7 +2779,9 @@ void ath6kl_htc_cleanup(struct htc_target *target)
 {
 	struct htc_packet *packet, *tmp_packet;
 
-	ath6kl_hif_cleanup_scatter(target->dev->ar);
+	/* FIXME: remove check once USB support is implemented */
+	if (target->dev->ar->hif_type != ATH6KL_HIF_TYPE_USB)
+		ath6kl_hif_cleanup_scatter(target->dev->ar);
 
 	list_for_each_entry_safe(packet, tmp_packet,
 			&target->free_ctrl_txbuf, list) {

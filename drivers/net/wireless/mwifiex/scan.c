@@ -163,8 +163,7 @@ mwifiex_is_wpa_oui_present(struct mwifiex_bssdescriptor *bss_desc, u32 cipher)
  * This function compares two SSIDs and checks if they match.
  */
 s32
-mwifiex_ssid_cmp(struct mwifiex_802_11_ssid *ssid1,
-		 struct mwifiex_802_11_ssid *ssid2)
+mwifiex_ssid_cmp(struct cfg80211_ssid *ssid1, struct cfg80211_ssid *ssid2)
 {
 	if (!ssid1 || !ssid2 || (ssid1->ssid_len != ssid2->ssid_len))
 		return -1;
@@ -196,9 +195,8 @@ static bool
 mwifiex_is_network_compatible_for_no_sec(struct mwifiex_private *priv,
 				       struct mwifiex_bssdescriptor *bss_desc)
 {
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED
-	    && !priv->sec_info.wpa_enabled && !priv->sec_info.wpa2_enabled
-	    && ((!bss_desc->bcn_wpa_ie) ||
+	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
+	    !priv->sec_info.wpa2_enabled && ((!bss_desc->bcn_wpa_ie) ||
 		((*(bss_desc->bcn_wpa_ie)).vend_hdr.element_id !=
 	    WLAN_EID_WPA))
 	    && ((!bss_desc->bcn_rsn_ie) ||
@@ -219,9 +217,8 @@ static bool
 mwifiex_is_network_compatible_for_static_wep(struct mwifiex_private *priv,
 				       struct mwifiex_bssdescriptor *bss_desc)
 {
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED
-	    && !priv->sec_info.wpa_enabled && !priv->sec_info.wpa2_enabled
-	    && bss_desc->privacy) {
+	if (priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
+	    !priv->sec_info.wpa2_enabled && bss_desc->privacy) {
 		return true;
 	}
 	return false;
@@ -235,10 +232,9 @@ static bool
 mwifiex_is_network_compatible_for_wpa(struct mwifiex_private *priv,
 				      struct mwifiex_bssdescriptor *bss_desc)
 {
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED
-	    && priv->sec_info.wpa_enabled && !priv->sec_info.wpa2_enabled
-	    && ((bss_desc->bcn_wpa_ie) && ((*(bss_desc->bcn_wpa_ie)).vend_hdr.
-						element_id == WLAN_EID_WPA))
+	if (!priv->sec_info.wep_enabled && priv->sec_info.wpa_enabled &&
+	    !priv->sec_info.wpa2_enabled && ((bss_desc->bcn_wpa_ie) &&
+	    ((*(bss_desc->bcn_wpa_ie)).vend_hdr.element_id == WLAN_EID_WPA))
 	   /*
 	    * Privacy bit may NOT be set in some APs like
 	    * LinkSys WRT54G && bss_desc->privacy
@@ -253,8 +249,7 @@ mwifiex_is_network_compatible_for_wpa(struct mwifiex_private *priv,
 			(bss_desc->bcn_rsn_ie) ?
 			(*(bss_desc->bcn_rsn_ie)).
 			ieee_hdr.element_id : 0,
-			(priv->sec_info.wep_status ==
-			MWIFIEX_802_11_WEP_ENABLED) ? "e" : "d",
+			(priv->sec_info.wep_enabled) ? "e" : "d",
 			(priv->sec_info.wpa_enabled) ? "e" : "d",
 			(priv->sec_info.wpa2_enabled) ? "e" : "d",
 			priv->sec_info.encryption_mode,
@@ -272,10 +267,9 @@ static bool
 mwifiex_is_network_compatible_for_wpa2(struct mwifiex_private *priv,
 				       struct mwifiex_bssdescriptor *bss_desc)
 {
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED
-	   && !priv->sec_info.wpa_enabled && priv->sec_info.wpa2_enabled
-	   && ((bss_desc->bcn_rsn_ie) && ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.
-						element_id == WLAN_EID_RSN))
+	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
+	    priv->sec_info.wpa2_enabled && ((bss_desc->bcn_rsn_ie) &&
+	    ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.element_id == WLAN_EID_RSN))
 	   /*
 	    * Privacy bit may NOT be set in some APs like
 	    * LinkSys WRT54G && bss_desc->privacy
@@ -290,8 +284,7 @@ mwifiex_is_network_compatible_for_wpa2(struct mwifiex_private *priv,
 			(bss_desc->bcn_rsn_ie) ?
 			(*(bss_desc->bcn_rsn_ie)).
 			ieee_hdr.element_id : 0,
-			(priv->sec_info.wep_status ==
-			MWIFIEX_802_11_WEP_ENABLED) ? "e" : "d",
+			(priv->sec_info.wep_enabled) ? "e" : "d",
 			(priv->sec_info.wpa_enabled) ? "e" : "d",
 			(priv->sec_info.wpa2_enabled) ? "e" : "d",
 			priv->sec_info.encryption_mode,
@@ -309,10 +302,9 @@ static bool
 mwifiex_is_network_compatible_for_adhoc_aes(struct mwifiex_private *priv,
 				       struct mwifiex_bssdescriptor *bss_desc)
 {
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED
-	    && !priv->sec_info.wpa_enabled && !priv->sec_info.wpa2_enabled
-	    && ((!bss_desc->bcn_wpa_ie) || ((*(bss_desc->bcn_wpa_ie)).vend_hdr.
-		   element_id != WLAN_EID_WPA))
+	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
+	    !priv->sec_info.wpa2_enabled && ((!bss_desc->bcn_wpa_ie) ||
+	    ((*(bss_desc->bcn_wpa_ie)).vend_hdr.element_id != WLAN_EID_WPA))
 	    && ((!bss_desc->bcn_rsn_ie) || ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.
 		   element_id != WLAN_EID_RSN))
 	    && !priv->sec_info.encryption_mode
@@ -330,10 +322,9 @@ static bool
 mwifiex_is_network_compatible_for_dynamic_wep(struct mwifiex_private *priv,
 				       struct mwifiex_bssdescriptor *bss_desc)
 {
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_DISABLED
-	    && !priv->sec_info.wpa_enabled && !priv->sec_info.wpa2_enabled
-	    && ((!bss_desc->bcn_wpa_ie) || ((*(bss_desc->bcn_wpa_ie)).vend_hdr.
-		   element_id != WLAN_EID_WPA))
+	if (!priv->sec_info.wep_enabled && !priv->sec_info.wpa_enabled &&
+	    !priv->sec_info.wpa2_enabled && ((!bss_desc->bcn_wpa_ie) ||
+	    ((*(bss_desc->bcn_wpa_ie)).vend_hdr.element_id != WLAN_EID_WPA))
 	    && ((!bss_desc->bcn_rsn_ie) || ((*(bss_desc->bcn_rsn_ie)).ieee_hdr.
 		   element_id != WLAN_EID_RSN))
 	    && priv->sec_info.encryption_mode
@@ -468,8 +459,7 @@ mwifiex_is_network_compatible(struct mwifiex_private *priv,
 		       (bss_desc->bcn_rsn_ie) ?
 		       (*(bss_desc->bcn_rsn_ie)).ieee_hdr.
 		       element_id : 0,
-		       (priv->sec_info.wep_status ==
-				MWIFIEX_802_11_WEP_ENABLED) ? "e" : "d",
+		       (priv->sec_info.wep_enabled) ? "e" : "d",
 		       (priv->sec_info.wpa_enabled) ? "e" : "d",
 		       (priv->sec_info.wpa2_enabled) ? "e" : "d",
 		       priv->sec_info.encryption_mode, bss_desc->privacy);
@@ -747,7 +737,7 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 	u16 scan_dur;
 	u8 channel;
 	u8 radio_type;
-	u32 ssid_idx;
+	int i;
 	u8 ssid_filter;
 	u8 rates[MWIFIEX_SUPPORTED_RATES];
 	u32 rates_size;
@@ -802,14 +792,8 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 		       user_scan_in->specific_bssid,
 		       sizeof(scan_cfg_out->specific_bssid));
 
-		for (ssid_idx = 0;
-		     ((ssid_idx < ARRAY_SIZE(user_scan_in->ssid_list))
-		      && (*user_scan_in->ssid_list[ssid_idx].ssid
-			  || user_scan_in->ssid_list[ssid_idx].max_len));
-		     ssid_idx++) {
-
-			ssid_len = strlen(user_scan_in->ssid_list[ssid_idx].
-					  ssid) + 1;
+		for (i = 0; i < user_scan_in->num_ssids; i++) {
+			ssid_len = user_scan_in->ssid_list[i].ssid_len;
 
 			wildcard_ssid_tlv =
 				(struct mwifiex_ie_types_wildcard_ssid_params *)
@@ -820,19 +804,26 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 				(u16) (ssid_len + sizeof(wildcard_ssid_tlv->
 							 max_ssid_length)));
 
-			/* max_ssid_length = 0 tells firmware to perform
-			   specific scan for the SSID filled */
-			wildcard_ssid_tlv->max_ssid_length = 0;
+			/*
+			 * max_ssid_length = 0 tells firmware to perform
+			 * specific scan for the SSID filled, whereas
+			 * max_ssid_length = IEEE80211_MAX_SSID_LEN is for
+			 * wildcard scan.
+			 */
+			if (ssid_len)
+				wildcard_ssid_tlv->max_ssid_length = 0;
+			else
+				wildcard_ssid_tlv->max_ssid_length =
+							IEEE80211_MAX_SSID_LEN;
 
 			memcpy(wildcard_ssid_tlv->ssid,
-			       user_scan_in->ssid_list[ssid_idx].ssid,
-			       ssid_len);
+			       user_scan_in->ssid_list[i].ssid, ssid_len);
 
 			tlv_pos += (sizeof(wildcard_ssid_tlv->header)
 				+ le16_to_cpu(wildcard_ssid_tlv->header.len));
 
-			dev_dbg(adapter->dev, "info: scan: ssid_list[%d]: %s, %d\n",
-				ssid_idx, wildcard_ssid_tlv->ssid,
+			dev_dbg(adapter->dev, "info: scan: ssid[%d]: %s, %d\n",
+				i, wildcard_ssid_tlv->ssid,
 				wildcard_ssid_tlv->max_ssid_length);
 
 			/* Empty wildcard ssid with a maxlen will match many or
@@ -841,7 +832,6 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 			   filtered. */
 			if (!ssid_len && wildcard_ssid_tlv->max_ssid_length)
 				ssid_filter = false;
-
 		}
 
 		/*
@@ -850,7 +840,7 @@ mwifiex_scan_setup_scan_config(struct mwifiex_private *priv,
 		 *  truncate scan results.  That is not an issue with an SSID
 		 *  or BSSID filter applied to the scan results in the firmware.
 		 */
-		if ((ssid_idx && ssid_filter)
+		if ((i && ssid_filter)
 		    || memcmp(scan_cfg_out->specific_bssid, &zero_mac,
 			      sizeof(zero_mac)))
 			*filtered_scan = true;
@@ -1860,7 +1850,7 @@ mwifiex_queue_scan_cmd(struct mwifiex_private *priv,
  * firmware, filtered on a specific SSID.
  */
 static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
-				      struct mwifiex_802_11_ssid *req_ssid)
+				      struct cfg80211_ssid *req_ssid)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	int ret = 0;
@@ -1886,8 +1876,8 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 		return -ENOMEM;
 	}
 
-	memcpy(scan_cfg->ssid_list[0].ssid, req_ssid->ssid,
-	       req_ssid->ssid_len);
+	scan_cfg->ssid_list = req_ssid;
+	scan_cfg->num_ssids = 1;
 
 	ret = mwifiex_scan_networks(priv, scan_cfg);
 
@@ -1905,7 +1895,7 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
  * scan, depending upon whether an SSID is provided or not.
  */
 int mwifiex_request_scan(struct mwifiex_private *priv,
-			 struct mwifiex_802_11_ssid *req_ssid)
+			 struct cfg80211_ssid *req_ssid)
 {
 	int ret;
 
@@ -2001,7 +1991,7 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 
 		kfree(priv->curr_bcn_buf);
 		priv->curr_bcn_buf = kmalloc(curr_bss->beacon_buf_size,
-						GFP_KERNEL);
+						GFP_ATOMIC);
 		if (!priv->curr_bcn_buf) {
 			dev_err(priv->adapter->dev,
 					"failed to alloc curr_bcn_buf\n");

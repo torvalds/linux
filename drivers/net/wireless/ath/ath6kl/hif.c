@@ -15,6 +15,8 @@
  */
 #include "hif.h"
 
+#include <linux/export.h>
+
 #include "core.h"
 #include "target.h"
 #include "hif-ops.h"
@@ -59,6 +61,8 @@ int ath6kl_hif_rw_comp_handler(void *context, int status)
 
 	return 0;
 }
+EXPORT_SYMBOL(ath6kl_hif_rw_comp_handler);
+
 #define REG_DUMP_COUNT_AR6003   60
 #define REGISTER_DUMP_LEN_MAX   60
 
@@ -429,9 +433,8 @@ static int proc_pending_irqs(struct ath6kl_device *dev, bool *done)
 		if (status)
 			goto out;
 
-		if (AR_DBG_LVL_CHECK(ATH6KL_DBG_IRQ))
-			ath6kl_dump_registers(dev, &dev->irq_proc_reg,
-					 &dev->irq_en_reg);
+		ath6kl_dump_registers(dev, &dev->irq_proc_reg,
+				      &dev->irq_en_reg);
 
 		/* Update only those registers that are enabled */
 		host_int_status = dev->irq_proc_reg.host_int_status &
@@ -561,6 +564,7 @@ int ath6kl_hif_intr_bh_handler(struct ath6kl *ar)
 
 	return status;
 }
+EXPORT_SYMBOL(ath6kl_hif_intr_bh_handler);
 
 static int ath6kl_hif_enable_intrs(struct ath6kl_device *dev)
 {
@@ -688,6 +692,11 @@ int ath6kl_hif_setup(struct ath6kl_device *dev)
 
 	ath6kl_dbg(ATH6KL_DBG_HIF, "hif block size %d mbox addr 0x%x\n",
 		   dev->htc_cnxt->block_sz, dev->ar->mbox_info.htc_addr);
+
+	/* usb doesn't support enabling interrupts */
+	/* FIXME: remove check once USB support is implemented */
+	if (dev->ar->hif_type == ATH6KL_HIF_TYPE_USB)
+		return 0;
 
 	status = ath6kl_hif_disable_intrs(dev);
 

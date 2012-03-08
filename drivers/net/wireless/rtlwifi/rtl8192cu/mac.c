@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation. All rights reserved.
+ * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -27,10 +27,6 @@
  *
 ****************************************************************************/
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
-
 #include "../wifi.h"
 #include "../pci.h"
 #include "../usb.h"
@@ -43,6 +39,8 @@
 #include "dm.h"
 #include "mac.h"
 #include "trx.h"
+
+#include <linux/module.h>
 
 /* macro to shorten lines */
 
@@ -57,6 +55,7 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	enum version_8192c chip_version = VERSION_UNKNOWN;
+	const char *versionid;
 	u32 value32;
 
 	value32 = rtl_read_dword(rtlpriv, REG_SYS_CFG);
@@ -84,88 +83,69 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		}
 	}
 	rtlhal->version  = (enum version_8192c)chip_version;
-	pr_info("rtl8192cu: Chip version 0x%x\n", chip_version);
+	pr_info("Chip version 0x%x\n", chip_version);
 	switch (rtlhal->version) {
 	case VERSION_NORMAL_TSMC_CHIP_92C_1T2R:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-		 ("Chip Version ID: VERSION_B_CHIP_92C.\n"));
+		versionid = "NORMAL_B_CHIP_92C";
 		break;
 	case VERSION_NORMAL_TSMC_CHIP_92C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_TSMC_CHIP_92C.\n"));
+		versionid = "NORMAL_TSMC_CHIP_92C";
 		break;
 	case VERSION_NORMAL_TSMC_CHIP_88C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_TSMC_CHIP_88C.\n"));
+		versionid = "NORMAL_TSMC_CHIP_88C";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_UMC_CHIP_i"
-			"92C_1T2R_A_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_i92C_1T2R_A_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_UMC_CHIP_"
-			"92C_A_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_92C_A_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_88C_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_UMC_CHIP"
-			"_88C_A_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_88C_A_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_1T2R_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_UMC_CHIP"
-			"_92C_1T2R_B_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_92C_1T2R_B_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_92C_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_UMC_CHIP"
-			"_92C_B_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_92C_B_CUT";
 		break;
 	case VERSION_NORMAL_UMC_CHIP_88C_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMAL_UMC_CHIP"
-			"_88C_B_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_88C_B_CUT";
 		break;
 	case VERSION_NORMA_UMC_CHIP_8723_1T1R_A_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMA_UMC_CHIP"
-			"_8723_1T1R_A_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_8723_1T1R_A_CUT";
 		break;
 	case VERSION_NORMA_UMC_CHIP_8723_1T1R_B_CUT:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_NORMA_UMC_CHIP"
-			"_8723_1T1R_B_CUT.\n"));
+		versionid = "NORMAL_UMC_CHIP_8723_1T1R_B_CUT";
 		break;
 	case VERSION_TEST_CHIP_92C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_TEST_CHIP_92C.\n"));
+		versionid = "TEST_CHIP_92C";
 		break;
 	case VERSION_TEST_CHIP_88C:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: VERSION_TEST_CHIP_88C.\n"));
+		versionid = "TEST_CHIP_88C";
 		break;
 	default:
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
-			("Chip Version ID: ???????????????.\n"));
+		versionid = "UNKNOWN";
 		break;
 	}
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
+		 "Chip Version ID: %s\n", versionid);
+
 	if (IS_92C_SERIAL(rtlhal->version))
 		rtlphy->rf_type =
 			 (IS_92C_1T2R(rtlhal->version)) ? RF_1T2R : RF_2T2R;
 	else
 		rtlphy->rf_type = RF_1T1R;
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD,
-		 ("Chip RF Type: %s\n", (rtlphy->rf_type == RF_2T2R) ?
-		  "RF_2T2R" : "RF_1T1R"));
+		 "Chip RF Type: %s\n",
+		 rtlphy->rf_type == RF_2T2R ? "RF_2T2R" : "RF_1T1R");
 	if (get_rf_type(rtlphy) == RF_1T1R)
 		rtlpriv->dm.rfpath_rxenable[0] = true;
 	else
 		rtlpriv->dm.rfpath_rxenable[0] =
 		    rtlpriv->dm.rfpath_rxenable[1] = true;
-	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, ("VersionID = 0x%4x\n",
-						rtlhal->version));
+	RT_TRACE(rtlpriv, COMP_INIT, DBG_LOUD, "VersionID = 0x%4x\n",
+		 rtlhal->version);
 }
 
 /**
@@ -192,9 +172,8 @@ bool rtl92c_llt_write(struct ieee80211_hw *hw, u32 address, u32 data)
 			break;
 		if (count > POLLING_LLT_THRESHOLD) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				 ("Failed to polling write LLT done at"
-				 " address %d! _LLT_OP_VALUE(%x)\n",
-				 address, _LLT_OP_VALUE(value)));
+				 "Failed to polling write LLT done at address %d! _LLT_OP_VALUE(%x)\n",
+				 address, _LLT_OP_VALUE(value));
 			status = false;
 			break;
 		}
@@ -272,7 +251,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 		u8 cam_offset = 0;
 		u8 clear_number = 5;
 
-		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG, ("clear_all\n"));
+		RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG, "clear_all\n");
 		for (idx = 0; idx < clear_number; idx++) {
 			rtl_cam_mark_invalid(hw, cam_offset + idx);
 			rtl_cam_empty_entry(hw, cam_offset + idx);
@@ -298,7 +277,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 			break;
 		default:
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-				("iillegal switch case\n"));
+				 "illegal switch case\n");
 			enc_algo = CAM_TKIP;
 			break;
 		}
@@ -317,26 +296,26 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 		}
 		if (rtlpriv->sec.key_len[key_index] == 0) {
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("delete one entry\n"));
+				 "delete one entry\n");
 			rtl_cam_delete_one_entry(hw, p_macaddr, entry_id);
 		} else {
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
-				 ("The insert KEY length is %d\n",
-				  rtlpriv->sec.key_len[PAIRWISE_KEYIDX]));
+				 "The insert KEY length is %d\n",
+				 rtlpriv->sec.key_len[PAIRWISE_KEYIDX]);
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_LOUD,
-				 ("The insert KEY  is %x %x\n",
-				  rtlpriv->sec.key_buf[0][0],
-				  rtlpriv->sec.key_buf[0][1]));
+				 "The insert KEY is %x %x\n",
+				 rtlpriv->sec.key_buf[0][0],
+				 rtlpriv->sec.key_buf[0][1]);
 			RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-				 ("add one entry\n"));
+				 "add one entry\n");
 			if (is_pairwise) {
 				RT_PRINT_DATA(rtlpriv, COMP_SEC, DBG_LOUD,
-					      "Pairwiase Key content :",
+					      "Pairwise Key content",
 					      rtlpriv->sec.pairwise_key,
 					      rtlpriv->sec.
 					      key_len[PAIRWISE_KEYIDX]);
 				RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-					 ("set Pairwiase key\n"));
+					 "set Pairwise key\n");
 
 				rtl_cam_add_one_entry(hw, macaddr, key_index,
 						entry_id, enc_algo,
@@ -345,7 +324,7 @@ void rtl92c_set_key(struct ieee80211_hw *hw, u32 key_index,
 						key_buf[key_index]);
 			} else {
 				RT_TRACE(rtlpriv, COMP_SEC, DBG_DMESG,
-					 ("set group key\n"));
+					 "set group key\n");
 				if (mac->opmode == NL80211_IFTYPE_ADHOC) {
 					rtl_cam_add_one_entry(hw,
 						rtlefuse->dev_addr,
@@ -421,8 +400,8 @@ void rtl92c_set_qos(struct ieee80211_hw *hw, int aci)
 	    AC_PARAM_ECW_MAX_OFFSET;
 	u4b_ac_param |= (u32) le16_to_cpu(mac->ac[aci].tx_op) <<
 			 AC_PARAM_TXOP_OFFSET;
-	RT_TRACE(rtlpriv, COMP_QOS, DBG_LOUD,
-		 ("queue:%x, ac_param:%x\n", aci, u4b_ac_param));
+	RT_TRACE(rtlpriv, COMP_QOS, DBG_LOUD, "queue:%x, ac_param:%x\n",
+		 aci, u4b_ac_param);
 	switch (aci) {
 	case AC1_BK:
 		rtl_write_dword(rtlpriv, REG_EDCA_BK_PARAM, u4b_ac_param);
@@ -437,7 +416,7 @@ void rtl92c_set_qos(struct ieee80211_hw *hw, int aci)
 		rtl_write_dword(rtlpriv, REG_EDCA_VO_PARAM, u4b_ac_param);
 		break;
 	default:
-		RT_ASSERT(false, ("invalid aci: %d !\n", aci));
+		RT_ASSERT(false, "invalid aci: %d !\n", aci);
 		break;
 	}
 }
@@ -453,14 +432,14 @@ void rtl92c_set_mac_addr(struct ieee80211_hw *hw, const u8 *addr)
 	for (i = 0 ; i < ETH_ALEN ; i++)
 		rtl_write_byte(rtlpriv, (REG_MACID + i), *(addr+i));
 
-	RT_TRACE(rtlpriv, COMP_CMD, DBG_DMESG, ("MAC Address: %02X-%02X-%02X-"
-		"%02X-%02X-%02X\n",
-		rtl_read_byte(rtlpriv, REG_MACID),
-		rtl_read_byte(rtlpriv, REG_MACID+1),
-		rtl_read_byte(rtlpriv, REG_MACID+2),
-		rtl_read_byte(rtlpriv, REG_MACID+3),
-		rtl_read_byte(rtlpriv, REG_MACID+4),
-		rtl_read_byte(rtlpriv, REG_MACID+5)));
+	RT_TRACE(rtlpriv, COMP_CMD, DBG_DMESG,
+		 "MAC Address: %02X-%02X-%02X-%02X-%02X-%02X\n",
+		 rtl_read_byte(rtlpriv, REG_MACID),
+		 rtl_read_byte(rtlpriv, REG_MACID+1),
+		 rtl_read_byte(rtlpriv, REG_MACID+2),
+		 rtl_read_byte(rtlpriv, REG_MACID+3),
+		 rtl_read_byte(rtlpriv, REG_MACID+4),
+		 rtl_read_byte(rtlpriv, REG_MACID+5));
 }
 
 void rtl92c_init_driver_info_size(struct ieee80211_hw *hw, u8 size)
@@ -478,26 +457,26 @@ int rtl92c_set_network_type(struct ieee80211_hw *hw, enum nl80211_iftype type)
 	case NL80211_IFTYPE_UNSPECIFIED:
 		value = NT_NO_LINK;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			("Set Network type to NO LINK!\n"));
+			 "Set Network type to NO LINK!\n");
 		break;
 	case NL80211_IFTYPE_ADHOC:
 		value = NT_LINK_AD_HOC;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			("Set Network type to Ad Hoc!\n"));
+			 "Set Network type to Ad Hoc!\n");
 		break;
 	case NL80211_IFTYPE_STATION:
 		value = NT_LINK_AP;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			("Set Network type to STA!\n"));
+			 "Set Network type to STA!\n");
 		break;
 	case NL80211_IFTYPE_AP:
 		value = NT_AS_AP;
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			("Set Network type to AP!\n"));
+			 "Set Network type to AP!\n");
 		break;
 	default:
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			("Network type %d not support!\n", type));
+			 "Network type %d not supported!\n", type);
 		return -EOPNOTSUPP;
 	}
 	rtl_write_byte(rtlpriv, (REG_CR + 2), value);
