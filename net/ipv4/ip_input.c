@@ -265,7 +265,7 @@ int ip_local_deliver(struct sk_buff *skb)
 		       ip_local_deliver_finish);
 }
 
-static inline int ip_rcv_options(struct sk_buff *skb)
+static inline bool ip_rcv_options(struct sk_buff *skb)
 {
 	struct ip_options *opt;
 	const struct iphdr *iph;
@@ -309,9 +309,9 @@ static inline int ip_rcv_options(struct sk_buff *skb)
 			goto drop;
 	}
 
-	return 0;
+	return false;
 drop:
-	return -1;
+	return true;
 }
 
 static int ip_rcv_finish(struct sk_buff *skb)
