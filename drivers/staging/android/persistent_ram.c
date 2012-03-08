@@ -96,7 +96,7 @@ static inline ssize_t buffer_size_add_clamp(struct persistent_ram_zone *prz,
 	return 0;
 }
 
-static void persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
+static void notrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
 	uint8_t *data, size_t len, uint8_t *ecc)
 {
 	int i;
@@ -121,7 +121,7 @@ static int persistent_ram_decode_rs8(struct persistent_ram_zone *prz,
 				NULL, 0, NULL, 0, NULL);
 }
 
-static void persistent_ram_update_ecc(struct persistent_ram_zone *prz,
+static void notrace persistent_ram_update_ecc(struct persistent_ram_zone *prz,
 	unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -258,7 +258,7 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 	return ret;
 }
 
-static void persistent_ram_update(struct persistent_ram_zone *prz,
+static void notrace persistent_ram_update(struct persistent_ram_zone *prz,
 	const void *s, unsigned int start, unsigned int count)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
@@ -288,7 +288,7 @@ persistent_ram_save_old(struct persistent_ram_zone *prz)
 	memcpy(prz->old_log + size - start, &buffer->data[0], start);
 }
 
-int persistent_ram_write(struct persistent_ram_zone *prz,
+int notrace persistent_ram_write(struct persistent_ram_zone *prz,
 	const void *s, unsigned int count)
 {
 	int rem;
