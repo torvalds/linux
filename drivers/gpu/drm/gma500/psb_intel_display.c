@@ -1425,13 +1425,6 @@ int psb_intel_connector_clones(struct drm_device *dev, int type_mask)
 	return index_mask;
 }
 
-
-void psb_intel_modeset_cleanup(struct drm_device *dev)
-{
-	drm_mode_config_cleanup(dev);
-}
-
-
 /* current intel driver doesn't take advantage of encoders
    always give back the encoder for the connector
 */
