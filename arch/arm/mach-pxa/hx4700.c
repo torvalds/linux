@@ -788,17 +788,6 @@ static struct platform_device audio = {
 
 
 /*
- * PCMCIA
- */
-
-static struct platform_device pcmcia = {
-	.name = "hx4700-pcmcia",
-	.dev  = {
-		.parent = &asic3.dev,
-	},
-};
-
-/*
  * Platform devices
  */
 
@@ -814,7 +803,6 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&strataflash,
 	&audio,
-	&pcmcia,
 };
 
 static struct gpio global_gpios[] = {
