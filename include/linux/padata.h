@@ -46,7 +46,6 @@ struct padata_priv {
 	struct list_head	list;
 	struct parallel_data	*pd;
 	int			cb_cpu;
-	int			seq_nr;
 	int			info;
 	void                    (*parallel)(struct padata_priv *padata);
 	void                    (*serial)(struct padata_priv *padata);
@@ -116,7 +115,6 @@ struct padata_cpumask {
  * @pinst: padata instance.
  * @pqueue: percpu padata queues used for parallelization.
  * @squeue: percpu padata queues used for serialuzation.
- * @seq_nr: The sequence number that will be attached to the next object.
  * @reorder_objects: Number of objects waiting in the reorder queues.
  * @refcnt: Number of objects holding a reference on this parallel_data.
  * @max_seq_nr:  Maximal used sequence number.
@@ -129,12 +127,12 @@ struct parallel_data {
 	struct padata_instance		*pinst;
 	struct padata_parallel_queue	__percpu *pqueue;
 	struct padata_serial_queue	__percpu *squeue;
-	atomic_t			seq_nr;
 	atomic_t			reorder_objects;
 	atomic_t			refcnt;
-	unsigned int			max_seq_nr;
 	struct padata_cpumask		cpumask;
 	spinlock_t                      lock ____cacheline_aligned;
+	spinlock_t                      seq_lock;
+	unsigned int			seq_nr;
 	unsigned int			processed;
 	struct timer_list		timer;
 };
