@@ -1564,7 +1564,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	ucode_flags = fw->ucode_capa.flags;
 
 #ifndef CONFIG_IWLWIFI_P2P
-	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 #endif
 
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
