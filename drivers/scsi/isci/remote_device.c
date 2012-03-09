@@ -192,7 +192,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 					 u32 reason)
 {
 	dev_dbg(&ihost->pdev->dev,
-		"%s: isci_device = %p\n", __func__, idev);
+		"%s: isci_device = %p; reason = %d\n", __func__, idev, reason);
 
 	switch (reason) {
 	case SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED:

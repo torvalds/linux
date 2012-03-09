@@ -141,9 +141,13 @@ const char *rnc_state_name(enum scis_sds_remote_node_context_states state);
  * node context.
  */
 enum sci_remote_node_context_destination_state {
-	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED,
-	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_READY,
-	SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_FINAL
+	RNC_DEST_UNSPECIFIED,
+	RNC_DEST_READY,
+	RNC_DEST_FINAL,
+	RNC_DEST_SUSPENDED,       /* Set when suspend during post/invalidate */
+	RNC_DEST_SUSPENDED_RESUME /* Set when a resume was done during posting
+				   * or invalidating and already suspending.
+				   */
 };
 
 /**

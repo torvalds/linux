@@ -1688,17 +1688,6 @@ int isci_port_perform_hard_reset(struct isci_host *ihost, struct isci_port *ipor
 			__func__, iport, status);
 
 	}
-
-	/* If the hard reset for the port has failed, consider this
-	 * the same as link failures on all phys in the port.
-	 */
-	if (ret != TMF_RESP_FUNC_COMPLETE) {
-
-		dev_err(&ihost->pdev->dev,
-			"%s: iport = %p; hard reset failed "
-			"(0x%x) - driving explicit link fail for all phys\n",
-			__func__, iport, iport->hard_reset_status);
-	}
 	return ret;
 }
 
