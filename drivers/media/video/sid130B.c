@@ -19,8 +19,8 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-#include <mach/rk_camera.h>
-#include <linux/vmalloc.h>
+#include <mach/rk29_camera.h>
+
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
@@ -50,11 +50,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_MIN_HEIGHT   144
 #define SENSOR_MAX_WIDTH    1600
 #define SENSOR_MAX_HEIGHT   1200
-#define SENSOR_INIT_WIDTH	sensor_init_width			/* Sensor pixel size for sensor_init_data array */
-#define SENSOR_INIT_HEIGHT  sensor_init_height
-#define SENSOR_INIT_WINSEQADR  sensor_init_winseq_p
-#define SENSOR_INIT_PIXFMT sensor_init_pixelcode
-#define SENSOR_BUS_PARAM  sensor_init_busparam
+#define SENSOR_INIT_WIDTH	640			/* Sensor pixel size for sensor_init_data array */
+#define SENSOR_INIT_HEIGHT  480
+#define SENSOR_INIT_WINSEQADR sensor_vga
+#define SENSOR_INIT_PIXFMT V4L2_MBUS_FMT_UYVY8_2X8
 
 #define CONFIG_SENSOR_WhiteBalance 1
 #define CONFIG_SENSOR_Brightness	0
@@ -73,6 +72,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
+
+#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
+                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW|\
+                          SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
 
 #define COLOR_TEMPERATURE_CLOUDY_DN  6500
 #define COLOR_TEMPERATURE_CLOUDY_UP    8000
@@ -97,14 +100,7 @@ struct reginfo
     u8 val;
 };
 
-static s32 sensor_init_width = 0;
-static s32 sensor_init_height = 0;
-static unsigned long sensor_init_busparam = (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ);
-static enum v4l2_mbus_pixelcode sensor_init_pixelcode = V4L2_MBUS_FMT_YUYV8_2X8;
-static struct reginfo* sensor_init_data_p = NULL;
-static struct reginfo* sensor_init_winseq_p = NULL;
-static struct reginfo* sensor_init_winseq_board = NULL;
-/* init 800*600 SVGA */
+/* init 352X288 SVGA */
 static struct reginfo sensor_init_data[] =
 {
        {0x00,  0x00},  
@@ -1451,8 +1447,8 @@ struct sensor
 #if CONFIG_SENSOR_I2C_NOSCHED
 	atomic_t tasklock_cnt;
 #endif
-	struct rkcamera_platform_data *sensor_io_request;
-    struct rkcamera_gpio_res *sensor_gpio_res;
+	struct rk29camera_platform_data *sensor_io_request;
+    struct rk29camera_gpio_res *sensor_gpio_res;
 };
 
 static struct sensor* to_sensor(const struct i2c_client *client)
@@ -1634,7 +1630,7 @@ static int sensor_readchk_array(struct i2c_client *client, struct reginfo *regar
     return 0;
 }
 #endif
-static int sensor_ioctrl(struct soc_camera_device *icd,enum rksensor_power_cmd cmd, int on)
+static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	int ret = 0;
@@ -1646,13 +1642,13 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rksensor_power_cmd c
 		{
 			if (icl->powerdown) {
 				ret = icl->powerdown(icd->pdev, on);
-				if (ret == RK_CAM_IO_SUCCESS) {
+				if (ret == RK29_CAM_IO_SUCCESS) {
 					if (on == 0) {
 						mdelay(2);
 						if (icl->reset)
 							icl->reset(icd->pdev);
 					}
-				} else if (ret == RK_CAM_EIO_REQUESTFAIL) {
+				} else if (ret == RK29_CAM_EIO_REQUESTFAIL) {
 					ret = -ENODEV;
 					goto sensor_power_end;
 				}
@@ -1685,63 +1681,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     struct sensor *sensor = to_sensor(client);
 	const struct v4l2_queryctrl *qctrl;
     const struct sensor_datafmt *fmt;
-    char value;
-    int ret,pid = 0,i = 0,j=0;
-    struct rkcamera_platform_data* tmp_plat_data =(struct rkcamera_platform_data*)val;
-    sensor_init_data_p = sensor_init_data;
-	sensor_init_winseq_p = sensor_vga;
-	sensor_init_width = 640;
-	sensor_init_height = 480;
-	if (tmp_plat_data != NULL) { 
-		for(i = 0;i < RK_CAM_NUM_PER_HOST;i++){
-			if ((tmp_plat_data->sensor_init_data[i])&& tmp_plat_data->info[i].dev_name &&
-				(strcmp(tmp_plat_data->info[i].dev_name, dev_name(icd->pdev)) == 0))
-					break;
-			}
-		}
-	if(tmp_plat_data  && (i < RK_CAM_NUM_PER_HOST) && tmp_plat_data->sensor_init_data[i]){
-	//user has defined the init data
-		//init reg
-		if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
-			for(j = 0;j< sizeof(sensor_init_data)/sizeof(struct reginfo);j++){
-				sensor_init_data[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].reg;
-				sensor_init_data[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].val;
-				}
-			sensor_init_data_p = sensor_init_data;
-			}
-		else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data){
-			sensor_init_data_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data);
-			}
-		//init winseq
-		if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
-			int tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
-			if(sensor_init_winseq_board)
-				{
-				vfree(sensor_init_winseq_board);
-				sensor_init_winseq_board = NULL;
-				}
-			sensor_init_winseq_board = (struct reginfo*)vmalloc(tmp_winseq_size);
-			if(!sensor_init_winseq_board)
-				SENSOR_TR("%s :vmalloc erro !",__FUNCTION__);
-			for(j = 0;j< tmp_winseq_size;j++){
-				sensor_init_winseq_board[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].reg;
-				sensor_init_winseq_board[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].val;
-				}
-			sensor_init_winseq_p = sensor_init_winseq_board;
-			}
-		else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq){
-			sensor_init_winseq_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq);
-			}
-		//init width,height,bus,pixelcode
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width != INVALID_VALUE)
-			sensor_init_width = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width;
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_height != INVALID_VALUE)
-			sensor_init_height = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_height;
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_bus_param != INVALID_VALUE)
-			sensor_init_busparam = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_bus_param;
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_pixelcode != INVALID_VALUE)
-			sensor_init_pixelcode = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_pixelcode;
-	}
+    int ret;
+
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
      if (sensor_ioctrl(icd, Sensor_PowerDown, 0) < 0) {
@@ -1801,7 +1742,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         goto sensor_INIT_ERR;
     }
 #endif
-    ret = sensor_write_array(client, sensor_init_data_p);
+    ret = sensor_write_array(client, sensor_init_data);
     if (ret != 0)
     {
         SENSOR_TR("error: %s initial failed\n",SENSOR_NAME_STRING());
@@ -2970,25 +2911,25 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
 	{
-		case RK_CAM_SUBDEV_DEACTIVATE:
+		case RK29_CAM_SUBDEV_DEACTIVATE:
 		{
 			sensor_deactivate(client);
 			break;
 		}
 
-		case RK_CAM_SUBDEV_IOREQUEST:
+		case RK29_CAM_SUBDEV_IOREQUEST:
 		{
-			sensor->sensor_io_request = (struct rkcamera_platform_data*)arg;           
+			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
             if (sensor->sensor_io_request != NULL) { 
                 if (sensor->sensor_io_request->gpio_res[0].dev_name && 
                     (strcmp(sensor->sensor_io_request->gpio_res[0].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rkcamera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
                 } else if (sensor->sensor_io_request->gpio_res[1].dev_name && 
                     (strcmp(sensor->sensor_io_request->gpio_res[1].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rkcamera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
                 }
             } else {
-                SENSOR_TR("%s %s RK_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
+                SENSOR_TR("%s %s RK29_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
                 ret = -EINVAL;
                 goto sensor_ioctl_end;
             }

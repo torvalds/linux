@@ -502,18 +502,6 @@ static struct platform_device device_i2c4 = {
 
 static void __init rk30_init_i2c(void)
 {
-//config i2c gpio
-int err = 0;
-err = gpio_request(RK30_PIN3_PC1, "i2c");
-if (err) {
-	gpio_free(RK30_PIN3_PC1);
-	printk("-------request RK30_PIN3_PC1 fail--------\n");
-	//return ;
-}
-//
-gpio_direction_output(RK30_PIN3_PC1, GPIO_HIGH);
-gpio_set_value(RK30_PIN3_PC1, GPIO_HIGH);
-
 #ifdef CONFIG_I2C0_RK30
 	platform_device_register(&device_i2c0);
 #endif
@@ -985,9 +973,7 @@ static void __init rk30_init_sdmmc(void)
 	platform_device_register(&device_sdmmc1);
 #endif
 }
-#if CONFIG_VIDEO_RK
-extern void  rk_register_camera_devices();
-#endif
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
@@ -1017,9 +1003,7 @@ static int __init rk30_init_devices(void)
 	rk_serial_debug_init(RK30_UART1_PHYS, IRQ_UART1, IRQ_UART_SIGNAL, -1);
 #endif
 	rk30_init_i2s();
-#if CONFIG_VIDEO_RK
-	rk_register_camera_devices();
-#endif	
+
         return 0;
 }
 arch_initcall(rk30_init_devices);

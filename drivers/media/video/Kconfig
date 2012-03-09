@@ -1136,52 +1136,52 @@ config VIDEO_OMAP2
 	---help---
 	  This is a v4l2 driver for the TI OMAP2 camera capture interface
 
-config VIDEO_RK
-	tristate "RKXX Camera Sensor Interface driver"
-	depends on VIDEO_DEV && ARCH_RK30 && SOC_CAMERA && HAS_DMA
+config VIDEO_RK29
+	tristate "RK29XX Camera Sensor Interface driver"
+	depends on VIDEO_DEV && ARCH_RK29 && SOC_CAMERA && HAS_DMA
 	select VIDEOBUF_DMA_CONTIG
 	---help---
-	  This is a v4l2 driver for the RKXX Camera Sensor Interface
+	  This is a v4l2 driver for the RK29XX Camera Sensor Interface
 
 choice
-	prompt "RKXX Camera Sensor Interface Work Mode"
-	depends on VIDEO_RK
-	default VIDEO_RK_WORK_ONEFRAME
+	prompt "RK29XX Camera Sensor Interface Work Mode"
+	depends on VIDEO_RK29
+	default VIDEO_RK29_WORK_ONEFRAME
 	---help---
-		RK Camera Sensor Interface(CIF) can work in 2 modes, ie:OneFrame,PingPong.
+		RK29 Camera Sensor Interface(VIP) can work in 2 modes, ie:OneFrame,PingPong.
 
-config VIDEO_RK_WORK_ONEFRAME
-	bool "CIF OneFrame Mode"
+config VIDEO_RK29_WORK_ONEFRAME
+	bool "VIP OneFrame Mode"
 
-config VIDEO_RK_WORK_PINGPONG
-	bool "CIF PingPong Mode"
+config VIDEO_RK29_WORK_PINGPONG
+	bool "VIP PingPong Mode"
 
 endchoice
 
 choice
-	prompt "RKXX camera sensor interface work with IPP "
-	depends on VIDEO_RK && RK29_IPP
-	default VIDEO_RK_WORK_IPP
+	prompt "RK29XX camera sensor interface work with IPP "
+	depends on VIDEO_RK29 && RK29_IPP
+	default VIDEO_RK29_WORK_IPP
 	---help---
-		RK Camera Sensor Interface(CIF) can work with IPP or not IPP
+		RK29 Camera Sensor Interface(VIP) can work with IPP or not IPP
 
-config VIDEO_RK_WORK_IPP
-	bool "CIF work with IPP"
+config VIDEO_RK29_WORK_IPP
+	bool "VIP work with IPP"
 
-config VIDEO_RK_WORK_NOT_IPP
-	bool "CIF don't work with IPP"
+config VIDEO_RK29_WORK_NOT_IPP
+	bool "VIP don't work with IPP"
 
 endchoice
 choice
-	prompt "RKXX camera digital zoom with IPP "
-	depends on VIDEO_RK && RK29_IPP && VIDEO_RK_WORK_IPP
+	prompt "RK29XX camera digital zoom with IPP "
+	depends on VIDEO_RK29 && RK29_IPP && VIDEO_RK29_WORK_IPP
 	default VIDEO_RK29_DIGITALZOOM_IPP_ON
 	---help---
-		RK Camera digital zoom with IPP
-config VIDEO_RK_DIGITALZOOM_IPP_ON
+		RK29 Camera digital zoom with IPP
+config VIDEO_RK29_DIGITALZOOM_IPP_ON
 	bool "Digital zoom with IPP on"
 
-config VIDEO_RK_DIGITALZOOM_IPP_OFF
+config VIDEO_RK29_DIGITALZOOM_IPP_OFF
 	bool "Digital zoom with IPP off"
 endchoice
 

@@ -19,7 +19,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-#include <mach/rk_camera.h>
+#include <mach/rk29_camera.h>
 #include "ov5640.h"
 
 static int debug;
@@ -43,7 +43,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define MAX(x,y)    ((x>y) ? x: y)
 
 /* Sensor Driver Configuration */
-#define SENSOR_NAME RK_CAM_SENSOR_OV5640
+#define SENSOR_NAME RK29_CAM_SENSOR_OV5640
 #define SENSOR_V4L2_IDENT V4L2_IDENT_OV5640
 #define SENSOR_ID 0x5640
 #define SENSOR_MIN_WIDTH    176
@@ -1457,8 +1457,8 @@ struct sensor
 #if CONFIG_SENSOR_I2C_NOSCHED
 	atomic_t tasklock_cnt;
 #endif
-	struct rkcamera_platform_data *sensor_io_request;
-    struct rkcamera_gpio_res *sensor_gpio_res;
+	struct rk29camera_platform_data *sensor_io_request;
+    struct rk29camera_gpio_res *sensor_gpio_res;
 };
 
 static struct sensor* to_sensor(const struct i2c_client *client)
@@ -2317,7 +2317,7 @@ static int sensor_ae_transfer(struct i2c_client *client)
 	mdelay(100);
 	return 0;
 }
-static int sensor_ioctrl(struct soc_camera_device *icd,enum rksensor_power_cmd cmd, int on)
+static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	int ret = 0;
@@ -2330,13 +2330,13 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rksensor_power_cmd c
 		{
 			if (icl->powerdown) {
 				ret = icl->powerdown(icd->pdev, on);
-				if (ret == RK_CAM_IO_SUCCESS) {
+				if (ret == RK29_CAM_IO_SUCCESS) {
 					if (on == 0) {
 						mdelay(2);
 						if (icl->reset)
 							icl->reset(icd->pdev);
 					}
-				} else if (ret == RK_CAM_EIO_REQUESTFAIL) {
+				} else if (ret == RK29_CAM_EIO_REQUESTFAIL) {
 					ret = -ENODEV;
 					goto sensor_power_end;
 				}
@@ -3779,24 +3779,24 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
 	{
-		case RK_CAM_SUBDEV_DEACTIVATE:
+		case RK29_CAM_SUBDEV_DEACTIVATE:
 		{
 			sensor_deactivate(client);
 			break;
 		}
-		case RK_CAM_SUBDEV_IOREQUEST:
+		case RK29_CAM_SUBDEV_IOREQUEST:
 		{
-			sensor->sensor_io_request = (struct rkcamera_platform_data*)arg;           
+			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
             if (sensor->sensor_io_request != NULL) { 
                 if (sensor->sensor_io_request->gpio_res[0].dev_name && 
                     (strcmp(sensor->sensor_io_request->gpio_res[0].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rkcamera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
                 } else if (sensor->sensor_io_request->gpio_res[1].dev_name && 
                     (strcmp(sensor->sensor_io_request->gpio_res[1].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rkcamera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
+                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
                 }
             } else {
-                SENSOR_TR("%s %s RK_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
+                SENSOR_TR("%s %s RK29_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
                 ret = -EINVAL;
                 goto sensor_ioctl_end;
             }
