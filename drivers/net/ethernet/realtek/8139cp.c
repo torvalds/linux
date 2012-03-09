@@ -635,9 +635,12 @@ static irqreturn_t cp_interrupt (int irq, void *dev_instance)
  */
 static void cp_poll_controller(struct net_device *dev)
 {
-	disable_irq(dev->irq);
-	cp_interrupt(dev->irq, dev);
-	enable_irq(dev->irq);
+	struct cp_private *cp = netdev_priv(dev);
+	const int irq = cp->pdev->irq;
+
+	disable_irq(irq);
+	cp_interrupt(irq, dev);
+	enable_irq(irq);
 }
 #endif
 
@@ -1114,6 +1117,7 @@ static void cp_free_rings (struct cp_private *cp)
 static int cp_open (struct net_device *dev)
 {
 	struct cp_private *cp = netdev_priv(dev);
+	const int irq = cp->pdev->irq;
 	int rc;
 
 	netif_dbg(cp, ifup, dev, "enabling interface\n");
@@ -1126,7 +1130,7 @@ static int cp_open (struct net_device *dev)
 
 	cp_init_hw(cp);
 
-	rc = request_irq(dev->irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
+	rc = request_irq(irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc)
 		goto err_out_hw;
 
@@ -1161,7 +1165,7 @@ static int cp_close (struct net_device *dev)
 
 	spin_unlock_irqrestore(&cp->lock, flags);
 
-	free_irq(dev->irq, dev);
+	free_irq(cp->pdev->irq, dev);
 
 	cp_free_rings(cp);
 	return 0;
@@ -1909,7 +1913,6 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		       (unsigned long long)pciaddr);
 		goto err_out_res;
 	}
-	dev->base_addr = (unsigned long) regs;
 	cp->regs = regs;
 
 	cp_stop_hw(cp);
@@ -1937,14 +1940,12 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
 		NETIF_F_HIGHDMA;
 
-	dev->irq = pdev->irq;
-
 	rc = register_netdev(dev);
 	if (rc)
 		goto err_out_iomap;
 
-	netdev_info(dev, "RTL-8139C+ at 0x%lx, %pM, IRQ %d\n",
-		    dev->base_addr, dev->dev_addr, dev->irq);
+	netdev_info(dev, "RTL-8139C+ at 0x%p, %pM, IRQ %d\n",
+		    regs, dev->dev_addr, pdev->irq);
 
 	pci_set_drvdata(pdev, dev);
 
