@@ -595,7 +595,8 @@ static int iwlagn_txq_ctx_activate_free(struct iwl_trans *trans)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	int txq_id;
 
-	for (txq_id = 0; txq_id < hw_params(trans).max_txq_num; txq_id++)
+	for (txq_id = 0; txq_id < cfg(trans)->base_params->num_of_queues;
+	     txq_id++)
 		if (!test_and_set_bit(txq_id,
 					&trans_pcie->txq_ctx_active_msk))
 			return txq_id;
