@@ -1162,14 +1162,6 @@ int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
 /* nouveau_hdmi.c */
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
 
-/* nouveau_dp.c */
-int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
-		     uint8_t *data, int data_nr);
-bool nouveau_dp_detect(struct drm_encoder *);
-bool nouveau_dp_link_train(struct drm_encoder *, u32 datarate);
-void nouveau_dp_tu_update(struct drm_device *, int, int, u32, u32);
-u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_entry *, u8 **);
-
 /* nv04_fb.c */
 extern int  nv04_fb_vram_init(struct drm_device *);
 extern int  nv04_fb_init(struct drm_device *);

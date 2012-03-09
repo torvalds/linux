@@ -863,9 +863,9 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	if (type == OUTPUT_DP) {
 		int link = !(dcb->dpconf.sor.link & 1);
 		if ((mc & 0x000f0000) == 0x00020000)
-			nouveau_dp_tu_update(dev, or, link, pclk, 18);
+			nv50_sor_dp_calc_tu(dev, or, link, pclk, 18);
 		else
-			nouveau_dp_tu_update(dev, or, link, pclk, 24);
+			nv50_sor_dp_calc_tu(dev, or, link, pclk, 24);
 	}
 
 	if (dcb->type != OUTPUT_ANALOG) {
