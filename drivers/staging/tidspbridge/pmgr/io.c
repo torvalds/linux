@@ -30,9 +30,6 @@
 #include <ioobj.h>
 #include <dspbridge/io.h>
 
-/*  ----------------------------------- Globals */
-static u32 refs;
-
 /*
  *  ======== io_create ========
  *  Purpose:
@@ -93,29 +90,4 @@ int io_destroy(struct io_mgr *hio_mgr)
 	status = (*intf_fxns->io_destroy) (hio_mgr);
 
 	return status;
-}
-
-/*
- *  ======== io_exit ========
- *  Purpose:
- *      Discontinue usage of the IO module.
- */
-void io_exit(void)
-{
-	refs--;
-}
-
-/*
- *  ======== io_init ========
- *  Purpose:
- *      Initialize the IO module's private state.
- */
-bool io_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
