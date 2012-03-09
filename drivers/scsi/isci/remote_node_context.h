@@ -211,7 +211,9 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 						    scics_sds_remote_node_context_callback cb_fn,
 						    void *cb_p);
 enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_context *sci_rnc,
-							struct isci_request *ireq);
+						   struct isci_request *ireq,
+						   scics_sds_remote_node_context_callback cb_fn,
+						   void *cb_p);
 enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context *sci_rnc,
 						      struct isci_request *ireq);
 int sci_remote_node_context_is_safe_to_abort(

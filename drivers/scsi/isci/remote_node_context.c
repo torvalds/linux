@@ -317,23 +317,11 @@ static void sci_remote_node_context_tx_rx_suspended_state_enter(struct sci_base_
 	struct isci_remote_device *idev = rnc_to_dev(rnc);
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 
-	set_bit(IDEV_TXRX_SUSPENDED, &idev->flags);
-
 	/* Terminate outstanding requests pending abort. */
 	sci_remote_device_abort_requests_pending_abort(idev);
 
 	wake_up(&ihost->eventq);
 	sci_remote_node_context_continue_state_transitions(rnc);
-}
-
-static void sci_remote_node_context_tx_rx_suspended_state_exit(
-	struct sci_base_state_machine *sm)
-{
-	struct sci_remote_node_context *rnc
-		= container_of(sm, typeof(*rnc), sm);
-	struct isci_remote_device *idev = rnc_to_dev(rnc);
-
-	clear_bit(IDEV_TXRX_SUSPENDED, &idev->flags);
 }
 
 static void sci_remote_node_context_await_suspend_state_exit(
@@ -366,8 +354,6 @@ static const struct sci_base_state sci_remote_node_context_state_table[] = {
 	},
 	[SCI_RNC_TX_RX_SUSPENDED] = {
 		.enter_state = sci_remote_node_context_tx_rx_suspended_state_enter,
-		.exit_state
-			= sci_remote_node_context_tx_rx_suspended_state_exit,
 	},
 	[SCI_RNC_AWAIT_SUSPENSION] = {
 		.exit_state = sci_remote_node_context_await_suspend_state_exit,
@@ -671,8 +657,11 @@ enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context 
 	}
 }
 
-enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_context *sci_rnc,
-							struct isci_request *ireq)
+enum sci_status sci_remote_node_context_start_task(
+	struct sci_remote_node_context *sci_rnc,
+	struct isci_request *ireq,
+	scics_sds_remote_node_context_callback cb_fn,
+	void *cb_p)
 {
 	enum scis_sds_remote_node_context_states state;
 
@@ -684,7 +673,7 @@ enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_contex
 		return SCI_SUCCESS;
 	case SCI_RNC_TX_SUSPENDED:
 	case SCI_RNC_TX_RX_SUSPENDED:
-		sci_remote_node_context_resume(sci_rnc, NULL, NULL);
+		sci_remote_node_context_resume(sci_rnc, cb_fn, cb_p);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),

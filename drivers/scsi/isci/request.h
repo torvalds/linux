@@ -61,23 +61,6 @@
 #include "scu_task_context.h"
 
 /**
- * struct isci_request_status - This enum defines the possible states of an I/O
- *    request.
- *
- *
- */
-enum isci_request_status {
-	unallocated = 0x00,
-	allocated   = 0x01,
-	started     = 0x02,
-	completed   = 0x03,
-	aborting    = 0x04,
-	aborted     = 0x05,
-	terminating = 0x06,
-	dead        = 0x07
-};
-
-/**
  * isci_stp_request - extra request infrastructure to handle pio/atapi protocol
  * @pio_len - number of bytes requested at PIO setup
  * @status - pio setup ending status value to tell us if we need
@@ -97,13 +80,13 @@ struct isci_stp_request {
 };
 
 struct isci_request {
-	enum isci_request_status status;
 	#define IREQ_COMPLETE_IN_TARGET 0
 	#define IREQ_TERMINATED 1
 	#define IREQ_TMF 2
 	#define IREQ_ACTIVE 3
 	#define IREQ_PENDING_ABORT 4 /* Set == device was not suspended yet */
 	#define IREQ_TC_ABORT_POSTED 5
+	#define IREQ_ABORT_PATH_ACTIVE 6
 	unsigned long flags;
 	/* XXX kill ttype and ttype_ptr, allocate full sas_task */
 	union ttype_ptr_union {
@@ -115,7 +98,6 @@ struct isci_request {
 	struct list_head completed_node;
 	/* For use in the reqs_in_process list: */
 	struct list_head dev_node;
-	spinlock_t state_lock;
 	dma_addr_t request_daddr;
 	dma_addr_t zero_scatter_daddr;
 	unsigned int num_sg_entries;
@@ -304,92 +286,6 @@ sci_io_request_get_dma_addr(struct isci_request *ireq, void *virt_addr)
 	return ireq->request_daddr + (requested_addr - base_addr);
 }
 
-/**
- * isci_request_change_state() - This function sets the status of the request
- *    object.
- * @request: This parameter points to the isci_request object
- * @status: This Parameter is the new status of the object
- *
- */
-static inline enum isci_request_status
-isci_request_change_state(struct isci_request *isci_request,
-			  enum isci_request_status status)
-{
-	enum isci_request_status old_state;
-	unsigned long flags;
-
-	dev_dbg(&isci_request->isci_host->pdev->dev,
-		"%s: isci_request = %p, state = 0x%x\n",
-		__func__,
-		isci_request,
-		status);
-
-	BUG_ON(isci_request == NULL);
-
-	spin_lock_irqsave(&isci_request->state_lock, flags);
-	old_state = isci_request->status;
-	isci_request->status = status;
-	spin_unlock_irqrestore(&isci_request->state_lock, flags);
-
-	return old_state;
-}
-
-/**
- * isci_request_change_started_to_newstate() - This function sets the status of
- *    the request object.
- * @request: This parameter points to the isci_request object
- * @status: This Parameter is the new status of the object
- *
- * state previous to any change.
- */
-static inline enum isci_request_status
-isci_request_change_started_to_newstate(struct isci_request *isci_request,
-					struct completion *completion_ptr,
-					enum isci_request_status newstate)
-{
-	enum isci_request_status old_state;
-	unsigned long flags;
-
-	spin_lock_irqsave(&isci_request->state_lock, flags);
-
-	old_state = isci_request->status;
-
-	if (old_state == started || old_state == aborting) {
-		BUG_ON(isci_request->io_request_completion != NULL);
-
-		isci_request->io_request_completion = completion_ptr;
-		isci_request->status = newstate;
-	}
-
-	spin_unlock_irqrestore(&isci_request->state_lock, flags);
-
-	dev_dbg(&isci_request->isci_host->pdev->dev,
-		"%s: isci_request = %p, old_state = 0x%x\n",
-		__func__,
-		isci_request,
-		old_state);
-
-	return old_state;
-}
-
-/**
- * isci_request_change_started_to_aborted() - This function sets the status of
- *    the request object.
- * @request: This parameter points to the isci_request object
- * @completion_ptr: This parameter is saved as the kernel completion structure
- *    signalled when the old request completes.
- *
- * state previous to any change.
- */
-static inline enum isci_request_status
-isci_request_change_started_to_aborted(struct isci_request *isci_request,
-				       struct completion *completion_ptr)
-{
-	return isci_request_change_started_to_newstate(isci_request,
-						       completion_ptr,
-						       aborted);
-}
-
 #define isci_request_access_task(req) ((req)->ttype_ptr.io_task_ptr)
 
 #define isci_request_access_tmf(req) ((req)->ttype_ptr.tmf_task_ptr)
@@ -399,8 +295,6 @@ struct isci_request *isci_tmf_request_from_tag(struct isci_host *ihost,
 					       u16 tag);
 int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *idev,
 			 struct sas_task *task, u16 tag);
-void isci_terminate_pending_requests(struct isci_host *ihost,
-				     struct isci_remote_device *idev);
 enum sci_status
 sci_task_request_construct(struct isci_host *ihost,
 			    struct isci_remote_device *idev,

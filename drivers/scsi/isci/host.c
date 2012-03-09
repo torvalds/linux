@@ -1089,33 +1089,25 @@ void isci_host_completion_routine(unsigned long data)
 {
 	struct isci_host *ihost = (struct isci_host *)data;
 	struct list_head    completed_request_list;
-	struct list_head    errored_request_list;
 	struct list_head    *current_position;
 	struct list_head    *next_position;
 	struct isci_request *request;
-	struct isci_request *next_request;
 	struct sas_task     *task;
 	u16 active;
 
 	INIT_LIST_HEAD(&completed_request_list);
-	INIT_LIST_HEAD(&errored_request_list);
 
 	spin_lock_irq(&ihost->scic_lock);
 
 	sci_controller_completion_handler(ihost);
 
 	/* Take the lists of completed I/Os from the host. */
-
 	list_splice_init(&ihost->requests_to_complete,
 			 &completed_request_list);
 
-	/* Take the list of errored I/Os from the host. */
-	list_splice_init(&ihost->requests_to_errorback,
-			 &errored_request_list);
-
 	spin_unlock_irq(&ihost->scic_lock);
 
-	/* Process any completions in the lists. */
+	/* Process any completions in the list. */
 	list_for_each_safe(current_position, next_position,
 			   &completed_request_list) {
 
@@ -1123,67 +1115,36 @@ void isci_host_completion_routine(unsigned long data)
 				     completed_node);
 		task = isci_request_access_task(request);
 
-		/* Normal notification (task_done) */
-		dev_dbg(&ihost->pdev->dev,
-			"%s: Normal - request/task = %p/%p\n",
-			__func__,
-			request,
-			task);
 
 		/* Return the task to libsas */
 		if (task != NULL) {
 
 			task->lldd_task = NULL;
-			if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+			if (!test_bit(IREQ_ABORT_PATH_ACTIVE, &request->flags) &&
+			    !(task->task_state_flags & SAS_TASK_STATE_ABORTED)) {
+				if (test_bit(IREQ_COMPLETE_IN_TARGET,
+					     &request->flags)) {
 
-				/* If the task is already in the abort path,
-				* the task_done callback cannot be called.
-				*/
-				task->task_done(task);
+					/* Normal notification (task_done) */
+					dev_dbg(&ihost->pdev->dev, "%s: Normal"
+						" - request/task = %p/%p\n",
+						__func__, request, task);
+
+					task->task_done(task);
+				} else {
+					dev_warn(&ihost->pdev->dev,
+						 "%s: Error - request/task"
+						 " = %p/%p\n",
+						 __func__, request, task);
+
+					sas_task_abort(task);
+				}
 			}
 		}
 
 		spin_lock_irq(&ihost->scic_lock);
 		isci_free_tag(ihost, request->io_tag);
 		spin_unlock_irq(&ihost->scic_lock);
-	}
-	list_for_each_entry_safe(request, next_request, &errored_request_list,
-				 completed_node) {
-
-		task = isci_request_access_task(request);
-
-		/* Use sas_task_abort */
-		dev_warn(&ihost->pdev->dev,
-			 "%s: Error - request/task = %p/%p\n",
-			 __func__,
-			 request,
-			 task);
-
-		if (task != NULL) {
-
-			/* Put the task into the abort path if it's not there
-			 * already.
-			 */
-			if (!(task->task_state_flags & SAS_TASK_STATE_ABORTED))
-				sas_task_abort(task);
-
-		} else {
-			/* This is a case where the request has completed with a
-			 * status such that it needed further target servicing,
-			 * but the sas_task reference has already been removed
-			 * from the request.  Since it was errored, it was not
-			 * being aborted, so there is nothing to do except free
-			 * it.
-			 */
-
-			spin_lock_irq(&ihost->scic_lock);
-			/* Remove the request from the remote device's list
-			* of pending requests.
-			*/
-			list_del_init(&request->dev_node);
-			isci_free_tag(ihost, request->io_tag);
-			spin_unlock_irq(&ihost->scic_lock);
-		}
 	}
 
 	/* the coalesence timeout doubles at each encoding step, so
@@ -2345,7 +2306,6 @@ static int sci_controller_dma_alloc(struct isci_host *ihost)
 
 		ireq->tc = &ihost->task_context_table[i];
 		ireq->owning_controller = ihost;
-		spin_lock_init(&ireq->state_lock);
 		ireq->request_daddr = dma;
 		ireq->isci_host = ihost;
 		ihost->reqs[i] = ireq;
@@ -2697,6 +2657,10 @@ enum sci_status sci_controller_terminate_request(struct isci_host *ihost,
 		return SCI_FAILURE_INVALID_STATE;
 	}
 	status = sci_io_request_terminate(ireq);
+
+	dev_dbg(&ihost->pdev->dev, "%s: status=%d; ireq=%p; flags=%lx\n",
+		__func__, status, ireq, ireq->flags);
+
 	if ((status == SCI_SUCCESS) &&
 	    !test_bit(IREQ_PENDING_ABORT, &ireq->flags) &&
 	    !test_and_set_bit(IREQ_TC_ABORT_POSTED, &ireq->flags)) {
@@ -2739,6 +2703,8 @@ enum sci_status sci_controller_complete_io(struct isci_host *ihost,
 
 		index = ISCI_TAG_TCI(ireq->io_tag);
 		clear_bit(IREQ_ACTIVE, &ireq->flags);
+		if (test_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
+			wake_up_all(&ihost->eventq);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",
