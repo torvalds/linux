@@ -268,6 +268,8 @@ static void sci_remote_node_context_invalidating_state_enter(struct sci_base_sta
 {
 	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
 
+	/* Terminate outstanding requests pending abort. */
+	sci_remote_device_abort_requests_pending_abort(rnc_to_dev(rnc));
 	sci_remote_node_context_invalidate_context_buffer(rnc);
 }
 
@@ -312,8 +314,26 @@ static void sci_remote_node_context_tx_suspended_state_enter(struct sci_base_sta
 static void sci_remote_node_context_tx_rx_suspended_state_enter(struct sci_base_state_machine *sm)
 {
 	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
+	struct isci_remote_device *idev = rnc_to_dev(rnc);
+	struct isci_host *ihost = idev->owning_port->owning_controller;
 
+	set_bit(IDEV_TXRX_SUSPENDED, &idev->flags);
+
+	/* Terminate outstanding requests pending abort. */
+	sci_remote_device_abort_requests_pending_abort(idev);
+
+	wake_up(&ihost->eventq);
 	sci_remote_node_context_continue_state_transitions(rnc);
+}
+
+static void sci_remote_node_context_tx_rx_suspended_state_exit(
+	struct sci_base_state_machine *sm)
+{
+	struct sci_remote_node_context *rnc
+		= container_of(sm, typeof(*rnc), sm);
+	struct isci_remote_device *idev = rnc_to_dev(rnc);
+
+	clear_bit(IDEV_TXRX_SUSPENDED, &idev->flags);
 }
 
 static void sci_remote_node_context_await_suspend_state_exit(
@@ -346,6 +366,8 @@ static const struct sci_base_state sci_remote_node_context_state_table[] = {
 	},
 	[SCI_RNC_TX_RX_SUSPENDED] = {
 		.enter_state = sci_remote_node_context_tx_rx_suspended_state_enter,
+		.exit_state
+			= sci_remote_node_context_tx_rx_suspended_state_exit,
 	},
 	[SCI_RNC_AWAIT_SUSPENSION] = {
 		.exit_state = sci_remote_node_context_await_suspend_state_exit,
@@ -515,6 +537,13 @@ enum sci_status sci_remote_node_context_suspend(
 	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
 	enum sci_status status = SCI_FAILURE_INVALID_STATE;
 
+	dev_dbg(scirdev_to_dev(idev),
+		"%s: current state %d, current suspend_type %x dest state %d,"
+			" arg suspend_reason %d, arg suspend_type %x",
+		__func__, state, sci_rnc->suspend_type,
+		sci_rnc->destination_state, suspend_reason,
+		suspend_type);
+
 	/* Disable automatic state continuations if explicitly suspending. */
 	if (suspend_reason == SCI_SOFTWARE_SUSPENSION)
 		sci_rnc->destination_state
@@ -546,7 +575,10 @@ enum sci_status sci_remote_node_context_suspend(
 	sci_rnc->suspend_type  = suspend_type;
 
 	if (status == SCI_SUCCESS) { /* Already in the destination state? */
+		struct isci_host *ihost = idev->owning_port->owning_controller;
+
 		sci_remote_node_context_notify_user(sci_rnc);
+		wake_up_all(&ihost->eventq); /* Let observers look. */
 		return SCI_SUCCESS;
 	}
 	if (suspend_reason == SCI_SOFTWARE_SUSPENSION) {
@@ -659,5 +691,29 @@ enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_contex
 			"%s: invalid state %s\n", __func__,
 			rnc_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
+	}
+}
+
+int sci_remote_node_context_is_safe_to_abort(
+	struct sci_remote_node_context *sci_rnc)
+{
+	enum scis_sds_remote_node_context_states state;
+
+	state = sci_rnc->sm.current_state_id;
+	switch (state) {
+	case SCI_RNC_INVALIDATING:
+	case SCI_RNC_TX_RX_SUSPENDED:
+		return 1;
+	case SCI_RNC_POSTING:
+	case SCI_RNC_RESUMING:
+	case SCI_RNC_READY:
+	case SCI_RNC_TX_SUSPENDED:
+	case SCI_RNC_AWAIT_SUSPENSION:
+	case SCI_RNC_INITIAL:
+		return 0;
+	default:
+		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+			 "%s: invalid state %d\n", __func__, state);
+		return 0;
 	}
 }

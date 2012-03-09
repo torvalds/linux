@@ -214,5 +214,7 @@ enum sci_status sci_remote_node_context_start_task(struct sci_remote_node_contex
 							struct isci_request *ireq);
 enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context *sci_rnc,
 						      struct isci_request *ireq);
+int sci_remote_node_context_is_safe_to_abort(
+	struct sci_remote_node_context *sci_rnc);
 
 #endif  /* _SCIC_SDS_REMOTE_NODE_CONTEXT_H_ */

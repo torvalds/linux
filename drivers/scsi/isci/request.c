@@ -863,6 +863,8 @@ sci_io_request_terminate(struct isci_request *ireq)
 
 	switch (state) {
 	case SCI_REQ_CONSTRUCTED:
+		/* Set to make sure no HW terminate posting is done: */
+		set_bit(IREQ_TC_ABORT_POSTED, &ireq->flags);
 		ireq->scu_status = SCU_TASK_DONE_TASK_ABORT;
 		ireq->sci_status = SCI_FAILURE_IO_TERMINATED;
 		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
@@ -883,8 +885,7 @@ sci_io_request_terminate(struct isci_request *ireq)
 	case SCI_REQ_ATAPI_WAIT_PIO_SETUP:
 	case SCI_REQ_ATAPI_WAIT_D2H:
 	case SCI_REQ_ATAPI_WAIT_TC_COMP:
-		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
-		return SCI_SUCCESS;
+		/* Fall through and change state to ABORTING... */
 	case SCI_REQ_TASK_WAIT_TC_RESP:
 		/* The task frame was already confirmed to have been
 		 * sent by the SCU HW.  Since the state machine is
@@ -893,20 +894,21 @@ sci_io_request_terminate(struct isci_request *ireq)
 		 * and don't wait for the task response.
 		 */
 		sci_change_state(&ireq->sm, SCI_REQ_ABORTING);
-		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
-		return SCI_SUCCESS;
+		/* Fall through and handle like ABORTING... */
 	case SCI_REQ_ABORTING:
-		/* If a request has a termination requested twice, return
-		 * a failure indication, since HW confirmation of the first
-		 * abort is still outstanding.
+		if (!isci_remote_device_is_safe_to_abort(ireq->target_device))
+			set_bit(IREQ_PENDING_ABORT, &ireq->flags);
+		else
+			clear_bit(IREQ_PENDING_ABORT, &ireq->flags);
+		/* If the request is only waiting on the remote device
+		 * suspension, return SUCCESS so the caller will wait too.
 		 */
+		return SCI_SUCCESS;
 	case SCI_REQ_COMPLETED:
 	default:
 		dev_warn(&ireq->owning_controller->pdev->dev,
 			 "%s: SCIC IO Request requested to abort while in wrong "
-			 "state %d\n",
-			 __func__,
-			 ireq->sm.current_state_id);
+			 "state %d\n", __func__, ireq->sm.current_state_id);
 		break;
 	}
 

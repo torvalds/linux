@@ -2696,18 +2696,18 @@ enum sci_status sci_controller_terminate_request(struct isci_host *ihost,
 			 __func__, ihost->sm.current_state_id);
 		return SCI_FAILURE_INVALID_STATE;
 	}
-
 	status = sci_io_request_terminate(ireq);
-	if (status != SCI_SUCCESS)
-		return status;
-
-	/*
-	 * Utilize the original post context command and or in the POST_TC_ABORT
-	 * request sub-type.
-	 */
-	sci_controller_post_request(ihost,
-				    ireq->post_context | SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT);
-	return SCI_SUCCESS;
+	if ((status == SCI_SUCCESS) &&
+	    !test_bit(IREQ_PENDING_ABORT, &ireq->flags) &&
+	    !test_and_set_bit(IREQ_TC_ABORT_POSTED, &ireq->flags)) {
+		/* Utilize the original post context command and or in the
+		 * POST_TC_ABORT request sub-type.
+		 */
+		sci_controller_post_request(
+			ihost, ireq->post_context |
+				SCU_CONTEXT_COMMAND_REQUEST_POST_TC_ABORT);
+	}
+	return status;
 }
 
 /**

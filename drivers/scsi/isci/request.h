@@ -102,6 +102,8 @@ struct isci_request {
 	#define IREQ_TERMINATED 1
 	#define IREQ_TMF 2
 	#define IREQ_ACTIVE 3
+	#define IREQ_PENDING_ABORT 4 /* Set == device was not suspended yet */
+	#define IREQ_TC_ABORT_POSTED 5
 	unsigned long flags;
 	/* XXX kill ttype and ttype_ptr, allocate full sas_task */
 	union ttype_ptr_union {
