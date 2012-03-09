@@ -588,8 +588,8 @@ static int tps65912_get_voltage_dcdc(struct regulator_dev *dev)
 	return tps65912_list_voltage_dcdc(dev, vsel);
 }
 
-static int tps65912_set_voltage_dcdc(struct regulator_dev *dev,
-						unsigned selector)
+static int tps65912_set_voltage_dcdc_sel(struct regulator_dev *dev,
+					 unsigned selector)
 {
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	struct tps65912 *mfd = pmic->mfd;
@@ -618,8 +618,8 @@ static int tps65912_get_voltage_ldo(struct regulator_dev *dev)
 	return tps65912_vsel_to_uv_ldo(vsel);
 }
 
-static int tps65912_set_voltage_ldo(struct regulator_dev *dev,
-						unsigned selector)
+static int tps65912_set_voltage_ldo_sel(struct regulator_dev *dev,
+					unsigned selector)
 {
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	struct tps65912 *mfd = pmic->mfd;
@@ -650,7 +650,7 @@ static struct regulator_ops tps65912_ops_dcdc = {
 	.set_mode = tps65912_set_mode,
 	.get_mode = tps65912_get_mode,
 	.get_voltage = tps65912_get_voltage_dcdc,
-	.set_voltage_sel = tps65912_set_voltage_dcdc,
+	.set_voltage_sel = tps65912_set_voltage_dcdc_sel,
 	.list_voltage = tps65912_list_voltage_dcdc,
 };
 
@@ -660,7 +660,7 @@ static struct regulator_ops tps65912_ops_ldo = {
 	.enable = tps65912_reg_enable,
 	.disable = tps65912_reg_disable,
 	.get_voltage = tps65912_get_voltage_ldo,
-	.set_voltage_sel = tps65912_set_voltage_ldo,
+	.set_voltage_sel = tps65912_set_voltage_ldo_sel,
 	.list_voltage = tps65912_list_voltage_ldo,
 };
 

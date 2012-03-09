@@ -685,8 +685,8 @@ static int tps65911_get_voltage(struct regulator_dev *dev)
 	return (LDO_MIN_VOLT + value * step_mv) * 1000;
 }
 
-static int tps65910_set_voltage_dcdc(struct regulator_dev *dev,
-				unsigned selector)
+static int tps65910_set_voltage_dcdc_sel(struct regulator_dev *dev,
+					 unsigned selector)
 {
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
 	int id = rdev_get_id(dev), vsel;
@@ -723,7 +723,8 @@ static int tps65910_set_voltage_dcdc(struct regulator_dev *dev,
 	return 0;
 }
 
-static int tps65910_set_voltage(struct regulator_dev *dev, unsigned selector)
+static int tps65910_set_voltage_sel(struct regulator_dev *dev,
+				    unsigned selector)
 {
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
 	int reg, id = rdev_get_id(dev);
@@ -749,7 +750,8 @@ static int tps65910_set_voltage(struct regulator_dev *dev, unsigned selector)
 	return -EINVAL;
 }
 
-static int tps65911_set_voltage(struct regulator_dev *dev, unsigned selector)
+static int tps65911_set_voltage_sel(struct regulator_dev *dev,
+				    unsigned selector)
 {
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
 	int reg, id = rdev_get_id(dev);
@@ -867,7 +869,7 @@ static struct regulator_ops tps65910_ops_dcdc = {
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage_dcdc,
-	.set_voltage_sel	= tps65910_set_voltage_dcdc,
+	.set_voltage_sel	= tps65910_set_voltage_dcdc_sel,
 	.list_voltage		= tps65910_list_voltage_dcdc,
 };
 
@@ -888,7 +890,7 @@ static struct regulator_ops tps65910_ops = {
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage,
-	.set_voltage_sel	= tps65910_set_voltage,
+	.set_voltage_sel	= tps65910_set_voltage_sel,
 	.list_voltage		= tps65910_list_voltage,
 };
 
@@ -899,7 +901,7 @@ static struct regulator_ops tps65911_ops = {
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65911_get_voltage,
-	.set_voltage_sel	= tps65911_set_voltage,
+	.set_voltage_sel	= tps65911_set_voltage_sel,
 	.list_voltage		= tps65911_list_voltage,
 };
 
