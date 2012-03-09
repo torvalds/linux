@@ -1436,7 +1436,7 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		goto err;
 
 	fps = &per_cpu(fcoe_percpu, cpu);
-	spin_lock_bh(&fps->fcoe_rx_list.lock);
+	spin_lock(&fps->fcoe_rx_list.lock);
 	if (unlikely(!fps->thread)) {
 		/*
 		 * The targeted CPU is not ready, let's target
@@ -1447,12 +1447,12 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 				"ready for incoming skb- using first online "
 				"CPU.\n");
 
-		spin_unlock_bh(&fps->fcoe_rx_list.lock);
+		spin_unlock(&fps->fcoe_rx_list.lock);
 		cpu = cpumask_first(cpu_online_mask);
 		fps = &per_cpu(fcoe_percpu, cpu);
-		spin_lock_bh(&fps->fcoe_rx_list.lock);
+		spin_lock(&fps->fcoe_rx_list.lock);
 		if (!fps->thread) {
-			spin_unlock_bh(&fps->fcoe_rx_list.lock);
+			spin_unlock(&fps->fcoe_rx_list.lock);
 			goto err;
 		}
 	}
@@ -1473,7 +1473,7 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	__skb_queue_tail(&fps->fcoe_rx_list, skb);
 	if (fps->fcoe_rx_list.qlen == 1)
 		wake_up_process(fps->thread);
-	spin_unlock_bh(&fps->fcoe_rx_list.lock);
+	spin_unlock(&fps->fcoe_rx_list.lock);
 
 	return 0;
 err:
