@@ -556,7 +556,7 @@ static int iwl_trans_tx_alloc(struct iwl_trans *trans)
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < hw_params(trans).max_txq_num; txq_id++) {
-		slots_num = (txq_id == trans->cmd_queue) ?
+		slots_num = (txq_id == trans_pcie->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_trans_txq_alloc(trans, &trans_pcie->txq[txq_id],
 					  slots_num, txq_id);
@@ -601,7 +601,7 @@ static int iwl_tx_init(struct iwl_trans *trans)
 
 	/* Alloc and init all Tx queues, including the command queue (#4/#9) */
 	for (txq_id = 0; txq_id < hw_params(trans).max_txq_num; txq_id++) {
-		slots_num = (txq_id == trans->cmd_queue) ?
+		slots_num = (txq_id == trans_pcie->cmd_queue) ?
 					TFD_CMD_SLOTS : TFD_TX_CMD_SLOTS;
 		ret = iwl_trans_txq_init(trans, &trans_pcie->txq[txq_id],
 					 slots_num, txq_id);
@@ -1686,7 +1686,7 @@ static int iwl_trans_pcie_wait_tx_queue_empty(struct iwl_trans *trans)
 
 	/* waiting for all the tx frames complete might take a while */
 	for (cnt = 0; cnt < hw_params(trans).max_txq_num; cnt++) {
-		if (cnt == trans->cmd_queue)
+		if (cnt == trans_pcie->cmd_queue)
 			continue;
 		txq = &trans_pcie->txq[cnt];
 		q = &txq->q;
