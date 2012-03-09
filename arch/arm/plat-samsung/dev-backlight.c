@@ -77,7 +77,7 @@ static struct platform_device samsung_dfl_bl_device __initdata = {
  * @gpio_info:	structure containing GPIO info for PWM timer
  * @bl_data:	structure containing Backlight control data
  */
-void samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
+void __init samsung_bl_set(struct samsung_bl_gpio_info *gpio_info,
 	struct platform_pwm_backlight_data *bl_data)
 {
 	int ret = 0;
