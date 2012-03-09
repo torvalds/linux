@@ -1258,7 +1258,7 @@ static struct gpio nuri_camera_gpios[] = {
 	{ GPIO_CAM_MEGA_RST,	GPIOF_OUT_INIT_LOW, "CAM_8M_NRST" },
 };
 
-static void nuri_camera_init(void)
+static void __init nuri_camera_init(void)
 {
 	s3c_set_platdata(&mipi_csis_platdata, sizeof(mipi_csis_platdata),
 			 &s5p_device_mipi_csis0);
