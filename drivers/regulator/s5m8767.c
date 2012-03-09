@@ -457,7 +457,7 @@ static int s5m8767_set_voltage_time_sel(struct regulator_dev *rdev,
 
 	if (old_sel < new_sel)
 		return DIV_ROUND_UP(desc->step * (new_sel - old_sel),
-					s5m8767->ramp_delay);
+					s5m8767->ramp_delay * 1000);
 	return 0;
 }
 
