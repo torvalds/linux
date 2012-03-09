@@ -131,9 +131,6 @@ struct cmm_mnode {
 	u32 client_proc;	/* Process that allocated this mem block */
 };
 
-/*  ----------------------------------- Globals */
-static u32 refs;		/* module reference count */
-
 /*  ----------------------------------- Function Prototypes */
 static void add_to_free_list(struct cmm_allocator *allocator,
 			     struct cmm_mnode *pnode);
@@ -317,17 +314,6 @@ int cmm_destroy(struct cmm_object *hcmm_mgr, bool force)
 }
 
 /*
- *  ======== cmm_exit ========
- *  Purpose:
- *      Discontinue usage of module; free resources when reference count
- *      reaches 0.
- */
-void cmm_exit(void)
-{
-	refs--;
-}
-
-/*
  *  ======== cmm_free_buf ========
  *  Purpose:
  *      Free the given buffer.
@@ -443,21 +429,6 @@ int cmm_get_info(struct cmm_object *hcmm_mgr,
 	}
 	mutex_unlock(&cmm_mgr_obj->cmm_lock);
 	return status;
-}
-
-/*
- *  ======== cmm_init ========
- *  Purpose:
- *      Initializes private state of CMM module.
- */
-bool cmm_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
 
 /*

@@ -658,10 +658,8 @@ void dev_exit(void)
 {
 	refs--;
 
-	if (refs == 0) {
-		cmm_exit();
+	if (refs == 0)
 		dmm_exit();
-	}
 }
 
 /*
@@ -671,23 +669,10 @@ void dev_exit(void)
  */
 bool dev_init(void)
 {
-	bool cmm_ret, dmm_ret, ret = true;
+	bool ret = true;
 
-	if (refs == 0) {
-		cmm_ret = cmm_init();
-		dmm_ret = dmm_init();
-
-		ret = cmm_ret && dmm_ret;
-
-		if (!ret) {
-			if (cmm_ret)
-				cmm_exit();
-
-			if (dmm_ret)
-				dmm_exit();
-
-		}
-	}
+	if (refs == 0)
+		dmm_init();
 
 	if (ret)
 		refs++;
