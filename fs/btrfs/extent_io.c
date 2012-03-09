@@ -3750,7 +3750,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	}
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
-
+again:
 	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
 	if (ret)
 		goto free_eb;
@@ -3760,7 +3760,13 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	if (ret == -EEXIST) {
 		exists = radix_tree_lookup(&tree->buffer,
 						start >> PAGE_CACHE_SHIFT);
-		atomic_inc(&exists->refs);
+		if (!atomic_inc_not_zero(&exists->refs)) {
+			spin_unlock(&tree->buffer_lock);
+			radix_tree_preload_end();
+			synchronize_rcu();
+			exists = NULL;
+			goto again;
+		}
 		spin_unlock(&tree->buffer_lock);
 		radix_tree_preload_end();
 		goto free_eb;
