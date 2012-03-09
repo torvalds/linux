@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 #include <linux/mutex.h>
