@@ -57,9 +57,6 @@ arch/arm/configs/rk29_newton_defconfig
 arch/arm/mach-rk29/board-rk29-p91*
 arch/arm/configs/rk29_p91_defconfig
 
-arch/arm/mach-rk29/board-rk29phonepadsdk*
-arch/arm/configs/rk29_phonepadsdk_defconfig
-
 arch/arm/mach-rk29/board-rk29-phonesdk*
 arch/arm/configs/rk29_phonesdk_defconfig
 
