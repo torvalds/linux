@@ -1105,8 +1105,6 @@ void isci_host_completion_routine(unsigned long data)
 	list_splice_init(&ihost->requests_to_complete,
 			 &completed_request_list);
 
-	spin_unlock_irq(&ihost->scic_lock);
-
 	/* Process any completions in the list. */
 	list_for_each_safe(current_position, next_position,
 			   &completed_request_list) {
@@ -1114,7 +1112,6 @@ void isci_host_completion_routine(unsigned long data)
 		request = list_entry(current_position, struct isci_request,
 				     completed_node);
 		task = isci_request_access_task(request);
-
 
 		/* Return the task to libsas */
 		if (task != NULL) {
@@ -1141,11 +1138,12 @@ void isci_host_completion_routine(unsigned long data)
 				}
 			}
 		}
+		if (test_and_clear_bit(IREQ_ABORT_PATH_ACTIVE, &request->flags))
+			wake_up_all(&ihost->eventq);
 
-		spin_lock_irq(&ihost->scic_lock);
 		isci_free_tag(ihost, request->io_tag);
-		spin_unlock_irq(&ihost->scic_lock);
 	}
+	spin_unlock_irq(&ihost->scic_lock);
 
 	/* the coalesence timeout doubles at each encoding step, so
 	 * update it based on the ilog2 value of the outstanding requests
@@ -2703,8 +2701,6 @@ enum sci_status sci_controller_complete_io(struct isci_host *ihost,
 
 		index = ISCI_TAG_TCI(ireq->io_tag);
 		clear_bit(IREQ_ACTIVE, &ireq->flags);
-		if (test_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
-			wake_up_all(&ihost->eventq);
 		return SCI_SUCCESS;
 	default:
 		dev_warn(&ihost->pdev->dev, "%s invalid state: %d\n",

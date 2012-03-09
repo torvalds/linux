@@ -145,6 +145,39 @@ static bool isci_compare_suspendcount(
 	return localcount != idev->rnc.suspend_count;
 }
 
+static bool isci_check_reqterm(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev,
+	struct isci_request *ireq,
+	u32 localcount)
+{
+	unsigned long flags;
+	bool res;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	res = isci_compare_suspendcount(idev, localcount)
+		&& !test_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	return res;
+}
+
+static bool isci_check_devempty(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev,
+	u32 localcount)
+{
+	unsigned long flags;
+	bool res;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	res = isci_compare_suspendcount(idev, localcount)
+		&& idev->started_request_count == 0;
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	return res;
+}
+
 enum sci_status isci_remote_device_terminate_requests(
 	struct isci_host *ihost,
 	struct isci_remote_device *idev,
@@ -179,17 +212,15 @@ enum sci_status isci_remote_device_terminate_requests(
 			sci_remote_device_terminate_req(ihost, idev, 0, ireq);
 			spin_unlock_irqrestore(&ihost->scic_lock, flags);
 			wait_event(ihost->eventq,
-				   (isci_compare_suspendcount(idev,
-							      rnc_suspend_count)
-				    && !test_bit(IREQ_ACTIVE, &ireq->flags)));
+				   isci_check_reqterm(ihost, idev, ireq,
+						      rnc_suspend_count));
 		} else {
 			/* Terminate all TCs. */
 			sci_remote_device_terminate_requests(idev);
 			spin_unlock_irqrestore(&ihost->scic_lock, flags);
 			wait_event(ihost->eventq,
-				   (isci_compare_suspendcount(idev,
-							      rnc_suspend_count)
-				    && idev->started_request_count == 0));
+				   isci_check_devempty(ihost, idev,
+						       rnc_suspend_count));
 		}
 		dev_dbg(&ihost->pdev->dev, "%s: idev=%p, wait done\n",
 			__func__, idev);
