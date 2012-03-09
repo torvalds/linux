@@ -311,6 +311,7 @@ config MACH_ORIGEN
 	select S5P_DEV_FIMD0
 	select S5P_DEV_G2D
 	select S5P_DEV_I2C_HDMIPHY
+	select S5P_DEV_JPEG
 	select S5P_DEV_MFC
 	select S5P_DEV_TV
 	select S5P_DEV_USB_EHCI
