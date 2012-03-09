@@ -95,21 +95,21 @@ static struct sleep_save exynos4_clock_save[] = {
 };
 #endif
 
-struct clk clk_sclk_hdmi27m = {
+static struct clk clk_sclk_hdmi27m = {
 	.name		= "sclk_hdmi27m",
 	.rate		= 27000000,
 };
 
-struct clk clk_sclk_hdmiphy = {
+static struct clk clk_sclk_hdmiphy = {
 	.name		= "sclk_hdmiphy",
 };
 
-struct clk clk_sclk_usbphy0 = {
+static struct clk clk_sclk_usbphy0 = {
 	.name		= "sclk_usbphy0",
 	.rate		= 27000000,
 };
 
-struct clk clk_sclk_usbphy1 = {
+static struct clk clk_sclk_usbphy1 = {
 	.name		= "sclk_usbphy1",
 };
 
@@ -218,7 +218,7 @@ static struct clksrc_clk clk_mout_apll = {
 	.reg_src = { .reg = S5P_CLKSRC_CPU, .shift = 0, .size = 1 },
 };
 
-struct clksrc_clk clk_sclk_apll = {
+static struct clksrc_clk clk_sclk_apll = {
 	.clk	= {
 		.name		= "sclk_apll",
 		.parent		= &clk_mout_apll.clk,
@@ -226,7 +226,7 @@ struct clksrc_clk clk_sclk_apll = {
 	.reg_div = { .reg = S5P_CLKDIV_CPU, .shift = 24, .size = 3 },
 };
 
-struct clksrc_clk clk_mout_epll = {
+static struct clksrc_clk clk_mout_epll = {
 	.clk	= {
 		.name		= "mout_epll",
 	},
@@ -310,7 +310,7 @@ static struct clksrc_clk clk_periphclk = {
 
 /* Core list of CMU_CORE side */
 
-struct clk *clkset_corebus_list[] = {
+static struct clk *clkset_corebus_list[] = {
 	[0] = &clk_mout_mpll.clk,
 	[1] = &clk_sclk_apll.clk,
 };
@@ -375,7 +375,7 @@ struct clk *clkset_aclk_top_list[] = {
 	[1] = &clk_sclk_apll.clk,
 };
 
-struct clksrc_sources clkset_aclk = {
+static struct clksrc_sources clkset_aclk = {
 	.sources	= clkset_aclk_top_list,
 	.nr_sources	= ARRAY_SIZE(clkset_aclk_top_list),
 };
@@ -446,7 +446,7 @@ static struct clksrc_sources clkset_sclk_vpll = {
 	.nr_sources	= ARRAY_SIZE(clkset_sclk_vpll_list),
 };
 
-struct clksrc_clk clk_sclk_vpll = {
+static struct clksrc_clk clk_sclk_vpll = {
 	.clk	= {
 		.name		= "sclk_vpll",
 	},

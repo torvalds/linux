@@ -15,25 +15,14 @@
 
 #include <linux/clk.h>
 
-extern struct clk clk_sclk_hdmi27m;
-extern struct clk clk_sclk_usbphy0;
-extern struct clk clk_sclk_usbphy1;
-extern struct clk clk_sclk_hdmiphy;
-
-extern struct clksrc_clk clk_sclk_apll;
 extern struct clksrc_clk clk_mout_mpll;
 extern struct clksrc_clk clk_aclk_133;
-extern struct clksrc_clk clk_mout_epll;
-extern struct clksrc_clk clk_sclk_vpll;
 
-extern struct clk *clkset_corebus_list[];
 extern struct clksrc_sources clkset_mout_corebus;
+extern struct clksrc_sources clkset_group;
 
 extern struct clk *clkset_aclk_top_list[];
-extern struct clksrc_sources clkset_aclk;
-
 extern struct clk *clkset_group_list[];
-extern struct clksrc_sources clkset_group;
 
 extern int exynos4_clksrc_mask_fsys_ctrl(struct clk *clk, int enable);
 extern int exynos4_clk_ip_fsys_ctrl(struct clk *clk, int enable);
