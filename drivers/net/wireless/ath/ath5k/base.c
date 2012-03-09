@@ -1867,7 +1867,8 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 		ah->bmisscount = 0;
 	}
 
-	if ((ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs > 1) ||
+	if ((ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs +
+			ah->num_mesh_vifs > 1) ||
 			ah->opmode == NL80211_IFTYPE_MESH_POINT) {
 		u64 tsf = ath5k_hw_get_tsf64(ah);
 		u32 tsftu = TSF_TO_TU(tsf);
@@ -1952,7 +1953,8 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 	u64 hw_tsf;
 
 	intval = ah->bintval & AR5K_BEACON_PERIOD;
-	if (ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs > 1) {
+	if (ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs
+		+ ah->num_mesh_vifs > 1) {
 		intval /= ATH_BCBUF;	/* staggered multi-bss beacons */
 		if (intval < 15)
 			ATH5K_WARN(ah, "intval %u is too low, min 15\n",
@@ -2330,15 +2332,6 @@ ath5k_calibrate_work(struct work_struct *work)
 					"got new rfgain, resetting\n");
 			ieee80211_queue_work(ah->hw, &ah->reset_work);
 		}
-
-		/* TODO: On full calibration we should stop TX here,
-		 * so that it doesn't interfere (mostly due to gain_f
-		 * calibration that messes with tx packets -see phy.c).
-		 *
-		 * NOTE: Stopping the queues from above is not enough
-		 * to stop TX but saves us from disconecting (at least
-		 * we don't lose packets). */
-		ieee80211_stop_queues(ah->hw);
 	} else
 		ah->ah_cal_mask |= AR5K_CALIBRATION_SHORT;
 
@@ -2353,10 +2346,9 @@ ath5k_calibrate_work(struct work_struct *work)
 				ah->curchan->center_freq));
 
 	/* Clear calibration flags */
-	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL) {
-		ieee80211_wake_queues(ah->hw);
+	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL)
 		ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
-	} else if (ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)
+	else if (ah->ah_cal_mask & AR5K_CALIBRATION_SHORT)
 		ah->ah_cal_mask &= ~AR5K_CALIBRATION_SHORT;
 }
 

@@ -1169,25 +1169,31 @@ static struct bcma_driver brcms_bcma_driver = {
 /**
  * This is the main entry point for the brcmsmac driver.
  *
- * This function determines if a device pointed to by pdev is a WL device,
- * and if so, performs a brcms_attach() on it.
- *
+ * This function is scheduled upon module initialization and
+ * does the driver registration, which result in brcms_bcma_probe()
+ * call resulting in the driver bringup.
  */
+static void brcms_driver_init(struct work_struct *work)
+{
+	int error;
+
+	error = bcma_driver_register(&brcms_bcma_driver);
+	if (error)
+		pr_err("%s: register returned %d\n", __func__, error);
+}
+
+static DECLARE_WORK(brcms_driver_work, brcms_driver_init);
+
 static int __init brcms_module_init(void)
 {
-	int error = -ENODEV;
-
 #ifdef DEBUG
 	if (msglevel != 0xdeadbeef)
 		brcm_msg_level = msglevel;
-#endif				/* DEBUG */
+#endif
+	if (!schedule_work(&brcms_driver_work))
+		return -EBUSY;
 
-	error = bcma_driver_register(&brcms_bcma_driver);
-	pr_err("%s: register returned %d\n", __func__, error);
-	if (!error)
-		return 0;
-
-	return error;
+	return 0;
 }
 
 /**
@@ -1199,6 +1205,7 @@ static int __init brcms_module_init(void)
  */
 static void __exit brcms_module_exit(void)
 {
+	cancel_work_sync(&brcms_driver_work);
 	bcma_driver_unregister(&brcms_bcma_driver);
 }
 

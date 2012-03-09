@@ -65,12 +65,11 @@
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
-#include <linux/mutex.h>
 #include <linux/gfp.h>
-#include <linux/mm.h> /* for page_address */
 #include <net/mac80211.h>
 
 #include "iwl-commands.h"
+#include "iwl-fw.h"
 
 /**
  * DOC: shared area - role and goal
@@ -116,7 +115,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * Holds the module parameters
  *
  * @sw_crypto: using hardware encryption, default = 0
- * @num_of_queues: number of tx queue, HW dependent
  * @disable_11n: disable 11n capabilities, default = 0,
  *	use IWL_DISABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 1
@@ -138,7 +136,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
  */
 struct iwl_mod_params {
 	int sw_crypto;
-	int num_of_queues;
 	unsigned int disable_11n;
 	int amsdu_size_8K;
 	int antenna;
@@ -163,7 +160,6 @@ struct iwl_mod_params {
  *
  * Holds the module parameters
  *
- * @max_txq_num: Max # Tx queues supported
  * @num_ampdu_queues: num of ampdu queues
  * @tx_chains_num: Number of TX chains
  * @rx_chains_num: Number of RX chains
@@ -177,16 +173,16 @@ struct iwl_mod_params {
  *	relevant for 1000, 6000 and up
  * @wd_timeout: TX queues watchdog timeout
  * @struct iwl_sensitivity_ranges: range of sensitivity values
+ * @use_rts_for_aggregation: use rts/cts protection for HT traffic
  */
 struct iwl_hw_params {
-	u8  max_txq_num;
 	u8  num_ampdu_queues;
 	u8  tx_chains_num;
 	u8  rx_chains_num;
 	u8  valid_tx_ant;
 	u8  valid_rx_ant;
 	u8  ht40_channel;
-	bool shadow_reg_enable;
+	bool use_rts_for_aggregation;
 	u16 sku;
 	u32 rx_page_order;
 	u32 ct_kill_threshold;
@@ -213,45 +209,6 @@ enum iwl_ucode_type {
 	IWL_UCODE_WOWLAN,
 };
 
-/**
- * struct iwl_notification_wait - notification wait entry
- * @list: list head for global list
- * @fn: function called with the notification
- * @cmd: command ID
- *
- * This structure is not used directly, to wait for a
- * notification declare it on the stack, and call
- * iwlagn_init_notification_wait() with appropriate
- * parameters. Then do whatever will cause the ucode
- * to notify the driver, and to wait for that then
- * call iwlagn_wait_notification().
- *
- * Each notification is one-shot. If at some point we
- * need to support multi-shot notifications (which
- * can't be allocated on the stack) we need to modify
- * the code for them.
- */
-struct iwl_notification_wait {
-	struct list_head list;
-
-	void (*fn)(struct iwl_trans *trans, struct iwl_rx_packet *pkt,
-		   void *data);
-	void *fn_data;
-
-	u8 cmd;
-	bool triggered, aborted;
-};
-
-/**
- * enum iwl_pa_type - Power Amplifier type
- * @IWL_PA_SYSTEM:  based on uCode configuration
- * @IWL_PA_INTERNAL: use Internal only
- */
-enum iwl_pa_type {
-	IWL_PA_SYSTEM = 0,
-	IWL_PA_INTERNAL = 1,
-};
-
 /*
  * LED mode
  *    IWL_LED_DEFAULT:  use device default
@@ -268,6 +225,73 @@ enum iwl_led_mode {
 	IWL_LED_DISABLE,
 };
 
+/*
+ * @max_ll_items: max number of OTP blocks
+ * @shadow_ram_support: shadow support for OTP memory
+ * @led_compensation: compensate on the led on/off time per HW according
+ *	to the deviation to achieve the desired led frequency.
+ *	The detail algorithm is described in iwl-led.c
+ * @chain_noise_num_beacons: number of beacons used to compute chain noise
+ * @adv_thermal_throttle: support advance thermal throttle
+ * @support_ct_kill_exit: support ct kill exit condition
+ * @support_wimax_coexist: support wimax/wifi co-exist
+ * @plcp_delta_threshold: plcp error rate threshold used to trigger
+ *	radio tuning when there is a high receiving plcp error rate
+ * @chain_noise_scale: default chain noise scale used for gain computation
+ * @wd_timeout: TX queues watchdog timeout
+ * @max_event_log_size: size of event log buffer size for ucode event logging
+ * @shadow_reg_enable: HW shadhow register bit
+ * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
+ * @no_idle_support: do not support idle mode
+ * wd_disable: disable watchdog timer
+ */
+struct iwl_base_params {
+	int eeprom_size;
+	int num_of_queues;	/* def: HW dependent */
+	int num_of_ampdu_queues;/* def: HW dependent */
+	/* for iwl_apm_init() */
+	u32 pll_cfg_val;
+
+	const u16 max_ll_items;
+	const bool shadow_ram_support;
+	u16 led_compensation;
+	bool adv_thermal_throttle;
+	bool support_ct_kill_exit;
+	const bool support_wimax_coexist;
+	u8 plcp_delta_threshold;
+	s32 chain_noise_scale;
+	unsigned int wd_timeout;
+	u32 max_event_log_size;
+	const bool shadow_reg_enable;
+	const bool hd_v2;
+	const bool no_idle_support;
+	const bool wd_disable;
+};
+
+/*
+ * @advanced_bt_coexist: support advanced bt coexist
+ * @bt_init_traffic_load: specify initial bt traffic load
+ * @bt_prio_boost: default bt priority boost value
+ * @agg_time_limit: maximum number of uSec in aggregation
+ * @bt_sco_disable: uCode should not response to BT in SCO/ESCO mode
+ */
+struct iwl_bt_params {
+	bool advanced_bt_coexist;
+	u8 bt_init_traffic_load;
+	u8 bt_prio_boost;
+	u16 agg_time_limit;
+	bool bt_sco_disable;
+	bool bt_session_2;
+};
+/*
+ * @use_rts_for_aggregation: use rts/cts protection for HT traffic
+ */
+struct iwl_ht_params {
+	const bool ht_greenfield_support; /* if used set to true */
+	bool use_rts_for_aggregation;
+	enum ieee80211_smps_mode smps_mode;
+};
+
 /**
  * struct iwl_cfg
  * @name: Offical name of the device
@@ -282,7 +306,6 @@ enum iwl_led_mode {
  * @max_data_size: The maximal length of the fw data section
  * @valid_tx_ant: valid transmit antenna
  * @valid_rx_ant: valid receive antenna
- * @sku: sku information from EEPROM
  * @eeprom_ver: EEPROM version
  * @eeprom_calib_ver: EEPROM calibration version
  * @lib: pointer to the lib ops
@@ -290,7 +313,6 @@ enum iwl_led_mode {
  * @base_params: pointer to basic parameters
  * @ht_params: point to ht patameters
  * @bt_params: pointer to bt parameters
- * @pa_type: used by 6000 series only to identify the type of Power Amplifier
  * @need_temp_offset_calib: need to perform temperature offset calibration
  * @no_xtal_calib: some devices do not need crystal calibration data,
  *	don't send it to those
@@ -321,17 +343,15 @@ struct iwl_cfg {
 	const u32 max_inst_size;
 	u8   valid_tx_ant;
 	u8   valid_rx_ant;
-	u16  sku;
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_lib_ops *lib;
 	void (*additional_nic_config)(struct iwl_priv *priv);
 	/* params not likely to change within a device family */
-	struct iwl_base_params *base_params;
+	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */
-	struct iwl_ht_params *ht_params;
-	struct iwl_bt_params *bt_params;
-	enum iwl_pa_type pa_type;	  /* if used set to IWL_PA_SYSTEM */
+	const struct iwl_ht_params *ht_params;
+	const struct iwl_bt_params *bt_params;
 	const bool need_temp_offset_calib; /* if used set to true */
 	const bool no_xtal_calib;
 	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
@@ -346,10 +366,6 @@ struct iwl_cfg {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
- * @dbg_level_dev: dbg level set per device. Prevails on
- *	iwlagn_mod_params.debug_level if set (!= 0)
- * @ucode_owner: IWL_OWNERSHIP_*
- * @cmd_queue: command queue number
  * @status: STATUS_*
  * @wowlan: are we running wowlan uCode
  * @valid_contexts: microcode/device supports multiple contexts
@@ -360,39 +376,20 @@ struct iwl_cfg {
  * @nic: pointer to the nic data
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
- * @sta_lock: protects the station table.
- *	If lock and sta_lock are needed, lock must be acquired first.
- * @mutex:
- * @wait_command_queue: the wait_queue for SYNC host command nad uCode load
+ * @wait_command_queue: the wait_queue for SYNC host commands
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
- * @notif_waits: things waiting for notification
- * @notif_wait_lock: lock protecting notification
- * @notif_waitq: head of notification wait queue
  * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
-#ifdef CONFIG_IWLWIFI_DEBUG
-	u32 dbg_level_dev;
-#endif /* CONFIG_IWLWIFI_DEBUG */
-
-#define IWL_OWNERSHIP_DRIVER	0
-#define IWL_OWNERSHIP_TM	1
-	u8 ucode_owner;
-	u8 cmd_queue;
 	unsigned long status;
-	bool wowlan;
 	u8 valid_contexts;
 
-	struct iwl_cfg *cfg;
-	struct iwl_priv *priv;
+	const struct iwl_cfg *cfg;
 	struct iwl_trans *trans;
-	struct iwl_nic *nic;
+	void *drv;
 	struct iwl_hw_params hw_params;
-
-	spinlock_t lock;
-	spinlock_t sta_lock;
-	struct mutex mutex;
+	const struct iwl_fw *fw;
 
 	wait_queue_head_t wait_command_queue;
 
@@ -402,11 +399,6 @@ struct iwl_shared {
 	/* ucode related variables */
 	enum iwl_ucode_type ucode_type;
 
-	/* notification wait support */
-	struct list_head notif_waits;
-	spinlock_t notif_wait_lock;
-	wait_queue_head_t notif_waitq;
-
 	struct {
 		u32 error_event_table;
 		u32 log_event_table;
@@ -415,111 +407,13 @@ struct iwl_shared {
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, these macros will work */
-#define priv(_m)	((_m)->shrd->priv)
 #define cfg(_m)		((_m)->shrd->cfg)
-#define nic(_m)		((_m)->shrd->nic)
 #define trans(_m)	((_m)->shrd->trans)
 #define hw_params(_m)	((_m)->shrd->hw_params)
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-/*
- * iwl_get_debug_level: Return active debug level for device
- *
- * Using sysfs it is possible to set per device debug level. This debug
- * level will be used if set, otherwise the global debug level which can be
- * set via module parameter is used.
- */
-static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
+static inline bool iwl_have_debug_level(u32 level)
 {
-	if (shrd->dbg_level_dev)
-		return shrd->dbg_level_dev;
-	else
-		return iwlagn_mod_params.debug_level;
-}
-#else
-static inline u32 iwl_get_debug_level(struct iwl_shared *shrd)
-{
-	return iwlagn_mod_params.debug_level;
-}
-#endif
-
-static inline void iwl_free_pages(struct iwl_shared *shrd, unsigned long page)
-{
-	free_pages(page, shrd->hw_params.rx_page_order);
-}
-
-/**
- * iwl_queue_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl_queue_inc_wrap(int index, int n_bd)
-{
-	return ++index & (n_bd - 1);
-}
-
-/**
- * iwl_queue_dec_wrap - decrement queue index, wrap back to end
- * @index -- current index
- * @n_bd -- total number of entries in queue (must be power of 2)
- */
-static inline int iwl_queue_dec_wrap(int index, int n_bd)
-{
-	return --index & (n_bd - 1);
-}
-
-struct iwl_rx_mem_buffer {
-	dma_addr_t page_dma;
-	struct page *page;
-	struct list_head list;
-};
-
-#define rxb_addr(r) page_address(r->page)
-
-/*
- * mac80211 queues, ACs, hardware queues, FIFOs.
- *
- * Cf. http://wireless.kernel.org/en/developers/Documentation/mac80211/queues
- *
- * Mac80211 uses the following numbers, which we get as from it
- * by way of skb_get_queue_mapping(skb):
- *
- *	VO	0
- *	VI	1
- *	BE	2
- *	BK	3
- *
- *
- * Regular (not A-MPDU) frames are put into hardware queues corresponding
- * to the FIFOs, see comments in iwl-prph.h. Aggregated frames get their
- * own queue per aggregation session (RA/TID combination), such queues are
- * set up to map into FIFOs too, for which we need an AC->FIFO mapping. In
- * order to map frames to the right queue, we also need an AC->hw queue
- * mapping. This is implemented here.
- *
- * Due to the way hw queues are set up (by the hw specific modules like
- * iwl-4965.c, iwl-5000.c etc.), the AC->hw queue mapping is the identity
- * mapping.
- */
-
-static const u8 tid_to_ac[] = {
-	IEEE80211_AC_BE,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BE,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_VO,
-	IEEE80211_AC_VO
-};
-
-static inline int get_ac_from_tid(u16 tid)
-{
-	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
-		return tid_to_ac[tid];
-
-	/* no support for TIDs 8-15 yet */
-	return -EINVAL;
+	return iwlagn_mod_params.debug_level & level;
 }
 
 enum iwl_rxon_context_id {
@@ -530,34 +424,9 @@ enum iwl_rxon_context_id {
 };
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr);
-void iwl_nic_config(struct iwl_priv *priv);
 const char *get_cmd_string(u8 cmd);
-bool iwl_check_for_ct_kill(struct iwl_priv *priv);
-
-
-/* notification wait support */
-void iwl_abort_notification_waits(struct iwl_shared *shrd);
-void __acquires(wait_entry)
-iwl_init_notification_wait(struct iwl_shared *shrd,
-			      struct iwl_notification_wait *wait_entry,
-			      u8 cmd,
-			      void (*fn)(struct iwl_trans *trans,
-					 struct iwl_rx_packet *pkt,
-					 void *data),
-			      void *fn_data);
-int __must_check __releases(wait_entry)
-iwl_wait_notification(struct iwl_shared *shrd,
-			 struct iwl_notification_wait *wait_entry,
-			 unsigned long timeout);
-void __releases(wait_entry)
-iwl_remove_notification(struct iwl_shared *shrd,
-			   struct iwl_notification_wait *wait_entry);
 
 #define IWL_CMD(x) case x: return #x
-#define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
-
-#define IWL_TRAFFIC_ENTRIES	(256)
-#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS
@@ -582,47 +451,5 @@ iwl_remove_notification(struct iwl_shared *shrd,
 #define STATUS_DEVICE_ENABLED	18
 #define STATUS_CHANNEL_SWITCH_PENDING 19
 #define STATUS_SCAN_COMPLETE	20
-
-static inline int iwl_is_ready(struct iwl_shared *shrd)
-{
-	/* The adapter is 'ready' if READY and GEO_CONFIGURED bits are
-	 * set but EXIT_PENDING is not */
-	return test_bit(STATUS_READY, &shrd->status) &&
-	       test_bit(STATUS_GEO_CONFIGURED, &shrd->status) &&
-	       !test_bit(STATUS_EXIT_PENDING, &shrd->status);
-}
-
-static inline int iwl_is_alive(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_ALIVE, &shrd->status);
-}
-
-static inline int iwl_is_init(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_INIT, &shrd->status);
-}
-
-static inline int iwl_is_rfkill_hw(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_RF_KILL_HW, &shrd->status);
-}
-
-static inline int iwl_is_rfkill(struct iwl_shared *shrd)
-{
-	return iwl_is_rfkill_hw(shrd);
-}
-
-static inline int iwl_is_ctkill(struct iwl_shared *shrd)
-{
-	return test_bit(STATUS_CT_KILL, &shrd->status);
-}
-
-static inline int iwl_is_ready_rf(struct iwl_shared *shrd)
-{
-	if (iwl_is_rfkill(shrd))
-		return 0;
-
-	return iwl_is_ready(shrd);
-}
 
 #endif /* #__iwl_shared_h__ */

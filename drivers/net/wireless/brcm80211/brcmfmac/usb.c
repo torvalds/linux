@@ -514,9 +514,9 @@ static void brcmf_usb_tx_complete(struct urb *urb)
 
 	brcmf_usb_del_fromq(devinfo, req);
 	if (urb->status == 0)
-		devinfo->bus_pub.stats.tx_packets++;
+		devinfo->bus_pub.bus->dstats.tx_packets++;
 	else
-		devinfo->bus_pub.stats.tx_errors++;
+		devinfo->bus_pub.bus->dstats.tx_errors++;
 
 	dev_kfree_skb(req->skb);
 	req->skb = NULL;
@@ -536,9 +536,9 @@ static void brcmf_usb_rx_complete(struct urb *urb)
 	req->skb = NULL;
 
 	if (urb->status == 0) {
-		devinfo->bus_pub.stats.rx_packets++;
+		devinfo->bus_pub.bus->dstats.rx_packets++;
 	} else {
-		devinfo->bus_pub.stats.rx_errors++;
+		devinfo->bus_pub.bus->dstats.rx_errors++;
 		dev_kfree_skb(skb);
 		brcmf_usb_enq(devinfo, &devinfo->rx_freeq, req);
 		return;
@@ -711,9 +711,6 @@ static int brcmf_usb_up(struct device *dev)
 {
 	struct brcmf_usbdev_info *devinfo = brcmf_usb_get_businfo(dev);
 	u16 ifnum;
-
-	if (devinfo == NULL)
-		return -EINVAL;
 
 	if (devinfo->bus_pub.state == BCMFMAC_USB_STATE_UP)
 		return 0;
@@ -900,8 +897,8 @@ brcmf_usb_dlneeded(struct brcmf_usbdev_info *devinfo)
 			sizeof(struct bootrom_id_le));
 		return false;
 	} else {
-		devinfo->bus_pub.attrib.devid = chipid;
-		devinfo->bus_pub.attrib.chiprev = chiprev;
+		devinfo->bus_pub.devid = chipid;
+		devinfo->bus_pub.chiprev = chiprev;
 	}
 	return true;
 }
@@ -1067,7 +1064,7 @@ static int brcmf_usb_dlstart(struct brcmf_usbdev_info *devinfo, u8 *fw, int len)
 	if (devinfo == NULL)
 		return -EINVAL;
 
-	if (devinfo->bus_pub.attrib.devid == 0xDEAD)
+	if (devinfo->bus_pub.devid == 0xDEAD)
 		return -EINVAL;
 
 	err = brcmf_usb_dl_writeimage(devinfo, fw, len);
@@ -1088,7 +1085,7 @@ static int brcmf_usb_dlrun(struct brcmf_usbdev_info *devinfo)
 	if (!devinfo)
 		return -EINVAL;
 
-	if (devinfo->bus_pub.attrib.devid == 0xDEAD)
+	if (devinfo->bus_pub.devid == 0xDEAD)
 		return -EINVAL;
 
 	/* Check we are runnable */
@@ -1127,18 +1124,19 @@ static bool brcmf_usb_chip_support(int chipid, int chiprev)
 static int
 brcmf_usb_fw_download(struct brcmf_usbdev_info *devinfo)
 {
-	struct brcmf_usb_attrib *attr;
+	int devid, chiprev;
 	int err;
 
 	brcmf_dbg(TRACE, "enter\n");
 	if (devinfo == NULL)
 		return -ENODEV;
 
-	attr = &devinfo->bus_pub.attrib;
+	devid = devinfo->bus_pub.devid;
+	chiprev = devinfo->bus_pub.chiprev;
 
-	if (!brcmf_usb_chip_support(attr->devid, attr->chiprev)) {
+	if (!brcmf_usb_chip_support(devid, chiprev)) {
 		brcmf_dbg(ERROR, "unsupported chip %d rev %d\n",
-			  attr->devid, attr->chiprev);
+			  devid, chiprev);
 		return -EINVAL;
 	}
 
@@ -1617,7 +1615,7 @@ void brcmf_usb_exit(void)
 	g_image.len = 0;
 }
 
-int brcmf_usb_init(void)
+void brcmf_usb_init(void)
 {
-	return usb_register(&brcmf_usbdrvr);
+	usb_register(&brcmf_usbdrvr);
 }

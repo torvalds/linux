@@ -260,11 +260,13 @@ enum wl12xx_flags {
 	WL1271_FLAG_SOFT_GEMINI,
 	WL1271_FLAG_RECOVERY_IN_PROGRESS,
 	WL1271_FLAG_VIF_CHANGE_IN_PROGRESS,
+	WL1271_FLAG_INTENDED_FW_RECOVERY,
 };
 
 enum wl12xx_vif_flags {
 	WLVIF_FLAG_INITIALIZED,
 	WLVIF_FLAG_STA_ASSOCIATED,
+	WLVIF_FLAG_STA_AUTHORIZED,
 	WLVIF_FLAG_IBSS_JOINED,
 	WLVIF_FLAG_AP_STARTED,
 	WLVIF_FLAG_IN_PS,
@@ -452,8 +454,6 @@ struct wl1271 {
 
 	bool enable_11a;
 
-	struct list_head list;
-
 	/* Most recently reported noise in dBm */
 	s8 noise;
 
@@ -495,6 +495,9 @@ struct wl1271 {
 
 	/* last wlvif we transmitted from */
 	struct wl12xx_vif *last_wlvif;
+
+	/* work to fire when Tx is stuck */
+	struct delayed_work tx_watchdog_work;
 };
 
 struct wl1271_station {

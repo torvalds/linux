@@ -326,7 +326,6 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
-	struct ar9003_txc *txc = (struct ar9003_txc *) ds;
 	struct ar9003_txs *ads;
 	u32 status;
 
@@ -336,11 +335,7 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	if ((status & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
-	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
-	if (!txc || (MS(txc->info, AR_TxQcuNum) == ts->qid))
-		ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
-	else
-		return -ENOENT;
+	ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
 
 	if ((MS(ads->ds_info, AR_DescId) != ATHEROS_VENDOR_ID) ||
 	    (MS(ads->ds_info, AR_TxRxDesc) != 1)) {
@@ -354,6 +349,7 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_seqnum = MS(status, AR_SeqNum);
 	ts->tid = MS(status, AR_TxTid);
 
+	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
 	ts->desc_id = MS(ads->status1, AR_TxDescId);
 	ts->ts_tstamp = ads->status4;
 	ts->ts_status = 0;
@@ -440,20 +436,14 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	struct ar9003_rxs *rxsp = (struct ar9003_rxs *) buf_addr;
 	unsigned int phyerr;
 
-	/* TODO: byte swap on big endian for ar9300_10 */
+	if ((rxsp->status11 & AR_RxDone) == 0)
+		return -EINPROGRESS;
 
-	if (!rxs) {
-		if ((rxsp->status11 & AR_RxDone) == 0)
-			return -EINPROGRESS;
+	if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
+		return -EINVAL;
 
-		if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
-			return -EINVAL;
-
-		if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
-			return -EINPROGRESS;
-
-		return 0;
-	}
+	if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
+		return -EINPROGRESS;
 
 	rxs->rs_status = 0;
 	rxs->rs_flags =  0;

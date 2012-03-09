@@ -192,7 +192,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
  * first.
  */
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
-		      struct mwifiex_802_11_ssid *req_ssid)
+		      struct cfg80211_ssid *req_ssid)
 {
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -249,6 +249,17 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		 * application retrieval */
 		priv->assoc_rsp_size = 0;
 		ret = mwifiex_associate(priv, bss_desc);
+
+		/* If auth type is auto and association fails using open mode,
+		 * try to connect using shared mode */
+		if (ret == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG &&
+		    priv->sec_info.is_authtype_auto &&
+		    priv->sec_info.wep_enabled) {
+			priv->sec_info.authentication_mode =
+						NL80211_AUTHTYPE_SHARED_KEY;
+			ret = mwifiex_associate(priv, bss_desc);
+		}
+
 		if (bss)
 			cfg80211_put_bss(bss);
 	} else {
@@ -453,8 +464,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bss_mode = priv->bss_mode;
 
-	memcpy(&info->ssid, &bss_desc->ssid,
-	       sizeof(struct mwifiex_802_11_ssid));
+	memcpy(&info->ssid, &bss_desc->ssid, sizeof(struct cfg80211_ssid));
 
 	memcpy(&info->bssid, &bss_desc->mac_address, ETH_ALEN);
 
@@ -599,7 +609,7 @@ static int mwifiex_bss_ioctl_ibss_channel(struct mwifiex_private *priv,
  *          - Start/Join the IBSS
  */
 int
-mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
+mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, u16 channel)
 {
 	int ret;
 	struct mwifiex_bss_info bss_info;
@@ -636,7 +646,7 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 	ret = mwifiex_deauthenticate(priv, ssid_bssid.bssid);
 
 	ret = mwifiex_bss_ioctl_ibss_channel(priv, HostCmd_ACT_GEN_SET,
-					     (u16 *) &channel);
+					     &channel);
 
 	/* Do specific SSID scanning */
 	if (mwifiex_request_scan(priv, &bss_info.ssid)) {

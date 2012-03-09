@@ -33,35 +33,11 @@ enum brcmf_usb_pnp_state {
 };
 
 struct brcmf_stats {
-	u32 tx_errors;
-	u32 tx_packets;
-	u32 tx_multicast;
 	u32 tx_ctlpkts;
 	u32 tx_ctlerrs;
-	u32 tx_dropped;
-	u32 tx_flushed;
-	u32 rx_errors;
-	u32 rx_packets;
-	u32 rx_multicast;
 	u32 rx_ctlpkts;
 	u32 rx_ctlerrs;
-	u32 rx_dropped;
-	u32 rx_flushed;
-
 };
-
-struct brcmf_usb_attrib {
-	int bustype;
-	int vid;
-	int pid;
-	int devid;
-	int chiprev; /* chip revsion number */
-	int mtu;
-	int nchan; /* Data Channels */
-	int has_2nd_bulk_in_ep;
-};
-
-struct brcmf_usbdev_info;
 
 struct brcmf_usbdev {
 	struct brcmf_bus *bus;
@@ -70,7 +46,8 @@ struct brcmf_usbdev {
 	struct brcmf_stats stats;
 	int ntxq, nrxq, rxsize;
 	u32 bus_mtu;
-	struct brcmf_usb_attrib attrib;
+	int devid;
+	int chiprev; /* chip revsion number */
 };
 
 /* IO Request Block (IRB) */

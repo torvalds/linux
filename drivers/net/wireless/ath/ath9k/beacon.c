@@ -91,7 +91,7 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	info.txpower = MAX_RATE_POWER;
 	info.keyix = ATH9K_TXKEYIX_INVALID;
 	info.keytype = ATH9K_KEY_TYPE_CLEAR;
-	info.flags = ATH9K_TXDESC_NOACK;
+	info.flags = ATH9K_TXDESC_NOACK | ATH9K_TXDESC_INTREQ;
 
 	info.buf_addr[0] = bf->bf_buf_addr;
 	info.buf_len[0] = roundup(skb->len, 4);
@@ -355,7 +355,6 @@ void ath_beacon_tasklet(unsigned long data)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_buf *bf = NULL;
 	struct ieee80211_vif *vif;
-	struct ath_tx_status ts;
 	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int slot;
 	u32 bfaddr, bc = 0;
@@ -462,11 +461,6 @@ void ath_beacon_tasklet(unsigned long data)
 			ath9k_hw_txstart(ah, sc->beacon.beaconq);
 
 		sc->beacon.ast_be_xmit += bc;     /* XXX per-vif? */
-		if (edma) {
-			spin_lock_bh(&sc->sc_pcu_lock);
-			ath9k_hw_txprocdesc(ah, bf->bf_desc, (void *)&ts);
-			spin_unlock_bh(&sc->sc_pcu_lock);
-		}
 	}
 }
 

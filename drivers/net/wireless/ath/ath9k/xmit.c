@@ -2296,9 +2296,12 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 			break;
 		}
 
-		/* Skip beacon completions */
-		if (ts.qid == sc->beacon.beaconq)
+		/* Process beacon completions separately */
+		if (ts.qid == sc->beacon.beaconq) {
+			sc->beacon.tx_processed = true;
+			sc->beacon.tx_last = !(ts.ts_status & ATH9K_TXERR_MASK);
 			continue;
+		}
 
 		txq = &sc->tx.txq[ts.qid];
 

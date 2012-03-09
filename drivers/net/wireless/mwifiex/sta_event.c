@@ -101,7 +101,7 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 
 	memcpy(&priv->prev_ssid,
 	       &priv->curr_bss_params.bss_descriptor.ssid,
-	       sizeof(struct mwifiex_802_11_ssid));
+	       sizeof(struct cfg80211_ssid));
 
 	memcpy(priv->prev_bssid,
 	       priv->curr_bss_params.bss_descriptor.mac_address, ETH_ALEN);

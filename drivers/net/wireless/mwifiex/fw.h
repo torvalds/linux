@@ -852,11 +852,6 @@ struct mwifiex_user_scan_chan {
 	u32 scan_time;
 } __packed;
 
-struct mwifiex_user_scan_ssid {
-	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
-	u8 max_len;
-} __packed;
-
 struct mwifiex_user_scan_cfg {
 	/*
 	 *  BSS mode to be sent in the firmware command
@@ -867,8 +862,9 @@ struct mwifiex_user_scan_cfg {
 	u8 reserved;
 	/* BSSID filter sent in the firmware command to limit the results */
 	u8 specific_bssid[ETH_ALEN];
-	/* SSID filter list used in the to limit the scan results */
-	struct mwifiex_user_scan_ssid ssid_list[MWIFIEX_MAX_SSID_LIST_LENGTH];
+	/* SSID filter list used in the firmware to limit the scan results */
+	struct cfg80211_ssid *ssid_list;
+	u8 num_ssids;
 	/* Variable number (fixed maximum) of channels to scan up */
 	struct mwifiex_user_scan_chan chan_list[MWIFIEX_USER_SCAN_CHAN_MAX];
 } __packed;

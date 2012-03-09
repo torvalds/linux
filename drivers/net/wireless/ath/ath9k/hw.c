@@ -1386,10 +1386,16 @@ static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type)
 static bool ath9k_hw_chip_reset(struct ath_hw *ah,
 				struct ath9k_channel *chan)
 {
-	if (AR_SREV_9280(ah) && ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL)) {
-		if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON))
-			return false;
-	} else if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_WARM))
+	int reset_type = ATH9K_RESET_WARM;
+
+	if (AR_SREV_9280(ah)) {
+		if (ah->eep_ops->get_eeprom(ah, EEP_OL_PWRCTRL))
+			reset_type = ATH9K_RESET_POWER_ON;
+		else
+			reset_type = ATH9K_RESET_COLD;
+	}
+
+	if (!ath9k_hw_set_reset_reg(ah, reset_type))
 		return false;
 
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))

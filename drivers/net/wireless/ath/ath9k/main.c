@@ -2300,6 +2300,7 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	struct ath_vif *avp;
 	struct ath_buf *bf;
 	struct ath_tx_status ts;
+	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int status;
 
 	vif = sc->beacon.bslot[0];
@@ -2310,7 +2311,7 @@ static int ath9k_tx_last_beacon(struct ieee80211_hw *hw)
 	if (!avp->is_bslot_active)
 		return 0;
 
-	if (!sc->beacon.tx_processed) {
+	if (!sc->beacon.tx_processed && !edma) {
 		tasklet_disable(&sc->bcon_tasklet);
 
 		bf = avp->av_bcbuf;

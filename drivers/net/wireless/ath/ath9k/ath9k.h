@@ -299,7 +299,6 @@ struct ath_tx {
 
 struct ath_rx_edma {
 	struct sk_buff_head rx_fifo;
-	struct sk_buff_head rx_buffers;
 	u32 rx_fifo_hwsize;
 };
 

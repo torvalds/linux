@@ -177,7 +177,8 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	pos += 2;
 
 	/* IEEE80211_RADIOTAP_DBM_ANTSIGNAL */
-	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM) {
+	if (local->hw.flags & IEEE80211_HW_SIGNAL_DBM &&
+	    !(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		*pos = status->signal;
 		rthdr->it_present |=
 			cpu_to_le32(1 << IEEE80211_RADIOTAP_DBM_ANTSIGNAL);
@@ -227,7 +228,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(origskb);
 	struct ieee80211_sub_if_data *sdata;
-	int needed_headroom = 0;
+	int needed_headroom;
 	struct sk_buff *skb, *skb2;
 	struct net_device *prev_dev = NULL;
 	int present_fcs_len = 0;
@@ -489,12 +490,12 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 			if (ieee80211_has_tods(hdr->frame_control) ||
 				!ieee80211_has_fromds(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (memcmp(hdr->addr3, dev_addr, ETH_ALEN) == 0)
+			if (compare_ether_addr(hdr->addr3, dev_addr) == 0)
 				return RX_DROP_MONITOR;
 		} else {
 			if (!ieee80211_has_a4(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (memcmp(hdr->addr4, dev_addr, ETH_ALEN) == 0)
+			if (compare_ether_addr(hdr->addr4, dev_addr) == 0)
 				return RX_DROP_MONITOR;
 		}
 	}
@@ -1309,8 +1310,10 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 
 	sta->rx_fragments++;
 	sta->rx_bytes += rx->skb->len;
-	sta->last_signal = status->signal;
-	ewma_add(&sta->avg_signal, -status->signal);
+	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
+		sta->last_signal = status->signal;
+		ewma_add(&sta->avg_signal, -status->signal);
+	}
 
 	/*
 	 * Change STA power saving mode only at the end of a frame
@@ -1957,6 +1960,9 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 	}
 
+	if (!ifmsh->mshcfg.dot11MeshForwarding)
+		goto out;
+
 	fwd_skb = skb_copy(skb, GFP_ATOMIC);
 	if (!fwd_skb) {
 		if (net_ratelimit())
@@ -2182,9 +2188,14 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 	if (rx->sdata->vif.type == NL80211_IFTYPE_AP &&
 	    ieee80211_is_beacon(mgmt->frame_control) &&
 	    !(rx->flags & IEEE80211_RX_BEACON_REPORTED)) {
+		int sig = 0;
+
+		if (rx->local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+			sig = status->signal;
+
 		cfg80211_report_obss_beacon(rx->local->hw.wiphy,
 					    rx->skb->data, rx->skb->len,
-					    status->freq, GFP_ATOMIC);
+					    status->freq, sig, GFP_ATOMIC);
 		rx->flags |= IEEE80211_RX_BEACON_REPORTED;
 	}
 
@@ -2336,7 +2347,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (memcmp(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN))
+			if (compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid))
 				break;
 
 			goto queue;
@@ -2408,6 +2419,7 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(rx->skb);
+	int sig = 0;
 
 	/* skip known-bad action frames and return them in the next handler */
 	if (status->rx_flags & IEEE80211_RX_MALFORMED_ACTION_FRM)
@@ -2420,7 +2432,10 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	 * it transmitted were processed or returned.
 	 */
 
-	if (cfg80211_rx_mgmt(rx->sdata->dev, status->freq,
+	if (rx->local->hw.flags & IEEE80211_HW_SIGNAL_DBM)
+		sig = status->signal;
+
+	if (cfg80211_rx_mgmt(rx->sdata->dev, status->freq, sig,
 			     rx->skb->data, rx->skb->len,
 			     GFP_ATOMIC)) {
 		if (rx->sta)
@@ -2538,16 +2553,10 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 {
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_local *local = rx->local;
-	struct ieee80211_rtap_hdr {
-		struct ieee80211_radiotap_header hdr;
-		u8 flags;
-		u8 rate_or_pad;
-		__le16 chan_freq;
-		__le16 chan_flags;
-	} __packed *rthdr;
 	struct sk_buff *skb = rx->skb, *skb2;
 	struct net_device *prev_dev = NULL;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
+	int needed_headroom;
 
 	/*
 	 * If cooked monitor has been processed already, then
@@ -2561,30 +2570,15 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 	if (!local->cooked_mntrs)
 		goto out_free_skb;
 
-	if (skb_headroom(skb) < sizeof(*rthdr) &&
-	    pskb_expand_head(skb, sizeof(*rthdr), 0, GFP_ATOMIC))
+	/* room for the radiotap header based on driver features */
+	needed_headroom = ieee80211_rx_radiotap_len(local, status);
+
+	if (skb_headroom(skb) < needed_headroom &&
+	    pskb_expand_head(skb, needed_headroom, 0, GFP_ATOMIC))
 		goto out_free_skb;
 
-	rthdr = (void *)skb_push(skb, sizeof(*rthdr));
-	memset(rthdr, 0, sizeof(*rthdr));
-	rthdr->hdr.it_len = cpu_to_le16(sizeof(*rthdr));
-	rthdr->hdr.it_present =
-		cpu_to_le32((1 << IEEE80211_RADIOTAP_FLAGS) |
-			    (1 << IEEE80211_RADIOTAP_CHANNEL));
-
-	if (rate) {
-		rthdr->rate_or_pad = rate->bitrate / 5;
-		rthdr->hdr.it_present |=
-			cpu_to_le32(1 << IEEE80211_RADIOTAP_RATE);
-	}
-	rthdr->chan_freq = cpu_to_le16(status->freq);
-
-	if (status->band == IEEE80211_BAND_5GHZ)
-		rthdr->chan_flags = cpu_to_le16(IEEE80211_CHAN_OFDM |
-						IEEE80211_CHAN_5GHZ);
-	else
-		rthdr->chan_flags = cpu_to_le16(IEEE80211_CHAN_DYN |
-						IEEE80211_CHAN_2GHZ);
+	/* prepend radiotap information */
+	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom);
 
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;

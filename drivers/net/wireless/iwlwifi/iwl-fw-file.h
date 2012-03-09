@@ -60,8 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __iwl_ucode_h__
-#define __iwl_ucode_h__
+#ifndef __iwl_fw_file_h__
+#define __iwl_fw_file_h__
 
 #include <linux/netdevice.h>
 
@@ -126,22 +126,6 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_FLAGS		= 18,
 };
 
-/**
- * enum iwl_ucode_tlv_flag - ucode API flags
- * @IWL_UCODE_TLV_FLAGS_PAN: This is PAN capable microcode; this previously
- *	was a separate TLV but moved here to save space.
- * @IWL_UCODE_TLV_FLAGS_NEWSCAN: new uCode scan behaviour on hidden SSID,
- *	treats good CRC threshold as a boolean
- * @IWL_UCODE_TLV_FLAGS_MFP: This uCode image supports MFP (802.11w).
- * @IWL_UCODE_TLV_FLAGS_P2P: This uCode image supports P2P.
- */
-enum iwl_ucode_tlv_flag {
-	IWL_UCODE_TLV_FLAGS_PAN		= BIT(0),
-	IWL_UCODE_TLV_FLAGS_NEWSCAN	= BIT(1),
-	IWL_UCODE_TLV_FLAGS_MFP		= BIT(2),
-	IWL_UCODE_TLV_FLAGS_P2P		= BIT(3),
-};
-
 struct iwl_ucode_tlv {
 	__le16 type;		/* see above */
 	__le16 alternative;	/* see comment */
@@ -173,48 +157,4 @@ struct iwl_tlv_ucode_header {
 	u8 data[0];
 };
 
-struct iwl_ucode_capabilities {
-	u32 max_probe_length;
-	u32 standard_phy_calibration_size;
-	u32 flags;
-};
-
-/* one for each uCode image (inst/data, boot/init/runtime) */
-struct fw_desc {
-	dma_addr_t p_addr;	/* hardware address */
-	void *v_addr;		/* software address */
-	u32 len;		/* size in bytes */
-};
-
-struct fw_img {
-	struct fw_desc code;	/* firmware code image */
-	struct fw_desc data;	/* firmware data image */
-};
-
-/**
- * struct iwl_fw - variables associated with the firmware
- *
- * @ucode_ver: ucode version from the ucode file
- * @fw_version: firmware version string
- * @ucode_rt: run time ucode image
- * @ucode_init: init ucode image
- * @ucode_wowlan: wake on wireless ucode image (optional)
- * @ucode_capa: capabilities parsed from the ucode file.
- * @enhance_sensitivity_table: device can do enhanced sensitivity.
- */
-struct iwl_fw {
-
-	u32 ucode_ver;
-
-	char fw_version[ETHTOOL_BUSINFO_LEN];
-
-	/* ucode images */
-	struct fw_img ucode_rt;
-	struct fw_img ucode_init;
-	struct fw_img ucode_wowlan;
-
-	struct iwl_ucode_capabilities ucode_capa;
-	bool enhance_sensitivity_table;
-};
-
-#endif  /* __iwl_ucode_h__ */
+#endif  /* __iwl_fw_file_h__ */

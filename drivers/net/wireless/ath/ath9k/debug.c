@@ -818,6 +818,7 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 	if (ts->ts_flags & ATH9K_TX_DELIM_UNDERRUN)
 		TX_STAT_INC(qnum, delim_underrun);
 
+#ifdef CONFIG_ATH9K_MAC_DEBUG
 	spin_lock(&sc->debug.samp_lock);
 	TX_SAMP_DBG(jiffies) = jiffies;
 	TX_SAMP_DBG(rssi_ctl0) = ts->ts_rssi_ctl0;
@@ -844,6 +845,7 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 
 	sc->debug.tsidx = (sc->debug.tsidx + 1) % ATH_DBG_MAX_SAMPLES;
 	spin_unlock(&sc->debug.samp_lock);
+#endif
 
 #undef TX_SAMP_DBG
 }
@@ -942,27 +944,6 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	PHY_ERR("HT-RATE ERR", ATH9K_PHYERR_HT_RATE_ILLEGAL);
 
 	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-CTL0",
-			sc->debug.stats.rxstats.rs_rssi_ctl0);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-CTL1",
-			sc->debug.stats.rxstats.rs_rssi_ctl1);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-CTL2",
-			sc->debug.stats.rxstats.rs_rssi_ctl2);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-EXT0",
-			sc->debug.stats.rxstats.rs_rssi_ext0);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-EXT1",
-			sc->debug.stats.rxstats.rs_rssi_ext1);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "RSSI-EXT2",
-			sc->debug.stats.rxstats.rs_rssi_ext2);
-	len += snprintf(buf + len, size - len,
-			"%22s : %10d\n", "Rx Antenna",
-			sc->debug.stats.rxstats.rs_antenna);
-	len += snprintf(buf + len, size - len,
 			"%22s : %10u\n", "RX-Pkts-All",
 			sc->debug.stats.rxstats.rx_pkts_all);
 	len += snprintf(buf + len, size - len,
@@ -1009,16 +990,7 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 			RX_PHY_ERR_INC(rs->rs_phyerr);
 	}
 
-	sc->debug.stats.rxstats.rs_rssi_ctl0 = rs->rs_rssi_ctl0;
-	sc->debug.stats.rxstats.rs_rssi_ctl1 = rs->rs_rssi_ctl1;
-	sc->debug.stats.rxstats.rs_rssi_ctl2 = rs->rs_rssi_ctl2;
-
-	sc->debug.stats.rxstats.rs_rssi_ext0 = rs->rs_rssi_ext0;
-	sc->debug.stats.rxstats.rs_rssi_ext1 = rs->rs_rssi_ext1;
-	sc->debug.stats.rxstats.rs_rssi_ext2 = rs->rs_rssi_ext2;
-
-	sc->debug.stats.rxstats.rs_antenna = rs->rs_antenna;
-
+#ifdef CONFIG_ATH9K_MAC_DEBUG
 	spin_lock(&sc->debug.samp_lock);
 	RX_SAMP_DBG(jiffies) = jiffies;
 	RX_SAMP_DBG(rssi_ctl0) = rs->rs_rssi_ctl0;
@@ -1034,6 +1006,8 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 
 	sc->debug.rsidx = (sc->debug.rsidx + 1) % ATH_DBG_MAX_SAMPLES;
 	spin_unlock(&sc->debug.samp_lock);
+
+#endif
 
 #undef RX_STAT_INC
 #undef RX_PHY_ERR_INC
@@ -1277,6 +1251,8 @@ static const struct file_operations fops_modal_eeprom = {
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
+
+#ifdef CONFIG_ATH9K_MAC_DEBUG
 
 void ath9k_debug_samp_bb_mac(struct ath_softc *sc)
 {
@@ -1551,6 +1527,7 @@ static const struct file_operations fops_samps = {
 	.llseek = default_llseek,
 };
 
+#endif
 
 int ath9k_init_debug(struct ath_hw *ah)
 {
@@ -1604,8 +1581,10 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_base_eeprom);
 	debugfs_create_file("modal_eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_modal_eeprom);
+#ifdef CONFIG_ATH9K_MAC_DEBUG
 	debugfs_create_file("samples", S_IRUSR, sc->debug.debugfs_phy, sc,
 			    &fops_samps);
+#endif
 
 	debugfs_create_u32("gpio_mask", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);

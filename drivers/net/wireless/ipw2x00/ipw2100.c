@@ -298,8 +298,6 @@ static const char *command_types[] = {
 };
 #endif
 
-#define WEXT_USECHANNELS 1
-
 static const long ipw2100_frequencies[] = {
 	2412, 2417, 2422, 2427,
 	2432, 2437, 2442, 2447,

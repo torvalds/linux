@@ -613,7 +613,6 @@ static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 20, .hw_value = 4, },
 	{.bitrate = 55, .hw_value = 11, },
 	{.bitrate = 110, .hw_value = 22, },
-	{.bitrate = 220, .hw_value = 44, },
 	{.bitrate = 60, .hw_value = 12, },
 	{.bitrate = 90, .hw_value = 18, },
 	{.bitrate = 120, .hw_value = 24, },
@@ -622,7 +621,6 @@ static struct ieee80211_rate mwifiex_rates[] = {
 	{.bitrate = 360, .hw_value = 72, },
 	{.bitrate = 480, .hw_value = 96, },
 	{.bitrate = 540, .hw_value = 108, },
-	{.bitrate = 720, .hw_value = 144, },
 };
 
 /* Channel definitions to be advertised to cfg80211 */
@@ -648,7 +646,7 @@ static struct ieee80211_supported_band mwifiex_band_2ghz = {
 	.channels = mwifiex_channels_2ghz,
 	.n_channels = ARRAY_SIZE(mwifiex_channels_2ghz),
 	.bitrates = mwifiex_rates,
-	.n_bitrates = 14,
+	.n_bitrates = ARRAY_SIZE(mwifiex_rates),
 };
 
 static struct ieee80211_channel mwifiex_channels_5ghz[] = {
@@ -688,8 +686,8 @@ static struct ieee80211_channel mwifiex_channels_5ghz[] = {
 static struct ieee80211_supported_band mwifiex_band_5ghz = {
 	.channels = mwifiex_channels_5ghz,
 	.n_channels = ARRAY_SIZE(mwifiex_channels_5ghz),
-	.bitrates = mwifiex_rates - 4,
-	.n_bitrates = ARRAY_SIZE(mwifiex_rates) + 4,
+	.bitrates = mwifiex_rates + 4,
+	.n_bitrates = ARRAY_SIZE(mwifiex_rates) - 4,
 };
 
 
@@ -841,12 +839,12 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 		       u8 *bssid, int mode, struct ieee80211_channel *channel,
 		       struct cfg80211_connect_params *sme, bool privacy)
 {
-	struct mwifiex_802_11_ssid req_ssid;
+	struct cfg80211_ssid req_ssid;
 	int ret, auth_type = 0;
 	struct cfg80211_bss *bss = NULL;
 	u8 is_scanning_required = 0;
 
-	memset(&req_ssid, 0, sizeof(struct mwifiex_802_11_ssid));
+	memset(&req_ssid, 0, sizeof(struct cfg80211_ssid));
 
 	req_ssid.ssid_len = ssid_len;
 	if (ssid_len > IEEE80211_MAX_SSID_LEN) {
@@ -873,6 +871,7 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	priv->sec_info.wpa2_enabled = false;
 	priv->wep_key_curr_index = 0;
 	priv->sec_info.encryption_mode = 0;
+	priv->sec_info.is_authtype_auto = 0;
 	ret = mwifiex_set_encode(priv, NULL, 0, 0, 1);
 
 	if (mode == NL80211_IFTYPE_ADHOC) {
@@ -894,11 +893,12 @@ mwifiex_cfg80211_assoc(struct mwifiex_private *priv, size_t ssid_len, u8 *ssid,
 	}
 
 	/* Now handle infra mode. "sme" is valid for infra mode only */
-	if (sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC
-			|| sme->auth_type == NL80211_AUTHTYPE_OPEN_SYSTEM)
+	if (sme->auth_type == NL80211_AUTHTYPE_AUTOMATIC) {
 		auth_type = NL80211_AUTHTYPE_OPEN_SYSTEM;
-	else if (sme->auth_type == NL80211_AUTHTYPE_SHARED_KEY)
-		auth_type = NL80211_AUTHTYPE_SHARED_KEY;
+		priv->sec_info.is_authtype_auto = 1;
+	} else {
+		auth_type = sme->auth_type;
+	}
 
 	if (sme->crypto.n_ciphers_pairwise) {
 		priv->sec_info.encryption_mode =
@@ -1106,12 +1106,10 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 		dev_err(priv->adapter->dev, "failed to alloc scan_req\n");
 		return -ENOMEM;
 	}
-	for (i = 0; i < request->n_ssids; i++) {
-		memcpy(priv->user_scan_cfg->ssid_list[i].ssid,
-			request->ssids[i].ssid, request->ssids[i].ssid_len);
-		priv->user_scan_cfg->ssid_list[i].max_len =
-			request->ssids[i].ssid_len;
-	}
+
+	priv->user_scan_cfg->num_ssids = request->n_ssids;
+	priv->user_scan_cfg->ssid_list = request->ssids;
+
 	for (i = 0; i < request->n_channels; i++) {
 		chan = request->channels[i];
 		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;

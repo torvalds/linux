@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,68 +60,98 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#include <linux/sched.h>
 
-#include <linux/interrupt.h>
-#include "iwl-debug.h"
+#include "iwl-notif-wait.h"
 
-#define __iwl_fn(fn)						\
-void __iwl_ ##fn(struct device *dev, const char *fmt, ...)	\
-{								\
-	struct va_format vaf = {				\
-		.fmt = fmt,					\
-	};							\
-	va_list args;						\
-								\
-	va_start(args, fmt);					\
-	vaf.va = &args;						\
-	dev_ ##fn(dev, "%pV", &vaf);				\
-	trace_iwlwifi_ ##fn(&vaf);				\
-	va_end(args);						\
+
+void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_wait)
+{
+	spin_lock_init(&notif_wait->notif_wait_lock);
+	INIT_LIST_HEAD(&notif_wait->notif_waits);
+	init_waitqueue_head(&notif_wait->notif_waitq);
 }
 
-__iwl_fn(warn)
-__iwl_fn(info)
-__iwl_fn(crit)
-
-void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
-		const char *fmt, ...)
+void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_wait,
+				  struct iwl_rx_packet *pkt)
 {
-	struct va_format vaf = {
-		.fmt = fmt,
-	};
-	va_list args;
+	if (!list_empty(&notif_wait->notif_waits)) {
+		struct iwl_notification_wait *w;
 
-	va_start(args, fmt);
-	vaf.va = &args;
-	if (!trace_only) {
-		if (rfkill_prefix)
-			dev_err(dev, "(RFKILL) %pV", &vaf);
-		else
-			dev_err(dev, "%pV", &vaf);
+		spin_lock(&notif_wait->notif_wait_lock);
+		list_for_each_entry(w, &notif_wait->notif_waits, list) {
+			if (w->cmd != pkt->hdr.cmd)
+				continue;
+			w->triggered = true;
+			if (w->fn)
+				w->fn(notif_wait, pkt, w->fn_data);
+		}
+		spin_unlock(&notif_wait->notif_wait_lock);
+
+		wake_up_all(&notif_wait->notif_waitq);
 	}
-	trace_iwlwifi_err(&vaf);
-	va_end(args);
 }
 
-#if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
-void __iwl_dbg(struct device *dev,
-	       u32 level, bool limit, const char *function,
-	       const char *fmt, ...)
+void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_wait)
 {
-	struct va_format vaf = {
-		.fmt = fmt,
-	};
-	va_list args;
+	unsigned long flags;
+	struct iwl_notification_wait *wait_entry;
 
-	va_start(args, fmt);
-	vaf.va = &args;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_have_debug_level(level) &&
-	    (!limit || net_ratelimit()))
-		dev_err(dev, "%c %s %pV", in_interrupt() ? 'I' : 'U',
-			function, &vaf);
-#endif
-	trace_iwlwifi_dbg(level, in_interrupt(), function, &vaf);
-	va_end(args);
+	spin_lock_irqsave(&notif_wait->notif_wait_lock, flags);
+	list_for_each_entry(wait_entry, &notif_wait->notif_waits, list)
+		wait_entry->aborted = true;
+	spin_unlock_irqrestore(&notif_wait->notif_wait_lock, flags);
+
+	wake_up_all(&notif_wait->notif_waitq);
 }
-#endif
+
+
+void
+iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
+			   struct iwl_notification_wait *wait_entry,
+			   u8 cmd,
+			   void (*fn)(struct iwl_notif_wait_data *notif_wait,
+				      struct iwl_rx_packet *pkt, void *data),
+			   void *fn_data)
+{
+	wait_entry->fn = fn;
+	wait_entry->fn_data = fn_data;
+	wait_entry->cmd = cmd;
+	wait_entry->triggered = false;
+	wait_entry->aborted = false;
+
+	spin_lock_bh(&notif_wait->notif_wait_lock);
+	list_add(&wait_entry->list, &notif_wait->notif_waits);
+	spin_unlock_bh(&notif_wait->notif_wait_lock);
+}
+
+int iwl_wait_notification(struct iwl_notif_wait_data *notif_wait,
+			  struct iwl_notification_wait *wait_entry,
+			  unsigned long timeout)
+{
+	int ret;
+
+	ret = wait_event_timeout(notif_wait->notif_waitq,
+				 wait_entry->triggered || wait_entry->aborted,
+				 timeout);
+
+	spin_lock_bh(&notif_wait->notif_wait_lock);
+	list_del(&wait_entry->list);
+	spin_unlock_bh(&notif_wait->notif_wait_lock);
+
+	if (wait_entry->aborted)
+		return -EIO;
+
+	/* return value is always >= 0 */
+	if (ret <= 0)
+		return -ETIMEDOUT;
+	return 0;
+}
+
+void iwl_remove_notification(struct iwl_notif_wait_data *notif_wait,
+			     struct iwl_notification_wait *wait_entry)
+{
+	spin_lock_bh(&notif_wait->notif_wait_lock);
+	list_del(&wait_entry->list);
+	spin_unlock_bh(&notif_wait->notif_wait_lock);
+}
