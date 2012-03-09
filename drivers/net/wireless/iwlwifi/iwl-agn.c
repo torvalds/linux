@@ -1206,35 +1206,25 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* TODO: remove fw from shared data later */
 	priv->shrd->fw = fw;
 
-	/************************
-	 * 2. Setup HW constants
-	 ************************/
-	iwl_set_hw_params(priv);
+	/*
+	 * Populate the state variables that the transport layer needs
+	 * to know about.
+	 */
+	trans_cfg.op_mode = op_mode;
 
 	ucode_flags = fw->ucode_capa.flags;
 
 #ifndef CONFIG_IWLWIFI_P2P
 	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 #endif
-	if (!(hw_params(priv).sku & EEPROM_SKU_CAP_IPAN_ENABLE))
-		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 
-	/*
-	 * if not PAN, then don't support P2P -- might be a uCode
-	 * packaging bug or due to the eeprom check above
-	 */
-	if (!(ucode_flags & IWL_UCODE_TLV_FLAGS_PAN))
-		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
-
-
-	/*****************************
-	 * Configure transport layer
-	 *****************************/
-	/*
-	 * Populate the state variables that the transport layer needs
-	 * to know about.
-	 */
-	trans_cfg.op_mode = op_mode;
+	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
+		trans_cfg.cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+	} else {
+		priv->sta_key_max_num = STA_KEY_MAX_NUM;
+		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+	}
 
 	/* Configure transport layer */
 	iwl_trans_configure(trans(priv), &trans_cfg);
@@ -1269,7 +1259,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	spin_lock_init(&priv->statistics.lock);
 
 	/***********************
-	 * 3. Read REV register
+	 * 2. Read REV register
 	 ***********************/
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		cfg(priv)->name, trans(priv)->hw_rev);
@@ -1279,9 +1269,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		goto out_free_traffic_mem;
 
 	/*****************
-	 * 4. Read EEPROM
+	 * 3. Read EEPROM
 	 *****************/
-	/* Read the EEPROM */
 	err = iwl_eeprom_init(trans(priv), trans(priv)->hw_rev);
 	/* Reset chip to save power until we load uCode during "up". */
 	iwl_trans_stop_hw(trans(priv));
@@ -1310,8 +1299,28 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		priv->hw->wiphy->n_addresses++;
 	}
 
+	/************************
+	 * 4. Setup HW constants
+	 ************************/
+	iwl_set_hw_params(priv);
+
+	if (!(hw_params(priv).sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
+		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN");
+		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+		/*
+		 * if not PAN, then don't support P2P -- might be a uCode
+		 * packaging bug or due to the eeprom check above
+		 */
+		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
+		priv->sta_key_max_num = STA_KEY_MAX_NUM;
+		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+
+		/* Configure transport layer again*/
+		iwl_trans_configure(trans(priv), &trans_cfg);
+	}
+
 	/*******************
-	 * 6. Setup priv
+	 * 5. Setup priv
 	 *******************/
 
 	err = iwl_init_drv(priv);
@@ -1320,7 +1329,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* At this point both hw and priv are initialized. */
 
 	/********************
-	 * 7. Setup services
+	 * 6. Setup services
 	 ********************/
 	iwl_setup_deferred_work(priv);
 	iwl_setup_rx_handlers(priv);
@@ -1336,14 +1345,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv->new_scan_threshold_behaviour =
 		!!(ucode_flags & IWL_UCODE_TLV_FLAGS_NEWSCAN);
 
-	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
-		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
-		priv->shrd->cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
-	} else {
-		priv->sta_key_max_num = STA_KEY_MAX_NUM;
-		priv->shrd->cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
-	}
-
 	priv->phy_calib_chain_noise_reset_cmd =
 		fw->ucode_capa.standard_phy_calibration_size;
 	priv->phy_calib_chain_noise_gain_cmd =
@@ -1355,7 +1356,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/**************************************************
 	 * This is still part of probe() in a sense...
 	 *
-	 * 9. Setup and register with mac80211 and debugfs
+	 * 7. Setup and register with mac80211 and debugfs
 	 **************************************************/
 	err = iwlagn_mac_setup_register(priv, &fw->ucode_capa);
 	if (err)

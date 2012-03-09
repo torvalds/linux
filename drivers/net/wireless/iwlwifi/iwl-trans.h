@@ -279,9 +279,12 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  *
  * @op_mode: pointer to the upper layer.
  *	Must be set before any other call.
+ * @cmd_queue: the index of the command queue.
+ *	Must be set before start_fw.
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
+	u8 cmd_queue;
 };
 
 /**
@@ -331,6 +334,9 @@ struct iwl_trans_config {
  * @write8: write a u8 to a register at offset ofs from the BAR
  * @write32: write a u32 to a register at offset ofs from the BAR
  * @read32: read a u32 register at offset ofs from the BAR
+ * @configure: configure parameters required by the transport layer from
+ *	the op_mode. May be called several times before start_fw, can't be
+ *	called after that.
  */
 struct iwl_trans_ops {
 
@@ -370,6 +376,8 @@ struct iwl_trans_ops {
 	void (*write8)(struct iwl_trans *trans, u32 ofs, u8 val);
 	void (*write32)(struct iwl_trans *trans, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
+	void (*configure)(struct iwl_trans *trans,
+			  const struct iwl_trans_config *trans_cfg);
 };
 
 /**
@@ -425,6 +433,8 @@ static inline void iwl_trans_configure(struct iwl_trans *trans,
 	 * more
 	 */
 	trans->op_mode = trans_cfg->op_mode;
+
+	trans->ops->configure(trans, trans_cfg);
 }
 
 static inline int iwl_trans_start_hw(struct iwl_trans *trans)

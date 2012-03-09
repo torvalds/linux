@@ -368,7 +368,6 @@ struct iwl_cfg {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
- * @cmd_queue: command queue number
  * @status: STATUS_*
  * @wowlan: are we running wowlan uCode
  * @valid_contexts: microcode/device supports multiple contexts
@@ -385,7 +384,6 @@ struct iwl_cfg {
  * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
-	u8 cmd_queue;
 	unsigned long status;
 	u8 valid_contexts;
 

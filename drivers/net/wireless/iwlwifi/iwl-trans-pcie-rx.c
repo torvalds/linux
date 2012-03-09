@@ -361,7 +361,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
-	struct iwl_tx_queue *txq = &trans_pcie->txq[trans->shrd->cmd_queue];
+	struct iwl_tx_queue *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 	struct iwl_device_cmd *cmd;
 	unsigned long flags;
 	int len, err;
