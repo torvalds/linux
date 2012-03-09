@@ -367,6 +367,7 @@ enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_con
 							   u32 event_code)
 {
 	enum scis_sds_remote_node_context_states state;
+	u32 next_state;
 
 	state = sci_rnc->sm.current_state_id;
 	switch (state) {
@@ -425,11 +426,11 @@ enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_con
 		switch (scu_get_event_type(event_code)) {
 		case SCU_EVENT_TL_RNC_SUSPEND_TX:
 			sci_change_state(&sci_rnc->sm, SCI_RNC_TX_SUSPENDED);
-			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			sci_rnc->suspend_type = scu_get_event_type(event_code);
 			break;
 		case SCU_EVENT_TL_RNC_SUSPEND_TX_RX:
 			sci_change_state(&sci_rnc->sm, SCI_RNC_TX_RX_SUSPENDED);
-			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			sci_rnc->suspend_type = scu_get_event_type(event_code);
 			break;
 		default:
 			goto out;
@@ -438,16 +439,16 @@ enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_con
 	case SCI_RNC_AWAIT_SUSPENSION:
 		switch (scu_get_event_type(event_code)) {
 		case SCU_EVENT_TL_RNC_SUSPEND_TX:
-			sci_change_state(&sci_rnc->sm, SCI_RNC_TX_SUSPENDED);
-			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			next_state = SCI_RNC_TX_SUSPENDED;
 			break;
 		case SCU_EVENT_TL_RNC_SUSPEND_TX_RX:
-			sci_change_state(&sci_rnc->sm, SCI_RNC_TX_RX_SUSPENDED);
-			sci_rnc->suspension_code = scu_get_event_specifier(event_code);
+			next_state = SCI_RNC_TX_RX_SUSPENDED;
 			break;
 		default:
 			goto out;
 		}
+		if (sci_rnc->suspend_type == scu_get_event_type(event_code))
+			sci_change_state(&sci_rnc->sm, next_state);
 		break;
 	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
@@ -502,33 +503,60 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 	}
 }
 
-enum sci_status sci_remote_node_context_suspend(struct sci_remote_node_context *sci_rnc,
-						     u32 suspend_type,
-						     scics_sds_remote_node_context_callback cb_fn,
-						     void *cb_p)
+enum sci_status sci_remote_node_context_suspend(
+			struct sci_remote_node_context *sci_rnc,
+			enum sci_remote_node_suspension_reasons suspend_reason,
+			u32 suspend_type,
+			scics_sds_remote_node_context_callback cb_fn,
+			void *cb_p)
 {
-	enum scis_sds_remote_node_context_states state;
+	enum scis_sds_remote_node_context_states state
+		= sci_rnc->sm.current_state_id;
+	struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
+	enum sci_status status = SCI_FAILURE_INVALID_STATE;
 
-	state = sci_rnc->sm.current_state_id;
-	if (state != SCI_RNC_READY) {
+	/* Disable automatic state continuations if explicitly suspending. */
+	if (suspend_reason == SCI_SOFTWARE_SUSPENSION)
+		sci_rnc->destination_state
+			= SCIC_SDS_REMOTE_NODE_DESTINATION_STATE_UNSPECIFIED;
+	switch (state) {
+	case SCI_RNC_READY:
+		break;
+	case SCI_RNC_TX_SUSPENDED:
+		if (suspend_type == SCU_EVENT_TL_RNC_SUSPEND_TX)
+			status = SCI_SUCCESS;
+		break;
+	case SCI_RNC_TX_RX_SUSPENDED:
+		if (suspend_type == SCU_EVENT_TL_RNC_SUSPEND_TX_RX)
+			status = SCI_SUCCESS;
+		break;
+	case SCI_RNC_AWAIT_SUSPENSION:
+		if ((sci_rnc->suspend_type == SCU_EVENT_TL_RNC_SUSPEND_TX_RX)
+		    || (suspend_type == sci_rnc->suspend_type))
+			return SCI_SUCCESS;
+		break;
+	default:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 			 "%s: invalid state %s\n", __func__,
 			 rnc_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
+	sci_rnc->user_callback = cb_fn;
+	sci_rnc->user_cookie   = cb_p;
+	sci_rnc->suspend_type  = suspend_type;
 
-	sci_rnc->user_callback   = cb_fn;
-	sci_rnc->user_cookie     = cb_p;
-	sci_rnc->suspension_code = suspend_type;
-
-	if (suspend_type == SCI_SOFTWARE_SUSPENSION) {
-		sci_remote_device_post_request(rnc_to_dev(sci_rnc),
-						    SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX);
-		isci_dev_set_hang_detection_timeout(rnc_to_dev(sci_rnc),
-						    0x00000001);
+	if (status == SCI_SUCCESS) { /* Already in the destination state? */
+		sci_remote_node_context_notify_user(sci_rnc);
+		return SCI_SUCCESS;
 	}
+	if (suspend_reason == SCI_SOFTWARE_SUSPENSION) {
+		isci_dev_set_hang_detection_timeout(idev, 0x00000001);
+		sci_remote_device_post_request(
+			idev, SCI_SOFTWARE_SUSPEND_CMD);
+	}
+	if (state != SCI_RNC_AWAIT_SUSPENSION)
+		sci_change_state(&sci_rnc->sm, SCI_RNC_AWAIT_SUSPENSION);
 
-	sci_change_state(&sci_rnc->sm, SCI_RNC_AWAIT_SUSPENSION);
 	return SCI_SUCCESS;
 }
 

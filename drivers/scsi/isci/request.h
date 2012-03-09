@@ -414,5 +414,4 @@ static inline int isci_task_is_ncq_recovery(struct sas_task *task)
 		task->ata_task.fis.lbal == ATA_LOG_SATA_NCQ);
 
 }
-
 #endif /* !defined(_ISCI_REQUEST_H_) */

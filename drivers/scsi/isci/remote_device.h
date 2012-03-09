@@ -331,10 +331,6 @@ enum sci_status sci_remote_device_complete_io(
 	struct isci_remote_device *idev,
 	struct isci_request *ireq);
 
-enum sci_status sci_remote_device_suspend(
-	struct isci_remote_device *idev,
-	u32 suspend_type);
-
 void sci_remote_device_post_request(
 	struct isci_remote_device *idev,
 	u32 request);

@@ -75,8 +75,12 @@
  */
 #define SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX    0x0FFF
 
-#define SCU_HARDWARE_SUSPENSION  (0)
-#define SCI_SOFTWARE_SUSPENSION  (1)
+enum sci_remote_node_suspension_reasons {
+	SCU_HARDWARE_SUSPENSION,
+	SCI_SOFTWARE_SUSPENSION
+};
+#define SCI_SOFTWARE_SUSPEND_CMD SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX_RX
+#define SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT SCU_EVENT_TL_RNC_SUSPEND_TX_RX
 
 struct isci_request;
 struct isci_remote_device;
@@ -156,10 +160,10 @@ struct sci_remote_node_context {
 	u16 remote_node_index;
 
 	/**
-	 * This field is the recored suspension code or the reason for the remote node
+	 * This field is the recored suspension type of the remote node
 	 * context suspension.
 	 */
-	u32 suspension_code;
+	u32 suspend_type;
 
 	/**
 	 * This field is true if the remote node context is resuming from its current
@@ -200,6 +204,7 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 						      void *callback_parameter);
 enum sci_status sci_remote_node_context_suspend(struct sci_remote_node_context *sci_rnc,
 						     u32 suspend_type,
+						     u32 suspension_code,
 						     scics_sds_remote_node_context_callback cb_fn,
 						     void *cb_p);
 enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *sci_rnc,

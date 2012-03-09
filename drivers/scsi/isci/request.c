@@ -2116,9 +2116,6 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 		 * completion.
 		 */
 		if (ireq->stp.rsp.fis_type == FIS_REGD2H) {
-			sci_remote_device_suspend(ireq->target_device,
-				SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
-
 			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
@@ -2138,13 +2135,6 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 	/* TODO We can retry the command for SCU_TASK_DONE_CMD_LL_R_ERR
 	 * - this comes only for B0
 	 */
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_INV_FIS_LEN):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_MAX_PLD_ERR):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_LL_R_ERR):
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_CMD_LL_R_ERR):
-		sci_remote_device_suspend(ireq->target_device,
-			SCU_EVENT_SPECIFIC(SCU_NORMALIZE_COMPLETION_STATUS(completion_code)));
-		/* Fall through to the default case */
 	default:
 		/* All other completion status cause the IO to be complete. */
 		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
@@ -2262,14 +2252,151 @@ static enum sci_status atapi_data_tc_completion_handler(struct isci_request *ire
 	return status;
 }
 
+static int sci_request_smp_completion_status_is_tx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_OPEN_REJECT_WRONG_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_1:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_2:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_3:
+	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
+		return 1;
+	}
+	return 0;
+}
+
+static int sci_request_smp_completion_status_is_tx_rx_suspend(
+	unsigned int completion_status)
+{
+	return 0; /* There are no Tx/Rx SMP suspend conditions. */
+}
+
+static int sci_request_ssp_completion_status_is_tx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_DONE_TX_RAW_CMD_ERR:
+	case SCU_TASK_DONE_LF_ERR:
+	case SCU_TASK_OPEN_REJECT_WRONG_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_1:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_2:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_3:
+	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
+	case SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY:
+	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
+		return 1;
+	}
+	return 0;
+}
+
+static int sci_request_ssp_completion_status_is_tx_rx_suspend(
+	unsigned int completion_status)
+{
+	return 0; /* There are no Tx/Rx SSP suspend conditions. */
+}
+
+static int sci_request_stpsata_completion_status_is_tx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_DONE_TX_RAW_CMD_ERR:
+	case SCU_TASK_DONE_LL_R_ERR:
+	case SCU_TASK_DONE_LL_PERR:
+	case SCU_TASK_DONE_REG_ERR:
+	case SCU_TASK_DONE_SDB_ERR:
+	case SCU_TASK_OPEN_REJECT_WRONG_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_1:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_2:
+	case SCU_TASK_OPEN_REJECT_RESERVED_ABANDON_3:
+	case SCU_TASK_OPEN_REJECT_BAD_DESTINATION:
+	case SCU_TASK_OPEN_REJECT_ZONE_VIOLATION:
+	case SCU_TASK_OPEN_REJECT_STP_RESOURCES_BUSY:
+	case SCU_TASK_OPEN_REJECT_PROTOCOL_NOT_SUPPORTED:
+	case SCU_TASK_OPEN_REJECT_CONNECTION_RATE_NOT_SUPPORTED:
+		return 1;
+	}
+	return 0;
+}
+
+
+static int sci_request_stpsata_completion_status_is_tx_rx_suspend(
+	unsigned int completion_status)
+{
+	switch (completion_status) {
+	case SCU_TASK_DONE_LF_ERR:
+	case SCU_TASK_DONE_LL_SY_TERM:
+	case SCU_TASK_DONE_LL_LF_TERM:
+	case SCU_TASK_DONE_BREAK_RCVD:
+	case SCU_TASK_DONE_INV_FIS_LEN:
+	case SCU_TASK_DONE_UNEXP_FIS:
+	case SCU_TASK_DONE_UNEXP_SDBFIS:
+	case SCU_TASK_DONE_MAX_PLD_ERR:
+		return 1;
+	}
+	return 0;
+}
+
+static void sci_request_handle_suspending_completions(
+	struct isci_request *ireq,
+	u32 completion_code)
+{
+	int is_tx = 0;
+	int is_tx_rx = 0;
+
+	switch (ireq->protocol) {
+	case SAS_PROTOCOL_SMP:
+		is_tx = sci_request_smp_completion_status_is_tx_suspend(
+			completion_code);
+		is_tx_rx = sci_request_smp_completion_status_is_tx_rx_suspend(
+			completion_code);
+		break;
+	case SAS_PROTOCOL_SSP:
+		is_tx = sci_request_ssp_completion_status_is_tx_suspend(
+			completion_code);
+		is_tx_rx = sci_request_ssp_completion_status_is_tx_rx_suspend(
+			completion_code);
+		break;
+	case SAS_PROTOCOL_STP:
+		is_tx = sci_request_stpsata_completion_status_is_tx_suspend(
+			completion_code);
+		is_tx_rx =
+			sci_request_stpsata_completion_status_is_tx_rx_suspend(
+				completion_code);
+		break;
+	default:
+		dev_warn(&ireq->isci_host->pdev->dev,
+			 "%s: request %p has no valid protocol\n",
+			 __func__, ireq);
+		break;
+	}
+	if (is_tx || is_tx_rx) {
+		BUG_ON(is_tx && is_tx_rx);
+
+		sci_remote_node_context_suspend(
+			&ireq->target_device->rnc,
+			SCU_HARDWARE_SUSPENSION,
+			(is_tx_rx) ? SCU_EVENT_TL_RNC_SUSPEND_TX_RX
+				   : SCU_EVENT_TL_RNC_SUSPEND_TX,
+			NULL, NULL);
+	}
+}
+
 enum sci_status
 sci_io_request_tc_completion(struct isci_request *ireq,
-				  u32 completion_code)
+			     u32 completion_code)
 {
 	enum sci_base_request_states state;
 	struct isci_host *ihost = ireq->owning_controller;
 
 	state = ireq->sm.current_state_id;
+
+	/* Decode those completions that signal upcoming suspension events. */
+	sci_request_handle_suspending_completions(
+		ireq, SCU_GET_COMPLETION_TL_STATUS(completion_code));
 
 	switch (state) {
 	case SCI_REQ_STARTED:
