@@ -999,8 +999,8 @@ static int __init rk30_init_devices(void)
 	platform_device_register(&device_tsadc);
 #endif
 	rk30_init_sdmmc();
-#ifdef CONFIG_FIQ_DEBUGGER
-	rk_serial_debug_init(RK30_UART1_PHYS, IRQ_UART1, IRQ_UART_SIGNAL, -1);
+#if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
+	rk_serial_debug_init(DEBUG_UART_PHYS, IRQ_UART0 + CONFIG_RK_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
 	rk30_init_i2s();
 

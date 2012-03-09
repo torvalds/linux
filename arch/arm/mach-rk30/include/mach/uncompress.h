@@ -4,7 +4,8 @@
 #include <linux/serial_reg.h>
 #include <mach/io.h>
 
-static volatile u32 *UART = (u32 *)RK30_UART1_PHYS;
+#ifdef DEBUG_UART_PHYS
+static volatile u32 *UART = (u32 *)DEBUG_UART_PHYS;
 
 static void putc(int c)
 {
@@ -12,6 +13,11 @@ static void putc(int c)
 		barrier();
 	UART[UART_TX] = c;
 }
+#else
+static inline void putc(int c)
+{
+}
+#endif
 
 static inline void flush(void)
 {

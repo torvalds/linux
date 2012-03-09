@@ -15,10 +15,21 @@
 
 #include <mach/io.h>
 
+#ifdef DEBUG_UART_PHYS
 	.macro addruart, rp, rv
-		ldr	\rp, = RK30_UART1_PHYS
-		ldr	\rv, = RK30_UART1_BASE
+		ldr	\rp, = DEBUG_UART_PHYS
+		ldr	\rv, = DEBUG_UART_BASE
 	.endm
 
 #define UART_SHIFT	2
 #include <asm/hardware/debug-8250.S>
+#else
+	.macro addruart, rp, rv
+	.endm
+	.macro senduart, rd, rx
+	.endm
+	.macro busyuart, rd, rx
+	.endm
+	.macro waituart, rd, rx
+	.endm
+#endif

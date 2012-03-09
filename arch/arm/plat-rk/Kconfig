@@ -120,4 +120,11 @@ config RK_EARLY_PRINTK
 	  Say Y here if you want to have an early console using the
 	  kernel low-level debugging functions.
 
+config RK_DEBUG_UART
+	int "Debug UART"
+	default 1 if ARCH_RK29
+	default 2 if ARCH_RK30
+	help
+	  Select a UART for debugging. -1 disable.
+
 endif

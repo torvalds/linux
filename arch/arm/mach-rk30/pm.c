@@ -21,15 +21,17 @@
 
 void __sramfunc sram_printch(char byte)
 {
-	writel_relaxed(byte, RK30_UART1_BASE);
+#ifdef DEBUG_UART_BASE
+	writel_relaxed(byte, DEBUG_UART_BASE);
 	dsb();
 
 	/* loop check LSR[6], Transmitter Empty bit */
-	while (!(readl_relaxed(RK30_UART1_BASE + 0x14) & 0x40))
+	while (!(readl_relaxed(DEBUG_UART_BASE + 0x14) & 0x40))
 		barrier();
 
 	if (byte == '\n')
 		sram_printch('\r');
+#endif
 }
 
 #ifdef CONFIG_DDR_TEST
