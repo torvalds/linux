@@ -2118,6 +2118,9 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 		 * completion.
 		 */
 		if (ireq->stp.rsp.fis_type == FIS_REGD2H) {
+			sci_remote_device_suspend(ireq->target_device,
+						  SCI_SW_SUSPEND_NORMAL);
+
 			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
 			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);

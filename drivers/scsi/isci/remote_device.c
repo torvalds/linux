@@ -72,8 +72,8 @@ const char *dev_state_name(enum sci_remote_device_states state)
 }
 #undef C
 
-static enum sci_status sci_remote_device_suspend(struct isci_remote_device *idev,
-						 enum sci_remote_node_suspension_reasons reason)
+enum sci_status sci_remote_device_suspend(struct isci_remote_device *idev,
+					  enum sci_remote_node_suspension_reasons reason)
 {
 	return sci_remote_node_context_suspend(&idev->rnc, reason,
 					       SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT);
@@ -565,6 +565,8 @@ enum sci_status sci_remote_device_event_handler(struct isci_remote_device *idev,
 						     u32 event_code)
 {
 	enum sci_status status;
+	struct sci_base_state_machine *sm = &idev->sm;
+	enum sci_remote_device_states state = sm->current_state_id;
 
 	switch (scu_get_event_type(event_code)) {
 	case SCU_EVENT_TYPE_RNC_OPS_MISC:
@@ -602,6 +604,30 @@ enum sci_status sci_remote_device_event_handler(struct isci_remote_device *idev,
 
 	if (status != SCI_SUCCESS)
 		return status;
+
+	/* Decode device-specific states that may require an RNC resume during
+	 * normal operation.  When the abort path is active, these resumes are
+	 * managed when the abort path exits.
+	 */
+	if (state == SCI_STP_DEV_ATAPI_ERROR) {
+		/* For ATAPI error state resume the RNC right away. */
+		if (scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX ||
+		    scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX) {
+			return sci_remote_node_context_resume(&idev->rnc,
+							      atapi_remote_device_resume_done,
+							      idev);
+		}
+	}
+
+	if (state == SCI_STP_DEV_IDLE) {
+
+		/* We pick up suspension events to handle specifically to this
+		 * state. We resume the RNC right away.
+		 */
+		if (scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX ||
+		    scu_get_event_type(event_code) == SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX)
+			status = sci_remote_node_context_resume(&idev->rnc, NULL, NULL);
+	}
 
 	return status;
 }
@@ -1137,21 +1163,6 @@ static void sci_stp_remote_device_ready_ncq_error_substate_enter(struct sci_base
 					     idev->not_ready_reason);
 }
 
-static void sci_stp_remote_device_atapi_error_substate_enter(
-	struct sci_base_state_machine *sm)
-{
-	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
-
-	/* This state is entered when an I/O is decoded with an error
-	 * condition.  By this point the RNC expected suspension state is set.
-	 * The error conditions suspend the device, so unsuspend here if
-	 * possible.
-	 */
-	sci_remote_node_context_resume(&idev->rnc,
-				       atapi_remote_device_resume_done,
-				       idev);
-}
-
 static void sci_smp_remote_device_ready_idle_substate_enter(struct sci_base_state_machine *sm)
 {
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
@@ -1202,9 +1213,7 @@ static const struct sci_base_state sci_remote_device_state_table[] = {
 	[SCI_STP_DEV_NCQ_ERROR] = {
 		.enter_state = sci_stp_remote_device_ready_ncq_error_substate_enter,
 	},
-	[SCI_STP_DEV_ATAPI_ERROR] = {
-		.enter_state = sci_stp_remote_device_atapi_error_substate_enter,
-	},
+	[SCI_STP_DEV_ATAPI_ERROR] = { },
 	[SCI_STP_DEV_AWAIT_RESET] = { },
 	[SCI_SMP_DEV_IDLE] = {
 		.enter_state = sci_smp_remote_device_ready_idle_substate_enter,
