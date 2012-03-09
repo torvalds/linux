@@ -414,9 +414,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	struct iwl_ucode_tlv *tlv;
 	size_t len = ucode_raw->size;
 	const u8 *data;
-	int wanted_alternative = iwlagn_mod_params.wanted_ucode_alternative;
-	int tmp;
-	u64 alternatives;
 	u32 tlv_len;
 	enum iwl_ucode_tlv_type tlv_type;
 	const u8 *tlv_data;
@@ -433,23 +430,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			le32_to_cpu(ucode->magic));
 		return -EINVAL;
 	}
-
-	/*
-	 * Check which alternatives are present, and "downgrade"
-	 * when the chosen alternative is not present, warning
-	 * the user when that happens. Some files may not have
-	 * any alternatives, so don't warn in that case.
-	 */
-	alternatives = le64_to_cpu(ucode->alternatives);
-	tmp = wanted_alternative;
-	if (wanted_alternative > 63)
-		wanted_alternative = 63;
-	while (wanted_alternative && !(alternatives & BIT(wanted_alternative)))
-		wanted_alternative--;
-	if (wanted_alternative && wanted_alternative != tmp)
-		IWL_WARN(drv,
-			 "uCode alternative %d not available, choosing %d\n",
-			 tmp, wanted_alternative);
 
 	drv->fw.ucode_ver = le32_to_cpu(ucode->ver);
 	build = le32_to_cpu(ucode->build);
@@ -475,14 +455,11 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	len -= sizeof(*ucode);
 
 	while (len >= sizeof(*tlv)) {
-		u16 tlv_alt;
-
 		len -= sizeof(*tlv);
 		tlv = (void *)data;
 
 		tlv_len = le32_to_cpu(tlv->length);
-		tlv_type = le16_to_cpu(tlv->type);
-		tlv_alt = le16_to_cpu(tlv->alternative);
+		tlv_type = le32_to_cpu(tlv->type);
 		tlv_data = tlv->data;
 
 		if (len < tlv_len) {
@@ -492,14 +469,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		}
 		len -= ALIGN(tlv_len, 4);
 		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
-
-		/*
-		 * Alternative 0 is always valid.
-		 *
-		 * Skip alternative TLVs that are not selected.
-		 */
-		if (tlv_alt != 0 && tlv_alt != wanted_alternative)
-			continue;
 
 		switch (tlv_type) {
 		case IWL_UCODE_TLV_INST:

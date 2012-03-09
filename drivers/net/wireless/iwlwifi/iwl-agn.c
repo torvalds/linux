@@ -2409,12 +2409,6 @@ MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
 module_param_named(fw_restart, iwlagn_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
 
-module_param_named(ucode_alternative,
-		   iwlagn_mod_params.wanted_ucode_alternative,
-		   int, S_IRUGO);
-MODULE_PARM_DESC(ucode_alternative,
-		 "specify ucode alternative to use from ucode file");
-
 module_param_named(antenna_coupling, iwlagn_mod_params.ant_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
