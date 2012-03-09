@@ -157,6 +157,7 @@ static struct snd_soc_dai_link zoom2_dai[] = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_zoom2 = {
 	.name = "Zoom2",
+	.owner = THIS_MODULE,
 	.dai_link = zoom2_dai,
 	.num_links = ARRAY_SIZE(zoom2_dai),
 

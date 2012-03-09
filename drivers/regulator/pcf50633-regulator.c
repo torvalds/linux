@@ -320,7 +320,7 @@ static int __devinit pcf50633_regulator_probe(struct platform_device *pdev)
 	pcf = dev_to_pcf50633(pdev->dev.parent);
 
 	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data, pcf);
+				  pdev->dev.platform_data, pcf, NULL);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 

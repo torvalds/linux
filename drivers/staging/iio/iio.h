@@ -7,13 +7,12 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-
 #ifndef _INDUSTRIAL_IO_H_
 #define _INDUSTRIAL_IO_H_
 
 #include <linux/device.h>
 #include <linux/cdev.h>
-
+#include "types.h"
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
@@ -25,61 +24,63 @@ enum iio_data_type {
 	IIO_PROCESSED,
 };
 
-enum iio_chan_type {
-	/* real channel types */
-	IIO_VOLTAGE,
-	IIO_CURRENT,
-	IIO_POWER,
-	IIO_ACCEL,
-	IIO_ANGL_VEL,
-	IIO_MAGN,
-	IIO_LIGHT,
-	IIO_INTENSITY,
-	IIO_PROXIMITY,
-	IIO_TEMP,
-	IIO_INCLI,
-	IIO_ROT,
-	IIO_ANGL,
-	IIO_TIMESTAMP,
-	IIO_CAPACITANCE,
-};
-
-enum iio_modifier {
-	IIO_NO_MOD,
-	IIO_MOD_X,
-	IIO_MOD_Y,
-	IIO_MOD_Z,
-	IIO_MOD_X_AND_Y,
-	IIO_MOD_X_ANX_Z,
-	IIO_MOD_Y_AND_Z,
-	IIO_MOD_X_AND_Y_AND_Z,
-	IIO_MOD_X_OR_Y,
-	IIO_MOD_X_OR_Z,
-	IIO_MOD_Y_OR_Z,
-	IIO_MOD_X_OR_Y_OR_Z,
-	IIO_MOD_LIGHT_BOTH,
-	IIO_MOD_LIGHT_IR,
-};
-
 /* Could add the raw attributes as well - allowing buffer only devices */
 enum iio_chan_info_enum {
-	IIO_CHAN_INFO_SCALE_SHARED,
-	IIO_CHAN_INFO_SCALE_SEPARATE,
-	IIO_CHAN_INFO_OFFSET_SHARED,
-	IIO_CHAN_INFO_OFFSET_SEPARATE,
-	IIO_CHAN_INFO_CALIBSCALE_SHARED,
-	IIO_CHAN_INFO_CALIBSCALE_SEPARATE,
-	IIO_CHAN_INFO_CALIBBIAS_SHARED,
-	IIO_CHAN_INFO_CALIBBIAS_SEPARATE,
-	IIO_CHAN_INFO_PEAK_SHARED,
-	IIO_CHAN_INFO_PEAK_SEPARATE,
-	IIO_CHAN_INFO_PEAK_SCALE_SHARED,
-	IIO_CHAN_INFO_PEAK_SCALE_SEPARATE,
-	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED,
-	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE,
-	IIO_CHAN_INFO_AVERAGE_RAW_SHARED,
-	IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE,
+	/* 0 is reserverd for raw attributes */
+	IIO_CHAN_INFO_SCALE = 1,
+	IIO_CHAN_INFO_OFFSET,
+	IIO_CHAN_INFO_CALIBSCALE,
+	IIO_CHAN_INFO_CALIBBIAS,
+	IIO_CHAN_INFO_PEAK,
+	IIO_CHAN_INFO_PEAK_SCALE,
+	IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW,
+	IIO_CHAN_INFO_AVERAGE_RAW,
+	IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY,
 };
+
+#define IIO_CHAN_INFO_SHARED_BIT(type) BIT(type*2)
+#define IIO_CHAN_INFO_SEPARATE_BIT(type) BIT(type*2 + 1)
+
+#define IIO_CHAN_INFO_SCALE_SEPARATE_BIT		\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_SCALE)
+#define IIO_CHAN_INFO_SCALE_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_SCALE)
+#define IIO_CHAN_INFO_OFFSET_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_OFFSET)
+#define IIO_CHAN_INFO_OFFSET_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_OFFSET)
+#define IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_CALIBSCALE)
+#define IIO_CHAN_INFO_CALIBSCALE_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_CALIBSCALE)
+#define IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_CALIBBIAS)
+#define IIO_CHAN_INFO_CALIBBIAS_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_CALIBBIAS)
+#define IIO_CHAN_INFO_PEAK_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_PEAK)
+#define IIO_CHAN_INFO_PEAK_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_PEAK)
+#define IIO_CHAN_INFO_PEAKSCALE_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_PEAKSCALE)
+#define IIO_CHAN_INFO_PEAKSCALE_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_PEAKSCALE)
+#define IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SEPARATE_BIT	\
+	IIO_CHAN_INFO_SEPARATE_BIT(				\
+		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW)
+#define IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW_SHARED_BIT	\
+	IIO_CHAN_INFO_SHARED_BIT(				\
+		IIO_CHAN_INFO_QUADRATURE_CORRECTION_RAW)
+#define IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_AVERAGE_RAW)
+#define IIO_CHAN_INFO_AVERAGE_RAW_SHARED_BIT			\
+	IIO_CHAN_INFO_SHARED_BIT(IIO_CHAN_INFO_AVERAGE_RAW)
+#define IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SHARED_BIT \
+	IIO_CHAN_INFO_SHARED_BIT(			       \
+		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY)
+#define IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY_SEPARATE_BIT \
+	IIO_CHAN_INFO_SEPARATE_BIT(			       \
+		IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY)
 
 enum iio_endian {
 	IIO_CPU,
@@ -109,6 +110,10 @@ enum iio_endian {
  * @extend_name:	Allows labeling of channel attributes with an
  *			informative name. Note this has no effect codes etc,
  *			unlike modifiers.
+ * @datasheet_name:	A name used in in kernel mapping of channels. It should
+ *			corrspond to the first name that the channel is referred
+ *			to by in the datasheet (e.g. IND), or the nearest
+ *			possible compound name (e.g. IND-INC).
  * @processed_val:	Flag to specify the data access attribute should be
  *			*_input rather than *_raw.
  * @modified:		Does a modifier apply to this channel. What these are
@@ -137,6 +142,7 @@ struct iio_chan_spec {
 	long			info_mask;
 	long			event_mask;
 	char			*extend_name;
+	const char		*datasheet_name;
 	unsigned		processed_val:1;
 	unsigned		modified:1;
 	unsigned		indexed:1;
@@ -261,7 +267,23 @@ struct iio_info {
 				 int val);
 	int (*validate_trigger)(struct iio_dev *indio_dev,
 				struct iio_trigger *trig);
+	int (*update_scan_mode)(struct iio_dev *indio_dev,
+				const unsigned long *scan_mask);
+};
 
+/**
+ * struct iio_buffer_setup_ops - buffer setup related callbacks
+ * @preenable:		[DRIVER] function to run prior to marking buffer enabled
+ * @postenable:		[DRIVER] function to run after marking buffer enabled
+ * @predisable:		[DRIVER] function to run prior to marking buffer
+ *			disabled
+ * @postdisable:	[DRIVER] function to run after marking buffer disabled
+ */
+struct iio_buffer_setup_ops {
+	int				(*preenable)(struct iio_dev *);
+	int				(*postenable)(struct iio_dev *);
+	int				(*predisable)(struct iio_dev *);
+	int				(*postdisable)(struct iio_dev *);
 };
 
 /**
@@ -278,6 +300,7 @@ struct iio_info {
  * @available_scan_masks: [DRIVER] optional array of allowed bitmasks
  * @masklength:		[INTERN] the length of the mask established from
  *			channels
+ * @active_scan_mask:	[INTERN] union of all scan masks requested by buffers
  * @trig:		[INTERN] current device trigger (buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @channels:		[DRIVER] channel specification structure table
@@ -290,6 +313,7 @@ struct iio_info {
  * @chrdev:		[INTERN] associated character device
  * @groups:		[INTERN] attribute groups
  * @groupcounter:	[INTERN] index of next attribute group
+ * @flags:		[INTERN] file ops related flags including busy flag.
  **/
 struct iio_dev {
 	int				id;
@@ -305,6 +329,7 @@ struct iio_dev {
 
 	unsigned long			*available_scan_masks;
 	unsigned			masklength;
+	unsigned long			*active_scan_mask;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
 
@@ -315,11 +340,22 @@ struct iio_dev {
 	struct attribute_group		chan_attr_group;
 	const char			*name;
 	const struct iio_info		*info;
+	const struct iio_buffer_setup_ops	*setup_ops;
 	struct cdev			chrdev;
 #define IIO_MAX_GROUPS 6
 	const struct attribute_group	*groups[IIO_MAX_GROUPS + 1];
 	int				groupcounter;
+
+	unsigned long			flags;
 };
+
+/**
+ * iio_find_channel_from_si() - get channel from its scan index
+ * @indio_dev:		device
+ * @si:			scan index to match
+ */
+const struct iio_chan_spec
+*iio_find_channel_from_si(struct iio_dev *indio_dev, int si);
 
 /**
  * iio_device_register() - register a device with the IIO subsystem

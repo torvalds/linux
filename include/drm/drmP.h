@@ -820,7 +820,7 @@ struct drm_driver {
 	 * Specifically, the timestamp in @vblank_time should correspond as
 	 * closely as possible to the time when the first video scanline of
 	 * the video frame after the end of VBLANK will start scanning out,
-	 * the time immmediately after end of the VBLANK interval. If the
+	 * the time immediately after end of the VBLANK interval. If the
 	 * @crtc is currently inside VBLANK, this will be a time in the future.
 	 * If the @crtc is currently scanning out a frame, this will be the
 	 * past start time of the current scanout. This is meant to adhere
@@ -918,7 +918,7 @@ struct drm_driver {
 	int dev_priv_size;
 	struct drm_ioctl_desc *ioctls;
 	int num_ioctls;
-	struct file_operations fops;
+	const struct file_operations *fops;
 	union {
 		struct pci_driver *pci;
 		struct platform_device *platform_device;
@@ -1328,6 +1328,7 @@ extern int drm_getmagic(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 extern int drm_authmagic(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
+extern int drm_remove_magic(struct drm_master *master, drm_magic_t magic);
 
 /* Cache management (drm_cache.c) */
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
@@ -1695,6 +1696,14 @@ extern void drm_platform_exit(struct drm_driver *driver, struct platform_device 
 
 extern int drm_get_platform_dev(struct platform_device *pdev,
 				struct drm_driver *driver);
+
+/* returns true if currently okay to sleep */
+static __inline__ bool drm_can_sleep(void)
+{
+	if (in_atomic() || in_dbg_master() || irqs_disabled())
+		return false;
+	return true;
+}
 
 #endif				/* __KERNEL__ */
 #endif

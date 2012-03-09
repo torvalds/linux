@@ -242,7 +242,7 @@ void p54_free_skb(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 	skb_unlink(skb, &priv->tx_queue);
 	p54_tx_qos_accounting_free(priv, skb);
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(dev, skb);
 }
 EXPORT_SYMBOL_GPL(p54_free_skb);
 
@@ -788,7 +788,7 @@ void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 			    &hdr_flags, &aid, &burst_allowed);
 
 	if (p54_tx_qos_accounting_alloc(priv, skb, queue)) {
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(dev, skb);
 		return;
 	}
 

@@ -84,6 +84,7 @@ static struct snd_soc_dai_link bfin_eval_adau1701_dai[] = {
 
 static struct snd_soc_card bfin_eval_adau1701 = {
 	.name = "bfin-eval-adau1701",
+	.owner = THIS_MODULE,
 	.dai_link = &bfin_eval_adau1701_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 
@@ -121,17 +122,7 @@ static struct platform_driver bfin_eval_adau1701_driver = {
 	.remove = __devexit_p(bfin_eval_adau1701_remove),
 };
 
-static int __init bfin_eval_adau1701_init(void)
-{
-	return platform_driver_register(&bfin_eval_adau1701_driver);
-}
-module_init(bfin_eval_adau1701_init);
-
-static void __exit bfin_eval_adau1701_exit(void)
-{
-	platform_driver_unregister(&bfin_eval_adau1701_driver);
-}
-module_exit(bfin_eval_adau1701_exit);
+module_platform_driver(bfin_eval_adau1701_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("ALSA SoC bfin ADAU1701 driver");

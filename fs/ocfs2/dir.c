@@ -1184,8 +1184,7 @@ static int __ocfs2_delete_entry(handle_t *handle, struct inode *dir,
 			if (pde)
 				le16_add_cpu(&pde->rec_len,
 						le16_to_cpu(de->rec_len));
-			else
-				de->inode = 0;
+			de->inode = 0;
 			dir->i_version++;
 			ocfs2_journal_dirty(handle, bh);
 			goto bail;

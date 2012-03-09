@@ -1,7 +1,3 @@
-/*
- * $Id: comet.h,v 1.3 2005/09/28 00:10:07 rickd PMCC4_3_1B $
- */
-
 #ifndef _INC_COMET_H_
 #define _INC_COMET_H_
 
@@ -23,27 +19,9 @@
  * For further information, contact via email: support@sbei.com
  * SBE, Inc.  San Ramon, California  U.S.A.
  *-----------------------------------------------------------------------------
- * RCS info:
- * RCS revision: $Revision: 1.3 $
- * Last changed on $Date: 2005/09/28 00:10:07 $
- * Changed by $Author: rickd $
- *-----------------------------------------------------------------------------
- * $Log: comet.h,v $
- * Revision 1.3  2005/09/28 00:10:07  rickd
- * Add RCS header. Switch to structure usage.
- *
- * Revision 1.2  2005/04/28 23:43:03  rickd
- * Add RCS tracking heading.
- *
- *-----------------------------------------------------------------------------
  */
 
-#if defined(__FreeBSD__) || defined (__NetBSD__)
-#include <sys/types.h>
-#else
 #include <linux/types.h>
-#endif
-
 
 #define VINT32  volatile u_int32_t
 

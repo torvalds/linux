@@ -727,7 +727,7 @@ static __devinit int tps65912_probe(struct platform_device *pdev)
 		pmic->desc[i].owner = THIS_MODULE;
 		range = tps65912_get_range(pmic, i);
 		rdev = regulator_register(&pmic->desc[i],
-					tps65912->dev, reg_data, pmic);
+					tps65912->dev, reg_data, pmic, NULL);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65912->dev,
 				"failed to register %s regulator\n",

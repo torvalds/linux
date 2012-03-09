@@ -12,8 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 
 static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
@@ -22,7 +21,7 @@ static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 	struct device_node *dn = ofdev->dev.of_node;
 	struct resource io_res;
 	struct resource ctl_res;
-	struct resource irq_res;
+	struct resource *irq_res;
 	unsigned int reg_shift = 0;
 	int pio_mode = 0;
 	int pio_mask;
@@ -51,11 +50,9 @@ static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 		}
 	}
 
-	ret = of_irq_to_resource(dn, 0, &irq_res);
-	if (!ret)
-		irq_res.start = irq_res.end = 0;
-	else
-		irq_res.flags = 0;
+	irq_res = platform_get_resource(ofdev, IORESOURCE_IRQ, 0);
+	if (irq_res)
+		irq_res->flags = 0;
 
 	prop = of_get_property(dn, "reg-shift", NULL);
 	if (prop)
@@ -75,7 +72,7 @@ static int __devinit pata_of_platform_probe(struct platform_device *ofdev)
 	pio_mask = 1 << pio_mode;
 	pio_mask |= (1 << pio_mode) - 1;
 
-	return __pata_platform_probe(&ofdev->dev, &io_res, &ctl_res, &irq_res,
+	return __pata_platform_probe(&ofdev->dev, &io_res, &ctl_res, irq_res,
 				     reg_shift, pio_mask);
 }
 
@@ -101,17 +98,7 @@ static struct platform_driver pata_of_platform_driver = {
 	.remove		= __devexit_p(pata_of_platform_remove),
 };
 
-static int __init pata_of_platform_init(void)
-{
-	return platform_driver_register(&pata_of_platform_driver);
-}
-module_init(pata_of_platform_init);
-
-static void __exit pata_of_platform_exit(void)
-{
-	platform_driver_unregister(&pata_of_platform_driver);
-}
-module_exit(pata_of_platform_exit);
+module_platform_driver(pata_of_platform_driver);
 
 MODULE_DESCRIPTION("OF-platform PATA driver");
 MODULE_AUTHOR("Anton Vorontsov <avorontsov@ru.mvista.com>");

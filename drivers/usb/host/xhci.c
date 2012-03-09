@@ -200,14 +200,14 @@ static int xhci_setup_msi(struct xhci_hcd *xhci)
 
 	ret = pci_enable_msi(pdev);
 	if (ret) {
-		xhci_err(xhci, "failed to allocate MSI entry\n");
+		xhci_dbg(xhci, "failed to allocate MSI entry\n");
 		return ret;
 	}
 
 	ret = request_irq(pdev->irq, (irq_handler_t)xhci_msi_irq,
 				0, "xhci_hcd", xhci_to_hcd(xhci));
 	if (ret) {
-		xhci_err(xhci, "disable MSI interrupt\n");
+		xhci_dbg(xhci, "disable MSI interrupt\n");
 		pci_disable_msi(pdev);
 	}
 
@@ -270,7 +270,7 @@ static int xhci_setup_msix(struct xhci_hcd *xhci)
 
 	ret = pci_enable_msix(pdev, xhci->msix_entries, xhci->msix_count);
 	if (ret) {
-		xhci_err(xhci, "Failed to enable MSI-X\n");
+		xhci_dbg(xhci, "Failed to enable MSI-X\n");
 		goto free_entries;
 	}
 
@@ -286,7 +286,7 @@ static int xhci_setup_msix(struct xhci_hcd *xhci)
 	return ret;
 
 disable_msix:
-	xhci_err(xhci, "disable MSI-X interrupt\n");
+	xhci_dbg(xhci, "disable MSI-X interrupt\n");
 	xhci_free_irq(xhci);
 	pci_disable_msix(pdev);
 free_entries:
@@ -351,6 +351,11 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	if (!ret)
 		/* hcd->irq is -1, we have MSI */
 		return 0;
+
+	if (!pdev->irq) {
+		xhci_err(xhci, "No msi-x/msi found and no IRQ in BIOS\n");
+		return -EINVAL;
+	}
 
 	/* fall back to legacy interrupt*/
 	ret = request_irq(pdev->irq, &usb_hcd_irq, IRQF_SHARED,
@@ -711,7 +716,10 @@ static void xhci_clear_command_ring(struct xhci_hcd *xhci)
 	ring = xhci->cmd_ring;
 	seg = ring->deq_seg;
 	do {
-		memset(seg->trbs, 0, SEGMENT_SIZE);
+		memset(seg->trbs, 0,
+			sizeof(union xhci_trb) * (TRBS_PER_SEGMENT - 1));
+		seg->trbs[TRBS_PER_SEGMENT - 1].link.control &=
+			cpu_to_le32(~TRB_CYCLE);
 		seg = seg->next;
 	} while (seg != ring->deq_seg);
 
@@ -1330,9 +1338,6 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 	}
 
-	xhci_dbg(xhci, "Cancel URB %p\n", urb);
-	xhci_dbg(xhci, "Event ring:\n");
-	xhci_debug_ring(xhci, xhci->event_ring);
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
 	ep = &xhci->devs[urb->dev->slot_id]->eps[ep_index];
 	ep_ring = xhci_urb_to_transfer_ring(xhci, urb);
@@ -1341,12 +1346,18 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		goto done;
 	}
 
-	xhci_dbg(xhci, "Endpoint ring:\n");
-	xhci_debug_ring(xhci, ep_ring);
-
 	urb_priv = urb->hcpriv;
+	i = urb_priv->td_cnt;
+	if (i < urb_priv->length)
+		xhci_dbg(xhci, "Cancel URB %p, dev %s, ep 0x%x, "
+				"starting at offset 0x%llx\n",
+				urb, urb->dev->devpath,
+				urb->ep->desc.bEndpointAddress,
+				(unsigned long long) xhci_trb_virt_to_dma(
+					urb_priv->td[i]->start_seg,
+					urb_priv->td[i]->first_trb));
 
-	for (i = urb_priv->td_cnt; i < urb_priv->length; i++) {
+	for (; i < urb_priv->length; i++) {
 		td = urb_priv->td[i];
 		list_add_tail(&td->cancelled_td_list, &ep->cancelled_td_list);
 	}
@@ -1617,6 +1628,7 @@ static int xhci_configure_endpoint_result(struct xhci_hcd *xhci,
 		/* FIXME: can we allocate more resources for the HC? */
 		break;
 	case COMP_BW_ERR:
+	case COMP_2ND_BW_ERR:
 		dev_warn(&udev->dev, "Not enough bandwidth "
 				"for new device state.\n");
 		ret = -ENOSPC;
@@ -2793,8 +2805,7 @@ static int xhci_calculate_streams_and_bitmask(struct xhci_hcd *xhci,
 		if (ret < 0)
 			return ret;
 
-		max_streams = USB_SS_MAX_STREAMS(
-				eps[i]->ss_ep_comp.bmAttributes);
+		max_streams = usb_ss_max_streams(&eps[i]->ss_ep_comp);
 		if (max_streams < (*num_streams - 1)) {
 			xhci_dbg(xhci, "Ep 0x%x only supports %u stream IDs.\n",
 					eps[i]->desc.bEndpointAddress,

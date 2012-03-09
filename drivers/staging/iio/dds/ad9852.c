@@ -280,19 +280,9 @@ static struct spi_driver ad9852_driver = {
 	.probe = ad9852_probe,
 	.remove = __devexit_p(ad9852_remove),
 };
-
-static __init int ad9852_spi_init(void)
-{
-	return spi_register_driver(&ad9852_driver);
-}
-module_init(ad9852_spi_init);
-
-static __exit void ad9852_spi_exit(void)
-{
-	spi_unregister_driver(&ad9852_driver);
-}
-module_exit(ad9852_spi_exit);
+module_spi_driver(ad9852_driver);
 
 MODULE_AUTHOR("Cliff Cai");
 MODULE_DESCRIPTION("Analog Devices ad9852 driver");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:" DRV_NAME);

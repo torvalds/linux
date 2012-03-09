@@ -37,13 +37,18 @@
 #if defined(CONFIG_SUSPEND) || defined(CONFIG_CPU_IDLE)
 	.align	12
 	.text
-	.global sh7372_resume_core_standby_a3sm
-sh7372_resume_core_standby_a3sm:
+	.global sh7372_resume_core_standby_sysc
+sh7372_resume_core_standby_sysc:
 	ldr     pc, 1f
 1:	.long   cpu_resume - PAGE_OFFSET + PLAT_PHYS_OFFSET
 
-	.global	sh7372_do_idle_a3sm
-sh7372_do_idle_a3sm:
+#define SPDCR 0xe6180008
+
+	/* A3SM & A4S power down */
+	.global	sh7372_do_idle_sysc
+sh7372_do_idle_sysc:
+	mov	r8, r0 /* sleep mode passed in r0 */
+
 	/*
 	 * Clear the SCTLR.C bit to prevent further data cache
 	 * allocation. Clearing SCTLR.C would make all the data accesses
@@ -80,13 +85,9 @@ sh7372_do_idle_a3sm:
 	dsb
 	dmb
 
-#define SPDCR 0xe6180008
-#define A3SM (1 << 12)
-
-	/* A3SM power down */
+	/* SYSC power down */
 	ldr     r0, =SPDCR
-	ldr     r1, =A3SM
-	str     r1, [r0]
+	str     r8, [r0]
 1:
 	b      1b
 

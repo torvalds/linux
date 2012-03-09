@@ -30,9 +30,6 @@ struct perf_session {
 	struct perf_header	header;
 	unsigned long		size;
 	unsigned long		mmap_window;
-	struct rb_root		threads;
-	struct list_head	dead_threads;
-	struct thread		*last_match;
 	struct machine		host_machine;
 	struct rb_root		machines;
 	struct perf_evlist	*evlist;
@@ -53,64 +50,30 @@ struct perf_session {
 	int			cwdlen;
 	char			*cwd;
 	struct ordered_samples	ordered_samples;
-	struct callchain_cursor	callchain_cursor;
-	char			filename[0];
+	char			filename[1];
 };
 
-struct perf_evsel;
-struct perf_event_ops;
-
-typedef int (*event_sample)(union perf_event *event, struct perf_sample *sample,
-			    struct perf_evsel *evsel, struct perf_session *session);
-typedef int (*event_op)(union perf_event *self, struct perf_sample *sample,
-			struct perf_session *session);
-typedef int (*event_synth_op)(union perf_event *self,
-			      struct perf_session *session);
-typedef int (*event_op2)(union perf_event *self, struct perf_session *session,
-			 struct perf_event_ops *ops);
-
-struct perf_event_ops {
-	event_sample	sample;
-	event_op	mmap,
-			comm,
-			fork,
-			exit,
-			lost,
-			read,
-			throttle,
-			unthrottle;
-	event_synth_op	attr,
-			event_type,
-			tracing_data,
-			build_id;
-	event_op2	finished_round;
-	bool		ordered_samples;
-	bool		ordering_requires_timestamps;
-};
+struct perf_tool;
 
 struct perf_session *perf_session__new(const char *filename, int mode,
 				       bool force, bool repipe,
-				       struct perf_event_ops *ops);
+				       struct perf_tool *tool);
 void perf_session__delete(struct perf_session *self);
 
 void perf_event_header__bswap(struct perf_event_header *self);
 
 int __perf_session__process_events(struct perf_session *self,
 				   u64 data_offset, u64 data_size, u64 size,
-				   struct perf_event_ops *ops);
+				   struct perf_tool *tool);
 int perf_session__process_events(struct perf_session *self,
-				 struct perf_event_ops *event_ops);
+				 struct perf_tool *tool);
 
-int perf_session__resolve_callchain(struct perf_session *self,
+int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel *evsel,
 				    struct thread *thread,
 				    struct ip_callchain *chain,
 				    struct symbol **parent);
 
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
-
-int perf_session__set_kallsyms_ref_reloc_sym(struct map **maps,
-					     const char *symbol_name,
-					     u64 addr);
 
 void mem_bswap_64(void *src, int byte_size);
 void perf_event__attr_swap(struct perf_event_attr *attr);
@@ -144,11 +107,15 @@ struct machine *perf_session__findnew_machine(struct perf_session *self, pid_t p
 
 static inline
 void perf_session__process_machines(struct perf_session *self,
+				    struct perf_tool *tool,
 				    machine__process_t process)
 {
-	process(&self->host_machine, self);
-	return machines__process(&self->machines, process, self);
+	process(&self->host_machine, tool);
+	return machines__process(&self->machines, process, tool);
 }
+
+struct thread *perf_session__findnew(struct perf_session *self, pid_t pid);
+size_t perf_session__fprintf(struct perf_session *self, FILE *fp);
 
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
 
@@ -167,13 +134,20 @@ static inline int perf_session__parse_sample(struct perf_session *session,
 					session->header.needs_swap);
 }
 
+static inline int perf_session__synthesize_sample(struct perf_session *session,
+						  union perf_event *event,
+						  const struct perf_sample *sample)
+{
+	return perf_event__synthesize_sample(event, session->sample_type,
+					     sample, session->header.needs_swap);
+}
+
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,
 					    unsigned int type);
 
-void perf_session__print_ip(union perf_event *event,
-				 struct perf_sample *sample,
-				 struct perf_session *session,
-				 int print_sym, int print_dso);
+void perf_event__print_ip(union perf_event *event, struct perf_sample *sample,
+			  struct machine *machine, struct perf_evsel *evsel,
+			  int print_sym, int print_dso);
 
 int perf_session__cpu_bitmap(struct perf_session *session,
 			     const char *cpu_list, unsigned long *cpu_bitmap);

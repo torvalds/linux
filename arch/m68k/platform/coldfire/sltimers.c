@@ -98,23 +98,25 @@ static struct irqaction mcfslt_timer_irq = {
 static cycle_t mcfslt_read_clk(struct clocksource *cs)
 {
 	unsigned long flags;
-	u32 cycles;
-	u16 scnt;
+	u32 cycles, scnt;
 
 	local_irq_save(flags);
 	scnt = __raw_readl(TA(MCFSLT_SCNT));
 	cycles = mcfslt_cnt;
+	if (__raw_readl(TA(MCFSLT_SSR)) & MCFSLT_SSR_TE) {
+		cycles += mcfslt_cycles_per_jiffy;
+		scnt = __raw_readl(TA(MCFSLT_SCNT));
+	}
 	local_irq_restore(flags);
 
 	/* subtract because slice timers count down */
-	return cycles - scnt;
+	return cycles + ((mcfslt_cycles_per_jiffy - 1) - scnt);
 }
 
 static struct clocksource mcfslt_clk = {
 	.name	= "slt",
 	.rating	= 250,
 	.read	= mcfslt_read_clk,
-	.shift	= 20,
 	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
@@ -136,8 +138,7 @@ void hw_timer_init(void)
 
 	setup_irq(MCF_IRQ_TIMER, &mcfslt_timer_irq);
 
-	mcfslt_clk.mult = clocksource_hz2mult(MCF_BUSCLK, mcfslt_clk.shift);
-	clocksource_register(&mcfslt_clk);
+	clocksource_register_hz(&mcfslt_clk, MCF_BUSCLK);
 
 #ifdef CONFIG_HIGHPROFILE
 	mcfslt_profile_init();

@@ -298,11 +298,10 @@ static void pn_net_setup(struct net_device *dev)
 static int
 pn_rx_submit(struct f_phonet *fp, struct usb_request *req, gfp_t gfp_flags)
 {
-	struct net_device *dev = fp->dev;
 	struct page *page;
 	int err;
 
-	page = __netdev_alloc_page(dev, gfp_flags);
+	page = alloc_page(gfp_flags);
 	if (!page)
 		return -ENOMEM;
 
@@ -312,7 +311,7 @@ pn_rx_submit(struct f_phonet *fp, struct usb_request *req, gfp_t gfp_flags)
 
 	err = usb_ep_queue(fp->out_ep, req, gfp_flags);
 	if (unlikely(err))
-		netdev_free_page(dev, page);
+		put_page(page);
 	return err;
 }
 
@@ -374,9 +373,9 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 	}
 
 	if (page)
-		netdev_free_page(dev, page);
+		put_page(page);
 	if (req)
-		pn_rx_submit(fp, req, GFP_ATOMIC);
+		pn_rx_submit(fp, req, GFP_ATOMIC | __GFP_COLD);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -436,7 +435,7 @@ static int pn_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 			netif_carrier_on(dev);
 			for (i = 0; i < phonet_rxq_size; i++)
-				pn_rx_submit(fp, fp->out_reqv[i], GFP_ATOMIC);
+				pn_rx_submit(fp, fp->out_reqv[i], GFP_ATOMIC | __GFP_COLD);
 		}
 		spin_unlock(&port->lock);
 		return 0;

@@ -32,7 +32,6 @@
 #include <linux/console.h>
 #include <linux/vmalloc.h>
 #include <linux/swap.h>
-#include <linux/kmsg_dump.h>
 #include <linux/syscore_ops.h>
 
 #include <asm/page.h>
@@ -1094,8 +1093,6 @@ void crash_kexec(struct pt_regs *regs)
 		if (kexec_crash_image) {
 			struct pt_regs fixed_regs;
 
-			kmsg_dump(KMSG_DUMP_KEXEC);
-
 			crash_setup_regs(&fixed_regs, regs);
 			crash_save_vmcoreinfo();
 			machine_crash_shutdown(&fixed_regs);
@@ -1132,6 +1129,8 @@ int crash_shrink_memory(unsigned long new_size)
 {
 	int ret = 0;
 	unsigned long start, end;
+	unsigned long old_size;
+	struct resource *ram_res;
 
 	mutex_lock(&kexec_mutex);
 
@@ -1141,11 +1140,15 @@ int crash_shrink_memory(unsigned long new_size)
 	}
 	start = crashk_res.start;
 	end = crashk_res.end;
+	old_size = (end == 0) ? 0 : end - start + 1;
+	if (new_size >= old_size) {
+		ret = (new_size == old_size) ? 0 : -EINVAL;
+		goto unlock;
+	}
 
-	if (new_size >= end - start + 1) {
-		ret = -EINVAL;
-		if (new_size == end - start + 1)
-			ret = 0;
+	ram_res = kzalloc(sizeof(*ram_res), GFP_KERNEL);
+	if (!ram_res) {
+		ret = -ENOMEM;
 		goto unlock;
 	}
 
@@ -1157,7 +1160,15 @@ int crash_shrink_memory(unsigned long new_size)
 
 	if ((start == end) && (crashk_res.parent != NULL))
 		release_resource(&crashk_res);
+
+	ram_res->start = end;
+	ram_res->end = crashk_res.end;
+	ram_res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+	ram_res->name = "System RAM";
+
 	crashk_res.end = end - 1;
+
+	insert_resource(&iomem_resource, ram_res);
 	crash_unmap_reserved_pages();
 
 unlock:
@@ -1523,7 +1534,7 @@ int kernel_kexec(void)
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (kexec_image->preserve_context) {
-		mutex_lock(&pm_mutex);
+		lock_system_sleep();
 		pm_prepare_console();
 		error = freeze_processes();
 		if (error) {
@@ -1576,7 +1587,7 @@ int kernel_kexec(void)
 		thaw_processes();
  Restore_console:
 		pm_restore_console();
-		mutex_unlock(&pm_mutex);
+		unlock_system_sleep();
 	}
 #endif
 

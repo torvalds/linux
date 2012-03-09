@@ -283,4 +283,5 @@ MACHINE_START(TNETV107X, "TNETV107X EVM")
 	.timer		= &davinci_timer,
 	.init_machine	= tnetv107x_evm_board_init,
 	.dma_zone_size	= SZ_128M,
+	.restart	= tnetv107x_restart,
 MACHINE_END

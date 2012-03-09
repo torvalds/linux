@@ -61,11 +61,11 @@
 #define DRIVER_AUTHOR		"Daniel Ritz <daniel.ritz@gmx.ch>"
 #define DRIVER_DESC		"USB Touchscreen Driver"
 
-static int swap_xy;
+static bool swap_xy;
 module_param(swap_xy, bool, 0644);
 MODULE_PARM_DESC(swap_xy, "If set X and Y axes are swapped.");
 
-static int hwcalib_xy;
+static bool hwcalib_xy;
 module_param(hwcalib_xy, bool, 0644);
 MODULE_PARM_DESC(hwcalib_xy, "If set hw-calibrated X/Y are used if available");
 
@@ -1679,18 +1679,7 @@ static struct usb_driver usbtouch_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init usbtouch_init(void)
-{
-	return usb_register(&usbtouch_driver);
-}
-
-static void __exit usbtouch_cleanup(void)
-{
-	usb_deregister(&usbtouch_driver);
-}
-
-module_init(usbtouch_init);
-module_exit(usbtouch_cleanup);
+module_usb_driver(usbtouch_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

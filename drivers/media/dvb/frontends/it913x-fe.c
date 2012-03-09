@@ -46,13 +46,17 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info (or-able)).");
 	  dprintk(level, name" (%02x%02x%02x%02x%02x%02x%02x%02x)", \
 		*p, *(p+1), *(p+2), *(p+3), *(p+4), \
 			*(p+5), *(p+6), *(p+7));
+#define info(format, arg...) \
+	printk(KERN_INFO "it913x-fe: " format "\n" , ## arg)
 
 struct it913x_fe_state {
 	struct dvb_frontend frontend;
 	struct i2c_adapter *i2c_adap;
+	struct ite_config *config;
 	u8 i2c_addr;
 	u32 frequency;
-	u8 adf;
+	fe_modulation_t constellation;
+	fe_transmit_mode_t transmission_mode;
 	u32 crystalFrequency;
 	u32 adcFrequency;
 	u8 tuner_type;
@@ -62,6 +66,7 @@ struct it913x_fe_state {
 	u8 tun_fdiv;
 	u8 tun_clk_mode;
 	u32 tun_fn_min;
+	u32 ucblocks;
 };
 
 static int it913x_read_reg(struct it913x_fe_state *state,
@@ -211,20 +216,24 @@ static int it913x_init_tuner(struct it913x_fe_state *state)
 	state->tun_fn_min /= (state->tun_fdiv * nv_val);
 	deb_info("Tuner fn_min %d", state->tun_fn_min);
 
-	for (i = 0; i < 50; i++) {
-		reg = it913x_read_reg_u8(state, 0xec82);
-		if (reg > 0)
-			break;
-		if (reg < 0)
-			return -ENODEV;
-		udelay(2000);
+	if (state->config->chip_ver > 1)
+		msleep(50);
+	else {
+		for (i = 0; i < 50; i++) {
+			reg = it913x_read_reg_u8(state, 0xec82);
+			if (reg > 0)
+				break;
+			if (reg < 0)
+				return -ENODEV;
+			udelay(2000);
+		}
 	}
 
 	return it913x_write_reg(state, PRO_DMOD, 0xed81, val);
 }
 
 static int it9137_set_tuner(struct it913x_fe_state *state,
-		enum fe_bandwidth bandwidth, u32 frequency_m)
+		u32 bandwidth, u32 frequency_m)
 {
 	struct it913xset *set_tuner = set_it9137_template;
 	int ret, reg;
@@ -236,6 +245,11 @@ static int it9137_set_tuner(struct it913x_fe_state *state,
 	u8 l_band;
 	u8 lna_band;
 	u8 bw;
+
+	if (state->config->firmware_ver == 1)
+		set_tuner = set_it9135_template;
+	else
+		set_tuner = set_it9137_template;
 
 	deb_info("Tuner Frequency %d Bandwidth %d", frequency, bandwidth);
 
@@ -273,16 +287,21 @@ static int it9137_set_tuner(struct it913x_fe_state *state,
 		return -EINVAL;
 	set_tuner[0].reg[0] = lna_band;
 
-	if (bandwidth == BANDWIDTH_5_MHZ)
+	switch (bandwidth) {
+	case 5000000:
 		bw = 0;
-	else if (bandwidth == BANDWIDTH_6_MHZ)
+		break;
+	case 6000000:
 		bw = 2;
-	else if (bandwidth == BANDWIDTH_7_MHZ)
+		break;
+	case 7000000:
 		bw = 4;
-	else if (bandwidth == BANDWIDTH_8_MHZ)
+		break;
+	default:
+	case 8000000:
 		bw = 6;
-	else
-		bw = 6;
+		break;
+	}
 
 	set_tuner[1].reg[0] = bw;
 	set_tuner[2].reg[0] = 0xa0 | (l_band << 3);
@@ -361,7 +380,7 @@ static int it9137_set_tuner(struct it913x_fe_state *state,
 }
 
 static int it913x_fe_select_bw(struct it913x_fe_state *state,
-			enum fe_bandwidth bandwidth, u32 adcFrequency)
+			u32 bandwidth, u32 adcFrequency)
 {
 	int ret, i;
 	u8 buffer[256];
@@ -374,17 +393,21 @@ static int it913x_fe_select_bw(struct it913x_fe_state *state,
 
 	deb_info("Bandwidth %d Adc %d", bandwidth, adcFrequency);
 
-	if (bandwidth == BANDWIDTH_5_MHZ)
+	switch (bandwidth) {
+	case 5000000:
 		bw = 3;
-	else if (bandwidth == BANDWIDTH_6_MHZ)
+		break;
+	case 6000000:
 		bw = 0;
-	else if (bandwidth == BANDWIDTH_7_MHZ)
+		break;
+	case 7000000:
 		bw = 1;
-	else if (bandwidth == BANDWIDTH_8_MHZ)
+		break;
+	default:
+	case 8000000:
 		bw = 2;
-	else
-		bw = 2;
-
+		break;
+	}
 	ret = it913x_write_reg(state, PRO_DMOD, REG_BW, bw);
 
 	if (state->table == NULL)
@@ -492,31 +515,79 @@ static int it913x_fe_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int it913x_fe_read_snr(struct dvb_frontend *fe, u16* snr)
+static int it913x_fe_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct it913x_fe_state *state = fe->demodulator_priv;
-	int ret = it913x_read_reg_u8(state, SIGNAL_QUALITY);
-	ret = (ret * 0xff) / 0x64;
-	ret |= (ret << 0x8);
-	*snr = ~ret;
-	return 0;
+	int ret;
+	u8 reg[3];
+	u32 snr_val, snr_min, snr_max;
+	u32 temp;
+
+	ret = it913x_read_reg(state, 0x2c, reg, sizeof(reg));
+
+	snr_val = (u32)(reg[2] << 16) | (reg[1] << 8) | reg[0];
+
+	ret |= it913x_read_reg(state, 0xf78b, reg, 1);
+	if (reg[0])
+		snr_val /= reg[0];
+
+	if (state->transmission_mode == TRANSMISSION_MODE_2K)
+		snr_val *= 4;
+	else if (state->transmission_mode == TRANSMISSION_MODE_4K)
+		snr_val *= 2;
+
+	if (state->constellation == QPSK) {
+		snr_min = 0xb4711;
+		snr_max = 0x191451;
+	} else if (state->constellation == QAM_16) {
+		snr_min = 0x4f0d5;
+		snr_max = 0xc7925;
+	} else if (state->constellation == QAM_64) {
+		snr_min = 0x256d0;
+		snr_max = 0x626be;
+	} else
+		return -EINVAL;
+
+	if (snr_val < snr_min)
+		*snr = 0;
+	else if (snr_val < snr_max) {
+		temp = (snr_val - snr_min) >> 5;
+		temp *= 0xffff;
+		temp /= (snr_max - snr_min) >> 5;
+		*snr = (u16)temp;
+	} else
+		*snr = 0xffff;
+
+	return (ret < 0) ? -ENODEV : 0;
 }
 
 static int it913x_fe_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	*ber = 0;
+	struct it913x_fe_state *state = fe->demodulator_priv;
+	int ret;
+	u8 reg[5];
+	/* Read Aborted Packets and Pre-Viterbi error rate 5 bytes */
+	ret = it913x_read_reg(state, RSD_ABORT_PKT_LSB, reg, sizeof(reg));
+	state->ucblocks += (u32)(reg[1] << 8) | reg[0];
+	*ber = (u32)(reg[4] << 16) | (reg[3] << 8) | reg[2];
 	return 0;
 }
 
 static int it913x_fe_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	*ucblocks = 0;
-	return 0;
+	struct it913x_fe_state *state = fe->demodulator_priv;
+	int ret;
+	u8 reg[2];
+	/* Aborted Packets */
+	ret = it913x_read_reg(state, RSD_ABORT_PKT_LSB, reg, sizeof(reg));
+	state->ucblocks += (u32)(reg[1] << 8) | reg[0];
+	*ucblocks = state->ucblocks;
+	return ret;
 }
 
-static int it913x_fe_get_frontend(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p)
+static int it913x_fe_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct it913x_fe_state *state = fe->demodulator_priv;
 	int ret;
 	u8 reg[8];
@@ -524,26 +595,30 @@ static int it913x_fe_get_frontend(struct dvb_frontend *fe,
 	ret = it913x_read_reg(state, REG_TPSD_TX_MODE, reg, sizeof(reg));
 
 	if (reg[3] < 3)
-		p->u.ofdm.constellation = fe_con[reg[3]];
+		p->modulation = fe_con[reg[3]];
 
 	if (reg[0] < 3)
-		p->u.ofdm.transmission_mode = fe_mode[reg[0]];
+		p->transmission_mode = fe_mode[reg[0]];
 
 	if (reg[1] < 4)
-		p->u.ofdm.guard_interval = fe_gi[reg[1]];
+		p->guard_interval = fe_gi[reg[1]];
 
 	if (reg[2] < 4)
-		p->u.ofdm.hierarchy_information = fe_hi[reg[2]];
+		p->hierarchy = fe_hi[reg[2]];
 
-	p->u.ofdm.code_rate_HP = (reg[6] < 6) ? fe_code[reg[6]] : FEC_NONE;
-	p->u.ofdm.code_rate_LP = (reg[7] < 6) ? fe_code[reg[7]] : FEC_NONE;
+	p->code_rate_HP = (reg[6] < 6) ? fe_code[reg[6]] : FEC_NONE;
+	p->code_rate_LP = (reg[7] < 6) ? fe_code[reg[7]] : FEC_NONE;
+
+	/* Update internal state to reflect the autodetected props */
+	state->constellation = p->modulation;
+	state->transmission_mode = p->transmission_mode;
 
 	return 0;
 }
 
-static int it913x_fe_set_frontend(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p)
+static int it913x_fe_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct it913x_fe_state *state = fe->demodulator_priv;
 	int ret, i;
 	u8 empty_ch, last_ch;
@@ -551,7 +626,7 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe,
 	state->it913x_status = 0;
 
 	/* Set bw*/
-	ret = it913x_fe_select_bw(state, p->u.ofdm.bandwidth,
+	ret = it913x_fe_select_bw(state, p->bandwidth_hz,
 		state->adcFrequency);
 
 	/* Training Mode Off */
@@ -571,20 +646,25 @@ static int it913x_fe_set_frontend(struct dvb_frontend *fe,
 			i = 1;
 	else if ((p->frequency >= 1450000000) && (p->frequency <= 1680000000))
 			i = 2;
-		else
-			return -EOPNOTSUPP;
+	else
+		return -EOPNOTSUPP;
 
 	ret = it913x_write_reg(state, PRO_DMOD, FREE_BAND, i);
 
 	deb_info("Frontend Set Tuner Type %02x", state->tuner_type);
 	switch (state->tuner_type) {
-	case IT9137: /* Tuner type 0x38 */
+	case IT9135_38:
+	case IT9135_51:
+	case IT9135_52:
+	case IT9135_60:
+	case IT9135_61:
+	case IT9135_62:
 		ret = it9137_set_tuner(state,
-			p->u.ofdm.bandwidth, p->frequency);
+			p->bandwidth_hz, p->frequency);
 		break;
 	default:
 		if (fe->ops.tuner_ops.set_params) {
-			fe->ops.tuner_ops.set_params(fe, p);
+			fe->ops.tuner_ops.set_params(fe);
 			if (fe->ops.i2c_gate_ctrl)
 				fe->ops.i2c_gate_ctrl(fe, 0);
 		}
@@ -678,16 +758,19 @@ static u32 compute_div(u32 a, u32 b, u32 x)
 
 static int it913x_fe_start(struct it913x_fe_state *state)
 {
-	struct it913xset *set_fe;
+	struct it913xset *set_lna;
 	struct it913xset *set_mode;
 	int ret;
-	u8 adf = (state->adf & 0xf);
+	u8 adf = (state->config->adf & 0xf);
 	u32 adc, xtal;
 	u8 b[4];
 
-	ret = it913x_init_tuner(state);
+	if (state->config->chip_ver == 1)
+		ret = it913x_init_tuner(state);
 
-	if (adf < 12) {
+	info("ADF table value	:%02x", adf);
+
+	if (adf < 10) {
 		state->crystalFrequency = fe_clockTable[adf].xtal ;
 		state->table = fe_clockTable[adf].table;
 		state->adcFrequency = state->table->adcFrequency;
@@ -697,9 +780,6 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 
 	} else
 		return -EINVAL;
-
-	deb_info("Xtal Freq :%d Adc Freq :%d Adc %08x Xtal %08x",
-		state->crystalFrequency, state->adcFrequency, adc, xtal);
 
 	/* Set LED indicator on GPIOH3 */
 	ret = it913x_write_reg(state, PRO_LINK, GPIOH3_EN, 0x1);
@@ -721,22 +801,71 @@ static int it913x_fe_start(struct it913x_fe_state *state)
 	b[2] = (adc >> 16) & 0xff;
 	ret |= it913x_write(state, PRO_DMOD, ADC_FREQ, b, 3);
 
-	switch (state->tuner_type) {
-	case IT9137: /* Tuner type 0x38 */
-		set_fe = it9137_set;
-		break;
-	default:
-		return -EINVAL;
-	}
+	if (state->config->adc_x2)
+		ret |= it913x_write_reg(state, PRO_DMOD, ADC_X_2, 0x01);
+	b[0] = 0;
+	b[1] = 0;
+	b[2] = 0;
+	ret |= it913x_write(state, PRO_DMOD, 0x0029, b, 3);
 
-	/* set the demod */
-	ret = it913x_fe_script_loader(state, set_fe);
+	info("Crystal Frequency :%d Adc Frequency :%d ADC X2: %02x",
+		state->crystalFrequency, state->adcFrequency,
+			state->config->adc_x2);
+	deb_info("Xtal value :%04x Adc value :%04x", xtal, adc);
+
+	if (ret < 0)
+		return -ENODEV;
+
+	/* v1 or v2 tuner script */
+	if (state->config->chip_ver > 1)
+		ret = it913x_fe_script_loader(state, it9135_v2);
+	else
+		ret = it913x_fe_script_loader(state, it9135_v1);
+	if (ret < 0)
+		return ret;
+
+	/* LNA Scripts */
+	switch (state->tuner_type) {
+	case IT9135_51:
+		set_lna = it9135_51;
+		break;
+	case IT9135_52:
+		set_lna = it9135_52;
+		break;
+	case IT9135_60:
+		set_lna = it9135_60;
+		break;
+	case IT9135_61:
+		set_lna = it9135_61;
+		break;
+	case IT9135_62:
+		set_lna = it9135_62;
+		break;
+	case IT9135_38:
+	default:
+		set_lna = it9135_38;
+	}
+	info("Tuner LNA type :%02x", state->tuner_type);
+
+	ret = it913x_fe_script_loader(state, set_lna);
+	if (ret < 0)
+		return ret;
+
+	if (state->config->chip_ver == 2) {
+		ret = it913x_write_reg(state, PRO_DMOD, TRIGGER_OFSM, 0x1);
+		ret |= it913x_write_reg(state, PRO_LINK, PADODPU, 0x0);
+		ret |= it913x_write_reg(state, PRO_LINK, AGC_O_D, 0x0);
+		ret |= it913x_init_tuner(state);
+	}
+	if (ret < 0)
+		return -ENODEV;
+
 	/* Always solo frontend */
 	set_mode = set_solo_fe;
 	ret |= it913x_fe_script_loader(state, set_mode);
 
 	ret |= it913x_fe_suspend(state);
-	return 0;
+	return (ret < 0) ? -ENODEV : 0;
 }
 
 static int it913x_fe_init(struct dvb_frontend *fe)
@@ -746,17 +875,11 @@ static int it913x_fe_init(struct dvb_frontend *fe)
 	/* Power Up Tuner - common all versions */
 	ret = it913x_write_reg(state, PRO_DMOD, 0xec40, 0x1);
 
-	ret |= it913x_write_reg(state, PRO_DMOD, AFE_MEM0, 0x0);
-
 	ret |= it913x_fe_script_loader(state, init_1);
 
-	switch (state->tuner_type) {
-	case IT9137:
-		ret |= it913x_write_reg(state, PRO_DMOD, 0xfba8, 0x0);
-		break;
-	default:
-		return -EINVAL;
-	}
+	ret |= it913x_write_reg(state, PRO_DMOD, AFE_MEM0, 0x0);
+
+	ret |= it913x_write_reg(state, PRO_DMOD, 0xfba8, 0x0);
 
 	return (ret < 0) ? -ENODEV : 0;
 }
@@ -770,19 +893,34 @@ static void it913x_fe_release(struct dvb_frontend *fe)
 static struct dvb_frontend_ops it913x_fe_ofdm_ops;
 
 struct dvb_frontend *it913x_fe_attach(struct i2c_adapter *i2c_adap,
-		u8 i2c_addr, u8 adf, u8 type)
+		u8 i2c_addr, struct ite_config *config)
 {
 	struct it913x_fe_state *state = NULL;
 	int ret;
+
 	/* allocate memory for the internal state */
 	state = kzalloc(sizeof(struct it913x_fe_state), GFP_KERNEL);
 	if (state == NULL)
+		return NULL;
+	if (config == NULL)
 		goto error;
 
 	state->i2c_adap = i2c_adap;
 	state->i2c_addr = i2c_addr;
-	state->adf = adf;
-	state->tuner_type = type;
+	state->config = config;
+
+	switch (state->config->tuner_id_0) {
+	case IT9135_51:
+	case IT9135_52:
+	case IT9135_60:
+	case IT9135_61:
+	case IT9135_62:
+		state->tuner_type = state->config->tuner_id_0;
+		break;
+	default:
+	case IT9135_38:
+		state->tuner_type = IT9135_38;
+	}
 
 	ret = it913x_fe_start(state);
 	if (ret < 0)
@@ -802,10 +940,9 @@ error:
 EXPORT_SYMBOL(it913x_fe_attach);
 
 static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "it913x-fe DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 51000000,
 		.frequency_max		= 1680000000,
 		.frequency_stepsize	= 62500,
@@ -835,5 +972,5 @@ static struct dvb_frontend_ops it913x_fe_ofdm_ops = {
 
 MODULE_DESCRIPTION("it913x Frontend and it9137 tuner");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
-MODULE_VERSION("1.07");
+MODULE_VERSION("1.13");
 MODULE_LICENSE("GPL");

@@ -107,7 +107,8 @@ static LIST_HEAD(mtd_notifiers);
  */
 static void mtd_release(struct device *dev)
 {
-	dev_t index = MTD_DEVT(dev_to_mtd(dev)->index);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	dev_t index = MTD_DEVT(mtd->index);
 
 	/* remove /dev/mtdXro node if needed */
 	if (index)
@@ -116,27 +117,24 @@ static void mtd_release(struct device *dev)
 
 static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	if (mtd && mtd->suspend)
-		return mtd->suspend(mtd);
-	else
-		return 0;
+	return mtd ? mtd_suspend(mtd) : 0;
 }
 
 static int mtd_cls_resume(struct device *dev)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
-	
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
 	if (mtd && mtd->resume)
-		mtd->resume(mtd);
+		mtd_resume(mtd);
 	return 0;
 }
 
 static ssize_t mtd_type_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	char *type;
 
 	switch (mtd->type) {
@@ -172,7 +170,7 @@ static DEVICE_ATTR(type, S_IRUGO, mtd_type_show, NULL);
 static ssize_t mtd_flags_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "0x%lx\n", (unsigned long)mtd->flags);
 
@@ -182,7 +180,7 @@ static DEVICE_ATTR(flags, S_IRUGO, mtd_flags_show, NULL);
 static ssize_t mtd_size_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%llu\n",
 		(unsigned long long)mtd->size);
@@ -193,7 +191,7 @@ static DEVICE_ATTR(size, S_IRUGO, mtd_size_show, NULL);
 static ssize_t mtd_erasesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->erasesize);
 
@@ -203,7 +201,7 @@ static DEVICE_ATTR(erasesize, S_IRUGO, mtd_erasesize_show, NULL);
 static ssize_t mtd_writesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->writesize);
 
@@ -213,7 +211,7 @@ static DEVICE_ATTR(writesize, S_IRUGO, mtd_writesize_show, NULL);
 static ssize_t mtd_subpagesize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 	unsigned int subpagesize = mtd->writesize >> mtd->subpage_sft;
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", subpagesize);
@@ -224,7 +222,7 @@ static DEVICE_ATTR(subpagesize, S_IRUGO, mtd_subpagesize_show, NULL);
 static ssize_t mtd_oobsize_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%lu\n", (unsigned long)mtd->oobsize);
 
@@ -234,7 +232,7 @@ static DEVICE_ATTR(oobsize, S_IRUGO, mtd_oobsize_show, NULL);
 static ssize_t mtd_numeraseregions_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->numeraseregions);
 
@@ -245,7 +243,7 @@ static DEVICE_ATTR(numeraseregions, S_IRUGO, mtd_numeraseregions_show,
 static ssize_t mtd_name_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct mtd_info *mtd = dev_to_mtd(dev);
+	struct mtd_info *mtd = dev_get_drvdata(dev);
 
 	return snprintf(buf, PAGE_SIZE, "%s\n", mtd->name);
 
@@ -338,9 +336,9 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->writesize_mask = (1 << mtd->writesize_shift) - 1;
 
 	/* Some chips always power up locked. Unlock them now */
-	if ((mtd->flags & MTD_WRITEABLE)
-	    && (mtd->flags & MTD_POWERUP_LOCK) && mtd->unlock) {
-		if (mtd->unlock(mtd, 0, mtd->size))
+	if ((mtd->flags & MTD_WRITEABLE) && (mtd->flags & MTD_POWERUP_LOCK)) {
+		error = mtd_unlock(mtd, 0, mtd->size);
+		if (error && error != -EOPNOTSUPP)
 			printk(KERN_WARNING
 			       "%s: unlock failed, writes may not work\n",
 			       mtd->name);
@@ -516,7 +514,6 @@ EXPORT_SYMBOL_GPL(mtd_device_unregister);
  *	or removal of MTD devices. Causes the 'add' callback to be immediately
  *	invoked for each MTD device currently present in the system.
  */
-
 void register_mtd_user (struct mtd_notifier *new)
 {
 	struct mtd_info *mtd;
@@ -532,6 +529,7 @@ void register_mtd_user (struct mtd_notifier *new)
 
 	mutex_unlock(&mtd_table_mutex);
 }
+EXPORT_SYMBOL_GPL(register_mtd_user);
 
 /**
  *	unregister_mtd_user - unregister a 'user' of MTD devices.
@@ -542,7 +540,6 @@ void register_mtd_user (struct mtd_notifier *new)
  *	'remove' callback to be immediately invoked for each MTD device
  *	currently present in the system.
  */
-
 int unregister_mtd_user (struct mtd_notifier *old)
 {
 	struct mtd_info *mtd;
@@ -558,7 +555,7 @@ int unregister_mtd_user (struct mtd_notifier *old)
 	mutex_unlock(&mtd_table_mutex);
 	return 0;
 }
-
+EXPORT_SYMBOL_GPL(unregister_mtd_user);
 
 /**
  *	get_mtd_device - obtain a validated handle for an MTD device
@@ -571,7 +568,6 @@ int unregister_mtd_user (struct mtd_notifier *old)
  *	both, return the num'th driver only if its address matches. Return
  *	error code if not.
  */
-
 struct mtd_info *get_mtd_device(struct mtd_info *mtd, int num)
 {
 	struct mtd_info *ret = NULL, *other;
@@ -604,6 +600,7 @@ out:
 	mutex_unlock(&mtd_table_mutex);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(get_mtd_device);
 
 
 int __get_mtd_device(struct mtd_info *mtd)
@@ -624,6 +621,7 @@ int __get_mtd_device(struct mtd_info *mtd)
 	mtd->usecount++;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(__get_mtd_device);
 
 /**
  *	get_mtd_device_nm - obtain a validated handle for an MTD device by
@@ -633,7 +631,6 @@ int __get_mtd_device(struct mtd_info *mtd)
  * 	This function returns MTD device description structure in case of
  * 	success and an error code in case of failure.
  */
-
 struct mtd_info *get_mtd_device_nm(const char *name)
 {
 	int err = -ENODEV;
@@ -662,6 +659,7 @@ out_unlock:
 	mutex_unlock(&mtd_table_mutex);
 	return ERR_PTR(err);
 }
+EXPORT_SYMBOL_GPL(get_mtd_device_nm);
 
 void put_mtd_device(struct mtd_info *mtd)
 {
@@ -670,6 +668,7 @@ void put_mtd_device(struct mtd_info *mtd)
 	mutex_unlock(&mtd_table_mutex);
 
 }
+EXPORT_SYMBOL_GPL(put_mtd_device);
 
 void __put_mtd_device(struct mtd_info *mtd)
 {
@@ -681,39 +680,65 @@ void __put_mtd_device(struct mtd_info *mtd)
 
 	module_put(mtd->owner);
 }
+EXPORT_SYMBOL_GPL(__put_mtd_device);
 
-/* default_mtd_writev - default mtd writev method for MTD devices that
- *			don't implement their own
+/*
+ * default_mtd_writev - the default writev method
+ * @mtd: mtd device description object pointer
+ * @vecs: the vectors to write
+ * @count: count of vectors in @vecs
+ * @to: the MTD device offset to write to
+ * @retlen: on exit contains the count of bytes written to the MTD device.
+ *
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
  */
-
-int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
-		       unsigned long count, loff_t to, size_t *retlen)
+static int default_mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
+			      unsigned long count, loff_t to, size_t *retlen)
 {
 	unsigned long i;
 	size_t totlen = 0, thislen;
 	int ret = 0;
 
-	if(!mtd->write) {
-		ret = -EROFS;
-	} else {
-		for (i=0; i<count; i++) {
-			if (!vecs[i].iov_len)
-				continue;
-			ret = mtd->write(mtd, to, vecs[i].iov_len, &thislen, vecs[i].iov_base);
-			totlen += thislen;
-			if (ret || thislen != vecs[i].iov_len)
-				break;
-			to += vecs[i].iov_len;
-		}
+	for (i = 0; i < count; i++) {
+		if (!vecs[i].iov_len)
+			continue;
+		ret = mtd_write(mtd, to, vecs[i].iov_len, &thislen,
+				vecs[i].iov_base);
+		totlen += thislen;
+		if (ret || thislen != vecs[i].iov_len)
+			break;
+		to += vecs[i].iov_len;
 	}
-	if (retlen)
-		*retlen = totlen;
+	*retlen = totlen;
 	return ret;
 }
 
+/*
+ * mtd_writev - the vector-based MTD write method
+ * @mtd: mtd device description object pointer
+ * @vecs: the vectors to write
+ * @count: count of vectors in @vecs
+ * @to: the MTD device offset to write to
+ * @retlen: on exit contains the count of bytes written to the MTD device.
+ *
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int mtd_writev(struct mtd_info *mtd, const struct kvec *vecs,
+	       unsigned long count, loff_t to, size_t *retlen)
+{
+	*retlen = 0;
+	if (!mtd->writev)
+		return default_mtd_writev(mtd, vecs, count, to, retlen);
+	return mtd->writev(mtd, vecs, count, to, retlen);
+}
+EXPORT_SYMBOL_GPL(mtd_writev);
+
 /**
  * mtd_kmalloc_up_to - allocate a contiguous buffer up to the specified size
- * @size: A pointer to the ideal or maximum size of the allocation. Points
+ * @mtd: mtd device description object pointer
+ * @size: a pointer to the ideal or maximum size of the allocation, points
  *        to the actual allocation size on success.
  *
  * This routine attempts to allocate a contiguous kernel buffer up to
@@ -758,15 +783,6 @@ void *mtd_kmalloc_up_to(const struct mtd_info *mtd, size_t *size)
 	 */
 	return kmalloc(*size, GFP_KERNEL);
 }
-
-EXPORT_SYMBOL_GPL(get_mtd_device);
-EXPORT_SYMBOL_GPL(get_mtd_device_nm);
-EXPORT_SYMBOL_GPL(__get_mtd_device);
-EXPORT_SYMBOL_GPL(put_mtd_device);
-EXPORT_SYMBOL_GPL(__put_mtd_device);
-EXPORT_SYMBOL_GPL(register_mtd_user);
-EXPORT_SYMBOL_GPL(unregister_mtd_user);
-EXPORT_SYMBOL_GPL(default_mtd_writev);
 EXPORT_SYMBOL_GPL(mtd_kmalloc_up_to);
 
 #ifdef CONFIG_PROC_FS

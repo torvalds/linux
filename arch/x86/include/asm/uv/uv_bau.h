@@ -65,7 +65,7 @@
  * UV2: Bit 19 selects between
  *  (0): 10 microsecond timebase and
  *  (1): 80 microseconds
- *  we're using 655us, similar to UV1: 65 units of 10us
+ *  we're using 560us, similar to UV1: 65 units of 10us
  */
 #define UV1_INTD_SOFT_ACK_TIMEOUT_PERIOD (9UL)
 #define UV2_INTD_SOFT_ACK_TIMEOUT_PERIOD (15UL)
@@ -167,6 +167,7 @@
 #define FLUSH_RETRY_TIMEOUT		2
 #define FLUSH_GIVEUP			3
 #define FLUSH_COMPLETE			4
+#define FLUSH_RETRY_BUSYBUG		5
 
 /*
  * tuning the action when the numalink network is extremely delayed
@@ -235,10 +236,10 @@ struct bau_msg_payload {
 
 
 /*
- * Message header:  16 bytes (128 bits) (bytes 0x30-0x3f of descriptor)
+ * UV1 Message header:  16 bytes (128 bits) (bytes 0x30-0x3f of descriptor)
  * see table 4.2.3.0.1 in broacast_assist spec.
  */
-struct bau_msg_header {
+struct uv1_bau_msg_header {
 	unsigned int	dest_subnodeid:6;	/* must be 0x10, for the LB */
 	/* bits 5:0 */
 	unsigned int	base_dest_nasid:15;	/* nasid of the first bit */
@@ -318,21 +319,99 @@ struct bau_msg_header {
 };
 
 /*
+ * UV2 Message header:  16 bytes (128 bits) (bytes 0x30-0x3f of descriptor)
+ * see figure 9-2 of harp_sys.pdf
+ */
+struct uv2_bau_msg_header {
+	unsigned int	base_dest_nasid:15;	/* nasid of the first bit */
+	/* bits 14:0 */				/* in uvhub map */
+	unsigned int	dest_subnodeid:5;	/* must be 0x10, for the LB */
+	/* bits 19:15 */
+	unsigned int	rsvd_1:1;		/* must be zero */
+	/* bit 20 */
+	/* Address bits 59:21 */
+	/* bits 25:2 of address (44:21) are payload */
+	/* these next 24 bits become bytes 12-14 of msg */
+	/* bits 28:21 land in byte 12 */
+	unsigned int	replied_to:1;		/* sent as 0 by the source to
+						   byte 12 */
+	/* bit 21 */
+	unsigned int	msg_type:3;		/* software type of the
+						   message */
+	/* bits 24:22 */
+	unsigned int	canceled:1;		/* message canceled, resource
+						   is to be freed*/
+	/* bit 25 */
+	unsigned int	payload_1:3;		/* not currently used */
+	/* bits 28:26 */
+
+	/* bits 36:29 land in byte 13 */
+	unsigned int	payload_2a:3;		/* not currently used */
+	unsigned int	payload_2b:5;		/* not currently used */
+	/* bits 36:29 */
+
+	/* bits 44:37 land in byte 14 */
+	unsigned int	payload_3:8;		/* not currently used */
+	/* bits 44:37 */
+
+	unsigned int	rsvd_2:7;		/* reserved */
+	/* bits 51:45 */
+	unsigned int	swack_flag:1;		/* software acknowledge flag */
+	/* bit 52 */
+	unsigned int	rsvd_3a:3;		/* must be zero */
+	unsigned int	rsvd_3b:8;		/* must be zero */
+	unsigned int	rsvd_3c:8;		/* must be zero */
+	unsigned int	rsvd_3d:3;		/* must be zero */
+	/* bits 74:53 */
+	unsigned int	fairness:3;		/* usually zero */
+	/* bits 77:75 */
+
+	unsigned int	sequence:16;		/* message sequence number */
+	/* bits 93:78  Suppl_A  */
+	unsigned int	chaining:1;		/* next descriptor is part of
+						   this activation*/
+	/* bit 94 */
+	unsigned int	multilevel:1;		/* multi-level multicast
+						   format */
+	/* bit 95 */
+	unsigned int	rsvd_4:24;		/* ordered / source node /
+						   source subnode / aging
+						   must be zero */
+	/* bits 119:96 */
+	unsigned int	command:8;		/* message type */
+	/* bits 127:120 */
+};
+
+/*
  * The activation descriptor:
  * The format of the message to send, plus all accompanying control
  * Should be 64 bytes
  */
 struct bau_desc {
-	struct pnmask			distribution;
+	struct pnmask				distribution;
 	/*
 	 * message template, consisting of header and payload:
 	 */
-	struct bau_msg_header		header;
-	struct bau_msg_payload		payload;
+	union bau_msg_header {
+		struct uv1_bau_msg_header	uv1_hdr;
+		struct uv2_bau_msg_header	uv2_hdr;
+	} header;
+
+	struct bau_msg_payload			payload;
 };
-/*
+/* UV1:
  *   -payload--    ---------header------
  *   bytes 0-11    bits 41-56  bits 58-81
+ *       A           B  (2)      C (3)
+ *
+ *            A/B/C are moved to:
+ *       A            C          B
+ *   bytes 0-11  bytes 12-14  bytes 16-17  (byte 15 filled in by hw as vector)
+ *   ------------payload queue-----------
+ */
+/* UV2:
+ *   -payload--    ---------header------
+ *   bytes 0-11    bits 70-78  bits 21-44
  *       A           B  (2)      C (3)
  *
  *            A/B/C are moved to:
@@ -385,7 +464,6 @@ struct bau_pq_entry {
 struct msg_desc {
 	struct bau_pq_entry	*msg;
 	int			msg_slot;
-	int			swack_slot;
 	struct bau_pq_entry	*queue_first;
 	struct bau_pq_entry	*queue_last;
 };
@@ -405,6 +483,7 @@ struct ptc_stats {
 						   requests */
 	unsigned long	s_stimeout;		/* source side timeouts */
 	unsigned long	s_dtimeout;		/* destination side timeouts */
+	unsigned long	s_strongnacks;		/* number of strong nack's */
 	unsigned long	s_time;			/* time spent in sending side */
 	unsigned long	s_retriesok;		/* successful retries */
 	unsigned long	s_ntargcpu;		/* total number of cpu's
@@ -439,6 +518,9 @@ struct ptc_stats {
 	unsigned long	s_retry_messages;	/* retry broadcasts */
 	unsigned long	s_bau_reenabled;	/* for bau enable/disable */
 	unsigned long	s_bau_disabled;		/* for bau enable/disable */
+	unsigned long	s_uv2_wars;		/* uv2 workaround, perm. busy */
+	unsigned long	s_uv2_wars_hw;		/* uv2 workaround, hiwater */
+	unsigned long	s_uv2_war_waits;	/* uv2 workaround, long waits */
 	/* destination statistics */
 	unsigned long	d_alltlb;		/* times all tlb's on this
 						   cpu were flushed */
@@ -511,9 +593,12 @@ struct bau_control {
 	short			osnode;
 	short			uvhub_cpu;
 	short			uvhub;
+	short			uvhub_version;
 	short			cpus_in_socket;
 	short			cpus_in_uvhub;
 	short			partition_base_pnode;
+	short			using_desc; /* an index, like uvhub_cpu */
+	unsigned int		inuse_map;
 	unsigned short		message_number;
 	unsigned short		uvhub_quiesce;
 	short			socket_acknowledge_count[DEST_Q_SIZE];
@@ -531,6 +616,7 @@ struct bau_control {
 	int			cong_response_us;
 	int			cong_reps;
 	int			cong_period;
+	unsigned long		clocks_per_100_usec;
 	cycles_t		period_time;
 	long			period_requests;
 	struct hub_and_pnode	*thp;
@@ -589,6 +675,11 @@ static inline unsigned long read_mmr_misc_control(int pnode)
 static inline void write_mmr_sw_ack(unsigned long mr)
 {
 	uv_write_local_mmr(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
+}
+
+static inline void write_gmmr_sw_ack(int pnode, unsigned long mr)
+{
+	write_gmmr(pnode, UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS, mr);
 }
 
 static inline unsigned long read_mmr_sw_ack(void)

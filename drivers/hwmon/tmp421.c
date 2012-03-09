@@ -157,7 +157,7 @@ static ssize_t show_fault(struct device *dev,
 		return sprintf(buf, "0\n");
 }
 
-static mode_t tmp421_is_visible(struct kobject *kobj, struct attribute *a,
+static umode_t tmp421_is_visible(struct kobject *kobj, struct attribute *a,
 				int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);

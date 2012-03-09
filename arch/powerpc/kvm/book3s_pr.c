@@ -658,10 +658,12 @@ program_interrupt:
 			ulong cmd = kvmppc_get_gpr(vcpu, 3);
 			int i;
 
+#ifdef CONFIG_KVM_BOOK3S_64_PR
 			if (kvmppc_h_pr(vcpu, cmd) == EMULATE_DONE) {
 				r = RESUME_GUEST;
 				break;
 			}
+#endif
 
 			run->papr_hcall.nr = cmd;
 			for (i = 0; i < 9; ++i) {

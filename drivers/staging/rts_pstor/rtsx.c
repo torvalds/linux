@@ -466,8 +466,6 @@ static int rtsx_control_thread(void *__dev)
 	struct rtsx_chip *chip = dev->chip;
 	struct Scsi_Host *host = rtsx_to_host(dev);
 
-	current->flags |= PF_NOFREEZE;
-
 	for (;;) {
 		if (wait_for_completion_interruptible(&dev->cmnd_ready))
 			break;
@@ -1021,6 +1019,7 @@ static int __devinit rtsx_probe(struct pci_dev *pci,
 	th = kthread_create(rtsx_scan_thread, dev, "rtsx-scan");
 	if (IS_ERR(th)) {
 		printk(KERN_ERR "Unable to start the device-scanning thread\n");
+		complete(&dev->scanning_done);
 		quiesce_and_remove_host(dev);
 		err = PTR_ERR(th);
 		goto errout;

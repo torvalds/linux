@@ -268,7 +268,7 @@ static void __init map_sa1100_gpio_regs( void )
 	int prot = PMD_TYPE_SECT | PMD_SECT_AP_WRITE | PMD_DOMAIN(DOMAIN_IO);
 	pmd_t *pmd;
 
-	pmd = pmd_offset(pgd_offset_k(virt), virt);
+	pmd = pmd_offset(pud_offset(pgd_offset_k(virt), virt), virt);
 	*pmd = __pmd(phys | prot);
 	flush_pmd_entry(pmd);
 }
@@ -455,4 +455,5 @@ MACHINE_START(ASSABET, "Intel-Assabet")
 #ifdef CONFIG_SA1111
 	.dma_zone_size	= SZ_1M,
 #endif
+	.restart	= sa11x0_restart,
 MACHINE_END

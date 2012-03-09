@@ -8,3 +8,15 @@ Contact:	David Herrmann <dh.herrmann@googlemail.com>
 Description:	Make it possible to set/get current led state. Reading from it
 		returns 0 if led is off and 1 if it is on. Writing 0 to it
 		disables the led, writing 1 enables it.
+
+What:		/sys/bus/hid/drivers/wiimote/<dev>/extension
+Date:		August 2011
+KernelVersion:	3.2
+Contact:	David Herrmann <dh.herrmann@googlemail.com>
+Description:	This file contains the currently connected and initialized
+		extensions. It can be one of: none, motionp, nunchuck, classic,
+		motionp+nunchuck, motionp+classic
+		motionp is the official Nintendo Motion+ extension, nunchuck is
+		the official Nintendo Nunchuck extension and classic is the
+		Nintendo Classic Controller extension. The motionp extension can
+		be combined with the other two.

@@ -843,8 +843,8 @@ vmxnet3_parse_and_copy_hdr(struct sk_buff *skb, struct vmxnet3_tx_queue *tq,
 				/* for simplicity, don't copy L4 headers */
 				ctx->l4_hdr_size = 0;
 			}
-			ctx->copy_size = ctx->eth_ip_hdr_size +
-					 ctx->l4_hdr_size;
+			ctx->copy_size = min(ctx->eth_ip_hdr_size +
+					 ctx->l4_hdr_size, skb->len);
 		} else {
 			ctx->eth_ip_hdr_size = 0;
 			ctx->l4_hdr_size = 0;
@@ -1926,7 +1926,7 @@ vmxnet3_restore_vlan(struct vmxnet3_adapter *adapter)
 }
 
 
-static void
+static int
 vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
@@ -1943,10 +1943,12 @@ vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	}
 
 	set_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
 
-static void
+static int
 vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
@@ -1963,6 +1965,8 @@ vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	}
 
 	clear_bit(vid, adapter->active_vlans);
+
+	return 0;
 }
 
 
@@ -2163,7 +2167,8 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		rssConf->indTableSize = VMXNET3_RSS_IND_TABLE_SIZE;
 		get_random_bytes(&rssConf->hashKey[0], rssConf->hashKeySize);
 		for (i = 0; i < rssConf->indTableSize; i++)
-			rssConf->indTable[i] = i % adapter->num_rx_queues;
+			rssConf->indTable[i] = ethtool_rxfh_indir_default(
+				i, adapter->num_rx_queues);
 
 		devRead->rssConfDesc.confVer = 1;
 		devRead->rssConfDesc.confLen = sizeof(*rssConf);

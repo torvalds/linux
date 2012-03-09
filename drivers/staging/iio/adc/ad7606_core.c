@@ -20,7 +20,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 
 #include "ad7606.h"
 
@@ -91,7 +91,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
-			ret = ad7606_scan_from_ring(indio_dev, chan->address);
+			ret = -EBUSY;
 		else
 			ret = ad7606_scan_direct(indio_dev, chan->address);
 		mutex_unlock(&indio_dev->mlock);
@@ -100,7 +100,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 			return ret;
 		*val = (short) ret;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->range * 1000 * 2)
 			>> st->chip_info->channels[0].scan_type.realbits;
 		*val =  scale_uv / 1000;
@@ -205,14 +205,14 @@ static struct attribute *ad7606_attributes[] = {
 	NULL,
 };
 
-static mode_t ad7606_attr_is_visible(struct kobject *kobj,
+static umode_t ad7606_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if (!(gpio_is_valid(st->pdata->gpio_os0) &&
 	      gpio_is_valid(st->pdata->gpio_os1) &&

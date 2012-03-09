@@ -1,9 +1,3 @@
-#config SGI_SN0_XXL
-#	bool "IP27 XXL"
-#	depends on SGI_IP27
-#	  This options adds support for userspace processes up to 16TB size.
-#	  Normally the limit is just .5TB.
-
 choice
 	prompt "Node addressing mode"
 	depends on SGI_IP27

@@ -36,6 +36,7 @@
 #include <asm/uaccess.h>
 
 #include "internal.h"
+#include "mount.h"
 
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
@@ -139,21 +140,19 @@ static int do_getname(const char __user *filename, char *page)
 
 static char *getname_flags(const char __user *filename, int flags, int *empty)
 {
-	char *tmp, *result;
+	char *result = __getname();
+	int retval;
 
-	result = ERR_PTR(-ENOMEM);
-	tmp = __getname();
-	if (tmp)  {
-		int retval = do_getname(filename, tmp);
+	if (!result)
+		return ERR_PTR(-ENOMEM);
 
-		result = tmp;
-		if (retval < 0) {
-			if (retval == -ENOENT && empty)
-				*empty = 1;
-			if (retval != -ENOENT || !(flags & LOOKUP_EMPTY)) {
-				__putname(tmp);
-				result = ERR_PTR(retval);
-			}
+	retval = do_getname(filename, result);
+	if (retval < 0) {
+		if (retval == -ENOENT && empty)
+			*empty = 1;
+		if (retval != -ENOENT || !(flags & LOOKUP_EMPTY)) {
+			__putname(result);
+			return ERR_PTR(retval);
 		}
 	}
 	audit_getname(result);
@@ -676,36 +675,38 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 
 static int follow_up_rcu(struct path *path)
 {
-	struct vfsmount *parent;
+	struct mount *mnt = real_mount(path->mnt);
+	struct mount *parent;
 	struct dentry *mountpoint;
 
-	parent = path->mnt->mnt_parent;
-	if (parent == path->mnt)
+	parent = mnt->mnt_parent;
+	if (&parent->mnt == path->mnt)
 		return 0;
-	mountpoint = path->mnt->mnt_mountpoint;
+	mountpoint = mnt->mnt_mountpoint;
 	path->dentry = mountpoint;
-	path->mnt = parent;
+	path->mnt = &parent->mnt;
 	return 1;
 }
 
 int follow_up(struct path *path)
 {
-	struct vfsmount *parent;
+	struct mount *mnt = real_mount(path->mnt);
+	struct mount *parent;
 	struct dentry *mountpoint;
 
 	br_read_lock(vfsmount_lock);
-	parent = path->mnt->mnt_parent;
-	if (parent == path->mnt) {
+	parent = mnt->mnt_parent;
+	if (&parent->mnt == path->mnt) {
 		br_read_unlock(vfsmount_lock);
 		return 0;
 	}
-	mntget(parent);
-	mountpoint = dget(path->mnt->mnt_mountpoint);
+	mntget(&parent->mnt);
+	mountpoint = dget(mnt->mnt_mountpoint);
 	br_read_unlock(vfsmount_lock);
 	dput(path->dentry);
 	path->dentry = mountpoint;
 	mntput(path->mnt);
-	path->mnt = parent;
+	path->mnt = &parent->mnt;
 	return 1;
 }
 
@@ -884,7 +885,7 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 			       struct inode **inode)
 {
 	for (;;) {
-		struct vfsmount *mounted;
+		struct mount *mounted;
 		/*
 		 * Don't forget we might have a non-mountpoint managed dentry
 		 * that wants to block transit.
@@ -898,8 +899,8 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 		mounted = __lookup_mnt(path->mnt, path->dentry, 1);
 		if (!mounted)
 			break;
-		path->mnt = mounted;
-		path->dentry = mounted->mnt_root;
+		path->mnt = &mounted->mnt;
+		path->dentry = mounted->mnt.mnt_root;
 		nd->flags |= LOOKUP_JUMPED;
 		nd->seq = read_seqcount_begin(&path->dentry->d_seq);
 		/*
@@ -915,12 +916,12 @@ static bool __follow_mount_rcu(struct nameidata *nd, struct path *path,
 static void follow_mount_rcu(struct nameidata *nd)
 {
 	while (d_mountpoint(nd->path.dentry)) {
-		struct vfsmount *mounted;
+		struct mount *mounted;
 		mounted = __lookup_mnt(nd->path.mnt, nd->path.dentry, 1);
 		if (!mounted)
 			break;
-		nd->path.mnt = mounted;
-		nd->path.dentry = mounted->mnt_root;
+		nd->path.mnt = &mounted->mnt;
+		nd->path.dentry = mounted->mnt.mnt_root;
 		nd->seq = read_seqcount_begin(&nd->path.dentry->d_seq);
 	}
 }
@@ -1094,8 +1095,10 @@ static struct dentry *d_inode_lookup(struct dentry *parent, struct dentry *dentr
 	struct dentry *old;
 
 	/* Don't create child dentry for a dead directory. */
-	if (unlikely(IS_DEADDIR(inode)))
+	if (unlikely(IS_DEADDIR(inode))) {
+		dput(dentry);
 		return ERR_PTR(-ENOENT);
+	}
 
 	old = inode->i_op->lookup(inode, dentry, nd);
 	if (unlikely(old)) {
@@ -1371,6 +1374,34 @@ static inline int can_lookup(struct inode *inode)
 	return 1;
 }
 
+unsigned int full_name_hash(const unsigned char *name, unsigned int len)
+{
+	unsigned long hash = init_name_hash();
+	while (len--)
+		hash = partial_name_hash(*name++, hash);
+	return end_name_hash(hash);
+}
+EXPORT_SYMBOL(full_name_hash);
+
+/*
+ * We know there's a real path component here of at least
+ * one character.
+ */
+static inline unsigned long hash_name(const char *name, unsigned int *hashp)
+{
+	unsigned long hash = init_name_hash();
+	unsigned long len = 0, c;
+
+	c = (unsigned char)*name;
+	do {
+		len++;
+		hash = partial_name_hash(c, hash);
+		c = (unsigned char)name[len];
+	} while (c && c != '/');
+	*hashp = end_name_hash(hash);
+	return len;
+}
+
 /*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
@@ -1391,31 +1422,22 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
-		unsigned long hash;
 		struct qstr this;
-		unsigned int c;
+		long len;
 		int type;
 
 		err = may_lookup(nd);
  		if (err)
 			break;
 
+		len = hash_name(name, &this.hash);
 		this.name = name;
-		c = *(const unsigned char *)name;
-
-		hash = init_name_hash();
-		do {
-			name++;
-			hash = partial_name_hash(c, hash);
-			c = *(const unsigned char *)name;
-		} while (c && (c != '/'));
-		this.len = name - (const char *) this.name;
-		this.hash = end_name_hash(hash);
+		this.len = len;
 
 		type = LAST_NORM;
-		if (this.name[0] == '.') switch (this.len) {
+		if (name[0] == '.') switch (len) {
 			case 2:
-				if (this.name[1] == '.') {
+				if (name[1] == '.') {
 					type = LAST_DOTDOT;
 					nd->flags |= LOOKUP_JUMPED;
 				}
@@ -1434,12 +1456,18 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			}
 		}
 
-		/* remove trailing slashes? */
-		if (!c)
+		if (!name[len])
 			goto last_component;
-		while (*++name == '/');
-		if (!*name)
+		/*
+		 * If it wasn't NUL, we know it was '/'. Skip that
+		 * slash, and continue until no more slashes.
+		 */
+		do {
+			len++;
+		} while (unlikely(name[len] == '/'));
+		if (!name[len])
 			goto last_component;
+		name += len;
 
 		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
 		if (err < 0)
@@ -1772,24 +1800,21 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	struct qstr this;
-	unsigned long hash;
 	unsigned int c;
 
 	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
 
 	this.name = name;
 	this.len = len;
+	this.hash = full_name_hash(name, len);
 	if (!len)
 		return ERR_PTR(-EACCES);
 
-	hash = init_name_hash();
 	while (len--) {
 		c = *(const unsigned char *)name++;
 		if (c == '/' || c == '\0')
 			return ERR_PTR(-EACCES);
-		hash = partial_name_hash(c, hash);
 	}
-	this.hash = end_name_hash(hash);
 	/*
 	 * See if the low-level filesystem might want
 	 * to use its own hash..
@@ -1976,7 +2001,7 @@ void unlock_rename(struct dentry *p1, struct dentry *p2)
 	}
 }
 
-int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
+int vfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		struct nameidata *nd)
 {
 	int error = may_create(dir, dentry);
@@ -2177,7 +2202,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 
 	/* Negative dentry, just create the file */
 	if (!dentry->d_inode) {
-		int mode = op->mode;
+		umode_t mode = op->mode;
 		if (!IS_POSIXACL(dir->d_inode))
 			mode &= ~current_umask();
 		/*
@@ -2444,7 +2469,7 @@ struct dentry *user_path_create(int dfd, const char __user *pathname, struct pat
 }
 EXPORT_SYMBOL(user_path_create);
 
-int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
+int vfs_mknod(struct inode *dir, struct dentry *dentry, umode_t mode, dev_t dev)
 {
 	int error = may_create(dir, dentry);
 
@@ -2472,7 +2497,7 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	return error;
 }
 
-static int may_mknod(mode_t mode)
+static int may_mknod(umode_t mode)
 {
 	switch (mode & S_IFMT) {
 	case S_IFREG:
@@ -2489,7 +2514,7 @@ static int may_mknod(mode_t mode)
 	}
 }
 
-SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, int, mode,
+SYSCALL_DEFINE4(mknodat, int, dfd, const char __user *, filename, umode_t, mode,
 		unsigned, dev)
 {
 	struct dentry *dentry;
@@ -2536,12 +2561,12 @@ out_dput:
 	return error;
 }
 
-SYSCALL_DEFINE3(mknod, const char __user *, filename, int, mode, unsigned, dev)
+SYSCALL_DEFINE3(mknod, const char __user *, filename, umode_t, mode, unsigned, dev)
 {
 	return sys_mknodat(AT_FDCWD, filename, mode, dev);
 }
 
-int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+int vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int error = may_create(dir, dentry);
 
@@ -2562,7 +2587,7 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	return error;
 }
 
-SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, int, mode)
+SYSCALL_DEFINE3(mkdirat, int, dfd, const char __user *, pathname, umode_t, mode)
 {
 	struct dentry *dentry;
 	struct path path;
@@ -2590,7 +2615,7 @@ out_dput:
 	return error;
 }
 
-SYSCALL_DEFINE2(mkdir, const char __user *, pathname, int, mode)
+SYSCALL_DEFINE2(mkdir, const char __user *, pathname, umode_t, mode)
 {
 	return sys_mkdirat(AT_FDCWD, pathname, mode);
 }

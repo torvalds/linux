@@ -48,6 +48,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
+#include <plat/s3c2412.h>
 #include <plat/gpio-cfg.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
@@ -661,4 +662,5 @@ MACHINE_START(JIVE, "JIVE")
 	.map_io		= jive_map_io,
 	.init_machine	= jive_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2412_restart,
 MACHINE_END

@@ -45,7 +45,6 @@ static inline void scsi_log_completion(struct scsi_cmnd *cmd, int disposition)
 enum {
 	SCSI_DEVINFO_GLOBAL = 0,
 	SCSI_DEVINFO_SPI,
-	SCSI_DEVINFO_DH,
 };
 
 extern int scsi_get_device_flags(struct scsi_device *sdev,
@@ -110,6 +109,7 @@ extern void scsi_exit_procfs(void);
 #endif /* CONFIG_PROC_FS */
 
 /* scsi_scan.c */
+extern int scsi_complete_async_scans(void);
 extern int scsi_scan_host_selected(struct Scsi_Host *, unsigned int,
 				   unsigned int, unsigned int, int);
 extern void scsi_forget_host(struct Scsi_Host *);

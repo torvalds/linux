@@ -1086,27 +1086,7 @@ static struct usb_driver m920x_driver = {
 	.id_table	= m920x_table,
 };
 
-/* module stuff */
-static int __init m920x_module_init(void)
-{
-	int ret;
-
-	if ((ret = usb_register(&m920x_driver))) {
-		err("usb_register failed. Error number %d", ret);
-		return ret;
-	}
-
-	return 0;
-}
-
-static void __exit m920x_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&m920x_driver);
-}
-
-module_init (m920x_module_init);
-module_exit (m920x_module_exit);
+module_usb_driver(m920x_driver);
 
 MODULE_AUTHOR("Aapo Tahkola <aet@rasterburn.org>");
 MODULE_DESCRIPTION("DVB Driver for ULI M920x");

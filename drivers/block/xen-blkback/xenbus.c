@@ -338,6 +338,9 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	if (q && q->flush_flags)
 		vbd->flush_support = true;
 
+	if (q && blk_queue_secdiscard(q))
+		vbd->discard_secure = true;
+
 	DPRINTK("Successful creation of handle=%04x (dom=%u)\n",
 		handle, blkif->domid);
 	return 0;
@@ -419,6 +422,15 @@ int xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info *be)
 				}
 				state = 1;
 				blkif->blk_backend_type = BLKIF_BACKEND_PHY;
+			}
+			/* Optional. */
+			err = xenbus_printf(xbt, dev->nodename,
+				"discard-secure", "%d",
+				blkif->vbd.discard_secure);
+			if (err) {
+				xenbus_dev_fatal(dev, err,
+					"writting discard-secure");
+				goto kfree;
 			}
 		}
 	} else {
@@ -613,7 +625,7 @@ static void frontend_changed(struct xenbus_device *dev,
 	case XenbusStateConnected:
 		/*
 		 * Ensure we connect even when two watches fire in
-		 * close successsion and we miss the intermediate value
+		 * close succession and we miss the intermediate value
 		 * of frontend_state.
 		 */
 		if (dev->state == XenbusStateConnected)
@@ -787,17 +799,14 @@ static const struct xenbus_device_id xen_blkbk_ids[] = {
 };
 
 
-static struct xenbus_driver xen_blkbk = {
-	.name = "vbd",
-	.owner = THIS_MODULE,
-	.ids = xen_blkbk_ids,
+static DEFINE_XENBUS_DRIVER(xen_blkbk, ,
 	.probe = xen_blkbk_probe,
 	.remove = xen_blkbk_remove,
 	.otherend_changed = frontend_changed
-};
+);
 
 
 int xen_blkif_xenbus_init(void)
 {
-	return xenbus_register_backend(&xen_blkbk);
+	return xenbus_register_backend(&xen_blkbk_driver);
 }

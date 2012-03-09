@@ -39,7 +39,6 @@ void print_tracepoint_events(const char *subsys_glob, const char *event_glob);
 int print_hwcache_events(const char *event_glob);
 extern int is_valid_tracepoint(const char *event_string);
 
-extern char debugfs_path[];
 extern int valid_debugfs_mount(const char *debugfs);
 
 #endif /* __PERF_PARSE_EVENTS_H */

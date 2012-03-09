@@ -86,7 +86,8 @@ int __init via82c505_setup(int nr, struct pci_sys_data *sys)
 struct pci_bus * __init via82c505_scan_bus(int nr, struct pci_sys_data *sysdata)
 {
 	if (nr == 0)
-		return pci_scan_bus(0, &via82c505_ops, sysdata);
+		return pci_scan_root_bus(NULL, 0, &via82c505_ops, sysdata,
+					 &sysdata->resources);
 
 	return NULL;
 }

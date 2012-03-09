@@ -112,6 +112,9 @@ kvm_start_guest:
 	stbcix	r0, r5, r6		/* clear it */
 	stwcix	r8, r5, r7		/* EOI it */
 
+	/* NV GPR values from power7_idle() will no longer be valid */
+	stb	r0, PACA_NAPSTATELOST(r13)
+
 .global kvmppc_hv_entry
 kvmppc_hv_entry:
 

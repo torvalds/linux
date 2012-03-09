@@ -574,22 +574,7 @@ static struct usb_driver opera1_driver = {
 	.id_table = opera1_table,
 };
 
-static int __init opera1_module_init(void)
-{
-	int result = 0;
-	if ((result = usb_register(&opera1_driver))) {
-		err("usb_register failed. Error number %d", result);
-	}
-	return result;
-}
-
-static void __exit opera1_module_exit(void)
-{
-	usb_deregister(&opera1_driver);
-}
-
-module_init(opera1_module_init);
-module_exit(opera1_module_exit);
+module_usb_driver(opera1_driver);
 
 MODULE_AUTHOR("Mario Hlawitschka (c) dh1pa@amsat.org");
 MODULE_AUTHOR("Marco Gittler (c) g.marco@freenet.de");

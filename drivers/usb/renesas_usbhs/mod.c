@@ -50,7 +50,9 @@ static int usbhsm_autonomy_irq_vbus(struct usbhs_priv *priv,
 {
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	return usbhsc_drvcllbck_notify_hotplug(pdev);
+	renesas_usbhs_call_notify_hotplug(pdev);
+
+	return 0;
 }
 
 void usbhs_mod_autonomy_mode(struct usbhs_priv *priv)
@@ -349,7 +351,7 @@ void usbhs_irq_callback_update(struct usbhs_priv *priv, struct usbhs_mod *mod)
 		if (mod->irq_attch)
 			intenb1 |= ATTCHE;
 
-		if (mod->irq_attch)
+		if (mod->irq_dtch)
 			intenb1 |= DTCHE;
 
 		if (mod->irq_sign)

@@ -730,7 +730,7 @@ enum jme_rxcs_values {
 	RXCS_RETRYCNT_60	= 0x00000F00,
 
 	RXCS_DEFAULT		= RXCS_FIFOTHTP_128T |
-				  RXCS_FIFOTHNP_128QW |
+				  RXCS_FIFOTHNP_16QW |
 				  RXCS_DMAREQSZ_128B |
 				  RXCS_RETRYGAP_256ns |
 				  RXCS_RETRYCNT_32,
@@ -759,6 +759,25 @@ enum jme_rxmcs_bits {
 				  RXMCS_FLOWCTRL |
 				  RXMCS_CHECKSUM,
 };
+
+/*	Extern PHY common register 2	*/
+
+#define PHY_GAD_TEST_MODE_1			0x00002000
+#define PHY_GAD_TEST_MODE_MSK			0x0000E000
+#define JM_PHY_SPEC_REG_READ			0x00004000
+#define JM_PHY_SPEC_REG_WRITE			0x00008000
+#define PHY_CALIBRATION_DELAY			20
+#define JM_PHY_SPEC_ADDR_REG			0x1E
+#define JM_PHY_SPEC_DATA_REG			0x1F
+
+#define JM_PHY_EXT_COMM_0_REG			0x30
+#define JM_PHY_EXT_COMM_1_REG			0x31
+#define JM_PHY_EXT_COMM_2_REG			0x32
+#define JM_PHY_EXT_COMM_2_CALI_ENABLE		0x01
+#define JM_PHY_EXT_COMM_2_CALI_MODE_0		0x02
+#define JM_PHY_EXT_COMM_2_CALI_LATCH		0x10
+#define PCI_PRIV_SHARE_NICCTRL			0xF5
+#define JME_FLAG_PHYEA_ENABLE			0x2
 
 /*
  * Wakeup Frame setup interface registers

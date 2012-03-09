@@ -164,7 +164,8 @@ static ssize_t serio_raw_read(struct file *file, char __user *buffer,
 	struct serio_raw_client *client = file->private_data;
 	struct serio_raw *serio_raw = client->serio_raw;
 	char uninitialized_var(c);
-	ssize_t retval = 0;
+	ssize_t read = 0;
+	int retval;
 
 	if (serio_raw->dead)
 		return -ENODEV;
@@ -180,13 +181,15 @@ static ssize_t serio_raw_read(struct file *file, char __user *buffer,
 	if (serio_raw->dead)
 		return -ENODEV;
 
-	while (retval < count && serio_raw_fetch_byte(serio_raw, &c)) {
-		if (put_user(c, buffer++))
-			return -EFAULT;
-		retval++;
+	while (read < count && serio_raw_fetch_byte(serio_raw, &c)) {
+		if (put_user(c, buffer++)) {
+			retval = -EFAULT;
+			break;
+		}
+		read++;
 	}
 
-	return retval;
+	return read ?: retval;
 }
 
 static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
@@ -220,11 +223,11 @@ static ssize_t serio_raw_write(struct file *file, const char __user *buffer,
 			goto out;
 		}
 		written++;
-	};
+	}
 
 out:
 	mutex_unlock(&serio_raw_mutex);
-	return written;
+	return written ?: retval;
 }
 
 static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
@@ -237,9 +240,9 @@ static unsigned int serio_raw_poll(struct file *file, poll_table *wait)
 
 	mask = serio_raw->dead ? POLLHUP | POLLERR : POLLOUT | POLLWRNORM;
 	if (serio_raw->head != serio_raw->tail)
-		return POLLIN | POLLRDNORM;
+		mask |= POLLIN | POLLRDNORM;
 
-	return 0;
+	return mask;
 }
 
 static const struct file_operations serio_raw_fops = {

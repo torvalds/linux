@@ -1336,7 +1336,8 @@ static int efx_probe_nic(struct efx_nic *efx)
 	if (efx->n_channels > 1)
 		get_random_bytes(&efx->rx_hash_key, sizeof(efx->rx_hash_key));
 	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		efx->rx_indir_table[i] = i % efx->n_rx_channels;
+		efx->rx_indir_table[i] =
+			ethtool_rxfh_indir_default(i, efx->n_rx_channels);
 
 	efx_set_channels(efx);
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
@@ -1900,7 +1901,7 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 	/* Otherwise efx_start_port() will do this */
 }
 
-static int efx_set_features(struct net_device *net_dev, u32 data)
+static int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
@@ -2235,9 +2236,9 @@ static DEFINE_PCI_DEVICE_TABLE(efx_pci_table) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE,
 		    PCI_DEVICE_ID_SOLARFLARE_SFC4000B),
 	 .driver_data = (unsigned long) &falcon_b0_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, BETHPAGE_A_P_DEVID),
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0803),	/* SFC9020 */
 	 .driver_data = (unsigned long) &siena_a0_nic_type},
-	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, SIENA_A_P_DEVID),
+	{PCI_DEVICE(PCI_VENDOR_ID_SOLARFLARE, 0x0813),	/* SFL9021 */
 	 .driver_data = (unsigned long) &siena_a0_nic_type},
 	{0}			/* end of list */
 };

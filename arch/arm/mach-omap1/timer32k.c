@@ -52,7 +52,7 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/dmtimer.h>
 
 /*

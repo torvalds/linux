@@ -701,26 +701,4 @@ static struct usb_driver usb_storage_driver = {
 	.soft_unbind =	1,
 };
 
-//----- usb_stor_init() ---------------------
-static int __init usb_stor_init(void)
-{
-	int retval;
-	pr_info("usb --- usb_stor_init start\n");
-
-	retval = usb_register(&usb_storage_driver);
-	if (retval == 0)
-		pr_info("ENE USB Mass Storage support registered.\n");
-
-	return retval;
-}
-
-//----- usb_stor_exit() ---------------------
-static void __exit usb_stor_exit(void)
-{
-	pr_info("usb --- usb_stor_exit\n");
-
-	usb_deregister(&usb_storage_driver) ;
-}
-
-module_init(usb_stor_init);
-module_exit(usb_stor_exit);
+module_usb_driver(usb_storage_driver);

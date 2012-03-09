@@ -1901,7 +1901,7 @@ static int isdn_net_header(struct sk_buff *skb, struct net_device *dev,
 {
 	isdn_net_local *lp = netdev_priv(dev);
 	unsigned char *p;
-	ushort len = 0;
+	int len = 0;
 
 	switch (lp->p_encap) {
 		case ISDN_NET_ENCAP_ETHER:
@@ -2756,6 +2756,9 @@ isdn_net_setcfg(isdn_net_ioctl_cfg * cfg)
 			char *c,
 			*e;
 
+			if (strnlen(cfg->drvid, sizeof(cfg->drvid)) ==
+					sizeof(cfg->drvid))
+				return -EINVAL;
 			drvidx = -1;
 			chidx = -1;
 			strcpy(drvid, cfg->drvid);

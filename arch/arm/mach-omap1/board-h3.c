@@ -45,7 +45,7 @@
 #include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/dma.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/flash.h>
 
 #include "board-h3.h"
@@ -444,4 +444,5 @@ MACHINE_START(OMAP_H3, "TI OMAP1710 H3 board")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= h3_init,
 	.timer		= &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END

@@ -241,11 +241,11 @@ static long ceph_ioctl_lazyio(struct file *file)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
 	if ((fi->fmode & CEPH_FILE_MODE_LAZY) == 0) {
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		ci->i_nr_by_mode[fi->fmode]--;
 		fi->fmode |= CEPH_FILE_MODE_LAZY;
 		ci->i_nr_by_mode[fi->fmode]++;
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		dout("ioctl_layzio: file %p marked lazy\n", file);
 
 		ceph_check_caps(ci, 0, NULL);

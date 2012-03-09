@@ -63,7 +63,7 @@ MODULE_AUTHOR("Urs Thuermann <urs.thuermann@volkswagen.de>");
  * See Documentation/networking/can.txt for details.
  */
 
-static int echo; /* echo testing. Default: 0 (Off) */
+static bool echo; /* echo testing. Default: 0 (Off) */
 module_param(echo, bool, S_IRUGO);
 MODULE_PARM_DESC(echo, "Echo sent frames (for testing). Default: 0 (Off)");
 

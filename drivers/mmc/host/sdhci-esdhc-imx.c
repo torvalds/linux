@@ -599,27 +599,14 @@ static struct platform_driver sdhci_esdhc_imx_driver = {
 		.name	= "sdhci-esdhc-imx",
 		.owner	= THIS_MODULE,
 		.of_match_table = imx_esdhc_dt_ids,
+		.pm	= SDHCI_PLTFM_PMOPS,
 	},
 	.id_table	= imx_esdhc_devtype,
 	.probe		= sdhci_esdhc_imx_probe,
 	.remove		= __devexit_p(sdhci_esdhc_imx_remove),
-#ifdef CONFIG_PM
-	.suspend	= sdhci_pltfm_suspend,
-	.resume		= sdhci_pltfm_resume,
-#endif
 };
 
-static int __init sdhci_esdhc_imx_init(void)
-{
-	return platform_driver_register(&sdhci_esdhc_imx_driver);
-}
-module_init(sdhci_esdhc_imx_init);
-
-static void __exit sdhci_esdhc_imx_exit(void)
-{
-	platform_driver_unregister(&sdhci_esdhc_imx_driver);
-}
-module_exit(sdhci_esdhc_imx_exit);
+module_platform_driver(sdhci_esdhc_imx_driver);
 
 MODULE_DESCRIPTION("SDHCI driver for Freescale i.MX eSDHC");
 MODULE_AUTHOR("Wolfram Sang <w.sang@pengutronix.de>");

@@ -111,6 +111,9 @@ enum cdev_todo {
 	CDEV_TODO_UNREG_EVAL,
 };
 
+#define FAKE_CMD_IRB	1
+#define FAKE_TM_IRB	2
+
 struct ccw_device_private {
 	struct ccw_device *cdev;
 	struct subchannel *sch;
@@ -138,7 +141,7 @@ struct ccw_device_private {
 		unsigned int doverify:1;    /* delayed path verification */
 		unsigned int donotify:1;    /* call notify function */
 		unsigned int recog_done:1;  /* dev. recog. complete */
-		unsigned int fake_irb:1;    /* deliver faked irb */
+		unsigned int fake_irb:2;    /* deliver faked irb */
 		unsigned int resuming:1;    /* recognition while resume */
 		unsigned int pgroup:1;	    /* pathgroup is set up */
 		unsigned int mpath:1;	    /* multipathing is set up */

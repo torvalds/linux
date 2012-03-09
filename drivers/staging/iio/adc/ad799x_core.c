@@ -35,7 +35,8 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../events.h"
+#include "../buffer.h"
 
 #include "ad799x.h"
 
@@ -150,8 +151,7 @@ static int ad799x_read_raw(struct iio_dev *indio_dev,
 	case 0:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
-			ret = ad799x_single_channel_from_ring(indio_dev,
-							      chan->scan_index);
+			ret = -EBUSY;
 		else
 			ret = ad799x_scan_direct(st, chan->scan_index);
 		mutex_unlock(&indio_dev->mlock);
@@ -161,7 +161,7 @@ static int ad799x_read_raw(struct iio_dev *indio_dev,
 		*val = (ret >> chan->scan_type.shift) &
 			RES_MASK(chan->scan_type.realbits);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->int_vref_mv * 1000) >> chan->scan_type.realbits;
 		*val =  scale_uv / 1000;
 		*val2 = (scale_uv % 1000) * 1000;
@@ -929,21 +929,8 @@ static struct i2c_driver ad799x_driver = {
 	.remove = __devexit_p(ad799x_remove),
 	.id_table = ad799x_id,
 };
-
-static __init int ad799x_init(void)
-{
-	return i2c_add_driver(&ad799x_driver);
-}
-
-static __exit void ad799x_exit(void)
-{
-	i2c_del_driver(&ad799x_driver);
-}
+module_i2c_driver(ad799x_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD799x ADC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("i2c:ad799x");
-
-module_init(ad799x_init);
-module_exit(ad799x_exit);

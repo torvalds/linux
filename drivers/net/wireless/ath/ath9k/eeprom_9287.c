@@ -41,7 +41,7 @@ static bool __ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 	for (addr = 0; addr < SIZE_EEPROM_AR9287; addr++) {
 		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc,
 					 eep_data)) {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"Unable to read eeprom region\n");
 			return false;
 		}
@@ -66,8 +66,7 @@ static bool ath9k_hw_ar9287_fill_eeprom(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Reading from EEPROM, not flash\n");
+		ath_dbg(common, EEPROM, "Reading from EEPROM, not flash\n");
 	}
 
 	if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -197,8 +196,7 @@ static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 			return false;
 		}
 
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Read Magic = 0x%04X\n", magic);
+		ath_dbg(common, EEPROM, "Read Magic = 0x%04X\n", magic);
 
 		if (magic != AR5416_EEPROM_MAGIC) {
 			magic2 = swab16(magic);
@@ -220,7 +218,7 @@ static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 		}
 	}
 
-	ath_dbg(common, ATH_DBG_EEPROM, "need_swap = %s.\n",
+	ath_dbg(common, EEPROM, "need_swap = %s\n",
 		need_swap ? "True" : "False");
 
 	if (need_swap)
@@ -569,7 +567,7 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6
 #define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10
 
-	u16 twiceMaxEdgePower = MAX_RATE_POWER;
+	u16 twiceMaxEdgePower;
 	int i;
 	struct cal_ctl_data_ar9287 *rep;
 	struct cal_target_power_leg targetPowerOfdm = {0, {0, 0, 0, 0} },
@@ -669,6 +667,7 @@ static void ath9k_hw_set_ar9287_power_per_rate_table(struct ath_hw *ah,
 		else
 			freq = centers.ctl_center;
 
+		twiceMaxEdgePower = MAX_RATE_POWER;
 		/* Walk through the CTL indices stored in EEPROM */
 		for (i = 0; (i < AR9287_NUM_CTLS) && pEepData->ctlIndex[i]; i++) {
 			struct cal_ctl_edges *pRdEdgesPower;
@@ -1040,8 +1039,7 @@ static u16 ath9k_hw_ar9287_get_spur_channel(struct ath_hw *ah,
 	struct ath_common *common = ath9k_hw_common(ah);
 	u16 spur_val = AR_NO_SPUR;
 
-	ath_dbg(common, ATH_DBG_ANI,
-		"Getting spur idx:%d is2Ghz:%d val:%x\n",
+	ath_dbg(common, ANI, "Getting spur idx:%d is2Ghz:%d val:%x\n",
 		i, is2GHz, ah->config.spurchans[i][is2GHz]);
 
 	switch (ah->config.spurmode) {
@@ -1049,8 +1047,8 @@ static u16 ath9k_hw_ar9287_get_spur_channel(struct ath_hw *ah,
 		break;
 	case SPUR_ENABLE_IOCTL:
 		spur_val = ah->config.spurchans[i][is2GHz];
-		ath_dbg(common, ATH_DBG_ANI,
-			"Getting spur val from new loc. %d\n", spur_val);
+		ath_dbg(common, ANI, "Getting spur val from new loc. %d\n",
+			spur_val);
 		break;
 	case SPUR_ENABLE_EEPROM:
 		spur_val = EEP_MAP9287_SPURCHAN;

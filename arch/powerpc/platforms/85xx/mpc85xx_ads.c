@@ -35,6 +35,8 @@
 #include <sysdev/cpm2_pic.h>
 #endif
 
+#include "mpc85xx.h"
+
 #ifdef CONFIG_PCI
 static int mpc85xx_exclude_device(struct pci_controller *hose,
 				   u_char bus, u_char devfn)
@@ -46,63 +48,15 @@ static int mpc85xx_exclude_device(struct pci_controller *hose,
 }
 #endif /* CONFIG_PCI */
 
-#ifdef CONFIG_CPM2
-
-static void cpm2_cascade(unsigned int irq, struct irq_desc *desc)
-{
-	struct irq_chip *chip = irq_desc_get_chip(desc);
-	int cascade_irq;
-
-	while ((cascade_irq = cpm2_get_irq()) >= 0)
-		generic_handle_irq(cascade_irq);
-
-	chip->irq_eoi(&desc->irq_data);
-}
-
-#endif /* CONFIG_CPM2 */
-
 static void __init mpc85xx_ads_pic_init(void)
 {
-	struct mpic *mpic;
-	struct resource r;
-	struct device_node *np = NULL;
-#ifdef CONFIG_CPM2
-	int irq;
-#endif
-
-	np = of_find_node_by_type(np, "open-pic");
-	if (!np) {
-		printk(KERN_ERR "Could not find open-pic node\n");
-		return;
-	}
-
-	if (of_address_to_resource(np, 0, &r)) {
-		printk(KERN_ERR "Could not map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start,
-			MPIC_PRIMARY | MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
+	struct mpic *mpic = mpic_alloc(NULL, 0,
+			MPIC_WANTS_RESET | MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
-
 	mpic_init(mpic);
 
-#ifdef CONFIG_CPM2
-	/* Setup CPM2 PIC */
-	np = of_find_compatible_node(NULL, NULL, "fsl,cpm2-pic");
-	if (np == NULL) {
-		printk(KERN_ERR "PIC init: can not find fsl,cpm2-pic node\n");
-		return;
-	}
-	irq = irq_of_parse_and_map(np, 0);
-
-	cpm2_pic_init(np);
-	of_node_put(np);
-	irq_set_chained_handler(irq, cpm2_cascade);
-#endif
+	mpc85xx_cpm2_pic_init();
 }
 
 /*
@@ -221,23 +175,7 @@ static void mpc85xx_ads_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "PLL setting\t: 0x%x\n", ((phid1 >> 24) & 0x3f));
 }
 
-static struct of_device_id __initdata of_bus_ids[] = {
-	{ .name = "soc", },
-	{ .type = "soc", },
-	{ .name = "cpm", },
-	{ .name = "localbus", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
-	{},
-};
-
-static int __init declare_of_platform_devices(void)
-{
-	of_platform_bus_probe(NULL, of_bus_ids, NULL);
-
-	return 0;
-}
-machine_device_initcall(mpc85xx_ads, declare_of_platform_devices);
+machine_device_initcall(mpc85xx_ads, mpc85xx_common_publish_devices);
 
 /*
  * Called very early, device-tree isn't unflattened

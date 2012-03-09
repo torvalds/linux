@@ -675,7 +675,9 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 
 	davinci_nand_writel(info, A1CR_OFFSET + info->core_chipsel * 4, val);
 
-	ret = davinci_aemif_setup_timing(info->timing, info->base,
+	ret = 0;
+	if (info->timing)
+		ret = davinci_aemif_setup_timing(info->timing, info->base,
 							info->core_chipsel);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "NAND timing values setup fail\n");

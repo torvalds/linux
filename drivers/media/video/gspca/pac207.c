@@ -41,14 +41,14 @@ MODULE_LICENSE("GPL");
 #define PAC207_BRIGHTNESS_DEFAULT	46
 
 #define PAC207_EXPOSURE_MIN		3
-#define PAC207_EXPOSURE_MAX		26
+#define PAC207_EXPOSURE_MAX		90 /* 1 sec expo time / 1 fps */
 #define PAC207_EXPOSURE_DEFAULT		5 /* power on default: 3 */
-#define PAC207_EXPOSURE_KNEE		8 /* 4 = 30 fps, 11 = 8, 15 = 6 */
+#define PAC207_EXPOSURE_KNEE		9 /* fps: 90 / exposure -> 9: 10 fps */
 
 #define PAC207_GAIN_MIN			0
 #define PAC207_GAIN_MAX			31
-#define PAC207_GAIN_DEFAULT		9 /* power on default: 9 */
-#define PAC207_GAIN_KNEE		31
+#define PAC207_GAIN_DEFAULT		7 /* power on default: 9 */
+#define PAC207_GAIN_KNEE		15
 
 #define PAC207_AUTOGAIN_DEADZONE	30
 
@@ -332,7 +332,7 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
 	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
-			100, PAC207_AUTOGAIN_DEADZONE,
+			90, PAC207_AUTOGAIN_DEADZONE,
 			PAC207_GAIN_KNEE, PAC207_EXPOSURE_KNEE))
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
@@ -569,15 +569,4 @@ static struct usb_driver sd_driver = {
 #endif
 };
 
-/* -- module insert / remove -- */
-static int __init sd_mod_init(void)
-{
-	return usb_register(&sd_driver);
-}
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);

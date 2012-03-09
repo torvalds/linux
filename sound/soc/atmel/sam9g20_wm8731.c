@@ -189,6 +189,7 @@ static struct snd_soc_dai_link at91sam9g20ek_dai = {
 
 static struct snd_soc_card snd_soc_at91sam9g20ek = {
 	.name = "AT91SAMG20-EK",
+	.owner = THIS_MODULE,
 	.dai_link = &at91sam9g20ek_dai,
 	.num_links = 1,
 	.set_bias_level = at91sam9g20ek_set_bias_level,

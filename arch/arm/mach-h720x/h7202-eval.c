@@ -77,4 +77,5 @@ MACHINE_START(H7202, "Hynix HMS30C7202")
 	.timer		= &h7202_timer,
 	.init_machine	= init_eval_h7202,
 	.dma_zone_size	= SZ_256M,
+	.restart	= h720x_restart,
 MACHINE_END

@@ -55,7 +55,7 @@ MODULE_SUPPORTED_DEVICE("{{Native Instruments, RigKontrol2},"
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX; /* Index 0-max */
 static char* id[SNDRV_CARDS] = SNDRV_DEFAULT_STR; /* Id for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP; /* Enable this card */
 static int snd_card_used[SNDRV_CARDS];
 
 module_param_array(index, int, NULL, 0444);
@@ -538,16 +538,5 @@ static struct usb_driver snd_usb_driver = {
 	.id_table 	= snd_usb_id_table,
 };
 
-static int __init snd_module_init(void)
-{
-	return usb_register(&snd_usb_driver);
-}
-
-static void __exit snd_module_exit(void)
-{
-	usb_deregister(&snd_usb_driver);
-}
-
-module_init(snd_module_init)
-module_exit(snd_module_exit)
+module_usb_driver(snd_usb_driver);
 

@@ -305,8 +305,7 @@ void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah)
 		regulatory->max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
 		break;
 	default:
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Invalid chainmask configuration\n");
+		ath_dbg(common, EEPROM, "Invalid chainmask configuration\n");
 		break;
 	}
 }

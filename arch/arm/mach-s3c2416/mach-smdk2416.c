@@ -50,6 +50,7 @@
 #include <plat/nand.h>
 #include <plat/sdhci.h>
 #include <plat/udc.h>
+#include <linux/platform_data/s3c-hsudc.h>
 
 #include <plat/regs-fb-v4.h>
 #include <plat/fb.h>
@@ -251,4 +252,5 @@ MACHINE_START(SMDK2416, "SMDK2416")
 	.map_io		= smdk2416_map_io,
 	.init_machine	= smdk2416_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2416_restart,
 MACHINE_END

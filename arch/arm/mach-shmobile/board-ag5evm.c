@@ -30,6 +30,7 @@
 #include <linux/serial_sci.h>
 #include <linux/smsc911x.h>
 #include <linux/gpio.h>
+#include <linux/videodev2.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/mmc/host.h>
@@ -37,7 +38,6 @@
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <linux/mfd/tmio.h>
 #include <linux/sh_clk.h>
-#include <linux/dma-mapping.h>
 #include <video/sh_mobile_lcdc.h>
 #include <video/sh_mipi_dsi.h>
 #include <sound/sh_fsi.h>
@@ -159,19 +159,12 @@ static struct resource sh_mmcif_resources[] = {
 	},
 };
 
-static struct sh_mmcif_dma sh_mmcif_dma = {
-	.chan_priv_rx	= {
-		.slave_id	= SHDMA_SLAVE_MMCIF_RX,
-	},
-	.chan_priv_tx	= {
-		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
-	},
-};
 static struct sh_mmcif_plat_data sh_mmcif_platdata = {
 	.sup_pclk	= 0,
 	.ocr		= MMC_VDD_165_195,
 	.caps		= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE,
-	.dma		= &sh_mmcif_dma,
+	.slave_id_tx	= SHDMA_SLAVE_MMCIF_TX,
+	.slave_id_rx	= SHDMA_SLAVE_MMCIF_RX,
 };
 
 static struct platform_device mmc_device = {
@@ -271,7 +264,7 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 		.flags = LCDC_FLAGS_DWPOL,
 		.lcd_size_cfg.width = 44,
 		.lcd_size_cfg.height = 79,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.lcd_cfg = lcdc0_modes,
 		.num_cfg = ARRAY_SIZE(lcdc0_modes),
 		.board_cfg = {
@@ -321,12 +314,54 @@ static struct resource mipidsi0_resources[] = {
 	},
 };
 
+static int sh_mipi_set_dot_clock(struct platform_device *pdev,
+				 void __iomem *base,
+				 int enable)
+{
+	struct clk *pck, *phy;
+	int ret;
+
+	pck = clk_get(&pdev->dev, "dsip_clk");
+	if (IS_ERR(pck)) {
+		ret = PTR_ERR(pck);
+		goto sh_mipi_set_dot_clock_pck_err;
+	}
+
+	phy = clk_get(&pdev->dev, "dsiphy_clk");
+	if (IS_ERR(phy)) {
+		ret = PTR_ERR(phy);
+		goto sh_mipi_set_dot_clock_phy_err;
+	}
+
+	if (enable) {
+		clk_set_rate(pck, clk_round_rate(pck,  24000000));
+		clk_set_rate(phy, clk_round_rate(pck, 510000000));
+		clk_enable(pck);
+		clk_enable(phy);
+	} else {
+		clk_disable(pck);
+		clk_disable(phy);
+	}
+
+	ret = 0;
+
+	clk_put(phy);
+sh_mipi_set_dot_clock_phy_err:
+	clk_put(pck);
+sh_mipi_set_dot_clock_pck_err:
+	return ret;
+}
+
 static struct sh_mipi_dsi_info mipidsi0_info = {
 	.data_format	= MIPI_RGB888,
 	.lcd_chan	= &lcdc0_info.ch[0],
+	.lane		= 2,
 	.vsynw_offset	= 20,
 	.clksrc		= 1,
-	.flags		= SH_MIPI_DSI_HSABM,
+	.flags		= SH_MIPI_DSI_HSABM		|
+			  SH_MIPI_DSI_SYNC_PULSES_MODE	|
+			  SH_MIPI_DSI_HSbyteCLK,
+	.set_dot_clock	= sh_mipi_set_dot_clock,
 };
 
 static struct platform_device mipidsi0_device = {
@@ -466,15 +501,11 @@ static struct map_desc ag5evm_io_desc[] __initdata = {
 static void __init ag5evm_map_io(void)
 {
 	iotable_init(ag5evm_io_desc, ARRAY_SIZE(ag5evm_io_desc));
-	/* DMA memory at 0xf6000000 - 0xffdfffff */
-	init_consistent_dma_size(158 << 20);
 
 	/* setup early devices and console here as well */
 	sh73a0_add_early_devices();
 	shmobile_setup_console();
 }
-
-#define DSI0PHYCR	0xe615006c
 
 static void __init ag5evm_init(void)
 {
@@ -556,9 +587,6 @@ static void __init ag5evm_init(void)
 	gpio_direction_output(GPIO_PORT235, 0);
 	lcd_backlight_reset();
 
-	/* MIPI-DSI clock setup */
-	__raw_writel(0x2a809010, DSI0PHYCR);
-
 	/* enable SDHI0 on CN15 [SD I/F] */
 	gpio_request(GPIO_FN_SDHICD0, NULL);
 	gpio_request(GPIO_FN_SDHIWP0, NULL);
@@ -607,8 +635,9 @@ struct sys_timer ag5evm_timer = {
 
 MACHINE_START(AG5EVM, "ag5evm")
 	.map_io		= ag5evm_map_io,
+	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
-	.handle_irq	= shmobile_handle_irq_gic,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= ag5evm_init,
 	.timer		= &ag5evm_timer,
 MACHINE_END

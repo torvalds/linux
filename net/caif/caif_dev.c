@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/spinlock.h>
 #include <net/netns/generic.h>
 #include <net/net_namespace.h>
 #include <net/pkt_sched.h>
@@ -24,6 +25,7 @@
 #include <net/caif/caif_layer.h>
 #include <net/caif/cfpkt.h>
 #include <net/caif/cfcnfg.h>
+#include <net/caif/cfserl.h>
 
 MODULE_LICENSE("GPL");
 
@@ -33,6 +35,10 @@ struct caif_device_entry {
 	struct list_head list;
 	struct net_device *netdev;
 	int __percpu *pcpu_refcnt;
+	spinlock_t flow_lock;
+	struct sk_buff *xoff_skb;
+	void (*xoff_skb_dtor)(struct sk_buff *skb);
+	bool xoff;
 };
 
 struct caif_device_entry_list {
@@ -47,13 +53,12 @@ struct caif_net {
 };
 
 static int caif_net_id;
+static int q_high = 50; /* Percent */
 
 struct cfcnfg *get_cfcnfg(struct net *net)
 {
 	struct caif_net *caifn;
-	BUG_ON(!net);
 	caifn = net_generic(net, caif_net_id);
-	BUG_ON(!caifn);
 	return caifn->cfg;
 }
 EXPORT_SYMBOL(get_cfcnfg);
@@ -61,20 +66,18 @@ EXPORT_SYMBOL(get_cfcnfg);
 static struct caif_device_entry_list *caif_device_list(struct net *net)
 {
 	struct caif_net *caifn;
-	BUG_ON(!net);
 	caifn = net_generic(net, caif_net_id);
-	BUG_ON(!caifn);
 	return &caifn->caifdevs;
 }
 
 static void caifd_put(struct caif_device_entry *e)
 {
-	irqsafe_cpu_dec(*e->pcpu_refcnt);
+	this_cpu_dec(*e->pcpu_refcnt);
 }
 
 static void caifd_hold(struct caif_device_entry *e)
 {
-	irqsafe_cpu_inc(*e->pcpu_refcnt);
+	this_cpu_inc(*e->pcpu_refcnt);
 }
 
 static int caifd_refcnt_read(struct caif_device_entry *e)
@@ -92,7 +95,6 @@ static struct caif_device_entry *caif_device_alloc(struct net_device *dev)
 	struct caif_device_entry *caifd;
 
 	caifdevs = caif_device_list(dev_net(dev));
-	BUG_ON(!caifdevs);
 
 	caifd = kzalloc(sizeof(*caifd), GFP_KERNEL);
 	if (!caifd)
@@ -112,7 +114,7 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 	struct caif_device_entry_list *caifdevs =
 	    caif_device_list(dev_net(dev));
 	struct caif_device_entry *caifd;
-	BUG_ON(!caifdevs);
+
 	list_for_each_entry_rcu(caifd, &caifdevs->list, list) {
 		if (caifd->netdev == dev)
 			return caifd;
@@ -120,15 +122,108 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 	return NULL;
 }
 
+void caif_flow_cb(struct sk_buff *skb)
+{
+	struct caif_device_entry *caifd;
+	void (*dtor)(struct sk_buff *skb) = NULL;
+	bool send_xoff;
+
+	WARN_ON(skb->dev == NULL);
+
+	rcu_read_lock();
+	caifd = caif_get(skb->dev);
+	caifd_hold(caifd);
+	rcu_read_unlock();
+
+	spin_lock_bh(&caifd->flow_lock);
+	send_xoff = caifd->xoff;
+	caifd->xoff = 0;
+	dtor = caifd->xoff_skb_dtor;
+
+	if (WARN_ON(caifd->xoff_skb != skb))
+		skb = NULL;
+
+	caifd->xoff_skb = NULL;
+	caifd->xoff_skb_dtor = NULL;
+
+	spin_unlock_bh(&caifd->flow_lock);
+
+	if (dtor && skb)
+		dtor(skb);
+
+	if (send_xoff)
+		caifd->layer.up->
+			ctrlcmd(caifd->layer.up,
+				_CAIF_CTRLCMD_PHYIF_FLOW_ON_IND,
+				caifd->layer.id);
+	caifd_put(caifd);
+}
+
 static int transmit(struct cflayer *layer, struct cfpkt *pkt)
 {
-	int err;
+	int err, high = 0, qlen = 0;
+	struct caif_dev_common *caifdev;
 	struct caif_device_entry *caifd =
 	    container_of(layer, struct caif_device_entry, layer);
 	struct sk_buff *skb;
+	struct netdev_queue *txq;
+
+	rcu_read_lock_bh();
 
 	skb = cfpkt_tonative(pkt);
 	skb->dev = caifd->netdev;
+	skb_reset_network_header(skb);
+	skb->protocol = htons(ETH_P_CAIF);
+	caifdev = netdev_priv(caifd->netdev);
+
+	/* Check if we need to handle xoff */
+	if (likely(caifd->netdev->tx_queue_len == 0))
+		goto noxoff;
+
+	if (unlikely(caifd->xoff))
+		goto noxoff;
+
+	if (likely(!netif_queue_stopped(caifd->netdev))) {
+		/* If we run with a TX queue, check if the queue is too long*/
+		txq = netdev_get_tx_queue(skb->dev, 0);
+		qlen = qdisc_qlen(rcu_dereference_bh(txq->qdisc));
+
+		if (likely(qlen == 0))
+			goto noxoff;
+
+		high = (caifd->netdev->tx_queue_len * q_high) / 100;
+		if (likely(qlen < high))
+			goto noxoff;
+	}
+
+	/* Hold lock while accessing xoff */
+	spin_lock_bh(&caifd->flow_lock);
+	if (caifd->xoff) {
+		spin_unlock_bh(&caifd->flow_lock);
+		goto noxoff;
+	}
+
+	/*
+	 * Handle flow off, we do this by temporary hi-jacking this
+	 * skb's destructor function, and replace it with our own
+	 * flow-on callback. The callback will set flow-on and call
+	 * the original destructor.
+	 */
+
+	pr_debug("queue has stopped(%d) or is full (%d > %d)\n",
+			netif_queue_stopped(caifd->netdev),
+			qlen, high);
+	caifd->xoff = 1;
+	caifd->xoff_skb = skb;
+	caifd->xoff_skb_dtor = skb->destructor;
+	skb->destructor = caif_flow_cb;
+	spin_unlock_bh(&caifd->flow_lock);
+
+	caifd->layer.up->ctrlcmd(caifd->layer.up,
+					_CAIF_CTRLCMD_PHYIF_FLOW_OFF_IND,
+					caifd->layer.id);
+noxoff:
+	rcu_read_unlock_bh();
 
 	err = dev_queue_xmit(skb);
 	if (err > 0)
@@ -172,7 +267,10 @@ static int receive(struct sk_buff *skb, struct net_device *dev,
 
 	/* Release reference to stack upwards */
 	caifd_put(caifd);
-	return 0;
+
+	if (err != 0)
+		err = NET_RX_DROP;
+	return err;
 }
 
 static struct packet_type caif_packet_type __read_mostly = {
@@ -203,6 +301,55 @@ static void dev_flowctrl(struct net_device *dev, int on)
 	caifd_put(caifd);
 }
 
+void caif_enroll_dev(struct net_device *dev, struct caif_dev_common *caifdev,
+			struct cflayer *link_support, int head_room,
+			struct cflayer **layer, int (**rcv_func)(
+				struct sk_buff *, struct net_device *,
+				struct packet_type *, struct net_device *))
+{
+	struct caif_device_entry *caifd;
+	enum cfcnfg_phy_preference pref;
+	struct cfcnfg *cfg = get_cfcnfg(dev_net(dev));
+	struct caif_device_entry_list *caifdevs;
+
+	caifdevs = caif_device_list(dev_net(dev));
+	caifd = caif_device_alloc(dev);
+	if (!caifd)
+		return;
+	*layer = &caifd->layer;
+	spin_lock_init(&caifd->flow_lock);
+
+	switch (caifdev->link_select) {
+	case CAIF_LINK_HIGH_BANDW:
+		pref = CFPHYPREF_HIGH_BW;
+		break;
+	case CAIF_LINK_LOW_LATENCY:
+		pref = CFPHYPREF_LOW_LAT;
+		break;
+	default:
+		pref = CFPHYPREF_HIGH_BW;
+		break;
+	}
+	mutex_lock(&caifdevs->lock);
+	list_add_rcu(&caifd->list, &caifdevs->list);
+
+	strncpy(caifd->layer.name, dev->name,
+		sizeof(caifd->layer.name) - 1);
+	caifd->layer.name[sizeof(caifd->layer.name) - 1] = 0;
+	caifd->layer.transmit = transmit;
+	cfcnfg_add_phy_layer(cfg,
+				dev,
+				&caifd->layer,
+				pref,
+				link_support,
+				caifdev->use_fcs,
+				head_room);
+	mutex_unlock(&caifdevs->lock);
+	if (rcv_func)
+		*rcv_func = receive;
+}
+EXPORT_SYMBOL(caif_enroll_dev);
+
 /* notify Caif of device events */
 static int caif_device_notify(struct notifier_block *me, unsigned long what,
 			      void *arg)
@@ -210,62 +357,38 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 	struct net_device *dev = arg;
 	struct caif_device_entry *caifd = NULL;
 	struct caif_dev_common *caifdev;
-	enum cfcnfg_phy_preference pref;
-	enum cfcnfg_phy_type phy_type;
 	struct cfcnfg *cfg;
+	struct cflayer *layer, *link_support;
+	int head_room = 0;
 	struct caif_device_entry_list *caifdevs;
 
-	if (dev->type != ARPHRD_CAIF)
-		return 0;
-
 	cfg = get_cfcnfg(dev_net(dev));
-	if (cfg == NULL)
-		return 0;
-
 	caifdevs = caif_device_list(dev_net(dev));
+
+	caifd = caif_get(dev);
+	if (caifd == NULL && dev->type != ARPHRD_CAIF)
+		return 0;
 
 	switch (what) {
 	case NETDEV_REGISTER:
-		caifd = caif_device_alloc(dev);
-		if (!caifd)
-			return 0;
+		if (caifd != NULL)
+			break;
 
 		caifdev = netdev_priv(dev);
-		caifdev->flowctrl = dev_flowctrl;
 
-		caifd->layer.transmit = transmit;
-
-		if (caifdev->use_frag)
-			phy_type = CFPHYTYPE_FRAG;
-		else
-			phy_type = CFPHYTYPE_CAIF;
-
-		switch (caifdev->link_select) {
-		case CAIF_LINK_HIGH_BANDW:
-			pref = CFPHYPREF_HIGH_BW;
-			break;
-		case CAIF_LINK_LOW_LATENCY:
-			pref = CFPHYPREF_LOW_LAT;
-			break;
-		default:
-			pref = CFPHYPREF_HIGH_BW;
-			break;
+		link_support = NULL;
+		if (caifdev->use_frag) {
+			head_room = 1;
+			link_support = cfserl_create(dev->ifindex,
+							caifdev->use_stx);
+			if (!link_support) {
+				pr_warn("Out of memory\n");
+				break;
+			}
 		}
-		strncpy(caifd->layer.name, dev->name,
-			sizeof(caifd->layer.name) - 1);
-		caifd->layer.name[sizeof(caifd->layer.name) - 1] = 0;
-
-		mutex_lock(&caifdevs->lock);
-		list_add_rcu(&caifd->list, &caifdevs->list);
-
-		cfcnfg_add_phy_layer(cfg,
-				     phy_type,
-				     dev,
-				     &caifd->layer,
-				     pref,
-				     caifdev->use_fcs,
-				     caifdev->use_stx);
-		mutex_unlock(&caifdevs->lock);
+		caif_enroll_dev(dev, caifdev, link_support, head_room,
+				&layer, NULL);
+		caifdev->flowctrl = dev_flowctrl;
 		break;
 
 	case NETDEV_UP:
@@ -277,6 +400,7 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 			break;
 		}
 
+		caifd->xoff = 0;
 		cfcnfg_set_phy_state(cfg, &caifd->layer, true);
 		rcu_read_unlock();
 
@@ -298,6 +422,24 @@ static int caif_device_notify(struct notifier_block *me, unsigned long what,
 		caifd->layer.up->ctrlcmd(caifd->layer.up,
 					 _CAIF_CTRLCMD_PHYIF_DOWN_IND,
 					 caifd->layer.id);
+
+		spin_lock_bh(&caifd->flow_lock);
+
+		/*
+		 * Replace our xoff-destructor with original destructor.
+		 * We trust that skb->destructor *always* is called before
+		 * the skb reference is invalid. The hijacked SKB destructor
+		 * takes the flow_lock so manipulating the skb->destructor here
+		 * should be safe.
+		*/
+		if (caifd->xoff_skb_dtor != NULL && caifd->xoff_skb != NULL)
+			caifd->xoff_skb->destructor = caifd->xoff_skb_dtor;
+
+		caifd->xoff = 0;
+		caifd->xoff_skb_dtor = NULL;
+		caifd->xoff_skb = NULL;
+
+		spin_unlock_bh(&caifd->flow_lock);
 		caifd_put(caifd);
 		break;
 
@@ -353,15 +495,12 @@ static struct notifier_block caif_device_notifier = {
 static int caif_init_net(struct net *net)
 {
 	struct caif_net *caifn = net_generic(net, caif_net_id);
-	BUG_ON(!caifn);
 	INIT_LIST_HEAD(&caifn->caifdevs.list);
 	mutex_init(&caifn->caifdevs.lock);
 
 	caifn->cfg = cfcnfg_create();
-	if (!caifn->cfg) {
-		pr_warn("can't create cfcnfg\n");
+	if (!caifn->cfg)
 		return -ENOMEM;
-	}
 
 	return 0;
 }
@@ -371,16 +510,10 @@ static void caif_exit_net(struct net *net)
 	struct caif_device_entry *caifd, *tmp;
 	struct caif_device_entry_list *caifdevs =
 	    caif_device_list(net);
-	struct cfcnfg *cfg;
+	struct cfcnfg *cfg =  get_cfcnfg(net);
 
 	rtnl_lock();
 	mutex_lock(&caifdevs->lock);
-
-	cfg = get_cfcnfg(net);
-	if (cfg == NULL) {
-		mutex_unlock(&caifdevs->lock);
-		return;
-	}
 
 	list_for_each_entry_safe(caifd, tmp, &caifdevs->list, list) {
 		int i = 0;
@@ -418,7 +551,7 @@ static int __init caif_device_init(void)
 {
 	int result;
 
-	result = register_pernet_device(&caif_net_ops);
+	result = register_pernet_subsys(&caif_net_ops);
 
 	if (result)
 		return result;
@@ -431,7 +564,7 @@ static int __init caif_device_init(void)
 
 static void __exit caif_device_exit(void)
 {
-	unregister_pernet_device(&caif_net_ops);
+	unregister_pernet_subsys(&caif_net_ops);
 	unregister_netdevice_notifier(&caif_device_notifier);
 	dev_remove_pack(&caif_packet_type);
 }

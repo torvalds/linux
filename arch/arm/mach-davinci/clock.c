@@ -31,19 +31,12 @@ static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);
 static DEFINE_SPINLOCK(clockfw_lock);
 
-static unsigned psc_domain(struct clk *clk)
-{
-	return (clk->flags & PSC_DSP)
-		? DAVINCI_GPSC_DSPDOMAIN
-		: DAVINCI_GPSC_ARMDOMAIN;
-}
-
 static void __clk_enable(struct clk *clk)
 {
 	if (clk->parent)
 		__clk_enable(clk->parent);
 	if (clk->usecount++ == 0 && (clk->flags & CLK_PSC))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+		davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
 				true, clk->flags);
 }
 
@@ -53,7 +46,7 @@ static void __clk_disable(struct clk *clk)
 		return;
 	if (--clk->usecount == 0 && !(clk->flags & CLK_PLL) &&
 	    (clk->flags & CLK_PSC))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+		davinci_psc_config(clk->domain, clk->gpsc, clk->lpsc,
 				false, clk->flags);
 	if (clk->parent)
 		__clk_disable(clk->parent);
@@ -237,7 +230,7 @@ static int __init clk_disable_unused(void)
 
 		pr_debug("Clocks: disable unused %s\n", ck->name);
 
-		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc,
+		davinci_psc_config(ck->domain, ck->gpsc, ck->lpsc,
 				false, ck->flags);
 	}
 	spin_unlock_irq(&clockfw_lock);

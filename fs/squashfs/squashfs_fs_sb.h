@@ -28,6 +28,7 @@
 struct squashfs_cache {
 	char			*name;
 	int			entries;
+	int			curr_blk;
 	int			next_blk;
 	int			num_waiters;
 	int			unused;

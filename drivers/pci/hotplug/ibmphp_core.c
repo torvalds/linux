@@ -49,7 +49,7 @@
 
 int ibmphp_debug;
 
-static int debug;
+static bool debug;
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC (debug, "Debugging mode enabled or not");
 MODULE_LICENSE ("GPL");

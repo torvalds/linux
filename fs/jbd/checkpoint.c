@@ -453,8 +453,6 @@ out:
  *
  * Return <0 on error, 0 on success, 1 if there was nothing to clean up.
  *
- * Called with the journal lock held.
- *
  * This is the only part of the journaling code which really needs to be
  * aware of transaction aborts.  Checkpointing involves writing to the
  * main filesystem area rather than to the journal, so it can proceed
@@ -472,13 +470,14 @@ int cleanup_journal_tail(journal_t *journal)
 	if (is_journal_aborted(journal))
 		return 1;
 
-	/* OK, work out the oldest transaction remaining in the log, and
+	/*
+	 * OK, work out the oldest transaction remaining in the log, and
 	 * the log block it starts at.
 	 *
 	 * If the log is now empty, we need to work out which is the
 	 * next transaction ID we will write, and where it will
-	 * start. */
-
+	 * start.
+	 */
 	spin_lock(&journal->j_state_lock);
 	spin_lock(&journal->j_list_lock);
 	transaction = journal->j_checkpoint_transactions;
@@ -504,7 +503,25 @@ int cleanup_journal_tail(journal_t *journal)
 		spin_unlock(&journal->j_state_lock);
 		return 1;
 	}
+	spin_unlock(&journal->j_state_lock);
 
+	/*
+	 * We need to make sure that any blocks that were recently written out
+	 * --- perhaps by log_do_checkpoint() --- are flushed out before we
+	 * drop the transactions from the journal. It's unlikely this will be
+	 * necessary, especially with an appropriately sized journal, but we
+	 * need this to guarantee correctness.  Fortunately
+	 * cleanup_journal_tail() doesn't get called all that often.
+	 */
+	if (journal->j_flags & JFS_BARRIER)
+		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
+
+	spin_lock(&journal->j_state_lock);
+	if (!tid_gt(first_tid, journal->j_tail_sequence)) {
+		spin_unlock(&journal->j_state_lock);
+		/* Someone else cleaned up journal so return 0 */
+		return 0;
+	}
 	/* OK, update the superblock to recover the freed space.
 	 * Physical blocks come first: have we wrapped beyond the end of
 	 * the log?  */
@@ -537,7 +554,7 @@ int cleanup_journal_tail(journal_t *journal)
  * them.
  *
  * Called with j_list_lock held.
- * Returns number of bufers reaped (for debug)
+ * Returns number of buffers reaped (for debug)
  */
 
 static int journal_clean_one_cp_list(struct journal_head *jh, int *released)

@@ -2,8 +2,12 @@
 #include "debugfs.h"
 #include "cache.h"
 
+#include <linux/kernel.h>
+#include <sys/mount.h>
+
 static int debugfs_premounted;
-static char debugfs_mountpoint[MAX_PATH+1];
+char debugfs_mountpoint[PATH_MAX + 1] = "/sys/kernel/debug";
+char tracing_events_path[PATH_MAX + 1] = "/sys/kernel/debug/tracing/events";
 
 static const char *debugfs_known_mountpoints[] = {
 	"/sys/kernel/debug/",
@@ -62,11 +66,9 @@ const char *debugfs_find_mountpoint(void)
 	/* give up and parse /proc/mounts */
 	fp = fopen("/proc/mounts", "r");
 	if (fp == NULL)
-		die("Can't open /proc/mounts for read");
+		return NULL;
 
-	while (fscanf(fp, "%*s %"
-		      STR(MAX_PATH)
-		      "s %99s %*s %*d %*d\n",
+	while (fscanf(fp, "%*s %" STR(PATH_MAX) "s %99s %*s %*d %*d\n",
 		      debugfs_mountpoint, type) == 2) {
 		if (strcmp(type, "debugfs") == 0)
 			break;
@@ -106,6 +108,12 @@ int debugfs_valid_entry(const char *path)
 	return 0;
 }
 
+static void debugfs_set_tracing_events_path(const char *mountpoint)
+{
+	snprintf(tracing_events_path, sizeof(tracing_events_path), "%s/%s",
+		 mountpoint, "tracing/events");
+}
+
 /* mount the debugfs somewhere if it's not mounted */
 
 char *debugfs_mount(const char *mountpoint)
@@ -113,7 +121,7 @@ char *debugfs_mount(const char *mountpoint)
 	/* see if it's already mounted */
 	if (debugfs_find_mountpoint()) {
 		debugfs_premounted = 1;
-		return debugfs_mountpoint;
+		goto out;
 	}
 
 	/* if not mounted and no argument */
@@ -129,10 +137,17 @@ char *debugfs_mount(const char *mountpoint)
 		return NULL;
 
 	/* save the mountpoint */
-	strncpy(debugfs_mountpoint, mountpoint, sizeof(debugfs_mountpoint));
 	debugfs_found = 1;
-
+	strncpy(debugfs_mountpoint, mountpoint, sizeof(debugfs_mountpoint));
+out:
+	debugfs_set_tracing_events_path(debugfs_mountpoint);
 	return debugfs_mountpoint;
+}
+
+void debugfs_set_path(const char *mountpoint)
+{
+	snprintf(debugfs_mountpoint, sizeof(debugfs_mountpoint), "%s", mountpoint);
+	debugfs_set_tracing_events_path(mountpoint);
 }
 
 /* umount the debugfs */
@@ -158,7 +173,7 @@ int debugfs_umount(void)
 
 int debugfs_write(const char *entry, const char *value)
 {
-	char path[MAX_PATH+1];
+	char path[PATH_MAX + 1];
 	int ret, count;
 	int fd;
 
@@ -203,7 +218,7 @@ int debugfs_write(const char *entry, const char *value)
  */
 int debugfs_read(const char *entry, char *buffer, size_t size)
 {
-	char path[MAX_PATH+1];
+	char path[PATH_MAX + 1];
 	int ret;
 	int fd;
 

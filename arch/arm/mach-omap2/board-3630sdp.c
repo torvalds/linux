@@ -16,7 +16,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/common.h>
+#include "common.h"
 #include <plat/board.h>
 #include <plat/gpmc-smc91x.h>
 #include <plat/usb.h>
@@ -215,6 +215,8 @@ MACHINE_START(OMAP_3630SDP, "OMAP 3630SDP board")
 	.map_io		= omap3_map_io,
 	.init_early	= omap3630_init_early,
 	.init_irq	= omap3_init_irq,
+	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_sdp_init,
 	.timer		= &omap3_timer,
+	.restart	= omap_prcm_restart,
 MACHINE_END

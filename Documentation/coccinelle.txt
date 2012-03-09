@@ -102,9 +102,15 @@ or
 	make coccicheck COCCI=<my_SP.cocci> MODE=report
 
 
- Using Coccinelle on (modified) files
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ Controlling Which Files are Processed by Coccinelle
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+By default the entire kernel source tree is checked.
 
+To apply Coccinelle to a specific directory, M= can be used.
+For example, to check drivers/net/wireless/ one may write:
+
+    make coccicheck M=drivers/net/wireless/
+    
 To apply Coccinelle on a file basis, instead of a directory basis, the
 following command may be used:
 

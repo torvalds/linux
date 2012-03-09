@@ -34,7 +34,7 @@
 
 #define AD1836_ADC_CTRL2               13
 #define AD1836_ADC_WORD_LEN_MASK       0x30
-#define AD1836_ADC_WORD_OFFSET         5
+#define AD1836_ADC_WORD_OFFSET         4
 #define AD1836_ADC_SERFMT_MASK         (7 << 6)
 #define AD1836_ADC_SERFMT_PCK256       (0x4 << 6)
 #define AD1836_ADC_SERFMT_PCK128       (0x5 << 6)

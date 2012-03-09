@@ -7,6 +7,7 @@
 struct at91_init_soc {
 	unsigned int *default_irq_priority;
 	void (*map_io)(void);
+	void (*ioremap_registers)(void);
 	void (*register_clocks)(void);
 	void (*init)(void);
 };

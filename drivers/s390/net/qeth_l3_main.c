@@ -1869,15 +1869,15 @@ static void qeth_l3_free_vlan_addresses(struct qeth_card *card,
 	qeth_l3_free_vlan_addresses6(card, vid);
 }
 
-static void qeth_l3_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l3_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct qeth_card *card = dev->ml_priv;
 
 	set_bit(vid, card->active_vlans);
-	return;
+	return 0;
 }
 
-static void qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 {
 	struct qeth_card *card = dev->ml_priv;
 	unsigned long flags;
@@ -1885,7 +1885,7 @@ static void qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	QETH_CARD_TEXT_(card, 4, "kid:%d", vid);
 	if (qeth_wait_for_threads(card, QETH_RECOVER_THREAD)) {
 		QETH_CARD_TEXT(card, 3, "kidREC");
-		return;
+		return 0;
 	}
 	spin_lock_irqsave(&card->vlanlock, flags);
 	/* unregister IP addresses of vlan device */
@@ -1893,6 +1893,7 @@ static void qeth_l3_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 	clear_bit(vid, card->active_vlans);
 	spin_unlock_irqrestore(&card->vlanlock, flags);
 	qeth_l3_set_multicast_list(card->dev);
+	return 0;
 }
 
 static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
@@ -2759,7 +2760,7 @@ int inline qeth_l3_get_cast_type(struct qeth_card *card, struct sk_buff *skb)
 	rcu_read_lock();
 	dst = skb_dst(skb);
 	if (dst)
-		n = dst_get_neighbour(dst);
+		n = dst_get_neighbour_noref(dst);
 	if (n) {
 		cast_type = n->type;
 		rcu_read_unlock();
@@ -2855,7 +2856,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 	rcu_read_lock();
 	dst = skb_dst(skb);
 	if (dst)
-		n = dst_get_neighbour(dst);
+		n = dst_get_neighbour_noref(dst);
 	if (ipv == 4) {
 		/* IPv4 */
 		hdr->hdr.l3.flags = qeth_l3_get_qeth_hdr_flags4(cast_type);
@@ -3209,7 +3210,8 @@ static int qeth_l3_stop(struct net_device *dev)
 	return 0;
 }
 
-static u32 qeth_l3_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t qeth_l3_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct qeth_card *card = dev->ml_priv;
 
@@ -3223,7 +3225,8 @@ static u32 qeth_l3_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int qeth_l3_set_features(struct net_device *dev, u32 features)
+static int qeth_l3_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct qeth_card *card = dev->ml_priv;
 	u32 changed = dev->features ^ features;
@@ -3489,14 +3492,13 @@ contin:
 	else
 		netif_carrier_off(card->dev);
 	if (recover_flag == CARD_STATE_RECOVER) {
+		rtnl_lock();
 		if (recovery_mode)
 			__qeth_l3_open(card->dev);
-		else {
-			rtnl_lock();
+		else
 			dev_open(card->dev);
-			rtnl_unlock();
-		}
 		qeth_l3_set_multicast_list(card->dev);
+		rtnl_unlock();
 	}
 	/* let user_space know that device is online */
 	kobject_uevent(&gdev->dev.kobj, KOBJ_CHANGE);
@@ -3542,6 +3544,11 @@ static int __qeth_l3_set_offline(struct ccwgroup_device *cgdev,
 		card->info.hwtrap = 1;
 	}
 	qeth_l3_stop_card(card, recovery_mode);
+	if ((card->options.cq == QETH_CQ_ENABLED) && card->dev) {
+		rtnl_lock();
+		call_netdevice_notifiers(NETDEV_REBOOT, card->dev);
+		rtnl_unlock();
+	}
 	rc  = ccw_device_set_offline(CARD_DDEV(card));
 	rc2 = ccw_device_set_offline(CARD_WDEV(card));
 	rc3 = ccw_device_set_offline(CARD_RDEV(card));
@@ -3596,6 +3603,7 @@ static int qeth_l3_recover(void *ptr)
 static void qeth_l3_shutdown(struct ccwgroup_device *gdev)
 {
 	struct qeth_card *card = dev_get_drvdata(&gdev->dev);
+	qeth_set_allowed_threads(card, 0, 1);
 	if ((gdev->state == CCWGROUP_ONLINE) && card->info.hwtrap)
 		qeth_hw_trap(card, QETH_DIAGS_TRAP_DISARM);
 	qeth_qdio_clear_card(card, 0);

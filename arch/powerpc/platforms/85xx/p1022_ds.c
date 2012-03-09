@@ -25,7 +25,11 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+#include <asm/udbg.h>
 #include <asm/fsl_guts.h>
+#include "smp.h"
+
+#include "mpc85xx.h"
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
 
@@ -238,37 +242,14 @@ p1022ds_valid_monitor_port(enum fsl_diu_monitor_port port)
 
 void __init p1022_ds_pic_init(void)
 {
-	struct mpic *mpic;
-	struct resource r;
-	struct device_node *np;
-
-	np = of_find_node_by_type(NULL, "open-pic");
-	if (!np) {
-		pr_err("Could not find open-pic node\n");
-		return;
-	}
-
-	if (of_address_to_resource(np, 0, &r)) {
-		pr_err("Failed to map mpic register space\n");
-		of_node_put(np);
-		return;
-	}
-
-	mpic = mpic_alloc(np, r.start,
-		MPIC_PRIMARY | MPIC_WANTS_RESET |
+	struct mpic *mpic = mpic_alloc(NULL, 0,
+		MPIC_WANTS_RESET |
 		MPIC_BIG_ENDIAN | MPIC_BROKEN_FRR_NIRQS |
 		MPIC_SINGLE_DEST_CPU,
 		0, 256, " OpenPIC  ");
-
 	BUG_ON(mpic == NULL);
-	of_node_put(np);
-
 	mpic_init(mpic);
 }
-
-#ifdef CONFIG_SMP
-void __init mpc85xx_smp_init(void);
-#endif
 
 /*
  * Setup the architecture
@@ -309,9 +290,7 @@ static void __init p1022_ds_setup_arch(void)
 	diu_ops.valid_monitor_port	= p1022ds_valid_monitor_port;
 #endif
 
-#ifdef CONFIG_SMP
 	mpc85xx_smp_init();
-#endif
 
 #ifdef CONFIG_SWIOTLB
 	if (memblock_end_of_DRAM() > max) {
@@ -325,10 +304,6 @@ static void __init p1022_ds_setup_arch(void)
 }
 
 static struct of_device_id __initdata p1022_ds_ids[] = {
-	{ .type = "soc", },
-	{ .compatible = "soc", },
-	{ .compatible = "simple-bus", },
-	{ .compatible = "gianfar", },
 	/* So that the DMA channel nodes can be probed individually: */
 	{ .compatible = "fsl,eloplus-dma", },
 	{},
@@ -336,6 +311,7 @@ static struct of_device_id __initdata p1022_ds_ids[] = {
 
 static int __init p1022_ds_publish_devices(void)
 {
+	mpc85xx_common_publish_devices();
 	return of_platform_bus_probe(NULL, p1022_ds_ids, NULL);
 }
 machine_device_initcall(p1022_ds, p1022_ds_publish_devices);

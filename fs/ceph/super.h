@@ -28,6 +28,7 @@
 #define CEPH_MOUNT_OPT_RBYTES          (1<<5) /* dir st_bytes = rbytes */
 #define CEPH_MOUNT_OPT_NOASYNCREADDIR  (1<<7) /* no dcache readdir */
 #define CEPH_MOUNT_OPT_INO32           (1<<8) /* 32 bit inos */
+#define CEPH_MOUNT_OPT_DCACHE          (1<<9) /* use dcache for readdir etc */
 
 #define CEPH_MOUNT_OPT_DEFAULT    (CEPH_MOUNT_OPT_RBYTES)
 
@@ -136,7 +137,7 @@ struct ceph_cap_snap {
 	int issued, dirty;
 	struct ceph_snap_context *context;
 
-	mode_t mode;
+	umode_t mode;
 	uid_t uid;
 	gid_t gid;
 
@@ -220,7 +221,7 @@ struct ceph_dentry_info {
  * The locking for D_COMPLETE is a bit odd:
  *  - we can clear it at almost any time (see ceph_d_prune)
  *  - it is only meaningful if:
- *    - we hold dir inode i_lock
+ *    - we hold dir inode i_ceph_lock
  *    - we hold dir FILE_SHARED caps
  *    - the dentry D_COMPLETE is set
  */
@@ -250,6 +251,8 @@ struct ceph_inode_xattrs_info {
 struct ceph_inode_info {
 	struct ceph_vino i_vino;   /* ceph ino + snap */
 
+	spinlock_t i_ceph_lock;
+
 	u64 i_version;
 	u32 i_time_warp_seq;
 
@@ -271,7 +274,7 @@ struct ceph_inode_info {
 
 	struct ceph_inode_xattrs_info i_xattrs;
 
-	/* capabilities.  protected _both_ by i_lock and cap->session's
+	/* capabilities.  protected _both_ by i_ceph_lock and cap->session's
 	 * s_mutex. */
 	struct rb_root i_caps;           /* cap list */
 	struct ceph_cap *i_auth_cap;     /* authoritative cap, if any */
@@ -437,18 +440,18 @@ static inline void ceph_i_clear(struct inode *inode, unsigned mask)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	ci->i_ceph_flags &= ~mask;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 }
 
 static inline void ceph_i_set(struct inode *inode, unsigned mask)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	ci->i_ceph_flags |= mask;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 }
 
 static inline bool ceph_i_test(struct inode *inode, unsigned mask)
@@ -456,9 +459,9 @@ static inline bool ceph_i_test(struct inode *inode, unsigned mask)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	bool r;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	r = (ci->i_ceph_flags & mask) == mask;
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return r;
 }
 
@@ -508,9 +511,9 @@ extern int __ceph_caps_issued_other(struct ceph_inode_info *ci,
 static inline int ceph_caps_issued(struct ceph_inode_info *ci)
 {
 	int issued;
-	spin_lock(&ci->vfs_inode.i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	issued = __ceph_caps_issued(ci, NULL);
-	spin_unlock(&ci->vfs_inode.i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return issued;
 }
 
@@ -518,9 +521,9 @@ static inline int ceph_caps_issued_mask(struct ceph_inode_info *ci, int mask,
 					int touch)
 {
 	int r;
-	spin_lock(&ci->vfs_inode.i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	r = __ceph_caps_issued_mask(ci, mask, touch);
-	spin_unlock(&ci->vfs_inode.i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 	return r;
 }
 
@@ -743,10 +746,9 @@ extern int ceph_add_cap(struct inode *inode,
 extern void __ceph_remove_cap(struct ceph_cap *cap);
 static inline void ceph_remove_cap(struct ceph_cap *cap)
 {
-	struct inode *inode = &cap->ci->vfs_inode;
-	spin_lock(&inode->i_lock);
+	spin_lock(&cap->ci->i_ceph_lock);
 	__ceph_remove_cap(cap);
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&cap->ci->i_ceph_lock);
 }
 extern void ceph_put_cap(struct ceph_mds_client *mdsc,
 			 struct ceph_cap *cap);

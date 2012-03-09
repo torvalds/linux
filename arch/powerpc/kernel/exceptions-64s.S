@@ -65,7 +65,7 @@ BEGIN_FTR_SECTION
 	lbz	r0,PACAPROCSTART(r13)
 	cmpwi	r0,0x80
 	bne	1f
-	li	r0,0
+	li	r0,1
 	stb	r0,PACAPROCSTART(r13)
 	b	kvm_start_guest
 1:
@@ -774,8 +774,8 @@ alignment_common:
 program_check_common:
 	EXCEPTION_PROLOG_COMMON(0x700, PACA_EXGEN)
 	bl	.save_nvgprs
+	DISABLE_INTS
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ENABLE_INTS
 	bl	.program_check_exception
 	b	.ret_from_except
 

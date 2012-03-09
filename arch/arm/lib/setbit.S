@@ -12,6 +12,4 @@
 #include "bitops.h"
 		.text
 
-ENTRY(_set_bit)
-	bitop	orr
-ENDPROC(_set_bit)
+bitop	_set_bit, orr

@@ -832,28 +832,9 @@ static struct usb_driver dib0700_driver = {
 	.id_table   = dib0700_usb_id_table,
 };
 
-/* module stuff */
-static int __init dib0700_module_init(void)
-{
-	int result;
-	info("loaded with support for %d different device-types", dib0700_device_count);
-	if ((result = usb_register(&dib0700_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
+module_usb_driver(dib0700_driver);
 
-	return 0;
-}
-
-static void __exit dib0700_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&dib0700_driver);
-}
-
-module_init (dib0700_module_init);
-module_exit (dib0700_module_exit);
-
+MODULE_FIRMWARE("dvb-usb-dib0700-1.20.fw");
 MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");
 MODULE_DESCRIPTION("Driver for devices based on DiBcom DiB0700 - USB bridge");
 MODULE_VERSION("1.0");

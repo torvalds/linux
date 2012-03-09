@@ -42,7 +42,7 @@ MODULE_LICENSE("GPL");
 { USB_DEVICE_VER(id_vendor, id_product, bcdDeviceMin, bcdDeviceMax), \
 	.driver_info = (flags)|(USB_US_TYPE_STOR<<24) }
 
-struct usb_device_id ene_ub6250_usb_ids[] = {
+static struct usb_device_id ene_ub6250_usb_ids[] = {
 #	include "unusual_ene_ub6250.h"
 	{ }		/* Terminating entry */
 };
@@ -607,8 +607,8 @@ static int sd_scsi_mode_sense(struct us_data *us, struct scsi_cmnd *srb)
 
 static int sd_scsi_read_capacity(struct us_data *us, struct scsi_cmnd *srb)
 {
-	u32   bl_num;
-	u16    bl_len;
+	u32	bl_num;
+	u32	bl_len;
 	unsigned int offset = 0;
 	unsigned char    buf[8];
 	struct scatterlist *sg = NULL;
@@ -622,7 +622,7 @@ static int sd_scsi_read_capacity(struct us_data *us, struct scsi_cmnd *srb)
 		else
 			bl_num = (info->HC_C_SIZE + 1) * 1024 - 1;
 	} else {
-		bl_len = 1<<(info->SD_READ_BL_LEN);
+		bl_len = 1 << (info->SD_READ_BL_LEN);
 		bl_num = info->SD_Block_Mult * (info->SD_C_SIZE + 1)
 				* (1 << (info->SD_C_SIZE_MULT + 2)) - 1;
 	}
@@ -777,7 +777,7 @@ static int ms_lib_free_logicalmap(struct us_data *us)
 	return 0;
 }
 
-int ms_lib_alloc_logicalmap(struct us_data *us)
+static int ms_lib_alloc_logicalmap(struct us_data *us)
 {
 	u32  i;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
@@ -2248,7 +2248,7 @@ static int sd_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 /*
  * ms_scsi_irp()
  */
-int ms_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
+static int ms_scsi_irp(struct us_data *us, struct scsi_cmnd *srb)
 {
 	int result;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)us->extra;
@@ -2409,15 +2409,4 @@ static struct usb_driver ene_ub6250_driver = {
 	.soft_unbind =	1,
 };
 
-static int __init ene_ub6250_init(void)
-{
-	return usb_register(&ene_ub6250_driver);
-}
-
-static void __exit ene_ub6250_exit(void)
-{
-	usb_deregister(&ene_ub6250_driver);
-}
-
-module_init(ene_ub6250_init);
-module_exit(ene_ub6250_exit);
+module_usb_driver(ene_ub6250_driver);

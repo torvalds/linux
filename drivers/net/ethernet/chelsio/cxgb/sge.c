@@ -742,7 +742,7 @@ static inline void setup_ring_params(struct adapter *adapter, u64 addr,
 /*
  * Enable/disable VLAN acceleration.
  */
-void t1_vlan_mode(struct adapter *adapter, u32 features)
+void t1_vlan_mode(struct adapter *adapter, netdev_features_t features)
 {
 	struct sge *sge = adapter->sge;
 

@@ -243,7 +243,7 @@ module_param_array(intr_cnt, uint, NULL, 0644);
 MODULE_PARM_DESC(intr_cnt,
 		 "thresholds 1..3 for queue interrupt packet counters");
 
-static int vf_acls;
+static bool vf_acls;
 
 #ifdef CONFIG_PCI_IOV
 module_param(vf_acls, bool, 0644);
@@ -1002,13 +1002,12 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 {
 	struct adapter *adapter = netdev2adap(dev);
 
-	strcpy(info->driver, KBUILD_MODNAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(adapter->pdev));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(adapter->pdev),
+		sizeof(info->bus_info));
 
-	if (!adapter->params.fw_vers)
-		strcpy(info->fw_version, "N/A");
-	else
+	if (adapter->params.fw_vers)
 		snprintf(info->fw_version, sizeof(info->fw_version),
 			"%u.%u.%u.%u, TP %u.%u.%u.%u",
 			FW_HDR_FW_VER_MAJOR_GET(adapter->params.fw_vers),
@@ -1855,10 +1854,10 @@ static int set_wol(struct net_device *dev, struct ethtool_wolinfo *wol)
 	return err;
 }
 
-static int cxgb_set_features(struct net_device *dev, u32 features)
+static int cxgb_set_features(struct net_device *dev, netdev_features_t features)
 {
 	const struct port_info *pi = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	int err;
 
 	if (!(changed & NETIF_F_HW_VLAN_RX))
@@ -1872,30 +1871,30 @@ static int cxgb_set_features(struct net_device *dev, u32 features)
 	return err;
 }
 
-static int get_rss_table(struct net_device *dev, struct ethtool_rxfh_indir *p)
+static u32 get_rss_table_size(struct net_device *dev)
 {
 	const struct port_info *pi = netdev_priv(dev);
-	unsigned int n = min_t(unsigned int, p->size, pi->rss_size);
 
-	p->size = pi->rss_size;
+	return pi->rss_size;
+}
+
+static int get_rss_table(struct net_device *dev, u32 *p)
+{
+	const struct port_info *pi = netdev_priv(dev);
+	unsigned int n = pi->rss_size;
+
 	while (n--)
-		p->ring_index[n] = pi->rss[n];
+		p[n] = pi->rss[n];
 	return 0;
 }
 
-static int set_rss_table(struct net_device *dev,
-			 const struct ethtool_rxfh_indir *p)
+static int set_rss_table(struct net_device *dev, const u32 *p)
 {
 	unsigned int i;
 	struct port_info *pi = netdev_priv(dev);
 
-	if (p->size != pi->rss_size)
-		return -EINVAL;
-	for (i = 0; i < p->size; i++)
-		if (p->ring_index[i] >= pi->nqsets)
-			return -EINVAL;
-	for (i = 0; i < p->size; i++)
-		pi->rss[i] = p->ring_index[i];
+	for (i = 0; i < pi->rss_size; i++)
+		pi->rss[i] = p[i];
 	if (pi->adapter->flags & FULL_INIT_DONE)
 		return write_rss(pi, pi->rss);
 	return 0;
@@ -1964,7 +1963,7 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 	return -EOPNOTSUPP;
 }
 
-static struct ethtool_ops cxgb_ethtool_ops = {
+static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_settings      = get_settings,
 	.set_settings      = set_settings,
 	.get_drvinfo       = get_drvinfo,
@@ -1990,6 +1989,7 @@ static struct ethtool_ops cxgb_ethtool_ops = {
 	.get_wol           = get_wol,
 	.set_wol           = set_wol,
 	.get_rxnfc         = get_rxnfc,
+	.get_rxfh_indir_size = get_rss_table_size,
 	.get_rxfh_indir    = get_rss_table,
 	.set_rxfh_indir    = set_rss_table,
 	.flash_device      = set_flash,
@@ -3449,7 +3449,7 @@ static int __devinit init_rss(struct adapter *adap)
 		if (!pi->rss)
 			return -ENOMEM;
 		for (j = 0; j < pi->rss_size; j++)
-			pi->rss[j] = j % pi->nqsets;
+			pi->rss[j] = ethtool_rxfh_indir_default(j, pi->nqsets);
 	}
 	return 0;
 }
@@ -3537,7 +3537,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 {
 	int func, i, err;
 	struct port_info *pi;
-	unsigned int highdma = 0;
+	bool highdma = false;
 	struct adapter *adapter = NULL;
 
 	printk_once(KERN_INFO "%s - version %s\n", DRV_DESC, DRV_VERSION);
@@ -3563,7 +3563,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 	}
 
 	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) {
-		highdma = NETIF_F_HIGHDMA;
+		highdma = true;
 		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
 		if (err) {
 			dev_err(&pdev->dev, "unable to obtain 64-bit DMA for "
@@ -3637,7 +3637,9 @@ static int __devinit init_one(struct pci_dev *pdev,
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_RXCSUM | NETIF_F_RXHASH |
 			NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		netdev->features |= netdev->hw_features | highdma;
+		if (highdma)
+			netdev->hw_features |= NETIF_F_HIGHDMA;
+		netdev->features |= netdev->hw_features;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
 		netdev->priv_flags |= IFF_UNICAST_FLT;

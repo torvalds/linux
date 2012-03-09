@@ -58,25 +58,15 @@ static struct clocksource clocksource_dbx500_prcmu = {
 };
 
 #ifdef CONFIG_CLKSRC_DBX500_PRCMU_SCHED_CLOCK
-static DEFINE_CLOCK_DATA(cd);
 
-unsigned long long notrace sched_clock(void)
+static u32 notrace dbx500_prcmu_sched_clock_read(void)
 {
-	u32 cyc;
-
 	if (unlikely(!clksrc_dbx500_timer_base))
 		return 0;
 
-	cyc = clksrc_dbx500_prcmu_read(&clocksource_dbx500_prcmu);
-
-	return cyc_to_sched_clock(&cd, cyc, (u32)~0);
+	return clksrc_dbx500_prcmu_read(&clocksource_dbx500_prcmu);
 }
 
-static void notrace clksrc_dbx500_prcmu_update_sched_clock(void)
-{
-	u32 cyc = clksrc_dbx500_prcmu_read(&clocksource_dbx500_prcmu);
-	update_sched_clock(&cd, cyc, (u32)~0);
-}
 #endif
 
 void __init clksrc_dbx500_prcmu_init(void __iomem *base)
@@ -97,7 +87,7 @@ void __init clksrc_dbx500_prcmu_init(void __iomem *base)
 		       clksrc_dbx500_timer_base + PRCMU_TIMER_REF);
 	}
 #ifdef CONFIG_CLKSRC_DBX500_PRCMU_SCHED_CLOCK
-	init_sched_clock(&cd, clksrc_dbx500_prcmu_update_sched_clock,
+	setup_sched_clock(dbx500_prcmu_sched_clock_read,
 			 32, RATE_32K);
 #endif
 	clocksource_calc_mult_shift(&clocksource_dbx500_prcmu,

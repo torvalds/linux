@@ -101,47 +101,132 @@ static void mxr_graph_format_set(struct mxr_layer *layer)
 		layer->fmt, &layer->geo);
 }
 
-static void mxr_graph_fix_geometry(struct mxr_layer *layer)
+static inline unsigned int closest(unsigned int x, unsigned int a,
+	unsigned int b, unsigned long flags)
+{
+	unsigned int mid = (a + b) / 2;
+
+	/* choosing closest value with constraints according to table:
+	 * -------------+-----+-----+-----+-------+
+	 * flags	|  0  |  LE |  GE | LE|GE |
+	 * -------------+-----+-----+-----+-------+
+	 * x <= a	|  a  |  a  |  a  |   a   |
+	 * a < x <= mid	|  a  |  a  |  b  |   a   |
+	 * mid < x < b	|  b  |  a  |  b  |   b   |
+	 * b <= x	|  b  |  b  |  b  |   b   |
+	 * -------------+-----+-----+-----+-------+
+	 */
+
+	/* remove all non-constraint flags */
+	flags &= V4L2_SEL_FLAG_LE | V4L2_SEL_FLAG_GE;
+
+	if (x <= a)
+		return  a;
+	if (x >= b)
+		return b;
+	if (flags == V4L2_SEL_FLAG_LE)
+		return a;
+	if (flags == V4L2_SEL_FLAG_GE)
+		return b;
+	if (x <= mid)
+		return a;
+	return b;
+}
+
+static inline unsigned int do_center(unsigned int center,
+	unsigned int size, unsigned int upper, unsigned int flags)
+{
+	unsigned int lower;
+
+	if (flags & MXR_NO_OFFSET)
+		return 0;
+
+	lower = center - min(center, size / 2);
+	return min(lower, upper - size);
+}
+
+static void mxr_graph_fix_geometry(struct mxr_layer *layer,
+	enum mxr_geometry_stage stage, unsigned long flags)
 {
 	struct mxr_geometry *geo = &layer->geo;
+	struct mxr_crop *src = &geo->src;
+	struct mxr_crop *dst = &geo->dst;
+	unsigned int x_center, y_center;
 
-	/* limit to boundary size */
-	geo->src.full_width = clamp_val(geo->src.full_width, 1, 32767);
-	geo->src.full_height = clamp_val(geo->src.full_height, 1, 2047);
-	geo->src.width = clamp_val(geo->src.width, 1, geo->src.full_width);
-	geo->src.width = min(geo->src.width, 2047U);
-	/* not possible to crop of Y axis */
-	geo->src.y_offset = min(geo->src.y_offset, geo->src.full_height - 1);
-	geo->src.height = geo->src.full_height - geo->src.y_offset;
-	/* limitting offset */
-	geo->src.x_offset = min(geo->src.x_offset,
-		geo->src.full_width - geo->src.width);
+	switch (stage) {
 
-	/* setting position in output */
-	geo->dst.width = min(geo->dst.width, geo->dst.full_width);
-	geo->dst.height = min(geo->dst.height, geo->dst.full_height);
+	case MXR_GEOMETRY_SINK: /* nothing to be fixed here */
+		flags = 0;
+		/* fall through */
 
-	/* Mixer supports only 1x and 2x scaling */
-	if (geo->dst.width >= 2 * geo->src.width) {
-		geo->x_ratio = 1;
-		geo->dst.width = 2 * geo->src.width;
-	} else {
-		geo->x_ratio = 0;
-		geo->dst.width = geo->src.width;
-	}
+	case MXR_GEOMETRY_COMPOSE:
+		/* remember center of the area */
+		x_center = dst->x_offset + dst->width / 2;
+		y_center = dst->y_offset + dst->height / 2;
+		/* round up/down to 2 multiple depending on flags */
+		if (flags & V4L2_SEL_FLAG_LE) {
+			dst->width = round_down(dst->width, 2);
+			dst->height = round_down(dst->height, 2);
+		} else {
+			dst->width = round_up(dst->width, 2);
+			dst->height = round_up(dst->height, 2);
+		}
+		/* assure that compose rect is inside display area */
+		dst->width = min(dst->width, dst->full_width);
+		dst->height = min(dst->height, dst->full_height);
 
-	if (geo->dst.height >= 2 * geo->src.height) {
-		geo->y_ratio = 1;
-		geo->dst.height = 2 * geo->src.height;
-	} else {
-		geo->y_ratio = 0;
-		geo->dst.height = geo->src.height;
-	}
+		/* ensure that compose is reachable using 2x scaling */
+		dst->width = min(dst->width, 2 * src->full_width);
+		dst->height = min(dst->height, 2 * src->full_height);
 
-	geo->dst.x_offset = min(geo->dst.x_offset,
-		geo->dst.full_width - geo->dst.width);
-	geo->dst.y_offset = min(geo->dst.y_offset,
-		geo->dst.full_height - geo->dst.height);
+		/* setup offsets */
+		dst->x_offset = do_center(x_center, dst->width,
+			dst->full_width, flags);
+		dst->y_offset = do_center(y_center, dst->height,
+			dst->full_height, flags);
+		flags = 0;
+		/* fall through */
+
+	case MXR_GEOMETRY_CROP:
+		/* remember center of the area */
+		x_center = src->x_offset + src->width / 2;
+		y_center = src->y_offset + src->height / 2;
+		/* ensure that cropping area lies inside the buffer */
+		if (src->full_width < dst->width)
+			src->width = dst->width / 2;
+		else
+			src->width = closest(src->width, dst->width / 2,
+				dst->width, flags);
+
+		if (src->width == dst->width)
+			geo->x_ratio = 0;
+		else
+			geo->x_ratio = 1;
+
+		if (src->full_height < dst->height)
+			src->height = dst->height / 2;
+		else
+			src->height = closest(src->height, dst->height / 2,
+				dst->height, flags);
+
+		if (src->height == dst->height)
+			geo->y_ratio = 0;
+		else
+			geo->y_ratio = 1;
+
+		/* setup offsets */
+		src->x_offset = do_center(x_center, src->width,
+			src->full_width, flags);
+		src->y_offset = do_center(y_center, src->height,
+			src->full_height, flags);
+		flags = 0;
+		/* fall through */
+	case MXR_GEOMETRY_SOURCE:
+		src->full_width = clamp_val(src->full_width,
+			src->width + src->x_offset, 32767);
+		src->full_height = clamp_val(src->full_height,
+			src->height + src->y_offset, 2047);
+	};
 }
 
 /* PUBLIC API */

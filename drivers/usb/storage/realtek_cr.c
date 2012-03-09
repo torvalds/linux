@@ -398,10 +398,9 @@ static int rts51x_write_mem(struct us_data *us, u16 addr, u8 *data, u16 len)
 	u8 cmnd[12] = { 0 };
 	u8 *buf;
 
-	buf = kmalloc(len, GFP_NOIO);
+	buf = kmemdup(data, len, GFP_NOIO);
 	if (buf == NULL)
 		return USB_STOR_TRANSPORT_ERROR;
-	memcpy(buf, data, len);
 
 	US_DEBUGP("%s, addr = 0x%x, len = %d\n", __func__, addr, len);
 
@@ -507,15 +506,14 @@ static int enable_oscillator(struct us_data *us)
 static int __do_config_autodelink(struct us_data *us, u8 *data, u16 len)
 {
 	int retval;
-	u16 addr = 0xFE47;
 	u8 cmnd[12] = {0};
 
-	US_DEBUGP("%s, addr = 0x%x, len = %d\n", __FUNCTION__, addr, len);
+	US_DEBUGP("%s, addr = 0xfe47, len = %d\n", __FUNCTION__, len);
 
 	cmnd[0] = 0xF0;
 	cmnd[1] = 0x0E;
-	cmnd[2] = (u8)(addr >> 8);
-	cmnd[3] = (u8)addr;
+	cmnd[2] = 0xfe;
+	cmnd[3] = 0x47;
 	cmnd[4] = (u8)(len >> 8);
 	cmnd[5] = (u8)len;
 
@@ -791,7 +789,7 @@ static void rts51x_suspend_timer_fn(unsigned long data)
 			rts51x_set_stat(chip, RTS51X_STAT_SS);
 			/* ignore mass storage interface's children */
 			pm_suspend_ignore_children(&us->pusb_intf->dev, true);
-			usb_autopm_put_interface(us->pusb_intf);
+			usb_autopm_put_interface_async(us->pusb_intf);
 			US_DEBUGP("%s: RTS51X_STAT_SS 01,"
 				"intf->pm_usage_cnt:%d, power.usage:%d\n",
 				__func__,
@@ -818,7 +816,7 @@ static inline int working_scsi(struct scsi_cmnd *srb)
 	return 1;
 }
 
-void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
+static void rts51x_invoke_transport(struct scsi_cmnd *srb, struct us_data *us)
 {
 	struct rts51x_chip *chip = (struct rts51x_chip *)(us->extra);
 	static int card_first_show = 1;
@@ -977,7 +975,7 @@ static void realtek_cr_destructor(void *extra)
 }
 
 #ifdef CONFIG_PM
-int realtek_cr_suspend(struct usb_interface *iface, pm_message_t message)
+static int realtek_cr_suspend(struct usb_interface *iface, pm_message_t message)
 {
 	struct us_data *us = usb_get_intfdata(iface);
 
@@ -1104,15 +1102,4 @@ static struct usb_driver realtek_cr_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init realtek_cr_init(void)
-{
-	return usb_register(&realtek_cr_driver);
-}
-
-static void __exit realtek_cr_exit(void)
-{
-	usb_deregister(&realtek_cr_driver);
-}
-
-module_init(realtek_cr_init);
-module_exit(realtek_cr_exit);
+module_usb_driver(realtek_cr_driver);

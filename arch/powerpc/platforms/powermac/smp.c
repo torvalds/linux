@@ -200,7 +200,7 @@ static int psurge_secondary_ipi_init(void)
 
 	if (psurge_secondary_virq)
 		rc = request_irq(psurge_secondary_virq, psurge_ipi_intr,
-			IRQF_PERCPU, "IPI", NULL);
+			IRQF_PERCPU | IRQF_NO_THREAD, "IPI", NULL);
 
 	if (rc)
 		pr_err("Failed to setup secondary cpu IPI\n");
@@ -408,13 +408,13 @@ static int __init smp_psurge_kick_cpu(int nr)
 
 static struct irqaction psurge_irqaction = {
 	.handler = psurge_ipi_intr,
-	.flags = IRQF_PERCPU,
+	.flags = IRQF_PERCPU | IRQF_NO_THREAD,
 	.name = "primary IPI",
 };
 
 static void __init smp_psurge_setup_cpu(int cpu_nr)
 {
-	if (cpu_nr != 0)
+	if (cpu_nr != 0 || !psurge_start)
 		return;
 
 	/* reset the entry point so if we get another intr we won't

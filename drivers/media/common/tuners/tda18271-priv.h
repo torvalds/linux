@@ -122,6 +122,8 @@ struct tda18271_priv {
 
 	struct mutex lock;
 
+	u16 if_freq;
+
 	u32 frequency;
 	u32 bandwidth;
 };

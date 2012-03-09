@@ -53,6 +53,7 @@ struct dst_entry {
 #define DST_NOHASH		0x0008
 #define DST_NOCACHE		0x0010
 #define DST_NOCOUNT		0x0020
+#define DST_NOPEER		0x0040
 
 	short			error;
 	short			obsolete;
@@ -86,12 +87,12 @@ struct dst_entry {
 	};
 };
 
-static inline struct neighbour *dst_get_neighbour(struct dst_entry *dst)
+static inline struct neighbour *dst_get_neighbour_noref(struct dst_entry *dst)
 {
 	return rcu_dereference(dst->_neighbour);
 }
 
-static inline struct neighbour *dst_get_neighbour_raw(struct dst_entry *dst)
+static inline struct neighbour *dst_get_neighbour_noref_raw(struct dst_entry *dst)
 {
 	return rcu_dereference_raw(dst->_neighbour);
 }
@@ -205,12 +206,7 @@ dst_feature(const struct dst_entry *dst, u32 feature)
 
 static inline u32 dst_mtu(const struct dst_entry *dst)
 {
-	u32 mtu = dst_metric_raw(dst, RTAX_MTU);
-
-	if (!mtu)
-		mtu = dst->ops->default_mtu(dst);
-
-	return mtu;
+	return dst->ops->mtu(dst);
 }
 
 /* RTT metrics are stored in milliseconds for user ABI, but used as jiffies */
@@ -397,7 +393,7 @@ static inline void dst_confirm(struct dst_entry *dst)
 		struct neighbour *n;
 
 		rcu_read_lock();
-		n = dst_get_neighbour(dst);
+		n = dst_get_neighbour_noref(dst);
 		neigh_confirm(n);
 		rcu_read_unlock();
 	}

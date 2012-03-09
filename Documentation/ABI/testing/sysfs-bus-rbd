@@ -57,13 +57,6 @@ create_snap
 
 	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_create
 
-rollback_snap
-
-	Rolls back data to the specified snapshot. This goes over the entire
-	list of rados blocks and sends a rollback command to each.
-
-	 $ echo <snap-name> > /sys/bus/rbd/devices/<dev-id>/snap_rollback
-
 snap_*
 
 	A directory per each snapshot

@@ -813,7 +813,7 @@ static int davinci_mcasp_startup(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
+static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
 	.startup	= davinci_mcasp_startup,
 	.trigger	= davinci_mcasp_trigger,
 	.hw_params	= davinci_mcasp_hw_params,
@@ -865,38 +865,35 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	struct resource *mem, *ioarea, *res;
 	struct snd_platform_data *pdata;
 	struct davinci_audio_dev *dev;
-	int ret = 0;
+	int ret;
 
-	dev = kzalloc(sizeof(struct davinci_audio_dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(struct davinci_audio_dev),
+			   GFP_KERNEL);
 	if (!dev)
 		return	-ENOMEM;
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!mem) {
 		dev_err(&pdev->dev, "no mem resource?\n");
-		ret = -ENODEV;
-		goto err_release_data;
+		return -ENODEV;
 	}
 
-	ioarea = request_mem_region(mem->start,
+	ioarea = devm_request_mem_region(&pdev->dev, mem->start,
 			resource_size(mem), pdev->name);
 	if (!ioarea) {
 		dev_err(&pdev->dev, "Audio region already claimed\n");
-		ret = -EBUSY;
-		goto err_release_data;
+		return -EBUSY;
 	}
 
 	pdata = pdev->dev.platform_data;
 	dev->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dev->clk)) {
-		ret = -ENODEV;
-		goto err_release_region;
-	}
+	if (IS_ERR(dev->clk))
+		return -ENODEV;
 
 	clk_enable(dev->clk);
 	dev->clk_active = 1;
 
-	dev->base = ioremap(mem->start, resource_size(mem));
+	dev->base = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
 	if (!dev->base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
@@ -924,7 +921,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENODEV;
-		goto err_iounmap;
+		goto err_release_clk;
 	}
 
 	dma_data->channel = res->start;
@@ -940,7 +937,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	if (!res) {
 		dev_err(&pdev->dev, "no DMA resource\n");
 		ret = -ENODEV;
-		goto err_iounmap;
+		goto err_release_clk;
 	}
 
 	dma_data->channel = res->start;
@@ -948,36 +945,23 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, &davinci_mcasp_dai[pdata->op_mode]);
 
 	if (ret != 0)
-		goto err_iounmap;
+		goto err_release_clk;
 	return 0;
 
-err_iounmap:
-	iounmap(dev->base);
 err_release_clk:
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
-err_release_region:
-	release_mem_region(mem->start, resource_size(mem));
-err_release_data:
-	kfree(dev);
-
 	return ret;
 }
 
 static int davinci_mcasp_remove(struct platform_device *pdev)
 {
 	struct davinci_audio_dev *dev = dev_get_drvdata(&pdev->dev);
-	struct resource *mem;
 
 	snd_soc_unregister_dai(&pdev->dev);
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
-
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(mem->start, resource_size(mem));
-
-	kfree(dev);
 
 	return 0;
 }
@@ -991,17 +975,7 @@ static struct platform_driver davinci_mcasp_driver = {
 	},
 };
 
-static int __init davinci_mcasp_init(void)
-{
-	return platform_driver_register(&davinci_mcasp_driver);
-}
-module_init(davinci_mcasp_init);
-
-static void __exit davinci_mcasp_exit(void)
-{
-	platform_driver_unregister(&davinci_mcasp_driver);
-}
-module_exit(davinci_mcasp_exit);
+module_platform_driver(davinci_mcasp_driver);
 
 MODULE_AUTHOR("Steve Chen");
 MODULE_DESCRIPTION("TI DAVINCI McASP SoC Interface");

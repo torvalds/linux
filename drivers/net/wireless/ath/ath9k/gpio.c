@@ -130,12 +130,12 @@ static void ath_detect_bt_priority(struct ath_softc *sc)
 		sc->sc_flags &= ~(SC_OP_BT_PRIORITY_DETECTED | SC_OP_BT_SCAN);
 		/* Detect if colocated bt started scanning */
 		if (btcoex->bt_priority_cnt >= ATH_BT_CNT_SCAN_THRESHOLD) {
-			ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_BTCOEX,
+			ath_dbg(ath9k_hw_common(sc->sc_ah), BTCOEX,
 				"BT scan detected\n");
 			sc->sc_flags |= (SC_OP_BT_SCAN |
 					 SC_OP_BT_PRIORITY_DETECTED);
 		} else if (btcoex->bt_priority_cnt >= ATH_BT_CNT_THRESHOLD) {
-			ath_dbg(ath9k_hw_common(sc->sc_ah), ATH_DBG_BTCOEX,
+			ath_dbg(ath9k_hw_common(sc->sc_ah), BTCOEX,
 				"BT priority traffic detected\n");
 			sc->sc_flags |= SC_OP_BT_PRIORITY_DETECTED;
 		}
@@ -189,8 +189,8 @@ static void ath_btcoex_period_timer(unsigned long data)
 	bool is_btscan;
 
 	ath9k_ps_wakeup(sc);
-	ath_detect_bt_priority(sc);
-
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI))
+		ath_detect_bt_priority(sc);
 	is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
 	spin_lock_bh(&btcoex->btcoex_lock);
@@ -198,6 +198,7 @@ static void ath_btcoex_period_timer(unsigned long data)
 	ath9k_hw_btcoex_bt_stomp(ah, is_btscan ? ATH_BTCOEX_STOMP_ALL :
 			      btcoex->bt_stomp_type);
 
+	ath9k_hw_btcoex_enable(ah);
 	spin_unlock_bh(&btcoex->btcoex_lock);
 
 	if (btcoex->btcoex_period != btcoex->btcoex_no_stomp) {
@@ -212,8 +213,9 @@ static void ath_btcoex_period_timer(unsigned long data)
 	}
 
 	ath9k_ps_restore(sc);
+	timer_period = btcoex->btcoex_period / 1000;
 	mod_timer(&btcoex->period_timer, jiffies +
-				  msecs_to_jiffies(ATH_BTCOEX_DEF_BT_PERIOD));
+				  msecs_to_jiffies(timer_period));
 }
 
 /*
@@ -228,8 +230,7 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	struct ath_common *common = ath9k_hw_common(ah);
 	bool is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
-	ath_dbg(common, ATH_DBG_BTCOEX,
-		"no stomp timer running\n");
+	ath_dbg(common, BTCOEX, "no stomp timer running\n");
 
 	ath9k_ps_wakeup(sc);
 	spin_lock_bh(&btcoex->btcoex_lock);
@@ -239,6 +240,7 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	 else if (btcoex->bt_stomp_type == ATH_BTCOEX_STOMP_ALL)
 		ath9k_hw_btcoex_bt_stomp(ah, ATH_BTCOEX_STOMP_LOW);
 
+	ath9k_hw_btcoex_enable(ah);
 	spin_unlock_bh(&btcoex->btcoex_lock);
 	ath9k_ps_restore(sc);
 }
@@ -246,6 +248,9 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 int ath_init_btcoex_timer(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
+
+	if (ath9k_hw_get_btcoex_scheme(sc->sc_ah) == ATH_BTCOEX_CFG_NONE)
+		return 0;
 
 	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD * 1000;
 	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
@@ -277,8 +282,10 @@ void ath9k_btcoex_timer_resume(struct ath_softc *sc)
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_hw *ah = sc->sc_ah;
 
-	ath_dbg(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-		"Starting btcoex timers\n");
+	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Starting btcoex timers\n");
+
+	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
+		return;
 
 	/* make sure duty cycle timer is also stopped when resuming */
 	if (btcoex->hw_timer_enabled)
@@ -299,6 +306,9 @@ void ath9k_btcoex_timer_pause(struct ath_softc *sc)
 {
 	struct ath_btcoex *btcoex = &sc->btcoex;
 	struct ath_hw *ah = sc->sc_ah;
+
+	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
+		return;
 
 	del_timer_sync(&btcoex->period_timer);
 

@@ -368,7 +368,7 @@ static struct attribute *ideapad_attributes[] = {
 	NULL
 };
 
-static mode_t ideapad_is_visible(struct kobject *kobj,
+static umode_t ideapad_is_visible(struct kobject *kobj,
 				 struct attribute *attr,
 				 int idx)
 {

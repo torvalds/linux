@@ -546,7 +546,7 @@ static void pca953x_irq_teardown(struct pca953x_chip *chip)
  * Translate OpenFirmware node properties into platform_data
  * WARNING: This is DEPRECATED and will be removed eventually!
  */
-void
+static void
 pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 {
 	struct device_node *node;
@@ -574,7 +574,7 @@ pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 		*invert = *val;
 }
 #else
-void
+static void
 pca953x_get_alt_pdata(struct i2c_client *client, int *gpio_base, int *invert)
 {
 	*gpio_base = -1;

@@ -277,5 +277,6 @@ MACHINE_START(FSG, "Freecom FSG-3")
 #if defined(CONFIG_PCI)
 	.dma_zone_size	= SZ_64M,
 #endif
+	.restart	= ixp4xx_restart,
 MACHINE_END
 

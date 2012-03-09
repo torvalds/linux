@@ -57,7 +57,7 @@ static void ps3_smp_message_pass(int cpu, int msg)
 			" (%d)\n", __func__, __LINE__, cpu, msg, result);
 }
 
-static int ps3_smp_probe(void)
+static int __init ps3_smp_probe(void)
 {
 	int cpu;
 

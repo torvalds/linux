@@ -112,7 +112,7 @@ static ssize_t tmp102_set_temp(struct device *dev,
 	long val;
 	int status;
 
-	if (strict_strtol(buf, 10, &val) < 0)
+	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
 	val = SENSORS_LIMIT(val, -256000, 255000);
 

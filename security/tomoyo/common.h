@@ -564,7 +564,7 @@ struct tomoyo_mini_stat {
 	uid_t uid;
 	gid_t gid;
 	ino_t ino;
-	mode_t mode;
+	umode_t mode;
 	dev_t dev;
 	dev_t rdev;
 };
@@ -1122,7 +1122,7 @@ static inline pid_t tomoyo_sys_getppid(void)
 {
 	pid_t pid;
 	rcu_read_lock();
-	pid = task_tgid_vnr(current->real_parent);
+	pid = task_tgid_vnr(rcu_dereference(current->real_parent));
 	rcu_read_unlock();
 	return pid;
 }

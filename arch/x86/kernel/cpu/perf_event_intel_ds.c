@@ -439,7 +439,6 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
 
 	cpuc->pebs_enabled |= 1ULL << hwc->idx;
-	WARN_ON_ONCE(cpuc->enabled);
 
 	if (x86_pmu.intel_cap.pebs_trap && event->attr.precise_ip > 1)
 		intel_pmu_lbr_enable(event);
@@ -493,6 +492,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	unsigned long from = cpuc->lbr_entries[0].from;
 	unsigned long old_to, to = cpuc->lbr_entries[0].to;
 	unsigned long ip = regs->ip;
+	int is_64bit = 0;
 
 	/*
 	 * We don't need to fixup if the PEBS assist is fault like
@@ -544,7 +544,10 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 		} else
 			kaddr = (void *)to;
 
-		kernel_insn_init(&insn, kaddr);
+#ifdef CONFIG_X86_64
+		is_64bit = kernel_ip(to) || !test_thread_flag(TIF_IA32);
+#endif
+		insn_init(&insn, kaddr, is_64bit);
 		insn_get_length(&insn);
 		to += insn.length;
 	} while (to < ip);

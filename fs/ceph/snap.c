@@ -446,7 +446,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		return;
 	}
 
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	used = __ceph_caps_used(ci);
 	dirty = __ceph_caps_dirty(ci);
 
@@ -528,7 +528,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
 		kfree(capsnap);
 	}
 
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 }
 
 /*
@@ -537,7 +537,7 @@ void ceph_queue_cap_snap(struct ceph_inode_info *ci)
  *
  * If capsnap can now be flushed, add to snap_flush list, and return 1.
  *
- * Caller must hold i_lock.
+ * Caller must hold i_ceph_lock.
  */
 int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 			    struct ceph_cap_snap *capsnap)
@@ -739,9 +739,9 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
 		inode = &ci->vfs_inode;
 		ihold(inode);
 		spin_unlock(&mdsc->snap_flush_lock);
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		__ceph_flush_snaps(ci, &session, 0);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		iput(inode);
 		spin_lock(&mdsc->snap_flush_lock);
 	}
@@ -847,7 +847,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 				continue;
 			ci = ceph_inode(inode);
 
-			spin_lock(&inode->i_lock);
+			spin_lock(&ci->i_ceph_lock);
 			if (!ci->i_snap_realm)
 				goto skip_inode;
 			/*
@@ -876,7 +876,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			oldrealm = ci->i_snap_realm;
 			ci->i_snap_realm = realm;
 			spin_unlock(&realm->inodes_with_caps_lock);
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ci->i_ceph_lock);
 
 			ceph_get_snap_realm(mdsc, realm);
 			ceph_put_snap_realm(mdsc, oldrealm);
@@ -885,7 +885,7 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			continue;
 
 skip_inode:
-			spin_unlock(&inode->i_lock);
+			spin_unlock(&ci->i_ceph_lock);
 			iput(inode);
 		}
 

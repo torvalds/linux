@@ -491,7 +491,7 @@ static void _rtl_tx_desc_checksum(u8 *txdesc)
 	SET_TX_DESC_TX_DESC_CHECKSUM(txdesc, 0);
 	for (index = 0; index < 16; index++)
 		checksum = checksum ^ (*(ptr + index));
-	SET_TX_DESC_TX_DESC_CHECKSUM(txdesc, checksum);
+	SET_TX_DESC_TX_DESC_CHECKSUM(txdesc, cpu_to_le16(checksum));
 }
 
 void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,

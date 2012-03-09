@@ -41,7 +41,7 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 
 #define PALMTE_USBDETECT_GPIO	0
 #define PALMTE_USB_OR_DC_GPIO	1
@@ -270,4 +270,5 @@ MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_palmte_init,
 	.timer		= &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END

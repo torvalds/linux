@@ -452,6 +452,7 @@ static struct snd_soc_dai_link magician_dai[] = {
 /* magician audio machine driver */
 static struct snd_soc_card snd_soc_card_magician = {
 	.name = "Magician",
+	.owner = THIS_MODULE,
 	.dai_link = magician_dai,
 	.num_links = ARRAY_SIZE(magician_dai),
 

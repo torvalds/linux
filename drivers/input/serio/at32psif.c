@@ -358,7 +358,19 @@ static struct platform_driver psif_driver = {
 		.pm	= &psif_pm_ops,
 	},
 };
-module_platform_driver(psif_driver);
+
+static int __init psif_init(void)
+{
+	return platform_driver_probe(&psif_driver, psif_probe);
+}
+
+static void __exit psif_exit(void)
+{
+	platform_driver_unregister(&psif_driver);
+}
+
+module_init(psif_init);
+module_exit(psif_exit);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("Atmel AVR32 PSIF PS/2 driver");

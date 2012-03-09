@@ -52,9 +52,263 @@
 				 USBCFG_EBE | USBCFG_EME | USBCFG_OBE |	       \
 				 USBCFG_OME)
 
+/* Au1300 USB config registers */
+#define USB_DWC_CTRL1		0x00
+#define USB_DWC_CTRL2		0x04
+#define USB_VBUS_TIMER		0x10
+#define USB_SBUS_CTRL		0x14
+#define USB_MSR_ERR		0x18
+#define USB_DWC_CTRL3		0x1C
+#define USB_DWC_CTRL4		0x20
+#define USB_OTG_STATUS		0x28
+#define USB_DWC_CTRL5		0x2C
+#define USB_DWC_CTRL6		0x30
+#define USB_DWC_CTRL7		0x34
+#define USB_PHY_STATUS		0xC0
+#define USB_INT_STATUS		0xC4
+#define USB_INT_ENABLE		0xC8
+
+#define USB_DWC_CTRL1_OTGD	0x04 /* set to DISable OTG */
+#define USB_DWC_CTRL1_HSTRS	0x02 /* set to ENable EHCI */
+#define USB_DWC_CTRL1_DCRS	0x01 /* set to ENable UDC */
+
+#define USB_DWC_CTRL2_PHY1RS	0x04 /* set to enable PHY1 */
+#define USB_DWC_CTRL2_PHY0RS	0x02 /* set to enable PHY0 */
+#define USB_DWC_CTRL2_PHYRS	0x01 /* set to enable PHY */
+
+#define USB_DWC_CTRL3_OHCI1_CKEN	(1 << 19)
+#define USB_DWC_CTRL3_OHCI0_CKEN	(1 << 18)
+#define USB_DWC_CTRL3_EHCI0_CKEN	(1 << 17)
+#define USB_DWC_CTRL3_OTG0_CKEN		(1 << 16)
+
+#define USB_SBUS_CTRL_SBCA		0x04 /* coherent access */
+
+#define USB_INTEN_FORCE			0x20
+#define USB_INTEN_PHY			0x10
+#define USB_INTEN_UDC			0x08
+#define USB_INTEN_EHCI			0x04
+#define USB_INTEN_OHCI1			0x02
+#define USB_INTEN_OHCI0			0x01
 
 static DEFINE_SPINLOCK(alchemy_usb_lock);
 
+static inline void __au1300_usb_phyctl(void __iomem *base, int enable)
+{
+	unsigned long r, s;
+
+	r = __raw_readl(base + USB_DWC_CTRL2);
+	s = __raw_readl(base + USB_DWC_CTRL3);
+
+	s &= USB_DWC_CTRL3_OHCI1_CKEN | USB_DWC_CTRL3_OHCI0_CKEN |
+		USB_DWC_CTRL3_EHCI0_CKEN | USB_DWC_CTRL3_OTG0_CKEN;
+
+	if (enable) {
+		/* simply enable all PHYs */
+		r |= USB_DWC_CTRL2_PHY1RS | USB_DWC_CTRL2_PHY0RS |
+		     USB_DWC_CTRL2_PHYRS;
+		__raw_writel(r, base + USB_DWC_CTRL2);
+		wmb();
+	} else if (!s) {
+		/* no USB block active, do disable all PHYs */
+		r &= ~(USB_DWC_CTRL2_PHY1RS | USB_DWC_CTRL2_PHY0RS |
+		       USB_DWC_CTRL2_PHYRS);
+		__raw_writel(r, base + USB_DWC_CTRL2);
+		wmb();
+	}
+}
+
+static inline void __au1300_ohci_control(void __iomem *base, int enable, int id)
+{
+	unsigned long r;
+
+	if (enable) {
+		__raw_writel(1, base + USB_DWC_CTRL7);  /* start OHCI clock */
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL3);	/* enable OHCI block */
+		r |= (id == 0) ? USB_DWC_CTRL3_OHCI0_CKEN
+			       : USB_DWC_CTRL3_OHCI1_CKEN;
+		__raw_writel(r, base + USB_DWC_CTRL3);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);	/* power up the PHYs */
+
+		r = __raw_readl(base + USB_INT_ENABLE);
+		r |= (id == 0) ? USB_INTEN_OHCI0 : USB_INTEN_OHCI1;
+		__raw_writel(r, base + USB_INT_ENABLE);
+		wmb();
+
+		/* reset the OHCI start clock bit */
+		__raw_writel(0, base + USB_DWC_CTRL7);
+		wmb();
+	} else {
+		r = __raw_readl(base + USB_INT_ENABLE);
+		r &= ~((id == 0) ? USB_INTEN_OHCI0 : USB_INTEN_OHCI1);
+		__raw_writel(r, base + USB_INT_ENABLE);
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL3);
+		r &= ~((id == 0) ? USB_DWC_CTRL3_OHCI0_CKEN
+				 : USB_DWC_CTRL3_OHCI1_CKEN);
+		__raw_writel(r, base + USB_DWC_CTRL3);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);
+	}
+}
+
+static inline void __au1300_ehci_control(void __iomem *base, int enable)
+{
+	unsigned long r;
+
+	if (enable) {
+		r = __raw_readl(base + USB_DWC_CTRL3);
+		r |= USB_DWC_CTRL3_EHCI0_CKEN;
+		__raw_writel(r, base + USB_DWC_CTRL3);
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL1);
+		r |= USB_DWC_CTRL1_HSTRS;
+		__raw_writel(r, base + USB_DWC_CTRL1);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);
+
+		r = __raw_readl(base + USB_INT_ENABLE);
+		r |= USB_INTEN_EHCI;
+		__raw_writel(r, base + USB_INT_ENABLE);
+		wmb();
+	} else {
+		r = __raw_readl(base + USB_INT_ENABLE);
+		r &= ~USB_INTEN_EHCI;
+		__raw_writel(r, base + USB_INT_ENABLE);
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL1);
+		r &= ~USB_DWC_CTRL1_HSTRS;
+		__raw_writel(r, base + USB_DWC_CTRL1);
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL3);
+		r &= ~USB_DWC_CTRL3_EHCI0_CKEN;
+		__raw_writel(r, base + USB_DWC_CTRL3);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);
+	}
+}
+
+static inline void __au1300_udc_control(void __iomem *base, int enable)
+{
+	unsigned long r;
+
+	if (enable) {
+		r = __raw_readl(base + USB_DWC_CTRL1);
+		r |= USB_DWC_CTRL1_DCRS;
+		__raw_writel(r, base + USB_DWC_CTRL1);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);
+
+		r = __raw_readl(base + USB_INT_ENABLE);
+		r |= USB_INTEN_UDC;
+		__raw_writel(r, base + USB_INT_ENABLE);
+		wmb();
+	} else {
+		r = __raw_readl(base + USB_INT_ENABLE);
+		r &= ~USB_INTEN_UDC;
+		__raw_writel(r, base + USB_INT_ENABLE);
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL1);
+		r &= ~USB_DWC_CTRL1_DCRS;
+		__raw_writel(r, base + USB_DWC_CTRL1);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);
+	}
+}
+
+static inline void __au1300_otg_control(void __iomem *base, int enable)
+{
+	unsigned long r;
+	if (enable) {
+		r = __raw_readl(base + USB_DWC_CTRL3);
+		r |= USB_DWC_CTRL3_OTG0_CKEN;
+		__raw_writel(r, base + USB_DWC_CTRL3);
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL1);
+		r &= ~USB_DWC_CTRL1_OTGD;
+		__raw_writel(r, base + USB_DWC_CTRL1);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);
+	} else {
+		r = __raw_readl(base + USB_DWC_CTRL1);
+		r |= USB_DWC_CTRL1_OTGD;
+		__raw_writel(r, base + USB_DWC_CTRL1);
+		wmb();
+
+		r = __raw_readl(base + USB_DWC_CTRL3);
+		r &= ~USB_DWC_CTRL3_OTG0_CKEN;
+		__raw_writel(r, base + USB_DWC_CTRL3);
+		wmb();
+
+		__au1300_usb_phyctl(base, enable);
+	}
+}
+
+static inline int au1300_usb_control(int block, int enable)
+{
+	void __iomem *base =
+		(void __iomem *)KSEG1ADDR(AU1300_USB_CTL_PHYS_ADDR);
+	int ret = 0;
+
+	switch (block) {
+	case ALCHEMY_USB_OHCI0:
+		__au1300_ohci_control(base, enable, 0);
+		break;
+	case ALCHEMY_USB_OHCI1:
+		__au1300_ohci_control(base, enable, 1);
+		break;
+	case ALCHEMY_USB_EHCI0:
+		__au1300_ehci_control(base, enable);
+		break;
+	case ALCHEMY_USB_UDC0:
+		__au1300_udc_control(base, enable);
+		break;
+	case ALCHEMY_USB_OTG0:
+		__au1300_otg_control(base, enable);
+		break;
+	default:
+		ret = -ENODEV;
+	}
+	return ret;
+}
+
+static inline void au1300_usb_init(void)
+{
+	void __iomem *base =
+		(void __iomem *)KSEG1ADDR(AU1300_USB_CTL_PHYS_ADDR);
+
+	/* set some sane defaults.  Note: we don't fiddle with DWC_CTRL4
+	 * here at all: Port 2 routing (EHCI or UDC) must be set either
+	 * by boot firmware or platform init code; I can't autodetect
+	 * a sane setting.
+	 */
+	__raw_writel(0, base + USB_INT_ENABLE); /* disable all USB irqs */
+	wmb();
+	__raw_writel(0, base + USB_DWC_CTRL3); /* disable all clocks */
+	wmb();
+	__raw_writel(~0, base + USB_MSR_ERR); /* clear all errors */
+	wmb();
+	__raw_writel(~0, base + USB_INT_STATUS); /* clear int status */
+	wmb();
+	/* set coherent access bit */
+	__raw_writel(USB_SBUS_CTRL_SBCA, base + USB_SBUS_CTRL);
+	wmb();
+}
 
 static inline void __au1200_ohci_control(void __iomem *base, int enable)
 {
@@ -233,6 +487,9 @@ int alchemy_usb_control(int block, int enable)
 	case ALCHEMY_CPU_AU1200:
 		ret = au1200_usb_control(block, enable);
 		break;
+	case ALCHEMY_CPU_AU1300:
+		ret = au1300_usb_control(block, enable);
+		break;
 	default:
 		ret = -ENODEV;
 	}
@@ -281,6 +538,20 @@ static void au1200_usb_pm(int susp)
 	}
 }
 
+static void au1300_usb_pm(int susp)
+{
+	void __iomem *base =
+			(void __iomem *)KSEG1ADDR(AU1300_USB_CTL_PHYS_ADDR);
+	/* remember Port2 routing */
+	if (susp) {
+		alchemy_usb_pmdata[0] = __raw_readl(base + USB_DWC_CTRL4);
+	} else {
+		au1300_usb_init();
+		__raw_writel(alchemy_usb_pmdata[0], base + USB_DWC_CTRL4);
+		wmb();
+	}
+}
+
 static void alchemy_usb_pm(int susp)
 {
 	switch (alchemy_get_cputype()) {
@@ -294,6 +565,9 @@ static void alchemy_usb_pm(int susp)
 		break;
 	case ALCHEMY_CPU_AU1200:
 		au1200_usb_pm(susp);
+		break;
+	case ALCHEMY_CPU_AU1300:
+		au1300_usb_pm(susp);
 		break;
 	}
 }
@@ -327,6 +601,9 @@ static int __init alchemy_usb_init(void)
 		break;
 	case ALCHEMY_CPU_AU1200:
 		au1200_usb_init();
+		break;
+	case ALCHEMY_CPU_AU1300:
+		au1300_usb_init();
 		break;
 	}
 

@@ -501,6 +501,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-g-output;
     &sub-g-parm;
     &sub-g-priority;
+    &sub-g-selection;
     &sub-g-sliced-vbi-cap;
     &sub-g-std;
     &sub-g-tuner;

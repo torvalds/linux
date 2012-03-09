@@ -141,7 +141,7 @@ static inline struct msdos_inode_info *MSDOS_I(struct inode *inode)
 static inline int fat_mode_can_hold_ro(struct inode *inode)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(inode->i_sb);
-	mode_t mask;
+	umode_t mask;
 
 	if (S_ISDIR(inode->i_mode)) {
 		if (!sbi->options.rodir)
@@ -156,8 +156,8 @@ static inline int fat_mode_can_hold_ro(struct inode *inode)
 }
 
 /* Convert attribute bits and a mask to the UNIX mode. */
-static inline mode_t fat_make_mode(struct msdos_sb_info *sbi,
-				   u8 attrs, mode_t mode)
+static inline umode_t fat_make_mode(struct msdos_sb_info *sbi,
+				   u8 attrs, umode_t mode)
 {
 	if (attrs & ATTR_RO && !((attrs & ATTR_DIR) && !sbi->options.rodir))
 		mode &= ~S_IWUGO;

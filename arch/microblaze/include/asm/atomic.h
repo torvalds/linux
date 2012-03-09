@@ -2,6 +2,7 @@
 #define _ASM_MICROBLAZE_ATOMIC_H
 
 #include <asm-generic/atomic.h>
+#include <asm-generic/atomic64.h>
 
 /*
  * Atomically test *v and decrement if it is greater than 0.

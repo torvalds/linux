@@ -34,6 +34,7 @@ pen:	ldr	r7, [r6]
 	 * should now contain the SVC stack for this core
 	 */
 	b	secondary_startup
+ENDPROC(msm_secondary_startup)
 
 	.align
 1:	.long	.

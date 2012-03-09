@@ -54,18 +54,17 @@ extern struct dentry_stat_t dentry_stat;
 static inline int dentry_cmp(const unsigned char *cs, size_t scount,
 				const unsigned char *ct, size_t tcount)
 {
-	int ret;
 	if (scount != tcount)
 		return 1;
+
 	do {
-		ret = (*cs != *ct);
-		if (ret)
-			break;
+		if (*cs != *ct)
+			return 1;
 		cs++;
 		ct++;
 		tcount--;
 	} while (tcount);
-	return ret;
+	return 0;
 }
 
 /* Name hashing routines. Initial hash value */
@@ -89,14 +88,7 @@ static inline unsigned long end_name_hash(unsigned long hash)
 }
 
 /* Compute the hash for a name string. */
-static inline unsigned int
-full_name_hash(const unsigned char *name, unsigned int len)
-{
-	unsigned long hash = init_name_hash();
-	while (len--)
-		hash = partial_name_hash(*name++, hash);
-	return end_name_hash(hash);
-}
+extern unsigned int full_name_hash(const unsigned char *, unsigned int);
 
 /*
  * Try to keep struct dentry aligned on 64 byte cachelines (this will
@@ -203,6 +195,7 @@ struct dentry_operations {
 
 #define DCACHE_CANT_MOUNT	0x0100
 #define DCACHE_GENOCIDE		0x0200
+#define DCACHE_SHRINK_LIST	0x0400
 
 #define DCACHE_NFSFS_RENAMED	0x1000
      /* this dentry has been "silly renamed" and has to be deleted on the last
@@ -241,6 +234,7 @@ extern struct dentry * d_alloc(struct dentry *, const struct qstr *);
 extern struct dentry * d_alloc_pseudo(struct super_block *, const struct qstr *);
 extern struct dentry * d_splice_alias(struct inode *, struct dentry *);
 extern struct dentry * d_add_ci(struct dentry *, struct inode *, struct qstr *);
+extern struct dentry *d_find_any_alias(struct inode *inode);
 extern struct dentry * d_obtain_alias(struct inode *);
 extern void shrink_dcache_sb(struct super_block *);
 extern void shrink_dcache_parent(struct dentry *);
@@ -249,6 +243,7 @@ extern int d_invalidate(struct dentry *);
 
 /* only used at mount-time */
 extern struct dentry * d_alloc_root(struct inode *);
+extern struct dentry * d_make_root(struct inode *);
 
 /* <clickety>-<click> the ramfs-type tree */
 extern void d_genocide(struct dentry *);
@@ -306,7 +301,8 @@ extern struct dentry *d_ancestor(struct dentry *, struct dentry *);
 extern struct dentry *d_lookup(struct dentry *, struct qstr *);
 extern struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
 extern struct dentry *__d_lookup(struct dentry *, struct qstr *);
-extern struct dentry *__d_lookup_rcu(struct dentry *parent, struct qstr *name,
+extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
+				const struct qstr *name,
 				unsigned *seq, struct inode **inode);
 
 /**
@@ -339,7 +335,8 @@ extern int d_validate(struct dentry *, struct dentry *);
  */
 extern char *dynamic_dname(struct dentry *, char *, int, const char *, ...);
 
-extern char *__d_path(const struct path *path, struct path *root, char *, int);
+extern char *__d_path(const struct path *, const struct path *, char *, int);
+extern char *d_absolute_path(const struct path *, char *, int);
 extern char *d_path(const struct path *, char *, int);
 extern char *d_path_with_unreachable(const struct path *, char *, int);
 extern char *dentry_path_raw(struct dentry *, char *, int);

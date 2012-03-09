@@ -8,6 +8,7 @@ config PLAT_S3C64XX
 	bool
 	depends on ARCH_S3C64XX
 	select SAMSUNG_WAKEMASK
+	select PM_GENERIC_DOMAINS
 	default y
 	help
 	  Base platform code for any Samsung S3C64XX device
@@ -76,6 +77,11 @@ config S3C64XX_SETUP_SDHCI_GPIO
 	bool
 	help
 	  Common setup code for S3C64XX SDHCI GPIO configurations
+
+config S3C64XX_SETUP_SPI
+	bool
+	help
+	 Common setup code for SPI GPIO configurations
 
 # S36400 Macchine support
 
@@ -188,7 +194,7 @@ config SMDK6410_WM1190_EV1
 	depends on MACH_SMDK6410
 	select REGULATOR
 	select REGULATOR_WM8350
-	select S3C24XX_GPIO_EXTRA64
+	select SAMSUNG_GPIO_EXTRA64
 	select MFD_WM8350_I2C
 	select MFD_WM8350_CONFIG_MODE_0
 	select MFD_WM8350_CONFIG_MODE_3
@@ -206,7 +212,7 @@ config SMDK6410_WM1192_EV1
 	depends on MACH_SMDK6410
 	select REGULATOR
 	select REGULATOR_WM831X
-	select S3C24XX_GPIO_EXTRA64
+	select SAMSUNG_GPIO_EXTRA64
 	select MFD_WM831X
 	select MFD_WM831X_I2C
 	help
@@ -276,6 +282,7 @@ config MACH_WLF_CRAGG_6410
 	select S3C64XX_SETUP_IDE
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_KEYPAD
+	select S3C64XX_SETUP_SPI
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_KEYPAD
 	select S3C_DEV_USB_HOST
@@ -286,8 +293,8 @@ config MACH_WLF_CRAGG_6410
 	select S3C_DEV_I2C1
 	select S3C_DEV_WDT
 	select S3C_DEV_RTC
-	select S3C64XX_DEV_SPI
-	select S3C24XX_GPIO_EXTRA128
+	select S3C64XX_DEV_SPI0
+	select SAMSUNG_GPIO_EXTRA128
 	select I2C
 	help
 	  Machine support for the Wolfson Cragganmore S3C6410 variant.

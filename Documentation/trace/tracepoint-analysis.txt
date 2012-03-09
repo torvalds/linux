@@ -93,14 +93,14 @@ By specifying the -a switch and analysing sleep, the system-wide events
 for a duration of time can be examined.
 
  $ perf stat -a \
-	-e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
-	-e kmem:mm_pagevec_free \
+	-e kmem:mm_page_alloc -e kmem:mm_page_free \
+	-e kmem:mm_page_free_batched \
 	sleep 10
  Performance counter stats for 'sleep 10':
 
            9630  kmem:mm_page_alloc
-           2143  kmem:mm_page_free_direct
-           7424  kmem:mm_pagevec_free
+           2143  kmem:mm_page_free
+           7424  kmem:mm_page_free_batched
 
    10.002577764  seconds time elapsed
 
@@ -119,15 +119,15 @@ basis using set_ftrace_pid.
 Events can be activated and tracked for the duration of a process on a local
 basis using PCL such as follows.
 
-  $ perf stat -e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
-		 -e kmem:mm_pagevec_free ./hackbench 10
+  $ perf stat -e kmem:mm_page_alloc -e kmem:mm_page_free \
+		 -e kmem:mm_page_free_batched ./hackbench 10
   Time: 0.909
 
     Performance counter stats for './hackbench 10':
 
           17803  kmem:mm_page_alloc
-          12398  kmem:mm_page_free_direct
-           4827  kmem:mm_pagevec_free
+          12398  kmem:mm_page_free
+           4827  kmem:mm_page_free_batched
 
     0.973913387  seconds time elapsed
 
@@ -146,8 +146,8 @@ to know what the standard deviation is. By and large, this is left to the
 performance analyst to do it by hand. In the event that the discrete event
 occurrences are useful to the performance analyst, then perf can be used.
 
-  $ perf stat --repeat 5 -e kmem:mm_page_alloc -e kmem:mm_page_free_direct
-			-e kmem:mm_pagevec_free ./hackbench 10
+  $ perf stat --repeat 5 -e kmem:mm_page_alloc -e kmem:mm_page_free
+			-e kmem:mm_page_free_batched ./hackbench 10
   Time: 0.890
   Time: 0.895
   Time: 0.915
@@ -157,8 +157,8 @@ occurrences are useful to the performance analyst, then perf can be used.
    Performance counter stats for './hackbench 10' (5 runs):
 
           16630  kmem:mm_page_alloc         ( +-   3.542% )
-          11486  kmem:mm_page_free_direct   ( +-   4.771% )
-           4730  kmem:mm_pagevec_free       ( +-   2.325% )
+          11486  kmem:mm_page_free	    ( +-   4.771% )
+           4730  kmem:mm_page_free_batched  ( +-   2.325% )
 
     0.982653002  seconds time elapsed   ( +-   1.448% )
 
@@ -168,15 +168,15 @@ aggregation of discrete events, then a script would need to be developed.
 Using --repeat, it is also possible to view how events are fluctuating over
 time on a system-wide basis using -a and sleep.
 
-  $ perf stat -e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
-		-e kmem:mm_pagevec_free \
+  $ perf stat -e kmem:mm_page_alloc -e kmem:mm_page_free \
+		-e kmem:mm_page_free_batched \
 		-a --repeat 10 \
 		sleep 1
   Performance counter stats for 'sleep 1' (10 runs):
 
            1066  kmem:mm_page_alloc         ( +-  26.148% )
-            182  kmem:mm_page_free_direct   ( +-   5.464% )
-            890  kmem:mm_pagevec_free       ( +-  30.079% )
+            182  kmem:mm_page_free          ( +-   5.464% )
+            890  kmem:mm_page_free_batched  ( +-  30.079% )
 
     1.002251757  seconds time elapsed   ( +-   0.005% )
 
@@ -220,8 +220,8 @@ were generating events within the kernel. To begin this sort of analysis, the
 data must be recorded. At the time of writing, this required root:
 
   $ perf record -c 1 \
-	-e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
-	-e kmem:mm_pagevec_free \
+	-e kmem:mm_page_alloc -e kmem:mm_page_free \
+	-e kmem:mm_page_free_batched \
 	./hackbench 10
   Time: 0.894
   [ perf record: Captured and wrote 0.733 MB perf.data (~32010 samples) ]
@@ -260,8 +260,8 @@ noticed that X was generating an insane amount of page allocations so let's look
 at it:
 
   $ perf record -c 1 -f \
-		-e kmem:mm_page_alloc -e kmem:mm_page_free_direct \
-		-e kmem:mm_pagevec_free \
+		-e kmem:mm_page_alloc -e kmem:mm_page_free \
+		-e kmem:mm_page_free_batched \
 		-p `pidof X`
 
 This was interrupted after a few seconds and

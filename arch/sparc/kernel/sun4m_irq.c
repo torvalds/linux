@@ -399,6 +399,9 @@ static void __init sun4m_init_timers(irq_handler_t counter_fn)
 	timers_global = (void __iomem *)
 		(unsigned long) addr[num_cpu_timers];
 
+	/* Every per-cpu timer works in timer mode */
+	sbus_writel(0x00000000, &timers_global->timer_config);
+
 	sbus_writel((((1000000/HZ) + 1) << 10), &timers_global->l10_limit);
 
 	master_l10_counter = &timers_global->l10_count;

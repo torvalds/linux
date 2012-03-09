@@ -417,6 +417,7 @@ struct reiserfs_sb_info {
 	char *s_qf_names[MAXQUOTAS];
 	int s_jquota_fmt;
 #endif
+	char *s_jdev;		/* Stored jdev for mount option showing */
 #ifdef CONFIG_REISERFS_CHECK
 
 	struct tree_balance *cur_tb;	/*
@@ -482,7 +483,8 @@ enum reiserfs_mount_options {
 	REISERFS_ERROR_RO,
 	REISERFS_ERROR_CONTINUE,
 
-	REISERFS_QUOTA,		/* Some quota option specified */
+	REISERFS_USRQUOTA,	/* User quota option specified */
+	REISERFS_GRPQUOTA,	/* Group quota option specified */
 
 	REISERFS_TEST1,
 	REISERFS_TEST2,

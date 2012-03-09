@@ -32,7 +32,7 @@
 #include <linux/iommu.h>
 #include <linux/intel-iommu.h>
 
-static int allow_unsafe_assigned_interrupts;
+static bool allow_unsafe_assigned_interrupts;
 module_param_named(allow_unsafe_assigned_interrupts,
 		   allow_unsafe_assigned_interrupts, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(allow_unsafe_assigned_interrupts,
@@ -113,7 +113,7 @@ int kvm_iommu_map_pages(struct kvm *kvm, struct kvm_memory_slot *slot)
 
 		/* Map into IO address space */
 		r = iommu_map(domain, gfn_to_gpa(gfn), pfn_to_hpa(pfn),
-			      get_order(page_size), flags);
+			      page_size, flags);
 		if (r) {
 			printk(KERN_ERR "kvm_iommu_map_address:"
 			       "iommu failed to map pfn=%llx\n", pfn);
@@ -134,14 +134,15 @@ unmap_pages:
 
 static int kvm_iommu_map_memslots(struct kvm *kvm)
 {
-	int i, idx, r = 0;
+	int idx, r = 0;
 	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
 
 	idx = srcu_read_lock(&kvm->srcu);
 	slots = kvm_memslots(kvm);
 
-	for (i = 0; i < slots->nmemslots; i++) {
-		r = kvm_iommu_map_pages(kvm, &slots->memslots[i]);
+	kvm_for_each_memslot(memslot, slots) {
+		r = kvm_iommu_map_pages(kvm, memslot);
 		if (r)
 			break;
 	}
@@ -292,15 +293,15 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 
 	while (gfn < end_gfn) {
 		unsigned long unmap_pages;
-		int order;
+		size_t size;
 
 		/* Get physical address */
 		phys = iommu_iova_to_phys(domain, gfn_to_gpa(gfn));
 		pfn  = phys >> PAGE_SHIFT;
 
 		/* Unmap address from IO address space */
-		order       = iommu_unmap(domain, gfn_to_gpa(gfn), 0);
-		unmap_pages = 1ULL << order;
+		size       = iommu_unmap(domain, gfn_to_gpa(gfn), PAGE_SIZE);
+		unmap_pages = 1ULL << get_order(size);
 
 		/* Unpin all pages we just unmapped to not leak any memory */
 		kvm_unpin_pages(kvm, pfn, unmap_pages);
@@ -311,16 +312,16 @@ static void kvm_iommu_put_pages(struct kvm *kvm,
 
 static int kvm_iommu_unmap_memslots(struct kvm *kvm)
 {
-	int i, idx;
+	int idx;
 	struct kvm_memslots *slots;
+	struct kvm_memory_slot *memslot;
 
 	idx = srcu_read_lock(&kvm->srcu);
 	slots = kvm_memslots(kvm);
 
-	for (i = 0; i < slots->nmemslots; i++) {
-		kvm_iommu_put_pages(kvm, slots->memslots[i].base_gfn,
-				    slots->memslots[i].npages);
-	}
+	kvm_for_each_memslot(memslot, slots)
+		kvm_iommu_put_pages(kvm, memslot->base_gfn, memslot->npages);
+
 	srcu_read_unlock(&kvm->srcu, idx);
 
 	return 0;

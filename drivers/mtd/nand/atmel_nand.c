@@ -113,7 +113,7 @@ static int cpu_has_dma(void)
  */
 static void atmel_nand_enable(struct atmel_nand_host *host)
 {
-	if (host->board->enable_pin)
+	if (gpio_is_valid(host->board->enable_pin))
 		gpio_set_value(host->board->enable_pin, 0);
 }
 
@@ -122,7 +122,7 @@ static void atmel_nand_enable(struct atmel_nand_host *host)
  */
 static void atmel_nand_disable(struct atmel_nand_host *host)
 {
-	if (host->board->enable_pin)
+	if (gpio_is_valid(host->board->enable_pin))
 		gpio_set_value(host->board->enable_pin, 1);
 }
 
@@ -159,6 +159,37 @@ static int atmel_nand_device_ready(struct mtd_info *mtd)
 
 	return gpio_get_value(host->board->rdy_pin) ^
                 !!host->board->rdy_pin_active_low;
+}
+
+/*
+ * Minimal-overhead PIO for data access.
+ */
+static void atmel_read_buf8(struct mtd_info *mtd, u8 *buf, int len)
+{
+	struct nand_chip	*nand_chip = mtd->priv;
+
+	__raw_readsb(nand_chip->IO_ADDR_R, buf, len);
+}
+
+static void atmel_read_buf16(struct mtd_info *mtd, u8 *buf, int len)
+{
+	struct nand_chip	*nand_chip = mtd->priv;
+
+	__raw_readsw(nand_chip->IO_ADDR_R, buf, len / 2);
+}
+
+static void atmel_write_buf8(struct mtd_info *mtd, const u8 *buf, int len)
+{
+	struct nand_chip	*nand_chip = mtd->priv;
+
+	__raw_writesb(nand_chip->IO_ADDR_W, buf, len);
+}
+
+static void atmel_write_buf16(struct mtd_info *mtd, const u8 *buf, int len)
+{
+	struct nand_chip	*nand_chip = mtd->priv;
+
+	__raw_writesw(nand_chip->IO_ADDR_W, buf, len / 2);
 }
 
 static void dma_complete_func(void *completion)
@@ -235,27 +266,33 @@ err_buf:
 static void atmel_read_buf(struct mtd_info *mtd, u8 *buf, int len)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct atmel_nand_host *host = chip->priv;
 
 	if (use_dma && len > mtd->oobsize)
 		/* only use DMA for bigger than oob size: better performances */
 		if (atmel_nand_dma_op(mtd, buf, len, 1) == 0)
 			return;
 
-	/* if no DMA operation possible, use PIO */
-	memcpy_fromio(buf, chip->IO_ADDR_R, len);
+	if (host->board->bus_width_16)
+		atmel_read_buf16(mtd, buf, len);
+	else
+		atmel_read_buf8(mtd, buf, len);
 }
 
 static void atmel_write_buf(struct mtd_info *mtd, const u8 *buf, int len)
 {
 	struct nand_chip *chip = mtd->priv;
+	struct atmel_nand_host *host = chip->priv;
 
 	if (use_dma && len > mtd->oobsize)
 		/* only use DMA for bigger than oob size: better performances */
 		if (atmel_nand_dma_op(mtd, (void *)buf, len, 0) == 0)
 			return;
 
-	/* if no DMA operation possible, use PIO */
-	memcpy_toio(chip->IO_ADDR_W, buf, len);
+	if (host->board->bus_width_16)
+		atmel_write_buf16(mtd, buf, len);
+	else
+		atmel_write_buf8(mtd, buf, len);
 }
 
 /*
@@ -492,7 +529,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	nand_chip->IO_ADDR_W = host->io_base;
 	nand_chip->cmd_ctrl = atmel_nand_cmd_ctrl;
 
-	if (host->board->rdy_pin)
+	if (gpio_is_valid(host->board->rdy_pin))
 		nand_chip->dev_ready = atmel_nand_device_ready;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 1);
@@ -530,7 +567,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, host);
 	atmel_nand_enable(host);
 
-	if (host->board->det_pin) {
+	if (gpio_is_valid(host->board->det_pin)) {
 		if (gpio_get_value(host->board->det_pin)) {
 			printk(KERN_INFO "No SmartMedia card inserted.\n");
 			res = -ENXIO;

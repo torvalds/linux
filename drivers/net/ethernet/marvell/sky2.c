@@ -1110,6 +1110,7 @@ static void tx_init(struct sky2_port *sky2)
 	sky2->tx_prod = sky2->tx_cons = 0;
 	sky2->tx_tcpsum = 0;
 	sky2->tx_last_mss = 0;
+	netdev_reset_queue(sky2->netdev);
 
 	le = get_tx_le(sky2, &sky2->tx_prod);
 	le->addr = 0;
@@ -1284,7 +1285,7 @@ static const uint32_t rss_init_key[10] = {
 };
 
 /* Enable/disable receive hash calculation (RSS) */
-static void rx_set_rss(struct net_device *dev, u32 features)
+static void rx_set_rss(struct net_device *dev, netdev_features_t features)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
@@ -1402,7 +1403,7 @@ static int sky2_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 
 #define SKY2_VLAN_OFFLOADS (NETIF_F_IP_CSUM | NETIF_F_SG | NETIF_F_TSO)
 
-static void sky2_vlan_mode(struct net_device *dev, u32 features)
+static void sky2_vlan_mode(struct net_device *dev, netdev_features_t features)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 	struct sky2_hw *hw = sky2->hw;
@@ -1971,6 +1972,7 @@ static netdev_tx_t sky2_xmit_frame(struct sk_buff *skb,
 	if (tx_avail(sky2) <= MAX_SKB_TX_LE)
 		netif_stop_queue(dev);
 
+	netdev_sent_queue(dev, skb->len);
 	sky2_put_idx(hw, txqaddr[sky2->port], sky2->tx_prod);
 
 	return NETDEV_TX_OK;
@@ -2002,7 +2004,8 @@ mapping_error:
 static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 {
 	struct net_device *dev = sky2->netdev;
-	unsigned idx;
+	u16 idx;
+	unsigned int bytes_compl = 0, pkts_compl = 0;
 
 	BUG_ON(done >= sky2->tx_ring_size);
 
@@ -2017,10 +2020,8 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 			netif_printk(sky2, tx_done, KERN_DEBUG, dev,
 				     "tx done %u\n", idx);
 
-			u64_stats_update_begin(&sky2->tx_stats.syncp);
-			++sky2->tx_stats.packets;
-			sky2->tx_stats.bytes += skb->len;
-			u64_stats_update_end(&sky2->tx_stats.syncp);
+			pkts_compl++;
+			bytes_compl += skb->len;
 
 			re->skb = NULL;
 			dev_kfree_skb_any(skb);
@@ -2031,6 +2032,13 @@ static void sky2_tx_complete(struct sky2_port *sky2, u16 done)
 
 	sky2->tx_cons = idx;
 	smp_mb();
+
+	netdev_completed_queue(dev, pkts_compl, bytes_compl);
+
+	u64_stats_update_begin(&sky2->tx_stats.syncp);
+	sky2->tx_stats.packets += pkts_compl;
+	sky2->tx_stats.bytes += bytes_compl;
+	u64_stats_update_end(&sky2->tx_stats.syncp);
 }
 
 static void sky2_tx_reset(struct sky2_hw *hw, unsigned port)
@@ -3643,10 +3651,10 @@ static void sky2_get_drvinfo(struct net_device *dev,
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->fw_version, "N/A");
-	strcpy(info->bus_info, pci_name(sky2->hw->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(sky2->hw->pdev),
+		sizeof(info->bus_info));
 }
 
 static const struct sky2_stat {
@@ -4311,7 +4319,8 @@ static int sky2_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom
 	return sky2_vpd_write(sky2->hw, cap, data, eeprom->offset, eeprom->len);
 }
 
-static u32 sky2_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t sky2_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	const struct sky2_port *sky2 = netdev_priv(dev);
 	const struct sky2_hw *hw = sky2->hw;
@@ -4335,13 +4344,13 @@ static u32 sky2_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int sky2_set_features(struct net_device *dev, u32 features)
+static int sky2_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct sky2_port *sky2 = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & NETIF_F_RXCSUM) {
-		u32 on = features & NETIF_F_RXCSUM;
+		bool on = features & NETIF_F_RXCSUM;
 		sky2_write32(sky2->hw, Q_ADDR(rxqaddr[sky2->port], Q_CSR),
 			     on ? BMU_ENA_RX_CHKSUM : BMU_DIS_RX_CHKSUM);
 	}

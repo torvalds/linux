@@ -36,6 +36,7 @@
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 #include <mach/common.h>
 #include <mach/iomux-mx3.h>
 #include <mach/3ds_debugboard.h>
@@ -492,7 +493,7 @@ static struct mc13xxx_platform_data mc13783_pdata = {
 		.regulators = mx31_3ds_regulators,
 		.num_regulators = ARRAY_SIZE(mx31_3ds_regulators),
 	},
-	.flags  = MC13XXX_USE_TOUCHSCREEN,
+	.flags  = MC13XXX_USE_TOUCHSCREEN | MC13XXX_USE_RTC,
 };
 
 /* SPI */
@@ -754,10 +755,8 @@ static struct sys_timer mx31_3ds_timer = {
 static void __init mx31_3ds_reserve(void)
 {
 	/* reserve MX31_3DS_CAMERA_BUF_SIZE bytes for mx3-camera */
-	mx3_camera_base = memblock_alloc(MX31_3DS_CAMERA_BUF_SIZE,
+	mx3_camera_base = arm_memblock_steal(MX31_3DS_CAMERA_BUF_SIZE,
 					 MX31_3DS_CAMERA_BUF_SIZE);
-	memblock_free(mx3_camera_base, MX31_3DS_CAMERA_BUF_SIZE);
-	memblock_remove(mx3_camera_base, MX31_3DS_CAMERA_BUF_SIZE);
 }
 
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
@@ -770,4 +769,5 @@ MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	.timer = &mx31_3ds_timer,
 	.init_machine = mx31_3ds_init,
 	.reserve = mx31_3ds_reserve,
+	.restart	= mxc_restart,
 MACHINE_END

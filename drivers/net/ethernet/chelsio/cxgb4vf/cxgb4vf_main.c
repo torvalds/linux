@@ -1092,7 +1092,8 @@ static int cxgb4vf_change_mtu(struct net_device *dev, int new_mtu)
 	return ret;
 }
 
-static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
+static netdev_features_t cxgb4vf_fix_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	/*
 	 * Since there is no support for separate rx/tx vlan accel
@@ -1106,10 +1107,11 @@ static u32 cxgb4vf_fix_features(struct net_device *dev, u32 features)
 	return features;
 }
 
-static int cxgb4vf_set_features(struct net_device *dev, u32 features)
+static int cxgb4vf_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	struct port_info *pi = netdev_priv(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1,
@@ -1203,9 +1205,10 @@ static void cxgb4vf_get_drvinfo(struct net_device *dev,
 {
 	struct adapter *adapter = netdev2adap(dev);
 
-	strcpy(drvinfo->driver, KBUILD_MODNAME);
-	strcpy(drvinfo->version, DRV_VERSION);
-	strcpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)));
+	strlcpy(drvinfo->driver, KBUILD_MODNAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	strlcpy(drvinfo->bus_info, pci_name(to_pci_dev(dev->dev.parent)),
+		sizeof(drvinfo->bus_info));
 	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
 		 "%u.%u.%u.%u, TP %u.%u.%u.%u",
 		 FW_HDR_FW_VER_MAJOR_GET(adapter->params.dev.fwrev),
@@ -1561,7 +1564,7 @@ static void cxgb4vf_get_wol(struct net_device *dev,
  */
 #define TSO_FLAGS (NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_TSO_ECN)
 
-static struct ethtool_ops cxgb4vf_ethtool_ops = {
+static const struct ethtool_ops cxgb4vf_ethtool_ops = {
 	.get_settings		= cxgb4vf_get_settings,
 	.get_drvinfo		= cxgb4vf_get_drvinfo,
 	.get_msglevel		= cxgb4vf_get_msglevel,
@@ -2000,7 +2003,7 @@ static const struct file_operations interfaces_proc_fops = {
  */
 struct cxgb4vf_debugfs_entry {
 	const char *name;		/* name of debugfs node */
-	mode_t mode;			/* file system mode */
+	umode_t mode;			/* file system mode */
 	const struct file_operations *fops;
 };
 

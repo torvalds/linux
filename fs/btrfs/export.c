@@ -67,7 +67,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 				       u64 root_objectid, u32 generation,
 				       int check_generation)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(sb)->fs_info;
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
 	struct btrfs_root *root;
 	struct inode *inode;
 	struct btrfs_key key;

@@ -335,9 +335,11 @@ static void do_sys_vm86(struct kernel_vm86_struct *info, struct task_struct *tsk
 	if (info->flags & VM86_SCREEN_BITMAP)
 		mark_screen_rdonly(tsk->mm);
 
-	/*call audit_syscall_exit since we do not exit via the normal paths */
+	/*call __audit_syscall_exit since we do not exit via the normal paths */
+#ifdef CONFIG_AUDITSYSCALL
 	if (unlikely(current->audit_context))
-		audit_syscall_exit(AUDITSC_RESULT(0), 0);
+		__audit_syscall_exit(1, 0);
+#endif
 
 	__asm__ __volatile__(
 		"movl %0,%%esp\n\t"

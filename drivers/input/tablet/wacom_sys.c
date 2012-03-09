@@ -996,21 +996,4 @@ static struct usb_driver wacom_driver = {
 	.supports_autosuspend = 1,
 };
 
-static int __init wacom_init(void)
-{
-	int result;
-
-	result = usb_register(&wacom_driver);
-	if (result == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-		       DRIVER_DESC "\n");
-	return result;
-}
-
-static void __exit wacom_exit(void)
-{
-	usb_deregister(&wacom_driver);
-}
-
-module_init(wacom_init);
-module_exit(wacom_exit);
+module_usb_driver(wacom_driver);

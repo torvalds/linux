@@ -71,7 +71,7 @@ extern int of_fdt_is_compatible(struct boot_param_header *blob,
 				unsigned long node,
 				const char *compat);
 extern int of_fdt_match(struct boot_param_header *blob, unsigned long node,
-			const char **compat);
+			const char *const *compat);
 extern void of_fdt_unflatten_tree(unsigned long *blob,
 			       struct device_node **mynodes);
 
@@ -88,7 +88,7 @@ extern int of_scan_flat_dt(int (*it)(unsigned long node, const char *uname,
 extern void *of_get_flat_dt_prop(unsigned long node, const char *name,
 				 unsigned long *size);
 extern int of_flat_dt_is_compatible(unsigned long node, const char *name);
-extern int of_flat_dt_match(unsigned long node, const char **matches);
+extern int of_flat_dt_match(unsigned long node, const char *const *matches);
 extern unsigned long of_get_flat_dt_root(void);
 
 extern int early_init_dt_scan_chosen(unsigned long node, const char *uname,

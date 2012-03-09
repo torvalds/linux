@@ -1,4 +1,4 @@
-#define DRIVER_VERSION "v0.5"
+#define DRIVER_VERSION "v0.6"
 #define DRIVER_AUTHOR "Bernd Porr, BerndPorr@f2s.com"
 #define DRIVER_DESC "Stirling/ITL USB-DUX SIGMA -- Bernd.Porr@f2s.com"
 /*
@@ -25,7 +25,7 @@ Driver: usbduxsigma
 Description: University of Stirling USB DAQ & INCITE Technology Limited
 Devices: [ITL] USB-DUX (usbduxsigma.o)
 Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 21 Jul 2011
+Updated: 8 Nov 2011
 Status: testing
 */
 /*
@@ -44,6 +44,7 @@ Status: testing
  *   0.3: proper vendor ID and driver name
  *   0.4: fixed D/A voltage range
  *   0.5: various bug fixes, health check at startup
+ *   0.6: corrected wrong input range
  */
 
 /* generates loads of debug info */
@@ -175,7 +176,7 @@ Status: testing
 /* comedi constants */
 static const struct comedi_lrange range_usbdux_ai_range = { 1, {
 								BIP_RANGE
-								(2.65)
+								(2.65/2.0)
 								}
 };
 
@@ -1523,15 +1524,17 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
+
 	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto out;
 	}
 	if (trignum != 0) {
 		dev_err(&this_usbduxsub->interface->dev,
 			"comedi%d: usbdux_ao_inttrig: invalid trignum\n",
 			dev->minor);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 	if (!(this_usbduxsub->ao_cmd_running)) {
 		this_usbduxsub->ao_cmd_running = 1;
@@ -1541,8 +1544,7 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 				"comedi%d: usbdux_ao_inttrig: submitURB: "
 				"err=%d\n", dev->minor, ret);
 			this_usbduxsub->ao_cmd_running = 0;
-			up(&this_usbduxsub->sem);
-			return ret;
+			goto out;
 		}
 		s->async->inttrig = NULL;
 	} else {
@@ -1550,8 +1552,10 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 			"comedi%d: ao_inttrig but acqu is already running.\n",
 			dev->minor);
 	}
+	ret = 1;
+out:
 	up(&this_usbduxsub->sem);
-	return 1;
+	return ret;
 }
 
 static int usbdux_ao_cmdtest(struct comedi_device *dev,
@@ -2688,6 +2692,7 @@ static int usbduxsigma_attach(struct comedi_device *dev,
 	if (ret < 0) {
 		dev_err(&udev->interface->dev,
 			"comedi%d: no space for subdev\n", dev->minor);
+		up(&udev->sem);
 		up(&start_stop_sem);
 		return ret;
 	}

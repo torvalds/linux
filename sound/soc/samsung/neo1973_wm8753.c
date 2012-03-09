@@ -230,8 +230,6 @@ static const struct snd_kcontrol_new neo1973_wm8753_controls[] = {
 
 /* GTA02 specific routes and controls */
 
-#ifdef CONFIG_MACH_NEO1973_GTA02
-
 static int gta02_speaker_enabled;
 
 static int lm4853_set_spk(struct snd_kcontrol *kcontrol,
@@ -311,10 +309,6 @@ static int neo1973_gta02_wm8753_init(struct snd_soc_codec *codec)
 	return 0;
 }
 
-#else
-static int neo1973_gta02_wm8753_init(struct snd_soc_code *codec) { return 0; }
-#endif
-
 static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
@@ -322,10 +316,6 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 
 	/* set up NC codec pins */
-	if (machine_is_neo1973_gta01()) {
-		snd_soc_dapm_nc_pin(dapm, "LOUT2");
-		snd_soc_dapm_nc_pin(dapm, "ROUT2");
-	}
 	snd_soc_dapm_nc_pin(dapm, "OUT3");
 	snd_soc_dapm_nc_pin(dapm, "OUT4");
 	snd_soc_dapm_nc_pin(dapm, "LINE1");
@@ -370,50 +360,6 @@ static int neo1973_wm8753_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-/* GTA01 specific controls */
-
-#ifdef CONFIG_MACH_NEO1973_GTA01
-
-static const struct snd_soc_dapm_route neo1973_lm4857_routes[] = {
-	{"Amp IN", NULL, "ROUT1"},
-	{"Amp IN", NULL, "LOUT1"},
-
-	{"Handset Spk", NULL, "Amp EP"},
-	{"Stereo Out", NULL, "Amp LS"},
-	{"Headphone", NULL, "Amp HP"},
-};
-
-static const struct snd_soc_dapm_widget neo1973_lm4857_dapm_widgets[] = {
-	SND_SOC_DAPM_SPK("Handset Spk", NULL),
-	SND_SOC_DAPM_SPK("Stereo Out", NULL),
-	SND_SOC_DAPM_HP("Headphone", NULL),
-};
-
-static int neo1973_lm4857_init(struct snd_soc_dapm_context *dapm)
-{
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(dapm, neo1973_lm4857_dapm_widgets,
-			ARRAY_SIZE(neo1973_lm4857_dapm_widgets));
-	if (ret)
-		return ret;
-
-	ret = snd_soc_dapm_add_routes(dapm, neo1973_lm4857_routes,
-			ARRAY_SIZE(neo1973_lm4857_routes));
-	if (ret)
-		return ret;
-
-	snd_soc_dapm_ignore_suspend(dapm, "Stereo Out");
-	snd_soc_dapm_ignore_suspend(dapm, "Handset Spk");
-	snd_soc_dapm_ignore_suspend(dapm, "Headphone");
-
-	return 0;
-}
-
-#else
-static int neo1973_lm4857_init(struct snd_soc_dapm_context *dapm) { return 0; };
-#endif
-
 static struct snd_soc_dai_link neo1973_dai[] = {
 { /* Hifi Playback - for similatious use with voice below */
 	.name = "WM8753",
@@ -440,11 +386,6 @@ static struct snd_soc_aux_dev neo1973_aux_devs[] = {
 		.name = "dfbmcs320",
 		.codec_name = "dfbmcs320.0",
 	},
-	{
-		.name = "lm4857",
-		.codec_name = "lm4857.0-007c",
-		.init = neo1973_lm4857_init,
-	},
 };
 
 static struct snd_soc_codec_conf neo1973_codec_conf[] = {
@@ -454,17 +395,14 @@ static struct snd_soc_codec_conf neo1973_codec_conf[] = {
 	},
 };
 
-#ifdef CONFIG_MACH_NEO1973_GTA02
 static const struct gpio neo1973_gta02_gpios[] = {
 	{ GTA02_GPIO_HP_IN, GPIOF_OUT_INIT_HIGH, "GTA02_HP_IN" },
 	{ GTA02_GPIO_AMP_SHUT, GPIOF_OUT_INIT_HIGH, "GTA02_AMP_SHUT" },
 };
-#else
-static const struct gpio neo1973_gta02_gpios[] = {};
-#endif
 
 static struct snd_soc_card neo1973 = {
 	.name = "neo1973",
+	.owner = THIS_MODULE,
 	.dai_link = neo1973_dai,
 	.num_links = ARRAY_SIZE(neo1973_dai),
 	.aux_dev = neo1973_aux_devs,
@@ -479,7 +417,7 @@ static int __init neo1973_init(void)
 {
 	int ret;
 
-	if (!machine_is_neo1973_gta01() && !machine_is_neo1973_gta02())
+	if (!machine_is_neo1973_gta02())
 		return -ENODEV;
 
 	if (machine_is_neo1973_gta02()) {

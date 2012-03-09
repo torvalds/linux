@@ -97,40 +97,6 @@ static const struct file_operations reset_ops = {
 	.llseek = noop_llseek,
 };
 
-static ssize_t noack_read(struct file *file, char __user *user_buf,
-			  size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-
-	return mac80211_format_buffer(user_buf, count, ppos, "%d\n",
-				      local->wifi_wme_noack_test);
-}
-
-static ssize_t noack_write(struct file *file,
-			   const char __user *user_buf,
-			   size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	char buf[10];
-	size_t len;
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	local->wifi_wme_noack_test = !!simple_strtoul(buf, NULL, 0);
-
-	return count;
-}
-
-static const struct file_operations noack_ops = {
-	.read = noack_read,
-	.write = noack_write,
-	.open = mac80211_open_file_generic,
-	.llseek = default_llseek,
-};
-
 static ssize_t uapsd_queues_read(struct file *file, char __user *user_buf,
 				 size_t count, loff_t *ppos)
 {
@@ -190,7 +156,7 @@ static ssize_t uapsd_max_sp_len_write(struct file *file,
 		return -EFAULT;
 	buf[len] = '\0';
 
-	ret = strict_strtoul(buf, 0, &val);
+	ret = kstrtoul(buf, 0, &val);
 
 	if (ret)
 		return -EINVAL;
@@ -398,7 +364,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(queues);
 	DEBUGFS_ADD_MODE(reset, 0200);
-	DEBUGFS_ADD(noack);
 	DEBUGFS_ADD(uapsd_queues);
 	DEBUGFS_ADD(uapsd_max_sp_len);
 	DEBUGFS_ADD(channel_type);

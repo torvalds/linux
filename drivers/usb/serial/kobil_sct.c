@@ -20,18 +20,6 @@
  *
  * Supported readers: USB TWIN, KAAN Standard Plus and SecOVID Reader Plus
  * (Adapter K), B1 Professional and KAAN Professional (Adapter B)
- *
- * (21/05/2004) tw
- *      Fix bug with P'n'P readers
- *
- * (28/05/2003) tw
- *      Add support for KAAN SIM
- *
- * (12/09/2002) tw
- *      Adapted to 2.5.
- *
- * (11/08/2002) tw
- *      Initial version.
  */
 
 
@@ -50,7 +38,7 @@
 #include <linux/ioctl.h>
 #include "kobil_sct.h"
 
-static int debug;
+static bool debug;
 
 /* Version Information */
 #define DRIVER_VERSION "21/05/2004"
@@ -231,9 +219,6 @@ static int kobil_open(struct tty_struct *tty, struct usb_serial_port *port)
 	dbg("%s - port %d", __func__, port->number);
 	priv = usb_get_serial_port_data(port);
 
-	/* someone sets the dev to 0 if the close method has been called */
-	port->interrupt_in_urb->dev = port->serial->dev;
-
 	/* allocate memory for transfer buffer */
 	transfer_buffer = kzalloc(transfer_buffer_length, GFP_KERNEL);
 	if (!transfer_buffer)
@@ -393,8 +378,6 @@ static void kobil_read_int_callback(struct urb *urb)
 		tty_flip_buffer_push(tty);
 	}
 	tty_kref_put(tty);
-	/* someone sets the dev to 0 if the close method has been called */
-	port->interrupt_in_urb->dev = port->serial->dev;
 
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	dbg("%s - port %d Send read URB returns: %i",
@@ -475,17 +458,9 @@ static int kobil_write(struct tty_struct *tty, struct usb_serial_port *port,
 		priv->filled = 0;
 		priv->cur_pos = 0;
 
-		/* someone sets the dev to 0 if the close method
-		   has been called */
-		port->interrupt_in_urb->dev = port->serial->dev;
-
 		/* start reading (except TWIN and KAAN SIM) */
 		if (priv->device_type == KOBIL_ADAPTER_B_PRODUCT_ID ||
 			priv->device_type == KOBIL_ADAPTER_K_PRODUCT_ID) {
-			/* someone sets the dev to 0 if the close method has
-			   been called */
-			port->interrupt_in_urb->dev = port->serial->dev;
-
 			result = usb_submit_urb(port->interrupt_in_urb,
 								GFP_NOIO);
 			dbg("%s - port %d Send read URB returns: %i",

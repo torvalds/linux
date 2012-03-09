@@ -279,7 +279,7 @@ static unsigned char ext2_type_by_mode[S_IFMT >> S_SHIFT] = {
 
 static inline void ext2_set_de_type(ext2_dirent *de, struct inode *inode)
 {
-	mode_t mode = inode->i_mode;
+	umode_t mode = inode->i_mode;
 	if (EXT2_HAS_INCOMPAT_FEATURE(inode->i_sb, EXT2_FEATURE_INCOMPAT_FILETYPE))
 		de->file_type = ext2_type_by_mode[(mode & S_IFMT)>>S_SHIFT];
 	else

@@ -266,7 +266,7 @@ static int hac_hw_params(struct snd_pcm_substream *substream,
 #define AC97_FMTS	\
 	SNDRV_PCM_FMTBIT_S16_LE
 
-static struct snd_soc_dai_ops hac_dai_ops = {
+static const struct snd_soc_dai_ops hac_dai_ops = {
 	.hw_params	= hac_hw_params,
 };
 
@@ -332,17 +332,7 @@ static struct platform_driver hac_pcm_driver = {
 	.remove = __devexit_p(hac_soc_platform_remove),
 };
 
-static int __init sh4_hac_pcm_init(void)
-{
-	return platform_driver_register(&hac_pcm_driver);
-}
-module_init(sh4_hac_pcm_init);
-
-static void __exit sh4_hac_pcm_exit(void)
-{
-	platform_driver_unregister(&hac_pcm_driver);
-}
-module_exit(sh4_hac_pcm_exit);
+module_platform_driver(hac_pcm_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SuperH onchip HAC (AC97) audio driver");

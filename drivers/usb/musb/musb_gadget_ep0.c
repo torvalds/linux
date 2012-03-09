@@ -37,7 +37,6 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
-#include <linux/init.h>
 #include <linux/device.h>
 #include <linux/interrupt.h>
 

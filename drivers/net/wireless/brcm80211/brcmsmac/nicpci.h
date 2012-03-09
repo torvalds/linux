@@ -62,8 +62,7 @@ struct sbpciregs;
 struct sbpcieregs;
 
 extern struct pcicore_info *pcicore_init(struct si_pub *sih,
-					 struct pci_dev *pdev,
-					 void __iomem *regs);
+					 struct bcma_device *core);
 extern void pcicore_deinit(struct pcicore_info *pch);
 extern void pcicore_attach(struct pcicore_info *pch, int state);
 extern void pcicore_hwup(struct pcicore_info *pch);
@@ -72,11 +71,7 @@ extern void pcicore_sleep(struct pcicore_info *pch);
 extern void pcicore_down(struct pcicore_info *pch, int state);
 extern u8 pcicore_find_pci_capability(struct pci_dev *dev, u8 req_cap_id,
 				      unsigned char *buf, u32 *buflen);
-extern void pcicore_fixcfg_pci(struct pcicore_info *pch,
-			       struct sbpciregs __iomem *pciregs);
-extern void pcicore_fixcfg_pcie(struct pcicore_info *pch,
-				struct sbpcieregs __iomem *pciregs);
-extern void pcicore_pci_setup(struct pcicore_info *pch,
-			      struct sbpciregs __iomem *pciregs);
+extern void pcicore_fixcfg(struct pcicore_info *pch);
+extern void pcicore_pci_setup(struct pcicore_info *pch);
 
 #endif /* _BRCM_NICPCI_H_ */

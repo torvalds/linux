@@ -163,7 +163,6 @@ enum sbmac_state {
 #define SBMAC_MAX_TXDESCR	256
 #define SBMAC_MAX_RXDESCR	256
 
-#define ETHER_ADDR_LEN		6
 #define ENET_PACKET_SIZE	1518
 /*#define ENET_PACKET_SIZE	9216 */
 
@@ -266,7 +265,7 @@ struct sbmac_softc {
 	int			sbm_pause;	/* current pause setting */
 	int			sbm_link;	/* current link state */
 
-	unsigned char		sbm_hwaddr[ETHER_ADDR_LEN];
+	unsigned char		sbm_hwaddr[ETH_ALEN];
 
 	struct sbmacdma		sbm_txdma;	/* only channel 0 for now */
 	struct sbmacdma		sbm_rxdma;
@@ -2260,7 +2259,8 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	}
 
 	sc->mii_bus->name = sbmac_mdio_string;
-	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%x", idx);
+	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pldev->name, idx);
 	sc->mii_bus->priv = sc;
 	sc->mii_bus->read = sbmac_mii_read;
 	sc->mii_bus->write = sbmac_mii_write;
@@ -2676,15 +2676,4 @@ static struct platform_driver sbmac_driver = {
 	},
 };
 
-static int __init sbmac_init_module(void)
-{
-	return platform_driver_register(&sbmac_driver);
-}
-
-static void __exit sbmac_cleanup_module(void)
-{
-	platform_driver_unregister(&sbmac_driver);
-}
-
-module_init(sbmac_init_module);
-module_exit(sbmac_cleanup_module);
+module_platform_driver(sbmac_driver);

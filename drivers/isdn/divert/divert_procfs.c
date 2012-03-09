@@ -242,6 +242,12 @@ static int isdn_divert_ioctl_unlocked(struct file *file, uint cmd, ulong arg)
 		case IIOCDOCFINT:
 			if (!divert_if.drv_to_name(dioctl.cf_ctrl.drvid))
 				return (-EINVAL);	/* invalid driver */
+			if (strnlen(dioctl.cf_ctrl.msn, sizeof(dioctl.cf_ctrl.msn)) ==
+					sizeof(dioctl.cf_ctrl.msn))
+				return -EINVAL;
+			if (strnlen(dioctl.cf_ctrl.fwd_nr, sizeof(dioctl.cf_ctrl.fwd_nr)) ==
+					sizeof(dioctl.cf_ctrl.fwd_nr))
+				return -EINVAL;
 			if ((i = cf_command(dioctl.cf_ctrl.drvid,
 					    (cmd == IIOCDOCFACT) ? 1 : (cmd == IIOCDOCFDIS) ? 0 : 2,
 					    dioctl.cf_ctrl.cfproc,

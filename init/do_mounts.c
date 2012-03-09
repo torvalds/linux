@@ -325,17 +325,19 @@ static void __init get_fs_names(char *page)
 
 static int __init do_mount_root(char *name, char *fs, int flags, void *data)
 {
+	struct super_block *s;
 	int err = sys_mount(name, "/root", fs, flags, data);
 	if (err)
 		return err;
 
 	sys_chdir((const char __user __force *)"/root");
-	ROOT_DEV = current->fs->pwd.mnt->mnt_sb->s_dev;
+	s = current->fs->pwd.dentry->d_sb;
+	ROOT_DEV = s->s_dev;
 	printk(KERN_INFO
 	       "VFS: Mounted root (%s filesystem)%s on device %u:%u.\n",
-	       current->fs->pwd.mnt->mnt_sb->s_type->name,
-	       current->fs->pwd.mnt->mnt_sb->s_flags & MS_RDONLY ?
-	       " readonly" : "", MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
+	       s->s_type->name,
+	       s->s_flags & MS_RDONLY ?  " readonly" : "",
+	       MAJOR(ROOT_DEV), MINOR(ROOT_DEV));
 	return 0;
 }
 
@@ -398,15 +400,42 @@ out:
 }
  
 #ifdef CONFIG_ROOT_NFS
+
+#define NFSROOT_TIMEOUT_MIN	5
+#define NFSROOT_TIMEOUT_MAX	30
+#define NFSROOT_RETRY_MAX	5
+
 static int __init mount_nfs_root(void)
 {
 	char *root_dev, *root_data;
+	unsigned int timeout;
+	int try, err;
 
-	if (nfs_root_data(&root_dev, &root_data) != 0)
+	err = nfs_root_data(&root_dev, &root_data);
+	if (err != 0)
 		return 0;
-	if (do_mount_root(root_dev, "nfs", root_mountflags, root_data) != 0)
-		return 0;
-	return 1;
+
+	/*
+	 * The server or network may not be ready, so try several
+	 * times.  Stop after a few tries in case the client wants
+	 * to fall back to other boot methods.
+	 */
+	timeout = NFSROOT_TIMEOUT_MIN;
+	for (try = 1; ; try++) {
+		err = do_mount_root(root_dev, "nfs",
+					root_mountflags, root_data);
+		if (err == 0)
+			return 1;
+		if (try > NFSROOT_RETRY_MAX)
+			break;
+
+		/* Wait, in case the server refused us immediately */
+		ssleep(timeout);
+		timeout <<= 1;
+		if (timeout > NFSROOT_TIMEOUT_MAX)
+			timeout = NFSROOT_TIMEOUT_MAX;
+	}
+	return 0;
 }
 #endif
 

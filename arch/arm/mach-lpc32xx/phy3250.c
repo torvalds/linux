@@ -18,7 +18,7 @@
 
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/dma-mapping.h>
@@ -388,4 +388,5 @@ MACHINE_START(PHY3250, "Phytec 3250 board with the LPC3250 Microcontroller")
 	.init_irq	= lpc32xx_init_irq,
 	.timer		= &lpc32xx_timer,
 	.init_machine	= phy3250_board_init,
+	.restart	= lpc23xx_restart,
 MACHINE_END

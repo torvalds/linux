@@ -27,32 +27,32 @@
 #include "util/sort.h"
 #include "util/hist.h"
 #include "util/session.h"
+#include "util/tool.h"
 
 #include <linux/bitmap.h>
 
-static char		const *input_name = "perf.data";
+struct perf_annotate {
+	struct perf_tool tool;
+	char const *input_name;
+	bool	   force, use_tui, use_stdio;
+	bool	   full_paths;
+	bool	   print_line;
+	const char *sym_hist_filter;
+	const char *cpu_list;
+	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
+};
 
-static bool		force, use_tui, use_stdio;
-
-static bool		full_paths;
-
-static bool		print_line;
-
-static const char *sym_hist_filter;
-
-static const char	*cpu_list;
-static DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
-
-static int perf_evlist__add_sample(struct perf_evlist *evlist,
-				   struct perf_sample *sample,
-				   struct perf_evsel *evsel,
-				   struct addr_location *al)
+static int perf_evsel__add_sample(struct perf_evsel *evsel,
+				  struct perf_sample *sample,
+				  struct addr_location *al,
+				  struct perf_annotate *ann)
 {
 	struct hist_entry *he;
 	int ret;
 
-	if (sym_hist_filter != NULL &&
-	    (al->sym == NULL || strcmp(sym_hist_filter, al->sym->name) != 0)) {
+	if (ann->sym_hist_filter != NULL &&
+	    (al->sym == NULL ||
+	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
 		/* We're only interested in a symbol named sym_hist_filter */
 		if (al->sym != NULL) {
 			rb_erase(&al->sym->rb_node,
@@ -69,8 +69,7 @@ static int perf_evlist__add_sample(struct perf_evlist *evlist,
 	ret = 0;
 	if (he->ms.sym != NULL) {
 		struct annotation *notes = symbol__annotation(he->ms.sym);
-		if (notes->src == NULL &&
-		    symbol__alloc_hist(he->ms.sym, evlist->nr_entries) < 0)
+		if (notes->src == NULL && symbol__alloc_hist(he->ms.sym) < 0)
 			return -ENOMEM;
 
 		ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
@@ -81,25 +80,26 @@ static int perf_evlist__add_sample(struct perf_evlist *evlist,
 	return ret;
 }
 
-static int process_sample_event(union perf_event *event,
+static int process_sample_event(struct perf_tool *tool,
+				union perf_event *event,
 				struct perf_sample *sample,
 				struct perf_evsel *evsel,
-				struct perf_session *session)
+				struct machine *machine)
 {
+	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
 	struct addr_location al;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample,
+	if (perf_event__preprocess_sample(event, machine, &al, sample,
 					  symbol__annotate_init) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
 	}
 
-	if (cpu_list && !test_bit(sample->cpu, cpu_bitmap))
+	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
 		return 0;
 
-	if (!al.filtered &&
-	    perf_evlist__add_sample(session->evlist, sample, evsel, &al)) {
+	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al, ann)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		return -1;
@@ -108,14 +108,15 @@ static int process_sample_event(union perf_event *event,
 	return 0;
 }
 
-static int hist_entry__tty_annotate(struct hist_entry *he, int evidx)
+static int hist_entry__tty_annotate(struct hist_entry *he, int evidx,
+				    struct perf_annotate *ann)
 {
 	return symbol__tty_annotate(he->ms.sym, he->ms.map, evidx,
-				    print_line, full_paths, 0, 0);
+				    ann->print_line, ann->full_paths, 0, 0);
 }
 
 static void hists__find_annotations(struct hists *self, int evidx,
-				    int nr_events)
+				    struct perf_annotate *ann)
 {
 	struct rb_node *nd = rb_first(&self->entries), *next;
 	int key = K_RIGHT;
@@ -138,8 +139,7 @@ find_next:
 		}
 
 		if (use_browser > 0) {
-			key = hist_entry__tui_annotate(he, evidx, nr_events,
-						       NULL, NULL, 0);
+			key = hist_entry__tui_annotate(he, evidx, NULL, NULL, 0);
 			switch (key) {
 			case K_RIGHT:
 				next = rb_next(nd);
@@ -154,7 +154,7 @@ find_next:
 			if (next != NULL)
 				nd = next;
 		} else {
-			hist_entry__tty_annotate(he, evidx);
+			hist_entry__tty_annotate(he, evidx, ann);
 			nd = rb_next(nd);
 			/*
 			 * Since we have a hist_entry per IP for the same
@@ -167,33 +167,26 @@ find_next:
 	}
 }
 
-static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.mmap	= perf_event__process_mmap,
-	.comm	= perf_event__process_comm,
-	.fork	= perf_event__process_task,
-	.ordered_samples = true,
-	.ordering_requires_timestamps = true,
-};
-
-static int __cmd_annotate(void)
+static int __cmd_annotate(struct perf_annotate *ann)
 {
 	int ret;
 	struct perf_session *session;
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
 
-	session = perf_session__new(input_name, O_RDONLY, force, false, &event_ops);
+	session = perf_session__new(ann->input_name, O_RDONLY,
+				    ann->force, false, &ann->tool);
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (cpu_list) {
-		ret = perf_session__cpu_bitmap(session, cpu_list, cpu_bitmap);
+	if (ann->cpu_list) {
+		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
+					       ann->cpu_bitmap);
 		if (ret)
 			goto out_delete;
 	}
 
-	ret = perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &ann->tool);
 	if (ret)
 		goto out_delete;
 
@@ -217,13 +210,12 @@ static int __cmd_annotate(void)
 			total_nr_samples += nr_samples;
 			hists__collapse_resort(hists);
 			hists__output_resort(hists);
-			hists__find_annotations(hists, pos->idx,
-						session->evlist->nr_entries);
+			hists__find_annotations(hists, pos->idx, ann);
 		}
 	}
 
 	if (total_nr_samples == 0) {
-		ui__warning("The %s file has no samples!\n", input_name);
+		ui__warning("The %s file has no samples!\n", session->filename);
 		goto out_delete;
 	}
 out_delete:
@@ -243,33 +235,45 @@ out_delete:
 }
 
 static const char * const annotate_usage[] = {
-	"perf annotate [<options>] <command>",
+	"perf annotate [<options>]",
 	NULL
 };
 
-static const struct option options[] = {
-	OPT_STRING('i', "input", &input_name, "file",
+int cmd_annotate(int argc, const char **argv, const char *prefix __used)
+{
+	struct perf_annotate annotate = {
+		.tool = {
+			.sample	= process_sample_event,
+			.mmap	= perf_event__process_mmap,
+			.comm	= perf_event__process_comm,
+			.fork	= perf_event__process_task,
+			.ordered_samples = true,
+			.ordering_requires_timestamps = true,
+		},
+	};
+	const struct option options[] = {
+	OPT_STRING('i', "input", &annotate.input_name, "file",
 		    "input file name"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),
-	OPT_STRING('s', "symbol", &sym_hist_filter, "symbol",
+	OPT_STRING('s', "symbol", &annotate.sym_hist_filter, "symbol",
 		    "symbol to annotate"),
-	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
+	OPT_BOOLEAN('f', "force", &annotate.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
-	OPT_BOOLEAN(0, "tui", &use_tui, "Use the TUI interface"),
-	OPT_BOOLEAN(0, "stdio", &use_stdio, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
+	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('l', "print-line", &print_line,
+	OPT_BOOLEAN('l', "print-line", &annotate.print_line,
 		    "print matching source lines (may be slow)"),
-	OPT_BOOLEAN('P', "full-paths", &full_paths,
+	OPT_BOOLEAN('P', "full-paths", &annotate.full_paths,
 		    "Don't shorten the displayed pathnames"),
-	OPT_STRING('c', "cpu", &cpu_list, "cpu", "list of cpus to profile"),
+	OPT_STRING('C', "cpu", &annotate.cpu_list, "cpu", "list of cpus to profile"),
 	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
 		   "Look for files with symbols relative to this directory"),
 	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
@@ -279,15 +283,13 @@ static const struct option options[] = {
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
 	OPT_END()
-};
+	};
 
-int cmd_annotate(int argc, const char **argv, const char *prefix __used)
-{
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
-	if (use_stdio)
+	if (annotate.use_stdio)
 		use_browser = 0;
-	else if (use_tui)
+	else if (annotate.use_tui)
 		use_browser = 1;
 
 	setup_browser(true);
@@ -308,13 +310,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 		if (argc > 1)
 			usage_with_options(annotate_usage, options);
 
-		sym_hist_filter = argv[0];
+		annotate.sym_hist_filter = argv[0];
 	}
 
-	if (field_sep && *field_sep == '.') {
-		pr_err("'.' is the only non valid --field-separator argument\n");
-		return -1;
-	}
-
-	return __cmd_annotate();
+	return __cmd_annotate(&annotate);
 }

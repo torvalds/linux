@@ -9,7 +9,9 @@
 #include "util/debug.h"
 #include "util/event.h"
 #include "util/hist.h"
+#include "util/evsel.h"
 #include "util/session.h"
+#include "util/tool.h"
 #include "util/sort.h"
 #include "util/symbol.h"
 #include "util/util.h"
@@ -30,14 +32,15 @@ static int hists__add_entry(struct hists *self,
 	return -ENOMEM;
 }
 
-static int diff__process_sample_event(union perf_event *event,
+static int diff__process_sample_event(struct perf_tool *tool __used,
+				      union perf_event *event,
 				      struct perf_sample *sample,
 				      struct perf_evsel *evsel __used,
-				      struct perf_session *session)
+				      struct machine *machine)
 {
 	struct addr_location al;
 
-	if (perf_event__preprocess_sample(event, session, &al, sample, NULL) < 0) {
+	if (perf_event__preprocess_sample(event, machine, &al, sample, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -46,16 +49,16 @@ static int diff__process_sample_event(union perf_event *event,
 	if (al.filtered || al.sym == NULL)
 		return 0;
 
-	if (hists__add_entry(&session->hists, &al, sample->period)) {
+	if (hists__add_entry(&evsel->hists, &al, sample->period)) {
 		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
 
-	session->hists.stats.total_period += sample->period;
+	evsel->hists.stats.total_period += sample->period;
 	return 0;
 }
 
-static struct perf_event_ops event_ops = {
+static struct perf_tool perf_diff = {
 	.sample	= diff__process_sample_event,
 	.mmap	= perf_event__process_mmap,
 	.comm	= perf_event__process_comm,
@@ -145,13 +148,13 @@ static int __cmd_diff(void)
 	int ret, i;
 	struct perf_session *session[2];
 
-	session[0] = perf_session__new(input_old, O_RDONLY, force, false, &event_ops);
-	session[1] = perf_session__new(input_new, O_RDONLY, force, false, &event_ops);
+	session[0] = perf_session__new(input_old, O_RDONLY, force, false, &perf_diff);
+	session[1] = perf_session__new(input_new, O_RDONLY, force, false, &perf_diff);
 	if (session[0] == NULL || session[1] == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < 2; ++i) {
-		ret = perf_session__process_events(session[i], &event_ops);
+		ret = perf_session__process_events(session[i], &perf_diff);
 		if (ret)
 			goto out_delete;
 	}

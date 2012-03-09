@@ -5,60 +5,29 @@ platform-$(CONFIG_MIPS_ALCHEMY)	+= alchemy/common/
 
 
 #
-# AMD Alchemy Pb1000 eval board
-#
-platform-$(CONFIG_MIPS_PB1000)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_PB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
-load-$(CONFIG_MIPS_PB1000)	+= 0xffffffff80100000
-
-#
 # AMD Alchemy Pb1100 eval board
 #
 platform-$(CONFIG_MIPS_PB1100)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_PB1100)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1100)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1500 eval board
 #
 platform-$(CONFIG_MIPS_PB1500)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_PB1500)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1500)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Pb1550 eval board
 #
 platform-$(CONFIG_MIPS_PB1550)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_PB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
 load-$(CONFIG_MIPS_PB1550)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Pb1200 eval board
-#
-platform-$(CONFIG_MIPS_PB1200)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_PB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-pb1x00
-load-$(CONFIG_MIPS_PB1200)	+= 0xffffffff80100000
-
-#
-# AMD Alchemy Db1000 eval board
+# AMD Alchemy Db1000/Db1500/Db1100 eval boards
 #
 platform-$(CONFIG_MIPS_DB1000)	+= alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1000)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1000)	+= 0xffffffff80100000
-
-#
-# AMD Alchemy Db1100 eval board
-#
-platform-$(CONFIG_MIPS_DB1100)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_DB1100)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
-load-$(CONFIG_MIPS_DB1100)	+= 0xffffffff80100000
-
-#
-# AMD Alchemy Db1500 eval board
-#
-platform-$(CONFIG_MIPS_DB1500)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_DB1500)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
-load-$(CONFIG_MIPS_DB1500)	+= 0xffffffff80100000
 
 #
 # AMD Alchemy Db1550 eval board
@@ -68,42 +37,35 @@ cflags-$(CONFIG_MIPS_DB1550)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1550)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Db1200 eval board
+# AMD Alchemy Db1200/Pb1200 eval boards
 #
 platform-$(CONFIG_MIPS_DB1200)	+= alchemy/devboards/
 cflags-$(CONFIG_MIPS_DB1200)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
 load-$(CONFIG_MIPS_DB1200)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Bosporus eval board
+# NetLogic DBAu1300 development platform
 #
-platform-$(CONFIG_MIPS_BOSPORUS) += alchemy/devboards/
-cflags-$(CONFIG_MIPS_BOSPORUS)	 += -I$(srctree)/arch/mips/include/asm/mach-db1x00
-load-$(CONFIG_MIPS_BOSPORUS)	 += 0xffffffff80100000
+platform-$(CONFIG_MIPS_DB1300)	+= alchemy/devboards/
+cflags-$(CONFIG_MIPS_DB1300)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
+load-$(CONFIG_MIPS_DB1300)	+= 0xffffffff80100000
 
 #
-# AMD Alchemy Mirage eval board
+# 4G-Systems MTX-1 "MeshCube" wireless router
 #
-platform-$(CONFIG_MIPS_MIRAGE)	+= alchemy/devboards/
-cflags-$(CONFIG_MIPS_MIRAGE)	+= -I$(srctree)/arch/mips/include/asm/mach-db1x00
-load-$(CONFIG_MIPS_MIRAGE)	+= 0xffffffff80100000
-
-#
-# 4G-Systems eval board
-#
-platform-$(CONFIG_MIPS_MTX1)	+= alchemy/mtx-1/
+platform-$(CONFIG_MIPS_MTX1)	+= alchemy/
 load-$(CONFIG_MIPS_MTX1)	+= 0xffffffff80100000
 
 #
 # MyCable eval board
 #
-platform-$(CONFIG_MIPS_XXS1500)	+= alchemy/xxs1500/
+platform-$(CONFIG_MIPS_XXS1500)	+= alchemy/
 load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 
 #
 # Trapeze ITS GRP board
 #
-platform-$(CONFIG_MIPS_GPR)	+= alchemy/gpr/
+platform-$(CONFIG_MIPS_GPR)	+= alchemy/
 load-$(CONFIG_MIPS_GPR)		+= 0xffffffff80100000
 
 # boards can specify their own <gpio.h> in one of their include dirs.

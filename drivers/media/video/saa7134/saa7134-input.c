@@ -235,22 +235,25 @@ static int get_key_purpletv(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 static int get_key_hvr1110(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 {
-	unsigned char buf[5], cod4, code3, code4;
+	unsigned char buf[5];
 
 	/* poll IR chip */
 	if (5 != i2c_master_recv(ir->c, buf, 5))
 		return -EIO;
 
-	cod4	= buf[4];
-	code4	= (cod4 >> 2);
-	code3	= buf[3];
-	if (code3 == 0)
-		/* no key pressed */
+	/* Check if some key were pressed */
+	if (!(buf[0] & 0x80))
 		return 0;
 
-	/* return key */
-	*ir_key = code4;
-	*ir_raw = code4;
+	/*
+	 * buf[3] & 0x80 is always high.
+	 * buf[3] & 0x40 is a parity bit. A repeat event is marked
+	 * by preserving it into two separate readings
+	 * buf[4] bits 0 and 1, and buf[1] and buf[2] are always
+	 * zero.
+	 */
+	*ir_key = 0x1fff & ((buf[3] << 8) | (buf[4] >> 2));
+	*ir_raw = *ir_key;
 	return 1;
 }
 
@@ -752,7 +755,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		polling      = 50; /* ms */
 		break;
 	case SAA7134_BOARD_VIDEOMATE_M1F:
-		ir_codes     = RC_MAP_VIDEOMATE_M1F;
+		ir_codes     = RC_MAP_VIDEOMATE_K100;
 		mask_keycode = 0x0ff00;
 		mask_keyup   = 0x040000;
 		break;

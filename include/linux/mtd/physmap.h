@@ -30,6 +30,7 @@ struct physmap_flash_data {
 	unsigned int		pfow_base;
 	char                    *probe_type;
 	struct mtd_partition	*parts;
+	const char		**part_probe_types;
 };
 
 #endif /* __LINUX_MTD_PHYSMAP__ */

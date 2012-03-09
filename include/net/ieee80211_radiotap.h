@@ -271,14 +271,6 @@ enum ieee80211_radiotap_type {
 #define IEEE80211_RADIOTAP_MCS_FEC_LDPC		0x10
 
 
-/* Ugly macro to convert literal channel numbers into their mhz equivalents
- * There are certianly some conditions that will break this (like feeding it '30')
- * but they shouldn't arise since nothing talks on channel 30. */
-#define ieee80211chan2mhz(x) \
-	(((x) <= 14) ? \
-	(((x) == 14) ? 2484 : ((x) * 5) + 2407) : \
-	((x) + 1000) * 5)
-
 /* helpers */
 static inline int ieee80211_get_radiotap_len(unsigned char *data)
 {

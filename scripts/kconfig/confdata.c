@@ -464,7 +464,7 @@ kconfig_print_comment(FILE *fp, const char *value, void *arg)
 		fprintf(fp, "#");
 		if (l) {
 			fprintf(fp, " ");
-			fwrite(p, l, 1, fp);
+			xfwrite(p, l, 1, fp);
 			p += l;
 		}
 		fprintf(fp, "\n");
@@ -537,7 +537,7 @@ header_print_comment(FILE *fp, const char *value, void *arg)
 		fprintf(fp, " *");
 		if (l) {
 			fprintf(fp, " ");
-			fwrite(p, l, 1, fp);
+			xfwrite(p, l, 1, fp);
 			p += l;
 		}
 		fprintf(fp, "\n");

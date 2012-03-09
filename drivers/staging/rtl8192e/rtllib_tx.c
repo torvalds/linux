@@ -46,7 +46,6 @@
 #include <linux/slab.h>
 #include <linux/tcp.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <linux/wireless.h>
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
@@ -180,10 +179,10 @@ inline int rtllib_put_snap(u8 *data, u16 h_proto)
 int rtllib_encrypt_fragment(struct rtllib_device *ieee, struct sk_buff *frag,
 			    int hdr_len)
 {
-	struct rtllib_crypt_data *crypt = NULL;
+	struct lib80211_crypt_data *crypt = NULL;
 	int res;
 
-	crypt = ieee->crypt[ieee->tx_keyidx];
+	crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 
 	if (!(crypt && crypt->ops)) {
 		printk(KERN_INFO "=========>%s(), crypt is null\n", __func__);
@@ -569,7 +568,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 	};
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 	int qos_actived = ieee->current_network.qos_data.active;
-	struct rtllib_crypt_data *crypt = NULL;
+	struct lib80211_crypt_data *crypt = NULL;
 	struct cb_desc *tcb_desc;
 	u8 bIsMulticast = false;
 	u8 IsAmsdu = false;
@@ -646,7 +645,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		}
 
 		skb->priority = rtllib_classify(skb, IsAmsdu);
-		crypt = ieee->crypt[ieee->tx_keyidx];
+		crypt = ieee->crypt_info.crypt[ieee->crypt_info.tx_keyidx];
 		encrypt = !(ether_type == ETH_P_PAE && ieee->ieee802_1x) &&
 			ieee->host_encrypt && crypt && crypt->ops;
 		if (!encrypt && ieee->ieee802_1x &&
@@ -742,8 +741,10 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		/* Each fragment may need to have room for encryptiong
 		 * pre/postfix */
 		if (encrypt) {
-			bytes_per_frag -= crypt->ops->extra_prefix_len +
-				crypt->ops->extra_postfix_len;
+			bytes_per_frag -= crypt->ops->extra_mpdu_prefix_len +
+				crypt->ops->extra_mpdu_postfix_len +
+				crypt->ops->extra_msdu_prefix_len +
+				crypt->ops->extra_msdu_postfix_len;
 		}
 		/* Number of fragments is the total bytes_per_frag /
 		* payload_per_fragment */
@@ -791,7 +792,8 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				else
 					tcb_desc->bHwSec = 0;
 				skb_reserve(skb_frag,
-					    crypt->ops->extra_prefix_len);
+					    crypt->ops->extra_mpdu_prefix_len +
+					    crypt->ops->extra_msdu_prefix_len);
 			} else {
 				tcb_desc->bHwSec = 0;
 			}
@@ -965,3 +967,4 @@ int rtllib_xmit(struct sk_buff *skb, struct net_device *dev)
 	memset(skb->cb, 0, sizeof(skb->cb));
 	return rtllib_xmit_inter(skb, dev);
 }
+EXPORT_SYMBOL(rtllib_xmit);

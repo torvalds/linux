@@ -16,6 +16,8 @@
 
 #include <plat/omap_hwmod.h>
 
+#include "display.h"
+
 /* Common address space across OMAP2xxx */
 extern struct omap_hwmod_addr_space omap2xxx_uart1_addr_space[];
 extern struct omap_hwmod_addr_space omap2xxx_uart2_addr_space[];
@@ -110,5 +112,7 @@ extern struct omap_hwmod_class omap2xxx_gpio_hwmod_class;
 extern struct omap_hwmod_class omap2xxx_dma_hwmod_class;
 extern struct omap_hwmod_class omap2xxx_mailbox_hwmod_class;
 extern struct omap_hwmod_class omap2xxx_mcspi_class;
+
+extern struct omap_dss_dispc_dev_attr omap2_3_dss_dispc_dev_attr;
 
 #endif

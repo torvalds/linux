@@ -145,7 +145,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		irq = link->irq;
 		break;
 	default:
-		printk("bug! couldn't determine board type\n");
+		pr_err("bug! couldn't determine board type\n");
 		return -EINVAL;
 		break;
 	}

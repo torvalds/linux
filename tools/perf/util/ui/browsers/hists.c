@@ -1,6 +1,4 @@
-#define _GNU_SOURCE
 #include <stdio.h>
-#undef _GNU_SOURCE
 #include "../libslang.h"
 #include <stdlib.h>
 #include <string.h>
@@ -1020,7 +1018,7 @@ do_annotate:
 			 * Don't let this be freed, say, by hists__decay_entry.
 			 */
 			he->used = true;
-			err = hist_entry__tui_annotate(he, evsel->idx, nr_events,
+			err = hist_entry__tui_annotate(he, evsel->idx,
 						       timer, arg, delay_secs);
 			he->used = false;
 			ui_browser__update_nr_entries(&browser->b, browser->hists->nr_entries);

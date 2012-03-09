@@ -25,7 +25,7 @@
 struct workqueue_struct *cache_flush_workqueue;
 
 static int cache_timeout = 1000;
-module_param(cache_timeout, bool, S_IRUGO);
+module_param(cache_timeout, int, S_IRUGO);
 MODULE_PARM_DESC(cache_timeout,
 	"Timeout (in ms) for cache flush (1000 ms default");
 
@@ -278,7 +278,7 @@ again:
 
 	/* Unfortunately, oob read will _always_ succeed,
 		despite card removal..... */
-	ret = mtd->read_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
+	ret = mtd_read_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
 	/* Test for unknown errors */
 	if (ret != 0 && !mtd_is_bitflip_or_eccerr(ret)) {
@@ -343,7 +343,7 @@ static int sm_write_sector(struct sm_ftl *ftl,
 	ops.ooblen = SM_OOB_SIZE;
 	ops.oobbuf = (void *)oob;
 
-	ret = mtd->write_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
+	ret = mtd_write_oob(mtd, sm_mkoffset(ftl, zone, block, boffset), &ops);
 
 	/* Now we assume that hardware will catch write bitflip errors */
 	/* If you are paranoid, use CONFIG_MTD_NAND_VERIFY_WRITE */
@@ -479,7 +479,7 @@ static int sm_erase_block(struct sm_ftl *ftl, int zone_num, uint16_t block,
 		return -EIO;
 	}
 
-	if (mtd->erase(mtd, &erase)) {
+	if (mtd_erase(mtd, &erase)) {
 		sm_printk("erase of block %d in zone %d failed",
 							block, zone_num);
 		goto error;
@@ -645,8 +645,8 @@ int sm_get_media_info(struct sm_ftl *ftl, struct mtd_info *mtd)
 	if (!ftl->smallpagenand && mtd->oobsize < SM_OOB_SIZE)
 		return -ENODEV;
 
-	/* We use these functions for IO */
-	if (!mtd->read_oob || !mtd->write_oob)
+	/* We use OOB */
+	if (!mtd_has_oob(mtd))
 		return -ENODEV;
 
 	/* Find geometry information */

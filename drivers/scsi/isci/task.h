@@ -106,7 +106,6 @@ struct isci_tmf {
 	} resp;
 	unsigned char lun[8];
 	u16 io_tag;
-	struct isci_remote_device *device;
 	enum isci_tmf_function_codes tmf_code;
 	int status;
 
@@ -120,10 +119,10 @@ struct isci_tmf {
 
 };
 
-static inline void isci_print_tmf(struct isci_tmf *tmf)
+static inline void isci_print_tmf(struct isci_host *ihost, struct isci_tmf *tmf)
 {
 	if (SAS_PROTOCOL_SATA == tmf->proto)
-		dev_dbg(&tmf->device->isci_port->isci_host->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			"%s: status = %x\n"
 			"tmf->resp.d2h_fis.status = %x\n"
 			"tmf->resp.d2h_fis.error = %x\n",
@@ -132,7 +131,7 @@ static inline void isci_print_tmf(struct isci_tmf *tmf)
 			tmf->resp.d2h_fis.status,
 			tmf->resp.d2h_fis.error);
 	else
-		dev_dbg(&tmf->device->isci_port->isci_host->pdev->dev,
+		dev_dbg(&ihost->pdev->dev,
 			"%s: status = %x\n"
 			"tmf->resp.resp_iu.data_present = %x\n"
 			"tmf->resp.resp_iu.status = %x\n"

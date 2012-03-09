@@ -89,7 +89,7 @@ static const struct hc_driver ohci_au1xxx_hc_driver = {
 
 static int ohci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 {
-	int ret;
+	int ret, unit;
 	struct usb_hcd *hcd;
 
 	if (usb_disabled())
@@ -120,7 +120,9 @@ static int ohci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	if (alchemy_usb_control(ALCHEMY_USB_OHCI0, 1)) {
+	unit = (hcd->rsrc_start == AU1300_USB_OHCI1_PHYS_ADDR) ?
+			ALCHEMY_USB_OHCI1 : ALCHEMY_USB_OHCI0;
+	if (alchemy_usb_control(unit, 1)) {
 		printk(KERN_INFO "%s: controller init failed!\n", pdev->name);
 		ret = -ENODEV;
 		goto err3;
@@ -135,7 +137,7 @@ static int ohci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	alchemy_usb_control(ALCHEMY_USB_OHCI0, 0);
+	alchemy_usb_control(unit, 0);
 err3:
 	iounmap(hcd->regs);
 err2:
@@ -148,9 +150,12 @@ err1:
 static int ohci_hcd_au1xxx_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	int unit;
 
+	unit = (hcd->rsrc_start == AU1300_USB_OHCI1_PHYS_ADDR) ?
+			ALCHEMY_USB_OHCI1 : ALCHEMY_USB_OHCI0;
 	usb_remove_hcd(hcd);
-	alchemy_usb_control(ALCHEMY_USB_OHCI0, 0);
+	alchemy_usb_control(unit, 0);
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
@@ -173,12 +178,9 @@ static int ohci_hcd_au1xxx_drv_suspend(struct device *dev)
 	 * mark HW unaccessible, bail out if RH has been resumed. Use
 	 * the spinlock to properly synchronize with possible pending
 	 * RH suspend or resume activity.
-	 *
-	 * This is still racy as hcd->state is manipulated outside of
-	 * any locks =P But that will be a different fix.
 	 */
 	spin_lock_irqsave(&ohci->lock, flags);
-	if (hcd->state != HC_STATE_SUSPENDED) {
+	if (ohci->rh_state != OHCI_RH_SUSPENDED) {
 		rc = -EINVAL;
 		goto bail;
 	}

@@ -934,20 +934,6 @@ error2:
 }
 EXPORT_SYMBOL(ds3000_attach);
 
-static int ds3000_set_property(struct dvb_frontend *fe,
-	struct dtv_property *tvp)
-{
-	dprintk("%s(..)\n", __func__);
-	return 0;
-}
-
-static int ds3000_get_property(struct dvb_frontend *fe,
-	struct dtv_property *tvp)
-{
-	dprintk("%s(..)\n", __func__);
-	return 0;
-}
-
 static int ds3000_set_carrier_offset(struct dvb_frontend *fe,
 					s32 carrier_offset_khz)
 {
@@ -967,8 +953,7 @@ static int ds3000_set_carrier_offset(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int ds3000_set_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *p)
+static int ds3000_set_frontend(struct dvb_frontend *fe)
 {
 	struct ds3000_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
@@ -994,15 +979,15 @@ static int ds3000_set_frontend(struct dvb_frontend *fe,
 	div4 = 0;
 
 	/* calculate and set freq divider */
-	if (p->frequency < 1146000) {
+	if (c->frequency < 1146000) {
 		ds3000_tuner_writereg(state, 0x10, 0x11);
 		div4 = 1;
-		ndiv = ((p->frequency * (6 + 8) * 4) +
+		ndiv = ((c->frequency * (6 + 8) * 4) +
 				(DS3000_XTAL_FREQ / 2)) /
 				DS3000_XTAL_FREQ - 1024;
 	} else {
 		ds3000_tuner_writereg(state, 0x10, 0x01);
-		ndiv = ((p->frequency * (6 + 8) * 2) +
+		ndiv = ((c->frequency * (6 + 8) * 2) +
 				(DS3000_XTAL_FREQ / 2)) /
 				DS3000_XTAL_FREQ - 1024;
 	}
@@ -1101,7 +1086,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe,
 	msleep(60);
 
 	offset_khz = (ndiv - ndiv % 2 + 1024) * DS3000_XTAL_FREQ
-		/ (6 + 8) / (div4 + 1) / 2 - p->frequency;
+		/ (6 + 8) / (div4 + 1) / 2 - c->frequency;
 
 	/* ds3000 global reset */
 	ds3000_writereg(state, 0x07, 0x80);
@@ -1210,7 +1195,7 @@ static int ds3000_set_frontend(struct dvb_frontend *fe,
 
 	for (i = 0; i < 30 ; i++) {
 		ds3000_read_status(fe, &status);
-		if (status && FE_HAS_LOCK)
+		if (status & FE_HAS_LOCK)
 			break;
 
 		msleep(10);
@@ -1220,13 +1205,13 @@ static int ds3000_set_frontend(struct dvb_frontend *fe,
 }
 
 static int ds3000_tune(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *p,
+			bool re_tune,
 			unsigned int mode_flags,
 			unsigned int *delay,
 			fe_status_t *status)
 {
-	if (p) {
-		int ret = ds3000_set_frontend(fe, p);
+	if (re_tune) {
+		int ret = ds3000_set_frontend(fe);
 		if (ret)
 			return ret;
 	}
@@ -1279,10 +1264,9 @@ static int ds3000_sleep(struct dvb_frontend *fe)
 }
 
 static struct dvb_frontend_ops ds3000_ops = {
-
+	.delsys = { SYS_DVBS, SYS_DVBS2},
 	.info = {
 		.name = "Montage Technology DS3000/TS2020",
-		.type = FE_QPSK,
 		.frequency_min = 950000,
 		.frequency_max = 2150000,
 		.frequency_stepsize = 1011, /* kHz for QPSK frontends */
@@ -1312,8 +1296,6 @@ static struct dvb_frontend_ops ds3000_ops = {
 	.diseqc_send_burst = ds3000_diseqc_send_burst,
 	.get_frontend_algo = ds3000_get_algo,
 
-	.set_property = ds3000_set_property,
-	.get_property = ds3000_get_property,
 	.set_frontend = ds3000_set_frontend,
 	.tune = ds3000_tune,
 };

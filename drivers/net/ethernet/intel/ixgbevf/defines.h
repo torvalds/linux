@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -35,7 +35,6 @@
 #define IXGBE_VF_IRQ_CLEAR_MASK         7
 #define IXGBE_VF_MAX_TX_QUEUES          1
 #define IXGBE_VF_MAX_RX_QUEUES          1
-#define IXGBE_ETH_LENGTH_OF_ADDRESS     6
 
 /* Link speed */
 typedef u32 ixgbe_link_speed;

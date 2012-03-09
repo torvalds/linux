@@ -935,15 +935,4 @@ static struct platform_driver hal2_driver = {
 	}
 };
 
-static int __init alsa_card_hal2_init(void)
-{
-	return platform_driver_register(&hal2_driver);
-}
-
-static void __exit alsa_card_hal2_exit(void)
-{
-	platform_driver_unregister(&hal2_driver);
-}
-
-module_init(alsa_card_hal2_init);
-module_exit(alsa_card_hal2_exit);
+module_platform_driver(hal2_driver);

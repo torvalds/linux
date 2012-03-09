@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2011 Intel Corporation.
+  Copyright(c) 2007-2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -445,6 +445,11 @@ static inline s32 igb_get_phy_info(struct e1000_hw *hw)
 		return hw->phy.ops.get_phy_info(hw);
 
 	return 0;
+}
+
+static inline struct netdev_queue *txring_txq(const struct igb_ring *tx_ring)
+{
+	return netdev_get_tx_queue(tx_ring->netdev, tx_ring->queue_index);
 }
 
 #endif /* _IGB_H_ */

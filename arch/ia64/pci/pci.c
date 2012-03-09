@@ -134,6 +134,7 @@ alloc_pci_controller (int seg)
 struct pci_root_info {
 	struct acpi_device *bridge;
 	struct pci_controller *controller;
+	struct list_head resources;
 	char *name;
 };
 
@@ -315,24 +316,13 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 				 &window->resource);
 	}
 
+	/* HP's firmware has a hack to work around a Windows bug.
+	 * Ignore these tiny memory ranges */
+	if (!((window->resource.flags & IORESOURCE_MEM) &&
+	      (window->resource.end - window->resource.start < 16)))
+		pci_add_resource(&info->resources, &window->resource);
+
 	return AE_OK;
-}
-
-static void __devinit
-pcibios_setup_root_windows(struct pci_bus *bus, struct pci_controller *ctrl)
-{
-	int i;
-
-	pci_bus_remove_resources(bus);
-	for (i = 0; i < ctrl->windows; i++) {
-		struct resource *res = &ctrl->window[i].resource;
-		/* HP's firmware has a hack to work around a Windows bug.
-		 * Ignore these tiny memory ranges */
-		if ((res->flags & IORESOURCE_MEM) &&
-		    (res->end - res->start < 16))
-			continue;
-		pci_bus_add_resource(bus, res, 0);
-	}
 }
 
 struct pci_bus * __devinit
@@ -343,6 +333,7 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 	int bus = root->secondary.start;
 	struct pci_controller *controller;
 	unsigned int windows = 0;
+	struct pci_root_info info;
 	struct pci_bus *pbus;
 	char *name;
 	int pxm;
@@ -359,11 +350,10 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 		controller->node = pxm_to_node(pxm);
 #endif
 
+	INIT_LIST_HEAD(&info.resources);
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
 			&windows);
 	if (windows) {
-		struct pci_root_info info;
-
 		controller->window =
 			kmalloc_node(sizeof(*controller->window) * windows,
 				     GFP_KERNEL, controller->node);
@@ -387,8 +377,14 @@ pci_acpi_scan_root(struct acpi_pci_root *root)
 	 * should handle the case here, but it appears that IA64 hasn't
 	 * such quirk. So we just ignore the case now.
 	 */
-	pbus = pci_scan_bus_parented(NULL, bus, &pci_root_ops, controller);
+	pbus = pci_create_root_bus(NULL, bus, &pci_root_ops, controller,
+				   &info.resources);
+	if (!pbus) {
+		pci_free_resource_list(&info.resources);
+		return NULL;
+	}
 
+	pbus->subordinate = pci_scan_child_bus(pbus);
 	return pbus;
 
 out3:
@@ -504,14 +500,15 @@ pcibios_fixup_bus (struct pci_bus *b)
 	if (b->self) {
 		pci_read_bridge_bases(b);
 		pcibios_fixup_bridge_resources(b->self);
-	} else {
-		pcibios_setup_root_windows(b, b->sysdata);
 	}
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
 	platform_pci_fixup_bus(b);
+}
 
-	return;
+void pcibios_set_master (struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
 }
 
 void __devinit

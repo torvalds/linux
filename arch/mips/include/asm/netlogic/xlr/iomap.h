@@ -106,26 +106,4 @@
 #define DEFAULT_HT_TYPE0_CFG_BASE       0x16000000
 #define DEFAULT_HT_TYPE1_CFG_BASE       0x17000000
 
-#ifndef __ASSEMBLY__
-#include <linux/types.h>
-#include <asm/byteorder.h>
-
-typedef volatile __u32 nlm_reg_t;
-extern unsigned long netlogic_io_base;
-
-/* FIXME read once in write_reg */
-#ifdef CONFIG_CPU_LITTLE_ENDIAN
-#define netlogic_read_reg(base, offset)		((base)[(offset)])
-#define netlogic_write_reg(base, offset, value)	((base)[(offset)] = (value))
-#else
-#define netlogic_read_reg(base, offset)		(be32_to_cpu((base)[(offset)]))
-#define netlogic_write_reg(base, offset, value) \
-				((base)[(offset)] = cpu_to_be32((value)))
-#endif
-
-#define netlogic_read_reg_le32(base, offset) (le32_to_cpu((base)[(offset)]))
-#define netlogic_write_reg_le32(base, offset, value) \
-				((base)[(offset)] = cpu_to_le32((value)))
-#define netlogic_io_mmio(offset) ((nlm_reg_t *)(netlogic_io_base+(offset)))
-#endif /* __ASSEMBLY__ */
 #endif

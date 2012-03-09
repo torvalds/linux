@@ -118,7 +118,7 @@ static unsigned long board2;
 static unsigned long board3;
 static unsigned long board4;
 static unsigned long controller;
-static int support_low_speed;
+static bool support_low_speed;
 static unsigned long modem1;
 static unsigned long modem2;
 static unsigned long modem3;

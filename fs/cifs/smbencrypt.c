@@ -209,18 +209,18 @@ E_md4hash(const unsigned char *passwd, unsigned char *p16,
 {
 	int rc;
 	int len;
-	__u16 wpwd[129];
+	__le16 wpwd[129];
 
 	/* Password cannot be longer than 128 characters */
 	if (passwd) /* Password must be converted to NT unicode */
-		len = cifs_strtoUCS(wpwd, passwd, 128, codepage);
+		len = cifs_strtoUTF16(wpwd, passwd, 128, codepage);
 	else {
 		len = 0;
 		*wpwd = 0; /* Ensure string is null terminated */
 	}
 
-	rc = mdfour(p16, (unsigned char *) wpwd, len * sizeof(__u16));
-	memset(wpwd, 0, 129 * sizeof(__u16));
+	rc = mdfour(p16, (unsigned char *) wpwd, len * sizeof(__le16));
+	memset(wpwd, 0, 129 * sizeof(__le16));
 
 	return rc;
 }

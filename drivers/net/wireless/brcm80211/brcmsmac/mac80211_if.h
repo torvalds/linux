@@ -68,8 +68,6 @@ struct brcms_info {
 	spinlock_t lock;	/* per-device perimeter lock */
 	spinlock_t isr_lock;	/* per-device ISR synchronization lock */
 
-	/* regsva for unmap in brcms_free() */
-	void __iomem *regsva;	/* opaque chip registers virtual address */
 
 	/* timer related fields */
 	atomic_t callbacks;	/* # outstanding callback functions */
@@ -80,6 +78,7 @@ struct brcms_info {
 	struct brcms_firmware fw;
 	struct wiphy *wiphy;
 	struct brcms_ucode ucode;
+	bool mute_tx;
 };
 
 /* misc callbacks */
@@ -104,5 +103,6 @@ extern bool brcms_del_timer(struct brcms_timer *timer);
 extern void brcms_msleep(struct brcms_info *wl, uint ms);
 extern void brcms_dpc(unsigned long data);
 extern void brcms_timer(struct brcms_timer *t);
+extern void brcms_fatal_error(struct brcms_info *wl);
 
 #endif				/* _BRCM_MAC80211_IF_H_ */

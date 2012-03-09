@@ -42,7 +42,7 @@
 #include <mach/mux.h>
 #include <mach/usb.h>
 
-#define SFFSDR_PHY_ID		"0:01"
+#define SFFSDR_PHY_ID		"davinci_mdio-0:01"
 static struct mtd_partition davinci_sffsdr_nandflash_partition[] = {
 	/* U-Boot Environment: Block 0
 	 * UBL:                Block 1
@@ -157,4 +157,5 @@ MACHINE_START(SFFSDR, "Lyrtech SFFSDR")
 	.timer	      = &davinci_timer,
 	.init_machine = davinci_sffsdr_init,
 	.dma_zone_size	= SZ_128M,
+	.restart	= davinci_restart,
 MACHINE_END

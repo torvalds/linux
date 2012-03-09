@@ -189,7 +189,7 @@ struct compal_data{
 /* =============== */
 /* General globals */
 /* =============== */
-static int force;
+static bool force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
 

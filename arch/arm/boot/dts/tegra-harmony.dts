@@ -1,15 +1,10 @@
 /dts-v1/;
 
-/memreserve/ 0x1c000000 0x04000000;
 /include/ "tegra20.dtsi"
 
 / {
 	model = "NVIDIA Tegra2 Harmony evaluation board";
 	compatible = "nvidia,harmony", "nvidia,tegra20";
-
-	chosen {
-		bootargs = "vmalloc=192M video=tegrafb console=ttyS0,115200n8 root=/dev/mmcblk0p2 rw rootwait";
-	};
 
 	memory@0 {
 		reg = < 0x00000000 0x40000000 >;
@@ -52,14 +47,38 @@
 		ext-mic-en-gpios = <&gpio 185 0>;
 	};
 
+	serial@70006000 {
+		status = "disable";
+	};
+
+	serial@70006040 {
+		status = "disable";
+	};
+
+	serial@70006200 {
+		status = "disable";
+	};
+
 	serial@70006300 {
 		clock-frequency = < 216000000 >;
+	};
+
+	serial@70006400 {
+		status = "disable";
+	};
+
+	sdhci@c8000000 {
+		status = "disable";
 	};
 
 	sdhci@c8000200 {
 		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
 		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
 		power-gpios = <&gpio 155 0>; /* gpio PT3 */
+	};
+
+	sdhci@c8000400 {
+		status = "disable";
 	};
 
 	sdhci@c8000600 {

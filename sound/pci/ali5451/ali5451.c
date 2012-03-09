@@ -48,7 +48,7 @@ MODULE_SUPPORTED_DEVICE("{{ALI,M5451,pci},{ALI,M5451}}");
 static int index = SNDRV_DEFAULT_IDX1;	/* Index */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int pcm_channels = 32;
-static int spdif;
+static bool spdif;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for ALI M5451 PCI Audio.");
@@ -60,7 +60,7 @@ module_param(spdif, bool, 0444);
 MODULE_PARM_DESC(spdif, "Support SPDIF I/O");
 
 /* just for backward compatibility */
-static int enable;
+static bool enable;
 module_param(enable, bool, 0444);
 
 

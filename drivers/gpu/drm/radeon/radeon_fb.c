@@ -103,7 +103,7 @@ static void radeonfb_destroy_pinned_object(struct drm_gem_object *gobj)
 }
 
 static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
-					 struct drm_mode_fb_cmd *mode_cmd,
+					 struct drm_mode_fb_cmd2 *mode_cmd,
 					 struct drm_gem_object **gobj_p)
 {
 	struct radeon_device *rdev = rfbdev->rdev;
@@ -114,13 +114,17 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	int ret;
 	int aligned_size, size;
 	int height = mode_cmd->height;
+	u32 bpp, depth;
+
+	drm_fb_get_bpp_depth(mode_cmd->pixel_format, &depth, &bpp);
 
 	/* need to align pitch with crtc limits */
-	mode_cmd->pitch = radeon_align_pitch(rdev, mode_cmd->width, mode_cmd->bpp, fb_tiled) * ((mode_cmd->bpp + 1) / 8);
+	mode_cmd->pitches[0] = radeon_align_pitch(rdev, mode_cmd->width, bpp,
+						  fb_tiled) * ((bpp + 1) / 8);
 
 	if (rdev->family >= CHIP_R600)
 		height = ALIGN(mode_cmd->height, 8);
-	size = mode_cmd->pitch * height;
+	size = mode_cmd->pitches[0] * height;
 	aligned_size = ALIGN(size, PAGE_SIZE);
 	ret = radeon_gem_object_create(rdev, aligned_size, 0,
 				       RADEON_GEM_DOMAIN_VRAM,
@@ -137,7 +141,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 		tiling_flags = RADEON_TILING_MACRO;
 
 #ifdef __BIG_ENDIAN
-	switch (mode_cmd->bpp) {
+	switch (bpp) {
 	case 32:
 		tiling_flags |= RADEON_TILING_SWAP_32BIT;
 		break;
@@ -151,7 +155,7 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	if (tiling_flags) {
 		ret = radeon_bo_set_tiling_flags(rbo,
 						 tiling_flags | RADEON_TILING_SURFACE,
-						 mode_cmd->pitch);
+						 mode_cmd->pitches[0]);
 		if (ret)
 			dev_err(rdev->dev, "FB failed to set tiling flags\n");
 	}
@@ -187,7 +191,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	struct radeon_device *rdev = rfbdev->rdev;
 	struct fb_info *info;
 	struct drm_framebuffer *fb = NULL;
-	struct drm_mode_fb_cmd mode_cmd;
+	struct drm_mode_fb_cmd2 mode_cmd;
 	struct drm_gem_object *gobj = NULL;
 	struct radeon_bo *rbo = NULL;
 	struct device *device = &rdev->pdev->dev;
@@ -201,8 +205,8 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	if ((sizes->surface_bpp == 24) && ASIC_IS_AVIVO(rdev))
 		sizes->surface_bpp = 32;
 
-	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.depth = sizes->surface_depth;
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+							  sizes->surface_depth);
 
 	ret = radeonfb_create_pinned_object(rfbdev, &mode_cmd, &gobj);
 	rbo = gem_to_radeon_bo(gobj);
@@ -228,7 +232,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	strcpy(info->fix.id, "radeondrmfb");
 
-	drm_fb_helper_fill_fix(info, fb->pitch, fb->depth);
+	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 
 	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &radeonfb_ops;
@@ -271,7 +275,7 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	DRM_INFO("vram apper at 0x%lX\n",  (unsigned long)rdev->mc.aper_base);
 	DRM_INFO("size %lu\n", (unsigned long)radeon_bo_size(rbo));
 	DRM_INFO("fb depth is %d\n", fb->depth);
-	DRM_INFO("   pitch is %d\n", fb->pitch);
+	DRM_INFO("   pitch is %d\n", fb->pitches[0]);
 
 	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
 	return 0;

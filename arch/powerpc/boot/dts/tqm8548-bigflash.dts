@@ -305,7 +305,7 @@
 		serial0: serial@4500 {
 			cell-index = <0>;
 			device_type = "serial";
-			compatible = "ns16550";
+			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4500 0x100>;	// reg base, size
 			clock-frequency = <0>;	// should we fill in in uboot?
 			current-speed = <115200>;
@@ -316,7 +316,7 @@
 		serial1: serial@4600 {
 			cell-index = <1>;
 			device_type = "serial";
-			compatible = "ns16550";
+			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4600 0x100>;	// reg base, size
 			clock-frequency = <0>;	// should we fill in in uboot?
 			current-speed = <115200>;
@@ -352,7 +352,7 @@
 		ranges = <
 			0 0x0 0xfc000000 0x04000000	// NOR FLASH bank 1
 			1 0x0 0xf8000000 0x08000000	// NOR FLASH bank 0
-			2 0x0 0xa3000000 0x00008000	// CAN (2 x i82527)
+			2 0x0 0xa3000000 0x00008000	// CAN (2 x CC770)
 			3 0x0 0xa3010000 0x00008000	// NAND FLASH
 
 		>;
@@ -393,18 +393,27 @@
 		};
 
 		/* Note: CAN support needs be enabled in U-Boot */
-		can0@2,0 {
-			compatible = "intel,82527"; // Bosch CC770
+		can@2,0 {
+			compatible = "bosch,cc770"; // Bosch CC770
 			reg = <2 0x0 0x100>;
 			interrupts = <4 1>;
 			interrupt-parent = <&mpic>;
+			bosch,external-clock-frequency = <16000000>;
+			bosch,disconnect-rx1-input;
+			bosch,disconnect-tx1-output;
+			bosch,iso-low-speed-mux;
+			bosch,clock-out-frequency = <16000000>;
 		};
 
-		can1@2,100 {
-			compatible = "intel,82527"; // Bosch CC770
+		can@2,100 {
+			compatible = "bosch,cc770"; // Bosch CC770
 			reg = <2 0x100 0x100>;
 			interrupts = <4 1>;
 			interrupt-parent = <&mpic>;
+			bosch,external-clock-frequency = <16000000>;
+			bosch,disconnect-rx1-input;
+			bosch,disconnect-tx1-output;
+			bosch,iso-low-speed-mux;
 		};
 
 		/* Note: NAND support needs to be enabled in U-Boot */

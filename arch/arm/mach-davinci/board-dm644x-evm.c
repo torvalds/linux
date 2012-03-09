@@ -40,7 +40,7 @@
 #include <mach/usb.h>
 #include <mach/aemif.h>
 
-#define DM644X_EVM_PHY_ID		"0:01"
+#define DM644X_EVM_PHY_ID		"davinci_mdio-0:01"
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
 
@@ -719,4 +719,5 @@ MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
 	.timer	      = &davinci_timer,
 	.init_machine = davinci_evm_init,
 	.dma_zone_size	= SZ_128M,
+	.restart	= davinci_restart,
 MACHINE_END

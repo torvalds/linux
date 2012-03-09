@@ -56,7 +56,7 @@ static struct usbhs_pkt_handle usbhsf_null_handler = {
 void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 		    void (*done)(struct usbhs_priv *priv,
 				 struct usbhs_pkt *pkt),
-		    void *buf, int len, int zero)
+		    void *buf, int len, int zero, int sequence)
 {
 	struct usbhs_priv *priv = usbhs_pipe_to_priv(pipe);
 	struct device *dev = usbhs_priv_to_dev(priv);
@@ -90,6 +90,7 @@ void usbhs_pkt_push(struct usbhs_pipe *pipe, struct usbhs_pkt *pkt,
 	pkt->zero	= zero;
 	pkt->actual	= 0;
 	pkt->done	= done;
+	pkt->sequence	= sequence;
 
 	usbhs_unlock(priv, flags);
 	/********************  spin unlock ******************/
@@ -481,6 +482,9 @@ static int usbhsf_pio_try_push(struct usbhs_pkt *pkt, int *is_done)
 	int i, ret, len;
 	int is_short;
 
+	usbhs_pipe_data_sequence(pipe, pkt->sequence);
+	pkt->sequence = -1; /* -1 sequence will be ignored */
+
 	ret = usbhsf_fifo_select(pipe, fifo, 1);
 	if (ret < 0)
 		return 0;
@@ -584,6 +588,8 @@ static int usbhsf_prepare_pop(struct usbhs_pkt *pkt, int *is_done)
 	/*
 	 * pipe enable to prepare packet receive
 	 */
+	usbhs_pipe_data_sequence(pipe, pkt->sequence);
+	pkt->sequence = -1; /* -1 sequence will be ignored */
 
 	usbhs_pipe_enable(pipe);
 	usbhsf_rx_irq_ctrl(pipe, 1);
@@ -641,6 +647,7 @@ static int usbhsf_pio_try_pop(struct usbhs_pkt *pkt, int *is_done)
 	 * "Operation" - "FIFO Buffer Memory" - "FIFO Port Function"
 	 */
 	if (0 == rcv_len) {
+		pkt->zero = 1;
 		usbhsf_fifo_clear(pipe, fifo);
 		goto usbhs_fifo_read_end;
 	}
@@ -765,10 +772,10 @@ static void usbhsf_dma_prepare_tasklet(unsigned long data)
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *chan = usbhsf_dma_chan_get(fifo, pkt);
 	struct device *dev = usbhs_priv_to_dev(priv);
-	enum dma_data_direction dir;
+	enum dma_transfer_direction dir;
 	dma_cookie_t cookie;
 
-	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_FROM_DEVICE : DMA_TO_DEVICE;
+	dir = usbhs_pipe_is_dir_in(pipe) ? DMA_DEV_TO_MEM : DMA_MEM_TO_DEV;
 
 	sg_init_table(&sg, 1);
 	sg_set_page(&sg, virt_to_page(pkt->dma),

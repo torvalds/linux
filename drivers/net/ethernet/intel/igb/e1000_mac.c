@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2011 Intel Corporation.
+  Copyright(c) 2007-2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -151,7 +151,7 @@ void igb_clear_vfta_i350(struct e1000_hw *hw)
  *  Writes value at the given offset in the register array which stores
  *  the VLAN filter table.
  **/
-void igb_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value)
+static void igb_write_vfta_i350(struct e1000_hw *hw, u32 offset, u32 value)
 {
 	int i;
 

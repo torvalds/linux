@@ -74,6 +74,7 @@
 #include <linux/mman.h>
 #include <linux/module.h>
 #include <linux/workqueue.h>
+#include <linux/device.h>
 #include <xen/balloon.h>
 #include <xen/tmem.h>
 #include <xen/xen.h>
@@ -266,21 +267,20 @@ static void selfballoon_process(struct work_struct *work)
 
 #ifdef CONFIG_SYSFS
 
-#include <linux/sysdev.h>
 #include <linux/capability.h>
 
 #define SELFBALLOON_SHOW(name, format, args...)				\
-	static ssize_t show_##name(struct sys_device *dev,	\
-					   struct sysdev_attribute *attr, \
-					   char *buf) \
+	static ssize_t show_##name(struct device *dev,	\
+					  struct device_attribute *attr, \
+					  char *buf) \
 	{ \
 		return sprintf(buf, format, ##args); \
 	}
 
 SELFBALLOON_SHOW(selfballooning, "%d\n", xen_selfballooning_enabled);
 
-static ssize_t store_selfballooning(struct sys_device *dev,
-			    struct sysdev_attribute *attr,
+static ssize_t store_selfballooning(struct device *dev,
+			    struct device_attribute *attr,
 			    const char *buf,
 			    size_t count)
 {
@@ -303,13 +303,13 @@ static ssize_t store_selfballooning(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(selfballooning, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(selfballooning, S_IRUGO | S_IWUSR,
 		   show_selfballooning, store_selfballooning);
 
 SELFBALLOON_SHOW(selfballoon_interval, "%d\n", selfballoon_interval);
 
-static ssize_t store_selfballoon_interval(struct sys_device *dev,
-					  struct sysdev_attribute *attr,
+static ssize_t store_selfballoon_interval(struct device *dev,
+					  struct device_attribute *attr,
 					  const char *buf,
 					  size_t count)
 {
@@ -325,13 +325,13 @@ static ssize_t store_selfballoon_interval(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(selfballoon_interval, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(selfballoon_interval, S_IRUGO | S_IWUSR,
 		   show_selfballoon_interval, store_selfballoon_interval);
 
 SELFBALLOON_SHOW(selfballoon_downhys, "%d\n", selfballoon_downhysteresis);
 
-static ssize_t store_selfballoon_downhys(struct sys_device *dev,
-					 struct sysdev_attribute *attr,
+static ssize_t store_selfballoon_downhys(struct device *dev,
+					 struct device_attribute *attr,
 					 const char *buf,
 					 size_t count)
 {
@@ -347,14 +347,14 @@ static ssize_t store_selfballoon_downhys(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(selfballoon_downhysteresis, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(selfballoon_downhysteresis, S_IRUGO | S_IWUSR,
 		   show_selfballoon_downhys, store_selfballoon_downhys);
 
 
 SELFBALLOON_SHOW(selfballoon_uphys, "%d\n", selfballoon_uphysteresis);
 
-static ssize_t store_selfballoon_uphys(struct sys_device *dev,
-				       struct sysdev_attribute *attr,
+static ssize_t store_selfballoon_uphys(struct device *dev,
+				       struct device_attribute *attr,
 				       const char *buf,
 				       size_t count)
 {
@@ -370,14 +370,14 @@ static ssize_t store_selfballoon_uphys(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(selfballoon_uphysteresis, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(selfballoon_uphysteresis, S_IRUGO | S_IWUSR,
 		   show_selfballoon_uphys, store_selfballoon_uphys);
 
 SELFBALLOON_SHOW(selfballoon_min_usable_mb, "%d\n",
 				selfballoon_min_usable_mb);
 
-static ssize_t store_selfballoon_min_usable_mb(struct sys_device *dev,
-					       struct sysdev_attribute *attr,
+static ssize_t store_selfballoon_min_usable_mb(struct device *dev,
+					       struct device_attribute *attr,
 					       const char *buf,
 					       size_t count)
 {
@@ -393,7 +393,7 @@ static ssize_t store_selfballoon_min_usable_mb(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(selfballoon_min_usable_mb, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(selfballoon_min_usable_mb, S_IRUGO | S_IWUSR,
 		   show_selfballoon_min_usable_mb,
 		   store_selfballoon_min_usable_mb);
 
@@ -401,8 +401,8 @@ static SYSDEV_ATTR(selfballoon_min_usable_mb, S_IRUGO | S_IWUSR,
 #ifdef CONFIG_FRONTSWAP
 SELFBALLOON_SHOW(frontswap_selfshrinking, "%d\n", frontswap_selfshrinking);
 
-static ssize_t store_frontswap_selfshrinking(struct sys_device *dev,
-					     struct sysdev_attribute *attr,
+static ssize_t store_frontswap_selfshrinking(struct device *dev,
+					     struct device_attribute *attr,
 					     const char *buf,
 					     size_t count)
 {
@@ -424,13 +424,13 @@ static ssize_t store_frontswap_selfshrinking(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(frontswap_selfshrinking, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(frontswap_selfshrinking, S_IRUGO | S_IWUSR,
 		   show_frontswap_selfshrinking, store_frontswap_selfshrinking);
 
 SELFBALLOON_SHOW(frontswap_inertia, "%d\n", frontswap_inertia);
 
-static ssize_t store_frontswap_inertia(struct sys_device *dev,
-				       struct sysdev_attribute *attr,
+static ssize_t store_frontswap_inertia(struct device *dev,
+				       struct device_attribute *attr,
 				       const char *buf,
 				       size_t count)
 {
@@ -447,13 +447,13 @@ static ssize_t store_frontswap_inertia(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(frontswap_inertia, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(frontswap_inertia, S_IRUGO | S_IWUSR,
 		   show_frontswap_inertia, store_frontswap_inertia);
 
 SELFBALLOON_SHOW(frontswap_hysteresis, "%d\n", frontswap_hysteresis);
 
-static ssize_t store_frontswap_hysteresis(struct sys_device *dev,
-					  struct sysdev_attribute *attr,
+static ssize_t store_frontswap_hysteresis(struct device *dev,
+					  struct device_attribute *attr,
 					  const char *buf,
 					  size_t count)
 {
@@ -469,21 +469,21 @@ static ssize_t store_frontswap_hysteresis(struct sys_device *dev,
 	return count;
 }
 
-static SYSDEV_ATTR(frontswap_hysteresis, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(frontswap_hysteresis, S_IRUGO | S_IWUSR,
 		   show_frontswap_hysteresis, store_frontswap_hysteresis);
 
 #endif /* CONFIG_FRONTSWAP */
 
 static struct attribute *selfballoon_attrs[] = {
-	&attr_selfballooning.attr,
-	&attr_selfballoon_interval.attr,
-	&attr_selfballoon_downhysteresis.attr,
-	&attr_selfballoon_uphysteresis.attr,
-	&attr_selfballoon_min_usable_mb.attr,
+	&dev_attr_selfballooning.attr,
+	&dev_attr_selfballoon_interval.attr,
+	&dev_attr_selfballoon_downhysteresis.attr,
+	&dev_attr_selfballoon_uphysteresis.attr,
+	&dev_attr_selfballoon_min_usable_mb.attr,
 #ifdef CONFIG_FRONTSWAP
-	&attr_frontswap_selfshrinking.attr,
-	&attr_frontswap_hysteresis.attr,
-	&attr_frontswap_inertia.attr,
+	&dev_attr_frontswap_selfshrinking.attr,
+	&dev_attr_frontswap_hysteresis.attr,
+	&dev_attr_frontswap_inertia.attr,
 #endif
 	NULL
 };
@@ -494,12 +494,12 @@ static struct attribute_group selfballoon_group = {
 };
 #endif
 
-int register_xen_selfballooning(struct sys_device *sysdev)
+int register_xen_selfballooning(struct device *dev)
 {
 	int error = -1;
 
 #ifdef CONFIG_SYSFS
-	error = sysfs_create_group(&sysdev->kobj, &selfballoon_group);
+	error = sysfs_create_group(&dev->kobj, &selfballoon_group);
 #endif
 	return error;
 }

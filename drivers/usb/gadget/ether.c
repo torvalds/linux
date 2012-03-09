@@ -250,9 +250,9 @@ static struct usb_configuration rndis_config_driver = {
 /*-------------------------------------------------------------------------*/
 
 #ifdef CONFIG_USB_ETH_EEM
-static int use_eem = 1;
+static bool use_eem = 1;
 #else
-static int use_eem;
+static bool use_eem;
 #endif
 module_param(use_eem, bool, 0);
 MODULE_PARM_DESC(use_eem, "use CDC EEM mode");

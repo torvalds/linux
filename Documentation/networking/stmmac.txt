@@ -4,14 +4,16 @@ Copyright (C) 2007-2010  STMicroelectronics Ltd
 Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 
 This is the driver for the MAC 10/100/1000 on-chip Ethernet controllers
-(Synopsys IP blocks); it has been fully tested on STLinux platforms.
+(Synopsys IP blocks).
 
 Currently this network device driver is for all STM embedded MAC/GMAC
-(i.e. 7xxx/5xxx SoCs) and it's known working on other platforms i.e. ARM SPEAr.
+(i.e. 7xxx/5xxx SoCs), SPEAr (arm), Loongson1B (mips) and XLINX XC2V3000
+FF1152AMT0221 D1215994A VIRTEX FPGA board.
 
-DWC Ether MAC 10/100/1000 Universal version 3.41a and DWC Ether MAC 10/100
-Universal version 4.0 have been used for developing the first code
-implementation.
+DWC Ether MAC 10/100/1000 Universal version 3.60a (and older) and DWC Ether MAC 10/100
+Universal version 4.0 have been used for developing this driver.
+
+This driver supports both the platform bus and PCI.
 
 Please, for more information also visit: www.stlinux.com
 
@@ -277,5 +279,5 @@ In fact, these can generate an huge amount of debug messages.
 
 6) TODO:
  o XGMAC is not supported.
- o Review the timer optimisation code to use an embedded device that will be
-  available in new chip generations.
+ o Add the EEE - Energy Efficient Ethernet
+ o Add the PTP - precision time protocol

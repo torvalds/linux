@@ -105,13 +105,9 @@ o	"dt" is the current value of the dyntick counter that is incremented
 	or one greater than the interrupt-nesting depth otherwise.
 	The number after the second "/" is the NMI nesting depth.
 
-	This field is displayed only for CONFIG_NO_HZ kernels.
-
 o	"df" is the number of times that some other CPU has forced a
 	quiescent state on behalf of this CPU due to this CPU being in
 	dynticks-idle state.
-
-	This field is displayed only for CONFIG_NO_HZ kernels.
 
 o	"of" is the number of times that some other CPU has forced a
 	quiescent state on behalf of this CPU due to this CPU being

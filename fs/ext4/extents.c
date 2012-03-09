@@ -29,7 +29,6 @@
  *   - smart tree reduction
  */
 
-#include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/time.h>
 #include <linux/jbd2.h>
@@ -1095,7 +1094,7 @@ static int ext4_ext_grow_indepth(handle_t *handle, struct inode *inode,
 		  le32_to_cpu(EXT_FIRST_INDEX(neh)->ei_block),
 		  ext4_idx_pblock(EXT_FIRST_INDEX(neh)));
 
-	neh->eh_depth = cpu_to_le16(neh->eh_depth + 1);
+	neh->eh_depth = cpu_to_le16(le16_to_cpu(neh->eh_depth) + 1);
 	ext4_mark_inode_dirty(handle, inode);
 out:
 	brelse(bh);
@@ -2955,7 +2954,6 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 	/* Pre-conditions */
 	BUG_ON(!ext4_ext_is_uninitialized(ex));
 	BUG_ON(!in_range(map->m_lblk, ee_block, ee_len));
-	BUG_ON(map->m_lblk + map->m_len > ee_block + ee_len);
 
 	/*
 	 * Attempt to transfer newly initialized blocks from the currently
@@ -3282,6 +3280,9 @@ static int ext4_find_delalloc_range(struct inode *inode,
 	ext4_lblk_t i, pg_lblk;
 	pgoff_t index;
 
+	if (!test_opt(inode->i_sb, DELALLOC))
+		return 0;
+
 	/* reverse search wont work if fs block size is less than page size */
 	if (inode->i_blkbits < PAGE_CACHE_SHIFT)
 		search_hint_reverse = 0;
@@ -3454,8 +3455,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	int err = 0;
 	ext4_io_end_t *io = EXT4_I(inode)->cur_aio_dio;
 
-	ext_debug("ext4_ext_handle_uninitialized_extents: inode %lu, logical"
-		  "block %llu, max_blocks %u, flags %d, allocated %u",
+	ext_debug("ext4_ext_handle_uninitialized_extents: inode %lu, logical "
+		  "block %llu, max_blocks %u, flags %x, allocated %u\n",
 		  inode->i_ino, (unsigned long long)map->m_lblk, map->m_len,
 		  flags, allocated);
 	ext4_ext_show_leaf(inode, path);
@@ -3626,7 +3627,7 @@ static int get_implied_cluster_alloc(struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	ext4_lblk_t c_offset = map->m_lblk & (sbi->s_cluster_ratio-1);
 	ext4_lblk_t ex_cluster_start, ex_cluster_end;
-	ext4_lblk_t rr_cluster_start, rr_cluster_end;
+	ext4_lblk_t rr_cluster_start;
 	ext4_lblk_t ee_block = le32_to_cpu(ex->ee_block);
 	ext4_fsblk_t ee_start = ext4_ext_pblock(ex);
 	unsigned short ee_len = ext4_ext_get_actual_len(ex);
@@ -3637,7 +3638,6 @@ static int get_implied_cluster_alloc(struct super_block *sb,
 
 	/* The requested region passed into ext4_map_blocks() */
 	rr_cluster_start = EXT4_B2C(sbi, map->m_lblk);
-	rr_cluster_end = EXT4_B2C(sbi, map->m_lblk + map->m_len - 1);
 
 	if ((rr_cluster_start == ex_cluster_end) ||
 	    (rr_cluster_start == ex_cluster_start)) {

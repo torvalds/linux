@@ -597,7 +597,7 @@ static int proc_register(struct proc_dir_entry * dir, struct proc_dir_entry * dp
 
 static struct proc_dir_entry *__proc_create(struct proc_dir_entry **parent,
 					  const char *name,
-					  mode_t mode,
+					  umode_t mode,
 					  nlink_t nlink)
 {
 	struct proc_dir_entry *ent = NULL;
@@ -659,7 +659,7 @@ struct proc_dir_entry *proc_symlink(const char *name,
 }
 EXPORT_SYMBOL(proc_symlink);
 
-struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
+struct proc_dir_entry *proc_mkdir_mode(const char *name, umode_t mode,
 		struct proc_dir_entry *parent)
 {
 	struct proc_dir_entry *ent;
@@ -699,7 +699,7 @@ struct proc_dir_entry *proc_mkdir(const char *name,
 }
 EXPORT_SYMBOL(proc_mkdir);
 
-struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
+struct proc_dir_entry *create_proc_entry(const char *name, umode_t mode,
 					 struct proc_dir_entry *parent)
 {
 	struct proc_dir_entry *ent;
@@ -728,7 +728,7 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 }
 EXPORT_SYMBOL(create_proc_entry);
 
-struct proc_dir_entry *proc_create_data(const char *name, mode_t mode,
+struct proc_dir_entry *proc_create_data(const char *name, umode_t mode,
 					struct proc_dir_entry *parent,
 					const struct file_operations *proc_fops,
 					void *data)

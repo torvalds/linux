@@ -29,13 +29,19 @@
 #ifndef _EXYNOS_DRM_DRV_H_
 #define _EXYNOS_DRM_DRV_H_
 
+#include <linux/module.h>
 #include "drm.h"
 
 #define MAX_CRTC	2
+#define MAX_PLANE	5
+#define MAX_FB_BUFFER	3
+#define DEFAULT_ZPOS	-1
 
 struct drm_device;
 struct exynos_drm_overlay;
 struct drm_connector;
+
+extern unsigned int drm_vblank_offdelay;
 
 /* this enumerates display type. */
 enum exynos_drm_output_type {
@@ -56,8 +62,8 @@ enum exynos_drm_output_type {
 struct exynos_drm_overlay_ops {
 	void (*mode_set)(struct device *subdrv_dev,
 			 struct exynos_drm_overlay *overlay);
-	void (*commit)(struct device *subdrv_dev);
-	void (*disable)(struct device *subdrv_dev);
+	void (*commit)(struct device *subdrv_dev, int zpos);
+	void (*disable)(struct device *subdrv_dev, int zpos);
 };
 
 /*
@@ -79,9 +85,11 @@ struct exynos_drm_overlay_ops {
  * @scan_flag: interlace or progressive way.
  *	(it could be DRM_MODE_FLAG_*)
  * @bpp: pixel size.(in bit)
- * @paddr: bus(accessed by dma) physical memory address to this overlay
- *		and this is physically continuous.
- * @vaddr: virtual memory addresss to this overlay.
+ * @pixel_format: fourcc pixel format of this overlay
+ * @dma_addr: array of bus(accessed by dma) address to the memory region
+ *	      allocated for a overlay.
+ * @vaddr: array of virtual memory addresss to this overlay.
+ * @zpos: order of overlay layer(z position).
  * @default_win: a window to be enabled.
  * @color_key: color key on or off.
  * @index_color: if using color key feature then this value would be used
@@ -108,8 +116,10 @@ struct exynos_drm_overlay {
 	unsigned int scan_flag;
 	unsigned int bpp;
 	unsigned int pitch;
-	dma_addr_t paddr;
-	void __iomem *vaddr;
+	uint32_t pixel_format;
+	dma_addr_t dma_addr[MAX_FB_BUFFER];
+	void __iomem *vaddr[MAX_FB_BUFFER];
+	int zpos;
 
 	bool default_win;
 	bool color_key;
@@ -126,16 +136,16 @@ struct exynos_drm_overlay {
  * @type: one of EXYNOS_DISPLAY_TYPE_LCD and HDMI.
  * @is_connected: check for that display is connected or not.
  * @get_edid: get edid modes from display driver.
- * @get_timing: get timing object from display driver.
+ * @get_panel: get panel object from display driver.
  * @check_timing: check if timing is valid or not.
  * @power_on: display device on or off.
  */
-struct exynos_drm_display {
+struct exynos_drm_display_ops {
 	enum exynos_drm_output_type type;
 	bool (*is_connected)(struct device *dev);
 	int (*get_edid)(struct device *dev, struct drm_connector *connector,
 				u8 *edid, int len);
-	void *(*get_timing)(struct device *dev);
+	void *(*get_panel)(struct device *dev);
 	int (*check_timing)(struct device *dev, void *timing);
 	int (*power_on)(struct device *dev, int mode);
 };
@@ -143,6 +153,8 @@ struct exynos_drm_display {
 /*
  * Exynos drm manager ops
  *
+ * @dpms: control device power.
+ * @apply: set timing, vblank and overlay data to registers.
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
  * @commit: set current hw specific display mode to hw.
@@ -150,6 +162,8 @@ struct exynos_drm_display {
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
  */
 struct exynos_drm_manager_ops {
+	void (*dpms)(struct device *subdrv_dev, int mode);
+	void (*apply)(struct device *subdrv_dev);
 	void (*mode_set)(struct device *subdrv_dev, void *mode);
 	void (*commit)(struct device *subdrv_dev);
 	int (*enable_vblank)(struct device *subdrv_dev);
@@ -178,7 +192,7 @@ struct exynos_drm_manager {
 	int pipe;
 	struct exynos_drm_manager_ops *ops;
 	struct exynos_drm_overlay_ops *overlay_ops;
-	struct exynos_drm_display *display;
+	struct exynos_drm_display_ops *display_ops;
 };
 
 /*

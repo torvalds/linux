@@ -387,7 +387,6 @@ static u64 idma_mask = DMA_BIT_MASK(32);
 static int idma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
@@ -396,21 +395,22 @@ static int idma_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
-	if (dai->driver->playback.channels_min)
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = preallocate_idma_buffer(pcm,
 				SNDRV_PCM_STREAM_PLAYBACK);
+	}
 
 	return ret;
 }
 
-void idma_reg_addr_init(void *regs, dma_addr_t addr)
+void idma_reg_addr_init(void __iomem *regs, dma_addr_t addr)
 {
 	spin_lock_init(&idma.lock);
 	idma.regs = regs;
 	idma.lp_tx_addr = addr;
 }
 
-struct snd_soc_platform_driver asoc_idma_platform = {
+static struct snd_soc_platform_driver asoc_idma_platform = {
 	.ops = &idma_ops,
 	.pcm_new = idma_new,
 	.pcm_free = idma_free,
@@ -437,17 +437,7 @@ static struct platform_driver asoc_idma_driver = {
 	.remove = __devexit_p(asoc_idma_platform_remove),
 };
 
-static int __init asoc_idma_init(void)
-{
-	return platform_driver_register(&asoc_idma_driver);
-}
-module_init(asoc_idma_init);
-
-static void __exit asoc_idma_exit(void)
-{
-	platform_driver_unregister(&asoc_idma_driver);
-}
-module_exit(asoc_idma_exit);
+module_platform_driver(asoc_idma_driver);
 
 MODULE_AUTHOR("Jaswinder Singh, <jassisinghbrar@gmail.com>");
 MODULE_DESCRIPTION("Samsung ASoC IDMA Driver");

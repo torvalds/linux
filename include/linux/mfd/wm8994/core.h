@@ -15,6 +15,7 @@
 #ifndef __MFD_WM8994_CORE_H__
 #define __MFD_WM8994_CORE_H__
 
+#include <linux/mutex.h>
 #include <linux/interrupt.h>
 
 enum wm8994_type {
@@ -55,6 +56,7 @@ struct wm8994 {
 	struct mutex irq_lock;
 
 	enum wm8994_type type;
+	int revision;
 
 	struct device *dev;
 	struct regmap *regmap;
@@ -65,13 +67,10 @@ struct wm8994 {
 	int irq_base;
 
 	int irq;
-	u16 irq_masks_cur[WM8994_NUM_IRQ_REGS];
-	u16 irq_masks_cache[WM8994_NUM_IRQ_REGS];
+	struct regmap_irq_chip_data *irq_data;
 
 	/* Used over suspend/resume */
 	bool suspended;
-	u16 ldo_regs[WM8994_NUM_LDO_REGS];
-	u16 gpio_regs[WM8994_NUM_GPIO_REGS];
 
 	struct regulator_dev *dbvdd;
 	int num_supplies;

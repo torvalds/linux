@@ -23,8 +23,8 @@
  *   o Allow clocksource drivers to be unregistered
  */
 
+#include <linux/device.h>
 #include <linux/clocksource.h>
-#include <linux/sysdev.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/sched.h> /* for spin_unlock_irq() using preempt_count() m68k */
@@ -492,6 +492,22 @@ void clocksource_touch_watchdog(void)
 }
 
 /**
+ * clocksource_max_adjustment- Returns max adjustment amount
+ * @cs:         Pointer to clocksource
+ *
+ */
+static u32 clocksource_max_adjustment(struct clocksource *cs)
+{
+	u64 ret;
+	/*
+	 * We won't try to correct for more then 11% adjustments (110,000 ppm),
+	 */
+	ret = (u64)cs->mult * 11;
+	do_div(ret,100);
+	return (u32)ret;
+}
+
+/**
  * clocksource_max_deferment - Returns max time the clocksource can be deferred
  * @cs:         Pointer to clocksource
  *
@@ -503,25 +519,28 @@ static u64 clocksource_max_deferment(struct clocksource *cs)
 	/*
 	 * Calculate the maximum number of cycles that we can pass to the
 	 * cyc2ns function without overflowing a 64-bit signed result. The
-	 * maximum number of cycles is equal to ULLONG_MAX/cs->mult which
-	 * is equivalent to the below.
-	 * max_cycles < (2^63)/cs->mult
-	 * max_cycles < 2^(log2((2^63)/cs->mult))
-	 * max_cycles < 2^(log2(2^63) - log2(cs->mult))
-	 * max_cycles < 2^(63 - log2(cs->mult))
-	 * max_cycles < 1 << (63 - log2(cs->mult))
+	 * maximum number of cycles is equal to ULLONG_MAX/(cs->mult+cs->maxadj)
+	 * which is equivalent to the below.
+	 * max_cycles < (2^63)/(cs->mult + cs->maxadj)
+	 * max_cycles < 2^(log2((2^63)/(cs->mult + cs->maxadj)))
+	 * max_cycles < 2^(log2(2^63) - log2(cs->mult + cs->maxadj))
+	 * max_cycles < 2^(63 - log2(cs->mult + cs->maxadj))
+	 * max_cycles < 1 << (63 - log2(cs->mult + cs->maxadj))
 	 * Please note that we add 1 to the result of the log2 to account for
 	 * any rounding errors, ensure the above inequality is satisfied and
 	 * no overflow will occur.
 	 */
-	max_cycles = 1ULL << (63 - (ilog2(cs->mult) + 1));
+	max_cycles = 1ULL << (63 - (ilog2(cs->mult + cs->maxadj) + 1));
 
 	/*
 	 * The actual maximum number of cycles we can defer the clocksource is
 	 * determined by the minimum of max_cycles and cs->mask.
+	 * Note: Here we subtract the maxadj to make sure we don't sleep for
+	 * too long if there's a large negative adjustment.
 	 */
 	max_cycles = min_t(u64, max_cycles, (u64) cs->mask);
-	max_nsecs = clocksource_cyc2ns(max_cycles, cs->mult, cs->shift);
+	max_nsecs = clocksource_cyc2ns(max_cycles, cs->mult - cs->maxadj,
+					cs->shift);
 
 	/*
 	 * To ensure that the clocksource does not wrap whilst we are idle,
@@ -529,7 +548,7 @@ static u64 clocksource_max_deferment(struct clocksource *cs)
 	 * note a margin of 12.5% is used because this can be computed with
 	 * a shift, versus say 10% which would require division.
 	 */
-	return max_nsecs - (max_nsecs >> 5);
+	return max_nsecs - (max_nsecs >> 3);
 }
 
 #ifndef CONFIG_ARCH_USES_GETTIMEOFFSET
@@ -628,7 +647,7 @@ static void clocksource_enqueue(struct clocksource *cs)
 
 /**
  * __clocksource_updatefreq_scale - Used update clocksource with new freq
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
  *
@@ -640,7 +659,6 @@ static void clocksource_enqueue(struct clocksource *cs)
 void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 {
 	u64 sec;
-
 	/*
 	 * Calc the maximum number of seconds which we can run before
 	 * wrapping around. For clocksources which have a mask > 32bit
@@ -651,7 +669,7 @@ void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 	 * ~ 0.06ppm granularity for NTP. We apply the same 12.5%
 	 * margin as we do in clocksource_max_deferment()
 	 */
-	sec = (cs->mask - (cs->mask >> 5));
+	sec = (cs->mask - (cs->mask >> 3));
 	do_div(sec, freq);
 	do_div(sec, scale);
 	if (!sec)
@@ -661,13 +679,27 @@ void __clocksource_updatefreq_scale(struct clocksource *cs, u32 scale, u32 freq)
 
 	clocks_calc_mult_shift(&cs->mult, &cs->shift, freq,
 			       NSEC_PER_SEC / scale, sec * scale);
+
+	/*
+	 * for clocksources that have large mults, to avoid overflow.
+	 * Since mult may be adjusted by ntp, add an safety extra margin
+	 *
+	 */
+	cs->maxadj = clocksource_max_adjustment(cs);
+	while ((cs->mult + cs->maxadj < cs->mult)
+		|| (cs->mult - cs->maxadj > cs->mult)) {
+		cs->mult >>= 1;
+		cs->shift--;
+		cs->maxadj = clocksource_max_adjustment(cs);
+	}
+
 	cs->max_idle_ns = clocksource_max_deferment(cs);
 }
 EXPORT_SYMBOL_GPL(__clocksource_updatefreq_scale);
 
 /**
  * __clocksource_register_scale - Used to install new clocksources
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  * @scale:	Scale factor multiplied against freq to get clocksource hz
  * @freq:	clocksource frequency (cycles per second) divided by scale
  *
@@ -695,12 +727,18 @@ EXPORT_SYMBOL_GPL(__clocksource_register_scale);
 
 /**
  * clocksource_register - Used to install new clocksources
- * @t:		clocksource to be registered
+ * @cs:		clocksource to be registered
  *
  * Returns -EBUSY if registration fails, zero otherwise.
  */
 int clocksource_register(struct clocksource *cs)
 {
+	/* calculate max adjustment for given mult/shift */
+	cs->maxadj = clocksource_max_adjustment(cs);
+	WARN_ONCE(cs->mult + cs->maxadj < cs->mult,
+		"Clocksource %s might overflow on 11%% adjustment\n",
+		cs->name);
+
 	/* calculate max idle time permitted for this clocksource */
 	cs->max_idle_ns = clocksource_max_deferment(cs);
 
@@ -723,6 +761,8 @@ static void __clocksource_change_rating(struct clocksource *cs, int rating)
 
 /**
  * clocksource_change_rating - Change the rating of a registered clocksource
+ * @cs:		clocksource to be changed
+ * @rating:	new rating
  */
 void clocksource_change_rating(struct clocksource *cs, int rating)
 {
@@ -734,6 +774,7 @@ EXPORT_SYMBOL(clocksource_change_rating);
 
 /**
  * clocksource_unregister - remove a registered clocksource
+ * @cs:	clocksource to be unregistered
  */
 void clocksource_unregister(struct clocksource *cs)
 {
@@ -749,13 +790,14 @@ EXPORT_SYMBOL(clocksource_unregister);
 /**
  * sysfs_show_current_clocksources - sysfs interface for current clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing current clocksource.
  */
 static ssize_t
-sysfs_show_current_clocksources(struct sys_device *dev,
-				struct sysdev_attribute *attr, char *buf)
+sysfs_show_current_clocksources(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
 	ssize_t count = 0;
 
@@ -769,14 +811,15 @@ sysfs_show_current_clocksources(struct sys_device *dev,
 /**
  * sysfs_override_clocksource - interface for manually overriding clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	name of override clocksource
  * @count:	length of buffer
  *
  * Takes input from sysfs interface for manually overriding the default
  * clocksource selection.
  */
-static ssize_t sysfs_override_clocksource(struct sys_device *dev,
-					  struct sysdev_attribute *attr,
+static ssize_t sysfs_override_clocksource(struct device *dev,
+					  struct device_attribute *attr,
 					  const char *buf, size_t count)
 {
 	size_t ret = count;
@@ -804,13 +847,14 @@ static ssize_t sysfs_override_clocksource(struct sys_device *dev,
 /**
  * sysfs_show_available_clocksources - sysfs interface for listing clocksource
  * @dev:	unused
+ * @attr:	unused
  * @buf:	char buffer to be filled with clocksource list
  *
  * Provides sysfs interface for listing registered clocksources
  */
 static ssize_t
-sysfs_show_available_clocksources(struct sys_device *dev,
-				  struct sysdev_attribute *attr,
+sysfs_show_available_clocksources(struct device *dev,
+				  struct device_attribute *attr,
 				  char *buf)
 {
 	struct clocksource *src;
@@ -839,35 +883,36 @@ sysfs_show_available_clocksources(struct sys_device *dev,
 /*
  * Sysfs setup bits:
  */
-static SYSDEV_ATTR(current_clocksource, 0644, sysfs_show_current_clocksources,
+static DEVICE_ATTR(current_clocksource, 0644, sysfs_show_current_clocksources,
 		   sysfs_override_clocksource);
 
-static SYSDEV_ATTR(available_clocksource, 0444,
+static DEVICE_ATTR(available_clocksource, 0444,
 		   sysfs_show_available_clocksources, NULL);
 
-static struct sysdev_class clocksource_sysclass = {
+static struct bus_type clocksource_subsys = {
 	.name = "clocksource",
+	.dev_name = "clocksource",
 };
 
-static struct sys_device device_clocksource = {
+static struct device device_clocksource = {
 	.id	= 0,
-	.cls	= &clocksource_sysclass,
+	.bus	= &clocksource_subsys,
 };
 
 static int __init init_clocksource_sysfs(void)
 {
-	int error = sysdev_class_register(&clocksource_sysclass);
+	int error = subsys_system_register(&clocksource_subsys, NULL);
 
 	if (!error)
-		error = sysdev_register(&device_clocksource);
+		error = device_register(&device_clocksource);
 	if (!error)
-		error = sysdev_create_file(
+		error = device_create_file(
 				&device_clocksource,
-				&attr_current_clocksource);
+				&dev_attr_current_clocksource);
 	if (!error)
-		error = sysdev_create_file(
+		error = device_create_file(
 				&device_clocksource,
-				&attr_available_clocksource);
+				&dev_attr_available_clocksource);
 	return error;
 }
 

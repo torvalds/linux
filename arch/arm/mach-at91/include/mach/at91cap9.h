@@ -79,28 +79,27 @@
 /*
  * System Peripherals (offset from AT91_BASE_SYS)
  */
-#define AT91_ECC	(0xffffe200 - AT91_BASE_SYS)
 #define AT91_BCRAMC	(0xffffe400 - AT91_BASE_SYS)
 #define AT91_DDRSDRC0	(0xffffe600 - AT91_BASE_SYS)
-#define AT91_SMC	(0xffffe800 - AT91_BASE_SYS)
 #define AT91_MATRIX	(0xffffea00 - AT91_BASE_SYS)
-#define AT91_CCFG	(0xffffeb10 - AT91_BASE_SYS)
-#define AT91_DMA	(0xffffec00 - AT91_BASE_SYS)
-#define AT91_DBGU	(0xffffee00 - AT91_BASE_SYS)
-#define AT91_AIC	(0xfffff000 - AT91_BASE_SYS)
-#define AT91_PIOA	(0xfffff200 - AT91_BASE_SYS)
-#define AT91_PIOB	(0xfffff400 - AT91_BASE_SYS)
-#define AT91_PIOC	(0xfffff600 - AT91_BASE_SYS)
-#define AT91_PIOD	(0xfffff800 - AT91_BASE_SYS)
 #define AT91_PMC	(0xfffffc00 - AT91_BASE_SYS)
-#define AT91_RSTC	(0xfffffd00 - AT91_BASE_SYS)
-#define AT91_SHDWC	(0xfffffd10 - AT91_BASE_SYS)
-#define AT91_RTT	(0xfffffd20 - AT91_BASE_SYS)
-#define AT91_PIT	(0xfffffd30 - AT91_BASE_SYS)
-#define AT91_WDT	(0xfffffd40 - AT91_BASE_SYS)
 #define AT91_GPBR	(cpu_is_at91cap9_revB() ?	\
 			(0xfffffd50 - AT91_BASE_SYS) :	\
 			(0xfffffd60 - AT91_BASE_SYS))
+
+#define AT91CAP9_BASE_ECC	0xffffe200
+#define AT91CAP9_BASE_DMA	0xffffec00
+#define AT91CAP9_BASE_SMC	0xffffe800
+#define AT91CAP9_BASE_DBGU	AT91_BASE_DBGU1
+#define AT91CAP9_BASE_PIOA	0xfffff200
+#define AT91CAP9_BASE_PIOB	0xfffff400
+#define AT91CAP9_BASE_PIOC	0xfffff600
+#define AT91CAP9_BASE_PIOD	0xfffff800
+#define AT91CAP9_BASE_RSTC	0xfffffd00
+#define AT91CAP9_BASE_SHDWC	0xfffffd10
+#define AT91CAP9_BASE_RTT	0xfffffd20
+#define AT91CAP9_BASE_PIT	0xfffffd30
+#define AT91CAP9_BASE_WDT	0xfffffd40
 
 #define AT91_USART0	AT91CAP9_BASE_US0
 #define AT91_USART1	AT91CAP9_BASE_US1

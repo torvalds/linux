@@ -45,6 +45,11 @@ config S5PC100_SETUP_SDHCI_GPIO
 	help
 	  Common setup code for SDHCI gpio.
 
+config S5PC100_SETUP_SPI
+	bool
+	help
+	  Common setup code for SPI GPIO configurations.
+
 config MACH_SMDKC100
 	bool "SMDKC100"
 	select CPU_S5PC100

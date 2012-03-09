@@ -23,6 +23,8 @@
 #include <linux/slab.h>
 #include "ima.h"
 
+#define AUDIT_CAUSE_LEN_MAX 32
+
 LIST_HEAD(ima_measurements);	/* list of all measurements */
 
 /* key: inode (before secure-hashing a file) */
@@ -94,7 +96,8 @@ static int ima_pcr_extend(const u8 *hash)
 
 	result = tpm_pcr_extend(TPM_ANY_NUM, CONFIG_IMA_MEASURE_PCR_IDX, hash);
 	if (result != 0)
-		pr_err("IMA: Error Communicating to TPM chip\n");
+		pr_err("IMA: Error Communicating to TPM chip, result: %d\n",
+		       result);
 	return result;
 }
 
@@ -106,14 +109,16 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 {
 	u8 digest[IMA_DIGEST_SIZE];
 	const char *audit_cause = "hash_added";
+	char tpm_audit_cause[AUDIT_CAUSE_LEN_MAX];
 	int audit_info = 1;
-	int result = 0;
+	int result = 0, tpmresult = 0;
 
 	mutex_lock(&ima_extend_list_mutex);
 	if (!violation) {
 		memcpy(digest, entry->digest, sizeof digest);
 		if (ima_lookup_digest_entry(digest)) {
 			audit_cause = "hash_exists";
+			result = -EEXIST;
 			goto out;
 		}
 	}
@@ -128,9 +133,11 @@ int ima_add_template_entry(struct ima_template_entry *entry, int violation,
 	if (violation)		/* invalidate pcr */
 		memset(digest, 0xff, sizeof digest);
 
-	result = ima_pcr_extend(digest);
-	if (result != 0) {
-		audit_cause = "TPM error";
+	tpmresult = ima_pcr_extend(digest);
+	if (tpmresult != 0) {
+		snprintf(tpm_audit_cause, AUDIT_CAUSE_LEN_MAX, "TPM_error(%d)",
+			 tpmresult);
+		audit_cause = tpm_audit_cause;
 		audit_info = 0;
 	}
 out:

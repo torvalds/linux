@@ -176,9 +176,9 @@ static int zl10039_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int zl10039_set_params(struct dvb_frontend *fe,
-			struct dvb_frontend_parameters *params)
+static int zl10039_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct zl10039_state *state = fe->tuner_priv;
 	u8 buf[6];
 	u8 bf;
@@ -188,12 +188,12 @@ static int zl10039_set_params(struct dvb_frontend *fe,
 
 	dprintk("%s\n", __func__);
 	dprintk("Set frequency = %d, symbol rate = %d\n",
-			params->frequency, params->u.qpsk.symbol_rate);
+			c->frequency, c->symbol_rate);
 
 	/* Assumed 10.111 MHz crystal oscillator */
 	/* Cancelled num/den 80 to prevent overflow */
-	div = (params->frequency * 1000) / 126387;
-	fbw = (params->u.qpsk.symbol_rate * 27) / 32000;
+	div = (c->frequency * 1000) / 126387;
+	fbw = (c->symbol_rate * 27) / 32000;
 	/* Cancelled num/den 10 to prevent overflow */
 	bf = ((fbw * 5088) / 1011100) - 1;
 

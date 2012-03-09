@@ -1745,6 +1745,112 @@ jme_phy_off(struct jme_adapter *jme)
 }
 
 static int
+jme_phy_specreg_read(struct jme_adapter *jme, u32 specreg)
+{
+	u32 phy_addr;
+
+	phy_addr = JM_PHY_SPEC_REG_READ | specreg;
+	jme_mdio_write(jme->dev, jme->mii_if.phy_id, JM_PHY_SPEC_ADDR_REG,
+			phy_addr);
+	return jme_mdio_read(jme->dev, jme->mii_if.phy_id,
+			JM_PHY_SPEC_DATA_REG);
+}
+
+static void
+jme_phy_specreg_write(struct jme_adapter *jme, u32 ext_reg, u32 phy_data)
+{
+	u32 phy_addr;
+
+	phy_addr = JM_PHY_SPEC_REG_WRITE | ext_reg;
+	jme_mdio_write(jme->dev, jme->mii_if.phy_id, JM_PHY_SPEC_DATA_REG,
+			phy_data);
+	jme_mdio_write(jme->dev, jme->mii_if.phy_id, JM_PHY_SPEC_ADDR_REG,
+			phy_addr);
+}
+
+static int
+jme_phy_calibration(struct jme_adapter *jme)
+{
+	u32 ctrl1000, phy_data;
+
+	jme_phy_off(jme);
+	jme_phy_on(jme);
+	/*  Enabel PHY test mode 1 */
+	ctrl1000 = jme_mdio_read(jme->dev, jme->mii_if.phy_id, MII_CTRL1000);
+	ctrl1000 &= ~PHY_GAD_TEST_MODE_MSK;
+	ctrl1000 |= PHY_GAD_TEST_MODE_1;
+	jme_mdio_write(jme->dev, jme->mii_if.phy_id, MII_CTRL1000, ctrl1000);
+
+	phy_data = jme_phy_specreg_read(jme, JM_PHY_EXT_COMM_2_REG);
+	phy_data &= ~JM_PHY_EXT_COMM_2_CALI_MODE_0;
+	phy_data |= JM_PHY_EXT_COMM_2_CALI_LATCH |
+			JM_PHY_EXT_COMM_2_CALI_ENABLE;
+	jme_phy_specreg_write(jme, JM_PHY_EXT_COMM_2_REG, phy_data);
+	msleep(20);
+	phy_data = jme_phy_specreg_read(jme, JM_PHY_EXT_COMM_2_REG);
+	phy_data &= ~(JM_PHY_EXT_COMM_2_CALI_ENABLE |
+			JM_PHY_EXT_COMM_2_CALI_MODE_0 |
+			JM_PHY_EXT_COMM_2_CALI_LATCH);
+	jme_phy_specreg_write(jme, JM_PHY_EXT_COMM_2_REG, phy_data);
+
+	/*  Disable PHY test mode */
+	ctrl1000 = jme_mdio_read(jme->dev, jme->mii_if.phy_id, MII_CTRL1000);
+	ctrl1000 &= ~PHY_GAD_TEST_MODE_MSK;
+	jme_mdio_write(jme->dev, jme->mii_if.phy_id, MII_CTRL1000, ctrl1000);
+	return 0;
+}
+
+static int
+jme_phy_setEA(struct jme_adapter *jme)
+{
+	u32 phy_comm0 = 0, phy_comm1 = 0;
+	u8 nic_ctrl;
+
+	pci_read_config_byte(jme->pdev, PCI_PRIV_SHARE_NICCTRL, &nic_ctrl);
+	if ((nic_ctrl & 0x3) == JME_FLAG_PHYEA_ENABLE)
+		return 0;
+
+	switch (jme->pdev->device) {
+	case PCI_DEVICE_ID_JMICRON_JMC250:
+		if (((jme->chip_main_rev == 5) &&
+			((jme->chip_sub_rev == 0) || (jme->chip_sub_rev == 1) ||
+			(jme->chip_sub_rev == 3))) ||
+			(jme->chip_main_rev >= 6)) {
+			phy_comm0 = 0x008A;
+			phy_comm1 = 0x4109;
+		}
+		if ((jme->chip_main_rev == 3) &&
+			((jme->chip_sub_rev == 1) || (jme->chip_sub_rev == 2)))
+			phy_comm0 = 0xE088;
+		break;
+	case PCI_DEVICE_ID_JMICRON_JMC260:
+		if (((jme->chip_main_rev == 5) &&
+			((jme->chip_sub_rev == 0) || (jme->chip_sub_rev == 1) ||
+			(jme->chip_sub_rev == 3))) ||
+			(jme->chip_main_rev >= 6)) {
+			phy_comm0 = 0x008A;
+			phy_comm1 = 0x4109;
+		}
+		if ((jme->chip_main_rev == 3) &&
+			((jme->chip_sub_rev == 1) || (jme->chip_sub_rev == 2)))
+			phy_comm0 = 0xE088;
+		if ((jme->chip_main_rev == 2) && (jme->chip_sub_rev == 0))
+			phy_comm0 = 0x608A;
+		if ((jme->chip_main_rev == 2) && (jme->chip_sub_rev == 2))
+			phy_comm0 = 0x408A;
+		break;
+	default:
+		return -ENODEV;
+	}
+	if (phy_comm0)
+		jme_phy_specreg_write(jme, JM_PHY_EXT_COMM_0_REG, phy_comm0);
+	if (phy_comm1)
+		jme_phy_specreg_write(jme, JM_PHY_EXT_COMM_1_REG, phy_comm1);
+
+	return 0;
+}
+
+static int
 jme_open(struct net_device *netdev)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
@@ -1769,7 +1875,8 @@ jme_open(struct net_device *netdev)
 		jme_set_settings(netdev, &jme->old_ecmd);
 	else
 		jme_reset_phy_processor(jme);
-
+	jme_phy_calibration(jme);
+	jme_phy_setEA(jme);
 	jme_reset_link(jme);
 
 	return 0;
@@ -1883,7 +1990,7 @@ jme_fill_tx_map(struct pci_dev *pdev,
 		struct page *page,
 		u32 page_offset,
 		u32 len,
-		u8 hidma)
+		bool hidma)
 {
 	dma_addr_t dmaaddr;
 
@@ -1917,7 +2024,7 @@ jme_map_tx_skb(struct jme_adapter *jme, struct sk_buff *skb, int idx)
 	struct jme_ring *txring = &(jme->txring[0]);
 	struct txdesc *txdesc = txring->desc, *ctxdesc;
 	struct jme_buffer_info *txbi = txring->bufinf, *ctxbi;
-	u8 hidma = jme->dev->features & NETIF_F_HIGHDMA;
+	bool hidma = jme->dev->features & NETIF_F_HIGHDMA;
 	int i, nr_frags = skb_shinfo(skb)->nr_frags;
 	int mask = jme->tx_ring_mask;
 	const struct skb_frag_struct *frag;
@@ -2221,19 +2328,11 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 		((new_mtu) < IPV6_MIN_MTU))
 		return -EINVAL;
 
-	if (new_mtu > 4000) {
-		jme->reg_rxcs &= ~RXCS_FIFOTHNP;
-		jme->reg_rxcs |= RXCS_FIFOTHNP_64QW;
-		jme_restart_rx_engine(jme);
-	} else {
-		jme->reg_rxcs &= ~RXCS_FIFOTHNP;
-		jme->reg_rxcs |= RXCS_FIFOTHNP_128QW;
-		jme_restart_rx_engine(jme);
-	}
 
 	netdev->mtu = new_mtu;
 	netdev_update_features(netdev);
 
+	jme_restart_rx_engine(jme);
 	jme_reset_link(jme);
 
 	return 0;
@@ -2292,9 +2391,9 @@ jme_get_drvinfo(struct net_device *netdev,
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(jme->pdev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(jme->pdev), sizeof(info->bus_info));
 }
 
 static int
@@ -2620,8 +2719,8 @@ jme_set_msglevel(struct net_device *netdev, u32 value)
 	jme->msg_enable = value;
 }
 
-static u32
-jme_fix_features(struct net_device *netdev, u32 features)
+static netdev_features_t
+jme_fix_features(struct net_device *netdev, netdev_features_t features)
 {
 	if (netdev->mtu > 1900)
 		features &= ~(NETIF_F_ALL_TSO | NETIF_F_ALL_CSUM);
@@ -2629,7 +2728,7 @@ jme_fix_features(struct net_device *netdev, u32 features)
 }
 
 static int
-jme_set_features(struct net_device *netdev, u32 features)
+jme_set_features(struct net_device *netdev, netdev_features_t features)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
@@ -3184,7 +3283,8 @@ jme_resume(struct device *dev)
 		jme_set_settings(netdev, &jme->old_ecmd);
 	else
 		jme_reset_phy_processor(jme);
-
+	jme_phy_calibration(jme);
+	jme_phy_setEA(jme);
 	jme_start_irq(jme);
 	netif_device_attach(netdev);
 
@@ -3239,4 +3339,3 @@ MODULE_DESCRIPTION("JMicron JMC2x0 PCI Express Ethernet driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 MODULE_DEVICE_TABLE(pci, jme_pci_tbl);
-

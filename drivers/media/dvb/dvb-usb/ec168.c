@@ -428,27 +428,7 @@ static struct usb_driver ec168_driver = {
 	.id_table   = ec168_id,
 };
 
-/* module stuff */
-static int __init ec168_module_init(void)
-{
-	int ret;
-	deb_info("%s:\n", __func__);
-	ret = usb_register(&ec168_driver);
-	if (ret)
-		err("module init failed:%d", ret);
-
-	return ret;
-}
-
-static void __exit ec168_module_exit(void)
-{
-	deb_info("%s:\n", __func__);
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&ec168_driver);
-}
-
-module_init(ec168_module_init);
-module_exit(ec168_module_exit);
+module_usb_driver(ec168_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("E3C EC168 DVB-T USB2.0 driver");

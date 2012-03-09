@@ -218,7 +218,7 @@ static int demod_attach_drxk(struct ngene_channel *chan,
 	memset(&config, 0, sizeof(config));
 	config.adr = 0x29 + (chan->number ^ 2);
 
-	chan->fe = dvb_attach(drxk_attach, &config, i2c, &chan->fe2);
+	chan->fe = dvb_attach(drxk_attach, &config, i2c);
 	if (!chan->fe) {
 		printk(KERN_ERR "No DRXK found!\n");
 		return -ENODEV;

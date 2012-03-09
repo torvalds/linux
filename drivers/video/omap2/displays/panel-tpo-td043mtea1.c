@@ -512,7 +512,6 @@ static int __devexit tpo_td043_spi_remove(struct spi_device *spi)
 static struct spi_driver tpo_td043_spi_driver = {
 	.driver = {
 		.name	= "tpo_td043mtea1_panel_spi",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe	= tpo_td043_spi_probe,

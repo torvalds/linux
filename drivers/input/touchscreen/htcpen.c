@@ -40,10 +40,10 @@ MODULE_LICENSE("GPL");
 #define X_AXIS_MAX		2040
 #define Y_AXIS_MAX		2040
 
-static int invert_x;
+static bool invert_x;
 module_param(invert_x, bool, 0644);
 MODULE_PARM_DESC(invert_x, "If set, X axis is inverted");
-static int invert_y;
+static bool invert_y;
 module_param(invert_y, bool, 0644);
 MODULE_PARM_DESC(invert_y, "If set, Y axis is inverted");
 

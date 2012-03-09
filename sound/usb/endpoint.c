@@ -17,6 +17,7 @@
 
 #include <linux/gfp.h>
 #include <linux/init.h>
+#include <linux/ratelimit.h>
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
 
@@ -458,8 +459,8 @@ static int retire_capture_urb(struct snd_usb_substream *subs,
 
 	for (i = 0; i < urb->number_of_packets; i++) {
 		cp = (unsigned char *)urb->transfer_buffer + urb->iso_frame_desc[i].offset;
-		if (urb->iso_frame_desc[i].status) {
-			snd_printd(KERN_ERR "frame %d active: %d\n", i, urb->iso_frame_desc[i].status);
+		if (urb->iso_frame_desc[i].status && printk_ratelimit()) {
+			snd_printdd("frame %d active: %d\n", i, urb->iso_frame_desc[i].status);
 			// continue;
 		}
 		bytes = urb->iso_frame_desc[i].actual_length;

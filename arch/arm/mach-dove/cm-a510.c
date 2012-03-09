@@ -93,4 +93,5 @@ MACHINE_START(CM_A510, "Compulab CM-A510 Board")
 	.init_early	= dove_init_early,
 	.init_irq	= dove_init_irq,
 	.timer		= &dove_timer,
+	.restart	= dove_restart,
 MACHINE_END

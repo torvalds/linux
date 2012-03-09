@@ -18,6 +18,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
+#include "../events.h"
 
 /*
  * AD7816 config masks
@@ -459,28 +460,15 @@ MODULE_DEVICE_TABLE(spi, ad7816_id);
 static struct spi_driver ad7816_driver = {
 	.driver = {
 		.name = "ad7816",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 	},
 	.probe = ad7816_probe,
 	.remove = __devexit_p(ad7816_remove),
 	.id_table = ad7816_id,
 };
-
-static __init int ad7816_init(void)
-{
-	return spi_register_driver(&ad7816_driver);
-}
-
-static __exit void ad7816_exit(void)
-{
-	spi_unregister_driver(&ad7816_driver);
-}
+module_spi_driver(ad7816_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7816/7/8 digital"
 			" temperature sensor driver");
 MODULE_LICENSE("GPL v2");
-
-module_init(ad7816_init);
-module_exit(ad7816_exit);

@@ -16,7 +16,7 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 
-static int debug;
+static bool debug;
 
 /* Version Information */
 #define DRIVER_VERSION "v2.14"

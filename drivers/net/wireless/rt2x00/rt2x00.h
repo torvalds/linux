@@ -189,9 +189,9 @@ struct rt2x00_chip {
 #define RT3090		0x3090	/* 2.4GHz PCIe */
 #define RT3390		0x3390
 #define RT3572		0x3572
-#define RT3593		0x3593	/* PCIe */
+#define RT3593		0x3593
 #define RT3883		0x3883	/* WSOC */
-#define RT5390         0x5390  /* 2.4GHz */
+#define RT5390		0x5390  /* 2.4GHz */
 
 	u16 rf;
 	u16 rev;

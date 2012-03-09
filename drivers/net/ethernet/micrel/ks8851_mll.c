@@ -394,7 +394,6 @@ union ks_tx_hdr {
  * @msg_enable	: The message flags controlling driver output (see ethtool).
  * @frame_cnt  	: number of frames received.
  * @bus_width  	: i/o bus width.
- * @irq    	: irq number assigned to this device.
  * @rc_rxqcr	: Cached copy of KS_RXQCR.
  * @rc_txcr	: Cached copy of KS_TXCR.
  * @rc_ier	: Cached copy of KS_IER.
@@ -441,7 +440,6 @@ struct ks_net {
 	u32			msg_enable;
 	u32			frame_cnt;
 	int			bus_width;
-	int             	irq;
 
 	u16			rc_rxqcr;
 	u16			rc_txcr;
@@ -907,10 +905,10 @@ static int ks_net_open(struct net_device *netdev)
 	netif_dbg(ks, ifup, ks->netdev, "%s - entry\n", __func__);
 
 	/* reset the HW */
-	err = request_irq(ks->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, netdev);
+	err = request_irq(netdev->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, netdev);
 
 	if (err) {
-		pr_err("Failed to request IRQ: %d: %d\n", ks->irq, err);
+		pr_err("Failed to request IRQ: %d: %d\n", netdev->irq, err);
 		return err;
 	}
 
@@ -955,7 +953,7 @@ static int ks_net_stop(struct net_device *netdev)
 
 	/* set powermode to soft power down to save power */
 	ks_set_powermode(ks, PMECR_PM_SOFTDOWN);
-	free_irq(ks->irq, netdev);
+	free_irq(netdev->irq, netdev);
 	mutex_unlock(&ks->lock);
 	return 0;
 }
@@ -1500,8 +1498,7 @@ static int ks_hw_init(struct ks_net *ks)
 	ks->all_mcast = 0;
 	ks->mcast_lst_size = 0;
 
-	ks->frame_head_info = (struct type_frame_head *) \
-		kmalloc(MHEADER_SIZE, GFP_KERNEL);
+	ks->frame_head_info = kmalloc(MHEADER_SIZE, GFP_KERNEL);
 	if (!ks->frame_head_info) {
 		pr_err("Error: Fail to allocate frame memory\n");
 		return false;
@@ -1546,10 +1543,10 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 	if (!ks->hw_addr_cmd)
 		goto err_ioremap1;
 
-	ks->irq = platform_get_irq(pdev, 0);
+	netdev->irq = platform_get_irq(pdev, 0);
 
-	if (ks->irq < 0) {
-		err = ks->irq;
+	if ((int)netdev->irq < 0) {
+		err = netdev->irq;
 		goto err_get_irq;
 	}
 
@@ -1659,18 +1656,7 @@ static struct platform_driver ks8851_platform_driver = {
 	.remove = __devexit_p(ks8851_remove),
 };
 
-static int __init ks8851_init(void)
-{
-	return platform_driver_register(&ks8851_platform_driver);
-}
-
-static void __exit ks8851_exit(void)
-{
-	platform_driver_unregister(&ks8851_platform_driver);
-}
-
-module_init(ks8851_init);
-module_exit(ks8851_exit);
+module_platform_driver(ks8851_platform_driver);
 
 MODULE_DESCRIPTION("KS8851 MLL Network driver");
 MODULE_AUTHOR("David Choi <david.choi@micrel.com>");

@@ -72,7 +72,7 @@ struct qcam {
 
 static int parport[MAX_CAMS] = { [1 ... MAX_CAMS-1] = -1 };
 static int probe = 2;
-static int force_rgb;
+static bool force_rgb;
 static int video_nr = -1;
 
 /* FIXME: parport=auto would never have worked, surely? --RR */

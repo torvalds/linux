@@ -169,40 +169,39 @@ struct ubifs_global_debug_info {
 	spin_unlock(&dbg_lock);                                                \
 } while (0)
 
-const char *dbg_key_str0(const struct ubifs_info *c,
-			 const union ubifs_key *key);
-const char *dbg_key_str1(const struct ubifs_info *c,
-			 const union ubifs_key *key);
+#define ubifs_dbg_msg(type, fmt, ...) \
+	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__)
 
-/*
- * DBGKEY macros require @dbg_lock to be held, which it is in the dbg message
- * macros.
- */
-#define DBGKEY(key) dbg_key_str0(c, (key))
-#define DBGKEY1(key) dbg_key_str1(c, (key))
-
-extern spinlock_t dbg_lock;
-
-#define ubifs_dbg_msg(type, fmt, ...) do {                        \
-	spin_lock(&dbg_lock);                                     \
-	pr_debug("UBIFS DBG " type ": " fmt "\n", ##__VA_ARGS__); \
-	spin_unlock(&dbg_lock);                                   \
+#define DBG_KEY_BUF_LEN 32
+#define ubifs_dbg_msg_key(type, key, fmt, ...) do {                            \
+	char __tmp_key_buf[DBG_KEY_BUF_LEN];                                   \
+	pr_debug("UBIFS DBG " type ": " fmt "%s\n", ##__VA_ARGS__,             \
+		 dbg_snprintf_key(c, key, __tmp_key_buf, DBG_KEY_BUF_LEN));    \
 } while (0)
 
 /* Just a debugging messages not related to any specific UBIFS subsystem */
-#define dbg_msg(fmt, ...)   ubifs_dbg_msg("msg", fmt, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)                                                      \
+	printk(KERN_DEBUG "UBIFS DBG (pid %d): %s: " fmt "\n", current->pid,   \
+	       __func__, ##__VA_ARGS__)
+
 /* General messages */
 #define dbg_gen(fmt, ...)   ubifs_dbg_msg("gen", fmt, ##__VA_ARGS__)
 /* Additional journal messages */
 #define dbg_jnl(fmt, ...)   ubifs_dbg_msg("jnl", fmt, ##__VA_ARGS__)
+#define dbg_jnlk(key, fmt, ...) \
+	ubifs_dbg_msg_key("jnl", key, fmt, ##__VA_ARGS__)
 /* Additional TNC messages */
 #define dbg_tnc(fmt, ...)   ubifs_dbg_msg("tnc", fmt, ##__VA_ARGS__)
+#define dbg_tnck(key, fmt, ...) \
+	ubifs_dbg_msg_key("tnc", key, fmt, ##__VA_ARGS__)
 /* Additional lprops messages */
 #define dbg_lp(fmt, ...)    ubifs_dbg_msg("lp", fmt, ##__VA_ARGS__)
 /* Additional LEB find messages */
 #define dbg_find(fmt, ...)  ubifs_dbg_msg("find", fmt, ##__VA_ARGS__)
 /* Additional mount messages */
 #define dbg_mnt(fmt, ...)   ubifs_dbg_msg("mnt", fmt, ##__VA_ARGS__)
+#define dbg_mntk(key, fmt, ...) \
+	ubifs_dbg_msg_key("mnt", key, fmt, ##__VA_ARGS__)
 /* Additional I/O messages */
 #define dbg_io(fmt, ...)    ubifs_dbg_msg("io", fmt, ##__VA_ARGS__)
 /* Additional commit messages */
@@ -218,6 +217,7 @@ extern spinlock_t dbg_lock;
 /* Additional recovery messages */
 #define dbg_rcvry(fmt, ...) ubifs_dbg_msg("rcvry", fmt, ##__VA_ARGS__)
 
+extern spinlock_t dbg_lock;
 extern struct ubifs_global_debug_info ubifs_dbg;
 
 static inline int dbg_is_chk_gen(const struct ubifs_info *c)
@@ -258,6 +258,8 @@ const char *dbg_cstate(int cmt_state);
 const char *dbg_jhead(int jhead);
 const char *dbg_get_key_dump(const struct ubifs_info *c,
 			     const union ubifs_key *key);
+const char *dbg_snprintf_key(const struct ubifs_info *c,
+			     const union ubifs_key *key, char *buffer, int len);
 void dbg_dump_inode(struct ubifs_info *c, const struct inode *inode);
 void dbg_dump_node(const struct ubifs_info *c, const void *node);
 void dbg_dump_lpt_node(const struct ubifs_info *c, void *node, int lnum,
@@ -345,20 +347,23 @@ void dbg_debugfs_exit_fs(struct ubifs_info *c);
 #define dbg_dump_stack()
 #define ubifs_assert_cmt_locked(c)
 
-#define dbg_msg(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_gen(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_jnl(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_tnc(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_lp(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_find(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_mnt(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_io(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_cmt(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_budg(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_log(fmt, ...)   ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_gc(fmt, ...)    ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_scan(fmt, ...)  ubifs_dbg_msg(fmt, ##__VA_ARGS__)
-#define dbg_rcvry(fmt, ...) ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_msg(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gen(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_jnl(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_jnlk(key, fmt, ...) ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_tnc(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_tnck(key, fmt, ...) ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_lp(fmt, ...)        ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_find(fmt, ...)      ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_mnt(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_mntk(key, fmt, ...) ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_io(fmt, ...)        ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_cmt(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_budg(fmt, ...)      ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_log(fmt, ...)       ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_gc(fmt, ...)        ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_scan(fmt, ...)      ubifs_dbg_msg(fmt, ##__VA_ARGS__)
+#define dbg_rcvry(fmt, ...)     ubifs_dbg_msg(fmt, ##__VA_ARGS__)
 
 static inline int ubifs_debugging_init(struct ubifs_info *c)      { return 0; }
 static inline void ubifs_debugging_exit(struct ubifs_info *c)     { return; }
@@ -368,6 +373,10 @@ static inline const char *dbg_jhead(int jhead)                    { return ""; }
 static inline const char *
 dbg_get_key_dump(const struct ubifs_info *c,
 		 const union ubifs_key *key)                      { return ""; }
+static inline const char *
+dbg_snprintf_key(const struct ubifs_info *c,
+		 const union ubifs_key *key, char *buffer,
+		 int len)                                         { return ""; }
 static inline void dbg_dump_inode(struct ubifs_info *c,
 				  const struct inode *inode)      { return; }
 static inline void dbg_dump_node(const struct ubifs_info *c,

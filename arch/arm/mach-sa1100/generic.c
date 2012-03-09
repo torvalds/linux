@@ -126,6 +126,17 @@ static void sa1100_power_off(void)
 	PMCR = PMCR_SF;
 }
 
+void sa11x0_restart(char mode, const char *cmd)
+{
+	if (mode == 's') {
+		/* Jump into ROM at address 0 */
+		soft_restart(0);
+	} else {
+		/* Use on-chip reset capability */
+		RSRR = RSRR_SWR;
+	}
+}
+
 static void sa11x0_register_device(struct platform_device *dev, void *data)
 {
 	int err;

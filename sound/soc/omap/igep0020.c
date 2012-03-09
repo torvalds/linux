@@ -72,6 +72,7 @@ static struct snd_soc_dai_link igep2_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_card_igep2 = {
 	.name = "igep2",
+	.owner = THIS_MODULE,
 	.dai_link = &igep2_dai,
 	.num_links = 1,
 };

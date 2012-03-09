@@ -709,7 +709,7 @@ int cxgbi_conn_xmit_pdu(struct iscsi_task *);
 
 void cxgbi_cleanup_task(struct iscsi_task *task);
 
-mode_t cxgbi_attr_is_visible(int param_type, int param);
+umode_t cxgbi_attr_is_visible(int param_type, int param);
 void cxgbi_get_conn_stats(struct iscsi_cls_conn *, struct iscsi_stats *);
 int cxgbi_set_conn_param(struct iscsi_cls_conn *,
 			enum iscsi_param, char *, int);

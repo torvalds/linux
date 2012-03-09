@@ -5391,10 +5391,9 @@ static void s2io_ethtool_gdrvinfo(struct net_device *dev,
 {
 	struct s2io_nic *sp = netdev_priv(dev);
 
-	strncpy(info->driver, s2io_driver_name, sizeof(info->driver));
-	strncpy(info->version, s2io_driver_version, sizeof(info->version));
-	strncpy(info->fw_version, "", sizeof(info->fw_version));
-	strncpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
+	strlcpy(info->driver, s2io_driver_name, sizeof(info->driver));
+	strlcpy(info->version, s2io_driver_version, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(sp->pdev), sizeof(info->bus_info));
 	info->regdump_len = XENA_REG_SPACE;
 	info->eedump_len = XENA_EEPROM_SPACE;
 }
@@ -6616,10 +6615,10 @@ static void s2io_ethtool_get_strings(struct net_device *dev,
 	}
 }
 
-static int s2io_set_features(struct net_device *dev, u32 features)
+static int s2io_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct s2io_nic *sp = netdev_priv(dev);
-	u32 changed = (features ^ dev->features) & NETIF_F_LRO;
+	netdev_features_t changed = (features ^ dev->features) & NETIF_F_LRO;
 
 	if (changed && netif_running(dev)) {
 		int rc;

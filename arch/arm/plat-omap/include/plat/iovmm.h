@@ -72,18 +72,18 @@ struct iovm_struct {
 #define IOVMF_DA_FIXED		(1 << (4 + IOVMF_SW_SHIFT))
 
 
-extern struct iovm_struct *omap_find_iovm_area(struct omap_iommu *obj, u32 da);
+extern struct iovm_struct *omap_find_iovm_area(struct device *dev, u32 da);
 extern u32
-omap_iommu_vmap(struct iommu_domain *domain, struct omap_iommu *obj, u32 da,
+omap_iommu_vmap(struct iommu_domain *domain, struct device *dev, u32 da,
 			const struct sg_table *sgt, u32 flags);
 extern struct sg_table *omap_iommu_vunmap(struct iommu_domain *domain,
-				struct omap_iommu *obj, u32 da);
+				struct device *dev, u32 da);
 extern u32
-omap_iommu_vmalloc(struct iommu_domain *domain, struct omap_iommu *obj,
+omap_iommu_vmalloc(struct iommu_domain *domain, struct device *dev,
 				u32 da, size_t bytes, u32 flags);
 extern void
-omap_iommu_vfree(struct iommu_domain *domain, struct omap_iommu *obj,
+omap_iommu_vfree(struct iommu_domain *domain, struct device *dev,
 				const u32 da);
-extern void *omap_da_to_va(struct omap_iommu *obj, u32 da);
+extern void *omap_da_to_va(struct device *dev, u32 da);
 
 #endif /* __IOMMU_MMAP_H */

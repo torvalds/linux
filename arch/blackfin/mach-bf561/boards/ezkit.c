@@ -291,7 +291,7 @@ static struct platform_device ezkit_flash_device = {
 };
 #endif
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
+#if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
 /* SPI (0) */
 static struct resource bfin_spi0_resource[] = {
 	[0] = {
@@ -383,7 +383,7 @@ static struct i2c_gpio_platform_data i2c_gpio_data = {
 	.scl_pin		= GPIO_PF0,
 	.sda_is_open_drain	= 0,
 	.scl_is_open_drain	= 0,
-	.udelay			= 40,
+	.udelay			= 10,
 };
 
 static struct platform_device i2c_gpio_device = {
@@ -421,6 +421,96 @@ static struct platform_device bfin_dpmc = {
 		.platform_data = &bfin_dmpc_vreg_data,
 	},
 };
+
+#if defined(CONFIG_VIDEO_BLACKFIN_CAPTURE) \
+	|| defined(CONFIG_VIDEO_BLACKFIN_CAPTURE_MODULE)
+#include <linux/videodev2.h>
+#include <media/blackfin/bfin_capture.h>
+#include <media/blackfin/ppi.h>
+
+static const unsigned short ppi_req[] = {
+	P_PPI0_D0, P_PPI0_D1, P_PPI0_D2, P_PPI0_D3,
+	P_PPI0_D4, P_PPI0_D5, P_PPI0_D6, P_PPI0_D7,
+	P_PPI0_CLK, P_PPI0_FS1, P_PPI0_FS2,
+	0,
+};
+
+static const struct ppi_info ppi_info = {
+	.type = PPI_TYPE_PPI,
+	.dma_ch = CH_PPI0,
+	.irq_err = IRQ_PPI1_ERROR,
+	.base = (void __iomem *)PPI0_CONTROL,
+	.pin_req = ppi_req,
+};
+
+#if defined(CONFIG_VIDEO_ADV7183) \
+	|| defined(CONFIG_VIDEO_ADV7183_MODULE)
+#include <media/adv7183.h>
+static struct v4l2_input adv7183_inputs[] = {
+	{
+		.index = 0,
+		.name = "Composite",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+	{
+		.index = 1,
+		.name = "S-Video",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+	{
+		.index = 2,
+		.name = "Component",
+		.type = V4L2_INPUT_TYPE_CAMERA,
+		.std = V4L2_STD_ALL,
+	},
+};
+
+static struct bcap_route adv7183_routes[] = {
+	{
+		.input = ADV7183_COMPOSITE4,
+		.output = ADV7183_8BIT_OUT,
+	},
+	{
+		.input = ADV7183_SVIDEO0,
+		.output = ADV7183_8BIT_OUT,
+	},
+	{
+		.input = ADV7183_COMPONENT0,
+		.output = ADV7183_8BIT_OUT,
+	},
+};
+
+
+static const unsigned adv7183_gpio[] = {
+	GPIO_PF13, /* reset pin */
+	GPIO_PF2,  /* output enable pin */
+};
+
+static struct bfin_capture_config bfin_capture_data = {
+	.card_name = "BF561",
+	.inputs = adv7183_inputs,
+	.num_inputs = ARRAY_SIZE(adv7183_inputs),
+	.routes = adv7183_routes,
+	.i2c_adapter_id = 0,
+	.board_info = {
+		.type = "adv7183",
+		.addr = 0x20,
+		.platform_data = (void *)adv7183_gpio,
+	},
+	.ppi_info = &ppi_info,
+	.ppi_control = (PACK_EN | DLEN_8 | DMA32 | FLD_SEL),
+};
+#endif
+
+static struct platform_device bfin_capture_device = {
+	.name = "bfin_capture",
+	.dev = {
+		.platform_data = &bfin_capture_data,
+	},
+};
+#endif
 
 #if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)
 static struct platform_device bfin_i2s = {
@@ -462,7 +552,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_isp1760_device,
 #endif
 
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
+#if defined(CONFIG_SPI_BFIN5XX) || defined(CONFIG_SPI_BFIN5XX_MODULE)
 	&bfin_spi0_device,
 #endif
 
@@ -492,6 +582,11 @@ static struct platform_device *ezkit_devices[] __initdata = {
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&ezkit_flash_device,
+#endif
+
+#if defined(CONFIG_VIDEO_BLACKFIN_CAPTURE) \
+	|| defined(CONFIG_VIDEO_BLACKFIN_CAPTURE_MODULE)
+	&bfin_capture_device,
 #endif
 
 #if defined(CONFIG_SND_BF5XX_I2S) || defined(CONFIG_SND_BF5XX_I2S_MODULE)

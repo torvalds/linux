@@ -140,6 +140,14 @@ config MTD_AR7_PARTS
 	---help---
 	  TI AR7 partitioning support
 
+config MTD_BCM63XX_PARTS
+	tristate "BCM63XX CFE partitioning support"
+	depends on BCM63XX
+	select CRC32
+	help
+	  This provides partions parsing for BCM63xx devices with CFE
+	  bootloaders.
+
 comment "User Modules And Translation Layers"
 
 config MTD_CHAR

@@ -612,10 +612,10 @@ static struct attribute *ad7877_attributes[] = {
 	NULL
 };
 
-static mode_t ad7877_attr_is_visible(struct kobject *kobj,
+static umode_t ad7877_attr_is_visible(struct kobject *kobj,
 				     struct attribute *attr, int n)
 {
-	mode_t mode = attr->mode;
+	umode_t mode = attr->mode;
 
 	if (attr == &dev_attr_aux3.attr) {
 		if (gpio3)

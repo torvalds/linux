@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2011 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -1529,7 +1529,7 @@ int nes_init_phy(struct nes_device *nesdev)
 	} else {
 		/* setup 10G MDIO operation */
 		tx_config &= 0xFFFFFFE3;
-		tx_config |= 0x15;
+		tx_config |= 0x1D;
 	}
 	nes_write_indexed(nesdev, NES_IDX_MAC_TX_CONFIG, tx_config);
 
@@ -3619,10 +3619,6 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			}
 			break;
 		case NES_AEQE_AEID_LLP_CLOSE_COMPLETE:
-			if (nesqp->term_flags) {
-				nes_terminate_done(nesqp, 0);
-				return;
-			}
 			spin_lock_irqsave(&nesqp->lock, flags);
 			nesqp->hw_iwarp_state = iwarp_state;
 			nesqp->hw_tcp_state = tcp_state;

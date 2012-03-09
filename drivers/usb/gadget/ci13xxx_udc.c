@@ -182,6 +182,16 @@ static inline int hw_ep_bit(int num, int dir)
 	return num + (dir ? 16 : 0);
 }
 
+static int ep_to_bit(int n)
+{
+	int fill = 16 - hw_ep_max / 2;
+
+	if (n >= hw_ep_max / 2)
+		n += fill;
+
+	return n;
+}
+
 /**
  * hw_aread: reads from register bitfield
  * @addr: address relative to bus map
@@ -440,12 +450,13 @@ static int hw_ep_get_halt(int num, int dir)
 /**
  * hw_test_and_clear_setup_status: test & clear setup status (execute without
  *                                 interruption)
- * @n: bit number (endpoint)
+ * @n: endpoint number
  *
  * This function returns setup status
  */
 static int hw_test_and_clear_setup_status(int n)
 {
+	n = ep_to_bit(n);
 	return hw_ctest_and_clear(CAP_ENDPTSETUPSTAT, BIT(n));
 }
 
@@ -641,12 +652,13 @@ static int hw_register_write(u16 addr, u32 data)
 /**
  * hw_test_and_clear_complete: test & clear complete status (execute without
  *                             interruption)
- * @n: bit number (endpoint)
+ * @n: endpoint number
  *
  * This function returns complete status
  */
 static int hw_test_and_clear_complete(int n)
 {
+	n = ep_to_bit(n);
 	return hw_ctest_and_clear(CAP_ENDPTCOMPLETE, BIT(n));
 }
 
@@ -754,8 +766,11 @@ static ssize_t show_device(struct device *dev, struct device_attribute *attr,
 
 	n += scnprintf(buf + n, PAGE_SIZE - n, "speed             = %d\n",
 		       gadget->speed);
+	n += scnprintf(buf + n, PAGE_SIZE - n, "max_speed         = %d\n",
+		       gadget->max_speed);
+	/* TODO: Scheduled for removal in 3.8. */
 	n += scnprintf(buf + n, PAGE_SIZE - n, "is_dualspeed      = %d\n",
-		       gadget->is_dualspeed);
+		       gadget_is_dualspeed(gadget));
 	n += scnprintf(buf + n, PAGE_SIZE - n, "is_otg            = %d\n",
 		       gadget->is_otg);
 	n += scnprintf(buf + n, PAGE_SIZE - n, "is_a_peripheral   = %d\n",
@@ -798,7 +813,7 @@ static ssize_t show_driver(struct device *dev, struct device_attribute *attr,
 	n += scnprintf(buf + n, PAGE_SIZE - n, "function  = %s\n",
 		       (driver->function ? driver->function : ""));
 	n += scnprintf(buf + n, PAGE_SIZE - n, "max speed = %d\n",
-		       driver->speed);
+		       driver->max_speed);
 
 	return n;
 }
@@ -2563,9 +2578,7 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 	if (driver             == NULL ||
 	    bind               == NULL ||
 	    driver->setup      == NULL ||
-	    driver->disconnect == NULL ||
-	    driver->suspend    == NULL ||
-	    driver->resume     == NULL)
+	    driver->disconnect == NULL)
 		return -EINVAL;
 	else if (udc         == NULL)
 		return -ENODEV;
@@ -2693,8 +2706,6 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
 	    driver->unbind     == NULL ||
 	    driver->setup      == NULL ||
 	    driver->disconnect == NULL ||
-	    driver->suspend    == NULL ||
-	    driver->resume     == NULL ||
 	    driver             != udc->driver)
 		return -EINVAL;
 
@@ -2793,7 +2804,7 @@ static irqreturn_t udc_irq(void)
 			isr_statistics.pci++;
 			udc->gadget.speed = hw_port_is_high_speed() ?
 				USB_SPEED_HIGH : USB_SPEED_FULL;
-			if (udc->suspended) {
+			if (udc->suspended && udc->driver->resume) {
 				spin_unlock(udc->lock);
 				udc->driver->resume(&udc->gadget);
 				spin_lock(udc->lock);
@@ -2807,7 +2818,8 @@ static irqreturn_t udc_irq(void)
 			isr_tr_complete_handler(udc);
 		}
 		if (USBi_SLI & intr) {
-			if (udc->gadget.speed != USB_SPEED_UNKNOWN) {
+			if (udc->gadget.speed != USB_SPEED_UNKNOWN &&
+			    udc->driver->suspend) {
 				udc->suspended = 1;
 				spin_unlock(udc->lock);
 				udc->driver->suspend(&udc->gadget);
@@ -2871,7 +2883,7 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 
 	udc->gadget.ops          = &usb_gadget_ops;
 	udc->gadget.speed        = USB_SPEED_UNKNOWN;
-	udc->gadget.is_dualspeed = 1;
+	udc->gadget.max_speed    = USB_SPEED_HIGH;
 	udc->gadget.is_otg       = 0;
 	udc->gadget.name         = driver->name;
 

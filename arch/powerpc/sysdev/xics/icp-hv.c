@@ -27,33 +27,50 @@ static inline unsigned int icp_hv_get_xirr(unsigned char cppr)
 {
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 	long rc;
+	unsigned int ret = XICS_IRQ_SPURIOUS;
 
 	rc = plpar_hcall(H_XIRR, retbuf, cppr);
-	if (rc != H_SUCCESS)
-		panic(" bad return code xirr - rc = %lx\n", rc);
-	return (unsigned int)retbuf[0];
-}
+	if (rc == H_SUCCESS) {
+		ret = (unsigned int)retbuf[0];
+	} else {
+		pr_err("%s: bad return code xirr cppr=0x%x returned %ld\n",
+			__func__, cppr, rc);
+		WARN_ON_ONCE(1);
+	}
 
-static inline void icp_hv_set_xirr(unsigned int value)
-{
-	long rc = plpar_hcall_norets(H_EOI, value);
-	if (rc != H_SUCCESS)
-		panic("bad return code EOI - rc = %ld, value=%x\n", rc, value);
+	return ret;
 }
 
 static inline void icp_hv_set_cppr(u8 value)
 {
 	long rc = plpar_hcall_norets(H_CPPR, value);
-	if (rc != H_SUCCESS)
-		panic("bad return code cppr - rc = %lx\n", rc);
+	if (rc != H_SUCCESS) {
+		pr_err("%s: bad return code cppr cppr=0x%x returned %ld\n",
+			__func__, value, rc);
+		WARN_ON_ONCE(1);
+	}
+}
+
+static inline void icp_hv_set_xirr(unsigned int value)
+{
+	long rc = plpar_hcall_norets(H_EOI, value);
+	if (rc != H_SUCCESS) {
+		pr_err("%s: bad return code eoi xirr=0x%x returned %ld\n",
+			__func__, value, rc);
+		WARN_ON_ONCE(1);
+		icp_hv_set_cppr(value >> 24);
+	}
 }
 
 static inline void icp_hv_set_qirr(int n_cpu , u8 value)
 {
-	long rc = plpar_hcall_norets(H_IPI, get_hard_smp_processor_id(n_cpu),
-				     value);
-	if (rc != H_SUCCESS)
-		panic("bad return code qirr - rc = %lx\n", rc);
+	int hw_cpu = get_hard_smp_processor_id(n_cpu);
+	long rc = plpar_hcall_norets(H_IPI, hw_cpu, value);
+	if (rc != H_SUCCESS) {
+		pr_err("%s: bad return code qirr cpu=%d hw_cpu=%d mfrr=0x%x "
+			"returned %ld\n", __func__, n_cpu, hw_cpu, value, rc);
+		WARN_ON_ONCE(1);
+	}
 }
 
 static void icp_hv_eoi(struct irq_data *d)

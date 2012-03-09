@@ -110,6 +110,7 @@ xfs_attr_namesp_match(int arg_flags, int ondisk_flags)
 /*
  * Query whether the requested number of additional bytes of extended
  * attribute space will be able to fit inline.
+ *
  * Returns zero if not, else the di_forkoff fork offset to be used in the
  * literal area for attribute data once the new bytes have been added.
  *
@@ -122,7 +123,7 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	int offset;
 	int minforkoff;	/* lower limit on valid forkoff locations */
 	int maxforkoff;	/* upper limit on valid forkoff locations */
-	int dsize;	
+	int dsize;
 	xfs_mount_t *mp = dp->i_mount;
 
 	offset = (XFS_LITINO(mp) - bytes) >> 3; /* rounded down */
@@ -136,47 +137,60 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 		return (offset >= minforkoff) ? minforkoff : 0;
 	}
 
-	if (!(mp->m_flags & XFS_MOUNT_ATTR2)) {
-		if (bytes <= XFS_IFORK_ASIZE(dp))
-			return dp->i_d.di_forkoff;
+	/*
+	 * If the requested numbers of bytes is smaller or equal to the
+	 * current attribute fork size we can always proceed.
+	 *
+	 * Note that if_bytes in the data fork might actually be larger than
+	 * the current data fork size is due to delalloc extents. In that
+	 * case either the extent count will go down when they are converted
+	 * to real extents, or the delalloc conversion will take care of the
+	 * literal area rebalancing.
+	 */
+	if (bytes <= XFS_IFORK_ASIZE(dp))
+		return dp->i_d.di_forkoff;
+
+	/*
+	 * For attr2 we can try to move the forkoff if there is space in the
+	 * literal area, but for the old format we are done if there is no
+	 * space in the fixed attribute fork.
+	 */
+	if (!(mp->m_flags & XFS_MOUNT_ATTR2))
 		return 0;
-	}
 
 	dsize = dp->i_df.if_bytes;
-	
+
 	switch (dp->i_d.di_format) {
 	case XFS_DINODE_FMT_EXTENTS:
-		/* 
+		/*
 		 * If there is no attr fork and the data fork is extents, 
-		 * determine if creating the default attr fork will result 
-		 * in the extents form migrating to btree. If so, the 
-		 * minimum offset only needs to be the space required for 
+		 * determine if creating the default attr fork will result
+		 * in the extents form migrating to btree. If so, the
+		 * minimum offset only needs to be the space required for
 		 * the btree root.
-		 */ 
+		 */
 		if (!dp->i_d.di_forkoff && dp->i_df.if_bytes >
 		    xfs_default_attroffset(dp))
 			dsize = XFS_BMDR_SPACE_CALC(MINDBTPTRS);
 		break;
-		
 	case XFS_DINODE_FMT_BTREE:
 		/*
-		 * If have data btree then keep forkoff if we have one,
-		 * otherwise we are adding a new attr, so then we set 
-		 * minforkoff to where the btree root can finish so we have 
+		 * If we have a data btree then keep forkoff if we have one,
+		 * otherwise we are adding a new attr, so then we set
+		 * minforkoff to where the btree root can finish so we have
 		 * plenty of room for attrs
 		 */
 		if (dp->i_d.di_forkoff) {
-			if (offset < dp->i_d.di_forkoff) 
+			if (offset < dp->i_d.di_forkoff)
 				return 0;
-			else 
-				return dp->i_d.di_forkoff;
-		} else
-			dsize = XFS_BMAP_BROOT_SPACE(dp->i_df.if_broot);
+			return dp->i_d.di_forkoff;
+		}
+		dsize = XFS_BMAP_BROOT_SPACE(dp->i_df.if_broot);
 		break;
 	}
-	
-	/* 
-	 * A data fork btree root must have space for at least 
+
+	/*
+	 * A data fork btree root must have space for at least
 	 * MINDBTPTRS key/ptr pairs if the data fork is small or empty.
 	 */
 	minforkoff = MAX(dsize, XFS_BMDR_SPACE_CALC(MINDBTPTRS));
@@ -186,10 +200,10 @@ xfs_attr_shortform_bytesfit(xfs_inode_t *dp, int bytes)
 	maxforkoff = XFS_LITINO(mp) - XFS_BMDR_SPACE_CALC(MINABTPTRS);
 	maxforkoff = maxforkoff >> 3;	/* rounded down */
 
-	if (offset >= minforkoff && offset < maxforkoff)
-		return offset;
 	if (offset >= maxforkoff)
 		return maxforkoff;
+	if (offset >= minforkoff)
+		return offset;
 	return 0;
 }
 
@@ -257,10 +271,6 @@ xfs_attr_shortform_add(xfs_da_args_t *args, int forkoff)
 	dp = args->dp;
 	mp = dp->i_mount;
 	dp->i_d.di_forkoff = forkoff;
-	dp->i_df.if_ext_max =
-		XFS_IFORK_DSIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
-	dp->i_afp->if_ext_max =
-		XFS_IFORK_ASIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
 
 	ifp = dp->i_afp;
 	ASSERT(ifp->if_flags & XFS_IFINLINE);
@@ -312,7 +322,6 @@ xfs_attr_fork_reset(
 	ASSERT(ip->i_d.di_anextents == 0);
 	ASSERT(ip->i_afp == NULL);
 
-	ip->i_df.if_ext_max = XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t);
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 }
 
@@ -375,10 +384,6 @@ xfs_attr_shortform_remove(xfs_da_args_t *args)
 				(args->op_flags & XFS_DA_OP_ADDNAME) ||
 				!(mp->m_flags & XFS_MOUNT_ATTR2) ||
 				dp->i_d.di_format == XFS_DINODE_FMT_BTREE);
-		dp->i_afp->if_ext_max =
-			XFS_IFORK_ASIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
-		dp->i_df.if_ext_max =
-			XFS_IFORK_DSIZE(dp) / (uint)sizeof(xfs_bmbt_rec_t);
 		xfs_trans_log_inode(args->trans, dp,
 					XFS_ILOG_CORE | XFS_ILOG_ADATA);
 	}

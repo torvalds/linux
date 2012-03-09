@@ -84,7 +84,7 @@ void omap_vout_free_vrfb_buffers(struct omap_vout_device *vout)
 }
 
 int omap_vout_setup_vrfb_bufs(struct platform_device *pdev, int vid_num,
-			u32 static_vrfb_allocation)
+			      bool static_vrfb_allocation)
 {
 	int ret = 0, i, j;
 	struct omap_vout_device *vout;

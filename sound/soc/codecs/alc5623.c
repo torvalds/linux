@@ -22,7 +22,6 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -100,7 +99,7 @@ static const unsigned int boost_tlv[] = {
 };
 static const DECLARE_TLV_DB_SCALE(dig_tlv, 0, 600, 0);
 
-static const struct snd_kcontrol_new rt5621_vol_snd_controls[] = {
+static const struct snd_kcontrol_new alc5621_vol_snd_controls[] = {
 	SOC_DOUBLE_TLV("Speaker Playback Volume",
 			ALC5623_SPK_OUT_VOL, 8, 0, 31, 1, hp_tlv),
 	SOC_DOUBLE("Speaker Playback Switch",
@@ -111,7 +110,7 @@ static const struct snd_kcontrol_new rt5621_vol_snd_controls[] = {
 			ALC5623_HP_OUT_VOL, 15, 7, 1, 1),
 };
 
-static const struct snd_kcontrol_new rt5622_vol_snd_controls[] = {
+static const struct snd_kcontrol_new alc5622_vol_snd_controls[] = {
 	SOC_DOUBLE_TLV("Speaker Playback Volume",
 			ALC5623_SPK_OUT_VOL, 8, 0, 31, 1, hp_tlv),
 	SOC_DOUBLE("Speaker Playback Switch",
@@ -839,7 +838,7 @@ static int alc5623_set_bias_level(struct snd_soc_codec *codec,
 			| SNDRV_PCM_FMTBIT_S24_LE \
 			| SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops alc5623_dai_ops = {
+static const struct snd_soc_dai_ops alc5623_dai_ops = {
 		.hw_params = alc5623_pcm_hw_params,
 		.digital_mute = alc5623_mute,
 		.set_fmt = alc5623_set_dai_fmt,
@@ -869,7 +868,7 @@ static struct snd_soc_dai_driver alc5623_dai = {
 	.ops = &alc5623_dai_ops,
 };
 
-static int alc5623_suspend(struct snd_soc_codec *codec, pm_message_t mesg)
+static int alc5623_suspend(struct snd_soc_codec *codec)
 {
 	alc5623_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -926,12 +925,12 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 
 	switch (alc5623->id) {
 	case 0x21:
-		snd_soc_add_controls(codec, rt5621_vol_snd_controls,
-			ARRAY_SIZE(rt5621_vol_snd_controls));
+		snd_soc_add_controls(codec, alc5621_vol_snd_controls,
+			ARRAY_SIZE(alc5621_vol_snd_controls));
 		break;
 	case 0x22:
-		snd_soc_add_controls(codec, rt5622_vol_snd_controls,
-			ARRAY_SIZE(rt5622_vol_snd_controls));
+		snd_soc_add_controls(codec, alc5622_vol_snd_controls,
+			ARRAY_SIZE(alc5622_vol_snd_controls));
 		break;
 	case 0x23:
 		snd_soc_add_controls(codec, alc5623_vol_snd_controls,
@@ -1023,7 +1022,8 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "Found codec id : alc56%02x\n", vid2);
 
-	alc5623 = kzalloc(sizeof(struct alc5623_priv), GFP_KERNEL);
+	alc5623 = devm_kzalloc(&client->dev, sizeof(struct alc5623_priv),
+			       GFP_KERNEL);
 	if (alc5623 == NULL)
 		return -ENOMEM;
 
@@ -1045,7 +1045,6 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 		alc5623_dai.name = "alc5623-hifi";
 		break;
 	default:
-		kfree(alc5623);
 		return -EINVAL;
 	}
 
@@ -1054,20 +1053,15 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 
 	ret =  snd_soc_register_codec(&client->dev,
 		&soc_codec_device_alc5623, &alc5623_dai, 1);
-	if (ret != 0) {
+	if (ret != 0)
 		dev_err(&client->dev, "Failed to register codec: %d\n", ret);
-		kfree(alc5623);
-	}
 
 	return ret;
 }
 
 static int alc5623_i2c_remove(struct i2c_client *client)
 {
-	struct alc5623_priv *alc5623 = i2c_get_clientdata(client);
-
 	snd_soc_unregister_codec(&client->dev);
-	kfree(alc5623);
 	return 0;
 }
 

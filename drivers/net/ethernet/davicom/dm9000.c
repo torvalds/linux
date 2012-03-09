@@ -474,10 +474,11 @@ static int dm9000_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&dm->mii);
 }
 
-static int dm9000_set_features(struct net_device *dev, u32 features)
+static int dm9000_set_features(struct net_device *dev,
+	netdev_features_t features)
 {
 	board_info_t *dm = to_dm9000_board(dev);
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 	unsigned long flags;
 
 	if (!(changed & NETIF_F_RXCSUM))
@@ -613,7 +614,7 @@ static int dm9000_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 
 		if (!dm->wake_state)
 			irq_set_irq_wake(dm->irq_wake, 1);
-		else if (dm->wake_state & !opts)
+		else if (dm->wake_state && !opts)
 			irq_set_irq_wake(dm->irq_wake, 0);
 	}
 

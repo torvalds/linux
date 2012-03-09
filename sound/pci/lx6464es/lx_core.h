@@ -72,10 +72,7 @@ enum {
 };
 
 unsigned long lx_dsp_reg_read(struct lx6464es *chip, int port);
-void lx_dsp_reg_readbuf(struct lx6464es *chip, int port, u32 *data, u32 len);
 void lx_dsp_reg_write(struct lx6464es *chip, int port, unsigned data);
-void lx_dsp_reg_writebuf(struct lx6464es *chip, int port, const u32 *data,
-			 u32 len);
 
 /* plx register access */
 enum {

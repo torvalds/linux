@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -76,7 +76,10 @@ struct acpi_rsconvert_info *acpi_gbl_set_resource_dispatch[] = {
 	acpi_rs_convert_address64,	/* 0x0D, ACPI_RESOURCE_TYPE_ADDRESS64 */
 	acpi_rs_convert_ext_address64,	/* 0x0E, ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64 */
 	acpi_rs_convert_ext_irq,	/* 0x0F, ACPI_RESOURCE_TYPE_EXTENDED_IRQ */
-	acpi_rs_convert_generic_reg	/* 0x10, ACPI_RESOURCE_TYPE_GENERIC_REGISTER */
+	acpi_rs_convert_generic_reg,	/* 0x10, ACPI_RESOURCE_TYPE_GENERIC_REGISTER */
+	acpi_rs_convert_gpio,	/* 0x11, ACPI_RESOURCE_TYPE_GPIO */
+	acpi_rs_convert_fixed_dma,	/* 0x12, ACPI_RESOURCE_TYPE_FIXED_DMA */
+	NULL,			/* 0x13, ACPI_RESOURCE_TYPE_SERIAL_BUS - Use subtype table below */
 };
 
 /* Dispatch tables for AML-to-resource (Get Resource) conversion functions */
@@ -94,7 +97,7 @@ struct acpi_rsconvert_info *acpi_gbl_get_resource_dispatch[] = {
 	acpi_rs_convert_end_dpf,	/* 0x07, ACPI_RESOURCE_NAME_END_DEPENDENT */
 	acpi_rs_convert_io,	/* 0x08, ACPI_RESOURCE_NAME_IO */
 	acpi_rs_convert_fixed_io,	/* 0x09, ACPI_RESOURCE_NAME_FIXED_IO */
-	NULL,			/* 0x0A, Reserved */
+	acpi_rs_convert_fixed_dma,	/* 0x0A, ACPI_RESOURCE_NAME_FIXED_DMA */
 	NULL,			/* 0x0B, Reserved */
 	NULL,			/* 0x0C, Reserved */
 	NULL,			/* 0x0D, Reserved */
@@ -114,7 +117,19 @@ struct acpi_rsconvert_info *acpi_gbl_get_resource_dispatch[] = {
 	acpi_rs_convert_address16,	/* 0x08, ACPI_RESOURCE_NAME_ADDRESS16 */
 	acpi_rs_convert_ext_irq,	/* 0x09, ACPI_RESOURCE_NAME_EXTENDED_IRQ */
 	acpi_rs_convert_address64,	/* 0x0A, ACPI_RESOURCE_NAME_ADDRESS64 */
-	acpi_rs_convert_ext_address64	/* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64 */
+	acpi_rs_convert_ext_address64,	/* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64 */
+	acpi_rs_convert_gpio,	/* 0x0C, ACPI_RESOURCE_NAME_GPIO */
+	NULL,			/* 0x0D, Reserved */
+	NULL,			/* 0x0E, ACPI_RESOURCE_NAME_SERIAL_BUS - Use subtype table below */
+};
+
+/* Subtype table for serial_bus -- I2C, SPI, and UART */
+
+struct acpi_rsconvert_info *acpi_gbl_convert_resource_serial_bus_dispatch[] = {
+	NULL,
+	acpi_rs_convert_i2c_serial_bus,
+	acpi_rs_convert_spi_serial_bus,
+	acpi_rs_convert_uart_serial_bus,
 };
 
 #ifdef ACPI_FUTURE_USAGE
@@ -140,6 +155,16 @@ struct acpi_rsdump_info *acpi_gbl_dump_resource_dispatch[] = {
 	acpi_rs_dump_ext_address64,	/* ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64 */
 	acpi_rs_dump_ext_irq,	/* ACPI_RESOURCE_TYPE_EXTENDED_IRQ */
 	acpi_rs_dump_generic_reg,	/* ACPI_RESOURCE_TYPE_GENERIC_REGISTER */
+	acpi_rs_dump_gpio,	/* ACPI_RESOURCE_TYPE_GPIO */
+	acpi_rs_dump_fixed_dma,	/* ACPI_RESOURCE_TYPE_FIXED_DMA */
+	NULL,			/* ACPI_RESOURCE_TYPE_SERIAL_BUS */
+};
+
+struct acpi_rsdump_info *acpi_gbl_dump_serial_bus_dispatch[] = {
+	NULL,
+	acpi_rs_dump_i2c_serial_bus,	/* AML_RESOURCE_I2C_BUS_TYPE */
+	acpi_rs_dump_spi_serial_bus,	/* AML_RESOURCE_SPI_BUS_TYPE */
+	acpi_rs_dump_uart_serial_bus,	/* AML_RESOURCE_UART_BUS_TYPE */
 };
 #endif
 
@@ -166,7 +191,10 @@ const u8 acpi_gbl_aml_resource_sizes[] = {
 	sizeof(struct aml_resource_address64),	/* ACPI_RESOURCE_TYPE_ADDRESS64 */
 	sizeof(struct aml_resource_extended_address64),	/*ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64 */
 	sizeof(struct aml_resource_extended_irq),	/* ACPI_RESOURCE_TYPE_EXTENDED_IRQ */
-	sizeof(struct aml_resource_generic_register)	/* ACPI_RESOURCE_TYPE_GENERIC_REGISTER */
+	sizeof(struct aml_resource_generic_register),	/* ACPI_RESOURCE_TYPE_GENERIC_REGISTER */
+	sizeof(struct aml_resource_gpio),	/* ACPI_RESOURCE_TYPE_GPIO */
+	sizeof(struct aml_resource_fixed_dma),	/* ACPI_RESOURCE_TYPE_FIXED_DMA */
+	sizeof(struct aml_resource_common_serialbus),	/* ACPI_RESOURCE_TYPE_SERIAL_BUS */
 };
 
 const u8 acpi_gbl_resource_struct_sizes[] = {
@@ -182,7 +210,7 @@ const u8 acpi_gbl_resource_struct_sizes[] = {
 	ACPI_RS_SIZE_MIN,
 	ACPI_RS_SIZE(struct acpi_resource_io),
 	ACPI_RS_SIZE(struct acpi_resource_fixed_io),
-	0,
+	ACPI_RS_SIZE(struct acpi_resource_fixed_dma),
 	0,
 	0,
 	0,
@@ -202,5 +230,21 @@ const u8 acpi_gbl_resource_struct_sizes[] = {
 	ACPI_RS_SIZE(struct acpi_resource_address16),
 	ACPI_RS_SIZE(struct acpi_resource_extended_irq),
 	ACPI_RS_SIZE(struct acpi_resource_address64),
-	ACPI_RS_SIZE(struct acpi_resource_extended_address64)
+	ACPI_RS_SIZE(struct acpi_resource_extended_address64),
+	ACPI_RS_SIZE(struct acpi_resource_gpio),
+	ACPI_RS_SIZE(struct acpi_resource_common_serialbus)
+};
+
+const u8 acpi_gbl_aml_resource_serial_bus_sizes[] = {
+	0,
+	sizeof(struct aml_resource_i2c_serialbus),
+	sizeof(struct aml_resource_spi_serialbus),
+	sizeof(struct aml_resource_uart_serialbus),
+};
+
+const u8 acpi_gbl_resource_struct_serial_bus_sizes[] = {
+	0,
+	ACPI_RS_SIZE(struct acpi_resource_i2c_serialbus),
+	ACPI_RS_SIZE(struct acpi_resource_spi_serialbus),
+	ACPI_RS_SIZE(struct acpi_resource_uart_serialbus),
 };

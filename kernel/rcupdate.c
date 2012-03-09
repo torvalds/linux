@@ -93,6 +93,8 @@ int rcu_read_lock_bh_held(void)
 {
 	if (!debug_lockdep_rcu_enabled())
 		return 1;
+	if (rcu_is_cpu_idle())
+		return 0;
 	return in_softirq() || irqs_disabled();
 }
 EXPORT_SYMBOL_GPL(rcu_read_lock_bh_held);
@@ -316,3 +318,13 @@ struct debug_obj_descr rcuhead_debug_descr = {
 };
 EXPORT_SYMBOL_GPL(rcuhead_debug_descr);
 #endif /* #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD */
+
+#if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU) || defined(CONFIG_RCU_TRACE)
+void do_trace_rcu_torture_read(char *rcutorturename, struct rcu_head *rhp)
+{
+	trace_rcu_torture_read(rcutorturename, rhp);
+}
+EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
+#else
+#define do_trace_rcu_torture_read(rcutorturename, rhp) do { } while (0)
+#endif

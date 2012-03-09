@@ -23,7 +23,6 @@
 #include <linux/export.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
 #include <target/configfs_macros.h>
 
 #include "iscsi_target_core.h"
@@ -746,7 +745,7 @@ static ssize_t iscsi_stat_sess_show_attr_node(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%u\n",
 				sess->sess_ops->SessionType ? 0 : ISCSI_NODE_INDEX);
@@ -770,7 +769,7 @@ static ssize_t iscsi_stat_sess_show_attr_indx(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%u\n",
 					sess->session_index);
@@ -794,7 +793,7 @@ static ssize_t iscsi_stat_sess_show_attr_cmd_pdus(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%u\n", sess->cmd_pdus);
 	}
@@ -817,7 +816,7 @@ static ssize_t iscsi_stat_sess_show_attr_rsp_pdus(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%u\n", sess->rsp_pdus);
 	}
@@ -840,7 +839,7 @@ static ssize_t iscsi_stat_sess_show_attr_txdata_octs(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%llu\n",
 				(unsigned long long)sess->tx_data_octets);
@@ -864,7 +863,7 @@ static ssize_t iscsi_stat_sess_show_attr_rxdata_octs(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%llu\n",
 				(unsigned long long)sess->rx_data_octets);
@@ -888,7 +887,7 @@ static ssize_t iscsi_stat_sess_show_attr_conn_digest_errors(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%u\n",
 					sess->conn_digest_errors);
@@ -912,7 +911,7 @@ static ssize_t iscsi_stat_sess_show_attr_conn_timeout_errors(
 	spin_lock_bh(&se_nacl->nacl_sess_lock);
 	se_sess = se_nacl->nacl_sess;
 	if (se_sess) {
-		sess = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess = se_sess->fabric_sess_ptr;
 		if (sess)
 			ret = snprintf(page, PAGE_SIZE, "%u\n",
 					sess->conn_timeout_errors);

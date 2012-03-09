@@ -41,11 +41,3 @@ intermediate step leading up to that information. See the documentation for the
 event you want to subscribe to whether this is applicable for that event or not.</para>
 	</listitem>
       </orderedlist></para>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

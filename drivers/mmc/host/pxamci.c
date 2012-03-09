@@ -872,18 +872,7 @@ static struct platform_driver pxamci_driver = {
 	},
 };
 
-static int __init pxamci_init(void)
-{
-	return platform_driver_register(&pxamci_driver);
-}
-
-static void __exit pxamci_exit(void)
-{
-	platform_driver_unregister(&pxamci_driver);
-}
-
-module_init(pxamci_init);
-module_exit(pxamci_exit);
+module_platform_driver(pxamci_driver);
 
 MODULE_DESCRIPTION("PXA Multimedia Card Interface Driver");
 MODULE_LICENSE("GPL");

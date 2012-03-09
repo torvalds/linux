@@ -43,8 +43,10 @@ typedef unsigned short mifi_t;
 typedef	__u32		if_mask;
 #define NIFBITS (sizeof(if_mask) * 8)        /* bits per mask */
 
-#if !defined(__KERNEL__) && !defined(DIV_ROUND_UP)
+#if !defined(__KERNEL__)
+#if !defined(DIV_ROUND_UP)
 #define	DIV_ROUND_UP(x,y)	(((x) + ((y) - 1)) / (y))
+#endif
 #endif
 
 typedef struct if_set {

@@ -25,7 +25,6 @@
 
 #include <linux/bio.h>
 #include <linux/blkdev.h>
-#include <linux/buffer_head.h>
 #include <linux/device.h>
 #include <linux/errno.h>
 #include <linux/fs.h>

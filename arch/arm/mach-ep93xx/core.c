@@ -906,3 +906,15 @@ void __init ep93xx_init_devices(void)
 	platform_device_register(&ep93xx_ohci_device);
 	platform_device_register(&ep93xx_leds);
 }
+
+void ep93xx_restart(char mode, const char *cmd)
+{
+	/*
+	 * Set then clear the SWRST bit to initiate a software reset
+	 */
+	ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_SWRST);
+	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_SWRST);
+
+	while (1)
+		;
+}

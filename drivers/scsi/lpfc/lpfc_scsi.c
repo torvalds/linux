@@ -681,8 +681,10 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 
 			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			if (ndlp)
+			if (ndlp) {
 				lpfc_set_rrq_active(phba, ndlp, xri, rxid, 1);
+				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
+			}
 			lpfc_release_scsi_buf_s4(phba, psb);
 			if (rrq_empty)
 				lpfc_worker_wake_up(phba);
@@ -2911,8 +2913,8 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	int_to_scsilun(lpfc_cmd->pCmd->device->lun,
 			&lpfc_cmd->fcp_cmnd->fcp_lun);
 
-	memcpy(&fcp_cmnd->fcpCdb[0], scsi_cmnd->cmnd, 16);
-
+	memset(&fcp_cmnd->fcpCdb[0], 0, LPFC_FCP_CDB_LEN);
+	memcpy(&fcp_cmnd->fcpCdb[0], scsi_cmnd->cmnd, scsi_cmnd->cmd_len);
 	if (scsi_populate_tag_msg(scsi_cmnd, tag)) {
 		switch (tag[0]) {
 		case HEAD_OF_QUEUE_TAG:
@@ -3236,6 +3238,15 @@ lpfc_queuecommand_lck(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		cmnd->result = err;
 		goto out_fail_command;
 	}
+	/*
+	 * Do not let the mid-layer retry I/O too fast. If an I/O is retried
+	 * without waiting a bit then indicate that the device is busy.
+	 */
+	if (cmnd->retries &&
+	    time_before(jiffies, (cmnd->jiffies_at_alloc +
+				  msecs_to_jiffies(LPFC_RETRY_PAUSE *
+						   cmnd->retries))))
+		return SCSI_MLQUEUE_DEVICE_BUSY;
 	ndlp = rdata->pnode;
 
 	if ((scsi_get_prot_op(cmnd) != SCSI_PROT_NORMAL) &&

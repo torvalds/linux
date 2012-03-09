@@ -2154,30 +2154,4 @@ static struct usb_driver hfcsusb_drv = {
 	.disconnect = hfcsusb_disconnect,
 };
 
-static int __init
-hfcsusb_init(void)
-{
-	printk(KERN_INFO DRIVER_NAME " driver Rev. %s debug(0x%x) poll(%i)\n",
-	    hfcsusb_rev, debug, poll);
-
-	if (usb_register(&hfcsusb_drv)) {
-		printk(KERN_INFO DRIVER_NAME
-		    ": Unable to register hfcsusb module at usb stack\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void __exit
-hfcsusb_cleanup(void)
-{
-	if (debug & DBG_HFC_CALL_TRACE)
-		printk(KERN_INFO DRIVER_NAME ": %s\n", __func__);
-
-	/* unregister Hardware */
-	usb_deregister(&hfcsusb_drv);	/* release our driver */
-}
-
-module_init(hfcsusb_init);
-module_exit(hfcsusb_cleanup);
+module_usb_driver(hfcsusb_drv);

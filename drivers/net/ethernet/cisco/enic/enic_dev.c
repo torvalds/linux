@@ -212,23 +212,29 @@ int enic_dev_deinit_done(struct enic *enic, int *status)
 }
 
 /* rtnl lock is held */
-void enic_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+int enic_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct enic *enic = netdev_priv(netdev);
+	int err;
 
 	spin_lock(&enic->devcmd_lock);
-	enic_add_vlan(enic, vid);
+	err = enic_add_vlan(enic, vid);
 	spin_unlock(&enic->devcmd_lock);
+
+	return err;
 }
 
 /* rtnl lock is held */
-void enic_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+int enic_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct enic *enic = netdev_priv(netdev);
+	int err;
 
 	spin_lock(&enic->devcmd_lock);
-	enic_del_vlan(enic, vid);
+	err = enic_del_vlan(enic, vid);
 	spin_unlock(&enic->devcmd_lock);
+
+	return err;
 }
 
 int enic_dev_enable2(struct enic *enic, int active)

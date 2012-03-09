@@ -407,6 +407,12 @@ nouveau_mem_vram_init(struct drm_device *dev)
 	ret = pci_set_dma_mask(dev->pdev, DMA_BIT_MASK(dma_bits));
 	if (ret)
 		return ret;
+	ret = pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(dma_bits));
+	if (ret) {
+		/* Reset to default value. */
+		pci_set_consistent_dma_mask(dev->pdev, DMA_BIT_MASK(32));
+	}
+
 
 	ret = nouveau_ttm_global_init(dev_priv);
 	if (ret)
@@ -638,10 +644,10 @@ nouveau_mem_timing_init(struct drm_device *dev)
 			return;
 
 		if (P.version == 1)
-			hdr = (struct nouveau_pm_tbl_header *) ROMPTR(bios, P.data[4]);
+			hdr = (struct nouveau_pm_tbl_header *) ROMPTR(dev, P.data[4]);
 		else
 		if (P.version == 2)
-			hdr = (struct nouveau_pm_tbl_header *) ROMPTR(bios, P.data[8]);
+			hdr = (struct nouveau_pm_tbl_header *) ROMPTR(dev, P.data[8]);
 		else {
 			NV_WARN(dev, "unknown mem for BIT P %d\n", P.version);
 		}

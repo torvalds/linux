@@ -23,8 +23,6 @@
 
 extern int ath6kl_printk(const char *level, const char *fmt, ...);
 
-#define A_CACHE_LINE_PAD            128
-
 /*
  * Reflects the version of binary interface exposed by ATH6KL target
  * firmware. Needs to be incremented by 1 for any change in the firmware
@@ -73,25 +71,16 @@ enum crypto_type {
 	WEP_CRYPT           = 0x02,
 	TKIP_CRYPT          = 0x04,
 	AES_CRYPT           = 0x08,
+	WAPI_CRYPT          = 0x10,
 };
 
 struct htc_endpoint_credit_dist;
 struct ath6kl;
 enum htc_credit_dist_reason;
-struct htc_credit_state_info;
+struct ath6kl_htc_credit_info;
 
-int ath6k_setup_credit_dist(void *htc_handle,
-			    struct htc_credit_state_info *cred_info);
-void ath6k_credit_distribute(struct htc_credit_state_info *cred_inf,
-			     struct list_head *epdist_list,
-			     enum htc_credit_dist_reason reason);
-void ath6k_credit_init(struct htc_credit_state_info *cred_inf,
-		       struct list_head *ep_list,
-		       int tot_credits);
-void ath6k_seek_credits(struct htc_credit_state_info *cred_inf,
-			struct htc_endpoint_credit_dist *ep_dist);
 struct ath6kl *ath6kl_core_alloc(struct device *sdev);
 int ath6kl_core_init(struct ath6kl *ar);
-int ath6kl_unavail_ev(struct ath6kl *ar);
+void ath6kl_core_cleanup(struct ath6kl *ar);
 struct sk_buff *ath6kl_buf_alloc(int size);
 #endif /* COMMON_H */

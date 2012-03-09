@@ -126,7 +126,7 @@
 #define SDMMC_CMD_RESP_EXP		BIT(6)
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
-#define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FF)
+#define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FFF)
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)

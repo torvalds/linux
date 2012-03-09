@@ -121,7 +121,8 @@ static int cx22700_set_inversion (struct cx22700_state* state, int inversion)
 	}
 }
 
-static int cx22700_set_tps (struct cx22700_state *state, struct dvb_ofdm_parameters *p)
+static int cx22700_set_tps(struct cx22700_state *state,
+			   struct dtv_frontend_properties *p)
 {
 	static const u8 qam_tab [4] = { 0, 1, 0, 2 };
 	static const u8 fec_tab [6] = { 0, 1, 2, 0, 3, 4 };
@@ -146,25 +147,25 @@ static int cx22700_set_tps (struct cx22700_state *state, struct dvb_ofdm_paramet
 	    p->transmission_mode != TRANSMISSION_MODE_8K)
 		return -EINVAL;
 
-	if (p->constellation != QPSK &&
-	    p->constellation != QAM_16 &&
-	    p->constellation != QAM_64)
+	if (p->modulation != QPSK &&
+	    p->modulation != QAM_16 &&
+	    p->modulation != QAM_64)
 		return -EINVAL;
 
-	if (p->hierarchy_information < HIERARCHY_NONE ||
-	    p->hierarchy_information > HIERARCHY_4)
+	if (p->hierarchy < HIERARCHY_NONE ||
+	    p->hierarchy > HIERARCHY_4)
 		return -EINVAL;
 
-	if (p->bandwidth < BANDWIDTH_8_MHZ || p->bandwidth > BANDWIDTH_6_MHZ)
+	if (p->bandwidth_hz > 8000000 || p->bandwidth_hz < 6000000)
 		return -EINVAL;
 
-	if (p->bandwidth == BANDWIDTH_7_MHZ)
+	if (p->bandwidth_hz == 7000000)
 		cx22700_writereg (state, 0x09, cx22700_readreg (state, 0x09 | 0x10));
 	else
 		cx22700_writereg (state, 0x09, cx22700_readreg (state, 0x09 & ~0x10));
 
-	val = qam_tab[p->constellation - QPSK];
-	val |= p->hierarchy_information - HIERARCHY_NONE;
+	val = qam_tab[p->modulation - QPSK];
+	val |= p->hierarchy - HIERARCHY_NONE;
 
 	cx22700_writereg (state, 0x04, val);
 
@@ -184,7 +185,8 @@ static int cx22700_set_tps (struct cx22700_state *state, struct dvb_ofdm_paramet
 	return 0;
 }
 
-static int cx22700_get_tps (struct cx22700_state* state, struct dvb_ofdm_parameters *p)
+static int cx22700_get_tps(struct cx22700_state *state,
+			   struct dtv_frontend_properties *p)
 {
 	static const fe_modulation_t qam_tab [3] = { QPSK, QAM_16, QAM_64 };
 	static const fe_code_rate_t fec_tab [5] = { FEC_1_2, FEC_2_3, FEC_3_4,
@@ -199,14 +201,14 @@ static int cx22700_get_tps (struct cx22700_state* state, struct dvb_ofdm_paramet
 	val = cx22700_readreg (state, 0x01);
 
 	if ((val & 0x7) > 4)
-		p->hierarchy_information = HIERARCHY_AUTO;
+		p->hierarchy = HIERARCHY_AUTO;
 	else
-		p->hierarchy_information = HIERARCHY_NONE + (val & 0x7);
+		p->hierarchy = HIERARCHY_NONE + (val & 0x7);
 
 	if (((val >> 3) & 0x3) > 2)
-		p->constellation = QAM_AUTO;
+		p->modulation = QAM_AUTO;
 	else
-		p->constellation = qam_tab[(val >> 3) & 0x3];
+		p->modulation = qam_tab[(val >> 3) & 0x3];
 
 	val = cx22700_readreg (state, 0x02);
 
@@ -318,33 +320,35 @@ static int cx22700_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int cx22700_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int cx22700_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx22700_state* state = fe->demodulator_priv;
 
 	cx22700_writereg (state, 0x00, 0x02); /* XXX CHECKME: soft reset*/
 	cx22700_writereg (state, 0x00, 0x00);
 
 	if (fe->ops.tuner_ops.set_params) {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl) fe->ops.i2c_gate_ctrl(fe, 0);
 	}
 
-	cx22700_set_inversion (state, p->inversion);
-	cx22700_set_tps (state, &p->u.ofdm);
+	cx22700_set_inversion(state, c->inversion);
+	cx22700_set_tps(state, c);
 	cx22700_writereg (state, 0x37, 0x01);  /* PAL loop filter off */
 	cx22700_writereg (state, 0x00, 0x01);  /* restart acquire */
 
 	return 0;
 }
 
-static int cx22700_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int cx22700_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx22700_state* state = fe->demodulator_priv;
 	u8 reg09 = cx22700_readreg (state, 0x09);
 
-	p->inversion = reg09 & 0x1 ? INVERSION_ON : INVERSION_OFF;
-	return cx22700_get_tps (state, &p->u.ofdm);
+	c->inversion = reg09 & 0x1 ? INVERSION_ON : INVERSION_OFF;
+	return cx22700_get_tps(state, c);
 }
 
 static int cx22700_i2c_gate_ctrl(struct dvb_frontend* fe, int enable)
@@ -401,10 +405,9 @@ error:
 }
 
 static struct dvb_frontend_ops cx22700_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "Conexant CX22700 DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 470000000,
 		.frequency_max		= 860000000,
 		.frequency_stepsize	= 166667,

@@ -85,6 +85,7 @@ static struct atmel_nand_data __initdata nand_data = {
 	.rdy_pin	= AT91_PIN_PC13,
 	.enable_pin	= AT91_PIN_PC14,
 	.bus_width_16	= 0,
+	.det_pin	= -EINVAL,
 };
 
 static struct sam9_smc_config __initdata nand_smc_config = {
@@ -108,7 +109,7 @@ static struct sam9_smc_config __initdata nand_smc_config = {
 static void __init add_device_nand(void)
 {
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &nand_smc_config);
+	sam9_smc_configure(0, 3, &nand_smc_config);
 
 	at91_add_device_nand(&nand_data);
 }
@@ -122,12 +123,17 @@ static void __init add_device_nand(void)
 static struct mci_platform_data __initdata mmc_data = {
 	.slot[0] = {
 		.bus_width	= 4,
+		.detect_pin	= -1,
+		.wp_pin		= -1,
 	},
 };
 #else
 static struct at91_mmc_data __initdata mmc_data = {
 	.slot_b		= 0,
 	.wire4		= 1,
+	.det_pin	= -EINVAL,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 #endif
 
@@ -137,6 +143,8 @@ static struct at91_mmc_data __initdata mmc_data = {
  */
 static struct at91_usbh_data __initdata usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 
@@ -145,19 +153,19 @@ static struct at91_usbh_data __initdata usbh_data = {
  */
 static struct at91_udc_data __initdata portuxg20_udc_data = {
 	.vbus_pin	= AT91_PIN_PC7,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 static struct at91_udc_data __initdata stamp9g20evb_udc_data = {
 	.vbus_pin	= AT91_PIN_PA22,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata macb_data = {
+static struct macb_platform_data __initdata macb_data = {
 	.phy_irq_pin	= AT91_PIN_PA28,
 	.is_rmii	= 1,
 };

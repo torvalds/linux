@@ -164,9 +164,6 @@ void __devinit pcibios_fixup_bus(struct pci_bus *b)
 {
 	struct pci_dev *dev;
 
-	/* root bus? */
-	if (!b->parent)
-		x86_pci_root_bus_res_quirks(b);
 	pci_read_bridge_bases(b);
 	list_for_each_entry(dev, &b->devices, bus_list)
 		pcibios_fixup_device_resources(dev);
@@ -433,6 +430,7 @@ void __init dmi_check_pciprobe(void)
 
 struct pci_bus * __devinit pcibios_scan_root(int busnum)
 {
+	LIST_HEAD(resources);
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
 
@@ -456,9 +454,12 @@ struct pci_bus * __devinit pcibios_scan_root(int busnum)
 	sd->node = get_mp_bus_to_node(busnum);
 
 	printk(KERN_DEBUG "PCI: Probing PCI hardware (bus %02x)\n", busnum);
-	bus = pci_scan_bus_parented(NULL, busnum, &pci_root_ops, sd);
-	if (!bus)
+	x86_pci_root_bus_resources(busnum, &resources);
+	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, sd, &resources);
+	if (!bus) {
+		pci_free_resource_list(&resources);
 		kfree(sd);
+	}
 
 	return bus;
 }
@@ -639,6 +640,7 @@ int pci_ext_cfg_avail(struct pci_dev *dev)
 
 struct pci_bus * __devinit pci_scan_bus_on_node(int busno, struct pci_ops *ops, int node)
 {
+	LIST_HEAD(resources);
 	struct pci_bus *bus = NULL;
 	struct pci_sysdata *sd;
 
@@ -653,9 +655,12 @@ struct pci_bus * __devinit pci_scan_bus_on_node(int busno, struct pci_ops *ops, 
 		return NULL;
 	}
 	sd->node = node;
-	bus = pci_scan_bus(busno, ops, sd);
-	if (!bus)
+	x86_pci_root_bus_resources(busno, &resources);
+	bus = pci_scan_root_bus(NULL, busno, ops, sd, &resources);
+	if (!bus) {
+		pci_free_resource_list(&resources);
 		kfree(sd);
+	}
 
 	return bus;
 }

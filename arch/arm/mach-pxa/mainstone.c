@@ -178,8 +178,8 @@ static void __init mainstone_init_irq(void)
 	MST_INTMSKENA = 0;
 	MST_INTSETCLR = 0;
 
-	irq_set_chained_handler(IRQ_GPIO(0), mainstone_irq_handler);
-	irq_set_irq_type(IRQ_GPIO(0), IRQ_TYPE_EDGE_FALLING);
+	irq_set_chained_handler(PXA_GPIO_TO_IRQ(0), mainstone_irq_handler);
+	irq_set_irq_type(PXA_GPIO_TO_IRQ(0), IRQ_TYPE_EDGE_FALLING);
 }
 
 #ifdef CONFIG_PM
@@ -622,4 +622,5 @@ MACHINE_START(MAINSTONE, "Intel HCDDBBVA0 Development Platform (aka Mainstone)")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= mainstone_init,
+	.restart	= pxa_restart,
 MACHINE_END

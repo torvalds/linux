@@ -422,9 +422,9 @@ asmlinkage long compat_sys_getdents64(unsigned int fd,
 asmlinkage long compat_sys_vmsplice(int fd, const struct compat_iovec __user *,
 				    unsigned int nr_segs, unsigned int flags);
 asmlinkage long compat_sys_open(const char __user *filename, int flags,
-				int mode);
+				umode_t mode);
 asmlinkage long compat_sys_openat(unsigned int dfd, const char __user *filename,
-				  int flags, int mode);
+				  int flags, umode_t mode);
 asmlinkage long compat_sys_open_by_handle_at(int mountdirfd,
 					     struct file_handle __user *handle,
 					     int flags);
@@ -551,6 +551,19 @@ extern ssize_t compat_rw_copy_check_uvector(int type,
 		int check_access);
 
 extern void __user *compat_alloc_user_space(unsigned long len);
+
+asmlinkage ssize_t compat_sys_process_vm_readv(compat_pid_t pid,
+		const struct compat_iovec __user *lvec,
+		unsigned long liovcnt, const struct compat_iovec __user *rvec,
+		unsigned long riovcnt, unsigned long flags);
+asmlinkage ssize_t compat_sys_process_vm_writev(compat_pid_t pid,
+		const struct compat_iovec __user *lvec,
+		unsigned long liovcnt, const struct compat_iovec __user *rvec,
+		unsigned long riovcnt, unsigned long flags);
+
+#else
+
+#define is_compat_task() (0)
 
 #endif /* CONFIG_COMPAT */
 #endif /* _LINUX_COMPAT_H */

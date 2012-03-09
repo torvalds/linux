@@ -98,7 +98,7 @@ static int palmz71_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver palmz71_panel_driver = {
+static struct platform_driver palmz71_panel_driver = {
 	.probe		= palmz71_panel_probe,
 	.remove		= palmz71_panel_remove,
 	.suspend	= palmz71_panel_suspend,
@@ -109,15 +109,4 @@ struct platform_driver palmz71_panel_driver = {
 	},
 };
 
-static int __init palmz71_panel_drv_init(void)
-{
-	return platform_driver_register(&palmz71_panel_driver);
-}
-
-static void __exit palmz71_panel_drv_cleanup(void)
-{
-	platform_driver_unregister(&palmz71_panel_driver);
-}
-
-module_init(palmz71_panel_drv_init);
-module_exit(palmz71_panel_drv_cleanup);
+module_platform_driver(palmz71_panel_driver);

@@ -1144,7 +1144,7 @@ static void pvscsi_release_resources(struct pvscsi_adapter *adapter)
  *
  * These are statically allocated.  Trying to be clever was not worth it.
  *
- * Dynamic allocation can fail, and we can't go deeep into the memory
+ * Dynamic allocation can fail, and we can't go deep into the memory
  * allocator, since we're a SCSI driver, and trying too hard to allocate
  * memory might generate disk I/O.  We also don't want to fail disk I/O
  * in that case because we can't get an allocation - the I/O could be

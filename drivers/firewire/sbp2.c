@@ -66,7 +66,7 @@
  *
  * Concurrent logins are useful together with cluster filesystems.
  */
-static int sbp2_param_exclusive_login = 1;
+static bool sbp2_param_exclusive_login = 1;
 module_param_named(exclusive_login, sbp2_param_exclusive_login, bool, 0644);
 MODULE_PARM_DESC(exclusive_login, "Exclusive login to sbp2 device "
 		 "(default = Y, use N for concurrent initiators)");

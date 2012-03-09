@@ -833,7 +833,7 @@ static ssize_t set_temp_min(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp) || !temp_enabled(data, attr->index))
+	if (kstrtol(buf, 10, &temp) || !temp_enabled(data, attr->index))
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
@@ -871,7 +871,7 @@ static ssize_t set_temp_max(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp) || !temp_enabled(data, attr->index))
+	if (kstrtol(buf, 10, &temp) || !temp_enabled(data, attr->index))
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
@@ -935,7 +935,7 @@ static ssize_t set_volt_max(struct device *dev,
 	int x = voltage_multiplier(data, attr->index);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp) || !x)
+	if (kstrtol(buf, 10, &temp) || !x)
 		return -EINVAL;
 
 	temp *= 1000; /* convert mV to uV */
@@ -977,7 +977,7 @@ static ssize_t set_volt_min(struct device *dev,
 	int x = voltage_multiplier(data, attr->index);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp) || !x)
+	if (kstrtol(buf, 10, &temp) || !x)
 		return -EINVAL;
 
 	temp *= 1000; /* convert mV to uV */
@@ -1066,7 +1066,7 @@ static ssize_t set_fan_min(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp) || !temp ||
+	if (kstrtol(buf, 10, &temp) || !temp ||
 	    !fan_enabled(data, attr->index))
 		return -EINVAL;
 
@@ -1115,7 +1115,7 @@ static ssize_t set_force_pwm_max(struct device *dev,
 	long temp;
 	u8 reg;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	mutex_lock(&data->lock);
@@ -1147,7 +1147,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	temp = SENSORS_LIMIT(temp, 0, 255);
@@ -1177,7 +1177,7 @@ static ssize_t set_pwm_max(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	temp = SENSORS_LIMIT(temp, 0, 255);
@@ -1209,7 +1209,7 @@ static ssize_t set_pwm_min(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	temp = SENSORS_LIMIT(temp, 0, 255);
@@ -1243,7 +1243,7 @@ static ssize_t set_pwm_hyst(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000);
@@ -1289,7 +1289,7 @@ static ssize_t set_pwm_tmax(struct device *dev,
 	int tmin, trange_value;
 	long trange;
 
-	if (strict_strtol(buf, 10, &trange))
+	if (kstrtol(buf, 10, &trange))
 		return -EINVAL;
 
 	/* trange = tmax - tmin */
@@ -1330,7 +1330,7 @@ static ssize_t set_pwm_tmin(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	temp = DIV_ROUND_CLOSEST(temp, 1000) + 64;
@@ -1387,7 +1387,7 @@ static ssize_t set_pwm_auto(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	switch (temp) {
@@ -1446,7 +1446,7 @@ static ssize_t set_pwm_auto_temp(struct device *dev,
 	struct adt7462_data *data = i2c_get_clientdata(client);
 	long temp;
 
-	if (strict_strtol(buf, 10, &temp))
+	if (kstrtol(buf, 10, &temp))
 		return -EINVAL;
 
 	temp = cvt_auto_temp(temp);

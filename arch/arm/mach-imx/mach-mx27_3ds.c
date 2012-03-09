@@ -425,4 +425,5 @@ MACHINE_START(MX27_3DS, "Freescale MX27PDK")
 	.handle_irq = imx27_handle_irq,
 	.timer = &mx27pdk_timer,
 	.init_machine = mx27pdk_init,
+	.restart	= mxc_restart,
 MACHINE_END

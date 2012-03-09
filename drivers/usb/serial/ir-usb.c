@@ -22,38 +22,6 @@
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
- *
- * 2008_Jun_02  Felipe Balbi <me@felipebalbi.com>
- *	Introduced common header to be used also in USB Gadget Framework.
- *	Still needs some other style fixes.
- *
- * 2007_Jun_21  Alan Cox <alan@lxorguk.ukuu.org.uk>
- *	Minimal cleanups for some of the driver problens and tty layer abuse.
- *	Still needs fixing to allow multiple dongles.
- *
- * 2002_Mar_07	greg kh
- *	moved some needed structures and #define values from the
- *	net/irda/irda-usb.h file into our file, as we don't want to depend on
- *	that codebase compiling correctly :)
- *
- * 2002_Jan_14  gb
- *	Added module parameter to force specific number of XBOFs.
- *	Added ir_xbof_change().
- *	Reorganized read_bulk_callback error handling.
- *	Switched from FILL_BULK_URB() to usb_fill_bulk_urb().
- *
- * 2001_Nov_08  greg kh
- *	Changed the irda_usb_find_class_desc() function based on comments and
- *	code from Martin Diehl.
- *
- * 2001_Nov_01	greg kh
- *	Added support for more IrDA USB devices.
- *	Added support for zero packet.  Added buffer override paramater, so
- *	users can transfer larger packets at once if they wish.  Both patches
- *	came from Dag Brattli <dag@obexcode.com>.
- *
- * 2001_Oct_07	greg kh
- *	initial version released.
  */
 
 #include <linux/kernel.h>
@@ -77,7 +45,7 @@
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "USB IR Dongle driver"
 
-static int debug;
+static bool debug;
 
 /* if overridden by the user, then use their value for the size of the read and
  * write urbs */

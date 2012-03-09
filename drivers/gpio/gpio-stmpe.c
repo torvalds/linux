@@ -65,7 +65,14 @@ static void stmpe_gpio_set(struct gpio_chip *chip, unsigned offset, int val)
 	u8 reg = stmpe->regs[which] - (offset / 8);
 	u8 mask = 1 << (offset % 8);
 
-	stmpe_reg_write(stmpe, reg, mask);
+	/*
+	 * Some variants have single register for gpio set/clear functionality.
+	 * For them we need to write 0 to clear and 1 to set.
+	 */
+	if (stmpe->regs[STMPE_IDX_GPSR_LSB] == stmpe->regs[STMPE_IDX_GPCR_LSB])
+		stmpe_set_bits(stmpe, reg, mask, val ? mask : 0);
+	else
+		stmpe_reg_write(stmpe, reg, mask);
 }
 
 static int stmpe_gpio_direction_output(struct gpio_chip *chip,
@@ -132,6 +139,10 @@ static int stmpe_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	if (type == IRQ_TYPE_LEVEL_LOW || type == IRQ_TYPE_LEVEL_HIGH)
 		return -EINVAL;
 
+	/* STMPE801 doesn't have RE and FE registers */
+	if (stmpe_gpio->stmpe->partnum == STMPE801)
+		return 0;
+
 	if (type == IRQ_TYPE_EDGE_RISING)
 		stmpe_gpio->regs[REG_RE][regoffset] |= mask;
 	else
@@ -165,6 +176,11 @@ static void stmpe_gpio_irq_sync_unlock(struct irq_data *d)
 	int i, j;
 
 	for (i = 0; i < CACHE_NR_REGS; i++) {
+		/* STMPE801 doesn't have RE and FE registers */
+		if ((stmpe->partnum == STMPE801) &&
+				(i != REG_IE))
+			continue;
+
 		for (j = 0; j < num_banks; j++) {
 			u8 old = stmpe_gpio->oldregs[i][j];
 			u8 new = stmpe_gpio->regs[i][j];
@@ -241,8 +257,11 @@ static irqreturn_t stmpe_gpio_irq(int irq, void *dev)
 		}
 
 		stmpe_reg_write(stmpe, statmsbreg + i, status[i]);
-		stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_GPEDR_MSB] + i,
-				status[i]);
+
+		/* Edge detect register is not present on 801 */
+		if (stmpe->partnum != STMPE801)
+			stmpe_reg_write(stmpe, stmpe->regs[STMPE_IDX_GPEDR_MSB]
+					+ i, status[i]);
 	}
 
 	return IRQ_HANDLED;

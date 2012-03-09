@@ -8,8 +8,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <asm/hardware/entry-macro-gic.S>
-
 		.macro	disable_fiq
 		.endm
 
