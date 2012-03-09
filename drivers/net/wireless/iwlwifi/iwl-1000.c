@@ -122,8 +122,6 @@ static const struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 
 static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
 	hw_params(priv).tx_chains_num =

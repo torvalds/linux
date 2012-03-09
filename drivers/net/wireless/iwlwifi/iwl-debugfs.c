@@ -828,7 +828,7 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 
 	char *buf;
 	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(hw_params(priv).max_txq_num * 32 * 8) + 400;
+		(cfg(priv)->base_params->num_of_queues * 32 * 8) + 400;
 	const u8 *ptr;
 	ssize_t ret;
 
