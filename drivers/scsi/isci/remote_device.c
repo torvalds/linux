@@ -195,9 +195,6 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 		"%s: isci_device = %p; reason = %d\n", __func__, idev, reason);
 
 	switch (reason) {
-	case SCIC_REMOTE_DEVICE_NOT_READY_STOP_REQUESTED:
-		set_bit(IDEV_GONE, &idev->flags);
-		break;
 	case SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED:
 		set_bit(IDEV_IO_NCQERROR, &idev->flags);
 

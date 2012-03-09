@@ -240,31 +240,8 @@ static void isci_port_link_down(struct isci_host *isci_host,
 				struct isci_phy *isci_phy,
 				struct isci_port *isci_port)
 {
-	struct isci_remote_device *isci_device;
-
 	dev_dbg(&isci_host->pdev->dev,
 		"%s: isci_port = %p\n", __func__, isci_port);
-
-	if (isci_port) {
-
-		/* check to see if this is the last phy on this port. */
-		if (isci_phy->sas_phy.port &&
-		    isci_phy->sas_phy.port->num_phys == 1) {
-			/* change the state for all devices on this port.  The
-			 * next task sent to this device will be returned as
-			 * SAS_TASK_UNDELIVERED, and the scsi mid layer will
-			 * remove the target
-			 */
-			list_for_each_entry(isci_device,
-					    &isci_port->remote_dev_list,
-					    node) {
-				dev_dbg(&isci_host->pdev->dev,
-					"%s: isci_device = %p\n",
-					__func__, isci_device);
-				set_bit(IDEV_GONE, &isci_device->flags);
-			}
-		}
-	}
 
 	/* Notify libsas of the borken link, this will trigger calls to our
 	 * isci_port_deformed and isci_dev_gone functions.
