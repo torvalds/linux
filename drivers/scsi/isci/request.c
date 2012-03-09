@@ -2956,9 +2956,6 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 	/* Add to the completed list. */
 	list_add(&request->completed_node, &ihost->requests_to_complete);
 
-	/* Take the request off the device's pending request list. */
-	list_del_init(&request->dev_node);
-
 	/* complete the io request to the core. */
 	sci_controller_complete_io(ihost, request->target_device, request);
 
@@ -3412,7 +3409,6 @@ static struct isci_request *isci_request_from_tag(struct isci_host *ihost, u16 t
 	ireq->flags = 0;
 	ireq->num_sg_entries = 0;
 	INIT_LIST_HEAD(&ireq->completed_node);
-	INIT_LIST_HEAD(&ireq->dev_node);
 
 	return ireq;
 }
@@ -3496,17 +3492,9 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		return status;
 	}
-
 	/* Either I/O started OK, or the core has signaled that
 	 * the device needs a target reset.
-	 *
-	 * In either case, hold onto the I/O for later.
-	 *
-	 * Update it's status and add it to the list in the
-	 * remote device object.
 	 */
-	list_add(&ireq->dev_node, &idev->reqs_in_process);
-
 	if (status != SCI_SUCCESS) {
 		/* The request did not really start in the
 		 * hardware, so clear the request handle

@@ -317,9 +317,6 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		goto err_tci;
 	}
-	/* add the request to the remote device request list. */
-	list_add(&ireq->dev_node, &idev->reqs_in_process);
-
 	/* The RNC must be unsuspended before the TMF can get a response. */
 	sci_remote_device_resume(idev, NULL, NULL);
 
@@ -721,7 +718,6 @@ isci_task_request_complete(struct isci_host *ihost,
 	set_bit(IREQ_TERMINATED, &ireq->flags);
 
 	isci_free_tag(ihost, ireq->io_tag);
-	list_del_init(&ireq->dev_node);
 
 	/* The task management part completes last. */
 	if (tmf_complete)

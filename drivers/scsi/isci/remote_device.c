@@ -919,7 +919,7 @@ static void isci_remote_device_deconstruct(struct isci_host *ihost, struct isci_
 	 * here should go through isci_remote_device_nuke_requests.
 	 * If we hit this condition, we will need a way to complete
 	 * io requests in process */
-	BUG_ON(!list_empty(&idev->reqs_in_process));
+	BUG_ON(idev->started_request_count > 0);
 
 	sci_remote_device_destruct(idev);
 	list_del_init(&idev->node);
@@ -1345,10 +1345,6 @@ isci_remote_device_alloc(struct isci_host *ihost, struct isci_port *iport)
 		dev_warn(&ihost->pdev->dev, "%s: failed\n", __func__);
 		return NULL;
 	}
-
-	if (WARN_ONCE(!list_empty(&idev->reqs_in_process), "found requests in process\n"))
-		return NULL;
-
 	if (WARN_ONCE(!list_empty(&idev->node), "found non-idle remote device\n"))
 		return NULL;
 

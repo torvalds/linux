@@ -90,7 +90,6 @@ struct isci_remote_device {
 	struct isci_port *isci_port;
 	struct domain_device *domain_dev;
 	struct list_head node;
-	struct list_head reqs_in_process;
 	struct sci_base_state_machine sm;
 	u32 device_port_width;
 	enum sas_linkrate connection_rate;

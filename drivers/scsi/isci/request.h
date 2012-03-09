@@ -96,8 +96,6 @@ struct isci_request {
 	struct isci_host *isci_host;
 	/* For use in the requests_to_{complete|abort} lists: */
 	struct list_head completed_node;
-	/* For use in the reqs_in_process list: */
-	struct list_head dev_node;
 	dma_addr_t request_daddr;
 	dma_addr_t zero_scatter_daddr;
 	unsigned int num_sg_entries;
