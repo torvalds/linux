@@ -3112,7 +3112,7 @@ int mgmt_user_confirm_request(struct hci_dev *hdev, bdaddr_t *bdaddr,
 	bacpy(&ev.addr.bdaddr, bdaddr);
 	ev.addr.type = link_to_mgmt(link_type, addr_type);
 	ev.confirm_hint = confirm_hint;
-	put_unaligned_le32(value, &ev.value);
+	ev.value = value;
 
 	return mgmt_event(MGMT_EV_USER_CONFIRM_REQUEST, hdev, &ev, sizeof(ev),
 			  NULL);
