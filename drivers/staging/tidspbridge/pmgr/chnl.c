@@ -38,9 +38,6 @@
 /*  ----------------------------------- This */
 #include <dspbridge/chnl.h>
 
-/*  ----------------------------------- Globals */
-static u32 refs;
-
 /*
  *  ======== chnl_create ========
  *  Purpose:
@@ -115,29 +112,4 @@ int chnl_destroy(struct chnl_mgr *hchnl_mgr)
 	}
 
 	return status;
-}
-
-/*
- *  ======== chnl_exit ========
- *  Purpose:
- *      Discontinue usage of the CHNL module.
- */
-void chnl_exit(void)
-{
-	refs--;
-}
-
-/*
- *  ======== chnl_init ========
- *  Purpose:
- *      Initialize the CHNL module's private state.
- */
-bool chnl_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
