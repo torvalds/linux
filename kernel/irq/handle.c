@@ -60,7 +60,7 @@ static void irq_wake_thread(struct irq_desc *desc, struct irqaction *action)
 	 * device interrupt, so no irq storm is lurking. If the
 	 * RUNTHREAD bit is already set, nothing to do.
 	 */
-	if (test_bit(IRQTF_DIED, &action->thread_flags) ||
+	if ((action->thread->flags & PF_EXITING) ||
 	    test_and_set_bit(IRQTF_RUNTHREAD, &action->thread_flags))
 		return;
 
