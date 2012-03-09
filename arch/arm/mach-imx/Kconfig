@@ -43,6 +43,7 @@ config SOC_IMX21
 	bool
 	select MACH_MX21
 	select CPU_ARM926T
+	select COMMON_CLK
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
 
