@@ -2475,6 +2475,12 @@ struct mac_iveiv_entry {
 #define EIRP_MAX_TX_POWER_LIMIT	0x50
 
 /*
+ * Number of TBTT intervals after which we have to adjust
+ * the hw beacon timer.
+ */
+#define BCN_TBTT_OFFSET 64
+
+/*
  * RT2800 driver data structure
  */
 struct rt2800_drv_data {
@@ -2484,6 +2490,7 @@ struct rt2800_drv_data {
 	u8 bbp26;
 	u8 txmixer_gain_24g;
 	u8 txmixer_gain_5g;
+	unsigned int tbtt_tick;
 };
 
 #endif /* RT2800_H */
