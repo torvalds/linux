@@ -13,6 +13,7 @@
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/usb/usbnet.h>
+#include <linux/usb/cdc-wdm.h>
 
 /* The name of the CDC Device Management driver */
 #define DM_DRIVER "cdc_wdm"
@@ -64,6 +65,9 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_cdc_ether_desc *cdc_ether = NULL;
 	u32 required = 1 << USB_CDC_HEADER_TYPE | 1 << USB_CDC_UNION_TYPE;
 	u32 found = 0;
+	atomic_t *pmcount = (void *)&dev->data[1];
+
+	atomic_set(pmcount, 0);
 
 	/*
 	 * assume a data interface has no additional descriptors and
@@ -170,12 +174,126 @@ err:
 	return status;
 }
 
-/* stolen from cdc_ether.c */
+/* using a counter to merge subdriver requests with our own into a combined state */
 static int qmi_wwan_manage_power(struct usbnet *dev, int on)
 {
-	dev->intf->needs_remote_wakeup = on;
-	return 0;
+	atomic_t *pmcount = (void *)&dev->data[1];
+	int rv = 0;
+
+	dev_dbg(&dev->intf->dev, "%s() pmcount=%d, on=%d\n", __func__, atomic_read(pmcount), on);
+
+	if ((on && atomic_add_return(1, pmcount) == 1) || (!on && atomic_dec_and_test(pmcount))) {
+		/* need autopm_get/put here to ensure the usbcore sees the new value */
+		rv = usb_autopm_get_interface(dev->intf);
+		if (rv < 0)
+			goto err;
+		dev->intf->needs_remote_wakeup = on;
+		usb_autopm_put_interface(dev->intf);
+	}
+err:
+	return rv;
 }
+
+static int qmi_wwan_cdc_wdm_manage_power(struct usb_interface *intf, int on)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	return qmi_wwan_manage_power(dev, on);
+}
+
+/* Some devices combine the "control" and "data" functions into a
+ * single interface with all three endpoints: interrupt + bulk in and
+ * out
+ *
+ * Setting up cdc-wdm as a subdriver owning the interrupt endpoint
+ * will let it provide userspace access to the encapsulated QMI
+ * protocol without interfering with the usbnet operations.
+  */
+static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
+{
+	int rv;
+	struct usb_driver *subdriver = NULL;
+	atomic_t *pmcount = (void *)&dev->data[1];
+
+	atomic_set(pmcount, 0);
+
+	/* collect all three endpoints */
+	rv = usbnet_get_endpoints(dev, intf);
+	if (rv < 0)
+		goto err;
+
+	/* require interrupt endpoint for subdriver */
+	if (!dev->status) {
+		rv = -EINVAL;
+		goto err;
+	}
+
+	subdriver = usb_cdc_wdm_register(intf, &dev->status->desc, 512, &qmi_wwan_cdc_wdm_manage_power);
+	if (IS_ERR(subdriver)) {
+		rv = PTR_ERR(subdriver);
+		goto err;
+	}
+
+	/* can't let usbnet use the interrupt endpoint */
+	dev->status = NULL;
+
+	/* save subdriver struct for suspend/resume wrappers */
+	dev->data[0] = (unsigned long)subdriver;
+
+err:
+	return rv;
+}
+
+static void qmi_wwan_unbind_shared(struct usbnet *dev, struct usb_interface *intf)
+{
+	struct usb_driver *subdriver = (void *)dev->data[0];
+
+	if (subdriver && subdriver->disconnect)
+		subdriver->disconnect(intf);
+
+	dev->data[0] = (unsigned long)NULL;
+}
+
+/* suspend/resume wrappers calling both usbnet and the cdc-wdm
+ * subdriver if present.
+ *
+ * NOTE: cdc-wdm also supports pre/post_reset, but we cannot provide
+ * wrappers for those without adding usbnet reset support first.
+ */
+static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	struct usb_driver *subdriver = (void *)dev->data[0];
+	int ret;
+
+	ret = usbnet_suspend(intf, message);
+	if (ret < 0)
+		goto err;
+
+	if (subdriver && subdriver->suspend)
+		ret = subdriver->suspend(intf, message);
+	if (ret < 0)
+		usbnet_resume(intf);
+err:
+	return ret;
+}
+
+static int qmi_wwan_resume(struct usb_interface *intf)
+{
+	struct usbnet *dev = usb_get_intfdata(intf);
+	struct usb_driver *subdriver = (void *)dev->data[0];
+	int ret = 0;
+
+	if (subdriver && subdriver->resume)
+		ret = subdriver->resume(intf);
+	if (ret < 0)
+		goto err;
+	ret = usbnet_resume(intf);
+	if (ret < 0 && subdriver && subdriver->resume && subdriver->suspend)
+		subdriver->suspend(intf, PMSG_SUSPEND);
+err:
+	return ret;
+}
+
 
 static const struct driver_info	qmi_wwan_info = {
 	.description	= "QMI speaking wwan device",
@@ -184,19 +302,37 @@ static const struct driver_info	qmi_wwan_info = {
 	.manage_power	= qmi_wwan_manage_power,
 };
 
+static const struct driver_info	qmi_wwan_shared = {
+	.description	= "QMI speaking wwan device with combined interface",
+	.flags		= FLAG_WWAN,
+	.bind		= qmi_wwan_bind_shared,
+	.unbind		= qmi_wwan_unbind_shared,
+	.manage_power	= qmi_wwan_manage_power,
+};
+
 #define HUAWEI_VENDOR_ID	0x12D1
 
 static const struct usb_device_id products[] = {
-{
-	/* Huawei E392, E398 and possibly others sharing both device id and more... */
-	.match_flags        = USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_INT_INFO,
-	.idVendor           = HUAWEI_VENDOR_ID,
-	.bInterfaceClass    = USB_CLASS_VENDOR_SPEC,
-	.bInterfaceSubClass = 1,
-	.bInterfaceProtocol = 8, /* NOTE: This is the *slave* interface of the CDC Union! */
-	.driver_info        = (unsigned long)&qmi_wwan_info,
-}, {
-},	/* END */
+	{	/* Huawei E392, E398 and possibly others sharing both device id and more... */
+		.match_flags        = USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = HUAWEI_VENDOR_ID,
+		.bInterfaceClass    = USB_CLASS_VENDOR_SPEC,
+		.bInterfaceSubClass = 1,
+		.bInterfaceProtocol = 8, /* NOTE: This is the *slave* interface of the CDC Union! */
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
+	{	/* Huawei E392, E398 and possibly others in "Windows mode"
+		 * using a combined control and data interface without any CDC
+		 * functional descriptors
+		 */
+		.match_flags        = USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = HUAWEI_VENDOR_ID,
+		.bInterfaceClass    = USB_CLASS_VENDOR_SPEC,
+		.bInterfaceSubClass = 1,
+		.bInterfaceProtocol = 17,
+		.driver_info        = (unsigned long)&qmi_wwan_shared,
+	},
+	{ }	/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);
 
@@ -205,9 +341,9 @@ static struct usb_driver qmi_wwan_driver = {
 	.id_table	      = products,
 	.probe		      =	usbnet_probe,
 	.disconnect	      = usbnet_disconnect,
-	.suspend	      = usbnet_suspend,
-	.resume		      =	usbnet_resume,
-	.reset_resume         = usbnet_resume,
+	.suspend	      = qmi_wwan_suspend,
+	.resume		      =	qmi_wwan_resume,
+	.reset_resume         = qmi_wwan_resume,
 	.supports_autosuspend = 1,
 };
 
