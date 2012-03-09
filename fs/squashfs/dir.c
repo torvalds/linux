@@ -64,7 +64,7 @@ static int get_dir_index_using_offset(struct super_block *sb,
 	 * is offset by 3 because we invent "." and ".." entries which are
 	 * not actually stored in the directory.
 	 */
-	if (f_pos < 3)
+	if (f_pos <= 3)
 		return f_pos;
 	f_pos -= 3;
 
