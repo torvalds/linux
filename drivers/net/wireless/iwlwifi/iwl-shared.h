@@ -118,7 +118,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * @disable_11n: disable 11n capabilities, default = 0,
  *	use IWL_DISABLE_HT_* constants
  * @amsdu_size_8K: enable 8K amsdu size, default = 1
- * @antenna: both antennas (use diversity), default = 0
  * @restart_fw: restart firmware, default = 1
  * @plcp_check: enable plcp health check, default = true
  * @wd_disable: enable stuck queue check, default = 0
@@ -135,7 +134,6 @@ struct iwl_mod_params {
 	int sw_crypto;
 	unsigned int disable_11n;
 	int amsdu_size_8K;
-	int antenna;
 	int restart_fw;
 	bool plcp_check;
 	int  wd_disable;
