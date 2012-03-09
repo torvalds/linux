@@ -694,7 +694,7 @@ static DEFINE_PCI_DEVICE_TABLE(pch_ieee1588_pcidev_id) = {
 	{0}
 };
 
-static struct pci_driver pch_pcidev = {
+static struct pci_driver pch_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = pch_ieee1588_pcidev_id,
 	.probe = pch_probe,
@@ -705,7 +705,7 @@ static struct pci_driver pch_pcidev = {
 
 static void __exit ptp_pch_exit(void)
 {
-	pci_unregister_driver(&pch_pcidev);
+	pci_unregister_driver(&pch_driver);
 }
 
 static s32 __init ptp_pch_init(void)
@@ -713,7 +713,7 @@ static s32 __init ptp_pch_init(void)
 	s32 ret;
 
 	/* register the driver with the pci core */
-	ret = pci_register_driver(&pch_pcidev);
+	ret = pci_register_driver(&pch_driver);
 
 	return ret;
 }
