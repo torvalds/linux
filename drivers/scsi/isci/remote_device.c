@@ -263,13 +263,15 @@ enum sci_status sci_remote_device_stop(struct isci_remote_device *idev,
 	case SCI_SMP_DEV_IDLE:
 	case SCI_SMP_DEV_CMD:
 		sci_change_state(sm, SCI_DEV_STOPPING);
-		if (idev->started_request_count == 0) {
+		if (idev->started_request_count == 0)
 			sci_remote_node_context_destruct(&idev->rnc,
-							      rnc_destruct_done, idev);
-			return SCI_SUCCESS;
-		} else
-			return sci_remote_device_terminate_requests(idev);
-		break;
+							 rnc_destruct_done,
+							 idev);
+		else {
+			sci_remote_device_suspend(idev);
+			sci_remote_device_terminate_requests(idev);
+		}
+		return SCI_SUCCESS;
 	case SCI_DEV_STOPPING:
 		/* All requests should have been terminated, but if there is an
 		 * attempt to stop a device already in the stopping state, then
@@ -1403,14 +1405,8 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	idev->domain_dev->lldd_dev = NULL; /* disable new lookups */
 	set_bit(IDEV_GONE, &idev->flags);
-	spin_unlock_irqrestore(&ihost->scic_lock, flags);
-
-	/* Kill all outstanding requests. */
-	isci_remote_device_nuke_requests(ihost, idev);
 
 	set_bit(IDEV_STOP_PENDING, &idev->flags);
-
-	spin_lock_irqsave(&ihost->scic_lock, flags);
 	status = sci_remote_device_stop(idev, 50);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
@@ -1419,6 +1415,9 @@ enum sci_status isci_remote_device_stop(struct isci_host *ihost, struct isci_rem
 		/* nothing to wait for */;
 	else
 		wait_for_device_stop(ihost, idev);
+
+	dev_dbg(&ihost->pdev->dev,
+		"%s: isci_device = %p, waiting done.\n", __func__, idev);
 
 	return status;
 }
