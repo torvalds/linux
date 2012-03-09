@@ -1188,7 +1188,11 @@ static void uvc_video_decode_bulk(struct urb *urb, struct uvc_streaming *stream,
 	u8 *mem;
 	int len, ret;
 
-	if (urb->actual_length == 0)
+	/*
+	 * Ignore ZLPs if they're not part of a frame, otherwise process them
+	 * to trigger the end of payload detection.
+	 */
+	if (urb->actual_length == 0 && stream->bulk.header_size == 0)
 		return;
 
 	mem = urb->transfer_buffer;
