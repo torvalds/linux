@@ -3130,6 +3130,12 @@ enum sci_status sci_task_request_construct(struct isci_host *ihost,
 	if (dev->dev_type == SAS_END_DEV || dev_is_sata(dev)) {
 		set_bit(IREQ_TMF, &ireq->flags);
 		memset(ireq->tc, 0, sizeof(struct scu_task_context));
+
+		/* Set the protocol indicator. */
+		if (dev_is_sata(dev))
+			ireq->protocol = SAS_PROTOCOL_STP;
+		else
+			ireq->protocol = SAS_PROTOCOL_SSP;
 	} else
 		status = SCI_FAILURE_UNSUPPORTED_PROTOCOL;
 
