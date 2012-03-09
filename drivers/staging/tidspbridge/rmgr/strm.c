@@ -81,9 +81,6 @@ struct strm_object {
 	struct cmm_xlatorobject *xlator;
 };
 
-/*  ----------------------------------- Globals */
-static u32 refs;		/* module reference count */
-
 /*  ----------------------------------- Function Prototypes */
 static int delete_strm(struct strm_object *stream_obj);
 
@@ -222,16 +219,6 @@ void strm_delete(struct strm_mgr *strm_mgr_obj)
 }
 
 /*
- *  ======== strm_exit ========
- *  Purpose:
- *      Discontinue usage of STRM module.
- */
-void strm_exit(void)
-{
-	refs--;
-}
-
-/*
  *  ======== strm_free_buffer ========
  *  Purpose:
  *      Frees the buffers allocated for a stream.
@@ -347,21 +334,6 @@ int strm_idle(struct strm_object *stream_obj, bool flush_data)
 	dev_dbg(bridge, "%s: stream_obj: %p flush_data: 0x%x status: 0x%x\n",
 		__func__, stream_obj, flush_data, status);
 	return status;
-}
-
-/*
- *  ======== strm_init ========
- *  Purpose:
- *      Initialize the STRM module.
- */
-bool strm_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
 
 /*

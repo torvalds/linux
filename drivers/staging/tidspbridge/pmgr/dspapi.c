@@ -271,7 +271,6 @@ void api_exit(void)
 		chnl_exit();
 		msg_exit();
 		io_exit();
-		strm_exit();
 		mgr_exit();
 		rmm_exit();
 	}
@@ -286,12 +285,11 @@ bool api_init(void)
 {
 	bool ret = true;
 	bool fdev, fchnl, fmsg, fio;
-	bool fmgr, fstrm, frmm;
+	bool fmgr, frmm;
 
 	if (api_c_refs == 0) {
 		/* initialize driver and other modules */
 		fmgr = mgr_init();
-		fstrm = strm_init();
 		frmm = rmm_init();
 		fchnl = chnl_init();
 		fmsg = msg_mod_init();
@@ -303,9 +301,6 @@ bool api_init(void)
 
 			if (fmgr)
 				mgr_exit();
-
-			if (fstrm)
-				strm_exit();
 
 			if (fchnl)
 				chnl_exit();
