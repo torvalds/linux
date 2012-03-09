@@ -2380,7 +2380,7 @@ static void sci_request_handle_suspending_completions(
 
 		sci_remote_node_context_suspend(
 			&ireq->target_device->rnc,
-			SCU_HARDWARE_SUSPENSION,
+			SCI_HW_SUSPEND,
 			(is_tx_rx) ? SCU_EVENT_TL_RNC_SUSPEND_TX_RX
 				   : SCU_EVENT_TL_RNC_SUSPEND_TX,
 			NULL, NULL);

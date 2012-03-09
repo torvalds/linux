@@ -72,10 +72,11 @@ const char *dev_state_name(enum sci_remote_device_states state)
 }
 #undef C
 
-static enum sci_status sci_remote_device_suspend(struct isci_remote_device *idev)
+static enum sci_status sci_remote_device_suspend(struct isci_remote_device *idev,
+						 enum sci_remote_node_suspension_reasons reason)
 {
 	return sci_remote_node_context_suspend(&idev->rnc,
-					       SCI_SOFTWARE_SUSPENSION,
+					       reason,
 					       SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT,
 					       NULL, NULL);
 }
@@ -199,7 +200,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 		set_bit(IDEV_IO_NCQERROR, &idev->flags);
 
 		/* Suspend the remote device so the I/O can be terminated. */
-		sci_remote_device_suspend(idev);
+		sci_remote_device_suspend(idev, SCI_SW_SUSPEND_NORMAL);
 
 		/* Kill all outstanding requests for the device. */
 		sci_remote_device_terminate_requests(idev);
@@ -268,7 +269,8 @@ enum sci_status sci_remote_device_stop(struct isci_remote_device *idev,
 							 rnc_destruct_done,
 							 idev);
 		else {
-			sci_remote_device_suspend(idev);
+			sci_remote_device_suspend(
+				idev, SCI_SW_SUSPEND_LINKHANG_DETECT);
 			sci_remote_device_terminate_requests(idev);
 		}
 		return SCI_SUCCESS;
@@ -473,11 +475,7 @@ enum sci_status sci_remote_device_event_handler(struct isci_remote_device *idev,
 			status = SCI_SUCCESS;
 
 			/* Suspend the associated RNC */
-			sci_remote_node_context_suspend(
-				&idev->rnc,
-				SCI_SOFTWARE_SUSPENSION,
-				SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT,
-				NULL, NULL);
+			sci_remote_device_suspend(idev, SCI_SW_SUSPEND_NORMAL);
 
 			dev_dbg(scirdev_to_dev(idev),
 				"%s: device: %p event code: %x: %s\n",
@@ -789,9 +787,8 @@ enum sci_status sci_remote_device_start_task(struct isci_host *ihost,
 		 * the correct action when the remote node context is suspended
 		 * and later resumed.
 		 */
-		sci_remote_node_context_suspend(
-			&idev->rnc, SCI_SOFTWARE_SUSPENSION,
-			SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT, NULL, NULL);
+		sci_remote_device_suspend(idev,
+					  SCI_SW_SUSPEND_LINKHANG_DETECT);
 
 		status = sci_remote_node_context_start_task(&idev->rnc, ireq,
 				sci_remote_device_continue_request, idev);
@@ -986,9 +983,7 @@ static void sci_remote_device_resetting_state_enter(struct sci_base_state_machin
 	dev_dbg(&ihost->pdev->dev,
 		"%s: isci_device = %p\n", __func__, idev);
 
-	sci_remote_node_context_suspend(
-		&idev->rnc, SCI_SOFTWARE_SUSPENSION,
-		SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT, NULL, NULL);
+	sci_remote_device_suspend(idev, SCI_SW_SUSPEND_LINKHANG_DETECT);
 }
 
 static void sci_remote_device_resetting_state_exit(struct sci_base_state_machine *sm)
@@ -1486,7 +1481,7 @@ enum sci_status isci_remote_device_suspend_terminate(
 
 	/* Put the device into suspension. */
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	sci_remote_device_suspend(idev);
+	sci_remote_device_suspend(idev, SCI_SW_SUSPEND_LINKHANG_DETECT);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	/* Terminate and wait for the completions. */

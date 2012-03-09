@@ -52,7 +52,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
+#include <scsi/sas_ata.h>
 #include "host.h"
 #include "isci.h"
 #include "remote_device.h"
@@ -315,7 +315,7 @@ static void sci_remote_node_context_ready_state_enter(struct sci_base_state_mach
 	if ((dest_select == RNC_DEST_SUSPENDED) ||
 	    (dest_select == RNC_DEST_SUSPENDED_RESUME)) {
 		sci_remote_node_context_suspend(
-			rnc, SCI_SOFTWARE_SUSPENSION,
+			rnc, SCI_SW_SUSPEND_NORMAL,
 			SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT, NULL, NULL);
 
 		if (dest_select == RNC_DEST_SUSPENDED_RESUME) {
@@ -352,8 +352,10 @@ static void sci_remote_node_context_await_suspend_state_exit(
 {
 	struct sci_remote_node_context *rnc
 		= container_of(sm, typeof(*rnc), sm);
+	struct isci_remote_device *idev = rnc_to_dev(rnc);
 
-	isci_dev_set_hang_detection_timeout(rnc_to_dev(rnc), 0);
+	if (dev_is_sata(idev->domain_dev))
+		isci_dev_set_hang_detection_timeout(idev, 0);
 }
 
 static const struct sci_base_state sci_remote_node_context_state_table[] = {
@@ -556,7 +558,7 @@ enum sci_status sci_remote_node_context_suspend(
 		suspend_type);
 
 	/* Disable automatic state continuations if explicitly suspending. */
-	if ((suspend_reason != SCI_SOFTWARE_SUSPENSION) ||
+	if ((suspend_reason == SCI_HW_SUSPEND) ||
 	    (sci_rnc->destination_state == RNC_DEST_FINAL))
 		dest_param = sci_rnc->destination_state;
 
@@ -612,8 +614,13 @@ enum sci_status sci_remote_node_context_suspend(
 		wake_up_all(&ihost->eventq); /* Let observers look. */
 		return SCI_SUCCESS;
 	}
-	if (suspend_reason == SCI_SOFTWARE_SUSPENSION) {
-		isci_dev_set_hang_detection_timeout(idev, 0x00000001);
+	if ((suspend_reason == SCI_SW_SUSPEND_NORMAL) ||
+	    (suspend_reason == SCI_SW_SUSPEND_LINKHANG_DETECT)) {
+
+		if ((suspend_reason == SCI_SW_SUSPEND_LINKHANG_DETECT)
+		 && dev_is_sata(idev->domain_dev))
+			isci_dev_set_hang_detection_timeout(idev, 0x00000001);
+
 		sci_remote_device_post_request(
 			idev, SCI_SOFTWARE_SUSPEND_CMD);
 	}
