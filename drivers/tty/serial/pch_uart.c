@@ -1864,4 +1864,8 @@ module_exit(pch_uart_module_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel EG20T PCH UART PCI Driver");
 module_param(default_baud, uint, S_IRUGO);
+MODULE_PARM_DESC(default_baud,
+                 "Default BAUD for initial driver state and console (default 9600)");
 module_param(user_uartclk, uint, S_IRUGO);
+MODULE_PARM_DESC(user_uartclk,
+                 "Override UART default or board specific UART clock");
