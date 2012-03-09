@@ -33,9 +33,6 @@
 #include <msgobj.h>
 #include <dspbridge/msg.h>
 
-/*  ----------------------------------- Globals */
-static u32 refs;		/* module reference count */
-
 /*
  *  ======== msg_create ========
  *  Purpose:
@@ -91,22 +88,4 @@ void msg_delete(struct msg_mgr *hmsg_mgr)
 		dev_dbg(bridge, "%s: Error hmsg_mgr handle: %p\n",
 			__func__, hmsg_mgr);
 	}
-}
-
-/*
- *  ======== msg_exit ========
- */
-void msg_exit(void)
-{
-	refs--;
-}
-
-/*
- *  ======== msg_mod_init ========
- */
-bool msg_mod_init(void)
-{
-	refs++;
-
-	return true;
 }
