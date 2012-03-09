@@ -274,6 +274,7 @@ config MACH_NURI
 	select S3C_DEV_I2C5
 	select S3C_DEV_I2C6
 	select S5P_DEV_CSIS0
+	select S5P_DEV_JPEG
 	select S5P_DEV_FIMC0
 	select S5P_DEV_FIMC1
 	select S5P_DEV_FIMC2
