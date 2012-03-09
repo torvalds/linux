@@ -1083,7 +1083,7 @@ err_alloc_rx_sg:
 	return -ENOMEM;
 }
 
-static int __init pl022_dma_probe(struct pl022 *pl022)
+static int __devinit pl022_dma_probe(struct pl022 *pl022)
 {
 	dma_cap_mask_t mask;
 
