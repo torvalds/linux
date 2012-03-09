@@ -427,7 +427,7 @@ int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 	int ret;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	idev = isci_lookup_device(dev);
+	idev = isci_get_device(dev->lldd_dev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	dev_dbg(&ihost->pdev->dev,
@@ -507,7 +507,7 @@ int isci_task_abort_task(struct sas_task *task)
 	if (!(task->task_state_flags & SAS_TASK_STATE_DONE) &&
 	    (task->task_state_flags & SAS_TASK_AT_INITIATOR) &&
 	    old_request)
-		idev = isci_lookup_device(task->dev);
+		idev = isci_get_device(task->dev->lldd_dev);
 
 	spin_unlock(&task->task_state_lock);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
@@ -593,6 +593,9 @@ int isci_task_abort_task(struct sas_task *task)
 					    ISCI_ABORT_TASK_TIMEOUT_MS);
 	}
 out:
+	dev_warn(&ihost->pdev->dev,
+		 "%s: Done; dev = %p, task = %p , old_request == %p\n",
+		 __func__, idev, task, old_request);
 	isci_put_device(idev);
 	return ret;
 }
