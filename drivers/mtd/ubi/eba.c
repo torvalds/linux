@@ -979,7 +979,7 @@ static int is_error_sane(int err)
  * physical eraseblock @to. The @vid_hdr buffer may be changed by this
  * function. Returns:
  *   o %0 in case of success;
- *   o %MOVE_CANCEL_RACE, %MOVE_TARGET_WR_ERR, %MOVE_CANCEL_BITFLIPS, etc;
+ *   o %MOVE_CANCEL_RACE, %MOVE_TARGET_WR_ERR, %MOVE_TARGET_BITFLIPS, etc;
  *   o a negative error code in case of failure.
  */
 int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
@@ -1116,7 +1116,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 			if (is_error_sane(err))
 				err = MOVE_TARGET_RD_ERR;
 		} else
-			err = MOVE_CANCEL_BITFLIPS;
+			err = MOVE_TARGET_BITFLIPS;
 		goto out_unlock_buf;
 	}
 
@@ -1143,7 +1143,7 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 				if (is_error_sane(err))
 					err = MOVE_TARGET_RD_ERR;
 			} else
-				err = MOVE_CANCEL_BITFLIPS;
+				err = MOVE_TARGET_BITFLIPS;
 			goto out_unlock_buf;
 		}
 

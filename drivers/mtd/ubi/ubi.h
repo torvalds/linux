@@ -118,7 +118,7 @@ enum {
  *                     PEB
  * MOVE_TARGET_WR_ERR: canceled because there was a write error to the target
  *                     PEB
- * MOVE_CANCEL_BITFLIPS: canceled because a bit-flip was detected in the
+ * MOVE_TARGET_BITFLIPS: canceled because a bit-flip was detected in the
  *                       target PEB
  * MOVE_RETRY: retry scrubbing the PEB
  */
@@ -127,7 +127,7 @@ enum {
 	MOVE_SOURCE_RD_ERR,
 	MOVE_TARGET_RD_ERR,
 	MOVE_TARGET_WR_ERR,
-	MOVE_CANCEL_BITFLIPS,
+	MOVE_TARGET_BITFLIPS,
 	MOVE_RETRY,
 };
 
