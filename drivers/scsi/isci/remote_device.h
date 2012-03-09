@@ -106,6 +106,16 @@ struct isci_remote_device {
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
 
 /* device reference routines must be called under sci_lock */
+static inline struct isci_remote_device *isci_get_device(
+	struct domain_device *dev)
+{
+	struct isci_remote_device *idev = dev->lldd_dev;
+
+	if (idev)
+		kref_get(&idev->kref);
+	return idev;
+}
+
 static inline struct isci_remote_device *isci_lookup_device(struct domain_device *dev)
 {
 	struct isci_remote_device *idev = dev->lldd_dev;
@@ -344,5 +354,28 @@ int isci_remote_device_is_safe_to_abort(
 
 enum sci_status
 sci_remote_device_abort_requests_pending_abort(
+	struct isci_remote_device *idev);
+
+enum sci_status isci_remote_device_suspend(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev);
+
+enum sci_status sci_remote_device_resume(
+	struct isci_remote_device *idev,
+	scics_sds_remote_node_context_callback cb_fn,
+	void *cb_p);
+
+enum sci_status isci_remote_device_resume(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev,
+	scics_sds_remote_node_context_callback cb_fn,
+	void *cb_p);
+
+enum sci_status isci_remote_device_reset(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev);
+
+enum sci_status isci_remote_device_reset_complete(
+	struct isci_host *ihost,
 	struct isci_remote_device *idev);
 #endif /* !defined(_ISCI_REMOTE_DEVICE_H_) */

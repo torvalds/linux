@@ -143,6 +143,12 @@ static enum sci_status sci_remote_device_suspend(
 		NULL, NULL);
 }
 
+static int isci_remote_device_suspendcheck(struct isci_remote_device *idev)
+{
+	return test_bit(IDEV_TXRX_SUSPENDED, &idev->flags)
+	    || !test_bit(IDEV_ALLOCATED, &idev->flags);
+}
+
 enum sci_status isci_remote_device_suspend(
 	struct isci_host *ihost,
 	struct isci_remote_device *idev)
@@ -151,18 +157,18 @@ enum sci_status isci_remote_device_suspend(
 	unsigned long flags;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-
-	if (isci_lookup_device(idev->domain_dev) == NULL) {
+	if (isci_get_device(idev->domain_dev) == NULL) {
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		status = SCI_FAILURE;
 	} else {
 		status = sci_remote_device_suspend(idev);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		if (status == SCI_SUCCESS) {
+			dev_dbg(&ihost->pdev->dev,
+				"%s: idev=%p, about to wait\n",
+				__func__, idev);
 			wait_event(ihost->eventq,
-				   test_bit(IDEV_TXRX_SUSPENDED, &idev->flags)
-				|| !test_bit(IDEV_ALLOCATED, &idev->flags));
-
+				   isci_remote_device_suspendcheck(idev));
 			status = test_bit(IDEV_TXRX_SUSPENDED, &idev->flags)
 					? SCI_SUCCESS : SCI_FAILURE;
 			dev_dbg(&ihost->pdev->dev,
@@ -171,7 +177,10 @@ enum sci_status isci_remote_device_suspend(
 				test_bit(IDEV_TXRX_SUSPENDED, &idev->flags)
 					? "<suspended>" : "<deallocated!>");
 
-		}
+		} else
+			dev_dbg(scirdev_to_dev(idev),
+				 "%s: sci_remote_device_suspend failed, "
+				 "status = %d\n", __func__, status);
 		isci_put_device(idev);
 	}
 	return status;
@@ -1218,6 +1227,35 @@ static enum sci_status sci_remote_device_ea_construct(struct isci_port *iport,
 	return SCI_SUCCESS;
 }
 
+enum sci_status sci_remote_device_resume(
+	struct isci_remote_device *idev,
+	scics_sds_remote_node_context_callback cb_fn,
+	void *cb_p)
+{
+	enum sci_status status;
+
+	status = sci_remote_node_context_resume(&idev->rnc, cb_fn, cb_p);
+	if (status != SCI_SUCCESS)
+		dev_dbg(scirdev_to_dev(idev), "%s: failed to resume: %d\n",
+			__func__, status);
+	return status;
+}
+
+enum sci_status isci_remote_device_resume(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev,
+	scics_sds_remote_node_context_callback cb_fn,
+	void *cb_p)
+{
+	unsigned long flags;
+	enum sci_status status;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	status = sci_remote_device_resume(idev, cb_fn, cb_p);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	return status;
+}
 /**
  * sci_remote_device_start() - This method will start the supplied remote
  *    device.  This method enables normal IO requests to flow through to the
@@ -1244,9 +1282,8 @@ static enum sci_status sci_remote_device_start(struct isci_remote_device *idev,
 		return SCI_FAILURE_INVALID_STATE;
 	}
 
-	status = sci_remote_node_context_resume(&idev->rnc,
-						     remote_device_resume_done,
-						     idev);
+	status = sci_remote_device_resume(idev, remote_device_resume_done,
+					  idev);
 	if (status != SCI_SUCCESS)
 		return status;
 
@@ -1461,26 +1498,29 @@ int isci_remote_device_found(struct domain_device *dev)
 }
 
 enum sci_status isci_remote_device_reset(
+	struct isci_host *ihost,
 	struct isci_remote_device *idev)
 {
-	struct isci_host *ihost = dev_to_ihost(idev->domain_dev);
 	unsigned long flags;
 	enum sci_status status;
 
-	/* Wait for the device suspend. */
-	status = isci_remote_device_suspend(ihost, idev);
-	if (status != SCI_SUCCESS) {
-		dev_dbg(&ihost->pdev->dev,
-			"%s: isci_remote_device_suspend(%p) returned %d!\n",
-			__func__, idev, status);
-		return status;
-	}
+	/* Put the device into a reset state so the suspension will not
+	 * automatically resume.
+	 */
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	status = sci_remote_device_reset(idev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 	if (status != SCI_SUCCESS) {
 		dev_dbg(&ihost->pdev->dev,
 			"%s: sci_remote_device_reset(%p) returned %d!\n",
+			__func__, idev, status);
+		return status;
+	}
+	/* Wait for the device suspend. */
+	status = isci_remote_device_suspend(ihost, idev);
+	if (status != SCI_SUCCESS) {
+		dev_dbg(&ihost->pdev->dev,
+			"%s: isci_remote_device_suspend(%p) returned %d!\n",
 			__func__, idev, status);
 	}
 	return status;
@@ -1497,3 +1537,19 @@ enum sci_status sci_remote_device_abort_requests_pending_abort(
 {
 	return sci_remote_device_terminate_requests_checkabort(idev, 1);
 }
+
+enum sci_status isci_remote_device_reset_complete(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev)
+{
+	unsigned long flags;
+	enum sci_status status;
+
+	spin_lock_irqsave(&ihost->scic_lock, flags);
+	status = sci_remote_device_reset_complete(idev);
+	sci_remote_device_resume(idev, NULL, NULL);
+	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	return status;
+}
+
