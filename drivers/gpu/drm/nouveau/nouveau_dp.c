@@ -554,6 +554,49 @@ dp_link_train_eq(struct drm_device *dev, struct dp_state *dp)
 	return eq_done ? 0 : -1;
 }
 
+static void
+dp_set_downspread(struct drm_device *dev, struct dp_state *dp, bool enable)
+{
+	u16 script = 0x0000;
+	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
+	if (table) {
+		if (table[0] >= 0x20 && table[0] <= 0x30) {
+			if (enable)
+				script = ROM16(entry[12]);
+			else
+				script = ROM16(entry[14]);
+		}
+	}
+
+	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+}
+
+static void
+dp_link_train_init(struct drm_device *dev, struct dp_state *dp)
+{
+	u16 script = 0x0000;
+	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
+	if (table) {
+		if (table[0] >= 0x20 && table[0] <= 0x30)
+			script = ROM16(entry[6]);
+	}
+
+	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+}
+
+static void
+dp_link_train_fini(struct drm_device *dev, struct dp_state *dp)
+{
+	u16 script = 0x0000;
+	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
+	if (table) {
+		if (table[0] >= 0x20 && table[0] <= 0x30)
+			script = ROM16(entry[8]);
+	}
+
+	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+}
+
 bool
 nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 {
@@ -589,16 +632,10 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, false);
 
 	/* enable down-spreading, if possible */
-	if (dp.table[1] >= 16) {
-		u16 script = ROM16(dp.entry[14]);
-		if (nv_encoder->dp.dpcd[3] & 1)
-			script = ROM16(dp.entry[12]);
-
-		nouveau_bios_run_init_table(dev, script, dp.dcb, dp.crtc);
-	}
+	dp_set_downspread(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
 
 	/* execute pre-train script from vbios */
-	nouveau_bios_run_init_table(dev, ROM16(dp.entry[6]), dp.dcb, dp.crtc);
+	dp_link_train_init(dev, &dp);
 
 	/* start off at highest link rate supported by encoder and display */
 	while (*link_bw > nv_encoder->dp.link_bw)
@@ -632,7 +669,7 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	dp_set_training_pattern(dev, &dp, DP_TRAINING_PATTERN_DISABLE);
 
 	/* execute post-train script from vbios */
-	nouveau_bios_run_init_table(dev, ROM16(dp.entry[8]), dp.dcb, dp.crtc);
+	dp_link_train_fini(dev, &dp);
 
 	/* re-enable hotplug detect */
 	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, true);
