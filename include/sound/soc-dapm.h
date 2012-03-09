@@ -324,6 +324,7 @@ struct snd_soc_dapm_path;
 struct snd_soc_dapm_pin;
 struct snd_soc_dapm_route;
 struct snd_soc_dapm_context;
+struct regulator;
 
 int dapm_reg_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
@@ -487,6 +488,7 @@ struct snd_soc_dapm_widget {
 	struct snd_soc_dapm_context *dapm;
 
 	void *priv;				/* widget specific data */
+	struct regulator *regulator;		/* attached regulator */
 
 	/* dapm control */
 	short reg;						/* negative reg = no direct dapm */

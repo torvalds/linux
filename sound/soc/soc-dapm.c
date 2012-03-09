@@ -861,9 +861,9 @@ int dapm_regulator_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event)
 {
 	if (SND_SOC_DAPM_EVENT_ON(event))
-		return regulator_enable(w->priv);
+		return regulator_enable(w->regulator);
 	else
-		return regulator_disable_deferred(w->priv, w->shift);
+		return regulator_disable_deferred(w->regulator, w->shift);
 }
 EXPORT_SYMBOL_GPL(dapm_regulator_event);
 
@@ -2768,9 +2768,9 @@ snd_soc_dapm_new_control(struct snd_soc_dapm_context *dapm,
 
 	switch (w->id) {
 	case snd_soc_dapm_regulator_supply:
-		w->priv = devm_regulator_get(dapm->dev, w->name);
-		if (IS_ERR(w->priv)) {
-			ret = PTR_ERR(w->priv);
+		w->regulator = devm_regulator_get(dapm->dev, w->name);
+		if (IS_ERR(w->regulator)) {
+			ret = PTR_ERR(w->regulator);
 			dev_err(dapm->dev, "Failed to request %s: %d\n",
 				w->name, ret);
 			return NULL;
