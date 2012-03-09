@@ -35,6 +35,8 @@
 #define EXTENT_BUFFER_DIRTY 2
 #define EXTENT_BUFFER_CORRUPT 3
 #define EXTENT_BUFFER_READAHEAD 4	/* this got triggered by readahead */
+#define EXTENT_BUFFER_TREE_REF 5
+#define EXTENT_BUFFER_STALE 6
 
 /* these are flags for extent_clear_unlock_delalloc */
 #define EXTENT_CLEAR_UNLOCK_PAGE 0x1
@@ -128,6 +130,7 @@ struct extent_buffer {
 	unsigned long map_len;
 	unsigned long bflags;
 	struct extent_io_tree *tree;
+	spinlock_t refs_lock;
 	atomic_t refs;
 	atomic_t pages_reading;
 	struct list_head leak_list;
@@ -184,7 +187,7 @@ void extent_io_tree_init(struct extent_io_tree *tree,
 int try_release_extent_mapping(struct extent_map_tree *map,
 			       struct extent_io_tree *tree, struct page *page,
 			       gfp_t mask);
-int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page);
+int try_release_extent_buffer(struct page *page, gfp_t mask);
 int try_release_extent_state(struct extent_map_tree *map,
 			     struct extent_io_tree *tree, struct page *page,
 			     gfp_t mask);
@@ -261,6 +264,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 					 u64 start, unsigned long len);
 void free_extent_buffer(struct extent_buffer *eb);
+void free_extent_buffer_stale(struct extent_buffer *eb);
 #define WAIT_NONE	0
 #define WAIT_COMPLETE	1
 #define WAIT_PAGE_LOCK	2

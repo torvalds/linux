@@ -156,10 +156,23 @@ struct extent_buffer *btrfs_root_node(struct btrfs_root *root)
 {
 	struct extent_buffer *eb;
 
-	rcu_read_lock();
-	eb = rcu_dereference(root->node);
-	extent_buffer_get(eb);
-	rcu_read_unlock();
+	while (1) {
+		rcu_read_lock();
+		eb = rcu_dereference(root->node);
+
+		/*
+		 * RCU really hurts here, we could free up the root node because
+		 * it was cow'ed but we may not get the new root node yet so do
+		 * the inc_not_zero dance and if it doesn't work then
+		 * synchronize_rcu and try again.
+		 */
+		if (atomic_inc_not_zero(&eb->refs)) {
+			rcu_read_unlock();
+			break;
+		}
+		rcu_read_unlock();
+		synchronize_rcu();
+	}
 	return eb;
 }
 
@@ -504,7 +517,7 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	}
 	if (unlock_orig)
 		btrfs_tree_unlock(buf);
-	free_extent_buffer(buf);
+	free_extent_buffer_stale(buf);
 	btrfs_mark_buffer_dirty(cow);
 	*cow_ret = cow;
 	return 0;
@@ -959,7 +972,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 		root_sub_used(root, mid->len);
 		btrfs_free_tree_block(trans, root, mid, 0, 1, 0);
 		/* once for the root ptr */
-		free_extent_buffer(mid);
+		free_extent_buffer_stale(mid);
 		return 0;
 	}
 	if (btrfs_header_nritems(mid) >
@@ -1016,7 +1029,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 				ret = wret;
 			root_sub_used(root, right->len);
 			btrfs_free_tree_block(trans, root, right, 0, 1, 0);
-			free_extent_buffer(right);
+			free_extent_buffer_stale(right);
 			right = NULL;
 		} else {
 			struct btrfs_disk_key right_key;
@@ -1056,7 +1069,7 @@ static noinline int balance_level(struct btrfs_trans_handle *trans,
 			ret = wret;
 		root_sub_used(root, mid->len);
 		btrfs_free_tree_block(trans, root, mid, 0, 1, 0);
-		free_extent_buffer(mid);
+		free_extent_buffer_stale(mid);
 		mid = NULL;
 	} else {
 		/* update the parent key to reflect our changes */
@@ -3781,7 +3794,9 @@ static noinline int btrfs_del_leaf(struct btrfs_trans_handle *trans,
 
 	root_sub_used(root, leaf->len);
 
+	extent_buffer_get(leaf);
 	btrfs_free_tree_block(trans, root, leaf, 0, 1, 0);
+	free_extent_buffer_stale(leaf);
 	return 0;
 }
 /*

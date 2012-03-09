@@ -5018,10 +5018,6 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		if (is_data) {
 			ret = btrfs_del_csums(trans, root, bytenr, num_bytes);
 			BUG_ON(ret);
-		} else {
-			invalidate_mapping_pages(info->btree_inode->i_mapping,
-			     bytenr >> PAGE_CACHE_SHIFT,
-			     (bytenr + num_bytes - 1) >> PAGE_CACHE_SHIFT);
 		}
 
 		ret = update_block_group(trans, root, bytenr, num_bytes, 0);
@@ -6022,6 +6018,7 @@ struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, buf, level);
 	btrfs_tree_lock(buf);
 	clean_tree_block(trans, root, buf);
+	clear_bit(EXTENT_BUFFER_STALE, &buf->bflags);
 
 	btrfs_set_lock_blocking(buf);
 	btrfs_set_buffer_uptodate(buf);

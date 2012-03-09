@@ -923,16 +923,8 @@ static int btree_readpage(struct file *file, struct page *page)
 
 static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 {
-	struct extent_map_tree *map;
-	struct extent_io_tree *tree;
-	int ret;
-
 	if (PageWriteback(page) || PageDirty(page))
 		return 0;
-
-	tree = &BTRFS_I(page->mapping->host)->io_tree;
-	map = &BTRFS_I(page->mapping->host)->extent_tree;
-
 	/*
 	 * We need to mask out eg. __GFP_HIGHMEM and __GFP_DMA32 as we're doing
 	 * slab allocation from alloc_extent_state down the callchain where
@@ -940,11 +932,7 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	 */
 	gfp_flags &= ~GFP_SLAB_BUG_MASK;
 
-	ret = try_release_extent_state(map, tree, page, gfp_flags);
-	if (!ret)
-		return 0;
-
-	return try_release_extent_buffer(tree, page);
+	return try_release_extent_buffer(page, gfp_flags);
 }
 
 static void btree_invalidatepage(struct page *page, unsigned long offset)

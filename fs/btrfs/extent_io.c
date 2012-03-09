@@ -3607,6 +3607,7 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 	list_add(&eb->leak_list, &buffers);
 	spin_unlock_irqrestore(&leak_lock, flags);
 #endif
+	spin_lock_init(&eb->refs_lock);
 	atomic_set(&eb->refs, 1);
 	atomic_set(&eb->pages_reading, 0);
 
@@ -3654,6 +3655,8 @@ static void btrfs_release_extent_buffer_page(struct extent_buffer *eb,
 			 */
 			if (PagePrivate(page) &&
 			    page->private == (unsigned long)eb) {
+				BUG_ON(PageDirty(page));
+				BUG_ON(PageWriteback(page));
 				/*
 				 * We need to make sure we haven't be attached
 				 * to a new eb.
@@ -3763,7 +3766,6 @@ again:
 		if (!atomic_inc_not_zero(&exists->refs)) {
 			spin_unlock(&tree->buffer_lock);
 			radix_tree_preload_end();
-			synchronize_rcu();
 			exists = NULL;
 			goto again;
 		}
@@ -3772,7 +3774,10 @@ again:
 		goto free_eb;
 	}
 	/* add one reference for the tree */
+	spin_lock(&eb->refs_lock);
 	atomic_inc(&eb->refs);
+	set_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags);
+	spin_unlock(&eb->refs_lock);
 	spin_unlock(&tree->buffer_lock);
 	radix_tree_preload_end();
 
@@ -3823,15 +3828,143 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 	return NULL;
 }
 
+static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
+{
+	struct extent_buffer *eb =
+			container_of(head, struct extent_buffer, rcu_head);
+
+	__free_extent_buffer(eb);
+}
+
+static int extent_buffer_under_io(struct extent_buffer *eb,
+				  struct page *locked_page)
+{
+	unsigned long num_pages, i;
+
+	num_pages = num_extent_pages(eb->start, eb->len);
+	for (i = 0; i < num_pages; i++) {
+		struct page *page = eb->pages[i];
+		int need_unlock = 0;
+
+		if (!page)
+			continue;
+
+		if (page != locked_page) {
+			if (!trylock_page(page))
+				return 1;
+			need_unlock = 1;
+		}
+
+		if (PageDirty(page) || PageWriteback(page)) {
+			if (need_unlock)
+				unlock_page(page);
+			return 1;
+		}
+		if (need_unlock)
+			unlock_page(page);
+	}
+
+	return 0;
+}
+
+/* Expects to have eb->eb_lock already held */
+static void release_extent_buffer(struct extent_buffer *eb, gfp_t mask)
+{
+	WARN_ON(atomic_read(&eb->refs) == 0);
+	if (atomic_dec_and_test(&eb->refs)) {
+		struct extent_io_tree *tree = eb->tree;
+		int ret;
+
+		spin_unlock(&eb->refs_lock);
+
+		might_sleep_if(mask & __GFP_WAIT);
+		ret = clear_extent_bit(tree, eb->start,
+				       eb->start + eb->len - 1, -1, 0, 0,
+				       NULL, mask);
+		if (ret < 0) {
+			unsigned long num_pages, i;
+
+			num_pages = num_extent_pages(eb->start, eb->len);
+			/*
+			 * We failed to clear the state bits which likely means
+			 * ENOMEM, so just re-up the eb ref and continue, we
+			 * will get freed later on via releasepage or something
+			 * else and will be ok.
+			 */
+			spin_lock(&eb->tree->mapping->private_lock);
+			spin_lock(&eb->refs_lock);
+			set_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags);
+			atomic_inc(&eb->refs);
+
+			/*
+			 * We may have started to reclaim the pages for a newly
+			 * allocated eb, make sure we own all of them again.
+			 */
+			for (i = 0; i < num_pages; i++) {
+				struct page *page = eb->pages[i];
+
+				if (!page) {
+					WARN_ON(1);
+					continue;
+				}
+
+				BUG_ON(!PagePrivate(page));
+				if (page->private != (unsigned long)eb) {
+					ClearPagePrivate(page);
+					page_cache_release(page);
+					attach_extent_buffer_page(eb, page);
+				}
+			}
+			spin_unlock(&eb->refs_lock);
+			spin_unlock(&eb->tree->mapping->private_lock);
+			return;
+		}
+
+		spin_lock(&tree->buffer_lock);
+		radix_tree_delete(&tree->buffer,
+				  eb->start >> PAGE_CACHE_SHIFT);
+		spin_unlock(&tree->buffer_lock);
+
+		/* Should be safe to release our pages at this point */
+		btrfs_release_extent_buffer_page(eb, 0);
+
+		call_rcu(&eb->rcu_head, btrfs_release_extent_buffer_rcu);
+		return;
+	}
+	spin_unlock(&eb->refs_lock);
+}
+
 void free_extent_buffer(struct extent_buffer *eb)
 {
 	if (!eb)
 		return;
 
-	if (!atomic_dec_and_test(&eb->refs))
+	spin_lock(&eb->refs_lock);
+	if (atomic_read(&eb->refs) == 2 &&
+	    test_bit(EXTENT_BUFFER_STALE, &eb->bflags) &&
+	    !extent_buffer_under_io(eb, NULL) &&
+	    test_and_clear_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
+		atomic_dec(&eb->refs);
+
+	/*
+	 * I know this is terrible, but it's temporary until we stop tracking
+	 * the uptodate bits and such for the extent buffers.
+	 */
+	release_extent_buffer(eb, GFP_ATOMIC);
+}
+
+void free_extent_buffer_stale(struct extent_buffer *eb)
+{
+	if (!eb)
 		return;
 
-	WARN_ON(1);
+	spin_lock(&eb->refs_lock);
+	set_bit(EXTENT_BUFFER_STALE, &eb->bflags);
+
+	if (atomic_read(&eb->refs) == 2 && !extent_buffer_under_io(eb, NULL) &&
+	    test_and_clear_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags))
+		atomic_dec(&eb->refs);
+	release_extent_buffer(eb, GFP_NOFS);
 }
 
 int clear_extent_buffer_dirty(struct extent_io_tree *tree,
@@ -3874,6 +4007,7 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 
 	was_dirty = test_and_set_bit(EXTENT_BUFFER_DIRTY, &eb->bflags);
 	num_pages = num_extent_pages(eb->start, eb->len);
+	WARN_ON(atomic_read(&eb->refs) == 0);
 	for (i = 0; i < num_pages; i++)
 		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
 	return was_dirty;
@@ -4440,45 +4574,48 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 	}
 }
 
-static inline void btrfs_release_extent_buffer_rcu(struct rcu_head *head)
+int try_release_extent_buffer(struct page *page, gfp_t mask)
 {
-	struct extent_buffer *eb =
-			container_of(head, struct extent_buffer, rcu_head);
-
-	__free_extent_buffer(eb);
-}
-
-int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
-{
-	u64 start = page_offset(page);
-	struct extent_buffer *eb = (struct extent_buffer *)page->private;
-	int ret = 1;
-
-	if (!PagePrivate(page) || !eb)
-		return 1;
-
-	spin_lock(&tree->buffer_lock);
-	if (atomic_read(&eb->refs) > 1 ||
-	    test_bit(EXTENT_BUFFER_DIRTY, &eb->bflags)) {
-		ret = 0;
-		goto out;
-	}
+	struct extent_buffer *eb;
 
 	/*
-	 * set @eb->refs to 0 if it is already 1, and then release the @eb.
-	 * Or go back.
+	 * We need to make sure noboody is attaching this page to an eb right
+	 * now.
 	 */
-	if (atomic_cmpxchg(&eb->refs, 1, 0) != 1) {
-		ret = 0;
-		goto out;
+	spin_lock(&page->mapping->private_lock);
+	if (!PagePrivate(page)) {
+		spin_unlock(&page->mapping->private_lock);
+		return 1;
 	}
-	radix_tree_delete(&tree->buffer, start >> PAGE_CACHE_SHIFT);
-	btrfs_release_extent_buffer_page(eb, 0);
-out:
-	spin_unlock(&tree->buffer_lock);
 
-	/* at this point we can safely release the extent buffer */
-	if (atomic_read(&eb->refs) == 0)
-		call_rcu(&eb->rcu_head, btrfs_release_extent_buffer_rcu);
-	return ret;
+	eb = (struct extent_buffer *)page->private;
+	BUG_ON(!eb);
+
+	/* 
+	 * This is a little awful but should be ok, we need to make sure that
+	 * the eb doesn't disappear out from under us while we're looking at
+	 * this page.
+	 */
+	spin_lock(&eb->refs_lock);
+	if (atomic_read(&eb->refs) != 1 || extent_buffer_under_io(eb, page)) {
+		spin_unlock(&eb->refs_lock);
+		spin_unlock(&page->mapping->private_lock);
+		return 0;
+	}
+	spin_unlock(&page->mapping->private_lock);
+
+	if ((mask & GFP_NOFS) == GFP_NOFS)
+		mask = GFP_NOFS;
+
+	/*
+	 * If tree ref isn't set then we know the ref on this eb is a real ref,
+	 * so just return, this page will likely be freed soon anyway.
+	 */
+	if (!test_and_clear_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags)) {
+		spin_unlock(&eb->refs_lock);
+		return 0;
+	}
+	release_extent_buffer(eb, mask);
+
+	return 1;
 }
