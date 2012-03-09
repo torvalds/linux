@@ -90,6 +90,15 @@ static int sh_mobile_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 	return 0;
 }
 
+static void sh_mobile_sdhi_cd_wakeup(const struct platform_device *pdev)
+{
+	mmc_detect_change(dev_get_drvdata(&pdev->dev), msecs_to_jiffies(100));
+}
+
+static const struct sh_mobile_sdhi_ops sdhi_ops = {
+	.cd_wakeup = sh_mobile_sdhi_cd_wakeup,
+};
+
 static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_sdhi *priv;
@@ -110,7 +119,7 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	p->pdata = mmc_data;
 
 	if (p->init) {
-		ret = p->init(pdev);
+		ret = p->init(pdev, &sdhi_ops);
 		if (ret)
 			goto einit;
 	}
