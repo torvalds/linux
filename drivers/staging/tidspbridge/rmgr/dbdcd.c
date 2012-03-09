@@ -289,7 +289,6 @@ void dcd_exit(void)
 
 	refs--;
 	if (refs == 0) {
-		cod_exit();
 		list_for_each_entry_safe(rv, rv_tmp, &reg_key_list, link) {
 			list_del(&rv->link);
 			kfree(rv->path);
@@ -738,22 +737,10 @@ int dcd_get_library_name(struct dcd_manager *hdcd_mgr,
  */
 bool dcd_init(void)
 {
-	bool init_cod;
 	bool ret = true;
 
-	if (refs == 0) {
-		/* Initialize required modules. */
-		init_cod = cod_init();
-
-		if (!init_cod) {
-			ret = false;
-			/* Exit initialized modules. */
-			if (init_cod)
-				cod_exit();
-		}
-
+	if (refs == 0)
 		INIT_LIST_HEAD(&reg_key_list);
-	}
 
 	if (ret)
 		refs++;

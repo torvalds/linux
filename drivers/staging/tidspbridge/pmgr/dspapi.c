@@ -267,7 +267,6 @@ void api_exit(void)
 
 	if (api_c_refs == 0) {
 		/* Release all modules initialized in api_init(). */
-		cod_exit();
 		dev_exit();
 		chnl_exit();
 		msg_exit();
@@ -289,7 +288,7 @@ void api_exit(void)
 bool api_init(void)
 {
 	bool ret = true;
-	bool fdev, fcod, fchnl, fmsg, fio;
+	bool fdev, fchnl, fmsg, fio;
 	bool fmgr, fproc, fnode, fdisp, fstrm, frmm;
 
 	if (api_c_refs == 0) {
@@ -304,8 +303,7 @@ bool api_init(void)
 		fmsg = msg_mod_init();
 		fio = io_init();
 		fdev = dev_init();
-		fcod = cod_init();
-		ret = fdev && fchnl && fcod && fmsg && fio;
+		ret = fdev && fchnl && fmsg && fio;
 		ret = ret && fmgr && fproc && frmm;
 		if (!ret) {
 
@@ -335,9 +333,6 @@ bool api_init(void)
 
 			if (fdev)
 				dev_exit();
-
-			if (fcod)
-				cod_exit();
 
 			if (frmm)
 				rmm_exit();

@@ -58,8 +58,6 @@ struct cod_libraryobj {
 	struct cod_manager *cod_mgr;
 };
 
-static u32 refs = 0L;
-
 static struct dbll_fxns ldr_fxns = {
 	(dbll_close_fxn) dbll_close,
 	(dbll_create_fxn) dbll_create,
@@ -268,17 +266,6 @@ void cod_delete(struct cod_manager *cod_mgr_obj)
 }
 
 /*
- *  ======== cod_exit ========
- *  Purpose:
- *      Discontinue usage of the COD module.
- *
- */
-void cod_exit(void)
-{
-	refs--;
-}
-
-/*
  *  ======== cod_get_base_lib ========
  *  Purpose:
  *      Get handle to the base image DBL library.
@@ -392,22 +379,6 @@ int cod_get_sym_value(struct cod_manager *cod_mgr_obj, char *str_sym,
 	*pul_value = dbll_sym->value;
 
 	return 0;
-}
-
-/*
- *  ======== cod_init ========
- *  Purpose:
- *      Initialize the COD module's private state.
- *
- */
-bool cod_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
 
 /*
