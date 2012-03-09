@@ -352,6 +352,8 @@ static void wacom_i4_parse_pen_report(struct wacom_data *wdata,
 	case 0x80: /* Out of proximity report */
 		input_report_key(input, BTN_TOUCH, 0);
 		input_report_abs(input, ABS_PRESSURE, 0);
+		input_report_key(input, BTN_STYLUS, 0);
+		input_report_key(input, BTN_STYLUS2, 0);
 		input_report_key(input, wdata->tool, 0);
 		input_report_abs(input, ABS_MISC, 0);
 		input_event(input, EV_MSC, MSC_SERIAL, wdata->serial);
