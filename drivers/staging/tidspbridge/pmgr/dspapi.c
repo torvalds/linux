@@ -273,7 +273,6 @@ void api_exit(void)
 		io_exit();
 		strm_exit();
 		disp_exit();
-		node_exit();
 		mgr_exit();
 		rmm_exit();
 	}
@@ -288,12 +287,11 @@ bool api_init(void)
 {
 	bool ret = true;
 	bool fdev, fchnl, fmsg, fio;
-	bool fmgr, fnode, fdisp, fstrm, frmm;
+	bool fmgr, fdisp, fstrm, frmm;
 
 	if (api_c_refs == 0) {
 		/* initialize driver and other modules */
 		fmgr = mgr_init();
-		fnode = node_init();
 		fdisp = disp_init();
 		fstrm = strm_init();
 		frmm = rmm_init();
@@ -310,9 +308,6 @@ bool api_init(void)
 
 			if (fstrm)
 				strm_exit();
-
-			if (fnode)
-				node_exit();
 
 			if (fdisp)
 				disp_exit();

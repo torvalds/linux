@@ -261,8 +261,6 @@ static u32 ovly(void *priv_ref, u32 dsp_run_addr, u32 dsp_load_addr,
 static u32 mem_write(void *priv_ref, u32 dsp_add, void *pbuf,
 		     u32 ul_num_bytes, u32 mem_space);
 
-static u32 refs;		/* module reference count */
-
 /* Dynamic loader functions. */
 static struct node_ldr_fxns nldr_fxns = {
 	nldr_allocate,
@@ -1569,16 +1567,6 @@ func_end:
 }
 
 /*
- *  ======== node_exit ========
- *  Purpose:
- *      Discontinue usage of NODE module.
- */
-void node_exit(void)
-{
-	refs--;
-}
-
-/*
  *  ======== node_free_msg_buf ========
  *  Purpose:
  *      Frees the message buffer.
@@ -1849,18 +1837,6 @@ enum node_type node_get_type(struct node_object *hnode)
 			node_type = hnode->ntype;
 	}
 	return node_type;
-}
-
-/*
- *  ======== node_init ========
- *  Purpose:
- *      Initialize the NODE module.
- */
-bool node_init(void)
-{
-	refs++;
-
-	return true;
 }
 
 /*
