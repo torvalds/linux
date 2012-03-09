@@ -914,7 +914,7 @@ struct platform_device s5p_device_mfc_r = {
 
 #ifdef CONFIG_S5P_DEV_CSIS0
 static struct resource s5p_mipi_csis0_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS0, SZ_4K),
+	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS0, SZ_16K),
 	[1] = DEFINE_RES_IRQ(IRQ_MIPI_CSIS0),
 };
 
@@ -928,7 +928,7 @@ struct platform_device s5p_device_mipi_csis0 = {
 
 #ifdef CONFIG_S5P_DEV_CSIS1
 static struct resource s5p_mipi_csis1_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS1, SZ_4K),
+	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS1, SZ_16K),
 	[1] = DEFINE_RES_IRQ(IRQ_MIPI_CSIS1),
 };
 
