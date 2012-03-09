@@ -3336,7 +3336,7 @@ static inline void hci_le_ltk_request_evt(struct hci_dev *hdev,
 	struct hci_conn *conn;
 	struct smp_ltk *ltk;
 
-	BT_DBG("%s handle %d", hdev->name, cpu_to_le16(ev->handle));
+	BT_DBG("%s handle %d", hdev->name, __le16_to_cpu(ev->handle));
 
 	hci_dev_lock(hdev);
 
