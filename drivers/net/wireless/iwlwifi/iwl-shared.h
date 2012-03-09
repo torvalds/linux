@@ -124,7 +124,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
- * @no_sleep_autoadjust: disable autoadjust, default = true
  * @power_save: disable power save, default = false
  * @power_level: power level, default = 1
  * @debug_level: levels are IWL_DL_*
@@ -143,7 +142,6 @@ struct iwl_mod_params {
 	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;
-	bool no_sleep_autoadjust;
 	bool power_save;
 	int power_level;
 	u32 debug_level;

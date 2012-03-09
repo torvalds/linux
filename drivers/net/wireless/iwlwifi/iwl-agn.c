@@ -2471,13 +2471,3 @@ module_param_named(auto_agg, iwlagn_mod_params.auto_agg,
 		bool, S_IRUGO);
 MODULE_PARM_DESC(auto_agg,
 		 "enable agg w/o check traffic load (default: enable)");
-
-/*
- * For now, keep using power level 1 instead of automatically
- * adjusting ...
- */
-module_param_named(no_sleep_autoadjust, iwlagn_mod_params.no_sleep_autoadjust,
-		bool, S_IRUGO);
-MODULE_PARM_DESC(no_sleep_autoadjust,
-		 "don't automatically adjust sleep level "
-		 "according to maximum network latency (default: true)");
