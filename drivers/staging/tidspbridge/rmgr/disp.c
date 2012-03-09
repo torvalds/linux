@@ -69,8 +69,6 @@ struct disp_object {
 	u32 data_mau_size;	/* Size of DSP Data MAU */
 };
 
-static u32 refs;
-
 static void delete_disp(struct disp_object *disp_obj);
 static int fill_stream_def(rms_word *pdw_buf, u32 *ptotal, u32 offset,
 				  struct node_strmdef strm_def, u32 max,
@@ -170,29 +168,6 @@ func_cont:
 void disp_delete(struct disp_object *disp_obj)
 {
 	delete_disp(disp_obj);
-}
-
-/*
- *  ======== disp_exit ========
- *  Discontinue usage of DISP module.
- */
-void disp_exit(void)
-{
-	refs--;
-}
-
-/*
- *  ======== disp_init ========
- *  Initialize the DISP module.
- */
-bool disp_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
 
 /*
