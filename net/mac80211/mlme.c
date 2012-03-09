@@ -1770,11 +1770,6 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 
 	lockdep_assert_held(&sdata->u.mgd.mtx);
 
-	if (auth_data->synced)
-		drv_finish_tx_sync(sdata->local, sdata,
-				   auth_data->bss->bssid,
-				   IEEE80211_TX_SYNC_AUTH);
-
 	if (!assoc) {
 		sta_info_destroy_addr(sdata, auth_data->bss->bssid);
 
@@ -1862,10 +1857,6 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 
 	printk(KERN_DEBUG "%s: authenticated\n", sdata->name);
  out:
-	if (ifmgd->auth_data->synced)
-		drv_finish_tx_sync(sdata->local, sdata, bssid,
-				   IEEE80211_TX_SYNC_AUTH);
-	ifmgd->auth_data->synced = false;
 	ifmgd->auth_data->done = true;
 	ifmgd->auth_data->timeout = jiffies + IEEE80211_AUTH_WAIT_ASSOC;
 	run_again(ifmgd, ifmgd->auth_data->timeout);
@@ -2004,11 +1995,6 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_mgd_assoc_data *assoc_data = sdata->u.mgd.assoc_data;
 
 	lockdep_assert_held(&sdata->u.mgd.mtx);
-
-	if (assoc_data->synced)
-		drv_finish_tx_sync(sdata->local, sdata,
-				   assoc_data->bss->bssid,
-				   IEEE80211_TX_SYNC_ASSOC);
 
 	if (!assoc) {
 		sta_info_destroy_addr(sdata, assoc_data->bss->bssid);
@@ -2254,14 +2240,6 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		ieee80211_destroy_assoc_data(sdata, false);
 	} else {
 		printk(KERN_DEBUG "%s: associated\n", sdata->name);
-
-		/* tell driver about sync done first */
-		if (assoc_data->synced) {
-			drv_finish_tx_sync(sdata->local, sdata,
-					   assoc_data->bss->bssid,
-					   IEEE80211_TX_SYNC_ASSOC);
-			assoc_data->synced = false;
-		}
 
 		if (!ieee80211_assoc_success(sdata, *bss, mgmt, len)) {
 			/* oops -- internal error -- send timeout for now */
@@ -2747,14 +2725,6 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON_ONCE(!auth_data))
 		return -EINVAL;
 
-	if (!auth_data->synced) {
-		int ret = drv_tx_sync(local, sdata, auth_data->bss->bssid,
-				      IEEE80211_TX_SYNC_AUTH);
-		if (ret)
-			return ret;
-	}
-	auth_data->synced = true;
-
 	auth_data->tries++;
 
 	if (auth_data->tries > IEEE80211_AUTH_MAX_TRIES) {
@@ -2810,14 +2780,6 @@ static int ieee80211_do_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 
 	lockdep_assert_held(&sdata->u.mgd.mtx);
-
-	if (!assoc_data->synced) {
-		int ret = drv_tx_sync(local, sdata, assoc_data->bss->bssid,
-				      IEEE80211_TX_SYNC_ASSOC);
-		if (ret)
-			return ret;
-	}
-	assoc_data->synced = true;
 
 	assoc_data->tries++;
 	if (assoc_data->tries > IEEE80211_ASSOC_MAX_TRIES) {
@@ -3245,9 +3207,6 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 
 	err = ieee80211_probe_auth(sdata);
 	if (err) {
-		if (auth_data->synced)
-			drv_finish_tx_sync(local, sdata, req->bss->bssid,
-					   IEEE80211_TX_SYNC_AUTH);
 		sta_info_destroy_addr(sdata, req->bss->bssid);
 		goto err_clear;
 	}
