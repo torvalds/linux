@@ -301,6 +301,13 @@ static inline void sci_remote_device_decrement_request_count(struct isci_remote_
 		idev->started_request_count--;
 }
 
+static inline void isci_dev_set_hang_detection_timeout(
+	struct isci_remote_device *idev,
+	u32 timeout)
+{
+	sci_port_set_hang_detection_timeout(idev->owning_port, timeout);
+}
+
 enum sci_status sci_remote_device_frame_handler(
 	struct isci_remote_device *idev,
 	u32 frame_index);

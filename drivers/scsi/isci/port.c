@@ -1548,6 +1548,29 @@ static void sci_port_failed_state_enter(struct sci_base_state_machine *sm)
 	isci_port_hard_reset_complete(iport, SCI_FAILURE_TIMEOUT);
 }
 
+void sci_port_set_hang_detection_timeout(struct isci_port *iport, u32 timeout)
+{
+	int phy_index;
+	u32 phy_mask = iport->active_phy_mask;
+
+	if (timeout)
+		++iport->hang_detect_users;
+	else if (iport->hang_detect_users > 1)
+		--iport->hang_detect_users;
+	else
+		iport->hang_detect_users = 0;
+
+	if (timeout || (iport->hang_detect_users == 0)) {
+		for (phy_index = 0; phy_index < SCI_MAX_PHYS; phy_index++) {
+			if ((phy_mask >> phy_index) & 1) {
+				writel(timeout,
+				       &iport->phy_table[phy_index]
+					  ->link_layer_registers
+					  ->link_layer_hang_detection_timeout);
+			}
+		}
+	}
+}
 /* --------------------------------------------------------------------------- */
 
 static const struct sci_base_state sci_port_state_table[] = {
@@ -1596,6 +1619,7 @@ void sci_port_construct(struct isci_port *iport, u8 index,
 
 	iport->started_request_count = 0;
 	iport->assigned_device_count = 0;
+	iport->hang_detect_users = 0;
 
 	iport->reserved_rni = SCU_DUMMY_INDEX;
 	iport->reserved_tag = SCI_CONTROLLER_INVALID_IO_TAG;
@@ -1733,7 +1757,7 @@ void isci_port_formed(struct asd_sas_phy *phy)
 	struct isci_host *ihost = phy->ha->lldd_ha;
 	struct isci_phy *iphy = to_iphy(phy);
 	struct asd_sas_port *port = phy->port;
-	struct isci_port *iport;
+	struct isci_port *iport = NULL;
 	unsigned long flags;
 	int i;
 

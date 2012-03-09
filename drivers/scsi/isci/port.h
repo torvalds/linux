@@ -111,6 +111,7 @@ struct isci_port {
 	u16 reserved_tag;
 	u32 started_request_count;
 	u32 assigned_device_count;
+	u32 hang_detect_users;
 	u32 not_ready_reason;
 	struct isci_phy *phy_table[SCI_MAX_PHYS];
 	struct isci_host *owning_controller;
@@ -268,6 +269,10 @@ void sci_port_get_sas_address(
 void sci_port_get_attached_sas_address(
 	struct isci_port *iport,
 	struct sci_sas_address *sas_address);
+
+void sci_port_set_hang_detection_timeout(
+	struct isci_port *isci_port,
+	u32 timeout);
 
 void isci_port_formed(struct asd_sas_phy *);
 void isci_port_deformed(struct asd_sas_phy *);

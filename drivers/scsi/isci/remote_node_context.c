@@ -316,6 +316,15 @@ static void sci_remote_node_context_tx_rx_suspended_state_enter(struct sci_base_
 	sci_remote_node_context_continue_state_transitions(rnc);
 }
 
+static void sci_remote_node_context_await_suspend_state_exit(
+	struct sci_base_state_machine *sm)
+{
+	struct sci_remote_node_context *rnc
+		= container_of(sm, typeof(*rnc), sm);
+
+	isci_dev_set_hang_detection_timeout(rnc_to_dev(rnc), 0);
+}
+
 static const struct sci_base_state sci_remote_node_context_state_table[] = {
 	[SCI_RNC_INITIAL] = {
 		.enter_state = sci_remote_node_context_initial_state_enter,
@@ -338,7 +347,9 @@ static const struct sci_base_state sci_remote_node_context_state_table[] = {
 	[SCI_RNC_TX_RX_SUSPENDED] = {
 		.enter_state = sci_remote_node_context_tx_rx_suspended_state_enter,
 	},
-	[SCI_RNC_AWAIT_SUSPENSION] = { },
+	[SCI_RNC_AWAIT_SUSPENSION] = {
+		.exit_state = sci_remote_node_context_await_suspend_state_exit,
+	},
 };
 
 void sci_remote_node_context_construct(struct sci_remote_node_context *rnc,
@@ -513,6 +524,8 @@ enum sci_status sci_remote_node_context_suspend(struct sci_remote_node_context *
 	if (suspend_type == SCI_SOFTWARE_SUSPENSION) {
 		sci_remote_device_post_request(rnc_to_dev(sci_rnc),
 						    SCU_CONTEXT_COMMAND_POST_RNC_SUSPEND_TX);
+		isci_dev_set_hang_detection_timeout(rnc_to_dev(sci_rnc),
+						    0x00000001);
 	}
 
 	sci_change_state(&sci_rnc->sm, SCI_RNC_AWAIT_SUSPENSION);
