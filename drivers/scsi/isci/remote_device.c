@@ -75,10 +75,8 @@ const char *dev_state_name(enum sci_remote_device_states state)
 static enum sci_status sci_remote_device_suspend(struct isci_remote_device *idev,
 						 enum sci_remote_node_suspension_reasons reason)
 {
-	return sci_remote_node_context_suspend(&idev->rnc,
-					       reason,
-					       SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT,
-					       NULL, NULL);
+	return sci_remote_node_context_suspend(&idev->rnc, reason,
+					       SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT);
 }
 
 /**

@@ -2382,8 +2382,7 @@ static void sci_request_handle_suspending_completions(
 			&ireq->target_device->rnc,
 			SCI_HW_SUSPEND,
 			(is_tx_rx) ? SCU_EVENT_TL_RNC_SUSPEND_TX_RX
-				   : SCU_EVENT_TL_RNC_SUSPEND_TX,
-			NULL, NULL);
+				   : SCU_EVENT_TL_RNC_SUSPEND_TX);
 	}
 }
 

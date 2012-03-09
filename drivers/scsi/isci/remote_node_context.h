@@ -169,6 +169,7 @@ struct sci_remote_node_context {
 	 * context suspension.
 	 */
 	u32 suspend_type;
+	enum sci_remote_node_suspension_reasons suspend_reason;
 
 	/**
 	 * This field is true if the remote node context is resuming from its current
@@ -209,9 +210,7 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 						      void *callback_parameter);
 enum sci_status sci_remote_node_context_suspend(struct sci_remote_node_context *sci_rnc,
 						     u32 suspend_type,
-						     u32 suspension_code,
-						     scics_sds_remote_node_context_callback cb_fn,
-						     void *cb_p);
+						     u32 suspension_code);
 enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *sci_rnc,
 						    scics_sds_remote_node_context_callback cb_fn,
 						    void *cb_p);

@@ -315,8 +315,8 @@ static void sci_remote_node_context_ready_state_enter(struct sci_base_state_mach
 	if ((dest_select == RNC_DEST_SUSPENDED) ||
 	    (dest_select == RNC_DEST_SUSPENDED_RESUME)) {
 		sci_remote_node_context_suspend(
-			rnc, SCI_SW_SUSPEND_NORMAL,
-			SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT, NULL, NULL);
+			rnc, rnc->suspend_reason,
+			SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT);
 
 		if (dest_select == RNC_DEST_SUSPENDED_RESUME) {
 			sci_remote_node_context_resume(rnc, usr_cb, usr_param);
@@ -539,9 +539,7 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 enum sci_status sci_remote_node_context_suspend(
 			struct sci_remote_node_context *sci_rnc,
 			enum sci_remote_node_suspension_reasons suspend_reason,
-			u32 suspend_type,
-			scics_sds_remote_node_context_callback cb_fn,
-			void *cb_p)
+			u32 suspend_type)
 {
 	enum scis_sds_remote_node_context_states state
 		= sci_rnc->sm.current_state_id;
@@ -581,6 +579,8 @@ enum sci_status sci_remote_node_context_suspend(
 		 * needs to be done immediately.
 		 */
 		sci_rnc->destination_state = RNC_DEST_SUSPENDED;
+		sci_rnc->suspend_type = suspend_type;
+		sci_rnc->suspend_reason = suspend_reason;
 		return SCI_SUCCESS;
 
 	case SCI_RNC_TX_SUSPENDED:
@@ -603,14 +603,12 @@ enum sci_status sci_remote_node_context_suspend(
 		return SCI_FAILURE_INVALID_STATE;
 	}
 	sci_rnc->destination_state = dest_param;
-	sci_rnc->user_callback = cb_fn;
-	sci_rnc->user_cookie   = cb_p;
-	sci_rnc->suspend_type  = suspend_type;
+	sci_rnc->suspend_type = suspend_type;
+	sci_rnc->suspend_reason = suspend_reason;
 
 	if (status == SCI_SUCCESS) { /* Already in the destination state? */
 		struct isci_host *ihost = idev->owning_port->owning_controller;
 
-		sci_remote_node_context_notify_user(sci_rnc);
 		wake_up_all(&ihost->eventq); /* Let observers look. */
 		return SCI_SUCCESS;
 	}
