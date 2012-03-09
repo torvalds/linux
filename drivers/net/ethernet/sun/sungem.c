@@ -2899,7 +2899,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	}
 
 	gp->pdev = pdev;
-	dev->base_addr = (long) pdev;
 	gp->dev = dev;
 
 	gp->msg_enable = DEFAULT_MSG;
@@ -2973,7 +2972,6 @@ static int __devinit gem_init_one(struct pci_dev *pdev,
 	netif_napi_add(dev, &gp->napi, gem_poll, 64);
 	dev->ethtool_ops = &gem_ethtool_ops;
 	dev->watchdog_timeo = 5 * HZ;
-	dev->irq = pdev->irq;
 	dev->dma = 0;
 
 	/* Set that now, in case PM kicks in now */
