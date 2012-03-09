@@ -4,7 +4,7 @@
  *  Copyright (c) 1999 Andreas Gal
  *  Copyright (c) 2000-2005 Vojtech Pavlik <vojtech@suse.cz>
  *  Copyright (c) 2005 Michael Haboustak <mike-@cinci.rr.com> for Concept2, Inc
- *  Copyright (c) 2006-2010 Jiri Kosina
+ *  Copyright (c) 2006-2012 Jiri Kosina
  */
 
 /*
@@ -49,6 +49,10 @@ int hid_debug = 0;
 module_param_named(debug, hid_debug, int, 0600);
 MODULE_PARM_DESC(debug, "toggle HID debugging messages");
 EXPORT_SYMBOL_GPL(hid_debug);
+
+static int hid_ignore_special_drivers = 0;
+module_param_named(ignore_special_drivers, hid_ignore_special_drivers, int, 0600);
+MODULE_PARM_DESC(debug, "Ignore any special drivers and handle all devices by generic driver");
 
 /*
  * Register a new report for a device.
@@ -1678,7 +1682,7 @@ static int hid_bus_match(struct device *dev, struct device_driver *drv)
 		return 0;
 
 	/* generic wants all that don't have specialized driver */
-	if (!strncmp(hdrv->name, "generic-", 8))
+	if (!strncmp(hdrv->name, "generic-", 8) && !hid_ignore_special_drivers)
 		return !hid_match_id(hdev, hid_have_special_driver);
 
 	return 1;
