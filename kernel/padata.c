@@ -230,6 +230,7 @@ out:
 
 static void padata_reorder(struct parallel_data *pd)
 {
+	int cb_cpu;
 	struct padata_priv *padata;
 	struct padata_serial_queue *squeue;
 	struct padata_instance *pinst = pd->pinst;
@@ -270,13 +271,14 @@ static void padata_reorder(struct parallel_data *pd)
 			return;
 		}
 
-		squeue = per_cpu_ptr(pd->squeue, padata->cb_cpu);
+		cb_cpu = padata->cb_cpu;
+		squeue = per_cpu_ptr(pd->squeue, cb_cpu);
 
 		spin_lock(&squeue->serial.lock);
 		list_add_tail(&padata->list, &squeue->serial.list);
 		spin_unlock(&squeue->serial.lock);
 
-		queue_work_on(padata->cb_cpu, pinst->wq, &squeue->work);
+		queue_work_on(cb_cpu, pinst->wq, &squeue->work);
 	}
 
 	spin_unlock_bh(&pd->lock);
