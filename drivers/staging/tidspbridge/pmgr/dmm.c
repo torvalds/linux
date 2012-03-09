@@ -51,8 +51,6 @@ struct dmm_object {
 	spinlock_t dmm_lock;	/* Lock to access dmm mgr */
 };
 
-/*  ----------------------------------- Globals */
-static u32 refs;		/* module reference count */
 struct map_page {
 	u32 region_size:15;
 	u32 mapped_size:15;
@@ -172,18 +170,6 @@ int dmm_delete_tables(struct dmm_object *dmm_mgr)
 }
 
 /*
- *  ======== dmm_exit ========
- *  Purpose:
- *      Discontinue usage of module; free resources when reference count
- *      reaches 0.
- */
-void dmm_exit(void)
-{
-
-	refs--;
-}
-
-/*
  *  ======== dmm_get_handle ========
  *  Purpose:
  *      Return the dynamic memory manager object for this device.
@@ -203,24 +189,6 @@ int dmm_get_handle(void *hprocessor, struct dmm_object **dmm_manager)
 		status = dev_get_dmm_mgr(hdev_obj, dmm_manager);
 
 	return status;
-}
-
-/*
- *  ======== dmm_init ========
- *  Purpose:
- *      Initializes private state of DMM module.
- */
-bool dmm_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	virtual_mapping_table = NULL;
-	table_size = 0;
-
-	return ret;
 }
 
 /*

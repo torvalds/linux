@@ -657,9 +657,6 @@ int dev_get_bridge_context(struct dev_object *hdev_obj,
 void dev_exit(void)
 {
 	refs--;
-
-	if (refs == 0)
-		dmm_exit();
 }
 
 /*
@@ -670,9 +667,6 @@ void dev_exit(void)
 bool dev_init(void)
 {
 	bool ret = true;
-
-	if (refs == 0)
-		dmm_init();
 
 	if (ret)
 		refs++;
