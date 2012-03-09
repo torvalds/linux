@@ -99,6 +99,11 @@
 #define MT9P031_TEST_PATTERN_RED			0xa2
 #define MT9P031_TEST_PATTERN_BLUE			0xa3
 
+enum mt9p031_model {
+	MT9P031_MODEL_COLOR,
+	MT9P031_MODEL_MONOCHROME,
+};
+
 struct mt9p031 {
 	struct v4l2_subdev subdev;
 	struct media_pad pad;
@@ -109,6 +114,7 @@ struct mt9p031 {
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
 
+	enum mt9p031_model model;
 	struct aptina_pll pll;
 
 	/* Registers cache */
@@ -764,7 +770,7 @@ static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 
 	format = v4l2_subdev_get_try_format(fh, 0);
 
-	if (mt9p031->pdata->version == MT9P031_MONOCHROME_VERSION)
+	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
 		format->code = V4L2_MBUS_FMT_Y12_1X12;
 	else
 		format->code = V4L2_MBUS_FMT_SGRBG12_1X12;
@@ -842,6 +848,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->pdata = pdata;
 	mt9p031->output_control	= MT9P031_OUTPUT_CONTROL_DEF;
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
+	mt9p031->model = did->driver_data;
 
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 4);
 
@@ -882,7 +889,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->crop.left = MT9P031_COLUMN_START_DEF;
 	mt9p031->crop.top = MT9P031_ROW_START_DEF;
 
-	if (mt9p031->pdata->version == MT9P031_MONOCHROME_VERSION)
+	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
 		mt9p031->format.code = V4L2_MBUS_FMT_Y12_1X12;
 	else
 		mt9p031->format.code = V4L2_MBUS_FMT_SGRBG12_1X12;
@@ -918,7 +925,8 @@ static int mt9p031_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mt9p031_id[] = {
-	{ "mt9p031", 0 },
+	{ "mt9p031", MT9P031_MODEL_COLOR },
+	{ "mt9p031m", MT9P031_MODEL_MONOCHROME },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, mt9p031_id);
