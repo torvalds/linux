@@ -87,6 +87,8 @@ struct hdmi_device {
 	struct v4l2_subdev *mhl_sd;
 	/** configuration of current graphic mode */
 	const struct hdmi_timings *cur_conf;
+	/** flag indicating that timings are dirty */
+	int cur_conf_dirty;
 	/** current preset */
 	u32 cur_preset;
 	/** other resources */
@@ -253,6 +255,10 @@ static int hdmi_conf_apply(struct hdmi_device *hdmi_dev)
 
 	dev_dbg(dev, "%s\n", __func__);
 
+	/* skip if conf is already synchronized with HW */
+	if (!hdmi_dev->cur_conf_dirty)
+		return 0;
+
 	/* reset hdmiphy */
 	hdmi_write_mask(hdmi_dev, HDMI_PHY_RSTOUT, ~0, HDMI_PHY_SW_RSTOUT);
 	mdelay(10);
@@ -277,6 +283,8 @@ static int hdmi_conf_apply(struct hdmi_device *hdmi_dev)
 
 	/* setting core registers */
 	hdmi_timing_apply(hdmi_dev, conf);
+
+	hdmi_dev->cur_conf_dirty = 0;
 
 	return 0;
 }
@@ -500,6 +508,10 @@ static int hdmi_streamon(struct hdmi_device *hdev)
 
 	dev_dbg(dev, "%s\n", __func__);
 
+	ret = hdmi_conf_apply(hdev);
+	if (ret)
+		return ret;
+
 	ret = v4l2_subdev_call(hdev->phy_sd, video, s_stream, 1);
 	if (ret)
 		return ret;
@@ -620,6 +632,7 @@ static int hdmi_s_dv_preset(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 	hdev->cur_conf = conf;
+	hdev->cur_conf_dirty = 1;
 	hdev->cur_preset = preset->preset;
 	return 0;
 }
@@ -689,6 +702,8 @@ static int hdmi_runtime_suspend(struct device *dev)
 	dev_dbg(dev, "%s\n", __func__);
 	v4l2_subdev_call(hdev->mhl_sd, core, s_power, 0);
 	hdmi_resource_poweroff(&hdev->res);
+	/* flag that device context is lost */
+	hdev->cur_conf_dirty = 1;
 	return 0;
 }
 
@@ -701,10 +716,6 @@ static int hdmi_runtime_resume(struct device *dev)
 	dev_dbg(dev, "%s\n", __func__);
 
 	hdmi_resource_poweron(&hdev->res);
-
-	ret = hdmi_conf_apply(hdev);
-	if (ret)
-		goto fail;
 
 	/* starting MHL */
 	ret = v4l2_subdev_call(hdev->mhl_sd, core, s_power, 1);
@@ -946,6 +957,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	hdmi_dev->cur_preset = HDMI_DEFAULT_PRESET;
 	/* FIXME: missing fail preset is not supported */
 	hdmi_dev->cur_conf = hdmi_preset2timings(hdmi_dev->cur_preset);
+	hdmi_dev->cur_conf_dirty = 1;
 
 	/* storing subdev for call that have only access to struct device */
 	dev_set_drvdata(dev, sd);
