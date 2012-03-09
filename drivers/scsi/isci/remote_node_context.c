@@ -275,8 +275,8 @@ static void sci_remote_node_context_invalidating_state_enter(struct sci_base_sta
 {
 	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
 
-	/* Terminate outstanding requests pending abort. */
-	sci_remote_device_abort_requests_pending_abort(rnc_to_dev(rnc));
+	/* Terminate all outstanding requests. */
+	sci_remote_device_terminate_requests(rnc_to_dev(rnc));
 	sci_remote_node_context_invalidate_context_buffer(rnc);
 }
 
