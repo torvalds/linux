@@ -1463,24 +1463,17 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	 * so we're free to queue skbs into it's queue.
 	 */
 
-	/* If this is a SCSI-FCP frame, and this is already executing on the
-	 * correct CPU, and the queue for this CPU is empty, then go ahead
-	 * and process the frame directly in the softirq context.
-	 * This lets us process completions without context switching from the
-	 * NET_RX softirq, to our receive processing thread, and then back to
-	 * BLOCK softirq context.
+	/*
+	 * Note: We used to have a set of conditions under which we would
+	 * call fcoe_recv_frame directly, rather than queuing to the rx list
+	 * as it could save a few cycles, but doing so is prohibited, as
+	 * fcoe_recv_frame has several paths that may sleep, which is forbidden
+	 * in softirq context.
 	 */
-	if (fh->fh_type == FC_TYPE_FCP &&
-	    cpu == smp_processor_id() &&
-	    skb_queue_empty(&fps->fcoe_rx_list)) {
-		spin_unlock_bh(&fps->fcoe_rx_list.lock);
-		fcoe_recv_frame(skb);
-	} else {
-		__skb_queue_tail(&fps->fcoe_rx_list, skb);
-		if (fps->fcoe_rx_list.qlen == 1)
-			wake_up_process(fps->thread);
-		spin_unlock_bh(&fps->fcoe_rx_list.lock);
-	}
+	__skb_queue_tail(&fps->fcoe_rx_list, skb);
+	if (fps->fcoe_rx_list.qlen == 1)
+		wake_up_process(fps->thread);
+	spin_unlock_bh(&fps->fcoe_rx_list.lock);
 
 	return 0;
 err:
