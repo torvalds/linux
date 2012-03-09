@@ -225,6 +225,9 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 	down_write_nested(&rg->lock, rg->id);
 	atomic_inc(&rg->lock_count);
 
+	if (rg->size == size && rg->type == mi->type)
+		goto out;
+
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
 		goto out;
@@ -247,12 +250,10 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 		}
 	}
 
-	if (rg->size != size || rg->type != mi->type) {
-		r = omapfb_realloc_fbmem(fbi, size, mi->type);
-		if (r) {
-			dev_err(fbdev->dev, "realloc fbmem failed\n");
-			goto out;
-		}
+	r = omapfb_realloc_fbmem(fbi, size, mi->type);
+	if (r) {
+		dev_err(fbdev->dev, "realloc fbmem failed\n");
+		goto out;
 	}
 
  out:
