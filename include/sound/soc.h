@@ -289,8 +289,8 @@ enum snd_soc_pcm_subclass {
 };
 
 enum snd_soc_card_subclass {
-	SND_SOC_CARD_CLASS_INIT	= 0,
-	SND_SOC_CARD_CLASS_PCM	= 1,
+	SND_SOC_CARD_CLASS_INIT		= 0,
+	SND_SOC_CARD_CLASS_RUNTIME	= 1,
 };
 
 int snd_soc_codec_set_sysclk(struct snd_soc_codec *codec, int clk_id,
