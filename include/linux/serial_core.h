@@ -383,6 +383,16 @@ struct uart_port {
 	void			*private_data;		/* generic platform data pointer */
 };
 
+static inline int serial_port_in(struct uart_port *up, int offset)
+{
+	return up->serial_in(up, offset);
+}
+
+static inline void serial_port_out(struct uart_port *up, int offset, int value)
+{
+	up->serial_out(up, offset, value);
+}
+
 /*
  * This is the state information which is persistent across opens.
  */
