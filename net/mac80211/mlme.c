@@ -1394,7 +1394,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
-	u32 changed = 0, config_changed = 0;
+	u32 changed = 0;
 	u8 bssid[ETH_ALEN];
 
 	ASSERT_MGD_MTX(ifmgd);
@@ -1454,9 +1454,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	changed |= BSS_CHANGED_ASSOC;
 	sdata->vif.bss_conf.assoc = false;
 
-	/* channel(_type) changes are handled by ieee80211_hw_config */
-	WARN_ON(!ieee80211_set_channel_type(local, sdata, NL80211_CHAN_NO_HT));
-
 	/* on the next assoc, re-program HT parameters */
 	sdata->ht_opmode_valid = false;
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
@@ -1469,11 +1466,9 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
 		local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-		config_changed |= IEEE80211_CONF_CHANGE_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 	local->ps_sdata = NULL;
-
-	ieee80211_hw_config(local, config_changed);
 
 	/* Disable ARP filtering */
 	if (sdata->vif.bss_conf.arp_filter_enabled) {
@@ -1487,6 +1482,10 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	/* The BSSID (not really interesting) and HT changed */
 	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
+
+	/* channel(_type) changes are handled by ieee80211_hw_config */
+	WARN_ON(!ieee80211_set_channel_type(local, sdata, NL80211_CHAN_NO_HT));
+	ieee80211_hw_config(local, 0);
 
 	/* disassociated - set to defaults now */
 	ieee80211_set_wmm_default(sdata, false);
