@@ -205,8 +205,7 @@ void sas_notify_lldd_dev_gone(struct domain_device *dev)
 static void sas_probe_devices(struct work_struct *work)
 {
 	struct domain_device *dev, *n;
-	struct sas_discovery_event *ev =
-		container_of(work, struct sas_discovery_event, work);
+	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
 
 	clear_bit(DISCE_PROBE, &port->disc.pending);
@@ -291,8 +290,7 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 static void sas_destruct_devices(struct work_struct *work)
 {
 	struct domain_device *dev, *n;
-	struct sas_discovery_event *ev =
-		container_of(work, struct sas_discovery_event, work);
+	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
 
 	clear_bit(DISCE_DESTRUCT, &port->disc.pending);
@@ -377,8 +375,7 @@ static void sas_discover_domain(struct work_struct *work)
 {
 	struct domain_device *dev;
 	int error = 0;
-	struct sas_discovery_event *ev =
-		container_of(work, struct sas_discovery_event, work);
+	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
 
 	clear_bit(DISCE_DISCOVER_DOMAIN, &port->disc.pending);
@@ -437,8 +434,7 @@ static void sas_discover_domain(struct work_struct *work)
 static void sas_revalidate_domain(struct work_struct *work)
 {
 	int res = 0;
-	struct sas_discovery_event *ev =
-		container_of(work, struct sas_discovery_event, work);
+	struct sas_discovery_event *ev = to_sas_discovery_event(work);
 	struct asd_sas_port *port = ev->port;
 	struct sas_ha_struct *ha = port->ha;
 
@@ -466,21 +462,25 @@ static void sas_revalidate_domain(struct work_struct *work)
 
 /* ---------- Events ---------- */
 
-static void sas_chain_work(struct sas_ha_struct *ha, struct work_struct *work)
+static void sas_chain_work(struct sas_ha_struct *ha, struct sas_work *sw)
 {
-	/* chained work is not subject to SA_HA_DRAINING or SAS_HA_REGISTERED */
-	scsi_queue_work(ha->core.shost, work);
+	/* chained work is not subject to SA_HA_DRAINING or
+	 * SAS_HA_REGISTERED, because it is either submitted in the
+	 * workqueue, or known to be submitted from a context that is
+	 * not racing against draining
+	 */
+	scsi_queue_work(ha->core.shost, &sw->work);
 }
 
 static void sas_chain_event(int event, unsigned long *pending,
-			    struct work_struct *work,
+			    struct sas_work *sw,
 			    struct sas_ha_struct *ha)
 {
 	if (!test_and_set_bit(event, pending)) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&ha->state_lock, flags);
-		sas_chain_work(ha, work);
+		sas_chain_work(ha, sw);
 		spin_unlock_irqrestore(&ha->state_lock, flags);
 	}
 }
@@ -519,7 +519,7 @@ void sas_init_disc(struct sas_discovery *disc, struct asd_sas_port *port)
 
 	disc->pending = 0;
 	for (i = 0; i < DISC_NUM_EVENTS; i++) {
-		INIT_WORK(&disc->disc_work[i].work, sas_event_fns[i]);
+		INIT_SAS_WORK(&disc->disc_work[i].work, sas_event_fns[i]);
 		disc->disc_work[i].port = port;
 	}
 }
