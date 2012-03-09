@@ -2832,7 +2832,7 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 			__func__, request, task);
 
 		/* The request was terminated explicitly. */
-		clear_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
+		set_bit(IREQ_COMPLETE_IN_TARGET, &request->flags);
 		response = SAS_TASK_UNDELIVERED;
 
 		/* See if the device has been/is being stopped. Note
