@@ -319,14 +319,9 @@ int mgr_get_dcd_handle(struct mgr_object *mgr_handle,
 bool mgr_init(void)
 {
 	bool ret = true;
-	bool init_dcd = false;
 
-	if (refs == 0) {
-		init_dcd = dcd_init();	/*  DCD Module */
-
-		if (!init_dcd)
-			ret = false;
-	}
+	if (refs == 0)
+		ret = dcd_init();	/*  DCD Module */
 
 	if (ret)
 		refs++;
