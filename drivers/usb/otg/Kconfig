@@ -118,7 +118,7 @@ config FSL_USB2_OTG
 
 config USB_MV_OTG
 	tristate "Marvell USB OTG support"
-	depends on USB_MV_UDC && USB_SUSPEND
+	depends on USB_EHCI_MV && USB_MV_UDC && USB_SUSPEND
 	select USB_OTG
 	select USB_OTG_UTILS
 	help

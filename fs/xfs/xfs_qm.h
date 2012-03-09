@@ -26,22 +26,10 @@
 struct xfs_qm;
 struct xfs_inode;
 
-extern uint		ndquot;
 extern struct mutex	xfs_Gqm_lock;
 extern struct xfs_qm	*xfs_Gqm;
 extern kmem_zone_t	*qm_dqzone;
 extern kmem_zone_t	*qm_dqtrxzone;
-
-/*
- * Ditto, for xfs_qm_dqreclaim_one.
- */
-#define XFS_QM_RECLAIM_MAX_RESTARTS	4
-
-/*
- * Ideal ratio of free to in use dquots. Quota manager makes an attempt
- * to keep this balance.
- */
-#define XFS_QM_DQFREE_RATIO		2
 
 /*
  * Dquot hashtable constants/threshold values.
@@ -74,7 +62,6 @@ typedef struct xfs_qm {
 	int		 qm_dqfrlist_cnt;
 	atomic_t	 qm_totaldquots; /* total incore dquots */
 	uint		 qm_nrefs;	 /* file systems with quota on */
-	int		 qm_dqfree_ratio;/* ratio of free to inuse dquots */
 	kmem_zone_t	*qm_dqzone;	 /* dquot mem-alloc zone */
 	kmem_zone_t	*qm_dqtrxzone;	 /* t_dqinfo of transactions */
 } xfs_qm_t;
@@ -143,7 +130,6 @@ extern int		xfs_qm_quotacheck(xfs_mount_t *);
 extern int		xfs_qm_write_sb_changes(xfs_mount_t *, __int64_t);
 
 /* dquot stuff */
-extern boolean_t	xfs_qm_dqalloc_incore(xfs_dquot_t **);
 extern int		xfs_qm_dqpurge_all(xfs_mount_t *, uint);
 extern void		xfs_qm_dqrele_all_inodes(xfs_mount_t *, uint);
 

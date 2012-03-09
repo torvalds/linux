@@ -193,6 +193,9 @@ int exynos_drm_subdrv_register(struct exynos_drm_subdrv *subdrv)
 			return err;
 		}
 
+		/* setup possible_clones. */
+		exynos_drm_encoder_setup(drm_dev);
+
 		/*
 		 * if any specific driver such as fimd or hdmi driver called
 		 * exynos_drm_subdrv_register() later than drm_load(),

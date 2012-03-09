@@ -37,19 +37,51 @@ extern int net_prio_subsys_id;
 
 extern void sock_update_netprioidx(struct sock *sk);
 
-static inline struct cgroup_netprio_state
-		*task_netprio_state(struct task_struct *p)
+#if IS_BUILTIN(CONFIG_NETPRIO_CGROUP)
+
+static inline u32 task_netprioidx(struct task_struct *p)
 {
-#if IS_ENABLED(CONFIG_NETPRIO_CGROUP)
-	return container_of(task_subsys_state(p, net_prio_subsys_id),
-			    struct cgroup_netprio_state, css);
-#else
-	return NULL;
-#endif
+	struct cgroup_netprio_state *state;
+	u32 idx;
+
+	rcu_read_lock();
+	state = container_of(task_subsys_state(p, net_prio_subsys_id),
+			     struct cgroup_netprio_state, css);
+	idx = state->prioidx;
+	rcu_read_unlock();
+	return idx;
+}
+
+#elif IS_MODULE(CONFIG_NETPRIO_CGROUP)
+
+static inline u32 task_netprioidx(struct task_struct *p)
+{
+	struct cgroup_netprio_state *state;
+	int subsys_id;
+	u32 idx = 0;
+
+	rcu_read_lock();
+	subsys_id = rcu_dereference_index_check(net_prio_subsys_id,
+						rcu_read_lock_held());
+	if (subsys_id >= 0) {
+		state = container_of(task_subsys_state(p, subsys_id),
+				     struct cgroup_netprio_state, css);
+		idx = state->prioidx;
+	}
+	rcu_read_unlock();
+	return idx;
 }
 
 #else
 
+static inline u32 task_netprioidx(struct task_struct *p)
+{
+	return 0;
+}
+
+#endif /* CONFIG_NETPRIO_CGROUP */
+
+#else
 #define sock_update_netprioidx(sk)
 #endif
 

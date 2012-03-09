@@ -29,21 +29,6 @@ void get_io_context(struct io_context *ioc)
 }
 EXPORT_SYMBOL(get_io_context);
 
-/*
- * Releasing ioc may nest into another put_io_context() leading to nested
- * fast path release.  As the ioc's can't be the same, this is okay but
- * makes lockdep whine.  Keep track of nesting and use it as subclass.
- */
-#ifdef CONFIG_LOCKDEP
-#define ioc_release_depth(q)		((q) ? (q)->ioc_release_depth : 0)
-#define ioc_release_depth_inc(q)	(q)->ioc_release_depth++
-#define ioc_release_depth_dec(q)	(q)->ioc_release_depth--
-#else
-#define ioc_release_depth(q)		0
-#define ioc_release_depth_inc(q)	do { } while (0)
-#define ioc_release_depth_dec(q)	do { } while (0)
-#endif
-
 static void icq_free_icq_rcu(struct rcu_head *head)
 {
 	struct io_cq *icq = container_of(head, struct io_cq, __rcu_head);
@@ -75,11 +60,8 @@ static void ioc_exit_icq(struct io_cq *icq)
 	if (rcu_dereference_raw(ioc->icq_hint) == icq)
 		rcu_assign_pointer(ioc->icq_hint, NULL);
 
-	if (et->ops.elevator_exit_icq_fn) {
-		ioc_release_depth_inc(q);
+	if (et->ops.elevator_exit_icq_fn)
 		et->ops.elevator_exit_icq_fn(icq);
-		ioc_release_depth_dec(q);
-	}
 
 	/*
 	 * @icq->q might have gone away by the time RCU callback runs
@@ -98,8 +80,15 @@ static void ioc_release_fn(struct work_struct *work)
 	struct io_context *ioc = container_of(work, struct io_context,
 					      release_work);
 	struct request_queue *last_q = NULL;
+	unsigned long flags;
 
-	spin_lock_irq(&ioc->lock);
+	/*
+	 * Exiting icq may call into put_io_context() through elevator
+	 * which will trigger lockdep warning.  The ioc's are guaranteed to
+	 * be different, use a different locking subclass here.  Use
+	 * irqsave variant as there's no spin_lock_irq_nested().
+	 */
+	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
 
 	while (!hlist_empty(&ioc->icq_list)) {
 		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
@@ -121,15 +110,15 @@ static void ioc_release_fn(struct work_struct *work)
 			 */
 			if (last_q) {
 				spin_unlock(last_q->queue_lock);
-				spin_unlock_irq(&ioc->lock);
+				spin_unlock_irqrestore(&ioc->lock, flags);
 				blk_put_queue(last_q);
 			} else {
-				spin_unlock_irq(&ioc->lock);
+				spin_unlock_irqrestore(&ioc->lock, flags);
 			}
 
 			last_q = this_q;
-			spin_lock_irq(this_q->queue_lock);
-			spin_lock(&ioc->lock);
+			spin_lock_irqsave(this_q->queue_lock, flags);
+			spin_lock_nested(&ioc->lock, 1);
 			continue;
 		}
 		ioc_exit_icq(icq);
@@ -137,10 +126,10 @@ static void ioc_release_fn(struct work_struct *work)
 
 	if (last_q) {
 		spin_unlock(last_q->queue_lock);
-		spin_unlock_irq(&ioc->lock);
+		spin_unlock_irqrestore(&ioc->lock, flags);
 		blk_put_queue(last_q);
 	} else {
-		spin_unlock_irq(&ioc->lock);
+		spin_unlock_irqrestore(&ioc->lock, flags);
 	}
 
 	kmem_cache_free(iocontext_cachep, ioc);
@@ -149,79 +138,29 @@ static void ioc_release_fn(struct work_struct *work)
 /**
  * put_io_context - put a reference of io_context
  * @ioc: io_context to put
- * @locked_q: request_queue the caller is holding queue_lock of (hint)
  *
  * Decrement reference count of @ioc and release it if the count reaches
- * zero.  If the caller is holding queue_lock of a queue, it can indicate
- * that with @locked_q.  This is an optimization hint and the caller is
- * allowed to pass in %NULL even when it's holding a queue_lock.
+ * zero.
  */
-void put_io_context(struct io_context *ioc, struct request_queue *locked_q)
+void put_io_context(struct io_context *ioc)
 {
-	struct request_queue *last_q = locked_q;
 	unsigned long flags;
 
 	if (ioc == NULL)
 		return;
 
 	BUG_ON(atomic_long_read(&ioc->refcount) <= 0);
-	if (locked_q)
-		lockdep_assert_held(locked_q->queue_lock);
-
-	if (!atomic_long_dec_and_test(&ioc->refcount))
-		return;
 
 	/*
-	 * Destroy @ioc.  This is a bit messy because icq's are chained
-	 * from both ioc and queue, and ioc->lock nests inside queue_lock.
-	 * The inner ioc->lock should be held to walk our icq_list and then
-	 * for each icq the outer matching queue_lock should be grabbed.
-	 * ie. We need to do reverse-order double lock dancing.
-	 *
-	 * Another twist is that we are often called with one of the
-	 * matching queue_locks held as indicated by @locked_q, which
-	 * prevents performing double-lock dance for other queues.
-	 *
-	 * So, we do it in two stages.  The fast path uses the queue_lock
-	 * the caller is holding and, if other queues need to be accessed,
-	 * uses trylock to avoid introducing locking dependency.  This can
-	 * handle most cases, especially if @ioc was performing IO on only
-	 * single device.
-	 *
-	 * If trylock doesn't cut it, we defer to @ioc->release_work which
-	 * can do all the double-locking dancing.
+	 * Releasing ioc requires reverse order double locking and we may
+	 * already be holding a queue_lock.  Do it asynchronously from wq.
 	 */
-	spin_lock_irqsave_nested(&ioc->lock, flags,
-				 ioc_release_depth(locked_q));
-
-	while (!hlist_empty(&ioc->icq_list)) {
-		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
-						struct io_cq, ioc_node);
-		struct request_queue *this_q = icq->q;
-
-		if (this_q != last_q) {
-			if (last_q && last_q != locked_q)
-				spin_unlock(last_q->queue_lock);
-			last_q = NULL;
-
-			if (!spin_trylock(this_q->queue_lock))
-				break;
-			last_q = this_q;
-			continue;
-		}
-		ioc_exit_icq(icq);
+	if (atomic_long_dec_and_test(&ioc->refcount)) {
+		spin_lock_irqsave(&ioc->lock, flags);
+		if (!hlist_empty(&ioc->icq_list))
+			schedule_work(&ioc->release_work);
+		spin_unlock_irqrestore(&ioc->lock, flags);
 	}
-
-	if (last_q && last_q != locked_q)
-		spin_unlock(last_q->queue_lock);
-
-	spin_unlock_irqrestore(&ioc->lock, flags);
-
-	/* if no icq is left, we're done; otherwise, kick release_work */
-	if (hlist_empty(&ioc->icq_list))
-		kmem_cache_free(iocontext_cachep, ioc);
-	else
-		schedule_work(&ioc->release_work);
 }
 EXPORT_SYMBOL(put_io_context);
 
@@ -236,7 +175,7 @@ void exit_io_context(struct task_struct *task)
 	task_unlock(task);
 
 	atomic_dec(&ioc->nr_tasks);
-	put_io_context(ioc, NULL);
+	put_io_context(ioc);
 }
 
 /**

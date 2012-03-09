@@ -3312,7 +3312,8 @@ commit_trans:
 	}
 	data_sinfo->bytes_may_use += bytes;
 	trace_btrfs_space_reservation(root->fs_info, "space_info",
-				      (u64)data_sinfo, bytes, 1);
+				      (u64)(unsigned long)data_sinfo,
+				      bytes, 1);
 	spin_unlock(&data_sinfo->lock);
 
 	return 0;
@@ -3333,7 +3334,8 @@ void btrfs_free_reserved_data_space(struct inode *inode, u64 bytes)
 	spin_lock(&data_sinfo->lock);
 	data_sinfo->bytes_may_use -= bytes;
 	trace_btrfs_space_reservation(root->fs_info, "space_info",
-				      (u64)data_sinfo, bytes, 0);
+				      (u64)(unsigned long)data_sinfo,
+				      bytes, 0);
 	spin_unlock(&data_sinfo->lock);
 }
 
@@ -3611,12 +3613,15 @@ static int may_commit_transaction(struct btrfs_root *root,
 	if (space_info != delayed_rsv->space_info)
 		return -ENOSPC;
 
+	spin_lock(&space_info->lock);
 	spin_lock(&delayed_rsv->lock);
-	if (delayed_rsv->size < bytes) {
+	if (space_info->bytes_pinned + delayed_rsv->size < bytes) {
 		spin_unlock(&delayed_rsv->lock);
+		spin_unlock(&space_info->lock);
 		return -ENOSPC;
 	}
 	spin_unlock(&delayed_rsv->lock);
+	spin_unlock(&space_info->lock);
 
 commit:
 	trans = btrfs_join_transaction(root);
@@ -3695,9 +3700,9 @@ again:
 		if (used + orig_bytes <= space_info->total_bytes) {
 			space_info->bytes_may_use += orig_bytes;
 			trace_btrfs_space_reservation(root->fs_info,
-						      "space_info",
-						      (u64)space_info,
-						      orig_bytes, 1);
+					      "space_info",
+					      (u64)(unsigned long)space_info,
+					      orig_bytes, 1);
 			ret = 0;
 		} else {
 			/*
@@ -3766,9 +3771,9 @@ again:
 		if (used + num_bytes < space_info->total_bytes + avail) {
 			space_info->bytes_may_use += orig_bytes;
 			trace_btrfs_space_reservation(root->fs_info,
-						      "space_info",
-						      (u64)space_info,
-						      orig_bytes, 1);
+					      "space_info",
+					      (u64)(unsigned long)space_info,
+					      orig_bytes, 1);
 			ret = 0;
 		} else {
 			wait_ordered = true;
@@ -3913,8 +3918,8 @@ static void block_rsv_release_bytes(struct btrfs_fs_info *fs_info,
 			spin_lock(&space_info->lock);
 			space_info->bytes_may_use -= num_bytes;
 			trace_btrfs_space_reservation(fs_info, "space_info",
-						      (u64)space_info,
-						      num_bytes, 0);
+					      (u64)(unsigned long)space_info,
+					      num_bytes, 0);
 			space_info->reservation_progress++;
 			spin_unlock(&space_info->lock);
 		}
@@ -4105,7 +4110,7 @@ static u64 calc_global_metadata_size(struct btrfs_fs_info *fs_info)
 	num_bytes += div64_u64(data_used + meta_used, 50);
 
 	if (num_bytes * 3 > meta_used)
-		num_bytes = div64_u64(meta_used, 3);
+		num_bytes = div64_u64(meta_used, 3) * 2;
 
 	return ALIGN(num_bytes, fs_info->extent_root->leafsize << 10);
 }
@@ -4132,14 +4137,14 @@ static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 		block_rsv->reserved += num_bytes;
 		sinfo->bytes_may_use += num_bytes;
 		trace_btrfs_space_reservation(fs_info, "space_info",
-					      (u64)sinfo, num_bytes, 1);
+				      (u64)(unsigned long)sinfo, num_bytes, 1);
 	}
 
 	if (block_rsv->reserved >= block_rsv->size) {
 		num_bytes = block_rsv->reserved - block_rsv->size;
 		sinfo->bytes_may_use -= num_bytes;
 		trace_btrfs_space_reservation(fs_info, "space_info",
-					      (u64)sinfo, num_bytes, 0);
+				      (u64)(unsigned long)sinfo, num_bytes, 0);
 		sinfo->reservation_progress++;
 		block_rsv->reserved = block_rsv->size;
 		block_rsv->full = 1;
@@ -4192,7 +4197,8 @@ void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 	if (!trans->bytes_reserved)
 		return;
 
-	trace_btrfs_space_reservation(root->fs_info, "transaction", (u64)trans,
+	trace_btrfs_space_reservation(root->fs_info, "transaction",
+				      (u64)(unsigned long)trans,
 				      trans->bytes_reserved, 0);
 	btrfs_block_rsv_release(root, trans->block_rsv, trans->bytes_reserved);
 	trans->bytes_reserved = 0;
@@ -4710,9 +4716,9 @@ static int btrfs_update_reserved_bytes(struct btrfs_block_group_cache *cache,
 			space_info->bytes_reserved += num_bytes;
 			if (reserve == RESERVE_ALLOC) {
 				trace_btrfs_space_reservation(cache->fs_info,
-							      "space_info",
-							      (u64)space_info,
-							      num_bytes, 0);
+					      "space_info",
+					      (u64)(unsigned long)space_info,
+					      num_bytes, 0);
 				space_info->bytes_may_use -= num_bytes;
 			}
 		}
@@ -7886,9 +7892,16 @@ int btrfs_trim_fs(struct btrfs_root *root, struct fstrim_range *range)
 	u64 start;
 	u64 end;
 	u64 trimmed = 0;
+	u64 total_bytes = btrfs_super_total_bytes(fs_info->super_copy);
 	int ret = 0;
 
-	cache = btrfs_lookup_block_group(fs_info, range->start);
+	/*
+	 * try to trim all FS space, our block group may start from non-zero.
+	 */
+	if (range->len == total_bytes)
+		cache = btrfs_lookup_first_block_group(fs_info, range->start);
+	else
+		cache = btrfs_lookup_block_group(fs_info, range->start);
 
 	while (cache) {
 		if (cache->key.objectid >= (range->start + range->len)) {

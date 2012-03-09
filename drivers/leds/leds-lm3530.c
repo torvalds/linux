@@ -164,8 +164,8 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 
 	if (drvdata->mode == LM3530_BL_MODE_ALS) {
 		if (pltfm->als_vmax == 0) {
-			pltfm->als_vmin = als_vmin = 0;
-			pltfm->als_vmin = als_vmax = LM3530_ALS_WINDOW_mV;
+			pltfm->als_vmin = 0;
+			pltfm->als_vmax = LM3530_ALS_WINDOW_mV;
 		}
 
 		als_vmin = pltfm->als_vmin;

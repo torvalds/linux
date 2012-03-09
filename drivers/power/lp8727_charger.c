@@ -464,6 +464,7 @@ static int __devexit lp8727_remove(struct i2c_client *cl)
 
 static const struct i2c_device_id lp8727_ids[] = {
 	{"lp8727", 0},
+	{ }
 };
 
 static struct i2c_driver lp8727_driver = {

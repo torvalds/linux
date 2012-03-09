@@ -10,6 +10,7 @@
 #include <asm/page.h>
 	
 #define PROC_INFO							\
+	. = ALIGN(4);							\
 	VMLINUX_SYMBOL(__proc_info_begin) = .;				\
 	*(.proc.info.init)						\
 	VMLINUX_SYMBOL(__proc_info_end) = .;

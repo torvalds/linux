@@ -445,7 +445,6 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 	ClearPageSwapCache(page);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
-	page->mapping = NULL;
 
 	/*
 	 * If any waiters have accumulated on the new page then
@@ -667,6 +666,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 	} else {
 		if (remap_swapcache)
 			remove_migration_ptes(page, newpage);
+		page->mapping = NULL;
 	}
 
 	unlock_page(newpage);

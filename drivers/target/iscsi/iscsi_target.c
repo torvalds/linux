@@ -1061,7 +1061,7 @@ attach_cmd:
 	if (ret < 0)
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-				1, 1, buf, cmd);
+				1, 0, buf, cmd);
 	/*
 	 * Check the CmdSN against ExpCmdSN/MaxCmdSN here if
 	 * the Immediate Bit is not set, and no Immediate
@@ -3164,6 +3164,30 @@ static int iscsit_send_task_mgt_rsp(
 	return 0;
 }
 
+static bool iscsit_check_inaddr_any(struct iscsi_np *np)
+{
+	bool ret = false;
+
+	if (np->np_sockaddr.ss_family == AF_INET6) {
+		const struct sockaddr_in6 sin6 = {
+			.sin6_addr = IN6ADDR_ANY_INIT };
+		struct sockaddr_in6 *sock_in6 =
+			 (struct sockaddr_in6 *)&np->np_sockaddr;
+
+		if (!memcmp(sock_in6->sin6_addr.s6_addr,
+				sin6.sin6_addr.s6_addr, 16))
+			ret = true;
+	} else {
+		struct sockaddr_in * sock_in =
+			(struct sockaddr_in *)&np->np_sockaddr;
+
+		if (sock_in->sin_addr.s_addr == INADDR_ANY)
+			ret = true;
+	}
+
+	return ret;
+}
+
 static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 {
 	char *payload = NULL;
@@ -3213,12 +3237,17 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 			spin_lock(&tpg->tpg_np_lock);
 			list_for_each_entry(tpg_np, &tpg->tpg_gnp_list,
 						tpg_np_list) {
+				struct iscsi_np *np = tpg_np->tpg_np;
+				bool inaddr_any = iscsit_check_inaddr_any(np);
+
 				len = sprintf(buf, "TargetAddress="
 					"%s%s%s:%hu,%hu",
-					(tpg_np->tpg_np->np_sockaddr.ss_family == AF_INET6) ?
-					"[" : "", tpg_np->tpg_np->np_ip,
-					(tpg_np->tpg_np->np_sockaddr.ss_family == AF_INET6) ?
-					"]" : "", tpg_np->tpg_np->np_port,
+					(np->np_sockaddr.ss_family == AF_INET6) ?
+					"[" : "", (inaddr_any == false) ?
+						np->np_ip : conn->local_ip,
+					(np->np_sockaddr.ss_family == AF_INET6) ?
+					"]" : "", (inaddr_any == false) ?
+						np->np_port : conn->local_port,
 					tpg->tpgt);
 				len += 1;
 

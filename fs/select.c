@@ -912,7 +912,7 @@ static long do_restart_poll(struct restart_block *restart_block)
 }
 
 SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
-		long, timeout_msecs)
+		int, timeout_msecs)
 {
 	struct timespec end_time, *to = NULL;
 	int ret;

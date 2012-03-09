@@ -96,7 +96,7 @@ static int wm8962_regulator_event_##n(struct notifier_block *nb, \
 	struct wm8962_priv *wm8962 = container_of(nb, struct wm8962_priv, \
 						  disable_nb[n]); \
 	if (event & REGULATOR_EVENT_DISABLE) { \
-		regcache_cache_only(wm8962->regmap, true);	\
+		regcache_mark_dirty(wm8962->regmap);	\
 	} \
 	return 0; \
 }
@@ -2564,7 +2564,7 @@ static int dsp2_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static const char *st_text[] = { "None", "Right", "Left" };
+static const char *st_text[] = { "None", "Left", "Right" };
 
 static const struct soc_enum str_enum =
 	SOC_ENUM_SINGLE(WM8962_DAC_DSP_MIXING_1, 2, 3, st_text);
@@ -3159,13 +3159,13 @@ static int wm8962_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_FORMAT_S16_LE:
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		aif0 |= 0x40;
+		aif0 |= 0x4;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		aif0 |= 0x80;
+		aif0 |= 0x8;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		aif0 |= 0xc0;
+		aif0 |= 0xc;
 		break;
 	default:
 		return -EINVAL;

@@ -401,7 +401,7 @@ void dispc_runtime_put(void)
 
 	DSSDBG("dispc_runtime_put\n");
 
-	r = pm_runtime_put(&dispc.pdev->dev);
+	r = pm_runtime_put_sync(&dispc.pdev->dev);
 	WARN_ON(r < 0);
 }
 

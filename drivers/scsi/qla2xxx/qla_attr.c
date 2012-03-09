@@ -1036,8 +1036,7 @@ qla2x00_link_state_show(struct device *dev, struct device_attribute *attr,
 	    vha->device_flags & DFLG_NO_CABLE)
 		len = snprintf(buf, PAGE_SIZE, "Link Down\n");
 	else if (atomic_read(&vha->loop_state) != LOOP_READY ||
-	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
+	    qla2x00_reset_active(vha))
 		len = snprintf(buf, PAGE_SIZE, "Unknown Link State\n");
 	else {
 		len = snprintf(buf, PAGE_SIZE, "Link Up - ");
@@ -1359,8 +1358,7 @@ qla2x00_thermal_temp_show(struct device *dev,
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	temp = frac = 0;
-	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-	    test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
+	if (qla2x00_reset_active(vha))
 		ql_log(ql_log_warn, vha, 0x707b,
 		    "ISP reset active.\n");
 	else if (!vha->hw->flags.eeh_busy)
@@ -1379,8 +1377,7 @@ qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
 	int rval = QLA_FUNCTION_FAILED;
 	uint16_t state[5];
 
-	if (test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags))
+	if (qla2x00_reset_active(vha))
 		ql_log(ql_log_warn, vha, 0x707c,
 		    "ISP reset active.\n");
 	else if (!vha->hw->flags.eeh_busy)
@@ -1693,9 +1690,7 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 	if (IS_FWI2_CAPABLE(ha)) {
 		rval = qla24xx_get_isp_stats(base_vha, stats, stats_dma);
 	} else if (atomic_read(&base_vha->loop_state) == LOOP_READY &&
-		    !test_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags) &&
-		    !test_bit(ISP_ABORT_NEEDED, &base_vha->dpc_flags) &&
-		    !ha->dpc_active) {
+	    !qla2x00_reset_active(vha) && !ha->dpc_active) {
 		/* Must be in a 'READY' state for statistics retrieval. */
 		rval = qla2x00_get_link_status(base_vha, base_vha->loop_id,
 						stats, stats_dma);

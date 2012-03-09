@@ -427,9 +427,7 @@ static inline int mtd_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 
 static inline int mtd_suspend(struct mtd_info *mtd)
 {
-	if (!mtd->suspend)
-		return -EOPNOTSUPP;
-	return mtd->suspend(mtd);
+	return mtd->suspend ? mtd->suspend(mtd) : 0;
 }
 
 static inline void mtd_resume(struct mtd_info *mtd)
@@ -489,7 +487,7 @@ static inline int mtd_has_oob(const struct mtd_info *mtd)
 
 static inline int mtd_can_have_bb(const struct mtd_info *mtd)
 {
-	return 0;
+	return !!mtd->block_isbad;
 }
 
 	/* Kernel-side ioctl definitions */

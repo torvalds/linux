@@ -815,8 +815,9 @@ int mlx4_init_eq_table(struct mlx4_dev *dev)
 	int err;
 	int i;
 
-	priv->eq_table.uar_map = kcalloc(sizeof *priv->eq_table.uar_map,
-					 mlx4_num_eq_uar(dev), GFP_KERNEL);
+	priv->eq_table.uar_map = kcalloc(mlx4_num_eq_uar(dev),
+					 sizeof *priv->eq_table.uar_map,
+					 GFP_KERNEL);
 	if (!priv->eq_table.uar_map) {
 		err = -ENOMEM;
 		goto err_out_free;
@@ -1035,7 +1036,7 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int vec = 0, err = 0, i;
 
-	spin_lock(&priv->msix_ctl.pool_lock);
+	mutex_lock(&priv->msix_ctl.pool_lock);
 	for (i = 0; !vec && i < dev->caps.comp_pool; i++) {
 		if (~priv->msix_ctl.pool_bm & 1ULL << i) {
 			priv->msix_ctl.pool_bm |= 1ULL << i;
@@ -1057,7 +1058,7 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
 			eq_set_ci(&priv->eq_table.eq[vec], 1);
 		}
 	}
-	spin_unlock(&priv->msix_ctl.pool_lock);
+	mutex_unlock(&priv->msix_ctl.pool_lock);
 
 	if (vec) {
 		*vector = vec;
@@ -1078,13 +1079,13 @@ void mlx4_release_eq(struct mlx4_dev *dev, int vec)
 	if (likely(i >= 0)) {
 		/*sanity check , making sure were not trying to free irq's
 		  Belonging to a legacy EQ*/
-		spin_lock(&priv->msix_ctl.pool_lock);
+		mutex_lock(&priv->msix_ctl.pool_lock);
 		if (priv->msix_ctl.pool_bm & 1ULL << i) {
 			free_irq(priv->eq_table.eq[vec].irq,
 				 &priv->eq_table.eq[vec]);
 			priv->msix_ctl.pool_bm &= ~(1ULL << i);
 		}
-		spin_unlock(&priv->msix_ctl.pool_lock);
+		mutex_unlock(&priv->msix_ctl.pool_lock);
 	}
 
 }

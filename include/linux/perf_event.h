@@ -587,6 +587,7 @@ struct hw_perf_event {
 	u64				sample_period;
 	u64				last_period;
 	local64_t			period_left;
+	u64                             interrupts_seq;
 	u64				interrupts;
 
 	u64				freq_time_stamp;
