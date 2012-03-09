@@ -1765,7 +1765,7 @@ int snd_soc_dapm_mux_update_power(struct snd_soc_dapm_widget *widget,
 	struct snd_soc_card *card = widget->dapm->card;
 	int ret;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	ret = soc_dapm_mux_update_power(widget, kcontrol, mux, e);
 	mutex_unlock(&card->dapm_mutex);
 	return ret;
@@ -1809,7 +1809,7 @@ int snd_soc_dapm_mixer_update_power(struct snd_soc_dapm_widget *widget,
 	struct snd_soc_card *card = widget->dapm->card;
 	int ret;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	ret = soc_dapm_mixer_update_power(widget, kcontrol, connect);
 	mutex_unlock(&card->dapm_mutex);
 	return ret;
@@ -1982,7 +1982,7 @@ int snd_soc_dapm_sync(struct snd_soc_dapm_context *dapm)
 	if (!dapm->card || !dapm->card->instantiated)
 		return 0;
 
-	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&dapm->card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	ret = dapm_power_widgets(dapm, SND_SOC_DAPM_STREAM_NOP);
 	mutex_unlock(&dapm->card->dapm_mutex);
 	return ret;
@@ -2401,7 +2401,7 @@ int snd_soc_dapm_put_volsw(struct snd_kcontrol *kcontrol,
 		/* old connection must be powered down */
 		connect = invert ? 1 : 0;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	change = snd_soc_test_bits(widget->codec, reg, mask, val);
 	if (change) {
@@ -2493,7 +2493,7 @@ int snd_soc_dapm_put_enum_double(struct snd_kcontrol *kcontrol,
 		mask |= (bitmask - 1) << e->shift_r;
 	}
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
 	if (change) {
@@ -2562,7 +2562,7 @@ int snd_soc_dapm_put_enum_virt(struct snd_kcontrol *kcontrol,
 	if (ucontrol->value.enumerated.item[0] >= e->max)
 		return -EINVAL;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	change = widget->value != ucontrol->value.enumerated.item[0];
 	if (change) {
@@ -2659,7 +2659,7 @@ int snd_soc_dapm_put_value_enum_double(struct snd_kcontrol *kcontrol,
 		mask |= e->mask << e->shift_r;
 	}
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	change = snd_soc_test_bits(widget->codec, e->reg, mask, val);
 	if (change) {
@@ -2718,7 +2718,7 @@ int snd_soc_dapm_get_pin_switch(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	const char *pin = (const char *)kcontrol->private_value;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	ucontrol->value.integer.value[0] =
 		snd_soc_dapm_get_pin_status(&card->dapm, pin);
@@ -2741,7 +2741,7 @@ int snd_soc_dapm_put_pin_switch(struct snd_kcontrol *kcontrol,
 	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
 	const char *pin = (const char *)kcontrol->private_value;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 
 	if (ucontrol->value.integer.value[0])
 		snd_soc_dapm_enable_pin(&card->dapm, pin);
@@ -3060,7 +3060,7 @@ void snd_soc_dapm_stream_event(struct snd_soc_pcm_runtime *rtd, int stream,
 {
 	struct snd_soc_card *card = rtd->card;
 
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_PCM);
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
 	soc_dapm_stream_event(rtd, stream, event);
 	mutex_unlock(&card->dapm_mutex);
 }
