@@ -2936,7 +2936,7 @@ int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 					  name, name_len);
 
 	if (dev_class && memcmp(dev_class, "\0\0\0", 3) != 0)
-		eir_len = eir_append_data(&ev->eir[eir_len], eir_len,
+		eir_len = eir_append_data(ev->eir, eir_len,
 					  EIR_CLASS_OF_DEV, dev_class, 3);
 
 	put_unaligned_le16(eir_len, &ev->eir_len);
