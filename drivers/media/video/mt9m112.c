@@ -20,7 +20,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-#include <mach/rk29_camera.h>
+#include <mach/rk_camera.h>
 #include "mt9m112.h"
 
 static int debug;
@@ -1049,7 +1049,7 @@ struct sensor
 #if CONFIG_SENSOR_I2C_NOSCHED
 	atomic_t tasklock_cnt;
 #endif
-	struct rk29camera_platform_data *sensor_io_request;
+	struct rkcamera_platform_data *sensor_io_request;
 };
 
 static struct sensor* to_sensor(const struct i2c_client *client)
@@ -1314,7 +1314,7 @@ static int sensor_af_init(struct i2c_client *client)
 }
 #endif
 
-static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd cmd, int on)
+static int sensor_ioctrl(struct soc_camera_device *icd,enum rksensor_power_cmd cmd, int on)
 {
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	int ret = 0;
@@ -1326,13 +1326,13 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 		{
 			if (icl->powerdown) {
 				ret = icl->powerdown(icd->pdev, on);
-				if (ret == RK29_CAM_IO_SUCCESS) {
+				if (ret == RK_CAM_IO_SUCCESS) {
 					if (on == 0) {
 						mdelay(2);
 						if (icl->reset)
 							icl->reset(icd->pdev);
 					}
-				} else if (ret == RK29_CAM_EIO_REQUESTFAIL) {
+				} else if (ret == RK_CAM_EIO_REQUESTFAIL) {
 					ret = -ENODEV;
 					goto sensor_power_end;
 				}
@@ -2670,14 +2670,14 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
 	{
-		case RK29_CAM_SUBDEV_DEACTIVATE:
+		case RK_CAM_SUBDEV_DEACTIVATE:
 		{
 			sensor_deactivate(client);
 			break;
 		}
-		case RK29_CAM_SUBDEV_IOREQUEST:
+		case RK_CAM_SUBDEV_IOREQUEST:
 		{
-			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;
+			sensor->sensor_io_request = (struct rkcamera_platform_data*)arg;
 			break;
 		}
 		default:

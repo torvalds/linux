@@ -54,6 +54,317 @@
 
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 
+#ifdef CONFIG_VIDEO_RK
+/*---------------- Camera Sensor Macro Define Begin  ------------------------*/
+/*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
+#define CONFIG_SENSOR_0 RK_CAM_SENSOR_OV2659//RK_CAM_SENSOR_OV5642						/* back camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_0		0x60//0x78
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  1
+#define CONFIG_SENSOR_CIF_INDEX_0                    0
+#define CONFIG_SENSOR_ORIENTATION_0 	  90
+#define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_0 	  INVALID_GPIO
+#define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK_CAM_POWERACTIVE_L
+#define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK_CAM_RESETACTIVE_L
+#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK_CAM_POWERDNACTIVE_H
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK_CAM_FLASHACTIVE_L
+
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_CIF_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_VGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_480P_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_720P_FPS_FIXED_0		30000
+
+#define CONFIG_SENSOR_1 RK_CAM_SENSOR_OV2659						/* front camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_1		0x60
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  1
+#define CONFIG_SENSOR_CIF_INDEX_1				  1
+#define CONFIG_SENSOR_ORIENTATION_1 	  270
+#define CONFIG_SENSOR_POWER_PIN_1		  INVALID_GPIO
+#define CONFIG_SENSOR_RESET_PIN_1		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_1 	  INVALID_GPIO
+#define CONFIG_SENSOR_FALSH_PIN_1		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK_CAM_POWERACTIVE_L
+#define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK_CAM_RESETACTIVE_L
+#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK_CAM_POWERDNACTIVE_H
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK_CAM_FLASHACTIVE_L
+
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_CIF_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_VGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_480P_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
+
+#define CONFIG_USE_CIF_0	1
+#define CONFIG_USE_CIF_1      0
+#endif	//#ifdef CONFIG_VIDEO_RK29
+/*---------------- Camera Sensor Configuration Macro End------------------------*/
+#include "../../../drivers/media/video/rk_camera.c"
+/*---------------- Camera Sensor Macro Define End  ---------*/
+
+#define PMEM_CAM_SIZE		PMEM_CAM_NECESSARY
+#ifdef CONFIG_VIDEO_RK_WORK_IPP
+#define MEM_CAMIPP_SIZE 	PMEM_CAMIPP_NECESSARY
+#else
+#define MEM_CAMIPP_SIZE 	0
+#endif
+/*****************************************************************************************
+ * camera  devices
+ * author: ddl@rock-chips.com
+ *****************************************************************************************/
+#ifdef CONFIG_VIDEO_RK
+#define CONFIG_SENSOR_POWER_IOCTL_USR	   0
+#define CONFIG_SENSOR_RESET_IOCTL_USR	   0
+#define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   0
+#define CONFIG_SENSOR_FLASH_IOCTL_USR	   0
+
+#if CONFIG_SENSOR_POWER_IOCTL_USR
+static int sensor_power_usr_cb (struct rkcamera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_RESET_IOCTL_USR
+static int sensor_reset_usr_cb (struct rkcamera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_RESET_IOCTL_USR is 1, sensor_reset_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
+static int sensor_powerdown_usr_cb (struct rkcamera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_POWERDOWN_IOCTL_USR is 1, sensor_powerdown_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_FLASH_IOCTL_USR
+static int sensor_flash_usr_cb (struct rkcamera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_FLASH_IOCTL_USR is 1, sensor_flash_usr_cb function must be writed!!";
+}
+#endif
+
+static struct rkcamera_platform_ioctl_cb	sensor_ioctl_cb = {
+	#if CONFIG_SENSOR_POWER_IOCTL_USR
+	.sensor_power_cb = sensor_power_usr_cb,
+	#else
+	.sensor_power_cb = NULL,
+	#endif
+
+	#if CONFIG_SENSOR_RESET_IOCTL_USR
+	.sensor_reset_cb = sensor_reset_usr_cb,
+	#else
+	.sensor_reset_cb = NULL,
+	#endif
+
+	#if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
+	.sensor_powerdown_cb = sensor_powerdown_usr_cb,
+	#else
+	.sensor_powerdown_cb = NULL,
+	#endif
+
+	#if CONFIG_SENSOR_FLASH_IOCTL_USR
+	.sensor_flash_cb = sensor_flash_usr_cb,
+	#else
+	.sensor_flash_cb = NULL,
+	#endif
+};
+static struct reginfo_t rk_init_data_sensor_reg_0[] =
+{
+		{0x3000, 0x0f,0,0},
+		{0x3001, 0xff,0,0},
+		{0x3002, 0xff,0,0},
+		//{0x0100, 0x01},	//software sleep : Sensor vsync singal may not output if haven't sleep the sensor when transfer the array
+		{0x3633, 0x3d,0,0},
+		{0x3620, 0x02,0,0},
+		{0x3631, 0x11,0,0},
+		{0x3612, 0x04,0,0},
+		{0x3630, 0x20,0,0},
+		{0x4702, 0x02,0,0},
+		{0x370c, 0x34,0,0},
+		{0x3004, 0x10,0,0},
+		{0x3005, 0x18,0,0},
+		{0x3800, 0x00,0,0},
+		{0x3801, 0x00,0,0},
+		{0x3802, 0x00,0,0},
+		{0x3803, 0x00,0,0},
+		{0x3804, 0x06,0,0},
+		{0x3805, 0x5f,0,0},
+		{0x3806, 0x04,0,0},
+		{0x3807, 0xb7,0,0},
+		{0x3808, 0x03,0,0},
+		{0x3809, 0x20,0,0},
+		{0x380a, 0x02,0,0},
+		{0x380b, 0x58,0,0},
+		{0x380c, 0x05,0,0},
+		{0x380d, 0x14,0,0},
+		{0x380e, 0x02,0,0},
+		{0x380f, 0x68,0,0},
+		{0x3811, 0x08,0,0},
+		{0x3813, 0x02,0,0},
+		{0x3814, 0x31,0,0},
+		{0x3815, 0x31,0,0},
+		{0x3a02, 0x02,0,0},
+		{0x3a03, 0x68,0,0},
+		{0x3a08, 0x00,0,0},
+		{0x3a09, 0x5c,0,0},
+		{0x3a0a, 0x00,0,0},
+		{0x3a0b, 0x4d,0,0},
+		{0x3a0d, 0x08,0,0},
+		{0x3a0e, 0x06,0,0},
+		{0x3a14, 0x02,0,0},
+		{0x3a15, 0x28,0,0},
+			{0x4708, 0x01,0,0},
+		{0x3623, 0x00,0,0},
+		{0x3634, 0x76,0,0},
+		{0x3701, 0x44,0,0},
+		{0x3702, 0x18,0,0},
+		{0x3703, 0x24,0,0},
+		{0x3704, 0x24,0,0},
+		{0x3705, 0x0c,0,0},
+		{0x3820, 0x81,0,0},
+		{0x3821, 0x01,0,0},
+		{0x370a, 0x52,0,0},
+		{0x4608, 0x00,0,0},
+		{0x4609, 0x80,0,0},
+		{0x4300, 0x32,0,0},
+		{0x5086, 0x02,0,0},
+		{0x5000, 0xfb,0,0},
+		{0x5001, 0x1f,0,0},
+		{0x5002, 0x00,0,0},
+		{0x5025, 0x0e,0,0},
+		{0x5026, 0x18,0,0},
+		{0x5027, 0x34,0,0},
+		{0x5028, 0x4c,0,0},
+		{0x5029, 0x62,0,0},
+		{0x502a, 0x74,0,0},
+		{0x502b, 0x85,0,0},
+		{0x502c, 0x92,0,0},
+		{0x502d, 0x9e,0,0},
+		{0x502e, 0xb2,0,0},
+		{0x502f, 0xc0,0,0},
+		{0x5030, 0xcc,0,0},
+		{0x5031, 0xe0,0,0},
+		{0x5032, 0xee,0,0},
+		{0x5033, 0xf6,0,0},
+		{0x5034, 0x11,0,0},
+		{0x5070, 0x1c,0,0},
+		{0x5071, 0x5b,0,0},
+		{0x5072, 0x05,0,0},
+		{0x5073, 0x20,0,0},
+		{0x5074, 0x94,0,0},
+		{0x5075, 0xb4,0,0},
+		{0x5076, 0xb4,0,0},
+		{0x5077, 0xaf,0,0},
+		{0x5078, 0x05,0,0},
+		{0x5079, 0x98,0,0},
+		{0x507a, 0x21,0,0},
+		{0x5035, 0x6a,0,0},
+		{0x5036, 0x11,0,0},
+		{0x5037, 0x92,0,0},
+		{0x5038, 0x21,0,0},
+	
+		{0x5039, 0xe1,0,0},
+		{0x503a, 0x01,0,0},
+		{0x503c, 0x05,0,0},
+		{0x503d, 0x08,0,0},
+		{0x503e, 0x08,0,0},
+		{0x503f, 0x64,0,0},
+		{0x5040, 0x58,0,0},
+		{0x5041, 0x2a,0,0},
+		{0x5042, 0xc5,0,0},
+		{0x5043, 0x2e,0,0},
+		{0x5044, 0x3a,0,0},
+		{0x5045, 0x3c,0,0},
+		{0x5046, 0x44,0,0},
+		{0x5047, 0xf8,0,0},
+		{0x5048, 0x08,0,0},
+		{0x5049, 0x70,0,0},
+		{0x504a, 0xf0,0,0},
+		{0x504b, 0xf0,0,0},
+		{0x500c, 0x03,0,0},
+		{0x500d, 0x20,0,0},
+		{0x500e, 0x02,0,0},
+		{0x500f, 0x5c,0,0},
+		{0x5010, 0x48,0,0},
+		{0x5011, 0x00,0,0},
+		{0x5012, 0x66,0,0},
+		{0x5013, 0x03,0,0},
+		{0x5014, 0x30,0,0},
+		{0x5015, 0x02,0,0},
+		{0x5016, 0x7c,0,0},
+		{0x5017, 0x40,0,0},
+		{0x5018, 0x00,0,0},
+		{0x5019, 0x66,0,0},
+		{0x501a, 0x03,0,0},
+		{0x501b, 0x10,0,0},
+		{0x501c, 0x02,0,0},
+		{0x501d, 0x7c,0,0},
+		{0x501e, 0x3a,0,0},
+		{0x501f, 0x00,0,0},
+		{0x5020, 0x66,0,0},
+		{0x506e, 0x44,0,0},
+		{0x5064, 0x08,0,0},
+		{0x5065, 0x10,0,0},
+		{0x5066, 0x12,0,0},
+		{0x5067, 0x02,0,0},
+		{0x506c, 0x08,0,0},
+		{0x506d, 0x10,0,0},
+		{0x506f, 0xa6,0,0},
+		{0x5068, 0x08,0,0},
+	
+	
+		{0x5069, 0x10,0,0},
+		{0x506a, 0x04,0,0},
+		{0x506b, 0x12,0,0},
+		{0x507e, 0x40,0,0},
+		{0x507f, 0x20,0,0},
+		{0x507b, 0x02,0,0},
+		{0x507a, 0x01,0,0},
+		{0x5084, 0x0c,0,0},
+		{0x5085, 0x3e,0,0},
+		{0x5005, 0x80,0,0},
+		{0x3a0f, 0x30,0,0},
+		{0x3a10, 0x28,0,0},
+		{0x3a1b, 0x32,0,0},
+		{0x3a1e, 0x26,0,0},
+		{0x3a11, 0x60,0,0},
+		{0x3a1f, 0x14,0,0},
+		{0x5060, 0x69,0,0},
+		{0x5061, 0x7d,0,0},
+		{0x5062, 0x7d,0,0},
+		{0x5063, 0x69,0,0},
+		{0x3004, 0x20,0,0},
+			{0x0100, 0x01,0,0},
+		{0x0000, 0x00,0,0}
+	};
+static struct reginfo_t rk_init_data_sensor_winseqreg_0[] ={
+	{0x0000, 0x00,0,0}
+	};
+static rk_sensor_user_init_data_s rk_init_data_sensor_0 = 
+{	
+	.rk_sensor_init_width = INVALID_VALUE,
+	.rk_sensor_init_height = INVALID_VALUE,
+	.rk_sensor_init_bus_param = INVALID_VALUE,
+	.rk_sensor_init_pixelcode = INVALID_VALUE,
+	.rk_sensor_init_data = rk_init_data_sensor_reg_0,
+	.rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_0,
+	.rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
+	
+};
+static rk_sensor_user_init_data_s* rk_init_data_sensor_0_p = &rk_init_data_sensor_0;
+static rk_sensor_user_init_data_s* rk_init_data_sensor_1_p = NULL;
+#include "../../../drivers/media/video/rk_camera.c"
+
+#endif
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN4_PD0
@@ -722,6 +1033,25 @@ static void __init rk30_reserve(void)
 	resource_fb[2].start = board_mem_reserve_add("fb2",RK30_FB0_MEM_SIZE);
 	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;	
 #endif
+
+#if (MEM_CAMIPP_SIZE != 0)
+	#if CONFIG_USE_CIF_0
+	rk_camera_platform_data_host_0.meminfo.name = "camera_ipp_mem_0";
+	rk_camera_platform_data_host_0.meminfo.start = board_mem_reserve_add("camera_ipp_mem_0",MEM_CAMIPP_SIZE);
+	rk_camera_platform_data_host_0.meminfo.size= MEM_CAMIPP_SIZE;
+	#endif
+	#if CONFIG_USE_CIF_1
+	rk_camera_platform_data_host_1.meminfo.name = "camera_ipp_mem_1";
+	rk_camera_platform_data_host_1.meminfo.start =board_mem_reserve_add("camera_ipp_mem_1",MEM_CAMIPP_SIZE);
+	rk_camera_platform_data_host_1.meminfo.size= MEM_CAMIPP_SIZE;
+	#endif
+#endif
+
+#if (PMEM_CAM_SIZE != 0)
+	android_pmem_cam_pdata.start = board_mem_reserve_add("camera_pmem",PMEM_CAM_SIZE);
+	android_pmem_cam_pdata.size = PMEM_CAM_SIZE;
+#endif
+
 	board_mem_reserved();
 }
 
