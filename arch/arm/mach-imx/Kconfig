@@ -34,6 +34,7 @@ config ARCH_MX53
 config SOC_IMX1
 	bool
 	select ARCH_MX1
+	select COMMON_CLK
 	select CPU_ARM920T
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
