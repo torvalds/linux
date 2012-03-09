@@ -762,20 +762,20 @@ struct v4l2_crop {
 
 /* Selection targets */
 
-/* current cropping area */
-#define V4L2_SEL_TGT_CROP_ACTIVE	0
-/* default cropping area */
-#define V4L2_SEL_TGT_CROP_DEFAULT	1
-/* cropping bounds */
-#define V4L2_SEL_TGT_CROP_BOUNDS	2
-/* current composing area */
-#define V4L2_SEL_TGT_COMPOSE_ACTIVE	256
-/* default composing area */
-#define V4L2_SEL_TGT_COMPOSE_DEFAULT	257
-/* composing bounds */
-#define V4L2_SEL_TGT_COMPOSE_BOUNDS	258
-/* current composing area plus all padding pixels */
-#define V4L2_SEL_TGT_COMPOSE_PADDED	259
+/* Current cropping area */
+#define V4L2_SEL_TGT_CROP_ACTIVE	0x0000
+/* Default cropping area */
+#define V4L2_SEL_TGT_CROP_DEFAULT	0x0001
+/* Cropping bounds */
+#define V4L2_SEL_TGT_CROP_BOUNDS	0x0002
+/* Current composing area */
+#define V4L2_SEL_TGT_COMPOSE_ACTIVE	0x0100
+/* Default composing area */
+#define V4L2_SEL_TGT_COMPOSE_DEFAULT	0x0101
+/* Composing bounds */
+#define V4L2_SEL_TGT_COMPOSE_BOUNDS	0x0102
+/* Current composing area plus all padding pixels */
+#define V4L2_SEL_TGT_COMPOSE_PADDED	0x0103
 
 /**
  * struct v4l2_selection - selection info
@@ -785,7 +785,7 @@ struct v4l2_crop {
  * @r:		coordinates of selection window
  * @reserved:	for future use, rounds structure size to 64 bytes, set to zero
  *
- * Hardware may use multiple helper window to process a video stream.
+ * Hardware may use multiple helper windows to process a video stream.
  * The structure is used to exchange this selection areas between
  * an application and a driver.
  */
