@@ -307,24 +307,30 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		.bt3_prio_sample_time = IWLAGN_BT3_PRIO_SAMPLE_DEFAULT,
 		.bt3_timer_t2_value = IWLAGN_BT3_T2_DEFAULT,
 	};
-	struct iwl6000_bt_cmd bt_cmd_6000;
-	struct iwl2000_bt_cmd bt_cmd_2000;
+	struct iwl_bt_cmd_v1 bt_cmd_v1;
+	struct iwl_bt_cmd_v2 bt_cmd_v2;
 	int ret;
 
 	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
 			sizeof(basic.bt3_lookup_table));
 
 	if (cfg(priv)->bt_params) {
+		/*
+		 * newer generation of devices (2000 series and newer)
+		 * use the version 2 of the bt command
+		 * we need to make sure sending the host command
+		 * with correct data structure to avoid uCode assert
+		 */
 		if (cfg(priv)->bt_params->bt_session_2) {
-			bt_cmd_2000.prio_boost = cpu_to_le32(
+			bt_cmd_v2.prio_boost = cpu_to_le32(
 				cfg(priv)->bt_params->bt_prio_boost);
-			bt_cmd_2000.tx_prio_boost = 0;
-			bt_cmd_2000.rx_prio_boost = 0;
+			bt_cmd_v2.tx_prio_boost = 0;
+			bt_cmd_v2.rx_prio_boost = 0;
 		} else {
-			bt_cmd_6000.prio_boost =
+			bt_cmd_v1.prio_boost =
 				cfg(priv)->bt_params->bt_prio_boost;
-			bt_cmd_6000.tx_prio_boost = 0;
-			bt_cmd_6000.rx_prio_boost = 0;
+			bt_cmd_v1.tx_prio_boost = 0;
+			bt_cmd_v1.rx_prio_boost = 0;
 		}
 	} else {
 		IWL_ERR(priv, "failed to construct BT Coex Config\n");
@@ -371,15 +377,15 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		       "full concurrency" : "3-wire");
 
 	if (cfg(priv)->bt_params->bt_session_2) {
-		memcpy(&bt_cmd_2000.basic, &basic,
+		memcpy(&bt_cmd_v2.basic, &basic,
 			sizeof(basic));
 		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			CMD_SYNC, sizeof(bt_cmd_2000), &bt_cmd_2000);
+			CMD_SYNC, sizeof(bt_cmd_v2), &bt_cmd_v2);
 	} else {
-		memcpy(&bt_cmd_6000.basic, &basic,
+		memcpy(&bt_cmd_v1.basic, &basic,
 			sizeof(basic));
 		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
-			CMD_SYNC, sizeof(bt_cmd_6000), &bt_cmd_6000);
+			CMD_SYNC, sizeof(bt_cmd_v1), &bt_cmd_v1);
 	}
 	if (ret)
 		IWL_ERR(priv, "failed to send BT Coex Config\n");

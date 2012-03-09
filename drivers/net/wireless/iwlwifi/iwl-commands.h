@@ -1918,7 +1918,7 @@ struct iwl_basic_bt_cmd {
 	__le16 valid;
 };
 
-struct iwl6000_bt_cmd {
+struct iwl_bt_cmd_v1 {
 	struct iwl_basic_bt_cmd basic;
 	u8 prio_boost;
 	/*
@@ -1929,7 +1929,7 @@ struct iwl6000_bt_cmd {
 	__le16 rx_prio_boost;	/* SW boost of WiFi rx priority */
 };
 
-struct iwl2000_bt_cmd {
+struct iwl_bt_cmd_v2 {
 	struct iwl_basic_bt_cmd basic;
 	__le32 prio_boost;
 	/*
