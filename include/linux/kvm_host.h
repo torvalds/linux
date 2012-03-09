@@ -68,7 +68,7 @@ struct kvm_io_range {
 	struct kvm_io_device *dev;
 };
 
-#define NR_IOBUS_DEVS 300
+#define NR_IOBUS_DEVS 1000
 
 struct kvm_io_bus {
 	int                   dev_count;
