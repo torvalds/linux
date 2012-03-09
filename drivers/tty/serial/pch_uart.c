@@ -1566,7 +1566,7 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 static int __init pch_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
-	int baud = 9600;
+	int baud = default_baud;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
