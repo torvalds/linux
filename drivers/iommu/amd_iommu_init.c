@@ -358,8 +358,6 @@ static void iommu_disable(struct amd_iommu *iommu)
  */
 static u8 * __init iommu_map_mmio_space(u64 address)
 {
-	u8 *ret;
-
 	if (!request_mem_region(address, MMIO_REGION_LENGTH, "amd_iommu")) {
 		pr_err("AMD-Vi: Can not reserve memory region %llx for mmio\n",
 			address);
@@ -367,13 +365,7 @@ static u8 * __init iommu_map_mmio_space(u64 address)
 		return NULL;
 	}
 
-	ret = ioremap_nocache(address, MMIO_REGION_LENGTH);
-	if (ret != NULL)
-		return ret;
-
-	release_mem_region(address, MMIO_REGION_LENGTH);
-
-	return NULL;
+	return ioremap_nocache(address, MMIO_REGION_LENGTH);
 }
 
 static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)
