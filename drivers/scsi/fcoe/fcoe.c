@@ -2254,31 +2254,14 @@ static int fcoe_link_ok(struct fc_lport *lport)
 static void fcoe_percpu_clean(struct fc_lport *lport)
 {
 	struct fcoe_percpu_s *pp;
-	struct fcoe_rcv_info *fr;
-	struct sk_buff_head *list;
-	struct sk_buff *skb, *next;
-	struct sk_buff *head;
+	struct sk_buff *skb;
 	unsigned int cpu;
 
 	for_each_possible_cpu(cpu) {
 		pp = &per_cpu(fcoe_percpu, cpu);
-		spin_lock_bh(&pp->fcoe_rx_list.lock);
-		list = &pp->fcoe_rx_list;
-		head = list->next;
-		for (skb = head; skb != (struct sk_buff *)list;
-		     skb = next) {
-			next = skb->next;
-			fr = fcoe_dev_from_skb(skb);
-			if (fr->fr_dev == lport) {
-				__skb_unlink(skb, list);
-				kfree_skb(skb);
-			}
-		}
 
-		if (!pp->thread || !cpu_online(cpu)) {
-			spin_unlock_bh(&pp->fcoe_rx_list.lock);
+		if (!pp->thread || !cpu_online(cpu))
 			continue;
-		}
 
 		skb = dev_alloc_skb(0);
 		if (!skb) {
@@ -2287,6 +2270,7 @@ static void fcoe_percpu_clean(struct fc_lport *lport)
 		}
 		skb->destructor = fcoe_percpu_flush_done;
 
+		spin_lock_bh(&pp->fcoe_rx_list.lock);
 		__skb_queue_tail(&pp->fcoe_rx_list, skb);
 		if (pp->fcoe_rx_list.qlen == 1)
 			wake_up_process(pp->thread);
