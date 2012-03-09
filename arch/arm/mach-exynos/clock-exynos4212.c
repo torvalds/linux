@@ -28,9 +28,9 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/exynos4-clock.h>
 
 #include "common.h"
+#include "clock-exynos4.h"
 
 #ifdef CONFIG_PM_SLEEP
 static struct sleep_save exynos4212_clock_save[] = {

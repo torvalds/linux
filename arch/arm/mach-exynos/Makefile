@@ -12,7 +12,8 @@ obj-				:=
 
 # Core
 
-obj-$(CONFIG_ARCH_EXYNOS4)	+= common.o clock.o
+obj-$(CONFIG_ARCH_EXYNOS)	+= common.o
+obj-$(CONFIG_ARCH_EXYNOS4)	+= clock-exynos4.o
 obj-$(CONFIG_CPU_EXYNOS4210)	+= clock-exynos4210.o
 obj-$(CONFIG_SOC_EXYNOS4212)	+= clock-exynos4212.o
 
