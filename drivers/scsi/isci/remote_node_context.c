@@ -445,7 +445,7 @@ enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_con
 			case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
 				/* We really dont care if the hardware is going to suspend
 				 * the device since it's being invalidated anyway */
-				dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+				dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 					"%s: SCIC Remote Node Context 0x%p was "
 					"suspeneded by hardware while being "
 					"invalidated.\n", __func__, sci_rnc);
@@ -464,7 +464,7 @@ enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_con
 			case SCU_EVENT_TYPE_RNC_SUSPEND_TX_RX:
 				/* We really dont care if the hardware is going to suspend
 				 * the device since it's being resumed anyway */
-				dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+				dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
 					"%s: SCIC Remote Node Context 0x%p was "
 					"suspeneded by hardware while being resumed.\n",
 					__func__, sci_rnc);
@@ -568,9 +568,9 @@ enum sci_status sci_remote_node_context_suspend(
 		RNC_DEST_UNSPECIFIED;
 
 	dev_dbg(scirdev_to_dev(idev),
-		"%s: current state %d, current suspend_type %x dest state %d,"
+		"%s: current state %s, current suspend_type %x dest state %d,"
 			" arg suspend_reason %d, arg suspend_type %x",
-		__func__, state, sci_rnc->suspend_type,
+		__func__, rnc_state_name(state), sci_rnc->suspend_type,
 		sci_rnc->destination_state, suspend_reason,
 		suspend_type);
 

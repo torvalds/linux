@@ -207,23 +207,67 @@ enum sci_status isci_remote_device_terminate_requests(
 				"about to wait\n",
 			__func__, idev, ireq, idev->started_request_count,
 			rnc_suspend_count, idev->rnc.suspend_count);
+
+		#define MAX_SUSPEND_MSECS 10000
 		if (ireq) {
 			/* Terminate a specific TC. */
 			set_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags);
 			sci_remote_device_terminate_req(ihost, idev, 0, ireq);
 			spin_unlock_irqrestore(&ihost->scic_lock, flags);
-			wait_event(ihost->eventq,
-				   isci_check_reqterm(ihost, idev, ireq,
-						      rnc_suspend_count));
+			if (!wait_event_timeout(ihost->eventq,
+						isci_check_reqterm(ihost, idev, ireq,
+								   rnc_suspend_count),
+						msecs_to_jiffies(MAX_SUSPEND_MSECS))) {
+
+				dev_warn(&ihost->pdev->dev, "%s host%d timeout single\n",
+					 __func__, ihost->id);
+				dev_dbg(&ihost->pdev->dev,
+					 "%s: ******* Timeout waiting for "
+					 "suspend; idev=%p, current state %s; "
+					 "started_request_count=%d, flags=%lx\n\t"
+					 "rnc_suspend_count=%d, rnc.suspend_count=%d "
+					 "RNC: current state %s, current "
+					 "suspend_type %x dest state %d;\n"
+					 "ireq=%p, ireq->flags = %lx\n",
+					 __func__, idev,
+					 dev_state_name(idev->sm.current_state_id),
+					 idev->started_request_count, idev->flags,
+					 rnc_suspend_count, idev->rnc.suspend_count,
+					 rnc_state_name(idev->rnc.sm.current_state_id),
+					 idev->rnc.suspend_type,
+					 idev->rnc.destination_state,
+					 ireq, ireq->flags);
+			}
 			clear_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags);
 			isci_free_tag(ihost, ireq->io_tag);
 		} else {
 			/* Terminate all TCs. */
 			sci_remote_device_terminate_requests(idev);
 			spin_unlock_irqrestore(&ihost->scic_lock, flags);
-			wait_event(ihost->eventq,
-				   isci_check_devempty(ihost, idev,
-						       rnc_suspend_count));
+			if (!wait_event_timeout(ihost->eventq,
+						isci_check_devempty(ihost, idev,
+								    rnc_suspend_count),
+						msecs_to_jiffies(MAX_SUSPEND_MSECS))) {
+
+				dev_warn(&ihost->pdev->dev, "%s host%d timeout all\n",
+					 __func__, ihost->id);
+				dev_dbg(&ihost->pdev->dev,
+					"%s: ******* Timeout waiting for "
+					"suspend; idev=%p, current state %s; "
+					"started_request_count=%d, flags=%lx\n\t"
+					"rnc_suspend_count=%d, "
+					"RNC: current state %s, "
+					"rnc.suspend_count=%d, current "
+					"suspend_type %x dest state %d\n",
+					__func__, idev,
+					dev_state_name(idev->sm.current_state_id),
+					idev->started_request_count, idev->flags,
+					rnc_suspend_count,
+					rnc_state_name(idev->rnc.sm.current_state_id),
+					idev->rnc.suspend_count,
+					idev->rnc.suspend_type,
+					idev->rnc.destination_state);
+			}
 		}
 		dev_dbg(&ihost->pdev->dev, "%s: idev=%p, wait done\n",
 			__func__, idev);
@@ -1315,7 +1359,7 @@ void isci_remote_device_wait_for_resume_from_abort(
 	dev_dbg(scirdev_to_dev(idev), "%s: starting resume wait: %p\n",
 		 __func__, idev);
 
-	#define MAX_RESUME_MSECS 5
+	#define MAX_RESUME_MSECS 10000
 	if (!wait_event_timeout(ihost->eventq,
 			       (!test_bit(IDEV_ABORT_PATH_RESUME_PENDING,
 					  &idev->flags)
