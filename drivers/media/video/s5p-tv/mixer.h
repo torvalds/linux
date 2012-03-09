@@ -226,6 +226,7 @@ struct mxr_resources {
 /* event flags used  */
 enum mxr_devide_flags {
 	MXR_EVENT_VSYNC = 0,
+	MXR_EVENT_TOP = 1,
 };
 
 /** drivers instance */
