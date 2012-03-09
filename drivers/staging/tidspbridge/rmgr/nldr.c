@@ -628,9 +628,6 @@ void nldr_delete(struct nldr_object *nldr_obj)
 void nldr_exit(void)
 {
 	refs--;
-
-	if (refs == 0)
-		rmm_exit();
 }
 
 /*
@@ -746,9 +743,6 @@ int nldr_get_rmm_manager(struct nldr_object *nldr,
  */
 bool nldr_init(void)
 {
-	if (refs == 0)
-		rmm_init();
-
 	refs++;
 
 	return true;

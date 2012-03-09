@@ -80,8 +80,6 @@ struct rmm_target_obj {
 	struct list_head ovly_list;	/* List of overlay memory in use */
 };
 
-static u32 refs;		/* module reference count */
-
 static bool alloc_block(struct rmm_target_obj *target, u32 segid, u32 size,
 			u32 align, u32 *dsp_address);
 static bool free_block(struct rmm_target_obj *target, u32 segid, u32 addr,
@@ -260,14 +258,6 @@ void rmm_delete(struct rmm_target_obj *target)
 }
 
 /*
- *  ======== rmm_exit ========
- */
-void rmm_exit(void)
-{
-	refs--;
-}
-
-/*
  *  ======== rmm_free ========
  */
 bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_addr, u32 size,
@@ -297,16 +287,6 @@ bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_addr, u32 size,
 		}
 	}
 	return ret;
-}
-
-/*
- *  ======== rmm_init ========
- */
-bool rmm_init(void)
-{
-	refs++;
-
-	return true;
 }
 
 /*
