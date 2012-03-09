@@ -868,9 +868,9 @@ static int exynos4x12_init_tables(struct busfreq_data *data)
 	int ret;
 
 	/* Enable pause function for DREX2 DVFS */
-	tmp = __raw_readl(S5P_DMC_PAUSE_CTRL);
-	tmp |= DMC_PAUSE_ENABLE;
-	__raw_writel(tmp, S5P_DMC_PAUSE_CTRL);
+	tmp = __raw_readl(EXYNOS4_DMC_PAUSE_CTRL);
+	tmp |= EXYNOS4_DMC_PAUSE_ENABLE;
+	__raw_writel(tmp, EXYNOS4_DMC_PAUSE_CTRL);
 
 	tmp = __raw_readl(EXYNOS4_CLKDIV_DMC0);
 
