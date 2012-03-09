@@ -842,10 +842,10 @@ int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 		__func__, dev, ihost, isci_device);
 
 	if (!isci_device) {
-		/* If the device is gone, stop the escalations. */
+		/* If the device is gone, escalate to I_T_Nexus_Reset. */
 		dev_dbg(&ihost->pdev->dev, "%s: No dev\n", __func__);
 
-		ret = TMF_RESP_FUNC_COMPLETE;
+		ret = TMF_RESP_FUNC_FAILED;
 		goto out;
 	}
 	if (isci_remote_device_suspend(ihost, isci_device) != SCI_SUCCESS) {
