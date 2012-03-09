@@ -1237,7 +1237,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 				.flags = CMD_SYNC,
 				.data[0] = key_data.rsc_tsc,
 				.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-				.len[0] = sizeof(key_data.rsc_tsc),
+				.len[0] = sizeof(*key_data.rsc_tsc),
 			};
 
 			ret = iwl_dvm_send_cmd(priv, &rsc_tsc_cmd);

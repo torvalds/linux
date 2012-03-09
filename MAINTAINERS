@@ -962,7 +962,7 @@ F:	drivers/tty/serial/msm_serial.c
 F:	drivers/platform/msm/
 F:	drivers/*/pm8???-*
 F:	include/linux/mfd/pm8xxx/
-T:	git git://codeaurora.org/quic/kernel/davidb/linux-msm.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davidb/linux-msm.git
 S:	Maintained
 
 ARM/TOSA MACHINE SUPPORT

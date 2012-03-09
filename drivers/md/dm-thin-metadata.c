@@ -385,6 +385,7 @@ static int init_pmd(struct dm_pool_metadata *pmd,
 		data_sm = dm_sm_disk_create(tm, nr_blocks);
 		if (IS_ERR(data_sm)) {
 			DMERR("sm_disk_create failed");
+			dm_tm_unlock(tm, sblock);
 			r = PTR_ERR(data_sm);
 			goto bad;
 		}
@@ -789,6 +790,11 @@ int dm_pool_metadata_close(struct dm_pool_metadata *pmd)
 	return 0;
 }
 
+/*
+ * __open_device: Returns @td corresponding to device with id @dev,
+ * creating it if @create is set and incrementing @td->open_count.
+ * On failure, @td is undefined.
+ */
 static int __open_device(struct dm_pool_metadata *pmd,
 			 dm_thin_id dev, int create,
 			 struct dm_thin_device **td)
@@ -799,10 +805,16 @@ static int __open_device(struct dm_pool_metadata *pmd,
 	struct disk_device_details details_le;
 
 	/*
-	 * Check the device isn't already open.
+	 * If the device is already open, return it.
 	 */
 	list_for_each_entry(td2, &pmd->thin_devices, list)
 		if (td2->id == dev) {
+			/*
+			 * May not create an already-open device.
+			 */
+			if (create)
+				return -EEXIST;
+
 			td2->open_count++;
 			*td = td2;
 			return 0;
@@ -817,6 +829,9 @@ static int __open_device(struct dm_pool_metadata *pmd,
 		if (r != -ENODATA || !create)
 			return r;
 
+		/*
+		 * Create new device.
+		 */
 		changed = 1;
 		details_le.mapped_blocks = 0;
 		details_le.transaction_id = cpu_to_le64(pmd->trans_id);
@@ -882,12 +897,10 @@ static int __create_thin(struct dm_pool_metadata *pmd,
 
 	r = __open_device(pmd, dev, 1, &td);
 	if (r) {
-		__close_device(td);
 		dm_btree_remove(&pmd->tl_info, pmd->root, &key, &pmd->root);
 		dm_btree_del(&pmd->bl_info, dev_root);
 		return r;
 	}
-	td->changed = 1;
 	__close_device(td);
 
 	return r;
@@ -967,14 +980,14 @@ static int __create_snap(struct dm_pool_metadata *pmd,
 		goto bad;
 
 	r = __set_snapshot_details(pmd, td, origin, pmd->time);
+	__close_device(td);
+
 	if (r)
 		goto bad;
 
-	__close_device(td);
 	return 0;
 
 bad:
-	__close_device(td);
 	dm_btree_remove(&pmd->tl_info, pmd->root, &key, &pmd->root);
 	dm_btree_remove(&pmd->details_info, pmd->details_root,
 			&key, &pmd->details_root);
@@ -1211,6 +1224,8 @@ static int __remove(struct dm_thin_device *td, dm_block_t block)
 	if (r)
 		return r;
 
+	td->mapped_blocks--;
+	td->changed = 1;
 	pmd->need_commit = 1;
 
 	return 0;
