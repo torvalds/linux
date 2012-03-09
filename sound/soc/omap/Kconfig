@@ -5,13 +5,8 @@ config SND_OMAP_SOC
 config SND_OMAP_SOC_DMIC
 	tristate
 
-config OMAP_MCBSP
-	tristate
-	depends on ARCH_OMAP
-
 config SND_OMAP_SOC_MCBSP
 	tristate
-	select OMAP_MCBSP
 
 config SND_OMAP_SOC_MCPDM
 	tristate
@@ -31,7 +26,6 @@ config SND_OMAP_SOC_N810
 config SND_OMAP_SOC_RX51
 	tristate "SoC Audio support for Nokia RX-51"
 	depends on SND_OMAP_SOC && MACH_NOKIA_RX51
-	select OMAP_MCBSP
 	select SND_OMAP_SOC_MCBSP
 	select SND_SOC_TLV320AIC3X
 	select SND_SOC_TPA6130A2
