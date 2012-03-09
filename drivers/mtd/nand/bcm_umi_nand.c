@@ -488,7 +488,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 
 	/* Register the partitions */
 	board_mtd->name = "bcm_umi-nand";
-	mtd_device_parse_register(board_mtd, NULL, 0, NULL, 0);
+	mtd_device_parse_register(board_mtd, NULL, NULL, NULL, 0);
 
 	/* Return happy */
 	return 0;

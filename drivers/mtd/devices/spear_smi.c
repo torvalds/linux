@@ -851,7 +851,7 @@ static int spear_smi_setup_banks(struct platform_device *pdev, u32 bank)
 			goto err_map;
 		}
 	}
-	ret = mtd_device_parse_register(&flash->mtd, NULL, 0, parts, count);
+	ret = mtd_device_parse_register(&flash->mtd, NULL, NULL, parts, count);
 	if (ret)
 		dev_err(&dev->pdev->dev, "Err MTD partition=%d\n", ret);
 

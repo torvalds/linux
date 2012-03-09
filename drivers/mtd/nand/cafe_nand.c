@@ -799,7 +799,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, mtd);
 
 	mtd->name = "cafe_nand";
-	mtd_device_parse_register(mtd, part_probes, 0, NULL, 0);
+	mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
 
 	goto out;
 

@@ -456,9 +456,9 @@ static int tmio_probe(struct platform_device *dev)
 		goto err_scan;
 	}
 	/* Register the partitions */
-	retval = mtd_device_parse_register(mtd, NULL, 0,
-			data ? data->partition : NULL,
-			data ? data->num_partitions : 0);
+	retval = mtd_device_parse_register(mtd, NULL, NULL,
+					   data ? data->partition : NULL,
+					   data ? data->num_partitions : 0);
 	if (!retval)
 		return retval;
 

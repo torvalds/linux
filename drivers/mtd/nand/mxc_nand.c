@@ -1226,8 +1226,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	}
 
 	/* Register the partitions */
-	mtd_device_parse_register(mtd, part_probes, 0,
-			pdata->parts, pdata->nr_parts);
+	mtd_device_parse_register(mtd, part_probes, NULL, pdata->parts,
+				  pdata->nr_parts);
 
 	platform_set_drvdata(pdev, host);
 

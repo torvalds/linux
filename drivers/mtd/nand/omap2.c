@@ -1101,8 +1101,8 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 		goto out_release_mem_region;
 	}
 
-	mtd_device_parse_register(&info->mtd, NULL, 0,
-			pdata->parts, pdata->nr_parts);
+	mtd_device_parse_register(&info->mtd, NULL, NULL, pdata->parts,
+				  pdata->nr_parts);
 
 	platform_set_drvdata(pdev, &info->mtd);
 

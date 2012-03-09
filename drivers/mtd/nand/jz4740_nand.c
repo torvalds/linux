@@ -367,9 +367,9 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
 		goto err_gpio_free;
 	}
 
-	ret = mtd_device_parse_register(mtd, NULL, 0,
-			pdata ? pdata->partitions : NULL,
-			pdata ? pdata->num_partitions : 0);
+	ret = mtd_device_parse_register(mtd, NULL, NULL,
+					pdata ? pdata->partitions : NULL,
+					pdata ? pdata->num_partitions : 0);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add mtd device\n");

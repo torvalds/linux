@@ -752,8 +752,8 @@ syndrome_done:
 	if (ret < 0)
 		goto err_scan;
 
-	ret = mtd_device_parse_register(&info->mtd, NULL, 0,
-			pdata->parts, pdata->nr_parts);
+	ret = mtd_device_parse_register(&info->mtd, NULL, NULL, pdata->parts,
+					pdata->nr_parts);
 
 	if (ret < 0)
 		goto err_scan;

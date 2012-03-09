@@ -264,8 +264,8 @@ static int __devinit sa1100_mtd_probe(struct platform_device *pdev)
 	/*
 	 * Partition selection stuff.
 	 */
-	mtd_device_parse_register(info->mtd, part_probes, 0,
-			plat->parts, plat->nr_parts);
+	mtd_device_parse_register(info->mtd, part_probes, NULL, plat->parts,
+				  plat->nr_parts);
 
 	platform_set_drvdata(pdev, info);
 	err = 0;

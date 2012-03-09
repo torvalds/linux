@@ -751,8 +751,8 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 	if (set)
 		mtd->mtd.name = set->name;
 
-	return mtd_device_parse_register(&mtd->mtd, NULL, 0,
-			set->partitions, set->nr_partitions);
+	return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
+					 set->partitions, set->nr_partitions);
 }
 
 /**

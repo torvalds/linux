@@ -650,8 +650,8 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	mtd->name = "atmel_nand";
-	res = mtd_device_parse_register(mtd, NULL, 0,
-			host->board->parts, host->board->num_parts);
+	res = mtd_device_parse_register(mtd, NULL, NULL, host->board->parts,
+					host->board->num_parts);
 	if (!res)
 		return res;
 

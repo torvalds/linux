@@ -1228,8 +1228,9 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		ret = mtd_device_parse_register(info->host[cs]->mtd, NULL, 0,
-				pdata->parts[cs], pdata->nr_parts[cs]);
+		ret = mtd_device_parse_register(info->host[cs]->mtd, NULL,
+						NULL, pdata->parts[cs],
+						pdata->nr_parts[cs]);
 		if (!ret)
 			probe_success = 1;
 	}

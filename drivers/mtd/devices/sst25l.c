@@ -399,9 +399,9 @@ static int __devinit sst25l_probe(struct spi_device *spi)
 	      flash->mtd.numeraseregions);
 
 
-	ret = mtd_device_parse_register(&flash->mtd, NULL, 0,
-			data ? data->parts : NULL,
-			data ? data->nr_parts : 0);
+	ret = mtd_device_parse_register(&flash->mtd, NULL, NULL,
+					data ? data->parts : NULL,
+					data ? data->nr_parts : 0);
 	if (ret) {
 		kfree(flash);
 		dev_set_drvdata(&spi->dev, NULL);

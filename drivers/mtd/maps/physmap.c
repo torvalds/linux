@@ -192,7 +192,7 @@ static int physmap_flash_probe(struct platform_device *dev)
 
 	part_types = physmap_data->part_probe_types ? : part_probe_types;
 
-	mtd_device_parse_register(info->cmtd, part_types, 0,
+	mtd_device_parse_register(info->cmtd, part_types, NULL,
 				  physmap_data->parts, physmap_data->nr_parts);
 	return 0;
 

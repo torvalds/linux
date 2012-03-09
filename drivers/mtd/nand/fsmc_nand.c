@@ -940,13 +940,13 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 * Check for partition info passed
 	 */
 	host->mtd.name = "nand";
-	ret = mtd_device_parse_register(&host->mtd, NULL, 0,
-			host->mtd.size <= 0x04000000 ?
-				partition_info_16KB_blk :
-				partition_info_128KB_blk,
-			host->mtd.size <= 0x04000000 ?
-				ARRAY_SIZE(partition_info_16KB_blk) :
-				ARRAY_SIZE(partition_info_128KB_blk));
+	ret = mtd_device_parse_register(&host->mtd, NULL, NULL,
+					host->mtd.size <= 0x04000000 ?
+					partition_info_16KB_blk :
+					partition_info_128KB_blk,
+					host->mtd.size <= 0x04000000 ?
+					ARRAY_SIZE(partition_info_16KB_blk) :
+					ARRAY_SIZE(partition_info_128KB_blk));
 	if (ret)
 		goto err_probe;
 

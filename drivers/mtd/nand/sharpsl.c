@@ -181,8 +181,8 @@ static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 	/* Register the partitions */
 	sharpsl->mtd.name = "sharpsl-nand";
 
-	err = mtd_device_parse_register(&sharpsl->mtd, NULL, 0,
-			data->partitions, data->nr_partitions);
+	err = mtd_device_parse_register(&sharpsl->mtd, NULL, NULL,
+					data->partitions, data->nr_partitions);
 	if (err)
 		goto err_add;
 
