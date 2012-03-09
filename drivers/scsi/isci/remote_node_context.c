@@ -557,10 +557,16 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 		sci_rnc->user_callback = cb_fn;
 		sci_rnc->user_cookie   = cb_p;
 		return SCI_SUCCESS;
-	case SCI_RNC_TX_SUSPENDED: {
+	case SCI_RNC_TX_SUSPENDED:
+	case SCI_RNC_TX_RX_SUSPENDED: {
 		struct isci_remote_device *idev = rnc_to_dev(sci_rnc);
 		struct domain_device *dev = idev->domain_dev;
 
+		/* If this is an expander attached SATA device we must
+		 * invalidate and repost the RNC since this is the only way
+		 * to clear the TCi to NCQ tag mapping table for the RNi.
+		 * All other device types we can just resume.
+		 */
 		sci_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
 
 		if (dev_is_sata(dev) && dev->parent)
@@ -569,10 +575,6 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 			sci_change_state(&sci_rnc->sm, SCI_RNC_RESUMING);
 		return SCI_SUCCESS;
 	}
-	case SCI_RNC_TX_RX_SUSPENDED:
-		sci_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
-		sci_change_state(&sci_rnc->sm, SCI_RNC_RESUMING);
-		return SCI_FAILURE_INVALID_STATE;
 	case SCI_RNC_AWAIT_SUSPENSION:
 		sci_remote_node_context_setup_to_resume(sci_rnc, cb_fn, cb_p);
 		return SCI_SUCCESS;
