@@ -796,7 +796,7 @@ struct platform_device s3c_device_cfcon = {
 	.resource	= s3c_cfcon_resource,
 };
 
-void s3c_ide_set_platdata(struct s3c_ide_platdata *pdata)
+void __init s3c_ide_set_platdata(struct s3c_ide_platdata *pdata)
 {
 	s3c_set_platdata(pdata, sizeof(struct s3c_ide_platdata),
 			 &s3c_device_cfcon);
@@ -1076,7 +1076,7 @@ struct platform_device s3c64xx_device_onenand1 = {
 	.resource	= s3c64xx_onenand1_resources,
 };
 
-void s3c64xx_onenand1_set_platdata(struct onenand_platform_data *pdata)
+void __init s3c64xx_onenand1_set_platdata(struct onenand_platform_data *pdata)
 {
 	s3c_set_platdata(pdata, sizeof(struct onenand_platform_data),
 			 &s3c64xx_device_onenand1);
