@@ -282,6 +282,8 @@ void __transport_register_session(
 					&buf[0], PR_REG_ISID_LEN);
 			se_sess->sess_bin_isid = get_unaligned_be64(&buf[0]);
 		}
+		kref_get(&se_nacl->acl_kref);
+
 		spin_lock_irq(&se_nacl->nacl_sess_lock);
 		/*
 		 * The se_nacl->nacl_sess pointer will be set to the
@@ -334,6 +336,19 @@ int target_put_session(struct se_session *se_sess)
 	return kref_put(&se_sess->sess_kref, target_release_session);
 }
 EXPORT_SYMBOL(target_put_session);
+
+static void target_complete_nacl(struct kref *kref)
+{
+	struct se_node_acl *nacl = container_of(kref,
+				struct se_node_acl, acl_kref);
+
+	complete(&nacl->acl_free_comp);
+}
+
+void target_put_nacl(struct se_node_acl *nacl)
+{
+	kref_put(&nacl->acl_kref, target_complete_nacl);
+}
 
 void transport_deregister_session_configfs(struct se_session *se_sess)
 {
@@ -411,17 +426,17 @@ void transport_deregister_session(struct se_session *se_sess)
 	}
 	spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 
-	transport_free_session(se_sess);
-
 	pr_debug("TARGET_CORE[%s]: Deregistered fabric_sess\n",
 		se_tpg->se_tpg_tfo->get_fabric_name());
 	/*
-	 * Awake sleeping ->acl_free_comp caller from configfs se_node_acl
-	 * removal context
+	 * If last kref is dropping now for an explict NodeACL, awake sleeping
+	 * ->acl_free_comp caller to wakeup configfs se_node_acl->acl_group
+	 * removal context.
 	 */
 	if (se_nacl && comp_nacl == true)
-		complete(&se_nacl->acl_free_comp);
+		target_put_nacl(se_nacl);
 
+	transport_free_session(se_sess);
 }
 EXPORT_SYMBOL(transport_deregister_session);
 

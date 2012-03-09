@@ -642,6 +642,7 @@ struct se_node_acl {
 	struct list_head	acl_list;
 	struct list_head	acl_sess_list;
 	struct completion	acl_free_comp;
+	struct kref		acl_kref;
 };
 
 struct se_session {
