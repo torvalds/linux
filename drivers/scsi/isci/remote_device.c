@@ -1266,6 +1266,7 @@ enum sci_status isci_remote_device_resume_from_abort(
 	/* Preserve any current resume callbacks, for instance from other
 	 * resumptions.
 	 */
+	clear_bit(IDEV_ABORT_PATH_ACTIVE, &idev->flags);
 	status = sci_remote_device_resume(idev, idev->rnc.user_callback,
 					  idev->rnc.user_cookie);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
@@ -1501,6 +1502,7 @@ enum sci_status isci_remote_device_suspend_terminate(
 
 	/* Put the device into suspension. */
 	spin_lock_irqsave(&ihost->scic_lock, flags);
+	set_bit(IDEV_ABORT_PATH_ACTIVE, &idev->flags);
 	sci_remote_device_suspend(idev, SCI_SW_SUSPEND_LINKHANG_DETECT);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
