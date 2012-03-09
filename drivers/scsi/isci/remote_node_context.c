@@ -321,8 +321,6 @@ static void sci_remote_node_context_ready_state_enter(struct sci_base_state_mach
 {
 	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
 	enum sci_remote_node_context_destination_state dest_select;
-	scics_sds_remote_node_context_callback usr_cb = rnc->user_callback;
-	void *usr_param = rnc->user_cookie;
 	int tell_user = 1;
 
 	dest_select = rnc->destination_state;
@@ -334,12 +332,10 @@ static void sci_remote_node_context_ready_state_enter(struct sci_base_state_mach
 			rnc, rnc->suspend_reason,
 			SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT);
 
-		if (dest_select == RNC_DEST_SUSPENDED_RESUME) {
-			sci_remote_node_context_resume(rnc, usr_cb, usr_param);
+		if (dest_select == RNC_DEST_SUSPENDED_RESUME)
 			tell_user = 0;  /* Wait until ready again. */
-		}
 	}
-	if (tell_user && rnc->user_callback)
+	if (tell_user)
 		sci_remote_node_context_notify_user(rnc);
 }
 
@@ -584,8 +580,6 @@ enum sci_status sci_remote_node_context_suspend(
 		dest_param = sci_rnc->destination_state;
 
 	switch (state) {
-	case SCI_RNC_RESUMING:
-		break;  /* The RNC has been posted, so start the suspend. */
 	case SCI_RNC_READY:
 		break;
 	case SCI_RNC_INVALIDATING:
@@ -595,6 +589,8 @@ enum sci_status sci_remote_node_context_suspend(
 				 __func__, sci_rnc);
 			return SCI_FAILURE_INVALID_STATE;
 		}
+		/* Fall through and handle like SCI_RNC_POSTING */
+	case SCI_RNC_RESUMING:
 		/* Fall through and handle like SCI_RNC_POSTING */
 	case SCI_RNC_POSTING:
 		/* Set the destination state to AWAIT - this signals the
