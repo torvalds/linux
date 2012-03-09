@@ -1471,7 +1471,7 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	 * in softirq context.
 	 */
 	__skb_queue_tail(&fps->fcoe_rx_list, skb);
-	if (fps->fcoe_rx_list.qlen == 1)
+	if (fps->thread->state == TASK_INTERRUPTIBLE)
 		wake_up_process(fps->thread);
 	spin_unlock(&fps->fcoe_rx_list.lock);
 
@@ -1790,23 +1790,29 @@ static int fcoe_percpu_receive_thread(void *arg)
 {
 	struct fcoe_percpu_s *p = arg;
 	struct sk_buff *skb;
+	struct sk_buff_head tmp;
+
+	skb_queue_head_init(&tmp);
 
 	set_user_nice(current, -20);
 
 	while (!kthread_should_stop()) {
 
 		spin_lock_bh(&p->fcoe_rx_list.lock);
-		while ((skb = __skb_dequeue(&p->fcoe_rx_list)) == NULL) {
+		skb_queue_splice_init(&p->fcoe_rx_list, &tmp);
+		spin_unlock_bh(&p->fcoe_rx_list.lock);
+
+		while ((skb = __skb_dequeue(&tmp)) != NULL)
+			fcoe_recv_frame(skb);
+
+		spin_lock_bh(&p->fcoe_rx_list.lock);
+		if (!skb_queue_len(&p->fcoe_rx_list)) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_bh(&p->fcoe_rx_list.lock);
 			schedule();
 			set_current_state(TASK_RUNNING);
-			if (kthread_should_stop())
-				return 0;
-			spin_lock_bh(&p->fcoe_rx_list.lock);
-		}
-		spin_unlock_bh(&p->fcoe_rx_list.lock);
-		fcoe_recv_frame(skb);
+		} else
+			spin_unlock_bh(&p->fcoe_rx_list.lock);
 	}
 	return 0;
 }
