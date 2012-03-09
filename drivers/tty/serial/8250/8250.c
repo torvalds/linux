@@ -482,11 +482,6 @@ serial_out_sync(struct uart_8250_port *up, int offset, int value)
 	}
 }
 
-#define serial_in(up, offset)		\
-	(up->port.serial_in(&(up)->port, (offset)))
-#define serial_out(up, offset, value)	\
-	(up->port.serial_out(&(up)->port, (offset), (value)))
-
 /* Uart divisor latch read */
 static inline int _serial_dl_read(struct uart_8250_port *up)
 {
