@@ -72,6 +72,14 @@ const char *dev_state_name(enum sci_remote_device_states state)
 }
 #undef C
 
+static enum sci_status sci_remote_device_suspend(struct isci_remote_device *idev)
+{
+	return sci_remote_node_context_suspend(&idev->rnc,
+					       SCI_SOFTWARE_SUSPENSION,
+					       SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT,
+					       NULL, NULL);
+}
+
 /**
  * isci_remote_device_not_ready() - This function is called by the ihost when
  *    the remote device is not ready. We mark the isci device as ready (not
@@ -96,6 +104,9 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 	case SCIC_REMOTE_DEVICE_NOT_READY_SATA_SDB_ERROR_FIS_RECEIVED:
 		set_bit(IDEV_IO_NCQERROR, &idev->flags);
 
+		/* Suspend the remote device so the I/O can be terminated. */
+		sci_remote_device_suspend(idev);
+
 		/* Kill all outstanding requests for the device. */
 		list_for_each_entry(ireq, &idev->reqs_in_process, dev_node) {
 
@@ -103,9 +114,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 				"%s: isci_device = %p request = %p\n",
 				__func__, idev, ireq);
 
-			sci_controller_terminate_request(ihost,
-							  idev,
-							  ireq);
+			sci_controller_terminate_request(ihost, idev, ireq);
 		}
 		/* Fall through into the default case... */
 	default:
@@ -131,16 +140,6 @@ static void isci_remote_device_ready(struct isci_host *ihost, struct isci_remote
 	set_bit(IDEV_IO_READY, &idev->flags);
 	if (test_and_clear_bit(IDEV_START_PENDING, &idev->flags))
 		wake_up(&ihost->eventq);
-}
-
-static enum sci_status sci_remote_device_suspend(
-	struct isci_remote_device *idev)
-{
-	return sci_remote_node_context_suspend(
-		&idev->rnc,
-		SCI_SOFTWARE_SUSPENSION,
-		SCI_SOFTWARE_SUSPEND_EXPECTED_EVENT,
-		NULL, NULL);
 }
 
 static int isci_remote_device_suspendcheck(struct isci_remote_device *idev)
