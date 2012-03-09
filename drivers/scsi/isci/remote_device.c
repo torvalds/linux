@@ -142,7 +142,12 @@ static bool isci_compare_suspendcount(
 	u32 localcount)
 {
 	smp_rmb();
-	return localcount != idev->rnc.suspend_count;
+
+	/* Check for a change in the suspend count, or the RNC
+	 * being destroyed.
+	 */
+	return (localcount != idev->rnc.suspend_count)
+	    || sci_remote_node_context_is_being_destroyed(&idev->rnc);
 }
 
 static bool isci_check_reqterm(
@@ -1380,7 +1385,8 @@ enum sci_status isci_remote_device_resume_from_abort(
 	struct isci_remote_device *idev)
 {
 	unsigned long flags;
-	enum sci_status status;
+	enum sci_status status = SCI_SUCCESS;
+	int destroyed;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	/* Preserve any current resume callbacks, for instance from other
@@ -1390,11 +1396,17 @@ enum sci_status isci_remote_device_resume_from_abort(
 	idev->abort_resume_cbparam = idev->rnc.user_cookie;
 	set_bit(IDEV_ABORT_PATH_RESUME_PENDING, &idev->flags);
 	clear_bit(IDEV_ABORT_PATH_ACTIVE, &idev->flags);
-	status = sci_remote_device_resume(
+	destroyed = sci_remote_node_context_is_being_destroyed(&idev->rnc);
+	if (!destroyed)
+		status = sci_remote_device_resume(
 			idev, isci_remote_device_resume_from_abort_complete,
 			idev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
-	isci_remote_device_wait_for_resume_from_abort(ihost, idev);
+	if (!destroyed)
+		isci_remote_device_wait_for_resume_from_abort(ihost, idev);
+	else
+		clear_bit(IDEV_ABORT_PATH_RESUME_PENDING, &idev->flags);
+
 	return status;
 }
 

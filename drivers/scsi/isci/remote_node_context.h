@@ -226,4 +226,11 @@ enum sci_status sci_remote_node_context_start_io(struct sci_remote_node_context 
 int sci_remote_node_context_is_safe_to_abort(
 	struct sci_remote_node_context *sci_rnc);
 
+static inline bool sci_remote_node_context_is_being_destroyed(
+	struct sci_remote_node_context *sci_rnc)
+{
+	return ((sci_rnc->sm.current_state_id == SCI_RNC_INVALIDATING)
+		&& (sci_rnc->destination_state == RNC_DEST_FINAL))
+		|| (sci_rnc->sm.current_state_id == SCI_RNC_INITIAL);
+}
 #endif  /* _SCIC_SDS_REMOTE_NODE_CONTEXT_H_ */

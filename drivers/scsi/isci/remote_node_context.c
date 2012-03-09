@@ -270,6 +270,8 @@ static void sci_remote_node_context_invalidate_context_buffer(struct sci_remote_
 static void sci_remote_node_context_initial_state_enter(struct sci_base_state_machine *sm)
 {
 	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
+	struct isci_remote_device *idev = rnc_to_dev(rnc);
+	struct isci_host *ihost = idev->owning_port->owning_controller;
 
 	/* Check to see if we have gotten back to the initial state because
 	 * someone requested to destroy the remote node context object.
@@ -277,6 +279,9 @@ static void sci_remote_node_context_initial_state_enter(struct sci_base_state_ma
 	if (sm->previous_state_id == SCI_RNC_INVALIDATING) {
 		rnc->destination_state = RNC_DEST_UNSPECIFIED;
 		sci_remote_node_context_notify_user(rnc);
+
+		smp_wmb();
+		wake_up(&ihost->eventq);
 	}
 }
 
