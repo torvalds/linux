@@ -692,6 +692,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	int ack_dur;
 	int stbc;
 	int i;
+	unsigned int smps;
 
 	/* fall back to the old minstrel for legacy stations */
 	if (!sta->ht_cap.ht_supported)
@@ -731,6 +732,9 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	    oper_chan_type != NL80211_CHAN_HT40PLUS)
 		sta_cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
+	smps = (sta_cap & IEEE80211_HT_CAP_SM_PS) >>
+		IEEE80211_HT_CAP_SM_PS_SHIFT;
+
 	for (i = 0; i < ARRAY_SIZE(mi->groups); i++) {
 		u16 req = 0;
 
@@ -746,6 +750,11 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 			req |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
 		if ((sta_cap & req) != req)
+			continue;
+
+		/* Mark MCS > 7 as unsupported if STA is in static SMPS mode */
+		if (smps == WLAN_HT_CAP_SM_PS_STATIC &&
+		    minstrel_mcs_groups[i].streams > 1)
 			continue;
 
 		mi->groups[i].supported =
