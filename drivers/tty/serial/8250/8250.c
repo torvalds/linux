@@ -467,9 +467,8 @@ static void set_io_from_upio(struct uart_port *p)
 }
 
 static void
-serial_out_sync(struct uart_8250_port *up, int offset, int value)
+serial_port_out_sync(struct uart_port *p, int offset, int value)
 {
-	struct uart_port *p = &up->port;
 	switch (p->iotype) {
 	case UPIO_MEM:
 	case UPIO_MEM32:
@@ -2024,11 +2023,11 @@ static int serial8250_startup(struct uart_port *port)
 			disable_irq_nosync(port->irq);
 
 		wait_for_xmitr(up, UART_LSR_THRE);
-		serial_out_sync(up, UART_IER, UART_IER_THRI);
+		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
 		udelay(1); /* allow THRE to set */
 		iir1 = serial_port_in(port, UART_IIR);
 		serial_port_out(port, UART_IER, 0);
-		serial_out_sync(up, UART_IER, UART_IER_THRI);
+		serial_port_out_sync(port, UART_IER, UART_IER_THRI);
 		udelay(1); /* allow a working UART time to re-assert THRE */
 		iir = serial_port_in(port, UART_IIR);
 		serial_port_out(port, UART_IER, 0);
