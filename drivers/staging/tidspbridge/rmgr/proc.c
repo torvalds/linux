@@ -98,8 +98,6 @@ struct proc_object {
 	struct list_head proc_list;
 };
 
-static u32 refs;
-
 DEFINE_MUTEX(proc_lock);	/* For critical sections */
 
 /*  ----------------------------------- Function Prototypes */
@@ -909,17 +907,6 @@ func_end:
 }
 
 /*
- *  ======== proc_exit ========
- *  Purpose:
- *      Decrement reference count, and free resources when reference count is
- *      0.
- */
-void proc_exit(void)
-{
-	refs--;
-}
-
-/*
  *  ======== proc_get_dev_object ========
  *  Purpose:
  *      Return the Dev Object handle for a given Processor.
@@ -1007,21 +994,6 @@ int proc_get_trace(void *hprocessor, u8 * pbuf, u32 max_size)
 	int status;
 	status = -ENOSYS;
 	return status;
-}
-
-/*
- *  ======== proc_init ========
- *  Purpose:
- *      Initialize PROC's private state, keeping a reference count on each call
- */
-bool proc_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
 
 /*
