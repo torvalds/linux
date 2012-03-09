@@ -1442,12 +1442,14 @@ int isci_phy_control(struct asd_sas_phy *sas_phy,
 	switch (func) {
 	case PHY_FUNC_DISABLE:
 		spin_lock_irqsave(&ihost->scic_lock, flags);
+		scu_link_layer_start_oob(iphy);
 		sci_phy_stop(iphy);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		break;
 
 	case PHY_FUNC_LINK_RESET:
 		spin_lock_irqsave(&ihost->scic_lock, flags);
+		scu_link_layer_start_oob(iphy);
 		sci_phy_stop(iphy);
 		sci_phy_start(iphy);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
