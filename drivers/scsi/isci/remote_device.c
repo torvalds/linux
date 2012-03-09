@@ -1289,6 +1289,48 @@ enum sci_status sci_remote_device_resume(
 	return status;
 }
 
+static void isci_remote_device_resume_from_abort_complete(void *cbparam)
+{
+	struct isci_remote_device *idev = cbparam;
+	struct isci_host *ihost = idev->owning_port->owning_controller;
+	scics_sds_remote_node_context_callback abort_resume_cb =
+		idev->abort_resume_cb;
+
+	dev_dbg(scirdev_to_dev(idev), "%s: passing-along resume: %p\n",
+		__func__, abort_resume_cb);
+
+	if (abort_resume_cb != NULL) {
+		idev->abort_resume_cb = NULL;
+		abort_resume_cb(idev->abort_resume_cbparam);
+	}
+	clear_bit(IDEV_ABORT_PATH_RESUME_PENDING, &idev->flags);
+	wake_up(&ihost->eventq);
+}
+
+
+void isci_remote_device_wait_for_resume_from_abort(
+	struct isci_host *ihost,
+	struct isci_remote_device *idev)
+{
+	dev_dbg(scirdev_to_dev(idev), "%s: starting resume wait: %p\n",
+		 __func__, idev);
+
+	#define MAX_RESUME_MSECS 5
+	if (!wait_event_timeout(ihost->eventq,
+			       (!test_bit(IDEV_ABORT_PATH_RESUME_PENDING,
+					  &idev->flags)
+				|| test_bit(IDEV_STOP_PENDING, &idev->flags)),
+			       msecs_to_jiffies(MAX_RESUME_MSECS))) {
+
+		dev_warn(scirdev_to_dev(idev), "%s: #### Timeout waiting for "
+			 "resume: %p\n", __func__, idev);
+	}
+	clear_bit(IDEV_ABORT_PATH_RESUME_PENDING, &idev->flags);
+
+	dev_dbg(scirdev_to_dev(idev), "%s: resume wait done: %p\n",
+		 __func__, idev);
+}
+
 enum sci_status isci_remote_device_resume_from_abort(
 	struct isci_host *ihost,
 	struct isci_remote_device *idev)
@@ -1300,12 +1342,18 @@ enum sci_status isci_remote_device_resume_from_abort(
 	/* Preserve any current resume callbacks, for instance from other
 	 * resumptions.
 	 */
+	idev->abort_resume_cb = idev->rnc.user_callback;
+	idev->abort_resume_cbparam = idev->rnc.user_cookie;
+	set_bit(IDEV_ABORT_PATH_RESUME_PENDING, &idev->flags);
 	clear_bit(IDEV_ABORT_PATH_ACTIVE, &idev->flags);
-	status = sci_remote_device_resume(idev, idev->rnc.user_callback,
-					  idev->rnc.user_cookie);
+	status = sci_remote_device_resume(
+			idev, isci_remote_device_resume_from_abort_complete,
+			idev);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+	isci_remote_device_wait_for_resume_from_abort(ihost, idev);
 	return status;
 }
+
 /**
  * sci_remote_device_start() - This method will start the supplied remote
  *    device.  This method enables normal IO requests to flow through to the

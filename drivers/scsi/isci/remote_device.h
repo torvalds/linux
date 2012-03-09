@@ -87,6 +87,7 @@ struct isci_remote_device {
 	#define IDEV_IO_NCQERROR 5
 	#define IDEV_RNC_LLHANG_ENABLED 6
 	#define IDEV_ABORT_PATH_ACTIVE 7
+	#define IDEV_ABORT_PATH_RESUME_PENDING 8
 	unsigned long flags;
 	struct kref kref;
 	struct isci_port *isci_port;
@@ -101,6 +102,8 @@ struct isci_remote_device {
 	u32 started_request_count;
 	struct isci_request *working_request;
 	u32 not_ready_reason;
+	scics_sds_remote_node_context_callback abort_resume_cb;
+	void *abort_resume_cbparam;
 };
 
 #define ISCI_REMOTE_DEVICE_START_TIMEOUT 5000
