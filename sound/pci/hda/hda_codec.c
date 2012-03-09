@@ -19,6 +19,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
@@ -2340,6 +2341,56 @@ static int check_slave_present(void *data, struct snd_kcontrol *sctl)
 	return 1;
 }
 
+/* guess the value corresponding to 0dB */
+static int get_kctl_0dB_offset(struct snd_kcontrol *kctl)
+{
+	int _tlv[4];
+	const int *tlv = NULL;
+	int val = -1;
+
+	if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		/* FIXME: set_fs() hack for obtaining user-space TLV data */
+		mm_segment_t fs = get_fs();
+		set_fs(get_ds());
+		if (!kctl->tlv.c(kctl, 0, sizeof(_tlv), _tlv))
+			tlv = _tlv;
+		set_fs(fs);
+	} else if (kctl->vd[0].access & SNDRV_CTL_ELEM_ACCESS_TLV_READ)
+		tlv = kctl->tlv.p;
+	if (tlv && tlv[0] == SNDRV_CTL_TLVT_DB_SCALE)
+		val = -tlv[2] / tlv[3];
+	return val;
+}
+
+/* call kctl->put with the given value(s) */
+static int put_kctl_with_value(struct snd_kcontrol *kctl, int val)
+{
+	struct snd_ctl_elem_value *ucontrol;
+	ucontrol = kzalloc(sizeof(*ucontrol), GFP_KERNEL);
+	if (!ucontrol)
+		return -ENOMEM;
+	ucontrol->value.integer.value[0] = val;
+	ucontrol->value.integer.value[1] = val;
+	kctl->put(kctl, ucontrol);
+	kfree(ucontrol);
+	return 0;
+}
+
+/* initialize the slave volume with 0dB */
+static int init_slave_0dB(void *data, struct snd_kcontrol *slave)
+{
+	int offset = get_kctl_0dB_offset(slave);
+	if (offset > 0)
+		put_kctl_with_value(slave, offset);
+	return 0;
+}
+
+/* unmute the slave */
+static int init_slave_unmute(void *data, struct snd_kcontrol *slave)
+{
+	return put_kctl_with_value(slave, 1);
+}
+
 /**
  * snd_hda_add_vmaster - create a virtual master control and add slaves
  * @codec: HD-audio codec
@@ -2347,6 +2398,7 @@ static int check_slave_present(void *data, struct snd_kcontrol *sctl)
  * @tlv: TLV data (optional)
  * @slaves: slave control names (optional)
  * @suffix: suffix string to each slave name (optional)
+ * @init_slave_vol: initialize slaves to unmute/0dB
  *
  * Create a virtual master control with the given name.  The TLV data
  * must be either NULL or a valid data.
@@ -2357,9 +2409,9 @@ static int check_slave_present(void *data, struct snd_kcontrol *sctl)
  *
  * This function returns zero if successful or a negative error code.
  */
-int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
+int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char * const *slaves,
-			const char *suffix)
+			const char *suffix, bool init_slave_vol)
 {
 	struct snd_kcontrol *kctl;
 	int err;
@@ -2380,9 +2432,16 @@ int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			 (map_slave_func_t)snd_ctl_add_slave, kctl);
 	if (err < 0)
 		return err;
+
+	/* init with master mute & zero volume */
+	put_kctl_with_value(kctl, 0);
+	if (init_slave_vol)
+		map_slaves(codec, slaves, suffix,
+			   tlv ? init_slave_0dB : init_slave_unmute, kctl);
+
 	return 0;
 }
-EXPORT_SYMBOL_HDA(snd_hda_add_vmaster);
+EXPORT_SYMBOL_HDA(__snd_hda_add_vmaster);
 
 /**
  * snd_hda_mixer_amp_switch_info - Info callback for a standard AMP mixer switch

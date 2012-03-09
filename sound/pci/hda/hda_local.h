@@ -139,9 +139,11 @@ void snd_hda_set_vmaster_tlv(struct hda_codec *codec, hda_nid_t nid, int dir,
 			     unsigned int *tlv);
 struct snd_kcontrol *snd_hda_find_mixer_ctl(struct hda_codec *codec,
 					    const char *name);
-int snd_hda_add_vmaster(struct hda_codec *codec, char *name,
+int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 			unsigned int *tlv, const char * const *slaves,
-			const char *suffix);
+			const char *suffix, bool init_slave_vol);
+#define snd_hda_add_vmaster(codec, name, tlv, slaves, suffix) \
+	__snd_hda_add_vmaster(codec, name, tlv, slaves, suffix, true)
 int snd_hda_codec_reset(struct hda_codec *codec);
 
 /* amp value bits */

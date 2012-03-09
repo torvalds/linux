@@ -82,6 +82,7 @@ struct ad198x_spec {
 	unsigned int inv_jack_detect: 1;/* inverted jack-detection */
 	unsigned int inv_eapd: 1;	/* inverted EAPD implementation */
 	unsigned int analog_beep: 1;	/* analog beep input present */
+	unsigned int avoid_init_slave_vol:1;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
@@ -223,11 +224,12 @@ static int ad198x_build_controls(struct hda_codec *codec)
 		unsigned int vmaster_tlv[4];
 		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 					HDA_OUTPUT, vmaster_tlv);
-		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+		err = __snd_hda_add_vmaster(codec, "Master Playback Volume",
 					  vmaster_tlv,
 					  (spec->slave_vols ?
 					   spec->slave_vols : ad_slave_pfxs),
-					  "Playback Volume");
+					  "Playback Volume",
+					  !spec->avoid_init_slave_vol);
 		if (err < 0)
 			return err;
 	}
@@ -3604,6 +3606,8 @@ static int patch_ad1884(struct hda_codec *codec)
 	spec->vmaster_nid = 0x04;
 	/* we need to cover all playback volumes */
 	spec->slave_vols = ad1884_slave_vols;
+	/* slaves may contain input volumes, so we can't raise to 0dB blindly */
+	spec->avoid_init_slave_vol = 1;
 
 	codec->patch_ops = ad198x_patch_ops;
 
