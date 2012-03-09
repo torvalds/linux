@@ -137,6 +137,14 @@ static enum sci_status sci_remote_device_terminate_reqs_checkabort(
 	return status;
 }
 
+static bool isci_compare_suspendcount(
+	struct isci_remote_device *idev,
+	u32 localcount)
+{
+	smp_rmb();
+	return localcount != idev->rnc.suspend_count;
+}
+
 enum sci_status isci_remote_device_terminate_requests(
 	struct isci_host *ihost,
 	struct isci_remote_device *idev,
@@ -144,31 +152,44 @@ enum sci_status isci_remote_device_terminate_requests(
 {
 	enum sci_status status = SCI_SUCCESS;
 	unsigned long flags;
+	u32 rnc_suspend_count;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
+
 	if (isci_get_device(idev) == NULL) {
 		dev_dbg(&ihost->pdev->dev, "%s: failed isci_get_device(idev=%p)\n",
 			__func__, idev);
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		status = SCI_FAILURE;
 	} else {
+		/* If already suspended, don't wait for another suspension. */
+		smp_rmb();
+		rnc_suspend_count
+			= sci_remote_node_context_is_suspended(&idev->rnc)
+				? 0 : idev->rnc.suspend_count;
+
 		dev_dbg(&ihost->pdev->dev,
 			"%s: idev=%p, ireq=%p; started_request_count=%d, "
+				"rnc_suspend_count=%d, rnc.suspend_count=%d"
 				"about to wait\n",
-			__func__, idev, ireq, idev->started_request_count);
+			__func__, idev, ireq, idev->started_request_count,
+			rnc_suspend_count, idev->rnc.suspend_count);
 		if (ireq) {
 			/* Terminate a specific TC. */
 			sci_remote_device_terminate_req(ihost, idev, 0, ireq);
 			spin_unlock_irqrestore(&ihost->scic_lock, flags);
-			wait_event(ihost->eventq, !test_bit(IREQ_ACTIVE,
-							    &ireq->flags));
-
+			wait_event(ihost->eventq,
+				   (isci_compare_suspendcount(idev,
+							      rnc_suspend_count)
+				    && !test_bit(IREQ_ACTIVE, &ireq->flags)));
 		} else {
 			/* Terminate all TCs. */
 			sci_remote_device_terminate_requests(idev);
 			spin_unlock_irqrestore(&ihost->scic_lock, flags);
 			wait_event(ihost->eventq,
-				   idev->started_request_count == 0);
+				   (isci_compare_suspendcount(idev,
+							      rnc_suspend_count)
+				    && idev->started_request_count == 0));
 		}
 		dev_dbg(&ihost->pdev->dev, "%s: idev=%p, wait done\n",
 			__func__, idev);
@@ -1234,19 +1255,20 @@ enum sci_status sci_remote_device_resume(
 	return status;
 }
 
-enum sci_status isci_remote_device_resume(
+enum sci_status isci_remote_device_resume_from_abort(
 	struct isci_host *ihost,
-	struct isci_remote_device *idev,
-	scics_sds_remote_node_context_callback cb_fn,
-	void *cb_p)
+	struct isci_remote_device *idev)
 {
 	unsigned long flags;
 	enum sci_status status;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
-	status = sci_remote_device_resume(idev, cb_fn, cb_p);
+	/* Preserve any current resume callbacks, for instance from other
+	 * resumptions.
+	 */
+	status = sci_remote_device_resume(idev, idev->rnc.user_callback,
+					  idev->rnc.user_cookie);
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
-
 	return status;
 }
 /**

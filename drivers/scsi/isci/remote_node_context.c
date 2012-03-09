@@ -90,6 +90,15 @@ bool sci_remote_node_context_is_ready(
 	return false;
 }
 
+bool sci_remote_node_context_is_suspended(struct sci_remote_node_context *sci_rnc)
+{
+	u32 current_state = sci_rnc->sm.current_state_id;
+
+	if (current_state == SCI_RNC_TX_RX_SUSPENDED)
+		return true;
+	return false;
+}
+
 static union scu_remote_node_context *sci_rnc_by_id(struct isci_host *ihost, u16 id)
 {
 	if (id < ihost->remote_node_entries &&
@@ -339,6 +348,13 @@ static void sci_remote_node_context_tx_rx_suspended_state_enter(struct sci_base_
 	struct sci_remote_node_context *rnc = container_of(sm, typeof(*rnc), sm);
 	struct isci_remote_device *idev = rnc_to_dev(rnc);
 	struct isci_host *ihost = idev->owning_port->owning_controller;
+	u32 new_count = rnc->suspend_count + 1;
+
+	if (new_count == 0)
+		rnc->suspend_count = 1;
+	else
+		rnc->suspend_count = new_count;
+	smp_wmb();
 
 	/* Terminate outstanding requests pending abort. */
 	sci_remote_device_abort_requests_pending_abort(idev);
@@ -634,6 +650,11 @@ enum sci_status sci_remote_node_context_resume(struct sci_remote_node_context *s
 	enum scis_sds_remote_node_context_states state;
 
 	state = sci_rnc->sm.current_state_id;
+	dev_dbg(scirdev_to_dev(rnc_to_dev(sci_rnc)),
+		 "%s: state %s, cb_fn = %p, cb_p = %p; dest_state = %d\n",
+		 __func__, rnc_state_name(state), cb_fn, cb_p,
+		 sci_rnc->destination_state);
+
 	switch (state) {
 	case SCI_RNC_INITIAL:
 		if (sci_rnc->remote_node_index == SCIC_SDS_REMOTE_NODE_CONTEXT_INVALID_INDEX)

@@ -317,10 +317,10 @@ static int isci_task_execute_tmf(struct isci_host *ihost,
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		goto err_tci;
 	}
-	/* The RNC must be unsuspended before the TMF can get a response. */
-	sci_remote_device_resume(idev, NULL, NULL);
-
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+	/* The RNC must be unsuspended before the TMF can get a response. */
+	isci_remote_device_resume_from_abort(ihost, idev);
 
 	/* Wait for the TMF to complete, or a timeout. */
 	timeleft = wait_for_completion_timeout(&completion,
@@ -554,10 +554,10 @@ int isci_task_abort_task(struct sas_task *task)
 	    sas_protocol_ata(task->task_proto) ||
 	    test_bit(IREQ_COMPLETE_IN_TARGET, &old_request->flags)) {
 
-		/* No task to send, so explicitly resume the device here */
-		sci_remote_device_resume(idev, NULL, NULL);
-
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
+
+		/* No task to send, so explicitly resume the device here */
+		isci_remote_device_resume_from_abort(ihost, idev);
 
 		dev_warn(&ihost->pdev->dev,
 			 "%s: %s request"
@@ -757,7 +757,7 @@ static int isci_reset_device(struct isci_host *ihost,
 		reset_stat = sas_phy_reset(phy, !dev_is_sata(dev));
 
 	/* Explicitly resume the RNC here, since there was no task sent. */
-	isci_remote_device_resume(ihost, idev, NULL, NULL);
+	isci_remote_device_resume_from_abort(ihost, idev);
 
 	dev_dbg(&ihost->pdev->dev, "%s: idev %p complete, reset_stat=%d.\n",
 		__func__, idev, reset_stat);

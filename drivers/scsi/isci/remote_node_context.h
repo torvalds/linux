@@ -170,6 +170,7 @@ struct sci_remote_node_context {
 	 */
 	u32 suspend_type;
 	enum sci_remote_node_suspension_reasons suspend_reason;
+	u32 suspend_count;
 
 	/**
 	 * This field is true if the remote node context is resuming from its current
@@ -202,6 +203,8 @@ void sci_remote_node_context_construct(struct sci_remote_node_context *rnc,
 
 bool sci_remote_node_context_is_ready(
 	struct sci_remote_node_context *sci_rnc);
+
+bool sci_remote_node_context_is_suspended(struct sci_remote_node_context *sci_rnc);
 
 enum sci_status sci_remote_node_context_event_handler(struct sci_remote_node_context *sci_rnc,
 							   u32 event_code);

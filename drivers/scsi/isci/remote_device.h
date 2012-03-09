@@ -357,11 +357,9 @@ enum sci_status sci_remote_device_resume(
 	scics_sds_remote_node_context_callback cb_fn,
 	void *cb_p);
 
-enum sci_status isci_remote_device_resume(
+enum sci_status isci_remote_device_resume_from_abort(
 	struct isci_host *ihost,
-	struct isci_remote_device *idev,
-	scics_sds_remote_node_context_callback cb_fn,
-	void *cb_p);
+	struct isci_remote_device *idev);
 
 enum sci_status isci_remote_device_reset(
 	struct isci_host *ihost,
