@@ -2005,6 +2005,7 @@ static const struct snd_soc_dapm_widget rt5625_dapm_widgets[] = {
 					RT5625_P_ADCL_BIT, 0),
 	SND_SOC_DAPM_ADC("Right ADC", NULL, RT5625_PWR_ADD2,
 					RT5625_P_ADCR_BIT, 0),
+	SND_SOC_DAPM_PGA("ADC", SND_SOC_NOPM, 0, 0, NULL, 0),//johnny-3-9
 	SND_SOC_DAPM_MUX("PCM src select Mux", SND_SOC_NOPM, 0, 0,
 				&pcm_src_sel_mux),
 	SND_SOC_DAPM_MUX("IIS src select Mux", SND_SOC_NOPM, 0, 0,
@@ -2158,8 +2159,13 @@ static const struct snd_soc_dapm_route rt5625_dapm_routes[] = {
 	{"PCM src select Mux", "TxDP", "TxDP"},
 	{"PCM src select Mux", "ADCR", "Right ADC"},
 
-	{"IIS src select Mux", "ADC", "Left ADC"},
-	{"IIS src select Mux", "ADC", "Right ADC"},
+	//johnny-3-9 [s]
+	{"ADC", NULL, "Left ADC"},
+	{"ADC", NULL, "Right ADC"},
+	{"IIS src select Mux", "ADC", "ADC"},
+	//{"IIS src select Mux", "ADC", "Left ADC"},
+	//{"IIS src select Mux", "ADC", "Right ADC"},
+	//johnny-3-9 [e]
 	{"IIS src select Mux", "Voice to Stereo", "AIF2RX"},
 	{"IIS src select Mux", "SRC2 Output", "SRC2 Enable"},
 
