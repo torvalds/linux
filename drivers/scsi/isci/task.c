@@ -719,7 +719,8 @@ isci_task_request_complete(struct isci_host *ihost,
 	 */
 	set_bit(IREQ_TERMINATED, &ireq->flags);
 
-	isci_free_tag(ihost, ireq->io_tag);
+	if (!test_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags))
+		isci_free_tag(ihost, ireq->io_tag);
 
 	/* The task management part completes last. */
 	if (tmf_complete)

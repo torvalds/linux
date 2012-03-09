@@ -1141,7 +1141,8 @@ void isci_host_completion_routine(unsigned long data)
 		if (test_and_clear_bit(IREQ_ABORT_PATH_ACTIVE, &request->flags))
 			wake_up_all(&ihost->eventq);
 
-		isci_free_tag(ihost, request->io_tag);
+		if (!test_bit(IREQ_NO_AUTO_FREE_TAG, &request->flags))
+			isci_free_tag(ihost, request->io_tag);
 	}
 	spin_unlock_irq(&ihost->scic_lock);
 

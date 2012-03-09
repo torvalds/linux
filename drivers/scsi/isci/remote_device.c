@@ -104,14 +104,14 @@ static enum sci_status sci_remote_device_terminate_req(
 	int check_abort,
 	struct isci_request *ireq)
 {
-	dev_dbg(&ihost->pdev->dev,
-		"%s: idev=%p; flags=%lx; req=%p; req target=%p\n",
-		__func__, idev, idev->flags, ireq, ireq->target_device);
-
 	if (!test_bit(IREQ_ACTIVE, &ireq->flags) ||
 	    (ireq->target_device != idev) ||
 	    (check_abort && !test_bit(IREQ_PENDING_ABORT, &ireq->flags)))
 		return SCI_SUCCESS;
+
+	dev_dbg(&ihost->pdev->dev,
+		"%s: idev=%p; flags=%lx; req=%p; req target=%p\n",
+		__func__, idev, idev->flags, ireq, ireq->target_device);
 
 	set_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags);
 
@@ -209,11 +209,14 @@ enum sci_status isci_remote_device_terminate_requests(
 			rnc_suspend_count, idev->rnc.suspend_count);
 		if (ireq) {
 			/* Terminate a specific TC. */
+			set_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags);
 			sci_remote_device_terminate_req(ihost, idev, 0, ireq);
 			spin_unlock_irqrestore(&ihost->scic_lock, flags);
 			wait_event(ihost->eventq,
 				   isci_check_reqterm(ihost, idev, ireq,
 						      rnc_suspend_count));
+			clear_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags);
+			isci_free_tag(ihost, ireq->io_tag);
 		} else {
 			/* Terminate all TCs. */
 			sci_remote_device_terminate_requests(idev);
