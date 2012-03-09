@@ -192,12 +192,18 @@ int ion_carveout_cache_op(struct ion_heap *heap, struct ion_buffer *buffer,
 			outer_flush_range(buffer->priv_phys,buffer->priv_phys + size); 
 			break;
 		case ION_CACHE_CLEAN:
+            /* When cleaning, always clean the innermost (L1) cache first 
+             * and then clean the outer cache(s).
+             */
 			dmac_clean_range((void *)start, (void *)end);
 			outer_clean_range(buffer->priv_phys,buffer->priv_phys + size); 
 			break;
 		case ION_CACHE_INVALID:
-			dmac_inv_range((void *)start, (void *)end);
+            /* When invalidating, always invalidate the outermost cache first 
+             * and the L1 cache last.
+             */
 			outer_inv_range(buffer->priv_phys,buffer->priv_phys + size); 
+			dmac_inv_range((void *)start, (void *)end);
 			break;
 		default:
 			return -EINVAL;
