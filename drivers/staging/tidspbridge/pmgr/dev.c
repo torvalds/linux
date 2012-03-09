@@ -81,9 +81,6 @@ struct drv_ext {
 	char sz_string[MAXREGPATHLENGTH];
 };
 
-/*  ----------------------------------- Globals */
-static u32 refs;		/* Module reference count */
-
 /*  ----------------------------------- Function Prototypes */
 static int fxn_not_implemented(int arg, ...);
 static int init_cod_mgr(struct dev_object *dev_obj);
@@ -646,32 +643,6 @@ int dev_get_bridge_context(struct dev_object *hdev_obj,
 	}
 
 	return status;
-}
-
-/*
- *  ======== dev_exit ========
- *  Purpose:
- *      Decrement reference count, and free resources when reference count is
- *      0.
- */
-void dev_exit(void)
-{
-	refs--;
-}
-
-/*
- *  ======== dev_init ========
- *  Purpose:
- *      Initialize DEV's private state, keeping a reference count on each call.
- */
-bool dev_init(void)
-{
-	bool ret = true;
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
 
 /*

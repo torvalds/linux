@@ -265,11 +265,8 @@ void api_exit(void)
 {
 	api_c_refs--;
 
-	if (api_c_refs == 0) {
-		/* Release all modules initialized in api_init(). */
-		dev_exit();
+	if (api_c_refs == 0)
 		mgr_exit();
-	}
 }
 
 /*
@@ -280,23 +277,10 @@ void api_exit(void)
 bool api_init(void)
 {
 	bool ret = true;
-	bool fdev;
-	bool fmgr;
 
-	if (api_c_refs == 0) {
-		/* initialize driver and other modules */
-		fmgr = mgr_init();
-		fdev = dev_init();
-		ret = fdev && fmgr;
-		if (!ret) {
+	if (api_c_refs == 0)
+		ret = mgr_init();
 
-			if (fmgr)
-				mgr_exit();
-
-			if (fdev)
-				dev_exit();
-		}
-	}
 	if (ret)
 		api_c_refs++;
 
