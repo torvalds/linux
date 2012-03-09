@@ -5,7 +5,7 @@
 #include <linux/clk-provider.h>
 #include <mach/clock.h>
 
-struct clk *imx_clk_pllv1(const char *name, char *parent,
+struct clk *imx_clk_pllv1(const char *name, const char *parent,
 		void __iomem *base);
 
 static inline struct clk *imx_clk_fixed(const char *name, int rate)
