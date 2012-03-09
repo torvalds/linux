@@ -263,7 +263,6 @@ struct hci_dev {
 
 	struct dentry		*debugfs;
 
-	struct device		*parent;
 	struct device		dev;
 
 	struct rfkill		*rfkill;
@@ -709,7 +708,7 @@ void hci_conn_init_sysfs(struct hci_conn *conn);
 void hci_conn_add_sysfs(struct hci_conn *conn);
 void hci_conn_del_sysfs(struct hci_conn *conn);
 
-#define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->parent = (pdev))
+#define SET_HCIDEV_DEV(hdev, pdev) ((hdev)->dev.parent = (pdev))
 
 /* ----- LMP capabilities ----- */
 #define lmp_rswitch_capable(dev)   ((dev)->features[0] & LMP_RSWITCH)
