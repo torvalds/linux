@@ -159,7 +159,6 @@ struct node_mgr {
 	/* Loader properties */
 	struct nldr_object *nldr_obj;	/* Handle to loader */
 	struct node_ldr_fxns nldr_fxns;	/* Handle to loader functions */
-	bool loader_init;	/* Loader Init function succeeded? */
 };
 
 /*
@@ -266,9 +265,7 @@ static struct node_ldr_fxns nldr_fxns = {
 	nldr_allocate,
 	nldr_create,
 	nldr_delete,
-	nldr_exit,
 	nldr_get_fxn_addr,
-	nldr_init,
 	nldr_load,
 	nldr_unload,
 };
@@ -1337,7 +1334,6 @@ int node_create_mgr(struct node_mgr **node_man,
 	nldr_attrs_obj.write = mem_write;
 	nldr_attrs_obj.dsp_word_size = node_mgr_obj->dsp_word_size;
 	nldr_attrs_obj.dsp_mau_size = node_mgr_obj->dsp_mau_size;
-	node_mgr_obj->loader_init = node_mgr_obj->nldr_fxns.init();
 	status = node_mgr_obj->nldr_fxns.create(&node_mgr_obj->nldr_obj,
 			hdev_obj,
 			&nldr_attrs_obj);
@@ -2506,9 +2502,6 @@ static void delete_node_mgr(struct node_mgr *hnode_mgr)
 		/* Delete the loader */
 		if (hnode_mgr->nldr_obj)
 			hnode_mgr->nldr_fxns.delete(hnode_mgr->nldr_obj);
-
-		if (hnode_mgr->loader_init)
-			hnode_mgr->nldr_fxns.exit();
 
 		kfree(hnode_mgr);
 	}

@@ -620,15 +620,6 @@ void nldr_delete(struct nldr_object *nldr_obj)
 }
 
 /*
- *  ======== nldr_exit ========
- *  Discontinue usage of NLDR module.
- */
-void nldr_exit(void)
-{
-	/* do nothing */
-}
-
-/*
  *  ======== nldr_get_fxn_addr ========
  */
 int nldr_get_fxn_addr(struct nldr_nodeobject *nldr_node_obj,
@@ -733,16 +724,6 @@ int nldr_get_rmm_manager(struct nldr_object *nldr,
 	}
 
 	return status;
-}
-
-/*
- *  ======== nldr_init ========
- *  Initialize the NLDR module.
- */
-bool nldr_init(void)
-{
-	/* do nothing */
-	return true;
 }
 
 /*
