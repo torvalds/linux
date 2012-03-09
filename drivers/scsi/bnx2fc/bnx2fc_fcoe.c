@@ -440,13 +440,13 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 	fr->fr_dev = lport;
 
 	bg = &bnx2fc_global;
-	spin_lock_bh(&bg->fcoe_rx_list.lock);
+	spin_lock(&bg->fcoe_rx_list.lock);
 
 	__skb_queue_tail(&bg->fcoe_rx_list, skb);
 	if (bg->fcoe_rx_list.qlen == 1)
 		wake_up_process(bg->thread);
 
-	spin_unlock_bh(&bg->fcoe_rx_list.lock);
+	spin_unlock(&bg->fcoe_rx_list.lock);
 
 	return 0;
 err:
