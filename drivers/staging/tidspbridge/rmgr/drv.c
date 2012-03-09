@@ -51,7 +51,6 @@ struct drv_ext {
 };
 
 /*  ----------------------------------- Globals */
-static s32 refs;
 static bool ext_phys_mem_pool_enabled;
 struct ext_phys_mem_pool {
 	u32 phys_mem_base;
@@ -332,16 +331,6 @@ int drv_create(struct drv_object **drv_obj)
 }
 
 /*
- *  ======== drv_exit ========
- *  Purpose:
- *      Discontinue usage of the DRV module.
- */
-void drv_exit(void)
-{
-	refs--;
-}
-
-/*
  *  ======== = drv_destroy ======== =
  *  purpose:
  *      Invoked during bridge de-initialization
@@ -496,21 +485,6 @@ u32 drv_get_next_dev_extension(u32 dev_extension)
 	}
 
 	return dw_dev_extension;
-}
-
-/*
- *  ======== drv_init ========
- *  Purpose:
- *      Initialize DRV module private state.
- */
-int drv_init(void)
-{
-	s32 ret = 1;		/* function return value */
-
-	if (ret)
-		refs++;
-
-	return ret;
 }
 
 /*
