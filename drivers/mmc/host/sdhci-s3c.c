@@ -443,12 +443,6 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "no memory specified\n");
-		return -ENOENT;
-	}
-
 	host = sdhci_alloc_host(dev, sizeof(struct sdhci_s3c));
 	if (IS_ERR(host)) {
 		dev_err(dev, "sdhci_alloc_host() failed\n");
@@ -513,15 +507,8 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		goto err_no_busclks;
 	}
 
-	sc->ioarea = request_mem_region(res->start, resource_size(res),
-					mmc_hostname(host->mmc));
-	if (!sc->ioarea) {
-		dev_err(dev, "failed to reserve register area\n");
-		ret = -ENXIO;
-		goto err_req_regs;
-	}
-
-	host->ioaddr = ioremap_nocache(res->start, resource_size(res));
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	host->ioaddr = devm_request_and_ioremap(&pdev->dev, res);
 	if (!host->ioaddr) {
 		dev_err(dev, "failed to map registers\n");
 		ret = -ENXIO;
@@ -606,7 +593,7 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(dev, "sdhci_add_host() failed\n");
-		goto err_add_host;
+		goto err_req_regs;
 	}
 
 	/* The following two methods of card detection might call
@@ -619,10 +606,6 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 		sdhci_s3c_setup_card_detect_gpio(sc);
 
 	return 0;
-
- err_add_host:
-	release_resource(sc->ioarea);
-	kfree(sc->ioarea);
 
  err_req_regs:
 	for (ptr = 0; ptr < MAX_BUS_CLK; ptr++) {
@@ -668,10 +651,6 @@ static int __devexit sdhci_s3c_remove(struct platform_device *pdev)
 	}
 	clk_disable(sc->clk_io);
 	clk_put(sc->clk_io);
-
-	iounmap(host->ioaddr);
-	release_resource(sc->ioarea);
-	kfree(sc->ioarea);
 
 	sdhci_free_host(host);
 	platform_set_drvdata(pdev, NULL);
