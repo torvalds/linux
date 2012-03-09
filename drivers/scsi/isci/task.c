@@ -439,16 +439,18 @@ int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 		goto out;
 	}
 
+	/* Suspend the RNC, kill all TCs */
+	if (isci_remote_device_suspend_terminate(ihost, idev, NULL)
+	    != SCI_SUCCESS) {
+		/* The suspend/terminate only fails if isci_get_device fails */
+		ret = TMF_RESP_FUNC_FAILED;
+		goto out;
+	}
+	/* All pending I/Os have been terminated and cleaned up. */
 	if (dev_is_sata(dev)) {
 		sas_ata_schedule_reset(dev);
 		ret = TMF_RESP_FUNC_COMPLETE;
 	} else {
-		/* Suspend the RNC, kill all TCs */
-		if (isci_remote_device_suspend_terminate(ihost, idev, NULL)
-		    != SCI_SUCCESS) {
-			ret = TMF_RESP_FUNC_FAILED;
-			goto out;
-		}
 		/* Send the task management part of the reset. */
 		ret = isci_task_send_lu_reset_sas(ihost, idev, lun);
 	}
