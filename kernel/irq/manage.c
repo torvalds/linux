@@ -1106,8 +1106,7 @@ out_thread:
 		struct task_struct *t = new->thread;
 
 		new->thread = NULL;
-		if (likely(!test_bit(IRQTF_DIED, &new->thread_flags)))
-			kthread_stop(t);
+		kthread_stop(t);
 		put_task_struct(t);
 	}
 out_mput:
@@ -1217,8 +1216,7 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 #endif
 
 	if (action->thread) {
-		if (!test_bit(IRQTF_DIED, &action->thread_flags))
-			kthread_stop(action->thread);
+		kthread_stop(action->thread);
 		put_task_struct(action->thread);
 	}
 
