@@ -1973,7 +1973,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	if (changed & BSS_CHANGED_BSSID) {
+	if (changed & BSS_CHANGED_ASSOC) {
 		ath9k_config_bss(sc, vif);
 
 		ath_dbg(common, CONFIG, "BSSID: %pM aid: 0x%x\n",
