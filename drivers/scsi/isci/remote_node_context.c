@@ -615,8 +615,7 @@ enum sci_status sci_remote_node_context_suspend(
 	if ((suspend_reason == SCI_SW_SUSPEND_NORMAL) ||
 	    (suspend_reason == SCI_SW_SUSPEND_LINKHANG_DETECT)) {
 
-		if ((suspend_reason == SCI_SW_SUSPEND_LINKHANG_DETECT)
-		 && dev_is_sata(idev->domain_dev))
+		if (suspend_reason == SCI_SW_SUSPEND_LINKHANG_DETECT)
 			isci_dev_set_hang_detection_timeout(idev, 0x00000001);
 
 		sci_remote_device_post_request(

@@ -1520,3 +1520,20 @@ enum sci_status isci_remote_device_reset_complete(
 	return status;
 }
 
+void isci_dev_set_hang_detection_timeout(
+	struct isci_remote_device *idev,
+	u32 timeout)
+{
+	if (dev_is_sata(idev->domain_dev)) {
+		if (timeout) {
+			if (test_and_set_bit(IDEV_RNC_LLHANG_ENABLED,
+					     &idev->flags))
+				return;  /* Already enabled. */
+		} else if (!test_and_clear_bit(IDEV_RNC_LLHANG_ENABLED,
+					       &idev->flags))
+			return;  /* Not enabled. */
+
+		sci_port_set_hang_detection_timeout(idev->owning_port,
+						    timeout);
+	}
+}

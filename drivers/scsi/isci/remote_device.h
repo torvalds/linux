@@ -85,6 +85,7 @@ struct isci_remote_device {
 	#define IDEV_GONE 3
 	#define IDEV_IO_READY 4
 	#define IDEV_IO_NCQERROR 5
+	#define IDEV_RNC_LLHANG_ENABLED 6
 	unsigned long flags;
 	struct kref kref;
 	struct isci_port *isci_port;
@@ -308,12 +309,7 @@ static inline void sci_remote_device_decrement_request_count(struct isci_remote_
 		idev->started_request_count--;
 }
 
-static inline void isci_dev_set_hang_detection_timeout(
-	struct isci_remote_device *idev,
-	u32 timeout)
-{
-	sci_port_set_hang_detection_timeout(idev->owning_port, timeout);
-}
+void isci_dev_set_hang_detection_timeout(struct isci_remote_device *idev, u32 timeout);
 
 enum sci_status sci_remote_device_frame_handler(
 	struct isci_remote_device *idev,
