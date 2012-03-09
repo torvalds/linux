@@ -719,6 +719,9 @@ isci_task_request_complete(struct isci_host *ihost,
 	 */
 	set_bit(IREQ_TERMINATED, &ireq->flags);
 
+	if (test_and_clear_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
+		wake_up_all(&ihost->eventq);
+
 	if (!test_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags))
 		isci_free_tag(ihost, ireq->io_tag);
 
