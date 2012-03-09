@@ -187,8 +187,6 @@ static u16 name_hash(void *key, u16 max_bucket);
 static bool name_match(void *key, void *sp);
 static void sym_delete(void *value);
 
-static u32 refs;		/* module reference count */
-
 /* Symbol Redefinition */
 static int redefined_symbol;
 static int gbl_search = 1;
@@ -268,10 +266,7 @@ void dbll_delete(struct dbll_tar_obj *target)
  */
 void dbll_exit(void)
 {
-	refs--;
-
-	if (refs == 0)
-		gh_exit();
+	/* do nothing */
 }
 
 /*
@@ -394,10 +389,7 @@ int dbll_get_sect(struct dbll_library_obj *lib, char *name, u32 *paddr,
  */
 bool dbll_init(void)
 {
-	if (refs == 0)
-		gh_init();
-
-	refs++;
+	/* do nothing */
 
 	return true;
 }
