@@ -10,6 +10,7 @@
  *  32-bit debugging code
  */
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 		.text
 

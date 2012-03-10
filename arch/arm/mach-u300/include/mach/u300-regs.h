@@ -18,12 +18,6 @@
  * the defines are used for setting up the I/O memory mapping.
  */
 
-#ifdef __ASSEMBLER__
-#define IOMEM(a) (a)
-#else
-#define IOMEM(a) (void __iomem *) a
-#endif
-
 /* NAND Flash CS0 */
 #define U300_NAND_CS0_PHYS_BASE		0x80000000
 
