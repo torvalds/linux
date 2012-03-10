@@ -507,11 +507,10 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 			       const struct ethhdr *ethhdr,
 			       struct batman_ogm_packet *batman_ogm_packet,
 			       bool is_single_hop_neigh,
+			       bool is_from_best_next_hop,
 			       struct hard_iface *if_incoming)
 {
 	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
-	struct neigh_node *router;
-	uint8_t in_tq, in_ttl, tq_avg = 0;
 	uint8_t tt_num_changes;
 
 	if (batman_ogm_packet->header.ttl <= 1) {
@@ -519,41 +518,30 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 		return;
 	}
 
-	router = orig_node_get_router(orig_node);
+	if (!is_from_best_next_hop) {
+		/* Mark the forwarded packet when it is not coming from our
+		 * best next hop. We still need to forward the packet for our
+		 * neighbor link quality detection to work in case the packet
+		 * originated from a single hop neighbor. Otherwise we can
+		 * simply drop the ogm.
+		 */
+		if (is_single_hop_neigh)
+			batman_ogm_packet->flags |= NOT_BEST_NEXT_HOP;
+		else
+			return;
+	}
 
-	in_tq = batman_ogm_packet->tq;
-	in_ttl = batman_ogm_packet->header.ttl;
 	tt_num_changes = batman_ogm_packet->tt_num_changes;
 
 	batman_ogm_packet->header.ttl--;
 	memcpy(batman_ogm_packet->prev_sender, ethhdr->h_source, ETH_ALEN);
 
-	/* rebroadcast tq of our best ranking neighbor to ensure the rebroadcast
-	 * of our best tq value */
-	if (router && router->tq_avg != 0) {
-
-		/* rebroadcast ogm of best ranking neighbor as is */
-		if (!compare_eth(router->addr, ethhdr->h_source)) {
-			batman_ogm_packet->tq = router->tq_avg;
-
-			if (router->last_ttl)
-				batman_ogm_packet->header.ttl =
-					router->last_ttl - 1;
-		}
-
-		tq_avg = router->tq_avg;
-	}
-
-	if (router)
-		neigh_node_free_ref(router);
-
 	/* apply hop penalty */
 	batman_ogm_packet->tq = hop_penalty(batman_ogm_packet->tq, bat_priv);
 
 	bat_dbg(DBG_BATMAN, bat_priv,
-		"Forwarding packet: tq_orig: %i, tq_avg: %i, tq_forw: %i, ttl_orig: %i, ttl_forw: %i\n",
-		in_tq, tq_avg, batman_ogm_packet->tq, in_ttl - 1,
-		batman_ogm_packet->header.ttl);
+		"Forwarding packet: tq: %i, ttl: %i\n",
+		batman_ogm_packet->tq, batman_ogm_packet->header.ttl);
 
 	batman_ogm_packet->seqno = htonl(batman_ogm_packet->seqno);
 	batman_ogm_packet->tt_crc = htons(batman_ogm_packet->tt_crc);
@@ -949,6 +937,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	int is_my_addr = 0, is_my_orig = 0, is_my_oldorig = 0;
 	int is_broadcast = 0, is_bidirectional;
 	bool is_single_hop_neigh = false;
+	bool is_from_best_next_hop = false;
 	int is_duplicate;
 	uint32_t if_incoming_seqno;
 
@@ -1070,6 +1059,13 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		return;
 	}
 
+	if (batman_ogm_packet->flags & NOT_BEST_NEXT_HOP) {
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Drop packet: ignoring all packets not forwarded from "
+			"the best next hop (sender: %pM)\n", ethhdr->h_source);
+		return;
+	}
+
 	orig_node = get_orig_node(bat_priv, batman_ogm_packet->orig);
 	if (!orig_node)
 		return;
@@ -1093,6 +1089,10 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	router = orig_node_get_router(orig_node);
 	if (router)
 		router_router = orig_node_get_router(router->orig_node);
+
+	if ((router && router->tq_avg != 0) &&
+	    (compare_eth(router->addr, ethhdr->h_source)))
+		is_from_best_next_hop = true;
 
 	/* avoid temporary routing loops */
 	if (router && router_router &&
@@ -1144,7 +1144,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 
 		/* mark direct link on incoming interface */
 		bat_iv_ogm_forward(orig_node, ethhdr, batman_ogm_packet,
-				   is_single_hop_neigh, if_incoming);
+				   is_single_hop_neigh, is_from_best_next_hop,
+				   if_incoming);
 
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"Forwarding packet: rebroadcast neighbor packet with direct link flag\n");
@@ -1167,7 +1168,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Forwarding packet: rebroadcast originator packet\n");
 	bat_iv_ogm_forward(orig_node, ethhdr, batman_ogm_packet,
-			   is_single_hop_neigh, if_incoming);
+			   is_single_hop_neigh, is_from_best_next_hop,
+			   if_incoming);
 
 out_neigh:
 	if ((orig_neigh_node) && (!is_single_hop_neigh))
