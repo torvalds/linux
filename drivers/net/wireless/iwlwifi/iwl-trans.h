@@ -274,6 +274,8 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 	return p;
 }
 
+#define MAX_NO_RECLAIM_CMDS	6
+
 /**
  * struct iwl_trans_config - transport configuration
  *
@@ -281,10 +283,17 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  *	Must be set before any other call.
  * @cmd_queue: the index of the command queue.
  *	Must be set before start_fw.
+ * @no_reclaim_cmds: Some devices erroneously don't set the
+ *	SEQ_RX_FRAME bit on some notifications, this is the
+ *	list of such notifications to filter. Max length is
+ *	%MAX_NO_RECLAIM_CMDS.
+ * @n_no_reclaim_cmds: # of commands in list
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
 	u8 cmd_queue;
+	const u8 *no_reclaim_cmds;
+	int n_no_reclaim_cmds;
 };
 
 /**

@@ -1186,6 +1186,14 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	u16 num_mac;
 	u32 ucode_flags;
 	struct iwl_trans_config trans_cfg;
+	static const u8 no_reclaim_cmds[] = {
+		REPLY_RX_PHY_CMD,
+		REPLY_RX,
+		REPLY_RX_MPDU_CMD,
+		REPLY_COMPRESSED_BA,
+		STATISTICS_NOTIFICATION,
+		REPLY_TX,
+	};
 
 	/************************
 	 * 1. Allocating HW data
@@ -1211,6 +1219,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * to know about.
 	 */
 	trans_cfg.op_mode = op_mode;
+	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
+	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 
 	ucode_flags = fw->ucode_capa.flags;
 

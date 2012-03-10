@@ -1626,6 +1626,13 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	trans_pcie->cmd_queue = trans_cfg->cmd_queue;
+	if (WARN_ON(trans_cfg->n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
+		trans_pcie->n_no_reclaim_cmds = 0;
+	else
+		trans_pcie->n_no_reclaim_cmds = trans_cfg->n_no_reclaim_cmds;
+	if (trans_pcie->n_no_reclaim_cmds)
+		memcpy(trans_pcie->no_reclaim_cmds, trans_cfg->no_reclaim_cmds,
+		       trans_pcie->n_no_reclaim_cmds * sizeof(u8));
 }
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
