@@ -98,7 +98,7 @@ static struct hw_pci integrator_pci __initdata = {
 	.map_irq		= integrator_map_irq,
 	.setup			= pci_v3_setup,
 	.nr_controllers		= 1,
-	.scan			= pci_v3_scan_bus,
+	.ops			= &pci_v3_ops,
 	.preinit		= pci_v3_preinit,
 	.postinit		= pci_v3_postinit,
 };

@@ -58,9 +58,9 @@ static int __init nas100d_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 struct hw_pci __initdata nas100d_pci = {
 	.nr_controllers = 1,
+	.ops		= &ixp4xx_ops,
 	.preinit	= nas100d_pci_preinit,
 	.setup		= ixp4xx_setup,
-	.scan		= ixp4xx_scan_bus,
 	.map_irq	= nas100d_map_irq,
 };
 

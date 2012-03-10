@@ -47,8 +47,8 @@ static struct hw_pci cats_pci __initdata = {
 	.swizzle		= cats_no_swizzle,
 	.map_irq		= cats_map_irq,
 	.nr_controllers		= 1,
+	.ops			= &dc21285_ops,
 	.setup			= dc21285_setup,
-	.scan			= dc21285_scan_bus,
 	.preinit		= dc21285_preinit,
 	.postinit		= dc21285_postinit,
 };

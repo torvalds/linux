@@ -54,9 +54,9 @@ static int __init nslu2_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 struct hw_pci __initdata nslu2_pci = {
 	.nr_controllers = 1,
+	.ops		= &ixp4xx_ops,
 	.preinit	= nslu2_pci_preinit,
 	.setup		= ixp4xx_setup,
-	.scan		= ixp4xx_scan_bus,
 	.map_irq	= nslu2_map_irq,
 };
 

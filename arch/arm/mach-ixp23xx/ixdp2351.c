@@ -251,9 +251,9 @@ static int __init ixdp2351_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 struct hw_pci ixdp2351_pci __initdata = {
 	.nr_controllers	= 1,
+	.ops		= &ixp23xx_pci_ops,
 	.preinit	= ixp23xx_pci_preinit,
 	.setup		= ixp23xx_pci_setup,
-	.scan		= ixp23xx_pci_scan_bus,
 	.map_irq	= ixdp2351_map_irq,
 };
 

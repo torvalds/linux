@@ -452,7 +452,11 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 					 &iomem_resource, sys->mem_offset);
 			}
 
-			sys->bus = hw->scan(nr, sys);
+			if (hw->scan)
+				sys->bus = hw->scan(nr, sys);
+			else
+				sys->bus = pci_scan_root_bus(NULL, sys->busnr,
+						hw->ops, sys, &sys->resources);
 
 			if (!sys->bus)
 				panic("PCI: unable to scan bus!");
