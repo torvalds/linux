@@ -47,6 +47,7 @@ config ARM_EXYNOS_CPUFREQ
 	bool "SAMSUNG EXYNOS SoCs"
 	depends on ARCH_EXYNOS
 	select ARM_EXYNOS4210_CPUFREQ if CPU_EXYNOS4210
+	select ARM_EXYNOS4X12_CPUFREQ if (SOC_EXYNOS4212 || SOC_EXYNOS4412)
 	default y
 	help
 	  This adds the CPUFreq driver common part for Samsung
@@ -60,3 +61,9 @@ config ARM_EXYNOS4210_CPUFREQ
 	help
 	  This adds the CPUFreq driver for Samsung EXYNOS4210
 	  SoC (S5PV310 or S5PC210).
+
+config ARM_EXYNOS4X12_CPUFREQ
+	bool "Samsung EXYNOS4X12"
+	help
+	  This adds the CPUFreq driver for Samsung EXYNOS4X12
+	  SoC (EXYNOS4212 or EXYNOS4412).

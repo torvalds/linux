@@ -254,6 +254,8 @@ static int __init exynos_cpufreq_init(void)
 
 	if (soc_is_exynos4210())
 		ret = exynos4210_cpufreq_init(exynos_info);
+	else if (soc_is_exynos4212() || soc_is_exynos4412())
+		ret = exynos4x12_cpufreq_init(exynos_info);
 	else
 		pr_err("%s: CPU type not found\n", __func__);
 

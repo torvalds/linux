@@ -32,3 +32,4 @@ struct exynos_dvfs_info {
 };
 
 extern int exynos4210_cpufreq_init(struct exynos_dvfs_info *);
+extern int exynos4x12_cpufreq_init(struct exynos_dvfs_info *);
