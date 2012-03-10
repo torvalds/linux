@@ -339,15 +339,13 @@ static int __init versatile_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	 *  26     1     29
 	 *  27     1     30
 	 */
-	irq = 27 + ((slot + pin - 1) & 3);
-
-	printk("PCI map irq: slot %d, pin %d, devslot %d, irq: %d\n",slot,pin,devslot,irq);
+	irq = 27 + ((slot - 24 + pin - 1) & 3);
 
 	return irq;
 }
 
 static struct hw_pci versatile_pci __initdata = {
-	.swizzle		= NULL,
+	.swizzle		= pci_std_swizzle,
 	.map_irq		= versatile_map_irq,
 	.nr_controllers		= 1,
 	.setup			= pci_versatile_setup,
