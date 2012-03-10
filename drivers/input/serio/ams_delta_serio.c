@@ -103,7 +103,7 @@ static void ams_delta_serio_close(struct serio *serio)
 	gpio_set_value(AMS_DELTA_GPIO_PIN_KEYBRD_PWR, 0);
 }
 
-static struct gpio ams_delta_gpios[] __initconst_or_module = {
+static const struct gpio ams_delta_gpios[] __initconst_or_module = {
 	{
 		.gpio	= AMS_DELTA_GPIO_PIN_KEYBRD_DATA,
 		.flags	= GPIOF_DIR_IN,

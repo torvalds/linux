@@ -99,7 +99,7 @@ static struct lcd_ops ams_delta_lcd_ops = {
 
 /* omapfb panel section */
 
-static struct gpio _gpios[] __initconst_or_module = {
+static const struct gpio _gpios[] = {
 	{
 		.gpio	= AMS_DELTA_GPIO_PIN_LCD_VBLEN,
 		.flags	= GPIOF_OUT_INIT_LOW,
