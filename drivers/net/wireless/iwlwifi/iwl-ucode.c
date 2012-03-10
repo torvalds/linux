@@ -465,6 +465,8 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	priv->shrd->ucode_type = ucode_type;
 	fw = iwl_get_ucode_image(priv, ucode_type);
 
+	priv->ucode_loaded = false;
+
 	if (!fw)
 		return -EINVAL;
 
@@ -519,6 +521,8 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 		return ret;
 	}
 
+	priv->ucode_loaded = true;
+
 	return 0;
 }
 
@@ -563,5 +567,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
  out:
 	/* Whatever happened, stop the device */
 	iwl_trans_stop_device(trans(priv));
+	priv->ucode_loaded = false;
+
 	return ret;
 }

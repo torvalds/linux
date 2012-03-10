@@ -235,10 +235,21 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
 		priv->dbgfs_sram_offset = 0x800000;
-		if (priv->shrd->ucode_type == IWL_UCODE_INIT)
+		if (!priv->ucode_loaded) {
+			IWL_ERR(priv, "No uCode has been loadded.\n");
+			return -EINVAL;
+		}
+		if (priv->shrd->ucode_type == IWL_UCODE_INIT) {
 			priv->dbgfs_sram_len = priv->fw->ucode_init.data.len;
-		else
+		} else if (priv->shrd->ucode_type == IWL_UCODE_REGULAR) {
 			priv->dbgfs_sram_len = priv->fw->ucode_rt.data.len;
+		} else if (priv->shrd->ucode_type == IWL_UCODE_WOWLAN) {
+			priv->dbgfs_sram_len = priv->fw->ucode_wowlan.data.len;
+		} else {
+			IWL_ERR(priv, "Unsupported type of uCode loaded?"
+					" that shouldn't happen.\n");
+			return -EINVAL;
+		}
 	}
 	len = priv->dbgfs_sram_len;
 
