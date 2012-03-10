@@ -44,12 +44,6 @@ struct pcie_port {
 static int pcie_port_map[2];
 static int num_pcie_ports;
 
-static inline struct pcie_port *bus_to_port(struct pci_bus *bus)
-{
-	struct pci_sys_data *sys = bus->sysdata;
-	return sys->private_data;
-}
-
 static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
 {
 	/*
@@ -79,7 +73,8 @@ static int pcie_valid_config(struct pcie_port *pp, int bus, int dev)
 static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 			int size, u32 *val)
 {
-	struct pcie_port *pp = bus_to_port(bus);
+	struct pci_sys_data *sys = bus->sysdata;
+	struct pcie_port *pp = sys->private_data;
 	unsigned long flags;
 	int ret;
 
@@ -98,7 +93,8 @@ static int pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 static int pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 			int where, int size, u32 val)
 {
-	struct pcie_port *pp = bus_to_port(bus);
+	struct pci_sys_data *sys = bus->sysdata;
+	struct pcie_port *pp = sys->private_data;
 	unsigned long flags;
 	int ret;
 
@@ -248,7 +244,8 @@ kirkwood_pcie_scan_bus(int nr, struct pci_sys_data *sys)
 static int __init kirkwood_pcie_map_irq(const struct pci_dev *dev, u8 slot,
 	u8 pin)
 {
-	struct pcie_port *pp = bus_to_port(dev->bus);
+	struct pci_sys_data *sys = dev->sysdata;
+	struct pcie_port *pp = sys->private_data;
 
 	return pp->irq;
 }
