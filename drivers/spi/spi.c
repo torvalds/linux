@@ -533,6 +533,7 @@ static void spi_pump_messages(struct kthread_work *work)
 		if (master->busy) {
 			ret = master->unprepare_transfer_hardware(master);
 			if (ret) {
+				spin_unlock_irqrestore(&master->queue_lock, flags);
 				dev_err(&master->dev,
 					"failed to unprepare transfer hardware\n");
 				return;
