@@ -123,7 +123,7 @@ static u32 pt1_read_reg(struct pt1 *pt1, int reg)
 	return readl(pt1->regs + reg * 4);
 }
 
-static int pt1_nr_tables = 64;
+static int pt1_nr_tables = 8;
 module_param_named(nr_tables, pt1_nr_tables, int, 0);
 
 static void pt1_increment_table_count(struct pt1 *pt1)
