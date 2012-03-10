@@ -117,6 +117,49 @@ ssize_t show_##_name(struct kobject *kobj,				\
 	static BAT_ATTR(_name, _mode, show_##_name, store_##_name)
 
 
+#define BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)		\
+ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
+		      char *buff, size_t count)				\
+{									\
+	struct net_device *net_dev = kobj_to_netdev(kobj);		\
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	ssize_t length;							\
+									\
+	if (!hard_iface)						\
+		return 0;						\
+									\
+	length = __store_uint_attr(buff, count, _min, _max, _post_func,	\
+				   attr, &hard_iface->_name, net_dev);	\
+									\
+	hardif_free_ref(hard_iface);					\
+	return length;							\
+}
+
+#define BAT_ATTR_HIF_SHOW_UINT(_name)					\
+ssize_t show_##_name(struct kobject *kobj,				\
+		     struct attribute *attr, char *buff)		\
+{									\
+	struct net_device *net_dev = kobj_to_netdev(kobj);		\
+	struct hard_iface *hard_iface = hardif_get_by_netdev(net_dev);	\
+	ssize_t length;							\
+									\
+	if (!hard_iface)						\
+		return 0;						\
+									\
+	length = sprintf(buff, "%i\n", atomic_read(&hard_iface->_name));\
+									\
+	hardif_free_ref(hard_iface);					\
+	return length;							\
+}
+
+/* Use this, if you are going to set [name] in hard_iface to an
+ * unsigned integer value*/
+#define BAT_ATTR_HIF_UINT(_name, _mode, _min, _max, _post_func)		\
+	static BAT_ATTR_HIF_STORE_UINT(_name, _min, _max, _post_func)	\
+	static BAT_ATTR_HIF_SHOW_UINT(_name)				\
+	static BAT_ATTR(_name, _mode, show_##_name, store_##_name)
+
+
 static int store_bool_attr(char *buff, size_t count,
 			   struct net_device *net_dev,
 			   const char *attr_name, atomic_t *attr)
