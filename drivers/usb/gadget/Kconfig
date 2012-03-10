@@ -698,7 +698,7 @@ config USB_G_NCM
 	help
 	  This driver implements USB CDC NCM subclass standard. NCM is
 	  an advanced protocol for Ethernet encapsulation, allows grouping
-	  of several ethernet frames into one USB transfer and diffferent
+	  of several ethernet frames into one USB transfer and different
 	  alignment possibilities.
 
 	  Say "y" to link the driver statically, or "m" to build a
