@@ -613,9 +613,6 @@ struct em28xx {
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
 	int dvb_alt;				/* alternate for DVB */
 	unsigned int dvb_max_pkt_size;		/* wMaxPacketSize for DVB */
-	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
-	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc
-						   transfer */
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */
