@@ -475,7 +475,6 @@ static struct hw_pci gmlr_hw_pci __initdata = {
 	.nr_controllers = 1,
 	.preinit	= gmlr_pci_preinit,
 	.postinit	= gmlr_pci_postinit,
-	.swizzle	= pci_std_swizzle,
 	.setup		= ixp4xx_setup,
 	.scan		= ixp4xx_scan_bus,
 	.map_irq	= gmlr_map_irq,

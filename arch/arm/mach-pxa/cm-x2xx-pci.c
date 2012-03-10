@@ -181,7 +181,6 @@ static void cmx2xx_pci_preinit(void)
 }
 
 static struct hw_pci cmx2xx_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.map_irq	= cmx2xx_pci_map_irq,
 	.nr_controllers	= 1,
 	.setup		= it8152_pci_setup,

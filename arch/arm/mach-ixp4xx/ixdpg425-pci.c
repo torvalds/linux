@@ -43,7 +43,6 @@ static int __init ixdpg425_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 struct hw_pci ixdpg425_pci __initdata = {
 	.nr_controllers = 1,
 	.preinit =        ixdpg425_pci_preinit,
-	.swizzle =        pci_std_swizzle,
 	.setup =          ixp4xx_setup,
 	.scan =           ixp4xx_scan_bus,
 	.map_irq =        ixdpg425_map_irq,

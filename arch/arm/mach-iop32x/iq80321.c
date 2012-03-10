@@ -101,7 +101,6 @@ iq80321_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci iq80321_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
 	.setup		= iop3xx_pci_setup,
 	.preinit	= iop3xx_pci_preinit_cond,

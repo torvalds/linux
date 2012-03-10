@@ -306,7 +306,6 @@ static struct hw_pci ks8695_pci __initdata = {
 	.setup		= ks8695_pci_setup,
 	.scan		= ks8695_pci_scan_bus,
 	.postinit	= NULL,
-	.swizzle	= pci_std_swizzle,
 	.map_irq	= NULL,
 };
 

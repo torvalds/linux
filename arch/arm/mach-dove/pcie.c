@@ -201,7 +201,6 @@ static int __init dove_pcie_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 static struct hw_pci dove_pci __initdata = {
 	.nr_controllers	= 2,
-	.swizzle	= pci_std_swizzle,
 	.setup		= dove_pcie_setup,
 	.scan		= dove_pcie_scan_bus,
 	.map_irq	= dove_pcie_map_irq,

@@ -254,7 +254,6 @@ static int __init kirkwood_pcie_map_irq(const struct pci_dev *dev, u8 slot,
 }
 
 static struct hw_pci kirkwood_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.setup		= kirkwood_pcie_setup,
 	.scan		= kirkwood_pcie_scan_bus,
 	.map_irq	= kirkwood_pcie_map_irq,

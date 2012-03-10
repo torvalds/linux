@@ -29,7 +29,6 @@ static int __init ebsa285_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci ebsa285_pci __initdata = {
-	.swizzle		= pci_std_swizzle,
 	.map_irq		= ebsa285_map_irq,
 	.nr_controllers		= 1,
 	.setup			= dc21285_setup,

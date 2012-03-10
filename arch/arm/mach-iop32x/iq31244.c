@@ -130,7 +130,6 @@ ep80219_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci ep80219_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
 	.setup		= iop3xx_pci_setup,
 	.preinit	= iop3xx_pci_preinit,
@@ -166,7 +165,6 @@ iq31244_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci iq31244_pci __initdata = {
-	.swizzle	= pci_std_swizzle,
 	.nr_controllers = 1,
 	.setup		= iop3xx_pci_setup,
 	.preinit	= iop3xx_pci_preinit,

@@ -48,7 +48,6 @@ static int __init gateway7001_map_irq(const struct pci_dev *dev, u8 slot,
 struct hw_pci gateway7001_pci __initdata = {
 	.nr_controllers = 1,
 	.preinit =        gateway7001_pci_preinit,
-	.swizzle =        pci_std_swizzle,
 	.setup =          ixp4xx_setup,
 	.scan =           ixp4xx_scan_bus,
 	.map_irq =        gateway7001_map_irq,

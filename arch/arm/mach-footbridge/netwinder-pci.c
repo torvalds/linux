@@ -43,7 +43,6 @@ static int __init netwinder_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 }
 
 static struct hw_pci netwinder_pci __initdata = {
-	.swizzle		= pci_std_swizzle,
 	.map_irq		= netwinder_map_irq,
 	.nr_controllers		= 1,
 	.setup			= dc21285_setup,

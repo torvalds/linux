@@ -122,7 +122,6 @@ static int __init tsp2_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 static struct hw_pci tsp2_pci __initdata = {
 	.nr_controllers = 2,
 	.preinit        = tsp2_pci_preinit,
-	.swizzle        = pci_std_swizzle,
 	.setup          = orion5x_pci_sys_setup,
 	.scan           = orion5x_pci_sys_scan_bus,
 	.map_irq        = tsp2_pci_map_irq,
