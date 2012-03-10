@@ -421,7 +421,7 @@ int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 	struct isci_host *ihost = dev_to_ihost(dev);
 	struct isci_remote_device *idev;
 	unsigned long flags;
-	int ret;
+	int ret = TMF_RESP_FUNC_COMPLETE;
 
 	spin_lock_irqsave(&ihost->scic_lock, flags);
 	idev = isci_get_device(dev->lldd_dev);
@@ -447,12 +447,12 @@ int isci_task_lu_reset(struct domain_device *dev, u8 *lun)
 		goto out;
 	}
 	/* All pending I/Os have been terminated and cleaned up. */
-	if (dev_is_sata(dev)) {
-		sas_ata_schedule_reset(dev);
-		ret = TMF_RESP_FUNC_COMPLETE;
-	} else {
-		/* Send the task management part of the reset. */
-		ret = isci_task_send_lu_reset_sas(ihost, idev, lun);
+	if (!test_bit(IDEV_GONE, &idev->flags)) {
+		if (dev_is_sata(dev))
+			sas_ata_schedule_reset(dev);
+		else
+			/* Send the task management part of the reset. */
+			ret = isci_task_send_lu_reset_sas(ihost, idev, lun);
 	}
  out:
 	isci_put_device(idev);
@@ -512,8 +512,17 @@ int isci_task_abort_task(struct sas_task *task)
 	spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
 	dev_warn(&ihost->pdev->dev,
-		 "%s: dev = %p, task = %p, old_request == %p\n",
-		 __func__, idev, task, old_request);
+		 "%s: dev = %p (%s%s), task = %p, old_request == %p\n",
+		 __func__, idev,
+		 (dev_is_sata(task->dev) ? "STP/SATA"
+					 : ((dev_is_expander(task->dev))
+						? "SMP"
+						: "SSP")),
+		 ((idev) ? ((test_bit(IDEV_GONE, &idev->flags))
+			   ? " IDEV_GONE"
+			   : "")
+			 : " <NULL>"),
+		 task, old_request);
 
 	/* Device reset conditions signalled in task_state_flags are the
 	 * responsbility of libsas to observe at the start of the error
@@ -552,7 +561,8 @@ int isci_task_abort_task(struct sas_task *task)
 
 	if (task->task_proto == SAS_PROTOCOL_SMP ||
 	    sas_protocol_ata(task->task_proto) ||
-	    test_bit(IREQ_COMPLETE_IN_TARGET, &old_request->flags)) {
+	    test_bit(IREQ_COMPLETE_IN_TARGET, &old_request->flags) ||
+	    test_bit(IDEV_GONE, &idev->flags)) {
 
 		spin_unlock_irqrestore(&ihost->scic_lock, flags);
 
@@ -561,7 +571,8 @@ int isci_task_abort_task(struct sas_task *task)
 
 		dev_warn(&ihost->pdev->dev,
 			 "%s: %s request"
-				 " or complete_in_target (%d), thus no TMF\n",
+				 " or complete_in_target (%d), "
+				 "or IDEV_GONE (%d), thus no TMF\n",
 			 __func__,
 			 ((task->task_proto == SAS_PROTOCOL_SMP)
 			  ? "SMP"
@@ -570,7 +581,8 @@ int isci_task_abort_task(struct sas_task *task)
 				: "<other>")
 			  ),
 			 test_bit(IREQ_COMPLETE_IN_TARGET,
-				  &old_request->flags));
+				  &old_request->flags),
+			 test_bit(IDEV_GONE, &idev->flags));
 
 		spin_lock_irqsave(&task->task_state_lock, flags);
 		task->task_state_flags &= ~(SAS_TASK_AT_INITIATOR |
@@ -734,7 +746,7 @@ static int isci_reset_device(struct isci_host *ihost,
 			     struct domain_device *dev,
 			     struct isci_remote_device *idev)
 {
-	int rc = TMF_RESP_FUNC_COMPLETE, reset_stat;
+	int rc = TMF_RESP_FUNC_COMPLETE, reset_stat = -1;
 	struct sas_phy *phy = sas_get_local_phy(dev);
 	struct isci_port *iport = dev->port->lldd_port;
 
@@ -752,14 +764,15 @@ static int isci_reset_device(struct isci_host *ihost,
 	 * primary duty of this function is to cleanup tasks, so that is the
 	 * relevant status.
 	 */
+	if (!test_bit(IDEV_GONE, &idev->flags)) {
+		if (scsi_is_sas_phy_local(phy)) {
+			struct isci_phy *iphy = &ihost->phys[phy->number];
 
-	if (scsi_is_sas_phy_local(phy)) {
-		struct isci_phy *iphy = &ihost->phys[phy->number];
-
-		reset_stat = isci_port_perform_hard_reset(ihost, iport, iphy);
-	} else
-		reset_stat = sas_phy_reset(phy, !dev_is_sata(dev));
-
+			reset_stat = isci_port_perform_hard_reset(ihost, iport,
+								  iphy);
+		} else
+			reset_stat = sas_phy_reset(phy, !dev_is_sata(dev));
+	}
 	/* Explicitly resume the RNC here, since there was no task sent. */
 	isci_remote_device_resume_from_abort(ihost, idev);
 
