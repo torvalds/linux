@@ -423,7 +423,7 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-static void __init pcibios_init_hw(struct hw_pci *hw)
+static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 {
 	struct pci_sys_data *sys = NULL;
 	int ret;
@@ -463,7 +463,7 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 
 			busnr = sys->bus->subordinate + 1;
 
-			list_add(&sys->node, &hw->buses);
+			list_add(&sys->node, head);
 		} else {
 			kfree(sys);
 			if (ret < 0)
@@ -475,19 +475,18 @@ static void __init pcibios_init_hw(struct hw_pci *hw)
 void __init pci_common_init(struct hw_pci *hw)
 {
 	struct pci_sys_data *sys;
-
-	INIT_LIST_HEAD(&hw->buses);
+	LIST_HEAD(head);
 
 	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
 	if (hw->preinit)
 		hw->preinit();
-	pcibios_init_hw(hw);
+	pcibios_init_hw(hw, &head);
 	if (hw->postinit)
 		hw->postinit();
 
 	pci_fixup_irqs(pcibios_swizzle, pcibios_map_irq);
 
-	list_for_each_entry(sys, &hw->buses, node) {
+	list_for_each_entry(sys, &head, node) {
 		struct pci_bus *bus = sys->bus;
 
 		if (!pci_has_flag(PCI_PROBE_ONLY)) {
