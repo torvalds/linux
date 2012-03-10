@@ -245,10 +245,11 @@ config MACH_NOKIA_N8X0
 	select MACH_NOKIA_N810_WIMAX
 
 config MACH_NOKIA_RM680
-	bool "Nokia RM-680 board"
+	bool "Nokia RM-680/696 board"
 	depends on ARCH_OMAP3
 	default y
 	select OMAP_PACKAGE_CBB
+	select MACH_NOKIA_RM696
 
 config MACH_NOKIA_RX51
 	bool "Nokia RX-51 board"
@@ -364,8 +365,8 @@ config OMAP3_SDRC_AC_TIMING
 	  going on could result in system crashes;
 
 config OMAP4_ERRATA_I688
-	bool "OMAP4 errata: Async Bridge Corruption (BROKEN)"
-	depends on ARCH_OMAP4 && BROKEN
+	bool "OMAP4 errata: Async Bridge Corruption"
+	depends on ARCH_OMAP4
 	select ARCH_HAS_BARRIERS
 	help
 	  If a data is stalled inside asynchronous bridge because of back

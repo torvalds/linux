@@ -97,15 +97,30 @@ struct drm_exynos_plane_set_zpos {
 #define DRM_IOCTL_EXYNOS_PLANE_SET_ZPOS	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_PLANE_SET_ZPOS, struct drm_exynos_plane_set_zpos)
 
+#ifdef __KERNEL__
+
+/**
+ * A structure for lcd panel information.
+ *
+ * @timing: default video mode for initializing
+ * @width_mm: physical size of lcd width.
+ * @height_mm: physical size of lcd height.
+ */
+struct exynos_drm_panel_info {
+	struct fb_videomode timing;
+	u32 width_mm;
+	u32 height_mm;
+};
+
 /**
  * Platform Specific Structure for DRM based FIMD.
  *
- * @timing: default video mode for initializing
+ * @panel: default panel info for initializing
  * @default_win: default window layer number to be used for UI.
  * @bpp: default bit per pixel.
  */
 struct exynos_drm_fimd_pdata {
-	struct fb_videomode		timing;
+	struct exynos_drm_panel_info panel;
 	u32				vidcon0;
 	u32				vidcon1;
 	unsigned int			default_win;
@@ -139,4 +154,5 @@ struct exynos_drm_hdmi_pdata {
 	unsigned int			bpp;
 };
 
-#endif
+#endif	/* __KERNEL__ */
+#endif	/* _EXYNOS_DRM_H_ */

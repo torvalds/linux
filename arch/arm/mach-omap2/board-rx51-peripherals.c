@@ -1105,6 +1105,11 @@ static struct tsc2005_platform_data tsc2005_pdata = {
 	.esd_timeout_ms		= 8000,
 };
 
+static struct gpio rx51_tsc2005_gpios[] __initdata = {
+	{ RX51_TSC2005_IRQ_GPIO,   GPIOF_IN,		"tsc2005 IRQ"	},
+	{ RX51_TSC2005_RESET_GPIO, GPIOF_OUT_INIT_HIGH,	"tsc2005 reset"	},
+};
+
 static void rx51_tsc2005_set_reset(bool enable)
 {
 	gpio_set_value(RX51_TSC2005_RESET_GPIO, enable);
@@ -1114,20 +1119,18 @@ static void __init rx51_init_tsc2005(void)
 {
 	int r;
 
-	r = gpio_request_one(RX51_TSC2005_IRQ_GPIO, GPIOF_IN, "tsc2005 IRQ");
+	omap_mux_init_gpio(RX51_TSC2005_RESET_GPIO, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(RX51_TSC2005_IRQ_GPIO, OMAP_PIN_INPUT_PULLUP);
+
+	r = gpio_request_array(rx51_tsc2005_gpios,
+			       ARRAY_SIZE(rx51_tsc2005_gpios));
 	if (r < 0) {
-		printk(KERN_ERR "unable to get %s GPIO\n", "tsc2005 IRQ");
-		rx51_peripherals_spi_board_info[RX51_SPI_TSC2005].irq = 0;
+		printk(KERN_ERR "tsc2005 board initialization failed\n");
+		tsc2005_pdata.esd_timeout_ms = 0;
+		return;
 	}
 
-	r = gpio_request_one(RX51_TSC2005_RESET_GPIO, GPIOF_OUT_INIT_HIGH,
-		"tsc2005 reset");
-	if (r >= 0) {
-		tsc2005_pdata.set_reset = rx51_tsc2005_set_reset;
-	} else {
-		printk(KERN_ERR "unable to get %s GPIO\n", "tsc2005 reset");
-		tsc2005_pdata.esd_timeout_ms = 0;
-	}
+	tsc2005_pdata.set_reset = rx51_tsc2005_set_reset;
 }
 
 void __init rx51_peripherals_init(void)

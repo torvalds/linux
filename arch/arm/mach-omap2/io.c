@@ -307,6 +307,7 @@ void __init omapam33xx_map_common_io(void)
 void __init omap44xx_map_common_io(void)
 {
 	iotable_init(omap44xx_io_desc, ARRAY_SIZE(omap44xx_io_desc));
+	omap_barriers_init();
 }
 #endif
 

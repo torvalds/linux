@@ -205,6 +205,7 @@ static void __init omap3logic_init(void)
 
 MACHINE_START(OMAP3_TORPEDO, "Logic OMAP3 Torpedo board")
 	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
@@ -216,6 +217,7 @@ MACHINE_END
 
 MACHINE_START(OMAP3530_LV_SOM, "OMAP Logic 3530 LV SOM board")
 	.atag_offset	= 0x100,
+	.reserve	= omap_reserve,
 	.map_io		= omap3_map_io,
 	.init_early	= omap35xx_init_early,
 	.init_irq	= omap3_init_irq,
