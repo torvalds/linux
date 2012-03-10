@@ -1097,9 +1097,23 @@ void nfs4_schedule_lease_recovery(struct nfs_client *clp)
 }
 EXPORT_SYMBOL_GPL(nfs4_schedule_lease_recovery);
 
+/*
+ * nfs40_handle_cb_pathdown - return all delegations after NFS4ERR_CB_PATH_DOWN
+ * @clp: client to process
+ *
+ * Set the NFS4CLNT_LEASE_EXPIRED state in order to force a
+ * resend of the SETCLIENTID and hence re-establish the
+ * callback channel. Then return all existing delegations.
+ */
+static void nfs40_handle_cb_pathdown(struct nfs_client *clp)
+{
+	set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
+	nfs_expire_all_delegations(clp);
+}
+
 void nfs4_schedule_path_down_recovery(struct nfs_client *clp)
 {
-	nfs_handle_cb_pathdown(clp);
+	nfs40_handle_cb_pathdown(clp);
 	nfs4_schedule_state_manager(clp);
 }
 
@@ -1444,7 +1458,7 @@ static int nfs4_recovery_handle_error(struct nfs_client *clp, int error)
 		case 0:
 			break;
 		case -NFS4ERR_CB_PATH_DOWN:
-			nfs_handle_cb_pathdown(clp);
+			nfs40_handle_cb_pathdown(clp);
 			break;
 		case -NFS4ERR_NO_GRACE:
 			nfs4_state_end_reclaim_reboot(clp);

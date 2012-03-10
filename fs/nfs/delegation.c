@@ -453,11 +453,6 @@ static void nfs_client_mark_return_all_delegation_types(struct nfs_client *clp,
 	rcu_read_unlock();
 }
 
-static void nfs_client_mark_return_all_delegations(struct nfs_client *clp)
-{
-	nfs_client_mark_return_all_delegation_types(clp, FMODE_READ|FMODE_WRITE);
-}
-
 static void nfs_delegation_run_state_manager(struct nfs_client *clp)
 {
 	if (test_bit(NFS4CLNT_DELEGRETURN, &clp->cl_state))
@@ -496,18 +491,6 @@ void nfs_expire_all_delegation_types(struct nfs_client *clp, fmode_t flags)
 void nfs_expire_all_delegations(struct nfs_client *clp)
 {
 	nfs_expire_all_delegation_types(clp, FMODE_READ|FMODE_WRITE);
-}
-
-/**
- * nfs_handle_cb_pathdown - return all delegations after NFS4ERR_CB_PATH_DOWN
- * @clp: client to process
- *
- */
-void nfs_handle_cb_pathdown(struct nfs_client *clp)
-{
-	if (clp == NULL)
-		return;
-	nfs_client_mark_return_all_delegations(clp);
 }
 
 static void nfs_mark_return_unreferenced_delegations(struct nfs_server *server)
