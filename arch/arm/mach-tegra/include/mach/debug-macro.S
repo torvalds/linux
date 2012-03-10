@@ -18,7 +18,6 @@
  *
  */
 
-#include <mach/io.h>
 #include <mach/iomap.h>
 
 	.macro  addruart, rp, rv, tmp

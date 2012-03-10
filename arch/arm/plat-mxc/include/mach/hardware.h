@@ -28,6 +28,9 @@
 #define IOMEM(addr)	((void __force __iomem *)(addr))
 #endif
 
+#define addr_in_module(addr, mod) \
+	((unsigned long)(addr) - mod ## _BASE_ADDR < mod ## _SIZE)
+
 #define IMX_IO_P2V_MODULE(addr, module)					\
 	(((addr) - module ## _BASE_ADDR) < module ## _SIZE ?		\
 	 (addr) - (module ## _BASE_ADDR) + (module ## _BASE_ADDR_VIRT) : 0)

@@ -39,11 +39,7 @@ extern int ixp4xx_pci_write(u32 addr, u32 cmd, u32 data);
  *    but in some cases the performance hit is acceptable. In addition, you
  *    cannot mmap() PCI devices in this case.
  */
-#ifndef	CONFIG_IXP4XX_INDIRECT_PCI
-
-#define __mem_pci(a)		(a)
-
-#else
+#ifdef	CONFIG_IXP4XX_INDIRECT_PCI
 
 /*
  * In the case of using indirect PCI, we simply return the actual PCI
@@ -56,24 +52,6 @@ static inline int is_pci_memory(u32 addr)
 {
 	return (addr >= PCIBIOS_MIN_MEM) && (addr <= 0x4FFFFFFF);
 }
-
-static inline void __iomem * __indirect_ioremap(unsigned long addr, size_t size,
-						unsigned int mtype)
-{
-	if (!is_pci_memory(addr))
-		return __arm_ioremap(addr, size, mtype);
-
-	return (void __iomem *)addr;
-}
-
-static inline void __indirect_iounmap(void __iomem *addr)
-{
-	if (!is_pci_memory((__force u32)addr))
-		__iounmap(addr);
-}
-
-#define __arch_ioremap			__indirect_ioremap
-#define __arch_iounmap			__indirect_iounmap
 
 #define writeb(v, p)			__indirect_writeb(v, p)
 #define writew(v, p)			__indirect_writew(v, p)

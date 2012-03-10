@@ -119,6 +119,20 @@ static void __init ebsa110_map_io(void)
 	iotable_init(ebsa110_io_desc, ARRAY_SIZE(ebsa110_io_desc));
 }
 
+static void __iomem *ebsa110_ioremap_caller(unsigned long cookie, size_t size,
+					    unsigned int flags, void *caller)
+{
+	return (void __iomem *)cookie;
+}
+
+static void ebsa110_iounmap(volatile void __iomem *io_addr)
+{}
+
+static void __init ebsa110_init_early(void)
+{
+	arch_ioremap_caller = ebsa110_ioremap_caller;
+	arch_iounmap = ebsa110_iounmap;
+}
 
 #define PIT_CTRL		(PIT_BASE + 0x0d)
 #define PIT_T2			(PIT_BASE + 0x09)
@@ -315,6 +329,7 @@ MACHINE_START(EBSA110, "EBSA110")
 	.reserve_lp2	= 1,
 	.restart_mode	= 's',
 	.map_io		= ebsa110_map_io,
+	.init_early	= ebsa110_init_early,
 	.init_irq	= ebsa110_init_irq,
 	.timer		= &ebsa110_timer,
 	.restart	= ebsa110_restart,
