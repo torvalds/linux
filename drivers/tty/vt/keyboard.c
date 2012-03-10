@@ -1863,6 +1863,7 @@ int vt_do_kdsk_ioctl(int cmd, struct kbentry __user *user_kbe, int perm,
 				return -EPERM;
 			}
 			key_maps[s] = new_map;
+			key_map = new_map;
 			key_map[0] = U(K_ALLOCATED);
 			for (j = 1; j < NR_KEYS; j++)
 				key_map[j] = U(K_HOLE);
