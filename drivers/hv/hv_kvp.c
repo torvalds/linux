@@ -78,7 +78,7 @@ kvp_register(void)
 
 	if (msg) {
 		kvp_msg = (struct hv_kvp_msg *)msg->data;
-		version = kvp_msg->body.kvp_version;
+		version = kvp_msg->body.kvp_register.version;
 		msg->id.idx =  CN_KVP_IDX;
 		msg->id.val = CN_KVP_VAL;
 
@@ -122,7 +122,8 @@ kvp_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
 		 * to the host. But first, cancel the timeout.
 		 */
 		if (cancel_delayed_work_sync(&kvp_work))
-			kvp_respond_to_host(data->data.key, data->data.value,
+			kvp_respond_to_host(data->data.key,
+					 data->data.value,
 					!strlen(data->data.key));
 	}
 }

@@ -149,7 +149,11 @@ struct hv_kvp_exchg_msg_value {
 	__u32 key_size;
 	__u32 value_size;
 	__u8 key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
-	__u8 value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
+	union {
+		__u8 value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
+		__u32 value_u32;
+		__u64 value_u64;
+	};
 } __attribute__((packed));
 
 struct hv_kvp_msg_enumerate {
@@ -157,11 +161,31 @@ struct hv_kvp_msg_enumerate {
 	struct hv_kvp_exchg_msg_value data;
 } __attribute__((packed));
 
+struct hv_kvp_msg_get {
+	struct hv_kvp_exchg_msg_value data;
+};
+
+struct hv_kvp_msg_set {
+	struct hv_kvp_exchg_msg_value data;
+};
+
+struct hv_kvp_msg_delete {
+	__u32 key_size;
+	__u8 key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+};
+
+struct hv_kvp_register {
+	__u8 version[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+};
+
 struct hv_kvp_msg {
 	struct hv_kvp_hdr	kvp_hdr;
 	union {
-		struct hv_kvp_msg_enumerate     kvp_enum_data;
-		char    kvp_version[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+		struct hv_kvp_msg_get		kvp_get;
+		struct hv_kvp_msg_set		kvp_set;
+		struct hv_kvp_msg_delete	kvp_delete;
+		struct hv_kvp_msg_enumerate	kvp_enum_data;
+		struct hv_kvp_register		kvp_register;
 	} body;
 } __attribute__((packed));
 

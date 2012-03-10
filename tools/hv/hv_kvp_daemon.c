@@ -378,7 +378,7 @@ int main(void)
 			 * Driver is registering with us; stash away the version
 			 * information.
 			 */
-			p = (char *)hv_msg->body.kvp_version;
+			p = (char *)hv_msg->body.kvp_register.version;
 			lic_version = malloc(strlen(p) + 1);
 			if (lic_version) {
 				strcpy(lic_version, p);
