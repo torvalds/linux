@@ -296,6 +296,24 @@ struct platform_device s5p_device_g2d = {
 };
 #endif /* CONFIG_S5P_DEV_G2D */
 
+#ifdef CONFIG_S5P_DEV_JPEG
+static struct resource s5p_jpeg_resource[] = {
+	[0] = DEFINE_RES_MEM(S5P_PA_JPEG, SZ_4K),
+	[1] = DEFINE_RES_IRQ(IRQ_JPEG),
+};
+
+struct platform_device s5p_device_jpeg = {
+	.name		= "s5p-jpeg",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s5p_jpeg_resource),
+	.resource	= s5p_jpeg_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+#endif /*  CONFIG_S5P_DEV_JPEG */
+
 /* FIMD0 */
 
 #ifdef CONFIG_S5P_DEV_FIMD0
