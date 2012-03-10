@@ -1186,6 +1186,7 @@ out:
 static int bat_iv_ogm_receive(struct sk_buff *skb,
 			      struct hard_iface *if_incoming)
 {
+	struct bat_priv *bat_priv = netdev_priv(if_incoming->soft_iface);
 	struct batman_ogm_packet *batman_ogm_packet;
 	struct ethhdr *ethhdr;
 	int buff_pos = 0, packet_len;
@@ -1194,6 +1195,12 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 
 	ret = check_management_packet(skb, if_incoming, BATMAN_OGM_HLEN);
 	if (!ret)
+		return NET_RX_DROP;
+
+	/* did we receive a B.A.T.M.A.N. IV OGM packet on an interface
+	 * that does not have B.A.T.M.A.N. IV enabled ?
+	 */
+	if (bat_priv->bat_algo_ops->bat_ogm_emit != bat_iv_ogm_emit)
 		return NET_RX_DROP;
 
 	packet_len = skb_headlen(skb);
