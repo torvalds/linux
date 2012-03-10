@@ -192,22 +192,6 @@ struct iwl_hw_params {
 	const struct iwl_sensitivity_ranges *sens;
 };
 
-/**
- * enum iwl_ucode_type
- *
- * The type of ucode.
- *
- * @IWL_UCODE_REGULAR: Normal runtime ucode
- * @IWL_UCODE_INIT: Initial ucode
- * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
- */
-enum iwl_ucode_type {
-	IWL_UCODE_REGULAR,
-	IWL_UCODE_INIT,
-	IWL_UCODE_WOWLAN,
-	IWL_UCODE_TYPE_MAX,
-};
-
 /*
  * LED mode
  *    IWL_LED_DEFAULT:  use device default

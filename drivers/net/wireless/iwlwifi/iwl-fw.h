@@ -85,6 +85,22 @@ enum iwl_ucode_tlv_flag {
 #define IWL_MAX_STANDARD_PHY_CALIBRATE_TBL_SIZE		19
 #define IWL_MAX_PHY_CALIBRATE_TBL_SIZE			253
 
+/**
+ * enum iwl_ucode_type
+ *
+ * The type of ucode.
+ *
+ * @IWL_UCODE_REGULAR: Normal runtime ucode
+ * @IWL_UCODE_INIT: Initial ucode
+ * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
+ */
+enum iwl_ucode_type {
+	IWL_UCODE_REGULAR,
+	IWL_UCODE_INIT,
+	IWL_UCODE_WOWLAN,
+	IWL_UCODE_TYPE_MAX,
+};
+
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
@@ -142,6 +158,9 @@ struct iwl_fw {
 
 	u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
 	u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
+
+	u64 default_calib[IWL_UCODE_TYPE_MAX];
+	u32 phy_config;
 };
 
 #endif  /* __iwl_fw_h__ */

@@ -208,6 +208,25 @@ struct fw_img_parsing {
 	int sec_counter;
 };
 
+/*
+ * struct fw_sec_parsing: to extract fw section and it's offset from tlv
+ */
+struct fw_sec_parsing {
+	__le32 offset;
+	const u8 data[];
+} __packed;
+
+/**
+ * struct iwl_tlv_calib_data - parse the default calib data from TLV
+ *
+ * @ucode_type: the uCode to which the following default calib relates.
+ * @calib: default calibrations.
+ */
+struct iwl_tlv_calib_data {
+	__le32 ucode_type;
+	__le64 calib;
+} __packed;
+
 struct iwl_firmware_pieces {
 	struct fw_img_parsing img[IWL_UCODE_TYPE_MAX];
 
@@ -255,6 +274,47 @@ static void set_sec_offset(struct iwl_firmware_pieces *pieces,
 			   u32 offset)
 {
 	pieces->img[type].sec[sec].offset = offset;
+}
+
+/*
+ * Gets uCode section from tlv.
+ */
+static int iwl_store_ucode_sec(struct iwl_firmware_pieces *pieces,
+			       const void *data, enum iwl_ucode_type type,
+			       int size)
+{
+	struct fw_img_parsing *img;
+	struct fw_sec *sec;
+	struct fw_sec_parsing *sec_parse;
+
+	if (WARN_ON(!pieces || !data || type >= IWL_UCODE_TYPE_MAX))
+		return -1;
+
+	sec_parse = (struct fw_sec_parsing *)data;
+
+	img = &pieces->img[type];
+	sec = &img->sec[img->sec_counter];
+
+	sec->offset = le32_to_cpu(sec_parse->offset);
+	sec->data = sec_parse->data;
+
+	++img->sec_counter;
+
+	return 0;
+}
+
+static int iwl_set_default_calib(struct iwl_drv *drv, const u8 *data)
+{
+	struct iwl_tlv_calib_data *def_calib =
+					(struct iwl_tlv_calib_data *)data;
+	u32 ucode_type = le32_to_cpu(def_calib->ucode_type);
+	if (ucode_type >= IWL_UCODE_TYPE_MAX) {
+		IWL_ERR(drv, "Wrong ucode_type %u for default calibration.\n",
+			ucode_type);
+		return -EINVAL;
+	}
+	drv->fw.default_calib[ucode_type] = le64_to_cpu(def_calib->calib);
+	return 0;
 }
 
 static int iwl_parse_v1_v2_firmware(struct iwl_drv *drv,
@@ -586,6 +646,29 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			capa->standard_phy_calibration_size =
 					le32_to_cpup((__le32 *)tlv_data);
 			break;
+		 case IWL_UCODE_TLV_SEC_RT:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
+					    tlv_len);
+			break;
+		case IWL_UCODE_TLV_SEC_INIT:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
+					    tlv_len);
+			break;
+		case IWL_UCODE_TLV_SEC_WOWLAN:
+			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
+					    tlv_len);
+			break;
+		case IWL_UCODE_TLV_DEF_CALIB:
+			if (tlv_len != sizeof(struct iwl_tlv_calib_data))
+				goto invalid_tlv_len;
+			if (iwl_set_default_calib(drv, tlv_data))
+				goto tlv_error;
+			break;
+		case IWL_UCODE_TLV_PHY_SKU:
+			if (tlv_len != sizeof(u32))
+				goto invalid_tlv_len;
+			drv->fw.phy_config = le32_to_cpup((__le32 *)tlv_data);
+			break;
 		default:
 			IWL_DEBUG_INFO(drv, "unknown TLV: %d\n", tlv_type);
 			break;
@@ -602,6 +685,7 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 
  invalid_tlv_len:
 	IWL_ERR(drv, "TLV %d has invalid size: %u\n", tlv_type, tlv_len);
+ tlv_error:
 	iwl_print_hex_dump(drv, IWL_DL_FW, tlv_data, tlv_len);
 
 	return -EINVAL;
