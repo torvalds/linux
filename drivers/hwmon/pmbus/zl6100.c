@@ -33,6 +33,7 @@ enum chips { zl2004, zl2005, zl2006, zl2008, zl2105, zl2106, zl6100, zl6105 };
 struct zl6100_data {
 	int id;
 	ktime_t access;		/* chip access time */
+	int delay;		/* Delay between chip accesses in uS */
 	struct pmbus_driver_info info;
 };
 
@@ -52,10 +53,10 @@ MODULE_PARM_DESC(delay, "Delay between chip accesses in uS");
 /* Some chips need a delay between accesses */
 static inline void zl6100_wait(const struct zl6100_data *data)
 {
-	if (delay) {
+	if (data->delay) {
 		s64 delta = ktime_us_delta(ktime_get(), data->access);
-		if (delta < delay)
-			udelay(delay - delta);
+		if (delta < data->delay)
+			udelay(data->delay - delta);
 	}
 }
 
@@ -207,8 +208,9 @@ static int zl6100_probe(struct i2c_client *client,
 	 * can be cleared later for additional chips if tests show that it
 	 * is not needed (in other words, better be safe than sorry).
 	 */
+	data->delay = delay;
 	if (data->id == zl2004 || data->id == zl6105)
-		delay = 0;
+		data->delay = 0;
 
 	/*
 	 * Since there was a direct I2C device access above, wait before
