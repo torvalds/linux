@@ -304,27 +304,13 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 	}
 
 	if (nv_encoder->dcb->type == OUTPUT_DP) {
-		struct nouveau_i2c_chan *auxch;
+		struct dp_train_func func = {
+			.link_set = nv50_sor_dp_link_set,
+			.train_set = nv50_sor_dp_train_set,
+			.train_adj = nv50_sor_dp_train_adj
+		};
 
-		auxch = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
-		if (!auxch)
-			return;
-
-		if (mode == DRM_MODE_DPMS_ON) {
-			struct dp_train_func func = {
-				.link_set = nv50_sor_dp_link_set,
-				.train_set = nv50_sor_dp_train_set,
-				.train_adj = nv50_sor_dp_train_adj
-			};
-			u32 rate = nv_encoder->dp.datarate;
-			u8 status = DP_SET_POWER_D0;
-
-			nouveau_dp_auxch(auxch, 8, DP_SET_POWER, &status, 1);
-			nouveau_dp_link_train(encoder, rate, &func);
-		} else {
-			u8 status = DP_SET_POWER_D3;
-			nouveau_dp_auxch(auxch, 8, DP_SET_POWER, &status, 1);
-		}
+		nouveau_dp_dpms(encoder, mode, nv_encoder->dp.datarate, &func);
 	}
 }
 

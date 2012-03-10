@@ -475,6 +475,29 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	return true;
 }
 
+void
+nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
+		struct dp_train_func *func)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_i2c_chan *auxch;
+	u8 status;
+
+	auxch = nouveau_i2c_find(encoder->dev, nv_encoder->dcb->i2c_index);
+	if (!auxch)
+		return;
+
+	if (mode == DRM_MODE_DPMS_ON)
+		status = DP_SET_POWER_D0;
+	else
+		status = DP_SET_POWER_D3;
+
+	nouveau_dp_auxch(auxch, 8, DP_SET_POWER, &status, 1);
+
+	if (mode == DRM_MODE_DPMS_ON)
+		nouveau_dp_link_train(encoder, datarate, func);
+}
+
 bool
 nouveau_dp_detect(struct drm_encoder *encoder)
 {

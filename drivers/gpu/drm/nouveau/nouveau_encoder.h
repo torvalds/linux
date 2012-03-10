@@ -90,8 +90,8 @@ get_slave_funcs(struct drm_encoder *enc)
 int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		     uint8_t *data, int data_nr);
 bool nouveau_dp_detect(struct drm_encoder *);
-bool nouveau_dp_link_train(struct drm_encoder *, u32 datarate,
-			   struct dp_train_func *);
+void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
+		     struct dp_train_func *);
 u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_entry *, u8 **);
 
 struct nouveau_connector *
