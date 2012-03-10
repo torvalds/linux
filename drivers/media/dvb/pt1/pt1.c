@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/ratelimit.h>
 
 #include "dvbdev.h"
 #include "dvb_demux.h"
@@ -92,6 +93,7 @@ struct pt1_adapter {
 	u8 *buf;
 	int upacket_count;
 	int packet_count;
+	int st_count;
 
 	struct dvb_adapter adap;
 	struct dvb_demux demux;
@@ -266,6 +268,7 @@ static int pt1_filter(struct pt1 *pt1, struct pt1_buffer_page *page)
 	struct pt1_adapter *adap;
 	int offset;
 	u8 *buf;
+	int sc;
 
 	if (!page->upackets[PT1_NR_UPACKETS - 1])
 		return 0;
@@ -281,6 +284,16 @@ static int pt1_filter(struct pt1 *pt1, struct pt1_buffer_page *page)
 			adap->upacket_count = 0;
 		else if (!adap->upacket_count)
 			continue;
+
+		if (upacket >> 24 & 1)
+			printk_ratelimited(KERN_INFO "earth-pt1: device "
+				"buffer overflowing. table[%d] buf[%d]\n",
+				pt1->table_index, pt1->buf_index);
+		sc = upacket >> 26 & 0x7;
+		if (adap->st_count != -1 && sc != ((adap->st_count + 1) & 0x7))
+			printk_ratelimited(KERN_INFO "earth-pt1: data loss"
+				" in streamID(adapter)[%d]\n", index);
+		adap->st_count = sc;
 
 		buf = adap->buf;
 		offset = adap->packet_count * 188 + adap->upacket_count * 3;
@@ -652,6 +665,7 @@ pt1_alloc_adapter(struct pt1 *pt1)
 	adap->buf = buf;
 	adap->upacket_count = 0;
 	adap->packet_count = 0;
+	adap->st_count = -1;
 
 	dvb_adap = &adap->adap;
 	dvb_adap->priv = adap;
