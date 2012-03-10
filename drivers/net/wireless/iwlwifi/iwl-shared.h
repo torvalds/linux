@@ -205,6 +205,7 @@ enum iwl_ucode_type {
 	IWL_UCODE_REGULAR,
 	IWL_UCODE_INIT,
 	IWL_UCODE_WOWLAN,
+	IWL_UCODE_TYPE_MAX,
 };
 
 /*
