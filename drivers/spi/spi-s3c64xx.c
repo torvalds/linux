@@ -236,7 +236,7 @@ static void s3c64xx_spi_dmacb(void *data)
 	struct s3c64xx_spi_dma_data *dma = data;
 	unsigned long flags;
 
-	if (dma->direction == DMA_FROM_DEVICE)
+	if (dma->direction == DMA_DEV_TO_MEM)
 		sdd = container_of(data,
 			struct s3c64xx_spi_driver_data, rx_dma);
 	else
@@ -245,7 +245,7 @@ static void s3c64xx_spi_dmacb(void *data)
 
 	spin_lock_irqsave(&sdd->lock, flags);
 
-	if (dma->direction == DMA_FROM_DEVICE) {
+	if (dma->direction == DMA_DEV_TO_MEM) {
 		sdd->state &= ~RXBUSY;
 		if (!(sdd->state & TXBUSY))
 			complete(&sdd->xfer_completion);
@@ -264,7 +264,7 @@ static void prepare_dma(struct s3c64xx_spi_dma_data *dma,
 	struct s3c64xx_spi_driver_data *sdd;
 	struct samsung_dma_prep_info info;
 
-	if (dma->direction == DMA_FROM_DEVICE)
+	if (dma->direction == DMA_DEV_TO_MEM) {
 		sdd = container_of((void *)dma,
 			struct s3c64xx_spi_driver_data, rx_dma);
 	else
@@ -1012,9 +1012,9 @@ static int __init s3c64xx_spi_probe(struct platform_device *pdev)
 	sdd->pdev = pdev;
 	sdd->sfr_start = mem_res->start;
 	sdd->tx_dma.dmach = dmatx_res->start;
-	sdd->tx_dma.direction = DMA_TO_DEVICE;
+	sdd->tx_dma.direction = DMA_MEM_TO_DEV;
 	sdd->rx_dma.dmach = dmarx_res->start;
-	sdd->rx_dma.direction = DMA_FROM_DEVICE;
+	sdd->rx_dma.direction = DMA_DEV_TO_MEM;
 
 	sdd->cur_bpw = 8;
 
