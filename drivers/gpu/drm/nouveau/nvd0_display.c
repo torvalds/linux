@@ -1183,6 +1183,143 @@ nvd0_hdmi_disconnect(struct drm_encoder *encoder)
 /******************************************************************************
  * SOR
  *****************************************************************************/
+static inline u32
+nvd0_sor_dp_lane_map(struct drm_device *dev, struct dcb_entry *dcb, u8 lane)
+{
+	static const u8 nvd0[] = { 16, 8, 0, 24 };
+	return nvd0[lane];
+}
+
+static void
+nvd0_sor_dp_train_set(struct drm_device *dev, struct dcb_entry *dcb, u8 pattern)
+{
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 loff = (or * 0x800) + (link * 0x80);
+	nv_mask(dev, 0x61c110 + loff, 0x0f0f0f0f, 0x01010101 * pattern);
+}
+
+static void
+nvd0_sor_dp_train_adj(struct drm_device *dev, struct dcb_entry *dcb,
+		      u8 lane, u8 swing, u8 preem)
+{
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 loff = (or * 0x800) + (link * 0x80);
+	u32 shift = nvd0_sor_dp_lane_map(dev, dcb, lane);
+	u32 mask = 0x000000ff << shift;
+	u8 *table, *entry, *config = NULL;
+
+	switch (swing) {
+	case 0: preem += 0; break;
+	case 1: preem += 4; break;
+	case 2: preem += 7; break;
+	case 3: preem += 9; break;
+	}
+
+	table = nouveau_dp_bios_data(dev, dcb, &entry);
+	if (table) {
+		if (table[0] == 0x30) {
+			config  = entry + table[4];
+			config += table[5] * preem;
+		}
+	}
+
+	if (!config) {
+		NV_ERROR(dev, "PDISP: unsupported DP table for chipset\n");
+		return;
+	}
+
+	nv_mask(dev, 0x61c118 + loff, mask, config[1] << shift);
+	nv_mask(dev, 0x61c120 + loff, mask, config[2] << shift);
+	nv_mask(dev, 0x61c130 + loff, 0x0000ff00, config[3] << 8);
+	nv_mask(dev, 0x61c13c + loff, 0x00000000, 0x00000000);
+}
+
+static void
+nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_entry *dcb, int crtc,
+		     int link_nr, u32 link_bw, bool enhframe)
+{
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 loff = (or * 0x800) + (link * 0x80);
+	const u32 soff = (or * 0x800);
+	u32 dpctrl = nv_rd32(dev, 0x61c10c + loff) & ~0x001f4000;
+	u32 clksor = nv_rd32(dev, 0x612300 + soff) & ~0x007c0000;
+	u32 script = 0x0000, lane_mask = 0;
+	u8 *table, *entry;
+	int i;
+
+	link_bw /= 27000;
+
+	table = nouveau_dp_bios_data(dev, dcb, &entry);
+	if (table) {
+		if      (table[0] == 0x30) entry = ROMPTR(dev, entry[10]);
+		else                       entry = NULL;
+
+		while (entry) {
+			if (entry[0] >= link_bw)
+				break;
+			entry += 3;
+		}
+
+		nouveau_bios_run_init_table(dev, script, dcb, crtc);
+	}
+
+	clksor |= link_bw << 18;
+	dpctrl |= ((1 << link_nr) - 1) << 16;
+	if (enhframe)
+		dpctrl |= 0x00004000;
+
+	for (i = 0; i < link_nr; i++)
+		lane_mask |= 1 << (nvd0_sor_dp_lane_map(dev, dcb, i) >> 3);
+
+	nv_wr32(dev, 0x612300 + soff, clksor);
+	nv_wr32(dev, 0x61c10c + loff, dpctrl);
+	nv_mask(dev, 0x61c130 + loff, 0x0000000f, lane_mask);
+}
+
+static void
+nvd0_sor_dp_link_get(struct drm_device *dev, struct dcb_entry *dcb,
+		     u32 *link_nr, u32 *link_bw)
+{
+	const u32 or = ffs(dcb->or) - 1, link = !(dcb->sorconf.link & 1);
+	const u32 loff = (or * 0x800) + (link * 0x80);
+	const u32 soff = (or * 0x800);
+	u32 dpctrl = nv_rd32(dev, 0x61c10c + loff) & 0x000f0000;
+	u32 clksor = nv_rd32(dev, 0x612300 + soff);
+
+	if      (dpctrl > 0x00030000) *link_nr = 4;
+	else if (dpctrl > 0x00010000) *link_nr = 2;
+	else			      *link_nr = 1;
+
+	*link_bw  = (clksor & 0x007c0000) >> 18;
+	*link_bw *= 27000;
+}
+
+static void
+nvd0_sor_dp_calc_tu(struct drm_device *dev, struct dcb_entry *dcb,
+		    u32 crtc, u32 datarate)
+{
+	const u32 symbol = 100000;
+	const u32 TU = 64;
+	u32 link_nr, link_bw;
+	u64 ratio, value;
+
+	nvd0_sor_dp_link_get(dev, dcb, &link_nr, &link_bw);
+
+	ratio  = datarate;
+	ratio *= symbol;
+	do_div(ratio, link_nr * link_bw);
+
+	value  = (symbol - ratio) * TU;
+	value *= ratio;
+	do_div(value, symbol);
+	do_div(value, symbol);
+
+	value += 5;
+	value |= 0x08000000;
+
+	nv_wr32(dev, 0x616610 + (crtc * 0x800), value);
+}
+
 static void
 nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 {
@@ -1215,6 +1352,16 @@ nvd0_sor_dpms(struct drm_encoder *encoder, int mode)
 	nv_mask(dev, 0x61c004 + (or * 0x0800), 0x80000001, dpms_ctrl);
 	nv_wait(dev, 0x61c004 + (or * 0x0800), 0x80000000, 0x00000000);
 	nv_wait(dev, 0x61c030 + (or * 0x0800), 0x10000000, 0x00000000);
+
+	if (nv_encoder->dcb->type == OUTPUT_DP) {
+		struct dp_train_func func = {
+			.link_set = nvd0_sor_dp_link_set,
+			.train_set = nvd0_sor_dp_train_set,
+			.train_adj = nvd0_sor_dp_train_adj
+		};
+
+		nouveau_dp_dpms(encoder, mode, nv_encoder->dp.datarate, &func);
+	}
 }
 
 static bool
@@ -1306,12 +1453,30 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 
 		}
 		break;
+	case OUTPUT_DP:
+		if (nv_connector->base.display_info.bpc == 6)
+			nv_encoder->dp.datarate = mode->clock * 18 / 8;
+		else
+			nv_encoder->dp.datarate = mode->clock * 24 / 8;
+
+		if (nv_encoder->dcb->sorconf.link & 1)
+			mode_ctrl |= 0x00000800;
+		else
+			mode_ctrl |= 0x00000900;
+
+		or_config = (mode_ctrl & 0x00000f00) >> 8;
+		break;
 	default:
 		BUG_ON(1);
 		break;
 	}
 
 	nvd0_sor_dpms(encoder, DRM_MODE_DPMS_ON);
+
+	if (nv_encoder->dcb->type == OUTPUT_DP) {
+		nvd0_sor_dp_calc_tu(dev, nv_encoder->dcb, nv_crtc->index,
+					 nv_encoder->dp.datarate);
+	}
 
 	push = evo_wait(dev, EVO_MASTER, 4);
 	if (push) {
@@ -1413,6 +1578,8 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 		case 0x00000100: type = OUTPUT_TMDS; break;
 		case 0x00000200: type = OUTPUT_TMDS; break;
 		case 0x00000500: type = OUTPUT_TMDS; break;
+		case 0x00000800: type = OUTPUT_DP; break;
+		case 0x00000900: type = OUTPUT_DP; break;
 		default:
 			NV_ERROR(dev, "PDISP: unknown SOR mc 0x%08x\n", mc);
 			return NULL;
@@ -1498,6 +1665,7 @@ nvd0_display_unk2_handler(struct drm_device *dev, u32 crtc, u32 mask)
 			break;
 		case OUTPUT_TMDS:
 		case OUTPUT_LVDS:
+		case OUTPUT_DP:
 			if (cfg & 0x00000100)
 				tmp = 0x00000101;
 			else
@@ -1798,6 +1966,7 @@ nvd0_display_create(struct drm_device *dev)
 		switch (dcbe->type) {
 		case OUTPUT_TMDS:
 		case OUTPUT_LVDS:
+		case OUTPUT_DP:
 			nvd0_sor_create(connector, dcbe);
 			break;
 		case OUTPUT_ANALOG:

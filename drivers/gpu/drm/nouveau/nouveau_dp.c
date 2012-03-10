@@ -364,10 +364,8 @@ dp_set_downspread(struct drm_device *dev, struct dp_state *dp, bool enable)
 	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
 	if (table) {
 		if (table[0] >= 0x20 && table[0] <= 0x30) {
-			if (enable)
-				script = ROM16(entry[12]);
-			else
-				script = ROM16(entry[14]);
+			if (enable) script = ROM16(entry[12]);
+			else        script = ROM16(entry[14]);
 		}
 	}
 
