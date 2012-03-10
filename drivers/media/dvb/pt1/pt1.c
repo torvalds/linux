@@ -99,7 +99,6 @@ struct pt1_adapter {
 	struct dvb_demux demux;
 	int users;
 	struct dmxdev dmxdev;
-	struct dvb_net net;
 	struct dvb_frontend *fe;
 	int (*orig_set_voltage)(struct dvb_frontend *fe,
 				fe_sec_voltage_t voltage);
@@ -624,7 +623,6 @@ static int pt1_wakeup(struct dvb_frontend *fe)
 
 static void pt1_free_adapter(struct pt1_adapter *adap)
 {
-	dvb_net_release(&adap->net);
 	adap->demux.dmx.close(&adap->demux.dmx);
 	dvb_dmxdev_release(&adap->dmxdev);
 	dvb_dmx_release(&adap->demux);
@@ -693,8 +691,6 @@ pt1_alloc_adapter(struct pt1 *pt1)
 	ret = dvb_dmxdev_init(dmxdev, dvb_adap);
 	if (ret < 0)
 		goto err_dmx_release;
-
-	dvb_net_init(dvb_adap, &adap->net, &demux->dmx);
 
 	return adap;
 
