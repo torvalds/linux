@@ -87,7 +87,7 @@ iwl_get_ucode_image(struct iwl_priv *priv, enum iwl_ucode_type ucode_type)
 		return &priv->fw->ucode_wowlan;
 	case IWL_UCODE_REGULAR:
 		return &priv->fw->ucode_rt;
-	case IWL_UCODE_NONE:
+	default:
 		break;
 	}
 	return NULL;
@@ -537,7 +537,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	if (!priv->fw->ucode_init.code.len)
 		return 0;
 
-	if (priv->shrd->ucode_type != IWL_UCODE_NONE)
+	if (priv->init_ucode_run)
 		return 0;
 
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
@@ -559,6 +559,8 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	 */
 	ret = iwl_wait_notification(&priv->notif_wait, &calib_wait,
 					UCODE_CALIB_TIMEOUT);
+	if (!ret)
+		priv->init_ucode_run = true;
 
 	goto out;
 
