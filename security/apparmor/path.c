@@ -137,7 +137,7 @@ ok:
 			/* disconnected path, don't return pathname starting
 			 * with '/'
 			 */
-			error = -ESTALE;
+			error = -EACCES;
 			if (*res == '/')
 				*name = res + 1;
 		}
