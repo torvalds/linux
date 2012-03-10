@@ -93,16 +93,7 @@ static void bat_iv_ogm_iface_disable(struct hard_iface *hard_iface)
 	hard_iface->packet_buff = NULL;
 }
 
-static void bat_iv_ogm_primary_iface_set(struct hard_iface *hard_iface)
-{
-	struct batman_ogm_packet *batman_ogm_packet;
-
-	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
-	batman_ogm_packet->flags = PRIMARIES_FIRST_HOP;
-	batman_ogm_packet->header.ttl = TTL;
-}
-
-static void bat_iv_ogm_update_mac(struct hard_iface *hard_iface)
+static void bat_iv_ogm_iface_update_mac(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 
@@ -111,6 +102,15 @@ static void bat_iv_ogm_update_mac(struct hard_iface *hard_iface)
 	       hard_iface->net_dev->dev_addr, ETH_ALEN);
 	memcpy(batman_ogm_packet->prev_sender,
 	       hard_iface->net_dev->dev_addr, ETH_ALEN);
+}
+
+static void bat_iv_ogm_primary_iface_set(struct hard_iface *hard_iface)
+{
+	struct batman_ogm_packet *batman_ogm_packet;
+
+	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
+	batman_ogm_packet->flags = PRIMARIES_FIRST_HOP;
+	batman_ogm_packet->header.ttl = TTL;
 }
 
 /* when do we schedule our own ogm to be sent */
@@ -1236,8 +1236,8 @@ static struct bat_algo_ops batman_iv __read_mostly = {
 	.name = "BATMAN IV",
 	.bat_iface_enable = bat_iv_ogm_iface_enable,
 	.bat_iface_disable = bat_iv_ogm_iface_disable,
+	.bat_iface_update_mac = bat_iv_ogm_iface_update_mac,
 	.bat_primary_iface_set = bat_iv_ogm_primary_iface_set,
-	.bat_ogm_update_mac = bat_iv_ogm_update_mac,
 	.bat_ogm_schedule = bat_iv_ogm_schedule,
 	.bat_ogm_emit = bat_iv_ogm_emit,
 };

@@ -228,7 +228,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_priv->bat_algo_ops->bat_ogm_update_mac(hard_iface);
+	bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
 	hard_iface->if_status = IF_TO_BE_ACTIVATED;
 
 	/**
@@ -524,7 +524,7 @@ static int hard_if_event(struct notifier_block *this,
 		check_known_mac_addr(hard_iface->net_dev);
 
 		bat_priv = netdev_priv(hard_iface->soft_iface);
-		bat_priv->bat_algo_ops->bat_ogm_update_mac(hard_iface);
+		bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
 
 		primary_if = primary_if_get_selected(bat_priv);
 		if (!primary_if)
