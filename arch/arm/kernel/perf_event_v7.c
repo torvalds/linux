@@ -809,6 +809,11 @@ static inline int armv7_pmnc_disable_intens(int idx)
 
 	counter = ARMV7_IDX_TO_COUNTER(idx);
 	asm volatile("mcr p15, 0, %0, c9, c14, 2" : : "r" (BIT(counter)));
+	isb();
+	/* Clear the overflow flag in case an interrupt is pending. */
+	asm volatile("mcr p15, 0, %0, c9, c12, 3" : : "r" (BIT(counter)));
+	isb();
+
 	return idx;
 }
 
@@ -955,6 +960,10 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 		struct perf_event *event = cpuc->events[idx];
 		struct hw_perf_event *hwc;
 
+		/* Ignore if we don't have an event. */
+		if (!event)
+			continue;
+
 		/*
 		 * We have a single interrupt for all counters. Check that
 		 * each counter has overflowed before we process it.
@@ -963,7 +972,7 @@ static irqreturn_t armv7pmu_handle_irq(int irq_num, void *dev)
 			continue;
 
 		hwc = &event->hw;
-		armpmu_event_update(event, hwc, idx, 1);
+		armpmu_event_update(event, hwc, idx);
 		data.period = event->hw.last_period;
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
