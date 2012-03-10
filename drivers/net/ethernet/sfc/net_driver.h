@@ -324,8 +324,7 @@ enum efx_rx_alloc_method {
  * @eventq: Event queue buffer
  * @eventq_mask: Event queue pointer mask
  * @eventq_read_ptr: Event queue read pointer
- * @last_eventq_read_ptr: Last event queue read pointer value.
- * @last_irq_cpu: Last CPU to handle interrupt for this channel
+ * @event_test_cpu: Last CPU to handle interrupt or test event for this channel
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
@@ -355,9 +354,8 @@ struct efx_channel {
 	struct efx_special_buffer eventq;
 	unsigned int eventq_mask;
 	unsigned int eventq_read_ptr;
-	unsigned int last_eventq_read_ptr;
+	int event_test_cpu;
 
-	int last_irq_cpu;
 	unsigned int irq_count;
 	unsigned int irq_mod_score;
 #ifdef CONFIG_RFS_ACCEL
@@ -678,6 +676,7 @@ struct vfdi_status;
  * @irq_status: Interrupt status buffer
  * @irq_zero_count: Number of legacy IRQs seen with queue flags == 0
  * @irq_level: IRQ level/index for IRQs not triggered by an event queue
+ * @selftest_work: Work item for asynchronous self-test
  * @mtd_list: List of MTDs attached to the NIC
  * @nic_data: Hardware dependent state
  * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
@@ -791,6 +790,7 @@ struct efx_nic {
 	struct efx_buffer irq_status;
 	unsigned irq_zero_count;
 	unsigned irq_level;
+	struct delayed_work selftest_work;
 
 #ifdef CONFIG_SFC_MTD
 	struct list_head mtd_list;

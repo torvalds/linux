@@ -25,6 +25,7 @@
 #include "net_driver.h"
 #include "efx.h"
 #include "nic.h"
+#include "selftest.h"
 
 #include "mcdi.h"
 #include "workarounds.h"
@@ -163,12 +164,12 @@ static int phy_flash_cfg;
 module_param(phy_flash_cfg, int, 0644);
 MODULE_PARM_DESC(phy_flash_cfg, "Set PHYs into reflash mode initially");
 
-static unsigned irq_adapt_low_thresh = 10000;
+static unsigned irq_adapt_low_thresh = 8000;
 module_param(irq_adapt_low_thresh, uint, 0644);
 MODULE_PARM_DESC(irq_adapt_low_thresh,
 		 "Threshold score for reducing IRQ moderation");
 
-static unsigned irq_adapt_high_thresh = 20000;
+static unsigned irq_adapt_high_thresh = 16000;
 module_param(irq_adapt_high_thresh, uint, 0644);
 MODULE_PARM_DESC(irq_adapt_high_thresh,
 		 "Threshold score for increasing IRQ moderation");
@@ -1564,8 +1565,9 @@ static void efx_start_all(struct efx_nic *efx)
  * since we're holding the rtnl_lock at this point. */
 static void efx_flush_all(struct efx_nic *efx)
 {
-	/* Make sure the hardware monitor is stopped */
+	/* Make sure the hardware monitor and event self-test are stopped */
 	cancel_delayed_work_sync(&efx->monitor_work);
+	efx_selftest_async_cancel(efx);
 	/* Stop scheduled port reconfigurations */
 	cancel_work_sync(&efx->mac_work);
 }
@@ -1825,6 +1827,7 @@ static int efx_net_open(struct net_device *net_dev)
 	efx_link_status_changed(efx);
 
 	efx_start_all(efx);
+	efx_selftest_async_start(efx);
 	return 0;
 }
 
@@ -2375,6 +2378,7 @@ static int efx_init_struct(struct efx_nic *efx, const struct efx_nic_type *type,
 #endif
 	INIT_WORK(&efx->reset_work, efx_reset_work);
 	INIT_DELAYED_WORK(&efx->monitor_work, efx_monitor);
+	INIT_DELAYED_WORK(&efx->selftest_work, efx_selftest_async_work);
 	efx->pci_dev = pci_dev;
 	efx->msg_enable = debug;
 	efx->state = STATE_INIT;
@@ -2493,6 +2497,57 @@ static void efx_pci_remove(struct pci_dev *pci_dev)
 	free_netdev(efx->net_dev);
 };
 
+/* NIC VPD information
+ * Called during probe to display the part number of the
+ * installed NIC.  VPD is potentially very large but this should
+ * always appear within the first 512 bytes.
+ */
+#define SFC_VPD_LEN 512
+static void efx_print_product_vpd(struct efx_nic *efx)
+{
+	struct pci_dev *dev = efx->pci_dev;
+	char vpd_data[SFC_VPD_LEN];
+	ssize_t vpd_size;
+	int i, j;
+
+	/* Get the vpd data from the device */
+	vpd_size = pci_read_vpd(dev, 0, sizeof(vpd_data), vpd_data);
+	if (vpd_size <= 0) {
+		netif_err(efx, drv, efx->net_dev, "Unable to read VPD\n");
+		return;
+	}
+
+	/* Get the Read only section */
+	i = pci_vpd_find_tag(vpd_data, 0, vpd_size, PCI_VPD_LRDT_RO_DATA);
+	if (i < 0) {
+		netif_err(efx, drv, efx->net_dev, "VPD Read-only not found\n");
+		return;
+	}
+
+	j = pci_vpd_lrdt_size(&vpd_data[i]);
+	i += PCI_VPD_LRDT_TAG_SIZE;
+	if (i + j > vpd_size)
+		j = vpd_size - i;
+
+	/* Get the Part number */
+	i = pci_vpd_find_info_keyword(vpd_data, i, j, "PN");
+	if (i < 0) {
+		netif_err(efx, drv, efx->net_dev, "Part number not found\n");
+		return;
+	}
+
+	j = pci_vpd_info_field_size(&vpd_data[i]);
+	i += PCI_VPD_INFO_FLD_HDR_SIZE;
+	if (i + j > vpd_size) {
+		netif_err(efx, drv, efx->net_dev, "Incomplete part number\n");
+		return;
+	}
+
+	netif_info(efx, drv, efx->net_dev,
+		   "Part Number : %.*s\n", j, &vpd_data[i]);
+}
+
+
 /* Main body of NIC initialisation
  * This is called at module load (or hotplug insertion, theoretically).
  */
@@ -2581,6 +2636,8 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 
 	netif_info(efx, probe, efx->net_dev,
 		   "Solarflare NIC detected\n");
+
+	efx_print_product_vpd(efx);
 
 	/* Set up basic I/O (BAR mappings etc) */
 	rc = efx_init_io(efx);

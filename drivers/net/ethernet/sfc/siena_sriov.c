@@ -514,7 +514,7 @@ static bool map_vi_index(struct efx_nic *efx, unsigned abs_index,
 
 	if (abs_index < EFX_VI_BASE)
 		return true;
-	vf_i = (abs_index - EFX_VI_BASE) * efx_vf_size(efx);
+	vf_i = (abs_index - EFX_VI_BASE) / efx_vf_size(efx);
 	if (vf_i >= efx->vf_init_count)
 		return true;
 

@@ -48,5 +48,8 @@ extern void efx_loopback_rx_packet(struct efx_nic *efx,
 extern int efx_selftest(struct efx_nic *efx,
 			struct efx_self_tests *tests,
 			unsigned flags);
+extern void efx_selftest_async_start(struct efx_nic *efx);
+extern void efx_selftest_async_cancel(struct efx_nic *efx);
+extern void efx_selftest_async_work(struct work_struct *data);
 
 #endif /* EFX_SELFTEST_H */

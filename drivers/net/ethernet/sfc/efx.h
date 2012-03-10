@@ -148,7 +148,7 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 
 static inline void efx_schedule_channel_irq(struct efx_channel *channel)
 {
-	channel->last_irq_cpu = raw_smp_processor_id();
+	channel->event_test_cpu = raw_smp_processor_id();
 	efx_schedule_channel(channel);
 }
 

@@ -449,10 +449,8 @@ static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 	efx_rx_queue_channel(rx_queue)->n_rx_overlength++;
 }
 
-/* Pass a received packet up through the generic GRO stack
- *
- * Handles driverlink veto, and passes the fragment up via
- * the appropriate GRO method
+/* Pass a received packet up through GRO.  GRO can handle pages
+ * regardless of checksum state and skbs with a good checksum.
  */
 static void efx_rx_packet_gro(struct efx_channel *channel,
 			      struct efx_rx_buffer *rx_buf,
@@ -461,7 +459,6 @@ static void efx_rx_packet_gro(struct efx_channel *channel,
 	struct napi_struct *napi = &channel->napi_str;
 	gro_result_t gro_result;
 
-	/* Pass the skb/page into the GRO engine */
 	if (rx_buf->flags & EFX_RX_BUF_PAGE) {
 		struct efx_nic *efx = channel->efx;
 		struct page *page = rx_buf->u.page;

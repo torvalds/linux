@@ -409,8 +409,7 @@ static void siena_remove_nic(struct efx_nic *efx)
 	siena_reset_hw(efx, RESET_TYPE_ALL);
 
 	/* Relinquish the device back to the BMC */
-	if (efx_nic_has_mc(efx))
-		efx_mcdi_drv_attach(efx, false, NULL);
+	efx_mcdi_drv_attach(efx, false, NULL);
 
 	/* Tear down the private nic state */
 	kfree(efx->nic_data);

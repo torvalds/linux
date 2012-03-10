@@ -35,10 +35,6 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 
 extern u32 efx_nic_fpga_ver(struct efx_nic *efx);
 
-static inline bool efx_nic_has_mc(struct efx_nic *efx)
-{
-	return efx_nic_rev(efx) >= EFX_REV_SIENA_A0;
-}
 /* NIC has two interlinked PCI functions for the same port. */
 static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
 {
@@ -73,8 +69,6 @@ enum {
 /**
  * struct falcon_board_type - board operations and type information
  * @id: Board type id, as found in NVRAM
- * @ref_model: Model number of Solarflare reference design
- * @gen_type: Generic board type description
  * @init: Allocate resources and initialise peripheral hardware
  * @init_phy: Do board-specific PHY initialisation
  * @fini: Shut down hardware and free resources
@@ -83,8 +77,6 @@ enum {
  */
 struct falcon_board_type {
 	u8 id;
-	const char *ref_model;
-	const char *gen_type;
 	int (*init) (struct efx_nic *nic);
 	void (*init_phy) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *nic);
@@ -305,13 +297,22 @@ extern void falcon_update_stats_xmac(struct efx_nic *efx);
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);
-extern void efx_nic_generate_test_event(struct efx_channel *channel);
-extern void efx_nic_generate_interrupt(struct efx_nic *efx);
+extern void efx_nic_event_test_start(struct efx_channel *channel);
+extern void efx_nic_irq_test_start(struct efx_nic *efx);
 extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);
 extern irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx);
 extern irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id);
 extern void falcon_irq_ack_a1(struct efx_nic *efx);
+
+static inline int efx_nic_event_test_irq_cpu(struct efx_channel *channel)
+{
+	return ACCESS_ONCE(channel->event_test_cpu);
+}
+static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
+{
+	return ACCESS_ONCE(efx->last_irq_cpu);
+}
 
 /* Global Resources */
 extern int efx_nic_flush_queues(struct efx_nic *efx);
