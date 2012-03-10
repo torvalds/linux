@@ -1,4 +1,4 @@
-#define TCM_LOOP_VERSION		"v2.1-rc1"
+#define TCM_LOOP_VERSION		"v2.1-rc2"
 #define TL_WWN_ADDR_LEN			256
 #define TL_TPGS_PER_HBA			32
 

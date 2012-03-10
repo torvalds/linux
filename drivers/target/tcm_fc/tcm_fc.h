@@ -17,7 +17,7 @@
 #ifndef __TCM_FC_H__
 #define __TCM_FC_H__
 
-#define FT_VERSION "0.3"
+#define FT_VERSION "0.4"
 
 #define FT_NAMELEN 32		/* length of ASCII WWPNs including pad */
 #define FT_TPG_NAMELEN 32	/* max length of TPG name */
