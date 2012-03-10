@@ -101,6 +101,20 @@ enum iwl_ucode_type {
 	IWL_UCODE_TYPE_MAX,
 };
 
+/*
+ * enumeration of ucode section.
+ * This enumeration is used for legacy tlv style (before 16.0 uCode).
+ */
+enum iwl_ucode_sec {
+	IWL_UCODE_SECTION_INST,
+	IWL_UCODE_SECTION_DATA,
+};
+/*
+ * For 16.0 uCode and above, there is no differentiation between sections,
+ * just an offset to the HW address.
+ */
+#define IWL_UCODE_SECTION_MAX 4
+
 struct iwl_ucode_capabilities {
 	u32 max_probe_length;
 	u32 standard_phy_calibration_size;
@@ -116,8 +130,7 @@ struct fw_desc {
 };
 
 struct fw_img {
-	struct fw_desc code;	/* firmware code image */
-	struct fw_desc data;	/* firmware data image */
+	struct fw_desc sec[IWL_UCODE_SECTION_MAX];
 };
 
 /* uCode version contains 4 values: Major/Minor/API/Serial */
@@ -131,9 +144,7 @@ struct fw_img {
  *
  * @ucode_ver: ucode version from the ucode file
  * @fw_version: firmware version string
- * @ucode_rt: run time ucode image
- * @ucode_init: init ucode image
- * @ucode_wowlan: wake on wireless ucode image (optional)
+ * @img: ucode image like ucode_rt, ucode_init, ucode_wowlan.
  * @ucode_capa: capabilities parsed from the ucode file.
  * @enhance_sensitivity_table: device can do enhanced sensitivity.
  * @init_evtlog_ptr: event log offset for init ucode.
@@ -149,9 +160,7 @@ struct iwl_fw {
 	char fw_version[ETHTOOL_BUSINFO_LEN];
 
 	/* ucode images */
-	struct fw_img ucode_rt;
-	struct fw_img ucode_init;
-	struct fw_img ucode_wowlan;
+	struct fw_img img[IWL_UCODE_TYPE_MAX];
 
 	struct iwl_ucode_capabilities ucode_capa;
 	bool enhance_sensitivity_table;

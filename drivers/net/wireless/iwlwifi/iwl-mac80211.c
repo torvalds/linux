@@ -196,7 +196,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_DISABLE_BEACON_HINTS |
 			    WIPHY_FLAG_IBSS_RSN;
 
-	if (priv->fw->ucode_wowlan.code.len &&
+	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
 	    trans(priv)->ops->wowlan_suspend &&
 	    device_can_wakeup(trans(priv)->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
@@ -437,6 +437,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	unsigned long flags;
 	u32 base, status = 0xffffffff;
 	int ret = -EIO;
+	const struct fw_img *img;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
@@ -457,16 +458,18 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
-			if (!priv->wowlan_sram)
+			img = &(priv->fw->img[IWL_UCODE_WOWLAN]);
+			if (!priv->wowlan_sram) {
 				priv->wowlan_sram =
-					kzalloc(priv->fw->ucode_wowlan.data.len,
+				   kzalloc(img->sec[IWL_UCODE_SECTION_DATA].len,
 						GFP_KERNEL);
+			}
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
-					trans(priv), 0x800000,
-					priv->wowlan_sram,
-					priv->fw->ucode_wowlan.data.len / 4);
+				      trans(priv), 0x800000,
+				      priv->wowlan_sram,
+				      img->sec[IWL_UCODE_SECTION_DATA].len / 4);
 		}
 #endif
 	}

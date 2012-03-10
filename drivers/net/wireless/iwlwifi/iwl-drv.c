@@ -118,15 +118,16 @@ static void iwl_free_fw_desc(struct iwl_drv *drv, struct fw_desc *desc)
 
 static void iwl_free_fw_img(struct iwl_drv *drv, struct fw_img *img)
 {
-	iwl_free_fw_desc(drv, &img->code);
-	iwl_free_fw_desc(drv, &img->data);
+	int i;
+	for (i = 0; i < IWL_UCODE_SECTION_MAX; i++)
+		iwl_free_fw_desc(drv, &img->sec[i]);
 }
 
 static void iwl_dealloc_ucode(struct iwl_drv *drv)
 {
-	iwl_free_fw_img(drv, &drv->fw.ucode_rt);
-	iwl_free_fw_img(drv, &drv->fw.ucode_init);
-	iwl_free_fw_img(drv, &drv->fw.ucode_wowlan);
+	int i;
+	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
+		iwl_free_fw_img(drv, drv->fw.img + i);
 }
 
 static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
@@ -189,22 +190,8 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 				       GFP_KERNEL, drv, iwl_ucode_callback);
 }
 
-/*
- * enumeration of ucode section.
- * This enumeration is used for legacy tlv style (before 16.0 uCode).
- */
-enum iwl_ucode_sec {
-	IWL_UCODE_SECTION_INST,
-	IWL_UCODE_SECTION_DATA,
-};
-/*
- * For 16.0 uCode and above, there is no differentiation between section,
- * just an offset to the HW address.
- */
-#define UCODE_SECTION_MAX 4
-
 struct fw_img_parsing {
-	struct fw_sec sec[UCODE_SECTION_MAX];
+	struct fw_sec sec[IWL_UCODE_SECTION_MAX];
 	int sec_counter;
 };
 
@@ -691,6 +678,71 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	return -EINVAL;
 }
 
+static int alloc_pci_desc(struct iwl_drv *drv,
+			  struct iwl_firmware_pieces *pieces,
+			  enum iwl_ucode_type type)
+{
+	int i;
+	for (i = 0;
+	     i < IWL_UCODE_SECTION_MAX && get_sec_size(pieces, type, i);
+	     i++)
+		if (iwl_alloc_fw_desc(drv, &(drv->fw.img[type].sec[i]),
+						get_sec(pieces, type, i)))
+			return -1;
+	return 0;
+}
+
+static int validate_sec_sizes(struct iwl_drv *drv,
+			      struct iwl_firmware_pieces *pieces,
+			      const struct iwl_cfg *cfg)
+{
+	IWL_DEBUG_INFO(drv, "f/w package hdr runtime inst size = %Zd\n",
+		get_sec_size(pieces, IWL_UCODE_REGULAR,
+			     IWL_UCODE_SECTION_INST));
+	IWL_DEBUG_INFO(drv, "f/w package hdr runtime data size = %Zd\n",
+		get_sec_size(pieces, IWL_UCODE_REGULAR,
+			     IWL_UCODE_SECTION_DATA));
+	IWL_DEBUG_INFO(drv, "f/w package hdr init inst size = %Zd\n",
+		get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST));
+	IWL_DEBUG_INFO(drv, "f/w package hdr init data size = %Zd\n",
+		get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA));
+
+	/* Verify that uCode images will fit in card's SRAM. */
+	if (get_sec_size(pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_INST) >
+							cfg->max_inst_size) {
+		IWL_ERR(drv, "uCode instr len %Zd too large to fit in\n",
+			get_sec_size(pieces, IWL_UCODE_REGULAR,
+						IWL_UCODE_SECTION_INST));
+		return -1;
+	}
+
+	if (get_sec_size(pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_DATA) >
+							cfg->max_data_size) {
+		IWL_ERR(drv, "uCode data len %Zd too large to fit in\n",
+			get_sec_size(pieces, IWL_UCODE_REGULAR,
+						IWL_UCODE_SECTION_DATA));
+		return -1;
+	}
+
+	 if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST) >
+							cfg->max_inst_size) {
+		IWL_ERR(drv, "uCode init instr len %Zd too large to fit in\n",
+			get_sec_size(pieces, IWL_UCODE_INIT,
+						IWL_UCODE_SECTION_INST));
+		return -1;
+	}
+
+	if (get_sec_size(pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA) >
+							cfg->max_data_size) {
+		IWL_ERR(drv, "uCode init data len %Zd too large to fit in\n",
+			get_sec_size(pieces, IWL_UCODE_REGULAR,
+						IWL_UCODE_SECTION_DATA));
+		return -1;
+	}
+	return 0;
+}
+
+
 /**
  * iwl_ucode_callback - callback when firmware was loaded
  *
@@ -709,6 +761,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	unsigned int api_ok = cfg->ucode_api_ok;
 	const unsigned int api_min = cfg->ucode_api_min;
 	u32 api_ver;
+	int i;
 
 	fw->ucode_capa.max_probe_length = 200;
 	fw->ucode_capa.standard_phy_calibration_size =
@@ -817,59 +870,17 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		goto try_again;
 	}
 
-	 if (get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST) >
-							cfg->max_inst_size) {
-		IWL_ERR(drv, "uCode init instr len %Zd too large to fit in\n",
-			get_sec_size(&pieces, IWL_UCODE_INIT,
-				     IWL_UCODE_SECTION_INST));
+	if (validate_sec_sizes(drv, &pieces, cfg))
 		goto try_again;
-	}
-
-	if (get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA) >
-							cfg->max_data_size) {
-		IWL_ERR(drv, "uCode init data len %Zd too large to fit in\n",
-			get_sec_size(&pieces, IWL_UCODE_REGULAR,
-				     IWL_UCODE_SECTION_DATA));
-		goto try_again;
-	}
 
 	/* Allocate ucode buffers for card's bus-master loading ... */
 
 	/* Runtime instructions and 2 copies of data:
 	 * 1) unmodified from disk
 	 * 2) backup cache for save/restore during power-downs */
-	if (iwl_alloc_fw_desc(drv, &drv->fw.ucode_rt.code,
-		get_sec(&pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_INST)))
-		goto err_pci_alloc;
-	if (iwl_alloc_fw_desc(drv, &drv->fw.ucode_rt.data,
-		get_sec(&pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_DATA)))
-		goto err_pci_alloc;
-
-	/* Initialization instructions and data */
-	if (get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST) &&
-	    get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA)) {
-		if (iwl_alloc_fw_desc(drv, &drv->fw.ucode_init.code,
-			get_sec(&pieces, IWL_UCODE_INIT,
-						IWL_UCODE_SECTION_INST)))
+	for (i = 0; i < IWL_UCODE_TYPE_MAX; i++)
+		if (alloc_pci_desc(drv, &pieces, i))
 			goto err_pci_alloc;
-		if (iwl_alloc_fw_desc(drv, &drv->fw.ucode_init.data,
-			get_sec(&pieces, IWL_UCODE_INIT,
-						IWL_UCODE_SECTION_DATA)))
-			goto err_pci_alloc;
-	}
-
-	/* WoWLAN instructions and data */
-	if (get_sec_size(&pieces, IWL_UCODE_WOWLAN, IWL_UCODE_SECTION_INST) &&
-	    get_sec_size(&pieces, IWL_UCODE_WOWLAN, IWL_UCODE_SECTION_DATA)) {
-		if (iwl_alloc_fw_desc(drv, &drv->fw.ucode_wowlan.code,
-			get_sec(&pieces, IWL_UCODE_WOWLAN,
-						IWL_UCODE_SECTION_INST)))
-			goto err_pci_alloc;
-		if (iwl_alloc_fw_desc(drv, &drv->fw.ucode_wowlan.data,
-			get_sec(&pieces, IWL_UCODE_WOWLAN,
-						IWL_UCODE_SECTION_DATA)))
-			goto err_pci_alloc;
-	}
 
 	/* Now that we can no longer fail, copy information */
 

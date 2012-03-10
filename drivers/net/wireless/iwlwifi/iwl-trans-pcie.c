@@ -951,12 +951,13 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 /*
  * ucode
  */
-static int iwl_load_section(struct iwl_trans *trans, const char *name,
-			    const struct fw_desc *image, u32 dst_addr)
+static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
+			    const struct fw_desc *section)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	dma_addr_t phy_addr = image->p_addr;
-	u32 byte_cnt = image->len;
+	dma_addr_t phy_addr = section->p_addr;
+	u32 byte_cnt = section->len;
+	u32 dst_addr = section->offset;
 	int ret;
 
 	trans_pcie->ucode_write_complete = false;
@@ -989,12 +990,13 @@ static int iwl_load_section(struct iwl_trans *trans, const char *name,
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
-	IWL_DEBUG_FW(trans, "%s uCode section being loaded...\n", name);
+	IWL_DEBUG_FW(trans, "[%d] uCode section being loaded...\n",
+		     section_num);
 	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,
 				 trans_pcie->ucode_write_complete, 5 * HZ);
 	if (!ret) {
-		IWL_ERR(trans, "Could not load the %s uCode section\n",
-			name);
+		IWL_ERR(trans, "Could not load the [%d] uCode section\n",
+			section_num);
 		return -ETIMEDOUT;
 	}
 
@@ -1005,16 +1007,16 @@ static int iwl_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
 	int ret = 0;
+		int i;
 
-	ret = iwl_load_section(trans, "INST", &image->code,
-				   IWLAGN_RTC_INST_LOWER_BOUND);
-	if (ret)
-		return ret;
+		for (i = 0; i < IWL_UCODE_SECTION_MAX; i++) {
+			if (!image->sec[i].p_addr)
+				break;
 
-	ret = iwl_load_section(trans, "DATA", &image->data,
-				    IWLAGN_RTC_DATA_LOWER_BOUND);
-	if (ret)
-		return ret;
+			ret = iwl_load_section(trans, i, &image->sec[i]);
+			if (ret)
+				return ret;
+		}
 
 	/* Remove all resets to allow NIC to operate */
 	iwl_write32(trans, CSR_RESET, 0);

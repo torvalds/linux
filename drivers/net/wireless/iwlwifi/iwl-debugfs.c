@@ -230,6 +230,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	int pos = 0;
 	int sram;
 	struct iwl_priv *priv = file->private_data;
+	const struct fw_img *img;
 	size_t bufsz;
 
 	/* default is to dump the entire data segment */
@@ -239,17 +240,8 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 			IWL_ERR(priv, "No uCode has been loadded.\n");
 			return -EINVAL;
 		}
-		if (priv->shrd->ucode_type == IWL_UCODE_INIT) {
-			priv->dbgfs_sram_len = priv->fw->ucode_init.data.len;
-		} else if (priv->shrd->ucode_type == IWL_UCODE_REGULAR) {
-			priv->dbgfs_sram_len = priv->fw->ucode_rt.data.len;
-		} else if (priv->shrd->ucode_type == IWL_UCODE_WOWLAN) {
-			priv->dbgfs_sram_len = priv->fw->ucode_wowlan.data.len;
-		} else {
-			IWL_ERR(priv, "Unsupported type of uCode loaded?"
-					" that shouldn't happen.\n");
-			return -EINVAL;
-		}
+		img = &priv->fw->img[priv->shrd->ucode_type];
+		priv->dbgfs_sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	}
 	len = priv->dbgfs_sram_len;
 
@@ -346,13 +338,14 @@ static ssize_t iwl_dbgfs_wowlan_sram_read(struct file *file,
 					  size_t count, loff_t *ppos)
 {
 	struct iwl_priv *priv = file->private_data;
+	const struct fw_img *img = &priv->fw->img[IWL_UCODE_WOWLAN];
 
 	if (!priv->wowlan_sram)
 		return -ENODATA;
 
 	return simple_read_from_buffer(user_buf, count, ppos,
 				       priv->wowlan_sram,
-				       priv->fw->ucode_wowlan.data.len);
+				       img->sec[IWL_UCODE_SECTION_DATA].len);
 }
 static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 					size_t count, loff_t *ppos)
