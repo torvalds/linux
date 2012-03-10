@@ -636,14 +636,17 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		 case IWL_UCODE_TLV_SEC_RT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_REGULAR,
 					    tlv_len);
+			drv->fw.mvm_fw = true;
 			break;
 		case IWL_UCODE_TLV_SEC_INIT:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_INIT,
 					    tlv_len);
+			drv->fw.mvm_fw = true;
 			break;
 		case IWL_UCODE_TLV_SEC_WOWLAN:
 			iwl_store_ucode_sec(pieces, tlv_data, IWL_UCODE_WOWLAN,
 					    tlv_len);
+			drv->fw.mvm_fw = true;
 			break;
 		case IWL_UCODE_TLV_DEF_CALIB:
 			if (tlv_len != sizeof(struct iwl_tlv_calib_data))
@@ -870,7 +873,11 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 		goto try_again;
 	}
 
-	if (validate_sec_sizes(drv, &pieces, cfg))
+	/*
+	 * In mvm uCode there is no difference between data and instructions
+	 * sections.
+	 */
+	if (!fw->mvm_fw && validate_sec_sizes(drv, &pieces, cfg))
 		goto try_again;
 
 	/* Allocate ucode buffers for card's bus-master loading ... */

@@ -170,6 +170,8 @@ struct iwl_fw {
 
 	u64 default_calib[IWL_UCODE_TYPE_MAX];
 	u32 phy_config;
+
+	bool mvm_fw;
 };
 
 #endif  /* __iwl_fw_h__ */
