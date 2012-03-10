@@ -372,13 +372,16 @@ EXPORT_SYMBOL(transport_free_session);
 void transport_deregister_session(struct se_session *se_sess)
 {
 	struct se_portal_group *se_tpg = se_sess->se_tpg;
+	struct target_core_fabric_ops *se_tfo;
 	struct se_node_acl *se_nacl;
 	unsigned long flags;
+	bool comp_nacl = true;
 
 	if (!se_tpg) {
 		transport_free_session(se_sess);
 		return;
 	}
+	se_tfo = se_tpg->se_tpg_tfo;
 
 	spin_lock_irqsave(&se_tpg->session_lock, flags);
 	list_del(&se_sess->sess_list);
@@ -391,29 +394,34 @@ void transport_deregister_session(struct se_session *se_sess)
 	 * struct se_node_acl if it had been previously dynamically generated.
 	 */
 	se_nacl = se_sess->se_node_acl;
-	if (se_nacl) {
-		spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
-		if (se_nacl->dynamic_node_acl) {
-			if (!se_tpg->se_tpg_tfo->tpg_check_demo_mode_cache(
-					se_tpg)) {
-				list_del(&se_nacl->acl_list);
-				se_tpg->num_node_acls--;
-				spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 
-				core_tpg_wait_for_nacl_pr_ref(se_nacl);
-				core_free_device_list_for_node(se_nacl, se_tpg);
-				se_tpg->se_tpg_tfo->tpg_release_fabric_acl(se_tpg,
-						se_nacl);
-				spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
-			}
+	spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
+	if (se_nacl && se_nacl->dynamic_node_acl) {
+		if (!se_tfo->tpg_check_demo_mode_cache(se_tpg)) {
+			list_del(&se_nacl->acl_list);
+			se_tpg->num_node_acls--;
+			spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
+			core_tpg_wait_for_nacl_pr_ref(se_nacl);
+			core_free_device_list_for_node(se_nacl, se_tpg);
+			se_tfo->tpg_release_fabric_acl(se_tpg, se_nacl);
+
+			comp_nacl = false;
+			spin_lock_irqsave(&se_tpg->acl_node_lock, flags);
 		}
-		spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 	}
+	spin_unlock_irqrestore(&se_tpg->acl_node_lock, flags);
 
 	transport_free_session(se_sess);
 
 	pr_debug("TARGET_CORE[%s]: Deregistered fabric_sess\n",
 		se_tpg->se_tpg_tfo->get_fabric_name());
+	/*
+	 * Awake sleeping ->acl_free_comp caller from configfs se_node_acl
+	 * removal context
+	 */
+	if (se_nacl && comp_nacl == true)
+		complete(&se_nacl->acl_free_comp);
+
 }
 EXPORT_SYMBOL(transport_deregister_session);
 

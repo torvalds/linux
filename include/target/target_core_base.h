@@ -641,6 +641,7 @@ struct se_node_acl {
 	struct config_group	*acl_default_groups[5];
 	struct list_head	acl_list;
 	struct list_head	acl_sess_list;
+	struct completion	acl_free_comp;
 };
 
 struct se_session {
