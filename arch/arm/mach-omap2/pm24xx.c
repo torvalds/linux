@@ -52,19 +52,6 @@
 #include "powerdomain.h"
 #include "clockdomain.h"
 
-#ifdef CONFIG_SUSPEND
-static suspend_state_t suspend_state = PM_SUSPEND_ON;
-static inline bool is_suspending(void)
-{
-	return (suspend_state != PM_SUSPEND_ON);
-}
-#else
-static inline bool is_suspending(void)
-{
-	return false;
-}
-#endif
-
 static void (*omap2_sram_idle)(void);
 static void (*omap2_sram_suspend)(u32 dllctrl, void __iomem *sdrc_dlla_ctrl,
 				  void __iomem *sdrc_power);
@@ -84,7 +71,7 @@ static int omap2_fclks_active(void)
 	return (f1 | f2) ? 1 : 0;
 }
 
-static void omap2_enter_full_retention(void)
+static int omap2_enter_full_retention(void)
 {
 	u32 l;
 
@@ -147,6 +134,8 @@ no_sleep:
 
 	/* Mask future PRCM-to-MPU interrupts */
 	omap2_prm_write_mod_reg(0x0, OCP_MOD, OMAP2_PRCM_IRQSTATUS_MPU_OFFSET);
+
+	return 0;
 }
 
 static int omap2_i2c_active(void)
@@ -243,57 +232,6 @@ out:
 	local_fiq_enable();
 }
 
-#ifdef CONFIG_SUSPEND
-static int omap2_pm_begin(suspend_state_t state)
-{
-	disable_hlt();
-	suspend_state = state;
-	return 0;
-}
-
-static int omap2_pm_enter(suspend_state_t state)
-{
-	int ret = 0;
-
-	switch (state) {
-	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
-		omap2_enter_full_retention();
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-static void omap2_pm_end(void)
-{
-	suspend_state = PM_SUSPEND_ON;
-	enable_hlt();
-}
-
-static const struct platform_suspend_ops omap_pm_ops = {
-	.begin		= omap2_pm_begin,
-	.enter		= omap2_pm_enter,
-	.end		= omap2_pm_end,
-	.valid		= suspend_valid_only_mem,
-};
-#else
-static const struct platform_suspend_ops __initdata omap_pm_ops;
-#endif /* CONFIG_SUSPEND */
-
-/* XXX This function should be shareable between OMAP2xxx and OMAP3 */
-static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
-{
-	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
-		clkdm_allow_idle(clkdm);
-	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
-		 atomic_read(&clkdm->usecount) == 0)
-		clkdm_sleep(clkdm);
-	return 0;
-}
-
 static void __init prcm_setup_regs(void)
 {
 	int i, num_mem_banks;
@@ -335,8 +273,12 @@ static void __init prcm_setup_regs(void)
 	clkdm_sleep(gfx_clkdm);
 
 	/* Enable hardware-supervised idle for all clkdms */
-	clkdm_for_each(clkdms_setup, NULL);
+	clkdm_for_each(omap_pm_clkdms_setup, NULL);
 	clkdm_add_wkdep(mpu_clkdm, wkup_clkdm);
+
+#ifdef CONFIG_SUSPEND
+	omap_pm_suspend = omap2_enter_full_retention;
+#endif
 
 	/* REVISIT: Configure number of 32 kHz clock cycles for sys_clk
 	 * stabilisation */
@@ -438,7 +380,6 @@ static int __init omap2_pm_init(void)
 						    omap24xx_cpu_suspend_sz);
 	}
 
-	suspend_set_ops(&omap_pm_ops);
 	arm_pm_idle = omap2_pm_idle;
 
 	return 0;
