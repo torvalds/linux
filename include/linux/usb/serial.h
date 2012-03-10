@@ -416,23 +416,10 @@ do {									\
  * module may only use this macro once, and calling it replaces
  * module_init() and module_exit()
  *
- * Note, we can't use the generic module_driver() call here, due to the
- * two parameters in the usb_serial_* functions, so we roll our own here
- * :(
  */
 #define module_usb_serial_driver(__usb_driver, __serial_drivers)	\
-static int __init usb_serial_driver_init(void)				\
-{									\
-	return usb_serial_register_drivers(&(__usb_driver),		\
-					   (__serial_drivers));		\
-}									\
-module_init(usb_serial_driver_init);					\
-static void __exit usb_serial_driver_exit(void)				\
-{									\
-	return usb_serial_deregister_drivers(&(__usb_driver),		\
-					     (__serial_drivers));	\
-}									\
-module_exit(usb_serial_driver_exit);
+	module_driver(__usb_driver, usb_serial_register_drivers,	\
+		       usb_serial_deregister_drivers, __serial_drivers)
 
 #endif /* __LINUX_USB_SERIAL_H */
 
