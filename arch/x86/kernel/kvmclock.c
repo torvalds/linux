@@ -22,6 +22,7 @@
 #include <asm/msr.h>
 #include <asm/apic.h>
 #include <linux/percpu.h>
+#include <linux/hardirq.h>
 
 #include <asm/x86_init.h>
 #include <asm/reboot.h>
@@ -113,6 +114,26 @@ static void kvm_get_preset_lpj(void)
 	do_div(lpj, HZ);
 	preset_lpj = lpj;
 }
+
+bool kvm_check_and_clear_guest_paused(void)
+{
+	bool ret = false;
+	struct pvclock_vcpu_time_info *src;
+
+	/*
+	 * per_cpu() is safe here because this function is only called from
+	 * timer functions where preemption is already disabled.
+	 */
+	WARN_ON(!in_atomic());
+	src = &__get_cpu_var(hv_clock);
+	if ((src->flags & PVCLOCK_GUEST_STOPPED) != 0) {
+		__this_cpu_and(hv_clock.flags, ~PVCLOCK_GUEST_STOPPED);
+		ret = true;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kvm_check_and_clear_guest_paused);
 
 static struct clocksource kvm_clock = {
 	.name = "kvm-clock",
