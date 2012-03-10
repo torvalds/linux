@@ -58,6 +58,71 @@
 #define OUT_D888_P565       0x22  //
 
 
+/**
+ * pixel format definitions,this is copy from android/system/core/include/system/graphics.h
+ */
+
+enum {
+    HAL_PIXEL_FORMAT_RGBA_8888          = 1,
+    HAL_PIXEL_FORMAT_RGBX_8888          = 2,
+    HAL_PIXEL_FORMAT_RGB_888            = 3,
+    HAL_PIXEL_FORMAT_RGB_565            = 4,
+    HAL_PIXEL_FORMAT_BGRA_8888          = 5,
+    HAL_PIXEL_FORMAT_RGBA_5551          = 6,
+    HAL_PIXEL_FORMAT_RGBA_4444          = 7,
+
+    /* 0x8 - 0xFF range unavailable */
+
+    /*
+     * 0x100 - 0x1FF
+     *
+     * This range is reserved for pixel formats that are specific to the HAL
+     * implementation.  Implementations can use any value in this range to
+     * communicate video pixel formats between their HAL modules.  These formats
+     * must not have an alpha channel.  Additionally, an EGLimage created from a
+     * gralloc buffer of one of these formats must be supported for use with the
+     * GL_OES_EGL_image_external OpenGL ES extension.
+     */
+
+    /*
+     * Android YUV format:
+     *
+     * This format is exposed outside of the HAL to software decoders and
+     * applications.  EGLImageKHR must support it in conjunction with the
+     * OES_EGL_image_external extension.
+     *
+     * YV12 is a 4:2:0 YCrCb planar format comprised of a WxH Y plane followed
+     * by (W/2) x (H/2) Cr and Cb planes.
+     *
+     * This format assumes
+     * - an even width
+     * - an even height
+     * - a horizontal stride multiple of 16 pixels
+     * - a vertical stride equal to the height
+     *
+     *   y_size = stride * height
+     *   c_size = ALIGN(stride/2, 16) * height/2
+     *   size = y_size + c_size * 2
+     *   cr_offset = y_size
+     *   cb_offset = y_size + c_size
+     *
+     */
+    HAL_PIXEL_FORMAT_YV12   = 0x32315659, // YCrCb 4:2:0 Planar
+
+
+
+    /* Legacy formats (deprecated), used by ImageFormat.java */
+    HAL_PIXEL_FORMAT_YCbCr_422_SP       = 0x10, // NV16
+    HAL_PIXEL_FORMAT_YCrCb_420_SP       = 0x11, // NV21
+    HAL_PIXEL_FORMAT_YCbCr_422_I        = 0x14, // YUY2
+    HAL_PIXEL_FORMAT_YCrCb_NV12         = 0x20, // YUY2
+    HAL_PIXEL_FORMAT_YCrCb_NV12_VIDEO   = 0x21, // YUY2
+    HAL_PIXEL_FORMAT_YCrCb_444          = 0x22, //yuv444
+
+
+};
+
+
 //display data format
 enum data_format{
 	ARGB888 = 0,

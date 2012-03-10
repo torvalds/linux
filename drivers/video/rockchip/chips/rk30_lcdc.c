@@ -304,7 +304,6 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
            ScaleCbrY = CalScale(yact, par->ysize);
            break;
        default:
-            printk("un support format!\n");
            break;
     }
 
@@ -381,7 +380,6 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 			ScaleCbrY = CalScale(yact, par->ysize);
 			break;
 		default:
-			printk("%s>>un support format!\n",__func__);
 			break;
 	}
 

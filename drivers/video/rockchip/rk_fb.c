@@ -142,7 +142,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 		case FB1_IOCTL_SET_YUV_ADDR:   //when in video mode, buff alloc by android
 			if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
 			{
-				if (copy_from_user(yuv_phy, arg, 8))
+				if (copy_from_user(yuv_phy, argp, 8))
 					return -EFAULT;
 				info->fix.smem_start = yuv_phy[0];  //four y
 				info->fix.mmio_start = yuv_phy[1];  //four uv
@@ -290,7 +290,7 @@ static int rk_fb_set_par(struct fb_info *info)
     struct layer_par *par = NULL;
     rk_screen *screen = NULL;
     int layer_id = 0;	
-    u32 smem_len=0,map_size = 0;
+    u32 smem_len=0;
     u32 cblen = 0,crlen = 0;
     u16 xsize =0,ysize = 0;              //winx display window height/width --->LCDC_WINx_DSP_INFO
     u32 xoffset = var->xoffset;			// offset from virtual to visible 
@@ -299,7 +299,7 @@ static int rk_fb_set_par(struct fb_info *info)
     u16 ypos = (var->nonstd>>20) & 0xfff;
     u32 xvir = var->xres_virtual;
     u32 yvir = var->yres_virtual;
-    u8 data_format = var->nonstd&0x0f;
+    u8 data_format = var->nonstd&0xff;
 
     if(!strcmp(fix->id,"fb1")){
         dev_drv = inf->rk_lcdc_device[0];
@@ -338,49 +338,45 @@ static int rk_fb_set_par(struct fb_info *info)
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
     switch (data_format)
     {
-        case 0:                    // rgb
-            switch(var->bits_per_pixel)
-            {
-                case 16:    // rgb565
-                    par->format =RGB565;
-                    fix->line_length = 2 * xvir;
-                    par->y_offset = (yoffset*xvir + xoffset)*2;
-                    break;
-                case 32:   // rgb888
-                    if(var->transp.length)      //we need ditinguish ARGB888 and RGB888
-                        par->format = ARGB888;  //in some register,they have different configration
-                    else
-                        par->format = RGB888;
-                    fix->line_length = 4 * xvir;
-                    par->y_offset = (yoffset*xvir + xoffset)*4;
-                    break;
-                default:
-                    return -EINVAL;
-            }
-            break;
-        case 1: // yuv422
-            par->format = YUV422;
-            fix->line_length = xvir;
-            cblen = crlen = (xvir*yvir)>>1;
-            par->y_offset = yoffset*xvir + xoffset;
-            par->c_offset = par->y_offset;
-            break;
-        case 2: // YUV420
-            par->format = YUV420;
-            fix->line_length = xvir;
-            cblen = crlen = (xvir*yvir)>>2;
-            par->y_offset = yoffset*xvir + xoffset;
-            par->c_offset = (yoffset>>1)*xvir + xoffset;
-            break;
-        case 4: // none
-        case 5: // yuv444
-            par->format = 5;
-            fix->line_length = xvir<<2;
-            par->y_offset = yoffset*xvir + xoffset;
-            par->c_offset = yoffset*2*xvir +(xoffset<<1);
-            cblen = crlen = (xvir*yvir);
-            break;
-        default:
+	case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
+		par->format = ARGB888;
+		fix->line_length = 4 * xvir;
+		par->y_offset = (yoffset*xvir + xoffset)*4;
+		break;
+	case HAL_PIXEL_FORMAT_RGBX_8888: 
+	case HAL_PIXEL_FORMAT_RGB_888 :
+		par->format = RGB888;
+		fix->line_length = 4 * xvir;
+		par->y_offset = (yoffset*xvir + xoffset)*4;
+		break;
+	case HAL_PIXEL_FORMAT_RGB_565:  //RGB565
+		par->format = RGB565;
+		fix->line_length = 2 * xvir;
+		par->y_offset = (yoffset*xvir + xoffset)*2;
+            	break;
+	case HAL_PIXEL_FORMAT_YCbCr_422_SP : // yuv422
+		par->format = YUV422;
+		fix->line_length = xvir;
+		cblen = crlen = (xvir*yvir)>>1;
+		par->y_offset = yoffset*xvir + xoffset;
+		par->c_offset = par->y_offset;
+            	break;
+	case HAL_PIXEL_FORMAT_YCrCb_NV12   : // YUV420---uvuvuv
+		par->format = YUV420;
+		fix->line_length = xvir;
+		cblen = crlen = (xvir*yvir)>>2;
+		par->y_offset = yoffset*xvir + xoffset;
+		par->c_offset = (yoffset>>1)*xvir + xoffset;
+            	break;
+	case HAL_PIXEL_FORMAT_YCrCb_444 : // yuv444
+		par->format = 5;
+		fix->line_length = xvir<<2;
+		par->y_offset = yoffset*xvir + xoffset;
+		par->c_offset = yoffset*2*xvir +(xoffset<<1);
+		cblen = crlen = (xvir*yvir);
+		break;
+	default:
+		printk("un supported format:0x%x\n",data_format);
             return -EINVAL;
     }
 
@@ -458,8 +454,8 @@ static struct fb_var_screeninfo def_var = {
     .green  = {5,6,0},
     .blue   = {0,5,0},
     .transp = {0,0,0},	
-    .nonstd      = 0, //win1 format & ypos & xpos (ypos<<20 + xpos<<8 + format)
-    .grayscale   = 0,  //win1 transprent mode & value(mode<<8 + value)
+    .nonstd      = HAL_PIXEL_FORMAT_RGB_565,   //(ypos<<20+xpos<<8+format) format
+    .grayscale   = 0,  //(ysize<<20+xsize<<8)
     .activate    = FB_ACTIVATE_NOW,
     .accel_flags = 0,
     .vmode       = FB_VMODE_NONINTERLACED,
