@@ -547,6 +547,27 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	if (pdata->buck2_gpiodvs) {
+		if (pdata->buck3_gpiodvs || pdata->buck4_gpiodvs) {
+			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
+			return -EINVAL;
+		}
+	}
+
+	if (pdata->buck3_gpiodvs) {
+		if (pdata->buck2_gpiodvs || pdata->buck4_gpiodvs) {
+			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
+			return -EINVAL;
+		}
+	}
+
+	if (pdata->buck4_gpiodvs) {
+		if (pdata->buck2_gpiodvs || pdata->buck3_gpiodvs) {
+			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
+			return -EINVAL;
+		}
+	}
+
 	s5m8767 = devm_kzalloc(&pdev->dev, sizeof(struct s5m8767_info),
 				GFP_KERNEL);
 	if (!s5m8767)
@@ -635,30 +656,6 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 			ret = 0;
 		} else {
 			dev_err(&pdev->dev, "GPIO NOT VALID\n");
-			ret = -EINVAL;
-			return ret;
-		}
-	}
-
-	if (pdata->buck2_gpiodvs) {
-		if (pdata->buck3_gpiodvs || pdata->buck4_gpiodvs) {
-			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
-			ret = -EINVAL;
-			return ret;
-		}
-	}
-
-	if (pdata->buck3_gpiodvs) {
-		if (pdata->buck2_gpiodvs || pdata->buck4_gpiodvs) {
-			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
-			ret = -EINVAL;
-			return ret;
-		}
-	}
-
-	if (pdata->buck4_gpiodvs) {
-		if (pdata->buck2_gpiodvs || pdata->buck3_gpiodvs) {
-			dev_err(&pdev->dev, "S5M8767 GPIO DVS NOT VALID\n");
 			ret = -EINVAL;
 			return ret;
 		}
