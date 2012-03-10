@@ -5154,6 +5154,8 @@ static netdev_tx_t rtl8169_start_xmit(struct sk_buff *skb,
 
 	netdev_sent_queue(dev, skb->len);
 
+	skb_tx_timestamp(skb);
+
 	wmb();
 
 	/* Anti gcc 2.95.3 bugware (sic) */
