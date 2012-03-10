@@ -413,6 +413,7 @@ enum iwl_trans_state {
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
  * @nvm_device_type: indicates OTP or eeprom
  * @pm_support: set to true in start_hw if link pm is supported
+ * @wait_command_queue: the wait_queue for SYNC host commands
  */
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
@@ -428,6 +429,8 @@ struct iwl_trans {
 
 	int    nvm_device_type;
 	bool pm_support;
+
+	wait_queue_head_t wait_command_queue;
 
 	/* pointer to trans specific struct */
 	/*Ensure that this pointer will always be aligned to sizeof pointer */

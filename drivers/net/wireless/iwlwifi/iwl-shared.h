@@ -376,7 +376,6 @@ struct iwl_cfg {
  * @nic: pointer to the nic data
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
- * @wait_command_queue: the wait_queue for SYNC host commands
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
  * @device_pointers: pointers to ucode event tables
@@ -390,8 +389,6 @@ struct iwl_shared {
 	void *drv;
 	struct iwl_hw_params hw_params;
 	const struct iwl_fw *fw;
-
-	wait_queue_head_t wait_command_queue;
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;

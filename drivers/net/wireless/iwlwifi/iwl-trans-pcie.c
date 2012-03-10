@@ -2327,6 +2327,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 		pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 	}
 
+	/* Initialize the wait queue for commands */
+	init_waitqueue_head(&trans->wait_command_queue);
+
 	return trans;
 
 out_pci_release_regions:

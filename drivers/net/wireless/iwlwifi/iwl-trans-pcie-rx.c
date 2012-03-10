@@ -684,7 +684,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 		 */
 		clear_bit(STATUS_READY, &trans->shrd->status);
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
-		wake_up(&trans->shrd->wait_command_queue);
+		wake_up(&trans->wait_command_queue);
 		IWL_ERR(trans, "RF is used by WiMAX\n");
 		return;
 	}

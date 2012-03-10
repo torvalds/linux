@@ -928,7 +928,7 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
-		wake_up(&trans->shrd->wait_command_queue);
+		wake_up(&trans->wait_command_queue);
 	}
 
 	meta->flags = 0;
@@ -992,7 +992,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 		return ret;
 	}
 
-	ret = wait_event_timeout(trans->shrd->wait_command_queue,
+	ret = wait_event_timeout(trans->wait_command_queue,
 			!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
