@@ -72,6 +72,7 @@
 #include <plat/keypad.h>
 #include <plat/backlight.h>
 #include <plat/regs-fb-v4.h>
+#include <plat/udc-hs.h>
 
 #include "common.h"
 
@@ -631,6 +632,8 @@ static struct platform_pwm_backlight_data smdk6410_bl_data = {
 	.pwm_id = 1,
 };
 
+static struct s3c_hsotg_plat smdk6410_hsotg_pdata;
+
 static void __init smdk6410_map_io(void)
 {
 	u32 tmp;
@@ -659,6 +662,7 @@ static void __init smdk6410_machine_init(void)
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
+	s3c_hsotg_set_platdata(&smdk6410_hsotg_pdata);
 
 	samsung_keypad_set_platdata(&smdk6410_keypad_data);
 
