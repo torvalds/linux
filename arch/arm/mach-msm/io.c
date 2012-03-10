@@ -172,8 +172,8 @@ void __init msm_map_msm7x30_io(void)
 }
 #endif /* CONFIG_ARCH_MSM7X30 */
 
-void __iomem *
-__msm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
+void __iomem *__msm_ioremap_caller(unsigned long phys_addr, size_t size,
+				   unsigned int mtype, void *caller)
 {
 	if (mtype == MT_DEVICE) {
 		/* The peripherals in the 88000000 - D0000000 range
@@ -184,7 +184,5 @@ __msm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 			mtype = MT_DEVICE_NONSHARED;
 	}
 
-	return __arm_ioremap_caller(phys_addr, size, mtype,
-		__builtin_return_address(0));
+	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
-EXPORT_SYMBOL(__msm_ioremap);
