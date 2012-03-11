@@ -164,6 +164,9 @@ struct mtd_info {
 	/* ECC layout structure pointer - read only! */
 	struct nand_ecclayout *ecclayout;
 
+	/* max number of correctible bit errors per writesize */
+	unsigned int ecc_strength;
+
 	/* Data for variable erase regions. If numeraseregions is zero,
 	 * it means that the whole device has erasesize as given above.
 	 */
