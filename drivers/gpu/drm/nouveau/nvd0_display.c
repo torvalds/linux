@@ -1567,19 +1567,19 @@ static struct dcb_entry *
 lookup_dcb(struct drm_device *dev, int id, u32 mc)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int type, or, i;
+	int type, or, i, link = -1;
 
 	if (id < 4) {
 		type = OUTPUT_ANALOG;
 		or   = id;
 	} else {
 		switch (mc & 0x00000f00) {
-		case 0x00000000: type = OUTPUT_LVDS; break;
-		case 0x00000100: type = OUTPUT_TMDS; break;
-		case 0x00000200: type = OUTPUT_TMDS; break;
-		case 0x00000500: type = OUTPUT_TMDS; break;
-		case 0x00000800: type = OUTPUT_DP; break;
-		case 0x00000900: type = OUTPUT_DP; break;
+		case 0x00000000: link = 0; type = OUTPUT_LVDS; break;
+		case 0x00000100: link = 0; type = OUTPUT_TMDS; break;
+		case 0x00000200: link = 1; type = OUTPUT_TMDS; break;
+		case 0x00000500: link = 0; type = OUTPUT_TMDS; break;
+		case 0x00000800: link = 0; type = OUTPUT_DP; break;
+		case 0x00000900: link = 1; type = OUTPUT_DP; break;
 		default:
 			NV_ERROR(dev, "PDISP: unknown SOR mc 0x%08x\n", mc);
 			return NULL;
@@ -1590,7 +1590,8 @@ lookup_dcb(struct drm_device *dev, int id, u32 mc)
 
 	for (i = 0; i < dev_priv->vbios.dcb.entries; i++) {
 		struct dcb_entry *dcb = &dev_priv->vbios.dcb.entry[i];
-		if (dcb->type == type && (dcb->or & (1 << or)))
+		if (dcb->type == type && (dcb->or & (1 << or)) &&
+		    (link < 0 || link == !(dcb->sorconf.link & 1)))
 			return dcb;
 	}
 
