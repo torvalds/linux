@@ -154,7 +154,9 @@ struct _lowcore {
 	__u32	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e04 */
 	__u32	vmcore_info;			/* 0x0e08 */
-	__u8	pad_0x0e0c[0x0f00-0x0e0c];	/* 0x0e0c */
+	__u8	pad_0x0e0c[0x0e18-0x0e0c];	/* 0x0e0c */
+	__u32	os_info;			/* 0x0e18 */
+	__u8	pad_0x0e1c[0x0f00-0x0e1c];	/* 0x0e1c */
 
 	/* Extended facility list */
 	__u64	stfle_fac_list[32];		/* 0x0f00 */
@@ -301,7 +303,9 @@ struct _lowcore {
 	__u64	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e08 */
 	__u64	vmcore_info;			/* 0x0e0c */
-	__u8	pad_0x0e14[0x0f00-0x0e14];	/* 0x0e14 */
+	__u8	pad_0x0e14[0x0e18-0x0e14];	/* 0x0e14 */
+	__u64	os_info;			/* 0x0e18 */
+	__u8	pad_0x0e20[0x0f00-0x0e20];	/* 0x0e20 */
 
 	/* Extended facility list */
 	__u64	stfle_fac_list[32];		/* 0x0f00 */

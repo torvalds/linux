@@ -28,6 +28,7 @@
 #include <asm/sclp.h>
 #include <asm/checksum.h>
 #include <asm/debug.h>
+#include <asm/os_info.h>
 #include "entry.h"
 
 #define IPL_PARM_BLOCK_VERSION 0
@@ -951,6 +952,13 @@ static struct attribute_group reipl_nss_attr_group = {
 	.attrs = reipl_nss_attrs,
 };
 
+static void set_reipl_block_actual(struct ipl_parameter_block *reipl_block)
+{
+	reipl_block_actual = reipl_block;
+	os_info_entry_add(OS_INFO_REIPL_BLOCK, reipl_block_actual,
+			  reipl_block->hdr.len);
+}
+
 /* reipl type */
 
 static int reipl_set_type(enum ipl_type type)
@@ -966,7 +974,7 @@ static int reipl_set_type(enum ipl_type type)
 			reipl_method = REIPL_METHOD_CCW_VM;
 		else
 			reipl_method = REIPL_METHOD_CCW_CIO;
-		reipl_block_actual = reipl_block_ccw;
+		set_reipl_block_actual(reipl_block_ccw);
 		break;
 	case IPL_TYPE_FCP:
 		if (diag308_set_works)
@@ -975,7 +983,7 @@ static int reipl_set_type(enum ipl_type type)
 			reipl_method = REIPL_METHOD_FCP_RO_VM;
 		else
 			reipl_method = REIPL_METHOD_FCP_RO_DIAG;
-		reipl_block_actual = reipl_block_fcp;
+		set_reipl_block_actual(reipl_block_fcp);
 		break;
 	case IPL_TYPE_FCP_DUMP:
 		reipl_method = REIPL_METHOD_FCP_DUMP;
@@ -985,7 +993,7 @@ static int reipl_set_type(enum ipl_type type)
 			reipl_method = REIPL_METHOD_NSS_DIAG;
 		else
 			reipl_method = REIPL_METHOD_NSS;
-		reipl_block_actual = reipl_block_nss;
+		set_reipl_block_actual(reipl_block_nss);
 		break;
 	case IPL_TYPE_UNKNOWN:
 		reipl_method = REIPL_METHOD_DEFAULT;
@@ -1257,6 +1265,29 @@ static int __init reipl_fcp_init(void)
 	return 0;
 }
 
+static int __init reipl_type_init(void)
+{
+	enum ipl_type reipl_type = ipl_info.type;
+	struct ipl_parameter_block *reipl_block;
+	unsigned long size;
+
+	reipl_block = os_info_old_entry(OS_INFO_REIPL_BLOCK, &size);
+	if (!reipl_block)
+		goto out;
+	/*
+	 * If we have an OS info reipl block, this will be used
+	 */
+	if (reipl_block->hdr.pbt == DIAG308_IPL_TYPE_FCP) {
+		memcpy(reipl_block_fcp, reipl_block, size);
+		reipl_type = IPL_TYPE_FCP;
+	} else if (reipl_block->hdr.pbt == DIAG308_IPL_TYPE_CCW) {
+		memcpy(reipl_block_ccw, reipl_block, size);
+		reipl_type = IPL_TYPE_CCW;
+	}
+out:
+	return reipl_set_type(reipl_type);
+}
+
 static int __init reipl_init(void)
 {
 	int rc;
@@ -1278,10 +1309,7 @@ static int __init reipl_init(void)
 	rc = reipl_nss_init();
 	if (rc)
 		return rc;
-	rc = reipl_set_type(ipl_info.type);
-	if (rc)
-		return rc;
-	return 0;
+	return reipl_type_init();
 }
 
 static struct shutdown_action __refdata reipl_action = {

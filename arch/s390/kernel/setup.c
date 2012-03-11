@@ -62,6 +62,7 @@
 #include <asm/ebcdic.h>
 #include <asm/kvm_virtio.h>
 #include <asm/diag.h>
+#include <asm/os_info.h>
 #include "entry.h"
 
 long psw_kernel_bits	= PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_PRIMARY |
@@ -778,6 +779,7 @@ static void __init reserve_crashkernel(void)
 	pr_info("Reserving %lluMB of memory at %lluMB "
 		"for crashkernel (System RAM: %luMB)\n",
 		crash_size >> 20, crash_base >> 20, memory_end >> 20);
+	os_info_crashkernel_add(crash_base, crash_size);
 #endif
 }
 
@@ -1057,6 +1059,7 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	os_info_init();
 	setup_ipl();
 	setup_memory_end();
 	setup_addressing_mode();
