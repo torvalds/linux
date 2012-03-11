@@ -45,7 +45,7 @@
  *   - incremented when a device id maps a data server already in the cache.
  *   - decremented when deviceid is removed from the cache.
  */
-DEFINE_SPINLOCK(nfs4_ds_cache_lock);
+static DEFINE_SPINLOCK(nfs4_ds_cache_lock);
 static LIST_HEAD(nfs4_data_server_cache);
 
 /* Debug routines */
@@ -108,7 +108,7 @@ same_sockaddr(struct sockaddr *addr1, struct sockaddr *addr2)
 	return false;
 }
 
-bool
+static bool
 _same_data_server_addrs_locked(const struct list_head *dsaddrs1,
 			       const struct list_head *dsaddrs2)
 {

@@ -54,8 +54,8 @@
 
 /* Default cache timeout is 10 minutes */
 unsigned int nfs_idmap_cache_timeout = 600;
-const struct cred *id_resolver_cache;
-struct key_type key_type_id_resolver_legacy;
+static const struct cred *id_resolver_cache;
+static struct key_type key_type_id_resolver_legacy;
 
 
 /**
@@ -160,7 +160,7 @@ static int nfs_map_numeric_to_string(__u32 id, char *buf, size_t buflen)
 	return snprintf(buf, buflen, "%u", id);
 }
 
-struct key_type key_type_id_resolver = {
+static struct key_type key_type_id_resolver = {
 	.name		= "id_resolver",
 	.instantiate	= user_instantiate,
 	.match		= user_match,
@@ -381,7 +381,7 @@ static const struct rpc_pipe_ops idmap_upcall_ops = {
 	.destroy_msg	= idmap_pipe_destroy_msg,
 };
 
-struct key_type key_type_id_resolver_legacy = {
+static struct key_type key_type_id_resolver_legacy = {
 	.name		= "id_resolver",
 	.instantiate	= user_instantiate,
 	.match		= user_match,

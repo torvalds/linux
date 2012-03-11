@@ -256,11 +256,14 @@ int nfs_inode_set_delegation(struct inode *inode, struct rpc_cred *cred, struct 
 		/*
 		 * Deal with broken servers that hand out two
 		 * delegations for the same file.
+		 * Allow for upgrades to a WRITE delegation, but
+		 * nothing else.
 		 */
 		dfprintk(FILE, "%s: server %s handed out "
 				"a duplicate delegation!\n",
 				__func__, clp->cl_hostname);
-		if (delegation->type <= old_delegation->type) {
+		if (delegation->type == old_delegation->type ||
+		    !(delegation->type & FMODE_WRITE)) {
 			freeme = delegation;
 			delegation = NULL;
 			goto out;

@@ -101,7 +101,7 @@ nfs4_callback_svc(void *vrqstp)
 /*
  * Prepare to bring up the NFSv4 callback service
  */
-struct svc_rqst *
+static struct svc_rqst *
 nfs4_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 {
 	int ret;
@@ -172,7 +172,7 @@ nfs41_callback_svc(void *vrqstp)
 /*
  * Bring up the NFSv4.1 callback service
  */
-struct svc_rqst *
+static struct svc_rqst *
 nfs41_callback_up(struct svc_serv *serv, struct rpc_xprt *xprt)
 {
 	struct svc_rqst *rqstp;

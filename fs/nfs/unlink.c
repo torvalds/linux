@@ -108,7 +108,7 @@ static void nfs_async_unlink_release(void *calldata)
 }
 
 #if defined(CONFIG_NFS_V4_1)
-void nfs_unlink_prepare(struct rpc_task *task, void *calldata)
+static void nfs_unlink_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_unlinkdata *data = calldata;
 	struct nfs_server *server = NFS_SERVER(data->dir);

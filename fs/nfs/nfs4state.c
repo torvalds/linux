@@ -876,7 +876,8 @@ int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl)
 	if (fl->fl_flags & FL_POSIX)
 		lsp = nfs4_get_lock_state(state, fl->fl_owner, 0, NFS4_POSIX_LOCK_TYPE);
 	else if (fl->fl_flags & FL_FLOCK)
-		lsp = nfs4_get_lock_state(state, 0, fl->fl_pid, NFS4_FLOCK_LOCK_TYPE);
+		lsp = nfs4_get_lock_state(state, NULL, fl->fl_pid,
+				NFS4_FLOCK_LOCK_TYPE);
 	else
 		return -EINVAL;
 	if (lsp == NULL)

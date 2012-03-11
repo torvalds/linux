@@ -156,7 +156,7 @@ last_byte_offset(u64 start, u64 len)
 	return end > start ? end - 1 : NFS4_MAX_UINT64;
 }
 
-void _fix_verify_io_params(struct pnfs_layout_segment *lseg,
+static void _fix_verify_io_params(struct pnfs_layout_segment *lseg,
 			   struct page ***p_pages, unsigned *p_pgbase,
 			   u64 offset, unsigned long count)
 {

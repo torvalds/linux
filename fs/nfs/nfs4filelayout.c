@@ -323,21 +323,21 @@ static void filelayout_commit_release(void *data)
 	nfs_commitdata_release(wdata);
 }
 
-struct rpc_call_ops filelayout_read_call_ops = {
+static const struct rpc_call_ops filelayout_read_call_ops = {
 	.rpc_call_prepare = filelayout_read_prepare,
 	.rpc_call_done = filelayout_read_call_done,
 	.rpc_count_stats = filelayout_read_count_stats,
 	.rpc_release = filelayout_read_release,
 };
 
-struct rpc_call_ops filelayout_write_call_ops = {
+static const struct rpc_call_ops filelayout_write_call_ops = {
 	.rpc_call_prepare = filelayout_write_prepare,
 	.rpc_call_done = filelayout_write_call_done,
 	.rpc_count_stats = filelayout_write_count_stats,
 	.rpc_release = filelayout_write_release,
 };
 
-struct rpc_call_ops filelayout_commit_call_ops = {
+static const struct rpc_call_ops filelayout_commit_call_ops = {
 	.rpc_call_prepare = filelayout_write_prepare,
 	.rpc_call_done = filelayout_write_call_done,
 	.rpc_count_stats = filelayout_write_count_stats,
@@ -723,7 +723,7 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	return (p_stripe == r_stripe);
 }
 
-void
+static void
 filelayout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 			struct nfs_page *req)
 {
@@ -740,7 +740,7 @@ filelayout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 		nfs_pageio_reset_read_mds(pgio);
 }
 
-void
+static void
 filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			 struct nfs_page *req)
 {

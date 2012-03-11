@@ -10,6 +10,7 @@
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/dns_resolver.h>
+#include "dns_resolve.h"
 
 ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 		struct sockaddr *sa, size_t salen)

@@ -443,9 +443,8 @@ static int nfs_sockaddr_cmp(const struct sockaddr *sa1,
 }
 
 /* Common match routine for v4.0 and v4.1 callback services */
-bool
-nfs4_cb_match_client(const struct sockaddr *addr, struct nfs_client *clp,
-		     u32 minorversion)
+static bool nfs4_cb_match_client(const struct sockaddr *addr,
+		struct nfs_client *clp, u32 minorversion)
 {
 	struct sockaddr *clap = (struct sockaddr *)&clp->cl_addr;
 

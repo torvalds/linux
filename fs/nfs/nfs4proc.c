@@ -677,12 +677,12 @@ static void nfs41_call_sync_done(struct rpc_task *task, void *calldata)
 	nfs41_sequence_done(task, data->seq_res);
 }
 
-struct rpc_call_ops nfs41_call_sync_ops = {
+static const struct rpc_call_ops nfs41_call_sync_ops = {
 	.rpc_call_prepare = nfs41_call_sync_prepare,
 	.rpc_call_done = nfs41_call_sync_done,
 };
 
-struct rpc_call_ops nfs41_call_priv_sync_ops = {
+static const struct rpc_call_ops nfs41_call_priv_sync_ops = {
 	.rpc_call_prepare = nfs41_call_priv_sync_prepare,
 	.rpc_call_done = nfs41_call_sync_done,
 };
@@ -4770,7 +4770,7 @@ static void nfs4_release_lockowner_release(void *calldata)
 	kfree(calldata);
 }
 
-const struct rpc_call_ops nfs4_release_lockowner_ops = {
+static const struct rpc_call_ops nfs4_release_lockowner_ops = {
 	.rpc_release = nfs4_release_lockowner_release,
 };
 
@@ -4910,7 +4910,8 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 	return status;
 }
 
-int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct nfs4_secinfo_flavors *flavors)
+static int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
+		struct nfs4_secinfo_flavors *flavors)
 {
 	struct nfs4_exception exception = { };
 	int err;
@@ -5096,7 +5097,7 @@ static void nfs4_get_lease_time_done(struct rpc_task *task, void *calldata)
 	dprintk("<-- %s\n", __func__);
 }
 
-struct rpc_call_ops nfs4_get_lease_time_ops = {
+static const struct rpc_call_ops nfs4_get_lease_time_ops = {
 	.rpc_call_prepare = nfs4_get_lease_time_prepare,
 	.rpc_call_done = nfs4_get_lease_time_done,
 };
@@ -6319,7 +6320,7 @@ static bool nfs4_match_stateid(const nfs4_stateid *s1,
 }
 
 
-struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
+static const struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
 	.recover_open	= nfs4_open_reclaim,
@@ -6329,7 +6330,7 @@ struct nfs4_state_recovery_ops nfs40_reboot_recovery_ops = {
 };
 
 #if defined(CONFIG_NFS_V4_1)
-struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
+static const struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_REBOOT,
 	.state_flag_bit	= NFS_STATE_RECLAIM_REBOOT,
 	.recover_open	= nfs4_open_reclaim,
@@ -6340,7 +6341,7 @@ struct nfs4_state_recovery_ops nfs41_reboot_recovery_ops = {
 };
 #endif /* CONFIG_NFS_V4_1 */
 
-struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
+static const struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
 	.recover_open	= nfs4_open_expired,
@@ -6350,7 +6351,7 @@ struct nfs4_state_recovery_ops nfs40_nograce_recovery_ops = {
 };
 
 #if defined(CONFIG_NFS_V4_1)
-struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
+static const struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
 	.owner_flag_bit = NFS_OWNER_RECLAIM_NOGRACE,
 	.state_flag_bit	= NFS_STATE_RECLAIM_NOGRACE,
 	.recover_open	= nfs41_open_expired,
@@ -6360,14 +6361,14 @@ struct nfs4_state_recovery_ops nfs41_nograce_recovery_ops = {
 };
 #endif /* CONFIG_NFS_V4_1 */
 
-struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
+static const struct nfs4_state_maintenance_ops nfs40_state_renewal_ops = {
 	.sched_state_renewal = nfs4_proc_async_renew,
 	.get_state_renewal_cred_locked = nfs4_get_renew_cred_locked,
 	.renew_lease = nfs4_proc_renew,
 };
 
 #if defined(CONFIG_NFS_V4_1)
-struct nfs4_state_maintenance_ops nfs41_state_renewal_ops = {
+static const struct nfs4_state_maintenance_ops nfs41_state_renewal_ops = {
 	.sched_state_renewal = nfs41_proc_async_sequence,
 	.get_state_renewal_cred_locked = nfs4_get_machine_cred_locked,
 	.renew_lease = nfs4_proc_sequence,

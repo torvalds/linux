@@ -92,7 +92,7 @@ _lookup_deviceid(const struct pnfs_layoutdriver_type *ld,
  * @clp nfs_client associated with deviceid
  * @id deviceid to look up
  */
-struct nfs4_deviceid_node *
+static struct nfs4_deviceid_node *
 _find_get_deviceid(const struct pnfs_layoutdriver_type *ld,
 		   const struct nfs_client *clp, const struct nfs4_deviceid *id,
 		   long hash)
