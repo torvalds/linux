@@ -64,7 +64,6 @@ config CRYPTO_DEV_GEODE
 config ZCRYPT
 	tristate "Support for PCI-attached cryptographic adapters"
 	depends on S390
-	select ZCRYPT_MONOLITHIC if ZCRYPT="y"
 	select HW_RANDOM
 	help
 	  Select this option if you want to use a PCI-attached cryptographic
@@ -76,14 +75,6 @@ config ZCRYPT
 	  + Crypto Express2 Accelerator (CEX2A)
 	  + Crypto Express3 Coprocessor (CEX3C)
 	  + Crypto Express3 Accelerator (CEX3A)
-
-config ZCRYPT_MONOLITHIC
-	bool "Monolithic zcrypt module"
-	depends on ZCRYPT
-	help
-	  Select this option if you want to have a single module z90crypt,
-	  that contains all parts of the crypto device driver (ap bus,
-	  request router and all the card drivers).
 
 config CRYPTO_SHA1_S390
 	tristate "SHA1 digest algorithm"
