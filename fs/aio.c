@@ -211,8 +211,7 @@ static void __put_ioctx(struct kioctx *ctx)
 	unsigned nr_events = ctx->max_reqs;
 	BUG_ON(ctx->reqs_active);
 
-	cancel_delayed_work(&ctx->wq);
-	cancel_work_sync(&ctx->wq.work);
+	cancel_delayed_work_sync(&ctx->wq);
 	aio_free_ring(ctx);
 	mmdrop(ctx->mm);
 	ctx->mm = NULL;
