@@ -386,7 +386,7 @@ static int __init davinci_gpio_irq_setup(void)
 	 * IRQ mux conflicts; gpio_irq_type_unbanked() is only for GPIOs.
 	 */
 	if (soc_info->gpio_unbanked) {
-		static struct irq_chip gpio_irqchip_unbanked;
+		static struct irq_chip_type gpio_unbanked;
 
 		/* pass "bank 0" GPIO IRQs to AINTC */
 		chips[0].chip.to_irq = gpio_to_irq_unbanked;
@@ -394,9 +394,10 @@ static int __init davinci_gpio_irq_setup(void)
 
 		/* AINTC handles mask/unmask; GPIO handles triggering */
 		irq = bank_irq;
-		gpio_irqchip_unbanked = *irq_get_chip(irq);
-		gpio_irqchip_unbanked.name = "GPIO-AINTC";
-		gpio_irqchip_unbanked.irq_set_type = gpio_irq_type_unbanked;
+		gpio_unbanked = *container_of(irq_get_chip(irq),
+					      struct irq_chip_type, chip);
+		gpio_unbanked.chip.name = "GPIO-AINTC";
+		gpio_unbanked.chip.irq_set_type = gpio_irq_type_unbanked;
 
 		/* default trigger: both edges */
 		g = gpio2regs(0);
@@ -405,7 +406,7 @@ static int __init davinci_gpio_irq_setup(void)
 
 		/* set the direct IRQs up to use that irqchip */
 		for (gpio = 0; gpio < soc_info->gpio_unbanked; gpio++, irq++) {
-			irq_set_chip(irq, &gpio_irqchip_unbanked);
+			irq_set_chip(irq, &gpio_unbanked.chip);
 			irq_set_handler_data(irq, &chips[gpio / 32]);
 			irq_set_status_flags(irq, IRQ_TYPE_EDGE_BOTH);
 		}
