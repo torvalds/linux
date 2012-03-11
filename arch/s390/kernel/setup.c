@@ -747,7 +747,7 @@ static void __init reserve_crashkernel(void)
 {
 #ifdef CONFIG_CRASH_DUMP
 	unsigned long long crash_base, crash_size;
-	char *msg;
+	char *msg = NULL;
 	int rc;
 
 	rc = parse_crashkernel(boot_command_line, memory_end, &crash_size,
