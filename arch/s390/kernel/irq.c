@@ -219,8 +219,6 @@ void __irq_entry do_extint(struct pt_regs *regs, unsigned int ext_int_code,
 
 	code = (unsigned short) ext_int_code;
 	old_regs = set_irq_regs(regs);
-	s390_idle_check(regs, S390_lowcore.int_clock,
-			S390_lowcore.async_enter_timer);
 	irq_enter();
 	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
 		/* Serve timer interrupts first. */

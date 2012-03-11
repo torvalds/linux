@@ -77,13 +77,8 @@ static void default_idle(void)
 		local_irq_enable();
 		return;
 	}
-	trace_hardirqs_on();
-	/* Don't trace preempt off for idle. */
-	stop_critical_timings();
-	/* Stop virtual timer and halt the cpu. */
+	/* Halt the cpu and keep track of cpu time accounting. */
 	vtime_stop_cpu();
-	/* Reenable preemption tracer. */
-	start_critical_timings();
 }
 
 void cpu_idle(void)

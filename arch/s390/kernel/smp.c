@@ -972,22 +972,16 @@ static DEVICE_ATTR(capability, 0444, show_capability, NULL);
 static ssize_t show_idle_count(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct s390_idle_data *idle;
+	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
 	unsigned long long idle_count;
 	unsigned int sequence;
 
-	idle = &per_cpu(s390_idle, dev->id);
-repeat:
-	sequence = idle->sequence;
-	smp_rmb();
-	if (sequence & 1)
-		goto repeat;
-	idle_count = idle->idle_count;
-	if (idle->idle_enter)
-		idle_count++;
-	smp_rmb();
-	if (idle->sequence != sequence)
-		goto repeat;
+	do {
+		sequence = ACCESS_ONCE(idle->sequence);
+		idle_count = ACCESS_ONCE(idle->idle_count);
+		if (ACCESS_ONCE(idle->idle_enter))
+			idle_count++;
+	} while ((sequence & 1) || (idle->sequence != sequence));
 	return sprintf(buf, "%llu\n", idle_count);
 }
 static DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
@@ -995,24 +989,18 @@ static DEVICE_ATTR(idle_count, 0444, show_idle_count, NULL);
 static ssize_t show_idle_time(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct s390_idle_data *idle;
-	unsigned long long now, idle_time, idle_enter;
+	struct s390_idle_data *idle = &per_cpu(s390_idle, dev->id);
+	unsigned long long now, idle_time, idle_enter, idle_exit;
 	unsigned int sequence;
 
-	idle = &per_cpu(s390_idle, dev->id);
-	now = get_clock();
-repeat:
-	sequence = idle->sequence;
-	smp_rmb();
-	if (sequence & 1)
-		goto repeat;
-	idle_time = idle->idle_time;
-	idle_enter = idle->idle_enter;
-	if (idle_enter != 0ULL && idle_enter < now)
-		idle_time += now - idle_enter;
-	smp_rmb();
-	if (idle->sequence != sequence)
-		goto repeat;
+	do {
+		now = get_clock();
+		sequence = ACCESS_ONCE(idle->sequence);
+		idle_time = ACCESS_ONCE(idle->idle_time);
+		idle_enter = ACCESS_ONCE(idle->idle_enter);
+		idle_exit = ACCESS_ONCE(idle->idle_exit);
+	} while ((sequence & 1) || (idle->sequence != sequence));
+	idle_time += idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
 	return sprintf(buf, "%llu\n", idle_time >> 12);
 }
 static DEVICE_ATTR(idle_time_us, 0444, show_idle_time, NULL);

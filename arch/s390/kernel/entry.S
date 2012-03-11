@@ -105,14 +105,14 @@ STACK_SIZE  = 1 << STACK_SHIFT
 
 	.macro	ADD64 high,low,timer
 	al	\high,\timer
-	al	\low,\timer+4
+	al	\low,4+\timer
 	brc	12,.+8
 	ahi	\high,1
 	.endm
 
 	.macro	SUB64 high,low,timer
 	sl	\high,\timer
-	sl	\low,\timer+4
+	sl	\low,4+\timer
 	brc	3,.+8
 	ahi	\high,-1
 	.endm
@@ -471,7 +471,6 @@ io_tif:
 	jnz	io_work			# there is work to do (signals etc.)
 io_restore:
 	mvc	__LC_RETURN_PSW(8),__PT_PSW(%r11)
-	ni	__LC_RETURN_PSW+1,0xfd	# clean wait state bit
 	stpt	__LC_EXIT_TIMER
 	lm	%r0,%r15,__PT_R0(%r11)
 	lpsw	__LC_RETURN_PSW
@@ -612,6 +611,26 @@ ext_skip:
 	basr	%r14,%r1		# call do_extint
 	j	io_return
 
+/*
+ * Load idle PSW. The second "half" of this function is in cleanup_idle.
+ */
+ENTRY(psw_idle)
+	st	%r4,__SF_EMPTY(%r15)
+	basr	%r1,0
+	la	%r1,psw_idle_lpsw+4-.(%r1)
+	st	%r1,__SF_EMPTY+4(%r15)
+	oi	__SF_EMPTY+4(%r15),0x80
+	la	%r1,.Lvtimer_max-psw_idle_lpsw-4(%r1)
+	stck	__IDLE_ENTER(%r2)
+	ltr	%r5,%r5
+	stpt	__VQ_IDLE_ENTER(%r3)
+	jz	psw_idle_lpsw
+	spt	0(%r1)
+psw_idle_lpsw:
+	lpsw	__SF_EMPTY(%r15)
+	br	%r14
+psw_idle_end:
+
 __critical_end:
 
 /*
@@ -673,7 +692,6 @@ mcck_skip:
 	TRACE_IRQS_ON
 mcck_return:
 	mvc	__LC_RETURN_MCCK_PSW(8),__PT_PSW(%r11) # move return PSW
-	ni	__LC_RETURN_MCCK_PSW+1,0xfd # clear wait state bit
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
 	jno	0f
 	lm	%r0,%r15,__PT_R0(%r11)
@@ -748,6 +766,8 @@ cleanup_table:
 	.long	io_tif + 0x80000000
 	.long	io_restore + 0x80000000
 	.long	io_done + 0x80000000
+	.long	psw_idle + 0x80000000
+	.long	psw_idle_end + 0x80000000
 
 cleanup_critical:
 	cl	%r9,BASED(cleanup_table)	# system_call
@@ -766,6 +786,10 @@ cleanup_critical:
 	jl	cleanup_io_tif
 	cl	%r9,BASED(cleanup_table+28)	# io_done
 	jl	cleanup_io_restore
+	cl	%r9,BASED(cleanup_table+32)	# psw_idle
+	jl	0f
+	cl	%r9,BASED(cleanup_table+36)	# psw_idle_end
+	jl	cleanup_idle
 0:	br	%r14
 
 cleanup_system_call:
@@ -849,7 +873,6 @@ cleanup_io_restore:
 	jhe	0f
 	l	%r9,12(%r11)		# get saved r11 pointer to pt_regs
 	mvc	__LC_RETURN_PSW(8),__PT_PSW(%r9)
-	ni	__LC_RETURN_PSW+1,0xfd	# clear wait state bit
 	mvc	0(32,%r11),__PT_R8(%r9)
 	lm	%r0,%r7,__PT_R0(%r9)
 0:	lm	%r8,%r9,__LC_RETURN_PSW
@@ -857,11 +880,52 @@ cleanup_io_restore:
 cleanup_io_restore_insn:
 	.long	io_done - 4 + 0x80000000
 
+cleanup_idle:
+	# copy interrupt clock & cpu timer
+	mvc	__IDLE_EXIT(8,%r2),__LC_INT_CLOCK
+	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_ASYNC_ENTER_TIMER
+	chi	%r11,__LC_SAVE_AREA_ASYNC
+	je	0f
+	mvc	__IDLE_EXIT(8,%r2),__LC_MCCK_CLOCK
+	mvc	__VQ_IDLE_EXIT(8,%r3),__LC_MCCK_ENTER_TIMER
+0:	# check if stck has been executed
+	cl	%r9,BASED(cleanup_idle_insn)
+	jhe	1f
+	mvc	__IDLE_ENTER(8,%r2),__IDLE_EXIT(%r2)
+	mvc	__VQ_IDLE_ENTER(8,%r3),__VQ_IDLE_EXIT(%r3)
+	j	2f
+1:	# check if the cpu timer has been reprogrammed
+	ltr	%r5,%r5
+	jz	2f
+	spt	__VQ_IDLE_ENTER(%r3)
+2:	# account system time going idle
+	lm	%r9,%r10,__LC_STEAL_TIMER
+	ADD64	%r9,%r10,__IDLE_ENTER(%r2)
+	SUB64	%r9,%r10,__LC_LAST_UPDATE_CLOCK
+	stm	%r9,%r10,__LC_STEAL_TIMER
+	mvc	__LC_LAST_UPDATE_CLOCK(8),__IDLE_EXIT(%r2)
+	lm	%r9,%r10,__LC_SYSTEM_TIMER
+	ADD64	%r9,%r10,__LC_LAST_UPDATE_TIMER
+	SUB64	%r9,%r10,__VQ_IDLE_ENTER(%r3)
+	stm	%r9,%r10,__LC_SYSTEM_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__VQ_IDLE_EXIT(%r3)
+	# prepare return psw
+	n	%r8,BASED(cleanup_idle_wait)	# clear wait state bit
+	l	%r9,24(%r11)			# return from psw_idle
+	br	%r14
+cleanup_idle_insn:
+	.long	psw_idle_lpsw + 0x80000000
+cleanup_idle_wait:
+	.long	0xfffdffff
+
 /*
  * Integer constants
  */
 	.align	4
-.Lnr_syscalls:		.long	NR_syscalls
+.Lnr_syscalls:
+	.long	NR_syscalls
+.Lvtimer_max:
+	.quad	0x7fffffffffffffff
 
 /*
  * Symbol constants
