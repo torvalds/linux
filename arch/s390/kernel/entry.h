@@ -9,6 +9,14 @@
 extern void (*pgm_check_table[128])(struct pt_regs *);
 extern void *restart_stack;
 
+void system_call(void);
+void pgm_check_handler(void);
+void ext_int_handler(void);
+void io_int_handler(void);
+void mcck_int_handler(void);
+void restart_int_handler(void);
+void restart_call_handler(void);
+
 asmlinkage long do_syscall_trace_enter(struct pt_regs *regs);
 asmlinkage void do_syscall_trace_exit(struct pt_regs *regs);
 
@@ -26,7 +34,6 @@ void do_notify_resume(struct pt_regs *regs);
 
 void do_extint(struct pt_regs *regs, unsigned int, unsigned int, unsigned long);
 void do_restart(void);
-int __cpuinit start_secondary(void *cpuvoid);
 void __init startup_init(void);
 void die(struct pt_regs *regs, const char *str);
 

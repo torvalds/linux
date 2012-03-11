@@ -2,7 +2,7 @@
  *  arch/s390/kernel/ipl.c
  *    ipl/reipl/dump support for Linux on s390.
  *
- *    Copyright IBM Corp. 2005,2007
+ *    Copyright IBM Corp. 2005,2012
  *    Author(s): Michael Holzheu <holzheu@de.ibm.com>
  *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  *		 Volker Sameske <sameske@de.ibm.com>
@@ -25,7 +25,6 @@
 #include <asm/ebcdic.h>
 #include <asm/reset.h>
 #include <asm/sclp.h>
-#include <asm/sigp.h>
 #include <asm/checksum.h>
 #include "entry.h"
 
@@ -571,7 +570,7 @@ static void __ipl_run(void *unused)
 
 static void ipl_run(struct shutdown_trigger *trigger)
 {
-	smp_switch_to_ipl_cpu(__ipl_run, NULL);
+	smp_call_ipl_cpu(__ipl_run, NULL);
 }
 
 static int __init ipl_init(void)
@@ -1101,7 +1100,7 @@ static void __reipl_run(void *unused)
 
 static void reipl_run(struct shutdown_trigger *trigger)
 {
-	smp_switch_to_ipl_cpu(__reipl_run, NULL);
+	smp_call_ipl_cpu(__reipl_run, NULL);
 }
 
 static void reipl_block_ccw_init(struct ipl_parameter_block *ipb)
@@ -1421,7 +1420,7 @@ static void dump_run(struct shutdown_trigger *trigger)
 	if (dump_method == DUMP_METHOD_NONE)
 		return;
 	smp_send_stop();
-	smp_switch_to_ipl_cpu(__dump_run, NULL);
+	smp_call_ipl_cpu(__dump_run, NULL);
 }
 
 static int __init dump_ccw_init(void)
@@ -1623,9 +1622,7 @@ static void stop_run(struct shutdown_trigger *trigger)
 	if (strcmp(trigger->name, ON_PANIC_STR) == 0 ||
 	    strcmp(trigger->name, ON_RESTART_STR) == 0)
 		disabled_wait((unsigned long) __builtin_return_address(0));
-	while (sigp(smp_processor_id(), sigp_stop) == sigp_busy)
-		cpu_relax();
-	for (;;);
+	smp_stop_cpu();
 }
 
 static struct shutdown_action stop_action = {SHUTDOWN_ACTION_STOP_STR,
@@ -1738,15 +1735,19 @@ static ssize_t on_restart_store(struct kobject *kobj,
 static struct kobj_attribute on_restart_attr =
 	__ATTR(on_restart, 0644, on_restart_show, on_restart_store);
 
-void do_restart(void)
+static void __do_restart(void *ignore)
 {
-	smp_restart_with_online_cpu();
 	smp_send_stop();
 #ifdef CONFIG_CRASH_DUMP
 	crash_kexec(NULL);
 #endif
 	on_restart_trigger.action->fn(&on_restart_trigger);
 	stop_run(&on_restart_trigger);
+}
+
+void do_restart(void)
+{
+	smp_call_online_cpu(__do_restart, NULL);
 }
 
 /* on halt */

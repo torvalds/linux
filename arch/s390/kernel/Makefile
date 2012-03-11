@@ -34,8 +34,6 @@ extra-y				+= $(if $(CONFIG_64BIT),head64.o,head31.o)
 obj-$(CONFIG_MODULES)		+= s390_ksyms.o module.o
 obj-$(CONFIG_SMP)		+= smp.o
 obj-$(CONFIG_SCHED_BOOK)	+= topology.o
-obj-$(CONFIG_SMP)		+= $(if $(CONFIG_64BIT),switch_cpu64.o, \
-							switch_cpu.o)
 obj-$(CONFIG_HIBERNATION)	+= suspend.o swsusp_asm64.o
 obj-$(CONFIG_AUDIT)		+= audit.o
 compat-obj-$(CONFIG_AUDIT)	+= compat_audit.o

@@ -570,6 +570,9 @@ void init_cpu_vtimer(void)
 
 	/* enable cpu timer interrupts */
 	__ctl_set_bit(0,10);
+
+	/* set initial cpu timer */
+	set_vtimer(0x7fffffffffffffffULL);
 }
 
 static int __cpuinit s390_nohz_notify(struct notifier_block *self,

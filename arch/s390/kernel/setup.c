@@ -2,7 +2,7 @@
  *  arch/s390/kernel/setup.c
  *
  *  S390 version
- *    Copyright (C) IBM Corp. 1999,2010
+ *    Copyright (C) IBM Corp. 1999,2012
  *    Author(s): Hartmut Penner (hp@de.ibm.com),
  *               Martin Schwidefsky (schwidefsky@de.ibm.com)
  *
@@ -62,6 +62,7 @@
 #include <asm/ebcdic.h>
 #include <asm/kvm_virtio.h>
 #include <asm/diag.h>
+#include "entry.h"
 
 long psw_kernel_bits	= PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_ASC_PRIMARY |
 			  PSW_MASK_EA | PSW_MASK_BA;
@@ -351,8 +352,9 @@ static void setup_addressing_mode(void)
 	}
 }
 
-static void __init
-setup_lowcore(void)
+void *restart_stack __attribute__((__section__(".data")));
+
+static void __init setup_lowcore(void)
 {
 	struct _lowcore *lc;
 
@@ -363,7 +365,7 @@ setup_lowcore(void)
 	lc = __alloc_bootmem_low(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = psw_kernel_bits;
 	lc->restart_psw.addr =
-		PSW_ADDR_AMODE | (unsigned long) psw_restart_int_handler;
+		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
 	lc->external_new_psw.mask = psw_kernel_bits |
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->external_new_psw.addr =
@@ -412,6 +414,24 @@ setup_lowcore(void)
 	lc->last_update_timer = S390_lowcore.last_update_timer;
 	lc->last_update_clock = S390_lowcore.last_update_clock;
 	lc->ftrace_func = S390_lowcore.ftrace_func;
+
+	restart_stack = __alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0);
+	restart_stack += ASYNC_SIZE;
+
+	/*
+	 * Set up PSW restart to call ipl.c:do_restart(). Copy the relevant
+	 * restart data to the absolute zero lowcore. This is necesary if
+	 * PSW restart is done on an offline CPU that has lowcore zero.
+	 */
+	lc->restart_stack = (unsigned long) restart_stack;
+	lc->restart_fn = (unsigned long) do_restart;
+	lc->restart_data = 0;
+	lc->restart_source = -1UL;
+	memcpy(&S390_lowcore.restart_stack, &lc->restart_stack,
+	       4*sizeof(unsigned long));
+	copy_to_absolute_zero(&S390_lowcore.restart_psw,
+			      &lc->restart_psw, sizeof(psw_t));
+
 	set_prefix((u32)(unsigned long) lc);
 	lowcore_ptr[0] = lc;
 }
@@ -570,27 +590,6 @@ static void __init setup_memory_end(void)
 		if (chunk->addr + chunk->size > memory_end)
 			chunk->size = memory_end - chunk->addr;
 	}
-}
-
-void *restart_stack __attribute__((__section__(".data")));
-
-/*
- * Setup new PSW and allocate stack for PSW restart interrupt
- */
-static void __init setup_restart_psw(void)
-{
-	psw_t psw;
-
-	restart_stack = __alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0);
-	restart_stack += ASYNC_SIZE;
-
-	/*
-	 * Setup restart PSW for absolute zero lowcore. This is necesary
-	 * if PSW restart is done on an offline CPU that has lowcore zero
-	 */
-	psw.mask = PSW_DEFAULT_KEY | PSW_MASK_BASE | PSW_MASK_EA | PSW_MASK_BA;
-	psw.addr = PSW_ADDR_AMODE | (unsigned long) psw_restart_int_handler;
-	copy_to_absolute_zero(&S390_lowcore.restart_psw, &psw, sizeof(psw));
 }
 
 static void __init setup_vmcoreinfo(void)
@@ -782,8 +781,7 @@ static void __init reserve_crashkernel(void)
 #endif
 }
 
-static void __init
-setup_memory(void)
+static void __init setup_memory(void)
 {
         unsigned long bootmap_size;
 	unsigned long start_pfn, end_pfn;
@@ -1014,8 +1012,7 @@ static void __init setup_hwcaps(void)
  * was printed.
  */
 
-void __init
-setup_arch(char **cmdline_p)
+void __init setup_arch(char **cmdline_p)
 {
         /*
          * print what head.S has found out about the machine
@@ -1068,7 +1065,6 @@ setup_arch(char **cmdline_p)
 	setup_memory();
 	setup_resources();
 	setup_vmcoreinfo();
-	setup_restart_psw();
 	setup_lowcore();
 
         cpu_init();

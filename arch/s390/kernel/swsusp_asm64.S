@@ -179,9 +179,9 @@ pgm_check_entry:
 	larl	%r4,.Lrestart_suspend_psw	/* Set new restart PSW */
 	mvc	__LC_RST_NEW_PSW(16,%r0),0(%r4)
 3:
-	sigp	%r9,%r1,__SIGP_INITIAL_CPU_RESET
-	brc	8,4f	/* accepted */
-	brc	2,3b	/* busy, try again */
+	sigp	%r9,%r1,11			/* sigp initial cpu reset */
+	brc	8,4f				/* accepted */
+	brc	2,3b				/* busy, try again */
 
 	/* Suspend CPU not available -> panic */
 	larl	%r15,init_thread_union
@@ -196,10 +196,10 @@ pgm_check_entry:
 	lpsw	0(%r3)
 4:
 	/* Switch to suspend CPU */
-	sigp	%r9,%r1,__SIGP_RESTART	/* start suspend CPU */
+	sigp	%r9,%r1,6		/* sigp restart to suspend CPU */
 	brc	2,4b			/* busy, try again */
 5:
-	sigp	%r9,%r2,__SIGP_STOP	/* stop resume (current) CPU */
+	sigp	%r9,%r2,5		/* sigp stop to current resume CPU */
 	brc	2,5b			/* busy, try again */
 6:	j	6b
 
@@ -207,7 +207,7 @@ restart_suspend:
 	larl	%r1,.Lresume_cpu
 	llgh	%r2,0(%r1)
 7:
-	sigp	%r9,%r2,__SIGP_SENSE	/* Wait for resume CPU */
+	sigp	%r9,%r2,1		/* sigp sense, wait for resume CPU */
 	brc	8,7b			/* accepted, status 0, still running */
 	brc	2,7b			/* busy, try again */
 	tmll	%r9,0x40		/* Test if resume CPU is stopped */

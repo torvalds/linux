@@ -2,7 +2,7 @@
  *  arch/s390/kernel/entry64.S
  *    S390 low-level entry points.
  *
- *    Copyright (C) IBM Corp. 1999,2010
+ *    Copyright (C) IBM Corp. 1999,2012
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Hartmut Penner (hp@de.ibm.com),
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
@@ -713,68 +713,30 @@ mcck_panic:
 0:	aghi	%r15,-(STACK_FRAME_OVERHEAD + __PT_SIZE)
 	j	mcck_skip
 
-/*
- * Restart interruption handler, kick starter for additional CPUs
- */
-#ifdef CONFIG_SMP
-	__CPUINIT
-ENTRY(restart_int_handler)
-	basr	%r1,0
-restart_base:
-	spt	restart_vtime-restart_base(%r1)
-	stck	__LC_LAST_UPDATE_CLOCK
-	mvc	__LC_LAST_UPDATE_TIMER(8),restart_vtime-restart_base(%r1)
-	mvc	__LC_EXIT_TIMER(8),restart_vtime-restart_base(%r1)
-	lghi	%r10,__LC_GPREGS_SAVE_AREA
-	lg	%r15,120(%r10)		# load ksp
-	lghi	%r10,__LC_CREGS_SAVE_AREA
-	lctlg	%c0,%c15,0(%r10)	# get new ctl regs
-	lghi	%r10,__LC_AREGS_SAVE_AREA
-	lam	%a0,%a15,0(%r10)
-	lmg	%r6,%r15,__SF_GPRS(%r15)# load registers from clone
-	lg	%r1,__LC_THREAD_INFO
-	mvc	__LC_USER_TIMER(8),__TI_user_timer(%r1)
-	mvc	__LC_SYSTEM_TIMER(8),__TI_system_timer(%r1)
-	xc	__LC_STEAL_TIMER(8),__LC_STEAL_TIMER
-	ssm	__LC_PGM_NEW_PSW	# turn dat on, keep irqs off
-	brasl	%r14,start_secondary
-	.align	8
-restart_vtime:
-	.long	0x7fffffff,0xffffffff
-	.previous
-#else
-/*
- * If we do not run with SMP enabled, let the new CPU crash ...
- */
-ENTRY(restart_int_handler)
-	basr	%r1,0
-restart_base:
-	lpswe	restart_crash-restart_base(%r1)
-	.align 8
-restart_crash:
-	.long  0x000a0000,0x00000000,0x00000000,0x00000000
-restart_go:
-#endif
-
 #
 # PSW restart interrupt handler
 #
-ENTRY(psw_restart_int_handler)
+ENTRY(restart_int_handler)
 	stg	%r15,__LC_SAVE_AREA_RESTART
-	larl	%r15,restart_stack		# load restart stack
-	lg	%r15,0(%r15)
+	lg	%r15,__LC_RESTART_STACK
 	aghi	%r15,-__PT_SIZE			# create pt_regs on stack
+	xc	0(__PT_SIZE,%r15),0(%r15)
 	stmg	%r0,%r14,__PT_R0(%r15)
 	mvc	__PT_R15(8,%r15),__LC_SAVE_AREA_RESTART
 	mvc	__PT_PSW(16,%r15),__LC_RST_OLD_PSW # store restart old psw
-	aghi	%r15,-STACK_FRAME_OVERHEAD
-	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
-	brasl	%r14,do_restart
-	larl	%r14,restart_psw_crash		# load disabled wait PSW if
-	lpswe	0(%r14)				# do_restart returns
-	.align 8
-restart_psw_crash:
-	.quad	0x0002000080000000,0x0000000000000000 + restart_psw_crash
+	aghi	%r15,-STACK_FRAME_OVERHEAD	# create stack frame on stack
+	xc	0(STACK_FRAME_OVERHEAD,%r15),0(%r15)
+	lmg	%r1,%r3,__LC_RESTART_FN		# load fn, parm & source cpu
+	ltgr	%r3,%r3				# test source cpu address
+	jm	1f				# negative -> skip source stop
+0:	sigp	%r4,%r3,1			# sigp sense to source cpu
+	brc	10,0b				# wait for status stored
+1:	basr	%r14,%r1			# call function
+	stap	__SF_EMPTY(%r15)		# store cpu address
+	llgh	%r3,__SF_EMPTY(%r15)
+2:	sigp	%r4,%r3,5			# sigp stop to current cpu
+	brc	2,2b
+3:	j	3b
 
 	.section .kprobes.text, "ax"
 
