@@ -430,6 +430,7 @@ static int tmio_probe(struct platform_device *dev)
 	nand_chip->ecc.mode = NAND_ECC_HW;
 	nand_chip->ecc.size = 512;
 	nand_chip->ecc.bytes = 6;
+	nand_chip->ecc.strength = 2;
 	nand_chip->ecc.hwctl = tmio_nand_enable_hwecc;
 	nand_chip->ecc.calculate = tmio_nand_calculate_ecc;
 	nand_chip->ecc.correct = tmio_nand_correct_data;

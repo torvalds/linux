@@ -823,6 +823,7 @@ static void s3c2410_nand_init_chip(struct s3c2410_nand_info *info,
 		chip->ecc.calculate = s3c2410_nand_calculate_ecc;
 		chip->ecc.correct   = s3c2410_nand_correct_data;
 		chip->ecc.mode	    = NAND_ECC_HW;
+		chip->ecc.strength  = 1;
 
 		switch (info->cpu_type) {
 		case TYPE_S3C2410:

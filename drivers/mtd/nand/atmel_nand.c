@@ -554,6 +554,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		nand_chip->ecc.hwctl = atmel_nand_hwctl;
 		nand_chip->ecc.read_page = atmel_nand_read_page;
 		nand_chip->ecc.bytes = 4;
+		nand_chip->ecc.strength = 1;
 	}
 
 	nand_chip->chip_delay = 20;		/* 20us command delay time */

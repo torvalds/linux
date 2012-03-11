@@ -591,6 +591,7 @@ static int alauda_init_media(struct alauda *al)
 	mtd->_block_isbad = alauda_isbad;
 	mtd->priv = al;
 	mtd->owner = THIS_MODULE;
+	mtd->ecc_strength = 1;
 
 	err = mtd_device_register(mtd, NULL, 0);
 	if (err) {

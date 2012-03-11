@@ -167,6 +167,7 @@ static int __devinit sharpsl_nand_probe(struct platform_device *pdev)
 	this->ecc.mode = NAND_ECC_HW;
 	this->ecc.size = 256;
 	this->ecc.bytes = 3;
+	this->ecc.strength = 1;
 	this->badblock_pattern = data->badblock_pattern;
 	this->ecc.layout = data->ecc_layout;
 	this->ecc.hwctl = sharpsl_nand_enable_hwecc;

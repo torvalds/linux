@@ -1002,6 +1002,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 KEEP_CONFIG:
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.size = host->page_size;
+	chip->ecc.strength = 1;
 
 	chip->options = NAND_NO_AUTOINCR;
 	chip->options |= NAND_NO_READRDY;

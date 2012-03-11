@@ -1058,6 +1058,7 @@ static int __devinit omap_nand_probe(struct platform_device *pdev)
 		(pdata->ecc_opt == OMAP_ECC_HAMMING_CODE_HW_ROMCODE)) {
 		info->nand.ecc.bytes            = 3;
 		info->nand.ecc.size             = 512;
+		info->nand.ecc.strength         = 1;
 		info->nand.ecc.calculate        = omap_calculate_ecc;
 		info->nand.ecc.hwctl            = omap_enable_hwecc;
 		info->nand.ecc.correct          = omap_correct_data;

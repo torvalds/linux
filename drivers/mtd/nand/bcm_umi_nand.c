@@ -476,6 +476,14 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 			largepage_bbt.options = NAND_BBT_SCAN2NDPAGE;
 		this->badblock_pattern = &largepage_bbt;
 	}
+
+	/*
+	 * FIXME: ecc strength value of 6 bits per 512 bytes of data is a
+	 * conservative guess, given 13 ecc bytes and using bch alg.
+	 * (Assume Galois field order m=15 to allow a margin of error.)
+	 */
+	this->ecc.strength = 6;
+
 #endif
 
 	/* Now finish off the scan, now that ecc.layout has been initialized. */

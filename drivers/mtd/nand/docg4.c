@@ -1191,6 +1191,7 @@ static void __init init_mtd_structs(struct mtd_info *mtd)
 	nand->ecc.size = DOCG4_PAGE_SIZE;
 	nand->ecc.prepad = 8;
 	nand->ecc.bytes	= 8;
+	nand->ecc.strength = DOCG4_T;
 	nand->options =
 		NAND_BUSWIDTH_16 | NAND_NO_SUBPAGE_WRITE | NAND_NO_AUTOINCR;
 	nand->IO_ADDR_R = nand->IO_ADDR_W = doc->virtadr + DOC_IOSPACE_DATA;

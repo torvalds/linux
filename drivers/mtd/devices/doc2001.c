@@ -348,6 +348,7 @@ void DoCMil_init(struct mtd_info *mtd)
 	mtd->erasesize = 0x2000;
 	mtd->writebufsize = mtd->writesize = 512;
 	mtd->oobsize = 16;
+	mtd->ecc_strength = 2;
 	mtd->owner = THIS_MODULE;
 	mtd->_erase = doc_erase;
 	mtd->_read = doc_read;

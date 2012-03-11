@@ -4080,6 +4080,7 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	mtd->oobavail = this->ecclayout->oobavail;
 
 	mtd->ecclayout = this->ecclayout;
+	mtd->ecc_strength = 1;
 
 	/* Fill in remaining MTD driver data */
 	mtd->type = ONENAND_IS_MLC(this) ? MTD_MLCNANDFLASH : MTD_NANDFLASH;

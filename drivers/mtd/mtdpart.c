@@ -516,6 +516,7 @@ static struct mtd_part *allocate_partition(struct mtd_info *master,
 	}
 
 	slave->mtd.ecclayout = master->ecclayout;
+	slave->mtd.ecc_strength = master->ecc_strength;
 	if (master->_block_isbad) {
 		uint64_t offs = 0;
 

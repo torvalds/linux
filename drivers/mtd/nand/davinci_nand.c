@@ -641,6 +641,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 			info->chip.ecc.bytes = 3;
 		}
 		info->chip.ecc.size = 512;
+		info->chip.ecc.strength = pdata->ecc_bits;
 		break;
 	default:
 		ret = -EINVAL;

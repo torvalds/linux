@@ -863,10 +863,12 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		nand->ecc.calculate = fsmc_read_hwecc_ecc4;
 		nand->ecc.correct = fsmc_bch8_correct_data;
 		nand->ecc.bytes = 13;
+		nand->ecc.strength = 8;
 	} else {
 		nand->ecc.calculate = fsmc_read_hwecc_ecc1;
 		nand->ecc.correct = nand_correct_data;
 		nand->ecc.bytes = 3;
+		nand->ecc.strength = 1;
 	}
 
 	/*

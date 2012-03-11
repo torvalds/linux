@@ -825,6 +825,7 @@ static int flctl_chip_init_tail(struct mtd_info *mtd)
 
 		chip->ecc.size = 512;
 		chip->ecc.bytes = 10;
+		chip->ecc.strength = 4;
 		chip->ecc.read_page = flctl_read_page_hwecc;
 		chip->ecc.write_page = flctl_write_page_hwecc;
 		chip->ecc.mode = NAND_ECC_HW;
