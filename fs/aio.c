@@ -390,10 +390,6 @@ void exit_aio(struct mm_struct *mm)
 		aio_cancel_all(ctx);
 
 		wait_for_all_aios(ctx);
-		/*
-		 * Ensure we don't leave the ctx on the aio_wq
-		 */
-		cancel_work_sync(&ctx->wq.work);
 
 		if (1 != atomic_read(&ctx->users))
 			printk(KERN_DEBUG
