@@ -79,15 +79,16 @@ int nfs4_blkdev_put(struct block_device *bdev)
 	return blkdev_put(bdev, FMODE_READ);
 }
 
-static struct bl_dev_msg bl_mount_reply;
-
 ssize_t bl_pipe_downcall(struct file *filp, const char __user *src,
 			 size_t mlen)
 {
+	struct nfs_net *nn = net_generic(filp->f_dentry->d_sb->s_fs_info,
+					 nfs_net_id);
+
 	if (mlen != sizeof (struct bl_dev_msg))
 		return -EINVAL;
 
-	if (copy_from_user(&bl_mount_reply, src, mlen) != 0)
+	if (copy_from_user(&nn->bl_mount_reply, src, mlen) != 0)
 		return -EFAULT;
 
 	wake_up(&bl_wq);
@@ -118,10 +119,10 @@ nfs4_blk_decode_device(struct nfs_server *server,
 	};
 	uint8_t *dataptr;
 	DECLARE_WAITQUEUE(wq, current);
-	struct bl_dev_msg *reply = &bl_mount_reply;
 	int offset, len, i, rc;
 	struct net *net = server->nfs_client->net;
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
+	struct bl_dev_msg *reply = &nn->bl_mount_reply;
 
 	dprintk("%s CREATING PIPEFS MESSAGE\n", __func__);
 	dprintk("%s: deviceid: %s, mincount: %d\n", __func__, dev->dev_id.data,
