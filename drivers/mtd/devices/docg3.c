@@ -734,7 +734,7 @@ err:
  * doc_read_page_getbytes - Reads bytes from a prepared page
  * @docg3: the device
  * @len: the number of bytes to be read (must be a multiple of 4)
- * @buf: the buffer to be filled in
+ * @buf: the buffer to be filled in (or NULL is forget bytes)
  * @first: 1 if first time read, DOC_READADDRESS should be set
  *
  */
@@ -849,7 +849,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 			struct mtd_oob_ops *ops)
 {
 	struct docg3 *docg3 = mtd->priv;
-	int block0, block1, page, ret, ofs = 0;
+	int block0, block1, page, ret, skip, ofs = 0;
 	u8 *oobbuf = ops->oobbuf;
 	u8 *buf = ops->datbuf;
 	size_t len, ooblen, nbdata, nboob;
@@ -869,8 +869,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 
 	doc_dbg("doc_read_oob(from=%lld, mode=%d, data=(%p:%zu), oob=(%p:%zu))\n",
 		from, ops->mode, buf, len, oobbuf, ooblen);
-	if ((len % DOC_LAYOUT_PAGE_SIZE) || (ooblen % DOC_LAYOUT_OOB_SIZE) ||
-	    (from % DOC_LAYOUT_PAGE_SIZE))
+	if (ooblen % DOC_LAYOUT_OOB_SIZE)
 		return -EINVAL;
 
 	ret = -EINVAL;
@@ -882,10 +881,11 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	ops->oobretlen = 0;
 	ops->retlen = 0;
 	ret = 0;
+	skip = from % DOC_LAYOUT_PAGE_SIZE;
 	while (!ret && (len > 0 || ooblen > 0)) {
-		calc_block_sector(from, &block0, &block1, &page, &ofs,
+		calc_block_sector(from - skip, &block0, &block1, &page, &ofs,
 			docg3->reliable);
-		nbdata = min_t(size_t, len, (size_t)DOC_LAYOUT_PAGE_SIZE);
+		nbdata = min_t(size_t, len, DOC_LAYOUT_PAGE_SIZE - skip);
 		nboob = min_t(size_t, ooblen, (size_t)DOC_LAYOUT_OOB_SIZE);
 		ret = doc_read_page_prepare(docg3, block0, block1, page, ofs);
 		if (ret < 0)
@@ -893,10 +893,14 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		ret = doc_read_page_ecc_init(docg3, DOC_ECC_BCH_TOTAL_BYTES);
 		if (ret < 0)
 			goto err_in_read;
-		ret = doc_read_page_getbytes(docg3, nbdata, buf, 1);
+		ret = doc_read_page_getbytes(docg3, skip, NULL, 1);
+		if (ret < skip)
+			goto err_in_read;
+		ret = doc_read_page_getbytes(docg3, nbdata, buf, 0);
 		if (ret < nbdata)
 			goto err_in_read;
-		doc_read_page_getbytes(docg3, DOC_LAYOUT_PAGE_SIZE - nbdata,
+		doc_read_page_getbytes(docg3,
+				       DOC_LAYOUT_PAGE_SIZE - nbdata - skip,
 				       NULL, 0);
 		ret = doc_read_page_getbytes(docg3, nboob, oobbuf, 0);
 		if (ret < nboob)
@@ -950,6 +954,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		len -= nbdata;
 		ooblen -= nboob;
 		from += DOC_LAYOUT_PAGE_SIZE;
+		skip = 0;
 	}
 
 	return ret;
