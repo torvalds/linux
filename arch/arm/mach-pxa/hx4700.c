@@ -97,9 +97,9 @@ static unsigned long hx4700_pin_config[] __initdata = {
 
 	/* BTUART */
 	GPIO42_BTUART_RXD,
-	GPIO43_BTUART_TXD,
+	GPIO43_BTUART_TXD_LPM_LOW,
 	GPIO44_BTUART_CTS,
-	GPIO45_BTUART_RTS,
+	GPIO45_BTUART_RTS_LPM_LOW,
 
 	/* PWM 1 (Backlight) */
 	GPIO17_PWM1_OUT,
