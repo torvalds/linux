@@ -33,7 +33,7 @@
 #include <linux/libata.h>
 
 #define DRV_NAME "pata_cmd64x"
-#define DRV_VERSION "0.2.16"
+#define DRV_VERSION "0.2.17"
 
 /*
  * CMD64x specific registers definition.
@@ -230,41 +230,39 @@ static void cmd64x_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 }
 
 /**
- *	cmd64x_bmdma_stop	-	DMA stop callback
- *	@qc: Command in progress
+ *	cmd64x_sff_irq_clear	-	clear IDE interrupt
+ *	@ap: ATA interface
  *
- *	DMA has completed.
+ *	Clear IDE interrupt in CFR/ARTTIM23 and DMA status registers.
  */
 
-static void cmd64x_bmdma_stop(struct ata_queued_cmd *qc)
+static void cmd64x_sff_irq_clear(struct ata_port *ap)
 {
-	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	int irq_reg = ap->port_no ? ARTTIM23 : CFR;
 	u8 irq_stat;
 
-	ata_bmdma_stop(qc);
+	ata_bmdma_irq_clear(ap);
 
 	/* Reading the register should be enough to clear the interrupt */
 	pci_read_config_byte(pdev, irq_reg, &irq_stat);
 }
 
 /**
- *	cmd648_bmdma_stop	-	DMA stop callback
- *	@qc: Command in progress
+ *	cmd648_sff_irq_clear	-	clear IDE interrupt
+ *	@ap: ATA interface
  *
- *	DMA has completed.
+ *	Clear IDE interrupt in MRDMODE and DMA status registers.
  */
 
-static void cmd648_bmdma_stop(struct ata_queued_cmd *qc)
+static void cmd648_sff_irq_clear(struct ata_port *ap)
 {
-	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 	unsigned long base = pci_resource_start(pdev, 4);
 	int irq_mask = ap->port_no ? MRDMODE_INTR_CH1 : MRDMODE_INTR_CH0;
 	u8 mrdmode;
 
-	ata_bmdma_stop(qc);
+	ata_bmdma_irq_clear(ap);
 
 	/* Clear this port's interrupt bit (leaving the other port alone) */
 	mrdmode  = inb(base + 1);
@@ -296,25 +294,26 @@ static const struct ata_port_operations cmd64x_base_ops = {
 
 static struct ata_port_operations cmd64x_port_ops = {
 	.inherits	= &cmd64x_base_ops,
-	.bmdma_stop	= cmd64x_bmdma_stop,
+	.sff_irq_clear	= cmd64x_sff_irq_clear,
 	.cable_detect	= ata_cable_40wire,
 };
 
 static struct ata_port_operations cmd646r1_port_ops = {
 	.inherits	= &cmd64x_base_ops,
+	.sff_irq_clear	= cmd64x_sff_irq_clear,
 	.bmdma_stop	= cmd646r1_bmdma_stop,
 	.cable_detect	= ata_cable_40wire,
 };
 
 static struct ata_port_operations cmd646r3_port_ops = {
 	.inherits	= &cmd64x_base_ops,
-	.bmdma_stop	= cmd648_bmdma_stop,
+	.sff_irq_clear	= cmd648_sff_irq_clear,
 	.cable_detect	= ata_cable_40wire,
 };
 
 static struct ata_port_operations cmd648_port_ops = {
 	.inherits	= &cmd64x_base_ops,
-	.bmdma_stop	= cmd648_bmdma_stop,
+	.sff_irq_clear	= cmd648_sff_irq_clear,
 	.cable_detect	= cmd648_cable_detect,
 };
 
