@@ -13,6 +13,7 @@ struct nfs_net {
 	struct cache_detail *nfs_dns_resolve;
 	struct rpc_pipe *bl_device_pipe;
 	struct bl_dev_msg bl_mount_reply;
+	wait_queue_head_t bl_wq;
 	struct list_head nfs_client_list;
 	struct list_head nfs_volume_list;
 #ifdef CONFIG_NFS_V4

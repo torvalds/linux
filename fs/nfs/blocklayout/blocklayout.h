@@ -153,12 +153,15 @@ BLK_LSEG2EXT(struct pnfs_layout_segment *lseg)
 	return BLK_LO2EXT(lseg->pls_layout);
 }
 
+struct bl_pipe_msg {
+	struct rpc_pipe_msg msg;
+	wait_queue_head_t *bl_wq;
+};
+
 struct bl_msg_hdr {
 	u8  type;
 	u16 totallen; /* length of entire message, including hdr itself */
 };
-
-extern wait_queue_head_t bl_wq;
 
 #define BL_DEVICE_UMOUNT               0x0 /* Umount--delete devices */
 #define BL_DEVICE_MOUNT                0x1 /* Mount--create devices*/

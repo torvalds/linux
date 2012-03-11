@@ -46,8 +46,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Andy Adamson <andros@citi.umich.edu>");
 MODULE_DESCRIPTION("The NFSv4.1 pNFS Block layout driver");
 
-wait_queue_head_t bl_wq;
-
 static void print_page(struct page *page)
 {
 	dprintk("PRINTPAGE page %p\n", page);
@@ -1117,6 +1115,7 @@ static int nfs4blocklayout_net_init(struct net *net)
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
 	struct dentry *dentry;
 
+	init_waitqueue_head(&nn->bl_wq);
 	nn->bl_device_pipe = rpc_mkpipe_data(&bl_upcall_ops, 0);
 	if (IS_ERR(nn->bl_device_pipe))
 		return PTR_ERR(nn->bl_device_pipe);
@@ -1153,7 +1152,6 @@ static int __init nfs4blocklayout_init(void)
 	if (ret)
 		goto out;
 
-	init_waitqueue_head(&bl_wq);
 	ret = rpc_pipefs_notifier_register(&nfs4blocklayout_block);
 	if (ret)
 		goto out_remove;
