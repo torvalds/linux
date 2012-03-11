@@ -28,6 +28,7 @@
 /* 5 sec. connect timeout */
 #define CONNECT_TIMEOUT (5 * HZ)
 #define CAIF_NET_DEFAULT_QUEUE_LEN 500
+#define UNDEF_CONNID 0xffffffff
 
 /*This list is protected by the rtnl lock. */
 static LIST_HEAD(chnl_net_list);
@@ -408,7 +409,7 @@ static void ipcaif_net_setup(struct net_device *dev)
 	priv->conn_req.link_selector = CAIF_LINK_HIGH_BANDW;
 	priv->conn_req.priority = CAIF_PRIO_LOW;
 	/* Insert illegal value */
-	priv->conn_req.sockaddr.u.dgm.connection_id = 0;
+	priv->conn_req.sockaddr.u.dgm.connection_id = UNDEF_CONNID;
 	priv->flowenabled = false;
 
 	init_waitqueue_head(&priv->netmgmt_wq);
@@ -471,9 +472,11 @@ static int ipcaif_newlink(struct net *src_net, struct net_device *dev,
 	else
 		list_add(&caifdev->list_field, &chnl_net_list);
 
-	/* Take ifindex as connection-id if null */
-	if (caifdev->conn_req.sockaddr.u.dgm.connection_id == 0)
+	/* Use ifindex as connection id, and use loopback channel default. */
+	if (caifdev->conn_req.sockaddr.u.dgm.connection_id == UNDEF_CONNID) {
 		caifdev->conn_req.sockaddr.u.dgm.connection_id = dev->ifindex;
+		caifdev->conn_req.protocol = CAIFPROTO_DATAGRAM_LOOP;
+	}
 	return ret;
 }
 
