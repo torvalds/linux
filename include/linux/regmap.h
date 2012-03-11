@@ -16,11 +16,10 @@
 #include <linux/device.h>
 #include <linux/list.h>
 
-#ifdef CONFIG_REGMAP
-
 struct module;
 struct i2c_client;
 struct spi_device;
+struct regmap;
 
 /* An enum of all the supported cache types */
 enum regcache_type {
@@ -41,6 +40,8 @@ struct reg_default {
 	unsigned int reg;
 	unsigned int def;
 };
+
+#ifdef CONFIG_REGMAP
 
 /**
  * Configuration for the register map of a device.
