@@ -257,6 +257,9 @@ restore_registers:
 	lghi	%r2,0
 	brasl	%r14,arch_set_page_states
 
+	/* Log potential guest relocation */
+	brasl	%r14,lgr_info_log
+
 	/* Reinitialize the channel subsystem */
 	brasl	%r14,channel_subsystem_reinit
 

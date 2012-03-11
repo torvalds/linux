@@ -14,6 +14,7 @@
 #include <linux/delay.h>
 #include <linux/reboot.h>
 #include <linux/ftrace.h>
+#include <linux/debug_locks.h>
 #include <asm/cio.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
@@ -209,10 +210,14 @@ static void __machine_kexec(void *data)
 	struct kimage *image = data;
 
 	pfault_fini();
-	if (image->type == KEXEC_TYPE_CRASH)
+	tracing_off();
+	debug_locks_off();
+	if (image->type == KEXEC_TYPE_CRASH) {
+		lgr_info_log();
 		s390_reset_system(__do_machine_kdump, data);
-	else
+	} else {
 		s390_reset_system(__do_machine_kexec, data);
+	}
 	disabled_wait((unsigned long) __builtin_return_address(0));
 }
 
