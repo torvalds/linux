@@ -1009,12 +1009,33 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 	 * by read. So, it is not unbouned loop even in the case of
 	 * non-dma.
 	 */
-	while (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
-		davinci_fifo_data_trans(host, rw_threshold);
-		status = readl(host->base + DAVINCI_MMCST0);
-		if (!status)
-			break;
-		qstatus |= status;
+	if (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
+		unsigned long im_val;
+
+		/*
+		 * If interrupts fire during the following loop, they will be
+		 * handled by the handler, but the PIC will still buffer these.
+		 * As a result, the handler will be called again to serve these
+		 * needlessly. In order to avoid these spurious interrupts,
+		 * keep interrupts masked during the loop.
+		 */
+		im_val = readl(host->base + DAVINCI_MMCIM);
+		writel(0, host->base + DAVINCI_MMCIM);
+
+		do {
+			davinci_fifo_data_trans(host, rw_threshold);
+			status = readl(host->base + DAVINCI_MMCST0);
+			qstatus |= status;
+		} while (host->bytes_left &&
+			 (status & (MMCST0_DXRDY | MMCST0_DRRDY)));
+
+		/*
+		 * If an interrupt is pending, it is assumed it will fire when
+		 * it is unmasked. This assumption is also taken when the MMCIM
+		 * is first set. Otherwise, writing to MMCIM after reading the
+		 * status is race-prone.
+		 */
+		writel(im_val, host->base + DAVINCI_MMCIM);
 	}
 
 	if (qstatus & MMCST0_DATDNE) {
