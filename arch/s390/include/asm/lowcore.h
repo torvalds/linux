@@ -56,7 +56,7 @@ struct _lowcore {
 	psw_t	mcck_new_psw;			/* 0x0070 */
 	psw_t	io_new_psw;			/* 0x0078 */
 	__u32	ext_params;			/* 0x0080 */
-	__u16	cpu_addr;			/* 0x0084 */
+	__u16	ext_cpu_addr;			/* 0x0084 */
 	__u16	ext_int_code;			/* 0x0086 */
 	__u16	svc_ilc;			/* 0x0088 */
 	__u16	svc_code;			/* 0x008a */
@@ -189,7 +189,7 @@ struct _lowcore {
 	__u32	ipl_parmblock_ptr;		/* 0x0014 */
 	__u8	pad_0x0018[0x0080-0x0018];	/* 0x0018 */
 	__u32	ext_params;			/* 0x0080 */
-	__u16	cpu_addr;			/* 0x0084 */
+	__u16	ext_cpu_addr;			/* 0x0084 */
 	__u16	ext_int_code;			/* 0x0086 */
 	__u16	svc_ilc;			/* 0x0088 */
 	__u16	svc_code;			/* 0x008a */

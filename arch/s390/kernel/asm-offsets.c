@@ -78,7 +78,7 @@ int main(void)
 	BLANK();
 	/* lowcore offsets */
 	DEFINE(__LC_EXT_PARAMS, offsetof(struct _lowcore, ext_params));
-	DEFINE(__LC_CPU_ADDRESS, offsetof(struct _lowcore, cpu_addr));
+	DEFINE(__LC_EXT_CPU_ADDR, offsetof(struct _lowcore, ext_cpu_addr));
 	DEFINE(__LC_EXT_INT_CODE, offsetof(struct _lowcore, ext_int_code));
 	DEFINE(__LC_SVC_ILC, offsetof(struct _lowcore, svc_ilc));
 	DEFINE(__LC_SVC_INT_CODE, offsetof(struct _lowcore, svc_code));

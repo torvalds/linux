@@ -606,7 +606,7 @@ ext_skip:
 	stm	%r8,%r9,__PT_PSW(%r11)
 	TRACE_IRQS_OFF
 	lr	%r2,%r11		# pass pointer to pt_regs
-	l	%r3,__LC_CPU_ADDRESS	# get cpu address + interruption code
+	l	%r3,__LC_EXT_CPU_ADDR	# get cpu address + interruption code
 	l	%r4,__LC_EXT_PARAMS	# get external parameters
 	l	%r1,BASED(.Ldo_extint)
 	basr	%r14,%r1		# call do_extint

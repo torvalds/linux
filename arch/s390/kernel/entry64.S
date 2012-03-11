@@ -625,7 +625,7 @@ ext_skip:
 	TRACE_IRQS_OFF
 	lghi	%r1,4096
 	lgr	%r2,%r11		# pass pointer to pt_regs
-	llgf	%r3,__LC_CPU_ADDRESS	# get cpu address + interruption code
+	llgf	%r3,__LC_EXT_CPU_ADDR	# get cpu address + interruption code
 	llgf	%r4,__LC_EXT_PARAMS	# get external parameter
 	lg	%r5,__LC_EXT_PARAMS2-4096(%r1)	# get 64 bit external parameter
 	brasl	%r14,do_extint
