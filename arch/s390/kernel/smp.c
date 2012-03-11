@@ -434,14 +434,14 @@ void smp_stop_cpu(void)
  * This is the main routine where commands issued by other
  * cpus are handled.
  */
-static void do_ext_call_interrupt(unsigned int ext_int_code,
+static void do_ext_call_interrupt(struct ext_code ext_code,
 				  unsigned int param32, unsigned long param64)
 {
 	unsigned long bits;
 	int cpu;
 
 	cpu = smp_processor_id();
-	if ((ext_int_code & 0xffff) == 0x1202)
+	if (ext_code.code == 0x1202)
 		kstat_cpu(cpu).irqs[EXTINT_EXC]++;
 	else
 		kstat_cpu(cpu).irqs[EXTINT_EMS]++;

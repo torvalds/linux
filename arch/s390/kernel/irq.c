@@ -209,29 +209,27 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 }
 EXPORT_SYMBOL(unregister_external_interrupt);
 
-void __irq_entry do_extint(struct pt_regs *regs, unsigned int ext_int_code,
+void __irq_entry do_extint(struct pt_regs *regs, struct ext_code ext_code,
 			   unsigned int param32, unsigned long param64)
 {
 	struct pt_regs *old_regs;
-	unsigned short code;
 	struct ext_int_info *p;
 	int index;
 
-	code = (unsigned short) ext_int_code;
 	old_regs = set_irq_regs(regs);
 	irq_enter();
 	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
 		/* Serve timer interrupts first. */
 		clock_comparator_work();
 	kstat_cpu(smp_processor_id()).irqs[EXTERNAL_INTERRUPT]++;
-	if (code != 0x1004)
+	if (ext_code.code != 0x1004)
 		__get_cpu_var(s390_idle).nohz_delay = 1;
 
-	index = ext_hash(code);
+	index = ext_hash(ext_code.code);
 	rcu_read_lock();
 	list_for_each_entry_rcu(p, &ext_int_hash[index], entry)
-		if (likely(p->code == code))
-			p->handler(ext_int_code, param32, param64);
+		if (likely(p->code == ext_code.code))
+			p->handler(ext_code, param32, param64);
 	rcu_read_unlock();
 	irq_exit();
 	set_irq_regs(old_regs);
