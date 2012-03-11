@@ -201,14 +201,6 @@ static struct map_desc exynos4_iodesc1[] __initdata = {
 	},
 };
 
-static void exynos_idle(void)
-{
-	if (!need_resched())
-		cpu_do_idle();
-
-	local_irq_enable();
-}
-
 void exynos4_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
@@ -467,10 +459,6 @@ early_initcall(exynos4_l2x0_cache_init);
 int __init exynos_init(void)
 {
 	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
-
-	/* set idle function */
-	pm_idle = exynos_idle;
-
 	return device_register(&exynos4_dev);
 }
 
@@ -673,7 +661,7 @@ static void exynos4_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-int __init exynos4_init_irq_eint(void)
+static int __init exynos4_init_irq_eint(void)
 {
 	int irq;
 

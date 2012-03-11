@@ -162,7 +162,7 @@ static int h1940_gpiolib_latch_get(struct gpio_chip *chip,
 	return (latch_state >> (offset + 16)) & 1;
 }
 
-struct gpio_chip h1940_latch_gpiochip = {
+static struct gpio_chip h1940_latch_gpiochip = {
 	.base			= H1940_LATCH_GPIO(0),
 	.owner			= THIS_MODULE,
 	.label			= "H1940_LATCH",
@@ -304,7 +304,7 @@ static const struct s3c_adc_bat_thresh bat_lut_acin[] = {
 	{ .volt = 3841, .cur = 0, .level = 0},
 };
 
-int h1940_bat_init(void)
+static int h1940_bat_init(void)
 {
 	int ret;
 
@@ -317,17 +317,17 @@ int h1940_bat_init(void)
 
 }
 
-void h1940_bat_exit(void)
+static void h1940_bat_exit(void)
 {
 	gpio_free(H1940_LATCH_SM803_ENABLE);
 }
 
-void h1940_enable_charger(void)
+static void h1940_enable_charger(void)
 {
 	gpio_set_value(H1940_LATCH_SM803_ENABLE, 1);
 }
 
-void h1940_disable_charger(void)
+static void h1940_disable_charger(void)
 {
 	gpio_set_value(H1940_LATCH_SM803_ENABLE, 0);
 }
@@ -364,7 +364,7 @@ static struct platform_device h1940_battery = {
 	},
 };
 
-DEFINE_SPINLOCK(h1940_blink_spin);
+static DEFINE_SPINLOCK(h1940_blink_spin);
 
 int h1940_led_blink_set(unsigned gpio, int state,
 	unsigned long *delay_on, unsigned long *delay_off)

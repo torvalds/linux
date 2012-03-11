@@ -744,17 +744,6 @@ struct platform_device s3c_device_iis = {
 };
 #endif /* CONFIG_PLAT_S3C24XX */
 
-#ifdef CONFIG_CPU_S3C2440
-struct platform_device s3c2412_device_iis = {
-	.name		= "s3c2412-iis",
-	.id		= -1,
-	.dev		= {
-		.dma_mask		= &samsung_device_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	}
-};
-#endif /* CONFIG_CPU_S3C2440 */
-
 /* IDE CFCON */
 
 #ifdef CONFIG_SAMSUNG_DEV_IDE
@@ -1078,7 +1067,7 @@ static struct resource s5p_pmu_resource[] = {
 	DEFINE_RES_IRQ(IRQ_PMU)
 };
 
-struct platform_device s5p_device_pmu = {
+static struct platform_device s5p_device_pmu = {
 	.name		= "arm-pmu",
 	.id		= ARM_PMU_DEVICE_CPU,
 	.num_resources	= ARRAY_SIZE(s5p_pmu_resource),
