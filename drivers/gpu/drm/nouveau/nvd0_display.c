@@ -1226,6 +1226,11 @@ nvd0_sor_dp_train_adj(struct drm_device *dev, struct dcb_entry *dcb,
 		if (table[0] == 0x30) {
 			config  = entry + table[4];
 			config += table[5] * preem;
+		} else
+		if (table[0] == 0x40) {
+			config  = table + table[1];
+			config += table[2] * table[3];
+			config += table[6] * preem;
 		}
 	}
 
@@ -1258,6 +1263,7 @@ nvd0_sor_dp_link_set(struct drm_device *dev, struct dcb_entry *dcb, int crtc,
 	table = nouveau_dp_bios_data(dev, dcb, &entry);
 	if (table) {
 		if      (table[0] == 0x30) entry = ROMPTR(dev, entry[10]);
+		else if (table[0] == 0x40) entry = ROMPTR(dev, entry[9]);
 		else                       entry = NULL;
 
 		while (entry) {
