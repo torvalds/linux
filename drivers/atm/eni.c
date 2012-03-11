@@ -1873,7 +1873,7 @@ free_list:
 	kfree(eni_dev->free_list);
 
 free_irq:
-	free_irq(eni_dev->irq, eni_dev);
+	free_irq(eni_dev->irq, dev);
 
 out:
 	return error;
