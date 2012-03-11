@@ -892,7 +892,7 @@ static int __init ipip_init(void)
 	err = xfrm4_tunnel_register(&ipip_handler, AF_INET);
 	if (err < 0) {
 		unregister_pernet_device(&ipip_net_ops);
-		printk(KERN_INFO "ipip init: can't register tunnel\n");
+		pr_info("%s: can't register tunnel\n", __func__);
 	}
 	return err;
 }
@@ -900,7 +900,7 @@ static int __init ipip_init(void)
 static void __exit ipip_fini(void)
 {
 	if (xfrm4_tunnel_deregister(&ipip_handler, AF_INET))
-		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
+		pr_info("%s: can't deregister tunnel\n", __func__);
 
 	unregister_pernet_device(&ipip_net_ops);
 }
