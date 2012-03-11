@@ -1149,7 +1149,7 @@ rpc_mount(struct file_system_type *fs_type,
 	return mount_ns(fs_type, flags, current->nsproxy->net_ns, rpc_fill_super);
 }
 
-void rpc_kill_sb(struct super_block *sb)
+static void rpc_kill_sb(struct super_block *sb)
 {
 	struct net *net = sb->s_fs_info;
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);

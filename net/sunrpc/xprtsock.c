@@ -53,12 +53,12 @@ static void xs_close(struct rpc_xprt *xprt);
 /*
  * xprtsock tunables
  */
-unsigned int xprt_udp_slot_table_entries = RPC_DEF_SLOT_TABLE;
-unsigned int xprt_tcp_slot_table_entries = RPC_MIN_SLOT_TABLE;
-unsigned int xprt_max_tcp_slot_table_entries = RPC_MAX_SLOT_TABLE;
+static unsigned int xprt_udp_slot_table_entries = RPC_DEF_SLOT_TABLE;
+static unsigned int xprt_tcp_slot_table_entries = RPC_MIN_SLOT_TABLE;
+static unsigned int xprt_max_tcp_slot_table_entries = RPC_MAX_SLOT_TABLE;
 
-unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
-unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
+static unsigned int xprt_min_resvport = RPC_DEF_MIN_RESVPORT;
+static unsigned int xprt_max_resvport = RPC_DEF_MAX_RESVPORT;
 
 #define XS_TCP_LINGER_TO	(15U * HZ)
 static unsigned int xs_tcp_fin_timeout __read_mostly = XS_TCP_LINGER_TO;

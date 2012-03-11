@@ -27,9 +27,6 @@
 int sunrpc_net_id;
 EXPORT_SYMBOL_GPL(sunrpc_net_id);
 
-extern int unix_gid_cache_create(struct net *net);
-extern int unix_gid_cache_destroy(struct net *net);
-
 static __net_init int sunrpc_init_net(struct net *net)
 {
 	int err;

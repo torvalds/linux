@@ -344,7 +344,7 @@ out_err:
 	return PTR_ERR(p);
 }
 
-struct crypto_blkcipher *
+static struct crypto_blkcipher *
 context_v2_alloc_cipher(struct krb5_ctx *ctx, const char *cname, u8 *key)
 {
 	struct crypto_blkcipher *cp;
