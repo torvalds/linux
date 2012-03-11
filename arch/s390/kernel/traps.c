@@ -145,8 +145,8 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
 			break;
-		if (i && ((i * sizeof (long) % 32) == 0))
-			printk("\n       ");
+		if ((i * sizeof(long) % 32) == 0)
+			printk("%s       ", i == 0 ? "" : "\n");
 		printk(LONG, *stack++);
 	}
 	printk("\n");
