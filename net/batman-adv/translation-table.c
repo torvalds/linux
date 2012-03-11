@@ -309,21 +309,21 @@ int tt_local_seq_print_text(struct seq_file *seq, void *offset)
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if) {
-		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
-				 "please specify interfaces to enable it\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
 				 net_dev->name);
 		goto out;
 	}
 
 	if (primary_if->if_status != IF_ACTIVE) {
-		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
-				 "primary interface not active\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - primary interface not active\n",
 				 net_dev->name);
 		goto out;
 	}
 
-	seq_printf(seq, "Locally retrieved addresses (from %s) "
-		   "announced via TT (TTVN: %u):\n",
+	seq_printf(seq,
+		   "Locally retrieved addresses (from %s) announced via TT (TTVN: %u):\n",
 		   net_dev->name, (uint8_t)atomic_read(&bat_priv->ttvn));
 
 	for (i = 0; i < hash->size; i++) {
@@ -365,8 +365,9 @@ static void tt_local_set_pending(struct bat_priv *bat_priv,
 	 * response issued before the net ttvn increment (consistency check) */
 	tt_local_entry->common.flags |= TT_CLIENT_PENDING;
 
-	bat_dbg(DBG_TT, bat_priv, "Local tt entry (%pM) pending to be removed: "
-		"%s\n", tt_local_entry->common.addr, message);
+	bat_dbg(DBG_TT, bat_priv,
+		"Local tt entry (%pM) pending to be removed: %s\n",
+		tt_local_entry->common.addr, message);
 }
 
 void tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
@@ -574,15 +575,15 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if) {
-		ret = seq_printf(seq, "BATMAN mesh %s disabled - please "
-				 "specify interfaces to enable it\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
 				 net_dev->name);
 		goto out;
 	}
 
 	if (primary_if->if_status != IF_ACTIVE) {
-		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
-				 "primary interface not active\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - primary interface not active\n",
 				 net_dev->name);
 		goto out;
 	}
@@ -602,18 +603,18 @@ int tt_global_seq_print_text(struct seq_file *seq, void *offset)
 			tt_global_entry = container_of(tt_common_entry,
 						       struct tt_global_entry,
 						       common);
-			seq_printf(seq, " * %pM  (%3u) via %pM     (%3u)   "
-					"[%c%c]\n",
-					tt_global_entry->common.addr,
-					tt_global_entry->ttvn,
-					tt_global_entry->orig_node->orig,
-					(uint8_t) atomic_read(
+			seq_printf(seq,
+				   " * %pM  (%3u) via %pM     (%3u)   [%c%c]\n",
+				   tt_global_entry->common.addr,
+				   tt_global_entry->ttvn,
+				   tt_global_entry->orig_node->orig,
+				   (uint8_t) atomic_read(
 						&tt_global_entry->orig_node->
 						last_ttvn),
-					(tt_global_entry->common.flags &
-					 TT_CLIENT_ROAM ? 'R' : '.'),
-					(tt_global_entry->common.flags &
-					 TT_CLIENT_WIFI ? 'W' : '.'));
+				   (tt_global_entry->common.flags &
+				    TT_CLIENT_ROAM ? 'R' : '.'),
+				   (tt_global_entry->common.flags &
+				    TT_CLIENT_WIFI ? 'W' : '.'));
 		}
 		rcu_read_unlock();
 	}
@@ -710,8 +711,7 @@ void tt_global_del_orig(struct bat_priv *bat_priv,
 						       common);
 			if (tt_global_entry->orig_node == orig_node) {
 				bat_dbg(DBG_TT, bat_priv,
-					"Deleting global tt entry %pM "
-					"(via %pM): %s\n",
+					"Deleting global tt entry %pM (via %pM): %s\n",
 					tt_global_entry->common.addr,
 					tt_global_entry->orig_node->orig,
 					message);
@@ -751,8 +751,8 @@ static void tt_global_roam_purge(struct bat_priv *bat_priv)
 					   TT_CLIENT_ROAM_TIMEOUT))
 				continue;
 
-			bat_dbg(DBG_TT, bat_priv, "Deleting global "
-				"tt entry (%pM): Roaming timeout\n",
+			bat_dbg(DBG_TT, bat_priv,
+				"Deleting global tt entry (%pM): Roaming timeout\n",
 				tt_global_entry->common.addr);
 			atomic_dec(&tt_global_entry->orig_node->tt_size);
 			hlist_del_rcu(node);
@@ -1134,8 +1134,9 @@ static int send_tt_request(struct bat_priv *bat_priv,
 	if (!neigh_node)
 		goto out;
 
-	bat_dbg(DBG_TT, bat_priv, "Sending TT_REQUEST to %pM via %pM "
-		"[%c]\n", dst_orig_node->orig, neigh_node->addr,
+	bat_dbg(DBG_TT, bat_priv,
+		"Sending TT_REQUEST to %pM via %pM [%c]\n",
+		dst_orig_node->orig, neigh_node->addr,
 		(full_table ? 'F' : '.'));
 
 	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
@@ -1172,9 +1173,8 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 	struct tt_query_packet *tt_response;
 
 	bat_dbg(DBG_TT, bat_priv,
-		"Received TT_REQUEST from %pM for "
-		"ttvn: %u (%pM) [%c]\n", tt_request->src,
-		tt_request->ttvn, tt_request->dst,
+		"Received TT_REQUEST from %pM for ttvn: %u (%pM) [%c]\n",
+		tt_request->src, tt_request->ttvn, tt_request->dst,
 		(tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	/* Let's get the orig node of the REAL destination */
@@ -1299,9 +1299,8 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 	struct tt_query_packet *tt_response;
 
 	bat_dbg(DBG_TT, bat_priv,
-		"Received TT_REQUEST from %pM for "
-		"ttvn: %u (me) [%c]\n", tt_request->src,
-		tt_request->ttvn,
+		"Received TT_REQUEST from %pM for ttvn: %u (me) [%c]\n",
+		tt_request->src, tt_request->ttvn,
 		(tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 
@@ -1504,10 +1503,9 @@ void handle_tt_response(struct bat_priv *bat_priv,
 	struct tt_req_node *node, *safe;
 	struct orig_node *orig_node = NULL;
 
-	bat_dbg(DBG_TT, bat_priv, "Received TT_RESPONSE from %pM for "
-		"ttvn %d t_size: %d [%c]\n",
-		tt_response->src, tt_response->ttvn,
-		tt_response->tt_data,
+	bat_dbg(DBG_TT, bat_priv,
+		"Received TT_RESPONSE from %pM for ttvn %d t_size: %d [%c]\n",
+		tt_response->src, tt_response->ttvn, tt_response->tt_data,
 		(tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	orig_node = orig_hash_find(bat_priv, tt_response->src);
@@ -1771,8 +1769,9 @@ static void tt_local_purge_pending_clients(struct bat_priv *bat_priv)
 			if (!(tt_common_entry->flags & TT_CLIENT_PENDING))
 				continue;
 
-			bat_dbg(DBG_TT, bat_priv, "Deleting local tt entry "
-				"(%pM): pending\n", tt_common_entry->addr);
+			bat_dbg(DBG_TT, bat_priv,
+				"Deleting local tt entry (%pM): pending\n",
+				tt_common_entry->addr);
 
 			atomic_dec(&bat_priv->num_local_tt);
 			hlist_del_rcu(node);
@@ -1877,12 +1876,10 @@ void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		if (!orig_node->tt_initialised || ttvn != orig_ttvn ||
 		    orig_node->tt_crc != tt_crc) {
 request_table:
-			bat_dbg(DBG_TT, bat_priv, "TT inconsistency for %pM. "
-				"Need to retrieve the correct information "
-				"(ttvn: %u last_ttvn: %u crc: %u last_crc: "
-				"%u num_changes: %u)\n", orig_node->orig, ttvn,
-				orig_ttvn, tt_crc, orig_node->tt_crc,
-				tt_num_changes);
+			bat_dbg(DBG_TT, bat_priv,
+				"TT inconsistency for %pM. Need to retrieve the correct information (ttvn: %u last_ttvn: %u crc: %u last_crc: %u num_changes: %u)\n",
+				orig_node->orig, ttvn, orig_ttvn, tt_crc,
+				orig_node->tt_crc, tt_num_changes);
 			send_tt_request(bat_priv, orig_node, ttvn, tt_crc,
 					full_table);
 			return;

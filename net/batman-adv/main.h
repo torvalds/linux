@@ -107,9 +107,7 @@ enum uev_type {
 
 #define GW_THRESHOLD	50
 
-/*
- * Debug Messages
- */
+/* Debug Messages */
 #ifdef pr_fmt
 #undef pr_fmt
 #endif
@@ -124,14 +122,7 @@ enum dbg_level {
 	DBG_ALL    = 7
 };
 
-
-/*
- *  Vis
- */
-
-/*
- * Kernel headers
- */
+/* Kernel headers */
 
 #include <linux/mutex.h>	/* mutex */
 #include <linux/module.h>	/* needed by all modules */

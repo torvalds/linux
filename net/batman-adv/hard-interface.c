@@ -175,11 +175,9 @@ static void check_known_mac_addr(const struct net_device *net_dev)
 				 net_dev->dev_addr))
 			continue;
 
-		pr_warning("The newly added mac address (%pM) already exists "
-			   "on: %s\n", net_dev->dev_addr,
-			   hard_iface->net_dev->name);
-		pr_warning("It is strongly recommended to keep mac addresses "
-			   "unique to avoid problems!\n");
+		pr_warning("The newly added mac address (%pM) already exists on: %s\n",
+			   net_dev->dev_addr, hard_iface->net_dev->name);
+		pr_warning("It is strongly recommended to keep mac addresses unique to avoid problems!\n");
 	}
 	rcu_read_unlock();
 }
@@ -282,10 +280,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 
 	/* hard-interface is part of a bridge */
 	if (hard_iface->net_dev->priv_flags & IFF_BRIDGE_PORT)
-		pr_err("You are about to enable batman-adv on '%s' which "
-		       "already is part of a bridge. Unless you know exactly "
-		       "what you are doing this is probably wrong and won't "
-		       "work the way you think it would.\n",
+		pr_err("You are about to enable batman-adv on '%s' which already is part of a bridge. Unless you know exactly what you are doing this is probably wrong and won't work the way you think it would.\n",
 		       hard_iface->net_dev->name);
 
 	soft_iface = dev_get_by_name(&init_net, iface_name);
@@ -303,8 +298,7 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	}
 
 	if (!softif_is_valid(soft_iface)) {
-		pr_err("Can't create batman mesh interface %s: "
-		       "already exists as regular interface\n",
+		pr_err("Can't create batman mesh interface %s: already exists as regular interface\n",
 		       soft_iface->name);
 		dev_put(soft_iface);
 		ret = -EINVAL;
@@ -317,8 +311,9 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	bat_priv->bat_algo_ops->bat_ogm_init(hard_iface);
 
 	if (!hard_iface->packet_buff) {
-		bat_err(hard_iface->soft_iface, "Can't add interface packet "
-			"(%s): out of memory\n", hard_iface->net_dev->name);
+		bat_err(hard_iface->soft_iface,
+			"Can't add interface packet (%s): out of memory\n",
+			hard_iface->net_dev->name);
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -341,29 +336,22 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	if (atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
 		bat_info(hard_iface->soft_iface,
-			 "The MTU of interface %s is too small (%i) to handle "
-			 "the transport of batman-adv packets. Packets going "
-			 "over this interface will be fragmented on layer2 "
-			 "which could impact the performance. Setting the MTU "
-			 "to %zi would solve the problem.\n",
+			 "The MTU of interface %s is too small (%i) to handle the transport of batman-adv packets. Packets going over this interface will be fragmented on layer2 which could impact the performance. Setting the MTU to %zi would solve the problem.\n",
 			 hard_iface->net_dev->name, hard_iface->net_dev->mtu,
 			 ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (!atomic_read(&bat_priv->fragmentation) && hard_iface->net_dev->mtu <
 		ETH_DATA_LEN + BAT_HEADER_LEN)
 		bat_info(hard_iface->soft_iface,
-			 "The MTU of interface %s is too small (%i) to handle "
-			 "the transport of batman-adv packets. If you "
-			 "experience problems getting traffic through try "
-			 "increasing the MTU to %zi.\n",
+			 "The MTU of interface %s is too small (%i) to handle the transport of batman-adv packets. If you experience problems getting traffic through try increasing the MTU to %zi.\n",
 			 hard_iface->net_dev->name, hard_iface->net_dev->mtu,
 			 ETH_DATA_LEN + BAT_HEADER_LEN);
 
 	if (hardif_is_iface_up(hard_iface))
 		hardif_activate_interface(hard_iface);
 	else
-		bat_err(hard_iface->soft_iface, "Not using interface %s "
-			"(retrying later): interface not active\n",
+		bat_err(hard_iface->soft_iface,
+			"Not using interface %s (retrying later): interface not active\n",
 			hard_iface->net_dev->name);
 
 	/* begin scheduling originator messages on that interface */

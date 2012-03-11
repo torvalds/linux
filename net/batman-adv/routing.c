@@ -83,8 +83,7 @@ static void _update_route(struct bat_priv *bat_priv,
 	/* route changed */
 	} else if (neigh_node && curr_router) {
 		bat_dbg(DBG_ROUTES, bat_priv,
-			"Changing route towards: %pM "
-			"(now via %pM - was via %pM)\n",
+			"Changing route towards: %pM (now via %pM - was via %pM)\n",
 			orig_node->orig, neigh_node->addr,
 			curr_router->addr);
 	}
@@ -238,8 +237,9 @@ int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 				"old packet received, start protection\n");
 
 			return 0;
-		} else
+		} else {
 			return 1;
+		}
 	}
 	return 0;
 }
@@ -345,9 +345,8 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
-		pr_debug("Warning - can't forward icmp packet from %pM to "
-			 "%pM: ttl exceeded\n", icmp_packet->orig,
-			 icmp_packet->dst);
+		pr_debug("Warning - can't forward icmp packet from %pM to %pM: ttl exceeded\n",
+			 icmp_packet->orig, icmp_packet->dst);
 		goto out;
 	}
 
@@ -674,9 +673,9 @@ int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (!orig_node)
 		goto out;
 
-	bat_dbg(DBG_TT, bat_priv, "Received ROAMING_ADV from %pM "
-		"(client %pM)\n", roam_adv_packet->src,
-		roam_adv_packet->client);
+	bat_dbg(DBG_TT, bat_priv,
+		"Received ROAMING_ADV from %pM (client %pM)\n",
+		roam_adv_packet->src, roam_adv_packet->client);
 
 	tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
 		      atomic_read(&orig_node->last_ttvn) + 1, true, false);
@@ -813,9 +812,8 @@ int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* TTL exceeded */
 	if (unicast_packet->header.ttl < 2) {
-		pr_debug("Warning - can't forward unicast packet from %pM to "
-			 "%pM: ttl exceeded\n", ethhdr->h_source,
-			 unicast_packet->dest);
+		pr_debug("Warning - can't forward unicast packet from %pM to %pM: ttl exceeded\n",
+			 ethhdr->h_source, unicast_packet->dest);
 		goto out;
 	}
 
@@ -934,10 +932,10 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 			orig_node_free_ref(orig_node);
 		}
 
-		bat_dbg(DBG_ROUTES, bat_priv, "TTVN mismatch (old_ttvn %u "
-			"new_ttvn %u)! Rerouting unicast packet (for %pM) to "
-			"%pM\n", unicast_packet->ttvn, curr_ttvn,
-			ethhdr->h_dest, unicast_packet->dest);
+		bat_dbg(DBG_ROUTES, bat_priv,
+			"TTVN mismatch (old_ttvn %u new_ttvn %u)! Rerouting unicast packet (for %pM) to %pM\n",
+			unicast_packet->ttvn, curr_ttvn, ethhdr->h_dest,
+			unicast_packet->dest);
 
 		unicast_packet->ttvn = curr_ttvn;
 	}

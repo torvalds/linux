@@ -252,8 +252,8 @@ static void softif_neigh_vid_select(struct bat_priv *bat_priv,
 			vid, curr_neigh->addr);
 	else if ((curr_neigh) && (new_neigh))
 		bat_dbg(DBG_ROUTES, bat_priv,
-			"Changing mesh exit point on vid: %d from %pM "
-			"to %pM.\n", vid, curr_neigh->addr, new_neigh->addr);
+			"Changing mesh exit point on vid: %d from %pM to %pM.\n",
+			vid, curr_neigh->addr, new_neigh->addr);
 	else if ((!curr_neigh) && (new_neigh))
 		bat_dbg(DBG_ROUTES, bat_priv,
 			"Setting mesh exit point on vid: %d to %pM.\n",
@@ -327,15 +327,15 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if) {
-		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
-				 "please specify interfaces to enable it\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
 				 net_dev->name);
 		goto out;
 	}
 
 	if (primary_if->if_status != IF_ACTIVE) {
-		ret = seq_printf(seq, "BATMAN mesh %s "
-				 "disabled - primary interface not active\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - primary interface not active\n",
 				 net_dev->name);
 		goto out;
 	}
@@ -403,8 +403,7 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 
 			if (curr_softif_neigh == softif_neigh) {
 				bat_dbg(DBG_ROUTES, bat_priv,
-					"Current mesh exit point on vid: %d "
-					"'%pM' vanished.\n",
+					"Current mesh exit point on vid: %d '%pM' vanished.\n",
 					softif_neigh_vid->vid,
 					softif_neigh->addr);
 				do_deselect = 1;
