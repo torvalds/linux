@@ -222,19 +222,22 @@ static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		 (SUPPORTED_TP | SUPPORTED_FIBRE));
 	cmd->advertising = bp->port.advertising[cfg_idx];
 
-	if ((bp->state == BNX2X_STATE_OPEN) &&
-	    !(bp->flags & MF_FUNC_DIS) &&
-	    (bp->link_vars.link_up)) {
-		ethtool_cmd_speed_set(cmd, bp->link_vars.line_speed);
-		cmd->duplex = bp->link_vars.duplex;
-	} else {
-		ethtool_cmd_speed_set(
-			cmd, bp->link_params.req_line_speed[cfg_idx]);
-		cmd->duplex = bp->link_params.req_duplex[cfg_idx];
-	}
+	if ((bp->state == BNX2X_STATE_OPEN) && (bp->link_vars.link_up)) {
+		if (!(bp->flags & MF_FUNC_DIS)) {
+			ethtool_cmd_speed_set(cmd, bp->link_vars.line_speed);
+			cmd->duplex = bp->link_vars.duplex;
+		} else {
+			ethtool_cmd_speed_set(
+				cmd, bp->link_params.req_line_speed[cfg_idx]);
+			cmd->duplex = bp->link_params.req_duplex[cfg_idx];
+		}
 
-	if (IS_MF(bp))
-		ethtool_cmd_speed_set(cmd, bnx2x_get_mf_speed(bp));
+		if (IS_MF(bp) && !BP_NOMCP(bp))
+			ethtool_cmd_speed_set(cmd, bnx2x_get_mf_speed(bp));
+	} else {
+		cmd->duplex = DUPLEX_UNKNOWN;
+		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+	}
 
 	cmd->port = bnx2x_get_port_type(bp);
 
@@ -308,6 +311,10 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
 
 	speed = ethtool_cmd_speed(cmd);
+
+	/* If recieved a request for an unknown duplex, assume full*/
+	if (cmd->duplex == DUPLEX_UNKNOWN)
+		cmd->duplex = DUPLEX_FULL;
 
 	if (IS_MF_SI(bp)) {
 		u32 part;
