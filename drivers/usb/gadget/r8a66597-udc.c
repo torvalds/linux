@@ -459,7 +459,7 @@ static int alloc_pipe_config(struct r8a66597_ep *ep,
 	unsigned char *counter;
 	int ret;
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 
 	if (ep->pipenum)	/* already allocated pipe  */
 		return 0;
@@ -648,7 +648,7 @@ static int sudmac_alloc_channel(struct r8a66597 *r8a66597,
 	/* set SUDMAC parameters */
 	dma = &r8a66597->dma;
 	dma->used = 1;
-	if (ep->desc->bEndpointAddress & USB_DIR_IN) {
+	if (ep->ep.desc->bEndpointAddress & USB_DIR_IN) {
 		dma->dir = 1;
 	} else {
 		dma->dir = 0;
@@ -770,7 +770,7 @@ static void start_packet_read(struct r8a66597_ep *ep,
 
 static void start_packet(struct r8a66597_ep *ep, struct r8a66597_request *req)
 {
-	if (ep->desc->bEndpointAddress & USB_DIR_IN)
+	if (ep->ep.desc->bEndpointAddress & USB_DIR_IN)
 		start_packet_write(ep, req);
 	else
 		start_packet_read(ep, req);
@@ -930,7 +930,7 @@ __acquires(r8a66597->lock)
 
 	if (restart) {
 		req = get_request_from_ep(ep);
-		if (ep->desc)
+		if (ep->ep.desc)
 			start_packet(ep, req);
 	}
 }
@@ -1116,7 +1116,7 @@ static void irq_pipe_ready(struct r8a66597 *r8a66597, u16 status, u16 enb)
 				r8a66597_write(r8a66597, ~check, BRDYSTS);
 				ep = r8a66597->pipenum2ep[pipenum];
 				req = get_request_from_ep(ep);
-				if (ep->desc->bEndpointAddress & USB_DIR_IN)
+				if (ep->ep.desc->bEndpointAddress & USB_DIR_IN)
 					irq_packet_write(ep, req);
 				else
 					irq_packet_read(ep, req);
@@ -1627,7 +1627,7 @@ static int r8a66597_queue(struct usb_ep *_ep, struct usb_request *_req,
 	req->req.actual = 0;
 	req->req.status = -EINPROGRESS;
 
-	if (ep->desc == NULL)	/* control */
+	if (ep->ep.desc == NULL)	/* control */
 		start_ep0(ep, req);
 	else {
 		if (request && !ep->busy)
@@ -1692,7 +1692,7 @@ static int r8a66597_set_wedge(struct usb_ep *_ep)
 
 	ep = container_of(_ep, struct r8a66597_ep, ep);
 
-	if (!ep || !ep->desc)
+	if (!ep || !ep->ep.desc)
 		return -EINVAL;
 
 	spin_lock_irqsave(&ep->r8a66597->lock, flags);
