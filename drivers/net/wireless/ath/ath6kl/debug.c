@@ -856,17 +856,9 @@ static ssize_t ath6kl_regread_write(struct file *file,
 				    size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
-	u8 buf[50];
-	unsigned int len;
 	unsigned long reg_addr;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-
-	if (strict_strtoul(buf, 0, &reg_addr))
+	if (kstrtoul_from_user(user_buf, count, 0, &reg_addr))
 		return -EINVAL;
 
 	if ((reg_addr % 4) != 0)
@@ -980,15 +972,8 @@ static ssize_t ath6kl_lrssi_roam_write(struct file *file,
 {
 	struct ath6kl *ar = file->private_data;
 	unsigned long lrssi_roam_threshold;
-	char buf[32];
-	ssize_t len;
 
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-
-	buf[len] = '\0';
-	if (strict_strtoul(buf, 0, &lrssi_roam_threshold))
+	if (kstrtoul_from_user(user_buf, count, 0, &lrssi_roam_threshold))
 		return -EINVAL;
 
 	ar->lrssi_roam_threshold = lrssi_roam_threshold;
