@@ -404,6 +404,7 @@ static int nfs_sockaddr_cmp_ip4(const struct sockaddr *sa1,
 		(sin1->sin_port == sin2->sin_port);
 }
 
+#if defined(CONFIG_NFS_V4_1)
 /*
  * Test if two socket addresses represent the same actual socket,
  * by comparing (only) relevant fields, excluding the port number.
@@ -422,6 +423,7 @@ static int nfs_sockaddr_match_ipaddr(const struct sockaddr *sa1,
 	}
 	return 0;
 }
+#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * Test if two socket addresses represent the same actual socket,
@@ -442,6 +444,7 @@ static int nfs_sockaddr_cmp(const struct sockaddr *sa1,
 	return 0;
 }
 
+#if defined(CONFIG_NFS_V4_1)
 /* Common match routine for v4.0 and v4.1 callback services */
 static bool nfs4_cb_match_client(const struct sockaddr *addr,
 		struct nfs_client *clp, u32 minorversion)
@@ -464,6 +467,7 @@ static bool nfs4_cb_match_client(const struct sockaddr *addr,
 
 	return true;
 }
+#endif /* CONFIG_NFS_V4_1 */
 
 /*
  * Find an nfs_client on the list that matches the initialisation data
