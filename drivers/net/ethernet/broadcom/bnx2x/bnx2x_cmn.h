@@ -1143,7 +1143,7 @@ static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 {
 	struct bnx2x *bp = fp->bp;
 	u16 ring_prod, cqe_ring_prod;
-	int i;
+	int i, failure_cnt = 0;
 
 	fp->rx_comp_cons = 0;
 	cqe_ring_prod = ring_prod = 0;
@@ -1153,18 +1153,17 @@ static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 	 */
 	for (i = 0; i < rx_ring_size; i++) {
 		if (bnx2x_alloc_rx_data(bp, fp, ring_prod) < 0) {
-			fp->eth_q_stats.rx_skb_alloc_failed++;
+			failure_cnt++;
 			continue;
 		}
 		ring_prod = NEXT_RX_IDX(ring_prod);
 		cqe_ring_prod = NEXT_RCQ_IDX(cqe_ring_prod);
-		WARN_ON(ring_prod <= (i - fp->eth_q_stats.rx_skb_alloc_failed));
+		WARN_ON(ring_prod <= (i - failure_cnt));
 	}
 
-	if (fp->eth_q_stats.rx_skb_alloc_failed)
-		BNX2X_ERR("was only able to allocate "
-			  "%d rx skbs on queue[%d]\n",
-			  (i - fp->eth_q_stats.rx_skb_alloc_failed), fp->index);
+	if (failure_cnt)
+		BNX2X_ERR("was only able to allocate %d rx skbs on queue[%d]\n",
+			  i - failure_cnt, fp->index);
 
 	fp->rx_bd_prod = ring_prod;
 	/* Limit the CQE producer by the CQE ring size */
@@ -1172,7 +1171,9 @@ static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 			       cqe_ring_prod);
 	fp->rx_pkt = fp->rx_calls = 0;
 
-	return i - fp->eth_q_stats.rx_skb_alloc_failed;
+	fp->eth_q_stats.rx_skb_alloc_failed += failure_cnt;
+
+	return i - failure_cnt;
 }
 
 /* Statistics ID are global per chip/path, while Client IDs for E1x are per
