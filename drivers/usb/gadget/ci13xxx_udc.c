@@ -1916,7 +1916,7 @@ __acquires(udc->lock)
 		int type, num, dir, err = -EINVAL;
 		struct usb_ctrlrequest req;
 
-		if (mEp->desc == NULL)
+		if (mEp->ep.desc == NULL)
 			continue;   /* not configured */
 
 		if (hw_test_and_clear_complete(i)) {
@@ -2109,7 +2109,7 @@ static int ep_enable(struct usb_ep *ep,
 
 	/* only internal SW should enable ctrl endpts */
 
-	mEp->desc = desc;
+	mEp->ep.desc = desc;
 
 	if (!list_empty(&mEp->qh.queue))
 		warn("enabling a non-empty endpoint!");
@@ -2161,7 +2161,7 @@ static int ep_disable(struct usb_ep *ep)
 
 	if (ep == NULL)
 		return -EINVAL;
-	else if (mEp->desc == NULL)
+	else if (mEp->ep.desc == NULL)
 		return -EBUSY;
 
 	spin_lock_irqsave(mEp->lock, flags);
@@ -2180,7 +2180,6 @@ static int ep_disable(struct usb_ep *ep)
 
 	} while (mEp->dir != direction);
 
-	mEp->desc = NULL;
 	mEp->ep.desc = NULL;
 
 	spin_unlock_irqrestore(mEp->lock, flags);
@@ -2269,7 +2268,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 
 	trace("%p, %p, %X", ep, req, gfp_flags);
 
-	if (ep == NULL || req == NULL || mEp->desc == NULL)
+	if (ep == NULL || req == NULL || mEp->ep.desc == NULL)
 		return -EINVAL;
 
 	spin_lock_irqsave(mEp->lock, flags);
@@ -2332,7 +2331,7 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	trace("%p, %p", ep, req);
 
 	if (ep == NULL || req == NULL || mReq->req.status != -EALREADY ||
-		mEp->desc == NULL || list_empty(&mReq->queue) ||
+		mEp->ep.desc == NULL || list_empty(&mReq->queue) ||
 		list_empty(&mEp->qh.queue))
 		return -EINVAL;
 
@@ -2375,7 +2374,7 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 
 	trace("%p, %i", ep, value);
 
-	if (ep == NULL || mEp->desc == NULL)
+	if (ep == NULL || mEp->ep.desc == NULL)
 		return -EINVAL;
 
 	spin_lock_irqsave(mEp->lock, flags);
@@ -2418,7 +2417,7 @@ static int ep_set_wedge(struct usb_ep *ep)
 
 	trace("%p", ep);
 
-	if (ep == NULL || mEp->desc == NULL)
+	if (ep == NULL || mEp->ep.desc == NULL)
 		return -EINVAL;
 
 	spin_lock_irqsave(mEp->lock, flags);
