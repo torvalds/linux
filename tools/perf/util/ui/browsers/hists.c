@@ -989,6 +989,8 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			    bi &&
 			    bi->to.sym != NULL &&
 			    !bi->to.map->dso->annotate_warned &&
+			    (bi->to.sym != bi->from.sym ||
+			     bi->to.map->dso != bi->from.map->dso) &&
 				asprintf(&options[nr_options], "Annotate %s",
 					 bi->to.sym->name) > 0)
 				annotate_t = nr_options++;
