@@ -518,6 +518,7 @@ struct snd_soc_jack_gpio {
 #endif
 
 struct snd_soc_jack {
+	struct mutex mutex;
 	struct snd_jack *jack;
 	struct snd_soc_codec *codec;
 	struct list_head pins;
