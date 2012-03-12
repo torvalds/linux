@@ -83,6 +83,7 @@ void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 	 */
 	if (test_bit(HCI_INIT, &hdev->flags) && hdev->init_last_cmd != cmd) {
 		struct hci_command_hdr *sent = (void *) hdev->sent_cmd->data;
+		u16 opcode = __le16_to_cpu(sent->opcode);
 		struct sk_buff *skb;
 
 		/* Some CSR based controllers generate a spontaneous
@@ -92,7 +93,7 @@ void hci_req_complete(struct hci_dev *hdev, __u16 cmd, int result)
 		 * command.
 		 */
 
-		if (cmd != HCI_OP_RESET || sent->opcode == HCI_OP_RESET)
+		if (cmd != HCI_OP_RESET || opcode == HCI_OP_RESET)
 			return;
 
 		skb = skb_clone(hdev->sent_cmd, GFP_ATOMIC);
