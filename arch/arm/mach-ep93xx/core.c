@@ -845,6 +845,20 @@ void __init ep93xx_register_ac97(void)
 	platform_device_register(&ep93xx_pcm_device);
 }
 
+/*************************************************************************
+ * EP93xx Watchdog
+ *************************************************************************/
+static struct resource ep93xx_wdt_resources[] = {
+	DEFINE_RES_MEM(EP93XX_WATCHDOG_PHYS_BASE, 0x08),
+};
+
+static struct platform_device ep93xx_wdt_device = {
+	.name		= "ep93xx-wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_wdt_resources),
+	.resource	= ep93xx_wdt_resources,
+};
+
 void __init ep93xx_init_devices(void)
 {
 	/* Disallow access to MaverickCrunch initially */
@@ -860,6 +874,7 @@ void __init ep93xx_init_devices(void)
 	platform_device_register(&ep93xx_rtc_device);
 	platform_device_register(&ep93xx_ohci_device);
 	platform_device_register(&ep93xx_leds);
+	platform_device_register(&ep93xx_wdt_device);
 }
 
 void ep93xx_restart(char mode, const char *cmd)
