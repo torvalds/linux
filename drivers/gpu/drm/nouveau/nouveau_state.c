@@ -993,7 +993,7 @@ static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
 int nouveau_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_nouveau_private *dev_priv;
-	uint32_t reg0, strap;
+	uint32_t reg0 = ~0, strap;
 	resource_size_t mmio_start_offs;
 	int ret;
 
@@ -1012,10 +1012,65 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
 
-	/* resource 0 is mmio regs */
-	/* resource 1 is linear FB */
-	/* resource 2 is RAMIN (mmio regs + 0x1000000) */
-	/* resource 6 is bios */
+	/* first up, map the start of mmio and determine the chipset */
+	dev_priv->mmio = ioremap(pci_resource_start(dev->pdev, 0), PAGE_SIZE);
+	if (dev_priv->mmio) {
+#ifdef __BIG_ENDIAN
+		/* put the card into big-endian mode if it's not */
+		if (nv_rd32(dev, NV03_PMC_BOOT_1) != 0x01000001)
+			nv_wr32(dev, NV03_PMC_BOOT_1, 0x01000001);
+		DRM_MEMORYBARRIER();
+#endif
+
+		/* determine chipset and derive architecture from it */
+		reg0 = nv_rd32(dev, NV03_PMC_BOOT_0);
+		if ((reg0 & 0x0f000000) > 0) {
+			dev_priv->chipset = (reg0 & 0xff00000) >> 20;
+			switch (dev_priv->chipset & 0xf0) {
+			case 0x10:
+			case 0x20:
+			case 0x30:
+				dev_priv->card_type = dev_priv->chipset & 0xf0;
+				break;
+			case 0x40:
+			case 0x60:
+				dev_priv->card_type = NV_40;
+				break;
+			case 0x50:
+			case 0x80:
+			case 0x90:
+			case 0xa0:
+				dev_priv->card_type = NV_50;
+				break;
+			case 0xc0:
+				dev_priv->card_type = NV_C0;
+				break;
+			case 0xd0:
+				dev_priv->card_type = NV_D0;
+				break;
+			default:
+				break;
+			}
+		} else
+		if ((reg0 & 0xff00fff0) == 0x20004000) {
+			if (reg0 & 0x00f00000)
+				dev_priv->chipset = 0x05;
+			else
+				dev_priv->chipset = 0x04;
+			dev_priv->card_type = NV_04;
+		}
+
+		iounmap(dev_priv->mmio);
+	}
+
+	if (!dev_priv->card_type) {
+		NV_ERROR(dev, "unsupported chipset 0x%08x\n", reg0);
+		ret = -EINVAL;
+		goto err_priv;
+	}
+
+	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
+		     dev_priv->card_type, reg0);
 
 	/* map the mmio regs */
 	mmio_start_offs = pci_resource_start(dev->pdev, 0);
@@ -1028,62 +1083,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	}
 	NV_DEBUG(dev, "regs mapped ok at 0x%llx\n",
 					(unsigned long long)mmio_start_offs);
-
-#ifdef __BIG_ENDIAN
-	/* Put the card in BE mode if it's not */
-	if (nv_rd32(dev, NV03_PMC_BOOT_1) != 0x01000001)
-		nv_wr32(dev, NV03_PMC_BOOT_1, 0x01000001);
-
-	DRM_MEMORYBARRIER();
-#endif
-
-	/* Time to determine the card architecture */
-	reg0 = nv_rd32(dev, NV03_PMC_BOOT_0);
-
-	/* We're dealing with >=NV10 */
-	if ((reg0 & 0x0f000000) > 0) {
-		/* Bit 27-20 contain the architecture in hex */
-		dev_priv->chipset = (reg0 & 0xff00000) >> 20;
-	/* NV04 or NV05 */
-	} else if ((reg0 & 0xff00fff0) == 0x20004000) {
-		if (reg0 & 0x00f00000)
-			dev_priv->chipset = 0x05;
-		else
-			dev_priv->chipset = 0x04;
-	} else
-		dev_priv->chipset = 0xff;
-
-	switch (dev_priv->chipset & 0xf0) {
-	case 0x00:
-	case 0x10:
-	case 0x20:
-	case 0x30:
-		dev_priv->card_type = dev_priv->chipset & 0xf0;
-		break;
-	case 0x40:
-	case 0x60:
-		dev_priv->card_type = NV_40;
-		break;
-	case 0x50:
-	case 0x80:
-	case 0x90:
-	case 0xa0:
-		dev_priv->card_type = NV_50;
-		break;
-	case 0xc0:
-		dev_priv->card_type = NV_C0;
-		break;
-	case 0xd0:
-		dev_priv->card_type = NV_D0;
-		break;
-	default:
-		NV_INFO(dev, "Unsupported chipset 0x%08x\n", reg0);
-		ret = -EINVAL;
-		goto err_mmio;
-	}
-
-	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
-		dev_priv->card_type, reg0);
 
 	/* determine frequency of timing crystal */
 	strap = nv_rd32(dev, 0x101000);
