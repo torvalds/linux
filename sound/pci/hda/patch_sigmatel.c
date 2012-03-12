@@ -310,6 +310,8 @@ struct sigmatel_spec {
 	unsigned long auto_capvols[MAX_ADCS_NUM];
 	unsigned auto_dmic_cnt;
 	hda_nid_t auto_dmic_nids[MAX_DMICS_NUM];
+
+	struct snd_kcontrol *vmaster_sw_kctl;
 };
 
 static const hda_nid_t stac9200_adc_nids[1] = {
@@ -1007,8 +1009,8 @@ static const struct hda_verb stac9205_core_init[] = {
 	}
 
 static const struct snd_kcontrol_new stac9200_mixer[] = {
-	HDA_CODEC_VOLUME_MIN_MUTE("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MIN_MUTE("PCM Playback Volume", 0xb, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0a, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0a, 0, HDA_OUTPUT),
 	{ } /* end */
@@ -1035,8 +1037,8 @@ static const struct snd_kcontrol_new stac92hd71bxx_loopback[] = {
 };
 
 static const struct snd_kcontrol_new stac925x_mixer[] = {
-	HDA_CODEC_VOLUME_MIN_MUTE("Master Playback Volume", 0xe, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Master Playback Switch", 0x0e, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MIN_MUTE("PCM Playback Volume", 0xe, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x0e, 0, HDA_OUTPUT),
 	{ } /* end */
 };
 
@@ -1074,11 +1076,19 @@ static const char * const slave_pfxs[] = {
 	NULL
 };
 
+static void stac92xx_update_led_status(struct hda_codec *codec, int enabled);
+
+static void stac92xx_vmaster_hook(void *private_data, int val)
+{
+	stac92xx_update_led_status(private_data, val);
+}
+
 static void stac92xx_free_kctls(struct hda_codec *codec);
 
 static int stac92xx_build_controls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	unsigned int vmaster_tlv[4];
 	int err;
 	int i;
 
@@ -1135,26 +1145,29 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	}
 
 	/* if we have no master control, let's create it */
-	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
-		unsigned int vmaster_tlv[4];
-		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
-					HDA_OUTPUT, vmaster_tlv);
-		/* correct volume offset */
-		vmaster_tlv[2] += vmaster_tlv[3] * spec->volume_offset;
-		/* minimum value is actually mute */
-		vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
-		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, slave_pfxs,
-					  "Playback Volume");
-		if (err < 0)
-			return err;
-	}
-	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
-		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, slave_pfxs,
-					  "Playback Switch");
-		if (err < 0)
-			return err;
+	snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
+				HDA_OUTPUT, vmaster_tlv);
+	/* correct volume offset */
+	vmaster_tlv[2] += vmaster_tlv[3] * spec->volume_offset;
+	/* minimum value is actually mute */
+	vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
+	err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+				  vmaster_tlv, slave_pfxs,
+				  "Playback Volume");
+	if (err < 0)
+		return err;
+
+	err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
+				    NULL, slave_pfxs,
+				    "Playback Switch", true,
+				    &spec->vmaster_sw_kctl);
+	if (err < 0)
+		return err;
+
+	if (spec->gpio_led) {
+		snd_ctl_add_vmaster_hook(spec->vmaster_sw_kctl,
+					 stac92xx_vmaster_hook, codec);
+		snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
 	}
 
 	if (spec->aloopback_ctl &&
@@ -4419,8 +4432,7 @@ static int stac92xx_init(struct hda_codec *codec)
 	snd_hda_jack_report_sync(codec);
 
 	/* sync mute LED */
-	if (spec->gpio_led)
-		hda_call_check_power_status(codec, 0x01);
+	snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
 	return 0;
@@ -5033,82 +5045,36 @@ static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 			afg_power_state);
 	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
 }
+#endif /* CONFIG_SND_HDA_POWER_SAVE */
+#endif /* CONFIG_PM */
 
-/*
- * For this feature CONFIG_SND_HDA_POWER_SAVE is needed
- * as mute LED state is updated in check_power_status hook
- */
-static int stac92xx_update_led_status(struct hda_codec *codec)
+/* update mute-LED accoring to the master switch */
+static void stac92xx_update_led_status(struct hda_codec *codec, int enabled)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int i, num_ext_dacs, muted = 1;
-	unsigned int muted_lvl, notmtd_lvl;
-	hda_nid_t nid;
+	int muted = !enabled;
 
 	if (!spec->gpio_led)
-		return 0;
+		return;
 
-	for (i = 0; i < spec->multiout.num_dacs; i++) {
-		nid = spec->multiout.dac_nids[i];
-		if (!(snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
-		      HDA_AMP_MUTE)) {
-			muted = 0; /* something heard */
-			break;
-		}
-	}
-	if (muted && spec->multiout.hp_nid)
-		if (!(snd_hda_codec_amp_read(codec,
-				spec->multiout.hp_nid, 0, HDA_OUTPUT, 0) &
-					HDA_AMP_MUTE)) {
-			muted = 0; /* HP is not muted */
-		}
-	num_ext_dacs = ARRAY_SIZE(spec->multiout.extra_out_nid);
-	for (i = 0; muted && i < num_ext_dacs; i++) {
-		nid = spec->multiout.extra_out_nid[i];
-		if (nid == 0)
-			break;
-		if (!(snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
-		      HDA_AMP_MUTE)) {
-			muted = 0; /* extra output is not muted */
-		}
-	}
+	/* LED state is inverted on these systems */
+	if (spec->gpio_led_polarity)
+		muted = !muted;
+
 	/*polarity defines *not* muted state level*/
 	if (!spec->vref_mute_led_nid) {
 		if (muted)
 			spec->gpio_data &= ~spec->gpio_led; /* orange */
 		else
 			spec->gpio_data |= spec->gpio_led; /* white */
-
-		if (!spec->gpio_led_polarity) {
-			/* LED state is inverted on these systems */
-			spec->gpio_data ^= spec->gpio_led;
-		}
 		stac_gpio_set(codec, spec->gpio_mask,
 				spec->gpio_dir, spec->gpio_data);
 	} else {
-		notmtd_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_50 : AC_PINCTL_VREF_GRD;
-		muted_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_GRD : AC_PINCTL_VREF_50;
-		spec->vref_led = muted ? muted_lvl : notmtd_lvl;
+		spec->vref_led = muted ? AC_PINCTL_VREF_50 : AC_PINCTL_VREF_GRD;
 		stac_vrefout_set(codec,	spec->vref_mute_led_nid,
 				 spec->vref_led);
 	}
-	return 0;
 }
-
-/*
- * use power check for controlling mute led of HP notebooks
- */
-static int stac92xx_check_power_status(struct hda_codec *codec,
-					      hda_nid_t nid)
-{
-	stac92xx_update_led_status(codec);
-
-	return 0;
-}
-#endif /* CONFIG_SND_HDA_POWER_SAVE */
-#endif /* CONFIG_PM */
 
 static const struct hda_codec_ops stac92xx_patch_ops = {
 	.build_controls = stac92xx_build_controls,
@@ -5627,8 +5593,6 @@ again:
 					stac92xx_set_power_state;
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
-		codec->patch_ops.check_power_status =
-			stac92xx_check_power_status;
 	}
 #endif	
 
@@ -5938,8 +5902,6 @@ again:
 					stac92xx_set_power_state;
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
-		codec->patch_ops.check_power_status =
-			stac92xx_check_power_status;
 	}
 #endif	
 
