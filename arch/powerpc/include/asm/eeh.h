@@ -1,6 +1,6 @@
 /*
- * eeh.h
  * Copyright (C) 2001  Dave Engebretsen & Todd Inglett IBM Corporation.
+ * Copyright 2001-2012 IBM Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,44 +31,105 @@ struct device_node;
 
 #ifdef CONFIG_EEH
 
+/*
+ * The struct is used to trace EEH state for the associated
+ * PCI device node or PCI device. In future, it might
+ * represent PE as well so that the EEH device to form
+ * another tree except the currently existing tree of PCI
+ * buses and PCI devices
+ */
+#define EEH_MODE_SUPPORTED	(1<<0)	/* EEH supported on the device	*/
+#define EEH_MODE_NOCHECK	(1<<1)	/* EEH check should be skipped	*/
+#define EEH_MODE_ISOLATED	(1<<2)	/* The device has been isolated	*/
+#define EEH_MODE_RECOVERING	(1<<3)	/* Recovering the device	*/
+#define EEH_MODE_IRQ_DISABLED	(1<<4)	/* Interrupt disabled		*/
+
+struct eeh_dev {
+	int mode;			/* EEH mode			*/
+	int class_code;			/* Class code of the device	*/
+	int config_addr;		/* Config address		*/
+	int pe_config_addr;		/* PE config address		*/
+	int check_count;		/* Times of ignored error	*/
+	int freeze_count;		/* Times of froze up		*/
+	int false_positives;		/* Times of reported #ff's	*/
+	u32 config_space[16];		/* Saved PCI config space	*/
+	struct pci_controller *phb;	/* Associated PHB		*/
+	struct device_node *dn;		/* Associated device node	*/
+	struct pci_dev *pdev;		/* Associated PCI device	*/
+};
+
+static inline struct device_node *eeh_dev_to_of_node(struct eeh_dev *edev)
+{
+	return edev->dn;
+}
+
+static inline struct pci_dev *eeh_dev_to_pci_dev(struct eeh_dev *edev)
+{
+	return edev->pdev;
+}
+
+/*
+ * The struct is used to trace the registered EEH operation
+ * callback functions. Actually, those operation callback
+ * functions are heavily platform dependent. That means the
+ * platform should register its own EEH operation callback
+ * functions before any EEH further operations.
+ */
+#define EEH_OPT_DISABLE		0	/* EEH disable	*/
+#define EEH_OPT_ENABLE		1	/* EEH enable	*/
+#define EEH_OPT_THAW_MMIO	2	/* MMIO enable	*/
+#define EEH_OPT_THAW_DMA	3	/* DMA enable	*/
+#define EEH_STATE_UNAVAILABLE	(1 << 0)	/* State unavailable	*/
+#define EEH_STATE_NOT_SUPPORT	(1 << 1)	/* EEH not supported	*/
+#define EEH_STATE_RESET_ACTIVE	(1 << 2)	/* Active reset		*/
+#define EEH_STATE_MMIO_ACTIVE	(1 << 3)	/* Active MMIO		*/
+#define EEH_STATE_DMA_ACTIVE	(1 << 4)	/* Active DMA		*/
+#define EEH_STATE_MMIO_ENABLED	(1 << 5)	/* MMIO enabled		*/
+#define EEH_STATE_DMA_ENABLED	(1 << 6)	/* DMA enabled		*/
+#define EEH_RESET_DEACTIVATE	0	/* Deactivate the PE reset	*/
+#define EEH_RESET_HOT		1	/* Hot reset			*/
+#define EEH_RESET_FUNDAMENTAL	3	/* Fundamental reset		*/
+#define EEH_LOG_TEMP		1	/* EEH temporary error log	*/
+#define EEH_LOG_PERM		2	/* EEH permanent error log	*/
+
+struct eeh_ops {
+	char *name;
+	int (*init)(void);
+	int (*set_option)(struct device_node *dn, int option);
+	int (*get_pe_addr)(struct device_node *dn);
+	int (*get_state)(struct device_node *dn, int *state);
+	int (*reset)(struct device_node *dn, int option);
+	int (*wait_state)(struct device_node *dn, int max_wait);
+	int (*get_log)(struct device_node *dn, int severity, char *drv_log, unsigned long len);
+	int (*configure_bridge)(struct device_node *dn);
+	int (*read_config)(struct device_node *dn, int where, int size, u32 *val);
+	int (*write_config)(struct device_node *dn, int where, int size, u32 val);
+};
+
+extern struct eeh_ops *eeh_ops;
 extern int eeh_subsystem_enabled;
 
-/* Values for eeh_mode bits in device_node */
-#define EEH_MODE_SUPPORTED     (1<<0)
-#define EEH_MODE_NOCHECK       (1<<1)
-#define EEH_MODE_ISOLATED      (1<<2)
-#define EEH_MODE_RECOVERING    (1<<3)
-#define EEH_MODE_IRQ_DISABLED  (1<<4)
-
-/* Max number of EEH freezes allowed before we consider the device
- * to be permanently disabled. */
+/*
+ * Max number of EEH freezes allowed before we consider the device
+ * to be permanently disabled.
+ */
 #define EEH_MAX_ALLOWED_FREEZES 5
 
+void * __devinit eeh_dev_init(struct device_node *dn, void *data);
+void __devinit eeh_dev_phb_init_dynamic(struct pci_controller *phb);
+void __init eeh_dev_phb_init(void);
 void __init eeh_init(void);
+#ifdef CONFIG_PPC_PSERIES
+int __init eeh_pseries_init(void);
+#endif
+int __init eeh_ops_register(struct eeh_ops *ops);
+int __exit eeh_ops_unregister(const char *name);
 unsigned long eeh_check_failure(const volatile void __iomem *token,
 				unsigned long val);
 int eeh_dn_check_failure(struct device_node *dn, struct pci_dev *dev);
 void __init pci_addr_cache_build(void);
-
-/**
- * eeh_add_device_early
- * eeh_add_device_late
- *
- * Perform eeh initialization for devices added after boot.
- * Call eeh_add_device_early before doing any i/o to the
- * device (including config space i/o).  Call eeh_add_device_late
- * to finish the eeh setup for this device.
- */
 void eeh_add_device_tree_early(struct device_node *);
 void eeh_add_device_tree_late(struct pci_bus *);
-
-/**
- * eeh_remove_device_recursive - undo EEH for device & children.
- * @dev: pci device to be removed
- *
- * As above, this removes the device; it also removes child
- * pci devices as well.
- */
 void eeh_remove_bus_device(struct pci_dev *);
 
 /**
@@ -87,7 +148,24 @@ void eeh_remove_bus_device(struct pci_dev *);
 #define EEH_IO_ERROR_VALUE(size)	(~0U >> ((4 - (size)) * 8))
 
 #else /* !CONFIG_EEH */
+
+static inline void *eeh_dev_init(struct device_node *dn, void *data)
+{
+	return NULL;
+}
+
+static inline void eeh_dev_phb_init_dynamic(struct pci_controller *phb) { }
+
+static inline void eeh_dev_phb_init(void) { }
+
 static inline void eeh_init(void) { }
+
+#ifdef CONFIG_PPC_PSERIES
+static inline int eeh_pseries_init(void)
+{
+	return 0;
+}
+#endif /* CONFIG_PPC_PSERIES */
 
 static inline unsigned long eeh_check_failure(const volatile void __iomem *token, unsigned long val)
 {

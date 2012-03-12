@@ -1647,6 +1647,13 @@ static inline void pci_set_bus_of_node(struct pci_bus *bus) { }
 static inline void pci_release_bus_of_node(struct pci_bus *bus) { }
 #endif  /* CONFIG_OF */
 
+#ifdef CONFIG_EEH
+static inline struct eeh_dev *pci_dev_to_eeh_dev(struct pci_dev *pdev)
+{
+	return pdev->dev.archdata.edev;
+}
+#endif
+
 /**
  * pci_find_upstream_pcie_bridge - find upstream PCIe-to-PCI bridge of a device
  * @pdev: the PCI device
