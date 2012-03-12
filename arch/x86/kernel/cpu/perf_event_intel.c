@@ -1288,7 +1288,8 @@ static int intel_pmu_hw_config(struct perf_event *event)
 		 *
 		 * Thereby we gain a PEBS capable cycle counter.
 		 */
-		u64 alt_config = 0x108000c0; /* INST_RETIRED.TOTAL_CYCLES */
+		u64 alt_config = X86_CONFIG(.event=0xc0, .inv=1, .cmask=16);
+
 
 		alt_config |= (event->hw.config & ~X86_RAW_EVENT_MASK);
 		event->hw.config = alt_config;
@@ -1690,9 +1691,11 @@ __init int intel_pmu_init(void)
 		x86_pmu.extra_regs = intel_nehalem_extra_regs;
 
 		/* UOPS_ISSUED.STALLED_CYCLES */
-		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =
+			X86_CONFIG(.event=0x0e, .umask=0x01, .inv=1, .cmask=1);
 		/* UOPS_EXECUTED.CORE_ACTIVE_CYCLES,c=1,i=1 */
-		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = 0x1803fb1;
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =
+			X86_CONFIG(.event=0xb1, .umask=0x3f, .inv=1, .cmask=1);
 
 		x86_add_quirk(intel_nehalem_quirk);
 
@@ -1727,9 +1730,11 @@ __init int intel_pmu_init(void)
 		x86_pmu.er_flags |= ERF_HAS_RSP_1;
 
 		/* UOPS_ISSUED.STALLED_CYCLES */
-		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =
+			X86_CONFIG(.event=0x0e, .umask=0x01, .inv=1, .cmask=1);
 		/* UOPS_EXECUTED.CORE_ACTIVE_CYCLES,c=1,i=1 */
-		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = 0x1803fb1;
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =
+			X86_CONFIG(.event=0xb1, .umask=0x3f, .inv=1, .cmask=1);
 
 		pr_cont("Westmere events, ");
 		break;
@@ -1750,9 +1755,11 @@ __init int intel_pmu_init(void)
 		x86_pmu.er_flags |= ERF_NO_HT_SHARING;
 
 		/* UOPS_ISSUED.ANY,c=1,i=1 to count stall cycles */
-		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] = 0x180010e;
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_FRONTEND] =
+			X86_CONFIG(.event=0x0e, .umask=0x01, .inv=1, .cmask=1);
 		/* UOPS_DISPATCHED.THREAD,c=1,i=1 to count stall cycles*/
-		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] = 0x18001b1;
+		intel_perfmon_event_map[PERF_COUNT_HW_STALLED_CYCLES_BACKEND] =
+			X86_CONFIG(.event=0xb1, .umask=0x01, .inv=1, .cmask=1);
 
 		pr_cont("SandyBridge events, ");
 		break;
