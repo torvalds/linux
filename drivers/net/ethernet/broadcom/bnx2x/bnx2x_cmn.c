@@ -2007,6 +2007,15 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		bnx2x_cnic_notify(bp, CNIC_CTL_START_CMD);
 #endif
 
+	/* mark driver is loaded in shmem2 */
+	if (SHMEM2_HAS(bp, drv_capabilities_flag)) {
+		u32 val;
+		val = SHMEM2_RD(bp, drv_capabilities_flag[BP_FW_MB_IDX(bp)]);
+		SHMEM2_WR(bp, drv_capabilities_flag[BP_FW_MB_IDX(bp)],
+			  val | DRV_FLAGS_CAPABILITIES_LOADED_SUPPORTED |
+			  DRV_FLAGS_CAPABILITIES_LOADED_L2);
+	}
+
 	/* Wait for all pending SP commands to complete */
 	if (!bnx2x_wait_sp_comp(bp, ~0x0UL)) {
 		BNX2X_ERR("Timeout waiting for SP elements to complete\n");
@@ -2059,6 +2068,14 @@ int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 {
 	int i;
 	bool global = false;
+
+	/* mark driver is unloaded in shmem2 */
+	if (SHMEM2_HAS(bp, drv_capabilities_flag)) {
+		u32 val;
+		val = SHMEM2_RD(bp, drv_capabilities_flag[BP_FW_MB_IDX(bp)]);
+		SHMEM2_WR(bp, drv_capabilities_flag[BP_FW_MB_IDX(bp)],
+			  val & ~DRV_FLAGS_CAPABILITIES_LOADED_L2);
+	}
 
 	if ((bp->state == BNX2X_STATE_CLOSED) ||
 	    (bp->state == BNX2X_STATE_ERROR)) {
