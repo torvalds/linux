@@ -1070,13 +1070,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	switch (rx->key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		/* Check for weak IVs if possible */
-		if (rx->sta && ieee80211_is_data(fc) &&
-		    (!(status->flag & RX_FLAG_IV_STRIPPED) ||
-		     !(status->flag & RX_FLAG_DECRYPTED)) &&
-		    ieee80211_wep_is_weak_iv(rx->skb, rx->key))
-			rx->sta->wep_weak_iv_count++;
-
 		result = ieee80211_crypto_wep_decrypt(rx);
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
