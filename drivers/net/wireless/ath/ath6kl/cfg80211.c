@@ -586,8 +586,8 @@ static int ath6kl_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 	vif->reconnect_flag = 0;
 
 	if (vif->nw_type == INFRA_NETWORK) {
-		interval = max(vif->listen_intvl_t,
-			       (u16) ATH6KL_MAX_WOW_LISTEN_INTL);
+		interval = max_t(u16, vif->listen_intvl_t,
+				 ATH6KL_MAX_WOW_LISTEN_INTL);
 		status = ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx,
 						       interval,
 						       0);
