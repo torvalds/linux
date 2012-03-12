@@ -3244,9 +3244,11 @@ sub make_min_config {
 	$in_bisect = 1;
 
 	my $failed = 0;
-	build "oldconfig";
-	start_monitor_and_boot or $failed = 1;
-	end_monitor;
+	build "oldconfig" or $failed = 1;
+	if (!$failed) {
+		start_monitor_and_boot or $failed = 1;
+		end_monitor;
+	}
 
 	$in_bisect = 0;
 

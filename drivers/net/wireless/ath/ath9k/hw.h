@@ -940,7 +940,6 @@ struct ath_hw {
 	u32 *analogBank6Data;
 	u32 *analogBank6TPCData;
 	u32 *analogBank7Data;
-	u32 *addac5416_21;
 	u32 *bank6Temp;
 
 	u8 txpower_limit;
