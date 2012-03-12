@@ -275,7 +275,7 @@ int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl)
  * @returns
  *	0 on success
  *	-ENOENT when me client is not found
- *	-EINVAL wehn ctrl credits are <= 0
+ *	-EINVAL when ctrl credits are <= 0
  */
 int mei_flow_ctrl_reduce(struct mei_device *dev, struct mei_cl *cl)
 {

@@ -109,8 +109,8 @@ int mei_ioctl_connect_client(struct file *file,
 	dev_dbg(&dev->pdev->dev, "FW Client - Max Msg Len = %d\n",
 			dev->me_clients[i].props.max_msg_length);
 
-	/* if we're connecting to amthi client so we will use the exist
-	 * connection
+	/* if we're connecting to amthi client then we will use the
+	 * existing connection
 	 */
 	if (uuid_le_cmp(data->in_client_uuid, mei_amthi_guid) == 0) {
 		dev_dbg(&dev->pdev->dev, "FW Client is amthi\n");

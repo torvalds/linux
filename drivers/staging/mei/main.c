@@ -430,7 +430,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto free;
 	} else if ((!cl->read_cb || !cl->read_cb->information) &&
 		    *offset > 0) {
-		/*Offset needs to be cleaned for contingous reads*/
+		/*Offset needs to be cleaned for contiguous reads*/
 		*offset = 0;
 		rets = 0;
 		goto out;
@@ -493,7 +493,7 @@ copy_buffer:
 		goto free;
 	}
 
-	/* length is being turncated to PAGE_SIZE, however, */
+	/* length is being truncated to PAGE_SIZE, however, */
 	/* information size may be longer */
 	length = min_t(size_t, length, (cb->information - *offset));
 

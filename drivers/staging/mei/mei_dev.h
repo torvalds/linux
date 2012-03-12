@@ -89,7 +89,7 @@ enum mei_states {
 	MEI_POWER_UP
 };
 
-/* init clients  states*/
+/* init clients states*/
 enum mei_init_clients_states {
 	MEI_START_MESSAGE = 0,
 	MEI_ENUM_CLIENTS_MESSAGE,

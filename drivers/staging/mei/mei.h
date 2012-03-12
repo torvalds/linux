@@ -77,7 +77,7 @@
  * Only in close() (file_operation release()) the communication between
  * the clients is disconnected
  *
- * The IOCTL argument is a struct with a union the contains
+ * The IOCTL argument is a struct with a union that contains
  * the input parameter and the output parameter for this IOCTL.
  *
  * The input parameter is UUID of the FW Client.

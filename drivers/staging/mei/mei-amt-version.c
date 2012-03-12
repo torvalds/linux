@@ -77,7 +77,7 @@
 #include "mei.h"
 
 /*****************************************************************************
- * Intel Management Enginin Interface
+ * Intel Management Engine Interface
  *****************************************************************************/
 
 #define mei_msg(_me, fmt, ARGS...) do {         \

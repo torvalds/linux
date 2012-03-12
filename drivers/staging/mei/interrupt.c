@@ -719,7 +719,7 @@ static void mei_irq_thread_read_bus_message(struct mei_device *dev,
 				dev->me_client_index++;
 				dev->me_client_presentation_num++;
 
-				/** Send Client Propeties request **/
+				/** Send Client Properties request **/
 				res = mei_host_client_properties(dev);
 				if (res < 0) {
 					dev_dbg(&dev->pdev->dev, "mei_host_client_properties() failed");
@@ -1507,7 +1507,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 	dev->host_hw_state = mei_hcsr_read(dev);
 
 	/* Ack the interrupt here
-	 * In case of MSI we don't go throuhg the quick handler */
+	 * In case of MSI we don't go through the quick handler */
 	if (pci_dev_msi_enabled(dev->pdev))
 		mei_reg_write(dev, H_CSR, dev->host_hw_state);
 
@@ -1543,7 +1543,7 @@ irqreturn_t mei_interrupt_thread_handler(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		}
 	}
-	/* check slots avalable for reading */
+	/* check slots available for reading */
 	slots = mei_count_full_read_slots(dev);
 	dev_dbg(&dev->pdev->dev, "slots =%08x  extra_write_index =%08x.\n",
 		slots, dev->extra_write_index);

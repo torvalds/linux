@@ -60,7 +60,7 @@ void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout);
  */
 void mei_watchdog_register(struct mei_device *dev);
 /*
- * mei_watchdog_unregister  - Uegistering watchdog interface
+ * mei_watchdog_unregister  - Unregistering watchdog interface
  * @dev - mei device
  */
 void mei_watchdog_unregister(struct mei_device *dev);
