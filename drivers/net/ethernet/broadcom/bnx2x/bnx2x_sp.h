@@ -423,6 +423,13 @@ struct bnx2x_vlan_mac_obj {
 	int (*wait)(struct bnx2x *bp, struct bnx2x_vlan_mac_obj *o);
 };
 
+enum {
+	BNX2X_LLH_CAM_ISCSI_ETH_LINE = 0,
+	BNX2X_LLH_CAM_ETH_LINE,
+	BNX2X_LLH_CAM_MAX_PF_LINE = NIG_REG_LLH1_FUNC_MEM_SIZE / 2
+};
+
+
 /** RX_MODE verbs:DROP_ALL/ACCEPT_ALL/ACCEPT_ALL_MULTI/ACCEPT_ALL_VLAN/NORMAL */
 
 /* RX_MODE ramrod spesial flags: set in rx_mode_flags field in
