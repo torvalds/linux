@@ -429,12 +429,14 @@ bool nsown_capable(int cap)
  * targeted at it's own user namespace and that the given inode is owned
  * by the current user namespace or a child namespace.
  *
- * Currently inodes can only be owned by the initial user namespace.
+ * Currently we check to see if an inode is owned by the current
+ * user namespace by seeing if the inode's owner maps into the
+ * current user namespace.
  *
  */
 bool inode_capable(const struct inode *inode, int cap)
 {
 	struct user_namespace *ns = current_user_ns();
 
-	return ns_capable(ns, cap) && (ns == &init_user_ns);
+	return ns_capable(ns, cap) && kuid_has_mapping(ns, inode->i_uid);
 }
