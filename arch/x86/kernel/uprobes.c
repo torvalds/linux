@@ -31,14 +31,14 @@
 /* Post-execution fixups. */
 
 /* No fixup needed */
-#define UPROBES_FIX_NONE	0x0
+#define UPROBE_FIX_NONE	0x0
 /* Adjust IP back to vicinity of actual insn */
-#define UPROBES_FIX_IP		0x1
+#define UPROBE_FIX_IP		0x1
 /* Adjust the return address of a call insn */
-#define UPROBES_FIX_CALL	0x2
+#define UPROBE_FIX_CALL	0x2
 
-#define UPROBES_FIX_RIP_AX	0x8000
-#define UPROBES_FIX_RIP_CX	0x4000
+#define UPROBE_FIX_RIP_AX	0x8000
+#define UPROBE_FIX_RIP_CX	0x4000
 
 /* Adaptations for mhiramat x86 decoder v14. */
 #define OPCODE1(insn)		((insn)->opcode.bytes[0])
@@ -269,9 +269,9 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
 		break;
 	}
 	if (fix_ip)
-		auprobe->fixups |= UPROBES_FIX_IP;
+		auprobe->fixups |= UPROBE_FIX_IP;
 	if (fix_call)
-		auprobe->fixups |= UPROBES_FIX_CALL;
+		auprobe->fixups |= UPROBE_FIX_CALL;
 }
 
 #ifdef CONFIG_X86_64
@@ -341,12 +341,12 @@ static void handle_riprel_insn(struct mm_struct *mm, struct arch_uprobe *auprobe
 		 * is NOT the register operand, so we use %rcx (register
 		 * #1) for the scratch register.
 		 */
-		auprobe->fixups = UPROBES_FIX_RIP_CX;
+		auprobe->fixups = UPROBE_FIX_RIP_CX;
 		/* Change modrm from 00 000 101 to 00 000 001. */
 		*cursor = 0x1;
 	} else {
 		/* Use %rax (register #0) for the scratch register. */
-		auprobe->fixups = UPROBES_FIX_RIP_AX;
+		auprobe->fixups = UPROBE_FIX_RIP_AX;
 		/* Change modrm from 00 xxx 101 to 00 xxx 000 */
 		*cursor = (reg << 3);
 	}

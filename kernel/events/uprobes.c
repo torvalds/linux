@@ -177,7 +177,7 @@ out:
  */
 bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
 {
-	return *insn == UPROBES_BKPT_INSN;
+	return *insn == UPROBE_BKPT_INSN;
 }
 
 /*
@@ -259,8 +259,8 @@ static int write_opcode(struct mm_struct *mm, struct arch_uprobe *auprobe,
 
 	/* poke the new insn in, ASSUMES we don't cross page boundary */
 	vaddr &= ~PAGE_MASK;
-	BUG_ON(vaddr + UPROBES_BKPT_INSN_SIZE > PAGE_SIZE);
-	memcpy(vaddr_new + vaddr, &opcode, UPROBES_BKPT_INSN_SIZE);
+	BUG_ON(vaddr + UPROBE_BKPT_INSN_SIZE > PAGE_SIZE);
+	memcpy(vaddr_new + vaddr, &opcode, UPROBE_BKPT_INSN_SIZE);
 
 	kunmap_atomic(vaddr_new);
 	kunmap_atomic(vaddr_old);
@@ -308,7 +308,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
 	lock_page(page);
 	vaddr_new = kmap_atomic(page);
 	vaddr &= ~PAGE_MASK;
-	memcpy(opcode, vaddr_new + vaddr, UPROBES_BKPT_INSN_SIZE);
+	memcpy(opcode, vaddr_new + vaddr, UPROBE_BKPT_INSN_SIZE);
 	kunmap_atomic(vaddr_new);
 	unlock_page(page);
 
@@ -352,7 +352,7 @@ int __weak set_bkpt(struct mm_struct *mm, struct arch_uprobe *auprobe, unsigned 
 	if (result)
 		return result;
 
-	return write_opcode(mm, auprobe, vaddr, UPROBES_BKPT_INSN);
+	return write_opcode(mm, auprobe, vaddr, UPROBE_BKPT_INSN);
 }
 
 /**
@@ -635,7 +635,7 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
 
 	addr = (unsigned long)vaddr;
 
-	if (!(uprobe->flags & UPROBES_COPY_INSN)) {
+	if (!(uprobe->flags & UPROBE_COPY_INSN)) {
 		ret = copy_insn(uprobe, vma, addr);
 		if (ret)
 			return ret;
@@ -647,7 +647,7 @@ static int install_breakpoint(struct mm_struct *mm, struct uprobe *uprobe,
 		if (ret)
 			return ret;
 
-		uprobe->flags |= UPROBES_COPY_INSN;
+		uprobe->flags |= UPROBE_COPY_INSN;
 	}
 	ret = set_bkpt(mm, &uprobe->arch, addr);
 
@@ -857,7 +857,7 @@ int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *
 			uprobe->consumers = NULL;
 			__uprobe_unregister(uprobe);
 		} else {
-			uprobe->flags |= UPROBES_RUN_HANDLER;
+			uprobe->flags |= UPROBE_RUN_HANDLER;
 		}
 	}
 
@@ -889,7 +889,7 @@ void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consume
 	if (consumer_del(uprobe, consumer)) {
 		if (!uprobe->consumers) {
 			__uprobe_unregister(uprobe);
-			uprobe->flags &= ~UPROBES_RUN_HANDLER;
+			uprobe->flags &= ~UPROBE_RUN_HANDLER;
 		}
 	}
 
