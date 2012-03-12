@@ -2800,6 +2800,7 @@ static void bnx2x_pf_rx_q_prep(struct bnx2x *bp,
 	rxq_init->sge_buf_sz = sge_sz;
 	rxq_init->max_sges_pkt = max_sge;
 	rxq_init->rss_engine_id = BP_FUNC(bp);
+	rxq_init->mcast_engine_id = BP_FUNC(bp);
 
 	/* Maximum number or simultaneous TPA aggregation for this Queue.
 	 *

@@ -897,6 +897,9 @@ struct bnx2x_rxq_setup_params {
 	u8		max_tpa_queues;
 	u8		rss_engine_id;
 
+	/* valid iff BNX2X_Q_FLG_MCAST */
+	u8		mcast_engine_id;
+
 	u8		cache_line_log;
 
 	u8		sb_cq_index;

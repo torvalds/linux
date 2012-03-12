@@ -4473,7 +4473,7 @@ static void bnx2x_q_fill_init_rx_data(struct bnx2x_queue_sp_obj *o,
 	rx_data->is_leading_rss = test_bit(BNX2X_Q_FLG_LEADING_RSS, flags);
 
 	if (test_bit(BNX2X_Q_FLG_MCAST, flags)) {
-		rx_data->approx_mcast_engine_id = o->func_id;
+		rx_data->approx_mcast_engine_id = params->mcast_engine_id;
 		rx_data->is_approx_mcast = 1;
 	}
 
