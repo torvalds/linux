@@ -422,6 +422,9 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
 	dp.auxch = auxch->drive;
 	dp.dpcd = nv_encoder->dp.dpcd;
 
+	/* adjust required bandwidth for 8B/10B coding overhead */
+	datarate = (datarate / 8) * 10;
+
 	/* some sinks toggle hotplug in response to some of the actions
 	 * we take during link training (DP_SET_POWER is one), we need
 	 * to ignore them for the moment to avoid races.
