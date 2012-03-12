@@ -128,6 +128,12 @@ struct watchdog_device {
 #define WATCHDOG_NOWAYOUT_INIT_STATUS	0
 #endif
 
+/* Use the following function to check wether or not the watchdog is active */
+static inline bool watchdog_active(struct watchdog_device *wdd)
+{
+	return test_bit(WDOG_ACTIVE, &wdd->status);
+}
+
 /* Use the following function to set the nowayout feature */
 static inline void watchdog_set_nowayout(struct watchdog_device *wdd, bool nowayout)
 {
