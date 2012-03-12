@@ -216,7 +216,6 @@ struct goku_ep {
 
 	/* analogous to a host-side qh */
 	struct list_head			queue;
-	const struct usb_endpoint_descriptor	*desc;
 
 	u32 __iomem				*reg_fifo;
 	u32 __iomem				*reg_mode;
