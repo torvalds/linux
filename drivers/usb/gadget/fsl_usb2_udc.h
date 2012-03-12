@@ -450,7 +450,6 @@ struct fsl_ep {
 	struct list_head queue;
 	struct fsl_udc *udc;
 	struct ep_queue_head *qh;
-	const struct usb_endpoint_descriptor *desc;
 	struct usb_gadget *gadget;
 
 	char name[14];
