@@ -186,6 +186,27 @@ struct platform_device lpc32xx_ohci_device = {
 };
 
 /*
+ * Network Support
+ */
+static struct resource net_resources[] = {
+	[0] = DEFINE_RES_MEM(LPC32XX_ETHERNET_BASE, SZ_4K),
+	[1] = DEFINE_RES_MEM(LPC32XX_IRAM_BASE, SZ_128K),
+	[2] = DEFINE_RES_IRQ(IRQ_LPC32XX_ETHERNET),
+};
+
+static u64 lpc32xx_mac_dma_mask = 0xffffffffUL;
+struct platform_device lpc32xx_net_device = {
+	.name = "lpc-eth",
+	.id = 0,
+	.dev = {
+		.dma_mask = &lpc32xx_mac_dma_mask,
+		.coherent_dma_mask = 0xffffffffUL,
+	},
+	.num_resources = ARRAY_SIZE(net_resources),
+	.resource = net_resources,
+};
+
+/*
  * Returns the unique ID for the device
  */
 void lpc32xx_get_uid(u32 devid[4])
