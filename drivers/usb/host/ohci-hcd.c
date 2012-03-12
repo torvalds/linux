@@ -1052,7 +1052,7 @@ MODULE_LICENSE ("GPL");
 
 #ifdef CONFIG_ARCH_PNX4008
 #include "ohci-nxp.c"
-#define PLATFORM_DRIVER		usb_hcd_pnx4008_driver
+#define PLATFORM_DRIVER		usb_hcd_nxp_driver
 #endif
 
 #ifdef CONFIG_ARCH_DAVINCI_DA8XX
