@@ -1199,6 +1199,8 @@ enum sci_status sci_port_add_phy(struct isci_port *iport,
 	enum sci_status status;
 	enum sci_port_states state;
 
+	sci_port_bcn_enable(iport);
+
 	state = iport->sm.current_state_id;
 	switch (state) {
 	case SCI_PORT_STOPPED: {
