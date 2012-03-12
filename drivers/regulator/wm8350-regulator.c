@@ -186,7 +186,7 @@ static int wm8350_isink_get_current(struct regulator_dev *rdev)
 		return 0;
 	}
 
-	return (isink_cur[val] + 50) / 100;
+	return DIV_ROUND_CLOSEST(isink_cur[val], 100);
 }
 
 /* turn on ISINK followed by DCDC */
