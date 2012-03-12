@@ -285,32 +285,33 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
 
-	if (!request_mem_region(adev->res.start, resource_size(&adev->res),
-				"sp805_wdt")) {
+	if (!devm_request_mem_region(&adev->dev, adev->res.start,
+				resource_size(&adev->res), "sp805_wdt")) {
 		dev_warn(&adev->dev, "Failed to get memory region resource\n");
 		ret = -ENOENT;
 		goto err;
 	}
 
-	wdt = kzalloc(sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(&adev->dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt) {
 		dev_warn(&adev->dev, "Kzalloc failed\n");
 		ret = -ENOMEM;
-		goto err_kzalloc;
+		goto err;
+	}
+
+	wdt->base = devm_ioremap(&adev->dev, adev->res.start,
+			resource_size(&adev->res));
+	if (!wdt->base) {
+		ret = -ENOMEM;
+		dev_warn(&adev->dev, "ioremap fail\n");
+		goto err;
 	}
 
 	wdt->clk = clk_get(&adev->dev, NULL);
 	if (IS_ERR(wdt->clk)) {
 		dev_warn(&adev->dev, "Clock not found\n");
 		ret = PTR_ERR(wdt->clk);
-		goto err_clk_get;
-	}
-
-	wdt->base = ioremap(adev->res.start, resource_size(&adev->res));
-	if (!wdt->base) {
-		ret = -ENOMEM;
-		dev_warn(&adev->dev, "ioremap fail\n");
-		goto err_ioremap;
+		goto err;
 	}
 
 	wdt->adev = adev;
@@ -327,14 +328,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 
 err_misc_register:
-	iounmap(wdt->base);
-err_ioremap:
 	clk_put(wdt->clk);
-err_clk_get:
-	kfree(wdt);
-	wdt = NULL;
-err_kzalloc:
-	release_mem_region(adev->res.start, resource_size(&adev->res));
 err:
 	dev_err(&adev->dev, "Probe Failed!!!\n");
 	return ret;
@@ -343,10 +337,7 @@ err:
 static int __devexit sp805_wdt_remove(struct amba_device *adev)
 {
 	misc_deregister(&sp805_wdt_miscdev);
-	iounmap(wdt->base);
 	clk_put(wdt->clk);
-	kfree(wdt);
-	release_mem_region(adev->res.start, resource_size(&adev->res));
 
 	return 0;
 }
