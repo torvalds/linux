@@ -864,7 +864,7 @@ static void bnx2x_set_one_mac_e1x(struct bnx2x *bp,
 	/* Reset the ramrod data buffer */
 	memset(config, 0, sizeof(*config));
 
-	bnx2x_vlan_mac_set_rdata_e1x(bp, o, BNX2X_FILTER_MAC_PENDING,
+	bnx2x_vlan_mac_set_rdata_e1x(bp, o, raw->state,
 				     cam_offset, add,
 				     elem->cmd_data.vlan_mac.u.mac.mac, 0,
 				     ETH_VLAN_FILTER_ANY_VLAN, config);
