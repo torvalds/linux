@@ -134,9 +134,19 @@ static void vblank_cb(void *arg)
 
 	/* wakeup userspace */
 	if (event) {
+		do_gettimeofday(&now);
+
 		spin_lock_irqsave(&dev->event_lock, flags);
+		/* TODO: we can't yet use the vblank time accounting,
+		 * because omapdss lower layer is the one that knows
+		 * the irq # and registers the handler, which more or
+		 * less defeats how drm_irq works.. for now just fake
+		 * the sequence number and use gettimeofday..
+		 *
 		event->event.sequence = drm_vblank_count_and_time(
 				dev, omap_crtc->id, &now);
+		 */
+		event->event.sequence = sequence++;
 		event->event.tv_sec = now.tv_sec;
 		event->event.tv_usec = now.tv_usec;
 		list_add_tail(&event->base.link,
