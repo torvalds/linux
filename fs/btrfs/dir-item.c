@@ -115,6 +115,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
  * 'location' is the key to stuff into the directory item, 'type' is the
  * type of the inode we're pointing to, and 'index' is the sequence number
  * to use for the second index (if one is created).
+ * Will return 0 or -ENOMEM
  */
 int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 			  *root, const char *name, int name_len,

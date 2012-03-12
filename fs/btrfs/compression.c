@@ -391,16 +391,16 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			 */
 			atomic_inc(&cb->pending_bios);
 			ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
-			BUG_ON(ret);
+			BUG_ON(ret); /* -ENOMEM */
 
 			if (!skip_sum) {
 				ret = btrfs_csum_one_bio(root, inode, bio,
 							 start, 1);
-				BUG_ON(ret);
+				BUG_ON(ret); /* -ENOMEM */
 			}
 
 			ret = btrfs_map_bio(root, WRITE, bio, 0, 1);
-			BUG_ON(ret);
+			BUG_ON(ret); /* -ENOMEM */
 
 			bio_put(bio);
 
@@ -420,15 +420,15 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 	bio_get(bio);
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, bio, 0);
-	BUG_ON(ret);
+	BUG_ON(ret); /* -ENOMEM */
 
 	if (!skip_sum) {
 		ret = btrfs_csum_one_bio(root, inode, bio, start, 1);
-		BUG_ON(ret);
+		BUG_ON(ret); /* -ENOMEM */
 	}
 
 	ret = btrfs_map_bio(root, WRITE, bio, 0, 1);
-	BUG_ON(ret);
+	BUG_ON(ret); /* -ENOMEM */
 
 	bio_put(bio);
 	return 0;
@@ -661,7 +661,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			bio_get(comp_bio);
 
 			ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
-			BUG_ON(ret);
+			BUG_ON(ret); /* -ENOMEM */
 
 			/*
 			 * inc the count before we submit the bio so
@@ -674,14 +674,14 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 				ret = btrfs_lookup_bio_sums(root, inode,
 							comp_bio, sums);
-				BUG_ON(ret);
+				BUG_ON(ret); /* -ENOMEM */
 			}
 			sums += (comp_bio->bi_size + root->sectorsize - 1) /
 				root->sectorsize;
 
 			ret = btrfs_map_bio(root, READ, comp_bio,
 					    mirror_num, 0);
-			BUG_ON(ret);
+			BUG_ON(ret); /* -ENOMEM */
 
 			bio_put(comp_bio);
 
@@ -697,15 +697,15 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 	bio_get(comp_bio);
 
 	ret = btrfs_bio_wq_end_io(root->fs_info, comp_bio, 0);
-	BUG_ON(ret);
+	BUG_ON(ret); /* -ENOMEM */
 
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)) {
 		ret = btrfs_lookup_bio_sums(root, inode, comp_bio, sums);
-		BUG_ON(ret);
+		BUG_ON(ret); /* -ENOMEM */
 	}
 
 	ret = btrfs_map_bio(root, READ, comp_bio, mirror_num, 0);
-	BUG_ON(ret);
+	BUG_ON(ret); /* -ENOMEM */
 
 	bio_put(comp_bio);
 	return 0;

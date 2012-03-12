@@ -1244,7 +1244,7 @@ static int set_range_writeback(struct extent_io_tree *tree, u64 start, u64 end)
 
 	while (index <= end_index) {
 		page = find_get_page(tree->mapping, index);
-		BUG_ON(!page);
+		BUG_ON(!page); /* Pages should be in the extent_io_tree */
 		set_page_writeback(page);
 		page_cache_release(page);
 		index++;
@@ -1523,7 +1523,7 @@ again:
 			goto out_failed;
 		}
 	}
-	BUG_ON(ret);
+	BUG_ON(ret); /* Only valid values are 0 and -EAGAIN */
 
 	/* step three, lock the state bits for the whole range */
 	lock_extent_bits(tree, delalloc_start, delalloc_end, 0, &cached_state);
@@ -2200,7 +2200,6 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 		/* Writeback already completed */
 		if (ret == 0)
 			return 1;
-		BUG_ON(ret < 0);
 	}
 
 	if (!uptodate) {
@@ -2353,7 +2352,6 @@ error_handled:
 				if (ret == 0)
 					goto error_handled;
 			}
-			BUG_ON(ret < 0);
 		}
 
 		if (uptodate) {
@@ -2405,6 +2403,10 @@ btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 	return bio;
 }
 
+/*
+ * Since writes are async, they will only return -ENOMEM.
+ * Reads can return the full range of I/O error conditions.
+ */
 static int __must_check submit_one_bio(int rw, struct bio *bio,
 				       int mirror_num, unsigned long bio_flags)
 {
@@ -2477,7 +2479,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 		    bio_add_page(bio, page, page_size, offset) < page_size) {
 			ret = submit_one_bio(rw, bio, mirror_num,
 					     prev_bio_flags);
-			BUG_ON(ret < 0);
+			if (ret < 0)
+				return ret;
 			bio = NULL;
 		} else {
 			return 0;
@@ -2498,10 +2501,8 @@ static int submit_extent_page(int rw, struct extent_io_tree *tree,
 
 	if (bio_ret)
 		*bio_ret = bio;
-	else {
+	else
 		ret = submit_one_bio(rw, bio, mirror_num, bio_flags);
-		BUG_ON(ret < 0);
-	}
 
 	return ret;
 }
@@ -2525,6 +2526,7 @@ static void set_page_extent_head(struct page *page, unsigned long len)
  * basic readpage implementation.  Locked extent state structs are inserted
  * into the tree that are removed when the IO is done (by the end_io
  * handlers)
+ * XXX JDM: This needs looking at to ensure proper page locking
  */
 static int __extent_read_full_page(struct extent_io_tree *tree,
 				   struct page *page,
@@ -2687,6 +2689,7 @@ static int __extent_read_full_page(struct extent_io_tree *tree,
 					 end_bio_extent_readpage, mirror_num,
 					 *bio_flags,
 					 this_bio_flag);
+			BUG_ON(ret == -ENOMEM);
 			nr++;
 			*bio_flags = this_bio_flag;
 		}
@@ -2713,10 +2716,8 @@ int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 
 	ret = __extent_read_full_page(tree, page, get_extent, &bio, mirror_num,
 				      &bio_flags);
-	if (bio) {
+	if (bio)
 		ret = submit_one_bio(READ, bio, mirror_num, bio_flags);
-		BUG_ON(ret < 0);
-	}
 	return ret;
 }
 
@@ -2830,7 +2831,11 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 						       delalloc_end,
 						       &page_started,
 						       &nr_written);
-			BUG_ON(ret);
+			/* File system has been set read-only */
+			if (ret) {
+				SetPageError(page);
+				goto done;
+			}
 			/*
 			 * delalloc_end is already one less than the total
 			 * length, so we don't subtract one from
@@ -3141,7 +3146,7 @@ static void flush_epd_write_bio(struct extent_page_data *epd)
 			rw = WRITE_SYNC;
 
 		ret = submit_one_bio(rw, epd->bio, 0, 0);
-		BUG_ON(ret < 0);
+		BUG_ON(ret < 0); /* -ENOMEM */
 		epd->bio = NULL;
 	}
 }
@@ -3257,10 +3262,8 @@ int extent_readpages(struct extent_io_tree *tree,
 		page_cache_release(page);
 	}
 	BUG_ON(!list_empty(pages));
-	if (bio) {
-		int ret = submit_one_bio(READ, bio, 0, bio_flags);
-		BUG_ON(ret < 0);
-	}
+	if (bio)
+		return submit_one_bio(READ, bio, 0, bio_flags);
 	return 0;
 }
 
@@ -4090,7 +4093,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 
 	if (bio) {
 		err = submit_one_bio(READ, bio, mirror_num, bio_flags);
-		BUG_ON(err < 0);
+		if (err)
+			return err;
 	}
 
 	if (ret || wait != WAIT_COMPLETE)

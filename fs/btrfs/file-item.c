@@ -59,7 +59,7 @@ int btrfs_insert_file_extent(struct btrfs_trans_handle *trans,
 				      sizeof(*item));
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret);
+	BUG_ON(ret); /* Can't happen */
 	leaf = path->nodes[0];
 	item = btrfs_item_ptr(leaf, path->slots[0],
 			      struct btrfs_file_extent_item);
@@ -431,7 +431,7 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		offset = page_offset(bvec->bv_page) + bvec->bv_offset;
 
 	ordered = btrfs_lookup_ordered_extent(inode, offset);
-	BUG_ON(!ordered);
+	BUG_ON(!ordered); /* Logic error */
 	sums->bytenr = ordered->start;
 
 	while (bio_index < bio->bi_vcnt) {
@@ -450,11 +450,11 @@ int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 
 			sums = kzalloc(btrfs_ordered_sum_size(root, bytes_left),
 				       GFP_NOFS);
-			BUG_ON(!sums);
+			BUG_ON(!sums); /* -ENOMEM */
 			sector_sum = sums->sums;
 			sums->len = bytes_left;
 			ordered = btrfs_lookup_ordered_extent(inode, offset);
-			BUG_ON(!ordered);
+			BUG_ON(!ordered); /* Logic error */
 			sums->bytenr = ordered->start;
 		}
 
@@ -643,7 +643,10 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 			 * item changed size or key
 			 */
 			ret = btrfs_split_item(trans, root, path, &key, offset);
-			BUG_ON(ret && ret != -EAGAIN);
+			if (ret && ret != -EAGAIN) {
+				btrfs_abort_transaction(trans, root, ret);
+				goto out;
+			}
 
 			key.offset = end_byte - 1;
 		} else {

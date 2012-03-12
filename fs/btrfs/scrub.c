@@ -1505,6 +1505,9 @@ static noinline_for_stack int scrub_supers(struct scrub_dev *sdev)
 	struct btrfs_device *device = sdev->dev;
 	struct btrfs_root *root = device->dev_root;
 
+	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+		return -EIO;
+
 	gen = root->fs_info->last_trans_committed;
 
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
