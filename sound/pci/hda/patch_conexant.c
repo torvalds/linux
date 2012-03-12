@@ -70,6 +70,8 @@ struct conexant_spec {
 	const struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
 	hda_nid_t vmaster_nid;
+	struct snd_kcontrol *vmaster_sw_kctl;
+	void (*vmaster_hook)(struct snd_kcontrol *, int);
 
 	const struct hda_verb *init_verbs[5];	/* initialization verbs
 						 * don't forget NULL
@@ -513,9 +515,10 @@ static int conexant_build_controls(struct hda_codec *codec)
 	}
 	if (spec->vmaster_nid &&
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
-		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, slave_pfxs,
-					  "Playback Switch");
+		err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
+					    NULL, slave_pfxs,
+					    "Playback Switch", true,
+					    &spec->vmaster_sw_kctl);
 		if (err < 0)
 			return err;
 	}
@@ -3975,6 +3978,19 @@ static void clear_unsol_on_unused_pins(struct hda_codec *codec)
 	}
 }
 
+/* turn on/off EAPD according to Master switch */
+static void cx_auto_vmaster_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct conexant_spec *spec = codec->spec;
+
+	if (enabled && spec->pin_eapd_ctrls) {
+		cx_auto_update_speakers(codec);
+		return;
+	}
+	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, enabled);
+}
+
 static void cx_auto_init_output(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -4079,11 +4095,13 @@ static void cx_auto_init_digital(struct hda_codec *codec)
 
 static int cx_auto_init(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
 	/*snd_hda_sequence_write(codec, cx_auto_init_verbs);*/
 	cx_auto_init_output(codec);
 	cx_auto_init_input(codec);
 	cx_auto_init_digital(codec);
 	snd_hda_jack_report_sync(codec);
+	snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
 	return 0;
 }
 
@@ -4329,6 +4347,11 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
+	if (spec->vmaster_hook && spec->vmaster_sw_kctl) {
+		snd_ctl_add_vmaster_hook(spec->vmaster_sw_kctl,
+					 spec->vmaster_hook, codec);
+		snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
+	}
 	return 0;
 }
 
@@ -4352,7 +4375,6 @@ static int cx_auto_search_adcs(struct hda_codec *codec)
 	spec->adc_nids = spec->private_adc_nids;
 	return 0;
 }
-
 
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
@@ -4454,6 +4476,12 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	}
 
 	apply_pin_fixup(codec, cxt_fixups, cxt_pincfg_tbl);
+
+	/* add EAPD vmaster hook to all HP machines */
+	/* NOTE: this should be applied via fixup once when the generic
+	 *       fixup code is merged to hda_codec.c
+	 */
+	spec->vmaster_hook = cx_auto_vmaster_hook;
 
 	err = cx_auto_search_adcs(codec);
 	if (err < 0)
