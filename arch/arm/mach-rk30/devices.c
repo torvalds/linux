@@ -28,11 +28,33 @@
 
 static u64 dma_dmamask = DMA_BIT_MASK(32);
 
-#ifdef CONFIG_TSADC_RK30
-static struct resource rk30_tsadc_resource[] = {
+#ifdef CONFIG_ADC_RK30
+static struct resource rk30_adc_resource[] = {
 	{
 		.start	= IRQ_SARADC,
 		.end	= IRQ_SARADC,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK30_SARADC_PHYS,
+		.end	= RK30_SARADC_PHYS + RK30_SARADC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+struct platform_device device_adc = {
+	.name		= "rk30-adc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(rk30_adc_resource),
+	.resource	= rk30_adc_resource,
+};
+#endif
+
+#ifdef CONFIG_TSADC_RK30
+static struct resource rk30_tsadc_resource[] = {
+	{
+		.start	= IRQ_TSADC,
+		.end	= IRQ_TSADC,
 		.flags	= IORESOURCE_IRQ,
 	},
 	{
@@ -993,6 +1015,9 @@ static int __init rk30_init_devices(void)
 #endif
 #ifdef CONFIG_LCDC_RK30
 	platform_device_register(&device_lcdc);
+#endif
+#ifdef CONFIG_ADC_RK30
+	platform_device_register(&device_adc);
 #endif
 #ifdef CONFIG_TSADC_RK30
 	platform_device_register(&device_tsadc);
