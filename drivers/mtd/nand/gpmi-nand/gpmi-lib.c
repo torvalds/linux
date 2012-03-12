@@ -1061,8 +1061,9 @@ int gpmi_read_page(struct gpmi_nand_data *this,
 		| BF_GPMI_CTRL0_ADDRESS(address)
 		| BF_GPMI_CTRL0_XFER_COUNT(geo->page_size);
 	pio[1] = 0;
+	pio[2] = 0; /* clear GPMI_HW_GPMI_ECCCTRL, disable the BCH. */
 	desc = channel->device->device_prep_slave_sg(channel,
-				(struct scatterlist *)pio, 2,
+				(struct scatterlist *)pio, 3,
 				DMA_TRANS_NONE,
 				DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
