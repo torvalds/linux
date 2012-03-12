@@ -227,6 +227,11 @@ snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
 	return _snd_ctl_add_slave(master, slave, SND_CTL_SLAVE_NEED_UPDATE);
 }
 
+int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kctl,
+			     void (*hook)(void *private_data, int),
+			     void *private_data);
+void snd_ctl_sync_vmaster_hook(struct snd_kcontrol *kctl);
+
 /*
  * Helper functions for jack-detection controls
  */
