@@ -65,3 +65,5 @@ obj-$(CONFIG_PPC_SCOM)		+= scom.o
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 obj-$(CONFIG_PPC_XICS)		+= xics/
+
+obj-$(CONFIG_GE_FPGA)		+= ge/

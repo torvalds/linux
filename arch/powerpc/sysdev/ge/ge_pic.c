@@ -22,7 +22,7 @@
 #include <asm/prom.h>
 #include <asm/irq.h>
 
-#include "gef_pic.h"
+#include "ge_pic.h"
 
 #define DEBUG
 #undef DEBUG

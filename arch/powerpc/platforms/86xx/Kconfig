@@ -64,10 +64,6 @@ config GEF_SBC610
 	help
 	  This option enables support for the GE SBC610.
 
-config GE_FPGA
-	bool
-	default n
-
 endif
 
 config MPC8641
