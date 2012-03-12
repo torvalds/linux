@@ -158,6 +158,7 @@ struct hci_dev {
 	__u16		lmp_subver;
 	__u16		voice_setting;
 	__u8		io_capability;
+	__s8		inq_tx_power;
 
 	__u16		pkt_type;
 	__u16		esco_type;

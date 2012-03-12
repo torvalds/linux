@@ -887,11 +887,14 @@ static void hci_cc_write_inquiry_mode(struct hci_dev *hdev,
 static void hci_cc_read_inq_rsp_tx_power(struct hci_dev *hdev,
 							struct sk_buff *skb)
 {
-	__u8 status = *((__u8 *) skb->data);
+	struct hci_rp_read_inq_rsp_tx_power *rp = (void *) skb->data;
 
-	BT_DBG("%s status 0x%x", hdev->name, status);
+	BT_DBG("%s status 0x%x", hdev->name, rp->status);
 
-	hci_req_complete(hdev, HCI_OP_READ_INQ_RSP_TX_POWER, status);
+	if (!rp->status)
+		hdev->inq_tx_power = rp->tx_power;
+
+	hci_req_complete(hdev, HCI_OP_READ_INQ_RSP_TX_POWER, rp->status);
 }
 
 static void hci_cc_set_event_flt(struct hci_dev *hdev, struct sk_buff *skb)
