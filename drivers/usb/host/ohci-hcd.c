@@ -899,7 +899,7 @@ static void ohci_stop (struct usb_hcd *hcd)
 	ohci_usb_reset (ohci);
 	ohci_writel (ohci, OHCI_INTR_MIE, &ohci->regs->intrdisable);
 	free_irq(hcd->irq, hcd);
-	hcd->irq = -1;
+	hcd->irq = 0;
 
 	if (quirk_zfmicro(ohci))
 		del_timer(&ohci->unlink_watchdog);

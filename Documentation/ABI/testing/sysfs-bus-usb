@@ -182,3 +182,14 @@ Description:
 		USB2 hardware LPM is enabled for the device. Developer can
 		write y/Y/1 or n/N/0 to the file to enable/disable the
 		feature.
+
+What:		/sys/bus/usb/devices/.../removable
+Date:		February 2012
+Contact:	Matthew Garrett <mjg@redhat.com>
+Description:
+		Some information about whether a given USB device is
+		physically fixed to the platform can be inferred from a
+		combination of hub decriptor bits and platform-specific data
+		such as ACPI. This file will read either "removable" or
+		"fixed" if the information is available, and "unknown"
+		otherwise.

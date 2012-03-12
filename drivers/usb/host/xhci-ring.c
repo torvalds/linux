@@ -1237,6 +1237,26 @@ static unsigned int find_faked_portnum_from_hw_portnum(struct usb_hcd *hcd,
 	return num_similar_speed_ports;
 }
 
+static void handle_device_notification(struct xhci_hcd *xhci,
+		union xhci_trb *event)
+{
+	u32 slot_id;
+	struct usb_device *udev;
+
+	slot_id = TRB_TO_SLOT_ID(event->generic.field[3]);
+	if (!xhci->devs[slot_id]) {
+		xhci_warn(xhci, "Device Notification event for "
+				"unused slot %u\n", slot_id);
+		return;
+	}
+
+	xhci_dbg(xhci, "Device Wake Notification event for slot ID %u\n",
+			slot_id);
+	udev = xhci->devs[slot_id]->udev;
+	if (udev && udev->parent)
+		usb_wakeup_notification(udev->parent, udev->portnum);
+}
+
 static void handle_port_status(struct xhci_hcd *xhci,
 		union xhci_trb *event)
 {
@@ -1321,20 +1341,21 @@ static void handle_port_status(struct xhci_hcd *xhci,
 		}
 
 		if (DEV_SUPERSPEED(temp)) {
-			xhci_dbg(xhci, "resume SS port %d\n", port_id);
+			xhci_dbg(xhci, "remote wake SS port %d\n", port_id);
+			/* Set a flag to say the port signaled remote wakeup,
+			 * so we can tell the difference between the end of
+			 * device and host initiated resume.
+			 */
+			bus_state->port_remote_wakeup |= 1 << faked_port_index;
+			xhci_test_and_clear_bit(xhci, port_array,
+					faked_port_index, PORT_PLC);
 			xhci_set_link_state(xhci, port_array, faked_port_index,
 						XDEV_U0);
-			slot_id = xhci_find_slot_id_by_port(hcd, xhci,
-					faked_port_index + 1);
-			if (!slot_id) {
-				xhci_dbg(xhci, "slot_id is zero\n");
-				goto cleanup;
-			}
-			xhci_ring_device(xhci, slot_id);
-			xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
-			/* Clear PORT_PLC */
-			xhci_test_and_clear_bit(xhci, port_array,
-						faked_port_index, PORT_PLC);
+			/* Need to wait until the next link state change
+			 * indicates the device is actually in U0.
+			 */
+			bogus_port_status = true;
+			goto cleanup;
 		} else {
 			xhci_dbg(xhci, "resume HS port %d\n", port_id);
 			bus_state->resume_done[faked_port_index] = jiffies +
@@ -1342,6 +1363,32 @@ static void handle_port_status(struct xhci_hcd *xhci,
 			mod_timer(&hcd->rh_timer,
 				  bus_state->resume_done[faked_port_index]);
 			/* Do the rest in GetPortStatus */
+		}
+	}
+
+	if ((temp & PORT_PLC) && (temp & PORT_PLS_MASK) == XDEV_U0 &&
+			DEV_SUPERSPEED(temp)) {
+		xhci_dbg(xhci, "resume SS port %d finished\n", port_id);
+		/* We've just brought the device into U0 through either the
+		 * Resume state after a device remote wakeup, or through the
+		 * U3Exit state after a host-initiated resume.  If it's a device
+		 * initiated remote wake, don't pass up the link state change,
+		 * so the roothub behavior is consistent with external
+		 * USB 3.0 hub behavior.
+		 */
+		slot_id = xhci_find_slot_id_by_port(hcd, xhci,
+				faked_port_index + 1);
+		if (slot_id && xhci->devs[slot_id])
+			xhci_ring_device(xhci, slot_id);
+		if (bus_state->port_remote_wakeup && (1 << faked_port_index)) {
+			bus_state->port_remote_wakeup &=
+				~(1 << faked_port_index);
+			xhci_test_and_clear_bit(xhci, port_array,
+					faked_port_index, PORT_PLC);
+			usb_wakeup_notification(hcd->self.root_hub,
+					faked_port_index + 1);
+			bogus_port_status = true;
+			goto cleanup;
 		}
 	}
 
@@ -2277,6 +2324,9 @@ static int xhci_handle_event(struct xhci_hcd *xhci)
 		else
 			update_ptrs = 0;
 		break;
+	case TRB_TYPE(TRB_DEV_NOTE):
+		handle_device_notification(xhci, event);
+		break;
 	default:
 		if ((le32_to_cpu(event->event_cmd.flags) & TRB_TYPE_BITMASK) >=
 		    TRB_TYPE(48))
@@ -2346,7 +2396,7 @@ hw_died:
 	/* FIXME when MSI-X is supported and there are multiple vectors */
 	/* Clear the MSI-X event interrupt status */
 
-	if (hcd->irq != -1) {
+	if (hcd->irq) {
 		u32 irq_pending;
 		/* Acknowledge the PCI interrupt */
 		irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);

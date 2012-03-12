@@ -162,7 +162,7 @@ struct langwell_udc {
 	spinlock_t		lock;	/* device lock */
 	struct langwell_ep	*ep;
 	struct usb_gadget_driver	*driver;
-	struct otg_transceiver	*transceiver;
+	struct usb_phy		*transceiver;
 	u8			dev_addr;
 	u32			usb_state;
 	u32			resume_state;

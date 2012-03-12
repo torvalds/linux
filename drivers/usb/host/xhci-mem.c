@@ -2157,7 +2157,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	unsigned int	val, val2;
 	u64		val_64;
 	struct xhci_segment	*seg;
-	u32 page_size;
+	u32 page_size, temp;
 	int i;
 
 	page_size = xhci_readl(xhci, &xhci->op_regs->page_size);
@@ -2339,6 +2339,15 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 		goto fail;
 
 	INIT_LIST_HEAD(&xhci->lpm_failed_devs);
+
+	/* Enable USB 3.0 device notifications for function remote wake, which
+	 * is necessary for allowing USB 3.0 devices to do remote wakeup from
+	 * U3 (device suspend).
+	 */
+	temp = xhci_readl(xhci, &xhci->op_regs->dev_notification);
+	temp &= ~DEV_NOTE_MASK;
+	temp |= DEV_NOTE_FWAKE;
+	xhci_writel(xhci, temp, &xhci->op_regs->dev_notification);
 
 	return 0;
 

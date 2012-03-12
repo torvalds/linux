@@ -14,7 +14,7 @@
 #include <linux/device.h>
 #include <linux/atomic.h>
 
-#include "u_audio.h"
+#include "u_uac1.h"
 
 #define OUT_EP_MAX_PACKET_SIZE	200
 static int req_buf_size = OUT_EP_MAX_PACKET_SIZE;
@@ -213,29 +213,6 @@ static struct usb_descriptor_header *f_audio_desc[] __initdata = {
 
 	(struct usb_descriptor_header *)&as_out_ep_desc,
 	(struct usb_descriptor_header *)&as_iso_out_desc,
-	NULL,
-};
-
-/* string IDs are assigned dynamically */
-
-#define STRING_MANUFACTURER_IDX		0
-#define STRING_PRODUCT_IDX		1
-
-static char manufacturer[50];
-
-static struct usb_string strings_dev[] = {
-	[STRING_MANUFACTURER_IDX].s = manufacturer,
-	[STRING_PRODUCT_IDX].s = DRIVER_DESC,
-	{  } /* end of list */
-};
-
-static struct usb_gadget_strings stringtab_dev = {
-	.language	= 0x0409,	/* en-us */
-	.strings	= strings_dev,
-};
-
-static struct usb_gadget_strings *audio_strings[] = {
-	&stringtab_dev,
 	NULL,
 };
 

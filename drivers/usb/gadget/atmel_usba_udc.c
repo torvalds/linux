@@ -659,6 +659,7 @@ static int usba_ep_disable(struct usb_ep *_ep)
 		return -EINVAL;
 	}
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 
 	list_splice_init(&ep->queue, &req_list);
 	if (ep->can_dma) {

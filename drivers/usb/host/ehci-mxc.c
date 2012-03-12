@@ -220,13 +220,13 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 	/* Initialize the transceiver */
 	if (pdata->otg) {
 		pdata->otg->io_priv = hcd->regs + ULPI_VIEWPORT_OFFSET;
-		ret = otg_init(pdata->otg);
+		ret = usb_phy_init(pdata->otg);
 		if (ret) {
 			dev_err(dev, "unable to init transceiver, probably missing\n");
 			ret = -ENODEV;
 			goto err_add;
 		}
-		ret = otg_set_vbus(pdata->otg, 1);
+		ret = otg_set_vbus(pdata->otg->otg, 1);
 		if (ret) {
 			dev_err(dev, "unable to enable vbus on transceiver\n");
 			goto err_add;
@@ -247,9 +247,11 @@ static int ehci_mxc_drv_probe(struct platform_device *pdev)
 		 * It's in violation of USB specs
 		 */
 		if (machine_is_mx51_efikamx() || machine_is_mx51_efikasb()) {
-			flags = otg_io_read(pdata->otg, ULPI_OTG_CTRL);
+			flags = usb_phy_io_read(pdata->otg,
+							ULPI_OTG_CTRL);
 			flags |= ULPI_OTG_CTRL_CHRGVBUS;
-			ret = otg_io_write(pdata->otg, flags, ULPI_OTG_CTRL);
+			ret = usb_phy_io_write(pdata->otg, flags,
+							ULPI_OTG_CTRL);
 			if (ret) {
 				dev_err(dev, "unable to set CHRVBUS\n");
 				goto err_add;
@@ -297,7 +299,7 @@ static int __exit ehci_mxc_drv_remove(struct platform_device *pdev)
 		pdata->exit(pdev);
 
 	if (pdata->otg)
-		otg_shutdown(pdata->otg);
+		usb_phy_shutdown(pdata->otg);
 
 	usb_remove_hcd(hcd);
 	iounmap(hcd->regs);

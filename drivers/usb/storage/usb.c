@@ -125,6 +125,9 @@ static struct us_unusual_dev us_unusual_dev_list[] = {
 	{ }		/* Terminating entry */
 };
 
+static struct us_unusual_dev for_dynamic_ids =
+		USUAL_DEV(USB_SC_SCSI, USB_PR_BULK, 0);
+
 #undef UNUSUAL_DEV
 #undef COMPLIANT_DEV
 #undef USUAL_DEV
@@ -999,8 +1002,10 @@ EXPORT_SYMBOL_GPL(usb_stor_disconnect);
 static int storage_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
+	struct us_unusual_dev *unusual_dev;
 	struct us_data *us;
 	int result;
+	int size;
 
 	/*
 	 * If libusual is configured, let it decide whether a standard
@@ -1019,8 +1024,19 @@ static int storage_probe(struct usb_interface *intf,
 	 * table, so we use the index of the id entry to find the
 	 * corresponding unusual_devs entry.
 	 */
-	result = usb_stor_probe1(&us, intf, id,
-			(id - usb_storage_usb_ids) + us_unusual_dev_list);
+
+	size = ARRAY_SIZE(us_unusual_dev_list);
+	if (id >= usb_storage_usb_ids && id < usb_storage_usb_ids + size) {
+		unusual_dev = (id - usb_storage_usb_ids) + us_unusual_dev_list;
+	} else {
+		unusual_dev = &for_dynamic_ids;
+
+		US_DEBUGP("%s %s 0x%04x 0x%04x\n", "Use Bulk-Only transport",
+			"with the Transparent SCSI protocol for dynamic id:",
+			id->idVendor, id->idProduct);
+	}
+
+	result = usb_stor_probe1(&us, intf, id, unusual_dev);
 	if (result)
 		return result;
 
@@ -1046,7 +1062,6 @@ static struct usb_driver usb_storage_driver = {
 	.id_table =	usb_storage_usb_ids,
 	.supports_autosuspend = 1,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
 };
 
 static int __init usb_stor_init(void)

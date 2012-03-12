@@ -2349,7 +2349,7 @@ static int sd_try_extended_inquiry(struct scsi_device *sdp)
 	 * some USB ones crash on receiving them, and the pages
 	 * we currently ask for are for SPC-3 and beyond
 	 */
-	if (sdp->scsi_level > SCSI_SPC_2)
+	if (sdp->scsi_level > SCSI_SPC_2 && !sdp->skip_vpd_pages)
 		return 1;
 	return 0;
 }

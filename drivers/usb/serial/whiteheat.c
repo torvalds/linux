@@ -83,7 +83,6 @@ static struct usb_driver whiteheat_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
 };
 
 /* function prototypes for the Connect Tech WhiteHEAT prerenumeration device */
@@ -121,7 +120,6 @@ static struct usb_serial_driver whiteheat_fake_device = {
 		.name =		"whiteheatnofirm",
 	},
 	.description =		"Connect Tech - WhiteHEAT - (prerenumeration)",
-	.usb_driver =		&whiteheat_driver,
 	.id_table =		id_table_prerenumeration,
 	.num_ports =		1,
 	.probe =		whiteheat_firmware_download,
@@ -134,7 +132,6 @@ static struct usb_serial_driver whiteheat_device = {
 		.name =		"whiteheat",
 	},
 	.description =		"Connect Tech - WhiteHEAT",
-	.usb_driver =		&whiteheat_driver,
 	.id_table =		id_table_std,
 	.num_ports =		4,
 	.attach =		whiteheat_attach,
@@ -155,6 +152,9 @@ static struct usb_serial_driver whiteheat_device = {
 	.write_bulk_callback =	whiteheat_write_callback,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&whiteheat_fake_device, &whiteheat_device, NULL
+};
 
 struct whiteheat_command_private {
 	struct mutex		mutex;
@@ -740,7 +740,7 @@ static int whiteheat_write(struct tty_struct *tty,
 		urb->transfer_buffer_length = bytes;
 		result = usb_submit_urb(urb, GFP_ATOMIC);
 		if (result) {
-			dev_err(&port->dev,
+			dev_err_console(port,
 				"%s - failed submitting write urb, error %d\n",
 				__func__, result);
 			sent = result;
@@ -1454,44 +1454,7 @@ out:
 	tty_kref_put(tty);
 }
 
-
-/*****************************************************************************
- * Connect Tech's White Heat module functions
- *****************************************************************************/
-static int __init whiteheat_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&whiteheat_fake_device);
-	if (retval)
-		goto failed_fake_register;
-	retval = usb_serial_register(&whiteheat_device);
-	if (retval)
-		goto failed_device_register;
-	retval = usb_register(&whiteheat_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&whiteheat_device);
-failed_device_register:
-	usb_serial_deregister(&whiteheat_fake_device);
-failed_fake_register:
-	return retval;
-}
-
-
-static void __exit whiteheat_exit(void)
-{
-	usb_deregister(&whiteheat_driver);
-	usb_serial_deregister(&whiteheat_fake_device);
-	usb_serial_deregister(&whiteheat_device);
-}
-
-
-module_init(whiteheat_init);
-module_exit(whiteheat_exit);
+module_usb_serial_driver(whiteheat_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -1007,19 +1007,20 @@ extern long sysfs_deprecated;
  * @__driver: driver name
  * @__register: register function for this driver type
  * @__unregister: unregister function for this driver type
+ * @...: Additional arguments to be passed to __register and __unregister.
  *
  * Use this macro to construct bus specific macros for registering
  * drivers, and do not use it on its own.
  */
-#define module_driver(__driver, __register, __unregister) \
+#define module_driver(__driver, __register, __unregister, ...) \
 static int __init __driver##_init(void) \
 { \
-	return __register(&(__driver)); \
+	return __register(&(__driver) , ##__VA_ARGS__); \
 } \
 module_init(__driver##_init); \
 static void __exit __driver##_exit(void) \
 { \
-	__unregister(&(__driver)); \
+	__unregister(&(__driver) , ##__VA_ARGS__); \
 } \
 module_exit(__driver##_exit);
 
