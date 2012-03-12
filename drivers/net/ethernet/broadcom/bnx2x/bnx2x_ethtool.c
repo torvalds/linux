@@ -1450,7 +1450,7 @@ static void bnx2x_get_pauseparam(struct net_device *dev,
 			   BNX2X_FLOW_CTRL_AUTO);
 
 	if (!epause->autoneg)
-		cfg_reg = bp->link_vars.flow_ctrl;
+		cfg_reg = bp->link_params.req_flow_ctrl[cfg_idx];
 	else
 		cfg_reg = bp->link_params.req_fc_auto_adv;
 
