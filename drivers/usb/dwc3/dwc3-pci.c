@@ -89,6 +89,7 @@ static int __devinit dwc3_pci_probe(struct pci_dev *pci,
 	dwc3 = platform_device_alloc("dwc3", devid);
 	if (!dwc3) {
 		dev_err(dev, "couldn't allocate dwc3 device\n");
+		ret = -ENOMEM;
 		goto err1;
 	}
 
