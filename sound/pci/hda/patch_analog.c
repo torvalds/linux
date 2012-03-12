@@ -229,7 +229,7 @@ static int ad198x_build_controls(struct hda_codec *codec)
 					  (spec->slave_vols ?
 					   spec->slave_vols : ad_slave_pfxs),
 					  "Playback Volume",
-					  !spec->avoid_init_slave_vol);
+					  !spec->avoid_init_slave_vol, NULL);
 		if (err < 0)
 			return err;
 	}
