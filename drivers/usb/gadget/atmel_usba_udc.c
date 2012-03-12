@@ -599,13 +599,13 @@ usba_ep_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 
 	spin_lock_irqsave(&ep->udc->lock, flags);
 
-	if (ep->desc) {
+	if (ep->ep.desc) {
 		spin_unlock_irqrestore(&ep->udc->lock, flags);
 		DBG(DBG_ERR, "ep%d already enabled\n", ep->index);
 		return -EBUSY;
 	}
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->ep.maxpacket = maxpacket;
 
 	usba_ep_writel(ep, CFG, ept_cfg);
@@ -647,7 +647,7 @@ static int usba_ep_disable(struct usb_ep *_ep)
 
 	spin_lock_irqsave(&udc->lock, flags);
 
-	if (!ep->desc) {
+	if (!ep->ep.desc) {
 		spin_unlock_irqrestore(&udc->lock, flags);
 		/* REVISIT because this driver disables endpoints in
 		 * reset_all_endpoints() before calling disconnect(),
@@ -658,7 +658,6 @@ static int usba_ep_disable(struct usb_ep *_ep)
 					ep->ep.name);
 		return -EINVAL;
 	}
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 
 	list_splice_init(&ep->queue, &req_list);
@@ -752,7 +751,7 @@ static int queue_dma(struct usba_udc *udc, struct usba_ep *ep,
 	 */
 	ret = -ESHUTDOWN;
 	spin_lock_irqsave(&udc->lock, flags);
-	if (ep->desc) {
+	if (ep->ep.desc) {
 		if (list_empty(&ep->queue))
 			submit_request(ep, req);
 
@@ -776,7 +775,8 @@ usba_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	DBG(DBG_GADGET | DBG_QUEUE | DBG_REQ, "%s: queue req %p, len %u\n",
 			ep->ep.name, req, _req->length);
 
-	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN || !ep->desc)
+	if (!udc->driver || udc->gadget.speed == USB_SPEED_UNKNOWN ||
+	    !ep->ep.desc)
 		return -ESHUTDOWN;
 
 	req->submitted = 0;
@@ -792,7 +792,7 @@ usba_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	/* May have received a reset since last time we checked */
 	ret = -ESHUTDOWN;
 	spin_lock_irqsave(&udc->lock, flags);
-	if (ep->desc) {
+	if (ep->ep.desc) {
 		list_add_tail(&req->queue, &ep->queue);
 
 		if ((!ep_is_control(ep) && ep->is_in) ||
@@ -905,7 +905,7 @@ static int usba_ep_set_halt(struct usb_ep *_ep, int value)
 	DBG(DBG_GADGET, "endpoint %s: %s HALT\n", ep->ep.name,
 			value ? "set" : "clear");
 
-	if (!ep->desc) {
+	if (!ep->ep.desc) {
 		DBG(DBG_ERR, "Attempted to halt uninitialized ep %s\n",
 				ep->ep.name);
 		return -ENODEV;
@@ -1071,7 +1071,7 @@ static void reset_all_endpoints(struct usba_udc *udc)
 	 * FIXME remove this code ... and retest thoroughly.
 	 */
 	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
-		if (ep->desc) {
+		if (ep->ep.desc) {
 			spin_unlock(&udc->lock);
 			usba_ep_disable(&ep->ep);
 			spin_lock(&udc->lock);
@@ -1089,9 +1089,9 @@ static struct usba_ep *get_ep_by_addr(struct usba_udc *udc, u16 wIndex)
 	list_for_each_entry (ep, &udc->gadget.ep_list, ep.ep_list) {
 		u8 bEndpointAddress;
 
-		if (!ep->desc)
+		if (!ep->ep.desc)
 			continue;
-		bEndpointAddress = ep->desc->bEndpointAddress;
+		bEndpointAddress = ep->ep.desc->bEndpointAddress;
 		if ((wIndex ^ bEndpointAddress) & USB_DIR_IN)
 			continue;
 		if ((bEndpointAddress & USB_ENDPOINT_NUMBER_MASK)
@@ -1727,7 +1727,7 @@ static irqreturn_t usba_udc_irq(int irq, void *devid)
 		    usb_speed_string(udc->gadget.speed));
 
 		ep0 = &usba_ep[0];
-		ep0->desc = &usba_ep0_desc;
+		ep0->ep.desc = &usba_ep0_desc;
 		ep0->state = WAIT_FOR_SETUP;
 		usba_ep_writel(ep0, CFG,
 				(USBA_BF(EPT_SIZE, EP0_EPT_SIZE)
