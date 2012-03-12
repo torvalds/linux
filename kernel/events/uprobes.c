@@ -170,14 +170,14 @@ out:
 }
 
 /**
- * is_bkpt_insn - check if instruction is breakpoint instruction.
+ * is_swbp_insn - check if instruction is breakpoint instruction.
  * @insn: instruction to be checked.
- * Default implementation of is_bkpt_insn
+ * Default implementation of is_swbp_insn
  * Returns true if @insn is a breakpoint instruction.
  */
-bool __weak is_bkpt_insn(uprobe_opcode_t *insn)
+bool __weak is_swbp_insn(uprobe_opcode_t *insn)
 {
-	return *insn == UPROBE_BKPT_INSN;
+	return *insn == UPROBE_SWBP_INSN;
 }
 
 /*
@@ -227,7 +227,7 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 	 * adding probes in write mapped pages since the breakpoints
 	 * might end up in the file copy.
 	 */
-	if (!valid_vma(vma, is_bkpt_insn(&opcode)))
+	if (!valid_vma(vma, is_swbp_insn(&opcode)))
 		goto put_out;
 
 	uprobe = container_of(auprobe, struct uprobe, arch);
@@ -259,8 +259,8 @@ static int write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 
 	/* poke the new insn in, ASSUMES we don't cross page boundary */
 	vaddr &= ~PAGE_MASK;
-	BUG_ON(vaddr + UPROBE_BKPT_INSN_SIZE > PAGE_SIZE);
-	memcpy(vaddr_new + vaddr, &opcode, UPROBE_BKPT_INSN_SIZE);
+	BUG_ON(vaddr + UPROBE_SWBP_INSN_SIZE > PAGE_SIZE);
+	memcpy(vaddr_new + vaddr, &opcode, UPROBE_SWBP_INSN_SIZE);
 
 	kunmap_atomic(vaddr_new);
 	kunmap_atomic(vaddr_old);
@@ -308,7 +308,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
 	lock_page(page);
 	vaddr_new = kmap_atomic(page);
 	vaddr &= ~PAGE_MASK;
-	memcpy(opcode, vaddr_new + vaddr, UPROBE_BKPT_INSN_SIZE);
+	memcpy(opcode, vaddr_new + vaddr, UPROBE_SWBP_INSN_SIZE);
 	kunmap_atomic(vaddr_new);
 	unlock_page(page);
 
@@ -317,7 +317,7 @@ static int read_opcode(struct mm_struct *mm, unsigned long vaddr, uprobe_opcode_
 	return 0;
 }
 
-static int is_bkpt_at_addr(struct mm_struct *mm, unsigned long vaddr)
+static int is_swbp_at_addr(struct mm_struct *mm, unsigned long vaddr)
 {
 	uprobe_opcode_t opcode;
 	int result;
@@ -326,14 +326,14 @@ static int is_bkpt_at_addr(struct mm_struct *mm, unsigned long vaddr)
 	if (result)
 		return result;
 
-	if (is_bkpt_insn(&opcode))
+	if (is_swbp_insn(&opcode))
 		return 1;
 
 	return 0;
 }
 
 /**
- * set_bkpt - store breakpoint at a given address.
+ * set_swbp - store breakpoint at a given address.
  * @auprobe: arch specific probepoint information.
  * @mm: the probed process address space.
  * @vaddr: the virtual address to insert the opcode.
@@ -341,18 +341,18 @@ static int is_bkpt_at_addr(struct mm_struct *mm, unsigned long vaddr)
  * For mm @mm, store the breakpoint instruction at @vaddr.
  * Return 0 (success) or a negative errno.
  */
-int __weak set_bkpt(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
+int __weak set_swbp(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long vaddr)
 {
 	int result;
 
-	result = is_bkpt_at_addr(mm, vaddr);
+	result = is_swbp_at_addr(mm, vaddr);
 	if (result == 1)
 		return -EEXIST;
 
 	if (result)
 		return result;
 
-	return write_opcode(auprobe, mm, vaddr, UPROBE_BKPT_INSN);
+	return write_opcode(auprobe, mm, vaddr, UPROBE_SWBP_INSN);
 }
 
 /**
@@ -371,7 +371,7 @@ set_orig_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, unsigned long v
 	if (verify) {
 		int result;
 
-		result = is_bkpt_at_addr(mm, vaddr);
+		result = is_swbp_at_addr(mm, vaddr);
 		if (!result)
 			return -EINVAL;
 
@@ -642,7 +642,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		if (ret)
 			return ret;
 
-		if (is_bkpt_insn((uprobe_opcode_t *)uprobe->arch.insn))
+		if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
 			return -EEXIST;
 
 		ret = arch_uprobes_analyze_insn(&uprobe->arch, mm);
@@ -651,7 +651,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 
 		uprobe->flags |= UPROBE_COPY_INSN;
 	}
-	ret = set_bkpt(&uprobe->arch, mm, addr);
+	ret = set_swbp(&uprobe->arch, mm, addr);
 
 	return ret;
 }
