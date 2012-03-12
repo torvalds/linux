@@ -126,6 +126,10 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts)
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
 	}
+	if (opts->branch_stack) {
+		attr->sample_type	|= PERF_SAMPLE_BRANCH_STACK;
+		attr->branch_sample_type = opts->branch_stack;
+	}
 
 	attr->mmap = track;
 	attr->comm = track;
@@ -576,6 +580,16 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 		data->raw_data = (void *) pdata;
 	}
 
+	if (type & PERF_SAMPLE_BRANCH_STACK) {
+		u64 sz;
+
+		data->branch_stack = (struct branch_stack *)array;
+		array++; /* nr */
+
+		sz = data->branch_stack->nr * sizeof(struct branch_entry);
+		sz /= sizeof(u64);
+		array += sz;
+	}
 	return 0;
 }
 

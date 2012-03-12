@@ -1023,6 +1023,12 @@ write_it:
 	return do_write_string(fd, buffer);
 }
 
+static int write_branch_stack(int fd __used, struct perf_header *h __used,
+		       struct perf_evlist *evlist __used)
+{
+	return 0;
+}
+
 static void print_hostname(struct perf_header *ph, int fd, FILE *fp)
 {
 	char *str = do_read_string(fd, ph);
@@ -1144,8 +1150,9 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	uint64_t id;
 	void *buf = NULL;
 	char *str;
-	u32 nre, sz, nr, i, j, msz;
-	int ret;
+	u32 nre, sz, nr, i, j;
+	ssize_t ret;
+	size_t msz;
 
 	/* number of events */
 	ret = read(fd, &nre, sizeof(nre));
@@ -1162,25 +1169,23 @@ static void print_event_desc(struct perf_header *ph, int fd, FILE *fp)
 	if (ph->needs_swap)
 		sz = bswap_32(sz);
 
-	/*
-	 * ensure it is at least to our ABI rev
-	 */
-	if (sz < (u32)sizeof(attr))
-		goto error;
-
 	memset(&attr, 0, sizeof(attr));
 
-	/* read entire region to sync up to next field */
+	/* buffer to hold on file attr struct */
 	buf = malloc(sz);
 	if (!buf)
 		goto error;
 
 	msz = sizeof(attr);
-	if (sz < msz)
+	if (sz < (ssize_t)msz)
 		msz = sz;
 
 	for (i = 0 ; i < nre; i++) {
 
+		/*
+		 * must read entire on-file attr struct to
+		 * sync up with layout.
+		 */
 		ret = read(fd, buf, sz);
 		if (ret != (ssize_t)sz)
 			goto error;
@@ -1314,6 +1319,12 @@ static void print_cpuid(struct perf_header *ph, int fd, FILE *fp)
 	char *str = do_read_string(fd, ph);
 	fprintf(fp, "# cpuid : %s\n", str);
 	free(str);
+}
+
+static void print_branch_stack(struct perf_header *ph __used, int fd __used,
+			       FILE *fp)
+{
+	fprintf(fp, "# contains samples with branch stack\n");
 }
 
 static int __event_process_build_id(struct build_id_event *bev,
@@ -1520,6 +1531,7 @@ static const struct feature_ops feat_ops[HEADER_LAST_FEATURE] = {
 	FEAT_OPA(HEADER_CMDLINE,	cmdline),
 	FEAT_OPF(HEADER_CPU_TOPOLOGY,	cpu_topology),
 	FEAT_OPF(HEADER_NUMA_TOPOLOGY,	numa_topology),
+	FEAT_OPA(HEADER_BRANCH_STACK,	branch_stack),
 };
 
 struct header_print_data {
@@ -1804,35 +1816,101 @@ out_free:
 	return err;
 }
 
-static int check_magic_endian(u64 *magic, struct perf_file_header *header,
-			      struct perf_header *ph)
+static const int attr_file_abi_sizes[] = {
+	[0] = PERF_ATTR_SIZE_VER0,
+	[1] = PERF_ATTR_SIZE_VER1,
+	0,
+};
+
+/*
+ * In the legacy file format, the magic number is not used to encode endianness.
+ * hdr_sz was used to encode endianness. But given that hdr_sz can vary based
+ * on ABI revisions, we need to try all combinations for all endianness to
+ * detect the endianness.
+ */
+static int try_all_file_abis(uint64_t hdr_sz, struct perf_header *ph)
+{
+	uint64_t ref_size, attr_size;
+	int i;
+
+	for (i = 0 ; attr_file_abi_sizes[i]; i++) {
+		ref_size = attr_file_abi_sizes[i]
+			 + sizeof(struct perf_file_section);
+		if (hdr_sz != ref_size) {
+			attr_size = bswap_64(hdr_sz);
+			if (attr_size != ref_size)
+				continue;
+
+			ph->needs_swap = true;
+		}
+		pr_debug("ABI%d perf.data file detected, need_swap=%d\n",
+			 i,
+			 ph->needs_swap);
+		return 0;
+	}
+	/* could not determine endianness */
+	return -1;
+}
+
+#define PERF_PIPE_HDR_VER0	16
+
+static const size_t attr_pipe_abi_sizes[] = {
+	[0] = PERF_PIPE_HDR_VER0,
+	0,
+};
+
+/*
+ * In the legacy pipe format, there is an implicit assumption that endiannesss
+ * between host recording the samples, and host parsing the samples is the
+ * same. This is not always the case given that the pipe output may always be
+ * redirected into a file and analyzed on a different machine with possibly a
+ * different endianness and perf_event ABI revsions in the perf tool itself.
+ */
+static int try_all_pipe_abis(uint64_t hdr_sz, struct perf_header *ph)
+{
+	u64 attr_size;
+	int i;
+
+	for (i = 0 ; attr_pipe_abi_sizes[i]; i++) {
+		if (hdr_sz != attr_pipe_abi_sizes[i]) {
+			attr_size = bswap_64(hdr_sz);
+			if (attr_size != hdr_sz)
+				continue;
+
+			ph->needs_swap = true;
+		}
+		pr_debug("Pipe ABI%d perf.data file detected\n", i);
+		return 0;
+	}
+	return -1;
+}
+
+static int check_magic_endian(u64 magic, uint64_t hdr_sz,
+			      bool is_pipe, struct perf_header *ph)
 {
 	int ret;
 
 	/* check for legacy format */
-	ret = memcmp(magic, __perf_magic1, sizeof(*magic));
+	ret = memcmp(&magic, __perf_magic1, sizeof(magic));
 	if (ret == 0) {
 		pr_debug("legacy perf.data format\n");
-		if (!header)
-			return -1;
+		if (is_pipe)
+			return try_all_pipe_abis(hdr_sz, ph);
 
-		if (header->attr_size != sizeof(struct perf_file_attr)) {
-			u64 attr_size = bswap_64(header->attr_size);
-
-			if (attr_size != sizeof(struct perf_file_attr))
-				return -1;
-
-			ph->needs_swap = true;
-		}
-		return 0;
+		return try_all_file_abis(hdr_sz, ph);
 	}
+	/*
+	 * the new magic number serves two purposes:
+	 * - unique number to identify actual perf.data files
+	 * - encode endianness of file
+	 */
 
-	/* check magic number with same endianness */
-	if (*magic == __perf_magic2)
+	/* check magic number with one endianness */
+	if (magic == __perf_magic2)
 		return 0;
 
-	/* check magic number but opposite endianness */
-	if (*magic != __perf_magic2_sw)
+	/* check magic number with opposite endianness */
+	if (magic != __perf_magic2_sw)
 		return -1;
 
 	ph->needs_swap = true;
@@ -1851,8 +1929,11 @@ int perf_file_header__read(struct perf_file_header *header,
 	if (ret <= 0)
 		return -1;
 
-	if (check_magic_endian(&header->magic, header, ph) < 0)
+	if (check_magic_endian(header->magic,
+			       header->attr_size, false, ph) < 0) {
+		pr_debug("magic/endian check failed\n");
 		return -1;
+	}
 
 	if (ph->needs_swap) {
 		mem_bswap_64(header, offsetof(struct perf_file_header,
@@ -1939,20 +2020,16 @@ static int perf_file_header__read_pipe(struct perf_pipe_file_header *header,
 	if (ret <= 0)
 		return -1;
 
-	 if (check_magic_endian(&header->magic, NULL, ph) < 0)
+	if (check_magic_endian(header->magic, header->size, true, ph) < 0) {
+		pr_debug("endian/magic failed\n");
 		return -1;
+	}
+
+	if (ph->needs_swap)
+		header->size = bswap_64(header->size);
 
 	if (repipe && do_write(STDOUT_FILENO, header, sizeof(*header)) < 0)
 		return -1;
-
-	if (header->size != sizeof(*header)) {
-		u64 size = bswap_64(header->size);
-
-		if (size != sizeof(*header))
-			return -1;
-
-		ph->needs_swap = true;
-	}
 
 	return 0;
 }
@@ -1973,6 +2050,52 @@ static int perf_header__read_pipe(struct perf_session *session, int fd)
 	return 0;
 }
 
+static int read_attr(int fd, struct perf_header *ph,
+		     struct perf_file_attr *f_attr)
+{
+	struct perf_event_attr *attr = &f_attr->attr;
+	size_t sz, left;
+	size_t our_sz = sizeof(f_attr->attr);
+	int ret;
+
+	memset(f_attr, 0, sizeof(*f_attr));
+
+	/* read minimal guaranteed structure */
+	ret = readn(fd, attr, PERF_ATTR_SIZE_VER0);
+	if (ret <= 0) {
+		pr_debug("cannot read %d bytes of header attr\n",
+			 PERF_ATTR_SIZE_VER0);
+		return -1;
+	}
+
+	/* on file perf_event_attr size */
+	sz = attr->size;
+
+	if (ph->needs_swap)
+		sz = bswap_32(sz);
+
+	if (sz == 0) {
+		/* assume ABI0 */
+		sz =  PERF_ATTR_SIZE_VER0;
+	} else if (sz > our_sz) {
+		pr_debug("file uses a more recent and unsupported ABI"
+			 " (%zu bytes extra)\n", sz - our_sz);
+		return -1;
+	}
+	/* what we have not yet read and that we know about */
+	left = sz - PERF_ATTR_SIZE_VER0;
+	if (left) {
+		void *ptr = attr;
+		ptr += PERF_ATTR_SIZE_VER0;
+
+		ret = readn(fd, ptr, left);
+	}
+	/* read perf_file_section, ids are read in caller */
+	ret = readn(fd, &f_attr->ids, sizeof(f_attr->ids));
+
+	return ret <= 0 ? -1 : 0;
+}
+
 int perf_session__read_header(struct perf_session *session, int fd)
 {
 	struct perf_header *header = &session->header;
@@ -1988,19 +2111,17 @@ int perf_session__read_header(struct perf_session *session, int fd)
 	if (session->fd_pipe)
 		return perf_header__read_pipe(session, fd);
 
-	if (perf_file_header__read(&f_header, header, fd) < 0) {
-		pr_debug("incompatible file format\n");
+	if (perf_file_header__read(&f_header, header, fd) < 0)
 		return -EINVAL;
-	}
 
-	nr_attrs = f_header.attrs.size / sizeof(f_attr);
+	nr_attrs = f_header.attrs.size / f_header.attr_size;
 	lseek(fd, f_header.attrs.offset, SEEK_SET);
 
 	for (i = 0; i < nr_attrs; i++) {
 		struct perf_evsel *evsel;
 		off_t tmp;
 
-		if (readn(fd, &f_attr, sizeof(f_attr)) <= 0)
+		if (read_attr(fd, header, &f_attr) < 0)
 			goto out_errno;
 
 		if (header->needs_swap)

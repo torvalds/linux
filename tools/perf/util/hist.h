@@ -42,6 +42,11 @@ enum hist_column {
 	HISTC_COMM,
 	HISTC_PARENT,
 	HISTC_CPU,
+	HISTC_MISPREDICT,
+	HISTC_SYMBOL_FROM,
+	HISTC_SYMBOL_TO,
+	HISTC_DSO_FROM,
+	HISTC_DSO_TO,
 	HISTC_NR_COLS, /* Last entry */
 };
 
@@ -73,6 +78,12 @@ int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
 int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
 			 struct hists *hists);
 void hist_entry__free(struct hist_entry *);
+
+struct hist_entry *__hists__add_branch_entry(struct hists *self,
+					     struct addr_location *al,
+					     struct symbol *sym_parent,
+					     struct branch_info *bi,
+					     u64 period);
 
 void hists__output_resort(struct hists *self);
 void hists__output_resort_threaded(struct hists *hists);
