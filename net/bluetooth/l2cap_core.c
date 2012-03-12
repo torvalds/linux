@@ -2379,9 +2379,9 @@ done:
 			chan->remote_mps = size;
 
 			rfc.retrans_timeout =
-				le16_to_cpu(L2CAP_DEFAULT_RETRANS_TO);
+				__constant_cpu_to_le16(L2CAP_DEFAULT_RETRANS_TO);
 			rfc.monitor_timeout =
-				le16_to_cpu(L2CAP_DEFAULT_MONITOR_TO);
+				__constant_cpu_to_le16(L2CAP_DEFAULT_MONITOR_TO);
 
 			set_bit(CONF_MODE_DONE, &chan->conf_state);
 
