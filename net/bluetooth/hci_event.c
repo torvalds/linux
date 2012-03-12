@@ -615,6 +615,7 @@ done:
 
 static void hci_setup_link_policy(struct hci_dev *hdev)
 {
+	struct hci_cp_write_def_link_policy cp;
 	u16 link_policy = 0;
 
 	if (hdev->features[0] & LMP_RSWITCH)
@@ -626,9 +627,8 @@ static void hci_setup_link_policy(struct hci_dev *hdev)
 	if (hdev->features[1] & LMP_PARK)
 		link_policy |= HCI_LP_PARK;
 
-	link_policy = cpu_to_le16(link_policy);
-	hci_send_cmd(hdev, HCI_OP_WRITE_DEF_LINK_POLICY, sizeof(link_policy),
-		     &link_policy);
+	cp.policy = cpu_to_le16(link_policy);
+	hci_send_cmd(hdev, HCI_OP_WRITE_DEF_LINK_POLICY, sizeof(cp), &cp);
 }
 
 static void hci_cc_read_local_commands(struct hci_dev *hdev, struct sk_buff *skb)
