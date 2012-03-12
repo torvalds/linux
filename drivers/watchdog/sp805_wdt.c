@@ -56,14 +56,13 @@
 
 /**
  * struct sp805_wdt: sp805 wdt device structure
- *
- * lock: spin lock protecting dev structure and io access
- * base: base address of wdt
- * clk: clock structure of wdt
- * dev: amba device structure of wdt
- * status: current status of wdt
- * load_val: load value to be set for current timeout
- * timeout: current programmed timeout
+ * @lock: spin lock protecting dev structure and io access
+ * @base: base address of wdt
+ * @clk: clock structure of wdt
+ * @adev: amba device structure of wdt
+ * @status: current status of wdt
+ * @load_val: load value to be set for current timeout
+ * @timeout: current programmed timeout
  */
 struct sp805_wdt {
 	spinlock_t			lock;
