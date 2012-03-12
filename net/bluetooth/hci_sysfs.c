@@ -444,8 +444,8 @@ static const struct file_operations blacklist_fops = {
 
 static void print_bt_uuid(struct seq_file *f, u8 *uuid)
 {
-	u32 data0, data4;
-	u16 data1, data2, data3, data5;
+	__be32 data0, data4;
+	__be16 data1, data2, data3, data5;
 
 	memcpy(&data0, &uuid[0], 4);
 	memcpy(&data1, &uuid[4], 2);
