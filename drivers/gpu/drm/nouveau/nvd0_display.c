@@ -634,8 +634,7 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 	u32 hactive, hsynce, hbackp, hfrontp, hblanke, hblanks;
 	u32 vactive, vsynce, vbackp, vfrontp, vblanke, vblanks;
 	u32 vblan2e = 0, vblan2s = 1;
-	u32 magic = 0x31ec6000;
-	u32 syncs, *push;
+	u32 *push;
 	int ret;
 
 	hactive = mode->htotal;
@@ -655,14 +654,7 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 		vblan2e = vactive + vsynce + vbackp;
 		vblan2s = vblan2e + (mode->vdisplay * vscan / ilace);
 		vactive = (vactive * 2) + 1;
-		magic  |= 0x00000001;
 	}
-
-	syncs = 0x00000001;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		syncs |= 0x00000008;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		syncs |= 0x00000010;
 
 	ret = nvd0_crtc_swap_fbs(crtc, old_fb);
 	if (ret)
@@ -683,9 +675,6 @@ nvd0_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 		evo_data(push, mode->clock * 1000);
 		evo_data(push, 0x00200000); /* ??? */
 		evo_data(push, mode->clock * 1000);
-		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
-		evo_data(push, syncs);
-		evo_data(push, magic);
 		evo_mthd(push, 0x04d0 + (nv_crtc->index * 0x300), 2);
 		evo_data(push, 0x00000311);
 		evo_data(push, 0x00000100);
@@ -974,13 +963,26 @@ nvd0_dac_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
-	u32 *push;
+	u32 syncs, magic, *push;
+
+	syncs = 0x00000001;
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		syncs |= 0x00000008;
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		syncs |= 0x00000010;
+
+	magic = 0x31ec6000 | (nv_crtc->index << 25);
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		magic |= 0x00000001;
 
 	nvd0_dac_dpms(encoder, DRM_MODE_DPMS_ON);
 
-	push = evo_wait(encoder->dev, EVO_MASTER, 4);
+	push = evo_wait(encoder->dev, EVO_MASTER, 8);
 	if (push) {
-		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x20), 2);
+		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
+		evo_data(push, syncs);
+		evo_data(push, magic);
+		evo_mthd(push, 0x0180 + (nv_encoder->or * 0x020), 2);
 		evo_data(push, 1 << nv_crtc->index);
 		evo_data(push, 0x00ff);
 		evo_kick(push, encoder->dev, EVO_MASTER);
@@ -1404,7 +1406,18 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	struct nouveau_connector *nv_connector;
 	struct nvbios *bios = &dev_priv->vbios;
 	u32 mode_ctrl = (1 << nv_crtc->index);
-	u32 *push, or_config;
+	u32 syncs, magic, *push;
+	u32 or_config;
+
+	syncs = 0x00000001;
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		syncs |= 0x00000008;
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		syncs |= 0x00000010;
+
+	magic = 0x31ec6000 | (nv_crtc->index << 25);
+	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+		magic |= 0x00000001;
 
 	nv_connector = nouveau_encoder_connector_get(nv_encoder);
 	switch (nv_encoder->dcb->type) {
@@ -1454,10 +1467,13 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 		}
 		break;
 	case OUTPUT_DP:
-		if (nv_connector->base.display_info.bpc == 6)
+		if (nv_connector->base.display_info.bpc == 6) {
 			nv_encoder->dp.datarate = mode->clock * 18 / 8;
-		else
+			syncs |= 0x00000140;
+		} else {
 			nv_encoder->dp.datarate = mode->clock * 24 / 8;
+			syncs |= 0x00000180;
+		}
 
 		if (nv_encoder->dcb->sorconf.link & 1)
 			mode_ctrl |= 0x00000800;
@@ -1478,9 +1494,12 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 					 nv_encoder->dp.datarate);
 	}
 
-	push = evo_wait(dev, EVO_MASTER, 4);
+	push = evo_wait(dev, EVO_MASTER, 8);
 	if (push) {
-		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 2);
+		evo_mthd(push, 0x0404 + (nv_crtc->index * 0x300), 2);
+		evo_data(push, syncs);
+		evo_data(push, magic);
+		evo_mthd(push, 0x0200 + (nv_encoder->or * 0x020), 2);
 		evo_data(push, mode_ctrl);
 		evo_data(push, or_config);
 		evo_kick(push, dev, EVO_MASTER);
