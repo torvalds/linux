@@ -520,7 +520,7 @@ static unsigned int tps65910_get_mode(struct regulator_dev *dev)
 	if (value < 0)
 		return value;
 
-	if (value & LDO_ST_ON_BIT)
+	if (!(value & LDO_ST_ON_BIT))
 		return REGULATOR_MODE_STANDBY;
 	else if (value & LDO_ST_MODE_BIT)
 		return REGULATOR_MODE_IDLE;
