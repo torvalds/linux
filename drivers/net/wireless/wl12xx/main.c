@@ -3791,8 +3791,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		wlvif->rssi_thold = bss_conf->cqm_rssi_thold;
 	}
 
-	if (changed & BSS_CHANGED_BSSID &&
-	    (is_ibss || bss_conf->assoc))
+	if (changed & BSS_CHANGED_BSSID)
 		if (!is_zero_ether_addr(bss_conf->bssid)) {
 			ret = wl12xx_cmd_build_null_data(wl, wlvif);
 			if (ret < 0)
@@ -3801,9 +3800,6 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 			ret = wl1271_build_qos_null_data(wl, vif);
 			if (ret < 0)
 				goto out;
-
-			/* Need to update the BSSID (for filtering etc) */
-			do_join = true;
 		}
 
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_HT)) {
@@ -3830,6 +3826,7 @@ sta_not_found:
 			int ieoffset;
 			wlvif->aid = bss_conf->aid;
 			wlvif->beacon_int = bss_conf->beacon_int;
+			do_join = true;
 			set_assoc = true;
 
 			/*
