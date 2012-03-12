@@ -134,10 +134,6 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		return -ENODEV;
 	}
 
-	spin_lock_irq(&port->phy_list_lock);
-	list_for_each_entry(phy, &port->phy_list, port_phy_el)
-		sas_phy_set_target(phy, dev);
-	spin_unlock_irq(&port->phy_list_lock);
 	rphy->identify.phy_identifier = phy->phy->identify.phy_identifier;
 	memcpy(dev->sas_addr, port->attached_sas_addr, SAS_ADDR_SIZE);
 	sas_fill_in_rphy(dev, rphy);
@@ -163,6 +159,11 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		list_add_tail(&dev->dev_list_node, &port->dev_list);
 		spin_unlock_irq(&port->dev_list_lock);
 	}
+
+	spin_lock_irq(&port->phy_list_lock);
+	list_for_each_entry(phy, &port->phy_list, port_phy_el)
+		sas_phy_set_target(phy, dev);
+	spin_unlock_irq(&port->phy_list_lock);
 
 	return 0;
 }
