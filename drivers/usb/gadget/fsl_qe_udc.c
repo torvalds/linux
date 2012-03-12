@@ -489,10 +489,10 @@ static int qe_ep_register_init(struct qe_udc *udc, unsigned char pipe_num)
 	epparam = udc->ep_param[pipe_num];
 
 	usep = 0;
-	logepnum = (ep->desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
+	logepnum = (ep->ep.desc->bEndpointAddress & USB_ENDPOINT_NUMBER_MASK);
 	usep |= (logepnum << USB_EPNUM_SHIFT);
 
-	switch (ep->desc->bmAttributes & 0x03) {
+	switch (ep->ep.desc->bmAttributes & 0x03) {
 	case USB_ENDPOINT_XFER_BULK:
 		usep |= USB_TRANS_BULK;
 		break;
@@ -644,7 +644,7 @@ static int qe_ep_init(struct qe_udc *udc,
 	/* initialize ep structure */
 	ep->ep.maxpacket = max;
 	ep->tm = (u8)(desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK);
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->stopped = 0;
 	ep->init = 1;
 
@@ -1599,7 +1599,7 @@ static int qe_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct qe_ep, ep);
 
 	/* catch various bogus parameters */
-	if (!_ep || !desc || ep->desc || _ep->name == ep_name[0] ||
+	if (!_ep || !desc || ep->ep.desc || _ep->name == ep_name[0] ||
 			(desc->bDescriptorType != USB_DT_ENDPOINT))
 		return -EINVAL;
 
@@ -1629,7 +1629,7 @@ static int qe_ep_disable(struct usb_ep *_ep)
 	ep = container_of(_ep, struct qe_ep, ep);
 	udc = ep->udc;
 
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		dev_dbg(udc->dev, "%s not enabled\n", _ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
@@ -1637,7 +1637,6 @@ static int qe_ep_disable(struct usb_ep *_ep)
 	spin_lock_irqsave(&udc->lock, flags);
 	/* Nuke all pending requests (does flush) */
 	nuke(ep, -ESHUTDOWN);
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 	ep->tx_req = NULL;
@@ -1715,7 +1714,7 @@ static int __qe_ep_queue(struct usb_ep *_ep, struct usb_request *_req)
 		dev_dbg(udc->dev, "bad params\n");
 		return -EINVAL;
 	}
-	if (!_ep || (!ep->desc && ep_index(ep))) {
+	if (!_ep || (!ep->ep.desc && ep_index(ep))) {
 		dev_dbg(udc->dev, "bad ep\n");
 		return -EINVAL;
 	}
@@ -1826,7 +1825,7 @@ static int qe_ep_set_halt(struct usb_ep *_ep, int value)
 	struct qe_udc *udc;
 
 	ep = container_of(_ep, struct qe_ep, ep);
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		status = -EINVAL;
 		goto out;
 	}
@@ -2015,7 +2014,7 @@ static void ch9getstatus(struct qe_udc *udc, u8 request_type, u16 value,
 		u16 usep;
 
 		/* stall if endpoint doesn't exist */
-		if (!target_ep->desc)
+		if (!target_ep->ep.desc)
 			goto stall;
 
 		usep = in_be16(&udc->usb_regs->usb_usep[pipe]);
@@ -2502,7 +2501,7 @@ static int __devinit qe_ep_config(struct qe_udc *udc, unsigned char pipe_num)
 	ep->ep.ops = &qe_ep_ops;
 	ep->stopped = 1;
 	ep->ep.maxpacket = (unsigned short) ~0;
-	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->dir = 0xff;
 	ep->epnum = (u8)pipe_num;
 	ep->sent = 0;
