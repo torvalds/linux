@@ -63,7 +63,8 @@ static void *ion_kernel_mapper_map_kernel(struct ion_mapper *mapper,
 static int ion_kernel_mapper_map_user(struct ion_mapper *mapper,
 				      struct ion_buffer *buffer,
 				      struct vm_area_struct *vma,
-				      struct ion_mapping *mapping)
+				      struct ion_mapping *mapping,
+				      unsigned long flags)
 {
 	int ret;
 

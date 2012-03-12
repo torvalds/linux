@@ -723,8 +723,28 @@ static struct platform_device irda_device = {
 };
 #endif
 
+#ifdef CONFIG_ION
+#define ION_RESERVE_SIZE        (80 * SZ_1M)
+static struct ion_platform_data rk30_ion_pdata = {
+	.nr = 1,
+	.heaps = {
+		{
+			.type = ION_HEAP_TYPE_CARVEOUT,
+			.id = ION_NOR_HEAP_ID,
+			.name = "norheap",
+			.size = ION_RESERVE_SIZE,
+		}
+	},
+};
 
-
+static struct platform_device device_ion = {
+	.name = "ion-rockchip",
+	.id = 0,
+	.dev = {
+		.platform_data = &rk30_ion_pdata,
+	},
+};
+#endif
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
@@ -732,6 +752,9 @@ static struct platform_device *devices[] __initdata = {
 #endif	
 #ifdef CONFIG_FB_ROCKCHIP
 	&device_fb,
+#endif
+#ifdef CONFIG_ION
+	&device_ion,
 #endif
 #ifdef CONFIG_ANDROID_TIMED_GPIO
 	&rk29_device_vibrator,
@@ -742,8 +765,6 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK_IRDA
 	&irda_device,
 #endif
-
-
 };
 
 // i2c
@@ -860,6 +881,9 @@ static void __init machine_rk30_board_init(void)
 
 static void __init rk30_reserve(void)
 {
+#ifdef CONFIG_ION
+        rk30_ion_pdata.heaps[0].base = board_mem_reserve_add("ion",ION_RESERVE_SIZE);
+#endif
 #ifdef CONFIG_FB_ROCKCHIP
 	resource_fb[0].start = board_mem_reserve_add("fb0",RK30_FB0_MEM_SIZE);
 	resource_fb[0].end = resource_fb[0].start + RK30_FB0_MEM_SIZE - 1;
