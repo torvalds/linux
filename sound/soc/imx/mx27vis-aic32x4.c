@@ -188,22 +188,16 @@ static struct snd_soc_card mx27vis_aic32x4 = {
 	.num_dapm_routes = ARRAY_SIZE(aic32x4_dapm_routes),
 };
 
-static struct platform_device *mx27vis_aic32x4_snd_device;
-
-static int __init mx27vis_aic32x4_init(void)
+static int __devinit mx27vis_aic32x4_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	mx27vis_aic32x4_snd_device = platform_device_alloc("soc-audio", -1);
-	if (!mx27vis_aic32x4_snd_device)
-		return -ENOMEM;
-
-	platform_set_drvdata(mx27vis_aic32x4_snd_device, &mx27vis_aic32x4);
-	ret = platform_device_add(mx27vis_aic32x4_snd_device);
-
+	mx27vis_aic32x4.dev = &pdev->dev;
+	ret = snd_soc_register_card(&mx27vis_aic32x4);
 	if (ret) {
-		printk(KERN_ERR "ASoC: Platform device allocation failed\n");
-		platform_device_put(mx27vis_aic32x4_snd_device);
+		dev_err(&pdev->dev, "snd_soc_register_card failed (%d)\n",
+			ret);
+		return ret;
 	}
 
 	/* Connect SSI0 as clock slave to SSI1 external pins */
@@ -221,22 +215,31 @@ static int __init mx27vis_aic32x4_init(void)
 
 	ret = mxc_gpio_setup_multiple_pins(mx27vis_amp_pins,
 			ARRAY_SIZE(mx27vis_amp_pins), "MX27VIS_AMP");
-	if (ret) {
+	if (ret)
 		printk(KERN_ERR "ASoC: unable to setup gpios\n");
-		platform_device_put(mx27vis_aic32x4_snd_device);
-	}
 
 	return ret;
 }
 
-static void __exit mx27vis_aic32x4_exit(void)
+static int __devexit mx27vis_aic32x4_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(mx27vis_aic32x4_snd_device);
+	snd_soc_unregister_card(&mx27vis_aic32x4);
+
+	return 0;
 }
 
-module_init(mx27vis_aic32x4_init);
-module_exit(mx27vis_aic32x4_exit);
+static struct platform_driver mx27vis_aic32x4_audio_driver = {
+	.driver = {
+		.name = "mx27vis",
+		.owner = THIS_MODULE,
+	},
+	.probe = mx27vis_aic32x4_probe,
+	.remove = __devexit_p(mx27vis_aic32x4_remove),
+};
+
+module_platform_driver(mx27vis_aic32x4_audio_driver);
 
 MODULE_AUTHOR("Javier Martin <javier.martin@vista-silicon.com>");
 MODULE_DESCRIPTION("ALSA SoC AIC32X4 mx27 visstrim");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:mx27vis");
