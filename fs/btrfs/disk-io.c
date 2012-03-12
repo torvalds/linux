@@ -1640,8 +1640,10 @@ static int transaction_kthread(void *arg)
 	u64 transid;
 	unsigned long now;
 	unsigned long delay;
+	bool cannot_commit;
 
 	do {
+		cannot_commit = false;
 		delay = HZ * 30;
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
@@ -1665,8 +1667,10 @@ static int transaction_kthread(void *arg)
 
 		/* If the file system is aborted, this will always fail. */
 		trans = btrfs_join_transaction(root);
-		if (IS_ERR(trans))
+		if (IS_ERR(trans)) {
+			cannot_commit = true;
 			goto sleep;
+		}
 		if (transid == trans->transid) {
 			btrfs_commit_transaction(trans, root);
 		} else {
@@ -1679,7 +1683,8 @@ sleep:
 		if (!try_to_freeze()) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop() &&
-			    !btrfs_transaction_blocked(root->fs_info))
+			    (!btrfs_transaction_blocked(root->fs_info) ||
+			     cannot_commit))
 				schedule_timeout(delay);
 			__set_current_state(TASK_RUNNING);
 		}
