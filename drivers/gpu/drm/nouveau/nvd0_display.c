@@ -284,6 +284,8 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	u32 *push;
 	int ret;
 
+	evo_sync(crtc->dev, EVO_MASTER);
+
 	swap_interval <<= 4;
 	if (swap_interval == 0)
 		swap_interval |= 0x100;
@@ -593,7 +595,7 @@ nvd0_crtc_commit(struct drm_crtc *crtc)
 		evo_kick(push, crtc->dev, EVO_MASTER);
 	}
 
-	nvd0_crtc_cursor_show(nv_crtc, nv_crtc->cursor.visible, false);
+	nvd0_crtc_cursor_show(nv_crtc, nv_crtc->cursor.visible, true);
 	nvd0_display_flip_next(crtc, crtc->fb, NULL, 1);
 }
 
@@ -948,11 +950,6 @@ nvd0_dac_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 }
 
 static void
-nvd0_dac_prepare(struct drm_encoder *encoder)
-{
-}
-
-static void
 nvd0_dac_commit(struct drm_encoder *encoder)
 {
 }
@@ -1045,7 +1042,7 @@ nvd0_dac_destroy(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs nvd0_dac_hfunc = {
 	.dpms = nvd0_dac_dpms,
 	.mode_fixup = nvd0_dac_mode_fixup,
-	.prepare = nvd0_dac_prepare,
+	.prepare = nvd0_dac_disconnect,
 	.commit = nvd0_dac_commit,
 	.mode_set = nvd0_dac_mode_set,
 	.disable = nvd0_dac_disconnect,
@@ -1386,8 +1383,37 @@ nvd0_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 }
 
 static void
+nvd0_sor_disconnect(struct drm_encoder *encoder)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	u32 *push;
+
+	if (nv_encoder->crtc) {
+		nvd0_crtc_prepare(nv_encoder->crtc);
+
+		push = evo_wait(dev, EVO_MASTER, 4);
+		if (push) {
+			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
+			evo_data(push, 0x00000000);
+			evo_mthd(push, 0x0080, 1);
+			evo_data(push, 0x00000000);
+			evo_kick(push, dev, EVO_MASTER);
+		}
+
+		nvd0_hdmi_disconnect(encoder);
+
+		nv_encoder->crtc = NULL;
+		nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
+	}
+}
+
+static void
 nvd0_sor_prepare(struct drm_encoder *encoder)
 {
+	nvd0_sor_disconnect(encoder);
+	if (nouveau_encoder(encoder)->dcb->type == OUTPUT_DP)
+		evo_sync(encoder->dev, EVO_MASTER);
 }
 
 static void
@@ -1506,32 +1532,6 @@ nvd0_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *umode,
 	}
 
 	nv_encoder->crtc = encoder->crtc;
-}
-
-static void
-nvd0_sor_disconnect(struct drm_encoder *encoder)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	u32 *push;
-
-	if (nv_encoder->crtc) {
-		nvd0_crtc_prepare(nv_encoder->crtc);
-
-		push = evo_wait(dev, EVO_MASTER, 4);
-		if (push) {
-			evo_mthd(push, 0x0200 + (nv_encoder->or * 0x20), 1);
-			evo_data(push, 0x00000000);
-			evo_mthd(push, 0x0080, 1);
-			evo_data(push, 0x00000000);
-			evo_kick(push, dev, EVO_MASTER);
-		}
-
-		nvd0_hdmi_disconnect(encoder);
-
-		nv_encoder->crtc = NULL;
-		nv_encoder->last_dpms = DRM_MODE_DPMS_OFF;
-	}
 }
 
 static void
