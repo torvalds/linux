@@ -212,7 +212,7 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 	if (udc->enabled && udc->vbus) {
 		proc_ep_show(s, &udc->ep[0]);
 		list_for_each_entry (ep, &udc->gadget.ep_list, ep.ep_list) {
-			if (ep->desc)
+			if (ep->ep.desc)
 				proc_ep_show(s, ep);
 		}
 	}
@@ -530,7 +530,7 @@ ok:
 	tmp |= AT91_UDP_EPEDS;
 	__raw_writel(tmp, ep->creg);
 
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->ep.maxpacket = maxpacket;
 
 	/*
@@ -558,7 +558,6 @@ static int at91_ep_disable (struct usb_ep * _ep)
 	nuke(ep, -ESHUTDOWN);
 
 	/* restore the endpoint's pristine config */
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->ep.maxpacket = ep->maxpacket;
 
@@ -618,7 +617,7 @@ static int at91_ep_queue(struct usb_ep *_ep,
 		return -EINVAL;
 	}
 
-	if (!_ep || (!ep->desc && ep->ep.name != ep0name)) {
+	if (!_ep || (!ep->ep.desc && ep->ep.name != ep0name)) {
 		DBG("invalid ep\n");
 		return -EINVAL;
 	}
@@ -833,7 +832,7 @@ static void udc_reinit(struct at91_udc *udc)
 
 		if (i != 0)
 			list_add_tail(&ep->ep.ep_list, &udc->gadget.ep_list);
-		ep->desc = NULL;
+		ep->ep.desc = NULL;
 		ep->stopped = 0;
 		ep->fifo_bank = 0;
 		ep->ep.maxpacket = ep->maxpacket;
@@ -1172,7 +1171,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			| USB_REQ_GET_STATUS:
 		tmp = w_index & USB_ENDPOINT_NUMBER_MASK;
 		ep = &udc->ep[tmp];
-		if (tmp >= NUM_ENDPOINTS || (tmp && !ep->desc))
+		if (tmp >= NUM_ENDPOINTS || (tmp && !ep->ep.desc))
 			goto stall;
 
 		if (tmp) {
@@ -1197,7 +1196,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 		ep = &udc->ep[tmp];
 		if (w_value != USB_ENDPOINT_HALT || tmp >= NUM_ENDPOINTS)
 			goto stall;
-		if (!ep->desc || ep->is_iso)
+		if (!ep->ep.desc || ep->is_iso)
 			goto stall;
 		if ((w_index & USB_DIR_IN)) {
 			if (!ep->is_in)
@@ -1218,7 +1217,7 @@ static void handle_setup(struct at91_udc *udc, struct at91_ep *ep, u32 csr)
 			goto stall;
 		if (tmp == 0)
 			goto succeed;
-		if (!ep->desc || ep->is_iso)
+		if (!ep->ep.desc || ep->is_iso)
 			goto stall;
 		if ((w_index & USB_DIR_IN)) {
 			if (!ep->is_in)
