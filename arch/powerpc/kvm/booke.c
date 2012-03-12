@@ -875,6 +875,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			/* Guest has mapped and accessed a page which is not
 			 * actually RAM. */
 			vcpu->arch.paddr_accessed = gpaddr;
+			vcpu->arch.vaddr_accessed = eaddr;
 			r = kvmppc_emulate_mmio(run, vcpu);
 			kvmppc_account_exit(vcpu, MMIO_EXITS);
 		}

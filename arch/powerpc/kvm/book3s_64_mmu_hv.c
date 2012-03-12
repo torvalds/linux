@@ -447,7 +447,7 @@ static int instruction_is_store(unsigned int instr)
 }
 
 static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
-				  unsigned long gpa, int is_store)
+				  unsigned long gpa, gva_t ea, int is_store)
 {
 	int ret;
 	u32 last_inst;
@@ -494,6 +494,7 @@ static int kvmppc_hv_emulate_mmio(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	 */
 
 	vcpu->arch.paddr_accessed = gpa;
+	vcpu->arch.vaddr_accessed = ea;
 	return kvmppc_emulate_mmio(run, vcpu);
 }
 
@@ -547,7 +548,7 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	/* No memslot means it's an emulated MMIO region */
 	if (!memslot || (memslot->flags & KVM_MEMSLOT_INVALID)) {
 		unsigned long gpa = (gfn << PAGE_SHIFT) | (ea & (psize - 1));
-		return kvmppc_hv_emulate_mmio(run, vcpu, gpa,
+		return kvmppc_hv_emulate_mmio(run, vcpu, gpa, ea,
 					      dsisr & DSISR_ISSTORE);
 	}
 

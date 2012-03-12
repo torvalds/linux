@@ -464,6 +464,7 @@ struct kvm_vcpu_arch {
 	u32 epr;
 #endif
 	gpa_t paddr_accessed;
+	gva_t vaddr_accessed;
 
 	u8 io_gpr; /* GPR used as IO source/target */
 	u8 mmio_is_bigendian;
