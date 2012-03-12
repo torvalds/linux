@@ -2523,13 +2523,18 @@ static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 
 	if (cp->val) {
 		type = PAGE_SCAN_TYPE_INTERLACED;
-		acp.interval = 0x0024;	/* 22.5 msec page scan interval */
+
+		/* 22.5 msec page scan interval */
+		acp.interval = __constant_cpu_to_le16(0x0024);
 	} else {
 		type = PAGE_SCAN_TYPE_STANDARD;	/* default */
-		acp.interval = 0x0800;	/* default 1.28 sec page scan */
+
+		/* default 1.28 sec page scan */
+		acp.interval = __constant_cpu_to_le16(0x0800);
 	}
 
-	acp.window = 0x0012;	/* default 11.25 msec page scan window */
+	/* default 11.25 msec page scan window */
+	acp.window = __constant_cpu_to_le16(0x0012);
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_PAGE_SCAN_ACTIVITY, sizeof(acp),
 			   &acp);
