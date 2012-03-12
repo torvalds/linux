@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/if_ether.h>
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 
 #include "hyperv_net.h"
 
@@ -303,12 +304,39 @@ static void rndis_filter_receive_indicate_status(struct rndis_device *dev,
 	}
 }
 
+/*
+ * Get the Per-Packet-Info with the specified type
+ * return NULL if not found.
+ */
+static inline void *rndis_get_ppi(struct rndis_packet *rpkt, u32 type)
+{
+	struct rndis_per_packet_info *ppi;
+	int len;
+
+	if (rpkt->per_pkt_info_offset == 0)
+		return NULL;
+
+	ppi = (struct rndis_per_packet_info *)((ulong)rpkt +
+		rpkt->per_pkt_info_offset);
+	len = rpkt->per_pkt_info_len;
+
+	while (len > 0) {
+		if (ppi->type == type)
+			return (void *)((ulong)ppi + ppi->ppi_offset);
+		len -= ppi->size;
+		ppi = (struct rndis_per_packet_info *)((ulong)ppi + ppi->size);
+	}
+
+	return NULL;
+}
+
 static void rndis_filter_receive_data(struct rndis_device *dev,
 				   struct rndis_message *msg,
 				   struct hv_netvsc_packet *pkt)
 {
 	struct rndis_packet *rndis_pkt;
 	u32 data_offset;
+	struct ndis_pkt_8021q_info *vlan;
 
 	rndis_pkt = &msg->msg.pkt;
 
@@ -343,6 +371,14 @@ static void rndis_filter_receive_data(struct rndis_device *dev,
 	pkt->data = (void *)((unsigned long)pkt->data + data_offset);
 
 	pkt->is_data_pkt = true;
+
+	vlan = rndis_get_ppi(rndis_pkt, IEEE_8021Q_INFO);
+	if (vlan) {
+		pkt->vlan_tci = VLAN_TAG_PRESENT | vlan->vlanid |
+			(vlan->pri << VLAN_PRIO_SHIFT);
+	} else {
+		pkt->vlan_tci = 0;
+	}
 
 	netvsc_recv_callback(dev->net_dev->dev, pkt);
 }
@@ -759,12 +795,15 @@ int rndis_filter_send(struct hv_device *dev,
 	struct rndis_message *rndis_msg;
 	struct rndis_packet *rndis_pkt;
 	u32 rndis_msg_size;
+	bool isvlan = pkt->vlan_tci & VLAN_TAG_PRESENT;
 
 	/* Add the rndis header */
 	filter_pkt = (struct rndis_filter_packet *)pkt->extension;
 
 	rndis_msg = &filter_pkt->msg;
 	rndis_msg_size = RNDIS_MESSAGE_SIZE(struct rndis_packet);
+	if (isvlan)
+		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
 
 	rndis_msg->ndis_msg_type = REMOTE_NDIS_PACKET_MSG;
 	rndis_msg->msg_len = pkt->total_data_buflen +
@@ -772,7 +811,28 @@ int rndis_filter_send(struct hv_device *dev,
 
 	rndis_pkt = &rndis_msg->msg.pkt;
 	rndis_pkt->data_offset = sizeof(struct rndis_packet);
+	if (isvlan)
+		rndis_pkt->data_offset += NDIS_VLAN_PPI_SIZE;
 	rndis_pkt->data_len = pkt->total_data_buflen;
+
+	if (isvlan) {
+		struct rndis_per_packet_info *ppi;
+		struct ndis_pkt_8021q_info *vlan;
+
+		rndis_pkt->per_pkt_info_offset = sizeof(struct rndis_packet);
+		rndis_pkt->per_pkt_info_len = NDIS_VLAN_PPI_SIZE;
+
+		ppi = (struct rndis_per_packet_info *)((ulong)rndis_pkt +
+			rndis_pkt->per_pkt_info_offset);
+		ppi->size = NDIS_VLAN_PPI_SIZE;
+		ppi->type = IEEE_8021Q_INFO;
+		ppi->ppi_offset = sizeof(struct rndis_per_packet_info);
+
+		vlan = (struct ndis_pkt_8021q_info *)((ulong)ppi +
+			ppi->ppi_offset);
+		vlan->vlanid = pkt->vlan_tci & VLAN_VID_MASK;
+		vlan->pri = (pkt->vlan_tci & VLAN_PRIO_MASK) >> VLAN_PRIO_SHIFT;
+	}
 
 	pkt->is_data_pkt = true;
 	pkt->page_buf[0].pfn = virt_to_phys(rndis_msg) >> PAGE_SHIFT;
