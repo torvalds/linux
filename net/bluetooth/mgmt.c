@@ -78,6 +78,7 @@ static const u16 mgmt_commands[] = {
 	MGMT_OP_CONFIRM_NAME,
 	MGMT_OP_BLOCK_DEVICE,
 	MGMT_OP_UNBLOCK_DEVICE,
+	MGMT_OP_SET_DEVICE_ID,
 };
 
 static const u16 mgmt_events[] = {
@@ -2523,6 +2524,30 @@ static int unblock_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	return err;
 }
 
+static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
+			 u16 len)
+{
+	struct mgmt_cp_set_device_id *cp = data;
+	int err;
+
+	BT_DBG("%s", hdev->name);
+
+	hci_dev_lock(hdev);
+
+	hdev->devid_source = __le16_to_cpu(cp->source);
+	hdev->devid_vendor = __le16_to_cpu(cp->vendor);
+	hdev->devid_product = __le16_to_cpu(cp->product);
+	hdev->devid_version = __le16_to_cpu(cp->version);
+
+	err = cmd_complete(sk, hdev->id, MGMT_OP_SET_DEVICE_ID, 0, NULL, 0);
+
+	update_eir(hdev);
+
+	hci_dev_unlock(hdev);
+
+	return err;
+}
+
 static int set_fast_connectable(struct sock *sk, struct hci_dev *hdev,
 				void *data, u16 len)
 {
@@ -2669,6 +2694,7 @@ struct mgmt_handler {
 	{ confirm_name,           false, MGMT_CONFIRM_NAME_SIZE },
 	{ block_device,           false, MGMT_BLOCK_DEVICE_SIZE },
 	{ unblock_device,         false, MGMT_UNBLOCK_DEVICE_SIZE },
+	{ set_device_id,          false, MGMT_SET_DEVICE_ID_SIZE },
 };
 
 
