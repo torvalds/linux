@@ -1047,8 +1047,10 @@ static int hub_configure(struct usb_hub *hub,
 	dev_info (hub_dev, "%d port%s detected\n", hdev->maxchild,
 		(hdev->maxchild == 1) ? "" : "s");
 
+	hdev->children = kzalloc(hdev->maxchild *
+				sizeof(struct usb_device *), GFP_KERNEL);
 	hub->port_owners = kzalloc(hdev->maxchild * sizeof(void *), GFP_KERNEL);
-	if (!hub->port_owners) {
+	if (!hdev->children || !hub->port_owners) {
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -1279,7 +1281,8 @@ static unsigned highspeed_hubs;
 
 static void hub_disconnect(struct usb_interface *intf)
 {
-	struct usb_hub *hub = usb_get_intfdata (intf);
+	struct usb_hub *hub = usb_get_intfdata(intf);
+	struct usb_device *hdev = interface_to_usbdev(intf);
 
 	/* Take the hub off the event list and don't let it be added again */
 	spin_lock_irq(&hub_event_lock);
@@ -1301,6 +1304,7 @@ static void hub_disconnect(struct usb_interface *intf)
 		highspeed_hubs--;
 
 	usb_free_urb(hub->urb);
+	kfree(hdev->children);
 	kfree(hub->port_owners);
 	kfree(hub->descriptor);
 	kfree(hub->status);
@@ -1676,7 +1680,7 @@ void usb_disconnect(struct usb_device **pdev)
 	usb_lock_device(udev);
 
 	/* Free up all the children before we remove this device */
-	for (i = 0; i < USB_MAXCHILDREN; i++) {
+	for (i = 0; i < udev->maxchild; i++) {
 		if (udev->children[i])
 			usb_disconnect(&udev->children[i]);
 	}
