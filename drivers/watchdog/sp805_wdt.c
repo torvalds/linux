@@ -130,9 +130,16 @@ static int wdt_config(struct watchdog_device *wdd, bool ping)
 	int ret;
 
 	if (!ping) {
+		ret = clk_prepare(wdt->clk);
+		if (ret) {
+			dev_err(&wdt->adev->dev, "clock prepare fail");
+			return ret;
+		}
+
 		ret = clk_enable(wdt->clk);
 		if (ret) {
 			dev_err(&wdt->adev->dev, "clock enable fail");
+			clk_unprepare(wdt->clk);
 			return ret;
 		}
 	}
@@ -184,6 +191,7 @@ static int wdt_disable(struct watchdog_device *wdd)
 	spin_unlock(&wdt->lock);
 
 	clk_disable(wdt->clk);
+	clk_unprepare(wdt->clk);
 
 	return 0;
 }
