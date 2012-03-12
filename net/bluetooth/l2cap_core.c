@@ -833,7 +833,8 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 /* Find socket with cid and source bdaddr.
  * Returns closest match, locked.
  */
-static struct l2cap_chan *l2cap_global_chan_by_scid(int state, __le16 cid, bdaddr_t *src)
+static struct l2cap_chan *l2cap_global_chan_by_scid(int state, u16 cid,
+						    bdaddr_t *src)
 {
 	struct l2cap_chan *c, *c1 = NULL;
 
@@ -4396,7 +4397,8 @@ drop:
 	return 0;
 }
 
-static inline int l2cap_att_channel(struct l2cap_conn *conn, __le16 cid, struct sk_buff *skb)
+static inline int l2cap_att_channel(struct l2cap_conn *conn, u16 cid,
+				    struct sk_buff *skb)
 {
 	struct l2cap_chan *chan;
 
