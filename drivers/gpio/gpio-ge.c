@@ -14,7 +14,7 @@
  *
  * Configuration of output modes (totem-pole/open-drain)
  * Interrupt configuration - interrupts are always generated the FPGA relies on
- * 	the I/O interrupt controllers mask to stop them propergating
+ * the I/O interrupt controllers mask to stop them propergating
  */
 
 #include <linux/kernel.h>
