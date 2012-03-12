@@ -361,7 +361,6 @@ struct dwc3_ep {
 	dma_addr_t		trb_pool_dma;
 	u32			free_slot;
 	u32			busy_slot;
-	const struct usb_endpoint_descriptor *desc;
 	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	struct dwc3		*dwc;
 
