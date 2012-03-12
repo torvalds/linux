@@ -246,7 +246,7 @@ static int gart_iommu_map(struct iommu_domain *domain, unsigned long iova,
 	pfn = __phys_to_pfn(pa);
 	if (!pfn_valid(pfn)) {
 		dev_err(gart->dev, "Invalid page: %08x\n", pa);
-		spin_lock_irqsave(&gart->pte_lock, flags);
+		spin_unlock_irqrestore(&gart->pte_lock, flags);
 		return -EINVAL;
 	}
 	gart_set_pte(gart, iova, GART_PTE(pfn));
