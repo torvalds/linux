@@ -347,15 +347,15 @@ static int __devinit mpcore_wdt_probe(struct platform_device *pdev)
 
 	wdt->dev = &pdev->dev;
 	wdt->irq = platform_get_irq(pdev, 0);
-	if (wdt->irq < 0)
-		return -ENXIO;
-
-	ret = devm_request_irq(wdt->dev, wdt->irq, mpcore_wdt_fire, 0,
-			"mpcore_wdt", wdt);
-	if (ret) {
-		dev_printk(KERN_ERR, wdt->dev,
-			"cannot register IRQ%d for watchdog\n", wdt->irq);
-		return ret;
+	if (wdt->irq >= 0) {
+		ret = devm_request_irq(wdt->dev, wdt->irq, mpcore_wdt_fire, 0,
+				"mpcore_wdt", wdt);
+		if (ret) {
+			dev_printk(KERN_ERR, wdt->dev,
+					"cannot register IRQ%d for watchdog\n",
+					wdt->irq);
+			return ret;
+		}
 	}
 
 	wdt->base = devm_ioremap(wdt->dev, res->start, resource_size(res));
