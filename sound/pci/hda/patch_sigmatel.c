@@ -311,7 +311,7 @@ struct sigmatel_spec {
 	unsigned auto_dmic_cnt;
 	hda_nid_t auto_dmic_nids[MAX_DMICS_NUM];
 
-	struct snd_kcontrol *vmaster_sw_kctl;
+	struct hda_vmaster_mute_hook vmaster_mute;
 };
 
 static const hda_nid_t stac9200_adc_nids[1] = {
@@ -1160,14 +1160,15 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
 				    NULL, slave_pfxs,
 				    "Playback Switch", true,
-				    &spec->vmaster_sw_kctl);
+				    &spec->vmaster_mute.sw_kctl);
 	if (err < 0)
 		return err;
 
 	if (spec->gpio_led) {
-		snd_ctl_add_vmaster_hook(spec->vmaster_sw_kctl,
-					 stac92xx_vmaster_hook, codec);
-		snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
+		spec->vmaster_mute.hook = stac92xx_vmaster_hook;
+		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute);
+		if (err < 0)
+			return err;
 	}
 
 	if (spec->aloopback_ctl &&
@@ -4432,7 +4433,7 @@ static int stac92xx_init(struct hda_codec *codec)
 	snd_hda_jack_report_sync(codec);
 
 	/* sync mute LED */
-	snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
+	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
 	return 0;

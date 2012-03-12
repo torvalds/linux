@@ -70,8 +70,7 @@ struct conexant_spec {
 	const struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
 	hda_nid_t vmaster_nid;
-	struct snd_kcontrol *vmaster_sw_kctl;
-	void (*vmaster_hook)(struct snd_kcontrol *, int);
+	struct hda_vmaster_mute_hook vmaster_mute;
 
 	const struct hda_verb *init_verbs[5];	/* initialization verbs
 						 * don't forget NULL
@@ -518,7 +517,7 @@ static int conexant_build_controls(struct hda_codec *codec)
 		err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
 					    NULL, slave_pfxs,
 					    "Playback Switch", true,
-					    &spec->vmaster_sw_kctl);
+					    &spec->vmaster_mute.sw_kctl);
 		if (err < 0)
 			return err;
 	}
@@ -4101,7 +4100,7 @@ static int cx_auto_init(struct hda_codec *codec)
 	cx_auto_init_input(codec);
 	cx_auto_init_digital(codec);
 	snd_hda_jack_report_sync(codec);
-	snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
+	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
 	return 0;
 }
 
@@ -4347,10 +4346,10 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	if (spec->vmaster_hook && spec->vmaster_sw_kctl) {
-		snd_ctl_add_vmaster_hook(spec->vmaster_sw_kctl,
-					 spec->vmaster_hook, codec);
-		snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
+	if (spec->vmaster_mute.hook && spec->vmaster_mute.sw_kctl) {
+		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute);
+		if (err < 0)
+			return err;
 	}
 	return 0;
 }
@@ -4481,7 +4480,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	/* NOTE: this should be applied via fixup once when the generic
 	 *       fixup code is merged to hda_codec.c
 	 */
-	spec->vmaster_hook = cx_auto_vmaster_hook;
+	spec->vmaster_mute.hook = cx_auto_vmaster_hook;
 
 	err = cx_auto_search_adcs(codec);
 	if (err < 0)

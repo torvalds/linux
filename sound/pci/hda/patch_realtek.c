@@ -198,7 +198,7 @@ struct alc_spec {
 
 	/* for virtual master */
 	hda_nid_t vmaster_nid;
-	struct snd_kcontrol *vmaster_sw_kctl;
+	struct hda_vmaster_mute_hook vmaster_mute;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
 	int num_loopbacks;
@@ -1960,7 +1960,7 @@ static int __alc_build_controls(struct hda_codec *codec)
 		err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
 					    NULL, alc_slave_pfxs,
 					    "Playback Switch",
-					    true, &spec->vmaster_sw_kctl);
+					    true, &spec->vmaster_mute.sw_kctl);
 		if (err < 0)
 			return err;
 	}
@@ -5894,13 +5894,11 @@ static void alc269_fixup_mic2_mute(struct hda_codec *codec,
 	struct alc_spec *spec = codec->spec;
 	switch (action) {
 	case ALC_FIXUP_ACT_BUILD:
-		if (!spec->vmaster_sw_kctl)
-			return;
-		snd_ctl_add_vmaster_hook(spec->vmaster_sw_kctl,
-					 alc269_fixup_mic2_mute_hook, codec);
+		spec->vmaster_mute.hook = alc269_fixup_mic2_mute_hook;
+		snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute);
 		/* fallthru */
 	case ALC_FIXUP_ACT_INIT:
-		snd_ctl_sync_vmaster_hook(spec->vmaster_sw_kctl);
+		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
 		break;
 	}
 }

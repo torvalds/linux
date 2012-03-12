@@ -147,6 +147,27 @@ int __snd_hda_add_vmaster(struct hda_codec *codec, char *name,
 	__snd_hda_add_vmaster(codec, name, tlv, slaves, suffix, true, NULL)
 int snd_hda_codec_reset(struct hda_codec *codec);
 
+enum {
+	HDA_VMUTE_OFF,
+	HDA_VMUTE_ON,
+	HDA_VMUTE_FOLLOW_MASTER,
+};
+
+struct hda_vmaster_mute_hook {
+	/* below two fields must be filled by the caller of
+	 * snd_hda_add_vmaster_hook() beforehand
+	 */
+	struct snd_kcontrol *sw_kctl;
+	void (*hook)(void *, int);
+	/* below are initialized automatically */
+	unsigned int mute_mode; /* HDA_VMUTE_XXX */
+	struct hda_codec *codec;
+};
+
+int snd_hda_add_vmaster_hook(struct hda_codec *codec,
+			     struct hda_vmaster_mute_hook *hook);
+void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook);
+
 /* amp value bits */
 #define HDA_AMP_MUTE	0x80
 #define HDA_AMP_UNMUTE	0x00
