@@ -439,7 +439,7 @@ struct drm_plane *omap_plane_init(struct drm_device *dev,
 	if (priv)
 		omap_plane->info.zorder = 0;
 	else
-		omap_plane->info.zorder = 1;
+		omap_plane->info.zorder = ovl->id;
 
 	update_manager(plane);
 
