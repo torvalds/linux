@@ -113,10 +113,10 @@ static u32 wdt_timeleft(void)
 	rate = clk_get_rate(wdt->clk);
 
 	spin_lock(&wdt->lock);
-	load = readl(wdt->base + WDTVALUE);
+	load = readl_relaxed(wdt->base + WDTVALUE);
 
 	/*If the interrupt is inactive then time left is WDTValue + WDTLoad. */
-	if (!(readl(wdt->base + WDTRIS) & INT_MASK))
+	if (!(readl_relaxed(wdt->base + WDTRIS) & INT_MASK))
 		load += wdt->load_val + 1;
 	spin_unlock(&wdt->lock);
 
@@ -128,14 +128,14 @@ static void wdt_enable(void)
 {
 	spin_lock(&wdt->lock);
 
-	writel(UNLOCK, wdt->base + WDTLOCK);
-	writel(wdt->load_val, wdt->base + WDTLOAD);
-	writel(INT_MASK, wdt->base + WDTINTCLR);
-	writel(INT_ENABLE | RESET_ENABLE, wdt->base + WDTCONTROL);
-	writel(LOCK, wdt->base + WDTLOCK);
+	writel_relaxed(UNLOCK, wdt->base + WDTLOCK);
+	writel_relaxed(wdt->load_val, wdt->base + WDTLOAD);
+	writel_relaxed(INT_MASK, wdt->base + WDTINTCLR);
+	writel_relaxed(INT_ENABLE | RESET_ENABLE, wdt->base + WDTCONTROL);
+	writel_relaxed(LOCK, wdt->base + WDTLOCK);
 
 	/* Flush posted writes. */
-	readl(wdt->base + WDTLOCK);
+	readl_relaxed(wdt->base + WDTLOCK);
 	spin_unlock(&wdt->lock);
 }
 
@@ -144,12 +144,12 @@ static void wdt_disable(void)
 {
 	spin_lock(&wdt->lock);
 
-	writel(UNLOCK, wdt->base + WDTLOCK);
-	writel(0, wdt->base + WDTCONTROL);
-	writel(LOCK, wdt->base + WDTLOCK);
+	writel_relaxed(UNLOCK, wdt->base + WDTLOCK);
+	writel_relaxed(0, wdt->base + WDTCONTROL);
+	writel_relaxed(LOCK, wdt->base + WDTLOCK);
 
 	/* Flush posted writes. */
-	readl(wdt->base + WDTLOCK);
+	readl_relaxed(wdt->base + WDTLOCK);
 	spin_unlock(&wdt->lock);
 }
 
