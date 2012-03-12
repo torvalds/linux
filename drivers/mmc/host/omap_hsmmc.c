@@ -26,6 +26,9 @@
 #include <linux/platform_device.h>
 #include <linux/timer.h>
 #include <linux/clk.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/of_device.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/mmc.h>
@@ -1710,6 +1713,65 @@ static void omap_hsmmc_debugfs(struct mmc_host *mmc)
 
 #endif
 
+#ifdef CONFIG_OF
+static u16 omap4_reg_offset = 0x100;
+
+static const struct of_device_id omap_mmc_of_match[] = {
+	{
+		.compatible = "ti,omap2-hsmmc",
+	},
+	{
+		.compatible = "ti,omap3-hsmmc",
+	},
+	{
+		.compatible = "ti,omap4-hsmmc",
+		.data = &omap4_reg_offset,
+	},
+	{},
+}
+MODULE_DEVICE_TABLE(of, omap_mmc_of_match);
+
+static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
+{
+	struct omap_mmc_platform_data *pdata;
+	struct device_node *np = dev->of_node;
+	u32 bus_width;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL; /* out of memory */
+
+	if (of_find_property(np, "ti,dual-volt", NULL))
+		pdata->controller_flags |= OMAP_HSMMC_SUPPORTS_DUAL_VOLT;
+
+	/* This driver only supports 1 slot */
+	pdata->nr_slots = 1;
+	pdata->slots[0].switch_pin = of_get_named_gpio(np, "cd-gpios", 0);
+	pdata->slots[0].gpio_wp = of_get_named_gpio(np, "wp-gpios", 0);
+
+	if (of_find_property(np, "ti,non-removable", NULL)) {
+		pdata->slots[0].nonremovable = true;
+		pdata->slots[0].no_regulator_off_init = true;
+	}
+	of_property_read_u32(np, "ti,bus-width", &bus_width);
+	if (bus_width == 4)
+		pdata->slots[0].caps |= MMC_CAP_4_BIT_DATA;
+	else if (bus_width == 8)
+		pdata->slots[0].caps |= MMC_CAP_8_BIT_DATA;
+
+	if (of_find_property(np, "ti,needs-special-reset", NULL))
+		pdata->slots[0].features |= HSMMC_HAS_UPDATED_RESET;
+
+	return pdata;
+}
+#else
+static inline struct omap_mmc_platform_data
+			*of_get_hsmmc_pdata(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int __init omap_hsmmc_probe(struct platform_device *pdev)
 {
 	struct omap_mmc_platform_data *pdata = pdev->dev.platform_data;
@@ -1717,6 +1779,16 @@ static int __init omap_hsmmc_probe(struct platform_device *pdev)
 	struct omap_hsmmc_host *host = NULL;
 	struct resource *res;
 	int ret, irq;
+	const struct of_device_id *match;
+
+	match = of_match_device(of_match_ptr(omap_mmc_of_match), &pdev->dev);
+	if (match) {
+		pdata = of_get_hsmmc_pdata(&pdev->dev);
+		if (match->data) {
+			u16 *offsetp = match->data;
+			pdata->reg_offset = *offsetp;
+		}
+	}
 
 	if (pdata == NULL) {
 		dev_err(&pdev->dev, "Platform Data is missing\n");
@@ -2122,6 +2194,7 @@ static struct platform_driver omap_hsmmc_driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
 		.pm = &omap_hsmmc_dev_pm_ops,
+		.of_match_table = of_match_ptr(omap_mmc_of_match),
 	},
 };
 
