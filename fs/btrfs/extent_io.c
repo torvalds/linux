@@ -404,18 +404,16 @@ static int split_state(struct extent_io_tree *tree, struct extent_state *orig,
 
 /*
  * utility function to clear some bits in an extent state struct.
- * it will optionally wake up any one waiting on this state (wake == 1), or
- * forcibly remove the state from the tree (delete == 1).
+ * it will optionally wake up any one waiting on this state (wake == 1)
  *
  * If no bits are set on the state struct after clearing things, the
  * struct is freed and removed from the tree
  */
-static int clear_state_bit(struct extent_io_tree *tree,
+static void clear_state_bit(struct extent_io_tree *tree,
 			    struct extent_state *state,
 			    int *bits, int wake)
 {
 	int bits_to_clear = *bits & ~EXTENT_CTLBITS;
-	int ret = state->state & bits_to_clear;
 
 	if ((bits_to_clear & EXTENT_DIRTY) && (state->state & EXTENT_DIRTY)) {
 		u64 range = state->end - state->start + 1;
@@ -437,7 +435,6 @@ static int clear_state_bit(struct extent_io_tree *tree,
 	} else {
 		merge_state(tree, state);
 	}
-	return ret;
 }
 
 static struct extent_state *
