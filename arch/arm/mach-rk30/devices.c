@@ -973,7 +973,6 @@ static void __init rk30_init_sdmmc(void)
 	platform_device_register(&device_sdmmc1);
 #endif
 }
-
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
@@ -1003,7 +1002,6 @@ static int __init rk30_init_devices(void)
 	rk_serial_debug_init(DEBUG_UART_PHYS, IRQ_UART0 + CONFIG_RK_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
 	rk30_init_i2s();
-
         return 0;
 }
 arch_initcall(rk30_init_devices);

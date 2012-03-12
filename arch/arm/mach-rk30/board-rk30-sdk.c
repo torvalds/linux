@@ -54,6 +54,152 @@
 
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 
+#ifdef CONFIG_VIDEO_RK29
+/*---------------- Camera Sensor Macro Define Begin  ------------------------*/
+/*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
+#define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV2659//RK_CAM_SENSOR_OV5642						/* back camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_0		0x60//0x78
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  1
+#define CONFIG_SENSOR_CIF_INDEX_0                    0
+#define CONFIG_SENSOR_ORIENTATION_0 	  90
+#define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_0 	  INVALID_GPIO
+#define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
+#define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
+#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0 RK29_CAM_POWERDNACTIVE_H
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_0 RK29_CAM_FLASHACTIVE_L
+
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_CIF_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_VGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_480P_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_0		15000
+#define CONFIG_SENSOR_720P_FPS_FIXED_0		30000
+
+#define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659						/* front camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_1		0x60
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  1
+#define CONFIG_SENSOR_CIF_INDEX_1				  1
+#define CONFIG_SENSOR_ORIENTATION_1 	  270
+#define CONFIG_SENSOR_POWER_PIN_1		  INVALID_GPIO
+#define CONFIG_SENSOR_RESET_PIN_1		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_1 	  INVALID_GPIO
+#define CONFIG_SENSOR_FALSH_PIN_1		  INVALID_GPIO
+#define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
+#define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
+#define CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1 RK29_CAM_POWERDNACTIVE_H
+#define CONFIG_SENSOR_FLASHACTIVE_LEVEL_1 RK29_CAM_FLASHACTIVE_L
+
+#define CONFIG_SENSOR_QCIF_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_QVGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_CIF_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_VGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_480P_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_SVGA_FPS_FIXED_1		15000
+#define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
+
+#define CONFIG_USE_CIF_0	1
+#define CONFIG_USE_CIF_1      0
+#endif	//#ifdef CONFIG_VIDEO_RK29
+/*---------------- Camera Sensor Configuration Macro End------------------------*/
+#include "../../../drivers/media/video/rk30_camera.c"
+/*---------------- Camera Sensor Macro Define End  ---------*/
+
+#define PMEM_CAM_SIZE		PMEM_CAM_NECESSARY
+#ifdef CONFIG_VIDEO_RK29_WORK_IPP
+#define MEM_CAMIPP_SIZE 	PMEM_CAMIPP_NECESSARY
+#else
+#define MEM_CAMIPP_SIZE 	0
+#endif
+/*****************************************************************************************
+ * camera  devices
+ * author: ddl@rock-chips.com
+ *****************************************************************************************/
+#ifdef CONFIG_VIDEO_RK29
+#define CONFIG_SENSOR_POWER_IOCTL_USR	   0
+#define CONFIG_SENSOR_RESET_IOCTL_USR	   0
+#define CONFIG_SENSOR_POWERDOWN_IOCTL_USR	   0
+#define CONFIG_SENSOR_FLASH_IOCTL_USR	   0
+
+#if CONFIG_SENSOR_POWER_IOCTL_USR
+static int sensor_power_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_POWER_IOCTL_USR is 1, sensor_power_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_RESET_IOCTL_USR
+static int sensor_reset_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_RESET_IOCTL_USR is 1, sensor_reset_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
+static int sensor_powerdown_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_POWERDOWN_IOCTL_USR is 1, sensor_powerdown_usr_cb function must be writed!!";
+}
+#endif
+
+#if CONFIG_SENSOR_FLASH_IOCTL_USR
+static int sensor_flash_usr_cb (struct rk29camera_gpio_res *res,int on)
+{
+	#error "CONFIG_SENSOR_FLASH_IOCTL_USR is 1, sensor_flash_usr_cb function must be writed!!";
+}
+#endif
+
+static struct rk29camera_platform_ioctl_cb	sensor_ioctl_cb = {
+	#if CONFIG_SENSOR_POWER_IOCTL_USR
+	.sensor_power_cb = sensor_power_usr_cb,
+	#else
+	.sensor_power_cb = NULL,
+	#endif
+
+	#if CONFIG_SENSOR_RESET_IOCTL_USR
+	.sensor_reset_cb = sensor_reset_usr_cb,
+	#else
+	.sensor_reset_cb = NULL,
+	#endif
+
+	#if CONFIG_SENSOR_POWERDOWN_IOCTL_USR
+	.sensor_powerdown_cb = sensor_powerdown_usr_cb,
+	#else
+	.sensor_powerdown_cb = NULL,
+	#endif
+
+	#if CONFIG_SENSOR_FLASH_IOCTL_USR
+	.sensor_flash_cb = sensor_flash_usr_cb,
+	#else
+	.sensor_flash_cb = NULL,
+	#endif
+};
+static struct reginfo_t rk_init_data_sensor_reg_0[] =
+{
+		{0x0000, 0x00,0,0}
+	};
+static struct reginfo_t rk_init_data_sensor_winseqreg_0[] ={
+	{0x0000, 0x00,0,0}
+	};
+static rk_sensor_user_init_data_s rk_init_data_sensor_0 = 
+{	
+	.rk_sensor_init_width = INVALID_VALUE,
+	.rk_sensor_init_height = INVALID_VALUE,
+	.rk_sensor_init_bus_param = INVALID_VALUE,
+	.rk_sensor_init_pixelcode = INVALID_VALUE,
+	.rk_sensor_init_data = rk_init_data_sensor_reg_0,
+	.rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_0,
+	.rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
+	
+};
+static rk_sensor_user_init_data_s* rk_init_data_sensor_0_p = &rk_init_data_sensor_0;
+static rk_sensor_user_init_data_s* rk_init_data_sensor_1_p = NULL;
+#include "../../../drivers/media/video/rk30_camera.c"
+
+#endif
 
 #if defined(CONFIG_TOUCHSCREEN_GT8XX)
 #define TOUCH_RESET_PIN  RK30_PIN4_PD0
@@ -722,6 +868,25 @@ static void __init rk30_reserve(void)
 	resource_fb[2].start = board_mem_reserve_add("fb2",RK30_FB0_MEM_SIZE);
 	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;	
 #endif
+
+#if (MEM_CAMIPP_SIZE != 0)
+	#if CONFIG_USE_CIF_0
+	rk_camera_platform_data.meminfo.name = "camera_ipp_mem_0";
+	rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem_0",MEM_CAMIPP_SIZE);
+	rk_camera_platform_data.meminfo.size= MEM_CAMIPP_SIZE;
+	#endif
+	#if CONFIG_USE_CIF_1
+	rk_camera_platform_data.meminfo_cif1.name = "camera_ipp_mem_1";
+	rk_camera_platform_data.meminfo_cif1.start =board_mem_reserve_add("camera_ipp_mem_1",MEM_CAMIPP_SIZE);
+	rk_camera_platform_data.meminfo_cif1.size= MEM_CAMIPP_SIZE;
+	#endif
+#endif
+
+#if (PMEM_CAM_SIZE != 0)
+	android_pmem_cam_pdata.start = board_mem_reserve_add("camera_pmem",PMEM_CAM_SIZE);
+	android_pmem_cam_pdata.size = PMEM_CAM_SIZE;
+#endif
+
 	board_mem_reserved();
 }
 

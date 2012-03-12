@@ -1551,7 +1551,6 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 {
     struct rk29camera_gpio_res *res = NULL;    
 	int ret = RK29_CAM_IO_SUCCESS;
-
     if(rk29_camera_platform_data.gpio_res[0].dev_name &&  (strcmp(rk29_camera_platform_data.gpio_res[0].dev_name, dev_name(dev)) == 0)) {
 		res = (struct rk29camera_gpio_res *)&rk29_camera_platform_data.gpio_res[0];
     } else if (rk29_camera_platform_data.gpio_res[1].dev_name && (strcmp(rk29_camera_platform_data.gpio_res[1].dev_name, dev_name(dev)) == 0)) {
@@ -1561,7 +1560,6 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
         ret = RK29_CAM_EIO_INVALID;
         goto rk29_sensor_ioctrl_end;
     }
-
  	switch (cmd)
  	{
  		case Cam_Power:
