@@ -6,6 +6,8 @@
  * Copyright (C) 2005 Stephen Hemminger <shemminger@osdl.org>
  */
 
+#define pr_fmt(fmt) "TCP: " fmt
+
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/types.h>
@@ -41,17 +43,17 @@ int tcp_register_congestion_control(struct tcp_congestion_ops *ca)
 
 	/* all algorithms must implement ssthresh and cong_avoid ops */
 	if (!ca->ssthresh || !ca->cong_avoid) {
-		pr_err("TCP %s does not implement required ops\n", ca->name);
+		pr_err("%s does not implement required ops\n", ca->name);
 		return -EINVAL;
 	}
 
 	spin_lock(&tcp_cong_list_lock);
 	if (tcp_ca_find(ca->name)) {
-		pr_notice("TCP %s already registered\n", ca->name);
+		pr_notice("%s already registered\n", ca->name);
 		ret = -EEXIST;
 	} else {
 		list_add_tail_rcu(&ca->list, &tcp_cong_list);
-		pr_info("TCP %s registered\n", ca->name);
+		pr_info("%s registered\n", ca->name);
 	}
 	spin_unlock(&tcp_cong_list_lock);
 

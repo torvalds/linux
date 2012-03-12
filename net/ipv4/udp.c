@@ -77,6 +77,8 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "UDP: " fmt
+
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
@@ -975,7 +977,7 @@ back_from_confirm:
 		/* ... which is an evident application bug. --ANK */
 		release_sock(sk);
 
-		LIMIT_NETDEBUG(KERN_DEBUG "udp cork app bug 2\n");
+		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("cork app bug 2\n"));
 		err = -EINVAL;
 		goto out;
 	}
@@ -1054,7 +1056,7 @@ int udp_sendpage(struct sock *sk, struct page *page, int offset,
 	if (unlikely(!up->pending)) {
 		release_sock(sk);
 
-		LIMIT_NETDEBUG(KERN_DEBUG "udp cork app bug 3\n");
+		LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("udp cork app bug 3\n"));
 		return -EINVAL;
 	}
 
@@ -1447,9 +1449,8 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		 * provided by the application."
 		 */
 		if (up->pcrlen == 0) {          /* full coverage was set  */
-			LIMIT_NETDEBUG(KERN_WARNING "UDPLITE: partial coverage "
-				"%d while full coverage %d requested\n",
-				UDP_SKB_CB(skb)->cscov, skb->len);
+			LIMIT_NETDEBUG(KERN_WARNING "UDPLite: partial coverage %d while full coverage %d requested\n",
+				       UDP_SKB_CB(skb)->cscov, skb->len);
 			goto drop;
 		}
 		/* The next case involves violating the min. coverage requested
@@ -1459,9 +1460,8 @@ int udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		 * Therefore the above ...()->partial_cov statement is essential.
 		 */
 		if (UDP_SKB_CB(skb)->cscov  <  up->pcrlen) {
-			LIMIT_NETDEBUG(KERN_WARNING
-				"UDPLITE: coverage %d too small, need min %d\n",
-				UDP_SKB_CB(skb)->cscov, up->pcrlen);
+			LIMIT_NETDEBUG(KERN_WARNING "UDPLite: coverage %d too small, need min %d\n",
+				       UDP_SKB_CB(skb)->cscov, up->pcrlen);
 			goto drop;
 		}
 	}
@@ -1689,13 +1689,10 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 
 short_packet:
 	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: short packet: From %pI4:%u %d/%d to %pI4:%u\n",
-		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
-		       &saddr,
-		       ntohs(uh->source),
-		       ulen,
-		       skb->len,
-		       &daddr,
-		       ntohs(uh->dest));
+		       proto == IPPROTO_UDPLITE ? "Lite" : "",
+		       &saddr, ntohs(uh->source),
+		       ulen, skb->len,
+		       &daddr, ntohs(uh->dest));
 	goto drop;
 
 csum_error:
@@ -1704,11 +1701,8 @@ csum_error:
 	 * the network is concerned, anyway) as per 4.1.3.4 (MUST).
 	 */
 	LIMIT_NETDEBUG(KERN_DEBUG "UDP%s: bad checksum. From %pI4:%u to %pI4:%u ulen %d\n",
-		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
-		       &saddr,
-		       ntohs(uh->source),
-		       &daddr,
-		       ntohs(uh->dest),
+		       proto == IPPROTO_UDPLITE ? "Lite" : "",
+		       &saddr, ntohs(uh->source), &daddr, ntohs(uh->dest),
 		       ulen);
 drop:
 	UDP_INC_STATS_BH(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);

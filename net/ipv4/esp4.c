@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "IPsec: " fmt
+
 #include <crypto/aead.h>
 #include <crypto/authenc.h>
 #include <linux/err.h>

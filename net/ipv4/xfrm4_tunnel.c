@@ -3,6 +3,8 @@
  * Copyright (C) 2003 David S. Miller (davem@redhat.com)
  */
 
+#define pr_fmt(fmt) "IPsec: " fmt
+
 #include <linux/skbuff.h>
 #include <linux/module.h>
 #include <linux/mutex.h>

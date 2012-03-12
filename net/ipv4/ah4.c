@@ -1,3 +1,5 @@
+#define pr_fmt(fmt) "IPsec: " fmt
+
 #include <crypto/hash.h>
 #include <linux/err.h>
 #include <linux/module.h>
@@ -445,9 +447,10 @@ static int ah_init_state(struct xfrm_state *x)
 
 	if (aalg_desc->uinfo.auth.icv_fullbits/8 !=
 	    crypto_ahash_digestsize(ahash)) {
-		pr_info("AH: %s digestsize %u != %hu\n",
-			x->aalg->alg_name, crypto_ahash_digestsize(ahash),
-			aalg_desc->uinfo.auth.icv_fullbits/8);
+		pr_info("%s: %s digestsize %u != %hu\n",
+			__func__, x->aalg->alg_name,
+			crypto_ahash_digestsize(ahash),
+			aalg_desc->uinfo.auth.icv_fullbits / 8);
 		goto error;
 	}
 

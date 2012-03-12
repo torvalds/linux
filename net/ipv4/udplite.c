@@ -10,6 +10,9 @@
  *		as published by the Free Software Foundation; either version
  *		2 of the License, or (at your option) any later version.
  */
+
+#define pr_fmt(fmt) "UDPLite: " fmt
+
 #include <linux/export.h>
 #include "udp_impl.h"
 
