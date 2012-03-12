@@ -1078,8 +1078,9 @@ static int ath6kl_upload_board_file(struct ath6kl *ar)
 	 * writing board data.
 	 */
 	if (ar->hw.board_addr != 0) {
+		board_address = ar->hw.board_addr;
 		ath6kl_bmi_write_hi32(ar, hi_board_data,
-				      ar->hw.board_addr);
+				      board_address);
 	} else {
 		ath6kl_bmi_read_hi32(ar, hi_board_data, &board_address);
 	}
