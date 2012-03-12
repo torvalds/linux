@@ -140,7 +140,7 @@ fail:
 	return ret;
 }
 
-void __devexit mxr_release_video(struct mxr_device *mdev)
+void mxr_release_video(struct mxr_device *mdev)
 {
 	int i;
 
