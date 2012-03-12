@@ -5181,13 +5181,6 @@ void bnx2x_init_queue_obj(struct bnx2x *bp,
 	obj->set_pending = bnx2x_queue_set_pending;
 }
 
-void bnx2x_queue_set_cos_cid(struct bnx2x *bp,
-			     struct bnx2x_queue_sp_obj *obj,
-			     u32 cid, u8 index)
-{
-	obj->cids[index] = cid;
-}
-
 /********************** Function state object *********************************/
 enum bnx2x_func_state bnx2x_func_get_state(struct bnx2x *bp,
 					   struct bnx2x_func_sp_obj *o)
