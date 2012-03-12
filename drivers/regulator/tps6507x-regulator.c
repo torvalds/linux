@@ -328,12 +328,11 @@ static int tps6507x_pmic_get_voltage(struct regulator_dev *dev)
 	return tps->info[rid]->table[data] * 1000;
 }
 
-static int tps6507x_pmic_set_voltage(struct regulator_dev *dev,
-					  int min_uV, int max_uV,
-					  unsigned *selector)
+static int tps6507x_pmic_set_voltage_sel(struct regulator_dev *dev,
+					  unsigned selector)
 {
 	struct tps6507x_pmic *tps = rdev_get_drvdata(dev);
-	int data, vsel, rid = rdev_get_id(dev);
+	int data, rid = rdev_get_id(dev);
 	u8 reg, mask;
 
 	switch (rid) {
@@ -367,32 +366,12 @@ static int tps6507x_pmic_set_voltage(struct regulator_dev *dev,
 		return -EINVAL;
 	}
 
-	if (min_uV < tps->info[rid]->min_uV || min_uV > tps->info[rid]->max_uV)
-		return -EINVAL;
-	if (max_uV < tps->info[rid]->min_uV || max_uV > tps->info[rid]->max_uV)
-		return -EINVAL;
-
-	for (vsel = 0; vsel < tps->info[rid]->table_len; vsel++) {
-		int mV = tps->info[rid]->table[vsel];
-		int uV = mV * 1000;
-
-		/* Break at the first in-range value */
-		if (min_uV <= uV && uV <= max_uV)
-			break;
-	}
-
-	/* write to the register in case we found a match */
-	if (vsel == tps->info[rid]->table_len)
-		return -EINVAL;
-
-	*selector = vsel;
-
 	data = tps6507x_pmic_reg_read(tps, reg);
 	if (data < 0)
 		return data;
 
 	data &= ~mask;
-	data |= vsel;
+	data |= selector;
 
 	return tps6507x_pmic_reg_write(tps, reg, data);
 }
@@ -417,7 +396,7 @@ static struct regulator_ops tps6507x_pmic_ops = {
 	.enable = tps6507x_pmic_enable,
 	.disable = tps6507x_pmic_disable,
 	.get_voltage = tps6507x_pmic_get_voltage,
-	.set_voltage = tps6507x_pmic_set_voltage,
+	.set_voltage_sel = tps6507x_pmic_set_voltage_sel,
 	.list_voltage = tps6507x_pmic_list_voltage,
 };
 
