@@ -352,8 +352,7 @@ int rndis_filter_receive(struct hv_device *dev,
 {
 	struct netvsc_device *net_dev = hv_get_drvdata(dev);
 	struct rndis_device *rndis_dev;
-	struct rndis_message rndis_msg;
-	struct rndis_message *rndis_hdr;
+	struct rndis_message *rndis_msg;
 	struct net_device *ndev;
 
 	if (!net_dev)
@@ -375,46 +374,32 @@ int rndis_filter_receive(struct hv_device *dev,
 		return -ENODEV;
 	}
 
-	rndis_hdr = pkt->data;
+	rndis_msg = pkt->data;
 
-	/* Make sure we got a valid rndis message */
-	if ((rndis_hdr->ndis_msg_type != REMOTE_NDIS_PACKET_MSG) &&
-	    (rndis_hdr->msg_len > sizeof(struct rndis_message))) {
-		netdev_err(ndev, "incoming rndis message buffer overflow "
-			   "detected (got %u, max %zu)..marking it an error!\n",
-			   rndis_hdr->msg_len,
-			   sizeof(struct rndis_message));
-	}
+	dump_rndis_message(dev, rndis_msg);
 
-	memcpy(&rndis_msg, rndis_hdr,
-		(rndis_hdr->msg_len > sizeof(struct rndis_message)) ?
-			sizeof(struct rndis_message) :
-			rndis_hdr->msg_len);
-
-	dump_rndis_message(dev, &rndis_msg);
-
-	switch (rndis_msg.ndis_msg_type) {
+	switch (rndis_msg->ndis_msg_type) {
 	case REMOTE_NDIS_PACKET_MSG:
 		/* data msg */
-		rndis_filter_receive_data(rndis_dev, &rndis_msg, pkt);
+		rndis_filter_receive_data(rndis_dev, rndis_msg, pkt);
 		break;
 
 	case REMOTE_NDIS_INITIALIZE_CMPLT:
 	case REMOTE_NDIS_QUERY_CMPLT:
 	case REMOTE_NDIS_SET_CMPLT:
 		/* completion msgs */
-		rndis_filter_receive_response(rndis_dev, &rndis_msg);
+		rndis_filter_receive_response(rndis_dev, rndis_msg);
 		break;
 
 	case REMOTE_NDIS_INDICATE_STATUS_MSG:
 		/* notification msgs */
-		rndis_filter_receive_indicate_status(rndis_dev, &rndis_msg);
+		rndis_filter_receive_indicate_status(rndis_dev, rndis_msg);
 		break;
 	default:
 		netdev_err(ndev,
 			"unhandled rndis message (type %u len %u)\n",
-			   rndis_msg.ndis_msg_type,
-			   rndis_msg.msg_len);
+			   rndis_msg->ndis_msg_type,
+			   rndis_msg->msg_len);
 		break;
 	}
 
