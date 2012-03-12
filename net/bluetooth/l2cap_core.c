@@ -3266,8 +3266,8 @@ static inline int l2cap_create_channel_req(struct l2cap_conn *conn,
 	/* Placeholder: Always reject */
 	rsp.dcid = 0;
 	rsp.scid = cpu_to_le16(scid);
-	rsp.result = L2CAP_CR_NO_MEM;
-	rsp.status = L2CAP_CS_NO_INFO;
+	rsp.result = __constant_cpu_to_le16(L2CAP_CR_NO_MEM);
+	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
 
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_CREATE_CHAN_RSP,
 		       sizeof(rsp), &rsp);
