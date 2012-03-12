@@ -39,5 +39,5 @@ struct arch_uprobe {
 #endif
 };
 
-extern int arch_uprobes_analyze_insn(struct mm_struct *mm, struct arch_uprobe *arch_uprobe);
+extern int arch_uprobes_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm);
 #endif	/* _ASM_UPROBES_H */

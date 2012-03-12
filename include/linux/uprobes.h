@@ -52,20 +52,20 @@ struct uprobe_consumer {
 };
 
 #ifdef CONFIG_UPROBES
-extern int __weak set_bkpt(struct mm_struct *mm, struct arch_uprobe *auprobe, unsigned long vaddr);
-extern int __weak set_orig_insn(struct mm_struct *mm, struct arch_uprobe *auprobe, unsigned long vaddr, bool verify);
+extern int __weak set_bkpt(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
+extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm,  unsigned long vaddr, bool verify);
 extern bool __weak is_bkpt_insn(uprobe_opcode_t *insn);
-extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *consumer);
-extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *consumer);
+extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
+extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern int uprobe_mmap(struct vm_area_struct *vma);
 #else /* CONFIG_UPROBES is not defined */
 static inline int
-uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *consumer)
+uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
 {
 	return -ENOSYS;
 }
 static inline void
-uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *consumer)
+uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
 {
 }
 static inline int uprobe_mmap(struct vm_area_struct *vma)

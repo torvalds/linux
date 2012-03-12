@@ -297,7 +297,8 @@ static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
  *  - There's never a SIB byte.
  *  - The displacement is always 4 bytes.
  */
-static void handle_riprel_insn(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
+static void
+handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
 {
 	u8 *cursor;
 	u8 reg;
@@ -381,19 +382,19 @@ static int validate_insn_64bits(struct arch_uprobe *auprobe, struct insn *insn)
 	return -ENOTSUPP;
 }
 
-static int validate_insn_bits(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
+static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
 {
 	if (mm->context.ia32_compat)
 		return validate_insn_32bits(auprobe, insn);
 	return validate_insn_64bits(auprobe, insn);
 }
 #else /* 32-bit: */
-static void handle_riprel_insn(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
+static void handle_riprel_insn(struct arch_uprobe *auprobe, struct mm_struct *mm, struct insn *insn)
 {
 	/* No RIP-relative addressing on 32-bit */
 }
 
-static int validate_insn_bits(struct mm_struct *mm, struct arch_uprobe *auprobe, struct insn *insn)
+static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,  struct insn *insn)
 {
 	return validate_insn_32bits(auprobe, insn);
 }
@@ -405,17 +406,17 @@ static int validate_insn_bits(struct mm_struct *mm, struct arch_uprobe *auprobe,
  * @arch_uprobe: the probepoint information.
  * Return 0 on success or a -ve number on error.
  */
-int arch_uprobes_analyze_insn(struct mm_struct *mm, struct arch_uprobe *auprobe)
+int arch_uprobes_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm)
 {
 	int ret;
 	struct insn insn;
 
 	auprobe->fixups = 0;
-	ret = validate_insn_bits(mm, auprobe, &insn);
+	ret = validate_insn_bits(auprobe, mm, &insn);
 	if (ret != 0)
 		return ret;
 
-	handle_riprel_insn(mm, auprobe, &insn);
+	handle_riprel_insn(auprobe, mm, &insn);
 	prepare_fixups(auprobe, &insn);
 
 	return 0;
