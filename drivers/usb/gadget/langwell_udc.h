@@ -116,7 +116,6 @@ struct langwell_ep {
 	unsigned long		irqs;
 	struct list_head	queue;
 	struct langwell_dqh	*dqh;
-	const struct usb_endpoint_descriptor	*desc;
 	char			name[14];
 	unsigned		stopped:1,
 				ep_type:2,

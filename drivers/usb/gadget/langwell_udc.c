@@ -154,7 +154,7 @@ static inline void print_all_registers(struct langwell_udc *dev)
 /*-------------------------------------------------------------------------*/
 
 #define	is_in(ep)	(((ep)->ep_num == 0) ? ((ep)->dev->ep0_dir ==	\
-			USB_DIR_IN) : (usb_endpoint_dir_in((ep)->desc)))
+			USB_DIR_IN) : (usb_endpoint_dir_in((ep)->ep.desc)))
 
 #define	DIR_STRING(ep)	(is_in(ep) ? "in" : "out")
 
@@ -257,7 +257,7 @@ static int langwell_ep_enable(struct usb_ep *_ep,
 	dev = ep->dev;
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc || ep->ep.desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 
@@ -337,7 +337,7 @@ static int langwell_ep_enable(struct usb_ep *_ep,
 	spin_lock_irqsave(&dev->lock, flags);
 
 	ep->ep.maxpacket = max;
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->stopped = 0;
 	ep->ep_num = usb_endpoint_num(desc);
 
@@ -432,7 +432,7 @@ static void nuke(struct langwell_ep *ep, int status)
 	ep->stopped = 1;
 
 	/* endpoint fifo flush */
-	if (&ep->ep && ep->desc)
+	if (&ep->ep && ep->ep.desc)
 		langwell_ep_fifo_flush(&ep->ep);
 
 	while (!list_empty(&ep->queue)) {
@@ -459,7 +459,7 @@ static int langwell_ep_disable(struct usb_ep *_ep)
 	dev = ep->dev;
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-	if (!_ep || !ep->desc)
+	if (!_ep || !ep->ep.desc)
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -476,7 +476,6 @@ static int langwell_ep_disable(struct usb_ep *_ep)
 	/* nuke all pending requests (does flush) */
 	nuke(ep, -ESHUTDOWN);
 
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
@@ -752,14 +751,14 @@ static int langwell_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 		return -EINVAL;
 	}
 
-	if (unlikely(!_ep || !ep->desc))
+	if (unlikely(!_ep || !ep->ep.desc))
 		return -EINVAL;
 
 	dev = ep->dev;
 	req->ep = ep;
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-	if (usb_endpoint_xfer_isoc(ep->desc)) {
+	if (usb_endpoint_xfer_isoc(ep->ep.desc)) {
 		if (req->req.length > ep->ep.maxpacket)
 			return -EMSGSIZE;
 		is_iso = 1;
@@ -822,7 +821,7 @@ static int langwell_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 	dev = ep->dev;
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-	if (!_ep || !ep->desc || !_req)
+	if (!_ep || !ep->ep.desc || !_req)
 		return -EINVAL;
 
 	if (!dev->driver)
@@ -950,13 +949,13 @@ static int langwell_ep_set_halt(struct usb_ep *_ep, int value)
 
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-	if (!_ep || !ep->desc)
+	if (!_ep || !ep->ep.desc)
 		return -EINVAL;
 
 	if (!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN)
 		return -ESHUTDOWN;
 
-	if (usb_endpoint_xfer_isoc(ep->desc))
+	if (usb_endpoint_xfer_isoc(ep->ep.desc))
 		return  -EOPNOTSUPP;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -999,7 +998,7 @@ static int langwell_ep_set_wedge(struct usb_ep *_ep)
 
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-	if (!_ep || !ep->desc)
+	if (!_ep || !ep->ep.desc)
 		return -EINVAL;
 
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
@@ -1020,8 +1019,8 @@ static void langwell_ep_fifo_flush(struct usb_ep *_ep)
 
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-	if (!_ep || !ep->desc) {
-		dev_vdbg(&dev->pdev->dev, "ep or ep->desc is NULL\n");
+	if (!_ep || !ep->ep.desc) {
+		dev_vdbg(&dev->pdev->dev, "ep or ep->ep.desc is NULL\n");
 		dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
 		return;
 	}
@@ -1402,7 +1401,7 @@ static int eps_reinit(struct langwell_udc *dev)
 	ep->stopped = 0;
 	ep->ep.maxpacket = EP0_MAX_PKT_SIZE;
 	ep->ep_num = 0;
-	ep->desc = &langwell_ep0_desc;
+	ep->ep.desc = &langwell_ep0_desc;
 	INIT_LIST_HEAD(&ep->queue);
 
 	ep->ep_type = USB_ENDPOINT_XFER_CONTROL;
@@ -1737,7 +1736,7 @@ static ssize_t show_langwell_udc(struct device *_dev,
 	}
 	/* other gadget->eplist ep */
 	list_for_each_entry(ep, &dev->gadget.ep_list, ep.ep_list) {
-		if (ep->desc) {
+		if (ep->ep.desc) {
 			t = scnprintf(next, size,
 					"\n%s MaxPacketSize: 0x%x, "
 					"ep_num: %d\n",
@@ -2046,10 +2045,10 @@ static struct langwell_ep *get_ep_by_windex(struct langwell_udc *dev,
 
 	list_for_each_entry(ep, &dev->gadget.ep_list, ep.ep_list) {
 		u8	bEndpointAddress;
-		if (!ep->desc)
+		if (!ep->ep.desc)
 			continue;
 
-		bEndpointAddress = ep->desc->bEndpointAddress;
+		bEndpointAddress = ep->ep.desc->bEndpointAddress;
 		if ((wIndex ^ bEndpointAddress) & USB_DIR_IN)
 			continue;
 
