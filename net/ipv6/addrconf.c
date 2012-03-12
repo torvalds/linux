@@ -434,6 +434,10 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	/* Join all-node multicast group */
 	ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);
 
+	/* Join all-router multicast group if forwarding is set */
+	if (ndev->cnf.forwarding && dev && (dev->flags & IFF_MULTICAST))
+		ipv6_dev_mc_inc(dev, &in6addr_linklocal_allrouters);
+
 	return ndev;
 }
 

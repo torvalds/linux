@@ -168,7 +168,7 @@ static int tps65910_i2c_probe(struct i2c_client *i2c,
 		goto err;
 
 	init_data->irq = pmic_plat_data->irq;
-	init_data->irq_base = pmic_plat_data->irq;
+	init_data->irq_base = pmic_plat_data->irq_base;
 
 	tps65910_gpio_init(tps65910, pmic_plat_data->gpio_base);
 

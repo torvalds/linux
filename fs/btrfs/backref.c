@@ -583,7 +583,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 	struct btrfs_path *path;
 	struct btrfs_key info_key = { 0 };
 	struct btrfs_delayed_ref_root *delayed_refs = NULL;
-	struct btrfs_delayed_ref_head *head = NULL;
+	struct btrfs_delayed_ref_head *head;
 	int info_level = 0;
 	int ret;
 	struct list_head prefs_delayed;
@@ -607,6 +607,8 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 	 * at a specified point in time
 	 */
 again:
+	head = NULL;
+
 	ret = btrfs_search_slot(trans, fs_info->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
@@ -635,8 +637,10 @@ again:
 			goto again;
 		}
 		ret = __add_delayed_refs(head, seq, &info_key, &prefs_delayed);
-		if (ret)
+		if (ret) {
+			spin_unlock(&delayed_refs->lock);
 			goto out;
+		}
 	}
 	spin_unlock(&delayed_refs->lock);
 
@@ -892,6 +896,8 @@ static char *iref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 		if (eb != eb_in)
 			free_extent_buffer(eb);
 		ret = inode_ref_info(parent, 0, fs_root, path, &found_key);
+		if (ret > 0)
+			ret = -ENOENT;
 		if (ret)
 			break;
 		next_inum = found_key.offset;

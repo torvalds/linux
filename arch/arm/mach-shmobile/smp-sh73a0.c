@@ -80,7 +80,7 @@ int __cpuinit sh73a0_boot_secondary(unsigned int cpu)
 	/* enable cache coherency */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));
 
-	if (((__raw_readw(__io(PSTR)) >> (4 * cpu)) & 3) == 3)
+	if (((__raw_readl(__io(PSTR)) >> (4 * cpu)) & 3) == 3)
 		__raw_writel(1 << cpu, __io(WUPCR));	/* wake up */
 	else
 		__raw_writel(1 << cpu, __io(SRESCR));	/* reset */

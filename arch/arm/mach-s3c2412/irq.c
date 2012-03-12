@@ -170,7 +170,7 @@ static int s3c2412_irq_rtc_wake(struct irq_data *data, unsigned int state)
 
 static struct irq_chip s3c2412_irq_rtc_chip;
 
-static int s3c2412_irq_add(struct device *dev)
+static int s3c2412_irq_add(struct device *dev, struct subsys_interface *sif)
 {
 	unsigned int irqno;
 

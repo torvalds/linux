@@ -195,6 +195,40 @@ static struct drm_encoder_funcs exynos_encoder_funcs = {
 	.destroy = exynos_drm_encoder_destroy,
 };
 
+static unsigned int exynos_drm_encoder_clones(struct drm_encoder *encoder)
+{
+	struct drm_encoder *clone;
+	struct drm_device *dev = encoder->dev;
+	struct exynos_drm_encoder *exynos_encoder = to_exynos_encoder(encoder);
+	struct exynos_drm_display_ops *display_ops =
+				exynos_encoder->manager->display_ops;
+	unsigned int clone_mask = 0;
+	int cnt = 0;
+
+	list_for_each_entry(clone, &dev->mode_config.encoder_list, head) {
+		switch (display_ops->type) {
+		case EXYNOS_DISPLAY_TYPE_LCD:
+		case EXYNOS_DISPLAY_TYPE_HDMI:
+			clone_mask |= (1 << (cnt++));
+			break;
+		default:
+			continue;
+		}
+	}
+
+	return clone_mask;
+}
+
+void exynos_drm_encoder_setup(struct drm_device *dev)
+{
+	struct drm_encoder *encoder;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head)
+		encoder->possible_clones = exynos_drm_encoder_clones(encoder);
+}
+
 struct drm_encoder *
 exynos_drm_encoder_create(struct drm_device *dev,
 			   struct exynos_drm_manager *manager,

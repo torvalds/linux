@@ -73,6 +73,7 @@ struct res_gid {
 	struct list_head	list;
 	u8			gid[16];
 	enum mlx4_protocol	prot;
+	enum mlx4_steer_type	steer;
 };
 
 enum res_qp_states {
@@ -374,6 +375,7 @@ static struct res_common *alloc_qp_tr(int id)
 
 	ret->com.res_id = id;
 	ret->com.state = RES_QP_RESERVED;
+	ret->local_qpn = id;
 	INIT_LIST_HEAD(&ret->mcg_list);
 	spin_lock_init(&ret->mcg_spl);
 
@@ -2253,8 +2255,7 @@ int mlx4_MODIFY_CQ_wrapper(struct mlx4_dev *dev, int slave,
 
 	if (vhcr->op_modifier == 0) {
 		err = handle_resize(dev, slave, vhcr, inbox, outbox, cmd, cq);
-		if (err)
-			goto ex_put;
+		goto ex_put;
 	}
 
 	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
@@ -2479,7 +2480,8 @@ static struct res_gid *find_gid(struct mlx4_dev *dev, int slave,
 }
 
 static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
-		       u8 *gid, enum mlx4_protocol prot)
+		       u8 *gid, enum mlx4_protocol prot,
+		       enum mlx4_steer_type steer)
 {
 	struct res_gid *res;
 	int err;
@@ -2495,6 +2497,7 @@ static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 	} else {
 		memcpy(res->gid, gid, 16);
 		res->prot = prot;
+		res->steer = steer;
 		list_add_tail(&res->list, &rqp->mcg_list);
 		err = 0;
 	}
@@ -2504,14 +2507,15 @@ static int add_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
 }
 
 static int rem_mcg_res(struct mlx4_dev *dev, int slave, struct res_qp *rqp,
-		       u8 *gid, enum mlx4_protocol prot)
+		       u8 *gid, enum mlx4_protocol prot,
+		       enum mlx4_steer_type steer)
 {
 	struct res_gid *res;
 	int err;
 
 	spin_lock_irq(&rqp->mcg_spl);
 	res = find_gid(dev, slave, rqp, gid);
-	if (!res || res->prot != prot)
+	if (!res || res->prot != prot || res->steer != steer)
 		err = -EINVAL;
 	else {
 		list_del(&res->list);
@@ -2538,7 +2542,7 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 	int attach = vhcr->op_modifier;
 	int block_loopback = vhcr->in_modifier >> 31;
 	u8 steer_type_mask = 2;
-	enum mlx4_steer_type type = gid[7] & steer_type_mask;
+	enum mlx4_steer_type type = (gid[7] & steer_type_mask) >> 1;
 
 	qpn = vhcr->in_modifier & 0xffffff;
 	err = get_res(dev, slave, qpn, RES_QP, &rqp);
@@ -2547,7 +2551,7 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 
 	qp.qpn = qpn;
 	if (attach) {
-		err = add_mcg_res(dev, slave, rqp, gid, prot);
+		err = add_mcg_res(dev, slave, rqp, gid, prot, type);
 		if (err)
 			goto ex_put;
 
@@ -2556,7 +2560,7 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 		if (err)
 			goto ex_rem;
 	} else {
-		err = rem_mcg_res(dev, slave, rqp, gid, prot);
+		err = rem_mcg_res(dev, slave, rqp, gid, prot, type);
 		if (err)
 			goto ex_put;
 		err = mlx4_qp_detach_common(dev, &qp, gid, prot, type);
@@ -2567,7 +2571,7 @@ int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,
 
 ex_rem:
 	/* ignore error return below, already in error */
-	err1 = rem_mcg_res(dev, slave, rqp, gid, prot);
+	err1 = rem_mcg_res(dev, slave, rqp, gid, prot, type);
 ex_put:
 	put_res(dev, slave, qpn, RES_QP);
 
@@ -2606,7 +2610,7 @@ static void detach_qp(struct mlx4_dev *dev, int slave, struct res_qp *rqp)
 	list_for_each_entry_safe(rgid, tmp, &rqp->mcg_list, list) {
 		qp.qpn = rqp->local_qpn;
 		err = mlx4_qp_detach_common(dev, &qp, rgid->gid, rgid->prot,
-					    MLX4_MC_STEER);
+					    rgid->steer);
 		list_del(&rgid->list);
 		kfree(rgid);
 	}

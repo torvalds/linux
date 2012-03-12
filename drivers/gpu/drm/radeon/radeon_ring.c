@@ -500,8 +500,11 @@ static char radeon_debugfs_ib_names[RADEON_IB_POOL_SIZE][32];
 int radeon_debugfs_ring_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
-					ARRAY_SIZE(radeon_debugfs_ring_info_list));
+	if (rdev->family >= CHIP_CAYMAN)
+		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
+						ARRAY_SIZE(radeon_debugfs_ring_info_list));
+	else
+		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list, 1);
 #else
 	return 0;
 #endif

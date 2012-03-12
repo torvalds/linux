@@ -376,7 +376,7 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	}
 
 	card->ext_csd.raw_hc_erase_gap_size =
-		ext_csd[EXT_CSD_PARTITION_ATTRIBUTE];
+		ext_csd[EXT_CSD_HC_WP_GRP_SIZE];
 	card->ext_csd.raw_sec_trim_mult =
 		ext_csd[EXT_CSD_SEC_TRIM_MULT];
 	card->ext_csd.raw_sec_erase_mult =
@@ -551,7 +551,7 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 		goto out;
 
 	/* only compare read only fields */
-	err = (!(card->ext_csd.raw_partition_support ==
+	err = !((card->ext_csd.raw_partition_support ==
 			bw_ext_csd[EXT_CSD_PARTITION_SUPPORT]) &&
 		(card->ext_csd.raw_erased_mem_count ==
 			bw_ext_csd[EXT_CSD_ERASED_MEM_CONT]) &&
@@ -816,6 +816,9 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if (!mmc_host_is_spi(host))
 		mmc_set_bus_mode(host, MMC_BUSMODE_OPENDRAIN);
 
+	/* Initialization should be done at 3.3 V I/O voltage. */
+	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
+
 	/*
 	 * Since we're changing the OCR value, we seem to
 	 * need to tell some cards to go back to the idle
@@ -1006,7 +1009,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			err = mmc_select_hs200(card);
 		else if	(host->caps & MMC_CAP_MMC_HIGHSPEED)
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					 EXT_CSD_HS_TIMING, 1, 0);
+					 EXT_CSD_HS_TIMING, 1,
+					 card->ext_csd.generic_cmd6_time);
 
 		if (err && err != -EBADMSG)
 			goto free_card;
@@ -1116,7 +1120,7 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * Activate wide bus and DDR (if supported).
 	 */
 	if (!mmc_card_hs200(card) &&
-	    (card->csd.mmca_vsn >= CSD_SPEC_VER_3) &&
+	    (card->csd.mmca_vsn >= CSD_SPEC_VER_4) &&
 	    (host->caps & (MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA))) {
 		static unsigned ext_csd_bits[][2] = {
 			{ EXT_CSD_BUS_WIDTH_8, EXT_CSD_DDR_BUS_WIDTH_8 },
@@ -1315,11 +1319,13 @@ static int mmc_suspend(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-	if (mmc_card_can_sleep(host))
+	if (mmc_card_can_sleep(host)) {
 		err = mmc_card_sleep(host);
-	else if (!mmc_host_is_spi(host))
+		if (!err)
+			mmc_card_set_sleep(host->card);
+	} else if (!mmc_host_is_spi(host))
 		mmc_deselect_cards(host);
-	host->card->state &= ~MMC_STATE_HIGHSPEED;
+	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
 	mmc_release_host(host);
 
 	return err;
@@ -1339,7 +1345,11 @@ static int mmc_resume(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
-	err = mmc_init_card(host, host->ocr, host->card);
+	if (mmc_card_is_sleep(host->card)) {
+		err = mmc_card_awake(host);
+		mmc_card_clr_sleep(host->card);
+	} else
+		err = mmc_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);
 
 	return err;
@@ -1349,7 +1359,8 @@ static int mmc_power_restore(struct mmc_host *host)
 {
 	int ret;
 
-	host->card->state &= ~MMC_STATE_HIGHSPEED;
+	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
+	mmc_card_clr_sleep(host->card);
 	mmc_claim_host(host);
 	ret = mmc_init_card(host, host->ocr, host->card);
 	mmc_release_host(host);

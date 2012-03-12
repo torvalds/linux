@@ -323,7 +323,7 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 	 * Corrupt successful READs while in down state.
 	 * If flags were specified, only corrupt those that match.
 	 */
-	if (!error && bio_submitted_while_down &&
+	if (fc->corrupt_bio_byte && !error && bio_submitted_while_down &&
 	    (bio_data_dir(bio) == READ) && (fc->corrupt_bio_rw == READ) &&
 	    all_corrupt_bio_flags_match(bio, fc))
 		corrupt_bio_data(bio, fc);

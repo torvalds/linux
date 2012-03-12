@@ -133,7 +133,7 @@ static struct resource spi0_resources[] = {
 	[0] = {
 		.start	= 0xfe002000,
 		.end	= 0xfe0020ff,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	},
 	[1] = {
 		.start	= 86,
@@ -661,6 +661,25 @@ static struct platform_device spi0_device = {
 	.resource	= spi0_resources,
 };
 
+static struct resource spi1_resources[] = {
+	{
+		.start	= 0xffd8ee70,
+		.end	= 0xffd8eeff,
+		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
+	},
+	{
+		.start	= 54,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device spi1_device = {
+	.name	= "sh_spi",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(spi1_resources),
+	.resource	= spi1_resources,
+};
+
 static struct resource usb_ehci_resources[] = {
 	[0] = {
 		.start	= 0xfe4f1000,
@@ -720,6 +739,7 @@ static struct platform_device *sh7757_devices[] __initdata = {
 	&dma2_device,
 	&dma3_device,
 	&spi0_device,
+	&spi1_device,
 	&usb_ehci_device,
 	&usb_ohci_device,
 };

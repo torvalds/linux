@@ -571,28 +571,6 @@ asmlinkage void __attribute__((weak)) smp_threshold_interrupt(void)
 }
 
 /*
- * __math_state_restore assumes that cr0.TS is already clear and the
- * fpu state is all ready for use.  Used during context switch.
- */
-void __math_state_restore(void)
-{
-	struct thread_info *thread = current_thread_info();
-	struct task_struct *tsk = thread->task;
-
-	/*
-	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
-	 */
-	if (unlikely(restore_fpu_checking(tsk))) {
-		stts();
-		force_sig(SIGSEGV, tsk);
-		return;
-	}
-
-	thread->status |= TS_USEDFPU;	/* So we fnsave on switch_to() */
-	tsk->fpu_counter++;
-}
-
-/*
  * 'math_state_restore()' saves the current math information in the
  * old math state array, and gets the new ones from the current task
  *
@@ -604,8 +582,7 @@ void __math_state_restore(void)
  */
 void math_state_restore(void)
 {
-	struct thread_info *thread = current_thread_info();
-	struct task_struct *tsk = thread->task;
+	struct task_struct *tsk = current;
 
 	if (!tsk_used_math(tsk)) {
 		local_irq_enable();
@@ -622,16 +599,23 @@ void math_state_restore(void)
 		local_irq_disable();
 	}
 
-	clts();				/* Allow maths ops (or we recurse) */
+	__thread_fpu_begin(tsk);
+	/*
+	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
+	 */
+	if (unlikely(restore_fpu_checking(tsk))) {
+		__thread_fpu_end(tsk);
+		force_sig(SIGSEGV, tsk);
+		return;
+	}
 
-	__math_state_restore();
+	tsk->fpu_counter++;
 }
 EXPORT_SYMBOL_GPL(math_state_restore);
 
 dotraplinkage void __kprobes
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
-	WARN_ON_ONCE(!user_mode_vm(regs));
 #ifdef CONFIG_MATH_EMULATION
 	if (read_cr0() & X86_CR0_EM) {
 		struct math_emu_info info = { };

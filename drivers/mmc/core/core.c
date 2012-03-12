@@ -290,8 +290,11 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
 		 bool is_first_req)
 {
-	if (host->ops->pre_req)
+	if (host->ops->pre_req) {
+		mmc_host_clk_hold(host);
 		host->ops->pre_req(host, mrq, is_first_req);
+		mmc_host_clk_release(host);
+	}
 }
 
 /**
@@ -306,8 +309,11 @@ static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
 static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 			 int err)
 {
-	if (host->ops->post_req)
+	if (host->ops->post_req) {
+		mmc_host_clk_hold(host);
 		host->ops->post_req(host, mrq, err);
+		mmc_host_clk_release(host);
+	}
 }
 
 /**
@@ -620,7 +626,9 @@ int mmc_host_enable(struct mmc_host *host)
 		int err;
 
 		host->en_dis_recurs = 1;
+		mmc_host_clk_hold(host);
 		err = host->ops->enable(host);
+		mmc_host_clk_release(host);
 		host->en_dis_recurs = 0;
 
 		if (err) {
@@ -640,7 +648,9 @@ static int mmc_host_do_disable(struct mmc_host *host, int lazy)
 		int err;
 
 		host->en_dis_recurs = 1;
+		mmc_host_clk_hold(host);
 		err = host->ops->disable(host, lazy);
+		mmc_host_clk_release(host);
 		host->en_dis_recurs = 0;
 
 		if (err < 0) {
@@ -1121,6 +1131,10 @@ int mmc_regulator_set_ocr(struct mmc_host *mmc,
 		 * might not allow this operation
 		 */
 		voltage = regulator_get_voltage(supply);
+
+		if (mmc->caps2 & MMC_CAP2_BROKEN_VOLTAGE)
+			min_uV = max_uV = voltage;
+
 		if (voltage < 0)
 			result = voltage;
 		else if (voltage < min_uV || voltage > max_uV)
@@ -1203,8 +1217,11 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11
 
 	host->ios.signal_voltage = signal_voltage;
 
-	if (host->ops->start_signal_voltage_switch)
+	if (host->ops->start_signal_voltage_switch) {
+		mmc_host_clk_hold(host);
 		err = host->ops->start_signal_voltage_switch(host, &host->ios);
+		mmc_host_clk_release(host);
+	}
 
 	return err;
 }
@@ -1239,6 +1256,7 @@ static void mmc_poweroff_notify(struct mmc_host *host)
 	int err = 0;
 
 	card = host->card;
+	mmc_claim_host(host);
 
 	/*
 	 * Send power notify command only if card
@@ -1269,6 +1287,7 @@ static void mmc_poweroff_notify(struct mmc_host *host)
 		/* Set the card state to no notification after the poweroff */
 		card->poweroff_notify_state = MMC_NO_POWER_NOTIFICATION;
 	}
+	mmc_release_host(host);
 }
 
 /*
@@ -1327,12 +1346,28 @@ static void mmc_power_up(struct mmc_host *host)
 
 void mmc_power_off(struct mmc_host *host)
 {
+	int err = 0;
 	mmc_host_clk_hold(host);
 
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
 
-	mmc_poweroff_notify(host);
+	/*
+	 * For eMMC 4.5 device send AWAKE command before
+	 * POWER_OFF_NOTIFY command, because in sleep state
+	 * eMMC 4.5 devices respond to only RESET and AWAKE cmd
+	 */
+	if (host->card && mmc_card_is_sleep(host->card) &&
+	    host->bus_ops->resume) {
+		err = host->bus_ops->resume(host);
+
+		if (!err)
+			mmc_poweroff_notify(host);
+		else
+			pr_warning("%s: error %d during resume "
+				   "(continue with poweroff sequence)\n",
+				   mmc_hostname(host), err);
+	}
 
 	/*
 	 * Reset ocr mask to be the highest possible voltage supported for
@@ -2033,6 +2068,9 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 */
 	mmc_hw_reset_for_init(host);
 
+	/* Initialization should be done at 3.3 V I/O voltage. */
+	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
+
 	/*
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know
 	 * if the card is being re-initialized, just send it.  CMD52
@@ -2386,12 +2424,6 @@ int mmc_suspend_host(struct mmc_host *host)
 		 */
 		if (mmc_try_claim_host(host)) {
 			if (host->bus_ops->suspend) {
-				/*
-				 * For eMMC 4.5 device send notify command
-				 * before sleep, because in sleep state eMMC 4.5
-				 * devices respond to only RESET and AWAKE cmd
-				 */
-				mmc_poweroff_notify(host);
 				err = host->bus_ops->suspend(host);
 			}
 			mmc_do_release_host(host);

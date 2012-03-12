@@ -125,19 +125,19 @@ static int __devinit r9701_probe(struct spi_device *spi)
 	unsigned char tmp;
 	int res;
 
+	tmp = R100CNT;
+	res = read_regs(&spi->dev, &tmp, 1);
+	if (res || tmp != 0x20) {
+		dev_err(&spi->dev, "cannot read RTC register\n");
+		return -ENODEV;
+	}
+
 	rtc = rtc_device_register("r9701",
 				&spi->dev, &r9701_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
 	dev_set_drvdata(&spi->dev, rtc);
-
-	tmp = R100CNT;
-	res = read_regs(&spi->dev, &tmp, 1);
-	if (res || tmp != 0x20) {
-		rtc_device_unregister(rtc);
-		return res;
-	}
 
 	return 0;
 }

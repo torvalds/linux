@@ -6333,6 +6333,7 @@ static int __devinit snd_hdspm_create_hwdep(struct snd_card *card,
 
 	hw->ops.open = snd_hdspm_hwdep_dummy_op;
 	hw->ops.ioctl = snd_hdspm_hwdep_ioctl;
+	hw->ops.ioctl_compat = snd_hdspm_hwdep_ioctl;
 	hw->ops.release = snd_hdspm_hwdep_dummy_op;
 
 	return 0;
