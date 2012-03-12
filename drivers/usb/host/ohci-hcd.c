@@ -1050,7 +1050,7 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_at91_driver
 #endif
 
-#ifdef CONFIG_ARCH_PNX4008
+#if defined(CONFIG_ARCH_PNX4008) || defined(CONFIG_ARCH_LPC32XX)
 #include "ohci-nxp.c"
 #define PLATFORM_DRIVER		usb_hcd_nxp_driver
 #endif
