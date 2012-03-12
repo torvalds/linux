@@ -267,9 +267,8 @@ struct fw_cdev_event_iso_interrupt {
  *
  * This event is sent in multichannel contexts (context type
  * %FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL) for &fw_cdev_iso_packet buffer
- * chunks that have the %FW_CDEV_ISO_INTERRUPT bit set.  Whether this happens
- * when a packet is completed and/or when a buffer chunk is completed depends
- * on the hardware implementation.
+ * chunks that have been completely filled and that have the
+ * %FW_CDEV_ISO_INTERRUPT bit set.
  *
  * The buffer is continuously filled with the following data, per packet:
  *  - the 1394 iso packet header as described at &fw_cdev_event_iso_interrupt,
