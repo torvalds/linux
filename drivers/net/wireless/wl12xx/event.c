@@ -196,7 +196,7 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			bool success;
 
 			if (!test_and_clear_bit(WLVIF_FLAG_CS_PROGRESS,
-						&wl->flags))
+						&wlvif->flags))
 				continue;
 
 			success = mbox->channel_switch_status ? false : true;
