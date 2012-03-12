@@ -1063,10 +1063,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 	}
 
-	if (skb_linearize(rx->skb))
-		return RX_DROP_UNUSABLE;
-	/* the hdr variable is invalid now! */
-
 	switch (rx->key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
@@ -1088,6 +1084,8 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		 */
 		return RX_DROP_UNUSABLE;
 	}
+
+	/* the hdr variable is invalid after the decrypt handlers */
 
 	/* either the frame has been decrypted or will be dropped */
 	status->flag |= RX_FLAG_DECRYPTED;
