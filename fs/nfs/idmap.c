@@ -656,14 +656,19 @@ static int nfs_idmap_legacy_upcall(struct key_construction *cons,
 
 	idmap->idmap_key_cons = cons;
 
-	return rpc_queue_upcall(idmap->idmap_pipe, msg);
+	ret = rpc_queue_upcall(idmap->idmap_pipe, msg);
+	if (ret < 0)
+		goto out2;
+
+	return ret;
 
 out2:
 	kfree(im);
 out1:
 	kfree(msg);
 out0:
-	complete_request_key(cons, ret);
+	key_revoke(cons->key);
+	key_revoke(cons->authkey);
 	return ret;
 }
 
