@@ -871,12 +871,13 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 		if (ret && ret != -ENOTCONN)
 			ath6kl_err("wow suspend failed: %d\n", ret);
 
-		if (ret && (!ar->wow_suspend_mode ||
-		    ar->wow_suspend_mode == WLAN_POWER_STATE_DEEP_SLEEP))
-				try_deepsleep = true;
+		if (ret &&
+		    (!ar->wow_suspend_mode ||
+		     ar->wow_suspend_mode == WLAN_POWER_STATE_DEEP_SLEEP))
+			try_deepsleep = true;
 		else if (ret &&
 			 ar->wow_suspend_mode == WLAN_POWER_STATE_CUT_PWR)
-				goto cut_pwr;
+			goto cut_pwr;
 		if (!ret)
 			return 0;
 	}
