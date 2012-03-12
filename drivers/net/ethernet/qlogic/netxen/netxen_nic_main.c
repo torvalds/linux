@@ -805,12 +805,12 @@ netxen_check_options(struct netxen_adapter *adapter)
 	char brd_name[NETXEN_MAX_SHORT_NAME];
 	char serial_num[32];
 	int i, offset, val, err;
-	int *ptr32;
+	__le32 *ptr32;
 	struct pci_dev *pdev = adapter->pdev;
 
 	adapter->driver_mismatch = 0;
 
-	ptr32 = (int *)&serial_num;
+	ptr32 = (__le32 *)&serial_num;
 	offset = NX_FW_SERIAL_NUM_OFFSET;
 	for (i = 0; i < 8; i++) {
 		if (netxen_rom_fast_read(adapter, offset, &val) == -1) {

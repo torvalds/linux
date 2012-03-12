@@ -954,7 +954,7 @@ typedef struct nx_mac_list_s {
 
 struct nx_vlan_ip_list {
 	struct list_head list;
-	u32 ip_addr;
+	__be32 ip_addr;
 };
 
 /*
@@ -1780,7 +1780,7 @@ int netxen_process_rcv_ring(struct nx_host_sds_ring *sds_ring, int max);
 void netxen_p3_free_mac_list(struct netxen_adapter *adapter);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 int netxen_config_rss(struct netxen_adapter *adapter, int enable);
-int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd);
+int netxen_config_ipaddr(struct netxen_adapter *adapter, __be32 ip, int cmd);
 int netxen_linkevent_request(struct netxen_adapter *adapter, int enable);
 void netxen_advert_link_change(struct netxen_adapter *adapter, int linkup);
 void netxen_pci_camqm_read_2M(struct netxen_adapter *, u64, u64 *);

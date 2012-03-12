@@ -909,7 +909,7 @@ int netxen_config_rss(struct netxen_adapter *adapter, int enable)
 	return rv;
 }
 
-int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd)
+int netxen_config_ipaddr(struct netxen_adapter *adapter, __be32 ip, int cmd)
 {
 	nx_nic_req_t req;
 	u64 word;
@@ -922,7 +922,7 @@ int netxen_config_ipaddr(struct netxen_adapter *adapter, u32 ip, int cmd)
 	req.req_hdr = cpu_to_le64(word);
 
 	req.words[0] = cpu_to_le64(cmd);
-	req.words[1] = cpu_to_le64(ip);
+	memcpy(&req.words[1], &ip, sizeof(u32));
 
 	rv = netxen_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 	if (rv != 0) {
@@ -1050,7 +1050,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 	if (netxen_get_flash_block(adapter, offset, sizeof(u64), pmac) == -1)
 		return -1;
 
-	if (*mac == cpu_to_le64(~0ULL)) {
+	if (*mac == ~0ULL) {
 
 		offset = NX_OLD_MAC_ADDR_OFFSET +
 			(adapter->portnum * sizeof(u64));
@@ -1059,7 +1059,7 @@ int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac)
 					offset, sizeof(u64), pmac) == -1)
 			return -1;
 
-		if (*mac == cpu_to_le64(~0ULL))
+		if (*mac == ~0ULL)
 			return -1;
 	}
 	return 0;
@@ -2155,7 +2155,7 @@ static u32 netxen_md_rd_crb(struct netxen_adapter *adapter,
 static u32
 netxen_md_rdrom(struct netxen_adapter *adapter,
 			struct netxen_minidump_entry_rdrom
-				*romEntry, u32 *data_buff)
+				*romEntry, __le32 *data_buff)
 {
 	int i, count = 0;
 	u32 size, lck_val;
