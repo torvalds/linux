@@ -85,6 +85,8 @@ int omap_plane_mode_set(struct drm_plane *plane,
 		unsigned int crtc_w, unsigned int crtc_h,
 		uint32_t src_x, uint32_t src_y,
 		uint32_t src_w, uint32_t src_h);
+void omap_plane_on_endwin(struct drm_plane *plane,
+		void (*fxn)(void *), void *arg);
 
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		struct omap_overlay_manager *mgr);
