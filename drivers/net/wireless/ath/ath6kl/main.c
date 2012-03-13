@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -80,11 +81,21 @@ static void ath6kl_add_new_sta(struct ath6kl_vif *vif, u8 *mac, u16 aid,
 static void ath6kl_sta_cleanup(struct ath6kl *ar, u8 i)
 {
 	struct ath6kl_sta *sta = &ar->sta_list[i];
+	struct ath6kl_mgmt_buff *entry, *tmp;
 
 	/* empty the queued pkts in the PS queue if any */
 	spin_lock_bh(&sta->psq_lock);
 	skb_queue_purge(&sta->psq);
 	skb_queue_purge(&sta->apsdq);
+
+	if (sta->mgmt_psq_len != 0) {
+		list_for_each_entry_safe(entry, tmp, &sta->mgmt_psq, list) {
+			kfree(entry);
+		}
+		INIT_LIST_HEAD(&sta->mgmt_psq);
+		sta->mgmt_psq_len = 0;
+	}
+
 	spin_unlock_bh(&sta->psq_lock);
 
 	memset(&ar->ap_stats.sta[sta->aid - 1], 0,
@@ -339,7 +350,7 @@ void ath6kl_reset_device(struct ath6kl *ar, u32 target_type,
 	__le32 data;
 
 	if (target_type != TARGET_TYPE_AR6003 &&
-		target_type != TARGET_TYPE_AR6004)
+	    target_type != TARGET_TYPE_AR6004)
 		return;
 
 	data = cold_reset ? cpu_to_le32(RESET_CONTROL_COLD_RST) :
@@ -588,11 +599,9 @@ void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 	memcpy(vif->bssid, bssid, sizeof(vif->bssid));
 	vif->bss_ch = channel;
 
-	if ((vif->nw_type == INFRA_NETWORK)) {
-		ar->listen_intvl_b = listen_int;
+	if ((vif->nw_type == INFRA_NETWORK))
 		ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx,
-					      0, ar->listen_intvl_b);
-	}
+					      vif->listen_intvl_t, 0);
 
 	netif_wake_queue(vif->ndev);
 
@@ -810,6 +819,7 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 	struct sk_buff *skb;
 	bool psq_empty = false;
 	struct ath6kl *ar = vif->ar;
+	struct ath6kl_mgmt_buff *mgmt_buf;
 
 	conn = ath6kl_find_sta_by_aid(ar, aid);
 
@@ -820,7 +830,7 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 	 * becomes empty update the PVB for this station.
 	 */
 	spin_lock_bh(&conn->psq_lock);
-	psq_empty  = skb_queue_empty(&conn->psq);
+	psq_empty  = skb_queue_empty(&conn->psq) && (conn->mgmt_psq_len == 0);
 	spin_unlock_bh(&conn->psq_lock);
 
 	if (psq_empty)
@@ -828,15 +838,31 @@ void ath6kl_pspoll_event(struct ath6kl_vif *vif, u8 aid)
 		return;
 
 	spin_lock_bh(&conn->psq_lock);
-	skb = skb_dequeue(&conn->psq);
-	spin_unlock_bh(&conn->psq_lock);
+	if (conn->mgmt_psq_len > 0) {
+		mgmt_buf = list_first_entry(&conn->mgmt_psq,
+					struct ath6kl_mgmt_buff, list);
+		list_del(&mgmt_buf->list);
+		conn->mgmt_psq_len--;
+		spin_unlock_bh(&conn->psq_lock);
 
-	conn->sta_flags |= STA_PS_POLLED;
-	ath6kl_data_tx(skb, vif->ndev);
-	conn->sta_flags &= ~STA_PS_POLLED;
+		conn->sta_flags |= STA_PS_POLLED;
+		ath6kl_wmi_send_mgmt_cmd(ar->wmi, vif->fw_vif_idx,
+					 mgmt_buf->id, mgmt_buf->freq,
+					 mgmt_buf->wait, mgmt_buf->buf,
+					 mgmt_buf->len, mgmt_buf->no_cck);
+		conn->sta_flags &= ~STA_PS_POLLED;
+		kfree(mgmt_buf);
+	} else {
+		skb = skb_dequeue(&conn->psq);
+		spin_unlock_bh(&conn->psq_lock);
+
+		conn->sta_flags |= STA_PS_POLLED;
+		ath6kl_data_tx(skb, vif->ndev);
+		conn->sta_flags &= ~STA_PS_POLLED;
+	}
 
 	spin_lock_bh(&conn->psq_lock);
-	psq_empty  = skb_queue_empty(&conn->psq);
+	psq_empty  = skb_queue_empty(&conn->psq) && (conn->mgmt_psq_len == 0);
 	spin_unlock_bh(&conn->psq_lock);
 
 	if (psq_empty)
@@ -922,8 +948,8 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	}
 
 	ath6kl_cfg80211_disconnect_event(vif, reason, bssid,
-				       assoc_resp_len, assoc_info,
-				       prot_reason_status);
+					 assoc_resp_len, assoc_info,
+					 prot_reason_status);
 
 	aggr_reset_state(vif->aggr_cntxt->aggr_conn);
 
@@ -943,9 +969,9 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	} else {
 		set_bit(CONNECT_PEND, &vif->flags);
 		if (((reason == ASSOC_FAILED) &&
-		    (prot_reason_status == 0x11)) ||
-		    ((reason == ASSOC_FAILED) && (prot_reason_status == 0x0)
-		     && (vif->reconnect_flag == 1))) {
+		     (prot_reason_status == 0x11)) ||
+		    ((reason == ASSOC_FAILED) && (prot_reason_status == 0x0) &&
+		     (vif->reconnect_flag == 1))) {
 			set_bit(CONNECTED, &vif->flags);
 			return;
 		}
@@ -1079,7 +1105,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 	if (mc_all_on || mc_all_off) {
 		/* Enable/disable all multicast */
 		ath6kl_dbg(ATH6KL_DBG_TRC, "%s multicast filter\n",
-			  mc_all_on ? "enabling" : "disabling");
+			   mc_all_on ? "enabling" : "disabling");
 		ret = ath6kl_wmi_mcast_filter_cmd(vif->ar->wmi, vif->fw_vif_idx,
 						  mc_all_on);
 		if (ret)
@@ -1092,7 +1118,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 		found = false;
 		netdev_for_each_mc_addr(ha, ndev) {
 			if (memcmp(ha->addr, mc_filter->hw_addr,
-			    ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
+				   ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
 				found = true;
 				break;
 			}
@@ -1111,7 +1137,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 					false);
 			if (ret) {
 				ath6kl_warn("Failed to remove multicast filter:%pM\n",
-					     mc_filter->hw_addr);
+					    mc_filter->hw_addr);
 				return;
 			}
 
@@ -1126,7 +1152,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 		found = false;
 		list_for_each_entry(mc_filter, &vif->mc_filter, list) {
 			if (memcmp(ha->addr, mc_filter->hw_addr,
-			    ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
+				   ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE) == 0) {
 				found = true;
 				break;
 			}
@@ -1151,7 +1177,7 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 					true);
 			if (ret) {
 				ath6kl_warn("Failed to add multicast filter :%pM\n",
-					     mc_filter->hw_addr);
+					    mc_filter->hw_addr);
 				kfree(mc_filter);
 				goto out;
 			}
@@ -1183,6 +1209,8 @@ void init_netdev(struct net_device *dev)
 	dev->needed_headroom += sizeof(struct ath6kl_llc_snap_hdr) +
 				sizeof(struct wmi_data_hdr) + HTC_HDR_LENGTH
 				+ WMI_MAX_TX_META_SZ + ATH6KL_HTC_ALIGN_BYTES;
+
+	dev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
 
 	return;
 }

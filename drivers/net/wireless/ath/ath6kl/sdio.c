@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -31,6 +32,7 @@
 struct ath6kl_sdio {
 	struct sdio_func *func;
 
+	/* protects access to bus_req_freeq */
 	spinlock_t lock;
 
 	/* free list */
@@ -49,16 +51,20 @@ struct ath6kl_sdio {
 	/* scatter request list head */
 	struct list_head scat_req;
 
-	/* Avoids disabling irq while the interrupts being handled */
-	struct mutex mtx_irq;
+	atomic_t irq_handling;
+	wait_queue_head_t irq_wq;
 
+	/* protects access to scat_req */
 	spinlock_t scat_lock;
+
 	bool scatter_enabled;
 
 	bool is_disabled;
 	const struct sdio_device_id *id;
 	struct work_struct wr_async_work;
 	struct list_head wr_asyncq;
+
+	/* protects access to wr_asyncq */
 	spinlock_t wr_async_lock;
 };
 
@@ -404,7 +410,10 @@ static int ath6kl_sdio_read_write_sync(struct ath6kl *ar, u32 addr, u8 *buf,
 			return -ENOMEM;
 		mutex_lock(&ar_sdio->dma_buffer_mutex);
 		tbuf = ar_sdio->dma_buffer;
-		memcpy(tbuf, buf, len);
+
+		if (request & HIF_WRITE)
+			memcpy(tbuf, buf, len);
+
 		bounced = true;
 	} else
 		tbuf = buf;
@@ -462,7 +471,7 @@ static void ath6kl_sdio_irq_handler(struct sdio_func *func)
 	ath6kl_dbg(ATH6KL_DBG_SDIO, "irq\n");
 
 	ar_sdio = sdio_get_drvdata(func);
-	mutex_lock(&ar_sdio->mtx_irq);
+	atomic_set(&ar_sdio->irq_handling, 1);
 	/*
 	 * Release the host during interrups so we can pick it back up when
 	 * we process commands.
@@ -471,7 +480,10 @@ static void ath6kl_sdio_irq_handler(struct sdio_func *func)
 
 	status = ath6kl_hif_intr_bh_handler(ar_sdio->ar);
 	sdio_claim_host(ar_sdio->func);
-	mutex_unlock(&ar_sdio->mtx_irq);
+
+	atomic_set(&ar_sdio->irq_handling, 0);
+	wake_up(&ar_sdio->irq_wq);
+
 	WARN_ON(status && status != -ECANCELED);
 }
 
@@ -572,6 +584,13 @@ static void ath6kl_sdio_irq_enable(struct ath6kl *ar)
 	sdio_release_host(ar_sdio->func);
 }
 
+static bool ath6kl_sdio_is_on_irq(struct ath6kl *ar)
+{
+	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
+
+	return !atomic_read(&ar_sdio->irq_handling);
+}
+
 static void ath6kl_sdio_irq_disable(struct ath6kl *ar)
 {
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
@@ -579,13 +598,20 @@ static void ath6kl_sdio_irq_disable(struct ath6kl *ar)
 
 	sdio_claim_host(ar_sdio->func);
 
-	mutex_lock(&ar_sdio->mtx_irq);
+	if (atomic_read(&ar_sdio->irq_handling)) {
+		sdio_release_host(ar_sdio->func);
+
+		ret = wait_event_interruptible(ar_sdio->irq_wq,
+					       ath6kl_sdio_is_on_irq(ar));
+		if (ret)
+			return;
+
+		sdio_claim_host(ar_sdio->func);
+	}
 
 	ret = sdio_release_irq(ar_sdio->func);
 	if (ret)
 		ath6kl_err("Failed to release sdio irq: %d\n", ret);
-
-	mutex_unlock(&ar_sdio->mtx_irq);
 
 	sdio_release_host(ar_sdio->func);
 }
@@ -601,6 +627,8 @@ static struct hif_scatter_req *ath6kl_sdio_scatter_req_get(struct ath6kl *ar)
 		node = list_first_entry(&ar_sdio->scat_req,
 					struct hif_scatter_req, list);
 		list_del(&node->list);
+
+		node->scat_q_depth = get_queue_depth(&ar_sdio->scat_req);
 	}
 
 	spin_unlock_bh(&ar_sdio->scat_lock);
@@ -633,8 +661,8 @@ static int ath6kl_sdio_async_rw_scatter(struct ath6kl *ar,
 		return -EINVAL;
 
 	ath6kl_dbg(ATH6KL_DBG_SCATTER,
-		"hif-scatter: total len: %d scatter entries: %d\n",
-		scat_req->len, scat_req->scat_entries);
+		   "hif-scatter: total len: %d scatter entries: %d\n",
+		   scat_req->len, scat_req->scat_entries);
 
 	if (request & HIF_SYNCHRONOUS)
 		status = ath6kl_sdio_scat_rw(ar_sdio, scat_req->busrequest);
@@ -813,6 +841,7 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 	struct ath6kl_sdio *ar_sdio = ath6kl_sdio_priv(ar);
 	struct sdio_func *func = ar_sdio->func;
 	mmc_pm_flag_t flags;
+	bool try_deepsleep = false;
 	int ret;
 
 	if (ar->state == ATH6KL_STATE_SCHED_SCAN) {
@@ -839,14 +868,22 @@ static int ath6kl_sdio_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 			goto cut_pwr;
 
 		ret = ath6kl_cfg80211_suspend(ar, ATH6KL_CFG_SUSPEND_WOW, wow);
-		if (ret)
-			goto cut_pwr;
+		if (ret && ret != -ENOTCONN)
+			ath6kl_err("wow suspend failed: %d\n", ret);
 
-		return 0;
+		if (ret &&
+		    (!ar->wow_suspend_mode ||
+		     ar->wow_suspend_mode == WLAN_POWER_STATE_DEEP_SLEEP))
+			try_deepsleep = true;
+		else if (ret &&
+			 ar->wow_suspend_mode == WLAN_POWER_STATE_CUT_PWR)
+			goto cut_pwr;
+		if (!ret)
+			return 0;
 	}
 
 	if (ar->suspend_mode == WLAN_POWER_STATE_DEEP_SLEEP ||
-	    !ar->suspend_mode) {
+	    !ar->suspend_mode || try_deepsleep) {
 
 		flags = sdio_get_host_pm_caps(func);
 		if (!(flags & MMC_PM_KEEP_POWER))
@@ -901,7 +938,14 @@ static int ath6kl_sdio_resume(struct ath6kl *ar)
 
 	case ATH6KL_STATE_WOW:
 		break;
+
 	case ATH6KL_STATE_SCHED_SCAN:
+		break;
+
+	case ATH6KL_STATE_SUSPENDING:
+		break;
+
+	case ATH6KL_STATE_RESUMING:
 		break;
 	}
 
@@ -981,7 +1025,7 @@ static int ath6kl_sdio_diag_read32(struct ath6kl *ar, u32 address, u32 *data)
 				(u8 *)data, sizeof(u32), HIF_RD_SYNC_BYTE_INC);
 	if (status) {
 		ath6kl_err("%s: failed to read from window data addr\n",
-			__func__);
+			   __func__);
 		return status;
 	}
 
@@ -1285,13 +1329,14 @@ static int ath6kl_sdio_probe(struct sdio_func *func,
 	spin_lock_init(&ar_sdio->scat_lock);
 	spin_lock_init(&ar_sdio->wr_async_lock);
 	mutex_init(&ar_sdio->dma_buffer_mutex);
-	mutex_init(&ar_sdio->mtx_irq);
 
 	INIT_LIST_HEAD(&ar_sdio->scat_req);
 	INIT_LIST_HEAD(&ar_sdio->bus_req_freeq);
 	INIT_LIST_HEAD(&ar_sdio->wr_asyncq);
 
 	INIT_WORK(&ar_sdio->wr_async_work, ath6kl_sdio_write_async_work);
+
+	init_waitqueue_head(&ar_sdio->irq_wq);
 
 	for (count = 0; count < BUS_REQUEST_MAX_NUM; count++)
 		ath6kl_sdio_free_bus_req(ar_sdio, &ar_sdio->bus_req[count]);

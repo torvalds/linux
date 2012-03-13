@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -26,12 +27,14 @@
 
 unsigned int debug_mask;
 static unsigned int suspend_mode;
+static unsigned int wow_mode;
 static unsigned int uart_debug;
 static unsigned int ath6kl_p2p;
 static unsigned int testmode;
 
 module_param(debug_mask, uint, 0644);
 module_param(suspend_mode, uint, 0644);
+module_param(wow_mode, uint, 0644);
 module_param(uart_debug, uint, 0644);
 module_param(ath6kl_p2p, uint, 0644);
 module_param(testmode, uint, 0644);
@@ -97,14 +100,59 @@ int ath6kl_core_init(struct ath6kl *ar)
 
 	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: got wmi @ 0x%p.\n", __func__, ar->wmi);
 
+	/* setup access class priority mappings */
+	ar->ac_stream_pri_map[WMM_AC_BK] = 0; /* lowest  */
+	ar->ac_stream_pri_map[WMM_AC_BE] = 1;
+	ar->ac_stream_pri_map[WMM_AC_VI] = 2;
+	ar->ac_stream_pri_map[WMM_AC_VO] = 3; /* highest */
+
+	/* allocate some buffers that handle larger AMSDU frames */
+	ath6kl_refill_amsdu_rxbufs(ar, ATH6KL_MAX_AMSDU_RX_BUFFERS);
+
+	ath6kl_cookie_init(ar);
+
+	ar->conf_flags = ATH6KL_CONF_IGNORE_ERP_BARKER |
+			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
+
+	if (suspend_mode &&
+	    suspend_mode >= WLAN_POWER_STATE_CUT_PWR &&
+	    suspend_mode <= WLAN_POWER_STATE_WOW)
+		ar->suspend_mode = suspend_mode;
+	else
+		ar->suspend_mode = 0;
+
+	if (suspend_mode == WLAN_POWER_STATE_WOW &&
+	    (wow_mode == WLAN_POWER_STATE_CUT_PWR ||
+	     wow_mode == WLAN_POWER_STATE_DEEP_SLEEP))
+		ar->wow_suspend_mode = wow_mode;
+	else
+		ar->wow_suspend_mode = 0;
+
+	if (uart_debug)
+		ar->conf_flags |= ATH6KL_CONF_UART_DEBUG;
+
+	set_bit(FIRST_BOOT, &ar->flag);
+
+	ath6kl_debug_init(ar);
+
+	ret = ath6kl_init_hw_start(ar);
+	if (ret) {
+		ath6kl_err("Failed to start hardware: %d\n", ret);
+		goto err_rxbuf_cleanup;
+	}
+
+	/* give our connected endpoints some buffers */
+	ath6kl_rx_refill(ar->htc_target, ar->ctrl_ep);
+	ath6kl_rx_refill(ar->htc_target, ar->ac2ep_map[WMM_AC_BE]);
+
 	ret = ath6kl_cfg80211_init(ar);
 	if (ret)
-		goto err_node_cleanup;
+		goto err_rxbuf_cleanup;
 
-	ret = ath6kl_debug_init(ar);
+	ret = ath6kl_debug_init_fs(ar);
 	if (ret) {
 		wiphy_unregister(ar->wiphy);
-		goto err_node_cleanup;
+		goto err_rxbuf_cleanup;
 	}
 
 	for (i = 0; i < ar->vif_max; i++)
@@ -122,83 +170,18 @@ int ath6kl_core_init(struct ath6kl *ar)
 		ath6kl_err("Failed to instantiate a network device\n");
 		ret = -ENOMEM;
 		wiphy_unregister(ar->wiphy);
-		goto err_debug_init;
-	}
-
-
-	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
-			__func__, ndev->name, ndev, ar);
-
-	/* setup access class priority mappings */
-	ar->ac_stream_pri_map[WMM_AC_BK] = 0; /* lowest  */
-	ar->ac_stream_pri_map[WMM_AC_BE] = 1;
-	ar->ac_stream_pri_map[WMM_AC_VI] = 2;
-	ar->ac_stream_pri_map[WMM_AC_VO] = 3; /* highest */
-
-	/* give our connected endpoints some buffers */
-	ath6kl_rx_refill(ar->htc_target, ar->ctrl_ep);
-	ath6kl_rx_refill(ar->htc_target, ar->ac2ep_map[WMM_AC_BE]);
-
-	/* allocate some buffers that handle larger AMSDU frames */
-	ath6kl_refill_amsdu_rxbufs(ar, ATH6KL_MAX_AMSDU_RX_BUFFERS);
-
-	ath6kl_cookie_init(ar);
-
-	ar->conf_flags = ATH6KL_CONF_IGNORE_ERP_BARKER |
-			 ATH6KL_CONF_ENABLE_11N | ATH6KL_CONF_ENABLE_TX_BURST;
-
-	if (suspend_mode &&
-		suspend_mode >= WLAN_POWER_STATE_CUT_PWR &&
-		suspend_mode <= WLAN_POWER_STATE_WOW)
-		ar->suspend_mode = suspend_mode;
-	else
-		ar->suspend_mode = 0;
-
-	if (uart_debug)
-		ar->conf_flags |= ATH6KL_CONF_UART_DEBUG;
-
-	ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_FW_ROAM |
-			    WIPHY_FLAG_HAVE_AP_SME |
-			    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL |
-			    WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
-
-	if (test_bit(ATH6KL_FW_CAPABILITY_SCHED_SCAN, ar->fw_capabilities))
-		ar->wiphy->flags |= WIPHY_FLAG_SUPPORTS_SCHED_SCAN;
-
-	ar->wiphy->probe_resp_offload =
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2 |
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_P2P |
-		NL80211_PROBE_RESP_OFFLOAD_SUPPORT_80211U;
-
-	set_bit(FIRST_BOOT, &ar->flag);
-
-	ndev->hw_features |= NETIF_F_IP_CSUM | NETIF_F_RXCSUM;
-
-	ret = ath6kl_init_hw_start(ar);
-	if (ret) {
-		ath6kl_err("Failed to start hardware: %d\n", ret);
 		goto err_rxbuf_cleanup;
 	}
 
-	/*
-	 * Set mac address which is received in ready event
-	 * FIXME: Move to ath6kl_interface_add()
-	 */
-	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
+	ath6kl_dbg(ATH6KL_DBG_TRC, "%s: name=%s dev=0x%p, ar=0x%p\n",
+		   __func__, ndev->name, ndev, ar);
 
 	return ret;
 
 err_rxbuf_cleanup:
+	ath6kl_debug_cleanup(ar);
 	ath6kl_htc_flush_rx_buf(ar->htc_target);
 	ath6kl_cleanup_amsdu_rxbufs(ar);
-	rtnl_lock();
-	ath6kl_cfg80211_vif_cleanup(netdev_priv(ndev));
-	rtnl_unlock();
-	wiphy_unregister(ar->wiphy);
-err_debug_init:
-	ath6kl_debug_cleanup(ar);
-err_node_cleanup:
 	ath6kl_wmi_shutdown(ar->wmi);
 	clear_bit(WMI_ENABLED, &ar->flag);
 	ar->wmi = NULL;
@@ -245,9 +228,7 @@ struct ath6kl *ath6kl_core_create(struct device *dev)
 	clear_bit(SKIP_SCAN, &ar->flag);
 	clear_bit(DESTROY_IN_PROGRESS, &ar->flag);
 
-	ar->listen_intvl_b = A_DEFAULT_LISTEN_INTERVAL;
 	ar->tx_pwr = 0;
-
 	ar->intra_bss = 1;
 	ar->lrssi_roam_threshold = DEF_LRSSI_ROAM_THRESHOLD;
 
@@ -261,6 +242,8 @@ struct ath6kl *ath6kl_core_create(struct device *dev)
 		spin_lock_init(&ar->sta_list[ctr].psq_lock);
 		skb_queue_head_init(&ar->sta_list[ctr].psq);
 		skb_queue_head_init(&ar->sta_list[ctr].apsdq);
+		ar->sta_list[ctr].mgmt_psq_len = 0;
+		INIT_LIST_HEAD(&ar->sta_list[ctr].mgmt_psq);
 		ar->sta_list[ctr].aggr_conn =
 			kzalloc(sizeof(struct aggr_info_conn), GFP_KERNEL);
 		if (!ar->sta_list[ctr].aggr_conn) {
