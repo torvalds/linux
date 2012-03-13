@@ -1835,6 +1835,18 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		}
 
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+
+		if (mode->hdisplay > fb->width ||
+		    mode->vdisplay > fb->height ||
+		    crtc_req->x > fb->width - mode->hdisplay ||
+		    crtc_req->y > fb->height - mode->vdisplay) {
+			DRM_DEBUG_KMS("Invalid CRTC viewport %ux%u+%u+%u for fb size %ux%u.\n",
+				      mode->hdisplay, mode->vdisplay,
+				      crtc_req->x, crtc_req->y,
+				      fb->width, fb->height);
+			ret = -ENOSPC;
+			goto out;
+		}
 	}
 
 	if (crtc_req->count_connectors == 0 && mode) {
@@ -3205,6 +3217,18 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 	if (!obj)
 		goto out;
 	fb = obj_to_fb(obj);
+
+	if (crtc->mode.hdisplay > fb->width ||
+	    crtc->mode.vdisplay > fb->height ||
+	    crtc->x > fb->width - crtc->mode.hdisplay ||
+	    crtc->y > fb->height - crtc->mode.vdisplay) {
+		DRM_DEBUG_KMS("Invalid fb size %ux%u for CRTC viewport %ux%u+%d+%d.\n",
+			      fb->width, fb->height,
+			      crtc->mode.hdisplay, crtc->mode.vdisplay,
+			      crtc->x, crtc->y);
+		ret = -ENOSPC;
+		goto out;
+	}
 
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		ret = -ENOMEM;
