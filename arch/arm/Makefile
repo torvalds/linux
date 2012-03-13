@@ -10,6 +10,9 @@
 #
 # Copyright (C) 1995-2001 by Russell King
 
+# Ensure linker flags are correct
+LDFLAGS		:=
+
 LDFLAGS_vmlinux	:=-p --no-undefined -X
 ifeq ($(CONFIG_CPU_ENDIAN_BE8),y)
 LDFLAGS_vmlinux	+= --be8
