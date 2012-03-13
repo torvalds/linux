@@ -339,7 +339,6 @@ static int pl330_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd, unsigned 
 		/* Mark all desc done */
 		list_for_each_entry_safe(desc, _dt, &pch->work_list , node) {
 			desc->status = DONE;
-			pch->completed = desc->txd.cookie;
 			list_move_tail(&desc->node, &list);
 		}
 
