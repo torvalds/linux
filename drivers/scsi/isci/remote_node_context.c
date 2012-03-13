@@ -222,13 +222,19 @@ static void sci_remote_node_context_notify_user(
 
 static void sci_remote_node_context_continue_state_transitions(struct sci_remote_node_context *rnc)
 {
-	if ((rnc->destination_state == RNC_DEST_READY) ||
-	    (rnc->destination_state == RNC_DEST_SUSPENDED_RESUME)) {
+	switch (rnc->destination_state) {
+	case RNC_DEST_READY:
+	case RNC_DEST_SUSPENDED_RESUME:
 		rnc->destination_state = RNC_DEST_READY;
+		/* Fall through... */
+	case RNC_DEST_FINAL:
 		sci_remote_node_context_resume(rnc, rnc->user_callback,
-						    rnc->user_cookie);
-	} else
+					       rnc->user_cookie);
+		break;
+	default:
 		rnc->destination_state = RNC_DEST_UNSPECIFIED;
+		break;
+	}
 }
 
 static void sci_remote_node_context_validate_context_buffer(struct sci_remote_node_context *sci_rnc)
@@ -539,9 +545,11 @@ enum sci_status sci_remote_node_context_destruct(struct sci_remote_node_context 
 	case SCI_RNC_READY:
 	case SCI_RNC_TX_SUSPENDED:
 	case SCI_RNC_TX_RX_SUSPENDED:
-	case SCI_RNC_AWAIT_SUSPENSION:
 		sci_remote_node_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
 		sci_change_state(&sci_rnc->sm, SCI_RNC_INVALIDATING);
+		return SCI_SUCCESS;
+	case SCI_RNC_AWAIT_SUSPENSION:
+		sci_remote_node_context_setup_to_destroy(sci_rnc, cb_fn, cb_p);
 		return SCI_SUCCESS;
 	case SCI_RNC_INITIAL:
 		dev_warn(scirdev_to_dev(rnc_to_dev(sci_rnc)),
