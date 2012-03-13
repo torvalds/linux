@@ -794,12 +794,3 @@ void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 
 	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }
-
-void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
-{
-	struct ieee80211_tx_info *info;
-
-	info = IEEE80211_SKB_CB(skb);
-	kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
-	dev_kfree_skb_any(skb);
-}
