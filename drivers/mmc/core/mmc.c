@@ -440,7 +440,17 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 		goto out;
 
 	/* only compare read only fields */
-	err = (!(card->ext_csd.raw_partition_support ==
+	//err = (!(card->ext_csd.raw_partition_support ==  	                                                   
+	err = !((card->ext_csd.raw_partition_support ==
+	                                                    /*Modifyed by xbw at 2012-03-05
+	                                                    
+	                                                   commit dd13b4ed4650bb3a7d6c86b549ab66a6aa0c00d8
+                                                        Author: Jurgen Heeks <jurgen.heeks@nokia.com>
+                                                        Date:   Wed Feb 1 13:30:55 2012 +0100
+
+                                                          mmc: core: Fix comparison issue in mmc_compare_ext_csds
+	                                                   */
+	
 			bw_ext_csd[EXT_CSD_PARTITION_SUPPORT]) &&
 		(card->ext_csd.raw_erased_mem_count ==
 			bw_ext_csd[EXT_CSD_ERASED_MEM_CONT]) &&

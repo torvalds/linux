@@ -65,16 +65,20 @@ int debug_level = 5;
 
 #define RK29_SDMMC_ERROR_FLAGS		(SDMMC_INT_FRUN | SDMMC_INT_HLE )
 
+#ifdef CONFIG_ARCH_RK29 
 #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD)
 #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
-
+#else
+#define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD)
+#define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
+#endif
 
 #define RK29_SDMMC_SEND_START_TIMEOUT   3000  //The time interval from the time SEND_CMD to START_CMD_BIT cleared.
 #define RK29_ERROR_PRINTK_INTERVAL      200   //The time interval between the two printk for the same error. 
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.2.14 The last modify date is 2011-11-17,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.3.02 The last modify date is 2012-03-12,modifyed by XBW." 
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -343,6 +347,24 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     if(RK29_CTRL_SDMMC_ID == host->pdev->id)
     {
+#if 1 //to wirte log in log-file-system during the stage of umount. Modifyed by xbw at 2011-12-26
+        if(!strncmp(buf, "sd-Unmounting", strlen("sd-Unmounting")))
+        {
+            if(unmounting_times++%10 == 0)
+            {
+                printk(".%d.. MMC0 receive the message Unmounting(waitTimes=%d) from VOLD.====xbw[%s]====\n", \
+                    __LINE__, unmounting_times, host->dma_name);
+            }
+
+            if(0 == host->mmc->re_initialized_flags)
+                mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
+        }
+        else if(!strncmp(buf, "sd-Idle-Unmounted", strlen("sd-Idle-Unmounted")))
+        {
+            if(0 == host->mmc->re_initialized_flags)
+                mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
+        }
+#else
         if(!strncmp(buf, "sd-Unmounting", strlen("sd-Unmounting")))
         {
             if(unmounting_times++%10 == 0)
@@ -352,7 +374,8 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
             }
             host->mmc->re_initialized_flags = 0;
             mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
-        }
+        } 
+#endif
         else if( !strncmp(buf, "sd-No-Media", strlen("sd-No-Media")))
         {
             printk(".%d.. MMC0 receive the message No-Media from VOLD. waitTimes=%d ====xbw[%s]====\n" ,\
@@ -445,7 +468,7 @@ struct kobj_attribute mmc_reset_attrs =
 {
         .attr = {
                 .name = "rescan",
-                .mode = 0766},
+                .mode = 0764},
         .show = NULL,
         .store = rk29_sdmmc_progress_store,
 };
@@ -1095,8 +1118,8 @@ static int rk29_sdmmc_prepare_write_data(struct rk29_sdmmc *host, struct mmc_dat
             {
         		host->dodma = 0;
         			
-        	    printk("%s..%d... CMD%d setupDMA failure!!!!!  ==xbw[%s]==\n", \
-						__FUNCTION__, __LINE__, host->cmd->opcode, host->dma_name);
+        	    printk("%s..%d... CMD%d setupDMA failure!!!!! pre_cmd=%d  ==xbw[%s]==\n", \
+						__FUNCTION__, __LINE__, host->cmd->opcode,host->old_cmd, host->dma_name);
         	    
 				host->errorstep = 0x81;
 
@@ -1407,8 +1430,11 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
     }
    
     /* reset */
+#ifdef CONFIG_ARCH_RK29     
     rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET ));
-
+#else
+    rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
+#endif
     timeOut = 1000;
     value = rk29_sdmmc_read(host->regs, SDMMC_CTRL);
     while (( value & (SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_RESET)) && (timeOut > 0))
@@ -2978,6 +3004,16 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
         goto Exit_INT;
     }
 
+#ifndef CONFIG_ARCH_RK29
+    if(pending & SDMMC_INT_UNBUSY) 
+    {
+      //  printk("%d..%s:  ==test=== xbw======\n", __LINE__, __FUNCTION__);
+       // rk29_sdmmc_regs_printk(host);
+        rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_UNBUSY); 
+        goto Exit_INT;
+    }
+#endif
+
     if (pending & SDMMC_INT_RXDR) 
     {	
         xbwprintk(6, "%s..%d..  SDMMC_INT_RXDR  INT=0x%x   ====xbw[%s]====\n", \
@@ -3017,7 +3053,7 @@ static void rk29_sdmmc_detect_change(unsigned long data)
    
 	smp_rmb();
 
-    if(RK29_CTRL_SDMMC_ID == host->pdev->id)
+    if((RK29_CTRL_SDMMC_ID == host->pdev->id) && rk29_sdmmc_get_cd(host->mmc))
     {
         host->mmc->re_initialized_flags =1;
     }
@@ -3126,8 +3162,14 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&host->queue);
 #endif	
 
+#ifdef CONFIG_ARCH_RK29
 	host->clk = clk_get(&pdev->dev, "mmc");
-	
+#elif CONFIG_ARCH_RK30
+    host->clk = clk_get(&pdev->dev, "sdmmc");
+#endif
+
+#if 0 //暂时屏蔽，RK30 CLOCK模块还未整理好。	!!!!!!!!!!!!!!!!!!!!!
+
 #if RK29_SDMMC_DEFAULT_SDIO_FREQ
     clk_set_rate(host->clk,SDHC_FPP_FREQ);
 #else    
@@ -3137,9 +3179,16 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	    clk_set_rate(host->clk,RK29_MAX_SDIO_FREQ); 
 
 #endif
-		
+
+#endif
+
 	clk_enable(host->clk);
+
+#ifdef CONFIG_ARCH_RK29	
 	clk_enable(clk_get(&pdev->dev, "hclk_mmc"));
+#elif CONFIG_ARCH_RK30
+    clk_enable(clk_get(&pdev->dev, "hclk_sdmmc"));
+#endif
 
 	ret = -ENOMEM;
 	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
@@ -3415,6 +3464,7 @@ static int __exit rk29_sdmmc_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
+#ifdef CONFIG_ARCH_RK29
 static irqreturn_t det_keys_isr(int irq, void *dev_id)
 {
 	struct rk29_sdmmc *host = dev_id;
@@ -3449,7 +3499,43 @@ static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
 	gpio_free(RK29_PIN2_PA2);
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
 }
+#else
+static irqreturn_t det_keys_isr(int irq, void *dev_id)
+{
+	struct rk29_sdmmc *host = dev_id;
+	dev_info(&host->pdev->dev, "sd det_gpio changed(%s), send wakeup key!\n",
+		gpio_get_value(RK30_PIN3_PB6)?"removed":"insert");
+	rk29_sdmmc_detect_change((unsigned long)dev_id);
 
+	return IRQ_HANDLED;
+}
+
+static int rk29_sdmmc_sdcard_suspend(struct rk29_sdmmc *host)
+{
+	int ret = 0;
+	rk29_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_GPIO3B6);
+	gpio_request(RK30_PIN3_PB6, "sd_detect");
+	gpio_direction_input(RK30_PIN3_PB6);
+
+	host->gpio_irq = gpio_to_irq(RK30_PIN3_PB6);
+	ret = request_irq(host->gpio_irq, det_keys_isr,
+					    (gpio_get_value(RK30_PIN3_PB6))?IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING,
+					    "sd_detect",
+					    host);
+	
+	enable_irq_wake(host->gpio_irq);
+
+	return ret;
+}
+static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
+{
+	disable_irq_wake(host->gpio_irq);
+	free_irq(host->gpio_irq,host);
+	gpio_free(RK30_PIN3_PB6);
+	rk29_mux_api_set(GPIO3B6_SDMMC0DETECTN_NAME, GPIO3B_SDMMC0_DETECT_N);
+}
+
+#endif
 
 
 static int rk29_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
