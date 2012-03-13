@@ -772,6 +772,9 @@ nouveau_card_init(struct drm_device *dev)
 		case NV_D0:
 			nvc0_graph_create(dev);
 			break;
+		case NV_E0:
+			nve0_graph_create(dev);
+			break;
 		default:
 			break;
 		}
@@ -1227,6 +1230,8 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	if (nouveau_noaccel == -1) {
 		switch (dev_priv->chipset) {
 		case 0xd9: /* known broken */
+		case 0xe4: /* needs binary driver firmware */
+		case 0xe7: /* needs binary driver firmware */
 			NV_INFO(dev, "acceleration disabled by default, pass "
 				     "noaccel=0 to force enable\n");
 			dev_priv->noaccel = true;
