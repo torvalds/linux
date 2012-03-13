@@ -4508,6 +4508,7 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct il_priv *il = hw->priv;
 	int err;
+	bool reset;
 
 	mutex_lock(&il->mutex);
 	D_MAC80211("enter: type %d, addr %pM\n", vif->type, vif->addr);
@@ -4518,7 +4519,12 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out;
 	}
 
-	if (il->vif) {
+	/*
+	 * We do not support multiple virtual interfaces, but on hardware reset
+	 * we have to add the same interface again.
+	 */
+	reset = (il->vif == vif);
+	if (il->vif && !reset) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4528,8 +4534,11 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	err = il_set_mode(il);
 	if (err) {
-		il->vif = NULL;
-		il->iw_mode = NL80211_IFTYPE_STATION;
+		IL_WARN("Fail to set mode %d\n", vif->type);
+		if (!reset) {
+			il->vif = NULL;
+			il->iw_mode = NL80211_IFTYPE_STATION;
+		}
 	}
 
 out:
