@@ -610,7 +610,7 @@ config SMARTJOYPLUS_FF
 
 config HID_TIVO
 	tristate "TiVo Slide Bluetooth remote control support"
-	depends on USB_HID
+	depends on (USB_HID || BT_HIDP)
 	---help---
 	Say Y if you have a TiVo Slide Bluetooth remote control.
 
