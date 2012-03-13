@@ -2269,9 +2269,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 			sband = rx->local->hw.wiphy->bands[status->band];
 
-			rate_control_rate_update(local, sband, rx->sta,
-						 IEEE80211_RC_SMPS_CHANGED,
-						 local->_oper_channel_type);
+			rate_control_rate_update(
+				local, sband, rx->sta,
+				IEEE80211_RC_SMPS_CHANGED,
+				ieee80211_get_tx_channel_type(
+					local, local->_oper_channel_type));
 			goto handled;
 		}
 		default:
