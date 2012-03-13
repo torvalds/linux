@@ -43,50 +43,6 @@
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-static bool iwl_is_channel_extension(struct iwl_priv *priv,
-				     enum ieee80211_band band,
-				     u16 channel, u8 extension_chan_offset)
-{
-	const struct iwl_channel_info *ch_info;
-
-	ch_info = iwl_get_channel_info(priv, band, channel);
-	if (!is_channel_valid(ch_info))
-		return false;
-
-	if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_ABOVE)
-		return !(ch_info->ht40_extension_channel &
-					IEEE80211_CHAN_NO_HT40PLUS);
-	else if (extension_chan_offset == IEEE80211_HT_PARAM_CHA_SEC_BELOW)
-		return !(ch_info->ht40_extension_channel &
-					IEEE80211_CHAN_NO_HT40MINUS);
-
-	return false;
-}
-
-bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx,
-			    struct ieee80211_sta_ht_cap *ht_cap)
-{
-	if (!ctx->ht.enabled || !ctx->ht.is_40mhz)
-		return false;
-
-	/*
-	 * We do not check for IEEE80211_HT_CAP_SUP_WIDTH_20_40
-	 * the bit will not set if it is pure 40MHz case
-	 */
-	if (ht_cap && !ht_cap->ht_supported)
-		return false;
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	if (priv->disable_ht40)
-		return false;
-#endif
-
-	return iwl_is_channel_extension(priv, priv->band,
-			le16_to_cpu(ctx->staging.channel),
-			ctx->ht.extension_chan_offset);
-}
-
 static void _iwl_set_rxon_ht(struct iwl_priv *priv,
 			     struct iwl_ht_config *ht_conf,
 			     struct iwl_rxon_context *ctx)

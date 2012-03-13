@@ -261,6 +261,9 @@ int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 int iwl_sta_update_ht(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		      struct ieee80211_sta *sta);
 
+bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    struct ieee80211_sta_ht_cap *ht_cap);
 
 static inline int iwl_sta_id(struct ieee80211_sta *sta)
 {
