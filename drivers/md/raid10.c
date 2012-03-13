@@ -1682,10 +1682,8 @@ static void end_sync_write(struct bio *bio, int error)
 	d = find_bio_disk(conf, r10_bio, bio, &slot, &repl);
 	if (repl)
 		rdev = conf->mirrors[d].replacement;
-	if (!rdev) {
-		smp_mb();
+	else
 		rdev = conf->mirrors[d].rdev;
-	}
 
 	if (!uptodate) {
 		if (repl)
