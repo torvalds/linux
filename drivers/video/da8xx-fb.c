@@ -239,6 +239,20 @@ static struct da8xx_panel known_lcd_panels[] = {
 		.pxl_clk = 7833600,
 		.invert_pxl_clk = 0,
 	},
+	[2] = {
+		/* Hitachi SP10Q010 */
+		.name = "SP10Q010",
+		.width = 320,
+		.height = 240,
+		.hfp = 10,
+		.hbp = 10,
+		.hsw = 10,
+		.vfp = 10,
+		.vbp = 10,
+		.vsw = 10,
+		.pxl_clk = 7833600,
+		.invert_pxl_clk = 0,
+	},
 };
 
 /* Enable the Raster Engine of the LCD Controller */
@@ -547,7 +561,26 @@ static int fb_setcolreg(unsigned regno, unsigned red, unsigned green,
 	if (info->fix.visual == FB_VISUAL_DIRECTCOLOR)
 		return 1;
 
-	if (info->var.bits_per_pixel == 8) {
+	if (info->var.bits_per_pixel == 4) {
+		if (regno > 15)
+			return 1;
+
+		if (info->var.grayscale) {
+			pal = regno;
+		} else {
+			red >>= 4;
+			green >>= 8;
+			blue >>= 12;
+
+			pal = (red & 0x0f00);
+			pal |= (green & 0x00f0);
+			pal |= (blue & 0x000f);
+		}
+		if (regno == 0)
+			pal |= 0x2000;
+		palette[regno] = pal;
+
+	} else if (info->var.bits_per_pixel == 8) {
 		red >>= 4;
 		green >>= 8;
 		blue >>= 12;
@@ -802,6 +835,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 8;
 		var->transp.offset = 0;
 		var->transp.length = 0;
+		var->nonstd = 0;
 		break;
 	case 4:
 		var->red.offset = 0;
@@ -812,6 +846,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 4;
 		var->transp.offset = 0;
 		var->transp.length = 0;
+		var->nonstd = FB_NONSTD_REV_PIX_IN_B;
 		break;
 	case 16:		/* RGB 565 */
 		var->red.offset = 11;
@@ -822,6 +857,7 @@ static int fb_check_var(struct fb_var_screeninfo *var,
 		var->blue.length = 5;
 		var->transp.offset = 0;
 		var->transp.length = 0;
+		var->nonstd = 0;
 		break;
 	default:
 		err = -EINVAL;
