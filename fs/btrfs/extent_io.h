@@ -37,6 +37,8 @@
 #define EXTENT_BUFFER_READAHEAD 4	/* this got triggered by readahead */
 #define EXTENT_BUFFER_TREE_REF 5
 #define EXTENT_BUFFER_STALE 6
+#define EXTENT_BUFFER_WRITEBACK 7
+#define EXTENT_BUFFER_IOERR 8
 
 /* these are flags for extent_clear_unlock_delalloc */
 #define EXTENT_CLEAR_UNLOCK_PAGE 0x1
@@ -99,6 +101,7 @@ struct extent_io_tree {
 	struct radix_tree_root buffer;
 	struct address_space *mapping;
 	u64 dirty_bytes;
+	int track_uptodate;
 	spinlock_t lock;
 	spinlock_t buffer_lock;
 	struct extent_io_ops *ops;
@@ -132,7 +135,7 @@ struct extent_buffer {
 	struct extent_io_tree *tree;
 	spinlock_t refs_lock;
 	atomic_t refs;
-	atomic_t pages_reading;
+	atomic_t io_pages;
 	struct list_head leak_list;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
@@ -249,6 +252,8 @@ int extent_writepages(struct extent_io_tree *tree,
 		      struct address_space *mapping,
 		      get_extent_t *get_extent,
 		      struct writeback_control *wbc);
+int btree_write_cache_pages(struct address_space *mapping,
+			    struct writeback_control *wbc);
 int extent_readpages(struct extent_io_tree *tree,
 		     struct address_space *mapping,
 		     struct list_head *pages, unsigned nr_pages,
@@ -297,18 +302,11 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 void memset_extent_buffer(struct extent_buffer *eb, char c,
 			  unsigned long start, unsigned long len);
 int wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits);
-int clear_extent_buffer_dirty(struct extent_io_tree *tree,
-			      struct extent_buffer *eb);
-int set_extent_buffer_dirty(struct extent_io_tree *tree,
-			     struct extent_buffer *eb);
-int set_extent_buffer_uptodate(struct extent_io_tree *tree,
-			       struct extent_buffer *eb);
-int clear_extent_buffer_uptodate(struct extent_io_tree *tree,
-				struct extent_buffer *eb,
-				struct extent_state **cached_state);
-int extent_buffer_uptodate(struct extent_io_tree *tree,
-			   struct extent_buffer *eb,
-			   struct extent_state *cached_state);
+int clear_extent_buffer_dirty(struct extent_buffer *eb);
+int set_extent_buffer_dirty(struct extent_buffer *eb);
+int set_extent_buffer_uptodate(struct extent_buffer *eb);
+int clear_extent_buffer_uptodate(struct extent_buffer *eb);
+int extent_buffer_uptodate(struct extent_buffer *eb);
 int map_private_extent_buffer(struct extent_buffer *eb, unsigned long offset,
 		      unsigned long min_len, char **map,
 		      unsigned long *map_start,
