@@ -14,7 +14,7 @@ alt authentication needed (not FT)
 userspace->mac80211: authenticate
 
 alt authenticated/authenticating already
-mac80211->driver: sta_state(AP, not-exist)
+mac80211->driver: sta_state(AP, not-exists)
 mac80211->driver: bss_info_changed(clear BSSID)
 else associated
 note over mac80211,driver
@@ -91,8 +91,8 @@ mac80211->driver: TX deauth/disassoc
 mac80211->driver: flush frames
 mac80211->driver: sta_state(AP,associated)
 mac80211->driver: sta_state(AP,authenticated)
-mac80211->driver: sta_state(AP,exist)
-mac80211->driver: sta_state(AP,not-exist)
+mac80211->driver: sta_state(AP,exists)
+mac80211->driver: sta_state(AP,not-exists)
 mac80211->driver: turn off powersave
 mac80211->driver: bss_info_changed(clear BSSID, not associated, no QoS, ...)
 mac80211->driver: config(non-HT channel type)
