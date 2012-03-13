@@ -2060,7 +2060,8 @@ print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 	seq_puts(m, "#    -----------------\n");
 	seq_printf(m, "#    | task: %.16s-%d "
 		   "(uid:%d nice:%ld policy:%ld rt_prio:%ld)\n",
-		   data->comm, data->pid, data->uid, data->nice,
+		   data->comm, data->pid,
+		   from_kuid_munged(seq_user_ns(m), data->uid), data->nice,
 		   data->policy, data->rt_priority);
 	seq_puts(m, "#    -----------------\n");
 
