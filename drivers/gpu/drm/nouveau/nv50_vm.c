@@ -57,27 +57,15 @@ nv50_vm_map_pgt(struct nouveau_gpuobj *pgd, u32 pde,
 }
 
 static inline u64
-nv50_vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
+vm_addr(struct nouveau_vma *vma, u64 phys, u32 memtype, u32 target)
 {
-	struct drm_nouveau_private *dev_priv = vma->vm->dev->dev_private;
-
 	phys |= 1; /* present */
 	phys |= (u64)memtype << 40;
-
-	/* IGPs don't have real VRAM, re-target to stolen system memory */
-	if (target == 0 && dev_priv->vram_sys_base) {
-		phys  += dev_priv->vram_sys_base;
-		target = 3;
-	}
-
 	phys |= target << 4;
-
 	if (vma->access & NV_MEM_ACCESS_SYS)
 		phys |= (1 << 6);
-
 	if (!(vma->access & NV_MEM_ACCESS_WO))
 		phys |= (1 << 3);
-
 	return phys;
 }
 
@@ -85,11 +73,19 @@ void
 nv50_vm_map(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	    struct nouveau_mem *mem, u32 pte, u32 cnt, u64 phys, u64 delta)
 {
+	struct drm_nouveau_private *dev_priv = vma->vm->dev->dev_private;
 	u32 comp = (mem->memtype & 0x180) >> 7;
-	u32 block;
+	u32 block, target;
 	int i;
 
-	phys  = nv50_vm_addr(vma, phys, mem->memtype, 0);
+	/* IGPs don't have real VRAM, re-target to stolen system memory */
+	target = 0;
+	if (dev_priv->vram_sys_base) {
+		phys += dev_priv->vram_sys_base;
+		target = 3;
+	}
+
+	phys  = vm_addr(vma, phys, mem->memtype, target);
 	pte <<= 3;
 	cnt <<= 3;
 
@@ -125,9 +121,10 @@ void
 nv50_vm_map_sg(struct nouveau_vma *vma, struct nouveau_gpuobj *pgt,
 	       struct nouveau_mem *mem, u32 pte, u32 cnt, dma_addr_t *list)
 {
+	u32 target = (vma->access & NV_MEM_ACCESS_NOSNOOP) ? 3 : 2;
 	pte <<= 3;
 	while (cnt--) {
-		u64 phys = nv50_vm_addr(vma, (u64)*list++, mem->memtype, 2);
+		u64 phys = vm_addr(vma, (u64)*list++, mem->memtype, target);
 		nv_wo32(pgt, pte + 0, lower_32_bits(phys));
 		nv_wo32(pgt, pte + 4, upper_32_bits(phys));
 		pte += 8;

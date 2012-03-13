@@ -519,6 +519,19 @@ nouveau_connector_set_property(struct drm_connector *connector,
 		return nv_crtc->set_dither(nv_crtc, true);
 	}
 
+	if (nv_crtc && nv_crtc->set_color_vibrance) {
+		/* Hue */
+		if (property == disp->vibrant_hue_property) {
+			nv_crtc->vibrant_hue = value - 90;
+			return nv_crtc->set_color_vibrance(nv_crtc, true);
+		}
+		/* Saturation */
+		if (property == disp->color_vibrance_property) {
+			nv_crtc->color_vibrance = value - 100;
+			return nv_crtc->set_color_vibrance(nv_crtc, true);
+		}
+	}
+
 	if (nv_encoder && nv_encoder->dcb->type == OUTPUT_TV)
 		return get_slave_funcs(encoder)->set_property(
 			encoder, connector, property, value);
@@ -858,6 +871,8 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 	case DCB_CONNECTOR_DVI_D    : return DRM_MODE_CONNECTOR_DVID;
 	case DCB_CONNECTOR_LVDS     :
 	case DCB_CONNECTOR_LVDS_SPWG: return DRM_MODE_CONNECTOR_LVDS;
+	case DCB_CONNECTOR_DMS59_DP0:
+	case DCB_CONNECTOR_DMS59_DP1:
 	case DCB_CONNECTOR_DP       : return DRM_MODE_CONNECTOR_DisplayPort;
 	case DCB_CONNECTOR_eDP      : return DRM_MODE_CONNECTOR_eDP;
 	case DCB_CONNECTOR_HDMI_0   :
@@ -1002,7 +1017,9 @@ nouveau_connector_create(struct drm_device *dev, int index)
 	     nv_connector->type == DCB_CONNECTOR_DVI_I ||
 	     nv_connector->type == DCB_CONNECTOR_HDMI_0 ||
 	     nv_connector->type == DCB_CONNECTOR_HDMI_1 ||
-	     nv_connector->type == DCB_CONNECTOR_DP)) {
+	     nv_connector->type == DCB_CONNECTOR_DP ||
+	     nv_connector->type == DCB_CONNECTOR_DMS59_DP0 ||
+	     nv_connector->type == DCB_CONNECTOR_DMS59_DP1)) {
 		drm_connector_attach_property(connector,
 					      disp->underscan_property,
 					      UNDERSCAN_OFF);
@@ -1013,6 +1030,16 @@ nouveau_connector_create(struct drm_device *dev, int index)
 					      disp->underscan_vborder_property,
 					      0);
 	}
+
+	/* Add hue and saturation options */
+	if (disp->vibrant_hue_property)
+		drm_connector_attach_property(connector,
+					      disp->vibrant_hue_property,
+					      90);
+	if (disp->color_vibrance_property)
+		drm_connector_attach_property(connector,
+					      disp->color_vibrance_property,
+					      150);
 
 	switch (nv_connector->type) {
 	case DCB_CONNECTOR_VGA:
