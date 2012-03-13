@@ -1002,8 +1002,8 @@ EXPORT_SYMBOL(drm_mode_config_cleanup);
  * Convert a drm_display_mode into a drm_mode_modeinfo structure to return to
  * the user.
  */
-void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
-			       struct drm_display_mode *in)
+static void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
+				      const struct drm_display_mode *in)
 {
 	WARN(in->hdisplay > USHRT_MAX || in->hsync_start > USHRT_MAX ||
 	     in->hsync_end > USHRT_MAX || in->htotal > USHRT_MAX ||
@@ -1044,8 +1044,8 @@ void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
  * RETURNS:
  * Zero on success, errno on failure.
  */
-int drm_crtc_convert_umode(struct drm_display_mode *out,
-			   struct drm_mode_modeinfo *in)
+static int drm_crtc_convert_umode(struct drm_display_mode *out,
+				  const struct drm_mode_modeinfo *in)
 {
 	if (in->clock > INT_MAX || in->vrefresh > INT_MAX)
 		return -ERANGE;
