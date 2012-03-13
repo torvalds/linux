@@ -288,7 +288,7 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 
 	while (mwifiex_pcie_ok_to_access_hw(adapter)) {
 		i++;
-		udelay(10);
+		usleep_range(10, 20);
 		/* 50ms max wait */
 		if (i == 50000)
 			break;
@@ -1088,7 +1088,7 @@ static int mwifiex_pcie_process_cmd_complete(struct mwifiex_adapter *adapter)
 					card->cmdrsp_buf->len);
 			while (mwifiex_pcie_ok_to_access_hw(adapter) &&
 							(count++ < 10))
-				udelay(50);
+				usleep_range(50, 60);
 		} else {
 			dev_err(adapter->dev, "There is no command but "
 					      "got cmdrsp\n");
@@ -1337,7 +1337,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			}
 			if (len)
 				break;
-			udelay(10);
+			usleep_range(10, 20);
 		}
 
 		if (!len) {
