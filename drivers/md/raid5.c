@@ -5547,16 +5547,14 @@ static int raid5_start_reshape(struct mddev *mddev)
 	 * such devices during the reshape and confusion could result.
 	 */
 	if (mddev->delta_disks >= 0) {
-		int added_devices = 0;
 		list_for_each_entry(rdev, &mddev->disks, same_set)
 			if (rdev->raid_disk < 0 &&
 			    !test_bit(Faulty, &rdev->flags)) {
 				if (raid5_add_disk(mddev, rdev) == 0) {
 					if (rdev->raid_disk
-					    >= conf->previous_raid_disks) {
+					    >= conf->previous_raid_disks)
 						set_bit(In_sync, &rdev->flags);
-						added_devices++;
-					} else
+					else
 						rdev->recovery_offset = 0;
 
 					if (sysfs_link_rdev(mddev, rdev))
@@ -5566,7 +5564,6 @@ static int raid5_start_reshape(struct mddev *mddev)
 				   && !test_bit(Faulty, &rdev->flags)) {
 				/* This is a spare that was manually added */
 				set_bit(In_sync, &rdev->flags);
-				added_devices++;
 			}
 
 		/* When a reshape changes the number of devices,
