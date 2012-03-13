@@ -310,6 +310,19 @@ static u64 au_add_till_max(u64 a, u64 b)
 	return ULLONG_MAX;
 }
 
+static u64 au_add_muldiv_till_max(u64 a, u64 b, u64 mul, u64 div)
+{
+	u64 old;
+
+	b *= mul;
+
+	old = a;
+	a += div64_u64(b, div);
+	if (old <= a)
+		return a;
+	return ULLONG_MAX;
+}
+
 static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 {
 	int err;
