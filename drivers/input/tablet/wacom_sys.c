@@ -184,9 +184,9 @@ static int wacom_parse_logical_collection(unsigned char *report,
 		 * data before its overwritten.
 		 */
 		features->x_phy =
-			(features->x_max * features->x_resolution) / 100;
+			(features->x_max * 100) / features->x_resolution;
 		features->y_phy =
-			(features->y_max * features->y_resolution) / 100;
+			(features->y_max * 100) / features->y_resolution;
 
 		features->x_max = features->y_max =
 			get_unaligned_le16(&report[10]);
