@@ -3122,7 +3122,6 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 	int i, nr;
 	const int ifnum = interface->altsetting[0].desc.bInterfaceNumber;
 	char *speed;
-	char descr[255] = "";
 
 	udev = usb_get_dev(interface_to_usbdev(interface));
 
@@ -3227,21 +3226,11 @@ static int em28xx_usb_probe(struct usb_interface *interface,
 		speed = "unknown";
 	}
 
-	if (udev->manufacturer)
-		strlcpy(descr, udev->manufacturer, sizeof(descr));
-
-	if (udev->product) {
-		if (*descr)
-			strlcat(descr, " ", sizeof(descr));
-		strlcat(descr, udev->product, sizeof(descr));
-	}
-
-	if (*descr)
-		strlcat(descr, " ", sizeof(descr));
-
 	printk(KERN_INFO DRIVER_NAME
-		": New device %s@ %s Mbps (%04x:%04x, interface %d, class %d)\n",
-		descr,
+		": New device %s %s @ %s Mbps "
+		"(%04x:%04x, interface %d, class %d)\n",
+		udev->manufacturer ? udev->manufacturer : "",
+		udev->product ? udev->product : "",
 		speed,
 		le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct),
