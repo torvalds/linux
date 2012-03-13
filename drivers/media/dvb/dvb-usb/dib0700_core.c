@@ -679,6 +679,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	deb_info("%s()\n", __func__);
 	if (d->rc_dev == NULL) {
 		/* This will occur if disable_rc_polling=1 */
+		kfree(purb->transfer_buffer);
 		usb_free_urb(purb);
 		return;
 	}
@@ -687,6 +688,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 
 	if (purb->status < 0) {
 		deb_info("discontinuing polling\n");
+		kfree(purb->transfer_buffer);
 		usb_free_urb(purb);
 		return;
 	}
@@ -781,8 +783,11 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 			  dib0700_rc_urb_completion, d);
 
 	ret = usb_submit_urb(purb, GFP_ATOMIC);
-	if (ret)
+	if (ret) {
 		err("rc submit urb failed\n");
+		kfree(purb->transfer_buffer);
+		usb_free_urb(purb);
+	}
 
 	return ret;
 }
