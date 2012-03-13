@@ -172,7 +172,6 @@ enum pl08x_dma_chan_state {
  * @runtime_addr: address for RX/TX according to the runtime config
  * @runtime_direction: current direction of this channel according to
  * runtime config
- * @lc: last completed transaction on this channel
  * @pend_list: queued transactions pending on this channel
  * @at: active transaction on this channel
  * @lock: a lock for this channel data
@@ -197,7 +196,6 @@ struct pl08x_dma_chan {
 	u32 src_cctl;
 	u32 dst_cctl;
 	enum dma_transfer_direction runtime_direction;
-	dma_cookie_t lc;
 	struct list_head pend_list;
 	struct pl08x_txd *at;
 	spinlock_t lock;

@@ -43,6 +43,8 @@
 #include <mach/dma.h>
 #include <mach/hardware.h>
 
+#include "dmaengine.h"
+
 /* SDMA registers */
 #define SDMA_H_C0PTR		0x000
 #define SDMA_H_INTR		0x004
@@ -267,7 +269,6 @@ struct sdma_channel {
 	struct dma_chan			chan;
 	spinlock_t			lock;
 	struct dma_async_tx_descriptor	desc;
-	dma_cookie_t			last_completed;
 	enum dma_status			status;
 	unsigned int			chn_count;
 	unsigned int			chn_real_count;
@@ -529,7 +530,7 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *sdmac)
 	else
 		sdmac->status = DMA_SUCCESS;
 
-	sdmac->last_completed = sdmac->desc.cookie;
+	dma_cookie_complete(&sdmac->desc);
 	if (sdmac->desc.callback)
 		sdmac->desc.callback(sdmac->desc.callback_param);
 }
@@ -814,19 +815,6 @@ out:
 	return ret;
 }
 
-static dma_cookie_t sdma_assign_cookie(struct sdma_channel *sdmac)
-{
-	dma_cookie_t cookie = sdmac->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	sdmac->chan.cookie = cookie;
-	sdmac->desc.cookie = cookie;
-
-	return cookie;
-}
-
 static struct sdma_channel *to_sdma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct sdma_channel, chan);
@@ -840,7 +828,7 @@ static dma_cookie_t sdma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_irqsave(&sdmac->lock, flags);
 
-	cookie = sdma_assign_cookie(sdmac);
+	cookie = dma_cookie_assign(tx);
 
 	spin_unlock_irqrestore(&sdmac->lock, flags);
 
@@ -1127,7 +1115,7 @@ static enum dma_status sdma_tx_status(struct dma_chan *chan,
 
 	last_used = chan->cookie;
 
-	dma_set_tx_state(txstate, sdmac->last_completed, last_used,
+	dma_set_tx_state(txstate, chan->completed_cookie, last_used,
 			sdmac->chn_count - sdmac->chn_real_count);
 
 	return sdmac->status;
@@ -1368,6 +1356,7 @@ static int __init sdma_probe(struct platform_device *pdev)
 		spin_lock_init(&sdmac->lock);
 
 		sdmac->chan.device = &sdma->dma_device;
+		dma_cookie_init(&sdmac->chan);
 		sdmac->channel = i;
 
 		/*

@@ -90,7 +90,6 @@ struct ioat_chan_common {
 	void __iomem *reg_base;
 	unsigned long last_completion;
 	spinlock_t cleanup_lock;
-	dma_cookie_t completed_cookie;
 	unsigned long state;
 	#define IOAT_COMPLETION_PENDING 0
 	#define IOAT_COMPLETION_ACK 1
@@ -141,28 +140,6 @@ static inline struct ioat_dma_chan *to_ioat_chan(struct dma_chan *c)
 	struct ioat_chan_common *chan = to_chan_common(c);
 
 	return container_of(chan, struct ioat_dma_chan, base);
-}
-
-/**
- * ioat_tx_status - poll the status of an ioat transaction
- * @c: channel handle
- * @cookie: transaction identifier
- * @txstate: if set, updated with the transaction state
- */
-static inline enum dma_status
-ioat_tx_status(struct dma_chan *c, dma_cookie_t cookie,
-		 struct dma_tx_state *txstate)
-{
-	struct ioat_chan_common *chan = to_chan_common(c);
-	dma_cookie_t last_used;
-	dma_cookie_t last_complete;
-
-	last_used = c->cookie;
-	last_complete = chan->completed_cookie;
-
-	dma_set_tx_state(txstate, last_complete, last_used, 0);
-
-	return dma_async_is_complete(cookie, last_complete, last_used);
 }
 
 /* wrapper around hardware descriptor format + additional software fields */

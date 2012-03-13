@@ -28,6 +28,8 @@
 
 #include <mach/dma.h>
 
+#include "dmaengine.h"
+
 /* M2P registers */
 #define M2P_CONTROL			0x0000
 #define M2P_CONTROL_STALLINT		BIT(0)
@@ -122,7 +124,6 @@ struct ep93xx_dma_desc {
  * @lock: lock protecting the fields following
  * @flags: flags for the channel
  * @buffer: which buffer to use next (0/1)
- * @last_completed: last completed cookie value
  * @active: flattened chain of descriptors currently being processed
  * @queue: pending descriptors which are handled next
  * @free_list: list of free descriptors which can be used
@@ -157,7 +158,6 @@ struct ep93xx_dma_chan {
 #define EP93XX_DMA_IS_CYCLIC		0
 
 	int				buffer;
-	dma_cookie_t			last_completed;
 	struct list_head		active;
 	struct list_head		queue;
 	struct list_head		free_list;
@@ -703,7 +703,7 @@ static void ep93xx_dma_tasklet(unsigned long data)
 	desc = ep93xx_dma_get_active(edmac);
 	if (desc) {
 		if (desc->complete) {
-			edmac->last_completed = desc->txd.cookie;
+			dma_cookie_complete(&desc->txd);
 			list_splice_init(&edmac->active, &list);
 		}
 		callback = desc->txd.callback;
@@ -783,16 +783,9 @@ static dma_cookie_t ep93xx_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&edmac->lock, flags);
-
-	cookie = edmac->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
+	cookie = dma_cookie_assign(tx);
 
 	desc = container_of(tx, struct ep93xx_dma_desc, txd);
-
-	edmac->chan.cookie = cookie;
-	desc->txd.cookie = cookie;
 
 	/*
 	 * If nothing is currently prosessed, we push this descriptor
@@ -861,8 +854,7 @@ static int ep93xx_dma_alloc_chan_resources(struct dma_chan *chan)
 		goto fail_clk_disable;
 
 	spin_lock_irq(&edmac->lock);
-	edmac->last_completed = 1;
-	edmac->chan.cookie = 1;
+	dma_cookie_init(&edmac->chan);
 	ret = edmac->edma->hw_setup(edmac);
 	spin_unlock_irq(&edmac->lock);
 
@@ -1248,17 +1240,12 @@ static enum dma_status ep93xx_dma_tx_status(struct dma_chan *chan,
 					    struct dma_tx_state *state)
 {
 	struct ep93xx_dma_chan *edmac = to_ep93xx_dma_chan(chan);
-	dma_cookie_t last_used, last_completed;
 	enum dma_status ret;
 	unsigned long flags;
 
 	spin_lock_irqsave(&edmac->lock, flags);
-	last_used = chan->cookie;
-	last_completed = edmac->last_completed;
+	ret = dma_cookie_status(chan, cookie, state);
 	spin_unlock_irqrestore(&edmac->lock, flags);
-
-	ret = dma_async_is_complete(cookie, last_completed, last_used);
-	dma_set_tx_state(state, last_completed, last_used, 0);
 
 	return ret;
 }

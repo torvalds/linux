@@ -32,6 +32,7 @@
 #include <mach/dma-v1.h>
 #include <mach/hardware.h>
 
+#include "dmaengine.h"
 #define IMXDMA_MAX_CHAN_DESCRIPTORS	16
 
 enum  imxdma_prep_type {
@@ -77,7 +78,8 @@ struct imxdma_channel {
 	u32				watermark_level;
 	struct dma_chan			chan;
 	spinlock_t			lock;
-	dma_cookie_t			last_completed;
+	struct dma_async_tx_descriptor	desc;
+	enum dma_status			status;
 	int				dma_request;
 	struct scatterlist		*sg_list;
 };
@@ -192,7 +194,7 @@ static void imxdma_tasklet(unsigned long data)
 	if (desc->desc.callback)
 		desc->desc.callback(desc->desc.callback_param);
 
-	imxdmac->last_completed = desc->desc.cookie;
+	dma_cookie_complete(&desc->desc);
 
 	/* If we are dealing with a cyclic descriptor keep it on ld_active */
 	if (imxdma_chan_is_doing_cyclic(imxdmac))
@@ -276,31 +278,7 @@ static enum dma_status imxdma_tx_status(struct dma_chan *chan,
 					    dma_cookie_t cookie,
 					    struct dma_tx_state *txstate)
 {
-	struct imxdma_channel *imxdmac = to_imxdma_chan(chan);
-	dma_cookie_t last_used;
-	enum dma_status ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&imxdmac->lock, flags);
-	last_used = chan->cookie;
-
-	ret = dma_async_is_complete(cookie, imxdmac->last_completed, last_used);
-	dma_set_tx_state(txstate, imxdmac->last_completed, last_used, 0);
-	spin_unlock_irqrestore(&imxdmac->lock, flags);
-
-	return ret;
-}
-
-static dma_cookie_t imxdma_assign_cookie(struct imxdma_channel *imxdma)
-{
-	dma_cookie_t cookie = imxdma->chan.cookie;
-
-	if (++cookie < 0)
-		cookie = 1;
-
-	imxdma->chan.cookie = cookie;
-
-	return cookie;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static dma_cookie_t imxdma_tx_submit(struct dma_async_tx_descriptor *tx)
@@ -310,11 +288,7 @@ static dma_cookie_t imxdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&imxdmac->lock, flags);
-
-	list_move_tail(imxdmac->ld_free.next, &imxdmac->ld_queue);
-	cookie = imxdma_assign_cookie(imxdmac);
-	tx->cookie = cookie;
-
+	cookie = dma_cookie_assign(tx);
 	spin_unlock_irqrestore(&imxdmac->lock, flags);
 
 	return cookie;
@@ -583,6 +557,7 @@ static int __init imxdma_probe(struct platform_device *pdev)
 		tasklet_init(&imxdmac->dma_tasklet, imxdma_tasklet,
 			     (unsigned long)imxdmac);
 		imxdmac->chan.device = &imxdma->dma_device;
+		dma_cookie_init(&imxdmac->chan);
 		imxdmac->channel = i;
 
 		/* Add the channel to the DMAC list */
