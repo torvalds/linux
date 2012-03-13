@@ -1318,7 +1318,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	bss_info_changed |= BSS_CHANGED_ASSOC;
 	/* set timing information */
 	bss_conf->beacon_int = cbss->beacon_interval;
-	bss_conf->timestamp = cbss->tsf;
+	bss_conf->last_tsf = cbss->tsf;
 
 	bss_info_changed |= BSS_CHANGED_BEACON_INT;
 	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
