@@ -78,7 +78,8 @@
 				 | CF_PAGE_READABLE \
 				 | CF_PAGE_WRITABLE \
 				 | CF_PAGE_EXEC \
-				 | CF_PAGE_SYSTEM)
+				 | CF_PAGE_SYSTEM \
+				 | CF_PAGE_SHARED)
 
 #define PAGE_COPY	__pgprot(CF_PAGE_VALID \
 				 | CF_PAGE_ACCESSED \

@@ -46,8 +46,8 @@
 
 static struct net_device *clip_devs;
 static struct atm_vcc *atmarpd;
-static struct neigh_table clip_tbl;
 static struct timer_list idle_timer;
+static const struct neigh_ops clip_neigh_ops;
 
 static int to_atmarpd(enum atmarp_ctrl_type type, int itf, __be32 ip)
 {
@@ -123,6 +123,8 @@ static int neigh_check_cb(struct neighbour *n)
 	struct atmarp_entry *entry = neighbour_priv(n);
 	struct clip_vcc *cv;
 
+	if (n->ops != &clip_neigh_ops)
+		return 0;
 	for (cv = entry->vccs; cv; cv = cv->next) {
 		unsigned long exp = cv->last_use + cv->idle_timeout;
 
@@ -154,10 +156,10 @@ static int neigh_check_cb(struct neighbour *n)
 
 static void idle_timer_check(unsigned long dummy)
 {
-	write_lock(&clip_tbl.lock);
-	__neigh_for_each_release(&clip_tbl, neigh_check_cb);
+	write_lock(&arp_tbl.lock);
+	__neigh_for_each_release(&arp_tbl, neigh_check_cb);
 	mod_timer(&idle_timer, jiffies + CLIP_CHECK_INTERVAL * HZ);
-	write_unlock(&clip_tbl.lock);
+	write_unlock(&arp_tbl.lock);
 }
 
 static int clip_arp_rcv(struct sk_buff *skb)

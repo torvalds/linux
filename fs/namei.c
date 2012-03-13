@@ -1095,8 +1095,10 @@ static struct dentry *d_inode_lookup(struct dentry *parent, struct dentry *dentr
 	struct dentry *old;
 
 	/* Don't create child dentry for a dead directory. */
-	if (unlikely(IS_DEADDIR(inode)))
+	if (unlikely(IS_DEADDIR(inode))) {
+		dput(dentry);
 		return ERR_PTR(-ENOENT);
+	}
 
 	old = inode->i_op->lookup(inode, dentry, nd);
 	if (unlikely(old)) {
@@ -1372,6 +1374,34 @@ static inline int can_lookup(struct inode *inode)
 	return 1;
 }
 
+unsigned int full_name_hash(const unsigned char *name, unsigned int len)
+{
+	unsigned long hash = init_name_hash();
+	while (len--)
+		hash = partial_name_hash(*name++, hash);
+	return end_name_hash(hash);
+}
+EXPORT_SYMBOL(full_name_hash);
+
+/*
+ * We know there's a real path component here of at least
+ * one character.
+ */
+static inline unsigned long hash_name(const char *name, unsigned int *hashp)
+{
+	unsigned long hash = init_name_hash();
+	unsigned long len = 0, c;
+
+	c = (unsigned char)*name;
+	do {
+		len++;
+		hash = partial_name_hash(c, hash);
+		c = (unsigned char)name[len];
+	} while (c && c != '/');
+	*hashp = end_name_hash(hash);
+	return len;
+}
+
 /*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
@@ -1392,31 +1422,22 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
-		unsigned long hash;
 		struct qstr this;
-		unsigned int c;
+		long len;
 		int type;
 
 		err = may_lookup(nd);
  		if (err)
 			break;
 
+		len = hash_name(name, &this.hash);
 		this.name = name;
-		c = *(const unsigned char *)name;
-
-		hash = init_name_hash();
-		do {
-			name++;
-			hash = partial_name_hash(c, hash);
-			c = *(const unsigned char *)name;
-		} while (c && (c != '/'));
-		this.len = name - (const char *) this.name;
-		this.hash = end_name_hash(hash);
+		this.len = len;
 
 		type = LAST_NORM;
-		if (this.name[0] == '.') switch (this.len) {
+		if (name[0] == '.') switch (len) {
 			case 2:
-				if (this.name[1] == '.') {
+				if (name[1] == '.') {
 					type = LAST_DOTDOT;
 					nd->flags |= LOOKUP_JUMPED;
 				}
@@ -1435,12 +1456,18 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			}
 		}
 
-		/* remove trailing slashes? */
-		if (!c)
+		if (!name[len])
 			goto last_component;
-		while (*++name == '/');
-		if (!*name)
+		/*
+		 * If it wasn't NUL, we know it was '/'. Skip that
+		 * slash, and continue until no more slashes.
+		 */
+		do {
+			len++;
+		} while (unlikely(name[len] == '/'));
+		if (!name[len])
 			goto last_component;
+		name += len;
 
 		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
 		if (err < 0)
@@ -1773,24 +1800,21 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	struct qstr this;
-	unsigned long hash;
 	unsigned int c;
 
 	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
 
 	this.name = name;
 	this.len = len;
+	this.hash = full_name_hash(name, len);
 	if (!len)
 		return ERR_PTR(-EACCES);
 
-	hash = init_name_hash();
 	while (len--) {
 		c = *(const unsigned char *)name++;
 		if (c == '/' || c == '\0')
 			return ERR_PTR(-EACCES);
-		hash = partial_name_hash(c, hash);
 	}
-	this.hash = end_name_hash(hash);
 	/*
 	 * See if the low-level filesystem might want
 	 * to use its own hash..

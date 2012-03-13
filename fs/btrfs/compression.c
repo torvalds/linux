@@ -588,6 +588,8 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 				   page_offset(bio->bi_io_vec->bv_page),
 				   PAGE_CACHE_SIZE);
 	read_unlock(&em_tree->lock);
+	if (!em)
+		return -EIO;
 
 	compressed_len = em->block_len;
 	cb = kmalloc(compressed_bio_size(root, compressed_len), GFP_NOFS);
