@@ -89,11 +89,13 @@ struct tps_info {
 	unsigned max_uV;
 	u8 n_voltages;
 	const u16 *voltage_table;
+	int enable_time_us;
 };
 
 static struct tps_info tps65910_regs[] = {
 	{
 		.name = "VRTC",
+		.enable_time_us = 2200,
 	},
 	{
 		.name = "VIO",
@@ -101,16 +103,19 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 3300000,
 		.n_voltages = ARRAY_SIZE(VIO_VSEL_table),
 		.voltage_table = VIO_VSEL_table,
+		.enable_time_us = 350,
 	},
 	{
 		.name = "VDD1",
 		.min_uV = 600000,
 		.max_uV = 4500000,
+		.enable_time_us = 350,
 	},
 	{
 		.name = "VDD2",
 		.min_uV = 600000,
 		.max_uV = 4500000,
+		.enable_time_us = 350,
 	},
 	{
 		.name = "VDD3",
@@ -118,6 +123,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 5000000,
 		.n_voltages = ARRAY_SIZE(VDD3_VSEL_table),
 		.voltage_table = VDD3_VSEL_table,
+		.enable_time_us = 200,
 	},
 	{
 		.name = "VDIG1",
@@ -125,6 +131,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 2700000,
 		.n_voltages = ARRAY_SIZE(VDIG1_VSEL_table),
 		.voltage_table = VDIG1_VSEL_table,
+		.enable_time_us = 100,
 	},
 	{
 		.name = "VDIG2",
@@ -132,6 +139,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 1800000,
 		.n_voltages = ARRAY_SIZE(VDIG2_VSEL_table),
 		.voltage_table = VDIG2_VSEL_table,
+		.enable_time_us = 100,
 	},
 	{
 		.name = "VPLL",
@@ -139,6 +147,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 2500000,
 		.n_voltages = ARRAY_SIZE(VPLL_VSEL_table),
 		.voltage_table = VPLL_VSEL_table,
+		.enable_time_us = 100,
 	},
 	{
 		.name = "VDAC",
@@ -146,6 +155,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 2850000,
 		.n_voltages = ARRAY_SIZE(VDAC_VSEL_table),
 		.voltage_table = VDAC_VSEL_table,
+		.enable_time_us = 100,
 	},
 	{
 		.name = "VAUX1",
@@ -153,6 +163,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 2850000,
 		.n_voltages = ARRAY_SIZE(VAUX1_VSEL_table),
 		.voltage_table = VAUX1_VSEL_table,
+		.enable_time_us = 100,
 	},
 	{
 		.name = "VAUX2",
@@ -160,6 +171,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 3300000,
 		.n_voltages = ARRAY_SIZE(VAUX2_VSEL_table),
 		.voltage_table = VAUX2_VSEL_table,
+		.enable_time_us = 100,
 	},
 	{
 		.name = "VAUX33",
@@ -167,6 +179,7 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 3300000,
 		.n_voltages = ARRAY_SIZE(VAUX33_VSEL_table),
 		.voltage_table = VAUX33_VSEL_table,
+		.enable_time_us = 100,
 	},
 	{
 		.name = "VMMC",
@@ -174,12 +187,14 @@ static struct tps_info tps65910_regs[] = {
 		.max_uV = 3300000,
 		.n_voltages = ARRAY_SIZE(VMMC_VSEL_table),
 		.voltage_table = VMMC_VSEL_table,
+		.enable_time_us = 100,
 	},
 };
 
 static struct tps_info tps65911_regs[] = {
 	{
 		.name = "VRTC",
+		.enable_time_us = 2200,
 	},
 	{
 		.name = "VIO",
@@ -187,72 +202,84 @@ static struct tps_info tps65911_regs[] = {
 		.max_uV = 3300000,
 		.n_voltages = ARRAY_SIZE(VIO_VSEL_table),
 		.voltage_table = VIO_VSEL_table,
+		.enable_time_us = 350,
 	},
 	{
 		.name = "VDD1",
 		.min_uV = 600000,
 		.max_uV = 4500000,
 		.n_voltages = 73,
+		.enable_time_us = 350,
 	},
 	{
 		.name = "VDD2",
 		.min_uV = 600000,
 		.max_uV = 4500000,
 		.n_voltages = 73,
+		.enable_time_us = 350,
 	},
 	{
 		.name = "VDDCTRL",
 		.min_uV = 600000,
 		.max_uV = 1400000,
 		.n_voltages = 65,
+		.enable_time_us = 900,
 	},
 	{
 		.name = "LDO1",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 47,
+		.enable_time_us = 420,
 	},
 	{
 		.name = "LDO2",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 47,
+		.enable_time_us = 420,
 	},
 	{
 		.name = "LDO3",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 24,
+		.enable_time_us = 230,
 	},
 	{
 		.name = "LDO4",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 47,
+		.enable_time_us = 230,
 	},
 	{
 		.name = "LDO5",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 24,
+		.enable_time_us = 230,
 	},
 	{
 		.name = "LDO6",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 24,
+		.enable_time_us = 230,
 	},
 	{
 		.name = "LDO7",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 24,
+		.enable_time_us = 230,
 	},
 	{
 		.name = "LDO8",
 		.min_uV = 1000000,
 		.max_uV = 3300000,
 		.n_voltages = 24,
+		.enable_time_us = 230,
 	},
 };
 
@@ -482,6 +509,12 @@ static int tps65910_disable(struct regulator_dev *dev)
 	return tps65910_clear_bits(mfd, reg, TPS65910_SUPPLY_STATE_ENABLED);
 }
 
+static int tps65910_enable_time(struct regulator_dev *dev)
+{
+	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
+	int id = rdev_get_id(dev);
+	return pmic->info[id]->enable_time_us;
+}
 
 static int tps65910_set_mode(struct regulator_dev *dev, unsigned int mode)
 {
@@ -866,6 +899,7 @@ static struct regulator_ops tps65910_ops_dcdc = {
 	.is_enabled		= tps65910_is_enabled,
 	.enable			= tps65910_enable,
 	.disable		= tps65910_disable,
+	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage_dcdc,
@@ -877,6 +911,7 @@ static struct regulator_ops tps65910_ops_vdd3 = {
 	.is_enabled		= tps65910_is_enabled,
 	.enable			= tps65910_enable,
 	.disable		= tps65910_disable,
+	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage_vdd3,
@@ -887,6 +922,7 @@ static struct regulator_ops tps65910_ops = {
 	.is_enabled		= tps65910_is_enabled,
 	.enable			= tps65910_enable,
 	.disable		= tps65910_disable,
+	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65910_get_voltage,
@@ -898,6 +934,7 @@ static struct regulator_ops tps65911_ops = {
 	.is_enabled		= tps65910_is_enabled,
 	.enable			= tps65910_enable,
 	.disable		= tps65910_disable,
+	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
 	.get_voltage		= tps65911_get_voltage,
