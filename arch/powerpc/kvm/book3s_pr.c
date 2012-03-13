@@ -777,6 +777,7 @@ program_interrupt:
 	}
 	}
 
+	preempt_disable();
 	if (!(r & RESUME_HOST)) {
 		/* To avoid clobbering exit_reason, only check for signals if
 		 * we aren't already exiting to userspace for some other
@@ -798,8 +799,6 @@ program_interrupt:
 			run->exit_reason = KVM_EXIT_INTR;
 			r = -EINTR;
 		} else {
-			preempt_disable();
-
 			/* In case an interrupt came in that was triggered
 			 * from userspace (like DEC), we need to check what
 			 * to inject now! */
