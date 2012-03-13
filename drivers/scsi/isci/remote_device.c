@@ -243,8 +243,11 @@ enum sci_status isci_remote_device_terminate_requests(
 					 idev->rnc.destination_state,
 					 ireq, ireq->flags);
 			}
+			spin_lock_irqsave(&ihost->scic_lock, flags);
 			clear_bit(IREQ_NO_AUTO_FREE_TAG, &ireq->flags);
-			isci_free_tag(ihost, ireq->io_tag);
+			if (!test_bit(IREQ_ABORT_PATH_ACTIVE, &ireq->flags))
+				isci_free_tag(ihost, ireq->io_tag);
+			spin_unlock_irqrestore(&ihost->scic_lock, flags);
 		} else {
 			/* Terminate all TCs. */
 			sci_remote_device_terminate_requests(idev);
