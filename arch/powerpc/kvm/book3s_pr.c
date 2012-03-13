@@ -618,10 +618,13 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		break;
 	/* We're good on these - the host merely wanted to get our attention */
 	case BOOK3S_INTERRUPT_DECREMENTER:
+	case BOOK3S_INTERRUPT_HV_DECREMENTER:
 		vcpu->stat.dec_exits++;
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_EXTERNAL:
+	case BOOK3S_INTERRUPT_EXTERNAL_LEVEL:
+	case BOOK3S_INTERRUPT_EXTERNAL_HV:
 		vcpu->stat.ext_intr_exits++;
 		r = RESUME_GUEST;
 		break;
@@ -629,6 +632,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		r = RESUME_GUEST;
 		break;
 	case BOOK3S_INTERRUPT_PROGRAM:
+	case BOOK3S_INTERRUPT_H_EMUL_ASSIST:
 	{
 		enum emulation_result er;
 		struct kvmppc_book3s_shadow_vcpu *svcpu;
