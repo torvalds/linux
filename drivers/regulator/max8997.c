@@ -320,6 +320,7 @@ static int max8997_reg_disable(struct regulator_dev *rdev)
 static int max8997_get_voltage_register(struct regulator_dev *rdev,
 		int *_reg, int *_shift, int *_mask)
 {
+	struct max8997_data *max8997 = rdev_get_drvdata(rdev);
 	int rid = rdev_get_id(rdev);
 	int reg, shift = 0, mask = 0x3f;
 
@@ -329,9 +330,13 @@ static int max8997_get_voltage_register(struct regulator_dev *rdev,
 		break;
 	case MAX8997_BUCK1:
 		reg = MAX8997_REG_BUCK1DVS1;
+		if (max8997->buck1_gpiodvs)
+			reg += max8997->buck125_gpioindex;
 		break;
 	case MAX8997_BUCK2:
 		reg = MAX8997_REG_BUCK2DVS1;
+		if (max8997->buck2_gpiodvs)
+			reg += max8997->buck125_gpioindex;
 		break;
 	case MAX8997_BUCK3:
 		reg = MAX8997_REG_BUCK3DVS;
@@ -341,6 +346,8 @@ static int max8997_get_voltage_register(struct regulator_dev *rdev,
 		break;
 	case MAX8997_BUCK5:
 		reg = MAX8997_REG_BUCK5DVS1;
+		if (max8997->buck5_gpiodvs)
+			reg += max8997->buck125_gpioindex;
 		break;
 	case MAX8997_BUCK7:
 		reg = MAX8997_REG_BUCK7DVS;
@@ -381,17 +388,11 @@ static int max8997_get_voltage(struct regulator_dev *rdev)
 	struct max8997_data *max8997 = rdev_get_drvdata(rdev);
 	struct i2c_client *i2c = max8997->iodev->i2c;
 	int reg, shift, mask, ret;
-	int rid = rdev_get_id(rdev);
 	u8 val;
 
 	ret = max8997_get_voltage_register(rdev, &reg, &shift, &mask);
 	if (ret)
 		return ret;
-
-	if ((rid == MAX8997_BUCK1 && max8997->buck1_gpiodvs) ||
-			(rid == MAX8997_BUCK2 && max8997->buck2_gpiodvs) ||
-			(rid == MAX8997_BUCK5 && max8997->buck5_gpiodvs))
-		reg += max8997->buck125_gpioindex;
 
 	ret = max8997_read_reg(i2c, reg, &val);
 	if (ret)
