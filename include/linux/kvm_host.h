@@ -524,12 +524,14 @@ static inline void kvm_arch_free_vm(struct kvm *kvm)
 }
 #endif
 
-#ifndef __KVM_HAVE_ARCH_VCPU_GET_WQ
 static inline wait_queue_head_t *kvm_arch_vcpu_wq(struct kvm_vcpu *vcpu)
 {
+#ifdef __KVM_HAVE_ARCH_WQP
+	return vcpu->arch.wqp;
+#else
 	return &vcpu->wq;
-}
 #endif
+}
 
 int kvm_arch_init_vm(struct kvm *kvm, unsigned long type);
 void kvm_arch_destroy_vm(struct kvm *kvm);
