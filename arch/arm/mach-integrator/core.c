@@ -28,7 +28,6 @@
 #include <mach/cm.h>
 #include <mach/irqs.h>
 
-#include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/mach/time.h>
 #include <asm/pgtable.h>
