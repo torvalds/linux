@@ -420,38 +420,34 @@ static int mwifiex_ret_tx_power_cfg(struct mwifiex_private *priv,
 
 	switch (action) {
 	case HostCmd_ACT_GEN_GET:
-		{
-			pg_tlv_hdr =
-				(struct mwifiex_types_power_group *) ((u8 *)
-						txp_cfg +
-						sizeof
-						(struct
-						 host_cmd_ds_txpwr_cfg));
-			pg = (struct mwifiex_power_group *) ((u8 *)
-						pg_tlv_hdr +
-						sizeof(struct
-						mwifiex_types_power_group));
-			if (adapter->hw_status ==
-			    MWIFIEX_HW_STATUS_INITIALIZING)
-				mwifiex_get_power_level(priv, txp_cfg);
-			priv->tx_power_level = (u16) pg->power_min;
-			break;
-		}
+		pg_tlv_hdr = (struct mwifiex_types_power_group *)
+			((u8 *) txp_cfg +
+			 sizeof(struct host_cmd_ds_txpwr_cfg));
+
+		pg = (struct mwifiex_power_group *)
+			((u8 *) pg_tlv_hdr +
+			 sizeof(struct mwifiex_types_power_group));
+
+		if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
+			mwifiex_get_power_level(priv, txp_cfg);
+
+		priv->tx_power_level = (u16) pg->power_min;
+		break;
+
 	case HostCmd_ACT_GEN_SET:
-		if (le32_to_cpu(txp_cfg->mode)) {
-			pg_tlv_hdr =
-				(struct mwifiex_types_power_group *) ((u8 *)
-						txp_cfg +
-						sizeof
-						(struct
-						 host_cmd_ds_txpwr_cfg));
-			pg = (struct mwifiex_power_group *) ((u8 *) pg_tlv_hdr
-						+
-						sizeof(struct
-						mwifiex_types_power_group));
-			if (pg->power_max == pg->power_min)
-				priv->tx_power_level = (u16) pg->power_min;
-		}
+		if (!le32_to_cpu(txp_cfg->mode))
+			break;
+
+		pg_tlv_hdr = (struct mwifiex_types_power_group *)
+			((u8 *) txp_cfg +
+			 sizeof(struct host_cmd_ds_txpwr_cfg));
+
+		pg = (struct mwifiex_power_group *)
+			((u8 *) pg_tlv_hdr +
+			 sizeof(struct mwifiex_types_power_group));
+
+		if (pg->power_max == pg->power_min)
+			priv->tx_power_level = (u16) pg->power_min;
 		break;
 	default:
 		dev_err(adapter->dev, "CMD_RESP: unknown cmd action %d\n",
@@ -679,90 +675,70 @@ static int mwifiex_ret_reg_access(u16 type, struct host_cmd_ds_command *resp,
 {
 	struct mwifiex_ds_reg_rw *reg_rw;
 	struct mwifiex_ds_read_eeprom *eeprom;
+	union reg {
+		struct host_cmd_ds_mac_reg_access *mac;
+		struct host_cmd_ds_bbp_reg_access *bbp;
+		struct host_cmd_ds_rf_reg_access *rf;
+		struct host_cmd_ds_pmic_reg_access *pmic;
+		struct host_cmd_ds_802_11_eeprom_access *eeprom;
+	} r;
 
-	if (data_buf) {
-		reg_rw = data_buf;
-		eeprom = data_buf;
-		switch (type) {
-		case HostCmd_CMD_MAC_REG_ACCESS:
-			{
-				struct host_cmd_ds_mac_reg_access *reg;
-				reg = (struct host_cmd_ds_mac_reg_access *)
-					&resp->params.mac_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = reg->value;
-				break;
-			}
-		case HostCmd_CMD_BBP_REG_ACCESS:
-			{
-				struct host_cmd_ds_bbp_reg_access *reg;
-				reg = (struct host_cmd_ds_bbp_reg_access *)
-					&resp->params.bbp_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
+	if (!data_buf)
+		return 0;
 
-		case HostCmd_CMD_RF_REG_ACCESS:
-			{
-				struct host_cmd_ds_rf_reg_access *reg;
-				reg = (struct host_cmd_ds_rf_reg_access *)
-					&resp->params.rf_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
-		case HostCmd_CMD_PMIC_REG_ACCESS:
-			{
-				struct host_cmd_ds_pmic_reg_access *reg;
-				reg = (struct host_cmd_ds_pmic_reg_access *)
-					&resp->params.pmic_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
-		case HostCmd_CMD_CAU_REG_ACCESS:
-			{
-				struct host_cmd_ds_rf_reg_access *reg;
-				reg = (struct host_cmd_ds_rf_reg_access *)
-					&resp->params.rf_reg;
-				reg_rw->offset = cpu_to_le32(
-					(u32) le16_to_cpu(reg->offset));
-				reg_rw->value = cpu_to_le32((u32) reg->value);
-				break;
-			}
-		case HostCmd_CMD_802_11_EEPROM_ACCESS:
-			{
-				struct host_cmd_ds_802_11_eeprom_access
-					*cmd_eeprom =
-					(struct host_cmd_ds_802_11_eeprom_access
-					 *) &resp->params.eeprom;
-				pr_debug("info: EEPROM read len=%x\n",
-				       cmd_eeprom->byte_count);
-				if (le16_to_cpu(eeprom->byte_count) <
-						le16_to_cpu(
-						cmd_eeprom->byte_count)) {
-					eeprom->byte_count = cpu_to_le16(0);
-					pr_debug("info: EEPROM read "
-							"length is too big\n");
-					return -1;
-				}
-				eeprom->offset = cmd_eeprom->offset;
-				eeprom->byte_count = cmd_eeprom->byte_count;
-				if (le16_to_cpu(eeprom->byte_count) > 0)
-					memcpy(&eeprom->value,
-					       &cmd_eeprom->value,
-					       le16_to_cpu(eeprom->byte_count));
+	reg_rw = data_buf;
+	eeprom = data_buf;
+	switch (type) {
+	case HostCmd_CMD_MAC_REG_ACCESS:
+		r.mac = (struct host_cmd_ds_mac_reg_access *)
+			&resp->params.mac_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.mac->offset));
+		reg_rw->value = r.mac->value;
+		break;
+	case HostCmd_CMD_BBP_REG_ACCESS:
+		r.bbp = (struct host_cmd_ds_bbp_reg_access *)
+			&resp->params.bbp_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.bbp->offset));
+		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		break;
 
-				break;
-			}
-		default:
+	case HostCmd_CMD_RF_REG_ACCESS:
+		r.rf = (struct host_cmd_ds_rf_reg_access *)
+		       &resp->params.rf_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
+		reg_rw->value = cpu_to_le32((u32) r.bbp->value);
+		break;
+	case HostCmd_CMD_PMIC_REG_ACCESS:
+		r.pmic = (struct host_cmd_ds_pmic_reg_access *)
+			 &resp->params.pmic_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.pmic->offset));
+		reg_rw->value = cpu_to_le32((u32) r.pmic->value);
+		break;
+	case HostCmd_CMD_CAU_REG_ACCESS:
+		r.rf = (struct host_cmd_ds_rf_reg_access *)
+		       &resp->params.rf_reg;
+		reg_rw->offset = cpu_to_le32((u32) le16_to_cpu(r.rf->offset));
+		reg_rw->value = cpu_to_le32((u32) r.rf->value);
+		break;
+	case HostCmd_CMD_802_11_EEPROM_ACCESS:
+		r.eeprom = (struct host_cmd_ds_802_11_eeprom_access *)
+			   &resp->params.eeprom;
+		pr_debug("info: EEPROM read len=%x\n", r.eeprom->byte_count);
+		if (le16_to_cpu(eeprom->byte_count) <
+		    le16_to_cpu(r.eeprom->byte_count)) {
+			eeprom->byte_count = cpu_to_le16(0);
+			pr_debug("info: EEPROM read length is too big\n");
 			return -1;
 		}
+		eeprom->offset = r.eeprom->offset;
+		eeprom->byte_count = r.eeprom->byte_count;
+		if (le16_to_cpu(eeprom->byte_count) > 0)
+			memcpy(&eeprom->value, &r.eeprom->value,
+			       le16_to_cpu(r.eeprom->byte_count));
+
+		break;
+	default:
+		return -1;
 	}
 	return 0;
 }
