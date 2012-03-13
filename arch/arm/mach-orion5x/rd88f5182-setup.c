@@ -19,8 +19,8 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
 #include <linux/i2c.h>
+#include <linux/leds.h>
 #include <asm/mach-types.h>
-#include <asm/leds.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>
@@ -53,12 +53,6 @@
 #define RD88F5182_PCI_SLOT0_IRQ_A_PIN	7
 #define RD88F5182_PCI_SLOT0_IRQ_B_PIN	6
 
-/*
- * GPIO Debug LED
- */
-
-#define RD88F5182_GPIO_DBG_LED		0
-
 /*****************************************************************************
  * 16M NOR Flash on Device bus CS1
  ****************************************************************************/
@@ -83,55 +77,32 @@ static struct platform_device rd88f5182_nor_flash = {
 	.resource		= &rd88f5182_nor_flash_resource,
 };
 
-#ifdef CONFIG_LEDS
-
 /*****************************************************************************
- * Use GPIO debug led as CPU active indication
+ * Use GPIO LED as CPU active indication
  ****************************************************************************/
 
-static void rd88f5182_dbgled_event(led_event_t evt)
-{
-	int val;
+#define RD88F5182_GPIO_LED		0
 
-	if (evt == led_idle_end)
-		val = 1;
-	else if (evt == led_idle_start)
-		val = 0;
-	else
-		return;
+static struct gpio_led rd88f5182_gpio_led_pins[] = {
+	{
+		.name		= "rd88f5182:cpu",
+		.default_trigger = "cpu0",
+		.gpio		= RD88F5182_GPIO_LED,
+	},
+};
 
-	gpio_set_value(RD88F5182_GPIO_DBG_LED, val);
-}
+static struct gpio_led_platform_data rd88f5182_gpio_led_data = {
+	.leds		= rd88f5182_gpio_led_pins,
+	.num_leds	= ARRAY_SIZE(rd88f5182_gpio_led_pins),
+};
 
-static int __init rd88f5182_dbgled_init(void)
-{
-	int pin;
-
-	if (machine_is_rd88f5182()) {
-		pin = RD88F5182_GPIO_DBG_LED;
-
-		if (gpio_request(pin, "DBGLED") == 0) {
-			if (gpio_direction_output(pin, 0) != 0) {
-				printk(KERN_ERR "rd88f5182_dbgled_init failed "
-						"to set output pin %d\n", pin);
-				gpio_free(pin);
-				return 0;
-			}
-		} else {
-			printk(KERN_ERR "rd88f5182_dbgled_init failed "
-					"to request gpio %d\n", pin);
-			return 0;
-		}
-
-		leds_event = rd88f5182_dbgled_event;
-	}
-
-	return 0;
-}
-
-__initcall(rd88f5182_dbgled_init);
-
-#endif
+static struct platform_device rd88f5182_gpio_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data = &rd88f5182_gpio_led_data,
+	},
+};
 
 /*****************************************************************************
  * PCI
@@ -298,6 +269,7 @@ static void __init rd88f5182_init(void)
 
 	orion5x_setup_dev1_win(RD88F5182_NOR_BASE, RD88F5182_NOR_SIZE);
 	platform_device_register(&rd88f5182_nor_flash);
+	platform_device_register(&rd88f5182_gpio_leds);
 
 	i2c_register_board_info(0, &rd88f5182_i2c_rtc, 1);
 }
