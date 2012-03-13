@@ -29,16 +29,6 @@
  * when quotas are off.
  */
 
-/*
- * The hash chain headers (hash buckets)
- */
-typedef struct xfs_dqhash {
-	struct list_head  qh_list;
-	struct mutex	  qh_lock;
-	uint		  qh_version;	/* ever increasing version */
-	uint		  qh_nelems;	/* number of dquots on the list */
-} xfs_dqhash_t;
-
 struct xfs_mount;
 struct xfs_trans;
 
@@ -49,8 +39,6 @@ typedef struct xfs_dquot {
 	uint		 dq_flags;	/* various flags (XFS_DQ_*) */
 	struct list_head q_lru;		/* global free list of dquots */
 	struct list_head q_mplist;	/* mount's list of dquots */
-	struct list_head q_hashlist;	/* gloabl hash list of dquots */
-	xfs_dqhash_t	*q_hash;	/* the hashchain header */
 	struct xfs_mount*q_mount;	/* filesystem this relates to */
 	struct xfs_trans*q_transp;	/* trans this belongs to currently */
 	uint		 q_nrefs;	/* # active refs from inodes */

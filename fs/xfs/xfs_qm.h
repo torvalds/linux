@@ -31,12 +31,6 @@ extern kmem_zone_t	*qm_dqzone;
 extern kmem_zone_t	*qm_dqtrxzone;
 
 /*
- * Dquot hashtable constants/threshold values.
- */
-#define XFS_QM_HASHSIZE_LOW		(PAGE_SIZE / sizeof(xfs_dqhash_t))
-#define XFS_QM_HASHSIZE_HIGH		((PAGE_SIZE * 4) / sizeof(xfs_dqhash_t))
-
-/*
  * This defines the unit of allocation of dquots.
  * Currently, it is just one file system block, and a 4K blk contains 30
  * (136 * 30 = 4080) dquots. It's probably not worth trying to make
@@ -47,15 +41,10 @@ extern kmem_zone_t	*qm_dqtrxzone;
  */
 #define XFS_DQUOT_CLUSTER_SIZE_FSB	(xfs_filblks_t)1
 
-typedef xfs_dqhash_t	xfs_dqlist_t;
-
 /*
  * Quota Manager (global) structure. Lives only in core.
  */
 typedef struct xfs_qm {
-	xfs_dqlist_t	*qm_usr_dqhtable;/* udquot hash table */
-	xfs_dqlist_t	*qm_grp_dqhtable;/* gdquot hash table */
-	uint		 qm_dqhashmask;	 /* # buckets in dq hashtab - 1 */
 	uint		 qm_nrefs;	 /* file systems with quota on */
 	kmem_zone_t	*qm_dqzone;	 /* dquot mem-alloc zone */
 	kmem_zone_t	*qm_dqtrxzone;	 /* t_dqinfo of transactions */
@@ -66,6 +55,9 @@ typedef struct xfs_qm {
  * The mount structure keeps a pointer to this.
  */
 typedef struct xfs_quotainfo {
+	struct radix_tree_root qi_uquota_tree;
+	struct radix_tree_root qi_gquota_tree;
+	struct mutex qi_tree_lock;
 	xfs_inode_t	*qi_uquotaip;	 /* user quota inode */
 	xfs_inode_t	*qi_gquotaip;	 /* group quota inode */
 	struct list_head qi_lru_list;
@@ -93,6 +85,11 @@ typedef struct xfs_quotainfo {
 	xfs_qcnt_t	 qi_rtbsoftlimit;/* default realtime blk soft limit */
 	struct shrinker  qi_shrinker;
 } xfs_quotainfo_t;
+
+#define XFS_DQUOT_TREE(qi, type) \
+	((type & XFS_DQ_USER) ? \
+	 &((qi)->qi_uquota_tree) : \
+	 &((qi)->qi_gquota_tree))
 
 
 extern void	xfs_trans_mod_dquot(xfs_trans_t *, xfs_dquot_t *, uint, long);

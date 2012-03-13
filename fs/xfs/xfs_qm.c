@@ -54,9 +54,6 @@ struct xfs_qm	*xfs_Gqm;
 kmem_zone_t	*qm_dqzone;
 kmem_zone_t	*qm_dqtrxzone;
 
-STATIC void	xfs_qm_list_init(xfs_dqlist_t *, char *, int);
-STATIC void	xfs_qm_list_destroy(xfs_dqlist_t *);
-
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
 STATIC int	xfs_qm_shake(struct shrinker *, struct shrink_control *);
@@ -68,37 +65,9 @@ STATIC int	xfs_qm_shake(struct shrinker *, struct shrink_control *);
 STATIC struct xfs_qm *
 xfs_Gqm_init(void)
 {
-	xfs_dqhash_t	*udqhash, *gdqhash;
 	xfs_qm_t	*xqm;
-	size_t		hsize;
-	uint		i;
-
-	/*
-	 * Initialize the dquot hash tables.
-	 */
-	udqhash = kmem_zalloc_greedy(&hsize,
-				     XFS_QM_HASHSIZE_LOW * sizeof(xfs_dqhash_t),
-				     XFS_QM_HASHSIZE_HIGH * sizeof(xfs_dqhash_t));
-	if (!udqhash)
-		goto out;
-
-	gdqhash = kmem_zalloc_large(hsize);
-	if (!gdqhash)
-		goto out_free_udqhash;
-
-	hsize /= sizeof(xfs_dqhash_t);
 
 	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);
-	xqm->qm_dqhashmask = hsize - 1;
-	xqm->qm_usr_dqhtable = udqhash;
-	xqm->qm_grp_dqhtable = gdqhash;
-	ASSERT(xqm->qm_usr_dqhtable != NULL);
-	ASSERT(xqm->qm_grp_dqhtable != NULL);
-
-	for (i = 0; i < hsize; i++) {
-		xfs_qm_list_init(&(xqm->qm_usr_dqhtable[i]), "uxdqh", i);
-		xfs_qm_list_init(&(xqm->qm_grp_dqhtable[i]), "gxdqh", i);
-	}
 
 	/*
 	 * dquot zone. we register our own low-memory callback.
@@ -122,11 +91,6 @@ xfs_Gqm_init(void)
 
 	xqm->qm_nrefs = 0;
 	return xqm;
-
- out_free_udqhash:
-	kmem_free_large(udqhash);
- out:
-	return NULL;
 }
 
 /*
@@ -136,21 +100,8 @@ STATIC void
 xfs_qm_destroy(
 	struct xfs_qm	*xqm)
 {
-	int		hsize, i;
-
 	ASSERT(xqm != NULL);
 	ASSERT(xqm->qm_nrefs == 0);
-
-	hsize = xqm->qm_dqhashmask + 1;
-	for (i = 0; i < hsize; i++) {
-		xfs_qm_list_destroy(&(xqm->qm_usr_dqhtable[i]));
-		xfs_qm_list_destroy(&(xqm->qm_grp_dqhtable[i]));
-	}
-	kmem_free_large(xqm->qm_usr_dqhtable);
-	kmem_free_large(xqm->qm_grp_dqhtable);
-	xqm->qm_usr_dqhtable = NULL;
-	xqm->qm_grp_dqhtable = NULL;
-	xqm->qm_dqhashmask = 0;
 
 	kmem_free(xqm);
 }
@@ -762,14 +713,6 @@ xfs_qm_dqdetach(
 }
 
 /*
- * The hash chains and the mplist use the same xfs_dqhash structure as
- * their list head, but we can take the mplist qh_lock and one of the
- * hash qh_locks at the same time without any problem as they aren't
- * related.
- */
-static struct lock_class_key xfs_quota_mplist_class;
-
-/*
  * This initializes all the quota information that's kept in the
  * mount structure
  */
@@ -802,9 +745,12 @@ xfs_qm_init_quotainfo(
 		return error;
 	}
 
+	INIT_RADIX_TREE(&qinf->qi_uquota_tree, GFP_NOFS);
+	INIT_RADIX_TREE(&qinf->qi_gquota_tree, GFP_NOFS);
+	mutex_init(&qinf->qi_tree_lock);
+
 	INIT_LIST_HEAD(&qinf->qi_dqlist);
 	mutex_init(&qinf->qi_dqlist_lock);
-	lockdep_set_class(&qinf->qi_dqlist_lock, &xfs_quota_mplist_class);
 
 	INIT_LIST_HEAD(&qinf->qi_lru_list);
 	qinf->qi_lru_count = 0;
@@ -922,30 +868,6 @@ xfs_qm_destroy_quotainfo(
 	mutex_destroy(&qi->qi_quotaofflock);
 	kmem_free(qi);
 	mp->m_quotainfo = NULL;
-}
-
-
-
-/* ------------------- PRIVATE STATIC FUNCTIONS ----------------------- */
-
-/* ARGSUSED */
-STATIC void
-xfs_qm_list_init(
-	xfs_dqlist_t	*list,
-	char		*str,
-	int		n)
-{
-	mutex_init(&list->qh_lock);
-	INIT_LIST_HEAD(&list->qh_list);
-	list->qh_version = 0;
-	list->qh_nelems = 0;
-}
-
-STATIC void
-xfs_qm_list_destroy(
-	xfs_dqlist_t	*list)
-{
-	mutex_destroy(&(list->qh_lock));
 }
 
 /*
@@ -1592,10 +1514,10 @@ xfs_qm_dqfree_one(
 	struct xfs_mount	*mp = dqp->q_mount;
 	struct xfs_quotainfo	*qi = mp->m_quotainfo;
 
-	mutex_lock(&dqp->q_hash->qh_lock);
-	list_del_init(&dqp->q_hashlist);
-	dqp->q_hash->qh_version++;
-	mutex_unlock(&dqp->q_hash->qh_lock);
+	mutex_lock(&qi->qi_tree_lock);
+	radix_tree_delete(XFS_DQUOT_TREE(qi, dqp->q_core.d_flags),
+			  be32_to_cpu(dqp->q_core.d_id));
+	mutex_unlock(&qi->qi_tree_lock);
 
 	mutex_lock(&qi->qi_dqlist_lock);
 	list_del_init(&dqp->q_mplist);
@@ -1634,7 +1556,6 @@ xfs_qm_dqreclaim_one(
 		return;
 	}
 
-	ASSERT(dqp->q_hash);
 	ASSERT(!list_empty(&dqp->q_mplist));
 
 	/*
