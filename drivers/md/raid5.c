@@ -5592,6 +5592,7 @@ static int raid5_start_reshape(struct mddev *mddev)
 		spin_lock_irq(&conf->device_lock);
 		mddev->raid_disks = conf->raid_disks = conf->previous_raid_disks;
 		conf->reshape_progress = MaxSector;
+		mddev->reshape_position = MaxSector;
 		spin_unlock_irq(&conf->device_lock);
 		return -EAGAIN;
 	}
