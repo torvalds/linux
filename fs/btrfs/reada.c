@@ -305,7 +305,7 @@ again:
 
 	spin_lock(&fs_info->reada_lock);
 	ret = radix_tree_insert(&dev->reada_zones,
-				(unsigned long)zone->end >> PAGE_CACHE_SHIFT,
+				(unsigned long)(zone->end >> PAGE_CACHE_SHIFT),
 				zone);
 	spin_unlock(&fs_info->reada_lock);
 

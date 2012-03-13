@@ -183,5 +183,5 @@ MACHINE_START(S3C2440, "SMDK2440")
 	.map_io		= smdk2440_map_io,
 	.init_machine	= smdk2440_machine_init,
 	.timer		= &s3c24xx_timer,
-	.restart	= s3c2440_restart,
+	.restart	= s3c244x_restart,
 MACHINE_END
