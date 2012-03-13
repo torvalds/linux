@@ -105,6 +105,11 @@ static void __init highbank_init_irq(void)
 #endif
 }
 
+static struct clk_lookup lookup = {
+	.dev_id = "sp804",
+	.con_id = NULL,
+};
+
 static void __init highbank_timer_init(void)
 {
 	int irq;
@@ -122,6 +127,8 @@ static void __init highbank_timer_init(void)
 	irq = irq_of_parse_and_map(np, 0);
 
 	highbank_clocks_init();
+	lookup.clk = of_clk_get(np, 0);
+	clkdev_add(&lookup);
 
 	sp804_clocksource_and_sched_clock_init(timer_base + 0x20, "timer1");
 	sp804_clockevents_init(timer_base, irq, "timer0");
