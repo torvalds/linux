@@ -137,4 +137,13 @@ static inline int dev_pm_qos_add_ancestor_request(struct device *dev,
 			{ return 0; }
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+int dev_pm_qos_expose_latency_limit(struct device *dev, s32 value);
+void dev_pm_qos_hide_latency_limit(struct device *dev);
+#else
+static inline int dev_pm_qos_expose_latency_limit(struct device *dev, s32 value)
+			{ return 0; }
+static inline void dev_pm_qos_hide_latency_limit(struct device *dev) {}
+#endif
+
 #endif
