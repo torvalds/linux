@@ -862,7 +862,7 @@ static int set_discoverable(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	BT_DBG("request for %s", hdev->name);
 
-	timeout = get_unaligned_le16(&cp->timeout);
+	timeout = __le16_to_cpu(cp->timeout);
 	if (!cp->val && timeout > 0)
 		return cmd_status(sk, hdev->id, MGMT_OP_SET_DISCOVERABLE,
 				  MGMT_STATUS_INVALID_PARAMS);
@@ -1461,7 +1461,7 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 	u16 key_count, expected_len;
 	int i;
 
-	key_count = get_unaligned_le16(&cp->key_count);
+	key_count = __le16_to_cpu(cp->key_count);
 
 	expected_len = sizeof(*cp) + key_count *
 					sizeof(struct mgmt_link_key_info);
@@ -2611,7 +2611,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 	u16 key_count, expected_len;
 	int i;
 
-	key_count = get_unaligned_le16(&cp->key_count);
+	key_count = __le16_to_cpu(cp->key_count);
 
 	expected_len = sizeof(*cp) + key_count *
 					sizeof(struct mgmt_ltk_info);
@@ -2722,9 +2722,9 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	}
 
 	hdr = buf;
-	opcode = get_unaligned_le16(&hdr->opcode);
-	index = get_unaligned_le16(&hdr->index);
-	len = get_unaligned_le16(&hdr->len);
+	opcode = __le16_to_cpu(hdr->opcode);
+	index = __le16_to_cpu(hdr->index);
+	len = __le16_to_cpu(hdr->len);
 
 	if (len != msglen - sizeof(*hdr)) {
 		err = -EINVAL;
