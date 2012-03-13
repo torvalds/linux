@@ -1755,7 +1755,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_mode_crtc *crtc_req = data;
 	struct drm_mode_object *obj;
-	struct drm_crtc *crtc, *crtcfb;
+	struct drm_crtc *crtc;
 	struct drm_connector **connector_set = NULL, *connector;
 	struct drm_framebuffer *fb = NULL;
 	struct drm_display_mode *mode = NULL;
@@ -1782,14 +1782,12 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		/* If we have a mode we need a framebuffer. */
 		/* If we pass -1, set the mode with the currently bound fb */
 		if (crtc_req->fb_id == -1) {
-			list_for_each_entry(crtcfb,
-					    &dev->mode_config.crtc_list, head) {
-				if (crtcfb == crtc) {
-					DRM_DEBUG_KMS("Using current fb for "
-							"setmode\n");
-					fb = crtc->fb;
-				}
+			if (!crtc->fb) {
+				DRM_DEBUG_KMS("CRTC doesn't have current FB\n");
+				ret = -EINVAL;
+				goto out;
 			}
+			fb = crtc->fb;
 		} else {
 			obj = drm_mode_object_find(dev, crtc_req->fb_id,
 						   DRM_MODE_OBJECT_FB);
