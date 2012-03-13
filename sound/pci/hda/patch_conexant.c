@@ -71,6 +71,7 @@ struct conexant_spec {
 	int num_mixers;
 	hda_nid_t vmaster_nid;
 	struct hda_vmaster_mute_hook vmaster_mute;
+	bool vmaster_mute_led;
 
 	const struct hda_verb *init_verbs[5];	/* initialization verbs
 						 * don't forget NULL
@@ -4346,8 +4347,10 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
-	if (spec->vmaster_mute.hook && spec->vmaster_mute.sw_kctl) {
-		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute);
+	if (spec->vmaster_mute.sw_kctl) {
+		spec->vmaster_mute.hook = cx_auto_vmaster_hook;
+		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute,
+					       spec->vmaster_mute_led);
 		if (err < 0)
 			return err;
 	}
@@ -4476,11 +4479,17 @@ static int patch_conexant_auto(struct hda_codec *codec)
 
 	apply_pin_fixup(codec, cxt_fixups, cxt_pincfg_tbl);
 
-	/* add EAPD vmaster hook to all HP machines */
-	/* NOTE: this should be applied via fixup once when the generic
-	 *       fixup code is merged to hda_codec.c
+	/* Show mute-led control only on HP laptops
+	 * This is a sort of white-list: on HP laptops, EAPD corresponds
+	 * only to the mute-LED without actualy amp function.  Meanwhile,
+	 * others may use EAPD really as an amp switch, so it might be
+	 * not good to expose it blindly.
 	 */
-	spec->vmaster_mute.hook = cx_auto_vmaster_hook;
+	switch (codec->subsystem_id >> 16) {
+	case 0x103c:
+		spec->vmaster_mute_led = 1;
+		break;
+	}
 
 	err = cx_auto_search_adcs(codec);
 	if (err < 0)

@@ -2508,7 +2508,8 @@ static struct snd_kcontrol_new vmaster_mute_mode = {
  * the given hook.
  */
 int snd_hda_add_vmaster_hook(struct hda_codec *codec,
-			     struct hda_vmaster_mute_hook *hook)
+			     struct hda_vmaster_mute_hook *hook,
+			     bool expose_enum_ctl)
 {
 	struct snd_kcontrol *kctl;
 
@@ -2517,6 +2518,8 @@ int snd_hda_add_vmaster_hook(struct hda_codec *codec,
 	snd_ctl_add_vmaster_hook(hook->sw_kctl, hook->hook, codec);
 	hook->codec = codec;
 	hook->mute_mode = HDA_VMUTE_FOLLOW_MASTER;
+	if (!expose_enum_ctl)
+		return 0;
 	kctl = snd_ctl_new1(&vmaster_mute_mode, hook);
 	if (!kctl)
 		return -ENOMEM;

@@ -1166,7 +1166,7 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 
 	if (spec->gpio_led) {
 		spec->vmaster_mute.hook = stac92xx_vmaster_hook;
-		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute);
+		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
 		if (err < 0)
 			return err;
 	}

@@ -165,7 +165,8 @@ struct hda_vmaster_mute_hook {
 };
 
 int snd_hda_add_vmaster_hook(struct hda_codec *codec,
-			     struct hda_vmaster_mute_hook *hook);
+			     struct hda_vmaster_mute_hook *hook,
+			     bool expose_enum_ctl);
 void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook);
 
 /* amp value bits */

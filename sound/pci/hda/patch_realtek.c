@@ -5895,7 +5895,7 @@ static void alc269_fixup_mic2_mute(struct hda_codec *codec,
 	switch (action) {
 	case ALC_FIXUP_ACT_BUILD:
 		spec->vmaster_mute.hook = alc269_fixup_mic2_mute_hook;
-		snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute);
+		snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
 		/* fallthru */
 	case ALC_FIXUP_ACT_INIT:
 		snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
