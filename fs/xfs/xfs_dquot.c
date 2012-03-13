@@ -59,6 +59,9 @@ int xfs_dqreq_num;
 int xfs_dqerror_mod = 33;
 #endif
 
+struct kmem_zone		*xfs_qm_dqtrxzone;
+static struct kmem_zone		*xfs_qm_dqzone;
+
 static struct lock_class_key xfs_dquot_other_class;
 
 /*
@@ -71,7 +74,7 @@ xfs_qm_dqdestroy(
 	ASSERT(list_empty(&dqp->q_lru));
 
 	mutex_destroy(&dqp->q_qlock);
-	kmem_zone_free(xfs_Gqm->qm_dqzone, dqp);
+	kmem_zone_free(xfs_qm_dqzone, dqp);
 
 	XFS_STATS_DEC(xs_qm_dquot);
 }
@@ -491,7 +494,7 @@ xfs_qm_dqread(
 	int			cancelflags = 0;
 
 
-	dqp = kmem_zone_zalloc(xfs_Gqm->qm_dqzone, KM_SLEEP);
+	dqp = kmem_zone_zalloc(xfs_qm_dqzone, KM_SLEEP);
 
 	dqp->dq_flags = type;
 	dqp->q_core.d_id = cpu_to_be32(id);
@@ -1039,4 +1042,32 @@ xfs_dqflock_pushbuf_wait(
 	xfs_buf_relse(bp);
 out_lock:
 	xfs_dqflock(dqp);
+}
+
+int __init
+xfs_qm_init(void)
+{
+	xfs_qm_dqzone =
+		kmem_zone_init(sizeof(struct xfs_dquot), "xfs_dquot");
+	if (!xfs_qm_dqzone)
+		goto out;
+
+	xfs_qm_dqtrxzone =
+		kmem_zone_init(sizeof(struct xfs_dquot_acct), "xfs_dqtrx");
+	if (!xfs_qm_dqtrxzone)
+		goto out_free_dqzone;
+
+	return 0;
+
+out_free_dqzone:
+	kmem_zone_destroy(xfs_qm_dqzone);
+out:
+	return -ENOMEM;
+}
+
+void __exit
+xfs_qm_exit(void)
+{
+	kmem_zone_destroy(xfs_qm_dqtrxzone);
+	kmem_zone_destroy(xfs_qm_dqzone);
 }

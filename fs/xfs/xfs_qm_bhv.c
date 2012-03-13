@@ -156,19 +156,3 @@ xfs_qm_newmount(
 
 	return 0;
 }
-
-void __init
-xfs_qm_init(void)
-{
-	printk(KERN_INFO "SGI XFS Quota Management subsystem\n");
-	mutex_init(&xfs_Gqm_lock);
-}
-
-void __exit
-xfs_qm_exit(void)
-{
-	if (qm_dqzone)
-		kmem_zone_destroy(qm_dqzone);
-	if (qm_dqtrxzone)
-		kmem_zone_destroy(qm_dqtrxzone);
-}

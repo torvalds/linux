@@ -1654,13 +1654,17 @@ init_xfs_fs(void)
 	if (error)
 		goto out_cleanup_procfs;
 
-	vfs_initquota();
+	error = xfs_qm_init();
+	if (error)
+		goto out_sysctl_unregister;
 
 	error = register_filesystem(&xfs_fs_type);
 	if (error)
-		goto out_sysctl_unregister;
+		goto out_qm_exit;
 	return 0;
 
+ out_qm_exit:
+	xfs_qm_exit();
  out_sysctl_unregister:
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
@@ -1682,7 +1686,7 @@ init_xfs_fs(void)
 STATIC void __exit
 exit_xfs_fs(void)
 {
-	vfs_exitquota();
+	xfs_qm_exit();
 	unregister_filesystem(&xfs_fs_type);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();

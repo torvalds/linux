@@ -875,7 +875,7 @@ STATIC void
 xfs_trans_alloc_dqinfo(
 	xfs_trans_t	*tp)
 {
-	tp->t_dqinfo = kmem_zone_zalloc(xfs_Gqm->qm_dqtrxzone, KM_SLEEP);
+	tp->t_dqinfo = kmem_zone_zalloc(xfs_qm_dqtrxzone, KM_SLEEP);
 }
 
 void
@@ -884,6 +884,6 @@ xfs_trans_free_dqinfo(
 {
 	if (!tp->t_dqinfo)
 		return;
-	kmem_zone_free(xfs_Gqm->qm_dqtrxzone, tp->t_dqinfo);
+	kmem_zone_free(xfs_qm_dqtrxzone, tp->t_dqinfo);
 	tp->t_dqinfo = NULL;
 }

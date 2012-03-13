@@ -48,125 +48,9 @@
  * quota functionality, including maintaining the freelist and hash
  * tables of dquots.
  */
-struct mutex	xfs_Gqm_lock;
-struct xfs_qm	*xfs_Gqm;
-
-kmem_zone_t	*qm_dqzone;
-kmem_zone_t	*qm_dqtrxzone;
-
 STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
 STATIC int	xfs_qm_shake(struct shrinker *, struct shrink_control *);
-
-/*
- * Initialize the XQM structure.
- * Note that there is not one quota manager per file system.
- */
-STATIC struct xfs_qm *
-xfs_Gqm_init(void)
-{
-	xfs_qm_t	*xqm;
-
-	xqm = kmem_zalloc(sizeof(xfs_qm_t), KM_SLEEP);
-
-	/*
-	 * dquot zone. we register our own low-memory callback.
-	 */
-	if (!qm_dqzone) {
-		xqm->qm_dqzone = kmem_zone_init(sizeof(xfs_dquot_t),
-						"xfs_dquots");
-		qm_dqzone = xqm->qm_dqzone;
-	} else
-		xqm->qm_dqzone = qm_dqzone;
-
-	/*
-	 * The t_dqinfo portion of transactions.
-	 */
-	if (!qm_dqtrxzone) {
-		xqm->qm_dqtrxzone = kmem_zone_init(sizeof(xfs_dquot_acct_t),
-						   "xfs_dqtrx");
-		qm_dqtrxzone = xqm->qm_dqtrxzone;
-	} else
-		xqm->qm_dqtrxzone = qm_dqtrxzone;
-
-	xqm->qm_nrefs = 0;
-	return xqm;
-}
-
-/*
- * Destroy the global quota manager when its reference count goes to zero.
- */
-STATIC void
-xfs_qm_destroy(
-	struct xfs_qm	*xqm)
-{
-	ASSERT(xqm != NULL);
-	ASSERT(xqm->qm_nrefs == 0);
-
-	kmem_free(xqm);
-}
-
-/*
- * Called at mount time to let XQM know that another file system is
- * starting quotas. This isn't crucial information as the individual mount
- * structures are pretty independent, but it helps the XQM keep a
- * global view of what's going on.
- */
-/* ARGSUSED */
-STATIC int
-xfs_qm_hold_quotafs_ref(
-	struct xfs_mount *mp)
-{
-	/*
-	 * Need to lock the xfs_Gqm structure for things like this. For example,
-	 * the structure could disappear between the entry to this routine and
-	 * a HOLD operation if not locked.
-	 */
-	mutex_lock(&xfs_Gqm_lock);
-
-	if (!xfs_Gqm) {
-		xfs_Gqm = xfs_Gqm_init();
-		if (!xfs_Gqm) {
-			mutex_unlock(&xfs_Gqm_lock);
-			return ENOMEM;
-		}
-	}
-
-	/*
-	 * We can keep a list of all filesystems with quotas mounted for
-	 * debugging and statistical purposes, but ...
-	 * Just take a reference and get out.
-	 */
-	xfs_Gqm->qm_nrefs++;
-	mutex_unlock(&xfs_Gqm_lock);
-
-	return 0;
-}
-
-
-/*
- * Release the reference that a filesystem took at mount time,
- * so that we know when we need to destroy the entire quota manager.
- */
-/* ARGSUSED */
-STATIC void
-xfs_qm_rele_quotafs_ref(
-	struct xfs_mount *mp)
-{
-	ASSERT(xfs_Gqm);
-	ASSERT(xfs_Gqm->qm_nrefs > 0);
-
-	/*
-	 * Destroy the entire XQM. If somebody mounts with quotaon, this'll
-	 * be restarted.
-	 */
-	mutex_lock(&xfs_Gqm_lock);
-	if (--xfs_Gqm->qm_nrefs == 0) {
-		xfs_qm_destroy(xfs_Gqm);
-		xfs_Gqm = NULL;
-	}
-	mutex_unlock(&xfs_Gqm_lock);
-}
 
 /*
  * We use the batch lookup interface to iterate over the dquots as it
@@ -738,13 +622,6 @@ xfs_qm_init_quotainfo(
 
 	ASSERT(XFS_IS_QUOTA_RUNNING(mp));
 
-	/*
-	 * Tell XQM that we exist as soon as possible.
-	 */
-	if ((error = xfs_qm_hold_quotafs_ref(mp))) {
-		return error;
-	}
-
 	qinf = mp->m_quotainfo = kmem_zalloc(sizeof(xfs_quotainfo_t), KM_SLEEP);
 
 	/*
@@ -850,16 +727,8 @@ xfs_qm_destroy_quotainfo(
 
 	qi = mp->m_quotainfo;
 	ASSERT(qi != NULL);
-	ASSERT(xfs_Gqm != NULL);
 
 	unregister_shrinker(&qi->qi_shrinker);
-
-	/*
-	 * Release the reference that XQM kept, so that we know
-	 * when the XQM structure should be freed. We cannot assume
-	 * that xfs_Gqm is non-null after this point.
-	 */
-	xfs_qm_rele_quotafs_ref(mp);
 
 	if (qi->qi_uquotaip) {
 		IRELE(qi->qi_uquotaip);
@@ -1447,7 +1316,6 @@ xfs_qm_quotacheck(
 		 * We must turn off quotas.
 		 */
 		ASSERT(mp->m_quotainfo != NULL);
-		ASSERT(xfs_Gqm != NULL);
 		xfs_qm_destroy_quotainfo(mp);
 		if (xfs_mount_reset_sbqflags(mp)) {
 			xfs_warn(mp,

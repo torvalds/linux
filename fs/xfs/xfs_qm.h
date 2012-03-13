@@ -22,13 +22,9 @@
 #include "xfs_dquot.h"
 #include "xfs_quota_priv.h"
 
-struct xfs_qm;
 struct xfs_inode;
 
-extern struct mutex	xfs_Gqm_lock;
-extern struct xfs_qm	*xfs_Gqm;
-extern kmem_zone_t	*qm_dqzone;
-extern kmem_zone_t	*qm_dqtrxzone;
+extern struct kmem_zone	*xfs_qm_dqtrxzone;
 
 /*
  * This defines the unit of allocation of dquots.
@@ -40,15 +36,6 @@ extern kmem_zone_t	*qm_dqtrxzone;
  * block in the dquot/xqm code.
  */
 #define XFS_DQUOT_CLUSTER_SIZE_FSB	(xfs_filblks_t)1
-
-/*
- * Quota Manager (global) structure. Lives only in core.
- */
-typedef struct xfs_qm {
-	uint		 qm_nrefs;	 /* file systems with quota on */
-	kmem_zone_t	*qm_dqzone;	 /* dquot mem-alloc zone */
-	kmem_zone_t	*qm_dqtrxzone;	 /* t_dqinfo of transactions */
-} xfs_qm_t;
 
 /*
  * Various quota information for individual filesystems.
