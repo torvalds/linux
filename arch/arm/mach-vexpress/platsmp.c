@@ -14,7 +14,6 @@
 #include <linux/io.h>
 
 #include <mach/motherboard.h>
-#define V2M_PA_CS7 0x10000000
 
 #include "core.h"
 
@@ -43,7 +42,5 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	writel(~0, MMIO_P2V(V2M_SYS_FLAGSCLR));
-	writel(virt_to_phys(versatile_secondary_startup),
-		MMIO_P2V(V2M_SYS_FLAGSSET));
+	v2m_flags_set(virt_to_phys(versatile_secondary_startup));
 }

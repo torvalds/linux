@@ -30,56 +30,28 @@
 
 #include <plat/clcd.h>
 
-#define V2M_PA_CS7	0x10000000
-
 static struct map_desc ct_ca9x4_io_desc[] __initdata = {
 	{
-		.virtual	= __MMIO_P2V(CT_CA9X4_MPIC),
-		.pfn		= __phys_to_pfn(CT_CA9X4_MPIC),
-		.length		= SZ_16K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= __MMIO_P2V(CT_CA9X4_SP804_TIMER),
-		.pfn		= __phys_to_pfn(CT_CA9X4_SP804_TIMER),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= __MMIO_P2V(CT_CA9X4_L2CC),
-		.pfn		= __phys_to_pfn(CT_CA9X4_L2CC),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
+		.virtual        = V2T_PERIPH,
+		.pfn            = __phys_to_pfn(CT_CA9X4_MPIC),
+		.length         = SZ_8K,
+		.type           = MT_DEVICE,
 	},
 };
 
 static void __init ct_ca9x4_map_io(void)
 {
-#ifdef CONFIG_LOCAL_TIMERS
-	twd_base = MMIO_P2V(A9_MPCORE_TWD);
-#endif
 	iotable_init(ct_ca9x4_io_desc, ARRAY_SIZE(ct_ca9x4_io_desc));
+#ifdef CONFIG_LOCAL_TIMERS
+	twd_base = ioremap(A9_MPCORE_TWD, SZ_32);
+#endif
 }
 
 static void __init ct_ca9x4_init_irq(void)
 {
-	gic_init(0, 29, MMIO_P2V(A9_MPCORE_GIC_DIST),
-		 MMIO_P2V(A9_MPCORE_GIC_CPU));
+	gic_init(0, 29, ioremap(A9_MPCORE_GIC_DIST, SZ_4K),
+		 ioremap(A9_MPCORE_GIC_CPU, SZ_256));
 }
-
-#if 0
-static void __init ct_ca9x4_timer_init(void)
-{
-	writel(0, MMIO_P2V(CT_CA9X4_TIMER0) + TIMER_CTRL);
-	writel(0, MMIO_P2V(CT_CA9X4_TIMER1) + TIMER_CTRL);
-
-	sp804_clocksource_init(MMIO_P2V(CT_CA9X4_TIMER1), "ct-timer1");
-	sp804_clockevents_init(MMIO_P2V(CT_CA9X4_TIMER0), IRQ_CT_CA9X4_TIMER0,
-		"ct-timer0");
-}
-
-static struct sys_timer ct_ca9x4_timer = {
-	.init	= ct_ca9x4_timer_init,
-};
-#endif
 
 static void ct_ca9x4_clcd_enable(struct clcd_fb *fb)
 {
@@ -201,7 +173,7 @@ static void __init ct_ca9x4_init(void)
 	int i;
 
 #ifdef CONFIG_CACHE_L2X0
-	void __iomem *l2x0_base = MMIO_P2V(CT_CA9X4_L2CC);
+	void __iomem *l2x0_base = ioremap(CT_CA9X4_L2CC, SZ_4K);
 
 	/* set RAM latencies to 1 cycle for this core tile. */
 	writel(0, l2x0_base + L2X0_TAG_LATENCY_CTRL);
@@ -217,9 +189,17 @@ static void __init ct_ca9x4_init(void)
 }
 
 #ifdef CONFIG_SMP
+static void *ct_ca9x4_scu_base __initdata;
+
 static void __init ct_ca9x4_init_cpu_map(void)
 {
-	int i, ncores = scu_get_core_count(MMIO_P2V(A9_MPCORE_SCU));
+	int i, ncores;
+
+	ct_ca9x4_scu_base = ioremap(A9_MPCORE_SCU, SZ_128);
+	if (WARN_ON(!ct_ca9x4_scu_base))
+		return;
+
+	ncores = scu_get_core_count(ct_ca9x4_scu_base);
 
 	if (ncores > nr_cpu_ids) {
 		pr_warn("SMP: %u cores greater than maximum (%u), clipping\n",
@@ -235,7 +215,7 @@ static void __init ct_ca9x4_init_cpu_map(void)
 
 static void __init ct_ca9x4_smp_enable(unsigned int max_cpus)
 {
-	scu_enable(MMIO_P2V(A9_MPCORE_SCU));
+	scu_enable(ct_ca9x4_scu_base);
 }
 #endif
 
