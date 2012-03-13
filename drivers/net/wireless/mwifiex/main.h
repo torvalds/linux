@@ -462,9 +462,9 @@ struct mwifiex_private {
 };
 
 enum mwifiex_ba_status {
-	BA_STREAM_NOT_SETUP = 0,
-	BA_STREAM_SETUP_INPROGRESS,
-	BA_STREAM_SETUP_COMPLETE
+	BA_SETUP_NONE = 0,
+	BA_SETUP_INPROGRESS,
+	BA_SETUP_COMPLETE
 };
 
 struct mwifiex_tx_ba_stream_tbl {

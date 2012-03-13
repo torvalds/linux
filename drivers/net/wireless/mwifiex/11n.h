@@ -46,13 +46,12 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 					     struct mwifiex_tx_ba_stream_tbl
 					     *tx_tbl);
 void mwifiex_11n_delete_all_tx_ba_stream_tbl(struct mwifiex_private *priv);
-struct mwifiex_tx_ba_stream_tbl *mwifiex_11n_get_tx_ba_stream_tbl(struct
+struct mwifiex_tx_ba_stream_tbl *mwifiex_get_ba_tbl(struct
 							     mwifiex_private
 							     *priv, int tid,
 							     u8 *ra);
-void mwifiex_11n_create_tx_ba_stream_tbl(struct mwifiex_private *priv, u8 *ra,
-				       int tid,
-				       enum mwifiex_ba_status ba_status);
+void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
+			   enum mwifiex_ba_status ba_status);
 int mwifiex_send_addba(struct mwifiex_private *priv, int tid, u8 *peer_mac);
 int mwifiex_send_delba(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 		       int initiator);
@@ -154,7 +153,7 @@ mwifiex_is_ba_stream_setup(struct mwifiex_private *priv,
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_tbl;
 
-	tx_tbl = mwifiex_11n_get_tx_ba_stream_tbl(priv, tid, ptr->ra);
+	tx_tbl = mwifiex_get_ba_tbl(priv, tid, ptr->ra);
 	if (tx_tbl && IS_BASTREAM_SETUP(tx_tbl))
 		return true;
 

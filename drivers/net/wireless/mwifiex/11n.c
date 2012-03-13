@@ -69,8 +69,8 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
  * table which matches the requested BA status.
  */
 static struct mwifiex_tx_ba_stream_tbl *
-mwifiex_11n_get_tx_ba_stream_status(struct mwifiex_private *priv,
-				  enum mwifiex_ba_status ba_status)
+mwifiex_get_ba_status(struct mwifiex_private *priv,
+		      enum mwifiex_ba_status ba_status)
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl;
 	unsigned long flags;
@@ -107,12 +107,11 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 
 	tid = del_ba_param_set >> DELBA_TID_POS;
 	if (del_ba->del_result == BA_RESULT_SUCCESS) {
-		mwifiex_11n_delete_ba_stream_tbl(priv, tid,
-				del_ba->peer_mac_addr, TYPE_DELBA_SENT,
-				INITIATOR_BIT(del_ba_param_set));
+		mwifiex_del_ba_tbl(priv, tid, del_ba->peer_mac_addr,
+				   TYPE_DELBA_SENT,
+				   INITIATOR_BIT(del_ba_param_set));
 
-		tx_ba_tbl = mwifiex_11n_get_tx_ba_stream_status(priv,
-						BA_STREAM_SETUP_INPROGRESS);
+		tx_ba_tbl = mwifiex_get_ba_status(priv, BA_SETUP_INPROGRESS);
 		if (tx_ba_tbl)
 			mwifiex_send_addba(priv, tx_ba_tbl->tid,
 					   tx_ba_tbl->ra);
@@ -120,18 +119,17 @@ int mwifiex_ret_11n_delba(struct mwifiex_private *priv,
 		  * In case of failure, recreate the deleted stream in case
 		  * we initiated the ADDBA
 		  */
-		if (INITIATOR_BIT(del_ba_param_set)) {
-			mwifiex_11n_create_tx_ba_stream_tbl(priv,
-					del_ba->peer_mac_addr, tid,
-					BA_STREAM_SETUP_INPROGRESS);
+		if (!INITIATOR_BIT(del_ba_param_set))
+			return 0;
 
-			tx_ba_tbl = mwifiex_11n_get_tx_ba_stream_status(priv,
-					BA_STREAM_SETUP_INPROGRESS);
-			if (tx_ba_tbl)
-				mwifiex_11n_delete_ba_stream_tbl(priv,
-						tx_ba_tbl->tid, tx_ba_tbl->ra,
-						TYPE_DELBA_SENT, true);
-		}
+		mwifiex_create_ba_tbl(priv, del_ba->peer_mac_addr, tid,
+				      BA_SETUP_INPROGRESS);
+
+		tx_ba_tbl = mwifiex_get_ba_status(priv, BA_SETUP_INPROGRESS);
+
+		if (tx_ba_tbl)
+			mwifiex_del_ba_tbl(priv, tx_ba_tbl->tid, tx_ba_tbl->ra,
+					   TYPE_DELBA_SENT, true);
 	}
 
 	return 0;
@@ -160,18 +158,17 @@ int mwifiex_ret_11n_addba_req(struct mwifiex_private *priv,
 		& IEEE80211_ADDBA_PARAM_TID_MASK)
 		>> BLOCKACKPARAM_TID_POS;
 	if (le16_to_cpu(add_ba_rsp->status_code) == BA_RESULT_SUCCESS) {
-		tx_ba_tbl = mwifiex_11n_get_tx_ba_stream_tbl(priv, tid,
+		tx_ba_tbl = mwifiex_get_ba_tbl(priv, tid,
 						add_ba_rsp->peer_mac_addr);
 		if (tx_ba_tbl) {
 			dev_dbg(priv->adapter->dev, "info: BA stream complete\n");
-			tx_ba_tbl->ba_status = BA_STREAM_SETUP_COMPLETE;
+			tx_ba_tbl->ba_status = BA_SETUP_COMPLETE;
 		} else {
 			dev_err(priv->adapter->dev, "BA stream not created\n");
 		}
 	} else {
-		mwifiex_11n_delete_ba_stream_tbl(priv, tid,
-						add_ba_rsp->peer_mac_addr,
-						TYPE_DELBA_SENT, true);
+		mwifiex_del_ba_tbl(priv, tid, add_ba_rsp->peer_mac_addr,
+				   TYPE_DELBA_SENT, true);
 		if (add_ba_rsp->add_rsp_result != BA_RESULT_TIMEOUT)
 			priv->aggr_prio_tbl[tid].ampdu_ap =
 				BA_STREAM_NOT_ALLOWED;
@@ -544,8 +541,7 @@ void mwifiex_11n_delete_all_tx_ba_stream_tbl(struct mwifiex_private *priv)
  * table which matches the given RA/TID pair.
  */
 struct mwifiex_tx_ba_stream_tbl *
-mwifiex_11n_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
-				 int tid, u8 *ra)
+mwifiex_get_ba_tbl(struct mwifiex_private *priv, int tid, u8 *ra)
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl;
 	unsigned long flags;
@@ -567,14 +563,13 @@ mwifiex_11n_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
  * This function creates an entry in Tx BA stream table for the
  * given RA/TID pair.
  */
-void mwifiex_11n_create_tx_ba_stream_tbl(struct mwifiex_private *priv,
-					 u8 *ra, int tid,
-					 enum mwifiex_ba_status ba_status)
+void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
+			   enum mwifiex_ba_status ba_status)
 {
 	struct mwifiex_tx_ba_stream_tbl *new_node;
 	unsigned long flags;
 
-	if (!mwifiex_11n_get_tx_ba_stream_tbl(priv, tid, ra)) {
+	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
 		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
 				   GFP_ATOMIC);
 		if (!new_node) {
@@ -668,9 +663,8 @@ void mwifiex_11n_delete_ba_stream(struct mwifiex_private *priv, u8 *del_ba)
 
 	tid = del_ba_param_set >> DELBA_TID_POS;
 
-	mwifiex_11n_delete_ba_stream_tbl(priv, tid, cmd_del_ba->peer_mac_addr,
-					 TYPE_DELBA_RECEIVE,
-					 INITIATOR_BIT(del_ba_param_set));
+	mwifiex_del_ba_tbl(priv, tid, cmd_del_ba->peer_mac_addr,
+			   TYPE_DELBA_RECEIVE, INITIATOR_BIT(del_ba_param_set));
 }
 
 /*

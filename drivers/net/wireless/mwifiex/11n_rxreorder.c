@@ -480,8 +480,8 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
  * The TID/TA are taken from del BA event body.
  */
 void
-mwifiex_11n_delete_ba_stream_tbl(struct mwifiex_private *priv, int tid,
-				u8 *peer_mac, u8 type, int initiator)
+mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
+		   u8 type, int initiator)
 {
 	struct mwifiex_rx_reorder_tbl *rx_reor_tbl_ptr;
 	struct mwifiex_tx_ba_stream_tbl *ptx_tbl;
@@ -506,7 +506,7 @@ mwifiex_11n_delete_ba_stream_tbl(struct mwifiex_private *priv, int tid,
 		}
 		mwifiex_11n_delete_rx_reorder_tbl_entry(priv, rx_reor_tbl_ptr);
 	} else {
-		ptx_tbl = mwifiex_11n_get_tx_ba_stream_tbl(priv, tid, peer_mac);
+		ptx_tbl = mwifiex_get_ba_tbl(priv, tid, peer_mac);
 		if (!ptx_tbl) {
 			dev_dbg(priv->adapter->dev,
 					"event: TID, RA not found in table\n");

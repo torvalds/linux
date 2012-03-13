@@ -1218,15 +1218,13 @@ mwifiex_dequeue_tx_packet(struct mwifiex_adapter *adapter)
 	} else {
 		if (mwifiex_is_ampdu_allowed(priv, tid)) {
 			if (mwifiex_space_avail_for_new_ba_stream(adapter)) {
-				mwifiex_11n_create_tx_ba_stream_tbl(priv,
-						ptr->ra, tid,
-						BA_STREAM_SETUP_INPROGRESS);
+				mwifiex_create_ba_tbl(priv, ptr->ra, tid,
+						      BA_SETUP_INPROGRESS);
 				mwifiex_send_addba(priv, tid, ptr->ra);
 			} else if (mwifiex_find_stream_to_delete
 				   (priv, tid, &tid_del, ra)) {
-				mwifiex_11n_create_tx_ba_stream_tbl(priv,
-						ptr->ra, tid,
-						BA_STREAM_SETUP_INPROGRESS);
+				mwifiex_create_ba_tbl(priv, ptr->ra, tid,
+						      BA_SETUP_INPROGRESS);
 				mwifiex_send_delba(priv, tid_del, ra, 1);
 			}
 		}
