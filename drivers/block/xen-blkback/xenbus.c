@@ -390,61 +390,43 @@ int xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info *be)
 {
 	struct xenbus_device *dev = be->dev;
 	struct xen_blkif *blkif = be->blkif;
-	char *type;
 	int err;
 	int state = 0;
+	struct block_device *bdev = be->blkif->vbd.bdev;
+	struct request_queue *q = bdev_get_queue(bdev);
 
-	type = xenbus_read(XBT_NIL, dev->nodename, "type", NULL);
-	if (!IS_ERR(type)) {
-		if (strncmp(type, "file", 4) == 0) {
-			state = 1;
-			blkif->blk_backend_type = BLKIF_BACKEND_FILE;
+	if (blk_queue_discard(q)) {
+		err = xenbus_printf(xbt, dev->nodename,
+			"discard-granularity", "%u",
+			q->limits.discard_granularity);
+		if (err) {
+			xenbus_dev_fatal(dev, err,
+				"writing discard-granularity");
+			goto out;
 		}
-		if (strncmp(type, "phy", 3) == 0) {
-			struct block_device *bdev = be->blkif->vbd.bdev;
-			struct request_queue *q = bdev_get_queue(bdev);
-			if (blk_queue_discard(q)) {
-				err = xenbus_printf(xbt, dev->nodename,
-					"discard-granularity", "%u",
-					q->limits.discard_granularity);
-				if (err) {
-					xenbus_dev_fatal(dev, err,
-						"writing discard-granularity");
-					goto kfree;
-				}
-				err = xenbus_printf(xbt, dev->nodename,
-					"discard-alignment", "%u",
-					q->limits.discard_alignment);
-				if (err) {
-					xenbus_dev_fatal(dev, err,
-						"writing discard-alignment");
-					goto kfree;
-				}
-				state = 1;
-				blkif->blk_backend_type = BLKIF_BACKEND_PHY;
-			}
-			/* Optional. */
-			err = xenbus_printf(xbt, dev->nodename,
-				"discard-secure", "%d",
-				blkif->vbd.discard_secure);
-			if (err) {
-				xenbus_dev_fatal(dev, err,
+		err = xenbus_printf(xbt, dev->nodename,
+			"discard-alignment", "%u",
+			q->limits.discard_alignment);
+		if (err) {
+			xenbus_dev_fatal(dev, err,
+				"writing discard-alignment");
+			goto out;
+		}
+		state = 1;
+		/* Optional. */
+		err = xenbus_printf(xbt, dev->nodename,
+				    "discard-secure", "%d",
+				    blkif->vbd.discard_secure);
+		if (err) {
+			xenbus_dev_fatal(dev, err,
 					"writting discard-secure");
-				goto kfree;
-			}
+			goto out;
 		}
-	} else {
-		err = PTR_ERR(type);
-		xenbus_dev_fatal(dev, err, "reading type");
-		goto out;
 	}
-
 	err = xenbus_printf(xbt, dev->nodename, "feature-discard",
 			    "%d", state);
 	if (err)
 		xenbus_dev_fatal(dev, err, "writing feature-discard");
-kfree:
-	kfree(type);
 out:
 	return err;
 }
