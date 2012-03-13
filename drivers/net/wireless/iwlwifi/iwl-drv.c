@@ -808,42 +808,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	IWL_INFO(drv, "loaded firmware version %s", drv->fw.fw_version);
 
 	/*
-	 * For any of the failures below (before allocating pci memory)
-	 * we will try to load a version with a smaller API -- maybe the
-	 * user just got a corrupted version of the latest API.
-	 */
-
-	IWL_DEBUG_INFO(drv, "f/w package hdr ucode version raw = 0x%x\n",
-		       drv->fw.ucode_ver);
-	IWL_DEBUG_INFO(drv, "f/w package hdr runtime inst size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_REGULAR,
-			     IWL_UCODE_SECTION_INST));
-	IWL_DEBUG_INFO(drv, "f/w package hdr runtime data size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_REGULAR,
-			     IWL_UCODE_SECTION_DATA));
-	IWL_DEBUG_INFO(drv, "f/w package hdr init inst size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST));
-	IWL_DEBUG_INFO(drv, "f/w package hdr init data size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA));
-
-	/* Verify that uCode images will fit in card's SRAM */
-	if (get_sec_size(&pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_INST) >
-							cfg->max_inst_size) {
-		IWL_ERR(drv, "uCode instr len %Zd too large to fit in\n",
-			get_sec_size(&pieces, IWL_UCODE_REGULAR,
-				     IWL_UCODE_SECTION_INST));
-		goto try_again;
-	}
-
-	if (get_sec_size(&pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_DATA) >
-							cfg->max_data_size) {
-		IWL_ERR(drv, "uCode data len %Zd too large to fit in\n",
-			get_sec_size(&pieces, IWL_UCODE_REGULAR,
-				     IWL_UCODE_SECTION_DATA));
-		goto try_again;
-	}
-
-	/*
 	 * In mvm uCode there is no difference between data and instructions
 	 * sections.
 	 */
