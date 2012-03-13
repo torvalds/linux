@@ -2379,21 +2379,17 @@ void drm_fb_release(struct drm_file *priv)
  *
  * Add @mode to @connector's user mode list.
  */
-static int drm_mode_attachmode(struct drm_device *dev,
-			       struct drm_connector *connector,
-			       struct drm_display_mode *mode)
+static void drm_mode_attachmode(struct drm_device *dev,
+				struct drm_connector *connector,
+				struct drm_display_mode *mode)
 {
-	int ret = 0;
-
 	list_add_tail(&mode->head, &connector->user_modes);
-	return ret;
 }
 
 int drm_mode_attachmode_crtc(struct drm_device *dev, struct drm_crtc *crtc,
 			     struct drm_display_mode *mode)
 {
 	struct drm_connector *connector;
-	int ret = 0;
 	struct drm_display_mode *dup_mode;
 	int need_dup = 0;
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
@@ -2404,9 +2400,7 @@ int drm_mode_attachmode_crtc(struct drm_device *dev, struct drm_crtc *crtc,
 				dup_mode = drm_mode_duplicate(dev, mode);
 			else
 				dup_mode = mode;
-			ret = drm_mode_attachmode(dev, connector, dup_mode);
-			if (ret)
-				return ret;
+			drm_mode_attachmode(dev, connector, dup_mode);
 			need_dup = 1;
 		}
 	}
@@ -2491,7 +2485,7 @@ int drm_mode_attachmode_ioctl(struct drm_device *dev,
 
 	drm_crtc_convert_umode(mode, umode);
 
-	ret = drm_mode_attachmode(dev, connector, mode);
+	drm_mode_attachmode(dev, connector, mode);
 out:
 	mutex_unlock(&dev->mode_config.mutex);
 	return ret;
