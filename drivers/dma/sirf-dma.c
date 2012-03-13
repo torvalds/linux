@@ -18,6 +18,8 @@
 #include <linux/of_platform.h>
 #include <linux/sirfsoc_dma.h>
 
+#include "dmaengine.h"
+
 #define SIRFSOC_DMA_DESCRIPTORS                 16
 #define SIRFSOC_DMA_CHANNELS                    16
 

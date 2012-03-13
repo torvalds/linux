@@ -510,17 +510,13 @@ static void td_free_chan_resources(struct dma_chan *chan)
 static enum dma_status td_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				    struct dma_tx_state *txstate)
 {
-	struct timb_dma_chan *td_chan =
-		container_of(chan, struct timb_dma_chan, chan);
 	enum dma_status ret;
 
 	dev_dbg(chan2dev(chan), "%s: Entry\n", __func__);
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 
-	dev_dbg(chan2dev(chan),
-		"%s: exit, ret: %d, last_complete: %d, last_used: %d\n",
-		__func__, ret, last_complete, last_used);
+	dev_dbg(chan2dev(chan), "%s: exit, ret: %d\n", 	__func__, ret);
 
 	return ret;
 }

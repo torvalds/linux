@@ -894,6 +894,7 @@ static enum dma_status iop_adma_status(struct dma_chan *chan,
 					struct dma_tx_state *txstate)
 {
 	struct iop_adma_chan *iop_chan = to_iop_adma_chan(chan);
+	int ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret == DMA_SUCCESS)

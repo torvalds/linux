@@ -1127,6 +1127,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 	struct sdma_engine *sdma = sdmac->sdma;
 
 	if (sdmac->status == DMA_IN_PROGRESS)
+		sdma_enable_channel(sdma, sdmac->channel);
 }
 
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34

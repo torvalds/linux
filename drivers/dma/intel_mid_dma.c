@@ -477,6 +477,7 @@ static enum dma_status intel_mid_dma_tx_status(struct dma_chan *chan,
 						dma_cookie_t cookie,
 						struct dma_tx_state *txstate)
 {
+	struct intel_mid_dma_chan *midc = to_intel_mid_dma_chan(chan);
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
