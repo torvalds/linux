@@ -202,7 +202,7 @@ static const struct file_operations persistent_trace_old_fops = {
 	.release	= seq_release,
 };
 
-static int persistent_trace_probe(struct platform_device *pdev)
+static int __devinit persistent_trace_probe(struct platform_device *pdev)
 {
 	struct dentry *d;
 	int ret;
