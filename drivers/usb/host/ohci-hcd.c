@@ -1111,11 +1111,6 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER		ohci_hcd_cns3xxx_driver
 #endif
 
-#ifdef CONFIG_USB_OHCI_ATH79
-#include "ohci-ath79.c"
-#define PLATFORM_DRIVER		ohci_hcd_ath79_driver
-#endif
-
 #ifdef CONFIG_CPU_XLR
 #include "ohci-xls.c"
 #define PLATFORM_DRIVER		ohci_xls_driver
