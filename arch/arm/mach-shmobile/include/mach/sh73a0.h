@@ -515,8 +515,8 @@ enum {
 	SHDMA_SLAVE_MMCIF_RX,
 };
 
-/* PINT interrupts are located at Linux IRQ 768 and up */
-#define SH73A0_PINT0_IRQ(irq) ((irq) + 768)
-#define SH73A0_PINT1_IRQ(irq) ((irq) + 800)
+/* PINT interrupts are located at Linux IRQ 800 and up */
+#define SH73A0_PINT0_IRQ(irq) ((irq) + 800)
+#define SH73A0_PINT1_IRQ(irq) ((irq) + 832)
 
 #endif /* __ASM_SH73A0_H__ */

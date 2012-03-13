@@ -21,22 +21,44 @@
  */
 #define NR_OPEN_DEFAULT BITS_PER_LONG
 
-/*
- * The embedded_fd_set is a small fd_set,
- * suitable for most tasks (which open <= BITS_PER_LONG files)
- */
-struct embedded_fd_set {
-	unsigned long fds_bits[1];
-};
-
 struct fdtable {
 	unsigned int max_fds;
 	struct file __rcu **fd;      /* current fd array */
-	fd_set *close_on_exec;
-	fd_set *open_fds;
+	unsigned long *close_on_exec;
+	unsigned long *open_fds;
 	struct rcu_head rcu;
 	struct fdtable *next;
 };
+
+static inline void __set_close_on_exec(int fd, struct fdtable *fdt)
+{
+	__set_bit(fd, fdt->close_on_exec);
+}
+
+static inline void __clear_close_on_exec(int fd, struct fdtable *fdt)
+{
+	__clear_bit(fd, fdt->close_on_exec);
+}
+
+static inline bool close_on_exec(int fd, const struct fdtable *fdt)
+{
+	return test_bit(fd, fdt->close_on_exec);
+}
+
+static inline void __set_open_fd(int fd, struct fdtable *fdt)
+{
+	__set_bit(fd, fdt->open_fds);
+}
+
+static inline void __clear_open_fd(int fd, struct fdtable *fdt)
+{
+	__clear_bit(fd, fdt->open_fds);
+}
+
+static inline bool fd_is_open(int fd, const struct fdtable *fdt)
+{
+	return test_bit(fd, fdt->open_fds);
+}
 
 /*
  * Open file table structure
@@ -53,8 +75,8 @@ struct files_struct {
    */
 	spinlock_t file_lock ____cacheline_aligned_in_smp;
 	int next_fd;
-	struct embedded_fd_set close_on_exec_init;
-	struct embedded_fd_set open_fds_init;
+	unsigned long close_on_exec_init[1];
+	unsigned long open_fds_init[1];
 	struct file __rcu * fd_array[NR_OPEN_DEFAULT];
 };
 

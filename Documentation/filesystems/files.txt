@@ -113,8 +113,8 @@ the fdtable structure -
 	if (fd >= 0) {
 		/* locate_fd() may have expanded fdtable, load the ptr */
 		fdt = files_fdtable(files);
-		FD_SET(fd, fdt->open_fds);
-		FD_CLR(fd, fdt->close_on_exec);
+		__set_open_fd(fd, fdt);
+		__clear_close_on_exec(fd, fdt);
 		spin_unlock(&files->file_lock);
 	.....
 

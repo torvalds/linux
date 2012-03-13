@@ -77,6 +77,7 @@ void pci_remove_bus(struct pci_bus *pci_bus)
 }
 EXPORT_SYMBOL(pci_remove_bus);
 
+static void __pci_remove_behind_bridge(struct pci_dev *dev);
 /**
  * pci_remove_bus_device - remove a PCI device and any children
  * @dev: the device to remove
@@ -94,7 +95,7 @@ static void __pci_remove_bus_device(struct pci_dev *dev)
 	if (dev->subordinate) {
 		struct pci_bus *b = dev->subordinate;
 
-		pci_remove_behind_bridge(dev);
+		__pci_remove_behind_bridge(dev);
 		pci_remove_bus(b);
 		dev->subordinate = NULL;
 	}
@@ -107,6 +108,24 @@ void pci_remove_bus_device(struct pci_dev *dev)
 	__pci_remove_bus_device(dev);
 }
 
+static void __pci_remove_behind_bridge(struct pci_dev *dev)
+{
+	struct list_head *l, *n;
+
+	if (dev->subordinate)
+		list_for_each_safe(l, n, &dev->subordinate->devices)
+			__pci_remove_bus_device(pci_dev_b(l));
+}
+
+static void pci_stop_behind_bridge(struct pci_dev *dev)
+{
+	struct list_head *l, *n;
+
+	if (dev->subordinate)
+		list_for_each_safe(l, n, &dev->subordinate->devices)
+			pci_stop_bus_device(pci_dev_b(l));
+}
+
 /**
  * pci_remove_behind_bridge - remove all devices behind a PCI bridge
  * @dev: PCI bridge device
@@ -117,11 +136,8 @@ void pci_remove_bus_device(struct pci_dev *dev)
  */
 void pci_remove_behind_bridge(struct pci_dev *dev)
 {
-	struct list_head *l, *n;
-
-	if (dev->subordinate)
-		list_for_each_safe(l, n, &dev->subordinate->devices)
-			__pci_remove_bus_device(pci_dev_b(l));
+	pci_stop_behind_bridge(dev);
+	__pci_remove_behind_bridge(dev);
 }
 
 static void pci_stop_bus_devices(struct pci_bus *bus)

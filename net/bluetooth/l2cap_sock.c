@@ -849,6 +849,8 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
 	if (!sk)
 		return NULL;
 
+	bt_sock_reclassify_lock(sk, BTPROTO_L2CAP);
+
 	l2cap_sock_init(sk, parent);
 
 	return l2cap_pi(sk)->chan;
@@ -1002,7 +1004,7 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int p
 	INIT_LIST_HEAD(&bt_sk(sk)->accept_q);
 
 	sk->sk_destruct = l2cap_sock_destruct;
-	sk->sk_sndtimeo = L2CAP_CONN_TIMEOUT;
+	sk->sk_sndtimeo = msecs_to_jiffies(L2CAP_CONN_TIMEOUT);
 
 	sock_reset_flag(sk, SOCK_ZAPPED);
 

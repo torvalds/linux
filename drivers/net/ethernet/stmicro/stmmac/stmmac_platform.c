@@ -59,15 +59,19 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		goto out_release_region;
 	}
 	plat_dat = pdev->dev.platform_data;
-	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat);
-	if (!priv) {
-		pr_err("%s: main drivr probe failed", __func__);
-		goto out_unmap;
+
+	/* Custom initialisation (if needed)*/
+	if (plat_dat->init) {
+		ret = plat_dat->init(pdev);
+		if (unlikely(ret))
+			goto out_unmap;
 	}
 
-	priv->ioaddr = addr;
-	/* Set the I/O base addr */
-	priv->dev->base_addr = (unsigned long)addr;
+	priv = stmmac_dvr_probe(&(pdev->dev), plat_dat, addr);
+	if (!priv) {
+		pr_err("%s: main driver probe failed", __func__);
+		goto out_unmap;
+	}
 
 	/* Get the MAC information */
 	priv->dev->irq = platform_get_irq_byname(pdev, "macirq");
@@ -91,13 +95,6 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		priv->wol_irq = priv->dev->irq;
 
 	platform_set_drvdata(pdev, priv->dev);
-
-	/* Custom initialisation */
-	if (priv->plat->init) {
-		ret = priv->plat->init(pdev);
-		if (unlikely(ret))
-			goto out_unmap;
-	}
 
 	pr_debug("STMMAC platform driver registration completed");
 

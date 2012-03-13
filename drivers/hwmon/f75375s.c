@@ -172,10 +172,20 @@ static inline void f75375_write8(struct i2c_client *client, u8 reg,
 static inline void f75375_write16(struct i2c_client *client, u8 reg,
 		u16 value)
 {
-	int err = i2c_smbus_write_byte_data(client, reg, (value << 8));
+	int err = i2c_smbus_write_byte_data(client, reg, (value >> 8));
 	if (err)
 		return;
 	i2c_smbus_write_byte_data(client, reg + 1, (value & 0xFF));
+}
+
+static void f75375_write_pwm(struct i2c_client *client, int nr)
+{
+	struct f75375_data *data = i2c_get_clientdata(client);
+	if (data->kind == f75387)
+		f75375_write16(client, F75375_REG_FAN_EXP(nr), data->pwm[nr]);
+	else
+		f75375_write8(client, F75375_REG_FAN_PWM_DUTY(nr),
+			      data->pwm[nr]);
 }
 
 static struct f75375_data *f75375_update_device(struct device *dev)
@@ -200,9 +210,6 @@ static struct f75375_data *f75375_update_device(struct device *dev)
 				f75375_read16(client, F75375_REG_FAN_MIN(nr));
 			data->fan_target[nr] =
 				f75375_read16(client, F75375_REG_FAN_EXP(nr));
-			data->pwm[nr] =	f75375_read8(client,
-				F75375_REG_FAN_PWM_DUTY(nr));
-
 		}
 		for (nr = 0; nr < 4; nr++) {
 			data->in_max[nr] =
@@ -218,6 +225,8 @@ static struct f75375_data *f75375_update_device(struct device *dev)
 	if (time_after(jiffies, data->last_updated + 2 * HZ)
 		|| !data->valid) {
 		for (nr = 0; nr < 2; nr++) {
+			data->pwm[nr] =	f75375_read8(client,
+				F75375_REG_FAN_PWM_DUTY(nr));
 			/* assign MSB, therefore shift it by 8 bits */
 			data->temp11[nr] =
 				f75375_read8(client, F75375_REG_TEMP(nr)) << 8;
@@ -255,6 +264,36 @@ static inline u16 rpm_to_reg(int rpm)
 	return 1500000 / rpm;
 }
 
+static bool duty_mode_enabled(u8 pwm_enable)
+{
+	switch (pwm_enable) {
+	case 0: /* Manual, duty mode (full speed) */
+	case 1: /* Manual, duty mode */
+	case 4: /* Auto, duty mode */
+		return true;
+	case 2: /* Auto, speed mode */
+	case 3: /* Manual, speed mode */
+		return false;
+	default:
+		BUG();
+	}
+}
+
+static bool auto_mode_enabled(u8 pwm_enable)
+{
+	switch (pwm_enable) {
+	case 0: /* Manual, duty mode (full speed) */
+	case 1: /* Manual, duty mode */
+	case 3: /* Manual, speed mode */
+		return false;
+	case 2: /* Auto, speed mode */
+	case 4: /* Auto, duty mode */
+		return true;
+	default:
+		BUG();
+	}
+}
+
 static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
@@ -288,6 +327,11 @@ static ssize_t set_fan_target(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
+	if (auto_mode_enabled(data->pwm_enable[nr]))
+		return -EINVAL;
+	if (data->kind == f75387 && duty_mode_enabled(data->pwm_enable[nr]))
+		return -EINVAL;
+
 	mutex_lock(&data->update_lock);
 	data->fan_target[nr] = rpm_to_reg(val);
 	f75375_write16(client, F75375_REG_FAN_EXP(nr), data->fan_target[nr]);
@@ -308,9 +352,13 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	if (err < 0)
 		return err;
 
+	if (auto_mode_enabled(data->pwm_enable[nr]) ||
+	    !duty_mode_enabled(data->pwm_enable[nr]))
+		return -EINVAL;
+
 	mutex_lock(&data->update_lock);
 	data->pwm[nr] = SENSORS_LIMIT(val, 0, 255);
-	f75375_write8(client, F75375_REG_FAN_PWM_DUTY(nr), data->pwm[nr]);
+	f75375_write_pwm(client, nr);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -328,11 +376,15 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 	struct f75375_data *data = i2c_get_clientdata(client);
 	u8 fanmode;
 
-	if (val < 0 || val > 3)
+	if (val < 0 || val > 4)
 		return -EINVAL;
 
 	fanmode = f75375_read8(client, F75375_REG_FAN_TIMER);
 	if (data->kind == f75387) {
+		/* For now, deny dangerous toggling of duty mode */
+		if (duty_mode_enabled(data->pwm_enable[nr]) !=
+				duty_mode_enabled(val))
+			return -EOPNOTSUPP;
 		/* clear each fanX_mode bit before setting them properly */
 		fanmode &= ~(1 << F75387_FAN_DUTY_MODE(nr));
 		fanmode &= ~(1 << F75387_FAN_MANU_MODE(nr));
@@ -341,18 +393,18 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 			fanmode |= (1 << F75387_FAN_MANU_MODE(nr));
 			fanmode |= (1 << F75387_FAN_DUTY_MODE(nr));
 			data->pwm[nr] = 255;
-			f75375_write8(client, F75375_REG_FAN_PWM_DUTY(nr),
-					data->pwm[nr]);
 			break;
 		case 1: /* PWM */
 			fanmode  |= (1 << F75387_FAN_MANU_MODE(nr));
 			fanmode  |= (1 << F75387_FAN_DUTY_MODE(nr));
 			break;
-		case 2: /* AUTOMATIC*/
-			fanmode  |=  (1 << F75387_FAN_DUTY_MODE(nr));
+		case 2: /* Automatic, speed mode */
 			break;
 		case 3: /* fan speed */
 			fanmode |= (1 << F75387_FAN_MANU_MODE(nr));
+			break;
+		case 4: /* Automatic, pwm */
+			fanmode |= (1 << F75387_FAN_DUTY_MODE(nr));
 			break;
 		}
 	} else {
@@ -362,22 +414,24 @@ static int set_pwm_enable_direct(struct i2c_client *client, int nr, int val)
 		case 0: /* full speed */
 			fanmode  |= (3 << FAN_CTRL_MODE(nr));
 			data->pwm[nr] = 255;
-			f75375_write8(client, F75375_REG_FAN_PWM_DUTY(nr),
-					data->pwm[nr]);
 			break;
 		case 1: /* PWM */
 			fanmode  |= (3 << FAN_CTRL_MODE(nr));
 			break;
 		case 2: /* AUTOMATIC*/
-			fanmode  |= (2 << FAN_CTRL_MODE(nr));
+			fanmode  |= (1 << FAN_CTRL_MODE(nr));
 			break;
 		case 3: /* fan speed */
 			break;
+		case 4: /* Automatic pwm */
+			return -EINVAL;
 		}
 	}
 
 	f75375_write8(client, F75375_REG_FAN_TIMER, fanmode);
 	data->pwm_enable[nr] = val;
+	if (val == 0)
+		f75375_write_pwm(client, nr);
 	return 0;
 }
 
@@ -723,19 +777,22 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 			if (data->kind == f75387) {
 				bool manu, duty;
 
-				if (!(conf & (1 << F75387_FAN_CTRL_LINEAR(nr))))
+				if (!(mode & (1 << F75387_FAN_CTRL_LINEAR(nr))))
 					data->pwm_mode[nr] = 1;
 
 				manu = ((mode >> F75387_FAN_MANU_MODE(nr)) & 1);
 				duty = ((mode >> F75387_FAN_DUTY_MODE(nr)) & 1);
-				if (manu && duty)
-					/* speed */
+				if (!manu && duty)
+					/* auto, pwm */
+					data->pwm_enable[nr] = 4;
+				else if (manu && !duty)
+					/* manual, speed */
 					data->pwm_enable[nr] = 3;
-				else if (!manu && duty)
-					/* automatic */
+				else if (!manu && !duty)
+					/* automatic, speed */
 					data->pwm_enable[nr] = 2;
 				else
-					/* manual */
+					/* manual, pwm */
 					data->pwm_enable[nr] = 1;
 			} else {
 				if (!(conf & (1 << F75375_FAN_CTRL_LINEAR(nr))))
@@ -760,9 +817,11 @@ static void f75375_init(struct i2c_client *client, struct f75375_data *data,
 	set_pwm_enable_direct(client, 0, f75375s_pdata->pwm_enable[0]);
 	set_pwm_enable_direct(client, 1, f75375s_pdata->pwm_enable[1]);
 	for (nr = 0; nr < 2; nr++) {
+		if (auto_mode_enabled(f75375s_pdata->pwm_enable[nr]) ||
+		    !duty_mode_enabled(f75375s_pdata->pwm_enable[nr]))
+			continue;
 		data->pwm[nr] = SENSORS_LIMIT(f75375s_pdata->pwm[nr], 0, 255);
-		f75375_write8(client, F75375_REG_FAN_PWM_DUTY(nr),
-			data->pwm[nr]);
+		f75375_write_pwm(client, nr);
 	}
 
 }
@@ -789,7 +848,7 @@ static int f75375_probe(struct i2c_client *client,
 	if (err)
 		goto exit_free;
 
-	if (data->kind == f75375) {
+	if (data->kind != f75373) {
 		err = sysfs_chmod_file(&client->dev.kobj,
 			&sensor_dev_attr_pwm1_mode.dev_attr.attr,
 			S_IRUGO | S_IWUSR);

@@ -1616,12 +1616,12 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 				kfree(priv->mfunc.master.slave_state[i].vlan_filter[port]);
 		}
 		kfree(priv->mfunc.master.slave_state);
-		iounmap(priv->mfunc.comm);
-		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
-						     priv->mfunc.vhcr,
-						     priv->mfunc.vhcr_dma);
-		priv->mfunc.vhcr = NULL;
 	}
+
+	iounmap(priv->mfunc.comm);
+	dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+		     priv->mfunc.vhcr, priv->mfunc.vhcr_dma);
+	priv->mfunc.vhcr = NULL;
 }
 
 void mlx4_cmd_cleanup(struct mlx4_dev *dev)

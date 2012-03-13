@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/kthread.h>
+#include <linux/firmware.h>
 #include "osdep_service.h"
 #include "drv_types.h"
 #include "xmit_osdep.h"
@@ -264,12 +265,12 @@ static void start_drv_timers(struct _adapter *padapter)
 void r8712_stop_drv_timers(struct _adapter *padapter)
 {
 	_cancel_timer_ex(&padapter->mlmepriv.assoc_timer);
-	_cancel_timer_ex(&padapter->mlmepriv.sitesurveyctrl.
-			 sitesurvey_ctrl_timer);
 	_cancel_timer_ex(&padapter->securitypriv.tkip_timer);
 	_cancel_timer_ex(&padapter->mlmepriv.scan_to_timer);
 	_cancel_timer_ex(&padapter->mlmepriv.dhcp_timer);
 	_cancel_timer_ex(&padapter->mlmepriv.wdg_timer);
+	_cancel_timer_ex(&padapter->mlmepriv.sitesurveyctrl.
+			 sitesurvey_ctrl_timer);
 }
 
 static u8 init_default_value(struct _adapter *padapter)
@@ -347,7 +348,8 @@ u8 r8712_free_drv_sw(struct _adapter *padapter)
 	r8712_free_mlme_priv(&padapter->mlmepriv);
 	r8712_free_io_queue(padapter);
 	_free_xmit_priv(&padapter->xmitpriv);
-	_r8712_free_sta_priv(&padapter->stapriv);
+	if (padapter->fw_found)
+		_r8712_free_sta_priv(&padapter->stapriv);
 	_r8712_free_recv_priv(&padapter->recvpriv);
 	mp871xdeinit(padapter);
 	if (pnetdev)
@@ -388,6 +390,7 @@ static int netdev_open(struct net_device *pnetdev)
 {
 	struct _adapter *padapter = (struct _adapter *)netdev_priv(pnetdev);
 
+	mutex_lock(&padapter->mutex_start);
 	if (padapter->bup == false) {
 		padapter->bDriverStopped = false;
 		padapter->bSurpriseRemoved = false;
@@ -435,11 +438,13 @@ static int netdev_open(struct net_device *pnetdev)
 	/* start driver mlme relation timer */
 	start_drv_timers(padapter);
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_NO_LINK);
+	mutex_unlock(&padapter->mutex_start);
 	return 0;
 netdev_open_error:
 	padapter->bup = false;
 	netif_carrier_off(pnetdev);
 	netif_stop_queue(pnetdev);
+	mutex_unlock(&padapter->mutex_start);
 	return -1;
 }
 
@@ -473,6 +478,9 @@ static int netdev_close(struct net_device *pnetdev)
 	r8712_free_network_queue(padapter);
 	/* The interface is no longer Up: */
 	padapter->bup = false;
+	release_firmware(padapter->fw);
+	/* never exit with a firmware callback pending */
+	wait_for_completion(&padapter->rtl8712_fw_ready);
 	return 0;
 }
 
