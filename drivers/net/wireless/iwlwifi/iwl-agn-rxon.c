@@ -591,6 +591,35 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
 		_iwl_set_rxon_ht(priv, ht_conf, ctx);
 }
 
+/**
+ * iwl_set_rxon_channel - Set the band and channel values in staging RXON
+ * @ch: requested channel as a pointer to struct ieee80211_channel
+
+ * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
+ * in the staging RXON flag structure based on the ch->band
+ */
+void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
+			 struct iwl_rxon_context *ctx)
+{
+	enum ieee80211_band band = ch->band;
+	u16 channel = ch->hw_value;
+
+	if ((le16_to_cpu(ctx->staging.channel) == channel) &&
+	    (priv->band == band))
+		return;
+
+	ctx->staging.channel = cpu_to_le16(channel);
+	if (band == IEEE80211_BAND_5GHZ)
+		ctx->staging.flags &= ~RXON_FLG_BAND_24G_MSK;
+	else
+		ctx->staging.flags |= RXON_FLG_BAND_24G_MSK;
+
+	priv->band = band;
+
+	IWL_DEBUG_INFO(priv, "Staging channel set to %d [%d]\n", channel, band);
+
+}
+
 static void iwl_set_rxon_hwcrypto(struct iwl_priv *priv,
 				  struct iwl_rxon_context *ctx, int hw_decrypt)
 {
