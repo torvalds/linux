@@ -208,11 +208,10 @@ static void __release_stripe(struct r5conf *conf, struct stripe_head *sh)
 			md_wakeup_thread(conf->mddev->thread);
 		} else {
 			BUG_ON(stripe_operations_active(sh));
-			if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state)) {
-				atomic_dec(&conf->preread_active_stripes);
-				if (atomic_read(&conf->preread_active_stripes) < IO_THRESHOLD)
+			if (test_and_clear_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
+				if (atomic_dec_return(&conf->preread_active_stripes)
+				    < IO_THRESHOLD)
 					md_wakeup_thread(conf->mddev->thread);
-			}
 			atomic_dec(&conf->active_stripes);
 			if (!test_bit(STRIPE_EXPANDING, &sh->state)) {
 				list_add_tail(&sh->lru, &conf->inactive_list);
