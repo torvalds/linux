@@ -293,9 +293,8 @@ int drm_framebuffer_init(struct drm_device *dev, struct drm_framebuffer *fb,
 	int ret;
 
 	ret = drm_mode_object_get(dev, &fb->base, DRM_MODE_OBJECT_FB);
-	if (ret) {
+	if (ret)
 		return ret;
-	}
 
 	fb->dev = dev;
 	fb->funcs = funcs;
@@ -365,19 +364,31 @@ EXPORT_SYMBOL(drm_framebuffer_cleanup);
  * Caller must hold mode config lock.
  *
  * Inits a new object created as base part of an driver crtc object.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure.
  */
-void drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
+int drm_crtc_init(struct drm_device *dev, struct drm_crtc *crtc,
 		   const struct drm_crtc_funcs *funcs)
 {
+	int ret;
+
 	crtc->dev = dev;
 	crtc->funcs = funcs;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
+
+	ret = drm_mode_object_get(dev, &crtc->base, DRM_MODE_OBJECT_CRTC);
+	if (ret)
+		goto out;
 
 	list_add_tail(&crtc->head, &dev->mode_config.crtc_list);
 	dev->mode_config.num_crtc++;
+
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_crtc_init);
 
@@ -453,17 +464,25 @@ EXPORT_SYMBOL(drm_mode_remove);
  *
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
+ *
+ * RETURNS:
+ * Zero on success, error code on failure.
  */
-void drm_connector_init(struct drm_device *dev,
-		     struct drm_connector *connector,
-		     const struct drm_connector_funcs *funcs,
-		     int connector_type)
+int drm_connector_init(struct drm_device *dev,
+		       struct drm_connector *connector,
+		       const struct drm_connector_funcs *funcs,
+		       int connector_type)
 {
+	int ret;
+
 	mutex_lock(&dev->mode_config.mutex);
+
+	ret = drm_mode_object_get(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR);
+	if (ret)
+		goto out;
 
 	connector->dev = dev;
 	connector->funcs = funcs;
-	drm_mode_object_get(dev, &connector->base, DRM_MODE_OBJECT_CONNECTOR);
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
 		++drm_connector_enum_list[connector_type].count; /* TODO */
@@ -483,7 +502,10 @@ void drm_connector_init(struct drm_device *dev,
 	drm_connector_attach_property(connector,
 				      dev->mode_config.dpms_property, 0);
 
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_connector_init);
 
@@ -518,23 +540,30 @@ void drm_connector_cleanup(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_cleanup);
 
-void drm_encoder_init(struct drm_device *dev,
-		      struct drm_encoder *encoder,
-		      const struct drm_encoder_funcs *funcs,
-		      int encoder_type)
+int drm_encoder_init(struct drm_device *dev,
+		     struct drm_encoder *encoder,
+		     const struct drm_encoder_funcs *funcs,
+		     int encoder_type)
 {
+	int ret;
+
 	mutex_lock(&dev->mode_config.mutex);
 
-	encoder->dev = dev;
+	ret = drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
+	if (ret)
+		goto out;
 
-	drm_mode_object_get(dev, &encoder->base, DRM_MODE_OBJECT_ENCODER);
+	encoder->dev = dev;
 	encoder->encoder_type = encoder_type;
 	encoder->funcs = funcs;
 
 	list_add_tail(&encoder->head, &dev->mode_config.encoder_list);
 	dev->mode_config.num_encoder++;
 
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_encoder_init);
 
@@ -555,18 +584,23 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		   const uint32_t *formats, uint32_t format_count,
 		   bool priv)
 {
+	int ret;
+
 	mutex_lock(&dev->mode_config.mutex);
 
+	ret = drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
+	if (ret)
+		goto out;
+
 	plane->dev = dev;
-	drm_mode_object_get(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
 	plane->funcs = funcs;
 	plane->format_types = kmalloc(sizeof(uint32_t) * format_count,
 				      GFP_KERNEL);
 	if (!plane->format_types) {
 		DRM_DEBUG_KMS("out of memory when allocating plane\n");
 		drm_mode_object_put(dev, &plane->base);
-		mutex_unlock(&dev->mode_config.mutex);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
@@ -584,9 +618,10 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		INIT_LIST_HEAD(&plane->head);
 	}
 
+ out:
 	mutex_unlock(&dev->mode_config.mutex);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(drm_plane_init);
 
@@ -626,7 +661,11 @@ struct drm_display_mode *drm_mode_create(struct drm_device *dev)
 	if (!nmode)
 		return NULL;
 
-	drm_mode_object_get(dev, &nmode->base, DRM_MODE_OBJECT_MODE);
+	if (drm_mode_object_get(dev, &nmode->base, DRM_MODE_OBJECT_MODE)) {
+		kfree(nmode);
+		return NULL;
+	}
+
 	return nmode;
 }
 EXPORT_SYMBOL(drm_mode_create);
@@ -2597,6 +2636,7 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 					 const char *name, int num_values)
 {
 	struct drm_property *property = NULL;
+	int ret;
 
 	property = kzalloc(sizeof(struct drm_property), GFP_KERNEL);
 	if (!property)
@@ -2608,7 +2648,10 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 			goto fail;
 	}
 
-	drm_mode_object_get(dev, &property->base, DRM_MODE_OBJECT_PROPERTY);
+	ret = drm_mode_object_get(dev, &property->base, DRM_MODE_OBJECT_PROPERTY);
+	if (ret)
+		goto fail;
+
 	property->flags = flags;
 	property->num_values = num_values;
 	INIT_LIST_HEAD(&property->enum_blob_list);
@@ -2621,6 +2664,7 @@ struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 	list_add_tail(&property->head, &dev->mode_config.property_list);
 	return property;
 fail:
+	kfree(property->values);
 	kfree(property);
 	return NULL;
 }
@@ -2884,6 +2928,7 @@ static struct drm_property_blob *drm_property_create_blob(struct drm_device *dev
 							  void *data)
 {
 	struct drm_property_blob *blob;
+	int ret;
 
 	if (!length || !data)
 		return NULL;
@@ -2892,12 +2937,16 @@ static struct drm_property_blob *drm_property_create_blob(struct drm_device *dev
 	if (!blob)
 		return NULL;
 
+	ret = drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
+	if (ret) {
+		kfree(blob);
+		return NULL;
+	}
+
 	blob->data = (void *)((char *)blob + sizeof(struct drm_property_blob));
 	blob->length = length;
 
 	memcpy(blob->data, data, length);
-
-	drm_mode_object_get(dev, &blob->base, DRM_MODE_OBJECT_BLOB);
 
 	list_add_tail(&blob->head, &dev->mode_config.property_blob_list);
 	return blob;

@@ -352,6 +352,8 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		return true;
 
 	adjusted_mode = drm_mode_duplicate(dev, mode);
+	if (!adjusted_mode)
+		return false;
 
 	saved_hwmode = crtc->hwmode;
 	saved_mode = crtc->mode;
