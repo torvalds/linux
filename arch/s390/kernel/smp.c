@@ -335,7 +335,8 @@ void smp_call_online_cpu(void (*func)(void *), void *data)
  */
 void smp_call_ipl_cpu(void (*func)(void *), void *data)
 {
-	pcpu_delegate(&pcpu_devices[0], func, data, pcpu_devices->panic_stack);
+	pcpu_delegate(&pcpu_devices[0], func, data,
+		      pcpu_devices->panic_stack + PAGE_SIZE);
 }
 
 int smp_find_processor_id(u16 address)
