@@ -30,9 +30,12 @@
 #include <linux/rmap.h>		/* anon_vma_prepare */
 #include <linux/mmu_notifier.h>	/* set_pte_at_notify */
 #include <linux/swap.h>		/* try_to_free_swap */
+#include <linux/ptrace.h>	/* user_enable_single_step */
+#include <linux/kdebug.h>	/* notifier mechanism */
 
 #include <linux/uprobes.h>
 
+static struct srcu_struct uprobes_srcu;
 static struct rb_root uprobes_tree = RB_ROOT;
 
 static DEFINE_SPINLOCK(uprobes_treelock);	/* serialize rbtree access */
@@ -486,6 +489,9 @@ static struct uprobe *insert_uprobe(struct uprobe *uprobe)
 	u = __insert_uprobe(uprobe);
 	spin_unlock_irqrestore(&uprobes_treelock, flags);
 
+	/* For now assume that the instruction need not be single-stepped */
+	uprobe->flags |= UPROBE_SKIP_SSTEP;
+
 	return u;
 }
 
@@ -521,6 +527,21 @@ static struct uprobe *alloc_uprobe(struct inode *inode, loff_t offset)
 	}
 
 	return uprobe;
+}
+
+static void handler_chain(struct uprobe *uprobe, struct pt_regs *regs)
+{
+	struct uprobe_consumer *uc;
+
+	if (!(uprobe->flags & UPROBE_RUN_HANDLER))
+		return;
+
+	down_read(&uprobe->consumer_rwsem);
+	for (uc = uprobe->consumers; uc; uc = uc->next) {
+		if (!uc->filter || uc->filter(uc, current))
+			uc->handler(uc, regs);
+	}
+	up_read(&uprobe->consumer_rwsem);
 }
 
 /* Returns the previous consumer */
@@ -645,7 +666,7 @@ install_breakpoint(struct uprobe *uprobe, struct mm_struct *mm,
 		if (is_swbp_insn((uprobe_opcode_t *)uprobe->arch.insn))
 			return -EEXIST;
 
-		ret = arch_uprobes_analyze_insn(&uprobe->arch, mm);
+		ret = arch_uprobe_analyze_insn(&uprobe->arch, mm);
 		if (ret)
 			return ret;
 
@@ -662,10 +683,21 @@ remove_breakpoint(struct uprobe *uprobe, struct mm_struct *mm, loff_t vaddr)
 	set_orig_insn(&uprobe->arch, mm, (unsigned long)vaddr, true);
 }
 
+/*
+ * There could be threads that have hit the breakpoint and are entering the
+ * notifier code and trying to acquire the uprobes_treelock. The thread
+ * calling delete_uprobe() that is removing the uprobe from the rb_tree can
+ * race with these threads and might acquire the uprobes_treelock compared
+ * to some of the breakpoint hit threads. In such a case, the breakpoint
+ * hit threads will not find the uprobe. The current unregistering thread
+ * waits till all other threads have hit a breakpoint, to acquire the
+ * uprobes_treelock before the uprobe is removed from the rbtree.
+ */
 static void delete_uprobe(struct uprobe *uprobe)
 {
 	unsigned long flags;
 
+	synchronize_srcu(&uprobes_srcu);
 	spin_lock_irqsave(&uprobes_treelock, flags);
 	rb_erase(&uprobe->rb_node, &uprobes_tree);
 	spin_unlock_irqrestore(&uprobes_treelock, flags);
@@ -1010,6 +1042,288 @@ int uprobe_mmap(struct vm_area_struct *vma)
 	return ret;
 }
 
+/**
+ * uprobe_get_swbp_addr - compute address of swbp given post-swbp regs
+ * @regs: Reflects the saved state of the task after it has hit a breakpoint
+ * instruction.
+ * Return the address of the breakpoint instruction.
+ */
+unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs)
+{
+	return instruction_pointer(regs) - UPROBE_SWBP_INSN_SIZE;
+}
+
+/*
+ * Called with no locks held.
+ * Called in context of a exiting or a exec-ing thread.
+ */
+void uprobe_free_utask(struct task_struct *t)
+{
+	struct uprobe_task *utask = t->utask;
+
+	if (t->uprobe_srcu_id != -1)
+		srcu_read_unlock_raw(&uprobes_srcu, t->uprobe_srcu_id);
+
+	if (!utask)
+		return;
+
+	if (utask->active_uprobe)
+		put_uprobe(utask->active_uprobe);
+
+	kfree(utask);
+	t->utask = NULL;
+}
+
+/*
+ * Called in context of a new clone/fork from copy_process.
+ */
+void uprobe_copy_process(struct task_struct *t)
+{
+	t->utask = NULL;
+	t->uprobe_srcu_id = -1;
+}
+
+/*
+ * Allocate a uprobe_task object for the task.
+ * Called when the thread hits a breakpoint for the first time.
+ *
+ * Returns:
+ * - pointer to new uprobe_task on success
+ * - NULL otherwise
+ */
+static struct uprobe_task *add_utask(void)
+{
+	struct uprobe_task *utask;
+
+	utask = kzalloc(sizeof *utask, GFP_KERNEL);
+	if (unlikely(!utask))
+		return NULL;
+
+	utask->active_uprobe = NULL;
+	current->utask = utask;
+	return utask;
+}
+
+/* Prepare to single-step probed instruction out of line. */
+static int
+pre_ssout(struct uprobe *uprobe, struct pt_regs *regs, unsigned long vaddr)
+{
+	return -EFAULT;
+}
+
+/*
+ * If we are singlestepping, then ensure this thread is not connected to
+ * non-fatal signals until completion of singlestep.  When xol insn itself
+ * triggers the signal,  restart the original insn even if the task is
+ * already SIGKILL'ed (since coredump should report the correct ip).  This
+ * is even more important if the task has a handler for SIGSEGV/etc, The
+ * _same_ instruction should be repeated again after return from the signal
+ * handler, and SSTEP can never finish in this case.
+ */
+bool uprobe_deny_signal(void)
+{
+	struct task_struct *t = current;
+	struct uprobe_task *utask = t->utask;
+
+	if (likely(!utask || !utask->active_uprobe))
+		return false;
+
+	WARN_ON_ONCE(utask->state != UTASK_SSTEP);
+
+	if (signal_pending(t)) {
+		spin_lock_irq(&t->sighand->siglock);
+		clear_tsk_thread_flag(t, TIF_SIGPENDING);
+		spin_unlock_irq(&t->sighand->siglock);
+
+		if (__fatal_signal_pending(t) || arch_uprobe_xol_was_trapped(t)) {
+			utask->state = UTASK_SSTEP_TRAPPED;
+			set_tsk_thread_flag(t, TIF_UPROBE);
+			set_tsk_thread_flag(t, TIF_NOTIFY_RESUME);
+		}
+	}
+
+	return true;
+}
+
+/*
+ * Avoid singlestepping the original instruction if the original instruction
+ * is a NOP or can be emulated.
+ */
+static bool can_skip_sstep(struct uprobe *uprobe, struct pt_regs *regs)
+{
+	if (arch_uprobe_skip_sstep(&uprobe->arch, regs))
+		return true;
+
+	uprobe->flags &= ~UPROBE_SKIP_SSTEP;
+	return false;
+}
+
+/*
+ * Run handler and ask thread to singlestep.
+ * Ensure all non-fatal signals cannot interrupt thread while it singlesteps.
+ */
+static void handle_swbp(struct pt_regs *regs)
+{
+	struct vm_area_struct *vma;
+	struct uprobe_task *utask;
+	struct uprobe *uprobe;
+	struct mm_struct *mm;
+	unsigned long bp_vaddr;
+
+	uprobe = NULL;
+	bp_vaddr = uprobe_get_swbp_addr(regs);
+	mm = current->mm;
+	down_read(&mm->mmap_sem);
+	vma = find_vma(mm, bp_vaddr);
+
+	if (vma && vma->vm_start <= bp_vaddr && valid_vma(vma, false)) {
+		struct inode *inode;
+		loff_t offset;
+
+		inode = vma->vm_file->f_mapping->host;
+		offset = bp_vaddr - vma->vm_start;
+		offset += (vma->vm_pgoff << PAGE_SHIFT);
+		uprobe = find_uprobe(inode, offset);
+	}
+
+	srcu_read_unlock_raw(&uprobes_srcu, current->uprobe_srcu_id);
+	current->uprobe_srcu_id = -1;
+	up_read(&mm->mmap_sem);
+
+	if (!uprobe) {
+		/* No matching uprobe; signal SIGTRAP. */
+		send_sig(SIGTRAP, current, 0);
+		return;
+	}
+
+	utask = current->utask;
+	if (!utask) {
+		utask = add_utask();
+		/* Cannot allocate; re-execute the instruction. */
+		if (!utask)
+			goto cleanup_ret;
+	}
+	utask->active_uprobe = uprobe;
+	handler_chain(uprobe, regs);
+	if (uprobe->flags & UPROBE_SKIP_SSTEP && can_skip_sstep(uprobe, regs))
+		goto cleanup_ret;
+
+	utask->state = UTASK_SSTEP;
+	if (!pre_ssout(uprobe, regs, bp_vaddr)) {
+		user_enable_single_step(current);
+		return;
+	}
+
+cleanup_ret:
+	if (utask) {
+		utask->active_uprobe = NULL;
+		utask->state = UTASK_RUNNING;
+	}
+	if (uprobe) {
+		if (!(uprobe->flags & UPROBE_SKIP_SSTEP))
+
+			/*
+			 * cannot singlestep; cannot skip instruction;
+			 * re-execute the instruction.
+			 */
+			instruction_pointer_set(regs, bp_vaddr);
+
+		put_uprobe(uprobe);
+	}
+}
+
+/*
+ * Perform required fix-ups and disable singlestep.
+ * Allow pending signals to take effect.
+ */
+static void handle_singlestep(struct uprobe_task *utask, struct pt_regs *regs)
+{
+	struct uprobe *uprobe;
+
+	uprobe = utask->active_uprobe;
+	if (utask->state == UTASK_SSTEP_ACK)
+		arch_uprobe_post_xol(&uprobe->arch, regs);
+	else if (utask->state == UTASK_SSTEP_TRAPPED)
+		arch_uprobe_abort_xol(&uprobe->arch, regs);
+	else
+		WARN_ON_ONCE(1);
+
+	put_uprobe(uprobe);
+	utask->active_uprobe = NULL;
+	utask->state = UTASK_RUNNING;
+	user_disable_single_step(current);
+
+	spin_lock_irq(&current->sighand->siglock);
+	recalc_sigpending(); /* see uprobe_deny_signal() */
+	spin_unlock_irq(&current->sighand->siglock);
+}
+
+/*
+ * On breakpoint hit, breakpoint notifier sets the TIF_UPROBE flag.  (and on
+ * subsequent probe hits on the thread sets the state to UTASK_BP_HIT) and
+ * allows the thread to return from interrupt.
+ *
+ * On singlestep exception, singlestep notifier sets the TIF_UPROBE flag and
+ * also sets the state to UTASK_SSTEP_ACK and allows the thread to return from
+ * interrupt.
+ *
+ * While returning to userspace, thread notices the TIF_UPROBE flag and calls
+ * uprobe_notify_resume().
+ */
+void uprobe_notify_resume(struct pt_regs *regs)
+{
+	struct uprobe_task *utask;
+
+	utask = current->utask;
+	if (!utask || utask->state == UTASK_BP_HIT)
+		handle_swbp(regs);
+	else
+		handle_singlestep(utask, regs);
+}
+
+/*
+ * uprobe_pre_sstep_notifier gets called from interrupt context as part of
+ * notifier mechanism. Set TIF_UPROBE flag and indicate breakpoint hit.
+ */
+int uprobe_pre_sstep_notifier(struct pt_regs *regs)
+{
+	struct uprobe_task *utask;
+
+	if (!current->mm)
+		return 0;
+
+	utask = current->utask;
+	if (utask)
+		utask->state = UTASK_BP_HIT;
+
+	set_thread_flag(TIF_UPROBE);
+	current->uprobe_srcu_id = srcu_read_lock_raw(&uprobes_srcu);
+
+	return 1;
+}
+
+/*
+ * uprobe_post_sstep_notifier gets called in interrupt context as part of notifier
+ * mechanism. Set TIF_UPROBE flag and indicate completion of singlestep.
+ */
+int uprobe_post_sstep_notifier(struct pt_regs *regs)
+{
+	struct uprobe_task *utask = current->utask;
+
+	if (!current->mm || !utask || !utask->active_uprobe)
+		/* task is currently not uprobed */
+		return 0;
+
+	utask->state = UTASK_SSTEP_ACK;
+	set_thread_flag(TIF_UPROBE);
+	return 1;
+}
+
+static struct notifier_block uprobe_exception_nb = {
+	.notifier_call		= arch_uprobe_exception_notify,
+	.priority		= INT_MAX-1,	/* notified after kprobes, kgdb */
+};
+
 static int __init init_uprobes(void)
 {
 	int i;
@@ -1018,12 +1332,13 @@ static int __init init_uprobes(void)
 		mutex_init(&uprobes_mutex[i]);
 		mutex_init(&uprobes_mmap_mutex[i]);
 	}
-	return 0;
+	init_srcu_struct(&uprobes_srcu);
+
+	return register_die_notifier(&uprobe_exception_nb);
 }
+module_init(init_uprobes);
 
 static void __exit exit_uprobes(void)
 {
 }
-
-module_init(init_uprobes);
 module_exit(exit_uprobes);

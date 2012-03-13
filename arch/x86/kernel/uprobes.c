@@ -24,21 +24,27 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/uprobes.h>
+#include <linux/uaccess.h>
 
 #include <linux/kdebug.h>
+#include <asm/processor.h>
 #include <asm/insn.h>
 
 /* Post-execution fixups. */
 
 /* No fixup needed */
-#define UPROBE_FIX_NONE	0x0
+#define UPROBE_FIX_NONE		0x0
+
 /* Adjust IP back to vicinity of actual insn */
 #define UPROBE_FIX_IP		0x1
+
 /* Adjust the return address of a call insn */
 #define UPROBE_FIX_CALL	0x2
 
 #define UPROBE_FIX_RIP_AX	0x8000
 #define UPROBE_FIX_RIP_CX	0x4000
+
+#define	UPROBE_TRAP_NR		UINT_MAX
 
 /* Adaptations for mhiramat x86 decoder v14. */
 #define OPCODE1(insn)		((insn)->opcode.bytes[0])
@@ -221,10 +227,9 @@ static int validate_insn_32bits(struct arch_uprobe *auprobe, struct insn *insn)
 }
 
 /*
- * Figure out which fixups post_xol() will need to perform, and annotate
- * arch_uprobe->fixups accordingly.  To start with,
- * arch_uprobe->fixups is either zero or it reflects rip-related
- * fixups.
+ * Figure out which fixups arch_uprobe_post_xol() will need to perform, and
+ * annotate arch_uprobe->fixups accordingly.  To start with,
+ * arch_uprobe->fixups is either zero or it reflects rip-related fixups.
  */
 static void prepare_fixups(struct arch_uprobe *auprobe, struct insn *insn)
 {
@@ -401,12 +406,12 @@ static int validate_insn_bits(struct arch_uprobe *auprobe, struct mm_struct *mm,
 #endif /* CONFIG_X86_64 */
 
 /**
- * arch_uprobes_analyze_insn - instruction analysis including validity and fixups.
+ * arch_uprobe_analyze_insn - instruction analysis including validity and fixups.
  * @mm: the probed address space.
  * @arch_uprobe: the probepoint information.
  * Return 0 on success or a -ve number on error.
  */
-int arch_uprobes_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm)
+int arch_uprobe_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm)
 {
 	int ret;
 	struct insn insn;
@@ -420,4 +425,250 @@ int arch_uprobes_analyze_insn(struct arch_uprobe *auprobe, struct mm_struct *mm)
 	prepare_fixups(auprobe, &insn);
 
 	return 0;
+}
+
+#ifdef CONFIG_X86_64
+/*
+ * If we're emulating a rip-relative instruction, save the contents
+ * of the scratch register and store the target address in that register.
+ */
+static void
+pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+				struct arch_uprobe_task *autask)
+{
+	if (auprobe->fixups & UPROBE_FIX_RIP_AX) {
+		autask->saved_scratch_register = regs->ax;
+		regs->ax = current->utask->vaddr;
+		regs->ax += auprobe->rip_rela_target_address;
+	} else if (auprobe->fixups & UPROBE_FIX_RIP_CX) {
+		autask->saved_scratch_register = regs->cx;
+		regs->cx = current->utask->vaddr;
+		regs->cx += auprobe->rip_rela_target_address;
+	}
+}
+#else
+static void
+pre_xol_rip_insn(struct arch_uprobe *auprobe, struct pt_regs *regs,
+				struct arch_uprobe_task *autask)
+{
+	/* No RIP-relative addressing on 32-bit */
+}
+#endif
+
+/*
+ * arch_uprobe_pre_xol - prepare to execute out of line.
+ * @auprobe: the probepoint information.
+ * @regs: reflects the saved user state of current task.
+ */
+int arch_uprobe_pre_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	struct arch_uprobe_task *autask;
+
+	autask = &current->utask->autask;
+	autask->saved_trap_nr = current->thread.trap_nr;
+	current->thread.trap_nr = UPROBE_TRAP_NR;
+	regs->ip = current->utask->xol_vaddr;
+	pre_xol_rip_insn(auprobe, regs, autask);
+
+	return 0;
+}
+
+/*
+ * This function is called by arch_uprobe_post_xol() to adjust the return
+ * address pushed by a call instruction executed out of line.
+ */
+static int adjust_ret_addr(unsigned long sp, long correction)
+{
+	int rasize, ncopied;
+	long ra = 0;
+
+	if (is_ia32_task())
+		rasize = 4;
+	else
+		rasize = 8;
+
+	ncopied = copy_from_user(&ra, (void __user *)sp, rasize);
+	if (unlikely(ncopied))
+		return -EFAULT;
+
+	ra += correction;
+	ncopied = copy_to_user((void __user *)sp, &ra, rasize);
+	if (unlikely(ncopied))
+		return -EFAULT;
+
+	return 0;
+}
+
+#ifdef CONFIG_X86_64
+static bool is_riprel_insn(struct arch_uprobe *auprobe)
+{
+	return ((auprobe->fixups & (UPROBE_FIX_RIP_AX | UPROBE_FIX_RIP_CX)) != 0);
+}
+
+static void
+handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
+{
+	if (is_riprel_insn(auprobe)) {
+		struct arch_uprobe_task *autask;
+
+		autask = &current->utask->autask;
+		if (auprobe->fixups & UPROBE_FIX_RIP_AX)
+			regs->ax = autask->saved_scratch_register;
+		else
+			regs->cx = autask->saved_scratch_register;
+
+		/*
+		 * The original instruction includes a displacement, and so
+		 * is 4 bytes longer than what we've just single-stepped.
+		 * Fall through to handle stuff like "jmpq *...(%rip)" and
+		 * "callq *...(%rip)".
+		 */
+		if (correction)
+			*correction += 4;
+	}
+}
+#else
+static void
+handle_riprel_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs, long *correction)
+{
+	/* No RIP-relative addressing on 32-bit */
+}
+#endif
+
+/*
+ * If xol insn itself traps and generates a signal(Say,
+ * SIGILL/SIGSEGV/etc), then detect the case where a singlestepped
+ * instruction jumps back to its own address. It is assumed that anything
+ * like do_page_fault/do_trap/etc sets thread.trap_nr != -1.
+ *
+ * arch_uprobe_pre_xol/arch_uprobe_post_xol save/restore thread.trap_nr,
+ * arch_uprobe_xol_was_trapped() simply checks that ->trap_nr is not equal to
+ * UPROBE_TRAP_NR == -1 set by arch_uprobe_pre_xol().
+ */
+bool arch_uprobe_xol_was_trapped(struct task_struct *t)
+{
+	if (t->thread.trap_nr != UPROBE_TRAP_NR)
+		return true;
+
+	return false;
+}
+
+/*
+ * Called after single-stepping. To avoid the SMP problems that can
+ * occur when we temporarily put back the original opcode to
+ * single-step, we single-stepped a copy of the instruction.
+ *
+ * This function prepares to resume execution after the single-step.
+ * We have to fix things up as follows:
+ *
+ * Typically, the new ip is relative to the copied instruction.  We need
+ * to make it relative to the original instruction (FIX_IP).  Exceptions
+ * are return instructions and absolute or indirect jump or call instructions.
+ *
+ * If the single-stepped instruction was a call, the return address that
+ * is atop the stack is the address following the copied instruction.  We
+ * need to make it the address following the original instruction (FIX_CALL).
+ *
+ * If the original instruction was a rip-relative instruction such as
+ * "movl %edx,0xnnnn(%rip)", we have instead executed an equivalent
+ * instruction using a scratch register -- e.g., "movl %edx,(%rax)".
+ * We need to restore the contents of the scratch register and adjust
+ * the ip, keeping in mind that the instruction we executed is 4 bytes
+ * shorter than the original instruction (since we squeezed out the offset
+ * field).  (FIX_RIP_AX or FIX_RIP_CX)
+ */
+int arch_uprobe_post_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	struct uprobe_task *utask;
+	long correction;
+	int result = 0;
+
+	WARN_ON_ONCE(current->thread.trap_nr != UPROBE_TRAP_NR);
+
+	utask = current->utask;
+	current->thread.trap_nr = utask->autask.saved_trap_nr;
+	correction = (long)(utask->vaddr - utask->xol_vaddr);
+	handle_riprel_post_xol(auprobe, regs, &correction);
+	if (auprobe->fixups & UPROBE_FIX_IP)
+		regs->ip += correction;
+
+	if (auprobe->fixups & UPROBE_FIX_CALL)
+		result = adjust_ret_addr(regs->sp, correction);
+
+	return result;
+}
+
+/* callback routine for handling exceptions. */
+int arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val, void *data)
+{
+	struct die_args *args = data;
+	struct pt_regs *regs = args->regs;
+	int ret = NOTIFY_DONE;
+
+	/* We are only interested in userspace traps */
+	if (regs && !user_mode_vm(regs))
+		return NOTIFY_DONE;
+
+	switch (val) {
+	case DIE_INT3:
+		if (uprobe_pre_sstep_notifier(regs))
+			ret = NOTIFY_STOP;
+
+		break;
+
+	case DIE_DEBUG:
+		if (uprobe_post_sstep_notifier(regs))
+			ret = NOTIFY_STOP;
+
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+/*
+ * This function gets called when XOL instruction either gets trapped or
+ * the thread has a fatal signal, so reset the instruction pointer to its
+ * probed address.
+ */
+void arch_uprobe_abort_xol(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	struct uprobe_task *utask = current->utask;
+
+	current->thread.trap_nr = utask->autask.saved_trap_nr;
+	handle_riprel_post_xol(auprobe, regs, NULL);
+	instruction_pointer_set(regs, utask->vaddr);
+}
+
+/*
+ * Skip these instructions as per the currently known x86 ISA.
+ * 0x66* { 0x90 | 0x0f 0x1f | 0x0f 0x19 | 0x87 0xc0 }
+ */
+bool arch_uprobe_skip_sstep(struct arch_uprobe *auprobe, struct pt_regs *regs)
+{
+	int i;
+
+	for (i = 0; i < MAX_UINSN_BYTES; i++) {
+		if ((auprobe->insn[i] == 0x66))
+			continue;
+
+		if (auprobe->insn[i] == 0x90)
+			return true;
+
+		if (i == (MAX_UINSN_BYTES - 1))
+			break;
+
+		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x1f))
+			return true;
+
+		if ((auprobe->insn[i] == 0x0f) && (auprobe->insn[i+1] == 0x19))
+			return true;
+
+		if ((auprobe->insn[i] == 0x87) && (auprobe->insn[i+1] == 0xc0))
+			return true;
+
+		break;
+	}
+	return false;
 }

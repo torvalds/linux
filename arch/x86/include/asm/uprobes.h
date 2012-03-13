@@ -23,6 +23,8 @@
  *	Jim Keniston
  */
 
+#include <linux/notifier.h>
+
 typedef u8 uprobe_opcode_t;
 
 #define MAX_UINSN_BYTES			  16
@@ -39,5 +41,17 @@ struct arch_uprobe {
 #endif
 };
 
-extern int arch_uprobes_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm);
+struct arch_uprobe_task {
+	unsigned long			saved_trap_nr;
+#ifdef CONFIG_X86_64
+	unsigned long			saved_scratch_register;
+#endif
+};
+
+extern int  arch_uprobe_analyze_insn(struct arch_uprobe *aup, struct mm_struct *mm);
+extern int  arch_uprobe_pre_xol(struct arch_uprobe *aup, struct pt_regs *regs);
+extern int  arch_uprobe_post_xol(struct arch_uprobe *aup, struct pt_regs *regs);
+extern bool arch_uprobe_xol_was_trapped(struct task_struct *tsk);
+extern int  arch_uprobe_exception_notify(struct notifier_block *self, unsigned long val, void *data);
+extern void arch_uprobe_abort_xol(struct arch_uprobe *aup, struct pt_regs *regs);
 #endif	/* _ASM_UPROBES_H */

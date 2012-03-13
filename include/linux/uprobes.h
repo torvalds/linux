@@ -28,8 +28,9 @@
 #include <linux/rbtree.h>
 
 struct vm_area_struct;
+
 #ifdef CONFIG_ARCH_SUPPORTS_UPROBES
-#include <asm/uprobes.h>
+# include <asm/uprobes.h>
 #endif
 
 /* flags that denote/change uprobes behaviour */
@@ -39,6 +40,8 @@ struct vm_area_struct;
 
 /* Dont run handlers when first register/ last unregister in progress*/
 #define UPROBE_RUN_HANDLER	0x2
+/* Can skip singlestep */
+#define UPROBE_SKIP_SSTEP	0x4
 
 struct uprobe_consumer {
 	int (*handler)(struct uprobe_consumer *self, struct pt_regs *regs);
@@ -52,13 +55,42 @@ struct uprobe_consumer {
 };
 
 #ifdef CONFIG_UPROBES
+enum uprobe_task_state {
+	UTASK_RUNNING,
+	UTASK_BP_HIT,
+	UTASK_SSTEP,
+	UTASK_SSTEP_ACK,
+	UTASK_SSTEP_TRAPPED,
+};
+
+/*
+ * uprobe_task: Metadata of a task while it singlesteps.
+ */
+struct uprobe_task {
+	enum uprobe_task_state		state;
+	struct arch_uprobe_task		autask;
+
+	struct uprobe			*active_uprobe;
+
+	unsigned long			xol_vaddr;
+	unsigned long			vaddr;
+};
+
 extern int __weak set_swbp(struct arch_uprobe *aup, struct mm_struct *mm, unsigned long vaddr);
 extern int __weak set_orig_insn(struct arch_uprobe *aup, struct mm_struct *mm,  unsigned long vaddr, bool verify);
 extern bool __weak is_swbp_insn(uprobe_opcode_t *insn);
 extern int uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern void uprobe_unregister(struct inode *inode, loff_t offset, struct uprobe_consumer *uc);
 extern int uprobe_mmap(struct vm_area_struct *vma);
-#else /* CONFIG_UPROBES is not defined */
+extern void uprobe_free_utask(struct task_struct *t);
+extern void uprobe_copy_process(struct task_struct *t);
+extern unsigned long __weak uprobe_get_swbp_addr(struct pt_regs *regs);
+extern int uprobe_post_sstep_notifier(struct pt_regs *regs);
+extern int uprobe_pre_sstep_notifier(struct pt_regs *regs);
+extern void uprobe_notify_resume(struct pt_regs *regs);
+extern bool uprobe_deny_signal(void);
+extern bool __weak arch_uprobe_skip_sstep(struct arch_uprobe *aup, struct pt_regs *regs);
+#else /* !CONFIG_UPROBES */
 static inline int
 uprobe_register(struct inode *inode, loff_t offset, struct uprobe_consumer *uc)
 {
@@ -72,5 +104,22 @@ static inline int uprobe_mmap(struct vm_area_struct *vma)
 {
 	return 0;
 }
-#endif /* CONFIG_UPROBES */
+static inline void uprobe_notify_resume(struct pt_regs *regs)
+{
+}
+static inline bool uprobe_deny_signal(void)
+{
+	return false;
+}
+static inline unsigned long uprobe_get_swbp_addr(struct pt_regs *regs)
+{
+	return 0;
+}
+static inline void uprobe_free_utask(struct task_struct *t)
+{
+}
+static inline void uprobe_copy_process(struct task_struct *t)
+{
+}
+#endif /* !CONFIG_UPROBES */
 #endif	/* _LINUX_UPROBES_H */
