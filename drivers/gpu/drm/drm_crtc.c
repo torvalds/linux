@@ -2421,24 +2421,40 @@ static void drm_mode_attachmode(struct drm_device *dev,
 }
 
 int drm_mode_attachmode_crtc(struct drm_device *dev, struct drm_crtc *crtc,
-			     struct drm_display_mode *mode)
+			     const struct drm_display_mode *mode)
 {
 	struct drm_connector *connector;
-	struct drm_display_mode *dup_mode;
-	int need_dup = 0;
+	int ret = 0;
+	struct drm_display_mode *dup_mode, *next;
+	LIST_HEAD(list);
+
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (!connector->encoder)
-			break;
+			continue;
 		if (connector->encoder->crtc == crtc) {
-			if (need_dup)
-				dup_mode = drm_mode_duplicate(dev, mode);
-			else
-				dup_mode = mode;
-			drm_mode_attachmode(dev, connector, dup_mode);
-			need_dup = 1;
+			dup_mode = drm_mode_duplicate(dev, mode);
+			if (!dup_mode) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			list_add_tail(&dup_mode->head, &list);
 		}
 	}
-	return 0;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (!connector->encoder)
+			continue;
+		if (connector->encoder->crtc == crtc)
+			list_move_tail(list.next, &connector->user_modes);
+	}
+
+	WARN_ON(!list_empty(&list));
+
+ out:
+	list_for_each_entry_safe(dup_mode, next, &list, head)
+		drm_mode_destroy(dev, dup_mode);
+
+	return ret;
 }
 EXPORT_SYMBOL(drm_mode_attachmode_crtc);
 

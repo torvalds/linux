@@ -869,7 +869,7 @@ extern int drm_mode_height(struct drm_display_mode *mode);
 /* for us by fb module */
 extern int drm_mode_attachmode_crtc(struct drm_device *dev,
 				    struct drm_crtc *crtc,
-				    struct drm_display_mode *mode);
+				    const struct drm_display_mode *mode);
 extern int drm_mode_detachmode_crtc(struct drm_device *dev, struct drm_display_mode *mode);
 
 extern struct drm_display_mode *drm_mode_create(struct drm_device *dev);
