@@ -21,7 +21,6 @@
 #include "xfs_dquot_item.h"
 #include "xfs_dquot.h"
 #include "xfs_quota_priv.h"
-#include "xfs_qm_stats.h"
 
 struct xfs_qm;
 struct xfs_inode;
@@ -60,7 +59,6 @@ typedef struct xfs_qm {
 	struct list_head qm_dqfrlist;	 /* freelist of dquots */
 	struct mutex	 qm_dqfrlist_lock;
 	int		 qm_dqfrlist_cnt;
-	atomic_t	 qm_totaldquots; /* total incore dquots */
 	uint		 qm_nrefs;	 /* file systems with quota on */
 	kmem_zone_t	*qm_dqzone;	 /* dquot mem-alloc zone */
 	kmem_zone_t	*qm_dqtrxzone;	 /* t_dqinfo of transactions */

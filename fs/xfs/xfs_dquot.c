@@ -74,7 +74,7 @@ xfs_qm_dqdestroy(
 	mutex_destroy(&dqp->q_qlock);
 	kmem_zone_free(xfs_Gqm->qm_dqzone, dqp);
 
-	atomic_dec(&xfs_Gqm->qm_totaldquots);
+	XFS_STATS_DEC(xs_qm_dquot);
 }
 
 /*
@@ -516,7 +516,7 @@ xfs_qm_dqread(
 	if (!(type & XFS_DQ_USER))
 		lockdep_set_class(&dqp->q_qlock, &xfs_dquot_other_class);
 
-	atomic_inc(&xfs_Gqm->qm_totaldquots);
+	XFS_STATS_INC(xs_qm_dquot);
 
 	trace_xfs_dqread(dqp);
 
@@ -712,12 +712,12 @@ restart:
 	 */
 	switch (xfs_qm_dqlookup(mp, id, h, O_dqpp)) {
 	case -1:
-		XQM_STATS_INC(xqmstats.xs_qm_dquot_dups);
+		XFS_STATS_INC(xs_qm_dquot_dups);
 		mutex_unlock(&h->qh_lock);
 		delay(1);
 		goto restart;
 	case 0:
-		XQM_STATS_INC(xqmstats.xs_qm_dqcachehits);
+		XFS_STATS_INC(xs_qm_dqcachehits);
 		/*
 		 * The dquot was found, moved to the front of the chain,
 		 * taken off the freelist if it was on it, and locked
@@ -729,7 +729,7 @@ restart:
 		trace_xfs_dqget_hit(*O_dqpp);
 		return 0;	/* success */
 	default:
-		XQM_STATS_INC(xqmstats.xs_qm_dqcachemisses);
+		XFS_STATS_INC(xs_qm_dqcachemisses);
 		break;
 	}
 
@@ -804,7 +804,7 @@ restart:
 				xfs_qm_dqput(tmpdqp);
 			mutex_unlock(&h->qh_lock);
 			xfs_qm_dqdestroy(dqp);
-			XQM_STATS_INC(xqmstats.xs_qm_dquot_dups);
+			XFS_STATS_INC(xs_qm_dquot_dups);
 			goto restart;
 		default:
 			break;
@@ -873,6 +873,7 @@ recurse:
 	if (list_empty(&dqp->q_freelist)) {
 		list_add_tail(&dqp->q_freelist, &xfs_Gqm->qm_dqfrlist);
 		xfs_Gqm->qm_dqfrlist_cnt++;
+		XFS_STATS_INC(xs_qm_dquot_unused);
 	}
 	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 
@@ -1178,6 +1179,7 @@ xfs_qm_dqpurge(
 	ASSERT(!list_empty(&dqp->q_freelist));
 	list_del_init(&dqp->q_freelist);
 	xfs_Gqm->qm_dqfrlist_cnt--;
+	XFS_STATS_DEC(xs_qm_dquot_unused);
 	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
 
 	xfs_qm_dqdestroy(dqp);

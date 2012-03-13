@@ -134,7 +134,6 @@ xfs_Gqm_init(void)
 	} else
 		xqm->qm_dqtrxzone = qm_dqtrxzone;
 
-	atomic_set(&xqm->qm_totaldquots, 0);
 	xqm->qm_nrefs = 0;
 	return xqm;
 
@@ -1637,10 +1636,11 @@ xfs_qm_dqreclaim_one(
 		xfs_dqunlock(dqp);
 
 		trace_xfs_dqreclaim_want(dqp);
-		XQM_STATS_INC(xqmstats.xs_qm_dqwants);
+		XFS_STATS_INC(xs_qm_dqwants);
 
 		list_del_init(&dqp->q_freelist);
 		xfs_Gqm->qm_dqfrlist_cnt--;
+		XFS_STATS_DEC(xs_qm_dquot_unused);
 		return;
 	}
 
@@ -1690,9 +1690,10 @@ xfs_qm_dqreclaim_one(
 	ASSERT(dqp->q_nrefs == 0);
 	list_move_tail(&dqp->q_freelist, dispose_list);
 	xfs_Gqm->qm_dqfrlist_cnt--;
+	XFS_STATS_DEC(xs_qm_dquot_unused);
 
 	trace_xfs_dqreclaim_done(dqp);
-	XQM_STATS_INC(xqmstats.xs_qm_dqreclaims);
+	XFS_STATS_INC(xs_qm_dqreclaims);
 	return;
 
 out_busy:
@@ -1704,7 +1705,7 @@ out_busy:
 	list_move_tail(&dqp->q_freelist, &xfs_Gqm->qm_dqfrlist);
 
 	trace_xfs_dqreclaim_busy(dqp);
-	XQM_STATS_INC(xqmstats.xs_qm_dqreclaim_misses);
+	XFS_STATS_INC(xs_qm_dqreclaim_misses);
 }
 
 STATIC int

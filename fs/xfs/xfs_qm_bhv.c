@@ -162,13 +162,11 @@ xfs_qm_init(void)
 {
 	printk(KERN_INFO "SGI XFS Quota Management subsystem\n");
 	mutex_init(&xfs_Gqm_lock);
-	xfs_qm_init_procfs();
 }
 
 void __exit
 xfs_qm_exit(void)
 {
-	xfs_qm_cleanup_procfs();
 	if (qm_dqzone)
 		kmem_zone_destroy(qm_dqzone);
 	if (qm_dqtrxzone)
