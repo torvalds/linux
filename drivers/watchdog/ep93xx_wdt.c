@@ -224,21 +224,21 @@ static int __devinit ep93xx_wdt_probe(struct platform_device *pdev)
 	if (!mmio_base)
 		return -ENXIO;
 
-	err = misc_register(&ep93xx_wdt_miscdev);
-
-	val = readl(mmio_base + EP93XX_WATCHDOG);
-	boot_status = val & 0x01 ? 1 : 0;
-
-	pr_info("EP93XX watchdog, driver version " WDT_VERSION "%s\n",
-		(val & 0x08) ? " (nCS1 disable detected)" : "");
-
 	if (timeout < 1 || timeout > 3600) {
 		timeout = WDT_TIMEOUT;
 		pr_info("timeout value must be 1<=x<=3600, using %d\n",
 			timeout);
 	}
 
+	val = readl(mmio_base + EP93XX_WATCHDOG);
+	boot_status = val & 0x01 ? 1 : 0;
+
 	setup_timer(&timer, ep93xx_timer_ping, 1);
+
+	err = misc_register(&ep93xx_wdt_miscdev);
+
+	pr_info("EP93XX watchdog, driver version " WDT_VERSION "%s\n",
+		(val & 0x08) ? " (nCS1 disable detected)" : "");
 	return err;
 }
 
