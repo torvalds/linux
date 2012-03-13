@@ -121,7 +121,7 @@ struct drm_display_mode {
 	char name[DRM_DISPLAY_MODE_LEN];
 
 	enum drm_mode_status status;
-	int type;
+	unsigned int type;
 
 	/* Proposed mode values */
 	int clock;		/* in kHz */
