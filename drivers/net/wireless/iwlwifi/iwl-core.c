@@ -782,15 +782,3 @@ int iwl_cmd_echo_test(struct iwl_priv *priv)
 		IWL_DEBUG_INFO(priv, "echo testing pass\n");
 	return ret;
 }
-
-void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
-{
-	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
-
-	if (state)
-		set_bit(STATUS_RF_KILL_HW, &priv->status);
-	else
-		clear_bit(STATUS_RF_KILL_HW, &priv->status);
-
-	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
-}
