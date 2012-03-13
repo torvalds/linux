@@ -10,8 +10,10 @@ syshdr := $(srctree)/$(src)/syscallhdr.sh
 systbl := $(srctree)/$(src)/syscalltbl.sh
 
 quiet_cmd_syshdr = SYSHDR  $@
-      cmd_syshdr = $(CONFIG_SHELL) '$(syshdr)' $< $@ \
-		   $(syshdr_abi_$(basetarget)) $(syshdr_pfx_$(basetarget))
+      cmd_syshdr = $(CONFIG_SHELL) '$(syshdr)' '$<' '$@' \
+		   '$(syshdr_abi_$(basetarget))' \
+		   '$(syshdr_pfx_$(basetarget))' \
+		   '$(syshdr_offset_$(basetarget))'
 quiet_cmd_systbl = SYSTBL  $@
       cmd_systbl = $(CONFIG_SHELL) '$(systbl)' $< $@
 
@@ -24,8 +26,18 @@ syshdr_pfx_unistd_32_ia32 := ia32_
 $(out)/unistd_32_ia32.h: $(syscall32) $(syshdr)
 	$(call if_changed,syshdr)
 
-syshdr_abi_unistd_64 := 64
+syshdr_abi_unistd_x32 := common,x32
+syshdr_offset_unistd_x32 := __X32_SYSCALL_BIT
+$(out)/unistd_x32.h: $(syscall64) $(syshdr)
+	$(call if_changed,syshdr)
+
+syshdr_abi_unistd_64 := common,64
 $(out)/unistd_64.h: $(syscall64) $(syshdr)
+	$(call if_changed,syshdr)
+
+syshdr_abi_unistd_64_x32 := x32
+syshdr_pfx_unistd_64_x32 := x32_
+$(out)/unistd_64_x32.h: $(syscall64) $(syshdr)
 	$(call if_changed,syshdr)
 
 $(out)/syscalls_32.h: $(syscall32) $(systbl)
@@ -33,9 +45,9 @@ $(out)/syscalls_32.h: $(syscall32) $(systbl)
 $(out)/syscalls_64.h: $(syscall64) $(systbl)
 	$(call if_changed,systbl)
 
-syshdr-y			+= unistd_32.h unistd_64.h
+syshdr-y			+= unistd_32.h unistd_64.h unistd_x32.h
 syshdr-y			+= syscalls_32.h
-syshdr-$(CONFIG_X86_64)		+= unistd_32_ia32.h
+syshdr-$(CONFIG_X86_64)		+= unistd_32_ia32.h unistd_64_x32.h
 syshdr-$(CONFIG_X86_64)		+= syscalls_64.h
 
 targets	+= $(syshdr-y)
