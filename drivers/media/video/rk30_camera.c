@@ -20,8 +20,16 @@
 #undef PMEM_SENSOR_FULL_RESOLUTION_0
 #define PMEM_SENSOR_FULL_RESOLUTION_0  0x500000
 #endif
+#if(SENSOR_CIF_BUSID_0 == RK_CAM_PLATFORM_DEV_ID_0)
+#define PMEM_SENSOR_FULL_RESOLUTION_CIF_0 PMEM_SENSOR_FULL_RESOLUTION_0
+#define PMEM_SENSOR_FULL_RESOLUTION_CIF_1 0
 #else
-#define PMEM_SENSOR_FULL_RESOLUTION_0  0x00
+#define PMEM_SENSOR_FULL_RESOLUTION_CIF_1 PMEM_SENSOR_FULL_RESOLUTION_0
+#define PMEM_SENSOR_FULL_RESOLUTION_CIF_0 0
+#endif
+#else
+#define PMEM_SENSOR_FULL_RESOLUTION_CIF_0 0x00
+#define PMEM_SENSOR_FULL_RESOLUTION_CIF_1 0x00
 #endif
  
 #if (CONFIG_SENSOR_IIC_ADDR_1 != 0x00)
@@ -31,38 +39,63 @@
 #undef PMEM_SENSOR_FULL_RESOLUTION_1
 #define PMEM_SENSOR_FULL_RESOLUTION_1  0x500000
 #endif
+#if (SENSOR_CIF_BUSID_1 == RK_CAM_PLATFORM_DEV_ID_0)
+	   #if (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 < PMEM_SENSOR_FULL_RESOLUTION_1)
+	   #undef PMEM_SENSOR_FULL_RESOLUTION_CIF_0
+	   #define PMEM_SENSOR_FULL_RESOLUTION_CIF_0 PMEM_SENSOR_FULL_RESOLUTION_1
+	   #endif
 #else
-#define PMEM_SENSOR_FULL_RESOLUTION_1  0x00
+	   #if (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 < PMEM_SENSOR_FULL_RESOLUTION_1)
+	   #undef PMEM_SENSOR_FULL_RESOLUTION_CIF_1
+	   #define PMEM_SENSOR_FULL_RESOLUTION_CIF_1 PMEM_SENSOR_FULL_RESOLUTION_1
+	   #endif
+#endif
 #endif
 
-#if (PMEM_SENSOR_FULL_RESOLUTION_0 > PMEM_SENSOR_FULL_RESOLUTION_1)
-#define PMEM_CAM_FULL_RESOLUTION   PMEM_SENSOR_FULL_RESOLUTION_0
-#else
-#define PMEM_CAM_FULL_RESOLUTION   PMEM_SENSOR_FULL_RESOLUTION_1
-#endif
-
-#if (PMEM_CAM_FULL_RESOLUTION == 0x500000)
+//CIF 0
+#if (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x500000)
 #define PMEM_CAM_NECESSARY   0x1400000       /* 1280*720*1.5*4(preview) + 7.5M(capture raw) + 4M(jpeg encode output) */
-#define PMEM_CAMIPP_NECESSARY    0x800000
-#elif (PMEM_CAM_FULL_RESOLUTION == 0x300000)
+#define PMEM_CAMIPP_NECESSARY_CIF0    0x800000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x300000)
 #define PMEM_CAM_NECESSARY   0xe00000        /* 1280*720*1.5*4(preview) + 4.5M(capture raw) + 3M(jpeg encode output) */
-#define PMEM_CAMIPP_NECESSARY    0x500000
-#elif (PMEM_CAM_FULL_RESOLUTION == 0x200000) /* 1280*720*1.5*4(preview) + 3M(capture raw) + 3M(jpeg encode output) */
+#define PMEM_CAMIPP_NECESSARY_CIF_0    0x500000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x200000) /* 1280*720*1.5*4(preview) + 3M(capture raw) + 3M(jpeg encode output) */
 #define PMEM_CAM_NECESSARY   0xc00000
-#define PMEM_CAMIPP_NECESSARY    0x400000
-#elif ((PMEM_CAM_FULL_RESOLUTION == 0x100000) || (PMEM_CAM_FULL_RESOLUTION == 0x130000))
+#define PMEM_CAMIPP_NECESSARY_CIF_0    0x400000
+#elif ((PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x100000) || (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x130000))
 #define PMEM_CAM_NECESSARY   0x800000        /* 800*600*1.5*4(preview) + 2M(capture raw) + 2M(jpeg encode output) */
-#define PMEM_CAMIPP_NECESSARY    0x400000
-#elif (PMEM_CAM_FULL_RESOLUTION == 0x30000)
+#define PMEM_CAMIPP_NECESSARY_CIF_0    0x400000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_0 == 0x30000)
 #define PMEM_CAM_NECESSARY   0x400000        /* 640*480*1.5*4(preview) + 1M(capture raw) + 1M(jpeg encode output) */
-#define PMEM_CAMIPP_NECESSARY    0x400000
+#define PMEM_CAMIPP_NECESSARY_CIF_0    0x400000
 #else
 #define PMEM_CAM_NECESSARY   0x1200000
-#define PMEM_CAMIPP_NECESSARY    0x800000
+#define PMEM_CAMIPP_NECESSARY_CIF_0    0x800000
+#endif
+
+//CIF 1
+#if (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x500000)
+#define PMEM_CAM_NECESSARY	 0x1400000		 /* 1280*720*1.5*4(preview) + 7.5M(capture raw) + 4M(jpeg encode output) */
+#define PMEM_CAMIPP_NECESSARY_CIF_1	  0x800000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x300000)
+#define PMEM_CAM_NECESSARY	 0xe00000		 /* 1280*720*1.5*4(preview) + 4.5M(capture raw) + 3M(jpeg encode output) */
+#define PMEM_CAMIPP_NECESSARY_CIF_1    0x500000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_1== 0x200000) /* 1280*720*1.5*4(preview) + 3M(capture raw) + 3M(jpeg encode output) */
+#define PMEM_CAM_NECESSARY	 0xc00000
+#define PMEM_CAMIPP_NECESSARY_CIF_1    0x400000
+#elif ((PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x100000) || (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x130000))
+#define PMEM_CAM_NECESSARY	 0x800000		 /* 800*600*1.5*4(preview) + 2M(capture raw) + 2M(jpeg encode output) */
+#define PMEM_CAMIPP_NECESSARY_CIF_1    0x400000
+#elif (PMEM_SENSOR_FULL_RESOLUTION_CIF_1 == 0x30000)
+#define PMEM_CAM_NECESSARY	 0x400000		 /* 640*480*1.5*4(preview) + 1M(capture raw) + 1M(jpeg encode output) */
+#define PMEM_CAMIPP_NECESSARY_CIF_1    0x400000
+#else
+#define PMEM_CAM_NECESSARY	 0x1200000
+#define PMEM_CAMIPP_NECESSARY_CIF_1    0x800000
 #endif
 /*---------------- Camera Sensor Fixed Macro End  ------------------------*/
-#else   //#ifdef CONFIG_VIDEO_RK 
-#define PMEM_CAM_NECESSARY   0x00000000
+#else	//#ifdef CONFIG_VIDEO_RK 
+#define PMEM_CAM_NECESSARY	 0x00000000
 #endif
 #else   // #ifdef PMEM_CAM_SIZE
 
@@ -1681,8 +1714,30 @@ static struct android_pmem_platform_data android_pmem_cam_pdata = {
 		.platform_data = &android_pmem_cam_pdata,
 	},
 };
+ static void rk30_camera_request_reserve_mem(void)
+{
+#if (MEM_CAMIPP_SIZE_CIF_0 != 0)
+	#if CONFIG_USE_CIF_0
+		 rk_camera_platform_data.meminfo.name = "camera_ipp_mem_0";
+		 rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem_0",MEM_CAMIPP_SIZE_CIF_0);
+		 rk_camera_platform_data.meminfo.size= MEM_CAMIPP_SIZE_CIF_0;
+	#endif
+#endif
 
-static void rk_register_camera_devices(void)
+#if (MEM_CAMIPP_SIZE_CIF_1 != 0)
+      #if CONFIG_USE_CIF_1
+	 rk_camera_platform_data.meminfo_cif1.name = "camera_ipp_mem_1";
+	 rk_camera_platform_data.meminfo_cif1.start =board_mem_reserve_add("camera_ipp_mem_1",MEM_CAMIPP_SIZE_CIF_1);
+	 rk_camera_platform_data.meminfo_cif1.size= MEM_CAMIPP_SIZE_CIF_1;
+      #endif
+#endif
+
+#if (PMEM_CAM_SIZE != 0)
+		 android_pmem_cam_pdata.start = board_mem_reserve_add("camera_pmem",PMEM_CAM_SIZE);
+		 android_pmem_cam_pdata.size = PMEM_CAM_SIZE;
+#endif
+}
+static int rk_register_camera_devices(void)
 {
 	rk_init_camera_plateform_data();
 #if CONFIG_USE_CIF_0
@@ -1697,7 +1752,9 @@ static void rk_register_camera_devices(void)
 		platform_device_register(&rk_soc_camera_pdrv_1);
 	if(((struct android_pmem_platform_data*)(android_pmem_cam_device.dev.platform_data))->size)
 		platform_device_register(&android_pmem_cam_device);
+	return 0;
 }
+
 module_init(rk_register_camera_devices);
 #endif
 

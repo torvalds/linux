@@ -108,11 +108,15 @@
 #include "../../../drivers/media/video/rk30_camera.c"
 /*---------------- Camera Sensor Macro Define End  ---------*/
 
-#define PMEM_CAM_SIZE		PMEM_CAM_NECESSARY
+//RK30,use  ion to allocate mem , set it as 0
+#define PMEM_CAM_SIZE		0//PMEM_CAM_NECESSARY
 #ifdef CONFIG_VIDEO_RK29_WORK_IPP
-#define MEM_CAMIPP_SIZE 	PMEM_CAMIPP_NECESSARY
+#define MEM_CAMIPP_SIZE_CIF_0 	PMEM_CAMIPP_NECESSARY_CIF_0
+#define MEM_CAMIPP_SIZE_CIF_1 	PMEM_CAMIPP_NECESSARY_CIF_0
 #else
-#define MEM_CAMIPP_SIZE 	0
+#define MEM_CAMIPP_SIZE_CIF_0	0
+#define MEM_CAMIPP_SIZE_CIF_1	0
+
 #endif
 /*****************************************************************************************
  * camera  devices
@@ -195,7 +199,7 @@ static rk_sensor_user_init_data_s rk_init_data_sensor_0 =
 	.rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
 	
 };
-static rk_sensor_user_init_data_s* rk_init_data_sensor_0_p = &rk_init_data_sensor_0;
+static rk_sensor_user_init_data_s* rk_init_data_sensor_0_p = NULL;
 static rk_sensor_user_init_data_s* rk_init_data_sensor_1_p = NULL;
 #include "../../../drivers/media/video/rk30_camera.c"
 
@@ -1449,25 +1453,7 @@ static void __init rk30_reserve(void)
 	resource_fb[2].start = board_mem_reserve_add("fb2",RK30_FB0_MEM_SIZE);
 	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;	
 #endif
-
-#if (MEM_CAMIPP_SIZE != 0)
-	#if CONFIG_USE_CIF_0
-	rk_camera_platform_data.meminfo.name = "camera_ipp_mem_0";
-	rk_camera_platform_data.meminfo.start = board_mem_reserve_add("camera_ipp_mem_0",MEM_CAMIPP_SIZE);
-	rk_camera_platform_data.meminfo.size= MEM_CAMIPP_SIZE;
-	#endif
-	#if CONFIG_USE_CIF_1
-	rk_camera_platform_data.meminfo_cif1.name = "camera_ipp_mem_1";
-	rk_camera_platform_data.meminfo_cif1.start =board_mem_reserve_add("camera_ipp_mem_1",MEM_CAMIPP_SIZE);
-	rk_camera_platform_data.meminfo_cif1.size= MEM_CAMIPP_SIZE;
-	#endif
-#endif
-
-#if (PMEM_CAM_SIZE != 0)
-	android_pmem_cam_pdata.start = board_mem_reserve_add("camera_pmem",PMEM_CAM_SIZE);
-	android_pmem_cam_pdata.size = PMEM_CAM_SIZE;
-#endif
-
+	rk30_camera_request_reserve_mem();
 	board_mem_reserved();
 }
 

@@ -1359,10 +1359,10 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
             goto RK_CAMERA_SET_FMT_END;
     	}
 		//need crop ?
-		if(1/*(mf.width/mf.height) != (usr_w/usr_h)*/){
-			ratio = ((mf.width/usr_w) >= (mf.height/usr_h))?(mf.height/usr_h):(mf.width/usr_w);
-			pcdev->host_width = ratio*usr_w;
-			pcdev->host_height = ratio*usr_h;
+		if((mf.width*10/mf.height) != (usr_w*10/usr_h)){
+			ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
+			pcdev->host_width = ratio*usr_w/10;
+			pcdev->host_height = ratio*usr_h/10;
 			printk("ratio = %d ,host:%d*%d\n",ratio,pcdev->host_width,pcdev->host_height);
 			}
 		else{ // needn't crop ,just scaled by ipp
