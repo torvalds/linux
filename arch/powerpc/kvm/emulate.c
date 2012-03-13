@@ -35,7 +35,9 @@
 #define OP_TRAP 3
 #define OP_TRAP_64 2
 
+#define OP_31_XOP_TRAP      4
 #define OP_31_XOP_LWZX      23
+#define OP_31_XOP_TRAP_64   68
 #define OP_31_XOP_LBZX      87
 #define OP_31_XOP_STWX      151
 #define OP_31_XOP_STBX      215
@@ -169,6 +171,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	case 31:
 		switch (get_xop(inst)) {
 
+		case OP_31_XOP_TRAP:
+#ifdef CONFIG_64BIT
+		case OP_31_XOP_TRAP_64:
+#endif
+#ifdef CONFIG_PPC_BOOK3S
+			kvmppc_core_queue_program(vcpu, SRR1_PROGTRAP);
+#else
+			kvmppc_core_queue_program(vcpu,
+					vcpu->arch.shared->esr | ESR_PTR);
+#endif
+			advance = 0;
+			break;
 		case OP_31_XOP_LWZX:
 			rt = get_rt(inst);
 			emulated = kvmppc_handle_load(run, vcpu, rt, 4, 1);
