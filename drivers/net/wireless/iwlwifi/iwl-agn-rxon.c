@@ -501,6 +501,96 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	return ret;
 }
 
+static void _iwl_set_rxon_ht(struct iwl_priv *priv,
+			     struct iwl_ht_config *ht_conf,
+			     struct iwl_rxon_context *ctx)
+{
+	struct iwl_rxon_cmd *rxon = &ctx->staging;
+
+	if (!ctx->ht.enabled) {
+		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
+			RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
+			RXON_FLG_HT40_PROT_MSK |
+			RXON_FLG_HT_PROT_MSK);
+		return;
+	}
+
+	/* FIXME: if the definition of ht.protection changed, the "translation"
+	 * will be needed for rxon->flags
+	 */
+	rxon->flags |= cpu_to_le32(ctx->ht.protection <<
+				   RXON_FLG_HT_OPERATING_MODE_POS);
+
+	/* Set up channel bandwidth:
+	 * 20 MHz only, 20/40 mixed or pure 40 if ht40 ok */
+	/* clear the HT channel mode before set the mode */
+	rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MSK |
+			 RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
+	if (iwl_is_ht40_tx_allowed(priv, ctx, NULL)) {
+		/* pure ht40 */
+		if (ctx->ht.protection ==
+		    IEEE80211_HT_OP_MODE_PROTECTION_20MHZ) {
+			rxon->flags |= RXON_FLG_CHANNEL_MODE_PURE_40;
+			/*
+			 * Note: control channel is opposite of extension
+			 * channel
+			 */
+			switch (ctx->ht.extension_chan_offset) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				rxon->flags &=
+					~RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				rxon->flags |=
+					RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+				break;
+			}
+		} else {
+			/*
+			 * Note: control channel is opposite of extension
+			 * channel
+			 */
+			switch (ctx->ht.extension_chan_offset) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				rxon->flags &=
+					~(RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK);
+				rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				rxon->flags |= RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK;
+				rxon->flags |= RXON_FLG_CHANNEL_MODE_MIXED;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_NONE:
+			default:
+				/*
+				 * channel location only valid if in Mixed
+				 * mode
+				 */
+				IWL_ERR(priv,
+					"invalid extension channel offset\n");
+				break;
+			}
+		}
+	} else {
+		rxon->flags |= RXON_FLG_CHANNEL_MODE_LEGACY;
+	}
+
+	iwlagn_set_rxon_chain(priv, ctx);
+
+	IWL_DEBUG_ASSOC(priv, "rxon flags 0x%X operation mode :0x%X "
+			"extension channel offset 0x%x\n",
+			le32_to_cpu(rxon->flags), ctx->ht.protection,
+			ctx->ht.extension_chan_offset);
+}
+
+void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
+{
+	struct iwl_rxon_context *ctx;
+
+	for_each_context(priv, ctx)
+		_iwl_set_rxon_ht(priv, ht_conf, ctx);
+}
+
 static void iwl_set_rxon_hwcrypto(struct iwl_priv *priv,
 				  struct iwl_rxon_context *ctx, int hw_decrypt)
 {
