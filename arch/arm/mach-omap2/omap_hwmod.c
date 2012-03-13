@@ -1477,6 +1477,11 @@ static int _reset(struct omap_hwmod *oh)
 
 	ret = (oh->class->reset) ? oh->class->reset(oh) : _ocp_softreset(oh);
 
+	if (oh->class->sysc) {
+		_update_sysc_cache(oh);
+		_enable_sysc(oh);
+	}
+
 	return ret;
 }
 
@@ -1786,19 +1791,8 @@ static int _setup(struct omap_hwmod *oh, void *data)
 		return 0;
 	}
 
-	if (!(oh->flags & HWMOD_INIT_NO_RESET)) {
+	if (!(oh->flags & HWMOD_INIT_NO_RESET))
 		_reset(oh);
-
-		/*
-		 * OCP_SYSCONFIG bits need to be reprogrammed after a softreset.
-		 * The _enable() function should be split to
-		 * avoid the rewrite of the OCP_SYSCONFIG register.
-		 */
-		if (oh->class->sysc) {
-			_update_sysc_cache(oh);
-			_enable_sysc(oh);
-		}
-	}
 
 	postsetup_state = oh->_postsetup_state;
 	if (postsetup_state == _HWMOD_STATE_UNKNOWN)
