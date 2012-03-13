@@ -132,6 +132,7 @@ void omap3_map_io(void);
 void am33xx_map_io(void);
 void omap4_map_io(void);
 void ti81xx_map_io(void);
+void omap_barriers_init(void);
 
 extern void __init omap_init_consistent_dma_size(void);
 

@@ -1,7 +1,7 @@
 /*
  * super.c - NTFS kernel super block handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.
+ * Copyright (c) 2001-2012 Anton Altaparmakov and Tuxera Inc.
  * Copyright (c) 2001,2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -1239,7 +1239,6 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 {
 	MFT_REF mref;
 	struct inode *vi;
-	ntfs_inode *ni;
 	struct page *page;
 	u32 *kaddr, *kend;
 	ntfs_name *name = NULL;
@@ -1290,7 +1289,6 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 				"is not the system volume.", i_size_read(vi));
 		goto iput_out;
 	}
-	ni = NTFS_I(vi);
 	page = ntfs_map_page(vi->i_mapping, 0);
 	if (IS_ERR(page)) {
 		ntfs_error(vol->sb, "Failed to read from hiberfil.sys.");

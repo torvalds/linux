@@ -1545,7 +1545,7 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 
 	netdev->irq = platform_get_irq(pdev, 0);
 
-	if (netdev->irq < 0) {
+	if ((int)netdev->irq < 0) {
 		err = netdev->irq;
 		goto err_get_irq;
 	}
