@@ -99,6 +99,7 @@ struct generic_pm_domain_data {
 	struct gpd_dev_ops ops;
 	struct gpd_timing_data td;
 	bool need_restore;
+	bool always_on;
 };
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
@@ -137,6 +138,7 @@ static inline int pm_genpd_of_add_device(struct device_node *genpd_node,
 
 extern int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 				  struct device *dev);
+extern void pm_genpd_dev_always_on(struct device *dev, bool val);
 extern int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 				  struct generic_pm_domain *new_subdomain);
 extern int pm_genpd_remove_subdomain(struct generic_pm_domain *genpd,
@@ -179,6 +181,7 @@ static inline int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 {
 	return -ENOSYS;
 }
+static inline void pm_genpd_dev_always_on(struct device *dev, bool val) {}
 static inline int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 					 struct generic_pm_domain *new_sd)
 {
