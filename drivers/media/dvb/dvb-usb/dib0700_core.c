@@ -677,9 +677,6 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	u8 toggle;
 
 	deb_info("%s()\n", __func__);
-	if (d == NULL)
-		return;
-
 	if (d->rc_dev == NULL) {
 		/* This will occur if disable_rc_polling=1 */
 		usb_free_urb(purb);
