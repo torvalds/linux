@@ -326,7 +326,7 @@ static u64 au_add_muldiv_till_max(u64 a, u64 b, u64 mul, u64 div)
 static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 {
 	int err;
-	u64 blocks, bfree, bavail, files, ffree;
+	u64 blocks, bfree, bavail, files, ffree, bsize;
 	aufs_bindex_t bend, bindex, i;
 	unsigned char shared;
 	struct path h_path;
@@ -338,7 +338,13 @@ static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 	files = 0;
 	ffree = 0;
 
-	err = 0;
+	// we need an initial bsize to calculate correct f_blocks
+	h_mnt = au_sbr_mnt(sb, 0);
+	err = vfs_statfs(h_mnt->mnt_root, buf);
+	if (unlikely(err))
+		goto out;
+	bsize = buf->f_bsize;
+
 	bend = au_sbend(sb);
 	for (bindex = bend; bindex >= 0; bindex--) {
 		h_path.mnt = au_sbr_mnt(sb, bindex);
@@ -355,9 +361,9 @@ static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 		if (unlikely(err))
 			goto out;
 
-		blocks = au_add_till_max(blocks, buf->f_blocks);
-		bfree = au_add_till_max(bfree, buf->f_bfree);
-		bavail = au_add_till_max(bavail, buf->f_bavail);
+		blocks = au_add_muldiv_till_max(blocks, buf->f_blocks, buf->f_bsize, bsize );
+		bfree  = au_add_muldiv_till_max(bfree,  buf->f_bfree,  buf->f_bsize, bsize );
+		bavail = au_add_muldiv_till_max(bavail, buf->f_bavail, buf->f_bsize, bsize );
 		files = au_add_till_max(files, buf->f_files);
 		ffree = au_add_till_max(ffree, buf->f_ffree);
 	}
