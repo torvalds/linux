@@ -2122,7 +2122,8 @@ static void evergreen_program_watermarks(struct radeon_device *rdev,
 					 u32 lb_size, u32 num_heads)
 {
 	struct drm_display_mode *mode = &radeon_crtc->base.mode;
-	struct evergreen_wm_params wm;
+	struct evergreen_wm_params wm_low, wm_high;
+	u32 dram_channels;
 	u32 pixel_period;
 	u32 line_time = 0;
 	u32 latency_watermark_a = 0, latency_watermark_b = 0;
@@ -2138,39 +2139,81 @@ static void evergreen_program_watermarks(struct radeon_device *rdev,
 		line_time = min((u32)mode->crtc_htotal * pixel_period, (u32)65535);
 		priority_a_cnt = 0;
 		priority_b_cnt = 0;
+		dram_channels = evergreen_get_number_of_dram_channels(rdev);
 
-		wm.yclk = rdev->pm.current_mclk * 10;
-		wm.sclk = rdev->pm.current_sclk * 10;
-		wm.disp_clk = mode->clock;
-		wm.src_width = mode->crtc_hdisplay;
-		wm.active_time = mode->crtc_hdisplay * pixel_period;
-		wm.blank_time = line_time - wm.active_time;
-		wm.interlaced = false;
+		/* watermark for high clocks */
+		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+			wm_high.yclk =
+				radeon_dpm_get_mclk(rdev, false) * 10;
+			wm_high.sclk =
+				radeon_dpm_get_sclk(rdev, false) * 10;
+		} else {
+			wm_high.yclk = rdev->pm.current_mclk * 10;
+			wm_high.sclk = rdev->pm.current_sclk * 10;
+		}
+
+		wm_high.disp_clk = mode->clock;
+		wm_high.src_width = mode->crtc_hdisplay;
+		wm_high.active_time = mode->crtc_hdisplay * pixel_period;
+		wm_high.blank_time = line_time - wm_high.active_time;
+		wm_high.interlaced = false;
 		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
-			wm.interlaced = true;
-		wm.vsc = radeon_crtc->vsc;
-		wm.vtaps = 1;
+			wm_high.interlaced = true;
+		wm_high.vsc = radeon_crtc->vsc;
+		wm_high.vtaps = 1;
 		if (radeon_crtc->rmx_type != RMX_OFF)
-			wm.vtaps = 2;
-		wm.bytes_per_pixel = 4; /* XXX: get this from fb config */
-		wm.lb_size = lb_size;
-		wm.dram_channels = evergreen_get_number_of_dram_channels(rdev);
-		wm.num_heads = num_heads;
+			wm_high.vtaps = 2;
+		wm_high.bytes_per_pixel = 4; /* XXX: get this from fb config */
+		wm_high.lb_size = lb_size;
+		wm_high.dram_channels = dram_channels;
+		wm_high.num_heads = num_heads;
+
+		/* watermark for low clocks */
+		if ((rdev->pm.pm_method == PM_METHOD_DPM) && rdev->pm.dpm_enabled) {
+			wm_low.yclk =
+				radeon_dpm_get_mclk(rdev, true) * 10;
+			wm_low.sclk =
+				radeon_dpm_get_sclk(rdev, true) * 10;
+		} else {
+			wm_low.yclk = rdev->pm.current_mclk * 10;
+			wm_low.sclk = rdev->pm.current_sclk * 10;
+		}
+
+		wm_low.disp_clk = mode->clock;
+		wm_low.src_width = mode->crtc_hdisplay;
+		wm_low.active_time = mode->crtc_hdisplay * pixel_period;
+		wm_low.blank_time = line_time - wm_low.active_time;
+		wm_low.interlaced = false;
+		if (mode->flags & DRM_MODE_FLAG_INTERLACE)
+			wm_low.interlaced = true;
+		wm_low.vsc = radeon_crtc->vsc;
+		wm_low.vtaps = 1;
+		if (radeon_crtc->rmx_type != RMX_OFF)
+			wm_low.vtaps = 2;
+		wm_low.bytes_per_pixel = 4; /* XXX: get this from fb config */
+		wm_low.lb_size = lb_size;
+		wm_low.dram_channels = dram_channels;
+		wm_low.num_heads = num_heads;
 
 		/* set for high clocks */
-		latency_watermark_a = min(evergreen_latency_watermark(&wm), (u32)65535);
+		latency_watermark_a = min(evergreen_latency_watermark(&wm_high), (u32)65535);
 		/* set for low clocks */
-		/* wm.yclk = low clk; wm.sclk = low clk */
-		latency_watermark_b = min(evergreen_latency_watermark(&wm), (u32)65535);
+		latency_watermark_b = min(evergreen_latency_watermark(&wm_low), (u32)65535);
 
 		/* possibly force display priority to high */
 		/* should really do this at mode validation time... */
-		if (!evergreen_average_bandwidth_vs_dram_bandwidth_for_display(&wm) ||
-		    !evergreen_average_bandwidth_vs_available_bandwidth(&wm) ||
-		    !evergreen_check_latency_hiding(&wm) ||
+		if (!evergreen_average_bandwidth_vs_dram_bandwidth_for_display(&wm_high) ||
+		    !evergreen_average_bandwidth_vs_available_bandwidth(&wm_high) ||
+		    !evergreen_check_latency_hiding(&wm_high) ||
 		    (rdev->disp_priority == 2)) {
-			DRM_DEBUG_KMS("force priority to high\n");
+			DRM_DEBUG_KMS("force priority a to high\n");
 			priority_a_cnt |= PRIORITY_ALWAYS_ON;
+		}
+		if (!evergreen_average_bandwidth_vs_dram_bandwidth_for_display(&wm_low) ||
+		    !evergreen_average_bandwidth_vs_available_bandwidth(&wm_low) ||
+		    !evergreen_check_latency_hiding(&wm_low) ||
+		    (rdev->disp_priority == 2)) {
+			DRM_DEBUG_KMS("force priority b to high\n");
 			priority_b_cnt |= PRIORITY_ALWAYS_ON;
 		}
 
