@@ -5,7 +5,6 @@
 #include <linux/init.h>
 #include <linux/device.h>
 
-/*spi*/
 struct spi_cs_gpio {
 	const char *name;
 	unsigned int cs_gpio;
@@ -77,15 +76,15 @@ struct rk29_sdmmc_platform_data {
 };
 
 struct mma8452_platform_data {
-	u16     model;
-	u16     swap_xy;
-	u16	swap_xyz;
+	u16 model;
+	u16 swap_xy;
+	u16 swap_xyz;
 	signed char orientation[9];
-	int     (*get_pendown_state)(void);
-	int     (*init_platform_hw)(void);
-	int     (*mma8452_platform_sleep)(void);
-	int     (*mma8452_platform_wakeup)(void);
-	void    (*exit_platform_hw)(void);
+	int (*get_pendown_state)(void);
+	int (*init_platform_hw)(void);
+	int (*mma8452_platform_sleep)(void);
+	int (*mma8452_platform_wakeup)(void);
+	void (*exit_platform_hw)(void);
 };
 
 struct akm8975_platform_data {
@@ -98,28 +97,32 @@ struct goodix_platform_data {
 	int model ;
 	int rest_pin;
 	int irq_pin ;
-    int     (*get_pendown_state)(void);
-    int     (*init_platform_hw)(void);
-    int     (*platform_sleep)(void);
-    int     (*platform_wakeup)(void);
-    void    (*exit_platform_hw)(void);
+	int (*get_pendown_state)(void);
+	int (*init_platform_hw)(void);
+	int (*platform_sleep)(void);
+	int (*platform_wakeup)(void);
+	void (*exit_platform_hw)(void);
 };
 
 struct cm3217_platform_data {
 	int irq_pin;
 	int power_pin;
-	int     (*init_platform_hw)(void);
-	void    (*exit_platform_hw)(void);
+	int (*init_platform_hw)(void);
+	void (*exit_platform_hw)(void);
 };
 
-struct irda_info{
-    u32 intr_pin;
-    int (*iomux_init)(void);
-    int (*iomux_deinit)(void);
-    int (*irda_pwr_ctl)(int en);
+struct irda_info {
+	u32 intr_pin;
+	int (*iomux_init)(void);
+	int (*iomux_deinit)(void);
+	int (*irda_pwr_ctl)(int en);
 };
 
-
+struct rk29_gpio_expander_info {
+	unsigned int gpio_num;
+	unsigned int pin_type;	//GPIO_IN or GPIO_OUT
+	unsigned int pin_value;	//GPIO_HIGH or GPIO_LOW
+};
 
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1

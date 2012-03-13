@@ -100,6 +100,7 @@ struct wm831x_watchdog_pdata {
 	int update_gpio;
 	unsigned int software:1;
 };
+
 struct wm831x_gpio_keys_button {
 	/* Configuration parameters */
 	int code;		/* input event code (KEY_*, SW_*) */
@@ -136,11 +137,11 @@ struct wm831x_pdata {
 	int (*post_init)(struct wm831x *wm831x);
 	/** Called before subdevices are power down */
 	int (*last_deinit)(struct wm831x *wm831x);
-	//add by sxj	
-	unsigned int gpio_pin_num;	
-	struct rk2818_gpio_expander_info  *settinginfo;	
-	int  settinginfolen;	
-	int (*pin_type_init)(struct wm831x *wm831x);	
+	//add by sxj
+	unsigned int gpio_pin_num;
+	void *settinginfo;
+	int settinginfolen;
+	int (*pin_type_init)(struct wm831x *wm831x);
 	//above add by sxj
 
 	/** Put the /IRQ line into CMOS mode */

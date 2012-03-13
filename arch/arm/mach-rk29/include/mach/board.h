@@ -253,12 +253,6 @@ struct laibao_platform_data {
 	int		reset_value;
 };
 
-
-struct rk29_gpio_expander_info {
-	unsigned int gpio_num;
-	unsigned int pin_type;//GPIO_IN or GPIO_OUT
-	unsigned int pin_value;//GPIO_HIGH or GPIO_LOW
-};
 struct rk29_newton_data {
 };
 
