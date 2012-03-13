@@ -305,7 +305,7 @@ static u64 au_add_till_max(u64 a, u64 b)
 
 	old = a;
 	a += b;
-	if (old < a)
+	if (old <= a)
 		return a;
 	return ULLONG_MAX;
 }
