@@ -54,7 +54,7 @@ static void dev_remove(struct net *net, dev_t dev)
 	dprintk("Entering %s\n", __func__);
 
 	bl_pipe_msg.bl_wq = &nn->bl_wq;
-	memset(&msg, 0, sizeof(*msg));
+	memset(msg, 0, sizeof(*msg));
 	msg->data = kzalloc(1 + sizeof(bl_umount_request), GFP_NOFS);
 	if (!msg->data)
 		goto out;
