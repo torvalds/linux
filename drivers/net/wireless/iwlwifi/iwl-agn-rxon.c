@@ -620,6 +620,29 @@ void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 
 }
 
+void iwl_set_flags_for_band(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    enum ieee80211_band band,
+			    struct ieee80211_vif *vif)
+{
+	if (band == IEEE80211_BAND_5GHZ) {
+		ctx->staging.flags &=
+		    ~(RXON_FLG_BAND_24G_MSK | RXON_FLG_AUTO_DETECT_MSK
+		      | RXON_FLG_CCK_MSK);
+		ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+	} else {
+		/* Copied from iwl_post_associate() */
+		if (vif && vif->bss_conf.use_short_slot)
+			ctx->staging.flags |= RXON_FLG_SHORT_SLOT_MSK;
+		else
+			ctx->staging.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
+
+		ctx->staging.flags |= RXON_FLG_BAND_24G_MSK;
+		ctx->staging.flags |= RXON_FLG_AUTO_DETECT_MSK;
+		ctx->staging.flags &= ~RXON_FLG_CCK_MSK;
+	}
+}
+
 static void iwl_set_rxon_hwcrypto(struct iwl_priv *priv,
 				  struct iwl_rxon_context *ctx, int hw_decrypt)
 {

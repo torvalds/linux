@@ -78,10 +78,6 @@ struct iwl_cmd;
  *   L i b                 *
  ***************************/
 
-void iwl_set_flags_for_band(struct iwl_priv *priv,
-			    struct iwl_rxon_context *ctx,
-			    enum ieee80211_band band,
-			    struct ieee80211_vif *vif);
 void iwl_connection_init_rx_config(struct iwl_priv *priv,
 				   struct iwl_rxon_context *ctx);
 void iwl_set_rate(struct iwl_priv *priv);
