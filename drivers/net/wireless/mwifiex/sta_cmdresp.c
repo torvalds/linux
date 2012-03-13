@@ -327,31 +327,26 @@ static int mwifiex_ret_tx_rate_cfg(struct mwifiex_private *priv,
 					  HostCmd_CMD_802_11_TX_RATE_QUERY,
 					  HostCmd_ACT_GEN_GET, 0, NULL);
 
-	if (ds_rate) {
-		if (le16_to_cpu(rate_cfg->action) == HostCmd_ACT_GEN_GET) {
-			if (priv->is_data_rate_auto) {
-				ds_rate->is_rate_auto = 1;
-			} else {
-				ds_rate->rate = mwifiex_get_rate_index(priv->
-							       bitmap_rates,
-							       sizeof(priv->
-							       bitmap_rates));
-				if (ds_rate->rate >=
-				    MWIFIEX_RATE_BITMAP_OFDM0
-				    && ds_rate->rate <=
-				    MWIFIEX_RATE_BITMAP_OFDM7)
-					ds_rate->rate -=
-						(MWIFIEX_RATE_BITMAP_OFDM0 -
-						 MWIFIEX_RATE_INDEX_OFDM0);
-				if (ds_rate->rate >=
-				    MWIFIEX_RATE_BITMAP_MCS0
-				    && ds_rate->rate <=
-				    MWIFIEX_RATE_BITMAP_MCS127)
-					ds_rate->rate -=
-						(MWIFIEX_RATE_BITMAP_MCS0 -
-						 MWIFIEX_RATE_INDEX_MCS0);
-			}
-		}
+	if (!ds_rate)
+		return ret;
+
+	if (le16_to_cpu(rate_cfg->action) == HostCmd_ACT_GEN_GET) {
+		if (priv->is_data_rate_auto) {
+			ds_rate->is_rate_auto = 1;
+		return ret;
+	}
+	ds_rate->rate = mwifiex_get_rate_index(priv->bitmap_rates,
+					       sizeof(priv->bitmap_rates));
+
+	if (ds_rate->rate >= MWIFIEX_RATE_BITMAP_OFDM0 &&
+	    ds_rate->rate <= MWIFIEX_RATE_BITMAP_OFDM7)
+		ds_rate->rate -= (MWIFIEX_RATE_BITMAP_OFDM0 -
+				  MWIFIEX_RATE_INDEX_OFDM0);
+
+	if (ds_rate->rate >= MWIFIEX_RATE_BITMAP_MCS0 &&
+	    ds_rate->rate <= MWIFIEX_RATE_BITMAP_MCS127)
+		ds_rate->rate -= (MWIFIEX_RATE_BITMAP_MCS0 -
+				  MWIFIEX_RATE_INDEX_MCS0);
 	}
 
 	return ret;
@@ -369,34 +364,32 @@ static int mwifiex_get_power_level(struct mwifiex_private *priv, void *data_buf)
 	struct mwifiex_types_power_group *pg_tlv_hdr;
 	struct mwifiex_power_group *pg;
 
-	if (data_buf) {
-		pg_tlv_hdr =
-			(struct mwifiex_types_power_group *) ((u8 *) data_buf
-					+ sizeof(struct host_cmd_ds_txpwr_cfg));
-		pg = (struct mwifiex_power_group *) ((u8 *) pg_tlv_hdr +
-				sizeof(struct mwifiex_types_power_group));
-		length = pg_tlv_hdr->length;
-		if (length > 0) {
-			max_power = pg->power_max;
-			min_power = pg->power_min;
-			length -= sizeof(struct mwifiex_power_group);
-		}
-		while (length) {
-			pg++;
-			if (max_power < pg->power_max)
-				max_power = pg->power_max;
-
-			if (min_power > pg->power_min)
-				min_power = pg->power_min;
-
-			length -= sizeof(struct mwifiex_power_group);
-		}
-		if (pg_tlv_hdr->length > 0) {
-			priv->min_tx_power_level = (u8) min_power;
-			priv->max_tx_power_level = (u8) max_power;
-		}
-	} else {
+	if (!data_buf)
 		return -1;
+
+	pg_tlv_hdr = (struct mwifiex_types_power_group *)
+		((u8 *) data_buf + sizeof(struct host_cmd_ds_txpwr_cfg));
+	pg = (struct mwifiex_power_group *)
+		((u8 *) pg_tlv_hdr + sizeof(struct mwifiex_types_power_group));
+	length = pg_tlv_hdr->length;
+	if (length > 0) {
+		max_power = pg->power_max;
+		min_power = pg->power_min;
+		length -= sizeof(struct mwifiex_power_group);
+	}
+	while (length) {
+		pg++;
+		if (max_power < pg->power_max)
+			max_power = pg->power_max;
+
+		if (min_power > pg->power_min)
+			min_power = pg->power_min;
+
+		length -= sizeof(struct mwifiex_power_group);
+	}
+	if (pg_tlv_hdr->length > 0) {
+		priv->min_tx_power_level = (u8) min_power;
+		priv->max_tx_power_level = (u8) max_power;
 	}
 
 	return 0;

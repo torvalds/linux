@@ -205,14 +205,17 @@ mwifiex_flush_data(unsigned long context)
 	int start_win;
 
 	start_win = mwifiex_11n_find_last_seq_num(reorder_cnxt->ptr);
-	if (start_win >= 0) {
-		dev_dbg(reorder_cnxt->priv->adapter->dev,
-				"info: flush data %d\n", start_win);
+
+	if (start_win < 0)
+		return;
+
+	dev_dbg(reorder_cnxt->priv->adapter->dev, "info: flush data %d\n",
+		start_win);
 		mwifiex_11n_dispatch_pkt_until_start_win(reorder_cnxt->priv,
 				reorder_cnxt->ptr,
-				((reorder_cnxt->ptr->start_win +
-				  start_win + 1) & (MAX_TID_VALUE - 1)));
-	}
+						 ((reorder_cnxt->ptr->start_win
+						   + start_win + 1) &
+						  (MAX_TID_VALUE - 1)));
 }
 
 /*
