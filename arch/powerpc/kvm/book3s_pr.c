@@ -145,6 +145,21 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 		}
 	}
 
+	/*
+	 * When switching from 32 to 64-bit, we may have a stale 32-bit
+	 * magic page around, we need to flush it. Typically 32-bit magic
+	 * page will be instanciated when calling into RTAS. Note: We
+	 * assume that such transition only happens while in kernel mode,
+	 * ie, we never transition from user 32-bit to kernel 64-bit with
+	 * a 32-bit magic page around.
+	 */
+	if (vcpu->arch.magic_page_pa &&
+	    !(old_msr & MSR_PR) && !(old_msr & MSR_SF) && (msr & MSR_SF)) {
+		/* going from RTAS to normal kernel code */
+		kvmppc_mmu_pte_flush(vcpu, (uint32_t)vcpu->arch.magic_page_pa,
+				     ~0xFFFUL);
+	}
+
 	/* Preload FPU if it's enabled */
 	if (vcpu->arch.shared->msr & MSR_FP)
 		kvmppc_handle_ext(vcpu, BOOK3S_INTERRUPT_FP_UNAVAIL, MSR_FP);
@@ -251,6 +266,9 @@ static void kvmppc_patch_dcbz(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 static int kvmppc_visible_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
 	ulong mp_pa = vcpu->arch.magic_page_pa;
+
+	if (!(vcpu->arch.shared->msr & MSR_SF))
+		mp_pa = (uint32_t)mp_pa;
 
 	if (unlikely(mp_pa) &&
 	    unlikely((mp_pa & KVM_PAM) >> PAGE_SHIFT == gfn)) {

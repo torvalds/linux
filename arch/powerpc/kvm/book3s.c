@@ -291,6 +291,9 @@ pfn_t kvmppc_gfn_to_pfn(struct kvm_vcpu *vcpu, gfn_t gfn)
 {
 	ulong mp_pa = vcpu->arch.magic_page_pa;
 
+	if (!(vcpu->arch.shared->msr & MSR_SF))
+		mp_pa = (uint32_t)mp_pa;
+
 	/* Magic page override */
 	if (unlikely(mp_pa) &&
 	    unlikely(((gfn << PAGE_SHIFT) & KVM_PAM) ==
