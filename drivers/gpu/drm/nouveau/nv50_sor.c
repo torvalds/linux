@@ -342,11 +342,8 @@ nv50_sor_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	}
 
 	if (connector->scaling_mode != DRM_MODE_SCALE_NONE &&
-	     connector->native_mode) {
-		int id = adjusted_mode->base.id;
-		*adjusted_mode = *connector->native_mode;
-		adjusted_mode->base.id = id;
-	}
+	     connector->native_mode)
+		drm_mode_copy(adjusted_mode, connector->native_mode);
 
 	return true;
 }
