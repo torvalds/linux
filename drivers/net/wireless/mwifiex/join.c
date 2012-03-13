@@ -777,12 +777,11 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 	adhoc_start->phy_param_set.ds_param_set.element_id = DS_PARA_IE_ID;
 	adhoc_start->phy_param_set.ds_param_set.len = DS_PARA_IE_LEN;
 
-	if (!mwifiex_get_cfp_by_band_and_channel_from_cfg80211
-			(priv, adapter->adhoc_start_band, (u16)
-				priv->adhoc_channel)) {
+	if (!mwifiex_get_cfp(priv, adapter->adhoc_start_band,
+			     (u16) priv->adhoc_channel, 0)) {
 		struct mwifiex_chan_freq_power *cfp;
-		cfp = mwifiex_get_cfp_by_band_and_channel_from_cfg80211(priv,
-				adapter->adhoc_start_band, FIRST_VALID_CHANNEL);
+		cfp = mwifiex_get_cfp(priv, adapter->adhoc_start_band,
+				      FIRST_VALID_CHANNEL, 0);
 		if (cfp)
 			priv->adhoc_channel = (u8) cfp->channel;
 	}

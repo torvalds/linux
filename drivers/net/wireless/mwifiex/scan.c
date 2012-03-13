@@ -1434,8 +1434,8 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 	if (!bss_desc)
 		return -1;
 
-	if ((mwifiex_get_cfp_by_band_and_channel_from_cfg80211(priv,
-			(u8) bss_desc->bss_band, (u16) bss_desc->channel))) {
+	if ((mwifiex_get_cfp(priv, (u8) bss_desc->bss_band,
+			     (u16) bss_desc->channel, 0))) {
 		switch (priv->bss_mode) {
 		case NL80211_IFTYPE_STATION:
 		case NL80211_IFTYPE_ADHOC:
@@ -1625,7 +1625,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		s32 rssi;
 		const u8 *ie_buf;
 		size_t ie_len;
-		int channel = -1;
+		u16 channel = 0;
 		u64 network_tsf = 0;
 		u16 beacon_size = 0;
 		u32 curr_bcn_bytes;
@@ -1723,7 +1723,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 					&tsf_tlv->tsf_data[idx * TSF_DATA_SIZE],
 					sizeof(network_tsf));
 
-		if (channel != -1) {
+		if (channel) {
 			struct ieee80211_channel *chan;
 			u8 band;
 
@@ -1736,8 +1736,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 						& (BIT(0) | BIT(1)));
 			}
 
-			cfp = mwifiex_get_cfp_by_band_and_channel_from_cfg80211(
-						priv, (u8)band, (u16)channel);
+			cfp = mwifiex_get_cfp(priv, band, channel, 0);
 
 			freq = cfp ? cfp->freq : 0;
 

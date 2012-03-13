@@ -529,11 +529,10 @@ int mwifiex_bss_set_channel(struct mwifiex_private *priv,
 		adapter->adhoc_start_band = BAND_G | BAND_B;
 	if (chan->channel) {
 		if (chan->channel <= MAX_CHANNEL_BAND_BG)
-			cfp = mwifiex_get_cfp_by_band_and_channel_from_cfg80211
-					(priv, 0, (u16) chan->channel);
+			cfp = mwifiex_get_cfp(priv, 0, (u16) chan->channel, 0);
 		if (!cfp) {
-			cfp = mwifiex_get_cfp_by_band_and_channel_from_cfg80211
-					(priv, BAND_A, (u16) chan->channel);
+			cfp = mwifiex_get_cfp(priv, BAND_A,
+					      (u16) chan->channel, 0);
 			if (cfp) {
 				if (adapter->adhoc_11n_enabled)
 					adapter->adhoc_start_band = BAND_A
@@ -544,11 +543,9 @@ int mwifiex_bss_set_channel(struct mwifiex_private *priv,
 		}
 	} else {
 		if (chan->freq <= MAX_FREQUENCY_BAND_BG)
-			cfp = mwifiex_get_cfp_by_band_and_freq_from_cfg80211(
-							priv, 0, chan->freq);
+			cfp = mwifiex_get_cfp(priv, 0, 0, chan->freq);
 		if (!cfp) {
-			cfp = mwifiex_get_cfp_by_band_and_freq_from_cfg80211
-						  (priv, BAND_A, chan->freq);
+			cfp = mwifiex_get_cfp(priv, BAND_A, 0, chan->freq);
 			if (cfp) {
 				if (adapter->adhoc_11n_enabled)
 					adapter->adhoc_start_band = BAND_A
