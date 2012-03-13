@@ -61,11 +61,6 @@ STATIC int	xfs_qm_init_quotainos(xfs_mount_t *);
 STATIC int	xfs_qm_init_quotainfo(xfs_mount_t *);
 STATIC int	xfs_qm_shake(struct shrinker *, struct shrink_control *);
 
-static struct shrinker xfs_qm_shaker = {
-	.shrink = xfs_qm_shake,
-	.seeks = DEFAULT_SEEKS,
-};
-
 /*
  * Initialize the XQM structure.
  * Note that there is not one quota manager per file system.
@@ -106,13 +101,6 @@ xfs_Gqm_init(void)
 	}
 
 	/*
-	 * Freelist of all dquots of all file systems
-	 */
-	INIT_LIST_HEAD(&xqm->qm_dqfrlist);
-	xqm->qm_dqfrlist_cnt = 0;
-	mutex_init(&xqm->qm_dqfrlist_lock);
-
-	/*
 	 * dquot zone. we register our own low-memory callback.
 	 */
 	if (!qm_dqzone) {
@@ -121,8 +109,6 @@ xfs_Gqm_init(void)
 		qm_dqzone = xqm->qm_dqzone;
 	} else
 		xqm->qm_dqzone = qm_dqzone;
-
-	register_shrinker(&xfs_qm_shaker);
 
 	/*
 	 * The t_dqinfo portion of transactions.
@@ -154,12 +140,6 @@ xfs_qm_destroy(
 
 	ASSERT(xqm != NULL);
 	ASSERT(xqm->qm_nrefs == 0);
-
-	unregister_shrinker(&xfs_qm_shaker);
-
-	mutex_lock(&xqm->qm_dqfrlist_lock);
-	ASSERT(list_empty(&xqm->qm_dqfrlist));
-	mutex_unlock(&xqm->qm_dqfrlist_lock);
 
 	hsize = xqm->qm_dqhashmask + 1;
 	for (i = 0; i < hsize; i++) {
@@ -826,6 +806,10 @@ xfs_qm_init_quotainfo(
 	mutex_init(&qinf->qi_dqlist_lock);
 	lockdep_set_class(&qinf->qi_dqlist_lock, &xfs_quota_mplist_class);
 
+	INIT_LIST_HEAD(&qinf->qi_lru_list);
+	qinf->qi_lru_count = 0;
+	mutex_init(&qinf->qi_lru_lock);
+
 	qinf->qi_dqreclaims = 0;
 
 	/* mutex used to serialize quotaoffs */
@@ -893,6 +877,9 @@ xfs_qm_init_quotainfo(
 		qinf->qi_rtbwarnlimit = XFS_QM_RTBWARNLIMIT;
 	}
 
+	qinf->qi_shrinker.shrink = xfs_qm_shake;
+	qinf->qi_shrinker.seeks = DEFAULT_SEEKS;
+	register_shrinker(&qinf->qi_shrinker);
 	return 0;
 }
 
@@ -911,6 +898,8 @@ xfs_qm_destroy_quotainfo(
 	qi = mp->m_quotainfo;
 	ASSERT(qi != NULL);
 	ASSERT(xfs_Gqm != NULL);
+
+	unregister_shrinker(&qi->qi_shrinker);
 
 	/*
 	 * Release the reference that XQM kept, so that we know
@@ -1623,6 +1612,7 @@ xfs_qm_dqreclaim_one(
 	struct list_head	*dispose_list)
 {
 	struct xfs_mount	*mp = dqp->q_mount;
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
 	int			error;
 
 	if (!xfs_dqlock_nowait(dqp))
@@ -1638,8 +1628,8 @@ xfs_qm_dqreclaim_one(
 		trace_xfs_dqreclaim_want(dqp);
 		XFS_STATS_INC(xs_qm_dqwants);
 
-		list_del_init(&dqp->q_freelist);
-		xfs_Gqm->qm_dqfrlist_cnt--;
+		list_del_init(&dqp->q_lru);
+		qi->qi_lru_count--;
 		XFS_STATS_DEC(xs_qm_dquot_unused);
 		return;
 	}
@@ -1688,8 +1678,8 @@ xfs_qm_dqreclaim_one(
 	xfs_dqunlock(dqp);
 
 	ASSERT(dqp->q_nrefs == 0);
-	list_move_tail(&dqp->q_freelist, dispose_list);
-	xfs_Gqm->qm_dqfrlist_cnt--;
+	list_move_tail(&dqp->q_lru, dispose_list);
+	qi->qi_lru_count--;
 	XFS_STATS_DEC(xs_qm_dquot_unused);
 
 	trace_xfs_dqreclaim_done(dqp);
@@ -1702,7 +1692,7 @@ out_busy:
 	/*
 	 * Move the dquot to the tail of the list so that we don't spin on it.
 	 */
-	list_move_tail(&dqp->q_freelist, &xfs_Gqm->qm_dqfrlist);
+	list_move_tail(&dqp->q_lru, &qi->qi_lru_list);
 
 	trace_xfs_dqreclaim_busy(dqp);
 	XFS_STATS_INC(xs_qm_dqreclaim_misses);
@@ -1713,6 +1703,8 @@ xfs_qm_shake(
 	struct shrinker		*shrink,
 	struct shrink_control	*sc)
 {
+	struct xfs_quotainfo	*qi =
+		container_of(shrink, struct xfs_quotainfo, qi_shrinker);
 	int			nr_to_scan = sc->nr_to_scan;
 	LIST_HEAD		(dispose_list);
 	struct xfs_dquot	*dqp;
@@ -1722,24 +1714,23 @@ xfs_qm_shake(
 	if (!nr_to_scan)
 		goto out;
 
-	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
-	while (!list_empty(&xfs_Gqm->qm_dqfrlist)) {
+	mutex_lock(&qi->qi_lru_lock);
+	while (!list_empty(&qi->qi_lru_list)) {
 		if (nr_to_scan-- <= 0)
 			break;
-		dqp = list_first_entry(&xfs_Gqm->qm_dqfrlist, struct xfs_dquot,
-				       q_freelist);
+		dqp = list_first_entry(&qi->qi_lru_list, struct xfs_dquot,
+				       q_lru);
 		xfs_qm_dqreclaim_one(dqp, &dispose_list);
 	}
-	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+	mutex_unlock(&qi->qi_lru_lock);
 
 	while (!list_empty(&dispose_list)) {
-		dqp = list_first_entry(&dispose_list, struct xfs_dquot,
-				       q_freelist);
-		list_del_init(&dqp->q_freelist);
+		dqp = list_first_entry(&dispose_list, struct xfs_dquot, q_lru);
+		list_del_init(&dqp->q_lru);
 		xfs_qm_dqfree_one(dqp);
 	}
 out:
-	return (xfs_Gqm->qm_dqfrlist_cnt / 100) * sysctl_vfs_cache_pressure;
+	return (qi->qi_lru_count / 100) * sysctl_vfs_cache_pressure;
 }
 
 /*

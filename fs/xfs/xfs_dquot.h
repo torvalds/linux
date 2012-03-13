@@ -47,7 +47,7 @@ struct xfs_trans;
  */
 typedef struct xfs_dquot {
 	uint		 dq_flags;	/* various flags (XFS_DQ_*) */
-	struct list_head q_freelist;	/* global free list of dquots */
+	struct list_head q_lru;		/* global free list of dquots */
 	struct list_head q_mplist;	/* mount's list of dquots */
 	struct list_head q_hashlist;	/* gloabl hash list of dquots */
 	xfs_dqhash_t	*q_hash;	/* the hashchain header */

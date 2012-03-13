@@ -47,7 +47,7 @@
  *     qi->qi_dqlist_lock
  *       dquot->q_qlock (xfs_dqlock() and friends)
  *         dquot->q_flush (xfs_dqflock() and friends)
- *         xfs_Gqm->qm_dqfrlist_lock
+ *         qi->qi_lru_lock
  *
  * If two dquots need to be locked the order is user before group/project,
  * otherwise by the lowest id first, see xfs_dqlock2.
@@ -69,7 +69,7 @@ void
 xfs_qm_dqdestroy(
 	xfs_dquot_t	*dqp)
 {
-	ASSERT(list_empty(&dqp->q_freelist));
+	ASSERT(list_empty(&dqp->q_lru));
 
 	mutex_destroy(&dqp->q_qlock);
 	kmem_zone_free(xfs_Gqm->qm_dqzone, dqp);
@@ -497,7 +497,7 @@ xfs_qm_dqread(
 	dqp->dq_flags = type;
 	dqp->q_core.d_id = cpu_to_be32(id);
 	dqp->q_mount = mp;
-	INIT_LIST_HEAD(&dqp->q_freelist);
+	INIT_LIST_HEAD(&dqp->q_lru);
 	mutex_init(&dqp->q_qlock);
 	init_waitqueue_head(&dqp->q_pinwait);
 
@@ -844,38 +844,22 @@ restart:
 }
 
 
-/*
- * Release a reference to the dquot (decrement ref-count)
- * and unlock it. If there is a group quota attached to this
- * dquot, carefully release that too without tripping over
- * deadlocks'n'stuff.
- */
-void
-xfs_qm_dqput(
+STATIC void
+xfs_qm_dqput_final(
 	struct xfs_dquot	*dqp)
 {
+	struct xfs_quotainfo	*qi = dqp->q_mount->m_quotainfo;
 	struct xfs_dquot	*gdqp;
-
-	ASSERT(dqp->q_nrefs > 0);
-	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-
-	trace_xfs_dqput(dqp);
-
-recurse:
-	if (--dqp->q_nrefs > 0) {
-		xfs_dqunlock(dqp);
-		return;
-	}
 
 	trace_xfs_dqput_free(dqp);
 
-	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
-	if (list_empty(&dqp->q_freelist)) {
-		list_add_tail(&dqp->q_freelist, &xfs_Gqm->qm_dqfrlist);
-		xfs_Gqm->qm_dqfrlist_cnt++;
+	mutex_lock(&qi->qi_lru_lock);
+	if (list_empty(&dqp->q_lru)) {
+		list_add_tail(&dqp->q_lru, &qi->qi_lru_list);
+		qi->qi_lru_count++;
 		XFS_STATS_INC(xs_qm_dquot_unused);
 	}
-	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+	mutex_unlock(&qi->qi_lru_lock);
 
 	/*
 	 * If we just added a udquot to the freelist, then we want to release
@@ -892,10 +876,29 @@ recurse:
 	/*
 	 * If we had a group quota hint, release it now.
 	 */
-	if (gdqp) {
-		dqp = gdqp;
-		goto recurse;
-	}
+	if (gdqp)
+		xfs_qm_dqput(gdqp);
+}
+
+/*
+ * Release a reference to the dquot (decrement ref-count) and unlock it.
+ *
+ * If there is a group quota attached to this dquot, carefully release that
+ * too without tripping over deadlocks'n'stuff.
+ */
+void
+xfs_qm_dqput(
+	struct xfs_dquot	*dqp)
+{
+	ASSERT(dqp->q_nrefs > 0);
+	ASSERT(XFS_DQ_IS_LOCKED(dqp));
+
+	trace_xfs_dqput(dqp);
+
+	if (--dqp->q_nrefs > 0)
+		xfs_dqunlock(dqp);
+	else
+		xfs_qm_dqput_final(dqp);
 }
 
 /*
@@ -1115,6 +1118,7 @@ xfs_qm_dqpurge(
 {
 	struct xfs_mount	*mp = dqp->q_mount;
 	struct xfs_dqhash	*qh = dqp->q_hash;
+	struct xfs_quotainfo	*qi = mp->m_quotainfo;
 
 	xfs_dqlock(dqp);
 
@@ -1165,22 +1169,22 @@ xfs_qm_dqpurge(
 	qh->qh_version++;
 	mutex_unlock(&qh->qh_lock);
 
-	mutex_lock(&mp->m_quotainfo->qi_dqlist_lock);
+	mutex_lock(&qi->qi_dqlist_lock);
 	list_del_init(&dqp->q_mplist);
-	mp->m_quotainfo->qi_dqreclaims++;
-	mp->m_quotainfo->qi_dquots--;
-	mutex_unlock(&mp->m_quotainfo->qi_dqlist_lock);
+	qi->qi_dqreclaims++;
+	qi->qi_dquots--;
+	mutex_unlock(&qi->qi_dqlist_lock);
 
 	/*
 	 * We move dquots to the freelist as soon as their reference count
 	 * hits zero, so it really should be on the freelist here.
 	 */
-	mutex_lock(&xfs_Gqm->qm_dqfrlist_lock);
-	ASSERT(!list_empty(&dqp->q_freelist));
-	list_del_init(&dqp->q_freelist);
-	xfs_Gqm->qm_dqfrlist_cnt--;
+	mutex_lock(&qi->qi_lru_lock);
+	ASSERT(!list_empty(&dqp->q_lru));
+	list_del_init(&dqp->q_lru);
+	qi->qi_lru_count--;
 	XFS_STATS_DEC(xs_qm_dquot_unused);
-	mutex_unlock(&xfs_Gqm->qm_dqfrlist_lock);
+	mutex_unlock(&qi->qi_lru_lock);
 
 	xfs_qm_dqdestroy(dqp);
 }

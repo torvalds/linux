@@ -56,9 +56,6 @@ typedef struct xfs_qm {
 	xfs_dqlist_t	*qm_usr_dqhtable;/* udquot hash table */
 	xfs_dqlist_t	*qm_grp_dqhtable;/* gdquot hash table */
 	uint		 qm_dqhashmask;	 /* # buckets in dq hashtab - 1 */
-	struct list_head qm_dqfrlist;	 /* freelist of dquots */
-	struct mutex	 qm_dqfrlist_lock;
-	int		 qm_dqfrlist_cnt;
 	uint		 qm_nrefs;	 /* file systems with quota on */
 	kmem_zone_t	*qm_dqzone;	 /* dquot mem-alloc zone */
 	kmem_zone_t	*qm_dqtrxzone;	 /* t_dqinfo of transactions */
@@ -71,6 +68,9 @@ typedef struct xfs_qm {
 typedef struct xfs_quotainfo {
 	xfs_inode_t	*qi_uquotaip;	 /* user quota inode */
 	xfs_inode_t	*qi_gquotaip;	 /* group quota inode */
+	struct list_head qi_lru_list;
+	struct mutex	 qi_lru_lock;
+	int		 qi_lru_count;
 	struct list_head qi_dqlist;	 /* all dquots in filesys */
 	struct mutex	 qi_dqlist_lock;
 	int		 qi_dquots;
@@ -91,6 +91,7 @@ typedef struct xfs_quotainfo {
 	xfs_qcnt_t	 qi_isoftlimit;	 /* default inode count soft limit */
 	xfs_qcnt_t	 qi_rtbhardlimit;/* default realtime blk hard limit */
 	xfs_qcnt_t	 qi_rtbsoftlimit;/* default realtime blk soft limit */
+	struct shrinker  qi_shrinker;
 } xfs_quotainfo_t;
 
 
