@@ -1002,6 +1002,13 @@ EXPORT_SYMBOL(drm_mode_config_cleanup);
 void drm_crtc_convert_to_umode(struct drm_mode_modeinfo *out,
 			       struct drm_display_mode *in)
 {
+	WARN(in->hdisplay > USHRT_MAX || in->hsync_start > USHRT_MAX ||
+	     in->hsync_end > USHRT_MAX || in->htotal > USHRT_MAX ||
+	     in->hskew > USHRT_MAX || in->vdisplay > USHRT_MAX ||
+	     in->vsync_start > USHRT_MAX || in->vsync_end > USHRT_MAX ||
+	     in->vtotal > USHRT_MAX || in->vscan > USHRT_MAX,
+	     "timing values too large for mode info\n");
+
 	out->clock = in->clock;
 	out->hdisplay = in->hdisplay;
 	out->hsync_start = in->hsync_start;
