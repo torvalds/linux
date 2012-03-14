@@ -228,8 +228,7 @@ static int m88rs2000_send_diseqc_burst(struct dvb_frontend *fe,
 	msleep(50);
 	reg0 = m88rs2000_demod_read(state, 0xb1);
 	reg1 = m88rs2000_demod_read(state, 0xb2);
-	if (burst == SEC_MINI_B)
-		reg1 |= 0x1;
+	/* TODO complete this section */
 	m88rs2000_demod_write(state, 0xb2, reg1);
 	m88rs2000_demod_write(state, 0xb1, reg0);
 	m88rs2000_demod_write(state, 0x9a, 0xb0);
@@ -251,13 +250,12 @@ static int m88rs2000_set_tone(struct dvb_frontend *fe, fe_sec_tone_mode_t tone)
 	case SEC_TONE_ON:
 		reg0 |= 0x4;
 		reg0 &= 0xbc;
-	break;
+		break;
 	case SEC_TONE_OFF:
 		reg1 |= 0x80;
-	break;
-
+		break;
 	default:
-		return -EINVAL;
+		break;
 	}
 	m88rs2000_demod_write(state, 0xb2, reg1);
 	m88rs2000_demod_write(state, 0xb1, reg0);
@@ -292,6 +290,7 @@ struct inittab m88rs2000_setup[] = {
 	{DEMOD_WRITE, 0xf0, 0x22},
 	{DEMOD_WRITE, 0xf1, 0xbf},
 	{DEMOD_WRITE, 0xb0, 0x45},
+	{DEMOD_WRITE, 0xb2, 0x01}, /* set voltage pin always set 1*/
 	{DEMOD_WRITE, 0x9a, 0xb0},
 	{0xff, 0xaa, 0xff}
 };
@@ -520,9 +519,9 @@ static int m88rs2000_set_tuner_rf(struct dvb_frontend *fe)
 	int reg;
 	reg = m88rs2000_tuner_read(state, 0x3d);
 	reg &= 0x7f;
-	if (reg < 0x17)
+	if (reg < 0x16)
 		reg = 0xa1;
-	else if (reg < 0x16)
+	else if (reg == 0x16)
 		reg = 0x99;
 	else
 		reg = 0xf9;
@@ -901,5 +900,5 @@ EXPORT_SYMBOL(m88rs2000_attach);
 MODULE_DESCRIPTION("M88RS2000 DVB-S Demodulator driver");
 MODULE_AUTHOR("Malcolm Priestley tvboxspy@gmail.com");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("1.12");
+MODULE_VERSION("1.13");
 
