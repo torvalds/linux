@@ -2044,25 +2044,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			ath_beacon_config(sc, vif);
 	}
 
-	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		ath_dbg(common, CONFIG, "BSS Changed PREAMBLE %d\n",
-			bss_conf->use_short_preamble);
-		if (bss_conf->use_short_preamble)
-			sc->sc_flags |= SC_OP_PREAMBLE_SHORT;
-		else
-			sc->sc_flags &= ~SC_OP_PREAMBLE_SHORT;
-	}
-
-	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		ath_dbg(common, CONFIG, "BSS Changed CTS PROT %d\n",
-			bss_conf->use_cts_prot);
-		if (bss_conf->use_cts_prot &&
-		    hw->conf.channel->band != IEEE80211_BAND_5GHZ)
-			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
-		else
-			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
-	}
-
 	mutex_unlock(&sc->mutex);
 	ath9k_ps_restore(sc);
 }

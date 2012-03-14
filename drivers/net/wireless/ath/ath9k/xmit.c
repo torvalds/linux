@@ -955,7 +955,9 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 	 */
 	rate = ieee80211_get_rts_cts_rate(sc->hw, tx_info);
 	info->rtscts_rate = rate->hw_value;
-	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
+
+	if (tx_info->control.vif &&
+	    tx_info->control.vif->bss_conf.use_short_preamble)
 		info->rtscts_rate |= rate->hw_value_short;
 
 	for (i = 0; i < 4; i++) {

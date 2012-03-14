@@ -748,7 +748,8 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
 	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
 	 */
-	if ((sc->sc_flags & SC_OP_PROTECT_ENABLE) &&
+	if ((tx_info->control.vif &&
+	     tx_info->control.vif->bss_conf.use_cts_prot) &&
 	    (rate_table->info[rix].phy == WLAN_RC_PHY_OFDM ||
 	     WLAN_RC_PHY_HT(rate_table->info[rix].phy))) {
 		rates[0].flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
