@@ -34,12 +34,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar9271Modes_9271), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271,
 			       ARRAY_SIZE(ar9271Common_9271), 2);
-		INIT_INI_ARRAY(&ah->iniCommon_normal_cck_fir_coeff_9271,
-			       ar9287Common_normal_cck_fir_coeff_9287_1_1,
-			       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_9287_1_1), 2);
-		INIT_INI_ARRAY(&ah->iniCommon_japan_2484_cck_fir_coeff_9271,
-			       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1,
-			       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_9287_1_1), 2);
 		INIT_INI_ARRAY(&ah->iniModes_9271_1_0_only,
 			       ar9271Modes_9271_1_0_only,
 			       ARRAY_SIZE(ar9271Modes_9271_1_0_only), 5);
