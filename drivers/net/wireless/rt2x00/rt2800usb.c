@@ -870,7 +870,7 @@ static const struct data_queue_desc rt2800usb_queue_rx = {
 };
 
 static const struct data_queue_desc rt2800usb_queue_tx = {
-	.entry_num		= 64,
+	.entry_num		= 16,
 	.data_size		= AGGREGATION_SIZE,
 	.desc_size		= TXINFO_DESC_SIZE + TXWI_DESC_SIZE,
 	.priv_size		= sizeof(struct queue_entry_priv_usb),
