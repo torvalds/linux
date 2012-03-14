@@ -152,19 +152,6 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
-
-static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
-			struct iwl_priv *priv, enum ieee80211_band band)
-{
-	return priv->hw->wiphy->bands[band];
-}
-
-static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
-{
-	return cfg(priv)->bt_params &&
-	       cfg(priv)->bt_params->advanced_bt_coexist;
-}
-
 extern bool bt_siso_mode;
 
 #endif /* __iwl_core_h__ */

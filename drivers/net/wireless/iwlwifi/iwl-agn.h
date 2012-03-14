@@ -161,6 +161,13 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
 int iwl_send_statistics_request(struct iwl_priv *priv,
 				u8 flags, bool clear);
+
+static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
+			struct iwl_priv *priv, enum ieee80211_band band)
+{
+	return priv->hw->wiphy->bands[band];
+}
+
 #ifdef CONFIG_PM_SLEEP
 int iwlagn_send_patterns(struct iwl_priv *priv,
 			 struct cfg80211_wowlan *wowlan);
@@ -227,6 +234,12 @@ void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_coex_rssi_monitor(struct iwl_priv *priv);
 void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena);
+
+static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
+{
+	return cfg(priv)->bt_params &&
+	       cfg(priv)->bt_params->advanced_bt_coexist;
+}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);
