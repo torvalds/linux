@@ -117,6 +117,8 @@ int iwl_dvm_send_cmd_pdu(struct iwl_priv *priv, u8 id,
 			 u32 flags, u16 len, const void *data);
 
 /* RXON */
+void iwl_connection_init_rx_config(struct iwl_priv *priv,
+				   struct iwl_rxon_context *ctx);
 int iwlagn_set_pan_params(struct iwl_priv *priv);
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);

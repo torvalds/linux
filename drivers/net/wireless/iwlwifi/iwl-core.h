@@ -78,8 +78,6 @@ struct iwl_cmd;
  *   L i b                 *
  ***************************/
 
-void iwl_connection_init_rx_config(struct iwl_priv *priv,
-				   struct iwl_rxon_context *ctx);
 void iwl_set_rate(struct iwl_priv *priv);
 int iwl_cmd_echo_test(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
