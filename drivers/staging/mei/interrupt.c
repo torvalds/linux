@@ -263,26 +263,25 @@ quit:
 static int _mei_irq_thread_iamthif_read(struct mei_device *dev, s32 *slots)
 {
 
-	if (((*slots) * sizeof(u32)) >= (sizeof(struct mei_msg_hdr)
+	if (((*slots) * sizeof(u32)) < (sizeof(struct mei_msg_hdr)
 			+ sizeof(struct hbm_flow_control))) {
-		*slots -= (sizeof(struct mei_msg_hdr) +
-				sizeof(struct hbm_flow_control) + 3) / 4;
-		if (!mei_send_flow_control(dev, &dev->iamthif_cl)) {
-			dev_dbg(&dev->pdev->dev, "iamthif flow control failed\n");
-		} else {
-			dev_dbg(&dev->pdev->dev, "iamthif flow control success\n");
-			dev->iamthif_state = MEI_IAMTHIF_READING;
-			dev->iamthif_flow_control_pending = false;
-			dev->iamthif_msg_buf_index = 0;
-			dev->iamthif_msg_buf_size = 0;
-			dev->iamthif_stall_timer = IAMTHIF_STALL_TIMER;
-			dev->mei_host_buffer_is_empty =
-					mei_host_buffer_is_empty(dev);
-		}
-		return 0;
-	} else {
 		return -EMSGSIZE;
 	}
+	*slots -= (sizeof(struct mei_msg_hdr) +
+				sizeof(struct hbm_flow_control) + 3) / 4;
+	if (mei_send_flow_control(dev, &dev->iamthif_cl)) {
+		dev_dbg(&dev->pdev->dev, "iamthif flow control failed\n");
+		return -EIO;
+	}
+
+	dev_dbg(&dev->pdev->dev, "iamthif flow control success\n");
+	dev->iamthif_state = MEI_IAMTHIF_READING;
+	dev->iamthif_flow_control_pending = false;
+	dev->iamthif_msg_buf_index = 0;
+	dev->iamthif_msg_buf_size = 0;
+	dev->iamthif_stall_timer = IAMTHIF_STALL_TIMER;
+	dev->mei_host_buffer_is_empty = mei_host_buffer_is_empty(dev);
+	return 0;
 }
 
 /**
@@ -306,7 +305,7 @@ static int _mei_irq_thread_close(struct mei_device *dev, s32 *slots,
 		*slots -= (sizeof(struct mei_msg_hdr) +
 			sizeof(struct hbm_client_disconnect_request) + 3) / 4;
 
-		if (!mei_disconnect(dev, cl)) {
+		if (mei_disconnect(dev, cl)) {
 			cl->status = 0;
 			cb_pos->information = 0;
 			list_move_tail(&cb_pos->cb_list,
@@ -838,23 +837,20 @@ static int _mei_irq_thread_read(struct mei_device *dev,	s32 *slots,
 {
 	if ((*slots * sizeof(u32)) >= (sizeof(struct mei_msg_hdr) +
 			sizeof(struct hbm_flow_control))) {
-		*slots -= (sizeof(struct mei_msg_hdr) +
-			sizeof(struct hbm_flow_control) + 3) / 4;
-		if (!mei_send_flow_control(dev, cl)) {
-			cl->status = -ENODEV;
-			cb_pos->information = 0;
-			list_move_tail(&cb_pos->cb_list,
-					&cmpl_list->mei_cb.cb_list);
-			return -ENODEV;
-		} else {
-			list_move_tail(&cb_pos->cb_list,
-					&dev->read_list.mei_cb.cb_list);
-		}
-	} else {
 		/* return the cancel routine */
 		list_del(&cb_pos->cb_list);
 		return -EBADMSG;
 	}
+
+	*slots -= (sizeof(struct mei_msg_hdr) +
+			sizeof(struct hbm_flow_control) + 3) / 4;
+	if (mei_send_flow_control(dev, cl)) {
+		cl->status = -ENODEV;
+		cb_pos->information = 0;
+		list_move_tail(&cb_pos->cb_list, &cmpl_list->mei_cb.cb_list);
+		return -ENODEV;
+	}
+	list_move_tail(&cb_pos->cb_list, &dev->read_list.mei_cb.cb_list);
 
 	return 0;
 }
@@ -881,7 +877,7 @@ static int _mei_irq_thread_ioctl(struct mei_device *dev, s32 *slots,
 		cl->state = MEI_FILE_CONNECTING;
 		*slots -= (sizeof(struct mei_msg_hdr) +
 			sizeof(struct hbm_client_connect_request) + 3) / 4;
-		if (!mei_connect(dev, cl)) {
+		if (mei_connect(dev, cl)) {
 			cl->status = -ENODEV;
 			cb_pos->information = 0;
 			list_del(&cb_pos->cb_list);
@@ -938,7 +934,7 @@ static int _mei_irq_thread_cmpl(struct mei_device *dev,	s32 *slots,
 				mei_hdr->length);
 		*slots -= (sizeof(struct mei_msg_hdr) +
 				mei_hdr->length + 3) / 4;
-		if (!mei_write_message(dev, mei_hdr,
+		if (mei_write_message(dev, mei_hdr,
 				(unsigned char *)
 				(cb_pos->request_buffer.data +
 				cb_pos->information),
@@ -967,7 +963,7 @@ static int _mei_irq_thread_cmpl(struct mei_device *dev,	s32 *slots,
 
 		(*slots) -= (sizeof(struct mei_msg_hdr) +
 				mei_hdr->length + 3) / 4;
-		if (!mei_write_message(dev, mei_hdr,
+		if (mei_write_message(dev, mei_hdr,
 					(unsigned char *)
 					(cb_pos->request_buffer.data +
 					cb_pos->information),
@@ -1028,7 +1024,7 @@ static int _mei_irq_thread_cmpl_iamthif(struct mei_device *dev, s32 *slots,
 		*slots -= (sizeof(struct mei_msg_hdr) +
 				mei_hdr->length + 3) / 4;
 
-		if (!mei_write_message(dev, mei_hdr,
+		if (mei_write_message(dev, mei_hdr,
 					(dev->iamthif_msg_buf +
 					dev->iamthif_msg_buf_index),
 					mei_hdr->length)) {
@@ -1063,7 +1059,7 @@ static int _mei_irq_thread_cmpl_iamthif(struct mei_device *dev, s32 *slots,
 		*slots -= (sizeof(struct mei_msg_hdr) +
 				mei_hdr->length + 3) / 4;
 
-		if (!mei_write_message(dev, mei_hdr,
+		if (mei_write_message(dev, mei_hdr,
 					(dev->iamthif_msg_buf +
 					dev->iamthif_msg_buf_index),
 					mei_hdr->length)) {

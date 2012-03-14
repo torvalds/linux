@@ -740,7 +740,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		mei_hdr.reserved = 0;
 		dev_dbg(&dev->pdev->dev, "call mei_write_message header=%08x.\n",
 		    *((u32 *) &mei_hdr));
-		if (!mei_write_message(dev, &mei_hdr,
+		if (mei_write_message(dev, &mei_hdr,
 			(unsigned char *) (write_cb->request_buffer.data),
 			mei_hdr.length)) {
 			rets = -ENODEV;

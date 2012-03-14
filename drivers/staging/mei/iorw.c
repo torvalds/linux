@@ -162,7 +162,7 @@ int mei_ioctl_connect_client(struct file *file,
 	    && !mei_other_client_is_connecting(dev, cl)) {
 		dev_dbg(&dev->pdev->dev, "Sending Connect Message\n");
 		dev->mei_host_buffer_is_empty = false;
-		if (!mei_connect(dev, cl)) {
+		if (mei_connect(dev, cl)) {
 			dev_dbg(&dev->pdev->dev, "Sending connect message - failed\n");
 			rets = -ENODEV;
 			goto end;
@@ -434,13 +434,11 @@ int mei_start_read(struct mei_device *dev, struct mei_cl *cl)
 	cl->read_cb = cb;
 	if (dev->mei_host_buffer_is_empty) {
 		dev->mei_host_buffer_is_empty = false;
-		if (!mei_send_flow_control(dev, cl)) {
+		if (mei_send_flow_control(dev, cl)) {
 			rets = -ENODEV;
 			goto unlock;
-		} else {
-			list_add_tail(&cb->cb_list,
-				      &dev->read_list.mei_cb.cb_list);
 		}
+		list_add_tail(&cb->cb_list, &dev->read_list.mei_cb.cb_list);
 	} else {
 		list_add_tail(&cb->cb_list, &dev->ctrl_wr_list.mei_cb.cb_list);
 	}
@@ -500,7 +498,7 @@ int amthi_write(struct mei_device *dev, struct mei_cl_cb *cb)
 		mei_hdr.me_addr = dev->iamthif_cl.me_client_id;
 		mei_hdr.reserved = 0;
 		dev->iamthif_msg_buf_index += mei_hdr.length;
-		if (!mei_write_message(dev, &mei_hdr,
+		if (mei_write_message(dev, &mei_hdr,
 					(unsigned char *)(dev->iamthif_msg_buf),
 					mei_hdr.length))
 			return -ENODEV;
