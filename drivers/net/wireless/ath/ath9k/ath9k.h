@@ -624,8 +624,6 @@ struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 
-	int chan_idx;
-	int chan_is_ht;
 	struct survey_info *cur_survey;
 	struct survey_info survey[ATH9K_NUM_CHANNELS];
 

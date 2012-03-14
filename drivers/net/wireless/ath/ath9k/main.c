@@ -995,11 +995,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		curchan->center_freq);
 
 	ath9k_ps_wakeup(sc);
-
 	mutex_lock(&sc->mutex);
-
-	/* setup initial channel */
-	sc->chan_idx = curchan->hw_value;
 
 	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
