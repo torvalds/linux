@@ -86,66 +86,6 @@ static int hspi_status_check_timeout(struct hspi_priv *hspi, u32 mask, u32 val)
 	return -ETIMEDOUT;
 }
 
-static int hspi_push(struct hspi_priv *hspi, struct spi_message *msg,
-		     struct spi_transfer *t)
-{
-	int i, ret;
-	u8 *data = (u8 *)t->tx_buf;
-
-	/*
-	 * FIXME
-	 * very simple, but polling transfer
-	 */
-	for (i = 0; i < t->len; i++) {
-		/* wait remains */
-		ret = hspi_status_check_timeout(hspi, 0x1, 0x0);
-		if (ret < 0)
-			return ret;
-
-		hspi_write(hspi, SPTBR, (u32)data[i]);
-
-		/* wait recive */
-		ret = hspi_status_check_timeout(hspi, 0x4, 0x4);
-		if (ret < 0)
-			return ret;
-
-		/* dummy read */
-		hspi_read(hspi, SPRBR);
-	}
-
-	return 0;
-}
-
-static int hspi_pop(struct hspi_priv *hspi, struct spi_message *msg,
-		    struct spi_transfer *t)
-{
-	int i, ret;
-	u8 *data = (u8 *)t->rx_buf;
-
-	/*
-	 * FIXME
-	 * very simple, but polling receive
-	 */
-	for (i = 0; i < t->len; i++) {
-		/* wait remains */
-		ret = hspi_status_check_timeout(hspi, 0x1, 0);
-		if (ret < 0)
-			return ret;
-
-		/* dummy write */
-		hspi_write(hspi, SPTBR, 0x0);
-
-		/* wait recive */
-		ret = hspi_status_check_timeout(hspi, 0x4, 0x4);
-		if (ret < 0)
-			return ret;
-
-		data[i] = (u8)hspi_read(hspi, SPRBR);
-	}
-
-	return 0;
-}
-
 /*
  *		spi master function
  */
@@ -223,7 +163,9 @@ static int hspi_transfer_one_message(struct spi_master *master,
 {
 	struct hspi_priv *hspi = spi_master_get_devdata(master);
 	struct spi_transfer *t;
-	int ret;
+	u32 tx;
+	u32 rx;
+	int ret, i;
 
 	dev_dbg(hspi->dev, "%s\n", __func__);
 
@@ -231,19 +173,32 @@ static int hspi_transfer_one_message(struct spi_master *master,
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
 		hspi_hw_setup(hspi, msg, t);
 
-		if (t->tx_buf) {
-			ret = hspi_push(hspi, msg, t);
+		for (i = 0; i < t->len; i++) {
+
+			/* wait remains */
+			ret = hspi_status_check_timeout(hspi, 0x1, 0);
 			if (ret < 0)
-				goto error;
-		}
-		if (t->rx_buf) {
-			ret = hspi_pop(hspi, msg, t);
+				break;
+
+			tx = 0;
+			if (t->tx_buf)
+				tx = (u32)((u8 *)t->tx_buf)[i];
+
+			hspi_write(hspi, SPTBR, tx);
+
+			/* wait recive */
+			ret = hspi_status_check_timeout(hspi, 0x4, 0x4);
 			if (ret < 0)
-				goto error;
+				break;
+
+			rx = hspi_read(hspi, SPRBR);
+			if (t->rx_buf)
+				((u8 *)t->rx_buf)[i] = (u8)rx;
+
 		}
+
 		msg->actual_length += t->len;
 	}
-error:
 
 	msg->status = ret;
 	spi_finalize_current_message(master);
