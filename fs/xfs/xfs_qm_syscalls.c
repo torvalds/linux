@@ -66,7 +66,6 @@ xfs_qm_scall_quotaoff(
 	int			error;
 	uint			inactivate_flags;
 	xfs_qoff_logitem_t	*qoffstart;
-	int			nculprits;
 
 	/*
 	 * No file system can have quotas enabled on disk but not in core.
@@ -172,18 +171,13 @@ xfs_qm_scall_quotaoff(
 	 * This isn't protected by a particular lock directly, because we
 	 * don't want to take a mrlock every time we depend on quotas being on.
 	 */
-	mp->m_qflags &= ~(flags);
+	mp->m_qflags &= ~flags;
 
 	/*
 	 * Go through all the dquots of this file system and purge them,
-	 * according to what was turned off. We may not be able to get rid
-	 * of all dquots, because dquots can have temporary references that
-	 * are not attached to inodes. eg. xfs_setattr, xfs_create.
-	 * So, if we couldn't purge all the dquots from the filesystem,
-	 * we can't get rid of the incore data structures.
+	 * according to what was turned off.
 	 */
-	while ((nculprits = xfs_qm_dqpurge_all(mp, dqtype)))
-		delay(10 * nculprits);
+	xfs_qm_dqpurge_all(mp, dqtype);
 
 	/*
 	 * Transactions that had started before ACTIVE state bit was cleared

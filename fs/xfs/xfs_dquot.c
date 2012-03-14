@@ -44,10 +44,9 @@
  *
  * ip->i_lock
  *   qi->qi_tree_lock
- *     qi->qi_dqlist_lock
- *       dquot->q_qlock (xfs_dqlock() and friends)
- *         dquot->q_flush (xfs_dqflock() and friends)
- *         qi->qi_lru_lock
+ *     dquot->q_qlock (xfs_dqlock() and friends)
+ *       dquot->q_flush (xfs_dqflock() and friends)
+ *       qi->qi_lru_lock
  *
  * If two dquots need to be locked the order is user before group/project,
  * otherwise by the lowest id first, see xfs_dqlock2.
@@ -729,20 +728,12 @@ restart:
 	}
 
 	/*
-	 * Attach this dquot to this filesystem's list of all dquots,
-	 * kept inside the mount structure in m_quotainfo field
-	 */
-	mutex_lock(&qi->qi_dqlist_lock);
-
-	/*
 	 * We return a locked dquot to the caller, with a reference taken
 	 */
 	xfs_dqlock(dqp);
 	dqp->q_nrefs = 1;
 
-	list_add(&dqp->q_mplist, &qi->qi_dqlist);
 	qi->qi_dquots++;
-	mutex_unlock(&qi->qi_dqlist_lock);
 	mutex_unlock(&qi->qi_tree_lock);
 
  dqret:
@@ -1015,86 +1006,6 @@ xfs_dqlock2(
 	} else if (d2) {
 		mutex_lock(&d2->q_qlock);
 	}
-}
-
-/*
- * Take a dquot out of the mount's dqlist as well as the hashlist.  This is
- * called via unmount as well as quotaoff, and the purge will always succeed.
- */
-void
-xfs_qm_dqpurge(
-	struct xfs_dquot	*dqp)
-{
-	struct xfs_mount	*mp = dqp->q_mount;
-	struct xfs_quotainfo	*qi = mp->m_quotainfo;
-
-	xfs_dqlock(dqp);
-
-	/*
-	 * If we're turning off quotas, we have to make sure that, for
-	 * example, we don't delete quota disk blocks while dquots are
-	 * in the process of getting written to those disk blocks.
-	 * This dquot might well be on AIL, and we can't leave it there
-	 * if we're turning off quotas. Basically, we need this flush
-	 * lock, and are willing to block on it.
-	 */
-	if (!xfs_dqflock_nowait(dqp)) {
-		/*
-		 * Block on the flush lock after nudging dquot buffer,
-		 * if it is incore.
-		 */
-		xfs_dqflock_pushbuf_wait(dqp);
-	}
-
-	/*
-	 * If we are turning this type of quotas off, we don't care
-	 * about the dirty metadata sitting in this dquot. OTOH, if
-	 * we're unmounting, we do care, so we flush it and wait.
-	 */
-	if (XFS_DQ_IS_DIRTY(dqp)) {
-		int	error;
-
-		/*
-		 * We don't care about getting disk errors here. We need
-		 * to purge this dquot anyway, so we go ahead regardless.
-		 */
-		error = xfs_qm_dqflush(dqp, SYNC_WAIT);
-		if (error)
-			xfs_warn(mp, "%s: dquot %p flush failed",
-				__func__, dqp);
-		xfs_dqflock(dqp);
-	}
-
-	ASSERT(atomic_read(&dqp->q_pincount) == 0);
-	ASSERT(XFS_FORCED_SHUTDOWN(mp) ||
-	       !(dqp->q_logitem.qli_item.li_flags & XFS_LI_IN_AIL));
-
-	xfs_dqfunlock(dqp);
-	xfs_dqunlock(dqp);
-
-	mutex_lock(&qi->qi_tree_lock);
-	radix_tree_delete(XFS_DQUOT_TREE(qi, dqp->q_core.d_flags),
-			  be32_to_cpu(dqp->q_core.d_id));
-	mutex_unlock(&qi->qi_tree_lock);
-
-	mutex_lock(&qi->qi_dqlist_lock);
-	list_del_init(&dqp->q_mplist);
-	qi->qi_dqreclaims++;
-	qi->qi_dquots--;
-	mutex_unlock(&qi->qi_dqlist_lock);
-
-	/*
-	 * We move dquots to the freelist as soon as their reference count
-	 * hits zero, so it really should be on the freelist here.
-	 */
-	mutex_lock(&qi->qi_lru_lock);
-	ASSERT(!list_empty(&dqp->q_lru));
-	list_del_init(&dqp->q_lru);
-	qi->qi_lru_count--;
-	XFS_STATS_DEC(xs_qm_dquot_unused);
-	mutex_unlock(&qi->qi_lru_lock);
-
-	xfs_qm_dqdestroy(dqp);
 }
 
 /*

@@ -63,11 +63,7 @@ typedef struct xfs_quotainfo {
 	struct list_head qi_lru_list;
 	struct mutex	 qi_lru_lock;
 	int		 qi_lru_count;
-	struct list_head qi_dqlist;	 /* all dquots in filesys */
-	struct mutex	 qi_dqlist_lock;
 	int		 qi_dquots;
-	int		 qi_dqreclaims;	 /* a change here indicates
-					    a removal in the dqlist */
 	time_t		 qi_btimelimit;	 /* limit for blks timer */
 	time_t		 qi_itimelimit;	 /* limit for inodes timer */
 	time_t		 qi_rtbtimelimit;/* limit for rt blks timer */
@@ -126,7 +122,7 @@ extern int		xfs_qm_quotacheck(xfs_mount_t *);
 extern int		xfs_qm_write_sb_changes(xfs_mount_t *, __int64_t);
 
 /* dquot stuff */
-extern int		xfs_qm_dqpurge_all(xfs_mount_t *, uint);
+extern void		xfs_qm_dqpurge_all(xfs_mount_t *, uint);
 extern void		xfs_qm_dqrele_all_inodes(xfs_mount_t *, uint);
 
 /* quota ops */
