@@ -166,7 +166,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 		dev_kfree_skb(skb);
 		net->stats.tx_dropped++;
-		return NETDEV_TX_BUSY;
+		return NETDEV_TX_OK;
 	}
 
 	packet->extension = (void *)(unsigned long)packet +
@@ -226,7 +226,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		dev_kfree_skb_any(skb);
 	}
 
-	return ret ? NETDEV_TX_BUSY : NETDEV_TX_OK;
+	return NETDEV_TX_OK;
 }
 
 /*
