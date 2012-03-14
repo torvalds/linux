@@ -331,6 +331,10 @@ void jbd2_journal_commit_transaction(journal_t *journal)
 	struct buffer_head *cbh = NULL; /* For transactional checksums */
 	__u32 crc32_sum = ~0;
 	struct blk_plug plug;
+	/* Tail of the journal */
+	unsigned long first_block;
+	tid_t first_tid;
+	int update_tail;
 
 	/*
 	 * First job: lock down the current transaction and wait for
@@ -688,10 +692,30 @@ start_journal_io:
 		err = 0;
 	}
 
+	/*
+	 * Get current oldest transaction in the log before we issue flush
+	 * to the filesystem device. After the flush we can be sure that
+	 * blocks of all older transactions are checkpointed to persistent
+	 * storage and we will be safe to update journal start in the
+	 * superblock with the numbers we get here.
+	 */
+	update_tail =
+		jbd2_journal_get_log_tail(journal, &first_tid, &first_block);
+
 	write_lock(&journal->j_state_lock);
+	if (update_tail) {
+		long freed = first_block - journal->j_tail;
+
+		if (first_block < journal->j_tail)
+			freed += journal->j_last - journal->j_first;
+		/* Update tail only if we free significant amount of space */
+		if (freed < journal->j_maxlen / 4)
+			update_tail = 0;
+	}
 	J_ASSERT(commit_transaction->t_state == T_COMMIT);
 	commit_transaction->t_state = T_COMMIT_DFLUSH;
 	write_unlock(&journal->j_state_lock);
+
 	/* 
 	 * If the journal is not located on the file system device,
 	 * then we must flush the file system device before we issue
@@ -841,6 +865,14 @@ wait_for_iobuf:
 
 	if (err)
 		jbd2_journal_abort(journal, err);
+
+	/*
+	 * Now disk caches for filesystem device are flushed so we are safe to
+	 * erase checkpointed transactions from the log by updating journal
+	 * superblock.
+	 */
+	if (update_tail)
+		jbd2_update_log_tail(journal, first_tid, first_block);
 
 	/* End of a transaction!  Finally, we can do checkpoint
            processing: any buffers committed as a result of this

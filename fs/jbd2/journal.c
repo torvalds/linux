@@ -821,6 +821,19 @@ void __jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
 	write_unlock(&journal->j_state_lock);
 }
 
+/*
+ * This is a variaon of __jbd2_update_log_tail which checks for validity of
+ * provided log tail and locks j_checkpoint_mutex. So it is safe against races
+ * with other threads updating log tail.
+ */
+void jbd2_update_log_tail(journal_t *journal, tid_t tid, unsigned long block)
+{
+	mutex_lock(&journal->j_checkpoint_mutex);
+	if (tid_gt(tid, journal->j_tail_sequence))
+		__jbd2_update_log_tail(journal, tid, block);
+	mutex_unlock(&journal->j_checkpoint_mutex);
+}
+
 struct jbd2_stats_proc_session {
 	journal_t *journal;
 	struct transaction_stats_s *stats;
