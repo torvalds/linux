@@ -137,5 +137,3 @@ int __init ath724x_pcibios_init(void)
 
 	return PCIBIOS_SUCCESSFUL;
 }
-
-arch_initcall(ath724x_pcibios_init);

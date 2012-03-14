@@ -9,6 +9,8 @@
  */
 
 #include <linux/pci.h>
+#include <asm/mach-ath79/ath79.h>
+#include <asm/mach-ath79/pci.h>
 #include "pci.h"
 
 static struct ath724x_pci_data *pci_data;
@@ -43,4 +45,12 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 	dev->dev.platform_data = pci_data[devfn].pdata;
 
 	return PCIBIOS_SUCCESSFUL;
+}
+
+int __init ath79_register_pci(void)
+{
+	if (soc_is_ar724x())
+		return ath724x_pcibios_init();
+
+	return -ENODEV;
 }

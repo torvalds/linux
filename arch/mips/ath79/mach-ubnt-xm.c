@@ -111,6 +111,7 @@ static void __init ubnt_xm_init(void)
 	ath724x_pci_add_data(ubnt_xm_pci_data, ARRAY_SIZE(ubnt_xm_pci_data));
 #endif /* CONFIG_PCI */
 
+	ath79_register_pci();
 }
 
 MIPS_MACHINE(ATH79_MACH_UBNT_XM,
