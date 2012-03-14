@@ -231,15 +231,18 @@ bfa_reqq_resume(struct bfa_s *bfa, int qid)
 	}
 }
 
-static inline void
+bfa_boolean_t
 bfa_isr_rspq(struct bfa_s *bfa, int qid)
 {
 	struct bfi_msg_s *m;
 	u32	pi, ci;
 	struct list_head *waitq;
+	bfa_boolean_t ret;
 
 	ci = bfa_rspq_ci(bfa, qid);
 	pi = bfa_rspq_pi(bfa, qid);
+
+	ret = (ci != pi);
 
 	while (ci != pi) {
 		m = bfa_rspq_elem(bfa, qid, ci);
@@ -260,6 +263,8 @@ bfa_isr_rspq(struct bfa_s *bfa, int qid)
 	waitq = bfa_reqq(bfa, qid);
 	if (!list_empty(waitq))
 		bfa_reqq_resume(bfa, qid);
+
+	return ret;
 }
 
 static inline void
@@ -320,6 +325,7 @@ bfa_intx(struct bfa_s *bfa)
 {
 	u32 intr, qintr;
 	int queue;
+	bfa_boolean_t rspq_comp = BFA_FALSE;
 
 	intr = readl(bfa->iocfc.bfa_regs.intr_status);
 
@@ -332,11 +338,12 @@ bfa_intx(struct bfa_s *bfa)
 	 */
 	if (bfa->queue_process) {
 		for (queue = 0; queue < BFI_IOC_MAX_CQS; queue++)
-			bfa_isr_rspq(bfa, queue);
+			if (bfa_isr_rspq(bfa, queue))
+				rspq_comp = BFA_TRUE;
 	}
 
 	if (!intr)
-		return BFA_TRUE;
+		return (qintr | rspq_comp) ? BFA_TRUE : BFA_FALSE;
 
 	/*
 	 * CPE completion queue interrupt
