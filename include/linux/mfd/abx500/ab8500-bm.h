@@ -313,64 +313,6 @@ struct ab8500_maxim_parameters {
 };
 
 /**
- * struct battery_type - different batteries supported
- * @name:			battery technology
- * @resis_high:			battery upper resistance limit
- * @resis_low:			battery lower resistance limit
- * @charge_full_design:		Maximum battery capacity in mAh
- * @nominal_voltage:		Nominal voltage of the battery in mV
- * @termination_vol:		max voltage upto which battery can be charged
- * @termination_curr		battery charging termination current in mA
- * @recharge_vol		battery voltage limit that will trigger a new
- *				full charging cycle in the case where maintenan-
- *				-ce charging has been disabled
- * @normal_cur_lvl:		charger current in normal state in mA
- * @normal_vol_lvl:		charger voltage in normal state in mV
- * @maint_a_cur_lvl:		charger current in maintenance A state in mA
- * @maint_a_vol_lvl:		charger voltage in maintenance A state in mV
- * @maint_a_chg_timer_h:	charge time in maintenance A state
- * @maint_b_cur_lvl:		charger current in maintenance B state in mA
- * @maint_b_vol_lvl:		charger voltage in maintenance B state in mV
- * @maint_b_chg_timer_h:	charge time in maintenance B state
- * @low_high_cur_lvl:		charger current in temp low/high state in mA
- * @low_high_vol_lvl:		charger voltage in temp low/high state in mV'
- * @battery_resistance:		battery inner resistance in mOhm.
- * @n_r_t_tbl_elements:		number of elements in r_to_t_tbl
- * @r_to_t_tbl:			table containing resistance to temp points
- * @n_v_cap_tbl_elements:	number of elements in v_to_cap_tbl
- * @v_to_cap_tbl:		Voltage to capacity (in %) table
- * @n_batres_tbl_elements	number of elements in the batres_tbl
- * @batres_tbl			battery internal resistance vs temperature table
- */
-struct battery_type {
-	int name;
-	int resis_high;
-	int resis_low;
-	int charge_full_design;
-	int nominal_voltage;
-	int termination_vol;
-	int termination_curr;
-	int recharge_vol;
-	int normal_cur_lvl;
-	int normal_vol_lvl;
-	int maint_a_cur_lvl;
-	int maint_a_vol_lvl;
-	int maint_a_chg_timer_h;
-	int maint_b_cur_lvl;
-	int maint_b_vol_lvl;
-	int maint_b_chg_timer_h;
-	int low_high_cur_lvl;
-	int low_high_vol_lvl;
-	int battery_resistance;
-	int n_temp_tbl_elements;
-	struct res_to_temp *r_to_t_tbl;
-	int n_v_cap_tbl_elements;
-	struct v_to_cap *v_to_cap_tbl;
-	int n_batres_tbl_elements;
-	struct batres_vs_temp *batres_tbl;
-};
-
-/**
  * struct ab8500_bm_capacity_levels - ab8500 capacity level data
  * @critical:		critical capacity level in percent
  * @low:		low capacity level in percent
@@ -453,7 +395,6 @@ struct ab8500_bm_data {
 	int gnd_lift_resistance;
 	const struct ab8500_maxim_parameters *maxi;
 	const struct ab8500_bm_capacity_levels *cap_levels;
-	const struct battery_type *bat_type;
 	const struct ab8500_bm_charger_parameters *chg_params;
 	const struct ab8500_fg_parameters *fg_params;
 };
