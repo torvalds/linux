@@ -1280,6 +1280,7 @@ bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 	switch (event) {
 	case BFA_LPS_SM_RESUME:
 		bfa_sm_set_state(lps, bfa_lps_sm_login);
+		bfa_lps_send_login(lps);
 		break;
 
 	case BFA_LPS_SM_OFFLINE:
@@ -1578,7 +1579,7 @@ bfa_lps_login_rsp(struct bfa_s *bfa, struct bfi_lps_login_rsp_s *rsp)
 		break;
 
 	case BFA_STATUS_VPORT_MAX:
-		if (!rsp->ext_status)
+		if (rsp->ext_status)
 			bfa_lps_no_res(lps, rsp->ext_status);
 		break;
 

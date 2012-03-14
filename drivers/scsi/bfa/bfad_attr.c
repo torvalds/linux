@@ -494,8 +494,11 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 	unsigned long flags;
 	struct completion fcomp;
 
-	if (im_port->flags & BFAD_PORT_DELETE)
-		goto free_scsi_host;
+	if (im_port->flags & BFAD_PORT_DELETE) {
+		bfad_scsi_host_free(bfad, im_port);
+		list_del(&vport->list_entry);
+		return 0;
+	}
 
 	port = im_port->port;
 
@@ -526,7 +529,6 @@ bfad_im_vport_delete(struct fc_vport *fc_vport)
 
 	wait_for_completion(vport->comp_del);
 
-free_scsi_host:
 	bfad_scsi_host_free(bfad, im_port);
 	list_del(&vport->list_entry);
 	kfree(vport);
