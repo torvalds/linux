@@ -412,7 +412,8 @@ struct tcp_sock {
 
 	struct tcp_sack_block recv_sack_cache[4];
 
-	struct sk_buff *highest_sack;   /* highest skb with SACK received
+	struct sk_buff *highest_sack;   /* skb just after the highest
+					 * skb with SACKed bit set
 					 * (validity guaranteed only if
 					 * sacked_out > 0)
 					 */

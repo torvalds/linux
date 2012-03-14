@@ -93,7 +93,7 @@ static unsigned long div_recalc(struct clk *clk)
 	return clk->parent->rate / (int)(clk->priv);
 }
 
-static struct clk_ops div_clk_ops = {
+static struct sh_clk_ops div_clk_ops = {
 	.recalc	= div_recalc,
 };
 
@@ -125,7 +125,7 @@ static struct clk extal2_div2_clk = {
 	.parent	= &extal2_clk,
 };
 
-static struct clk_ops followparent_clk_ops = {
+static struct sh_clk_ops followparent_clk_ops = {
 	.recalc	= followparent_recalc,
 };
 
@@ -156,7 +156,7 @@ static unsigned long pllc01_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pllc01_clk_ops = {
+static struct sh_clk_ops pllc01_clk_ops = {
 	.recalc		= pllc01_recalc,
 };
 
@@ -376,7 +376,7 @@ void __init r8a7740_clock_init(u8 md_ck)
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup r8a7740 clocks\n");
 }

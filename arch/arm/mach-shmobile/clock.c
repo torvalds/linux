@@ -24,7 +24,7 @@
 #include <linux/sh_clk.h>
 #include <linux/export.h>
 
-int __init clk_init(void)
+int __init shmobile_clk_init(void)
 {
 	/* Kick the child clocks.. */
 	recalculate_root_clocks();

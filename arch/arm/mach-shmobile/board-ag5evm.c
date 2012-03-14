@@ -46,8 +46,6 @@
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/time.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/traps.h>
@@ -486,27 +484,6 @@ static struct platform_device *ag5evm_devices[] __initdata = {
 	&sdhi1_device,
 };
 
-static struct map_desc ag5evm_io_desc[] __initdata = {
-	/* create a 1:1 entity map for 0xe6xxxxxx
-	 * used by CPGA, INTC and PFC.
-	 */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 256 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-static void __init ag5evm_map_io(void)
-{
-	iotable_init(ag5evm_io_desc, ARRAY_SIZE(ag5evm_io_desc));
-
-	/* setup early devices and console here as well */
-	sh73a0_add_early_devices();
-	shmobile_setup_console();
-}
-
 static void __init ag5evm_init(void)
 {
 	sh73a0_pinmux_init();
@@ -622,22 +599,12 @@ static void __init ag5evm_init(void)
 	platform_add_devices(ag5evm_devices, ARRAY_SIZE(ag5evm_devices));
 }
 
-static void __init ag5evm_timer_init(void)
-{
-	sh73a0_clock_init();
-	shmobile_timer.init();
-	return;
-}
-
-struct sys_timer ag5evm_timer = {
-	.init	= ag5evm_timer_init,
-};
-
 MACHINE_START(AG5EVM, "ag5evm")
-	.map_io		= ag5evm_map_io,
+	.map_io		= sh73a0_map_io,
+	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= ag5evm_init,
-	.timer		= &ag5evm_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END
