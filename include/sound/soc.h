@@ -896,7 +896,6 @@ struct snd_soc_pcm_runtime {
 	enum snd_soc_pcm_subclass pcm_subclass;
 	struct snd_pcm_ops ops;
 
-	unsigned int complete:1;
 	unsigned int dev_registered:1;
 
 	long pmdown_time;
