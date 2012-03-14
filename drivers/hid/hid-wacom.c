@@ -492,9 +492,7 @@ static int wacom_input_mapped(struct hid_device *hdev, struct hid_input *hi,
 	__set_bit(BTN_MIDDLE, input->keybit);
 
 	/* Pad */
-	input->evbit[0] |= BIT(EV_MSC);
-
-	__set_bit(MSC_SERIAL, input->mscbit);
+	input_set_capability(input, EV_MSC, MSC_SERIAL);
 
 	__set_bit(BTN_0, input->keybit);
 	__set_bit(BTN_1, input->keybit);
