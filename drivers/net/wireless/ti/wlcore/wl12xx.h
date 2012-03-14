@@ -279,6 +279,7 @@ struct wl1271_link {
 	u8 ba_bitmap;
 };
 
+#define WL1271_MAX_RX_FILTERS 5
 #define WL1271_RX_FILTER_MAX_FIELDS 8
 enum rx_filter_action {
 	FILTER_DROP = 0,
