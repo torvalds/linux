@@ -130,6 +130,7 @@ static void ioc_release_fn(struct work_struct *work)
 void put_io_context(struct io_context *ioc)
 {
 	unsigned long flags;
+	bool free_ioc = false;
 
 	if (ioc == NULL)
 		return;
@@ -144,8 +145,13 @@ void put_io_context(struct io_context *ioc)
 		spin_lock_irqsave(&ioc->lock, flags);
 		if (!hlist_empty(&ioc->icq_list))
 			schedule_work(&ioc->release_work);
+		else
+			free_ioc = true;
 		spin_unlock_irqrestore(&ioc->lock, flags);
 	}
+
+	if (free_ioc)
+		kmem_cache_free(iocontext_cachep, ioc);
 }
 EXPORT_SYMBOL(put_io_context);
 
