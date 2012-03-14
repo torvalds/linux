@@ -1261,7 +1261,8 @@ restart:
 				spin_lock(&state->state_lock);
 				list_for_each_entry(lock, &state->lock_states, ls_locks) {
 					if (!(lock->ls_flags & NFS_LOCK_INITIALIZED))
-						printk("NFS: %s: Lock reclaim "
+						pr_warn_ratelimited("NFS: "
+							"%s: Lock reclaim "
 							"failed!\n", __func__);
 				}
 				spin_unlock(&state->state_lock);
