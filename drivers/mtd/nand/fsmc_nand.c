@@ -545,10 +545,10 @@ static int fsmc_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 			group++;
 
 			/*
-			* length is intentionally kept a higher multiple of 2
-			* to read at least 13 bytes even in case of 16 bit NAND
-			* devices
-			*/
+			 * length is intentionally kept a higher multiple of 2
+			 * to read at least 13 bytes even in case of 16 bit NAND
+			 * devices
+			 */
 			len = roundup(len, 2);
 			chip->cmdfunc(mtd, NAND_CMD_READOOB, off, page);
 			chip->read_buf(mtd, oob + j, len);
