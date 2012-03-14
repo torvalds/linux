@@ -164,7 +164,10 @@ static int radeonfb_create_pinned_object(struct radeon_fbdev *rfbdev,
 	ret = radeon_bo_reserve(rbo, false);
 	if (unlikely(ret != 0))
 		goto out_unref;
-	ret = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, NULL);
+	/* Only 27 bit offset for legacy CRTC */
+	ret = radeon_bo_pin_restricted(rbo, RADEON_GEM_DOMAIN_VRAM,
+				       ASIC_IS_AVIVO(rdev) ? 0 : 1 << 27,
+				       NULL);
 	if (ret) {
 		radeon_bo_unreserve(rbo);
 		goto out_unref;

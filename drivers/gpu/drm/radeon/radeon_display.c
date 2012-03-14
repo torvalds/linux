@@ -402,7 +402,9 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 		DRM_ERROR("failed to reserve new rbo buffer before flip\n");
 		goto pflip_cleanup;
 	}
-	r = radeon_bo_pin(rbo, RADEON_GEM_DOMAIN_VRAM, &base);
+	/* Only 27 bit offset for legacy CRTC */
+	r = radeon_bo_pin_restricted(rbo, RADEON_GEM_DOMAIN_VRAM,
+				     ASIC_IS_AVIVO(rdev) ? 0 : 1 << 27, &base);
 	if (unlikely(r != 0)) {
 		radeon_bo_unreserve(rbo);
 		r = -EINVAL;
