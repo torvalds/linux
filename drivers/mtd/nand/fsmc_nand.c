@@ -269,64 +269,6 @@ static struct fsmc_eccplace fsmc_ecc4_sp_place = {
 	}
 };
 
-/*
- * Default partition tables to be used if the partition information not
- * provided through platform data.
- *
- * Default partition layout for small page(= 512 bytes) devices
- * Size for "Root file system" is updated in driver based on actual device size
- */
-static struct mtd_partition partition_info_16KB_blk[] = {
-	{
-		.name = "X-loader",
-		.offset = 0,
-		.size = 4*0x4000,
-	},
-	{
-		.name = "U-Boot",
-		.offset = 0x10000,
-		.size = 20*0x4000,
-	},
-	{
-		.name = "Kernel",
-		.offset = 0x60000,
-		.size = 256*0x4000,
-	},
-	{
-		.name = "Root File System",
-		.offset = 0x460000,
-		.size = MTDPART_SIZ_FULL,
-	},
-};
-
-/*
- * Default partition layout for large page(> 512 bytes) devices
- * Size for "Root file system" is updated in driver based on actual device size
- */
-static struct mtd_partition partition_info_128KB_blk[] = {
-	{
-		.name = "X-loader",
-		.offset = 0,
-		.size = 4*0x20000,
-	},
-	{
-		.name = "U-Boot",
-		.offset = 0x80000,
-		.size = 12*0x20000,
-	},
-	{
-		.name = "Kernel",
-		.offset = 0x200000,
-		.size = 48*0x20000,
-	},
-	{
-		.name = "Root File System",
-		.offset = 0x800000,
-		.size = MTDPART_SIZ_FULL,
-	},
-};
-
-
 /**
  * struct fsmc_nand_data - structure for FSMC NAND device state
  *
