@@ -333,6 +333,8 @@ static struct mtd_partition partition_info_128KB_blk[] = {
  * @pid:		Part ID on the AMBA PrimeCell format
  * @mtd:		MTD info for a NAND flash.
  * @nand:		Chip related info for a NAND flash.
+ * @partitions:		Partition info for a NAND Flash.
+ * @nr_partitions:	Total number of partition of a NAND flash.
  *
  * @ecc_place:		ECC placing locations in oobfree type format.
  * @bank:		Bank number for probed device.
@@ -347,6 +349,8 @@ struct fsmc_nand_data {
 	u32			pid;
 	struct mtd_info		mtd;
 	struct nand_chip	nand;
+	struct mtd_partition	*partitions;
+	unsigned int		nr_partitions;
 
 	struct fsmc_eccplace	*ecc_place;
 	unsigned int		bank;
@@ -833,6 +837,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	host->bank = pdata->bank;
 	host->select_chip = pdata->select_bank;
+	host->partitions = pdata->partitions;
+	host->nr_partitions = pdata->nr_partitions;
 	regs = host->regs_va;
 
 	/* Link all private pointers */
@@ -943,12 +949,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 */
 	host->mtd.name = "nand";
 	ret = mtd_device_parse_register(&host->mtd, NULL, NULL,
-					host->mtd.size <= 0x04000000 ?
-					partition_info_16KB_blk :
-					partition_info_128KB_blk,
-					host->mtd.size <= 0x04000000 ?
-					ARRAY_SIZE(partition_info_16KB_blk) :
-					ARRAY_SIZE(partition_info_128KB_blk));
+					host->partitions, host->nr_partitions);
 	if (ret)
 		goto err_probe;
 
