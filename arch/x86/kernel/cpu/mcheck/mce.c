@@ -1614,6 +1614,12 @@ static int __mce_read_apei(char __user **ubuf, size_t usize)
 	/* Error or no more MCE record */
 	if (rc <= 0) {
 		mce_apei_read_done = 1;
+		/*
+		 * When ERST is disabled, mce_chrdev_read() should return
+		 * "no record" instead of "no device."
+		 */
+		if (rc == -ENODEV)
+			return 0;
 		return rc;
 	}
 	rc = -EFAULT;
@@ -1932,7 +1938,7 @@ static struct bus_type mce_subsys = {
 	.dev_name	= "machinecheck",
 };
 
-struct device *mce_device[CONFIG_NR_CPUS];
+DEFINE_PER_CPU(struct device *, mce_device);
 
 __cpuinitdata
 void (*threshold_cpu_callback)(unsigned long action, unsigned int cpu);
@@ -2111,7 +2117,7 @@ static __cpuinit int mce_device_create(unsigned int cpu)
 			goto error2;
 	}
 	cpumask_set_cpu(cpu, mce_device_initialized);
-	mce_device[cpu] = dev;
+	per_cpu(mce_device, cpu) = dev;
 
 	return 0;
 error2:
@@ -2128,7 +2134,7 @@ error:
 
 static __cpuinit void mce_device_remove(unsigned int cpu)
 {
-	struct device *dev = mce_device[cpu];
+	struct device *dev = per_cpu(mce_device, cpu);
 	int i;
 
 	if (!cpumask_test_cpu(cpu, mce_device_initialized))
@@ -2142,7 +2148,7 @@ static __cpuinit void mce_device_remove(unsigned int cpu)
 
 	device_unregister(dev);
 	cpumask_clear_cpu(cpu, mce_device_initialized);
-	mce_device[cpu] = NULL;
+	per_cpu(mce_device, cpu) = NULL;
 }
 
 /* Make sure there are no machine checks on offlined CPUs. */
