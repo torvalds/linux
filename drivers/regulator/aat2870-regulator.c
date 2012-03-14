@@ -231,3 +231,4 @@ module_exit(aat2870_regulator_exit);
 MODULE_DESCRIPTION("AnalogicTech AAT2870 Regulator");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jin Park <jinyoungp@nvidia.com>");
+MODULE_ALIAS("platform:aat2870-regulator");
