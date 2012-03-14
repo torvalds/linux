@@ -528,14 +528,10 @@ static void rt2800usb_txdone(struct rt2x00_dev *rt2x00dev)
 	}
 }
 
-static void rt2800usb_work_txdone(struct work_struct *work)
+static void rt2800usb_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 {
-	struct rt2x00_dev *rt2x00dev =
-	    container_of(work, struct rt2x00_dev, txdone_work);
 	struct data_queue *queue;
 	struct queue_entry *entry;
-
-	rt2800usb_txdone(rt2x00dev);
 
 	/*
 	 * Process any trailing TX status reports for IO failures,
@@ -560,6 +556,16 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 				break;
 		}
 	}
+}
+
+static void rt2800usb_work_txdone(struct work_struct *work)
+{
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(work, struct rt2x00_dev, txdone_work);
+
+	rt2800usb_txdone(rt2x00dev);
+
+	rt2800usb_txdone_nostatus(rt2x00dev);
 
 	/*
 	 * The hw may delay sending the packet after DMA complete
