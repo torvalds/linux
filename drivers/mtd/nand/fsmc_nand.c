@@ -382,7 +382,7 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
  * This routine initializes timing parameters related to NAND memory access in
  * FSMC registers
  */
-static void __init fsmc_nand_setup(struct fsmc_regs *regs, uint32_t bank,
+static void fsmc_nand_setup(struct fsmc_regs *regs, uint32_t bank,
 				   uint32_t busw)
 {
 	uint32_t value = FSMC_DEVTYPE_NAND | FSMC_ENABLE | FSMC_WAITON;
@@ -976,15 +976,15 @@ static int fsmc_nand_suspend(struct device *dev)
 static int fsmc_nand_resume(struct device *dev)
 {
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
-	if (host)
+	if (host) {
 		clk_enable(host->clk);
+		fsmc_nand_setup(host->regs_va, host->bank,
+				host->nand.options & NAND_BUSWIDTH_16);
+	}
 	return 0;
 }
 
-static const struct dev_pm_ops fsmc_nand_pm_ops = {
-	.suspend = fsmc_nand_suspend,
-	.resume = fsmc_nand_resume,
-};
+static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
 #endif
 
 static struct platform_driver fsmc_nand_driver = {
