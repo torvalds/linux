@@ -225,7 +225,7 @@ static int cmd_status(struct sock *sk, u16 index, u16 cmd, u8 status)
 
 	ev = (void *) skb_put(skb, sizeof(*ev));
 	ev->status = status;
-	put_unaligned_le16(cmd, &ev->opcode);
+	ev->opcode = cpu_to_le16(cmd);
 
 	err = sock_queue_rcv_skb(sk, skb);
 	if (err < 0)
@@ -255,7 +255,7 @@ static int cmd_complete(struct sock *sk, u16 index, u16 cmd, u8 status,
 	hdr->len = cpu_to_le16(sizeof(*ev) + rp_len);
 
 	ev = (void *) skb_put(skb, sizeof(*ev) + rp_len);
-	put_unaligned_le16(cmd, &ev->opcode);
+	ev->opcode = cpu_to_le16(cmd);
 	ev->status = status;
 
 	if (rp)
@@ -276,7 +276,7 @@ static int read_version(struct sock *sk, struct hci_dev *hdev, void *data,
 	BT_DBG("sock %p", sk);
 
 	rp.version = MGMT_VERSION;
-	put_unaligned_le16(MGMT_REVISION, &rp.revision);
+	rp.revision = __constant_cpu_to_le16(MGMT_REVISION);
 
 	return cmd_complete(sk, MGMT_INDEX_NONE, MGMT_OP_READ_VERSION, 0, &rp,
 			    sizeof(rp));
@@ -286,8 +286,8 @@ static int read_commands(struct sock *sk, struct hci_dev *hdev, void *data,
 			 u16 data_len)
 {
 	struct mgmt_rp_read_commands *rp;
-	u16 num_commands = ARRAY_SIZE(mgmt_commands);
-	u16 num_events = ARRAY_SIZE(mgmt_events);
+	const u16 num_commands = ARRAY_SIZE(mgmt_commands);
+	const u16 num_events = ARRAY_SIZE(mgmt_events);
 	u16 *opcode;
 	size_t rp_size;
 	int i, err;
@@ -300,8 +300,8 @@ static int read_commands(struct sock *sk, struct hci_dev *hdev, void *data,
 	if (!rp)
 		return -ENOMEM;
 
-	put_unaligned_le16(num_commands, &rp->num_commands);
-	put_unaligned_le16(num_events, &rp->num_events);
+	rp->num_commands = __constant_cpu_to_le16(num_commands);
+	rp->num_events = __constant_cpu_to_le16(num_events);
 
 	for (i = 0, opcode = rp->opcodes; i < num_commands; i++, opcode++)
 		put_unaligned_le16(mgmt_commands[i], opcode);
@@ -342,14 +342,14 @@ static int read_index_list(struct sock *sk, struct hci_dev *hdev, void *data,
 		return -ENOMEM;
 	}
 
-	put_unaligned_le16(count, &rp->num_controllers);
+	rp->num_controllers = cpu_to_le16(count);
 
 	i = 0;
 	list_for_each_entry(d, &hci_dev_list, list) {
 		if (test_bit(HCI_SETUP, &d->dev_flags))
 			continue;
 
-		put_unaligned_le16(d->id, &rp->index[i++]);
+		rp->index[i++] = cpu_to_le16(d->id);
 		BT_DBG("Added hci%u", d->id);
 	}
 
@@ -665,8 +665,7 @@ static int read_controller_info(struct sock *sk, struct hci_dev *hdev,
 	bacpy(&rp.bdaddr, &hdev->bdaddr);
 
 	rp.version = hdev->hci_ver;
-
-	put_unaligned_le16(hdev->manufacturer, &rp.manufacturer);
+	rp.manufacturer = cpu_to_le16(hdev->manufacturer);
 
 	rp.supported_settings = cpu_to_le32(get_supported_settings(hdev));
 	rp.current_settings = cpu_to_le32(get_current_settings(hdev));
@@ -1571,7 +1570,7 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	put_unaligned_le16(conn->handle, &dc.handle);
+	dc.handle = cpu_to_le16(conn->handle);
 	dc.reason = 0x13; /* Remote User Terminated Connection */
 	err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
 	if (err < 0)
@@ -1624,7 +1623,7 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	put_unaligned_le16(conn->handle, &dc.handle);
+	dc.handle = cpu_to_le16(conn->handle);
 	dc.reason = 0x13; /* Remote User Terminated Connection */
 
 	err = hci_send_cmd(hdev, HCI_OP_DISCONNECT, sizeof(dc), &dc);
@@ -1698,7 +1697,7 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 		i++;
 	}
 
-	put_unaligned_le16(i, &rp->conn_count);
+	rp->conn_count = cpu_to_le16(i);
 
 	/* Recalculate length in case of filtered SCO connections, etc */
 	rp_len = sizeof(*rp) + (i * sizeof(struct mgmt_addr_info));
@@ -2992,7 +2991,7 @@ int mgmt_device_connected(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		eir_len = eir_append_data(ev->eir, eir_len,
 					  EIR_CLASS_OF_DEV, dev_class, 3);
 
-	put_unaligned_le16(eir_len, &ev->eir_len);
+	ev->eir_len = cpu_to_le16(eir_len);
 
 	return mgmt_event(MGMT_EV_DEVICE_CONNECTED, hdev, buf,
 			  sizeof(*ev) + eir_len, NULL);
@@ -3517,7 +3516,7 @@ int mgmt_device_found(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 		eir_len = eir_append_data(ev->eir, eir_len, EIR_CLASS_OF_DEV,
 					  dev_class, 3);
 
-	put_unaligned_le16(eir_len, &ev->eir_len);
+	ev->eir_len = cpu_to_le16(eir_len);
 
 	ev_size = sizeof(*ev) + eir_len;
 
@@ -3542,7 +3541,7 @@ int mgmt_remote_name(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 link_type,
 	eir_len = eir_append_data(ev->eir, 0, EIR_NAME_COMPLETE, name,
 				  name_len);
 
-	put_unaligned_le16(eir_len, &ev->eir_len);
+	ev->eir_len = cpu_to_le16(eir_len);
 
 	return mgmt_event(MGMT_EV_DEVICE_FOUND, hdev, ev,
 			  sizeof(*ev) + eir_len, NULL);
