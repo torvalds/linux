@@ -1026,7 +1026,6 @@ _ctl_getiocinfo(void __user *arg)
 {
 	struct mpt2_ioctl_iocinfo karg;
 	struct MPT2SAS_ADAPTER *ioc;
-	u8 revision;
 
 	if (copy_from_user(&karg, arg, sizeof(karg))) {
 		printk(KERN_ERR "failure at %s:%d/%s()!\n",
@@ -1046,8 +1045,7 @@ _ctl_getiocinfo(void __user *arg)
 		karg.adapter_type = MPT2_IOCTL_INTERFACE_SAS2;
 	if (ioc->pfacts)
 		karg.port_number = ioc->pfacts[0].PortNumber;
-	pci_read_config_byte(ioc->pdev, PCI_CLASS_REVISION, &revision);
-	karg.hw_rev = revision;
+	karg.hw_rev = ioc->pdev->revision;
 	karg.pci_id = ioc->pdev->device;
 	karg.subsystem_device = ioc->pdev->subsystem_device;
 	karg.subsystem_vendor = ioc->pdev->subsystem_vendor;
