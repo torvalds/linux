@@ -449,6 +449,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->slottime = ATH9K_SLOT_TIME_9;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
+	ah->htc_reset_init = true;
 }
 
 static int ath9k_hw_init_macaddr(struct ath_hw *ah)
@@ -2631,6 +2632,7 @@ bool ath9k_hw_phy_disable(struct ath_hw *ah)
 		return false;
 
 	ath9k_hw_init_pll(ah, NULL);
+	ah->htc_reset_init = true;
 	return true;
 }
 EXPORT_SYMBOL(ath9k_hw_phy_disable);
@@ -2990,12 +2992,6 @@ EXPORT_SYMBOL(ath_gen_timer_isr);
 /********/
 /* HTC  */
 /********/
-
-void ath9k_hw_htc_resetinit(struct ath_hw *ah)
-{
-	ah->htc_reset_init = true;
-}
-EXPORT_SYMBOL(ath9k_hw_htc_resetinit);
 
 static struct {
 	u32 version;

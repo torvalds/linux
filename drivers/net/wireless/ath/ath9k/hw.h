@@ -988,9 +988,6 @@ void ath_gen_timer_isr(struct ath_hw *hw);
 
 void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 
-/* HTC */
-void ath9k_hw_htc_resetinit(struct ath_hw *ah);
-
 /* PHY */
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
