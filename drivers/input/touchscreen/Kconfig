@@ -116,12 +116,25 @@ config TOUCHSCREEN_ILI2102_IIC
 
 	  If unsure, say N (but it's safe to say "Y").
 config TOUCHSCREEN_GT8XX
-        tristate "Goodix touch screen gt8xx support"
+        tristate "Goodix touch screen gt801X2 support for rockchip based platform"
         help
           Say Y here if you have a touchscreen interface using the
-          goodix gt8xx  , and your board-specific initialization
+          two goodix gt801  , and your board-specific initialization
           code includes that in its table of IIC devices.
-	  If unsure, say N (but it's safe to say "Y").
+	  If unsure, say N.
+	config TOUCH_MAX_X
+                int "touch max x resolution"
+                depends on TOUCHSCREEN_GT8XX
+                default 1280
+                help
+                  goodix  touch max X resolution
+
+        config TOUCH_MAX_Y
+                int "touch max y resolution"
+                depends on TOUCHSCREEN_GT8XX
+                default 800
+                help
+                  goodix touch max y resolution
 
 config RK28_I2C_TS_NTP070
 	tristate "NTP070 based touchscreens: NTP070 Interface"

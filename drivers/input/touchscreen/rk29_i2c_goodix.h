@@ -26,10 +26,8 @@
 //*************************TouchScreen Work Part*****************************
 
 #define GOODIX_I2C_NAME "Goodix-TS"
-#define GOODIX_1024X768	 1
-
-#define TS_MAX_X 	1024			
-#define TS_MAX_Y		768
+#define TS_MAX_X 	CONFIG_TOUCH_MAX_X
+#define TS_MAX_Y	CONFIG_TOUCH_MAX_Y
 
 #if 1
 #define INT_PORT		RK29_PIN0_PA2	    						
