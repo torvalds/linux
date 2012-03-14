@@ -193,6 +193,7 @@ int gma_power_suspend(struct device *_dev)
 	if (!dev_priv->suspended) {
 		if (dev_priv->display_count) {
 			mutex_unlock(&power_mutex);
+			dev_err(dev->dev, "GPU hardware busy, cannot suspend\n");
 			return -EBUSY;
 		}
 		psb_irq_uninstall(dev);
@@ -300,7 +301,7 @@ int psb_runtime_suspend(struct device *dev)
 
 int psb_runtime_resume(struct device *dev)
 {
-	return gma_power_resume(dev);;
+	return gma_power_resume(dev);
 }
 
 int psb_runtime_idle(struct device *dev)

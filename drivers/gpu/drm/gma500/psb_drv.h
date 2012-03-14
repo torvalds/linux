@@ -456,12 +456,32 @@ struct medfield_state {
 	uint32_t saveHDMIB_CONTROL;
 };
 
+struct cdv_state {
+	uint32_t saveDSPCLK_GATE_D;
+	uint32_t saveRAMCLK_GATE_D;
+	uint32_t saveDSPARB;
+	uint32_t saveDSPFW[6];
+	uint32_t saveADPA;
+	uint32_t savePP_CONTROL;
+	uint32_t savePFIT_PGM_RATIOS;
+	uint32_t saveLVDS;
+	uint32_t savePFIT_CONTROL;
+	uint32_t savePP_ON_DELAYS;
+	uint32_t savePP_OFF_DELAYS;
+	uint32_t savePP_CYCLE;
+	uint32_t saveVGACNTRL;
+	uint32_t saveIER;
+	uint32_t saveIMR;
+	u8	 saveLBB;
+};
+
 struct psb_save_area {
 	uint32_t saveBSM;
 	uint32_t saveVBT;
 	union {
 	        struct psb_state psb;
 		struct medfield_state mdfld;
+		struct cdv_state cdv;
 	};
 	uint32_t saveBLC_PWM_CTL2;
 	uint32_t saveBLC_PWM_CTL;
