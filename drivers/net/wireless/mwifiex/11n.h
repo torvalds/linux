@@ -86,9 +86,8 @@ mwifiex_is_ampdu_allowed(struct mwifiex_private *priv, int tid)
 static inline u8
 mwifiex_is_amsdu_allowed(struct mwifiex_private *priv, int tid)
 {
-	return (((priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED)
-			&& ((priv->is_data_rate_auto)
-			|| !((priv->bitmap_rates[2]) & 0x03)))
+	return (((priv->aggr_prio_tbl[tid].amsdu != BA_STREAM_NOT_ALLOWED) &&
+		 (priv->is_data_rate_auto || !(priv->bitmap_rates[2] & 0x03)))
 		? true : false);
 }
 
@@ -149,7 +148,7 @@ mwifiex_find_stream_to_delete(struct mwifiex_private *priv, int ptr_tid,
  */
 static inline int
 mwifiex_is_ba_stream_setup(struct mwifiex_private *priv,
-			  struct mwifiex_ra_list_tbl *ptr, int tid)
+			   struct mwifiex_ra_list_tbl *ptr, int tid)
 {
 	struct mwifiex_tx_ba_stream_tbl *tx_tbl;
 

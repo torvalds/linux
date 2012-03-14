@@ -220,7 +220,7 @@ mwifiex_flush_data(unsigned long context)
  */
 static void
 mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
-				 int tid, int win_size, int seq_num)
+				  int tid, int win_size, int seq_num)
 {
 	int i;
 	struct mwifiex_rx_reorder_tbl *tbl, *new_node;
@@ -240,7 +240,7 @@ mwifiex_11n_create_rx_reorder_tbl(struct mwifiex_private *priv, u8 *ta,
 	new_node = kzalloc(sizeof(struct mwifiex_rx_reorder_tbl), GFP_KERNEL);
 	if (!new_node) {
 		dev_err(priv->adapter->dev, "%s: failed to alloc new_node\n",
-		       __func__);
+			__func__);
 		return;
 	}
 
@@ -352,7 +352,8 @@ int mwifiex_cmd_11n_addba_rsp_gen(struct mwifiex_private *priv,
 	cmd_addba_req->block_ack_param_set = cpu_to_le16(block_ack_param_set);
 
 	mwifiex_11n_create_rx_reorder_tbl(priv, cmd_addba_req->peer_mac_addr,
-			    tid, win_size, le16_to_cpu(cmd_addba_req->ssn));
+					  tid, win_size,
+					  le16_to_cpu(cmd_addba_req->ssn));
 	return 0;
 }
 
@@ -416,11 +417,11 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	 * packet
 	 */
 	if ((start_win + TWOPOW11) > (MAX_TID_VALUE - 1)) {/* Wrap */
-		if (seq_num >= ((start_win + (TWOPOW11)) & (MAX_TID_VALUE - 1))
-				&& (seq_num < start_win))
+		if (seq_num >= ((start_win + TWOPOW11) &
+				(MAX_TID_VALUE - 1)) && (seq_num < start_win))
 			return -1;
-	} else if ((seq_num < start_win)
-			|| (seq_num > (start_win + (TWOPOW11)))) {
+	} else if ((seq_num < start_win) ||
+		   (seq_num > (start_win + TWOPOW11))) {
 		return -1;
 	}
 
@@ -431,10 +432,11 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *priv,
 	if (pkt_type == PKT_TYPE_BAR)
 		seq_num = ((seq_num + win_size) - 1) & (MAX_TID_VALUE - 1);
 
-	if (((end_win < start_win)
-	     && (seq_num < (TWOPOW11 - (MAX_TID_VALUE - start_win)))
-	     && (seq_num > end_win)) || ((end_win > start_win)
-	     && ((seq_num > end_win) || (seq_num < start_win)))) {
+	if (((end_win < start_win) &&
+	     (seq_num < (TWOPOW11 - (MAX_TID_VALUE - start_win))) &&
+	     (seq_num > end_win)) ||
+	    ((end_win > start_win) && ((seq_num > end_win) ||
+				       (seq_num < start_win)))) {
 		end_win = seq_num;
 		if (((seq_num - win_size) + 1) >= 0)
 			start_win = (end_win - win_size) + 1;
@@ -483,15 +485,15 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 	else
 		cleanup_rx_reorder_tbl = (initiator) ? false : true;
 
-	dev_dbg(priv->adapter->dev, "event: DELBA: %pM tid=%d, "
-	       "initiator=%d\n", peer_mac, tid, initiator);
+	dev_dbg(priv->adapter->dev, "event: DELBA: %pM tid=%d initiator=%d\n",
+		peer_mac, tid, initiator);
 
 	if (cleanup_rx_reorder_tbl) {
 		tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid,
 								 peer_mac);
 		if (!tbl) {
 			dev_dbg(priv->adapter->dev,
-					"event: TID, TA not found in table\n");
+				"event: TID, TA not found in table\n");
 			return;
 		}
 		mwifiex_del_rx_reorder_entry(priv, tbl);
@@ -499,7 +501,7 @@ mwifiex_del_ba_tbl(struct mwifiex_private *priv, int tid, u8 *peer_mac,
 		ptx_tbl = mwifiex_get_ba_tbl(priv, tid, peer_mac);
 		if (!ptx_tbl) {
 			dev_dbg(priv->adapter->dev,
-					"event: TID, RA not found in table\n");
+				"event: TID, RA not found in table\n");
 			return;
 		}
 
@@ -538,13 +540,13 @@ int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,
 			IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK)
 			>> BLOCKACKPARAM_WINSIZE_POS;
 
-		dev_dbg(priv->adapter->dev, "cmd: ADDBA RSP: %pM"
-		       " tid=%d ssn=%d win_size=%d\n",
-		       add_ba_rsp->peer_mac_addr,
-		       tid, add_ba_rsp->ssn, win_size);
+		dev_dbg(priv->adapter->dev,
+			"cmd: ADDBA RSP: %pM tid=%d ssn=%d win_size=%d\n",
+			add_ba_rsp->peer_mac_addr, tid,
+			add_ba_rsp->ssn, win_size);
 	} else {
 		dev_err(priv->adapter->dev, "ADDBA RSP: failed %pM tid=%d)\n",
-				add_ba_rsp->peer_mac_addr, tid);
+			add_ba_rsp->peer_mac_addr, tid);
 
 		tbl = mwifiex_11n_get_rx_reorder_tbl(priv, tid,
 						     add_ba_rsp->peer_mac_addr);

@@ -44,16 +44,16 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 
 	ht_cap->ht_cap.ampdu_params_info =
 		(sband->ht_cap.ampdu_factor &
-		 IEEE80211_HT_AMPDU_PARM_FACTOR)|
+		 IEEE80211_HT_AMPDU_PARM_FACTOR) |
 		((sband->ht_cap.ampdu_density <<
 		 IEEE80211_HT_AMPDU_PARM_DENSITY_SHIFT) &
 		 IEEE80211_HT_AMPDU_PARM_DENSITY);
 
 	memcpy((u8 *) &ht_cap->ht_cap.mcs, &sband->ht_cap.mcs,
-						sizeof(sband->ht_cap.mcs));
+	       sizeof(sband->ht_cap.mcs));
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
-			(sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
+	    sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 
@@ -389,9 +389,9 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 		chan_list->chan_scan_param[0].radio_type =
 			mwifiex_band_to_radio_type((u8) bss_desc->bss_band);
 
-		if ((sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
-			&& (bss_desc->bcn_ht_info->ht_param &
-				IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
+		if (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+		    bss_desc->bcn_ht_info->ht_param &
+		    IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)
 			SET_SECONDARYCHAN(chan_list->chan_scan_param[0].
 					  radio_type,
 					  (bss_desc->bcn_ht_info->ht_param &
@@ -464,7 +464,7 @@ mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
 	tx_buf = min(priv->adapter->max_tx_buf_size, max_amsdu);
 
 	dev_dbg(priv->adapter->dev, "info: max_amsdu=%d, max_tx_buf=%d\n",
-			max_amsdu, priv->adapter->max_tx_buf_size);
+		max_amsdu, priv->adapter->max_tx_buf_size);
 
 	if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_2K)
 		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
@@ -504,7 +504,7 @@ void mwifiex_11n_delete_tx_ba_stream_tbl_entry(struct mwifiex_private *priv,
 				struct mwifiex_tx_ba_stream_tbl *tx_ba_tsr_tbl)
 {
 	if (!tx_ba_tsr_tbl &&
-			mwifiex_is_tx_ba_stream_ptr_valid(priv, tx_ba_tsr_tbl))
+	    mwifiex_is_tx_ba_stream_ptr_valid(priv, tx_ba_tsr_tbl))
 		return;
 
 	dev_dbg(priv->adapter->dev, "info: tx_ba_tsr_tbl %p\n", tx_ba_tsr_tbl);
@@ -548,8 +548,8 @@ mwifiex_get_ba_tbl(struct mwifiex_private *priv, int tid, u8 *ra)
 
 	spin_lock_irqsave(&priv->tx_ba_stream_tbl_lock, flags);
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
-		if ((!memcmp(tx_ba_tsr_tbl->ra, ra, ETH_ALEN))
-		    && (tx_ba_tsr_tbl->tid == tid)) {
+		if (!memcmp(tx_ba_tsr_tbl->ra, ra, ETH_ALEN) &&
+		    tx_ba_tsr_tbl->tid == tid) {
 			spin_unlock_irqrestore(&priv->tx_ba_stream_tbl_lock,
 					       flags);
 			return tx_ba_tsr_tbl;
@@ -718,7 +718,7 @@ int mwifiex_get_tx_ba_stream_tbl(struct mwifiex_private *priv,
 	list_for_each_entry(tx_ba_tsr_tbl, &priv->tx_ba_stream_tbl_ptr, list) {
 		rx_reo_tbl->tid = (u16) tx_ba_tsr_tbl->tid;
 		dev_dbg(priv->adapter->dev, "data: %s tid=%d\n",
-						__func__, rx_reo_tbl->tid);
+			__func__, rx_reo_tbl->tid);
 		memcpy(rx_reo_tbl->ra, tx_ba_tsr_tbl->ra, ETH_ALEN);
 		rx_reo_tbl++;
 		count++;
