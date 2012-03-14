@@ -69,12 +69,12 @@ struct rknand_info {
     char (*GetChipSectorInfo)(char * pbuf);
     int emmc_clk_power_save_en;
     char *pdmaBuf;
+    void (*nand_timing_config)(unsigned long AHBnKHz);
     int reserved[20];
 };
 
 extern int rknand_queue_read(int Index, int nSec, void *buf);
 extern int rknand_queue_write(int Index, int nSec, void *buf,int mode);
-extern int rknand_panic_write(int Index, int nSec, void *buf);
 extern int rknand_buffer_init(char * pbuf,int size);
 extern void rknand_buffer_data_init(void);
 extern void rknand_buffer_shutdown(void);

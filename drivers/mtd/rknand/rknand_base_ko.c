@@ -23,8 +23,14 @@
 //#include "api_flash.h"
 #include "rknand_base.h"
 
-
+#ifdef CONFIG_ARCH_RK30
 #define DRIVER_NAME	"rk30xxnand"
+#endif
+
+#ifdef CONFIG_ARCH_RK29
+#define DRIVER_NAME	"rk29xxnand"
+#endif
+
 const char rknand_base_version[] = "rknand_base.c version: 4.32 20120103";
 #define NAND_DEBUG_LEVEL0 0
 #define NAND_DEBUG_LEVEL1 1
@@ -37,8 +43,8 @@ struct mtd_info		rknand_mtd;
 struct mtd_partition *rknand_parts;
 struct rknand_info * gpNandInfo;
 
-#ifdef CONFIG_MTD_NAND_RK29XX_DEBUG
-static int s_debug = CONFIG_MTD_NAND_RK29XX_DEBUG_VERBOSE;
+#ifdef CONFIG_MTD_NAND_RK_DEBUG
+static int s_debug = CONFIG_MTD_NAND_RK_DEBUG_VERBOSE;
 #undef NAND_DEBUG
 #define NAND_DEBUG(n, format, arg...) \
 	if (n <= s_debug) {	 \
@@ -129,10 +135,10 @@ static int rkNand_proc_read(char *page,
 	return buf - page < count ? buf - page : count;
 }
 
-static void rk28nand_create_procfs(void)
+static void rknand_create_procfs(void)
 {
     /* Install the proc_fs entry */
-    my_proc_entry = create_proc_entry("rk29xxnand",
+    my_proc_entry = create_proc_entry("rknand",
                            S_IRUGO | S_IFREG,
                            NANDPROC_ROOT);
 
@@ -165,7 +171,7 @@ void printk_write_log(long lba,int len, const u_char *pbuf)
     }
 }
 
-static int rk28xxnand_read(struct mtd_info *mtd, loff_t from, size_t len,
+static int rknand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	size_t *retlen, u_char *buf)
 {
 	int ret = 0;
@@ -185,7 +191,7 @@ static int rk28xxnand_read(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;//ret;
 }
 
-static int rk28xxnand_write(struct mtd_info *mtd, loff_t from, size_t len,
+static int rknand_write(struct mtd_info *mtd, loff_t from, size_t len,
 	size_t *retlen, const u_char *buf)
 {
 	int ret = 0;
@@ -216,7 +222,7 @@ static int rk28xxnand_write(struct mtd_info *mtd, loff_t from, size_t len,
 	return 0;
 }
 
-static int rk28xxnand_erase(struct mtd_info *mtd, struct erase_info *instr)
+static int rknand_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	int ret = 0;
     if (instr->callback)
@@ -224,15 +230,15 @@ static int rk28xxnand_erase(struct mtd_info *mtd, struct erase_info *instr)
 	return ret;
 }
 
-static void rk28xxnand_sync(struct mtd_info *mtd)
+static void rknand_sync(struct mtd_info *mtd)
 {
-	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rk30xxnand_sync: \n");
+	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rk_nand_sync: \n");
     if(gpNandInfo->ftl_sync)
         gpNandInfo->ftl_sync();
 }
 
 extern void FtlWriteCacheEn(int);
-static int rk28xxnand_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
+static int rknand_panic_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen, const u_char *buf)
 {
 	int sector = len >> 9;
 	int LBA = (int)(to >> 9);
@@ -295,17 +301,17 @@ int  GetflashDataByLba(int lba,char * pbuf , int len)
 }
 
 
-static int rk28xxnand_block_isbad(struct mtd_info *mtd, loff_t ofs)
+static int rknand_block_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	return 0;
 }
 
-static int rk28xxnand_block_markbad(struct mtd_info *mtd, loff_t ofs)
+static int rknand_block_markbad(struct mtd_info *mtd, loff_t ofs)
 {
 	return 0;
 }
 
-static int rk28xxnand_init(struct rknand_info *nand_info)
+static int rknand_info_init(struct rknand_info *nand_info)
 {
 	struct mtd_info	   *mtd = &rknand_mtd;
 	struct rknand_chip *rknand = &nand_info->rknand;  
@@ -324,22 +330,22 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
 	// Fill in remaining MTD driver data 
 	mtd->type = MTD_NANDFLASH;
 	mtd->flags = (MTD_WRITEABLE|MTD_NO_ERASE);//
-	mtd->erase = rk28xxnand_erase;
+	mtd->erase = rknand_erase;
 	mtd->point = NULL;
 	mtd->unpoint = NULL;
-	mtd->read = rk28xxnand_read;
-	mtd->write = rk28xxnand_write;
+	mtd->read = rknand_read;
+	mtd->write = rknand_write;
 	mtd->read_oob = NULL;
 	mtd->write_oob = NULL;
-	mtd->panic_write = rk28xxnand_panic_write;
+	mtd->panic_write = rknand_panic_write;
 
-	mtd->sync = rk28xxnand_sync;
+	mtd->sync = rknand_sync;
 	mtd->lock = NULL;
 	mtd->unlock = NULL;
 	mtd->suspend = NULL;
 	mtd->resume = NULL;
-	mtd->block_isbad = rk28xxnand_block_isbad;
-	mtd->block_markbad = rk28xxnand_block_markbad;
+	mtd->block_isbad = rknand_block_isbad;
+	mtd->block_markbad = rknand_block_markbad;
 	mtd->owner = THIS_MODULE;
     return 0;
 }
@@ -354,70 +360,8 @@ static int rk28xxnand_init(struct rknand_info *nand_info)
 #ifdef CONFIG_MTD_CMDLINE_PARTS
 const char *part_probes[] = { "cmdlinepart", NULL }; 
 #endif 
-static struct mtd_partition rk30_partition_info[] = {
-	{ 
-	  name: "misc",
-	  offset:  0x2000*0x200,
-	  size:    0x2000*0x200,//100MB
-	},
 
-	{ 
-	  name: "kernel",
-	  offset:  0x4000*0x200,
-	  size:   0x4000*0x200,//200MB
-	},
-
-	{ 
-	  name: "boot",
-	  offset:  0x8000*0x200,
-	  size:   0x8000*0x200,//200MB
-	},
-	
-	{ 
-	  name: "recovery",
-	  offset:  0x10000*0x200,
-	  size:   0x8000*0x200,//200MB
-	},
-	
-	{ 
-	  name: "backup",
-	  offset:  0x00018000*0x200,
-	  size:   0x000C0000*0x200,//200MB
-	},
-	
-	{ 
-	  name: "cache",
-	  offset:  0x000D8000*0x200,
-	  size:   0x00040000*0x200,//200MB
-	},
-	
-	{ 
-	  name: "userdata",
-	  offset:  0x00118000*0x200,
-	  size:   0x00100000*0x200,//200MB
-	},
-	
-	{ 
-	  name: "kpanic",
-	  offset:  0x00218000*0x200,
-	  size:   0x00002000*0x200,//200MB
-	},
-	
-	{ 
-	  name: "system",
-	  offset:  0x0021A000*0x200,
-	  size:   0x000A0000*0x200,//200MB
-	},
-	
-	{ 
-	  name: "user",
-	  offset:  0x002BA000*0x200,
-	  size:   0x000A0000*0x200,//200MB
-	},
-};
-
-
-static int rk29xxnand_add_partitions(struct rknand_info *nand_info)
+static int rknand_add_partitions(struct rknand_info *nand_info)
 {
 #ifdef CONFIG_MTD_CMDLINE_PARTS
     int num_partitions = 0; 
@@ -442,14 +386,7 @@ static int rk29xxnand_add_partitions(struct rknand_info *nand_info)
 #endif
     } 
 #endif 
-    g_num_partitions = 10;
-    rknand_parts = rk30_partition_info;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
-		return mtd_device_register(&rknand_mtd, rknand_parts, g_num_partitions);
-#else
-		return add_mtd_partitions(&(rknand_mtd), rknand_parts, g_num_partitions);
-#endif
-
+    g_num_partitions = 0;
 	return 0;
 }
 
@@ -461,9 +398,10 @@ int add_rknand_device(struct rknand_info * prknand_Info)
     
     rknand_mtd.size = (uint64_t)gpNandInfo->nandCapacity*0x200;
     
-    rk29xxnand_add_partitions(prknand_Info);
+    rknand_add_partitions(prknand_Info);
  
     parts = rknand_parts;
+	SysImageWriteEndAdd = 0;
     for(i=0;i<g_num_partitions;i++)
     {
         //printk(">>> part[%d]: name=%s offset=0x%012llx\n", i, parts[i].name, parts[i].offset);
@@ -474,8 +412,8 @@ int add_rknand_device(struct rknand_info * prknand_Info)
             break;
         }
     }
-
-    gpNandInfo->SysImageWriteEndAdd = SysImageWriteEndAdd;
+	if(SysImageWriteEndAdd)
+    	gpNandInfo->SysImageWriteEndAdd = SysImageWriteEndAdd;
     
     //if(gpNandInfo->nand_timing_config)
     //    gpNandInfo->nand_timing_config(100*1000);
@@ -495,8 +433,7 @@ static int rknand_probe(struct platform_device *pdev)
 {
 	struct rknand_info *nand_info;
 	int err = 0;
-	printk("nand init...\n");
-	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rk30xxnand_probe: \n");
+	NAND_DEBUG(NAND_DEBUG_LEVEL0,"rk_nand_probe: \n");
 	gpNandInfo = kzalloc(sizeof(struct rknand_info), GFP_KERNEL);
 	if (!gpNandInfo)
 		return -ENOMEM;
@@ -517,7 +454,7 @@ static int rknand_probe(struct platform_device *pdev)
 	rknand_mtd.priv = &nand_info->rknand;
 	rknand_mtd.owner = THIS_MODULE;
     
-	if(rk28xxnand_init(nand_info))
+	if(rknand_info_init(nand_info))
 	{
 		err = -ENXIO;
 		goto  exit_free;
@@ -526,7 +463,7 @@ static int rknand_probe(struct platform_device *pdev)
 	nand_info->add_rknand_device = add_rknand_device;
 	nand_info->get_rknand_device = get_rknand_device;
 
-	rk28nand_create_procfs();
+	rknand_create_procfs();
 	return 0;
 
 exit_free:

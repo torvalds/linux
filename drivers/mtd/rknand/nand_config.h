@@ -25,10 +25,11 @@ Revision:   1.00
 #include    <asm/dma.h>
 #include    "typedef.h"
 
-#ifdef CONFIG_MACH_RK30_SDK
+#ifdef CONFIG_ARCH_RK30
 #include    <mach/io.h>
 #include    <mach/irqs.h>
-#else
+#endif
+#ifdef CONFIG_ARCH_RK29
 #include    <mach/rk29_iomap.h>
 #include    <mach/iomux.h>
 #endif
