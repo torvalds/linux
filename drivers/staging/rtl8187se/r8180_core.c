@@ -439,8 +439,7 @@ void buffer_free(struct net_device *dev, struct buffer **buffer, int len, short 
 		}
 		kfree(tmp);
 		tmp = next;
-	}
-	while (next != *buffer);
+	} while (next != *buffer);
 
 	*buffer = NULL;
 }
@@ -1618,9 +1617,9 @@ void rtl8180_rx(struct net_device *dev)
 		if (IEEE80211_FTYPE_CTL != type &&
 		    !bHwError && !bCRC && !bICV &&
 		    eqMacAddr(priv->ieee80211->current_network.bssid,
-		    	fc & IEEE80211_FCTL_TODS ? hdr->addr1 :
-		    	fc & IEEE80211_FCTL_FROMDS ? hdr->addr2 :
-		    	hdr->addr3)) {
+			fc & IEEE80211_FCTL_TODS ? hdr->addr1 :
+			fc & IEEE80211_FCTL_FROMDS ? hdr->addr2 :
+			hdr->addr3)) {
 
 			/* Perform signal smoothing for dynamic
 			 * mechanism on demand. This is different
@@ -3736,7 +3735,7 @@ static int __init rtl8180_pci_module_init(void)
 	DMESG("Wireless extensions version %d", WIRELESS_EXT);
 	rtl8180_proc_module_init();
 
-      if (pci_register_driver(&rtl8180_pci_driver)) {
+	if (pci_register_driver(&rtl8180_pci_driver)) {
 		DMESG("No device found");
 		return -ENODEV;
 	}
