@@ -360,28 +360,29 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	struct nand_chip *this = mtd->priv;
 	struct fsmc_nand_data *host = container_of(mtd,
 					struct fsmc_nand_data, mtd);
-	struct fsmc_regs *regs = host->regs_va;
+	void *__iomem *regs = host->regs_va;
 	unsigned int bank = host->bank;
 
 	if (ctrl & NAND_CTRL_CHANGE) {
+		u32 pc;
+
 		if (ctrl & NAND_CLE) {
-			this->IO_ADDR_R = (void __iomem *)host->cmd_va;
-			this->IO_ADDR_W = (void __iomem *)host->cmd_va;
+			this->IO_ADDR_R = host->cmd_va;
+			this->IO_ADDR_W = host->cmd_va;
 		} else if (ctrl & NAND_ALE) {
-			this->IO_ADDR_R = (void __iomem *)host->addr_va;
-			this->IO_ADDR_W = (void __iomem *)host->addr_va;
+			this->IO_ADDR_R = host->addr_va;
+			this->IO_ADDR_W = host->addr_va;
 		} else {
-			this->IO_ADDR_R = (void __iomem *)host->data_va;
-			this->IO_ADDR_W = (void __iomem *)host->data_va;
+			this->IO_ADDR_R = host->data_va;
+			this->IO_ADDR_W = host->data_va;
 		}
 
-		if (ctrl & NAND_NCE) {
-			writel(readl(&regs->bank_regs[bank].pc) | FSMC_ENABLE,
-					&regs->bank_regs[bank].pc);
-		} else {
-			writel(readl(&regs->bank_regs[bank].pc) & ~FSMC_ENABLE,
-				       &regs->bank_regs[bank].pc);
-		}
+		pc = readl(FSMC_NAND_REG(regs, bank, PC));
+		if (ctrl & NAND_NCE)
+			pc |= FSMC_ENABLE;
+		else
+			pc &= ~FSMC_ENABLE;
+		writel(pc, FSMC_NAND_REG(regs, bank, PC));
 	}
 
 	mb();
@@ -396,7 +397,7 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
  * This routine initializes timing parameters related to NAND memory access in
  * FSMC registers
  */
-static void fsmc_nand_setup(struct fsmc_regs *regs, uint32_t bank,
+static void fsmc_nand_setup(void __iomem *regs, uint32_t bank,
 			   uint32_t busw, struct fsmc_nand_timings *timings)
 {
 	uint32_t value = FSMC_DEVTYPE_NAND | FSMC_ENABLE | FSMC_WAITON;
@@ -424,14 +425,14 @@ static void fsmc_nand_setup(struct fsmc_regs *regs, uint32_t bank,
 	tset = (tims->tset & FSMC_TSET_MASK) << FSMC_TSET_SHIFT;
 
 	if (busw)
-		writel(value | FSMC_DEVWID_16, &regs->bank_regs[bank].pc);
+		writel(value | FSMC_DEVWID_16, FSMC_NAND_REG(regs, bank, PC));
 	else
-		writel(value | FSMC_DEVWID_8, &regs->bank_regs[bank].pc);
+		writel(value | FSMC_DEVWID_8, FSMC_NAND_REG(regs, bank, PC));
 
-	writel(readl(&regs->bank_regs[bank].pc) | tclr | tar,
-	       &regs->bank_regs[bank].pc);
-	writel(thiz | thold | twait | tset, &regs->bank_regs[bank].comm);
-	writel(thiz | thold | twait | tset, &regs->bank_regs[bank].attrib);
+	writel(readl(FSMC_NAND_REG(regs, bank, PC)) | tclr | tar,
+			FSMC_NAND_REG(regs, bank, PC));
+	writel(thiz | thold | twait | tset, FSMC_NAND_REG(regs, bank, COMM));
+	writel(thiz | thold | twait | tset, FSMC_NAND_REG(regs, bank, ATTRIB));
 }
 
 /*
@@ -441,15 +442,15 @@ static void fsmc_enable_hwecc(struct mtd_info *mtd, int mode)
 {
 	struct fsmc_nand_data *host = container_of(mtd,
 					struct fsmc_nand_data, mtd);
-	struct fsmc_regs *regs = host->regs_va;
+	void __iomem *regs = host->regs_va;
 	uint32_t bank = host->bank;
 
-	writel(readl(&regs->bank_regs[bank].pc) & ~FSMC_ECCPLEN_256,
-		       &regs->bank_regs[bank].pc);
-	writel(readl(&regs->bank_regs[bank].pc) & ~FSMC_ECCEN,
-			&regs->bank_regs[bank].pc);
-	writel(readl(&regs->bank_regs[bank].pc) | FSMC_ECCEN,
-			&regs->bank_regs[bank].pc);
+	writel(readl(FSMC_NAND_REG(regs, bank, PC)) & ~FSMC_ECCPLEN_256,
+			FSMC_NAND_REG(regs, bank, PC));
+	writel(readl(FSMC_NAND_REG(regs, bank, PC)) & ~FSMC_ECCEN,
+			FSMC_NAND_REG(regs, bank, PC));
+	writel(readl(FSMC_NAND_REG(regs, bank, PC)) | FSMC_ECCEN,
+			FSMC_NAND_REG(regs, bank, PC));
 }
 
 /*
@@ -462,13 +463,13 @@ static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
 {
 	struct fsmc_nand_data *host = container_of(mtd,
 					struct fsmc_nand_data, mtd);
-	struct fsmc_regs *regs = host->regs_va;
+	void __iomem *regs = host->regs_va;
 	uint32_t bank = host->bank;
 	uint32_t ecc_tmp;
 	unsigned long deadline = jiffies + FSMC_BUSY_WAIT_TIMEOUT;
 
 	do {
-		if (readl(&regs->bank_regs[bank].sts) & FSMC_CODE_RDY)
+		if (readl(FSMC_NAND_REG(regs, bank, STS)) & FSMC_CODE_RDY)
 			break;
 		else
 			cond_resched();
@@ -479,25 +480,25 @@ static int fsmc_read_hwecc_ecc4(struct mtd_info *mtd, const uint8_t *data,
 		return -ETIMEDOUT;
 	}
 
-	ecc_tmp = readl(&regs->bank_regs[bank].ecc1);
+	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC1));
 	ecc[0] = (uint8_t) (ecc_tmp >> 0);
 	ecc[1] = (uint8_t) (ecc_tmp >> 8);
 	ecc[2] = (uint8_t) (ecc_tmp >> 16);
 	ecc[3] = (uint8_t) (ecc_tmp >> 24);
 
-	ecc_tmp = readl(&regs->bank_regs[bank].ecc2);
+	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC2));
 	ecc[4] = (uint8_t) (ecc_tmp >> 0);
 	ecc[5] = (uint8_t) (ecc_tmp >> 8);
 	ecc[6] = (uint8_t) (ecc_tmp >> 16);
 	ecc[7] = (uint8_t) (ecc_tmp >> 24);
 
-	ecc_tmp = readl(&regs->bank_regs[bank].ecc3);
+	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC3));
 	ecc[8] = (uint8_t) (ecc_tmp >> 0);
 	ecc[9] = (uint8_t) (ecc_tmp >> 8);
 	ecc[10] = (uint8_t) (ecc_tmp >> 16);
 	ecc[11] = (uint8_t) (ecc_tmp >> 24);
 
-	ecc_tmp = readl(&regs->bank_regs[bank].sts);
+	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, STS));
 	ecc[12] = (uint8_t) (ecc_tmp >> 16);
 
 	return 0;
@@ -513,11 +514,11 @@ static int fsmc_read_hwecc_ecc1(struct mtd_info *mtd, const uint8_t *data,
 {
 	struct fsmc_nand_data *host = container_of(mtd,
 					struct fsmc_nand_data, mtd);
-	struct fsmc_regs *regs = host->regs_va;
+	void __iomem *regs = host->regs_va;
 	uint32_t bank = host->bank;
 	uint32_t ecc_tmp;
 
-	ecc_tmp = readl(&regs->bank_regs[bank].ecc1);
+	ecc_tmp = readl(FSMC_NAND_REG(regs, bank, ECC1));
 	ecc[0] = (uint8_t) (ecc_tmp >> 0);
 	ecc[1] = (uint8_t) (ecc_tmp >> 8);
 	ecc[2] = (uint8_t) (ecc_tmp >> 16);
@@ -771,13 +772,13 @@ static int fsmc_bch8_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	struct fsmc_nand_data *host = container_of(mtd,
 					struct fsmc_nand_data, mtd);
 	struct nand_chip *chip = mtd->priv;
-	struct fsmc_regs *regs = host->regs_va;
+	void __iomem *regs = host->regs_va;
 	unsigned int bank = host->bank;
 	uint32_t err_idx[8];
 	uint32_t num_err, i;
 	uint32_t ecc1, ecc2, ecc3, ecc4;
 
-	num_err = (readl(&regs->bank_regs[bank].sts) >> 10) & 0xF;
+	num_err = (readl(FSMC_NAND_REG(regs, bank, STS)) >> 10) & 0xF;
 
 	/* no bit flipping */
 	if (likely(num_err == 0))
@@ -820,10 +821,10 @@ static int fsmc_bch8_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	 * uint64_t array and error offset indexes are populated in err_idx
 	 * array
 	 */
-	ecc1 = readl(&regs->bank_regs[bank].ecc1);
-	ecc2 = readl(&regs->bank_regs[bank].ecc2);
-	ecc3 = readl(&regs->bank_regs[bank].ecc3);
-	ecc4 = readl(&regs->bank_regs[bank].sts);
+	ecc1 = readl(FSMC_NAND_REG(regs, bank, ECC1));
+	ecc2 = readl(FSMC_NAND_REG(regs, bank, ECC2));
+	ecc3 = readl(FSMC_NAND_REG(regs, bank, ECC3));
+	ecc4 = readl(FSMC_NAND_REG(regs, bank, STS));
 
 	err_idx[0] = (ecc1 >> 0) & 0x1FFF;
 	err_idx[1] = (ecc1 >> 13) & 0x1FFF;
@@ -863,7 +864,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	struct fsmc_nand_data *host;
 	struct mtd_info *mtd;
 	struct nand_chip *nand;
-	struct fsmc_regs *regs;
 	struct resource *res;
 	dma_cap_mask_t mask;
 	int ret = 0;
@@ -976,8 +976,6 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (host->mode == USE_DMA_ACCESS)
 		init_completion(&host->dma_access_complete);
 
-	regs = host->regs_va;
-
 	/* Link all private pointers */
 	mtd = &host->mtd;
 	nand = &host->nand;
@@ -1027,7 +1025,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		break;
 	}
 
-	fsmc_nand_setup(regs, host->bank, nand->options & NAND_BUSWIDTH_16,
+	fsmc_nand_setup(host->regs_va, host->bank,
+			nand->options & NAND_BUSWIDTH_16,
 			host->dev_timings);
 
 	if (AMBA_REV_BITS(host->pid) >= 8) {
