@@ -9,7 +9,7 @@
  */
 
 #include <linux/pci.h>
-#include <asm/mach-ath79/pci-ath724x.h>
+#include "pci.h"
 
 static struct ath724x_pci_data *pci_data;
 static int pci_data_size;

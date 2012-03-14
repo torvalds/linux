@@ -15,13 +15,13 @@
 
 #ifdef CONFIG_PCI
 #include <linux/ath9k_platform.h>
-#include <asm/mach-ath79/pci-ath724x.h>
 #endif /* CONFIG_PCI */
 
 #include "machtypes.h"
 #include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
 #include "dev-spi.h"
+#include "pci.h"
 
 #define UBNT_XM_GPIO_LED_L1		0
 #define UBNT_XM_GPIO_LED_L2		1
