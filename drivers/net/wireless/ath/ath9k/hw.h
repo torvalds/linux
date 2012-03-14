@@ -924,7 +924,7 @@ const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
-		   struct ath9k_hw_cal_data *caldata, bool bChannelChange);
+		   struct ath9k_hw_cal_data *caldata, bool fastcc);
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 

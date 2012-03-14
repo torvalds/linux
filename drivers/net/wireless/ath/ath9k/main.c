@@ -334,10 +334,6 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		hchan = ah->curchan;
 	}
 
-	if (fastcc && (ah->chip_fullsleep ||
-	    !ath9k_hw_check_alive(ah)))
-		fastcc = false;
-
 	if (!ath_prepare_reset(sc, retry_tx, flush))
 		fastcc = false;
 
