@@ -49,16 +49,15 @@ static ssize_t ieee80211_if_write(
 	size_t count, loff_t *ppos,
 	ssize_t (*write)(struct ieee80211_sub_if_data *, const char *, int))
 {
-	u8 *buf;
+	char buf[64];
 	ssize_t ret;
 
-	buf = kmalloc(count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (count >= sizeof(buf))
+		return -E2BIG;
 
-	ret = -EFAULT;
 	if (copy_from_user(buf, userbuf, count))
-		goto freebuf;
+		return -EFAULT;
+	buf[count] = '\0';
 
 	ret = -ENODEV;
 	rtnl_lock();
@@ -66,8 +65,6 @@ static ssize_t ieee80211_if_write(
 		ret = (*write)(sdata, buf, count);
 	rtnl_unlock();
 
-freebuf:
-	kfree(buf);
 	return ret;
 }
 
