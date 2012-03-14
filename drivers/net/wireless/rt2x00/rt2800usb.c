@@ -114,45 +114,103 @@ static bool rt2800usb_txstatus_pending(struct rt2x00_dev *rt2x00dev)
 	return false;
 }
 
+static inline bool rt2800usb_entry_txstatus_timeout(struct queue_entry *entry)
+{
+	bool tout;
+
+	if (!test_bit(ENTRY_DATA_STATUS_PENDING, &entry->flags))
+		return false;
+
+	tout = time_after(jiffies, entry->last_action + msecs_to_jiffies(100));
+	if (unlikely(tout))
+		WARNING(entry->queue->rt2x00dev,
+			"TX status timeout for entry %d in queue %d\n",
+			entry->entry_idx, entry->queue->qid);
+	return tout;
+
+}
+
+static bool rt2800usb_txstatus_timeout(struct rt2x00_dev *rt2x00dev)
+{
+	struct data_queue *queue;
+	struct queue_entry *entry;
+
+	tx_queue_for_each(rt2x00dev, queue) {
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
+		if (rt2800usb_entry_txstatus_timeout(entry))
+			return true;
+	}
+	return false;
+}
+
 static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 						 int urb_status, u32 tx_status)
 {
+	bool valid;
+
 	if (urb_status) {
-		WARNING(rt2x00dev, "rt2x00usb_register_read_async failed: %d\n", urb_status);
+		WARNING(rt2x00dev, "TX status read failed %d\n", urb_status);
+
+		goto stop_reading;
+	}
+
+	valid = rt2x00_get_field32(tx_status, TX_STA_FIFO_VALID);
+	if (valid) {
+		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &tx_status))
+			WARNING(rt2x00dev, "TX status FIFO overrun\n");
+
+		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+
+		/* Reschedule urb to read TX status again instantly */
+		return true;
+	} else if (rt2800usb_txstatus_pending(rt2x00dev)) {
+		/* Read register after 250 us */
+		hrtimer_start(&rt2x00dev->txstatus_timer, ktime_set(0, 250000),
+			      HRTIMER_MODE_REL);
 		return false;
 	}
 
-	/* try to read all TX_STA_FIFO entries before scheduling txdone_work */
-	if (rt2x00_get_field32(tx_status, TX_STA_FIFO_VALID)) {
-		if (!kfifo_put(&rt2x00dev->txstatus_fifo, &tx_status)) {
-			WARNING(rt2x00dev, "TX status FIFO overrun, "
-				"drop tx status report.\n");
-			queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
-		} else
-			return true;
-	} else if (!kfifo_is_empty(&rt2x00dev->txstatus_fifo)) {
-		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
-	} else if (rt2800usb_txstatus_pending(rt2x00dev)) {
-		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(2));
-	}
+stop_reading:
+	clear_bit(TX_STATUS_READING, &rt2x00dev->flags);
+	/*
+	 * There is small race window above, between txstatus pending check and
+	 * clear_bit someone could do rt2x00usb_interrupt_txdone, so recheck
+	 * here again if status reading is needed.
+	 */
+	if (rt2800usb_txstatus_pending(rt2x00dev) &&
+	    test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
+		return true;
+	else
+		return false;
+}
 
-	return false;
+static void rt2800usb_async_read_tx_status(struct rt2x00_dev *rt2x00dev)
+{
+
+	if (test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
+		return;
+
+	/* Read TX_STA_FIFO register after 500 us */
+	hrtimer_start(&rt2x00dev->txstatus_timer, ktime_set(0, 500000),
+		      HRTIMER_MODE_REL);
 }
 
 static void rt2800usb_tx_dma_done(struct queue_entry *entry)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 
-	rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
-				      rt2800usb_tx_sta_fifo_read_completed);
+	rt2800usb_async_read_tx_status(rt2x00dev);
 }
 
-static void rt2800usb_tx_sta_fifo_timeout(unsigned long data)
+static enum hrtimer_restart rt2800usb_tx_sta_fifo_timeout(struct hrtimer *timer)
 {
-	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2x00_dev *rt2x00dev =
+	    container_of(timer, struct rt2x00_dev, txstatus_timer);
 
 	rt2x00usb_register_read_async(rt2x00dev, TX_STA_FIFO,
 				      rt2800usb_tx_sta_fifo_read_completed);
+
+	return HRTIMER_NORESTART;
 }
 
 /*
@@ -540,7 +598,7 @@ static void rt2800usb_txdone_nostatus(struct rt2x00_dev *rt2x00dev)
 
 			if (test_bit(ENTRY_DATA_IO_FAILED, &entry->flags))
 				rt2x00lib_txdone_noinfo(entry, TXDONE_FAILURE);
-			else if (rt2x00queue_status_timeout(entry))
+			else if (rt2800usb_entry_txstatus_timeout(entry))
 				rt2x00lib_txdone_noinfo(entry, TXDONE_UNKNOWN);
 			else
 				break;
@@ -553,17 +611,21 @@ static void rt2800usb_work_txdone(struct work_struct *work)
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, txdone_work);
 
-	rt2800usb_txdone(rt2x00dev);
+	while (!kfifo_is_empty(&rt2x00dev->txstatus_fifo) ||
+	       rt2800usb_txstatus_timeout(rt2x00dev)) {
 
-	rt2800usb_txdone_nostatus(rt2x00dev);
+		rt2800usb_txdone(rt2x00dev);
 
-	/*
-	 * The hw may delay sending the packet after DMA complete
-	 * if the medium is busy, thus the TX_STA_FIFO entry is
-	 * also delayed -> use a timer to retrieve it.
-	 */
-	if (rt2800usb_txstatus_pending(rt2x00dev))
-		mod_timer(&rt2x00dev->txstatus_timer, jiffies + msecs_to_jiffies(2));
+		rt2800usb_txdone_nostatus(rt2x00dev);
+
+		/*
+		 * The hw may delay sending the packet after DMA complete
+		 * if the medium is busy, thus the TX_STA_FIFO entry is
+		 * also delayed -> use a timer to retrieve it.
+		 */
+		if (rt2800usb_txstatus_pending(rt2x00dev))
+			rt2800usb_async_read_tx_status(rt2x00dev);
+	}
 }
 
 /*
@@ -705,9 +767,7 @@ static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	__set_bit(REQUIRE_TXSTATUS_FIFO, &rt2x00dev->cap_flags);
 	__set_bit(REQUIRE_PS_AUTOWAKE, &rt2x00dev->cap_flags);
 
-	setup_timer(&rt2x00dev->txstatus_timer,
-		    rt2800usb_tx_sta_fifo_timeout,
-		    (unsigned long) rt2x00dev);
+	rt2x00dev->txstatus_timer.function = rt2800usb_tx_sta_fifo_timeout,
 
 	/*
 	 * Set the rssi offset.

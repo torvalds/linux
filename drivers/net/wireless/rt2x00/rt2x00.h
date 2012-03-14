@@ -38,7 +38,7 @@
 #include <linux/etherdevice.h>
 #include <linux/input-polldev.h>
 #include <linux/kfifo.h>
-#include <linux/timer.h>
+#include <linux/hrtimer.h>
 
 #include <net/mac80211.h>
 
@@ -692,6 +692,12 @@ enum rt2x00_state_flags {
 	 */
 	CONFIG_CHANNEL_HT40,
 	CONFIG_POWERSAVING,
+
+	/*
+	 * Mark we currently are sequentially reading TX_STA_FIFO register
+	 * FIXME: this is for only rt2800usb, should go to private data
+	 */
+	TX_STATUS_READING,
 };
 
 /*
@@ -974,7 +980,7 @@ struct rt2x00_dev {
 	/*
 	 * Timer to ensure tx status reports are read (rt2800usb).
 	 */
-	struct timer_list txstatus_timer;
+	struct hrtimer txstatus_timer;
 
 	/*
 	 * Tasklet for processing tx status reports (rt2800pci).
