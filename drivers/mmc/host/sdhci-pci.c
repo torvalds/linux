@@ -29,6 +29,12 @@
 #include "sdhci.h"
 
 /*
+ * PCI device IDs
+ */
+#define PCI_DEVICE_ID_INTEL_PCH_SDIO0	0x8809
+#define PCI_DEVICE_ID_INTEL_PCH_SDIO1	0x880a
+
+/*
  * PCI registers
  */
 
@@ -174,6 +180,12 @@ static int mrst_hc_probe(struct sdhci_pci_chip *chip)
 	return 0;
 }
 
+static int pch_hc_probe_slot(struct sdhci_pci_slot *slot)
+{
+	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA;
+	return 0;
+}
+
 #ifdef CONFIG_PM_RUNTIME
 
 static irqreturn_t sdhci_pci_sd_cd(int irq, void *dev_id)
@@ -283,6 +295,11 @@ static const struct sdhci_pci_fixes sdhci_intel_mfd_emmc = {
 	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.allow_runtime_pm = true,
 	.probe_slot	= mfd_emmc_probe_slot,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_pch_sdio = {
+	.quirks		= SDHCI_QUIRK_BROKEN_ADMA,
+	.probe_slot	= pch_hc_probe_slot,
 };
 
 /* O2Micro extra registers */
@@ -818,6 +835,22 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 		.driver_data	= (kernel_ulong_t)&sdhci_intel_mfd_emmc,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_PCH_SDIO0,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_pch_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_PCH_SDIO1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_pch_sdio,
 	},
 
 	{
