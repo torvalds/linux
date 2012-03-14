@@ -3084,33 +3084,6 @@ bfa_fcport_set_wwns(struct bfa_fcport_s *fcport)
 }
 
 static void
-bfa_fcport_send_txcredit(void *port_cbarg)
-{
-
-	struct bfa_fcport_s *fcport = port_cbarg;
-	struct bfi_fcport_set_svc_params_req_s *m;
-
-	/*
-	 * check for room in queue to send request now
-	 */
-	m = bfa_reqq_next(fcport->bfa, BFA_REQQ_PORT);
-	if (!m) {
-		bfa_trc(fcport->bfa, fcport->cfg.tx_bbcredit);
-		return;
-	}
-
-	bfi_h2i_set(m->mh, BFI_MC_FCPORT, BFI_FCPORT_H2I_SET_SVC_PARAMS_REQ,
-			bfa_fn_lpu(fcport->bfa));
-	m->tx_bbcredit = cpu_to_be16((u16)fcport->cfg.tx_bbcredit);
-	m->bb_scn = fcport->cfg.bb_scn;
-
-	/*
-	 * queue I/O message to firmware
-	 */
-	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT, m->mh);
-}
-
-static void
 bfa_fcport_qos_stats_swap(struct bfa_qos_stats_s *d,
 	struct bfa_qos_stats_s *s)
 {
@@ -3765,7 +3738,6 @@ bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit, u8 bb_scn)
 	fcport->cfg.bb_scn = bb_scn;
 	if (bb_scn)
 		fcport->bbsc_op_state = BFA_TRUE;
-	bfa_fcport_send_txcredit(fcport);
 }
 
 /*
