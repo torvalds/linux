@@ -10,6 +10,7 @@
 
 #include <linux/pci.h>
 #include <asm/mach-ath79/ath79.h>
+#include <asm/mach-ath79/irq.h>
 #include <asm/mach-ath79/pci.h>
 #include "pci.h"
 
@@ -50,7 +51,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 int __init ath79_register_pci(void)
 {
 	if (soc_is_ar724x())
-		return ar724x_pcibios_init();
+		return ar724x_pcibios_init(ATH79_CPU_IRQ_IP2);
 
 	return -ENODEV;
 }
