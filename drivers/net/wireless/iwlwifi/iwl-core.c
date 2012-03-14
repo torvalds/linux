@@ -43,29 +43,6 @@
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-#ifdef CONFIG_IWLWIFI_DEBUG
-void iwl_print_rx_config_cmd(struct iwl_priv *priv,
-			     enum iwl_rxon_context_id ctxid)
-{
-	struct iwl_rxon_context *ctx = &priv->contexts[ctxid];
-	struct iwl_rxon_cmd *rxon = &ctx->staging;
-
-	IWL_DEBUG_RADIO(priv, "RX CONFIG:\n");
-	iwl_print_hex_dump(priv, IWL_DL_RADIO, (u8 *) rxon, sizeof(*rxon));
-	IWL_DEBUG_RADIO(priv, "u16 channel: 0x%x\n", le16_to_cpu(rxon->channel));
-	IWL_DEBUG_RADIO(priv, "u32 flags: 0x%08X\n", le32_to_cpu(rxon->flags));
-	IWL_DEBUG_RADIO(priv, "u32 filter_flags: 0x%08x\n",
-			le32_to_cpu(rxon->filter_flags));
-	IWL_DEBUG_RADIO(priv, "u8 dev_type: 0x%x\n", rxon->dev_type);
-	IWL_DEBUG_RADIO(priv, "u8 ofdm_basic_rates: 0x%02x\n",
-			rxon->ofdm_basic_rates);
-	IWL_DEBUG_RADIO(priv, "u8 cck_basic_rates: 0x%02x\n", rxon->cck_basic_rates);
-	IWL_DEBUG_RADIO(priv, "u8[6] node_addr: %pM\n", rxon->node_addr);
-	IWL_DEBUG_RADIO(priv, "u8[6] bssid_addr: %pM\n", rxon->bssid_addr);
-	IWL_DEBUG_RADIO(priv, "u16 assoc_id: 0x%x\n", le16_to_cpu(rxon->assoc_id));
-}
-#endif
-
 int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
 {
 	struct iwl_statistics_cmd statistics_cmd = {
