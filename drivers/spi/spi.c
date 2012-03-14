@@ -931,8 +931,6 @@ int spi_register_master(struct spi_master *master)
 		spi_match_master_to_boardinfo(master, &bi->board_info);
 	mutex_unlock(&board_lock);
 
-	status = 0;
-
 	/* Register devices from the device tree */
 	of_register_spi_devices(master);
 done:
