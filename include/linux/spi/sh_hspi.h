@@ -17,18 +17,7 @@
 #ifndef SH_HSPI_H
 #define SH_HSPI_H
 
-/*
- * flags
- *
- *
- */
-#define SH_HSPI_CLK_DIVC(d)		(d & 0xFF)
-
-#define SH_HSPI_FBS		(1 << 8)
-#define SH_HSPI_CLKP_HIGH	(1 << 9)	/* default LOW */
-#define SH_HSPI_IDIV_DIV128	(1 << 10)	/* default div16 */
 struct sh_hspi_info {
-	u32	flags;
 };
 
 #endif

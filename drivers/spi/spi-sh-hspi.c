@@ -22,6 +22,8 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  */
+
+#include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/timer.h>
@@ -50,6 +52,7 @@ struct hspi_priv {
 	void __iomem *addr;
 	struct spi_master *master;
 	struct device *dev;
+	struct clk *clk;
 };
 
 /*
@@ -162,6 +165,59 @@ static int hspi_unprepare_transfer(struct spi_master *master)
 	return 0;
 }
 
+static void hspi_hw_setup(struct hspi_priv *hspi,
+			  struct spi_message *msg,
+			  struct spi_transfer *t)
+{
+	struct spi_device *spi = msg->spi;
+	struct device *dev = hspi->dev;
+	u32 target_rate;
+	u32 spcr, idiv_clk;
+	u32 rate, best_rate, min, tmp;
+
+	target_rate = t ? t->speed_hz : 0;
+	if (!target_rate)
+		target_rate = spi->max_speed_hz;
+
+	/*
+	 * find best IDIV/CLKCx settings
+	 */
+	min = ~0;
+	best_rate = 0;
+	spcr = 0;
+	for (idiv_clk = 0x00; idiv_clk <= 0x3F; idiv_clk++) {
+		rate = clk_get_rate(hspi->clk);
+
+		/* IDIV calculation */
+		if (idiv_clk & (1 << 5))
+			rate /= 128;
+		else
+			rate /= 16;
+
+		/* CLKCx calculation */
+		rate /= (((idiv_clk & 0x1F) + 1) * 2) ;
+
+		/* save best settings */
+		tmp = abs(target_rate - rate);
+		if (tmp < min) {
+			min = tmp;
+			spcr = idiv_clk;
+			best_rate = rate;
+		}
+	}
+
+	if (spi->mode & SPI_CPHA)
+		spcr |= 1 << 7;
+	if (spi->mode & SPI_CPOL)
+		spcr |= 1 << 6;
+
+	dev_dbg(dev, "speed %d/%d\n", target_rate, best_rate);
+
+	hspi_write(hspi, SPCR, spcr);
+	hspi_write(hspi, SPSR, 0x0);
+	hspi_write(hspi, SPSCR, 0x1);	/* master mode */
+}
+
 static int hspi_transfer_one_message(struct spi_master *master,
 				     struct spi_message *msg)
 {
@@ -173,6 +229,8 @@ static int hspi_transfer_one_message(struct spi_master *master,
 
 	ret = 0;
 	list_for_each_entry(t, &msg->transfers, transfer_list) {
+		hspi_hw_setup(hspi, msg, t);
+
 		if (t->tx_buf) {
 			ret = hspi_push(hspi, msg, t);
 			if (ret < 0)
@@ -197,27 +255,11 @@ static int hspi_setup(struct spi_device *spi)
 {
 	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
 	struct device *dev = hspi->dev;
-	struct sh_hspi_info *info = hspi2info(hspi);
-	u32 data;
 
 	if (8 != spi->bits_per_word) {
 		dev_err(dev, "bits_per_word should be 8\n");
 		return -EIO;
 	}
-
-	/* setup first of all in under pm_runtime */
-	data = SH_HSPI_CLK_DIVC(info->flags);
-
-	if (info->flags & SH_HSPI_FBS)
-		data |= 1 << 7;
-	if (info->flags & SH_HSPI_CLKP_HIGH)
-		data |= 1 << 6;
-	if (info->flags & SH_HSPI_IDIV_DIV128)
-		data |= 1 << 5;
-
-	hspi_write(hspi, SPCR, data);
-	hspi_write(hspi, SPSR, 0x0);
-	hspi_write(hspi, SPSCR, 0x1);	/* master mode */
 
 	dev_dbg(dev, "%s setup\n", spi->modalias);
 
@@ -237,6 +279,7 @@ static int __devinit hspi_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct spi_master *master;
 	struct hspi_priv *hspi;
+	struct clk *clk;
 	int ret;
 
 	/* get base addr */
@@ -252,12 +295,20 @@ static int __devinit hspi_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
+	clk = clk_get(NULL, "shyway_clk");
+	if (!clk) {
+		dev_err(&pdev->dev, "shyway_clk is required\n");
+		ret = -EINVAL;
+		goto error0;
+	}
+
 	hspi = spi_master_get_devdata(master);
 	dev_set_drvdata(&pdev->dev, hspi);
 
 	/* init hspi */
 	hspi->master	= master;
 	hspi->dev	= &pdev->dev;
+	hspi->clk	= clk;
 	hspi->addr	= devm_ioremap(hspi->dev,
 				       res->start, resource_size(res));
 	if (!hspi->addr) {
@@ -289,6 +340,8 @@ static int __devinit hspi_probe(struct platform_device *pdev)
  error2:
 	devm_iounmap(hspi->dev, hspi->addr);
  error1:
+	clk_put(clk);
+ error0:
 	spi_master_put(master);
 
 	return ret;
@@ -300,6 +353,7 @@ static int __devexit hspi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(&pdev->dev);
 
+	clk_put(hspi->clk);
 	spi_unregister_master(hspi->master);
 	devm_iounmap(hspi->dev, hspi->addr);
 
