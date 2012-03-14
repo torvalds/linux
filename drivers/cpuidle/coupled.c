@@ -130,6 +130,43 @@ static DEFINE_PER_CPU(struct call_single_data, cpuidle_coupled_poke_cb);
 static cpumask_t cpuidle_coupled_poked_mask;
 
 /**
+ * cpuidle_coupled_parallel_barrier - synchronize all online coupled cpus
+ * @dev: cpuidle_device of the calling cpu
+ * @a:   atomic variable to hold the barrier
+ *
+ * No caller to this function will return from this function until all online
+ * cpus in the same coupled group have called this function.  Once any caller
+ * has returned from this function, the barrier is immediately available for
+ * reuse.
+ *
+ * The atomic variable a must be initialized to 0 before any cpu calls
+ * this function, will be reset to 0 before any cpu returns from this function.
+ *
+ * Must only be called from within a coupled idle state handler
+ * (state.enter when state.flags has CPUIDLE_FLAG_COUPLED set).
+ *
+ * Provides full smp barrier semantics before and after calling.
+ */
+void cpuidle_coupled_parallel_barrier(struct cpuidle_device *dev, atomic_t *a)
+{
+	int n = dev->coupled->online_count;
+
+	smp_mb__before_atomic_inc();
+	atomic_inc(a);
+
+	while (atomic_read(a) < n)
+		cpu_relax();
+
+	if (atomic_inc_return(a) == n * 2) {
+		atomic_set(a, 0);
+		return;
+	}
+
+	while (atomic_read(a) > n)
+		cpu_relax();
+}
+
+/**
  * cpuidle_state_is_coupled - check if a state is part of a coupled set
  * @dev: struct cpuidle_device for the current cpu
  * @drv: struct cpuidle_driver for the platform
