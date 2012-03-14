@@ -85,8 +85,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	switch (ret) {
 	case -EBUSY:
 		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
-			(adapter->pps_uapsd_mode) &&
-			(adapter->tx_lock_flag)) {
+		    (adapter->pps_uapsd_mode) && (adapter->tx_lock_flag)) {
 				priv->adapter->tx_lock_flag = false;
 				if (local_tx_pd)
 					local_tx_pd->flags = 0;
@@ -96,7 +95,7 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 	case -1:
 		adapter->data_sent = false;
 		dev_err(adapter->dev, "mwifiex_write_data_async failed: 0x%X\n",
-		       ret);
+			ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb, ret);
 		break;
@@ -132,7 +131,7 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
 	priv = mwifiex_get_priv_by_id(adapter, tx_info->bss_num,
-			tx_info->bss_type);
+				      tx_info->bss_type);
 	if (!priv)
 		goto done;
 
@@ -151,11 +150,11 @@ int mwifiex_write_data_complete(struct mwifiex_adapter *adapter,
 
 		tpriv = adapter->priv[i];
 
-		if ((GET_BSS_ROLE(tpriv) == MWIFIEX_BSS_ROLE_STA)
-				&& (tpriv->media_connected)) {
+		if ((GET_BSS_ROLE(tpriv) == MWIFIEX_BSS_ROLE_STA) &&
+		    (tpriv->media_connected)) {
 			if (netif_queue_stopped(tpriv->netdev))
 				mwifiex_wake_up_net_dev_queue(tpriv->netdev,
-								adapter);
+							      adapter);
 		}
 	}
 done:
