@@ -11,6 +11,12 @@
 #ifndef __ASM_MACH_ATH79_PCI_H
 #define __ASM_MACH_ATH79_PCI_H
 
+#if defined(CONFIG_PCI) && defined(CONFIG_SOC_AR71XX)
+int ar71xx_pcibios_init(void);
+#else
+static inline int ar71xx_pcibios_init(void) { return 0; }
+#endif
+
 #if defined(CONFIG_PCI) && defined(CONFIG_SOC_AR724X)
 int ar724x_pcibios_init(int irq);
 #else
