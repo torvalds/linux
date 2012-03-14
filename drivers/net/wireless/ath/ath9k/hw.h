@@ -836,8 +836,6 @@ struct ath_hw {
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray ini_japan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
-	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
-	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
 	struct ar5416IniArray ini_radio_post_sys2ant;
 	struct ar5416IniArray ini_BTCOEX_MAX_TXPWR;
 

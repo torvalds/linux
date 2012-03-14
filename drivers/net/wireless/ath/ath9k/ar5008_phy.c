@@ -858,15 +858,6 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
-	if (AR_SREV_9271(ah)) {
-		if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) == 1)
-			REG_WRITE_ARRAY(&ah->iniModes_high_power_tx_gain_9271,
-					modesIndex, regWrites);
-		else
-			REG_WRITE_ARRAY(&ah->iniModes_normal_power_tx_gain_9271,
-					modesIndex, regWrites);
-	}
-
 	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
 
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
