@@ -84,7 +84,7 @@ static struct ath79_spi_platform_data ubnt_xm_spi_data = {
 #ifdef CONFIG_PCI
 static struct ath9k_platform_data ubnt_xm_eeprom_data;
 
-static struct ath724x_pci_data ubnt_xm_pci_data[] = {
+static struct ar724x_pci_data ubnt_xm_pci_data[] = {
 	{
 		.irq	= UBNT_XM_PCI_IRQ,
 		.pdata	= &ubnt_xm_eeprom_data,
@@ -108,7 +108,7 @@ static void __init ubnt_xm_init(void)
 	memcpy(ubnt_xm_eeprom_data.eeprom_data, UBNT_XM_EEPROM_ADDR,
 	       sizeof(ubnt_xm_eeprom_data.eeprom_data));
 
-	ath724x_pci_add_data(ubnt_xm_pci_data, ARRAY_SIZE(ubnt_xm_pci_data));
+	ar724x_pci_add_data(ubnt_xm_pci_data, ARRAY_SIZE(ubnt_xm_pci_data));
 #endif /* CONFIG_PCI */
 
 	ath79_register_pci();

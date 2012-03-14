@@ -8,15 +8,15 @@
  *  by the Free Software Foundation.
  */
 
-#ifndef __ASM_MACH_ATH79_PCI_ATH724X_H
-#define __ASM_MACH_ATH79_PCI_ATH724X_H
+#ifndef _ATH79_PCI_H
+#define _ATH79_PCI_H
 
-struct ath724x_pci_data {
+struct ar724x_pci_data {
 	int irq;
 	void *pdata;
 };
 
-void ath724x_pci_add_data(struct ath724x_pci_data *data, int size);
+void ar724x_pci_add_data(struct ar724x_pci_data *data, int size);
 
 #ifdef CONFIG_PCI
 int ath79_register_pci(void);
@@ -24,4 +24,4 @@ int ath79_register_pci(void);
 static inline int ath79_register_pci(void) { return 0; }
 #endif
 
-#endif /* __ASM_MACH_ATH79_PCI_ATH724X_H */
+#endif /* _ATH79_PCI_H */

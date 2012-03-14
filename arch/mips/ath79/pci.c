@@ -13,10 +13,10 @@
 #include <asm/mach-ath79/pci.h>
 #include "pci.h"
 
-static struct ath724x_pci_data *pci_data;
+static struct ar724x_pci_data *pci_data;
 static int pci_data_size;
 
-void ath724x_pci_add_data(struct ath724x_pci_data *data, int size)
+void ar724x_pci_add_data(struct ar724x_pci_data *data, int size)
 {
 	pci_data	= data;
 	pci_data_size	= size;
@@ -50,7 +50,7 @@ int pcibios_plat_dev_init(struct pci_dev *dev)
 int __init ath79_register_pci(void)
 {
 	if (soc_is_ar724x())
-		return ath724x_pcibios_init();
+		return ar724x_pcibios_init();
 
 	return -ENODEV;
 }

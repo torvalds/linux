@@ -12,9 +12,9 @@
 #define __ASM_MACH_ATH79_PCI_H
 
 #if defined(CONFIG_PCI) && defined(CONFIG_SOC_AR724X)
-int ath724x_pcibios_init(void);
+int ar724x_pcibios_init(void);
 #else
-static inline int ath724x_pcibios_init(void) { return 0; }
+static inline int ar724x_pcibios_init(void) { return 0; }
 #endif
 
 #endif /* __ASM_MACH_ATH79_PCI_H */
