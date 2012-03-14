@@ -1179,10 +1179,16 @@ static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
  */
 static inline u8 bnx2x_stats_id(struct bnx2x_fastpath *fp)
 {
-	if (!CHIP_IS_E1x(fp->bp))
+	struct bnx2x *bp = fp->bp;
+	if (!CHIP_IS_E1x(bp)) {
+#ifdef BCM_CNIC
+		/* there are special statistics counters for FCoE 136..140 */
+		if (IS_FCOE_FP(fp))
+			return bp->cnic_base_cl_id + (bp->pf_num >> 1);
+#endif
 		return fp->cl_id;
-	else
-		return fp->cl_id + BP_PORT(fp->bp) * FP_SB_MAX_E1x;
+	}
+	return fp->cl_id + BP_PORT(bp) * FP_SB_MAX_E1x;
 }
 
 static inline void bnx2x_init_vlan_mac_fp_objs(struct bnx2x_fastpath *fp,
