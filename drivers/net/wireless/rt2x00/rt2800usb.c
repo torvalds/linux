@@ -502,7 +502,7 @@ rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	__le32 *txwi;
 	u32 word;
 	int wcid, ack, pid;
-	int tx_wcid, tx_ack, tx_pid;
+	int tx_wcid, tx_ack, tx_pid, is_agg;
 
 	/*
 	 * This frames has returned with an IO error,
@@ -515,6 +515,7 @@ rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	wcid	= rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
 	ack	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
 	pid	= rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+	is_agg	= rt2x00_get_field32(reg, TX_STA_FIFO_TX_AGGRE);
 
 	/*
 	 * Validate if this TX status report is intended for
@@ -527,7 +528,7 @@ rt2800usb_txdone_entry_check(struct queue_entry *entry, u32 reg)
 	tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
 	tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
 
-	if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid)) {
+	if (wcid != tx_wcid || ack != tx_ack || (!is_agg && pid != tx_pid)) {
 		WARNING(entry->queue->rt2x00dev,
 			"TX status report missed for queue %d entry %d\n",
 			entry->queue->qid, entry->entry_idx);
