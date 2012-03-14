@@ -409,34 +409,13 @@ static int tps65912_get_voltage_dcdc(struct regulator_dev *dev)
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	struct tps65912 *mfd = pmic->mfd;
 	int id = rdev_get_id(dev);
-	int opvsel = 0, avsel = 0, sr, vsel;
+	int reg, vsel;
 
-	switch (id) {
-	case TPS65912_REG_DCDC1:
-		opvsel = tps65912_reg_read(mfd, TPS65912_DCDC1_OP);
-		avsel = tps65912_reg_read(mfd, TPS65912_DCDC1_AVS);
-		break;
-	case TPS65912_REG_DCDC2:
-		opvsel = tps65912_reg_read(mfd, TPS65912_DCDC2_OP);
-		avsel = tps65912_reg_read(mfd, TPS65912_DCDC2_AVS);
-		break;
-	case TPS65912_REG_DCDC3:
-		opvsel = tps65912_reg_read(mfd, TPS65912_DCDC3_OP);
-		avsel = tps65912_reg_read(mfd, TPS65912_DCDC3_AVS);
-		break;
-	case TPS65912_REG_DCDC4:
-		opvsel = tps65912_reg_read(mfd, TPS65912_DCDC4_OP);
-		avsel = tps65912_reg_read(mfd, TPS65912_DCDC4_AVS);
-		break;
-	default:
-		return -EINVAL;
-	}
+	reg = tps65912_get_sel_register(pmic, id);
+	if (reg < 0)
+		return reg;
 
-	sr = (opvsel & OP_SELREG_MASK) >> OP_SELREG_SHIFT;
-	if (sr)
-		vsel = avsel;
-	else
-		vsel = opvsel;
+	vsel = tps65912_reg_read(mfd, reg);
 	vsel &= 0x3F;
 
 	return tps65912_list_voltage_dcdc(dev, vsel);
