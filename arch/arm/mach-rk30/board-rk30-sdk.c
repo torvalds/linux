@@ -1453,7 +1453,9 @@ static void __init rk30_reserve(void)
 	resource_fb[2].start = board_mem_reserve_add("fb2",RK30_FB0_MEM_SIZE);
 	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;	
 #endif
+#ifdef CONFIG_VIDEO_RK
 	rk30_camera_request_reserve_mem();
+#endif
 	board_mem_reserved();
 }
 
