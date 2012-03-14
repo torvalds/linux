@@ -281,12 +281,6 @@
  *
  */
 
-#ifdef __ASSEMBLY__
-#define IOMEM(x)	(x)
-#else
-#define IOMEM(x)	((void __force __iomem *)(x))
-#endif
-
 #define IO_IRAM_PHYS	0x40000000
 #define IO_IRAM_VIRT	IOMEM(0xFE400000)
 #define IO_IRAM_SIZE	SZ_256K

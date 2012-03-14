@@ -14,6 +14,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/assembler.h>
 
 #include <plat/board-ams-delta.h>
 

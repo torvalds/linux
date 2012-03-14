@@ -72,13 +72,13 @@ void __init cns3xxx_map_io(void)
 /* used by entry-macro.S */
 void __init cns3xxx_init_irq(void)
 {
-	gic_init(0, 29, __io(CNS3XXX_TC11MP_GIC_DIST_BASE_VIRT),
-		 __io(CNS3XXX_TC11MP_GIC_CPU_BASE_VIRT));
+	gic_init(0, 29, IOMEM(CNS3XXX_TC11MP_GIC_DIST_BASE_VIRT),
+		 IOMEM(CNS3XXX_TC11MP_GIC_CPU_BASE_VIRT));
 }
 
 void cns3xxx_power_off(void)
 {
-	u32 __iomem *pm_base = __io(CNS3XXX_PM_BASE_VIRT);
+	u32 __iomem *pm_base = IOMEM(CNS3XXX_PM_BASE_VIRT);
 	u32 clkctrl;
 
 	printk(KERN_INFO "powering system down...\n");
@@ -237,7 +237,7 @@ static void __init __cns3xxx_timer_init(unsigned int timer_irq)
 
 static void __init cns3xxx_timer_init(void)
 {
-	cns3xxx_tmr1 = __io(CNS3XXX_TIMER1_2_3_BASE_VIRT);
+	cns3xxx_tmr1 = IOMEM(CNS3XXX_TIMER1_2_3_BASE_VIRT);
 
 	__cns3xxx_timer_init(IRQ_CNS3XXX_TIMER0);
 }

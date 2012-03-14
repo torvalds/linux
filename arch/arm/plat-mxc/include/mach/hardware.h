@@ -22,12 +22,6 @@
 
 #include <asm/sizes.h>
 
-#ifdef __ASSEMBLER__
-#define IOMEM(addr)	(addr)
-#else
-#define IOMEM(addr)	((void __force __iomem *)(addr))
-#endif
-
 #define addr_in_module(addr, mod) \
 	((unsigned long)(addr) - mod ## _BASE_ADDR < mod ## _SIZE)
 

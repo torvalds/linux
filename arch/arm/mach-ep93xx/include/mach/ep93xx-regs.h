@@ -6,15 +6,6 @@
 #define __ASM_ARCH_EP93XX_REGS_H
 
 /*
- * A typesafe __io() variation for variable initialisers
- */
-#ifdef __ASSEMBLER__
-#define IOMEM(p)                p
-#else
-#define IOMEM(p)                ((void __iomem __force *)(p))
-#endif
-
-/*
  * EP93xx Physical Memory Map:
  *
  * The ASDO pin is sampled at system reset to select a synchronous or

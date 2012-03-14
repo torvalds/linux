@@ -102,6 +102,8 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 	return (void __iomem *)addr;
 }
 
+#define IOMEM(x)	((void __force __iomem *)(x))
+
 /* IO barriers */
 #ifdef CONFIG_ARM_DMA_MEM_BUFFERABLE
 #define __iormb()		rmb()
