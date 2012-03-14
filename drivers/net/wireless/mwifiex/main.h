@@ -841,8 +841,8 @@ mwifiex_get_priv_by_id(struct mwifiex_adapter *adapter,
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
-			if ((adapter->priv[i]->bss_num == bss_num)
-			    && (adapter->priv[i]->bss_type == bss_type))
+			if ((adapter->priv[i]->bss_num == bss_num) &&
+			    (adapter->priv[i]->bss_type == bss_type))
 				break;
 		}
 	}
