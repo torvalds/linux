@@ -35,12 +35,17 @@ static int regcache_hw_init(struct regmap *map)
 		return -EINVAL;
 
 	if (!map->reg_defaults_raw) {
+		u32 cache_bypass = map->cache_bypass;
 		dev_warn(map->dev, "No cache defaults, reading back from HW\n");
+
+		/* Bypass the cache access till data read from HW*/
+		map->cache_bypass = 1;
 		tmp_buf = kmalloc(map->cache_size_raw, GFP_KERNEL);
 		if (!tmp_buf)
 			return -EINVAL;
 		ret = regmap_bulk_read(map, 0, tmp_buf,
 				       map->num_reg_defaults_raw);
+		map->cache_bypass = cache_bypass;
 		if (ret < 0) {
 			kfree(tmp_buf);
 			return ret;
