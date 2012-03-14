@@ -459,6 +459,20 @@ struct ieee80211_if_managed {
 		IEEE80211_MFP_REQUIRED
 	} mfp; /* management frame protection */
 
+	/*
+	 * Bitmask of enabled u-apsd queues,
+	 * IEEE80211_WMM_IE_STA_QOSINFO_AC_BE & co. Needs a new association
+	 * to take effect.
+	 */
+	unsigned int uapsd_queues;
+
+	/*
+	 * Maximum number of buffered frames AP can deliver during a
+	 * service period, IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL or similar.
+	 * Needs a new association to take effect.
+	 */
+	unsigned int uapsd_max_sp_len;
+
 	int wmm_last_param_set;
 
 	u8 use_4addr;
@@ -1016,20 +1030,6 @@ struct ieee80211_local {
 				* multicast packets for power saving stations
 				*/
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
-
-	/*
-	 * Bitmask of enabled u-apsd queues,
-	 * IEEE80211_WMM_IE_STA_QOSINFO_AC_BE & co. Needs a new association
-	 * to take effect.
-	 */
-	unsigned int uapsd_queues;
-
-	/*
-	 * Maximum number of buffered frames AP can deliver during a
-	 * service period, IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL or similar.
-	 * Needs a new association to take effect.
-	 */
-	unsigned int uapsd_max_sp_len;
 
 	bool pspolling;
 	bool offchannel_ps_enabled;

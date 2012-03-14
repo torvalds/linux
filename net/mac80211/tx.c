@@ -226,12 +226,12 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	 * have correct qos tag for some reason, due the network or the
 	 * peer application.
 	 *
-	 * Note: local->uapsd_queues access is racy here. If the value is
+	 * Note: ifmgd->uapsd_queues access is racy here. If the value is
 	 * changed via debugfs, user needs to reassociate manually to have
 	 * everything in sync.
 	 */
 	if ((ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED)
-	    && (local->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
+	    && (ifmgd->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
 	    && skb_get_queue_mapping(tx->skb) == 0)
 		return TX_CONTINUE;
 

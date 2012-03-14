@@ -572,8 +572,8 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	if (assoc_data->wmm) {
 		if (assoc_data->uapsd) {
-			qos_info = local->uapsd_queues;
-			qos_info |= (local->uapsd_max_sp_len <<
+			qos_info = ifmgd->uapsd_queues;
+			qos_info |= (ifmgd->uapsd_max_sp_len <<
 				     IEEE80211_WMM_IE_STA_QOSINFO_SP_SHIFT);
 		} else {
 			qos_info = 0;
@@ -1192,7 +1192,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		return;
 
 	if (ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED)
-		uapsd_queues = local->uapsd_queues;
+		uapsd_queues = ifmgd->uapsd_queues;
 
 	count = wmm_param[6] & 0x0f;
 	if (count == ifmgd->wmm_last_param_set)
@@ -3013,6 +3013,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 
 	ifmgd->flags = 0;
 	ifmgd->powersave = sdata->wdev.ps;
+	ifmgd->uapsd_queues = IEEE80211_DEFAULT_UAPSD_QUEUES;
+	ifmgd->uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
 
 	mutex_init(&ifmgd->mtx);
 
