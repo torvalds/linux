@@ -97,7 +97,6 @@ static void bfa_ioc_debug_save_ftrc(struct bfa_ioc_s *ioc);
 static void bfa_ioc_fail_notify(struct bfa_ioc_s *ioc);
 static void bfa_ioc_pf_fwmismatch(struct bfa_ioc_s *ioc);
 
-
 /*
  * IOC state machine definitions/declarations
  */
@@ -738,26 +737,60 @@ static void
 bfa_iocpf_sm_fwcheck_entry(struct bfa_iocpf_s *iocpf)
 {
 	struct bfi_ioc_image_hdr_s	fwhdr;
-	u32	fwstate = readl(iocpf->ioc->ioc_regs.ioc_fwstate);
+	u32	r32, fwstate, pgnum, pgoff, loff = 0;
+	int	i;
+
+	/*
+	 * Spin on init semaphore to serialize.
+	 */
+	r32 = readl(iocpf->ioc->ioc_regs.ioc_init_sem_reg);
+	while (r32 & 0x1) {
+		udelay(20);
+		r32 = readl(iocpf->ioc->ioc_regs.ioc_init_sem_reg);
+	}
 
 	/* h/w sem init */
-	if (fwstate == BFI_IOC_UNINIT)
+	fwstate = readl(iocpf->ioc->ioc_regs.ioc_fwstate);
+	if (fwstate == BFI_IOC_UNINIT) {
+		writel(1, iocpf->ioc->ioc_regs.ioc_init_sem_reg);
 		goto sem_get;
+	}
 
 	bfa_ioc_fwver_get(iocpf->ioc, &fwhdr);
 
-	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_NORMAL)
+	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_NORMAL) {
+		writel(1, iocpf->ioc->ioc_regs.ioc_init_sem_reg);
 		goto sem_get;
-
-	bfa_trc(iocpf->ioc, fwstate);
-	bfa_trc(iocpf->ioc, fwhdr.exec);
-	writel(BFI_IOC_UNINIT, iocpf->ioc->ioc_regs.ioc_fwstate);
+	}
 
 	/*
-	 * Try to lock and then unlock the semaphore.
+	 * Clear fwver hdr
+	 */
+	pgnum = PSS_SMEM_PGNUM(iocpf->ioc->ioc_regs.smem_pg0, loff);
+	pgoff = PSS_SMEM_PGOFF(loff);
+	writel(pgnum, iocpf->ioc->ioc_regs.host_page_num_fn);
+
+	for (i = 0; i < sizeof(struct bfi_ioc_image_hdr_s) / sizeof(u32); i++) {
+		bfa_mem_write(iocpf->ioc->ioc_regs.smem_page_start, loff, 0);
+		loff += sizeof(u32);
+	}
+
+	bfa_trc(iocpf->ioc, fwstate);
+	bfa_trc(iocpf->ioc, swab32(fwhdr.exec));
+	writel(BFI_IOC_UNINIT, iocpf->ioc->ioc_regs.ioc_fwstate);
+	writel(BFI_IOC_UNINIT, iocpf->ioc->ioc_regs.alt_ioc_fwstate);
+
+	/*
+	 * Unlock the hw semaphore. Should be here only once per boot.
 	 */
 	readl(iocpf->ioc->ioc_regs.ioc_sem_reg);
 	writel(1, iocpf->ioc->ioc_regs.ioc_sem_reg);
+
+	/*
+	 * unlock init semaphore.
+	 */
+	writel(1, iocpf->ioc->ioc_regs.ioc_init_sem_reg);
+
 sem_get:
 	bfa_ioc_hw_sem_get(iocpf->ioc);
 }
@@ -1707,11 +1740,6 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	u32 i;
 	u32 asicmode;
 
-	/*
-	 * Initialize LMEM first before code download
-	 */
-	bfa_ioc_lmem_init(ioc);
-
 	bfa_trc(ioc, bfa_cb_image_get_size(bfa_ioc_asic_gen(ioc)));
 	fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), chunkno);
 
@@ -1999,6 +2027,12 @@ bfa_ioc_pll_init(struct bfa_ioc_s *ioc)
 	bfa_ioc_pll_init_asic(ioc);
 
 	ioc->pllinit = BFA_TRUE;
+
+	/*
+	 * Initialize LMEM
+	 */
+	bfa_ioc_lmem_init(ioc);
+
 	/*
 	 *  release semaphore.
 	 */
@@ -4772,7 +4806,7 @@ diag_ledtest_send(struct bfa_diag_s *diag, struct bfa_diag_ledtest_s *ledtest)
 }
 
 static void
-diag_ledtest_comp(struct bfa_diag_s *diag, struct bfi_diag_ledtest_rsp_s * msg)
+diag_ledtest_comp(struct bfa_diag_s *diag, struct bfi_diag_ledtest_rsp_s *msg)
 {
 	bfa_trc(diag, diag->ledtest.lock);
 	diag->ledtest.lock = BFA_FALSE;
