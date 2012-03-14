@@ -1,7 +1,8 @@
 /*
- *  Atheros 724x PCI support
+ *  Atheros AR724X PCI host controller driver
  *
  *  Copyright (C) 2011 René Bolldorf <xsecute@googlemail.com>
+ *  Copyright (C) 2009-2011 Gabor Juhos <juhosg@openwrt.org>
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
