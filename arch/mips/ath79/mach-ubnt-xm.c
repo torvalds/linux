@@ -82,12 +82,6 @@ static struct ath79_spi_platform_data ubnt_xm_spi_data = {
 #ifdef CONFIG_PCI
 static struct ath9k_platform_data ubnt_xm_eeprom_data;
 
-static struct ar724x_pci_data ubnt_xm_pci_data[] = {
-	{
-		.irq	= ATH79_PCI_IRQ(0),
-	},
-};
-
 static int ubnt_xm_pci_plat_dev_init(struct pci_dev *dev)
 {
 	switch (PCI_SLOT(dev->devfn)) {
@@ -104,7 +98,6 @@ static void __init ubnt_xm_pci_init(void)
 	memcpy(ubnt_xm_eeprom_data.eeprom_data, UBNT_XM_EEPROM_ADDR,
 	       sizeof(ubnt_xm_eeprom_data.eeprom_data));
 
-	ar724x_pci_add_data(ubnt_xm_pci_data, ARRAY_SIZE(ubnt_xm_pci_data));
 	ath79_pci_set_plat_dev_init(ubnt_xm_pci_plat_dev_init);
 	ath79_register_pci();
 }

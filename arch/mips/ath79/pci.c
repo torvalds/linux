@@ -18,8 +18,6 @@
 static int (*ath79_pci_plat_dev_init)(struct pci_dev *dev);
 static const struct ath79_pci_irq *ath79_pci_irq_map __initdata;
 static unsigned ath79_pci_nr_irqs __initdata;
-static struct ar724x_pci_data *pci_data;
-static int pci_data_size;
 
 static const struct ath79_pci_irq ar71xx_pci_irq_map[] __initconst = {
 	{
@@ -44,12 +42,6 @@ static const struct ath79_pci_irq ar724x_pci_irq_map[] __initconst = {
 		.irq	= ATH79_PCI_IRQ(0),
 	}
 };
-
-void ar724x_pci_add_data(struct ar724x_pci_data *data, int size)
-{
-	pci_data	= data;
-	pci_data_size	= size;
-}
 
 int __init pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
 {

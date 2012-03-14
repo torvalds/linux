@@ -11,17 +11,11 @@
 #ifndef _ATH79_PCI_H
 #define _ATH79_PCI_H
 
-struct ar724x_pci_data {
-	int irq;
-};
-
 struct ath79_pci_irq {
 	u8	slot;
 	u8	pin;
 	int	irq;
 };
-
-void ar724x_pci_add_data(struct ar724x_pci_data *data, int size);
 
 #ifdef CONFIG_PCI
 void ath79_pci_set_irq_map(unsigned nr_irqs, const struct ath79_pci_irq *map);
