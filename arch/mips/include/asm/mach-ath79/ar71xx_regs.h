@@ -1,10 +1,11 @@
 /*
  *  Atheros AR71XX/AR724X/AR913X SoC register definitions
  *
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
  *  Copyright (C) 2008-2010 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
- *  Parts of this file are based on Atheros' 2.6.15 BSP
+ *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -249,6 +250,9 @@
 #define REV_ID_MAJOR_AR7242		0x1100
 #define REV_ID_MAJOR_AR9330		0x0110
 #define REV_ID_MAJOR_AR9331		0x1110
+#define REV_ID_MAJOR_AR9341		0x0120
+#define REV_ID_MAJOR_AR9342		0x1120
+#define REV_ID_MAJOR_AR9344		0x2120
 
 #define AR71XX_REV_ID_MINOR_MASK	0x3
 #define AR71XX_REV_ID_MINOR_AR7130	0x0
