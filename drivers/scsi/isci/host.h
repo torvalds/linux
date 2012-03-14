@@ -340,6 +340,11 @@ static inline struct isci_host *dev_to_ihost(struct domain_device *dev)
 	return dev->port->ha->lldd_ha;
 }
 
+static inline struct isci_host *idev_to_ihost(struct isci_remote_device *idev)
+{
+	return dev_to_ihost(idev->domain_dev);
+}
+
 /* we always use protocol engine group zero */
 #define ISCI_PEG 0
 

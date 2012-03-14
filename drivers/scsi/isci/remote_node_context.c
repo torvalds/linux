@@ -190,9 +190,13 @@ static void sci_remote_node_context_setup_to_destroy(
 	scics_sds_remote_node_context_callback callback,
 	void *callback_parameter)
 {
+	struct isci_host *ihost = idev_to_ihost(rnc_to_dev(sci_rnc));
+
 	sci_rnc->destination_state = RNC_DEST_FINAL;
 	sci_rnc->user_callback     = callback;
 	sci_rnc->user_cookie       = callback_parameter;
+
+	wake_up(&ihost->eventq);
 }
 
 /**
