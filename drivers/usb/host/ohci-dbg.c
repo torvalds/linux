@@ -82,6 +82,14 @@ urb_print(struct urb * urb, char * str, int small, int status)
 		ohci_dbg(ohci,format, ## arg ); \
 	} while (0);
 
+/* Version for use where "next" is the address of a local variable */
+#define ohci_dbg_nosw(ohci, next, size, format, arg...) \
+	do { \
+		unsigned s_len; \
+		s_len = scnprintf(*next, *size, format, ## arg); \
+		*size -= s_len; *next += s_len; \
+	} while (0);
+
 
 static void ohci_dump_intr_mask (
 	struct ohci_hcd *ohci,
@@ -653,7 +661,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	/* dump driver info, then registers in spec order */
 
-	ohci_dbg_sw (ohci, &next, &size,
+	ohci_dbg_nosw(ohci, &next, &size,
 		"bus %s, device %s\n"
 		"%s\n"
 		"%s\n",
@@ -672,7 +680,7 @@ static ssize_t fill_registers_buffer(struct debug_buffer *buf)
 
 	/* hcca */
 	if (ohci->hcca)
-		ohci_dbg_sw (ohci, &next, &size,
+		ohci_dbg_nosw(ohci, &next, &size,
 			"hcca frame 0x%04x\n", ohci_frame_no(ohci));
 
 	/* other registers mostly affect frame timings */

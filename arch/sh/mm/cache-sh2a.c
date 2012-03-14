@@ -23,6 +23,7 @@
 #define MAX_OCACHE_PAGES	32
 #define MAX_ICACHE_PAGES	32
 
+#ifdef CONFIG_CACHE_WRITEBACK
 static void sh2a_flush_oc_line(unsigned long v, int way)
 {
 	unsigned long addr = (v & 0x000007f0) | (way << 11);
@@ -34,6 +35,7 @@ static void sh2a_flush_oc_line(unsigned long v, int way)
 		__raw_writel(data, CACHE_OC_ADDRESS_ARRAY | addr);
 	}
 }
+#endif
 
 static void sh2a_invalidate_line(unsigned long cache_addr, unsigned long v)
 {

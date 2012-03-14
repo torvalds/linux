@@ -85,8 +85,6 @@ int ceph_check_fsid(struct ceph_client *client, struct ceph_fsid *fsid)
 	} else {
 		pr_info("client%lld fsid %pU\n", ceph_client_id(client), fsid);
 		memcpy(&client->fsid, fsid, sizeof(*fsid));
-		ceph_debugfs_client_init(client);
-		client->have_fsid = true;
 	}
 	return 0;
 }

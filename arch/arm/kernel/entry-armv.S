@@ -790,7 +790,7 @@ __kuser_cmpxchg64:				@ 0xffff0f60
 	smp_dmb	arm
 	rsbs	r0, r3, #0			@ set returned val and C flag
 	ldmfd	sp!, {r4, r5, r6, r7}
-	bx	lr
+	usr_ret	lr
 
 #elif !defined(CONFIG_SMP)
 

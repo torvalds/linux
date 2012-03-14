@@ -241,7 +241,8 @@ static int __init s3c2443_add_sub(unsigned int base,
 	return 0;
 }
 
-static int __init s3c2443_irq_add(struct device *dev)
+static int __init s3c2443_irq_add(struct device *dev,
+				  struct subsys_interface *sif)
 {
 	printk("S3C2443: IRQ Support\n");
 

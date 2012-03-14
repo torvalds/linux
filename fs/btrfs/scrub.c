@@ -1367,7 +1367,8 @@ out:
 }
 
 static noinline_for_stack int scrub_chunk(struct scrub_dev *sdev,
-	u64 chunk_tree, u64 chunk_objectid, u64 chunk_offset, u64 length)
+	u64 chunk_tree, u64 chunk_objectid, u64 chunk_offset, u64 length,
+	u64 dev_offset)
 {
 	struct btrfs_mapping_tree *map_tree =
 		&sdev->dev->dev_root->fs_info->mapping_tree;
@@ -1391,7 +1392,8 @@ static noinline_for_stack int scrub_chunk(struct scrub_dev *sdev,
 		goto out;
 
 	for (i = 0; i < map->num_stripes; ++i) {
-		if (map->stripes[i].dev == sdev->dev) {
+		if (map->stripes[i].dev == sdev->dev &&
+		    map->stripes[i].physical == dev_offset) {
 			ret = scrub_stripe(sdev, map, i, chunk_offset, length);
 			if (ret)
 				goto out;
@@ -1487,7 +1489,7 @@ int scrub_enumerate_chunks(struct scrub_dev *sdev, u64 start, u64 end)
 			break;
 		}
 		ret = scrub_chunk(sdev, chunk_tree, chunk_objectid,
-				  chunk_offset, length);
+				  chunk_offset, length, found_key.offset);
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;

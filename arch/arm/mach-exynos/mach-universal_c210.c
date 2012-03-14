@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/mfd/max8998.h>
 #include <linux/regulator/machine.h>
@@ -595,6 +596,7 @@ static struct mxt_platform_data qt602240_platform_data = {
 	.threshold	= 0x28,
 	.voltage	= 2800000,		/* 2.8V */
 	.orient		= MXT_DIAGONAL,
+	.irqflags	= IRQF_TRIGGER_FALLING,
 };
 
 static struct i2c_board_info i2c3_devs[] __initdata = {
@@ -910,7 +912,7 @@ static struct s5p_fimc_isp_info universal_camera_sensors[] = {
 		.bus_type	= FIMC_MIPI_CSI2,
 		.board_info	= &m5mols_board_info,
 		.i2c_bus_num	= 0,
-		.clk_frequency	= 21600000UL,
+		.clk_frequency	= 24000000UL,
 		.csi_data_align	= 32,
 	},
 };

@@ -1848,9 +1848,11 @@ static enum sci_status sci_oem_parameters_set(struct isci_host *ihost)
 	if (state == SCIC_RESET ||
 	    state == SCIC_INITIALIZING ||
 	    state == SCIC_INITIALIZED) {
+		u8 oem_version = pci_info->orom ? pci_info->orom->hdr.version :
+			ISCI_ROM_VER_1_0;
 
 		if (sci_oem_parameters_validate(&ihost->oem_parameters,
-						pci_info->orom->hdr.version))
+						oem_version))
 			return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
 		return SCI_SUCCESS;

@@ -468,8 +468,10 @@ void __init s3c_i2c0_set_platdata(struct s3c2410_platform_i2c *pd)
 {
 	struct s3c2410_platform_i2c *npd;
 
-	if (!pd)
+	if (!pd) {
 		pd = &default_i2c_data;
+		pd->bus_num = 0;
+	}
 
 	npd = s3c_set_platdata(pd, sizeof(struct s3c2410_platform_i2c),
 			       &s3c_device_i2c0);
@@ -1407,7 +1409,7 @@ void __init s5p_ehci_set_platdata(struct s5p_ehci_platdata *pd)
 
 #ifdef CONFIG_S3C_DEV_USB_HSOTG
 static struct resource s3c_usb_hsotg_resources[] = {
-	[0] = DEFINE_RES_MEM(S3C_PA_USB_HSOTG, SZ_16K),
+	[0] = DEFINE_RES_MEM(S3C_PA_USB_HSOTG, SZ_128K),
 	[1] = DEFINE_RES_IRQ(IRQ_OTG),
 };
 

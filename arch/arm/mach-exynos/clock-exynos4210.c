@@ -32,6 +32,7 @@
 
 #include "common.h"
 
+#ifdef CONFIG_PM_SLEEP
 static struct sleep_save exynos4210_clock_save[] = {
 	SAVE_ITEM(S5P_CLKSRC_IMAGE),
 	SAVE_ITEM(S5P_CLKSRC_LCD1),
@@ -42,6 +43,7 @@ static struct sleep_save exynos4210_clock_save[] = {
 	SAVE_ITEM(S5P_CLKGATE_IP_LCD1),
 	SAVE_ITEM(S5P_CLKGATE_IP_PERIR_4210),
 };
+#endif
 
 static struct clksrc_clk *sysclks[] = {
 	/* nothing here yet */

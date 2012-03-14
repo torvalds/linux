@@ -32,7 +32,9 @@
 #include <mach/hardware.h>
 #include <mach/fb.h>
 #include <mach/ep93xx_spi.h>
+#include <mach/gpio-ep93xx.h>
 
+#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
@@ -153,7 +155,6 @@ static struct i2c_board_info vision_i2c_info[] __initdata = {
 	}, {
 		I2C_BOARD_INFO("pca9539", 0x74),
 		.platform_data	= &pca953x_74_gpio_data,
-		.irq		= gpio_to_irq(EP93XX_GPIO_LINE_F(7)),
 	}, {
 		I2C_BOARD_INFO("pca9539", 0x75),
 		.platform_data	= &pca953x_75_gpio_data,
@@ -348,6 +349,8 @@ static void __init vision_init_machine(void)
 				"pca9539:74"))
 		pr_warn("cannot request interrupt gpio for pca9539:74\n");
 
+	vision_i2c_info[1].irq = gpio_to_irq(EP93XX_GPIO_LINE_F(7));
+
 	ep93xx_register_i2c(&vision_i2c_gpio_data, vision_i2c_info,
 				ARRAY_SIZE(vision_i2c_info));
 	ep93xx_register_spi(&vision_spi_master, vision_spi_board_info,
@@ -359,6 +362,7 @@ MACHINE_START(VISION_EP9307, "Vision Engraving Systems EP9307")
 	.atag_offset	= 0x100,
 	.map_io		= vision_map_io,
 	.init_irq	= ep93xx_init_irq,
+	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= vision_init_machine,
 	.restart	= ep93xx_restart,

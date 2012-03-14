@@ -134,7 +134,7 @@ int __init armpmu_register(struct arm_pmu *armpmu, char *name, int type);
 
 u64 armpmu_event_update(struct perf_event *event,
 			struct hw_perf_event *hwc,
-			int idx, int overflow);
+			int idx);
 
 int armpmu_event_set_period(struct perf_event *event,
 			    struct hw_perf_event *hwc,

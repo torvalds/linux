@@ -56,7 +56,8 @@ struct raid_dev {
 struct raid_set {
 	struct dm_target *ti;
 
-	uint64_t print_flags;
+	uint32_t bitmap_loaded;
+	uint32_t print_flags;
 
 	struct mddev md;
 	struct raid_type *raid_type;
@@ -667,7 +668,14 @@ static int super_load(struct md_rdev *rdev, struct md_rdev *refdev)
 		return ret;
 
 	sb = page_address(rdev->sb_page);
-	if (sb->magic != cpu_to_le32(DM_RAID_MAGIC)) {
+
+	/*
+	 * Two cases that we want to write new superblocks and rebuild:
+	 * 1) New device (no matching magic number)
+	 * 2) Device specified for rebuild (!In_sync w/ offset == 0)
+	 */
+	if ((sb->magic != cpu_to_le32(DM_RAID_MAGIC)) ||
+	    (!test_bit(In_sync, &rdev->flags) && !rdev->recovery_offset)) {
 		super_sync(rdev->mddev, rdev);
 
 		set_bit(FirstUse, &rdev->flags);
@@ -744,11 +752,8 @@ static int super_init_validation(struct mddev *mddev, struct md_rdev *rdev)
 	 */
 	rdev_for_each(r, t, mddev) {
 		if (!test_bit(In_sync, &r->flags)) {
-			if (!test_bit(FirstUse, &r->flags))
-				DMERR("Superblock area of "
-				      "rebuild device %d should have been "
-				      "cleared.", r->raid_disk);
-			set_bit(FirstUse, &r->flags);
+			DMINFO("Device %d specified for rebuild: "
+			       "Clearing superblock", r->raid_disk);
 			rebuilds++;
 		} else if (test_bit(FirstUse, &r->flags))
 			new_devs++;
@@ -970,6 +975,7 @@ static int raid_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
+	ti->num_flush_requests = 1;
 
 	mutex_lock(&rs->md.reconfig_mutex);
 	ret = md_run(&rs->md);
@@ -1085,7 +1091,7 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 				raid_param_cnt += 2;
 		}
 
-		raid_param_cnt += (hweight64(rs->print_flags & ~DMPF_REBUILD) * 2);
+		raid_param_cnt += (hweight32(rs->print_flags & ~DMPF_REBUILD) * 2);
 		if (rs->print_flags & (DMPF_SYNC | DMPF_NOSYNC))
 			raid_param_cnt--;
 
@@ -1197,7 +1203,12 @@ static void raid_resume(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
-	bitmap_load(&rs->md);
+	if (!rs->bitmap_loaded) {
+		bitmap_load(&rs->md);
+		rs->bitmap_loaded = 1;
+	} else
+		md_wakeup_thread(rs->md.thread);
+
 	mddev_resume(&rs->md);
 }
 
