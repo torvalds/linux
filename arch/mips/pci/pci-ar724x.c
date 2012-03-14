@@ -9,6 +9,7 @@
  */
 
 #include <linux/pci.h>
+#include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/pci.h>
 
 #define AR724X_PCI_CFG_BASE	0x14000000
@@ -16,8 +17,13 @@
 #define AR724X_PCI_MEM_BASE	0x10000000
 #define AR724X_PCI_MEM_SIZE	0x08000000
 
+#define AR7240_BAR0_WAR_VALUE	0xffff
+
 static DEFINE_SPINLOCK(ar724x_pci_lock);
 static void __iomem *ar724x_pci_devcfg_base;
+
+static u32 ar724x_pci_bar0_value;
+static bool ar724x_pci_bar0_is_cached;
 
 static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 			    int size, uint32_t *value)
@@ -56,7 +62,14 @@ static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 	}
 
 	spin_unlock_irqrestore(&ar724x_pci_lock, flags);
-	*value = data;
+
+	if (where == PCI_BASE_ADDRESS_0 && size == 4 &&
+	    ar724x_pci_bar0_is_cached) {
+		/* use the cached value */
+		*value = ar724x_pci_bar0_value;
+	} else {
+		*value = data;
+	}
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -71,6 +84,27 @@ static int ar724x_pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 
 	if (devfn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
+
+	if (soc_is_ar7240() && where == PCI_BASE_ADDRESS_0 && size == 4) {
+		if (value != 0xffffffff) {
+			/*
+			 * WAR for a hw issue. If the BAR0 register of the
+			 * device is set to the proper base address, the
+			 * memory space of the device is not accessible.
+			 *
+			 * Cache the intended value so it can be read back,
+			 * and write a SoC specific constant value to the
+			 * BAR0 register in order to make the device memory
+			 * accessible.
+			 */
+			ar724x_pci_bar0_is_cached = true;
+			ar724x_pci_bar0_value = value;
+
+			value = AR7240_BAR0_WAR_VALUE;
+		} else {
+			ar724x_pci_bar0_is_cached = false;
+		}
+	}
 
 	base = ar724x_pci_devcfg_base;
 
