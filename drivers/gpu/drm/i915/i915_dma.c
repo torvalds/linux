@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <acpi/video.h>
+#include <asm/pat.h>
 
 static void i915_write_hws_pga(struct drm_device *dev)
 {
@@ -1918,6 +1919,11 @@ static void
 i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 		unsigned long size)
 {
+#if defined(CONFIG_X86_PAT)
+	if (cpu_has_pat)
+		return;
+#endif
+
 	/* Set up a WC MTRR for non-PAT systems.  This is more common than
 	 * one would think, because the kernel disables PAT on first
 	 * generation Core chips because WC PAT gets overridden by a UC
