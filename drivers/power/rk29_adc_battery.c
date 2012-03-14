@@ -1096,39 +1096,6 @@ static int rk29_adc_battery_probe(struct platform_device *pdev)
     //variable init
 	data->client  = client;
 	data->adc_val = adc_sync_read(client);
-	
-	//init a timer for adc sample
-	//init a delay work for adc timer work
-    setup_timer(&data->timer, rk29_adc_battery_scan_timer, (unsigned long)data);
-	data->timer.expires  = jiffies + 2000;
-	add_timer(&data->timer);
-
-	INIT_WORK(&data->timer_work, rk29_adc_battery_timer_work);
-	INIT_WORK(&data->resume_work, rk29_adc_battery_resume_check);
-	
-#if defined(CONFIG_BATTERY_RK29_AC_CHARGE)
-	//init dc dectet irq & delay work
-    if (pdata->dc_det_pin != INVALID_GPIO)
-    {
-        irq = gpio_to_irq(pdata->dc_det_pin);
-        
-        irq_flag = gpio_get_value (pdata->dc_det_pin) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
-    	ret = request_irq(irq, rk29_adc_battery_dc_wakeup, irq_flag, "rk29_adc_battery", NULL);
-    	if (ret) {
-    		printk("failed to request dc det irq\n");
-    		goto err_dcirq_failed;
-    	}
-    	enable_irq_wake(irq);
-    	
-    	INIT_WORK(&data->dcwakeup_work, rk29_adc_battery_dcdet_delaywork);
-    }
-#endif
-    
-    //Power on Battery detect
-	rk29_adc_battery_lowpower_check(data);
-    
-    //power supply register
-    wake_lock_init(&batt_wake_lock, WAKE_LOCK_SUSPEND, "batt_lock");
 
 	ret = power_supply_register(&pdev->dev, &rk29_battery_supply);
 	if (ret)
@@ -1137,14 +1104,6 @@ static int rk29_adc_battery_probe(struct platform_device *pdev)
 		goto err_battery_failed;
 	}
 	
-#if defined(CONFIG_BATTERY_RK29_AC_CHARGE)
-	ret = power_supply_register(&pdev->dev, &rk29_ac_supply);
-	if (ret)
-	{
-		printk(KERN_INFO "fail to ac power_supply_register\n");
-		goto err_ac_failed;
-	}
-#endif
 
 #if defined(CONFIG_BATTERY_RK29_USB_CHARGE)
 	ret = power_supply_register(&pdev->dev, &rk29_usb_supply);
@@ -1154,7 +1113,47 @@ static int rk29_adc_battery_probe(struct platform_device *pdev)
 		goto err_usb_failed;
 	}
 #endif
-	
+
+	INIT_WORK(&data->timer_work, rk29_adc_battery_timer_work);
+	INIT_WORK(&data->resume_work, rk29_adc_battery_resume_check);
+
+	//init a timer for adc sample
+	//init a delay work for adc timer work
+  	setup_timer(&data->timer, rk29_adc_battery_scan_timer, (unsigned long)data);
+	data->timer.expires  = jiffies + 2000;
+	add_timer(&data->timer);
+
+
+ 	wake_lock_init(&batt_wake_lock, WAKE_LOCK_SUSPEND, "batt_lock");	
+
+#if defined(CONFIG_BATTERY_RK29_AC_CHARGE)
+
+	ret = power_supply_register(&pdev->dev, &rk29_ac_supply);
+	if (ret) {
+		printk(KERN_INFO "fail to ac power_supply_register\n");
+		goto err_ac_failed;
+	}
+	//init dc dectet irq & delay work
+	if (pdata->dc_det_pin != INVALID_GPIO)
+	{
+		INIT_WORK(&data->dcwakeup_work, rk29_adc_battery_dcdet_delaywork);
+		irq = gpio_to_irq(pdata->dc_det_pin);
+	        
+		irq_flag = gpio_get_value (pdata->dc_det_pin) ? IRQF_TRIGGER_FALLING : IRQF_TRIGGER_RISING;
+	    	ret = request_irq(irq, rk29_adc_battery_dc_wakeup, irq_flag, "rk29_adc_battery", NULL);
+	    	if (ret) {
+	    		printk("failed to request dc det irq\n");
+	    		goto err_dcirq_failed;
+	    	}
+	    	enable_irq_wake(irq);
+    	
+	}
+#endif
+    
+	//Power on Battery detect
+	rk29_adc_battery_lowpower_check(data);
+    
+
 	printk(KERN_INFO "rk29_adc_battery: driver initialized\n");
 	
 	return 0;
