@@ -648,6 +648,7 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma_slave	*atslave = chan->private;
+	struct dma_slave_config	*sconfig = &atchan->dma_sconfig;
 	struct at_desc		*first = NULL;
 	struct at_desc		*prev = NULL;
 	u32			ctrla;
@@ -669,19 +670,18 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
-	reg_width = atslave->reg_width;
-
 	ctrla = ATC_DEFAULT_CTRLA | atslave->ctrla;
 	ctrlb = ATC_IEN;
 
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
+		reg_width = convert_buswidth(sconfig->dst_addr_width);
 		ctrla |=  ATC_DST_WIDTH(reg_width);
 		ctrlb |=  ATC_DST_ADDR_MODE_FIXED
 			| ATC_SRC_ADDR_MODE_INCR
 			| ATC_FC_MEM2PER
 			| ATC_SIF(AT_DMA_MEM_IF) | ATC_DIF(AT_DMA_PER_IF);
-		reg = atslave->tx_reg;
+		reg = sconfig->dst_addr;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct at_desc	*desc;
 			u32		len;
@@ -709,13 +709,14 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		}
 		break;
 	case DMA_DEV_TO_MEM:
+		reg_width = convert_buswidth(sconfig->src_addr_width);
 		ctrla |=  ATC_SRC_WIDTH(reg_width);
 		ctrlb |=  ATC_DST_ADDR_MODE_INCR
 			| ATC_SRC_ADDR_MODE_FIXED
 			| ATC_FC_PER2MEM
 			| ATC_SIF(AT_DMA_PER_IF) | ATC_DIF(AT_DMA_MEM_IF);
 
-		reg = atslave->rx_reg;
+		reg = sconfig->src_addr;
 		for_each_sg(sgl, sg, sg_len, i) {
 			struct at_desc	*desc;
 			u32		len;
@@ -791,12 +792,15 @@ err_out:
  * atc_dma_cyclic_fill_desc - Fill one period decriptor
  */
 static int
-atc_dma_cyclic_fill_desc(struct at_dma_slave *atslave, struct at_desc *desc,
+atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
 		unsigned int period_index, dma_addr_t buf_addr,
-		size_t period_len, enum dma_transfer_direction direction)
+		unsigned int reg_width, size_t period_len,
+		enum dma_transfer_direction direction)
 {
-	u32		ctrla;
-	unsigned int	reg_width = atslave->reg_width;
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+	struct at_dma_slave	*atslave = chan->private;
+	struct dma_slave_config	*sconfig = &atchan->dma_sconfig;
+	u32			ctrla;
 
 	/* prepare common CRTLA value */
 	ctrla =   ATC_DEFAULT_CTRLA | atslave->ctrla
@@ -807,7 +811,7 @@ atc_dma_cyclic_fill_desc(struct at_dma_slave *atslave, struct at_desc *desc,
 	switch (direction) {
 	case DMA_MEM_TO_DEV:
 		desc->lli.saddr = buf_addr + (period_len * period_index);
-		desc->lli.daddr = atslave->tx_reg;
+		desc->lli.daddr = sconfig->dst_addr;
 		desc->lli.ctrla = ctrla;
 		desc->lli.ctrlb = ATC_DST_ADDR_MODE_FIXED
 				| ATC_SRC_ADDR_MODE_INCR
@@ -817,7 +821,7 @@ atc_dma_cyclic_fill_desc(struct at_dma_slave *atslave, struct at_desc *desc,
 		break;
 
 	case DMA_DEV_TO_MEM:
-		desc->lli.saddr = atslave->rx_reg;
+		desc->lli.saddr = sconfig->src_addr;
 		desc->lli.daddr = buf_addr + (period_len * period_index);
 		desc->lli.ctrla = ctrla;
 		desc->lli.ctrlb = ATC_DST_ADDR_MODE_INCR
@@ -850,9 +854,11 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma_slave	*atslave = chan->private;
+	struct dma_slave_config	*sconfig = &atchan->dma_sconfig;
 	struct at_desc		*first = NULL;
 	struct at_desc		*prev = NULL;
 	unsigned long		was_cyclic;
+	unsigned int		reg_width;
 	unsigned int		periods = buf_len / period_len;
 	unsigned int		i;
 
@@ -872,8 +878,13 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		return NULL;
 	}
 
+	if (sconfig->direction == DMA_MEM_TO_DEV)
+		reg_width = convert_buswidth(sconfig->dst_addr_width);
+	else
+		reg_width = convert_buswidth(sconfig->src_addr_width);
+
 	/* Check for too big/unaligned periods and unaligned DMA buffer */
-	if (atc_dma_cyclic_check_values(atslave->reg_width, buf_addr,
+	if (atc_dma_cyclic_check_values(reg_width, buf_addr,
 					period_len, direction))
 		goto err_out;
 
@@ -885,8 +896,8 @@ atc_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr, size_t buf_len,
 		if (!desc)
 			goto err_desc_get;
 
-		if (atc_dma_cyclic_fill_desc(atslave, desc, i, buf_addr,
-						period_len, direction))
+		if (atc_dma_cyclic_fill_desc(chan, desc, i, buf_addr,
+					     reg_width, period_len, direction))
 			goto err_desc_get;
 
 		atc_desc_chain(&first, &prev, desc);
@@ -907,6 +918,23 @@ err_desc_get:
 err_out:
 	clear_bit(ATC_IS_CYCLIC, &atchan->status);
 	return NULL;
+}
+
+static int set_runtime_config(struct dma_chan *chan,
+			      struct dma_slave_config *sconfig)
+{
+	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
+
+	/* Check if it is chan is configured for slave transfers */
+	if (!chan->private)
+		return -EINVAL;
+
+	memcpy(&atchan->dma_sconfig, sconfig, sizeof(*sconfig));
+
+	convert_burst(&atchan->dma_sconfig.src_maxburst);
+	convert_burst(&atchan->dma_sconfig.dst_maxburst);
+
+	return 0;
 }
 
 
@@ -969,6 +997,8 @@ static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 		clear_bit(ATC_IS_CYCLIC, &atchan->status);
 
 		spin_unlock_irqrestore(&atchan->lock, flags);
+	} else if (cmd == DMA_SLAVE_CONFIG) {
+		return set_runtime_config(chan, (struct dma_slave_config *)arg);
 	} else {
 		return -ENXIO;
 	}
