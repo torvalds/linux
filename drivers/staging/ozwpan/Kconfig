@@ -1,6 +1,6 @@
 config USB_WPAN_HCD
 	tristate "USB over WiFi Host Controller"
-	depends on USB
+	depends on USB && NET
 	help
 	  A driver for USB Host Controllers that are compatible with
 	  Ozmo Devices USB over WiFi technology.
