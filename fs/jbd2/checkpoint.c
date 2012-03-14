@@ -266,7 +266,6 @@ __flush_batch(journal_t *journal, int *batch_count)
 
 	for (i = 0; i < *batch_count; i++) {
 		struct buffer_head *bh = journal->j_chkpt_bhs[i];
-		clear_buffer_jwrite(bh);
 		BUFFER_TRACE(bh, "brelse");
 		__brelse(bh);
 	}
@@ -340,7 +339,6 @@ static int __process_buffer(journal_t *journal, struct journal_head *jh,
 		BUFFER_TRACE(bh, "queue");
 		get_bh(bh);
 		J_ASSERT_BH(bh, !buffer_jwrite(bh));
-		set_buffer_jwrite(bh);
 		journal->j_chkpt_bhs[*batch_count] = bh;
 		__buffer_relink_io(jh);
 		jbd_unlock_bh_state(bh);
