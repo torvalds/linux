@@ -1026,7 +1026,7 @@ static inline int legacy_queue(struct sigpending *signals, int sig)
 static inline uid_t map_cred_ns(const struct cred *cred,
 				struct user_namespace *ns)
 {
-	return user_ns_map_uid(ns, cred, cred->uid);
+	return from_kuid_munged(ns, cred->uid);
 }
 
 #ifdef CONFIG_USER_NS

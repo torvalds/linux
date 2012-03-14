@@ -69,16 +69,4 @@ static inline void put_user_ns(struct user_namespace *ns)
 
 #endif
 
-static inline uid_t user_ns_map_uid(struct user_namespace *to,
-	const struct cred *cred, kuid_t uid)
-{
-	return from_kuid_munged(to, uid);
-}
-
-static inline gid_t user_ns_map_gid(struct user_namespace *to,
-	const struct cred *cred, kgid_t gid)
-{
-	return from_kgid_munged(to, gid);
-}
-
 #endif /* _LINUX_USER_H */
