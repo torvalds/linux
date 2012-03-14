@@ -147,7 +147,7 @@ static int ab8500_btemp_batctrl_volt_to_res(struct ab8500_btemp *di,
 		return (450000 * (v_batctrl)) / (1800 - v_batctrl);
 	}
 
-	if (di->bat->adc_therm == ADC_THERM_BATCTRL) {
+	if (di->bat->adc_therm == ABx500_ADC_THERM_BATCTRL) {
 		/*
 		 * If the battery has internal NTC, we use the current
 		 * source to calculate the resistance, 7uA or 20uA
@@ -209,7 +209,7 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 		return 0;
 
 	/* Only do this for batteries with internal NTC */
-	if (di->bat->adc_therm == ADC_THERM_BATCTRL && enable) {
+	if (di->bat->adc_therm == ABx500_ADC_THERM_BATCTRL && enable) {
 		if (di->curr_source == BTEMP_BATCTRL_CURR_SRC_7UA)
 			curr = BAT_CTRL_7U_ENA;
 		else
@@ -241,7 +241,7 @@ static int ab8500_btemp_curr_source_enable(struct ab8500_btemp *di,
 				__func__);
 			goto disable_curr_source;
 		}
-	} else if (di->bat->adc_therm == ADC_THERM_BATCTRL && !enable) {
+	} else if (di->bat->adc_therm == ABx500_ADC_THERM_BATCTRL && !enable) {
 		dev_dbg(di->dev, "Disable BATCTRL curr source\n");
 
 		/* Write 0 to the curr bits */
@@ -459,7 +459,7 @@ static int ab8500_btemp_measure_temp(struct ab8500_btemp *di)
 
 	id = di->bat->batt_id;
 
-	if (di->bat->adc_therm == ADC_THERM_BATCTRL &&
+	if (di->bat->adc_therm == ABx500_ADC_THERM_BATCTRL &&
 			id != BATTERY_UNKNOWN) {
 
 		rbat = ab8500_btemp_get_batctrl_res(di);
@@ -528,7 +528,7 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 			dev_dbg(di->dev, "Battery detected on %s"
 				" low %d < res %d < high: %d"
 				" index: %d\n",
-				di->bat->adc_therm == ADC_THERM_BATCTRL ?
+				di->bat->adc_therm == ABx500_ADC_THERM_BATCTRL ?
 				"BATCTRL" : "BATTEMP",
 				di->bat->bat_type[i].resis_low, res,
 				di->bat->bat_type[i].resis_high, i);
@@ -548,7 +548,8 @@ static int ab8500_btemp_id(struct ab8500_btemp *di)
 	 * We only have to change current source if the
 	 * detected type is Type 1, else we use the 7uA source
 	 */
-	if (di->bat->adc_therm == ADC_THERM_BATCTRL && di->bat->batt_id == 1) {
+	if (di->bat->adc_therm == ABx500_ADC_THERM_BATCTRL &&
+			di->bat->batt_id == 1) {
 		dev_dbg(di->dev, "Set BATCTRL current source to 20uA\n");
 		di->curr_source = BTEMP_BATCTRL_CURR_SRC_20UA;
 	}

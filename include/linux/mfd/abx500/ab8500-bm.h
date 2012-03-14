@@ -9,6 +9,7 @@
 #define _AB8500_BM_H
 
 #include <linux/kernel.h>
+#include <linux/mfd/abx500.h>
 
 /*
  * System control 2 register offsets.
@@ -231,18 +232,6 @@
 /* Battery type */
 #define BATTERY_UNKNOWN			00
 
-/*
- * ADC for the battery thermistor.
- * When using the ADC_THERM_BATCTRL the battery ID resistor is combined with
- * a NTC resistor to both identify the battery and to measure its temperature.
- * Different phone manufactures uses different techniques to both identify the
- * battery and to read its temperature.
- */
-enum adc_therm {
-	ADC_THERM_BATCTRL,
-	ADC_THERM_BATTEMP,
-};
-
 /**
  * struct res_to_temp - defines one point in a temp to res curve. To
  * be used in battery packs that combines the identification resistor with a
@@ -464,7 +453,7 @@ struct ab8500_bm_data {
 	bool no_maintenance;
 	bool chg_unknown_bat;
 	bool enable_overshoot;
-	enum adc_therm adc_therm;
+	enum abx500_adc_therm adc_therm;
 	int fg_res;
 	int n_btypes;
 	int batt_id;
