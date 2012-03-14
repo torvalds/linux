@@ -1,7 +1,7 @@
 /*
  * cdc_ncm.c
  *
- * Copyright (C) ST-Ericsson 2010-2011
+ * Copyright (C) ST-Ericsson 2010-2012
  * Contact: Alexey Orishko <alexey.orishko@stericsson.com>
  * Original author: Hans Petter Selasky <hans.petter.selasky@stericsson.com>
  *
@@ -47,13 +47,12 @@
 #include <linux/mii.h>
 #include <linux/crc32.h>
 #include <linux/usb.h>
-#include <linux/timer.h>
-#include <linux/spinlock.h>
+#include <linux/hrtimer.h>
 #include <linux/atomic.h>
 #include <linux/usb/usbnet.h>
 #include <linux/usb/cdc.h>
 
-#define	DRIVER_VERSION				"04-Aug-2011"
+#define	DRIVER_VERSION				"14-Mar-2012"
 
 /* CDC NCM subclass 3.2.1 */
 #define USB_CDC_NCM_NDP16_LENGTH_MIN		0x10
@@ -81,6 +80,8 @@
 
 /* Restart the timer, if amount of datagrams is less than given value */
 #define	CDC_NCM_RESTART_TIMER_DATAGRAM_CNT	3
+#define	CDC_NCM_TIMER_PENDING_CNT		2
+#define CDC_NCM_TIMER_INTERVAL			(400UL * NSEC_PER_USEC)
 
 /* The following macro defines the minimum header space */
 #define	CDC_NCM_MIN_HDR_SIZE \
@@ -97,7 +98,8 @@ struct cdc_ncm_ctx {
 	struct cdc_ncm_data rx_ncm;
 	struct cdc_ncm_data tx_ncm;
 	struct usb_cdc_ncm_ntb_parameters ncm_parm;
-	struct timer_list tx_timer;
+	struct hrtimer tx_timer;
+	struct tasklet_struct bh;
 
 	const struct usb_cdc_ncm_desc *func_desc;
 	const struct usb_cdc_header_desc *header_desc;
@@ -117,6 +119,7 @@ struct cdc_ncm_ctx {
 	struct sk_buff *tx_rem_skb;
 
 	spinlock_t mtx;
+	atomic_t stop;
 
 	u32 tx_timer_pending;
 	u32 tx_curr_offset;
@@ -135,7 +138,9 @@ struct cdc_ncm_ctx {
 	u16 connected;
 };
 
-static void cdc_ncm_tx_timeout(unsigned long arg);
+static void cdc_ncm_txpath_bh(unsigned long param);
+static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx);
+static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *hr_timer);
 static const struct driver_info cdc_ncm_info;
 static struct usb_driver cdc_ncm_driver;
 static const struct ethtool_ops cdc_ncm_ethtool_ops;
@@ -441,8 +446,6 @@ static void cdc_ncm_free(struct cdc_ncm_ctx *ctx)
 	if (ctx == NULL)
 		return;
 
-	del_timer_sync(&ctx->tx_timer);
-
 	if (ctx->tx_rem_skb != NULL) {
 		dev_kfree_skb_any(ctx->tx_rem_skb);
 		ctx->tx_rem_skb = NULL;
@@ -469,7 +472,11 @@ static int cdc_ncm_bind(struct usbnet *dev, struct usb_interface *intf)
 	if (ctx == NULL)
 		return -ENODEV;
 
-	init_timer(&ctx->tx_timer);
+	hrtimer_init(&ctx->tx_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	ctx->tx_timer.function = &cdc_ncm_tx_timer_cb;
+	ctx->bh.data = (unsigned long)ctx;
+	ctx->bh.func = cdc_ncm_txpath_bh;
+	atomic_set(&ctx->stop, 0);
 	spin_lock_init(&ctx->mtx);
 	ctx->netdev = dev->net;
 
@@ -616,6 +623,13 @@ static void cdc_ncm_unbind(struct usbnet *dev, struct usb_interface *intf)
 
 	if (ctx == NULL)
 		return;		/* no setup */
+
+	atomic_set(&ctx->stop, 1);
+
+	if (hrtimer_active(&ctx->tx_timer))
+		hrtimer_cancel(&ctx->tx_timer);
+
+	tasklet_kill(&ctx->bh);
 
 	/* disconnect master --> disconnect slave */
 	if (intf == ctx->control && ctx->data) {
@@ -787,7 +801,7 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 		ctx->tx_curr_last_offset = last_offset;
 		/* set the pending count */
 		if (n < CDC_NCM_RESTART_TIMER_DATAGRAM_CNT)
-			ctx->tx_timer_pending = 2;
+			ctx->tx_timer_pending = CDC_NCM_TIMER_PENDING_CNT;
 		goto exit_no_skb;
 
 	} else {
@@ -867,44 +881,49 @@ cdc_ncm_fill_tx_frame(struct cdc_ncm_ctx *ctx, struct sk_buff *skb)
 
 	/* return skb */
 	ctx->tx_curr_skb = NULL;
+	ctx->netdev->stats.tx_packets += ctx->tx_curr_frame_num;
 	return skb_out;
 
 exit_no_skb:
+	/* Start timer, if there is a remaining skb */
+	if (ctx->tx_curr_skb != NULL)
+		cdc_ncm_tx_timeout_start(ctx);
 	return NULL;
 }
 
 static void cdc_ncm_tx_timeout_start(struct cdc_ncm_ctx *ctx)
 {
 	/* start timer, if not already started */
-	if (timer_pending(&ctx->tx_timer) == 0) {
-		ctx->tx_timer.function = &cdc_ncm_tx_timeout;
-		ctx->tx_timer.data = (unsigned long)ctx;
-		ctx->tx_timer.expires = jiffies + ((HZ + 999) / 1000);
-		add_timer(&ctx->tx_timer);
-	}
+	if (!(hrtimer_active(&ctx->tx_timer) || atomic_read(&ctx->stop)))
+		hrtimer_start(&ctx->tx_timer,
+				ktime_set(0, CDC_NCM_TIMER_INTERVAL),
+				HRTIMER_MODE_REL);
 }
 
-static void cdc_ncm_tx_timeout(unsigned long arg)
+static enum hrtimer_restart cdc_ncm_tx_timer_cb(struct hrtimer *timer)
 {
-	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)arg;
-	u8 restart;
+	struct cdc_ncm_ctx *ctx =
+			container_of(timer, struct cdc_ncm_ctx, tx_timer);
 
-	spin_lock(&ctx->mtx);
+	if (!atomic_read(&ctx->stop))
+		tasklet_schedule(&ctx->bh);
+	return HRTIMER_NORESTART;
+}
+
+static void cdc_ncm_txpath_bh(unsigned long param)
+{
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)param;
+
+	spin_lock_bh(&ctx->mtx);
 	if (ctx->tx_timer_pending != 0) {
 		ctx->tx_timer_pending--;
-		restart = 1;
-	} else {
-		restart = 0;
-	}
-
-	spin_unlock(&ctx->mtx);
-
-	if (restart) {
-		spin_lock(&ctx->mtx);
 		cdc_ncm_tx_timeout_start(ctx);
-		spin_unlock(&ctx->mtx);
+		spin_unlock_bh(&ctx->mtx);
 	} else if (ctx->netdev != NULL) {
+		spin_unlock_bh(&ctx->mtx);
+		netif_tx_lock_bh(ctx->netdev);
 		usbnet_start_xmit(NULL, ctx->netdev);
+		netif_tx_unlock_bh(ctx->netdev);
 	}
 }
 
@@ -913,7 +932,6 @@ cdc_ncm_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 {
 	struct sk_buff *skb_out;
 	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
-	u8 need_timer = 0;
 
 	/*
 	 * The Ethernet API we are using does not support transmitting
@@ -925,19 +943,9 @@ cdc_ncm_tx_fixup(struct usbnet *dev, struct sk_buff *skb, gfp_t flags)
 	if (ctx == NULL)
 		goto error;
 
-	spin_lock(&ctx->mtx);
+	spin_lock_bh(&ctx->mtx);
 	skb_out = cdc_ncm_fill_tx_frame(ctx, skb);
-	if (ctx->tx_curr_skb != NULL)
-		need_timer = 1;
-
-	/* Start timer, if there is a remaining skb */
-	if (need_timer)
-		cdc_ncm_tx_timeout_start(ctx);
-
-	if (skb_out)
-		dev->net->stats.tx_packets += ctx->tx_curr_frame_num;
-
-	spin_unlock(&ctx->mtx);
+	spin_unlock_bh(&ctx->mtx);
 	return skb_out;
 
 error:
