@@ -69,6 +69,10 @@ config SOC_AR933X
 	select USB_ARCH_HAS_EHCI
 	def_bool n
 
+config SOC_AR934X
+	select USB_ARCH_HAS_EHCI
+	def_bool n
+
 config ATH79_DEV_GPIO_BUTTONS
 	def_bool n
 

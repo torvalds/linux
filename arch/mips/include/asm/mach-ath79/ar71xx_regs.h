@@ -271,6 +271,8 @@
 
 #define AR724X_REV_ID_REVISION_MASK	0x3
 
+#define AR934X_REV_ID_REVISION_MASK     0xf
+
 /*
  * SPI block
  */
