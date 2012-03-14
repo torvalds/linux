@@ -556,7 +556,7 @@ struct kvm_assigned_dev_kernel {
 	struct pci_dev *dev;
 	struct kvm *kvm;
 	spinlock_t intx_lock;
-	struct mutex intx_mask_lock;
+	spinlock_t intx_mask_lock;
 	char irq_name[32];
 	struct pci_saved_state *pci_saved_state;
 };

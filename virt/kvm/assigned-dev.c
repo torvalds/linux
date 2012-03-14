@@ -77,11 +77,11 @@ kvm_assigned_dev_raise_guest_irq(struct kvm_assigned_dev_kernel *assigned_dev,
 {
 	if (unlikely(assigned_dev->irq_requested_type &
 		     KVM_DEV_IRQ_GUEST_INTX)) {
-		mutex_lock(&assigned_dev->intx_mask_lock);
+		spin_lock(&assigned_dev->intx_mask_lock);
 		if (!(assigned_dev->flags & KVM_DEV_ASSIGN_MASK_INTX))
 			kvm_set_irq(assigned_dev->kvm,
 				    assigned_dev->irq_source_id, vector, 1);
-		mutex_unlock(&assigned_dev->intx_mask_lock);
+		spin_unlock(&assigned_dev->intx_mask_lock);
 	} else
 		kvm_set_irq(assigned_dev->kvm, assigned_dev->irq_source_id,
 			    vector, 1);
@@ -141,7 +141,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 
 	kvm_set_irq(dev->kvm, dev->irq_source_id, dev->guest_irq, 0);
 
-	mutex_lock(&dev->intx_mask_lock);
+	spin_lock(&dev->intx_mask_lock);
 
 	if (!(dev->flags & KVM_DEV_ASSIGN_MASK_INTX)) {
 		bool reassert = false;
@@ -165,7 +165,7 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 				    dev->guest_irq, 1);
 	}
 
-	mutex_unlock(&dev->intx_mask_lock);
+	spin_unlock(&dev->intx_mask_lock);
 }
 
 static void deassign_guest_irq(struct kvm *kvm,
@@ -707,7 +707,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	match->flags = assigned_dev->flags;
 	match->dev = dev;
 	spin_lock_init(&match->intx_lock);
-	mutex_init(&match->intx_mask_lock);
+	spin_lock_init(&match->intx_mask_lock);
 	match->irq_source_id = -1;
 	match->kvm = kvm;
 	match->ack_notifier.irq_acked = kvm_assigned_dev_ack_irq;
@@ -868,7 +868,7 @@ static int kvm_vm_ioctl_set_pci_irq_mask(struct kvm *kvm,
 		goto out;
 	}
 
-	mutex_lock(&match->intx_mask_lock);
+	spin_lock(&match->intx_mask_lock);
 
 	match->flags &= ~KVM_DEV_ASSIGN_MASK_INTX;
 	match->flags |= assigned_dev->flags & KVM_DEV_ASSIGN_MASK_INTX;
@@ -895,7 +895,7 @@ static int kvm_vm_ioctl_set_pci_irq_mask(struct kvm *kvm,
 		}
 	}
 
-	mutex_unlock(&match->intx_mask_lock);
+	spin_unlock(&match->intx_mask_lock);
 
 out:
 	mutex_unlock(&kvm->lock);
