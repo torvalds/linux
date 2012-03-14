@@ -639,7 +639,8 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 #endif
 	an->sta = sta;
 	an->vif = vif;
-	if (sc->sc_flags & SC_OP_TXAGGR) {
+
+	if (sta->ht_cap.ht_supported) {
 		ath_tx_node_init(sc, an);
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
@@ -658,7 +659,7 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 	an->sta = NULL;
 #endif
 
-	if (sc->sc_flags & SC_OP_TXAGGR)
+	if (sta->ht_cap.ht_supported)
 		ath_tx_node_cleanup(sc, an);
 }
 
@@ -1751,7 +1752,7 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_node *an = (struct ath_node *) sta->drv_priv;
 
-	if (!(sc->sc_flags & SC_OP_TXAGGR))
+	if (!sta->ht_cap.ht_supported)
 		return;
 
 	switch (cmd) {
@@ -2119,15 +2120,10 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (!(sc->sc_flags & SC_OP_RXAGGR))
-			ret = -ENOTSUPP;
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!(sc->sc_flags & SC_OP_TXAGGR))
-			return -EOPNOTSUPP;
-
 		ath9k_ps_wakeup(sc);
 		ret = ath_tx_aggr_start(sc, sta, tid, ssn);
 		if (!ret)
