@@ -654,7 +654,7 @@ static int fsmc_bch8_correct_data(struct mtd_info *mtd, uint8_t *dat,
 		change_bit(0, (unsigned long *)&err_idx[i]);
 		change_bit(1, (unsigned long *)&err_idx[i]);
 
-		if (err_idx[i] <= chip->ecc.size * 8) {
+		if (err_idx[i] < chip->ecc.size * 8) {
 			change_bit(err_idx[i], (unsigned long *)dat);
 			i++;
 		}
