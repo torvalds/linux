@@ -15,7 +15,7 @@ clean-files := capability_names.h rlim_names.h
 # to
 #    [1] = "dac_override",
 quiet_cmd_make-caps = GEN     $@
-cmd_make-caps = echo "static const char *capability_names[] = {" > $@ ;\
+cmd_make-caps = echo "static const char const *capability_names[] = {" > $@ ;\
 	sed $< >>$@ -r -n -e '/CAP_FS_MASK/d' \
 	-e 's/^\#define[ \t]+CAP_([A-Z0-9_]+)[ \t]+([0-9]+)/[\2] = "\L\1",/p';\
 	echo "};" >> $@
@@ -43,7 +43,8 @@ cmd_make-caps = echo "static const char *capability_names[] = {" > $@ ;\
 # to
 # #define AA_FS_RLIMIT_MASK "fsize stack"
 quiet_cmd_make-rlim = GEN     $@
-cmd_make-rlim = echo "static const char *rlim_names[RLIM_NLIMITS] = {" > $@ ;\
+cmd_make-rlim = echo "static const char const *rlim_names[RLIM_NLIMITS] = {" \
+	> $@ ;\
 	sed $< >> $@ -r -n \
 	    -e 's/^\# ?define[ \t]+(RLIMIT_([A-Z0-9_]+)).*/[\1] = "\L\2",/p';\
 	echo "};" >> $@ ;\
