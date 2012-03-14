@@ -17,6 +17,10 @@
  */
 
 #include <linux/clk.h>
+#include <linux/completion.h>
+#include <linux/dmaengine.h>
+#include <linux/dma-direction.h>
+#include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -282,6 +286,11 @@ static struct fsmc_eccplace fsmc_ecc4_sp_place = {
  * @bank:		Bank number for probed device.
  * @clk:		Clock structure for FSMC.
  *
+ * @read_dma_chan:	DMA channel for read access
+ * @write_dma_chan:	DMA channel for write access to NAND
+ * @dma_access_complete: Completion structure
+ *
+ * @data_pa:		NAND Physical port for Data.
  * @data_va:		NAND port for Data.
  * @cmd_va:		NAND port for Command.
  * @addr_va:		NAND port for Address.
@@ -297,10 +306,17 @@ struct fsmc_nand_data {
 	struct fsmc_eccplace	*ecc_place;
 	unsigned int		bank;
 	struct device		*dev;
+	enum access_mode	mode;
 	struct clk		*clk;
+
+	/* DMA related objects */
+	struct dma_chan		*read_dma_chan;
+	struct dma_chan		*write_dma_chan;
+	struct completion	dma_access_complete;
 
 	struct fsmc_nand_timings *dev_timings;
 
+	dma_addr_t		data_pa;
 	void __iomem		*data_va;
 	void __iomem		*cmd_va;
 	void __iomem		*addr_va;
@@ -523,6 +539,77 @@ static int count_written_bits(uint8_t *buff, int size, int max_bits)
 	return written_bits;
 }
 
+static void dma_complete(void *param)
+{
+	struct fsmc_nand_data *host = param;
+
+	complete(&host->dma_access_complete);
+}
+
+static int dma_xfer(struct fsmc_nand_data *host, void *buffer, int len,
+		enum dma_data_direction direction)
+{
+	struct dma_chan *chan;
+	struct dma_device *dma_dev;
+	struct dma_async_tx_descriptor *tx;
+	dma_addr_t dma_dst, dma_src, dma_addr;
+	dma_cookie_t cookie;
+	unsigned long flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
+	int ret;
+
+	if (direction == DMA_TO_DEVICE)
+		chan = host->write_dma_chan;
+	else if (direction == DMA_FROM_DEVICE)
+		chan = host->read_dma_chan;
+	else
+		return -EINVAL;
+
+	dma_dev = chan->device;
+	dma_addr = dma_map_single(dma_dev->dev, buffer, len, direction);
+
+	if (direction == DMA_TO_DEVICE) {
+		dma_src = dma_addr;
+		dma_dst = host->data_pa;
+		flags |= DMA_COMPL_SRC_UNMAP_SINGLE | DMA_COMPL_SKIP_DEST_UNMAP;
+	} else {
+		dma_src = host->data_pa;
+		dma_dst = dma_addr;
+		flags |= DMA_COMPL_DEST_UNMAP_SINGLE | DMA_COMPL_SKIP_SRC_UNMAP;
+	}
+
+	tx = dma_dev->device_prep_dma_memcpy(chan, dma_dst, dma_src,
+			len, flags);
+
+	if (!tx) {
+		dev_err(host->dev, "device_prep_dma_memcpy error\n");
+		dma_unmap_single(dma_dev->dev, dma_addr, len, direction);
+		return -EIO;
+	}
+
+	tx->callback = dma_complete;
+	tx->callback_param = host;
+	cookie = tx->tx_submit(tx);
+
+	ret = dma_submit_error(cookie);
+	if (ret) {
+		dev_err(host->dev, "dma_submit_error %d\n", cookie);
+		return ret;
+	}
+
+	dma_async_issue_pending(chan);
+
+	ret =
+	wait_for_completion_interruptible_timeout(&host->dma_access_complete,
+				msecs_to_jiffies(3000));
+	if (ret <= 0) {
+		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
+		dev_err(host->dev, "wait_for_completion_timeout\n");
+		return ret ? ret : -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 /*
  * fsmc_write_buf - write buffer to chip
  * @mtd:	MTD device structure
@@ -567,6 +654,35 @@ static void fsmc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
 		for (i = 0; i < len; i++)
 			buf[i] = readb(chip->IO_ADDR_R);
 	}
+}
+
+/*
+ * fsmc_read_buf_dma - read chip data into buffer
+ * @mtd:	MTD device structure
+ * @buf:	buffer to store date
+ * @len:	number of bytes to read
+ */
+static void fsmc_read_buf_dma(struct mtd_info *mtd, uint8_t *buf, int len)
+{
+	struct fsmc_nand_data *host;
+
+	host = container_of(mtd, struct fsmc_nand_data, mtd);
+	dma_xfer(host, buf, len, DMA_FROM_DEVICE);
+}
+
+/*
+ * fsmc_write_buf_dma - write buffer to chip
+ * @mtd:	MTD device structure
+ * @buf:	data buffer
+ * @len:	number of bytes to write
+ */
+static void fsmc_write_buf_dma(struct mtd_info *mtd, const uint8_t *buf,
+		int len)
+{
+	struct fsmc_nand_data *host;
+
+	host = container_of(mtd, struct fsmc_nand_data, mtd);
+	dma_xfer(host, (void *)buf, len, DMA_TO_DEVICE);
 }
 
 /*
@@ -731,6 +847,12 @@ static int fsmc_bch8_correct_data(struct mtd_info *mtd, uint8_t *dat,
 	return i;
 }
 
+static bool filter(struct dma_chan *chan, void *slave)
+{
+	chan->private = slave;
+	return true;
+}
+
 /*
  * fsmc_nand_probe - Probe function
  * @pdev:       platform device structure
@@ -743,6 +865,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	struct nand_chip *nand;
 	struct fsmc_regs *regs;
 	struct resource *res;
+	dma_cap_mask_t mask;
 	int ret = 0;
 	u32 pid;
 	int i;
@@ -769,6 +892,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
+	host->data_pa = (dma_addr_t)res->start;
 	host->data_va = devm_ioremap(&pdev->dev, res->start,
 			resource_size(res));
 	if (!host->data_va) {
@@ -847,6 +971,11 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	host->nr_partitions = pdata->nr_partitions;
 	host->dev = &pdev->dev;
 	host->dev_timings = pdata->nand_timings;
+	host->mode = pdata->mode;
+
+	if (host->mode == USE_DMA_ACCESS)
+		init_completion(&host->dma_access_complete);
+
 	regs = host->regs_va;
 
 	/* Link all private pointers */
@@ -871,13 +1000,31 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (pdata->width == FSMC_NAND_BW16)
 		nand->options |= NAND_BUSWIDTH_16;
 
-	/*
-	 * use customized (word by word) version of read_buf, write_buf if
-	 * access_with_dev_width is reset supported
-	 */
-	if (pdata->mode == USE_WORD_ACCESS) {
+	switch (host->mode) {
+	case USE_DMA_ACCESS:
+		dma_cap_zero(mask);
+		dma_cap_set(DMA_MEMCPY, mask);
+		host->read_dma_chan = dma_request_channel(mask, filter,
+				pdata->read_dma_priv);
+		if (!host->read_dma_chan) {
+			dev_err(&pdev->dev, "Unable to get read dma channel\n");
+			goto err_req_read_chnl;
+		}
+		host->write_dma_chan = dma_request_channel(mask, filter,
+				pdata->write_dma_priv);
+		if (!host->write_dma_chan) {
+			dev_err(&pdev->dev, "Unable to get write dma channel\n");
+			goto err_req_write_chnl;
+		}
+		nand->read_buf = fsmc_read_buf_dma;
+		nand->write_buf = fsmc_write_buf_dma;
+		break;
+
+	default:
+	case USE_WORD_ACCESS:
 		nand->read_buf = fsmc_read_buf;
 		nand->write_buf = fsmc_write_buf;
+		break;
 	}
 
 	fsmc_nand_setup(regs, host->bank, nand->options & NAND_BUSWIDTH_16,
@@ -978,6 +1125,12 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 err_probe:
 err_scan_ident:
+	if (host->mode == USE_DMA_ACCESS)
+		dma_release_channel(host->write_dma_chan);
+err_req_write_chnl:
+	if (host->mode == USE_DMA_ACCESS)
+		dma_release_channel(host->read_dma_chan);
+err_req_read_chnl:
 	clk_disable(host->clk);
 err_clk_enable:
 	clk_put(host->clk);
@@ -995,6 +1148,11 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 
 	if (host) {
 		nand_release(&host->mtd);
+
+		if (host->mode == USE_DMA_ACCESS) {
+			dma_release_channel(host->write_dma_chan);
+			dma_release_channel(host->read_dma_chan);
+		}
 		clk_disable(host->clk);
 		clk_put(host->clk);
 	}

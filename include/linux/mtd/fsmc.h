@@ -172,6 +172,10 @@ struct fsmc_nand_platform_data {
 	enum access_mode	mode;
 
 	void			(*select_bank)(uint32_t bank, uint32_t busw);
+
+	/* priv structures for dma accesses */
+	void			*read_dma_priv;
+	void			*write_dma_priv;
 };
 
 extern int __init fsmc_nor_init(struct platform_device *pdev,
