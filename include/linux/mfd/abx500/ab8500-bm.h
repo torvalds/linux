@@ -255,16 +255,6 @@ struct batres_vs_temp {
 	int resist;
 };
 
-/**
- * struct v_to_cap - Table for translating voltage to capacity
- * @voltage:		Voltage in mV
- * @capacity:		Capacity in percent
- */
-struct v_to_cap {
-	int voltage;
-	int capacity;
-};
-
 /* Forward declaration */
 struct ab8500_fg;
 

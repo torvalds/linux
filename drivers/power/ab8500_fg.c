@@ -812,7 +812,7 @@ static int ab8500_fg_bat_voltage(struct ab8500_fg *di)
 static int ab8500_fg_volt_to_capacity(struct ab8500_fg *di, int voltage)
 {
 	int i, tbl_size;
-	struct v_to_cap *tbl;
+	struct abx500_v_to_cap *tbl;
 	int cap = 0;
 
 	tbl = di->bat->bat_type[di->bat->batt_id].v_to_cap_tbl,
