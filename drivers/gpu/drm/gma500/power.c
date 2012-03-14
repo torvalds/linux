@@ -102,9 +102,6 @@ static void gma_resume_display(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->suspended == false)
-		return;
-
 	/* turn on the display power island */
 	dev_priv->ops->power_up(dev);
 	dev_priv->suspended = false;
