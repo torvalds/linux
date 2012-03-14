@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/list.h>
+#include <linux/io.h>
 
 #include <plat/hardware.h>
 #include <plat/clkdev_omap.h>
