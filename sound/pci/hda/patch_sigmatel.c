@@ -665,7 +665,6 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 static int stac_vrefout_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
 {
@@ -689,7 +688,6 @@ static int stac_vrefout_set(struct hda_codec *codec,
 
 	return 1;
 }
-#endif
 
 static unsigned int stac92xx_vref_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
@@ -5011,7 +5009,6 @@ static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
 	return 0;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 static int stac92xx_pre_resume(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -5046,7 +5043,6 @@ static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 			afg_power_state);
 	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
 }
-#endif /* CONFIG_SND_HDA_POWER_SAVE */
 #endif /* CONFIG_PM */
 
 /* update mute-LED accoring to the master switch */
@@ -5583,7 +5579,6 @@ again:
 				spec->gpio_led,
 				spec->gpio_led_polarity);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
 		if (!spec->vref_mute_led_nid) {
 			spec->gpio_mask |= spec->gpio_led;
@@ -5595,7 +5590,6 @@ again:
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
 	}
-#endif	
 
 	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
@@ -5892,7 +5886,6 @@ again:
 				spec->gpio_led,
 				spec->gpio_led_polarity);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
 		if (!spec->vref_mute_led_nid) {
 			spec->gpio_mask |= spec->gpio_led;
@@ -5904,7 +5897,6 @@ again:
 		}
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
 	}
-#endif	
 
 	spec->multiout.dac_nids = spec->dac_nids;
 
