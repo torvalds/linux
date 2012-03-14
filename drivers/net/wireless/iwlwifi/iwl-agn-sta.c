@@ -34,6 +34,8 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 
+const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
+
 static int iwl_sta_ucode_activate(struct iwl_priv *priv, u8 sta_id)
 {
 	lockdep_assert_held(&priv->sta_lock);

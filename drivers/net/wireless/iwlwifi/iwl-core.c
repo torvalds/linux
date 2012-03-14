@@ -41,8 +41,6 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 
-const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
-
 
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
