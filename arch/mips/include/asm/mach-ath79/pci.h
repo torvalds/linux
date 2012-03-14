@@ -19,7 +19,7 @@ int ar71xx_pcibios_init(void);
 static inline int ar71xx_pcibios_init(void) { return 0; }
 #endif
 
-#if defined(CONFIG_PCI) && defined(CONFIG_SOC_AR724X)
+#if defined(CONFIG_PCI_AR724X)
 int ar724x_pcibios_init(int irq);
 #else
 static inline int ar724x_pcibios_init(int irq) { return 0; }
