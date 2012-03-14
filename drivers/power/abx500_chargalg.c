@@ -1706,7 +1706,7 @@ static struct attribute *abx500_chargalg_chg[] = {
 	NULL
 };
 
-const struct sysfs_ops abx500_chargalg_sysfs_ops = {
+static const struct sysfs_ops abx500_chargalg_sysfs_ops = {
 	.store = abx500_chargalg_sysfs_charger,
 };
 

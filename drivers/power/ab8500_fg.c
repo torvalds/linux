@@ -2325,7 +2325,7 @@ ab8500_fg_store(struct kobject *kobj, struct attribute *attr, const char *buf,
 	return entry->store(di, buf, count);
 }
 
-const struct sysfs_ops ab8500_fg_sysfs_ops = {
+static const struct sysfs_ops ab8500_fg_sysfs_ops = {
 	.show = ab8500_fg_show,
 	.store = ab8500_fg_store,
 };

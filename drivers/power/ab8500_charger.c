@@ -1616,7 +1616,7 @@ static void ab8500_charger_ac_work(struct work_struct *work)
  *
  * Detect the type of USB plugged
  */
-void ab8500_charger_detect_usb_type_work(struct work_struct *work)
+static void ab8500_charger_detect_usb_type_work(struct work_struct *work)
 {
 	int ret;
 
