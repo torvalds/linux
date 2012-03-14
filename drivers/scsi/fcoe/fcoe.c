@@ -2186,8 +2186,12 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 	/* start FIP Discovery and FLOGI */
 	lport->boot_time = jiffies;
 	fc_fabric_login(lport);
-	if (!fcoe_link_ok(lport))
+	if (!fcoe_link_ok(lport)) {
+		rtnl_unlock();
 		fcoe_ctlr_link_up(&fcoe->ctlr);
+		mutex_unlock(&fcoe_config_mutex);
+		return rc;
+	}
 
 out_nodev:
 	rtnl_unlock();
