@@ -240,7 +240,7 @@ struct ab8500_charger {
 	struct work_struct usb_state_changed_work;
 	struct work_struct check_main_thermal_prot_work;
 	struct work_struct check_usb_thermal_prot_work;
-	struct otg_transceiver *otg;
+	struct usb_phy *usb_phy;
 	struct notifier_block nb;
 };
 
@@ -2516,8 +2516,8 @@ static int __devexit ab8500_charger_remove(struct platform_device *pdev)
 	if (ret < 0)
 		dev_err(di->dev, "%s mask and set failed\n", __func__);
 
-	otg_unregister_notifier(di->otg, &di->nb);
-	otg_put_transceiver(di->otg);
+	usb_unregister_notifier(di->usb_phy, &di->nb);
+	usb_put_transceiver(di->usb_phy);
 
 	/* Delete the work queue */
 	destroy_workqueue(di->charger_wq);
@@ -2685,17 +2685,17 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 		goto free_ac;
 	}
 
-	di->otg = otg_get_transceiver();
-	if (!di->otg) {
-		dev_err(di->dev, "failed to get otg transceiver\n");
+	di->usb_phy = usb_get_transceiver();
+	if (!di->usb_phy) {
+		dev_err(di->dev, "failed to get usb transceiver\n");
 		ret = -EINVAL;
 		goto free_usb;
 	}
 	di->nb.notifier_call = ab8500_charger_usb_notifier_call;
-	ret = otg_register_notifier(di->otg, &di->nb);
+	ret = usb_register_notifier(di->usb_phy, &di->nb);
 	if (ret) {
-		dev_err(di->dev, "failed to register otg notifier\n");
-		goto put_otg_transceiver;
+		dev_err(di->dev, "failed to register usb notifier\n");
+		goto put_usb_phy;
 	}
 
 	/* Identify the connected charger types during startup */
@@ -2736,15 +2736,15 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 	return ret;
 
 free_irq:
-	otg_unregister_notifier(di->otg, &di->nb);
+	usb_unregister_notifier(di->usb_phy, &di->nb);
 
 	/* We also have to free all successfully registered irqs */
 	for (i = i - 1; i >= 0; i--) {
 		irq = platform_get_irq_byname(pdev, ab8500_charger_irq[i].name);
 		free_irq(irq, di);
 	}
-put_otg_transceiver:
-	otg_put_transceiver(di->otg);
+put_usb_phy:
+	usb_put_transceiver(di->usb_phy);
 free_usb:
 	power_supply_unregister(&di->usb_chg.psy);
 free_ac:
