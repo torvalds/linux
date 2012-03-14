@@ -414,9 +414,6 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 				int alignment, int initial_domain,
 				bool discardable, bool kernel,
 				struct drm_gem_object **obj);
-int radeon_gem_object_pin(struct drm_gem_object *obj, uint32_t pin_domain,
-			  uint64_t *gpu_addr);
-void radeon_gem_object_unpin(struct drm_gem_object *obj);
 
 int radeon_mode_dumb_create(struct drm_file *file_priv,
 			    struct drm_device *dev,
