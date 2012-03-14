@@ -1391,11 +1391,13 @@ void PerformUndecoratedSignalSmoothing8185(struct r8180_priv *priv,
 	priv->bCurCCKPkt = bCckRate;
 
 	if (priv->UndecoratedSmoothedSS >= 0)
-		priv->UndecoratedSmoothedSS = ((priv->UndecoratedSmoothedSS * 5) + (priv->SignalStrength * 10)) / 6;
+		priv->UndecoratedSmoothedSS = ((priv->UndecoratedSmoothedSS * 5) +
+					       (priv->SignalStrength * 10)) / 6;
 	else
 		priv->UndecoratedSmoothedSS = priv->SignalStrength * 10;
 
-	priv->UndercorateSmoothedRxPower = ((priv->UndercorateSmoothedRxPower * 50) + (priv->RxPower * 11)) / 60;
+	priv->UndercorateSmoothedRxPower = ((priv->UndercorateSmoothedRxPower * 50) +
+					    (priv->RxPower * 11)) / 60;
 
 	if (bCckRate)
 		priv->CurCCKRSSI = priv->RSSI;
@@ -1606,8 +1608,11 @@ void rtl8180_rx(struct net_device *dev)
 		/* printk("==========================>rx : RXAGC is %d,signalstrength is %d\n",RXAGC,stats.signalstrength); */
 		stats.rssi = priv->wstats.qual.qual = priv->SignalQuality;
 		stats.noise = priv->wstats.qual.noise = 100 - priv->wstats.qual.qual;
-		bHwError = (((*(priv->rxringtail)) & (0x00000fff)) == 4080) | (((*(priv->rxringtail)) & (0x04000000)) != 0)
-			| (((*(priv->rxringtail)) & (0x08000000)) != 0) | (((~(*(priv->rxringtail))) & (0x10000000)) != 0) | (((~(*(priv->rxringtail))) & (0x20000000)) != 0);
+		bHwError = (((*(priv->rxringtail)) & (0x00000fff)) == 4080) |
+			   (((*(priv->rxringtail)) & (0x04000000)) != 0) |
+			   (((*(priv->rxringtail)) & (0x08000000)) != 0) |
+			   (((~(*(priv->rxringtail))) & (0x10000000)) != 0) |
+			   (((~(*(priv->rxringtail))) & (0x20000000)) != 0);
 		bCRC = ((*(priv->rxringtail)) & (0x00002000)) >> 13;
 		bICV = ((*(priv->rxringtail)) & (0x00001000)) >> 12;
 		hdr = (struct ieee80211_hdr_4addr *)priv->rxbuffer->buf;
@@ -2005,7 +2010,8 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 			bRTSEnable = 0;
 			bCTSEnable = 0;
 
-			ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate), 0, bUseShortPreamble);
+			ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate),
+						      0, bUseShortPreamble);
 			TxDescDuration = ThisFrameTime;
 		} else { /* Unicast packet */
 			u16 AckTime;
@@ -2043,7 +2049,8 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 				bRTSEnable = 0;
 				RtsDur = 0;
 
-				ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate), 0, bUseShortPreamble);
+				ThisFrameTime = ComputeTxTime(len + sCrcLng, rtl8180_rate2rate(rate),
+							      0, bUseShortPreamble);
 				TxDescDuration = ThisFrameTime + aSifsTime + AckTime;
 			}
 
@@ -2328,8 +2335,8 @@ void rtl8180_hw_sleep(struct net_device *dev, u32 th, u32 tl)
 		u32 tmp = (tl > rb) ? (tl-rb) : (rb-tl);
 
 		priv->DozePeriodInPast2Sec += jiffies_to_msecs(tmp);
-
-		queue_delayed_work(priv->ieee80211->wq, &priv->ieee80211->hw_wakeup_wq, tmp); /* as tl may be less than rb */
+		/* as tl may be less than rb */
+		queue_delayed_work(priv->ieee80211->wq, &priv->ieee80211->hw_wakeup_wq, tmp);
 	}
 	/*
 	 * If we suspect the TimerInt is gone beyond tl
@@ -3089,7 +3096,8 @@ void rtl8185_set_rate(struct net_device *dev)
 	max_rr_rate = ieeerate2rtlrate(240);
 
 	write_nic_byte(dev, RESP_RATE,
-			max_rr_rate<<MAX_RESP_RATE_SHIFT | min_rr_rate<<MIN_RESP_RATE_SHIFT);
+		       max_rr_rate<<MAX_RESP_RATE_SHIFT |
+		       min_rr_rate<<MIN_RESP_RATE_SHIFT);
 
 	word  = read_nic_word(dev, BRSR);
 	word &= ~BRSR_MBR_8185;
@@ -3230,7 +3238,8 @@ void LeisurePSEnter(struct r8180_priv *priv)
 {
 	if (priv->bLeisurePs) {
 		if (priv->ieee80211->ps == IEEE80211_PS_DISABLED)
-			MgntActSet_802_11_PowerSaveMode(priv, IEEE80211_PS_MBCAST|IEEE80211_PS_UNICAST); /* IEEE80211_PS_ENABLE */
+			/* IEEE80211_PS_ENABLE */
+			MgntActSet_802_11_PowerSaveMode(priv, IEEE80211_PS_MBCAST|IEEE80211_PS_UNICAST);
 	}
 }
 
@@ -3302,7 +3311,10 @@ void rtl8180_watch_dog(struct net_device *dev)
 	u16 SlotIndex = 0;
 	u16 i = 0;
 	if (priv->ieee80211->actscanning == false) {
-		if ((priv->ieee80211->iw_mode != IW_MODE_ADHOC) && (priv->ieee80211->state == IEEE80211_NOLINK) && (priv->ieee80211->beinretry == false) && (priv->eRFPowerState == eRfOn))
+		if ((priv->ieee80211->iw_mode != IW_MODE_ADHOC) &&
+		    (priv->ieee80211->state == IEEE80211_NOLINK) &&
+		    (priv->ieee80211->beinretry == false) &&
+		    (priv->eRFPowerState == eRfOn))
 			IPSEnter(dev);
 	}
 	/* YJ,add,080828,for link state check */
