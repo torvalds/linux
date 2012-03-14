@@ -22,8 +22,9 @@ static void __iomem *ar724x_pci_devcfg_base;
 static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 			    int size, uint32_t *value)
 {
-	unsigned long flags, addr, tval, mask;
+	unsigned long flags;
 	void __iomem *base;
+	u32 data;
 
 	if (devfn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -31,24 +32,22 @@ static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 	base = ar724x_pci_devcfg_base;
 
 	spin_lock_irqsave(&ar724x_pci_lock, flags);
+	data = __raw_readl(base + (where & ~3));
 
 	switch (size) {
 	case 1:
-		addr = where & ~3;
-		mask = 0xff000000 >> ((where % 4) * 8);
-		tval = __raw_readl(base + addr);
-		tval = tval & ~mask;
-		*value = (tval >> ((4 - (where % 4))*8));
+		if (where & 1)
+			data >>= 8;
+		if (where & 2)
+			data >>= 16;
+		data &= 0xff;
 		break;
 	case 2:
-		addr = where & ~3;
-		mask = 0xffff0000 >> ((where % 4)*8);
-		tval = __raw_readl(base + addr);
-		tval = tval & ~mask;
-		*value = (tval >> ((4 - (where % 4))*8));
+		if (where & 2)
+			data >>= 16;
+		data &= 0xffff;
 		break;
 	case 4:
-		*value = __raw_readl(base + where);
 		break;
 	default:
 		spin_unlock_irqrestore(&ar724x_pci_lock, flags);
@@ -57,6 +56,7 @@ static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 	}
 
 	spin_unlock_irqrestore(&ar724x_pci_lock, flags);
+	*value = data;
 
 	return PCIBIOS_SUCCESSFUL;
 }
@@ -64,8 +64,10 @@ static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 static int ar724x_pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 			     int size, uint32_t value)
 {
-	unsigned long flags, tval, addr, mask;
+	unsigned long flags;
 	void __iomem *base;
+	u32 data;
+	int s;
 
 	if (devfn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
@@ -73,26 +75,21 @@ static int ar724x_pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 	base = ar724x_pci_devcfg_base;
 
 	spin_lock_irqsave(&ar724x_pci_lock, flags);
+	data = __raw_readl(base + (where & ~3));
 
 	switch (size) {
 	case 1:
-		addr = where & ~3;
-		mask = 0xff000000 >> ((where % 4)*8);
-		tval = __raw_readl(base + addr);
-		tval = tval & ~mask;
-		tval |= (value << ((4 - (where % 4))*8)) & mask;
-		__raw_writel(tval, base + addr);
+		s = ((where & 3) * 8);
+		data &= ~(0xff << s);
+		data |= ((value & 0xff) << s);
 		break;
 	case 2:
-		addr = where & ~3;
-		mask = 0xffff0000 >> ((where % 4)*8);
-		tval = __raw_readl(base + addr);
-		tval = tval & ~mask;
-		tval |= (value << ((4 - (where % 4))*8)) & mask;
-		__raw_writel(tval, base + addr);
+		s = ((where & 2) * 8);
+		data &= ~(0xffff << s);
+		data |= ((value & 0xffff) << s);
 		break;
 	case 4:
-		__raw_writel(value, (base + where));
+		data = value;
 		break;
 	default:
 		spin_unlock_irqrestore(&ar724x_pci_lock, flags);
@@ -100,6 +97,9 @@ static int ar724x_pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 		return PCIBIOS_BAD_REGISTER_NUMBER;
 	}
 
+	__raw_writel(data, base + (where & ~3));
+	/* flush write */
+	__raw_readl(base + (where & ~3));
 	spin_unlock_irqrestore(&ar724x_pci_lock, flags);
 
 	return PCIBIOS_SUCCESSFUL;
