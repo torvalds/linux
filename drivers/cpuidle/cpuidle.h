@@ -14,6 +14,8 @@ extern struct list_head cpuidle_detected_devices;
 extern struct mutex cpuidle_lock;
 extern spinlock_t cpuidle_driver_lock;
 extern int cpuidle_disabled(void);
+extern int cpuidle_enter_state(struct cpuidle_device *dev,
+		struct cpuidle_driver *drv, int next_state);
 
 /* idle loop */
 extern void cpuidle_install_idle_handler(void);
