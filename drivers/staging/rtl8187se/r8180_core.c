@@ -1615,35 +1615,39 @@ void rtl8180_rx(struct net_device *dev)
 		    fc = le16_to_cpu(hdr->frame_ctl);
 		type = WLAN_FC_GET_TYPE(fc);
 
-			if ((IEEE80211_FTYPE_CTL != type) &&
-				(eqMacAddr(priv->ieee80211->current_network.bssid, (fc & IEEE80211_FCTL_TODS) ? hdr->addr1 : (fc & IEEE80211_FCTL_FROMDS) ? hdr->addr2 : hdr->addr3))
-				 && (!bHwError) && (!bCRC) && (!bICV)) {
-				/* Perform signal smoothing for dynamic
-				 * mechanism on demand. This is different
-				 * with PerformSignalSmoothing8185 in smoothing
-				 * fomula. No dramatic adjustion is apply
-				 * because dynamic mechanism need some degree
-				 * of correctness. */
-				PerformUndecoratedSignalSmoothing8185(priv, bCckRate);
+		if (IEEE80211_FTYPE_CTL != type &&
+		    !bHwError && !bCRC && !bICV &&
+		    eqMacAddr(priv->ieee80211->current_network.bssid,
+		    	fc & IEEE80211_FCTL_TODS ? hdr->addr1 :
+		    	fc & IEEE80211_FCTL_FROMDS ? hdr->addr2 : 
+		    	hdr->addr3)) {
+				 
+			/* Perform signal smoothing for dynamic
+			 * mechanism on demand. This is different
+			 * with PerformSignalSmoothing8185 in smoothing
+			 * fomula. No dramatic adjustion is apply
+			 * because dynamic mechanism need some degree
+			 * of correctness. */
+			PerformUndecoratedSignalSmoothing8185(priv, bCckRate);
 
-				/* For good-looking singal strength. */
-				SignalStrengthIndex = NetgearSignalStrengthTranslate(
-								priv->LastSignalStrengthInPercent,
-								priv->SignalStrength);
+			/* For good-looking singal strength. */
+			SignalStrengthIndex = NetgearSignalStrengthTranslate(
+							priv->LastSignalStrengthInPercent,
+							priv->SignalStrength);
 
-				priv->LastSignalStrengthInPercent = SignalStrengthIndex;
-				priv->Stats_SignalStrength = TranslateToDbm8185((u8)SignalStrengthIndex);
+			priv->LastSignalStrengthInPercent = SignalStrengthIndex;
+			priv->Stats_SignalStrength = TranslateToDbm8185((u8)SignalStrengthIndex);
 		/*
 		 * We need more correct power of received packets and the  "SignalStrength" of RxStats is beautified,
 		 * so we record the correct power here.
 		 */
-				priv->Stats_SignalQuality = (long)(priv->Stats_SignalQuality * 5 + (long)priv->SignalQuality + 5) / 6;
-				priv->Stats_RecvSignalPower = (long)(priv->Stats_RecvSignalPower * 5 + priv->RecvSignalPower - 1) / 6;
+			priv->Stats_SignalQuality = (long)(priv->Stats_SignalQuality * 5 + (long)priv->SignalQuality + 5) / 6;
+			priv->Stats_RecvSignalPower = (long)(priv->Stats_RecvSignalPower * 5 + priv->RecvSignalPower - 1) / 6;
 
 		/* Figure out which antenna that received the lasted packet. */
-				priv->LastRxPktAntenna = Antenna ? 1 : 0; /* 0: aux, 1: main. */
-				SwAntennaDiversityRxOk8185(dev, priv->SignalStrength);
-			}
+			priv->LastRxPktAntenna = Antenna ? 1 : 0; /* 0: aux, 1: main. */
+			SwAntennaDiversityRxOk8185(dev, priv->SignalStrength);
+		}
 
 		if (first) {
 			if (!priv->rx_skb_complete) {
