@@ -524,6 +524,52 @@ static int count_written_bits(uint8_t *buff, int size, int max_bits)
 }
 
 /*
+ * fsmc_write_buf - write buffer to chip
+ * @mtd:	MTD device structure
+ * @buf:	data buffer
+ * @len:	number of bytes to write
+ */
+static void fsmc_write_buf(struct mtd_info *mtd, const uint8_t *buf, int len)
+{
+	int i;
+	struct nand_chip *chip = mtd->priv;
+
+	if (IS_ALIGNED((uint32_t)buf, sizeof(uint32_t)) &&
+			IS_ALIGNED(len, sizeof(uint32_t))) {
+		uint32_t *p = (uint32_t *)buf;
+		len = len >> 2;
+		for (i = 0; i < len; i++)
+			writel(p[i], chip->IO_ADDR_W);
+	} else {
+		for (i = 0; i < len; i++)
+			writeb(buf[i], chip->IO_ADDR_W);
+	}
+}
+
+/*
+ * fsmc_read_buf - read chip data into buffer
+ * @mtd:	MTD device structure
+ * @buf:	buffer to store date
+ * @len:	number of bytes to read
+ */
+static void fsmc_read_buf(struct mtd_info *mtd, uint8_t *buf, int len)
+{
+	int i;
+	struct nand_chip *chip = mtd->priv;
+
+	if (IS_ALIGNED((uint32_t)buf, sizeof(uint32_t)) &&
+			IS_ALIGNED(len, sizeof(uint32_t))) {
+		uint32_t *p = (uint32_t *)buf;
+		len = len >> 2;
+		for (i = 0; i < len; i++)
+			p[i] = readl(chip->IO_ADDR_R);
+	} else {
+		for (i = 0; i < len; i++)
+			buf[i] = readb(chip->IO_ADDR_R);
+	}
+}
+
+/*
  * fsmc_read_page_hwecc
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
@@ -824,6 +870,15 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 
 	if (pdata->width == FSMC_NAND_BW16)
 		nand->options |= NAND_BUSWIDTH_16;
+
+	/*
+	 * use customized (word by word) version of read_buf, write_buf if
+	 * access_with_dev_width is reset supported
+	 */
+	if (pdata->mode == USE_WORD_ACCESS) {
+		nand->read_buf = fsmc_read_buf;
+		nand->write_buf = fsmc_write_buf;
+	}
 
 	fsmc_nand_setup(regs, host->bank, nand->options & NAND_BUSWIDTH_16,
 			host->dev_timings);

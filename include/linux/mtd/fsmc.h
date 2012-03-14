@@ -141,6 +141,11 @@ struct fsmc_nand_timings {
 	uint8_t tset;
 };
 
+enum access_mode {
+	USE_DMA_ACCESS = 1,
+	USE_WORD_ACCESS,
+};
+
 /**
  * fsmc_nand_platform_data - platform specific NAND controller config
  * @partitions: partition table for the platform, use a default fallback
@@ -164,6 +169,7 @@ struct fsmc_nand_platform_data {
 	/* CLE, ALE offsets */
 	unsigned long           cle_off;
 	unsigned long           ale_off;
+	enum access_mode	mode;
 
 	void			(*select_bank)(uint32_t bank, uint32_t busw);
 };
