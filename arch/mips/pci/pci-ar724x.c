@@ -28,9 +28,6 @@ static int ar724x_pci_read(struct pci_bus *bus, unsigned int devfn, int where,
 	if (devfn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
 
-	if (where & (size - 1))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
-
 	base = ar724x_pci_devcfg_base;
 
 	spin_lock_irqsave(&ar724x_pci_lock, flags);
@@ -72,9 +69,6 @@ static int ar724x_pci_write(struct pci_bus *bus, unsigned int devfn, int where,
 
 	if (devfn)
 		return PCIBIOS_DEVICE_NOT_FOUND;
-
-	if (where & (size - 1))
-		return PCIBIOS_BAD_REGISTER_NUMBER;
 
 	base = ar724x_pci_devcfg_base;
 
