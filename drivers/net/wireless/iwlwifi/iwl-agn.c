@@ -289,6 +289,25 @@ out:
 	mutex_unlock(&priv->mutex);
 }
 
+int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
+{
+	struct iwl_statistics_cmd statistics_cmd = {
+		.configuration_flags =
+			clear ? IWL_STATS_CONF_CLEAR_STATS : 0,
+	};
+
+	if (flags & CMD_ASYNC)
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+					CMD_ASYNC,
+					sizeof(struct iwl_statistics_cmd),
+					&statistics_cmd);
+	else
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+					CMD_SYNC,
+					sizeof(struct iwl_statistics_cmd),
+					&statistics_cmd);
+}
+
 /**
  * iwl_bg_statistics_periodic - Timer callback to queue statistics
  *
