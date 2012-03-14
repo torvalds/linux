@@ -12,10 +12,7 @@
 
 #include <linux/init.h>
 #include <linux/pci.h>
-
-#ifdef CONFIG_PCI
 #include <linux/ath9k_platform.h>
-#endif /* CONFIG_PCI */
 
 #include <asm/mach-ath79/irq.h>
 
@@ -91,6 +88,17 @@ static struct ar724x_pci_data ubnt_xm_pci_data[] = {
 		.pdata	= &ubnt_xm_eeprom_data,
 	},
 };
+
+static void __init ubnt_xm_pci_init(void)
+{
+	memcpy(ubnt_xm_eeprom_data.eeprom_data, UBNT_XM_EEPROM_ADDR,
+	       sizeof(ubnt_xm_eeprom_data.eeprom_data));
+
+	ar724x_pci_add_data(ubnt_xm_pci_data, ARRAY_SIZE(ubnt_xm_pci_data));
+	ath79_register_pci();
+}
+#else
+static inline void ubnt_xm_pci_init(void) {}
 #endif /* CONFIG_PCI */
 
 static void __init ubnt_xm_init(void)
@@ -105,14 +113,7 @@ static void __init ubnt_xm_init(void)
 	ath79_register_spi(&ubnt_xm_spi_data, ubnt_xm_spi_info,
 			   ARRAY_SIZE(ubnt_xm_spi_info));
 
-#ifdef CONFIG_PCI
-	memcpy(ubnt_xm_eeprom_data.eeprom_data, UBNT_XM_EEPROM_ADDR,
-	       sizeof(ubnt_xm_eeprom_data.eeprom_data));
-
-	ar724x_pci_add_data(ubnt_xm_pci_data, ARRAY_SIZE(ubnt_xm_pci_data));
-#endif /* CONFIG_PCI */
-
-	ath79_register_pci();
+	ubnt_xm_pci_init();
 }
 
 MIPS_MACHINE(ATH79_MACH_UBNT_XM,
