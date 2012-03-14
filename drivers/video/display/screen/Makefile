@@ -34,3 +34,4 @@ obj-$(CONFIG_LCD_AT070TNA2)    += lcd_AT070TNA2.o
 obj-$(CONFIG_LCD_TX23D88VM) += lcd_tx23d88vm.o
 obj-$(CONFIG_LCD_AT070TN93)    += lcd_at070tn93.o
 obj-$(CONFIG_LCD_A050VL01)    += lcd_A050VL01.o
+obj-$(CONFIG_LCD_B101EW05)    += lcd_b101ew05.o
