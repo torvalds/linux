@@ -71,12 +71,9 @@
 
 /*
  * Maximum amount of datagrams in NCM Datagram Pointer Table, not counting
- * the last NULL entry. Any additional datagrams in NTB would be discarded.
+ * the last NULL entry.
  */
 #define	CDC_NCM_DPT_DATAGRAMS_MAX		40
-
-/* Maximum amount of IN datagrams in NTB */
-#define	CDC_NCM_DPT_DATAGRAMS_IN_MAX		0 /* unlimited */
 
 /* Restart the timer, if amount of datagrams is less than given value */
 #define	CDC_NCM_RESTART_TIMER_DATAGRAM_CNT	3
@@ -95,7 +92,6 @@ struct cdc_ncm_data {
 };
 
 struct cdc_ncm_ctx {
-	struct cdc_ncm_data rx_ncm;
 	struct cdc_ncm_data tx_ncm;
 	struct usb_cdc_ncm_ntb_parameters ncm_parm;
 	struct hrtimer tx_timer;
@@ -135,6 +131,7 @@ struct cdc_ncm_ctx {
 	u16 tx_modulus;
 	u16 tx_ndp_modulus;
 	u16 tx_seq;
+	u16 rx_seq;
 	u16 connected;
 };
 
@@ -956,108 +953,103 @@ error:
 static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 {
 	struct sk_buff *skb;
-	struct cdc_ncm_ctx *ctx;
-	int sumlen;
-	int actlen;
-	int temp;
+	struct cdc_ncm_ctx *ctx = (struct cdc_ncm_ctx *)dev->data[0];
+	int len;
 	int nframes;
 	int x;
 	int offset;
+	struct usb_cdc_ncm_nth16 *nth16;
+	struct usb_cdc_ncm_ndp16 *ndp16;
+	struct usb_cdc_ncm_dpe16 *dpe16;
 
-	ctx = (struct cdc_ncm_ctx *)dev->data[0];
 	if (ctx == NULL)
 		goto error;
 
-	actlen = skb_in->len;
-	sumlen = CDC_NCM_NTB_MAX_SIZE_RX;
-
-	if (actlen < (sizeof(ctx->rx_ncm.nth16) + sizeof(ctx->rx_ncm.ndp16))) {
+	if (skb_in->len < (sizeof(struct usb_cdc_ncm_nth16) +
+					sizeof(struct usb_cdc_ncm_ndp16))) {
 		pr_debug("frame too short\n");
 		goto error;
 	}
 
-	memcpy(&(ctx->rx_ncm.nth16), ((u8 *)skb_in->data),
-						sizeof(ctx->rx_ncm.nth16));
+	nth16 = (struct usb_cdc_ncm_nth16 *)skb_in->data;
 
-	if (le32_to_cpu(ctx->rx_ncm.nth16.dwSignature) !=
-	    USB_CDC_NCM_NTH16_SIGN) {
+	if (le32_to_cpu(nth16->dwSignature) != USB_CDC_NCM_NTH16_SIGN) {
 		pr_debug("invalid NTH16 signature <%u>\n",
-			 le32_to_cpu(ctx->rx_ncm.nth16.dwSignature));
+					le32_to_cpu(nth16->dwSignature));
 		goto error;
 	}
 
-	temp = le16_to_cpu(ctx->rx_ncm.nth16.wBlockLength);
-	if (temp > sumlen) {
-		pr_debug("unsupported NTB block length %u/%u\n", temp, sumlen);
+	len = le16_to_cpu(nth16->wBlockLength);
+	if (len > ctx->rx_max) {
+		pr_debug("unsupported NTB block length %u/%u\n", len,
+								ctx->rx_max);
 		goto error;
 	}
 
-	temp = le16_to_cpu(ctx->rx_ncm.nth16.wNdpIndex);
-	if ((temp + sizeof(ctx->rx_ncm.ndp16)) > actlen) {
-		pr_debug("invalid DPT16 index\n");
+	if ((ctx->rx_seq + 1) != le16_to_cpu(nth16->wSequence) &&
+		(ctx->rx_seq || le16_to_cpu(nth16->wSequence)) &&
+		!((ctx->rx_seq == 0xffff) && !le16_to_cpu(nth16->wSequence))) {
+		pr_debug("sequence number glitch prev=%d curr=%d\n",
+				ctx->rx_seq, le16_to_cpu(nth16->wSequence));
+	}
+	ctx->rx_seq = le16_to_cpu(nth16->wSequence);
+
+	len = le16_to_cpu(nth16->wNdpIndex);
+	if ((len + sizeof(struct usb_cdc_ncm_ndp16)) > skb_in->len) {
+		pr_debug("invalid DPT16 index <%u>\n",
+					le16_to_cpu(nth16->wNdpIndex));
 		goto error;
 	}
 
-	memcpy(&(ctx->rx_ncm.ndp16), ((u8 *)skb_in->data) + temp,
-						sizeof(ctx->rx_ncm.ndp16));
+	ndp16 = (struct usb_cdc_ncm_ndp16 *)(((u8 *)skb_in->data) + len);
 
-	if (le32_to_cpu(ctx->rx_ncm.ndp16.dwSignature) !=
-	    USB_CDC_NCM_NDP16_NOCRC_SIGN) {
+	if (le32_to_cpu(ndp16->dwSignature) != USB_CDC_NCM_NDP16_NOCRC_SIGN) {
 		pr_debug("invalid DPT16 signature <%u>\n",
-			 le32_to_cpu(ctx->rx_ncm.ndp16.dwSignature));
+					le32_to_cpu(ndp16->dwSignature));
 		goto error;
 	}
 
-	if (le16_to_cpu(ctx->rx_ncm.ndp16.wLength) <
-	    USB_CDC_NCM_NDP16_LENGTH_MIN) {
+	if (le16_to_cpu(ndp16->wLength) < USB_CDC_NCM_NDP16_LENGTH_MIN) {
 		pr_debug("invalid DPT16 length <%u>\n",
-			 le32_to_cpu(ctx->rx_ncm.ndp16.dwSignature));
+					le32_to_cpu(ndp16->dwSignature));
 		goto error;
 	}
 
-	nframes = ((le16_to_cpu(ctx->rx_ncm.ndp16.wLength) -
+	nframes = ((le16_to_cpu(ndp16->wLength) -
 					sizeof(struct usb_cdc_ncm_ndp16)) /
 					sizeof(struct usb_cdc_ncm_dpe16));
 	nframes--; /* we process NDP entries except for the last one */
 
-	pr_debug("nframes = %u\n", nframes);
+	len += sizeof(struct usb_cdc_ncm_ndp16);
 
-	temp += sizeof(ctx->rx_ncm.ndp16);
-
-	if ((temp + nframes * (sizeof(struct usb_cdc_ncm_dpe16))) > actlen) {
+	if ((len + nframes * (sizeof(struct usb_cdc_ncm_dpe16))) >
+								skb_in->len) {
 		pr_debug("Invalid nframes = %d\n", nframes);
 		goto error;
 	}
 
-	if (nframes > CDC_NCM_DPT_DATAGRAMS_MAX) {
-		pr_debug("Truncating number of frames from %u to %u\n",
-					nframes, CDC_NCM_DPT_DATAGRAMS_MAX);
-		nframes = CDC_NCM_DPT_DATAGRAMS_MAX;
-	}
+	dpe16 = (struct usb_cdc_ncm_dpe16 *)(((u8 *)skb_in->data) + len);
 
-	memcpy(&(ctx->rx_ncm.dpe16), ((u8 *)skb_in->data) + temp,
-				nframes * (sizeof(struct usb_cdc_ncm_dpe16)));
-
-	for (x = 0; x < nframes; x++) {
-		offset = le16_to_cpu(ctx->rx_ncm.dpe16[x].wDatagramIndex);
-		temp = le16_to_cpu(ctx->rx_ncm.dpe16[x].wDatagramLength);
+	for (x = 0; x < nframes; x++, dpe16++) {
+		offset = le16_to_cpu(dpe16->wDatagramIndex);
+		len = le16_to_cpu(dpe16->wDatagramLength);
 
 		/*
 		 * CDC NCM ch. 3.7
 		 * All entries after first NULL entry are to be ignored
 		 */
-		if ((offset == 0) || (temp == 0)) {
+		if ((offset == 0) || (len == 0)) {
 			if (!x)
 				goto error; /* empty NTB */
 			break;
 		}
 
 		/* sanity checking */
-		if (((offset + temp) > actlen) ||
-		    (temp > CDC_NCM_MAX_DATAGRAM_SIZE) || (temp < ETH_HLEN)) {
+		if (((offset + len) > skb_in->len) ||
+				(len > ctx->rx_max) || (len < ETH_HLEN)) {
 			pr_debug("invalid frame detected (ignored)"
 					"offset[%u]=%u, length=%u, skb=%p\n",
-					x, offset, temp, skb_in);
+					x, offset, len, skb_in);
 			if (!x)
 				goto error;
 			break;
@@ -1066,9 +1058,9 @@ static int cdc_ncm_rx_fixup(struct usbnet *dev, struct sk_buff *skb_in)
 			skb = skb_clone(skb_in, GFP_ATOMIC);
 			if (!skb)
 				goto error;
-			skb->len = temp;
+			skb->len = len;
 			skb->data = ((u8 *)skb_in->data) + offset;
-			skb_set_tail_pointer(skb, temp);
+			skb_set_tail_pointer(skb, len);
 			usbnet_skb_return(dev, skb);
 		}
 	}
