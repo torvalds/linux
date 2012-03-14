@@ -69,8 +69,8 @@ MODULE_LICENSE("Dual BSD/GPL");
  */
 
 static u64 srpt_service_guid;
-static spinlock_t srpt_dev_lock;       /* Protects srpt_dev_list. */
-static struct list_head srpt_dev_list; /* List of srpt_device structures. */
+static DEFINE_SPINLOCK(srpt_dev_lock);	/* Protects srpt_dev_list. */
+static LIST_HEAD(srpt_dev_list);	/* List of srpt_device structures. */
 
 static unsigned srp_max_req_size = DEFAULT_MAX_REQ_SIZE;
 module_param(srp_max_req_size, int, 0444);
@@ -687,6 +687,7 @@ err:
 	while (--i >= 0)
 		srpt_free_ioctx(sdev, ring[i], dma_size, dir);
 	kfree(ring);
+	ring = NULL;
 out:
 	return ring;
 }
@@ -2595,7 +2596,7 @@ static int srpt_cm_req_recv(struct ib_cm_id *cm_id,
 	}
 
 	ch->sess = transport_init_session();
-	if (!ch->sess) {
+	if (IS_ERR(ch->sess)) {
 		rej->reason = __constant_cpu_to_be32(
 				SRP_LOGIN_REJ_INSUFFICIENT_RESOURCES);
 		pr_debug("Failed to create session\n");
@@ -3264,8 +3265,7 @@ static void srpt_add_one(struct ib_device *device)
 	for (i = 0; i < sdev->srq_size; ++i)
 		srpt_post_recv(sdev, sdev->ioctx_ring[i]);
 
-	WARN_ON(sdev->device->phys_port_cnt
-		> sizeof(sdev->port)/sizeof(sdev->port[0]));
+	WARN_ON(sdev->device->phys_port_cnt > ARRAY_SIZE(sdev->port));
 
 	for (i = 1; i <= sdev->device->phys_port_cnt; i++) {
 		sport = &sdev->port[i - 1];
@@ -4010,13 +4010,10 @@ static int __init srpt_init_module(void)
 		goto out;
 	}
 
-	spin_lock_init(&srpt_dev_lock);
-	INIT_LIST_HEAD(&srpt_dev_list);
-
-	ret = -ENODEV;
 	srpt_target = target_fabric_configfs_init(THIS_MODULE, "srpt");
-	if (!srpt_target) {
+	if (IS_ERR(srpt_target)) {
 		printk(KERN_ERR "couldn't register\n");
+		ret = PTR_ERR(srpt_target);
 		goto out;
 	}
 

@@ -656,7 +656,16 @@ nouveau_mxm_init(struct drm_device *dev)
 
 	if (mxm_shadow(dev, mxm[0])) {
 		MXM_MSG(dev, "failed to locate valid SIS\n");
+#if 0
+		/* we should, perhaps, fall back to some kind of limited
+		 * mode here if the x86 vbios hasn't already done the
+		 * work for us (so we prevent loading with completely
+		 * whacked vbios tables).
+		 */
 		return -EINVAL;
+#else
+		return 0;
+#endif
 	}
 
 	MXM_MSG(dev, "MXMS Version %d.%d\n",

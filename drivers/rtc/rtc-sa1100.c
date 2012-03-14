@@ -27,42 +27,34 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/string.h>
 #include <linux/pm.h>
-#include <linux/slab.h>
-#include <linux/clk.h>
-#include <linux/io.h>
+#include <linux/bitops.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
+#ifdef CONFIG_ARCH_PXA
+#include <mach/regs-rtc.h>
+#endif
+
 #define RTC_DEF_DIVIDER		(32768 - 1)
 #define RTC_DEF_TRIM		0
-#define RTC_FREQ		1024
 
-#define RCNR		0x00	/* RTC Count Register */
-#define RTAR		0x04	/* RTC Alarm Register */
-#define RTSR		0x08	/* RTC Status Register */
-#define RTTR		0x0c	/* RTC Timer Trim Register */
+static const unsigned long RTC_FREQ = 1024;
+static struct rtc_time rtc_alarm;
+static DEFINE_SPINLOCK(sa1100_rtc_lock);
 
-#define RTSR_HZE	(1 << 3)	/* HZ interrupt enable */
-#define RTSR_ALE	(1 << 2)	/* RTC alarm interrupt enable */
-#define RTSR_HZ		(1 << 1)	/* HZ rising-edge detected */
-#define RTSR_AL		(1 << 0)	/* RTC alarm detected */
+static inline int rtc_periodic_alarm(struct rtc_time *tm)
+{
+	return  (tm->tm_year == -1) ||
+		((unsigned)tm->tm_mon >= 12) ||
+		((unsigned)(tm->tm_mday - 1) >= 31) ||
+		((unsigned)tm->tm_hour > 23) ||
+		((unsigned)tm->tm_min > 59) ||
+		((unsigned)tm->tm_sec > 59);
+}
 
-#define rtc_readl(sa1100_rtc, reg)	\
-	readl_relaxed((sa1100_rtc)->base + (reg))
-#define rtc_writel(sa1100_rtc, reg, value)	\
-	writel_relaxed((value), (sa1100_rtc)->base + (reg))
-
-struct sa1100_rtc {
-	struct resource		*ress;
-	void __iomem		*base;
-	struct clk		*clk;
-	int			irq_1Hz;
-	int			irq_Alrm;
-	struct rtc_device	*rtc;
-	spinlock_t		lock;		/* Protects this structure */
-};
 /*
  * Calculate the next alarm time given the requested alarm time mask
  * and the current time.
@@ -90,26 +82,46 @@ static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now,
 	}
 }
 
+static int rtc_update_alarm(struct rtc_time *alrm)
+{
+	struct rtc_time alarm_tm, now_tm;
+	unsigned long now, time;
+	int ret;
+
+	do {
+		now = RCNR;
+		rtc_time_to_tm(now, &now_tm);
+		rtc_next_alarm_time(&alarm_tm, &now_tm, alrm);
+		ret = rtc_tm_to_time(&alarm_tm, &time);
+		if (ret != 0)
+			break;
+
+		RTSR = RTSR & (RTSR_HZE|RTSR_ALE|RTSR_AL);
+		RTAR = time;
+	} while (now != RCNR);
+
+	return ret;
+}
+
 static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = to_platform_device(dev_id);
-	struct sa1100_rtc *sa1100_rtc = platform_get_drvdata(pdev);
+	struct rtc_device *rtc = platform_get_drvdata(pdev);
 	unsigned int rtsr;
 	unsigned long events = 0;
 
-	spin_lock(&sa1100_rtc->lock);
+	spin_lock(&sa1100_rtc_lock);
 
+	rtsr = RTSR;
 	/* clear interrupt sources */
-	rtsr = rtc_readl(sa1100_rtc, RTSR);
-	rtc_writel(sa1100_rtc, RTSR, 0);
-
+	RTSR = 0;
 	/* Fix for a nasty initialization problem the in SA11xx RTSR register.
 	 * See also the comments in sa1100_rtc_probe(). */
 	if (rtsr & (RTSR_ALE | RTSR_HZE)) {
 		/* This is the original code, before there was the if test
 		 * above. This code does not clear interrupts that were not
 		 * enabled. */
-		rtc_writel(sa1100_rtc, RTSR, (RTSR_AL | RTSR_HZ) & (rtsr >> 2));
+		RTSR = (RTSR_AL | RTSR_HZ) & (rtsr >> 2);
 	} else {
 		/* For some reason, it is possible to enter this routine
 		 * without interruptions enabled, it has been tested with
@@ -118,13 +130,13 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 		 * This situation leads to an infinite "loop" of interrupt
 		 * routine calling and as a result the processor seems to
 		 * lock on its first call to open(). */
-		rtc_writel(sa1100_rtc, RTSR, (RTSR_AL | RTSR_HZ));
+		RTSR = RTSR_AL | RTSR_HZ;
 	}
 
 	/* clear alarm interrupt if it has occurred */
 	if (rtsr & RTSR_AL)
 		rtsr &= ~RTSR_ALE;
-	rtc_writel(sa1100_rtc, RTSR, rtsr & (RTSR_ALE | RTSR_HZE));
+	RTSR = rtsr & (RTSR_ALE | RTSR_HZE);
 
 	/* update irq data & counter */
 	if (rtsr & RTSR_AL)
@@ -132,100 +144,89 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 	if (rtsr & RTSR_HZ)
 		events |= RTC_UF | RTC_IRQF;
 
-	rtc_update_irq(sa1100_rtc->rtc, 1, events);
+	rtc_update_irq(rtc, 1, events);
 
-	spin_unlock(&sa1100_rtc->lock);
+	if (rtsr & RTSR_AL && rtc_periodic_alarm(&rtc_alarm))
+		rtc_update_alarm(&rtc_alarm);
+
+	spin_unlock(&sa1100_rtc_lock);
 
 	return IRQ_HANDLED;
 }
 
 static int sa1100_rtc_open(struct device *dev)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
 	int ret;
+	struct platform_device *plat_dev = to_platform_device(dev);
+	struct rtc_device *rtc = platform_get_drvdata(plat_dev);
 
-	ret = request_irq(sa1100_rtc->irq_1Hz, sa1100_rtc_interrupt,
-				IRQF_DISABLED, "rtc 1Hz", dev);
+	ret = request_irq(IRQ_RTC1Hz, sa1100_rtc_interrupt, IRQF_DISABLED,
+		"rtc 1Hz", dev);
 	if (ret) {
-		dev_err(dev, "IRQ %d already in use.\n", sa1100_rtc->irq_1Hz);
+		dev_err(dev, "IRQ %d already in use.\n", IRQ_RTC1Hz);
 		goto fail_ui;
 	}
-	ret = request_irq(sa1100_rtc->irq_Alrm, sa1100_rtc_interrupt,
-				IRQF_DISABLED, "rtc Alrm", dev);
+	ret = request_irq(IRQ_RTCAlrm, sa1100_rtc_interrupt, IRQF_DISABLED,
+		"rtc Alrm", dev);
 	if (ret) {
-		dev_err(dev, "IRQ %d already in use.\n", sa1100_rtc->irq_Alrm);
+		dev_err(dev, "IRQ %d already in use.\n", IRQ_RTCAlrm);
 		goto fail_ai;
 	}
-	sa1100_rtc->rtc->max_user_freq = RTC_FREQ;
-	rtc_irq_set_freq(sa1100_rtc->rtc, NULL, RTC_FREQ);
+	rtc->max_user_freq = RTC_FREQ;
+	rtc_irq_set_freq(rtc, NULL, RTC_FREQ);
 
 	return 0;
 
  fail_ai:
-	free_irq(sa1100_rtc->irq_1Hz, dev);
+	free_irq(IRQ_RTC1Hz, dev);
  fail_ui:
 	return ret;
 }
 
 static void sa1100_rtc_release(struct device *dev)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
+	spin_lock_irq(&sa1100_rtc_lock);
+	RTSR = 0;
+	spin_unlock_irq(&sa1100_rtc_lock);
 
-	spin_lock_irq(&sa1100_rtc->lock);
-	rtc_writel(sa1100_rtc, RTSR, 0);
-	spin_unlock_irq(&sa1100_rtc->lock);
-
-	free_irq(sa1100_rtc->irq_Alrm, dev);
-	free_irq(sa1100_rtc->irq_1Hz, dev);
+	free_irq(IRQ_RTCAlrm, dev);
+	free_irq(IRQ_RTC1Hz, dev);
 }
 
 static int sa1100_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
-	unsigned int rtsr;
-
-	spin_lock_irq(&sa1100_rtc->lock);
-
-	rtsr = rtc_readl(sa1100_rtc, RTSR);
+	spin_lock_irq(&sa1100_rtc_lock);
 	if (enabled)
-		rtsr |= RTSR_ALE;
+		RTSR |= RTSR_ALE;
 	else
-		rtsr &= ~RTSR_ALE;
-	rtc_writel(sa1100_rtc, RTSR, rtsr);
-
-	spin_unlock_irq(&sa1100_rtc->lock);
+		RTSR &= ~RTSR_ALE;
+	spin_unlock_irq(&sa1100_rtc_lock);
 	return 0;
 }
 
 static int sa1100_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
-
-	rtc_time_to_tm(rtc_readl(sa1100_rtc, RCNR), tm);
+	rtc_time_to_tm(RCNR, tm);
 	return 0;
 }
 
 static int sa1100_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
 	unsigned long time;
 	int ret;
 
 	ret = rtc_tm_to_time(tm, &time);
 	if (ret == 0)
-		rtc_writel(sa1100_rtc, RCNR, time);
+		RCNR = time;
 	return ret;
 }
 
 static int sa1100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
-	unsigned long time;
-	unsigned int rtsr;
+	u32	rtsr;
 
-	time = rtc_readl(sa1100_rtc, RCNR);
-	rtc_time_to_tm(time, &alrm->time);
-	rtsr = rtc_readl(sa1100_rtc, RTSR);
+	memcpy(&alrm->time, &rtc_alarm, sizeof(struct rtc_time));
+	rtsr = RTSR;
 	alrm->enabled = (rtsr & RTSR_ALE) ? 1 : 0;
 	alrm->pending = (rtsr & RTSR_AL) ? 1 : 0;
 	return 0;
@@ -233,39 +234,26 @@ static int sa1100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int sa1100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
-	struct rtc_time now_tm, alarm_tm;
-	unsigned long time, alarm;
-	unsigned int rtsr;
+	int ret;
 
-	spin_lock_irq(&sa1100_rtc->lock);
+	spin_lock_irq(&sa1100_rtc_lock);
+	ret = rtc_update_alarm(&alrm->time);
+	if (ret == 0) {
+		if (alrm->enabled)
+			RTSR |= RTSR_ALE;
+		else
+			RTSR &= ~RTSR_ALE;
+	}
+	spin_unlock_irq(&sa1100_rtc_lock);
 
-	time = rtc_readl(sa1100_rtc, RCNR);
-	rtc_time_to_tm(time, &now_tm);
-	rtc_next_alarm_time(&alarm_tm, &now_tm, &alrm->time);
-	rtc_tm_to_time(&alarm_tm, &alarm);
-	rtc_writel(sa1100_rtc, RTAR, alarm);
-
-	rtsr = rtc_readl(sa1100_rtc, RTSR);
-	if (alrm->enabled)
-		rtsr |= RTSR_ALE;
-	else
-		rtsr &= ~RTSR_ALE;
-	rtc_writel(sa1100_rtc, RTSR, rtsr);
-
-	spin_unlock_irq(&sa1100_rtc->lock);
-
-	return 0;
+	return ret;
 }
 
 static int sa1100_rtc_proc(struct device *dev, struct seq_file *seq)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
+	seq_printf(seq, "trim/divider\t\t: 0x%08x\n", (u32) RTTR);
+	seq_printf(seq, "RTSR\t\t\t: 0x%08x\n", (u32)RTSR);
 
-	seq_printf(seq, "trim/divider\t\t: 0x%08x\n",
-			rtc_readl(sa1100_rtc, RTTR));
-	seq_printf(seq, "RTSR\t\t\t: 0x%08x\n",
-			rtc_readl(sa1100_rtc, RTSR));
 	return 0;
 }
 
@@ -282,51 +270,7 @@ static const struct rtc_class_ops sa1100_rtc_ops = {
 
 static int sa1100_rtc_probe(struct platform_device *pdev)
 {
-	struct sa1100_rtc *sa1100_rtc;
-	unsigned int rttr;
-	int ret;
-
-	sa1100_rtc = kzalloc(sizeof(struct sa1100_rtc), GFP_KERNEL);
-	if (!sa1100_rtc)
-		return -ENOMEM;
-
-	spin_lock_init(&sa1100_rtc->lock);
-	platform_set_drvdata(pdev, sa1100_rtc);
-
-	ret = -ENXIO;
-	sa1100_rtc->ress = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!sa1100_rtc->ress) {
-		dev_err(&pdev->dev, "No I/O memory resource defined\n");
-		goto err_ress;
-	}
-
-	sa1100_rtc->irq_1Hz = platform_get_irq(pdev, 0);
-	if (sa1100_rtc->irq_1Hz < 0) {
-		dev_err(&pdev->dev, "No 1Hz IRQ resource defined\n");
-		goto err_ress;
-	}
-	sa1100_rtc->irq_Alrm = platform_get_irq(pdev, 1);
-	if (sa1100_rtc->irq_Alrm < 0) {
-		dev_err(&pdev->dev, "No alarm IRQ resource defined\n");
-		goto err_ress;
-	}
-
-	ret = -ENOMEM;
-	sa1100_rtc->base = ioremap(sa1100_rtc->ress->start,
-				resource_size(sa1100_rtc->ress));
-	if (!sa1100_rtc->base) {
-		dev_err(&pdev->dev, "Unable to map pxa RTC I/O memory\n");
-		goto err_map;
-	}
-
-	sa1100_rtc->clk = clk_get(&pdev->dev, NULL);
-	if (IS_ERR(sa1100_rtc->clk)) {
-		dev_err(&pdev->dev, "failed to find rtc clock source\n");
-		ret = PTR_ERR(sa1100_rtc->clk);
-		goto err_clk;
-	}
-	clk_prepare(sa1100_rtc->clk);
-	clk_enable(sa1100_rtc->clk);
+	struct rtc_device *rtc;
 
 	/*
 	 * According to the manual we should be able to let RTTR be zero
@@ -335,24 +279,24 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	 * If the clock divider is uninitialized then reset it to the
 	 * default value to get the 1Hz clock.
 	 */
-	if (rtc_readl(sa1100_rtc, RTTR) == 0) {
-		rttr = RTC_DEF_DIVIDER + (RTC_DEF_TRIM << 16);
-		rtc_writel(sa1100_rtc, RTTR, rttr);
-		dev_warn(&pdev->dev, "warning: initializing default clock"
-			 " divider/trim value\n");
+	if (RTTR == 0) {
+		RTTR = RTC_DEF_DIVIDER + (RTC_DEF_TRIM << 16);
+		dev_warn(&pdev->dev, "warning: "
+			"initializing default clock divider/trim value\n");
 		/* The current RTC value probably doesn't make sense either */
-		rtc_writel(sa1100_rtc, RCNR, 0);
+		RCNR = 0;
 	}
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	sa1100_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
-						&sa1100_rtc_ops, THIS_MODULE);
-	if (IS_ERR(sa1100_rtc->rtc)) {
-		dev_err(&pdev->dev, "Failed to register RTC device -> %d\n",
-			ret);
-		goto err_rtc_reg;
-	}
+	rtc = rtc_device_register(pdev->name, &pdev->dev, &sa1100_rtc_ops,
+		THIS_MODULE);
+
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+
+	platform_set_drvdata(pdev, rtc);
+
 	/* Fix for a nasty initialization problem the in SA11xx RTSR register.
 	 * See also the comments in sa1100_rtc_interrupt().
 	 *
@@ -375,46 +319,33 @@ static int sa1100_rtc_probe(struct platform_device *pdev)
 	 *
 	 * Notice that clearing bit 1 and 0 is accomplished by writting ONES to
 	 * the corresponding bits in RTSR. */
-	rtc_writel(sa1100_rtc, RTSR, (RTSR_AL | RTSR_HZ));
+	RTSR = RTSR_AL | RTSR_HZ;
 
 	return 0;
-
-err_rtc_reg:
-err_clk:
-	iounmap(sa1100_rtc->base);
-err_ress:
-err_map:
-	kfree(sa1100_rtc);
-	return ret;
 }
 
 static int sa1100_rtc_remove(struct platform_device *pdev)
 {
-	struct sa1100_rtc *sa1100_rtc = platform_get_drvdata(pdev);
+	struct rtc_device *rtc = platform_get_drvdata(pdev);
 
-	rtc_device_unregister(sa1100_rtc->rtc);
-	clk_disable(sa1100_rtc->clk);
-	clk_unprepare(sa1100_rtc->clk);
-	iounmap(sa1100_rtc->base);
+	if (rtc)
+		rtc_device_unregister(rtc);
+
 	return 0;
 }
 
 #ifdef CONFIG_PM
 static int sa1100_rtc_suspend(struct device *dev)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
-
 	if (device_may_wakeup(dev))
-		enable_irq_wake(sa1100_rtc->irq_Alrm);
+		enable_irq_wake(IRQ_RTCAlrm);
 	return 0;
 }
 
 static int sa1100_rtc_resume(struct device *dev)
 {
-	struct sa1100_rtc *sa1100_rtc = dev_get_drvdata(dev);
-
 	if (device_may_wakeup(dev))
-		disable_irq_wake(sa1100_rtc->irq_Alrm);
+		disable_irq_wake(IRQ_RTCAlrm);
 	return 0;
 }
 

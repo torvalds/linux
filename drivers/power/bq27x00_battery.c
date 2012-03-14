@@ -62,11 +62,10 @@
 
 #define BQ27500_REG_SOC			0x2C
 #define BQ27500_REG_DCAP		0x3C /* Design capacity */
-#define BQ27500_FLAG_DSG		BIT(0) /* Discharging */
+#define BQ27500_FLAG_DSC		BIT(0)
 #define BQ27500_FLAG_SOCF		BIT(1) /* State-of-Charge threshold final */
 #define BQ27500_FLAG_SOC1		BIT(2) /* State-of-Charge threshold 1 */
-#define BQ27500_FLAG_CHG		BIT(8) /* Charging */
-#define BQ27500_FLAG_FC			BIT(9) /* Fully charged */
+#define BQ27500_FLAG_FC			BIT(9)
 
 #define BQ27000_RS			20 /* Resistor sense */
 
@@ -312,7 +311,7 @@ static void bq27x00_update(struct bq27x00_device_info *di)
 	struct bq27x00_reg_cache cache = {0, };
 	bool is_bq27500 = di->chip == BQ27500;
 
-	cache.flags = bq27x00_read(di, BQ27x00_REG_FLAGS, is_bq27500);
+	cache.flags = bq27x00_read(di, BQ27x00_REG_FLAGS, !is_bq27500);
 	if (cache.flags >= 0) {
 		if (!is_bq27500 && (cache.flags & BQ27000_FLAG_CI)) {
 			dev_info(di->dev, "battery is not calibrated! ignoring capacity values\n");
@@ -401,14 +400,10 @@ static int bq27x00_battery_status(struct bq27x00_device_info *di,
 	if (di->chip == BQ27500) {
 		if (di->cache.flags & BQ27500_FLAG_FC)
 			status = POWER_SUPPLY_STATUS_FULL;
-		else if (di->cache.flags & BQ27500_FLAG_DSG)
+		else if (di->cache.flags & BQ27500_FLAG_DSC)
 			status = POWER_SUPPLY_STATUS_DISCHARGING;
-		else if (di->cache.flags & BQ27500_FLAG_CHG)
-			status = POWER_SUPPLY_STATUS_CHARGING;
-		else if (power_supply_am_i_supplied(&di->bat))
-			status = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		else
-			status = POWER_SUPPLY_STATUS_UNKNOWN;
+			status = POWER_SUPPLY_STATUS_CHARGING;
 	} else {
 		if (di->cache.flags & BQ27000_FLAG_FC)
 			status = POWER_SUPPLY_STATUS_FULL;

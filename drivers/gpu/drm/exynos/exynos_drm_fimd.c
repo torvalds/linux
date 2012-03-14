@@ -89,7 +89,7 @@ struct fimd_context {
 	bool				suspended;
 	struct mutex			lock;
 
-	struct fb_videomode		*timing;
+	struct exynos_drm_panel_info *panel;
 };
 
 static bool fimd_display_is_connected(struct device *dev)
@@ -101,13 +101,13 @@ static bool fimd_display_is_connected(struct device *dev)
 	return true;
 }
 
-static void *fimd_get_timing(struct device *dev)
+static void *fimd_get_panel(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	return ctx->timing;
+	return ctx->panel;
 }
 
 static int fimd_check_timing(struct device *dev, void *timing)
@@ -131,7 +131,7 @@ static int fimd_display_power_on(struct device *dev, int mode)
 static struct exynos_drm_display_ops fimd_display_ops = {
 	.type = EXYNOS_DISPLAY_TYPE_LCD,
 	.is_connected = fimd_display_is_connected,
-	.get_timing = fimd_get_timing,
+	.get_panel = fimd_get_panel,
 	.check_timing = fimd_check_timing,
 	.power_on = fimd_display_power_on,
 };
@@ -158,7 +158,8 @@ static void fimd_dpms(struct device *subdrv_dev, int mode)
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		pm_runtime_put_sync(subdrv_dev);
+		if (!ctx->suspended)
+			pm_runtime_put_sync(subdrv_dev);
 		break;
 	default:
 		DRM_DEBUG_KMS("unspecified mode %d\n", mode);
@@ -192,7 +193,8 @@ static void fimd_apply(struct device *subdrv_dev)
 static void fimd_commit(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
-	struct fb_videomode *timing = ctx->timing;
+	struct exynos_drm_panel_info *panel = ctx->panel;
+	struct fb_videomode *timing = &panel->timing;
 	u32 val;
 
 	if (ctx->suspended)
@@ -603,7 +605,12 @@ static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 	}
 
 	if (is_checked) {
-		drm_vblank_put(drm_dev, crtc);
+		/*
+		 * call drm_vblank_put only in case that drm_vblank_get was
+		 * called.
+		 */
+		if (atomic_read(&drm_dev->vblank_refcount[crtc]) > 0)
+			drm_vblank_put(drm_dev, crtc);
 
 		/*
 		 * don't off vblank if vblank_disable_allowed is 1,
@@ -734,13 +741,53 @@ static void fimd_clear_win(struct fimd_context *ctx, int win)
 	writel(val, ctx->regs + SHADOWCON);
 }
 
+static int fimd_power_on(struct fimd_context *ctx, bool enable)
+{
+	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
+	struct device *dev = subdrv->manager.dev;
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (enable != false && enable != true)
+		return -EINVAL;
+
+	if (enable) {
+		int ret;
+
+		ret = clk_enable(ctx->bus_clk);
+		if (ret < 0)
+			return ret;
+
+		ret = clk_enable(ctx->lcd_clk);
+		if  (ret < 0) {
+			clk_disable(ctx->bus_clk);
+			return ret;
+		}
+
+		ctx->suspended = false;
+
+		/* if vblank was enabled status, enable it again. */
+		if (test_and_clear_bit(0, &ctx->irq_flags))
+			fimd_enable_vblank(dev);
+
+		fimd_apply(dev);
+	} else {
+		clk_disable(ctx->lcd_clk);
+		clk_disable(ctx->bus_clk);
+
+		ctx->suspended = true;
+	}
+
+	return 0;
+}
+
 static int __devinit fimd_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct fimd_context *ctx;
 	struct exynos_drm_subdrv *subdrv;
 	struct exynos_drm_fimd_pdata *pdata;
-	struct fb_videomode *timing;
+	struct exynos_drm_panel_info *panel;
 	struct resource *res;
 	int win;
 	int ret = -EINVAL;
@@ -753,9 +800,9 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	timing = &pdata->timing;
-	if (!timing) {
-		dev_err(dev, "timing is null.\n");
+	panel = &pdata->panel;
+	if (!panel) {
+		dev_err(dev, "panel is null.\n");
 		return -EINVAL;
 	}
 
@@ -817,16 +864,16 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
-	ctx->clkdiv = fimd_calc_clkdiv(ctx, timing);
+	ctx->clkdiv = fimd_calc_clkdiv(ctx, &panel->timing);
 	ctx->vidcon0 = pdata->vidcon0;
 	ctx->vidcon1 = pdata->vidcon1;
 	ctx->default_win = pdata->default_win;
-	ctx->timing = timing;
+	ctx->panel = panel;
 
-	timing->pixclock = clk_get_rate(ctx->lcd_clk) / ctx->clkdiv;
+	panel->timing.pixclock = clk_get_rate(ctx->lcd_clk) / ctx->clkdiv;
 
 	DRM_DEBUG_KMS("pixel clock = %d, clkdiv = %d\n",
-			timing->pixclock, ctx->clkdiv);
+			panel->timing.pixclock, ctx->clkdiv);
 
 	subdrv = &ctx->subdrv;
 
@@ -911,39 +958,30 @@ out:
 #ifdef CONFIG_PM_SLEEP
 static int fimd_suspend(struct device *dev)
 {
-	int ret;
+	struct fimd_context *ctx = get_fimd_context(dev);
 
 	if (pm_runtime_suspended(dev))
 		return 0;
 
-	ret = pm_runtime_suspend(dev);
-	if (ret < 0)
-		return ret;
-
-	return 0;
+	/*
+	 * do not use pm_runtime_suspend(). if pm_runtime_suspend() is
+	 * called here, an error would be returned by that interface
+	 * because the usage_count of pm runtime is more than 1.
+	 */
+	return fimd_power_on(ctx, false);
 }
 
 static int fimd_resume(struct device *dev)
 {
-	int ret;
+	struct fimd_context *ctx = get_fimd_context(dev);
 
-	ret = pm_runtime_resume(dev);
-	if (ret < 0) {
-		DRM_ERROR("failed to resume runtime pm.\n");
-		return ret;
-	}
-
-	pm_runtime_disable(dev);
-
-	ret = pm_runtime_set_active(dev);
-	if (ret < 0) {
-		DRM_ERROR("failed to active runtime pm.\n");
-		pm_runtime_enable(dev);
-		pm_runtime_suspend(dev);
-		return ret;
-	}
-
-	pm_runtime_enable(dev);
+	/*
+	 * if entered to sleep when lcd panel was on, the usage_count
+	 * of pm runtime would still be 1 so in this case, fimd driver
+	 * should be on directly not drawing on pm runtime interface.
+	 */
+	if (!pm_runtime_suspended(dev))
+		return fimd_power_on(ctx, true);
 
 	return 0;
 }
@@ -956,39 +994,16 @@ static int fimd_runtime_suspend(struct device *dev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	clk_disable(ctx->lcd_clk);
-	clk_disable(ctx->bus_clk);
-
-	ctx->suspended = true;
-	return 0;
+	return fimd_power_on(ctx, false);
 }
 
 static int fimd_runtime_resume(struct device *dev)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
-	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	ret = clk_enable(ctx->bus_clk);
-	if (ret < 0)
-		return ret;
-
-	ret = clk_enable(ctx->lcd_clk);
-	if  (ret < 0) {
-		clk_disable(ctx->bus_clk);
-		return ret;
-	}
-
-	ctx->suspended = false;
-
-	/* if vblank was enabled status, enable it again. */
-	if (test_and_clear_bit(0, &ctx->irq_flags))
-		fimd_enable_vblank(dev);
-
-	fimd_apply(dev);
-
-	return 0;
+	return fimd_power_on(ctx, true);
 }
 #endif
 

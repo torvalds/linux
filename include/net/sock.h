@@ -55,6 +55,7 @@
 #include <linux/uaccess.h>
 #include <linux/memcontrol.h>
 #include <linux/res_counter.h>
+#include <linux/jump_label.h>
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>

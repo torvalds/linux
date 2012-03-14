@@ -180,6 +180,25 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniAddac, ar5416Addac,
 			       ARRAY_SIZE(ar5416Addac), 2);
 	}
+
+	/* iniAddac needs to be modified for these chips */
+	if (AR_SREV_9160(ah) || !AR_SREV_5416_22_OR_LATER(ah)) {
+		struct ar5416IniArray *addac = &ah->iniAddac;
+		u32 size = sizeof(u32) * addac->ia_rows * addac->ia_columns;
+		u32 *data;
+
+		data = kmalloc(size, GFP_KERNEL);
+		if (!data)
+			return;
+
+		memcpy(data, addac->ia_array, size);
+		addac->ia_array = data;
+
+		if (!AR_SREV_5416_22_OR_LATER(ah)) {
+			/* override CLKDRV value */
+			INI_RA(addac, 31,1) = 0;
+		}
+	}
 }
 
 /* Support for Japan ch.14 (2484) spread */

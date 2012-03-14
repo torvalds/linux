@@ -1081,17 +1081,17 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 	       estats->rx_stat_ifhcinbadoctets_lo);
 
 	ADD_64(fstats->total_bytes_received_hi,
-	       tfunc->rcv_error_bytes.hi,
+	       le32_to_cpu(tfunc->rcv_error_bytes.hi),
 	       fstats->total_bytes_received_lo,
-	       tfunc->rcv_error_bytes.lo);
+	       le32_to_cpu(tfunc->rcv_error_bytes.lo));
 
 	memcpy(estats, &(fstats->total_bytes_received_hi),
 	       sizeof(struct host_func_stats) - 2*sizeof(u32));
 
 	ADD_64(estats->error_bytes_received_hi,
-	       tfunc->rcv_error_bytes.hi,
+	       le32_to_cpu(tfunc->rcv_error_bytes.hi),
 	       estats->error_bytes_received_lo,
-	       tfunc->rcv_error_bytes.lo);
+	       le32_to_cpu(tfunc->rcv_error_bytes.lo));
 
 	ADD_64(estats->etherstatsoverrsizepkts_hi,
 	       estats->rx_stat_dot3statsframestoolong_hi,

@@ -9,15 +9,10 @@ if [ "$C" = "1" -o "$C" = "2" ]; then
 #    FLAGS="-ignore_unknown_options -very_quiet"
 #    OPTIONS=$*
 
-    if [ "$KBUILD_EXTMOD" = "" ] ; then
-        # Workaround for Coccinelle < 0.2.3
-        FLAGS="-I $srctree/include -very_quiet"
-        shift $(( $# - 1 ))
-        OPTIONS=$1
-    else
-	echo M= is not currently supported when C=1 or C=2
-	exit 1
-    fi
+# Workaround for Coccinelle < 0.2.3
+	FLAGS="-I $srctree/include -very_quiet"
+	shift $(( $# - 1 ))
+	OPTIONS=$1
 else
     ONLINE=0
     FLAGS="-very_quiet"

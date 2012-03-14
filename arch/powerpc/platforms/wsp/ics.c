@@ -346,7 +346,7 @@ static int wsp_chip_set_affinity(struct irq_data *d,
 	 * For the moment only implement delivery to all cpus or one cpu.
 	 * Get current irq_server for the given irq
 	 */
-	ret = cache_hwirq_map(ics, d->irq, cpumask);
+	ret = cache_hwirq_map(ics, hw_irq, cpumask);
 	if (ret == -1) {
 		char cpulist[128];
 		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);

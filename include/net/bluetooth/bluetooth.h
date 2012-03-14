@@ -256,4 +256,6 @@ void l2cap_exit(void);
 int sco_init(void);
 void sco_exit(void);
 
+void bt_sock_reclassify_lock(struct sock *sk, int proto);
+
 #endif /* __BLUETOOTH_H */

@@ -17,9 +17,9 @@
 #include "br_private_stp.h"
 
 /* since time values in bpdu are in jiffies and then scaled (1/256)
- * before sending, make sure that is at least one.
+ * before sending, make sure that is at least one STP tick.
  */
-#define MESSAGE_AGE_INCR	((HZ < 256) ? 1 : (HZ/256))
+#define MESSAGE_AGE_INCR	((HZ / 256) + 1)
 
 static const char *const br_port_state_names[] = {
 	[BR_STATE_DISABLED] = "disabled",
@@ -31,7 +31,7 @@ static const char *const br_port_state_names[] = {
 
 void br_log_state(const struct net_bridge_port *p)
 {
-	br_info(p->br, "port %u(%s) entering %s state\n",
+	br_info(p->br, "port %u(%s) entered %s state\n",
 		(unsigned) p->port_no, p->dev->name,
 		br_port_state_names[p->state]);
 }
@@ -186,7 +186,7 @@ static void br_record_config_information(struct net_bridge_port *p,
 	p->designated_cost = bpdu->root_path_cost;
 	p->designated_bridge = bpdu->bridge_id;
 	p->designated_port = bpdu->port_id;
-	p->designated_age = jiffies + bpdu->message_age;
+	p->designated_age = jiffies - bpdu->message_age;
 
 	mod_timer(&p->message_age_timer, jiffies
 		  + (p->br->max_age - bpdu->message_age));

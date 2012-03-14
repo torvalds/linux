@@ -23,7 +23,6 @@
 #include <asm/machdep.h>
 #endif /* CONFIG_PPC */
 
-#include <asm/setup.h>
 #include <asm/page.h>
 
 char *of_fdt_get_string(struct boot_param_header *blob, u32 offset)

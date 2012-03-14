@@ -296,8 +296,10 @@ static void enable_board_wakeup_source(void)
 
 void __init zoom_peripherals_init(void)
 {
-	if (wl12xx_set_platform_data(&omap_zoom_wlan_data))
-		pr_err("error setting wl12xx data\n");
+	int ret = wl12xx_set_platform_data(&omap_zoom_wlan_data);
+
+	if (ret)
+		pr_err("error setting wl12xx data: %d\n", ret);
 
 	omap_i2c_init();
 	platform_device_register(&omap_vwlan_device);

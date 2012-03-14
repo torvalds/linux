@@ -260,8 +260,8 @@ static int da9052_set_ldo5_6_voltage(struct regulator_dev *rdev,
 	 * the LDO activate bit to implment the changes on the
 	 * LDO output.
 	*/
-	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG, 0,
-				 info->activate_bit);
+	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG,
+				 info->activate_bit, info->activate_bit);
 }
 
 static int da9052_set_dcdc_voltage(struct regulator_dev *rdev,
@@ -280,8 +280,8 @@ static int da9052_set_dcdc_voltage(struct regulator_dev *rdev,
 	 * the DCDC activate bit to implment the changes on the
 	 * DCDC output.
 	*/
-	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG, 0,
-				 info->activate_bit);
+	return da9052_reg_update(regulator->da9052, DA9052_SUPPLY_REG,
+				 info->activate_bit, info->activate_bit);
 }
 
 static int da9052_get_regulator_voltage_sel(struct regulator_dev *rdev)

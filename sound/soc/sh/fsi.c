@@ -1152,12 +1152,8 @@ static snd_pcm_uframes_t fsi_pointer(struct snd_pcm_substream *substream)
 {
 	struct fsi_priv *fsi = fsi_get_priv(substream);
 	struct fsi_stream *io = fsi_get_stream(fsi, fsi_is_play(substream));
-	int samples_pos = io->buff_sample_pos - 1;
 
-	if (samples_pos < 0)
-		samples_pos = 0;
-
-	return fsi_sample2frame(fsi, samples_pos);
+	return fsi_sample2frame(fsi, io->buff_sample_pos);
 }
 
 static struct snd_pcm_ops fsi_pcm_ops = {

@@ -445,7 +445,6 @@ void migrate_page_copy(struct page *newpage, struct page *page)
 	ClearPageSwapCache(page);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
-	page->mapping = NULL;
 
 	/*
 	 * If any waiters have accumulated on the new page then
@@ -667,6 +666,7 @@ static int move_to_new_page(struct page *newpage, struct page *page,
 	} else {
 		if (remap_swapcache)
 			remove_migration_ptes(page, newpage);
+		page->mapping = NULL;
 	}
 
 	unlock_page(newpage);
@@ -838,8 +838,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 
 	if (!newpage)
 		return -ENOMEM;
-
-	mem_cgroup_reset_owner(newpage);
 
 	if (page_count(page) == 1) {
 		/* page was freed from under us. So we are done. */
