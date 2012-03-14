@@ -559,8 +559,12 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	length = trb->size & DWC3_TRB_SIZE_MASK;
 
 	if (dwc->ep0_bounced) {
+		unsigned transfer_size = ur->length;
+		unsigned maxp = ep0->endpoint.maxpacket;
+
+		transfer_size += (maxp - (transfer_size % maxp));
 		transferred = min_t(u32, ur->length,
-				ep0->endpoint.maxpacket - length);
+				transfer_size - length);
 		memcpy(ur->buf, dwc->ep0_bounce, transferred);
 		dwc->ep0_bounced = false;
 	} else {
