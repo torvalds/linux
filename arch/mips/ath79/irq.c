@@ -1,10 +1,11 @@
 /*
  *  Atheros AR71xx/AR724x/AR913x specific interrupt handling
  *
+ *  Copyright (C) 2010-2011 Jaiganesh Narayanan <jnarayanan@atheros.com>
  *  Copyright (C) 2008-2011 Gabor Juhos <juhosg@openwrt.org>
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
- *  Parts of this file are based on Atheros' 2.6.15 BSP
+ *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms of the GNU General Public License version 2 as published
@@ -129,7 +130,7 @@ static void __init ath79_misc_irq_init(void)
 
 	if (soc_is_ar71xx() || soc_is_ar913x())
 		ath79_misc_irq_chip.irq_mask_ack = ar71xx_misc_irq_mask;
-	else if (soc_is_ar724x() || soc_is_ar933x())
+	else if (soc_is_ar724x() || soc_is_ar933x() || soc_is_ar934x())
 		ath79_misc_irq_chip.irq_ack = ar724x_misc_irq_ack;
 	else
 		BUG();
@@ -141,6 +142,39 @@ static void __init ath79_misc_irq_init(void)
 	}
 
 	irq_set_chained_handler(ATH79_CPU_IRQ_MISC, ath79_misc_irq_handler);
+}
+
+static void ar934x_ip2_irq_dispatch(unsigned int irq, struct irq_desc *desc)
+{
+	u32 status;
+
+	disable_irq_nosync(irq);
+
+	status = ath79_reset_rr(AR934X_RESET_REG_PCIE_WMAC_INT_STATUS);
+
+	if (status & AR934X_PCIE_WMAC_INT_PCIE_ALL) {
+		ath79_ddr_wb_flush(AR934X_DDR_REG_FLUSH_PCIE);
+		generic_handle_irq(ATH79_IP2_IRQ(0));
+	} else if (status & AR934X_PCIE_WMAC_INT_WMAC_ALL) {
+		ath79_ddr_wb_flush(AR934X_DDR_REG_FLUSH_WMAC);
+		generic_handle_irq(ATH79_IP2_IRQ(1));
+	} else {
+		spurious_interrupt();
+	}
+
+	enable_irq(irq);
+}
+
+static void ar934x_ip2_irq_init(void)
+{
+	int i;
+
+	for (i = ATH79_IP2_IRQ_BASE;
+	     i < ATH79_IP2_IRQ_BASE + ATH79_IP2_IRQ_COUNT; i++)
+		irq_set_chip_and_handler(i, &dummy_irq_chip,
+					 handle_level_irq);
+
+	irq_set_chained_handler(ATH79_CPU_IRQ_IP2, ar934x_ip2_irq_dispatch);
 }
 
 asmlinkage void plat_irq_dispatch(void)
@@ -202,6 +236,11 @@ static void ar933x_ip2_handler(void)
 	do_IRQ(ATH79_CPU_IRQ_IP2);
 }
 
+static void ar934x_ip2_handler(void)
+{
+	do_IRQ(ATH79_CPU_IRQ_IP2);
+}
+
 static void ar71xx_ip3_handler(void)
 {
 	ath79_ddr_wb_flush(AR71XX_DDR_REG_FLUSH_USB);
@@ -226,6 +265,12 @@ static void ar933x_ip3_handler(void)
 	do_IRQ(ATH79_CPU_IRQ_USB);
 }
 
+static void ar934x_ip3_handler(void)
+{
+	ath79_ddr_wb_flush(AR934X_DDR_REG_FLUSH_USB);
+	do_IRQ(ATH79_CPU_IRQ_USB);
+}
+
 void __init arch_init_irq(void)
 {
 	if (soc_is_ar71xx()) {
@@ -240,6 +285,9 @@ void __init arch_init_irq(void)
 	} else if (soc_is_ar933x()) {
 		ath79_ip2_handler = ar933x_ip2_handler;
 		ath79_ip3_handler = ar933x_ip3_handler;
+	} else if (soc_is_ar934x()) {
+		ath79_ip2_handler = ar934x_ip2_handler;
+		ath79_ip3_handler = ar934x_ip3_handler;
 	} else {
 		BUG();
 	}
@@ -247,4 +295,7 @@ void __init arch_init_irq(void)
 	cp0_perfcount_irq = ATH79_MISC_IRQ_PERFC;
 	mips_cpu_irq_init();
 	ath79_misc_irq_init();
+
+	if (soc_is_ar934x())
+		ar934x_ip2_irq_init();
 }
