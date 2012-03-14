@@ -14,6 +14,7 @@
 #include <asm/mach-ath79/pci.h>
 #include "pci.h"
 
+static int (*ath79_pci_plat_dev_init)(struct pci_dev *dev);
 static struct ar724x_pci_data *pci_data;
 static int pci_data_size;
 
@@ -38,14 +39,15 @@ int __init pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
 
 int pcibios_plat_dev_init(struct pci_dev *dev)
 {
-	unsigned int devfn = dev->devfn;
+	if (ath79_pci_plat_dev_init)
+		return ath79_pci_plat_dev_init(dev);
 
-	if (devfn > pci_data_size - 1)
-		return PCIBIOS_DEVICE_NOT_FOUND;
+	return 0;
+}
 
-	dev->dev.platform_data = pci_data[devfn].pdata;
-
-	return PCIBIOS_SUCCESSFUL;
+void __init ath79_pci_set_plat_dev_init(int (*func)(struct pci_dev *dev))
+{
+	ath79_pci_plat_dev_init = func;
 }
 
 int __init ath79_register_pci(void)

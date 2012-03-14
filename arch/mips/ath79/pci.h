@@ -13,14 +13,16 @@
 
 struct ar724x_pci_data {
 	int irq;
-	void *pdata;
 };
 
 void ar724x_pci_add_data(struct ar724x_pci_data *data, int size);
 
 #ifdef CONFIG_PCI
+void ath79_pci_set_plat_dev_init(int (*func)(struct pci_dev *dev));
 int ath79_register_pci(void);
 #else
+static inline void
+ath79_pci_set_plat_dev_init(int (*func)(struct pci_dev *)) {}
 static inline int ath79_register_pci(void) { return 0; }
 #endif
 
