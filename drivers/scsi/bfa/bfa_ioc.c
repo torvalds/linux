@@ -4449,7 +4449,7 @@ bfa_flash_read_part(struct bfa_flash_s *flash, enum bfa_flash_part_type type,
  */
 
 #define BFA_DIAG_MEMTEST_TOV	50000	/* memtest timeout in msec */
-#define BFA_DIAG_FWPING_TOV	1000	/* msec */
+#define CT2_BFA_DIAG_MEMTEST_TOV	(9*30*1000)  /* 4.5 min */
 
 /* IOC event handler */
 static void
@@ -4804,6 +4804,8 @@ bfa_diag_memtest(struct bfa_diag_s *diag, struct bfa_diag_memtest_s *memtest,
 		u32 pattern, struct bfa_diag_memtest_result *result,
 		bfa_cb_diag_t cbfn, void *cbarg)
 {
+	u32	memtest_tov;
+
 	bfa_trc(diag, pattern);
 
 	if (!bfa_ioc_adapter_is_disabled(diag->ioc))
@@ -4823,8 +4825,10 @@ bfa_diag_memtest(struct bfa_diag_s *diag, struct bfa_diag_memtest_s *memtest,
 	/* download memtest code and take LPU0 out of reset */
 	bfa_ioc_boot(diag->ioc, BFI_FWBOOT_TYPE_MEMTEST, BFI_FWBOOT_ENV_OS);
 
+	memtest_tov = (bfa_ioc_asic_gen(diag->ioc) == BFI_ASIC_GEN_CT2) ?
+		       CT2_BFA_DIAG_MEMTEST_TOV : BFA_DIAG_MEMTEST_TOV;
 	bfa_timer_begin(diag->ioc->timer_mod, &diag->timer,
-			bfa_diag_memtest_done, diag, BFA_DIAG_MEMTEST_TOV);
+			bfa_diag_memtest_done, diag, memtest_tov);
 	diag->timer_active = 1;
 	return BFA_STATUS_OK;
 }

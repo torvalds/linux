@@ -2762,8 +2762,15 @@ bfad_im_bsg_vendor_request(struct fc_bsg_job *job)
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) job->shost->hostdata[0];
 	struct bfad_s *bfad = im_port->bfad;
+	struct request_queue *request_q = job->req->q;
 	void *payload_kbuf;
 	int rc = -EINVAL;
+
+	/*
+	 * Set the BSG device request_queue size to 256 to support
+	 * payloads larger than 512*1024K bytes.
+	 */
+	blk_queue_max_segments(request_q, 256);
 
 	/* Allocate a temp buffer to hold the passed in user space command */
 	payload_kbuf = kzalloc(job->request_payload.payload_len, GFP_KERNEL);
