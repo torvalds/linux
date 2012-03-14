@@ -2942,7 +2942,7 @@ static int transport_generic_cmd_sequencer(
 
 			pr_err("Unsupported SA: 0x%02x\n",
 				cmd->t_task_cdb[1] & 0x1f);
-			goto out_unsupported_cdb;
+			goto out_invalid_cdb_field;
 		}
 		/*FALLTHROUGH*/
 	case ACCESS_CONTROL_IN:
