@@ -407,6 +407,61 @@ static int iwlagn_rxon_disconn(struct iwl_priv *priv,
 	return 0;
 }
 
+static int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
+{
+	int ret;
+	s8 prev_tx_power;
+	bool defer;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+
+	lockdep_assert_held(&priv->mutex);
+
+	if (priv->tx_power_user_lmt == tx_power && !force)
+		return 0;
+
+	if (tx_power < IWLAGN_TX_POWER_TARGET_POWER_MIN) {
+		IWL_WARN(priv,
+			 "Requested user TXPOWER %d below lower limit %d.\n",
+			 tx_power,
+			 IWLAGN_TX_POWER_TARGET_POWER_MIN);
+		return -EINVAL;
+	}
+
+	if (tx_power > priv->tx_power_device_lmt) {
+		IWL_WARN(priv,
+			"Requested user TXPOWER %d above upper limit %d.\n",
+			 tx_power, priv->tx_power_device_lmt);
+		return -EINVAL;
+	}
+
+	if (!iwl_is_ready_rf(priv))
+		return -EIO;
+
+	/* scan complete and commit_rxon use tx_power_next value,
+	 * it always need to be updated for newest request */
+	priv->tx_power_next = tx_power;
+
+	/* do not set tx power when scanning or channel changing */
+	defer = test_bit(STATUS_SCANNING, &priv->status) ||
+		memcmp(&ctx->active, &ctx->staging, sizeof(ctx->staging));
+	if (defer && !force) {
+		IWL_DEBUG_INFO(priv, "Deferring tx power set\n");
+		return 0;
+	}
+
+	prev_tx_power = priv->tx_power_user_lmt;
+	priv->tx_power_user_lmt = tx_power;
+
+	ret = iwlagn_send_tx_power(priv);
+
+	/* if fail to set tx_power, restore the orig. tx power */
+	if (ret) {
+		priv->tx_power_user_lmt = prev_tx_power;
+		priv->tx_power_next = prev_tx_power;
+	}
+	return ret;
+}
+
 static int iwlagn_rxon_connect(struct iwl_priv *priv,
 			       struct iwl_rxon_context *ctx)
 {
