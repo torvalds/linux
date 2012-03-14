@@ -691,6 +691,9 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	if (AR_SREV_9462(ah))
 		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
 
+	if (chan->channel == 2484)
+		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);
+
 	ah->modes_index = modesIndex;
 	ar9003_hw_override_ini(ah);
 	ar9003_hw_set_channel_regs(ah, chan);
