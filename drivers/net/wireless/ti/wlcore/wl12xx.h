@@ -279,6 +279,26 @@ struct wl1271_link {
 	u8 ba_bitmap;
 };
 
+#define WL1271_RX_FILTER_MAX_FIELDS 8
+enum rx_filter_action {
+	FILTER_DROP = 0,
+	FILTER_SIGNAL = 1,
+	FILTER_FW_HANDLE = 2
+};
+
+struct wl12xx_rx_filter_field {
+	__le16 offset;
+	u8 len;
+	u8 flags;
+	u8 *pattern;
+} __packed;
+
+struct wl12xx_rx_filter {
+	u8 action;
+	int num_fields;
+	struct wl12xx_rx_filter_field fields[WL1271_RX_FILTER_MAX_FIELDS];
+};
+
 struct wl1271_station {
 	u8 hlid;
 };
@@ -439,6 +459,14 @@ int wl1271_plt_stop(struct wl1271 *wl);
 int wl1271_recalc_rx_streaming(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 void wl12xx_queue_recovery_work(struct wl1271 *wl);
 size_t wl12xx_copy_fwlog(struct wl1271 *wl, u8 *memblock, size_t maxlen);
+int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
+					u16 offset, u8 flags,
+					u8 *pattern, u8 len);
+void wl1271_rx_filter_free(struct wl12xx_rx_filter *filter);
+struct wl12xx_rx_filter *wl1271_rx_filter_alloc(void);
+int wl1271_rx_filter_get_fields_size(struct wl12xx_rx_filter *filter);
+void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
+				     u8 *buf);
 
 #define JOIN_TIMEOUT 5000 /* 5000 milliseconds to join */
 

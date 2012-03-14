@@ -1261,6 +1261,84 @@ static struct sk_buff *wl12xx_alloc_dummy_packet(struct wl1271 *wl)
 
 
 #ifdef CONFIG_PM
+struct wl12xx_rx_filter *wl1271_rx_filter_alloc(void)
+{
+	return kzalloc(sizeof(struct wl12xx_rx_filter), GFP_KERNEL);
+}
+
+void wl1271_rx_filter_free(struct wl12xx_rx_filter *filter)
+{
+	int i;
+
+	if (filter == NULL)
+		return;
+
+	for (i = 0; i < filter->num_fields; i++)
+		kfree(filter->fields[i].pattern);
+
+	kfree(filter);
+}
+
+int wl1271_rx_filter_alloc_field(struct wl12xx_rx_filter *filter,
+				 u16 offset, u8 flags,
+				 u8 *pattern, u8 len)
+{
+	struct wl12xx_rx_filter_field *field;
+
+	if (filter->num_fields == WL1271_RX_FILTER_MAX_FIELDS) {
+		wl1271_warning("Max fields per RX filter. can't alloc another");
+		return -EINVAL;
+	}
+
+	field = &filter->fields[filter->num_fields];
+
+	field->pattern = kzalloc(len, GFP_KERNEL);
+	if (!field->pattern) {
+		wl1271_warning("Failed to allocate RX filter pattern");
+		return -ENOMEM;
+	}
+
+	filter->num_fields++;
+
+	field->offset = cpu_to_le16(offset);
+	field->flags = flags;
+	field->len = len;
+	memcpy(field->pattern, pattern, len);
+
+	return 0;
+}
+
+int wl1271_rx_filter_get_fields_size(struct wl12xx_rx_filter *filter)
+{
+	int i, fields_size = 0;
+
+	for (i = 0; i < filter->num_fields; i++)
+		fields_size += filter->fields[i].len +
+			sizeof(struct wl12xx_rx_filter_field) -
+			sizeof(u8 *);
+
+	return fields_size;
+}
+
+void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
+				    u8 *buf)
+{
+	int i;
+	struct wl12xx_rx_filter_field *field;
+
+	for (i = 0; i < filter->num_fields; i++) {
+		field = (struct wl12xx_rx_filter_field *)buf;
+
+		field->offset = filter->fields[i].offset;
+		field->flags = filter->fields[i].flags;
+		field->len = filter->fields[i].len;
+
+		memcpy(&field->pattern, filter->fields[i].pattern, field->len);
+		buf += sizeof(struct wl12xx_rx_filter_field) -
+			sizeof(u8 *) + field->len;
+	}
+}
+
 static int wl1271_configure_suspend_sta(struct wl1271 *wl,
 					struct wl12xx_vif *wlvif)
 {
