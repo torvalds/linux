@@ -277,45 +277,6 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 }
 #endif
 
-int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
-{
-	struct iwl_rf_reset *rf_reset;
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return -EAGAIN;
-
-	if (!iwl_is_any_associated(priv)) {
-		IWL_DEBUG_SCAN(priv, "force reset rejected: not associated\n");
-		return -ENOLINK;
-	}
-
-	rf_reset = &priv->rf_reset;
-	rf_reset->reset_request_count++;
-	if (!external && rf_reset->last_reset_jiffies &&
-	    time_after(rf_reset->last_reset_jiffies +
-		       IWL_DELAY_NEXT_FORCE_RF_RESET, jiffies)) {
-		IWL_DEBUG_INFO(priv, "RF reset rejected\n");
-		rf_reset->reset_reject_count++;
-		return -EAGAIN;
-	}
-	rf_reset->reset_success_count++;
-	rf_reset->last_reset_jiffies = jiffies;
-
-	/*
-	 * There is no easy and better way to force reset the radio,
-	 * the only known method is switching channel which will force to
-	 * reset and tune the radio.
-	 * Use internal short scan (single channel) operation to should
-	 * achieve this objective.
-	 * Driver should reset the radio when number of consecutive missed
-	 * beacon, or any other uCode error condition detected.
-	 */
-	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
-	iwl_internal_short_hw_scan(priv);
-	return 0;
-}
-
-
 int iwl_cmd_echo_test(struct iwl_priv *priv)
 {
 	int ret;
