@@ -17,6 +17,8 @@
 #include <linux/ath9k_platform.h>
 #endif /* CONFIG_PCI */
 
+#include <asm/mach-ath79/irq.h>
+
 #include "machtypes.h"
 #include "dev-gpio-buttons.h"
 #include "dev-leds-gpio.h"
@@ -33,7 +35,6 @@
 #define UBNT_XM_KEYS_POLL_INTERVAL	20
 #define UBNT_XM_KEYS_DEBOUNCE_INTERVAL	(3 * UBNT_XM_KEYS_POLL_INTERVAL)
 
-#define UBNT_XM_PCI_IRQ			48
 #define UBNT_XM_EEPROM_ADDR		(u8 *) KSEG1ADDR(0x1fff1000)
 
 static struct gpio_led ubnt_xm_leds_gpio[] __initdata = {
@@ -86,7 +87,7 @@ static struct ath9k_platform_data ubnt_xm_eeprom_data;
 
 static struct ar724x_pci_data ubnt_xm_pci_data[] = {
 	{
-		.irq	= UBNT_XM_PCI_IRQ,
+		.irq	= ATH79_PCI_IRQ(0),
 		.pdata	= &ubnt_xm_eeprom_data,
 	},
 };
