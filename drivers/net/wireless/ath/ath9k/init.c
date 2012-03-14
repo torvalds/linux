@@ -172,7 +172,7 @@ static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		iowrite32(val, sc->mem + reg_offset);
@@ -188,7 +188,7 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		val = ioread32(sc->mem + reg_offset);
@@ -219,7 +219,7 @@ static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 cl
 	unsigned long uninitialized_var(flags);
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		val = __ath9k_reg_rmw(sc, reg_offset, set, clr);
 		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
