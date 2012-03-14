@@ -78,7 +78,6 @@ struct iwl_cmd;
  *   L i b                 *
  ***************************/
 
-void iwl_set_rate(struct iwl_priv *priv);
 int iwl_cmd_echo_test(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);

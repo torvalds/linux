@@ -715,6 +715,19 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 	}
 }
 
+void iwl_set_rate(struct iwl_priv *priv)
+{
+	struct iwl_rxon_context *ctx;
+
+	for_each_context(priv, ctx) {
+		ctx->staging.cck_basic_rates =
+		    (IWL_CCK_BASIC_RATES_MASK >> IWL_FIRST_CCK_RATE) & 0xF;
+
+		ctx->staging.ofdm_basic_rates =
+		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
+	}
+}
+
 static void iwl_set_rxon_hwcrypto(struct iwl_priv *priv,
 				  struct iwl_rxon_context *ctx, int hw_decrypt)
 {

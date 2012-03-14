@@ -43,19 +43,6 @@
 
 const u8 iwl_bcast_addr[ETH_ALEN] = { 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF };
 
-void iwl_set_rate(struct iwl_priv *priv)
-{
-	struct iwl_rxon_context *ctx;
-
-	for_each_context(priv, ctx) {
-		ctx->staging.cck_basic_rates =
-		    (IWL_CCK_BASIC_RATES_MASK >> IWL_FIRST_CCK_RATE) & 0xF;
-
-		ctx->staging.ofdm_basic_rates =
-		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
-	}
-}
-
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
 {
 	/*
