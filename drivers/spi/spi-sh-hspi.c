@@ -27,7 +27,6 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/list.h>
-#include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -50,11 +49,7 @@
 struct hspi_priv {
 	void __iomem *addr;
 	struct spi_master *master;
-	struct list_head queue;
-	struct workqueue_struct *workqueue;
-	struct work_struct ws;
 	struct device *dev;
-	spinlock_t lock;
 };
 
 /*
@@ -148,20 +143,67 @@ static int hspi_pop(struct hspi_priv *hspi, struct spi_message *msg,
 	return 0;
 }
 
-static void hspi_work(struct work_struct *work)
+/*
+ *		spi master function
+ */
+static int hspi_prepare_transfer(struct spi_master *master)
 {
-	struct hspi_priv *hspi = container_of(work, struct hspi_priv, ws);
-	struct sh_hspi_info *info = hspi2info(hspi);
-	struct spi_message *msg;
+	struct hspi_priv *hspi = spi_master_get_devdata(master);
+
+	pm_runtime_get_sync(hspi->dev);
+	return 0;
+}
+
+static int hspi_unprepare_transfer(struct spi_master *master)
+{
+	struct hspi_priv *hspi = spi_master_get_devdata(master);
+
+	pm_runtime_put_sync(hspi->dev);
+	return 0;
+}
+
+static int hspi_transfer_one_message(struct spi_master *master,
+				     struct spi_message *msg)
+{
+	struct hspi_priv *hspi = spi_master_get_devdata(master);
 	struct spi_transfer *t;
-	unsigned long flags;
-	u32 data;
 	int ret;
 
 	dev_dbg(hspi->dev, "%s\n", __func__);
 
-	/************************ pm enable ************************/
-	pm_runtime_get_sync(hspi->dev);
+	ret = 0;
+	list_for_each_entry(t, &msg->transfers, transfer_list) {
+		if (t->tx_buf) {
+			ret = hspi_push(hspi, msg, t);
+			if (ret < 0)
+				goto error;
+		}
+		if (t->rx_buf) {
+			ret = hspi_pop(hspi, msg, t);
+			if (ret < 0)
+				goto error;
+		}
+		msg->actual_length += t->len;
+	}
+error:
+
+	msg->status = ret;
+	spi_finalize_current_message(master);
+
+	return ret;
+}
+
+static int hspi_setup(struct spi_device *spi)
+{
+	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
+	struct device *dev = hspi->dev;
+	struct sh_hspi_info *info = hspi2info(hspi);
+	u32 data;
+
+	if (8 != spi->bits_per_word) {
+		dev_err(dev, "bits_per_word should be 8\n");
+		return -EIO;
+	}
 
 	/* setup first of all in under pm_runtime */
 	data = SH_HSPI_CLK_DIVC(info->flags);
@@ -177,59 +219,6 @@ static void hspi_work(struct work_struct *work)
 	hspi_write(hspi, SPSR, 0x0);
 	hspi_write(hspi, SPSCR, 0x1);	/* master mode */
 
-	while (1) {
-		msg = NULL;
-
-		/************************ spin lock ************************/
-		spin_lock_irqsave(&hspi->lock, flags);
-		if (!list_empty(&hspi->queue)) {
-			msg = list_entry(hspi->queue.next,
-					 struct spi_message, queue);
-			list_del_init(&msg->queue);
-		}
-		spin_unlock_irqrestore(&hspi->lock, flags);
-		/************************ spin unlock ************************/
-		if (!msg)
-			break;
-
-		ret = 0;
-		list_for_each_entry(t, &msg->transfers, transfer_list) {
-			if (t->tx_buf) {
-				ret = hspi_push(hspi, msg, t);
-				if (ret < 0)
-					goto error;
-			}
-			if (t->rx_buf) {
-				ret = hspi_pop(hspi, msg, t);
-				if (ret < 0)
-					goto error;
-			}
-			msg->actual_length += t->len;
-		}
-error:
-		msg->status = ret;
-		msg->complete(msg->context);
-	}
-
-	pm_runtime_put_sync(hspi->dev);
-	/************************ pm disable ************************/
-
-	return;
-}
-
-/*
- *		spi master function
- */
-static int hspi_setup(struct spi_device *spi)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
-	struct device *dev = hspi->dev;
-
-	if (8 != spi->bits_per_word) {
-		dev_err(dev, "bits_per_word should be 8\n");
-		return -EIO;
-	}
-
 	dev_dbg(dev, "%s setup\n", spi->modalias);
 
 	return 0;
@@ -241,26 +230,6 @@ static void hspi_cleanup(struct spi_device *spi)
 	struct device *dev = hspi->dev;
 
 	dev_dbg(dev, "%s cleanup\n", spi->modalias);
-}
-
-static int hspi_transfer(struct spi_device *spi, struct spi_message *msg)
-{
-	struct hspi_priv *hspi = spi_master_get_devdata(spi->master);
-	unsigned long flags;
-
-	/************************ spin lock ************************/
-	spin_lock_irqsave(&hspi->lock, flags);
-
-	msg->actual_length	= 0;
-	msg->status		= -EINPROGRESS;
-	list_add_tail(&msg->queue, &hspi->queue);
-
-	spin_unlock_irqrestore(&hspi->lock, flags);
-	/************************ spin unlock ************************/
-
-	queue_work(hspi->workqueue, &hspi->ws);
-
-	return 0;
 }
 
 static int __devinit hspi_probe(struct platform_device *pdev)
@@ -296,27 +265,19 @@ static int __devinit hspi_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto error1;
 	}
-	hspi->workqueue = create_singlethread_workqueue(dev_name(&pdev->dev));
-	if (!hspi->workqueue) {
-		dev_err(&pdev->dev, "create workqueue error\n");
-		ret = -EBUSY;
-		goto error2;
-	}
-
-	spin_lock_init(&hspi->lock);
-	INIT_LIST_HEAD(&hspi->queue);
-	INIT_WORK(&hspi->ws, hspi_work);
 
 	master->num_chipselect	= 1;
 	master->bus_num		= pdev->id;
 	master->setup		= hspi_setup;
-	master->transfer	= hspi_transfer;
 	master->cleanup		= hspi_cleanup;
 	master->mode_bits	= SPI_CPOL | SPI_CPHA;
+	master->prepare_transfer_hardware	= hspi_prepare_transfer;
+	master->transfer_one_message		= hspi_transfer_one_message;
+	master->unprepare_transfer_hardware	= hspi_unprepare_transfer;
 	ret = spi_register_master(master);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "spi_register_master error.\n");
-		goto error3;
+		goto error2;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -325,8 +286,6 @@ static int __devinit hspi_probe(struct platform_device *pdev)
 
 	return 0;
 
- error3:
-	destroy_workqueue(hspi->workqueue);
  error2:
 	devm_iounmap(hspi->dev, hspi->addr);
  error1:
@@ -342,7 +301,6 @@ static int __devexit hspi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 
 	spi_unregister_master(hspi->master);
-	destroy_workqueue(hspi->workqueue);
 	devm_iounmap(hspi->dev, hspi->addr);
 
 	return 0;
