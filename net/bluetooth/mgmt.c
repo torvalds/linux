@@ -288,7 +288,7 @@ static int read_commands(struct sock *sk, struct hci_dev *hdev, void *data,
 	struct mgmt_rp_read_commands *rp;
 	const u16 num_commands = ARRAY_SIZE(mgmt_commands);
 	const u16 num_events = ARRAY_SIZE(mgmt_events);
-	u16 *opcode;
+	__le16 *opcode;
 	size_t rp_size;
 	int i, err;
 
@@ -2647,7 +2647,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 	return 0;
 }
 
-struct mgmt_handler {
+static const struct mgmt_handler {
 	int (*func) (struct sock *sk, struct hci_dev *hdev, void *data,
 		     u16 data_len);
 	bool var_len;
@@ -2704,7 +2704,7 @@ int mgmt_control(struct sock *sk, struct msghdr *msg, size_t msglen)
 	struct mgmt_hdr *hdr;
 	u16 opcode, index, len;
 	struct hci_dev *hdev = NULL;
-	struct mgmt_handler *handler;
+	const struct mgmt_handler *handler;
 	int err;
 
 	BT_DBG("got %zu bytes", msglen);
