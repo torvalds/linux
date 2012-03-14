@@ -90,17 +90,29 @@ struct fsmc_regs {
 #define FSMC_ECCEN		(1 << 6)
 #define FSMC_ECCPLEN_512	(0 << 7)
 #define FSMC_ECCPLEN_256	(1 << 7)
-#define FSMC_TCLR_1		(1 << 9)
-#define FSMC_TAR_1		(1 << 13)
+#define FSMC_TCLR_1		(1)
+#define FSMC_TCLR_SHIFT		(9)
+#define FSMC_TCLR_MASK		(0xF)
+#define FSMC_TAR_1		(1)
+#define FSMC_TAR_SHIFT		(13)
+#define FSMC_TAR_MASK		(0xF)
 
 /* sts register definitions */
 #define FSMC_CODE_RDY		(1 << 15)
 
 /* comm register definitions */
-#define FSMC_TSET_0		(0 << 0)
-#define FSMC_TWAIT_6		(6 << 8)
-#define FSMC_THOLD_4		(4 << 16)
-#define FSMC_THIZ_1		(1 << 24)
+#define FSMC_TSET_0		0
+#define FSMC_TSET_SHIFT		0
+#define FSMC_TSET_MASK		0xFF
+#define FSMC_TWAIT_6		6
+#define FSMC_TWAIT_SHIFT	8
+#define FSMC_TWAIT_MASK		0xFF
+#define FSMC_THOLD_4		4
+#define FSMC_THOLD_SHIFT	16
+#define FSMC_THOLD_MASK		0xFF
+#define FSMC_THIZ_1		1
+#define FSMC_THIZ_SHIFT		24
+#define FSMC_THIZ_MASK		0xFF
 
 /*
  * There are 13 bytes of ecc for every 512 byte block in FSMC version 8
@@ -120,6 +132,15 @@ struct fsmc_eccplace {
 	struct fsmc_nand_eccplace eccplace[MAX_ECCPLACE_ENTRIES];
 };
 
+struct fsmc_nand_timings {
+	uint8_t tclr;
+	uint8_t tar;
+	uint8_t thiz;
+	uint8_t thold;
+	uint8_t twait;
+	uint8_t tset;
+};
+
 /**
  * fsmc_nand_platform_data - platform specific NAND controller config
  * @partitions: partition table for the platform, use a default fallback
@@ -133,6 +154,7 @@ struct fsmc_eccplace {
  * this may be set to NULL
  */
 struct fsmc_nand_platform_data {
+	struct fsmc_nand_timings *nand_timings;
 	struct mtd_partition	*partitions;
 	unsigned int		nr_partitions;
 	unsigned int		options;

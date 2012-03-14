@@ -303,6 +303,8 @@ struct fsmc_nand_data {
 	struct resource		*resaddr;
 	struct resource		*resdata;
 
+	struct fsmc_nand_timings *dev_timings;
+
 	void __iomem		*data_va;
 	void __iomem		*cmd_va;
 	void __iomem		*addr_va;
@@ -383,21 +385,41 @@ static void fsmc_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
  * FSMC registers
  */
 static void fsmc_nand_setup(struct fsmc_regs *regs, uint32_t bank,
-				   uint32_t busw)
+			   uint32_t busw, struct fsmc_nand_timings *timings)
 {
 	uint32_t value = FSMC_DEVTYPE_NAND | FSMC_ENABLE | FSMC_WAITON;
+	uint32_t tclr, tar, thiz, thold, twait, tset;
+	struct fsmc_nand_timings *tims;
+	struct fsmc_nand_timings default_timings = {
+		.tclr	= FSMC_TCLR_1,
+		.tar	= FSMC_TAR_1,
+		.thiz	= FSMC_THIZ_1,
+		.thold	= FSMC_THOLD_4,
+		.twait	= FSMC_TWAIT_6,
+		.tset	= FSMC_TSET_0,
+	};
+
+	if (timings)
+		tims = timings;
+	else
+		tims = &default_timings;
+
+	tclr = (tims->tclr & FSMC_TCLR_MASK) << FSMC_TCLR_SHIFT;
+	tar = (tims->tar & FSMC_TAR_MASK) << FSMC_TAR_SHIFT;
+	thiz = (tims->thiz & FSMC_THIZ_MASK) << FSMC_THIZ_SHIFT;
+	thold = (tims->thold & FSMC_THOLD_MASK) << FSMC_THOLD_SHIFT;
+	twait = (tims->twait & FSMC_TWAIT_MASK) << FSMC_TWAIT_SHIFT;
+	tset = (tims->tset & FSMC_TSET_MASK) << FSMC_TSET_SHIFT;
 
 	if (busw)
 		writel(value | FSMC_DEVWID_16, &regs->bank_regs[bank].pc);
 	else
 		writel(value | FSMC_DEVWID_8, &regs->bank_regs[bank].pc);
 
-	writel(readl(&regs->bank_regs[bank].pc) | FSMC_TCLR_1 | FSMC_TAR_1,
+	writel(readl(&regs->bank_regs[bank].pc) | tclr | tar,
 	       &regs->bank_regs[bank].pc);
-	writel(FSMC_THIZ_1 | FSMC_THOLD_4 | FSMC_TWAIT_6 | FSMC_TSET_0,
-	       &regs->bank_regs[bank].comm);
-	writel(FSMC_THIZ_1 | FSMC_THOLD_4 | FSMC_TWAIT_6 | FSMC_TSET_0,
-	       &regs->bank_regs[bank].attrib);
+	writel(thiz | thold | twait | tset, &regs->bank_regs[bank].comm);
+	writel(thiz | thold | twait | tset, &regs->bank_regs[bank].attrib);
 }
 
 /*
@@ -783,6 +805,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	host->select_chip = pdata->select_bank;
 	host->partitions = pdata->partitions;
 	host->nr_partitions = pdata->nr_partitions;
+	host->dev_timings = pdata->nand_timings;
 	regs = host->regs_va;
 
 	/* Link all private pointers */
@@ -807,7 +830,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	if (pdata->width == FSMC_NAND_BW16)
 		nand->options |= NAND_BUSWIDTH_16;
 
-	fsmc_nand_setup(regs, host->bank, nand->options & NAND_BUSWIDTH_16);
+	fsmc_nand_setup(regs, host->bank, nand->options & NAND_BUSWIDTH_16,
+			host->dev_timings);
 
 	if (AMBA_REV_BITS(host->pid) >= 8) {
 		nand->ecc.read_page = fsmc_read_page_hwecc;
@@ -979,7 +1003,8 @@ static int fsmc_nand_resume(struct device *dev)
 	if (host) {
 		clk_enable(host->clk);
 		fsmc_nand_setup(host->regs_va, host->bank,
-				host->nand.options & NAND_BUSWIDTH_16);
+				host->nand.options & NAND_BUSWIDTH_16,
+				host->dev_timings);
 	}
 	return 0;
 }
