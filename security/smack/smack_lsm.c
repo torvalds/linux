@@ -556,6 +556,7 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 				     void **value, size_t *len)
 {
 	struct smack_known *skp;
+	struct inode_smack *issp = inode->i_security;
 	char *csp = smk_of_current();
 	char *isp = smk_of_inode(inode);
 	char *dsp = smk_of_inode(dir);
@@ -577,10 +578,13 @@ static int smack_inode_init_security(struct inode *inode, struct inode *dir,
 		 * If the access rule allows transmutation and
 		 * the directory requests transmutation then
 		 * by all means transmute.
+		 * Mark the inode as changed.
 		 */
 		if (may > 0 && ((may & MAY_TRANSMUTE) != 0) &&
-		    smk_inode_transmutable(dir))
+		    smk_inode_transmutable(dir)) {
 			isp = dsp;
+			issp->smk_flags |= SMK_INODE_CHANGED;
+		}
 
 		*value = kstrdup(isp, GFP_KERNEL);
 		if (*value == NULL)
@@ -2552,6 +2556,7 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 	char *final;
 	char trattr[TRANS_TRUE_SIZE];
 	int transflag = 0;
+	int rc;
 	struct dentry *dp;
 
 	if (inode == NULL)
@@ -2670,17 +2675,38 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		 */
 		dp = dget(opt_dentry);
 		fetched = smk_fetch(XATTR_NAME_SMACK, inode, dp);
-		if (fetched != NULL) {
+		if (fetched != NULL)
 			final = fetched;
-			if (S_ISDIR(inode->i_mode)) {
-				trattr[0] = '\0';
-				inode->i_op->getxattr(dp,
+
+		/*
+		 * Transmuting directory
+		 */
+		if (S_ISDIR(inode->i_mode)) {
+			/*
+			 * If this is a new directory and the label was
+			 * transmuted when the inode was initialized
+			 * set the transmute attribute on the directory
+			 * and mark the inode.
+			 *
+			 * If there is a transmute attribute on the
+			 * directory mark the inode.
+			 */
+			if (isp->smk_flags & SMK_INODE_CHANGED) {
+				isp->smk_flags &= ~SMK_INODE_CHANGED;
+				rc = inode->i_op->setxattr(dp,
 					XATTR_NAME_SMACKTRANSMUTE,
-					trattr, TRANS_TRUE_SIZE);
-				if (strncmp(trattr, TRANS_TRUE,
-					    TRANS_TRUE_SIZE) == 0)
-					transflag = SMK_INODE_TRANSMUTE;
+					TRANS_TRUE, TRANS_TRUE_SIZE,
+					0);
+			} else {
+				rc = inode->i_op->getxattr(dp,
+					XATTR_NAME_SMACKTRANSMUTE, trattr,
+					TRANS_TRUE_SIZE);
+				if (rc >= 0 && strncmp(trattr, TRANS_TRUE,
+						       TRANS_TRUE_SIZE) != 0)
+					rc = -EINVAL;
 			}
+			if (rc >= 0)
+				transflag = SMK_INODE_TRANSMUTE;
 		}
 		isp->smk_task = smk_fetch(XATTR_NAME_SMACKEXEC, inode, dp);
 		isp->smk_mmap = smk_fetch(XATTR_NAME_SMACKMMAP, inode, dp);
