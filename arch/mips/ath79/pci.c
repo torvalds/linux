@@ -14,6 +14,7 @@
 
 #include <linux/init.h>
 #include <linux/pci.h>
+#include <asm/mach-ath79/ar71xx_regs.h>
 #include <asm/mach-ath79/ath79.h>
 #include <asm/mach-ath79/irq.h>
 #include <asm/mach-ath79/pci.h>
@@ -57,7 +58,9 @@ int __init pcibios_map_irq(const struct pci_dev *dev, uint8_t slot, uint8_t pin)
 		if (soc_is_ar71xx()) {
 			ath79_pci_irq_map = ar71xx_pci_irq_map;
 			ath79_pci_nr_irqs = ARRAY_SIZE(ar71xx_pci_irq_map);
-		} else if (soc_is_ar724x()) {
+		} else if (soc_is_ar724x() ||
+			   soc_is_ar9342() ||
+			   soc_is_ar9344()) {
 			ath79_pci_irq_map = ar724x_pci_irq_map;
 			ath79_pci_nr_irqs = ARRAY_SIZE(ar724x_pci_irq_map);
 		} else {
@@ -114,6 +117,14 @@ int __init ath79_register_pci(void)
 
 	if (soc_is_ar724x())
 		return ar724x_pcibios_init(ATH79_CPU_IRQ_IP2);
+
+	if (soc_is_ar9342() || soc_is_ar9344()) {
+		u32 bootstrap;
+
+		bootstrap = ath79_reset_rr(AR934X_RESET_REG_BOOTSTRAP);
+		if (bootstrap & AR934X_BOOTSTRAP_PCIE_RC)
+			return ar724x_pcibios_init(ATH79_IP2_IRQ(0));
+	}
 
 	return -ENODEV;
 }
