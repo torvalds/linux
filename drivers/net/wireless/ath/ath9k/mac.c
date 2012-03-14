@@ -185,13 +185,6 @@ bool ath9k_hw_stop_dma_queue(struct ath_hw *ah, u32 q)
 }
 EXPORT_SYMBOL(ath9k_hw_stop_dma_queue);
 
-void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs)
-{
-	*txqs &= ah->intr_txqs;
-	ah->intr_txqs &= ~(*txqs);
-}
-EXPORT_SYMBOL(ath9k_hw_gettxintrtxqs);
-
 bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 			    const struct ath9k_tx_queue_info *qinfo)
 {
