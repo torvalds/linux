@@ -516,10 +516,10 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 		REG_WRITE(ah, AR_Q_DESC_CRCCHK, AR_Q_DESC_CRCCHK_EN);
 
 	ath9k_hw_clear_queue_interrupts(ah, q);
-	if (qi->tqi_qflags & TXQ_FLAG_TXOKINT_ENABLE)
+	if (qi->tqi_qflags & TXQ_FLAG_TXINT_ENABLE) {
 		ah->txok_interrupt_mask |= 1 << q;
-	if (qi->tqi_qflags & TXQ_FLAG_TXERRINT_ENABLE)
 		ah->txerr_interrupt_mask |= 1 << q;
+	}
 	if (qi->tqi_qflags & TXQ_FLAG_TXDESCINT_ENABLE)
 		ah->txdesc_interrupt_mask |= 1 << q;
 	if (qi->tqi_qflags & TXQ_FLAG_TXEOLINT_ENABLE)
@@ -743,8 +743,7 @@ int ath9k_hw_beaconq_setup(struct ath_hw *ah)
 	qi.tqi_cwmax = 0;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
-		qi.tqi_qflags = TXQ_FLAG_TXOKINT_ENABLE |
-				TXQ_FLAG_TXERRINT_ENABLE;
+		qi.tqi_qflags = TXQ_FLAG_TXINT_ENABLE;
 
 	return ath9k_hw_setuptxqueue(ah, ATH9K_TX_QUEUE_BEACON, &qi);
 }

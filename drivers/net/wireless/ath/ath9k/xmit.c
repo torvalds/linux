@@ -1355,8 +1355,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	 * based intr on the EOSP frames.
 	 */
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
-		qi.tqi_qflags = TXQ_FLAG_TXOKINT_ENABLE |
-				TXQ_FLAG_TXERRINT_ENABLE;
+		qi.tqi_qflags = TXQ_FLAG_TXINT_ENABLE;
 	} else {
 		if (qtype == ATH9K_TX_QUEUE_UAPSD)
 			qi.tqi_qflags = TXQ_FLAG_TXDESCINT_ENABLE;
