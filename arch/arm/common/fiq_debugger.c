@@ -592,8 +592,17 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 		dump_allregs(state, regs);
 	} else if (!strcmp(cmd, "bt")) {
 		dump_stacktrace(state, (struct pt_regs *)regs, 100, svc_sp);
-	} else if (!strcmp(cmd, "reboot")) {
-		kernel_restart(NULL);
+	} else if (!strncmp(cmd, "reboot", 6)) {
+		cmd += 6;
+		while (*cmd == ' ')
+			cmd++;
+		if (*cmd) {
+			char tmp_cmd[32];
+			strlcpy(tmp_cmd, cmd, sizeof(tmp_cmd));
+			kernel_restart(tmp_cmd);
+		} else {
+			kernel_restart(NULL);
+		}
 	} else if (!strcmp(cmd, "irqs")) {
 		dump_irqs(state);
 	} else if (!strcmp(cmd, "kmsg")) {
