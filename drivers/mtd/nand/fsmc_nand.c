@@ -802,6 +802,7 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	nand->ecc.size = 512;
 	nand->options = pdata->options;
 	nand->select_chip = fsmc_select_chip;
+	nand->badblockbits = 7;
 
 	if (pdata->width == FSMC_NAND_BW16)
 		nand->options |= NAND_BUSWIDTH_16;
