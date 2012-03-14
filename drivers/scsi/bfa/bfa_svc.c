@@ -3825,8 +3825,6 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 			attr->port_state = BFA_PORT_ST_IOCDIS;
 		else if (bfa_ioc_fw_mismatch(&fcport->bfa->ioc))
 			attr->port_state = BFA_PORT_ST_FWMISMATCH;
-		else if (bfa_ioc_is_acq_addr(&fcport->bfa->ioc))
-			attr->port_state = BFA_PORT_ST_ACQ_ADDR;
 	}
 
 	/* FCoE vlan */

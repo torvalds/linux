@@ -1288,50 +1288,6 @@ out:
 }
 
 int
-bfad_iocmd_faa_enable(struct bfad_s *bfad, void *cmd)
-{
-	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	unsigned long   flags;
-	struct bfad_hal_comp    fcomp;
-
-	init_completion(&fcomp.comp);
-	iocmd->status = BFA_STATUS_OK;
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	iocmd->status = bfa_faa_enable(&bfad->bfa, bfad_hcb_comp, &fcomp);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-
-	if (iocmd->status != BFA_STATUS_OK)
-		goto out;
-
-	wait_for_completion(&fcomp.comp);
-	iocmd->status = fcomp.status;
-out:
-	return 0;
-}
-
-int
-bfad_iocmd_faa_disable(struct bfad_s *bfad, void *cmd)
-{
-	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	unsigned long   flags;
-	struct bfad_hal_comp    fcomp;
-
-	init_completion(&fcomp.comp);
-	iocmd->status = BFA_STATUS_OK;
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	iocmd->status = bfa_faa_disable(&bfad->bfa, bfad_hcb_comp, &fcomp);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
-
-	if (iocmd->status != BFA_STATUS_OK)
-		goto out;
-
-	wait_for_completion(&fcomp.comp);
-	iocmd->status = fcomp.status;
-out:
-	return 0;
-}
-
-int
 bfad_iocmd_faa_query(struct bfad_s *bfad, void *cmd)
 {
 	struct bfa_bsg_faa_attr_s *iocmd = (struct bfa_bsg_faa_attr_s *)cmd;
@@ -2635,12 +2591,6 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 	case IOCMD_FLASH_ENABLE_OPTROM:
 	case IOCMD_FLASH_DISABLE_OPTROM:
 		rc = bfad_iocmd_ablk_optrom(bfad, cmd, iocmd);
-		break;
-	case IOCMD_FAA_ENABLE:
-		rc = bfad_iocmd_faa_enable(bfad, iocmd);
-		break;
-	case IOCMD_FAA_DISABLE:
-		rc = bfad_iocmd_faa_disable(bfad, iocmd);
 		break;
 	case IOCMD_FAA_QUERY:
 		rc = bfad_iocmd_faa_query(bfad, iocmd);
