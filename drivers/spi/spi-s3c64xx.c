@@ -764,9 +764,6 @@ out:
 
 	msg->status = status;
 
-	if (msg->complete)
-		msg->complete(msg->context);
-
 	spi_finalize_current_message(master);
 
 	return 0;
