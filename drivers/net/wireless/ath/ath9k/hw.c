@@ -2569,12 +2569,6 @@ void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val)
 }
 EXPORT_SYMBOL(ath9k_hw_set_gpio);
 
-u32 ath9k_hw_getdefantenna(struct ath_hw *ah)
-{
-	return REG_READ(ah, AR_DEF_ANTENNA) & 0x7;
-}
-EXPORT_SYMBOL(ath9k_hw_getdefantenna);
-
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna)
 {
 	REG_WRITE(ah, AR_DEF_ANTENNA, (antenna & 0x7));

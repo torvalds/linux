@@ -488,7 +488,6 @@ static void ath9k_init_misc(struct ath_softc *sc)
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	sc->config.txpowlimit = ATH_TXPOWER_MAX;
-	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
