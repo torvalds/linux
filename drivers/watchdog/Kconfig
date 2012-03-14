@@ -596,7 +596,12 @@ config IT87_WDT
 	depends on X86 && EXPERIMENTAL
 	---help---
 	  This is the driver for the hardware watchdog on the ITE IT8702,
-	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 Super I/O chips.
+	  IT8712, IT8716, IT8718, IT8720, IT8721, IT8726 and IT8728
+	  Super I/O chips.
+
+	  If the driver does not work, then make sure that the game port in
+	  the BIOS is enabled.
+
 	  This watchdog simply watches your kernel to make sure it doesn't
 	  freeze, and if it does, it reboots your computer after a certain
 	  amount of time.
