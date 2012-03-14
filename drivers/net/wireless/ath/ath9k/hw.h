@@ -827,8 +827,8 @@ struct ath_hw {
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
 	struct ar5416IniArray iniPcieSerdesLowPower;
-	struct ar5416IniArray iniModesAdditional;
-	struct ar5416IniArray iniModesAdditional_40M;
+	struct ar5416IniArray iniModesFastClock;
+	struct ar5416IniArray iniAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
 	struct ar5416IniArray iniModes_9271_1_0_only;

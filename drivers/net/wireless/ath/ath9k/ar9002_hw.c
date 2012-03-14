@@ -73,7 +73,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280_2,
 			       ARRAY_SIZE(ar9280Common_9280_2), 2);
 
-		INIT_INI_ARRAY(&ah->iniModesAdditional,
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
 			       ar9280Modes_fast_clock_9280_2,
 			       ARRAY_SIZE(ar9280Modes_fast_clock_9280_2), 3);
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {

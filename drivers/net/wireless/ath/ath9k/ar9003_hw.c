@@ -87,11 +87,11 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		/* additional clock settings */
 		if (ah->is_clk_25mhz)
-			INIT_INI_ARRAY(&ah->iniModesAdditional,
+			INIT_INI_ARRAY(&ah->iniAdditional,
 					ar9331_1p1_xtal_25M,
 					ARRAY_SIZE(ar9331_1p1_xtal_25M), 2);
 		else
-			INIT_INI_ARRAY(&ah->iniModesAdditional,
+			INIT_INI_ARRAY(&ah->iniAdditional,
 					ar9331_1p1_xtal_40M,
 					ARRAY_SIZE(ar9331_1p1_xtal_40M), 2);
 	} else if (AR_SREV_9330_12(ah)) {
@@ -140,11 +140,11 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 
 		/* additional clock settings */
 		if (ah->is_clk_25mhz)
-			INIT_INI_ARRAY(&ah->iniModesAdditional,
+			INIT_INI_ARRAY(&ah->iniAdditional,
 					ar9331_1p2_xtal_25M,
 					ARRAY_SIZE(ar9331_1p2_xtal_25M), 2);
 		else
-			INIT_INI_ARRAY(&ah->iniModesAdditional,
+			INIT_INI_ARRAY(&ah->iniAdditional,
 					ar9331_1p2_xtal_40M,
 					ARRAY_SIZE(ar9331_1p2_xtal_40M), 2);
 	} else if (AR_SREV_9340(ah)) {
@@ -194,15 +194,16 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ARRAY_SIZE(ar9340Modes_high_ob_db_tx_gain_table_1p0),
 				5);
 
-		INIT_INI_ARRAY(&ah->iniModesAdditional,
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
 				ar9340Modes_fast_clock_1p0,
 				ARRAY_SIZE(ar9340Modes_fast_clock_1p0),
 				3);
 
-		INIT_INI_ARRAY(&ah->iniModesAdditional_40M,
-				ar9340_1p0_radio_core_40M,
-				ARRAY_SIZE(ar9340_1p0_radio_core_40M),
-				2);
+		if (!ah->is_clk_25mhz)
+			INIT_INI_ARRAY(&ah->iniAdditional,
+				       ar9340_1p0_radio_core_40M,
+				       ARRAY_SIZE(ar9340_1p0_radio_core_40M),
+				       2);
 	} else if (AR_SREV_9485_11(ah)) {
 		/* mac */
 		INIT_INI_ARRAY(&ah->iniMac[ATH_INI_PRE], NULL, 0, 0);
@@ -321,7 +322,7 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				2);
 
 		/* Fast clock modal settings */
-		INIT_INI_ARRAY(&ah->iniModesAdditional,
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
 				ar9462_modes_fast_clock_2p0,
 				ARRAY_SIZE(ar9462_modes_fast_clock_2p0), 3);
 
@@ -378,7 +379,7 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				ARRAY_SIZE(ar9580_1p0_low_ob_db_tx_gain_table),
 				5);
 
-		INIT_INI_ARRAY(&ah->iniModesAdditional,
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
 				ar9580_1p0_modes_fast_clock,
 				ARRAY_SIZE(ar9580_1p0_modes_fast_clock),
 				3);
@@ -445,7 +446,7 @@ static void ar9003_hw_init_mode_regs(struct ath_hw *ah)
 				2);
 
 		/* Fast clock modal settings */
-		INIT_INI_ARRAY(&ah->iniModesAdditional,
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
 				ar9300Modes_fast_clock_2p2,
 				ARRAY_SIZE(ar9300Modes_fast_clock_2p2),
 				3);

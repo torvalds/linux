@@ -869,10 +869,9 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
 
-	if (IS_CHAN_A_FAST_CLOCK(ah, chan)) {
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
+		REG_WRITE_ARRAY(&ah->iniModesFastClock, modesIndex,
 				regWrites);
-	}
 
 	ar5008_hw_override_ini(ah, chan);
 	ar5008_hw_set_channel_regs(ah, chan);
