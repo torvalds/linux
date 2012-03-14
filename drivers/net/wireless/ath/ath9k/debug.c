@@ -738,9 +738,9 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"VIF-COUNTS: AP: %i STA: %i MESH: %i WDS: %i"
-			" ADHOC: %i OTHER: %i TOTAL: %hi BEACON-VIF: %hi\n",
+			" ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
 			iter_data.naps, iter_data.nstations, iter_data.nmeshes,
-			iter_data.nwds, iter_data.nadhocs, iter_data.nothers,
+			iter_data.nwds, iter_data.nadhocs,
 			sc->nvifs, sc->nbcnvifs);
 
 	if (len > sizeof(buf))

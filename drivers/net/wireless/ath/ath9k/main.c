@@ -1272,7 +1272,6 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		iter_data->nwds++;
 		break;
 	default:
-		iter_data->nothers++;
 		break;
 	}
 }
