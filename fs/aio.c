@@ -899,7 +899,7 @@ static void aio_kick_handler(struct work_struct *work)
  	unuse_mm(mm);
 	set_fs(oldfs);
 	/*
-	 * we're in a worker thread already, don't use queue_delayed_work,
+	 * we're in a worker thread already; no point using non-zero delay
 	 */
 	if (requeue)
 		queue_delayed_work(aio_wq, &ctx->wq, 0);
