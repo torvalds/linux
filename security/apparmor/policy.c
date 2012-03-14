@@ -93,7 +93,7 @@
 /* root profile namespace */
 struct aa_namespace *root_ns;
 
-const char *profile_mode_names[] = {
+const char *const profile_mode_names[] = {
 	"enforce",
 	"complain",
 	"kill",

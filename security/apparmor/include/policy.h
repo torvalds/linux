@@ -29,7 +29,7 @@
 #include "file.h"
 #include "resource.h"
 
-extern const char *profile_mode_names[];
+extern const char *const profile_mode_names[];
 #define APPARMOR_NAMES_MAX_INDEX 3
 
 #define COMPLAIN_MODE(_profile)	\

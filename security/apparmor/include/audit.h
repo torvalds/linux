@@ -25,7 +25,7 @@
 
 struct aa_profile;
 
-extern const char *audit_mode_names[];
+extern const char *const audit_mode_names[];
 #define AUDIT_MAX_INDEX 5
 
 enum audit_mode {
@@ -47,7 +47,7 @@ enum audit_type {
 	AUDIT_APPARMOR_AUTO
 };
 
-extern const char *op_table[];
+extern const char *const op_table[];
 enum aa_ops {
 	OP_NULL,
 
