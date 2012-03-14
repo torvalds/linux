@@ -1049,9 +1049,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 	sc->sc_flags &= ~SC_OP_INVALID;
 	sc->sc_ah->is_monitoring = false;
 
-	/* Disable BMISS interrupt when we're not associated */
-	ah->imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
-
 	if (!ath_complete_reset(sc, false)) {
 		r = -EIO;
 		spin_unlock_bh(&sc->sc_pcu_lock);
