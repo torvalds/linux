@@ -86,7 +86,7 @@ config ATH79_DEV_USB
 	def_bool n
 
 config ATH79_DEV_WMAC
-	depends on (SOC_AR913X || SOC_AR933X)
+	depends on (SOC_AR913X || SOC_AR933X || SOC_AR934X)
 	def_bool n
 
 endif
