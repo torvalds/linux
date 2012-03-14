@@ -66,7 +66,7 @@ static struct cpufreq_frequency_table pll_vals_12MHz[] = {
     { .frequency = 270000000, .index = PLLVAL(127, 1, 1),  },
 };
 
-static int s3c2410_plls_add(struct device *dev)
+static int s3c2410_plls_add(struct device *dev, struct subsys_interface *sif)
 {
 	return s3c_plltab_register(pll_vals_12MHz, ARRAY_SIZE(pll_vals_12MHz));
 }

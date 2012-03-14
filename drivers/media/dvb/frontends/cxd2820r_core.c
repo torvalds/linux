@@ -482,10 +482,19 @@ static enum dvbfe_search cxd2820r_search(struct dvb_frontend *fe)
 
 	/* switch between DVB-T and DVB-T2 when tune fails */
 	if (priv->last_tune_failed) {
-		if (priv->delivery_system == SYS_DVBT)
+		if (priv->delivery_system == SYS_DVBT) {
+			ret = cxd2820r_sleep_t(fe);
+			if (ret)
+				goto error;
+
 			c->delivery_system = SYS_DVBT2;
-		else if (priv->delivery_system == SYS_DVBT2)
+		} else if (priv->delivery_system == SYS_DVBT2) {
+			ret = cxd2820r_sleep_t2(fe);
+			if (ret)
+				goto error;
+
 			c->delivery_system = SYS_DVBT;
+		}
 	}
 
 	/* set frontend */
@@ -562,7 +571,7 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 	.delsys = { SYS_DVBT, SYS_DVBT2, SYS_DVBC_ANNEX_A },
 	/* default: DVB-T/T2 */
 	.info = {
-		.name = "Sony CXD2820R (DVB-T/T2)",
+		.name = "Sony CXD2820R",
 
 		.caps =	FE_CAN_FEC_1_2			|
 			FE_CAN_FEC_2_3			|
@@ -572,7 +581,9 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 			FE_CAN_FEC_AUTO			|
 			FE_CAN_QPSK			|
 			FE_CAN_QAM_16			|
+			FE_CAN_QAM_32			|
 			FE_CAN_QAM_64			|
+			FE_CAN_QAM_128			|
 			FE_CAN_QAM_256			|
 			FE_CAN_QAM_AUTO			|
 			FE_CAN_TRANSMISSION_MODE_AUTO	|
@@ -602,8 +613,7 @@ static const struct dvb_frontend_ops cxd2820r_ops = {
 };
 
 struct dvb_frontend *cxd2820r_attach(const struct cxd2820r_config *cfg,
-				     struct i2c_adapter *i2c,
-				     struct dvb_frontend *fe)
+		struct i2c_adapter *i2c)
 {
 	struct cxd2820r_priv *priv = NULL;
 	int ret;

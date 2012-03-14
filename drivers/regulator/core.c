@@ -2731,6 +2731,8 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
  * @dev: struct device for the regulator
  * @init_data: platform provided init data, passed through by driver
  * @driver_data: private regulator data
+ * @of_node: OpenFirmware node to parse for device tree bindings (may be
+ *           NULL).
  *
  * Called by regulator drivers to register a regulator.
  * Returns 0 on success.

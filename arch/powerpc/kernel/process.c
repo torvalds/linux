@@ -566,12 +566,12 @@ static void show_instructions(struct pt_regs *regs)
 		 */
 		if (!__kernel_text_address(pc) ||
 		     __get_user(instr, (unsigned int __user *)pc)) {
-			printk("XXXXXXXX ");
+			printk(KERN_CONT "XXXXXXXX ");
 		} else {
 			if (regs->nip == pc)
-				printk("<%08x> ", instr);
+				printk(KERN_CONT "<%08x> ", instr);
 			else
-				printk("%08x ", instr);
+				printk(KERN_CONT "%08x ", instr);
 		}
 
 		pc += sizeof(int);

@@ -52,32 +52,38 @@ static int pnv_msi_check_device(struct pci_dev* pdev, int nvec, int type)
 
 static unsigned int pnv_get_one_msi(struct pnv_phb *phb)
 {
-	unsigned int id;
+	unsigned long flags;
+	unsigned int id, rc;
 
-	spin_lock(&phb->lock);
+	spin_lock_irqsave(&phb->lock, flags);
+
 	id = find_next_zero_bit(phb->msi_map, phb->msi_count, phb->msi_next);
 	if (id >= phb->msi_count && phb->msi_next)
 		id = find_next_zero_bit(phb->msi_map, phb->msi_count, 0);
 	if (id >= phb->msi_count) {
-		spin_unlock(&phb->lock);
-		return 0;
+		rc = 0;
+		goto out;
 	}
 	__set_bit(id, phb->msi_map);
-	spin_unlock(&phb->lock);
-	return id + phb->msi_base;
+	rc = id + phb->msi_base;
+out:
+	spin_unlock_irqrestore(&phb->lock, flags);
+	return rc;
 }
 
 static void pnv_put_msi(struct pnv_phb *phb, unsigned int hwirq)
 {
+	unsigned long flags;
 	unsigned int id;
 
 	if (WARN_ON(hwirq < phb->msi_base ||
 		    hwirq >= (phb->msi_base + phb->msi_count)))
 		return;
 	id = hwirq - phb->msi_base;
-	spin_lock(&phb->lock);
+
+	spin_lock_irqsave(&phb->lock, flags);
 	__clear_bit(id, phb->msi_map);
-	spin_unlock(&phb->lock);
+	spin_unlock_irqrestore(&phb->lock, flags);
 }
 
 static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)

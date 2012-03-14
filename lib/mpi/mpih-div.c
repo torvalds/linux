@@ -217,6 +217,10 @@ mpihelp_divrem(mpi_ptr_t qp, mpi_size_t qextra_limbs,
 	case 0:
 		/* We are asked to divide by zero, so go ahead and do it!  (To make
 		   the compiler not remove this statement, return the value.)  */
+		/*
+		 * existing clients of this function have been modified
+		 * not to call it with dsize == 0, so this should not happen
+		 */
 		return 1 / dsize;
 
 	case 1:

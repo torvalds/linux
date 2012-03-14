@@ -770,6 +770,8 @@ static void vmid_reference(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 
+	pm_runtime_get_sync(codec->dev);
+
 	wm8994->vmid_refcount++;
 
 	dev_dbg(codec->dev, "Referencing VMID, refcount is now %d\n",
@@ -783,7 +785,12 @@ static void vmid_reference(struct snd_soc_codec *codec)
 				    WM8994_VMID_RAMP_MASK,
 				    WM8994_STARTUP_BIAS_ENA |
 				    WM8994_VMID_BUF_ENA |
-				    (0x11 << WM8994_VMID_RAMP_SHIFT));
+				    (0x3 << WM8994_VMID_RAMP_SHIFT));
+
+		/* Remove discharge for line out */
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
+				    WM8994_LINEOUT1_DISCH |
+				    WM8994_LINEOUT2_DISCH, 0);
 
 		/* Main bias enable, VMID=2x40k */
 		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
@@ -837,6 +844,8 @@ static void vmid_dereference(struct snd_soc_codec *codec)
 				    WM8994_VMID_BUF_ENA |
 				    WM8994_VMID_RAMP_MASK, 0);
 	}
+
+	pm_runtime_put(codec->dev);
 }
 
 static int vmid_event(struct snd_soc_dapm_widget *w,
@@ -2090,26 +2099,9 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_STANDBY:
 		if (codec->dapm.bias_level == SND_SOC_BIAS_OFF) {
 			switch (control->type) {
-			case WM8994:
-				if (wm8994->revision < 4) {
-					/* Tweak DC servo and DSP
-					 * configuration for improved
-					 * performance. */
-					snd_soc_write(codec, 0x102, 0x3);
-					snd_soc_write(codec, 0x56, 0x3);
-					snd_soc_write(codec, 0x817, 0);
-					snd_soc_write(codec, 0x102, 0);
-				}
-				break;
-
 			case WM8958:
 				if (wm8994->revision == 0) {
 					/* Optimise performance for rev A */
-					snd_soc_write(codec, 0x102, 0x3);
-					snd_soc_write(codec, 0xcb, 0x81);
-					snd_soc_write(codec, 0x817, 0);
-					snd_soc_write(codec, 0x102, 0);
-
 					snd_soc_update_bits(codec,
 							    WM8958_CHARGE_PUMP_2,
 							    WM8958_CP_DISCH,
@@ -2117,13 +2109,7 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 				}
 				break;
 
-			case WM1811:
-				if (wm8994->revision < 2) {
-					snd_soc_write(codec, 0x102, 0x3);
-					snd_soc_write(codec, 0x5d, 0x7e);
-					snd_soc_write(codec, 0x5e, 0x0);
-					snd_soc_write(codec, 0x102, 0x0);
-				}
+			default:
 				break;
 			}
 
@@ -2752,11 +2738,6 @@ static int wm8994_resume(struct snd_soc_codec *codec)
 				    mask, val);
 		codec->cache_only = 0;
 	}
-
-	/* Restore the registers */
-	ret = snd_soc_cache_sync(codec);
-	if (ret != 0)
-		dev_err(codec->dev, "Failed to sync cache: %d\n", ret);
 
 	wm8994_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 

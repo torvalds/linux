@@ -288,7 +288,13 @@ typedef struct drm_i915_private {
 	int relative_constants_mode;
 
 	void __iomem *regs;
-	u32 gt_fifo_count;
+	/** gt_fifo_count and the subsequent register write are synchronized
+	 * with dev->struct_mutex. */
+	unsigned gt_fifo_count;
+	/** forcewake_count is protected by gt_lock */
+	unsigned forcewake_count;
+	/** gt_lock is also taken in irq contexts. */
+	struct spinlock gt_lock;
 
 	struct intel_gmbus {
 		struct i2c_adapter adapter;
@@ -741,8 +747,6 @@ typedef struct drm_i915_private {
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
-
-	atomic_t forcewake_count;
 } drm_i915_private_t;
 
 enum i915_cache_level {

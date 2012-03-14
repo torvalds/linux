@@ -46,9 +46,6 @@ static int emi62_set_reset(struct usb_device *dev, unsigned char reset_bit);
 static int emi62_load_firmware (struct usb_device *dev);
 static int emi62_probe(struct usb_interface *intf, const struct usb_device_id *id);
 static void emi62_disconnect(struct usb_interface *intf);
-static int __init emi62_init (void);
-static void __exit emi62_exit (void);
-
 
 /* thanks to drivers/usb/serial/keyspan_pda.c code */
 static int emi62_writememory(struct usb_device *dev, int address,

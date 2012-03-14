@@ -108,7 +108,7 @@ static struct mlx4_profile default_profile = {
 	.num_cq		= 1 << 16,
 	.num_mcg	= 1 << 13,
 	.num_mpt	= 1 << 19,
-	.num_mtt	= 1 << 20,
+	.num_mtt	= 1 << 20, /* It is really num mtt segements */
 };
 
 static int log_num_mac = 7;
@@ -471,7 +471,6 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -ENOSYS;
 	}
 
-	dev->caps.function		= func_cap.function;
 	dev->caps.num_ports		= func_cap.num_ports;
 	dev->caps.num_qps		= func_cap.qp_quota;
 	dev->caps.num_srqs		= func_cap.srq_quota;

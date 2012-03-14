@@ -118,10 +118,14 @@ static inline notrace void set_soft_enabled(unsigned long enable)
 static inline notrace void decrementer_check_overflow(void)
 {
 	u64 now = get_tb_or_rtc();
-	u64 *next_tb = &__get_cpu_var(decrementers_next_tb);
+	u64 *next_tb;
+
+	preempt_disable();
+	next_tb = &__get_cpu_var(decrementers_next_tb);
 
 	if (now >= *next_tb)
 		set_dec(1);
+	preempt_enable();
 }
 
 notrace void arch_local_irq_restore(unsigned long en)

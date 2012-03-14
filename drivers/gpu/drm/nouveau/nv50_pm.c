@@ -495,9 +495,9 @@ nv50_pm_clocks_pre(struct drm_device *dev, struct nouveau_pm_level *perflvl)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_pm_state *info;
 	struct pll_lims pll;
-	int ret = -EINVAL;
+	int clk, ret = -EINVAL;
 	int N, M, P1, P2;
-	u32 clk, out;
+	u32 out;
 
 	if (dev_priv->chipset == 0xaa ||
 	    dev_priv->chipset == 0xac)

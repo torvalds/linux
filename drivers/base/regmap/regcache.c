@@ -53,7 +53,7 @@ static int regcache_hw_init(struct regmap *map)
 	for (count = 0, i = 0; i < map->num_reg_defaults_raw; i++) {
 		val = regcache_get_val(map->reg_defaults_raw,
 				       i, map->cache_word_size);
-		if (!val)
+		if (regmap_volatile(map, i))
 			continue;
 		count++;
 	}
@@ -70,7 +70,7 @@ static int regcache_hw_init(struct regmap *map)
 	for (i = 0, j = 0; i < map->num_reg_defaults_raw; i++) {
 		val = regcache_get_val(map->reg_defaults_raw,
 				       i, map->cache_word_size);
-		if (!val)
+		if (regmap_volatile(map, i))
 			continue;
 		map->reg_defaults[j].reg = i;
 		map->reg_defaults[j].def = val;
@@ -266,8 +266,22 @@ int regcache_sync(struct regmap *map)
 		map->cache_ops->name);
 	name = map->cache_ops->name;
 	trace_regcache_sync(map->dev, name, "start");
+
 	if (!map->cache_dirty)
 		goto out;
+
+	/* Apply any patch first */
+	map->cache_bypass = 1;
+	for (i = 0; i < map->patch_regs; i++) {
+		ret = _regmap_write(map, map->patch[i].reg, map->patch[i].def);
+		if (ret != 0) {
+			dev_err(map->dev, "Failed to write %x = %x: %d\n",
+				map->patch[i].reg, map->patch[i].def, ret);
+			goto out;
+		}
+	}
+	map->cache_bypass = 0;
+
 	if (map->cache_ops->sync) {
 		ret = map->cache_ops->sync(map);
 	} else {

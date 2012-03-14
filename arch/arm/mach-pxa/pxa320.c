@@ -83,7 +83,6 @@ static DEFINE_PXA3_CKEN(gcu, PXA320_GCU, 0, 0);
 static struct clk_lookup pxa320_clkregs[] = {
 	INIT_CLKREG(&clk_pxa320_nand, "pxa3xx-nand", NULL),
 	INIT_CLKREG(&clk_gcu, "pxa3xx-gcu", NULL),
-	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 };
 
 static int __init pxa320_init(void)

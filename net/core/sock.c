@@ -1171,13 +1171,10 @@ EXPORT_SYMBOL(sock_update_classid);
 
 void sock_update_netprioidx(struct sock *sk)
 {
-	struct cgroup_netprio_state *state;
 	if (in_interrupt())
 		return;
-	rcu_read_lock();
-	state = task_netprio_state(current);
-	sk->sk_cgrp_prioidx = state ? state->prioidx : 0;
-	rcu_read_unlock();
+
+	sk->sk_cgrp_prioidx = task_netprioidx(current);
 }
 EXPORT_SYMBOL_GPL(sock_update_netprioidx);
 #endif
@@ -1827,7 +1824,7 @@ suppress_allocation:
 	/* Alas. Undo changes. */
 	sk->sk_forward_alloc -= amt * SK_MEM_QUANTUM;
 
-	sk_memory_allocated_sub(sk, amt, parent_status);
+	sk_memory_allocated_sub(sk, amt);
 
 	return 0;
 }
@@ -1840,7 +1837,7 @@ EXPORT_SYMBOL(__sk_mem_schedule);
 void __sk_mem_reclaim(struct sock *sk)
 {
 	sk_memory_allocated_sub(sk,
-				sk->sk_forward_alloc >> SK_MEM_QUANTUM_SHIFT, 0);
+				sk->sk_forward_alloc >> SK_MEM_QUANTUM_SHIFT);
 	sk->sk_forward_alloc &= SK_MEM_QUANTUM - 1;
 
 	if (sk_under_memory_pressure(sk) &&
