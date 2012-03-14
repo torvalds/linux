@@ -620,9 +620,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	if (!ah->is_pciexpress)
 		ath9k_hw_disablepcie(ah);
 
-	if (!AR_SREV_9300_20_OR_LATER(ah))
-		ar9002_hw_cck_chan14_spread(ah);
-
 	r = ath9k_hw_post_init(ah);
 	if (r)
 		return r;

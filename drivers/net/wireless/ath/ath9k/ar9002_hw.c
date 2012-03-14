@@ -154,11 +154,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			INI_RA(addac, 31,1) = 0;
 		}
 	}
-}
-
-/* Support for Japan ch.14 (2484) spread */
-void ar9002_hw_cck_chan14_spread(struct ath_hw *ah)
-{
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniCckfirNormal,
 		       ar9287Common_normal_cck_fir_coeff_9287_1_1,
