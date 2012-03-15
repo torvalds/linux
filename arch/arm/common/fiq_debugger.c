@@ -106,9 +106,12 @@ static bool initial_debug_enable;
 static bool initial_console_enable;
 #endif
 
+static bool fiq_kgdb_enable;
+
 module_param_named(no_sleep, initial_no_sleep, bool, 0644);
 module_param_named(debug_enable, initial_debug_enable, bool, 0644);
 module_param_named(console_enable, initial_console_enable, bool, 0644);
+module_param_named(kgdb_enable, fiq_kgdb_enable, bool, 0644);
 
 #ifdef CONFIG_FIQ_DEBUGGER_WAKEUP_IRQ_ALWAYS_ON
 static inline void enable_wakeup_irq(struct fiq_debugger_state *state) {}
@@ -526,10 +529,28 @@ static void end_syslog_dump(struct fiq_debugger_state *state)
 
 static void do_sysrq(struct fiq_debugger_state *state, char rq)
 {
+	if ((rq == 'g' || rq == 'G') && !fiq_kgdb_enable) {
+		debug_printf(state, "sysrq-g blocked\n");
+		return;
+	}
 	begin_syslog_dump(state);
 	handle_sysrq(rq);
 	end_syslog_dump(state);
 }
+
+#ifdef CONFIG_KGDB
+static void do_kgdb(struct fiq_debugger_state *state)
+{
+	if (!fiq_kgdb_enable) {
+		debug_printf(state, "kgdb through fiq debugger not enabled\n");
+		return;
+	}
+
+	debug_printf(state, "enabling console and triggering kgdb\n");
+	state->console_enable = true;
+	handle_sysrq('g');
+}
+#endif
 
 /* This function CANNOT be called in FIQ context */
 static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
@@ -540,6 +561,10 @@ static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
 		do_sysrq(state, 'h');
 	if (!strncmp(cmd, "sysrq ", 6))
 		do_sysrq(state, cmd[6]);
+#ifdef CONFIG_KGDB
+	if (!strcmp(cmd, "kgdb"))
+		do_kgdb(state);
+#endif
 }
 
 static void debug_help(struct fiq_debugger_state *state)
@@ -561,6 +586,9 @@ static void debug_help(struct fiq_debugger_state *state)
 	debug_printf(state,	" ps            Process list\n"
 				" sysrq         sysrq options\n"
 				" sysrq <param> Execute sysrq with <param>\n");
+#ifdef CONFIG_KGDB
+	debug_printf(state,	" kgdb          Enter kernel debugger\n");
+#endif
 }
 
 static void take_affinity(void *info)
@@ -724,7 +752,8 @@ static void debug_handle_irq_context(struct fiq_debugger_state *state)
 #endif
 	if (state->debug_busy) {
 		debug_irq_exec(state, state->debug_cmd);
-		debug_prompt(state);
+		if (!state->console_enable)
+			debug_prompt(state);
 		state->debug_busy = 0;
 	}
 }
@@ -957,11 +986,53 @@ int  fiq_tty_write_room(struct tty_struct *tty)
 	return 1024;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int fiq_tty_poll_init(struct tty_driver *driver, int line, char *options)
+{
+	return 0;
+}
+
+static int fiq_tty_poll_get_char(struct tty_driver *driver, int line)
+{
+	struct fiq_debugger_state *state = driver->ttys[line]->driver_data;
+	int c = NO_POLL_CHAR;
+
+	debug_uart_enable(state);
+	if (debug_have_fiq(state)) {
+		int count = fiq_debugger_ringbuf_level(state->tty_rbuf);
+		if (count > 0) {
+			c = fiq_debugger_ringbuf_peek(state->tty_rbuf, 0);
+			fiq_debugger_ringbuf_consume(state->tty_rbuf, 1);
+		}
+	} else {
+		c = debug_getc(state);
+		if (c == FIQ_DEBUGGER_NO_CHAR)
+			c = NO_POLL_CHAR;
+	}
+	debug_uart_disable(state);
+
+	return c;
+}
+
+static void fiq_tty_poll_put_char(struct tty_driver *driver, int line, char ch)
+{
+	struct fiq_debugger_state *state = driver->ttys[line]->driver_data;
+	debug_uart_enable(state);
+	debug_putc(state, ch);
+	debug_uart_disable(state);
+}
+#endif
+
 static const struct tty_operations fiq_tty_driver_ops = {
 	.write = fiq_tty_write,
 	.write_room = fiq_tty_write_room,
 	.open = fiq_tty_open,
 	.close = fiq_tty_close,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_init = fiq_tty_poll_init,
+	.poll_get_char = fiq_tty_poll_get_char,
+	.poll_put_char = fiq_tty_poll_put_char,
+#endif
 };
 
 static int fiq_debugger_tty_init(struct fiq_debugger_state *state)
