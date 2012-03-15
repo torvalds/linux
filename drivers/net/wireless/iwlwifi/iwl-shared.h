@@ -307,13 +307,9 @@ struct iwl_ht_params {
  * @iq_invert: I/Q inversion
  * @temp_offset_v2: support v2 of temperature offset calibration
  *
- * We enable the driver to be backward compatible wrt API version. The
- * driver specifies which APIs it supports (with @ucode_api_max being the
- * highest and @ucode_api_min the lowest). Firmware will only be loaded if
- * it has a supported API version.
- *
- * The ideal usage of this infrastructure is to treat a new ucode API
- * release as a new hardware revision.
+ * We enable the driver to be backward compatible wrt. hardware features.
+ * API differences in uCode shouldn't be handled here but through TLVs
+ * and/or the uCode API version instead.
  */
 struct iwl_cfg {
 	/* params specific to an individual device within a device family */
