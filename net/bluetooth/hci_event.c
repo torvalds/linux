@@ -1094,8 +1094,12 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		break;
 
 	case LE_SCANNING_DISABLED:
-		if (status)
+		if (status) {
+			hci_dev_lock(hdev);
+			mgmt_stop_discovery_failed(hdev, status);
+			hci_dev_unlock(hdev);
 			return;
+		}
 
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
 

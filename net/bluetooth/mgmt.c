@@ -2404,7 +2404,11 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	if (hdev->discovery.state == DISCOVERY_FINDING) {
-		err = hci_cancel_inquiry(hdev);
+		if (test_bit(HCI_INQUIRY, &hdev->flags))
+			err = hci_cancel_inquiry(hdev);
+		else
+			err = hci_cancel_le_scan(hdev);
+
 		if (err < 0)
 			mgmt_pending_remove(cmd);
 		else
