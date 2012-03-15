@@ -529,7 +529,7 @@ choice
 	prompt "Select a UART for early kernel messages"
 
 config AT91_EARLY_DBGU0
-	bool "DBGU on rm9200, 9260/9g20, 9261/9g10 and 9rl"
+	bool "DBGU on rm9200, 9260/9g20, 9261/9g10, 9rl and 9x5"
 	depends on HAVE_AT91_DBGU0
 
 config AT91_EARLY_DBGU1
