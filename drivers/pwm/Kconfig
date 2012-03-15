@@ -18,6 +18,15 @@ config PWM_BFIN
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-bfin.
 
+config PWM_IMX
+	tristate "i.MX pwm support"
+	depends on ARCH_MXC
+	help
+	  Generic PWM framework driver for i.MX.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-imx.
+
 config PWM_PXA
 	tristate "PXA PWM support"
 	depends on ARCH_PXA
