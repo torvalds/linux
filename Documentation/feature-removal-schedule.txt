@@ -524,3 +524,14 @@ Files:	arch/arm/mach-at91/at91cap9.c
 Why:	The code is not actively maintained and platforms are now hard to find.
 Who:	Nicolas Ferre <nicolas.ferre@atmel.com>
 	Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+
+----------------------------
+
+What:	Low Performance USB Block driver ("CONFIG_BLK_DEV_UB")
+When:	3.6
+Why:	This driver provides support for USB storage devices like "USB
+	sticks". As of now, it is deactivated in Debian, Fedora and
+        Ubuntu. All current users can switch over to usb-storage
+        (CONFIG_USB_STORAGE) which only drawback is the additional SCSI
+        stack.
+Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>

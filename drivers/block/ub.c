@@ -2440,6 +2440,8 @@ static int __init ub_init(void)
 	int rc;
 	int i;
 
+	pr_info("'Low Performance USB Block' driver is deprecated. "
+			"Please switch to usb-storage\n");
 	for (i = 0; i < UB_QLOCK_NUM; i++)
 		spin_lock_init(&ub_qlockv[i]);
 
