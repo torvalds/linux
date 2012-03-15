@@ -13,6 +13,7 @@
 #include "util/parse-events.h"
 #include "util/symbol.h"
 #include "util/thread_map.h"
+#include "util/pmu.h"
 #include "../../include/linux/hw_breakpoint.h"
 
 #include <sys/mman.h>
@@ -1484,6 +1485,11 @@ static int test__rdpmc(void)
 
 #endif
 
+static int test__perf_pmu(void)
+{
+	return perf_pmu__test();
+}
+
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -1517,6 +1523,10 @@ static struct test {
 	{
 		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
+	},
+	{
+		.desc = "Test perf pmu format parsing",
+		.func = test__perf_pmu,
 	},
 	{
 		.func = NULL,
