@@ -2352,7 +2352,7 @@ hw_died:
 		u32 irq_pending;
 		/* Acknowledge the PCI interrupt */
 		irq_pending = xhci_readl(xhci, &xhci->ir_set->irq_pending);
-		irq_pending |= 0x3;
+		irq_pending |= IMAN_IP;
 		xhci_writel(xhci, irq_pending, &xhci->ir_set->irq_pending);
 	}
 
