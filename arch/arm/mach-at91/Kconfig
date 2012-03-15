@@ -442,9 +442,10 @@ comment "AT91SAM9G45 Board Type"
 config MACH_AT91SAM9M10G45EK
 	bool "Atmel AT91SAM9M10G45-EK Evaluation Kits"
 	help
-	  Select this if you are using Atmel's AT91SAM9G45-EKES Evaluation Kit.
-	  "ES" at the end of the name means that this board is an
-	  Engineering Sample.
+	  Select this if you are using Atmel's AT91SAM9M10G45-EK Evaluation Kit.
+	  Those boards can be populated with any SoC of AT91SAM9G45 or AT91SAM9M10
+	  families: AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
+	  <http://www.atmel.com/tools/SAM9M10-G45-EK.aspx>
 
 endif
 
