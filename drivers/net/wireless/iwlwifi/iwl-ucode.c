@@ -417,9 +417,8 @@ struct iwl_alive_data {
 	u8 subtype;
 };
 
-static void iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
-			    struct iwl_rx_packet *pkt,
-			    void *data)
+static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
+			 struct iwl_rx_packet *pkt, void *data)
 {
 	struct iwl_priv *priv =
 		container_of(notif_wait, struct iwl_priv, notif_wait);
@@ -440,6 +439,8 @@ static void iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 
 	alive_data->subtype = palive->ver_subtype;
 	alive_data->valid = palive->is_valid == UCODE_VALID_OK;
+
+	return true;
 }
 
 #define UCODE_ALIVE_TIMEOUT	HZ
@@ -453,6 +454,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	const struct fw_img *fw;
 	int ret;
 	enum iwl_ucode_type old_type;
+	static const u8 alive_cmd[] = { REPLY_ALIVE };
 
 	old_type = priv->shrd->ucode_type;
 	priv->shrd->ucode_type = ucode_type;
@@ -463,8 +465,9 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	if (!fw)
 		return -EINVAL;
 
-	iwl_init_notification_wait(&priv->notif_wait, &alive_wait, REPLY_ALIVE,
-				      iwl_alive_fn, &alive_data);
+	iwl_init_notification_wait(&priv->notif_wait, &alive_wait,
+				   alive_cmd, ARRAY_SIZE(alive_cmd),
+				   iwl_alive_fn, &alive_data);
 
 	ret = iwl_trans_start_fw(trans(priv), fw);
 	if (ret) {
@@ -522,6 +525,9 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 int iwl_run_init_ucode(struct iwl_priv *priv)
 {
 	struct iwl_notification_wait calib_wait;
+	static const u8 calib_complete[] = {
+		CALIBRATION_COMPLETE_NOTIFICATION
+	};
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
@@ -534,8 +540,8 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 		return 0;
 
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
-				      CALIBRATION_COMPLETE_NOTIFICATION,
-				      NULL, NULL);
+				   calib_complete, ARRAY_SIZE(calib_complete),
+				   NULL, NULL);
 
 	/* Will also start the device */
 	ret = iwl_load_ucode_wait_alive(priv, IWL_UCODE_INIT);

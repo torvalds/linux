@@ -420,10 +420,13 @@ nla_put_failure:
 static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 {
 	struct iwl_notification_wait calib_wait;
+	static const u8 calib_complete[] = {
+		CALIBRATION_COMPLETE_NOTIFICATION
+	};
 	int ret;
 
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
-				   CALIBRATION_COMPLETE_NOTIFICATION,
+				   calib_complete, ARRAY_SIZE(calib_complete),
 				   NULL, NULL);
 	ret = iwl_init_alive_start(priv);
 	if (ret) {

@@ -59,9 +59,12 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	__le32 old_filter = send->filter_flags;
 	u8 old_dev_type = send->dev_type;
 	int ret;
+	static const u8 deactivate_cmd[] = {
+		REPLY_WIPAN_DEACTIVATION_COMPLETE
+	};
 
 	iwl_init_notification_wait(&priv->notif_wait, &disable_wait,
-				   REPLY_WIPAN_DEACTIVATION_COMPLETE,
+				   deactivate_cmd, ARRAY_SIZE(deactivate_cmd),
 				   NULL, NULL);
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
