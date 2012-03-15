@@ -32,7 +32,6 @@
 #include <asm/mach/arch.h>
 
 #include <mach/mux.h>
-#include <mach/dm365.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
@@ -41,6 +40,8 @@
 #include <mach/keyscan.h>
 
 #include <media/tvp514x.h>
+
+#include "davinci.h"
 
 static inline int have_imager(void)
 {
