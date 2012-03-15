@@ -498,6 +498,7 @@ struct prcmu_auto_pm_config {
 #define PRCMU_FW_PROJECT_U8500_C2	7
 #define PRCMU_FW_PROJECT_U9500_C2	11
 #define PRCMU_FW_PROJECT_U8520		13
+#define PRCMU_FW_PROJECT_U8420		14
 
 struct prcmu_fw_version {
 	u8 project;

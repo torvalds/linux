@@ -2636,6 +2636,8 @@ static char *fw_project_name(u8 project)
 		return "U9500 C2";
 	case PRCMU_FW_PROJECT_U8520:
 		return "U8520";
+	case PRCMU_FW_PROJECT_U8420:
+		return "U8420";
 	default:
 		return "Unknown";
 	}
