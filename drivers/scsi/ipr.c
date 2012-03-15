@@ -850,8 +850,6 @@ static void ipr_do_req(struct ipr_cmnd *ipr_cmd,
 
 	ipr_trc_hook(ipr_cmd, IPR_TRACE_START, 0);
 
-	mb();
-
 	ipr_send_command(ipr_cmd);
 }
 
@@ -984,8 +982,6 @@ static void ipr_send_hcam(struct ipr_ioa_cfg *ioa_cfg, u8 type,
 			ipr_cmd->done = ipr_process_error;
 
 		ipr_trc_hook(ipr_cmd, IPR_TRACE_START, IPR_IOA_RES_ADDR);
-
-		mb();
 
 		ipr_send_command(ipr_cmd);
 	} else {
@@ -5863,14 +5859,12 @@ static int ipr_queuecommand_lck(struct scsi_cmnd *scsi_cmd,
 			rc = ipr_build_ioadl(ioa_cfg, ipr_cmd);
 	}
 
-	if (likely(rc == 0)) {
-		mb();
-		ipr_send_command(ipr_cmd);
-	} else {
-		 list_move_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
-		 return SCSI_MLQUEUE_HOST_BUSY;
+	if (unlikely(rc != 0)) {
+		list_move_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
+		return SCSI_MLQUEUE_HOST_BUSY;
 	}
 
+	ipr_send_command(ipr_cmd);
 	return 0;
 }
 
@@ -6247,8 +6241,6 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 		WARN_ON(1);
 		return AC_ERR_INVALID;
 	}
-
-	mb();
 
 	ipr_send_command(ipr_cmd);
 
