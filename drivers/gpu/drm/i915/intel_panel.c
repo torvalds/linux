@@ -28,6 +28,7 @@
  *      Chris Wilson <chris@chris-wilson.co.uk>
  */
 
+#include <linux/moduleparam.h>
 #include "intel_drv.h"
 
 #define PCI_LBPC 0xf4 /* legacy/combination backlight modes */
@@ -189,6 +190,20 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 	return max;
 }
 
+static bool i915_panel_invert_brightness;
+MODULE_PARM_DESC(invert_brightness, "Invert backlight brightness, please "
+	"report PCI device ID, subsystem vendor and subsystem device ID "
+	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
+	"It will then be included in an upcoming module version.");
+module_param_named(invert_brightness, i915_panel_invert_brightness, bool, 0600);
+static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
+{
+	if (i915_panel_invert_brightness)
+		return intel_panel_get_max_backlight(dev) - val;
+
+	return val;
+}
+
 u32 intel_panel_get_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -209,6 +224,7 @@ u32 intel_panel_get_backlight(struct drm_device *dev)
 		}
 	}
 
+	val = intel_panel_compute_brightness(dev, val);
 	DRM_DEBUG_DRIVER("get backlight PWM = %d\n", val);
 	return val;
 }
@@ -226,6 +242,7 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level
 	u32 tmp;
 
 	DRM_DEBUG_DRIVER("set backlight PWM = %d\n", level);
+	level = intel_panel_compute_brightness(dev, level);
 
 	if (HAS_PCH_SPLIT(dev))
 		return intel_pch_panel_set_backlight(dev, level);
