@@ -53,6 +53,9 @@ static struct omap4_idle_statedata omap4_idle_data[] = {
 static struct powerdomain *mpu_pd, *cpu_pd[NR_CPUS];
 static struct clockdomain *cpu_clkdm[NR_CPUS];
 
+static atomic_t abort_barrier;
+static bool cpu_done[NR_CPUS];
+
 /**
  * omap4_enter_idle_coupled_[simple/coupled] - OMAP4 cpuidle entry functions
  * @dev: cpuidle device
@@ -90,8 +93,20 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 	 * out of coherency and in OFF mode.
 	 */
 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
-		while (pwrdm_read_pwrst(cpu_pd[1]) != PWRDM_POWER_OFF)
+		while (pwrdm_read_pwrst(cpu_pd[1]) != PWRDM_POWER_OFF) {
 			cpu_relax();
+
+			/*
+			 * CPU1 could have already entered & exited idle
+			 * without hitting off because of a wakeup
+			 * or a failed attempt to hit off mode.  Check for
+			 * that here, otherwise we could spin forever
+			 * waiting for CPU1 off.
+			 */
+			if (cpu_done[1])
+			    goto fail;
+
+		}
 	}
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER, &cpu_id);
@@ -116,6 +131,7 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 	}
 
 	omap4_enter_lowpower(dev->cpu, cx->cpu_state);
+	cpu_done[dev->cpu] = true;
 
 	/* Wakeup CPU1 only if it is not offlined */
 	if (dev->cpu == 0 && cpumask_test_cpu(1, cpu_online_mask)) {
@@ -137,6 +153,10 @@ static int omap4_enter_idle_coupled(struct cpuidle_device *dev,
 		cpu_cluster_pm_exit();
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT, &cpu_id);
+
+fail:
+	cpuidle_coupled_parallel_barrier(dev, &abort_barrier);
+	cpu_done[dev->cpu] = false;
 
 	local_fiq_enable();
 
