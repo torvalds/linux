@@ -14,6 +14,7 @@
 
 #include <mach/setup.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #ifdef CONFIG_HAVE_ARM_TWD
 static DEFINE_TWD_LOCAL_TIMER(u5500_twd_local_timer,
@@ -41,7 +42,6 @@ static void __init ux500_timer_init(void)
 {
 	void __iomem *mtu_timer_base;
 	void __iomem *prcmu_timer_base;
-	int err;
 
 	if (cpu_is_u5500()) {
 		mtu_timer_base = __io_address(U5500_MTU0_BASE);
