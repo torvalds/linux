@@ -1178,7 +1178,6 @@ static void iwl_debug_config(struct iwl_priv *priv)
 static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 						 const struct iwl_fw *fw)
 {
-	int err = 0;
 	struct iwl_priv *priv;
 	struct ieee80211_hw *hw;
 	struct iwl_op_mode *op_mode;
@@ -1201,7 +1200,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	if (!hw) {
 		pr_err("%s: Cannot allocate network device\n",
 				cfg(trans)->name);
-		err = -ENOMEM;
 		goto out;
 	}
 
@@ -1273,26 +1271,24 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		cfg(priv)->name, trans(priv)->hw_rev);
 
-	err = iwl_trans_start_hw(trans(priv));
-	if (err)
+	if (iwl_trans_start_hw(trans(priv)))
 		goto out_free_traffic_mem;
 
 	/*****************
 	 * 3. Read EEPROM
 	 *****************/
-	err = iwl_eeprom_init(trans(priv), trans(priv)->hw_rev);
-	/* Reset chip to save power until we load uCode during "up". */
-	iwl_trans_stop_hw(trans(priv));
-	if (err) {
+	/* Read the EEPROM */
+	if (iwl_eeprom_init(trans(priv), trans(priv)->hw_rev)) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_free_traffic_mem;
 	}
-	err = iwl_eeprom_check_version(priv);
-	if (err)
+	/* Reset chip to save power until we load uCode during "up". */
+	iwl_trans_stop_hw(trans(priv));
+
+	if (iwl_eeprom_check_version(priv))
 		goto out_free_eeprom;
 
-	err = iwl_eeprom_init_hw_params(priv);
-	if (err)
+	if (iwl_eeprom_init_hw_params(priv))
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
@@ -1332,9 +1328,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * 5. Setup priv
 	 *******************/
 
-	err = iwl_init_drv(priv);
-	if (err)
+	if (iwl_init_drv(priv))
 		goto out_free_eeprom;
+
 	/* At this point both hw and priv are initialized. */
 
 	/********************
@@ -1367,15 +1363,12 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 *
 	 * 7. Setup and register with mac80211 and debugfs
 	 **************************************************/
-	err = iwlagn_mac_setup_register(priv, &fw->ucode_capa);
-	if (err)
+	if (iwlagn_mac_setup_register(priv, &fw->ucode_capa))
 		goto out_destroy_workqueue;
 
-	err = iwl_dbgfs_register(priv, DRV_NAME);
-	if (err)
+	if (iwl_dbgfs_register(priv, DRV_NAME))
 		IWL_ERR(priv,
-			"failed to create debugfs files. Ignoring error: %d\n",
-			err);
+			"failed to create debugfs files. Ignoring error\n");
 
 	return op_mode;
 
