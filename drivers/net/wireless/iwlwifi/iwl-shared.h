@@ -347,7 +347,6 @@ struct iwl_cfg {
  * @lock: protect general shared data
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
- * @device_pointers: pointers to ucode event tables
  */
 struct iwl_shared {
 	unsigned long status;
@@ -363,11 +362,6 @@ struct iwl_shared {
 
 	/* ucode related variables */
 	enum iwl_ucode_type ucode_type;
-
-	struct {
-		u32 error_event_table;
-		u32 log_event_table;
-	} device_pointers;
 
 };
 

@@ -367,9 +367,9 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 		       palive->is_valid, palive->ver_type,
 		       palive->ver_subtype);
 
-	priv->shrd->device_pointers.error_event_table =
+	priv->device_pointers.error_event_table =
 		le32_to_cpu(palive->error_event_table_ptr);
-	priv->shrd->device_pointers.log_event_table =
+	priv->device_pointers.log_event_table =
 		le32_to_cpu(palive->log_event_table_ptr);
 
 	alive_data->subtype = palive->ver_subtype;

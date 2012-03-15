@@ -991,6 +991,12 @@ struct iwl_priv {
 	__le64 replay_ctr;
 	__le16 last_seq_ctl;
 	bool have_rekey_data;
+
+	/* device_pointers: pointers to ucode event tables */
+	struct {
+		u32 error_event_table;
+		u32 log_event_table;
+	} device_pointers;
 }; /*iwl_priv */
 
 extern struct kmem_cache *iwl_tx_cmd_pool;

@@ -320,8 +320,6 @@ int iwl_queue_space(const struct iwl_queue *q);
 /*****************************************************
 * Error handling
 ******************************************************/
-int iwl_dump_nic_event_log(struct iwl_trans *trans, bool full_log,
-			    char **buf, bool display);
 int iwl_dump_fh(struct iwl_trans *trans, char **buf, bool display);
 void iwl_dump_csr(struct iwl_trans *trans);
 

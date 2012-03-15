@@ -132,6 +132,8 @@ int iwl_calib_set(struct iwl_priv *priv,
 		  const struct iwl_calib_hdr *cmd, int len);
 void iwl_calib_free_results(struct iwl_priv *priv);
 void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
+int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
+			    char **buf, bool display);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
