@@ -195,6 +195,21 @@ static inline unsigned long meram_read_reg(void __iomem *base, unsigned int off)
 }
 
 /* -----------------------------------------------------------------------------
+ * MERAM allocation and free
+ */
+
+static unsigned long meram_alloc(struct sh_mobile_meram_priv *priv, size_t size)
+{
+	return gen_pool_alloc(priv->pool, size);
+}
+
+static void meram_free(struct sh_mobile_meram_priv *priv, unsigned long mem,
+		       size_t size)
+{
+	gen_pool_free(priv->pool, mem, size);
+}
+
+/* -----------------------------------------------------------------------------
  * LCDC cache planes allocation, init, cleanup and free
  */
 
@@ -216,7 +231,7 @@ static int meram_plane_alloc(struct sh_mobile_meram_priv *priv,
 		return -ENOMEM;
 	plane->marker = &priv->icbs[idx];
 
-	mem = gen_pool_alloc(priv->pool, size * 1024);
+	mem = meram_alloc(priv, size * 1024);
 	if (mem == 0)
 		return -ENOMEM;
 
@@ -233,8 +248,8 @@ static int meram_plane_alloc(struct sh_mobile_meram_priv *priv,
 static void meram_plane_free(struct sh_mobile_meram_priv *priv,
 			     struct sh_mobile_meram_fb_plane *plane)
 {
-	gen_pool_free(priv->pool, priv->meram + plane->marker->offset,
-		      plane->marker->size * 1024);
+	meram_free(priv, priv->meram + plane->marker->offset,
+		   plane->marker->size * 1024);
 
 	__clear_bit(plane->marker->index, &priv->used_icb);
 	__clear_bit(plane->cache->index, &priv->used_icb);
@@ -386,8 +401,26 @@ static void meram_plane_cleanup(struct sh_mobile_meram_priv *priv,
 }
 
 /* -----------------------------------------------------------------------------
- * LCDC cache operations
+ * MERAM operations
  */
+
+unsigned long sh_mobile_meram_alloc(struct sh_mobile_meram_info *pdata,
+				    size_t size)
+{
+	struct sh_mobile_meram_priv *priv = pdata->priv;
+
+	return meram_alloc(priv, size);
+}
+EXPORT_SYMBOL_GPL(sh_mobile_meram_alloc);
+
+void sh_mobile_meram_free(struct sh_mobile_meram_info *pdata, unsigned long mem,
+			  size_t size)
+{
+	struct sh_mobile_meram_priv *priv = pdata->priv;
+
+	meram_free(priv, mem, size);
+}
+EXPORT_SYMBOL_GPL(sh_mobile_meram_free);
 
 /* Allocate memory for the ICBs and mark them as used. */
 static struct sh_mobile_meram_fb_cache *

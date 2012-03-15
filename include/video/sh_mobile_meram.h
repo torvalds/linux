@@ -38,6 +38,10 @@ struct sh_mobile_meram_cfg {
 
 #if defined(CONFIG_FB_SH_MOBILE_MERAM) || \
     defined(CONFIG_FB_SH_MOBILE_MERAM_MODULE)
+unsigned long sh_mobile_meram_alloc(struct sh_mobile_meram_info *meram_dev,
+				    size_t size);
+void sh_mobile_meram_free(struct sh_mobile_meram_info *meram_dev,
+			  unsigned long mem, size_t size);
 void *sh_mobile_meram_cache_alloc(struct sh_mobile_meram_info *dev,
 				  const struct sh_mobile_meram_cfg *cfg,
 				  unsigned int xres, unsigned int yres,
@@ -50,6 +54,18 @@ void sh_mobile_meram_cache_update(struct sh_mobile_meram_info *dev, void *data,
 				  unsigned long *icb_addr_y,
 				  unsigned long *icb_addr_c);
 #else
+static inline unsigned long
+sh_mobile_meram_alloc(struct sh_mobile_meram_info *meram_dev, size_t size)
+{
+	return 0;
+}
+
+static inline void
+sh_mobile_meram_free(struct sh_mobile_meram_info *meram_dev,
+		     unsigned long mem, size_t size)
+{
+}
+
 static inline void *
 sh_mobile_meram_cache_alloc(struct sh_mobile_meram_info *dev,
 			    const struct sh_mobile_meram_cfg *cfg,
