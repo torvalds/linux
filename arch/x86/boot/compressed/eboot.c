@@ -674,7 +674,7 @@ free_initrd_total:
 	low_free(initrd_total, initrd_addr);
 
 close_handles:
-	for (k = j; k < nr_initrds; k++)
+	for (k = j; k < i; k++)
 		efi_call_phys1(fh->close, initrds[k].handle);
 free_initrds:
 	efi_call_phys1(sys_table->boottime->free_pool, initrds);
