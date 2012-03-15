@@ -220,8 +220,7 @@ enum iwl_agg_state {
  *	Tx response (REPLY_TX), and the block ack notification
  *	(REPLY_COMPRESSED_BA).
  * @state: state of the BA agreement establishment / tear down.
- * @txq_id: Tx queue used by the BA session - used by the transport layer.
- *	Needed by the upper layer for debugfs only.
+ * @txq_id: Tx queue used by the BA session
  * @ssn: the first packet to be sent in AGG HW queue in Tx AGG start flow, or
  *	the first packet to be sent in legacy HW queue in Tx AGG stop flow.
  *	Basically when next_reclaimed reaches ssn, we can tell mac80211 that
@@ -623,6 +622,10 @@ struct iwl_force_reset {
 struct iwl_rxon_context {
 	struct ieee80211_vif *vif;
 
+	u8 mcast_queue;
+	u8 ac_to_queue[IEEE80211_NUM_ACS];
+	u8 ac_to_fifo[IEEE80211_NUM_ACS];
+
 	/*
 	 * We could use the vif to indicate active, but we
 	 * also need it to be active during disabling when
@@ -720,6 +723,11 @@ struct iwl_priv {
 
 	unsigned long transport_queue_stop;
 	bool passive_no_rx;
+#define IWL_INVALID_AC	0xff
+	u8 queue_to_ac[IWL_MAX_HW_QUEUES];
+	atomic_t ac_stop_count[IEEE80211_NUM_ACS];
+
+	unsigned long agg_q_alloc[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 
 	/* ieee device used by generic ieee processing code */
 	struct ieee80211_hw *hw;

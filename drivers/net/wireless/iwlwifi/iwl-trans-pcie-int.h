@@ -136,13 +136,6 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 	return --index & (n_bd - 1);
 }
 
-/*
- * This queue number is required for proper operation
- * because the ucode will stop/start the scheduler as
- * required.
- */
-#define IWL_IPAN_MCAST_QUEUE		8
-
 struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
@@ -199,9 +192,6 @@ struct iwl_queue {
  * lock: queue lock
  * @time_stamp: time (in jiffies) of last read_ptr change
  * @need_update: indicates need to update read/write index
- * @sched_retry: indicates queue is high-throughput aggregation (HT AGG) enabled
- * @sta_id: valid if sched_retry is set
- * @tid: valid if sched_retry is set
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
@@ -218,12 +208,7 @@ struct iwl_tx_queue {
 	spinlock_t lock;
 	unsigned long time_stamp;
 	u8 need_update;
-	u8 sched_retry;
 	u8 active;
-	u8 swq_id;
-
-	u16 sta_id;
-	u16 tid;
 };
 
 /**
@@ -236,13 +221,6 @@ struct iwl_tx_queue {
  * @scd_base_addr: scheduler sram base address in SRAM
  * @scd_bc_tbls: pointer to the byte count table of the scheduler
  * @kw: keep warm address
- * @ac_to_fifo: to what fifo is a specifc AC mapped ?
- * @ac_to_queue: to what tx queue  is a specifc AC mapped ?
- * @mcast_queue:
- * @txq: Tx DMA processing queues
- * @txq_ctx_active_msk: what queue is active
- * queue_stopped: tracks what queue is stopped
- * queue_stop_count: tracks what SW queue is stopped
  * @pci_dev: basic pci-network driver stuff
  * @hw_base: pci hardware address support
  * @ucode_write_complete: indicates that the ucode has been copied.
@@ -272,16 +250,9 @@ struct iwl_trans_pcie {
 	struct iwl_dma_ptr scd_bc_tbls;
 	struct iwl_dma_ptr kw;
 
-	const u8 *ac_to_fifo[NUM_IWL_RXON_CTX];
-	const u8 *ac_to_queue[NUM_IWL_RXON_CTX];
-	u8 mcast_queue[NUM_IWL_RXON_CTX];
-	u8 agg_txq[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
-
 	struct iwl_tx_queue *txq;
-	unsigned long txq_ctx_active_msk;
-#define IWL_MAX_HW_QUEUES	32
+	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 	unsigned long queue_stopped[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
-	atomic_t queue_stop_count[4];
 
 	/* PCI bus related data */
 	struct pci_dev *pci_dev;
@@ -293,6 +264,8 @@ struct iwl_trans_pcie {
 	u8 cmd_queue;
 	u8 n_no_reclaim_cmds;
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
+	u8 setup_q_to_fifo[IWL_MAX_HW_QUEUES];
+	u8 n_q_to_fifo;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
@@ -331,15 +304,12 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans,
 void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 					   struct iwl_tx_queue *txq,
 					   u16 byte_cnt);
-int iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans,
-				  int sta_id, int tid);
+void iwl_trans_pcie_tx_agg_disable(struct iwl_trans *trans, int queue);
 void iwl_trans_set_wr_ptrs(struct iwl_trans *trans, int txq_id, u32 index);
 void iwl_trans_tx_queue_set_status(struct iwl_trans *trans,
-			     struct iwl_tx_queue *txq,
-			     int tx_fifo_id, int scd_retry);
-int iwl_trans_pcie_tx_agg_alloc(struct iwl_trans *trans, int sta_id, int tid);
-void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans,
-				 enum iwl_rxon_context_id ctx,
+				   struct iwl_tx_queue *txq,
+				   int tx_fifo_id, bool active);
+void iwl_trans_pcie_tx_agg_setup(struct iwl_trans *trans, int queue, int fifo,
 				 int sta_id, int tid, int frame_limit, u16 ssn);
 void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	int index, enum dma_data_direction dma_dir);
@@ -388,91 +358,28 @@ static inline void iwl_enable_rfkill_int(struct iwl_trans *trans)
 	iwl_write32(trans, CSR_INT_MASK, CSR_INT_BIT_RF_KILL);
 }
 
-/*
- * we have 8 bits used like this:
- *
- * 7 6 5 4 3 2 1 0
- * | | | | | | | |
- * | | | | | | +-+-------- AC queue (0-3)
- * | | | | | |
- * | +-+-+-+-+------------ HW queue ID
- * |
- * +---------------------- unused
- */
-static inline void iwl_set_swq_id(struct iwl_tx_queue *txq, u8 ac, u8 hwq)
-{
-	BUG_ON(ac > 3);   /* only have 2 bits */
-	BUG_ON(hwq > 31); /* only use 5 bits */
-
-	txq->swq_id = (hwq << 2) | ac;
-}
-
-static inline u8 iwl_get_queue_ac(struct iwl_tx_queue *txq)
-{
-	return txq->swq_id & 0x3;
-}
-
 static inline void iwl_wake_queue(struct iwl_trans *trans,
 				  struct iwl_tx_queue *txq)
 {
-	u8 queue = txq->swq_id;
-	u8 ac = queue & 3;
-	u8 hwq = (queue >> 2) & 0x1f;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (test_and_clear_bit(hwq, trans_pcie->queue_stopped)) {
-		if (atomic_dec_return(&trans_pcie->queue_stop_count[ac]) <= 0) {
-			iwl_op_mode_queue_not_full(trans->op_mode, ac);
-			IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d ac %d",
-					    hwq, ac);
-		} else {
-			IWL_DEBUG_TX_QUEUES(trans,
-				"Don't wake hwq %d ac %d stop count %d",
-				hwq, ac,
-				atomic_read(&trans_pcie->queue_stop_count[ac]));
-		}
+	if (test_and_clear_bit(txq->q.id, trans_pcie->queue_stopped)) {
+		IWL_DEBUG_TX_QUEUES(trans, "Wake hwq %d\n", txq->q.id);
+		iwl_op_mode_queue_not_full(trans->op_mode, txq->q.id);
 	}
 }
 
 static inline void iwl_stop_queue(struct iwl_trans *trans,
 				  struct iwl_tx_queue *txq)
 {
-	u8 queue = txq->swq_id;
-	u8 ac = queue & 3;
-	u8 hwq = (queue >> 2) & 0x1f;
-	struct iwl_trans_pcie *trans_pcie =
-		IWL_TRANS_GET_PCIE_TRANS(trans);
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (!test_and_set_bit(hwq, trans_pcie->queue_stopped)) {
-		if (atomic_inc_return(&trans_pcie->queue_stop_count[ac]) > 0) {
-			iwl_op_mode_queue_full(trans->op_mode, ac);
-			IWL_DEBUG_TX_QUEUES(trans,
-				"Stop hwq %d ac %d stop count %d",
-				hwq, ac,
-				atomic_read(&trans_pcie->queue_stop_count[ac]));
-		} else {
-			IWL_DEBUG_TX_QUEUES(trans,
-				"Don't stop hwq %d ac %d stop count %d",
-				hwq, ac,
-				atomic_read(&trans_pcie->queue_stop_count[ac]));
-		}
-	} else {
-		IWL_DEBUG_TX_QUEUES(trans, "stop hwq %d, but it is stopped",
-				    hwq);
-	}
-}
-
-static inline void iwl_txq_ctx_activate(struct iwl_trans_pcie *trans_pcie,
-					int txq_id)
-{
-	set_bit(txq_id, &trans_pcie->txq_ctx_active_msk);
-}
-
-static inline void iwl_txq_ctx_deactivate(struct iwl_trans_pcie *trans_pcie,
-					  int txq_id)
-{
-	clear_bit(txq_id, &trans_pcie->txq_ctx_active_msk);
+	if (!test_and_set_bit(txq->q.id, trans_pcie->queue_stopped)) {
+		iwl_op_mode_queue_full(trans->op_mode, txq->q.id);
+		IWL_DEBUG_TX_QUEUES(trans, "Stop hwq %d\n", txq->q.id);
+	} else
+		IWL_DEBUG_TX_QUEUES(trans, "hwq %d already stopped\n",
+				    txq->q.id);
 }
 
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
@@ -486,20 +393,5 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
 {
 	return index & (q->n_window - 1);
 }
-
-#define IWL_TX_FIFO_BK		0	/* shared */
-#define IWL_TX_FIFO_BE		1
-#define IWL_TX_FIFO_VI		2	/* shared */
-#define IWL_TX_FIFO_VO		3
-#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
-#define IWL_TX_FIFO_BE_IPAN	4
-#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
-#define IWL_TX_FIFO_VO_IPAN	5
-/* re-uses the VO FIFO, uCode will properly flush/schedule */
-#define IWL_TX_FIFO_AUX		5
-#define IWL_TX_FIFO_UNUSED	-1
-
-/* AUX (TX during scan dwell) queue */
-#define IWL_AUX_QUEUE		10
 
 #endif /* __iwl_trans_int_pcie_h__ */

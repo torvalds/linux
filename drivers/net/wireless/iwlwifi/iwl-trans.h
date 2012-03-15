@@ -285,11 +285,19 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 
 #define MAX_NO_RECLAIM_CMDS	6
 
+/*
+ * Maximum number of HW queues the transport layer
+ * currently supports
+ */
+#define IWL_MAX_HW_QUEUES		32
+
 /**
  * struct iwl_trans_config - transport configuration
  *
  * @op_mode: pointer to the upper layer.
- *	Must be set before any other call.
+ * @queue_to_fifo: queue to FIFO mapping to set up by
+ *	default
+ * @n_queue_to_fifo: number of queues to set up
  * @cmd_queue: the index of the command queue.
  *	Must be set before start_fw.
  * @no_reclaim_cmds: Some devices erroneously don't set the
@@ -300,6 +308,9 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
+	const u8 *queue_to_fifo;
+	u8 n_queue_to_fifo;
+
 	u8 cmd_queue;
 	const u8 *no_reclaim_cmds;
 	int n_no_reclaim_cmds;
@@ -330,8 +341,6 @@ struct iwl_trans_config {
  * @tx: send an skb
  *	Must be atomic
  * @reclaim: free packet until ssn. Returns a list of freed packets.
- *	Must be atomic
- * @tx_agg_alloc: allocate resources for a TX BA session
  *	Must be atomic
  * @tx_agg_setup: setup a tx queue for AMPDU - will be called once the HW is
  *	ready and a successful ADDBA response has been received.
@@ -369,18 +378,13 @@ struct iwl_trans_ops {
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
 	int (*tx)(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
-		u8 sta_id, u8 tid);
-	int (*reclaim)(struct iwl_trans *trans, int sta_id, int tid,
-			int txq_id, int ssn, struct sk_buff_head *skbs);
+		  struct iwl_device_cmd *dev_cmd, int queue);
+	void (*reclaim)(struct iwl_trans *trans, int queue, int ssn,
+			struct sk_buff_head *skbs);
 
-	int (*tx_agg_disable)(struct iwl_trans *trans,
-			      int sta_id, int tid);
-	int (*tx_agg_alloc)(struct iwl_trans *trans,
-			    int sta_id, int tid);
-	void (*tx_agg_setup)(struct iwl_trans *trans,
-			     enum iwl_rxon_context_id ctx, int sta_id, int tid,
-			     int frame_limit, u16 ssn);
+	void (*tx_agg_setup)(struct iwl_trans *trans, int queue, int fifo,
+			     int sta_id, int tid, int frame_limit, u16 ssn);
+	void (*tx_agg_disable)(struct iwl_trans *trans, int queue);
 
 	void (*free)(struct iwl_trans *trans);
 
@@ -516,55 +520,42 @@ static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
 }
 
 static inline int iwl_trans_tx(struct iwl_trans *trans, struct sk_buff *skb,
-		struct iwl_device_cmd *dev_cmd, enum iwl_rxon_context_id ctx,
-		u8 sta_id, u8 tid)
-{
-	if (trans->state != IWL_TRANS_FW_ALIVE)
-		IWL_ERR(trans, "%s bad state = %d", __func__, trans->state);
-
-	return trans->ops->tx(trans, skb, dev_cmd, ctx, sta_id, tid);
-}
-
-static inline int iwl_trans_reclaim(struct iwl_trans *trans, int sta_id,
-				 int tid, int txq_id, int ssn,
-				 struct sk_buff_head *skbs)
+			       struct iwl_device_cmd *dev_cmd, int queue)
 {
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	return trans->ops->reclaim(trans, sta_id, tid, txq_id, ssn, skbs);
+	return trans->ops->tx(trans, skb, dev_cmd, queue);
 }
 
-static inline int iwl_trans_tx_agg_disable(struct iwl_trans *trans,
-					    int sta_id, int tid)
+static inline void iwl_trans_reclaim(struct iwl_trans *trans, int queue,
+				     int ssn, struct sk_buff_head *skbs)
 {
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	return trans->ops->tx_agg_disable(trans, sta_id, tid);
+	trans->ops->reclaim(trans, queue, ssn, skbs);
 }
 
-static inline int iwl_trans_tx_agg_alloc(struct iwl_trans *trans,
-					 int sta_id, int tid)
+static inline void iwl_trans_tx_agg_disable(struct iwl_trans *trans, int queue)
 {
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	return trans->ops->tx_agg_alloc(trans, sta_id, tid);
+	trans->ops->tx_agg_disable(trans, queue);
 }
 
-
-static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans,
-					   enum iwl_rxon_context_id ctx,
-					   int sta_id, int tid,
-					   int frame_limit, u16 ssn)
+static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans, int queue,
+					  int fifo, int sta_id, int tid,
+					  int frame_limit, u16 ssn)
 {
 	might_sleep();
 
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
 		  "%s bad state = %d", __func__, trans->state);
 
-	trans->ops->tx_agg_setup(trans, ctx, sta_id, tid, frame_limit, ssn);
+	trans->ops->tx_agg_setup(trans, queue, fifo, sta_id, tid,
+				 frame_limit, ssn);
 }
 
 static inline void iwl_trans_free(struct iwl_trans *trans)

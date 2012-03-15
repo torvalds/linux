@@ -488,6 +488,93 @@ static void iwl_bg_tx_flush(struct work_struct *work)
 	iwlagn_dev_txfifo_flush(priv, IWL_DROP_ALL);
 }
 
+/*
+ * queue/FIFO/AC mapping definitions
+ */
+
+#define IWL_TX_FIFO_BK		0	/* shared */
+#define IWL_TX_FIFO_BE		1
+#define IWL_TX_FIFO_VI		2	/* shared */
+#define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_BK_IPAN	IWL_TX_FIFO_BK
+#define IWL_TX_FIFO_BE_IPAN	4
+#define IWL_TX_FIFO_VI_IPAN	IWL_TX_FIFO_VI
+#define IWL_TX_FIFO_VO_IPAN	5
+/* re-uses the VO FIFO, uCode will properly flush/schedule */
+#define IWL_TX_FIFO_AUX		5
+#define IWL_TX_FIFO_UNUSED	-1
+
+#define IWLAGN_CMD_FIFO_NUM	7
+
+/*
+ * This queue number is required for proper operation
+ * because the ucode will stop/start the scheduler as
+ * required.
+ */
+#define IWL_IPAN_MCAST_QUEUE	8
+
+static const u8 iwlagn_default_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+	IWLAGN_CMD_FIFO_NUM,
+};
+
+static const u8 iwlagn_ipan_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+	IWL_TX_FIFO_BK_IPAN,
+	IWL_TX_FIFO_BE_IPAN,
+	IWL_TX_FIFO_VI_IPAN,
+	IWL_TX_FIFO_VO_IPAN,
+	IWL_TX_FIFO_BE_IPAN,
+	IWLAGN_CMD_FIFO_NUM,
+	IWL_TX_FIFO_AUX,
+};
+
+static const u8 iwlagn_bss_ac_to_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+};
+
+static const u8 iwlagn_bss_ac_to_queue[] = {
+	0, 1, 2, 3,
+};
+
+static const u8 iwlagn_pan_ac_to_fifo[] = {
+	IWL_TX_FIFO_VO_IPAN,
+	IWL_TX_FIFO_VI_IPAN,
+	IWL_TX_FIFO_BE_IPAN,
+	IWL_TX_FIFO_BK_IPAN,
+};
+
+static const u8 iwlagn_pan_ac_to_queue[] = {
+	7, 6, 5, 4,
+};
+
+static const u8 iwlagn_bss_queue_to_ac[] = {
+	IEEE80211_AC_VO,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BK,
+};
+
+static const u8 iwlagn_pan_queue_to_ac[] = {
+	IEEE80211_AC_VO,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VO,
+};
+
 static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 {
 	int i;
@@ -520,6 +607,10 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	priv->contexts[IWL_RXON_CTX_BSS].ibss_devtype = RXON_DEV_TYPE_IBSS;
 	priv->contexts[IWL_RXON_CTX_BSS].station_devtype = RXON_DEV_TYPE_ESS;
 	priv->contexts[IWL_RXON_CTX_BSS].unused_devtype = RXON_DEV_TYPE_ESS;
+	memcpy(priv->contexts[IWL_RXON_CTX_BSS].ac_to_queue,
+	       iwlagn_bss_ac_to_queue, sizeof(iwlagn_bss_ac_to_queue));
+	memcpy(priv->contexts[IWL_RXON_CTX_BSS].ac_to_fifo,
+	       iwlagn_bss_ac_to_fifo, sizeof(iwlagn_bss_ac_to_fifo));
 
 	priv->contexts[IWL_RXON_CTX_PAN].rxon_cmd = REPLY_WIPAN_RXON;
 	priv->contexts[IWL_RXON_CTX_PAN].rxon_timing_cmd =
@@ -542,6 +633,11 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	priv->contexts[IWL_RXON_CTX_PAN].ap_devtype = RXON_DEV_TYPE_CP;
 	priv->contexts[IWL_RXON_CTX_PAN].station_devtype = RXON_DEV_TYPE_2STA;
 	priv->contexts[IWL_RXON_CTX_PAN].unused_devtype = RXON_DEV_TYPE_P2P;
+	memcpy(priv->contexts[IWL_RXON_CTX_PAN].ac_to_queue,
+	       iwlagn_pan_ac_to_queue, sizeof(iwlagn_pan_ac_to_queue));
+	memcpy(priv->contexts[IWL_RXON_CTX_PAN].ac_to_fifo,
+	       iwlagn_pan_ac_to_fifo, sizeof(iwlagn_pan_ac_to_fifo));
+	priv->contexts[IWL_RXON_CTX_PAN].mcast_queue = IWL_IPAN_MCAST_QUEUE;
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 }
@@ -869,6 +965,7 @@ void iwlagn_prepare_restart(struct iwl_priv *priv)
 	u8 bt_load;
 	u8 bt_status;
 	bool bt_is_sco;
+	int i;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -898,6 +995,15 @@ void iwlagn_prepare_restart(struct iwl_priv *priv)
 	priv->bt_traffic_load = bt_load;
 	priv->bt_status = bt_status;
 	priv->bt_is_sco = bt_is_sco;
+
+	/* reset all queues */
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		atomic_set(&priv->ac_stop_count[i], 0);
+
+	for (i = IWLAGN_FIRST_AMPDU_QUEUE; i < IWL_MAX_HW_QUEUES; i++)
+		priv->queue_to_ac[i] = IWL_INVALID_AC;
+
+	memset(priv->agg_q_alloc, 0, sizeof(priv->agg_q_alloc));
 }
 
 static void iwl_bg_restart(struct work_struct *data)
@@ -1130,8 +1236,6 @@ static void iwl_set_hw_params(struct iwl_priv *priv)
 	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		hw_params(priv).sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
-	hw_params(priv).num_ampdu_queues =
-		cfg(priv)->base_params->num_of_ampdu_queues;
 	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
 
 	/* Device-specific setup */
@@ -1192,6 +1296,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		STATISTICS_NOTIFICATION,
 		REPLY_TX,
 	};
+	const u8 *q_to_ac;
+	int n_q_to_ac;
+	int i;
 
 	/************************
 	 * 1. Allocating HW data
@@ -1228,9 +1335,19 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM_PAN;
 		trans_cfg.cmd_queue = IWL_IPAN_CMD_QUEUE_NUM;
+		trans_cfg.queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
+		trans_cfg.n_queue_to_fifo =
+			ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo);
+		q_to_ac = iwlagn_pan_queue_to_ac;
+		n_q_to_ac = ARRAY_SIZE(iwlagn_pan_queue_to_ac);
 	} else {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+		trans_cfg.queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
+		trans_cfg.n_queue_to_fifo =
+			ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo);
+		q_to_ac = iwlagn_bss_queue_to_ac;
+		n_q_to_ac = ARRAY_SIZE(iwlagn_bss_queue_to_ac);
 	}
 
 	/* Configure transport layer */
@@ -1319,6 +1436,11 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
+		trans_cfg.queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
+		trans_cfg.n_queue_to_fifo =
+			ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo);
+		q_to_ac = iwlagn_bss_queue_to_ac;
+		n_q_to_ac = ARRAY_SIZE(iwlagn_bss_queue_to_ac);
 
 		/* Configure transport layer again*/
 		iwl_trans_configure(trans(priv), &trans_cfg);
@@ -1327,6 +1449,18 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/*******************
 	 * 5. Setup priv
 	 *******************/
+	for (i = 0; i < IEEE80211_NUM_ACS; i++)
+		atomic_set(&priv->ac_stop_count[i], 0);
+
+	for (i = 0; i < IWL_MAX_HW_QUEUES; i++) {
+		if (i < n_q_to_ac)
+			priv->queue_to_ac[i] = q_to_ac[i];
+		else
+			priv->queue_to_ac[i] = IWL_INVALID_AC;
+	}
+
+	WARN_ON(trans_cfg.queue_to_fifo[trans_cfg.cmd_queue] !=
+						IWLAGN_CMD_FIFO_NUM);
 
 	if (iwl_init_drv(priv))
 		goto out_free_eeprom;
@@ -1439,17 +1573,39 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	cfg(priv)->lib->nic_config(priv);
 }
 
-static void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
+static void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+	int ac = priv->queue_to_ac[queue];
+
+	if (WARN_ON_ONCE(ac == IWL_INVALID_AC))
+		return;
+
+	if (atomic_inc_return(&priv->ac_stop_count[ac]) > 1) {
+		IWL_DEBUG_TX_QUEUES(priv,
+			"queue %d (AC %d) already stopped\n",
+			queue, ac);
+		return;
+	}
 
 	set_bit(ac, &priv->transport_queue_stop);
 	ieee80211_stop_queue(priv->hw, ac);
 }
 
-static void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, u8 ac)
+static void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+	int ac = priv->queue_to_ac[queue];
+
+	if (WARN_ON_ONCE(ac == IWL_INVALID_AC))
+		return;
+
+	if (atomic_dec_return(&priv->ac_stop_count[ac]) > 0) {
+		IWL_DEBUG_TX_QUEUES(priv,
+			"queue %d (AC %d) already awake\n",
+			queue, ac);
+		return;
+	}
 
 	clear_bit(ac, &priv->transport_queue_stop);
 

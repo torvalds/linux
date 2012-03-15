@@ -40,6 +40,17 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 
+static const u8 tid_to_ac[] = {
+	IEEE80211_AC_BE,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BK,
+	IEEE80211_AC_BE,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VI,
+	IEEE80211_AC_VO,
+	IEEE80211_AC_VO,
+};
+
 static void iwlagn_tx_cmd_protection(struct iwl_priv *priv,
 				     struct ieee80211_tx_info *info,
 				     __le16 fc, __le32 *tx_flags)
@@ -293,6 +304,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	u16 len, seq_number = 0;
 	u8 sta_id, tid = IWL_MAX_TID_COUNT;
 	bool is_agg = false;
+	int txq_id;
 
 	if (info->control.vif)
 		ctx = iwl_rxon_ctx_from_vif(info->control.vif);
@@ -435,7 +447,27 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* Copy MAC header from skb into command buffer */
 	memcpy(tx_cmd->hdr, hdr, hdr_len);
 
-	if (iwl_trans_tx(trans(priv), skb, dev_cmd, ctx->ctxid, sta_id, tid))
+	if (is_agg)
+		txq_id = priv->tid_data[sta_id][tid].agg.txq_id;
+	else if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
+		/*
+		 * Send this frame after DTIM -- there's a special queue
+		 * reserved for this for contexts that support AP mode.
+		 */
+		txq_id = ctx->mcast_queue;
+
+		/*
+		 * The microcode will clear the more data
+		 * bit in the last frame it transmits.
+		 */
+		hdr->frame_control |=
+			cpu_to_le16(IEEE80211_FCTL_MOREDATA);
+	} else if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		txq_id = IWL_AUX_QUEUE;
+	else
+		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
+
+	if (iwl_trans_tx(trans(priv), skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
@@ -464,11 +496,32 @@ drop_unlock_priv:
 	return -1;
 }
 
+static int iwlagn_alloc_agg_txq(struct iwl_priv *priv, int ac)
+{
+	int q;
+
+	for (q = IWLAGN_FIRST_AMPDU_QUEUE;
+	     q < cfg(priv)->base_params->num_of_queues; q++) {
+		if (!test_and_set_bit(q, priv->agg_q_alloc)) {
+			priv->queue_to_ac[q] = ac;
+			return q;
+		}
+	}
+
+	return -ENOSPC;
+}
+
+static void iwlagn_dealloc_agg_txq(struct iwl_priv *priv, int q)
+{
+	clear_bit(q, priv->agg_q_alloc);
+	priv->queue_to_ac[q] = IWL_INVALID_AC;
+}
+
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid)
 {
 	struct iwl_tid_data *tid_data;
-	int sta_id;
+	int sta_id, txq_id;
 
 	sta_id = iwl_sta_id(sta);
 
@@ -480,6 +533,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	spin_lock_bh(&priv->sta_lock);
 
 	tid_data = &priv->tid_data[sta_id][tid];
+	txq_id = priv->tid_data[sta_id][tid].agg.txq_id;
 
 	switch (priv->tid_data[sta_id][tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_ADDBA:
@@ -504,9 +558,13 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
 
 	/* There are still packets for this RA / TID in the HW */
-	if (tid_data->agg.ssn != tid_data->next_reclaimed) {
+	if (!test_bit(txq_id, priv->agg_q_alloc)) {
+		IWL_DEBUG_TX_QUEUES(priv,
+			"stopping AGG on STA/TID %d/%d but hwq %d not used\n",
+			sta_id, tid, txq_id);
+	} else if (tid_data->agg.ssn != tid_data->next_reclaimed) {
 		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
-				    "next_recl = %d",
+				    "next_recl = %d\n",
 				    tid_data->agg.ssn,
 				    tid_data->next_reclaimed);
 		priv->tid_data[sta_id][tid].agg.state =
@@ -522,7 +580,10 @@ turn_off:
 
 	spin_unlock_bh(&priv->sta_lock);
 
-	iwl_trans_tx_agg_disable(trans(priv), sta_id, tid);
+	if (test_bit(txq_id, priv->agg_q_alloc)) {
+		iwl_trans_tx_agg_disable(trans(priv), txq_id);
+		iwlagn_dealloc_agg_txq(priv, txq_id);
+	}
 
 	ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 
@@ -533,8 +594,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct iwl_tid_data *tid_data;
-	int sta_id;
-	int ret;
+	int sta_id, txq_id, ret;
 
 	IWL_DEBUG_HT(priv, "TX AGG request on ra = %pM tid = %d\n",
 		     sta->addr, tid);
@@ -552,22 +612,24 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
+	txq_id = iwlagn_alloc_agg_txq(priv, tid_to_ac[tid]);
+	if (txq_id < 0) {
+		IWL_DEBUG_TX_QUEUES(priv,
+			"No free aggregation queue for %pM/%d\n",
+			sta->addr, tid);
+		return txq_id;
+	}
+
 	ret = iwl_sta_tx_modify_enable_tid(priv, sta_id, tid);
 	if (ret)
 		return ret;
 
 	spin_lock_bh(&priv->sta_lock);
-
 	tid_data = &priv->tid_data[sta_id][tid];
 	tid_data->agg.ssn = SEQ_TO_SN(tid_data->seq_number);
+	tid_data->agg.txq_id = txq_id;
 
 	*ssn = tid_data->agg.ssn;
-
-	ret = iwl_trans_tx_agg_alloc(trans(priv), sta_id, tid);
-	if (ret) {
-		spin_unlock_bh(&priv->sta_lock);
-		return ret;
-	}
 
 	if (*ssn == tid_data->next_reclaimed) {
 		IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d\n",
@@ -581,7 +643,6 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 				    tid_data->next_reclaimed);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
-
 	spin_unlock_bh(&priv->sta_lock);
 
 	return ret;
@@ -592,15 +653,20 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 {
 	struct iwl_station_priv *sta_priv = (void *) sta->drv_priv;
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
+	int q, fifo;
 	u16 ssn;
 
 	buf_size = min_t(int, buf_size, LINK_QUAL_AGG_FRAME_LIMIT_DEF);
 
 	spin_lock_bh(&priv->sta_lock);
 	ssn = priv->tid_data[sta_priv->sta_id][tid].agg.ssn;
+	q = priv->tid_data[sta_priv->sta_id][tid].agg.txq_id;
 	spin_unlock_bh(&priv->sta_lock);
 
-	iwl_trans_tx_agg_setup(trans(priv), ctx->ctxid, sta_priv->sta_id, tid,
+	fifo = ctx->ac_to_fifo[tid_to_ac[tid]];
+
+	iwl_trans_tx_agg_setup(trans(priv), q, fifo,
+			       sta_priv->sta_id, tid,
 			       buf_size, ssn);
 
 	/*
@@ -666,7 +732,9 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 			IWL_DEBUG_TX_QUEUES(priv,
 				"Can continue DELBA flow ssn = next_recl ="
 				" %d", tid_data->next_reclaimed);
-			iwl_trans_tx_agg_disable(trans(priv), sta_id, tid);
+			iwl_trans_tx_agg_disable(trans(priv),
+						 tid_data->agg.txq_id);
+			iwlagn_dealloc_agg_txq(priv, tid_data->agg.txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
 			ieee80211_stop_tx_ba_cb_irqsafe(vif, addr, tid);
 		}
@@ -1005,6 +1073,29 @@ static void iwl_check_abort_status(struct iwl_priv *priv,
 	}
 }
 
+static int iwl_reclaim(struct iwl_priv *priv, int sta_id, int tid,
+		       int txq_id, int ssn, struct sk_buff_head *skbs)
+{
+	if (unlikely(txq_id >= IWLAGN_FIRST_AMPDU_QUEUE &&
+		     tid != IWL_TID_NON_QOS &&
+		     txq_id != priv->tid_data[sta_id][tid].agg.txq_id)) {
+		/*
+		 * FIXME: this is a uCode bug which need to be addressed,
+		 * log the information and return for now.
+		 * Since it is can possibly happen very often and in order
+		 * not to fill the syslog, don't use IWL_ERR or IWL_WARN
+		 */
+		IWL_DEBUG_TX_QUEUES(priv,
+			"Bad queue mapping txq_id=%d, agg_txq[sta:%d,tid:%d]=%d\n",
+			txq_id, sta_id, tid,
+			priv->tid_data[sta_id][tid].agg.txq_id);
+		return 1;
+	}
+
+	iwl_trans_reclaim(trans(priv), txq_id, ssn, skbs);
+	return 0;
+}
+
 int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			       struct iwl_device_cmd *cmd)
 {
@@ -1064,8 +1155,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 		}
 
 		/*we can free until ssn % q.n_bd not inclusive */
-		WARN_ON(iwl_trans_reclaim(trans(priv), sta_id, tid,
-					  txq_id, ssn, &skbs));
+		WARN_ON(iwl_reclaim(priv, sta_id, tid, txq_id, ssn, &skbs));
 		iwlagn_check_ratid_empty(priv, sta_id, tid);
 		freed = 0;
 
@@ -1183,8 +1273,8 @@ int iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	/* Release all TFDs before the SSN, i.e. all TFDs in front of
 	 * block-ack window (we assume that they've been successfully
 	 * transmitted ... if not, it's too late anyway). */
-	if (iwl_trans_reclaim(trans(priv), sta_id, tid, scd_flow,
-			      ba_resp_scd_ssn, &reclaimed_skbs)) {
+	if (iwl_reclaim(priv, sta_id, tid, scd_flow,
+			ba_resp_scd_ssn, &reclaimed_skbs)) {
 		spin_unlock(&priv->sta_lock);
 		return 0;
 	}

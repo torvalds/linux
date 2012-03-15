@@ -375,14 +375,19 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 				 i, station->sta.sta.addr,
 				 station->sta.station_flags_msk);
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"TID\tseq_num\trate_n_flags\n");
+				"TID seqno  next_rclmd "
+				"rate_n_flags state txq\n");
 
 		for (j = 0; j < IWL_MAX_TID_COUNT; j++) {
 			tid_data = &priv->tid_data[i][j];
 			pos += scnprintf(buf + pos, bufsz - pos,
-				"%d:\t%#x\t%#x",
+				"%d:  0x%.4x 0x%.4x     0x%.8x   "
+				"%d     %.2d",
 				j, tid_data->seq_number,
-				tid_data->agg.rate_n_flags);
+				tid_data->next_reclaimed,
+				tid_data->agg.rate_n_flags,
+				tid_data->agg.state,
+				tid_data->agg.txq_id);
 
 			if (tid_data->agg.wait_for_ba)
 				pos += scnprintf(buf + pos, bufsz - pos,
