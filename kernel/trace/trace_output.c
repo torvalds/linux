@@ -264,7 +264,7 @@ void *trace_seq_reserve(struct trace_seq *s, size_t len)
 	return ret;
 }
 
-int trace_seq_path(struct trace_seq *s, struct path *path)
+int trace_seq_path(struct trace_seq *s, const struct path *path)
 {
 	unsigned char *p;
 
