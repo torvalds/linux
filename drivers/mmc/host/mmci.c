@@ -1519,18 +1519,8 @@ static struct amba_driver mmci_driver = {
 	.id_table	= mmci_ids,
 };
 
-static int __init mmci_init(void)
-{
-	return amba_driver_register(&mmci_driver);
-}
+module_amba_driver(mmci_driver);
 
-static void __exit mmci_exit(void)
-{
-	amba_driver_unregister(&mmci_driver);
-}
-
-module_init(mmci_init);
-module_exit(mmci_exit);
 module_param(fmax, uint, 0444);
 
 MODULE_DESCRIPTION("ARM PrimeCell PL180/181 Multimedia Card Interface driver");

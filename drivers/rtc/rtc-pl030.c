@@ -185,18 +185,7 @@ static struct amba_driver pl030_driver = {
 	.id_table	= pl030_ids,
 };
 
-static int __init pl030_init(void)
-{
-	return amba_driver_register(&pl030_driver);
-}
-
-static void __exit pl030_exit(void)
-{
-	amba_driver_unregister(&pl030_driver);
-}
-
-module_init(pl030_init);
-module_exit(pl030_exit);
+module_amba_driver(pl030_driver);
 
 MODULE_AUTHOR("Russell King <rmk@arm.linux.org.uk>");
 MODULE_DESCRIPTION("ARM AMBA PL030 RTC Driver");

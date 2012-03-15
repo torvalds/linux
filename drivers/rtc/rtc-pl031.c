@@ -431,18 +431,7 @@ static struct amba_driver pl031_driver = {
 	.remove = pl031_remove,
 };
 
-static int __init pl031_init(void)
-{
-	return amba_driver_register(&pl031_driver);
-}
-
-static void __exit pl031_exit(void)
-{
-	amba_driver_unregister(&pl031_driver);
-}
-
-module_init(pl031_init);
-module_exit(pl031_exit);
+module_amba_driver(pl031_driver);
 
 MODULE_AUTHOR("Deepak Saxena <dsaxena@plexity.net");
 MODULE_DESCRIPTION("ARM AMBA PL031 RTC Driver");
