@@ -373,6 +373,7 @@ config MACH_AT91SAM9G20EK_2MMC
 	  Select this if you are using an Atmel AT91SAM9G20-EK Evaluation Kit
 	  with 2 SD/MMC Slots. This is the case for AT91SAM9G20-EK rev. C and
 	  onwards.
+	  <http://www.atmel.com/tools/SAM9G20-EK.aspx>
 
 config MACH_CPU9G20
 	bool "Eukrea CPU9G20 board"
