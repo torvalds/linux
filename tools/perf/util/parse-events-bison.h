@@ -41,14 +41,15 @@
      PE_VALUE = 258,
      PE_VALUE_SYM = 259,
      PE_RAW = 260,
-     PE_NAME = 261,
-     PE_MODIFIER_EVENT = 262,
-     PE_MODIFIER_BP = 263,
-     PE_NAME_CACHE_TYPE = 264,
-     PE_NAME_CACHE_OP_RESULT = 265,
-     PE_PREFIX_MEM = 266,
-     PE_PREFIX_RAW = 267,
-     PE_ERROR = 268
+     PE_TERM = 261,
+     PE_NAME = 262,
+     PE_MODIFIER_EVENT = 263,
+     PE_MODIFIER_BP = 264,
+     PE_NAME_CACHE_TYPE = 265,
+     PE_NAME_CACHE_OP_RESULT = 266,
+     PE_PREFIX_MEM = 267,
+     PE_PREFIX_RAW = 268,
+     PE_ERROR = 269
    };
 #endif
 
@@ -59,15 +60,17 @@ typedef union YYSTYPE
 {
 
 /* Line 1685 of yacc.c  */
-#line 42 "util/parse-events.y"
+#line 45 "util/parse-events.y"
 
 	char *str;
 	unsigned long num;
+	struct list_head *head;
+	struct parse_events__term *term;
 
 
 
 /* Line 1685 of yacc.c  */
-#line 71 "util/parse-events-bison.h"
+#line 74 "util/parse-events-bison.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */

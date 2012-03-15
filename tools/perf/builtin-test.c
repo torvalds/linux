@@ -677,6 +677,24 @@ static int test__checkevent_symbolic_name(struct perf_evlist *evlist)
 	return 0;
 }
 
+static int test__checkevent_symbolic_name_config(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_HW_CPU_CYCLES == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong period",
+			100000 == evsel->attr.sample_period);
+	TEST_ASSERT_VAL("wrong config1",
+			0 == evsel->attr.config1);
+	TEST_ASSERT_VAL("wrong config2",
+			1 == evsel->attr.config2);
+	return 0;
+}
+
 static int test__checkevent_symbolic_alias(struct perf_evlist *evlist)
 {
 	struct perf_evsel *evsel = list_entry(evlist->entries.next,
@@ -882,6 +900,10 @@ static struct test__event_st {
 	{
 		.name  = "instructions",
 		.check = test__checkevent_symbolic_name,
+	},
+	{
+		.name  = "cycles/period=100000,config2/",
+		.check = test__checkevent_symbolic_name_config,
 	},
 	{
 		.name  = "faults",

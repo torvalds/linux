@@ -588,15 +588,60 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 	return add_event(list, idx, &attr, name);
 }
 
-int
-parse_events_add_numeric(struct list_head *list, int *idx,
-			 unsigned long type, unsigned long config)
+static int config_term(struct perf_event_attr *attr,
+		       struct parse_events__term *term)
+{
+	switch (term->type) {
+	case PARSE_EVENTS__TERM_TYPE_CONFIG:
+		attr->config = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
+		attr->config1 = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+		attr->config2 = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
+		attr->sample_period = term->val.num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
+		/*
+		 * TODO uncomment when the field is available
+		 * attr->branch_sample_type = term->val.num;
+		 */
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int config_attr(struct perf_event_attr *attr,
+		       struct list_head *head, int fail)
+{
+	struct parse_events__term *term;
+
+	list_for_each_entry(term, head, list)
+		if (config_term(attr, term) && fail)
+			return -EINVAL;
+
+	return 0;
+}
+
+int parse_events_add_numeric(struct list_head *list, int *idx,
+			     unsigned long type, unsigned long config,
+			     struct list_head *head_config)
 {
 	struct perf_event_attr attr;
 
 	memset(&attr, 0, sizeof(attr));
 	attr.type = type;
 	attr.config = config;
+
+	if (head_config &&
+	    config_attr(&attr, head_config, 1))
+		return -EINVAL;
+
 	return add_event(list, idx, &attr,
 			 (char *) __event_name(type, config));
 }
@@ -922,4 +967,52 @@ void print_events(const char *event_glob)
 	printf("\n");
 
 	print_tracepoint_events(NULL, NULL);
+}
+
+int parse_events__is_hardcoded_term(struct parse_events__term *term)
+{
+	return term->type <= PARSE_EVENTS__TERM_TYPE_HARDCODED_MAX;
+}
+
+int parse_events__new_term(struct parse_events__term **_term, int type,
+			   char *config, char *str, long num)
+{
+	struct parse_events__term *term;
+
+	term = zalloc(sizeof(*term));
+	if (!term)
+		return -ENOMEM;
+
+	INIT_LIST_HEAD(&term->list);
+	term->type = type;
+	term->config = config;
+
+	switch (type) {
+	case PARSE_EVENTS__TERM_TYPE_CONFIG:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG1:
+	case PARSE_EVENTS__TERM_TYPE_CONFIG2:
+	case PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD:
+	case PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE:
+	case PARSE_EVENTS__TERM_TYPE_NUM:
+		term->val.num = num;
+		break;
+	case PARSE_EVENTS__TERM_TYPE_STR:
+		term->val.str = str;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	*_term = term;
+	return 0;
+}
+
+void parse_events__free_terms(struct list_head *terms)
+{
+	struct parse_events__term *term, *h;
+
+	list_for_each_entry_safe(term, h, terms, list)
+		free(term);
+
+	free(terms);
 }

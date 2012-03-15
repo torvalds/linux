@@ -5,6 +5,7 @@
 #include <errno.h>
 #include "../perf.h"
 #include "parse-events-bison.h"
+#include "parse-events.h"
 
 static int __value(char *str, int base, int token)
 {
@@ -39,6 +40,12 @@ static int sym(int type, int config)
 {
 	parse_events_lval.num = (type << 16) + config;
 	return PE_VALUE_SYM;
+}
+
+static int term(int type)
+{
+	parse_events_lval.num = type;
+	return PE_TERM;
 }
 
 %}
@@ -84,6 +91,18 @@ prefetch|prefetches			|
 speculative-read|speculative-load	|
 refs|Reference|ops|access		|
 misses|miss				{ return str(PE_NAME_CACHE_OP_RESULT); }
+
+	/*
+	 * These are event config hardcoded term names to be specified
+	 * within xxx/.../ syntax. So far we dont clash with other names,
+	 * so we can put them here directly. In case the we have a conflict
+	 * in future, this needs to go into '//' condition block.
+	 */
+config			{ return term(PARSE_EVENTS__TERM_TYPE_CONFIG); }
+config1			{ return term(PARSE_EVENTS__TERM_TYPE_CONFIG1); }
+config2			{ return term(PARSE_EVENTS__TERM_TYPE_CONFIG2); }
+period			{ return term(PARSE_EVENTS__TERM_TYPE_SAMPLE_PERIOD); }
+branch_type		{ return term(PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE); }
 
 mem:			{ return PE_PREFIX_MEM; }
 r{num_raw_hex}		{ return raw(); }

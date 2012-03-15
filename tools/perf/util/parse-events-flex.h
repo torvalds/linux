@@ -308,7 +308,7 @@ extern int parse_events_lex (void);
 #undef YY_DECL
 #endif
 
-#line 102 "util/parse-events.l"
+#line 121 "util/parse-events.l"
 
 
 #line 315 "util/parse-events-flex.h"
