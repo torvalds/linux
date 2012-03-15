@@ -451,6 +451,46 @@ static u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 	return iwl_limit_dwell(priv, passive);
 }
 
+/* Return valid, unused, channel for a passive scan to reset the RF */
+static u8 iwl_get_single_channel_number(struct iwl_priv *priv,
+				 enum ieee80211_band band)
+{
+	const struct iwl_channel_info *ch_info;
+	int i;
+	u8 channel = 0;
+	u8 min, max;
+	struct iwl_rxon_context *ctx;
+
+	if (band == IEEE80211_BAND_5GHZ) {
+		min = 14;
+		max = priv->channel_count;
+	} else {
+		min = 0;
+		max = 14;
+	}
+
+	for (i = min; i < max; i++) {
+		bool busy = false;
+
+		for_each_context(priv, ctx) {
+			busy = priv->channel_info[i].channel ==
+				le16_to_cpu(ctx->staging.channel);
+			if (busy)
+				break;
+		}
+
+		if (busy)
+			continue;
+
+		channel = priv->channel_info[i].channel;
+		ch_info = iwl_get_channel_info(priv, band, channel);
+		if (is_channel_valid(ch_info))
+			break;
+	}
+
+	return channel;
+}
+
 static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
 					   struct ieee80211_vif *vif,
 					   enum ieee80211_band band,

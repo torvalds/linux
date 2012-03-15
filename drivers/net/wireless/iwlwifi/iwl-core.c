@@ -162,46 +162,6 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
 		_iwl_set_rxon_ht(priv, ht_conf, ctx);
 }
 
-/* Return valid, unused, channel for a passive scan to reset the RF */
-u8 iwl_get_single_channel_number(struct iwl_priv *priv,
-				 enum ieee80211_band band)
-{
-	const struct iwl_channel_info *ch_info;
-	int i;
-	u8 channel = 0;
-	u8 min, max;
-	struct iwl_rxon_context *ctx;
-
-	if (band == IEEE80211_BAND_5GHZ) {
-		min = 14;
-		max = priv->channel_count;
-	} else {
-		min = 0;
-		max = 14;
-	}
-
-	for (i = min; i < max; i++) {
-		bool busy = false;
-
-		for_each_context(priv, ctx) {
-			busy = priv->channel_info[i].channel ==
-				le16_to_cpu(ctx->staging.channel);
-			if (busy)
-				break;
-		}
-
-		if (busy)
-			continue;
-
-		channel = priv->channel_info[i].channel;
-		ch_info = iwl_get_channel_info(priv, band, channel);
-		if (is_channel_valid(ch_info))
-			break;
-	}
-
-	return channel;
-}
-
 /**
  * iwl_set_rxon_channel - Set the band and channel values in staging RXON
  * @ch: requested channel as a pointer to struct ieee80211_channel
