@@ -199,4 +199,7 @@ config HAVE_CMPXCHG_LOCAL
 config HAVE_CMPXCHG_DOUBLE
 	bool
 
+config ARCH_WANT_OLD_COMPAT_IPC
+	bool
+
 source "kernel/gcov/Kconfig"
