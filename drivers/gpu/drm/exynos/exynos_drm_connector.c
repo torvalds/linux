@@ -54,14 +54,14 @@ convert_to_display_mode(struct drm_display_mode *mode,
 	mode->vrefresh = timing->refresh;
 
 	mode->hdisplay = timing->xres;
-	mode->hsync_start = mode->hdisplay + timing->left_margin;
+	mode->hsync_start = mode->hdisplay + timing->right_margin;
 	mode->hsync_end = mode->hsync_start + timing->hsync_len;
-	mode->htotal = mode->hsync_end + timing->right_margin;
+	mode->htotal = mode->hsync_end + timing->left_margin;
 
 	mode->vdisplay = timing->yres;
-	mode->vsync_start = mode->vdisplay + timing->upper_margin;
+	mode->vsync_start = mode->vdisplay + timing->lower_margin;
 	mode->vsync_end = mode->vsync_start + timing->vsync_len;
-	mode->vtotal = mode->vsync_end + timing->lower_margin;
+	mode->vtotal = mode->vsync_end + timing->upper_margin;
 	mode->width_mm = panel->width_mm;
 	mode->height_mm = panel->height_mm;
 
@@ -85,14 +85,14 @@ convert_to_video_timing(struct fb_videomode *timing,
 	timing->refresh = drm_mode_vrefresh(mode);
 
 	timing->xres = mode->hdisplay;
-	timing->left_margin = mode->hsync_start - mode->hdisplay;
+	timing->right_margin = mode->hsync_start - mode->hdisplay;
 	timing->hsync_len = mode->hsync_end - mode->hsync_start;
-	timing->right_margin = mode->htotal - mode->hsync_end;
+	timing->left_margin = mode->htotal - mode->hsync_end;
 
 	timing->yres = mode->vdisplay;
-	timing->upper_margin = mode->vsync_start - mode->vdisplay;
+	timing->lower_margin = mode->vsync_start - mode->vdisplay;
 	timing->vsync_len = mode->vsync_end - mode->vsync_start;
-	timing->lower_margin = mode->vtotal - mode->vsync_end;
+	timing->upper_margin = mode->vtotal - mode->vsync_end;
 
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		timing->vmode = FB_VMODE_INTERLACED;

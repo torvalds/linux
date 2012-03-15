@@ -817,16 +817,12 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_clk_get;
 	}
 
-	clk_enable(ctx->bus_clk);
-
 	ctx->lcd_clk = clk_get(dev, "sclk_fimd");
 	if (IS_ERR(ctx->lcd_clk)) {
 		dev_err(dev, "failed to get lcd clock\n");
 		ret = PTR_ERR(ctx->lcd_clk);
 		goto err_bus_clk;
 	}
-
-	clk_enable(ctx->lcd_clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -864,16 +860,10 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
-	ctx->clkdiv = fimd_calc_clkdiv(ctx, &panel->timing);
 	ctx->vidcon0 = pdata->vidcon0;
 	ctx->vidcon1 = pdata->vidcon1;
 	ctx->default_win = pdata->default_win;
 	ctx->panel = panel;
-
-	panel->timing.pixclock = clk_get_rate(ctx->lcd_clk) / ctx->clkdiv;
-
-	DRM_DEBUG_KMS("pixel clock = %d, clkdiv = %d\n",
-			panel->timing.pixclock, ctx->clkdiv);
 
 	subdrv = &ctx->subdrv;
 
@@ -889,9 +879,14 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
+
+	ctx->clkdiv = fimd_calc_clkdiv(ctx, &panel->timing);
+	panel->timing.pixclock = clk_get_rate(ctx->lcd_clk) / ctx->clkdiv;
+
+	DRM_DEBUG_KMS("pixel clock = %d, clkdiv = %d\n",
+			panel->timing.pixclock, ctx->clkdiv);
 
 	for (win = 0; win < WINDOWS_NR; win++)
 		fimd_clear_win(ctx, win);
