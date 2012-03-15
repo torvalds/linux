@@ -155,11 +155,16 @@ void sync_pt_free(struct sync_pt *pt)
 /* call with pt->parent->active_list_lock held */
 static int _sync_pt_has_signaled(struct sync_pt *pt)
 {
+	int old_status = pt->status;
+
 	if (!pt->status)
 		pt->status = pt->parent->ops->has_signaled(pt);
 
 	if (!pt->status && pt->parent->destroyed)
 		pt->status = -ENOENT;
+
+	if (pt->status != old_status)
+		pt->timestamp = ktime_get();
 
 	return pt->status;
 }
