@@ -1298,6 +1298,12 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
+	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
+		IWL_ERR(priv, "Command %s failed: FW Error\n",
+			get_cmd_string(cmd->id));
+		return -EIO;
+	}
+
 	/*
 	 * Synchronous commands from this op-mode must hold
 	 * the mutex, this ensures we don't try to send two

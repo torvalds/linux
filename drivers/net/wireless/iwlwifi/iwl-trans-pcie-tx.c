@@ -536,11 +536,6 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	int trace_idx;
 #endif
 
-	if (test_bit(STATUS_FW_ERROR, &trans->shrd->status)) {
-		IWL_WARN(trans, "fw recovery, no hcmd send\n");
-		return -EIO;
-	}
-
 	copy_size = sizeof(out_cmd->hdr);
 	cmd_size = sizeof(out_cmd->hdr);
 
@@ -820,12 +815,6 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 
 	IWL_DEBUG_INFO(trans, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
-
-	if (test_bit(STATUS_FW_ERROR, &trans->shrd->status)) {
-		IWL_ERR(trans, "Command %s failed: FW Error\n",
-			       get_cmd_string(cmd->id));
-		return -EIO;
-	}
 
 	if (WARN_ON(test_and_set_bit(STATUS_HCMD_ACTIVE,
 				     &trans->shrd->status))) {

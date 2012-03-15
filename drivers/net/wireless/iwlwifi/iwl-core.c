@@ -369,7 +369,7 @@ void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	priv->ucode_loaded = false;
 
 	/* Set the FW error flag -- cleared on iwl_down */
-	set_bit(STATUS_FW_ERROR, &priv->shrd->status);
+	set_bit(STATUS_FW_ERROR, &priv->status);
 
 	/* Cancel currently queued command. */
 	clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
