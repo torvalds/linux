@@ -26,6 +26,8 @@ struct s3c24xx_uart_resources {
 extern struct s3c24xx_uart_resources s3c2410_uart_resources[];
 extern struct s3c24xx_uart_resources s3c64xx_uart_resources[];
 extern struct s3c24xx_uart_resources s5p_uart_resources[];
+extern struct s3c24xx_uart_resources exynos4_uart_resources[];
+extern struct s3c24xx_uart_resources exynos5_uart_resources[];
 
 extern struct platform_device *s3c24xx_uart_devs[];
 extern struct platform_device *s3c24xx_uart_src[];
