@@ -354,7 +354,6 @@ struct iwl_shared {
 	struct iwl_trans *trans;
 	void *drv;
 	struct iwl_hw_params hw_params;
-	const struct iwl_fw *fw;
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;

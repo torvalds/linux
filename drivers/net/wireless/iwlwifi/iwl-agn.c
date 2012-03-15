@@ -1498,8 +1498,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv = IWL_OP_MODE_GET_DVM(op_mode);
 	priv->shrd = trans->shrd;
 	priv->fw = fw;
-	/* TODO: remove fw from shared data later */
-	priv->shrd->fw = fw;
 
 	/*
 	 * Populate the state variables that the transport layer needs
@@ -1817,10 +1815,10 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	base = priv->device_pointers.error_event_table;
 	if (priv->cur_ucode == IWL_UCODE_INIT) {
 		if (!base)
-			base = priv->shrd->fw->init_errlog_ptr;
+			base = priv->fw->init_errlog_ptr;
 	} else {
 		if (!base)
-			base = priv->shrd->fw->inst_errlog_ptr;
+			base = priv->fw->inst_errlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -1908,10 +1906,10 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	base = priv->device_pointers.log_event_table;
 	if (priv->cur_ucode == IWL_UCODE_INIT) {
 		if (!base)
-			base = priv->shrd->fw->init_evtlog_ptr;
+			base = priv->fw->init_evtlog_ptr;
 	} else {
 		if (!base)
-			base = priv->shrd->fw->inst_evtlog_ptr;
+			base = priv->fw->inst_evtlog_ptr;
 	}
 
 	if (mode == 0)
@@ -2022,13 +2020,13 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 
 	base = priv->device_pointers.log_event_table;
 	if (priv->cur_ucode == IWL_UCODE_INIT) {
-		logsize = priv->shrd->fw->init_evtlog_size;
+		logsize = priv->fw->init_evtlog_size;
 		if (!base)
-			base = priv->shrd->fw->init_evtlog_ptr;
+			base = priv->fw->init_evtlog_ptr;
 	} else {
-		logsize = priv->shrd->fw->inst_evtlog_size;
+		logsize = priv->fw->inst_evtlog_size;
 		if (!base)
-			base = priv->shrd->fw->inst_evtlog_ptr;
+			base = priv->fw->inst_evtlog_ptr;
 	}
 
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {
@@ -2117,7 +2115,7 @@ static void iwl_nic_error(struct iwl_op_mode *op_mode)
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
 	IWL_ERR(priv, "Loaded firmware version: %s\n",
-		priv->shrd->fw->fw_version);
+		priv->fw->fw_version);
 
 	iwl_dump_nic_error_log(priv);
 	iwl_dump_nic_event_log(priv, false, NULL, false);
