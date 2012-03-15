@@ -226,6 +226,12 @@ static void __init pxa25x_mfp_init(void)
 {
 	int i;
 
+	/* running before pxa_gpio_probe() */
+#ifdef CONFIG_CPU_PXA26x
+	pxa_last_gpio = 89;
+#else
+	pxa_last_gpio = 84;
+#endif
 	for (i = 0; i <= pxa_last_gpio; i++)
 		gpio_desc[i].valid = 1;
 
@@ -295,6 +301,7 @@ static void __init pxa27x_mfp_init(void)
 {
 	int i, gpio;
 
+	pxa_last_gpio = 120;	/* running before pxa_gpio_probe() */
 	for (i = 0; i <= pxa_last_gpio; i++) {
 		/* skip GPIO2, 5, 6, 7, 8, they are not
 		 * valid pins allow configuration
