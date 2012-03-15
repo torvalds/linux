@@ -71,7 +71,6 @@ typedef struct vpu_mem_pool_info {
 	vdm_session *session;
 	int count_current;
 	int count_target;
-	int count_used;
 	int pfn;
 } vdm_pool;
 
@@ -222,16 +221,16 @@ static void dump_status(void)
  */
 static vdm_link *find_used_link(vdm_session *session, int index)
 {
-    vdm_link *pos, *n;
+	vdm_link *pos, *n;
 
-    list_for_each_entry_safe(pos, n, &session->list_used, session_link) {
-        if (index == pos->index) {
-            DLOG("found index %d ptr %p\n", index, pos);
-            return pos;
-        }
-    }
+	list_for_each_entry_safe(pos, n, &session->list_used, session_link) {
+		if (index == pos->index) {
+			DLOG("found index %d ptr %p\n", index, pos);
+			return pos;
+		}
+	}
 
-    return NULL;
+	return NULL;
 }
 
 /**
@@ -245,15 +244,15 @@ static vdm_link *find_used_link(vdm_session *session, int index)
  */
 static vdm_link *find_post_link(int index)
 {
-    vdm_link *pos, *n;
+	vdm_link *pos, *n;
 
-    list_for_each_entry_safe(pos, n, &vdm_post, status_link) {
-        if (index == pos->index) {
-            return pos;
-        }
-    }
+	list_for_each_entry_safe(pos, n, &vdm_post, status_link) {
+		if (index == pos->index) {
+			return pos;
+		}
+	}
 
-    return NULL;
+	return NULL;
 }
 
 /**
@@ -267,28 +266,43 @@ static vdm_link *find_post_link(int index)
  */
 static vdm_link *find_free_link(int index)
 {
-    vdm_link *pos, *n;
+	vdm_link *pos, *n;
 
-    list_for_each_entry_safe(pos, n, &vdm_free, status_link) {
-        if (index == pos->index) {
-            return pos;
-        }
-    }
+	list_for_each_entry_safe(pos, n, &vdm_free, status_link) {
+		if (index == pos->index) {
+			return pos;
+		}
+	}
 
-    return NULL;
+	return NULL;
 }
 
 static vdm_pool *find_pool_by_pfn(vdm_session *session, unsigned int pfn)
 {
-    vdm_pool *pos, *n;
+	vdm_pool *pos, *n;
 
-    list_for_each_entry_safe(pos, n, &session->list_pool, session_link) {
-        if (pfn == pos->pfn) {
-            return pos;
-        }
-    }
+	list_for_each_entry_safe(pos, n, &session->list_pool, session_link) {
+		if (pfn == pos->pfn) {
+			return pos;
+		}
+	}
 
-    return NULL;
+	return NULL;
+}
+
+static void vpu_mem_pool_add_link(vdm_pool *pool, vdm_link *link)
+{
+	link->pool = pool;
+	list_add_tail(&link->pool_link, &pool->list_used);
+	pool->count_current++;
+}
+
+static void vpu_mem_pool_del_link(vdm_link *link)
+{
+	vdm_pool *pool = link->pool;
+	link->pool = NULL;
+	list_del_init(&link->pool_link);
+	pool->count_current--;
 }
 
 static void link_ref_inc(vdm_link *link)
@@ -465,89 +479,85 @@ static void _insert_link_session_used(vdm_link *link, vdm_session *session)
 
 static void _insert_link_session_post(vdm_link *link, vdm_session *session)
 {
-    int index = link->index;
-    int last = -1;
-    int next;
-    vdm_link *tmp, *n;
+	int index = link->index;
+	int last = -1;
+	int next;
+	vdm_link *tmp, *n;
 
-    if (list_empty(&session->list_post)) {
-        DLOG("session post list is empty, list_add_tail first region\n");
-        list_add_tail(&link->session_link, &session->list_post);
-        return ;
-    }
+	if (list_empty(&session->list_post)) {
+		DLOG("session post list is empty, list_add_tail first region\n");
+		list_add_tail(&link->session_link, &session->list_post);
+		return ;
+	}
 
-    list_for_each_entry_safe(tmp, n, &session->list_post, session_link) {
-        next = tmp->index;
-        if ((last < index) && (index < next))  {
-            list_add_tail(&link->session_link, &tmp->session_link);
-            DLOG("list_add_tail index %d pfn %d last %d next %d ptr %p\n", index, link->pfn, last, next, tmp);
-            return ;
-        }
-        last = next;
-    }
+	list_for_each_entry_safe(tmp, n, &session->list_post, session_link) {
+		next = tmp->index;
+		if ((last < index) && (index < next))  {
+			list_add_tail(&link->session_link, &tmp->session_link);
+			DLOG("list_add_tail index %d pfn %d last %d next %d ptr %p\n", index, link->pfn, last, next, tmp);
+			return ;
+		}
+		last = next;
+	}
 
-    list_add_tail(&link->session_link, &tmp->session_link);
-    DLOG("list_add index %d pfn %d last %d ptr %p\n", index, link->pfn, last, tmp);
-    return ;
+	list_add_tail(&link->session_link, &tmp->session_link);
+	DLOG("list_add index %d pfn %d last %d ptr %p\n", index, link->pfn, last, tmp);
+	return ;
 }
 
 static void _remove_free_region(vdm_region *region)
 {
-    list_del_init(&region->index_list);
-    kfree(region);
+	list_del_init(&region->index_list);
+	kfree(region);
 }
 
 static void _remove_free_link(vdm_link *link)
 {
-    list_del_init(&link->session_link);
-    list_del_init(&link->status_link);
-    kfree(link);
+	list_del_init(&link->session_link);
+	list_del_init(&link->status_link);
+	kfree(link);
 }
 
 static void _merge_two_region(vdm_region *dst, vdm_region *src)
 {
-    vdm_link *dst_link = find_free_link(dst->index);
-    vdm_link *src_link = find_free_link(src->index);
-    dst->pfn        += src->pfn;
-    dst_link->pfn   += src_link->pfn;
-    _remove_free_link(src_link);
-    _remove_free_region(src);
+	vdm_link *dst_link = find_free_link(dst->index);
+	vdm_link *src_link = find_free_link(src->index);
+	dst->pfn        += src->pfn;
+	dst_link->pfn   += src_link->pfn;
+	_remove_free_link(src_link);
+	_remove_free_region(src);
 }
 
 static void merge_free_region_and_link(vdm_region *region)
 {
-    if (region->used || region->post) {
-        printk(KERN_ALERT "try to merge unfree region!\n");
-        return ;
-    } else {
-        vdm_region *neighbor;
-        struct list_head *tmp = region->index_list.next;
-        if (tmp != &vdm_index) {
-            neighbor = (vdm_region *)list_entry(tmp, vdm_region, index_list);
-            if (is_free_region(neighbor)) {
-                DLOG("merge next\n");
-                _merge_two_region(region, neighbor);
-            }
-        }
-        tmp = region->index_list.prev;
-        if (tmp != &vdm_index) {
-            neighbor = (vdm_region *)list_entry(tmp, vdm_region, index_list);
-            if (is_free_region(neighbor)) {
-                DLOG("merge prev\n");
-                _merge_two_region(neighbor, region);
-            }
-        }
-    }
+	if (region->used || region->post) {
+		printk(KERN_ALERT "try to merge unfree region!\n");
+		return ;
+	} else {
+		vdm_region *neighbor;
+		struct list_head *tmp = region->index_list.next;
+		if (tmp != &vdm_index) {
+			neighbor = (vdm_region *)list_entry(tmp, vdm_region, index_list);
+			if (is_free_region(neighbor)) {
+				DLOG("merge next\n");
+				_merge_two_region(region, neighbor);
+			}
+		}
+		tmp = region->index_list.prev;
+		if (tmp != &vdm_index) {
+			neighbor = (vdm_region *)list_entry(tmp, vdm_region, index_list);
+			if (is_free_region(neighbor)) {
+				DLOG("merge prev\n");
+				_merge_two_region(neighbor, region);
+			}
+		}
+	}
 }
 
 static void put_free_link(vdm_link *link)
 {
 	if (link->pool) {
-		vdm_pool *pool = link->pool;
-		link->pool = NULL;
-		list_del_init(&link->pool_link);
-		pool->count_current--;
-		pool->count_used--;
+		vpu_mem_pool_del_link(link);
 	}
 	list_del_init(&link->session_link);
 	list_del_init(&link->status_link);
@@ -563,10 +573,7 @@ static void put_used_link(vdm_link *link, vdm_session *session)
 	if (NULL == link->pool) {
 		vdm_pool *pool = find_pool_by_pfn(session, link->pfn);
 		if (pool) {
-			link->pool = pool;
-			list_add_tail(&link->pool_link, &pool->list_used);
-			pool->count_used++;
-			pool->count_current++;
+			vpu_mem_pool_add_link(pool, link);
 		}
 	}
 }
@@ -580,10 +587,7 @@ static void put_post_link(vdm_link *link, vdm_session *session)
 	if (NULL == link->pool) {
 		vdm_pool *pool = find_pool_by_pfn(session, link->pfn);
 		if (pool) {
-			link->pool = pool;
-			list_add_tail(&link->pool_link, &pool->list_used);
-			pool->count_used++;
-			pool->count_current++;
+			vpu_mem_pool_add_link(pool, link);
 		}
 	}
 }
@@ -601,38 +605,38 @@ static void put_post_link(vdm_link *link, vdm_session *session)
  */
 static vdm_link *new_link_by_index(int index, int pfn)
 {
-    vdm_region *region = (vdm_region *)kmalloc(sizeof(vdm_region), GFP_KERNEL);
-    vdm_link   *link   = (vdm_link   *)kmalloc(sizeof(vdm_link  ), GFP_KERNEL);
+	vdm_region *region = (vdm_region *)kmalloc(sizeof(vdm_region), GFP_KERNEL);
+	vdm_link   *link   = (vdm_link   *)kmalloc(sizeof(vdm_link  ), GFP_KERNEL);
 
-    if ((NULL == region) || (NULL == link)) {
-        printk(KERN_ALERT "can not kmalloc vdm_region and vdm_link in %s", __FUNCTION__);
-        if (region) {
-            kfree(region);
-        }
-        if (link) {
-            kfree(link);
-        }
-        return NULL;
-    }
+	if ((NULL == region) || (NULL == link)) {
+		printk(KERN_ALERT "can not kmalloc vdm_region and vdm_link in %s", __FUNCTION__);
+		if (region) {
+			kfree(region);
+		}
+		if (link) {
+			kfree(link);
+		}
+		return NULL;
+	}
 
-    region->post    = 0;
-    region->used    = 0;
-    region->index   = index;
-    region->pfn     = pfn;
+	region->post    = 0;
+	region->used    = 0;
+	region->index   = index;
+	region->pfn     = pfn;
 
-    INIT_LIST_HEAD(&region->index_list);
+	INIT_LIST_HEAD(&region->index_list);
 
-    link->ref.count = 0;
-    link->ref_ptr   = NULL;
-    link->region    = region;
-    link->index     = region->index;
-    link->pfn       = region->pfn;
-    INIT_LIST_HEAD(&link->session_link);
-    INIT_LIST_HEAD(&link->status_link);
-    INIT_LIST_HEAD(&link->pool_link);
-    link->pool      = NULL;
+	link->ref.count = 0;
+	link->ref_ptr   = NULL;
+	link->region    = region;
+	link->index     = region->index;
+	link->pfn       = region->pfn;
+	INIT_LIST_HEAD(&link->session_link);
+	INIT_LIST_HEAD(&link->status_link);
+	INIT_LIST_HEAD(&link->pool_link);
+	link->pool      = NULL;
 
-    return link;
+	return link;
 }
 
 /**
@@ -647,23 +651,23 @@ static vdm_link *new_link_by_index(int index, int pfn)
  */
 static vdm_link *new_link_by_region(vdm_region *region)
 {
-    vdm_link *link = (vdm_link *)kmalloc(sizeof(vdm_link), GFP_KERNEL);
-    if (NULL == link) {
-        printk(KERN_ALERT "can not kmalloc vdm_region and vdm_link in %s", __FUNCTION__);
-        return NULL;
-    }
+	vdm_link *link = (vdm_link *)kmalloc(sizeof(vdm_link), GFP_KERNEL);
+	if (NULL == link) {
+		printk(KERN_ALERT "can not kmalloc vdm_region and vdm_link in %s", __FUNCTION__);
+		return NULL;
+	}
 
-    link->ref.count = 0;
-    link->ref_ptr   = NULL;
-    link->region    = region;
-    link->index     = region->index;
-    link->pfn       = region->pfn;
-    INIT_LIST_HEAD(&link->session_link);
-    INIT_LIST_HEAD(&link->status_link);
-    INIT_LIST_HEAD(&link->pool_link);
-    link->pool      = NULL;
+	link->ref.count = 0;
+	link->ref_ptr   = NULL;
+	link->region    = region;
+	link->index     = region->index;
+	link->pfn       = region->pfn;
+	INIT_LIST_HEAD(&link->session_link);
+	INIT_LIST_HEAD(&link->status_link);
+	INIT_LIST_HEAD(&link->pool_link);
+	link->pool      = NULL;
 
-    return link;
+	return link;
 }
 
 /**
@@ -676,11 +680,7 @@ static vdm_link *new_link_by_region(vdm_region *region)
 static void link_del(vdm_link *link)
 {
 	if (link->pool) {
-		vdm_pool *pool = link->pool;
-		link->pool = NULL;
-		list_del_init(&link->pool_link);
-		pool->count_current--;
-		pool->count_used--;
+		vpu_mem_pool_del_link(link);
 	}
 	list_del_init(&link->session_link);
 	list_del_init(&link->status_link);
@@ -706,44 +706,44 @@ static void link_del(vdm_link *link)
  */
 static vdm_link *get_used_link_from_free_link(vdm_link *link, vdm_session *session, int pfn)
 {
-    if (pfn > link->pfn) {
-        return NULL;
-    }
-    if (pfn == link->pfn) {
-        DLOG("pfn == link->pfn %d\n", pfn);
-        link->ref.used      = 1;
-        link->region->used  = 1;
-	link->ref_ptr       = &link->region->used;
-        put_used_link(link, session);
-        return link;
-    } else {
-        vdm_link *used = new_link_by_index(link->index, pfn);
-        if (NULL == used)
-            return NULL;
+	if (pfn > link->pfn) {
+		return NULL;
+	}
+	if (pfn == link->pfn) {
+		DLOG("pfn == link->pfn %d\n", pfn);
+		link->ref.used      = 1;
+		link->region->used  = 1;
+		link->ref_ptr       = &link->region->used;
+		put_used_link(link, session);
+		return link;
+	} else {
+		vdm_link *used = new_link_by_index(link->index, pfn);
+		if (NULL == used)
+			return NULL;
 
-        link->index         += pfn;
-        link->pfn           -= pfn;
-        link->region->index += pfn;
-        link->region->pfn   -= pfn;
-        used->ref.used      = 1;
-        used->region->used  = 1;
-	used->ref_ptr       = &used->region->used;
+		link->index         += pfn;
+		link->pfn           -= pfn;
+		link->region->index += pfn;
+		link->region->pfn   -= pfn;
+		used->ref.used      = 1;
+		used->region->used  = 1;
+		used->ref_ptr       = &used->region->used;
 
-        DLOG("used: index %d pfn %d ptr %p\n", used->index, used->pfn, used->region);
-        if (_insert_region_index(used->region)) {
-            printk(KERN_ALERT "fail to insert allocated region index %d pfn %d\n", used->index, used->pfn);
-            link_del(used);
-            link->index         -= pfn;
-            link->pfn           += pfn;
-            link->region->index -= pfn;
-            link->region->pfn   += pfn;
-            _remove_free_region(used->region);
-            _remove_free_link(used);
-            return NULL;
-        }
-        put_used_link(used, session);
-        return used;
-    }
+		DLOG("used: index %d pfn %d ptr %p\n", used->index, used->pfn, used->region);
+		if (_insert_region_index(used->region)) {
+			printk(KERN_ALERT "fail to insert allocated region index %d pfn %d\n", used->index, used->pfn);
+			link_del(used);
+			link->index         -= pfn;
+			link->pfn           += pfn;
+			link->region->index -= pfn;
+			link->region->pfn   += pfn;
+			_remove_free_region(used->region);
+			_remove_free_link(used);
+			return NULL;
+		}
+		put_used_link(used, session);
+		return used;
+	}
 }
 
 int is_vpu_mem_file(struct file *file)
@@ -794,19 +794,19 @@ static int vpu_mem_free(struct file *file, int index)
 	if (!is_vpu_mem_file(file)) {
 		printk(KERN_INFO "free vpu_mem session from invalid file.\n");
 		return -ENODEV;
-    }
+	}
 
 	DLOG("searching for index %d\n", index);
-    {
-        vdm_link *link = find_used_link(session, index);
-        if (NULL == link) {
-            DLOG("no link of index %d searched\n", index);
-            return -1;
-        }
-	link_ref_dec(link);
-        if (0 == link->ref.used) {
-		link_del(link);
-        }
+	{
+		vdm_link *link = find_used_link(session, index);
+		if (NULL == link) {
+			DLOG("no link of index %d searched\n", index);
+			return -1;
+		}
+		link_ref_dec(link);
+		if (0 == link->ref.used) {
+			link_del(link);
+		}
 	}
 	return 0;
 }
@@ -900,14 +900,10 @@ static int vpu_mem_pool_add(vdm_session *session, unsigned int pfn, unsigned int
 	pool->pfn = pfn;
 	pool->count_target = count;
 	pool->count_current = 0;
-	pool->count_used = 0;
 
 	list_for_each_entry_safe(link, n, &session->list_used, session_link) {
 		if (pfn == link->pfn && NULL == link->pool) {
-			link->pool = pool;
-			list_add_tail(&link->pool_link, &pool->list_used);
-			pool->count_used++;
-			pool->count_current++;
+			vpu_mem_pool_add_link(pool, link);
 		}
 	}
 
@@ -921,11 +917,14 @@ static void vpu_mem_pool_del(vdm_pool *pool)
 	vdm_link *link, *n;
 	DLOG("vpu_mem_pool_del %p\n", pool);
 	list_for_each_entry_safe(link, n, &pool->list_used, pool_link) {
-		link->pool = NULL;
-		list_del_init(&link->pool_link);
-		pool->count_current--;
-		pool->count_used--;
+		vpu_mem_pool_del_link(link);
 	}
+	if (pool->count_current) {
+		printk(KERN_ALERT "vpu_mem pool deleted by still %d link left.\n", pool->count_current);
+	}
+	list_del_init(&pool->session_link);
+	pool->session = NULL;
+	kfree(pool);
 	return ;
 }
 
@@ -951,8 +950,10 @@ static int vpu_mem_pool_unset(struct file *file, unsigned int pfn, unsigned int 
 	if (pool) {
 		pool->count_target -= count;
 		if (pool->count_target <= 0) {
+			if (pool->count_target) {
+				printk(KERN_ALERT "vpu_mem pool unpaired set and unset with %d differ.", pool->count_target);
+			}
 			vpu_mem_pool_del(pool);
-			pool->count_target = 0;
 		}
 	}
 	return ret;
@@ -964,7 +965,7 @@ static int vpu_mem_pool_check(struct file *file, unsigned int pfn)
 	vdm_session *session = (vdm_session *)file->private_data;
 	vdm_pool *pool = find_pool_by_pfn(session, pfn);
 	if (pool) {
-		if (pool->count_current > pool->count_target) {
+		if (pool->count_current >= pool->count_target) {
 			ret = 1;
 		}
 		DLOG("vpu_mem_pool_check pfn %u current %d target %d ret %d\n", pfn, pool->count_current, pool->count_target, ret);
@@ -1042,30 +1043,30 @@ static int vpu_mem_map_pfn_range(struct vm_area_struct *vma, unsigned long len)
 
 static int vpu_mem_open(struct inode *inode, struct file *file)
 {
-    vdm_session *session;
-    int ret = 0;
+	vdm_session *session;
+	int ret = 0;
 
-    DLOG("current %u file %p(%d)\n", current->pid, file, (int)file_count(file));
-    /* setup file->private_data to indicate its unmapped */
-    /*  you can only open a vpu_mem device one time */
-    if (file->private_data != NULL && file->private_data != &vpu_mem.dev)
-            return -1;
-    session = kmalloc(sizeof(vdm_session), GFP_KERNEL);
-    if (!session) {
-        printk(KERN_ALERT "vpu_mem: unable to allocate memory for vpu_mem metadata.");
-        return -1;
-    }
-    session->pid = current->pid;
-    INIT_LIST_HEAD(&session->list_post);
-    INIT_LIST_HEAD(&session->list_used);
-    INIT_LIST_HEAD(&session->list_pool);
+	DLOG("current %u file %p(%d)\n", current->pid, file, (int)file_count(file));
+	/* setup file->private_data to indicate its unmapped */
+	/*  you can only open a vpu_mem device one time */
+	if (file->private_data != NULL && file->private_data != &vpu_mem.dev)
+		return -1;
+	session = kmalloc(sizeof(vdm_session), GFP_KERNEL);
+	if (!session) {
+		printk(KERN_ALERT "vpu_mem: unable to allocate memory for vpu_mem metadata.");
+		return -1;
+	}
+	session->pid = current->pid;
+	INIT_LIST_HEAD(&session->list_post);
+	INIT_LIST_HEAD(&session->list_used);
+	INIT_LIST_HEAD(&session->list_pool);
 
-    file->private_data = session;
+	file->private_data = session;
 
-    down_write(&vdm_rwsem);
-    list_add_tail(&session->list_session, &vdm_proc);
-    up_write(&vdm_rwsem);
-    return ret;
+	down_write(&vdm_rwsem);
+	list_add_tail(&session->list_session, &vdm_proc);
+	up_write(&vdm_rwsem);
+	return ret;
 }
 
 static int vpu_mem_mmap(struct file *file, struct vm_area_struct *vma)
@@ -1109,31 +1110,36 @@ static int vpu_mem_release(struct inode *inode, struct file *file)
 {
 	vdm_session *session = (vdm_session *)file->private_data;
 
-    down_write(&vdm_rwsem);
-    {
-        vdm_link *link, *tmp_link;
-        //unsigned long flags = current->flags;
-        //printk("current->flags: %lx\n", flags);
-        list_del(&session->list_session);
-        file->private_data = NULL;
+	down_write(&vdm_rwsem);
+	{
+		vdm_link *link, *tmp_link;
+		vdm_pool *pool, *tmp_pool;
+		//unsigned long flags = current->flags;
+		//printk("current->flags: %lx\n", flags);
+		list_del(&session->list_session);
+		file->private_data = NULL;
 
-        list_for_each_entry_safe(link, tmp_link, &session->list_post, session_link) {
-            do {
-	    	link_ref_dec(link);
-            } while (link->ref.post);
-	    link_del(link);
-        }
-        list_for_each_entry_safe(link, tmp_link, &session->list_used, session_link) {
-            do {
-	    	link_ref_dec(link);
-            } while (link->ref.used);
-	    link_del(link);
-        }
-    }
-    up_write(&vdm_rwsem);
-    kfree(session);
+		list_for_each_entry_safe(pool, tmp_pool, &session->list_pool, session_link) {
+			vpu_mem_pool_del(pool);
+		}
 
-    return 0;
+		list_for_each_entry_safe(link, tmp_link, &session->list_post, session_link) {
+			do {
+				link_ref_dec(link);
+			} while (link->ref.post);
+			link_del(link);
+		}
+		list_for_each_entry_safe(link, tmp_link, &session->list_used, session_link) {
+			do {
+				link_ref_dec(link);
+			} while (link->ref.used);
+			link_del(link);
+		}
+	}
+	up_write(&vdm_rwsem);
+	kfree(session);
+
+	return 0;
 }
 
 static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1230,9 +1236,9 @@ static long vpu_mem_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 			return -EFAULT;
 		pfn = (pfn + VPU_MEM_MIN_ALLOC - 1)/VPU_MEM_MIN_ALLOC;
 		DLOG("pool check\n");
-		down_write(&vdm_rwsem);
+		down_read(&vdm_rwsem);
 		ret = vpu_mem_pool_check(file, pfn);
-		up_write(&vdm_rwsem);
+		up_read(&vdm_rwsem);
 	} break;
 
 	default:
@@ -1267,10 +1273,10 @@ static ssize_t debug_read(struct file *file, char __user *buf, size_t count,
 	n = scnprintf(buffer, debug_bufmax,
 		      "pid #: mapped regions (offset, len, used, post) ...\n");
 	down_read(&vdm_rwsem);
-    list_for_each_entry_safe(region, tmp_region, &vdm_index, index_list) {
-        n += scnprintf(buffer + n, debug_bufmax - n,
-                "(%d,%d,%d,%d) ",
-                region->index, region->pfn, region->used, region->post);
+	list_for_each_entry_safe(region, tmp_region, &vdm_index, index_list) {
+		n += scnprintf(buffer + n, debug_bufmax - n,
+			"(%d,%d,%d,%d) ",
+			region->index, region->pfn, region->used, region->post);
 	}
 	up_read(&vdm_rwsem);
 	n++;
@@ -1463,7 +1469,7 @@ static int proc_vpu_mem_show(struct seq_file *s, void *v)
             } else {
                 seq_printf(s, "pool :\n");
                 list_for_each_entry_safe(pool, tmp_pool, &session->list_pool, session_link) {
-                    seq_printf(s, "       pfn %6d target %4d current %2d\n",
+                    seq_printf(s, "       pfn %6d target %3d current %2d\n",
                         pool->pfn, pool->count_target, pool->count_current);
                 }
             }
