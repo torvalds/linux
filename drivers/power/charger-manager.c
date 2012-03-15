@@ -399,7 +399,8 @@ static int charger_get_property(struct power_supply *psy,
 	struct charger_manager *cm = container_of(psy,
 			struct charger_manager, charger_psy);
 	struct charger_desc *desc = cm->desc;
-	int i, ret = 0, uV;
+	int ret = 0;
+	int uV;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
@@ -425,8 +426,7 @@ static int charger_get_property(struct power_supply *psy,
 			val->intval = 0;
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		ret = get_batt_uV(cm, &i);
-		val->intval = i;
+		ret = get_batt_uV(cm, &val->intval);
 		break;
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
 		ret = cm->fuel_gauge->get_property(cm->fuel_gauge,
