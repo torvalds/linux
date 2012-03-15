@@ -2,7 +2,7 @@
  * ldm - Support for Windows Logical Disk Manager (Dynamic Disks)
  *
  * Copyright (C) 2001,2002 Richard Russon <ldm@flatcap.org>
- * Copyright (c) 2001-2007 Anton Altaparmakov
+ * Copyright (c) 2001-2012 Anton Altaparmakov
  * Copyright (C) 2001,2002 Jakob Kemi <jakob.kemi@telia.com>
  *
  * Documentation is available at http://www.linux-ntfs.org/doku.php?id=downloads 
@@ -1341,20 +1341,17 @@ found:
 		ldm_error("REC value (%d) exceeds NUM value (%d)", rec, f->num);
 		return false;
 	}
-
 	if (f->map & (1 << rec)) {
 		ldm_error ("Duplicate VBLK, part %d.", rec);
 		f->map &= 0x7F;			/* Mark the group as broken */
 		return false;
 	}
-
 	f->map |= (1 << rec);
-
+	if (!rec)
+		memcpy(f->data, data, VBLK_SIZE_HEAD);
 	data += VBLK_SIZE_HEAD;
 	size -= VBLK_SIZE_HEAD;
-
-	memcpy (f->data+rec*(size-VBLK_SIZE_HEAD)+VBLK_SIZE_HEAD, data, size);
-
+	memcpy(f->data + VBLK_SIZE_HEAD + rec * size, data, size);
 	return true;
 }
 

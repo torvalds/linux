@@ -304,8 +304,8 @@ static struct resource exynos4_ac97_resource[] = {
 		.flags	= IORESOURCE_DMA,
 	},
 	[4] = {
-		.start	= IRQ_AC97,
-		.end	= IRQ_AC97,
+		.start	= EXYNOS4_IRQ_AC97,
+		.end	= EXYNOS4_IRQ_AC97,
 		.flags	= IORESOURCE_IRQ,
 	},
 };

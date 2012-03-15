@@ -12,7 +12,6 @@ obj-				:=
 
 # Core files
 
-obj-y				+= dev-uart.o
 obj-y				+= clock.o
 obj-y				+= irq.o
 obj-$(CONFIG_S5P_EXT_INT)	+= irq-eint.o
@@ -23,5 +22,7 @@ obj-$(CONFIG_S5P_SLEEP)		+= sleep.o
 obj-$(CONFIG_S5P_HRT) 		+= s5p-time.o
 
 # devices
+
+obj-$(CONFIG_S5P_DEV_UART)	+= dev-uart.o
 obj-$(CONFIG_S5P_DEV_MFC)	+= dev-mfc.o
 obj-$(CONFIG_S5P_SETUP_MIPIPHY)	+= setup-mipiphy.o
