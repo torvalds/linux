@@ -1335,6 +1335,15 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
+static void __init mackerel_map_io(void)
+{
+	sh7372_map_io();
+	/* DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
+	 * enough to allocate the frame buffer memory.
+	 */
+	init_consistent_dma_size(12 << 20);
+}
+
 #define GPIO_PORT9CR	0xE6051009
 #define GPIO_PORT10CR	0xE605100A
 #define GPIO_PORT167CR	0xE60520A7
@@ -1554,7 +1563,7 @@ static void __init mackerel_init(void)
 }
 
 MACHINE_START(MACKEREL, "mackerel")
-	.map_io		= sh7372_map_io,
+	.map_io		= mackerel_map_io,
 	.init_early	= sh7372_add_early_devices,
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
