@@ -2444,8 +2444,11 @@ static int sh_mobile_lcdc_remove(struct platform_device *pdev)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(priv->ch); i++) {
-		if (priv->ch[i].bl)
-			sh_mobile_lcdc_bl_remove(priv->ch[i].bl);
+		struct sh_mobile_lcdc_chan *ch = &priv->ch[i];
+
+		if (ch->bl)
+			sh_mobile_lcdc_bl_remove(ch->bl);
+		mutex_destroy(&ch->open_lock);
 	}
 
 	if (priv->dot_clk) {
