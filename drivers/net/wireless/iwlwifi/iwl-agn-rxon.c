@@ -500,6 +500,18 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	return ret;
 }
 
+static void iwl_set_rxon_hwcrypto(struct iwl_priv *priv,
+				  struct iwl_rxon_context *ctx, int hw_decrypt)
+{
+	struct iwl_rxon_cmd *rxon = &ctx->staging;
+
+	if (hw_decrypt)
+		rxon->filter_flags &= ~RXON_FILTER_DIS_DECRYPT_MSK;
+	else
+		rxon->filter_flags |= RXON_FILTER_DIS_DECRYPT_MSK;
+
+}
+
 /**
  * iwlagn_commit_rxon - commit staging_rxon to hardware
  *

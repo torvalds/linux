@@ -88,18 +88,6 @@ bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			ctx->ht.extension_chan_offset);
 }
 
-void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			   int hw_decrypt)
-{
-	struct iwl_rxon_cmd *rxon = &ctx->staging;
-
-	if (hw_decrypt)
-		rxon->filter_flags &= ~RXON_FILTER_DIS_DECRYPT_MSK;
-	else
-		rxon->filter_flags |= RXON_FILTER_DIS_DECRYPT_MSK;
-
-}
-
 /* validate RXON structure is valid */
 int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
