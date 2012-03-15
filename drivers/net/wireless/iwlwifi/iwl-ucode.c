@@ -174,24 +174,6 @@ static int iwl_send_calib_cfg(struct iwl_priv *priv)
 	return iwl_dvm_send_cmd(priv, &cmd);
 }
 
-int iwlagn_rx_calib_result(struct iwl_priv *priv,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd)
-{
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_calib_hdr *hdr = (struct iwl_calib_hdr *)pkt->data;
-	int len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-
-	/* reduce the size of the length field itself */
-	len -= 4;
-
-	if (iwl_calib_set(priv, hdr, len))
-		IWL_ERR(priv, "Failed to record calibration data %d\n",
-			hdr->op_code);
-
-	return 0;
-}
-
 int iwl_init_alive_start(struct iwl_priv *priv)
 {
 	int ret;
@@ -522,10 +504,36 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	return 0;
 }
 
+static bool iwlagn_wait_calib(struct iwl_notif_wait_data *notif_wait,
+			      struct iwl_rx_packet *pkt, void *data)
+{
+	struct iwl_priv *priv = data;
+	struct iwl_calib_hdr *hdr;
+	int len;
+
+	if (pkt->hdr.cmd != CALIBRATION_RES_NOTIFICATION) {
+		WARN_ON(pkt->hdr.cmd != CALIBRATION_COMPLETE_NOTIFICATION);
+		return true;
+	}
+
+	hdr = (struct iwl_calib_hdr *)pkt->data;
+	len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+
+	/* reduce the size by the length field itself */
+	len -= sizeof(__le32);
+
+	if (iwl_calib_set(priv, hdr, len))
+		IWL_ERR(priv, "Failed to record calibration data %d\n",
+			hdr->op_code);
+
+	return false;
+}
+
 int iwl_run_init_ucode(struct iwl_priv *priv)
 {
 	struct iwl_notification_wait calib_wait;
 	static const u8 calib_complete[] = {
+		CALIBRATION_RES_NOTIFICATION,
 		CALIBRATION_COMPLETE_NOTIFICATION
 	};
 	int ret;
@@ -541,7 +549,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
 				   calib_complete, ARRAY_SIZE(calib_complete),
-				   NULL, NULL);
+				   iwlagn_wait_calib, priv);
 
 	/* Will also start the device */
 	ret = iwl_load_ucode_wait_alive(priv, IWL_UCODE_INIT);
