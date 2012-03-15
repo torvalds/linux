@@ -1429,7 +1429,7 @@ struct se_lun *core_get_lun_from_tpg(struct se_portal_group *tpg, u32 unpacked_l
 		spin_unlock(&tpg->tpg_lun_lock);
 		return NULL;
 	}
-	lun = &tpg->tpg_lun_list[unpacked_lun];
+	lun = tpg->tpg_lun_list[unpacked_lun];
 
 	if (lun->lun_status != TRANSPORT_LUN_STATUS_FREE) {
 		pr_err("%s Logical Unit Number: %u is not free on"
@@ -1462,7 +1462,7 @@ static struct se_lun *core_dev_get_lun(struct se_portal_group *tpg, u32 unpacked
 		spin_unlock(&tpg->tpg_lun_lock);
 		return NULL;
 	}
-	lun = &tpg->tpg_lun_list[unpacked_lun];
+	lun = tpg->tpg_lun_list[unpacked_lun];
 
 	if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE) {
 		pr_err("%s Logical Unit Number: %u is not active on"

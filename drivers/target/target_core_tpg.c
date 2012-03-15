@@ -163,7 +163,7 @@ void core_tpg_add_node_to_devs(
 
 	spin_lock(&tpg->tpg_lun_lock);
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		lun = &tpg->tpg_lun_list[i];
+		lun = tpg->tpg_lun_list[i];
 		if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE)
 			continue;
 
@@ -220,6 +220,34 @@ static int core_set_queue_depth_for_node(
 	}
 
 	return 0;
+}
+
+void array_free(void *array, int n)
+{
+	void **a = array;
+	int i;
+
+	for (i = 0; i < n; i++)
+		kfree(a[i]);
+	kfree(a);
+}
+
+static void *array_zalloc(int n, size_t size, gfp_t flags)
+{
+	void **a;
+	int i;
+
+	a = kzalloc(n * sizeof(void*), flags);
+	if (!a)
+		return NULL;
+	for (i = 0; i < n; i++) {
+		a[i] = kzalloc(size, flags);
+		if (!a[i]) {
+			array_free(a, n);
+			return NULL;
+		}
+	}
+	return a;
 }
 
 /*      core_create_device_list_for_node():
@@ -336,7 +364,7 @@ void core_tpg_clear_object_luns(struct se_portal_group *tpg)
 
 	spin_lock(&tpg->tpg_lun_lock);
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		lun = &tpg->tpg_lun_list[i];
+		lun = tpg->tpg_lun_list[i];
 
 		if ((lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE) ||
 		    (lun->lun_se_dev == NULL))
@@ -661,8 +689,8 @@ int core_tpg_register(
 	struct se_lun *lun;
 	u32 i;
 
-	se_tpg->tpg_lun_list = kzalloc((sizeof(struct se_lun) *
-				TRANSPORT_MAX_LUNS_PER_TPG), GFP_KERNEL);
+	se_tpg->tpg_lun_list = array_zalloc(TRANSPORT_MAX_LUNS_PER_TPG,
+			sizeof(struct se_lun), GFP_KERNEL);
 	if (!se_tpg->tpg_lun_list) {
 		pr_err("Unable to allocate struct se_portal_group->"
 				"tpg_lun_list\n");
@@ -670,7 +698,7 @@ int core_tpg_register(
 	}
 
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		lun = &se_tpg->tpg_lun_list[i];
+		lun = se_tpg->tpg_lun_list[i];
 		lun->unpacked_lun = i;
 		lun->lun_status = TRANSPORT_LUN_STATUS_FREE;
 		atomic_set(&lun->lun_acl_count, 0);
@@ -756,7 +784,7 @@ int core_tpg_deregister(struct se_portal_group *se_tpg)
 		core_tpg_release_virtual_lun0(se_tpg);
 
 	se_tpg->se_tpg_fabric_ptr = NULL;
-	kfree(se_tpg->tpg_lun_list);
+	array_free(se_tpg->tpg_lun_list, TRANSPORT_MAX_LUNS_PER_TPG);
 	return 0;
 }
 EXPORT_SYMBOL(core_tpg_deregister);
@@ -777,7 +805,7 @@ struct se_lun *core_tpg_pre_addlun(
 	}
 
 	spin_lock(&tpg->tpg_lun_lock);
-	lun = &tpg->tpg_lun_list[unpacked_lun];
+	lun = tpg->tpg_lun_list[unpacked_lun];
 	if (lun->lun_status == TRANSPORT_LUN_STATUS_ACTIVE) {
 		pr_err("TPG Logical Unit Number: %u is already active"
 			" on %s Target Portal Group: %u, ignoring request.\n",
@@ -835,7 +863,7 @@ struct se_lun *core_tpg_pre_dellun(
 	}
 
 	spin_lock(&tpg->tpg_lun_lock);
-	lun = &tpg->tpg_lun_list[unpacked_lun];
+	lun = tpg->tpg_lun_list[unpacked_lun];
 	if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE) {
 		pr_err("%s Logical Unit Number: %u is not active on"
 			" Target Portal Group: %u, ignoring request.\n",

@@ -934,7 +934,7 @@ struct se_portal_group {
 	struct list_head	se_tpg_node;
 	/* linked list for initiator ACL list */
 	struct list_head	acl_node_list;
-	struct se_lun		*tpg_lun_list;
+	struct se_lun		**tpg_lun_list;
 	struct se_lun		tpg_virt_lun0;
 	/* List of TCM sessions associated wth this TPG */
 	struct list_head	tpg_sess_list;
