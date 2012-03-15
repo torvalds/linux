@@ -133,7 +133,6 @@ bool kvm_check_and_clear_guest_paused(void)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(kvm_check_and_clear_guest_paused);
 
 static struct clocksource kvm_clock = {
 	.name = "kvm-clock",
