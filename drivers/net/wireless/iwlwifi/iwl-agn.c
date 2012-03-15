@@ -1562,7 +1562,7 @@ static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
 
 	if (!iwl_check_for_ct_kill(priv)) {
 		IWL_ERR(priv, "Restarting adapter queue is full\n");
-		iwl_nic_error(op_mode);
+		iwlagn_fw_error(priv, false);
 	}
 }
 

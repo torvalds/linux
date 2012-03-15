@@ -828,7 +828,7 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
-static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 {
 	unsigned int reload_msec;
 	unsigned long reload_jiffies;

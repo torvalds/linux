@@ -132,6 +132,7 @@ int iwl_send_calib_results(struct iwl_priv *priv);
 int iwl_calib_set(struct iwl_priv *priv,
 		  const struct iwl_calib_hdr *cmd, int len);
 void iwl_calib_free_results(struct iwl_priv *priv);
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
