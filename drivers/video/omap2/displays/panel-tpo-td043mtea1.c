@@ -473,6 +473,18 @@ static void tpo_td043_remove(struct omap_dss_device *dssdev)
 		gpio_free(nreset_gpio);
 }
 
+static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	dpi_set_timings(dssdev, timings);
+}
+
+static int tpo_td043_check_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	return dpi_check_timings(dssdev, timings);
+}
+
 static struct omap_dss_driver tpo_td043_driver = {
 	.probe		= tpo_td043_probe,
 	.remove		= tpo_td043_remove,
@@ -483,6 +495,9 @@ static struct omap_dss_driver tpo_td043_driver = {
 	.resume		= tpo_td043_resume,
 	.set_mirror	= tpo_td043_set_hmirror,
 	.get_mirror	= tpo_td043_get_hmirror,
+
+	.set_timings	= tpo_td043_set_timings,
+	.check_timings	= tpo_td043_check_timings,
 
 	.driver         = {
 		.name	= "tpo_td043mtea1_panel",
