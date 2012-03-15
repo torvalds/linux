@@ -439,43 +439,6 @@ enum auto_enable {
 /* End of file previously known as prcmu-fw-defs_v1.h */
 
 /**
- * enum hw_acc_dev - enum for hw accelerators
- * @HW_ACC_SVAMMDSP: for SVAMMDSP
- * @HW_ACC_SVAPIPE:  for SVAPIPE
- * @HW_ACC_SIAMMDSP: for SIAMMDSP
- * @HW_ACC_SIAPIPE: for SIAPIPE
- * @HW_ACC_SGA: for SGA
- * @HW_ACC_B2R2: for B2R2
- * @HW_ACC_MCDE: for MCDE
- * @HW_ACC_ESRAM1: for ESRAM1
- * @HW_ACC_ESRAM2: for ESRAM2
- * @HW_ACC_ESRAM3: for ESRAM3
- * @HW_ACC_ESRAM4: for ESRAM4
- * @NUM_HW_ACC: number of hardware accelerators
- *
- * Different hw accelerators which can be turned ON/
- * OFF or put into retention (MMDSPs and ESRAMs).
- * Used with EPOD API.
- *
- * NOTE! Deprecated, to be removed when all users switched over to use the
- * regulator API.
- */
-enum hw_acc_dev {
-	HW_ACC_SVAMMDSP,
-	HW_ACC_SVAPIPE,
-	HW_ACC_SIAMMDSP,
-	HW_ACC_SIAPIPE,
-	HW_ACC_SGA,
-	HW_ACC_B2R2,
-	HW_ACC_MCDE,
-	HW_ACC_ESRAM1,
-	HW_ACC_ESRAM2,
-	HW_ACC_ESRAM3,
-	HW_ACC_ESRAM4,
-	NUM_HW_ACC
-};
-
-/**
  * enum prcmu_power_status - results from set_power_state
  * @PRCMU_SLEEP_OK: Sleep went ok
  * @PRCMU_DEEP_SLEEP_OK: DeepSleep went ok
@@ -552,8 +515,6 @@ bool prcmu_has_arm_maxopp(void);
 struct prcmu_fw_version *prcmu_get_fw_version(void);
 int prcmu_request_ape_opp_100_voltage(bool enable);
 int prcmu_release_usb_wakeup_state(void);
-/* NOTE! Use regulator framework instead */
-int prcmu_set_hwacc(u16 hw_acc_dev, u8 state);
 void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	struct prcmu_auto_pm_config *idle);
 bool prcmu_is_auto_pm_enabled(void);
@@ -667,10 +628,6 @@ static inline int db8500_prcmu_get_ddr_opp(void)
 	return DDR_100_OPP;
 }
 
-static inline int prcmu_set_hwacc(u16 hw_acc_dev, u8 state)
-{
-	return 0;
-}
 static inline void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	struct prcmu_auto_pm_config *idle)
 {
