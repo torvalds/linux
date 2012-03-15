@@ -373,10 +373,15 @@ config USB_OHCI_HCD_PCI
 	  If unsure, say Y.
 
 config USB_OHCI_HCD_SSB
-	bool "OHCI support for Broadcom SSB OHCI core"
+	bool "OHCI support for Broadcom SSB OHCI core (DEPRECATED)"
 	depends on USB_OHCI_HCD && (SSB = y || SSB = USB_OHCI_HCD) && EXPERIMENTAL
+	select USB_HCD_SSB
+	select USB_OHCI_HCD_PLATFORM
 	default n
 	---help---
+	  This option is deprecated now and the driver was removed, use
+	  USB_HCD_SSB and USB_OHCI_HCD_PLATFORM instead.
+
 	  Support for the Sonics Silicon Backplane (SSB) attached
 	  Broadcom USB OHCI core.
 
