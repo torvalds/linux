@@ -19,7 +19,8 @@
  * | DPC Thread                   |       0x401c       |		|
  * | Async Events                 |       0x5057       | 0x5052		|
  * | Timer Routines               |       0x6011       | 0x600e,0x600f  |
- * | User Space Interactions      |       0x709e       |		|
+ * | User Space Interactions      |       0x709e       | 0x7018,0x702e  |
+ * |                              |                    | 0x7039,0x7045  |
  * | Task Management              |       0x803c       | 0x8025-0x8026  |
  * |                              |                    | 0x800b,0x8039  |
  * | AER/EEH                      |       0x900f       |		|

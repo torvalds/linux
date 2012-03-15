@@ -82,7 +82,7 @@ static int max34440_write_word_data(struct i2c_client *client, int page,
 	case PMBUS_VIRT_RESET_TEMP_HISTORY:
 		ret = pmbus_write_word_data(client, page,
 					    MAX34440_MFR_TEMPERATURE_PEAK,
-					    0xffff);
+					    0x8000);
 		break;
 	default:
 		ret = -ENODATA;

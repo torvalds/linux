@@ -634,6 +634,28 @@ rescan:
 EXPORT_SYMBOL(get_super);
 
 /**
+ *	get_super_thawed - get thawed superblock of a device
+ *	@bdev: device to get the superblock for
+ *
+ *	Scans the superblock list and finds the superblock of the file system
+ *	mounted on the device. The superblock is returned once it is thawed
+ *	(or immediately if it was not frozen). %NULL is returned if no match
+ *	is found.
+ */
+struct super_block *get_super_thawed(struct block_device *bdev)
+{
+	while (1) {
+		struct super_block *s = get_super(bdev);
+		if (!s || s->s_frozen == SB_UNFROZEN)
+			return s;
+		up_read(&s->s_umount);
+		vfs_check_frozen(s, SB_FREEZE_WRITE);
+		put_super(s);
+	}
+}
+EXPORT_SYMBOL(get_super_thawed);
+
+/**
  * get_active_super - get an active reference to the superblock of a device
  * @bdev: device to get the superblock for
  *

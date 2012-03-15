@@ -459,12 +459,23 @@ int btrfs_close_extra_devices(struct btrfs_fs_devices *fs_devices)
 {
 	struct btrfs_device *device, *next;
 
+	struct block_device *latest_bdev = NULL;
+	u64 latest_devid = 0;
+	u64 latest_transid = 0;
+
 	mutex_lock(&uuid_mutex);
 again:
 	/* This is the initialized path, it is safe to release the devices. */
 	list_for_each_entry_safe(device, next, &fs_devices->devices, dev_list) {
-		if (device->in_fs_metadata)
+		if (device->in_fs_metadata) {
+			if (!latest_transid ||
+			    device->generation > latest_transid) {
+				latest_devid = device->devid;
+				latest_transid = device->generation;
+				latest_bdev = device->bdev;
+			}
 			continue;
+		}
 
 		if (device->bdev) {
 			blkdev_put(device->bdev, device->mode);
@@ -486,6 +497,10 @@ again:
 		fs_devices = fs_devices->seed;
 		goto again;
 	}
+
+	fs_devices->latest_bdev = latest_bdev;
+	fs_devices->latest_devid = latest_devid;
+	fs_devices->latest_trans = latest_transid;
 
 	mutex_unlock(&uuid_mutex);
 	return 0;
@@ -1953,7 +1968,7 @@ static int btrfs_relocate_chunk(struct btrfs_root *root,
 	em = lookup_extent_mapping(em_tree, chunk_offset, 1);
 	read_unlock(&em_tree->lock);
 
-	BUG_ON(em->start > chunk_offset ||
+	BUG_ON(!em || em->start > chunk_offset ||
 	       em->start + em->len < chunk_offset);
 	map = (struct map_lookup *)em->bdev;
 
@@ -4356,6 +4371,20 @@ int btrfs_read_sys_array(struct btrfs_root *root)
 		return -ENOMEM;
 	btrfs_set_buffer_uptodate(sb);
 	btrfs_set_buffer_lockdep_class(root->root_key.objectid, sb, 0);
+	/*
+	 * The sb extent buffer is artifical and just used to read the system array.
+	 * btrfs_set_buffer_uptodate() call does not properly mark all it's
+	 * pages up-to-date when the page is larger: extent does not cover the
+	 * whole page and consequently check_page_uptodate does not find all
+	 * the page's extents up-to-date (the hole beyond sb),
+	 * write_extent_buffer then triggers a WARN_ON.
+	 *
+	 * Regular short extents go through mark_extent_buffer_dirty/writeback cycle,
+	 * but sb spans only this function. Add an explicit SetPageUptodate call
+	 * to silence the warning eg. on PowerPC 64.
+	 */
+	if (PAGE_CACHE_SIZE > BTRFS_SUPER_INFO_SIZE)
+		SetPageUptodate(sb->first_page);
 
 	write_extent_buffer(sb, super_copy, 0, BTRFS_SUPER_INFO_SIZE);
 	array_size = btrfs_super_sys_array_size(super_copy);
