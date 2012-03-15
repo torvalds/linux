@@ -3440,7 +3440,7 @@ static int decode_pathname(struct xdr_stream *xdr, struct nfs4_pathname *path)
 		status = decode_opaque_inline(xdr, &component->len, &component->data);
 		if (unlikely(status != 0))
 			goto out_eio;
-		if (unlikely(nfs_debug & NFSDBG_XDR))
+		ifdebug (XDR)
 			pr_cont("%s%.*s ",
 				(path->ncomponents != n ? "/ " : ""),
 				component->len, component->data);
