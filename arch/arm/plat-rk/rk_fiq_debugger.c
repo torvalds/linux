@@ -1,8 +1,9 @@
 /*
- * arch/arm/mach-rk/rk_fiq_debugger.c
+ * arch/arm/plat-rk/rk_fiq_debugger.c
  *
  * Serial Debugger Interface for Rockchip
  *
+ * Copyright (C) 2012 ROCKCHIP, Inc.
  * Copyright (C) 2008 Google, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -131,12 +132,17 @@ static void force_irq(struct platform_device *pdev, unsigned int irq)
 
 static int rk_fiq_debugger_id;
 
-void rk_serial_debug_init(unsigned int base, int irq, int signal, int wakeup_irq)
+void rk_serial_debug_init(void __iomem *base, int irq, int signal_irq, int wakeup_irq)
 {
 	struct rk_fiq_debugger *t = NULL;
 	struct platform_device *pdev = NULL;
 	struct resource *res = NULL;
 	int res_count = 0;
+
+	if (!base) {
+		pr_err("Invalid fiq debugger uart base\n");
+		return;
+	}
 
 	t = kzalloc(sizeof(struct rk_fiq_debugger), GFP_KERNEL);
 	if (!t) {
@@ -150,12 +156,7 @@ void rk_serial_debug_init(unsigned int base, int irq, int signal, int wakeup_irq
 	t->pdata.uart_flush = debug_flush;
 	t->pdata.fiq_enable = fiq_enable;
 	t->pdata.force_irq = force_irq;
-	t->debug_port_base = ioremap(base, PAGE_SIZE);
-
-	if (!t->debug_port_base) {
-		pr_err("Failed to ioremap for fiq debugger\n");
-		goto out1;
-	}
+	t->debug_port_base = base;
 
 	res = kzalloc(sizeof(struct resource) * 3, GFP_KERNEL);
 	if (!res) {
@@ -169,7 +170,7 @@ void rk_serial_debug_init(unsigned int base, int irq, int signal, int wakeup_irq
 		goto out3;
 	};
 
-	if(irq >= 0){
+	if (irq >= 0) {
 		res[0].flags = IORESOURCE_IRQ;
 		res[0].start = irq;
 		res[0].end = irq;
@@ -177,10 +178,10 @@ void rk_serial_debug_init(unsigned int base, int irq, int signal, int wakeup_irq
 		res_count++;
 	}
 
-	if(signal >= 0){
+	if (signal_irq >= 0) {
 		res[1].flags = IORESOURCE_IRQ;
-		res[1].start = signal;
-		res[1].end = signal;
+		res[1].start = signal_irq;
+		res[1].end = signal_irq;
 		res[1].name = "signal";
 		res_count++;
 	}
@@ -209,7 +210,5 @@ out4:
 out3:
 	kfree(res);
 out2:
-	iounmap(t->debug_port_base);
-out1:
 	kfree(t);
 }
