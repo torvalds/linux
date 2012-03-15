@@ -217,7 +217,6 @@ enum iwl_led_mode {
  * @chain_noise_num_beacons: number of beacons used to compute chain noise
  * @adv_thermal_throttle: support advance thermal throttle
  * @support_ct_kill_exit: support ct kill exit condition
- * @support_wimax_coexist: support wimax/wifi co-exist
  * @plcp_delta_threshold: plcp error rate threshold used to trigger
  *	radio tuning when there is a high receiving plcp error rate
  * @chain_noise_scale: default chain noise scale used for gain computation
@@ -240,7 +239,6 @@ struct iwl_base_params {
 	u16 led_compensation;
 	bool adv_thermal_throttle;
 	bool support_ct_kill_exit;
-	const bool support_wimax_coexist;
 	u8 plcp_delta_threshold;
 	s32 chain_noise_scale;
 	unsigned int wd_timeout;
