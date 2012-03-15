@@ -741,16 +741,14 @@ static int pcan_usb_encode_msg(struct peak_usb_device *dev, struct sk_buff *skb,
 
 	/* can id */
 	if (cf->can_id & CAN_EFF_FLAG) {
-		__le32 tmp32 = cpu_to_le32(cf->can_id & CAN_ERR_MASK);
+		__le32 tmp32 = cpu_to_le32((cf->can_id & CAN_ERR_MASK) << 3);
 
-		tmp32 <<= 3;
 		*pc |= PCAN_USB_STATUSLEN_EXT_ID;
 		memcpy(++pc, &tmp32, 4);
 		pc += 4;
 	} else {
-		__le16 tmp16 = cpu_to_le32(cf->can_id & CAN_ERR_MASK);
+		__le16 tmp16 = cpu_to_le16((cf->can_id & CAN_ERR_MASK) << 5);
 
-		tmp16 <<= 5;
 		memcpy(++pc, &tmp16, 2);
 		pc += 2;
 	}
