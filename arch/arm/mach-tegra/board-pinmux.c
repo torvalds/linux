@@ -15,7 +15,6 @@
 #include <linux/device.h>
 #include <linux/kernel.h>
 #include <linux/notifier.h>
-#include <linux/of.h>
 #include <linux/string.h>
 
 #include "board-pinmux.h"
@@ -84,6 +83,5 @@ void tegra_board_pinmux_init(struct tegra_board_pinmux_conf *conf_a,
 	if (conf_b)
 		pinctrl_register_mappings(conf_b->maps, conf_b->map_count);
 
-	if (!of_machine_is_compatible("nvidia,tegra20"))
-		platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
