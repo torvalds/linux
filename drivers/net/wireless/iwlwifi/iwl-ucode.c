@@ -391,8 +391,8 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	enum iwl_ucode_type old_type;
 	static const u8 alive_cmd[] = { REPLY_ALIVE };
 
-	old_type = priv->shrd->ucode_type;
-	priv->shrd->ucode_type = ucode_type;
+	old_type = priv->cur_ucode;
+	priv->cur_ucode = ucode_type;
 	fw = iwl_get_ucode_image(priv, ucode_type);
 
 	priv->ucode_loaded = false;
@@ -406,7 +406,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 
 	ret = iwl_trans_start_fw(trans(priv), fw);
 	if (ret) {
-		priv->shrd->ucode_type = old_type;
+		priv->cur_ucode = old_type;
 		iwl_remove_notification(&priv->notif_wait, &alive_wait);
 		return ret;
 	}
@@ -418,13 +418,13 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	ret = iwl_wait_notification(&priv->notif_wait, &alive_wait,
 					UCODE_ALIVE_TIMEOUT);
 	if (ret) {
-		priv->shrd->ucode_type = old_type;
+		priv->cur_ucode = old_type;
 		return ret;
 	}
 
 	if (!alive_data.valid) {
 		IWL_ERR(priv, "Loaded ucode is not valid!\n");
-		priv->shrd->ucode_type = old_type;
+		priv->cur_ucode = old_type;
 		return -EIO;
 	}
 
@@ -436,7 +436,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	if (ucode_type != IWL_UCODE_WOWLAN) {
 		ret = iwl_verify_ucode(priv, ucode_type);
 		if (ret) {
-			priv->shrd->ucode_type = old_type;
+			priv->cur_ucode = old_type;
 			return ret;
 		}
 
@@ -448,7 +448,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	if (ret) {
 		IWL_WARN(priv,
 			"Could not complete ALIVE transition: %d\n", ret);
-		priv->shrd->ucode_type = old_type;
+		priv->cur_ucode = old_type;
 		return ret;
 	}
 

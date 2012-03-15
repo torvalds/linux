@@ -997,6 +997,9 @@ struct iwl_priv {
 		u32 error_event_table;
 		u32 log_event_table;
 	} device_pointers;
+
+	/* indicator of loaded ucode image */
+	enum iwl_ucode_type cur_ucode;
 }; /*iwl_priv */
 
 extern struct kmem_cache *iwl_tx_cmd_pool;

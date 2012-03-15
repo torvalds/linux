@@ -346,7 +346,6 @@ struct iwl_cfg {
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
  * @eeprom: pointer to the eeprom/OTP image
- * @ucode_type: indicator of loaded ucode image
  */
 struct iwl_shared {
 	unsigned long status;
@@ -359,9 +358,6 @@ struct iwl_shared {
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
-
-	/* ucode related variables */
-	enum iwl_ucode_type ucode_type;
 
 };
 

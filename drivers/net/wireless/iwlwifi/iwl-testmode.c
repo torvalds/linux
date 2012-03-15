@@ -601,11 +601,11 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			IWL_ERR(priv, "No uCode has not been loaded\n");
 			return -EINVAL;
 		} else {
-			img = &priv->fw->img[priv->shrd->ucode_type];
+			img = &priv->fw->img[priv->cur_ucode];
 			inst_size = img->sec[IWL_UCODE_SECTION_INST].len;
 			data_size = img->sec[IWL_UCODE_SECTION_DATA].len;
 		}
-		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_TYPE, priv->shrd->ucode_type);
+		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_TYPE, priv->cur_ucode);
 		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_INST_SIZE, inst_size);
 		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_DATA_SIZE, data_size);
 		status = cfg80211_testmode_reply(skb);

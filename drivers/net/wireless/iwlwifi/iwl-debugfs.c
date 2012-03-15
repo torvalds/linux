@@ -240,7 +240,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 			IWL_ERR(priv, "No uCode has been loadded.\n");
 			return -EINVAL;
 		}
-		img = &priv->fw->img[priv->shrd->ucode_type];
+		img = &priv->fw->img[priv->cur_ucode];
 		priv->dbgfs_sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	}
 	len = priv->dbgfs_sram_len;
