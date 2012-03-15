@@ -12,6 +12,7 @@
 #include "header.h"
 #include "debugfs.h"
 #include "parse-events-flex.h"
+#include "pmu.h"
 
 #define MAX_NAME_LEN 100
 
@@ -646,6 +647,30 @@ int parse_events_add_numeric(struct list_head *list, int *idx,
 			 (char *) __event_name(type, config));
 }
 
+int parse_events_add_pmu(struct list_head *list, int *idx,
+			 char *name, struct list_head *head_config)
+{
+	struct perf_event_attr attr;
+	struct perf_pmu *pmu;
+
+	pmu = perf_pmu__find(name);
+	if (!pmu)
+		return -EINVAL;
+
+	memset(&attr, 0, sizeof(attr));
+
+	/*
+	 * Configure hardcoded terms first, no need to check
+	 * return value when called with fail == 0 ;)
+	 */
+	config_attr(&attr, head_config, 0);
+
+	if (perf_pmu__config(pmu, &attr, head_config))
+		return -EINVAL;
+
+	return add_event(list, idx, &attr, (char *) "pmu");
+}
+
 int parse_events_modifier(struct list_head *list, char *str)
 {
 	struct perf_evsel *evsel;
@@ -957,8 +982,12 @@ void print_events(const char *event_glob)
 
 	printf("\n");
 	printf("  %-50s [%s]\n",
-		"rNNN (see 'perf list --help' on how to encode it)",
+	       "rNNN",
 	       event_type_descriptors[PERF_TYPE_RAW]);
+	printf("  %-50s [%s]\n",
+	       "cpu/t1=v1[,t2=v2,t3 ...]/modifier",
+	       event_type_descriptors[PERF_TYPE_RAW]);
+	printf("   (see 'perf list --help' on how to encode it)\n");
 	printf("\n");
 
 	printf("  %-50s [%s]\n",

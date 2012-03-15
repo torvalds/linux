@@ -74,6 +74,8 @@ int parse_events_add_cache(struct list_head *list, int *idx,
 			   char *type, char *op_result1, char *op_result2);
 int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type);
+int parse_events_add_pmu(struct list_head *list, int *idx,
+			 char *pmu , struct list_head *head_config);
 void parse_events_error(struct list_head *list, int *idx,
 			char const *msg);
 
