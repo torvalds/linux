@@ -274,35 +274,6 @@ enum hdmi_core_infoframe {
 	HDMI_INFOFRAME_AVI_DB5PR_8 = 7,
 	HDMI_INFOFRAME_AVI_DB5PR_9 = 8,
 	HDMI_INFOFRAME_AVI_DB5PR_10 = 9,
-	HDMI_INFOFRAME_AUDIO_DB1CT_FROM_STREAM = 0,
-	HDMI_INFOFRAME_AUDIO_DB1CT_IEC60958 = 1,
-	HDMI_INFOFRAME_AUDIO_DB1CT_AC3 = 2,
-	HDMI_INFOFRAME_AUDIO_DB1CT_MPEG1 = 3,
-	HDMI_INFOFRAME_AUDIO_DB1CT_MP3 = 4,
-	HDMI_INFOFRAME_AUDIO_DB1CT_MPEG2_MULTICH = 5,
-	HDMI_INFOFRAME_AUDIO_DB1CT_AAC = 6,
-	HDMI_INFOFRAME_AUDIO_DB1CT_DTS = 7,
-	HDMI_INFOFRAME_AUDIO_DB1CT_ATRAC = 8,
-	HDMI_INFOFRAME_AUDIO_DB1CT_ONEBIT = 9,
-	HDMI_INFOFRAME_AUDIO_DB1CT_DOLBY_DIGITAL_PLUS = 10,
-	HDMI_INFOFRAME_AUDIO_DB1CT_DTS_HD = 11,
-	HDMI_INFOFRAME_AUDIO_DB1CT_MAT = 12,
-	HDMI_INFOFRAME_AUDIO_DB1CT_DST = 13,
-	HDMI_INFOFRAME_AUDIO_DB1CT_WMA_PRO = 14,
-	HDMI_INFOFRAME_AUDIO_DB2SF_FROM_STREAM = 0,
-	HDMI_INFOFRAME_AUDIO_DB2SF_32000 = 1,
-	HDMI_INFOFRAME_AUDIO_DB2SF_44100 = 2,
-	HDMI_INFOFRAME_AUDIO_DB2SF_48000 = 3,
-	HDMI_INFOFRAME_AUDIO_DB2SF_88200 = 4,
-	HDMI_INFOFRAME_AUDIO_DB2SF_96000 = 5,
-	HDMI_INFOFRAME_AUDIO_DB2SF_176400 = 6,
-	HDMI_INFOFRAME_AUDIO_DB2SF_192000 = 7,
-	HDMI_INFOFRAME_AUDIO_DB2SS_FROM_STREAM = 0,
-	HDMI_INFOFRAME_AUDIO_DB2SS_16BIT = 1,
-	HDMI_INFOFRAME_AUDIO_DB2SS_20BIT = 2,
-	HDMI_INFOFRAME_AUDIO_DB2SS_24BIT = 3,
-	HDMI_INFOFRAME_AUDIO_DB5_DM_INH_PERMITTED = 0,
-	HDMI_INFOFRAME_AUDIO_DB5_DM_INH_PROHIBITED = 1
 };
 
 enum hdmi_packing_mode {
@@ -310,17 +281,6 @@ enum hdmi_packing_mode {
 	HDMI_PACK_24b_RGB_YUV444_YUV422 = 1,
 	HDMI_PACK_20b_YUV422 = 2,
 	HDMI_PACK_ALREADYPACKED = 7
-};
-
-enum hdmi_core_audio_sample_freq {
-	HDMI_AUDIO_FS_32000 = 0x3,
-	HDMI_AUDIO_FS_44100 = 0x0,
-	HDMI_AUDIO_FS_48000 = 0x2,
-	HDMI_AUDIO_FS_88200 = 0x8,
-	HDMI_AUDIO_FS_96000 = 0xA,
-	HDMI_AUDIO_FS_176400 = 0xC,
-	HDMI_AUDIO_FS_192000 = 0xE,
-	HDMI_AUDIO_FS_NOT_INDICATED = 0x1
 };
 
 enum hdmi_core_audio_layout {
@@ -381,33 +341,10 @@ enum hdmi_audio_i2s_config {
 	HDMI_AUDIO_I2S_WS_POLARIT_YLOW_IS_RIGHT = 1,
 	HDMI_AUDIO_I2S_MSB_SHIFTED_FIRST = 0,
 	HDMI_AUDIO_I2S_LSB_SHIFTED_FIRST = 1,
-	HDMI_AUDIO_I2S_MAX_WORD_20BITS = 0,
-	HDMI_AUDIO_I2S_MAX_WORD_24BITS = 1,
-	HDMI_AUDIO_I2S_CHST_WORD_NOT_SPECIFIED = 0,
-	HDMI_AUDIO_I2S_CHST_WORD_16_BITS = 1,
-	HDMI_AUDIO_I2S_CHST_WORD_17_BITS = 6,
-	HDMI_AUDIO_I2S_CHST_WORD_18_BITS = 2,
-	HDMI_AUDIO_I2S_CHST_WORD_19_BITS = 4,
-	HDMI_AUDIO_I2S_CHST_WORD_20_BITS_20MAX = 5,
-	HDMI_AUDIO_I2S_CHST_WORD_20_BITS_24MAX = 1,
-	HDMI_AUDIO_I2S_CHST_WORD_21_BITS = 6,
-	HDMI_AUDIO_I2S_CHST_WORD_22_BITS = 2,
-	HDMI_AUDIO_I2S_CHST_WORD_23_BITS = 4,
-	HDMI_AUDIO_I2S_CHST_WORD_24_BITS = 5,
 	HDMI_AUDIO_I2S_SCK_EDGE_FALLING = 0,
 	HDMI_AUDIO_I2S_SCK_EDGE_RISING = 1,
 	HDMI_AUDIO_I2S_VBIT_FOR_PCM = 0,
 	HDMI_AUDIO_I2S_VBIT_FOR_COMPRESSED = 1,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_NA = 0,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_16 = 2,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_17 = 12,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_18 = 4,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_19 = 8,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_20 = 10,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_21 = 13,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_22 = 5,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_23 = 9,
-	HDMI_AUDIO_I2S_INPUT_LENGTH_24 = 11,
 	HDMI_AUDIO_I2S_FIRST_BIT_SHIFT = 0,
 	HDMI_AUDIO_I2S_FIRST_BIT_NO_SHIFT = 1,
 	HDMI_AUDIO_I2S_SD0_EN = 1,
@@ -434,20 +371,6 @@ struct hdmi_core_video_config {
 	enum hdmi_core_packet_mode	pkt_mode;
 	enum hdmi_core_hdmi_dvi		hdmi_dvi;
 	enum hdmi_core_tclkselclkmult	tclk_sel_clkmult;
-};
-
-/*
- * Refer to section 8.2 in HDMI 1.3 specification for
- * details about infoframe databytes
- */
-struct hdmi_core_infoframe_audio {
-	u8 db1_coding_type;
-	u8 db1_channel_count;
-	u8 db2_sample_freq;
-	u8 db2_sample_size;
-	u8 db4_channel_alloc;
-	bool db5_downmix_inh;
-	u8 db5_lsv;	/* Level shift values for downmix */
 };
 
 struct hdmi_core_packet_enable_repeat {
@@ -502,7 +425,7 @@ struct hdmi_core_audio_i2s_config {
 
 struct hdmi_core_audio_config {
 	struct hdmi_core_audio_i2s_config	i2s_cfg;
-	enum hdmi_core_audio_sample_freq	freq_sample;
+	u32					freq_sample;
 	bool					fs_override;
 	u32					n;
 	u32					cts;
@@ -522,7 +445,7 @@ struct hdmi_core_audio_config {
 int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
 				u32 sample_freq, u32 *n, u32 *cts);
 void hdmi_core_audio_infoframe_config(struct hdmi_ip_data *ip_data,
-		struct hdmi_core_infoframe_audio *info_aud);
+		struct snd_cea_861_aud_if *info_aud);
 void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 					struct hdmi_core_audio_config *cfg);
 void hdmi_wp_audio_config_dma(struct hdmi_ip_data *ip_data,

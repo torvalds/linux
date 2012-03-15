@@ -29,6 +29,10 @@
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/gpio.h>
+#if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
+	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
+#include <sound/asound.h>
+#endif
 
 #include "ti_hdmi_4xxx_ip.h"
 #include "dss.h"
@@ -1145,9 +1149,8 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 }
 
 void hdmi_core_audio_infoframe_config(struct hdmi_ip_data *ip_data,
-		struct hdmi_core_infoframe_audio *info_aud)
+		struct snd_cea_861_aud_if *info_aud)
 {
-	u8 val;
 	u8 sum = 0, checksum = 0;
 	void __iomem *av_base = hdmi_av_base(ip_data);
 
@@ -1161,24 +1164,23 @@ void hdmi_core_audio_infoframe_config(struct hdmi_ip_data *ip_data,
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AUDIO_LEN, 0x0a);
 	sum += 0x84 + 0x001 + 0x00a;
 
-	val = (info_aud->db1_coding_type << 4)
-			| (info_aud->db1_channel_count - 1);
-	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(0), val);
-	sum += val;
+	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(0),
+		       info_aud->db1_ct_cc);
+	sum += info_aud->db1_ct_cc;
 
-	val = (info_aud->db2_sample_freq << 2) | info_aud->db2_sample_size;
-	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(1), val);
-	sum += val;
+	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(1),
+		       info_aud->db2_sf_ss);
+	sum += info_aud->db2_sf_ss;
 
-	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(2), 0x00);
+	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(2), info_aud->db3);
+	sum += info_aud->db3;
 
-	val = info_aud->db4_channel_alloc;
-	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(3), val);
-	sum += val;
+	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(3), info_aud->db4_ca);
+	sum += info_aud->db4_ca;
 
-	val = (info_aud->db5_downmix_inh << 7) | (info_aud->db5_lsv << 3);
-	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(4), val);
-	sum += val;
+	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(4),
+		       info_aud->db5_dminh_lsv);
+	sum += info_aud->db5_dminh_lsv;
 
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(5), 0x00);
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_DBYTE(6), 0x00);
