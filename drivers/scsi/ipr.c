@@ -105,6 +105,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	{ /* Gemstone, Citrine, Obsidian, and Obsidian-E */
 		.mailbox = 0x0042C,
 		.cache_line_size = 0x20,
+		.clear_isr = 1,
 		{
 			.set_interrupt_mask_reg = 0x0022C,
 			.clr_interrupt_mask_reg = 0x00230,
@@ -127,6 +128,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	{ /* Snipe and Scamp */
 		.mailbox = 0x0052C,
 		.cache_line_size = 0x20,
+		.clear_isr = 1,
 		{
 			.set_interrupt_mask_reg = 0x00288,
 			.clr_interrupt_mask_reg = 0x0028C,
@@ -149,6 +151,7 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 	{ /* CRoC */
 		.mailbox = 0x00044,
 		.cache_line_size = 0x20,
+		.clear_isr = 0,
 		{
 			.set_interrupt_mask_reg = 0x00010,
 			.clr_interrupt_mask_reg = 0x00018,
@@ -5049,12 +5052,14 @@ static irqreturn_t ipr_handle_other_interrupt(struct ipr_ioa_cfg *ioa_cfg,
 		del_timer(&ioa_cfg->reset_cmd->timer);
 		ipr_reset_ioa_job(ioa_cfg->reset_cmd);
 	} else if ((int_reg & IPR_PCII_HRRQ_UPDATED) == int_reg) {
-		if (ipr_debug && printk_ratelimit())
-			dev_err(&ioa_cfg->pdev->dev,
-				"Spurious interrupt detected. 0x%08X\n", int_reg);
-		writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
-		int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
-		return IRQ_NONE;
+		if (ioa_cfg->clear_isr) {
+			if (ipr_debug && printk_ratelimit())
+				dev_err(&ioa_cfg->pdev->dev,
+					"Spurious interrupt detected. 0x%08X\n", int_reg);
+			writel(IPR_PCII_HRRQ_UPDATED, ioa_cfg->regs.clr_interrupt_reg32);
+			int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
+			return IRQ_NONE;
+		}
 	} else {
 		if (int_reg & IPR_PCII_IOA_UNIT_CHECKED)
 			ioa_cfg->ioa_unit_checked = 1;
@@ -5153,6 +5158,9 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 				ioa_cfg->toggle_bit ^= 1u;
 			}
 		}
+
+		if (ipr_cmd && !ioa_cfg->clear_isr)
+			break;
 
 		if (ipr_cmd != NULL) {
 			/* Clear the PCI interrupt */
@@ -8769,6 +8777,7 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 	/* set SIS 32 or SIS 64 */
 	ioa_cfg->sis64 = ioa_cfg->ipr_chip->sis_type == IPR_SIS64 ? 1 : 0;
 	ioa_cfg->chip_cfg = ioa_cfg->ipr_chip->cfg;
+	ioa_cfg->clear_isr = ioa_cfg->chip_cfg->clear_isr;
 
 	if (ipr_transop_timeout)
 		ioa_cfg->transop_timeout = ipr_transop_timeout;

@@ -1306,6 +1306,7 @@ struct ipr_interrupts {
 struct ipr_chip_cfg_t {
 	u32 mailbox;
 	u8 cache_line_size;
+	u8 clear_isr;
 	struct ipr_interrupt_offsets regs;
 };
 
@@ -1388,6 +1389,7 @@ struct ipr_ioa_cfg {
 	u8 sis64:1;
 	u8 dump_timeout:1;
 	u8 cfg_locked:1;
+	u8 clear_isr:1;
 
 	u8 revid;
 
