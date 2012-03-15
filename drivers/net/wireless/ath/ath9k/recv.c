@@ -1855,6 +1855,10 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (retval)
 			goto requeue_drop_frag;
 
+		if (rs.is_mybeacon) {
+			sc->hw_busy_count = 0;
+			ath_start_rx_poll(sc, 3);
+		}
 		/* Ensure we always have an skb to requeue once we are done
 		 * processing the current buffer's skb */
 		requeue_skb = ath_rxbuf_alloc(common, common->rx_bufsize, GFP_ATOMIC);

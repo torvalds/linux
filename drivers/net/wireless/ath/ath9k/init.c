@@ -779,6 +779,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 			goto error_world;
 	}
 
+	setup_timer(&sc->rx_poll_timer, ath_rx_poll, (unsigned long)sc);
 	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 
 	ath_init_leds(sc);
