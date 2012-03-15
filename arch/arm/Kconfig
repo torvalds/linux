@@ -340,8 +340,8 @@ config ARCH_AT91
 	select IRQ_DOMAIN
 	select NEED_MACH_IO_H if PCCARD
 	help
-	  This enables support for systems based on the Atmel AT91RM9200,
-	  AT91SAM9 processors.
+	  This enables support for systems based on Atmel
+	  AT91RM9200 and AT91SAM9* processors.
 
 config ARCH_BCMRING
 	bool "Broadcom BCMRING"
