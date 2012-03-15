@@ -443,7 +443,7 @@ static struct stedma40_chan_cfg ssp0_dma_cfg_tx = {
 };
 #endif
 
-static struct pl022_ssp_controller ssp0_platform_data = {
+static struct pl022_ssp_controller ssp0_plat = {
 	.bus_id = 0,
 #ifdef CONFIG_STE_DMA40
 	.enable_dma = 1,
@@ -461,7 +461,7 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 
 static void __init mop500_spi_init(struct device *parent)
 {
-	db8500_add_ssp0(parent, &ssp0_platform_data);
+	db8500_add_ssp0(parent, &ssp0_plat);
 }
 
 #ifdef CONFIG_STE_DMA40
@@ -749,6 +749,7 @@ struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", &uart0_plat),
 	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", &uart1_plat),
 	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", &uart2_plat),
+	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
 	{},
 };
 
@@ -804,7 +805,6 @@ static void __init u8500_init_machine(void)
 		hrefv60_sdi_init(parent);
 	}
 	mop500_i2c_init(parent);
-	mop500_spi_init(parent);
 
 	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
 	i2c_register_board_info(2, mop500_i2c2_devices,
