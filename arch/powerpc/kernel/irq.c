@@ -211,11 +211,6 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 * External interrupt events on non-iseries will have caused
 	 * interrupts to be hard-disabled, so there is no problem, we
 	 * cannot have preempted.
-	 *
-	 * That leaves us with EEs on iSeries or decrementer interrupts,
-	 * which I decided to safely ignore. The preemption would have
-	 * itself been the result of an interrupt, upon which return we
-	 * will have checked for pending events on the old CPU.
 	 */
 	irq_happened = get_irq_happened();
 	if (!irq_happened)
@@ -457,15 +452,6 @@ void do_IRQ(struct pt_regs *regs)
 
 	irq_exit();
 	set_irq_regs(old_regs);
-
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES) &&
-			get_lppaca()->int_dword.fields.decr_int) {
-		get_lppaca()->int_dword.fields.decr_int = 0;
-		/* Signal a fake decrementer interrupt */
-		timer_interrupt(regs);
-	}
-#endif
 
 	trace_irq_exit(regs);
 }

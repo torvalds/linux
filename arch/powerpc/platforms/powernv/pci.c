@@ -31,6 +31,7 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/abs_addr.h>
+#include <asm/firmware.h>
 
 #include "powernv.h"
 #include "pci.h"
