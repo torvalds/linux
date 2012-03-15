@@ -89,13 +89,16 @@ config ARCH_AT91SAM9G20
 	select HAVE_NET_MACB
 
 config ARCH_AT91SAM9G45
-	bool "AT91SAM9G45"
+	bool "AT91SAM9G45 or AT91SAM9M10 families"
 	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select HAVE_AT91_USART3
 	select HAVE_FB_ATMEL
 	select HAVE_NET_MACB
 	select HAVE_AT91_DBGU1
+	help
+	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
+	  This support covers AT91SAM9G45, AT91SAM9G46, AT91SAM9M10 and AT91SAM9M11.
 
 config ARCH_AT91SAM9X5
 	bool "AT91SAM9x5 family"
