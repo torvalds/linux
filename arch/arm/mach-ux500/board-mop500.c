@@ -621,6 +621,7 @@ static void __init mop500_init_machine(void)
 
 	mop500_pins_init();
 
+	/* FIXME: parent of ab8500 should be prcmu */
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
 
@@ -743,6 +744,17 @@ MACHINE_START(SNOWBALL, "Calao Systems Snowball platform")
 MACHINE_END
 
 #ifdef CONFIG_MACH_UX500_DT
+
+struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
+	{},
+};
+
+static const struct of_device_id u8500_soc_node[] = {
+	/* only create devices below soc node */
+	{ .compatible = "stericsson,db8500", },
+	{ },
+};
+
 static void __init u8500_init_machine(void)
 {
 	struct device *parent = NULL;
@@ -757,6 +769,8 @@ static void __init u8500_init_machine(void)
 	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
 		snowball_platform_devs[i]->dev.parent = parent;
 
+	/* automatically probe child nodes of db8500 device */
+	of_platform_populate(NULL, u8500_soc_node, u8500_auxdata_lookup, parent);
 
 	if (of_machine_is_compatible("st-ericsson,mop500")) {
 		mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
