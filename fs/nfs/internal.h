@@ -308,8 +308,6 @@ extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_readdata_release(struct nfs_read_data *rdata);
 
 /* write.c */
-extern int nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
-				int max);
 extern int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
 		struct list_head *head);
 extern void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
@@ -334,6 +332,8 @@ void nfs_retry_commit(struct list_head *page_list,
 void nfs_commit_clear_lock(struct nfs_inode *nfsi);
 void nfs_commitdata_release(void *data);
 void nfs_commit_release_pages(struct nfs_write_data *data);
+void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *head);
+void nfs_request_remove_commit_list(struct nfs_page *req);
 
 #ifdef CONFIG_MIGRATION
 extern int nfs_migrate_page(struct address_space *,

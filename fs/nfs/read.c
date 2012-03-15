@@ -66,7 +66,6 @@ void nfs_readdata_free(struct nfs_read_data *p)
 
 void nfs_readdata_release(struct nfs_read_data *rdata)
 {
-	put_lseg(rdata->lseg);
 	put_nfs_open_context(rdata->args.context);
 	nfs_readdata_free(rdata);
 }

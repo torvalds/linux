@@ -28,6 +28,7 @@ enum {
 	PG_NEED_COMMIT,
 	PG_NEED_RESCHED,
 	PG_PARTIAL_READ_FAILED,
+	PG_COMMIT_TO_DS,
 };
 
 struct nfs_inode;
@@ -103,6 +104,16 @@ nfs_lock_request_dontget(struct nfs_page *req)
 {
 	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
 }
+
+static inline int
+nfs_lock_request(struct nfs_page *req)
+{
+	if (test_and_set_bit(PG_BUSY, &req->wb_flags))
+		return 0;
+	kref_get(&req->wb_kref);
+	return 1;
+}
+
 
 /**
  * nfs_list_add_request - Insert a request into a list
