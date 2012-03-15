@@ -122,6 +122,7 @@ struct mt9v032 {
 	struct v4l2_mbus_framefmt format;
 	struct v4l2_rect crop;
 
+	struct v4l2_ctrl *pixel_rate;
 	struct v4l2_ctrl_handler ctrls;
 
 	struct mutex power_lock;
@@ -187,13 +188,15 @@ mt9v032_update_aec_agc(struct mt9v032 *mt9v032, u16 which, int enable)
 	return 0;
 }
 
+#define EXT_CLK		25000000
+
 static int mt9v032_power_on(struct mt9v032 *mt9v032)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
 	int ret;
 
 	if (mt9v032->pdata->set_clock) {
-		mt9v032->pdata->set_clock(&mt9v032->subdev, 25000000);
+		mt9v032->pdata->set_clock(&mt9v032->subdev, EXT_CLK);
 		udelay(1);
 	}
 
@@ -365,6 +368,17 @@ static int mt9v032_get_format(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+static void mt9v032_configure_pixel_rate(struct mt9v032 *mt9v032,
+					 unsigned int hratio)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&mt9v032->subdev);
+	int ret;
+
+	ret = v4l2_ctrl_s_ctrl_int64(mt9v032->pixel_rate, EXT_CLK / hratio);
+	if (ret < 0)
+		dev_warn(&client->dev, "failed to set pixel rate (%d)\n", ret);
+}
+
 static int mt9v032_set_format(struct v4l2_subdev *subdev,
 			      struct v4l2_subdev_fh *fh,
 			      struct v4l2_subdev_format *format)
@@ -395,6 +409,8 @@ static int mt9v032_set_format(struct v4l2_subdev *subdev,
 					    format->which);
 	__format->width = __crop->width / hratio;
 	__format->height = __crop->height / vratio;
+	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+		mt9v032_configure_pixel_rate(mt9v032, hratio);
 
 	format->format = *__format;
 
@@ -450,6 +466,8 @@ static int mt9v032_set_crop(struct v4l2_subdev *subdev,
 						    crop->which);
 		__format->width = rect.width;
 		__format->height = rect.height;
+		if (crop->which == V4L2_SUBDEV_FORMAT_ACTIVE)
+			mt9v032_configure_pixel_rate(mt9v032, 1);
 	}
 
 	*__crop = rect;
@@ -598,6 +616,8 @@ static int mt9v032_registered(struct v4l2_subdev *subdev)
 	dev_info(&client->dev, "MT9V032 detected at address 0x%02x\n",
 			client->addr);
 
+	mt9v032_configure_pixel_rate(mt9v032, 1);
+
 	return ret;
 }
 
@@ -681,7 +701,7 @@ static int mt9v032_probe(struct i2c_client *client,
 	mutex_init(&mt9v032->power_lock);
 	mt9v032->pdata = client->dev.platform_data;
 
-	v4l2_ctrl_handler_init(&mt9v032->ctrls, ARRAY_SIZE(mt9v032_ctrls) + 4);
+	v4l2_ctrl_handler_init(&mt9v032->ctrls, ARRAY_SIZE(mt9v032_ctrls) + 5);
 
 	v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
 			  V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
@@ -695,6 +715,9 @@ static int mt9v032_probe(struct i2c_client *client,
 			  V4L2_CID_EXPOSURE, MT9V032_TOTAL_SHUTTER_WIDTH_MIN,
 			  MT9V032_TOTAL_SHUTTER_WIDTH_MAX, 1,
 			  MT9V032_TOTAL_SHUTTER_WIDTH_DEF);
+	mt9v032->pixel_rate =
+		v4l2_ctrl_new_std(&mt9v032->ctrls, &mt9v032_ctrl_ops,
+				  V4L2_CID_PIXEL_RATE, 0, 0, 1, 0);
 
 	for (i = 0; i < ARRAY_SIZE(mt9v032_ctrls); ++i)
 		v4l2_ctrl_new_custom(&mt9v032->ctrls, &mt9v032_ctrls[i], NULL);
