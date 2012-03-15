@@ -157,7 +157,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 */
 
 	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
+		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
+		     IEEE80211_HW_SCAN_WHILE_IDLE;
 
 	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
