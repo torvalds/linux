@@ -269,7 +269,7 @@ struct mwifiex_bssdescriptor {
 	u8  disable_11n;
 	struct ieee80211_ht_cap *bcn_ht_cap;
 	u16 ht_cap_offset;
-	struct ieee80211_ht_info *bcn_ht_info;
+	struct ieee80211_ht_operation *bcn_ht_oper;
 	u16 ht_info_offset;
 	u8 *bcn_bss_co_2040;
 	u16 bss_co_2040_offset;

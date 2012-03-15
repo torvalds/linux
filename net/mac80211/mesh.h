@@ -220,7 +220,7 @@ int mesh_add_ds_params_ie(struct sk_buff *skb,
 			  struct ieee80211_sub_if_data *sdata);
 int mesh_add_ht_cap_ie(struct sk_buff *skb,
 		       struct ieee80211_sub_if_data *sdata);
-int mesh_add_ht_info_ie(struct sk_buff *skb,
+int mesh_add_ht_oper_ie(struct sk_buff *skb,
 			struct ieee80211_sub_if_data *sdata);
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);

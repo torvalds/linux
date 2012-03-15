@@ -2390,7 +2390,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 				    2 + 3 + /* DS params */
 				    2 + (IEEE80211_MAX_SUPP_RATES - 8) +
 				    2 + sizeof(struct ieee80211_ht_cap) +
-				    2 + sizeof(struct ieee80211_ht_info) +
+				    2 + sizeof(struct ieee80211_ht_operation) +
 				    2 + sdata->u.mesh.mesh_id_len +
 				    2 + sizeof(struct ieee80211_meshconf_ie) +
 				    sdata->u.mesh.ie_len);
@@ -2419,7 +2419,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		    ieee80211_add_ext_srates_ie(&sdata->vif, skb) ||
 		    mesh_add_rsn_ie(skb, sdata) ||
 		    mesh_add_ht_cap_ie(skb, sdata) ||
-		    mesh_add_ht_info_ie(skb, sdata) ||
+		    mesh_add_ht_oper_ie(skb, sdata) ||
 		    mesh_add_meshid_ie(skb, sdata) ||
 		    mesh_add_meshconf_ie(skb, sdata) ||
 		    mesh_add_vendor_ies(skb, sdata)) {

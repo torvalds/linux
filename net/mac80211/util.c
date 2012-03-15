@@ -684,9 +684,9 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			else
 				elem_parse_failed = true;
 			break;
-		case WLAN_EID_HT_INFORMATION:
-			if (elen >= sizeof(struct ieee80211_ht_info))
-				elems->ht_info_elem = (void *)pos;
+		case WLAN_EID_HT_OPERATION:
+			if (elen >= sizeof(struct ieee80211_ht_operation))
+				elems->ht_operation = (void *)pos;
 			else
 				elem_parse_failed = true;
 			break;
@@ -1611,57 +1611,56 @@ u8 *ieee80211_ie_build_ht_cap(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 	return pos;
 }
 
-u8 *ieee80211_ie_build_ht_info(u8 *pos,
-			       struct ieee80211_sta_ht_cap *ht_cap,
+u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 			       struct ieee80211_channel *channel,
 			       enum nl80211_channel_type channel_type)
 {
-	struct ieee80211_ht_info *ht_info;
+	struct ieee80211_ht_operation *ht_oper;
 	/* Build HT Information */
-	*pos++ = WLAN_EID_HT_INFORMATION;
-	*pos++ = sizeof(struct ieee80211_ht_info);
-	ht_info = (struct ieee80211_ht_info *)pos;
-	ht_info->control_chan =
+	*pos++ = WLAN_EID_HT_OPERATION;
+	*pos++ = sizeof(struct ieee80211_ht_operation);
+	ht_oper = (struct ieee80211_ht_operation *)pos;
+	ht_oper->primary_chan =
 			ieee80211_frequency_to_channel(channel->center_freq);
 	switch (channel_type) {
 	case NL80211_CHAN_HT40MINUS:
-		ht_info->ht_param = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
 		break;
 	case NL80211_CHAN_HT40PLUS:
-		ht_info->ht_param = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
 		break;
 	case NL80211_CHAN_HT20:
 	default:
-		ht_info->ht_param = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 		break;
 	}
 	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
-		ht_info->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
+		ht_oper->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 
 	/*
 	 * Note: According to 802.11n-2009 9.13.3.1, HT Protection field and
 	 * RIFS Mode are reserved in IBSS mode, therefore keep them at 0
 	 */
-	ht_info->operation_mode = 0x0000;
-	ht_info->stbc_param = 0x0000;
+	ht_oper->operation_mode = 0x0000;
+	ht_oper->stbc_param = 0x0000;
 
 	/* It seems that Basic MCS set and Supported MCS set
 	   are identical for the first 10 bytes */
-	memset(&ht_info->basic_set, 0, 16);
-	memcpy(&ht_info->basic_set, &ht_cap->mcs, 10);
+	memset(&ht_oper->basic_set, 0, 16);
+	memcpy(&ht_oper->basic_set, &ht_cap->mcs, 10);
 
-	return pos + sizeof(struct ieee80211_ht_info);
+	return pos + sizeof(struct ieee80211_ht_operation);
 }
 
 enum nl80211_channel_type
-ieee80211_ht_info_to_channel_type(struct ieee80211_ht_info *ht_info)
+ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper)
 {
 	enum nl80211_channel_type channel_type;
 
-	if (!ht_info)
+	if (!ht_oper)
 		return NL80211_CHAN_NO_HT;
 
-	switch (ht_info->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+	switch (ht_oper->ht_param & IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
 	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
 		channel_type = NL80211_CHAN_HT20;
 		break;

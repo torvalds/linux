@@ -1045,7 +1045,7 @@ struct mwifiex_ie_types_htcap {
 
 struct mwifiex_ie_types_htinfo {
 	struct mwifiex_ie_types_header header;
-	struct ieee80211_ht_info ht_info;
+	struct ieee80211_ht_operation ht_oper;
 } __packed;
 
 struct mwifiex_ie_types_2040bssco {

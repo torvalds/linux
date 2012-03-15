@@ -244,7 +244,7 @@ enum ieee80211_rssi_event {
  * @channel_type: Channel type for this BSS -- the hardware might be
  *	configured for HT40+ while this BSS only uses no-HT, for
  *	example.
- * @ht_operation_mode: HT operation mode (like in &struct ieee80211_ht_info).
+ * @ht_operation_mode: HT operation mode like in &struct ieee80211_ht_operation.
  *	This field is only valid when the channel type is one of the HT types.
  * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
  *	implies disabled

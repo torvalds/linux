@@ -98,9 +98,9 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
 		goto mismatch;
 
 	/* disallow peering with mismatched channel types for now */
-	if (ie->ht_info_elem &&
+	if (ie->ht_operation &&
 	    (local->_oper_channel_type !=
-	     ieee80211_ht_info_to_channel_type(ie->ht_info_elem)))
+	     ieee80211_ht_oper_to_channel_type(ie->ht_operation)))
 		goto mismatch;
 
 	return true;
@@ -371,7 +371,7 @@ int mesh_add_ht_cap_ie(struct sk_buff *skb,
 	return 0;
 }
 
-int mesh_add_ht_info_ie(struct sk_buff *skb,
+int mesh_add_ht_oper_ie(struct sk_buff *skb,
 			struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -385,11 +385,11 @@ int mesh_add_ht_info_ie(struct sk_buff *skb,
 	if (!ht_cap->ht_supported || channel_type == NL80211_CHAN_NO_HT)
 		return 0;
 
-	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_info))
+	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_operation))
 		return -ENOMEM;
 
-	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_info));
-	ieee80211_ie_build_ht_info(pos, ht_cap, channel, channel_type);
+	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
+	ieee80211_ie_build_ht_oper(pos, ht_cap, channel, channel_type);
 
 	return 0;
 }

@@ -232,7 +232,7 @@ static struct conf_drv_settings default_conf = {
 				.rule        = CONF_BCN_RULE_PASS_ON_APPEARANCE,
 			},
 			[1] = {
-				.ie          = WLAN_EID_HT_INFORMATION,
+				.ie          = WLAN_EID_HT_OPERATION,
 				.rule        = CONF_BCN_RULE_PASS_ON_CHANGE,
 			},
 		},
