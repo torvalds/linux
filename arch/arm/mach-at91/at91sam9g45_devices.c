@@ -38,10 +38,6 @@
 #if defined(CONFIG_AT_HDMAC) || defined(CONFIG_AT_HDMAC_MODULE)
 static u64 hdmac_dmamask = DMA_BIT_MASK(32);
 
-static struct at_dma_platform_data atdma_pdata = {
-	.nr_channels	= 8,
-};
-
 static struct resource hdmac_resources[] = {
 	[0] = {
 		.start	= AT91SAM9G45_BASE_DMA,
@@ -56,12 +52,11 @@ static struct resource hdmac_resources[] = {
 };
 
 static struct platform_device at_hdmac_device = {
-	.name		= "at_hdmac",
+	.name		= "at91sam9g45_dma",
 	.id		= -1,
 	.dev		= {
 				.dma_mask		= &hdmac_dmamask,
 				.coherent_dma_mask	= DMA_BIT_MASK(32),
-				.platform_data		= &atdma_pdata,
 	},
 	.resource	= hdmac_resources,
 	.num_resources	= ARRAY_SIZE(hdmac_resources),
@@ -69,9 +64,15 @@ static struct platform_device at_hdmac_device = {
 
 void __init at91_add_device_hdmac(void)
 {
-	dma_cap_set(DMA_MEMCPY, atdma_pdata.cap_mask);
-	dma_cap_set(DMA_SLAVE, atdma_pdata.cap_mask);
-	platform_device_register(&at_hdmac_device);
+#if defined(CONFIG_OF)
+	struct device_node *of_node =
+		of_find_node_by_name(NULL, "dma-controller");
+
+	if (of_node)
+		of_node_put(of_node);
+	else
+#endif
+		platform_device_register(&at_hdmac_device);
 }
 #else
 void __init at91_add_device_hdmac(void) {}

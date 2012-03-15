@@ -1026,7 +1026,7 @@ static int da850_round_armrate(struct clk *clk, unsigned long rate)
 }
 #endif
 
-int da850_register_pm(struct platform_device *pdev)
+int __init da850_register_pm(struct platform_device *pdev)
 {
 	int ret;
 	struct davinci_pm_config *pdata = pdev->dev.platform_data;
