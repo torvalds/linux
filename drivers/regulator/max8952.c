@@ -152,8 +152,8 @@ static int max8952_set_voltage(struct regulator_dev *rdev,
 	}
 
 	if (vid >= 0 && vid < MAX8952_NUM_DVS_MODE) {
-		max8952->vid0 = (vid % 2 == 1);
-		max8952->vid1 = (((vid >> 1) % 2) == 1);
+		max8952->vid0 = vid & 0x1;
+		max8952->vid1 = (vid >> 1) & 0x1;
 		*selector = vid;
 		gpio_set_value(max8952->pdata->gpio_vid0, max8952->vid0);
 		gpio_set_value(max8952->pdata->gpio_vid1, max8952->vid1);
@@ -217,8 +217,8 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 	}
 
 	max8952->en = !!(pdata->reg_data.constraints.boot_on);
-	max8952->vid0 = (pdata->default_mode % 2) == 1;
-	max8952->vid1 = ((pdata->default_mode >> 1) % 2) == 1;
+	max8952->vid0 = pdata->default_mode & 0x1;
+	max8952->vid1 = (pdata->default_mode >> 1) & 0x1;
 
 	if (gpio_is_valid(pdata->gpio_en)) {
 		if (!gpio_request(pdata->gpio_en, "MAX8952 EN"))
@@ -241,13 +241,13 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 			gpio_is_valid(pdata->gpio_vid1)) {
 		if (!gpio_request(pdata->gpio_vid0, "MAX8952 VID0"))
 			gpio_direction_output(pdata->gpio_vid0,
-					(pdata->default_mode) % 2);
+					(pdata->default_mode) & 0x1);
 		else
 			err = 1;
 
 		if (!gpio_request(pdata->gpio_vid1, "MAX8952 VID1"))
 			gpio_direction_output(pdata->gpio_vid1,
-				(pdata->default_mode >> 1) % 2);
+				(pdata->default_mode >> 1) & 0x1);
 		else {
 			if (!err)
 				gpio_free(pdata->gpio_vid0);
