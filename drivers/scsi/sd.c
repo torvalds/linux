@@ -1212,9 +1212,14 @@ static unsigned int sd_check_events(struct gendisk *disk, unsigned int clearing)
 	retval = -ENODEV;
 
 	if (scsi_block_when_processing_errors(sdp)) {
+		retval = scsi_autopm_get_device(sdp);
+		if (retval)
+			goto out;
+
 		sshdr  = kzalloc(sizeof(*sshdr), GFP_KERNEL);
 		retval = scsi_test_unit_ready(sdp, SD_TIMEOUT, SD_MAX_RETRIES,
 					      sshdr);
+		scsi_autopm_put_device(sdp);
 	}
 
 	/* failed to execute TUR, assume media not present */
