@@ -174,13 +174,18 @@ static void debug_uart_flush(struct fiq_debugger_state *state)
 		state->pdata->uart_flush(state->pdev);
 }
 
+static void debug_putc(struct fiq_debugger_state *state, char c)
+{
+	state->pdata->uart_putc(state->pdev, c);
+}
+
 static void debug_puts(struct fiq_debugger_state *state, char *s)
 {
 	unsigned c;
 	while ((c = *s++)) {
 		if (c == '\n')
-			state->pdata->uart_putc(state->pdev, '\r');
-		state->pdata->uart_putc(state->pdev, c);
+			debug_putc(state, '\r');
+		debug_putc(state, c);
 	}
 }
 
@@ -777,19 +782,19 @@ static bool debug_handle_uart_interrupt(struct fiq_debugger_state *state,
 		} else if ((c >= ' ') && (c < 127)) {
 			if (state->debug_count < (DEBUG_MAX - 1)) {
 				state->debug_buf[state->debug_count++] = c;
-				state->pdata->uart_putc(state->pdev, c);
+				debug_putc(state, c);
 			}
 		} else if ((c == 8) || (c == 127)) {
 			if (state->debug_count > 0) {
 				state->debug_count--;
-				state->pdata->uart_putc(state->pdev, 8);
-				state->pdata->uart_putc(state->pdev, ' ');
-				state->pdata->uart_putc(state->pdev, 8);
+				debug_putc(state, 8);
+				debug_putc(state, ' ');
+				debug_putc(state, 8);
 			}
 		} else if ((c == 13) || (c == 10)) {
 			if (c == '\r' || (c == '\n' && last_c != '\r')) {
-				state->pdata->uart_putc(state->pdev, '\r');
-				state->pdata->uart_putc(state->pdev, '\n');
+				debug_putc(state, '\r');
+				debug_putc(state, '\n');
 			}
 			if (state->debug_count) {
 				state->debug_buf[state->debug_count] = 0;
@@ -898,8 +903,8 @@ static void debug_console_write(struct console *co,
 	debug_uart_enable(state);
 	while (count--) {
 		if (*s == '\n')
-			state->pdata->uart_putc(state->pdev, '\r');
-		state->pdata->uart_putc(state->pdev, *s++);
+			debug_putc(state, '\r');
+		debug_putc(state, *s++);
 	}
 	debug_uart_flush(state);
 	debug_uart_disable(state);
@@ -941,7 +946,7 @@ int  fiq_tty_write(struct tty_struct *tty, const unsigned char *buf, int count)
 
 	debug_uart_enable(state);
 	for (i = 0; i < count; i++)
-		state->pdata->uart_putc(state->pdev, *buf++);
+		debug_putc(state, *buf++);
 	debug_uart_disable(state);
 
 	return count;
