@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c 316272 2012-02-21 22:35:51Z $
+ * $Id: dhd_common.c 319098 2012-03-07 01:05:20Z $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -1814,11 +1814,14 @@ exit:
 bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd)
 {
 #ifdef  WL_CFG80211
-#ifndef ENABLE_P2P_INTERFACE
-	/* To be back compatble with ICS MR1 release where p2p interface disable but wlan0 used for p2p */
+#ifndef WL_ENABLE_P2P_IF
+	/* To be back compatble with ICS MR1 release where p2p interface
+	 * disable but wlan0 used for p2p
+	 */
 	if (((dhd->op_mode & HOSTAPD_MASK) == HOSTAPD_MASK) ||
-		((dhd->op_mode & WFD_MASK) == WFD_MASK))
+		((dhd->op_mode & WFD_MASK) == WFD_MASK)) {
 		return TRUE;
+	}
 	else
 #else
 	/* concurent mode with p2p interface for wfd and wlan0 for sta */
@@ -1828,7 +1831,7 @@ bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd)
 		return TRUE;
 	}
 	else
-#endif
+#endif /* WL_ENABLE_P2P_IF */
 #endif /* WL_CFG80211 */
 		return FALSE;
 }
@@ -1880,10 +1883,12 @@ dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled)
 
 	memset(iovbuf, 0, sizeof(iovbuf));
 
+#ifndef WL_SCHED_SCAN
 	if ((pfn_enabled) && (dhd_is_associated(dhd, NULL) == TRUE)) {
 		DHD_ERROR(("%s pno is NOT enable : called in assoc mode , ignore\n", __FUNCTION__));
 		return ret;
 	}
+#endif
 
 	/* Enable/disable PNO */
 	if ((ret = bcm_mkiovar("pfn", (char *)&pfn_enabled, 4, iovbuf, sizeof(iovbuf))) > 0) {

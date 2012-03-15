@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 316856 2012-02-23 21:44:34Z $
+ * $Id: dhd_linux.c 319136 2012-03-07 03:10:36Z $
  */
 
 #include <typedefs.h>
@@ -426,7 +426,7 @@ static void dhd_net_if_lock_local(dhd_info_t *dhd);
 static void dhd_net_if_unlock_local(dhd_info_t *dhd);
 static void dhd_suspend_lock(dhd_pub_t *dhdp);
 static void dhd_suspend_unlock(dhd_pub_t *dhdp);
-#if !defined(AP) && defined(WLP2P)
+#if !defined(AP) && defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
 static u32 dhd_concurrent_fw(dhd_pub_t *dhd);
 #endif 
 
@@ -588,8 +588,9 @@ static int dhd_suspend_resume_helper(struct dhd_info *dhd, int val, int force)
 	/* Set flag when early suspend was called */
 	dhdp->in_suspend = val;
 	if ((force || !dhdp->suspend_disable_flag) &&
-	    (dhd_check_ap_wfd_mode_set(dhdp) == FALSE))
+	    (dhd_check_ap_wfd_mode_set(dhdp) == FALSE)) {
 		ret = dhd_set_suspend(val, dhdp);
+	}
 	DHD_OS_WAKE_UNLOCK(dhdp);
 	return ret;
 }
@@ -1284,11 +1285,13 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 		DHD_ERROR(("%s: xmit rejected pub.up=%d busstate=%d \n",
 			__FUNCTION__, dhd->pub.up, dhd->pub.busstate));
 		netif_stop_queue(net);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 		/* Send Event when bus down detected during data session */
 		if (dhd->pub.busstate == DHD_BUS_DOWN)  {
 			DHD_ERROR(("%s: Event HANG sent up\n", __FUNCTION__));
 			net_os_send_hang_message(net);
 		}
+#endif
 		DHD_OS_WAKE_UNLOCK(&dhd->pub);
 		return -ENODEV;
 	}
@@ -2010,6 +2013,7 @@ dhd_ethtool(dhd_info_t *dhd, void *uaddr)
 
 static bool dhd_check_hang(struct net_device *net, dhd_pub_t *dhdp, int error)
 {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	if (!dhdp)
 		return FALSE;
 	if ((error == -ETIMEDOUT) || ((dhdp->busstate == DHD_BUS_DOWN) &&
@@ -2019,6 +2023,7 @@ static bool dhd_check_hang(struct net_device *net, dhd_pub_t *dhdp, int error)
 		net_os_send_hang_message(net);
 		return TRUE;
 	}
+#endif
 	return FALSE;
 }
 
@@ -2888,7 +2893,7 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	return 0;
 }
 
-#if !defined(AP) && defined(WLP2P)
+#if !defined(AP) && defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
 /* For Android ICS MR2 release, the concurrent mode is enabled by default and the firmware
  * name would be fw_bcmdhd.bin. So we need to determine whether P2P is enabled in the STA
  * firmware and accordingly enable concurrent mode (Apply P2P settings). SoftAP firmware
@@ -2950,7 +2955,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if (defined(AP) && !defined(WLP2P)) || (!defined(AP) && defined(WL_CFG80211))
 	uint32 mpc = 0; /* Turn MPC off for AP/APSTA mode */
 #endif
-#if defined(AP) || defined(WLP2P)
+#if defined(AP) || (defined(WLP2P) && defined(WL_ENABLE_P2P_IF))
 	uint32 apsta = 1; /* Enable APSTA mode */
 #endif /* defined(AP) || defined(WLP2P) */
 #ifdef GET_CUSTOM_MAC_ENABLE
@@ -3008,7 +3013,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* SET_RANDOM_MAC_SOFTAP */
 
 	DHD_TRACE(("Firmware = %s\n", fw_path));
-#if !defined(AP) && defined(WLP2P)
+#if !defined(AP)  && defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
 	/* Check if firmware with WFD support used */
 	if ((!op_mode && strstr(fw_path, "_p2p") != NULL) || (op_mode == 0x04) ||
 		(dhd_concurrent_fw(dhd))) {
@@ -3029,6 +3034,26 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if !defined(AP) && defined(WL_CFG80211)
 	/* Check if firmware with HostAPD support used */
 	if ((!op_mode && strstr(fw_path, "_apsta") != NULL) || (op_mode == 0x02)) {
+			/* Turn off wme if we are having only g ONLY firmware */
+			bcm_mkiovar("nmode", 0, 0, buf, sizeof(buf));
+			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf),
+				FALSE, 0)) < 0) {
+				DHD_ERROR(("%s:get nmode failed error (%d)\n", __FUNCTION__, ret));
+			}
+			else {
+				DHD_TRACE(("%s:get nmode returned %d\n", __FUNCTION__,buf[0]));
+			}
+			if (buf[0] == 0) {
+				int wme = 0;
+				bcm_mkiovar("wme", (char *)&wme, 4, iovbuf, sizeof(iovbuf));
+				if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf,
+					sizeof(iovbuf), TRUE, 0)) < 0) {
+					DHD_ERROR(("%s set wme for HostAPD failed  %d\n", __FUNCTION__, ret));
+				}
+				else {
+					DHD_TRACE(("%s set wme succeeded for g ONLY firmware\n", __FUNCTION__));
+				}
+			}
 			/* Turn off MPC in AP mode */
 			bcm_mkiovar("mpc", (char *)&mpc, 4, iovbuf, sizeof(iovbuf));
 			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf,
@@ -3764,10 +3789,10 @@ dhd_module_init(void)
 #endif /* defined(WL_CFG80211) */
 
 	return error;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && 1
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 fail_2:
 	dhd_bus_unregister();
-#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) */
+#endif
 fail_1:
 #if defined(CONFIG_WIFI_CONTROL_FUNC)
 	wl_android_wifictrl_func_del();
@@ -4388,6 +4413,7 @@ dhd_dev_get_pno_status(struct net_device *dev)
 
 #endif /* PNO_SUPPORT */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 int net_os_send_hang_message(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
@@ -4414,6 +4440,7 @@ int net_os_send_hang_message(struct net_device *dev)
 	}
 	return ret;
 }
+#endif
 
 void dhd_bus_country_set(struct net_device *dev, wl_country_t *cspec)
 {
