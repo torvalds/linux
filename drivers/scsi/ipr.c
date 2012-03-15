@@ -4339,8 +4339,7 @@ static struct ipr_resource_entry *ipr_find_starget(struct scsi_target *starget)
 
 	list_for_each_entry(res, &ioa_cfg->used_res_q, queue) {
 		if ((res->bus == starget->channel) &&
-		    (res->target == starget->id) &&
-		    (res->lun == 0)) {
+		    (res->target == starget->id)) {
 			return res;
 		}
 	}
@@ -4414,12 +4413,14 @@ static void ipr_target_destroy(struct scsi_target *starget)
 	struct ipr_ioa_cfg *ioa_cfg = (struct ipr_ioa_cfg *) shost->hostdata;
 
 	if (ioa_cfg->sis64) {
-		if (starget->channel == IPR_ARRAY_VIRTUAL_BUS)
-			clear_bit(starget->id, ioa_cfg->array_ids);
-		else if (starget->channel == IPR_VSET_VIRTUAL_BUS)
-			clear_bit(starget->id, ioa_cfg->vset_ids);
-		else if (starget->channel == 0)
-			clear_bit(starget->id, ioa_cfg->target_ids);
+		if (!ipr_find_starget(starget)) {
+			if (starget->channel == IPR_ARRAY_VIRTUAL_BUS)
+				clear_bit(starget->id, ioa_cfg->array_ids);
+			else if (starget->channel == IPR_VSET_VIRTUAL_BUS)
+				clear_bit(starget->id, ioa_cfg->vset_ids);
+			else if (starget->channel == 0)
+				clear_bit(starget->id, ioa_cfg->target_ids);
+		}
 	}
 
 	if (sata_port) {
