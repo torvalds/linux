@@ -2684,9 +2684,8 @@ snd_azf3328_probe(struct pci_dev *pci, const struct pci_device_id *pci_id)
 		err = snd_opl3_hwdep_new(opl3, 0, 1, NULL);
 		if (err < 0)
 			goto out_err;
+		opl3->private_data = chip;
 	}
-
-	opl3->private_data = chip;
 
 	sprintf(card->longname, "%s at 0x%lx, irq %i",
 		card->shortname, chip->ctrl_io, chip->irq);
