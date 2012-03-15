@@ -50,9 +50,9 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	addi    r1,r1,128
 	ld	r0,16(r1)
 	mtlr	r0
+	mfmsr	r7
 #endif /* CONFIG_TRACE_IRQFLAGS */
 
-	TRACE_ENABLE_INTS
 	li	r0,1
 	stb	r0,PACASOFTIRQEN(r13)	/* we'll hard-enable shortly */
 BEGIN_FTR_SECTION
