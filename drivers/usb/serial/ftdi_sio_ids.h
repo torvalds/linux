@@ -30,6 +30,8 @@
 
 /*** third-party PIDs (using FTDI_VID) ***/
 
+#define FTDI_LUMEL_PD12_PID	0x6002
+
 /*
  * Marvell OpenRD Base, Client
  * http://www.open-rd.org
