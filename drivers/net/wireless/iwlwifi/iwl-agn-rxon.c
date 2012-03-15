@@ -24,6 +24,7 @@
  *
  *****************************************************************************/
 
+#include <linux/etherdevice.h>
 #include "iwl-dev.h"
 #include "iwl-agn.h"
 #include "iwl-core.h"
@@ -583,6 +584,69 @@ static int iwl_check_rxon_cmd(struct iwl_priv *priv,
 	     errors, le16_to_cpu(rxon->channel));
 
 	return errors ? -EINVAL : 0;
+}
+
+/**
+ * iwl_full_rxon_required - check if full RXON (vs RXON_ASSOC) cmd is needed
+ * @priv: staging_rxon is compared to active_rxon
+ *
+ * If the RXON structure is changing enough to require a new tune,
+ * or is clearing the RXON_FILTER_ASSOC_MSK, then return 1 to indicate that
+ * a new tune (full RXON command, rather than RXON_ASSOC cmd) is required.
+ */
+static int iwl_full_rxon_required(struct iwl_priv *priv,
+				  struct iwl_rxon_context *ctx)
+{
+	const struct iwl_rxon_cmd *staging = &ctx->staging;
+	const struct iwl_rxon_cmd *active = &ctx->active;
+
+#define CHK(cond)							\
+	if ((cond)) {							\
+		IWL_DEBUG_INFO(priv, "need full RXON - " #cond "\n");	\
+		return 1;						\
+	}
+
+#define CHK_NEQ(c1, c2)						\
+	if ((c1) != (c2)) {					\
+		IWL_DEBUG_INFO(priv, "need full RXON - "	\
+			       #c1 " != " #c2 " - %d != %d\n",	\
+			       (c1), (c2));			\
+		return 1;					\
+	}
+
+	/* These items are only settable from the full RXON command */
+	CHK(!iwl_is_associated_ctx(ctx));
+	CHK(compare_ether_addr(staging->bssid_addr, active->bssid_addr));
+	CHK(compare_ether_addr(staging->node_addr, active->node_addr));
+	CHK(compare_ether_addr(staging->wlap_bssid_addr,
+				active->wlap_bssid_addr));
+	CHK_NEQ(staging->dev_type, active->dev_type);
+	CHK_NEQ(staging->channel, active->channel);
+	CHK_NEQ(staging->air_propagation, active->air_propagation);
+	CHK_NEQ(staging->ofdm_ht_single_stream_basic_rates,
+		active->ofdm_ht_single_stream_basic_rates);
+	CHK_NEQ(staging->ofdm_ht_dual_stream_basic_rates,
+		active->ofdm_ht_dual_stream_basic_rates);
+	CHK_NEQ(staging->ofdm_ht_triple_stream_basic_rates,
+		active->ofdm_ht_triple_stream_basic_rates);
+	CHK_NEQ(staging->assoc_id, active->assoc_id);
+
+	/* flags, filter_flags, ofdm_basic_rates, and cck_basic_rates can
+	 * be updated with the RXON_ASSOC command -- however only some
+	 * flag transitions are allowed using RXON_ASSOC */
+
+	/* Check if we are not switching bands */
+	CHK_NEQ(staging->flags & RXON_FLG_BAND_24G_MSK,
+		active->flags & RXON_FLG_BAND_24G_MSK);
+
+	/* Check if we are switching association toggle */
+	CHK_NEQ(staging->filter_flags & RXON_FILTER_ASSOC_MSK,
+		active->filter_flags & RXON_FILTER_ASSOC_MSK);
+
+#undef CHK
+#undef CHK_NEQ
+
+	return 0;
 }
 
 /**
