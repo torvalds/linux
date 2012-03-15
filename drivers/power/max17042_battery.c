@@ -325,11 +325,10 @@ static inline int max17042_model_data_compare(struct max17042_chip *chip,
 static int max17042_init_model(struct max17042_chip *chip)
 {
 	int ret;
-	int table_size =
-		sizeof(chip->pdata->config_data->cell_char_tbl)/sizeof(u16);
+	int table_size = ARRAY_SIZE(chip->pdata->config_data->cell_char_tbl);
 	u16 *temp_data;
 
-	temp_data = kzalloc(table_size, GFP_KERNEL);
+	temp_data = kcalloc(table_size, sizeof(*temp_data), GFP_KERNEL);
 	if (!temp_data)
 		return -ENOMEM;
 
@@ -354,12 +353,11 @@ static int max17042_init_model(struct max17042_chip *chip)
 static int max17042_verify_model_lock(struct max17042_chip *chip)
 {
 	int i;
-	int table_size =
-		sizeof(chip->pdata->config_data->cell_char_tbl);
+	int table_size = ARRAY_SIZE(chip->pdata->config_data->cell_char_tbl);
 	u16 *temp_data;
 	int ret = 0;
 
-	temp_data = kzalloc(table_size, GFP_KERNEL);
+	temp_data = kcalloc(table_size, sizeof(*temp_data), GFP_KERNEL);
 	if (!temp_data)
 		return -ENOMEM;
 
