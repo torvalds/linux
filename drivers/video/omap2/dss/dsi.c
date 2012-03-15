@@ -1279,10 +1279,9 @@ static int dsi_pll_power(struct platform_device *dsidev,
 }
 
 /* calculate clock rates using dividers in cinfo */
-static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
+static int dsi_calc_clock_rates(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo)
 {
-	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
 
 	if (cinfo->regn == 0 || cinfo->regn > dsi->regn_max)
@@ -1297,21 +1296,8 @@ static int dsi_calc_clock_rates(struct omap_dss_device *dssdev,
 	if (cinfo->regm_dsi > dsi->regm_dsi_max)
 		return -EINVAL;
 
-	if (cinfo->use_sys_clk) {
-		cinfo->clkin = clk_get_rate(dsi->sys_clk);
-		/* XXX it is unclear if highfreq should be used
-		 * with DSS_SYS_CLK source also */
-		cinfo->highfreq = 0;
-	} else {
-		cinfo->clkin = dispc_mgr_pclk_rate(dssdev->manager->id);
-
-		if (cinfo->clkin < 32000000)
-			cinfo->highfreq = 0;
-		else
-			cinfo->highfreq = 1;
-	}
-
-	cinfo->fint = cinfo->clkin / (cinfo->regn * (cinfo->highfreq ? 2 : 1));
+	cinfo->clkin = clk_get_rate(dsi->sys_clk);
+	cinfo->fint = cinfo->clkin / cinfo->regn;
 
 	if (cinfo->fint > dsi->fint_max || cinfo->fint < dsi->fint_min)
 		return -EINVAL;
@@ -1378,27 +1364,21 @@ retry:
 
 	memset(&cur, 0, sizeof(cur));
 	cur.clkin = dss_sys_clk;
-	cur.use_sys_clk = 1;
-	cur.highfreq = 0;
 
-	/* no highfreq: 0.75MHz < Fint = clkin / regn < 2.1MHz */
-	/* highfreq: 0.75MHz < Fint = clkin / (2*regn) < 2.1MHz */
+	/* 0.75MHz < Fint = clkin / regn < 2.1MHz */
 	/* To reduce PLL lock time, keep Fint high (around 2 MHz) */
 	for (cur.regn = 1; cur.regn < dsi->regn_max; ++cur.regn) {
-		if (cur.highfreq == 0)
-			cur.fint = cur.clkin / cur.regn;
-		else
-			cur.fint = cur.clkin / (2 * cur.regn);
+		cur.fint = cur.clkin / cur.regn;
 
 		if (cur.fint > dsi->fint_max || cur.fint < dsi->fint_min)
 			continue;
 
-		/* DSIPHY(MHz) = (2 * regm / regn) * (clkin / (highfreq + 1)) */
+		/* DSIPHY(MHz) = (2 * regm / regn) * clkin */
 		for (cur.regm = 1; cur.regm < dsi->regm_max; ++cur.regm) {
 			unsigned long a, b;
 
 			a = 2 * cur.regm * (cur.clkin/1000);
-			b = cur.regn * (cur.highfreq + 1);
+			b = cur.regn;
 			cur.clkin4ddr = a / b * 1000;
 
 			if (cur.clkin4ddr > 1800 * 1000 * 1000)
@@ -1486,9 +1466,7 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 
 	DSSDBGF();
 
-	dsi->current_cinfo.use_sys_clk = cinfo->use_sys_clk;
-	dsi->current_cinfo.highfreq = cinfo->highfreq;
-
+	dsi->current_cinfo.clkin = cinfo->clkin;
 	dsi->current_cinfo.fint = cinfo->fint;
 	dsi->current_cinfo.clkin4ddr = cinfo->clkin4ddr;
 	dsi->current_cinfo.dsi_pll_hsdiv_dispc_clk =
@@ -1503,17 +1481,13 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 
 	DSSDBG("DSI Fint %ld\n", cinfo->fint);
 
-	DSSDBG("clkin (%s) rate %ld, highfreq %d\n",
-			cinfo->use_sys_clk ? "dss_sys_clk" : "pclkfree",
-			cinfo->clkin,
-			cinfo->highfreq);
+	DSSDBG("clkin rate %ld\n", cinfo->clkin);
 
 	/* DSIPHY == CLKIN4DDR */
-	DSSDBG("CLKIN4DDR = 2 * %d / %d * %lu / %d = %lu\n",
+	DSSDBG("CLKIN4DDR = 2 * %d / %d * %lu = %lu\n",
 			cinfo->regm,
 			cinfo->regn,
 			cinfo->clkin,
-			cinfo->highfreq + 1,
 			cinfo->clkin4ddr);
 
 	DSSDBG("Data rate on 1 DSI lane %ld Mbps\n",
@@ -1568,10 +1542,6 @@ int dsi_pll_set_clock_div(struct platform_device *dsidev,
 
 	if (dss_has_feature(FEAT_DSI_PLL_FREQSEL))
 		l = FLD_MOD(l, f, 4, 1);	/* DSI_PLL_FREQSEL */
-	l = FLD_MOD(l, cinfo->use_sys_clk ? 0 : 1,
-			11, 11);		/* DSI_PLL_CLKSEL */
-	l = FLD_MOD(l, cinfo->highfreq,
-			12, 12);		/* DSI_PLL_HIGHFREQ */
 	l = FLD_MOD(l, 1, 13, 13);		/* DSI_PLL_REFEN */
 	l = FLD_MOD(l, 0, 14, 14);		/* DSIPHY_CLKINEN */
 	l = FLD_MOD(l, 1, 20, 20);		/* DSI_HSDIVBYPASS */
@@ -1726,8 +1696,7 @@ static void dsi_dump_dsidev_clocks(struct platform_device *dsidev,
 
 	seq_printf(s,	"- DSI%d PLL -\n", dsi_module + 1);
 
-	seq_printf(s,	"dsi pll source = %s\n",
-			cinfo->use_sys_clk ? "dss_sys_clk" : "pclkfree");
+	seq_printf(s,	"dsi pll clkin\t%lu\n", cinfo->clkin);
 
 	seq_printf(s,	"Fint\t\t%-16luregn %u\n", cinfo->fint, cinfo->regn);
 
@@ -4285,13 +4254,11 @@ static int dsi_configure_dsi_clocks(struct omap_dss_device *dssdev)
 	struct dsi_clock_info cinfo;
 	int r;
 
-	/* we always use DSS_CLK_SYSCK as input clock */
-	cinfo.use_sys_clk = true;
 	cinfo.regn  = dssdev->clocks.dsi.regn;
 	cinfo.regm  = dssdev->clocks.dsi.regm;
 	cinfo.regm_dispc = dssdev->clocks.dsi.regm_dispc;
 	cinfo.regm_dsi = dssdev->clocks.dsi.regm_dsi;
-	r = dsi_calc_clock_rates(dssdev, &cinfo);
+	r = dsi_calc_clock_rates(dsidev, &cinfo);
 	if (r) {
 		DSSERR("Failed to calc dsi clocks\n");
 		return r;

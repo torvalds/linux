@@ -150,9 +150,6 @@ struct dsi_clock_info {
 	u16 regm_dsi;	/* OMAP3: REGM4
 			 * OMAP4: REGM5 */
 	u16 lp_clk_div;
-
-	u8 highfreq;
-	bool use_sys_clk;
 };
 
 struct seq_file;
