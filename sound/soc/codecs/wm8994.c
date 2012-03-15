@@ -3166,8 +3166,15 @@ static void wm8958_default_micdet(u16 status, void *data)
 
 		/* If we have jackdet that will detect removal */
 		if (wm8994->jackdet) {
+			mutex_lock(&wm8994->accdet_lock);
+
 			snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
 					    WM8958_MICD_ENA, 0);
+
+			wm1811_jackdet_set_mode(codec,
+						WM1811_JACKDET_MODE_JACK);
+
+			mutex_unlock(&wm8994->accdet_lock);
 
 			if (wm8994->pdata->jd_ext_cap) {
 				mutex_lock(&codec->mutex);
@@ -3176,9 +3183,6 @@ static void wm8958_default_micdet(u16 status, void *data)
 				snd_soc_dapm_sync(&codec->dapm);
 				mutex_unlock(&codec->mutex);
 			}
-
-			wm1811_jackdet_set_mode(codec,
-						WM1811_JACKDET_MODE_JACK);
 		}
 	}
 
@@ -3213,6 +3217,7 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 	struct wm8994_priv *wm8994 = data;
 	struct snd_soc_codec *codec = wm8994->codec;
 	int reg;
+	bool present;
 
 	mutex_lock(&wm8994->accdet_lock);
 
@@ -3225,11 +3230,10 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 
 	dev_dbg(codec->dev, "JACKDET %x\n", reg);
 
-	if (reg & WM1811_JACKDET_LVL) {
-		dev_dbg(codec->dev, "Jack detected\n");
+	present = reg & WM1811_JACKDET_LVL;
 
-		snd_soc_jack_report(wm8994->micdet[0].jack,
-				    SND_JACK_MECHANICAL, SND_JACK_MECHANICAL);
+	if (present) {
+		dev_dbg(codec->dev, "Jack detected\n");
 
 		snd_soc_update_bits(codec, WM8958_MICBIAS2,
 				    WM8958_MICB2_DISCH, 0);
@@ -3247,31 +3251,11 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 
 		snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
 				    WM8958_MICD_ENA, WM8958_MICD_ENA);
-
-		/* If required for an external cap force MICBIAS on */
-		if (wm8994->pdata->jd_ext_cap) {
-			mutex_lock(&codec->mutex);
-			snd_soc_dapm_force_enable_pin(&codec->dapm,
-						      "MICBIAS2");
-			snd_soc_dapm_sync(&codec->dapm);
-			mutex_unlock(&codec->mutex);
-		}
 	} else {
 		dev_dbg(codec->dev, "Jack not detected\n");
 
 		snd_soc_update_bits(codec, WM8958_MICBIAS2,
 				    WM8958_MICB2_DISCH, WM8958_MICB2_DISCH);
-
-		if (wm8994->pdata->jd_ext_cap) {
-			mutex_lock(&codec->mutex);
-			snd_soc_dapm_disable_pin(&codec->dapm, "MICBIAS2");
-			snd_soc_dapm_sync(&codec->dapm);
-			mutex_unlock(&codec->mutex);
-		}
-
-		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
-				    SND_JACK_MECHANICAL | SND_JACK_HEADSET |
-				    wm8994->btn_mask);
 
 		/* Enable debounce while removed */
 		snd_soc_update_bits(codec, WM1811_JACKDET_CTRL,
@@ -3285,6 +3269,28 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 	}
 
 	mutex_unlock(&wm8994->accdet_lock);
+
+	/* If required for an external cap force MICBIAS on */
+	if (wm8994->pdata->jd_ext_cap) {
+		mutex_lock(&codec->mutex);
+
+		if (present)
+			snd_soc_dapm_force_enable_pin(&codec->dapm,
+						      "MICBIAS2");
+		else
+			snd_soc_dapm_disable_pin(&codec->dapm, "MICBIAS2");
+
+		snd_soc_dapm_sync(&codec->dapm);
+		mutex_unlock(&codec->mutex);
+	}
+
+	if (present)
+		snd_soc_jack_report(wm8994->micdet[0].jack,
+				    SND_JACK_MECHANICAL, SND_JACK_MECHANICAL);
+	else
+		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
+				    SND_JACK_MECHANICAL | SND_JACK_HEADSET |
+				    wm8994->btn_mask);
 
 	return IRQ_HANDLED;
 }
@@ -3389,17 +3395,13 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	struct snd_soc_codec *codec = wm8994->codec;
 	int reg, count;
 
-	mutex_lock(&wm8994->accdet_lock);
-
 	/*
 	 * Jack detection may have detected a removal simulataneously
 	 * with an update of the MICDET status; if so it will have
 	 * stopped detection and we can ignore this interrupt.
 	 */
-	if (!(snd_soc_read(codec, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA)) {
-		mutex_unlock(&wm8994->accdet_lock);
+	if (!(snd_soc_read(codec, WM8958_MIC_DETECT_1) & WM8958_MICD_ENA))
 		return IRQ_HANDLED;
-	}
 
 	/* We may occasionally read a detection without an impedence
 	 * range being provided - if that happens loop again.
@@ -3408,7 +3410,6 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 	do {
 		reg = snd_soc_read(codec, WM8958_MIC_DETECT_3);
 		if (reg < 0) {
-			mutex_unlock(&wm8994->accdet_lock);
 			dev_err(codec->dev,
 				"Failed to read mic detect status: %d\n",
 				reg);
@@ -3439,8 +3440,6 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 		dev_warn(codec->dev, "Accessory detection with no callback\n");
 
 out:
-	mutex_unlock(&wm8994->accdet_lock);
-
 	return IRQ_HANDLED;
 }
 

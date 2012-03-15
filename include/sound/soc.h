@@ -718,6 +718,7 @@ struct snd_soc_platform {
 	int id;
 	struct device *dev;
 	struct snd_soc_platform_driver *driver;
+	struct mutex mutex;
 
 	unsigned int suspended:1; /* platform is suspended */
 	unsigned int probed:1;

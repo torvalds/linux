@@ -1531,14 +1531,14 @@ static void snd_soc_instantiate_card(struct snd_soc_card *card)
 		if (dai_link->dai_fmt) {
 			ret = snd_soc_dai_set_fmt(card->rtd[i].codec_dai,
 						  dai_link->dai_fmt);
-			if (ret != 0)
+			if (ret != 0 && ret != -ENOTSUPP)
 				dev_warn(card->rtd[i].codec_dai->dev,
 					 "Failed to set DAI format: %d\n",
 					 ret);
 
 			ret = snd_soc_dai_set_fmt(card->rtd[i].cpu_dai,
 						  dai_link->dai_fmt);
-			if (ret != 0)
+			if (ret != 0 && ret != -ENOTSUPP)
 				dev_warn(card->rtd[i].cpu_dai->dev,
 					 "Failed to set DAI format: %d\n",
 					 ret);
@@ -2971,10 +2971,11 @@ EXPORT_SYMBOL_GPL(snd_soc_codec_set_pll);
  */
 int snd_soc_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
-	if (dai->driver && dai->driver->ops->set_fmt)
-		return dai->driver->ops->set_fmt(dai, fmt);
-	else
+	if (dai->driver == NULL)
 		return -EINVAL;
+	if (dai->driver->ops->set_fmt == NULL)
+		return -ENOTSUPP;
+	return dai->driver->ops->set_fmt(dai, fmt);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_set_fmt);
 
@@ -3382,6 +3383,7 @@ int snd_soc_register_platform(struct device *dev,
 	platform->dapm.dev = dev;
 	platform->dapm.platform = platform;
 	platform->dapm.stream_event = platform_drv->stream_event;
+	mutex_init(&platform->mutex);
 
 	mutex_lock(&client_mutex);
 	list_add(&platform->list, &platform_list);
