@@ -41,19 +41,14 @@ struct sh_mobile_meram_cfg {
 struct module;
 struct sh_mobile_meram_ops {
 	struct module	*module;
-	/* register usage of meram */
-	void *(*meram_register)(struct sh_mobile_meram_info *meram_dev,
-				const struct sh_mobile_meram_cfg *cfg,
-				unsigned int xres, unsigned int yres,
-				unsigned int pixelformat,
-				unsigned int *pitch);
 
-	/* unregister usage of meram */
-	void (*meram_unregister)(struct sh_mobile_meram_info *meram_dev,
-				 void *data);
-
-	/* update meram settings */
-	void (*meram_update)(struct sh_mobile_meram_info *meram_dev, void *data,
+	/* LCDC cache management */
+	void *(*cache_alloc)(struct sh_mobile_meram_info *meram_dev,
+			     const struct sh_mobile_meram_cfg *cfg,
+			     unsigned int xres, unsigned int yres,
+			     unsigned int pixelformat, unsigned int *pitch);
+	void (*cache_free)(struct sh_mobile_meram_info *meram_dev, void *data);
+	void (*cache_update)(struct sh_mobile_meram_info *meram_dev, void *data,
 			     unsigned long base_addr_y,
 			     unsigned long base_addr_c,
 			     unsigned long *icb_addr_y,

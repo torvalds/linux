@@ -1104,7 +1104,7 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 	/* Compute frame buffer base address and pitch for each channel. */
 	for (k = 0; k < ARRAY_SIZE(priv->ch); k++) {
 		int pixelformat;
-		void *meram;
+		void *cache;
 
 		ch = &priv->ch[k];
 		if (!ch->enabled)
@@ -1119,12 +1119,10 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		    ch->cfg->meram_cfg == NULL)
 			continue;
 
-		/* we need to de-init configured ICBs before we can
-		 * re-initialize them.
-		 */
-		if (ch->meram) {
-			mdev->ops->meram_unregister(mdev, ch->meram);
-			ch->meram = NULL;
+		/* Free the allocated MERAM cache. */
+		if (ch->cache) {
+			mdev->ops->cache_free(mdev, ch->cache);
+			ch->cache = NULL;
 		}
 
 		switch (ch->format->fourcc) {
@@ -1146,14 +1144,14 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			break;
 		}
 
-		meram = mdev->ops->meram_register(mdev, ch->cfg->meram_cfg,
+		cache = mdev->ops->cache_alloc(mdev, ch->cfg->meram_cfg,
 					ch->pitch, ch->yres, pixelformat,
 					&ch->line_size);
-		if (!IS_ERR(meram)) {
-			mdev->ops->meram_update(mdev, meram,
+		if (!IS_ERR(cache)) {
+			mdev->ops->cache_update(mdev, cache,
 					ch->base_addr_y, ch->base_addr_c,
 					&ch->base_addr_y, &ch->base_addr_c);
-			ch->meram = meram;
+			ch->cache = cache;
 		}
 	}
 
@@ -1223,12 +1221,12 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 
 		sh_mobile_lcdc_display_off(ch);
 
-		/* disable the meram */
-		if (ch->meram) {
+		/* Free the MERAM cache. */
+		if (ch->cache) {
 			struct sh_mobile_meram_info *mdev;
 			mdev = priv->meram_dev;
-			mdev->ops->meram_unregister(mdev, ch->meram);
-			ch->meram = 0;
+			mdev->ops->cache_free(mdev, ch->cache);
+			ch->cache = 0;
 		}
 
 	}
@@ -1839,11 +1837,11 @@ static int sh_mobile_lcdc_pan(struct fb_var_screeninfo *var,
 			base_addr_c += var->xoffset;
 	}
 
-	if (ch->meram) {
+	if (ch->cache) {
 		struct sh_mobile_meram_info *mdev;
 
 		mdev = priv->meram_dev;
-		mdev->ops->meram_update(mdev, ch->meram,
+		mdev->ops->cache_update(mdev, ch->cache,
 					base_addr_y, base_addr_c,
 					&base_addr_y, &base_addr_c);
 	}
