@@ -1115,13 +1115,12 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 		ch->line_size = ch->pitch;
 
 		/* Enable MERAM if possible. */
-		if (mdev == NULL || mdev->ops == NULL ||
-		    ch->cfg->meram_cfg == NULL)
+		if (mdev == NULL || ch->cfg->meram_cfg == NULL)
 			continue;
 
 		/* Free the allocated MERAM cache. */
 		if (ch->cache) {
-			mdev->ops->cache_free(mdev, ch->cache);
+			sh_mobile_meram_cache_free(mdev, ch->cache);
 			ch->cache = NULL;
 		}
 
@@ -1144,11 +1143,11 @@ static int sh_mobile_lcdc_start(struct sh_mobile_lcdc_priv *priv)
 			break;
 		}
 
-		cache = mdev->ops->cache_alloc(mdev, ch->cfg->meram_cfg,
+		cache = sh_mobile_meram_cache_alloc(mdev, ch->cfg->meram_cfg,
 					ch->pitch, ch->yres, pixelformat,
 					&ch->line_size);
 		if (!IS_ERR(cache)) {
-			mdev->ops->cache_update(mdev, cache,
+			sh_mobile_meram_cache_update(mdev, cache,
 					ch->base_addr_y, ch->base_addr_c,
 					&ch->base_addr_y, &ch->base_addr_c);
 			ch->cache = cache;
@@ -1223,9 +1222,7 @@ static void sh_mobile_lcdc_stop(struct sh_mobile_lcdc_priv *priv)
 
 		/* Free the MERAM cache. */
 		if (ch->cache) {
-			struct sh_mobile_meram_info *mdev;
-			mdev = priv->meram_dev;
-			mdev->ops->cache_free(mdev, ch->cache);
+			sh_mobile_meram_cache_free(priv->meram_dev, ch->cache);
 			ch->cache = 0;
 		}
 
@@ -1808,7 +1805,7 @@ static int sh_mobile_lcdc_pan(struct fb_var_screeninfo *var,
 	struct sh_mobile_lcdc_priv *priv = ch->lcdc;
 	unsigned long ldrcntr;
 	unsigned long new_pan_offset;
-	unsigned long base_addr_y, base_addr_c;
+	unsigned long base_addr_y, base_addr_c = 0;
 	unsigned long c_offset;
 
 	if (!ch->format->yuv)
@@ -1837,14 +1834,10 @@ static int sh_mobile_lcdc_pan(struct fb_var_screeninfo *var,
 			base_addr_c += var->xoffset;
 	}
 
-	if (ch->cache) {
-		struct sh_mobile_meram_info *mdev;
-
-		mdev = priv->meram_dev;
-		mdev->ops->cache_update(mdev, ch->cache,
-					base_addr_y, base_addr_c,
-					&base_addr_y, &base_addr_c);
-	}
+	if (ch->cache)
+		sh_mobile_meram_cache_update(priv->meram_dev, ch->cache,
+					     base_addr_y, base_addr_c,
+					     &base_addr_y, &base_addr_c);
 
 	ch->base_addr_y = base_addr_y;
 	ch->base_addr_c = base_addr_c;

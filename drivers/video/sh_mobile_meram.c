@@ -11,6 +11,7 @@
 
 #include <linux/device.h>
 #include <linux/err.h>
+#include <linux/export.h>
 #include <linux/genalloc.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
@@ -429,17 +430,19 @@ error:
 	return ERR_PTR(-ENOMEM);
 }
 
-static void *sh_mobile_cache_alloc(struct sh_mobile_meram_info *pdata,
-				   const struct sh_mobile_meram_cfg *cfg,
-				   unsigned int xres, unsigned int yres,
-				   unsigned int pixelformat,
-				   unsigned int *pitch)
+void *sh_mobile_meram_cache_alloc(struct sh_mobile_meram_info *pdata,
+				  const struct sh_mobile_meram_cfg *cfg,
+				  unsigned int xres, unsigned int yres,
+				  unsigned int pixelformat, unsigned int *pitch)
 {
 	struct sh_mobile_meram_fb_cache *cache;
 	struct sh_mobile_meram_priv *priv = pdata->priv;
 	struct platform_device *pdev = pdata->pdev;
 	unsigned int nplanes = is_nvcolor(pixelformat) ? 2 : 1;
 	unsigned int out_pitch;
+
+	if (priv == NULL)
+		return ERR_PTR(-ENODEV);
 
 	if (pixelformat != SH_MOBILE_MERAM_PF_NV &&
 	    pixelformat != SH_MOBILE_MERAM_PF_NV24 &&
@@ -485,9 +488,10 @@ err:
 	mutex_unlock(&priv->lock);
 	return cache;
 }
+EXPORT_SYMBOL_GPL(sh_mobile_meram_cache_alloc);
 
-static void
-sh_mobile_cache_free(struct sh_mobile_meram_info *pdata, void *data)
+void
+sh_mobile_meram_cache_free(struct sh_mobile_meram_info *pdata, void *data)
 {
 	struct sh_mobile_meram_fb_cache *cache = data;
 	struct sh_mobile_meram_priv *priv = pdata->priv;
@@ -507,11 +511,14 @@ sh_mobile_cache_free(struct sh_mobile_meram_info *pdata, void *data)
 
 	mutex_unlock(&priv->lock);
 }
+EXPORT_SYMBOL_GPL(sh_mobile_meram_cache_free);
 
-static void
-sh_mobile_cache_update(struct sh_mobile_meram_info *pdata, void *data,
-		       unsigned long base_addr_y, unsigned long base_addr_c,
-		       unsigned long *icb_addr_y, unsigned long *icb_addr_c)
+void
+sh_mobile_meram_cache_update(struct sh_mobile_meram_info *pdata, void *data,
+			     unsigned long base_addr_y,
+			     unsigned long base_addr_c,
+			     unsigned long *icb_addr_y,
+			     unsigned long *icb_addr_c)
 {
 	struct sh_mobile_meram_fb_cache *cache = data;
 	struct sh_mobile_meram_priv *priv = pdata->priv;
@@ -523,13 +530,7 @@ sh_mobile_cache_update(struct sh_mobile_meram_info *pdata, void *data,
 
 	mutex_unlock(&priv->lock);
 }
-
-static struct sh_mobile_meram_ops sh_mobile_meram_ops = {
-	.module			= THIS_MODULE,
-	.cache_alloc		= sh_mobile_cache_alloc,
-	.cache_free		= sh_mobile_cache_free,
-	.cache_update		= sh_mobile_cache_update,
-};
+EXPORT_SYMBOL_GPL(sh_mobile_meram_cache_update);
 
 /* -----------------------------------------------------------------------------
  * Power management
@@ -620,7 +621,6 @@ static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
 	for (i = 0; i < MERAM_ICB_NUM; ++i)
 		priv->icbs[i].index = i;
 
-	pdata->ops = &sh_mobile_meram_ops;
 	pdata->priv = priv;
 	pdata->pdev = pdev;
 
