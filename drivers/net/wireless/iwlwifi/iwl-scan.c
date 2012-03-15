@@ -793,9 +793,6 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	band = priv->scan_band;
 
-	if (cfg(priv)->scan_rx_antennas[band])
-		rx_ant = cfg(priv)->scan_rx_antennas[band];
-
 	if (band == IEEE80211_BAND_2GHZ &&
 	    cfg(priv)->bt_params &&
 	    cfg(priv)->bt_params->advanced_bt_coexist) {
