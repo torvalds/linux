@@ -962,7 +962,6 @@ config ARCH_VT8500
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_PWM
 	help
 	  Support for VIA/WonderMedia VT8500/WM85xx System-on-Chip.
 

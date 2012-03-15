@@ -55,4 +55,13 @@ config PWM_TEGRA
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tegra.
 
+config PWM_VT8500
+	tristate "vt8500 pwm support"
+	depends on ARCH_VT8500
+	help
+	  Generic PWM framework driver for vt8500.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-vt8500.
+
 endif
