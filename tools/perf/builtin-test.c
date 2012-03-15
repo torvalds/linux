@@ -650,7 +650,7 @@ static int test__checkevent_raw(struct perf_evlist *evlist)
 
 	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
-	TEST_ASSERT_VAL("wrong config", 1 == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong config", 0x1a == evsel->attr.config);
 	return 0;
 }
 
@@ -872,7 +872,7 @@ static struct test__event_st {
 		.check = test__checkevent_tracepoint_multi,
 	},
 	{
-		.name  = "r1",
+		.name  = "r1a",
 		.check = test__checkevent_raw,
 	},
 	{
@@ -916,7 +916,7 @@ static struct test__event_st {
 		.check = test__checkevent_tracepoint_multi_modifier,
 	},
 	{
-		.name  = "r1:kp",
+		.name  = "r1a:kp",
 		.check = test__checkevent_raw_modifier,
 	},
 	{
