@@ -180,7 +180,7 @@ static int fsl_espi_setup_transfer(struct spi_device *spi,
 
 	if ((mpc8xxx_spi->spibrg / hz) > 64) {
 		cs->hw_mode |= CSMODE_DIV16;
-		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 64) + 1;
+		pm = DIV_ROUND_UP(mpc8xxx_spi->spibrg, hz * 16 * 4);
 
 		WARN_ONCE(pm > 16, "%s: Requested speed is too low: %d Hz. "
 			  "Will use %d Hz instead.\n", dev_name(&spi->dev),
@@ -188,7 +188,7 @@ static int fsl_espi_setup_transfer(struct spi_device *spi,
 		if (pm > 16)
 			pm = 16;
 	} else {
-		pm = (mpc8xxx_spi->spibrg - 1) / (hz * 4) + 1;
+		pm = DIV_ROUND_UP(mpc8xxx_spi->spibrg, hz * 4);
 	}
 	if (pm)
 		pm--;
