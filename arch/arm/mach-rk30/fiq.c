@@ -92,29 +92,17 @@ void rk_irq_clearpending(int irq)
 
 void rk30_fiq_init(void)
 {
-	void __iomem *base = RK30_GICD_BASE;
 	unsigned int gic_irqs, i;
 
 	// read gic info to know how many irqs in our chip
-	gic_irqs = readl_relaxed(base + GIC_DIST_CTR) & 0x1f;
-	//set all the interrupt to non-secure state
+	gic_irqs = readl_relaxed(RK30_GICD_BASE + GIC_DIST_CTR) & 0x1f;
+	// set all the interrupt to non-secure state
 	for (i = 0; i < (gic_irqs + 1); i++) {
-		/*
-		 * In any system that implements the ARM Security Extensions,
-		 * to support a consistent model for message passing between
-		 * processors, ARM strongly recommends that all processors reserve:
-		 * ID0-ID7 for Non-secure interrupts
-		 * ID8-ID15 for Secure interrupts.
-		 */
-		if (i == 0) {
-			writel_relaxed(0xffff00ff, base + GIC_DIST_SECURITY + (i<<2));
-		} else {
-			writel_relaxed(0xffffffff, base + GIC_DIST_SECURITY + (i<<2));
-		}
+		writel_relaxed(0xffffffff, RK30_GICD_BASE + GIC_DIST_SECURITY + (i<<2));
 	}
 	dsb();
 
-	writel_relaxed(0x3, base + GIC_DIST_CTRL);
-	writel_relaxed(0x1f, RK30_GICC_BASE + GIC_CPU_CTRL);
+	writel_relaxed(0x3, RK30_GICD_BASE + GIC_DIST_CTRL);
+	writel_relaxed(0xf, RK30_GICC_BASE + GIC_CPU_CTRL);
 	dsb();
 }

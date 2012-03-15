@@ -17,6 +17,39 @@
 
 #include <mach/pmu.h>
 
+#ifdef CONFIG_FIQ
+static void gic_raise_softirq_non_secure(const struct cpumask *mask, unsigned int irq)
+{
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(3, 2, 0))
+	unsigned long map = *cpus_addr(*mask);
+#else
+	int cpu;
+	unsigned long map = 0;
+
+	/* Convert our logical CPU mask into a physical one. */
+	for_each_cpu(cpu, mask)
+		map |= 1 << cpu_logical_map(cpu);
+#endif
+
+	/*
+	 * Ensure that stores to Normal memory are visible to the
+	 * other CPUs before issuing the IPI.
+	 */
+	dsb();
+
+	/* this always happens on GIC0 */
+	writel_relaxed(map << 16 | irq | 0x8000, RK30_GICD_BASE + GIC_DIST_SOFTINT);
+}
+
+static void gic_secondary_init_non_secure(void)
+{
+#define GIC_DIST_SECURITY	0x080
+	writel_relaxed(0xffffffff, RK30_GICD_BASE + GIC_DIST_SECURITY);
+	writel_relaxed(0xf, RK30_GICC_BASE + GIC_CPU_CTRL);
+	dsb();
+}
+#endif
+
 void __cpuinit platform_secondary_init(unsigned int cpu)
 {
 	/*
@@ -25,6 +58,10 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 	 * for us: do so
 	 */
 	gic_secondary_init(0);
+
+#ifdef CONFIG_FIQ
+	gic_secondary_init_non_secure();
+#endif
 }
 
 extern void rk30_sram_secondary_startup(void);
@@ -66,7 +103,11 @@ void __init smp_init_cpus(void)
 	for (i = 0; i < ncores; i++)
 		set_cpu_possible(i, true);
 
+#ifdef CONFIG_FIQ
+	set_smp_cross_call(gic_raise_softirq_non_secure);
+#else
 	set_smp_cross_call(gic_raise_softirq);
+#endif
 }
 
 void __init platform_smp_prepare_cpus(unsigned int max_cpus)
