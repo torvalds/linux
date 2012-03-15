@@ -217,7 +217,6 @@ enum {
 /********************** McBSP DMA operating modes **************************/
 #define MCBSP_DMA_MODE_ELEMENT		0
 #define MCBSP_DMA_MODE_THRESHOLD	1
-#define MCBSP_DMA_MODE_FRAME		2
 
 /********************** McBSP WAKEUPEN bit definitions *********************/
 #define RSYNCERREN		BIT(0)

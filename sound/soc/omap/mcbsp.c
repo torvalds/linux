@@ -754,7 +754,7 @@ THRESHOLD_PROP_BUILDER(max_tx_thres);
 THRESHOLD_PROP_BUILDER(max_rx_thres);
 
 static const char *dma_op_modes[] = {
-	"element", "threshold", "frame",
+	"element", "threshold",
 };
 
 static ssize_t dma_op_mode_show(struct device *dev,
