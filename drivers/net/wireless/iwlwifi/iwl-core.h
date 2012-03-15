@@ -204,13 +204,6 @@ u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
-
-/*****************************************************
-*  GEOS
-******************************************************/
-int iwl_init_geos(struct iwl_priv *priv);
-void iwl_free_geos(struct iwl_priv *priv);
-
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
