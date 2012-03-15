@@ -638,3 +638,15 @@ config USB_OCTEON_OHCI
 config USB_OCTEON2_COMMON
 	bool
 	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
+
+config USB_HCD_BCMA
+	tristate "BCMA usb host driver"
+	depends on BCMA && EXPERIMENTAL
+	select USB_OHCI_HCD_PLATFORM if USB_OHCI_HCD
+	select USB_EHCI_HCD_PLATFORM if USB_EHCI_HCD
+	help
+	  Enbale support for the EHCI and OCHI host controller on an bcma bus.
+	  It converts the bcma driver into two platform device drivers
+	  for ehci and ohci.
+
+	  If unsure, say N.
