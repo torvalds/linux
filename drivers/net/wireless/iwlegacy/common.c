@@ -5288,9 +5288,9 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		D_MAC80211("BSSID %pM\n", bss_conf->bssid);
 
 		/*
-		 * If there is currently a HW scan going on in the
-		 * background then we need to cancel it else the RXON
-		 * below/in post_associate will fail.
+		 * If there is currently a HW scan going on in the background,
+		 * then we need to cancel it, otherwise sometimes we are not
+		 * able to authenticate (FIXME: why ?)
 		 */
 		if (il_scan_cancel_timeout(il, 100)) {
 			D_MAC80211("leave - scan abort failed\n");
@@ -5299,14 +5299,10 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 
 		/* mac80211 only sets assoc when in STATION mode */
-		if (vif->type == NL80211_IFTYPE_ADHOC || bss_conf->assoc) {
-			memcpy(il->staging.bssid_addr, bss_conf->bssid,
-			       ETH_ALEN);
+		memcpy(il->staging.bssid_addr, bss_conf->bssid, ETH_ALEN);
 
-			/* currently needed in a few places */
-			memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
-		} else
-			il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		/* FIXME: currently needed in a few places */
+		memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
 	}
 
 	/*
