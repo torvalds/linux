@@ -2892,6 +2892,8 @@ static struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0x4808, 0),	/* T420-cx */
 	CH_DEVICE(0x4809, 0),	/* T420-bt */
 	CH_DEVICE(0x480a, 0),   /* T404-bt */
+	CH_DEVICE(0x480d, 0),   /* T480-cr */
+	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
 	{ 0, }
 };
 
