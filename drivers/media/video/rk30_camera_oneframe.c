@@ -2130,11 +2130,17 @@ static int rk_camera_probe(struct platform_device *pdev)
         pcdev->pdata->io_init();
     }
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
-	if (pcdev->pdata && (strcmp(pcdev->pdata->meminfo.name,"camera_ipp_mem")==0)) {
+	if (pcdev->pdata && IS_CIF0()) {
 		pcdev->vipmem_phybase = pcdev->pdata->meminfo.start;
 		pcdev->vipmem_size = pcdev->pdata->meminfo.size;
 		RKCAMERA_DG("\n%s Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
-	} else {
+		} 
+	else if (pcdev->pdata){
+		pcdev->vipmem_phybase = pcdev->pdata->meminfo_cif1.start;
+		pcdev->vipmem_size = pcdev->pdata->meminfo_cif1.size;
+		RKCAMERA_DG("\n%s Memory(start:0x%x size:0x%x) for IPP obtain \n",__FUNCTION__, pcdev->pdata->meminfo.start,pcdev->pdata->meminfo.size);
+		}
+	else{
 		RKCAMERA_TR("\n%s Memory for IPP have not obtain! IPP Function is fail\n",__FUNCTION__);
 		pcdev->vipmem_phybase = 0;
 		pcdev->vipmem_size = 0;

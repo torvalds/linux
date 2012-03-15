@@ -57,8 +57,8 @@
 #ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Macro Define Begin  ------------------------*/
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
-#define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV2659//RK_CAM_SENSOR_OV5642						/* back camera sensor */
-#define CONFIG_SENSOR_IIC_ADDR_0		0x60//0x78
+#define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642						/* back camera sensor */
+#define CONFIG_SENSOR_IIC_ADDR_0		0x78
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  1
 #define CONFIG_SENSOR_CIF_INDEX_0                    0
 #define CONFIG_SENSOR_ORIENTATION_0 	  90
@@ -102,7 +102,7 @@
 #define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
 
 #define CONFIG_USE_CIF_0	1
-#define CONFIG_USE_CIF_1      0
+#define CONFIG_USE_CIF_1      1
 #endif	//#ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Configuration Macro End------------------------*/
 #include "../../../drivers/media/video/rk30_camera.c"
@@ -1065,7 +1065,7 @@ static void __init rk30_reserve(void)
 	resource_fb[2].start = board_mem_reserve_add("fb2",RK30_FB0_MEM_SIZE);
 	resource_fb[2].end = resource_fb[2].start + RK30_FB0_MEM_SIZE - 1;	
 #endif
-#ifdef CONFIG_VIDEO_RK
+#ifdef CONFIG_VIDEO_RK29
 	rk30_camera_request_reserve_mem();
 #endif
 	board_mem_reserved();

@@ -834,7 +834,7 @@ static int rk_sensor_iomux(int pin)
         }
         case RK30_PIN3_PA7:
         {
-             rk30_mux_api_set(GPIO3A7_SDMMC0WRITEPRT_NAME,0);
+             rk30_mux_api_set(GPIO3A7_SDMMC0PWREN_NAME,0);
             break;	
         }
         case RK30_PIN3_PB0:
