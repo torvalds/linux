@@ -36,9 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/proc_fs.h>
 #include <linux/platform_device.h>
-
 #include <linux/i2c.h>
-#include <linux/i2c-dev.h>
 
 #include "bfin_adv7393fb.h"
 
