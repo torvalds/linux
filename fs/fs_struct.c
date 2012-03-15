@@ -107,10 +107,8 @@ void exit_fs(struct task_struct *tsk)
 		int kill;
 		task_lock(tsk);
 		spin_lock(&fs->lock);
-		write_seqcount_begin(&fs->seq);
 		tsk->fs = NULL;
 		kill = !--fs->users;
-		write_seqcount_end(&fs->seq);
 		spin_unlock(&fs->lock);
 		task_unlock(tsk);
 		if (kill)
