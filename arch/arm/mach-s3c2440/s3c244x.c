@@ -46,6 +46,7 @@
 #include <plat/pm.h>
 #include <plat/pll.h>
 #include <plat/nand-core.h>
+#include <plat/watchdog-reset.h>
 
 static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
@@ -196,3 +197,14 @@ struct syscore_ops s3c244x_pm_syscore_ops = {
 	.suspend	= s3c244x_suspend,
 	.resume		= s3c244x_resume,
 };
+
+void s3c244x_restart(char mode, const char *cmd)
+{
+	if (mode == 's')
+		soft_restart(0);
+
+	arch_wdt_reset();
+
+	/* we'll take a jump through zero as a poor second */
+	soft_restart(0);
+}

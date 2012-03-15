@@ -97,9 +97,9 @@ static unsigned long hx4700_pin_config[] __initdata = {
 
 	/* BTUART */
 	GPIO42_BTUART_RXD,
-	GPIO43_BTUART_TXD,
+	GPIO43_BTUART_TXD_LPM_LOW,
 	GPIO44_BTUART_CTS,
-	GPIO45_BTUART_RTS,
+	GPIO45_BTUART_RTS_LPM_LOW,
 
 	/* PWM 1 (Backlight) */
 	GPIO17_PWM1_OUT,
@@ -803,17 +803,6 @@ static struct platform_device audio = {
 
 
 /*
- * PCMCIA
- */
-
-static struct platform_device pcmcia = {
-	.name = "hx4700-pcmcia",
-	.dev  = {
-		.parent = &asic3.dev,
-	},
-};
-
-/*
  * Platform devices
  */
 
@@ -829,7 +818,6 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&strataflash,
 	&audio,
-	&pcmcia,
 };
 
 static struct gpio global_gpios[] = {
@@ -845,7 +833,6 @@ static struct gpio global_gpios[] = {
 	{ GPIO32_HX4700_RS232_ON,         GPIOF_OUT_INIT_HIGH, "RS232_ON" },
 	{ GPIO71_HX4700_ASIC3_nRESET,     GPIOF_OUT_INIT_HIGH, "ASIC3_nRESET" },
 	{ GPIO82_HX4700_EUART_RESET,      GPIOF_OUT_INIT_HIGH, "EUART_RESET" },
-	{ GPIO105_HX4700_nIR_ON,          GPIOF_OUT_INIT_HIGH, "nIR_EN" },
 };
 
 static void __init hx4700_init(void)
