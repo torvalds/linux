@@ -2362,6 +2362,9 @@ void r600_semaphore_ring_emit(struct radeon_device *rdev,
 	uint64_t addr = semaphore->gpu_addr;
 	unsigned sel = emit_wait ? PACKET3_SEM_SEL_WAIT : PACKET3_SEM_SEL_SIGNAL;
 
+	if (rdev->family < CHIP_CAYMAN)
+		sel |= PACKET3_SEM_WAIT_ON_SIGNAL;
+
 	radeon_ring_write(ring, PACKET3(PACKET3_MEM_SEMAPHORE, 1));
 	radeon_ring_write(ring, addr & 0xffffffff);
 	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | sel);
@@ -2529,6 +2532,7 @@ int r600_resume(struct radeon_device *rdev)
 	r = r600_startup(rdev);
 	if (r) {
 		DRM_ERROR("r600 startup failed on resume\n");
+		rdev->accel_working = false;
 		return r;
 	}
 

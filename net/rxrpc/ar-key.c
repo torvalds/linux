@@ -232,7 +232,7 @@ static int rxrpc_krb5_decode_principal(struct krb5_principal *princ,
 	if (toklen <= (n_parts + 1) * 4)
 		return -EINVAL;
 
-	princ->name_parts = kcalloc(sizeof(char *), n_parts, GFP_KERNEL);
+	princ->name_parts = kcalloc(n_parts, sizeof(char *), GFP_KERNEL);
 	if (!princ->name_parts)
 		return -ENOMEM;
 
@@ -355,7 +355,7 @@ static int rxrpc_krb5_decode_tagged_array(struct krb5_tagged_data **_td,
 
 		_debug("n_elem %d", n_elem);
 
-		td = kcalloc(sizeof(struct krb5_tagged_data), n_elem,
+		td = kcalloc(n_elem, sizeof(struct krb5_tagged_data),
 			     GFP_KERNEL);
 		if (!td)
 			return -ENOMEM;

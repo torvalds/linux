@@ -333,13 +333,15 @@ try_again:
 		 * Lookup failure means no vma is above this address,
 		 * i.e. return with success:
 		 */
-		if (!(vma = find_vma_prev(mm, addr, &prev_vma)))
+		vma = find_vma(mm, addr);
+		if (!vma)
 			return addr;
 
 		/*
 		 * new region fits between prev_vma->vm_end and
 		 * vma->vm_start, use it:
 		 */
+		prev_vma = vma->vm_prev;
 		if (addr + len <= vma->vm_start &&
 		            (!prev_vma || (addr >= prev_vma->vm_end))) {
 			/* remember the address as a hint for next time */

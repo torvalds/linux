@@ -451,9 +451,11 @@ static int sd_select_driver_type(struct mmc_card *card, u8 *status)
 	 * information and let the hardware specific code
 	 * return what is possible given the options
 	 */
+	mmc_host_clk_hold(card->host);
 	drive_strength = card->host->ops->select_drive_strength(
 		card->sw_caps.uhs_max_dtr,
 		host_drv_type, card_drv_type);
+	mmc_host_clk_release(card->host);
 
 	err = mmc_sd_switch(card, 1, 2, drive_strength, status);
 	if (err)
@@ -660,9 +662,12 @@ static int mmc_sd_init_uhs_card(struct mmc_card *card)
 		goto out;
 
 	/* SPI mode doesn't define CMD19 */
-	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning)
+	if (!mmc_host_is_spi(card->host) && card->host->ops->execute_tuning) {
+		mmc_host_clk_hold(card->host);
 		err = card->host->ops->execute_tuning(card->host,
 						      MMC_SEND_TUNING_BLOCK);
+		mmc_host_clk_release(card->host);
+	}
 
 out:
 	kfree(status);
@@ -850,8 +855,11 @@ int mmc_sd_setup_card(struct mmc_host *host, struct mmc_card *card,
 	if (!reinit) {
 		int ro = -1;
 
-		if (host->ops->get_ro)
+		if (host->ops->get_ro) {
+			mmc_host_clk_hold(card->host);
 			ro = host->ops->get_ro(host);
+			mmc_host_clk_release(card->host);
+		}
 
 		if (ro < 0) {
 			pr_warning("%s: host does not "
@@ -902,6 +910,9 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
+
+	/* The initialization should be done at 3.3 V I/O voltage. */
+	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
 
 	err = mmc_sd_get_cid(host, ocr, cid, &rocr);
 	if (err)
@@ -967,8 +978,11 @@ static int mmc_sd_init_card(struct mmc_host *host, u32 ocr,
 		 * Since initialization is now complete, enable preset
 		 * value registers for UHS-I cards.
 		 */
-		if (host->ops->enable_preset_value)
+		if (host->ops->enable_preset_value) {
+			mmc_host_clk_hold(card->host);
 			host->ops->enable_preset_value(host, true);
+			mmc_host_clk_release(card->host);
+		}
 	} else {
 		/*
 		 * Attempt to change to high-speed (if supported)
@@ -1145,14 +1159,12 @@ int mmc_attach_sd(struct mmc_host *host)
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
-	/* Make sure we are at 3.3V signalling voltage */
-	err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, false);
-	if (err)
-		return err;
-
 	/* Disable preset value enable if already set since last time */
-	if (host->ops->enable_preset_value)
+	if (host->ops->enable_preset_value) {
+		mmc_host_clk_hold(host);
 		host->ops->enable_preset_value(host, false);
+		mmc_host_clk_release(host);
+	}
 
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (err)

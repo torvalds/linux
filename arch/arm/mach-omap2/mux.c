@@ -100,8 +100,8 @@ void omap_mux_write_array(struct omap_mux_partition *partition,
 
 static char *omap_mux_options;
 
-static int __init _omap_mux_init_gpio(struct omap_mux_partition *partition,
-				      int gpio, int val)
+static int _omap_mux_init_gpio(struct omap_mux_partition *partition,
+			       int gpio, int val)
 {
 	struct omap_mux_entry *e;
 	struct omap_mux *gpio_mux = NULL;
@@ -145,7 +145,7 @@ static int __init _omap_mux_init_gpio(struct omap_mux_partition *partition,
 	return 0;
 }
 
-int __init omap_mux_init_gpio(int gpio, int val)
+int omap_mux_init_gpio(int gpio, int val)
 {
 	struct omap_mux_partition *partition;
 	int ret;
@@ -159,9 +159,9 @@ int __init omap_mux_init_gpio(int gpio, int val)
 	return -ENODEV;
 }
 
-static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
-					const char *muxname,
-					struct omap_mux **found_mux)
+static int _omap_mux_get_by_name(struct omap_mux_partition *partition,
+				 const char *muxname,
+				 struct omap_mux **found_mux)
 {
 	struct omap_mux *mux = NULL;
 	struct omap_mux_entry *e;
@@ -218,7 +218,7 @@ static int __init _omap_mux_get_by_name(struct omap_mux_partition *partition,
 	return -ENODEV;
 }
 
-static int __init
+static int
 omap_mux_get_by_name(const char *muxname,
 			struct omap_mux_partition **found_partition,
 			struct omap_mux **found_mux)
@@ -240,7 +240,7 @@ omap_mux_get_by_name(const char *muxname,
 	return -ENODEV;
 }
 
-int __init omap_mux_init_signal(const char *muxname, int val)
+int omap_mux_init_signal(const char *muxname, int val)
 {
 	struct omap_mux_partition *partition = NULL;
 	struct omap_mux *mux = NULL;
@@ -1094,8 +1094,8 @@ static void omap_mux_init_package(struct omap_mux *superset,
 		omap_mux_package_init_balls(package_balls, superset);
 }
 
-static void omap_mux_init_signals(struct omap_mux_partition *partition,
-				  struct omap_board_mux *board_mux)
+static void __init omap_mux_init_signals(struct omap_mux_partition *partition,
+					 struct omap_board_mux *board_mux)
 {
 	omap_mux_set_cmdline_signals();
 	omap_mux_write_array(partition, board_mux);
@@ -1109,8 +1109,8 @@ static void omap_mux_init_package(struct omap_mux *superset,
 {
 }
 
-static void omap_mux_init_signals(struct omap_mux_partition *partition,
-				  struct omap_board_mux *board_mux)
+static void __init omap_mux_init_signals(struct omap_mux_partition *partition,
+					 struct omap_board_mux *board_mux)
 {
 }
 

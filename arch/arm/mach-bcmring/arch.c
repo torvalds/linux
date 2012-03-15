@@ -194,6 +194,6 @@ MACHINE_START(BCMRING, "BCMRING")
 	.init_early = bcmring_init_early,
 	.init_irq = bcmring_init_irq,
 	.timer = &bcmring_timer,
-	.init_machine = bcmring_init_machine
+	.init_machine = bcmring_init_machine,
 	.restart = bcmring_restart,
 MACHINE_END

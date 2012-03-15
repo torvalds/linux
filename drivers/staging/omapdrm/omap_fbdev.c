@@ -129,10 +129,8 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	struct drm_framebuffer *fb = NULL;
 	union omap_gem_size gsize;
 	struct fb_info *fbi = NULL;
-	struct drm_mode_fb_cmd mode_cmd = {0};
+	struct drm_mode_fb_cmd2 mode_cmd = {0};
 	dma_addr_t paddr;
-	void __iomem *vaddr;
-	int size, screen_width;
 	int ret;
 
 	/* only doing ARGB32 since this is what is needed to alpha-blend
@@ -145,36 +143,56 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 			sizes->surface_height, sizes->surface_bpp,
 			sizes->fb_width, sizes->fb_height);
 
+	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
+			sizes->surface_depth);
+
 	mode_cmd.width = sizes->surface_width;
 	mode_cmd.height = sizes->surface_height;
 
-	mode_cmd.bpp = sizes->surface_bpp;
-	mode_cmd.depth = sizes->surface_depth;
-
-	mode_cmd.pitch = align_pitch(
-			mode_cmd.width * ((mode_cmd.bpp + 7) / 8),
-			mode_cmd.width, mode_cmd.bpp);
+	mode_cmd.pitches[0] = align_pitch(
+			mode_cmd.width * ((sizes->surface_bpp + 7) / 8),
+			mode_cmd.width, sizes->surface_bpp);
 
 	fbdev->ywrap_enabled = priv->has_dmm && ywrap_enabled;
 	if (fbdev->ywrap_enabled) {
 		/* need to align pitch to page size if using DMM scrolling */
-		mode_cmd.pitch = ALIGN(mode_cmd.pitch, PAGE_SIZE);
+		mode_cmd.pitches[0] = ALIGN(mode_cmd.pitches[0], PAGE_SIZE);
 	}
 
 	/* allocate backing bo */
 	gsize = (union omap_gem_size){
-		.bytes = PAGE_ALIGN(mode_cmd.pitch * mode_cmd.height),
+		.bytes = PAGE_ALIGN(mode_cmd.pitches[0] * mode_cmd.height),
 	};
 	DBG("allocating %d bytes for fb %d", gsize.bytes, dev->primary->index);
 	fbdev->bo = omap_gem_new(dev, gsize, OMAP_BO_SCANOUT | OMAP_BO_WC);
 	if (!fbdev->bo) {
 		dev_err(dev->dev, "failed to allocate buffer object\n");
+		ret = -ENOMEM;
 		goto fail;
 	}
 
-	fb = omap_framebuffer_init(dev, &mode_cmd, fbdev->bo);
-	if (!fb) {
+	fb = omap_framebuffer_init(dev, &mode_cmd, &fbdev->bo);
+	if (IS_ERR(fb)) {
 		dev_err(dev->dev, "failed to allocate fb\n");
+		/* note: if fb creation failed, we can't rely on fb destroy
+		 * to unref the bo:
+		 */
+		drm_gem_object_unreference(fbdev->bo);
+		ret = PTR_ERR(fb);
+		goto fail;
+	}
+
+	/* note: this keeps the bo pinned.. which is perhaps not ideal,
+	 * but is needed as long as we use fb_mmap() to mmap to userspace
+	 * (since this happens using fix.smem_start).  Possibly we could
+	 * implement our own mmap using GEM mmap support to avoid this
+	 * (non-tiled buffer doesn't need to be pinned for fbcon to write
+	 * to it).  Then we just need to be sure that we are able to re-
+	 * pin it in case of an opps.
+	 */
+	ret = omap_gem_get_paddr(fbdev->bo, &paddr, true);
+	if (ret) {
+		dev_err(dev->dev, "could not map (paddr)!\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -206,18 +224,15 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 		goto fail_unlock;
 	}
 
-	drm_fb_helper_fill_fix(fbi, fb->pitch, fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
-
-	size = omap_framebuffer_get_buffer(fb, 0, 0,
-			&vaddr, &paddr, &screen_width);
 
 	dev->mode_config.fb_base = paddr;
 
-	fbi->screen_base = vaddr;
-	fbi->screen_size = size;
+	fbi->screen_base = omap_gem_vaddr(fbdev->bo);
+	fbi->screen_size = fbdev->bo->size;
 	fbi->fix.smem_start = paddr;
-	fbi->fix.smem_len = size;
+	fbi->fix.smem_len = fbdev->bo->size;
 
 	/* if we have DMM, then we can use it for scrolling by just
 	 * shuffling pages around in DMM rather than doing sw blit.
@@ -362,11 +377,11 @@ void omap_fbdev_free(struct drm_device *dev)
 
 	fbdev = to_omap_fbdev(priv->fbdev);
 
-	kfree(fbdev);
-
 	/* this will free the backing object */
 	if (fbdev->fb)
 		fbdev->fb->funcs->destroy(fbdev->fb);
+
+	kfree(fbdev);
 
 	priv->fbdev = NULL;
 }

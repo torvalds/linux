@@ -1547,6 +1547,7 @@ int cayman_resume(struct radeon_device *rdev)
 	r = cayman_startup(rdev);
 	if (r) {
 		DRM_ERROR("cayman startup failed on resume\n");
+		rdev->accel_working = false;
 		return r;
 	}
 	return r;

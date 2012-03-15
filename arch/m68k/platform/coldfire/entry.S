@@ -136,7 +136,7 @@ Luser_return:
 	movel	%sp,%d1			/* get thread_info pointer */
 	andl	#-THREAD_SIZE,%d1	/* at base of kernel stack */
 	movel	%d1,%a0
-	movel	%a0@(TINFO_FLAGS),%d1	/* get thread_info->flags */
+	moveb	%a0@(TINFO_FLAGS+3),%d1	/* thread_info->flags (low 8 bits) */
 	jne	Lwork_to_do		/* still work to do */
 
 Lreturn:
@@ -147,8 +147,6 @@ Lwork_to_do:
 	move	#0x2000,%sr		/* enable intrs again */
 	btst	#TIF_NEED_RESCHED,%d1
 	jne	reschedule
-
-	/* GERG: do we need something here for TRACEing?? */
 
 Lsignal_return:
 	subql	#4,%sp			/* dummy return address */

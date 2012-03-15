@@ -45,7 +45,7 @@
 #include "8250.h"
 
 #ifdef CONFIG_SPARC
-#include "suncore.h"
+#include "../suncore.h"
 #endif
 
 /*

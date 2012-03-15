@@ -111,7 +111,7 @@ struct syscore_ops s3c2410_pm_syscore_ops = {
 	.resume		= s3c2410_pm_resume,
 };
 
-static int s3c2410_pm_add(struct device *dev)
+static int s3c2410_pm_add(struct device *dev, struct subsys_interface *sif)
 {
 	pm_cpu_prep = s3c2410_pm_prepare;
 	pm_cpu_sleep = s3c2410_cpu_suspend;

@@ -442,6 +442,8 @@ static int rs400_startup(struct radeon_device *rdev)
 
 int rs400_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	rs400_gart_disable(rdev);
 	/* Resume clock before doing reset */
@@ -462,7 +464,11 @@ int rs400_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return rs400_startup(rdev);
+	r = rs400_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int rs400_suspend(struct radeon_device *rdev)

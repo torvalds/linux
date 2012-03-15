@@ -446,10 +446,9 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 	pg->gtt_start = pci_resource_start(dev->pdev, PSB_GTT_RESOURCE);
 	gtt_pages = pci_resource_len(dev->pdev, PSB_GTT_RESOURCE)
 								>> PAGE_SHIFT;
-	/* Some CDV firmware doesn't report this currently. In which case the
-	   system has 64 gtt pages */
+	/* CDV doesn't report this. In which case the system has 64 gtt pages */
 	if (pg->gtt_start == 0 || gtt_pages == 0) {
-		dev_err(dev->dev, "GTT PCI BAR not initialized.\n");
+		dev_dbg(dev->dev, "GTT PCI BAR not initialized.\n");
 		gtt_pages = 64;
 		pg->gtt_start = dev_priv->pge_ctl;
 	}
@@ -461,10 +460,10 @@ int psb_gtt_init(struct drm_device *dev, int resume)
 
 	if (pg->gatt_pages == 0 || pg->gatt_start == 0) {
 		static struct resource fudge;	/* Preferably peppermint */
-		/* This can occur on CDV SDV systems. Fudge it in this case.
+		/* This can occur on CDV systems. Fudge it in this case.
 		   We really don't care what imaginary space is being allocated
 		   at this point */
-		dev_err(dev->dev, "GATT PCI BAR not initialized.\n");
+		dev_dbg(dev->dev, "GATT PCI BAR not initialized.\n");
 		pg->gatt_start = 0x40000000;
 		pg->gatt_pages = (128 * 1024 * 1024) >> PAGE_SHIFT;
 		/* This is a little confusing but in fact the GTT is providing

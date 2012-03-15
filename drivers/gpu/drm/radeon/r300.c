@@ -1430,6 +1430,8 @@ static int r300_startup(struct radeon_device *rdev)
 
 int r300_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
@@ -1451,7 +1453,11 @@ int r300_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return r300_startup(rdev);
+	r = r300_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int r300_suspend(struct radeon_device *rdev)
