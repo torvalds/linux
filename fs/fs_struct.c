@@ -26,11 +26,11 @@ void set_fs_root(struct fs_struct *fs, struct path *path)
 {
 	struct path old_root;
 
+	path_get_longterm(path);
 	spin_lock(&fs->lock);
 	write_seqcount_begin(&fs->seq);
 	old_root = fs->root;
 	fs->root = *path;
-	path_get_longterm(path);
 	write_seqcount_end(&fs->seq);
 	spin_unlock(&fs->lock);
 	if (old_root.dentry)
@@ -45,16 +45,24 @@ void set_fs_pwd(struct fs_struct *fs, struct path *path)
 {
 	struct path old_pwd;
 
+	path_get_longterm(path);
 	spin_lock(&fs->lock);
 	write_seqcount_begin(&fs->seq);
 	old_pwd = fs->pwd;
 	fs->pwd = *path;
-	path_get_longterm(path);
 	write_seqcount_end(&fs->seq);
 	spin_unlock(&fs->lock);
 
 	if (old_pwd.dentry)
 		path_put_longterm(&old_pwd);
+}
+
+static inline int replace_path(struct path *p, const struct path *old, const struct path *new)
+{
+	if (likely(p->dentry != old->dentry || p->mnt != old->mnt))
+		return 0;
+	*p = *new;
+	return 1;
 }
 
 void chroot_fs_refs(struct path *old_root, struct path *new_root)
@@ -68,21 +76,16 @@ void chroot_fs_refs(struct path *old_root, struct path *new_root)
 		task_lock(p);
 		fs = p->fs;
 		if (fs) {
+			int hits = 0;
 			spin_lock(&fs->lock);
 			write_seqcount_begin(&fs->seq);
-			if (fs->root.dentry == old_root->dentry
-			    && fs->root.mnt == old_root->mnt) {
-				path_get_longterm(new_root);
-				fs->root = *new_root;
-				count++;
-			}
-			if (fs->pwd.dentry == old_root->dentry
-			    && fs->pwd.mnt == old_root->mnt) {
-				path_get_longterm(new_root);
-				fs->pwd = *new_root;
-				count++;
-			}
+			hits += replace_path(&fs->root, old_root, new_root);
+			hits += replace_path(&fs->pwd, old_root, new_root);
 			write_seqcount_end(&fs->seq);
+			while (hits--) {
+				count++;
+				path_get_longterm(new_root);
+			}
 			spin_unlock(&fs->lock);
 		}
 		task_unlock(p);
