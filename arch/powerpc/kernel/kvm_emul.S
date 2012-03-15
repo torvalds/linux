@@ -24,16 +24,6 @@
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
 
-/* Hypercall entry point. Will be patched with device tree instructions. */
-
-.global kvm_hypercall_start
-kvm_hypercall_start:
-	li	r3, -1
-	nop
-	nop
-	nop
-	blr
-
 #define KVM_MAGIC_PAGE		(-4096)
 
 #ifdef CONFIG_64BIT
