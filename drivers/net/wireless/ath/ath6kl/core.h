@@ -205,6 +205,8 @@ struct ath6kl_fw_ie {
 #define ATH6KL_CONF_ENABLE_TX_BURST		BIT(3)
 #define ATH6KL_CONF_UART_DEBUG			BIT(4)
 
+#define P2P_WILDCARD_SSID_LEN			7 /* DIRECT- */
+
 enum wlan_low_pwr_state {
 	WLAN_POWER_STATE_ON,
 	WLAN_POWER_STATE_CUT_PWR,
