@@ -313,12 +313,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 			}
 			case AF_UNIX:
 				u = unix_sk(sk);
-				if (u->dentry) {
-					struct path path = {
-						.dentry = u->dentry,
-						.mnt = u->mnt
-					};
-					audit_log_d_path(ab, " path=", &path);
+				if (u->path.dentry) {
+					audit_log_d_path(ab, " path=", &u->path);
 					break;
 				}
 				if (!u->addr)
