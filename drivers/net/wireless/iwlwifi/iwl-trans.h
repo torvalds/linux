@@ -162,6 +162,8 @@ struct iwl_cmd_header {
 
 
 #define FH_RSCSR_FRAME_SIZE_MSK		0x00003FFF	/* bits 0-13 */
+#define FH_RSCSR_FRAME_INVALID		0x55550000
+#define FH_RSCSR_FRAME_ALIGN		0x40
 
 struct iwl_rx_packet {
 	/*
@@ -260,18 +262,25 @@ static inline void iwl_free_resp(struct iwl_host_cmd *cmd)
 
 struct iwl_rx_cmd_buffer {
 	struct page *_page;
+	int _offset;
+	bool _page_stolen;
 };
 
 static inline void *rxb_addr(struct iwl_rx_cmd_buffer *r)
 {
-	return page_address(r->_page);
+	return (void *)((unsigned long)page_address(r->_page) + r->_offset);
+}
+
+static inline int rxb_offset(struct iwl_rx_cmd_buffer *r)
+{
+	return r->_offset;
 }
 
 static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
 {
-	struct page *p = r->_page;
-	r->_page = NULL;
-	return p;
+	r->_page_stolen = true;
+	get_page(r->_page);
+	return r->_page;
 }
 
 #define MAX_NO_RECLAIM_CMDS	6

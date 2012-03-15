@@ -794,7 +794,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 		return;
 	}
 
-	offset = (void *)hdr - rxb_addr(rxb);
+	offset = (void *)hdr - rxb_addr(rxb) + rxb_offset(rxb);
 	p = rxb_steal_page(rxb);
 	skb_add_rx_frag(skb, 0, p, offset, len, len);
 

@@ -362,83 +362,96 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rx_queue *rxq = &trans_pcie->rxq;
 	struct iwl_tx_queue *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
-	struct iwl_device_cmd *cmd;
 	unsigned long flags;
-	int len, err;
-	u16 sequence;
-	struct iwl_rx_cmd_buffer rxcb;
-	struct iwl_rx_packet *pkt;
-	bool reclaim;
-	int index, cmd_index;
+	bool page_stolen = false;
+	int max_len = PAGE_SIZE << hw_params(trans).rx_page_order;
+	u32 offset = 0;
 
 	if (WARN_ON(!rxb))
 		return;
 
-	dma_unmap_page(trans->dev, rxb->page_dma,
-		       PAGE_SIZE << hw_params(trans).rx_page_order,
-		       DMA_FROM_DEVICE);
+	dma_unmap_page(trans->dev, rxb->page_dma, max_len, DMA_FROM_DEVICE);
 
-	rxcb._page = rxb->page;
-	pkt = rxb_addr(&rxcb);
+	while (offset + sizeof(u32) + sizeof(struct iwl_cmd_header) < max_len) {
+		struct iwl_rx_packet *pkt;
+		struct iwl_device_cmd *cmd;
+		u16 sequence;
+		bool reclaim;
+		int index, cmd_index, err, len;
+		struct iwl_rx_cmd_buffer rxcb = {
+			._offset = offset,
+			._page = rxb->page,
+			._page_stolen = false,
+		};
 
-	IWL_DEBUG_RX(trans, "%s, 0x%02x\n",
-		     get_cmd_string(pkt->hdr.cmd), pkt->hdr.cmd);
+		pkt = rxb_addr(&rxcb);
 
+		if (pkt->len_n_flags == cpu_to_le32(FH_RSCSR_FRAME_INVALID))
+			break;
 
-	len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
-	len += sizeof(u32); /* account for status word */
-	trace_iwlwifi_dev_rx(trans->dev, pkt, len);
+		IWL_DEBUG_RX(trans, "cmd at offset %d: %s (0x%.2x)\n",
+			     rxcb._offset, get_cmd_string(pkt->hdr.cmd),
+			     pkt->hdr.cmd);
 
-	/* Reclaim a command buffer only if this packet is a response
-	 *   to a (driver-originated) command.
-	 * If the packet (e.g. Rx frame) originated from uCode,
-	 *   there is no command buffer to reclaim.
-	 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
-	 *   but apparently a few don't get set; catch them here. */
-	reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME);
-	if (reclaim) {
-		int i;
+		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+		len += sizeof(u32); /* account for status word */
+		trace_iwlwifi_dev_rx(trans->dev, pkt, len);
 
-		for (i = 0; i < trans_pcie->n_no_reclaim_cmds; i++) {
-			if (trans_pcie->no_reclaim_cmds[i] == pkt->hdr.cmd) {
-				reclaim = false;
-				break;
+		/* Reclaim a command buffer only if this packet is a response
+		 *   to a (driver-originated) command.
+		 * If the packet (e.g. Rx frame) originated from uCode,
+		 *   there is no command buffer to reclaim.
+		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
+		 *   but apparently a few don't get set; catch them here. */
+		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME);
+		if (reclaim) {
+			int i;
+
+			for (i = 0; i < trans_pcie->n_no_reclaim_cmds; i++) {
+				if (trans_pcie->no_reclaim_cmds[i] ==
+							pkt->hdr.cmd) {
+					reclaim = false;
+					break;
+				}
 			}
 		}
-	}
 
-	sequence = le16_to_cpu(pkt->hdr.sequence);
-	index = SEQ_TO_INDEX(sequence);
-	cmd_index = get_cmd_index(&txq->q, index);
+		sequence = le16_to_cpu(pkt->hdr.sequence);
+		index = SEQ_TO_INDEX(sequence);
+		cmd_index = get_cmd_index(&txq->q, index);
 
-	if (reclaim)
-		cmd = txq->cmd[cmd_index];
-	else
-		cmd = NULL;
-
-	err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
-
-	/*
-	 * XXX: After here, we should always check rxcb._page
-	 * against NULL before touching it or its virtual
-	 * memory (pkt). Because some rx_handler might have
-	 * already taken or freed the pages.
-	 */
-
-	if (reclaim) {
-		/* Invoke any callbacks, transfer the buffer to caller,
-		 * and fire off the (possibly) blocking
-		 * iwl_trans_send_cmd()
-		 * as we reclaim the driver command queue */
-		if (rxcb._page)
-			iwl_tx_cmd_complete(trans, &rxcb, err);
+		if (reclaim)
+			cmd = txq->cmd[cmd_index];
 		else
-			IWL_WARN(trans, "Claim null rxb?\n");
+			cmd = NULL;
+
+		err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
+
+		/*
+		 * After here, we should always check rxcb._page_stolen,
+		 * if it is true then one of the handlers took the page.
+		 */
+
+		if (reclaim) {
+			/* Invoke any callbacks, transfer the buffer to caller,
+			 * and fire off the (possibly) blocking
+			 * iwl_trans_send_cmd()
+			 * as we reclaim the driver command queue */
+			if (!rxcb._page_stolen)
+				iwl_tx_cmd_complete(trans, &rxcb, err);
+			else
+				IWL_WARN(trans, "Claim null rxb?\n");
+		}
+
+		page_stolen |= rxcb._page_stolen;
+		offset += ALIGN(len, FH_RSCSR_FRAME_ALIGN);
 	}
 
-	/* page was stolen from us */
-	if (rxcb._page == NULL)
+	/* page was stolen from us -- free our reference */
+	if (page_stolen) {
+		__free_pages(rxb->page, hw_params(trans).rx_page_order);
 		rxb->page = NULL;
+	}
 
 	/* Reuse the page if possible. For notification packets and
 	 * SKBs that fail to Rx correctly, add them back into the
