@@ -57,6 +57,7 @@
 #include <plat/sdhci.h>
 #include <plat/ts.h>
 #include <plat/udc.h>
+#include <plat/udc-hs.h>
 #include <plat/usb-control.h>
 #include <plat/usb-phy.h>
 #include <plat/regs-iic.h>
@@ -266,6 +267,52 @@ struct platform_device s5p_device_fimc3 = {
 	},
 };
 #endif /* CONFIG_S5P_DEV_FIMC3 */
+
+/* G2D */
+
+#ifdef CONFIG_S5P_DEV_G2D
+static struct resource s5p_g2d_resource[] = {
+	[0] = {
+		.start	= S5P_PA_G2D,
+		.end	= S5P_PA_G2D + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_2D,
+		.end	= IRQ_2D,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device s5p_device_g2d = {
+	.name		= "s5p-g2d",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s5p_g2d_resource),
+	.resource	= s5p_g2d_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+#endif /* CONFIG_S5P_DEV_G2D */
+
+#ifdef CONFIG_S5P_DEV_JPEG
+static struct resource s5p_jpeg_resource[] = {
+	[0] = DEFINE_RES_MEM(S5P_PA_JPEG, SZ_4K),
+	[1] = DEFINE_RES_IRQ(IRQ_JPEG),
+};
+
+struct platform_device s5p_device_jpeg = {
+	.name		= "s5p-jpeg",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(s5p_jpeg_resource),
+	.resource	= s5p_jpeg_resource,
+	.dev		= {
+		.dma_mask		= &samsung_device_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+#endif /*  CONFIG_S5P_DEV_JPEG */
 
 /* FIMD0 */
 
@@ -758,7 +805,7 @@ struct platform_device s3c_device_cfcon = {
 	.resource	= s3c_cfcon_resource,
 };
 
-void s3c_ide_set_platdata(struct s3c_ide_platdata *pdata)
+void __init s3c_ide_set_platdata(struct s3c_ide_platdata *pdata)
 {
 	s3c_set_platdata(pdata, sizeof(struct s3c_ide_platdata),
 			 &s3c_device_cfcon);
@@ -876,7 +923,7 @@ struct platform_device s5p_device_mfc_r = {
 
 #ifdef CONFIG_S5P_DEV_CSIS0
 static struct resource s5p_mipi_csis0_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS0, SZ_4K),
+	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS0, SZ_16K),
 	[1] = DEFINE_RES_IRQ(IRQ_MIPI_CSIS0),
 };
 
@@ -890,7 +937,7 @@ struct platform_device s5p_device_mipi_csis0 = {
 
 #ifdef CONFIG_S5P_DEV_CSIS1
 static struct resource s5p_mipi_csis1_resource[] = {
-	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS1, SZ_4K),
+	[0] = DEFINE_RES_MEM(S5P_PA_MIPI_CSIS1, SZ_16K),
 	[1] = DEFINE_RES_IRQ(IRQ_MIPI_CSIS1),
 };
 
@@ -1038,7 +1085,7 @@ struct platform_device s3c64xx_device_onenand1 = {
 	.resource	= s3c64xx_onenand1_resources,
 };
 
-void s3c64xx_onenand1_set_platdata(struct onenand_platform_data *pdata)
+void __init s3c64xx_onenand1_set_platdata(struct onenand_platform_data *pdata)
 {
 	s3c_set_platdata(pdata, sizeof(struct onenand_platform_data),
 			 &s3c64xx_device_onenand1);
@@ -1412,6 +1459,19 @@ struct platform_device s3c_device_usb_hsotg = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
+
+void __init s3c_hsotg_set_platdata(struct s3c_hsotg_plat *pd)
+{
+	struct s3c_hsotg_plat *npd;
+
+	npd = s3c_set_platdata(pd, sizeof(struct s3c_hsotg_plat),
+			&s3c_device_usb_hsotg);
+
+	if (!npd->phy_init)
+		npd->phy_init = s5p_usb_phy_init;
+	if (!npd->phy_exit)
+		npd->phy_exit = s5p_usb_phy_exit;
+}
 #endif /* CONFIG_S3C_DEV_USB_HSOTG */
 
 /* USB High Spped 2.0 Device (Gadget) */

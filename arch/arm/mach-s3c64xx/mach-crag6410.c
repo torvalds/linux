@@ -59,6 +59,7 @@
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 #include <plat/s3c64xx-spi.h>
+#include <plat/udc-hs.h>
 
 #include <plat/keypad.h>
 #include <plat/clock.h>
@@ -698,6 +699,8 @@ static struct s3c_sdhci_platdata crag6410_hsmmc0_pdata = {
 	.cfg_gpio		= crag6410_cfg_sdhci0,
 };
 
+static struct s3c_hsotg_plat crag6410_hsotg_pdata;
+
 static void __init crag6410_machine_init(void)
 {
 	/* Open drain IRQs need pullups */
@@ -722,6 +725,7 @@ static void __init crag6410_machine_init(void)
 	s3c_i2c0_set_platdata(&i2c0_pdata);
 	s3c_i2c1_set_platdata(&i2c1_pdata);
 	s3c_fb_set_platdata(&crag6410_lcd_pdata);
+	s3c_hsotg_set_platdata(&crag6410_hsotg_pdata);
 
 	i2c_register_board_info(0, i2c_devs0, ARRAY_SIZE(i2c_devs0));
 	i2c_register_board_info(1, i2c_devs1, ARRAY_SIZE(i2c_devs1));
