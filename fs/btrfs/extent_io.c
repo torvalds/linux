@@ -3683,6 +3683,17 @@ static inline void btrfs_release_extent_buffer(struct extent_buffer *eb)
 	__free_extent_buffer(eb);
 }
 
+static void mark_extent_buffer_accessed(struct extent_buffer *eb)
+{
+	unsigned long num_pages, i;
+
+	num_pages = num_extent_pages(eb->start, eb->len);
+	for (i = 0; i < num_pages; i++) {
+		struct page *p = extent_buffer_page(eb, i);
+		mark_page_accessed(p);
+	}
+}
+
 struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 					  u64 start, unsigned long len)
 {
@@ -3700,7 +3711,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
-		mark_page_accessed(eb->pages[0]);
+		mark_extent_buffer_accessed(eb);
 		return eb;
 	}
 	rcu_read_unlock();
@@ -3729,6 +3740,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 			if (atomic_inc_not_zero(&exists->refs)) {
 				spin_unlock(&mapping->private_lock);
 				unlock_page(p);
+				mark_extent_buffer_accessed(exists);
 				goto free_eb;
 			}
 
@@ -3771,6 +3783,7 @@ again:
 		}
 		spin_unlock(&tree->buffer_lock);
 		radix_tree_preload_end();
+		mark_extent_buffer_accessed(exists);
 		goto free_eb;
 	}
 	/* add one reference for the tree */
@@ -3820,7 +3833,7 @@ struct extent_buffer *find_extent_buffer(struct extent_io_tree *tree,
 	eb = radix_tree_lookup(&tree->buffer, start >> PAGE_CACHE_SHIFT);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
-		mark_page_accessed(eb->pages[0]);
+		mark_extent_buffer_accessed(eb);
 		return eb;
 	}
 	rcu_read_unlock();
