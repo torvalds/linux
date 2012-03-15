@@ -359,7 +359,7 @@ void core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *nacl)
 
 void core_tpg_clear_object_luns(struct se_portal_group *tpg)
 {
-	int i, ret;
+	int i;
 	struct se_lun *lun;
 
 	spin_lock(&tpg->tpg_lun_lock);
@@ -371,7 +371,7 @@ void core_tpg_clear_object_luns(struct se_portal_group *tpg)
 			continue;
 
 		spin_unlock(&tpg->tpg_lun_lock);
-		ret = core_dev_del_lun(tpg, lun->unpacked_lun);
+		core_dev_del_lun(tpg, lun->unpacked_lun);
 		spin_lock(&tpg->tpg_lun_lock);
 	}
 	spin_unlock(&tpg->tpg_lun_lock);
@@ -483,12 +483,11 @@ int core_tpg_del_initiator_node_acl(
 	LIST_HEAD(sess_list);
 	struct se_session *sess, *sess_tmp;
 	unsigned long flags;
-	int dynamic_acl = 0, rc;
+	int rc;
 
 	spin_lock_irq(&tpg->acl_node_lock);
 	if (acl->dynamic_node_acl) {
 		acl->dynamic_node_acl = 0;
-		dynamic_acl = 1;
 	}
 	list_del(&acl->acl_list);
 	tpg->num_node_acls--;

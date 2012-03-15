@@ -1469,14 +1469,12 @@ static int iscsit_handle_nop_out(
 	unsigned char *ping_data = NULL;
 	int cmdsn_ret, niov = 0, ret = 0, rx_got, rx_size;
 	u32 checksum, data_crc, padding = 0, payload_length;
-	u64 lun;
 	struct iscsi_cmd *cmd = NULL;
 	struct kvec *iov = NULL;
 	struct iscsi_nopout *hdr;
 
 	hdr			= (struct iscsi_nopout *) buf;
 	payload_length		= ntoh24(hdr->dlength);
-	lun			= get_unaligned_le64(&hdr->lun);
 	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
@@ -1686,13 +1684,11 @@ static int iscsit_handle_task_mgt_cmd(
 	struct se_tmr_req *se_tmr;
 	struct iscsi_tmr_req *tmr_req;
 	struct iscsi_tm *hdr;
-	u32 payload_length;
 	int out_of_order_cmdsn = 0;
 	int ret;
 	u8 function;
 
 	hdr			= (struct iscsi_tm *) buf;
-	payload_length		= ntoh24(hdr->dlength);
 	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->rtt		= be32_to_cpu(hdr->rtt);
 	hdr->cmdsn		= be32_to_cpu(hdr->cmdsn);
@@ -2204,14 +2200,10 @@ static int iscsit_handle_snack(
 	struct iscsi_conn *conn,
 	unsigned char *buf)
 {
-	u32 unpacked_lun;
-	u64 lun;
 	struct iscsi_snack *hdr;
 
 	hdr			= (struct iscsi_snack *) buf;
 	hdr->flags		&= ~ISCSI_FLAG_CMD_FINAL;
-	lun			= get_unaligned_le64(&hdr->lun);
-	unpacked_lun		= scsilun_to_int((struct scsi_lun *)&lun);
 	hdr->itt		= be32_to_cpu(hdr->itt);
 	hdr->ttt		= be32_to_cpu(hdr->ttt);
 	hdr->exp_statsn		= be32_to_cpu(hdr->exp_statsn);
@@ -3511,7 +3503,6 @@ int iscsi_target_tx_thread(void *arg)
 	struct iscsi_cmd *cmd = NULL;
 	struct iscsi_conn *conn;
 	struct iscsi_queue_req *qr = NULL;
-	struct se_cmd *se_cmd;
 	struct iscsi_thread_set *ts = arg;
 	/*
 	 * Allow ourselves to be interrupted by SIGINT so that a
@@ -3693,8 +3684,6 @@ check_rsp_state:
 				conn->tx_response_queue = 0;
 				goto transport_err;
 			}
-
-			se_cmd = &cmd->se_cmd;
 
 			if (map_sg && !conn->conn_ops->IFMarker) {
 				if (iscsit_fe_sendpage_sg(cmd, conn) < 0) {

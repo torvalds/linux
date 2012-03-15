@@ -2853,7 +2853,6 @@ static void target_core_drop_subdev(
 	struct se_subsystem_dev *se_dev = container_of(to_config_group(item),
 				struct se_subsystem_dev, se_dev_group);
 	struct se_hba *hba;
-	struct se_subsystem_api *t;
 	struct config_item *df_item;
 	struct config_group *dev_cg, *tg_pt_gp_cg, *dev_stat_grp;
 	int i;
@@ -2861,7 +2860,6 @@ static void target_core_drop_subdev(
 	hba = item_to_hba(&se_dev->se_dev_hba->hba_group.cg_item);
 
 	mutex_lock(&hba->hba_access_mutex);
-	t = hba->transport;
 
 	dev_stat_grp = &se_dev->dev_stat_grps.stat_group;
 	for (i = 0; dev_stat_grp->default_groups[i]; i++) {

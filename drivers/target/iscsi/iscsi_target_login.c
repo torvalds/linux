@@ -882,7 +882,7 @@ fail:
 static int __iscsi_target_login_thread(struct iscsi_np *np)
 {
 	u8 buffer[ISCSI_HDR_LEN], iscsi_opcode, zero_tsih = 0;
-	int err, ret = 0, ip_proto, sock_type, set_sctp_conn_flag, stop;
+	int err, ret = 0, set_sctp_conn_flag, stop;
 	struct iscsi_conn *conn = NULL;
 	struct iscsi_login *login;
 	struct iscsi_portal_group *tpg = NULL;
@@ -895,8 +895,6 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	flush_signals(current);
 	set_sctp_conn_flag = 0;
 	sock = np->np_socket;
-	ip_proto = np->np_ip_proto;
-	sock_type = np->np_sock_type;
 
 	spin_lock_bh(&np->np_thread_lock);
 	if (np->np_thread_state == ISCSI_NP_THREAD_RESET) {

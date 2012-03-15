@@ -647,7 +647,6 @@ int target_report_luns(struct se_task *se_task)
 {
 	struct se_cmd *se_cmd = se_task->task_se_cmd;
 	struct se_dev_entry *deve;
-	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
 	unsigned char *buf;
 	u32 lun_count = 0, offset = 8, i;
@@ -672,7 +671,6 @@ int target_report_luns(struct se_task *se_task)
 		deve = se_sess->se_node_acl->device_list[i];
 		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
 			continue;
-		se_lun = deve->se_lun;
 		/*
 		 * We determine the correct LUN LIST LENGTH even once we
 		 * have reached the initial allocation length.

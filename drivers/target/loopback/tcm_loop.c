@@ -1312,7 +1312,6 @@ static struct configfs_attribute *tcm_loop_wwn_attrs[] = {
 static int tcm_loop_register_configfs(void)
 {
 	struct target_fabric_configfs *fabric;
-	struct config_group *tf_cg;
 	int ret;
 	/*
 	 * Set the TCM Loop HBA counter to zero
@@ -1379,7 +1378,6 @@ static int tcm_loop_register_configfs(void)
 	fabric->tf_ops.set_fabric_sense_len = &tcm_loop_set_fabric_sense_len;
 	fabric->tf_ops.get_fabric_sense_len = &tcm_loop_get_fabric_sense_len;
 
-	tf_cg = &fabric->tf_group;
 	/*
 	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
 	 */
