@@ -227,7 +227,7 @@ static int drm_mode_object_get(struct drm_device *dev,
 again:
 	if (idr_pre_get(&dev->mode_config.crtc_idr, GFP_KERNEL) == 0) {
 		DRM_ERROR("Ran out memory getting a mode number\n");
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	mutex_lock(&dev->mode_config.idr_mutex);
@@ -235,6 +235,8 @@ again:
 	mutex_unlock(&dev->mode_config.idr_mutex);
 	if (ret == -EAGAIN)
 		goto again;
+	else if (ret)
+		return ret;
 
 	obj->id = new_id;
 	obj->type = obj_type;

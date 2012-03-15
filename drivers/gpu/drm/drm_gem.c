@@ -272,8 +272,7 @@ again:
 	spin_unlock(&file_priv->table_lock);
 	if (ret == -EAGAIN)
 		goto again;
-
-	if (ret != 0)
+	else if (ret)
 		return ret;
 
 	drm_gem_object_handle_reference(obj);
@@ -456,8 +455,7 @@ again:
 
 		if (ret == -EAGAIN)
 			goto again;
-
-		if (ret != 0)
+		else if (ret)
 			goto err;
 
 		/* Allocate a reference for the name table.  */

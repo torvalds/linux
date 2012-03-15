@@ -122,11 +122,10 @@ again:
 	ret = idr_get_new_above(&drm_minors_idr, NULL,
 				base, &new_id);
 	mutex_unlock(&dev->struct_mutex);
-	if (ret == -EAGAIN) {
+	if (ret == -EAGAIN)
 		goto again;
-	} else if (ret) {
+	else if (ret)
 		return ret;
-	}
 
 	if (new_id >= limit) {
 		idr_remove(&drm_minors_idr, new_id);
