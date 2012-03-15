@@ -208,8 +208,6 @@ extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
 
-int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)
 {
