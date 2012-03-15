@@ -1847,8 +1847,8 @@ static void __init doc_set_driver_info(int chip_id, struct mtd_info *mtd)
  * if a memory allocation failed. If floor 0 is checked, a reset of the ASIC is
  * launched.
  */
-static struct mtd_info *doc_probe_device(void __iomem *base, int floor,
-					 struct device *dev)
+static struct mtd_info * __init
+doc_probe_device(void __iomem *base, int floor, struct device *dev)
 {
 	int ret, bbt_nbpages;
 	u16 chip_id, chip_id_inv;
