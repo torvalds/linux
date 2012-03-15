@@ -507,12 +507,6 @@ static const struct backlight_ops taal_bl_ops = {
 	.update_status  = taal_bl_update_status,
 };
 
-static void taal_get_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
-
 static void taal_get_resolution(struct omap_dss_device *dssdev,
 		u16 *xres, u16 *yres)
 {
@@ -1806,8 +1800,6 @@ static struct omap_dss_driver taal_driver = {
 	.get_mirror	= taal_get_mirror,
 	.run_test	= taal_run_test,
 	.memory_read	= taal_memory_read,
-
-	.get_timings	= taal_get_timings,
 
 	.driver         = {
 		.name   = "taal",

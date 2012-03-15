@@ -308,6 +308,13 @@ int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
 
+void omapdss_default_get_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	*timings = dssdev->panel.timings;
+}
+EXPORT_SYMBOL(omapdss_default_get_timings);
+
 /* Checks if replication logic should be used. Only use for active matrix,
  * when overlay is in RGB12U or RGB16 mode, and LCD interface is
  * 18bpp or 24bpp */

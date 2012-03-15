@@ -549,12 +549,6 @@ static void generic_dpi_panel_set_timings(struct omap_dss_device *dssdev,
 	dpi_set_timings(dssdev, timings);
 }
 
-static void generic_dpi_panel_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
-
 static int generic_dpi_panel_check_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
@@ -571,7 +565,6 @@ static struct omap_dss_driver dpi_driver = {
 	.resume		= generic_dpi_panel_resume,
 
 	.set_timings	= generic_dpi_panel_set_timings,
-	.get_timings	= generic_dpi_panel_get_timings,
 	.check_timings	= generic_dpi_panel_check_timings,
 
 	.driver         = {

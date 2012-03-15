@@ -738,12 +738,6 @@ static void acx_panel_set_timings(struct omap_dss_device *dssdev,
 	}
 }
 
-static void acx_panel_get_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings)
-{
-	*timings = dssdev->panel.timings;
-}
-
 static int acx_panel_check_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
@@ -761,7 +755,6 @@ static struct omap_dss_driver acx_panel_driver = {
 	.resume		= acx_panel_resume,
 
 	.set_timings	= acx_panel_set_timings,
-	.get_timings	= acx_panel_get_timings,
 	.check_timings	= acx_panel_check_timings,
 
 	.get_recommended_bpp = acx_get_recommended_bpp,
