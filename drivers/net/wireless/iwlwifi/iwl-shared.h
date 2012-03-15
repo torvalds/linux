@@ -338,7 +338,6 @@ struct iwl_cfg {
  *
  * @status: STATUS_*
  * @wowlan: are we running wowlan uCode
- * @valid_contexts: microcode/device supports multiple contexts
  * @bus: pointer to the bus layer data
  * @cfg: see struct iwl_cfg
  * @priv: pointer to the upper layer data
@@ -352,7 +351,6 @@ struct iwl_cfg {
  */
 struct iwl_shared {
 	unsigned long status;
-	u8 valid_contexts;
 
 	const struct iwl_cfg *cfg;
 	struct iwl_trans *trans;

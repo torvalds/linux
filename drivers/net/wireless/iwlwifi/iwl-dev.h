@@ -739,6 +739,7 @@ struct iwl_priv {
 	struct workqueue_struct *workqueue;
 
 	enum ieee80211_band band;
+	u8 valid_contexts;
 
 	void (*pre_rx_handler)(struct iwl_priv *priv,
 			       struct iwl_rx_cmd_buffer *rxb);
@@ -1006,7 +1007,7 @@ iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
 #define for_each_context(priv, ctx)				\
 	for (ctx = &priv->contexts[IWL_RXON_CTX_BSS];		\
 	     ctx < &priv->contexts[NUM_IWL_RXON_CTX]; ctx++)	\
-		if (priv->shrd->valid_contexts & BIT(ctx->ctxid))
+		if (priv->valid_contexts & BIT(ctx->ctxid))
 
 static inline int iwl_is_associated_ctx(struct iwl_rxon_context *ctx)
 {

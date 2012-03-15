@@ -228,7 +228,7 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 				 IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
 				 IWL_SCD_MGMT_MSK;
 	if ((flush_control & BIT(IWL_RXON_CTX_PAN)) &&
-	    (priv->shrd->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
+	    (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
 		flush_cmd.fifo_control |= IWL_PAN_SCD_VO_MSK |
 				IWL_PAN_SCD_VI_MSK | IWL_PAN_SCD_BE_MSK |
 				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |

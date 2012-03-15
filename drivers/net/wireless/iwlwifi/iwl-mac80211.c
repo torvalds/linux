@@ -1006,7 +1006,7 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
 	int err = 0;
 
-	if (!(priv->shrd->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
 	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
@@ -1094,7 +1094,7 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
-	if (!(priv->shrd->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");

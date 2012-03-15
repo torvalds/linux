@@ -312,7 +312,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	int slot0 = 300, slot1 = 0;
 	int ret;
 
-	if (priv->shrd->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
 		return 0;
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);

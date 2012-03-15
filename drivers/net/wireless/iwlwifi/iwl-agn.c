@@ -583,9 +583,9 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	 * The default context is always valid,
 	 * the PAN context depends on uCode.
 	 */
-	priv->shrd->valid_contexts = BIT(IWL_RXON_CTX_BSS);
+	priv->valid_contexts = BIT(IWL_RXON_CTX_BSS);
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN)
-		priv->shrd->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
+		priv->valid_contexts |= BIT(IWL_RXON_CTX_PAN);
 
 	for (i = 0; i < NUM_IWL_RXON_CTX; i++)
 		priv->contexts[i].ctxid = i;
