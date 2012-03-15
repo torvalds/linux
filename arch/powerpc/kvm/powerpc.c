@@ -244,10 +244,12 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
 #endif
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CAP_SPAPR_TCE:
 		r = 1;
 		break;
+#endif /* CONFIG_PPC_BOOK3S_64 */
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_CAP_PPC_SMT:
 		r = threads_per_core;
 		break;
@@ -773,7 +775,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		break;
 	}
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CREATE_SPAPR_TCE: {
 		struct kvm_create_spapr_tce create_tce;
 		struct kvm *kvm = filp->private_data;
@@ -784,7 +786,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_create_spapr_tce(kvm, &create_tce);
 		goto out;
 	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_ALLOCATE_RMA: {
 		struct kvm *kvm = filp->private_data;
 		struct kvm_allocate_rma rma;

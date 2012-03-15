@@ -1171,11 +1171,18 @@ void kvmppc_core_commit_memory_region(struct kvm *kvm,
 
 int kvmppc_core_init_vm(struct kvm *kvm)
 {
+#ifdef CONFIG_PPC64
+	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
+#endif
+
 	return 0;
 }
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
+#ifdef CONFIG_PPC64
+	WARN_ON(!list_empty(&kvm->arch.spapr_tce_tables));
+#endif
 }
 
 static int kvmppc_book3s_init(void)
