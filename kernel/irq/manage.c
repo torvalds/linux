@@ -804,17 +804,11 @@ static int irq_thread(void *data)
 	 * This is the regular exit path. __free_irq() is stopping the
 	 * thread via kthread_stop() after calling
 	 * synchronize_irq(). So neither IRQTF_RUNTHREAD nor the
-	 * oneshot mask bit should be set.
+	 * oneshot mask bit can be set. We cannot verify that as we
+	 * cannot touch the oneshot mask at this point anymore as
+	 * __setup_irq() might have given out currents thread_mask
+	 * again.
 	 *
-	 * Verify that this is true.
-	 */
-	if (WARN_ON(test_and_clear_bit(IRQTF_RUNTHREAD, &action->thread_flags)))
-		wake_threads_waitq(desc);
-
-	if (WARN_ON(desc->threads_oneshot & action->thread_mask))
-		irq_finalize_oneshot(desc, action, true);
-
-	/*
 	 * Clear irq_thread. Otherwise exit_irq_thread() would make
 	 * fuzz about an active irq thread going into nirvana.
 	 */
