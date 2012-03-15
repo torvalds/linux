@@ -364,6 +364,7 @@ struct iwl_trans_config {
  * @configure: configure parameters required by the transport layer from
  *	the op_mode. May be called several times before start_fw, can't be
  *	called after that.
+ * @set_pmi: set the power pmi state
  */
 struct iwl_trans_ops {
 
@@ -400,6 +401,7 @@ struct iwl_trans_ops {
 	u32 (*read32)(struct iwl_trans *trans, u32 ofs);
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
+	void (*set_pmi)(struct iwl_trans *trans, bool state);
 };
 
 /**
@@ -609,6 +611,11 @@ static inline void iwl_trans_write32(struct iwl_trans *trans, u32 ofs, u32 val)
 static inline u32 iwl_trans_read32(struct iwl_trans *trans, u32 ofs)
 {
 	return trans->ops->read32(trans, ofs);
+}
+
+static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
+{
+	trans->ops->set_pmi(trans, state);
 }
 
 /*****************************************************

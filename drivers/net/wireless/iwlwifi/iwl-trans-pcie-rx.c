@@ -146,8 +146,11 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 		q->write_actual = (q->write & ~0x7);
 		iwl_write32(trans, FH_RSCSR_CHNL0_WPTR, q->write_actual);
 	} else {
+		struct iwl_trans_pcie *trans_pcie =
+			IWL_TRANS_GET_PCIE_TRANS(trans);
+
 		/* If power-saving is in use, make sure device is awake */
-		if (test_bit(STATUS_POWER_PMI, &trans->shrd->status)) {
+		if (test_bit(STATUS_POWER_PMI, &trans_pcie->status)) {
 			reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {

@@ -392,6 +392,15 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 	return iwl_is_ready(priv);
 }
 
+static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
+{
+	if (state)
+		set_bit(STATUS_POWER_PMI, &priv->status);
+	else
+		clear_bit(STATUS_POWER_PMI, &priv->status);
+	iwl_trans_set_pmi(trans(priv), state);
+}
+
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
 do {									\

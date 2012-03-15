@@ -1518,6 +1518,16 @@ static void iwl_trans_pcie_free(struct iwl_trans *trans)
 	kfree(trans);
 }
 
+static void iwl_trans_pcie_set_pmi(struct iwl_trans *trans, bool state)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+
+	if (state)
+		set_bit(STATUS_POWER_PMI, &trans_pcie->status);
+	else
+		clear_bit(STATUS_POWER_PMI, &trans_pcie->status);
+}
+
 #ifdef CONFIG_PM_SLEEP
 static int iwl_trans_pcie_suspend(struct iwl_trans *trans)
 {
@@ -2038,6 +2048,7 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.write32 = iwl_trans_pcie_write32,
 	.read32 = iwl_trans_pcie_read32,
 	.configure = iwl_trans_pcie_configure,
+	.set_pmi = iwl_trans_pcie_set_pmi,
 };
 
 struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,

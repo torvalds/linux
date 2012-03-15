@@ -850,7 +850,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	 * In power save mode while associated use one chain,
 	 * otherwise use all chains
 	 */
-	if (test_bit(STATUS_POWER_PMI, &priv->shrd->status) &&
+	if (test_bit(STATUS_POWER_PMI, &priv->status) &&
 	    !(priv->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		/* rx_ant has been set to all valid chains previously */
 		active_chains = rx_ant &
