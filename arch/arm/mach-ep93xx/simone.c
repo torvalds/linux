@@ -29,6 +29,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include "soc.h"
+
 static struct ep93xx_eth_data __initdata simone_eth_data = {
 	.phy_id		= 1,
 };

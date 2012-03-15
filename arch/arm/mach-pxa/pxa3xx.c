@@ -462,7 +462,6 @@ static int __init pxa3xx_init(void)
 
 		register_syscore_ops(&pxa_irq_syscore_ops);
 		register_syscore_ops(&pxa3xx_mfp_syscore_ops);
-		register_syscore_ops(&pxa_gpio_syscore_ops);
 		register_syscore_ops(&pxa3xx_clock_syscore_ops);
 
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));

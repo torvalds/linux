@@ -839,8 +839,6 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 	if (!newpage)
 		return -ENOMEM;
 
-	mem_cgroup_reset_owner(newpage);
-
 	if (page_count(page) == 1) {
 		/* page was freed from under us. So we are done. */
 		goto out;

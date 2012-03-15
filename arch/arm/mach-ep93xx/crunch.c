@@ -16,8 +16,10 @@
 #include <linux/sched.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <mach/ep93xx-regs.h>
+
 #include <asm/thread_notify.h>
+
+#include "soc.h"
 
 struct crunch_state *crunch_owner;
 

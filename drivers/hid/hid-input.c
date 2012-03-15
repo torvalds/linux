@@ -986,8 +986,13 @@ void hidinput_hid_event(struct hid_device *hid, struct hid_field *field, struct 
 		return;
 	}
 
-	/* Ignore out-of-range values as per HID specification, section 5.10 */
-	if (value < field->logical_minimum || value > field->logical_maximum) {
+	/*
+	 * Ignore out-of-range values as per HID specification,
+	 * section 5.10 and 6.2.25
+	 */
+	if ((field->flags & HID_MAIN_ITEM_VARIABLE) &&
+	    (value < field->logical_minimum ||
+	     value > field->logical_maximum)) {
 		dbg_hid("Ignoring out-of-range value %x\n", value);
 		return;
 	}

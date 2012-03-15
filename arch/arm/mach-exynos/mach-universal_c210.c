@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/gpio_keys.h>
 #include <linux/gpio.h>
+#include <linux/interrupt.h>
 #include <linux/fb.h>
 #include <linux/mfd/max8998.h>
 #include <linux/regulator/machine.h>
@@ -595,6 +596,7 @@ static struct mxt_platform_data qt602240_platform_data = {
 	.threshold	= 0x28,
 	.voltage	= 2800000,		/* 2.8V */
 	.orient		= MXT_DIAGONAL,
+	.irqflags	= IRQF_TRIGGER_FALLING,
 };
 
 static struct i2c_board_info i2c3_devs[] __initdata = {

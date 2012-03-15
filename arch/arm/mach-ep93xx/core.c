@@ -46,6 +46,7 @@
 
 #include <asm/hardware/vic.h>
 
+#include "soc.h"
 
 /*************************************************************************
  * Static I/O mappings that are needed for all EP93xx platforms
@@ -204,7 +205,6 @@ void ep93xx_syscon_swlocked_write(unsigned int val, void __iomem *reg)
 
 	spin_unlock_irqrestore(&syscon_swlock, flags);
 }
-EXPORT_SYMBOL(ep93xx_syscon_swlocked_write);
 
 void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 {
@@ -221,7 +221,6 @@ void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 
 	spin_unlock_irqrestore(&syscon_swlock, flags);
 }
-EXPORT_SYMBOL(ep93xx_devcfg_set_clear);
 
 /**
  * ep93xx_chip_revision() - returns the EP93xx chip revision
@@ -648,9 +647,19 @@ static struct platform_device ep93xx_fb_device = {
 	.resource		= ep93xx_fb_resource,
 };
 
+/* The backlight use a single register in the framebuffer's register space */
+#define EP93XX_RASTER_REG_BRIGHTNESS 0x20
+
+static struct resource ep93xx_bl_resources[] = {
+	DEFINE_RES_MEM(EP93XX_RASTER_PHYS_BASE +
+		       EP93XX_RASTER_REG_BRIGHTNESS, 0x04),
+};
+
 static struct platform_device ep93xx_bl_device = {
 	.name		= "ep93xx-bl",
 	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_bl_resources),
+	.resource	= ep93xx_bl_resources,
 };
 
 /**
@@ -783,23 +792,12 @@ void __init ep93xx_register_i2s(void)
 #define EP93XX_I2SCLKDIV_MASK		(EP93XX_SYSCON_I2SCLKDIV_ORIDE | \
 					 EP93XX_SYSCON_I2SCLKDIV_SPOL)
 
-int ep93xx_i2s_acquire(unsigned i2s_pins, unsigned i2s_config)
+int ep93xx_i2s_acquire(void)
 {
 	unsigned val;
 
-	/* Sanity check */
-	if (i2s_pins & ~EP93XX_SYSCON_DEVCFG_I2S_MASK)
-		return -EINVAL;
-	if (i2s_config & ~EP93XX_I2SCLKDIV_MASK)
-		return -EINVAL;
-
-	/* Must have only one of I2SONSSP/I2SONAC97 set */
-	if ((i2s_pins & EP93XX_SYSCON_DEVCFG_I2SONSSP) ==
-	    (i2s_pins & EP93XX_SYSCON_DEVCFG_I2SONAC97))
-		return -EINVAL;
-
-	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2S_MASK);
-	ep93xx_devcfg_set_bits(i2s_pins);
+	ep93xx_devcfg_set_clear(EP93XX_SYSCON_DEVCFG_I2SONAC97,
+			EP93XX_SYSCON_DEVCFG_I2S_MASK);
 
 	/*
 	 * This is potentially racy with the clock api for i2s_mclk, sclk and 
@@ -809,7 +807,7 @@ int ep93xx_i2s_acquire(unsigned i2s_pins, unsigned i2s_config)
 	 */
 	val = __raw_readl(EP93XX_SYSCON_I2SCLKDIV);
 	val &= ~EP93XX_I2SCLKDIV_MASK;
-	val |= i2s_config;
+	val |= EP93XX_SYSCON_I2SCLKDIV_ORIDE | EP93XX_SYSCON_I2SCLKDIV_SPOL;
 	ep93xx_syscon_swlocked_write(val, EP93XX_SYSCON_I2SCLKDIV);
 
 	return 0;
@@ -856,10 +854,31 @@ void __init ep93xx_register_ac97(void)
 	platform_device_register(&ep93xx_pcm_device);
 }
 
+/*************************************************************************
+ * EP93xx Watchdog
+ *************************************************************************/
+static struct resource ep93xx_wdt_resources[] = {
+	DEFINE_RES_MEM(EP93XX_WATCHDOG_PHYS_BASE, 0x08),
+};
+
+static struct platform_device ep93xx_wdt_device = {
+	.name		= "ep93xx-wdt",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(ep93xx_wdt_resources),
+	.resource	= ep93xx_wdt_resources,
+};
+
 void __init ep93xx_init_devices(void)
 {
 	/* Disallow access to MaverickCrunch initially */
 	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_CPENA);
+
+	/* Default all ports to GPIO */
+	ep93xx_devcfg_set_bits(EP93XX_SYSCON_DEVCFG_KEYS |
+			       EP93XX_SYSCON_DEVCFG_GONK |
+			       EP93XX_SYSCON_DEVCFG_EONIDE |
+			       EP93XX_SYSCON_DEVCFG_GONIDE |
+			       EP93XX_SYSCON_DEVCFG_HONIDE);
 
 	/* Get the GPIO working early, other devices need it */
 	platform_device_register(&ep93xx_gpio_device);
@@ -871,6 +890,7 @@ void __init ep93xx_init_devices(void)
 	platform_device_register(&ep93xx_rtc_device);
 	platform_device_register(&ep93xx_ohci_device);
 	platform_device_register(&ep93xx_leds);
+	platform_device_register(&ep93xx_wdt_device);
 }
 
 void ep93xx_restart(char mode, const char *cmd)
