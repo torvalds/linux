@@ -9200,6 +9200,15 @@ static void quirk_no_pcm_pwm_enable(struct drm_device *dev)
 	DRM_INFO("applying no-PCH_PWM_ENABLE quirk\n");
 }
 
+/*
+ * A machine may need to invert the panel backlight brightness value
+ */
+static void quirk_invert_brightness(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	dev_priv->quirks |= QUIRK_INVERT_BRIGHTNESS;
+}
+
 struct intel_quirk {
 	int device;
 	int subsystem_vendor;

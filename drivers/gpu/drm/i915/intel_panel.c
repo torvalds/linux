@@ -190,15 +190,22 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 	return max;
 }
 
-static bool i915_panel_invert_brightness;
-MODULE_PARM_DESC(invert_brightness, "Invert backlight brightness, please "
+static int i915_panel_invert_brightness;
+MODULE_PARM_DESC(invert_brightness, "Invert backlight brightness "
+	"(-1 force normal, 0 machine defaults, 1 force inversion), please "
 	"report PCI device ID, subsystem vendor and subsystem device ID "
 	"to dri-devel@lists.freedesktop.org, if your machine needs it. "
 	"It will then be included in an upcoming module version.");
-module_param_named(invert_brightness, i915_panel_invert_brightness, bool, 0600);
+module_param_named(invert_brightness, i915_panel_invert_brightness, int, 0600);
 static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
 {
-	if (i915_panel_invert_brightness)
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (i915_panel_invert_brightness < 0)
+		return val;
+
+	if (i915_panel_invert_brightness > 0 ||
+	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS)
 		return intel_panel_get_max_backlight(dev) - val;
 
 	return val;
