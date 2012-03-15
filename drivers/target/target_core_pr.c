@@ -328,7 +328,7 @@ static int core_scsi3_pr_seq_non_holder(
 		return core_scsi2_reservation_seq_non_holder(cmd,
 					cdb, pr_reg_type);
 
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Determine if the registration should be ignored due to
 	 * non-matching ISIDs in core_scsi3_pr_reservation_check().
@@ -990,7 +990,7 @@ int core_scsi3_check_aptpl_registration(
 {
 	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	struct se_node_acl *nacl = lun_acl->se_lun_nacl;
-	struct se_dev_entry *deve = &nacl->device_list[lun_acl->mapped_lun];
+	struct se_dev_entry *deve = nacl->device_list[lun_acl->mapped_lun];
 
 	if (su_dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
 		return 0;
@@ -1499,7 +1499,7 @@ static int core_scsi3_decode_spec_i_port(
 
 	memset(dest_iport, 0, 64);
 
-	local_se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	local_se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Allocate a struct pr_transport_id_holder and setup the
 	 * local_node_acl and local_se_deve pointers and add to
@@ -2116,7 +2116,7 @@ static int core_scsi3_emulate_pro_register(
 		return -EINVAL;
 	}
 	se_tpg = se_sess->se_tpg;
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 
 	if (se_tpg->se_tpg_tfo->sess_get_initiator_sid) {
 		memset(&isid_buf[0], 0, PR_REG_ISID_LEN);
@@ -2432,7 +2432,7 @@ static int core_scsi3_pro_reserve(
 		return -EINVAL;
 	}
 	se_tpg = se_sess->se_tpg;
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Locate the existing *pr_reg via struct se_node_acl pointers
 	 */
@@ -3005,7 +3005,7 @@ static int core_scsi3_pro_preempt(
 		return -EINVAL;
 	}
 
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	pr_reg_n = core_scsi3_locate_pr_reg(cmd->se_dev, se_sess->se_node_acl,
 				se_sess);
 	if (!pr_reg_n) {
@@ -3366,7 +3366,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	se_tpg = se_sess->se_tpg;
 	tf_ops = se_tpg->se_tpg_tfo;
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Follow logic from spc4r17 Section 5.7.8, Table 50 --
 	 *	Register behaviors for a REGISTER AND MOVE service action

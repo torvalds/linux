@@ -64,7 +64,7 @@ static void core_clear_initiator_node_from_tpg(
 
 	spin_lock_irq(&nacl->device_list_lock);
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = &nacl->device_list[i];
+		deve = nacl->device_list[i];
 
 		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
 			continue;
@@ -259,15 +259,15 @@ static int core_create_device_list_for_node(struct se_node_acl *nacl)
 	struct se_dev_entry *deve;
 	int i;
 
-	nacl->device_list = kzalloc(sizeof(struct se_dev_entry) *
-				TRANSPORT_MAX_LUNS_PER_TPG, GFP_KERNEL);
+	nacl->device_list = array_zalloc(TRANSPORT_MAX_LUNS_PER_TPG,
+			sizeof(struct se_dev_entry), GFP_KERNEL);
 	if (!nacl->device_list) {
 		pr_err("Unable to allocate memory for"
 			" struct se_node_acl->device_list\n");
 		return -ENOMEM;
 	}
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = &nacl->device_list[i];
+		deve = nacl->device_list[i];
 
 		atomic_set(&deve->ua_count, 0);
 		atomic_set(&deve->pr_ref_count, 0);
