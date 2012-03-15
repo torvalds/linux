@@ -970,7 +970,7 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	}
 
 	if ((unlikely(phy_res->cfg_phy_cnt > 20))) {
-		IWL_DEBUG_DROP(priv, "dsp size out of range [0,20]: %d/n",
+		IWL_DEBUG_DROP(priv, "dsp size out of range [0,20]: %d\n",
 				phy_res->cfg_phy_cnt);
 		return 0;
 	}

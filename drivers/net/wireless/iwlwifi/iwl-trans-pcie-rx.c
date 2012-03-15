@@ -976,7 +976,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	if (iwl_have_debug_level(IWL_DL_ISR)) {
 		/* just for debug */
 		inta_mask = iwl_read32(trans, CSR_INT_MASK);
-		IWL_DEBUG_ISR(trans, "inta 0x%08x, enabled 0x%08x\n ",
+		IWL_DEBUG_ISR(trans, "inta 0x%08x, enabled 0x%08x\n",
 				inta, inta_mask);
 	}
 #endif
