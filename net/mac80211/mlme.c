@@ -2472,7 +2472,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 				ieee80211_hw_config(local,
 						    IEEE80211_CONF_CHANGE_PS);
 				ieee80211_send_nullfunc(local, sdata, 0);
-			} else {
+			} else if (!local->pspolling && sdata->u.mgd.powersave) {
 				local->pspolling = true;
 
 				/*
