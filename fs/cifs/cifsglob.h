@@ -315,12 +315,22 @@ in_flight(struct TCP_Server_Info *server)
 	return num;
 }
 
+static inline int*
+get_credits_field(struct TCP_Server_Info *server)
+{
+	/*
+	 * This will change to switch statement when we reserve slots for echos
+	 * and oplock breaks.
+	 */
+	return &server->credits;
+}
+
 static inline bool
-has_credits(struct TCP_Server_Info *server)
+has_credits(struct TCP_Server_Info *server, int *credits)
 {
 	int num;
 	spin_lock(&server->req_lock);
-	num = server->credits;
+	num = *credits;
 	spin_unlock(&server->req_lock);
 	return num > 0;
 }

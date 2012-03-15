@@ -255,26 +255,26 @@ smb_send(struct TCP_Server_Info *server, struct smb_hdr *smb_buffer,
 }
 
 static int
-wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
+wait_for_free_credits(struct TCP_Server_Info *server, const int optype,
+		      int *credits)
 {
 	int rc;
 
 	spin_lock(&server->req_lock);
-
-	if (long_op == CIFS_ASYNC_OP) {
+	if (optype == CIFS_ASYNC_OP) {
 		/* oplock breaks must not be held up */
 		server->in_flight++;
-		server->credits--;
+		*credits -= 1;
 		spin_unlock(&server->req_lock);
 		return 0;
 	}
 
 	while (1) {
-		if (server->credits <= 0) {
+		if (*credits <= 0) {
 			spin_unlock(&server->req_lock);
 			cifs_num_waiters_inc(server);
 			rc = wait_event_killable(server->request_q,
-						 has_credits(server));
+						 has_credits(server, credits));
 			cifs_num_waiters_dec(server);
 			if (rc)
 				return rc;
@@ -291,8 +291,8 @@ wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
 			 */
 
 			/* update # of requests on the wire to server */
-			if (long_op != CIFS_BLOCKING_OP) {
-				server->credits--;
+			if (optype != CIFS_BLOCKING_OP) {
+				*credits -= 1;
 				server->in_flight++;
 			}
 			spin_unlock(&server->req_lock);
@@ -300,6 +300,12 @@ wait_for_free_request(struct TCP_Server_Info *server, const int long_op)
 		}
 	}
 	return 0;
+}
+
+static int
+wait_for_free_request(struct TCP_Server_Info *server, const int optype)
+{
+	return wait_for_free_credits(server, optype, get_credits_field(server));
 }
 
 static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
