@@ -41,6 +41,8 @@
 #include "exynos_hdmi.h"
 
 #define HDMI_OVERLAY_NUMBER	3
+#define MAX_WIDTH		1920
+#define MAX_HEIGHT		1080
 #define get_hdmi_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
 /* HDMI Version 1.3 */
@@ -1126,7 +1128,7 @@ static int hdmi_v13_conf_index(struct drm_display_mode *mode)
 				 true : false))
 			return i;
 
-	return -1;
+	return -EINVAL;
 }
 
 static int hdmi_v14_conf_index(struct drm_display_mode *mode)
@@ -1142,7 +1144,7 @@ static int hdmi_v14_conf_index(struct drm_display_mode *mode)
 				 true : false))
 			return i;
 
-	return -1;
+	return -EINVAL;
 }
 
 static int hdmi_conf_index(struct hdmi_context *hdata,
@@ -1150,8 +1152,8 @@ static int hdmi_conf_index(struct hdmi_context *hdata,
 {
 	if (hdata->is_v13)
 		return hdmi_v13_conf_index(mode);
-	else
-		return hdmi_v14_conf_index(mode);
+
+	return hdmi_v14_conf_index(mode);
 }
 
 static bool hdmi_is_connected(void *ctx)
@@ -1193,6 +1195,11 @@ static int hdmi_v13_check_timing(struct fb_videomode *check_timing)
 {
 	int i;
 
+	DRM_DEBUG_KMS("valid mode : xres=%d, yres=%d, refresh=%d, intl=%d\n",
+			check_timing->xres, check_timing->yres,
+			check_timing->refresh, (check_timing->vmode &
+			FB_VMODE_INTERLACED) ? true : false);
+
 	for (i = 0; i < ARRAY_SIZE(hdmi_v13_confs); ++i)
 		if (hdmi_v13_confs[i].width == check_timing->xres &&
 			hdmi_v13_confs[i].height == check_timing->yres &&
@@ -1200,7 +1207,9 @@ static int hdmi_v13_check_timing(struct fb_videomode *check_timing)
 			hdmi_v13_confs[i].interlace ==
 			((check_timing->vmode & FB_VMODE_INTERLACED) ?
 			 true : false))
-			return 0;
+				return 0;
+
+	/* TODO */
 
 	return -EINVAL;
 }
@@ -1209,14 +1218,21 @@ static int hdmi_v14_check_timing(struct fb_videomode *check_timing)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(hdmi_confs); ++i)
+	DRM_DEBUG_KMS("valid mode : xres=%d, yres=%d, refresh=%d, intl=%d\n",
+			check_timing->xres, check_timing->yres,
+			check_timing->refresh, (check_timing->vmode &
+			FB_VMODE_INTERLACED) ? true : false);
+
+	for (i = 0; i < ARRAY_SIZE(hdmi_confs); i++)
 		if (hdmi_confs[i].width == check_timing->xres &&
 			hdmi_confs[i].height == check_timing->yres &&
 			hdmi_confs[i].vrefresh == check_timing->refresh &&
 			hdmi_confs[i].interlace ==
 			((check_timing->vmode & FB_VMODE_INTERLACED) ?
 			 true : false))
-			return 0;
+				return 0;
+
+	/* TODO */
 
 	return -EINVAL;
 }
@@ -1692,6 +1708,46 @@ static void hdmi_conf_apply(struct hdmi_context *hdata)
 	hdmi_regs_dump(hdata, "start");
 }
 
+static void hdmi_mode_fixup(void *ctx, struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	struct drm_display_mode *m;
+	struct hdmi_context *hdata = (struct hdmi_context *)ctx;
+	int index;
+
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
+
+	if (hdata->is_v13)
+		index = hdmi_v13_conf_index(adjusted_mode);
+	else
+		index = hdmi_v14_conf_index(adjusted_mode);
+
+	/* just return if user desired mode exists. */
+	if (index >= 0)
+		return;
+
+	/*
+	 * otherwise, find the most suitable mode among modes and change it
+	 * to adjusted_mode.
+	 */
+	list_for_each_entry(m, &connector->modes, head) {
+		if (hdata->is_v13)
+			index = hdmi_v13_conf_index(m);
+		else
+			index = hdmi_v14_conf_index(m);
+
+		if (index >= 0) {
+			DRM_INFO("desired mode doesn't exist so\n");
+			DRM_INFO("use the most suitable mode among modes.\n");
+			memcpy(adjusted_mode, m, sizeof(*m));
+			break;
+		}
+	}
+}
+
 static void hdmi_mode_set(void *ctx, void *mode)
 {
 	struct hdmi_context *hdata = (struct hdmi_context *)ctx;
@@ -1704,6 +1760,15 @@ static void hdmi_mode_set(void *ctx, void *mode)
 		hdata->cur_conf = conf_idx;
 	else
 		DRM_DEBUG_KMS("not supported mode\n");
+}
+
+static void hdmi_get_max_resol(void *ctx, unsigned int *width,
+					unsigned int *height)
+{
+	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
+
+	*width = MAX_WIDTH;
+	*height = MAX_HEIGHT;
 }
 
 static void hdmi_commit(void *ctx)
@@ -1730,7 +1795,9 @@ static void hdmi_disable(void *ctx)
 }
 
 static struct exynos_hdmi_manager_ops manager_ops = {
+	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
+	.get_max_resol	= hdmi_get_max_resol,
 	.commit		= hdmi_commit,
 	.disable	= hdmi_disable,
 };

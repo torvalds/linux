@@ -111,9 +111,19 @@ exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = encoder->dev;
+	struct drm_connector *connector;
+	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
+
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	/* drm framework doesn't check NULL. */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder)
+			if (manager_ops && manager_ops->mode_fixup)
+				manager_ops->mode_fixup(manager->dev, connector,
+							mode, adjusted_mode);
+	}
 
 	return true;
 }
@@ -132,12 +142,11 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	mode = adjusted_mode;
-
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
 			if (manager_ops && manager_ops->mode_set)
-				manager_ops->mode_set(manager->dev, mode);
+				manager_ops->mode_set(manager->dev,
+							adjusted_mode);
 
 			if (overlay_ops && overlay_ops->mode_set)
 				overlay_ops->mode_set(manager->dev, overlay);

@@ -155,6 +155,20 @@ static void drm_hdmi_disable_vblank(struct device *subdrv_dev)
 		return hdmi_overlay_ops->disable_vblank(ctx->mixer_ctx->ctx);
 }
 
+static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
+				struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (hdmi_manager_ops && hdmi_manager_ops->mode_fixup)
+		hdmi_manager_ops->mode_fixup(ctx->hdmi_ctx->ctx, connector,
+						mode, adjusted_mode);
+}
+
 static void drm_hdmi_mode_set(struct device *subdrv_dev, void *mode)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
@@ -163,6 +177,18 @@ static void drm_hdmi_mode_set(struct device *subdrv_dev, void *mode)
 
 	if (hdmi_manager_ops && hdmi_manager_ops->mode_set)
 		hdmi_manager_ops->mode_set(ctx->hdmi_ctx->ctx, mode);
+}
+
+static void drm_hdmi_get_max_resol(struct device *subdrv_dev,
+				unsigned int *width, unsigned int *height)
+{
+	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (hdmi_manager_ops && hdmi_manager_ops->get_max_resol)
+		hdmi_manager_ops->get_max_resol(ctx->hdmi_ctx->ctx, width,
+							height);
 }
 
 static void drm_hdmi_commit(struct device *subdrv_dev)
@@ -200,7 +226,9 @@ static struct exynos_drm_manager_ops drm_hdmi_manager_ops = {
 	.dpms = drm_hdmi_dpms,
 	.enable_vblank = drm_hdmi_enable_vblank,
 	.disable_vblank = drm_hdmi_disable_vblank,
+	.mode_fixup = drm_hdmi_mode_fixup,
 	.mode_set = drm_hdmi_mode_set,
+	.get_max_resol = drm_hdmi_get_max_resol,
 	.commit = drm_hdmi_commit,
 };
 

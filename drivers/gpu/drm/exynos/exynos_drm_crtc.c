@@ -249,7 +249,11 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	mode = adjusted_mode;
+	/*
+	 * copy the mode data adjusted by mode_fixup() into crtc->mode
+	 * so that hardware can be seet to proper mode.
+	 */
+	memcpy(&crtc->mode, adjusted_mode, sizeof(*adjusted_mode));
 
 	return exynos_drm_crtc_update(crtc);
 }

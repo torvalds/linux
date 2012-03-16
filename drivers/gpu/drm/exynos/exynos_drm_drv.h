@@ -155,8 +155,10 @@ struct exynos_drm_display_ops {
  *
  * @dpms: control device power.
  * @apply: set timing, vblank and overlay data to registers.
+ * @mode_fixup: fix mode data comparing to hw specific display mode.
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
+ * @get_max_resol: get maximum resolution to specific hardware.
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
@@ -164,7 +166,13 @@ struct exynos_drm_display_ops {
 struct exynos_drm_manager_ops {
 	void (*dpms)(struct device *subdrv_dev, int mode);
 	void (*apply)(struct device *subdrv_dev);
+	void (*mode_fixup)(struct device *subdrv_dev,
+				struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
 	void (*mode_set)(struct device *subdrv_dev, void *mode);
+	void (*get_max_resol)(struct device *subdrv_dev, unsigned int *width,
+				unsigned int *height);
 	void (*commit)(struct device *subdrv_dev);
 	int (*enable_vblank)(struct device *subdrv_dev);
 	void (*disable_vblank)(struct device *subdrv_dev);
