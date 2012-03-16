@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/io.h>
-#include <asm-generic/pci-bridge.h>
 
 static int debug_pci;
 
