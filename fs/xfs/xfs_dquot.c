@@ -1065,7 +1065,7 @@ out:
 	return -ENOMEM;
 }
 
-void __exit
+void
 xfs_qm_exit(void)
 {
 	kmem_zone_destroy(xfs_qm_dqtrxzone);
