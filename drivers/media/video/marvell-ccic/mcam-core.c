@@ -1564,11 +1564,8 @@ static int mcam_v4l_release(struct file *filp)
 			singles, delivered);
 	mutex_lock(&cam->s_mutex);
 	(cam->users)--;
-	if (filp == cam->owner) {
-		mcam_ctlr_stop_dma(cam);
-		cam->owner = NULL;
-	}
 	if (cam->users == 0) {
+		mcam_ctlr_stop_dma(cam);
 		mcam_cleanup_vb2(cam);
 		mcam_ctlr_power_down(cam);
 		if (cam->buffer_mode == B_vmalloc && alloc_bufs_at_read)
