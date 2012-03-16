@@ -39,7 +39,8 @@
 #include <ifaddrs.h>
 #include <netdb.h>
 #include <syslog.h>
-
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /*
  * KVP protocol: The user mode component first registers with the
@@ -78,6 +79,250 @@ static char *processor_arch;
 static char *os_build;
 static char *lic_version;
 static struct utsname uts_buf;
+
+
+#define MAX_FILE_NAME 100
+#define ENTRIES_PER_BLOCK 50
+
+struct kvp_record {
+	__u8 key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
+	__u8 value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
+};
+
+struct kvp_file_state {
+	int fd;
+	int num_blocks;
+	struct kvp_record *records;
+	int num_records;
+	__u8 fname[MAX_FILE_NAME];
+};
+
+static struct kvp_file_state kvp_file_info[KVP_POOL_COUNT];
+
+static void kvp_acquire_lock(int pool)
+{
+	struct flock fl = {F_WRLCK, SEEK_SET, 0, 0, 0};
+	fl.l_pid = getpid();
+
+	if (fcntl(kvp_file_info[pool].fd, F_SETLKW, &fl) == -1) {
+		syslog(LOG_ERR, "Failed to acquire the lock pool: %d", pool);
+		exit(-1);
+	}
+}
+
+static void kvp_release_lock(int pool)
+{
+	struct flock fl = {F_UNLCK, SEEK_SET, 0, 0, 0};
+	fl.l_pid = getpid();
+
+	if (fcntl(kvp_file_info[pool].fd, F_SETLK, &fl) == -1) {
+		perror("fcntl");
+		syslog(LOG_ERR, "Failed to release the lock pool: %d", pool);
+		exit(-1);
+	}
+}
+
+static void kvp_update_file(int pool)
+{
+	FILE *filep;
+	size_t bytes_written;
+
+	/*
+	 * We are going to write our in-memory registry out to
+	 * disk; acquire the lock first.
+	 */
+	kvp_acquire_lock(pool);
+
+	filep = fopen(kvp_file_info[pool].fname, "w");
+	if (!filep) {
+		kvp_release_lock(pool);
+		syslog(LOG_ERR, "Failed to open file, pool: %d", pool);
+		exit(-1);
+	}
+
+	bytes_written = fwrite(kvp_file_info[pool].records,
+				sizeof(struct kvp_record),
+				kvp_file_info[pool].num_records, filep);
+
+	fflush(filep);
+	kvp_release_lock(pool);
+}
+
+static int kvp_file_init(void)
+{
+	int ret, fd;
+	FILE *filep;
+	size_t records_read;
+	__u8 *fname;
+	struct kvp_record *record;
+	struct kvp_record *readp;
+	int num_blocks;
+	int i;
+	int alloc_unit = sizeof(struct kvp_record) * ENTRIES_PER_BLOCK;
+
+	if (access("/var/opt/hyperv", F_OK)) {
+		if (mkdir("/var/opt/hyperv", S_IRUSR | S_IWUSR | S_IROTH)) {
+			syslog(LOG_ERR, " Failed to create /var/opt/hyperv");
+			exit(-1);
+		}
+	}
+
+	for (i = 0; i < KVP_POOL_COUNT; i++) {
+		fname = kvp_file_info[i].fname;
+		records_read = 0;
+		num_blocks = 1;
+		sprintf(fname, "/var/opt/hyperv/.kvp_pool_%d", i);
+		fd = open(fname, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR | S_IROTH);
+
+		if (fd == -1)
+			return 1;
+
+
+		filep = fopen(fname, "r");
+		if (!filep)
+			return 1;
+
+		record = malloc(alloc_unit * num_blocks);
+		if (record == NULL) {
+			fclose(filep);
+			return 1;
+		}
+		while (!feof(filep)) {
+			readp = &record[records_read];
+			records_read += fread(readp, sizeof(struct kvp_record),
+					ENTRIES_PER_BLOCK,
+					filep);
+
+			if (!feof(filep)) {
+				/*
+				 * We have more data to read.
+				 */
+				num_blocks++;
+				record = realloc(record, alloc_unit *
+						num_blocks);
+				if (record == NULL) {
+					fclose(filep);
+					return 1;
+				}
+				continue;
+			}
+			break;
+		}
+		kvp_file_info[i].fd = fd;
+		kvp_file_info[i].num_blocks = num_blocks;
+		kvp_file_info[i].records = record;
+		kvp_file_info[i].num_records = records_read;
+		fclose(filep);
+
+	}
+
+	return 0;
+}
+
+static int kvp_key_delete(int pool, __u8 *key, int key_size)
+{
+	int i;
+	int j, k;
+	int num_records = kvp_file_info[pool].num_records;
+	struct kvp_record *record = kvp_file_info[pool].records;
+
+	for (i = 0; i < num_records; i++) {
+		if (memcmp(key, record[i].key, key_size))
+			continue;
+		/*
+		 * Found a match; just move the remaining
+		 * entries up.
+		 */
+		if (i == num_records) {
+			kvp_file_info[pool].num_records--;
+			kvp_update_file(pool);
+			return 0;
+		}
+
+		j = i;
+		k = j + 1;
+		for (; k < num_records; k++) {
+			strcpy(record[j].key, record[k].key);
+			strcpy(record[j].value, record[k].value);
+			j++;
+		}
+
+		kvp_file_info[pool].num_records--;
+		kvp_update_file(pool);
+		return 0;
+	}
+	return 1;
+}
+
+static int kvp_key_add_or_modify(int pool, __u8 *key, int key_size, __u8 *value,
+			int value_size)
+{
+	int i;
+	int j, k;
+	int num_records = kvp_file_info[pool].num_records;
+	struct kvp_record *record = kvp_file_info[pool].records;
+	int num_blocks = kvp_file_info[pool].num_blocks;
+
+	if ((key_size > HV_KVP_EXCHANGE_MAX_KEY_SIZE) ||
+		(value_size > HV_KVP_EXCHANGE_MAX_VALUE_SIZE))
+		return 1;
+
+	for (i = 0; i < num_records; i++) {
+		if (memcmp(key, record[i].key, key_size))
+			continue;
+		/*
+		 * Found a match; just update the value -
+		 * this is the modify case.
+		 */
+		memcpy(record[i].value, value, value_size);
+		kvp_update_file(pool);
+		return 0;
+	}
+
+	/*
+	 * Need to add a new entry;
+	 */
+	if (num_records == (ENTRIES_PER_BLOCK * num_blocks)) {
+		/* Need to allocate a larger array for reg entries. */
+		record = realloc(record, sizeof(struct kvp_record) *
+			 ENTRIES_PER_BLOCK * (num_blocks + 1));
+
+		if (record == NULL)
+			return 1;
+		kvp_file_info[pool].num_blocks++;
+
+	}
+	memcpy(record[i].value, value, value_size);
+	memcpy(record[i].key, key, key_size);
+	kvp_file_info[pool].records = record;
+	kvp_file_info[pool].num_records++;
+	kvp_update_file(pool);
+	return 0;
+}
+
+static int kvp_get_value(int pool, __u8 *key, int key_size, __u8 *value,
+			int value_size)
+{
+	int i;
+	int num_records = kvp_file_info[pool].num_records;
+	struct kvp_record *record = kvp_file_info[pool].records;
+
+	if ((key_size > HV_KVP_EXCHANGE_MAX_KEY_SIZE) ||
+		(value_size > HV_KVP_EXCHANGE_MAX_VALUE_SIZE))
+		return 1;
+
+	for (i = 0; i < num_records; i++) {
+		if (memcmp(key, record[i].key, key_size))
+			continue;
+		/*
+		 * Found a match; just copy the value out.
+		 */
+		memcpy(value, record[i].value, value_size);
+		return 0;
+	}
+
+	return 1;
+}
 
 void kvp_get_os_info(void)
 {
@@ -315,6 +560,11 @@ int main(void)
 	 */
 	kvp_get_os_info();
 
+	if (kvp_file_init()) {
+		syslog(LOG_ERR, "Failed to initialize the pools");
+		exit(-1);
+	}
+
 	fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_CONNECTOR);
 	if (fd < 0) {
 		syslog(LOG_ERR, "netlink socket creation failed; error:%d", fd);
@@ -389,9 +639,38 @@ int main(void)
 			}
 			continue;
 
+		/*
+		 * The current protocol with the kernel component uses a
+		 * NULL key name to pass an error condition.
+		 * For the SET, GET and DELETE operations,
+		 * use the existing protocol to pass back error.
+		 */
+
 		case KVP_OP_SET:
+			if (kvp_key_add_or_modify(hv_msg->kvp_hdr.pool,
+					hv_msg->body.kvp_set.data.key,
+					hv_msg->body.kvp_set.data.key_size,
+					hv_msg->body.kvp_set.data.value,
+					hv_msg->body.kvp_set.data.value_size))
+				strcpy(hv_msg->body.kvp_set.data.key, "");
+			break;
+
 		case KVP_OP_GET:
+			if (kvp_get_value(hv_msg->kvp_hdr.pool,
+					hv_msg->body.kvp_set.data.key,
+					hv_msg->body.kvp_set.data.key_size,
+					hv_msg->body.kvp_set.data.value,
+					hv_msg->body.kvp_set.data.value_size))
+				strcpy(hv_msg->body.kvp_set.data.key, "");
+			break;
+
 		case KVP_OP_DELETE:
+			if (kvp_key_delete(hv_msg->kvp_hdr.pool,
+					hv_msg->body.kvp_delete.key,
+					hv_msg->body.kvp_delete.key_size))
+				strcpy(hv_msg->body.kvp_delete.key, "");
+			break;
+
 		default:
 			break;
 		}
