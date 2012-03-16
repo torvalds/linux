@@ -1721,6 +1721,14 @@ F:	include/linux/can/error.h
 F:	include/linux/can/netlink.h
 F:	include/linux/can/platform/
 
+CAPABILITIES
+M:	Serge Hallyn <serge.hallyn@canonical.com>
+L:	linux-security-module@vger.kernel.org
+S:	Supported	
+F:	include/linux/capability.h
+F:	security/capability.c
+F:	security/commoncap.c 
+
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
 L:	linuxppc-dev@lists.ozlabs.org
