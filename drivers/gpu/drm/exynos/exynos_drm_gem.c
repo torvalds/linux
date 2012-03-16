@@ -386,6 +386,64 @@ int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+void *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
+					unsigned int gem_handle,
+					struct drm_file *file_priv)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
+		DRM_DEBUG_KMS("not support NONCONTIG type.\n");
+		drm_gem_object_unreference_unlocked(obj);
+
+		/* TODO */
+		return ERR_PTR(-EINVAL);
+	}
+
+	return &exynos_gem_obj->buffer->dma_addr;
+}
+
+void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
+					unsigned int gem_handle,
+					struct drm_file *file_priv)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return;
+	}
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
+		DRM_DEBUG_KMS("not support NONCONTIG type.\n");
+		drm_gem_object_unreference_unlocked(obj);
+
+		/* TODO */
+		return;
+	}
+
+	drm_gem_object_unreference_unlocked(obj);
+
+	/*
+	 * decrease obj->refcount one more time because we has already
+	 * increased it at exynos_drm_gem_get_dma_addr().
+	 */
+	drm_gem_object_unreference_unlocked(obj);
+}
+
 int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
 				    struct drm_file *file_priv)
 {
