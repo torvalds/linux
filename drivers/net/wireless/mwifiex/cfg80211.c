@@ -519,9 +519,9 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	struct mwifiex_rate_cfg rate;
 
 	sinfo->filled = STATION_INFO_RX_BYTES | STATION_INFO_TX_BYTES |
-		STATION_INFO_RX_PACKETS |
-		STATION_INFO_TX_PACKETS
-		| STATION_INFO_SIGNAL | STATION_INFO_TX_BITRATE;
+			STATION_INFO_RX_PACKETS | STATION_INFO_TX_PACKETS |
+			STATION_INFO_TX_BITRATE |
+			STATION_INFO_SIGNAL | STATION_INFO_SIGNAL_AVG;
 
 	/* Get signal information from the firmware */
 	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_RSSI_INFO,
@@ -555,6 +555,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			sinfo->txrate.flags |= RATE_INFO_FLAGS_SHORT_GI;
 	}
 
+	sinfo->signal_avg = priv->bcn_rssi_avg;
 	sinfo->rx_bytes = priv->stats.rx_bytes;
 	sinfo->tx_bytes = priv->stats.tx_bytes;
 	sinfo->rx_packets = priv->stats.rx_packets;
