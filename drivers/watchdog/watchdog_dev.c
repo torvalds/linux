@@ -236,6 +236,11 @@ static long watchdog_ioctl(struct file *file, unsigned int cmd,
 		if (wdd->timeout == 0)
 			return -EOPNOTSUPP;
 		return put_user(wdd->timeout, p);
+	case WDIOC_GETTIMELEFT:
+		if (!wdd->ops->get_timeleft)
+			return -EOPNOTSUPP;
+
+		return put_user(wdd->ops->get_timeleft(wdd), p);
 	default:
 		return -ENOTTY;
 	}
