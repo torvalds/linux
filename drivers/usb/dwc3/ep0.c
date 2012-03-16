@@ -353,6 +353,9 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 
 			dwc->test_mode_nr = wIndex >> 8;
 			dwc->test_mode = true;
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 
