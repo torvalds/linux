@@ -980,12 +980,14 @@ out_done:
 	return rv;
 }
 
-static int alloc_ds_commits(struct inode *inode, struct list_head *list)
+static unsigned int
+alloc_ds_commits(struct inode *inode, struct list_head *list)
 {
 	struct pnfs_layout_segment *lseg;
 	struct nfs4_filelayout_segment *fl;
 	struct nfs_write_data *data;
 	int i, j;
+	unsigned int nreq = 0;
 
 	/* Won't need this when non-whole file layout segments are supported
 	 * instead we will use a pnfs_layout_hdr structure */
@@ -998,15 +1000,14 @@ static int alloc_ds_commits(struct inode *inode, struct list_head *list)
 			continue;
 		data = nfs_commitdata_alloc();
 		if (!data)
-			goto out_bad;
+			break;
 		data->ds_commit_index = i;
 		data->lseg = lseg;
 		list_add(&data->pages, list);
+		nreq++;
 	}
-	put_lseg(lseg);
-	return 0;
 
-out_bad:
+	/* Clean up on error */
 	for (j = i; j < fl->number_of_buckets; j++) {
 		if (list_empty(&fl->commit_buckets[i].committing))
 			continue;
@@ -1015,7 +1016,7 @@ out_bad:
 	}
 	put_lseg(lseg);
 	/* Caller will clean up entries put on list */
-	return -ENOMEM;
+	return nreq;
 }
 
 /* This follows nfs_commit_list pretty closely */
@@ -1025,21 +1026,29 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 {
 	struct nfs_write_data	*data, *tmp;
 	LIST_HEAD(list);
+	unsigned int nreq = 0;
 
 	if (!list_empty(mds_pages)) {
 		data = nfs_commitdata_alloc();
-		if (!data)
-			goto out_bad;
-		data->lseg = NULL;
-		list_add(&data->pages, &list);
+		if (data != NULL) {
+			data->lseg = NULL;
+			list_add(&data->pages, &list);
+			nreq++;
+		} else
+			nfs_retry_commit(mds_pages, NULL);
 	}
 
-	if (alloc_ds_commits(inode, &list))
-		goto out_bad;
+	nreq += alloc_ds_commits(inode, &list);
+
+	if (nreq == 0) {
+		nfs_commit_clear_lock(NFS_I(inode));
+		goto out;
+	}
+
+	atomic_add(nreq, &NFS_I(inode)->commits_outstanding);
 
 	list_for_each_entry_safe(data, tmp, &list, pages) {
 		list_del_init(&data->pages);
-		atomic_inc(&NFS_I(inode)->commits_outstanding);
 		if (!data->lseg) {
 			nfs_init_commit(data, mds_pages, NULL);
 			nfs_initiate_commit(data, NFS_CLIENT(inode),
@@ -1049,16 +1058,8 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			filelayout_initiate_commit(data, how);
 		}
 	}
-	return 0;
- out_bad:
-	list_for_each_entry_safe(data, tmp, &list, pages) {
-		nfs_retry_commit(&data->pages, data->lseg);
-		list_del_init(&data->pages);
-		nfs_commit_free(data);
-	}
-	nfs_retry_commit(mds_pages, NULL);
-	nfs_commit_clear_lock(NFS_I(inode));
-	return -ENOMEM;
+out:
+	return PNFS_ATTEMPTED;
 }
 
 static void
