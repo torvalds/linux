@@ -26,15 +26,15 @@
 #define __NOUVEAU_DRV_H__
 
 #define DRIVER_AUTHOR		"Stephane Marchesin"
-#define DRIVER_EMAIL		"dri-devel@lists.sourceforge.net"
+#define DRIVER_EMAIL		"nouveau@lists.freedesktop.org"
 
 #define DRIVER_NAME		"nouveau"
 #define DRIVER_DESC		"nVidia Riva/TNT/GeForce"
-#define DRIVER_DATE		"20090420"
+#define DRIVER_DATE		"20120316"
 
-#define DRIVER_MAJOR		0
+#define DRIVER_MAJOR		1
 #define DRIVER_MINOR		0
-#define DRIVER_PATCHLEVEL	16
+#define DRIVER_PATCHLEVEL	0
 
 #define NOUVEAU_FAMILY   0x0000FFFF
 #define NOUVEAU_FLAGS    0xFFFF0000
