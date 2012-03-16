@@ -2011,13 +2011,20 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	fcrth = hw->fc.high_water[packetbuf_num] << 10;
 	fcrtl = hw->fc.low_water << 10;
 
 	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
+		fcrth = hw->fc.high_water[packetbuf_num] << 10;
 		fcrth |= IXGBE_FCRTH_FCEN;
 		if (hw->fc.send_xon)
 			fcrtl |= IXGBE_FCRTL_XONE;
+	} else {
+		/*
+		 * If Tx flow control is disabled, set our high water mark
+		 * to Rx FIFO size minus 32 in order prevent Tx switch
+		 * loopback from stalling on DMA.
+		 */
+		fcrth = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num)) - 32;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), fcrth);
