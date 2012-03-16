@@ -129,6 +129,133 @@ struct clk_ops {
 	void		(*init)(struct clk_hw *hw);
 };
 
+/*
+ * DOC: Basic clock implementations common to many platforms
+ *
+ * Each basic clock hardware type is comprised of a structure describing the
+ * clock hardware, implementations of the relevant callbacks in struct clk_ops,
+ * unique flags for that hardware type, a registration function and an
+ * alternative macro for static initialization
+ */
+
+/**
+ * struct clk_fixed_rate - fixed-rate clock
+ * @hw:		handle between common and hardware-specific interfaces
+ * @fixed_rate:	constant frequency of clock
+ */
+struct clk_fixed_rate {
+	struct		clk_hw hw;
+	unsigned long	fixed_rate;
+	u8		flags;
+};
+
+struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		unsigned long fixed_rate);
+
+/**
+ * struct clk_gate - gating clock
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @reg:	register controlling gate
+ * @bit_idx:	single bit controlling gate
+ * @flags:	hardware-specific flags
+ * @lock:	register lock
+ *
+ * Clock which can gate its output.  Implements .enable & .disable
+ *
+ * Flags:
+ * CLK_GATE_SET_DISABLE - by default this clock sets the bit at bit_idx to
+ * 	enable the clock.  Setting this flag does the opposite: setting the bit
+ * 	disable the clock and clearing it enables the clock
+ */
+struct clk_gate {
+	struct clk_hw hw;
+	void __iomem	*reg;
+	u8		bit_idx;
+	u8		flags;
+	spinlock_t	*lock;
+	char		*parent[1];
+};
+
+#define CLK_GATE_SET_TO_DISABLE		BIT(0)
+
+struct clk *clk_register_gate(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		void __iomem *reg, u8 bit_idx,
+		u8 clk_gate_flags, spinlock_t *lock);
+
+/**
+ * struct clk_divider - adjustable divider clock
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @reg:	register containing the divider
+ * @shift:	shift to the divider bit field
+ * @width:	width of the divider bit field
+ * @lock:	register lock
+ *
+ * Clock with an adjustable divider affecting its output frequency.  Implements
+ * .recalc_rate, .set_rate and .round_rate
+ *
+ * Flags:
+ * CLK_DIVIDER_ONE_BASED - by default the divisor is the value read from the
+ * 	register plus one.  If CLK_DIVIDER_ONE_BASED is set then the divider is
+ * 	the raw value read from the register, with the value of zero considered
+ * 	invalid
+ * CLK_DIVIDER_POWER_OF_TWO - clock divisor is 2 raised to the value read from
+ * 	the hardware register
+ */
+struct clk_divider {
+	struct clk_hw	hw;
+	void __iomem	*reg;
+	u8		shift;
+	u8		width;
+	u8		flags;
+	spinlock_t	*lock;
+	char		*parent[1];
+};
+
+#define CLK_DIVIDER_ONE_BASED		BIT(0)
+#define CLK_DIVIDER_POWER_OF_TWO	BIT(1)
+
+struct clk *clk_register_divider(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		void __iomem *reg, u8 shift, u8 width,
+		u8 clk_divider_flags, spinlock_t *lock);
+
+/**
+ * struct clk_mux - multiplexer clock
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @reg:	register controlling multiplexer
+ * @shift:	shift to multiplexer bit field
+ * @width:	width of mutliplexer bit field
+ * @num_clks:	number of parent clocks
+ * @lock:	register lock
+ *
+ * Clock with multiple selectable parents.  Implements .get_parent, .set_parent
+ * and .recalc_rate
+ *
+ * Flags:
+ * CLK_MUX_INDEX_ONE - register index starts at 1, not 0
+ * CLK_MUX_INDEX_BITWISE - register index is a single bit (power of two)
+ */
+struct clk_mux {
+	struct clk_hw	hw;
+	void __iomem	*reg;
+	u8		shift;
+	u8		width;
+	u8		flags;
+	spinlock_t	*lock;
+};
+
+#define CLK_MUX_INDEX_ONE		BIT(0)
+#define CLK_MUX_INDEX_BIT		BIT(1)
+
+struct clk *clk_register_mux(struct device *dev, const char *name,
+		char **parent_names, u8 num_parents, unsigned long flags,
+		void __iomem *reg, u8 shift, u8 width,
+		u8 clk_mux_flags, spinlock_t *lock);
 
 /**
  * clk_register - allocate a new clock, register it and return an opaque cookie
