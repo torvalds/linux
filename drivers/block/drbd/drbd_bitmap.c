@@ -205,7 +205,7 @@ void drbd_bm_unlock(struct drbd_conf *mdev)
 static void bm_store_page_idx(struct page *page, unsigned long idx)
 {
 	BUG_ON(0 != (idx & ~BM_PAGE_IDX_MASK));
-	page_private(page) |= idx;
+	set_page_private(page, idx);
 }
 
 static unsigned long bm_page_to_idx(struct page *page)
