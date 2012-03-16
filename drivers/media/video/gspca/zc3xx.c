@@ -6562,7 +6562,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	static const u8 reg08_tb[SENSOR_MAX] = {
 		[SENSOR_ADCM2700] =	1,
 		[SENSOR_CS2102] =	3,
-/*		[SENSOR_CS2102K] =	3, */
+		[SENSOR_CS2102K] =	3,
 		[SENSOR_GC0303] =	2,
 		[SENSOR_GC0305] =	3,
 		[SENSOR_HDCS2020] =	1,
