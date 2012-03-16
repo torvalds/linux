@@ -523,7 +523,7 @@ static struct platform_driver s3c2410wdt_driver = {
 
 static int __init watchdog_init(void)
 {
-	pr_info("S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n";
+	pr_info("S3C2410 Watchdog Timer, (c) 2004 Simtec Electronics\n");
 
 	return platform_driver_register(&s3c2410wdt_driver);
 }
