@@ -41,7 +41,6 @@ struct mpc8610_hpcd_data {
 	unsigned int dma_id[2];		/* 0 = DMA1, 1 = DMA2, etc */
 	unsigned int dma_channel_id[2]; /* 0 = ch 0, 1 = ch 1, etc*/
 	char codec_dai_name[DAI_NAME_SIZE];
-	char codec_name[DAI_NAME_SIZE];
 	char platform_name[2][DAI_NAME_SIZE]; /* One for each DMA channel */
 };
 
@@ -215,16 +214,8 @@ static int mpc8610_hpcd_probe(struct platform_device *pdev)
 	machine_data->dai[0].cpu_dai_name = dev_name(&ssi_pdev->dev);
 	machine_data->dai[0].ops = &mpc8610_hpcd_ops;
 
-	/* Determine the codec name, it will be used as the codec DAI name */
-	ret = fsl_asoc_get_codec_dev_name(codec_np, machine_data->codec_name,
-					  DAI_NAME_SIZE);
-	if (ret) {
-		dev_err(&pdev->dev, "invalid codec node %s\n",
-			codec_np->full_name);
-		ret = -EINVAL;
-		goto error;
-	}
-	machine_data->dai[0].codec_name = machine_data->codec_name;
+	/* ASoC core can match codec with device node */
+	machine_data->dai[0].codec_of_node = codec_np;
 
 	/* The DAI name from the codec (snd_soc_dai_driver.name) */
 	machine_data->dai[0].codec_dai_name = "cs4270-hifi";

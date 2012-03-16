@@ -12,53 +12,9 @@
 
 #include <linux/module.h>
 #include <linux/of_address.h>
-#include <linux/of_i2c.h>
 #include <sound/soc.h>
 
 #include "fsl_utils.h"
-
-/**
- * fsl_asoc_get_codec_dev_name - determine the dev_name for a codec node
- *
- * @np: pointer to the I2C device tree node
- * @buf: buffer to be filled with the dev_name of the I2C device
- * @len: the length of the buffer
- *
- * This function determines the dev_name for an I2C node.  This is the name
- * that would be returned by dev_name() if this device_node were part of a
- * 'struct device'  It's ugly and hackish, but it works.
- *
- * The dev_name for such devices include the bus number and I2C address. For
- * example, "cs4270.0-004f".
- */
-int fsl_asoc_get_codec_dev_name(struct device_node *np, char *buf, size_t len)
-{
-	const u32 *iprop;
-	u32 addr;
-	char temp[DAI_NAME_SIZE];
-	struct i2c_client *i2c;
-
-	of_modalias_node(np, temp, DAI_NAME_SIZE);
-
-	iprop = of_get_property(np, "reg", NULL);
-	if (!iprop)
-		return -EINVAL;
-
-	addr = be32_to_cpup(iprop);
-
-	/* We need the adapter number */
-	i2c = of_find_i2c_device_by_node(np);
-	if (!i2c) {
-		put_device(&i2c->dev);
-		return -ENODEV;
-	}
-
-	snprintf(buf, len, "%s.%u-%04x", temp, i2c->adapter->nr, addr);
-	put_device(&i2c->dev);
-
-	return 0;
-}
-EXPORT_SYMBOL(fsl_asoc_get_codec_dev_name);
 
 /**
  * fsl_asoc_get_dma_channel - determine the dma channel for a SSI node

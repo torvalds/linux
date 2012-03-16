@@ -73,7 +73,6 @@ struct machine_data {
 	unsigned int ssi_id;		/* 0 = SSI1, 1 = SSI2, etc */
 	unsigned int dma_id[2];		/* 0 = DMA1, 1 = DMA2, etc */
 	unsigned int dma_channel_id[2]; /* 0 = ch 0, 1 = ch 1, etc*/
-	char codec_name[DAI_NAME_SIZE];
 	char platform_name[2][DAI_NAME_SIZE]; /* One for each DMA channel */
 };
 
@@ -225,16 +224,8 @@ static int p1022_ds_probe(struct platform_device *pdev)
 	mdata->dai[0].cpu_dai_name = dev_name(&ssi_pdev->dev);
 	mdata->dai[0].ops = &p1022_ds_ops;
 
-	/* Determine the codec name, it will be used as the codec DAI name */
-	ret = fsl_asoc_get_codec_dev_name(codec_np, mdata->codec_name,
-					  DAI_NAME_SIZE);
-	if (ret) {
-		dev_err(&pdev->dev, "invalid codec node %s\n",
-			codec_np->full_name);
-		ret = -EINVAL;
-		goto error;
-	}
-	mdata->dai[0].codec_name = mdata->codec_name;
+	/* ASoC core can match codec with device node */
+	mdata->dai[0].codec_of_node = codec_np;
 
 	/* We register two DAIs per SSI, one for playback and the other for
 	 * capture.  We support codecs that have separate DAIs for both playback
