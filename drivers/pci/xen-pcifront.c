@@ -593,7 +593,7 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 	}
 	pdrv = pcidev->driver;
 
-	if (get_driver(&pdrv->driver)) {
+	if (pdrv) {
 		if (pdrv->err_handler && pdrv->err_handler->error_detected) {
 			dev_dbg(&pcidev->dev,
 				"trying to call AER service\n");
@@ -623,7 +623,6 @@ static pci_ers_result_t pcifront_common_process(int cmd,
 				}
 			}
 		}
-		put_driver(&pdrv->driver);
 	}
 	if (!flag)
 		result = PCI_ERS_RESULT_NONE;

@@ -28,6 +28,7 @@
 #include <asm/timer.h>		/* Needed for recalibrate_cpu_khz() */
 #include <asm/msr.h>
 #include <asm/system.h>
+#include <asm/cpu_device_id.h>
 
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI
 #include <linux/acpi.h>
@@ -110,18 +111,19 @@ static int check_fsb(unsigned int fsbspeed)
 	return delta < 5;
 }
 
+static const struct x86_cpu_id powernow_k7_cpuids[] = {
+	{ X86_VENDOR_AMD, 7, },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, powernow_k7_cpuids);
+
 static int check_powernow(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	unsigned int maxei, eax, ebx, ecx, edx;
 
-	if ((c->x86_vendor != X86_VENDOR_AMD) || (c->x86 != 6)) {
-#ifdef MODULE
-		printk(KERN_INFO PFX "This module only works with "
-				"AMD K7 CPUs\n");
-#endif
+	if (!x86_match_cpu(powernow_k7_cpuids))
 		return 0;
-	}
 
 	/* Get maximum capabilities */
 	maxei = cpuid_eax(0x80000000);

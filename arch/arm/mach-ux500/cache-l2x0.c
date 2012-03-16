@@ -5,6 +5,8 @@
  */
 
 #include <linux/io.h>
+#include <linux/of.h>
+
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/hardware.h>
@@ -45,7 +47,10 @@ static int __init ux500_l2x0_init(void)
 	ux500_l2x0_unlock();
 
 	/* 64KB way size, 8 way associativity, force WA */
-	l2x0_init(l2x0_base, 0x3e060000, 0xc0000fff);
+	if (of_have_populated_dt())
+		l2x0_of_init(0x3e060000, 0xc0000fff);
+	else
+		l2x0_init(l2x0_base, 0x3e060000, 0xc0000fff);
 
 	/*
 	 * We can't disable l2 as we are in non secure mode, currently

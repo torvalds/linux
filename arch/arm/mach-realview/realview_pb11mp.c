@@ -36,7 +36,7 @@
 #include <asm/pgtable.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <asm/localtimer.h>
+#include <asm/smp_twd.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -290,6 +290,21 @@ static void __init gic_init_irq(void)
 	gic_cascade_irq(1, IRQ_TC11MP_PB_IRQ1);
 }
 
+#ifdef CONFIG_HAVE_ARM_TWD
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer,
+			      REALVIEW_TC11MP_TWD_BASE,
+			      IRQ_LOCALTIMER);
+
+static void __init realview_pb11mp_twd_init(void)
+{
+	int err = twd_local_timer_register(&twd_local_timer);
+	if (err)
+		pr_err("twd_local_timer_register failed %d\n", err);
+}
+#else
+#define realview_pb11mp_twd_init()	do {} while(0)
+#endif
+
 static void __init realview_pb11mp_timer_init(void)
 {
 	timer0_va_base = __io_address(REALVIEW_PB11MP_TIMER0_1_BASE);
@@ -297,10 +312,8 @@ static void __init realview_pb11mp_timer_init(void)
 	timer2_va_base = __io_address(REALVIEW_PB11MP_TIMER2_3_BASE);
 	timer3_va_base = __io_address(REALVIEW_PB11MP_TIMER2_3_BASE) + 0x20;
 
-#ifdef CONFIG_LOCAL_TIMERS
-	twd_base = __io_address(REALVIEW_TC11MP_TWD_BASE);
-#endif
 	realview_timer_init(IRQ_TC11MP_TIMER0_1);
+	realview_pb11mp_twd_init();
 }
 
 static struct sys_timer realview_pb11mp_timer = {
