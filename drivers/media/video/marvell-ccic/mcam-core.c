@@ -509,11 +509,17 @@ static void mcam_sg_next_buffer(struct mcam_camera *cam)
 
 	buf = list_first_entry(&cam->buffers, struct mcam_vb_buffer, queue);
 	list_del_init(&buf->queue);
+	/*
+	 * Very Bad Not Good Things happen if you don't clear
+	 * C1_DESC_ENA before making any descriptor changes.
+	 */
+	mcam_reg_clear_bit(cam, REG_CTRL1, C1_DESC_ENA);
 	mcam_reg_write(cam, REG_DMA_DESC_Y, buf->dma_desc_pa);
 	mcam_reg_write(cam, REG_DESC_LEN_Y,
 			buf->dma_desc_nent*sizeof(struct mcam_dma_desc));
 	mcam_reg_write(cam, REG_DESC_LEN_U, 0);
 	mcam_reg_write(cam, REG_DESC_LEN_V, 0);
+	mcam_reg_set_bit(cam, REG_CTRL1, C1_DESC_ENA);
 	cam->vb_bufs[0] = buf;
 }
 
@@ -533,7 +539,6 @@ static void mcam_ctlr_dma_sg(struct mcam_camera *cam)
 
 	mcam_reg_clear_bit(cam, REG_CTRL1, C1_DESC_3WORD);
 	mcam_sg_next_buffer(cam);
-	mcam_reg_set_bit(cam, REG_CTRL1, C1_DESC_ENA);
 	cam->nbufs = 3;
 }
 
@@ -561,17 +566,11 @@ static void mcam_dma_sg_done(struct mcam_camera *cam, int frame)
 	if (cam->state != S_STREAMING)
 		return;
 	/*
-	 * Very Bad Not Good Things happen if you don't clear
-	 * C1_DESC_ENA before making any descriptor changes.
-	 */
-	mcam_reg_clear_bit(cam, REG_CTRL1, C1_DESC_ENA);
-	/*
 	 * If we have another buffer available, put it in and
 	 * restart the engine.
 	 */
 	if (!list_empty(&cam->buffers)) {
 		mcam_sg_next_buffer(cam);
-		mcam_reg_set_bit(cam, REG_CTRL1, C1_DESC_ENA);
 		mcam_ctlr_start(cam);
 	/*
 	 * Otherwise set CF_SG_RESTART and the controller will
