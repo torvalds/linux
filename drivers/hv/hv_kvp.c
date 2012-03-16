@@ -289,14 +289,15 @@ kvp_respond_to_host(char *key, char *value, int error)
 
 
 	/*
-	 * If the error parameter is set, terminate the host's enumeration.
+	 * If the error parameter is set, terminate the host's enumeration
+	 * on this pool.
 	 */
 	if (error) {
 		/*
 		 * Something failed or the we have timedout;
-		 * terminate the host-side iteration by returning an error.
+		 * terminate the current  host-side iteration.
 		 */
-		icmsghdrp->status = HV_E_FAIL;
+		icmsghdrp->status = HV_S_CONT;
 		goto response_done;
 	}
 

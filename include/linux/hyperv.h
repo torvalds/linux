@@ -952,6 +952,7 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 
 #define HV_S_OK				0x00000000
 #define HV_E_FAIL			0x80004005
+#define HV_S_CONT			0x80070103
 #define HV_ERROR_NOT_SUPPORTED		0x80070032
 #define HV_ERROR_MACHINE_LOCKED		0x800704F7
 
