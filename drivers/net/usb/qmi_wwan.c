@@ -214,6 +214,20 @@ static int qmi_wwan_bind_shared(struct usbnet *dev, struct usb_interface *intf)
 	struct usb_driver *subdriver = NULL;
 	atomic_t *pmcount = (void *)&dev->data[1];
 
+	/* ZTE makes devices where the interface descriptors and endpoint
+	 * configurations of two or more interfaces are identical, even
+	 * though the functions are completely different.  If set, then
+	 * driver_info->data is a bitmap of acceptable interface numbers
+	 * allowing us to bind to one such interface without binding to
+	 * all of them
+	 */
+	if (dev->driver_info->data &&
+	    !test_bit(intf->cur_altsetting->desc.bInterfaceNumber, &dev->driver_info->data)) {
+		dev_info(&intf->dev, "not on our whitelist - ignored");
+		rv = -ENODEV;
+		goto err;
+	}
+
 	atomic_set(pmcount, 0);
 
 	/* collect all three endpoints */
@@ -341,6 +355,17 @@ static const struct driver_info	qmi_wwan_gobi = {
 	.manage_power	= qmi_wwan_manage_power,
 };
 
+/* ZTE suck at making USB descriptors */
+static const struct driver_info	qmi_wwan_force_int4 = {
+	.description	= "Qualcomm Gobi wwan/QMI device",
+	.flags		= FLAG_WWAN,
+	.bind		= qmi_wwan_bind_gobi,
+	.unbind		= qmi_wwan_unbind_shared,
+	.manage_power	= qmi_wwan_manage_power,
+	.data		= BIT(4), /* interface whitelist bitmap */
+};
+
+
 #define HUAWEI_VENDOR_ID	0x12D1
 #define QMI_GOBI_DEVICE(vend, prod) \
 	USB_DEVICE(vend, prod), \
@@ -374,6 +399,15 @@ static const struct usb_device_id products[] = {
 		.bInterfaceSubClass = 0xf0,
 		.bInterfaceProtocol = 0xff,
 		.driver_info        = (unsigned long)&qmi_wwan_shared,
+	},
+	{	/* ZTE MF820D */
+		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = 0x19d2,
+		.idProduct          = 0x0167,
+		.bInterfaceClass    = 0xff,
+		.bInterfaceSubClass = 0xff,
+		.bInterfaceProtocol = 0xff,
+		.driver_info        = (unsigned long)&qmi_wwan_force_int4,
 	},
 	{QMI_GOBI_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
 	{QMI_GOBI_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */
