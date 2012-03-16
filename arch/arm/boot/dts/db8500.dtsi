@@ -42,6 +42,12 @@
 			interrupts = <0 7 0x4>;
 		};
 
+		timer@a0410600 {
+			compatible = "arm,cortex-a9-twd-timer";
+			reg = <0xa0410600 0x20>;
+			interrupts = <1 13 0x304>;
+		};
+
 		rtc@80154000 {
 			compatible = "stericsson,db8500-rtc";
 			reg = <0x80154000 0x1000>;
