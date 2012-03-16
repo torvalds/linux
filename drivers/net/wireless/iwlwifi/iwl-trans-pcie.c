@@ -951,12 +951,13 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 /*
  * ucode
  */
-static int iwl_load_section(struct iwl_trans *trans, const char *name,
-			    const struct fw_desc *image, u32 dst_addr)
+static int iwl_load_section(struct iwl_trans *trans, u8 section_num,
+			    const struct fw_desc *section)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	dma_addr_t phy_addr = image->p_addr;
-	u32 byte_cnt = image->len;
+	dma_addr_t phy_addr = section->p_addr;
+	u32 byte_cnt = section->len;
+	u32 dst_addr = section->offset;
 	int ret;
 
 	trans_pcie->ucode_write_complete = false;
@@ -989,12 +990,13 @@ static int iwl_load_section(struct iwl_trans *trans, const char *name,
 		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
 		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
 
-	IWL_DEBUG_FW(trans, "%s uCode section being loaded...\n", name);
+	IWL_DEBUG_FW(trans, "[%d] uCode section being loaded...\n",
+		     section_num);
 	ret = wait_event_timeout(trans_pcie->ucode_write_waitq,
 				 trans_pcie->ucode_write_complete, 5 * HZ);
 	if (!ret) {
-		IWL_ERR(trans, "Could not load the %s uCode section\n",
-			name);
+		IWL_ERR(trans, "Could not load the [%d] uCode section\n",
+			section_num);
 		return -ETIMEDOUT;
 	}
 
@@ -1005,16 +1007,16 @@ static int iwl_load_given_ucode(struct iwl_trans *trans,
 				const struct fw_img *image)
 {
 	int ret = 0;
+		int i;
 
-	ret = iwl_load_section(trans, "INST", &image->code,
-				   IWLAGN_RTC_INST_LOWER_BOUND);
-	if (ret)
-		return ret;
+		for (i = 0; i < IWL_UCODE_SECTION_MAX; i++) {
+			if (!image->sec[i].p_addr)
+				break;
 
-	ret = iwl_load_section(trans, "DATA", &image->data,
-				    IWLAGN_RTC_DATA_LOWER_BOUND);
-	if (ret)
-		return ret;
+			ret = iwl_load_section(trans, i, &image->sec[i]);
+			if (ret)
+				return ret;
+		}
 
 	/* Remove all resets to allow NIC to operate */
 	iwl_write32(trans, CSR_RESET, 0);
@@ -1466,8 +1468,6 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	IWL_DEBUG_TX(trans, "sequence nr = 0X%x\n",
 		     le16_to_cpu(dev_cmd->hdr.sequence));
 	IWL_DEBUG_TX(trans, "tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
-	iwl_print_hex_dump(trans, IWL_DL_TX, (u8 *)tx_cmd, sizeof(*tx_cmd));
-	iwl_print_hex_dump(trans, IWL_DL_TX, (u8 *)tx_cmd->hdr, hdr_len);
 
 	/* Set up entry for this TFD in Tx byte-count array */
 	iwl_trans_txq_update_byte_cnt_tbl(trans, txq, le16_to_cpu(tx_cmd->len));
@@ -1628,6 +1628,13 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	trans_pcie->cmd_queue = trans_cfg->cmd_queue;
+	if (WARN_ON(trans_cfg->n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
+		trans_pcie->n_no_reclaim_cmds = 0;
+	else
+		trans_pcie->n_no_reclaim_cmds = trans_cfg->n_no_reclaim_cmds;
+	if (trans_pcie->n_no_reclaim_cmds)
+		memcpy(trans_pcie->no_reclaim_cmds, trans_cfg->no_reclaim_cmds,
+		       trans_pcie->n_no_reclaim_cmds * sizeof(u8));
 }
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
@@ -2321,6 +2328,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
 		pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
 		pci_write_config_word(pdev, PCI_COMMAND, pci_cmd);
 	}
+
+	/* Initialize the wait queue for commands */
+	init_waitqueue_head(&trans->wait_command_queue);
 
 	return trans;
 

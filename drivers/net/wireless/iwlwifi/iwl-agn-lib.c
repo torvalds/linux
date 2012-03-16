@@ -1189,6 +1189,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 
 	memcpy(&rxon, &ctx->active, sizeof(rxon));
 
+	priv->ucode_loaded = false;
 	iwl_trans_stop_device(trans(priv));
 
 	priv->wowlan = true;

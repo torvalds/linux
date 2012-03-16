@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2010-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -59,8 +60,9 @@
 #define MAX_DEFAULT_SEND_QUEUE_DEPTH      (MAX_DEF_COOKIE_NUM / WMM_NUM_AC)
 
 #define DISCON_TIMER_INTVAL               10000  /* in msec */
-#define A_DEFAULT_LISTEN_INTERVAL         1      /* beacon intervals */
-#define A_MAX_WOW_LISTEN_INTERVAL         1000
+
+/* Channel dwell time in fg scan */
+#define ATH6KL_FG_SCAN_INTERVAL		50 /* in ms */
 
 /* includes also the null byte */
 #define ATH6KL_FIRMWARE_MAGIC               "QCA-ATH6KL"
@@ -183,6 +185,11 @@ struct ath6kl_fw_ie {
 
 #define MBOX_YIELD_LIMIT 99
 
+#define ATH6KL_DEFAULT_LISTEN_INTVAL	100 /* in TUs */
+#define ATH6KL_DEFAULT_BMISS_TIME	1500
+#define ATH6KL_MAX_WOW_LISTEN_INTL	300 /* in TUs */
+#define ATH6KL_MAX_BMISS_TIME		5000
+
 /* configuration lags */
 /*
  * ATH6KL_CONF_IGNORE_ERP_BARKER: Ignore the barker premable in
@@ -226,6 +233,12 @@ struct rxtid {
 	u32 hold_q_sz;
 	struct skb_hold_q *hold_q;
 	struct sk_buff_head q;
+
+	/*
+	 * FIXME: No clue what this should protect. Apparently it should
+	 * protect some of the fields above but they are also accessed
+	 * without taking the lock.
+	 */
 	spinlock_t lock;
 };
 
@@ -285,6 +298,16 @@ struct ath6kl_cookie {
 	struct ath6kl_cookie *arc_list_next;
 };
 
+struct ath6kl_mgmt_buff {
+	struct list_head list;
+	u32 freq;
+	u32 wait;
+	u32 id;
+	bool no_cck;
+	size_t len;
+	u8 buf[0];
+};
+
 struct ath6kl_sta {
 	u16 sta_flags;
 	u8 mac[ETH_ALEN];
@@ -294,7 +317,12 @@ struct ath6kl_sta {
 	u8 auth;
 	u8 wpa_ie[ATH6KL_MAX_IE];
 	struct sk_buff_head psq;
+
+	/* protects psq, mgmt_psq, apsdq, and mgmt_psq_len fields */
 	spinlock_t psq_lock;
+
+	struct list_head mgmt_psq;
+	size_t mgmt_psq_len;
 	u8 apsd_info;
 	struct sk_buff_head apsdq;
 	struct aggr_info_conn *aggr_conn;
@@ -494,6 +522,8 @@ struct ath6kl_vif {
 	bool probe_req_report;
 	u16 next_chan;
 	u16 assoc_bss_beacon_int;
+	u16 listen_intvl_t;
+	u16 bmiss_time_t;
 	u8 assoc_bss_dtim_period;
 	struct net_device_stats net_stats;
 	struct target_stats target_stats;
@@ -521,6 +551,8 @@ enum ath6kl_dev_state {
 enum ath6kl_state {
 	ATH6KL_STATE_OFF,
 	ATH6KL_STATE_ON,
+	ATH6KL_STATE_SUSPENDING,
+	ATH6KL_STATE_RESUMING,
 	ATH6KL_STATE_DEEPSLEEP,
 	ATH6KL_STATE_CUTPOWER,
 	ATH6KL_STATE_WOW,
@@ -549,9 +581,14 @@ struct ath6kl {
 	unsigned int vif_max;
 	u8 max_norm_iface;
 	u8 avail_idx_map;
+
+	/*
+	 * Protects at least amsdu_rx_buffer_queue, ath6kl_alloc_cookie()
+	 * calls, tx_pending and total_tx_data_pend.
+	 */
 	spinlock_t lock;
+
 	struct semaphore sem;
-	u16 listen_intvl_b;
 	u8 lrssi_roam_threshold;
 	struct ath6kl_version version;
 	u32 target_type;
@@ -577,7 +614,13 @@ struct ath6kl {
 	u8 sta_list_index;
 	struct ath6kl_req_key ap_mode_bkey;
 	struct sk_buff_head mcastpsq;
+
+	/*
+	 * FIXME: protects access to mcastpsq but is actually useless as
+	 * all skbe_queue_*() functions provide serialisation themselves
+	 */
 	spinlock_t mcastpsq_lock;
+
 	u8 intra_bss;
 	struct wmi_ap_mode_stat ap_stats;
 	u8 ap_country_code[3];
@@ -620,6 +663,7 @@ struct ath6kl {
 
 	u16 conf_flags;
 	u16 suspend_mode;
+	u16 wow_suspend_mode;
 	wait_queue_head_t event_wq;
 	struct ath6kl_mbox_info mbox_info;
 
@@ -650,12 +694,16 @@ struct ath6kl {
 
 	bool p2p;
 
+	bool wiphy_registered;
+
 #ifdef CONFIG_ATH6KL_DEBUG
 	struct {
-		struct circ_buf fwlog_buf;
-		spinlock_t fwlog_lock;
-		void *fwlog_tmp;
+		struct sk_buff_head fwlog_queue;
+		struct completion fwlog_completion;
+		bool fwlog_open;
+
 		u32 fwlog_mask;
+
 		unsigned int dbgfs_diag_reg;
 		u32 diag_reg_addr_wr;
 		u32 diag_reg_val_wr;
@@ -727,10 +775,10 @@ struct htc_packet *ath6kl_alloc_amsdu_rxbuf(struct htc_target *target,
 void aggr_module_destroy(struct aggr_info *aggr_info);
 void aggr_reset_state(struct aggr_info_conn *aggr_conn);
 
-struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 * node_addr);
+struct ath6kl_sta *ath6kl_find_sta(struct ath6kl_vif *vif, u8 *node_addr);
 struct ath6kl_sta *ath6kl_find_sta_by_aid(struct ath6kl *ar, u8 aid);
 
-void ath6kl_ready_event(void *devt, u8 * datap, u32 sw_ver, u32 abi_ver);
+void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver);
 int ath6kl_control_tx(void *devt, struct sk_buff *skb,
 		      enum htc_endpoint_id eid);
 void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel,

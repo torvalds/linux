@@ -80,17 +80,10 @@ static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 static inline const struct fw_img *
 iwl_get_ucode_image(struct iwl_priv *priv, enum iwl_ucode_type ucode_type)
 {
-	switch (ucode_type) {
-	case IWL_UCODE_INIT:
-		return &priv->fw->ucode_init;
-	case IWL_UCODE_WOWLAN:
-		return &priv->fw->ucode_wowlan;
-	case IWL_UCODE_REGULAR:
-		return &priv->fw->ucode_rt;
-	case IWL_UCODE_NONE:
-		break;
-	}
-	return NULL;
+	if (ucode_type >= IWL_UCODE_TYPE_MAX)
+		return NULL;
+
+	return &priv->fw->img[ucode_type];
 }
 
 /*
@@ -342,7 +335,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
  *   using sample data 100 bytes apart.  If these sample points are good,
  *   it's a pretty good bet that everything between them is good, too.
  */
-static int iwl_verify_inst_sparse(struct iwl_priv *priv,
+static int iwl_verify_sec_sparse(struct iwl_priv *priv,
 				  const struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -357,7 +350,7 @@ static int iwl_verify_inst_sparse(struct iwl_priv *priv,
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
 		iwl_write_direct32(trans(priv), HBUS_TARG_MEM_RADDR,
-			i + IWLAGN_RTC_INST_LOWER_BOUND);
+			i + fw_desc->offset);
 		val = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image))
 			return -EIO;
@@ -366,7 +359,7 @@ static int iwl_verify_inst_sparse(struct iwl_priv *priv,
 	return 0;
 }
 
-static void iwl_print_mismatch_inst(struct iwl_priv *priv,
+static void iwl_print_mismatch_sec(struct iwl_priv *priv,
 				    const struct fw_desc *fw_desc)
 {
 	__le32 *image = (__le32 *)fw_desc->v_addr;
@@ -378,7 +371,7 @@ static void iwl_print_mismatch_inst(struct iwl_priv *priv,
 	IWL_DEBUG_FW(priv, "ucode inst image size is %u\n", len);
 
 	iwl_write_direct32(trans(priv), HBUS_TARG_MEM_RADDR,
-			   IWLAGN_RTC_INST_LOWER_BOUND);
+				fw_desc->offset);
 
 	for (offs = 0;
 	     offs < len && errors < 20;
@@ -408,14 +401,14 @@ static int iwl_verify_ucode(struct iwl_priv *priv,
 		return -EINVAL;
 	}
 
-	if (!iwl_verify_inst_sparse(priv, &img->code)) {
+	if (!iwl_verify_sec_sparse(priv, &img->sec[IWL_UCODE_SECTION_INST])) {
 		IWL_DEBUG_FW(priv, "uCode is good in inst SRAM\n");
 		return 0;
 	}
 
 	IWL_ERR(priv, "UCODE IMAGE IN INSTRUCTION SRAM NOT VALID!!\n");
 
-	iwl_print_mismatch_inst(priv, &img->code);
+	iwl_print_mismatch_sec(priv, &img->sec[IWL_UCODE_SECTION_INST]);
 	return -EIO;
 }
 
@@ -464,6 +457,8 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 	old_type = priv->shrd->ucode_type;
 	priv->shrd->ucode_type = ucode_type;
 	fw = iwl_get_ucode_image(priv, ucode_type);
+
+	priv->ucode_loaded = false;
 
 	if (!fw)
 		return -EINVAL;
@@ -519,6 +514,8 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 		return ret;
 	}
 
+	priv->ucode_loaded = true;
+
 	return 0;
 }
 
@@ -530,10 +527,10 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	lockdep_assert_held(&priv->mutex);
 
 	/* No init ucode required? Curious, but maybe ok */
-	if (!priv->fw->ucode_init.code.len)
+	if (!priv->fw->img[IWL_UCODE_INIT].sec[0].len)
 		return 0;
 
-	if (priv->shrd->ucode_type != IWL_UCODE_NONE)
+	if (priv->init_ucode_run)
 		return 0;
 
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
@@ -555,6 +552,8 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	 */
 	ret = iwl_wait_notification(&priv->notif_wait, &calib_wait,
 					UCODE_CALIB_TIMEOUT);
+	if (!ret)
+		priv->init_ucode_run = true;
 
 	goto out;
 
@@ -563,5 +562,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
  out:
 	/* Whatever happened, stop the device */
 	iwl_trans_stop_device(trans(priv));
+	priv->ucode_loaded = false;
+
 	return ret;
 }

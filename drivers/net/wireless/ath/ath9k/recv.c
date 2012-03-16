@@ -982,8 +982,6 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 {
 	struct ath_hw *ah = common->ah;
 
-	memset(rx_status, 0, sizeof(struct ieee80211_rx_status));
-
 	/*
 	 * everything but the rate is checked here, the rate check is done
 	 * separately to avoid doing two lookups for a rate for each frame.
@@ -1840,6 +1838,8 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		 */
 		if (sc->sc_flags & SC_OP_RXFLUSH)
 			goto requeue_drop_frag;
+
+		memset(rxs, 0, sizeof(struct ieee80211_rx_status));
 
 		rxs->mactime = (tsf & ~0xffffffffULL) | rs.rs_tstamp;
 		if (rs.rs_tstamp > tsf_lower &&

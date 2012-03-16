@@ -816,6 +816,7 @@ void iwl_down(struct iwl_priv *priv)
 	if (priv->mac80211_registered)
 		ieee80211_stop_queues(priv->hw);
 
+	priv->ucode_loaded = false;
 	iwl_trans_stop_device(trans(priv));
 
 	/* Clear out all status bits but a few that are stable across reset */
@@ -961,8 +962,6 @@ static void iwlagn_disable_roc_work(struct work_struct *work)
 static void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
 	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
-
-	init_waitqueue_head(&priv->shrd->wait_command_queue);
 
 	INIT_WORK(&priv->restart, iwl_bg_restart);
 	INIT_WORK(&priv->beacon_update, iwl_bg_beacon_update);
@@ -1186,6 +1185,14 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	u16 num_mac;
 	u32 ucode_flags;
 	struct iwl_trans_config trans_cfg;
+	static const u8 no_reclaim_cmds[] = {
+		REPLY_RX_PHY_CMD,
+		REPLY_RX,
+		REPLY_RX_MPDU_CMD,
+		REPLY_COMPRESSED_BA,
+		STATISTICS_NOTIFICATION,
+		REPLY_TX,
+	};
 
 	/************************
 	 * 1. Allocating HW data
@@ -1211,6 +1218,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * to know about.
 	 */
 	trans_cfg.op_mode = op_mode;
+	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
+	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 
 	ucode_flags = fw->ucode_capa.flags;
 
@@ -1398,6 +1407,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	iwl_tt_exit(priv);
 
 	/*This will stop the queues, move the device to low power state */
+	priv->ucode_loaded = false;
 	iwl_trans_stop_device(trans(priv));
 
 	iwl_eeprom_free(priv->shrd);

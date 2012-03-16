@@ -449,6 +449,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->slottime = ATH9K_SLOT_TIME_9;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
+	ah->htc_reset_init = true;
 }
 
 static int ath9k_hw_init_macaddr(struct ath_hw *ah)
@@ -555,7 +556,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		return -EIO;
 	}
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_AUTO) {
 		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCI ||
 		    ((AR_SREV_9160(ah) || AR_SREV_9280(ah)) &&
 		     !ah->is_pciexpress)) {
@@ -618,9 +619,6 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 
 	if (!ah->is_pciexpress)
 		ath9k_hw_disablepcie(ah);
-
-	if (!AR_SREV_9300_20_OR_LATER(ah))
-		ar9002_hw_cck_chan14_spread(ah);
 
 	r = ath9k_hw_post_init(ah);
 	if (r)
@@ -1521,17 +1519,81 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 }
 EXPORT_SYMBOL(ath9k_hw_check_alive);
 
+/*
+ * Fast channel change:
+ * (Change synthesizer based on channel freq without resetting chip)
+ *
+ * Don't do FCC when
+ *   - Flag is not set
+ *   - Chip is just coming out of full sleep
+ *   - Channel to be set is same as current channel
+ *   - Channel flags are different, (eg.,moving from 2GHz to 5GHz channel)
+ */
+static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
+{
+	struct ath_common *common = ath9k_hw_common(ah);
+	int ret;
+
+	if (AR_SREV_9280(ah) && common->bus_ops->ath_bus_type == ATH_PCI)
+		goto fail;
+
+	if (ah->chip_fullsleep)
+		goto fail;
+
+	if (!ah->curchan)
+		goto fail;
+
+	if (chan->channel == ah->curchan->channel)
+		goto fail;
+
+	if ((chan->channelFlags & CHANNEL_ALL) !=
+	    (ah->curchan->channelFlags & CHANNEL_ALL))
+		goto fail;
+
+	if (!ath9k_hw_check_alive(ah))
+		goto fail;
+
+	/*
+	 * For AR9462, make sure that calibration data for
+	 * re-using are present.
+	 */
+	if (AR_SREV_9462(ah) && (!ah->caldata ||
+				 !ah->caldata->done_txiqcal_once ||
+				 !ah->caldata->done_txclcal_once ||
+				 !ah->caldata->rtt_hist.num_readings))
+		goto fail;
+
+	ath_dbg(common, RESET, "FastChannelChange for %d -> %d\n",
+		ah->curchan->channel, chan->channel);
+
+	ret = ath9k_hw_channel_change(ah, chan);
+	if (!ret)
+		goto fail;
+
+	ath9k_hw_loadnf(ah, ah->curchan);
+	ath9k_hw_start_nfcal(ah, true);
+
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_MCI) && ar9003_mci_is_ready(ah))
+		ar9003_mci_2g5g_switch(ah, true);
+
+	if (AR_SREV_9271(ah))
+		ar9002_hw_load_ani_reg(ah, chan);
+
+	return 0;
+fail:
+	return -EINVAL;
+}
+
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
-		   struct ath9k_hw_cal_data *caldata, bool bChannelChange)
+		   struct ath9k_hw_cal_data *caldata, bool fastcc)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	u32 saveLedState;
-	struct ath9k_channel *curchan = ah->curchan;
 	u32 saveDefAntenna;
 	u32 macStaId1;
 	u64 tsf = 0;
 	int i, r;
-	bool allow_fbs = false, start_mci_reset = false;
+	bool start_mci_reset = false;
 	bool mci = !!(ah->caps.hw_caps & ATH9K_HW_CAP_MCI);
 	bool save_fullsleep = ah->chip_fullsleep;
 
@@ -1544,8 +1606,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (!ath9k_hw_setpower(ah, ATH9K_PM_AWAKE))
 		return -EIO;
 
-	if (curchan && !ah->chip_fullsleep)
-		ath9k_hw_getnf(ah, curchan);
+	if (ah->curchan && !ah->chip_fullsleep)
+		ath9k_hw_getnf(ah, ah->curchan);
 
 	ah->caldata = caldata;
 	if (caldata &&
@@ -1558,32 +1620,10 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 	ah->noise = ath9k_hw_getchan_noise(ah, chan);
 
-	if (AR_SREV_9280(ah) && common->bus_ops->ath_bus_type == ATH_PCI)
-		bChannelChange = false;
-
-	if (caldata &&
-	    caldata->done_txiqcal_once &&
-	    caldata->done_txclcal_once &&
-	    caldata->rtt_hist.num_readings)
-		allow_fbs = true;
-
-	if (bChannelChange &&
-	    (!ah->chip_fullsleep) &&
-	    (ah->curchan != NULL) &&
-	    (chan->channel != ah->curchan->channel) &&
-	    (allow_fbs ||
-	     ((chan->channelFlags & CHANNEL_ALL) ==
-	      (ah->curchan->channelFlags & CHANNEL_ALL)))) {
-		if (ath9k_hw_channel_change(ah, chan)) {
-			ath9k_hw_loadnf(ah, ah->curchan);
-			ath9k_hw_start_nfcal(ah, true);
-			if (mci && ar9003_mci_is_ready(ah))
-				ar9003_mci_2g5g_switch(ah, true);
-
-			if (AR_SREV_9271(ah))
-				ar9002_hw_load_ani_reg(ah, chan);
-			return 0;
-		}
+	if (fastcc) {
+		r = ath9k_hw_do_fastcc(ah, chan);
+		if (!r)
+			return r;
 	}
 
 	if (mci)
@@ -2389,8 +2429,17 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		if (AR_SREV_9485_OR_LATER(ah))
 			ah->enabled_cals |= TX_IQ_ON_AGC_CAL;
 	}
-	if (AR_SREV_9462(ah))
-		pCap->hw_caps |= ATH9K_HW_CAP_RTT | ATH9K_HW_CAP_MCI;
+
+	if (AR_SREV_9462(ah)) {
+
+		if (!(ah->ent_mode & AR_ENT_OTP_49GHZ_DISABLE))
+			pCap->hw_caps |= ATH9K_HW_CAP_MCI;
+
+		if (AR_SREV_9462_20(ah))
+			pCap->hw_caps |= ATH9K_HW_CAP_RTT;
+
+	}
+
 
 	return 0;
 }
@@ -2516,12 +2565,6 @@ void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val)
 }
 EXPORT_SYMBOL(ath9k_hw_set_gpio);
 
-u32 ath9k_hw_getdefantenna(struct ath_hw *ah)
-{
-	return REG_READ(ah, AR_DEF_ANTENNA) & 0x7;
-}
-EXPORT_SYMBOL(ath9k_hw_getdefantenna);
-
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna)
 {
 	REG_WRITE(ah, AR_DEF_ANTENNA, (antenna & 0x7));
@@ -2579,6 +2622,7 @@ bool ath9k_hw_phy_disable(struct ath_hw *ah)
 		return false;
 
 	ath9k_hw_init_pll(ah, NULL);
+	ah->htc_reset_init = true;
 	return true;
 }
 EXPORT_SYMBOL(ath9k_hw_phy_disable);
@@ -2938,12 +2982,6 @@ EXPORT_SYMBOL(ath_gen_timer_isr);
 /********/
 /* HTC  */
 /********/
-
-void ath9k_hw_htc_resetinit(struct ath_hw *ah)
-{
-	ah->htc_reset_init = true;
-}
-EXPORT_SYMBOL(ath9k_hw_htc_resetinit);
 
 static struct {
 	u32 version;

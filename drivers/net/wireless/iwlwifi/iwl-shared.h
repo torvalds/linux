@@ -192,23 +192,6 @@ struct iwl_hw_params {
 	const struct iwl_sensitivity_ranges *sens;
 };
 
-/**
- * enum iwl_ucode_type
- *
- * The type of ucode currently loaded on the hardware.
- *
- * @IWL_UCODE_NONE: No ucode loaded
- * @IWL_UCODE_REGULAR: Normal runtime ucode
- * @IWL_UCODE_INIT: Initial ucode
- * @IWL_UCODE_WOWLAN: Wake on Wireless enabled ucode
- */
-enum iwl_ucode_type {
-	IWL_UCODE_NONE,
-	IWL_UCODE_REGULAR,
-	IWL_UCODE_INIT,
-	IWL_UCODE_WOWLAN,
-};
-
 /*
  * LED mode
  *    IWL_LED_DEFAULT:  use device default
@@ -376,7 +359,6 @@ struct iwl_cfg {
  * @nic: pointer to the nic data
  * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
- * @wait_command_queue: the wait_queue for SYNC host commands
  * @eeprom: pointer to the eeprom/OTP image
  * @ucode_type: indicator of loaded ucode image
  * @device_pointers: pointers to ucode event tables
@@ -390,8 +372,6 @@ struct iwl_shared {
 	void *drv;
 	struct iwl_hw_params hw_params;
 	const struct iwl_fw *fw;
-
-	wait_queue_head_t wait_command_queue;
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;

@@ -395,13 +395,17 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 	 *   there is no command buffer to reclaim.
 	 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
 	 *   but apparently a few don't get set; catch them here. */
-	reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME) &&
-		  (pkt->hdr.cmd != REPLY_RX_PHY_CMD) &&
-		  (pkt->hdr.cmd != REPLY_RX) &&
-		  (pkt->hdr.cmd != REPLY_RX_MPDU_CMD) &&
-		  (pkt->hdr.cmd != REPLY_COMPRESSED_BA) &&
-		  (pkt->hdr.cmd != STATISTICS_NOTIFICATION) &&
-		  (pkt->hdr.cmd != REPLY_TX);
+	reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME);
+	if (reclaim) {
+		int i;
+
+		for (i = 0; i < trans_pcie->n_no_reclaim_cmds; i++) {
+			if (trans_pcie->no_reclaim_cmds[i] == pkt->hdr.cmd) {
+				reclaim = false;
+				break;
+			}
+		}
+	}
 
 	sequence = le16_to_cpu(pkt->hdr.sequence);
 	index = SEQ_TO_INDEX(sequence);
@@ -411,17 +415,6 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 		cmd = txq->cmd[cmd_index];
 	else
 		cmd = NULL;
-
-	/* warn if this is cmd response / notification and the uCode
-	 * didn't set the SEQ_RX_FRAME for a frame that is
-	 * uCode-originated
-	 * If you saw this code after the second half of 2012, then
-	 * please remove it
-	 */
-	WARN(pkt->hdr.cmd != REPLY_TX && reclaim == false &&
-	     (!(pkt->hdr.sequence & SEQ_RX_FRAME)),
-	     "reclaim is false, SEQ_RX_FRAME unset: %s\n",
-	     get_cmd_string(pkt->hdr.cmd));
 
 	err = iwl_op_mode_rx(trans->op_mode, &rxcb, cmd);
 
@@ -691,7 +684,7 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 		 */
 		clear_bit(STATUS_READY, &trans->shrd->status);
 		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
-		wake_up(&trans->shrd->wait_command_queue);
+		wake_up(&trans->wait_command_queue);
 		IWL_ERR(trans, "RF is used by WiMAX\n");
 		return;
 	}

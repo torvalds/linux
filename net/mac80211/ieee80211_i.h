@@ -388,7 +388,6 @@ struct ieee80211_mgd_auth_data {
 
 	u8 key[WLAN_KEY_LEN_WEP104];
 	u8 key_len, key_idx;
-	bool synced;
 	bool done;
 
 	size_t ie_len;
@@ -408,7 +407,7 @@ struct ieee80211_mgd_assoc_data {
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;
 	u8 supp_rates_len;
-	bool wmm_used, uapsd_used;
+	bool wmm, uapsd;
 	bool have_beacon;
 	bool sent_assoc;
 	bool synced;
@@ -459,6 +458,20 @@ struct ieee80211_if_managed {
 		IEEE80211_MFP_OPTIONAL,
 		IEEE80211_MFP_REQUIRED
 	} mfp; /* management frame protection */
+
+	/*
+	 * Bitmask of enabled u-apsd queues,
+	 * IEEE80211_WMM_IE_STA_QOSINFO_AC_BE & co. Needs a new association
+	 * to take effect.
+	 */
+	unsigned int uapsd_queues;
+
+	/*
+	 * Maximum number of buffered frames AP can deliver during a
+	 * service period, IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL or similar.
+	 * Needs a new association to take effect.
+	 */
+	unsigned int uapsd_max_sp_len;
 
 	int wmm_last_param_set;
 
@@ -1018,20 +1031,6 @@ struct ieee80211_local {
 				*/
 	unsigned int wmm_acm; /* bit field of ACM bits (BIT(802.1D tag)) */
 
-	/*
-	 * Bitmask of enabled u-apsd queues,
-	 * IEEE80211_WMM_IE_STA_QOSINFO_AC_BE & co. Needs a new association
-	 * to take effect.
-	 */
-	unsigned int uapsd_queues;
-
-	/*
-	 * Maximum number of buffered frames AP can deliver during a
-	 * service period, IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL or similar.
-	 * Needs a new association to take effect.
-	 */
-	unsigned int uapsd_max_sp_len;
-
 	bool pspolling;
 	bool offchannel_ps_enabled;
 	/*
@@ -1503,6 +1502,9 @@ bool ieee80211_set_channel_type(struct ieee80211_local *local,
 				enum nl80211_channel_type chantype);
 enum nl80211_channel_type
 ieee80211_ht_info_to_channel_type(struct ieee80211_ht_info *ht_info);
+enum nl80211_channel_type ieee80211_get_tx_channel_type(
+					struct ieee80211_local *local,
+					enum nl80211_channel_type channel_type);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

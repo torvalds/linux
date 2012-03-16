@@ -3092,12 +3092,6 @@ static const u32 ar9271Common_9271[][2] = {
 	{0x0000d384, 0xf3307ff0},
 };
 
-static const u32 ar9271Modes_9271_1_0_only[][5] = {
-	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
-	{0x00009910, 0x30002311, 0x30002311, 0x30002311, 0x30002311},
-	{0x00009828, 0x0a020001, 0x0a020001, 0x0a020001, 0x0a020001},
-};
-
 static const u32 ar9271Modes_9271_ANI_reg[][5] = {
 	/* Addr      5G_HT20     5G_HT40     2G_HT40     2G_HT20   */
 	{0x00009850, 0x6d4000e2, 0x6d4000e2, 0x6d4000e2, 0x6d4000e2},

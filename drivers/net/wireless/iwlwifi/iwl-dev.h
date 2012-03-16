@@ -769,6 +769,8 @@ struct iwl_priv {
 	/* firmware reload counter and timestamp */
 	unsigned long reload_jiffies;
 	int reload_count;
+	bool ucode_loaded;
+	bool init_ucode_run;		/* Don't run init uCode again */
 
 	/* we allocate array of iwl_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */

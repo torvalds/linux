@@ -67,7 +67,7 @@ int ath_beaconq_config(struct ath_softc *sc)
  *  up rate codes, and channel flags. Beacons are always sent out at the
  *  lowest rate, and are not retried.
 */
-static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
+static void ath_beacon_setup(struct ath_softc *sc, struct ieee80211_vif *vif,
 			     struct ath_buf *bf, int rateidx)
 {
 	struct sk_buff *skb = bf->bf_mpdu;
@@ -82,7 +82,7 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 	sband = &sc->sbands[common->hw->conf.channel->band];
 	rate = sband->bitrates[rateidx].hw_value;
-	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
+	if (vif->bss_conf.use_short_preamble)
 		rate |= sband->bitrates[rateidx].hw_value_short;
 
 	memset(&info, 0, sizeof(info));
@@ -209,7 +209,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 		}
 	}
 
-	ath_beacon_setup(sc, avp, bf, info->control.rates[0].idx);
+	ath_beacon_setup(sc, vif, bf, info->control.rates[0].idx);
 
 	while (skb) {
 		ath_tx_cabq(hw, skb);

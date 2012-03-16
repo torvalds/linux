@@ -462,9 +462,9 @@ struct mwifiex_private {
 };
 
 enum mwifiex_ba_status {
-	BA_STREAM_NOT_SETUP = 0,
-	BA_STREAM_SETUP_INPROGRESS,
-	BA_STREAM_SETUP_COMPLETE
+	BA_SETUP_NONE = 0,
+	BA_SETUP_INPROGRESS,
+	BA_SETUP_COMPLETE
 };
 
 struct mwifiex_tx_ba_stream_tbl {
@@ -771,13 +771,8 @@ int mwifiex_cmd_802_11_ad_hoc_join(struct mwifiex_private *priv,
 int mwifiex_ret_802_11_ad_hoc(struct mwifiex_private *priv,
 			      struct host_cmd_ds_command *resp);
 int mwifiex_cmd_802_11_bg_scan_query(struct host_cmd_ds_command *cmd);
-struct mwifiex_chan_freq_power *
-			mwifiex_get_cfp_by_band_and_channel_from_cfg80211(
-						struct mwifiex_private *priv,
-						u8 band, u16 channel);
-struct mwifiex_chan_freq_power *mwifiex_get_cfp_by_band_and_freq_from_cfg80211(
-						struct mwifiex_private *priv,
-						u8 band, u32 freq);
+struct mwifiex_chan_freq_power *mwifiex_get_cfp(struct mwifiex_private *priv,
+						u8 band, u16 channel, u32 freq);
 u32 mwifiex_index_to_data_rate(struct mwifiex_private *priv, u8 index,
 							u8 ht_info);
 u32 mwifiex_find_freq_from_band_chan(u8, u8);
@@ -846,8 +841,8 @@ mwifiex_get_priv_by_id(struct mwifiex_adapter *adapter,
 
 	for (i = 0; i < adapter->priv_num; i++) {
 		if (adapter->priv[i]) {
-			if ((adapter->priv[i]->bss_num == bss_num)
-			    && (adapter->priv[i]->bss_type == bss_type))
+			if ((adapter->priv[i]->bss_num == bss_num) &&
+			    (adapter->priv[i]->bss_type == bss_type))
 				break;
 		}
 	}

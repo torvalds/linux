@@ -118,13 +118,15 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	if (sc->ps_idle && (sc->ps_flags & PS_WAIT_FOR_TX_ACK))
+	if (sc->ps_flags & PS_WAIT_FOR_TX_ACK)
+		goto unlock;
+
+	if (sc->ps_idle)
 		mode = ATH9K_PM_FULL_SLEEP;
 	else if (sc->ps_enabled &&
 		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
 			      PS_WAIT_FOR_CAB |
-			      PS_WAIT_FOR_PSPOLL_DATA |
-			      PS_WAIT_FOR_TX_ACK)))
+			      PS_WAIT_FOR_PSPOLL_DATA)))
 		mode = ATH9K_PM_NETWORK_SLEEP;
 	else
 		goto unlock;
@@ -331,10 +333,6 @@ static int ath_reset_internal(struct ath_softc *sc, struct ath9k_channel *hchan,
 		flush = true;
 		hchan = ah->curchan;
 	}
-
-	if (fastcc && (ah->chip_fullsleep ||
-	    !ath9k_hw_check_alive(ah)))
-		fastcc = false;
 
 	if (!ath_prepare_reset(sc, retry_tx, flush))
 		fastcc = false;
@@ -641,7 +639,8 @@ static void ath_node_attach(struct ath_softc *sc, struct ieee80211_sta *sta,
 #endif
 	an->sta = sta;
 	an->vif = vif;
-	if (sc->sc_flags & SC_OP_TXAGGR) {
+
+	if (sta->ht_cap.ht_supported) {
 		ath_tx_node_init(sc, an);
 		an->maxampdu = 1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
 				     sta->ht_cap.ampdu_factor);
@@ -660,7 +659,7 @@ static void ath_node_detach(struct ath_softc *sc, struct ieee80211_sta *sta)
 	an->sta = NULL;
 #endif
 
-	if (sc->sc_flags & SC_OP_TXAGGR)
+	if (sta->ht_cap.ht_supported)
 		ath_tx_node_cleanup(sc, an);
 }
 
@@ -993,11 +992,7 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		curchan->center_freq);
 
 	ath9k_ps_wakeup(sc);
-
 	mutex_lock(&sc->mutex);
-
-	/* setup initial channel */
-	sc->chan_idx = curchan->hw_value;
 
 	init_channel = ath9k_cmn_get_curchannel(hw, ah);
 
@@ -1046,9 +1041,6 @@ static int ath9k_start(struct ieee80211_hw *hw)
 
 	sc->sc_flags &= ~SC_OP_INVALID;
 	sc->sc_ah->is_monitoring = false;
-
-	/* Disable BMISS interrupt when we're not associated */
-	ah->imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
 
 	if (!ath_complete_reset(sc, false)) {
 		r = -EIO;
@@ -1277,7 +1269,6 @@ static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		iter_data->nwds++;
 		break;
 	default:
-		iter_data->nothers++;
 		break;
 	}
 }
@@ -1761,7 +1752,7 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 	struct ath_softc *sc = hw->priv;
 	struct ath_node *an = (struct ath_node *) sta->drv_priv;
 
-	if (!(sc->sc_flags & SC_OP_TXAGGR))
+	if (!sta->ht_cap.ht_supported)
 		return;
 
 	switch (cmd) {
@@ -1973,7 +1964,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
 
-	if (changed & BSS_CHANGED_BSSID) {
+	if (changed & BSS_CHANGED_ASSOC) {
 		ath9k_config_bss(sc, vif);
 
 		ath_dbg(common, CONFIG, "BSSID: %pM aid: 0x%x\n",
@@ -2053,25 +2044,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			ath_beacon_config(sc, vif);
 	}
 
-	if (changed & BSS_CHANGED_ERP_PREAMBLE) {
-		ath_dbg(common, CONFIG, "BSS Changed PREAMBLE %d\n",
-			bss_conf->use_short_preamble);
-		if (bss_conf->use_short_preamble)
-			sc->sc_flags |= SC_OP_PREAMBLE_SHORT;
-		else
-			sc->sc_flags &= ~SC_OP_PREAMBLE_SHORT;
-	}
-
-	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
-		ath_dbg(common, CONFIG, "BSS Changed CTS PROT %d\n",
-			bss_conf->use_cts_prot);
-		if (bss_conf->use_cts_prot &&
-		    hw->conf.channel->band != IEEE80211_BAND_5GHZ)
-			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
-		else
-			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
-	}
-
 	mutex_unlock(&sc->mutex);
 	ath9k_ps_restore(sc);
 }
@@ -2129,15 +2101,10 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (!(sc->sc_flags & SC_OP_RXAGGR))
-			ret = -ENOTSUPP;
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!(sc->sc_flags & SC_OP_TXAGGR))
-			return -EOPNOTSUPP;
-
 		ath9k_ps_wakeup(sc);
 		ret = ath_tx_aggr_start(sc, sta, tid, ssn);
 		if (!ret)

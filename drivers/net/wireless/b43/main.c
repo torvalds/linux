@@ -2390,8 +2390,14 @@ error:
 	return err;
 }
 
-static int b43_request_firmware(struct b43_wldev *dev)
+static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl);
+static void b43_one_core_detach(struct b43_bus_dev *dev);
+
+static void b43_request_firmware(struct work_struct *work)
 {
+	struct b43_wl *wl = container_of(work,
+			    struct b43_wl, firmware_load);
+	struct b43_wldev *dev = wl->current_dev;
 	struct b43_request_fw_context *ctx;
 	unsigned int i;
 	int err;
@@ -2399,23 +2405,23 @@ static int b43_request_firmware(struct b43_wldev *dev)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return;
 	ctx->dev = dev;
 
 	ctx->req_type = B43_FWTYPE_PROPRIETARY;
 	err = b43_try_request_fw(ctx);
 	if (!err)
-		goto out; /* Successfully loaded it. */
-	err = ctx->fatal_failure;
-	if (err)
+		goto start_ieee80211; /* Successfully loaded it. */
+	/* Was fw version known? */
+	if (ctx->fatal_failure)
 		goto out;
 
+	/* proprietary fw not found, try open source */
 	ctx->req_type = B43_FWTYPE_OPENSOURCE;
 	err = b43_try_request_fw(ctx);
 	if (!err)
-		goto out; /* Successfully loaded it. */
-	err = ctx->fatal_failure;
-	if (err)
+		goto start_ieee80211; /* Successfully loaded it. */
+	if(ctx->fatal_failure)
 		goto out;
 
 	/* Could not find a usable firmware. Print the errors. */
@@ -2425,11 +2431,20 @@ static int b43_request_firmware(struct b43_wldev *dev)
 			b43err(dev->wl, errmsg);
 	}
 	b43_print_fw_helptext(dev->wl, 1);
-	err = -ENOENT;
+	goto out;
+
+start_ieee80211:
+	err = ieee80211_register_hw(wl->hw);
+	if (err)
+		goto err_one_core_detach;
+	b43_leds_register(wl->current_dev);
+	goto out;
+
+err_one_core_detach:
+	b43_one_core_detach(dev->dev);
 
 out:
 	kfree(ctx);
-	return err;
 }
 
 static int b43_upload_microcode(struct b43_wldev *dev)
@@ -3023,9 +3038,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 	macctl |= B43_MACCTL_INFRA;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 
-	err = b43_request_firmware(dev);
-	if (err)
-		goto out;
 	err = b43_upload_microcode(dev);
 	if (err)
 		goto out;	/* firmware is released later */
@@ -4155,6 +4167,7 @@ redo:
 	mutex_unlock(&wl->mutex);
 	cancel_delayed_work_sync(&dev->periodic_work);
 	cancel_work_sync(&wl->tx_work);
+	cancel_work_sync(&wl->firmware_load);
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (!dev || b43_status(dev) < B43_STAT_STARTED) {
@@ -5314,16 +5327,13 @@ static int b43_bcma_probe(struct bcma_device *core)
 	if (err)
 		goto bcma_err_wireless_exit;
 
-	err = ieee80211_register_hw(wl->hw);
-	if (err)
-		goto bcma_err_one_core_detach;
-	b43_leds_register(wl->current_dev);
+	/* setup and start work to load firmware */
+	INIT_WORK(&wl->firmware_load, b43_request_firmware);
+	schedule_work(&wl->firmware_load);
 
 bcma_out:
 	return err;
 
-bcma_err_one_core_detach:
-	b43_one_core_detach(dev);
 bcma_err_wireless_exit:
 	ieee80211_free_hw(wl->hw);
 	return err;
@@ -5390,18 +5400,13 @@ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 	if (err)
 		goto err_wireless_exit;
 
-	if (first) {
-		err = ieee80211_register_hw(wl->hw);
-		if (err)
-			goto err_one_core_detach;
-		b43_leds_register(wl->current_dev);
-	}
+	/* setup and start work to load firmware */
+	INIT_WORK(&wl->firmware_load, b43_request_firmware);
+	schedule_work(&wl->firmware_load);
 
       out:
 	return err;
 
-      err_one_core_detach:
-	b43_one_core_detach(dev);
       err_wireless_exit:
 	if (first)
 		b43_wireless_exit(dev, wl);

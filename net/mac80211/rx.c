@@ -1063,20 +1063,9 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		return RX_DROP_MONITOR;
 	}
 
-	if (skb_linearize(rx->skb))
-		return RX_DROP_UNUSABLE;
-	/* the hdr variable is invalid now! */
-
 	switch (rx->key->conf.cipher) {
 	case WLAN_CIPHER_SUITE_WEP40:
 	case WLAN_CIPHER_SUITE_WEP104:
-		/* Check for weak IVs if possible */
-		if (rx->sta && ieee80211_is_data(fc) &&
-		    (!(status->flag & RX_FLAG_IV_STRIPPED) ||
-		     !(status->flag & RX_FLAG_DECRYPTED)) &&
-		    ieee80211_wep_is_weak_iv(rx->skb, rx->key))
-			rx->sta->wep_weak_iv_count++;
-
 		result = ieee80211_crypto_wep_decrypt(rx);
 		break;
 	case WLAN_CIPHER_SUITE_TKIP:
@@ -1095,6 +1084,8 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		 */
 		return RX_DROP_UNUSABLE;
 	}
+
+	/* the hdr variable is invalid after the decrypt handlers */
 
 	/* either the frame has been decrypted or will be dropped */
 	status->flag |= RX_FLAG_DECRYPTED;
@@ -2278,9 +2269,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 			sband = rx->local->hw.wiphy->bands[status->band];
 
-			rate_control_rate_update(local, sband, rx->sta,
-						 IEEE80211_RC_SMPS_CHANGED,
-						 local->_oper_channel_type);
+			rate_control_rate_update(
+				local, sband, rx->sta,
+				IEEE80211_RC_SMPS_CHANGED,
+				ieee80211_get_tx_channel_type(
+					local, local->_oper_channel_type));
 			goto handled;
 		}
 		default:

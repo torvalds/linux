@@ -671,7 +671,7 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
-		wake_up(&priv->shrd->wait_command_queue);
+		wake_up(&trans(priv)->wait_command_queue);
 	return 0;
 }
 

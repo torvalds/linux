@@ -932,6 +932,9 @@ struct b43_wl {
 	/* Flag that implement the queues stopping. */
 	bool tx_queue_stopped[B43_QOS_QUEUE_NUM];
 
+	/* firmware loading work */
+	struct work_struct firmware_load;
+
 	/* The device LEDs. */
 	struct b43_leds leds;
 

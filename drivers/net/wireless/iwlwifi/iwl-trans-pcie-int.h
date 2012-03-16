@@ -291,6 +291,8 @@ struct iwl_trans_pcie {
 	wait_queue_head_t ucode_write_waitq;
 	unsigned long status;
 	u8 cmd_queue;
+	u8 n_no_reclaim_cmds;
+	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
