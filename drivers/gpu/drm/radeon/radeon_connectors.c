@@ -946,6 +946,10 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 
 			encoder = obj_to_encoder(obj);
 
+			if (encoder->encoder_type != DRM_MODE_ENCODER_DAC ||
+			    encoder->encoder_type != DRM_MODE_ENCODER_TVDAC)
+				continue;
+
 			encoder_funcs = encoder->helper_private;
 			if (encoder_funcs->detect) {
 				if (ret != connector_status_connected) {
