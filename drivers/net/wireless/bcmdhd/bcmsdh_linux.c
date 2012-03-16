@@ -1,9 +1,9 @@
 /*
  * SDIO access interface for drivers - linux specific (pci only)
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_linux.c 308641 2012-01-17 02:18:02Z $
+ * $Id: bcmsdh_linux.c 309796 2012-01-20 18:21:51Z $
  */
 
 /**
@@ -512,6 +512,28 @@ bcmsdh_pci_remove(struct pci_dev *pdev)
 
 extern int sdio_function_init(void);
 
+extern int sdio_func_reg_notify(void* semaphore);
+extern void sdio_func_unreg_notify(void);
+
+int bcmsdh_reg_sdio_notify(void* semaphore)
+{
+	int ret = -1;
+
+#ifdef BCMLXSDMMC
+	ret = sdio_func_reg_notify(semaphore);
+#endif
+
+	return ret;
+}
+
+void bcmsdh_unreg_sdio_notify(void)
+{
+#ifdef BCMLXSDMMC
+	sdio_func_unreg_notify();
+#endif
+
+}
+
 int
 bcmsdh_register(bcmsdh_driver_t *driver)
 {
@@ -626,7 +648,6 @@ void *bcmsdh_get_drvdata(void)
 		return NULL;
 	return dev_get_drvdata(sdhcinfo->dev);
 }
-
 void bcmsdh_set_irq(int flag)
 {
 	if (sdhcinfo->oob_irq_registered && sdhcinfo->oob_irq_enable_flag != flag) {

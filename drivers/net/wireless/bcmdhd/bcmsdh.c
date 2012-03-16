@@ -2,9 +2,9 @@
  *  BCMSDH interface glue
  *  implement bcmsdh API for SDIOH driver
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.c 275784 2011-08-04 22:41:49Z $
+ * $Id: bcmsdh.c 300445 2011-12-03 05:37:20Z $
  */
 
 /**
@@ -687,4 +687,40 @@ bcmsdh_sleep(void *sdh, bool enab)
 #else
 	return BCME_UNSUPPORTED;
 #endif
+}
+
+int
+bcmsdh_gpio_init(void *sdh)
+{
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+
+	return sdioh_gpio_init(sd);
+}
+
+bool
+bcmsdh_gpioin(void *sdh, uint32 gpio)
+{
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+
+	return sdioh_gpioin(sd, gpio);
+}
+
+int
+bcmsdh_gpioouten(void *sdh, uint32 gpio)
+{
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+
+	return sdioh_gpioouten(sd, gpio);
+}
+
+int
+bcmsdh_gpioout(void *sdh, uint32 gpio, bool enab)
+{
+	bcmsdh_info_t *p = (bcmsdh_info_t *)sdh;
+	sdioh_info_t *sd = (sdioh_info_t *)(p->sdioh);
+
+	return sdioh_gpioout(sd, gpio, enab);
 }

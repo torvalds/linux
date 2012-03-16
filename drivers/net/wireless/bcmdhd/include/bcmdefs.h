@@ -1,9 +1,9 @@
 /*
  * Misc system wide definitions
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,9 +21,8 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdefs.h 279282 2011-08-23 22:44:02Z $
+ * $Id: bcmdefs.h 309174 2012-01-18 23:10:14Z $
  */
-
 
 #ifndef	_bcmdefs_h_
 #define	_bcmdefs_h_
@@ -32,6 +31,14 @@
 
 
 #define BCM_REFERENCE(data)	((void)(data))
+
+
+#define STATIC_ASSERT(expr) { \
+	 \
+	typedef enum { _STATIC_ASSERT_NOT_CONSTANT = (expr) } _static_assert_e; \
+	 \
+	typedef char STATIC_ASSERT_FAIL[(expr) ? 1 : -1]; \
+}
 
 
 
@@ -45,14 +52,10 @@
 #define _fn	_fn
 #define	BCMNMIATTACHFN(_fn)	_fn
 #define	BCMNMIATTACHDATA(_data)	_data
-#define BCMOVERLAY0DATA(_sym)	_sym
-#define BCMOVERLAY0FN(_fn)	_fn
-#define BCMOVERLAY1DATA(_sym)	_sym
-#define BCMOVERLAY1FN(_fn)	_fn
-#define BCMOVERLAYERRFN(_fn)	_fn
 #define CONST	const
+#ifndef BCMFASTPATH
 #define BCMFASTPATH
-
+#endif 
 
 
 
@@ -65,22 +68,6 @@
 #define BCMROMDAT_SIZEOF(data)	sizeof(data)
 #define BCMROMDAT_APATCH(data)
 #define BCMROMDAT_SPATCH(data)
-
-
-
-#define OVERLAY_INLINE
-#define OSTATIC			static
-#define BCMOVERLAYDATA(_ovly, _sym)	_sym
-#define BCMOVERLAYFN(_ovly, _fn)	_fn
-#define BCMOVERLAYERRFN(_fn)	_fn
-#define BCMROMOVERLAYDATA(_ovly, _data)	_data
-#define BCMROMOVERLAYFN(_ovly, _fn)		_fn
-#define BCMATTACHOVERLAYDATA(_ovly, _sym)	_sym
-#define BCMATTACHOVERLAYFN(_ovly, _fn)		_fn
-#define BCMINITOVERLAYDATA(_ovly, _sym)		_sym
-#define BCMINITOVERLAYFN(_ovly, _fn)		_fn
-#define BCMUNINITOVERLAYFN(_ovly, _fn)		_fn
-
 
 
 #define	SI_BUS			0	
@@ -190,8 +177,13 @@ typedef struct {
 #if defined(BCM_RPC_NOCOPY) || defined(BCM_RCP_TXNOCOPY)
 
 #define BCMEXTRAHDROOM 220
-#else
+#else 
 #define BCMEXTRAHDROOM 172
+#endif 
+
+
+#ifndef SDALIGN
+#define SDALIGN	32
 #endif
 
 
@@ -226,6 +218,16 @@ typedef struct {
 
 #define	MAXSZ_NVRAM_VARS	4096
 
-#define LOCATOR_EXTERN static
+
+
+#ifdef DL_NVRAM
+#define NVRAM_ARRAY_MAXSIZE	DL_NVRAM
+#else
+#define NVRAM_ARRAY_MAXSIZE	MAXSZ_NVRAM_VARS
+#endif 
+
+#ifdef BCMUSBDEV_ENABLED
+extern uint32 gFWID;
+#endif
 
 #endif 

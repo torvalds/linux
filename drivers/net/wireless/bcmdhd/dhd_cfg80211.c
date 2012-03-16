@@ -1,9 +1,9 @@
 /*
  * Linux cfg80211 driver - Dongle Host Driver (DHD) related
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -30,6 +30,7 @@
 #include <wldev_common.h>
 #include <wl_cfg80211.h>
 #include <dhd_cfg80211.h>
+
 extern struct wl_priv *wlcfg_drv_priv;
 static int dhd_dongle_up = FALSE;
 

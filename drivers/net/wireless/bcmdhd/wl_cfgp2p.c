@@ -1,9 +1,9 @@
 /*
  * Linux cfgp2p driver
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.c,v 1.1.4.1.2.14 2011-02-09 01:40:07 $
+ * $Id: wl_cfgp2p.c 308397 2012-01-15 07:32:58Z $
  *
  */
 #include <typedefs.h>
@@ -140,43 +140,43 @@ void wl_cfgp2p_print_actframe(bool tx, void *frame, u32 frame_len)
 		pact_frm = (wifi_p2p_pub_act_frame_t *)frame;
 		switch (pact_frm->subtype) {
 			case P2P_PAF_GON_REQ:
-				CFGP2P_DBG(("%s P2P Group Owner Negotiation Req Frame\n",
+				CFGP2P_ERR(("%s P2P Group Owner Negotiation Req Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_GON_RSP:
-				CFGP2P_DBG(("%s P2P Group Owner Negotiation Rsp Frame\n",
+				CFGP2P_ERR(("%s P2P Group Owner Negotiation Rsp Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_GON_CONF:
-				CFGP2P_DBG(("%s P2P Group Owner Negotiation Confirm Frame\n",
+				CFGP2P_ERR(("%s P2P Group Owner Negotiation Confirm Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_INVITE_REQ:
-				CFGP2P_DBG(("%s P2P Invitation Request  Frame\n",
+				CFGP2P_ERR(("%s P2P Invitation Request  Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_INVITE_RSP:
-				CFGP2P_DBG(("%s P2P Invitation Response Frame\n",
+				CFGP2P_ERR(("%s P2P Invitation Response Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_DEVDIS_REQ:
-				CFGP2P_DBG(("%s P2P Device Discoverability Request Frame\n",
+				CFGP2P_ERR(("%s P2P Device Discoverability Request Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_DEVDIS_RSP:
-				CFGP2P_DBG(("%s P2P Device Discoverability Response Frame\n",
+				CFGP2P_ERR(("%s P2P Device Discoverability Response Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_PROVDIS_REQ:
-				CFGP2P_DBG(("%s P2P Provision Discovery Request Frame\n",
+				CFGP2P_ERR(("%s P2P Provision Discovery Request Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_PAF_PROVDIS_RSP:
-				CFGP2P_DBG(("%s P2P Provision Discovery Response Frame\n",
+				CFGP2P_ERR(("%s P2P Provision Discovery Response Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			default:
-				CFGP2P_DBG(("%s Unknown P2P Public Action Frame\n",
+				CFGP2P_ERR(("%s Unknown P2P Public Action Frame\n",
 					(tx)? "TX": "RX"));
 
 		}
@@ -185,23 +185,23 @@ void wl_cfgp2p_print_actframe(bool tx, void *frame, u32 frame_len)
 		act_frm = (wifi_p2p_action_frame_t *)frame;
 		switch (act_frm->subtype) {
 			case P2P_AF_NOTICE_OF_ABSENCE:
-				CFGP2P_DBG(("%s P2P Notice of Absence Frame\n",
+				CFGP2P_ERR(("%s P2P Notice of Absence Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_AF_PRESENCE_REQ:
-				CFGP2P_DBG(("%s P2P Presence Request Frame\n",
+				CFGP2P_ERR(("%s P2P Presence Request Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_AF_PRESENCE_RSP:
-				CFGP2P_DBG(("%s P2P Presence Response Frame\n",
+				CFGP2P_ERR(("%s P2P Presence Response Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			case P2P_AF_GO_DISC_REQ:
-				CFGP2P_DBG(("%s P2P Discoverability Request Frame\n",
+				CFGP2P_ERR(("%s P2P Discoverability Request Frame\n",
 					(tx)? "TX": "RX"));
 				break;
 			default:
-				CFGP2P_DBG(("%s Unknown P2P Action Frame\n",
+				CFGP2P_ERR(("%s Unknown P2P Action Frame\n",
 					(tx)? "TX": "RX"));
 		}
 
@@ -209,26 +209,29 @@ void wl_cfgp2p_print_actframe(bool tx, void *frame, u32 frame_len)
 		sd_act_frm = (wifi_p2psd_gas_pub_act_frame_t *)frame;
 		switch (sd_act_frm->action) {
 			case P2PSD_ACTION_ID_GAS_IREQ:
-				CFGP2P_DBG(("%s P2P GAS Initial Request\n",
+				CFGP2P_ERR(("%s P2P GAS Initial Request\n",
 					(tx)? "TX" : "RX"));
 				break;
 			case P2PSD_ACTION_ID_GAS_IRESP:
-				CFGP2P_DBG(("%s P2P GAS Initial Response\n",
+				CFGP2P_ERR(("%s P2P GAS Initial Response\n",
 					(tx)? "TX" : "RX"));
 				break;
 			case P2PSD_ACTION_ID_GAS_CREQ:
-				CFGP2P_DBG(("%s P2P GAS Comback Request\n",
+				CFGP2P_ERR(("%s P2P GAS Comback Request\n",
 					(tx)? "TX" : "RX"));
 				break;
 			case P2PSD_ACTION_ID_GAS_CRESP:
-				CFGP2P_DBG(("%s P2P GAS Comback Response\n",
+				CFGP2P_ERR(("%s P2P GAS Comback Response\n",
 					(tx)? "TX" : "RX"));
 				break;
 			default:
-				CFGP2P_DBG(("%s Unknown P2P GAS Frame\n",
+				CFGP2P_ERR(("%s Unknown P2P GAS Frame\n",
 					(tx)? "TX" : "RX"));
 		}
+
+
 	}
+
 }
 
 /*
@@ -283,10 +286,8 @@ void
 wl_cfgp2p_deinit_priv(struct wl_priv *wl)
 {
 	CFGP2P_DBG(("In\n"));
-
 	if (wl->p2p) {
 		kfree(wl->p2p);
-		wl->p2p = NULL;
 	}
 	wl->p2p_supported = 0;
 }
@@ -342,7 +343,7 @@ wl_cfgp2p_ifadd(struct wl_priv *wl, struct ether_addr *mac, u8 if_type,
 	ifreq.chspec = chspec;
 	memcpy(ifreq.addr.octet, mac->octet, sizeof(ifreq.addr.octet));
 
-	CFGP2P_DBG(("---wl p2p_ifadd %02x:%02x:%02x:%02x:%02x:%02x %s %u\n",
+	CFGP2P_INFO(("---wl p2p_ifadd %02x:%02x:%02x:%02x:%02x:%02x %s %u\n",
 	    ifreq.addr.octet[0], ifreq.addr.octet[1], ifreq.addr.octet[2],
 		ifreq.addr.octet[3], ifreq.addr.octet[4], ifreq.addr.octet[5],
 		(if_type == WL_P2P_IF_GO) ? "go" : "client",
@@ -828,6 +829,10 @@ exit:
 /* Check whether the given IE looks like WFA P2P IE. */
 #define wl_cfgp2p_is_p2p_ie(ie, tlvs, len)	wl_cfgp2p_has_ie(ie, tlvs, len, \
 		(const uint8 *)WFA_OUI, WFA_OUI_LEN, WFA_OUI_TYPE_P2P)
+/* Check whether the given IE looks like WFA WFDisplay IE. */
+#define WFA_OUI_TYPE_WFD	0x0a			/* WiFi Display OUI TYPE */
+#define wl_cfgp2p_is_wfd_ie(ie, tlvs, len)	wl_cfgp2p_has_ie(ie, tlvs, len, \
+		(const uint8 *)WFA_OUI, WFA_OUI_LEN, WFA_OUI_TYPE_WFD)
 /* Delete and Set a management vndr ie to firmware
  * Parameters:
  * @wl       : wl_private data
@@ -952,7 +957,8 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				ie_len = ie_buf[pos++];
 				if ((ie_id == DOT11_MNG_VS_ID) &&
 				   (wl_cfgp2p_is_wps_ie(&ie_buf[pos-2], NULL, 0) ||
-					wl_cfgp2p_is_p2p_ie(&ie_buf[pos-2], NULL, 0))) {
+					wl_cfgp2p_is_p2p_ie(&ie_buf[pos-2], NULL, 0) ||
+					wl_cfgp2p_is_wfd_ie(&ie_buf[pos-2], NULL, 0))) {
 					CFGP2P_INFO(("DELELED ID : %d, Len : %d , OUI :"
 						"%02x:%02x:%02x\n", ie_id, ie_len, ie_buf[pos],
 						ie_buf[pos+1], ie_buf[pos+2]));
@@ -978,7 +984,8 @@ wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bss
 				ie_len = ie_buf[pos++];
 				if ((ie_id == DOT11_MNG_VS_ID) &&
 				   (wl_cfgp2p_is_wps_ie(&ie_buf[pos-2], NULL, 0) ||
-					wl_cfgp2p_is_p2p_ie(&ie_buf[pos-2], NULL, 0))) {
+					wl_cfgp2p_is_p2p_ie(&ie_buf[pos-2], NULL, 0) ||
+					wl_cfgp2p_is_wfd_ie(&ie_buf[pos-2], NULL, 0))) {
 					CFGP2P_INFO(("ADDED ID : %d, Len : %d , OUI :"
 						"%02x:%02x:%02x\n", ie_id, ie_len, ie_buf[pos],
 						ie_buf[pos+1], ie_buf[pos+2]));
@@ -1089,6 +1096,18 @@ wl_cfgp2p_find_p2pie(u8 *parse, u32 len)
 	return NULL;
 }
 
+wifi_wfd_ie_t *
+wl_cfgp2p_find_wfdie(u8 *parse, u32 len)
+{
+	bcm_tlv_t *ie;
+
+	while ((ie = bcm_parse_tlvs(parse, (int)len, DOT11_MNG_VS_ID))) {
+		if (wl_cfgp2p_is_wfd_ie((uint8*)ie, &parse, &len)) {
+			return (wifi_wfd_ie_t *)ie;
+		}
+	}
+	return NULL;
+}
 static s32
 wl_cfgp2p_vndr_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx, s32 pktflag,
             s8 *oui, s32 ie_id, s8 *data, s32 data_len, s32 delete)
@@ -1526,7 +1545,6 @@ wl_cfgp2p_supported(struct wl_priv *wl, struct net_device *ndev)
 	}
 	return p2p_supported;
 }
-
 /* Cleanup P2P resources */
 s32
 wl_cfgp2p_down(struct wl_priv *wl)
@@ -1536,7 +1554,6 @@ wl_cfgp2p_down(struct wl_priv *wl)
 	wl_cfgp2p_deinit_priv(wl);
 	return 0;
 }
-
 s32
 wl_cfgp2p_set_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf, int len)
 {
@@ -1610,10 +1627,10 @@ wl_cfgp2p_set_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf, in
 	}
 	return ret;
 }
-
 s32
 wl_cfgp2p_get_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf, int buf_len)
 {
+
 	wifi_p2p_noa_desc_t *noa_desc;
 	int len = 0, i;
 	char _buf[200];
@@ -1653,7 +1670,6 @@ wl_cfgp2p_get_p2p_noa(struct wl_priv *wl, struct net_device *ndev, char* buf, in
 	}
 	return len * 2;
 }
-
 s32
 wl_cfgp2p_set_p2p_ps(struct wl_priv *wl, struct net_device *ndev, char* buf, int len)
 {
@@ -1679,14 +1695,15 @@ wl_cfgp2p_set_p2p_ps(struct wl_priv *wl, struct net_device *ndev, char* buf, int
 			}
 		}
 
-		if (legacy_ps != -1) {
-			s32 pm = legacy_ps ? PM_MAX : PM_OFF;
+		if ((legacy_ps != -1) && ((legacy_ps == PM_MAX) || (legacy_ps == PM_OFF))) {
 			ret = wldev_ioctl(wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION),
-				WLC_SET_PM, &pm, sizeof(pm), true);
+				WLC_SET_PM, &legacy_ps, sizeof(legacy_ps), true);
 			if (unlikely(ret)) {
 				CFGP2P_ERR(("error (%d)\n", ret));
 			}
 		}
+		else
+			CFGP2P_ERR(("ilegal setting\n"));
 	}
 	else {
 		CFGP2P_ERR(("ERROR: set_p2p_ps in non-p2p mode\n"));
@@ -1886,7 +1903,6 @@ wl_cfgp2p_unregister_ndev(struct wl_priv *wl)
 
 	return 0;
 }
-
 static int wl_cfgp2p_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	CFGP2P_DBG(("(%s) is not used for data operations. Droping the packet. \n", ndev->name));
@@ -1904,7 +1920,11 @@ static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd
 	 * For Android PRIV CMD handling map it to primary I/F
 	 */
 	if (cmd == SIOCDEVPRIVATE+1) {
+#if defined(OEM_ANROID)
 		ret = wl_android_priv_cmd(ndev, ifr, cmd);
+#else
+	(void)ndev;
+#endif
 
 	} else {
 		CFGP2P_ERR(("%s: IOCTL req 0x%x on p2p0 I/F. Ignoring. \n",
@@ -1917,34 +1937,12 @@ static int wl_cfgp2p_do_ioctl(struct net_device *net, struct ifreq *ifr, int cmd
 
 static int wl_cfgp2p_if_open(struct net_device *net)
 {
-	struct wireless_dev *wdev = net->ieee80211_ptr;
-
-	if (!wdev)
-		return -EINVAL;
-
-	/* If suppose F/W download (ifconfig wlan0 up) hasn't been done by now,
-	 * do it here. This will make sure that in concurrent mode, supplicant
-	 * is not dependent on a particular order of interface initialization.
-	 * i.e you may give wpa_supp -iwlan0 -N -ip2p0 or wpa_supp -ip2p0 -N
-	 * -iwlan0.
-	 */
-	wl_cfg80211_do_driver_init(net);
-
-	wdev->wiphy->interface_modes |= (BIT(NL80211_IFTYPE_P2P_CLIENT)
-		| BIT(NL80211_IFTYPE_P2P_GO));
-
+	CFGP2P_DBG(("Do Nothing \n"));
 	return 0;
 }
 
 static int wl_cfgp2p_if_stop(struct net_device *net)
 {
-	struct wireless_dev *wdev = net->ieee80211_ptr;
-
-	if (!wdev)
-		return -EINVAL;
-
-	wdev->wiphy->interface_modes = (wdev->wiphy->interface_modes)
-					& (~(BIT(NL80211_IFTYPE_P2P_CLIENT)|
-					BIT(NL80211_IFTYPE_P2P_GO)));
+	CFGP2P_DBG(("Do Nothing \n"));
 	return 0;
 }

@@ -2,9 +2,9 @@
  * Broadcom SiliconBackplane SDIO/PCMCIA hardware-specific
  * device core support
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sbsdpcmdev.h 282638 2011-09-08 21:18:10Z $
+ * $Id: sbsdpcmdev.h 241182 2011-02-17 21:50:03Z $
  */
 
 #ifndef	_sbsdpcmdev_h_

@@ -1,9 +1,9 @@
 /*
  * TRX image file header format.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,11 +21,11 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: trxhdr.h 286295 2011-09-27 06:39:43Z $
+ * $Id: trxhdr.h 260898 2011-05-20 23:11:12Z $
  */
 
-#ifndef	_TRX_HDR_H_
-#define	_TRX_HDR_H_
+#ifndef _TRX_HDR_H
+#define _TRX_HDR_H
 
 #include <typedefs.h>
 
@@ -34,10 +34,10 @@
 #define TRX_MAX_LEN	0x3B0000	/* Max length */
 #define TRX_NO_HEADER	1		/* Do not write TRX header */
 #define TRX_GZ_FILES	0x2     /* Contains up to TRX_MAX_OFFSET individual gzip files */
-#define TRX_OVERLAYS	0x4     /* Contains an overlay header after the trx header */
-#define TRX_MAX_OFFSET	3		/* Max number of individual files */
-#define TRX_UNCOMP_IMAGE	0x20	/* Trx contains uncompressed rtecdc.bin image */
+#define TRX_EMBED_UCODE	0x8	/* Trx contains embedded ucode image */
 #define TRX_ROMSIM_IMAGE	0x10	/* Trx contains ROM simulation image */
+#define TRX_UNCOMP_IMAGE	0x20	/* Trx contains uncompressed rtecdc.bin image */
+#define TRX_MAX_OFFSET	3		/* Max number of individual files */
 
 struct trx_header {
 	uint32 magic;		/* "HDR0" */
@@ -50,4 +50,4 @@ struct trx_header {
 /* Compatibility */
 typedef struct trx_header TRXHDR, *PTRXHDR;
 
-#endif /* _TRX_HDR_H_ */
+#endif /* _TRX_HDR_H */

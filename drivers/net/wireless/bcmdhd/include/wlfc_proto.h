@@ -1,7 +1,7 @@
 /*
-* Copyright (C) 1999-2011, Broadcom Corporation
+* Copyright (C) 1999-2012, Broadcom Corporation
 * 
-*         Unless you and Broadcom execute a separate written software license
+*      Unless you and Broadcom execute a separate written software license
 * agreement governing use of this software, this software is licensed to you
 * under the terms of the GNU General Public License version 2 (the "GPL"),
 * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: wlfc_proto.h 277737 2011-08-16 17:54:59Z $
+* $Id: wlfc_proto.h 309193 2012-01-19 00:03:57Z $
 *
 */
 #ifndef __wlfc_proto_definitions_h__
@@ -68,15 +68,15 @@
 	 ---------------------------------------------------------------------------
 	*/
 
-#define WLFC_CTL_TYPE_MAC_OPEN				1
-#define WLFC_CTL_TYPE_MAC_CLOSE				2
-#define WLFC_CTL_TYPE_MAC_REQUEST_CREDIT	3
-#define WLFC_CTL_TYPE_TXSTATUS				4
-#define WLFC_CTL_TYPE_PKTTAG				5
+#define WLFC_CTL_TYPE_MAC_OPEN			1
+#define WLFC_CTL_TYPE_MAC_CLOSE			2
+#define WLFC_CTL_TYPE_MAC_REQUEST_CREDIT        3
+#define WLFC_CTL_TYPE_TXSTATUS			4
+#define WLFC_CTL_TYPE_PKTTAG			5
 
-#define WLFC_CTL_TYPE_MACDESC_ADD			6
-#define WLFC_CTL_TYPE_MACDESC_DEL			7
-#define WLFC_CTL_TYPE_RSSI					8
+#define WLFC_CTL_TYPE_MACDESC_ADD		6
+#define WLFC_CTL_TYPE_MACDESC_DEL		7
+#define WLFC_CTL_TYPE_RSSI			8
 
 #define WLFC_CTL_TYPE_INTERFACE_OPEN		9
 #define WLFC_CTL_TYPE_INTERFACE_CLOSE		10
@@ -85,6 +85,7 @@
 
 #define WLFC_CTL_TYPE_PENDING_TRAFFIC_BMP	12
 #define WLFC_CTL_TYPE_MAC_REQUEST_PACKET	13
+#define WLFC_CTL_TYPE_HOST_REORDER_RXPKTS	14
 
 #define WLFC_CTL_TYPE_FILLER				255
 
@@ -169,15 +170,15 @@
 #define WLFC_CTL_PKTFLAG_DISCARD		0
 /* D11 suppressed a packet */
 #define WLFC_CTL_PKTFLAG_D11SUPPRESS	1
-/* WL firmware suppressed a packet because MAC is 
+/* WL firmware suppressed a packet because MAC is
 	already in PSMode (short time window)
 */
 #define WLFC_CTL_PKTFLAG_WLSUPPRESS		2
 /* Firmware tossed this packet */
 #define WLFC_CTL_PKTFLAG_TOSSED_BYWLC	3
 
-#define WLFC_D11_STATUS_INTERPRET(txs)	((((txs)->status & TX_STATUS_SUPR_MASK) >> \
-		TX_STATUS_SUPR_SHIFT)) ? WLFC_CTL_PKTFLAG_D11SUPPRESS : WLFC_CTL_PKTFLAG_DISCARD
+#define WLFC_D11_STATUS_INTERPRET(txs)	\
+	(((txs)->status.suppr_ind != 0) ? WLFC_CTL_PKTFLAG_D11SUPPRESS : WLFC_CTL_PKTFLAG_DISCARD)
 
 #ifdef PROP_TXSTATUS_DEBUG
 #define WLFC_DBGMESG(x) printf x
@@ -194,5 +195,22 @@
 #define WLFC_PRINTMAC(banner, ea)
 #define WLFC_WHEREIS(s)
 #endif
+
+/* AMPDU host reorder packet flags */
+#define WLHOST_REORDERDATA_MAXFLOWS		256
+#define WLHOST_REORDERDATA_LEN		 10
+#define WLHOST_REORDERDATA_TOTLEN	(WLHOST_REORDERDATA_LEN + 1 + 1) /* +tag +len */
+
+#define WLHOST_REORDERDATA_FLOWID_OFFSET		0
+#define WLHOST_REORDERDATA_MAXIDX_OFFSET		2
+#define WLHOST_REORDERDATA_FLAGS_OFFSET			4
+#define WLHOST_REORDERDATA_CURIDX_OFFSET		6
+#define WLHOST_REORDERDATA_EXPIDX_OFFSET		8
+
+#define WLHOST_REORDERDATA_DEL_FLOW		0x01
+#define WLHOST_REORDERDATA_FLUSH_ALL		0x02
+#define WLHOST_REORDERDATA_CURIDX_VALID		0x04
+#define WLHOST_REORDERDATA_EXPIDX_VALID		0x08
+#define WLHOST_REORDERDATA_NEW_HOLE		0x10
 
 #endif /* __wlfc_proto_definitions_h__ */

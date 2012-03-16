@@ -2,9 +2,9 @@
  * Misc utility routines for accessing chip-specific features
  * of the SiliconBackplane-based Broadcom chips.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -22,9 +22,10 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sbutils.c,v 1.687.2.1 2010-11-29 20:21:56 Exp $
+ * $Id: sbutils.c 300516 2011-12-04 17:39:44Z $
  */
 
+#include <bcm_cfg.h>
 #include <typedefs.h>
 #include <bcmdefs.h>
 #include <osl.h>
@@ -113,8 +114,10 @@ sb_write_sbreg(si_info_t *sii, volatile uint32 *sbr, uint32 v)
 
 	if (BUSTYPE(sii->pub.bustype) == PCMCIA_BUS) {
 		dummy = R_REG(sii->osh, sbr);
+		BCM_REFERENCE(dummy);
 		W_REG(sii->osh, (volatile uint16 *)sbr, (uint16)(v & 0xffff));
 		dummy = R_REG(sii->osh, sbr);
+		BCM_REFERENCE(dummy);
 		W_REG(sii->osh, ((volatile uint16 *)sbr + 1), (uint16)((v >> 16) & 0xffff));
 	} else
 		W_REG(sii->osh, sbr, v);
@@ -787,6 +790,7 @@ sb_core_disable(si_t *sih, uint32 bits)
 	/* set target reject and spin until busy is clear (preserve core-specific bits) */
 	OR_SBREG(sii, &sb->sbtmstatelow, SBTML_REJ);
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
+	BCM_REFERENCE(dummy);
 	OSL_DELAY(1);
 	SPINWAIT((R_SBREG(sii, &sb->sbtmstatehigh) & SBTMH_BUSY), 100000);
 	if (R_SBREG(sii, &sb->sbtmstatehigh) & SBTMH_BUSY)
@@ -795,6 +799,7 @@ sb_core_disable(si_t *sih, uint32 bits)
 	if (R_SBREG(sii, &sb->sbidlow) & SBIDL_INIT) {
 		OR_SBREG(sii, &sb->sbimstate, SBIM_RJ);
 		dummy = R_SBREG(sii, &sb->sbimstate);
+		BCM_REFERENCE(dummy);
 		OSL_DELAY(1);
 		SPINWAIT((R_SBREG(sii, &sb->sbimstate) & SBIM_BY), 100000);
 	}
@@ -804,6 +809,7 @@ sb_core_disable(si_t *sih, uint32 bits)
 	        (((bits | SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
 	         SBTML_REJ | SBTML_RESET));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
+	BCM_REFERENCE(dummy);
 	OSL_DELAY(10);
 
 	/* don't forget to clear the initiator reject bit */
@@ -846,6 +852,7 @@ sb_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 	        (((bits | resetbits | SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
 	         SBTML_RESET));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
+	BCM_REFERENCE(dummy);
 	OSL_DELAY(1);
 
 	if (R_SBREG(sii, &sb->sbtmstatehigh) & SBTMH_SERR) {
@@ -859,11 +866,13 @@ sb_core_reset(si_t *sih, uint32 bits, uint32 resetbits)
 	W_SBREG(sii, &sb->sbtmstatelow,
 	        ((bits | resetbits | SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
+	BCM_REFERENCE(dummy);
 	OSL_DELAY(1);
 
 	/* leave clock enabled */
 	W_SBREG(sii, &sb->sbtmstatelow, ((bits | SICF_CLOCK_EN) << SBTML_SICF_SHIFT));
 	dummy = R_SBREG(sii, &sb->sbtmstatelow);
+	BCM_REFERENCE(dummy);
 	OSL_DELAY(1);
 }
 

@@ -1,9 +1,9 @@
 /*
  * HND SiliconBackplane PMU support.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndpmu.h 277737 2011-08-16 17:54:59Z $
+ * $Id: hndpmu.h 241182 2011-02-17 21:50:03Z $
  */
 
 #ifndef _hndpmu_h_
@@ -30,5 +30,7 @@
 
 extern void si_pmu_otp_power(si_t *sih, osl_t *osh, bool on);
 extern void si_sdiod_drive_strength_init(si_t *sih, osl_t *osh, uint32 drivestrength);
+
+extern void si_pmu_minresmask_htavail_set(si_t *sih, osl_t *osh, bool set_clear);
 
 #endif /* _hndpmu_h_ */

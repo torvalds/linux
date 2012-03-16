@@ -1,9 +1,9 @@
 /*
  * Linux cfgp2p driver
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h,v 1.1.4.1.2.8 2011/02/09 01:37:52 Exp $
+ * $Id: wl_cfgp2p.h 308397 2012-01-15 07:32:58Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -31,6 +31,7 @@
 struct wl_priv;
 extern u32 wl_dbg_level;
 
+typedef struct wifi_p2p_ie wifi_wfd_ie_t;
 /* Enumeration of the usages of the BSSCFGs used by the P2P Library.  Do not
  * confuse this with a bsscfg index.  This value is an index into the
  * saved_ie[] array of structures which in turn contains a bsscfg index field.
@@ -101,11 +102,11 @@ enum wl_cfgp2p_status {
 #define wl_to_p2p_bss_saved_ie(w, type) 	((wl)->p2p->bss_idx[type].saved_ie)
 #define wl_to_p2p_bss_private(w, type) 	((wl)->p2p->bss_idx[type].private_data)
 #define wl_to_p2p_bss(wl, type) ((wl)->p2p->bss_idx[type])
-#define wl_get_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:test_bit(WLP2P_STATUS_ ## stat, \
+#define wl_get_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : test_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_set_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:set_bit(WLP2P_STATUS_ ## stat, \
+#define wl_set_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : set_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
-#define wl_clr_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:clear_bit(WLP2P_STATUS_ ## stat, \
+#define wl_clr_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0 : clear_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
 #define wl_chg_p2p_status(wl, stat) ((!(wl)->p2p_supported) ? 0:change_bit(WLP2P_STATUS_ ## stat, \
 									&(wl)->p2p->status))
@@ -192,6 +193,8 @@ wl_cfgp2p_find_wpsie(u8 *parse, u32 len);
 extern wifi_p2p_ie_t *
 wl_cfgp2p_find_p2pie(u8 *parse, u32 len);
 
+extern wifi_wfd_ie_t *
+wl_cfgp2p_find_wfdie(u8 *parse, u32 len);
 extern s32
 wl_cfgp2p_set_management_ie(struct wl_priv *wl, struct net_device *ndev, s32 bssidx,
             s32 pktflag, const u8 *vndr_ie, u32 vndr_ie_len);

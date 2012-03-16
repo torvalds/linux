@@ -1,9 +1,9 @@
 /*
  * Broadcom Event  protocol definitions
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -23,10 +23,9 @@
  *
  * Dependencies: proto/bcmeth.h
  *
- * $Id: bcmevent.h 288077 2011-10-06 00:08:47Z $
+ * $Id: bcmevent.h 294352 2011-11-06 19:23:00Z $
  *
  */
-
 
 
 
@@ -138,22 +137,22 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_PROBREQ_MSG       44      
 #define WLC_E_SCAN_CONFIRM_IND  45
 #define WLC_E_PSK_SUP		46	
-#define WLC_E_COUNTRY_CODE_CHANGED 47
-#define	WLC_E_EXCEEDED_MEDIUM_TIME 48	
+#define WLC_E_COUNTRY_CODE_CHANGED	47
+#define	WLC_E_EXCEEDED_MEDIUM_TIME	48	
 #define WLC_E_ICV_ERROR		49	
-#define WLC_E_UNICAST_DECODE_ERROR 50	
-#define WLC_E_MULTICAST_DECODE_ERROR 51 
+#define WLC_E_UNICAST_DECODE_ERROR	50	
+#define WLC_E_MULTICAST_DECODE_ERROR	51 
 #define WLC_E_TRACE		52
+#ifdef WLBTAMP
 #define WLC_E_BTA_HCI_EVENT	53	
-#define WLC_E_IF		54	
-#ifdef WLP2P
-#define WLC_E_P2P_DISC_LISTEN_COMPLETE 	55	
 #endif
+#define WLC_E_IF		54	
+#define WLC_E_P2P_DISC_LISTEN_COMPLETE	55	
 #define WLC_E_RSSI		56	
 #define WLC_E_PFN_SCAN_COMPLETE	57	
 #define WLC_E_EXTLOG_MSG	58
 #define WLC_E_ACTION_FRAME      59 	
-#define WLC_E_ACTION_FRAME_COMPLETE 60	
+#define WLC_E_ACTION_FRAME_COMPLETE	60	
 #define WLC_E_PRE_ASSOC_IND	61	
 #define WLC_E_PRE_REASSOC_IND	62	
 #define WLC_E_CHANNEL_ADOPTED	63
@@ -164,28 +163,28 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_WAI_MSG 		68	
 #define WLC_E_ESCAN_RESULT 	69	
 #define WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE 	70	
-#if defined(WLP2P)
 #define WLC_E_PROBRESP_MSG	71	
 #define WLC_E_P2P_PROBREQ_MSG	72	
-#endif
-#define WLC_E_DCS_REQUEST 73
+#define WLC_E_DCS_REQUEST	73
 
-#define WLC_E_FIFO_CREDIT_MAP	74 
+#define WLC_E_FIFO_CREDIT_MAP	74	
 
 #define WLC_E_ACTION_FRAME_RX	75	
 #define WLC_E_WAKE_EVENT	76	
 #define WLC_E_RM_COMPLETE	77	
 #define WLC_E_HTSFSYNC		78	
 #define WLC_E_OVERLAY_REQ	79	
-#define WLC_E_CSA_COMPLETE_IND  80
+#define WLC_E_CSA_COMPLETE_IND		80	
 #define WLC_E_EXCESS_PM_WAKE_EVENT	81	
 #define WLC_E_PFN_SCAN_NONE		82	
-#define WLC_E_PFN_SCAN_ALLGONE	83	
-#define WLC_E_GTK_PLUMBED 84
-#define WLC_E_ASSOC_REQ_IE 85
-#define WLC_E_ASSOC_RESP_IE 86
-#define WLC_E_LAST	87	
+#define WLC_E_PFN_SCAN_ALLGONE		83	
+#define WLC_E_GTK_PLUMBED 		84
+#define WLC_E_ASSOC_IND_NDIS		85	
+#define WLC_E_REASSOC_IND_NDIS		86	
+#define WLC_E_ASSOC_REQ_IE 		87
+#define WLC_E_ASSOC_RESP_IE 		88
 
+#define WLC_E_LAST			89	
 
 
 typedef struct {
@@ -280,7 +279,7 @@ typedef BWL_PRE_PACKED_STRUCT struct wl_event_rx_frame_data {
 
 
 typedef struct wl_event_data_if {
-	uint8 ifidx;
+	uint8 ifidx;		
 	uint8 opcode;		
 	uint8 reserved;
 	uint8 bssidx;		
@@ -298,8 +297,10 @@ typedef struct wl_event_data_if {
 #define WLC_E_IF_ROLE_WDS		2	
 #define WLC_E_IF_ROLE_P2P_GO		3	
 #define WLC_E_IF_ROLE_P2P_CLIENT	4	
+#ifdef WLBTAMP
 #define WLC_E_IF_ROLE_BTA_CREATOR	5	
 #define WLC_E_IF_ROLE_BTA_ACCEPTOR	6	
+#endif
 
 
 #define WLC_E_LINK_BCN_LOSS	1	
@@ -308,7 +309,7 @@ typedef struct wl_event_data_if {
 #define WLC_E_LINK_BSSCFG_DIS	4	
 
 
-#define WLC_E_OVL_DOWNLOAD	0	
+#define WLC_E_OVL_DOWNLOAD		0	
 #define WLC_E_OVL_UPDATE_IND	1	
 
 

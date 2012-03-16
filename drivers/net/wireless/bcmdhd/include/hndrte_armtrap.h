@@ -1,9 +1,9 @@
 /*
  * HNDRTE arm trap handling.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndrte_armtrap.h 277737 2011-08-16 17:54:59Z $
+ * $Id: hndrte_armtrap.h 261365 2011-05-24 20:42:23Z $
  */
 
 #ifndef	_hndrte_armtrap_h
@@ -65,22 +65,22 @@ typedef struct _trap_struct {
 	uint32		epc;
 	uint32		cpsr;
 	uint32		spsr;
-	uint32		r0;
-	uint32		r1;
-	uint32		r2;
-	uint32		r3;
-	uint32		r4;
-	uint32		r5;
-	uint32		r6;
-	uint32		r7;
-	uint32		r8;
-	uint32		r9;
-	uint32		r10;
-	uint32		r11;
-	uint32		r12;
-	uint32		r13;
-	uint32		r14;
-	uint32		pc;
+	uint32		r0;	/* a1 */
+	uint32		r1;	/* a2 */
+	uint32		r2;	/* a3 */
+	uint32		r3;	/* a4 */
+	uint32		r4;	/* v1 */
+	uint32		r5;	/* v2 */
+	uint32		r6;	/* v3 */
+	uint32		r7;	/* v4 */
+	uint32		r8;	/* v5 */
+	uint32		r9;	/* sb/v6 */
+	uint32		r10;	/* sl/v7 */
+	uint32		r11;	/* fp/v8 */
+	uint32		r12;	/* ip */
+	uint32		r13;	/* sp */
+	uint32		r14;	/* lr */
+	uint32		pc;	/* r15 */
 } trap_t;
 
 #endif	/* !_LANGUAGE_ASSEMBLY */

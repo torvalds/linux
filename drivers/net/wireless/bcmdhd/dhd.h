@@ -4,9 +4,9 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 306879 2012-01-09 21:33:03Z $
+ * $Id: dhd.h 309548 2012-01-20 01:13:08Z $
  */
 
 /****************
@@ -34,9 +34,6 @@
 #ifndef _dhd_h_
 #define _dhd_h_
 
-#if defined(CHROMIUMOS_COMPAT_WIRELESS)
-#include <linux/sched.h>
-#endif
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -59,6 +56,7 @@ int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
 #define ALL_INTERFACES	0xff
 
 #include <wlioctl.h>
+#include <wlfc_proto.h>
 
 
 /* Forward decls */
@@ -74,6 +72,7 @@ enum dhd_bus_state {
 	DHD_BUS_DATA		/* Ready for frame transfers */
 };
 
+
 /* Firmware requested operation mode */
 #define STA_MASK			0x0001
 #define HOSTAPD_MASK			0x0002
@@ -85,6 +84,13 @@ enum dhd_bus_state {
 
 #define DHD_SCAN_ACTIVE_TIME	 40 /* ms : Embedded default Active setting from DHD Driver */
 #define DHD_SCAN_PASSIVE_TIME	130 /* ms: Embedded default Passive setting from DHD Driver */
+
+#ifndef POWERUP_MAX_RETRY
+#define POWERUP_MAX_RETRY	(10) /* how many times we retry to power up the chip */
+#endif
+#ifndef POWERUP_WAIT_MS
+#define POWERUP_WAIT_MS		(2000) /* ms: time out in waiting wifi to come up */
+#endif
 
 enum dhd_bus_wake_state {
 	WAKE_LOCK_OFF,
@@ -138,6 +144,17 @@ void dhd_os_prefree(void *osh, void *addr, uint size);
 #define DHD_SDALIGN	32
 #endif
 
+/* host reordering packts logic */
+/* followed the structure to hold the reorder buffers (void **p) */
+typedef struct reorder_info {
+	void **p;
+	uint8 flow_id;
+	uint8 cur_idx;
+	uint8 exp_idx;
+	uint8 max_idx;
+	uint8 pend_pkts;
+} reorder_info_t;
+
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
@@ -189,6 +206,8 @@ typedef struct dhd_pub {
 	/* Last error from dongle */
 	int dongle_error;
 
+	uint8 country_code[WLC_CNTRY_BUF_SZ];
+
 	/* Suspend disable flag and "in suspend" flag */
 	int suspend_disable_flag; /* "1" to disable all extra powersaving during suspend */
 	int in_suspend;			/* flag set to 1 when early suspend called */
@@ -206,14 +225,16 @@ typedef struct dhd_pub {
 	int	op_mode;				/* STA, HostAPD, WFD, SoftAP */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_HAS_WAKELOCK)
-	struct wake_lock 	wakelock[WAKE_LOCK_MAX];
+	struct wake_lock wakelock[WAKE_LOCK_MAX];
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined (CONFIG_HAS_WAKELOCK) */
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 25)) && 1
 	struct mutex 	wl_start_stop_lock; /* lock/unlock for Android start/stop */
 	struct mutex 	wl_softap_lock;		 /* lock/unlock for any SoftAP/STA settings */
 #endif 
 
+#ifdef WLBTAMP
 	uint16	maxdatablks;
+#endif /* WLBTAMP */
 #ifdef PROP_TXSTATUS
 	int   wlfc_enabled;
 	void* wlfc_state;
@@ -225,6 +246,7 @@ typedef struct dhd_pub {
 #ifdef WLMEDIA_HTSF
 	uint8 htsfdlystat_sz; /* Size of delay stats, max 255B */
 #endif
+	struct reorder_info *reorder_bufs[WLHOST_REORDERDATA_MAXFLOWS];
 } dhd_pub_t;
 
 typedef struct dhd_cmn {
@@ -243,7 +265,7 @@ typedef struct dhd_cmn {
 				SMP_RD_BARRIER_DEPENDS(); \
 				wait_event_interruptible_timeout(a, !dhd_mmc_suspend, HZ/100); \
 			} \
-		} while (0)
+		} 	while (0)
 	#define DHD_PM_RESUME_WAIT(a) 		_DHD_PM_RESUME_WAIT(a, 200)
 	#define DHD_PM_RESUME_WAIT_FOREVER(a) 	_DHD_PM_RESUME_WAIT(a, ~0)
 	#define DHD_PM_RESUME_RETURN_ERROR(a)	do { if (dhd_mmc_suspend) return a; } while (0)
@@ -316,7 +338,6 @@ inline static void MUTEX_UNLOCK_SOFTAP_SET(dhd_pub_t * dhdp)
 #define DHD_OS_WAKE_UNLOCK(pub) 		dhd_os_wake_unlock(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT(pub)		dhd_os_wake_lock_timeout(pub)
 #define DHD_OS_WAKE_LOCK_TIMEOUT_ENABLE(pub, val)	dhd_os_wake_lock_timeout_enable(pub, val)
-
 #define DHD_PACKET_TIMEOUT_MS	1000
 #define DHD_EVENT_TIMEOUT_MS	1500
 
@@ -419,7 +440,6 @@ extern int dhd_custom_get_mac_address(unsigned char *buf);
 extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t * pub);
-extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
 
 #ifdef PNO_SUPPORT
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
@@ -443,6 +463,7 @@ extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
 
 extern int dhd_get_dtim_skip(dhd_pub_t *dhd);
 extern bool dhd_check_ap_wfd_mode_set(dhd_pub_t *dhd);
+extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
 
 #ifdef DHD_DEBUG
 extern int write_to_file(dhd_pub_t *dhd, uint8 *buf, int size);
@@ -477,7 +498,6 @@ extern int dhd_wl_ioctl_cmd(dhd_pub_t *dhd_pub, int cmd, void *arg, int len, uin
 extern struct dhd_cmn *dhd_common_init(osl_t *osh);
 extern void dhd_common_deinit(dhd_pub_t *dhd_pub, dhd_cmn_t *sa_cmn);
 
-extern int dhd_do_driver_init(struct net_device *net);
 extern int dhd_add_if(struct dhd_info *dhd, int ifidx, void *handle,
 	char *name, uint8 *mac_addr, uint32 flags, uint8 bssidx);
 extern void dhd_del_if(struct dhd_info *dhd, int ifidx);
@@ -534,6 +554,7 @@ extern uint dhd_watchdog_ms;
 extern uint dhd_console_ms;
 extern uint wl_msg_level;
 #endif /* defined(DHD_DEBUG) */
+
 
 /* Use interrupts */
 extern uint dhd_intr;

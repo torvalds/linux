@@ -1,7 +1,7 @@
 /*
-* Copyright (C) 1999-2011, Broadcom Corporation
+* Copyright (C) 1999-2012, Broadcom Corporation
 * 
-*         Unless you and Broadcom execute a separate written software license
+*      Unless you and Broadcom execute a separate written software license
 * agreement governing use of this software, this software is licensed to you
 * under the terms of the GNU General Public License version 2 (the "GPL"),
 * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: dhd_wlfc.h 286994 2011-09-29 21:27:44Z $
+* $Id: dhd_wlfc.h 294267 2011-11-04 23:41:52Z $
 *
 */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -222,7 +222,7 @@ typedef struct athost_wl_status_info {
 	athost_wl_stat_counters_t stats;
 
 	/* the additional ones are for bc/mc and ATIM FIFO */
-	int		FIFO_credit[AC_COUNT + 2];
+	int     FIFO_credit[AC_COUNT + 2];
 
 	/* Credit borrow counts for each FIFO from each of the other FIFOs */
 	int		credits_borrowed[AC_COUNT + 2][AC_COUNT + 2];

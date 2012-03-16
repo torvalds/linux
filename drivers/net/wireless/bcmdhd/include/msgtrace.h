@@ -1,9 +1,9 @@
 /*
  * Trace messages sent over HBUS
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: msgtrace.h 277737 2011-08-16 17:54:59Z $
+ * $Id: msgtrace.h 281527 2011-09-02 17:12:53Z $
  */
 
 #ifndef	_MSGTRACE_H
@@ -51,7 +51,7 @@ typedef BWL_PRE_PACKED_STRUCT struct msgtrace_hdr {
 
 #define MSGTRACE_HDRLEN 	sizeof(msgtrace_hdr_t)
 
-/* The hbus driver generates traces when sending a trace message. This causes endless traces. 
+/* The hbus driver generates traces when sending a trace message. This causes endless traces.
  * This flag must be set to TRUE in any hbus traces. The flag is reset in the function msgtrace_put.
  * This prevents endless traces but generates hasardous lost of traces only in bus device code.
  * It is recommendat to set this flag in macro SD_TRACE but not in SD_ERROR for avoiding missing

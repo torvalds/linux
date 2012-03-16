@@ -1,9 +1,9 @@
 /*
  * OS Abstraction Layer
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,9 +21,8 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: osl.h 277737 2011-08-16 17:54:59Z $
+ * $Id: osl.h 301926 2011-12-09 02:00:46Z $
  */
-
 
 #ifndef _osl_h_
 #define _osl_h_
@@ -38,11 +37,17 @@ typedef struct osl_dmainfo osldma_t;
 typedef void (*pktfree_cb_fn_t)(void *ctx, void *pkt, unsigned int status);
 
 
+typedef unsigned int (*osl_rreg_fn_t)(void *ctx, volatile void *reg, unsigned int size);
+typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, unsigned int size);
+
+
 #include <linux_osl.h>
 
 #ifndef PKTDBG_TRACE
 #define PKTDBG_TRACE(osh, pkt, bit)
 #endif
+
+#define PKTCTFMAP(osh, p)
 
 
 

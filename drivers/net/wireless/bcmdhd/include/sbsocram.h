@@ -1,9 +1,9 @@
 /*
  * BCM47XX Sonics SiliconBackplane embedded ram core
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,9 +21,8 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sbsocram.h 277737 2011-08-16 17:54:59Z $
+ * $Id: sbsocram.h 271781 2011-07-13 20:00:06Z $
  */
-
 
 #ifndef	_SBSOCRAM_H
 #define	_SBSOCRAM_H
@@ -67,7 +66,7 @@ typedef volatile struct sbsocramregs {
 	uint32	PAD[84];
 	uint32	workaround;
 	uint32	pwrctl;		
-	uint32  PAD[133];
+	uint32	PAD[133];
 	uint32  sr_control;     
 	uint32  sr_status;      
 	uint32  sr_address;     
@@ -154,7 +153,7 @@ typedef volatile struct sbsocramregs {
 #define SRCMD_DONE_DLY	1000
 
 
-#define SOCRAM_BANKINFO_SZMASK		0x3f
+#define SOCRAM_BANKINFO_SZMASK		0x7f
 #define SOCRAM_BANKIDX_ROM_MASK		0x100
 
 #define SOCRAM_BANKIDX_MEMTYPE_SHIFT	8
@@ -169,18 +168,26 @@ typedef volatile struct sbsocramregs {
 #define	SOCRAM_BANKINFO_STDBY_TIMER	0x800
 
 
-#define SOCRAM_BANKINFO_DEVRAMSEL_SHIFT	13
-#define SOCRAM_BANKINFO_DEVRAMSEL_MASK	0x2000
-#define SOCRAM_BANKINFO_DEVRAMPRO_SHIFT	14
-#define SOCRAM_BANKINFO_DEVRAMPRO_MASK	0x4000
+#define SOCRAM_BANKINFO_DEVRAMSEL_SHIFT		13
+#define SOCRAM_BANKINFO_DEVRAMSEL_MASK		0x2000
+#define SOCRAM_BANKINFO_DEVRAMPRO_SHIFT		14
+#define SOCRAM_BANKINFO_DEVRAMPRO_MASK		0x4000
+#define SOCRAM_BANKINFO_SLPSUPP_SHIFT		15
+#define SOCRAM_BANKINFO_SLPSUPP_MASK		0x8000
+#define SOCRAM_BANKINFO_RETNTRAM_SHIFT		16
+#define SOCRAM_BANKINFO_RETNTRAM_MASK		0x00010000
+#define SOCRAM_BANKINFO_PDASZ_SHIFT		17
+#define SOCRAM_BANKINFO_PDASZ_MASK		0x003E0000
+#define SOCRAM_BANKINFO_DEVRAMREMAP_SHIFT	24
+#define SOCRAM_BANKINFO_DEVRAMREMAP_MASK	0x01000000
 
 
 #define SOCRAM_DEVRAMBANK_MASK		0xF000
 #define SOCRAM_DEVRAMBANK_SHIFT		12
 
 
-#define	SOCRAM_BANKINFO_SZBASE		8192
-#define SOCRAM_BANKSIZE_SHIFT		13	
+#define   SOCRAM_BANKINFO_SZBASE          8192
+#define SOCRAM_BANKSIZE_SHIFT         13      
 
 
 #endif	

@@ -1,9 +1,9 @@
 /*
  * Console support for hndrte.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,9 +21,8 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndrte_cons.h 277737 2011-08-16 17:54:59Z $
+ * $Id: hndrte_cons.h 300516 2011-12-04 17:39:44Z $
  */
-
 #ifndef	_HNDRTE_CONS_H
 #define	_HNDRTE_CONS_H
 

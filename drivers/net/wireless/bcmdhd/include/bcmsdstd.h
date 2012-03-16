@@ -1,9 +1,9 @@
 /*
  *  'Standard' SDIO HOST CONTROLLER driver
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdstd.h 281604 2011-09-02 18:58:49Z $
+ * $Id: bcmsdstd.h 294369 2011-11-06 23:22:23Z $
  */
 #ifndef	_BCM_SD_STD_H
 #define	_BCM_SD_STD_H
@@ -130,7 +130,7 @@ struct sdioh_info {
 	int8		sd_dma_mode;		/* DMA Mode (PIO, SDMA, ... ADMA2) on CMD53 */
 	uint8 		num_funcs;		/* Supported funcs on client */
 	uint32 		com_cis_ptr;
-	uint32 		func_cis_ptr[SDIOD_MAX_IOFUNCS];
+	uint32 		func_cis_ptr[SDIOD_MAX_FUNCS];
 	void		*dma_buf;		/* DMA Buffer virtual address */
 	ulong		dma_phys;		/* DMA Buffer physical address */
 	void		*adma2_dscr_buf;	/* ADMA2 Descriptor Buffer virtual address */

@@ -4,9 +4,9 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 1999-2011, Broadcom Corporation
+ * Copyright (C) 1999-2012, Broadcom Corporation
  * 
- *         Unless you and Broadcom execute a separate written software license
+ *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
  * under the terms of the GNU General Public License version 2 (the "GPL"),
  * available at http://www.broadcom.com/licenses/GPLv2.php, with the
@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_bus.h,v 1.14.28.1 2010-12-23 01:13:17 Exp $
+ * $Id: dhd_bus.h 309567 2012-01-20 01:40:54Z $
  */
 
 #ifndef _dhd_bus_h_
@@ -51,8 +51,9 @@ extern int dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex);
 /* Get the Bus Idle Time */
 extern void dhd_bus_getidletime(dhd_pub_t *dhdp, int *idletime);
 
-/* Set the Bus Idle Time*/
+/* Set the Bus Idle Time */
 extern void dhd_bus_setidletime(dhd_pub_t *dhdp, int idle_time);
+
 /* Send a data frame to the dongle.  Callee disposes of txp. */
 extern int dhd_bus_txdata(struct dhd_bus *bus, void *txp);
 
@@ -95,5 +96,9 @@ extern void dhd_bus_set_nvram_params(struct dhd_bus * bus, const char *nvram_par
 extern void *dhd_bus_pub(struct dhd_bus *bus);
 extern void *dhd_bus_txq(struct dhd_bus *bus);
 extern uint dhd_bus_hdrlen(struct dhd_bus *bus);
+
+/* Register a dummy SDIO client driver in order to be notified of new SDIO device */
+extern int dhd_bus_reg_sdio_notify(void* semaphore);
+extern void dhd_bus_unreg_sdio_notify(void);
 
 #endif /* _dhd_bus_h_ */
