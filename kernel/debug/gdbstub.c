@@ -1129,5 +1129,6 @@ void gdbstub_exit(int status)
 	dbg_io_ops->write_char(hex_asc_lo(checksum));
 
 	/* make sure the output is flushed, lest the bootloader clobber it */
-	dbg_io_ops->flush();
+	if (dbg_io_ops->flush)
+		dbg_io_ops->flush();
 }
