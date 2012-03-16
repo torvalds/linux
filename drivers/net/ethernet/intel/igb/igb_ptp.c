@@ -27,6 +27,9 @@
 #define ISGN			0x80000000
 
 /*
+ * The 82580 timesync updates the system timer every 8ns by 8ns,
+ * and this update value cannot be reprogrammed.
+ *
  * Neither the 82576 nor the 82580 offer registers wide enough to hold
  * nanoseconds time values for very long. For the 82580, SYSTIM always
  * counts nanoseconds, but the upper 24 bits are not availible. The
@@ -37,6 +40,14 @@
  * choice of the 24 bit TININCA:IV (incvalue) field. Five bits of this
  * field are needed to provide the nominal 16 nanosecond period,
  * leaving 19 bits for fractional nanoseconds.
+ *
+ * We scale the NIC clock cycle by a large factor so that relatively
+ * small clock corrections can be added or subtracted at each clock
+ * tick. The drawbacks of a large factor are a) that the clock
+ * register overflows more quickly (not such a big deal) and b) that
+ * the increment per tick has to fit into 24 bits.  As a result we
+ * need to use a shift of 19 so we can fit a value of 16 into the
+ * TIMINCA register.
  *
  *
  *             SYSTIMH            SYSTIML
@@ -95,6 +106,11 @@ static cycle_t igb_82580_systim_read(const struct cyclecounter *cc)
 	struct igb_adapter *igb = container_of(cc, struct igb_adapter, cc);
 	struct e1000_hw *hw = &igb->hw;
 
+	/*
+	 * The timestamp latches on lowest register read. For the 82580
+	 * the lowest register is SYSTIMR instead of SYSTIML.  However we only
+	 * need to provide nanosecond resolution, so we just ignore it.
+	 */
 	jk = rd32(E1000_SYSTIMR);
 	lo = rd32(E1000_SYSTIML);
 	hi = rd32(E1000_SYSTIMH);
@@ -319,4 +335,47 @@ void igb_ptp_remove(struct igb_adapter *adapter)
 		dev_info(&adapter->pdev->dev, "removed PHC on %s\n",
 			 adapter->netdev->name);
 	}
+}
+
+/**
+ * igb_systim_to_hwtstamp - convert system time value to hw timestamp
+ * @adapter: board private structure
+ * @hwtstamps: timestamp structure to update
+ * @systim: unsigned 64bit system time value.
+ *
+ * We need to convert the system time value stored in the RX/TXSTMP registers
+ * into a hwtstamp which can be used by the upper level timestamping functions.
+ *
+ * The 'tmreg_lock' spinlock is used to protect the consistency of the
+ * system time value. This is needed because reading the 64 bit time
+ * value involves reading two (or three) 32 bit registers. The first
+ * read latches the value. Ditto for writing.
+ *
+ * In addition, here have extended the system time with an overflow
+ * counter in software.
+ **/
+void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
+			    struct skb_shared_hwtstamps *hwtstamps,
+			    u64 systim)
+{
+	u64 ns;
+	unsigned long flags;
+
+	switch (adapter->hw.mac.type) {
+	case e1000_i350:
+	case e1000_82580:
+	case e1000_82576:
+		break;
+	default:
+		return;
+	}
+
+	spin_lock_irqsave(&adapter->tmreg_lock, flags);
+
+	ns = timecounter_cyc2time(&adapter->tc, systim);
+
+	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
+
+	memset(hwtstamps, 0, sizeof(*hwtstamps));
+	hwtstamps->hwtstamp = ns_to_ktime(ns);
 }

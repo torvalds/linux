@@ -114,7 +114,6 @@ static void igb_free_all_rx_resources(struct igb_adapter *);
 static void igb_setup_mrqc(struct igb_adapter *);
 static int igb_probe(struct pci_dev *, const struct pci_device_id *);
 static void __devexit igb_remove(struct pci_dev *pdev);
-static void igb_init_hw_timer(struct igb_adapter *adapter);
 static int igb_sw_init(struct igb_adapter *);
 static int igb_open(struct net_device *);
 static int igb_close(struct net_device *);
@@ -563,33 +562,6 @@ rx_ring_summary:
 
 exit:
 	return;
-}
-
-
-/**
- * igb_read_clock - read raw cycle counter (to be used by time counter)
- */
-static cycle_t igb_read_clock(const struct cyclecounter *tc)
-{
-	struct igb_adapter *adapter =
-		container_of(tc, struct igb_adapter, cycles);
-	struct e1000_hw *hw = &adapter->hw;
-	u64 stamp = 0;
-	int shift = 0;
-
-	/*
-	 * The timestamp latches on lowest register read. For the 82580
-	 * the lowest register is SYSTIMR instead of SYSTIML.  However we never
-	 * adjusted TIMINCA so SYSTIMR will just read as all 0s so ignore it.
-	 */
-	if (hw->mac.type >= e1000_82580) {
-		stamp = rd32(E1000_SYSTIMR) >> 8;
-		shift = IGB_82580_TSYNC_SHIFT;
-	}
-
-	stamp |= (u64)rd32(E1000_SYSTIML) << shift;
-	stamp |= (u64)rd32(E1000_SYSTIMH) << (shift + 32);
-	return stamp;
 }
 
 /**
@@ -2110,9 +2082,11 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 	}
 
 #endif
+#ifdef CONFIG_IGB_PTP
 	/* do hw tstamp init after resetting */
-	igb_init_hw_timer(adapter);
+	igb_ptp_init(adapter);
 
+#endif
 	dev_info(&pdev->dev, "Intel(R) Gigabit Ethernet Network Connection\n");
 	/* print bus type/speed/width info */
 	dev_info(&pdev->dev, "%s: (PCIe:%s:%s) %pM\n",
@@ -2184,7 +2158,10 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 	struct e1000_hw *hw = &adapter->hw;
 
 	pm_runtime_get_noresume(&pdev->dev);
+#ifdef CONFIG_IGB_PTP
+	igb_ptp_remove(adapter);
 
+#endif
 	/*
 	 * The watchdog timer may be rescheduled, so explicitly
 	 * disable watchdog from being rescheduled.
@@ -2301,112 +2278,6 @@ err_out:
 out:
 	return;
 #endif /* CONFIG_PCI_IOV */
-}
-
-/**
- * igb_init_hw_timer - Initialize hardware timer used with IEEE 1588 timestamp
- * @adapter: board private structure to initialize
- *
- * igb_init_hw_timer initializes the function pointer and values for the hw
- * timer found in hardware.
- **/
-static void igb_init_hw_timer(struct igb_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-
-	switch (hw->mac.type) {
-	case e1000_i350:
-	case e1000_82580:
-		memset(&adapter->cycles, 0, sizeof(adapter->cycles));
-		adapter->cycles.read = igb_read_clock;
-		adapter->cycles.mask = CLOCKSOURCE_MASK(64);
-		adapter->cycles.mult = 1;
-		/*
-		 * The 82580 timesync updates the system timer every 8ns by 8ns
-		 * and the value cannot be shifted.  Instead we need to shift
-		 * the registers to generate a 64bit timer value.  As a result
-		 * SYSTIMR/L/H, TXSTMPL/H, RXSTMPL/H all have to be shifted by
-		 * 24 in order to generate a larger value for synchronization.
-		 */
-		adapter->cycles.shift = IGB_82580_TSYNC_SHIFT;
-		/* disable system timer temporarily by setting bit 31 */
-		wr32(E1000_TSAUXC, 0x80000000);
-		wrfl();
-
-		/* Set registers so that rollover occurs soon to test this. */
-		wr32(E1000_SYSTIMR, 0x00000000);
-		wr32(E1000_SYSTIML, 0x80000000);
-		wr32(E1000_SYSTIMH, 0x000000FF);
-		wrfl();
-
-		/* enable system timer by clearing bit 31 */
-		wr32(E1000_TSAUXC, 0x0);
-		wrfl();
-
-		timecounter_init(&adapter->clock,
-				 &adapter->cycles,
-				 ktime_to_ns(ktime_get_real()));
-		/*
-		 * Synchronize our NIC clock against system wall clock. NIC
-		 * time stamp reading requires ~3us per sample, each sample
-		 * was pretty stable even under load => only require 10
-		 * samples for each offset comparison.
-		 */
-		memset(&adapter->compare, 0, sizeof(adapter->compare));
-		adapter->compare.source = &adapter->clock;
-		adapter->compare.target = ktime_get_real;
-		adapter->compare.num_samples = 10;
-		timecompare_update(&adapter->compare, 0);
-		break;
-	case e1000_82576:
-		/*
-		 * Initialize hardware timer: we keep it running just in case
-		 * that some program needs it later on.
-		 */
-		memset(&adapter->cycles, 0, sizeof(adapter->cycles));
-		adapter->cycles.read = igb_read_clock;
-		adapter->cycles.mask = CLOCKSOURCE_MASK(64);
-		adapter->cycles.mult = 1;
-		/**
-		 * Scale the NIC clock cycle by a large factor so that
-		 * relatively small clock corrections can be added or
-		 * subtracted at each clock tick. The drawbacks of a large
-		 * factor are a) that the clock register overflows more quickly
-		 * (not such a big deal) and b) that the increment per tick has
-		 * to fit into 24 bits.  As a result we need to use a shift of
-		 * 19 so we can fit a value of 16 into the TIMINCA register.
-		 */
-		adapter->cycles.shift = IGB_82576_TSYNC_SHIFT;
-		wr32(E1000_TIMINCA,
-		                (1 << E1000_TIMINCA_16NS_SHIFT) |
-		                (16 << IGB_82576_TSYNC_SHIFT));
-
-		/* Set registers so that rollover occurs soon to test this. */
-		wr32(E1000_SYSTIML, 0x00000000);
-		wr32(E1000_SYSTIMH, 0xFF800000);
-		wrfl();
-
-		timecounter_init(&adapter->clock,
-				 &adapter->cycles,
-				 ktime_to_ns(ktime_get_real()));
-		/*
-		 * Synchronize our NIC clock against system wall clock. NIC
-		 * time stamp reading requires ~3us per sample, each sample
-		 * was pretty stable even under load => only require 10
-		 * samples for each offset comparison.
-		 */
-		memset(&adapter->compare, 0, sizeof(adapter->compare));
-		adapter->compare.source = &adapter->clock;
-		adapter->compare.target = ktime_get_real;
-		adapter->compare.num_samples = 10;
-		timecompare_update(&adapter->compare, 0);
-		break;
-	case e1000_82575:
-		/* 82575 does not support timesync */
-	default:
-		break;
-	}
-
 }
 
 /**
@@ -5718,35 +5589,7 @@ static int igb_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-/**
- * igb_systim_to_hwtstamp - convert system time value to hw timestamp
- * @adapter: board private structure
- * @shhwtstamps: timestamp structure to update
- * @regval: unsigned 64bit system time value.
- *
- * We need to convert the system time value stored in the RX/TXSTMP registers
- * into a hwtstamp which can be used by the upper level timestamping functions
- */
-static void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
-                                   struct skb_shared_hwtstamps *shhwtstamps,
-                                   u64 regval)
-{
-	u64 ns;
-
-	/*
-	 * The 82580 starts with 1ns at bit 0 in RX/TXSTMPL, shift this up to
-	 * 24 to match clock shift we setup earlier.
-	 */
-	if (adapter->hw.mac.type >= e1000_82580)
-		regval <<= IGB_82580_TSYNC_SHIFT;
-
-	ns = timecounter_cyc2time(&adapter->clock, regval);
-	timecompare_update(&adapter->compare, ns);
-	memset(shhwtstamps, 0, sizeof(struct skb_shared_hwtstamps));
-	shhwtstamps->hwtstamp = ns_to_ktime(ns);
-	shhwtstamps->syststamp = timecompare_transform(&adapter->compare, ns);
-}
-
+#ifdef CONFIG_IGB_PTP
 /**
  * igb_tx_hwtstamp - utility function which checks for TX time stamp
  * @q_vector: pointer to q_vector containing needed info
@@ -5776,6 +5619,7 @@ static void igb_tx_hwtstamp(struct igb_q_vector *q_vector,
 	skb_tstamp_tx(buffer_info->skb, &shhwtstamps);
 }
 
+#endif
 /**
  * igb_clean_tx_irq - Reclaim resources after transmit completes
  * @q_vector: pointer to q_vector containing needed info
@@ -5819,9 +5663,11 @@ static bool igb_clean_tx_irq(struct igb_q_vector *q_vector)
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
 
+#ifdef CONFIG_IGB_PTP
 		/* retrieve hardware timestamp */
 		igb_tx_hwtstamp(q_vector, tx_buffer);
 
+#endif
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 		tx_buffer->skb = NULL;
@@ -5993,6 +5839,7 @@ static inline void igb_rx_hash(struct igb_ring *ring,
 		skb->rxhash = le32_to_cpu(rx_desc->wb.lower.hi_dword.rss);
 }
 
+#ifdef CONFIG_IGB_PTP
 static void igb_rx_hwtstamp(struct igb_q_vector *q_vector,
 			    union e1000_adv_rx_desc *rx_desc,
 			    struct sk_buff *skb)
@@ -6032,6 +5879,7 @@ static void igb_rx_hwtstamp(struct igb_q_vector *q_vector,
 	igb_systim_to_hwtstamp(adapter, skb_hwtstamps(skb), regval);
 }
 
+#endif
 static void igb_rx_vlan(struct igb_ring *ring,
 			union e1000_adv_rx_desc *rx_desc,
 			struct sk_buff *skb)
@@ -6142,7 +5990,9 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 			goto next_desc;
 		}
 
+#ifdef CONFIG_IGB_PTP
 		igb_rx_hwtstamp(q_vector, rx_desc, skb);
+#endif
 		igb_rx_hash(rx_ring, rx_desc, skb);
 		igb_rx_checksum(rx_ring, rx_desc, skb);
 		igb_rx_vlan(rx_ring, rx_desc, skb);

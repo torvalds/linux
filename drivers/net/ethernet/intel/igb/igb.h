@@ -35,7 +35,6 @@
 #include "e1000_82575.h"
 
 #include <linux/clocksource.h>
-#include <linux/timecompare.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
 #include <linux/bitops.h>
@@ -329,9 +328,6 @@ struct igb_adapter {
 
 	/* OS defined structs */
 	struct pci_dev *pdev;
-	struct cyclecounter cycles;
-	struct timecounter clock;
-	struct timecompare compare;
 	struct hwtstamp_config hwtstamp_config;
 
 	spinlock_t stats64_lock;
@@ -386,7 +382,6 @@ struct igb_adapter {
 #define IGB_DMCTLX_DCFLUSH_DIS     0x80000000  /* Disable DMA Coal Flush */
 
 #define IGB_82576_TSYNC_SHIFT 19
-#define IGB_82580_TSYNC_SHIFT 24
 #define IGB_TS_HDR_LEN        16
 enum e1000_state_t {
 	__IGB_TESTING,
@@ -422,7 +417,15 @@ extern void igb_update_stats(struct igb_adapter *, struct rtnl_link_stats64 *);
 extern bool igb_has_link(struct igb_adapter *adapter);
 extern void igb_set_ethtool_ops(struct net_device *);
 extern void igb_power_up_link(struct igb_adapter *);
+#ifdef CONFIG_IGB_PTP
+extern void igb_ptp_init(struct igb_adapter *adapter);
+extern void igb_ptp_remove(struct igb_adapter *adapter);
 
+extern void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
+				   struct skb_shared_hwtstamps *hwtstamps,
+				   u64 systim);
+
+#endif
 static inline s32 igb_reset_phy(struct e1000_hw *hw)
 {
 	if (hw->phy.ops.reset)
