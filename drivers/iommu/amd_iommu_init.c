@@ -196,7 +196,7 @@ static u32 rlookup_table_size;	/* size if the rlookup table */
  */
 extern void iommu_flush_all_caches(struct amd_iommu *iommu);
 
-static int __init amd_iommu_enable_interrupts(void);
+static int amd_iommu_enable_interrupts(void);
 
 static inline void update_last_devid(u16 devid)
 {
@@ -1598,7 +1598,7 @@ free:
 	return ret;
 }
 
-static int __init amd_iommu_enable_interrupts(void)
+static int amd_iommu_enable_interrupts(void)
 {
 	struct amd_iommu *iommu;
 	int ret = 0;
