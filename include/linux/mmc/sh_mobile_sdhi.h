@@ -20,6 +20,10 @@ struct sh_mobile_sdhi_info {
 	struct tmio_mmc_data *pdata;
 	void (*set_pwr)(struct platform_device *pdev, int state);
 	int (*get_cd)(struct platform_device *pdev);
+
+	/* callbacks for board specific setup code */
+	int (*init)(struct platform_device *pdev);
+	void (*cleanup)(struct platform_device *pdev);
 };
 
 #endif /* LINUX_MMC_SH_MOBILE_SDHI_H */

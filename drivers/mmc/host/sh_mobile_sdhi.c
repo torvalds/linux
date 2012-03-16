@@ -109,6 +109,12 @@ static int __devinit sh_mobile_sdhi_probe(struct platform_device *pdev)
 	mmc_data = &priv->mmc_data;
 	p->pdata = mmc_data;
 
+	if (p->init) {
+		ret = p->init(pdev);
+		if (ret)
+			goto einit;
+	}
+
 	snprintf(clk_name, sizeof(clk_name), "sdhi%d", pdev->id);
 	priv->clk = clk_get(&pdev->dev, clk_name);
 	if (IS_ERR(priv->clk)) {
@@ -233,6 +239,9 @@ eirq_card_detect:
 eprobe:
 	clk_put(priv->clk);
 eclkget:
+	if (p->cleanup)
+		p->cleanup(pdev);
+einit:
 	kfree(priv);
 	return ret;
 }
@@ -257,6 +266,10 @@ static int sh_mobile_sdhi_remove(struct platform_device *pdev)
 	}
 
 	clk_put(priv->clk);
+
+	if (p->cleanup)
+		p->cleanup(pdev);
+
 	kfree(priv);
 
 	return 0;
