@@ -97,12 +97,12 @@ config SND_SOC_IMX_SSI
 config SND_SOC_IMX_PCM
 	tristate
 
-config SND_MXC_SOC_FIQ
+config SND_SOC_IMX_PCM_FIQ
 	tristate
 	select FIQ
 	select SND_SOC_IMX_PCM
 
-config SND_MXC_SOC_MX2
+config SND_SOC_IMX_PCM_DMA
 	tristate
 	select SND_SOC_DMAENGINE_PCM
 	select SND_SOC_IMX_PCM
@@ -114,7 +114,7 @@ config SND_MXC_SOC_WM1133_EV1
 	tristate "Audio on the the i.MX31ADS with WM1133-EV1 fitted"
 	depends on MACH_MX31ADS_WM1133_EV1 && EXPERIMENTAL
 	select SND_SOC_WM8350
-	select SND_MXC_SOC_FIQ
+	select SND_SOC_IMX_PCM_FIQ
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_SSI
 	help
@@ -125,7 +125,7 @@ config SND_SOC_MX27VIS_AIC32X4
 	tristate "SoC audio support for Visstrim M10 boards"
 	depends on MACH_IMX27_VISSTRIM_M10 && I2C
 	select SND_SOC_TLV320AIC32X4
-	select SND_MXC_SOC_MX2
+	select SND_SOC_IMX_PCM_DMA
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_SSI
 	help
@@ -137,7 +137,7 @@ config SND_SOC_PHYCORE_AC97
 	depends on MACH_PCM043 || MACH_PCA100
 	select SND_SOC_AC97_BUS
 	select SND_SOC_WM9712
-	select SND_MXC_SOC_FIQ
+	select SND_SOC_IMX_PCM_FIQ
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_SSI
 	help
@@ -152,7 +152,7 @@ config SND_SOC_EUKREA_TLV320
 		|| MACH_EUKREA_MBIMXSD51_BASEBOARD
 	depends on I2C
 	select SND_SOC_TLV320AIC23
-	select SND_MXC_SOC_FIQ
+	select SND_SOC_IMX_PCM_FIQ
 	select SND_SOC_IMX_AUDMUX
 	select SND_SOC_IMX_SSI
 	help
