@@ -126,6 +126,15 @@ static void regmap_format_16(void *buf, unsigned int val)
 	b[0] = cpu_to_be16(val);
 }
 
+static void regmap_format_24(void *buf, unsigned int val)
+{
+	u8 *b = buf;
+
+	b[0] = val >> 16;
+	b[1] = val >> 8;
+	b[2] = val;
+}
+
 static void regmap_format_32(void *buf, unsigned int val)
 {
 	__be32 *b = buf;
@@ -147,6 +156,16 @@ static unsigned int regmap_parse_16(void *buf)
 	b[0] = be16_to_cpu(b[0]);
 
 	return b[0];
+}
+
+static unsigned int regmap_parse_24(void *buf)
+{
+	u8 *b = buf;
+	unsigned int ret = b[2];
+	ret |= ((unsigned int)b[1]) << 8;
+	ret |= ((unsigned int)b[0]) << 16;
+
+	return ret;
 }
 
 static unsigned int regmap_parse_32(void *buf)
@@ -272,6 +291,10 @@ struct regmap *regmap_init(struct device *dev,
 	case 16:
 		map->format.format_val = regmap_format_16;
 		map->format.parse_val = regmap_parse_16;
+		break;
+	case 24:
+		map->format.format_val = regmap_format_24;
+		map->format.parse_val = regmap_parse_24;
 		break;
 	case 32:
 		map->format.format_val = regmap_format_32;
