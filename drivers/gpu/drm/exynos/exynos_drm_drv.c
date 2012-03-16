@@ -144,6 +144,13 @@ static int exynos_drm_unload(struct drm_device *dev)
 	return 0;
 }
 
+static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
+{
+	DRM_DEBUG_DRIVER("%s\n", __FILE__);
+
+	return exynos_drm_subdrv_open(dev, file);
+}
+
 static void exynos_drm_preclose(struct drm_device *dev,
 					struct drm_file *file)
 {
@@ -163,6 +170,8 @@ static void exynos_drm_preclose(struct drm_device *dev,
 		}
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	exynos_drm_subdrv_close(dev, file);
 }
 
 static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
@@ -216,6 +225,7 @@ static struct drm_driver exynos_drm_driver = {
 				  DRIVER_MODESET | DRIVER_GEM,
 	.load			= exynos_drm_load,
 	.unload			= exynos_drm_unload,
+	.open			= exynos_drm_open,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
 	.postclose		= exynos_drm_postclose,

@@ -229,6 +229,8 @@ struct exynos_drm_private {
  *	subdrv is registered to it.
  * @remove: this callback is used to release resources created
  *	by probe callback.
+ * @open: this would be called with drm device file open.
+ * @close: this would be called with drm device file close.
  * @manager: subdrv has its own manager to control a hardware appropriately
  *	and we can access a hardware drawing on this manager.
  * @encoder: encoder object owned by this sub driver.
@@ -240,6 +242,10 @@ struct exynos_drm_subdrv {
 
 	int (*probe)(struct drm_device *drm_dev, struct device *dev);
 	void (*remove)(struct drm_device *dev);
+	int (*open)(struct drm_device *drm_dev, struct device *dev,
+			struct drm_file *file);
+	void (*close)(struct drm_device *drm_dev, struct device *dev,
+			struct drm_file *file);
 
 	struct exynos_drm_manager manager;
 	struct drm_encoder *encoder;
@@ -268,6 +274,9 @@ int exynos_drm_subdrv_register(struct exynos_drm_subdrv *drm_subdrv);
 
 /* this function removes subdrv list from exynos drm driver */
 int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *drm_subdrv);
+
+int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
+void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
 
 extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;

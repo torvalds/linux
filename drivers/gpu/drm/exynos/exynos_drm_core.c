@@ -175,3 +175,38 @@ int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *subdrv)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_drm_subdrv_unregister);
+
+int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct exynos_drm_subdrv *subdrv;
+	int ret;
+
+	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list) {
+		if (subdrv->open) {
+			ret = subdrv->open(dev, subdrv->manager.dev, file);
+			if (ret)
+				goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	list_for_each_entry_reverse(subdrv, &subdrv->list, list) {
+		if (subdrv->close)
+			subdrv->close(dev, subdrv->manager.dev, file);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(exynos_drm_subdrv_open);
+
+void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file)
+{
+	struct exynos_drm_subdrv *subdrv;
+
+	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list) {
+		if (subdrv->close)
+			subdrv->close(dev, subdrv->manager.dev, file);
+	}
+}
+EXPORT_SYMBOL_GPL(exynos_drm_subdrv_close);
