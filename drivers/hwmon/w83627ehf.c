@@ -39,7 +39,7 @@
 					       0x8860 0xa1
     w83627dhg    9      5       4       3      0xa020 0xc1    0x5ca3
     w83627dhg-p  9      5       4       3      0xb070 0xc1    0x5ca3
-    w83627uhg    8      2       2       2      0xa230 0xc1    0x5ca3
+    w83627uhg    8      2       2       3      0xa230 0xc1    0x5ca3
     w83667hg     9      5       3       3      0xa510 0xc1    0x5ca3
     w83667hg-b   9      5       3       4      0xb350 0xc1    0x5ca3
     nct6775f     9      4       3       9      0xb470 0xc1    0x5ca3
@@ -1607,7 +1607,7 @@ store_##reg(struct device *dev, struct device_attribute *attr, \
 	val = step_time_to_reg(val, data->pwm_mode[nr]); \
 	mutex_lock(&data->update_lock); \
 	data->reg[nr] = val; \
-	w83627ehf_write_value(data, W83627EHF_REG_##REG[nr], val); \
+	w83627ehf_write_value(data, data->REG_##REG[nr], val); \
 	mutex_unlock(&data->update_lock); \
 	return count; \
 } \
@@ -2004,7 +2004,8 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	data = kzalloc(sizeof(struct w83627ehf_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct w83627ehf_data),
+			    GFP_KERNEL);
 	if (!data) {
 		err = -ENOMEM;
 		goto exit_release;
@@ -2157,16 +2158,16 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 		w83627ehf_set_temp_reg_ehf(data, 3);
 
 		/*
-		 * Temperature sources for temp1 and temp2 are selected with
+		 * Temperature sources for temp2 and temp3 are selected with
 		 * bank 0, registers 0x49 and 0x4a.
 		 */
 		data->temp_src[0] = 0;	/* SYSTIN */
 		reg = w83627ehf_read_value(data, 0x49) & 0x07;
 		/* Adjust to have the same mapping as other source registers */
 		if (reg == 0)
-			data->temp_src[1]++;
+			data->temp_src[1] = 1;
 		else if (reg >= 2 && reg <= 5)
-			data->temp_src[1] += 2;
+			data->temp_src[1] = reg + 2;
 		else	/* should never happen */
 			data->have_temp &= ~(1 << 1);
 		reg = w83627ehf_read_value(data, 0x4a);
@@ -2493,9 +2494,8 @@ static int __devinit w83627ehf_probe(struct platform_device *pdev)
 
 exit_remove:
 	w83627ehf_device_remove_files(dev);
-	kfree(data);
-	platform_set_drvdata(pdev, NULL);
 exit_release:
+	platform_set_drvdata(pdev, NULL);
 	release_region(res->start, IOREGION_LENGTH);
 exit:
 	return err;
@@ -2509,7 +2509,6 @@ static int __devexit w83627ehf_remove(struct platform_device *pdev)
 	w83627ehf_device_remove_files(&pdev->dev);
 	release_region(data->addr, IOREGION_LENGTH);
 	platform_set_drvdata(pdev, NULL);
-	kfree(data);
 
 	return 0;
 }
