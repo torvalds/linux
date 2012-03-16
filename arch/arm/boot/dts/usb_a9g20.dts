@@ -41,6 +41,11 @@
 				phy-mode = "rmii";
 				status = "okay";
 			};
+
+			usb1: gadget@fffa4000 {
+				atmel,vbus-gpio = <&pioC 5 0>;
+				status = "okay";
+			};
 		};
 
 		nand0: nand@40000000 {

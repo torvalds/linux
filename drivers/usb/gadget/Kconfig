@@ -137,7 +137,7 @@ choice
 
 config USB_AT91
 	tristate "Atmel AT91 USB Device Port"
-	depends on ARCH_AT91 && !ARCH_AT91SAM9RL && !ARCH_AT91SAM9G45
+	depends on ARCH_AT91
 	help
 	   Many Atmel AT91 processors (such as the AT91RM2000) have a
 	   full speed USB Device Port with support for five configurable
