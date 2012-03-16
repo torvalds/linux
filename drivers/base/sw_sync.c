@@ -86,6 +86,19 @@ static void sw_sync_print_pt(struct seq_file *s, struct sync_pt *sync_pt)
 	seq_printf(s, "%d / %d", pt->value, obj->value);
 }
 
+static int sw_sync_fill_driver_data(struct sync_pt *sync_pt,
+				    void *data, int size)
+{
+	struct sw_sync_pt *pt = (struct sw_sync_pt *)sync_pt;
+
+	if (size < sizeof(pt->value))
+		return -ENOMEM;
+
+	memcpy(data, &pt->value, sizeof(pt->value));
+
+	return sizeof(pt->value);
+}
+
 struct sync_timeline_ops sw_sync_timeline_ops = {
 	.driver_name = "sw_sync",
 	.dup = sw_sync_pt_dup,
@@ -93,6 +106,7 @@ struct sync_timeline_ops sw_sync_timeline_ops = {
 	.compare = sw_sync_pt_compare,
 	.print_obj = sw_sync_print_obj,
 	.print_pt = sw_sync_print_pt,
+	.fill_driver_data = sw_sync_fill_driver_data,
 };
 
 
