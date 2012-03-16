@@ -128,9 +128,6 @@ mwifiex_reset_connect_state(struct mwifiex_private *priv)
 		mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
-	/* Reset wireless stats signal info */
-	priv->qual_level = 0;
-	priv->qual_noise = 0;
 }
 
 /*

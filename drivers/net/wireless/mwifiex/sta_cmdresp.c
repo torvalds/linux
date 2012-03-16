@@ -119,8 +119,7 @@ mwifiex_process_cmdresp_error(struct mwifiex_private *priv,
  * calculated SNR values.
  */
 static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
-					struct host_cmd_ds_command *resp,
-					struct mwifiex_ds_get_signal *signal)
+					struct host_cmd_ds_command *resp)
 {
 	struct host_cmd_ds_802_11_rssi_info_rsp *rssi_info_rsp =
 						&resp->params.rssi_info_rsp;
@@ -136,35 +135,6 @@ static int mwifiex_ret_802_11_rssi_info(struct mwifiex_private *priv,
 
 	priv->bcn_rssi_avg = le16_to_cpu(rssi_info_rsp->bcn_rssi_avg);
 	priv->bcn_nf_avg = le16_to_cpu(rssi_info_rsp->bcn_nf_avg);
-
-	/* Need to indicate IOCTL complete */
-	if (signal) {
-		memset(signal, 0, sizeof(*signal));
-
-		signal->selector = ALL_RSSI_INFO_MASK;
-
-		/* RSSI */
-		signal->bcn_rssi_last = priv->bcn_rssi_last;
-		signal->bcn_rssi_avg = priv->bcn_rssi_avg;
-		signal->data_rssi_last = priv->data_rssi_last;
-		signal->data_rssi_avg = priv->data_rssi_avg;
-
-		/* SNR */
-		signal->bcn_snr_last =
-			CAL_SNR(priv->bcn_rssi_last, priv->bcn_nf_last);
-		signal->bcn_snr_avg =
-			CAL_SNR(priv->bcn_rssi_avg, priv->bcn_nf_avg);
-		signal->data_snr_last =
-			CAL_SNR(priv->data_rssi_last, priv->data_nf_last);
-		signal->data_snr_avg =
-			CAL_SNR(priv->data_rssi_avg, priv->data_nf_avg);
-
-		/* NF */
-		signal->bcn_nf_last = priv->bcn_nf_last;
-		signal->bcn_nf_avg = priv->bcn_nf_avg;
-		signal->data_nf_last = priv->data_nf_last;
-		signal->data_nf_avg = priv->data_nf_avg;
-	}
 
 	return 0;
 }
@@ -853,7 +823,7 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 		ret = mwifiex_ret_get_log(priv, resp, data_buf);
 		break;
 	case HostCmd_CMD_RSSI_INFO:
-		ret = mwifiex_ret_802_11_rssi_info(priv, resp, data_buf);
+		ret = mwifiex_ret_802_11_rssi_info(priv, resp);
 		break;
 	case HostCmd_CMD_802_11_SNMP_MIB:
 		ret = mwifiex_ret_802_11_snmp_mib(priv, resp, data_buf);

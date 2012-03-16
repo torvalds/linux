@@ -85,34 +85,6 @@ struct mwifiex_ds_get_stats {
 	u32 wep_icv_error[4];
 };
 
-#define BCN_RSSI_AVG_MASK               0x00000002
-#define BCN_NF_AVG_MASK                 0x00000200
-#define ALL_RSSI_INFO_MASK              0x00000fff
-
-struct mwifiex_ds_get_signal {
-	/*
-	 * Bit0:  Last Beacon RSSI,  Bit1:  Average Beacon RSSI,
-	 * Bit2:  Last Data RSSI,    Bit3:  Average Data RSSI,
-	 * Bit4:  Last Beacon SNR,   Bit5:  Average Beacon SNR,
-	 * Bit6:  Last Data SNR,     Bit7:  Average Data SNR,
-	 * Bit8:  Last Beacon NF,    Bit9:  Average Beacon NF,
-	 * Bit10: Last Data NF,      Bit11: Average Data NF
-	 */
-	u16 selector;
-	s16 bcn_rssi_last;
-	s16 bcn_rssi_avg;
-	s16 data_rssi_last;
-	s16 data_rssi_avg;
-	s16 bcn_snr_last;
-	s16 bcn_snr_avg;
-	s16 data_snr_last;
-	s16 data_snr_avg;
-	s16 bcn_nf_last;
-	s16 bcn_nf_avg;
-	s16 data_nf_last;
-	s16 data_nf_avg;
-};
-
 #define MWIFIEX_MAX_VER_STR_LEN    128
 
 struct mwifiex_ver_ext {

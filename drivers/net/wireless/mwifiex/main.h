@@ -448,7 +448,6 @@ struct mwifiex_private {
 	struct dentry *dfs_dev_dir;
 #endif
 	u8 nick_name[16];
-	u8 qual_level, qual_noise;
 	u16 current_key_index;
 	struct semaphore async_sem;
 	u8 scan_pending_on_block;
@@ -896,8 +895,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter);
 int mwifiex_disable_auto_ds(struct mwifiex_private *priv);
-int mwifiex_get_signal_info(struct mwifiex_private *priv,
-			    struct mwifiex_ds_get_signal *signal);
 int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 			      struct mwifiex_rate_cfg *rate);
 int mwifiex_request_scan(struct mwifiex_private *priv,

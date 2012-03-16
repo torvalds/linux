@@ -516,9 +516,7 @@ static int
 mwifiex_dump_station_info(struct mwifiex_private *priv,
 			  struct station_info *sinfo)
 {
-	struct mwifiex_ds_get_signal signal;
 	struct mwifiex_rate_cfg rate;
-	int ret = 0;
 
 	sinfo->filled = STATION_INFO_RX_BYTES | STATION_INFO_TX_BYTES |
 		STATION_INFO_RX_PACKETS |
@@ -526,15 +524,15 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 		| STATION_INFO_SIGNAL | STATION_INFO_TX_BITRATE;
 
 	/* Get signal information from the firmware */
-	memset(&signal, 0, sizeof(struct mwifiex_ds_get_signal));
-	if (mwifiex_get_signal_info(priv, &signal)) {
-		dev_err(priv->adapter->dev, "getting signal information\n");
-		ret = -EFAULT;
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_RSSI_INFO,
+				  HostCmd_ACT_GEN_GET, 0, NULL)) {
+		dev_err(priv->adapter->dev, "failed to get signal information\n");
+		return -EFAULT;
 	}
 
 	if (mwifiex_drv_get_data_rate(priv, &rate)) {
 		dev_err(priv->adapter->dev, "getting data rate\n");
-		ret = -EFAULT;
+		return -EFAULT;
 	}
 
 	/* Get DTIM period information from firmware */
@@ -561,7 +559,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 	sinfo->tx_bytes = priv->stats.tx_bytes;
 	sinfo->rx_packets = priv->stats.rx_packets;
 	sinfo->tx_packets = priv->stats.tx_packets;
-	sinfo->signal = priv->qual_level;
+	sinfo->signal = priv->bcn_rssi_avg;
 	/* bit rate is in 500 kb/s units. Convert it to 100kb/s units */
 	sinfo->txrate.legacy = rate.rate * 5;
 
@@ -581,7 +579,7 @@ mwifiex_dump_station_info(struct mwifiex_private *priv,
 			priv->curr_bss_params.bss_descriptor.beacon_period;
 	}
 
-	return ret;
+	return 0;
 }
 
 /*
