@@ -860,6 +860,14 @@ config MFD_RC5T583
 	  Additional drivers must be enabled in order to use the
 	  different functionality of the device.
 
+config MFD_ANATOP
+	bool "Support for Freescale i.MX on-chip ANATOP controller"
+	depends on SOC_IMX6Q
+	help
+	  Select this option to enable Freescale i.MX on-chip ANATOP
+	  MFD controller. This controller embeds regulator and
+	  thermal devices for Freescale i.MX platforms.
+
 endmenu
 endif
 
