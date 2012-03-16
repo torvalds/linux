@@ -367,6 +367,7 @@ static void __devinit pci_read_bridge_io(struct pci_bus *child)
 
 	if (base && base <= limit) {
 		res->flags = (io_base_lo & PCI_IO_RANGE_TYPE_MASK) | IORESOURCE_IO;
+		res2.flags = res->flags;
 		region.start = base;
 		region.end = limit + 0xfff;
 		pcibios_bus_to_resource(dev, &res2, &region);
