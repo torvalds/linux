@@ -1144,8 +1144,8 @@ static int set_ssp(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	}
 
 	if (mgmt_pending_find(MGMT_OP_SET_SSP, hdev)) {
-	     err = cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
-			      MGMT_STATUS_BUSY);
+		err = cmd_status(sk, hdev->id, MGMT_OP_SET_SSP,
+				 MGMT_STATUS_BUSY);
 		goto failed;
 	}
 
@@ -3052,7 +3052,7 @@ int mgmt_device_disconnected(struct hci_dev *hdev, bdaddr_t *bdaddr,
 			 sk);
 
 	if (sk)
-	  sock_put(sk);
+		sock_put(sk);
 
 	mgmt_pending_foreach(MGMT_OP_UNPAIR_DEVICE, hdev, unpair_device_rsp,
 			     hdev);
@@ -3464,10 +3464,10 @@ int mgmt_le_enable_complete(struct hci_dev *hdev, u8 enable, u8 status)
 
 		if (enable && test_and_clear_bit(HCI_LE_ENABLED,
 						 &hdev->dev_flags))
-		  err = new_settings(hdev, NULL);
+			err = new_settings(hdev, NULL);
 
-		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev,
-				     cmd_status_rsp, &mgmt_err);
+		mgmt_pending_foreach(MGMT_OP_SET_LE, hdev, cmd_status_rsp,
+				     &mgmt_err);
 
 		return err;
 	}
