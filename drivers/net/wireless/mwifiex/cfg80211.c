@@ -766,6 +766,45 @@ static int mwifiex_cfg80211_set_bitrate_mask(struct wiphy *wiphy,
 }
 
 /*
+ * CFG802.11 operation handler for connection quality monitoring.
+ *
+ * This function subscribes/unsubscribes HIGH_RSSI and LOW_RSSI
+ * events to FW.
+ */
+static int mwifiex_cfg80211_set_cqm_rssi_config(struct wiphy *wiphy,
+						struct net_device *dev,
+						s32 rssi_thold, u32 rssi_hyst)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_ds_misc_subsc_evt subsc_evt;
+
+	priv->cqm_rssi_thold = rssi_thold;
+	priv->cqm_rssi_hyst = rssi_hyst;
+
+	memset(&subsc_evt, 0x00, sizeof(struct mwifiex_ds_misc_subsc_evt));
+	subsc_evt.events = BITMASK_BCN_RSSI_LOW | BITMASK_BCN_RSSI_HIGH;
+
+	/* Subscribe/unsubscribe low and high rssi events */
+	if (rssi_thold && rssi_hyst) {
+		subsc_evt.action = HostCmd_ACT_BITWISE_SET;
+		subsc_evt.bcn_l_rssi_cfg.abs_value = abs(rssi_thold);
+		subsc_evt.bcn_h_rssi_cfg.abs_value = abs(rssi_thold);
+		subsc_evt.bcn_l_rssi_cfg.evt_freq = 1;
+		subsc_evt.bcn_h_rssi_cfg.evt_freq = 1;
+		return mwifiex_send_cmd_sync(priv,
+					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					     0, 0, &subsc_evt);
+	} else {
+		subsc_evt.action = HostCmd_ACT_BITWISE_CLR;
+		return mwifiex_send_cmd_sync(priv,
+					     HostCmd_CMD_802_11_SUBSCRIBE_EVENT,
+					     0, 0, &subsc_evt);
+	}
+
+	return 0;
+}
+
+/*
  * CFG802.11 operation handler for disconnection request.
  *
  * This function does not work when there is already a disconnection
@@ -1367,6 +1406,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
 	.set_bitrate_mask = mwifiex_cfg80211_set_bitrate_mask,
+	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 };
 
 /*

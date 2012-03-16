@@ -458,6 +458,9 @@ struct mwifiex_private {
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	struct wps wps;
 	u8 scan_block;
+	s32 cqm_rssi_thold;
+	u32 cqm_rssi_hyst;
+	u8 subsc_evt_rssi_state;
 };
 
 enum mwifiex_ba_status {

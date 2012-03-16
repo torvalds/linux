@@ -314,6 +314,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		break;
 
 	case EVENT_RSSI_LOW:
+		cfg80211_cqm_rssi_notify(priv->netdev,
+					 NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+					 GFP_KERNEL);
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_RSSI_INFO,
+				       HostCmd_ACT_GEN_GET, 0, NULL);
+		priv->subsc_evt_rssi_state = RSSI_LOW_RECVD;
 		dev_dbg(adapter->dev, "event: Beacon RSSI_LOW\n");
 		break;
 	case EVENT_SNR_LOW:
@@ -323,6 +329,12 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 		dev_dbg(adapter->dev, "event: MAX_FAIL\n");
 		break;
 	case EVENT_RSSI_HIGH:
+		cfg80211_cqm_rssi_notify(priv->netdev,
+					 NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+					 GFP_KERNEL);
+		mwifiex_send_cmd_async(priv, HostCmd_CMD_RSSI_INFO,
+				       HostCmd_ACT_GEN_GET, 0, NULL);
+		priv->subsc_evt_rssi_state = RSSI_HIGH_RECVD;
 		dev_dbg(adapter->dev, "event: Beacon RSSI_HIGH\n");
 		break;
 	case EVENT_SNR_HIGH:
