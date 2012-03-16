@@ -31,6 +31,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/nand_ecc.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
 #include <linux/slab.h>
@@ -854,6 +855,38 @@ static bool filter(struct dma_chan *chan, void *slave)
 	return true;
 }
 
+#ifdef CONFIG_OF
+static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
+					       struct device_node *np)
+{
+	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	u32 val;
+
+	/* Set default NAND width to 8 bits */
+	pdata->width = 8;
+	if (!of_property_read_u32(np, "bank-width", &val)) {
+		if (val == 2) {
+			pdata->width = 16;
+		} else if (val != 1) {
+			dev_err(&pdev->dev, "invalid bank-width %u\n", val);
+			return -EINVAL;
+		}
+	}
+	of_property_read_u32(np, "st,ale-off", &pdata->ale_off);
+	of_property_read_u32(np, "st,cle-off", &pdata->cle_off);
+	if (of_get_property(np, "nand-skip-bbtscan", NULL))
+		pdata->options = NAND_SKIP_BBTSCAN;
+
+	return 0;
+}
+#else
+static int __devinit fsmc_nand_probe_config_dt(struct platform_device *pdev,
+					       struct device_node *np)
+{
+	return -ENOSYS;
+}
+#endif
+
 /*
  * fsmc_nand_probe - Probe function
  * @pdev:       platform device structure
@@ -861,6 +894,8 @@ static bool filter(struct dma_chan *chan, void *slave)
 static int __init fsmc_nand_probe(struct platform_device *pdev)
 {
 	struct fsmc_nand_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node __maybe_unused *np = pdev->dev.of_node;
+	struct mtd_part_parser_data ppdata = {};
 	struct fsmc_nand_data *host;
 	struct mtd_info *mtd;
 	struct nand_chip *nand;
@@ -869,6 +904,16 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	int ret = 0;
 	u32 pid;
 	int i;
+
+	if (np) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		pdev->dev.platform_data = pdata;
+		ret = fsmc_nand_probe_config_dt(pdev, np);
+		if (ret) {
+			dev_err(&pdev->dev, "no platform data\n");
+			return -ENODEV;
+		}
+	}
 
 	if (!pdata) {
 		dev_err(&pdev->dev, "platform data is NULL\n");
@@ -1113,7 +1158,8 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 	 * Check for partition info passed
 	 */
 	host->mtd.name = "nand";
-	ret = mtd_device_parse_register(&host->mtd, NULL, NULL,
+	ppdata.of_node = np;
+	ret = mtd_device_parse_register(&host->mtd, NULL, &ppdata,
 					host->partitions, host->nr_partitions);
 	if (ret)
 		goto err_probe;
@@ -1183,11 +1229,20 @@ static int fsmc_nand_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(fsmc_nand_pm_ops, fsmc_nand_suspend, fsmc_nand_resume);
 #endif
 
+#ifdef CONFIG_OF
+static const struct of_device_id fsmc_nand_id_table[] = {
+	{ .compatible = "st,spear600-fsmc-nand" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, fsmc_nand_id_table);
+#endif
+
 static struct platform_driver fsmc_nand_driver = {
 	.remove = fsmc_nand_remove,
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "fsmc-nand",
+		.of_match_table = of_match_ptr(fsmc_nand_id_table),
 #ifdef CONFIG_PM
 		.pm = &fsmc_nand_pm_ops,
 #endif
