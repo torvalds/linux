@@ -12,6 +12,8 @@
 #ifndef __LINUX_PINCTRL_MACHINE_H
 #define __LINUX_PINCTRL_MACHINE_H
 
+#include <linux/bug.h>
+
 #include "pinctrl-state.h"
 
 enum pinctrl_map_type {
