@@ -148,7 +148,7 @@ static struct device_node *of_get_regulator(struct device *dev, const char *supp
 	regnode = of_parse_phandle(dev->of_node, prop_name, 0);
 
 	if (!regnode) {
-		dev_warn(dev, "%s property in node %s references invalid phandle",
+		dev_dbg(dev, "Looking up %s property in node %s failed",
 				prop_name, dev->of_node->full_name);
 		return NULL;
 	}
