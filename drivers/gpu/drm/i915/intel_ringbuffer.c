@@ -295,9 +295,9 @@ static int init_ring_common(struct intel_ring_buffer *ring)
 			| RING_VALID);
 
 	/* If the head is still not zero, the ring is dead */
-	if ((I915_READ_CTL(ring) & RING_VALID) == 0 ||
-	    I915_READ_START(ring) != obj->gtt_offset ||
-	    (I915_READ_HEAD(ring) & HEAD_ADDR) != 0) {
+	if (wait_for((I915_READ_CTL(ring) & RING_VALID) != 0 &&
+		     I915_READ_START(ring) == obj->gtt_offset &&
+		     (I915_READ_HEAD(ring) & HEAD_ADDR) == 0, 50)) {
 		DRM_ERROR("%s initialization failed "
 				"ctl %08x head %08x tail %08x start %08x\n",
 				ring->name,
