@@ -1113,10 +1113,3 @@ struct platform_driver mixer_driver = {
 	.probe = mixer_probe,
 	.remove = __devexit_p(mixer_remove),
 };
-EXPORT_SYMBOL(mixer_driver);
-
-MODULE_AUTHOR("Seung-Woo Kim, <sw0312.kim@samsung.com>");
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_DESCRIPTION("Samsung DRM HDMI mixer Driver");
-MODULE_LICENSE("GPL");

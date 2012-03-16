@@ -262,15 +262,15 @@ int exynos_drm_device_unregister(struct drm_device *dev);
  * this function would be called by sub drivers such as display controller
  * or hdmi driver to register this sub driver object to exynos drm driver
  * and when a sub driver is registered to exynos drm driver a probe callback
- * of the sub driver is called and creates its own encoder and connector
- * and then fb helper and drm mode group would be re-initialized.
+ * of the sub driver is called and creates its own encoder and connector.
  */
 int exynos_drm_subdrv_register(struct exynos_drm_subdrv *drm_subdrv);
 
-/*
- * this function removes subdrv list from exynos drm driver and fb helper
- * and drm mode group would be re-initialized.
- */
+/* this function removes subdrv list from exynos drm driver */
 int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *drm_subdrv);
 
+extern struct platform_driver fimd_driver;
+extern struct platform_driver hdmi_driver;
+extern struct platform_driver mixer_driver;
+extern struct platform_driver exynos_drm_common_hdmi_driver;
 #endif

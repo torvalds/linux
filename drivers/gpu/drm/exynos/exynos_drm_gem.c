@@ -735,7 +735,3 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	return ret;
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM GEM Module");
-MODULE_LICENSE("GPL");

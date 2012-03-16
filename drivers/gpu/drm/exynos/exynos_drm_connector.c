@@ -348,9 +348,3 @@ err_connector:
 	kfree(exynos_connector);
 	return NULL;
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM Connector Driver");
-MODULE_LICENSE("GPL");

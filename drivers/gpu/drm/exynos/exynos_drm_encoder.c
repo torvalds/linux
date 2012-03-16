@@ -442,9 +442,3 @@ void exynos_drm_encoder_crtc_disable(struct drm_encoder *encoder, void *data)
 	if (overlay_ops && overlay_ops->disable)
 		overlay_ops->disable(manager->dev, zpos);
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM Encoder Driver");
-MODULE_LICENSE("GPL");

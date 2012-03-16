@@ -1998,14 +1998,12 @@ void hdmi_attach_ddc_client(struct i2c_client *ddc)
 	if (ddc)
 		hdmi_ddc = ddc;
 }
-EXPORT_SYMBOL(hdmi_attach_ddc_client);
 
 void hdmi_attach_hdmiphy_client(struct i2c_client *hdmiphy)
 {
 	if (hdmiphy)
 		hdmi_hdmiphy = hdmiphy;
 }
-EXPORT_SYMBOL(hdmi_attach_hdmiphy_client);
 
 static int __devinit hdmi_probe(struct platform_device *pdev)
 {
@@ -2188,10 +2186,3 @@ struct platform_driver hdmi_driver = {
 		.pm = &hdmi_pm_ops,
 	},
 };
-EXPORT_SYMBOL(hdmi_driver);
-
-MODULE_AUTHOR("Seung-Woo Kim, <sw0312.kim@samsung.com>");
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_DESCRIPTION("Samsung DRM HDMI core Driver");
-MODULE_LICENSE("GPL");
