@@ -45,6 +45,42 @@
 #define MAX_HEIGHT		1080
 #define get_hdmi_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
+struct hdmi_resources {
+	struct clk			*hdmi;
+	struct clk			*sclk_hdmi;
+	struct clk			*sclk_pixel;
+	struct clk			*sclk_hdmiphy;
+	struct clk			*hdmiphy;
+	struct regulator_bulk_data	*regul_bulk;
+	int				regul_count;
+};
+
+struct hdmi_context {
+	struct device			*dev;
+	struct drm_device		*drm_dev;
+	struct fb_videomode		*default_timing;
+	unsigned int			is_v13:1;
+	unsigned int			default_win;
+	unsigned int			default_bpp;
+	bool				hpd_handle;
+	bool				enabled;
+
+	struct resource			*regs_res;
+	void __iomem			*regs;
+	unsigned int			irq;
+	struct workqueue_struct		*wq;
+	struct work_struct		hotplug_work;
+
+	struct i2c_client		*ddc_port;
+	struct i2c_client		*hdmiphy_port;
+
+	/* current hdmiphy conf index */
+	int cur_conf;
+
+	struct hdmi_resources		res;
+	void				*parent_ctx;
+};
+
 /* HDMI Version 1.3 */
 static const u8 hdmiphy_v13_conf27[32] = {
 	0x01, 0x05, 0x00, 0xD8, 0x10, 0x1C, 0x30, 0x40,

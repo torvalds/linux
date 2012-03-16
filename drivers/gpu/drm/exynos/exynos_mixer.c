@@ -36,7 +36,6 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_hdmi.h"
-#include "exynos_hdmi.h"
 
 #define HDMI_OVERLAY_NUMBER	3
 
