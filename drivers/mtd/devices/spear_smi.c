@@ -149,21 +149,6 @@ static struct flash_device flash_devices[] = {
 	FLASH_ID("mac 25l6405"   , 0xd8, 0x001720C2, 0x100, 0x10000, 0x800000),
 };
 
-/* These partitions would be used if platform doesn't pass one */
-static struct mtd_partition part_info_8M[] = {
-	DEFINE_PARTS("Xloader", 0x00, 0x10000),
-	DEFINE_PARTS("UBoot", MTDPART_OFS_APPEND, 0x40000),
-	DEFINE_PARTS("Kernel", MTDPART_OFS_APPEND, 0x2C0000),
-	DEFINE_PARTS("Root File System", MTDPART_OFS_APPEND, MTDPART_SIZ_FULL),
-};
-
-static struct mtd_partition part_info_16M[] = {
-	DEFINE_PARTS("Xloader", 0x00, 0x40000),
-	DEFINE_PARTS("UBoot", MTDPART_OFS_APPEND, 0x100000),
-	DEFINE_PARTS("Kernel", MTDPART_OFS_APPEND, 0x300000),
-	DEFINE_PARTS("Root File System", MTDPART_OFS_APPEND, MTDPART_SIZ_FULL),
-};
-
 /* Define spear specific structures */
 
 struct spear_snor_flash;
@@ -769,8 +754,8 @@ static int spear_smi_setup_banks(struct platform_device *pdev, u32 bank)
 	struct spear_smi_flash_info *flash_info;
 	struct spear_smi_plat_data *pdata;
 	struct spear_snor_flash *flash;
-	struct mtd_partition *parts;
-	int count;
+	struct mtd_partition *parts = NULL;
+	int count = 0;
 	int flash_index;
 	int ret = 0;
 
@@ -834,28 +819,14 @@ static int spear_smi_setup_banks(struct platform_device *pdev, u32 bank)
 	if (flash_info->partitions) {
 		parts = flash_info->partitions;
 		count = flash_info->nr_partitions;
-	} else {
-		/* choose from default ones */
-		switch (flash->mtd.size) {
-		case 0x800000:/* 8MB */
-			parts = part_info_8M;
-			count = ARRAY_SIZE(part_info_8M);
-			break;
-		case 0x1000000:/* 16MB */
-			parts = part_info_16M;
-			count = ARRAY_SIZE(part_info_16M);
-			break;
-		default:
-			dev_err(&pdev->dev, "undefined partition\n");
-			ret = ENODEV;
-			goto err_map;
-		}
 	}
 	ret = mtd_device_parse_register(&flash->mtd, NULL, NULL, parts, count);
-	if (ret)
+	if (ret) {
 		dev_err(&dev->pdev->dev, "Err MTD partition=%d\n", ret);
+		goto err_map;
+	}
 
-	return ret;
+	return 0;
 
 err_map:
 	iounmap(flash->base_addr);
