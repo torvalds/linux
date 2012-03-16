@@ -2477,7 +2477,7 @@ static irqreturn_t vortex_interrupt(int irq, void *dev_id)
 		hwread(vortex->mmio, VORTEX_IRQ_STAT);
 		handled = 1;
 	}
-	if (source & IRQ_MIDI) {
+	if ((source & IRQ_MIDI) && vortex->rmidi) {
 		snd_mpu401_uart_interrupt(vortex->irq,
 					  vortex->rmidi->private_data);
 		handled = 1;
