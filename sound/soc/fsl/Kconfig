@@ -1,10 +1,11 @@
 config SND_MPC52xx_DMA
 	tristate
 
-# ASoC platform support for the Freescale PowerPC SOCs that have an SSI and
-# an Elo DMA controller, such as the MPC8610 and P1022.  You will still need to
-# select a platform driver and a codec driver.
-config SND_SOC_POWERPC_SSI
+config SND_SOC_FSL_SSI
+	tristate
+	depends on FSL_SOC
+
+config SND_SOC_POWERPC_DMA
 	tristate
 	depends on FSL_SOC
 
@@ -12,7 +13,8 @@ config SND_SOC_MPC8610_HPCD
 	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
 	# I2C is necessary for the CS4270 driver
 	depends on MPC8610_HPCD && I2C
-	select SND_SOC_POWERPC_SSI
+	select SND_SOC_FSL_SSI
+	select SND_SOC_POWERPC_DMA
 	select SND_SOC_CS4270
 	select SND_SOC_CS4270_VD33_ERRATA
 	default y if MPC8610_HPCD
@@ -23,7 +25,8 @@ config SND_SOC_P1022_DS
 	tristate "ALSA SoC support for the Freescale P1022 DS board"
 	# I2C is necessary for the WM8776 driver
 	depends on P1022_DS && I2C
-	select SND_SOC_POWERPC_SSI
+	select SND_SOC_FSL_SSI
+	select SND_SOC_POWERPC_DMA
 	select SND_SOC_WM8776
 	default y if P1022_DS
 	help
