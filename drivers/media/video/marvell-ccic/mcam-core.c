@@ -556,6 +556,11 @@ static void mcam_dma_sg_done(struct mcam_camera *cam, int frame)
 	struct mcam_vb_buffer *buf = cam->vb_bufs[0];
 
 	/*
+	 * If we're no longer supposed to be streaming, don't do anything.
+	 */
+	if (cam->state != S_STREAMING)
+		return;
+	/*
 	 * Very Bad Not Good Things happen if you don't clear
 	 * C1_DESC_ENA before making any descriptor changes.
 	 */
@@ -922,7 +927,7 @@ static void mcam_vb_buf_queue(struct vb2_buffer *vb)
 	spin_lock_irqsave(&cam->dev_lock, flags);
 	start = (cam->state == S_BUFWAIT) && !list_empty(&cam->buffers);
 	list_add(&mvb->queue, &cam->buffers);
-	if (test_bit(CF_SG_RESTART, &cam->flags))
+	if (cam->state == S_STREAMING && test_bit(CF_SG_RESTART, &cam->flags))
 		mcam_sg_restart(cam);
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
 	if (start)
