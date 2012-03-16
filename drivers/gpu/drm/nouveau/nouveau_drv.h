@@ -113,8 +113,6 @@ struct nouveau_bo {
 	int pbbo_index;
 	bool validate_mapped;
 
-	struct nouveau_channel *channel;
-
 	struct list_head vma_list;
 	unsigned page_shift;
 
