@@ -22,7 +22,6 @@ struct wm8994_ldo_pdata {
 	/** GPIOs to enable regulator, 0 or less if not available */
 	int enable;
 
-	const char *supply;
 	const struct regulator_init_data *init_data;
 };
 

@@ -16,6 +16,8 @@
 #include <linux/mfd/wm831x/gpio.h>
 #include <linux/mfd/wm8994/pdata.h>
 
+#include <linux/regulator/machine.h>
+
 #include <sound/wm5100.h>
 #include <sound/wm8996.h>
 #include <sound/wm8962.h>
@@ -141,8 +143,8 @@ static struct wm8994_pdata wm8994_pdata = {
 	},
 	.irq_base = CODEC_IRQ_BASE,
 	.ldo = {
-		{ .supply = "WALLVDD" },
-		{ .supply = "WALLVDD" },
+		 { },
+		 { },
 	},
 };
 
