@@ -134,6 +134,18 @@ config INPUT_MAX8925_ONKEY
 	  To compile this driver as a module, choose M here: the module
 	  will be called max8925_onkey.
 
+config INPUT_MAX8997_HAPTIC
+	tristate "MAXIM MAX8997 haptic controller support"
+	depends on HAVE_PWM && MFD_MAX8997
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables device driver support for the haptic controller
+	  on MAXIM MAX8997 chip. This driver supports ff-memless interface
+	  from input framework.
+
+	  To compile this driver as module, choose M here: the
+	  module will be called max8997-haptic.
+
 config INPUT_MC13783_PWRBUTTON
 	tristate "MC13783 ON buttons"
 	depends on MFD_MC13783
