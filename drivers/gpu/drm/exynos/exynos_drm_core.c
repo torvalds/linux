@@ -59,6 +59,9 @@ static int exynos_drm_subdrv_probe(struct drm_device *dev,
 			return ret;
 	}
 
+	if (subdrv->is_local)
+		return 0;
+
 	/* create and initialize a encoder for this sub driver. */
 	encoder = exynos_drm_encoder_create(dev, &subdrv->manager,
 			(1 << MAX_CRTC) - 1);
