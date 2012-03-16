@@ -742,7 +742,14 @@ static void mcam_ctlr_stop_dma(struct mcam_camera *cam)
 	mcam_ctlr_stop(cam);
 	cam->state = S_IDLE;
 	spin_unlock_irqrestore(&cam->dev_lock, flags);
-	msleep(40);
+	/*
+	 * This is a brutally long sleep, but experience shows that
+	 * it can take the controller a while to get the message that
+	 * it needs to stop grabbing frames.  In particular, we can
+	 * sometimes (on mmp) get a frame at the end WITHOUT the
+	 * start-of-frame indication.
+	 */
+	msleep(150);
 	if (test_bit(CF_DMA_ACTIVE, &cam->flags))
 		cam_err(cam, "Timeout waiting for DMA to end\n");
 		/* This would be bad news - what now? */
@@ -885,6 +892,7 @@ static int mcam_read_setup(struct mcam_camera *cam)
 	 * Turn it loose.
 	 */
 	spin_lock_irqsave(&cam->dev_lock, flags);
+	clear_bit(CF_DMA_ACTIVE, &cam->flags);
 	mcam_reset_buffers(cam);
 	mcam_ctlr_irq_enable(cam);
 	cam->state = S_STREAMING;
