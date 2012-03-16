@@ -604,6 +604,23 @@ mwifiex_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 	return mwifiex_dump_station_info(priv, sinfo);
 }
 
+/*
+ * CFG802.11 operation handler to dump station information.
+ */
+static int
+mwifiex_cfg80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
+			      int idx, u8 *mac, struct station_info *sinfo)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (!priv->media_connected || idx)
+		return -ENOENT;
+
+	memcpy(mac, priv->cfg_bssid, ETH_ALEN);
+
+	return mwifiex_dump_station_info(priv, sinfo);
+}
+
 /* Supported rates to be advertised to the cfg80211 */
 
 static struct ieee80211_rate mwifiex_rates[] = {
@@ -1340,6 +1357,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.connect = mwifiex_cfg80211_connect,
 	.disconnect = mwifiex_cfg80211_disconnect,
 	.get_station = mwifiex_cfg80211_get_station,
+	.dump_station = mwifiex_cfg80211_dump_station,
 	.set_wiphy_params = mwifiex_cfg80211_set_wiphy_params,
 	.set_channel = mwifiex_cfg80211_set_channel,
 	.join_ibss = mwifiex_cfg80211_join_ibss,
