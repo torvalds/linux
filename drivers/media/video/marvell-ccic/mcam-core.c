@@ -1697,6 +1697,8 @@ int mccic_irq(struct mcam_camera *cam, unsigned int irqs)
 		if (irqs & (IRQ_EOF0 << frame)) {
 			mcam_frame_complete(cam, frame);
 			handled = 1;
+			if (cam->buffer_mode == B_DMA_sg)
+				break;
 		}
 	/*
 	 * If a frame starts, note that we have DMA active.  This
