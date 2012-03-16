@@ -1,0 +1,24 @@
+Freescale i.MX audio complex with SGTL5000 codec
+
+Required properties:
+- compatible : "fsl,imx-audio-sgtl5000"
+- model : The user-visible name of this sound complex
+- ssi-controller : The phandle of the i.MX SSI controller
+- audio-codec : The phandle of the SGTL5000 audio codec
+- mux-int-port : The internal port of the i.MX audio muxer (AUDMUX)
+- mux-ext-port : The external port of the i.MX audio muxer
+
+Note: The AUDMUX port numbering should start at 1, which is consistent with
+hardware manual.
+
+Example:
+
+sound {
+	compatible = "fsl,imx51-babbage-sgtl5000",
+		     "fsl,imx-audio-sgtl5000";
+	model = "imx51-babbage-sgtl5000";
+	ssi-controller = <&ssi1>;
+	audio-codec = <&sgtl5000>;
+	mux-int-port = <1>;
+	mux-ext-port = <3>;
+};
