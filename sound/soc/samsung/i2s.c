@@ -559,6 +559,17 @@ static int i2s_hw_params(struct snd_pcm_substream *substream,
 		mod |= MOD_DC1_EN;
 		break;
 	case 2:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			i2s->dma_playback.dma_size = 4;
+		else
+			i2s->dma_capture.dma_size = 4;
+		break;
+	case 1:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			i2s->dma_playback.dma_size = 2;
+		else
+			i2s->dma_capture.dma_size = 2;
+
 		break;
 	default:
 		dev_err(&i2s->pdev->dev, "%d channels not supported\n",
@@ -963,7 +974,7 @@ struct i2s_dai *i2s_alloc_dai(struct platform_device *pdev, bool sec)
 	i2s->i2s_dai_drv.playback.formats = SAMSUNG_I2S_FMTS;
 
 	if (!sec) {
-		i2s->i2s_dai_drv.capture.channels_min = 2;
+		i2s->i2s_dai_drv.capture.channels_min = 1;
 		i2s->i2s_dai_drv.capture.channels_max = 2;
 		i2s->i2s_dai_drv.capture.rates = SAMSUNG_I2S_RATES;
 		i2s->i2s_dai_drv.capture.formats = SAMSUNG_I2S_FMTS;
