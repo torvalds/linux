@@ -551,6 +551,84 @@ err_put_fd:
 	return err;
 }
 
+static int sync_fill_pt_info(struct sync_pt *pt, void *data, int size)
+{
+	struct sync_pt_info *info = data;
+	int ret;
+
+	if (size < sizeof(struct sync_pt_info))
+		return -ENOMEM;
+
+	info->len = sizeof(struct sync_pt_info);
+
+	if (pt->parent->ops->fill_driver_data) {
+		ret = pt->parent->ops->fill_driver_data(pt, info->driver_data,
+							size - sizeof(*info));
+		if (ret < 0)
+			return ret;
+
+		info->len += ret;
+	}
+
+	strlcpy(info->obj_name, pt->parent->name, sizeof(info->obj_name));
+	strlcpy(info->driver_name, pt->parent->ops->driver_name,
+		sizeof(info->driver_name));
+	info->status = pt->status;
+	info->timestamp_ns = ktime_to_ns(pt->timestamp);
+
+	return info->len;
+}
+
+static long sync_fence_ioctl_fence_info(struct sync_fence *fence,
+					unsigned long arg)
+{
+	struct sync_fence_info_data *data;
+	struct list_head *pos;
+	__u32 size;
+	__u32 len = 0;
+	int ret;
+
+	if (copy_from_user(&size, (void __user *)arg, sizeof(size)))
+		return -EFAULT;
+
+	if (size < sizeof(struct sync_fence_info_data))
+		return -EINVAL;
+
+	if (size > 4096)
+		size = 4096;
+
+	data = kzalloc(size, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	strlcpy(data->name, fence->name, sizeof(data->name));
+	data->status = fence->status;
+	len = sizeof(struct sync_fence_info_data);
+
+	list_for_each(pos, &fence->pt_list_head) {
+		struct sync_pt *pt =
+			container_of(pos, struct sync_pt, pt_list);
+
+		ret = sync_fill_pt_info(pt, (u8 *)data + len, size - len);
+
+		if (ret < 0)
+			goto out;
+
+		len += ret;
+	}
+
+	data->len = len;
+
+	if (copy_to_user((void __user *)arg, data, len))
+		ret = -EFAULT;
+	else
+		ret = 0;
+
+out:
+	kfree(data);
+
+	return ret;
+}
 
 static long sync_fence_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
@@ -562,6 +640,9 @@ static long sync_fence_ioctl(struct file *file, unsigned int cmd,
 
 	case SYNC_IOC_MERGE:
 		return sync_fence_ioctl_merge(fence, arg);
+
+	case SYNC_IOC_FENCE_INFO:
+		return sync_fence_ioctl_fence_info(fence, arg);
 
 	default:
 		return -ENOTTY;
