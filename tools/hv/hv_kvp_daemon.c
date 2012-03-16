@@ -389,9 +389,15 @@ int main(void)
 			}
 			continue;
 
+		case KVP_OP_SET:
+		case KVP_OP_GET:
+		case KVP_OP_DELETE:
 		default:
 			break;
 		}
+
+		if (hv_msg->kvp_hdr.operation != KVP_OP_ENUMERATE)
+			goto kvp_done;
 
 		hv_msg = (struct hv_kvp_msg *)incoming_cn_msg->data;
 		key_name = (char *)hv_msg->body.kvp_enum_data.data.key;
@@ -454,6 +460,7 @@ int main(void)
 		 * already in the receive buffer. Update the cn_msg header to
 		 * reflect the key value that has been added to the message
 		 */
+kvp_done:
 
 		incoming_cn_msg->id.idx = CN_KVP_IDX;
 		incoming_cn_msg->id.val = CN_KVP_VAL;

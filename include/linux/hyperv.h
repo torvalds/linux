@@ -119,6 +119,8 @@
  */
 
 #define REG_SZ 1
+#define REG_U32 4
+#define REG_U64 8
 
 enum hv_kvp_exchg_op {
 	KVP_OP_GET = 0,
