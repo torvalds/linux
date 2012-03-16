@@ -25,6 +25,7 @@
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/gpio.h>
+#include <linux/platform_data/tegra_usb.h>
 
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -111,19 +112,13 @@ static void trimslice_i2c_init(void)
 
 static void trimslice_usb_init(void)
 {
-	int err;
+	struct tegra_ehci_platform_data *pdata;
+
+	pdata = tegra_ehci1_device.dev.platform_data;
+	pdata->vbus_gpio = TRIMSLICE_GPIO_USB1_MODE;
 
 	platform_device_register(&tegra_ehci3_device);
-
 	platform_device_register(&tegra_ehci2_device);
-
-	err = gpio_request_one(TRIMSLICE_GPIO_USB1_MODE, GPIOF_OUT_INIT_HIGH,
-			       "usb1mode");
-	if (err) {
-		pr_err("TrimSlice: failed to obtain USB1 mode gpio: %d\n", err);
-		return;
-	}
-
 	platform_device_register(&tegra_ehci1_device);
 }
 
