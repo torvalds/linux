@@ -147,11 +147,13 @@ struct exynos_drm_common_hdmi_pd {
  * @timing: default video mode for initializing
  * @default_win: default window layer number to be used for UI.
  * @bpp: default bit per pixel.
+ * @is_v13: set if hdmi version 13 is.
  */
 struct exynos_drm_hdmi_pdata {
 	struct fb_videomode		timing;
 	unsigned int			default_win;
 	unsigned int			bpp;
+	unsigned int			is_v13:1;
 };
 
 #endif	/* __KERNEL__ */

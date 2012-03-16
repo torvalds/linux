@@ -28,15 +28,6 @@
 #ifndef _EXYNOS_HDMI_H_
 #define _EXYNOS_HDMI_H_
 
-struct hdmi_conf {
-	int width;
-	int height;
-	int vrefresh;
-	bool interlace;
-	const u8 *hdmiphy_data;
-	const struct hdmi_preset_conf *conf;
-};
-
 struct hdmi_resources {
 	struct clk *hdmi;
 	struct clk *sclk_hdmi;
@@ -51,6 +42,7 @@ struct hdmi_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
 	struct fb_videomode		*default_timing;
+	unsigned int			is_v13:1;
 	unsigned int			default_win;
 	unsigned int			default_bpp;
 	bool				hpd_handle;
