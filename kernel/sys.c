@@ -1706,7 +1706,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 	if (arg4 | arg5)
 		return -EINVAL;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
 	if (addr >= TASK_SIZE)
