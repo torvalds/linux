@@ -220,7 +220,6 @@ struct pxa168_eth_private {
 	u8 work_todo;
 	int skb_size;
 
-	struct net_device_stats stats;
 	/* Size of Tx Ring per queue */
 	int tx_ring_size;
 	/* Number of tx descriptors in use */
