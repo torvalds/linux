@@ -1057,7 +1057,7 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_B))
 			return MODE_OK;
 		else if (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_A) {
-			if (ASIC_IS_DCE3(rdev)) {
+			if (0) {
 				/* HDMI 1.3+ supports max clock of 340 Mhz */
 				if (mode->clock > 340000)
 					return MODE_CLOCK_HIGH;
