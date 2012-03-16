@@ -49,3 +49,4 @@ obj-$(CONFIG_MXM_WMI)		+= mxm-wmi.o
 obj-$(CONFIG_INTEL_MID_POWER_BUTTON)	+= intel_mid_powerbtn.o
 obj-$(CONFIG_INTEL_OAKTRAIL)	+= intel_oaktrail.o
 obj-$(CONFIG_SAMSUNG_Q10)	+= samsung-q10.o
+obj-$(CONFIG_APPLE_GMUX)	+= apple-gmux.o

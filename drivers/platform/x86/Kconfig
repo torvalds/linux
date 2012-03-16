@@ -752,4 +752,14 @@ config SAMSUNG_Q10
 	  This driver provides support for backlight control on Samsung Q10
 	  and related laptops, including Dell Latitude X200.
 
+config APPLE_GMUX
+	tristate "Apple Gmux Driver"
+	depends on PNP
+	select BACKLIGHT_CLASS_DEVICE
+	---help---
+	  This driver provides support for the gmux device found on many
+	  Apple laptops, which controls the display mux for the hybrid
+	  graphics as well as the backlight. Currently only backlight
+	  control is supported by the driver.
+
 endif # X86_PLATFORM_DEVICES
