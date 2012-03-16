@@ -83,7 +83,9 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 
 	fimc->state &= ~(1 << ST_CAPT_RUN | 1 << ST_CAPT_SHUT |
 			 1 << ST_CAPT_STREAM | 1 << ST_CAPT_ISP_STREAM);
-	if (!suspend)
+	if (suspend)
+		fimc->state |= (1 << ST_CAPT_SUSPENDED);
+	else
 		fimc->state &= ~(1 << ST_CAPT_PEND | 1 << ST_CAPT_SUSPENDED);
 
 	/* Release unused buffers */
@@ -99,7 +101,6 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 		else
 			vb2_buffer_done(&buf->vb, VB2_BUF_STATE_ERROR);
 	}
-	set_bit(ST_CAPT_SUSPENDED, &fimc->state);
 
 	fimc_hw_reset(fimc);
 	cap->buf_index = 0;
