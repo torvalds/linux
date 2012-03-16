@@ -60,12 +60,33 @@
 				reg = <0xfffff000 0x200>;
 			};
 
+			ramc0: ramc@ffffe400 {
+				compatible = "atmel,at91sam9g45-ddramc";
+				reg = <0xffffe400 0x200
+				       0xffffe600 0x200>;
+			};
+
+			pmc: pmc@fffffc00 {
+				compatible = "atmel,at91rm9200-pmc";
+				reg = <0xfffffc00 0x100>;
+			};
+
+			rstc@fffffd00 {
+				compatible = "atmel,at91sam9g45-rstc";
+				reg = <0xfffffd00 0x10>;
+			};
+
 			pit: timer@fffffd30 {
 				compatible = "atmel,at91sam9260-pit";
 				reg = <0xfffffd30 0xf>;
 				interrupts = <1 4>;
 			};
 
+
+			shdwc@fffffd10 {
+				compatible = "atmel,at91sam9rl-shdwc";
+				reg = <0xfffffd10 0x10>;
+			};
 
 			tcb0: timer@fff7c000 {
 				compatible = "atmel,at91rm9200-tcb";
@@ -180,5 +201,48 @@
 				status = "disabled";
 			};
 		};
+
+		nand0: nand@40000000 {
+			compatible = "atmel,at91rm9200-nand";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x40000000 0x10000000
+			       0xffffe200 0x200
+			      >;
+			atmel,nand-addr-offset = <21>;
+			atmel,nand-cmd-offset = <22>;
+			gpios = <&pioC 8 0
+				 &pioC 14 0
+				 0
+				>;
+			status = "disabled";
+		};
+
+		usb0: ohci@00700000 {
+			compatible = "atmel,at91rm9200-ohci", "usb-ohci";
+			reg = <0x00700000 0x100000>;
+			interrupts = <22 4>;
+			status = "disabled";
+		};
+
+		usb1: ehci@00800000 {
+			compatible = "atmel,at91sam9g45-ehci", "usb-ehci";
+			reg = <0x00800000 0x100000>;
+			interrupts = <22 4>;
+			status = "disabled";
+		};
+	};
+
+	i2c@0 {
+		compatible = "i2c-gpio";
+		gpios = <&pioA 20 0 /* sda */
+			 &pioA 21 0 /* scl */
+			>;
+		i2c-gpio,sda-open-drain;
+		i2c-gpio,scl-open-drain;
+		i2c-gpio,delay-us = <5>;	/* ~100 kHz */
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "disabled";
 	};
 };

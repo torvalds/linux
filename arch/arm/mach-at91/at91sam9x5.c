@@ -131,7 +131,7 @@ static struct clk dma1_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 static struct clk uhphs_clk = {
-	.name		= "uhphs_clk",
+	.name		= "uhphs",
 	.pmc_mask	= 1 << AT91SAM9X5_ID_UHPHS,
 	.type		= CLK_TYPE_PERIPHERAL,
 };
@@ -230,6 +230,9 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	/* additional fake clock for macb_hclk */
 	CLKDEV_CON_DEV_ID("hclk", "f802c000.ethernet", &macb0_clk),
 	CLKDEV_CON_DEV_ID("hclk", "f8030000.ethernet", &macb1_clk),
+	CLKDEV_CON_DEV_ID("hclk", "600000.ohci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID("ohci_clk", "600000.ohci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID("ehci_clk", "700000.ehci", &uhphs_clk),
 };
 
 /*
@@ -299,24 +302,13 @@ static void __init at91sam9x5_map_io(void)
 	at91_init_sram(0, AT91SAM9X5_SRAM_BASE, AT91SAM9X5_SRAM_SIZE);
 }
 
-static void __init at91sam9x5_ioremap_registers(void)
-{
-	at91_ioremap_ramc(0, AT91SAM9X5_BASE_DDRSDRC0, 512);
-}
-
 void __init at91sam9x5_initialize(void)
 {
-	arm_pm_restart = at91sam9g45_restart;
 	at91_extern_irq = (1 << AT91SAM9X5_ID_IRQ0);
 
 	/* Register GPIO subsystem (using DT) */
 	at91_gpio_init(NULL, 0);
 }
-
-/* --------------------------------------------------------------------
- *  AT91SAM9x5 devices (temporary before modification of code)
- * -------------------------------------------------------------------- */
-void __init at91_add_device_nand(struct atmel_nand_data *data) {}
 
 /* --------------------------------------------------------------------
  *  Interrupt initialization
@@ -362,7 +354,6 @@ static unsigned int at91sam9x5_default_irq_priority[NR_AIC_IRQS] __initdata = {
 struct at91_init_soc __initdata at91sam9x5_soc = {
 	.map_io = at91sam9x5_map_io,
 	.default_irq_priority = at91sam9x5_default_irq_priority,
-	.ioremap_registers = at91sam9x5_ioremap_registers,
 	.register_clocks = at91sam9x5_register_clocks,
 	.init = at91sam9x5_initialize,
 };

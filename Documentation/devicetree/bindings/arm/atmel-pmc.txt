@@ -1,0 +1,11 @@
+* Power Management Controller (PMC)
+
+Required properties:
+- compatible: Should be "atmel,at91rm9200-pmc"
+- reg: Should contain PMC registers location and length
+
+Examples:
+	pmc: pmc@fffffc00 {
+		compatible = "atmel,at91rm9200-pmc";
+		reg = <0xfffffc00 0x100>;
+	};

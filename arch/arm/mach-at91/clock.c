@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/of_address.h>
 
 #include <mach/hardware.h>
 #include <mach/at91_pmc.h>
@@ -671,15 +672,11 @@ static void __init at91_upll_usbfs_clock_init(unsigned long main_clock)
 	uhpck.rate_hz /= 1 + ((at91_pmc_read(AT91_PMC_USB) & AT91_PMC_OHCIUSBDIV) >> 8);
 }
 
-int __init at91_clock_init(unsigned long main_clock)
+static int __init at91_pmc_init(unsigned long main_clock)
 {
 	unsigned tmp, freq, mckr;
 	int i;
 	int pll_overclock = false;
-
-	at91_pmc_base = ioremap(AT91_PMC, 256);
-	if (!at91_pmc_base)
-		panic("Impossible to ioremap AT91_PMC 0x%x\n", AT91_PMC);
 
 	/*
 	 * When the bootloader initialized the main oscillator correctly,
@@ -800,6 +797,55 @@ int __init at91_clock_init(unsigned long main_clock)
 		((unsigned) main_clock % 1000000) / 1000);
 
 	return 0;
+}
+
+#if defined(CONFIG_OF)
+static struct of_device_id pmc_ids[] = {
+	{ .compatible = "atmel,at91rm9200-pmc" },
+	{ /*sentinel*/ }
+};
+
+static struct of_device_id osc_ids[] = {
+	{ .compatible = "atmel,osc" },
+	{ /*sentinel*/ }
+};
+
+int __init at91_dt_clock_init(void)
+{
+	struct device_node *np;
+	u32 main_clock = 0;
+
+	np = of_find_matching_node(NULL, pmc_ids);
+	if (!np)
+		panic("unable to find compatible pmc node in dtb\n");
+
+	at91_pmc_base = of_iomap(np, 0);
+	if (!at91_pmc_base)
+		panic("unable to map pmc cpu registers\n");
+
+	of_node_put(np);
+
+	/* retrieve the freqency of fixed clocks from device tree */
+	np = of_find_matching_node(NULL, osc_ids);
+	if (np) {
+		u32 rate;
+		if (!of_property_read_u32(np, "clock-frequency", &rate))
+			main_clock = rate;
+	}
+
+	of_node_put(np);
+
+	return at91_pmc_init(main_clock);
+}
+#endif
+
+int __init at91_clock_init(unsigned long main_clock)
+{
+	at91_pmc_base = ioremap(AT91_PMC, 256);
+	if (!at91_pmc_base)
+		panic("Impossible to ioremap AT91_PMC 0x%x\n", AT91_PMC);
+
+	return at91_pmc_init(main_clock);
 }
 
 /*

@@ -15,7 +15,7 @@
 	compatible = "atmel,at91sam9g25ek", "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "128M console=ttyS0,115200 mtdparts=atmel_nand:8M(bootstrap/uboot/kernel)ro,-(rootfs) root=/dev/mtdblock1 rw rootfstype=ubifs ubi.mtd=1 root=ubi0:rootfs";
+		bootargs = "128M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=ubifs ubi.mtd=1 root=ubi0:rootfs";
 	};
 
 	ahb {
@@ -32,6 +32,18 @@
 				phy-mode = "rmii";
 				status = "okay";
 			};
+		};
+
+		usb0: ohci@00600000 {
+			status = "okay";
+			num-ports = <2>;
+			atmel,vbus-gpio = <&pioD 19 0
+					   &pioD 20 0
+					  >;
+		};
+
+		usb1: ehci@00700000 {
+			status = "okay";
 		};
 	};
 };
