@@ -1667,8 +1667,9 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		memcpy(bssid, bcn_param->bssid, ETH_ALEN);
 
-		rssi = (s32) (bcn_param->rssi);
-		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%02X\n", rssi);
+		rssi = (s32) bcn_param->rssi;
+		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
+		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
 
 		beacon_period = le16_to_cpu(bcn_param->beacon_period);
 
