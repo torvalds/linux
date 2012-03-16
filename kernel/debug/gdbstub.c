@@ -1111,6 +1111,13 @@ void gdbstub_exit(int status)
 	unsigned char checksum, ch, buffer[3];
 	int loop;
 
+	if (!kgdb_connected)
+		return;
+	kgdb_connected = 0;
+
+	if (!dbg_io_ops || dbg_kdb_mode)
+		return;
+
 	buffer[0] = 'W';
 	buffer[1] = hex_asc_hi(status);
 	buffer[2] = hex_asc_lo(status);
