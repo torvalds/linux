@@ -5043,6 +5043,11 @@ static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 			afg_power_state);
 	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
 }
+#else
+#define stac92xx_suspend	NULL
+#define stac92xx_resume		NULL
+#define stac92xx_pre_resume	NULL
+#define stac92xx_set_power_state NULL
 #endif /* CONFIG_PM */
 
 /* update mute-LED accoring to the master switch */
@@ -5588,7 +5593,9 @@ again:
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
 		}
+#ifdef CONFIG_PM
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
+#endif
 	}
 
 	err = stac92xx_parse_auto_config(codec);
@@ -5895,7 +5902,9 @@ again:
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
 		}
+#ifdef CONFIG_PM
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
+#endif
 	}
 
 	spec->multiout.dac_nids = spec->dac_nids;
