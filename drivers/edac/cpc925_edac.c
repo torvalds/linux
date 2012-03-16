@@ -995,7 +995,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 	pdata->edac_idx = edac_mc_idx++;
 	pdata->name = pdev->name;
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	platform_set_drvdata(pdev, mci);
 	mci->dev_name = dev_name(&pdev->dev);
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;

@@ -1057,7 +1057,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 
 	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
 
-	mci->dev = &pdev->dev;	/* record ptr  to the generic device */
+	mci->pdev = &pdev->dev;	/* record ptr  to the generic device */
 
 	pvt = mci->pvt_info;
 	pvt->pci_dev_16_0_fsb_ctlr = pdev;	/* Record this device in our private */

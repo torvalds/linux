@@ -69,7 +69,7 @@ static void tile_edac_check(struct mem_ctl_info *mci)
 
 	/* Check if the current error count is different from the saved one. */
 	if (mem_error.sbe_count != priv->ce_count) {
-		dev_dbg(mci->dev, "ECC CE err on node %d\n", priv->node);
+		dev_dbg(mci->pdev, "ECC CE err on node %d\n", priv->node);
 		priv->ce_count = mem_error.sbe_count;
 		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
 				     0, 0, 0,
@@ -149,7 +149,7 @@ static int __devinit tile_edac_mc_probe(struct platform_device *pdev)
 	priv->node = pdev->id;
 	priv->hv_devhdl = hv_devhdl;
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;
 

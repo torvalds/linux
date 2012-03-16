@@ -724,7 +724,7 @@ static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 	}
 
 	pdata = mci->pvt_info;
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	platform_set_drvdata(pdev, mci);
 	pdata->name = "mv64x60_mc_err";
 	pdata->irq = NO_IRQ;

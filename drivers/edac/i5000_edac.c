@@ -1409,7 +1409,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	kobject_get(&mci->edac_mci_kobj);
 	debugf0("MC: %s: %s(): mci = %p\n", __FILE__, __func__, mci);
 
-	mci->dev = &pdev->dev;	/* record ptr  to the generic device */
+	mci->pdev = &pdev->dev;	/* record ptr  to the generic device */
 
 	pvt = mci->pvt_info;
 	pvt->system_address = pdev;	/* Record this device in our private */

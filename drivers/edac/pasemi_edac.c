@@ -74,7 +74,7 @@ static int system_mmc_id;
 
 static u32 pasemi_edac_get_error_info(struct mem_ctl_info *mci)
 {
-	struct pci_dev *pdev = to_pci_dev(mci->dev);
+	struct pci_dev *pdev = to_pci_dev(mci->pdev);
 	u32 tmp;
 
 	pci_read_config_dword(pdev, MCDEBUG_ERRSTA,
@@ -95,7 +95,7 @@ static u32 pasemi_edac_get_error_info(struct mem_ctl_info *mci)
 
 static void pasemi_edac_process_error_info(struct mem_ctl_info *mci, u32 errsta)
 {
-	struct pci_dev *pdev = to_pci_dev(mci->dev);
+	struct pci_dev *pdev = to_pci_dev(mci->pdev);
 	u32 errlog1a;
 	u32 cs;
 
@@ -225,7 +225,7 @@ static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
 		MCCFG_ERRCOR_ECC_GEN_EN |
 		MCCFG_ERRCOR_ECC_CRR_EN;
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR | MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = (errcor & MCCFG_ERRCOR_ECC_GEN_EN) ?

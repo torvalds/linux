@@ -36,7 +36,7 @@ static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 	struct csrow_info		*csrow = &mci->csrows[0];
 	unsigned long			address, pfn, offset, syndrome;
 
-	dev_dbg(mci->dev, "ECC CE err on node %d, channel %d, ar = 0x%016llx\n",
+	dev_dbg(mci->pdev, "ECC CE err on node %d, channel %d, ar = 0x%016llx\n",
 		priv->node, chan, ar);
 
 	/* Address decoding is likely a bit bogus, to dbl check */
@@ -59,7 +59,7 @@ static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
 	struct csrow_info		*csrow = &mci->csrows[0];
 	unsigned long			address, pfn, offset;
 
-	dev_dbg(mci->dev, "ECC UE err on node %d, channel %d, ar = 0x%016llx\n",
+	dev_dbg(mci->pdev, "ECC UE err on node %d, channel %d, ar = 0x%016llx\n",
 		priv->node, chan, ar);
 
 	/* Address decoding is likely a bit bogus, to dbl check */
@@ -83,7 +83,7 @@ static void cell_edac_check(struct mem_ctl_info *mci)
 	fir = in_be64(&priv->regs->mic_fir);
 #ifdef DEBUG
 	if (fir != priv->prev_fir) {
-		dev_dbg(mci->dev, "fir change : 0x%016lx\n", fir);
+		dev_dbg(mci->pdev, "fir change : 0x%016lx\n", fir);
 		priv->prev_fir = fir;
 	}
 #endif
@@ -119,7 +119,7 @@ static void cell_edac_check(struct mem_ctl_info *mci)
 		mb();	/* sync up */
 #ifdef DEBUG
 		fir = in_be64(&priv->regs->mic_fir);
-		dev_dbg(mci->dev, "fir clear  : 0x%016lx\n", fir);
+		dev_dbg(mci->pdev, "fir clear  : 0x%016lx\n", fir);
 #endif
 	}
 }
@@ -155,7 +155,7 @@ static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 			dimm->edac_mode = EDAC_SECDED;
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
 		}
-		dev_dbg(mci->dev,
+		dev_dbg(mci->pdev,
 			"Initialized on node %d, chanmask=0x%x,"
 			" first_page=0x%lx, nr_pages=0x%x\n",
 			priv->node, priv->chanmask,
@@ -212,7 +212,7 @@ static int __devinit cell_edac_probe(struct platform_device *pdev)
 	priv->regs = regs;
 	priv->node = pdev->id;
 	priv->chanmask = chanmask;
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_XDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_EC | EDAC_FLAG_SECDED;

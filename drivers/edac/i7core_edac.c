@@ -2122,7 +2122,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	i7core_pci_ctl_release(pvt);
 
 	/* Remove MC sysfs nodes */
-	edac_mc_del_mc(mci->dev);
+	edac_mc_del_mc(mci->pdev);
 
 	debugf1("%s: free mci struct\n", mci->ctl_name);
 	kfree(mci->ctl_name);
@@ -2188,7 +2188,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	/* Get dimm basic config */
 	get_dimm_config(mci);
 	/* record ptr to the generic device */
-	mci->dev = &i7core_dev->pdev[0]->dev;
+	mci->pdev = &i7core_dev->pdev[0]->dev;
 	/* Set the function pointer to an actual operation function */
 	mci->edac_check = i7core_check_error;
 

@@ -567,7 +567,7 @@ struct mem_ctl_info {
 	 * unique.  dev pointer should be sufficiently unique, but
 	 * BUS:SLOT.FUNC numbers may not be unique.
 	 */
-	struct device *dev;
+	struct device *pdev;
 	const char *mod_name;
 	const char *mod_ver;
 	const char *ctl_name;

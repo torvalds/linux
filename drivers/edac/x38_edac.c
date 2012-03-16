@@ -151,7 +151,7 @@ static void x38_clear_error_info(struct mem_ctl_info *mci)
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 
 	/*
 	 * Clear any error bits.
@@ -172,7 +172,7 @@ static void x38_get_and_clear_error_info(struct mem_ctl_info *mci,
 	struct pci_dev *pdev;
 	void __iomem *window = mci->pvt_info;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 
 	/*
 	 * This is a mess because there is no atomic way to read all the
@@ -354,7 +354,7 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 
 	debugf3("MC: %s(): init mci\n", __func__);
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
 
 	mci->edac_ctl_cap = EDAC_FLAG_SECDED;

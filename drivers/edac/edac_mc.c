@@ -93,7 +93,7 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 		mci->nr_csrows, mci->csrows);
 	debugf3("\tmci->nr_dimms = %d, dimms = %p\n",
 		mci->tot_dimms, mci->dimms);
-	debugf3("\tdev = %p\n", mci->dev);
+	debugf3("\tdev = %p\n", mci->pdev);
 	debugf3("\tmod_name:ctl_name = %s:%s\n", mci->mod_name, mci->ctl_name);
 	debugf3("\tpvt_info = %p\n\n", mci->pvt_info);
 }
@@ -428,7 +428,7 @@ struct mem_ctl_info *find_mci_by_dev(struct device *dev)
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
 
-		if (mci->dev == dev)
+		if (mci->pdev == dev)
 			return mci;
 	}
 
@@ -580,7 +580,7 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 
 	insert_before = &mc_devices;
 
-	p = find_mci_by_dev(mci->dev);
+	p = find_mci_by_dev(mci->pdev);
 	if (unlikely(p != NULL))
 		goto fail0;
 
@@ -602,7 +602,7 @@ static int add_mc_to_global_list(struct mem_ctl_info *mci)
 
 fail0:
 	edac_printk(KERN_WARNING, EDAC_MC,
-		"%s (%s) %s %s already assigned %d\n", dev_name(p->dev),
+		"%s (%s) %s %s already assigned %d\n", dev_name(p->pdev),
 		edac_dev_name(mci), p->mod_name, p->ctl_name, p->mc_idx);
 	return 1;
 

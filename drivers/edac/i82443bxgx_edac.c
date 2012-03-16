@@ -124,7 +124,7 @@ static void i82443bxgx_edacmc_get_error_info(struct mem_ctl_info *mci,
 				*info)
 {
 	struct pci_dev *pdev;
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 	pci_read_config_dword(pdev, I82443BXGX_EAP, &info->eap);
 	if (info->eap & I82443BXGX_EAP_OFFSET_SBE)
 		/* Clear error to allow next error to be reported [p.61] */
@@ -260,7 +260,7 @@ static int i82443bxgx_edacmc_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENOMEM;
 
 	debugf0("MC: %s: %s(): mci = %p\n", __FILE__, __func__, mci);
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_EDO | MEM_FLAG_SDR | MEM_FLAG_RDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	pci_read_config_byte(pdev, I82443BXGX_DRAMC, &dramc);

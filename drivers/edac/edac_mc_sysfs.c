@@ -916,7 +916,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	INIT_LIST_HEAD(&mci->grp_kobj_list);
 
 	/* create a symlink for the device */
-	err = sysfs_create_link(kobj_mci, &mci->dev->kobj,
+	err = sysfs_create_link(kobj_mci, &mci->pdev->kobj,
 				EDAC_DEVICE_SYMLINK);
 	if (err) {
 		debugf1("%s() failure to create symlink\n", __func__);

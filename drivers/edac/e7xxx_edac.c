@@ -458,7 +458,7 @@ static int e7xxx_probe1(struct pci_dev *pdev, int dev_idx)
 	/* FIXME - what if different memory types are in different csrows? */
 	mci->mod_name = EDAC_MOD_STR;
 	mci->mod_ver = E7XXX_REVISION;
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	debugf3("%s(): init pvt\n", __func__);
 	pvt = (struct e7xxx_pvt *)mci->pvt_info;
 	pvt->dev_info = &e7xxx_devs[dev_idx];

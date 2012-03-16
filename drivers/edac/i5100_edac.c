@@ -943,7 +943,7 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 		goto bail_disable_ch1;
 	}
 
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 
 	priv = mci->pvt_info;
 	priv->ranksperchan = ranksperch;

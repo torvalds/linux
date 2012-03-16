@@ -241,7 +241,7 @@ static void i82975x_get_error_info(struct mem_ctl_info *mci,
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 
 	/*
 	 * This is a mess because there is no atomic way to read all the
@@ -559,7 +559,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	debugf3("%s(): init mci\n", __func__);
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;

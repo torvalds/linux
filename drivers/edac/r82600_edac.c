@@ -140,7 +140,7 @@ static void r82600_get_error_info(struct mem_ctl_info *mci,
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 	pci_read_config_dword(pdev, R82600_EAP, &info->eapr);
 
 	if (info->eapr & BIT(0))
@@ -296,7 +296,7 @@ static int r82600_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENOMEM;
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	/* FIXME try to work out if the chip leads have been used for COM2

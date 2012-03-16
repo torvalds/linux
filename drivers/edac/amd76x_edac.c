@@ -105,7 +105,7 @@ static void amd76x_get_error_info(struct mem_ctl_info *mci,
 {
 	struct pci_dev *pdev;
 
-	pdev = to_pci_dev(mci->dev);
+	pdev = to_pci_dev(mci->pdev);
 	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS,
 			&info->ecc_mode_status);
 
@@ -257,7 +257,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENOMEM;
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
-	mci->dev = &pdev->dev;
+	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
 	mci->edac_cap = ems_mode ?
