@@ -2636,7 +2636,8 @@ static inline int netif_needs_gso(struct sk_buff *skb,
 	netdev_features_t features)
 {
 	return skb_is_gso(skb) && (!skb_gso_ok(skb, features) ||
-		unlikely(skb->ip_summed != CHECKSUM_PARTIAL));
+		unlikely((skb->ip_summed != CHECKSUM_PARTIAL) &&
+			 (skb->ip_summed != CHECKSUM_UNNECESSARY)));
 }
 
 static inline void netif_set_gso_max_size(struct net_device *dev,
