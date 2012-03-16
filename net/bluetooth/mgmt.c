@@ -2532,12 +2532,19 @@ static int set_device_id(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_cp_set_device_id *cp = data;
 	int err;
+	__u16 source;
 
 	BT_DBG("%s", hdev->name);
 
+	source = __le16_to_cpu(cp->source);
+
+	if (source > 0x0002)
+		return cmd_status(sk, hdev->id, MGMT_OP_SET_DEVICE_ID,
+				  MGMT_STATUS_INVALID_PARAMS);
+
 	hci_dev_lock(hdev);
 
-	hdev->devid_source = __le16_to_cpu(cp->source);
+	hdev->devid_source = source;
 	hdev->devid_vendor = __le16_to_cpu(cp->vendor);
 	hdev->devid_product = __le16_to_cpu(cp->product);
 	hdev->devid_version = __le16_to_cpu(cp->version);
