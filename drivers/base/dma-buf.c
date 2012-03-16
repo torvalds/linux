@@ -107,17 +107,18 @@ EXPORT_SYMBOL_GPL(dma_buf_export);
 /**
  * dma_buf_fd - returns a file descriptor for the given dma_buf
  * @dmabuf:	[in]	pointer to dma_buf for which fd is required.
+ * @flags:      [in]    flags to give to fd
  *
  * On success, returns an associated 'fd'. Else, returns error.
  */
-int dma_buf_fd(struct dma_buf *dmabuf)
+int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 {
 	int error, fd;
 
 	if (!dmabuf || !dmabuf->file)
 		return -EINVAL;
 
-	error = get_unused_fd();
+	error = get_unused_fd_flags(flags);
 	if (error < 0)
 		return error;
 	fd = error;

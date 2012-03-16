@@ -117,7 +117,7 @@ void dma_buf_detach(struct dma_buf *dmabuf,
 				struct dma_buf_attachment *dmabuf_attach);
 struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 			       size_t size, int flags);
-int dma_buf_fd(struct dma_buf *dmabuf);
+int dma_buf_fd(struct dma_buf *dmabuf, int flags);
 struct dma_buf *dma_buf_get(int fd);
 void dma_buf_put(struct dma_buf *dmabuf);
 
