@@ -1319,6 +1319,169 @@ static struct exynos_hdmi_display_ops display_ops = {
 	.power_on	= hdmi_display_power_on,
 };
 
+static void hdmi_set_acr(u32 freq, u8 *acr)
+{
+	u32 n, cts;
+
+	switch (freq) {
+	case 32000:
+		n = 4096;
+		cts = 27000;
+		break;
+	case 44100:
+		n = 6272;
+		cts = 30000;
+		break;
+	case 88200:
+		n = 12544;
+		cts = 30000;
+		break;
+	case 176400:
+		n = 25088;
+		cts = 30000;
+		break;
+	case 48000:
+		n = 6144;
+		cts = 27000;
+		break;
+	case 96000:
+		n = 12288;
+		cts = 27000;
+		break;
+	case 192000:
+		n = 24576;
+		cts = 27000;
+		break;
+	default:
+		n = 0;
+		cts = 0;
+		break;
+	}
+
+	acr[1] = cts >> 16;
+	acr[2] = cts >> 8 & 0xff;
+	acr[3] = cts & 0xff;
+
+	acr[4] = n >> 16;
+	acr[5] = n >> 8 & 0xff;
+	acr[6] = n & 0xff;
+}
+
+static void hdmi_reg_acr(struct hdmi_context *hdata, u8 *acr)
+{
+	hdmi_reg_writeb(hdata, HDMI_ACR_N0, acr[6]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_N1, acr[5]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_N2, acr[4]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_MCTS0, acr[3]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_MCTS1, acr[2]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_MCTS2, acr[1]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_CTS0, acr[3]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_CTS1, acr[2]);
+	hdmi_reg_writeb(hdata, HDMI_ACR_CTS2, acr[1]);
+
+	if (hdata->is_v13)
+		hdmi_reg_writeb(hdata, HDMI_V13_ACR_CON, 4);
+	else
+		hdmi_reg_writeb(hdata, HDMI_ACR_CON, 4);
+}
+
+static void hdmi_audio_init(struct hdmi_context *hdata)
+{
+	u32 sample_rate, bits_per_sample, frame_size_code;
+	u32 data_num, bit_ch, sample_frq;
+	u32 val;
+	u8 acr[7];
+
+	sample_rate = 44100;
+	bits_per_sample = 16;
+	frame_size_code = 0;
+
+	switch (bits_per_sample) {
+	case 20:
+		data_num = 2;
+		bit_ch  = 1;
+		break;
+	case 24:
+		data_num = 3;
+		bit_ch  = 1;
+		break;
+	default:
+		data_num = 1;
+		bit_ch  = 0;
+		break;
+	}
+
+	hdmi_set_acr(sample_rate, acr);
+	hdmi_reg_acr(hdata, acr);
+
+	hdmi_reg_writeb(hdata, HDMI_I2S_MUX_CON, HDMI_I2S_IN_DISABLE
+				| HDMI_I2S_AUD_I2S | HDMI_I2S_CUV_I2S_ENABLE
+				| HDMI_I2S_MUX_ENABLE);
+
+	hdmi_reg_writeb(hdata, HDMI_I2S_MUX_CH, HDMI_I2S_CH0_EN
+			| HDMI_I2S_CH1_EN | HDMI_I2S_CH2_EN);
+
+	hdmi_reg_writeb(hdata, HDMI_I2S_MUX_CUV, HDMI_I2S_CUV_RL_EN);
+
+	sample_frq = (sample_rate == 44100) ? 0 :
+			(sample_rate == 48000) ? 2 :
+			(sample_rate == 32000) ? 3 :
+			(sample_rate == 96000) ? 0xa : 0x0;
+
+	hdmi_reg_writeb(hdata, HDMI_I2S_CLK_CON, HDMI_I2S_CLK_DIS);
+	hdmi_reg_writeb(hdata, HDMI_I2S_CLK_CON, HDMI_I2S_CLK_EN);
+
+	val = hdmi_reg_read(hdata, HDMI_I2S_DSD_CON) | 0x01;
+	hdmi_reg_writeb(hdata, HDMI_I2S_DSD_CON, val);
+
+	/* Configuration I2S input ports. Configure I2S_PIN_SEL_0~4 */
+	hdmi_reg_writeb(hdata, HDMI_I2S_PIN_SEL_0, HDMI_I2S_SEL_SCLK(5)
+			| HDMI_I2S_SEL_LRCK(6));
+	hdmi_reg_writeb(hdata, HDMI_I2S_PIN_SEL_1, HDMI_I2S_SEL_SDATA1(1)
+			| HDMI_I2S_SEL_SDATA2(4));
+	hdmi_reg_writeb(hdata, HDMI_I2S_PIN_SEL_2, HDMI_I2S_SEL_SDATA3(1)
+			| HDMI_I2S_SEL_SDATA2(2));
+	hdmi_reg_writeb(hdata, HDMI_I2S_PIN_SEL_3, HDMI_I2S_SEL_DSD(0));
+
+	/* I2S_CON_1 & 2 */
+	hdmi_reg_writeb(hdata, HDMI_I2S_CON_1, HDMI_I2S_SCLK_FALLING_EDGE
+			| HDMI_I2S_L_CH_LOW_POL);
+	hdmi_reg_writeb(hdata, HDMI_I2S_CON_2, HDMI_I2S_MSB_FIRST_MODE
+			| HDMI_I2S_SET_BIT_CH(bit_ch)
+			| HDMI_I2S_SET_SDATA_BIT(data_num)
+			| HDMI_I2S_BASIC_FORMAT);
+
+	/* Configure register related to CUV information */
+	hdmi_reg_writeb(hdata, HDMI_I2S_CH_ST_0, HDMI_I2S_CH_STATUS_MODE_0
+			| HDMI_I2S_2AUD_CH_WITHOUT_PREEMPH
+			| HDMI_I2S_COPYRIGHT
+			| HDMI_I2S_LINEAR_PCM
+			| HDMI_I2S_CONSUMER_FORMAT);
+	hdmi_reg_writeb(hdata, HDMI_I2S_CH_ST_1, HDMI_I2S_CD_PLAYER);
+	hdmi_reg_writeb(hdata, HDMI_I2S_CH_ST_2, HDMI_I2S_SET_SOURCE_NUM(0));
+	hdmi_reg_writeb(hdata, HDMI_I2S_CH_ST_3, HDMI_I2S_CLK_ACCUR_LEVEL_2
+			| HDMI_I2S_SET_SMP_FREQ(sample_frq));
+	hdmi_reg_writeb(hdata, HDMI_I2S_CH_ST_4,
+			HDMI_I2S_ORG_SMP_FREQ_44_1
+			| HDMI_I2S_WORD_LEN_MAX24_24BITS
+			| HDMI_I2S_WORD_LEN_MAX_24BITS);
+
+	hdmi_reg_writeb(hdata, HDMI_I2S_CH_ST_CON, HDMI_I2S_CH_STATUS_RELOAD);
+}
+
+static void hdmi_audio_control(struct hdmi_context *hdata, bool onoff)
+{
+	u32 mod;
+
+	mod = hdmi_reg_read(hdata, HDMI_MODE_SEL);
+	if (mod & HDMI_DVI_MODE_EN)
+		return;
+
+	hdmi_reg_writeb(hdata, HDMI_AUI_CON, onoff ? 2 : 0);
+	hdmi_reg_writemask(hdata, HDMI_CON_0, onoff ?
+			HDMI_ASP_EN : HDMI_ASP_DIS, HDMI_ASP_MASK);
+}
+
 static void hdmi_conf_reset(struct hdmi_context *hdata)
 {
 	u32 reg;
@@ -1737,9 +1900,11 @@ static void hdmi_conf_apply(struct hdmi_context *hdata)
 
 	hdmi_conf_reset(hdata);
 	hdmi_conf_init(hdata);
+	hdmi_audio_init(hdata);
 
 	/* setting core registers */
 	hdmi_timing_apply(hdata);
+	hdmi_audio_control(hdata, true);
 
 	hdmi_regs_dump(hdata, "start");
 }
@@ -1825,6 +1990,7 @@ static void hdmi_disable(void *ctx)
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	if (hdata->enabled) {
+		hdmi_audio_control(hdata, false);
 		hdmiphy_conf_reset(hdata);
 		hdmi_conf_reset(hdata);
 	}
@@ -1983,6 +2149,7 @@ static void hdmi_resource_poweron(struct hdmi_context *hdata)
 	hdmiphy_conf_reset(hdata);
 	hdmi_conf_reset(hdata);
 	hdmi_conf_init(hdata);
+	hdmi_audio_init(hdata);
 }
 
 static void hdmi_resource_poweroff(struct hdmi_context *hdata)
