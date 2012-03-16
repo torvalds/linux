@@ -79,6 +79,12 @@ struct drm_exynos_plane_set_zpos {
 	__s32 zpos;
 };
 
+/* memory type definitions. */
+enum e_drm_exynos_gem_mem_type {
+	/* Physically Non-Continuous memory. */
+	EXYNOS_BO_NONCONTIG	= 1 << 0
+};
+
 #define DRM_EXYNOS_GEM_CREATE		0x00
 #define DRM_EXYNOS_GEM_MAP_OFFSET	0x01
 #define DRM_EXYNOS_GEM_MMAP		0x02

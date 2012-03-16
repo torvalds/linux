@@ -125,7 +125,9 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	}
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
-	exynos_gem_obj = exynos_drm_gem_create(dev, size);
+
+	/* 0 means to allocate physically continuous memory */
+	exynos_gem_obj = exynos_drm_gem_create(dev, 0, size);
 	if (IS_ERR(exynos_gem_obj)) {
 		ret = PTR_ERR(exynos_gem_obj);
 		goto out;

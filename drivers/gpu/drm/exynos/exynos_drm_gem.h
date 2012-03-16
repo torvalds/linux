@@ -36,11 +36,15 @@
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
  *	- this address could be physical address without IOMMU and
  *	device address with IOMMU.
+ * @sgt: sg table to transfer page data.
+ * @pages: contain all pages to allocated memory region.
  * @size: size of allocated memory region.
  */
 struct exynos_drm_gem_buf {
 	void __iomem		*kvaddr;
 	dma_addr_t		dma_addr;
+	struct sg_table		*sgt;
+	struct page		**pages;
 	unsigned long		size;
 };
 
@@ -55,6 +59,8 @@ struct exynos_drm_gem_buf {
  *	by user request or at framebuffer creation.
  *	continuous memory region allocated by user request
  *	or at framebuffer creation.
+ * @size: total memory size to physically non-continuous memory region.
+ * @flags: indicate memory type to allocated buffer and cache attruibute.
  *
  * P.S. this object would be transfered to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
@@ -62,6 +68,8 @@ struct exynos_drm_gem_buf {
 struct exynos_drm_gem_obj {
 	struct drm_gem_object		base;
 	struct exynos_drm_gem_buf	*buffer;
+	unsigned long			size;
+	unsigned int			flags;
 };
 
 /* destroy a buffer with gem object */
@@ -69,7 +77,8 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj);
 
 /* create a new buffer with gem object */
 struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
-						 unsigned long size);
+						unsigned int flags,
+						unsigned long size);
 
 /*
  * request gem object creation and buffer allocation as the size
