@@ -26,8 +26,8 @@ struct regmap_format {
 	size_t val_bytes;
 	void (*format_write)(struct regmap *map,
 			     unsigned int reg, unsigned int val);
-	void (*format_reg)(void *buf, unsigned int reg);
-	void (*format_val)(void *buf, unsigned int val);
+	void (*format_reg)(void *buf, unsigned int reg, unsigned int shift);
+	void (*format_val)(void *buf, unsigned int val, unsigned int shift);
 	unsigned int (*parse_val)(void *buf);
 };
 
@@ -51,6 +51,9 @@ struct regmap {
 
 	u8 read_flag_mask;
 	u8 write_flag_mask;
+
+	/* number of bits to (left) shift the reg value when formatting*/
+	int reg_shift;
 
 	/* regcache specific members */
 	const struct regcache_ops *cache_ops;
