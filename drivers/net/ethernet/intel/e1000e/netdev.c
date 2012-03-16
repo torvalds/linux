@@ -1059,6 +1059,13 @@ static void e1000_print_hw_hang(struct work_struct *work)
 		ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
 		/* execute the writes immediately */
 		e1e_flush();
+		/*
+		 * Due to rare timing issues, write to TIDV again to ensure
+		 * the write is successful
+		 */
+		ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
+		/* execute the writes immediately */
+		e1e_flush();
 		adapter->tx_hang_recheck = true;
 		return;
 	}
@@ -3611,6 +3618,16 @@ static void e1000e_flush_descriptors(struct e1000_adapter *adapter)
 		return;
 
 	/* flush pending descriptor writebacks to memory */
+	ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
+	ew32(RDTR, adapter->rx_int_delay | E1000_RDTR_FPD);
+
+	/* execute the writes immediately */
+	e1e_flush();
+
+	/*
+	 * due to rare timing issues, write to TIDV/RDTR again to ensure the
+	 * write is successful
+	 */
 	ew32(TIDV, adapter->tx_int_delay | E1000_TIDV_FPD);
 	ew32(RDTR, adapter->rx_int_delay | E1000_RDTR_FPD);
 
