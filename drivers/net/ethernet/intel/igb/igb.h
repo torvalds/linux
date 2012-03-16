@@ -37,6 +37,7 @@
 #include <linux/clocksource.h>
 #include <linux/timecompare.h>
 #include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
 #include <linux/bitops.h>
 #include <linux/if_vlan.h>
 
@@ -364,6 +365,13 @@ struct igb_adapter {
 	u32 wvbr;
 	int node;
 	u32 *shadow_vfta;
+
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info caps;
+	struct delayed_work overflow_work;
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
 };
 
 #define IGB_FLAG_HAS_MSI           (1 << 0)
