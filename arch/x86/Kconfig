@@ -179,6 +179,9 @@ config ARCH_HAS_DEFAULT_IDLE
 config ARCH_HAS_CACHE_LINE_SIZE
 	def_bool y
 
+config ARCH_HAS_CPU_AUTOPROBE
+	def_bool y
+
 config HAVE_SETUP_PER_CPU_AREA
 	def_bool y
 
