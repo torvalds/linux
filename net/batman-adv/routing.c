@@ -916,8 +916,9 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 
 	/* Check whether I have to reroute the packet */
 	if (seq_before(unicast_packet->ttvn, curr_ttvn) || tt_poss_change) {
-		/* Linearize the skb before accessing it */
-		if (skb_linearize(skb) < 0)
+		/* check if there is enough data before accessing it */
+		if (pskb_may_pull(skb, sizeof(struct unicast_packet) +
+				  ETH_HLEN) < 0)
 			return 0;
 
 		ethhdr = (struct ethhdr *)(skb->data +
