@@ -581,15 +581,16 @@ static const struct hc_driver tegra_ehci_hc_driver = {
 	.port_handed_over	= ehci_port_handed_over,
 };
 
-static int setup_vbus_gpio(struct platform_device *pdev)
+static int setup_vbus_gpio(struct platform_device *pdev,
+			   struct tegra_ehci_platform_data *pdata)
 {
 	int err = 0;
 	int gpio;
 
-	if (!pdev->dev.of_node)
-		return 0;
-
-	gpio = of_get_named_gpio(pdev->dev.of_node, "nvidia,vbus-gpio", 0);
+	gpio = pdata->vbus_gpio;
+	if (!gpio_is_valid(gpio))
+		gpio = of_get_named_gpio(pdev->dev.of_node,
+					 "nvidia,vbus-gpio", 0);
 	if (!gpio_is_valid(gpio))
 		return 0;
 
@@ -633,7 +634,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (!pdev->dev.dma_mask)
 		pdev->dev.dma_mask = &tegra_ehci_dma_mask;
 
-	setup_vbus_gpio(pdev);
+	setup_vbus_gpio(pdev, pdata);
 
 	tegra = kzalloc(sizeof(struct tegra_ehci_hcd), GFP_KERNEL);
 	if (!tegra)
