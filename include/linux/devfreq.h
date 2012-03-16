@@ -44,6 +44,14 @@ struct devfreq_dev_status {
 	void *private_data;
 };
 
+/*
+ * The resulting frequency should be at most this. (this bound is the
+ * least upper bound; thus, the resulting freq should be lower or same)
+ * If the flag is not set, the resulting frequency should be at most the
+ * bound (greatest lower bound)
+ */
+#define DEVFREQ_FLAG_LEAST_UPPER_BOUND		0x1
+
 /**
  * struct devfreq_dev_profile - Devfreq's user device profile
  * @initial_freq	The operating frequency when devfreq_add_device() is
@@ -54,6 +62,8 @@ struct devfreq_dev_status {
  *			higher than any operable frequency, set maximum.
  *			Before returning, target function should set
  *			freq at the current frequency.
+ *			The "flags" parameter's possible values are
+ *			explained above with "DEVFREQ_FLAG_*" macros.
  * @get_dev_status	The device should provide the current performance
  *			status to devfreq, which is used by governors.
  * @exit		An optional callback that is called when devfreq
@@ -66,7 +76,7 @@ struct devfreq_dev_profile {
 	unsigned long initial_freq;
 	unsigned int polling_ms;
 
-	int (*target)(struct device *dev, unsigned long *freq);
+	int (*target)(struct device *dev, unsigned long *freq, u32 flags);
 	int (*get_dev_status)(struct device *dev,
 			      struct devfreq_dev_status *stat);
 	void (*exit)(struct device *dev);
@@ -165,7 +175,7 @@ extern int devfreq_remove_device(struct devfreq *devfreq);
 
 /* Helper functions for devfreq user device driver with OPP. */
 extern struct opp *devfreq_recommended_opp(struct device *dev,
-					   unsigned long *freq);
+					   unsigned long *freq, u32 flags);
 extern int devfreq_register_opp_notifier(struct device *dev,
 					 struct devfreq *devfreq);
 extern int devfreq_unregister_opp_notifier(struct device *dev,
@@ -216,7 +226,7 @@ static int devfreq_remove_device(struct devfreq *devfreq)
 }
 
 static struct opp *devfreq_recommended_opp(struct device *dev,
-					   unsigned long *freq)
+					   unsigned long *freq, u32 flags)
 {
 	return -EINVAL;
 }
