@@ -1567,7 +1567,7 @@ static int mcam_v4l_release(struct file *filp)
 {
 	struct mcam_camera *cam = filp->private_data;
 
-	cam_err(cam, "Release, %d frames, %d singles, %d delivered\n", frames,
+	cam_dbg(cam, "Release, %d frames, %d singles, %d delivered\n", frames,
 			singles, delivered);
 	mutex_lock(&cam->s_mutex);
 	(cam->users)--;
