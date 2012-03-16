@@ -33,9 +33,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
-
-/* max possible slots for serial-nor flash chip in the SMI controller */
-#define MAX_NUM_FLASH_CHIP	4
+#include <linux/of.h>
+#include <linux/of_address.h>
 
 /* SMI clock rate */
 #define SMI_MAX_CLOCK_FREQ	50000000 /* 50 MHz */
@@ -748,9 +747,63 @@ err_probe:
 	return ret;
 }
 
-static int spear_smi_setup_banks(struct platform_device *pdev, u32 bank)
+
+#ifdef CONFIG_OF
+static int __devinit spear_smi_probe_config_dt(struct platform_device *pdev,
+					       struct device_node *np)
+{
+	struct spear_smi_plat_data *pdata = dev_get_platdata(&pdev->dev);
+	struct device_node *pp = NULL;
+	const __be32 *addr;
+	u32 val;
+	int len;
+	int i = 0;
+
+	if (!np)
+		return -ENODEV;
+
+	of_property_read_u32(np, "clock-rate", &val);
+	pdata->clk_rate = val;
+
+	pdata->board_flash_info = devm_kzalloc(&pdev->dev,
+					       sizeof(*pdata->board_flash_info),
+					       GFP_KERNEL);
+
+	/* Fill structs for each subnode (flash device) */
+	while ((pp = of_get_next_child(np, pp))) {
+		struct spear_smi_flash_info *flash_info;
+
+		flash_info = &pdata->board_flash_info[i];
+		pdata->np[i] = pp;
+
+		/* Read base-addr and size from DT */
+		addr = of_get_property(pp, "reg", &len);
+		pdata->board_flash_info->mem_base = be32_to_cpup(&addr[0]);
+		pdata->board_flash_info->size = be32_to_cpup(&addr[1]);
+
+		if (of_get_property(pp, "st,smi-fast-mode", NULL))
+			pdata->board_flash_info->fast_mode = 1;
+
+		i++;
+	}
+
+	pdata->num_flashes = i;
+
+	return 0;
+}
+#else
+static int __devinit spear_smi_probe_config_dt(struct platform_device *pdev,
+					       struct device_node *np)
+{
+	return -ENOSYS;
+}
+#endif
+
+static int spear_smi_setup_banks(struct platform_device *pdev,
+				 u32 bank, struct device_node *np)
 {
 	struct spear_smi *dev = platform_get_drvdata(pdev);
+	struct mtd_part_parser_data ppdata = {};
 	struct spear_smi_flash_info *flash_info;
 	struct spear_smi_plat_data *pdata;
 	struct spear_snor_flash *flash;
@@ -816,11 +869,16 @@ static int spear_smi_setup_banks(struct platform_device *pdev, u32 bank)
 	dev_info(&dev->pdev->dev, ".erasesize = 0x%x(%uK)\n",
 			flash->mtd.erasesize, flash->mtd.erasesize / 1024);
 
+#ifndef CONFIG_OF
 	if (flash_info->partitions) {
 		parts = flash_info->partitions;
 		count = flash_info->nr_partitions;
 	}
-	ret = mtd_device_parse_register(&flash->mtd, NULL, NULL, parts, count);
+#endif
+	ppdata.of_node = np;
+
+	ret = mtd_device_parse_register(&flash->mtd, NULL, &ppdata, parts,
+					count);
 	if (ret) {
 		dev_err(&dev->pdev->dev, "Err MTD partition=%d\n", ret);
 		goto err_map;
@@ -847,17 +905,34 @@ err_probe:
  */
 static int __devinit spear_smi_probe(struct platform_device *pdev)
 {
-	struct spear_smi_plat_data *pdata;
+	struct device_node *np = pdev->dev.of_node;
+	struct spear_smi_plat_data *pdata = NULL;
 	struct spear_smi *dev;
 	struct resource *smi_base;
 	int irq, ret = 0;
 	int i;
 
-	pdata = dev_get_platdata(&pdev->dev);
-	if (pdata < 0) {
-		ret = -ENODEV;
-		dev_err(&pdev->dev, "no platform data\n");
-		goto err;
+	if (np) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			pr_err("%s: ERROR: no memory", __func__);
+			ret = -ENOMEM;
+			goto err;
+		}
+		pdev->dev.platform_data = pdata;
+		ret = spear_smi_probe_config_dt(pdev, np);
+		if (ret) {
+			ret = -ENODEV;
+			dev_err(&pdev->dev, "no platform data\n");
+			goto err;
+		}
+	} else {
+		pdata = dev_get_platdata(&pdev->dev);
+		if (pdata < 0) {
+			ret = -ENODEV;
+			dev_err(&pdev->dev, "no platform data\n");
+			goto err;
+		}
 	}
 
 	smi_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -932,7 +1007,7 @@ static int __devinit spear_smi_probe(struct platform_device *pdev)
 
 	/* loop for each serial nor-flash which is connected to smi */
 	for (i = 0; i < dev->num_flashes; i++) {
-		ret = spear_smi_setup_banks(pdev, i);
+		ret = spear_smi_setup_banks(pdev, i, pdata->np[i]);
 		if (ret) {
 			dev_err(&dev->pdev->dev, "bank setup failed\n");
 			goto err_bank_setup;
@@ -967,6 +1042,7 @@ err:
 static int __devexit spear_smi_remove(struct platform_device *pdev)
 {
 	struct spear_smi *dev;
+	struct spear_smi_plat_data *pdata;
 	struct spear_snor_flash *flash;
 	struct resource *smi_base;
 	int ret;
@@ -977,6 +1053,8 @@ static int __devexit spear_smi_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "dev is null\n");
 		return -ENODEV;
 	}
+
+	pdata = dev_get_platdata(&pdev->dev);
 
 	/* clean up for all nor flash */
 	for (i = 0; i < dev->num_flashes; i++) {
@@ -1031,11 +1109,20 @@ int spear_smi_resume(struct platform_device *pdev)
 	return ret;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id spear_smi_id_table[] = {
+	{ .compatible = "st,spear600-smi" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, spear_smi_id_table);
+#endif
+
 static struct platform_driver spear_smi_driver = {
 	.driver = {
 		.name = "smi",
 		.bus = &platform_bus_type,
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(spear_smi_id_table),
 	},
 	.probe = spear_smi_probe,
 	.remove = __devexit_p(spear_smi_remove),
