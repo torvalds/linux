@@ -1661,7 +1661,9 @@ nvd0_display_unk2_handler(struct drm_device *dev, u32 crtc, u32 mask)
 	}
 
 	pclk = nv_rd32(dev, 0x660450 + (crtc * 0x300)) / 1000;
-	if (mask & 0x00010000) {
+	NV_DEBUG_KMS(dev, "PDISP: crtc %d pclk %d mask 0x%08x\n",
+			  crtc, pclk, mask);
+	if (pclk && (mask & 0x00010000)) {
 		nv50_crtc_set_clock(dev, crtc, pclk);
 	}
 
