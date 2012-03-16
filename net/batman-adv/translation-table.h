@@ -53,5 +53,7 @@ bool is_ap_isolated(struct bat_priv *bat_priv, uint8_t *src, uint8_t *dst);
 void tt_update_orig(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		    const unsigned char *tt_buff, uint8_t tt_num_changes,
 		    uint8_t ttvn, uint16_t tt_crc);
+bool tt_global_client_is_roaming(struct bat_priv *bat_priv, uint8_t *addr);
+
 
 #endif /* _NET_BATMAN_ADV_TRANSLATION_TABLE_H_ */
