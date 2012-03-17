@@ -534,7 +534,7 @@ int simple_pin_fs(struct file_system_type *type, struct vfsmount **mount, int *c
 	spin_lock(&pin_fs_lock);
 	if (unlikely(!*mount)) {
 		spin_unlock(&pin_fs_lock);
-		mnt = vfs_kern_mount(type, 0, type->name, NULL);
+		mnt = vfs_kern_mount(type, MS_KERNMOUNT, type->name, NULL);
 		if (IS_ERR(mnt))
 			return PTR_ERR(mnt);
 		spin_lock(&pin_fs_lock);
