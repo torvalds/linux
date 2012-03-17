@@ -50,7 +50,6 @@
 static const struct file_operations default_file_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
-static int ignore_mount = 0;
 
 static struct dentry *devices_usbfs_dentry;
 static int num_buses;	/* = 0 */
@@ -256,7 +255,7 @@ static int remount(struct super_block *sb, int *flags, char *data)
 	 * i.e. it's a simple_pin_fs from create_special_files,
 	 * then ignore it.
 	 */
-	if (ignore_mount)
+	if (*flags & MS_KERNMOUNT)
 		return 0;
 
 	if (parse_options(sb, data)) {
@@ -582,19 +581,12 @@ static int create_special_files (void)
 	struct dentry *parent;
 	int retval;
 
-	/* the simple_pin_fs calls will call remount with no options
-	 * without this flag that would overwrite the real mount options (if any)
-	 */
-	ignore_mount = 1;
-
 	/* create the devices special file */
 	retval = simple_pin_fs(&usb_fs_type, &usbfs_mount, &usbfs_mount_count);
 	if (retval) {
 		printk(KERN_ERR "Unable to get usbfs mount\n");
 		goto exit;
 	}
-
-	ignore_mount = 0;
 
 	parent = usbfs_mount->mnt_root;
 	devices_usbfs_dentry = fs_create_file ("devices",
