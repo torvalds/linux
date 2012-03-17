@@ -1061,8 +1061,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 
 	if (batman_ogm_packet->flags & NOT_BEST_NEXT_HOP) {
 		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: ignoring all packets not forwarded from "
-			"the best next hop (sender: %pM)\n", ethhdr->h_source);
+			"Drop packet: ignoring all packets not forwarded from the best next hop (sender: %pM)\n",
+			ethhdr->h_source);
 		return;
 	}
 
