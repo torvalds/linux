@@ -44,8 +44,6 @@
 static struct lock_class_key default_group_class[MAX_LOCK_DEPTH];
 #endif
 
-extern struct super_block * configfs_sb;
-
 static const struct address_space_operations configfs_aops = {
 	.readpage	= simple_readpage,
 	.write_begin	= simple_write_begin,
@@ -132,9 +130,10 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 	inode->i_ctime = iattr->ia_ctime;
 }
 
-struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent * sd)
+struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
+				 struct super_block *s)
 {
-	struct inode * inode = new_inode(configfs_sb);
+	struct inode * inode = new_inode(s);
 	if (inode) {
 		inode->i_ino = get_next_ino();
 		inode->i_mapping->a_ops = &configfs_aops;
@@ -192,7 +191,7 @@ int configfs_create(struct dentry * dentry, umode_t mode, int (*init)(struct ino
 	if (dentry) {
 		if (!dentry->d_inode) {
 			struct configfs_dirent *sd = dentry->d_fsdata;
-			if ((inode = configfs_new_inode(mode, sd))) {
+			if ((inode = configfs_new_inode(mode, sd, dentry->d_sb))) {
 				if (dentry->d_parent && dentry->d_parent->d_inode) {
 					struct inode *p_inode = dentry->d_parent->d_inode;
 					p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;

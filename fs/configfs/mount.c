@@ -38,7 +38,6 @@
 #define CONFIGFS_MAGIC 0x62656570
 
 struct vfsmount * configfs_mount = NULL;
-struct super_block * configfs_sb = NULL;
 struct kmem_cache *configfs_dir_cachep;
 static int configfs_mnt_count = 0;
 
@@ -77,10 +76,9 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_magic = CONFIGFS_MAGIC;
 	sb->s_op = &configfs_ops;
 	sb->s_time_gran = 1;
-	configfs_sb = sb;
 
 	inode = configfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
-				   &configfs_root);
+				   &configfs_root, sb);
 	if (inode) {
 		inode->i_op = &configfs_root_inode_operations;
 		inode->i_fop = &configfs_dir_operations;

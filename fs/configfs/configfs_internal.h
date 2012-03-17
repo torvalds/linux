@@ -63,7 +63,7 @@ extern struct kmem_cache *configfs_dir_cachep;
 
 extern int configfs_is_root(struct config_item *item);
 
-extern struct inode * configfs_new_inode(umode_t mode, struct configfs_dirent *);
+extern struct inode * configfs_new_inode(umode_t mode, struct configfs_dirent *, struct super_block *);
 extern int configfs_create(struct dentry *, umode_t mode, int (*init)(struct inode *));
 extern int configfs_inode_init(void);
 extern void configfs_inode_exit(void);
@@ -84,7 +84,6 @@ extern int configfs_pin_fs(void);
 extern void configfs_release_fs(void);
 
 extern struct rw_semaphore configfs_rename_sem;
-extern struct super_block * configfs_sb;
 extern const struct file_operations configfs_dir_operations;
 extern const struct file_operations configfs_file_operations;
 extern const struct file_operations bin_fops;

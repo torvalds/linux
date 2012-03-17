@@ -110,13 +110,13 @@ out:
 
 
 static int get_target(const char *symname, struct path *path,
-		      struct config_item **target)
+		      struct config_item **target, struct super_block *sb)
 {
 	int ret;
 
 	ret = kern_path(symname, LOOKUP_FOLLOW|LOOKUP_DIRECTORY, path);
 	if (!ret) {
-		if (path->dentry->d_sb == configfs_sb) {
+		if (path->dentry->d_sb == sb) {
 			*target = configfs_get_config_item(path->dentry);
 			if (!*target) {
 				ret = -ENOENT;
@@ -158,7 +158,7 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	    !type->ct_item_ops->allow_link)
 		goto out_put;
 
-	ret = get_target(symname, &path, &target_item);
+	ret = get_target(symname, &path, &target_item, dentry->d_sb);
 	if (ret)
 		goto out_put;
 
