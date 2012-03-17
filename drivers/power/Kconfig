@@ -77,7 +77,7 @@ config BATTERY_DS2780
 	  Say Y here to enable support for batteries with ds2780 chip.
 
 config BATTERY_DS2781
-	tristate "2781 battery driver"
+	tristate "DS2781 battery driver"
 	depends on HAS_IOMEM
 	select W1
 	select W1_SLAVE_DS2781
