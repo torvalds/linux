@@ -314,6 +314,16 @@ config SENSORS_DS1621
 	  This driver can also be built as a module.  If so, the module
 	  will be called ds1621.
 
+config SENSORS_DA9052_ADC
+	tristate "Dialog DA9052/DA9053 ADC"
+	depends on PMIC_DA9052
+	help
+	  Say y here to support the ADC found on Dialog Semiconductor
+	  DA9052-BC and DA9053-AA/Bx PMICs.
+
+	  This driver can also be built as module. If so, the module
+	  will be called da9052-hwmon.
+
 config SENSORS_EXYNOS4_TMU
 	tristate "Temperature sensor on Samsung EXYNOS4"
 	depends on ARCH_EXYNOS4
