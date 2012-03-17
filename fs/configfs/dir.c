@@ -264,11 +264,13 @@ static int init_symlink(struct inode * inode)
 	return 0;
 }
 
-static int create_dir(struct config_item * k, struct dentry * p,
-		      struct dentry * d)
+static int create_dir(struct config_item *k, struct dentry *d)
 {
 	int error;
 	umode_t mode = S_IFDIR| S_IRWXU | S_IRUGO | S_IXUGO;
+	struct dentry *p = d->d_parent;
+
+	BUG_ON(!k);
 
 	error = configfs_dirent_exists(p->d_fsdata, d->d_name.name);
 	if (!error)
@@ -304,19 +306,7 @@ static int create_dir(struct config_item * k, struct dentry * p,
 
 static int configfs_create_dir(struct config_item * item, struct dentry *dentry)
 {
-	struct dentry * parent;
-	int error = 0;
-
-	BUG_ON(!item);
-
-	if (item->ci_parent)
-		parent = item->ci_parent->ci_dentry;
-	else if (configfs_mount)
-		parent = configfs_mount->mnt_root;
-	else
-		return -EFAULT;
-
-	error = create_dir(item,parent,dentry);
+	int error = create_dir(item, dentry);
 	if (!error)
 		item->ci_dentry = dentry;
 	return error;
