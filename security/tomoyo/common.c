@@ -1069,7 +1069,7 @@ static int tomoyo_write_task(struct tomoyo_acl_param *param)
  *
  * @domainname: The name of domain.
  *
- * Returns 0.
+ * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
@@ -1081,7 +1081,7 @@ static int tomoyo_delete_domain(char *domainname)
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		return 0;
+		return -EINTR;
 	/* Is there an active domain? */
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		/* Never delete tomoyo_kernel_domain */
@@ -1164,15 +1164,16 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	bool is_select = !is_delete && tomoyo_str_starts(&data, "select ");
 	unsigned int profile;
 	if (*data == '<') {
+		int ret = 0;
 		domain = NULL;
 		if (is_delete)
-			tomoyo_delete_domain(data);
+			ret = tomoyo_delete_domain(data);
 		else if (is_select)
 			domain = tomoyo_find_domain(data);
 		else
 			domain = tomoyo_assign_domain(data, false);
 		head->w.domain = domain;
-		return 0;
+		return ret;
 	}
 	if (!domain)
 		return -EINVAL;
