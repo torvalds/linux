@@ -513,7 +513,6 @@ config KEYBOARD_OMAP
 
 config KEYBOARD_OMAP4
 	tristate "TI OMAP4 keypad support"
-	depends on ARCH_OMAP4
 	help
 	  Say Y here if you want to use the OMAP4 keypad.
 
