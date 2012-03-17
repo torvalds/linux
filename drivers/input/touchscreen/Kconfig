@@ -243,6 +243,21 @@ config TOUCHSCREEN_FUJITSU
 	  To compile this driver as a module, choose M here: the
 	  module will be called fujitsu-ts.
 
+config TOUCHSCREEN_ILI210X
+	tristate "Ilitek ILI210X based touchscreen"
+	depends on I2C
+	help
+	  Say Y here if you have a ILI210X based touchscreen
+	  controller. This driver supports models ILI2102,
+	  ILI2102s, ILI2103, ILI2103s and ILI2105.
+	  Such kind of chipsets can be found in Amazon Kindle Fire
+	  touchscreens.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ili210x.
+
 config TOUCHSCREEN_S3C2410
 	tristate "Samsung S3C2410/generic touchscreen input driver"
 	depends on ARCH_S3C2410 || SAMSUNG_DEV_TS
