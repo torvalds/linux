@@ -1,4 +1,4 @@
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/fs.h>

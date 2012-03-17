@@ -2,7 +2,6 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/rwsem.h>
-#include <linux/reiserfs_fs.h>
 
 struct inode;
 struct dentry;

@@ -33,7 +33,7 @@
  * The xattrs themselves are protected by the xattr_sem.
  */
 
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/capability.h>
 #include <linux/dcache.h>
 #include <linux/namei.h>

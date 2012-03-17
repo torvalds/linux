@@ -1,7 +1,7 @@
 #include <linux/capability.h>
 #include <linux/fs.h>
 #include <linux/posix_acl.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
