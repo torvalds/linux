@@ -28,6 +28,8 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
+#define pr_fmt(fmt) "[TTM] " fmt
+
 #include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
@@ -196,7 +198,7 @@ int ttm_tt_init(struct ttm_tt *ttm, struct ttm_bo_device *bdev,
 	ttm_tt_alloc_page_directory(ttm);
 	if (!ttm->pages) {
 		ttm_tt_destroy(ttm);
-		printk(KERN_ERR TTM_PFX "Failed allocating page table\n");
+		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -229,7 +231,7 @@ int ttm_dma_tt_init(struct ttm_dma_tt *ttm_dma, struct ttm_bo_device *bdev,
 	ttm_dma_tt_alloc_page_directory(ttm_dma);
 	if (!ttm->pages || !ttm_dma->dma_address) {
 		ttm_tt_destroy(ttm);
-		printk(KERN_ERR TTM_PFX "Failed allocating page table\n");
+		pr_err("Failed allocating page table\n");
 		return -ENOMEM;
 	}
 	return 0;
@@ -347,7 +349,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 						ttm->num_pages << PAGE_SHIFT,
 						0);
 		if (unlikely(IS_ERR(swap_storage))) {
-			printk(KERN_ERR "Failed allocating swap storage.\n");
+			pr_err("Failed allocating swap storage\n");
 			return PTR_ERR(swap_storage);
 		}
 	} else
