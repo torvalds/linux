@@ -828,19 +828,19 @@ static int __init spufs_init(void)
 	ret = spu_sched_init();
 	if (ret)
 		goto out_cache;
-	ret = register_filesystem(&spufs_type);
-	if (ret)
-		goto out_sched;
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
-		goto out_fs;
+		goto out_sched;
+	ret = register_filesystem(&spufs_type);
+	if (ret)
+		goto out_syscalls;
 
 	spufs_init_isolated_loader();
 
 	return 0;
 
-out_fs:
-	unregister_filesystem(&spufs_type);
+out_syscalls:
+	unregister_spu_syscalls(&spufs_calls);
 out_sched:
 	spu_sched_exit();
 out_cache:
