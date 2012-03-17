@@ -280,7 +280,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 	if (realname == NULL || filename == NULL || linkname == NULL)
 		goto out_free;
 
-	len = snprintf(filename, size, "%s%s%s",
+	len = scnprintf(filename, size, "%s%s%s",
 		       debugdir, is_kallsyms ? "/" : "", realname);
 	if (mkdir_p(filename, 0755))
 		goto out_free;
@@ -295,7 +295,7 @@ int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
 			goto out_free;
 	}
 
-	len = snprintf(linkname, size, "%s/.build-id/%.2s",
+	len = scnprintf(linkname, size, "%s/.build-id/%.2s",
 		       debugdir, sbuild_id);
 
 	if (access(linkname, X_OK) && mkdir_p(linkname, 0755))
