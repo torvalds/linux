@@ -2077,7 +2077,8 @@ out:
 
 static int __init init_elf_binfmt(void)
 {
-	return register_binfmt(&elf_format);
+	register_binfmt(&elf_format);
+	return 0;
 }
 
 static void __exit exit_elf_binfmt(void)

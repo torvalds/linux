@@ -950,7 +950,8 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 static int __init init_flat_binfmt(void)
 {
-	return register_binfmt(&flat_format);
+	register_binfmt(&flat_format);
+	return 0;
 }
 
 /****************************************************************************/

@@ -91,7 +91,8 @@ static struct linux_binfmt elf_fdpic_format = {
 
 static int __init init_elf_fdpic_binfmt(void)
 {
-	return register_binfmt(&elf_fdpic_format);
+	register_binfmt(&elf_fdpic_format);
+	return 0;
 }
 
 static void __exit exit_elf_fdpic_binfmt(void)
