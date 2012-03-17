@@ -99,6 +99,7 @@ struct neigh_node *batadv_neigh_node_new(struct hard_iface *hard_iface,
 	INIT_HLIST_NODE(&neigh_node->list);
 
 	memcpy(neigh_node->addr, neigh_addr, ETH_ALEN);
+	spin_lock_init(&neigh_node->lq_update_lock);
 
 	/* extra reference for return */
 	atomic_set(&neigh_node->refcount, 2);
