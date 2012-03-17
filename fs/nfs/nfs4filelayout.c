@@ -936,7 +936,8 @@ static struct pnfs_layout_segment *find_only_write_lseg(struct inode *inode)
 }
 
 static int
-filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max)
+filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max,
+		spinlock_t *lock)
 {
 	struct list_head *src = &bucket->written;
 	struct list_head *dst = &bucket->committing;
@@ -946,6 +947,8 @@ filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max)
 	list_for_each_entry_safe(req, tmp, src, wb_list) {
 		if (!nfs_lock_request(req))
 			continue;
+		if (cond_resched_lock(lock))
+			list_safe_reset_next(req, tmp, wb_list);
 		nfs_request_remove_commit_list(req);
 		clear_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 		nfs_list_add_request(req, dst);
@@ -959,7 +962,8 @@ filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max)
 /* Move reqs from written to committing lists, returning count of number moved.
  * Note called with i_lock held.
  */
-static int filelayout_scan_commit_lists(struct inode *inode, int max)
+static int filelayout_scan_commit_lists(struct inode *inode, int max,
+		spinlock_t *lock)
 {
 	struct pnfs_layout_segment *lseg;
 	struct nfs4_filelayout_segment *fl;
@@ -972,7 +976,8 @@ static int filelayout_scan_commit_lists(struct inode *inode, int max)
 	if (fl->commit_through_mds)
 		goto out_done;
 	for (i = 0; i < fl->number_of_buckets && max != 0; i++) {
-		cnt = filelayout_scan_ds_commit_list(&fl->commit_buckets[i], max);
+		cnt = filelayout_scan_ds_commit_list(&fl->commit_buckets[i],
+				max, lock);
 		max -= cnt;
 		rv += cnt;
 	}

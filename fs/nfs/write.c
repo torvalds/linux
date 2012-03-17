@@ -561,7 +561,8 @@ nfs_need_commit(struct nfs_inode *nfsi)
 
 /* i_lock held by caller */
 static int
-nfs_scan_commit_list(struct list_head *src, struct list_head *dst, int max)
+nfs_scan_commit_list(struct list_head *src, struct list_head *dst, int max,
+		spinlock_t *lock)
 {
 	struct nfs_page *req, *tmp;
 	int ret = 0;
@@ -569,6 +570,8 @@ nfs_scan_commit_list(struct list_head *src, struct list_head *dst, int max)
 	list_for_each_entry_safe(req, tmp, src, wb_list) {
 		if (!nfs_lock_request(req))
 			continue;
+		if (cond_resched_lock(lock))
+			list_safe_reset_next(req, tmp, wb_list);
 		nfs_request_remove_commit_list(req);
 		nfs_list_add_request(req, dst);
 		ret++;
@@ -596,8 +599,10 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst)
 	if (nfsi->ncommit > 0) {
 		const int max = INT_MAX;
 
-		ret = nfs_scan_commit_list(&nfsi->commit_list, dst, max);
-		ret += pnfs_scan_commit_lists(inode, max - ret);
+		ret = nfs_scan_commit_list(&nfsi->commit_list, dst, max,
+				&inode->i_lock);
+		ret += pnfs_scan_commit_lists(inode, max - ret,
+				&inode->i_lock);
 	}
 	spin_unlock(&inode->i_lock);
 	return ret;

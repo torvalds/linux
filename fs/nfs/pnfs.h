@@ -97,7 +97,7 @@ struct pnfs_layoutdriver_type {
 	void (*mark_request_commit) (struct nfs_page *req,
 					struct pnfs_layout_segment *lseg);
 	void (*clear_request_commit) (struct nfs_page *req);
-	int (*scan_commit_lists) (struct inode *inode, int max);
+	int (*scan_commit_lists) (struct inode *inode, int max, spinlock_t *lock);
 	int (*commit_pagelist)(struct inode *inode, struct list_head *mds_pages, int how);
 
 	/*
@@ -294,14 +294,14 @@ pnfs_clear_request_commit(struct nfs_page *req)
 }
 
 static inline int
-pnfs_scan_commit_lists(struct inode *inode, int max)
+pnfs_scan_commit_lists(struct inode *inode, int max, spinlock_t *lock)
 {
 	struct pnfs_layoutdriver_type *ld = NFS_SERVER(inode)->pnfs_curr_ld;
 	int ret;
 
 	if (ld == NULL || ld->scan_commit_lists == NULL)
 		return 0;
-	ret = ld->scan_commit_lists(inode, max);
+	ret = ld->scan_commit_lists(inode, max, lock);
 	if (ret != 0)
 		set_bit(NFS_INO_PNFS_COMMIT, &NFS_I(inode)->flags);
 	return ret;
@@ -419,7 +419,7 @@ pnfs_clear_request_commit(struct nfs_page *req)
 }
 
 static inline int
-pnfs_scan_commit_lists(struct inode *inode, int max)
+pnfs_scan_commit_lists(struct inode *inode, int max, spinlock_t *lock)
 {
 	return 0;
 }
