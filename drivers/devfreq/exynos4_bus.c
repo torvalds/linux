@@ -619,13 +619,19 @@ static int exynos4_bus_setvolt(struct busfreq_data *data, struct opp *opp,
 	return err;
 }
 
-static int exynos4_bus_target(struct device *dev, unsigned long *_freq)
+static int exynos4_bus_target(struct device *dev, unsigned long *_freq,
+			      u32 flags)
 {
 	int err = 0;
-	struct busfreq_data *data = dev_get_drvdata(dev);
-	struct opp *opp = devfreq_recommended_opp(dev, _freq);
-	unsigned long old_freq = opp_get_freq(data->curr_opp);
+	struct platform_device *pdev = container_of(dev, struct platform_device,
+						    dev);
+	struct busfreq_data *data = platform_get_drvdata(pdev);
+	struct opp *opp = devfreq_recommended_opp(dev, _freq, flags);
 	unsigned long freq = opp_get_freq(opp);
+	unsigned long old_freq = opp_get_freq(data->curr_opp);
+
+	if (IS_ERR(opp))
+		return PTR_ERR(opp);
 
 	if (old_freq == freq)
 		return 0;

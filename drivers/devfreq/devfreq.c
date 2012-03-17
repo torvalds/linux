@@ -83,6 +83,7 @@ int update_devfreq(struct devfreq *devfreq)
 {
 	unsigned long freq;
 	int err = 0;
+	u32 flags = 0;
 
 	if (!mutex_is_locked(&devfreq->lock)) {
 		WARN(true, "devfreq->lock must be locked by the caller.\n");
@@ -94,7 +95,24 @@ int update_devfreq(struct devfreq *devfreq)
 	if (err)
 		return err;
 
-	err = devfreq->profile->target(devfreq->dev.parent, &freq);
+	/*
+	 * Adjust the freuqency with user freq and QoS.
+	 *
+	 * List from the highest proiority
+	 * max_freq (probably called by thermal when it's too hot)
+	 * min_freq
+	 */
+
+	if (devfreq->min_freq && freq < devfreq->min_freq) {
+		freq = devfreq->min_freq;
+		flags &= ~DEVFREQ_FLAG_LEAST_UPPER_BOUND; /* Use GLB */
+	}
+	if (devfreq->max_freq && freq > devfreq->max_freq) {
+		freq = devfreq->max_freq;
+		flags |= DEVFREQ_FLAG_LEAST_UPPER_BOUND; /* Use LUB */
+	}
+
+	err = devfreq->profile->target(devfreq->dev.parent, &freq, flags);
 	if (err)
 		return err;
 
@@ -625,14 +643,30 @@ module_exit(devfreq_exit);
  *			     freq value given to target callback.
  * @dev		The devfreq user device. (parent of devfreq)
  * @freq	The frequency given to target function
+ * @flags	Flags handed from devfreq framework.
  *
  */
-struct opp *devfreq_recommended_opp(struct device *dev, unsigned long *freq)
+struct opp *devfreq_recommended_opp(struct device *dev, unsigned long *freq,
+				    u32 flags)
 {
-	struct opp *opp = opp_find_freq_ceil(dev, freq);
+	struct opp *opp;
 
-	if (opp == ERR_PTR(-ENODEV))
+	if (flags & DEVFREQ_FLAG_LEAST_UPPER_BOUND) {
+		/* The freq is an upper bound. opp should be lower */
 		opp = opp_find_freq_floor(dev, freq);
+
+		/* If not available, use the closest opp */
+		if (opp == ERR_PTR(-ENODEV))
+			opp = opp_find_freq_ceil(dev, freq);
+	} else {
+		/* The freq is an lower bound. opp should be higher */
+		opp = opp_find_freq_ceil(dev, freq);
+
+		/* If not available, use the closest opp */
+		if (opp == ERR_PTR(-ENODEV))
+			opp = opp_find_freq_floor(dev, freq);
+	}
+
 	return opp;
 }
 
