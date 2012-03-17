@@ -122,7 +122,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
 	struct nouveau_channel *chan;
 	unsigned long flags;
-	int ret;
+	int ret, i;
 
 	/* allocate and lock channel structure */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
@@ -184,7 +184,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		return ret;
 	}
 
-	nouveau_dma_pre_init(chan);
+	nouveau_dma_init(chan);
 	chan->user_put = 0x40;
 	chan->user_get = 0x44;
 	if (dev_priv->card_type >= NV_50)
@@ -202,9 +202,18 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 
 	pfifo->reassign(dev, true);
 
-	ret = nouveau_dma_init(chan);
-	if (!ret)
-		ret = nouveau_fence_channel_init(chan);
+	/* Insert NOPs for NOUVEAU_DMA_SKIPS */
+	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
+	if (ret) {
+		nouveau_channel_put(&chan);
+		return ret;
+	}
+
+	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
+		OUT_RING  (chan, 0x00000000);
+	FIRE_RING(chan);
+
+	ret = nouveau_fence_channel_init(chan);
 	if (ret) {
 		nouveau_channel_put(&chan);
 		return ret;

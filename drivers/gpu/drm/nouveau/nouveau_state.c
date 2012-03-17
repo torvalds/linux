@@ -552,6 +552,75 @@ static bool nouveau_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
+static void
+nouveau_card_channel_fini(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->channel)
+		nouveau_channel_put_unlocked(&dev_priv->channel);
+}
+
+static int
+nouveau_card_channel_init(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan;
+	int ret, oclass;
+
+	ret = nouveau_channel_alloc(dev, &chan, NULL, NvDmaFB, NvDmaTT);
+	dev_priv->channel = chan;
+	if (ret)
+		return ret;
+
+	mutex_unlock(&dev_priv->channel->mutex);
+
+	if (dev_priv->card_type <= NV_50) {
+		if (dev_priv->card_type < NV_50)
+			oclass = 0x0039;
+		else
+			oclass = 0x5039;
+
+		ret = nouveau_gpuobj_gr_new(chan, NvM2MF, oclass);
+		if (ret)
+			goto error;
+
+		ret = nouveau_notifier_alloc(chan, NvNotify0, 32, 0xfe0, 0x1000,
+					     &chan->m2mf_ntfy);
+		if (ret)
+			goto error;
+
+		ret = RING_SPACE(chan, 6);
+		if (ret)
+			goto error;
+
+		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NAME, 1);
+		OUT_RING  (chan, NvM2MF);
+		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 3);
+		OUT_RING  (chan, NvNotify0);
+		OUT_RING  (chan, chan->vram_handle);
+		OUT_RING  (chan, chan->gart_handle);
+	} else
+	if (dev_priv->card_type <= NV_C0) {
+		ret = nouveau_gpuobj_gr_new(chan, 0x9039, 0x9039);
+		if (ret)
+			goto error;
+
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			goto error;
+
+		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0000, 1);
+		OUT_RING  (chan, 0x00009039);
+	}
+
+	FIRE_RING (chan);
+error:
+	if (ret)
+		nouveau_card_channel_fini(dev);
+	return ret;
+}
+
 int
 nouveau_card_init(struct drm_device *dev)
 {
@@ -738,17 +807,14 @@ nouveau_card_init(struct drm_device *dev)
 	nouveau_backlight_init(dev);
 	nouveau_pm_init(dev);
 
-	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
-		ret = nouveau_fence_init(dev);
-		if (ret)
-			goto out_pm;
+	ret = nouveau_fence_init(dev);
+	if (ret)
+		goto out_pm;
 
-		ret = nouveau_channel_alloc(dev, &dev_priv->channel, NULL,
-					    NvDmaFB, NvDmaTT);
+	if (!dev_priv->noaccel) {
+		ret = nouveau_card_channel_init(dev);
 		if (ret)
 			goto out_fence;
-
-		mutex_unlock(&dev_priv->channel->mutex);
 	}
 
 	if (dev->mode_config.num_crtc) {
@@ -762,7 +828,7 @@ nouveau_card_init(struct drm_device *dev)
 	return 0;
 
 out_chan:
-	nouveau_channel_put_unlocked(&dev_priv->channel);
+	nouveau_card_channel_fini(dev);
 out_fence:
 	nouveau_fence_fini(dev);
 out_pm:
@@ -820,11 +886,8 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		nouveau_display_fini(dev);
 	}
 
-	if (dev_priv->channel) {
-		nouveau_channel_put_unlocked(&dev_priv->channel);
-		nouveau_fence_fini(dev);
-	}
-
+	nouveau_card_channel_fini(dev);
+	nouveau_fence_fini(dev);
 	nouveau_pm_fini(dev);
 	nouveau_backlight_exit(dev);
 	nouveau_display_destroy(dev);
