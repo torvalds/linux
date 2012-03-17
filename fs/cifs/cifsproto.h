@@ -295,9 +295,7 @@ extern int CIFSSMBUnixSetPathInfo(const unsigned int xid,
 				  int remap);
 
 extern int CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon,
-			const char *newName,
-			const struct nls_table *nls_codepage,
-			int remap_special_chars);
+			const char *name, struct cifs_sb_info *cifs_sb);
 extern int CIFSSMBRmDir(const unsigned int xid, struct cifs_tcon *tcon,
 			const char *name, const struct nls_table *nls_codepage,
 			int remap_special_chars);

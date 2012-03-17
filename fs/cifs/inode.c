@@ -1272,24 +1272,11 @@ cifs_mkdir_qinfo(struct inode *inode, struct dentry *dentry, umode_t mode,
 				       cifs_sb->mnt_cifs_flags &
 				       CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else {
+		struct TCP_Server_Info *server = tcon->ses->server;
 		if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL) &&
-		    (mode & S_IWUGO) == 0) {
-			FILE_BASIC_INFO info;
-			struct cifsInodeInfo *cifsInode;
-			u32 dosattrs;
-			int tmprc;
-
-			memset(&info, 0, sizeof(info));
-			cifsInode = CIFS_I(newinode);
-			dosattrs = cifsInode->cifsAttrs|ATTR_READONLY;
-			info.Attributes = cpu_to_le32(dosattrs);
-			tmprc = CIFSSMBSetPathInfo(xid, tcon, full_path, &info,
-						   cifs_sb->local_nls,
-						   cifs_sb->mnt_cifs_flags &
-						   CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (tmprc == 0)
-				cifsInode->cifsAttrs = dosattrs;
-		}
+		    (mode & S_IWUGO) == 0 && server->ops->mkdir_setinfo)
+			server->ops->mkdir_setinfo(newinode, full_path, cifs_sb,
+						   tcon, xid);
 		if (dentry->d_inode) {
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
 				dentry->d_inode->i_mode = (mode | S_IFDIR);
@@ -1377,6 +1364,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 	struct cifs_sb_info *cifs_sb;
 	struct tcon_link *tlink;
 	struct cifs_tcon *tcon;
+	struct TCP_Server_Info *server;
 	char *full_path;
 
 	cFYI(1, "In cifs_mkdir, mode = 0x%hx inode = 0x%p", mode, inode);
@@ -1403,9 +1391,15 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, umode_t mode)
 			goto mkdir_out;
 	}
 
+	server = tcon->ses->server;
+
+	if (!server->ops->mkdir) {
+		rc = -ENOSYS;
+		goto mkdir_out;
+	}
+
 	/* BB add setting the equivalent of mode via CreateX w/ACLs */
-	rc = CIFSSMBMkDir(xid, tcon, full_path, cifs_sb->local_nls,
-			  cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
+	rc = server->ops->mkdir(xid, tcon, full_path, cifs_sb);
 	if (rc) {
 		cFYI(1, "cifs_mkdir returned 0x%x", rc);
 		d_drop(direntry);

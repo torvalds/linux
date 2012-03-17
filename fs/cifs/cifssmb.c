@@ -992,14 +992,15 @@ RmDirRetry:
 }
 
 int
-CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon,
-	     const char *name, const struct nls_table *nls_codepage, int remap)
+CIFSSMBMkDir(const unsigned int xid, struct cifs_tcon *tcon, const char *name,
+	     struct cifs_sb_info *cifs_sb)
 {
 	int rc = 0;
 	CREATE_DIRECTORY_REQ *pSMB = NULL;
 	CREATE_DIRECTORY_RSP *pSMBr = NULL;
 	int bytes_returned;
 	int name_len;
+	int remap = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR;
 
 	cFYI(1, "In CIFSSMBMkDir");
 MkDirRetry:
@@ -1010,7 +1011,8 @@ MkDirRetry:
 
 	if (pSMB->hdr.Flags2 & SMBFLG2_UNICODE) {
 		name_len = cifsConvertToUTF16((__le16 *) pSMB->DirName, name,
-					      PATH_MAX, nls_codepage, remap);
+					      PATH_MAX, cifs_sb->local_nls,
+					      remap);
 		name_len++;	/* trailing null */
 		name_len *= 2;
 	} else {		/* BB improve check for buffer overruns BB */
