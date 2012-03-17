@@ -10,8 +10,6 @@
 #include <linux/kernel.h>
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
-#include <linux/reiserfs_fs_sb.h>
-#include <linux/reiserfs_fs_i.h>
 #include <linux/quotaops.h>
 #include <linux/seq_file.h>
 
