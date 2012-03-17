@@ -790,16 +790,20 @@ static int fs_init_phy(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
 	struct phy_device *phydev;
+	phy_interface_t iface;
 
 	fep->oldlink = 0;
 	fep->oldspeed = 0;
 	fep->oldduplex = -1;
 
+	iface = fep->fpi->use_rmii ?
+		PHY_INTERFACE_MODE_RMII : PHY_INTERFACE_MODE_MII;
+
 	phydev = of_phy_connect(dev, fep->fpi->phy_node, &fs_adjust_link, 0,
-				PHY_INTERFACE_MODE_MII);
+				iface);
 	if (!phydev) {
 		phydev = of_phy_connect_fixed_link(dev, &fs_adjust_link,
-						   PHY_INTERFACE_MODE_MII);
+						   iface);
 	}
 	if (!phydev) {
 		dev_err(&dev->dev, "Could not attach to PHY\n");
@@ -1007,6 +1011,7 @@ static int __devinit fs_enet_probe(struct platform_device *ofdev)
 	struct fs_platform_info *fpi;
 	const u32 *data;
 	const u8 *mac_addr;
+	const char *phy_connection_type;
 	int privsize, len, ret = -ENODEV;
 
 	match = of_match_device(fs_enet_match, &ofdev->dev);
@@ -1034,6 +1039,13 @@ static int __devinit fs_enet_probe(struct platform_device *ofdev)
 	if ((!fpi->phy_node) && (!of_get_property(ofdev->dev.of_node, "fixed-link",
 						  NULL)))
 		goto out_free_fpi;
+
+	if (of_device_is_compatible(ofdev->dev.of_node, "fsl,mpc5125-fec")) {
+		phy_connection_type = of_get_property(ofdev->dev.of_node,
+						"phy-connection-type", NULL);
+		if (phy_connection_type && !strcmp("rmii", phy_connection_type))
+			fpi->use_rmii = 1;
+	}
 
 	privsize = sizeof(*fep) +
 	           sizeof(struct sk_buff **) *
@@ -1148,6 +1160,10 @@ static struct of_device_id fs_enet_match[] = {
 #ifdef CONFIG_FS_ENET_MPC5121_FEC
 	{
 		.compatible = "fsl,mpc5121-fec",
+		.data = (void *)&fs_fec_ops,
+	},
+	{
+		.compatible = "fsl,mpc5125-fec",
 		.data = (void *)&fs_fec_ops,
 	},
 #else
