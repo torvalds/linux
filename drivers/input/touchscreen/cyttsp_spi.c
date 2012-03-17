@@ -191,17 +191,7 @@ static struct spi_driver cyttsp_spi_driver = {
 	.remove = __devexit_p(cyttsp_spi_remove),
 };
 
-static int __init cyttsp_spi_init(void)
-{
-	return spi_register_driver(&cyttsp_spi_driver);
-}
-module_init(cyttsp_spi_init);
-
-static void __exit cyttsp_spi_exit(void)
-{
-	spi_unregister_driver(&cyttsp_spi_driver);
-}
-module_exit(cyttsp_spi_exit);
+module_spi_driver(cyttsp_spi_driver);
 
 MODULE_ALIAS("spi:cyttsp");
 MODULE_LICENSE("GPL");
