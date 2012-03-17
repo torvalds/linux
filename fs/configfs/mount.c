@@ -82,7 +82,7 @@ static int configfs_fill_super(struct super_block *sb, void *data, int silent)
 	inode = configfs_new_inode(S_IFDIR | S_IRWXU | S_IRUGO | S_IXUGO,
 				   &configfs_root);
 	if (inode) {
-		inode->i_op = &configfs_dir_inode_operations;
+		inode->i_op = &configfs_root_inode_operations;
 		inode->i_fop = &configfs_dir_operations;
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
 		inc_nlink(inode);

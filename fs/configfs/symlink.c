@@ -141,10 +141,6 @@ int configfs_symlink(struct inode *dir, struct dentry *dentry, const char *symna
 	struct config_item *target_item = NULL;
 	struct config_item_type *type;
 
-	ret = -EPERM;  /* What lack-of-symlink returns */
-	if (dentry->d_parent == configfs_sb->s_root)
-		goto out;
-
 	sd = dentry->d_parent->d_fsdata;
 	/*
 	 * Fake invisibility if dir belongs to a group/default groups hierarchy
@@ -197,8 +193,6 @@ int configfs_unlink(struct inode *dir, struct dentry *dentry)
 	ret = -EPERM;  /* What lack-of-symlink returns */
 	if (!(sd->s_type & CONFIGFS_ITEM_LINK))
 		goto out;
-
-	BUG_ON(dentry->d_parent == configfs_sb->s_root);
 
 	sl = sd->s_element;
 

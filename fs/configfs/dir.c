@@ -1183,11 +1183,6 @@ static int configfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	struct module *subsys_owner = NULL, *new_item_owner = NULL;
 	char *name;
 
-	if (dentry->d_parent == configfs_sb->s_root) {
-		ret = -EPERM;
-		goto out;
-	}
-
 	sd = dentry->d_parent->d_fsdata;
 
 	/*
@@ -1359,9 +1354,6 @@ static int configfs_rmdir(struct inode *dir, struct dentry *dentry)
 	struct module *subsys_owner = NULL, *dead_item_owner = NULL;
 	int ret;
 
-	if (dentry->d_parent == configfs_sb->s_root)
-		return -EPERM;
-
 	sd = dentry->d_fsdata;
 	if (sd->s_type & CONFIGFS_USET_DEFAULT)
 		return -EPERM;
@@ -1455,6 +1447,11 @@ const struct inode_operations configfs_dir_inode_operations = {
 	.rmdir		= configfs_rmdir,
 	.symlink	= configfs_symlink,
 	.unlink		= configfs_unlink,
+	.lookup		= configfs_lookup,
+	.setattr	= configfs_setattr,
+};
+
+const struct inode_operations configfs_root_inode_operations = {
 	.lookup		= configfs_lookup,
 	.setattr	= configfs_setattr,
 };
