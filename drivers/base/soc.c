@@ -15,7 +15,7 @@
 #include <linux/sys_soc.h>
 #include <linux/err.h>
 
-static DEFINE_IDR(soc_ida);
+static DEFINE_IDA(soc_ida);
 static DEFINE_SPINLOCK(soc_lock);
 
 static ssize_t soc_info_get(struct device *dev,
