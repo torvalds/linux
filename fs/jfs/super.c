@@ -860,8 +860,14 @@ static int __init init_jfs_fs(void)
 	jfs_proc_init();
 #endif
 
-	return register_filesystem(&jfs_fs_type);
+	rc = register_filesystem(&jfs_fs_type);
+	if (!rc)
+		return 0;
 
+#ifdef PROC_FS_JFS
+	jfs_proc_clean();
+#endif
+	kthread_stop(jfsSyncThread);
 kill_committask:
 	for (i = 0; i < commit_threads; i++)
 		kthread_stop(jfsCommitThread[i]);
