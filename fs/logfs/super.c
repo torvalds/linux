@@ -626,7 +626,10 @@ static int __init logfs_init(void)
 	if (ret)
 		goto out2;
 
-	return register_filesystem(&logfs_fs_type);
+	ret = register_filesystem(&logfs_fs_type);
+	if (!ret)
+		return 0;
+	logfs_destroy_inode_cache();
 out2:
 	logfs_compr_exit();
 out1:
