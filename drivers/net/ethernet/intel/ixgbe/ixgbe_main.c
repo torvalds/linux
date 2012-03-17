@@ -4866,10 +4866,12 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	netif_device_detach(netdev);
 
 	if (netif_running(netdev)) {
+		rtnl_lock();
 		ixgbe_down(adapter);
 		ixgbe_free_irq(adapter);
 		ixgbe_free_all_tx_resources(adapter);
 		ixgbe_free_all_rx_resources(adapter);
+		rtnl_unlock();
 	}
 
 	ixgbe_clear_interrupt_scheme(adapter);
