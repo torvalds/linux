@@ -447,7 +447,7 @@ ddp_out:
 /**
  * ixgbe_fso - ixgbe FCoE Sequence Offload (FSO)
  * @tx_ring: tx desc ring
- * @skb: associated skb
+ * @first: first tx_buffer structure containing skb, tx_flags, and protocol
  * @tx_flags: tx flags
  * @hdr_len: hdr_len to be returned
  *
@@ -455,9 +455,11 @@ ddp_out:
  *
  * Returns : 0 indicates no FSO, > 0 for FSO, < 0 for error
  */
-int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
+int ixgbe_fso(struct ixgbe_ring *tx_ring,
+	      struct ixgbe_tx_buffer *first,
               u32 tx_flags, u8 *hdr_len)
 {
+	struct sk_buff *skb = first->skb;
 	struct fc_frame_header *fh;
 	u32 vlan_macip_lens;
 	u32 fcoe_sof_eof = 0;
@@ -530,9 +532,14 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring, struct sk_buff *skb,
 	*hdr_len = sizeof(struct fcoe_crc_eof);
 
 	/* hdr_len includes fc_hdr if FCoE LSO is enabled */
-	if (skb_is_gso(skb))
-		*hdr_len += (skb_transport_offset(skb) +
-			     sizeof(struct fc_frame_header));
+	if (skb_is_gso(skb)) {
+		*hdr_len += skb_transport_offset(skb) +
+			    sizeof(struct fc_frame_header);
+		/* update gso_segs and bytecount */
+		first->gso_segs = DIV_ROUND_UP(skb->len - *hdr_len,
+					       skb_shinfo(skb)->gso_size);
+		first->bytecount += (first->gso_segs - 1) * *hdr_len;
+	}
 
 	/* mss_l4len_id: use 1 for FSO as TSO, no need for L4LEN */
 	mss_l4len_idx = skb_shinfo(skb)->gso_size << IXGBE_ADVTXD_MSS_SHIFT;
