@@ -667,17 +667,7 @@ static struct i2c_driver kxtj9_driver = {
 	.id_table	= kxtj9_id,
 };
 
-static int __init kxtj9_init(void)
-{
-	return i2c_add_driver(&kxtj9_driver);
-}
-module_init(kxtj9_init);
-
-static void __exit kxtj9_exit(void)
-{
-	i2c_del_driver(&kxtj9_driver);
-}
-module_exit(kxtj9_exit);
+module_i2c_driver(kxtj9_driver);
 
 MODULE_DESCRIPTION("KXTJ9 accelerometer driver");
 MODULE_AUTHOR("Chris Hudson <chudson@kionix.com>");
