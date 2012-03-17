@@ -37,7 +37,7 @@
 /* Random magic number */
 #define CONFIGFS_MAGIC 0x62656570
 
-struct vfsmount * configfs_mount = NULL;
+static struct vfsmount *configfs_mount = NULL;
 struct kmem_cache *configfs_dir_cachep;
 static int configfs_mnt_count = 0;
 
@@ -115,10 +115,11 @@ static struct file_system_type configfs_fs_type = {
 	.kill_sb	= kill_litter_super,
 };
 
-int configfs_pin_fs(void)
+struct dentry *configfs_pin_fs(void)
 {
-	return simple_pin_fs(&configfs_fs_type, &configfs_mount,
+	int err = simple_pin_fs(&configfs_fs_type, &configfs_mount,
 			     &configfs_mnt_count);
+	return err ? ERR_PTR(err) : configfs_mount->mnt_root;
 }
 
 void configfs_release_fs(void)

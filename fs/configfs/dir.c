@@ -1075,16 +1075,15 @@ int configfs_depend_item(struct configfs_subsystem *subsys,
 	 * Pin the configfs filesystem.  This means we can safely access
 	 * the root of the configfs filesystem.
 	 */
-	ret = configfs_pin_fs();
-	if (ret)
-		return ret;
+	root = configfs_pin_fs();
+	if (IS_ERR(root))
+		return PTR_ERR(root);
 
 	/*
 	 * Next, lock the root directory.  We're going to check that the
 	 * subsystem is really registered, and so we need to lock out
 	 * configfs_[un]register_subsystem().
 	 */
-	root = configfs_mount->mnt_root;
 	mutex_lock(&root->d_inode->i_mutex);
 
 	root_sd = root->d_fsdata;
@@ -1673,14 +1672,13 @@ int configfs_register_subsystem(struct configfs_subsystem *subsys)
 	struct dentry *root;
 	struct configfs_dirent *sd;
 
-	err = configfs_pin_fs();
-	if (err)
-		return err;
+	root = configfs_pin_fs();
+	if (IS_ERR(root))
+		return PTR_ERR(root);
 
 	if (!group->cg_item.ci_name)
 		group->cg_item.ci_name = group->cg_item.ci_namebuf;
 
-	root = configfs_mount->mnt_root;
 	sd = root->d_fsdata;
 	link_group(to_config_group(sd->s_element), group);
 

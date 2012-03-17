@@ -58,7 +58,6 @@ struct configfs_dirent {
 extern struct mutex configfs_symlink_mutex;
 extern spinlock_t configfs_dirent_lock;
 
-extern struct vfsmount * configfs_mount;
 extern struct kmem_cache *configfs_dir_cachep;
 
 extern int configfs_is_root(struct config_item *item);
@@ -80,7 +79,7 @@ extern const unsigned char * configfs_get_name(struct configfs_dirent *sd);
 extern void configfs_drop_dentry(struct configfs_dirent *sd, struct dentry *parent);
 extern int configfs_setattr(struct dentry *dentry, struct iattr *iattr);
 
-extern int configfs_pin_fs(void);
+extern struct dentry *configfs_pin_fs(void);
 extern void configfs_release_fs(void);
 
 extern struct rw_semaphore configfs_rename_sem;
