@@ -28,6 +28,10 @@ config SUSPEND_SKIP_SYNC
 	  of suspend, or they are content with invoking sync() from
 	  user-space before invoking suspend.  Say Y if that's your case.
 
+config WAKELOCK
+	bool
+	default y
+
 config HIBERNATE_CALLBACKS
 	bool
 
