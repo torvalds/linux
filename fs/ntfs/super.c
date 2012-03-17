@@ -3159,6 +3159,8 @@ static int __init init_ntfs_fs(void)
 	}
 	printk(KERN_CRIT "NTFS: Failed to register NTFS filesystem driver!\n");
 
+	/* Unregister the ntfs sysctls. */
+	ntfs_sysctl(0);
 sysctl_err_out:
 	kmem_cache_destroy(ntfs_big_inode_cache);
 big_inode_err_out:
