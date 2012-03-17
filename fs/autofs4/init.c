@@ -31,11 +31,11 @@ static int __init init_autofs4_fs(void)
 {
 	int err;
 
+	autofs_dev_ioctl_init();
+
 	err = register_filesystem(&autofs_fs_type);
 	if (err)
-		return err;
-
-	autofs_dev_ioctl_init();
+		autofs_dev_ioctl_exit();
 
 	return err;
 }
