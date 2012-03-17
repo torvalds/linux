@@ -83,13 +83,21 @@ static void wl1271_parse_fw_ver(struct wl1271 *wl)
 
 static void wl1271_boot_fw_version(struct wl1271 *wl)
 {
-	struct wl1271_static_data static_data;
+	struct wl1271_static_data *static_data;
 
-	wl1271_read(wl, wl->cmd_box_addr, &static_data, sizeof(static_data),
+	static_data = kmalloc(sizeof(*static_data), GFP_DMA);
+	if (!static_data) {
+		__WARN();
+		return;
+	}
+
+	wl1271_read(wl, wl->cmd_box_addr, static_data, sizeof(*static_data),
 		    false);
 
-	strncpy(wl->chip.fw_ver_str, static_data.fw_version,
+	strncpy(wl->chip.fw_ver_str, static_data->fw_version,
 		sizeof(wl->chip.fw_ver_str));
+
+	kfree(static_data);
 
 	/* make sure the string is NULL-terminated */
 	wl->chip.fw_ver_str[sizeof(wl->chip.fw_ver_str) - 1] = '\0';

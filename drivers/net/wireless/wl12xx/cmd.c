@@ -342,8 +342,12 @@ int wl1271_cmd_ext_radio_parms(struct wl1271 *wl)
  */
 static int wl1271_cmd_wait_for_event_or_timeout(struct wl1271 *wl, u32 mask)
 {
-	u32 events_vector, event;
+	u32 *events_vector;
+	u32 event;
 	unsigned long timeout;
+	int ret = 0;
+
+	events_vector = kmalloc(sizeof(*events_vector), GFP_DMA);
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
 
@@ -351,21 +355,24 @@ static int wl1271_cmd_wait_for_event_or_timeout(struct wl1271 *wl, u32 mask)
 		if (time_after(jiffies, timeout)) {
 			wl1271_debug(DEBUG_CMD, "timeout waiting for event %d",
 				     (int)mask);
-			return -ETIMEDOUT;
+			ret = -ETIMEDOUT;
+			goto out;
 		}
 
 		msleep(1);
 
 		/* read from both event fields */
-		wl1271_read(wl, wl->mbox_ptr[0], &events_vector,
-			    sizeof(events_vector), false);
-		event = events_vector & mask;
-		wl1271_read(wl, wl->mbox_ptr[1], &events_vector,
-			    sizeof(events_vector), false);
-		event |= events_vector & mask;
+		wl1271_read(wl, wl->mbox_ptr[0], events_vector,
+			    sizeof(*events_vector), false);
+		event = *events_vector & mask;
+		wl1271_read(wl, wl->mbox_ptr[1], events_vector,
+			    sizeof(*events_vector), false);
+		event |= *events_vector & mask;
 	} while (!event);
 
-	return 0;
+out:
+	kfree(events_vector);
+	return ret;
 }
 
 static int wl1271_cmd_wait_for_event(struct wl1271 *wl, u32 mask)

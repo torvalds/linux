@@ -5375,7 +5375,16 @@ static struct ieee80211_hw *wl1271_alloc_hw(void)
 		goto err_dummy_packet;
 	}
 
+	wl->mbox = kmalloc(sizeof(*wl->mbox), GFP_DMA);
+	if (!wl->mbox) {
+		ret = -ENOMEM;
+		goto err_fwlog;
+	}
+
 	return hw;
+
+err_fwlog:
+	free_page((unsigned long)wl->fwlog);
 
 err_dummy_packet:
 	dev_kfree_skb(wl->dummy_packet);

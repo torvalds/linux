@@ -34,6 +34,7 @@
 
 #include "conf.h"
 #include "ini.h"
+#include "event.h"
 
 #define WL127X_FW_NAME_MULTI "ti-connectivity/wl127x-fw-4-mr.bin"
 #define WL127X_FW_NAME_SINGLE "ti-connectivity/wl127x-fw-4-sr.bin"
@@ -415,6 +416,8 @@ struct wl1271 {
 
 	/* Hardware recovery work */
 	struct work_struct recovery_work;
+
+	struct event_mailbox *mbox;
 
 	/* The mbox event mask */
 	u32 event_mask;
