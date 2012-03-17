@@ -1559,7 +1559,7 @@ void fimc_unregister_m2m_device(struct fimc_dev *fimc)
 static void fimc_clk_put(struct fimc_dev *fimc)
 {
 	int i;
-	for (i = 0; i < fimc->num_clocks; i++) {
+	for (i = 0; i < MAX_FIMC_CLOCKS; i++) {
 		if (IS_ERR_OR_NULL(fimc->clock[i]))
 			continue;
 		clk_unprepare(fimc->clock[i]);
@@ -1572,7 +1572,7 @@ static int fimc_clk_get(struct fimc_dev *fimc)
 {
 	int i, ret;
 
-	for (i = 0; i < fimc->num_clocks; i++) {
+	for (i = 0; i < MAX_FIMC_CLOCKS; i++) {
 		fimc->clock[i] = clk_get(&fimc->pdev->dev, fimc_clocks[i]);
 		if (IS_ERR(fimc->clock[i]))
 			goto err;
@@ -1672,9 +1672,7 @@ static int fimc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get IRQ resource\n");
 		return -ENXIO;
 	}
-	fimc->irq = res->start;
 
-	fimc->num_clocks = MAX_FIMC_CLOCKS;
 	ret = fimc_clk_get(fimc);
 	if (ret)
 		return ret;
@@ -1683,7 +1681,7 @@ static int fimc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, fimc);
 
-	ret = devm_request_irq(&pdev->dev, fimc->irq, fimc_irq_handler,
+	ret = devm_request_irq(&pdev->dev, res->start, fimc_irq_handler,
 			       0, pdev->name, fimc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to install irq (%d)\n", ret);

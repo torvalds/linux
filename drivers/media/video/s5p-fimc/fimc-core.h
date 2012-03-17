@@ -429,10 +429,8 @@ struct fimc_ctx;
  * @pdata:	pointer to the device platform data
  * @variant:	the IP variant information
  * @id:		FIMC device index (0..FIMC_MAX_DEVS)
- * @num_clocks: the number of clocks managed by this device instance
  * @clock:	clocks required for FIMC operation
  * @regs:	the mapped hardware registers
- * @irq:	FIMC interrupt number
  * @irq_queue:	interrupt handler waitqueue
  * @v4l2_dev:	root v4l2_device
  * @m2m:	memory-to-memory V4L2 device information
@@ -448,10 +446,8 @@ struct fimc_dev {
 	struct s5p_platform_fimc	*pdata;
 	struct samsung_fimc_variant	*variant;
 	u16				id;
-	u16				num_clocks;
 	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;
-	int				irq;
 	wait_queue_head_t		irq_queue;
 	struct v4l2_device		*v4l2_dev;
 	struct fimc_m2m_device		m2m;
