@@ -243,20 +243,11 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	if ((p->cs_flags & RADEON_CS_USE_VM) &&
 	    !p->rdev->vm_manager.enabled) {
 		DRM_ERROR("VM not active on asic!\n");
-		if (p->chunk_relocs_idx != -1)
-			kfree(p->chunks[p->chunk_relocs_idx].kdata);
-		if (p->chunk_flags_idx != -1)
-			kfree(p->chunks[p->chunk_flags_idx].kdata);
 		return -EINVAL;
 	}
 
-	if (radeon_cs_get_ring(p, ring, priority)) {
-		if (p->chunk_relocs_idx != -1)
-			kfree(p->chunks[p->chunk_relocs_idx].kdata);
-		if (p->chunk_flags_idx != -1)
-			kfree(p->chunks[p->chunk_flags_idx].kdata);
+	if (radeon_cs_get_ring(p, ring, priority))
 		return -EINVAL;
-	}
 
 
 	/* deal with non-vm */
@@ -271,11 +262,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
-		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
-			kfree(p->chunks[p->chunk_ib_idx].kpage[0]);
-			kfree(p->chunks[p->chunk_ib_idx].kpage[1]);
+		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL)
 			return -ENOMEM;
-		}
 		p->chunks[p->chunk_ib_idx].kpage_idx[0] = -1;
 		p->chunks[p->chunk_ib_idx].kpage_idx[1] = -1;
 		p->chunks[p->chunk_ib_idx].last_copied_page = -1;
