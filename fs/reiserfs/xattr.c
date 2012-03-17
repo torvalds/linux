@@ -44,7 +44,7 @@
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
 #include "xattr.h"
-#include <linux/reiserfs_acl.h>
+#include "acl.h"
 #include <asm/uaccess.h>
 #include <net/checksum.h>
 #include <linux/stat.h>

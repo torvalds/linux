@@ -8,7 +8,7 @@
 #include <linux/slab.h>
 #include <linux/posix_acl_xattr.h>
 #include "xattr.h"
-#include <linux/reiserfs_acl.h>
+#include "acl.h"
 #include <asm/uaccess.h>
 
 static int reiserfs_set_acl(struct reiserfs_transaction_handle *th,

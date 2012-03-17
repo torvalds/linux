@@ -4,7 +4,7 @@
 
 #include <linux/time.h>
 #include <linux/reiserfs_fs.h>
-#include <linux/reiserfs_acl.h>
+#include "acl.h"
 #include "xattr.h"
 #include <asm/uaccess.h>
 #include <linux/pagemap.h>
