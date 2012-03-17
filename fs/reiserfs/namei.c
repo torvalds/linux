@@ -16,7 +16,7 @@
 #include <linux/slab.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/reiserfs_acl.h>
-#include <linux/reiserfs_xattr.h>
+#include "xattr.h"
 #include <linux/quotaops.h>
 
 #define INC_DIR_INODE_NLINK(i) if (i->i_nlink != 1) { inc_nlink(i); if (i->i_nlink >= REISERFS_LINK_MAX) set_nlink(i, 1); }

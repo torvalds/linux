@@ -6,7 +6,7 @@
 #include <linux/fs.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/reiserfs_acl.h>
-#include <linux/reiserfs_xattr.h>
+#include "xattr.h"
 #include <linux/exportfs.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>

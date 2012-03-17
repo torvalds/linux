@@ -3,7 +3,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
-#include <linux/reiserfs_xattr.h>
+#include "xattr.h"
 #include <asm/uaccess.h>
 
 static int

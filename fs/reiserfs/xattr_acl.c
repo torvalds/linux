@@ -7,7 +7,7 @@
 #include <linux/xattr.h>
 #include <linux/slab.h>
 #include <linux/posix_acl_xattr.h>
-#include <linux/reiserfs_xattr.h>
+#include "xattr.h"
 #include <linux/reiserfs_acl.h>
 #include <asm/uaccess.h>
 

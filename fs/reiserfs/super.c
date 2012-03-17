@@ -18,7 +18,7 @@
 #include <asm/uaccess.h>
 #include <linux/reiserfs_fs.h>
 #include <linux/reiserfs_acl.h>
-#include <linux/reiserfs_xattr.h>
+#include "xattr.h"
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
