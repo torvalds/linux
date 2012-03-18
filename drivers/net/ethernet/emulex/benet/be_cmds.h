@@ -191,6 +191,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
 #define OPCODE_COMMON_GET_MAC_LIST			147
 #define OPCODE_COMMON_SET_MAC_LIST			148
+#define OPCODE_COMMON_GET_HSW_CONFIG			152
+#define OPCODE_COMMON_SET_HSW_CONFIG			153
 #define OPCODE_COMMON_READ_OBJECT			171
 #define OPCODE_COMMON_WRITE_OBJECT			172
 
@@ -1413,6 +1415,55 @@ struct be_cmd_req_set_mac_list {
 	struct macaddr mac[BE_MAX_MAC];
 } __packed;
 
+/*********************** HSW Config ***********************/
+struct amap_set_hsw_context {
+	u8 interface_id[16];
+	u8 rsvd0[14];
+	u8 pvid_valid;
+	u8 rsvd1;
+	u8 rsvd2[16];
+	u8 pvid[16];
+	u8 rsvd3[32];
+	u8 rsvd4[32];
+	u8 rsvd5[32];
+} __packed;
+
+struct be_cmd_req_set_hsw_config {
+	struct be_cmd_req_hdr hdr;
+	u8 context[sizeof(struct amap_set_hsw_context) / 8];
+} __packed;
+
+struct be_cmd_resp_set_hsw_config {
+	struct be_cmd_resp_hdr hdr;
+	u32 rsvd;
+};
+
+struct amap_get_hsw_req_context {
+	u8 interface_id[16];
+	u8 rsvd0[14];
+	u8 pvid_valid;
+	u8 pport;
+} __packed;
+
+struct amap_get_hsw_resp_context {
+	u8 rsvd1[16];
+	u8 pvid[16];
+	u8 rsvd2[32];
+	u8 rsvd3[32];
+	u8 rsvd4[32];
+} __packed;
+
+struct be_cmd_req_get_hsw_config {
+	struct be_cmd_req_hdr hdr;
+	u8 context[sizeof(struct amap_get_hsw_req_context) / 8];
+} __packed;
+
+struct be_cmd_resp_get_hsw_config {
+	struct be_cmd_resp_hdr hdr;
+	u8 context[sizeof(struct amap_get_hsw_resp_context) / 8];
+	u32 rsvd;
+};
+
 /*************** HW Stats Get v1 **********************************/
 #define BE_TXP_SW_SZ			48
 struct be_port_rxf_stats_v1 {
@@ -1617,5 +1668,9 @@ extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
 				bool *pmac_id_active, u32 *pmac_id, u8 *mac);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
+extern int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
+			u32 domain, u16 intf_id);
+extern int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
+			u32 domain, u16 intf_id);
 extern int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
 

@@ -303,6 +303,7 @@ struct be_vf_cfg {
 	unsigned char mac_addr[ETH_ALEN];
 	int if_handle;
 	int pmac_id;
+	u16 def_vid;
 	u16 vlan_tag;
 	u32 tx_rate;
 };

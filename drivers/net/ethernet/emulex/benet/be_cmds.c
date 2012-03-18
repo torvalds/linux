@@ -2419,6 +2419,89 @@ err:
 	return status;
 }
 
+int be_cmd_set_hsw_config(struct be_adapter *adapter, u16 pvid,
+			u32 domain, u16 intf_id)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_set_hsw_config *req;
+	void *ctxt;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+	ctxt = &req->context;
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_SET_HSW_CONFIG, sizeof(*req), wrb, NULL);
+
+	req->hdr.domain = domain;
+	AMAP_SET_BITS(struct amap_set_hsw_context, interface_id, ctxt, intf_id);
+	if (pvid) {
+		AMAP_SET_BITS(struct amap_set_hsw_context, pvid_valid, ctxt, 1);
+		AMAP_SET_BITS(struct amap_set_hsw_context, pvid, ctxt, pvid);
+	}
+
+	be_dws_cpu_to_le(req->context, sizeof(req->context));
+	status = be_mcc_notify_wait(adapter);
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+/* Get Hyper switch config */
+int be_cmd_get_hsw_config(struct be_adapter *adapter, u16 *pvid,
+			u32 domain, u16 intf_id)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_hsw_config *req;
+	void *ctxt;
+	int status;
+	u16 vid;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+
+	req = embedded_payload(wrb);
+	ctxt = &req->context;
+
+	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_GET_HSW_CONFIG, sizeof(*req), wrb, NULL);
+
+	req->hdr.domain = domain;
+	AMAP_SET_BITS(struct amap_get_hsw_req_context, interface_id, ctxt,
+								intf_id);
+	AMAP_SET_BITS(struct amap_get_hsw_req_context, pvid_valid, ctxt, 1);
+	be_dws_cpu_to_le(req->context, sizeof(req->context));
+
+	status = be_mcc_notify_wait(adapter);
+	if (!status) {
+		struct be_cmd_resp_get_hsw_config *resp =
+						embedded_payload(wrb);
+		be_dws_le_to_cpu(&resp->context,
+						sizeof(resp->context));
+		vid = AMAP_GET_BITS(struct amap_get_hsw_resp_context,
+							pvid, &resp->context);
+		*pvid = le16_to_cpu(vid);
+	}
+
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
 int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;

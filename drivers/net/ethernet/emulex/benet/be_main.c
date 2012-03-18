@@ -978,14 +978,21 @@ static int be_set_vf_vlan(struct net_device *netdev,
 		return -EINVAL;
 
 	if (vlan) {
-		adapter->vf_cfg[vf].vlan_tag = vlan;
-		adapter->vlans_added++;
+		if (adapter->vf_cfg[vf].vlan_tag != vlan) {
+			/* If this is new value, program it. Else skip. */
+			adapter->vf_cfg[vf].vlan_tag = vlan;
+
+			status = be_cmd_set_hsw_config(adapter, vlan,
+				vf + 1, adapter->vf_cfg[vf].if_handle);
+		}
 	} else {
+		/* Reset Transparent Vlan Tagging. */
 		adapter->vf_cfg[vf].vlan_tag = 0;
-		adapter->vlans_added--;
+		vlan = adapter->vf_cfg[vf].def_vid;
+		status = be_cmd_set_hsw_config(adapter, vlan, vf + 1,
+			adapter->vf_cfg[vf].if_handle);
 	}
 
-	status = be_vid_config(adapter, true, vf);
 
 	if (status)
 		dev_info(&adapter->pdev->dev,
@@ -2525,7 +2532,7 @@ static int be_vf_setup(struct be_adapter *adapter)
 {
 	struct be_vf_cfg *vf_cfg;
 	u32 cap_flags, en_flags, vf;
-	u16 lnk_speed;
+	u16 def_vlan, lnk_speed;
 	int status;
 
 	be_vf_setup_init(adapter);
@@ -2549,6 +2556,12 @@ static int be_vf_setup(struct be_adapter *adapter)
 		if (status)
 			goto err;
 		vf_cfg->tx_rate = lnk_speed * 10;
+
+		status = be_cmd_get_hsw_config(adapter, &def_vlan,
+				vf + 1, vf_cfg->if_handle);
+		if (status)
+			goto err;
+		vf_cfg->def_vid = def_vlan;
 	}
 	return 0;
 err:
