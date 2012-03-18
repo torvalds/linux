@@ -315,7 +315,8 @@ struct bnx2x_vlan_mac_obj {
 	 * @return zero if the element may be added
 	 */
 
-	int (*check_add)(struct bnx2x_vlan_mac_obj *o,
+	int (*check_add)(struct bnx2x *bp,
+			 struct bnx2x_vlan_mac_obj *o,
 			 union bnx2x_classification_ramrod_data *data);
 
 	/**
@@ -324,7 +325,8 @@ struct bnx2x_vlan_mac_obj {
 	 * @return true if the element may be deleted
 	 */
 	struct bnx2x_vlan_mac_registry_elem *
-		(*check_del)(struct bnx2x_vlan_mac_obj *o,
+		(*check_del)(struct bnx2x *bp,
+			     struct bnx2x_vlan_mac_obj *o,
 			     union bnx2x_classification_ramrod_data *data);
 
 	/**
@@ -332,7 +334,8 @@ struct bnx2x_vlan_mac_obj {
 	 *
 	 * @return true if the element may be deleted
 	 */
-	bool (*check_move)(struct bnx2x_vlan_mac_obj *src_o,
+	bool (*check_move)(struct bnx2x *bp,
+			   struct bnx2x_vlan_mac_obj *src_o,
 			   struct bnx2x_vlan_mac_obj *dst_o,
 			   union bnx2x_classification_ramrod_data *data);
 

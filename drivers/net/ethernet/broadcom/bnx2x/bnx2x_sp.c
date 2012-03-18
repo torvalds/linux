@@ -72,8 +72,8 @@ static inline void bnx2x_exe_queue_init(struct bnx2x *bp,
 	o->execute       = exec;
 	o->get           = get;
 
-	DP(BNX2X_MSG_SP, "Setup the execution queue with the chunk "
-			 "length of %d\n", exe_len);
+	DP(BNX2X_MSG_SP, "Setup the execution queue with the chunk length of %d\n",
+	   exe_len);
 }
 
 static inline void bnx2x_exe_queue_free_elem(struct bnx2x *bp,
@@ -203,8 +203,7 @@ static inline int bnx2x_exe_queue_step(struct bnx2x *bp,
 	 */
 	if (!list_empty(&o->pending_comp)) {
 		if (test_bit(RAMROD_DRV_CLR_ONLY, ramrod_flags)) {
-			DP(BNX2X_MSG_SP, "RAMROD_DRV_CLR_ONLY requested: "
-					 "resetting pending_comp\n");
+			DP(BNX2X_MSG_SP, "RAMROD_DRV_CLR_ONLY requested: resetting a pending_comp list\n");
 			__bnx2x_exe_queue_reset_pending(bp, o);
 		} else {
 			spin_unlock_bh(&o->lock);
@@ -476,10 +475,13 @@ static int bnx2x_get_n_elements(struct bnx2x *bp, struct bnx2x_vlan_mac_obj *o,
 }
 
 /* check_add() callbacks */
-static int bnx2x_check_mac_add(struct bnx2x_vlan_mac_obj *o,
+static int bnx2x_check_mac_add(struct bnx2x *bp,
+			       struct bnx2x_vlan_mac_obj *o,
 			       union bnx2x_classification_ramrod_data *data)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos;
+
+	DP(BNX2X_MSG_SP, "Checking MAC %pM for ADD command\n", data->mac.mac);
 
 	if (!is_valid_ether_addr(data->mac.mac))
 		return -EINVAL;
@@ -492,10 +494,13 @@ static int bnx2x_check_mac_add(struct bnx2x_vlan_mac_obj *o,
 	return 0;
 }
 
-static int bnx2x_check_vlan_add(struct bnx2x_vlan_mac_obj *o,
+static int bnx2x_check_vlan_add(struct bnx2x *bp,
+				struct bnx2x_vlan_mac_obj *o,
 				union bnx2x_classification_ramrod_data *data)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos;
+
+	DP(BNX2X_MSG_SP, "Checking VLAN %d for ADD command\n", data->vlan.vlan);
 
 	list_for_each_entry(pos, &o->head, link)
 		if (data->vlan.vlan == pos->u.vlan.vlan)
@@ -504,10 +509,14 @@ static int bnx2x_check_vlan_add(struct bnx2x_vlan_mac_obj *o,
 	return 0;
 }
 
-static int bnx2x_check_vlan_mac_add(struct bnx2x_vlan_mac_obj *o,
+static int bnx2x_check_vlan_mac_add(struct bnx2x *bp,
+				    struct bnx2x_vlan_mac_obj *o,
 				   union bnx2x_classification_ramrod_data *data)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos;
+
+	DP(BNX2X_MSG_SP, "Checking VLAN_MAC (%pM, %d) for ADD command\n",
+	   data->vlan_mac.mac, data->vlan_mac.vlan);
 
 	list_for_each_entry(pos, &o->head, link)
 		if ((data->vlan_mac.vlan == pos->u.vlan_mac.vlan) &&
@@ -521,10 +530,13 @@ static int bnx2x_check_vlan_mac_add(struct bnx2x_vlan_mac_obj *o,
 
 /* check_del() callbacks */
 static struct bnx2x_vlan_mac_registry_elem *
-	bnx2x_check_mac_del(struct bnx2x_vlan_mac_obj *o,
+	bnx2x_check_mac_del(struct bnx2x *bp,
+			    struct bnx2x_vlan_mac_obj *o,
 			    union bnx2x_classification_ramrod_data *data)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos;
+
+	DP(BNX2X_MSG_SP, "Checking MAC %pM for DEL command\n", data->mac.mac);
 
 	list_for_each_entry(pos, &o->head, link)
 		if (!memcmp(data->mac.mac, pos->u.mac.mac, ETH_ALEN))
@@ -534,10 +546,13 @@ static struct bnx2x_vlan_mac_registry_elem *
 }
 
 static struct bnx2x_vlan_mac_registry_elem *
-	bnx2x_check_vlan_del(struct bnx2x_vlan_mac_obj *o,
+	bnx2x_check_vlan_del(struct bnx2x *bp,
+			     struct bnx2x_vlan_mac_obj *o,
 			     union bnx2x_classification_ramrod_data *data)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos;
+
+	DP(BNX2X_MSG_SP, "Checking VLAN %d for DEL command\n", data->vlan.vlan);
 
 	list_for_each_entry(pos, &o->head, link)
 		if (data->vlan.vlan == pos->u.vlan.vlan)
@@ -547,10 +562,14 @@ static struct bnx2x_vlan_mac_registry_elem *
 }
 
 static struct bnx2x_vlan_mac_registry_elem *
-	bnx2x_check_vlan_mac_del(struct bnx2x_vlan_mac_obj *o,
+	bnx2x_check_vlan_mac_del(struct bnx2x *bp,
+				 struct bnx2x_vlan_mac_obj *o,
 				 union bnx2x_classification_ramrod_data *data)
 {
 	struct bnx2x_vlan_mac_registry_elem *pos;
+
+	DP(BNX2X_MSG_SP, "Checking VLAN_MAC (%pM, %d) for DEL command\n",
+	   data->vlan_mac.mac, data->vlan_mac.vlan);
 
 	list_for_each_entry(pos, &o->head, link)
 		if ((data->vlan_mac.vlan == pos->u.vlan_mac.vlan) &&
@@ -562,7 +581,8 @@ static struct bnx2x_vlan_mac_registry_elem *
 }
 
 /* check_move() callback */
-static bool bnx2x_check_move(struct bnx2x_vlan_mac_obj *src_o,
+static bool bnx2x_check_move(struct bnx2x *bp,
+			     struct bnx2x_vlan_mac_obj *src_o,
 			     struct bnx2x_vlan_mac_obj *dst_o,
 			     union bnx2x_classification_ramrod_data *data)
 {
@@ -572,10 +592,10 @@ static bool bnx2x_check_move(struct bnx2x_vlan_mac_obj *src_o,
 	/* Check if we can delete the requested configuration from the first
 	 * object.
 	 */
-	pos = src_o->check_del(src_o, data);
+	pos = src_o->check_del(bp, src_o, data);
 
 	/*  check if configuration can be added */
-	rc = dst_o->check_add(dst_o, data);
+	rc = dst_o->check_add(bp, dst_o, data);
 
 	/* If this classification can not be added (is already set)
 	 * or can't be deleted - return an error.
@@ -587,6 +607,7 @@ static bool bnx2x_check_move(struct bnx2x_vlan_mac_obj *src_o,
 }
 
 static bool bnx2x_check_move_always_err(
+	struct bnx2x *bp,
 	struct bnx2x_vlan_mac_obj *src_o,
 	struct bnx2x_vlan_mac_obj *dst_o,
 	union bnx2x_classification_ramrod_data *data)
@@ -740,7 +761,7 @@ static void bnx2x_set_one_mac_e2(struct bnx2x *bp,
 				      &rule_entry->mac.header);
 
 	DP(BNX2X_MSG_SP, "About to %s MAC %pM for Queue %d\n",
-			 add ? "add" : "delete", mac, raw->cl_id);
+	   (add ? "add" : "delete"), mac, raw->cl_id);
 
 	/* Set a MAC itself */
 	bnx2x_set_fw_mac_addr(&rule_entry->mac.mac_msb,
@@ -833,7 +854,7 @@ static inline void bnx2x_vlan_mac_set_rdata_e1x(struct bnx2x *bp,
 					 cfg_entry);
 
 	DP(BNX2X_MSG_SP, "%s MAC %pM CLID %d CAM offset %d\n",
-			 add ? "setting" : "clearing",
+			 (add ? "setting" : "clearing"),
 			 mac, raw->cl_id, cam_offset);
 }
 
@@ -1152,10 +1173,9 @@ static inline int bnx2x_validate_vlan_mac_add(struct bnx2x *bp,
 	int rc;
 
 	/* Check the registry */
-	rc = o->check_add(o, &elem->cmd_data.vlan_mac.u);
+	rc = o->check_add(bp, o, &elem->cmd_data.vlan_mac.u);
 	if (rc) {
-		DP(BNX2X_MSG_SP, "ADD command is not allowed considering "
-				 "current registry state\n");
+		DP(BNX2X_MSG_SP, "ADD command is not allowed considering current registry state.\n");
 		return rc;
 	}
 
@@ -1206,10 +1226,9 @@ static inline int bnx2x_validate_vlan_mac_del(struct bnx2x *bp,
 	/* If this classification can not be deleted (doesn't exist)
 	 * - return a BNX2X_EXIST.
 	 */
-	pos = o->check_del(o, &elem->cmd_data.vlan_mac.u);
+	pos = o->check_del(bp, o, &elem->cmd_data.vlan_mac.u);
 	if (!pos) {
-		DP(BNX2X_MSG_SP, "DEL command is not allowed considering "
-				 "current registry state\n");
+		DP(BNX2X_MSG_SP, "DEL command is not allowed considering current registry state\n");
 		return -EEXIST;
 	}
 
@@ -1269,9 +1288,9 @@ static inline int bnx2x_validate_vlan_mac_move(struct bnx2x *bp,
 	 * Check if we can perform this operation based on the current registry
 	 * state.
 	 */
-	if (!src_o->check_move(src_o, dest_o, &elem->cmd_data.vlan_mac.u)) {
-		DP(BNX2X_MSG_SP, "MOVE command is not allowed considering "
-				 "current registry state\n");
+	if (!src_o->check_move(bp, src_o, dest_o,
+			       &elem->cmd_data.vlan_mac.u)) {
+		DP(BNX2X_MSG_SP, "MOVE command is not allowed considering current registry state\n");
 		return -EINVAL;
 	}
 
@@ -1285,8 +1304,7 @@ static inline int bnx2x_validate_vlan_mac_move(struct bnx2x *bp,
 	/* Check DEL on source */
 	query_elem.cmd_data.vlan_mac.cmd = BNX2X_VLAN_MAC_DEL;
 	if (src_exeq->get(src_exeq, &query_elem)) {
-		BNX2X_ERR("There is a pending DEL command on the source "
-			  "queue already\n");
+		BNX2X_ERR("There is a pending DEL command on the source queue already\n");
 		return -EINVAL;
 	}
 
@@ -1299,8 +1317,7 @@ static inline int bnx2x_validate_vlan_mac_move(struct bnx2x *bp,
 	/* Check ADD on destination */
 	query_elem.cmd_data.vlan_mac.cmd = BNX2X_VLAN_MAC_ADD;
 	if (dest_exeq->get(dest_exeq, &query_elem)) {
-		BNX2X_ERR("There is a pending ADD command on the "
-			  "destination queue already\n");
+		BNX2X_ERR("There is a pending ADD command on the destination queue already\n");
 		return -EINVAL;
 	}
 
@@ -1475,12 +1492,10 @@ static int bnx2x_optimize_vlan_mac(struct bnx2x *bp,
 			      &pos->cmd_data.vlan_mac.vlan_mac_flags)) {
 			if ((query.cmd_data.vlan_mac.cmd ==
 			     BNX2X_VLAN_MAC_ADD) && !o->put_credit(o)) {
-				BNX2X_ERR("Failed to return the credit for the "
-					  "optimized ADD command\n");
+				BNX2X_ERR("Failed to return the credit for the optimized ADD command\n");
 				return -EINVAL;
 			} else if (!o->get_credit(o)) { /* VLAN_MAC_DEL */
-				BNX2X_ERR("Failed to recover the credit from "
-					  "the optimized DEL command\n");
+				BNX2X_ERR("Failed to recover the credit from the optimized DEL command\n");
 				return -EINVAL;
 			}
 		}
@@ -1546,7 +1561,7 @@ static inline int bnx2x_vlan_mac_get_registry_elem(
 		reg_elem->vlan_mac_flags =
 			elem->cmd_data.vlan_mac.vlan_mac_flags;
 	} else /* DEL, RESTORE */
-		reg_elem = o->check_del(o, &elem->cmd_data.vlan_mac.u);
+		reg_elem = o->check_del(bp, o, &elem->cmd_data.vlan_mac.u);
 
 	*re = reg_elem;
 	return 0;
@@ -1644,7 +1659,8 @@ static int bnx2x_execute_vlan_mac(struct bnx2x *bp,
 		cmd = elem->cmd_data.vlan_mac.cmd;
 		if ((cmd == BNX2X_VLAN_MAC_DEL) ||
 		    (cmd == BNX2X_VLAN_MAC_MOVE)) {
-			reg_elem = o->check_del(o, &elem->cmd_data.vlan_mac.u);
+			reg_elem = o->check_del(bp, o,
+						&elem->cmd_data.vlan_mac.u);
 
 			WARN_ON(!reg_elem);
 
@@ -1675,7 +1691,7 @@ error_exit:
 		if (!restore &&
 		    ((cmd == BNX2X_VLAN_MAC_ADD) ||
 		    (cmd == BNX2X_VLAN_MAC_MOVE))) {
-			reg_elem = o->check_del(cam_obj,
+			reg_elem = o->check_del(bp, cam_obj,
 						&elem->cmd_data.vlan_mac.u);
 			if (reg_elem) {
 				list_del(&reg_elem->link);
@@ -1750,8 +1766,7 @@ int bnx2x_config_vlan_mac(
 		rc = 1;
 
 	if (test_bit(RAMROD_DRV_CLR_ONLY, ramrod_flags))  {
-		DP(BNX2X_MSG_SP, "RAMROD_DRV_CLR_ONLY requested: "
-				 "clearing a pending bit.\n");
+		DP(BNX2X_MSG_SP, "RAMROD_DRV_CLR_ONLY requested: clearing a pending bit.\n");
 		raw->clear_pending(raw);
 	}
 
@@ -2149,12 +2164,10 @@ static int bnx2x_set_rx_mode_e1x(struct bnx2x *bp,
 		mac_filters->unmatched_unicast & ~mask;
 
 	DP(BNX2X_MSG_SP, "drop_ucast 0x%x\ndrop_mcast 0x%x\n accp_ucast 0x%x\n"
-			 "accp_mcast 0x%x\naccp_bcast 0x%x\n",
-			 mac_filters->ucast_drop_all,
-			 mac_filters->mcast_drop_all,
-			 mac_filters->ucast_accept_all,
-			 mac_filters->mcast_accept_all,
-			 mac_filters->bcast_accept_all);
+					 "accp_mcast 0x%x\naccp_bcast 0x%x\n",
+	   mac_filters->ucast_drop_all, mac_filters->mcast_drop_all,
+	   mac_filters->ucast_accept_all, mac_filters->mcast_accept_all,
+	   mac_filters->bcast_accept_all);
 
 	/* write the MAC filter structure*/
 	__storm_memset_mac_filters(bp, mac_filters, p->func_id);
@@ -2303,8 +2316,7 @@ static int bnx2x_set_rx_mode_e2(struct bnx2x *bp,
 	 */
 	bnx2x_rx_mode_set_rdata_hdr_e2(p->cid, &data->header, rule_idx);
 
-	DP(BNX2X_MSG_SP, "About to configure %d rules, rx_accept_flags 0x%lx, "
-			 "tx_accept_flags 0x%lx\n",
+	DP(BNX2X_MSG_SP, "About to configure %d rules, rx_accept_flags 0x%lx, tx_accept_flags 0x%lx\n",
 			 data->header.rule_cnt, p->rx_accept_flags,
 			 p->tx_accept_flags);
 
@@ -2437,8 +2449,8 @@ static int bnx2x_mcast_enqueue_cmd(struct bnx2x *bp,
 	if (!new_cmd)
 		return -ENOMEM;
 
-	DP(BNX2X_MSG_SP, "About to enqueue a new %d command. "
-			 "macs_list_len=%d\n", cmd, macs_list_len);
+	DP(BNX2X_MSG_SP, "About to enqueue a new %d command. macs_list_len=%d\n",
+	   cmd, macs_list_len);
 
 	INIT_LIST_HEAD(&new_cmd->data.macs_head);
 
@@ -2653,7 +2665,7 @@ static inline void bnx2x_mcast_hdl_pending_add_e2(struct bnx2x *bp,
 		cnt++;
 
 		DP(BNX2X_MSG_SP, "About to configure %pM mcast MAC\n",
-				 pmac_pos->mac);
+		   pmac_pos->mac);
 
 		list_del(&pmac_pos->link);
 
@@ -3177,8 +3189,8 @@ static int bnx2x_mcast_validate_e1(struct bnx2x *bp,
 		 * matter.
 		 */
 		if (p->mcast_list_len > o->max_cmd_len) {
-			BNX2X_ERR("Can't configure more than %d multicast MACs"
-				   "on 57710\n", o->max_cmd_len);
+			BNX2X_ERR("Can't configure more than %d multicast MACs on 57710\n",
+				  o->max_cmd_len);
 			return -EINVAL;
 		}
 		/* Every configured MAC should be cleared if DEL command is
@@ -3426,7 +3438,7 @@ static inline int bnx2x_mcast_refresh_registry_e1(struct bnx2x *bp,
 				&data->config_table[i].lsb_mac_addr,
 				elem->mac);
 			DP(BNX2X_MSG_SP, "Adding registry entry for [%pM]\n",
-					 elem->mac);
+			   elem->mac);
 			list_add_tail(&elem->link,
 				      &o->registry.exact_match.macs);
 		}
@@ -3567,9 +3579,8 @@ int bnx2x_config_mcast(struct bnx2x *bp,
 	if ((!p->mcast_list_len) && (!o->check_sched(o)))
 		return 0;
 
-	DP(BNX2X_MSG_SP, "o->total_pending_num=%d p->mcast_list_len=%d "
-			 "o->max_cmd_len=%d\n", o->total_pending_num,
-			 p->mcast_list_len, o->max_cmd_len);
+	DP(BNX2X_MSG_SP, "o->total_pending_num=%d p->mcast_list_len=%d o->max_cmd_len=%d\n",
+	   o->total_pending_num, p->mcast_list_len, o->max_cmd_len);
 
 	/* Enqueue the current command to the pending list if we can't complete
 	 * it in the current iteration
@@ -4294,9 +4305,8 @@ static int bnx2x_queue_comp_cmd(struct bnx2x *bp,
 	unsigned long cur_pending = o->pending;
 
 	if (!test_and_clear_bit(cmd, &cur_pending)) {
-		BNX2X_ERR("Bad MC reply %d for queue %d in state %d "
-			  "pending 0x%lx, next_state %d\n", cmd,
-			  o->cids[BNX2X_PRIMARY_CID_INDEX],
+		BNX2X_ERR("Bad MC reply %d for queue %d in state %d pending 0x%lx, next_state %d\n",
+			  cmd, o->cids[BNX2X_PRIMARY_CID_INDEX],
 			  o->state, cur_pending, o->next_state);
 		return -EINVAL;
 	}
@@ -4308,13 +4318,13 @@ static int bnx2x_queue_comp_cmd(struct bnx2x *bp,
 		BNX2X_ERR("illegal value for next tx_only: %d. max cos was %d",
 			   o->next_tx_only, o->max_cos);
 
-	DP(BNX2X_MSG_SP, "Completing command %d for queue %d, "
-			 "setting state to %d\n", cmd,
-			 o->cids[BNX2X_PRIMARY_CID_INDEX], o->next_state);
+	DP(BNX2X_MSG_SP,
+	   "Completing command %d for queue %d, setting state to %d\n",
+	   cmd, o->cids[BNX2X_PRIMARY_CID_INDEX], o->next_state);
 
 	if (o->next_tx_only)  /* print num tx-only if any exist */
 		DP(BNX2X_MSG_SP, "primary cid %d: num tx-only cons %d\n",
-			   o->cids[BNX2X_PRIMARY_CID_INDEX], o->next_tx_only);
+		   o->cids[BNX2X_PRIMARY_CID_INDEX], o->next_tx_only);
 
 	o->state = o->next_state;
 	o->num_tx_only = o->next_tx_only;
@@ -4529,8 +4539,10 @@ static void bnx2x_q_fill_setup_tx_only(struct bnx2x *bp,
 				  &data->tx,
 				  &cmd_params->params.tx_only.flags);
 
-	DP(BNX2X_MSG_SP, "cid %d, tx bd page lo %x hi %x\n",cmd_params->q_obj->cids[0],
-	   data->tx.tx_bd_page_base.lo, data->tx.tx_bd_page_base.hi);
+	DP(BNX2X_MSG_SP, "cid %d, tx bd page lo %x hi %x",
+			 cmd_params->q_obj->cids[0],
+			 data->tx.tx_bd_page_base.lo,
+			 data->tx.tx_bd_page_base.hi);
 }
 
 /**
@@ -4677,10 +4689,8 @@ static inline int bnx2x_q_send_setup_tx_only(struct bnx2x *bp,
 	/* Fill the ramrod data */
 	bnx2x_q_fill_setup_tx_only(bp, params, rdata);
 
-	DP(BNX2X_MSG_SP, "sending tx-only ramrod: cid %d, client-id %d,"
-			 "sp-client id %d, cos %d\n",
-			 o->cids[cid_index],
-			 rdata->general.client_id,
+	DP(BNX2X_MSG_SP, "sending tx-only ramrod: cid %d, client-id %d, sp-client id %d, cos %d\n",
+			 o->cids[cid_index], rdata->general.client_id,
 			 rdata->general.sp_client_id, rdata->general.cos);
 
 	/*
@@ -5222,9 +5232,9 @@ static inline int bnx2x_func_state_change_comp(struct bnx2x *bp,
 	unsigned long cur_pending = o->pending;
 
 	if (!test_and_clear_bit(cmd, &cur_pending)) {
-		BNX2X_ERR("Bad MC reply %d for func %d in state %d "
-			  "pending 0x%lx, next_state %d\n", cmd, BP_FUNC(bp),
-			  o->state, cur_pending, o->next_state);
+		BNX2X_ERR("Bad MC reply %d for func %d in state %d pending 0x%lx, next_state %d\n",
+			  cmd, BP_FUNC(bp), o->state,
+			  cur_pending, o->next_state);
 		return -EINVAL;
 	}
 

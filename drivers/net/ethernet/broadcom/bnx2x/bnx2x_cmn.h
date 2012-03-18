@@ -598,7 +598,7 @@ static inline void bnx2x_igu_ack_sb_gen(struct bnx2x *bp, u8 igu_sb_id,
 			 (update << IGU_REGULAR_BUPDATE_SHIFT) |
 			 (op << IGU_REGULAR_ENABLE_INT_SHIFT));
 
-	DP(NETIF_MSG_HW, "write 0x%08x to IGU addr 0x%x\n",
+	DP(NETIF_MSG_INTR, "write 0x%08x to IGU addr 0x%x\n",
 	   cmd_data.sb_id_and_flags, igu_addr);
 	REG_WR(bp, igu_addr, cmd_data.sb_id_and_flags);
 
@@ -648,8 +648,8 @@ static inline void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func,
 
 
 	if (!(REG_RD(bp, igu_addr_ack) & sb_bit)) {
-		DP(NETIF_MSG_HW, "Unable to finish IGU cleanup: "
-			  "idu_sb_id %d offset %d bit %d (cnt %d)\n",
+		DP(NETIF_MSG_HW,
+		   "Unable to finish IGU cleanup: idu_sb_id %d offset %d bit %d (cnt %d)\n",
 			  idu_sb_id, idu_sb_id/32, idu_sb_id%32, cnt);
 	}
 }
@@ -668,8 +668,6 @@ static inline void bnx2x_hc_ack_sb(struct bnx2x *bp, u8 sb_id,
 			 (update << IGU_ACK_REGISTER_UPDATE_INDEX_SHIFT) |
 			 (op << IGU_ACK_REGISTER_INTERRUPT_MODE_SHIFT));
 
-	DP(BNX2X_MSG_OFF, "write 0x%08x to HC addr 0x%x\n",
-	   (*(u32 *)&igu_ack), hc_addr);
 	REG_WR(bp, hc_addr, (*(u32 *)&igu_ack));
 
 	/* Make sure that ACK is written */
@@ -703,9 +701,6 @@ static inline u16 bnx2x_hc_ack_int(struct bnx2x *bp)
 		       COMMAND_REG_SIMD_MASK);
 	u32 result = REG_RD(bp, hc_addr);
 
-	DP(BNX2X_MSG_OFF, "read 0x%08x from HC addr 0x%x\n",
-	   result, hc_addr);
-
 	barrier();
 	return result;
 }
@@ -715,7 +710,7 @@ static inline u16 bnx2x_igu_ack_int(struct bnx2x *bp)
 	u32 igu_addr = (BAR_IGU_INTMEM + IGU_REG_SISR_MDPC_WMASK_LSB_UPPER*8);
 	u32 result = REG_RD(bp, igu_addr);
 
-	DP(NETIF_MSG_HW, "read 0x%08x from IGU addr 0x%x\n",
+	DP(NETIF_MSG_INTR, "read 0x%08x from IGU addr 0x%x\n",
 	   result, igu_addr);
 
 	barrier();
@@ -893,13 +888,16 @@ static inline int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 	struct eth_rx_sge *sge = &fp->rx_sge_ring[index];
 	dma_addr_t mapping;
 
-	if (unlikely(page == NULL))
+	if (unlikely(page == NULL)) {
+		BNX2X_ERR("Can't alloc sge\n");
 		return -ENOMEM;
+	}
 
 	mapping = dma_map_page(&bp->pdev->dev, page, 0,
 			       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		__free_pages(page, PAGES_PER_SGE_SHIFT);
+		BNX2X_ERR("Can't map sge\n");
 		return -ENOMEM;
 	}
 
@@ -929,6 +927,7 @@ static inline int bnx2x_alloc_rx_data(struct bnx2x *bp,
 				 DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		kfree(data);
+		BNX2X_ERR("Can't map rx data\n");
 		return -ENOMEM;
 	}
 
@@ -1299,7 +1298,7 @@ static inline void bnx2x_init_txdata(struct bnx2x *bp,
 	txdata->txq_index = txq_index;
 	txdata->tx_cons_sb = tx_cons_sb;
 
-	DP(BNX2X_MSG_SP, "created tx data cid %d, txq %d\n",
+	DP(NETIF_MSG_IFUP, "created tx data cid %d, txq %d\n",
 	   txdata->cid, txdata->txq_index);
 }
 
@@ -1344,7 +1343,7 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	bnx2x_init_txdata(bp, &bnx2x_fcoe(bp, txdata[0]),
 			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX);
 
-	DP(BNX2X_MSG_SP, "created fcoe tx data (fp index %d)\n", fp->index);
+	DP(NETIF_MSG_IFUP, "created fcoe tx data (fp index %d)\n", fp->index);
 
 	/* qZone id equals to FW (per path) client id */
 	bnx2x_fcoe(bp, cl_qzone_id) = bnx2x_fp_qzone_id(fp);
@@ -1363,8 +1362,8 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 			     BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
 			     bnx2x_sp_mapping(bp, q_rdata), q_type);
 
-	DP(NETIF_MSG_IFUP, "queue[%d]: bnx2x_init_sb(%p,%p) cl_id %d fw_sb %d "
-			   "igu_sb %d\n",
+	DP(NETIF_MSG_IFUP,
+	   "queue[%d]: bnx2x_init_sb(%p,%p) cl_id %d fw_sb %d igu_sb %d\n",
 	   fp->index, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
 	   fp->igu_sb_id);
 }
@@ -1377,8 +1376,7 @@ static inline int bnx2x_clean_tx_queue(struct bnx2x *bp,
 
 	while (bnx2x_has_tx_work_unload(txdata)) {
 		if (!cnt) {
-			BNX2X_ERR("timeout waiting for queue[%d]: "
-				 "txdata->tx_pkt_prod(%d) != txdata->tx_pkt_cons(%d)\n",
+			BNX2X_ERR("timeout waiting for queue[%d]: txdata->tx_pkt_prod(%d) != txdata->tx_pkt_cons(%d)\n",
 				  txdata->txq_index, txdata->tx_pkt_prod,
 				  txdata->tx_pkt_cons);
 #ifdef BNX2X_STOP_ON_ERROR
@@ -1455,8 +1453,8 @@ static inline bool bnx2x_wait_sp_comp(struct bnx2x *bp, unsigned long mask)
 
 	netif_addr_lock_bh(bp->dev);
 	if (bp->sp_state & mask) {
-		BNX2X_ERR("Filtering completion timed out. sp_state 0x%lx, "
-			  "mask 0x%lx\n", bp->sp_state, mask);
+		BNX2X_ERR("Filtering completion timed out. sp_state 0x%lx, mask 0x%lx\n",
+			  bp->sp_state, mask);
 		netif_addr_unlock_bh(bp->dev);
 		return false;
 	}
@@ -1492,7 +1490,7 @@ static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
 	u16 max_cfg = (mf_cfg & FUNC_MF_CFG_MAX_BW_MASK) >>
 			      FUNC_MF_CFG_MAX_BW_SHIFT;
 	if (!max_cfg) {
-		DP(NETIF_MSG_LINK,
+		DP(NETIF_MSG_IFUP | BNX2X_MSG_ETHTOOL,
 		   "Max BW configured to 0 - using 100 instead\n");
 		max_cfg = 100;
 	}
@@ -1655,7 +1653,7 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 			RESET_FLAGS(drv_flags, flags);
 
 		SHMEM2_WR(bp, drv_flags, drv_flags);
-		DP(NETIF_MSG_HW, "drv_flags 0x%08x\n", drv_flags);
+		DP(NETIF_MSG_IFUP, "drv_flags 0x%08x\n", drv_flags);
 		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_DRV_FLAGS);
 	}
 }

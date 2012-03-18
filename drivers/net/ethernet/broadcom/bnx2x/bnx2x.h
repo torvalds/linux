@@ -58,18 +58,22 @@
 #define DRV_MODULE_NAME		"bnx2x"
 
 /* for messages that are currently off */
-#define BNX2X_MSG_OFF			0
-#define BNX2X_MSG_MCP			0x010000 /* was: NETIF_MSG_HW */
-#define BNX2X_MSG_STATS			0x020000 /* was: NETIF_MSG_TIMER */
-#define BNX2X_MSG_NVM			0x040000 /* was: NETIF_MSG_HW */
-#define BNX2X_MSG_DMAE			0x080000 /* was: NETIF_MSG_HW */
-#define BNX2X_MSG_SP			0x100000 /* was: NETIF_MSG_INTR */
-#define BNX2X_MSG_FP			0x200000 /* was: NETIF_MSG_INTR */
+#define BNX2X_MSG_OFF			0x0
+#define BNX2X_MSG_MCP			0x0010000 /* was: NETIF_MSG_HW */
+#define BNX2X_MSG_STATS			0x0020000 /* was: NETIF_MSG_TIMER */
+#define BNX2X_MSG_NVM			0x0040000 /* was: NETIF_MSG_HW */
+#define BNX2X_MSG_DMAE			0x0080000 /* was: NETIF_MSG_HW */
+#define BNX2X_MSG_SP			0x0100000 /* was: NETIF_MSG_INTR */
+#define BNX2X_MSG_FP			0x0200000 /* was: NETIF_MSG_INTR */
+#define BNX2X_MSG_IOV			0x0800000
+#define BNX2X_MSG_IDLE			0x2000000 /* used for idle check*/
+#define BNX2X_MSG_ETHTOOL		0x4000000
+#define BNX2X_MSG_DCB			0x8000000
 
 /* regular debug print */
 #define DP(__mask, fmt, ...)					\
 do {								\
-	if (bp->msg_enable & (__mask))				\
+	if (unlikely(bp->msg_enable & (__mask)))		\
 		pr_notice("[%s:%d(%s)]" fmt,			\
 			  __func__, __LINE__,			\
 			  bp->dev ? (bp->dev->name) : "?",	\
@@ -78,14 +82,14 @@ do {								\
 
 #define DP_CONT(__mask, fmt, ...)				\
 do {								\
-	if (bp->msg_enable & (__mask))				\
+	if (unlikely(bp->msg_enable & (__mask)))		\
 		pr_cont(fmt, ##__VA_ARGS__);			\
 } while (0)
 
 /* errors debug print */
 #define BNX2X_DBG_ERR(fmt, ...)					\
 do {								\
-	if (netif_msg_probe(bp))				\
+	if (unlikely(netif_msg_probe(bp)))			\
 		pr_err("[%s:%d(%s)]" fmt,			\
 		       __func__, __LINE__,			\
 		       bp->dev ? (bp->dev->name) : "?",		\
@@ -108,7 +112,7 @@ do {								\
 /* before we have a dev->name use dev_info() */
 #define BNX2X_DEV_INFO(fmt, ...)				 \
 do {								 \
-	if (netif_msg_probe(bp))				 \
+	if (unlikely(netif_msg_probe(bp)))			 \
 		dev_info(&bp->pdev->dev, fmt, ##__VA_ARGS__);	 \
 } while (0)
 
