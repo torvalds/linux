@@ -2676,12 +2676,14 @@ static void ohci_write_csr(struct fw_card *card, int csr_offset, u32 value)
 	}
 }
 
-static void copy_iso_headers(struct iso_context *ctx, void *p)
+static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 {
-	int i = ctx->header_length;
+	u32 *ctx_hdr;
 
-	if (i + ctx->base.header_size > PAGE_SIZE)
+	if (ctx->header_length + ctx->base.header_size > PAGE_SIZE)
 		return;
+
+	ctx_hdr = ctx->header + ctx->header_length;
 
 	/*
 	 * The two iso header quadlets are byteswapped to little
@@ -2689,11 +2691,11 @@ static void copy_iso_headers(struct iso_context *ctx, void *p)
 	 * as big endian for consistency with the bus endianness.
 	 */
 	if (ctx->base.header_size > 0)
-		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
+		ctx_hdr[0] = swab32(dma_hdr[1]); /* iso packet header */
 	if (ctx->base.header_size > 4)
-		*(u32 *) (ctx->header + i + 4) = __swab32(*(u32 *) p);
+		ctx_hdr[1] = swab32(dma_hdr[0]); /* timestamp */
 	if (ctx->base.header_size > 8)
-		memcpy(ctx->header + i + 8, p + 8, ctx->base.header_size - 8);
+		memcpy(&ctx_hdr[2], &dma_hdr[2], ctx->base.header_size - 8);
 	ctx->header_length += ctx->base.header_size;
 }
 
@@ -2812,8 +2814,8 @@ static int handle_it_packet(struct context *context,
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
-	int i;
 	struct descriptor *pd;
+	__be32 *ctx_hdr;
 
 	for (pd = d; pd <= last; pd++)
 		if (pd->transfer_status)
@@ -2824,10 +2826,10 @@ static int handle_it_packet(struct context *context,
 
 	sync_it_packet_for_cpu(context, d);
 
-	i = ctx->header_length;
-	if (i + 4 < PAGE_SIZE) {
+	if (ctx->header_length + 4 < PAGE_SIZE) {
+		ctx_hdr = ctx->header + ctx->header_length;
 		/* Present this value as big-endian to match the receive code */
-		*(__be32 *)(ctx->header + i) = cpu_to_be32(
+		*ctx_hdr = cpu_to_be32(
 				((u32)le16_to_cpu(pd->transfer_status) << 16) |
 				le16_to_cpu(pd->res_count));
 		ctx->header_length += 4;
