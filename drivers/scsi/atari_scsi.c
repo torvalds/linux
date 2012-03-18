@@ -734,17 +734,21 @@ int atari_scsi_release(struct Scsi_Host *sh)
 	return 1;
 }
 
-void __init atari_scsi_setup(char *str, int *ints)
+#ifndef MODULE
+static int __init atari_scsi_setup(char *str)
 {
 	/* Format of atascsi parameter is:
 	 *   atascsi=<can_queue>,<cmd_per_lun>,<sg_tablesize>,<hostid>,<use_tags>
 	 * Defaults depend on TT or Falcon, hostid determined at run time.
 	 * Negative values mean don't change.
 	 */
+	int ints[6];
+
+	get_options(str, ARRAY_SIZE(ints), ints);
 
 	if (ints[0] < 1) {
 		printk("atari_scsi_setup: no arguments!\n");
-		return;
+		return 0;
 	}
 
 	if (ints[0] >= 1) {
@@ -777,7 +781,12 @@ void __init atari_scsi_setup(char *str, int *ints)
 			setup_use_tagged_queuing = !!ints[5];
 	}
 #endif
+
+	return 1;
 }
+
+__setup("atascsi=", atari_scsi_setup);
+#endif /* !MODULE */
 
 int atari_scsi_bus_reset(Scsi_Cmnd *cmd)
 {
