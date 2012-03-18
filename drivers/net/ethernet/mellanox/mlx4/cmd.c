@@ -239,6 +239,7 @@ static int mlx4_comm_cmd_wait(struct mlx4_dev *dev, u8 op,
 {
 	struct mlx4_cmd *cmd = &mlx4_priv(dev)->cmd;
 	struct mlx4_cmd_context *context;
+	unsigned long end;
 	int err = 0;
 
 	down(&cmd->event_sem);
@@ -268,6 +269,14 @@ static int mlx4_comm_cmd_wait(struct mlx4_dev *dev, u8 op,
 	}
 
 out:
+	/* wait for comm channel ready
+	 * this is necessary for prevention the race
+	 * when switching between event to polling mode
+	 */
+	end = msecs_to_jiffies(timeout) + jiffies;
+	while (comm_pending(dev) && time_before(jiffies, end))
+		cond_resched();
+
 	spin_lock(&cmd->context_lock);
 	context->next = cmd->free_head;
 	cmd->free_head = context - cmd->context;
