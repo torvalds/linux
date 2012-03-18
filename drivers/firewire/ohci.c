@@ -2689,7 +2689,7 @@ static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 	u32 *ctx_hdr;
 
 	if (ctx->header_length + ctx->base.header_size > PAGE_SIZE)
-		return;
+		flush_iso_completions(ctx);
 
 	ctx_hdr = ctx->header + ctx->header_length;
 	ctx->last_timestamp = (u16)le32_to_cpu((__force __le32)dma_hdr[0]);
@@ -2826,16 +2826,16 @@ static int handle_it_packet(struct context *context,
 
 	sync_it_packet_for_cpu(context, d);
 
-	if (ctx->header_length + 4 < PAGE_SIZE) {
-		ctx_hdr = ctx->header + ctx->header_length;
-		/* Present this value as big-endian to match the receive code */
-		*ctx_hdr = cpu_to_be32(
-				((u32)le16_to_cpu(pd->transfer_status) << 16) |
-				le16_to_cpu(pd->res_count));
-		ctx->header_length += 4;
-	}
+	if (ctx->header_length + 4 > PAGE_SIZE)
+		flush_iso_completions(ctx);
 
+	ctx_hdr = ctx->header + ctx->header_length;
 	ctx->last_timestamp = le16_to_cpu(last->res_count);
+	/* Present this value as big-endian to match the receive code */
+	*ctx_hdr = cpu_to_be32((le16_to_cpu(pd->transfer_status) << 16) |
+			       le16_to_cpu(pd->res_count));
+	ctx->header_length += 4;
+
 	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
 		flush_iso_completions(ctx);
 

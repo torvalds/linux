@@ -207,12 +207,15 @@ struct fw_cdev_event_request2 {
  * @closure:	See &fw_cdev_event_common;
  *		set by %FW_CDEV_CREATE_ISO_CONTEXT ioctl
  * @type:	See &fw_cdev_event_common; always %FW_CDEV_EVENT_ISO_INTERRUPT
- * @cycle:	Cycle counter of the interrupt packet
+ * @cycle:	Cycle counter of the last completed packet
  * @header_length: Total length of following headers, in bytes
  * @header:	Stripped headers, if any
  *
  * This event is sent when the controller has completed an &fw_cdev_iso_packet
- * with the %FW_CDEV_ISO_INTERRUPT bit set.
+ * with the %FW_CDEV_ISO_INTERRUPT bit set, or when there have been so many
+ * completed packets without the interrupt bit set that the kernel's internal
+ * buffer for @header is about to overflow.  (In the latter case, kernels with
+ * ABI version < 5 drop header data up to the next interrupt packet.)
  *
  * Isochronous transmit events (context type %FW_CDEV_ISO_CONTEXT_TRANSMIT):
  *
@@ -440,6 +443,8 @@ union fw_cdev_event {
  *               - added %FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL,
  *                 %FW_CDEV_ISO_CONTEXT_RECEIVE_MULTICHANNEL, and
  *                 %FW_CDEV_IOC_SET_ISO_CHANNELS
+ *  5  (3.4)     - send %FW_CDEV_EVENT_ISO_INTERRUPT events when needed to
+ *                 avoid dropping data
  */
 
 /**
