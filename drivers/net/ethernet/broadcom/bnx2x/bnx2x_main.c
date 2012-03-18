@@ -719,7 +719,17 @@ void bnx2x_fw_dump_lvl(struct bnx2x *bp, const char *lvl)
 		trace_shmem_base = bp->common.shmem_base;
 	else
 		trace_shmem_base = SHMEM2_RD(bp, other_shmem_base_addr);
-	addr = trace_shmem_base - 0x0800 + 4;
+	addr = trace_shmem_base - 0x800;
+
+	/* validate TRCB signature */
+	mark = REG_RD(bp, addr);
+	if (mark != MFW_TRACE_SIGNATURE) {
+		BNX2X_ERR("Trace buffer signature is missing.");
+		return ;
+	}
+
+	/* read cyclic buffer pointer */
+	addr += 4;
 	mark = REG_RD(bp, addr);
 	mark = (CHIP_IS_E1x(bp) ? MCP_REG_MCPR_SCRATCH : MCP_A_REG_MCPR_SCRATCH)
 			+ ((mark + 0x3) & ~0x3) - 0x08000000;

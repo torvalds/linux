@@ -1129,6 +1129,8 @@ struct shm_dev_info {				/* size */
 
 #define FW_ACK_NUM_OF_POLL  (FW_ACK_TIME_OUT_MS/FW_ACK_POLL_TIME_MS)
 
+#define MFW_TRACE_SIGNATURE     0x54524342
+
 /****************************************************************************
  * Driver <-> FW Mailbox                                                    *
  ****************************************************************************/
