@@ -325,6 +325,12 @@ struct drxk_config hauppauge_930c_drxk = {
 	.chunk_size = 56,
 };
 
+struct drxk_config maxmedia_ub425_tc_drxk = {
+	.adr = 0x29,
+	.single_master = 1,
+	.no_i2c_bridge = 1,
+};
+
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct em28xx_dvb *dvb = fe->sec_priv;
@@ -935,6 +941,29 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		if (dvb->fe[0])
 			dvb_attach(a8293_attach, dvb->fe[0], &dev->i2c_adap,
 				&em28xx_a8293_config);
+		break;
+	case EM2874_BOARD_MAXMEDIA_UB425_TC:
+		/* attach demodulator */
+		dvb->fe[0] = dvb_attach(drxk_attach, &maxmedia_ub425_tc_drxk,
+				&dev->i2c_adap);
+
+		if (dvb->fe[0]) {
+			/* disable I2C-gate */
+			dvb->fe[0]->ops.i2c_gate_ctrl = NULL;
+
+			/* attach tuner */
+			if (!dvb_attach(tda18271c2dd_attach, dvb->fe[0],
+					&dev->i2c_adap, 0x60)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -EINVAL;
+				goto out_free;
+			}
+		}
+
+		/* TODO: we need drx-3913k firmware in order to support DVB-T */
+		em28xx_info("MaxMedia UB425-TC: only DVB-C supported by that " \
+				"driver version\n");
+
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"
