@@ -2728,7 +2728,7 @@ static int handle_ir_packet_per_buffer(struct context *context,
 	p = last + 1;
 	copy_iso_headers(ctx, p);
 
-	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
+	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS)) {
 		ir_header = (__le32 *) p;
 		ctx->base.callback.sc(&ctx->base,
 				      le32_to_cpu(ir_header[0]) & 0xffff,
@@ -2760,7 +2760,7 @@ static int handle_ir_buffer_fill(struct context *context,
 				      le16_to_cpu(last->req_count),
 				      DMA_FROM_DEVICE);
 
-	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS)
+	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
 		ctx->base.callback.mc(&ctx->base,
 				      le32_to_cpu(last->data_address) +
 				      le16_to_cpu(last->req_count),
@@ -2832,7 +2832,7 @@ static int handle_it_packet(struct context *context,
 				le16_to_cpu(pd->res_count));
 		ctx->header_length += 4;
 	}
-	if (le16_to_cpu(last->control) & DESCRIPTOR_IRQ_ALWAYS) {
+	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS)) {
 		ctx->base.callback.sc(&ctx->base, le16_to_cpu(last->res_count),
 				      ctx->header_length, ctx->header,
 				      ctx->base.callback_data);
