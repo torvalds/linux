@@ -1485,6 +1485,7 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 		qp->event_handler = attr.event_handler;
 		qp->qp_context	  = attr.qp_context;
 		qp->qp_type	  = attr.qp_type;
+		atomic_set(&qp->usecnt, 0);
 		atomic_inc(&pd->usecnt);
 		atomic_inc(&attr.send_cq->usecnt);
 		if (attr.recv_cq)

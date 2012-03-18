@@ -132,7 +132,8 @@ static struct s3c24xx_dma_order __initdata s3c2410_dma_order = {
 	},
 };
 
-static int __init s3c2410_dma_add(struct device *dev)
+static int __init s3c2410_dma_add(struct device *dev,
+				  struct subsys_interface *sif)
 {
 	s3c2410_dma_init();
 	s3c24xx_dma_order_set(&s3c2410_dma_order);
@@ -148,7 +149,7 @@ static struct subsys_interface s3c2410_dma_interface = {
 
 static int __init s3c2410_dma_drvinit(void)
 {
-	return subsys_interface_register(&s3c2410_interface);
+	return subsys_interface_register(&s3c2410_dma_interface);
 }
 
 arch_initcall(s3c2410_dma_drvinit);

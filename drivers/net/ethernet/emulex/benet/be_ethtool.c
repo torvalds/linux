@@ -716,12 +716,8 @@ static int
 be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	char file_name[ETHTOOL_FLASH_MAX_FILENAME];
 
-	file_name[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
-	strcpy(file_name, efl->data);
-
-	return be_load_fw(adapter, file_name);
+	return be_load_fw(adapter, efl->data);
 }
 
 static int

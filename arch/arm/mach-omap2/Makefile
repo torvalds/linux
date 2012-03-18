@@ -11,13 +11,15 @@ hwmod-common				= omap_hwmod.o \
 					  omap_hwmod_common_data.o
 clock-common				= clock.o clock_common_data.o \
 					  clkt_dpll.o clkt_clksel.o
-secure-common                          = omap-smc.o omap-secure.o
+secure-common				= omap-smc.o omap-secure.o
 
-obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common) $(secure-common)
+obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(hwmod-common)
 obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(hwmod-common) $(secure-common)
 obj-$(CONFIG_ARCH_OMAP4) += prm44xx.o $(hwmod-common) $(secure-common)
 
-obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
+ifneq ($(CONFIG_SND_OMAP_SOC_MCBSP),)
+obj-y += mcbsp.o
+endif
 
 obj-$(CONFIG_TWL4030_CORE) += omap_twl.o
 

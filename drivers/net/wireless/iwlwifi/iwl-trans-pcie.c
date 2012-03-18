@@ -1262,6 +1262,7 @@ static int iwl_trans_pcie_reclaim(struct iwl_trans *trans, int sta_id, int tid,
 	txq->time_stamp = jiffies;
 
 	if (unlikely(txq_id >= IWLAGN_FIRST_AMPDU_QUEUE &&
+		     tid != IWL_TID_NON_QOS &&
 		     txq_id != trans_pcie->agg_txq[sta_id][tid])) {
 		/*
 		 * FIXME: this is a uCode bug which need to be addressed,

@@ -108,6 +108,7 @@
 #define	CP_RB_WPTR_ADDR_HI				0xC11C
 #define	CP_RB_WPTR_DELAY				0x8704
 #define	CP_SEM_WAIT_TIMER				0x85BC
+#define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x85C8
 #define	CP_DEBUG					0xC1FC
 
 

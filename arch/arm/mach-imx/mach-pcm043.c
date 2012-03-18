@@ -37,7 +37,6 @@
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
 #include <mach/ulpi.h>
-#include <mach/audmux.h>
 
 #include "devices-imx35.h"
 
@@ -361,18 +360,6 @@ static void __init pcm043_init(void)
 	imx35_soc_init();
 
 	mxc_iomux_v3_setup_multiple_pads(pcm043_pads, ARRAY_SIZE(pcm043_pads));
-
-	mxc_audmux_v2_configure_port(3,
-			MXC_AUDMUX_V2_PTCR_SYN | /* 4wire mode */
-			MXC_AUDMUX_V2_PTCR_TFSEL(0) |
-			MXC_AUDMUX_V2_PTCR_TFSDIR,
-			MXC_AUDMUX_V2_PDCR_RXDSEL(0));
-
-	mxc_audmux_v2_configure_port(0,
-			MXC_AUDMUX_V2_PTCR_SYN | /* 4wire mode */
-			MXC_AUDMUX_V2_PTCR_TCSEL(3) |
-			MXC_AUDMUX_V2_PTCR_TCLKDIR, /* clock is output */
-			MXC_AUDMUX_V2_PDCR_RXDSEL(3));
 
 	imx35_add_fec(NULL);
 	platform_add_devices(devices, ARRAY_SIZE(devices));

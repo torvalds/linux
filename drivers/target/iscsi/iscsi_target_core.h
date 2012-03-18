@@ -508,6 +508,7 @@ struct iscsi_conn {
 	u16			cid;
 	/* Remote TCP Port */
 	u16			login_port;
+	u16			local_port;
 	int			net_size;
 	u32			auth_id;
 #define CONNFLAG_SCTP_STRUCT_FILE			0x01
@@ -527,6 +528,7 @@ struct iscsi_conn {
 	unsigned char		bad_hdr[ISCSI_HDR_LEN];
 #define IPV6_ADDRESS_SPACE				48
 	unsigned char		login_ip[IPV6_ADDRESS_SPACE];
+	unsigned char		local_ip[IPV6_ADDRESS_SPACE];
 	int			conn_usage_count;
 	int			conn_waiting_on_uc;
 	atomic_t		check_immediate_queue;
@@ -561,8 +563,8 @@ struct iscsi_conn {
 	struct hash_desc	conn_tx_hash;
 	/* Used for scheduling TX and RX connection kthreads */
 	cpumask_var_t		conn_cpumask;
-	int			conn_rx_reset_cpumask:1;
-	int			conn_tx_reset_cpumask:1;
+	unsigned int		conn_rx_reset_cpumask:1;
+	unsigned int		conn_tx_reset_cpumask:1;
 	/* list_head of struct iscsi_cmd for this connection */
 	struct list_head	conn_cmd_list;
 	struct list_head	immed_queue_list;

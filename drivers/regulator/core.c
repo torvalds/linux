@@ -1320,6 +1320,40 @@ struct regulator *regulator_get(struct device *dev, const char *id)
 }
 EXPORT_SYMBOL_GPL(regulator_get);
 
+static void devm_regulator_release(struct device *dev, void *res)
+{
+	regulator_put(*(struct regulator **)res);
+}
+
+/**
+ * devm_regulator_get - Resource managed regulator_get()
+ * @dev: device for regulator "consumer"
+ * @id: Supply name or regulator ID.
+ *
+ * Managed regulator_get(). Regulators returned from this function are
+ * automatically regulator_put() on driver detach. See regulator_get() for more
+ * information.
+ */
+struct regulator *devm_regulator_get(struct device *dev, const char *id)
+{
+	struct regulator **ptr, *regulator;
+
+	ptr = devres_alloc(devm_regulator_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	regulator = regulator_get(dev, id);
+	if (!IS_ERR(regulator)) {
+		*ptr = regulator;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return regulator;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_get);
+
 /**
  * regulator_get_exclusive - obtain exclusive access to a regulator.
  * @dev: device for regulator "consumer"
@@ -1386,6 +1420,34 @@ void regulator_put(struct regulator *regulator)
 	mutex_unlock(&regulator_list_mutex);
 }
 EXPORT_SYMBOL_GPL(regulator_put);
+
+static int devm_regulator_match(struct device *dev, void *res, void *data)
+{
+	struct regulator **r = res;
+	if (!r || !*r) {
+		WARN_ON(!r || !*r);
+		return 0;
+	}
+	return *r == data;
+}
+
+/**
+ * devm_regulator_put - Resource managed regulator_put()
+ * @regulator: regulator to free
+ *
+ * Deallocate a regulator allocated with devm_regulator_get(). Normally
+ * this function will not need to be called and the resource management
+ * code will ensure that the resource is freed.
+ */
+void devm_regulator_put(struct regulator *regulator)
+{
+	int rc;
+
+	rc = devres_destroy(regulator->dev, devm_regulator_release,
+			    devm_regulator_match, regulator);
+	WARN_ON(rc);
+}
+EXPORT_SYMBOL_GPL(devm_regulator_put);
 
 static int _regulator_can_change_status(struct regulator_dev *rdev)
 {
@@ -2401,6 +2463,52 @@ err:
 }
 EXPORT_SYMBOL_GPL(regulator_bulk_get);
 
+/**
+ * devm_regulator_bulk_get - managed get multiple regulator consumers
+ *
+ * @dev:           Device to supply
+ * @num_consumers: Number of consumers to register
+ * @consumers:     Configuration of consumers; clients are stored here.
+ *
+ * @return 0 on success, an errno on failure.
+ *
+ * This helper function allows drivers to get several regulator
+ * consumers in one operation with management, the regulators will
+ * automatically be freed when the device is unbound.  If any of the
+ * regulators cannot be acquired then any regulators that were
+ * allocated will be freed before returning to the caller.
+ */
+int devm_regulator_bulk_get(struct device *dev, int num_consumers,
+			    struct regulator_bulk_data *consumers)
+{
+	int i;
+	int ret;
+
+	for (i = 0; i < num_consumers; i++)
+		consumers[i].consumer = NULL;
+
+	for (i = 0; i < num_consumers; i++) {
+		consumers[i].consumer = devm_regulator_get(dev,
+							   consumers[i].supply);
+		if (IS_ERR(consumers[i].consumer)) {
+			ret = PTR_ERR(consumers[i].consumer);
+			dev_err(dev, "Failed to get supply '%s': %d\n",
+				consumers[i].supply, ret);
+			consumers[i].consumer = NULL;
+			goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	for (i = 0; i < num_consumers && consumers[i].consumer; i++)
+		devm_regulator_put(consumers[i].consumer);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_regulator_bulk_get);
+
 static void regulator_bulk_enable_async(void *data, async_cookie_t cookie)
 {
 	struct regulator_bulk_data *bulk = data;
@@ -2731,6 +2839,8 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
  * @dev: struct device for the regulator
  * @init_data: platform provided init data, passed through by driver
  * @driver_data: private regulator data
+ * @of_node: OpenFirmware node to parse for device tree bindings (may be
+ *           NULL).
  *
  * Called by regulator drivers to register a regulator.
  * Returns 0 on success.

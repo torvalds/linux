@@ -55,6 +55,7 @@
 #include <linux/uaccess.h>
 #include <linux/memcontrol.h>
 #include <linux/res_counter.h>
+#include <linux/jump_label.h>
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
@@ -226,6 +227,7 @@ struct cg_proto;
   *	@sk_ack_backlog: current listen backlog
   *	@sk_max_ack_backlog: listen backlog set in listen()
   *	@sk_priority: %SO_PRIORITY setting
+  *	@sk_cgrp_prioidx: socket group's priority map index
   *	@sk_type: socket type (%SOCK_STREAM, etc)
   *	@sk_protocol: which protocol this socket belongs in this network family
   *	@sk_peer_pid: &struct pid for this socket's peer
@@ -921,7 +923,7 @@ inline void sk_refcnt_debug_release(const struct sock *sk)
 #define sk_refcnt_debug_release(sk) do { } while (0)
 #endif /* SOCK_REFCNT_DEBUG */
 
-#ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
+#if defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM) && defined(CONFIG_NET)
 extern struct jump_label_key memcg_socket_limit_enabled;
 static inline struct cg_proto *parent_cg_proto(struct proto *proto,
 					       struct cg_proto *cg_proto)
@@ -1007,9 +1009,8 @@ static inline void memcg_memory_allocated_add(struct cg_proto *prot,
 	struct res_counter *fail;
 	int ret;
 
-	ret = res_counter_charge(prot->memory_allocated,
-				 amt << PAGE_SHIFT, &fail);
-
+	ret = res_counter_charge_nofail(prot->memory_allocated,
+					amt << PAGE_SHIFT, &fail);
 	if (ret < 0)
 		*parent_status = OVER_LIMIT;
 }
@@ -1053,12 +1054,11 @@ sk_memory_allocated_add(struct sock *sk, int amt, int *parent_status)
 }
 
 static inline void
-sk_memory_allocated_sub(struct sock *sk, int amt, int parent_status)
+sk_memory_allocated_sub(struct sock *sk, int amt)
 {
 	struct proto *prot = sk->sk_prot;
 
-	if (mem_cgroup_sockets_enabled && sk->sk_cgrp &&
-	    parent_status != OVER_LIMIT) /* Otherwise was uncharged already */
+	if (mem_cgroup_sockets_enabled && sk->sk_cgrp)
 		memcg_memory_allocated_sub(sk->sk_cgrp, amt);
 
 	atomic_long_sub(amt, prot->memory_allocated);

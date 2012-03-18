@@ -40,6 +40,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX9850 if I2C
+	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
@@ -62,6 +63,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM1250_EV1 if I2C
 	select SND_SOC_WM2000 if I2C
+	select SND_SOC_WM2200 if I2C
 	select SND_SOC_WM5100 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
@@ -292,6 +294,9 @@ config SND_SOC_WM1250_EV1
 config SND_SOC_WM2000
 	tristate
 
+config SND_SOC_WM2200
+	tristate
+
 config SND_SOC_WM5100
 	tristate
 
@@ -423,6 +428,9 @@ config SND_SOC_WM9713
 
 # Amp
 config SND_SOC_LM4857
+	tristate
+
+config SND_SOC_MAX9768
 	tristate
 
 config SND_SOC_MAX9877

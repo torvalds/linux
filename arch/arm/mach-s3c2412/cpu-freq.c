@@ -194,7 +194,8 @@ static struct s3c_cpufreq_info s3c2412_cpufreq_info = {
 	.debug_io_show  = s3c_cpufreq_debugfs_call(s3c2412_iotiming_debugfs),
 };
 
-static int s3c2412_cpufreq_add(struct device *dev)
+static int s3c2412_cpufreq_add(struct device *dev,
+			       struct subsys_interface *sif)
 {
 	unsigned long fclk_rate;
 

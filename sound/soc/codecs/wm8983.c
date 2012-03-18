@@ -249,9 +249,6 @@ static const char *eq5_cutoff_text[] = {
 static const SOC_ENUM_SINGLE_DECL(eq5_cutoff, WM8983_EQ5_HIGH_SHELF, 5,
 				  eq5_cutoff_text);
 
-static const char *speaker_mode_text[] = { "Class A/B", "Class D" };
-static const SOC_ENUM_SINGLE_DECL(speaker_mode, 0x17, 8, speaker_mode_text);
-
 static const char *depth_3d_text[] = {
 	"Off",
 	"6.67%",
@@ -369,8 +366,6 @@ static const struct snd_kcontrol_new wm8983_snd_controls[] = {
 	SOC_SINGLE_TLV("EQ5 Volume", WM8983_EQ5_HIGH_SHELF, 0, 24, 1, eq_tlv),
 
 	SOC_ENUM("3D Depth", depth_3d),
-
-	SOC_ENUM("Speaker Mode", speaker_mode)
 };
 
 static const struct snd_kcontrol_new left_out_mixer[] = {

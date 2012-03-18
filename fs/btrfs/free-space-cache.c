@@ -2242,7 +2242,7 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 		if (entry->bitmap) {
 			ret = btrfs_alloc_from_bitmap(block_group,
 						      cluster, entry, bytes,
-						      min_start);
+						      cluster->window_start);
 			if (ret == 0) {
 				node = rb_next(&entry->offset_index);
 				if (!node)
@@ -2251,6 +2251,7 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 						 offset_index);
 				continue;
 			}
+			cluster->window_start += bytes;
 		} else {
 			ret = entry->offset;
 
@@ -2475,7 +2476,7 @@ setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
 	}
 
 	list_for_each_entry(entry, bitmaps, list) {
-		if (entry->bytes < min_bytes)
+		if (entry->bytes < bytes)
 			continue;
 		ret = btrfs_bitmap_cluster(block_group, entry, cluster, offset,
 					   bytes, cont1_bytes, min_bytes);

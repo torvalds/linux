@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -56,7 +56,8 @@ struct ixgbe_stats {
 			    offsetof(struct ixgbevf_adapter, m),         \
 			    offsetof(struct ixgbevf_adapter, b),         \
 			    offsetof(struct ixgbevf_adapter, r)
-static struct ixgbe_stats ixgbe_gstrings_stats[] = {
+
+static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBEVF_STAT(stats.vfgprc, stats.base_vfgprc,
 				    stats.saved_reset_vfgprc)},
 	{"tx_packets", IXGBEVF_STAT(stats.vfgptc, stats.base_vfgptc,
@@ -671,7 +672,7 @@ static int ixgbevf_nway_reset(struct net_device *netdev)
 	return 0;
 }
 
-static struct ethtool_ops ixgbevf_ethtool_ops = {
+static const struct ethtool_ops ixgbevf_ethtool_ops = {
 	.get_settings           = ixgbevf_get_settings,
 	.get_drvinfo            = ixgbevf_get_drvinfo,
 	.get_regs_len           = ixgbevf_get_regs_len,

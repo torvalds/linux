@@ -139,8 +139,7 @@ config CIFS_DFS_UPCALL
 	    points. If unsure, say N.
 
 config CIFS_FSCACHE
-	  bool "Provide CIFS client caching support (EXPERIMENTAL)"
-	  depends on EXPERIMENTAL
+	  bool "Provide CIFS client caching support"
 	  depends on CIFS=m && FSCACHE || CIFS=y && FSCACHE=y
 	  help
 	    Makes CIFS FS-Cache capable. Say Y here if you want your CIFS data
@@ -148,8 +147,8 @@ config CIFS_FSCACHE
 	    manager. If unsure, say N.
 
 config CIFS_ACL
-	  bool "Provide CIFS ACL support (EXPERIMENTAL)"
-	  depends on EXPERIMENTAL && CIFS_XATTR && KEYS
+	  bool "Provide CIFS ACL support"
+	  depends on CIFS_XATTR && KEYS
 	  help
 	    Allows to fetch CIFS/NTFS ACL from the server.  The DACL blob
 	    is handed over to the application/caller.

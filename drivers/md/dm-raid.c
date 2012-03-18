@@ -56,7 +56,8 @@ struct raid_dev {
 struct raid_set {
 	struct dm_target *ti;
 
-	uint64_t print_flags;
+	uint32_t bitmap_loaded;
+	uint32_t print_flags;
 
 	struct mddev md;
 	struct raid_type *raid_type;
@@ -1085,7 +1086,7 @@ static int raid_status(struct dm_target *ti, status_type_t type,
 				raid_param_cnt += 2;
 		}
 
-		raid_param_cnt += (hweight64(rs->print_flags & ~DMPF_REBUILD) * 2);
+		raid_param_cnt += (hweight32(rs->print_flags & ~DMPF_REBUILD) * 2);
 		if (rs->print_flags & (DMPF_SYNC | DMPF_NOSYNC))
 			raid_param_cnt--;
 
@@ -1197,7 +1198,12 @@ static void raid_resume(struct dm_target *ti)
 {
 	struct raid_set *rs = ti->private;
 
-	bitmap_load(&rs->md);
+	if (!rs->bitmap_loaded) {
+		bitmap_load(&rs->md);
+		rs->bitmap_loaded = 1;
+	} else
+		md_wakeup_thread(rs->md.thread);
+
 	mddev_resume(&rs->md);
 }
 
