@@ -206,8 +206,11 @@ static void bnx2x_dcbx_get_ap_feature(struct bnx2x *bp,
 	if (GET_FLAGS(error, DCBX_LOCAL_APP_MISMATCH))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_APP_MISMATCH\n");
 
+	if (GET_FLAGS(error, DCBX_REMOTE_APP_TLV_NOT_FOUND))
+		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_APP_TLV_NOT_FOUND\n");
 	if (app->enabled &&
-	    !GET_FLAGS(error, DCBX_LOCAL_APP_ERROR | DCBX_LOCAL_APP_MISMATCH)) {
+	    !GET_FLAGS(error, DCBX_LOCAL_APP_ERROR | DCBX_LOCAL_APP_MISMATCH |
+			      DCBX_REMOTE_APP_TLV_NOT_FOUND)) {
 
 		bp->dcbx_port_params.app.enabled = true;
 
@@ -258,6 +261,8 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 	if (GET_FLAGS(error, DCBX_LOCAL_ETS_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_ETS_ERROR\n");
 
+	if (GET_FLAGS(error, DCBX_REMOTE_ETS_TLV_NOT_FOUND))
+		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_ETS_TLV_NOT_FOUND\n");
 
 	/* Clean up old settings of ets on COS */
 	for (i = 0; i < ARRAY_SIZE(bp->dcbx_port_params.ets.cos_params) ; i++) {
@@ -267,9 +272,9 @@ static void bnx2x_dcbx_get_ets_feature(struct bnx2x *bp,
 		cos_params[i].pri_bitmask = 0;
 	}
 
-	if (bp->dcbx_port_params.app.enabled &&
-	   !GET_FLAGS(error, DCBX_LOCAL_ETS_ERROR) &&
-	   ets->enabled) {
+	if (bp->dcbx_port_params.app.enabled && ets->enabled &&
+	   !GET_FLAGS(error,
+		      DCBX_LOCAL_ETS_ERROR | DCBX_REMOTE_ETS_TLV_NOT_FOUND)) {
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_ETS_ENABLE\n");
 		bp->dcbx_port_params.ets.enabled = true;
 
@@ -301,9 +306,11 @@ static void  bnx2x_dcbx_get_pfc_feature(struct bnx2x *bp,
 	if (GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR))
 		DP(BNX2X_MSG_DCB, "DCBX_LOCAL_PFC_ERROR\n");
 
-	if (bp->dcbx_port_params.app.enabled &&
-	   !GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR | DCBX_LOCAL_PFC_MISMATCH) &&
-	   pfc->enabled) {
+	if (GET_FLAGS(error, DCBX_REMOTE_PFC_TLV_NOT_FOUND))
+		DP(BNX2X_MSG_DCB, "DCBX_REMOTE_PFC_TLV_NOT_FOUND\n");
+	if (bp->dcbx_port_params.app.enabled && pfc->enabled &&
+	   !GET_FLAGS(error, DCBX_LOCAL_PFC_ERROR | DCBX_LOCAL_PFC_MISMATCH |
+			     DCBX_REMOTE_PFC_TLV_NOT_FOUND)) {
 		bp->dcbx_port_params.pfc.enabled = true;
 		bp->dcbx_port_params.pfc.priority_non_pauseable_mask =
 			~(pfc->pri_en_bitmap);
