@@ -120,10 +120,11 @@ static u16 bnx2x_free_tx_pkt(struct bnx2x *bp, struct bnx2x_fp_txdata *txdata,
 
 	/* release skb */
 	WARN_ON(!skb);
-	if (skb) {
+	if (likely(skb)) {
 		(*pkts_compl)++;
 		(*bytes_compl) += skb->len;
 	}
+
 	dev_kfree_skb_any(skb);
 	tx_buf->first_bd = 0;
 	tx_buf->skb = NULL;
