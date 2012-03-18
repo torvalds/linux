@@ -1482,6 +1482,7 @@ struct bnx2x {
 
 	u16			stats_counter;
 	struct bnx2x_eth_stats	eth_stats;
+	struct host_func_stats		func_stats;
 	struct bnx2x_eth_stats_old	eth_stats_old;
 	struct bnx2x_net_stats_old	net_stats_old;
 	struct bnx2x_fw_port_stats_old	fw_stats_old;

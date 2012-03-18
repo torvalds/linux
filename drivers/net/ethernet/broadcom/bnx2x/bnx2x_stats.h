@@ -421,12 +421,7 @@ struct bnx2x_fw_port_stats_old {
 	do { \
 		diff = le32_to_cpu(uclient->s) - le32_to_cpu(old_uclient->s); \
 		old_uclient->s = uclient->s; \
-	} while (0)
-
-#define UPDATE_EXTEND_E_USTAT(s, t) \
-	do { \
-		UPDATE_EXTEND_USTAT(s, t); \
-		ADD_EXTEND_64(estats->t##_hi, estats->t##_lo, diff); \
+		ADD_EXTEND_64(qstats->t##_hi, qstats->t##_lo, diff); \
 	} while (0)
 
 #define UPDATE_EXTEND_E_USTAT(s, t) \
