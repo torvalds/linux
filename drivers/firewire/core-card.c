@@ -650,6 +650,11 @@ static void dummy_flush_queue_iso(struct fw_iso_context *ctx)
 {
 }
 
+static int dummy_flush_iso_completions(struct fw_iso_context *ctx)
+{
+	return -ENODEV;
+}
+
 static const struct fw_card_driver dummy_driver_template = {
 	.read_phy_reg		= dummy_read_phy_reg,
 	.update_phy_reg		= dummy_update_phy_reg,
@@ -662,6 +667,7 @@ static const struct fw_card_driver dummy_driver_template = {
 	.set_iso_channels	= dummy_set_iso_channels,
 	.queue_iso		= dummy_queue_iso,
 	.flush_queue_iso	= dummy_flush_queue_iso,
+	.flush_iso_completions	= dummy_flush_iso_completions,
 };
 
 void fw_card_release(struct kref *kref)

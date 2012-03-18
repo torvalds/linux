@@ -172,6 +172,9 @@ struct iso_context {
 	struct context context;
 	void *header;
 	size_t header_length;
+	unsigned long flushing_completions;
+	u32 mc_buffer_bus;
+	u16 mc_completed;
 	u16 last_timestamp;
 	u8 sync;
 	u8 tags;
@@ -2749,26 +2752,49 @@ static int handle_ir_buffer_fill(struct context *context,
 {
 	struct iso_context *ctx =
 		container_of(context, struct iso_context, context);
+	unsigned int req_count, res_count, completed;
 	u32 buffer_dma;
 
-	if (last->res_count != 0)
+	req_count = le16_to_cpu(last->req_count);
+	res_count = le16_to_cpu(ACCESS_ONCE(last->res_count));
+	completed = req_count - res_count;
+	buffer_dma = le32_to_cpu(last->data_address);
+
+	if (completed > 0) {
+		ctx->mc_buffer_bus = buffer_dma;
+		ctx->mc_completed = completed;
+	}
+
+	if (res_count != 0)
 		/* Descriptor(s) not done yet, stop iteration */
 		return 0;
 
-	buffer_dma = le32_to_cpu(last->data_address);
 	dma_sync_single_range_for_cpu(context->ohci->card.device,
 				      buffer_dma & PAGE_MASK,
 				      buffer_dma & ~PAGE_MASK,
-				      le16_to_cpu(last->req_count),
-				      DMA_FROM_DEVICE);
+				      completed, DMA_FROM_DEVICE);
 
-	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
+	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS)) {
 		ctx->base.callback.mc(&ctx->base,
-				      le32_to_cpu(last->data_address) +
-				      le16_to_cpu(last->req_count),
+				      buffer_dma + completed,
 				      ctx->base.callback_data);
+		ctx->mc_completed = 0;
+	}
 
 	return 1;
+}
+
+static void flush_ir_buffer_fill(struct iso_context *ctx)
+{
+	dma_sync_single_range_for_cpu(ctx->context.ohci->card.device,
+				      ctx->mc_buffer_bus & PAGE_MASK,
+				      ctx->mc_buffer_bus & ~PAGE_MASK,
+				      ctx->mc_completed, DMA_FROM_DEVICE);
+
+	ctx->base.callback.mc(&ctx->base,
+			      ctx->mc_buffer_bus + ctx->mc_completed,
+			      ctx->base.callback_data);
+	ctx->mc_completed = 0;
 }
 
 static inline void sync_it_packet_for_cpu(struct context *context,
@@ -2925,8 +2951,10 @@ static struct fw_iso_context *ohci_allocate_iso_context(struct fw_card *card,
 	if (ret < 0)
 		goto out_with_header;
 
-	if (type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL)
+	if (type == FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL) {
 		set_multichannel_mask(ohci, 0);
+		ctx->mc_completed = 0;
+	}
 
 	return &ctx->base;
 
@@ -3388,6 +3416,39 @@ static void ohci_flush_queue_iso(struct fw_iso_context *base)
 	reg_write(ctx->ohci, CONTROL_SET(ctx->regs), CONTEXT_WAKE);
 }
 
+static int ohci_flush_iso_completions(struct fw_iso_context *base)
+{
+	struct iso_context *ctx = container_of(base, struct iso_context, base);
+	int ret = 0;
+
+	tasklet_disable(&ctx->context.tasklet);
+
+	if (!test_and_set_bit_lock(0, &ctx->flushing_completions)) {
+		context_tasklet((unsigned long)&ctx->context);
+
+		switch (base->type) {
+		case FW_ISO_CONTEXT_TRANSMIT:
+		case FW_ISO_CONTEXT_RECEIVE:
+			if (ctx->header_length != 0)
+				flush_iso_completions(ctx);
+			break;
+		case FW_ISO_CONTEXT_RECEIVE_MULTICHANNEL:
+			if (ctx->mc_completed != 0)
+				flush_ir_buffer_fill(ctx);
+			break;
+		default:
+			ret = -ENOSYS;
+		}
+
+		clear_bit_unlock(0, &ctx->flushing_completions);
+		smp_mb__after_clear_bit();
+	}
+
+	tasklet_enable(&ctx->context.tasklet);
+
+	return ret;
+}
+
 static const struct fw_card_driver ohci_driver = {
 	.enable			= ohci_enable,
 	.read_phy_reg		= ohci_read_phy_reg,
@@ -3405,6 +3466,7 @@ static const struct fw_card_driver ohci_driver = {
 	.set_iso_channels	= ohci_set_iso_channels,
 	.queue_iso		= ohci_queue_iso,
 	.flush_queue_iso	= ohci_flush_queue_iso,
+	.flush_iso_completions	= ohci_flush_iso_completions,
 	.start_iso		= ohci_start_iso,
 	.stop_iso		= ohci_stop_iso,
 };

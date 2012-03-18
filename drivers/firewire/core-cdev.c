@@ -438,6 +438,7 @@ union ioctl_arg {
 	struct fw_cdev_send_phy_packet		send_phy_packet;
 	struct fw_cdev_receive_phy_packets	receive_phy_packets;
 	struct fw_cdev_set_iso_channels		set_iso_channels;
+	struct fw_cdev_flush_iso		flush_iso;
 };
 
 static int ioctl_get_info(struct client *client, union ioctl_arg *arg)
@@ -1168,6 +1169,16 @@ static int ioctl_stop_iso(struct client *client, union ioctl_arg *arg)
 	return fw_iso_context_stop(client->iso_context);
 }
 
+static int ioctl_flush_iso(struct client *client, union ioctl_arg *arg)
+{
+	struct fw_cdev_flush_iso *a = &arg->flush_iso;
+
+	if (client->iso_context == NULL || a->handle != 0)
+		return -EINVAL;
+
+	return fw_iso_context_flush_completions(client->iso_context);
+}
+
 static int ioctl_get_cycle_timer2(struct client *client, union ioctl_arg *arg)
 {
 	struct fw_cdev_get_cycle_timer2 *a = &arg->get_cycle_timer2;
@@ -1589,6 +1600,7 @@ static int (* const ioctl_handlers[])(struct client *, union ioctl_arg *) = {
 	[0x15] = ioctl_send_phy_packet,
 	[0x16] = ioctl_receive_phy_packets,
 	[0x17] = ioctl_set_iso_channels,
+	[0x18] = ioctl_flush_iso,
 };
 
 static int dispatch_ioctl(struct client *client,

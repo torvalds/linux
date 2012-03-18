@@ -106,6 +106,8 @@ struct fw_card_driver {
 
 	void (*flush_queue_iso)(struct fw_iso_context *ctx);
 
+	int (*flush_iso_completions)(struct fw_iso_context *ctx);
+
 	int (*stop_iso)(struct fw_iso_context *ctx);
 };
 
