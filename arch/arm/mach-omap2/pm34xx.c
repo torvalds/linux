@@ -817,13 +817,13 @@ static int __init omap3_pm_init(void)
 
 	if (ret) {
 		pr_err("pm: Failed to request pm_io irq\n");
-		goto err1;
+		goto err2;
 	}
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
 		printk(KERN_ERR "Failed to setup powerdomains\n");
-		goto err2;
+		goto err3;
 	}
 
 	(void) clkdm_for_each(clkdms_setup, NULL);
@@ -831,7 +831,8 @@ static int __init omap3_pm_init(void)
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {
 		printk(KERN_ERR "Failed to get mpu_pwrdm\n");
-		goto err2;
+		ret = -EINVAL;
+		goto err3;
 	}
 
 	neon_pwrdm = pwrdm_lookup("neon_pwrdm");
@@ -879,14 +880,17 @@ static int __init omap3_pm_init(void)
 	}
 
 	omap3_save_scratchpad_contents();
-err1:
 	return ret;
-err2:
-	free_irq(INT_34XX_PRCM_MPU_IRQ, NULL);
+
+err3:
 	list_for_each_entry_safe(pwrst, tmp, &pwrst_list, node) {
 		list_del(&pwrst->node);
 		kfree(pwrst);
 	}
+	free_irq(omap_prcm_event_to_irq("io"), omap3_pm_init);
+err2:
+	free_irq(omap_prcm_event_to_irq("wkup"), NULL);
+err1:
 	return ret;
 }
 
