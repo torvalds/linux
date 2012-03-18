@@ -238,5 +238,6 @@ int drm_av_sync_delay(struct drm_connector *connector,
 		      struct drm_display_mode *mode);
 struct drm_connector *drm_select_eld(struct drm_encoder *encoder,
 				     struct drm_display_mode *mode);
+int drm_load_edid_firmware(struct drm_connector *connector);
 
 #endif /* __DRM_EDID_H__ */
