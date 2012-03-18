@@ -4446,6 +4446,120 @@ static inline int tcp_try_rmem_schedule(struct sock *sk, unsigned int size)
 	return 0;
 }
 
+static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct sk_buff *skb1;
+	u32 seq, end_seq;
+
+	TCP_ECN_check_ce(tp, skb);
+
+	if (tcp_try_rmem_schedule(sk, skb->truesize)) {
+		/* TODO: should increment a counter */
+		__kfree_skb(skb);
+		return;
+	}
+
+	/* Disable header prediction. */
+	tp->pred_flags = 0;
+	inet_csk_schedule_ack(sk);
+
+	SOCK_DEBUG(sk, "out of order segment: rcv_next %X seq %X - %X\n",
+		   tp->rcv_nxt, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
+
+	skb1 = skb_peek_tail(&tp->out_of_order_queue);
+	if (!skb1) {
+		/* Initial out of order segment, build 1 SACK. */
+		if (tcp_is_sack(tp)) {
+			tp->rx_opt.num_sacks = 1;
+			tp->selective_acks[0].start_seq = TCP_SKB_CB(skb)->seq;
+			tp->selective_acks[0].end_seq =
+						TCP_SKB_CB(skb)->end_seq;
+		}
+		__skb_queue_head(&tp->out_of_order_queue, skb);
+		goto end;
+	}
+
+	seq = TCP_SKB_CB(skb)->seq;
+	end_seq = TCP_SKB_CB(skb)->end_seq;
+
+	if (seq == TCP_SKB_CB(skb1)->end_seq) {
+		__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
+
+		if (!tp->rx_opt.num_sacks ||
+		    tp->selective_acks[0].end_seq != seq)
+			goto add_sack;
+
+		/* Common case: data arrive in order after hole. */
+		tp->selective_acks[0].end_seq = end_seq;
+		goto end;
+	}
+
+	/* Find place to insert this segment. */
+	while (1) {
+		if (!after(TCP_SKB_CB(skb1)->seq, seq))
+			break;
+		if (skb_queue_is_first(&tp->out_of_order_queue, skb1)) {
+			skb1 = NULL;
+			break;
+		}
+		skb1 = skb_queue_prev(&tp->out_of_order_queue, skb1);
+	}
+
+	/* Do skb overlap to previous one? */
+	if (skb1 && before(seq, TCP_SKB_CB(skb1)->end_seq)) {
+		if (!after(end_seq, TCP_SKB_CB(skb1)->end_seq)) {
+			/* All the bits are present. Drop. */
+			__kfree_skb(skb);
+			skb = NULL;
+			tcp_dsack_set(sk, seq, end_seq);
+			goto add_sack;
+		}
+		if (after(seq, TCP_SKB_CB(skb1)->seq)) {
+			/* Partial overlap. */
+			tcp_dsack_set(sk, seq,
+				      TCP_SKB_CB(skb1)->end_seq);
+		} else {
+			if (skb_queue_is_first(&tp->out_of_order_queue,
+					       skb1))
+				skb1 = NULL;
+			else
+				skb1 = skb_queue_prev(
+					&tp->out_of_order_queue,
+					skb1);
+		}
+	}
+	if (!skb1)
+		__skb_queue_head(&tp->out_of_order_queue, skb);
+	else
+		__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
+
+	/* And clean segments covered by new one as whole. */
+	while (!skb_queue_is_last(&tp->out_of_order_queue, skb)) {
+		skb1 = skb_queue_next(&tp->out_of_order_queue, skb);
+
+		if (!after(end_seq, TCP_SKB_CB(skb1)->seq))
+			break;
+		if (before(end_seq, TCP_SKB_CB(skb1)->end_seq)) {
+			tcp_dsack_extend(sk, TCP_SKB_CB(skb1)->seq,
+					 end_seq);
+			break;
+		}
+		__skb_unlink(skb1, &tp->out_of_order_queue);
+		tcp_dsack_extend(sk, TCP_SKB_CB(skb1)->seq,
+				 TCP_SKB_CB(skb1)->end_seq);
+		__kfree_skb(skb1);
+	}
+
+add_sack:
+	if (tcp_is_sack(tp))
+		tcp_sack_new_ofo_skb(sk, seq, end_seq);
+end:
+	if (skb)
+		skb_set_owner_r(skb, sk);
+}
+
+
 static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 {
 	const struct tcphdr *th = tcp_hdr(skb);
@@ -4561,105 +4675,7 @@ drop:
 		goto queue_and_out;
 	}
 
-	TCP_ECN_check_ce(tp, skb);
-
-	if (tcp_try_rmem_schedule(sk, skb->truesize))
-		goto drop;
-
-	/* Disable header prediction. */
-	tp->pred_flags = 0;
-	inet_csk_schedule_ack(sk);
-
-	SOCK_DEBUG(sk, "out of order segment: rcv_next %X seq %X - %X\n",
-		   tp->rcv_nxt, TCP_SKB_CB(skb)->seq, TCP_SKB_CB(skb)->end_seq);
-
-	skb_set_owner_r(skb, sk);
-
-	if (!skb_peek(&tp->out_of_order_queue)) {
-		/* Initial out of order segment, build 1 SACK. */
-		if (tcp_is_sack(tp)) {
-			tp->rx_opt.num_sacks = 1;
-			tp->selective_acks[0].start_seq = TCP_SKB_CB(skb)->seq;
-			tp->selective_acks[0].end_seq =
-						TCP_SKB_CB(skb)->end_seq;
-		}
-		__skb_queue_head(&tp->out_of_order_queue, skb);
-	} else {
-		struct sk_buff *skb1 = skb_peek_tail(&tp->out_of_order_queue);
-		u32 seq = TCP_SKB_CB(skb)->seq;
-		u32 end_seq = TCP_SKB_CB(skb)->end_seq;
-
-		if (seq == TCP_SKB_CB(skb1)->end_seq) {
-			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
-
-			if (!tp->rx_opt.num_sacks ||
-			    tp->selective_acks[0].end_seq != seq)
-				goto add_sack;
-
-			/* Common case: data arrive in order after hole. */
-			tp->selective_acks[0].end_seq = end_seq;
-			return;
-		}
-
-		/* Find place to insert this segment. */
-		while (1) {
-			if (!after(TCP_SKB_CB(skb1)->seq, seq))
-				break;
-			if (skb_queue_is_first(&tp->out_of_order_queue, skb1)) {
-				skb1 = NULL;
-				break;
-			}
-			skb1 = skb_queue_prev(&tp->out_of_order_queue, skb1);
-		}
-
-		/* Do skb overlap to previous one? */
-		if (skb1 && before(seq, TCP_SKB_CB(skb1)->end_seq)) {
-			if (!after(end_seq, TCP_SKB_CB(skb1)->end_seq)) {
-				/* All the bits are present. Drop. */
-				__kfree_skb(skb);
-				tcp_dsack_set(sk, seq, end_seq);
-				goto add_sack;
-			}
-			if (after(seq, TCP_SKB_CB(skb1)->seq)) {
-				/* Partial overlap. */
-				tcp_dsack_set(sk, seq,
-					      TCP_SKB_CB(skb1)->end_seq);
-			} else {
-				if (skb_queue_is_first(&tp->out_of_order_queue,
-						       skb1))
-					skb1 = NULL;
-				else
-					skb1 = skb_queue_prev(
-						&tp->out_of_order_queue,
-						skb1);
-			}
-		}
-		if (!skb1)
-			__skb_queue_head(&tp->out_of_order_queue, skb);
-		else
-			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
-
-		/* And clean segments covered by new one as whole. */
-		while (!skb_queue_is_last(&tp->out_of_order_queue, skb)) {
-			skb1 = skb_queue_next(&tp->out_of_order_queue, skb);
-
-			if (!after(end_seq, TCP_SKB_CB(skb1)->seq))
-				break;
-			if (before(end_seq, TCP_SKB_CB(skb1)->end_seq)) {
-				tcp_dsack_extend(sk, TCP_SKB_CB(skb1)->seq,
-						 end_seq);
-				break;
-			}
-			__skb_unlink(skb1, &tp->out_of_order_queue);
-			tcp_dsack_extend(sk, TCP_SKB_CB(skb1)->seq,
-					 TCP_SKB_CB(skb1)->end_seq);
-			__kfree_skb(skb1);
-		}
-
-add_sack:
-		if (tcp_is_sack(tp))
-			tcp_sack_new_ofo_skb(sk, seq, end_seq);
-	}
+	tcp_data_queue_ofo(sk, skb);
 }
 
 static struct sk_buff *tcp_collapse_one(struct sock *sk, struct sk_buff *skb,
