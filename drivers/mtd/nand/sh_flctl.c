@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #include <linux/mtd/mtd.h>
@@ -515,6 +516,8 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
 	uint32_t read_cmd = 0;
 
+	pm_runtime_get_sync(&flctl->pdev->dev);
+
 	flctl->read_bytes = 0;
 	if (command != NAND_CMD_PAGEPROG)
 		flctl->index = 0;
@@ -670,7 +673,7 @@ static void flctl_cmdfunc(struct mtd_info *mtd, unsigned int command,
 	default:
 		break;
 	}
-	return;
+	goto runtime_exit;
 
 read_normal_exit:
 	writel(flctl->read_bytes, FLDTCNTR(flctl));	/* set read size */
@@ -678,23 +681,47 @@ read_normal_exit:
 	start_translation(flctl);
 	read_fiforeg(flctl, flctl->read_bytes, 0);
 	wait_completion(flctl);
+runtime_exit:
+	pm_runtime_put_sync(&flctl->pdev->dev);
 	return;
 }
 
 static void flctl_select_chip(struct mtd_info *mtd, int chipnr)
 {
 	struct sh_flctl *flctl = mtd_to_flctl(mtd);
+	int ret;
 
 	switch (chipnr) {
 	case -1:
 		flctl->flcmncr_base &= ~CE0_ENABLE;
+
+		pm_runtime_get_sync(&flctl->pdev->dev);
 		writel(flctl->flcmncr_base, FLCMNCR(flctl));
+
+		if (flctl->qos_request) {
+			dev_pm_qos_remove_request(&flctl->pm_qos);
+			flctl->qos_request = 0;
+		}
+
+		pm_runtime_put_sync(&flctl->pdev->dev);
 		break;
 	case 0:
 		flctl->flcmncr_base |= CE0_ENABLE;
-		writel(flctl->flcmncr_base, FLCMNCR(flctl));
-		if (flctl->holden)
+
+		if (!flctl->qos_request) {
+			ret = dev_pm_qos_add_request(&flctl->pdev->dev,
+							&flctl->pm_qos, 100);
+			if (ret < 0)
+				dev_err(&flctl->pdev->dev,
+					"PM QoS request failed: %d\n", ret);
+			flctl->qos_request = 1;
+		}
+
+		if (flctl->holden) {
+			pm_runtime_get_sync(&flctl->pdev->dev);
 			writel(HOLDEN, FLHOLDCR(flctl));
+			pm_runtime_put_sync(&flctl->pdev->dev);
+		}
 		break;
 	default:
 		BUG();
@@ -835,13 +862,13 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to get I/O memory\n");
-		goto err;
+		goto err_iomap;
 	}
 
 	flctl->reg = ioremap(res->start, resource_size(res));
 	if (flctl->reg == NULL) {
 		dev_err(&pdev->dev, "failed to remap I/O memory\n");
-		goto err;
+		goto err_iomap;
 	}
 
 	platform_set_drvdata(pdev, flctl);
@@ -871,23 +898,28 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 		nand->read_word = flctl_read_word;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_resume(&pdev->dev);
+
 	ret = nand_scan_ident(flctl_mtd, 1, NULL);
 	if (ret)
-		goto err;
+		goto err_chip;
 
 	ret = flctl_chip_init_tail(flctl_mtd);
 	if (ret)
-		goto err;
+		goto err_chip;
 
 	ret = nand_scan_tail(flctl_mtd);
 	if (ret)
-		goto err;
+		goto err_chip;
 
 	mtd_device_register(flctl_mtd, pdata->parts, pdata->nr_parts);
 
 	return 0;
 
-err:
+err_chip:
+	pm_runtime_disable(&pdev->dev);
+err_iomap:
 	kfree(flctl);
 	return ret;
 }
@@ -897,6 +929,7 @@ static int __devexit flctl_remove(struct platform_device *pdev)
 	struct sh_flctl *flctl = platform_get_drvdata(pdev);
 
 	nand_release(&flctl->mtd);
+	pm_runtime_disable(&pdev->dev);
 	kfree(flctl);
 
 	return 0;

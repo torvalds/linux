@@ -23,6 +23,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/pm_qos.h>
 
 /* FLCTL registers */
 #define FLCMNCR(f)		(f->reg + 0x0)
@@ -131,6 +132,7 @@ struct sh_flctl {
 	struct mtd_info		mtd;
 	struct nand_chip	chip;
 	struct platform_device	*pdev;
+	struct dev_pm_qos_request pm_qos;
 	void __iomem		*reg;
 
 	uint8_t	done_buff[2048 + 64];	/* max size 2048 + 64 */
@@ -149,6 +151,7 @@ struct sh_flctl {
 	unsigned page_size:1;	/* NAND page size (0 = 512, 1 = 2048) */
 	unsigned hwecc:1;	/* Hardware ECC (0 = disabled, 1 = enabled) */
 	unsigned holden:1;	/* Hardware has FLHOLDCR and HOLDEN is set */
+	unsigned qos_request:1;	/* QoS request to prevent deep power shutdown */
 };
 
 struct sh_flctl_platform_data {
