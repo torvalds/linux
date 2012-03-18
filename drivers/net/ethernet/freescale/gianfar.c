@@ -2565,7 +2565,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	}
 
 	/* If we freed a buffer, we can restart transmission, if necessary */
-	if (__netif_subqueue_stopped(dev, tqi) && tx_queue->num_txbdfree)
+	if (netif_tx_queue_stopped(txq) && tx_queue->num_txbdfree)
 		netif_wake_subqueue(dev, tqi);
 
 	/* Update dirty indicators */
