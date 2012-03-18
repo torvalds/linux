@@ -499,26 +499,23 @@ IEEE80211_IF_FILE(dot11MeshForwarding, u.mesh.mshcfg.dot11MeshForwarding, DEC);
 IEEE80211_IF_FILE(rssi_threshold, u.mesh.mshcfg.rssi_threshold, DEC);
 #endif
 
-
-#define DEBUGFS_ADD(name) \
-	debugfs_create_file(#name, 0400, sdata->debugfs.dir, \
-			    sdata, &name##_ops);
-
 #define DEBUGFS_ADD_MODE(name, mode) \
 	debugfs_create_file(#name, mode, sdata->debugfs.dir, \
 			    sdata, &name##_ops);
 
-static void add_sta_files(struct ieee80211_sub_if_data *sdata)
+#define DEBUGFS_ADD(name) DEBUGFS_ADD_MODE(name, 0400)
+
+static void add_common_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
 	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
+}
 
+static void add_sta_files(struct ieee80211_sub_if_data *sdata)
+{
 	DEBUGFS_ADD(bssid);
 	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD(last_beacon);
@@ -531,15 +528,6 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-
 	DEBUGFS_ADD(num_sta_authorized);
 	DEBUGFS_ADD(num_sta_ps);
 	DEBUGFS_ADD(dtim_count);
@@ -549,46 +537,12 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 
 static void add_ibss_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-
 	DEBUGFS_ADD_MODE(tsf, 0600);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-
 	DEBUGFS_ADD(peer);
-}
-
-static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_ADD(drop_unencrypted);
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
-	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_2ghz);
-	DEBUGFS_ADD(rc_rateidx_mcs_mask_5ghz);
-}
-
-static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
-{
-	DEBUGFS_ADD(flags);
-	DEBUGFS_ADD(state);
-	DEBUGFS_ADD(channel_type);
 }
 
 #ifdef CONFIG_MAC80211_MESH
@@ -651,6 +605,13 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	if (!sdata->debugfs.dir)
 		return;
 
+	DEBUGFS_ADD(flags);
+	DEBUGFS_ADD(state);
+	DEBUGFS_ADD(channel_type);
+
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		add_common_files(sdata);
+
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
@@ -670,12 +631,6 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		break;
 	case NL80211_IFTYPE_WDS:
 		add_wds_files(sdata);
-		break;
-	case NL80211_IFTYPE_MONITOR:
-		add_monitor_files(sdata);
-		break;
-	case NL80211_IFTYPE_AP_VLAN:
-		add_vlan_files(sdata);
 		break;
 	default:
 		break;
