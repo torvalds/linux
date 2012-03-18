@@ -1664,7 +1664,7 @@ static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
 	if (is_valid_ether_addr(addr))
 		return true;
 #ifdef BCM_CNIC
-	if (is_zero_ether_addr(addr) && IS_MF_ISCSI_SD(bp))
+	if (is_zero_ether_addr(addr) && IS_MF_STORAGE_SD(bp))
 		return true;
 #endif
 	return false;

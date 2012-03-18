@@ -1453,8 +1453,8 @@ void bnx2x_set_num_queues(struct bnx2x *bp)
 	}
 
 #ifdef BCM_CNIC
-	/* override in ISCSI SD mod */
-	if (IS_MF_ISCSI_SD(bp))
+	/* override in STORAGE SD mode */
+	if (IS_MF_STORAGE_SD(bp))
 		bp->num_queues = 1;
 #endif
 	/* Add special queues */
@@ -3077,7 +3077,7 @@ int bnx2x_change_mac_addr(struct net_device *dev, void *p)
 	}
 
 #ifdef BCM_CNIC
-	if (IS_MF_ISCSI_SD(bp) && !is_zero_ether_addr(addr->sa_data)) {
+	if (IS_MF_STORAGE_SD(bp) && !is_zero_ether_addr(addr->sa_data)) {
 		BNX2X_ERR("Can't configure non-zero address on iSCSI or FCoE functions in MF-SD mode\n");
 		return -EINVAL;
 	}
@@ -3199,7 +3199,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	int rx_ring_size = 0;
 
 #ifdef BCM_CNIC
-	if (!bp->rx_ring_size && IS_MF_ISCSI_SD(bp)) {
+	if (!bp->rx_ring_size && IS_MF_STORAGE_SD(bp)) {
 		rx_ring_size = MIN_RX_SIZE_NONTPA;
 		bp->rx_ring_size = rx_ring_size;
 	} else

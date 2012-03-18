@@ -7177,7 +7177,7 @@ int bnx2x_set_eth_mac(struct bnx2x *bp, bool set)
 	unsigned long ramrod_flags = 0;
 
 #ifdef BCM_CNIC
-	if (is_zero_ether_addr(bp->dev->dev_addr) && IS_MF_ISCSI_SD(bp)) {
+	if (is_zero_ether_addr(bp->dev->dev_addr) && IS_MF_STORAGE_SD(bp)) {
 		DP(NETIF_MSG_IFUP | NETIF_MSG_IFDOWN,
 		   "Ignoring Zero MAC for STORAGE SD mode\n");
 		return 0;
@@ -9479,6 +9479,7 @@ static void __devinit bnx2x_get_port_hwinfo(struct bnx2x *bp)
 
 void bnx2x_get_iscsi_info(struct bnx2x *bp)
 {
+	u32 no_flags = NO_ISCSI_FLAG;
 #ifdef BCM_CNIC
 	int port = BP_PORT(bp);
 
@@ -9498,12 +9499,28 @@ void bnx2x_get_iscsi_info(struct bnx2x *bp)
 	 * disable the feature.
 	 */
 	if (!bp->cnic_eth_dev.max_iscsi_conn)
-		bp->flags |= NO_ISCSI_FLAG;
+		bp->flags |= no_flags;
 #else
-	bp->flags |= NO_ISCSI_FLAG;
+	bp->flags |= no_flags;
 #endif
 }
 
+#ifdef BCM_CNIC
+static void __devinit bnx2x_get_ext_wwn_info(struct bnx2x *bp, int func)
+{
+	/* Port info */
+	bp->cnic_eth_dev.fcoe_wwn_port_name_hi =
+		MF_CFG_RD(bp, func_ext_config[func].fcoe_wwn_port_name_upper);
+	bp->cnic_eth_dev.fcoe_wwn_port_name_lo =
+		MF_CFG_RD(bp, func_ext_config[func].fcoe_wwn_port_name_lower);
+
+	/* Node info */
+	bp->cnic_eth_dev.fcoe_wwn_node_name_hi =
+		MF_CFG_RD(bp, func_ext_config[func].fcoe_wwn_node_name_upper);
+	bp->cnic_eth_dev.fcoe_wwn_node_name_lo =
+		MF_CFG_RD(bp, func_ext_config[func].fcoe_wwn_node_name_lower);
+}
+#endif
 static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
 {
 #ifdef BCM_CNIC
@@ -9546,24 +9563,11 @@ static void __devinit bnx2x_get_fcoe_info(struct bnx2x *bp)
 		 * Read the WWN info only if the FCoE feature is enabled for
 		 * this function.
 		 */
-		if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD) {
-			/* Port info */
-			bp->cnic_eth_dev.fcoe_wwn_port_name_hi =
-				MF_CFG_RD(bp, func_ext_config[func].
-						fcoe_wwn_port_name_upper);
-			bp->cnic_eth_dev.fcoe_wwn_port_name_lo =
-				MF_CFG_RD(bp, func_ext_config[func].
-						fcoe_wwn_port_name_lower);
+		if (cfg & MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+			bnx2x_get_ext_wwn_info(bp, func);
 
-			/* Node info */
-			bp->cnic_eth_dev.fcoe_wwn_node_name_hi =
-				MF_CFG_RD(bp, func_ext_config[func].
-						fcoe_wwn_node_name_upper);
-			bp->cnic_eth_dev.fcoe_wwn_node_name_lo =
-				MF_CFG_RD(bp, func_ext_config[func].
-						fcoe_wwn_node_name_lower);
-		}
-	}
+	} else if (IS_MF_FCOE_SD(bp))
+		bnx2x_get_ext_wwn_info(bp, func);
 
 	BNX2X_DEV_INFO("max_fcoe_conn 0x%x\n", bp->cnic_eth_dev.max_fcoe_conn);
 
@@ -9616,8 +9620,11 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 		/*
 		 * iSCSI and FCoE NPAR MACs: if there is no either iSCSI or
 		 * FCoE MAC then the appropriate feature should be disabled.
+		 *
+		 * In non SD mode features configuration comes from
+		 * struct func_ext_config.
 		 */
-		if (IS_MF_SI(bp)) {
+		if (!IS_MF_SD(bp)) {
 			u32 cfg = MF_CFG_RD(bp, func_ext_config[func].func_cfg);
 			if (cfg & MACP_FUNC_CFG_FLAGS_ISCSI_OFFLOAD) {
 				val2 = MF_CFG_RD(bp, func_ext_config[func].
@@ -9641,16 +9648,25 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 
 			} else
 				bp->flags |= NO_FCOE_FLAG;
-		} else { /* SD mode */
-			if (BNX2X_IS_MF_PROTOCOL_ISCSI(bp)) {
-				/* use primary mac as iscsi mac */
-				memcpy(iscsi_mac, bp->dev->dev_addr, ETH_ALEN);
+		} else { /* SD MODE */
+			if (IS_MF_STORAGE_SD(bp)) {
+				if (BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp)) {
+					/* use primary mac as iscsi mac */
+					memcpy(iscsi_mac, bp->dev->dev_addr,
+					       ETH_ALEN);
+
+					BNX2X_DEV_INFO("SD ISCSI MODE\n");
+					BNX2X_DEV_INFO("Read iSCSI MAC: %pM\n",
+						       iscsi_mac);
+				} else { /* FCoE */
+					memcpy(fip_mac, bp->dev->dev_addr,
+					       ETH_ALEN);
+					BNX2X_DEV_INFO("SD FCoE MODE\n");
+					BNX2X_DEV_INFO("Read FIP MAC: %pM\n",
+						       fip_mac);
+				}
 				/* Zero primary MAC configuration */
 				memset(bp->dev->dev_addr, 0, ETH_ALEN);
-
-				BNX2X_DEV_INFO("SD ISCSI MODE\n");
-				BNX2X_DEV_INFO("Read iSCSI MAC: %pM\n",
-					       iscsi_mac);
 			}
 		}
 #endif
@@ -9679,10 +9695,6 @@ static void __devinit bnx2x_get_mac_hwinfo(struct bnx2x *bp)
 	memcpy(bp->dev->perm_addr, bp->dev->dev_addr, ETH_ALEN);
 
 #ifdef BCM_CNIC
-	/* Set the FCoE MAC in MF_SD mode */
-	if (!CHIP_IS_E1x(bp) && IS_MF_SD(bp))
-		memcpy(fip_mac, bp->dev->dev_addr, ETH_ALEN);
-
 	/* Disable iSCSI if MAC configuration is
 	 * invalid.
 	 */
@@ -10092,7 +10104,7 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	bp->disable_tpa = disable_tpa;
 
 #ifdef BCM_CNIC
-	bp->disable_tpa |= IS_MF_ISCSI_SD(bp);
+	bp->disable_tpa |= IS_MF_STORAGE_SD(bp);
 #endif
 
 	/* Set TPA flags */
