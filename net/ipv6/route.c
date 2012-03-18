@@ -1077,7 +1077,7 @@ struct dst_entry *icmp6_dst_alloc(struct net_device *dev,
 	struct net *net = dev_net(dev);
 
 	if (unlikely(!idev))
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	rt = ip6_dst_alloc(&net->ipv6.ip6_dst_ops, dev, 0);
 	if (unlikely(!rt)) {
