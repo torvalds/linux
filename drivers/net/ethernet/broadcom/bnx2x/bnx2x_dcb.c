@@ -121,26 +121,6 @@ static void bnx2x_pfc_clear(struct bnx2x *bp)
 {
 	struct bnx2x_nig_brb_pfc_port_params nig_params = {0};
 	nig_params.pause_enable = 1;
-#ifdef BNX2X_SAFC
-	if (bp->flags & SAFC_TX_FLAG) {
-		u32 high = 0, low = 0;
-		int i;
-
-		for (i = 0; i < BNX2X_MAX_PRIORITY; i++) {
-			if (bp->pri_map[i] == 1)
-				high |= (1 << i);
-			if (bp->pri_map[i] == 0)
-				low |= (1 << i);
-		}
-
-		nig_params.llfc_low_priority_classes = high;
-		nig_params.llfc_low_priority_classes = low;
-
-		nig_params.pause_enable = 0;
-		nig_params.llfc_enable = 1;
-		nig_params.llfc_out_en = 1;
-	}
-#endif /* BNX2X_SAFC */
 	bnx2x_acquire_phy_lock(bp);
 	bp->link_params.feature_config_flags &= ~FEATURE_CONFIG_PFC_ENABLED;
 	bnx2x_update_pfc(&bp->link_params, &bp->link_vars, &nig_params);
