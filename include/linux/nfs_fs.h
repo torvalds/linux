@@ -38,6 +38,13 @@
 
 #ifdef __KERNEL__
 
+/*
+ * Enable dprintk() debugging support for nfs client.
+ */
+#ifdef CONFIG_NFS_DEBUG
+# define NFS_DEBUG
+#endif
+
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -391,7 +398,7 @@ static inline void nfs_free_fhandle(const struct nfs_fh *fh)
 	kfree(fh);
 }
 
-#ifdef RPC_DEBUG
+#ifdef NFS_DEBUG
 extern u32 _nfs_display_fhandle_hash(const struct nfs_fh *fh);
 static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
 {
@@ -649,14 +656,6 @@ nfs_fileid_to_ino_t(u64 fileid)
 #define NFSDBG_ALL		0xFFFF
 
 #ifdef __KERNEL__
-
-/*
- * Enable debugging support for nfs client.
- * Requires RPC_DEBUG.
- */
-#ifdef RPC_DEBUG
-# define NFS_DEBUG
-#endif
 
 # undef ifdebug
 # ifdef NFS_DEBUG

@@ -16,7 +16,7 @@
 #include <linux/nfs_fs.h>
 #include "internal.h"
 
-#ifdef RPC_DEBUG
+#ifdef NFS_DEBUG
 # define NFSDBG_FACILITY	NFSDBG_MOUNT
 #endif
 

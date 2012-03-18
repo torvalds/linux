@@ -31,7 +31,7 @@
 /*
  * Enable RPC debugging/profiling.
  */
-#ifdef CONFIG_SYSCTL
+#ifdef CONFIG_SUNRPC_DEBUG
 #define  RPC_DEBUG
 #endif
 #ifdef CONFIG_TRACEPOINTS

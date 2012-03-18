@@ -1047,7 +1047,7 @@ struct nfs_fh *nfs_alloc_fhandle(void)
 	return fh;
 }
 
-#ifdef RPC_DEBUG
+#ifdef NFS_DEBUG
 /*
  * _nfs_display_fhandle_hash - calculate the crc32 hash for the filehandle
  *                             in the same way that wireshark does

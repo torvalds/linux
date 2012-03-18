@@ -144,3 +144,9 @@ config NFS_USE_KERNEL_DNS
 	depends on NFS_V4 && !NFS_USE_LEGACY_DNS
 	select DNS_RESOLVER
 	default y
+
+config NFS_DEBUG
+	bool
+	depends on NFS_FS && SUNRPC_DEBUG
+	select CRC32
+	default y
