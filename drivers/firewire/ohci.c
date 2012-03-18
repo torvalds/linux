@@ -2685,10 +2685,9 @@ static void copy_iso_headers(struct iso_context *ctx, void *p)
 		return;
 
 	/*
-	 * The iso header is byteswapped to little endian by
-	 * the controller, but the remaining header quadlets
-	 * are big endian.  We want to present all the headers
-	 * as big endian, so we have to swap the first quadlet.
+	 * The two iso header quadlets are byteswapped to little
+	 * endian by the controller, but we want to present them
+	 * as big endian for consistency with the bus endianness.
 	 */
 	if (ctx->base.header_size > 0)
 		*(u32 *) (ctx->header + i) = __swab32(*(u32 *) (p + 4));
