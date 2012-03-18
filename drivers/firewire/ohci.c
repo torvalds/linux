@@ -170,7 +170,6 @@ struct context {
 struct iso_context {
 	struct fw_iso_context base;
 	struct context context;
-	int excess_bytes;
 	void *header;
 	size_t header_length;
 
