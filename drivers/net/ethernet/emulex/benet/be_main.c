@@ -3292,7 +3292,7 @@ static int be_get_config(struct be_adapter *adapter)
 		return status;
 
 	if (adapter->function_mode & FLEX10_MODE)
-		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/4;
+		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/8;
 	else
 		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;
 
