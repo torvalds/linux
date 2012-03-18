@@ -2107,7 +2107,7 @@ test_nvram_exit:
 /* Send an EMPTY ramrod on the first queue */
 static int bnx2x_test_intr(struct bnx2x *bp)
 {
-	struct bnx2x_queue_state_params params = {0};
+	struct bnx2x_queue_state_params params = {NULL};
 
 	if (!netif_running(bp->dev)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,

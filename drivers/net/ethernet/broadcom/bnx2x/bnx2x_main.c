@@ -7446,7 +7446,7 @@ int bnx2x_setup_tx_only(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 int bnx2x_setup_queue(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		       bool leading)
 {
-	struct bnx2x_queue_state_params q_params = {0};
+	struct bnx2x_queue_state_params q_params = {NULL};
 	struct bnx2x_queue_setup_params *setup_params =
 						&q_params.params.setup;
 	struct bnx2x_queue_setup_tx_only_params *tx_only_params =
@@ -7529,7 +7529,7 @@ static int bnx2x_stop_queue(struct bnx2x *bp, int index)
 {
 	struct bnx2x_fastpath *fp = &bp->fp[index];
 	struct bnx2x_fp_txdata *txdata;
-	struct bnx2x_queue_state_params q_params = {0};
+	struct bnx2x_queue_state_params q_params = {NULL};
 	int rc, tx_index;
 
 	DP(NETIF_MSG_IFDOWN, "stopping queue %d cid %d\n", index, fp->cid);
@@ -7705,7 +7705,7 @@ static void bnx2x_reset_port(struct bnx2x *bp)
 
 static inline int bnx2x_reset_hw(struct bnx2x *bp, u32 load_code)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 
 	/* Prepare parameters for function state transitions */
 	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
@@ -7720,7 +7720,7 @@ static inline int bnx2x_reset_hw(struct bnx2x *bp, u32 load_code)
 
 static inline int bnx2x_func_stop(struct bnx2x *bp)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 	int rc;
 
 	/* Prepare parameters for function state transitions */
@@ -7877,7 +7877,7 @@ static inline int bnx2x_func_wait_started(struct bnx2x *bp)
 		 * Failed to complete the transaction in a "good way"
 		 * Force both transactions with CLR bit
 		 */
-		struct bnx2x_func_state_params func_params = {0};
+		struct bnx2x_func_state_params func_params = {NULL};
 
 		DP(NETIF_MSG_IFDOWN,
 		   "Hmmm... unexpected function state! Forcing STARTED-->TX_ST0PPED-->STARTED\n");
@@ -7904,7 +7904,7 @@ void bnx2x_chip_cleanup(struct bnx2x *bp, int unload_mode)
 	int port = BP_PORT(bp);
 	int i, rc = 0;
 	u8 cos;
-	struct bnx2x_mcast_ramrod_params rparam = {0};
+	struct bnx2x_mcast_ramrod_params rparam = {NULL};
 	u32 reset_code;
 
 	/* Wait until tx fastpath tasks complete */
@@ -10309,7 +10309,7 @@ static inline int bnx2x_set_uc_list(struct bnx2x *bp)
 static inline int bnx2x_set_mc_list(struct bnx2x *bp)
 {
 	struct net_device *dev = bp->dev;
-	struct bnx2x_mcast_ramrod_params rparam = {0};
+	struct bnx2x_mcast_ramrod_params rparam = {NULL};
 	int rc = 0;
 
 	rparam.mcast_obj = &bp->mcast_obj;
@@ -10830,7 +10830,7 @@ do {									\
 	     (u8 *)bp->arr, len);					\
 } while (0)
 
-int bnx2x_init_firmware(struct bnx2x *bp)
+static int bnx2x_init_firmware(struct bnx2x *bp)
 {
 	const char *fw_file_name;
 	struct bnx2x_fw_file_hdr *fw_hdr;

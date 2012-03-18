@@ -1574,7 +1574,7 @@ static inline int bnx2x_init_rss_pf(struct bnx2x *bp)
 
 int bnx2x_config_rss_pf(struct bnx2x *bp, u8 *ind_table, bool config_hash)
 {
-	struct bnx2x_config_rss_params params = {0};
+	struct bnx2x_config_rss_params params = {NULL};
 	int i;
 
 	/* Although RSS is meaningless when there is a single HW queue we
@@ -1637,7 +1637,7 @@ int bnx2x_config_rss_pf(struct bnx2x *bp, u8 *ind_table, bool config_hash)
 
 static inline int bnx2x_init_hw(struct bnx2x *bp, u32 load_code)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 
 	/* Prepare parameters for function state transitions */
 	__set_bit(RAMROD_COMP_WAIT, &func_params.ramrod_flags);
@@ -1658,7 +1658,7 @@ static void bnx2x_squeeze_objects(struct bnx2x *bp)
 {
 	int rc;
 	unsigned long ramrod_flags = 0, vlan_mac_flags = 0;
-	struct bnx2x_mcast_ramrod_params rparam = {0};
+	struct bnx2x_mcast_ramrod_params rparam = {NULL};
 	struct bnx2x_vlan_mac_obj *mac_obj = &bp->fp->mac_obj;
 
 	/***************** Cleanup MACs' object first *************************/

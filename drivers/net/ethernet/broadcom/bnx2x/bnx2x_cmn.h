@@ -970,7 +970,7 @@ static inline void bnx2x_reuse_rx_data(struct bnx2x_fastpath *fp,
  */
 static inline int bnx2x_func_start(struct bnx2x *bp)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_start_params *start_params =
 		&func_params.params.start;
 
@@ -1596,6 +1596,7 @@ static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
 #endif
 }
 
+#ifdef BCM_CNIC
 /**
  * bnx2x_get_iscsi_info - update iSCSI params according to licensing info.
  *
@@ -1603,7 +1604,7 @@ static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
  *
  */
 void bnx2x_get_iscsi_info(struct bnx2x *bp);
-
+#endif
 /* returns func by VN for current port */
 static inline int func_by_vn(struct bnx2x *bp, int vn)
 {

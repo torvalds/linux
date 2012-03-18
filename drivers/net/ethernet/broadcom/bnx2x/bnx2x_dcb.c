@@ -443,7 +443,7 @@ static void bnx2x_pfc_set_pfc(struct bnx2x *bp)
 
 static int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 
 	func_params.f_obj = &bp->func_obj;
 	func_params.cmd = BNX2X_F_CMD_TX_STOP;
@@ -454,7 +454,7 @@ static int bnx2x_dcbx_stop_hw_tx(struct bnx2x *bp)
 
 static int bnx2x_dcbx_resume_hw_tx(struct bnx2x *bp)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_tx_start_params *tx_params =
 		&func_params.params.tx_start;
 
@@ -529,7 +529,7 @@ static void bnx2x_dcbx_2cos_limit_update_ets_config(struct bnx2x *bp)
 /*
  * In E3B0 the configuration may have more than 2 COS.
  */
-void bnx2x_dcbx_update_ets_config(struct bnx2x *bp)
+static void bnx2x_dcbx_update_ets_config(struct bnx2x *bp)
 {
 	struct bnx2x_dcbx_pg_params *ets = &(bp->dcbx_port_params.ets);
 	struct bnx2x_ets_params ets_params = { 0 };

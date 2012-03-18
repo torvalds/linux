@@ -243,18 +243,6 @@
 	(IRO[48].base + ((funcId) * IRO[48].m1))
 #define COMMON_ASM_INVALID_ASSERT_OPCODE 0x0
 
-/**
-* This file defines HSI constants for the ETH flow
-*/
-#ifdef _EVEREST_MICROCODE
-#include "Microcode\Generated\DataTypes\eth_rx_bd.h"
-#include "Microcode\Generated\DataTypes\eth_tx_bd.h"
-#include "Microcode\Generated\DataTypes\eth_rx_cqe.h"
-#include "Microcode\Generated\DataTypes\eth_rx_sge.h"
-#include "Microcode\Generated\DataTypes\eth_rx_cqe_next_page.h"
-#endif
-
-
 /* Ethernet Ring parameters */
 #define X_ETH_LOCAL_RING_SIZE 13
 #define FIRST_BD_IN_PKT	0
