@@ -45,6 +45,8 @@
 #define DEBUG_MAX 64
 #define MAX_UNHANDLED_FIQ_COUNT 1000000
 
+#define MAX_FIQ_DEBUGGER_PORTS 4
+
 #define THREAD_INFO(sp) ((struct thread_info *) \
 		((unsigned long)(sp) & ~(THREAD_SIZE - 1)))
 
@@ -81,7 +83,6 @@ struct fiq_debugger_state {
 
 #ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
 	struct console console;
-	struct tty_driver *tty_driver;
 	struct tty_struct *tty;
 	int tty_open_count;
 	struct fiq_debugger_ringbuf *tty_rbuf;
@@ -91,6 +92,10 @@ struct fiq_debugger_state {
 	unsigned int last_irqs[NR_IRQS];
 	unsigned int last_local_timer_irqs[NR_CPUS];
 };
+
+#ifdef CONFIG_FIQ_DEBUGGER_CONSOLE
+struct tty_driver *fiq_tty_driver;
+#endif
 
 #ifdef CONFIG_FIQ_DEBUGGER_NO_SLEEP
 static bool initial_no_sleep = true;
@@ -913,10 +918,8 @@ static void debug_resume(struct fiq_glue_handler *h)
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 struct tty_driver *debug_console_device(struct console *co, int *index)
 {
-	struct fiq_debugger_state *state;
-	state = container_of(co, struct fiq_debugger_state, console);
-	*index = 0;
-	return state->tty_driver;
+	*index = co->index;
+	return fiq_tty_driver;
 }
 
 static void debug_console_write(struct console *co,
@@ -948,7 +951,9 @@ static struct console fiq_debugger_console = {
 
 int fiq_tty_open(struct tty_struct *tty, struct file *filp)
 {
-	struct fiq_debugger_state *state = tty->driver->driver_state;
+	int line = tty->index;
+	struct fiq_debugger_state **states = tty->driver->driver_state;
+	struct fiq_debugger_state *state = states[line];
 	if (state->tty_open_count++)
 		return 0;
 
@@ -1035,35 +1040,65 @@ static const struct tty_operations fiq_tty_driver_ops = {
 #endif
 };
 
-static int fiq_debugger_tty_init(struct fiq_debugger_state *state)
+static int fiq_debugger_tty_init(void)
 {
-	int ret = -EINVAL;
+	int ret;
+	struct fiq_debugger_state **states = NULL;
 
-	state->tty_driver = alloc_tty_driver(1);
-	if (!state->tty_driver) {
-		pr_err("Failed to allocate fiq debugger tty\n");
+	states = kzalloc(sizeof(*states) * MAX_FIQ_DEBUGGER_PORTS, GFP_KERNEL);
+	if (!states) {
+		pr_err("Failed to allocate fiq debugger state structres\n");
 		return -ENOMEM;
 	}
 
-	state->tty_driver->owner		= THIS_MODULE;
-	state->tty_driver->driver_name	= "fiq-debugger";
-	state->tty_driver->name		= "ttyFIQ";
-	state->tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
-	state->tty_driver->subtype	= SERIAL_TYPE_NORMAL;
-	state->tty_driver->init_termios	= tty_std_termios;
-	state->tty_driver->init_termios.c_cflag =
-					B115200 | CS8 | CREAD | HUPCL | CLOCAL;
-	state->tty_driver->init_termios.c_ispeed =
-		state->tty_driver->init_termios.c_ospeed = 115200;
-	state->tty_driver->flags		= TTY_DRIVER_REAL_RAW;
-	tty_set_operations(state->tty_driver, &fiq_tty_driver_ops);
-	state->tty_driver->driver_state = state;
+	fiq_tty_driver = alloc_tty_driver(MAX_FIQ_DEBUGGER_PORTS);
+	if (!fiq_tty_driver) {
+		pr_err("Failed to allocate fiq debugger tty\n");
+		ret = -ENOMEM;
+		goto err_free_state;
+	}
 
-	ret = tty_register_driver(state->tty_driver);
+	fiq_tty_driver->owner		= THIS_MODULE;
+	fiq_tty_driver->driver_name	= "fiq-debugger";
+	fiq_tty_driver->name		= "ttyFIQ";
+	fiq_tty_driver->type		= TTY_DRIVER_TYPE_SERIAL;
+	fiq_tty_driver->subtype		= SERIAL_TYPE_NORMAL;
+	fiq_tty_driver->init_termios	= tty_std_termios;
+	fiq_tty_driver->flags		= TTY_DRIVER_REAL_RAW |
+					  TTY_DRIVER_DYNAMIC_DEV;
+	fiq_tty_driver->driver_state	= states;
+
+	fiq_tty_driver->init_termios.c_cflag =
+					B115200 | CS8 | CREAD | HUPCL | CLOCAL;
+	fiq_tty_driver->init_termios.c_ispeed = 115200;
+	fiq_tty_driver->init_termios.c_ospeed = 115200;
+
+	tty_set_operations(fiq_tty_driver, &fiq_tty_driver_ops);
+
+	ret = tty_register_driver(fiq_tty_driver);
 	if (ret) {
 		pr_err("Failed to register fiq tty: %d\n", ret);
-		goto err;
+		goto err_free_tty;
 	}
+
+	pr_info("Registered FIQ tty driver\n");
+	return 0;
+
+err_free_tty:
+	put_tty_driver(fiq_tty_driver);
+	fiq_tty_driver = NULL;
+err_free_state:
+	kfree(states);
+	return ret;
+}
+
+static int fiq_debugger_tty_init_one(struct fiq_debugger_state *state)
+{
+	int ret;
+	struct device *tty_dev;
+	struct fiq_debugger_state **states = fiq_tty_driver->driver_state;
+
+	states[state->pdev->id] = state;
 
 	state->tty_rbuf = fiq_debugger_ringbuf_alloc(1024);
 	if (!state->tty_rbuf) {
@@ -1072,13 +1107,23 @@ static int fiq_debugger_tty_init(struct fiq_debugger_state *state)
 		goto err;
 	}
 
-	pr_info("Registered FIQ tty driver %p\n", state->tty_driver);
+	tty_dev = tty_register_device(fiq_tty_driver, state->pdev->id,
+		&state->pdev->dev);
+	if (IS_ERR(tty_dev)) {
+		pr_err("Failed to register fiq debugger tty device\n");
+		ret = PTR_ERR(tty_dev);
+		goto err;
+	}
+
+	device_set_wakeup_capable(tty_dev, 1);
+
+	pr_info("Registered fiq debugger ttyFIQ%d\n", state->pdev->id);
+
 	return 0;
 
 err:
 	fiq_debugger_ringbuf_free(state->tty_rbuf);
 	state->tty_rbuf = NULL;
-	put_tty_driver(state->tty_driver);
 	return ret;
 }
 #endif
@@ -1110,6 +1155,9 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 	struct fiq_debugger_state *state;
 	int fiq;
 	int uart_irq;
+
+	if (pdev->id >= MAX_FIQ_DEBUGGER_PORTS)
+		return -EINVAL;
 
 	if (!pdata->uart_getc || !pdata->uart_putc)
 		return -EINVAL;
@@ -1228,8 +1276,12 @@ static int fiq_debugger_probe(struct platform_device *pdev)
 
 #if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
 	state->console = fiq_debugger_console;
+	state->console.index = pdev->id;
+	if (!console_set_on_cmdline)
+		add_preferred_console(state->console.name,
+			state->console.index, NULL);
 	register_console(&state->console);
-	fiq_debugger_tty_init(state);
+	fiq_debugger_tty_init_one(state);
 #endif
 	return 0;
 
@@ -1263,6 +1315,9 @@ static struct platform_driver fiq_debugger_driver = {
 
 static int __init fiq_debugger_init(void)
 {
+#if defined(CONFIG_FIQ_DEBUGGER_CONSOLE)
+	fiq_debugger_tty_init();
+#endif
 	return platform_driver_register(&fiq_debugger_driver);
 }
 
