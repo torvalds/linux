@@ -1206,6 +1206,33 @@ struct be_cmd_req_acpi_wol_magic_config{
 	u8 rsvd2[2];
 } __packed;
 
+struct be_cmd_req_acpi_wol_magic_config_v1 {
+	struct be_cmd_req_hdr hdr;
+	u8 rsvd0[2];
+	u8 query_options;
+	u8 rsvd1[5];
+	u32 rsvd2[288];
+	u8 magic_mac[6];
+	u8 rsvd3[22];
+} __packed;
+
+struct be_cmd_resp_acpi_wol_magic_config_v1 {
+	struct be_cmd_resp_hdr hdr;
+	u8 rsvd0[2];
+	u8 wol_settings;
+	u8 rsvd1[5];
+	u32 rsvd2[295];
+} __packed;
+
+#define BE_GET_WOL_CAP			2
+
+#define BE_WOL_CAP			0x1
+#define BE_PME_D0_CAP			0x8
+#define BE_PME_D1_CAP			0x10
+#define BE_PME_D2_CAP			0x20
+#define BE_PME_D3HOT_CAP		0x40
+#define BE_PME_D3COLD_CAP		0x80
+
 /********************** LoopBack test *********************/
 struct be_cmd_req_loopback_test {
 	struct be_cmd_req_hdr hdr;
@@ -1590,4 +1617,5 @@ extern int be_cmd_get_mac_from_list(struct be_adapter *adapter, u32 domain,
 				bool *pmac_id_active, u32 *pmac_id, u8 *mac);
 extern int be_cmd_set_mac_list(struct be_adapter *adapter, u8 *mac_array,
 						u8 mac_count, u32 domain);
+extern int be_cmd_get_acpi_wol_cap(struct be_adapter *adapter);
 

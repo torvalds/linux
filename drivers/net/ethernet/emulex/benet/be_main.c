@@ -3244,6 +3244,12 @@ static void __devexit be_remove(struct pci_dev *pdev)
 	free_netdev(adapter->netdev);
 }
 
+bool be_is_wol_supported(struct be_adapter *adapter)
+{
+	return ((adapter->wol_cap & BE_WOL_CAP) &&
+		!be_is_wol_excluded(adapter)) ? true : false;
+}
+
 static int be_get_config(struct be_adapter *adapter)
 {
 	int status;
@@ -3261,6 +3267,17 @@ static int be_get_config(struct be_adapter *adapter)
 	status = be_cmd_get_cntl_attributes(adapter);
 	if (status)
 		return status;
+
+	status = be_cmd_get_acpi_wol_cap(adapter);
+	if (status) {
+		/* in case of a failure to get wol capabillities
+		 * check the exclusion list to determine WOL capability */
+		if (!be_is_wol_excluded(adapter))
+			adapter->wol_cap |= BE_WOL_CAP;
+	}
+
+	if (be_is_wol_supported(adapter))
+		adapter->wol = true;
 
 	return 0;
 }

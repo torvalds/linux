@@ -600,26 +600,16 @@ be_set_phys_id(struct net_device *netdev,
 	return 0;
 }
 
-static bool
-be_is_wol_supported(struct be_adapter *adapter)
-{
-	if (!be_physfn(adapter))
-		return false;
-	else
-		return true;
-}
 
 static void
 be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	if (be_is_wol_supported(adapter))
-		wol->supported = WAKE_MAGIC;
-
-	if (adapter->wol)
-		wol->wolopts = WAKE_MAGIC;
-	else
+	if (be_is_wol_supported(adapter)) {
+		wol->supported |= WAKE_MAGIC;
+		wol->wolopts |= WAKE_MAGIC;
+	} else
 		wol->wolopts = 0;
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
 }
@@ -630,9 +620,14 @@ be_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	if (wol->wolopts & ~WAKE_MAGIC)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
-	if ((wol->wolopts & WAKE_MAGIC) && be_is_wol_supported(adapter))
+	if (!be_is_wol_supported(adapter)) {
+		dev_warn(&adapter->pdev->dev, "WOL not supported\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (wol->wolopts & WAKE_MAGIC)
 		adapter->wol = true;
 	else
 		adapter->wol = false;

@@ -52,6 +52,10 @@
 #define OC_DEVICE_ID3		0xe220	/* Device id for Lancer cards */
 #define OC_DEVICE_ID4           0xe228   /* Device id for VF in Lancer */
 #define OC_DEVICE_ID5		0x720	/* Device Id for Skyhawk cards */
+#define OC_SUBSYS_DEVICE_ID1	0xE602
+#define OC_SUBSYS_DEVICE_ID2	0xE642
+#define OC_SUBSYS_DEVICE_ID3	0xE612
+#define OC_SUBSYS_DEVICE_ID4	0xE652
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
@@ -365,7 +369,6 @@ struct be_adapter {
 	bool fw_timeout;
 	u32 port_num;
 	bool promiscuous;
-	bool wol;
 	u32 function_mode;
 	u32 function_caps;
 	u32 rx_fc;		/* Rx flow control */
@@ -386,6 +389,8 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
+	u8 wol_cap;
+	bool wol;
 };
 
 #define be_physfn(adapter) (!adapter->is_virtfn)
@@ -549,9 +554,28 @@ static inline bool be_error(struct be_adapter *adapter)
 	return adapter->eeh_err || adapter->ue_detected || adapter->fw_timeout;
 }
 
+static inline bool be_is_wol_excluded(struct be_adapter *adapter)
+{
+	struct pci_dev *pdev = adapter->pdev;
+
+	if (!be_physfn(adapter))
+		return true;
+
+	switch (pdev->subsystem_device) {
+	case OC_SUBSYS_DEVICE_ID1:
+	case OC_SUBSYS_DEVICE_ID2:
+	case OC_SUBSYS_DEVICE_ID3:
+	case OC_SUBSYS_DEVICE_ID4:
+		return true;
+	default:
+		return false;
+	}
+}
+
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,
 		u16 num_popped);
 extern void be_link_status_update(struct be_adapter *adapter, u8 link_status);
 extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
+extern bool be_is_wol_supported(struct be_adapter *adapter);
 #endif				/* BE_H */
