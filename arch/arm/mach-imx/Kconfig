@@ -68,6 +68,7 @@ config SOC_IMX31
 	select CPU_V6
 	select IMX_HAVE_PLATFORM_MXC_RNGA
 	select MXC_AVIC
+	select COMMON_CLK
 	select SMP_ON_UP if SMP
 
 config SOC_IMX35
