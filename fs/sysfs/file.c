@@ -493,6 +493,12 @@ int sysfs_attr_ns(struct kobject *kobj, const struct attribute *attr,
 	const void *ns = NULL;
 	int err;
 
+	if (!dir_sd) {
+		WARN(1, KERN_ERR "sysfs: kobject %s without dirent\n",
+			kobject_name(kobj));
+		return -ENOENT;
+	}
+
 	err = 0;
 	if (!sysfs_ns_type(dir_sd))
 		goto out;

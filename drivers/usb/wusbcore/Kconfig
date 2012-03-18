@@ -6,7 +6,7 @@ config USB_WUSB
 	depends on EXPERIMENTAL
 	depends on USB
 	depends on PCI
-        select UWB
+	depends on UWB
         select CRYPTO
         select CRYPTO_BLKCIPHER
         select CRYPTO_CBC

@@ -222,7 +222,6 @@ static inline void omap2430_low_level_init(struct musb *musb)
 	musb_writel(musb->mregs, OTG_FORCESTDBY, l);
 }
 
-/* blocking notifier support */
 static int musb_otg_notifications(struct notifier_block *nb,
 		unsigned long event, void *unused)
 {
@@ -231,7 +230,7 @@ static int musb_otg_notifications(struct notifier_block *nb,
 	musb->xceiv_event = event;
 	schedule_work(&musb->otg_notifier_work);
 
-	return 0;
+	return NOTIFY_OK;
 }
 
 static void musb_otg_notifier_work(struct work_struct *data_notifier_work)
@@ -386,6 +385,7 @@ static void omap2430_musb_disable(struct musb *musb)
 static int omap2430_musb_exit(struct musb *musb)
 {
 	del_timer_sync(&musb_idle_timer);
+	cancel_work_sync(&musb->otg_notifier_work);
 
 	omap2430_low_level_exit(musb);
 	otg_put_transceiver(musb->xceiv);

@@ -25,6 +25,7 @@
 
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
+#include <asm/udbg.h>
 #include <asm/fsl_guts.h>
 #include "smp.h"
 

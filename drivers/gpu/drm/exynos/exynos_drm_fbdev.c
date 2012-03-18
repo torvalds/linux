@@ -195,66 +195,6 @@ out:
 	return ret;
 }
 
-static bool
-exynos_drm_fbdev_is_samefb(struct drm_framebuffer *fb,
-			    struct drm_fb_helper_surface_size *sizes)
-{
-	if (fb->width != sizes->surface_width)
-		return false;
-	if (fb->height != sizes->surface_height)
-		return false;
-	if (fb->bits_per_pixel != sizes->surface_bpp)
-		return false;
-	if (fb->depth != sizes->surface_depth)
-		return false;
-
-	return true;
-}
-
-static int exynos_drm_fbdev_recreate(struct drm_fb_helper *helper,
-				      struct drm_fb_helper_surface_size *sizes)
-{
-	struct drm_device *dev = helper->dev;
-	struct exynos_drm_fbdev *exynos_fbdev = to_exynos_fbdev(helper);
-	struct exynos_drm_gem_obj *exynos_gem_obj;
-	struct drm_framebuffer *fb = helper->fb;
-	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	unsigned long size;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	if (exynos_drm_fbdev_is_samefb(fb, sizes))
-		return 0;
-
-	mode_cmd.width = sizes->surface_width;
-	mode_cmd.height = sizes->surface_height;
-	mode_cmd.pitches[0] = sizes->surface_width * (sizes->surface_bpp >> 3);
-	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
-							  sizes->surface_depth);
-
-	if (exynos_fbdev->exynos_gem_obj)
-		exynos_drm_gem_destroy(exynos_fbdev->exynos_gem_obj);
-
-	if (fb->funcs->destroy)
-		fb->funcs->destroy(fb);
-
-	size = mode_cmd.pitches[0] * mode_cmd.height;
-	exynos_gem_obj = exynos_drm_gem_create(dev, size);
-	if (IS_ERR(exynos_gem_obj))
-		return PTR_ERR(exynos_gem_obj);
-
-	exynos_fbdev->exynos_gem_obj = exynos_gem_obj;
-
-	helper->fb = exynos_drm_framebuffer_init(dev, &mode_cmd,
-			&exynos_gem_obj->base);
-	if (IS_ERR_OR_NULL(helper->fb)) {
-		DRM_ERROR("failed to create drm framebuffer.\n");
-		return PTR_ERR(helper->fb);
-	}
-
-	return exynos_drm_fbdev_update(helper, helper->fb);
-}
-
 static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,
 				   struct drm_fb_helper_surface_size *sizes)
 {
@@ -262,6 +202,10 @@ static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
+	/*
+	 * with !helper->fb, it means that this funcion is called first time
+	 * and after that, the helper->fb would be used as clone mode.
+	 */
 	if (!helper->fb) {
 		ret = exynos_drm_fbdev_create(helper, sizes);
 		if (ret < 0) {
@@ -274,12 +218,6 @@ static int exynos_drm_fbdev_probe(struct drm_fb_helper *helper,
 		 * because register_framebuffer() should be called.
 		 */
 		ret = 1;
-	} else {
-		ret = exynos_drm_fbdev_recreate(helper, sizes);
-		if (ret < 0) {
-			DRM_ERROR("failed to reconfigure fbdev\n");
-			return ret;
-		}
 	}
 
 	return ret;

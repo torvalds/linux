@@ -198,3 +198,5 @@ static int __init jornada_ssp_init(void)
 {
 	return platform_driver_register(&jornadassp_driver);
 }
+
+module_init(jornada_ssp_init);

@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 
-#ifdef CONFIG_ARCH_OMAP2PLUS
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 extern int omap_secure_ram_reserve_memblock(void);
 #else
 static inline void omap_secure_ram_reserve_memblock(void)

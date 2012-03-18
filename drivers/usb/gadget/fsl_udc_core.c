@@ -1430,7 +1430,7 @@ static void setup_received_irq(struct fsl_udc *udc,
 			int pipe = get_pipe_by_windex(wIndex);
 			struct fsl_ep *ep;
 
-			if (wValue != 0 || wLength != 0 || pipe > udc->max_ep)
+			if (wValue != 0 || wLength != 0 || pipe >= udc->max_ep)
 				break;
 			ep = get_ep_by_pipe(udc, pipe);
 
@@ -1673,7 +1673,7 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 	if (!bit_pos)
 		return;
 
-	for (i = 0; i < udc->max_ep * 2; i++) {
+	for (i = 0; i < udc->max_ep; i++) {
 		ep_num = i >> 1;
 		direction = i % 2;
 

@@ -27,7 +27,7 @@ static cpumask_t cpu_coregroup_map(unsigned int cpu)
 	 * Presently all SH-X3 SMP cores are multi-cores, so just keep it
 	 * simple until we have a method for determining topology..
 	 */
-	return cpu_possible_map;
+	return *cpu_possible_mask;
 }
 
 const struct cpumask *cpu_coregroup_mask(unsigned int cpu)

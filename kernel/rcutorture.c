@@ -56,8 +56,8 @@ static int nreaders = -1;	/* # reader threads, defaults to 2*ncpus */
 static int nfakewriters = 4;	/* # fake writer threads */
 static int stat_interval;	/* Interval between stats, in seconds. */
 				/*  Defaults to "only at end of test". */
-static int verbose;		/* Print more debug info. */
-static int test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
+static bool verbose;		/* Print more debug info. */
+static bool test_no_idle_hz;	/* Test RCU's support for tickless idle CPUs. */
 static int shuffle_interval = 3; /* Interval between shuffles (in sec)*/
 static int stutter = 5;		/* Start/stop testing interval (in sec) */
 static int irqreader = 1;	/* RCU readers from irq (timers). */
@@ -1399,7 +1399,7 @@ rcu_torture_shutdown(void *arg)
  * Execute random CPU-hotplug operations at the interval specified
  * by the onoff_interval.
  */
-static int
+static int __cpuinit
 rcu_torture_onoff(void *arg)
 {
 	int cpu;
@@ -1447,7 +1447,7 @@ rcu_torture_onoff(void *arg)
 	return 0;
 }
 
-static int
+static int __cpuinit
 rcu_torture_onoff_init(void)
 {
 	if (onoff_interval <= 0)

@@ -48,7 +48,7 @@ static void s3c2416_pm_prepare(void)
 	__raw_writel(virt_to_phys(s3c_cpu_resume), S3C2412_INFORM1);
 }
 
-static int s3c2416_pm_add(struct device *dev)
+static int s3c2416_pm_add(struct device *dev, struct subsys_interface *sif)
 {
 	pm_cpu_prep = s3c2416_pm_prepare;
 	pm_cpu_sleep = s3c2416_cpu_suspend;
