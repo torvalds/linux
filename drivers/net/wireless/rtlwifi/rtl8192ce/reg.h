@@ -1190,7 +1190,6 @@
 
 #define USB_AGG_EN				BIT(3)
 
-#define MAC_ADDR_LEN				6
 #define LAST_ENTRY_OF_TX_PKT_BUFFER		255
 
 #define POLLING_LLT_THRESHOLD			20
