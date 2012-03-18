@@ -52,7 +52,8 @@ struct ieee80211_local;
  * increased memory use (about 2 kB of RAM per entry). */
 #define IEEE80211_FRAGMENT_MAX 4
 
-#define TU_TO_EXP_TIME(x)	(jiffies + usecs_to_jiffies((x) * 1024))
+#define TU_TO_JIFFIES(x)	(usecs_to_jiffies((x) * 1024))
+#define TU_TO_EXP_TIME(x)	(jiffies + TU_TO_JIFFIES(x))
 
 #define IEEE80211_DEFAULT_UAPSD_QUEUES \
 	(IEEE80211_WMM_IE_STA_QOSINFO_AC_BK |	\

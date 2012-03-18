@@ -417,6 +417,18 @@ static void sta_tx_agg_session_timer_expired(unsigned long data)
 	u8 *timer_to_id = ptid - *ptid;
 	struct sta_info *sta = container_of(timer_to_id, struct sta_info,
 					 timer_to_tid[0]);
+	struct tid_ampdu_tx *tid_tx;
+	unsigned long timeout;
+
+	tid_tx = rcu_dereference_protected_tid_tx(sta, *ptid);
+	if (!tid_tx)
+		return;
+
+	timeout = tid_tx->last_tx + TU_TO_JIFFIES(tid_tx->timeout);
+	if (time_is_after_jiffies(timeout)) {
+		mod_timer(&tid_tx->session_timer, timeout);
+		return;
+	}
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "tx session timer expired on tid %d\n", (u16)*ptid);
@@ -542,7 +554,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	/* tx timer */
 	tid_tx->session_timer.function = sta_tx_agg_session_timer_expired;
 	tid_tx->session_timer.data = (unsigned long)&sta->timer_to_tid[tid];
-	init_timer(&tid_tx->session_timer);
+	init_timer_deferrable(&tid_tx->session_timer);
 
 	/* assign a dialog token */
 	sta->ampdu_mlme.dialog_token_allocator++;
@@ -884,9 +896,11 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 		sta->ampdu_mlme.addba_req_num[tid] = 0;
 
-		if (tid_tx->timeout)
+		if (tid_tx->timeout) {
 			mod_timer(&tid_tx->session_timer,
 				  TU_TO_EXP_TIME(tid_tx->timeout));
+			tid_tx->last_tx = jiffies;
+		}
 
 	} else {
 		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR,

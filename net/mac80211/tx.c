@@ -1118,8 +1118,7 @@ static bool ieee80211_tx_prep_agg(struct ieee80211_tx_data *tx,
 
 	/* reset session timer */
 	if (reset_agg_timer && tid_tx->timeout)
-		mod_timer(&tid_tx->session_timer,
-			  TU_TO_EXP_TIME(tid_tx->timeout));
+		tid_tx->last_tx = jiffies;
 
 	return queued;
 }

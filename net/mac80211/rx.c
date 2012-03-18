@@ -793,8 +793,7 @@ static void ieee80211_rx_reorder_ampdu(struct ieee80211_rx_data *rx)
 
 	/* reset session timer */
 	if (tid_agg_rx->timeout)
-		mod_timer(&tid_agg_rx->session_timer,
-			  TU_TO_EXP_TIME(tid_agg_rx->timeout));
+		tid_agg_rx->last_rx = jiffies;
 
 	/* if this mpdu is fragmented - terminate rx aggregation session */
 	sc = le16_to_cpu(hdr->seq_ctrl);
