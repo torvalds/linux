@@ -25,6 +25,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/acpi.h>
 #include <linux/acpi_io.h>
 #include <acpi/video.h>
@@ -355,7 +357,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 	}
 
 	if (!acpi_video_bus) {
-		printk(KERN_WARNING "No ACPI video bus found\n");
+		pr_warn("No ACPI video bus found\n");
 		return;
 	}
 

@@ -28,6 +28,8 @@
  *      Chris Wilson <chris@chris-wilson.co.uk>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/moduleparam.h>
 #include "intel_drv.h"
 
@@ -172,7 +174,7 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 		/* XXX add code here to query mode clock or hardware clock
 		 * and program max PWM appropriately.
 		 */
-		printk_once(KERN_WARNING "fixme: max PWM is zero.\n");
+		pr_warn_once("fixme: max PWM is zero\n");
 		return 1;
 	}
 
