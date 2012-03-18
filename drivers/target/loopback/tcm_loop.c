@@ -233,8 +233,7 @@ static void tcm_loop_submission_work(struct work_struct *work)
 				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE, 0);
 		transport_generic_free_cmd(se_cmd, 0);
 		return;
-	}
-	if (ret == -EINVAL) {
+	} else if (ret < 0) {
 		if (se_cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT)
 			tcm_loop_queue_status(se_cmd);
 		else
