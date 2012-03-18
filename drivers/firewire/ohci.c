@@ -172,7 +172,7 @@ struct iso_context {
 	struct context context;
 	void *header;
 	size_t header_length;
-
+	u16 last_timestamp;
 	u8 sync;
 	u8 tags;
 };
@@ -2676,6 +2676,14 @@ static void ohci_write_csr(struct fw_card *card, int csr_offset, u32 value)
 	}
 }
 
+static void flush_iso_completions(struct iso_context *ctx)
+{
+	ctx->base.callback.sc(&ctx->base, ctx->last_timestamp,
+			      ctx->header_length, ctx->header,
+			      ctx->base.callback_data);
+	ctx->header_length = 0;
+}
+
 static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 {
 	u32 *ctx_hdr;
@@ -2684,6 +2692,7 @@ static void copy_iso_headers(struct iso_context *ctx, const u32 *dma_hdr)
 		return;
 
 	ctx_hdr = ctx->header + ctx->header_length;
+	ctx->last_timestamp = (u16)le32_to_cpu((__force __le32)dma_hdr[0]);
 
 	/*
 	 * The two iso header quadlets are byteswapped to little
@@ -2707,8 +2716,6 @@ static int handle_ir_packet_per_buffer(struct context *context,
 		container_of(context, struct iso_context, context);
 	struct descriptor *pd;
 	u32 buffer_dma;
-	__le32 *ir_header;
-	void *p;
 
 	for (pd = d; pd <= last; pd++)
 		if (pd->transfer_status)
@@ -2727,17 +2734,10 @@ static int handle_ir_packet_per_buffer(struct context *context,
 					      DMA_FROM_DEVICE);
 	}
 
-	p = last + 1;
-	copy_iso_headers(ctx, p);
+	copy_iso_headers(ctx, (u32 *) (last + 1));
 
-	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS)) {
-		ir_header = (__le32 *) p;
-		ctx->base.callback.sc(&ctx->base,
-				      le32_to_cpu(ir_header[0]) & 0xffff,
-				      ctx->header_length, ctx->header,
-				      ctx->base.callback_data);
-		ctx->header_length = 0;
-	}
+	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
+		flush_iso_completions(ctx);
 
 	return 1;
 }
@@ -2834,12 +2834,11 @@ static int handle_it_packet(struct context *context,
 				le16_to_cpu(pd->res_count));
 		ctx->header_length += 4;
 	}
-	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS)) {
-		ctx->base.callback.sc(&ctx->base, le16_to_cpu(last->res_count),
-				      ctx->header_length, ctx->header,
-				      ctx->base.callback_data);
-		ctx->header_length = 0;
-	}
+
+	ctx->last_timestamp = le16_to_cpu(last->res_count);
+	if (last->control & cpu_to_le16(DESCRIPTOR_IRQ_ALWAYS))
+		flush_iso_completions(ctx);
+
 	return 1;
 }
 
