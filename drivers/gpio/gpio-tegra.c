@@ -428,7 +428,7 @@ static int __init tegra_gpio_init(void)
 }
 postcore_initcall(tegra_gpio_init);
 
-void __init tegra_gpio_config(struct tegra_gpio_table *table, int num)
+void tegra_gpio_config(struct tegra_gpio_table *table, int num)
 {
 	int i;
 
