@@ -8021,7 +8021,7 @@ void md_ack_all_badblocks(struct badblocks *bb)
 		return;
 	write_seqlock_irq(&bb->lock);
 
-	if (bb->changed == 0) {
+	if (bb->changed == 0 && bb->unacked_exist) {
 		u64 *p = bb->page;
 		int i;
 		for (i = 0; i < bb->count ; i++) {
