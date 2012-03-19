@@ -358,7 +358,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 
 static void XGIRegInit(struct vb_device_info *XGI_Pr, unsigned long BaseAddr)
 {
-	XGI_Pr->RelIO = BaseAddr;
 	XGI_Pr->P3c4 = BaseAddr + 0x14;
 	XGI_Pr->P3d4 = BaseAddr + 0x24;
 	XGI_Pr->P3c0 = BaseAddr + 0x10;
@@ -1911,11 +1910,9 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->mmio_base = pci_resource_start(pdev, 1);
 	xgifb_info->mmio_size = pci_resource_len(pdev, 1);
 	xgifb_info->vga_base = pci_resource_start(pdev, 2) + 0x30;
-	hw_info->pjIOAddress = (unsigned char *)xgifb_info->vga_base;
-	/* XGI_Pr.RelIO  = ioremap(pci_resource_start(pdev, 2), 128) + 0x30; */
 	pr_info("Relocate IO address: %lx [%08lx]\n",
 	       (unsigned long)pci_resource_start(pdev, 2),
-	       xgifb_info->dev_info.RelIO);
+	       xgifb_info->vga_base);
 
 	if (pci_enable_device(pdev)) {
 		ret = -EIO;

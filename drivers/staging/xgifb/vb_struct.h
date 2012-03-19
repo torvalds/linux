@@ -236,7 +236,6 @@ struct vb_device_info {
 
 	void __iomem *FBAddr;
 	unsigned long BaseAddr;
-	unsigned long RelIO;
 
 	unsigned char (*CR6B)[4];
 	unsigned char (*CR6E)[4];
