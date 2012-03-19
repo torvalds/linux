@@ -465,7 +465,6 @@ struct fimc_dev {
 
 /**
  * fimc_ctx - the device context data
- * @slock:		spinlock protecting this data structure
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
  * @out_order_1p:	output 1-plane YCBCR order
@@ -492,7 +491,6 @@ struct fimc_dev {
  * @ctrls_rdy:		true if the control handler is initialized
  */
 struct fimc_ctx {
-	spinlock_t		slock;
 	struct fimc_frame	s_frame;
 	struct fimc_frame	d_frame;
 	u32			out_order_1p;
@@ -560,13 +558,13 @@ static inline bool fimc_capture_active(struct fimc_dev *fimc)
 	return ret;
 }
 
-static inline void fimc_ctx_state_lock_set(u32 state, struct fimc_ctx *ctx)
+static inline void fimc_ctx_state_set(u32 state, struct fimc_ctx *ctx)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irqsave(&ctx->fimc_dev->slock, flags);
 	ctx->state |= state;
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irqrestore(&ctx->fimc_dev->slock, flags);
 }
 
 static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
@@ -574,9 +572,9 @@ static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
 	unsigned long flags;
 	bool ret;
 
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irqsave(&ctx->fimc_dev->slock, flags);
 	ret = (ctx->state & mask) == mask;
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irqrestore(&ctx->fimc_dev->slock, flags);
 	return ret;
 }
 

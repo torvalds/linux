@@ -320,7 +320,7 @@ static int fimc_m2m_shutdown(struct fimc_ctx *ctx)
 	if (!fimc_m2m_pending(fimc))
 		return 0;
 
-	fimc_ctx_state_lock_set(FIMC_CTX_SHUT, ctx);
+	fimc_ctx_state_set(FIMC_CTX_SHUT, ctx);
 
 	ret = wait_event_timeout(fimc->irq_queue,
 			   !fimc_ctx_state_is_set(FIMC_CTX_SHUT, ctx),
@@ -430,14 +430,12 @@ static irqreturn_t fimc_irq_handler(int irq, void *priv)
 			spin_unlock(&fimc->slock);
 			fimc_m2m_job_finish(ctx, VB2_BUF_STATE_DONE);
 
-			spin_lock(&ctx->slock);
 			if (ctx->state & FIMC_CTX_SHUT) {
 				ctx->state &= ~FIMC_CTX_SHUT;
 				wake_up(&fimc->irq_queue);
 			}
-			spin_unlock(&ctx->slock);
+			return IRQ_HANDLED;
 		}
-		return IRQ_HANDLED;
 	} else if (test_bit(ST_CAPT_PEND, &fimc->state)) {
 		fimc_capture_irq_handler(fimc,
 				 !test_bit(ST_CAPT_JPEG, &fimc->state));
@@ -644,7 +642,6 @@ static void fimc_dma_run(void *priv)
 	spin_lock_irqsave(&fimc->slock, flags);
 	set_bit(ST_M2M_PEND, &fimc->state);
 
-	spin_lock(&ctx->slock);
 	ctx->state |= (FIMC_SRC_ADDR | FIMC_DST_ADDR);
 	ret = fimc_prepare_config(ctx, ctx->state);
 	if (ret)
@@ -661,10 +658,8 @@ static void fimc_dma_run(void *priv)
 		fimc_hw_set_input_path(ctx);
 		fimc_hw_set_in_dma(ctx);
 		ret = fimc_set_scaler_info(ctx);
-		if (ret) {
-			spin_unlock(&fimc->slock);
+		if (ret)
 			goto dma_unlock;
-		}
 		fimc_hw_set_prescaler(ctx);
 		fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
@@ -688,7 +683,6 @@ static void fimc_dma_run(void *priv)
 		       FIMC_SRC_FMT | FIMC_DST_FMT);
 	fimc_hw_activate_input_dma(fimc, true);
 dma_unlock:
-	spin_unlock(&ctx->slock);
 	spin_unlock_irqrestore(&fimc->slock, flags);
 }
 
@@ -827,9 +821,9 @@ static int fimc_s_ctrl(struct v4l2_ctrl *ctrl)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&ctx->slock, flags);
+	spin_lock_irqsave(&ctx->fimc_dev->slock, flags);
 	ret = __fimc_s_ctrl(ctx, ctrl);
-	spin_unlock_irqrestore(&ctx->slock, flags);
+	spin_unlock_irqrestore(&ctx->fimc_dev->slock, flags);
 
 	return ret;
 }
@@ -1174,9 +1168,9 @@ static int fimc_m2m_s_fmt_mplane(struct file *file, void *fh,
 	ctx->scaler.enabled = 1;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		fimc_ctx_state_lock_set(FIMC_PARAMS | FIMC_DST_FMT, ctx);
+		fimc_ctx_state_set(FIMC_PARAMS | FIMC_DST_FMT, ctx);
 	else
-		fimc_ctx_state_lock_set(FIMC_PARAMS | FIMC_SRC_FMT, ctx);
+		fimc_ctx_state_set(FIMC_PARAMS | FIMC_SRC_FMT, ctx);
 
 	dbg("f_w: %d, f_h: %d", frame->f_width, frame->f_height);
 
@@ -1363,7 +1357,7 @@ static int fimc_m2m_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
 	f->width  = cr->c.width;
 	f->height = cr->c.height;
 
-	fimc_ctx_state_lock_set(FIMC_PARAMS, ctx);
+	fimc_ctx_state_set(FIMC_PARAMS, ctx);
 
 	return 0;
 }
@@ -1467,7 +1461,6 @@ static int fimc_m2m_open(struct file *file)
 	ctx->flags = 0;
 	ctx->in_path = FIMC_DMA;
 	ctx->out_path = FIMC_DMA;
-	spin_lock_init(&ctx->slock);
 
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(fimc->m2m.m2m_dev, ctx, queue_init);
 	if (IS_ERR(ctx->m2m_ctx)) {

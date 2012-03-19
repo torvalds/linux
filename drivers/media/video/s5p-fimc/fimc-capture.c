@@ -147,21 +147,22 @@ int fimc_capture_config_update(struct fimc_ctx *ctx)
 	if (!test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
 		return 0;
 
-	spin_lock(&ctx->slock);
 	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
+
 	ret = fimc_set_scaler_info(ctx);
-	if (ret == 0) {
-		fimc_hw_set_prescaler(ctx);
-		fimc_hw_set_mainscaler(ctx);
-		fimc_hw_set_target_format(ctx);
-		fimc_hw_set_rotation(ctx);
-		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
-		fimc_hw_set_out_dma(ctx);
-		if (fimc->variant->has_alpha)
-			fimc_hw_set_rgb_alpha(ctx);
-		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
-	}
-	spin_unlock(&ctx->slock);
+	if (ret)
+		return ret;
+
+	fimc_hw_set_prescaler(ctx);
+	fimc_hw_set_mainscaler(ctx);
+	fimc_hw_set_target_format(ctx);
+	fimc_hw_set_rotation(ctx);
+	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
+	fimc_hw_set_out_dma(ctx);
+	if (fimc->variant->has_alpha)
+		fimc_hw_set_rgb_alpha(ctx);
+
+	clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	return ret;
 }
 
@@ -1525,7 +1526,6 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 
 	INIT_LIST_HEAD(&vid_cap->pending_buf_q);
 	INIT_LIST_HEAD(&vid_cap->active_buf_q);
-	spin_lock_init(&ctx->slock);
 	vid_cap->ctx = ctx;
 
 	q = &fimc->vid_cap.vbq;
