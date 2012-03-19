@@ -80,7 +80,9 @@ struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 	if (WARN_ON(!priv || !ops
 			  || !ops->map_dma_buf
 			  || !ops->unmap_dma_buf
-			  || !ops->release)) {
+			  || !ops->release
+			  || !ops->kmap_atomic
+			  || !ops->kmap)) {
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -284,3 +286,123 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 						direction);
 }
 EXPORT_SYMBOL_GPL(dma_buf_unmap_attachment);
+
+
+/**
+ * dma_buf_begin_cpu_access - Must be called before accessing a dma_buf from the
+ * cpu in the kernel context. Calls begin_cpu_access to allow exporter-specific
+ * preparations. Coherency is only guaranteed in the specified range for the
+ * specified access direction.
+ * @dma_buf:	[in]	buffer to prepare cpu access for.
+ * @start:	[in]	start of range for cpu access.
+ * @len:	[in]	length of range for cpu access.
+ * @direction:	[in]	length of range for cpu access.
+ *
+ * Can return negative error values, returns 0 on success.
+ */
+int dma_buf_begin_cpu_access(struct dma_buf *dmabuf, size_t start, size_t len,
+			     enum dma_data_direction direction)
+{
+	int ret = 0;
+
+	if (WARN_ON(!dmabuf))
+		return -EINVAL;
+
+	if (dmabuf->ops->begin_cpu_access)
+		ret = dmabuf->ops->begin_cpu_access(dmabuf, start, len, direction);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access);
+
+/**
+ * dma_buf_end_cpu_access - Must be called after accessing a dma_buf from the
+ * cpu in the kernel context. Calls end_cpu_access to allow exporter-specific
+ * actions. Coherency is only guaranteed in the specified range for the
+ * specified access direction.
+ * @dma_buf:	[in]	buffer to complete cpu access for.
+ * @start:	[in]	start of range for cpu access.
+ * @len:	[in]	length of range for cpu access.
+ * @direction:	[in]	length of range for cpu access.
+ *
+ * This call must always succeed.
+ */
+void dma_buf_end_cpu_access(struct dma_buf *dmabuf, size_t start, size_t len,
+			    enum dma_data_direction direction)
+{
+	WARN_ON(!dmabuf);
+
+	if (dmabuf->ops->end_cpu_access)
+		dmabuf->ops->end_cpu_access(dmabuf, start, len, direction);
+}
+EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
+
+/**
+ * dma_buf_kmap_atomic - Map a page of the buffer object into kernel address
+ * space. The same restrictions as for kmap_atomic and friends apply.
+ * @dma_buf:	[in]	buffer to map page from.
+ * @page_num:	[in]	page in PAGE_SIZE units to map.
+ *
+ * This call must always succeed, any necessary preparations that might fail
+ * need to be done in begin_cpu_access.
+ */
+void *dma_buf_kmap_atomic(struct dma_buf *dmabuf, unsigned long page_num)
+{
+	WARN_ON(!dmabuf);
+
+	return dmabuf->ops->kmap_atomic(dmabuf, page_num);
+}
+EXPORT_SYMBOL_GPL(dma_buf_kmap_atomic);
+
+/**
+ * dma_buf_kunmap_atomic - Unmap a page obtained by dma_buf_kmap_atomic.
+ * @dma_buf:	[in]	buffer to unmap page from.
+ * @page_num:	[in]	page in PAGE_SIZE units to unmap.
+ * @vaddr:	[in]	kernel space pointer obtained from dma_buf_kmap_atomic.
+ *
+ * This call must always succeed.
+ */
+void dma_buf_kunmap_atomic(struct dma_buf *dmabuf, unsigned long page_num,
+			   void *vaddr)
+{
+	WARN_ON(!dmabuf);
+
+	if (dmabuf->ops->kunmap_atomic)
+		dmabuf->ops->kunmap_atomic(dmabuf, page_num, vaddr);
+}
+EXPORT_SYMBOL_GPL(dma_buf_kunmap_atomic);
+
+/**
+ * dma_buf_kmap - Map a page of the buffer object into kernel address space. The
+ * same restrictions as for kmap and friends apply.
+ * @dma_buf:	[in]	buffer to map page from.
+ * @page_num:	[in]	page in PAGE_SIZE units to map.
+ *
+ * This call must always succeed, any necessary preparations that might fail
+ * need to be done in begin_cpu_access.
+ */
+void *dma_buf_kmap(struct dma_buf *dmabuf, unsigned long page_num)
+{
+	WARN_ON(!dmabuf);
+
+	return dmabuf->ops->kmap(dmabuf, page_num);
+}
+EXPORT_SYMBOL_GPL(dma_buf_kmap);
+
+/**
+ * dma_buf_kunmap - Unmap a page obtained by dma_buf_kmap.
+ * @dma_buf:	[in]	buffer to unmap page from.
+ * @page_num:	[in]	page in PAGE_SIZE units to unmap.
+ * @vaddr:	[in]	kernel space pointer obtained from dma_buf_kmap.
+ *
+ * This call must always succeed.
+ */
+void dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long page_num,
+		    void *vaddr)
+{
+	WARN_ON(!dmabuf);
+
+	if (dmabuf->ops->kunmap)
+		dmabuf->ops->kunmap(dmabuf, page_num, vaddr);
+}
+EXPORT_SYMBOL_GPL(dma_buf_kunmap);
