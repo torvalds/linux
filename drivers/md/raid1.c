@@ -523,6 +523,7 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 		rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (r1_bio->bios[disk] == IO_BLOCKED
 		    || rdev == NULL
+		    || test_bit(Unmerged, &rdev->flags)
 		    || test_bit(Faulty, &rdev->flags))
 			continue;
 		if (!test_bit(In_sync, &rdev->flags) &&
@@ -612,6 +613,39 @@ static int read_balance(struct r1conf *conf, struct r1bio *r1_bio, int *max_sect
 	*max_sectors = sectors;
 
 	return best_disk;
+}
+
+static int raid1_mergeable_bvec(struct request_queue *q,
+				struct bvec_merge_data *bvm,
+				struct bio_vec *biovec)
+{
+	struct mddev *mddev = q->queuedata;
+	struct r1conf *conf = mddev->private;
+	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
+	int max = biovec->bv_len;
+
+	if (mddev->merge_check_needed) {
+		int disk;
+		rcu_read_lock();
+		for (disk = 0; disk < conf->raid_disks * 2; disk++) {
+			struct md_rdev *rdev = rcu_dereference(
+				conf->mirrors[disk].rdev);
+			if (rdev && !test_bit(Faulty, &rdev->flags)) {
+				struct request_queue *q =
+					bdev_get_queue(rdev->bdev);
+				if (q->merge_bvec_fn) {
+					bvm->bi_sector = sector +
+						rdev->data_offset;
+					bvm->bi_bdev = rdev->bdev;
+					max = min(max, q->merge_bvec_fn(
+							  q, bvm, biovec));
+				}
+			}
+		}
+		rcu_read_unlock();
+	}
+	return max;
+
 }
 
 int md_raid1_congested(struct mddev *mddev, int bits)
@@ -1015,7 +1049,8 @@ read_again:
 			break;
 		}
 		r1_bio->bios[i] = NULL;
-		if (!rdev || test_bit(Faulty, &rdev->flags)) {
+		if (!rdev || test_bit(Faulty, &rdev->flags)
+		    || test_bit(Unmerged, &rdev->flags)) {
 			if (i < conf->raid_disks)
 				set_bit(R1BIO_Degraded, &r1_bio->state);
 			continue;
@@ -1335,6 +1370,7 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	struct mirror_info *p;
 	int first = 0;
 	int last = conf->raid_disks - 1;
+	struct request_queue *q = bdev_get_queue(rdev->bdev);
 
 	if (mddev->recovery_disabled == conf->recovery_disabled)
 		return -EBUSY;
@@ -1342,23 +1378,17 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (rdev->raid_disk >= 0)
 		first = last = rdev->raid_disk;
 
+	if (q->merge_bvec_fn) {
+		set_bit(Unmerged, &rdev->flags);
+		mddev->merge_check_needed = 1;
+	}
+
 	for (mirror = first; mirror <= last; mirror++) {
 		p = conf->mirrors+mirror;
 		if (!p->rdev) {
 
 			disk_stack_limits(mddev->gendisk, rdev->bdev,
 					  rdev->data_offset << 9);
-			/* as we don't honour merge_bvec_fn, we must
-			 * never risk violating it, so limit
-			 * ->max_segments to one lying with a single
-			 * page, as a one page request is never in
-			 * violation.
-			 */
-			if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
-				blk_queue_max_segments(mddev->queue, 1);
-				blk_queue_segment_boundary(mddev->queue,
-							   PAGE_CACHE_SIZE - 1);
-			}
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
@@ -1382,6 +1412,19 @@ static int raid1_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			rcu_assign_pointer(p[conf->raid_disks].rdev, rdev);
 			break;
 		}
+	}
+	if (err == 0 && test_bit(Unmerged, &rdev->flags)) {
+		/* Some requests might not have seen this new
+		 * merge_bvec_fn.  We must wait for them to complete
+		 * before merging the device fully.
+		 * First we make sure any code which has tested
+		 * our function has submitted the request, then
+		 * we wait for all outstanding requests to complete.
+		 */
+		synchronize_sched();
+		raise_barrier(conf);
+		lower_barrier(conf);
+		clear_bit(Unmerged, &rdev->flags);
 	}
 	md_integrity_add_rdev(rdev, mddev);
 	print_conf(conf);
@@ -2627,15 +2670,6 @@ static int run(struct mddev *mddev)
 			continue;
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
-		/* as we don't honour merge_bvec_fn, we must never risk
-		 * violating it, so limit ->max_segments to 1 lying within
-		 * a single page, as a one page request is never in violation.
-		 */
-		if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
-			blk_queue_max_segments(mddev->queue, 1);
-			blk_queue_segment_boundary(mddev->queue,
-						   PAGE_CACHE_SIZE - 1);
-		}
 	}
 
 	mddev->degraded = 0;
@@ -2669,6 +2703,7 @@ static int run(struct mddev *mddev)
 	if (mddev->queue) {
 		mddev->queue->backing_dev_info.congested_fn = raid1_congested;
 		mddev->queue->backing_dev_info.congested_data = mddev;
+		blk_queue_merge_bvec(mddev->queue, raid1_mergeable_bvec);
 	}
 	return md_integrity_register(mddev);
 }
