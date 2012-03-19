@@ -132,15 +132,17 @@ static int xen_wdt_open(struct inode *inode, struct file *file)
 
 static int xen_wdt_release(struct inode *inode, struct file *file)
 {
+	int err = 0;
+
 	if (expect_release)
-		xen_wdt_stop();
+		err = xen_wdt_stop();
 	else {
 		pr_crit("unexpected close, not stopping watchdog!\n");
 		xen_wdt_kick();
 	}
-	is_active = false;
+	is_active = err;
 	expect_release = false;
-	return 0;
+	return err;
 }
 
 static ssize_t xen_wdt_write(struct file *file, const char __user *data,
