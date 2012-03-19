@@ -79,6 +79,7 @@ enum e_ctrl {
 	EXPOSURE,
 	GAIN,
 	AUTOGAIN,
+	QUALITY,
 	NCTRLS		/* number of controls */
 };
 
@@ -87,6 +88,8 @@ struct sd {
 	struct gspca_dev gspca_dev;
 
 	struct gspca_ctrl ctrls[NCTRLS];
+
+	u8 fmt;				/* (used for JPEG QTAB update */
 
 #define MIN_AVG_LUM 80
 #define MAX_AVG_LUM 130
@@ -101,7 +104,6 @@ struct sd {
 	u8 vstart;
 
 	u8 jpeg_hdr[JPEG_HDR_SZ];
-	u8 quality;
 
 	u8 flags;
 };
@@ -162,6 +164,7 @@ static void set_redblue(struct gspca_dev *gspca_dev);
 static void set_hvflip(struct gspca_dev *gspca_dev);
 static void set_exposure(struct gspca_dev *gspca_dev);
 static void set_gain(struct gspca_dev *gspca_dev);
+static void set_quality(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[NCTRLS] = {
 [BRIGHTNESS] = {
@@ -306,6 +309,21 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.step    = 1,
 		.default_value = 1,
 	    },
+	},
+[QUALITY] = {
+	    {
+		.id      = V4L2_CID_JPEG_COMPRESSION_QUALITY,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Compression Quality",
+#define QUALITY_MIN 50
+#define QUALITY_MAX 90
+#define QUALITY_DEF 80
+		.minimum = QUALITY_MIN,
+		.maximum = QUALITY_MAX,
+		.step    = 1,
+		.default_value = QUALITY_DEF,
+	    },
+	    .set_control = set_quality
 	},
 };
 
@@ -1732,6 +1750,21 @@ static void set_gain(struct gspca_dev *gspca_dev)
 	i2c_w(gspca_dev, gain);
 }
 
+static void set_quality(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	jpeg_set_qual(sd->jpeg_hdr, sd->ctrls[QUALITY].val);
+	reg_w1(gspca_dev, 0x1061, 0x01);	/* stop transfer */
+	reg_w1(gspca_dev, 0x10e0, sd->fmt | 0x20); /* write QTAB */
+	reg_w(gspca_dev, 0x1100, &sd->jpeg_hdr[JPEG_QT0_OFFSET], 64);
+	reg_w(gspca_dev, 0x1140, &sd->jpeg_hdr[JPEG_QT1_OFFSET], 64);
+	reg_w1(gspca_dev, 0x1061, 0x03);	/* restart transfer */
+	reg_w1(gspca_dev, 0x10e0, sd->fmt);
+	sd->fmt ^= 0x0c;			/* invert QTAB use + write */
+	reg_w1(gspca_dev, 0x10e0, sd->fmt);
+}
+
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 			struct v4l2_dbg_register *reg)
@@ -1846,7 +1879,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	gspca_dev->cam.ctrls = sd->ctrls;
 
-	sd->quality = 95;
 
 	return 0;
 }
@@ -2058,14 +2090,15 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	jpeg_define(sd->jpeg_hdr, height, width,
 			0x21);
-	jpeg_set_qual(sd->jpeg_hdr, sd->quality);
+	jpeg_set_qual(sd->jpeg_hdr, sd->ctrls[QUALITY].val);
 
 	if (mode & MODE_RAW)
 		fmt = 0x2d;
 	else if (mode & MODE_JPEG)
-		fmt = 0x2c;
+		fmt = 0x24;
 	else
 		fmt = 0x2f;	/* YUV 420 */
+	sd->fmt = fmt;
 
 	switch (mode & SCALE_MASK) {
 	case SCALE_1280x1024:
