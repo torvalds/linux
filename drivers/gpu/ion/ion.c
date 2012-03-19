@@ -930,6 +930,9 @@ static long ion_share_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 		if (copy_from_user(&region, (void __user *)arg,
 				sizeof(struct pmem_region)))
 			return -EFAULT;
+                if(!(region.offset & 0xf0000000))
+                        region.offset = buffer->vm_start;
+
 		dmac_flush_range((void *)region.offset, (void *)(region.offset + region.len));
 
 		break;

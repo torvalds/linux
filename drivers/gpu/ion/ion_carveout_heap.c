@@ -177,6 +177,7 @@ int ion_carveout_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 					vma->vm_end - vma->vm_start,
 					pgprot_noncached(vma->vm_page_prot));
 
+        buffer->vm_start = vma->vm_start;
 	return err;
 }
 int ion_carveout_cache_op(struct ion_heap *heap, struct ion_buffer *buffer,
