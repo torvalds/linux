@@ -89,6 +89,12 @@ struct sd {
 
 	struct gspca_ctrl ctrls[NCTRLS];
 
+	struct work_struct work;
+	struct workqueue_struct *work_thread;
+
+	u32 pktsz;			/* (used by pkt_scan) */
+	u16 npkt;
+	s8 nchg;
 	u8 fmt;				/* (used for JPEG QTAB update */
 
 #define MIN_AVG_LUM 80
@@ -107,6 +113,8 @@ struct sd {
 
 	u8 flags;
 };
+
+static void qual_upd(struct work_struct *work);
 
 struct i2c_reg_u8 {
 	u8 reg;
@@ -1842,6 +1850,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	gspca_dev->cam.ctrls = sd->ctrls;
 
+	INIT_WORK(&sd->work, qual_upd);
 
 	return 0;
 }
@@ -2101,6 +2110,15 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	reg_r(gspca_dev, 0x1061, 1);
 	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] | 0x02);
+
+	/* if JPEG, prepare the compression quality update */
+	if (mode & MODE_JPEG) {
+		sd->pktsz = sd->npkt = 0;
+		sd->nchg = 0;
+		sd->work_thread =
+			create_singlethread_workqueue(KBUILD_MODNAME);
+	}
+
 	return gspca_dev->usb_err;
 }
 
@@ -2110,6 +2128,20 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	reg_r(gspca_dev, 0x1061, 1);
 	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] & ~0x02);
+}
+
+/* called on streamoff with alt==0 and on disconnect */
+/* the usb_lock is held at entry - restore on exit */
+static void sd_stop0(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->work_thread != NULL) {
+		mutex_unlock(&gspca_dev->usb_lock);
+		destroy_workqueue(sd->work_thread);
+		mutex_lock(&gspca_dev->usb_lock);
+		sd->work_thread = NULL;
+	}
 }
 
 static void do_autoexposure(struct gspca_dev *gspca_dev, u16 avg_lum)
@@ -2195,6 +2227,19 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 		do_autoexposure(gspca_dev, avg_lum);
 }
 
+/* JPEG quality update */
+/* This function is executed from a work queue. */
+static void qual_upd(struct work_struct *work)
+{
+	struct sd *sd = container_of(work, struct sd, work);
+	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+
+	mutex_lock(&gspca_dev->usb_lock);
+	PDEBUG(D_STREAM, "qual_upd %d%%", sd->ctrls[QUALITY].val);
+	set_quality(gspca_dev);
+	mutex_unlock(&gspca_dev->usb_lock);
+}
+
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet */
@@ -2212,6 +2257,50 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 	return ret;
 }
 #endif
+
+/* check the JPEG compression */
+static void transfer_check(struct gspca_dev *gspca_dev,
+			u8 *data)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int new_qual, r;
+
+	new_qual = 0;
+
+	/* if USB error, discard the frame and decrease the quality */
+	if (data[6] & 0x08) {				/* USB FIFO full */
+		gspca_dev->last_packet_type = DISCARD_PACKET;
+		new_qual = -5;
+	} else {
+
+		/* else, compute the filling rate and a new JPEG quality */
+		r = (sd->pktsz * 100) /
+			(sd->npkt *
+				gspca_dev->urb[0]->iso_frame_desc[0].length);
+		if (r >= 85)
+			new_qual = -3;
+		else if (r < 75)
+			new_qual = 2;
+	}
+	if (new_qual != 0) {
+		sd->nchg += new_qual;
+		if (sd->nchg < -6 || sd->nchg >= 12) {
+			sd->nchg = 0;
+			new_qual += sd->ctrls[QUALITY].val;
+			if (new_qual < QUALITY_MIN)
+				new_qual = QUALITY_MIN;
+			else if (new_qual > QUALITY_MAX)
+				new_qual = QUALITY_MAX;
+			if (new_qual != sd->ctrls[QUALITY].val) {
+				sd->ctrls[QUALITY].val = new_qual;
+				queue_work(sd->work_thread, &sd->work);
+			}
+		}
+	} else {
+		sd->nchg = 0;
+	}
+	sd->pktsz = sd->npkt = 0;
+}
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
@@ -2248,6 +2337,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			    (data[33] << 10);
 		avg_lum >>= 9;
 		atomic_set(&sd->avg_lum, avg_lum);
+
+		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
+				& MODE_JPEG)
+			transfer_check(gspca_dev, data);
+
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		len -= 64;
 		if (len == 0)
@@ -2266,6 +2360,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				data, len);
 		}
 	} else {
+		/* if JPEG, count the packets and their size */
+		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
+				& MODE_JPEG) {
+			sd->npkt++;
+			sd->pktsz += len;
+		}
 		gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 	}
 }
@@ -2280,6 +2380,7 @@ static const struct sd_desc sd_desc = {
 	.isoc_init = sd_isoc_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
+	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,
