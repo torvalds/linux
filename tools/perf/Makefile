@@ -507,6 +507,20 @@ else
 	endif
 endif
 
+ifdef NO_GTK2
+	BASIC_CFLAGS += -DNO_GTK2
+else
+	FLAGS_GTK2=$(ALL_CFLAGS) $(ALL_LDFLAGS) $(EXTLIBS) $(shell pkg-config --libs --cflags gtk+-2.0)
+	ifneq ($(call try-cc,$(SOURCE_GTK2),$(FLAGS_GTK2)),y)
+		msg := $(warning GTK2 not found, disables GTK2 support. Please install gtk2-devel or libgtk2.0-dev);
+		BASIC_CFLAGS += -DNO_GTK2_SUPPORT
+	else
+		BASIC_CFLAGS += $(shell pkg-config --cflags gtk+-2.0)
+		EXTLIBS += $(shell pkg-config --libs gtk+-2.0)
+		LIB_OBJS += $(OUTPUT)util/gtk/browser.o
+	endif
+endif
+
 ifdef NO_LIBPERL
 	BASIC_CFLAGS += -DNO_LIBPERL
 else
