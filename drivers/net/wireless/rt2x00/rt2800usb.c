@@ -184,7 +184,7 @@ stop_reading:
 	 * here again if status reading is needed.
 	 */
 	if (rt2800usb_txstatus_pending(rt2x00dev) &&
-	    test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
+	    !test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
 		return true;
 	else
 		return false;
