@@ -116,6 +116,9 @@ struct blkio_cgroup {
 	unsigned int weight;
 	spinlock_t lock;
 	struct hlist_head blkg_list;
+
+	/* for policies to test whether associated blkcg has changed */
+	uint64_t id;
 };
 
 struct blkio_group_stats {
