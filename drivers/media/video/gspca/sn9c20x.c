@@ -1,5 +1,7 @@
 /*
  *	Sonix sn9c201 sn9c202 library
+ *
+ * Copyright (C) 2012 Jean-Francois Moine <http://moinejf.free.fr>
  *	Copyright (C) 2008-2009 microdia project <microdia@googlegroups.com>
  *	Copyright (C) 2009 Brian Johnson <brijohn@gmail.com>
  *
@@ -32,8 +34,6 @@ MODULE_AUTHOR("Brian Johnson <brijohn@gmail.com>, "
 		"microdia project <microdia@googlegroups.com>");
 MODULE_DESCRIPTION("GSPCA/SN9C20X USB Camera Driver");
 MODULE_LICENSE("GPL");
-
-#define MODULE_NAME "sn9c20x"
 
 /*
  * Pixel format private data
@@ -1133,13 +1133,13 @@ static void reg_w(struct gspca_dev *gspca_dev, u16 reg,
 
 static void reg_w1(struct gspca_dev *gspca_dev, u16 reg, const u8 value)
 {
-	u8 data[1] = {value};
-	reg_w(gspca_dev, reg, data, 1);
+	reg_w(gspca_dev, reg, &value, 1);
 }
 
 static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 {
 	int i;
+
 	reg_w(gspca_dev, 0x10c0, buffer, 8);
 	for (i = 0; i < 5; i++) {
 		reg_r(gspca_dev, 0x10c0, 1);
@@ -1161,7 +1161,6 @@ static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-
 	u8 row[8];
 
 	/*
@@ -1201,8 +1200,8 @@ static void i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 	row[0] = 0x81 | (3 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
-	row[3] = (val >> 8) & 0xff;
-	row[4] = val & 0xff;
+	row[3] = val >> 8;
+	row[4] = val;
 	row[5] = 0x00;
 	row[6] = 0x00;
 	row[7] = 0x10;
@@ -1587,8 +1586,9 @@ static void set_hvflip(struct gspca_dev *gspca_dev)
 		if (vflip) {
 			value |= 0x10;
 			sd->vstart = 2;
-		} else
+		} else {
 			sd->vstart = 3;
+		}
 		reg_w1(gspca_dev, 0x1182, sd->vstart);
 		i2c_w1(gspca_dev, 0x1e, value);
 		break;
@@ -1741,6 +1741,7 @@ static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 			struct v4l2_dbg_register *reg)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
 	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_HOST:
 		if (reg->match.addr != 0)
@@ -1768,6 +1769,7 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 			struct v4l2_dbg_register *reg)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+
 	switch (reg->match.type) {
 	case V4L2_CHIP_MATCH_HOST:
 		if (reg->match.addr != 0)
@@ -1822,9 +1824,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam = &gspca_dev->cam;
 	cam->needs_full_bandwidth = 1;
 
-	sd->sensor = (id->driver_info >> 8) & 0xff;
-	sd->i2c_addr = id->driver_info & 0xff;
-	sd->flags = (id->driver_info >> 16) & 0xff;
+	sd->sensor = id->driver_info >> 8;
+	sd->i2c_addr = id->driver_info;
+	sd->flags = id->driver_info >> 16;
 
 	switch (sd->sensor) {
 	case SENSOR_MT9M112:
@@ -1918,6 +1920,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		mt9v_init_sensor(gspca_dev);
 		if (gspca_dev->usb_err < 0)
 			break;
+		pr_info("MT9VPRB sensor detected\n");
 		break;
 	case SENSOR_MT9M111:
 		mt9m111_init_sensor(gspca_dev);
@@ -1943,7 +1946,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		pr_info("HV7131R sensor detected\n");
 		break;
 	default:
-		pr_info("Unsupported Sensor\n");
+		pr_err("Unsupported sensor\n");
 		gspca_dev->usb_err = -ENODEV;
 	}
 
@@ -1954,6 +1957,7 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 value;
+
 	switch (sd->sensor) {
 	case SENSOR_SOI968:
 		if (mode & MODE_SXGA) {
@@ -2036,6 +2040,7 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 			break;
 		default:  /* >= 640x480 */
 			gspca_dev->alt = 9;
+			break;
 		}
 	}
 
@@ -2242,15 +2247,15 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)		/* interrupt packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int ret = -EINVAL;
+
 	if (!(sd->flags & HAS_NO_BUTTON) && len == 1) {
-			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
-			input_sync(gspca_dev->input_dev);
-			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
-			input_sync(gspca_dev->input_dev);
-			ret = 0;
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+		input_sync(gspca_dev->input_dev);
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		return 0;
 	}
-	return ret;
+	return -EINVAL;
 }
 #endif
 
@@ -2303,9 +2308,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int avg_lum;
+	int avg_lum, is_jpeg;
 	static u8 frame_header[] =
 		{0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
+
+	is_jpeg = (sd->fmt & 0x03) == 0;
 	if (len >= 64 && memcmp(data, frame_header, 6) == 0) {
 		avg_lum = ((data[35] >> 2) & 3) |
 			   (data[20] << 2) |
@@ -2334,8 +2341,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		avg_lum >>= 9;
 		atomic_set(&sd->avg_lum, avg_lum);
 
-		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
-				& MODE_JPEG)
+		if (is_jpeg)
 			transfer_check(gspca_dev, data);
 
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
@@ -2345,8 +2351,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		data += 64;
 	}
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
-		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
-				& MODE_JPEG) {
+		if (is_jpeg) {
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
 				sd->jpeg_hdr, JPEG_HDR_SZ);
 			gspca_frame_add(gspca_dev, INTER_PACKET,
@@ -2357,8 +2362,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 	} else {
 		/* if JPEG, count the packets and their size */
-		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
-				& MODE_JPEG) {
+		if (is_jpeg) {
 			sd->npkt++;
 			sd->pktsz += len;
 		}
@@ -2368,7 +2372,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
@@ -2445,7 +2449,7 @@ static int sd_probe(struct usb_interface *intf,
 }
 
 static struct usb_driver sd_driver = {
-	.name = MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
