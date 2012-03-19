@@ -337,8 +337,6 @@ enum hdmi_audio_blk_strt_end_sig {
 };
 
 enum hdmi_audio_i2s_config {
-	HDMI_AUDIO_I2S_WS_POLARITY_LOW_IS_LEFT = 0,
-	HDMI_AUDIO_I2S_WS_POLARIT_YLOW_IS_RIGHT = 1,
 	HDMI_AUDIO_I2S_MSB_SHIFTED_FIRST = 0,
 	HDMI_AUDIO_I2S_LSB_SHIFTED_FIRST = 1,
 	HDMI_AUDIO_I2S_SCK_EDGE_FALLING = 0,
@@ -413,11 +411,8 @@ struct hdmi_core_audio_i2s_config {
 	u8 word_length;
 	u8 in_length_bits;
 	u8 justification;
-	u8 en_high_bitrate_aud;
 	u8 sck_edge_mode;
-	u8 cbit_order;
 	u8 vbit;
-	u8 ws_polarity;
 	u8 direction;
 	u8 shift;
 	u8 active_sds;

@@ -1119,11 +1119,8 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 						cfg->freq_sample, 3, 0);
 
 	r = hdmi_read_reg(av_base, HDMI_CORE_AV_I2S_IN_CTRL);
-	r = FLD_MOD(r, cfg->i2s_cfg.en_high_bitrate_aud, 7, 7);
 	r = FLD_MOD(r, cfg->i2s_cfg.sck_edge_mode, 6, 6);
-	r = FLD_MOD(r, cfg->i2s_cfg.cbit_order, 5, 5);
 	r = FLD_MOD(r, cfg->i2s_cfg.vbit, 4, 4);
-	r = FLD_MOD(r, cfg->i2s_cfg.ws_polarity, 3, 3);
 	r = FLD_MOD(r, cfg->i2s_cfg.justification, 2, 2);
 	r = FLD_MOD(r, cfg->i2s_cfg.direction, 1, 1);
 	r = FLD_MOD(r, cfg->i2s_cfg.shift, 0, 0);
