@@ -200,9 +200,6 @@ static int seaboard_ehci_init(void)
 
 static void __init seaboard_i2c_init(void)
 {
-	gpio_request(TEGRA_GPIO_ISL29018_IRQ, "isl29018");
-	gpio_direction_input(TEGRA_GPIO_ISL29018_IRQ);
-
 	isl29018_device.irq = gpio_to_irq(TEGRA_GPIO_ISL29018_IRQ);
 	i2c_register_board_info(0, &isl29018_device, 1);
 
