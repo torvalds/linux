@@ -1463,7 +1463,7 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			rc = -ENOMEM;
 		} else {
 			/* Note: we are queuing the request after we have
-			 * submitted it to be tranmitted. If the request were
+			 * submitted it to be transmitted. If the request were
 			 * to complete before we queued it then it would not
 			 * be found in the queue. It seems impossible for
 			 * this to happen but if it did the request would
