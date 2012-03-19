@@ -1172,6 +1172,15 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	i2c_w(gspca_dev, row);
 }
 
+static void i2c_w1_buf(struct gspca_dev *gspca_dev,
+			struct i2c_reg_u8 *buf, int sz)
+{
+	while (--sz >= 0) {
+		i2c_w1(gspca_dev, buf->reg, buf->val);
+		buf++;
+	}
+}
+
 static void i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1191,6 +1200,15 @@ static void i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 	row[7] = 0x10;
 
 	i2c_w(gspca_dev, row);
+}
+
+static void i2c_w2_buf(struct gspca_dev *gspca_dev,
+			struct i2c_reg_u16 *buf, int sz)
+{
+	while (--sz >= 0) {
+		i2c_w2(gspca_dev, buf->reg, buf->val);
+		buf++;
+	}
 }
 
 static void i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
@@ -1237,7 +1255,6 @@ static void i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 
 static void ov9650_init_sensor(struct gspca_dev *gspca_dev)
 {
-	int i;
 	u16 id;
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1253,33 +1270,23 @@ static void ov9650_init_sensor(struct gspca_dev *gspca_dev)
 
 	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
 	msleep(200);
-	for (i = 0; i < ARRAY_SIZE(ov9650_init); i++) {
-		i2c_w1(gspca_dev, ov9650_init[i].reg,
-				ov9650_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("OV9650 sensor initialization failed\n");
-			return;
-		}
-	}
+	i2c_w1_buf(gspca_dev, ov9650_init, ARRAY_SIZE(ov9650_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("OV9650 sensor initialization failed\n");
 	sd->hstart = 1;
 	sd->vstart = 7;
 }
 
 static void ov9655_init_sensor(struct gspca_dev *gspca_dev)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
 	msleep(200);
-	for (i = 0; i < ARRAY_SIZE(ov9655_init); i++) {
-		i2c_w1(gspca_dev, ov9655_init[i].reg,
-				ov9655_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("OV9655 sensor initialization failed\n");
-			return;
-		}
-	}
+	i2c_w1_buf(gspca_dev, ov9655_init, ARRAY_SIZE(ov9655_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("OV9655 sensor initialization failed\n");
+
 	/* disable hflip and vflip */
 	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP);
 	sd->hstart = 1;
@@ -1288,19 +1295,14 @@ static void ov9655_init_sensor(struct gspca_dev *gspca_dev)
 
 static void soi968_init_sensor(struct gspca_dev *gspca_dev)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
 	msleep(200);
-	for (i = 0; i < ARRAY_SIZE(soi968_init); i++) {
-		i2c_w1(gspca_dev, soi968_init[i].reg,
-				soi968_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("SOI968 sensor initialization failed\n");
-			return;
-		}
-	}
+	i2c_w1_buf(gspca_dev, soi968_init, ARRAY_SIZE(soi968_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("SOI968 sensor initialization failed\n");
+
 	/* disable hflip and vflip */
 	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP)
 				| (1 << EXPOSURE);
@@ -1310,38 +1312,27 @@ static void soi968_init_sensor(struct gspca_dev *gspca_dev)
 
 static void ov7660_init_sensor(struct gspca_dev *gspca_dev)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
 	msleep(200);
-	for (i = 0; i < ARRAY_SIZE(ov7660_init); i++) {
-		i2c_w1(gspca_dev, ov7660_init[i].reg,
-				ov7660_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("OV7660 sensor initialization failed\n");
-			return;
-		}
-	}
+	i2c_w1_buf(gspca_dev, ov7660_init, ARRAY_SIZE(ov7660_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("OV7660 sensor initialization failed\n");
 	sd->hstart = 3;
 	sd->vstart = 3;
 }
 
 static void ov7670_init_sensor(struct gspca_dev *gspca_dev)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
 	msleep(200);
-	for (i = 0; i < ARRAY_SIZE(ov7670_init); i++) {
-		i2c_w1(gspca_dev, ov7670_init[i].reg,
-				ov7670_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("OV7670 sensor initialization failed\n");
-			return;
-		}
-	}
+	i2c_w1_buf(gspca_dev, ov7670_init, ARRAY_SIZE(ov7670_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("OV7670 sensor initialization failed\n");
+
 	/* disable hflip and vflip */
 	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP);
 	sd->hstart = 0;
@@ -1351,20 +1342,16 @@ static void ov7670_init_sensor(struct gspca_dev *gspca_dev)
 static void mt9v_init_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
 	u16 value;
 
 	sd->i2c_addr = 0x5d;
 	i2c_r2(gspca_dev, 0xff, &value);
 	if (gspca_dev->usb_err >= 0
 	 && value == 0x8243) {
-		for (i = 0; i < ARRAY_SIZE(mt9v011_init); i++) {
-			i2c_w2(gspca_dev, mt9v011_init[i].reg,
-					mt9v011_init[i].val);
-			if (gspca_dev->usb_err < 0) {
-				pr_err("MT9V011 sensor initialization failed\n");
-				return;
-			}
+		i2c_w2_buf(gspca_dev, mt9v011_init, ARRAY_SIZE(mt9v011_init));
+		if (gspca_dev->usb_err < 0) {
+			pr_err("MT9V011 sensor initialization failed\n");
+			return;
 		}
 		sd->hstart = 2;
 		sd->vstart = 2;
@@ -1379,13 +1366,10 @@ static void mt9v_init_sensor(struct gspca_dev *gspca_dev)
 	i2c_r2(gspca_dev, 0xff, &value);
 	if (gspca_dev->usb_err >= 0
 	 && value == 0x823a) {
-		for (i = 0; i < ARRAY_SIZE(mt9v111_init); i++) {
-			i2c_w2(gspca_dev, mt9v111_init[i].reg,
-					mt9v111_init[i].val);
-			if (gspca_dev->usb_err < 0) {
-				pr_err("MT9V111 sensor initialization failed\n");
-				return;
-			}
+		i2c_w2_buf(gspca_dev, mt9v111_init, ARRAY_SIZE(mt9v111_init));
+		if (gspca_dev->usb_err < 0) {
+			pr_err("MT9V111 sensor initialization failed\n");
+			return;
 		}
 		gspca_dev->ctrl_dis = (1 << EXPOSURE)
 					| (1 << AUTOGAIN)
@@ -1408,13 +1392,10 @@ static void mt9v_init_sensor(struct gspca_dev *gspca_dev)
 	i2c_r2(gspca_dev, 0x00, &value);
 	if (gspca_dev->usb_err >= 0
 	 && value == 0x1229) {
-		for (i = 0; i < ARRAY_SIZE(mt9v112_init); i++) {
-			i2c_w2(gspca_dev, mt9v112_init[i].reg,
-					mt9v112_init[i].val);
-			if (gspca_dev->usb_err < 0) {
-				pr_err("MT9V112 sensor initialization failed\n");
-				return;
-			}
+		i2c_w2_buf(gspca_dev, mt9v112_init, ARRAY_SIZE(mt9v112_init));
+		if (gspca_dev->usb_err < 0) {
+			pr_err("MT9V112 sensor initialization failed\n");
+			return;
 		}
 		sd->hstart = 6;
 		sd->vstart = 2;
@@ -1429,15 +1410,11 @@ static void mt9v_init_sensor(struct gspca_dev *gspca_dev)
 static void mt9m112_init_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-	for (i = 0; i < ARRAY_SIZE(mt9m112_init); i++) {
-		i2c_w2(gspca_dev, mt9m112_init[i].reg,
-				mt9m112_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("MT9M112 sensor initialization failed\n");
-			return;
-		}
-	}
+
+	i2c_w2_buf(gspca_dev, mt9m112_init, ARRAY_SIZE(mt9m112_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("MT9M112 sensor initialization failed\n");
+
 	gspca_dev->ctrl_dis = (1 << EXPOSURE) | (1 << AUTOGAIN)
 				| (1 << GAIN);
 	sd->hstart = 0;
@@ -1447,15 +1424,11 @@ static void mt9m112_init_sensor(struct gspca_dev *gspca_dev)
 static void mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-	for (i = 0; i < ARRAY_SIZE(mt9m111_init); i++) {
-		i2c_w2(gspca_dev, mt9m111_init[i].reg,
-				mt9m111_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("MT9M111 sensor initialization failed\n");
-			return;
-		}
-	}
+
+	i2c_w2_buf(gspca_dev, mt9m111_init, ARRAY_SIZE(mt9m111_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("MT9M111 sensor initialization failed\n");
+
 	gspca_dev->ctrl_dis = (1 << EXPOSURE) | (1 << AUTOGAIN)
 				| (1 << GAIN);
 	sd->hstart = 0;
@@ -1465,7 +1438,6 @@ static void mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 static void mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
 	u16 id;
 
 	i2c_r2(gspca_dev, 0x00, &id);
@@ -1487,14 +1459,10 @@ static void mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 		return;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mt9m001_init); i++) {
-		i2c_w2(gspca_dev, mt9m001_init[i].reg,
-				mt9m001_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("MT9M001 sensor initialization failed\n");
-			return;
-		}
-	}
+	i2c_w2_buf(gspca_dev, mt9m001_init, ARRAY_SIZE(mt9m001_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("MT9M001 sensor initialization failed\n");
+
 	/* disable hflip and vflip */
 	gspca_dev->ctrl_dis = (1 << HFLIP) | (1 << VFLIP);
 	sd->hstart = 1;
@@ -1503,17 +1471,12 @@ static void mt9m001_init_sensor(struct gspca_dev *gspca_dev)
 
 static void hv7131r_init_sensor(struct gspca_dev *gspca_dev)
 {
-	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	for (i = 0; i < ARRAY_SIZE(hv7131r_init); i++) {
-		i2c_w1(gspca_dev, hv7131r_init[i].reg,
-				hv7131r_init[i].val);
-		if (gspca_dev->usb_err < 0) {
-			pr_err("HV7131R Sensor initialization failed\n");
-			return;
-		}
-	}
+	i2c_w1_buf(gspca_dev, hv7131r_init, ARRAY_SIZE(hv7131r_init));
+	if (gspca_dev->usb_err < 0)
+		pr_err("HV7131R Sensor initialization failed\n");
+
 	sd->hstart = 0;
 	sd->vstart = 1;
 }
