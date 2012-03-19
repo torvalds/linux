@@ -1088,7 +1088,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 	unsigned int vtotal = var->upper_margin + var->yres + var->lower_margin
 			+ var->vsync_len;
 #if defined(__powerpc__)
-	u8 sr_data, cr_data;
+	u8 cr_data;
 #endif
 	unsigned int drate = 0, hrate = 0;
 	int found_mode = 0;
