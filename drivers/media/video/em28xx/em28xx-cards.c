@@ -364,6 +364,19 @@ static struct em28xx_reg_seq maxmedia_ub425_tc[] = {
 	{-1,                 -1,    -1,   -1},
 };
 
+/* 2304:0242 PCTV QuatroStick (510e)
+ * GPIO_2: decoder reset, 0=active
+ * GPIO_4: decoder suspend, 0=active
+ * GPIO_6: demod reset, 0=active
+ * GPIO_7: LED, 1=active
+ */
+static struct em28xx_reg_seq pctv_510e[] = {
+	{EM2874_R80_GPIO, 0x10, 0xff, 100},
+	{EM2874_R80_GPIO, 0x14, 0xff, 100}, /* GPIO_2 = 1 */
+	{EM2874_R80_GPIO, 0x54, 0xff, 050}, /* GPIO_6 = 1 */
+	{             -1,   -1,   -1,  -1},
+};
+
 /* 2013:0251 PCTV QuatroStick nano (520e)
  * GPIO_2: decoder reset, 0=active
  * GPIO_4: decoder suspend, 0=active
@@ -1944,6 +1957,18 @@ struct em28xx_board em28xx_boards[] = {
 				EM28XX_I2C_CLK_WAIT_ENABLE |
 				EM28XX_I2C_FREQ_400_KHZ,
 	},
+	/* 2304:0242 PCTV QuatroStick (510e)
+	 * Empia EM2884 + Micronas DRX 3926K + NXP TDA18271HDC2 */
+	[EM2884_BOARD_PCTV_510E] = {
+		.name          = "PCTV QuatroStick (510e)",
+		.tuner_type    = TUNER_ABSENT,
+		.tuner_gpio    = pctv_510e,
+		.has_dvb       = 1,
+		.ir_codes      = RC_MAP_PINNACLE_PCTV_HD,
+		.i2c_speed     = EM2874_I2C_SECONDARY_BUS_SELECT |
+				EM28XX_I2C_CLK_WAIT_ENABLE |
+				EM28XX_I2C_FREQ_400_KHZ,
+	},
 	/* 2013:0251 PCTV QuatroStick nano (520e)
 	 * Empia EM2884 + Micronas DRX 3926K + NXP TDA18271HDC2 */
 	[EM2884_BOARD_PCTV_520E] = {
@@ -2109,6 +2134,8 @@ struct usb_device_id em28xx_id_table[] = {
 			.driver_info = EM2860_BOARD_EASYCAP },
 	{ USB_DEVICE(0x1b80, 0xe425),
 			.driver_info = EM2874_BOARD_MAXMEDIA_UB425_TC },
+	{ USB_DEVICE(0x2304, 0x0242),
+			.driver_info = EM2884_BOARD_PCTV_510E },
 	{ USB_DEVICE(0x2013, 0x0251),
 			.driver_info = EM2884_BOARD_PCTV_520E },
 	{ },
