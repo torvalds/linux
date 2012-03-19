@@ -79,11 +79,12 @@
 #define ATH5K_PRINTF(fmt, ...)						\
 	pr_warn("%s: " fmt, __func__, ##__VA_ARGS__)
 
+void __printf(3, 4)
+_ath5k_printk(const struct ath5k_hw *ah, const char *level,
+	      const char *fmt, ...);
+
 #define ATH5K_PRINTK(_sc, _level, _fmt, ...)				\
-	printk(_level pr_fmt("%s%s" _fmt),				\
-	       ((_sc) && (_sc)->hw) ? wiphy_name((_sc)->hw->wiphy) : "", \
-	       ((_sc) && (_sc)->hw) ? ": " : "",			\
-	       ##__VA_ARGS__)
+	_ath5k_printk(_sc, _level, _fmt, ##__VA_ARGS__)
 
 #define ATH5K_PRINTK_LIMIT(_sc, _level, _fmt, ...)			\
 do {									\
