@@ -633,26 +633,28 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 	/* keep the array size field of the bitmap superblock up to date */
 	sb->sync_size = cpu_to_le64(bitmap->mddev->resync_max_sectors);
 
-	if (!bitmap->mddev->persistent)
-		goto success;
+	if (bitmap->mddev->persistent) {
+		/*
+		 * We have a persistent array superblock, so compare the
+		 * bitmap's UUID and event counter to the mddev's
+		 */
+		if (memcmp(sb->uuid, bitmap->mddev->uuid, 16)) {
+			printk(KERN_INFO
+			       "%s: bitmap superblock UUID mismatch\n",
+			       bmname(bitmap));
+			goto out;
+		}
+		events = le64_to_cpu(sb->events);
+		if (events < bitmap->mddev->events) {
+			printk(KERN_INFO
+			       "%s: bitmap file is out of date (%llu < %llu) "
+			       "-- forcing full recovery\n",
+			       bmname(bitmap), events,
+			       (unsigned long long) bitmap->mddev->events);
+			sb->state |= cpu_to_le32(BITMAP_STALE);
+		}
+	}
 
-	/*
-	 * if we have a persistent array superblock, compare the
-	 * bitmap's UUID and event counter to the mddev's
-	 */
-	if (memcmp(sb->uuid, bitmap->mddev->uuid, 16)) {
-		printk(KERN_INFO "%s: bitmap superblock UUID mismatch\n",
-			bmname(bitmap));
-		goto out;
-	}
-	events = le64_to_cpu(sb->events);
-	if (events < bitmap->mddev->events) {
-		printk(KERN_INFO "%s: bitmap file is out of date (%llu < %llu) "
-			"-- forcing full recovery\n", bmname(bitmap), events,
-			(unsigned long long) bitmap->mddev->events);
-		sb->state |= cpu_to_le32(BITMAP_STALE);
-	}
-success:
 	/* assign fields using values from superblock */
 	bitmap->mddev->bitmap_info.chunksize = chunksize;
 	bitmap->mddev->bitmap_info.daemon_sleep = daemon_sleep;
