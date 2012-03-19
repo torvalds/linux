@@ -1904,6 +1904,8 @@ location_store(struct mddev *mddev, const char *buf, size_t len)
 			if (mddev->pers) {
 				mddev->pers->quiesce(mddev, 1);
 				rv = bitmap_create(mddev);
+				if (!rv)
+					rv = bitmap_load(mddev);
 				if (rv) {
 					bitmap_destroy(mddev);
 					mddev->bitmap_info.offset = 0;
