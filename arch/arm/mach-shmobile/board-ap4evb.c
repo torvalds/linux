@@ -61,8 +61,6 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
-#include <asm/mach/time.h>
 #include <asm/setup.h>
 
 /*
@@ -295,15 +293,6 @@ static struct resource sh_mmcif_resources[] = {
 	},
 };
 
-static struct sh_mmcif_dma sh_mmcif_dma = {
-	.chan_priv_rx	= {
-		.slave_id	= SHDMA_SLAVE_MMCIF_RX,
-	},
-	.chan_priv_tx	= {
-		.slave_id	= SHDMA_SLAVE_MMCIF_TX,
-	},
-};
-
 static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.sup_pclk	= 0,
 	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
@@ -311,7 +300,8 @@ static struct sh_mmcif_plat_data sh_mmcif_plat = {
 			  MMC_CAP_8_BIT_DATA |
 			  MMC_CAP_NEEDS_POLL,
 	.get_cd		= slot_cn7_get_cd,
-	.dma		= &sh_mmcif_dma,
+	.slave_id_tx	= SHDMA_SLAVE_MMCIF_TX,
+	.slave_id_rx	= SHDMA_SLAVE_MMCIF_RX,
 };
 
 static struct platform_device sh_mmcif_device = {
@@ -802,7 +792,7 @@ static struct fsi_ak4642_info fsi2_ak4643_info = {
 static struct platform_device fsi_ak4643_device = {
 	.name	= "fsi-ak4642-audio",
 	.dev	= {
-		.platform_data	= &fsi_info,
+		.platform_data	= &fsi2_ak4643_info,
 	},
 };
 
@@ -1198,27 +1188,6 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
-static struct map_desc ap4evb_io_desc[] __initdata = {
-	/* create a 1:1 entity map for 0xe6xxxxxx
-	 * used by CPGA, INTC and PFC.
-	 */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 256 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-static void __init ap4evb_map_io(void)
-{
-	iotable_init(ap4evb_io_desc, ARRAY_SIZE(ap4evb_io_desc));
-
-	/* setup early devices and console here as well */
-	sh7372_add_early_devices();
-	shmobile_setup_console();
-}
-
 #define GPIO_PORT9CR	0xE6051009
 #define GPIO_PORT10CR	0xE605100A
 #define USCCR1		0xE6058144
@@ -1226,6 +1195,9 @@ static void __init ap4evb_init(void)
 {
 	u32 srcr4;
 	struct clk *clk;
+
+	/* External clock source */
+	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 
 	sh7372_pinmux_init();
 
@@ -1463,23 +1435,11 @@ static void __init ap4evb_init(void)
 	pm_clk_add(&lcdc1_device.dev, "hdmi");
 }
 
-static void __init ap4evb_timer_init(void)
-{
-	sh7372_clock_init();
-	shmobile_timer.init();
-
-	/* External clock source */
-	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
-}
-
-static struct sys_timer ap4evb_timer = {
-	.init		= ap4evb_timer_init,
-};
-
 MACHINE_START(AP4EVB, "ap4evb")
-	.map_io		= ap4evb_map_io,
+	.map_io		= sh7372_map_io,
+	.init_early	= sh7372_add_early_devices,
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= ap4evb_init,
-	.timer		= &ap4evb_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END

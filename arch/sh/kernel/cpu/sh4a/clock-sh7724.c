@@ -70,7 +70,7 @@ static unsigned long fll_recalc(struct clk *clk)
 	return (clk->parent->rate * mult) / div;
 }
 
-static struct clk_ops fll_clk_ops = {
+static struct sh_clk_ops fll_clk_ops = {
 	.recalc		= fll_recalc,
 };
 
@@ -90,7 +90,7 @@ static unsigned long pll_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pll_clk_ops = {
+static struct sh_clk_ops pll_clk_ops = {
 	.recalc		= pll_recalc,
 };
 
@@ -105,7 +105,7 @@ static unsigned long div3_recalc(struct clk *clk)
 	return clk->parent->rate / 3;
 }
 
-static struct clk_ops div3_clk_ops = {
+static struct sh_clk_ops div3_clk_ops = {
 	.recalc		= div3_recalc,
 };
 
@@ -343,7 +343,7 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_mobile_ceu.1", &mstp_clks[HWBLK_CEU1]),
 	CLKDEV_CON_ID("beu1", &mstp_clks[HWBLK_BEU1]),
 	CLKDEV_CON_ID("2ddmac0", &mstp_clks[HWBLK_2DDMAC]),
-	CLKDEV_CON_ID("spu0", &mstp_clks[HWBLK_SPU]),
+	CLKDEV_DEV_ID("sh_fsi.0", &mstp_clks[HWBLK_SPU]),
 	CLKDEV_CON_ID("jpu0", &mstp_clks[HWBLK_JPU]),
 	CLKDEV_DEV_ID("sh-vou.0", &mstp_clks[HWBLK_VOU]),
 	CLKDEV_CON_ID("beu0", &mstp_clks[HWBLK_BEU0]),

@@ -30,7 +30,7 @@ enum digest_algo {
 
 struct pubkey_hdr {
 	uint8_t		version;	/* key format version */
-	time_t		timestamp;	/* key made, always 0 for now */
+	uint32_t	timestamp;	/* key made, always 0 for now */
 	uint8_t		algo;
 	uint8_t		nmpi;
 	char		mpi[0];
@@ -38,7 +38,7 @@ struct pubkey_hdr {
 
 struct signature_hdr {
 	uint8_t		version;	/* signature format version */
-	time_t		timestamp;	/* signature made */
+	uint32_t	timestamp;	/* signature made */
 	uint8_t		algo;
 	uint8_t		hash;
 	uint8_t		keyid[8];

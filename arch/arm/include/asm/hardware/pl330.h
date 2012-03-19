@@ -41,7 +41,7 @@ enum pl330_dstcachectrl {
 	DCCTRL1, /* Bufferable only */
 	DCCTRL2, /* Cacheable, but do not allocate */
 	DCCTRL3, /* Cacheable and bufferable, but do not allocate */
-	DINVALID1 = 8,
+	DINVALID1,              /* AWCACHE = 0x1000 */
 	DINVALID2,
 	DCCTRL6, /* Cacheable write-through, allocate on writes only */
 	DCCTRL7, /* Cacheable write-back, allocate on writes only */

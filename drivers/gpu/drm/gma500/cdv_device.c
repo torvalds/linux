@@ -321,6 +321,8 @@ static int cdv_chip_setup(struct drm_device *dev)
 	cdv_get_core_freq(dev);
 	gma_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
+	REG_WRITE(PORT_HOTPLUG_EN, 0);
+	REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
 	return 0;
 }
 

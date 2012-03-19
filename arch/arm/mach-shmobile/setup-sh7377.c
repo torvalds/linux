@@ -30,8 +30,28 @@
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
 #include <mach/hardware.h>
+#include <mach/common.h>
+#include <asm/mach/map.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/mach/time.h>
+
+static struct map_desc sh7377_io_desc[] __initdata = {
+	/* create a 1:1 entity map for 0xe6xxxxxx
+	 * used by CPGA, INTC and PFC.
+	 */
+	{
+		.virtual	= 0xe6000000,
+		.pfn		= __phys_to_pfn(0xe6000000),
+		.length		= 256 << 20,
+		.type		= MT_DEVICE_NONSHARED
+	},
+};
+
+void __init sh7377_map_io(void)
+{
+	iotable_init(sh7377_io_desc, ARRAY_SIZE(sh7377_io_desc));
+}
 
 /* SCIFA0 */
 static struct plat_sci_port scif0_platform_data = {
@@ -456,6 +476,12 @@ void __init sh7377_add_standard_devices(void)
 			    ARRAY_SIZE(sh7377_devices));
 }
 
+static void __init sh7377_earlytimer_init(void)
+{
+	sh7377_clock_init();
+	shmobile_earlytimer_init();
+}
+
 #define SMSTPCR3 0xe615013c
 #define SMSTPCR3_CMT1 (1 << 29)
 
@@ -466,4 +492,10 @@ void __init sh7377_add_early_devices(void)
 
 	early_platform_add_devices(sh7377_early_devices,
 				   ARRAY_SIZE(sh7377_early_devices));
+
+	/* setup early console here as well */
+	shmobile_setup_console();
+
+	/* override timer setup with soc-specific code */
+	shmobile_timer.init = sh7377_earlytimer_init;
 }

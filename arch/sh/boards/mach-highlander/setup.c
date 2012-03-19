@@ -322,7 +322,7 @@ static void ivdr_clk_disable(struct clk *clk)
 	__raw_writew(__raw_readw(PA_IVDRCTL) & ~(1 << IVDR_CK_ON), PA_IVDRCTL);
 }
 
-static struct clk_ops ivdr_clk_ops = {
+static struct sh_clk_ops ivdr_clk_ops = {
 	.enable		= ivdr_clk_enable,
 	.disable	= ivdr_clk_disable,
 };

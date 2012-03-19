@@ -649,7 +649,7 @@ extern void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				     u16 blue, int regno);
 extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 				     u16 *blue, int regno);
-void radeon_framebuffer_init(struct drm_device *dev,
+int radeon_framebuffer_init(struct drm_device *dev,
 			     struct radeon_framebuffer *rfb,
 			     struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);

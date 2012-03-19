@@ -2277,8 +2277,8 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 			set_page_dirty(page);
 		list_add(&page->lru, &page_list);
 	}
-	spin_unlock(&mm->page_table_lock);
 	flush_tlb_range(vma, start, end);
+	spin_unlock(&mm->page_table_lock);
 	mmu_notifier_invalidate_range_end(mm, start, end);
 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
 		page_remove_rmap(page);

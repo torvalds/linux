@@ -1213,7 +1213,7 @@ do_user_signal:			/* r10 contains MSR_KERNEL here */
 	stw	r3,_TRAP(r1)
 2:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	mr	r4,r9
-	bl	do_signal
+	bl	do_notify_resume
 	REST_NVGPRS(r1)
 	b	recheck
 

@@ -94,7 +94,7 @@ struct enic {
 	u32 rx_coalesce_usecs;
 	u32 tx_coalesce_usecs;
 #ifdef CONFIG_PCI_IOV
-	u32 num_vfs;
+	u16 num_vfs;
 #endif
 	struct enic_port_profile *pp;
 

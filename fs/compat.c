@@ -131,41 +131,35 @@ asmlinkage long compat_sys_utimes(const char __user *filename, struct compat_tim
 
 static int cp_compat_stat(struct kstat *stat, struct compat_stat __user *ubuf)
 {
-	compat_ino_t ino = stat->ino;
-	typeof(ubuf->st_uid) uid = 0;
-	typeof(ubuf->st_gid) gid = 0;
-	int err;
+	struct compat_stat tmp;
 
-	SET_UID(uid, stat->uid);
-	SET_GID(gid, stat->gid);
-
-	if ((u64) stat->size > MAX_NON_LFS ||
-	    !old_valid_dev(stat->dev) ||
-	    !old_valid_dev(stat->rdev))
-		return -EOVERFLOW;
-	if (sizeof(ino) < sizeof(stat->ino) && ino != stat->ino)
+	if (!old_valid_dev(stat->dev) || !old_valid_dev(stat->rdev))
 		return -EOVERFLOW;
 
-	if (clear_user(ubuf, sizeof(*ubuf)))
-		return -EFAULT;
-
-	err  = __put_user(old_encode_dev(stat->dev), &ubuf->st_dev);
-	err |= __put_user(ino, &ubuf->st_ino);
-	err |= __put_user(stat->mode, &ubuf->st_mode);
-	err |= __put_user(stat->nlink, &ubuf->st_nlink);
-	err |= __put_user(uid, &ubuf->st_uid);
-	err |= __put_user(gid, &ubuf->st_gid);
-	err |= __put_user(old_encode_dev(stat->rdev), &ubuf->st_rdev);
-	err |= __put_user(stat->size, &ubuf->st_size);
-	err |= __put_user(stat->atime.tv_sec, &ubuf->st_atime);
-	err |= __put_user(stat->atime.tv_nsec, &ubuf->st_atime_nsec);
-	err |= __put_user(stat->mtime.tv_sec, &ubuf->st_mtime);
-	err |= __put_user(stat->mtime.tv_nsec, &ubuf->st_mtime_nsec);
-	err |= __put_user(stat->ctime.tv_sec, &ubuf->st_ctime);
-	err |= __put_user(stat->ctime.tv_nsec, &ubuf->st_ctime_nsec);
-	err |= __put_user(stat->blksize, &ubuf->st_blksize);
-	err |= __put_user(stat->blocks, &ubuf->st_blocks);
-	return err;
+	memset(&tmp, 0, sizeof(tmp));
+	tmp.st_dev = old_encode_dev(stat->dev);
+	tmp.st_ino = stat->ino;
+	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
+		return -EOVERFLOW;
+	tmp.st_mode = stat->mode;
+	tmp.st_nlink = stat->nlink;
+	if (tmp.st_nlink != stat->nlink)
+		return -EOVERFLOW;
+	SET_UID(tmp.st_uid, stat->uid);
+	SET_GID(tmp.st_gid, stat->gid);
+	tmp.st_rdev = old_encode_dev(stat->rdev);
+	if ((u64) stat->size > MAX_NON_LFS)
+		return -EOVERFLOW;
+	tmp.st_size = stat->size;
+	tmp.st_atime = stat->atime.tv_sec;
+	tmp.st_atime_nsec = stat->atime.tv_nsec;
+	tmp.st_mtime = stat->mtime.tv_sec;
+	tmp.st_mtime_nsec = stat->mtime.tv_nsec;
+	tmp.st_ctime = stat->ctime.tv_sec;
+	tmp.st_ctime_nsec = stat->ctime.tv_nsec;
+	tmp.st_blocks = stat->blocks;
+	tmp.st_blksize = stat->blksize;
+	return copy_to_user(ubuf, &tmp, sizeof(tmp)) ? -EFAULT : 0;
 }
 
 asmlinkage long compat_sys_newstat(const char __user * filename,
