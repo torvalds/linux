@@ -108,9 +108,13 @@ int ui_browser__input_window(const char *title, const char *text, char *input,
 	max_len -= 2;
 	SLsmg_write_wrapped_string((unsigned char *)text, y, x,
 				   nr_lines, max_len, 1);
-	y += nr_lines + 1;
-	SLsmg_set_color(0);
-	SLsmg_draw_box(y - 1, x + 1, 3, max_len - 2);
+	y += nr_lines;
+	len = 5;
+	while (len--) {
+		SLsmg_gotorc(y + len - 1, x);
+		SLsmg_write_nstring((char *)" ", max_len);
+	}
+	SLsmg_draw_box(y++, x + 1, 3, max_len - 2);
 
 	SLsmg_gotorc(y + 3, x);
 	SLsmg_write_nstring((char *)exit_msg, max_len);
