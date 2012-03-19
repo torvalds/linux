@@ -15,11 +15,20 @@
 void exynos_init_io(struct map_desc *mach_desc, int size);
 void exynos4_init_irq(void);
 
+#ifdef CONFIG_ARCH_EXYNOS4
 void exynos4_register_clocks(void);
 void exynos4_setup_clocks(void);
 
 void exynos4210_register_clocks(void);
 void exynos4212_register_clocks(void);
+
+#else
+#define exynos4_register_clocks()
+#define exynos4_setup_clocks()
+
+#define exynos4210_register_clocks()
+#define exynos4212_register_clocks()
+#endif
 
 void exynos4_restart(char mode, const char *cmd);
 

@@ -999,7 +999,7 @@ static void __init universal_map_io(void)
 	s3c24xx_init_uarts(universal_uartcfgs, ARRAY_SIZE(universal_uartcfgs));
 }
 
-void s5p_tv_setup(void)
+static void s5p_tv_setup(void)
 {
 	/* direct HPD to HDMI chip */
 	gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug");

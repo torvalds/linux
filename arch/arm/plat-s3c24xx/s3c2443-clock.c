@@ -53,7 +53,7 @@ int s3c2443_clkcon_enable_s(struct clk *clk, int enable)
  * elided as the EPLL can be either sourced by the XTAL or EXTCLK and as
  * such directly equating the two source clocks is impossible.
  */
-struct clk clk_mpllref = {
+static struct clk clk_mpllref = {
 	.name		= "mpllref",
 	.parent		= &clk_xtal,
 };

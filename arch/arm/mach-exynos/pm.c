@@ -38,29 +38,29 @@
 #include <mach/pmu.h>
 
 static struct sleep_save exynos4_set_clksrc[] = {
-	{ .reg = S5P_CLKSRC_MASK_TOP			, .val = 0x00000001, },
-	{ .reg = S5P_CLKSRC_MASK_CAM			, .val = 0x11111111, },
-	{ .reg = S5P_CLKSRC_MASK_TV			, .val = 0x00000111, },
-	{ .reg = S5P_CLKSRC_MASK_LCD0			, .val = 0x00001111, },
-	{ .reg = S5P_CLKSRC_MASK_MAUDIO			, .val = 0x00000001, },
-	{ .reg = S5P_CLKSRC_MASK_FSYS			, .val = 0x01011111, },
-	{ .reg = S5P_CLKSRC_MASK_PERIL0			, .val = 0x01111111, },
-	{ .reg = S5P_CLKSRC_MASK_PERIL1			, .val = 0x01110111, },
-	{ .reg = S5P_CLKSRC_MASK_DMC			, .val = 0x00010000, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_TOP		, .val = 0x00000001, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_CAM		, .val = 0x11111111, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_TV			, .val = 0x00000111, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_LCD0		, .val = 0x00001111, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_MAUDIO		, .val = 0x00000001, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_FSYS		, .val = 0x01011111, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_PERIL0		, .val = 0x01111111, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_PERIL1		, .val = 0x01110111, },
+	{ .reg = EXYNOS4_CLKSRC_MASK_DMC		, .val = 0x00010000, },
 };
 
 static struct sleep_save exynos4210_set_clksrc[] = {
-	{ .reg = S5P_CLKSRC_MASK_LCD1			, .val = 0x00001111, },
+	{ .reg = EXYNOS4210_CLKSRC_MASK_LCD1		, .val = 0x00001111, },
 };
 
 static struct sleep_save exynos4_epll_save[] = {
-	SAVE_ITEM(S5P_EPLL_CON0),
-	SAVE_ITEM(S5P_EPLL_CON1),
+	SAVE_ITEM(EXYNOS4_EPLL_CON0),
+	SAVE_ITEM(EXYNOS4_EPLL_CON1),
 };
 
 static struct sleep_save exynos4_vpll_save[] = {
-	SAVE_ITEM(S5P_VPLL_CON0),
-	SAVE_ITEM(S5P_VPLL_CON1),
+	SAVE_ITEM(EXYNOS4_VPLL_CON0),
+	SAVE_ITEM(EXYNOS4_VPLL_CON1),
 };
 
 static struct sleep_save exynos4_core_save[] = {
@@ -231,7 +231,7 @@ static void exynos4_restore_pll(void)
 		locktime = (3000 / pll_in_rate) * p_div;
 		lockcnt = locktime * 10000 / (10000 / pll_in_rate);
 
-		__raw_writel(lockcnt, S5P_EPLL_LOCK);
+		__raw_writel(lockcnt, EXYNOS4_EPLL_LOCK);
 
 		s3c_pm_do_restore_core(exynos4_epll_save,
 					ARRAY_SIZE(exynos4_epll_save));
@@ -249,7 +249,7 @@ static void exynos4_restore_pll(void)
 		locktime = 750;
 		lockcnt = locktime * 10000 / (10000 / pll_in_rate);
 
-		__raw_writel(lockcnt, S5P_VPLL_LOCK);
+		__raw_writel(lockcnt, EXYNOS4_VPLL_LOCK);
 
 		s3c_pm_do_restore_core(exynos4_vpll_save,
 					ARRAY_SIZE(exynos4_vpll_save));
@@ -260,14 +260,14 @@ static void exynos4_restore_pll(void)
 
 	do {
 		if (epll_wait) {
-			pll_con = __raw_readl(S5P_EPLL_CON0);
-			if (pll_con & (1 << S5P_EPLLCON0_LOCKED_SHIFT))
+			pll_con = __raw_readl(EXYNOS4_EPLL_CON0);
+			if (pll_con & (1 << EXYNOS4_EPLLCON0_LOCKED_SHIFT))
 				epll_wait = 0;
 		}
 
 		if (vpll_wait) {
-			pll_con = __raw_readl(S5P_VPLL_CON0);
-			if (pll_con & (1 << S5P_VPLLCON0_LOCKED_SHIFT))
+			pll_con = __raw_readl(EXYNOS4_VPLL_CON0);
+			if (pll_con & (1 << EXYNOS4_VPLLCON0_LOCKED_SHIFT))
 				vpll_wait = 0;
 		}
 	} while (epll_wait || vpll_wait);
