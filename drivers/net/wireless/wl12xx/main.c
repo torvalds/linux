@@ -2355,10 +2355,10 @@ deinit:
 		for (i = 0; i < CONF_TX_MAX_AC_COUNT; i++)
 			wl12xx_free_rate_policy(wl,
 						&wlvif->ap.ucast_rate_idx[i]);
+		wl1271_free_ap_keys(wl, wlvif);
 	}
 
 	wl12xx_tx_reset_wlvif(wl, wlvif);
-	wl1271_free_ap_keys(wl, wlvif);
 	if (wl->last_wlvif == wlvif)
 		wl->last_wlvif = NULL;
 	list_del(&wlvif->list);
