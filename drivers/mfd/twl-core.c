@@ -621,6 +621,8 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 		unsigned num_consumers, unsigned long features)
 {
 	unsigned sub_chip_id;
+	struct twl_regulator_driver_data drv_data;
+
 	/* regulator framework demands init_data ... */
 	if (!pdata)
 		return NULL;
@@ -630,7 +632,19 @@ add_regulator_linked(int num, struct regulator_init_data *pdata,
 		pdata->num_consumer_supplies = num_consumers;
 	}
 
-	pdata->driver_data = (void *)features;
+	if (pdata->driver_data) {
+		/* If we have existing drv_data, just add the flags */
+		struct twl_regulator_driver_data *tmp;
+		tmp = pdata->driver_data;
+		tmp->features |= features;
+	} else {
+		/* add new driver data struct, used only during init */
+		drv_data.features = features;
+		drv_data.set_voltage = NULL;
+		drv_data.get_voltage = NULL;
+		drv_data.data = NULL;
+		pdata->driver_data = &drv_data;
+	}
 
 	/* NOTE:  we currently ignore regulator IRQs, e.g. for short circuits */
 	sub_chip_id = twl_map[TWL_MODULE_PM_MASTER].sid;
@@ -937,6 +951,31 @@ add_children(struct twl4030_platform_data *pdata, unsigned long features)
 	/* twl6030 regulators */
 	if (twl_has_regulator() && twl_class_is_6030() &&
 			!(features & TWL6025_SUBCLASS)) {
+		child = add_regulator(TWL6030_REG_VDD1, pdata->vdd1,
+					features);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VDD2, pdata->vdd2,
+					features);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_VDD3, pdata->vdd3,
+					features);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_V1V8, pdata->v1v8,
+					features);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
+		child = add_regulator(TWL6030_REG_V2V1, pdata->v2v1,
+					features);
+		if (IS_ERR(child))
+			return PTR_ERR(child);
+
 		child = add_regulator(TWL6030_REG_VMMC, pdata->vmmc,
 					features);
 		if (IS_ERR(child))
