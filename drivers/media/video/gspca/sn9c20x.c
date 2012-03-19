@@ -825,7 +825,7 @@ static u8 hv7131r_gain[] = {
 };
 
 static struct i2c_reg_u8 soi968_init[] = {
-	{0x12, 0x80}, {0x0c, 0x00}, {0x0f, 0x1f},
+	{0x0c, 0x00}, {0x0f, 0x1f},
 	{0x11, 0x80}, {0x38, 0x52}, {0x1e, 0x00},
 	{0x33, 0x08}, {0x35, 0x8c}, {0x36, 0x0c},
 	{0x37, 0x04}, {0x45, 0x04}, {0x47, 0xff},
@@ -851,7 +851,7 @@ static struct i2c_reg_u8 ov7660_init[] = {
 };
 
 static struct i2c_reg_u8 ov7670_init[] = {
-	{0x12, 0x80}, {0x11, 0x80}, {0x3a, 0x04}, {0x12, 0x01},
+	{0x11, 0x80}, {0x3a, 0x04}, {0x12, 0x01},
 	{0x32, 0xb6}, {0x03, 0x0a}, {0x0c, 0x00}, {0x3e, 0x00},
 	{0x70, 0x3a}, {0x71, 0x35}, {0x72, 0x11}, {0x73, 0xf0},
 	{0xa2, 0x02}, {0x13, 0xe0}, {0x00, 0x00}, {0x10, 0x00},
@@ -908,7 +908,7 @@ static struct i2c_reg_u8 ov7670_init[] = {
 };
 
 static struct i2c_reg_u8 ov9650_init[] = {
-	{0x12, 0x80}, {0x00, 0x00}, {0x01, 0x78},
+	{0x00, 0x00}, {0x01, 0x78},
 	{0x02, 0x78}, {0x03, 0x36}, {0x04, 0x03},
 	{0x05, 0x00}, {0x06, 0x00}, {0x08, 0x00},
 	{0x09, 0x01}, {0x0c, 0x00}, {0x0d, 0x00},
@@ -938,7 +938,7 @@ static struct i2c_reg_u8 ov9650_init[] = {
 };
 
 static struct i2c_reg_u8 ov9655_init[] = {
-	{0x12, 0x80}, {0x0e, 0x61}, {0x11, 0x80}, {0x13, 0xba},
+	{0x0e, 0x61}, {0x11, 0x80}, {0x13, 0xba},
 	{0x14, 0x2e}, {0x16, 0x24}, {0x1e, 0x04}, {0x27, 0x08},
 	{0x28, 0x08}, {0x29, 0x15}, {0x2c, 0x08}, {0x34, 0x3d},
 	{0x35, 0x00}, {0x38, 0x12}, {0x0f, 0x42}, {0x39, 0x57},
@@ -1233,6 +1233,8 @@ static void ov9650_init_sensor(struct gspca_dev *gspca_dev)
 		return;
 	}
 
+	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
+	msleep(200);
 	for (i = 0; i < ARRAY_SIZE(ov9650_init); i++) {
 		i2c_w1(gspca_dev, ov9650_init[i].reg,
 				ov9650_init[i].val);
@@ -1250,6 +1252,8 @@ static void ov9655_init_sensor(struct gspca_dev *gspca_dev)
 	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
+	msleep(200);
 	for (i = 0; i < ARRAY_SIZE(ov9655_init); i++) {
 		i2c_w1(gspca_dev, ov9655_init[i].reg,
 				ov9655_init[i].val);
@@ -1269,6 +1273,8 @@ static void soi968_init_sensor(struct gspca_dev *gspca_dev)
 	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
+	msleep(200);
 	for (i = 0; i < ARRAY_SIZE(soi968_init); i++) {
 		i2c_w1(gspca_dev, soi968_init[i].reg,
 				soi968_init[i].val);
@@ -1289,6 +1295,8 @@ static void ov7660_init_sensor(struct gspca_dev *gspca_dev)
 	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
+	msleep(200);
 	for (i = 0; i < ARRAY_SIZE(ov7660_init); i++) {
 		i2c_w1(gspca_dev, ov7660_init[i].reg,
 				ov7660_init[i].val);
@@ -1306,6 +1314,8 @@ static void ov7670_init_sensor(struct gspca_dev *gspca_dev)
 	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
 
+	i2c_w1(gspca_dev, 0x12, 0x80);		/* sensor reset */
+	msleep(200);
 	for (i = 0; i < ARRAY_SIZE(ov7670_init); i++) {
 		i2c_w1(gspca_dev, ov7670_init[i].reg,
 				ov7670_init[i].val);
