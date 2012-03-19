@@ -1144,7 +1144,7 @@ static void i2c_w(struct gspca_dev *gspca_dev, const u8 *buffer)
 			}
 			return;
 		}
-		msleep(1);
+		msleep(10);
 	}
 	pr_err("i2c_w reg %02x no response\n", buffer[2]);
 /*	gspca_dev->usb_err = -EIO;	fixme: may occur */
