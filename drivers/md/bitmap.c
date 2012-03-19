@@ -446,18 +446,13 @@ out:
 void bitmap_update_sb(struct bitmap *bitmap)
 {
 	bitmap_super_t *sb;
-	unsigned long flags;
 
 	if (!bitmap || !bitmap->mddev) /* no bitmap for this array */
 		return;
 	if (bitmap->mddev->bitmap_info.external)
 		return;
-	spin_lock_irqsave(&bitmap->lock, flags);
-	if (!bitmap->sb_page) { /* no superblock */
-		spin_unlock_irqrestore(&bitmap->lock, flags);
+	if (!bitmap->sb_page) /* no superblock */
 		return;
-	}
-	spin_unlock_irqrestore(&bitmap->lock, flags);
 	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
 	sb->events = cpu_to_le64(bitmap->mddev->events);
 	if (bitmap->mddev->events < bitmap->events_cleared)
@@ -683,15 +678,10 @@ static int bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
 			     enum bitmap_mask_op op)
 {
 	bitmap_super_t *sb;
-	unsigned long flags;
 	int old;
 
-	spin_lock_irqsave(&bitmap->lock, flags);
-	if (!bitmap->sb_page) { /* can't set the state */
-		spin_unlock_irqrestore(&bitmap->lock, flags);
+	if (!bitmap->sb_page) /* can't set the state */
 		return 0;
-	}
-	spin_unlock_irqrestore(&bitmap->lock, flags);
 	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
 	old = le32_to_cpu(sb->state) & bits;
 	switch (op) {
