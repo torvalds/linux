@@ -333,7 +333,7 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 	int i;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
-	if (WARN_ON(txq->meta || txq->cmd || txq->skbs || txq->tfds))
+	if (WARN_ON(txq->entries || txq->tfds))
 		return -EINVAL;
 
 	setup_timer(&txq->stuck_timer, iwl_trans_pcie_queue_stuck_timer,
@@ -342,34 +342,21 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 
 	txq->q.n_window = slots_num;
 
-	txq->meta = kcalloc(slots_num, sizeof(txq->meta[0]), GFP_KERNEL);
-	txq->cmd = kcalloc(slots_num, sizeof(txq->cmd[0]), GFP_KERNEL);
+	txq->entries = kcalloc(slots_num,
+			       sizeof(struct iwl_pcie_tx_queue_entry),
+			       GFP_KERNEL);
 
-	if (!txq->meta || !txq->cmd)
+	if (!txq->entries)
 		goto error;
 
 	if (txq_id == trans_pcie->cmd_queue)
 		for (i = 0; i < slots_num; i++) {
-			txq->cmd[i] = kmalloc(sizeof(struct iwl_device_cmd),
-						GFP_KERNEL);
-			if (!txq->cmd[i])
+			txq->entries[i].cmd =
+				kmalloc(sizeof(struct iwl_device_cmd),
+					GFP_KERNEL);
+			if (!txq->entries[i].cmd)
 				goto error;
 		}
-
-	/* Alloc driver data array and TFD circular buffer */
-	/* Driver private data, only for Tx (not command) queues,
-	 * not shared with device. */
-	if (txq_id != trans_pcie->cmd_queue) {
-		txq->skbs = kcalloc(TFD_QUEUE_SIZE_MAX, sizeof(txq->skbs[0]),
-				    GFP_KERNEL);
-		if (!txq->skbs) {
-			IWL_ERR(trans, "kmalloc for auxiliary BD "
-				  "structures failed\n");
-			goto error;
-		}
-	} else {
-		txq->skbs = NULL;
-	}
 
 	/* Circular buffer of transmit frame descriptors (TFDs),
 	 * shared with device */
@@ -383,17 +370,11 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 
 	return 0;
 error:
-	kfree(txq->skbs);
-	txq->skbs = NULL;
-	/* since txq->cmd has been zeroed,
-	 * all non allocated cmd[i] will be NULL */
-	if (txq->cmd && txq_id == trans_pcie->cmd_queue)
+	if (txq->entries && txq_id == trans_pcie->cmd_queue)
 		for (i = 0; i < slots_num; i++)
-			kfree(txq->cmd[i]);
-	kfree(txq->meta);
-	kfree(txq->cmd);
-	txq->meta = NULL;
-	txq->cmd = NULL;
+			kfree(txq->entries[i].cmd);
+	kfree(txq->entries);
+	txq->entries = NULL;
 
 	return -ENOMEM;
 
@@ -405,7 +386,6 @@ static int iwl_trans_txq_init(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 	int ret;
 
 	txq->need_update = 0;
-	memset(txq->meta, 0, sizeof(txq->meta[0]) * slots_num);
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
 	 * iwl_queue_inc_wrap and iwl_queue_dec_wrap are broken. */
@@ -483,7 +463,7 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 
 	if (txq_id == trans_pcie->cmd_queue)
 		for (i = 0; i < txq->q.n_window; i++)
-			kfree(txq->cmd[i]);
+			kfree(txq->entries[i].cmd);
 
 	/* De-alloc circular buffer of TFDs */
 	if (txq->q.n_bd) {
@@ -492,15 +472,8 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 		memset(&txq->q.dma_addr, 0, sizeof(txq->q.dma_addr));
 	}
 
-	/* De-alloc array of per-TFD driver data */
-	kfree(txq->skbs);
-	txq->skbs = NULL;
-
-	/* deallocate arrays */
-	kfree(txq->cmd);
-	kfree(txq->meta);
-	txq->cmd = NULL;
-	txq->meta = NULL;
+	kfree(txq->entries);
+	txq->entries = NULL;
 
 	del_timer_sync(&txq->stuck_timer);
 
@@ -1295,15 +1268,15 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 	spin_lock(&txq->lock);
 
 	/* Set up driver data for this TFD */
-	txq->skbs[q->write_ptr] = skb;
-	txq->cmd[q->write_ptr] = dev_cmd;
+	txq->entries[q->write_ptr].skb = skb;
+	txq->entries[q->write_ptr].cmd = dev_cmd;
 
 	dev_cmd->hdr.cmd = REPLY_TX;
 	dev_cmd->hdr.sequence = cpu_to_le16((u16)(QUEUE_TO_SEQ(txq_id) |
 				INDEX_TO_SEQ(q->write_ptr)));
 
 	/* Set up first empty entry in queue's array of Tx/cmd buffers */
-	out_meta = &txq->meta[q->write_ptr];
+	out_meta = &txq->entries[q->write_ptr].meta;
 
 	/*
 	 * Use the first empty entry in this queue's command buffer array

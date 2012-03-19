@@ -425,7 +425,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 		cmd_index = get_cmd_index(&txq->q, index);
 
 		if (reclaim)
-			cmd = txq->cmd[cmd_index];
+			cmd = txq->entries[cmd_index].cmd;
 		else
 			cmd = NULL;
 

@@ -58,7 +58,7 @@ void iwl_trans_txq_update_byte_cnt_tbl(struct iwl_trans *trans,
 	u16 len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 	__le16 bc_ent;
 	struct iwl_tx_cmd *tx_cmd =
-		(struct iwl_tx_cmd *) txq->cmd[txq->q.write_ptr]->payload;
+		(void *) txq->entries[txq->q.write_ptr].cmd->payload;
 
 	scd_bc_tbl = trans_pcie->scd_bc_tbls.addr;
 
@@ -221,13 +221,14 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 
 	lockdep_assert_held(&txq->lock);
 
-	iwlagn_unmap_tfd(trans, &txq->meta[index], &tfd_tmp[index], dma_dir);
+	iwlagn_unmap_tfd(trans, &txq->entries[index].meta,
+			 &tfd_tmp[index], dma_dir);
 
 	/* free SKB */
-	if (txq->skbs) {
+	if (txq->entries) {
 		struct sk_buff *skb;
 
-		skb = txq->skbs[index];
+		skb = txq->entries[index].skb;
 
 		/* Can be called from irqs-disabled context
 		 * If skb is not NULL, it means that the whole queue is being
@@ -235,7 +236,7 @@ void iwlagn_txq_free_tfd(struct iwl_trans *trans, struct iwl_tx_queue *txq,
 		 */
 		if (skb) {
 			iwl_op_mode_free_skb(trans->op_mode, skb);
-			txq->skbs[index] = NULL;
+			txq->entries[index].skb = NULL;
 		}
 	}
 }
@@ -358,7 +359,7 @@ static void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_trans *trans,
 	u8 sta_id = 0;
 	__le16 bc_ent;
 	struct iwl_tx_cmd *tx_cmd =
-		(struct iwl_tx_cmd *) txq->cmd[txq->q.read_ptr]->payload;
+		(void *)txq->entries[txq->q.read_ptr].cmd->payload;
 
 	WARN_ON(read_ptr >= TFD_QUEUE_SIZE_MAX);
 
@@ -578,8 +579,8 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	}
 
 	idx = get_cmd_index(q, q->write_ptr);
-	out_cmd = txq->cmd[idx];
-	out_meta = &txq->meta[idx];
+	out_cmd = txq->entries[idx].cmd;
+	out_meta = &txq->entries[idx].meta;
 
 	memset(out_meta, 0, sizeof(*out_meta));	/* re-initialize to NULL */
 	if (cmd->flags & CMD_WANT_SKB)
@@ -772,8 +773,8 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 	spin_lock(&txq->lock);
 
 	cmd_index = get_cmd_index(&txq->q, index);
-	cmd = txq->cmd[cmd_index];
-	meta = &txq->meta[cmd_index];
+	cmd = txq->entries[cmd_index].cmd;
+	meta = &txq->entries[cmd_index].meta;
 
 	iwlagn_unmap_tfd(trans, meta, &txq->tfds[index],
 			 DMA_BIDIRECTIONAL);
@@ -905,8 +906,8 @@ cancel:
 		 * in later, it will possibly set an invalid
 		 * address (cmd->meta.source).
 		 */
-		trans_pcie->txq[trans_pcie->cmd_queue].meta[cmd_idx].flags &=
-							~CMD_WANT_SKB;
+		trans_pcie->txq[trans_pcie->cmd_queue].
+			entries[cmd_idx].meta.flags &= ~CMD_WANT_SKB;
 	}
 
 	if (cmd->resp_pkt) {
@@ -961,12 +962,12 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 	     q->read_ptr != index;
 	     q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
-		if (WARN_ON_ONCE(txq->skbs[txq->q.read_ptr] == NULL))
+		if (WARN_ON_ONCE(txq->entries[txq->q.read_ptr].skb == NULL))
 			continue;
 
-		__skb_queue_tail(skbs, txq->skbs[txq->q.read_ptr]);
+		__skb_queue_tail(skbs, txq->entries[txq->q.read_ptr].skb);
 
-		txq->skbs[txq->q.read_ptr] = NULL;
+		txq->entries[txq->q.read_ptr].skb = NULL;
 
 		iwlagn_txq_inval_byte_cnt_tbl(trans, txq);
 
