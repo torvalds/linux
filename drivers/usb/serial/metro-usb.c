@@ -119,12 +119,12 @@ static void metrousb_read_int_callback(struct urb *urb)
 		/* urb has been terminated. */
 		dev_dbg(&port->dev,
 			"%s - urb shutting down, error code=%d\n",
-			__func__, result);
+			__func__, urb->status);
 		return;
 	default:
 		dev_dbg(&port->dev,
 			"%s - non-zero urb received, error code=%d\n",
-			__func__, result);
+			__func__, urb->status);
 		goto exit;
 	}
 
