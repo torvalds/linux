@@ -8,6 +8,7 @@
 #define PRESS_LEV_HIGH			0
 
 static struct rk29_keys_button key_button[] = {
+#if 0
 	{
 		.desc	= "menu",
 		.code	= EV_MENU,
@@ -50,10 +51,11 @@ static struct rk29_keys_button key_button[] = {
 		.gpio	= RK30_PIN6_PA6,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 	{
 		.desc	= "play",
 		.code	= KEY_POWER,
-		.gpio	= RK30_PIN6_PA7,
+		.gpio	= RK30_PIN6_PA2,
 		.active_low = PRESS_LEV_LOW,
 		//.code_long_press = EV_ENCALL,
 		.wakeup	= 1,
