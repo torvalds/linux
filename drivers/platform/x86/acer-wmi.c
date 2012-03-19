@@ -177,6 +177,11 @@ struct hotkey_function_type_aa {
 	u8 length;
 	u16 handle;
 	u16 commun_func_bitmap;
+	u16 application_func_bitmap;
+	u16 media_func_bitmap;
+	u16 display_func_bitmap;
+	u16 others_func_bitmap;
+	u8 commun_fn_key_number;
 } __attribute__((packed));
 
 /*
@@ -213,6 +218,7 @@ static int force_series;
 static bool ec_raw_mode;
 static bool has_type_aa;
 static u16 commun_func_bitmap;
+static u8 commun_fn_key_number;
 
 module_param(mailled, int, 0444);
 module_param(brightness, int, 0444);
@@ -918,7 +924,7 @@ static acpi_status wmid3_get_device_status(u32 *value, u16 device)
 	union acpi_object *obj;
 	struct wmid3_gds_input_param params = {
 		.function_num = 0x1,
-		.hotkey_number = 0x01,
+		.hotkey_number = commun_fn_key_number,
 		.devices = device,
 	};
 	struct acpi_buffer input = {
@@ -987,7 +993,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	u16 devices;
 	struct wmid3_gds_input_param params = {
 		.function_num = 0x1,
-		.hotkey_number = 0x01,
+		.hotkey_number = commun_fn_key_number,
 		.devices = commun_func_bitmap,
 	};
 	struct acpi_buffer input = {
@@ -1027,7 +1033,7 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 
 	devices = return_value.devices;
 	params.function_num = 0x2;
-	params.hotkey_number = 0x01;
+	params.hotkey_number = commun_fn_key_number;
 	params.devices = (value) ? (devices | device) : (devices & ~device);
 
 	status = wmi_evaluate_method(WMID_GUID3, 0, 0x1, &input, &output2);
@@ -1100,6 +1106,8 @@ static void type_aa_dmi_decode(const struct dmi_header *header, void *dummy)
 		interface->capability |= ACER_CAP_THREEG;
 	if (type_aa->commun_func_bitmap & ACER_WMID3_GDS_BLUETOOTH)
 		interface->capability |= ACER_CAP_BLUETOOTH;
+
+	commun_fn_key_number = type_aa->commun_fn_key_number;
 }
 
 static acpi_status WMID_set_capabilities(void)
