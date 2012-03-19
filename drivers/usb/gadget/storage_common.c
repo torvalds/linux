@@ -767,7 +767,7 @@ static ssize_t fsg_store_file(struct device *dev, struct device_attribute *attr,
 	struct rw_semaphore	*filesem = dev_get_drvdata(dev);
 	int		rc = 0;
 
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 	printk("store_file: \"%s\"\n", buf);
 #endif
 

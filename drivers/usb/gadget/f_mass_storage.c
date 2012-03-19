@@ -298,7 +298,7 @@
 #include "gadget_chips.h"
 
 
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 /* flush after every 4 meg of writes to avoid excessive block level caching */
 #define MAX_UNFLUSHED_BYTES  (64 * 1024)// (4 * 1024 * 1024) //original value is 4MB,Modifyed by xbw at 2011-08-18
 #define MAX_UNFLUSHED_PACKETS 4//16
@@ -1989,7 +1989,7 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	return 0;
 }
 
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 static void deferred_restart(struct work_struct *dummy)
 {
 	sys_sync();
@@ -2143,7 +2143,7 @@ static int do_scsi_command(struct fsg_common *common)
 	int			reply = -EINVAL;
 	int			i;
 	static char		unknown[16];
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 	struct fsg_common	*fsg = common;
 #endif
 
@@ -2336,7 +2336,7 @@ static int do_scsi_command(struct fsg_common *common)
 				      (1<<1) | (0xf<<2) | (3<<7), 1,
 				      "VERIFY");
 		if (reply == 0)
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 			reply = 0; //zyf 20100302
 #else
 			reply = do_verify(common);
@@ -2396,7 +2396,7 @@ unknown_cmnd:
 			reply = -EINVAL;
 		}
 		break;
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 	case 0xff:
 		if( fsg->cmnd[1] != 0xe0 ||
 		    fsg->cmnd[2] != 0xff || fsg->cmnd[3] != 0xff ||
@@ -3405,7 +3405,7 @@ fsg_common_from_params(struct fsg_common *common,
 
 #ifdef CONFIG_USB_ANDROID_MASS_STORAGE
 
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 static enum power_supply_property usb_props[] = {
 //	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
@@ -3483,7 +3483,7 @@ static int fsg_probe(struct platform_device *pdev)
 	fsg_cfg.can_stall = 0;
 	fsg_cfg.pdev = pdev;
 
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 {
 	/*
 	 * Initialize usb power supply
