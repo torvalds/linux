@@ -94,6 +94,13 @@
  *			  about CHECKSUM_UNNECESSARY. 8)
  *	NETIF_F_IPV6_CSUM about as dumb as the last one but does IPv6 instead.
  *
+ *	UNNECESSARY: device will do per protocol specific csum. Protocol drivers
+ *	that do not want net to perform the checksum calculation should use
+ *	this flag in their outgoing skbs.
+ *	NETIF_F_FCOE_CRC  this indicates the device can do FCoE FC CRC
+ *			  offload. Correspondingly, the FCoE protocol driver
+ *			  stack should use CHECKSUM_UNNECESSARY.
+ *
  *	Any questions? No questions, good. 		--ANK
  */
 
