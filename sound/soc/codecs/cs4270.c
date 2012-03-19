@@ -600,10 +600,12 @@ static int cs4270_soc_suspend(struct snd_soc_codec *codec)
 static int cs4270_soc_resume(struct snd_soc_codec *codec)
 {
 	struct cs4270_private *cs4270 = snd_soc_codec_get_drvdata(codec);
-	int reg;
+	int reg, ret;
 
-	regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
-			      cs4270->supplies);
+	ret = regulator_bulk_enable(ARRAY_SIZE(cs4270->supplies),
+				    cs4270->supplies);
+	if (ret != 0)
+		return ret;
 
 	/* In case the device was put to hard reset during sleep, we need to
 	 * wait 500ns here before any I2C communication. */
