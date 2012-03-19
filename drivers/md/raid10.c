@@ -3436,6 +3436,43 @@ static void raid10_quiesce(struct mddev *mddev, int state)
 	}
 }
 
+static int raid10_resize(struct mddev *mddev, sector_t sectors)
+{
+	/* Resize of 'far' arrays is not supported.
+	 * For 'near' and 'offset' arrays we can set the
+	 * number of sectors used to be an appropriate multiple
+	 * of the chunk size.
+	 * For 'offset', this is far_copies*chunksize.
+	 * For 'near' the multiplier is the LCM of
+	 * near_copies and raid_disks.
+	 * So if far_copies > 1 && !far_offset, fail.
+	 * Else find LCM(raid_disks, near_copy)*far_copies and
+	 * multiply by chunk_size.  Then round to this number.
+	 * This is mostly done by raid10_size()
+	 */
+	struct r10conf *conf = mddev->private;
+	sector_t oldsize, size;
+
+	if (conf->far_copies > 1 && !conf->far_offset)
+		return -EINVAL;
+
+	oldsize = raid10_size(mddev, 0, 0);
+	size = raid10_size(mddev, sectors, 0);
+	md_set_array_sectors(mddev, size);
+	if (mddev->array_sectors > size)
+		return -EINVAL;
+	set_capacity(mddev->gendisk, mddev->array_sectors);
+	revalidate_disk(mddev->gendisk);
+	if (sectors > mddev->dev_sectors &&
+	    mddev->recovery_cp > oldsize) {
+		mddev->recovery_cp = oldsize;
+		set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+	}
+	mddev->dev_sectors = sectors;
+	mddev->resync_max_sectors = size;
+	return 0;
+}
+
 static void *raid10_takeover_raid0(struct mddev *mddev)
 {
 	struct md_rdev *rdev;
@@ -3505,6 +3542,7 @@ static struct md_personality raid10_personality =
 	.sync_request	= sync_request,
 	.quiesce	= raid10_quiesce,
 	.size		= raid10_size,
+	.resize		= raid10_resize,
 	.takeover	= raid10_takeover,
 };
 
