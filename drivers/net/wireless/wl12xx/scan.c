@@ -417,6 +417,23 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 	int i, j;
 	u32 flags;
 	bool force_passive = !req->n_ssids;
+	u32 min_dwell_time_active, max_dwell_time_active, delta_per_probe;
+	u32 dwell_time_passive, dwell_time_dfs;
+
+	if (band == IEEE80211_BAND_5GHZ)
+		delta_per_probe = c->dwell_time_delta_per_probe_5;
+	else
+		delta_per_probe = c->dwell_time_delta_per_probe;
+
+	min_dwell_time_active = c->base_dwell_time +
+		 req->n_ssids * c->num_probe_reqs * delta_per_probe;
+
+	max_dwell_time_active = min_dwell_time_active + c->max_dwell_time_delta;
+
+	min_dwell_time_active = DIV_ROUND_UP(min_dwell_time_active, 1000);
+	max_dwell_time_active = DIV_ROUND_UP(max_dwell_time_active, 1000);
+	dwell_time_passive = DIV_ROUND_UP(c->dwell_time_passive, 1000);
+	dwell_time_dfs = DIV_ROUND_UP(c->dwell_time_dfs, 1000);
 
 	for (i = 0, j = start;
 	     i < req->n_channels && j < max_channels;
@@ -440,21 +457,24 @@ wl1271_scan_get_sched_scan_channels(struct wl1271 *wl,
 				     req->channels[i]->flags);
 			wl1271_debug(DEBUG_SCAN, "max_power %d",
 				     req->channels[i]->max_power);
+			wl1271_debug(DEBUG_SCAN, "min_dwell_time %d max dwell time %d",
+				     min_dwell_time_active,
+				     max_dwell_time_active);
 
 			if (flags & IEEE80211_CHAN_RADAR) {
 				channels[j].flags |= SCAN_CHANNEL_FLAGS_DFS;
 
 				channels[j].passive_duration =
-					cpu_to_le16(c->dwell_time_dfs);
+					cpu_to_le16(dwell_time_dfs);
 			} else {
 				channels[j].passive_duration =
-					cpu_to_le16(c->dwell_time_passive);
+					cpu_to_le16(dwell_time_passive);
 			}
 
 			channels[j].min_duration =
-				cpu_to_le16(c->min_dwell_time_active);
+				cpu_to_le16(min_dwell_time_active);
 			channels[j].max_duration =
-				cpu_to_le16(c->max_dwell_time_active);
+				cpu_to_le16(max_dwell_time_active);
 
 			channels[j].tx_power_att = req->channels[i]->max_power;
 			channels[j].channel = req->channels[i]->hw_value;

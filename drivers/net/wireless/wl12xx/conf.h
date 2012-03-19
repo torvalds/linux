@@ -1096,16 +1096,31 @@ struct conf_scan_settings {
 };
 
 struct conf_sched_scan_settings {
-	/* minimum time to wait on the channel for active scans (in TUs) */
-	u16 min_dwell_time_active;
+	/*
+	 * The base time to wait on the channel for active scans (in TU/1000).
+	 * The minimum dwell time is calculated according to this:
+	 * min_dwell_time = base + num_of_probes_to_be_sent * delta_per_probe
+	 * The maximum dwell time is calculated according to this:
+	 * max_dwell_time = min_dwell_time + max_dwell_time_delta
+	 */
+	u32 base_dwell_time;
 
-	/* maximum time to wait on the channel for active scans (in TUs) */
-	u16 max_dwell_time_active;
+	/* The delta between the min dwell time and max dwell time for
+	 * active scans (in TU/1000s). The max dwell time is used by the FW once
+	 * traffic is detected on the channel.
+	 */
+	u32 max_dwell_time_delta;
 
-	/* time to wait on the channel for passive scans (in TUs) */
+	/* Delta added to min dwell time per each probe in 2.4 GHz (TU/1000) */
+	u32 dwell_time_delta_per_probe;
+
+	/* Delta added to min dwell time per each probe in 5 GHz (TU/1000) */
+	u32 dwell_time_delta_per_probe_5;
+
+	/* time to wait on the channel for passive scans (in TU/1000) */
 	u32 dwell_time_passive;
 
-	/* time to wait on the channel for DFS scans (in TUs) */
+	/* time to wait on the channel for DFS scans (in TU/1000) */
 	u32 dwell_time_dfs;
 
 	/* number of probe requests to send on each channel in active scans */
