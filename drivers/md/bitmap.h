@@ -103,7 +103,6 @@ typedef __u16 bitmap_counter_t;
 
 /* how many blocks per chunk? (this is variable) */
 #define CHUNK_BLOCK_RATIO(bitmap) ((bitmap)->mddev->bitmap_info.chunksize >> BITMAP_BLOCK_SHIFT)
-#define CHUNK_BLOCK_SHIFT(bitmap) ((bitmap)->chunkshift - BITMAP_BLOCK_SHIFT)
 
 #endif
 
@@ -178,7 +177,7 @@ struct bitmap {
 	struct mddev *mddev; /* the md device that the bitmap is for */
 
 	/* bitmap chunksize -- how much data does each bit represent? */
-	unsigned long chunkshift; /* chunksize = 2^chunkshift (for bitops) */
+	unsigned long chunkshift; /* chunksize = 2^(chunkshift+9) (for bitops) */
 	unsigned long chunks; /* total number of data chunks for the array */
 
 	__u64	events_cleared;
