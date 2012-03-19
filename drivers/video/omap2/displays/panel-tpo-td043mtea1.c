@@ -281,7 +281,7 @@ static int tpo_td043_power_on(struct tpo_td043_device *tpo_td043)
 	if (r != 0)
 		return r;
 
-	/* wait for regulator to stabilize */
+	/* wait for panel to stabilize */
 	msleep(160);
 
 	if (gpio_is_valid(nreset_gpio))
