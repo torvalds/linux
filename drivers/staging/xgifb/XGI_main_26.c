@@ -1924,7 +1924,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->display2_force = true;
 	}
 
-	XGIRegInit(&xgifb_info->dev_info, (unsigned long)hw_info->pjIOAddress);
+	XGIRegInit(&xgifb_info->dev_info, xgifb_info->vga_base);
 
 	xgifb_reg_set(XGISR, IND_SIS_PASSWORD, SIS_PASSWORD);
 	reg1 = xgifb_reg_get(XGISR, IND_SIS_PASSWORD);

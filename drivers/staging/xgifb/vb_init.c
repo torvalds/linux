@@ -1478,7 +1478,7 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	pVBInfo->FBAddr = HwDeviceExtension->pjVideoMemoryAddress;
 
-	pVBInfo->BaseAddr = (unsigned long) HwDeviceExtension->pjIOAddress;
+	pVBInfo->BaseAddr = xgifb_info->vga_base;
 
 	/* Newdebugcode(0x99); */
 
