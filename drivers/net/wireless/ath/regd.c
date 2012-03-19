@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/export.h>
 #include <net/cfg80211.h>
@@ -562,7 +564,7 @@ static int __ath_regd_init(struct ath_regulatory *reg)
 	printk(KERN_DEBUG "ath: EEPROM regdomain: 0x%0x\n", reg->current_rd);
 
 	if (!ath_regd_is_eeprom_valid(reg)) {
-		printk(KERN_ERR "ath: Invalid EEPROM contents\n");
+		pr_err("Invalid EEPROM contents\n");
 		return -EINVAL;
 	}
 

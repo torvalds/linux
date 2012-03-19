@@ -76,26 +76,28 @@
   GENERIC DRIVER DEFINITIONS
 \****************************/
 
-#define ATH5K_PRINTF(fmt, ...) \
-	printk(KERN_WARNING "%s: " fmt, __func__, ##__VA_ARGS__)
+#define ATH5K_PRINTF(fmt, ...)						\
+	pr_warn("%s: " fmt, __func__, ##__VA_ARGS__)
 
-#define ATH5K_PRINTK(_sc, _level, _fmt, ...) \
-	printk(_level "ath5k %s: " _fmt, \
-		((_sc) && (_sc)->hw) ? wiphy_name((_sc)->hw->wiphy) : "", \
-		##__VA_ARGS__)
+#define ATH5K_PRINTK(_sc, _level, _fmt, ...)				\
+	printk(_level pr_fmt("%s%s" _fmt),				\
+	       ((_sc) && (_sc)->hw) ? wiphy_name((_sc)->hw->wiphy) : "", \
+	       ((_sc) && (_sc)->hw) ? ": " : "",			\
+	       ##__VA_ARGS__)
 
-#define ATH5K_PRINTK_LIMIT(_sc, _level, _fmt, ...) do { \
-	if (net_ratelimit()) \
-		ATH5K_PRINTK(_sc, _level, _fmt, ##__VA_ARGS__); \
-	} while (0)
+#define ATH5K_PRINTK_LIMIT(_sc, _level, _fmt, ...)			\
+do {									\
+	if (net_ratelimit())						\
+		ATH5K_PRINTK(_sc, _level, _fmt, ##__VA_ARGS__); 	\
+} while (0)
 
-#define ATH5K_INFO(_sc, _fmt, ...) \
+#define ATH5K_INFO(_sc, _fmt, ...)					\
 	ATH5K_PRINTK(_sc, KERN_INFO, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_WARN(_sc, _fmt, ...) \
+#define ATH5K_WARN(_sc, _fmt, ...)					\
 	ATH5K_PRINTK_LIMIT(_sc, KERN_WARNING, _fmt, ##__VA_ARGS__)
 
-#define ATH5K_ERR(_sc, _fmt, ...) \
+#define ATH5K_ERR(_sc, _fmt, ...)					\
 	ATH5K_PRINTK_LIMIT(_sc, KERN_ERR, _fmt, ##__VA_ARGS__)
 
 /*

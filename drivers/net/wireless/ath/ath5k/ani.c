@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
@@ -728,33 +730,25 @@ void
 ath5k_ani_print_counters(struct ath5k_hw *ah)
 {
 	/* clears too */
-	printk(KERN_NOTICE "ACK fail\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_ACK_FAIL));
-	printk(KERN_NOTICE "RTS fail\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_RTS_FAIL));
-	printk(KERN_NOTICE "RTS success\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_RTS_OK));
-	printk(KERN_NOTICE "FCS error\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_FCS_FAIL));
+	pr_notice("ACK fail\t%d\n", ath5k_hw_reg_read(ah, AR5K_ACK_FAIL));
+	pr_notice("RTS fail\t%d\n", ath5k_hw_reg_read(ah, AR5K_RTS_FAIL));
+	pr_notice("RTS success\t%d\n", ath5k_hw_reg_read(ah, AR5K_RTS_OK));
+	pr_notice("FCS error\t%d\n", ath5k_hw_reg_read(ah, AR5K_FCS_FAIL));
 
 	/* no clear */
-	printk(KERN_NOTICE "tx\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_PROFCNT_TX));
-	printk(KERN_NOTICE "rx\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_PROFCNT_RX));
-	printk(KERN_NOTICE "busy\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_PROFCNT_RXCLR));
-	printk(KERN_NOTICE "cycles\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_PROFCNT_CYCLE));
+	pr_notice("tx\t%d\n", ath5k_hw_reg_read(ah, AR5K_PROFCNT_TX));
+	pr_notice("rx\t%d\n", ath5k_hw_reg_read(ah, AR5K_PROFCNT_RX));
+	pr_notice("busy\t%d\n", ath5k_hw_reg_read(ah, AR5K_PROFCNT_RXCLR));
+	pr_notice("cycles\t%d\n", ath5k_hw_reg_read(ah, AR5K_PROFCNT_CYCLE));
 
-	printk(KERN_NOTICE "AR5K_PHYERR_CNT1\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_PHYERR_CNT1));
-	printk(KERN_NOTICE "AR5K_PHYERR_CNT2\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_PHYERR_CNT2));
-	printk(KERN_NOTICE "AR5K_OFDM_FIL_CNT\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_OFDM_FIL_CNT));
-	printk(KERN_NOTICE "AR5K_CCK_FIL_CNT\t%d\n",
-		ath5k_hw_reg_read(ah, AR5K_CCK_FIL_CNT));
+	pr_notice("AR5K_PHYERR_CNT1\t%d\n",
+		  ath5k_hw_reg_read(ah, AR5K_PHYERR_CNT1));
+	pr_notice("AR5K_PHYERR_CNT2\t%d\n",
+		  ath5k_hw_reg_read(ah, AR5K_PHYERR_CNT2));
+	pr_notice("AR5K_OFDM_FIL_CNT\t%d\n",
+		  ath5k_hw_reg_read(ah, AR5K_OFDM_FIL_CNT));
+	pr_notice("AR5K_CCK_FIL_CNT\t%d\n",
+		  ath5k_hw_reg_read(ah, AR5K_CCK_FIL_CNT));
 }
 
 #endif
