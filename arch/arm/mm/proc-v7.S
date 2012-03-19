@@ -148,10 +148,6 @@ ENDPROC(cpu_v7_do_resume)
  *	Initialise TLB, Caches, and MMU state ready to switch the MMU
  *	on.  Return in r0 the new CP15 C1 control register setting.
  *
- *	We automatically detect if we have a Harvard cache, and use the
- *	Harvard cache control instructions insead of the unified cache
- *	control instructions.
- *
  *	This should be able to cover all ARMv7 cores.
  *
  *	It is assumed that:
@@ -234,9 +230,7 @@ __v7_setup:
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
 #endif
 #ifdef CONFIG_ARM_ERRATA_743622
-	teq	r6, #0x20			@ present in r2p0
-	teqne	r6, #0x21			@ present in r2p1
-	teqne	r6, #0x22			@ present in r2p2
+	teq	r5, #0x00200000			@ only present in r2p*
 	mrceq	p15, 0, r10, c15, c0, 1		@ read diagnostic register
 	orreq	r10, r10, #1 << 6		@ set bit #6
 	mcreq	p15, 0, r10, c15, c0, 1		@ write diagnostic register
@@ -251,9 +245,7 @@ __v7_setup:
 #endif
 
 3:	mov	r10, #0
-#ifdef HARVARD_CACHE
 	mcr	p15, 0, r10, c7, c5, 0		@ I+BTB cache invalidate
-#endif
 	dsb
 #ifdef CONFIG_MMU
 	mcr	p15, 0, r10, c8, c7, 0		@ invalidate I + D TLBs
@@ -330,16 +322,6 @@ __v7_ca5mp_proc_info:
 	.size	__v7_ca5mp_proc_info, . - __v7_ca5mp_proc_info
 
 	/*
-	 * ARM Ltd. Cortex A7 processor.
-	 */
-	.type	__v7_ca7mp_proc_info, #object
-__v7_ca7mp_proc_info:
-	.long	0x410fc070
-	.long	0xff0ffff0
-	__v7_proc __v7_ca7mp_setup, hwcaps = HWCAP_IDIV
-	.size	__v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
-
-	/*
 	 * ARM Ltd. Cortex A9 processor.
 	 */
 	.type   __v7_ca9mp_proc_info, #object
@@ -349,6 +331,16 @@ __v7_ca9mp_proc_info:
 	__v7_proc __v7_ca9mp_setup
 	.size	__v7_ca9mp_proc_info, . - __v7_ca9mp_proc_info
 #endif	/* CONFIG_ARM_LPAE */
+
+	/*
+	 * ARM Ltd. Cortex A7 processor.
+	 */
+	.type	__v7_ca7mp_proc_info, #object
+__v7_ca7mp_proc_info:
+	.long	0x410fc070
+	.long	0xff0ffff0
+	__v7_proc __v7_ca7mp_setup, hwcaps = HWCAP_IDIV
+	.size	__v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
 
 	/*
 	 * ARM Ltd. Cortex A15 processor.

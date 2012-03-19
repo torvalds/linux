@@ -368,11 +368,12 @@ void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
  */
 void gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	unsigned long irqflags;
 
-	/* Forcewake is atomic in case we get in here without the lock */
-	if (atomic_add_return(1, &dev_priv->forcewake_count) == 1)
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+	if (dev_priv->forcewake_count++ == 0)
 		dev_priv->display.force_wake_get(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
 void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
@@ -392,10 +393,12 @@ void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
  */
 void gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 {
-	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+	unsigned long irqflags;
 
-	if (atomic_dec_and_test(&dev_priv->forcewake_count))
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+	if (--dev_priv->forcewake_count == 0)
 		dev_priv->display.force_wake_put(dev_priv);
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
 }
 
 void __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
@@ -597,9 +600,36 @@ static int ironlake_do_reset(struct drm_device *dev, u8 flags)
 static int gen6_do_reset(struct drm_device *dev, u8 flags)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int	ret;
+	unsigned long irqflags;
 
-	I915_WRITE(GEN6_GDRST, GEN6_GRDOM_FULL);
-	return wait_for((I915_READ(GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
+	/* Hold gt_lock across reset to prevent any register access
+	 * with forcewake not set correctly
+	 */
+	spin_lock_irqsave(&dev_priv->gt_lock, irqflags);
+
+	/* Reset the chip */
+
+	/* GEN6_GDRST is not in the gt power well, no need to check
+	 * for fifo space for the write or forcewake the chip for
+	 * the read
+	 */
+	I915_WRITE_NOTRACE(GEN6_GDRST, GEN6_GRDOM_FULL);
+
+	/* Spin waiting for the device to ack the reset request */
+	ret = wait_for((I915_READ_NOTRACE(GEN6_GDRST) & GEN6_GRDOM_FULL) == 0, 500);
+
+	/* If reset with a user forcewake, try to restore, otherwise turn it off */
+	if (dev_priv->forcewake_count)
+		dev_priv->display.force_wake_get(dev_priv);
+	else
+		dev_priv->display.force_wake_put(dev_priv);
+
+	/* Restore fifo count */
+	dev_priv->gt_fifo_count = I915_READ_NOTRACE(GT_FIFO_FREE_ENTRIES);
+
+	spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags);
+	return ret;
 }
 
 /**
@@ -643,9 +673,6 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	case 7:
 	case 6:
 		ret = gen6_do_reset(dev, flags);
-		/* If reset with a user forcewake, try to restore */
-		if (atomic_read(&dev_priv->forcewake_count))
-			__gen6_gt_force_wake_get(dev_priv);
 		break;
 	case 5:
 		ret = ironlake_do_reset(dev, flags);
@@ -927,9 +954,14 @@ MODULE_LICENSE("GPL and additional rights");
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \
 	u##x val = 0; \
 	if (NEEDS_FORCE_WAKE((dev_priv), (reg))) { \
-		gen6_gt_force_wake_get(dev_priv); \
+		unsigned long irqflags; \
+		spin_lock_irqsave(&dev_priv->gt_lock, irqflags); \
+		if (dev_priv->forcewake_count == 0) \
+			dev_priv->display.force_wake_get(dev_priv); \
 		val = read##y(dev_priv->regs + reg); \
-		gen6_gt_force_wake_put(dev_priv); \
+		if (dev_priv->forcewake_count == 0) \
+			dev_priv->display.force_wake_put(dev_priv); \
+		spin_unlock_irqrestore(&dev_priv->gt_lock, irqflags); \
 	} else { \
 		val = read##y(dev_priv->regs + reg); \
 	} \

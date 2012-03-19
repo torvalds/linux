@@ -165,9 +165,25 @@ static int hdmi_runtime_get(void)
 
 	DSSDBG("hdmi_runtime_get\n");
 
+	/*
+	 * HACK: Add dss_runtime_get() to ensure DSS clock domain is enabled.
+	 * This should be removed later.
+	 */
+	r = dss_runtime_get();
+	if (r < 0)
+		goto err_get_dss;
+
 	r = pm_runtime_get_sync(&hdmi.pdev->dev);
 	WARN_ON(r < 0);
-	return r < 0 ? r : 0;
+	if (r < 0)
+		goto err_get_hdmi;
+
+	return 0;
+
+err_get_hdmi:
+	dss_runtime_put();
+err_get_dss:
+	return r;
 }
 
 static void hdmi_runtime_put(void)
@@ -176,8 +192,14 @@ static void hdmi_runtime_put(void)
 
 	DSSDBG("hdmi_runtime_put\n");
 
-	r = pm_runtime_put(&hdmi.pdev->dev);
+	r = pm_runtime_put_sync(&hdmi.pdev->dev);
 	WARN_ON(r < 0);
+
+	/*
+	 * HACK: This is added to complement the dss_runtime_get() call in
+	 * hdmi_runtime_get(). This should be removed later.
+	 */
+	dss_runtime_put();
 }
 
 int hdmi_init_display(struct omap_dss_device *dssdev)
@@ -497,6 +519,7 @@ bool omapdss_hdmi_detect(void)
 
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 {
+	struct omap_dss_hdmi_data *priv = dssdev->data;
 	int r = 0;
 
 	DSSDBG("ENTER hdmi_display_enable\n");
@@ -508,6 +531,8 @@ int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
 		r = -ENODEV;
 		goto err0;
 	}
+
+	hdmi.ip_data.hpd_gpio = priv->hpd_gpio;
 
 	r = omap_dss_start_device(dssdev);
 	if (r) {

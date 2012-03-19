@@ -121,11 +121,11 @@ static const char *cache_level_str(int type)
 static void
 describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
-	seq_printf(m, "%p: %s%s %8zd %04x %04x %d %d%s%s%s",
+	seq_printf(m, "%p: %s%s %8zdKiB %04x %04x %d %d%s%s%s",
 		   &obj->base,
 		   get_pin_flag(obj),
 		   get_tiling_flag(obj),
-		   obj->base.size,
+		   obj->base.size / 1024,
 		   obj->base.read_domains,
 		   obj->base.write_domain,
 		   obj->last_rendering_seqno,
@@ -653,7 +653,7 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 	seq_printf(m, "  Size :    %08x\n", ring->size);
 	seq_printf(m, "  Active :  %08x\n", intel_ring_get_active_head(ring));
 	seq_printf(m, "  NOPID :   %08x\n", I915_READ_NOPID(ring));
-	if (IS_GEN6(dev)) {
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		seq_printf(m, "  Sync 0 :   %08x\n", I915_READ_SYNC_0(ring));
 		seq_printf(m, "  Sync 1 :   %08x\n", I915_READ_SYNC_1(ring));
 	}
@@ -1075,6 +1075,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 rpmodectl1, gt_core_status, rcctl1;
+	unsigned forcewake_count;
 	int count=0, ret;
 
 
@@ -1082,9 +1083,13 @@ static int gen6_drpc_info(struct seq_file *m)
 	if (ret)
 		return ret;
 
-	if (atomic_read(&dev_priv->forcewake_count)) {
-		seq_printf(m, "RC information inaccurate because userspace "
-			      "holds a reference \n");
+	spin_lock_irq(&dev_priv->gt_lock);
+	forcewake_count = dev_priv->forcewake_count;
+	spin_unlock_irq(&dev_priv->gt_lock);
+
+	if (forcewake_count) {
+		seq_printf(m, "RC information inaccurate because somebody "
+			      "holds a forcewake reference \n");
 	} else {
 		/* NB: we cannot use forcewake, else we read the wrong values */
 		while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK) & 1))
@@ -1106,7 +1111,7 @@ static int gen6_drpc_info(struct seq_file *m)
 	seq_printf(m, "SW control enabled: %s\n",
 		   yesno((rpmodectl1 & GEN6_RP_MEDIA_MODE_MASK) ==
 			  GEN6_RP_MEDIA_SW_MODE));
-	seq_printf(m, "RC6 Enabled: %s\n",
+	seq_printf(m, "RC1e Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC1e_ENABLE));
 	seq_printf(m, "RC6 Enabled: %s\n",
 		   yesno(rcctl1 & GEN6_RC_CTL_RC6_ENABLE));
@@ -1398,9 +1403,13 @@ static int i915_gen6_forcewake_count_info(struct seq_file *m, void *data)
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned forcewake_count;
 
-	seq_printf(m, "forcewake count = %d\n",
-		   atomic_read(&dev_priv->forcewake_count));
+	spin_lock_irq(&dev_priv->gt_lock);
+	forcewake_count = dev_priv->forcewake_count;
+	spin_unlock_irq(&dev_priv->gt_lock);
+
+	seq_printf(m, "forcewake count = %u\n", forcewake_count);
 
 	return 0;
 }
@@ -1665,7 +1674,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	if (!IS_GEN6(dev))
+	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -1682,7 +1691,7 @@ int i915_forcewake_release(struct inode *inode, struct file *file)
 	struct drm_device *dev = inode->i_private;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_GEN6(dev))
+	if (INTEL_INFO(dev)->gen < 6)
 		return 0;
 
 	/*

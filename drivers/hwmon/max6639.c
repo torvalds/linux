@@ -72,8 +72,8 @@ static unsigned short normal_i2c[] = { 0x2c, 0x2e, 0x2f, I2C_CLIENT_END };
 
 static const int rpm_ranges[] = { 2000, 4000, 8000, 16000 };
 
-#define FAN_FROM_REG(val, div, rpm_range)	((val) == 0 ? -1 : \
-	(val) == 255 ? 0 : (rpm_ranges[rpm_range] * 30) / ((div + 1) * (val)))
+#define FAN_FROM_REG(val, rpm_range)	((val) == 0 || (val) == 255 ? \
+				0 : (rpm_ranges[rpm_range] * 30) / (val))
 #define TEMP_LIMIT_TO_REG(val)	SENSORS_LIMIT((val) / 1000, 0, 255)
 
 /*
@@ -333,7 +333,7 @@ static ssize_t show_fan_input(struct device *dev,
 		return PTR_ERR(data);
 
 	return sprintf(buf, "%d\n", FAN_FROM_REG(data->fan[attr->index],
-		       data->ppr, data->rpm_range));
+		       data->rpm_range));
 }
 
 static ssize_t show_alarm(struct device *dev,
@@ -429,9 +429,9 @@ static int max6639_init_client(struct i2c_client *client)
 	struct max6639_data *data = i2c_get_clientdata(client);
 	struct max6639_platform_data *max6639_info =
 		client->dev.platform_data;
-	int i = 0;
+	int i;
 	int rpm_range = 1; /* default: 4000 RPM */
-	int err = 0;
+	int err;
 
 	/* Reset chip to default values, see below for GCONFIG setup */
 	err = i2c_smbus_write_byte_data(client, MAX6639_REG_GCONFIG,
@@ -446,17 +446,19 @@ static int max6639_init_client(struct i2c_client *client)
 	else
 		data->ppr = 2;
 	data->ppr -= 1;
-	err = i2c_smbus_write_byte_data(client,
-			MAX6639_REG_FAN_PPR(i),
-			data->ppr << 5);
-	if (err)
-		goto exit;
 
 	if (max6639_info)
 		rpm_range = rpm_range_to_reg(max6639_info->rpm_range);
 	data->rpm_range = rpm_range;
 
 	for (i = 0; i < 2; i++) {
+
+		/* Set Fan pulse per revolution */
+		err = i2c_smbus_write_byte_data(client,
+				MAX6639_REG_FAN_PPR(i),
+				data->ppr << 6);
+		if (err)
+			goto exit;
 
 		/* Fans config PWM, RPM */
 		err = i2c_smbus_write_byte_data(client,

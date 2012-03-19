@@ -5352,7 +5352,7 @@ static void tg3_tx(struct tg3_napi *tnapi)
 		}
 	}
 
-	netdev_completed_queue(tp->dev, pkts_compl, bytes_compl);
+	netdev_tx_completed_queue(txq, pkts_compl, bytes_compl);
 
 	tnapi->tx_cons = sw_idx;
 
@@ -6667,14 +6667,9 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		iph = ip_hdr(skb);
 		tcp_opt_len = tcp_optlen(skb);
 
-		if (skb_is_gso_v6(skb)) {
-			hdr_len = skb_headlen(skb) - ETH_HLEN;
-		} else {
-			u32 ip_tcp_len;
+		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb) - ETH_HLEN;
 
-			ip_tcp_len = ip_hdrlen(skb) + sizeof(struct tcphdr);
-			hdr_len = ip_tcp_len + tcp_opt_len;
-
+		if (!skb_is_gso_v6(skb)) {
 			iph->check = 0;
 			iph->tot_len = htons(mss + hdr_len);
 		}
@@ -6798,7 +6793,7 @@ static netdev_tx_t tg3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	skb_tx_timestamp(skb);
-	netdev_sent_queue(tp->dev, skb->len);
+	netdev_tx_sent_queue(txq, skb->len);
 
 	/* Packets are ready, update Tx producer idx local and on card. */
 	tw32_tx_mbox(tnapi->prodmbox, entry);
@@ -7280,8 +7275,8 @@ static void tg3_free_rings(struct tg3 *tp)
 
 			dev_kfree_skb_any(skb);
 		}
+		netdev_tx_reset_queue(netdev_get_tx_queue(tp->dev, j));
 	}
-	netdev_reset_queue(tp->dev);
 }
 
 /* Initialize tx/rx rings for packet processing.
@@ -7891,10 +7886,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 	return 0;
 }
 
-static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *,
-						 struct rtnl_link_stats64 *);
-static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *,
-						struct tg3_ethtool_stats *);
+static void tg3_get_nstats(struct tg3 *, struct rtnl_link_stats64 *);
+static void tg3_get_estats(struct tg3 *, struct tg3_ethtool_stats *);
 
 /* tp->lock is held. */
 static int tg3_halt(struct tg3 *tp, int kind, int silent)
@@ -7915,7 +7908,7 @@ static int tg3_halt(struct tg3 *tp, int kind, int silent)
 
 	if (tp->hw_stats) {
 		/* Save the stats across chip resets... */
-		tg3_get_stats64(tp->dev, &tp->net_stats_prev),
+		tg3_get_nstats(tp, &tp->net_stats_prev),
 		tg3_get_estats(tp, &tp->estats_prev);
 
 		/* And make sure the next sample is new data */
@@ -9852,7 +9845,7 @@ static inline u64 get_stat64(tg3_stat64_t *val)
        return ((u64)val->high << 32) | ((u64)val->low);
 }
 
-static u64 calc_crc_errors(struct tg3 *tp)
+static u64 tg3_calc_crc_errors(struct tg3 *tp)
 {
 	struct tg3_hw_stats *hw_stats = tp->hw_stats;
 
@@ -9861,14 +9854,12 @@ static u64 calc_crc_errors(struct tg3 *tp)
 	     GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5701)) {
 		u32 val;
 
-		spin_lock_bh(&tp->lock);
 		if (!tg3_readphy(tp, MII_TG3_TEST1, &val)) {
 			tg3_writephy(tp, MII_TG3_TEST1,
 				     val | MII_TG3_TEST1_CRC_EN);
 			tg3_readphy(tp, MII_TG3_RXR_COUNTERS, &val);
 		} else
 			val = 0;
-		spin_unlock_bh(&tp->lock);
 
 		tp->phy_crc_errors += val;
 
@@ -9882,14 +9873,13 @@ static u64 calc_crc_errors(struct tg3 *tp)
 	estats->member =	old_estats->member + \
 				get_stat64(&hw_stats->member)
 
-static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *tp,
-					       struct tg3_ethtool_stats *estats)
+static void tg3_get_estats(struct tg3 *tp, struct tg3_ethtool_stats *estats)
 {
 	struct tg3_ethtool_stats *old_estats = &tp->estats_prev;
 	struct tg3_hw_stats *hw_stats = tp->hw_stats;
 
 	if (!hw_stats)
-		return old_estats;
+		return;
 
 	ESTAT_ADD(rx_octets);
 	ESTAT_ADD(rx_fragments);
@@ -9968,19 +9958,12 @@ static struct tg3_ethtool_stats *tg3_get_estats(struct tg3 *tp,
 	ESTAT_ADD(nic_tx_threshold_hit);
 
 	ESTAT_ADD(mbuf_lwm_thresh_hit);
-
-	return estats;
 }
 
-static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
-						 struct rtnl_link_stats64 *stats)
+static void tg3_get_nstats(struct tg3 *tp, struct rtnl_link_stats64 *stats)
 {
-	struct tg3 *tp = netdev_priv(dev);
 	struct rtnl_link_stats64 *old_stats = &tp->net_stats_prev;
 	struct tg3_hw_stats *hw_stats = tp->hw_stats;
-
-	if (!hw_stats)
-		return old_stats;
 
 	stats->rx_packets = old_stats->rx_packets +
 		get_stat64(&hw_stats->rx_ucast_packets) +
@@ -10024,15 +10007,13 @@ static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
 		get_stat64(&hw_stats->tx_carrier_sense_errors);
 
 	stats->rx_crc_errors = old_stats->rx_crc_errors +
-		calc_crc_errors(tp);
+		tg3_calc_crc_errors(tp);
 
 	stats->rx_missed_errors = old_stats->rx_missed_errors +
 		get_stat64(&hw_stats->rx_discards);
 
 	stats->rx_dropped = tp->rx_dropped;
 	stats->tx_dropped = tp->tx_dropped;
-
-	return stats;
 }
 
 static inline u32 calc_crc(unsigned char *buf, int len)
@@ -15412,6 +15393,21 @@ static void __devinit tg3_init_coal(struct tg3 *tp)
 		ec->tx_coalesce_usecs_irq = 0;
 		ec->stats_block_coalesce_usecs = 0;
 	}
+}
+
+static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
+						struct rtnl_link_stats64 *stats)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	if (!tp->hw_stats)
+		return &tp->net_stats_prev;
+
+	spin_lock_bh(&tp->lock);
+	tg3_get_nstats(tp, stats);
+	spin_unlock_bh(&tp->lock);
+
+	return stats;
 }
 
 static const struct net_device_ops tg3_netdev_ops = {

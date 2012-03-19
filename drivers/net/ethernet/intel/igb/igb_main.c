@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) Gigabit Ethernet Linux driver
-  Copyright(c) 2007-2011 Intel Corporation.
+  Copyright(c) 2007-2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -68,7 +68,7 @@ char igb_driver_name[] = "igb";
 char igb_driver_version[] = DRV_VERSION;
 static const char igb_driver_string[] =
 				"Intel(R) Gigabit Ethernet Network Driver";
-static const char igb_copyright[] = "Copyright (c) 2007-2011 Intel Corporation.";
+static const char igb_copyright[] = "Copyright (c) 2007-2012 Intel Corporation.";
 
 static const struct e1000_info *igb_info_tbl[] = {
 	[board_82575] = &e1000_82575_info,
@@ -4003,8 +4003,8 @@ set_itr_now:
 	}
 }
 
-void igb_tx_ctxtdesc(struct igb_ring *tx_ring, u32 vlan_macip_lens,
-		     u32 type_tucmd, u32 mss_l4len_idx)
+static void igb_tx_ctxtdesc(struct igb_ring *tx_ring, u32 vlan_macip_lens,
+			    u32 type_tucmd, u32 mss_l4len_idx)
 {
 	struct e1000_adv_tx_context_desc *context_desc;
 	u16 i = tx_ring->next_to_use;
@@ -5012,7 +5012,8 @@ static int igb_find_enabled_vfs(struct igb_adapter *adapter)
 	vf_devfn = pdev->devfn + 0x80;
 	pvfdev = pci_get_device(hw->vendor_id, device_id, NULL);
 	while (pvfdev) {
-		if (pvfdev->devfn == vf_devfn)
+		if (pvfdev->devfn == vf_devfn &&
+		    (pvfdev->bus->number >= pdev->bus->number))
 			vfs_found++;
 		vf_devfn += vf_stride;
 		pvfdev = pci_get_device(hw->vendor_id,
@@ -5623,7 +5624,7 @@ static irqreturn_t igb_intr(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-void igb_ring_irq_enable(struct igb_q_vector *q_vector)
+static void igb_ring_irq_enable(struct igb_q_vector *q_vector)
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 	struct e1000_hw *hw = &adapter->hw;

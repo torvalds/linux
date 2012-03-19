@@ -3027,7 +3027,7 @@ static const struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400s", CXT5066_THINKPAD),
 	SND_PCI_QUIRK(0x17aa, 0x21c5, "Thinkpad Edge 13", CXT5066_THINKPAD),
 	SND_PCI_QUIRK(0x17aa, 0x21c6, "Thinkpad Edge 13", CXT5066_ASUS),
- 	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo Thinkpad", CXT5066_THINKPAD),
+	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo T510", CXT5066_AUTO),
 	SND_PCI_QUIRK(0x17aa, 0x21cf, "Lenovo T520 & W520", CXT5066_AUTO),
 	SND_PCI_QUIRK(0x17aa, 0x21da, "Lenovo X220", CXT5066_THINKPAD),
 	SND_PCI_QUIRK(0x17aa, 0x21db, "Lenovo X220-tablet", CXT5066_THINKPAD),
@@ -3482,7 +3482,7 @@ static int cx_automute_mode_info(struct snd_kcontrol *kcontrol,
 		"Disabled", "Enabled"
 	};
 	static const char * const texts3[] = {
-		"Disabled", "Speaker Only", "Line-Out+Speaker"
+		"Disabled", "Speaker Only", "Line Out+Speaker"
 	};
 	const char * const *texts;
 
@@ -4079,7 +4079,8 @@ static int cx_auto_add_volume_idx(struct hda_codec *codec, const char *basename,
 		err = snd_hda_ctl_add(codec, nid, kctl);
 		if (err < 0)
 			return err;
-		if (!(query_amp_caps(codec, nid, hda_dir) & AC_AMPCAP_MUTE))
+		if (!(query_amp_caps(codec, nid, hda_dir) &
+		      (AC_AMPCAP_MUTE | AC_AMPCAP_MIN_MUTE)))
 			break;
 	}
 	return 0;
@@ -4379,6 +4380,22 @@ static const struct snd_pci_quirk cxt_fixups[] = {
 	{}
 };
 
+/* add "fake" mute amp-caps to DACs on cx5051 so that mixer mute switches
+ * can be created (bko#42825)
+ */
+static void add_cx5051_fake_mutes(struct hda_codec *codec)
+{
+	static hda_nid_t out_nids[] = {
+		0x10, 0x11, 0
+	};
+	hda_nid_t *p;
+
+	for (p = out_nids; *p; p++)
+		snd_hda_override_amp_caps(codec, *p, HDA_OUTPUT,
+					  AC_AMPCAP_MIN_MUTE |
+					  query_amp_caps(codec, *p, HDA_OUTPUT));
+}
+
 static int patch_conexant_auto(struct hda_codec *codec)
 {
 	struct conexant_spec *spec;
@@ -4396,6 +4413,9 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	switch (codec->vendor_id) {
 	case 0x14f15045:
 		spec->single_adc_amp = 1;
+		break;
+	case 0x14f15051:
+		add_cx5051_fake_mutes(codec);
 		break;
 	}
 

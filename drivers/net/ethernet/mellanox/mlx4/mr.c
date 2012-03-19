@@ -291,7 +291,7 @@ static u32 key_to_hw_index(u32 key)
 static int mlx4_SW2HW_MPT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox,
 			  int mpt_index)
 {
-	return mlx4_cmd(dev, mailbox->dma | dev->caps.function , mpt_index,
+	return mlx4_cmd(dev, mailbox->dma, mpt_index,
 			0, MLX4_CMD_SW2HW_MPT, MLX4_CMD_TIME_CLASS_B,
 			MLX4_CMD_WRAPPED);
 }
@@ -304,7 +304,7 @@ static int mlx4_HW2SW_MPT(struct mlx4_dev *dev, struct mlx4_cmd_mailbox *mailbox
 			    MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 }
 
-static int mlx4_mr_reserve_range(struct mlx4_dev *dev, int cnt, int align,
+int mlx4_mr_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 			  u32 *base_mridx)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
@@ -320,14 +320,14 @@ static int mlx4_mr_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_reserve_range);
 
-static void mlx4_mr_release_range(struct mlx4_dev *dev, u32 base_mridx, int cnt)
+void mlx4_mr_release_range(struct mlx4_dev *dev, u32 base_mridx, int cnt)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	mlx4_bitmap_free_range(&priv->mr_table.mpt_bitmap, base_mridx, cnt);
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_release_range);
 
-static int mlx4_mr_alloc_reserved(struct mlx4_dev *dev, u32 mridx, u32 pd,
+int mlx4_mr_alloc_reserved(struct mlx4_dev *dev, u32 mridx, u32 pd,
 			   u64 iova, u64 size, u32 access, int npages,
 			   int page_shift, struct mlx4_mr *mr)
 {
@@ -457,7 +457,7 @@ int mlx4_mr_alloc(struct mlx4_dev *dev, u32 pd, u64 iova, u64 size, u32 access,
 }
 EXPORT_SYMBOL_GPL(mlx4_mr_alloc);
 
-static void mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
+void mlx4_mr_free_reserved(struct mlx4_dev *dev, struct mlx4_mr *mr)
 {
 	int err;
 
@@ -852,7 +852,7 @@ err_free:
 }
 EXPORT_SYMBOL_GPL(mlx4_fmr_alloc);
 
-static int mlx4_fmr_alloc_reserved(struct mlx4_dev *dev, u32 mridx,
+int mlx4_fmr_alloc_reserved(struct mlx4_dev *dev, u32 mridx,
 			    u32 pd, u32 access, int max_pages,
 			    int max_maps, u8 page_shift, struct mlx4_fmr *fmr)
 {
@@ -954,7 +954,7 @@ int mlx4_fmr_free(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
 }
 EXPORT_SYMBOL_GPL(mlx4_fmr_free);
 
-static int mlx4_fmr_free_reserved(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
+int mlx4_fmr_free_reserved(struct mlx4_dev *dev, struct mlx4_fmr *fmr)
 {
 	if (fmr->maps)
 		return -EBUSY;

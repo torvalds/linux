@@ -113,12 +113,12 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 
 void psbfb_suspend(struct drm_device *dev)
 {
-	struct drm_framebuffer *fb = 0;
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
+	struct drm_framebuffer *fb;
 
 	console_lock();
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
+		struct psb_framebuffer *psbfb = to_psb_fb(fb);
 		struct fb_info *info = psbfb->fbdev;
 		fb_set_suspend(info, 1);
 		drm_fb_helper_blank(FB_BLANK_POWERDOWN, info);
@@ -129,12 +129,12 @@ void psbfb_suspend(struct drm_device *dev)
 
 void psbfb_resume(struct drm_device *dev)
 {
-	struct drm_framebuffer *fb = 0;
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
+	struct drm_framebuffer *fb;
 
 	console_lock();
 	mutex_lock(&dev->mode_config.mutex);
 	list_for_each_entry(fb, &dev->mode_config.fb_list, head) {
+		struct psb_framebuffer *psbfb = to_psb_fb(fb);
 		struct fb_info *info = psbfb->fbdev;
 		fb_set_suspend(info, 0);
 		drm_fb_helper_blank(FB_BLANK_UNBLANK, info);
@@ -247,7 +247,6 @@ static struct fb_ops psbfb_roll_ops = {
 	.fb_imageblit = cfb_imageblit,
 	.fb_pan_display = psbfb_pan,
 	.fb_mmap = psbfb_mmap,
-	.fb_sync = psbfb_sync,
 	.fb_ioctl = psbfb_ioctl,
 };
 

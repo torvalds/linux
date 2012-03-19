@@ -13,7 +13,7 @@
 
 #ifdef CONFIG_PINCONF
 
-int pinconf_check_ops(const struct pinconf_ops *ops);
+int pinconf_check_ops(struct pinctrl_dev *pctldev);
 void pinconf_init_device_debugfs(struct dentry *devroot,
 				 struct pinctrl_dev *pctldev);
 int pin_config_get_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
@@ -23,7 +23,7 @@ int pin_config_set_for_pin(struct pinctrl_dev *pctldev, unsigned pin,
 
 #else
 
-static inline int pinconf_check_ops(const struct pinconf_ops *ops)
+static inline int pinconf_check_ops(struct pinctrl_dev *pctldev)
 {
 	return 0;
 }

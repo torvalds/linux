@@ -388,9 +388,8 @@ struct mlx4_slave_eqe {
 };
 
 struct mlx4_slave_event_eq_info {
-	u32 eqn;
+	int eqn;
 	u16 token;
-	u64 event_type;
 };
 
 struct mlx4_profile {
@@ -449,6 +448,8 @@ struct mlx4_steer_index {
 	struct list_head duplicates;
 };
 
+#define MLX4_EVENT_TYPES_NUM 64
+
 struct mlx4_slave_state {
 	u8 comm_toggle;
 	u8 last_cmd;
@@ -461,7 +462,8 @@ struct mlx4_slave_state {
 	struct mlx4_slave_eqe eq[MLX4_MFUNC_MAX_EQES];
 	struct list_head mcast_filters[MLX4_MAX_PORTS + 1];
 	struct mlx4_vlan_fltr *vlan_filter[MLX4_MAX_PORTS + 1];
-	struct mlx4_slave_event_eq_info event_eq;
+	/* event type to eq number lookup */
+	struct mlx4_slave_event_eq_info event_eq[MLX4_EVENT_TYPES_NUM];
 	u16 eq_pi;
 	u16 eq_ci;
 	spinlock_t lock;
@@ -695,7 +697,7 @@ struct mlx4_sense {
 
 struct mlx4_msix_ctl {
 	u64		pool_bm;
-	spinlock_t	pool_lock;
+	struct mutex	pool_lock;
 };
 
 struct mlx4_steer {

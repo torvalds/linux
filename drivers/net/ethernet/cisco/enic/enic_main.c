@@ -57,11 +57,13 @@
 
 #define PCI_DEVICE_ID_CISCO_VIC_ENET         0x0043  /* ethernet vnic */
 #define PCI_DEVICE_ID_CISCO_VIC_ENET_DYN     0x0044  /* enet dynamic vnic */
+#define PCI_DEVICE_ID_CISCO_VIC_ENET_VF      0x0071  /* enet SRIOV VF */
 
 /* Supported devices */
 static DEFINE_PCI_DEVICE_TABLE(enic_id_table) = {
 	{ PCI_VDEVICE(CISCO, PCI_DEVICE_ID_CISCO_VIC_ENET) },
 	{ PCI_VDEVICE(CISCO, PCI_DEVICE_ID_CISCO_VIC_ENET_DYN) },
+	{ PCI_VDEVICE(CISCO, PCI_DEVICE_ID_CISCO_VIC_ENET_VF) },
 	{ 0, }	/* end of table */
 };
 
@@ -130,6 +132,11 @@ int enic_is_dynamic(struct enic *enic)
 int enic_sriov_enabled(struct enic *enic)
 {
 	return (enic->priv_flags & ENIC_SRIOV_ENABLED) ? 1 : 0;
+}
+
+static int enic_is_sriov_vf(struct enic *enic)
+{
+	return enic->pdev->device == PCI_DEVICE_ID_CISCO_VIC_ENET_VF;
 }
 
 int enic_is_valid_vf(struct enic *enic, int vf)
@@ -437,7 +444,7 @@ static void enic_mtu_check(struct enic *enic)
 
 	if (mtu && mtu != enic->port_mtu) {
 		enic->port_mtu = mtu;
-		if (enic_is_dynamic(enic)) {
+		if (enic_is_dynamic(enic) || enic_is_sriov_vf(enic)) {
 			mtu = max_t(int, ENIC_MIN_MTU,
 				min_t(int, ENIC_MAX_MTU, mtu));
 			if (mtu != netdev->mtu)
@@ -849,7 +856,7 @@ static int enic_set_mac_addr(struct net_device *netdev, char *addr)
 {
 	struct enic *enic = netdev_priv(netdev);
 
-	if (enic_is_dynamic(enic)) {
+	if (enic_is_dynamic(enic) || enic_is_sriov_vf(enic)) {
 		if (!is_valid_ether_addr(addr) && !is_zero_ether_addr(addr))
 			return -EADDRNOTAVAIL;
 	} else {
@@ -1608,7 +1615,7 @@ static int enic_open(struct net_device *netdev)
 	for (i = 0; i < enic->rq_count; i++)
 		vnic_rq_enable(&enic->rq[i]);
 
-	if (!enic_is_dynamic(enic))
+	if (!enic_is_dynamic(enic) && !enic_is_sriov_vf(enic))
 		enic_dev_add_station_addr(enic);
 
 	enic_set_rx_mode(netdev);
@@ -1659,7 +1666,7 @@ static int enic_stop(struct net_device *netdev)
 	netif_carrier_off(netdev);
 	netif_tx_disable(netdev);
 
-	if (!enic_is_dynamic(enic))
+	if (!enic_is_dynamic(enic) && !enic_is_sriov_vf(enic))
 		enic_dev_del_station_addr(enic);
 
 	for (i = 0; i < enic->wq_count; i++) {
@@ -1696,7 +1703,7 @@ static int enic_change_mtu(struct net_device *netdev, int new_mtu)
 	if (new_mtu < ENIC_MIN_MTU || new_mtu > ENIC_MAX_MTU)
 		return -EINVAL;
 
-	if (enic_is_dynamic(enic))
+	if (enic_is_dynamic(enic) || enic_is_sriov_vf(enic))
 		return -EOPNOTSUPP;
 
 	if (running)
@@ -2263,10 +2270,10 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	int using_dac = 0;
 	unsigned int i;
 	int err;
-	int num_pps = 1;
 #ifdef CONFIG_PCI_IOV
 	int pos = 0;
 #endif
+	int num_pps = 1;
 
 	/* Allocate net device structure and initialize.  Private
 	 * instance data is initialized to zero.
@@ -2363,7 +2370,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_SRIOV);
 	if (pos) {
 		pci_read_config_word(pdev, pos + PCI_SRIOV_TOTAL_VF,
-			(u16 *)&enic->num_vfs);
+			&enic->num_vfs);
 		if (enic->num_vfs) {
 			err = pci_enable_sriov(pdev, enic->num_vfs);
 			if (err) {
@@ -2376,14 +2383,14 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 			num_pps = enic->num_vfs;
 		}
 	}
-
 #endif
+
 	/* Allocate structure for port profiles */
 	enic->pp = kcalloc(num_pps, sizeof(*enic->pp), GFP_KERNEL);
 	if (!enic->pp) {
 		pr_err("port profile alloc failed, aborting\n");
 		err = -ENOMEM;
-		goto err_out_disable_sriov;
+		goto err_out_disable_sriov_pp;
 	}
 
 	/* Issue device open to get device in known state
@@ -2392,7 +2399,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	err = enic_dev_open(enic);
 	if (err) {
 		dev_err(dev, "vNIC dev open failed, aborting\n");
-		goto err_out_free_pp;
+		goto err_out_disable_sriov;
 	}
 
 	/* Setup devcmd lock
@@ -2426,7 +2433,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	 * called later by an upper layer.
 	 */
 
-	if (!enic_is_dynamic(enic)) {
+	if (!enic_is_dynamic(enic) && !enic_is_sriov_vf(enic)) {
 		err = vnic_dev_init(enic->vdev, 0);
 		if (err) {
 			dev_err(dev, "vNIC dev init failed, aborting\n");
@@ -2460,8 +2467,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	(void)enic_change_mtu(netdev, enic->port_mtu);
 
 #ifdef CONFIG_PCI_IOV
-	if (enic_is_dynamic(enic) && pdev->is_virtfn &&
-		is_zero_ether_addr(enic->mac_addr))
+	if (enic_is_sriov_vf(enic) && is_zero_ether_addr(enic->mac_addr))
 		random_ether_addr(enic->mac_addr);
 #endif
 
@@ -2474,7 +2480,7 @@ static int __devinit enic_probe(struct pci_dev *pdev,
 	enic->tx_coalesce_usecs = enic->config.intr_timer_usec;
 	enic->rx_coalesce_usecs = enic->tx_coalesce_usecs;
 
-	if (enic_is_dynamic(enic))
+	if (enic_is_dynamic(enic) || enic_is_sriov_vf(enic))
 		netdev->netdev_ops = &enic_netdev_dynamic_ops;
 	else
 		netdev->netdev_ops = &enic_netdev_ops;
@@ -2516,17 +2522,17 @@ err_out_dev_deinit:
 	enic_dev_deinit(enic);
 err_out_dev_close:
 	vnic_dev_close(enic->vdev);
-err_out_free_pp:
-	kfree(enic->pp);
 err_out_disable_sriov:
+	kfree(enic->pp);
+err_out_disable_sriov_pp:
 #ifdef CONFIG_PCI_IOV
 	if (enic_sriov_enabled(enic)) {
 		pci_disable_sriov(pdev);
 		enic->priv_flags &= ~ENIC_SRIOV_ENABLED;
 	}
 err_out_vnic_unregister:
-	vnic_dev_unregister(enic->vdev);
 #endif
+	vnic_dev_unregister(enic->vdev);
 err_out_iounmap:
 	enic_iounmap(enic);
 err_out_release_regions:

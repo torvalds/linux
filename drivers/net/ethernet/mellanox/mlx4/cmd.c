@@ -1247,6 +1247,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	u32 reply;
 	u32 slave_status = 0;
 	u8 is_going_down = 0;
+	int i;
 
 	slave_state[slave].comm_toggle ^= 1;
 	reply = (u32) slave_state[slave].comm_toggle << 31;
@@ -1258,6 +1259,10 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 	if (cmd == MLX4_COMM_CMD_RESET) {
 		mlx4_warn(dev, "Received reset from slave:%d\n", slave);
 		slave_state[slave].active = false;
+		for (i = 0; i < MLX4_EVENT_TYPES_NUM; ++i) {
+				slave_state[slave].event_eq[i].eqn = -1;
+				slave_state[slave].event_eq[i].token = 0;
+		}
 		/*check if we are in the middle of FLR process,
 		if so return "retry" status to the slave*/
 		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd) {
@@ -1452,7 +1457,7 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_state *s_state;
-	int i, err, port;
+	int i, j, err, port;
 
 	priv->mfunc.vhcr = dma_alloc_coherent(&(dev->pdev->dev), PAGE_SIZE,
 					    &priv->mfunc.vhcr_dma,
@@ -1485,6 +1490,8 @@ int mlx4_multi_func_init(struct mlx4_dev *dev)
 		for (i = 0; i < dev->num_slaves; ++i) {
 			s_state = &priv->mfunc.master.slave_state[i];
 			s_state->last_cmd = MLX4_COMM_CMD_RESET;
+			for (j = 0; j < MLX4_EVENT_TYPES_NUM; ++j)
+				s_state->event_eq[j].eqn = -1;
 			__raw_writel((__force u32) 0,
 				     &priv->mfunc.comm[i].slave_write);
 			__raw_writel((__force u32) 0,
@@ -1609,12 +1616,12 @@ void mlx4_multi_func_cleanup(struct mlx4_dev *dev)
 				kfree(priv->mfunc.master.slave_state[i].vlan_filter[port]);
 		}
 		kfree(priv->mfunc.master.slave_state);
-		iounmap(priv->mfunc.comm);
-		dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
-						     priv->mfunc.vhcr,
-						     priv->mfunc.vhcr_dma);
-		priv->mfunc.vhcr = NULL;
 	}
+
+	iounmap(priv->mfunc.comm);
+	dma_free_coherent(&(dev->pdev->dev), PAGE_SIZE,
+		     priv->mfunc.vhcr, priv->mfunc.vhcr_dma);
+	priv->mfunc.vhcr = NULL;
 }
 
 void mlx4_cmd_cleanup(struct mlx4_dev *dev)

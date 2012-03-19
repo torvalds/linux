@@ -1608,7 +1608,7 @@ static const struct snd_pci_quirk stac92hd73xx_codec_id_cfg_tbl[] = {
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x043a,
 		      "Alienware M17x", STAC_ALIENWARE_M17X),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0490,
-		      "Alienware M17x", STAC_ALIENWARE_M17X),
+		      "Alienware M17x R3", STAC_DELL_EQ),
 	{} /* terminator */
 };
 
@@ -4163,13 +4163,15 @@ static int enable_pin_detect(struct hda_codec *codec, hda_nid_t nid,
 	return 1;
 }
 
-static int is_nid_hp_pin(struct auto_pin_cfg *cfg, hda_nid_t nid)
+static int is_nid_out_jack_pin(struct auto_pin_cfg *cfg, hda_nid_t nid)
 {
 	int i;
 	for (i = 0; i < cfg->hp_outs; i++)
 		if (cfg->hp_pins[i] == nid)
 			return 1; /* nid is a HP-Out */
-
+	for (i = 0; i < cfg->line_outs; i++)
+		if (cfg->line_out_pins[i] == nid)
+			return 1; /* nid is a line-Out */
 	return 0; /* nid is not a HP-Out */
 };
 
@@ -4375,7 +4377,7 @@ static int stac92xx_init(struct hda_codec *codec)
 			continue;
 		}
 
-		if (is_nid_hp_pin(cfg, nid))
+		if (is_nid_out_jack_pin(cfg, nid))
 			continue; /* already has an unsol event */
 
 		pinctl = snd_hda_codec_read(codec, nid, 0,
@@ -4627,7 +4629,7 @@ static void stac92xx_hp_detect(struct hda_codec *codec)
 		unsigned int val = AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN;
 		if (no_hp_sensing(spec, i))
 			continue;
-		if (presence)
+		if (1 /*presence*/)
 			stac92xx_set_pinctl(codec, cfg->hp_pins[i], val);
 #if 0 /* FIXME */
 /* Resetting the pinctl like below may lead to (a sort of) regressions
@@ -4868,7 +4870,14 @@ static int find_mute_led_cfg(struct hda_codec *codec, int default_polarity)
 			/* BIOS bug: unfilled OEM string */
 			if (strstr(dev->name, "HP_Mute_LED_P_G")) {
 				set_hp_led_gpio(codec);
-				spec->gpio_led_polarity = 1;
+				switch (codec->subsystem_id) {
+				case 0x103c148a:
+					spec->gpio_led_polarity = 0;
+					break;
+				default:
+					spec->gpio_led_polarity = 1;
+					break;
+				}
 				return 1;
 			}
 		}
@@ -5069,9 +5078,9 @@ static int stac92xx_update_led_status(struct hda_codec *codec)
 				spec->gpio_dir, spec->gpio_data);
 	} else {
 		notmtd_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_HIZ : AC_PINCTL_VREF_GRD;
+				AC_PINCTL_VREF_50 : AC_PINCTL_VREF_GRD;
 		muted_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_GRD : AC_PINCTL_VREF_HIZ;
+				AC_PINCTL_VREF_GRD : AC_PINCTL_VREF_50;
 		spec->vref_led = muted ? muted_lvl : notmtd_lvl;
 		stac_vrefout_set(codec,	spec->vref_mute_led_nid,
 				 spec->vref_led);

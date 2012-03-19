@@ -108,7 +108,7 @@ static struct mlx4_profile default_profile = {
 	.num_cq		= 1 << 16,
 	.num_mcg	= 1 << 13,
 	.num_mpt	= 1 << 19,
-	.num_mtt	= 1 << 20,
+	.num_mtt	= 1 << 20, /* It is really num mtt segements */
 };
 
 static int log_num_mac = 7;
@@ -471,7 +471,6 @@ static int mlx4_slave_cap(struct mlx4_dev *dev)
 		return -ENOSYS;
 	}
 
-	dev->caps.function		= func_cap.function;
 	dev->caps.num_ports		= func_cap.num_ports;
 	dev->caps.num_qps		= func_cap.qp_quota;
 	dev->caps.num_srqs		= func_cap.srq_quota;
@@ -532,15 +531,14 @@ int mlx4_change_port_types(struct mlx4_dev *dev,
 	for (port = 0; port <  dev->caps.num_ports; port++) {
 		/* Change the port type only if the new type is different
 		 * from the current, and not set to Auto */
-		if (port_types[port] != dev->caps.port_type[port + 1]) {
+		if (port_types[port] != dev->caps.port_type[port + 1])
 			change = 1;
-			dev->caps.port_type[port + 1] = port_types[port];
-		}
 	}
 	if (change) {
 		mlx4_unregister_device(dev);
 		for (port = 1; port <= dev->caps.num_ports; port++) {
 			mlx4_CLOSE_PORT(dev, port);
+			dev->caps.port_type[port] = port_types[port - 1];
 			err = mlx4_SET_PORT(dev, port);
 			if (err) {
 				mlx4_err(dev, "Failed to set port %d, "
@@ -986,6 +984,9 @@ static int map_bf_area(struct mlx4_dev *dev)
 	resource_size_t bf_start;
 	resource_size_t bf_len;
 	int err = 0;
+
+	if (!dev->caps.bf_reg_size)
+		return -ENXIO;
 
 	bf_start = pci_resource_start(dev->pdev, 2) +
 			(dev->caps.num_uars << PAGE_SHIFT);
@@ -1826,7 +1827,7 @@ slave_start:
 		goto err_master_mfunc;
 
 	priv->msix_ctl.pool_bm = 0;
-	spin_lock_init(&priv->msix_ctl.pool_lock);
+	mutex_init(&priv->msix_ctl.pool_lock);
 
 	mlx4_enable_msi_x(dev);
 	if ((mlx4_is_mfunc(dev)) &&

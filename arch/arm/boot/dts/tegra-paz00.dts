@@ -46,11 +46,11 @@
 	};
 
 	serial@70006200 {
-		status = "disable";
+		clock-frequency = <216000000>;
 	};
 
 	serial@70006300 {
-		clock-frequency = <216000000>;
+		status = "disable";
 	};
 
 	serial@70006400 {
@@ -60,7 +60,7 @@
 	sdhci@c8000000 {
 		cd-gpios = <&gpio 173 0>; /* gpio PV5 */
 		wp-gpios = <&gpio 57 0>;  /* gpio PH1 */
-		power-gpios = <&gpio 155 0>; /* gpio PT3 */
+		power-gpios = <&gpio 169 0>; /* gpio PV1 */
 	};
 
 	sdhci@c8000200 {

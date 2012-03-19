@@ -523,7 +523,6 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 		skb = build_skb(data);
 
 	if (likely(skb)) {
-
 #ifdef BNX2X_STOP_ON_ERROR
 		if (pad + len > fp->rx_buf_size) {
 			BNX2X_ERR("skb_put is about to fail...  "
@@ -557,7 +556,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 
 		return;
 	}
-
+	kfree(new_data);
 drop:
 	/* drop the packet and keep the buffer in the bin */
 	DP(NETIF_MSG_RX_STATUS,
@@ -1935,7 +1934,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	}
 
 	if (bp->port.pmf)
-		bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 0);
+		bnx2x_update_drv_flags(bp, 1 << DRV_FLAGS_DCB_CONFIGURED, 0);
 	else
 		bnx2x__link_status_update(bp);
 
@@ -3117,7 +3116,7 @@ static int bnx2x_alloc_fp_mem_at(struct bnx2x *bp, int index)
 	int rx_ring_size = 0;
 
 #ifdef BCM_CNIC
-	if (IS_MF_ISCSI_SD(bp)) {
+	if (!bp->rx_ring_size && IS_MF_ISCSI_SD(bp)) {
 		rx_ring_size = MIN_RX_SIZE_NONTPA;
 		bp->rx_ring_size = rx_ring_size;
 	} else

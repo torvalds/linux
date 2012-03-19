@@ -1061,7 +1061,7 @@ static struct pvr2_board {
 	int (*init)(void);
 	void (*exit)(void);
 	char name[16];
-} board_driver[] = {
+} board_driver[] __refdata = {
 #ifdef CONFIG_SH_DREAMCAST
 	{ pvr2fb_dc_init, pvr2fb_dc_exit, "Sega DC PVR2" },
 #endif

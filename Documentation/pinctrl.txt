@@ -857,42 +857,41 @@ case), we define a mapping like this:
 
 ...
 {
-	.name "2bit"
+	.name = "2bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
-	.name "4bit"
+	.name = "4bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
-	.name "4bit"
+	.name = "4bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
-	.name "8bit"
+	.name = "8bit"
 	.ctrl_dev_name = "pinctrl-foo",
-	.function = "mmc0",
 	.group = "mmc0_1_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
-	.name "8bit"
+	.name = "8bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
 	.dev_name = "foo-mmc.0",
 },
 {
-	.name "8bit"
+	.name = "8bit"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_3_grp",
@@ -995,7 +994,7 @@ This is enabled by simply setting the .hog_on_boot field in the map to true,
 like this:
 
 {
-	.name "POWERMAP"
+	.name = "POWERMAP"
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "power_func",
 	.hog_on_boot = true,
@@ -1025,7 +1024,7 @@ it, disables and releases it, and muxes it in on the pins defined by group B:
 
 foo_switch()
 {
-	struct pinmux pmx;
+	struct pinmux *pmx;
 
 	/* Enable on position A */
 	pmx = pinmux_get(&device, "spi0-pos-A");

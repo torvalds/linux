@@ -42,9 +42,9 @@ static int xqm_proc_show(struct seq_file *m, void *v)
 {
 	/* maximum; incore; ratio free to inuse; freelist */
 	seq_printf(m, "%d\t%d\t%d\t%u\n",
-			ndquot,
+			0,
 			xfs_Gqm? atomic_read(&xfs_Gqm->qm_totaldquots) : 0,
-			xfs_Gqm? xfs_Gqm->qm_dqfree_ratio : 0,
+			0,
 			xfs_Gqm? xfs_Gqm->qm_dqfrlist_cnt : 0);
 	return 0;
 }

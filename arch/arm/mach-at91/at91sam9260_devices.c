@@ -84,7 +84,7 @@ void __init at91_add_device_usbh(struct at91_usbh_data *data) {}
  *  USB Device (Gadget)
  * -------------------------------------------------------------------- */
 
-#ifdef CONFIG_USB_AT91
+#if defined(CONFIG_USB_AT91) || defined(CONFIG_USB_AT91_MODULE)
 static struct at91_udc_data udc_data;
 
 static struct resource udc_resources[] = {
@@ -1215,8 +1215,7 @@ void __init at91_add_device_serial(void) {}
  *  CF/IDE
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_BLK_DEV_IDE_AT91) || defined(CONFIG_BLK_DEV_IDE_AT91_MODULE) || \
-	defined(CONFIG_PATA_AT91) || defined(CONFIG_PATA_AT91_MODULE) || \
+#if defined(CONFIG_PATA_AT91) || defined(CONFIG_PATA_AT91_MODULE) || \
 	defined(CONFIG_AT91_CF) || defined(CONFIG_AT91_CF_MODULE)
 
 static struct at91_cf_data cf0_data;
@@ -1313,10 +1312,8 @@ void __init at91_add_device_cf(struct at91_cf_data *data)
 	if (data->flags & AT91_CF_TRUE_IDE)
 #if defined(CONFIG_PATA_AT91) || defined(CONFIG_PATA_AT91_MODULE)
 		pdev->name = "pata_at91";
-#elif defined(CONFIG_BLK_DEV_IDE_AT91) || defined(CONFIG_BLK_DEV_IDE_AT91_MODULE)
-		pdev->name = "at91_ide";
 #else
-#warning "board requires AT91_CF_TRUE_IDE: enable either at91_ide or pata_at91"
+#warning "board requires AT91_CF_TRUE_IDE: enable pata_at91"
 #endif
 	else
 		pdev->name = "at91_cf";

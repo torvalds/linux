@@ -206,6 +206,7 @@ static int xen_pcibk_publish_pci_dev(struct xen_pcibk_device *pdev,
 		goto out;
 	}
 
+	/* Note: The PV protocol uses %02x, don't change it */
 	err = xenbus_printf(XBT_NIL, pdev->xdev->nodename, str,
 			    "%04x:%02x:%02x.%02x", domain, bus,
 			    PCI_SLOT(devfn), PCI_FUNC(devfn));
@@ -229,7 +230,7 @@ static int xen_pcibk_export_device(struct xen_pcibk_device *pdev,
 		err = -EINVAL;
 		xenbus_dev_fatal(pdev->xdev, err,
 				 "Couldn't locate PCI device "
-				 "(%04x:%02x:%02x.%01x)! "
+				 "(%04x:%02x:%02x.%d)! "
 				 "perhaps already in-use?",
 				 domain, bus, slot, func);
 		goto out;
@@ -274,7 +275,7 @@ static int xen_pcibk_remove_device(struct xen_pcibk_device *pdev,
 	if (!dev) {
 		err = -EINVAL;
 		dev_dbg(&pdev->xdev->dev, "Couldn't locate PCI device "
-			"(%04x:%02x:%02x.%01x)! not owned by this domain\n",
+			"(%04x:%02x:%02x.%d)! not owned by this domain\n",
 			domain, bus, slot, func);
 		goto out;
 	}

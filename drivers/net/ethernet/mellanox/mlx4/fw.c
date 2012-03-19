@@ -158,7 +158,6 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 #define QUERY_FUNC_CAP_FLAGS_OFFSET		0x0
 #define QUERY_FUNC_CAP_NUM_PORTS_OFFSET		0x1
-#define QUERY_FUNC_CAP_FUNCTION_OFFSET		0x3
 #define QUERY_FUNC_CAP_PF_BHVR_OFFSET		0x4
 #define QUERY_FUNC_CAP_QP_QUOTA_OFFSET		0x10
 #define QUERY_FUNC_CAP_CQ_QUOTA_OFFSET		0x14
@@ -181,9 +180,6 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 	} else if (vhcr->op_modifier == 0) {
 		field = 1 << 7; /* enable only ethernet interface */
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FLAGS_OFFSET);
-
-		field = slave;
-		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_FUNCTION_OFFSET);
 
 		field = dev->caps.num_ports;
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
@@ -248,9 +244,6 @@ int mlx4_QUERY_FUNC_CAP(struct mlx4_dev *dev, struct mlx4_func_cap *func_cap)
 		err = -EPROTONOSUPPORT;
 		goto out;
 	}
-
-	MLX4_GET(field, outbox, QUERY_FUNC_CAP_FUNCTION_OFFSET);
-	func_cap->function = field;
 
 	MLX4_GET(field, outbox, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
 	func_cap->num_ports = field;
@@ -692,7 +685,7 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	return err;
 }
 
-static int mlx4_QUERY_PORT(struct mlx4_dev *dev, void *ptr, u8 port)
+int mlx4_QUERY_PORT(struct mlx4_dev *dev, void *ptr, u8 port)
 {
 	struct mlx4_cmd_mailbox *outbox = ptr;
 

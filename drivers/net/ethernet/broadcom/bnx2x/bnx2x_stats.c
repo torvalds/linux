@@ -554,23 +554,11 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 		UPDATE_STAT64(tx_stat_gtufl, tx_stat_mac_ufl);
 
 		/* collect PFC stats */
-		DIFF_64(diff.hi, new->tx_stat_gtpp_hi,
-			pstats->pfc_frames_tx_hi,
-			diff.lo, new->tx_stat_gtpp_lo,
-			pstats->pfc_frames_tx_lo);
 		pstats->pfc_frames_tx_hi = new->tx_stat_gtpp_hi;
 		pstats->pfc_frames_tx_lo = new->tx_stat_gtpp_lo;
-		ADD_64(pstats->pfc_frames_tx_hi, diff.hi,
-			pstats->pfc_frames_tx_lo, diff.lo);
 
-		DIFF_64(diff.hi, new->rx_stat_grpp_hi,
-			pstats->pfc_frames_rx_hi,
-			diff.lo, new->rx_stat_grpp_lo,
-			pstats->pfc_frames_rx_lo);
 		pstats->pfc_frames_rx_hi = new->rx_stat_grpp_hi;
 		pstats->pfc_frames_rx_lo = new->rx_stat_grpp_lo;
-		ADD_64(pstats->pfc_frames_rx_hi, diff.hi,
-			pstats->pfc_frames_rx_lo, diff.lo);
 	}
 
 	estats->pause_frames_received_hi =
@@ -1081,17 +1069,17 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 	       estats->rx_stat_ifhcinbadoctets_lo);
 
 	ADD_64(fstats->total_bytes_received_hi,
-	       tfunc->rcv_error_bytes.hi,
+	       le32_to_cpu(tfunc->rcv_error_bytes.hi),
 	       fstats->total_bytes_received_lo,
-	       tfunc->rcv_error_bytes.lo);
+	       le32_to_cpu(tfunc->rcv_error_bytes.lo));
 
 	memcpy(estats, &(fstats->total_bytes_received_hi),
 	       sizeof(struct host_func_stats) - 2*sizeof(u32));
 
 	ADD_64(estats->error_bytes_received_hi,
-	       tfunc->rcv_error_bytes.hi,
+	       le32_to_cpu(tfunc->rcv_error_bytes.hi),
 	       estats->error_bytes_received_lo,
-	       tfunc->rcv_error_bytes.lo);
+	       le32_to_cpu(tfunc->rcv_error_bytes.lo));
 
 	ADD_64(estats->etherstatsoverrsizepkts_hi,
 	       estats->rx_stat_dot3statsframestoolong_hi,

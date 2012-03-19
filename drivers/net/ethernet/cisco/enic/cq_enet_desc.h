@@ -157,7 +157,7 @@ static inline void cq_enet_rq_desc_dec(struct cq_enet_rq_desc *desc,
 			CQ_ENET_RQ_DESC_FCOE_FC_CRC_OK) ? 1 : 0;
 		*fcoe_enc_error = (desc->flags &
 			CQ_ENET_RQ_DESC_FCOE_ENC_ERROR) ? 1 : 0;
-		*fcoe_eof = (u8)((desc->checksum_fcoe >>
+		*fcoe_eof = (u8)((le16_to_cpu(desc->checksum_fcoe) >>
 			CQ_ENET_RQ_DESC_FCOE_EOF_SHIFT) &
 			CQ_ENET_RQ_DESC_FCOE_EOF_MASK);
 		*checksum = 0;

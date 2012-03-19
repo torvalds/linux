@@ -807,8 +807,7 @@ static void core_tpg_shutdown_lun(
 
 struct se_lun *core_tpg_pre_dellun(
 	struct se_portal_group *tpg,
-	u32 unpacked_lun,
-	int *ret)
+	u32 unpacked_lun)
 {
 	struct se_lun *lun;
 

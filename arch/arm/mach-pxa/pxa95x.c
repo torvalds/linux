@@ -217,7 +217,6 @@ static struct clk_lookup pxa95x_clkregs[] = {
 	INIT_CLKREG(&clk_pxa95x_pout, NULL, "CLK_POUT"),
 	/* Power I2C clock is always on */
 	INIT_CLKREG(&clk_dummy, "pxa3xx-pwri2c.1", NULL),
-	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 	INIT_CLKREG(&clk_pxa95x_lcd, "pxa2xx-fb", NULL),
 	INIT_CLKREG(&clk_pxa95x_ffuart, "pxa2xx-uart.0", NULL),
 	INIT_CLKREG(&clk_pxa95x_btuart, "pxa2xx-uart.1", NULL),
@@ -284,7 +283,6 @@ static int __init pxa95x_init(void)
 			return ret;
 
 		register_syscore_ops(&pxa_irq_syscore_ops);
-		register_syscore_ops(&pxa_gpio_syscore_ops);
 		register_syscore_ops(&pxa3xx_clock_syscore_ops);
 
 		ret = platform_add_devices(devices, ARRAY_SIZE(devices));

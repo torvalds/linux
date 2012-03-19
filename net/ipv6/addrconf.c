@@ -434,6 +434,10 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 	/* Join all-node multicast group */
 	ipv6_dev_mc_inc(dev, &in6addr_linklocal_allnodes);
 
+	/* Join all-router multicast group if forwarding is set */
+	if (ndev->cnf.forwarding && dev && (dev->flags & IFF_MULTICAST))
+		ipv6_dev_mc_inc(dev, &in6addr_linklocal_allrouters);
+
 	return ndev;
 }
 
@@ -502,29 +506,31 @@ static void addrconf_forward_change(struct net *net, __s32 newf)
 	rcu_read_unlock();
 }
 
-static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
+static int addrconf_fixup_forwarding(struct ctl_table *table, int *p, int newf)
 {
 	struct net *net;
+	int old;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
 
 	net = (struct net *)table->extra2;
-	if (p == &net->ipv6.devconf_dflt->forwarding)
-		return 0;
+	old = *p;
+	*p = newf;
 
-	if (!rtnl_trylock()) {
-		/* Restore the original values before restarting */
-		*p = old;
-		return restart_syscall();
+	if (p == &net->ipv6.devconf_dflt->forwarding) {
+		rtnl_unlock();
+		return 0;
 	}
 
 	if (p == &net->ipv6.devconf_all->forwarding) {
-		__s32 newf = net->ipv6.devconf_all->forwarding;
 		net->ipv6.devconf_dflt->forwarding = newf;
 		addrconf_forward_change(net, newf);
-	} else if ((!*p) ^ (!old))
+	} else if ((!newf) ^ (!old))
 		dev_forward_change((struct inet6_dev *)table->extra1);
 	rtnl_unlock();
 
-	if (*p)
+	if (newf)
 		rt6_purge_dflt_routers(net);
 	return 1;
 }
@@ -4260,9 +4266,17 @@ int addrconf_sysctl_forward(ctl_table *ctl, int write,
 	int *valp = ctl->data;
 	int val = *valp;
 	loff_t pos = *ppos;
+	ctl_table lctl;
 	int ret;
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	/*
+	 * ctl->data points to idev->cnf.forwarding, we should
+	 * not modify it until we get the rtnl lock.
+	 */
+	lctl = *ctl;
+	lctl.data = &val;
+
+	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
 
 	if (write)
 		ret = addrconf_fixup_forwarding(ctl, valp, val);
@@ -4300,26 +4314,27 @@ static void addrconf_disable_change(struct net *net, __s32 newf)
 	rcu_read_unlock();
 }
 
-static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int old)
+static int addrconf_disable_ipv6(struct ctl_table *table, int *p, int newf)
 {
 	struct net *net;
+	int old;
+
+	if (!rtnl_trylock())
+		return restart_syscall();
 
 	net = (struct net *)table->extra2;
+	old = *p;
+	*p = newf;
 
-	if (p == &net->ipv6.devconf_dflt->disable_ipv6)
+	if (p == &net->ipv6.devconf_dflt->disable_ipv6) {
+		rtnl_unlock();
 		return 0;
-
-	if (!rtnl_trylock()) {
-		/* Restore the original values before restarting */
-		*p = old;
-		return restart_syscall();
 	}
 
 	if (p == &net->ipv6.devconf_all->disable_ipv6) {
-		__s32 newf = net->ipv6.devconf_all->disable_ipv6;
 		net->ipv6.devconf_dflt->disable_ipv6 = newf;
 		addrconf_disable_change(net, newf);
-	} else if ((!*p) ^ (!old))
+	} else if ((!newf) ^ (!old))
 		dev_disable_change((struct inet6_dev *)table->extra1);
 
 	rtnl_unlock();
@@ -4333,9 +4348,17 @@ int addrconf_sysctl_disable(ctl_table *ctl, int write,
 	int *valp = ctl->data;
 	int val = *valp;
 	loff_t pos = *ppos;
+	ctl_table lctl;
 	int ret;
 
-	ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	/*
+	 * ctl->data points to idev->cnf.disable_ipv6, we should
+	 * not modify it until we get the rtnl lock.
+	 */
+	lctl = *ctl;
+	lctl.data = &val;
+
+	ret = proc_dointvec(&lctl, write, buffer, lenp, ppos);
 
 	if (write)
 		ret = addrconf_disable_ipv6(ctl, valp, val);

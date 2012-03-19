@@ -132,6 +132,7 @@ void omap3_map_io(void);
 void am33xx_map_io(void);
 void omap4_map_io(void);
 void ti81xx_map_io(void);
+void omap_barriers_init(void);
 
 /**
  * omap_test_timeout - busy-loop, testing a condition

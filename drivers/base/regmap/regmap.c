@@ -284,6 +284,9 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	map->precious_reg = config->precious_reg;
 	map->cache_type = config->cache_type;
 
+	map->cache_bypass = false;
+	map->cache_only = false;
+
 	ret = regcache_init(map, config);
 
 	mutex_unlock(&map->lock);

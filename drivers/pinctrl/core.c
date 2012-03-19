@@ -189,7 +189,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	pindesc->pctldev = pctldev;
 
 	/* Copy basic pin info */
-	if (pindesc->name) {
+	if (name) {
 		pindesc->name = name;
 	} else {
 		pindesc->name = kasprintf(GFP_KERNEL, "PIN%u", number);
@@ -510,10 +510,12 @@ static struct dentry *debugfs_root;
 
 static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 {
-	static struct dentry *device_root;
+	struct dentry *device_root;
 
 	device_root = debugfs_create_dir(dev_name(pctldev->dev),
 					 debugfs_root);
+	pctldev->device_root = device_root;
+
 	if (IS_ERR(device_root) || !device_root) {
 		pr_warn("failed to create debugfs directory for %s\n",
 			dev_name(pctldev->dev));
@@ -527,6 +529,11 @@ static void pinctrl_init_device_debugfs(struct pinctrl_dev *pctldev)
 			    device_root, pctldev, &pinctrl_gpioranges_ops);
 	pinmux_init_device_debugfs(device_root, pctldev);
 	pinconf_init_device_debugfs(device_root, pctldev);
+}
+
+static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
+{
+	debugfs_remove_recursive(pctldev->device_root);
 }
 
 static void pinctrl_init_debugfs(void)
@@ -553,6 +560,10 @@ static void pinctrl_init_debugfs(void)
 {
 }
 
+static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
+{
+}
+
 #endif
 
 /**
@@ -572,26 +583,6 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	if (pctldesc->name == NULL)
 		return NULL;
 
-	/* If we're implementing pinmuxing, check the ops for sanity */
-	if (pctldesc->pmxops) {
-		ret = pinmux_check_ops(pctldesc->pmxops);
-		if (ret) {
-			pr_err("%s pinmux ops lacks necessary functions\n",
-			       pctldesc->name);
-			return NULL;
-		}
-	}
-
-	/* If we're implementing pinconfig, check the ops for sanity */
-	if (pctldesc->confops) {
-		ret = pinconf_check_ops(pctldesc->confops);
-		if (ret) {
-			pr_err("%s pin config ops lacks necessary functions\n",
-			       pctldesc->name);
-			return NULL;
-		}
-	}
-
 	pctldev = kzalloc(sizeof(struct pinctrl_dev), GFP_KERNEL);
 	if (pctldev == NULL)
 		return NULL;
@@ -605,6 +596,26 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	mutex_init(&pctldev->gpio_ranges_lock);
 	pctldev->dev = dev;
+
+	/* If we're implementing pinmuxing, check the ops for sanity */
+	if (pctldesc->pmxops) {
+		ret = pinmux_check_ops(pctldev);
+		if (ret) {
+			pr_err("%s pinmux ops lacks necessary functions\n",
+			       pctldesc->name);
+			goto out_err;
+		}
+	}
+
+	/* If we're implementing pinconfig, check the ops for sanity */
+	if (pctldesc->confops) {
+		ret = pinconf_check_ops(pctldev);
+		if (ret) {
+			pr_err("%s pin config ops lacks necessary functions\n",
+			       pctldesc->name);
+			goto out_err;
+		}
+	}
 
 	/* Register all the pins */
 	pr_debug("try to register %d pins on %s...\n",
@@ -641,6 +652,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 	if (pctldev == NULL)
 		return;
 
+	pinctrl_remove_device_debugfs(pctldev);
 	pinmux_unhog_maps(pctldev);
 	/* TODO: check that no pinmuxes are still active? */
 	mutex_lock(&pinctrldev_list_mutex);

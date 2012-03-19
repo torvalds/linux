@@ -96,13 +96,11 @@ static int __devinit stmmac_pci_probe(struct pci_dev *pdev,
 
 	stmmac_default_data();
 
-	priv = stmmac_dvr_probe(&(pdev->dev), &plat_dat);
+	priv = stmmac_dvr_probe(&(pdev->dev), &plat_dat, addr);
 	if (!priv) {
-		pr_err("%s: main drivr probe failed", __func__);
+		pr_err("%s: main driver probe failed", __func__);
 		goto err_out;
 	}
-	priv->ioaddr = addr;
-	priv->dev->base_addr = (unsigned long)addr;
 	priv->dev->irq = pdev->irq;
 	priv->wol_irq = pdev->irq;
 
@@ -170,9 +168,9 @@ static int stmmac_pci_resume(struct pci_dev *pdev)
 #define STMMAC_DEVICE_ID 0x1108
 
 static DEFINE_PCI_DEVICE_TABLE(stmmac_id_table) = {
-	{
-	PCI_DEVICE(STMMAC_VENDOR_ID, STMMAC_DEVICE_ID)}, {
-	}
+	{PCI_DEVICE(STMMAC_VENDOR_ID, STMMAC_DEVICE_ID)},
+	{PCI_DEVICE(PCI_VENDOR_ID_STMICRO, PCI_DEVICE_ID_STMICRO_MAC)},
+	{}
 };
 
 MODULE_DEVICE_TABLE(pci, stmmac_id_table);
