@@ -48,6 +48,9 @@ OPTIONS
 	Only consider these symbols. CSV that understands
 	file://filename entries.
 
+--symbol-filter=::
+	Only show symbols that match (partially) with this filter.
+
 -U::
 --hide-unresolved::
         Only display entries resolved to a symbol.
