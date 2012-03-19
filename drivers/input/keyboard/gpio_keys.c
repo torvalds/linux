@@ -30,7 +30,7 @@
 #include <linux/of_gpio.h>
 
 struct gpio_button_data {
-	struct gpio_keys_button *button;
+	const struct gpio_keys_button *button;
 	struct input_dev *input;
 	struct timer_list timer;
 	struct work_struct work;
@@ -322,7 +322,7 @@ static struct attribute_group gpio_keys_attr_group = {
 
 static void gpio_keys_report_event(struct gpio_button_data *bdata)
 {
-	struct gpio_keys_button *button = bdata->button;
+	const struct gpio_keys_button *button = bdata->button;
 	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
 	int state = (gpio_get_value_cansleep(button->gpio) ? 1 : 0) ^ button->active_low;
@@ -354,7 +354,7 @@ static void gpio_keys_timer(unsigned long _data)
 static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 {
 	struct gpio_button_data *bdata = dev_id;
-	struct gpio_keys_button *button = bdata->button;
+	const struct gpio_keys_button *button = bdata->button;
 
 	BUG_ON(irq != gpio_to_irq(button->gpio));
 
@@ -368,8 +368,9 @@ static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 }
 
 static int __devinit gpio_keys_setup_key(struct platform_device *pdev,
+					 struct input_dev *input,
 					 struct gpio_button_data *bdata,
-					 struct gpio_keys_button *button)
+					 const struct gpio_keys_button *button)
 {
 	const char *desc = button->desc ? button->desc : "gpio_keys";
 	struct device *dev = &pdev->dev;
@@ -378,6 +379,8 @@ static int __devinit gpio_keys_setup_key(struct platform_device *pdev,
 
 	setup_timer(&bdata->timer, gpio_keys_timer, (unsigned long)bdata);
 	INIT_WORK(&bdata->work, gpio_keys_work_func);
+	bdata->input = input;
+	bdata->button = button;
 
 	error = gpio_request(button->gpio, desc);
 	if (error < 0) {
@@ -425,6 +428,7 @@ static int __devinit gpio_keys_setup_key(struct platform_device *pdev,
 		goto fail3;
 	}
 
+	input_set_capability(input, button->type ?: EV_KEY, button->code);
 	return 0;
 
 fail3:
@@ -549,7 +553,7 @@ static int gpio_keys_get_devtree_pdata(struct device *dev,
 
 static int __devinit gpio_keys_probe(struct platform_device *pdev)
 {
-	struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
+	const struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
 	struct gpio_keys_drvdata *ddata;
 	struct device *dev = &pdev->dev;
 	struct gpio_keys_platform_data alt_pdata;
@@ -599,21 +603,15 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		__set_bit(EV_REP, input->evbit);
 
 	for (i = 0; i < pdata->nbuttons; i++) {
-		struct gpio_keys_button *button = &pdata->buttons[i];
+		const struct gpio_keys_button *button = &pdata->buttons[i];
 		struct gpio_button_data *bdata = &ddata->data[i];
-		unsigned int type = button->type ?: EV_KEY;
 
-		bdata->input = input;
-		bdata->button = button;
-
-		error = gpio_keys_setup_key(pdev, bdata, button);
+		error = gpio_keys_setup_key(pdev, input, bdata, button);
 		if (error)
 			goto fail2;
 
 		if (button->wakeup)
 			wakeup = 1;
-
-		input_set_capability(input, type, button->code);
 	}
 
 	error = sysfs_create_group(&pdev->dev.kobj, &gpio_keys_attr_group);
@@ -699,11 +697,12 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 static int gpio_keys_suspend(struct device *dev)
 {
 	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
+	const struct gpio_keys_button *button;
 	int i;
 
 	if (device_may_wakeup(dev)) {
 		for (i = 0; i < ddata->n_buttons; i++) {
-			struct gpio_keys_button *button = ddata->data[i].button;
+			button = ddata->data[i].button;
 			if (button->wakeup) {
 				int irq = gpio_to_irq(button->gpio);
 				enable_irq_wake(irq);
@@ -717,11 +716,11 @@ static int gpio_keys_suspend(struct device *dev)
 static int gpio_keys_resume(struct device *dev)
 {
 	struct gpio_keys_drvdata *ddata = dev_get_drvdata(dev);
+	const struct gpio_keys_button *button;
 	int i;
 
 	for (i = 0; i < ddata->n_buttons; i++) {
-
-		struct gpio_keys_button *button = ddata->data[i].button;
+		button = ddata->data[i].button;
 		if (button->wakeup && device_may_wakeup(dev)) {
 			int irq = gpio_to_irq(button->gpio);
 			disable_irq_wake(irq);
