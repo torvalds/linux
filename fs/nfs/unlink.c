@@ -323,18 +323,6 @@ nfs_cancel_async_unlink(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 }
 
-struct nfs_renamedata {
-	struct nfs_renameargs	args;
-	struct nfs_renameres	res;
-	struct rpc_cred		*cred;
-	struct inode		*old_dir;
-	struct dentry		*old_dentry;
-	struct nfs_fattr	old_fattr;
-	struct inode		*new_dir;
-	struct dentry		*new_dentry;
-	struct nfs_fattr	new_fattr;
-};
-
 /**
  * nfs_async_rename_done - Sillyrename post-processing
  * @task: rpc_task of the sillyrename
@@ -385,25 +373,16 @@ static void nfs_async_rename_release(void *calldata)
 	kfree(data);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 static void nfs_rename_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_renamedata *data = calldata;
-	struct nfs_server *server = NFS_SERVER(data->old_dir);
-
-	if (nfs4_setup_sequence(server, &data->args.seq_args,
-				&data->res.seq_res, task))
-		return;
-	rpc_call_start(task);
+	NFS_PROTO(data->old_dir)->rename_rpc_prepare(task, data);
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 static const struct rpc_call_ops nfs_rename_ops = {
 	.rpc_call_done = nfs_async_rename_done,
 	.rpc_release = nfs_async_rename_release,
-#if defined(CONFIG_NFS_V4_1)
 	.rpc_call_prepare = nfs_rename_prepare,
-#endif /* CONFIG_NFS_V4_1 */
 };
 
 /**

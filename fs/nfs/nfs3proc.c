@@ -450,6 +450,11 @@ nfs3_proc_rename_setup(struct rpc_message *msg, struct inode *dir)
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_RENAME];
 }
 
+static void nfs3_proc_rename_rpc_prepare(struct rpc_task *task, struct nfs_renamedata *data)
+{
+	rpc_call_start(task);
+}
+
 static int
 nfs3_proc_rename_done(struct rpc_task *task, struct inode *old_dir,
 		      struct inode *new_dir)
@@ -883,6 +888,7 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.unlink_done	= nfs3_proc_unlink_done,
 	.rename		= nfs3_proc_rename,
 	.rename_setup	= nfs3_proc_rename_setup,
+	.rename_rpc_prepare = nfs3_proc_rename_rpc_prepare,
 	.rename_done	= nfs3_proc_rename_done,
 	.link		= nfs3_proc_link,
 	.symlink	= nfs3_proc_symlink,
