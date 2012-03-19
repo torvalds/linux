@@ -814,6 +814,11 @@ static void nfs3_proc_read_setup(struct nfs_read_data *data, struct rpc_message 
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_READ];
 }
 
+static void nfs3_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+{
+	rpc_call_start(task);
+}
+
 static int nfs3_write_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	if (nfs3_async_handle_jukebox(task, data->inode))
@@ -884,6 +889,7 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.pathconf	= nfs3_proc_pathconf,
 	.decode_dirent	= nfs3_decode_dirent,
 	.read_setup	= nfs3_proc_read_setup,
+	.read_rpc_prepare = nfs3_proc_read_rpc_prepare,
 	.read_done	= nfs3_read_done,
 	.write_setup	= nfs3_proc_write_setup,
 	.write_rpc_prepare = nfs3_proc_write_rpc_prepare,

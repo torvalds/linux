@@ -3299,6 +3299,16 @@ static void nfs4_proc_read_setup(struct nfs_read_data *data, struct rpc_message 
 	nfs41_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
 }
 
+static void nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+{
+	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
+				&data->args.seq_args,
+				&data->res.seq_res,
+				task))
+		return;
+	rpc_call_start(task);
+}
+
 /* Reset the the nfs_read_data to send the read to the MDS. */
 void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data)
 {
@@ -6457,6 +6467,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.set_capabilities = nfs4_server_capabilities,
 	.decode_dirent	= nfs4_decode_dirent,
 	.read_setup	= nfs4_proc_read_setup,
+	.read_rpc_prepare = nfs4_proc_read_rpc_prepare,
 	.read_done	= nfs4_read_done,
 	.write_setup	= nfs4_proc_write_setup,
 	.write_rpc_prepare = nfs4_proc_write_rpc_prepare,

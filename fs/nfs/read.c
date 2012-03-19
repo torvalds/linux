@@ -464,23 +464,14 @@ static void nfs_readpage_release_partial(void *calldata)
 	nfs_readdata_release(calldata);
 }
 
-#if defined(CONFIG_NFS_V4_1)
 void nfs_read_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_read_data *data = calldata;
-
-	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
-				&data->args.seq_args, &data->res.seq_res,
-				task))
-		return;
-	rpc_call_start(task);
+	NFS_PROTO(data->inode)->read_rpc_prepare(task, data);
 }
-#endif /* CONFIG_NFS_V4_1 */
 
 static const struct rpc_call_ops nfs_read_partial_ops = {
-#if defined(CONFIG_NFS_V4_1)
 	.rpc_call_prepare = nfs_read_prepare,
-#endif /* CONFIG_NFS_V4_1 */
 	.rpc_call_done = nfs_readpage_result_partial,
 	.rpc_release = nfs_readpage_release_partial,
 };
@@ -544,9 +535,7 @@ static void nfs_readpage_release_full(void *calldata)
 }
 
 static const struct rpc_call_ops nfs_read_full_ops = {
-#if defined(CONFIG_NFS_V4_1)
 	.rpc_call_prepare = nfs_read_prepare,
-#endif /* CONFIG_NFS_V4_1 */
 	.rpc_call_done = nfs_readpage_result_full,
 	.rpc_release = nfs_readpage_release_full,
 };

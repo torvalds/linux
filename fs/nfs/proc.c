@@ -651,6 +651,11 @@ static void nfs_proc_read_setup(struct nfs_read_data *data, struct rpc_message *
 	msg->rpc_proc = &nfs_procedures[NFSPROC_READ];
 }
 
+static void nfs_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
+{
+	rpc_call_start(task);
+}
+
 static int nfs_write_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	if (nfs_async_handle_expired_key(task))
@@ -741,6 +746,7 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.pathconf	= nfs_proc_pathconf,
 	.decode_dirent	= nfs2_decode_dirent,
 	.read_setup	= nfs_proc_read_setup,
+	.read_rpc_prepare = nfs_proc_read_rpc_prepare,
 	.read_done	= nfs_read_done,
 	.write_setup	= nfs_proc_write_setup,
 	.write_rpc_prepare = nfs_proc_write_rpc_prepare,
