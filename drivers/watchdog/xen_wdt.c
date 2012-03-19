@@ -296,11 +296,18 @@ static void xen_wdt_shutdown(struct platform_device *dev)
 
 static int xen_wdt_suspend(struct platform_device *dev, pm_message_t state)
 {
-	return xen_wdt_stop();
+	typeof(wdt.id) id = wdt.id;
+	int rc = xen_wdt_stop();
+
+	wdt.id = id;
+	return rc;
 }
 
 static int xen_wdt_resume(struct platform_device *dev)
 {
+	if (!wdt.id)
+		return 0;
+	wdt.id = 0;
 	return xen_wdt_start();
 }
 
