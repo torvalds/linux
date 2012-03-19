@@ -6725,7 +6725,6 @@ static int md_seq_show(struct seq_file *seq, void *v)
 	struct mddev *mddev = v;
 	sector_t sectors;
 	struct md_rdev *rdev;
-	struct bitmap *bitmap;
 
 	if (v == (void*)1) {
 		struct md_personality *pers;
@@ -6813,27 +6812,7 @@ static int md_seq_show(struct seq_file *seq, void *v)
 		} else
 			seq_printf(seq, "\n       ");
 
-		if ((bitmap = mddev->bitmap)) {
-			unsigned long chunk_kb;
-			unsigned long flags;
-			spin_lock_irqsave(&bitmap->lock, flags);
-			chunk_kb = mddev->bitmap_info.chunksize >> 10;
-			seq_printf(seq, "bitmap: %lu/%lu pages [%luKB], "
-				"%lu%s chunk",
-				bitmap->pages - bitmap->missing_pages,
-				bitmap->pages,
-				(bitmap->pages - bitmap->missing_pages)
-					<< (PAGE_SHIFT - 10),
-				chunk_kb ? chunk_kb : mddev->bitmap_info.chunksize,
-				chunk_kb ? "KB" : "B");
-			if (bitmap->file) {
-				seq_printf(seq, ", file: ");
-				seq_path(seq, &bitmap->file->f_path, " \t\n");
-			}
-
-			seq_printf(seq, "\n");
-			spin_unlock_irqrestore(&bitmap->lock, flags);
-		}
+		bitmap_status(seq, mddev->bitmap);
 
 		seq_printf(seq, "\n");
 	}

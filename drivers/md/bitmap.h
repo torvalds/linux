@@ -227,6 +227,7 @@ void bitmap_destroy(struct mddev *mddev);
 
 void bitmap_print_sb(struct bitmap *bitmap);
 void bitmap_update_sb(struct bitmap *bitmap);
+void bitmap_status(struct seq_file *seq, struct bitmap *bitmap);
 
 int  bitmap_setallbits(struct bitmap *bitmap);
 void bitmap_write_all(struct bitmap *bitmap);

@@ -26,6 +26,7 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/buffer_head.h>
+#include <linux/seq_file.h>
 #include "md.h"
 #include "bitmap.h"
 
@@ -1835,6 +1836,33 @@ out:
 	return err;
 }
 EXPORT_SYMBOL_GPL(bitmap_load);
+
+void bitmap_status(struct seq_file *seq, struct bitmap *bitmap)
+{
+	unsigned long chunk_kb;
+	unsigned long flags;
+
+	if (!bitmap)
+		return;
+
+	spin_lock_irqsave(&bitmap->lock, flags);
+	chunk_kb = bitmap->mddev->bitmap_info.chunksize >> 10;
+	seq_printf(seq, "bitmap: %lu/%lu pages [%luKB], "
+		   "%lu%s chunk",
+		   bitmap->pages - bitmap->missing_pages,
+		   bitmap->pages,
+		   (bitmap->pages - bitmap->missing_pages)
+		   << (PAGE_SHIFT - 10),
+		   chunk_kb ? chunk_kb : bitmap->mddev->bitmap_info.chunksize,
+		   chunk_kb ? "KB" : "B");
+	if (bitmap->file) {
+		seq_printf(seq, ", file: ");
+		seq_path(seq, &bitmap->file->f_path, " \t\n");
+	}
+
+	seq_printf(seq, "\n");
+	spin_unlock_irqrestore(&bitmap->lock, flags);
+}
 
 static ssize_t
 location_show(struct mddev *mddev, char *page)
