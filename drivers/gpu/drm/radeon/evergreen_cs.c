@@ -308,8 +308,8 @@ static int evergreen_surface_check(struct radeon_cs_parser *p,
 	case ARRAY_2D_TILED_THIN1:
 		return evergreen_surface_check_2d(p, surf, prefix);
 	default:
-		dev_warn(p->dev, "%s:%d invalid array mode %d\n",
-				__func__, __LINE__, surf->mode);
+		dev_warn(p->dev, "%s:%d %s invalid array mode %d\n",
+				__func__, __LINE__, prefix, surf->mode);
 		return -EINVAL;
 	}
 	return -EINVAL;
@@ -327,8 +327,8 @@ static int evergreen_surface_value_conv_check(struct radeon_cs_parser *p,
 	case ARRAY_1D_TILED_THIN1:
 		return 0;
 	default:
-		dev_warn(p->dev, "%s:%d invalid array mode %d\n",
-				__func__, __LINE__, surf->mode);
+		dev_warn(p->dev, "%s:%d %s invalid array mode %d\n",
+				__func__, __LINE__, prefix, surf->mode);
 		return -EINVAL;
 	}
 
