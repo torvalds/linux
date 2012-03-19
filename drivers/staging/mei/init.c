@@ -200,7 +200,7 @@ int mei_hw_init(struct mei_device *dev)
 		if (!(dev->me_hw_state & ME_RDY_HRA))
 			dev_dbg(&dev->pdev->dev, "ME turn off ME_RDY.\n");
 
-		printk(KERN_ERR "mei: link layer initialization failed.\n");
+		dev_err(&dev->pdev->dev, "link layer initialization failed.\n");
 		ret = -ENODEV;
 		goto out;
 	}
