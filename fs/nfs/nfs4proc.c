@@ -3373,6 +3373,16 @@ static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 	nfs41_init_sequence(&data->args.seq_args, &data->res.seq_res, 1);
 }
 
+static void nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
+{
+	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
+				&data->args.seq_args,
+				&data->res.seq_res,
+				task))
+		return;
+	rpc_call_start(task);
+}
+
 static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_write_data *data)
 {
 	struct inode *inode = data->inode;
@@ -6449,6 +6459,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.read_setup	= nfs4_proc_read_setup,
 	.read_done	= nfs4_read_done,
 	.write_setup	= nfs4_proc_write_setup,
+	.write_rpc_prepare = nfs4_proc_write_rpc_prepare,
 	.write_done	= nfs4_write_done,
 	.commit_setup	= nfs4_proc_commit_setup,
 	.commit_done	= nfs4_commit_done,

@@ -668,6 +668,11 @@ static void nfs_proc_write_setup(struct nfs_write_data *data, struct rpc_message
 	msg->rpc_proc = &nfs_procedures[NFSPROC_WRITE];
 }
 
+static void nfs_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
+{
+	rpc_call_start(task);
+}
+
 static void
 nfs_proc_commit_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
@@ -738,6 +743,7 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.read_setup	= nfs_proc_read_setup,
 	.read_done	= nfs_read_done,
 	.write_setup	= nfs_proc_write_setup,
+	.write_rpc_prepare = nfs_proc_write_rpc_prepare,
 	.write_done	= nfs_write_done,
 	.commit_setup	= nfs_proc_commit_setup,
 	.lock		= nfs_proc_lock,
