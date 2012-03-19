@@ -2457,7 +2457,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	int avg_lum;
 	static u8 frame_header[] =
 		{0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
-	if (len == 64 && memcmp(data, frame_header, 6) == 0) {
+	if (len >= 64 && memcmp(data, frame_header, 6) == 0) {
 		avg_lum = ((data[35] >> 2) & 3) |
 			   (data[20] << 2) |
 			   (data[19] << 10);
@@ -2485,7 +2485,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		avg_lum >>= 9;
 		atomic_set(&sd->avg_lum, avg_lum);
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
-		return;
+		len -= 64;
+		if (len == 0)
+			return;
+		data += 64;
 	}
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
 		if (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv
