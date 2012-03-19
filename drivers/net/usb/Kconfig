@@ -401,6 +401,7 @@ config USB_NET_KALMIA
 config USB_NET_QMI_WWAN
 	tristate "QMI WWAN driver for Qualcomm MSM based 3G and LTE modems"
 	depends on USB_USBNET
+	select USB_WDM
 	help
 	  Support WWAN LTE/3G devices based on Qualcomm Mobile Data Modem
 	  (MDM) chipsets.  Examples of such devices are
