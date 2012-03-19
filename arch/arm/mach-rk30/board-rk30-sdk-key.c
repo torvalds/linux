@@ -21,12 +21,14 @@ static struct rk29_keys_button key_button[] = {
 		.gpio	= RK30_PIN6_PA1,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEDOWN,
-		.gpio	= RK30_PIN6_PA2,
+		.gpio	= RK30_PIN4_PC5,
 		.active_low = PRESS_LEV_LOW,
 	},
+#if 0
 	{
 		.desc	= "home",
 		.code	= KEY_HOME,
