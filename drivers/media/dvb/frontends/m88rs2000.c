@@ -833,7 +833,6 @@ static struct dvb_frontend_ops m88rs2000_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "M88RS2000 DVB-S",
-		.type			= FE_QPSK,
 		.frequency_min		= 950000,
 		.frequency_max		= 2150000,
 		.frequency_stepsize	= 1000,	 /* kHz for QPSK frontends */
