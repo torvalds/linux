@@ -195,7 +195,7 @@ static ssize_t gpio_keys_attr_show_helper(struct gpio_keys_drvdata *ddata,
  * @type: button type (%EV_KEY, %EV_SW)
  *
  * This function parses stringified bitmap from @buf and disables/enables
- * GPIO buttons accordinly. Returns 0 on success and negative error
+ * GPIO buttons accordingly. Returns 0 on success and negative error
  * on failure.
  */
 static ssize_t gpio_keys_attr_store_helper(struct gpio_keys_drvdata *ddata,
@@ -551,6 +551,15 @@ static int gpio_keys_get_devtree_pdata(struct device *dev,
 
 #endif
 
+static void gpio_remove_key(struct gpio_button_data *bdata)
+{
+	free_irq(gpio_to_irq(bdata->button->gpio), bdata);
+	if (bdata->timer_debounce)
+		del_timer_sync(&bdata->timer);
+	cancel_work_sync(&bdata->work);
+	gpio_free(bdata->button->gpio);
+}
+
 static int __devinit gpio_keys_probe(struct platform_device *pdev)
 {
 	const struct gpio_keys_platform_data *pdata = pdev->dev.platform_data;
@@ -640,13 +649,8 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
  fail3:
 	sysfs_remove_group(&pdev->dev.kobj, &gpio_keys_attr_group);
  fail2:
-	while (--i >= 0) {
-		free_irq(gpio_to_irq(pdata->buttons[i].gpio), &ddata->data[i]);
-		if (ddata->data[i].timer_debounce)
-			del_timer_sync(&ddata->data[i].timer);
-		cancel_work_sync(&ddata->data[i].work);
-		gpio_free(pdata->buttons[i].gpio);
-	}
+	while (--i >= 0)
+		gpio_remove_key(&ddata->data[i]);
 
 	platform_set_drvdata(pdev, NULL);
  fail1:
@@ -669,14 +673,8 @@ static int __devexit gpio_keys_remove(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 0);
 
-	for (i = 0; i < ddata->n_buttons; i++) {
-		int irq = gpio_to_irq(ddata->data[i].button->gpio);
-		free_irq(irq, &ddata->data[i]);
-		if (ddata->data[i].timer_debounce)
-			del_timer_sync(&ddata->data[i].timer);
-		cancel_work_sync(&ddata->data[i].work);
-		gpio_free(ddata->data[i].button->gpio);
-	}
+	for (i = 0; i < ddata->n_buttons; i++)
+		gpio_remove_key(&ddata->data[i]);
 
 	input_unregister_device(input);
 
