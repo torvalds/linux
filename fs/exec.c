@@ -977,6 +977,9 @@ static int de_thread(struct task_struct *tsk)
 	sig->notify_count = 0;
 
 no_thread_group:
+	/* we have changed execution domain */
+	tsk->exit_signal = SIGCHLD;
+
 	if (current->mm)
 		setmax_mm_hiwater_rss(&sig->maxrss, current->mm);
 

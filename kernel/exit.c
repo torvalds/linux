@@ -827,14 +827,9 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	 * If the parent exec id doesn't match the exec id we saved
 	 * when we started then we know the parent has changed security
 	 * domain.
-	 *
-	 * If our self_exec id doesn't match our parent_exec_id then
-	 * we have changed execution domain as these two values started
-	 * the same after a fork.
 	 */
 	if (thread_group_leader(tsk) && tsk->exit_signal != SIGCHLD &&
-	    (tsk->parent_exec_id != tsk->real_parent->self_exec_id ||
-	     tsk->self_exec_id != tsk->parent_exec_id))
+	    tsk->parent_exec_id != tsk->real_parent->self_exec_id)
 		tsk->exit_signal = SIGCHLD;
 
 	if (unlikely(tsk->ptrace)) {
