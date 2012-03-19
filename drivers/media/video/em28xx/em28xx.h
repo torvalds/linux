@@ -126,6 +126,7 @@
 #define EM2884_BOARD_CINERGY_HTC_STICK		  82
 #define EM2860_BOARD_HT_VIDBOX_NW03 		  83
 #define EM2874_BOARD_MAXMEDIA_UB425_TC            84
+#define EM2884_BOARD_PCTV_520E                    85
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4

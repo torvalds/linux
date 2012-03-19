@@ -331,6 +331,13 @@ struct drxk_config maxmedia_ub425_tc_drxk = {
 	.no_i2c_bridge = 1,
 };
 
+struct drxk_config pctv_520e_drxk = {
+	.adr = 0x29,
+	.single_master = 1,
+	.microcode_name = "dvb-demod-drxk-pctv.fw",
+	.chunk_size = 58,
+};
+
 static int drxk_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct em28xx_dvb *dvb = fe->sec_priv;
@@ -462,6 +469,33 @@ static void terratec_h5_init(struct em28xx *dev)
 	for (i = 0; i < ARRAY_SIZE(regs); i++)
 		i2c_master_send(&dev->i2c_client, regs[i].r, regs[i].len);
 	em28xx_gpio_set(dev, terratec_h5_end);
+};
+
+static void pctv_520e_init(struct em28xx *dev)
+{
+	/*
+	 * Init TDA8295(?) analog demodulator. Looks like I2C traffic to
+	 * digital demodulator and tuner are routed via TDA8295.
+	 */
+	int i;
+	struct {
+		unsigned char r[4];
+		int len;
+	} regs[] = {
+		{{ 0x06, 0x02, 0x00, 0x31 }, 4},
+		{{ 0x01, 0x02 }, 2},
+		{{ 0x01, 0x02, 0x00, 0xc6 }, 4},
+		{{ 0x01, 0x00 }, 2},
+		{{ 0x01, 0x00, 0xff, 0xaf }, 4},
+		{{ 0x01, 0x00, 0x03, 0xa0 }, 4},
+		{{ 0x01, 0x00 }, 2},
+		{{ 0x01, 0x00, 0x73, 0xaf }, 4},
+	};
+
+	dev->i2c_client.addr = 0x82 >> 1; /* 0x41 */
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++)
+		i2c_master_send(&dev->i2c_client, regs[i].r, regs[i].len);
 };
 
 static int em28xx_mt352_terratec_xs_init(struct dvb_frontend *fe)
@@ -964,6 +998,24 @@ static int em28xx_dvb_init(struct em28xx *dev)
 		em28xx_info("MaxMedia UB425-TC: only DVB-C supported by that " \
 				"driver version\n");
 
+		break;
+	case EM2884_BOARD_PCTV_520E:
+		pctv_520e_init(dev);
+
+		/* attach demodulator */
+		dvb->fe[0] = dvb_attach(drxk_attach, &pctv_520e_drxk,
+				&dev->i2c_adap);
+
+		if (dvb->fe[0]) {
+			/* attach tuner */
+			if (!dvb_attach(tda18271_attach, dvb->fe[0], 0x60,
+					&dev->i2c_adap,
+					&em28xx_cxd2820r_tda18271_config)) {
+				dvb_frontend_detach(dvb->fe[0]);
+				result = -EINVAL;
+				goto out_free;
+			}
+		}
 		break;
 	default:
 		em28xx_errdev("/2: The frontend of your DVB/ATSC card"
