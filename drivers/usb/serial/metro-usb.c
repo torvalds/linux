@@ -431,7 +431,7 @@ static struct usb_serial_driver metrousb_device = {
 		.owner =	THIS_MODULE,
 		.name =		"metro-usb",
 	},
-	.description		= "Metrologic USB to serial converter.",
+	.description		= "Metrologic USB to Serial",
 	.id_table		= id_table,
 	.num_ports		= 1,
 	.open			= metrousb_open,
