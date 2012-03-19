@@ -62,6 +62,14 @@ config IPMI_SI_PROBE_DEFAULTS
 	 only be available on older systems if the "ipmi_si_intf.trydefaults=1"
 	 boot argument is passed.
 
+config IPMI_SSIF
+       tristate 'IPMI SMBus handler (SSIF)'
+       select I2C
+       help
+         Provides a driver for a SMBus interface to a BMC, meaning that you
+	 have a driver that must be accessed over an I2C bus instead of a
+	 standard interface.  This module requires I2C support.
+
 config IPMI_WATCHDOG
        tristate 'IPMI Watchdog Timer'
        help
