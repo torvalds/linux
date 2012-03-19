@@ -136,6 +136,14 @@ exit:
 			__func__, result);
 }
 
+static void metrousb_write_int_callback(struct urb *urb)
+{
+	struct usb_serial_port *port = urb->context;
+
+	dev_warn(&port->dev, "%s not implemented yet.\n",
+		__func__);
+}
+
 static void metrousb_cleanup(struct usb_serial_port *port)
 {
 	dev_dbg(&port->dev, "%s\n", __func__);
@@ -377,6 +385,7 @@ static struct usb_serial_driver metrousb_device = {
 	.open			= metrousb_open,
 	.close			= metrousb_cleanup,
 	.read_int_callback	= metrousb_read_int_callback,
+	.write_int_callback	= metrousb_write_int_callback,
 	.attach			= metrousb_startup,
 	.release		= metrousb_shutdown,
 	.throttle		= metrousb_throttle,
