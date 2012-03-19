@@ -791,10 +791,8 @@ out_free:
 	return NULL;
 }
 
-void nfs4_free_lock_state(struct nfs4_lock_state *lsp)
+void nfs4_free_lock_state(struct nfs_server *server, struct nfs4_lock_state *lsp)
 {
-	struct nfs_server *server = lsp->ls_state->owner->so_server;
-
 	ida_simple_remove(&server->lockowner_id, lsp->ls_seqid.owner_id);
 	nfs4_destroy_seqid_counter(&lsp->ls_seqid);
 	kfree(lsp);
@@ -828,7 +826,7 @@ static struct nfs4_lock_state *nfs4_get_lock_state(struct nfs4_state *state, fl_
 	}
 	spin_unlock(&state->state_lock);
 	if (new != NULL)
-		nfs4_free_lock_state(new);
+		nfs4_free_lock_state(state->owner->so_server, new);
 	return lsp;
 }
 
@@ -853,7 +851,7 @@ void nfs4_put_lock_state(struct nfs4_lock_state *lsp)
 		if (nfs4_release_lockowner(lsp) == 0)
 			return;
 	}
-	nfs4_free_lock_state(lsp);
+	nfs4_free_lock_state(lsp->ls_state->owner->so_server, lsp);
 }
 
 static void nfs4_fl_copy_lock(struct file_lock *dst, struct file_lock *src)

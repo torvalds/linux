@@ -4760,13 +4760,14 @@ out:
 
 struct nfs_release_lockowner_data {
 	struct nfs4_lock_state *lsp;
+	struct nfs_server *server;
 	struct nfs_release_lockowner_args args;
 };
 
 static void nfs4_release_lockowner_release(void *calldata)
 {
 	struct nfs_release_lockowner_data *data = calldata;
-	nfs4_free_lock_state(data->lsp);
+	nfs4_free_lock_state(data->server, data->lsp);
 	kfree(calldata);
 }
 
@@ -4788,6 +4789,7 @@ int nfs4_release_lockowner(struct nfs4_lock_state *lsp)
 	if (!data)
 		return -ENOMEM;
 	data->lsp = lsp;
+	data->server = server;
 	data->args.lock_owner.clientid = server->nfs_client->cl_clientid;
 	data->args.lock_owner.id = lsp->ls_seqid.owner_id;
 	data->args.lock_owner.s_dev = server->s_dev;
