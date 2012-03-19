@@ -1038,6 +1038,7 @@ static void __init machine_rk30_board_init(void)
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	board_usb_detect_init(RK30_PIN6_PA3);
 }
 
 static void __init rk30_reserve(void)
