@@ -681,7 +681,7 @@ static int gfs2_adjust_quota(struct gfs2_inode *ip, loff_t loc,
 	ptr = qp;
 	nbytes = sizeof(struct gfs2_quota);
 get_a_page:
-	page = grab_cache_page(mapping, index);
+	page = find_or_create_page(mapping, index, GFP_NOFS);
 	if (!page)
 		return -ENOMEM;
 
