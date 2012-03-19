@@ -742,6 +742,11 @@ static const struct hid_device_id mt_devices[] = {
 		HID_USB_DEVICE(USB_VENDOR_ID_GENERAL_TOUCH,
 			USB_DEVICE_ID_GENERAL_TOUCH_WIN7_TWOFINGERS) },
 
+	/* Gametel game controller */
+	{ .driver_data = MT_CLS_DEFAULT,
+		HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_FRUCTEL,
+			USB_DEVICE_ID_GAMETEL_MT_MODE) },
+
 	/* GoodTouch panels */
 	{ .driver_data = MT_CLS_DEFAULT,
 		HID_USB_DEVICE(USB_VENDOR_ID_GOODTOUCH,
