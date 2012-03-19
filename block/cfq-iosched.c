@@ -218,6 +218,10 @@ struct cfq_io_cq {
 	struct io_cq		icq;		/* must be the first member */
 	struct cfq_queue	*cfqq[2];
 	struct cfq_ttime	ttime;
+	int			ioprio;		/* the current ioprio */
+#ifdef CONFIG_CFQ_GROUP_IOSCHED
+	uint64_t		blkcg_id;	/* the current blkcg ID */
+#endif
 };
 
 /*
@@ -2568,7 +2572,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct cfq_io_cq *cic)
 	if (!cfq_cfqq_prio_changed(cfqq))
 		return;
 
-	ioprio_class = IOPRIO_PRIO_CLASS(cic->icq.ioc->ioprio);
+	ioprio_class = IOPRIO_PRIO_CLASS(cic->ioprio);
 	switch (ioprio_class) {
 	default:
 		printk(KERN_ERR "cfq: bad prio %x\n", ioprio_class);
@@ -2580,11 +2584,11 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct cfq_io_cq *cic)
 		cfqq->ioprio_class = task_nice_ioclass(tsk);
 		break;
 	case IOPRIO_CLASS_RT:
-		cfqq->ioprio = task_ioprio(cic->icq.ioc);
+		cfqq->ioprio = IOPRIO_PRIO_DATA(cic->ioprio);
 		cfqq->ioprio_class = IOPRIO_CLASS_RT;
 		break;
 	case IOPRIO_CLASS_BE:
-		cfqq->ioprio = task_ioprio(cic->icq.ioc);
+		cfqq->ioprio = IOPRIO_PRIO_DATA(cic->ioprio);
 		cfqq->ioprio_class = IOPRIO_CLASS_BE;
 		break;
 	case IOPRIO_CLASS_IDLE:
@@ -2602,12 +2606,17 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct cfq_io_cq *cic)
 	cfq_clear_cfqq_prio_changed(cfqq);
 }
 
-static void changed_ioprio(struct cfq_io_cq *cic, struct bio *bio)
+static void check_ioprio_changed(struct cfq_io_cq *cic, struct bio *bio)
 {
+	int ioprio = cic->icq.ioc->ioprio;
 	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	struct cfq_queue *cfqq;
 
-	if (unlikely(!cfqd))
+	/*
+	 * Check whether ioprio has changed.  The condition may trigger
+	 * spuriously on a newly created cic but there's no harm.
+	 */
+	if (unlikely(!cfqd) || likely(cic->ioprio == ioprio))
 		return;
 
 	cfqq = cic->cfqq[BLK_RW_ASYNC];
@@ -2624,6 +2633,8 @@ static void changed_ioprio(struct cfq_io_cq *cic, struct bio *bio)
 	cfqq = cic->cfqq[BLK_RW_SYNC];
 	if (cfqq)
 		cfq_mark_cfqq_prio_changed(cfqq);
+
+	cic->ioprio = ioprio;
 }
 
 static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
@@ -2647,17 +2658,24 @@ static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static void changed_cgroup(struct cfq_io_cq *cic)
+static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 {
-	struct cfq_queue *sync_cfqq = cic_to_cfqq(cic, 1);
 	struct cfq_data *cfqd = cic_to_cfqd(cic);
-	struct request_queue *q;
+	struct cfq_queue *sync_cfqq;
+	uint64_t id;
 
-	if (unlikely(!cfqd))
+	rcu_read_lock();
+	id = bio_blkio_cgroup(bio)->id;
+	rcu_read_unlock();
+
+	/*
+	 * Check whether blkcg has changed.  The condition may trigger
+	 * spuriously on a newly created cic but there's no harm.
+	 */
+	if (unlikely(!cfqd) || likely(cic->blkcg_id == id))
 		return;
 
-	q = cfqd->queue;
-
+	sync_cfqq = cic_to_cfqq(cic, 1);
 	if (sync_cfqq) {
 		/*
 		 * Drop reference to sync queue. A new sync queue will be
@@ -2667,7 +2685,11 @@ static void changed_cgroup(struct cfq_io_cq *cic)
 		cic_set_cfqq(cic, NULL, 1);
 		cfq_put_queue(sync_cfqq);
 	}
+
+	cic->blkcg_id = id;
 }
+#else
+static inline void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio) { }
 #endif  /* CONFIG_CFQ_GROUP_IOSCHED */
 
 static struct cfq_queue *
@@ -2731,6 +2753,9 @@ cfq_async_queue_prio(struct cfq_data *cfqd, int ioprio_class, int ioprio)
 	switch (ioprio_class) {
 	case IOPRIO_CLASS_RT:
 		return &cfqd->async_cfqq[0][ioprio];
+	case IOPRIO_CLASS_NONE:
+		ioprio = IOPRIO_NORM;
+		/* fall through */
 	case IOPRIO_CLASS_BE:
 		return &cfqd->async_cfqq[1][ioprio];
 	case IOPRIO_CLASS_IDLE:
@@ -2744,8 +2769,8 @@ static struct cfq_queue *
 cfq_get_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
 	      struct bio *bio, gfp_t gfp_mask)
 {
-	const int ioprio = task_ioprio(cic->icq.ioc);
-	const int ioprio_class = task_ioprio_class(cic->icq.ioc);
+	const int ioprio_class = IOPRIO_PRIO_CLASS(cic->ioprio);
+	const int ioprio = IOPRIO_PRIO_DATA(cic->ioprio);
 	struct cfq_queue **async_cfqq = NULL;
 	struct cfq_queue *cfqq = NULL;
 
@@ -3303,21 +3328,13 @@ cfq_set_request(struct request_queue *q, struct request *rq, struct bio *bio,
 	const int rw = rq_data_dir(rq);
 	const bool is_sync = rq_is_sync(rq);
 	struct cfq_queue *cfqq;
-	unsigned int changed;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
 	spin_lock_irq(q->queue_lock);
 
-	/* handle changed notifications */
-	changed = icq_get_changed(&cic->icq);
-	if (unlikely(changed & ICQ_IOPRIO_CHANGED))
-		changed_ioprio(cic, bio);
-#ifdef CONFIG_CFQ_GROUP_IOSCHED
-	if (unlikely(changed & ICQ_CGROUP_CHANGED))
-		changed_cgroup(cic);
-#endif
-
+	check_ioprio_changed(cic, bio);
+	check_blkcg_changed(cic, bio);
 new_queue:
 	cfqq = cic_to_cfqq(cic, is_sync);
 	if (!cfqq || cfqq == &cfqd->oom_cfqq) {
