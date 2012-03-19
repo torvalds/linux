@@ -266,16 +266,16 @@ EXPORT_SYMBOL_GPL(__srcu_read_unlock);
  * we repeatedly block for 1-millisecond time periods.  This approach
  * has done well in testing, so there is no need for a config parameter.
  */
-#define SYNCHRONIZE_SRCU_READER_DELAY 5
+#define SYNCHRONIZE_SRCU_READER_DELAY	5
+#define SYNCHRONIZE_SRCU_TRYCOUNT	2
+#define SYNCHRONIZE_SRCU_EXP_TRYCOUNT	12
 
 /*
  * Wait until all pre-existing readers complete.  Such readers
  * will have used the index specified by "idx".
  */
-static void wait_idx(struct srcu_struct *sp, int idx, bool expedited)
+static void wait_idx(struct srcu_struct *sp, int idx, int trycount)
 {
-	int trycount = 0;
-
 	/*
 	 * SRCU read-side critical sections are normally short, so wait
 	 * a small amount of time before possibly blocking.
@@ -283,9 +283,10 @@ static void wait_idx(struct srcu_struct *sp, int idx, bool expedited)
 	if (!srcu_readers_active_idx_check(sp, idx)) {
 		udelay(SYNCHRONIZE_SRCU_READER_DELAY);
 		while (!srcu_readers_active_idx_check(sp, idx)) {
-			if (expedited && ++ trycount < 10)
+			if (trycount > 0) {
+				trycount--;
 				udelay(SYNCHRONIZE_SRCU_READER_DELAY);
-			else
+			} else
 				schedule_timeout_interruptible(1);
 		}
 	}
@@ -299,7 +300,7 @@ static void srcu_flip(struct srcu_struct *sp)
 /*
  * Helper function for synchronize_srcu() and synchronize_srcu_expedited().
  */
-static void __synchronize_srcu(struct srcu_struct *sp, bool expedited)
+static void __synchronize_srcu(struct srcu_struct *sp, int trycount)
 {
 	int busy_idx;
 
@@ -319,8 +320,8 @@ static void __synchronize_srcu(struct srcu_struct *sp, bool expedited)
 	 * have completed:
 	 *
 	 * __synchronize_srcu() {
-	 * 	wait_idx(sp, 0, expedited);
-	 * 	wait_idx(sp, 1, expedited);
+	 * 	wait_idx(sp, 0, trycount);
+	 * 	wait_idx(sp, 1, trycount);
 	 * }
 	 *
 	 * Starvation is prevented by the fact that we flip the index.
@@ -344,13 +345,13 @@ static void __synchronize_srcu(struct srcu_struct *sp, bool expedited)
 	 * this call to wait_idx(), which waits on really old readers
 	 * describe in this comment above, will almost never need to wait.
 	 */
-	wait_idx(sp, 1 - busy_idx, expedited);
+	wait_idx(sp, 1 - busy_idx, trycount);
 
 	/* Flip the index to avoid reader-induced starvation. */
 	srcu_flip(sp);
 
 	/* Wait for recent pre-existing readers. */
-	wait_idx(sp, busy_idx, expedited);
+	wait_idx(sp, busy_idx, trycount);
 
 	mutex_unlock(&sp->mutex);
 }
@@ -371,7 +372,7 @@ static void __synchronize_srcu(struct srcu_struct *sp, bool expedited)
  */
 void synchronize_srcu(struct srcu_struct *sp)
 {
-	__synchronize_srcu(sp, 0);
+	__synchronize_srcu(sp, SYNCHRONIZE_SRCU_TRYCOUNT);
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu);
 
@@ -392,7 +393,7 @@ EXPORT_SYMBOL_GPL(synchronize_srcu);
  */
 void synchronize_srcu_expedited(struct srcu_struct *sp)
 {
-	__synchronize_srcu(sp, 1);
+	__synchronize_srcu(sp, SYNCHRONIZE_SRCU_EXP_TRYCOUNT);
 }
 EXPORT_SYMBOL_GPL(synchronize_srcu_expedited);
 
