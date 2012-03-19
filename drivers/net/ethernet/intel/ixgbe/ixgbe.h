@@ -101,8 +101,6 @@
 #define IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT  29
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
 
-#define IXGBE_MAX_RSC_INT_RATE          162760
-
 #define IXGBE_MAX_VF_MC_ENTRIES         30
 #define IXGBE_MAX_VF_FUNCTIONS          64
 #define IXGBE_MAX_VFTA_ENTRIES          128
@@ -152,6 +150,7 @@ struct ixgbe_tx_buffer {
 	struct sk_buff *skb;
 	unsigned int bytecount;
 	unsigned short gso_segs;
+	__be16 protocol;
 	DEFINE_DMA_UNMAP_ADDR(dma);
 	DEFINE_DMA_UNMAP_LEN(len);
 	u32 tx_flags;
@@ -207,15 +206,18 @@ enum ixgbe_ring_state_t {
 	clear_bit(__IXGBE_RX_RSC_ENABLED, &(ring)->state)
 struct ixgbe_ring {
 	struct ixgbe_ring *next;	/* pointer to next ring in q_vector */
+	struct ixgbe_q_vector *q_vector; /* backpointer to host q_vector */
+	struct net_device *netdev;	/* netdev ring belongs to */
+	struct device *dev;		/* device for DMA mapping */
 	void *desc;			/* descriptor ring memory */
-	struct device *dev;             /* device for DMA mapping */
-	struct net_device *netdev;      /* netdev ring belongs to */
 	union {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
 	unsigned long state;
 	u8 __iomem *tail;
+	dma_addr_t dma;			/* phys. address of descriptor ring */
+	unsigned int size;		/* length in bytes */
 
 	u16 count;			/* amount of descriptors */
 
@@ -225,16 +227,16 @@ struct ixgbe_ring {
 					 * associated with this ring, which is
 					 * different for DCB and RSS modes
 					 */
+	u16 next_to_use;
+	u16 next_to_clean;
+
 	union {
+		u16 next_to_alloc;
 		struct {
 			u8 atr_sample_rate;
 			u8 atr_count;
 		};
-		u16 next_to_alloc;
 	};
-
-	u16 next_to_use;
-	u16 next_to_clean;
 
 	u8 dcb_tc;
 	struct ixgbe_queue_stats stats;
@@ -243,9 +245,6 @@ struct ixgbe_ring {
 		struct ixgbe_tx_queue_stats tx_stats;
 		struct ixgbe_rx_queue_stats rx_stats;
 	};
-	unsigned int size;		/* length in bytes */
-	dma_addr_t dma;			/* phys. address of descriptor ring */
-	struct ixgbe_q_vector *q_vector; /* back-pointer to host q_vector */
 } ____cacheline_internodealigned_in_smp;
 
 enum ixgbe_ring_f_enum {
@@ -437,7 +436,8 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_SFP_NEEDS_RESET             (u32)(1 << 5)
 #define IXGBE_FLAG2_RESET_REQUESTED             (u32)(1 << 6)
 #define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
-
+#define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
+#define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -581,7 +581,9 @@ extern int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *src_dcb_cfg,
 
 extern char ixgbe_driver_name[];
 extern const char ixgbe_driver_version[];
+#ifdef IXGBE_FCOE
 extern char ixgbe_default_device_descr[];
+#endif /* IXGBE_FCOE */
 
 extern void ixgbe_up(struct ixgbe_adapter *adapter);
 extern void ixgbe_down(struct ixgbe_adapter *adapter);
@@ -606,6 +608,7 @@ extern void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *,
                                              struct ixgbe_tx_buffer *);
 extern void ixgbe_alloc_rx_buffers(struct ixgbe_ring *, u16);
 extern void ixgbe_write_eitr(struct ixgbe_q_vector *);
+extern int ixgbe_poll(struct napi_struct *napi, int budget);
 extern int ethtool_ioctl(struct ifreq *ifr);
 extern s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw);
 extern s32 ixgbe_init_fdir_signature_82599(struct ixgbe_hw *hw, u32 fdirctrl);
@@ -625,14 +628,16 @@ extern s32 ixgbe_fdir_erase_perfect_filter_82599(struct ixgbe_hw *hw,
 extern void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 						 union ixgbe_atr_input *mask);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
+#ifdef CONFIG_IXGBE_DCB
 extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
+#endif
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 extern void ixgbe_do_reset(struct net_device *netdev);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_ring *tx_ring,
 		     struct ixgbe_tx_buffer *first,
-                     u32 tx_flags, u8 *hdr_len);
+		     u8 *hdr_len);
 extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 			  union ixgbe_adv_rx_desc *rx_desc,
