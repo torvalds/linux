@@ -2107,9 +2107,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	set_hvflip(gspca_dev);
 
 	reg_w1(gspca_dev, 0x1007, 0x20);
-
-	reg_r(gspca_dev, 0x1061, 1);
-	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] | 0x02);
+	reg_w1(gspca_dev, 0x1061, 0x03);
 
 	/* if JPEG, prepare the compression quality update */
 	if (mode & MODE_JPEG) {
@@ -2125,9 +2123,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	reg_w1(gspca_dev, 0x1007, 0x00);
-
-	reg_r(gspca_dev, 0x1061, 1);
-	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] & ~0x02);
+	reg_w1(gspca_dev, 0x1061, 0x01);
 }
 
 /* called on streamoff with alt==0 and on disconnect */
