@@ -582,55 +582,11 @@ void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 	    f->fmt->color, f->dma_offset.y_h, f->dma_offset.y_v);
 }
 
-/**
- * fimc_prepare_config - check dimensions, operation and color mode
- *			 and pre-calculate offset and the scaling coefficients.
- *
- * @ctx: hardware context information
- * @flags: flags indicating which parameters to check/update
- *
- * Return: 0 if dimensions are valid or non zero otherwise.
- */
-int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags)
-{
-	struct fimc_frame *s_frame, *d_frame;
-	struct vb2_buffer *vb = NULL;
-	int ret = 0;
-
-	s_frame = &ctx->s_frame;
-	d_frame = &ctx->d_frame;
-
-	if (flags & FIMC_PARAMS) {
-		/* Prepare the DMA offset ratios for scaler. */
-		fimc_prepare_dma_offset(ctx, &ctx->s_frame);
-		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
-
-		if (s_frame->height > (SCALER_MAX_VRATIO * d_frame->height) ||
-		    s_frame->width > (SCALER_MAX_HRATIO * d_frame->width)) {
-			err("out of scaler range");
-			return -EINVAL;
-		}
-		fimc_set_yuv_order(ctx);
-	}
-
-	if (flags & FIMC_SRC_ADDR) {
-		vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
-		ret = fimc_prepare_addr(ctx, vb, s_frame, &s_frame->paddr);
-		if (ret)
-			return ret;
-	}
-
-	if (flags & FIMC_DST_ADDR) {
-		vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
-		ret = fimc_prepare_addr(ctx, vb, d_frame, &d_frame->paddr);
-	}
-
-	return ret;
-}
-
 static void fimc_dma_run(void *priv)
 {
+	struct vb2_buffer *vb = NULL;
 	struct fimc_ctx *ctx = priv;
+	struct fimc_frame *sf, *df;
 	struct fimc_dev *fimc;
 	unsigned long flags;
 	u32 ret;
@@ -641,9 +597,22 @@ static void fimc_dma_run(void *priv)
 	fimc = ctx->fimc_dev;
 	spin_lock_irqsave(&fimc->slock, flags);
 	set_bit(ST_M2M_PEND, &fimc->state);
+	sf = &ctx->s_frame;
+	df = &ctx->d_frame;
 
-	ctx->state |= (FIMC_SRC_ADDR | FIMC_DST_ADDR);
-	ret = fimc_prepare_config(ctx, ctx->state);
+	if (ctx->state & FIMC_PARAMS) {
+		/* Prepare the DMA offsets for scaler */
+		fimc_prepare_dma_offset(ctx, sf);
+		fimc_prepare_dma_offset(ctx, df);
+	}
+
+	vb = v4l2_m2m_next_src_buf(ctx->m2m_ctx);
+	ret = fimc_prepare_addr(ctx, vb, sf, &sf->paddr);
+	if (ret)
+		goto dma_unlock;
+
+	vb = v4l2_m2m_next_dst_buf(ctx->m2m_ctx);
+	ret = fimc_prepare_addr(ctx, vb, df, &df->paddr);
 	if (ret)
 		goto dma_unlock;
 
@@ -652,9 +621,9 @@ static void fimc_dma_run(void *priv)
 		ctx->state |= FIMC_PARAMS;
 		fimc->m2m.ctx = ctx;
 	}
-	fimc_hw_set_input_addr(fimc, &ctx->s_frame.paddr);
 
 	if (ctx->state & FIMC_PARAMS) {
+		fimc_set_yuv_order(ctx);
 		fimc_hw_set_input_path(ctx);
 		fimc_hw_set_in_dma(ctx);
 		ret = fimc_set_scaler_info(ctx);
@@ -665,17 +634,13 @@ static void fimc_dma_run(void *priv)
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
 		fimc_hw_set_effect(ctx, false);
-	}
-
-	fimc_hw_set_output_path(ctx);
-	if (ctx->state & (FIMC_DST_ADDR | FIMC_PARAMS))
-		fimc_hw_set_output_addr(fimc, &ctx->d_frame.paddr, -1);
-
-	if (ctx->state & FIMC_PARAMS) {
 		fimc_hw_set_out_dma(ctx);
 		if (fimc->variant->has_alpha)
 			fimc_hw_set_rgb_alpha(ctx);
+		fimc_hw_set_output_path(ctx);
 	}
+	fimc_hw_set_input_addr(fimc, &sf->paddr);
+	fimc_hw_set_output_addr(fimc, &df->paddr, -1);
 
 	fimc_activate_capture(ctx);
 

@@ -119,8 +119,6 @@ enum fimc_color_fmt {
 
 /* The hardware context state. */
 #define	FIMC_PARAMS		(1 << 0)
-#define	FIMC_SRC_ADDR		(1 << 1)
-#define	FIMC_DST_ADDR		(1 << 2)
 #define	FIMC_SRC_FMT		(1 << 3)
 #define	FIMC_DST_FMT		(1 << 4)
 #define	FIMC_DST_CROP		(1 << 5)
