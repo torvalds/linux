@@ -132,7 +132,7 @@ static void metrousb_read_int_callback(struct urb *urb)
 	/* Set the data read from the usb port into the serial port buffer. */
 	tty = tty_port_tty_get(&port->port);
 	if (!tty) {
-		dev_dbg(&port->dev, "%s - bad tty pointer - exiting\n",
+		dev_err(&port->dev, "%s - bad tty pointer - exiting\n",
 			__func__);
 		return;
 	}
@@ -162,7 +162,7 @@ static void metrousb_read_int_callback(struct urb *urb)
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 
 		if (result)
-			dev_dbg(&port->dev,
+			dev_err(&port->dev,
 				"%s - failed submitting interrupt in urb, error code=%d\n",
 				__func__, result);
 	}
@@ -172,7 +172,7 @@ exit:
 	/* Try to resubmit the urb. */
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
-		dev_dbg(&port->dev,
+		dev_err(&port->dev,
 			"%s - failed submitting interrupt in urb, error code=%d\n",
 			__func__, result);
 }
@@ -212,7 +212,7 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/* Make sure the urb is initialized. */
 	if (!port->interrupt_in_urb) {
-		dev_dbg(&port->dev, "%s - interrupt urb not initialized\n",
+		dev_err(&port->dev, "%s - interrupt urb not initialized\n",
 			__func__);
 		return -ENODEV;
 	}
@@ -243,7 +243,7 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 
 	if (result) {
-		dev_dbg(&port->dev,
+		dev_err(&port->dev,
 			"%s - failed submitting interrupt in urb, error code=%d\n",
 			__func__, result);
 		goto exit;
@@ -282,7 +282,7 @@ static int metrousb_set_modem_ctrl(struct usb_serial *serial, unsigned int contr
 				METROUSB_SET_REQUEST_TYPE, METROUSB_SET_MODEM_CTRL_REQUEST,
 				control_state, 0, NULL, 0, WDR_TIMEOUT);
 	if (retval < 0)
-		dev_dbg(&serial->dev->dev,
+		dev_err(&serial->dev->dev,
 			"%s - set modem ctrl=0x%x failed, error code=%d\n",
 			__func__, mcr, retval);
 
@@ -415,7 +415,7 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 	port->interrupt_in_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 	if (result)
-		dev_dbg(tty->dev,
+		dev_err(tty->dev,
 			"failed submitting interrupt in urb error code=%d\n",
 			result);
 }
