@@ -13,6 +13,7 @@
 #include "util/parse-events.h"
 #include "util/symbol.h"
 #include "util/thread_map.h"
+#include "util/pmu.h"
 #include "../../include/linux/hw_breakpoint.h"
 
 #include <sys/mman.h>
@@ -650,7 +651,7 @@ static int test__checkevent_raw(struct perf_evlist *evlist)
 
 	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
-	TEST_ASSERT_VAL("wrong config", 1 == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong config", 0x1a == evsel->attr.config);
 	return 0;
 }
 
@@ -674,6 +675,24 @@ static int test__checkevent_symbolic_name(struct perf_evlist *evlist)
 	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->attr.type);
 	TEST_ASSERT_VAL("wrong config",
 			PERF_COUNT_HW_INSTRUCTIONS == evsel->attr.config);
+	return 0;
+}
+
+static int test__checkevent_symbolic_name_config(struct perf_evlist *evlist)
+{
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_HARDWARE == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",
+			PERF_COUNT_HW_CPU_CYCLES == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong period",
+			100000 == evsel->attr.sample_period);
+	TEST_ASSERT_VAL("wrong config1",
+			0 == evsel->attr.config1);
+	TEST_ASSERT_VAL("wrong config2",
+			1 == evsel->attr.config2);
 	return 0;
 }
 
@@ -858,6 +877,22 @@ static int test__checkevent_genhw_modifier(struct perf_evlist *evlist)
 	return test__checkevent_genhw(evlist);
 }
 
+static int test__checkevent_pmu(struct perf_evlist *evlist)
+{
+
+	struct perf_evsel *evsel = list_entry(evlist->entries.next,
+					      struct perf_evsel, node);
+
+	TEST_ASSERT_VAL("wrong number of entries", 1 == evlist->nr_entries);
+	TEST_ASSERT_VAL("wrong type", PERF_TYPE_RAW == evsel->attr.type);
+	TEST_ASSERT_VAL("wrong config",    10 == evsel->attr.config);
+	TEST_ASSERT_VAL("wrong config1",    1 == evsel->attr.config1);
+	TEST_ASSERT_VAL("wrong config2",    3 == evsel->attr.config2);
+	TEST_ASSERT_VAL("wrong period",  1000 == evsel->attr.sample_period);
+
+	return 0;
+}
+
 static struct test__event_st {
 	const char *name;
 	__u32 type;
@@ -872,7 +907,7 @@ static struct test__event_st {
 		.check = test__checkevent_tracepoint_multi,
 	},
 	{
-		.name  = "r1",
+		.name  = "r1a",
 		.check = test__checkevent_raw,
 	},
 	{
@@ -882,6 +917,10 @@ static struct test__event_st {
 	{
 		.name  = "instructions",
 		.check = test__checkevent_symbolic_name,
+	},
+	{
+		.name  = "cycles/period=100000,config2/",
+		.check = test__checkevent_symbolic_name_config,
 	},
 	{
 		.name  = "faults",
@@ -916,7 +955,7 @@ static struct test__event_st {
 		.check = test__checkevent_tracepoint_multi_modifier,
 	},
 	{
-		.name  = "r1:kp",
+		.name  = "r1a:kp",
 		.check = test__checkevent_raw_modifier,
 	},
 	{
@@ -934,6 +973,10 @@ static struct test__event_st {
 	{
 		.name  = "L1-dcache-load-miss:kp",
 		.check = test__checkevent_genhw_modifier,
+	},
+	{
+		.name  = "cpu/config=10,config1,config2=3,period=1000/u",
+		.check = test__checkevent_pmu,
 	},
 };
 
@@ -1462,6 +1505,11 @@ static int test__rdpmc(void)
 
 #endif
 
+static int test__perf_pmu(void)
+{
+	return perf_pmu__test();
+}
+
 static struct test {
 	const char *desc;
 	int (*func)(void);
@@ -1495,6 +1543,10 @@ static struct test {
 	{
 		.desc = "Validate PERF_RECORD_* events & perf_sample fields",
 		.func = test__PERF_RECORD,
+	},
+	{
+		.desc = "Test perf pmu format parsing",
+		.func = test__perf_pmu,
 	},
 	{
 		.func = NULL,
