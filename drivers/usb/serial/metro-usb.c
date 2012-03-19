@@ -56,6 +56,47 @@ MODULE_DEVICE_TABLE(usb, id_table);
 /* Input parameter constants. */
 static bool debug;
 
+/* UNI-Directional mode commands for device configure */
+#define UNI_CMD_OPEN	0x80
+#define UNI_CMD_CLOSE	0xFF
+
+inline int metrousb_is_unidirectional_mode(struct usb_serial_port *port)
+{
+	__u16 product_id = le16_to_cpu(
+		port->serial->dev->descriptor.idProduct);
+
+	return product_id == FOCUS_PRODUCT_ID_UNI;
+}
+
+static int metrousb_send_unidirectional_cmd(u8 cmd, struct usb_serial_port *port)
+{
+	int ret;
+	int actual_len;
+	u8 *buffer_cmd = NULL;
+
+	if (!metrousb_is_unidirectional_mode(port))
+		return 0;
+
+	buffer_cmd = kzalloc(sizeof(cmd), GFP_KERNEL);
+	if (!buffer_cmd)
+		return -ENOMEM;
+
+	*buffer_cmd = cmd;
+
+	ret = usb_interrupt_msg(port->serial->dev,
+		usb_sndintpipe(port->serial->dev, port->interrupt_out_endpointAddress),
+		buffer_cmd, sizeof(cmd),
+		&actual_len, USB_CTRL_SET_TIMEOUT);
+
+	kfree(buffer_cmd);
+
+	if (ret < 0)
+		return ret;
+	else if (actual_len != sizeof(cmd))
+		return -EIO;
+	return 0;
+}
+
 static void metrousb_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
@@ -154,6 +195,9 @@ static void metrousb_cleanup(struct usb_serial_port *port)
 			usb_unlink_urb(port->interrupt_in_urb);
 			usb_kill_urb(port->interrupt_in_urb);
 		}
+
+		/* Send deactivate cmd to device */
+		metrousb_send_unidirectional_cmd(UNI_CMD_CLOSE, port);
 	}
 }
 
@@ -202,6 +246,15 @@ static int metrousb_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_dbg(&port->dev,
 			"%s - failed submitting interrupt in urb, error code=%d\n",
 			__func__, result);
+		goto exit;
+	}
+
+	/* Send activate cmd to device */
+	result = metrousb_send_unidirectional_cmd(UNI_CMD_OPEN, port);
+	if (result) {
+		dev_err(&port->dev,
+			"%s - failed to configure device for port number=%d, error code=%d\n",
+			__func__, port->number, result);
 		goto exit;
 	}
 
