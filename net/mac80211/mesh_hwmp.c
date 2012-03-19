@@ -748,10 +748,10 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 	flags = rann->rann_flags;
 	root_is_gate = !!(flags & RANN_FLAG_IS_GATE);
 	orig_addr = rann->rann_addr;
-	orig_sn = rann->rann_seq;
+	orig_sn = le32_to_cpu(rann->rann_seq);
 	hopcount = rann->rann_hopcount;
 	hopcount++;
-	metric = rann->rann_metric;
+	metric = le32_to_cpu(rann->rann_metric);
 
 	/*  Ignore our own RANNs */
 	if (compare_ether_addr(orig_addr, sdata->vif.addr) == 0)

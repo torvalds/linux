@@ -640,9 +640,9 @@ struct ieee80211_rann_ie {
 	u8 rann_hopcount;
 	u8 rann_ttl;
 	u8 rann_addr[6];
-	u32 rann_seq;
-	u32 rann_interval;
-	u32 rann_metric;
+	__le32 rann_seq;
+	__le32 rann_interval;
+	__le32 rann_metric;
 } __attribute__ ((packed));
 
 enum ieee80211_rann_flags {
