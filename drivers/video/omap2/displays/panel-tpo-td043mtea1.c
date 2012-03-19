@@ -272,11 +272,14 @@ static const struct omap_video_timings tpo_td043_timings = {
 static int tpo_td043_power_on(struct tpo_td043_device *tpo_td043)
 {
 	int nreset_gpio = tpo_td043->nreset_gpio;
+	int r;
 
 	if (tpo_td043->powered_on)
 		return 0;
 
-	regulator_enable(tpo_td043->vcc_reg);
+	r = regulator_enable(tpo_td043->vcc_reg);
+	if (r != 0)
+		return r;
 
 	/* wait for regulator to stabilize */
 	msleep(160);
