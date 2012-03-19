@@ -59,6 +59,7 @@
 #include <linux/magic.h>
 #include <linux/pid.h>
 #include <linux/nsproxy.h>
+#include <linux/ptrace.h>
 
 #include <asm/futex.h>
 
@@ -2443,39 +2444,28 @@ SYSCALL_DEFINE3(get_robust_list, int, pid,
 {
 	struct robust_list_head __user *head;
 	unsigned long ret;
-	const struct cred *cred = current_cred(), *pcred;
+	struct task_struct *p;
 
 	if (!futex_cmpxchg_enabled)
 		return -ENOSYS;
 
-	if (!pid)
-		head = current->robust_list;
-	else {
-		struct task_struct *p;
+	rcu_read_lock();
 
-		ret = -ESRCH;
-		rcu_read_lock();
+	ret = -ESRCH;
+	if (!pid)
+		p = current;
+	else {
 		p = find_task_by_vpid(pid);
 		if (!p)
 			goto err_unlock;
-		ret = -EPERM;
-		pcred = __task_cred(p);
-		/* If victim is in different user_ns, then uids are not
-		   comparable, so we must have CAP_SYS_PTRACE */
-		if (cred->user->user_ns != pcred->user->user_ns) {
-			if (!ns_capable(pcred->user->user_ns, CAP_SYS_PTRACE))
-				goto err_unlock;
-			goto ok;
-		}
-		/* If victim is in same user_ns, then uids are comparable */
-		if (cred->euid != pcred->euid &&
-		    cred->euid != pcred->uid &&
-		    !ns_capable(pcred->user->user_ns, CAP_SYS_PTRACE))
-			goto err_unlock;
-ok:
-		head = p->robust_list;
-		rcu_read_unlock();
 	}
+
+	ret = -EPERM;
+	if (!ptrace_may_access(p, PTRACE_MODE_READ))
+		goto err_unlock;
+
+	head = p->robust_list;
+	rcu_read_unlock();
 
 	if (put_user(sizeof(*head), len_ptr))
 		return -EFAULT;
