@@ -797,27 +797,32 @@ static int evergreen_cs_track_validate_texture(struct radeon_cs_parser *p,
 static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 {
 	struct evergreen_cs_track *track = p->track;
-	unsigned tmp, i, j;
+	unsigned tmp, i;
 	int r;
+	unsigned buffer_mask = 0;
 
 	/* check streamout */
-	for (i = 0; i < 4; i++) {
-		if (track->vgt_strmout_config & (1 << i)) {
-			for (j = 0; j < 4; j++) {
-				if ((track->vgt_strmout_buffer_config >> (i * 4)) & (1 << j)) {
-					if (track->vgt_strmout_bo[j]) {
-						u64 offset = (u64)track->vgt_strmout_bo_offset[j] +
-							(u64)track->vgt_strmout_size[j];
-						if (offset > radeon_bo_size(track->vgt_strmout_bo[i])) {
-							DRM_ERROR("streamout %d bo too small: 0x%llx, 0x%lx\n",
-								  j, offset,
-								  radeon_bo_size(track->vgt_strmout_bo[j]));
-							return -EINVAL;
-						}
-					} else {
-						dev_warn(p->dev, "No buffer for streamout %d\n", j);
+	if (track->vgt_strmout_config) {
+		for (i = 0; i < 4; i++) {
+			if (track->vgt_strmout_config & (1 << i)) {
+				buffer_mask |= (track->vgt_strmout_buffer_config >> (i * 4)) & 0xf;
+			}
+		}
+
+		for (i = 0; i < 4; i++) {
+			if (buffer_mask & (1 << i)) {
+				if (track->vgt_strmout_bo[i]) {
+					u64 offset = (u64)track->vgt_strmout_bo_offset[i] +
+							(u64)track->vgt_strmout_size[i];
+					if (offset > radeon_bo_size(track->vgt_strmout_bo[i])) {
+						DRM_ERROR("streamout %d bo too small: 0x%llx, 0x%lx\n",
+							  i, offset,
+							  radeon_bo_size(track->vgt_strmout_bo[i]));
 						return -EINVAL;
 					}
+				} else {
+					dev_warn(p->dev, "No buffer for streamout %d\n", i);
+					return -EINVAL;
 				}
 			}
 		}
