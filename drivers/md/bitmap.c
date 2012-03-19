@@ -36,31 +36,6 @@ static inline char *bmname(struct bitmap *bitmap)
 }
 
 /*
- * just a placeholder - calls kmalloc for bitmap pages
- */
-static unsigned char *bitmap_alloc_page(struct bitmap *bitmap)
-{
-	unsigned char *page;
-
-	page = kzalloc(PAGE_SIZE, GFP_NOIO);
-	if (!page)
-		printk("%s: bitmap_alloc_page FAILED\n", bmname(bitmap));
-	else
-		pr_debug("%s: bitmap_alloc_page: allocated page at %p\n",
-			 bmname(bitmap), page);
-	return page;
-}
-
-/*
- * for now just a placeholder -- just calls kfree for bitmap pages
- */
-static void bitmap_free_page(struct bitmap *bitmap, unsigned char *page)
-{
-	pr_debug("%s: bitmap_free_page: free page %p\n", bmname(bitmap), page);
-	kfree(page);
-}
-
-/*
  * check a page and, if necessary, allocate it (or hijack it if the alloc fails)
  *
  * 1) check to see if this page is allocated, if it's not then try to alloc
@@ -97,7 +72,7 @@ __acquires(bitmap->lock)
 	/* this page has not been allocated yet */
 
 	spin_unlock_irq(&bitmap->lock);
-	mappage = bitmap_alloc_page(bitmap);
+	mappage = kzalloc(PAGE_SIZE, GFP_NOIO);
 	spin_lock_irq(&bitmap->lock);
 
 	if (mappage == NULL) {
@@ -110,7 +85,7 @@ __acquires(bitmap->lock)
 	} else if (bitmap->bp[page].map ||
 		   bitmap->bp[page].hijacked) {
 		/* somebody beat us to getting the page */
-		bitmap_free_page(bitmap, mappage);
+		kfree(mappage);
 		return 0;
 	} else {
 
@@ -142,7 +117,7 @@ static void bitmap_checkfree(struct bitmap *bitmap, unsigned long page)
 		ptr = bitmap->bp[page].map;
 		bitmap->bp[page].map = NULL;
 		bitmap->missing_pages++;
-		bitmap_free_page(bitmap, ptr);
+		kfree(ptr);
 	}
 }
 
