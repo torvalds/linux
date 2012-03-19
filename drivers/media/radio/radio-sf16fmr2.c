@@ -186,7 +186,7 @@ static int fmr2_tea_ext_init(struct snd_tea575x *tea)
 	return 0;
 }
 
-static int __init fmr2_probe(struct device *pdev, unsigned int dev)
+static int __devinit fmr2_probe(struct device *pdev, unsigned int dev)
 {
 	struct fmr2 *fmr2;
 	int err;
