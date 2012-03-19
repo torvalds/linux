@@ -12,7 +12,7 @@
  * GNU General Public License for more details.
  *
  */
- 
+
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -25,8 +25,6 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <plat/rk_fiq_debugger.h>
-
-static u64 dma_dmamask = DMA_BIT_MASK(32);
 
 #ifdef CONFIG_ADC_RK30
 static struct resource rk30_adc_resource[] = {
@@ -72,6 +70,7 @@ struct platform_device device_tsadc = {
 };
 #endif
 
+static u64 dma_dmamask = DMA_BIT_MASK(32);
 
 static struct resource resource_dmac1[] = {
 	[0] = {
@@ -553,8 +552,8 @@ static int spi_io_init(struct spi_cs_gpio *cs_gpios, int cs_num)
 {
 	int i;
 	if (cs_gpios) {
-		for (i=0; i<cs_num; i++) {
-		rk30_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
+		for (i = 0; i < cs_num; i++) {
+			rk30_mux_api_set(cs_gpios[i].cs_iomux_name, cs_gpios[i].cs_iomux_mode);
 		}
 	}
 	return 0;
@@ -995,12 +994,13 @@ static void __init rk30_init_sdmmc(void)
 	platform_device_register(&device_sdmmc1);
 #endif
 }
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
 	rk30_init_uart();
 	rk30_init_i2c();
-	rk30_init_spim();	
+	rk30_init_spim();
 #ifdef CONFIG_MTD_NAND_RK29XX
 	platform_device_register(&device_nand);
 #endif
@@ -1027,6 +1027,6 @@ static int __init rk30_init_devices(void)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_UART0 + CONFIG_RK_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
 	rk30_init_i2s();
-        return 0;
+	return 0;
 }
 arch_initcall(rk30_init_devices);
