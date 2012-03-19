@@ -4,13 +4,12 @@
 
 choice
 	prompt "ADC hardware drivers"
+	default ADC_RK29 if ARCH_RK29
+	default ADC_RK30 if ARCH_RK30
 
 config ADC_NULL
 	bool "NULL"
-	default y
-	help
-		null
-	
+
 config ADC_RK28
 	bool "RK28 adc interface"
         depends on ARCH_RK2818 || ARCH_RK2808 || ARCH_RK2816
