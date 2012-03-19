@@ -2471,9 +2471,11 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) {
 		if (directed_tim) {
 			if (local->hw.conf.dynamic_ps_timeout > 0) {
-				local->hw.conf.flags &= ~IEEE80211_CONF_PS;
-				ieee80211_hw_config(local,
-						    IEEE80211_CONF_CHANGE_PS);
+				if (local->hw.conf.flags & IEEE80211_CONF_PS) {
+					local->hw.conf.flags &= ~IEEE80211_CONF_PS;
+					ieee80211_hw_config(local,
+							    IEEE80211_CONF_CHANGE_PS);
+				}
 				ieee80211_send_nullfunc(local, sdata, 0);
 			} else if (!local->pspolling && sdata->u.mgd.powersave) {
 				local->pspolling = true;
