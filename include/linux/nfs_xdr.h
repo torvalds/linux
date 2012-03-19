@@ -1192,6 +1192,15 @@ struct nfs_write_data {
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
+struct nfs_unlinkdata {
+	struct hlist_node list;
+	struct nfs_removeargs args;
+	struct nfs_removeres res;
+	struct inode *dir;
+	struct rpc_cred	*cred;
+	struct nfs_fattr dir_attr;
+};
+
 struct nfs_access_entry;
 struct nfs_client;
 struct rpc_timeout;
@@ -1221,6 +1230,7 @@ struct nfs_rpc_ops {
 			    struct iattr *, int, struct nfs_open_context *);
 	int	(*remove)  (struct inode *, struct qstr *);
 	void	(*unlink_setup)  (struct rpc_message *, struct inode *dir);
+	void	(*unlink_rpc_prepare) (struct rpc_task *, struct nfs_unlinkdata *);
 	int	(*unlink_done) (struct rpc_task *, struct inode *);
 	int	(*rename)  (struct inode *, struct qstr *,
 			    struct inode *, struct qstr *);
