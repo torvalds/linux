@@ -1127,6 +1127,9 @@ static int pm_genpd_restore_noirq(struct device *dev)
 		}
 	}
 
+	if (genpd->suspend_power_off)
+		return 0;
+
 	pm_genpd_poweron(genpd);
 
 	return dev_gpd_data(dev)->always_on ? 0 : genpd_start_dev(genpd, dev);
