@@ -82,6 +82,7 @@ config SOC_IMX35
 config SOC_IMX5
 	select CPU_V7
 	select MXC_TZIC
+	select COMMON_CLK
 	select ARCH_MXC_IOMUX_V3
 	select ARCH_HAS_CPUFREQ
 	select ARCH_MX5
