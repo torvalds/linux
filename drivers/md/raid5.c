@@ -5361,7 +5361,7 @@ static int raid5_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 	if (mddev->recovery_disabled == conf->recovery_disabled)
 		return -EBUSY;
 
-	if (has_failed(conf))
+	if (rdev->saved_raid_disk < 0 && has_failed(conf))
 		/* no point adding a device */
 		return -EINVAL;
 

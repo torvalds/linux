@@ -1483,7 +1483,7 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		 * very different from resync
 		 */
 		return -EBUSY;
-	if (!enough(conf, -1))
+	if (rdev->saved_raid_disk < 0 && !enough(conf, -1))
 		return -EINVAL;
 
 	if (rdev->raid_disk >= 0)
