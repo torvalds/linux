@@ -909,12 +909,37 @@ static int rtl28xxu_probe(struct usb_interface *intf,
 	int ret, i;
 	int properties_count = ARRAY_SIZE(rtl28xxu_properties);
 	struct dvb_usb_device *d;
+	struct usb_device *udev;
+	bool found;
 
 	deb_info("%s: interface=%d\n", __func__,
 		intf->cur_altsetting->desc.bInterfaceNumber);
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
 		return 0;
+
+	/* Dynamic USB ID support. Replaces first device ID with current one .*/
+	udev = interface_to_usbdev(intf);
+
+	for (i = 0, found = false; i < ARRAY_SIZE(rtl28xxu_table) - 1; i++) {
+		if (rtl28xxu_table[i].idVendor ==
+				le16_to_cpu(udev->descriptor.idVendor) &&
+				rtl28xxu_table[i].idProduct ==
+				le16_to_cpu(udev->descriptor.idProduct)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		deb_info("%s: using dynamic ID %04x:%04x\n", __func__,
+				le16_to_cpu(udev->descriptor.idVendor),
+				le16_to_cpu(udev->descriptor.idProduct));
+		rtl28xxu_properties[0].devices[0].warm_ids[0]->idVendor =
+				le16_to_cpu(udev->descriptor.idVendor);
+		rtl28xxu_properties[0].devices[0].warm_ids[0]->idProduct =
+				le16_to_cpu(udev->descriptor.idProduct);
+	}
 
 	for (i = 0; i < properties_count; i++) {
 		ret = dvb_usb_device_init(intf, &rtl28xxu_properties[i],
