@@ -1910,8 +1910,8 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->mmio_base = pci_resource_start(pdev, 1);
 	xgifb_info->mmio_size = pci_resource_len(pdev, 1);
 	xgifb_info->vga_base = pci_resource_start(pdev, 2) + 0x30;
-	pr_info("Relocate IO address: %lx [%08lx]\n",
-	       (unsigned long)pci_resource_start(pdev, 2),
+	pr_info("Relocate IO address: %Lx [%08lx]\n",
+	       (u64) pci_resource_start(pdev, 2),
 	       xgifb_info->vga_base);
 
 	if (pci_enable_device(pdev)) {
@@ -2003,13 +2003,13 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	xgifb_info->mmio_vbase = ioremap(xgifb_info->mmio_base,
 					    xgifb_info->mmio_size);
 
-	pr_info("Framebuffer at 0x%lx, mapped to 0x%p, size %dk\n",
-	       xgifb_info->video_base,
+	pr_info("Framebuffer at 0x%Lx, mapped to 0x%p, size %dk\n",
+	       (u64) xgifb_info->video_base,
 	       xgifb_info->video_vbase,
 	       xgifb_info->video_size / 1024);
 
-	pr_info("MMIO at 0x%lx, mapped to 0x%p, size %ldk\n",
-	       xgifb_info->mmio_base, xgifb_info->mmio_vbase,
+	pr_info("MMIO at 0x%Lx, mapped to 0x%p, size %ldk\n",
+	       (u64) xgifb_info->mmio_base, xgifb_info->mmio_vbase,
 	       xgifb_info->mmio_size / 1024);
 
 	pci_set_drvdata(pdev, xgifb_info);
