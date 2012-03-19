@@ -8,6 +8,9 @@
 struct clk *imx_clk_pllv1(const char *name, const char *parent,
 		void __iomem *base);
 
+struct clk *imx_clk_pllv2(const char *name, const char *parent,
+		void __iomem *base);
+
 static inline struct clk *imx_clk_fixed(const char *name, int rate)
 {
 	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
