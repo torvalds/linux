@@ -33,6 +33,12 @@
 #include "common.h"
 #include "clockdomain.h"
 
+#define CPU_MASK		0xff0ffff0
+#define CPU_CORTEX_A9		0x410FC090
+#define CPU_CORTEX_A15		0x410FC0F0
+
+#define OMAP5_CORE_COUNT	0x2
+
 /* SCU base address */
 static void __iomem *scu_base;
 
@@ -133,7 +139,6 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 static void __init wakeup_secondary(void)
 {
 	void __iomem *base = omap_get_wakeupgen_base();
-
 	/*
 	 * Write the address of secondary startup routine into the
 	 * AuxCoreBoot1 where ROM code will jump and start executing
@@ -162,16 +167,21 @@ static void __init wakeup_secondary(void)
  */
 void __init smp_init_cpus(void)
 {
-	unsigned int i, ncores;
+	unsigned int i = 0, ncores = 1, cpu_id;
 
-	/*
-	 * Currently we can't call ioremap here because
-	 * SoC detection won't work until after init_early.
-	 */
-	scu_base =  OMAP2_L4_IO_ADDRESS(OMAP44XX_SCU_BASE);
-	BUG_ON(!scu_base);
-
-	ncores = scu_get_core_count(scu_base);
+	/* Use ARM cpuid check here, as SoC detection will not work so early */
+	cpu_id = read_cpuid(CPUID_ID) & CPU_MASK;
+	if (cpu_id == CPU_CORTEX_A9) {
+		/*
+		 * Currently we can't call ioremap here because
+		 * SoC detection won't work until after init_early.
+		 */
+		scu_base =  OMAP2_L4_IO_ADDRESS(OMAP44XX_SCU_BASE);
+		BUG_ON(!scu_base);
+		ncores = scu_get_core_count(scu_base);
+	} else if (cpu_id == CPU_CORTEX_A15) {
+		ncores = OMAP5_CORE_COUNT;
+	}
 
 	/* sanity check */
 	if (ncores > nr_cpu_ids) {
@@ -193,6 +203,7 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	 * Initialise the SCU and wake up the secondary core using
 	 * wakeup_secondary().
 	 */
-	scu_enable(scu_base);
+	if (scu_base)
+		scu_enable(scu_base);
 	wakeup_secondary();
 }
