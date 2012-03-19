@@ -443,7 +443,9 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 	dispc_set_digit_size(dssdev->panel.timings.x_res,
 			dssdev->panel.timings.y_res/2);
 
-	regulator_enable(venc.vdda_dac_reg);
+	r = regulator_enable(venc.vdda_dac_reg);
+	if (r)
+		goto err;
 
 	if (dssdev->platform_enable)
 		dssdev->platform_enable(dssdev);
