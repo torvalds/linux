@@ -2689,7 +2689,7 @@
 #define   DVS_FORMAT_RGBX888	(2<<25)
 #define   DVS_FORMAT_RGBX161616	(3<<25)
 #define   DVS_SOURCE_KEY	(1<<22)
-#define   DVS_RGB_ORDER_RGBX	(1<<20)
+#define   DVS_RGB_ORDER_XBGR	(1<<20)
 #define   DVS_YUV_BYTE_ORDER_MASK (3<<16)
 #define   DVS_YUV_ORDER_YUYV	(0<<16)
 #define   DVS_YUV_ORDER_UYVY	(1<<16)

@@ -554,23 +554,11 @@ static void bnx2x_bmac_stats_update(struct bnx2x *bp)
 		UPDATE_STAT64(tx_stat_gtufl, tx_stat_mac_ufl);
 
 		/* collect PFC stats */
-		DIFF_64(diff.hi, new->tx_stat_gtpp_hi,
-			pstats->pfc_frames_tx_hi,
-			diff.lo, new->tx_stat_gtpp_lo,
-			pstats->pfc_frames_tx_lo);
 		pstats->pfc_frames_tx_hi = new->tx_stat_gtpp_hi;
 		pstats->pfc_frames_tx_lo = new->tx_stat_gtpp_lo;
-		ADD_64(pstats->pfc_frames_tx_hi, diff.hi,
-			pstats->pfc_frames_tx_lo, diff.lo);
 
-		DIFF_64(diff.hi, new->rx_stat_grpp_hi,
-			pstats->pfc_frames_rx_hi,
-			diff.lo, new->rx_stat_grpp_lo,
-			pstats->pfc_frames_rx_lo);
 		pstats->pfc_frames_rx_hi = new->rx_stat_grpp_hi;
 		pstats->pfc_frames_rx_lo = new->rx_stat_grpp_lo;
-		ADD_64(pstats->pfc_frames_rx_hi, diff.hi,
-			pstats->pfc_frames_rx_lo, diff.lo);
 	}
 
 	estats->pause_frames_received_hi =

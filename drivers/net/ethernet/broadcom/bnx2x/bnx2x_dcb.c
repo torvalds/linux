@@ -735,7 +735,9 @@ void bnx2x_dcbx_set_params(struct bnx2x *bp, u32 state)
 						 bp->dcbx_error);
 
 			/* mark DCBX result for PMF migration */
-			bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 1);
+			bnx2x_update_drv_flags(bp,
+					       1 << DRV_FLAGS_DCB_CONFIGURED,
+					       1);
 #ifdef BCM_DCBNL
 			/*
 			 * Add new app tlvs to dcbnl
@@ -1020,7 +1022,7 @@ void bnx2x_dcbx_init(struct bnx2x *bp)
 		DP(NETIF_MSG_LINK, "dcbx_lldp_params_offset 0x%x\n",
 		   dcbx_lldp_params_offset);
 
-		bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 0);
+		bnx2x_update_drv_flags(bp, 1 << DRV_FLAGS_DCB_CONFIGURED, 0);
 
 		if (SHMEM_LLDP_DCBX_PARAMS_NONE != dcbx_lldp_params_offset) {
 			bnx2x_dcbx_admin_mib_updated_params(bp,
@@ -1857,7 +1859,7 @@ void bnx2x_dcbx_pmf_update(struct bnx2x *bp)
 	 * read it from shmem and update bp and netdev accordingly
 	 */
 	if (SHMEM2_HAS(bp, drv_flags) &&
-	   GET_FLAGS(SHMEM2_RD(bp, drv_flags), DRV_FLAGS_DCB_CONFIGURED)) {
+	   GET_FLAGS(SHMEM2_RD(bp, drv_flags), 1 << DRV_FLAGS_DCB_CONFIGURED)) {
 		/* Read neg results if dcbx is in the FW */
 		if (bnx2x_dcbx_read_shmem_neg_results(bp))
 			return;

@@ -167,7 +167,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 		dev_kfree_skb(skb);
 		net->stats.tx_dropped++;
-		return NETDEV_TX_BUSY;
+		return NETDEV_TX_OK;
 	}
 
 	packet->vlan_tci = skb->vlan_tci;
@@ -229,7 +229,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		dev_kfree_skb_any(skb);
 	}
 
-	return ret ? NETDEV_TX_BUSY : NETDEV_TX_OK;
+	return NETDEV_TX_OK;
 }
 
 /*
