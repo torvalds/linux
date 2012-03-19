@@ -55,7 +55,7 @@ void wl1271_scan_sched_scan_results(struct wl1271 *wl);
 #define WL1271_SCAN_BAND_2_4_GHZ 0
 #define WL1271_SCAN_BAND_5_GHZ 1
 
-#define WL1271_SCAN_TIMEOUT    10000 /* msec */
+#define WL1271_SCAN_TIMEOUT    30000 /* msec */
 
 enum {
 	WL1271_SCAN_STATE_IDLE,
