@@ -1112,10 +1112,25 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_SPDIF_CTRL,
 						cfg->fs_override, 1, 1);
 
-	/* I2S parameters */
-	REG_FLD_MOD(av_base, HDMI_CORE_AV_I2S_CHST4,
-						cfg->freq_sample, 3, 0);
+	/*
+	 * Set IEC-60958-3 channel status word. It is passed to the IP
+	 * just as it is received. The user of the driver is responsible
+	 * for its contents.
+	 */
+	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST0,
+		       cfg->iec60958_cfg->status[0]);
+	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST1,
+		       cfg->iec60958_cfg->status[1]);
+	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST2,
+		       cfg->iec60958_cfg->status[2]);
+	/* yes, this is correct: status[3] goes to CHST4 register */
+	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST4,
+		       cfg->iec60958_cfg->status[3]);
+	/* yes, this is correct: status[4] goes to CHST5 register */
+	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST5,
+		       cfg->iec60958_cfg->status[4]);
 
+	/* set I2S parameters */
 	r = hdmi_read_reg(av_base, HDMI_CORE_AV_I2S_IN_CTRL);
 	r = FLD_MOD(r, cfg->i2s_cfg.sck_edge_mode, 6, 6);
 	r = FLD_MOD(r, cfg->i2s_cfg.vbit, 4, 4);
@@ -1123,12 +1138,6 @@ void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
 	r = FLD_MOD(r, cfg->i2s_cfg.direction, 1, 1);
 	r = FLD_MOD(r, cfg->i2s_cfg.shift, 0, 0);
 	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_IN_CTRL, r);
-
-	r = hdmi_read_reg(av_base, HDMI_CORE_AV_I2S_CHST5);
-	r = FLD_MOD(r, cfg->freq_sample, 7, 4);
-	r = FLD_MOD(r, cfg->i2s_cfg.word_length, 3, 1);
-	r = FLD_MOD(r, cfg->i2s_cfg.word_max_length, 0, 0);
-	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_CHST5, r);
 
 	REG_FLD_MOD(av_base, HDMI_CORE_AV_I2S_IN_LEN,
 			cfg->i2s_cfg.in_length_bits, 3, 0);
