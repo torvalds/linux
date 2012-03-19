@@ -91,7 +91,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 
 	if (!conf)
 		return -ENOMEM;
-	list_for_each_entry(rdev1, &mddev->disks, same_set) {
+	rdev_for_each(rdev1, mddev) {
 		pr_debug("md/raid0:%s: looking at %s\n",
 			 mdname(mddev),
 			 bdevname(rdev1->bdev, b));
@@ -102,7 +102,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 		sector_div(sectors, mddev->chunk_sectors);
 		rdev1->sectors = sectors * mddev->chunk_sectors;
 
-		list_for_each_entry(rdev2, &mddev->disks, same_set) {
+		rdev_for_each(rdev2, mddev) {
 			pr_debug("md/raid0:%s:   comparing %s(%llu)"
 				 " with %s(%llu)\n",
 				 mdname(mddev),
@@ -157,7 +157,7 @@ static int create_strip_zones(struct mddev *mddev, struct r0conf **private_conf)
 	smallest = NULL;
 	dev = conf->devlist;
 	err = -EINVAL;
-	list_for_each_entry(rdev1, &mddev->disks, same_set) {
+	rdev_for_each(rdev1, mddev) {
 		int j = rdev1->raid_disk;
 
 		if (mddev->level == 10) {
@@ -329,7 +329,7 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 	WARN_ONCE(sectors || raid_disks,
 		  "%s does not support generic reshape\n", __func__);
 
-	list_for_each_entry(rdev, &mddev->disks, same_set)
+	rdev_for_each(rdev, mddev)
 		array_sectors += rdev->sectors;
 
 	return array_sectors;
@@ -543,7 +543,7 @@ static void *raid0_takeover_raid45(struct mddev *mddev)
 		return ERR_PTR(-EINVAL);
 	}
 
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
+	rdev_for_each(rdev, mddev) {
 		/* check slot number for a disk */
 		if (rdev->raid_disk == mddev->raid_disks-1) {
 			printk(KERN_ERR "md/raid0:%s: raid5 must have missing parity disk!\n",

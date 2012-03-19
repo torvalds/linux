@@ -171,7 +171,7 @@ static struct page *read_sb_page(struct mddev *mddev, loff_t offset,
 		did_alloc = 1;
 	}
 
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
+	rdev_for_each(rdev, mddev) {
 		if (! test_bit(In_sync, &rdev->flags)
 		    || test_bit(Faulty, &rdev->flags))
 			continue;

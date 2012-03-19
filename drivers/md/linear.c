@@ -138,7 +138,7 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 	cnt = 0;
 	conf->array_sectors = 0;
 
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
+	rdev_for_each(rdev, mddev) {
 		int j = rdev->raid_disk;
 		struct dev_info *disk = conf->disks + j;
 		sector_t sectors;

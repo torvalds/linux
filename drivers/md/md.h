@@ -519,7 +519,10 @@ static inline void sysfs_unlink_rdev(struct mddev *mddev, struct md_rdev *rdev)
 /*
  * iterates through the 'same array disks' ringlist
  */
-#define rdev_for_each(rdev, tmp, mddev)				\
+#define rdev_for_each(rdev, mddev)				\
+	list_for_each_entry(rdev, &((mddev)->disks), same_set)
+
+#define rdev_for_each_safe(rdev, tmp, mddev)				\
 	list_for_each_entry_safe(rdev, tmp, &((mddev)->disks), same_set)
 
 #define rdev_for_each_rcu(rdev, mddev)				\
