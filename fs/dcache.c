@@ -105,10 +105,10 @@ static unsigned int d_hash_shift __read_mostly;
 static struct hlist_bl_head *dentry_hashtable __read_mostly;
 
 static inline struct hlist_bl_head *d_hash(const struct dentry *parent,
-					unsigned long hash)
+					unsigned int hash)
 {
-	hash += ((unsigned long) parent ^ GOLDEN_RATIO_PRIME) / L1_CACHE_BYTES;
-	hash = hash ^ ((hash ^ GOLDEN_RATIO_PRIME) >> D_HASHBITS);
+	hash += (unsigned long) parent / L1_CACHE_BYTES;
+	hash = hash + (hash >> D_HASHBITS);
 	return dentry_hashtable + (hash & D_HASHMASK);
 }
 
