@@ -159,7 +159,14 @@ struct lm_return_value {
 	u16 reserved;
 } __attribute__((packed));
 
-struct wmid3_gds_input_param {	/* Get Device Status input parameter */
+struct wmid3_gds_set_input_param {     /* Set Device Status input parameter */
+	u8 function_num;        /* Function Number */
+	u8 hotkey_number;       /* Hotkey Number */
+	u16 devices;            /* Set Device */
+	u8 volume_value;        /* Volume Value */
+} __attribute__((packed));
+
+struct wmid3_gds_get_input_param {     /* Get Device Status input parameter */
 	u8 function_num;	/* Function Number */
 	u8 hotkey_number;	/* Hotkey Number */
 	u16 devices;		/* Get Device */
@@ -922,13 +929,13 @@ static acpi_status wmid3_get_device_status(u32 *value, u16 device)
 	struct wmid3_gds_return_value return_value;
 	acpi_status status;
 	union acpi_object *obj;
-	struct wmid3_gds_input_param params = {
+	struct wmid3_gds_get_input_param params = {
 		.function_num = 0x1,
 		.hotkey_number = commun_fn_key_number,
 		.devices = device,
 	};
 	struct acpi_buffer input = {
-		sizeof(struct wmid3_gds_input_param),
+		sizeof(struct wmid3_gds_get_input_param),
 		&params
 	};
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
@@ -991,19 +998,28 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	acpi_status status;
 	union acpi_object *obj;
 	u16 devices;
-	struct wmid3_gds_input_param params = {
+	struct wmid3_gds_get_input_param get_params = {
 		.function_num = 0x1,
 		.hotkey_number = commun_fn_key_number,
 		.devices = commun_func_bitmap,
 	};
-	struct acpi_buffer input = {
-		sizeof(struct wmid3_gds_input_param),
-		&params
+	struct acpi_buffer get_input = {
+		sizeof(struct wmid3_gds_get_input_param),
+		&get_params
+	};
+	struct wmid3_gds_set_input_param set_params = {
+		.function_num = 0x2,
+		.hotkey_number = commun_fn_key_number,
+		.devices = commun_func_bitmap,
+	};
+	struct acpi_buffer set_input = {
+		sizeof(struct wmid3_gds_set_input_param),
+		&set_params
 	};
 	struct acpi_buffer output = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer output2 = { ACPI_ALLOCATE_BUFFER, NULL };
 
-	status = wmi_evaluate_method(WMID_GUID3, 0, 0x2, &input, &output);
+	status = wmi_evaluate_method(WMID_GUID3, 0, 0x2, &get_input, &output);
 	if (ACPI_FAILURE(status))
 		return status;
 
@@ -1032,11 +1048,9 @@ static acpi_status wmid3_set_device_status(u32 value, u16 device)
 	}
 
 	devices = return_value.devices;
-	params.function_num = 0x2;
-	params.hotkey_number = commun_fn_key_number;
-	params.devices = (value) ? (devices | device) : (devices & ~device);
+	set_params.devices = (value) ? (devices | device) : (devices & ~device);
 
-	status = wmi_evaluate_method(WMID_GUID3, 0, 0x1, &input, &output2);
+	status = wmi_evaluate_method(WMID_GUID3, 0, 0x1, &set_input, &output2);
 	if (ACPI_FAILURE(status))
 		return status;
 
