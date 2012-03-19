@@ -732,7 +732,7 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	/* We must fill the first 5 bytes of anything we sent with a transmit
-	 * header which directes the data to the correct port. The maximum
+	 * header which directs the data to the correct port. The maximum
 	 * size we can send out in one URB is port->bulk_out_size, which caps
 	 * the number of bytes of real data we can send in each write. As the
 	 * semantics of write allow us to write less than we were give, we cap
