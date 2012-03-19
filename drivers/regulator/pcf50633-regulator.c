@@ -157,43 +157,11 @@ static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
 	return pcf50633_reg_write(pcf, regnr, volt_bits);
 }
 
-static int pcf50633_regulator_voltage_value(enum pcf50633_regulator_id id,
-						u8 bits)
-{
-	int millivolts;
-
-	switch (id) {
-	case PCF50633_REGULATOR_AUTO:
-		millivolts = auto_voltage_value(bits);
-		break;
-	case PCF50633_REGULATOR_DOWN1:
-		millivolts = down_voltage_value(bits);
-		break;
-	case PCF50633_REGULATOR_DOWN2:
-		millivolts = down_voltage_value(bits);
-		break;
-	case PCF50633_REGULATOR_LDO1:
-	case PCF50633_REGULATOR_LDO2:
-	case PCF50633_REGULATOR_LDO3:
-	case PCF50633_REGULATOR_LDO4:
-	case PCF50633_REGULATOR_LDO5:
-	case PCF50633_REGULATOR_LDO6:
-	case PCF50633_REGULATOR_HCLDO:
-	case PCF50633_REGULATOR_MEMLDO:
-		millivolts = ldo_voltage_value(bits);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return millivolts * 1000;
-}
-
-static int pcf50633_regulator_get_voltage(struct regulator_dev *rdev)
+static int pcf50633_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct pcf50633 *pcf;
 	int regulator_id;
-	u8 volt_bits, regnr;
+	u8 regnr;
 
 	pcf = rdev_get_drvdata(rdev);
 
@@ -203,9 +171,7 @@ static int pcf50633_regulator_get_voltage(struct regulator_dev *rdev)
 
 	regnr = pcf50633_regulator_registers[regulator_id];
 
-	volt_bits = pcf50633_reg_read(pcf, regnr);
-
-	return pcf50633_regulator_voltage_value(regulator_id, volt_bits);
+	return pcf50633_reg_read(pcf, regnr);
 }
 
 static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
@@ -213,7 +179,33 @@ static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
 {
 	int regulator_id = rdev_get_id(rdev);
 
-	return pcf50633_regulator_voltage_value(regulator_id, index);
+	int millivolts;
+
+	switch (regulator_id) {
+	case PCF50633_REGULATOR_AUTO:
+		millivolts = auto_voltage_value(index);
+		break;
+	case PCF50633_REGULATOR_DOWN1:
+		millivolts = down_voltage_value(index);
+		break;
+	case PCF50633_REGULATOR_DOWN2:
+		millivolts = down_voltage_value(index);
+		break;
+	case PCF50633_REGULATOR_LDO1:
+	case PCF50633_REGULATOR_LDO2:
+	case PCF50633_REGULATOR_LDO3:
+	case PCF50633_REGULATOR_LDO4:
+	case PCF50633_REGULATOR_LDO5:
+	case PCF50633_REGULATOR_LDO6:
+	case PCF50633_REGULATOR_HCLDO:
+	case PCF50633_REGULATOR_MEMLDO:
+		millivolts = ldo_voltage_value(index);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return millivolts * 1000;
 }
 
 static int pcf50633_regulator_enable(struct regulator_dev *rdev)
@@ -268,7 +260,7 @@ static int pcf50633_regulator_is_enabled(struct regulator_dev *rdev)
 
 static struct regulator_ops pcf50633_regulator_ops = {
 	.set_voltage = pcf50633_regulator_set_voltage,
-	.get_voltage = pcf50633_regulator_get_voltage,
+	.get_voltage_sel = pcf50633_regulator_get_voltage_sel,
 	.list_voltage = pcf50633_regulator_list_voltage,
 	.enable = pcf50633_regulator_enable,
 	.disable = pcf50633_regulator_disable,
