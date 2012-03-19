@@ -52,7 +52,7 @@ static const u8 pcf50633_regulator_registers[PCF50633_NUM_REGULATORS] = {
 static u8 auto_voltage_bits(unsigned int millivolts)
 {
 	if (millivolts < 1800)
-		return 0;
+		return 0x2f;
 	if (millivolts > 3800)
 		return 0xff;
 
@@ -87,6 +87,9 @@ static u8 ldo_voltage_bits(unsigned int millivolts)
 /* Obtain voltage value from bits */
 static unsigned int auto_voltage_value(u8 bits)
 {
+	/* AUTOOUT: 00000000 to 00101110 are reserved.
+	 * Return 0 for bits in reserved range, which means this selector code
+	 * can't be used on this system */
 	if (bits < 0x2f)
 		return 0;
 
@@ -208,20 +211,7 @@ static int pcf50633_regulator_get_voltage(struct regulator_dev *rdev)
 static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
 						unsigned int index)
 {
-	struct pcf50633 *pcf;
-	int regulator_id;
-
-	pcf = rdev_get_drvdata(rdev);
-
-	regulator_id = rdev_get_id(rdev);
-
-	switch (regulator_id) {
-	case PCF50633_REGULATOR_AUTO:
-		index += 0x2f;
-		break;
-	default:
-		break;
-	}
+	int regulator_id = rdev_get_id(rdev);
 
 	return pcf50633_regulator_voltage_value(regulator_id, index);
 }
@@ -287,7 +277,7 @@ static struct regulator_ops pcf50633_regulator_ops = {
 
 static struct regulator_desc regulators[] = {
 	[PCF50633_REGULATOR_AUTO] =
-		PCF50633_REGULATOR("auto", PCF50633_REGULATOR_AUTO, 81),
+		PCF50633_REGULATOR("auto", PCF50633_REGULATOR_AUTO, 128),
 	[PCF50633_REGULATOR_DOWN1] =
 		PCF50633_REGULATOR("down1", PCF50633_REGULATOR_DOWN1, 96),
 	[PCF50633_REGULATOR_DOWN2] =
