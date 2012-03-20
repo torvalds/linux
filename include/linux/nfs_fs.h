@@ -661,8 +661,10 @@ nfs_fileid_to_ino_t(u64 fileid)
 # undef ifdebug
 # ifdef NFS_DEBUG
 #  define ifdebug(fac)		if (unlikely(nfs_debug & NFSDBG_##fac))
+#  define NFS_IFDEBUG(x)	x
 # else
 #  define ifdebug(fac)		if (0)
+#  define NFS_IFDEBUG(x)
 # endif
 #endif /* __KERNEL */
 

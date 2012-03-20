@@ -228,7 +228,6 @@ struct nfs4_deviceid_node {
 	atomic_t			ref;
 };
 
-void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
 struct nfs4_deviceid_node *nfs4_find_get_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
 void nfs4_delete_deviceid(const struct pnfs_layoutdriver_type *, const struct nfs_client *, const struct nfs4_deviceid *);
 void nfs4_init_deviceid_node(struct nfs4_deviceid_node *,
@@ -328,6 +327,13 @@ static inline int pnfs_return_layout(struct inode *ino)
 	return 0;
 }
 
+#ifdef NFS_DEBUG
+void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id);
+#else
+static inline void nfs4_print_deviceid(const struct nfs4_deviceid *dev_id)
+{
+}
+#endif /* NFS_DEBUG */
 #else  /* CONFIG_NFS_V4_1 */
 
 static inline void pnfs_destroy_all_layouts(struct nfs_client *clp)

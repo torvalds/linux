@@ -233,12 +233,11 @@ bl_read_pagelist(struct nfs_read_data *rdata)
 	sector_t isect, extent_length = 0;
 	struct parallel_io *par;
 	loff_t f_offset = rdata->args.offset;
-	size_t count = rdata->args.count;
 	struct page **pages = rdata->args.pages;
 	int pg_index = rdata->args.pgbase >> PAGE_CACHE_SHIFT;
 
-	dprintk("%s enter nr_pages %u offset %lld count %Zd\n", __func__,
-	       rdata->npages, f_offset, count);
+	dprintk("%s enter nr_pages %u offset %lld count %u\n", __func__,
+	       rdata->npages, f_offset, (unsigned int)rdata->args.count);
 
 	par = alloc_parallel(rdata);
 	if (!par)

@@ -43,6 +43,7 @@
 static struct hlist_head nfs4_deviceid_cache[NFS4_DEVICE_ID_HASH_SIZE];
 static DEFINE_SPINLOCK(nfs4_deviceid_lock);
 
+#ifdef NFS_DEBUG
 void
 nfs4_print_deviceid(const struct nfs4_deviceid *id)
 {
@@ -52,6 +53,7 @@ nfs4_print_deviceid(const struct nfs4_deviceid *id)
 		p[0], p[1], p[2], p[3]);
 }
 EXPORT_SYMBOL_GPL(nfs4_print_deviceid);
+#endif
 
 static inline u32
 nfs4_deviceid_hash(const struct nfs4_deviceid *id)
