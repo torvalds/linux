@@ -200,11 +200,14 @@ config HID_KEYTOUCH
 		- Keytouch IEC 60945
 
 config HID_KYE
-	tristate "Kye/Genius Ergo Mouse" if EXPERT
+	tristate "KYE/Genius devices"
 	depends on USB_HID
-	default !EXPERT
 	---help---
-	Support for Kye/Genius Ergo Mouse.
+	Support for KYE/Genius devices not fully compliant with HID standard:
+	- Ergo Mouse
+	- EasyPen i405X tablet
+	- MousePen i608X tablet
+	- EasyPen M610X tablet
 
 config HID_UCLOGIC
 	tristate "UC-Logic"
@@ -257,7 +260,9 @@ config HID_LOGITECH_DJ
 	---help---
 	Say Y if you want support for Logitech Unifying receivers and devices.
 	Unifying receivers are capable of pairing up to 6 Logitech compliant
-	devices to the same receiver.
+	devices to the same receiver. Without this driver it will be handled by
+	generic USB_HID driver and all incomming events will be multiplexed
+	into a single mouse and a single keyboard device.
 
 config LOGITECH_FF
 	bool "Logitech force feedback support"
@@ -485,6 +490,15 @@ config HID_ROCCAT
 	Say Y here if you have a Roccat mouse or keyboard and want
 	support for its special functionalities.
 
+config HID_SAITEK
+	tristate "Saitek non-fully HID-compliant devices"
+	depends on USB_HID
+	---help---
+	Support for Saitek devices that are not fully compliant with the
+	HID standard.
+
+	Currently only supports the PS1000 controller.
+
 config HID_SAMSUNG
 	tristate "Samsung InfraRed remote control or keyboards"
 	depends on USB_HID
@@ -548,6 +562,12 @@ config SMARTJOYPLUS_FF
 	---help---
 	Say Y here if you have a SmartJoy PLUS PS2/USB adapter and want to
 	enable force feedback support for it.
+
+config HID_TIVO
+	tristate "TiVo Slide Bluetooth remote control support"
+	depends on (USB_HID || BT_HIDP)
+	---help---
+	Say Y if you have a TiVo Slide Bluetooth remote control.
 
 config HID_TOPSEED
 	tristate "TopSeed Cyberlink, BTC Emprex, Conceptronic remote control support"
