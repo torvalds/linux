@@ -109,26 +109,32 @@ static struct quirk_entry quirk_asus_et2012_type3 = {
 
 static struct quirk_entry *quirks;
 
+static void et2012_quirks(void)
+{
+	const struct dmi_device *dev = NULL;
+	char oemstring[30];
+
+	while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL, dev))) {
+		if (sscanf(dev->name, "AEMS%24c", oemstring) == 1) {
+			if (oemstring[18] == '1')
+				quirks = &quirk_asus_et2012_type1;
+			else if (oemstring[18] == '3')
+				quirks = &quirk_asus_et2012_type3;
+			break;
+		}
+	}
+}
+
 static int dmi_matched(const struct dmi_system_id *dmi)
 {
 	char *model;
+
 	quirks = dmi->driver_data;
 
 	model = (char *)dmi->matches[1].substr;
-	if (unlikely(strncmp(model, "ET2012", 6) == 0)) {
-		const struct dmi_device *dev = NULL;
-		char oemstring[30];
-		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
-					      NULL, dev))) {
-			if (sscanf(dev->name, "AEMS%24c", oemstring) == 1) {
-				if (oemstring[18] == '1')
-					quirks = &quirk_asus_et2012_type1;
-				else if (oemstring[18] == '3')
-					quirks = &quirk_asus_et2012_type3;
-				break;
-			}
-		}
-	}
+	if (unlikely(strncmp(model, "ET2012", 6) == 0))
+		et2012_quirks();
+
 	return 1;
 }
 
