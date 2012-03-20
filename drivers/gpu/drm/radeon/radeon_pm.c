@@ -518,6 +518,9 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_NI:
 	case THERMAL_TYPE_SUMO:
 	case THERMAL_TYPE_SI:
+		/* No support for TN yet */
+		if (rdev->family == CHIP_ARUBA)
+			return err;
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
 		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
 			err = PTR_ERR(rdev->pm.int_hwmon_dev);
