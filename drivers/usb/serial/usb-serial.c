@@ -214,14 +214,13 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (!try_module_get(serial->type->driver.owner))
 		goto error_module_get;
 
-	/* perform the standard setup */
-	retval = tty_init_termios(tty);
-	if (retval)
-		goto error_init_termios;
-
 	retval = usb_autopm_get_interface(serial->interface);
 	if (retval)
 		goto error_get_interface;
+
+	retval = tty_standard_install(driver, tty);
+	if (retval)
+		goto error_init_termios;
 
 	mutex_unlock(&serial->disc_mutex);
 
@@ -231,14 +230,11 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	tty->driver_data = port;
 
-	/* Final install (we use the default method) */
-	tty_driver_kref_get(driver);
-	tty->count++;
-	driver->ttys[idx] = tty;
 	return retval;
 
- error_get_interface:
  error_init_termios:
+	usb_autopm_put_interface(serial->interface);
+ error_get_interface:
 	module_put(serial->type->driver.owner);
  error_module_get:
  error_no_port:
@@ -1239,7 +1235,6 @@ static int __init usb_serial_init(void)
 		goto exit_bus;
 	}
 
-	usb_serial_tty_driver->owner = THIS_MODULE;
 	usb_serial_tty_driver->driver_name = "usbserial";
 	usb_serial_tty_driver->name = "ttyUSB";
 	usb_serial_tty_driver->major = SERIAL_TTY_MAJOR;

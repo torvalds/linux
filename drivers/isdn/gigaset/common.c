@@ -720,12 +720,11 @@ struct cardstate *gigaset_initcs(struct gigaset_driver *drv, int channels,
 
 	tasklet_init(&cs->event_tasklet, gigaset_handle_event,
 		     (unsigned long) cs);
+	tty_port_init(&cs->port);
 	cs->commands_pending = 0;
 	cs->cur_at_seq = 0;
 	cs->gotfwver = -1;
-	cs->open_count = 0;
 	cs->dev = NULL;
-	cs->tty = NULL;
 	cs->tty_dev = NULL;
 	cs->cidmode = cidmode != 0;
 	cs->tabnocid = gigaset_tab_nocid;
@@ -1051,8 +1050,6 @@ static struct cardstate *gigaset_get_cs_by_minor(unsigned minor)
 
 struct cardstate *gigaset_get_cs_by_tty(struct tty_struct *tty)
 {
-	if (tty->index < 0 || tty->index >= tty->driver->num)
-		return NULL;
 	return gigaset_get_cs_by_minor(tty->index + tty->driver->minor_start);
 }
 

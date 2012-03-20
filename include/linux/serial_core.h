@@ -210,6 +210,8 @@
 /* Atheros AR933X SoC */
 #define PORT_AR933X	99
 
+/* Energy Micro efm32 SoC */
+#define PORT_EFMUART   100
 
 #ifdef __KERNEL__
 
@@ -380,6 +382,16 @@ struct uart_port {
 	unsigned char		unused[2];
 	void			*private_data;		/* generic platform data pointer */
 };
+
+static inline int serial_port_in(struct uart_port *up, int offset)
+{
+	return up->serial_in(up, offset);
+}
+
+static inline void serial_port_out(struct uart_port *up, int offset, int value)
+{
+	up->serial_out(up, offset, value);
+}
 
 /*
  * This is the state information which is persistent across opens.

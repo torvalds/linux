@@ -654,7 +654,7 @@ static int open(struct tty_struct *tty, struct file *filp)
 	unsigned long flags;
 
 	line = tty->index;
-	if ((line < 0) || (line >= slgt_device_count)) {
+	if (line >= slgt_device_count) {
 		DBGERR(("%s: open with invalid line #%d.\n", driver_name, line));
 		return -ENODEV;
 	}
@@ -3795,7 +3795,6 @@ static int __init slgt_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	serial_driver->owner = THIS_MODULE;
 	serial_driver->driver_name = tty_driver_name;
 	serial_driver->name = tty_dev_prefix;
 	serial_driver->major = ttymajor;

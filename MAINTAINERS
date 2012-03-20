@@ -6212,8 +6212,8 @@ L:	sparclinux@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
+F:	include/linux/sunserialcore.h
 F:	drivers/tty/serial/suncore.c
-F:	drivers/tty/serial/suncore.h
 F:	drivers/tty/serial/sunhv.c
 F:	drivers/tty/serial/sunsab.c
 F:	drivers/tty/serial/sunsab.h

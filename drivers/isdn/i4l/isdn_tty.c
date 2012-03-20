@@ -1590,12 +1590,9 @@ static int
 isdn_tty_open(struct tty_struct *tty, struct file *filp)
 {
 	modem_info *info;
-	int retval, line;
+	int retval;
 
-	line = tty->index;
-	if (line < 0 || line >= ISDN_MAX_CHANNELS)
-		return -ENODEV;
-	info = &dev->mdm.info[line];
+	info = &dev->mdm.info[tty->index];
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_open"))
 		return -ENODEV;
 	if (!try_module_get(info->owner)) {

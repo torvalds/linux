@@ -1013,16 +1013,12 @@ static const struct file_operations capi_fops =
 static int
 capinc_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
-	int idx = tty->index;
-	struct capiminor *mp = capiminor_get(idx);
-	int ret = tty_init_termios(tty);
+	struct capiminor *mp = capiminor_get(tty->index);
+	int ret = tty_standard_install(driver, tty);
 
-	if (ret == 0) {
-		tty_driver_kref_get(driver);
-		tty->count++;
+	if (ret == 0)
 		tty->driver_data = mp;
-		driver->ttys[idx] = tty;
-	} else
+	else
 		capiminor_put(mp);
 	return ret;
 }
@@ -1290,7 +1286,6 @@ static int __init capinc_tty_init(void)
 		kfree(capiminors);
 		return -ENOMEM;
 	}
-	drv->owner = THIS_MODULE;
 	drv->driver_name = "capi_nc";
 	drv->name = "capi";
 	drv->major = 0;
