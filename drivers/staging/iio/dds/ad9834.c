@@ -281,33 +281,36 @@ static struct attribute *ad9834_attributes[] = {
 	NULL,
 };
 
-static umode_t ad9834_attr_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad9834_state *st = iio_priv(indio_dev);
-
-	umode_t mode = attr->mode;
-
-	if (((st->devid == ID_AD9833) || (st->devid == ID_AD9837)) &&
-		((attr == &iio_dev_attr_dds0_out1_enable.dev_attr.attr) ||
-		(attr == &iio_dev_attr_dds0_out1_wavetype.dev_attr.attr) ||
-		(attr ==
-		&iio_dev_attr_dds0_out1_wavetype_available.dev_attr.attr) ||
-		(attr == &iio_dev_attr_dds0_pincontrol_en.dev_attr.attr)))
-		mode = 0;
-
-	return mode;
-}
+static struct attribute *ad9833_attributes[] = {
+	&iio_dev_attr_dds0_freq0.dev_attr.attr,
+	&iio_dev_attr_dds0_freq1.dev_attr.attr,
+	&iio_const_attr_dds0_freq_scale.dev_attr.attr,
+	&iio_dev_attr_dds0_phase0.dev_attr.attr,
+	&iio_dev_attr_dds0_phase1.dev_attr.attr,
+	&iio_const_attr_dds0_phase_scale.dev_attr.attr,
+	&iio_dev_attr_dds0_freqsymbol.dev_attr.attr,
+	&iio_dev_attr_dds0_phasesymbol.dev_attr.attr,
+	&iio_dev_attr_dds0_out_enable.dev_attr.attr,
+	&iio_dev_attr_dds0_out0_wavetype.dev_attr.attr,
+	&iio_dev_attr_dds0_out0_wavetype_available.dev_attr.attr,
+	NULL,
+};
 
 static const struct attribute_group ad9834_attribute_group = {
 	.attrs = ad9834_attributes,
-	.is_visible = ad9834_attr_is_visible,
+};
+
+static const struct attribute_group ad9833_attribute_group = {
+	.attrs = ad9833_attributes,
 };
 
 static const struct iio_info ad9834_info = {
 	.attrs = &ad9834_attribute_group,
+	.driver_module = THIS_MODULE,
+};
+
+static const struct iio_info ad9833_info = {
+	.attrs = &ad9833_attribute_group,
 	.driver_module = THIS_MODULE,
 };
 
@@ -344,7 +347,15 @@ static int __devinit ad9834_probe(struct spi_device *spi)
 	st->reg = reg;
 	indio_dev->dev.parent = &spi->dev;
 	indio_dev->name = spi_get_device_id(spi)->name;
-	indio_dev->info = &ad9834_info;
+	switch (st->devid) {
+	case ID_AD9833:
+	case ID_AD9837:
+		indio_dev->info = &ad9833_info;
+		break;
+	default:
+		indio_dev->info = &ad9834_info;
+		break;
+	}
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	/* Setup default messages */
