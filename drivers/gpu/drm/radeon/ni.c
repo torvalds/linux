@@ -478,6 +478,7 @@ static u32 cayman_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 	memset((uint8_t *)&swizzle_pipe[0], 0, sizeof(u32) * CAYMAN_MAX_PIPES);
 	switch (rdev->family) {
 	case CHIP_CAYMAN:
+	case CHIP_ARUBA:
 		force_no_swizzle = true;
 		break;
 	default:
@@ -610,7 +611,6 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_CAYMAN:
-	default:
 		rdev->config.cayman.max_shader_engines = 2;
 		rdev->config.cayman.max_pipes_per_simd = 4;
 		rdev->config.cayman.max_tile_pipes = 8;
@@ -629,6 +629,43 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		rdev->config.cayman.sq_num_cf_insts = 2;
 
 		rdev->config.cayman.sc_prim_fifo_size = 0x100;
+		rdev->config.cayman.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.cayman.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_ARUBA:
+	default:
+		rdev->config.cayman.max_shader_engines = 1;
+		rdev->config.cayman.max_pipes_per_simd = 4;
+		rdev->config.cayman.max_tile_pipes = 2;
+		if ((rdev->pdev->device == 0x9900) ||
+		    (rdev->pdev->device == 0x9901)) {
+			rdev->config.cayman.max_simds_per_se = 6;
+			rdev->config.cayman.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x9903) ||
+			   (rdev->pdev->device == 0x9904)) {
+			rdev->config.cayman.max_simds_per_se = 4;
+			rdev->config.cayman.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x9990) ||
+			   (rdev->pdev->device == 0x9991)) {
+			rdev->config.cayman.max_simds_per_se = 3;
+			rdev->config.cayman.max_backends_per_se = 1;
+		} else {
+			rdev->config.cayman.max_simds_per_se = 2;
+			rdev->config.cayman.max_backends_per_se = 1;
+		}
+		rdev->config.cayman.max_texture_channel_caches = 2;
+		rdev->config.cayman.max_gprs = 256;
+		rdev->config.cayman.max_threads = 256;
+		rdev->config.cayman.max_gs_threads = 32;
+		rdev->config.cayman.max_stack_entries = 512;
+		rdev->config.cayman.sx_num_of_sets = 8;
+		rdev->config.cayman.sx_max_export_size = 256;
+		rdev->config.cayman.sx_max_export_pos_size = 64;
+		rdev->config.cayman.sx_max_export_smx_size = 192;
+		rdev->config.cayman.max_hw_contexts = 8;
+		rdev->config.cayman.sq_num_cf_insts = 2;
+
+		rdev->config.cayman.sc_prim_fifo_size = 0x40;
 		rdev->config.cayman.sc_hiz_tile_fifo_size = 0x30;
 		rdev->config.cayman.sc_earlyz_tile_fifo_size = 0x130;
 		break;
@@ -652,7 +689,9 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE);
 	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG);
-	cgts_tcc_disable = 0xff000000;
+	cgts_tcc_disable = 0xffff0000;
+	for (i = 0; i < rdev->config.cayman.max_texture_channel_caches; i++)
+		cgts_tcc_disable &= ~(1 << (16 + i));
 	gc_user_rb_backend_disable = RREG32(GC_USER_RB_BACKEND_DISABLE);
 	gc_user_shader_pipe_config = RREG32(GC_USER_SHADER_PIPE_CONFIG);
 	cgts_user_tcc_disable = RREG32(CGTS_USER_TCC_DISABLE);
@@ -804,8 +843,13 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		rdev->config.cayman.tile_config |= (3 << 0);
 		break;
 	}
-	rdev->config.cayman.tile_config |=
-		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
+
+	/* num banks is 8 on all fusion asics. 0 = 4, 1 = 8, 2 = 16 */
+	if (rdev->flags & RADEON_IS_IGP)
+		rdev->config.evergreen.tile_config |= 1 << 4;
+	else
+		rdev->config.cayman.tile_config |=
+			((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.cayman.tile_config |=
 		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cayman.tile_config |=
