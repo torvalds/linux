@@ -32,6 +32,7 @@
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
 #include <linux/dmi.h>
+#include <linux/fb.h>
 #include <acpi/acpi_bus.h>
 
 #include "asus-wmi.h"
@@ -98,8 +99,13 @@ static struct quirk_entry quirk_asus_1000h = {
 	.hotplug_wireless = true,
 };
 
+static struct quirk_entry quirk_asus_et2012_type1 = {
+	.store_backlight_power = true,
+};
+
 static struct quirk_entry quirk_asus_et2012_type3 = {
 	.scalar_panel_brightness = true,
+	.store_backlight_power = true,
 };
 
 static int dmi_matched(const struct dmi_system_id *dmi)
@@ -111,10 +117,12 @@ static int dmi_matched(const struct dmi_system_id *dmi)
 	if (unlikely(strncmp(model, "ET2012", 6) == 0)) {
 		const struct dmi_device *dev = NULL;
 		char oemstring[30];
-		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING, NULL,
-					      dev))) {
+		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
+					      NULL, dev))) {
 			if (sscanf(dev->name, "AEMS%24c", oemstring) == 1) {
-				if (oemstring[18] == '3')
+				if (oemstring[18] == '1')
+					quirks = &quirk_asus_et2012_type1;
+				else if (oemstring[18] == '3')
 					quirks = &quirk_asus_et2012_type3;
 				break;
 			}
@@ -202,6 +210,7 @@ static int eeepc_wmi_probe(struct platform_device *pdev)
 static void eeepc_wmi_quirks(struct asus_wmi_driver *driver)
 {
 	driver->wapf = -1;
+	driver->panel_power = FB_BLANK_UNBLANK;
 	driver->quirks = &quirk_asus_unknown;
 	driver->quirks->hotplug_wireless = hotplug_wireless;
 	dmi_check_system(asus_quirks);

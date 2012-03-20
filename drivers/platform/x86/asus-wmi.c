@@ -1076,7 +1076,12 @@ static int asus_wmi_hwmon_init(struct asus_wmi *asus)
  */
 static int read_backlight_power(struct asus_wmi *asus)
 {
-	int ret = asus_wmi_get_devstate_simple(asus, ASUS_WMI_DEVID_BACKLIGHT);
+	int ret;
+	if (asus->driver->quirks->store_backlight_power)
+		ret = !asus->driver->panel_power;
+	else
+		ret = asus_wmi_get_devstate_simple(asus,
+						   ASUS_WMI_DEVID_BACKLIGHT);
 
 	if (ret < 0)
 		return ret;
@@ -1138,23 +1143,22 @@ static int update_bl_status(struct backlight_device *bd)
 {
 	struct asus_wmi *asus = bl_get_data(bd);
 	u32 ctrl_param;
-	int power, err;
-
-	if (asus->driver->quirks->scalar_panel_brightness)
-		ctrl_param = get_scalar_command(bd);
-	else
-		ctrl_param = bd->props.brightness;
-
-	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BRIGHTNESS,
-				    ctrl_param, NULL);
-
-	if (err < 0)
-		return err;
+	int power, err = 0;
 
 	power = read_backlight_power(asus);
 	if (power != -ENODEV && bd->props.power != power) {
 		ctrl_param = !!(bd->props.power == FB_BLANK_UNBLANK);
 		err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BACKLIGHT,
+					    ctrl_param, NULL);
+		if (asus->driver->quirks->store_backlight_power)
+			asus->driver->panel_power = bd->props.power;
+	} else {
+		if (asus->driver->quirks->scalar_panel_brightness)
+			ctrl_param = get_scalar_command(bd);
+		else
+			ctrl_param = bd->props.brightness;
+
+		err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BRIGHTNESS,
 					    ctrl_param, NULL);
 	}
 	return err;
@@ -1216,6 +1220,9 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 	}
 
 	asus->backlight_device = bd;
+
+	if (asus->driver->quirks->store_backlight_power)
+		asus->driver->panel_power = power;
 
 	bd->props.brightness = read_brightness(bd);
 	bd->props.power = power;
