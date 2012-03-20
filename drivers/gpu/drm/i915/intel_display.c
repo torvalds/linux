@@ -9049,8 +9049,6 @@ struct intel_quirk {
 };
 
 struct intel_quirk intel_quirks[] = {
-	/* HP Compaq 2730p needs pipe A force quirk (LP: #291555) */
-	{ 0x2a42, 0x103c, 0x30eb, quirk_pipea_force },
 	/* HP Mini needs pipe A force quirk (LP: #322104) */
 	{ 0x27ae, 0x103c, 0x361a, quirk_pipea_force },
 

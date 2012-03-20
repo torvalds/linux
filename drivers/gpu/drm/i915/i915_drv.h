@@ -35,6 +35,7 @@
 #include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
 #include <linux/i2c.h>
+#include <linux/i2c-algo-bit.h>
 #include <drm/intel-gtt.h>
 #include <linux/backlight.h>
 
@@ -199,7 +200,7 @@ struct drm_i915_error_state {
 		u32 tiling:2;
 		u32 dirty:1;
 		u32 purgeable:1;
-		u32 ring:4;
+		s32 ring:4;
 		u32 cache_level:2;
 	} *active_bo, *pinned_bo;
 	u32 active_bo_count, pinned_bo_count;
@@ -298,6 +299,16 @@ enum intel_pch {
 struct intel_fbdev;
 struct intel_fbc_work;
 
+struct intel_gmbus {
+	struct i2c_adapter adapter;
+	bool force_bit;
+	bool has_gpio;
+	u32 reg0;
+	u32 gpio_reg;
+	struct i2c_algo_bit_data bit_algo;
+	struct drm_i915_private *dev_priv;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
 
@@ -315,11 +326,7 @@ typedef struct drm_i915_private {
 	/** gt_lock is also taken in irq contexts. */
 	struct spinlock gt_lock;
 
-	struct intel_gmbus {
-		struct i2c_adapter adapter;
-		struct i2c_adapter *force_bit;
-		u32 reg0;
-	} *gmbus;
+	struct intel_gmbus *gmbus;
 
 	/** gmbus_mutex protects against concurrent usage of the single hw gmbus
 	 * controller on different i2c buses. */
