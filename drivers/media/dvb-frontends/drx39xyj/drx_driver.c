@@ -60,7 +60,7 @@ DEFINES
 
 /** \brief Magic word for checking correct Endianess of microcode data. */
 #ifndef DRX_UCODE_MAGIC_WORD
-#define DRX_UCODE_MAGIC_WORD         ((((u16_t)'H')<<8)+((u16_t)'L'))
+#define DRX_UCODE_MAGIC_WORD         ((((u16)'H')<<8)+((u16)'L'))
 #endif
 
 /** \brief CRC flag in ucode header, flags field. */
@@ -119,17 +119,17 @@ STRUCTURES
 ------------------------------------------------------------------------------*/
 /** \brief  Structure of the microcode block headers */
 typedef struct {
-	u32_t addr;
+	u32 addr;
 		  /**<  Destination address of the data in this block */
-	u16_t size;
+	u16 size;
 		  /**<  Size of the block data following this header counted in
 			16 bits words */
-	u16_t flags;
+	u16 flags;
 		  /**<  Flags for this data block:
 			- bit[0]= CRC on/off
 			- bit[1]= compression on/off
 			- bit[15..2]=reserved */
-	u16_t CRC;/**<  CRC value of the data block, only valid if CRC flag is
+	u16 CRC;/**<  CRC value of the data block, only valid if CRC flag is
 			set. */
 } DRXUCodeBlockHdr_t, *pDRXUCodeBlockHdr_t;
 
@@ -217,13 +217,13 @@ static DRXStatus_t ScanWaitForLock(pDRXDemodInstance_t demod, pBool_t isLocked)
 	Bool_t doneWaiting = FALSE;
 	DRXLockStatus_t lockState = DRX_NOT_LOCKED;
 	DRXLockStatus_t desiredLockState = DRX_NOT_LOCKED;
-	u32_t timeoutValue = 0;
-	u32_t startTimeLockStage = 0;
-	u32_t currentTime = 0;
-	u32_t timerValue = 0;
+	u32 timeoutValue = 0;
+	u32 startTimeLockStage = 0;
+	u32 currentTime = 0;
+	u32 timerValue = 0;
 
 	*isLocked = FALSE;
-	timeoutValue = (u32_t) demod->myCommonAttr->scanDemodLockTimeout;
+	timeoutValue = (u32) demod->myCommonAttr->scanDemodLockTimeout;
 	desiredLockState = demod->myCommonAttr->scanDesiredLock;
 	startTimeLockStage = DRXBSP_HST_Clock();
 
@@ -277,8 +277,8 @@ static DRXStatus_t
 ScanPrepareNextScan(pDRXDemodInstance_t demod, DRXFrequency_t skip)
 {
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	u16_t tableIndex = 0;
-	u16_t frequencyPlanSize = 0;
+	u16 tableIndex = 0;
+	u16 frequencyPlanSize = 0;
 	pDRXFrequencyPlan_t frequencyPlan = (pDRXFrequencyPlan_t) (NULL);
 	DRXFrequency_t nextFrequency = 0;
 	DRXFrequency_t tunerMinFrequency = 0;
@@ -419,8 +419,8 @@ CtrlScanInit(pDRXDemodInstance_t demod, pDRXScanParam_t scanParam)
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
 	DRXFrequency_t maxTunerFreq = 0;
 	DRXFrequency_t minTunerFreq = 0;
-	u16_t nrChannelsInPlan = 0;
-	u16_t i = 0;
+	u16 nrChannelsInPlan = 0;
+	u16 i = 0;
 	void *scanContext = NULL;
 
 	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
@@ -509,7 +509,7 @@ CtrlScanInit(pDRXDemodInstance_t demod, pDRXScanParam_t scanParam)
 		   in this frequency plan. */
 		if ((minFreq != 0) && (maxFreq != 0)) {
 			nrChannelsInPlan +=
-			    (u16_t) (((maxFreq - minFreq) / step) + 1);
+			    (u16) (((maxFreq - minFreq) / step) + 1);
 
 			/* Determine first frequency (within tuner range) to scan */
 			if (commonAttr->scanNextFrequency == 0) {
@@ -602,13 +602,13 @@ static DRXStatus_t CtrlScanStop(pDRXDemodInstance_t demod)
 * Progress indication will run from 0 upto DRX_SCAN_MAX_PROGRESS during scan.
 *
 */
-static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, pu16_t scanProgress)
+static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 {
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
 	pBool_t scanReady = (pBool_t) (NULL);
-	u16_t maxProgress = DRX_SCAN_MAX_PROGRESS;
-	u32_t numTries = 0;
-	u32_t i = 0;
+	u16 maxProgress = DRX_SCAN_MAX_PROGRESS;
+	u32 numTries = 0;
+	u32 i = 0;
 
 	commonAttr = (pDRXCommonAttr_t) demod->myCommonAttr;
 
@@ -627,8 +627,8 @@ static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, pu16_t scanProgress)
 		return DRX_STS_ERROR;
 	}
 
-	*scanProgress = (u16_t) (((commonAttr->scanChannelsScanned) *
-				  ((u32_t) (maxProgress))) /
+	*scanProgress = (u16) (((commonAttr->scanChannelsScanned) *
+				  ((u32) (maxProgress))) /
 				 (commonAttr->scanMaxChannels));
 
 	/* Scan */
@@ -683,8 +683,8 @@ static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, pu16_t scanProgress)
 
 			/* keep track of progress */
 			*scanProgress =
-			    (u16_t) (((commonAttr->scanChannelsScanned) *
-				      ((u32_t) (maxProgress))) /
+			    (u16) (((commonAttr->scanChannelsScanned) *
+				      ((u32) (maxProgress))) /
 				     (commonAttr->scanMaxChannels));
 
 			if (nextStatus != DRX_STS_OK) {
@@ -843,7 +843,7 @@ CtrlProgramTuner(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 DRXStatus_t CtrlDumpRegisters(pDRXDemodInstance_t demod,
 			      pDRXRegDump_t registers)
 {
-	u16_t i = 0;
+	u16 i = 0;
 
 	if (registers == NULL) {
 		/* registers not supplied */
@@ -853,20 +853,20 @@ DRXStatus_t CtrlDumpRegisters(pDRXDemodInstance_t demod,
 	/* start dumping registers */
 	while (registers[i].address != 0) {
 		DRXStatus_t status = DRX_STS_ERROR;
-		u16_t value = 0;
-		u32_t data = 0;
+		u16 value = 0;
+		u32 data = 0;
 
 		status =
 		    demod->myAccessFunct->readReg16Func(demod->myI2CDevAddr,
 							registers[i].address,
 							&value, 0);
 
-		data = (u32_t) value;
+		data = (u32) value;
 
 		if (status != DRX_STS_OK) {
 			/* no breakouts;
 			   depending on device ID, some HW blocks might not be available */
-			data |= ((u32_t) status) << 16;
+			data |= ((u32) status) << 16;
 		}
 		registers[i].data = data;
 		i++;
@@ -885,21 +885,21 @@ DRXStatus_t CtrlDumpRegisters(pDRXDemodInstance_t demod,
 /**
 * \brief Read a 16 bits word, expects big endian data.
 * \param addr: Pointer to memory from which to read the 16 bits word.
-* \return u16_t The data read.
+* \return u16 The data read.
 *
 * This function takes care of the possible difference in endianness between the
 * host and the data contained in the microcode image file.
 *
 */
-static u16_t UCodeRead16(pu8_t addr)
+static u16 UCodeRead16(u8 *addr)
 {
 	/* Works fo any host processor */
 
-	u16_t word = 0;
+	u16 word = 0;
 
-	word = ((u16_t) addr[0]);
+	word = ((u16) addr[0]);
 	word <<= 8;
-	word |= ((u16_t) addr[1]);
+	word |= ((u16) addr[1]);
 
 	return word;
 }
@@ -909,25 +909,25 @@ static u16_t UCodeRead16(pu8_t addr)
 /**
 * \brief Read a 32 bits word, expects big endian data.
 * \param addr: Pointer to memory from which to read the 32 bits word.
-* \return u32_t The data read.
+* \return u32 The data read.
 *
 * This function takes care of the possible difference in endianness between the
 * host and the data contained in the microcode image file.
 *
 */
-static u32_t UCodeRead32(pu8_t addr)
+static u32 UCodeRead32(u8 *addr)
 {
 	/* Works fo any host processor */
 
-	u32_t word = 0;
+	u32 word = 0;
 
-	word = ((u16_t) addr[0]);
+	word = ((u16) addr[0]);
 	word <<= 8;
-	word |= ((u16_t) addr[1]);
+	word |= ((u16) addr[1]);
 	word <<= 8;
-	word |= ((u16_t) addr[2]);
+	word |= ((u16) addr[2]);
 	word <<= 8;
-	word |= ((u16_t) addr[3]);
+	word |= ((u16) addr[3]);
 
 	return word;
 }
@@ -938,17 +938,17 @@ static u32_t UCodeRead32(pu8_t addr)
 * \brief Compute CRC of block of microcode data.
 * \param blockData: Pointer to microcode data.
 * \param nrWords:   Size of microcode block (number of 16 bits words).
-* \return u16_t The computed CRC residu.
+* \return u16 The computed CRC residu.
 */
-static u16_t UCodeComputeCRC(pu8_t blockData, u16_t nrWords)
+static u16 UCodeComputeCRC(u8 *blockData, u16 nrWords)
 {
-	u16_t i = 0;
-	u16_t j = 0;
-	u32_t CRCWord = 0;
-	u32_t carry = 0;
+	u16 i = 0;
+	u16 j = 0;
+	u32 CRCWord = 0;
+	u32 carry = 0;
 
 	while (i < nrWords) {
-		CRCWord |= (u32_t) UCodeRead16(blockData);
+		CRCWord |= (u32) UCodeRead16(blockData);
 		for (j = 0; j < 16; j++) {
 			CRCWord <<= 1;
 			if (carry != 0) {
@@ -957,9 +957,9 @@ static u16_t UCodeComputeCRC(pu8_t blockData, u16_t nrWords)
 			carry = CRCWord & 0x80000000UL;
 		}
 		i++;
-		blockData += (sizeof(u16_t));
+		blockData += (sizeof(u16));
 	}
-	return ((u16_t) (CRCWord >> 16));
+	return ((u16) (CRCWord >> 16));
 }
 
 /*============================================================================*/
@@ -987,10 +987,10 @@ CtrlUCode(pDRXDemodInstance_t demod,
 	  pDRXUCodeInfo_t mcInfo, DRXUCodeAction_t action)
 {
 	DRXStatus_t rc;
-	u16_t i = 0;
-	u16_t mcNrOfBlks = 0;
-	u16_t mcMagicWord = 0;
-	pu8_t mcData = (pu8_t) (NULL);
+	u16 i = 0;
+	u16 mcNrOfBlks = 0;
+	u16 mcMagicWord = 0;
+	u8 *mcData = (u8 *) (NULL);
 	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
 
 	devAddr = demod->myI2CDevAddr;
@@ -1004,9 +1004,9 @@ CtrlUCode(pDRXDemodInstance_t demod,
 
 	/* Check data */
 	mcMagicWord = UCodeRead16(mcData);
-	mcData += sizeof(u16_t);
+	mcData += sizeof(u16);
 	mcNrOfBlks = UCodeRead16(mcData);
-	mcData += sizeof(u16_t);
+	mcData += sizeof(u16);
 
 	if ((mcMagicWord != DRX_UCODE_MAGIC_WORD) || (mcNrOfBlks == 0)) {
 		/* wrong endianess or wrong data ? */
@@ -1025,35 +1025,35 @@ CtrlUCode(pDRXDemodInstance_t demod,
 
 			/* Process block header */
 			blockHdr.addr = UCodeRead32(mcData);
-			mcData += sizeof(u32_t);
+			mcData += sizeof(u32);
 			blockHdr.size = UCodeRead16(mcData);
-			mcData += sizeof(u16_t);
+			mcData += sizeof(u16);
 			blockHdr.flags = UCodeRead16(mcData);
-			mcData += sizeof(u16_t);
+			mcData += sizeof(u16);
 			blockHdr.CRC = UCodeRead16(mcData);
-			mcData += sizeof(u16_t);
+			mcData += sizeof(u16);
 
 			if (blockHdr.flags & 0x8) {
 				/* Aux block. Check type */
-				pu8_t auxblk = mcInfo->mcData + blockHdr.addr;
-				u16_t auxtype = UCodeRead16(auxblk);
+				u8 *auxblk = mcInfo->mcData + blockHdr.addr;
+				u16 auxtype = UCodeRead16(auxblk);
 				if (DRX_ISMCVERTYPE(auxtype)) {
 					DRX_SET_MCVERTYPE(demod,
 							  UCodeRead16(auxblk));
-					auxblk += sizeof(u16_t);
+					auxblk += sizeof(u16);
 					DRX_SET_MCDEV(demod,
 						      UCodeRead32(auxblk));
-					auxblk += sizeof(u32_t);
+					auxblk += sizeof(u32);
 					DRX_SET_MCVERSION(demod,
 							  UCodeRead32(auxblk));
-					auxblk += sizeof(u32_t);
+					auxblk += sizeof(u32);
 					DRX_SET_MCPATCH(demod,
 							UCodeRead32(auxblk));
 				}
 			}
 
 			/* Next block */
-			mcData += blockHdr.size * sizeof(u16_t);
+			mcData += blockHdr.size * sizeof(u16);
 		}
 
 		/* After scanning, validate the microcode.
@@ -1065,23 +1065,23 @@ CtrlUCode(pDRXDemodInstance_t demod,
 		}
 
 		/* Restore data pointer */
-		mcData = mcInfo->mcData + 2 * sizeof(u16_t);
+		mcData = mcInfo->mcData + 2 * sizeof(u16);
 	}
 
 	/* Process microcode blocks */
 	for (i = 0; i < mcNrOfBlks; i++) {
 		DRXUCodeBlockHdr_t blockHdr;
-		u16_t mcBlockNrBytes = 0;
+		u16 mcBlockNrBytes = 0;
 
 		/* Process block header */
 		blockHdr.addr = UCodeRead32(mcData);
-		mcData += sizeof(u32_t);
+		mcData += sizeof(u32);
 		blockHdr.size = UCodeRead16(mcData);
-		mcData += sizeof(u16_t);
+		mcData += sizeof(u16);
 		blockHdr.flags = UCodeRead16(mcData);
-		mcData += sizeof(u16_t);
+		mcData += sizeof(u16);
 		blockHdr.CRC = UCodeRead16(mcData);
-		mcData += sizeof(u16_t);
+		mcData += sizeof(u16);
 
 		/* Check block header on:
 		   - data larger than 64Kb
@@ -1095,7 +1095,7 @@ CtrlUCode(pDRXDemodInstance_t demod,
 			return DRX_STS_INVALID_ARG;
 		}
 
-		mcBlockNrBytes = blockHdr.size * ((u16_t) sizeof(u16_t));
+		mcBlockNrBytes = blockHdr.size * ((u16) sizeof(u16));
 
 		if (blockHdr.size != 0) {
 			/* Perform the desired action */
@@ -1120,12 +1120,12 @@ CtrlUCode(pDRXDemodInstance_t demod,
 			case UCODE_VERIFY:
 				{
 					int result = 0;
-					u8_t mcDataBuffer
+					u8 mcDataBuffer
 					    [DRX_UCODE_MAX_BUF_SIZE];
-					u32_t bytesToCompare = 0;
-					u32_t bytesLeftToCompare = 0;
+					u32 bytesToCompare = 0;
+					u32 bytesLeftToCompare = 0;
 					DRXaddr_t currAddr = (DRXaddr_t) 0;
-					pu8_t currPtr = NULL;
+					u8 *currPtr = NULL;
 
 					bytesLeftToCompare = mcBlockNrBytes;
 					currAddr = blockHdr.addr;
@@ -1133,10 +1133,10 @@ CtrlUCode(pDRXDemodInstance_t demod,
 
 					while (bytesLeftToCompare != 0) {
 						if (bytesLeftToCompare >
-						    ((u32_t)
+						    ((u32)
 						     DRX_UCODE_MAX_BUF_SIZE)) {
 							bytesToCompare =
-							    ((u32_t)
+							    ((u32)
 							     DRX_UCODE_MAX_BUF_SIZE);
 						} else {
 							bytesToCompare =
@@ -1146,9 +1146,9 @@ CtrlUCode(pDRXDemodInstance_t demod,
 						if (demod->myAccessFunct->
 						    readBlockFunc(devAddr,
 								  currAddr,
-								  (u16_t)
+								  (u16)
 								  bytesToCompare,
-								  (pu8_t)
+								  (u8 *)
 								  mcDataBuffer,
 								  0x0000) !=
 						    DRX_STS_OK) {
@@ -1170,7 +1170,7 @@ CtrlUCode(pDRXDemodInstance_t demod,
 						currPtr =
 						    &(currPtr[bytesToCompare]);
 						bytesLeftToCompare -=
-						    ((u32_t) bytesToCompare);
+						    ((u32) bytesToCompare);
 					}	/* while( bytesToCompare > DRX_UCODE_MAX_BUF_SIZE ) */
 				};
 				break;
@@ -1464,7 +1464,7 @@ DRX_Ctrl(pDRXDemodInstance_t demod, DRXCtrlIndex_t ctrl, void *ctrlData)
 	 /*===================================================================*/
 		case DRX_CTRL_SCAN_NEXT:
 			{
-				return CtrlScanNext(demod, (pu16_t) ctrlData);
+				return CtrlScanNext(demod, (u16 *) ctrlData);
 			}
 			break;
 

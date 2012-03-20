@@ -79,8 +79,8 @@ DEFINES
 TYPEDEFS
 ------------------------------------------------------------------------------*/
 
-	typedef u32_t TUNERMode_t;
-	typedef pu32_t pTUNERMode_t;
+	typedef u32 TUNERMode_t;
+	typedef u32 *pTUNERMode_t;
 
 	typedef char *TUNERSubMode_t;	/* description of submode */
 	typedef TUNERSubMode_t *pTUNERSubMode_t;
@@ -97,9 +97,9 @@ TYPEDEFS
 		DRXFrequency_t minFreqRF;	/* Lowest  RF input frequency, in kHz */
 		DRXFrequency_t maxFreqRF;	/* Highest RF input frequency, in kHz */
 
-		u8_t subMode;	/* Index to sub-mode in use */
+		u8 subMode;	/* Index to sub-mode in use */
 		pTUNERSubMode_t subModeDescriptions;	/* Pointer to description of sub-modes */
-		u8_t subModes;	/* Number of available sub-modes      */
+		u8 subModes;	/* Number of available sub-modes      */
 
 		/* The following fields will be either 0, NULL or FALSE and do not need
 		   initialisation */
@@ -109,7 +109,7 @@ TYPEDEFS
 		DRXFrequency_t IFfrequency;	/* only valid if programmed       */
 
 		void *myUserData;	/* pointer to associated demod instance */
-		u16_t myCapabilities;	/* value for storing application flags  */
+		u16 myCapabilities;	/* value for storing application flags  */
 
 	} TUNERCommonAttr_t, *pTUNERCommonAttr_t;
 
@@ -139,11 +139,11 @@ TYPEDEFS
 
 	typedef DRXStatus_t(*TUNERi2cWriteReadFunc_t) (pTUNERInstance_t tuner,
 						       struct i2c_device_addr *
-						       wDevAddr, u16_t wCount,
-						       pu8_t wData,
+						       wDevAddr, u16 wCount,
+						       u8 *wData,
 						       struct i2c_device_addr *
-						       rDevAddr, u16_t rCount,
-						       pu8_t rData);
+						       rDevAddr, u16 rCount,
+						       u8 *rData);
 
 	typedef struct {
 		TUNEROpenFunc_t openFunc;
@@ -194,10 +194,10 @@ Exported FUNCTIONS
 
 	DRXStatus_t DRXBSP_TUNER_DefaultI2CWriteRead(pTUNERInstance_t tuner,
 						     struct i2c_device_addr *wDevAddr,
-						     u16_t wCount,
-						     pu8_t wData,
+						     u16 wCount,
+						     u8 *wData,
 						     struct i2c_device_addr *rDevAddr,
-						     u16_t rCount, pu8_t rData);
+						     u16 rCount, u8 *rData);
 
 /*------------------------------------------------------------------------------
 THE END

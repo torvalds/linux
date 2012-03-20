@@ -61,13 +61,13 @@ Exported FUNCTIONS
 
 	DRXStatus_t DRXBSP_HST_Term(void);
 
-	void *DRXBSP_HST_Memcpy(void *to, void *from, u32_t n);
+	void *DRXBSP_HST_Memcpy(void *to, void *from, u32 n);
 
-	int DRXBSP_HST_Memcmp(void *s1, void *s2, u32_t n);
+	int DRXBSP_HST_Memcmp(void *s1, void *s2, u32 n);
 
-	u32_t DRXBSP_HST_Clock(void);
+	u32 DRXBSP_HST_Clock(void);
 
-	DRXStatus_t DRXBSP_HST_Sleep(u32_t n);
+	DRXStatus_t DRXBSP_HST_Sleep(u32 n);
 
 /*-------------------------------------------------------------------------
 THE END

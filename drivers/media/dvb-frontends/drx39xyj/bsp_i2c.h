@@ -42,8 +42,6 @@
 *
 */
 
-#include <linux/kernel.h>
-
 #ifndef __BSPI2C_H__
 #define __BSPI2C_H__
 
@@ -95,11 +93,11 @@ Exported FUNCTIONS
 
 /**
 * \fn DRXStatus_t DRXBSP_I2C_WriteRead( struct i2c_device_addr *wDevAddr,
-*                                       u16_t wCount,
-*                                       pu8_t wData,
+*                                       u16 wCount,
+*                                       u8 *wData,
 *                                       struct i2c_device_addr *rDevAddr,
-*                                       u16_t rCount,
-*                                       pu8_t rData)
+*                                       u16 rCount,
+*                                       u8 *rData)
 * \brief Read and/or write count bytes from I2C bus, store them in data[].
 * \param wDevAddr The device i2c address and the device ID to write to
 * \param wCount   The number of bytes to write
@@ -124,10 +122,10 @@ Exported FUNCTIONS
 * It can be used to control a "switch" on the I2C bus to the correct device.
 */
 	DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
-					 u16_t wCount,
-					 pu8_t wData,
+					 u16 wCount,
+					 u8 *wData,
 					 struct i2c_device_addr *rDevAddr,
-					 u16_t rCount, pu8_t rData);
+					 u16 rCount, u8 *rData);
 
 /**
 * \fn DRXBSP_I2C_ErrorText()

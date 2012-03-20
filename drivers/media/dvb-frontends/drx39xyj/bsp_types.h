@@ -39,6 +39,8 @@
 *
 */
 
+#include <linux/kernel.h>
+
 #ifndef __BSP_TYPES_H__
 #define __BSP_TYPES_H__
 /*-------------------------------------------------------------------------
@@ -53,98 +55,10 @@ TYPEDEFS
 -------------------------------------------------------------------------*/
 
 /**
-* \typedef unsigned char u8_t
-* \brief type definition of an unsigned 8 bits integer
-*/
-	typedef unsigned char u8_t;
-/**
-* \typedef char s8_t
-* \brief type definition of a signed 8 bits integer
-*/
-	typedef char s8_t;
-/**
-* \typedef unsigned short u16_t *pu16_t
-* \brief type definition of an unsigned 16 bits integer
-*/
-	typedef unsigned short u16_t;
-/**
-* \typedef short s16_t
-* \brief type definition of a signed 16 bits integer
-*/
-	typedef short s16_t;
-/**
-* \typedef unsigned long u32_t
-* \brief type definition of an unsigned 32 bits integer
-*/
-	typedef unsigned long u32_t;
-/**
-* \typedef long s32_t
-* \brief type definition of a signed 32 bits integer
-*/
-	typedef long s32_t;
-/*
-* \typedef struct ... u64_t
-* \brief type definition of an usigned 64 bits integer
-*/
-	typedef struct {
-		u32_t MSLW;
-		u32_t LSLW;
-	} u64_t;
-/*
-* \typedef struct ... i64_t
-* \brief type definition of a signed 64 bits integer
-*/
-	typedef struct {
-		s32_t MSLW;
-		u32_t LSLW;
-	} s64_t;
-
-/**
-* \typedef u8_t *pu8_t
-* \brief type definition of pointer to an unsigned 8 bits integer
-*/
-	typedef u8_t *pu8_t;
-/**
-* \typedef s8_t *ps8_t
-* \brief type definition of pointer to a signed 8 bits integer
-*/
-	typedef s8_t *ps8_t;
-/**
-* \typedef u16_t *pu16_t
-* \brief type definition of pointer to an unsigned 16 bits integer
-*/
-	typedef u16_t *pu16_t;
-/**
-* \typedef s16_t *ps16_t
-* \brief type definition of pointer to a signed 16 bits integer
-*/
-	typedef s16_t *ps16_t;
-/**
-* \typedef u32_t *pu32_t
-* \brief type definition of pointer to an unsigned 32 bits integer
-*/
-	typedef u32_t *pu32_t;
-/**
-* \typedef s32_t *ps32_t
-* \brief type definition of pointer to a signed 32 bits integer
-*/
-	typedef s32_t *ps32_t;
-/**
-* \typedef u64_t *pu64_t
-* \brief type definition of pointer to an usigned 64 bits integer
-*/
-	typedef u64_t *pu64_t;
-/**
-* \typedef s64_t *ps64_t
-* \brief type definition of pointer to a signed 64 bits integer
-*/
-	typedef s64_t *ps64_t;
-
-/**
-* \typedef s32_t DRXFrequency_t
+* \typedef s32 DRXFrequency_t
 * \brief type definition of frequency
 */
-	typedef s32_t DRXFrequency_t;
+	typedef s32 DRXFrequency_t;
 
 /**
 * \typedef DRXFrequency_t *pDRXFrequency_t
@@ -153,10 +67,10 @@ TYPEDEFS
 	typedef DRXFrequency_t *pDRXFrequency_t;
 
 /**
-* \typedef u32_t DRXSymbolrate_t
+* \typedef u32 DRXSymbolrate_t
 * \brief type definition of symbol rate
 */
-	typedef u32_t DRXSymbolrate_t;
+	typedef u32 DRXSymbolrate_t;
 
 /**
 * \typedef DRXSymbolrate_t *pDRXSymbolrate_t

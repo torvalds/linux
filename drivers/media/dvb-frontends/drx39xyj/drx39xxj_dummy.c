@@ -39,32 +39,32 @@ DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
 	return DRX_STS_OK;
 }
 
-DRXStatus_t DRXBSP_HST_Sleep(u32_t n)
+DRXStatus_t DRXBSP_HST_Sleep(u32 n)
 {
 	msleep(n);
 	return DRX_STS_OK;
 }
 
-u32_t DRXBSP_HST_Clock(void)
+u32 DRXBSP_HST_Clock(void)
 {
 	return jiffies_to_msecs(jiffies);
 }
 
-int DRXBSP_HST_Memcmp(void *s1, void *s2, u32_t n)
+int DRXBSP_HST_Memcmp(void *s1, void *s2, u32 n)
 {
 	return (memcmp(s1, s2, (size_t) n));
 }
 
-void *DRXBSP_HST_Memcpy(void *to, void *from, u32_t n)
+void *DRXBSP_HST_Memcpy(void *to, void *from, u32 n)
 {
 	return (memcpy(to, from, (size_t) n));
 }
 
 DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
-				 u16_t wCount,
-				 pu8_t wData,
+				 u16 wCount,
+				 u8 *wData,
 				 struct i2c_device_addr *rDevAddr,
-				 u16_t rCount, pu8_t rData)
+				 u16 rCount, u8 *rData)
 {
 	struct drx39xxj_state *state;
 	struct i2c_msg msg[2];

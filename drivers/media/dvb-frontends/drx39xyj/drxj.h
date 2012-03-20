@@ -75,15 +75,15 @@ TYPEDEFS
 /*============================================================================*/
 
 	typedef struct {
-		u16_t command;
+		u16 command;
 			/**< Command number */
-		u16_t parameterLen;
+		u16 parameterLen;
 			/**< Data length in byte */
-		u16_t resultLen;
+		u16 resultLen;
 			/**< result length in byte */
-		u16_t *parameter;
+		u16 *parameter;
 			/**< General purpous param */
-		u16_t *result;
+		u16 *result;
 			/**< General purpous param */
 	} DRXJSCUCmd_t, *pDRXJSCUCmd_t;
 
@@ -154,7 +154,7 @@ TYPEDEFS
 */
 	typedef struct {
 		DRXJCfgSmartAntIO_t io;
-		u16_t ctrlData;
+		u16 ctrlData;
 	} DRXJCfgSmartAnt_t, *pDRXJCfgSmartAnt_t;
 
 /**
@@ -162,9 +162,9 @@ TYPEDEFS
 * AGC status information from the DRXJ-IQM-AF.
 */
 	typedef struct {
-		u16_t IFAGC;
-		u16_t RFAGC;
-		u16_t DigitalAGC;
+		u16 IFAGC;
+		u16 RFAGC;
+		u16 DigitalAGC;
 	} DRXJAgcStatus_t, *pDRXJAgcStatus_t;
 
 /* DRXJ_CFG_AGC_RF, DRXJ_CFG_AGC_IF */
@@ -186,12 +186,12 @@ TYPEDEFS
 	typedef struct {
 		DRXStandard_t standard;	/* standard for which these settings apply */
 		DRXJAgcCtrlMode_t ctrlMode;	/* off, user, auto          */
-		u16_t outputLevel;	/* range dependent on AGC   */
-		u16_t minOutputLevel;	/* range dependent on AGC   */
-		u16_t maxOutputLevel;	/* range dependent on AGC   */
-		u16_t speed;	/* range dependent on AGC   */
-		u16_t top;	/* rf-agc take over point   */
-		u16_t cutOffCurrent;	/* rf-agc is accelerated if output current
+		u16 outputLevel;	/* range dependent on AGC   */
+		u16 minOutputLevel;	/* range dependent on AGC   */
+		u16 maxOutputLevel;	/* range dependent on AGC   */
+		u16 speed;	/* range dependent on AGC   */
+		u16 top;	/* rf-agc take over point   */
+		u16 cutOffCurrent;	/* rf-agc is accelerated if output current
 					   is below cut-off current                */
 	} DRXJCfgAgc_t, *pDRXJCfgAgc_t;
 
@@ -203,7 +203,7 @@ TYPEDEFS
 */
 	typedef struct {
 		DRXStandard_t standard;	/* standard to which these settings apply */
-		u16_t reference;	/* pre SAW reference value, range 0 .. 31 */
+		u16 reference;	/* pre SAW reference value, range 0 .. 31 */
 		Bool_t usePreSaw;	/* TRUE algorithms must use pre SAW sense */
 	} DRXJCfgPreSaw_t, *pDRXJCfgPreSaw_t;
 
@@ -215,7 +215,7 @@ TYPEDEFS
 */
 	typedef struct {
 		DRXStandard_t standard;	/* standard to which these settings apply */
-		u16_t gain;	/* gain in 0.1 dB steps, DRXJ range 140 .. 335 */
+		u16 gain;	/* gain in 0.1 dB steps, DRXJ range 140 .. 335 */
 	} DRXJCfgAfeGain_t, *pDRXJCfgAfeGain_t;
 
 /**
@@ -226,15 +226,15 @@ TYPEDEFS
 *
 */
 	typedef struct {
-		u16_t nrBitErrors;
+		u16 nrBitErrors;
 				/**< no of pre RS bit errors          */
-		u16_t nrSymbolErrors;
+		u16 nrSymbolErrors;
 				/**< no of pre RS symbol errors       */
-		u16_t nrPacketErrors;
+		u16 nrPacketErrors;
 				/**< no of pre RS packet errors       */
-		u16_t nrFailures;
+		u16 nrFailures;
 				/**< no of post RS failures to decode */
-		u16_t nrSncParFailCount;
+		u16 nrSncParFailCount;
 				/**< no of post RS bit erros          */
 	} DRXJRSErrors_t, *pDRXJRSErrors_t;
 
@@ -243,7 +243,7 @@ TYPEDEFS
 * symbol error rate
 */
 	typedef struct {
-		u32_t symbError;
+		u32 symbError;
 			      /**< symbol error rate sps */
 	} DRXJCfgVSBMisc_t, *pDRXJCfgVSBMisc_t;
 
@@ -321,8 +321,8 @@ TYPEDEFS
  *  DRXJ_CFG_ATV_MISC
  */
 	typedef struct {
-		s16_t peakFilter;	/* -8 .. 15 */
-		u16_t noiseFilter;	/* 0 .. 15 */
+		s16 peakFilter;	/* -8 .. 15 */
+		u16 noiseFilter;	/* 0 .. 15 */
 	} DRXJCfgAtvMisc_t, *pDRXJCfgAtvMisc_t;
 
 /*
@@ -347,7 +347,7 @@ TYPEDEFS
 		Bool_t freqLock;
 		Bool_t digGainLock;
 		Bool_t anaGainLock;
-		u8_t state;
+		u8 state;
 	} DRXJCfgOOBMisc_t, *pDRXJCfgOOBMisc_t;
 
 /*
@@ -365,10 +365,10 @@ TYPEDEFS
  *  DRXJ_CFG_ATV_EQU_COEF
  */
 	typedef struct {
-		s16_t coef0;	/* -256 .. 255 */
-		s16_t coef1;	/* -256 .. 255 */
-		s16_t coef2;	/* -256 .. 255 */
-		s16_t coef3;	/* -256 .. 255 */
+		s16 coef0;	/* -256 .. 255 */
+		s16 coef1;	/* -256 .. 255 */
+		s16 coef2;	/* -256 .. 255 */
+		s16 coef3;	/* -256 .. 255 */
 	} DRXJCfgAtvEquCoef_t, *pDRXJCfgAtvEquCoef_t;
 
 /*
@@ -417,13 +417,13 @@ TYPEDEFS
 */
 /* TODO : AFE interface not yet finished, subject to change */
 	typedef struct {
-		u16_t rfAgcGain;	/* 0 .. 877 uA */
-		u16_t ifAgcGain;	/* 0 .. 877  uA */
-		s16_t videoAgcGain;	/* -75 .. 1972 in 0.1 dB steps */
-		s16_t audioAgcGain;	/* -4 .. 1020 in 0.1 dB steps */
-		u16_t rfAgcLoopGain;	/* 0 .. 7 */
-		u16_t ifAgcLoopGain;	/* 0 .. 7 */
-		u16_t videoAgcLoopGain;	/* 0 .. 7 */
+		u16 rfAgcGain;	/* 0 .. 877 uA */
+		u16 ifAgcGain;	/* 0 .. 877  uA */
+		s16 videoAgcGain;	/* -75 .. 1972 in 0.1 dB steps */
+		s16 audioAgcGain;	/* -4 .. 1020 in 0.1 dB steps */
+		u16 rfAgcLoopGain;	/* 0 .. 7 */
+		u16 ifAgcLoopGain;	/* 0 .. 7 */
+		u16 videoAgcLoopGain;	/* 0 .. 7 */
 	} DRXJCfgAtvAgcStatus_t, *pDRXJCfgAtvAgcStatus_t;
 
 /*============================================================================*/
@@ -456,7 +456,7 @@ TYPEDEFS
 		Bool_t hasGPIO;		  /**< TRUE if GPIO is available */
 		Bool_t hasIRQN;		  /**< TRUE if IRQN is available */
 		/* A1/A2/A... */
-		u8_t mfx;		  /**< metal fix */
+		u8 mfx;		  /**< metal fix */
 
 		/* tuner settings */
 		Bool_t mirrorFreqSpectOOB;/**< tuner inversion (TRUE = tuner mirrors the signal */
@@ -471,22 +471,22 @@ TYPEDEFS
 		DRXMirror_t mirror;	  /**< current channel mirror                           */
 
 		/* signal quality information */
-		u32_t fecBitsDesired;	  /**< BER accounting period                            */
-		u16_t fecVdPlen;	  /**< no of trellis symbols: VD SER measurement period */
-		u16_t qamVdPrescale;	  /**< Viterbi Measurement Prescale                     */
-		u16_t qamVdPeriod;	  /**< Viterbi Measurement period                       */
-		u16_t fecRsPlen;	  /**< defines RS BER measurement period                */
-		u16_t fecRsPrescale;	  /**< ReedSolomon Measurement Prescale                 */
-		u16_t fecRsPeriod;	  /**< ReedSolomon Measurement period                   */
+		u32 fecBitsDesired;	  /**< BER accounting period                            */
+		u16 fecVdPlen;	  /**< no of trellis symbols: VD SER measurement period */
+		u16 qamVdPrescale;	  /**< Viterbi Measurement Prescale                     */
+		u16 qamVdPeriod;	  /**< Viterbi Measurement period                       */
+		u16 fecRsPlen;	  /**< defines RS BER measurement period                */
+		u16 fecRsPrescale;	  /**< ReedSolomon Measurement Prescale                 */
+		u16 fecRsPeriod;	  /**< ReedSolomon Measurement period                   */
 		Bool_t resetPktErrAcc;	  /**< Set a flag to reset accumulated packet error     */
-		u16_t pktErrAccStart;	  /**< Set a flag to reset accumulated packet error     */
+		u16 pktErrAccStart;	  /**< Set a flag to reset accumulated packet error     */
 
 		/* HI configuration */
-		u16_t HICfgTimingDiv;	  /**< HI Configure() parameter 2                       */
-		u16_t HICfgBridgeDelay;	  /**< HI Configure() parameter 3                       */
-		u16_t HICfgWakeUpKey;	  /**< HI Configure() parameter 4                       */
-		u16_t HICfgCtrl;	  /**< HI Configure() parameter 5                       */
-		u16_t HICfgTransmit;	  /**< HI Configure() parameter 6                       */
+		u16 HICfgTimingDiv;	  /**< HI Configure() parameter 2                       */
+		u16 HICfgBridgeDelay;	  /**< HI Configure() parameter 3                       */
+		u16 HICfgWakeUpKey;	  /**< HI Configure() parameter 4                       */
+		u16 HICfgCtrl;	  /**< HI Configure() parameter 5                       */
+		u16 HICfgTransmit;	  /**< HI Configure() parameter 6                       */
 
 		/* UIO configuartion */
 		DRXUIOMode_t uioSmaRxMode;/**< current mode of SmaRx pin                        */
@@ -495,20 +495,20 @@ TYPEDEFS
 		DRXUIOMode_t uioIRQNMode; /**< current mode of IRQN pin                         */
 
 		/* IQM fs frequecy shift and inversion */
-		u32_t iqmFsRateOfs;	   /**< frequency shifter setting after setchannel      */
+		u32 iqmFsRateOfs;	   /**< frequency shifter setting after setchannel      */
 		Bool_t posImage;	   /**< Ture: positive image                            */
 		/* IQM RC frequecy shift */
-		u32_t iqmRcRateOfs;	   /**< frequency shifter setting after setchannel      */
+		u32 iqmRcRateOfs;	   /**< frequency shifter setting after setchannel      */
 
 		/* ATV configuartion */
-		u32_t atvCfgChangedFlags; /**< flag: flags cfg changes */
-		s16_t atvTopEqu0[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU0__A */
-		s16_t atvTopEqu1[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU1__A */
-		s16_t atvTopEqu2[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU2__A */
-		s16_t atvTopEqu3[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU3__A */
+		u32 atvCfgChangedFlags; /**< flag: flags cfg changes */
+		s16 atvTopEqu0[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU0__A */
+		s16 atvTopEqu1[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU1__A */
+		s16 atvTopEqu2[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU2__A */
+		s16 atvTopEqu3[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU3__A */
 		Bool_t phaseCorrectionBypass;/**< flag: TRUE=bypass */
-		s16_t atvTopVidPeak;	  /**< shadow of ATV_TOP_VID_PEAK__A */
-		u16_t atvTopNoiseTh;	  /**< shadow of ATV_TOP_NOISE_TH__A */
+		s16 atvTopVidPeak;	  /**< shadow of ATV_TOP_VID_PEAK__A */
+		u16 atvTopNoiseTh;	  /**< shadow of ATV_TOP_NOISE_TH__A */
 		Bool_t enableCVBSOutput;  /**< flag CVBS ouput enable */
 		Bool_t enableSIFOutput;	  /**< flag SIF ouput enable */
 		 DRXJSIFAttenuation_t sifAttenuation;
@@ -520,8 +520,8 @@ TYPEDEFS
 		DRXJCfgAgc_t vsbIfAgcCfg; /**< vsb IF AGC config */
 
 		/* PGA gain configuration for QAM and VSB */
-		u16_t qamPgaCfg;	  /**< qam PGA config */
-		u16_t vsbPgaCfg;	  /**< vsb PGA config */
+		u16 qamPgaCfg;	  /**< qam PGA config */
+		u16 vsbPgaCfg;	  /**< vsb PGA config */
 
 		/* Pre SAW configuration for QAM and VSB */
 		DRXJCfgPreSaw_t qamPreSawCfg;
@@ -539,11 +539,11 @@ TYPEDEFS
 		Bool_t smartAntInverted;
 
 		/* Tracking filter setting for OOB */
-		u16_t oobTrkFilterCfg[8];
+		u16 oobTrkFilterCfg[8];
 		Bool_t oobPowerOn;
 
 		/* MPEG static bitrate setting */
-		u32_t mpegTsStaticBitrate;  /**< bitrate static MPEG output */
+		u32 mpegTsStaticBitrate;  /**< bitrate static MPEG output */
 		Bool_t disableTEIhandling;  /**< MPEG TS TEI handling */
 		Bool_t bitReverseMpegOutout;/**< MPEG output bit order */
 		 DRXJMpegOutputClockRate_t mpegOutputClockRate;
@@ -556,19 +556,19 @@ TYPEDEFS
 					  /**< atv pre SAW config */
 		DRXJCfgAgc_t atvRfAgcCfg; /**< atv RF AGC config */
 		DRXJCfgAgc_t atvIfAgcCfg; /**< atv IF AGC config */
-		u16_t atvPgaCfg;	  /**< atv pga config    */
+		u16 atvPgaCfg;	  /**< atv pga config    */
 
-		u32_t currSymbolRate;
+		u32 currSymbolRate;
 
 		/* pin-safe mode */
 		Bool_t pdrSafeMode;	    /**< PDR safe mode activated      */
-		u16_t pdrSafeRestoreValGpio;
-		u16_t pdrSafeRestoreValVSync;
-		u16_t pdrSafeRestoreValSmaRx;
-		u16_t pdrSafeRestoreValSmaTx;
+		u16 pdrSafeRestoreValGpio;
+		u16 pdrSafeRestoreValVSync;
+		u16 pdrSafeRestoreValSmaRx;
+		u16 pdrSafeRestoreValSmaTx;
 
 		/* OOB pre-saw value */
-		u16_t oobPreSaw;
+		u16 oobPreSaw;
 		DRXJCfgOobLoPower_t oobLoPow;
 
 		DRXAudData_t audData;
