@@ -52,6 +52,8 @@
 
 #define DMIF_ADDR_CONFIG  				0xBD4
 
+#define	SRBM_STATUS				        0xE50
+
 #define	CC_SYS_RB_BACKEND_DISABLE			0xe80
 #define	GC_USER_SYS_RB_BACKEND_DISABLE			0xe84
 
@@ -101,6 +103,74 @@
 
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
+
+#define	GRBM_STATUS2					0x8008
+#define		RLC_RQ_PENDING 					(1 << 0)
+#define		RLC_BUSY 					(1 << 8)
+#define		TC_BUSY 					(1 << 9)
+
+#define	GRBM_STATUS					0x8010
+#define		CMDFIFO_AVAIL_MASK				0x0000000F
+#define		RING2_RQ_PENDING				(1 << 4)
+#define		SRBM_RQ_PENDING					(1 << 5)
+#define		RING1_RQ_PENDING				(1 << 6)
+#define		CF_RQ_PENDING					(1 << 7)
+#define		PF_RQ_PENDING					(1 << 8)
+#define		GDS_DMA_RQ_PENDING				(1 << 9)
+#define		GRBM_EE_BUSY					(1 << 10)
+#define		DB_CLEAN					(1 << 12)
+#define		CB_CLEAN					(1 << 13)
+#define		TA_BUSY 					(1 << 14)
+#define		GDS_BUSY 					(1 << 15)
+#define		VGT_BUSY					(1 << 17)
+#define		IA_BUSY_NO_DMA					(1 << 18)
+#define		IA_BUSY						(1 << 19)
+#define		SX_BUSY 					(1 << 20)
+#define		SPI_BUSY					(1 << 22)
+#define		BCI_BUSY					(1 << 23)
+#define		SC_BUSY 					(1 << 24)
+#define		PA_BUSY 					(1 << 25)
+#define		DB_BUSY 					(1 << 26)
+#define		CP_COHERENCY_BUSY      				(1 << 28)
+#define		CP_BUSY 					(1 << 29)
+#define		CB_BUSY 					(1 << 30)
+#define		GUI_ACTIVE					(1 << 31)
+#define	GRBM_STATUS_SE0					0x8014
+#define	GRBM_STATUS_SE1					0x8018
+#define		SE_DB_CLEAN					(1 << 1)
+#define		SE_CB_CLEAN					(1 << 2)
+#define		SE_BCI_BUSY					(1 << 22)
+#define		SE_VGT_BUSY					(1 << 23)
+#define		SE_PA_BUSY					(1 << 24)
+#define		SE_TA_BUSY					(1 << 25)
+#define		SE_SX_BUSY					(1 << 26)
+#define		SE_SPI_BUSY					(1 << 27)
+#define		SE_SC_BUSY					(1 << 29)
+#define		SE_DB_BUSY					(1 << 30)
+#define		SE_CB_BUSY					(1 << 31)
+
+#define	GRBM_SOFT_RESET					0x8020
+#define		SOFT_RESET_CP					(1 << 0)
+#define		SOFT_RESET_CB					(1 << 1)
+#define		SOFT_RESET_RLC					(1 << 2)
+#define		SOFT_RESET_DB					(1 << 3)
+#define		SOFT_RESET_GDS					(1 << 4)
+#define		SOFT_RESET_PA					(1 << 5)
+#define		SOFT_RESET_SC					(1 << 6)
+#define		SOFT_RESET_BCI					(1 << 7)
+#define		SOFT_RESET_SPI					(1 << 8)
+#define		SOFT_RESET_SX					(1 << 10)
+#define		SOFT_RESET_TC					(1 << 11)
+#define		SOFT_RESET_TA					(1 << 12)
+#define		SOFT_RESET_VGT					(1 << 14)
+#define		SOFT_RESET_IA					(1 << 15)
+
+#define CP_ME_CNTL					0x86D8
+#define		CP_CE_HALT					(1 << 24)
+#define		CP_PFP_HALT					(1 << 26)
+#define		CP_ME_HALT					(1 << 28)
+
+#define	CP_RB0_RPTR					0x8700
 
 #define	CP_QUEUE_THRESHOLDS				0x8760
 #define		ROQ_IB1_START(x)				((x) << 0)

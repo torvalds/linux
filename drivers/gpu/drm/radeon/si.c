@@ -29,6 +29,8 @@
 #include "atom.h"
 
 extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
+extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
+extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
 
 /* get temperature in millidegrees */
 int si_get_temp(struct radeon_device *rdev)
@@ -1508,3 +1510,101 @@ static void si_gpu_init(struct radeon_device *rdev)
 
 	udelay(50);
 }
+
+bool si_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	u32 srbm_status;
+	u32 grbm_status, grbm_status2;
+	u32 grbm_status_se0, grbm_status_se1;
+	struct r100_gpu_lockup *lockup = &rdev->config.si.lockup;
+	int r;
+
+	srbm_status = RREG32(SRBM_STATUS);
+	grbm_status = RREG32(GRBM_STATUS);
+	grbm_status2 = RREG32(GRBM_STATUS2);
+	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
+	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
+	if (!(grbm_status & GUI_ACTIVE)) {
+		r100_gpu_lockup_update(lockup, ring);
+		return false;
+	}
+	/* force CP activities */
+	r = radeon_ring_lock(rdev, ring, 2);
+	if (!r) {
+		/* PACKET2 NOP */
+		radeon_ring_write(ring, 0x80000000);
+		radeon_ring_write(ring, 0x80000000);
+		radeon_ring_unlock_commit(rdev, ring);
+	}
+	/* XXX deal with CP0,1,2 */
+	ring->rptr = RREG32(ring->rptr_reg);
+	return r100_gpu_cp_is_lockup(rdev, lockup, ring);
+}
+
+static int si_gpu_soft_reset(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	u32 grbm_reset = 0;
+
+	if (!(RREG32(GRBM_STATUS) & GUI_ACTIVE))
+		return 0;
+
+	dev_info(rdev->dev, "GPU softreset \n");
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	evergreen_mc_stop(rdev, &save);
+	if (radeon_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	/* Disable CP parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT);
+
+	/* reset all the gfx blocks */
+	grbm_reset = (SOFT_RESET_CP |
+		      SOFT_RESET_CB |
+		      SOFT_RESET_DB |
+		      SOFT_RESET_GDS |
+		      SOFT_RESET_PA |
+		      SOFT_RESET_SC |
+		      SOFT_RESET_SPI |
+		      SOFT_RESET_SX |
+		      SOFT_RESET_TC |
+		      SOFT_RESET_TA |
+		      SOFT_RESET_VGT |
+		      SOFT_RESET_IA);
+
+	dev_info(rdev->dev, "  GRBM_SOFT_RESET=0x%08X\n", grbm_reset);
+	WREG32(GRBM_SOFT_RESET, grbm_reset);
+	(void)RREG32(GRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(GRBM_SOFT_RESET, 0);
+	(void)RREG32(GRBM_SOFT_RESET);
+	/* Wait a little for things to settle down */
+	udelay(50);
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS2=0x%08X\n",
+		RREG32(GRBM_STATUS2));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	evergreen_mc_resume(rdev, &save);
+	return 0;
+}
+
+int si_asic_reset(struct radeon_device *rdev)
+{
+	return si_gpu_soft_reset(rdev);
+}
+
