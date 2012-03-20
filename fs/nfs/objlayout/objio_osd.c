@@ -137,6 +137,7 @@ static int objio_devices_lookup(struct pnfs_layout_hdr *pnfslay,
 	struct objio_dev_ent *ode;
 	struct osd_dev *od;
 	struct osd_dev_info odi;
+	bool retry_flag = true;
 	int err;
 
 	ode = _dev_list_find(NFS_SERVER(pnfslay->plh_inode), d_id);
@@ -171,10 +172,18 @@ static int objio_devices_lookup(struct pnfs_layout_hdr *pnfslay,
 		goto out;
 	}
 
+retry_lookup:
 	od = osduld_info_lookup(&odi);
 	if (unlikely(IS_ERR(od))) {
 		err = PTR_ERR(od);
 		dprintk("%s: osduld_info_lookup => %d\n", __func__, err);
+		if (err == -ENODEV && retry_flag) {
+			err = objlayout_autologin(deviceaddr);
+			if (likely(!err)) {
+				retry_flag = false;
+				goto retry_lookup;
+			}
+		}
 		goto out;
 	}
 
