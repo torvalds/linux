@@ -1270,7 +1270,6 @@ static void io_destroy(struct kioctx *ioctx)
 	 * locking done by the above calls to ensure this consistency.
 	 */
 	wake_up_all(&ioctx->wait);
-	put_ioctx(ioctx);	/* once for the lookup */
 }
 
 /* sys_io_setup:
@@ -1307,11 +1306,9 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 	ret = PTR_ERR(ioctx);
 	if (!IS_ERR(ioctx)) {
 		ret = put_user(ioctx->user_id, ctxp);
-		if (!ret) {
-			put_ioctx(ioctx);
-			return 0;
-		}
-		io_destroy(ioctx);
+		if (ret)
+			io_destroy(ioctx);
+		put_ioctx(ioctx);
 	}
 
 out:
@@ -1329,6 +1326,7 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	struct kioctx *ioctx = lookup_ioctx(ctx);
 	if (likely(NULL != ioctx)) {
 		io_destroy(ioctx);
+		put_ioctx(ioctx);
 		return 0;
 	}
 	pr_debug("EINVAL: io_destroy: invalid context id\n");
