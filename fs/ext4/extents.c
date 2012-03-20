@@ -2366,8 +2366,11 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			ex_ee_len = ext4_ext_get_actual_len(ex);
 			continue;
 		} else if (b != ex_ee_block + ex_ee_len - 1) {
-			EXT4_ERROR_INODE(inode,"  bad truncate %u:%u\n",
-					 start, end);
+			EXT4_ERROR_INODE(inode,
+					 "can not handle truncate %u:%u "
+					 "on extent %u:%u",
+					 start, end, ex_ee_block,
+					 ex_ee_block + ex_ee_len - 1);
 			err = -EIO;
 			goto out;
 		} else if (a != ex_ee_block) {
