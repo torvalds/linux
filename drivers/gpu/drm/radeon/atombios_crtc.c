@@ -1646,6 +1646,8 @@ static void atombios_crtc_commit(struct drm_crtc *crtc)
 static void atombios_crtc_disable(struct drm_crtc *crtc)
 {
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_atom_ss ss;
 
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
@@ -1656,6 +1658,12 @@ static void atombios_crtc_disable(struct drm_crtc *crtc)
 		/* disable the ppll */
 		atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
 					  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
+		break;
+	case ATOM_PPLL0:
+		/* disable the ppll */
+		if (ASIC_IS_DCE61(rdev))
+			atombios_crtc_program_pll(crtc, radeon_crtc->crtc_id, radeon_crtc->pll_id,
+						  0, 0, ATOM_DISABLE, 0, 0, 0, 0, 0, false, &ss);
 		break;
 	default:
 		break;
