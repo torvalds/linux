@@ -569,7 +569,7 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 	char name[MAX_NAME_LEN];
 
 	memset(&attr, 0, sizeof(attr));
-	attr.bp_addr = (u64) ptr;
+	attr.bp_addr = (unsigned long) ptr;
 
 	if (parse_breakpoint_type(type, &attr))
 		return -EINVAL;
