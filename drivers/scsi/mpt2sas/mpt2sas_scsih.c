@@ -1854,7 +1854,8 @@ _scsih_init_warpdrive_properties(struct MPT2SAS_ADAPTER *ioc,
 		if (mpt2sas_config_get_phys_disk_pg0(ioc, &mpi_reply,
 		    &pd_pg0, MPI2_PHYSDISK_PGAD_FORM_PHYSDISKNUM,
 		    vol_pg0->PhysDisk[count].PhysDiskNum) ||
-		    pd_pg0.DevHandle == MPT2SAS_INVALID_DEVICE_HANDLE) {
+		     le16_to_cpu(pd_pg0.DevHandle) ==
+		    MPT2SAS_INVALID_DEVICE_HANDLE) {
 			printk(MPT2SAS_INFO_FMT "WarpDrive : Direct IO is "
 			    "disabled for the drive with handle(0x%04x) member"
 			    "handle retrieval failed for member number=%d\n",
@@ -7411,14 +7412,14 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	case MPI2_EVENT_LOG_ENTRY_ADDED:
 	{
 		Mpi2EventDataLogEntryAdded_t *log_entry;
-		u32 *log_code;
+		__le32 *log_code;
 
 		if (!ioc->is_warpdrive)
 			break;
 
 		log_entry = (Mpi2EventDataLogEntryAdded_t *)
 		    mpi_reply->EventData;
-		log_code = (u32 *)log_entry->LogData;
+		log_code = (__le32 *)log_entry->LogData;
 
 		if (le16_to_cpu(log_entry->LogEntryQualifier)
 		    != MPT2_WARPDRIVE_LOGENTRY)
