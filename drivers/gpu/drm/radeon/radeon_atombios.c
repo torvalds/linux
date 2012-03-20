@@ -1894,6 +1894,8 @@ static const char *pp_lib_thermal_controller_names[] = {
 	"emc2103",
 	"Sumo",
 	"Northern Islands",
+	"Southern Islands",
+	"lm96163",
 };
 
 union power_info {
@@ -1910,6 +1912,7 @@ union pplib_clock_info {
 	struct _ATOM_PPLIB_RS780_CLOCK_INFO rs780;
 	struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO evergreen;
 	struct _ATOM_PPLIB_SUMO_CLOCK_INFO sumo;
+	struct _ATOM_PPLIB_SI_CLOCK_INFO si;
 };
 
 union pplib_power_state {
@@ -2167,6 +2170,11 @@ static void radeon_atombios_add_pplib_thermal_controller(struct radeon_device *r
 				 (controller->ucFanParameters &
 				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
 			rdev->pm.int_thermal_type = THERMAL_TYPE_NI;
+		} else if (controller->ucType == ATOM_PP_THERMALCONTROLLER_SISLANDS) {
+			DRM_INFO("Internal thermal controller %s fan control\n",
+				 (controller->ucFanParameters &
+				  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+			rdev->pm.int_thermal_type = THERMAL_TYPE_SI;
 		} else if ((controller->ucType ==
 			    ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO) ||
 			   (controller->ucType ==
@@ -2299,6 +2307,19 @@ static bool radeon_atombios_parse_pplib_clock_info(struct radeon_device *rdev,
 			sclk |= clock_info->rs780.ucLowEngineClockHigh << 16;
 			rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
 		}
+	} else if (ASIC_IS_DCE6(rdev)) {
+		sclk = le16_to_cpu(clock_info->si.usEngineClockLow);
+		sclk |= clock_info->si.ucEngineClockHigh << 16;
+		mclk = le16_to_cpu(clock_info->si.usMemoryClockLow);
+		mclk |= clock_info->si.ucMemoryClockHigh << 16;
+		rdev->pm.power_state[state_index].clock_info[mode_index].mclk = mclk;
+		rdev->pm.power_state[state_index].clock_info[mode_index].sclk = sclk;
+		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.type =
+			VOLTAGE_SW;
+		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.voltage =
+			le16_to_cpu(clock_info->si.usVDDC);
+		rdev->pm.power_state[state_index].clock_info[mode_index].voltage.vddci =
+			le16_to_cpu(clock_info->si.usVDDCI);
 	} else if (ASIC_IS_DCE4(rdev)) {
 		sclk = le16_to_cpu(clock_info->evergreen.usEngineClockLow);
 		sclk |= clock_info->evergreen.ucEngineClockHigh << 16;
