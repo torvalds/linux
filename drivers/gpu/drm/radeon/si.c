@@ -3468,6 +3468,12 @@ static void si_irq_suspend(struct radeon_device *rdev)
 	si_rlc_stop(rdev);
 }
 
+static void si_irq_fini(struct radeon_device *rdev)
+{
+	si_irq_suspend(rdev);
+	r600_ih_ring_fini(rdev);
+}
+
 static inline u32 si_get_ih_wptr(struct radeon_device *rdev)
 {
 	u32 wptr, tmp;
@@ -3791,5 +3797,328 @@ restart_ih:
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);
 	return IRQ_HANDLED;
+}
+
+/*
+ * startup/shutdown callbacks
+ */
+static int si_startup(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	int r;
+
+	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->ce_fw ||
+	    !rdev->rlc_fw || !rdev->mc_fw) {
+		r = si_init_microcode(rdev);
+		if (r) {
+			DRM_ERROR("Failed to load firmware!\n");
+			return r;
+		}
+	}
+
+	r = si_mc_load_microcode(rdev);
+	if (r) {
+		DRM_ERROR("Failed to load MC firmware!\n");
+		return r;
+	}
+
+	r = r600_vram_scratch_init(rdev);
+	if (r)
+		return r;
+
+	si_mc_program(rdev);
+	r = si_pcie_gart_enable(rdev);
+	if (r)
+		return r;
+	si_gpu_init(rdev);
+
+#if 0
+	r = evergreen_blit_init(rdev);
+	if (r) {
+		r600_blit_fini(rdev);
+		rdev->asic->copy = NULL;
+		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
+	}
+#endif
+	/* allocate rlc buffers */
+	r = si_rlc_init(rdev);
+	if (r) {
+		DRM_ERROR("Failed to init rlc BOs!\n");
+		return r;
+	}
+
+	/* allocate wb buffer */
+	r = radeon_wb_init(rdev);
+	if (r)
+		return r;
+
+	r = radeon_fence_driver_start_ring(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_fence_driver_start_ring(rdev, CAYMAN_RING_TYPE_CP1_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_fence_driver_start_ring(rdev, CAYMAN_RING_TYPE_CP2_INDEX);
+	if (r) {
+		dev_err(rdev->dev, "failed initializing CP fences (%d).\n", r);
+		return r;
+	}
+
+	/* Enable IRQ */
+	r = si_irq_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: IH init failed (%d).\n", r);
+		radeon_irq_kms_fini(rdev);
+		return r;
+	}
+	si_irq_set(rdev);
+
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
+			     CP_RB0_RPTR, CP_RB0_WPTR,
+			     0, 0xfffff, RADEON_CP_PACKET2);
+	if (r)
+		return r;
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP1_RPTR_OFFSET,
+			     CP_RB1_RPTR, CP_RB1_WPTR,
+			     0, 0xfffff, RADEON_CP_PACKET2);
+	if (r)
+		return r;
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
+	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP2_RPTR_OFFSET,
+			     CP_RB2_RPTR, CP_RB2_WPTR,
+			     0, 0xfffff, RADEON_CP_PACKET2);
+	if (r)
+		return r;
+
+	r = si_cp_load_microcode(rdev);
+	if (r)
+		return r;
+	r = si_cp_resume(rdev);
+	if (r)
+		return r;
+
+	r = radeon_ib_pool_start(rdev);
+	if (r)
+		return r;
+
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	if (r) {
+		DRM_ERROR("radeon: failed testing IB (%d) on CP ring 0\n", r);
+		rdev->accel_working = false;
+		return r;
+	}
+
+	r = radeon_ib_test(rdev, CAYMAN_RING_TYPE_CP1_INDEX, &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX]);
+	if (r) {
+		DRM_ERROR("radeon: failed testing IB (%d) on CP ring 1\n", r);
+		rdev->accel_working = false;
+		return r;
+	}
+
+	r = radeon_ib_test(rdev, CAYMAN_RING_TYPE_CP2_INDEX, &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX]);
+	if (r) {
+		DRM_ERROR("radeon: failed testing IB (%d) on CP ring 2\n", r);
+		rdev->accel_working = false;
+		return r;
+	}
+
+	r = radeon_vm_manager_start(rdev);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+int si_resume(struct radeon_device *rdev)
+{
+	int r;
+
+	/* Do not reset GPU before posting, on rv770 hw unlike on r500 hw,
+	 * posting will perform necessary task to bring back GPU into good
+	 * shape.
+	 */
+	/* post card */
+	atom_asic_init(rdev->mode_info.atom_context);
+
+	rdev->accel_working = true;
+	r = si_startup(rdev);
+	if (r) {
+		DRM_ERROR("si startup failed on resume\n");
+		rdev->accel_working = false;
+		return r;
+	}
+
+	return r;
+
+}
+
+int si_suspend(struct radeon_device *rdev)
+{
+	/* FIXME: we should wait for ring to be empty */
+	radeon_ib_pool_suspend(rdev);
+	radeon_vm_manager_suspend(rdev);
+#if 0
+	r600_blit_suspend(rdev);
+#endif
+	si_cp_enable(rdev, false);
+	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
+	rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
+	rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
+	si_irq_suspend(rdev);
+	radeon_wb_disable(rdev);
+	si_pcie_gart_disable(rdev);
+	return 0;
+}
+
+/* Plan is to move initialization in that function and use
+ * helper function so that radeon_device_init pretty much
+ * do nothing more than calling asic specific function. This
+ * should also allow to remove a bunch of callback function
+ * like vram_info.
+ */
+int si_init(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	int r;
+
+	/* This don't do much */
+	r = radeon_gem_init(rdev);
+	if (r)
+		return r;
+	/* Read BIOS */
+	if (!radeon_get_bios(rdev)) {
+		if (ASIC_IS_AVIVO(rdev))
+			return -EINVAL;
+	}
+	/* Must be an ATOMBIOS */
+	if (!rdev->is_atom_bios) {
+		dev_err(rdev->dev, "Expecting atombios for cayman GPU\n");
+		return -EINVAL;
+	}
+	r = radeon_atombios_init(rdev);
+	if (r)
+		return r;
+
+	/* Post card if necessary */
+	if (!radeon_card_posted(rdev)) {
+		if (!rdev->bios) {
+			dev_err(rdev->dev, "Card not posted and no BIOS - ignoring\n");
+			return -EINVAL;
+		}
+		DRM_INFO("GPU not posted. posting now...\n");
+		atom_asic_init(rdev->mode_info.atom_context);
+	}
+	/* Initialize scratch registers */
+	si_scratch_init(rdev);
+	/* Initialize surface registers */
+	radeon_surface_init(rdev);
+	/* Initialize clocks */
+	radeon_get_clock_info(rdev->ddev);
+
+	/* Fence driver */
+	r = radeon_fence_driver_init(rdev);
+	if (r)
+		return r;
+
+	/* initialize memory controller */
+	r = si_mc_init(rdev);
+	if (r)
+		return r;
+	/* Memory manager */
+	r = radeon_bo_init(rdev);
+	if (r)
+		return r;
+
+	r = radeon_irq_kms_init(rdev);
+	if (r)
+		return r;
+
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 1024 * 1024);
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 1024 * 1024);
+
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
+	ring->ring_obj = NULL;
+	r600_ring_init(rdev, ring, 1024 * 1024);
+
+	rdev->ih.ring_obj = NULL;
+	r600_ih_ring_init(rdev, 64 * 1024);
+
+	r = r600_pcie_gart_init(rdev);
+	if (r)
+		return r;
+
+	r = radeon_ib_pool_init(rdev);
+	rdev->accel_working = true;
+	if (r) {
+		dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
+		rdev->accel_working = false;
+	}
+	r = radeon_vm_manager_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "vm manager initialization failed (%d).\n", r);
+	}
+
+	r = si_startup(rdev);
+	if (r) {
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		si_cp_fini(rdev);
+		si_irq_fini(rdev);
+		si_rlc_fini(rdev);
+		radeon_wb_fini(rdev);
+		r100_ib_fini(rdev);
+		radeon_vm_manager_fini(rdev);
+		radeon_irq_kms_fini(rdev);
+		si_pcie_gart_fini(rdev);
+		rdev->accel_working = false;
+	}
+
+	/* Don't start up if the MC ucode is missing.
+	 * The default clocks and voltages before the MC ucode
+	 * is loaded are not suffient for advanced operations.
+	 */
+	if (!rdev->mc_fw) {
+		DRM_ERROR("radeon: MC ucode required for NI+.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+void si_fini(struct radeon_device *rdev)
+{
+#if 0
+	r600_blit_fini(rdev);
+#endif
+	si_cp_fini(rdev);
+	si_irq_fini(rdev);
+	si_rlc_fini(rdev);
+	radeon_wb_fini(rdev);
+	radeon_vm_manager_fini(rdev);
+	r100_ib_fini(rdev);
+	radeon_irq_kms_fini(rdev);
+	si_pcie_gart_fini(rdev);
+	r600_vram_scratch_fini(rdev);
+	radeon_gem_fini(rdev);
+	radeon_semaphore_driver_fini(rdev);
+	radeon_fence_driver_fini(rdev);
+	radeon_bo_fini(rdev);
+	radeon_atombios_fini(rdev);
+	kfree(rdev->bios);
+	rdev->bios = NULL;
 }
 
