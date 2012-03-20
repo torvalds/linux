@@ -264,6 +264,19 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 		value = RADEON_IB_VM_MAX_SIZE;
 		break;
+	case RADEON_INFO_MAX_PIPES:
+		if (rdev->family >= CHIP_CAYMAN)
+			value = rdev->config.cayman.max_pipes_per_simd;
+		else if (rdev->family >= CHIP_CEDAR)
+			value = rdev->config.evergreen.max_pipes;
+		else if (rdev->family >= CHIP_RV770)
+			value = rdev->config.rv770.max_pipes;
+		else if (rdev->family >= CHIP_R600)
+			value = rdev->config.r600.max_pipes;
+		else {
+			return -EINVAL;
+		}
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;

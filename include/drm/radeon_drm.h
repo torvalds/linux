@@ -962,6 +962,8 @@ struct drm_radeon_cs {
 #define RADEON_INFO_VA_START		0x0e
 /* maximum size of ib using the virtual memory cs */
 #define RADEON_INFO_IB_VM_MAX_SIZE	0x0f
+/* max pipes - needed for compute shaders */
+#define RADEON_INFO_MAX_PIPES		0x10
 
 struct drm_radeon_info {
 	uint32_t		request;
