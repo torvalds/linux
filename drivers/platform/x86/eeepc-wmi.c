@@ -84,6 +84,9 @@ static const struct key_entry eeepc_wmi_keymap[] = {
 	{ KE_KEY, 0xed, { KEY_CAMERA_DOWN } },
 	{ KE_KEY, 0xee, { KEY_CAMERA_LEFT } },
 	{ KE_KEY, 0xef, { KEY_CAMERA_RIGHT } },
+	{ KE_KEY, 0xf3, { KEY_MENU } },
+	{ KE_KEY, 0xf5, { KEY_HOMEPAGE } },
+	{ KE_KEY, 0xf6, { KEY_ESC } },
 	{ KE_END, 0},
 };
 
