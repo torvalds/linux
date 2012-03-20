@@ -76,6 +76,8 @@ static int			exception_level;
 struct kgdb_io		*dbg_io_ops;
 static DEFINE_SPINLOCK(kgdb_registration_lock);
 
+/* Action for the reboot notifiter, a global allow kdb to change it */
+static int kgdbreboot;
 /* kgdb console driver is loaded */
 static int kgdb_con_registered;
 /* determine if kgdb console output should be used */
@@ -97,6 +99,7 @@ static int __init opt_kgdb_con(char *str)
 early_param("kgdbcon", opt_kgdb_con);
 
 module_param(kgdb_use_con, int, 0644);
+module_param(kgdbreboot, int, 0644);
 
 /*
  * Holds information about breakpoints in a kernel. These breakpoints are
@@ -788,8 +791,21 @@ void __init dbg_late_init(void)
 static int
 dbg_notify_reboot(struct notifier_block *this, unsigned long code, void *x)
 {
+	/*
+	 * Take the following action on reboot notify depending on value:
+	 *    1 == Enter debugger
+	 *    0 == [the default] detatch debug client
+	 *   -1 == Do nothing... and use this until the board resets
+	 */
+	switch (kgdbreboot) {
+	case 1:
+		kgdb_breakpoint();
+	case -1:
+		goto done;
+	}
 	if (!dbg_kdb_mode)
 		gdbstub_exit(code);
+done:
 	return NOTIFY_DONE;
 }
 
