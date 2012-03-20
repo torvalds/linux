@@ -581,7 +581,7 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 	return 0;
 }
 
-static u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev)
+u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev)
 {
 	u32 tmp = RREG32(MC_SHARED_CHMAP);
 

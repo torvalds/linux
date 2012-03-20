@@ -60,6 +60,7 @@ extern void r600_ih_ring_fini(struct radeon_device *rdev);
 extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
 extern void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save);
+extern u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev);
 
 /* get temperature in millidegrees */
 int si_get_temp(struct radeon_device *rdev)
@@ -449,7 +450,7 @@ static u32 dce6_line_buffer_adjust(struct radeon_device *rdev,
 	return 0;
 }
 
-static u32 dce6_get_number_of_dram_channels(struct radeon_device *rdev)
+static u32 si_get_number_of_dram_channels(struct radeon_device *rdev)
 {
 	u32 tmp = RREG32(MC_SHARED_CHMAP);
 
@@ -766,7 +767,10 @@ static void dce6_program_watermarks(struct radeon_device *rdev,
 			wm.vtaps = 2;
 		wm.bytes_per_pixel = 4; /* XXX: get this from fb config */
 		wm.lb_size = lb_size;
-		wm.dram_channels = dce6_get_number_of_dram_channels(rdev);
+		if (rdev->family == CHIP_ARUBA)
+			wm.dram_channels = evergreen_get_number_of_dram_channels(rdev);
+		else
+			wm.dram_channels = si_get_number_of_dram_channels(rdev);
 		wm.num_heads = num_heads;
 
 		/* set for high clocks */
