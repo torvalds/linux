@@ -5065,7 +5065,7 @@ F:	Documentation/PCI/pci-error-recovery.txt
 F:	Documentation/powerpc/eeh-pci-error-recovery.txt
 
 PCI SUBSYSTEM
-M:	Jesse Barnes <jbarnes@virtuousgeek.org>
+M:	Bjorn Helgaas <bhelgaas@google.com>
 L:	linux-pci@vger.kernel.org
 Q:	http://patchwork.kernel.org/project/linux-pci/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jbarnes/pci-2.6.git
