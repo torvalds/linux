@@ -698,8 +698,3 @@ struct platform_device tegra_das_device = {
 	.num_resources	= ARRAY_SIZE(tegra_das_resources),
 	.resource	= tegra_das_resources,
 };
-
-struct platform_device tegra_pcm_device = {
-	.name = "tegra-pcm-audio",
-	.id = -1,
-};
