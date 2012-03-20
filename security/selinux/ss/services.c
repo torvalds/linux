@@ -1389,6 +1389,7 @@ static int security_compute_sid(u32 ssid,
 				u32 *out_sid,
 				bool kern)
 {
+	struct class_datum *cladatum = NULL;
 	struct context *scontext = NULL, *tcontext = NULL, newcontext;
 	struct role_trans *roletr = NULL;
 	struct avtab_key avkey;
@@ -1437,12 +1438,20 @@ static int security_compute_sid(u32 ssid,
 		goto out_unlock;
 	}
 
+	if (tclass && tclass <= policydb.p_classes.nprim)
+		cladatum = policydb.class_val_to_struct[tclass - 1];
+
 	/* Set the user identity. */
 	switch (specified) {
 	case AVTAB_TRANSITION:
 	case AVTAB_CHANGE:
-		/* Use the process user identity. */
-		newcontext.user = scontext->user;
+		if (cladatum && cladatum->default_user == DEFAULT_TARGET) {
+			newcontext.user = tcontext->user;
+		} else {
+			/* notice this gets both DEFAULT_SOURCE and unset */
+			/* Use the process user identity. */
+			newcontext.user = scontext->user;
+		}
 		break;
 	case AVTAB_MEMBER:
 		/* Use the related object owner. */
@@ -1450,14 +1459,23 @@ static int security_compute_sid(u32 ssid,
 		break;
 	}
 
-	/* Set the role and type to default values. */
-	if ((tclass == policydb.process_class) || (sock == true)) {
-		/* Use the current role and type of process. */
+	/* Set the role to default values. */
+	if (cladatum && cladatum->default_role == DEFAULT_SOURCE) {
 		newcontext.role = scontext->role;
+	} else if (cladatum && cladatum->default_role == DEFAULT_TARGET) {
+		newcontext.role = tcontext->role;
+	} else {
+		if ((tclass == policydb.process_class) || (sock == true))
+			newcontext.role = scontext->role;
+		else
+			newcontext.role = OBJECT_R_VAL;
+	}
+
+	/* Set the type to default values. */
+	if ((tclass == policydb.process_class) || (sock == true)) {
+		/* Use the type of process. */
 		newcontext.type = scontext->type;
 	} else {
-		/* Use the well-defined object role. */
-		newcontext.role = OBJECT_R_VAL;
 		/* Use the type of the related object. */
 		newcontext.type = tcontext->type;
 	}
