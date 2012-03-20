@@ -150,7 +150,6 @@ struct iwl_mod_params {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
- * @status: STATUS_*
  * @wowlan: are we running wowlan uCode
  * @bus: pointer to the bus layer data
  * @cfg: see struct iwl_cfg
@@ -161,8 +160,6 @@ struct iwl_mod_params {
  * @eeprom: pointer to the eeprom/OTP image
  */
 struct iwl_shared {
-	unsigned long status;
-
 	const struct iwl_cfg *cfg;
 	struct iwl_trans *trans;
 	void *drv;

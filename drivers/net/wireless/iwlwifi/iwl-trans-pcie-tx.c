@@ -792,12 +792,12 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 	iwl_hcmd_queue_reclaim(trans, txq_id, index);
 
 	if (!(meta->flags & CMD_ASYNC)) {
-		if (!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
+		if (!test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
 			IWL_WARN(trans,
 				 "HCMD_ACTIVE already clear for command %s\n",
 				 get_cmd_string(cmd->hdr.cmd));
 		}
-		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
+		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command %s\n",
 			       get_cmd_string(cmd->hdr.cmd));
 		wake_up(&trans->wait_command_queue);
@@ -839,7 +839,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			get_cmd_string(cmd->id));
 
 	if (WARN_ON(test_and_set_bit(STATUS_HCMD_ACTIVE,
-				     &trans->shrd->status))) {
+				     &trans_pcie->status))) {
 		IWL_ERR(trans, "Command %s: a command is already active!\n",
 			get_cmd_string(cmd->id));
 		return -EIO;
@@ -851,7 +851,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	cmd_idx = iwl_enqueue_hcmd(trans, cmd);
 	if (cmd_idx < 0) {
 		ret = cmd_idx;
-		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
+		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		IWL_ERR(trans,
 			"Error sending %s: enqueue_hcmd failed: %d\n",
 			  get_cmd_string(cmd->id), ret);
@@ -859,10 +859,10 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 	}
 
 	ret = wait_event_timeout(trans->wait_command_queue,
-			!test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status),
+			!test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status),
 			HOST_COMPLETE_TIMEOUT);
 	if (!ret) {
-		if (test_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status)) {
+		if (test_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status)) {
 			struct iwl_tx_queue *txq =
 				&trans_pcie->txq[trans_pcie->cmd_queue];
 			struct iwl_queue *q = &txq->q;
@@ -876,7 +876,7 @@ static int iwl_send_cmd_sync(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 				"Current CMD queue read_ptr %d write_ptr %d\n",
 				q->read_ptr, q->write_ptr);
 
-			clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
+			clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 			IWL_DEBUG_INFO(trans, "Clearing HCMD_ACTIVE for command"
 				 "%s\n", get_cmd_string(cmd->id));
 			ret = -ETIMEDOUT;

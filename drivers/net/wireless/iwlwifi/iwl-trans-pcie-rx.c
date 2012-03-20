@@ -547,7 +547,10 @@ static void iwl_irq_handle_error(struct iwl_trans *trans)
 			APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
 			APMG_PS_CTRL_VAL_RESET_REQ))) {
-		clear_bit(STATUS_HCMD_ACTIVE, &trans->shrd->status);
+		struct iwl_trans_pcie *trans_pcie;
+
+		trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+		clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 		iwl_op_mode_wimax_active(trans->op_mode);
 		wake_up(&trans->wait_command_queue);
 		return;

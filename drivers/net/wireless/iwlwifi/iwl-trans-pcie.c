@@ -1248,6 +1248,12 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 
 	/* stop and reset the on-board processor */
 	iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
+
+	/* clear all status bits */
+	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
+	clear_bit(STATUS_INT_ENABLED, &trans_pcie->status);
+	clear_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
+	clear_bit(STATUS_POWER_PMI, &trans_pcie->status);
 }
 
 static void iwl_trans_pcie_wowlan_suspend(struct iwl_trans *trans)

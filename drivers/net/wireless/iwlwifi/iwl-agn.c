@@ -1887,7 +1887,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
 		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
-			priv->shrd->status, table.valid);
+			priv->status, table.valid);
 	}
 
 	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
@@ -2176,9 +2176,6 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 
 	/* Set the FW error flag -- cleared on iwl_down */
 	set_bit(STATUS_FW_ERROR, &priv->status);
-
-	/* Cancel currently queued command. */
-	clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
 
 	iwl_abort_notification_waits(&priv->notif_wait);
 
