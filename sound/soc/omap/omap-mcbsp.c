@@ -138,13 +138,15 @@ static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
 	if (mcbsp->pdata->buffer_size) {
 		/*
 		* Rule for the buffer size. We should not allow
-		* smaller buffer than the FIFO size to avoid underruns
+		* smaller buffer than the FIFO size to avoid underruns.
+		* This applies only for the playback stream.
 		*/
-		snd_pcm_hw_rule_add(substream->runtime, 0,
-				    SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
-				    omap_mcbsp_hwrule_min_buffersize,
-				    mcbsp,
-				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			snd_pcm_hw_rule_add(substream->runtime, 0,
+					    SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					    omap_mcbsp_hwrule_min_buffersize,
+					    mcbsp,
+					    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
 
 		/* Make sure, that the period size is always even */
 		snd_pcm_hw_constraint_step(substream->runtime, 0,
