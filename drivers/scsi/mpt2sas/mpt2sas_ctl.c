@@ -865,8 +865,16 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc, struct mpt2_ioctl_command karg,
 		if (smp_request->PassthroughFlags &
 		    MPI2_SMP_PT_REQ_PT_FLAGS_IMMEDIATE)
 			data = (u8 *)&smp_request->SGL;
-		else
+		else {
+			if (unlikely(data_out == NULL)) {
+				printk(KERN_ERR "failure at %s:%d/%s()!\n",
+				    __FILE__, __LINE__, __func__);
+				mpt2sas_base_free_smid(ioc, smid);
+				ret = -EINVAL;
+				goto out;
+			}
 			data = data_out;
+		}
 
 		if (data[1] == 0x91 && (data[10] == 1 || data[10] == 2)) {
 			ioc->ioc_link_reset_in_progress = 1;
@@ -2832,7 +2840,7 @@ _ctl_host_trace_buffer_enable_store(struct device *cdev,
 	struct mpt2_diag_register diag_register;
 	u8 issue_reset = 0;
 
-	if (sscanf(buf, "%s", str) != 1)
+	if (sscanf(buf, "%9s", str) != 1)
 		return -EINVAL;
 
 	if (!strcmp(str, "post")) {
