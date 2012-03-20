@@ -767,7 +767,9 @@ static void atombios_crtc_set_disp_eng_pll(struct radeon_device *rdev,
 			 * SetPixelClock provides the dividers
 			 */
 			args.v6.ulDispEngClkFreq = cpu_to_le32(dispclk);
-			if (ASIC_IS_DCE6(rdev))
+			if (ASIC_IS_DCE61(rdev))
+				args.v6.ucPpll = ATOM_EXT_PLL1;
+			else if (ASIC_IS_DCE6(rdev))
 				args.v6.ucPpll = ATOM_PPLL0;
 			else
 				args.v6.ucPpll = ATOM_DCPLL;
