@@ -88,14 +88,12 @@ Module parameters
 delay
 -----
 
-Some Intersil/Zilker Labs DC-DC controllers require a minimum interval between
-I2C bus accesses. According to Intersil, the minimum interval is 2 ms, though
-1 ms appears to be sufficient and has not caused any problems in testing.
-The problem is known to affect ZL6100, ZL2105, and ZL2008. It is known not to
-affect ZL2004 and ZL6105. The driver automatically sets the interval to 1 ms
-except for ZL2004 and ZL6105. To enable manual override, the driver provides a
-writeable module parameter, 'delay', which can be used to set the interval to
-a value between 0 and 65,535 microseconds.
+Intersil/Zilker Labs DC-DC controllers require a minimum interval between I2C
+bus accesses. According to Intersil, the minimum interval is 2 ms, though 1 ms
+appears to be sufficient and has not caused any problems in testing. The problem
+is known to affect all currently supported chips. For manual override, the
+driver provides a writeable module parameter, 'delay', which can be used to set
+the interval to a value between 0 and 65,535 microseconds.
 
 
 Sysfs entries

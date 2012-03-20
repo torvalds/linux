@@ -246,7 +246,7 @@ static struct platform_driver exynos_drm_platform_driver = {
 	.remove		= __devexit_p(exynos_drm_platform_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= DRIVER_NAME,
+		.name	= "exynos-drm",
 	},
 };
 
