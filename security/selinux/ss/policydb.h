@@ -60,11 +60,12 @@ struct class_datum {
 	struct symtab permissions;	/* class-specific permission symbol table */
 	struct constraint_node *constraints;	/* constraints on class permissions */
 	struct constraint_node *validatetrans;	/* special transition rules */
-	/* Options how a new object user and role should be decided */
+/* Options how a new object user, role, and type should be decided */
 #define DEFAULT_SOURCE         1
 #define DEFAULT_TARGET         2
 	char default_user;
 	char default_role;
+	char default_type;
 /* Options how a new object range should be decided */
 #define DEFAULT_SOURCE_LOW     1
 #define DEFAULT_SOURCE_HIGH    2
