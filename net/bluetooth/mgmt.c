@@ -443,9 +443,7 @@ static u16 get_uuid16(u8 *uuid128)
 			return 0;
 	}
 
-	memcpy(&val, &uuid128[12], 4);
-
-	val = le32_to_cpu(val);
+	val = get_unaligned_le32(&uuid128[12]);
 	if (val > 0xffff)
 		return 0;
 
