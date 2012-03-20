@@ -94,31 +94,40 @@ enum e1e_registers {
 	E1000_FCRTL    = 0x02160, /* Flow Control Receive Threshold Low - RW */
 	E1000_FCRTH    = 0x02168, /* Flow Control Receive Threshold High - RW */
 	E1000_PSRCTL   = 0x02170, /* Packet Split Receive Control - RW */
-	E1000_RDBAL    = 0x02800, /* Rx Descriptor Base Address Low - RW */
-	E1000_RDBAH    = 0x02804, /* Rx Descriptor Base Address High - RW */
-	E1000_RDLEN    = 0x02808, /* Rx Descriptor Length - RW */
-	E1000_RDH      = 0x02810, /* Rx Descriptor Head - RW */
-	E1000_RDT      = 0x02818, /* Rx Descriptor Tail - RW */
+/*
+ * Convenience macros
+ *
+ * Note: "_n" is the queue number of the register to be written to.
+ *
+ * Example usage:
+ * E1000_RDBAL(current_rx_queue)
+ */
+	E1000_RDBAL_BASE = 0x02800, /* Rx Descriptor Base Address Low - RW */
+#define E1000_RDBAL(_n)	(E1000_RDBAL_BASE + (_n << 8))
+	E1000_RDBAH_BASE = 0x02804, /* Rx Descriptor Base Address High - RW */
+#define E1000_RDBAH(_n)	(E1000_RDBAH_BASE + (_n << 8))
+	E1000_RDLEN_BASE = 0x02808, /* Rx Descriptor Length - RW */
+#define E1000_RDLEN(_n)	(E1000_RDLEN_BASE + (_n << 8))
+	E1000_RDH_BASE = 0x02810, /* Rx Descriptor Head - RW */
+#define E1000_RDH(_n)	(E1000_RDH_BASE + (_n << 8))
+	E1000_RDT_BASE = 0x02818, /* Rx Descriptor Tail - RW */
+#define E1000_RDT(_n)	(E1000_RDT_BASE + (_n << 8))
 	E1000_RDTR     = 0x02820, /* Rx Delay Timer - RW */
 	E1000_RXDCTL_BASE = 0x02828, /* Rx Descriptor Control - RW */
 #define E1000_RXDCTL(_n)   (E1000_RXDCTL_BASE + (_n << 8))
 	E1000_RADV     = 0x0282C, /* Rx Interrupt Absolute Delay Timer - RW */
 
-/* Convenience macros
- *
- * Note: "_n" is the queue number of the register to be written to.
- *
- * Example usage:
- * E1000_RDBAL_REG(current_rx_queue)
- *
- */
-#define E1000_RDBAL_REG(_n)   (E1000_RDBAL + (_n << 8))
 	E1000_KABGTXD  = 0x03004, /* AFE Band Gap Transmit Ref Data */
-	E1000_TDBAL    = 0x03800, /* Tx Descriptor Base Address Low - RW */
-	E1000_TDBAH    = 0x03804, /* Tx Descriptor Base Address High - RW */
-	E1000_TDLEN    = 0x03808, /* Tx Descriptor Length - RW */
-	E1000_TDH      = 0x03810, /* Tx Descriptor Head - RW */
-	E1000_TDT      = 0x03818, /* Tx Descriptor Tail - RW */
+	E1000_TDBAL_BASE = 0x03800, /* Tx Descriptor Base Address Low - RW */
+#define E1000_TDBAL(_n)	(E1000_TDBAL_BASE + (_n << 8))
+	E1000_TDBAH_BASE = 0x03804, /* Tx Descriptor Base Address High - RW */
+#define E1000_TDBAH(_n)	(E1000_TDBAH_BASE + (_n << 8))
+	E1000_TDLEN_BASE = 0x03808, /* Tx Descriptor Length - RW */
+#define E1000_TDLEN(_n)	(E1000_TDLEN_BASE + (_n << 8))
+	E1000_TDH_BASE = 0x03810, /* Tx Descriptor Head - RW */
+#define E1000_TDH(_n)	(E1000_TDH_BASE + (_n << 8))
+	E1000_TDT_BASE = 0x03818, /* Tx Descriptor Tail - RW */
+#define E1000_TDT(_n)	(E1000_TDT_BASE + (_n << 8))
 	E1000_TIDV     = 0x03820, /* Tx Interrupt Delay Value - RW */
 	E1000_TXDCTL_BASE = 0x03828, /* Tx Descriptor Control - RW */
 #define E1000_TXDCTL(_n)   (E1000_TXDCTL_BASE + (_n << 8))

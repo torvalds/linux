@@ -110,14 +110,14 @@ static const struct e1000_reg_info e1000_reg_info_tbl[] = {
 
 	/* Rx Registers */
 	{E1000_RCTL, "RCTL"},
-	{E1000_RDLEN, "RDLEN"},
-	{E1000_RDH, "RDH"},
-	{E1000_RDT, "RDT"},
+	{E1000_RDLEN(0), "RDLEN"},
+	{E1000_RDH(0), "RDH"},
+	{E1000_RDT(0), "RDT"},
 	{E1000_RDTR, "RDTR"},
 	{E1000_RXDCTL(0), "RXDCTL"},
 	{E1000_ERT, "ERT"},
-	{E1000_RDBAL, "RDBAL"},
-	{E1000_RDBAH, "RDBAH"},
+	{E1000_RDBAL(0), "RDBAL"},
+	{E1000_RDBAH(0), "RDBAH"},
 	{E1000_RDFH, "RDFH"},
 	{E1000_RDFT, "RDFT"},
 	{E1000_RDFHS, "RDFHS"},
@@ -126,11 +126,11 @@ static const struct e1000_reg_info e1000_reg_info_tbl[] = {
 
 	/* Tx Registers */
 	{E1000_TCTL, "TCTL"},
-	{E1000_TDBAL, "TDBAL"},
-	{E1000_TDBAH, "TDBAH"},
-	{E1000_TDLEN, "TDLEN"},
-	{E1000_TDH, "TDH"},
-	{E1000_TDT, "TDT"},
+	{E1000_TDBAL(0), "TDBAL"},
+	{E1000_TDBAH(0), "TDBAH"},
+	{E1000_TDLEN(0), "TDLEN"},
+	{E1000_TDH(0), "TDH"},
+	{E1000_TDT(0), "TDT"},
 	{E1000_TIDV, "TIDV"},
 	{E1000_TXDCTL(0), "TXDCTL"},
 	{E1000_TADV, "TADV"},
@@ -2792,13 +2792,13 @@ static void e1000_configure_tx(struct e1000_adapter *adapter)
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	tdba = tx_ring->dma;
 	tdlen = tx_ring->count * sizeof(struct e1000_tx_desc);
-	ew32(TDBAL, (tdba & DMA_BIT_MASK(32)));
-	ew32(TDBAH, (tdba >> 32));
-	ew32(TDLEN, tdlen);
-	ew32(TDH, 0);
-	ew32(TDT, 0);
-	tx_ring->head = adapter->hw.hw_addr + E1000_TDH;
-	tx_ring->tail = adapter->hw.hw_addr + E1000_TDT;
+	ew32(TDBAL(0), (tdba & DMA_BIT_MASK(32)));
+	ew32(TDBAH(0), (tdba >> 32));
+	ew32(TDLEN(0), tdlen);
+	ew32(TDH(0), 0);
+	ew32(TDT(0), 0);
+	tx_ring->head = adapter->hw.hw_addr + E1000_TDH(0);
+	tx_ring->tail = adapter->hw.hw_addr + E1000_TDT(0);
 
 	/* Set the Tx Interrupt Delay register */
 	ew32(TIDV, adapter->tx_int_delay);
@@ -3102,13 +3102,13 @@ static void e1000_configure_rx(struct e1000_adapter *adapter)
 	 * the Base and Length of the Rx Descriptor Ring
 	 */
 	rdba = rx_ring->dma;
-	ew32(RDBAL, (rdba & DMA_BIT_MASK(32)));
-	ew32(RDBAH, (rdba >> 32));
-	ew32(RDLEN, rdlen);
-	ew32(RDH, 0);
-	ew32(RDT, 0);
-	rx_ring->head = adapter->hw.hw_addr + E1000_RDH;
-	rx_ring->tail = adapter->hw.hw_addr + E1000_RDT;
+	ew32(RDBAL(0), (rdba & DMA_BIT_MASK(32)));
+	ew32(RDBAH(0), (rdba >> 32));
+	ew32(RDLEN(0), rdlen);
+	ew32(RDH(0), 0);
+	ew32(RDT(0), 0);
+	rx_ring->head = adapter->hw.hw_addr + E1000_RDH(0);
+	rx_ring->tail = adapter->hw.hw_addr + E1000_RDT(0);
 
 	/* Enable Receive Checksum Offload for TCP and UDP */
 	rxcsum = er32(RXCSUM);

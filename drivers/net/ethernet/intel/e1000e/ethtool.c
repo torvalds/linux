@@ -403,15 +403,15 @@ static void e1000_get_regs(struct net_device *netdev,
 	regs_buff[1]  = er32(STATUS);
 
 	regs_buff[2]  = er32(RCTL);
-	regs_buff[3]  = er32(RDLEN);
-	regs_buff[4]  = er32(RDH);
-	regs_buff[5]  = er32(RDT);
+	regs_buff[3]  = er32(RDLEN(0));
+	regs_buff[4]  = er32(RDH(0));
+	regs_buff[5]  = er32(RDT(0));
 	regs_buff[6]  = er32(RDTR);
 
 	regs_buff[7]  = er32(TCTL);
-	regs_buff[8]  = er32(TDLEN);
-	regs_buff[9]  = er32(TDH);
-	regs_buff[10] = er32(TDT);
+	regs_buff[8]  = er32(TDLEN(0));
+	regs_buff[9]  = er32(TDH(0));
+	regs_buff[10] = er32(TDT(0));
 	regs_buff[11] = er32(TIDV);
 
 	regs_buff[12] = adapter->hw.phy.type;  /* PHY type (IGP=1, M88=0) */
@@ -813,15 +813,15 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	}
 
 	REG_PATTERN_TEST(E1000_RDTR, 0x0000FFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_RDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_RDLEN, 0x000FFF80, 0x000FFFFF);
-	REG_PATTERN_TEST(E1000_RDH, 0x0000FFFF, 0x0000FFFF);
-	REG_PATTERN_TEST(E1000_RDT, 0x0000FFFF, 0x0000FFFF);
+	REG_PATTERN_TEST(E1000_RDBAH(0), 0xFFFFFFFF, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_RDLEN(0), 0x000FFF80, 0x000FFFFF);
+	REG_PATTERN_TEST(E1000_RDH(0), 0x0000FFFF, 0x0000FFFF);
+	REG_PATTERN_TEST(E1000_RDT(0), 0x0000FFFF, 0x0000FFFF);
 	REG_PATTERN_TEST(E1000_FCRTH, 0x0000FFF8, 0x0000FFF8);
 	REG_PATTERN_TEST(E1000_FCTTV, 0x0000FFFF, 0x0000FFFF);
 	REG_PATTERN_TEST(E1000_TIPG, 0x3FFFFFFF, 0x3FFFFFFF);
-	REG_PATTERN_TEST(E1000_TDBAH, 0xFFFFFFFF, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_TDLEN, 0x000FFF80, 0x000FFFFF);
+	REG_PATTERN_TEST(E1000_TDBAH(0), 0xFFFFFFFF, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_TDLEN(0), 0x000FFF80, 0x000FFFFF);
 
 	REG_SET_AND_CHECK(E1000_RCTL, 0xFFFFFFFF, 0x00000000);
 
@@ -830,10 +830,10 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	REG_SET_AND_CHECK(E1000_TCTL, 0xFFFFFFFF, 0x00000000);
 
 	REG_SET_AND_CHECK(E1000_RCTL, before, 0xFFFFFFFF);
-	REG_PATTERN_TEST(E1000_RDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_RDBAL(0), 0xFFFFFFF0, 0xFFFFFFFF);
 	if (!(adapter->flags & FLAG_IS_ICH))
 		REG_PATTERN_TEST(E1000_TXCW, 0xC000FFFF, 0x0000FFFF);
-	REG_PATTERN_TEST(E1000_TDBAL, 0xFFFFFFF0, 0xFFFFFFFF);
+	REG_PATTERN_TEST(E1000_TDBAL(0), 0xFFFFFFF0, 0xFFFFFFFF);
 	REG_PATTERN_TEST(E1000_TIDV, 0x0000FFFF, 0x0000FFFF);
 	mask = 0x8003FFFF;
 	switch (mac->type) {
@@ -1104,11 +1104,11 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
 
-	ew32(TDBAL, ((u64) tx_ring->dma & 0x00000000FFFFFFFF));
-	ew32(TDBAH, ((u64) tx_ring->dma >> 32));
-	ew32(TDLEN, tx_ring->count * sizeof(struct e1000_tx_desc));
-	ew32(TDH, 0);
-	ew32(TDT, 0);
+	ew32(TDBAL(0), ((u64) tx_ring->dma & 0x00000000FFFFFFFF));
+	ew32(TDBAH(0), ((u64) tx_ring->dma >> 32));
+	ew32(TDLEN(0), tx_ring->count * sizeof(struct e1000_tx_desc));
+	ew32(TDH(0), 0);
+	ew32(TDT(0), 0);
 	ew32(TCTL, E1000_TCTL_PSP | E1000_TCTL_EN | E1000_TCTL_MULR |
 	     E1000_COLLISION_THRESHOLD << E1000_CT_SHIFT |
 	     E1000_COLLISION_DISTANCE << E1000_COLD_SHIFT);
@@ -1168,11 +1168,11 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rctl = er32(RCTL);
 	if (!(adapter->flags2 & FLAG2_NO_DISABLE_RX))
 		ew32(RCTL, rctl & ~E1000_RCTL_EN);
-	ew32(RDBAL, ((u64) rx_ring->dma & 0xFFFFFFFF));
-	ew32(RDBAH, ((u64) rx_ring->dma >> 32));
-	ew32(RDLEN, rx_ring->size);
-	ew32(RDH, 0);
-	ew32(RDT, 0);
+	ew32(RDBAL(0), ((u64) rx_ring->dma & 0xFFFFFFFF));
+	ew32(RDBAH(0), ((u64) rx_ring->dma >> 32));
+	ew32(RDLEN(0), rx_ring->size);
+	ew32(RDH(0), 0);
+	ew32(RDT(0), 0);
 	rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_SZ_2048 |
 		E1000_RCTL_UPE | E1000_RCTL_MPE | E1000_RCTL_LPE |
 		E1000_RCTL_SBP | E1000_RCTL_SECRC |
@@ -1534,7 +1534,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 	int ret_val = 0;
 	unsigned long time;
 
-	ew32(RDT, rx_ring->count - 1);
+	ew32(RDT(0), rx_ring->count - 1);
 
 	/*
 	 * Calculate the loop count based on the largest descriptor ring
@@ -1561,7 +1561,7 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 			if (k == tx_ring->count)
 				k = 0;
 		}
-		ew32(TDT, k);
+		ew32(TDT(0), k);
 		e1e_flush();
 		msleep(200);
 		time = jiffies; /* set the start time for the receive */
