@@ -171,7 +171,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		value = rdev->accel_working;
 		break;
 	case RADEON_INFO_TILING_CONFIG:
-		if (rdev->family >= CHIP_CAYMAN)
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.tile_config;
+		else if (rdev->family >= CHIP_CAYMAN)
 			value = rdev->config.cayman.tile_config;
 		else if (rdev->family >= CHIP_CEDAR)
 			value = rdev->config.evergreen.tile_config;
@@ -210,7 +212,10 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		value = rdev->clock.spll.reference_freq * 10;
 		break;
 	case RADEON_INFO_NUM_BACKENDS:
-		if (rdev->family >= CHIP_CAYMAN)
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.max_backends_per_se *
+				rdev->config.si.max_shader_engines;
+		else if (rdev->family >= CHIP_CAYMAN)
 			value = rdev->config.cayman.max_backends_per_se *
 				rdev->config.cayman.max_shader_engines;
 		else if (rdev->family >= CHIP_CEDAR)
@@ -224,7 +229,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		}
 		break;
 	case RADEON_INFO_NUM_TILE_PIPES:
-		if (rdev->family >= CHIP_CAYMAN)
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.max_tile_pipes;
+		else if (rdev->family >= CHIP_CAYMAN)
 			value = rdev->config.cayman.max_tile_pipes;
 		else if (rdev->family >= CHIP_CEDAR)
 			value = rdev->config.evergreen.max_tile_pipes;
@@ -240,7 +247,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		value = 1;
 		break;
 	case RADEON_INFO_BACKEND_MAP:
-		if (rdev->family >= CHIP_CAYMAN)
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.backend_map;
+		else if (rdev->family >= CHIP_CAYMAN)
 			value = rdev->config.cayman.backend_map;
 		else if (rdev->family >= CHIP_CEDAR)
 			value = rdev->config.evergreen.backend_map;
@@ -265,7 +274,9 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		value = RADEON_IB_VM_MAX_SIZE;
 		break;
 	case RADEON_INFO_MAX_PIPES:
-		if (rdev->family >= CHIP_CAYMAN)
+		if (rdev->family >= CHIP_TAHITI)
+			value = rdev->config.si.max_pipes_per_simd;
+		else if (rdev->family >= CHIP_CAYMAN)
 			value = rdev->config.cayman.max_pipes_per_simd;
 		else if (rdev->family >= CHIP_CEDAR)
 			value = rdev->config.evergreen.max_pipes;
