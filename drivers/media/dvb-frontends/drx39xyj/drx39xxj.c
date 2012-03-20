@@ -175,18 +175,12 @@ static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 	return 0;
 }
 
-static int drx39xxj_get_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *p)
-{
-	return 0;
-}
-
-static int drx39xxj_set_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *p)
+static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 {
 #ifdef DJH_DEBUG
 	int i;
 #endif
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
 	DRXStandard_t standard = DRX_STANDARD_8VSB;
@@ -217,7 +211,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe,
 	if (fe->ops.tuner_ops.set_params) {
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 1);
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 	}
@@ -426,10 +420,9 @@ error:
 }
 
 static struct dvb_frontend_ops drx39xxj_ops = {
-
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		 .name = "Micronas DRX39xxj family Frontend",
-		 .type = FE_ATSC | FE_QAM,
 		 .frequency_stepsize = 62500,
 		 .frequency_min = 51000000,
 		 .frequency_max = 858000000,
@@ -439,7 +432,6 @@ static struct dvb_frontend_ops drx39xxj_ops = {
 	.i2c_gate_ctrl = drx39xxj_i2c_gate_ctrl,
 	.sleep = drx39xxj_sleep,
 	.set_frontend = drx39xxj_set_frontend,
-	.get_frontend = drx39xxj_get_frontend,
 	.get_tune_settings = drx39xxj_get_tune_settings,
 	.read_status = drx39xxj_read_status,
 	.read_ber = drx39xxj_read_ber,
