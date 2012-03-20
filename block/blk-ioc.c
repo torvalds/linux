@@ -36,10 +36,22 @@ static void icq_free_icq_rcu(struct rcu_head *head)
 	kmem_cache_free(icq->__rcu_icq_cache, icq);
 }
 
-/*
- * Exit and free an icq.  Called with both ioc and q locked.
- */
+/* Exit an icq. Called with both ioc and q locked. */
 static void ioc_exit_icq(struct io_cq *icq)
+{
+	struct elevator_type *et = icq->q->elevator->type;
+
+	if (icq->flags & ICQ_EXITED)
+		return;
+
+	if (et->ops.elevator_exit_icq_fn)
+		et->ops.elevator_exit_icq_fn(icq);
+
+	icq->flags |= ICQ_EXITED;
+}
+
+/* Release an icq.  Called with both ioc and q locked. */
+static void ioc_destroy_icq(struct io_cq *icq)
 {
 	struct io_context *ioc = icq->ioc;
 	struct request_queue *q = icq->q;
@@ -60,8 +72,7 @@ static void ioc_exit_icq(struct io_cq *icq)
 	if (rcu_dereference_raw(ioc->icq_hint) == icq)
 		rcu_assign_pointer(ioc->icq_hint, NULL);
 
-	if (et->ops.elevator_exit_icq_fn)
-		et->ops.elevator_exit_icq_fn(icq);
+	ioc_exit_icq(icq);
 
 	/*
 	 * @icq->q might have gone away by the time RCU callback runs
@@ -79,7 +90,6 @@ static void ioc_release_fn(struct work_struct *work)
 {
 	struct io_context *ioc = container_of(work, struct io_context,
 					      release_work);
-	struct request_queue *last_q = NULL;
 	unsigned long flags;
 
 	/*
@@ -93,44 +103,19 @@ static void ioc_release_fn(struct work_struct *work)
 	while (!hlist_empty(&ioc->icq_list)) {
 		struct io_cq *icq = hlist_entry(ioc->icq_list.first,
 						struct io_cq, ioc_node);
-		struct request_queue *this_q = icq->q;
+		struct request_queue *q = icq->q;
 
-		if (this_q != last_q) {
-			/*
-			 * Need to switch to @this_q.  Once we release
-			 * @ioc->lock, it can go away along with @cic.
-			 * Hold on to it.
-			 */
-			__blk_get_queue(this_q);
-
-			/*
-			 * blk_put_queue() might sleep thanks to kobject
-			 * idiocy.  Always release both locks, put and
-			 * restart.
-			 */
-			if (last_q) {
-				spin_unlock(last_q->queue_lock);
-				spin_unlock_irqrestore(&ioc->lock, flags);
-				blk_put_queue(last_q);
-			} else {
-				spin_unlock_irqrestore(&ioc->lock, flags);
-			}
-
-			last_q = this_q;
-			spin_lock_irqsave(this_q->queue_lock, flags);
-			spin_lock_nested(&ioc->lock, 1);
-			continue;
+		if (spin_trylock(q->queue_lock)) {
+			ioc_destroy_icq(icq);
+			spin_unlock(q->queue_lock);
+		} else {
+			spin_unlock_irqrestore(&ioc->lock, flags);
+			cpu_relax();
+			spin_lock_irqsave_nested(&ioc->lock, flags, 1);
 		}
-		ioc_exit_icq(icq);
 	}
 
-	if (last_q) {
-		spin_unlock(last_q->queue_lock);
-		spin_unlock_irqrestore(&ioc->lock, flags);
-		blk_put_queue(last_q);
-	} else {
-		spin_unlock_irqrestore(&ioc->lock, flags);
-	}
+	spin_unlock_irqrestore(&ioc->lock, flags);
 
 	kmem_cache_free(iocontext_cachep, ioc);
 }
@@ -145,6 +130,7 @@ static void ioc_release_fn(struct work_struct *work)
 void put_io_context(struct io_context *ioc)
 {
 	unsigned long flags;
+	bool free_ioc = false;
 
 	if (ioc == NULL)
 		return;
@@ -159,8 +145,13 @@ void put_io_context(struct io_context *ioc)
 		spin_lock_irqsave(&ioc->lock, flags);
 		if (!hlist_empty(&ioc->icq_list))
 			schedule_work(&ioc->release_work);
+		else
+			free_ioc = true;
 		spin_unlock_irqrestore(&ioc->lock, flags);
 	}
+
+	if (free_ioc)
+		kmem_cache_free(iocontext_cachep, ioc);
 }
 EXPORT_SYMBOL(put_io_context);
 
@@ -168,13 +159,41 @@ EXPORT_SYMBOL(put_io_context);
 void exit_io_context(struct task_struct *task)
 {
 	struct io_context *ioc;
+	struct io_cq *icq;
+	struct hlist_node *n;
+	unsigned long flags;
 
 	task_lock(task);
 	ioc = task->io_context;
 	task->io_context = NULL;
 	task_unlock(task);
 
-	atomic_dec(&ioc->nr_tasks);
+	if (!atomic_dec_and_test(&ioc->nr_tasks)) {
+		put_io_context(ioc);
+		return;
+	}
+
+	/*
+	 * Need ioc lock to walk icq_list and q lock to exit icq.  Perform
+	 * reverse double locking.  Read comment in ioc_release_fn() for
+	 * explanation on the nested locking annotation.
+	 */
+retry:
+	spin_lock_irqsave_nested(&ioc->lock, flags, 1);
+	hlist_for_each_entry(icq, n, &ioc->icq_list, ioc_node) {
+		if (icq->flags & ICQ_EXITED)
+			continue;
+		if (spin_trylock(icq->q->queue_lock)) {
+			ioc_exit_icq(icq);
+			spin_unlock(icq->q->queue_lock);
+		} else {
+			spin_unlock_irqrestore(&ioc->lock, flags);
+			cpu_relax();
+			goto retry;
+		}
+	}
+	spin_unlock_irqrestore(&ioc->lock, flags);
+
 	put_io_context(ioc);
 }
 
@@ -194,7 +213,7 @@ void ioc_clear_queue(struct request_queue *q)
 		struct io_context *ioc = icq->ioc;
 
 		spin_lock(&ioc->lock);
-		ioc_exit_icq(icq);
+		ioc_destroy_icq(icq);
 		spin_unlock(&ioc->lock);
 	}
 }
@@ -363,13 +382,13 @@ struct io_cq *ioc_create_icq(struct request_queue *q, gfp_t gfp_mask)
 	return icq;
 }
 
-void ioc_set_changed(struct io_context *ioc, int which)
+void ioc_set_icq_flags(struct io_context *ioc, unsigned int flags)
 {
 	struct io_cq *icq;
 	struct hlist_node *n;
 
 	hlist_for_each_entry(icq, n, &ioc->icq_list, ioc_node)
-		set_bit(which, &icq->changed);
+		icq->flags |= flags;
 }
 
 /**
@@ -387,7 +406,7 @@ void ioc_ioprio_changed(struct io_context *ioc, int ioprio)
 
 	spin_lock_irqsave(&ioc->lock, flags);
 	ioc->ioprio = ioprio;
-	ioc_set_changed(ioc, ICQ_IOPRIO_CHANGED);
+	ioc_set_icq_flags(ioc, ICQ_IOPRIO_CHANGED);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 
@@ -404,10 +423,32 @@ void ioc_cgroup_changed(struct io_context *ioc)
 	unsigned long flags;
 
 	spin_lock_irqsave(&ioc->lock, flags);
-	ioc_set_changed(ioc, ICQ_CGROUP_CHANGED);
+	ioc_set_icq_flags(ioc, ICQ_CGROUP_CHANGED);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 }
 EXPORT_SYMBOL(ioc_cgroup_changed);
+
+/**
+ * icq_get_changed - fetch and clear icq changed mask
+ * @icq: icq of interest
+ *
+ * Fetch and clear ICQ_*_CHANGED bits from @icq.  Grabs and releases
+ * @icq->ioc->lock.
+ */
+unsigned icq_get_changed(struct io_cq *icq)
+{
+	unsigned int changed = 0;
+	unsigned long flags;
+
+	if (unlikely(icq->flags & ICQ_CHANGED_MASK)) {
+		spin_lock_irqsave(&icq->ioc->lock, flags);
+		changed = icq->flags & ICQ_CHANGED_MASK;
+		icq->flags &= ~ICQ_CHANGED_MASK;
+		spin_unlock_irqrestore(&icq->ioc->lock, flags);
+	}
+	return changed;
+}
+EXPORT_SYMBOL(icq_get_changed);
 
 static int __init blk_ioc_init(void)
 {

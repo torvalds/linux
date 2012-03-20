@@ -1028,7 +1028,7 @@ done:
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
 				1, 1, buf, cmd);
-	} else if (transport_ret == -EINVAL) {
+	} else if (transport_ret < 0) {
 		/*
 		 * Unsupported SAM Opcode.  CHECK_CONDITION will be sent
 		 * in iscsit_execute_cmd() during the CmdSN OOO Execution
