@@ -5601,7 +5601,7 @@ static inline int bnx2x_func_send_start(struct bnx2x *bp,
 
 	/* Fill the ramrod data with provided parameters */
 	rdata->function_mode = cpu_to_le16(start_params->mf_mode);
-	rdata->sd_vlan_tag   = start_params->sd_vlan_tag;
+	rdata->sd_vlan_tag   = cpu_to_le16(start_params->sd_vlan_tag);
 	rdata->path_id       = BP_PATH(bp);
 	rdata->network_cos_mode = start_params->network_cos_mode;
 

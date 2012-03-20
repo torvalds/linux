@@ -794,7 +794,7 @@ static struct fsi_ak4642_info fsi2_ak4643_info = {
 static struct platform_device fsi_ak4643_device = {
 	.name	= "fsi-ak4642-audio",
 	.dev	= {
-		.platform_data	= &fsi_info,
+		.platform_data	= &fsi2_ak4643_info,
 	},
 };
 
