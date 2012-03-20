@@ -2433,9 +2433,9 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 	int i, j, non_clock_array_index, clock_array_index;
 	int state_index = 0, mode_index = 0;
 	union pplib_clock_info *clock_info;
-	struct StateArray *state_array;
-	struct ClockInfoArray *clock_info_array;
-	struct NonClockInfoArray *non_clock_info_array;
+	struct _StateArray *state_array;
+	struct _ClockInfoArray *clock_info_array;
+	struct _NonClockInfoArray *non_clock_info_array;
 	bool valid;
 	union power_info *power_info;
 	int index = GetIndexIntoMasterTable(DATA, PowerPlayInfo);
@@ -2448,13 +2448,13 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	radeon_atombios_add_pplib_thermal_controller(rdev, &power_info->pplib.sThermalController);
-	state_array = (struct StateArray *)
+	state_array = (struct _StateArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usStateArrayOffset));
-	clock_info_array = (struct ClockInfoArray *)
+	clock_info_array = (struct _ClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usClockInfoArrayOffset));
-	non_clock_info_array = (struct NonClockInfoArray *)
+	non_clock_info_array = (struct _NonClockInfoArray *)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 	rdev->pm.power_state = kzalloc(sizeof(struct radeon_power_state) *
@@ -2481,7 +2481,7 @@ static int radeon_atombios_parse_power_table_6(struct radeon_device *rdev)
 				if (clock_array_index >= clock_info_array->ucNumEntries)
 					continue;
 				clock_info = (union pplib_clock_info *)
-					&clock_info_array->clockInfo[clock_array_index];
+					&clock_info_array->clockInfo[clock_array_index * clock_info_array->ucEntrySize];
 				valid = radeon_atombios_parse_pplib_clock_info(rdev,
 									       state_index, mode_index,
 									       clock_info);
