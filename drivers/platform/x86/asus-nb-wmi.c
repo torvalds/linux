@@ -51,9 +51,13 @@ static uint wapf;
 module_param(wapf, uint, 0444);
 MODULE_PARM_DESC(wapf, "WAPF value");
 
+static struct quirk_entry quirk_asus_unknown = {
+};
+
 static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 {
-	driver->wapf = wapf;
+	driver->quirks = &quirk_asus_unknown;
+	driver->quirks->wapf = wapf;
 }
 
 static const struct key_entry asus_nb_wmi_keymap[] = {

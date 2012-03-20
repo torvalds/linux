@@ -209,10 +209,10 @@ static int eeepc_wmi_probe(struct platform_device *pdev)
 
 static void eeepc_wmi_quirks(struct asus_wmi_driver *driver)
 {
-	driver->wapf = -1;
 	driver->panel_power = FB_BLANK_UNBLANK;
 	driver->quirks = &quirk_asus_unknown;
 	driver->quirks->hotplug_wireless = hotplug_wireless;
+	driver->quirks->wapf = -1;
 	dmi_check_system(asus_quirks);
 	driver->quirks = quirks;
 }
