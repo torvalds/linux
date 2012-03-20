@@ -156,14 +156,6 @@ struct pci_dn {
 	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 #ifdef CONFIG_EEH
 	struct eeh_dev *edev;		/* eeh device */
-	int	class_code;		/* pci device class */
-	int	eeh_mode;		/* See eeh.h for possible EEH_MODEs */
-	int	eeh_config_addr;
-	int	eeh_pe_config_addr; /* new-style partition endpoint address */
-	int	eeh_check_count;	/* # times driver ignored error */
-	int	eeh_freeze_count;	/* # times this device froze up. */
-	int	eeh_false_positives;	/* # times this device reported #ff's */
-	u32	config_space[16];	/* saved PCI config space */
 #endif
 #define IODA_INVALID_PE		(-1)
 #ifdef CONFIG_PPC_POWERNV
