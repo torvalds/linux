@@ -6,4 +6,3 @@
 
 /* Empty, just to avoid compiling error */
 
-#define PERF_EVENT_INDEX_OFFSET 0

@@ -438,9 +438,9 @@ void __init kvm_guest_init(void)
 static __init int activate_jump_labels(void)
 {
 	if (has_steal_clock) {
-		jump_label_inc(&paravirt_steal_enabled);
+		static_key_slow_inc(&paravirt_steal_enabled);
 		if (steal_acc)
-			jump_label_inc(&paravirt_steal_rq_enabled);
+			static_key_slow_inc(&paravirt_steal_rq_enabled);
 	}
 
 	return 0;

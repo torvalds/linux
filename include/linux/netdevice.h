@@ -214,8 +214,8 @@ enum {
 #include <linux/skbuff.h>
 
 #ifdef CONFIG_RPS
-#include <linux/jump_label.h>
-extern struct jump_label_key rps_needed;
+#include <linux/static_key.h>
+extern struct static_key rps_needed;
 #endif
 
 struct neighbour;

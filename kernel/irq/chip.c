@@ -16,6 +16,8 @@
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 
+#include <trace/events/irq.h>
+
 #include "internals.h"
 
 /**

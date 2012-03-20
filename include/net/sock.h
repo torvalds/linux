@@ -55,7 +55,7 @@
 #include <linux/uaccess.h>
 #include <linux/memcontrol.h>
 #include <linux/res_counter.h>
-#include <linux/jump_label.h>
+#include <linux/static_key.h>
 
 #include <linux/filter.h>
 #include <linux/rculist_nulls.h>
@@ -924,13 +924,13 @@ inline void sk_refcnt_debug_release(const struct sock *sk)
 #endif /* SOCK_REFCNT_DEBUG */
 
 #if defined(CONFIG_CGROUP_MEM_RES_CTLR_KMEM) && defined(CONFIG_NET)
-extern struct jump_label_key memcg_socket_limit_enabled;
+extern struct static_key memcg_socket_limit_enabled;
 static inline struct cg_proto *parent_cg_proto(struct proto *proto,
 					       struct cg_proto *cg_proto)
 {
 	return proto->proto_cgroup(parent_mem_cgroup(cg_proto->memcg));
 }
-#define mem_cgroup_sockets_enabled static_branch(&memcg_socket_limit_enabled)
+#define mem_cgroup_sockets_enabled static_key_false(&memcg_socket_limit_enabled)
 #else
 #define mem_cgroup_sockets_enabled 0
 static inline struct cg_proto *parent_cg_proto(struct proto *proto,

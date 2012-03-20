@@ -315,7 +315,7 @@ fallback:
 		       "Please use:\n\n"
 		       "  perf buildid-cache -av vmlinux\n\n"
 		       "or:\n\n"
-		       "  --vmlinux vmlinux",
+		       "  --vmlinux vmlinux\n",
 		       sym->name, build_id_msg ?: "");
 		goto out_free_filename;
 	}
