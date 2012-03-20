@@ -531,7 +531,7 @@ static const struct file_operations bnad_debugfs_op_drvinfo = {
 
 struct bnad_debugfs_entry {
 	const char *name;
-	mode_t  mode;
+	umode_t  mode;
 	const struct file_operations *fops;
 };
 
