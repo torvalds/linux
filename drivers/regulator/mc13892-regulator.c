@@ -428,24 +428,15 @@ static int mc13892_sw_regulator_get_voltage(struct regulator_dev *rdev)
 	return val;
 }
 
-static int mc13892_sw_regulator_set_voltage(struct regulator_dev *rdev,
-		int min_uV, int max_uV, unsigned *selector)
+static int mc13892_sw_regulator_set_voltage_sel(struct regulator_dev *rdev,
+						unsigned selector)
 {
 	struct mc13xxx_regulator_priv *priv = rdev_get_drvdata(rdev);
 	int hi, value, mask, id = rdev_get_id(rdev);
 	u32 valread;
 	int ret;
 
-	dev_dbg(rdev_get_dev(rdev), "%s id: %d min_uV: %d max_uV: %d\n",
-		__func__, id, min_uV, max_uV);
-
-	/* Find the best index */
-	value = mc13xxx_get_best_voltage_index(rdev, min_uV, max_uV);
-	dev_dbg(rdev_get_dev(rdev), "%s best value: %d\n", __func__, value);
-	if (value < 0)
-		return value;
-
-	value = mc13892_regulators[id].voltages[value];
+	value = mc13892_regulators[id].voltages[selector];
 
 	mc13xxx_lock(priv->mc13xxx);
 	ret = mc13xxx_reg_read(priv->mc13xxx,
@@ -480,7 +471,7 @@ err:
 static struct regulator_ops mc13892_sw_regulator_ops = {
 	.is_enabled = mc13xxx_sw_regulator_is_enabled,
 	.list_voltage = mc13xxx_regulator_list_voltage,
-	.set_voltage = mc13892_sw_regulator_set_voltage,
+	.set_voltage_sel = mc13892_sw_regulator_set_voltage_sel,
 	.get_voltage = mc13892_sw_regulator_get_voltage,
 };
 
