@@ -3776,8 +3776,6 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	int free_on_err = 0, err = 0, depth, ret;
 	unsigned int allocated = 0, offset = 0;
 	unsigned int allocated_clusters = 0;
-	unsigned int punched_out = 0;
-	unsigned int result = 0;
 	struct ext4_allocation_request ar;
 	ext4_io_end_t *io = EXT4_I(inode)->cur_aio_dio;
 	ext4_lblk_t cluster_offset;
@@ -3787,8 +3785,7 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 	trace_ext4_ext_map_blocks_enter(inode, map->m_lblk, map->m_len, flags);
 
 	/* check in cache */
-	if (!(flags & EXT4_GET_BLOCKS_PUNCH_OUT_EXT) &&
-		ext4_ext_in_cache(inode, map->m_lblk, &newex)) {
+	if (ext4_ext_in_cache(inode, map->m_lblk, &newex)) {
 		if (!newex.ee_start_lo && !newex.ee_start_hi) {
 			if ((sbi->s_cluster_ratio > 1) &&
 			    ext4_find_delalloc_cluster(inode, map->m_lblk, 0))
@@ -3856,113 +3853,25 @@ int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
 
 		/* if found extent covers block, simply return it */
 		if (in_range(map->m_lblk, ee_block, ee_len)) {
-			struct ext4_map_blocks punch_map;
-			ext4_fsblk_t partial_cluster = 0;
-
 			newblock = map->m_lblk - ee_block + ee_start;
 			/* number of remaining blocks in the extent */
 			allocated = ee_len - (map->m_lblk - ee_block);
 			ext_debug("%u fit into %u:%d -> %llu\n", map->m_lblk,
 				  ee_block, ee_len, newblock);
 
-			if ((flags & EXT4_GET_BLOCKS_PUNCH_OUT_EXT) == 0) {
-				/*
-				 * Do not put uninitialized extent
-				 * in the cache
-				 */
-				if (!ext4_ext_is_uninitialized(ex)) {
-					ext4_ext_put_in_cache(inode, ee_block,
-						ee_len, ee_start);
-					goto out;
-				}
-				ret = ext4_ext_handle_uninitialized_extents(
-					handle, inode, map, path, flags,
-					allocated, newblock);
-				return ret;
-			}
-
 			/*
-			 * Punch out the map length, but only to the
-			 * end of the extent
+			 * Do not put uninitialized extent
+			 * in the cache
 			 */
-			punched_out = allocated < map->m_len ?
-				allocated : map->m_len;
-
-			/*
-			 * Sense extents need to be converted to
-			 * uninitialized, they must fit in an
-			 * uninitialized extent
-			 */
-			if (punched_out > EXT_UNINIT_MAX_LEN)
-				punched_out = EXT_UNINIT_MAX_LEN;
-
-			punch_map.m_lblk = map->m_lblk;
-			punch_map.m_pblk = newblock;
-			punch_map.m_len = punched_out;
-			punch_map.m_flags = 0;
-
-			/* Check to see if the extent needs to be split */
-			if (punch_map.m_len != ee_len ||
-				punch_map.m_lblk != ee_block) {
-
-				ret = ext4_split_extent(handle, inode,
-				path, &punch_map, 0,
-				EXT4_GET_BLOCKS_PUNCH_OUT_EXT |
-				EXT4_GET_BLOCKS_PRE_IO);
-
-				if (ret < 0) {
-					err = ret;
-					goto out2;
-				}
-				/*
-				 * find extent for the block at
-				 * the start of the hole
-				 */
-				ext4_ext_drop_refs(path);
-				kfree(path);
-
-				path = ext4_ext_find_extent(inode,
-				map->m_lblk, NULL);
-				if (IS_ERR(path)) {
-					err = PTR_ERR(path);
-					path = NULL;
-					goto out2;
-				}
-
-				depth = ext_depth(inode);
-				ex = path[depth].p_ext;
-				ee_len = ext4_ext_get_actual_len(ex);
-				ee_block = le32_to_cpu(ex->ee_block);
-				ee_start = ext4_ext_pblock(ex);
-
+			if (!ext4_ext_is_uninitialized(ex)) {
+				ext4_ext_put_in_cache(inode, ee_block,
+					ee_len, ee_start);
+				goto out;
 			}
-
-			ext4_ext_mark_uninitialized(ex);
-
-			ext4_ext_invalidate_cache(inode);
-
-			err = ext4_ext_rm_leaf(handle, inode, path,
-					       &partial_cluster, map->m_lblk,
-					       map->m_lblk + punched_out);
-
-			if (!err && path->p_hdr->eh_entries == 0) {
-				/*
-				 * Punch hole freed all of this sub tree,
-				 * so we need to correct eh_depth
-				 */
-				err = ext4_ext_get_access(handle, inode, path);
-				if (err == 0) {
-					ext_inode_hdr(inode)->eh_depth = 0;
-					ext_inode_hdr(inode)->eh_max =
-					cpu_to_le16(ext4_ext_space_root(
-						inode, 0));
-
-					err = ext4_ext_dirty(
-						handle, inode, path);
-				}
-			}
-
-			goto out2;
+			ret = ext4_ext_handle_uninitialized_extents(
+				handle, inode, map, path, flags,
+				allocated, newblock);
+			return ret;
 		}
 	}
 
@@ -4231,13 +4140,11 @@ out2:
 		ext4_ext_drop_refs(path);
 		kfree(path);
 	}
-	result = (flags & EXT4_GET_BLOCKS_PUNCH_OUT_EXT) ?
-			punched_out : allocated;
 
 	trace_ext4_ext_map_blocks_exit(inode, map->m_lblk,
-		newblock, map->m_len, err ? err : result);
+		newblock, map->m_len, err ? err : allocated);
 
-	return err ? err : result;
+	return err ? err : allocated;
 }
 
 void ext4_ext_truncate(struct inode *inode)
