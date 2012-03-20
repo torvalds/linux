@@ -42,7 +42,7 @@
 INCLUDES
 -------------------------------------------------------------------------*/
 
-typedef enum {
+enum DRXStatus {
 	DRX_STS_READY = 3,  /**< device/service is ready     */
 	DRX_STS_BUSY = 2,   /**< device/service is busy      */
 	DRX_STS_OK = 1,	    /**< everything is OK            */
@@ -51,7 +51,7 @@ typedef enum {
 	DRX_STS_ERROR = -2, /**< general error               */
 	DRX_STS_FUNC_NOT_AVAILABLE = -3
 				/**< unavailable functionality   */
-} DRXStatus_t, *pDRXStatus_t;
+};
 
 /*
  * This structure contains the I2C address, the device ID and a userData pointer.
@@ -81,23 +81,23 @@ Exported FUNCTIONS
 /**
 * \fn DRXBSP_I2C_Init()
 * \brief Initialize I2C communication module.
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK Initialization successful.
 * \retval DRX_STS_ERROR Initialization failed.
 */
-DRXStatus_t DRXBSP_I2C_Init(void);
+int DRXBSP_I2C_Init(void);
 
 /**
 * \fn DRXBSP_I2C_Term()
 * \brief Terminate I2C communication module.
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK Termination successful.
 * \retval DRX_STS_ERROR Termination failed.
 */
-DRXStatus_t DRXBSP_I2C_Term(void);
+int DRXBSP_I2C_Term(void);
 
 /**
-* \fn DRXStatus_t DRXBSP_I2C_WriteRead( struct i2c_device_addr *wDevAddr,
+* \fn int DRXBSP_I2C_WriteRead( struct i2c_device_addr *wDevAddr,
 *                                       u16 wCount,
 *                                       u8 * wData,
 *                                       struct i2c_device_addr *rDevAddr,
@@ -110,7 +110,7 @@ DRXStatus_t DRXBSP_I2C_Term(void);
 * \param rDevAddr The device i2c address and the device ID to read from
 * \param rCount   The number of bytes to read
 * \param rData    The array to read the data from
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK Succes.
 * \retval DRX_STS_ERROR Failure.
 * \retval DRX_STS_INVALID_ARG Parameter 'wcount' is not zero but parameter
@@ -126,7 +126,7 @@ DRXStatus_t DRXBSP_I2C_Term(void);
 * The device ID can be useful if several devices share an I2C address.
 * It can be used to control a "switch" on the I2C bus to the correct device.
 */
-DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
+int DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
 					u16 wCount,
 					u8 * wData,
 					struct i2c_device_addr *rDevAddr,
@@ -170,26 +170,19 @@ extern int DRX_I2C_Error_g;
 			      TUNER_MODE_SUB4 | TUNER_MODE_SUB5 | \
 			      TUNER_MODE_SUB6 | TUNER_MODE_SUB7 )
 
-typedef u32 TUNERMode_t;
-typedef u32 * pTUNERMode_t;
 
-typedef char *TUNERSubMode_t;	/* description of submode */
-typedef TUNERSubMode_t *pTUNERSubMode_t;
-
-typedef enum {
-
+enum tuner_lock_status {
 	TUNER_LOCKED,
 	TUNER_NOT_LOCKED
-} TUNERLockStatus_t, *pTUNERLockStatus_t;
+};
 
-typedef struct {
-
+struct tuner_common {
 	char *name;	/* Tuner brand & type name */
 	s32 minFreqRF;	/* Lowest  RF input frequency, in kHz */
 	s32 maxFreqRF;	/* Highest RF input frequency, in kHz */
 
 	u8 subMode;	/* Index to sub-mode in use */
-	pTUNERSubMode_t subModeDescriptions;	/* Pointer to description of sub-modes */
+	char *** subModeDescriptions;	/* Pointer to description of sub-modes */
 	u8 subModes;	/* Number of available sub-modes      */
 
 	/* The following fields will be either 0, NULL or false and do not need
@@ -201,31 +194,30 @@ typedef struct {
 
 	void *myUserData;	/* pointer to associated demod instance */
 	u16 myCapabilities;	/* value for storing application flags  */
+};
 
-} TUNERCommonAttr_t, *pTUNERCommonAttr_t;
+struct tuner_instance;
 
-typedef struct TUNERInstance_s *pTUNERInstance_t;
+typedef int(*TUNEROpenFunc_t) (struct tuner_instance *tuner);
+typedef int(*TUNERCloseFunc_t) (struct tuner_instance *tuner);
 
-typedef DRXStatus_t(*TUNEROpenFunc_t) (pTUNERInstance_t tuner);
-typedef DRXStatus_t(*TUNERCloseFunc_t) (pTUNERInstance_t tuner);
-
-typedef DRXStatus_t(*TUNERSetFrequencyFunc_t) (pTUNERInstance_t tuner,
-						TUNERMode_t mode,
+typedef int(*TUNERSetFrequencyFunc_t) (struct tuner_instance *tuner,
+						u32 mode,
 						s32
 						frequency);
 
-typedef DRXStatus_t(*TUNERGetFrequencyFunc_t) (pTUNERInstance_t tuner,
-						TUNERMode_t mode,
+typedef int(*TUNERGetFrequencyFunc_t) (struct tuner_instance *tuner,
+						u32 mode,
 						s32 *
 						RFfrequency,
 						s32 *
 						IFfrequency);
 
-typedef DRXStatus_t(*TUNERLockStatusFunc_t) (pTUNERInstance_t tuner,
-						pTUNERLockStatus_t
+typedef int(*TUNERLockStatusFunc_t) (struct tuner_instance *tuner,
+						enum tuner_lock_status *
 						lockStat);
 
-typedef DRXStatus_t(*TUNERi2cWriteReadFunc_t) (pTUNERInstance_t tuner,
+typedef int(*TUNERi2cWriteReadFunc_t) (struct tuner_instance *tuner,
 						struct i2c_device_addr *
 						wDevAddr, u16 wCount,
 						u8 * wData,
@@ -233,7 +225,7 @@ typedef DRXStatus_t(*TUNERi2cWriteReadFunc_t) (pTUNERInstance_t tuner,
 						rDevAddr, u16 rCount,
 						u8 * rData);
 
-typedef struct {
+struct tuner_ops {
 	TUNEROpenFunc_t openFunc;
 	TUNERCloseFunc_t closeFunc;
 	TUNERSetFrequencyFunc_t setFrequencyFunc;
@@ -241,43 +233,42 @@ typedef struct {
 	TUNERLockStatusFunc_t lockStatusFunc;
 	TUNERi2cWriteReadFunc_t i2cWriteReadFunc;
 
-} TUNERFunc_t, *pTUNERFunc_t;
+};
 
-typedef struct TUNERInstance_s {
-
+struct tuner_instance {
 	struct i2c_device_addr myI2CDevAddr;
-	pTUNERCommonAttr_t myCommonAttr;
+	struct tuner_common * myCommonAttr;
 	void *myExtAttr;
-	pTUNERFunc_t myFunct;
+	struct tuner_ops * myFunct;
+};
 
-} TUNERInstance_t;
 
-DRXStatus_t DRXBSP_TUNER_Open(pTUNERInstance_t tuner);
+int DRXBSP_TUNER_Open(struct tuner_instance *tuner);
 
-DRXStatus_t DRXBSP_TUNER_Close(pTUNERInstance_t tuner);
+int DRXBSP_TUNER_Close(struct tuner_instance *tuner);
 
-DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
-					TUNERMode_t mode,
+int DRXBSP_TUNER_SetFrequency(struct tuner_instance *tuner,
+					u32 mode,
 					s32 frequency);
 
-DRXStatus_t DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
-					TUNERMode_t mode,
+int DRXBSP_TUNER_GetFrequency(struct tuner_instance *tuner,
+					u32 mode,
 					s32 * RFfrequency,
 					s32 * IFfrequency);
 
-DRXStatus_t DRXBSP_TUNER_LockStatus(pTUNERInstance_t tuner,
-					pTUNERLockStatus_t lockStat);
+int DRXBSP_TUNER_LockStatus(struct tuner_instance *tuner,
+					enum tuner_lock_status * lockStat);
 
-DRXStatus_t DRXBSP_TUNER_DefaultI2CWriteRead(pTUNERInstance_t tuner,
+int DRXBSP_TUNER_DefaultI2CWriteRead(struct tuner_instance *tuner,
 						struct i2c_device_addr *wDevAddr,
 						u16 wCount,
 						u8 * wData,
 						struct i2c_device_addr *rDevAddr,
 						u16 rCount, u8 * rData);
 
-DRXStatus_t DRXBSP_HST_Init(void);
+int DRXBSP_HST_Init(void);
 
-DRXStatus_t DRXBSP_HST_Term(void);
+int DRXBSP_HST_Term(void);
 
 void *DRXBSP_HST_Memcpy(void *to, void *from, u32 n);
 
@@ -285,19 +276,9 @@ int DRXBSP_HST_Memcmp(void *s1, void *s2, u32 n);
 
 u32 DRXBSP_HST_Clock(void);
 
-DRXStatus_t DRXBSP_HST_Sleep(u32 n);
+int DRXBSP_HST_Sleep(u32 n);
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-/*-------------------------------------------------------------------------
-TYPEDEFS
--------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
-DEFINES
--------------------------------------------------------------------------*/
 
 /**************
 *
@@ -535,132 +516,132 @@ ENUM
 -------------------------------------------------------------------------*/
 
 /**
-* \enum DRXStandard_t
+* \enum enum drx_standard
 * \brief Modulation standards.
 */
-	typedef enum {
-		DRX_STANDARD_DVBT = 0, /**< Terrestrial DVB-T.               */
-		DRX_STANDARD_8VSB,     /**< Terrestrial 8VSB.                */
-		DRX_STANDARD_NTSC,     /**< Terrestrial\Cable analog NTSC.   */
-		DRX_STANDARD_PAL_SECAM_BG,
-				       /**< Terrestrial analog PAL/SECAM B/G */
-		DRX_STANDARD_PAL_SECAM_DK,
-				       /**< Terrestrial analog PAL/SECAM D/K */
-		DRX_STANDARD_PAL_SECAM_I,
-				       /**< Terrestrial analog PAL/SECAM I   */
-		DRX_STANDARD_PAL_SECAM_L,
-				       /**< Terrestrial analog PAL/SECAM L
-					     with negative modulation        */
-		DRX_STANDARD_PAL_SECAM_LP,
-				       /**< Terrestrial analog PAL/SECAM L
-					     with positive modulation        */
-		DRX_STANDARD_ITU_A,    /**< Cable ITU ANNEX A.               */
-		DRX_STANDARD_ITU_B,    /**< Cable ITU ANNEX B.               */
-		DRX_STANDARD_ITU_C,    /**< Cable ITU ANNEX C.               */
-		DRX_STANDARD_ITU_D,    /**< Cable ITU ANNEX D.               */
-		DRX_STANDARD_FM,       /**< Terrestrial\Cable FM radio       */
-		DRX_STANDARD_DTMB,     /**< Terrestrial DTMB standard (China)*/
-		DRX_STANDARD_UNKNOWN = DRX_UNKNOWN,
-				       /**< Standard unknown.                */
-		DRX_STANDARD_AUTO = DRX_AUTO
-				       /**< Autodetect standard.             */
-	} DRXStandard_t, *pDRXStandard_t;
+enum drx_standard {
+	DRX_STANDARD_DVBT = 0, /**< Terrestrial DVB-T.               */
+	DRX_STANDARD_8VSB,     /**< Terrestrial 8VSB.                */
+	DRX_STANDARD_NTSC,     /**< Terrestrial\Cable analog NTSC.   */
+	DRX_STANDARD_PAL_SECAM_BG,
+				/**< Terrestrial analog PAL/SECAM B/G */
+	DRX_STANDARD_PAL_SECAM_DK,
+				/**< Terrestrial analog PAL/SECAM D/K */
+	DRX_STANDARD_PAL_SECAM_I,
+				/**< Terrestrial analog PAL/SECAM I   */
+	DRX_STANDARD_PAL_SECAM_L,
+				/**< Terrestrial analog PAL/SECAM L
+					with negative modulation        */
+	DRX_STANDARD_PAL_SECAM_LP,
+				/**< Terrestrial analog PAL/SECAM L
+					with positive modulation        */
+	DRX_STANDARD_ITU_A,    /**< Cable ITU ANNEX A.               */
+	DRX_STANDARD_ITU_B,    /**< Cable ITU ANNEX B.               */
+	DRX_STANDARD_ITU_C,    /**< Cable ITU ANNEX C.               */
+	DRX_STANDARD_ITU_D,    /**< Cable ITU ANNEX D.               */
+	DRX_STANDARD_FM,       /**< Terrestrial\Cable FM radio       */
+	DRX_STANDARD_DTMB,     /**< Terrestrial DTMB standard (China)*/
+	DRX_STANDARD_UNKNOWN = DRX_UNKNOWN,
+				/**< Standard unknown.                */
+	DRX_STANDARD_AUTO = DRX_AUTO
+				/**< Autodetect standard.             */
+};
 
 /**
-* \enum DRXStandard_t
+* \enum enum drx_standard
 * \brief Modulation sub-standards.
 */
-	typedef enum {
-		DRX_SUBSTANDARD_MAIN = 0, /**< Main subvariant of standard   */
-		DRX_SUBSTANDARD_ATV_BG_SCANDINAVIA,
-		DRX_SUBSTANDARD_ATV_DK_POLAND,
-		DRX_SUBSTANDARD_ATV_DK_CHINA,
-		DRX_SUBSTANDARD_UNKNOWN = DRX_UNKNOWN,
-					  /**< Sub-standard unknown.         */
-		DRX_SUBSTANDARD_AUTO = DRX_AUTO
-					  /**< Auto (default) sub-standard   */
-	} DRXSubstandard_t, *pDRXSubstandard_t;
+enum drx_substandard {
+	DRX_SUBSTANDARD_MAIN = 0, /**< Main subvariant of standard   */
+	DRX_SUBSTANDARD_ATV_BG_SCANDINAVIA,
+	DRX_SUBSTANDARD_ATV_DK_POLAND,
+	DRX_SUBSTANDARD_ATV_DK_CHINA,
+	DRX_SUBSTANDARD_UNKNOWN = DRX_UNKNOWN,
+					/**< Sub-standard unknown.         */
+	DRX_SUBSTANDARD_AUTO = DRX_AUTO
+					/**< Auto (default) sub-standard   */
+};
 
 /**
-* \enum DRXBandwidth_t
+* \enum enum drx_bandwidth
 * \brief Channel bandwidth or channel spacing.
 */
-	typedef enum {
-		DRX_BANDWIDTH_8MHZ = 0,	 /**< Bandwidth 8 MHz.   */
-		DRX_BANDWIDTH_7MHZ,	 /**< Bandwidth 7 MHz.   */
-		DRX_BANDWIDTH_6MHZ,	 /**< Bandwidth 6 MHz.   */
-		DRX_BANDWIDTH_UNKNOWN = DRX_UNKNOWN,
-					 /**< Bandwidth unknown. */
-		DRX_BANDWIDTH_AUTO = DRX_AUTO
-					 /**< Auto Set Bandwidth */
-	} DRXBandwidth_t, *pDRXBandwidth_t;
+enum drx_bandwidth {
+	DRX_BANDWIDTH_8MHZ = 0,	 /**< Bandwidth 8 MHz.   */
+	DRX_BANDWIDTH_7MHZ,	 /**< Bandwidth 7 MHz.   */
+	DRX_BANDWIDTH_6MHZ,	 /**< Bandwidth 6 MHz.   */
+	DRX_BANDWIDTH_UNKNOWN = DRX_UNKNOWN,
+					/**< Bandwidth unknown. */
+	DRX_BANDWIDTH_AUTO = DRX_AUTO
+					/**< Auto Set Bandwidth */
+};
 
 /**
-* \enum DRXMirror_t
+* \enum enum drx_mirror
 * \brief Indicate if channel spectrum is mirrored or not.
 */
-	typedef enum {
-		DRX_MIRROR_NO = 0,   /**< Spectrum is not mirrored.           */
-		DRX_MIRROR_YES,	     /**< Spectrum is mirrored.               */
-		DRX_MIRROR_UNKNOWN = DRX_UNKNOWN,
-				     /**< Unknown if spectrum is mirrored.    */
-		DRX_MIRROR_AUTO = DRX_AUTO
-				     /**< Autodetect if spectrum is mirrored. */
-	} DRXMirror_t, *pDRXMirror_t;
+enum drx_mirror{
+	DRX_MIRROR_NO = 0,   /**< Spectrum is not mirrored.           */
+	DRX_MIRROR_YES,	     /**< Spectrum is mirrored.               */
+	DRX_MIRROR_UNKNOWN = DRX_UNKNOWN,
+				/**< Unknown if spectrum is mirrored.    */
+	DRX_MIRROR_AUTO = DRX_AUTO
+				/**< Autodetect if spectrum is mirrored. */
+};
 
 /**
-* \enum DRXConstellation_t
+* \enum enum drx_modulation
 * \brief Constellation type of the channel.
 */
-	typedef enum {
-		DRX_CONSTELLATION_BPSK = 0,  /**< Modulation is BPSK.       */
-		DRX_CONSTELLATION_QPSK,	     /**< Constellation is QPSK.    */
-		DRX_CONSTELLATION_PSK8,	     /**< Constellation is PSK8.    */
-		DRX_CONSTELLATION_QAM16,     /**< Constellation is QAM16.   */
-		DRX_CONSTELLATION_QAM32,     /**< Constellation is QAM32.   */
-		DRX_CONSTELLATION_QAM64,     /**< Constellation is QAM64.   */
-		DRX_CONSTELLATION_QAM128,    /**< Constellation is QAM128.  */
-		DRX_CONSTELLATION_QAM256,    /**< Constellation is QAM256.  */
-		DRX_CONSTELLATION_QAM512,    /**< Constellation is QAM512.  */
-		DRX_CONSTELLATION_QAM1024,   /**< Constellation is QAM1024. */
-		DRX_CONSTELLATION_QPSK_NR,   /**< Constellation is QPSK_NR  */
-		DRX_CONSTELLATION_UNKNOWN = DRX_UNKNOWN,
-					     /**< Constellation unknown.    */
-		DRX_CONSTELLATION_AUTO = DRX_AUTO
-					     /**< Autodetect constellation. */
-	} DRXConstellation_t, *pDRXConstellation_t;
+enum drx_modulation {
+	DRX_CONSTELLATION_BPSK = 0,  /**< Modulation is BPSK.       */
+	DRX_CONSTELLATION_QPSK,	     /**< Constellation is QPSK.    */
+	DRX_CONSTELLATION_PSK8,	     /**< Constellation is PSK8.    */
+	DRX_CONSTELLATION_QAM16,     /**< Constellation is QAM16.   */
+	DRX_CONSTELLATION_QAM32,     /**< Constellation is QAM32.   */
+	DRX_CONSTELLATION_QAM64,     /**< Constellation is QAM64.   */
+	DRX_CONSTELLATION_QAM128,    /**< Constellation is QAM128.  */
+	DRX_CONSTELLATION_QAM256,    /**< Constellation is QAM256.  */
+	DRX_CONSTELLATION_QAM512,    /**< Constellation is QAM512.  */
+	DRX_CONSTELLATION_QAM1024,   /**< Constellation is QAM1024. */
+	DRX_CONSTELLATION_QPSK_NR,   /**< Constellation is QPSK_NR  */
+	DRX_CONSTELLATION_UNKNOWN = DRX_UNKNOWN,
+					/**< Constellation unknown.    */
+	DRX_CONSTELLATION_AUTO = DRX_AUTO
+					/**< Autodetect constellation. */
+};
 
 /**
-* \enum DRXHierarchy_t
+* \enum enum drx_hierarchy
 * \brief Hierarchy of the channel.
 */
-	typedef enum {
-		DRX_HIERARCHY_NONE = 0,	/**< None hierarchical channel.     */
-		DRX_HIERARCHY_ALPHA1,	/**< Hierarchical channel, alpha=1. */
-		DRX_HIERARCHY_ALPHA2,	/**< Hierarchical channel, alpha=2. */
-		DRX_HIERARCHY_ALPHA4,	/**< Hierarchical channel, alpha=4. */
-		DRX_HIERARCHY_UNKNOWN = DRX_UNKNOWN,
-					/**< Hierarchy unknown.             */
-		DRX_HIERARCHY_AUTO = DRX_AUTO
-					/**< Autodetect hierarchy.          */
-	} DRXHierarchy_t, *pDRXHierarchy_t;
+enum drx_hierarchy {
+	DRX_HIERARCHY_NONE = 0,	/**< None hierarchical channel.     */
+	DRX_HIERARCHY_ALPHA1,	/**< Hierarchical channel, alpha=1. */
+	DRX_HIERARCHY_ALPHA2,	/**< Hierarchical channel, alpha=2. */
+	DRX_HIERARCHY_ALPHA4,	/**< Hierarchical channel, alpha=4. */
+	DRX_HIERARCHY_UNKNOWN = DRX_UNKNOWN,
+				/**< Hierarchy unknown.             */
+	DRX_HIERARCHY_AUTO = DRX_AUTO
+				/**< Autodetect hierarchy.          */
+};
 
 /**
-* \enum DRXPriority_t
+* \enum enum drx_priority
 * \brief Channel priority in case of hierarchical transmission.
 */
-	typedef enum {
-		DRX_PRIORITY_LOW = 0,  /**< Low priority channel.  */
-		DRX_PRIORITY_HIGH,     /**< High priority channel. */
-		DRX_PRIORITY_UNKNOWN = DRX_UNKNOWN
-				       /**< Priority unknown.      */
-	} DRXPriority_t, *pDRXPriority_t;
+enum drx_priority {
+	DRX_PRIORITY_LOW = 0,  /**< Low priority channel.  */
+	DRX_PRIORITY_HIGH,     /**< High priority channel. */
+	DRX_PRIORITY_UNKNOWN = DRX_UNKNOWN
+				/**< Priority unknown.      */
+};
 
 /**
-* \enum DRXCoderate_t
+* \enum enum drx_coderate
 * \brief Channel priority in case of hierarchical transmission.
 */
-	typedef enum {
+enum drx_coderate{
 		DRX_CODERATE_1DIV2 = 0,	/**< Code rate 1/2nd.      */
 		DRX_CODERATE_2DIV3,	/**< Code rate 2/3nd.      */
 		DRX_CODERATE_3DIV4,	/**< Code rate 3/4nd.      */
@@ -670,164 +651,156 @@ ENUM
 					/**< Code rate unknown.    */
 		DRX_CODERATE_AUTO = DRX_AUTO
 					/**< Autodetect code rate. */
-	} DRXCoderate_t, *pDRXCoderate_t;
+};
 
 /**
-* \enum DRXGuard_t
+* \enum enum drx_guard
 * \brief Guard interval of a channel.
 */
-	typedef enum {
-		DRX_GUARD_1DIV32 = 0, /**< Guard interval 1/32nd.     */
-		DRX_GUARD_1DIV16,     /**< Guard interval 1/16th.     */
-		DRX_GUARD_1DIV8,      /**< Guard interval 1/8th.      */
-		DRX_GUARD_1DIV4,      /**< Guard interval 1/4th.      */
-		DRX_GUARD_UNKNOWN = DRX_UNKNOWN,
-				      /**< Guard interval unknown.    */
-		DRX_GUARD_AUTO = DRX_AUTO
-				      /**< Autodetect guard interval. */
-	} DRXGuard_t, *pDRXGuard_t;
+enum drx_guard {
+	DRX_GUARD_1DIV32 = 0, /**< Guard interval 1/32nd.     */
+	DRX_GUARD_1DIV16,     /**< Guard interval 1/16th.     */
+	DRX_GUARD_1DIV8,      /**< Guard interval 1/8th.      */
+	DRX_GUARD_1DIV4,      /**< Guard interval 1/4th.      */
+	DRX_GUARD_UNKNOWN = DRX_UNKNOWN,
+				/**< Guard interval unknown.    */
+	DRX_GUARD_AUTO = DRX_AUTO
+				/**< Autodetect guard interval. */
+};
 
 /**
-* \enum DRXFftmode_t
+* \enum enum drx_fft_mode
 * \brief FFT mode.
 */
-	typedef enum {
-		DRX_FFTMODE_2K = 0,    /**< 2K FFT mode.         */
-		DRX_FFTMODE_4K,	       /**< 4K FFT mode.         */
-		DRX_FFTMODE_8K,	       /**< 8K FFT mode.         */
-		DRX_FFTMODE_UNKNOWN = DRX_UNKNOWN,
-				       /**< FFT mode unknown.    */
-		DRX_FFTMODE_AUTO = DRX_AUTO
-				       /**< Autodetect FFT mode. */
-	} DRXFftmode_t, *pDRXFftmode_t;
+enum drx_fft_mode {
+	DRX_FFTMODE_2K = 0,    /**< 2K FFT mode.         */
+	DRX_FFTMODE_4K,	       /**< 4K FFT mode.         */
+	DRX_FFTMODE_8K,	       /**< 8K FFT mode.         */
+	DRX_FFTMODE_UNKNOWN = DRX_UNKNOWN,
+				/**< FFT mode unknown.    */
+	DRX_FFTMODE_AUTO = DRX_AUTO
+				/**< Autodetect FFT mode. */
+};
 
 /**
-* \enum DRXClassification_t
+* \enum enum drx_classification
 * \brief Channel classification.
 */
-	typedef enum {
-		DRX_CLASSIFICATION_GAUSS = 0, /**< Gaussion noise.            */
-		DRX_CLASSIFICATION_HVY_GAUSS, /**< Heavy Gaussion noise.      */
-		DRX_CLASSIFICATION_COCHANNEL, /**< Co-channel.                */
-		DRX_CLASSIFICATION_STATIC,    /**< Static echo.               */
-		DRX_CLASSIFICATION_MOVING,    /**< Moving echo.               */
-		DRX_CLASSIFICATION_ZERODB,    /**< Zero dB echo.              */
-		DRX_CLASSIFICATION_UNKNOWN = DRX_UNKNOWN,
-					      /**< Unknown classification     */
-		DRX_CLASSIFICATION_AUTO = DRX_AUTO
-					      /**< Autodetect classification. */
-	} DRXClassification_t, *pDRXClassification_t;
+enum drx_classification {
+	DRX_CLASSIFICATION_GAUSS = 0, /**< Gaussion noise.            */
+	DRX_CLASSIFICATION_HVY_GAUSS, /**< Heavy Gaussion noise.      */
+	DRX_CLASSIFICATION_COCHANNEL, /**< Co-channel.                */
+	DRX_CLASSIFICATION_STATIC,    /**< Static echo.               */
+	DRX_CLASSIFICATION_MOVING,    /**< Moving echo.               */
+	DRX_CLASSIFICATION_ZERODB,    /**< Zero dB echo.              */
+	DRX_CLASSIFICATION_UNKNOWN = DRX_UNKNOWN,
+					/**< Unknown classification     */
+	DRX_CLASSIFICATION_AUTO = DRX_AUTO
+					/**< Autodetect classification. */
+};
 
 /**
-* /enum DRXInterleaveModes_t
+* /enum enum drx_interleave_mode
 * /brief Interleave modes
 */
-	typedef enum {
-		DRX_INTERLEAVEMODE_I128_J1 = 0,
-		DRX_INTERLEAVEMODE_I128_J1_V2,
-		DRX_INTERLEAVEMODE_I128_J2,
-		DRX_INTERLEAVEMODE_I64_J2,
-		DRX_INTERLEAVEMODE_I128_J3,
-		DRX_INTERLEAVEMODE_I32_J4,
-		DRX_INTERLEAVEMODE_I128_J4,
-		DRX_INTERLEAVEMODE_I16_J8,
-		DRX_INTERLEAVEMODE_I128_J5,
-		DRX_INTERLEAVEMODE_I8_J16,
-		DRX_INTERLEAVEMODE_I128_J6,
-		DRX_INTERLEAVEMODE_RESERVED_11,
-		DRX_INTERLEAVEMODE_I128_J7,
-		DRX_INTERLEAVEMODE_RESERVED_13,
-		DRX_INTERLEAVEMODE_I128_J8,
-		DRX_INTERLEAVEMODE_RESERVED_15,
-		DRX_INTERLEAVEMODE_I12_J17,
-		DRX_INTERLEAVEMODE_I5_J4,
-		DRX_INTERLEAVEMODE_B52_M240,
-		DRX_INTERLEAVEMODE_B52_M720,
-		DRX_INTERLEAVEMODE_B52_M48,
-		DRX_INTERLEAVEMODE_B52_M0,
-		DRX_INTERLEAVEMODE_UNKNOWN = DRX_UNKNOWN,
-					      /**< Unknown interleave mode    */
-		DRX_INTERLEAVEMODE_AUTO = DRX_AUTO
-					      /**< Autodetect interleave mode */
-	} DRXInterleaveModes_t, *pDRXInterleaveModes_t;
+enum drx_interleave_mode {
+	DRX_INTERLEAVEMODE_I128_J1 = 0,
+	DRX_INTERLEAVEMODE_I128_J1_V2,
+	DRX_INTERLEAVEMODE_I128_J2,
+	DRX_INTERLEAVEMODE_I64_J2,
+	DRX_INTERLEAVEMODE_I128_J3,
+	DRX_INTERLEAVEMODE_I32_J4,
+	DRX_INTERLEAVEMODE_I128_J4,
+	DRX_INTERLEAVEMODE_I16_J8,
+	DRX_INTERLEAVEMODE_I128_J5,
+	DRX_INTERLEAVEMODE_I8_J16,
+	DRX_INTERLEAVEMODE_I128_J6,
+	DRX_INTERLEAVEMODE_RESERVED_11,
+	DRX_INTERLEAVEMODE_I128_J7,
+	DRX_INTERLEAVEMODE_RESERVED_13,
+	DRX_INTERLEAVEMODE_I128_J8,
+	DRX_INTERLEAVEMODE_RESERVED_15,
+	DRX_INTERLEAVEMODE_I12_J17,
+	DRX_INTERLEAVEMODE_I5_J4,
+	DRX_INTERLEAVEMODE_B52_M240,
+	DRX_INTERLEAVEMODE_B52_M720,
+	DRX_INTERLEAVEMODE_B52_M48,
+	DRX_INTERLEAVEMODE_B52_M0,
+	DRX_INTERLEAVEMODE_UNKNOWN = DRX_UNKNOWN,
+					/**< Unknown interleave mode    */
+	DRX_INTERLEAVEMODE_AUTO = DRX_AUTO
+					/**< Autodetect interleave mode */
+};
 
 /**
-* \enum DRXCarrier_t
+* \enum enum drx_carrier_mode
 * \brief Channel Carrier Mode.
 */
-	typedef enum {
-		DRX_CARRIER_MULTI = 0,		/**< Multi carrier mode       */
-		DRX_CARRIER_SINGLE,		/**< Single carrier mode      */
-		DRX_CARRIER_UNKNOWN = DRX_UNKNOWN,
-						/**< Carrier mode unknown.    */
-		DRX_CARRIER_AUTO = DRX_AUTO	/**< Autodetect carrier mode  */
-	} DRXCarrier_t, *pDRXCarrier_t;
+enum drx_carrier_mode{
+	DRX_CARRIER_MULTI = 0,		/**< Multi carrier mode       */
+	DRX_CARRIER_SINGLE,		/**< Single carrier mode      */
+	DRX_CARRIER_UNKNOWN = DRX_UNKNOWN,
+					/**< Carrier mode unknown.    */
+	DRX_CARRIER_AUTO = DRX_AUTO	/**< Autodetect carrier mode  */
+};
 
 /**
-* \enum DRXFramemode_t
+* \enum enum drx_frame_mode
 * \brief Channel Frame Mode.
 */
-	typedef enum {
-		DRX_FRAMEMODE_420 = 0,	 /**< 420 with variable PN  */
-		DRX_FRAMEMODE_595,	 /**< 595                   */
-		DRX_FRAMEMODE_945,	 /**< 945 with variable PN  */
-		DRX_FRAMEMODE_420_FIXED_PN,
-					 /**< 420 with fixed PN     */
-		DRX_FRAMEMODE_945_FIXED_PN,
-					 /**< 945 with fixed PN     */
-		DRX_FRAMEMODE_UNKNOWN = DRX_UNKNOWN,
-					 /**< Frame mode unknown.   */
-		DRX_FRAMEMODE_AUTO = DRX_AUTO
-					 /**< Autodetect frame mode */
-	} DRXFramemode_t, *pDRXFramemode_t;
+enum drx_frame_mode{
+	DRX_FRAMEMODE_420 = 0,	 /**< 420 with variable PN  */
+	DRX_FRAMEMODE_595,	 /**< 595                   */
+	DRX_FRAMEMODE_945,	 /**< 945 with variable PN  */
+	DRX_FRAMEMODE_420_FIXED_PN,
+					/**< 420 with fixed PN     */
+	DRX_FRAMEMODE_945_FIXED_PN,
+					/**< 945 with fixed PN     */
+	DRX_FRAMEMODE_UNKNOWN = DRX_UNKNOWN,
+					/**< Frame mode unknown.   */
+	DRX_FRAMEMODE_AUTO = DRX_AUTO
+					/**< Autodetect frame mode */
+};
 
 /**
-* \enum DRXTPSFrame_t
+* \enum enum drx_tps_frame
 * \brief Frame number in current super-frame.
 */
-	typedef enum {
-		DRX_TPS_FRAME1 = 0,	  /**< TPS frame 1.       */
-		DRX_TPS_FRAME2,		  /**< TPS frame 2.       */
-		DRX_TPS_FRAME3,		  /**< TPS frame 3.       */
-		DRX_TPS_FRAME4,		  /**< TPS frame 4.       */
-		DRX_TPS_FRAME_UNKNOWN = DRX_UNKNOWN
-					  /**< TPS frame unknown. */
-	} DRXTPSFrame_t, *pDRXTPSFrame_t;
+enum drx_tps_frame{
+	DRX_TPS_FRAME1 = 0,	  /**< TPS frame 1.       */
+	DRX_TPS_FRAME2,		  /**< TPS frame 2.       */
+	DRX_TPS_FRAME3,		  /**< TPS frame 3.       */
+	DRX_TPS_FRAME4,		  /**< TPS frame 4.       */
+	DRX_TPS_FRAME_UNKNOWN = DRX_UNKNOWN
+					/**< TPS frame unknown. */
+};
 
 /**
-* \enum DRXLDPC_t
+* \enum enum drx_ldpc
 * \brief TPS LDPC .
 */
-	typedef enum {
-		DRX_LDPC_0_4 = 0,	  /**< LDPC 0.4           */
-		DRX_LDPC_0_6,		  /**< LDPC 0.6           */
-		DRX_LDPC_0_8,		  /**< LDPC 0.8           */
-		DRX_LDPC_UNKNOWN = DRX_UNKNOWN,
-					  /**< LDPC unknown.      */
-		DRX_LDPC_AUTO = DRX_AUTO  /**< Autodetect LDPC    */
-	} DRXLDPC_t, *pDRXLDPC_t;
+enum drx_ldpc{
+	DRX_LDPC_0_4 = 0,	  /**< LDPC 0.4           */
+	DRX_LDPC_0_6,		  /**< LDPC 0.6           */
+	DRX_LDPC_0_8,		  /**< LDPC 0.8           */
+	DRX_LDPC_UNKNOWN = DRX_UNKNOWN,
+					/**< LDPC unknown.      */
+	DRX_LDPC_AUTO = DRX_AUTO  /**< Autodetect LDPC    */
+};
 
 /**
-* \enum DRXPilotMode_t
+* \enum enum drx_pilot_mode
 * \brief Pilot modes in DTMB.
 */
-	typedef enum {
-		DRX_PILOT_ON = 0,	  /**< Pilot On             */
-		DRX_PILOT_OFF,		  /**< Pilot Off            */
-		DRX_PILOT_UNKNOWN = DRX_UNKNOWN,
-					  /**< Pilot unknown.       */
-		DRX_PILOT_AUTO = DRX_AUTO /**< Autodetect Pilot     */
-	} DRXPilotMode_t, *pDRXPilotMode_t;
+enum drx_pilot_mode{
+	DRX_PILOT_ON = 0,	  /**< Pilot On             */
+	DRX_PILOT_OFF,		  /**< Pilot Off            */
+	DRX_PILOT_UNKNOWN = DRX_UNKNOWN,
+					/**< Pilot unknown.       */
+	DRX_PILOT_AUTO = DRX_AUTO /**< Autodetect Pilot     */
+};
 
-/**
-* \enum DRXCtrlIndex_t
-* \brief Indices of the control functions.
-*/
-	typedef u32 DRXCtrlIndex_t, *pDRXCtrlIndex_t;
-
-#ifndef DRX_CTRL_BASE
-#define DRX_CTRL_BASE          ((DRXCtrlIndex_t)0)
-#endif
+#define DRX_CTRL_BASE          ((u32)0)
 
 #define DRX_CTRL_NOP             ( DRX_CTRL_BASE +  0)/**< No Operation       */
 #define DRX_CTRL_PROBE_DEVICE    ( DRX_CTRL_BASE +  1)/**< Probe device       */
@@ -1129,28 +1102,28 @@ STRUCTS
 	typedef struct {
 		s32 frequency;
 					/**< frequency in kHz                 */
-		DRXBandwidth_t bandwidth;
+		enum drx_bandwidth bandwidth;
 					/**< bandwidth                        */
-		DRXMirror_t mirror;	/**< mirrored or not on RF            */
-		DRXConstellation_t constellation;
+		enum drx_mirror mirror;	/**< mirrored or not on RF            */
+		enum drx_modulation constellation;
 					/**< constellation                    */
-		DRXHierarchy_t hierarchy;
+		enum drx_hierarchy hierarchy;
 					/**< hierarchy                        */
-		DRXPriority_t priority;	/**< priority                         */
-		DRXCoderate_t coderate;	/**< coderate                         */
-		DRXGuard_t guard;	/**< guard interval                   */
-		DRXFftmode_t fftmode;	/**< fftmode                          */
-		DRXClassification_t classification;
+		enum drx_priority priority;	/**< priority                         */
+		enum drx_coderate coderate;	/**< coderate                         */
+		enum drx_guard guard;	/**< guard interval                   */
+		enum drx_fft_mode fftmode;	/**< fftmode                          */
+		enum drx_classification classification;
 					/**< classification                   */
 		u32 symbolrate;
 					/**< symbolrate in symbols/sec        */
-		DRXInterleaveModes_t interleavemode;
+		enum drx_interleave_mode interleavemode;
 					/**< interleaveMode QAM               */
-		DRXLDPC_t ldpc;		/**< ldpc                             */
-		DRXCarrier_t carrier;	/**< carrier                          */
-		DRXFramemode_t framemode;
+		enum drx_ldpc ldpc;		/**< ldpc                             */
+		enum drx_carrier_mode carrier;	/**< carrier                          */
+		enum drx_frame_mode framemode;
 					/**< frame mode                       */
-		DRXPilotMode_t pilot;	/**< pilot mode                       */
+		enum drx_pilot_mode pilot;	/**< pilot mode                       */
 	} DRXChannel_t, *pDRXChannel_t;
 
 /*========================================*/
@@ -1217,7 +1190,7 @@ STRUCTS
 			     /**< Last centre frequency in this band         */
 		s32 step;
 			     /**< Stepping frequency in this band            */
-		DRXBandwidth_t bandwidth;
+		enum drx_bandwidth bandwidth;
 			     /**< Bandwidth within this frequency band       */
 		u16 chNumber;
 			     /**< First channel number in this band, or first
@@ -1250,7 +1223,7 @@ STRUCTS
 	typedef struct {
 		u32 *symbolrate;	  /**<  list of symbolrates to scan   */
 		u16 symbolrateSize;	  /**<  size of symbolrate array      */
-		pDRXConstellation_t constellation;
+		enum drx_modulation * constellation;
 					  /**<  list of constellations        */
 		u16 constellationSize;    /**<  size of constellation array */
 		u16 ifAgcThreshold;	  /**<  thresholf for IF-AGC based
@@ -1303,7 +1276,7 @@ STRUCTS
 /**
 * \brief Inner scan function prototype.
 */
-	typedef DRXStatus_t(*DRXScanFunc_t) (void *scanContext,
+	typedef int(*DRXScanFunc_t) (void *scanContext,
 					     DRXScanCommand_t scanCommand,
 					     pDRXChannel_t scanChannel,
 					     bool * getNextChannel);
@@ -1317,17 +1290,17 @@ STRUCTS
 * Used by DRX_CTRL_TPS_INFO.
 */
 	typedef struct {
-		DRXFftmode_t fftmode;	/**< Fft mode       */
-		DRXGuard_t guard;	/**< Guard interval */
-		DRXConstellation_t constellation;
+		enum drx_fft_mode fftmode;	/**< Fft mode       */
+		enum drx_guard guard;	/**< Guard interval */
+		enum drx_modulation constellation;
 					/**< Constellation  */
-		DRXHierarchy_t hierarchy;
+		enum drx_hierarchy hierarchy;
 					/**< Hierarchy      */
-		DRXCoderate_t highCoderate;
+		enum drx_coderate highCoderate;
 					/**< High code rate */
-		DRXCoderate_t lowCoderate;
+		enum drx_coderate lowCoderate;
 					/**< Low cod rate   */
-		DRXTPSFrame_t frame;	/**< Tps frame      */
+		enum drx_tps_frame frame;	/**< Tps frame      */
 		u8 length;		/**< Length         */
 		u16 cellId;		/**< Cell id        */
 	} DRXTPSInfo_t, *pDRXTPSInfo_t;
@@ -1970,71 +1943,71 @@ STRUCTS
 	typedef u32 DRXflags_t, *pDRXflags_t;
 
 /* Write block of data to device */
-	typedef DRXStatus_t(*DRXWriteBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXWriteBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t addr,	/* address of register/memory   */
 						   u16 datasize,	/* size of data in bytes        */
 						   u8 *data,	/* data to send                 */
 						   DRXflags_t flags);
 
 /* Read block of data from device */
-	typedef DRXStatus_t(*DRXReadBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXReadBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  u16 datasize,	/* size of data in bytes        */
 						  u8 *data,	/* receive buffer               */
 						  DRXflags_t flags);
 
 /* Write 8-bits value to device */
-	typedef DRXStatus_t(*DRXWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  u8 data,	/* data to send                 */
 						  DRXflags_t flags);
 
 /* Read 8-bits value to device */
-	typedef DRXStatus_t(*DRXReadReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXReadReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						 DRXaddr_t addr,	/* address of register/memory   */
 						 u8 *data,	/* receive buffer               */
 						 DRXflags_t flags);
 
 /* Read modify write 8-bits value to device */
-	typedef DRXStatus_t(*DRXReadModifyWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
+	typedef int(*DRXReadModifyWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
 							    DRXaddr_t waddr,	/* write address of register   */
 							    DRXaddr_t raddr,	/* read  address of register   */
 							    u8 wdata,	/* data to write               */
 							    u8 *rdata);	/* data to read                */
 
 /* Write 16-bits value to device */
-	typedef DRXStatus_t(*DRXWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t addr,	/* address of register/memory   */
 						   u16 data,	/* data to send                 */
 						   DRXflags_t flags);
 
 /* Read 16-bits value to device */
-	typedef DRXStatus_t(*DRXReadReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXReadReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  u16 *data,	/* receive buffer               */
 						  DRXflags_t flags);
 
 /* Read modify write 16-bits value to device */
-	typedef DRXStatus_t(*DRXReadModifyWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
+	typedef int(*DRXReadModifyWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
 							     DRXaddr_t waddr,	/* write address of register   */
 							     DRXaddr_t raddr,	/* read  address of register   */
 							     u16 wdata,	/* data to write               */
 							     u16 *rdata);	/* data to read                */
 
 /* Write 32-bits value to device */
-	typedef DRXStatus_t(*DRXWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t addr,	/* address of register/memory   */
 						   u32 data,	/* data to send                 */
 						   DRXflags_t flags);
 
 /* Read 32-bits value to device */
-	typedef DRXStatus_t(*DRXReadReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
+	typedef int(*DRXReadReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  u32 *data,	/* receive buffer               */
 						  DRXflags_t flags);
 
 /* Read modify write 32-bits value to device */
-	typedef DRXStatus_t(*DRXReadModifyWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
+	typedef int(*DRXReadModifyWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
 							     DRXaddr_t waddr,	/* write address of register   */
 							     DRXaddr_t raddr,	/* read  address of register   */
 							     u32 wdata,	/* data to write               */
@@ -2146,11 +2119,11 @@ STRUCTS
 
 		DRXChannel_t currentChannel;
 				      /**< current channel parameters         */
-		DRXStandard_t currentStandard;
+		enum drx_standard currentStandard;
 				      /**< current standard selection         */
-		DRXStandard_t prevStandard;
+		enum drx_standard prevStandard;
 				      /**< previous standard selection        */
-		DRXStandard_t diCacheStandard;
+		enum drx_standard diCacheStandard;
 				      /**< standard in DI cache if available  */
 		bool useBootloader; /**< use bootloader in open             */
 		u32 capabilities;   /**< capabilities flags                 */
@@ -2163,10 +2136,10 @@ STRUCTS
 */
 	typedef struct DRXDemodInstance_s *pDRXDemodInstance_t;
 
-	typedef DRXStatus_t(*DRXOpenFunc_t) (pDRXDemodInstance_t demod);
-	typedef DRXStatus_t(*DRXCloseFunc_t) (pDRXDemodInstance_t demod);
-	typedef DRXStatus_t(*DRXCtrlFunc_t) (pDRXDemodInstance_t demod,
-					     DRXCtrlIndex_t ctrl,
+	typedef int(*DRXOpenFunc_t) (pDRXDemodInstance_t demod);
+	typedef int(*DRXCloseFunc_t) (pDRXDemodInstance_t demod);
+	typedef int(*DRXCtrlFunc_t) (pDRXDemodInstance_t demod,
+					     u32 ctrl,
 					     void *ctrlData);
 
 /**
@@ -2190,7 +2163,7 @@ STRUCTS
 				    /**< demodulator functions                */
 		pDRXAccessFunc_t myAccessFunct;
 				    /**< data access protocol functions       */
-		pTUNERInstance_t myTuner;
+		struct tuner_instance *myTuner;
 				    /**< tuner instance,if NULL then baseband */
 		struct i2c_device_addr *myI2CDevAddr;
 				    /**< i2c address and device identifier    */
@@ -2865,7 +2838,7 @@ Access macros
 
 #define DRX_ACCESSMACRO_GET( demod, value, cfgName, dataType, errorValue ) \
    do {                                                                    \
-      DRXStatus_t cfgStatus;                                               \
+      int cfgStatus;                                               \
       DRXCfg_t    config;                                                  \
       dataType    cfgData;                                                 \
       config.cfgType = cfgName;                                            \
@@ -2946,21 +2919,18 @@ Access macros
 Exported FUNCTIONS
 -------------------------------------------------------------------------*/
 
-	DRXStatus_t DRX_Init(pDRXDemodInstance_t demods[]);
+	int DRX_Init(pDRXDemodInstance_t demods[]);
 
-	DRXStatus_t DRX_Term(void);
+	int DRX_Term(void);
 
-	DRXStatus_t DRX_Open(pDRXDemodInstance_t demod);
+	int DRX_Open(pDRXDemodInstance_t demod);
 
-	DRXStatus_t DRX_Close(pDRXDemodInstance_t demod);
+	int DRX_Close(pDRXDemodInstance_t demod);
 
-	DRXStatus_t DRX_Ctrl(pDRXDemodInstance_t demod,
-			     DRXCtrlIndex_t ctrl, void *ctrlData);
+	int DRX_Ctrl(pDRXDemodInstance_t demod,
+			     u32 ctrl, void *ctrlData);
 
 /*-------------------------------------------------------------------------
 THE END
 -------------------------------------------------------------------------*/
-#ifdef __cplusplus
-}
-#endif
 #endif				/* __DRXDRIVER_H__ */

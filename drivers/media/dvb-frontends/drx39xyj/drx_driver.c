@@ -145,7 +145,7 @@ FUNCTIONS
 #ifndef DRX_EXCLUDE_SCAN
 
 /* Prototype of default scanning function */
-static DRXStatus_t
+static int
 ScanFunctionDefault(void *scanContext,
 		    DRXScanCommand_t scanCommand,
 		    pDRXChannel_t scanChannel, bool * getNextChannel);
@@ -197,7 +197,7 @@ void *GetScanContext(pDRXDemodInstance_t demod, void *scanContext)
 * \brief Wait for lock while scanning.
 * \param demod:    Pointer to demodulator instance.
 * \param lockStat: Pointer to bool indicating if end result is lock or not.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:    Success
 * \retval DRX_STS_ERROR: I2C failure or bsp function failure.
 *
@@ -211,7 +211,7 @@ void *GetScanContext(pDRXDemodInstance_t demod, void *scanContext)
 * In case DRX_NEVER_LOCK is returned the poll-wait will be aborted.
 *
 */
-static DRXStatus_t ScanWaitForLock(pDRXDemodInstance_t demod, bool * isLocked)
+static int ScanWaitForLock(pDRXDemodInstance_t demod, bool * isLocked)
 {
 	bool doneWaiting = false;
 	DRXLockStatus_t lockState = DRX_NOT_LOCKED;
@@ -263,7 +263,7 @@ static DRXStatus_t ScanWaitForLock(pDRXDemodInstance_t demod, bool * isLocked)
 * \brief Determine next frequency to scan.
 * \param demod: Pointer to demodulator instance.
 * \param skip : Minimum frequency step to take.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:          Succes.
 * \retval DRX_STS_INVALID_ARG: Invalid frequency plan.
 *
@@ -272,7 +272,7 @@ static DRXStatus_t ScanWaitForLock(pDRXDemodInstance_t demod, bool * isLocked)
 * Check if scan is ready.
 *
 */
-static DRXStatus_t
+static int
 ScanPrepareNextScan(pDRXDemodInstance_t demod, s32 skip)
 {
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
@@ -345,7 +345,7 @@ ScanPrepareNextScan(pDRXDemodInstance_t demod, s32 skip)
 * \param scanChannel:    Channel to check: frequency and bandwidth, others AUTO
 * \param getNextChannel: Return true if next frequency is desired at next call
 *
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:      Channel found, DRX_CTRL_GET_CHANNEL can be used
 *                             to retrieve channel parameters.
 * \retval DRX_STS_BUSY:    Channel not found (yet).
@@ -353,13 +353,13 @@ ScanPrepareNextScan(pDRXDemodInstance_t demod, s32 skip)
 *
 * scanChannel and getNextChannel will be NULL for INIT and STOP.
 */
-static DRXStatus_t
+static int
 ScanFunctionDefault(void *scanContext,
 		    DRXScanCommand_t scanCommand,
 		    pDRXChannel_t scanChannel, bool * getNextChannel)
 {
 	pDRXDemodInstance_t demod = NULL;
-	DRXStatus_t status = DRX_STS_ERROR;
+	int status = DRX_STS_ERROR;
 	bool isLocked = false;
 
 	demod = (pDRXDemodInstance_t) scanContext;
@@ -398,7 +398,7 @@ ScanFunctionDefault(void *scanContext,
 * \brief Initialize for channel scan.
 * \param demod:     Pointer to demodulator instance.
 * \param scanParam: Pointer to scan parameters.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:          Initialized for scan.
 * \retval DRX_STS_ERROR:       No overlap between frequency plan and tuner
 *                              range.
@@ -411,10 +411,10 @@ ScanFunctionDefault(void *scanContext,
 * center frequency of the frequency plan that is within the tuner range.
 *
 */
-static DRXStatus_t
+static int
 CtrlScanInit(pDRXDemodInstance_t demod, pDRXScanParam_t scanParam)
 {
-	DRXStatus_t status = DRX_STS_ERROR;
+	int status = DRX_STS_ERROR;
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
 	s32 maxTunerFreq = 0;
 	s32 minTunerFreq = 0;
@@ -546,14 +546,14 @@ CtrlScanInit(pDRXDemodInstance_t demod, pDRXScanParam_t scanParam)
 /**
 * \brief Stop scanning.
 * \param demod:         Pointer to demodulator instance.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:          Scan stopped.
 * \retval DRX_STS_ERROR:       Something went wrong.
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
 */
-static DRXStatus_t CtrlScanStop(pDRXDemodInstance_t demod)
+static int CtrlScanStop(pDRXDemodInstance_t demod)
 {
-	DRXStatus_t status = DRX_STS_ERROR;
+	int status = DRX_STS_ERROR;
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
 	void *scanContext = NULL;
 
@@ -587,7 +587,7 @@ static DRXStatus_t CtrlScanStop(pDRXDemodInstance_t demod)
 * \brief Scan for next channel.
 * \param demod:         Pointer to demodulator instance.
 * \param scanProgress:  Pointer to scan progress.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:          Channel found, DRX_CTRL_GET_CHANNEL can be used
 *                              to retrieve channel parameters.
 * \retval DRX_STS_BUSY:        Tried part of the channels, as specified in
@@ -601,7 +601,7 @@ static DRXStatus_t CtrlScanStop(pDRXDemodInstance_t demod)
 * Progress indication will run from 0 upto DRX_SCAN_MAX_PROGRESS during scan.
 *
 */
-static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
+static int CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 {
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
 	bool * scanReady = (bool *) (NULL);
@@ -636,7 +636,7 @@ static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 
 	for (i = 0; ((i < numTries) && ((*scanReady) == false)); i++) {
 		DRXChannel_t scanChannel = { 0 };
-		DRXStatus_t status = DRX_STS_ERROR;
+		int status = DRX_STS_ERROR;
 		pDRXFrequencyPlan_t freqPlan = (pDRXFrequencyPlan_t) (NULL);
 		bool nextChannel = false;
 		void *scanContext = NULL;
@@ -671,7 +671,7 @@ static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 
 		/* Proceed to next channel if requested */
 		if (nextChannel == true) {
-			DRXStatus_t nextStatus = DRX_STS_ERROR;
+			int nextStatus = DRX_STS_ERROR;
 			s32 skip = 0;
 
 			if (status == DRX_STS_OK) {
@@ -718,7 +718,7 @@ static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 * \brief Program tuner.
 * \param demod:         Pointer to demodulator instance.
 * \param tunerChannel:  Pointer to tuning parameters.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:          Tuner programmed successfully.
 * \retval DRX_STS_ERROR:       Something went wrong.
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
@@ -727,13 +727,13 @@ static DRXStatus_t CtrlScanNext(pDRXDemodInstance_t demod, u16 *scanProgress)
 * but also returns the actual RF and IF frequency from the tuner.
 *
 */
-static DRXStatus_t
+static int
 CtrlProgramTuner(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 {
 	pDRXCommonAttr_t commonAttr = (pDRXCommonAttr_t) (NULL);
-	DRXStandard_t standard = DRX_STANDARD_UNKNOWN;
-	TUNERMode_t tunerMode = 0;
-	DRXStatus_t status = DRX_STS_ERROR;
+	enum drx_standard standard = DRX_STANDARD_UNKNOWN;
+	u32 tunerMode = 0;
+	int status = DRX_STS_ERROR;
 	s32 ifFrequency = 0;
 	bool tunerSlowMode = false;
 
@@ -782,7 +782,7 @@ CtrlProgramTuner(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 
 	if (commonAttr->tunerPortNr == 1) {
 		bool bridgeClosed = true;
-		DRXStatus_t statusBridge = DRX_STS_ERROR;
+		int statusBridge = DRX_STS_ERROR;
 
 		statusBridge =
 		    DRX_Ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridgeClosed);
@@ -797,7 +797,7 @@ CtrlProgramTuner(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 	/* attempt restoring bridge before checking status of SetFrequency */
 	if (commonAttr->tunerPortNr == 1) {
 		bool bridgeClosed = false;
-		DRXStatus_t statusBridge = DRX_STS_ERROR;
+		int statusBridge = DRX_STS_ERROR;
 
 		statusBridge =
 		    DRX_Ctrl(demod, DRX_CTRL_I2C_BRIDGE, &bridgeClosed);
@@ -833,13 +833,13 @@ CtrlProgramTuner(pDRXDemodInstance_t demod, pDRXChannel_t channel)
 * \brief function to do a register dump.
 * \param demod:            Pointer to demodulator instance.
 * \param registers:        Registers to dump.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:          Dump executed successfully.
 * \retval DRX_STS_ERROR:       Something went wrong.
 * \retval DRX_STS_INVALID_ARG: Wrong parameters.
 *
 */
-DRXStatus_t CtrlDumpRegisters(pDRXDemodInstance_t demod,
+int CtrlDumpRegisters(pDRXDemodInstance_t demod,
 			      pDRXRegDump_t registers)
 {
 	u16 i = 0;
@@ -851,7 +851,7 @@ DRXStatus_t CtrlDumpRegisters(pDRXDemodInstance_t demod,
 
 	/* start dumping registers */
 	while (registers[i].address != 0) {
-		DRXStatus_t status = DRX_STS_ERROR;
+		int status = DRX_STS_ERROR;
 		u16 value = 0;
 		u32 data = 0;
 
@@ -968,7 +968,7 @@ static u16 UCodeComputeCRC(u8 *blockData, u16 nrWords)
 * \param devAddr: Address of device.
 * \param mcInfo:  Pointer to information about microcode data.
 * \param action:  Either UCODE_UPLOAD or UCODE_VERIFY
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:
 *                    - In case of UCODE_UPLOAD: code is successfully uploaded.
 *                    - In case of UCODE_VERIFY: image on device is equal to
@@ -981,11 +981,11 @@ static u16 UCodeComputeCRC(u8 *blockData, u16 nrWords)
 *                    - Invalid arguments.
 *                    - Provided image is corrupt
 */
-static DRXStatus_t
+static int
 CtrlUCode(pDRXDemodInstance_t demod,
 	  pDRXUCodeInfo_t mcInfo, DRXUCodeAction_t action)
 {
-	DRXStatus_t rc;
+	int rc;
 	u16 i = 0;
 	u16 mcNrOfBlks = 0;
 	u16 mcMagicWord = 0;
@@ -1197,11 +1197,11 @@ CtrlUCode(pDRXDemodInstance_t demod,
 * \brief Build list of version information.
 * \param demod: A pointer to a demodulator instance.
 * \param versionList: Pointer to linked list of versions.
-* \return DRXStatus_t.
+* \return int.
 * \retval DRX_STS_OK:          Version information stored in versionList
 * \retval DRX_STS_INVALID_ARG: Invalid arguments.
 */
-static DRXStatus_t
+static int
 CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t * versionList)
 {
 	static char drxDriverCoreModuleName[] = "Core driver";
@@ -1212,7 +1212,7 @@ CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t * versionList)
 	static DRXVersionList_t drxDriverCoreVersionList;
 
 	pDRXVersionList_t demodVersionList = (pDRXVersionList_t) (NULL);
-	DRXStatus_t returnStatus = DRX_STS_ERROR;
+	int returnStatus = DRX_STS_ERROR;
 
 	/* Check arguments */
 	if (versionList == NULL) {
@@ -1264,14 +1264,14 @@ CtrlVersion(pDRXDemodInstance_t demod, pDRXVersionList_t * versionList)
 /**
 * \brief This function is obsolete.
 * \param demods: Don't care, parameter is ignored.
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK: Initialization completed.
 *
 * This function is obsolete, prototype available for backward compatability.
 *
 */
 
-DRXStatus_t DRX_Init(pDRXDemodInstance_t demods[])
+int DRX_Init(pDRXDemodInstance_t demods[])
 {
 	return DRX_STS_OK;
 }
@@ -1280,14 +1280,14 @@ DRXStatus_t DRX_Init(pDRXDemodInstance_t demods[])
 
 /**
 * \brief This function is obsolete.
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK: Terminated driver successful.
 *
 * This function is obsolete, prototype available for backward compatability.
 *
 */
 
-DRXStatus_t DRX_Term(void)
+int DRX_Term(void)
 {
 	return DRX_STS_OK;
 }
@@ -1297,7 +1297,7 @@ DRXStatus_t DRX_Term(void)
 /**
 * \brief Open a demodulator instance.
 * \param demod: A pointer to a demodulator instance.
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK:          Opened demod instance with succes.
 * \retval DRX_STS_ERROR:       Driver not initialized or unable to initialize
 *                              demod.
@@ -1305,9 +1305,9 @@ DRXStatus_t DRX_Term(void)
 *
 */
 
-DRXStatus_t DRX_Open(pDRXDemodInstance_t demod)
+int DRX_Open(pDRXDemodInstance_t demod)
 {
-	DRXStatus_t status = DRX_STS_OK;
+	int status = DRX_STS_OK;
 
 	if ((demod == NULL) ||
 	    (demod->myDemodFunct == NULL) ||
@@ -1332,7 +1332,7 @@ DRXStatus_t DRX_Open(pDRXDemodInstance_t demod)
 /**
 * \brief Close device.
 * \param demod: A pointer to a demodulator instance.
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK:          Closed demod instance with succes.
 * \retval DRX_STS_ERROR:       Driver not initialized or error during close
 *                              demod.
@@ -1342,9 +1342,9 @@ DRXStatus_t DRX_Open(pDRXDemodInstance_t demod)
 * Put device into sleep mode.
 */
 
-DRXStatus_t DRX_Close(pDRXDemodInstance_t demod)
+int DRX_Close(pDRXDemodInstance_t demod)
 {
-	DRXStatus_t status = DRX_STS_OK;
+	int status = DRX_STS_OK;
 
 	if ((demod == NULL) ||
 	    (demod->myDemodFunct == NULL) ||
@@ -1369,7 +1369,7 @@ DRXStatus_t DRX_Close(pDRXDemodInstance_t demod)
 * \param demod:    A pointer to a demodulator instance.
 * \param ctrl:     Reference to desired control function.
 * \param ctrlData: Pointer to data structure for control function.
-* \return DRXStatus_t Return status.
+* \return int Return status.
 * \retval DRX_STS_OK:                 Control function completed successfully.
 * \retval DRX_STS_ERROR:              Driver not initialized or error during
 *                                     control demod.
@@ -1382,10 +1382,10 @@ DRXStatus_t DRX_Close(pDRXDemodInstance_t demod)
 *
 */
 
-DRXStatus_t
-DRX_Ctrl(pDRXDemodInstance_t demod, DRXCtrlIndex_t ctrl, void *ctrlData)
+int
+DRX_Ctrl(pDRXDemodInstance_t demod, u32 ctrl, void *ctrlData)
 {
-	DRXStatus_t status = DRX_STS_ERROR;
+	int status = DRX_STS_ERROR;
 
 	if ((demod == NULL) ||
 	    (demod->myDemodFunct == NULL) ||

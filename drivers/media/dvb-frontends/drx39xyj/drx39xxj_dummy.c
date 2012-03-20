@@ -11,33 +11,33 @@
 #include "drx39xxj.h"
 
 /* Dummy function to satisfy drxj.c */
-DRXStatus_t DRXBSP_TUNER_Open(pTUNERInstance_t tuner)
+int DRXBSP_TUNER_Open(struct tuner_instance *tuner)
 {
 	return DRX_STS_OK;
 }
 
-DRXStatus_t DRXBSP_TUNER_Close(pTUNERInstance_t tuner)
+int DRXBSP_TUNER_Close(struct tuner_instance *tuner)
 {
 	return DRX_STS_OK;
 }
 
-DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
-				      TUNERMode_t mode,
+int DRXBSP_TUNER_SetFrequency(struct tuner_instance *tuner,
+				      u32 mode,
 				      s32 centerFrequency)
 {
 	return DRX_STS_OK;
 }
 
-DRXStatus_t
-DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
-			  TUNERMode_t mode,
+int
+DRXBSP_TUNER_GetFrequency(struct tuner_instance *tuner,
+			  u32 mode,
 			  s32 *RFfrequency,
 			  s32 *IFfrequency)
 {
 	return DRX_STS_OK;
 }
 
-DRXStatus_t DRXBSP_HST_Sleep(u32 n)
+int DRXBSP_HST_Sleep(u32 n)
 {
 	msleep(n);
 	return DRX_STS_OK;
@@ -58,7 +58,7 @@ void *DRXBSP_HST_Memcpy(void *to, void *from, u32 n)
 	return (memcpy(to, from, (size_t) n));
 }
 
-DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
+int DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
 				 u16 wCount,
 				 u8 *wData,
 				 struct i2c_device_addr *rDevAddr,

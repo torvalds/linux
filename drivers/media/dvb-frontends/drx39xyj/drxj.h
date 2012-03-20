@@ -184,7 +184,7 @@ TYPEDEFS
 * Generic interface for all AGCs present on the DRXJ.
 */
 	typedef struct {
-		DRXStandard_t standard;	/* standard for which these settings apply */
+		enum drx_standard standard;	/* standard for which these settings apply */
 		DRXJAgcCtrlMode_t ctrlMode;	/* off, user, auto          */
 		u16 outputLevel;	/* range dependent on AGC   */
 		u16 minOutputLevel;	/* range dependent on AGC   */
@@ -202,7 +202,7 @@ TYPEDEFS
 * Interface to configure pre SAW sense.
 */
 	typedef struct {
-		DRXStandard_t standard;	/* standard to which these settings apply */
+		enum drx_standard standard;	/* standard to which these settings apply */
 		u16 reference;	/* pre SAW reference value, range 0 .. 31 */
 		bool usePreSaw;	/* true algorithms must use pre SAW sense */
 	} DRXJCfgPreSaw_t, *pDRXJCfgPreSaw_t;
@@ -214,7 +214,7 @@ TYPEDEFS
 * Interface to configure gain of AFE (LNA + PGA).
 */
 	typedef struct {
-		DRXStandard_t standard;	/* standard to which these settings apply */
+		enum drx_standard standard;	/* standard to which these settings apply */
 		u16 gain;	/* gain in 0.1 dB steps, DRXJ range 140 .. 335 */
 	} DRXJCfgAfeGain_t, *pDRXJCfgAfeGain_t;
 
@@ -462,13 +462,13 @@ TYPEDEFS
 		bool mirrorFreqSpectOOB;/**< tuner inversion (true = tuner mirrors the signal */
 
 		/* standard/channel settings */
-		DRXStandard_t standard;	  /**< current standard information                     */
-		DRXConstellation_t constellation;
+		enum drx_standard standard;	  /**< current standard information                     */
+		enum drx_modulation constellation;
 					  /**< current constellation                            */
 		s32 frequency; /**< center signal frequency in KHz                   */
-		DRXBandwidth_t currBandwidth;
+		enum drx_bandwidth currBandwidth;
 					  /**< current channel bandwidth                        */
-		DRXMirror_t mirror;	  /**< current channel mirror                           */
+		enum drx_mirror mirror;	  /**< current channel mirror                           */
 
 		/* signal quality information */
 		u32 fecBitsDesired;	  /**< BER accounting period                            */
@@ -723,10 +723,10 @@ STRUCTS
 Exported FUNCTIONS
 -------------------------------------------------------------------------*/
 
-	extern DRXStatus_t DRXJ_Open(pDRXDemodInstance_t demod);
-	extern DRXStatus_t DRXJ_Close(pDRXDemodInstance_t demod);
-	extern DRXStatus_t DRXJ_Ctrl(pDRXDemodInstance_t demod,
-				     DRXCtrlIndex_t ctrl, void *ctrlData);
+	extern int DRXJ_Open(pDRXDemodInstance_t demod);
+	extern int DRXJ_Close(pDRXDemodInstance_t demod);
+	extern int DRXJ_Ctrl(pDRXDemodInstance_t demod,
+				     u32 ctrl, void *ctrlData);
 
 /*-------------------------------------------------------------------------
 Exported GLOBAL VARIABLES
