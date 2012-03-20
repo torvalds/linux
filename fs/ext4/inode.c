@@ -1428,20 +1428,22 @@ static void ext4_da_block_invalidatepages(struct mpage_da_data *mpd)
 static void ext4_print_free_blocks(struct inode *inode)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	printk(KERN_CRIT "Total free blocks count %lld\n",
+	struct super_block *sb = inode->i_sb;
+
+	ext4_msg(sb, KERN_CRIT, "Total free blocks count %lld",
 	       EXT4_C2B(EXT4_SB(inode->i_sb),
 			ext4_count_free_clusters(inode->i_sb)));
-	printk(KERN_CRIT "Free/Dirty block details\n");
-	printk(KERN_CRIT "free_blocks=%lld\n",
+	ext4_msg(sb, KERN_CRIT, "Free/Dirty block details");
+	ext4_msg(sb, KERN_CRIT, "free_blocks=%lld",
 	       (long long) EXT4_C2B(EXT4_SB(inode->i_sb),
 		percpu_counter_sum(&sbi->s_freeclusters_counter)));
-	printk(KERN_CRIT "dirty_blocks=%lld\n",
+	ext4_msg(sb, KERN_CRIT, "dirty_blocks=%lld",
 	       (long long) EXT4_C2B(EXT4_SB(inode->i_sb),
 		percpu_counter_sum(&sbi->s_dirtyclusters_counter)));
-	printk(KERN_CRIT "Block reservation details\n");
-	printk(KERN_CRIT "i_reserved_data_blocks=%u\n",
-	       EXT4_I(inode)->i_reserved_data_blocks);
-	printk(KERN_CRIT "i_reserved_meta_blocks=%u\n",
+	ext4_msg(sb, KERN_CRIT, "Block reservation details");
+	ext4_msg(sb, KERN_CRIT, "i_reserved_data_blocks=%u",
+		 EXT4_I(inode)->i_reserved_data_blocks);
+	ext4_msg(sb, KERN_CRIT, "i_reserved_meta_blocks=%u",
 	       EXT4_I(inode)->i_reserved_meta_blocks);
 	return;
 }
@@ -2809,8 +2811,9 @@ static void ext4_end_io_buffer_write(struct buffer_head *bh, int uptodate)
 		goto out;
 
 	if (!(io_end->inode->i_sb->s_flags & MS_ACTIVE)) {
-		printk("sb umounted, discard end_io request for inode %lu\n",
-			io_end->inode->i_ino);
+		ext4_msg(io_end->inode->i_sb, KERN_INFO,
+			 "sb umounted, discard end_io request for inode %lu",
+			 io_end->inode->i_ino);
 		ext4_free_io_end(io_end);
 		goto out;
 	}

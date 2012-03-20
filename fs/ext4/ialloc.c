@@ -204,19 +204,20 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	struct ext4_sb_info *sbi;
 	int fatal = 0, err, count, cleared;
 
+	if (!sb) {
+		printk(KERN_ERR "EXT4-fs: %s:%d: inode on "
+		       "nonexistent device\n", __func__, __LINE__);
+		return;
+	}
 	if (atomic_read(&inode->i_count) > 1) {
-		printk(KERN_ERR "ext4_free_inode: inode has count=%d\n",
-		       atomic_read(&inode->i_count));
+		ext4_msg(sb, KERN_ERR, "%s:%d: inode #%lu: count=%d",
+			 __func__, __LINE__, inode->i_ino,
+			 atomic_read(&inode->i_count));
 		return;
 	}
 	if (inode->i_nlink) {
-		printk(KERN_ERR "ext4_free_inode: inode has nlink=%d\n",
-		       inode->i_nlink);
-		return;
-	}
-	if (!sb) {
-		printk(KERN_ERR "ext4_free_inode: inode on "
-		       "nonexistent device\n");
+		ext4_msg(sb, KERN_ERR, "%s:%d: inode #%lu: nlink=%d\n",
+			 __func__, __LINE__, inode->i_ino, inode->i_nlink);
 		return;
 	}
 	sbi = EXT4_SB(sb);

@@ -2728,17 +2728,17 @@ void ext4_ext_init(struct super_block *sb)
 
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_EXTENTS)) {
 #if defined(AGGRESSIVE_TEST) || defined(CHECK_BINSEARCH) || defined(EXTENTS_STATS)
-		printk(KERN_INFO "EXT4-fs: file extents enabled");
+		printk(KERN_INFO "EXT4-fs: file extents enabled"
 #ifdef AGGRESSIVE_TEST
-		printk(", aggressive tests");
+		       ", aggressive tests"
 #endif
 #ifdef CHECK_BINSEARCH
-		printk(", check binsearch");
+		       ", check binsearch"
 #endif
 #ifdef EXTENTS_STATS
-		printk(", stats");
+		       ", stats"
 #endif
-		printk("\n");
+		       "\n");
 #endif
 #ifdef EXTENTS_STATS
 		spin_lock_init(&EXT4_SB(sb)->s_ext_stats_lock);
@@ -4412,10 +4412,11 @@ int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 				      EXT4_GET_BLOCKS_IO_CONVERT_EXT);
 		if (ret <= 0) {
 			WARN_ON(ret <= 0);
-			printk(KERN_ERR "%s: ext4_ext_map_blocks "
-				    "returned error inode#%lu, block=%u, "
-				    "max_blocks=%u", __func__,
-				    inode->i_ino, map.m_lblk, map.m_len);
+			ext4_msg(inode->i_sb, KERN_ERR,
+				 "%s:%d: inode #%lu: block %u: len %u: "
+				 "ext4_ext_map_blocks returned %d",
+				 __func__, __LINE__, inode->i_ino, map.m_lblk,
+				 map.m_len, ret);
 		}
 		ext4_mark_inode_dirty(handle, inode);
 		ret2 = ext4_journal_stop(handle);
