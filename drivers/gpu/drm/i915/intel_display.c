@@ -365,6 +365,10 @@ static bool is_dual_link_lvds(struct drm_i915_private *dev_priv,
 {
 	unsigned int val;
 
+	/* use the module option value if specified */
+	if (i915_lvds_channel_mode > 0)
+		return i915_lvds_channel_mode == 2;
+
 	if (dev_priv->lvds_val)
 		val = dev_priv->lvds_val;
 	else {

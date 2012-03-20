@@ -80,6 +80,12 @@ MODULE_PARM_DESC(lvds_downclock,
 		"Use panel (LVDS/eDP) downclocking for power savings "
 		"(default: false)");
 
+int i915_lvds_channel_mode __read_mostly;
+module_param_named(lvds_channel_mode, i915_lvds_channel_mode, int, 0600);
+MODULE_PARM_DESC(lvds_channel_mode,
+		 "Specify LVDS channel mode "
+		 "(0=probe BIOS [default], 1=single-channel, 2=dual-channel)");
+
 int i915_panel_use_ssc __read_mostly = -1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
 MODULE_PARM_DESC(lvds_use_ssc,
