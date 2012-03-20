@@ -479,7 +479,7 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
  * - 2 DIG encoder blocks.
  * DIG1/2 can drive UNIPHY0/1/2 link A or link B
  *
- * DCE 4.0/5.0
+ * DCE 4.0/5.0/6.0
  * - 3 DIG transmitter blocks UNIPHY0/1/2 (links A and B).
  * Supports up to 6 digital outputs
  * - 6 DIG encoder blocks.
@@ -495,7 +495,11 @@ atombios_get_encoder_mode(struct drm_encoder *encoder)
  * - 3 DIG transmitter blocks UNIPHY0/1/2 (links A and B).
  * Supports up to 6 digital outputs
  * - 2 DIG encoder blocks.
+ * llano
  * DIG1/2 can drive UNIPHY0/1/2 link A or link B
+ * ontario
+ * DIG1 drives UNIPHY0/1/2 link A
+ * DIG2 drives UNIPHY0/1/2 link B
  *
  * Routing
  * crtc -> dig encoder -> UNIPHY/LVTMA (1 or 2 links)
