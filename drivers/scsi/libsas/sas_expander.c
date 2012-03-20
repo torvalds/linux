@@ -783,6 +783,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		sas_init_dev(child);
 
 		child->rphy = rphy;
+		get_device(&rphy->dev);
 
 		list_add_tail(&child->disco_list_node, &parent->port->disco_list);
 
@@ -806,6 +807,7 @@ static struct domain_device *sas_ex_discover_end_dev(
 		sas_init_dev(child);
 
 		child->rphy = rphy;
+		get_device(&rphy->dev);
 		sas_fill_in_rphy(child, rphy);
 
 		list_add_tail(&child->disco_list_node, &parent->port->disco_list);
@@ -830,8 +832,6 @@ static struct domain_device *sas_ex_discover_end_dev(
 
  out_list_del:
 	sas_rphy_free(child->rphy);
-	child->rphy = NULL;
-
 	list_del(&child->disco_list_node);
 	spin_lock_irq(&parent->port->dev_list_lock);
 	list_del(&child->dev_list_node);
@@ -911,6 +911,7 @@ static struct domain_device *sas_ex_discover_expander(
 	}
 	port = parent->port;
 	child->rphy = rphy;
+	get_device(&rphy->dev);
 	edev = rphy_to_expander_device(rphy);
 	child->dev_type = phy->attached_dev_type;
 	kref_get(&parent->kref);
@@ -934,6 +935,7 @@ static struct domain_device *sas_ex_discover_expander(
 
 	res = sas_discover_expander(child);
 	if (res) {
+		sas_rphy_delete(rphy);
 		spin_lock_irq(&parent->port->dev_list_lock);
 		list_del(&child->dev_list_node);
 		spin_unlock_irq(&parent->port->dev_list_lock);

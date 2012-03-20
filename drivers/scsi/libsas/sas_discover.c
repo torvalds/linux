@@ -151,6 +151,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	sas_device_set_phy(dev, port->port);
 
 	dev->rphy = rphy;
+	get_device(&dev->rphy->dev);
 
 	if (dev_is_sata(dev) || dev->dev_type == SAS_END_DEV)
 		list_add_tail(&dev->disco_list_node, &port->disco_list);
@@ -255,6 +256,9 @@ void sas_free_device(struct kref *kref)
 {
 	struct domain_device *dev = container_of(kref, typeof(*dev), kref);
 
+	put_device(&dev->rphy->dev);
+	dev->rphy = NULL;
+
 	if (dev->parent)
 		sas_put_device(dev->parent);
 
@@ -301,7 +305,6 @@ static void sas_destruct_devices(struct work_struct *work)
 
 		sas_remove_children(&dev->rphy->dev);
 		sas_rphy_delete(dev->rphy);
-		dev->rphy = NULL;
 		sas_unregister_common_dev(port, dev);
 	}
 }
@@ -313,11 +316,11 @@ void sas_unregister_dev(struct asd_sas_port *port, struct domain_device *dev)
 		/* this rphy never saw sas_rphy_add */
 		list_del_init(&dev->disco_list_node);
 		sas_rphy_free(dev->rphy);
-		dev->rphy = NULL;
 		sas_unregister_common_dev(port, dev);
+		return;
 	}
 
-	if (dev->rphy && !test_and_set_bit(SAS_DEV_DESTROY, &dev->state)) {
+	if (!test_and_set_bit(SAS_DEV_DESTROY, &dev->state)) {
 		sas_rphy_unlink(dev->rphy);
 		list_move_tail(&dev->disco_list_node, &port->destroy_list);
 		sas_discover_event(dev->port, DISCE_DESTRUCT);
@@ -417,8 +420,6 @@ static void sas_discover_domain(struct work_struct *work)
 
 	if (error) {
 		sas_rphy_free(dev->rphy);
-		dev->rphy = NULL;
-
 		list_del_init(&dev->disco_list_node);
 		spin_lock_irq(&port->dev_list_lock);
 		list_del_init(&dev->dev_list_node);
