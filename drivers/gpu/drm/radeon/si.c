@@ -21,12 +21,38 @@
  *
  * Authors: Alex Deucher
  */
+#include <linux/firmware.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/module.h>
 #include "drmP.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "sid.h"
 #include "atom.h"
+
+#define SI_PFP_UCODE_SIZE 2144
+#define SI_PM4_UCODE_SIZE 2144
+#define SI_CE_UCODE_SIZE 2144
+#define SI_RLC_UCODE_SIZE 2048
+#define SI_MC_UCODE_SIZE 7769
+
+MODULE_FIRMWARE("radeon/TAHITI_pfp.bin");
+MODULE_FIRMWARE("radeon/TAHITI_me.bin");
+MODULE_FIRMWARE("radeon/TAHITI_ce.bin");
+MODULE_FIRMWARE("radeon/TAHITI_mc.bin");
+MODULE_FIRMWARE("radeon/TAHITI_rlc.bin");
+MODULE_FIRMWARE("radeon/PITCAIRN_pfp.bin");
+MODULE_FIRMWARE("radeon/PITCAIRN_me.bin");
+MODULE_FIRMWARE("radeon/PITCAIRN_ce.bin");
+MODULE_FIRMWARE("radeon/PITCAIRN_mc.bin");
+MODULE_FIRMWARE("radeon/PITCAIRN_rlc.bin");
+MODULE_FIRMWARE("radeon/VERDE_pfp.bin");
+MODULE_FIRMWARE("radeon/VERDE_me.bin");
+MODULE_FIRMWARE("radeon/VERDE_ce.bin");
+MODULE_FIRMWARE("radeon/VERDE_mc.bin");
+MODULE_FIRMWARE("radeon/VERDE_rlc.bin");
 
 extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
 extern void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save);
@@ -49,6 +75,135 @@ int si_get_temp(struct radeon_device *rdev)
 	actual_temp = (actual_temp * 1000);
 
 	return actual_temp;
+}
+
+static int si_init_microcode(struct radeon_device *rdev)
+{
+	struct platform_device *pdev;
+	const char *chip_name;
+	const char *rlc_chip_name;
+	size_t pfp_req_size, me_req_size, ce_req_size, rlc_req_size, mc_req_size;
+	char fw_name[30];
+	int err;
+
+	DRM_DEBUG("\n");
+
+	pdev = platform_device_register_simple("radeon_cp", 0, NULL, 0);
+	err = IS_ERR(pdev);
+	if (err) {
+		printk(KERN_ERR "radeon_cp: Failed to register firmware\n");
+		return -EINVAL;
+	}
+
+	switch (rdev->family) {
+	case CHIP_TAHITI:
+		chip_name = "TAHITI";
+		rlc_chip_name = "TAHITI";
+		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
+		me_req_size = SI_PM4_UCODE_SIZE * 4;
+		ce_req_size = SI_CE_UCODE_SIZE * 4;
+		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
+		mc_req_size = SI_MC_UCODE_SIZE * 4;
+		break;
+	case CHIP_PITCAIRN:
+		chip_name = "PITCAIRN";
+		rlc_chip_name = "PITCAIRN";
+		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
+		me_req_size = SI_PM4_UCODE_SIZE * 4;
+		ce_req_size = SI_CE_UCODE_SIZE * 4;
+		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
+		mc_req_size = SI_MC_UCODE_SIZE * 4;
+		break;
+	case CHIP_VERDE:
+		chip_name = "VERDE";
+		rlc_chip_name = "VERDE";
+		pfp_req_size = SI_PFP_UCODE_SIZE * 4;
+		me_req_size = SI_PM4_UCODE_SIZE * 4;
+		ce_req_size = SI_CE_UCODE_SIZE * 4;
+		rlc_req_size = SI_RLC_UCODE_SIZE * 4;
+		mc_req_size = SI_MC_UCODE_SIZE * 4;
+		break;
+	default: BUG();
+	}
+
+	DRM_INFO("Loading %s Microcode\n", chip_name);
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_pfp.bin", chip_name);
+	err = request_firmware(&rdev->pfp_fw, fw_name, &pdev->dev);
+	if (err)
+		goto out;
+	if (rdev->pfp_fw->size != pfp_req_size) {
+		printk(KERN_ERR
+		       "si_cp: Bogus length %zu in firmware \"%s\"\n",
+		       rdev->pfp_fw->size, fw_name);
+		err = -EINVAL;
+		goto out;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_me.bin", chip_name);
+	err = request_firmware(&rdev->me_fw, fw_name, &pdev->dev);
+	if (err)
+		goto out;
+	if (rdev->me_fw->size != me_req_size) {
+		printk(KERN_ERR
+		       "si_cp: Bogus length %zu in firmware \"%s\"\n",
+		       rdev->me_fw->size, fw_name);
+		err = -EINVAL;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_ce.bin", chip_name);
+	err = request_firmware(&rdev->ce_fw, fw_name, &pdev->dev);
+	if (err)
+		goto out;
+	if (rdev->ce_fw->size != ce_req_size) {
+		printk(KERN_ERR
+		       "si_cp: Bogus length %zu in firmware \"%s\"\n",
+		       rdev->ce_fw->size, fw_name);
+		err = -EINVAL;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
+	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
+	if (err)
+		goto out;
+	if (rdev->rlc_fw->size != rlc_req_size) {
+		printk(KERN_ERR
+		       "si_rlc: Bogus length %zu in firmware \"%s\"\n",
+		       rdev->rlc_fw->size, fw_name);
+		err = -EINVAL;
+	}
+
+	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+	err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
+	if (err)
+		goto out;
+	if (rdev->mc_fw->size != mc_req_size) {
+		printk(KERN_ERR
+		       "si_mc: Bogus length %zu in firmware \"%s\"\n",
+		       rdev->mc_fw->size, fw_name);
+		err = -EINVAL;
+	}
+
+out:
+	platform_device_unregister(pdev);
+
+	if (err) {
+		if (err != -EINVAL)
+			printk(KERN_ERR
+			       "si_cp: Failed to load firmware \"%s\"\n",
+			       fw_name);
+		release_firmware(rdev->pfp_fw);
+		rdev->pfp_fw = NULL;
+		release_firmware(rdev->me_fw);
+		rdev->me_fw = NULL;
+		release_firmware(rdev->ce_fw);
+		rdev->ce_fw = NULL;
+		release_firmware(rdev->rlc_fw);
+		rdev->rlc_fw = NULL;
+		release_firmware(rdev->mc_fw);
+		rdev->mc_fw = NULL;
+	}
+	return err;
 }
 
 /* watermark setup */
