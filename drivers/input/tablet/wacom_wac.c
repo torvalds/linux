@@ -926,7 +926,7 @@ static int wacom_bpt3_touch(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
 	unsigned char *data = wacom->data;
-	int count = data[1] & 0x03;
+	int count = data[1] & 0x07;
 	int i;
 
 	if (data[0] != 0x02)

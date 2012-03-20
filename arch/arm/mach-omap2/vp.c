@@ -61,8 +61,8 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	vddmin = voltdm->pmic->vp_vddmin;
 	vddmax = voltdm->pmic->vp_vddmax;
 
-	waittime = ((voltdm->pmic->step_size / voltdm->pmic->slew_rate) *
-		    sys_clk_rate) / 1000;
+	waittime = DIV_ROUND_UP(voltdm->pmic->step_size * sys_clk_rate,
+				1000 * voltdm->pmic->slew_rate);
 	vstepmin = voltdm->pmic->vp_vstepmin;
 	vstepmax = voltdm->pmic->vp_vstepmax;
 

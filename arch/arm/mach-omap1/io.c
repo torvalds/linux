@@ -118,7 +118,7 @@ void __init omap16xx_map_io(void)
 /*
  * Common low-level hardware init for omap1.
  */
-void omap1_init_early(void)
+void __init omap1_init_early(void)
 {
 	omap_check_revision();
 

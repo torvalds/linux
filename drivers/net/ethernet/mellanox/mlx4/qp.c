@@ -151,11 +151,6 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		context->log_page_size   = mtt->page_shift - MLX4_ICM_PAGE_SHIFT;
 	}
 
-	port = ((context->pri_path.sched_queue >> 6) & 1) + 1;
-	if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
-		context->pri_path.sched_queue = (context->pri_path.sched_queue &
-						0xc3);
-
 	*(__be32 *) mailbox->buf = cpu_to_be32(optpar);
 	memcpy(mailbox->buf + 8, context, sizeof *context);
 
