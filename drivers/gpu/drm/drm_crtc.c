@@ -986,6 +986,7 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 
 	return 0;
 }
+EXPORT_SYMBOL(drm_mode_group_init_legacy_group);
 
 /**
  * drm_mode_config_cleanup - free up DRM mode_config info

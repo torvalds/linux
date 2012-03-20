@@ -18,6 +18,11 @@ menuconfig DRM
 	  details.  You should also select and configure AGP
 	  (/dev/agpgart) support if it is available for your platform.
 
+config DRM_USB
+	tristate
+	depends on DRM
+	select USB
+
 config DRM_KMS_HELPER
 	tristate
 	depends on DRM

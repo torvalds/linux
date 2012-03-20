@@ -319,6 +319,7 @@ int drm_fill_in_dev(struct drm_device *dev,
 	drm_lastclose(dev);
 	return retcode;
 }
+EXPORT_SYMBOL(drm_fill_in_dev);
 
 
 /**
@@ -397,6 +398,7 @@ err_idr:
 	*minor = NULL;
 	return ret;
 }
+EXPORT_SYMBOL(drm_get_minor);
 
 /**
  * Put a secondary minor number.
@@ -428,6 +430,7 @@ int drm_put_minor(struct drm_minor **minor_p)
 	*minor_p = NULL;
 	return 0;
 }
+EXPORT_SYMBOL(drm_put_minor);
 
 static void drm_unplug_minor(struct drm_minor *minor)
 {

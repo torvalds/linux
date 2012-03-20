@@ -1,7 +1,7 @@
 config DRM_UDL
 	tristate "DisplayLink"
 	depends on DRM && EXPERIMENTAL
-	select USB
+	select DRM_USB
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA
 	select FB_SYS_IMAGEBLIT
