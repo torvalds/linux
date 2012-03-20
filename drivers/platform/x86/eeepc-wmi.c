@@ -49,7 +49,6 @@ MODULE_LICENSE("GPL");
 
 MODULE_ALIAS("wmi:"EEEPC_WMI_EVENT_GUID);
 
-static struct quirk_entry *quirks;
 static bool hotplug_wireless;
 
 module_param(hotplug_wireless, bool, 0444);
@@ -107,6 +106,8 @@ static struct quirk_entry quirk_asus_et2012_type3 = {
 	.scalar_panel_brightness = true,
 	.store_backlight_power = true,
 };
+
+static struct quirk_entry *quirks;
 
 static int dmi_matched(const struct dmi_system_id *dmi)
 {
@@ -209,12 +210,14 @@ static int eeepc_wmi_probe(struct platform_device *pdev)
 
 static void eeepc_wmi_quirks(struct asus_wmi_driver *driver)
 {
-	driver->panel_power = FB_BLANK_UNBLANK;
-	driver->quirks = &quirk_asus_unknown;
-	driver->quirks->hotplug_wireless = hotplug_wireless;
-	driver->quirks->wapf = -1;
+	quirks = &quirk_asus_unknown;
+	quirks->hotplug_wireless = hotplug_wireless;
+
 	dmi_check_system(asus_quirks);
+
 	driver->quirks = quirks;
+	driver->quirks->wapf = -1;
+	driver->panel_power = FB_BLANK_UNBLANK;
 }
 
 static struct asus_wmi_driver asus_wmi_driver = {
