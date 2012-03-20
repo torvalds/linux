@@ -595,12 +595,9 @@ nfs_scan_commit(struct inode *inode, struct list_head *dst)
 	spin_lock(&inode->i_lock);
 	if (nfsi->ncommit > 0) {
 		const int max = INT_MAX;
-		int pnfs_ret;
 
 		ret = nfs_scan_commit_list(&nfsi->commit_list, dst, max);
-		pnfs_ret = pnfs_scan_commit_lists(inode, max - ret);
-		ret += pnfs_ret;
-		nfsi->ncommit -= ret;
+		ret += pnfs_scan_commit_lists(inode, max - ret);
 	}
 	spin_unlock(&inode->i_lock);
 	return ret;
