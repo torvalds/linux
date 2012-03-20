@@ -202,6 +202,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	u8 sas_addr[SAS_ADDR_SIZE];
 	struct smp_resp *resp = rsp;
 	struct discover_resp *dr = &resp->disc;
+	struct sas_ha_struct *ha = dev->port->ha;
 	struct expander_device *ex = &dev->ex_dev;
 	struct ex_phy *phy = &ex->ex_phy[phy_id];
 	struct sas_rphy *rphy = dev->rphy;
@@ -209,6 +210,8 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	char *type;
 
 	if (new_phy) {
+		if (WARN_ON_ONCE(test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state)))
+			return;
 		phy->phy = sas_phy_alloc(&rphy->dev, phy_id);
 
 		/* FIXME: error_handling */
@@ -233,6 +236,8 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	memcpy(sas_addr, phy->attached_sas_addr, SAS_ADDR_SIZE);
 
 	phy->attached_dev_type = to_dev_type(dr);
+	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state))
+		goto out;
 	phy->phy_id = phy_id;
 	phy->linkrate = dr->linkrate;
 	phy->attached_sata_host = dr->attached_sata_host;
@@ -266,6 +271,7 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 			return;
 		}
 
+ out:
 	switch (phy->attached_dev_type) {
 	case SATA_PENDING:
 		type = "stp pending";
@@ -304,7 +310,15 @@ static void sas_set_ex_phy(struct domain_device *dev, int phy_id, void *rsp)
 	else
 		return;
 
-	SAS_DPRINTK("ex %016llx phy%02d:%c:%X attached: %016llx (%s)\n",
+	/* if the attached device type changed and ata_eh is active,
+	 * make sure we run revalidation when eh completes (see:
+	 * sas_enable_revalidation)
+	 */
+	if (test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state))
+		set_bit(DISCE_REVALIDATE_DOMAIN, &dev->port->disc.pending);
+
+	SAS_DPRINTK("%sex %016llx phy%02d:%c:%X attached: %016llx (%s)\n",
+		    test_bit(SAS_HA_ATA_EH_ACTIVE, &ha->state) ? "ata: " : "",
 		    SAS_ADDR(dev->sas_addr), phy->phy_id,
 		    sas_route_char(dev, phy), phy->linkrate,
 		    SAS_ADDR(phy->attached_sas_addr), type);
