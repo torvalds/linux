@@ -487,6 +487,15 @@ static struct dmi_system_id acer_quirks[] = {
 	},
 	{
 		.callback = dmi_matched,
+		.ident = "Lenovo Ideapad S205 (Brazos)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Brazos"),
+		},
+		.driver_data = &quirk_lenovo_ideapad_s205,
+	},
+	{
+		.callback = dmi_matched,
 		.ident = "Lenovo 3000 N200",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
