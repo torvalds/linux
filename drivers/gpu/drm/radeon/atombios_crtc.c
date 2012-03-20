@@ -1487,7 +1487,36 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 	struct drm_crtc *test_crtc;
 	uint32_t pll_in_use = 0;
 
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE61(rdev)) {
+		list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
+			if (test_encoder->crtc && (test_encoder->crtc == crtc)) {
+				struct radeon_encoder *test_radeon_encoder =
+					to_radeon_encoder(test_encoder);
+				struct radeon_encoder_atom_dig *dig =
+					test_radeon_encoder->enc_priv;
+
+				if ((test_radeon_encoder->encoder_id ==
+				     ENCODER_OBJECT_ID_INTERNAL_UNIPHY) &&
+				    (dig->linkb == false)) /* UNIPHY A uses PPLL2 */
+					return ATOM_PPLL2;
+			}
+		}
+		/* UNIPHY B/C/D/E/F */
+		list_for_each_entry(test_crtc, &dev->mode_config.crtc_list, head) {
+			struct radeon_crtc *radeon_test_crtc;
+
+			if (crtc == test_crtc)
+				continue;
+
+			radeon_test_crtc = to_radeon_crtc(test_crtc);
+			if ((radeon_test_crtc->pll_id == ATOM_PPLL0) ||
+			    (radeon_test_crtc->pll_id == ATOM_PPLL1))
+				pll_in_use |= (1 << radeon_test_crtc->pll_id);
+		}
+		if (!(pll_in_use & 4))
+			return ATOM_PPLL0;
+		return ATOM_PPLL1;
+	} else if (ASIC_IS_DCE4(rdev)) {
 		list_for_each_entry(test_encoder, &dev->mode_config.encoder_list, head) {
 			if (test_encoder->crtc && (test_encoder->crtc == crtc)) {
 				/* in DP mode, the DP ref clock can come from PPLL, DCPLL, or ext clock,
