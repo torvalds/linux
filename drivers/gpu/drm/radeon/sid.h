@@ -513,6 +513,23 @@
 
 #define	CP_DEBUG					0xC1FC
 
+#define RLC_CNTL                                          0xC300
+#       define RLC_ENABLE                                 (1 << 0)
+#define RLC_RL_BASE                                       0xC304
+#define RLC_RL_SIZE                                       0xC308
+#define RLC_LB_CNTL                                       0xC30C
+#define RLC_SAVE_AND_RESTORE_BASE                         0xC310
+#define RLC_LB_CNTR_MAX                                   0xC314
+#define RLC_LB_CNTR_INIT                                  0xC318
+
+#define RLC_CLEAR_STATE_RESTORE_BASE                      0xC320
+
+#define RLC_UCODE_ADDR                                    0xC32C
+#define RLC_UCODE_DATA                                    0xC330
+
+#define RLC_MC_CNTL                                       0xC344
+#define RLC_UCODE_CNTL                                    0xC348
+
 #define VGT_EVENT_INITIATOR                             0x28a90
 #       define SAMPLE_STREAMOUTSTATS1                   (1 << 0)
 #       define SAMPLE_STREAMOUTSTATS2                   (2 << 0)

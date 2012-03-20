@@ -2940,3 +2940,135 @@ void si_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm)
 	WREG32(VM_INVALIDATE_REQUEST, 1 << vm->id);
 }
 
+/*
+ * RLC
+ */
+static void si_rlc_fini(struct radeon_device *rdev)
+{
+	int r;
+
+	/* save restore block */
+	if (rdev->rlc.save_restore_obj) {
+		r = radeon_bo_reserve(rdev->rlc.save_restore_obj, false);
+		if (unlikely(r != 0))
+			dev_warn(rdev->dev, "(%d) reserve RLC sr bo failed\n", r);
+		radeon_bo_unpin(rdev->rlc.save_restore_obj);
+		radeon_bo_unreserve(rdev->rlc.save_restore_obj);
+
+		radeon_bo_unref(&rdev->rlc.save_restore_obj);
+		rdev->rlc.save_restore_obj = NULL;
+	}
+
+	/* clear state block */
+	if (rdev->rlc.clear_state_obj) {
+		r = radeon_bo_reserve(rdev->rlc.clear_state_obj, false);
+		if (unlikely(r != 0))
+			dev_warn(rdev->dev, "(%d) reserve RLC c bo failed\n", r);
+		radeon_bo_unpin(rdev->rlc.clear_state_obj);
+		radeon_bo_unreserve(rdev->rlc.clear_state_obj);
+
+		radeon_bo_unref(&rdev->rlc.clear_state_obj);
+		rdev->rlc.clear_state_obj = NULL;
+	}
+}
+
+static int si_rlc_init(struct radeon_device *rdev)
+{
+	int r;
+
+	/* save restore block */
+	if (rdev->rlc.save_restore_obj == NULL) {
+		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
+				RADEON_GEM_DOMAIN_VRAM, &rdev->rlc.save_restore_obj);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) create RLC sr bo failed\n", r);
+			return r;
+		}
+	}
+
+	r = radeon_bo_reserve(rdev->rlc.save_restore_obj, false);
+	if (unlikely(r != 0)) {
+		si_rlc_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_pin(rdev->rlc.save_restore_obj, RADEON_GEM_DOMAIN_VRAM,
+			  &rdev->rlc.save_restore_gpu_addr);
+	if (r) {
+		radeon_bo_unreserve(rdev->rlc.save_restore_obj);
+		dev_warn(rdev->dev, "(%d) pin RLC sr bo failed\n", r);
+		si_rlc_fini(rdev);
+		return r;
+	}
+
+	/* clear state block */
+	if (rdev->rlc.clear_state_obj == NULL) {
+		r = radeon_bo_create(rdev, RADEON_GPU_PAGE_SIZE, PAGE_SIZE, true,
+				RADEON_GEM_DOMAIN_VRAM, &rdev->rlc.clear_state_obj);
+		if (r) {
+			dev_warn(rdev->dev, "(%d) create RLC c bo failed\n", r);
+			si_rlc_fini(rdev);
+			return r;
+		}
+	}
+	r = radeon_bo_reserve(rdev->rlc.clear_state_obj, false);
+	if (unlikely(r != 0)) {
+		si_rlc_fini(rdev);
+		return r;
+	}
+	r = radeon_bo_pin(rdev->rlc.clear_state_obj, RADEON_GEM_DOMAIN_VRAM,
+			  &rdev->rlc.clear_state_gpu_addr);
+	if (r) {
+
+		radeon_bo_unreserve(rdev->rlc.clear_state_obj);
+		dev_warn(rdev->dev, "(%d) pin RLC c bo failed\n", r);
+		si_rlc_fini(rdev);
+		return r;
+	}
+
+	return 0;
+}
+
+static void si_rlc_stop(struct radeon_device *rdev)
+{
+	WREG32(RLC_CNTL, 0);
+}
+
+static void si_rlc_start(struct radeon_device *rdev)
+{
+	WREG32(RLC_CNTL, RLC_ENABLE);
+}
+
+static int si_rlc_resume(struct radeon_device *rdev)
+{
+	u32 i;
+	const __be32 *fw_data;
+
+	if (!rdev->rlc_fw)
+		return -EINVAL;
+
+	si_rlc_stop(rdev);
+
+	WREG32(RLC_RL_BASE, 0);
+	WREG32(RLC_RL_SIZE, 0);
+	WREG32(RLC_LB_CNTL, 0);
+	WREG32(RLC_LB_CNTR_MAX, 0xffffffff);
+	WREG32(RLC_LB_CNTR_INIT, 0);
+
+	WREG32(RLC_SAVE_AND_RESTORE_BASE, rdev->rlc.save_restore_gpu_addr >> 8);
+	WREG32(RLC_CLEAR_STATE_RESTORE_BASE, rdev->rlc.clear_state_gpu_addr >> 8);
+
+	WREG32(RLC_MC_CNTL, 0);
+	WREG32(RLC_UCODE_CNTL, 0);
+
+	fw_data = (const __be32 *)rdev->rlc_fw->data;
+	for (i = 0; i < SI_RLC_UCODE_SIZE; i++) {
+		WREG32(RLC_UCODE_ADDR, i);
+		WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
+	}
+	WREG32(RLC_UCODE_ADDR, 0);
+
+	si_rlc_start(rdev);
+
+	return 0;
+}
+

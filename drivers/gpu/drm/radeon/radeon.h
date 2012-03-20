@@ -772,6 +772,18 @@ struct r600_blit {
 
 void r600_blit_suspend(struct radeon_device *rdev);
 
+/*
+ * SI RLC stuff
+ */
+struct si_rlc {
+	/* for power gating */
+	struct radeon_bo	*save_restore_obj;
+	uint64_t		save_restore_gpu_addr;
+	/* for clear state */
+	struct radeon_bo	*clear_state_obj;
+	uint64_t		clear_state_gpu_addr;
+};
+
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib **ib, unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
@@ -1532,6 +1544,7 @@ struct radeon_device {
 	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
+	struct si_rlc rlc;
 	struct work_struct hotplug_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
