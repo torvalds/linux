@@ -413,6 +413,7 @@ extern void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption);
 #else
 static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
 {
+	return 0;
 }
 static inline void nfs_display_fhandle(const struct nfs_fh *fh,
 				       const char *caption)
