@@ -36,13 +36,257 @@
 */
 #ifndef __DRXDRIVER_H__
 #define __DRXDRIVER_H__
+
+#include <linux/kernel.h>
 /*-------------------------------------------------------------------------
 INCLUDES
 -------------------------------------------------------------------------*/
-#include "bsp_types.h"
-#include "bsp_i2c.h"
-#include "bsp_tuner.h"
-#include "bsp_host.h"
+
+typedef enum {
+	DRX_STS_READY = 3,  /**< device/service is ready     */
+	DRX_STS_BUSY = 2,   /**< device/service is busy      */
+	DRX_STS_OK = 1,	    /**< everything is OK            */
+	DRX_STS_INVALID_ARG = -1,
+				/**< invalid arguments           */
+	DRX_STS_ERROR = -2, /**< general error               */
+	DRX_STS_FUNC_NOT_AVAILABLE = -3
+				/**< unavailable functionality   */
+} DRXStatus_t, *pDRXStatus_t;
+
+/*
+ * This structure contains the I2C address, the device ID and a userData pointer.
+ * The userData pointer can be used for application specific purposes.
+ */
+struct i2c_device_addr {
+	u16 i2cAddr;		/* The I2C address of the device. */
+	u16 i2cDevId;		/* The device identifier. */
+	void *userData;		/* User data pointer */
+};
+
+/**
+* \def IS_I2C_10BIT( addr )
+* \brief Determine if I2C address 'addr' is a 10 bits address or not.
+* \param addr The I2C address.
+* \return int.
+* \retval 0 if address is not a 10 bits I2C address.
+* \retval 1 if address is a 10 bits I2C address.
+*/
+#define IS_I2C_10BIT(addr) \
+	 (((addr) & 0xF8) == 0xF0)
+
+/*------------------------------------------------------------------------------
+Exported FUNCTIONS
+------------------------------------------------------------------------------*/
+
+/**
+* \fn DRXBSP_I2C_Init()
+* \brief Initialize I2C communication module.
+* \return DRXStatus_t Return status.
+* \retval DRX_STS_OK Initialization successful.
+* \retval DRX_STS_ERROR Initialization failed.
+*/
+DRXStatus_t DRXBSP_I2C_Init(void);
+
+/**
+* \fn DRXBSP_I2C_Term()
+* \brief Terminate I2C communication module.
+* \return DRXStatus_t Return status.
+* \retval DRX_STS_OK Termination successful.
+* \retval DRX_STS_ERROR Termination failed.
+*/
+DRXStatus_t DRXBSP_I2C_Term(void);
+
+/**
+* \fn DRXStatus_t DRXBSP_I2C_WriteRead( struct i2c_device_addr *wDevAddr,
+*                                       u16 wCount,
+*                                       u8 * wData,
+*                                       struct i2c_device_addr *rDevAddr,
+*                                       u16 rCount,
+*                                       u8 * rData)
+* \brief Read and/or write count bytes from I2C bus, store them in data[].
+* \param wDevAddr The device i2c address and the device ID to write to
+* \param wCount   The number of bytes to write
+* \param wData    The array to write the data to
+* \param rDevAddr The device i2c address and the device ID to read from
+* \param rCount   The number of bytes to read
+* \param rData    The array to read the data from
+* \return DRXStatus_t Return status.
+* \retval DRX_STS_OK Succes.
+* \retval DRX_STS_ERROR Failure.
+* \retval DRX_STS_INVALID_ARG Parameter 'wcount' is not zero but parameter
+*                                       'wdata' contains NULL.
+*                                       Idem for 'rcount' and 'rdata'.
+*                                       Both wDevAddr and rDevAddr are NULL.
+*
+* This function must implement an atomic write and/or read action on the I2C bus
+* No other process may use the I2C bus when this function is executing.
+* The critical section of this function runs from and including the I2C
+* write, up to and including the I2C read action.
+*
+* The device ID can be useful if several devices share an I2C address.
+* It can be used to control a "switch" on the I2C bus to the correct device.
+*/
+DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
+					u16 wCount,
+					u8 * wData,
+					struct i2c_device_addr *rDevAddr,
+					u16 rCount, u8 * rData);
+
+/**
+* \fn DRXBSP_I2C_ErrorText()
+* \brief Returns a human readable error.
+* Counter part of numerical DRX_I2C_Error_g.
+*
+* \return char* Pointer to human readable error text.
+*/
+char *DRXBSP_I2C_ErrorText(void);
+
+/**
+* \var DRX_I2C_Error_g;
+* \brief I2C specific error codes, platform dependent.
+*/
+extern int DRX_I2C_Error_g;
+
+#define TUNER_MODE_SUB0    0x0001	/* for sub-mode (e.g. RF-AGC setting) */
+#define TUNER_MODE_SUB1    0x0002	/* for sub-mode (e.g. RF-AGC setting) */
+#define TUNER_MODE_SUB2    0x0004	/* for sub-mode (e.g. RF-AGC setting) */
+#define TUNER_MODE_SUB3    0x0008	/* for sub-mode (e.g. RF-AGC setting) */
+#define TUNER_MODE_SUB4    0x0010	/* for sub-mode (e.g. RF-AGC setting) */
+#define TUNER_MODE_SUB5    0x0020	/* for sub-mode (e.g. RF-AGC setting) */
+#define TUNER_MODE_SUB6    0x0040	/* for sub-mode (e.g. RF-AGC setting) */
+#define TUNER_MODE_SUB7    0x0080	/* for sub-mode (e.g. RF-AGC setting) */
+
+#define TUNER_MODE_DIGITAL 0x0100	/* for digital channel (e.g. DVB-T)   */
+#define TUNER_MODE_ANALOG  0x0200	/* for analog channel  (e.g. PAL)     */
+#define TUNER_MODE_SWITCH  0x0400	/* during channel switch & scanning   */
+#define TUNER_MODE_LOCK    0x0800	/* after tuner has locked             */
+#define TUNER_MODE_6MHZ    0x1000	/* for 6MHz bandwidth channels        */
+#define TUNER_MODE_7MHZ    0x2000	/* for 7MHz bandwidth channels        */
+#define TUNER_MODE_8MHZ    0x4000	/* for 8MHz bandwidth channels        */
+
+#define TUNER_MODE_SUB_MAX 8
+#define TUNER_MODE_SUBALL  (  TUNER_MODE_SUB0 | TUNER_MODE_SUB1 | \
+			      TUNER_MODE_SUB2 | TUNER_MODE_SUB3 | \
+			      TUNER_MODE_SUB4 | TUNER_MODE_SUB5 | \
+			      TUNER_MODE_SUB6 | TUNER_MODE_SUB7 )
+
+typedef u32 TUNERMode_t;
+typedef u32 * pTUNERMode_t;
+
+typedef char *TUNERSubMode_t;	/* description of submode */
+typedef TUNERSubMode_t *pTUNERSubMode_t;
+
+typedef enum {
+
+	TUNER_LOCKED,
+	TUNER_NOT_LOCKED
+} TUNERLockStatus_t, *pTUNERLockStatus_t;
+
+typedef struct {
+
+	char *name;	/* Tuner brand & type name */
+	s32 minFreqRF;	/* Lowest  RF input frequency, in kHz */
+	s32 maxFreqRF;	/* Highest RF input frequency, in kHz */
+
+	u8 subMode;	/* Index to sub-mode in use */
+	pTUNERSubMode_t subModeDescriptions;	/* Pointer to description of sub-modes */
+	u8 subModes;	/* Number of available sub-modes      */
+
+	/* The following fields will be either 0, NULL or false and do not need
+		initialisation */
+	void *selfCheck;	/* gives proof of initialization  */
+	bool programmed;	/* only valid if selfCheck is OK  */
+	s32 RFfrequency;	/* only valid if programmed       */
+	s32 IFfrequency;	/* only valid if programmed       */
+
+	void *myUserData;	/* pointer to associated demod instance */
+	u16 myCapabilities;	/* value for storing application flags  */
+
+} TUNERCommonAttr_t, *pTUNERCommonAttr_t;
+
+typedef struct TUNERInstance_s *pTUNERInstance_t;
+
+typedef DRXStatus_t(*TUNEROpenFunc_t) (pTUNERInstance_t tuner);
+typedef DRXStatus_t(*TUNERCloseFunc_t) (pTUNERInstance_t tuner);
+
+typedef DRXStatus_t(*TUNERSetFrequencyFunc_t) (pTUNERInstance_t tuner,
+						TUNERMode_t mode,
+						s32
+						frequency);
+
+typedef DRXStatus_t(*TUNERGetFrequencyFunc_t) (pTUNERInstance_t tuner,
+						TUNERMode_t mode,
+						s32 *
+						RFfrequency,
+						s32 *
+						IFfrequency);
+
+typedef DRXStatus_t(*TUNERLockStatusFunc_t) (pTUNERInstance_t tuner,
+						pTUNERLockStatus_t
+						lockStat);
+
+typedef DRXStatus_t(*TUNERi2cWriteReadFunc_t) (pTUNERInstance_t tuner,
+						struct i2c_device_addr *
+						wDevAddr, u16 wCount,
+						u8 * wData,
+						struct i2c_device_addr *
+						rDevAddr, u16 rCount,
+						u8 * rData);
+
+typedef struct {
+	TUNEROpenFunc_t openFunc;
+	TUNERCloseFunc_t closeFunc;
+	TUNERSetFrequencyFunc_t setFrequencyFunc;
+	TUNERGetFrequencyFunc_t getFrequencyFunc;
+	TUNERLockStatusFunc_t lockStatusFunc;
+	TUNERi2cWriteReadFunc_t i2cWriteReadFunc;
+
+} TUNERFunc_t, *pTUNERFunc_t;
+
+typedef struct TUNERInstance_s {
+
+	struct i2c_device_addr myI2CDevAddr;
+	pTUNERCommonAttr_t myCommonAttr;
+	void *myExtAttr;
+	pTUNERFunc_t myFunct;
+
+} TUNERInstance_t;
+
+DRXStatus_t DRXBSP_TUNER_Open(pTUNERInstance_t tuner);
+
+DRXStatus_t DRXBSP_TUNER_Close(pTUNERInstance_t tuner);
+
+DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
+					TUNERMode_t mode,
+					s32 frequency);
+
+DRXStatus_t DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
+					TUNERMode_t mode,
+					s32 * RFfrequency,
+					s32 * IFfrequency);
+
+DRXStatus_t DRXBSP_TUNER_LockStatus(pTUNERInstance_t tuner,
+					pTUNERLockStatus_t lockStat);
+
+DRXStatus_t DRXBSP_TUNER_DefaultI2CWriteRead(pTUNERInstance_t tuner,
+						struct i2c_device_addr *wDevAddr,
+						u16 wCount,
+						u8 * wData,
+						struct i2c_device_addr *rDevAddr,
+						u16 rCount, u8 * rData);
+
+DRXStatus_t DRXBSP_HST_Init(void);
+
+DRXStatus_t DRXBSP_HST_Term(void);
+
+void *DRXBSP_HST_Memcpy(void *to, void *from, u32 n);
+
+int DRXBSP_HST_Memcmp(void *s1, void *s2, u32 n);
+
+u32 DRXBSP_HST_Clock(void);
+
+DRXStatus_t DRXBSP_HST_Sleep(u32 n);
+
 
 #ifdef __cplusplus
 extern "C" {

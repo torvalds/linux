@@ -8,8 +8,6 @@
 #include <linux/types.h>
 
 #include "drx_driver.h"
-#include "bsp_types.h"
-#include "bsp_tuner.h"
 #include "drx39xxj.h"
 
 /* Dummy function to satisfy drxj.c */

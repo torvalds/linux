@@ -39,7 +39,6 @@
 INCLUDE FILES
 ------------------------------------------------------------------------------*/
 #include "drx_driver.h"
-#include "bsp_host.h"
 
 #define VERSION_FIXED 0
 #if     VERSION_FIXED

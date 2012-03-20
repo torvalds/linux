@@ -27,8 +27,6 @@
 #include "dvb_frontend.h"
 #include "drx39xxj.h"
 #include "drx_driver.h"
-#include "bsp_types.h"
-#include "bsp_tuner.h"
 #include "drxj_mc.h"
 #include "drxj.h"
 
