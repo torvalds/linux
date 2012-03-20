@@ -560,18 +560,7 @@ static struct platform_driver sh7760_i2c_drv = {
 	.remove		= __devexit_p(sh7760_i2c_remove),
 };
 
-static int __init sh7760_i2c_init(void)
-{
-	return platform_driver_register(&sh7760_i2c_drv);
-}
-
-static void __exit sh7760_i2c_exit(void)
-{
-	platform_driver_unregister(&sh7760_i2c_drv);
-}
-
-module_init(sh7760_i2c_init);
-module_exit(sh7760_i2c_exit);
+module_platform_driver(sh7760_i2c_drv);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SH7760 I2C bus driver");

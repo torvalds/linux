@@ -534,7 +534,7 @@ int p9stat_read(struct p9_client *clnt, char *buf, int len, struct p9_wstat *st)
 
 	ret = p9pdu_readf(&fake_pdu, clnt->proto_version, "S", st);
 	if (ret) {
-		P9_DPRINTK(P9_DEBUG_9P, "<<< p9stat_read failed: %d\n", ret);
+		p9_debug(P9_DEBUG_9P, "<<< p9stat_read failed: %d\n", ret);
 		trace_9p_protocol_dump(clnt, &fake_pdu);
 	}
 
@@ -558,8 +558,8 @@ int p9pdu_finalize(struct p9_client *clnt, struct p9_fcall *pdu)
 	pdu->size = size;
 
 	trace_9p_protocol_dump(clnt, pdu);
-	P9_DPRINTK(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n", pdu->size,
-							pdu->id, pdu->tag);
+	p9_debug(P9_DEBUG_9P, ">>> size=%d type: %d tag: %d\n",
+		 pdu->size, pdu->id, pdu->tag);
 
 	return err;
 }
@@ -585,7 +585,7 @@ int p9dirent_read(struct p9_client *clnt, char *buf, int len,
 	ret = p9pdu_readf(&fake_pdu, clnt->proto_version, "Qqbs", &dirent->qid,
 			  &dirent->d_off, &dirent->d_type, &nameptr);
 	if (ret) {
-		P9_DPRINTK(P9_DEBUG_9P, "<<< p9dirent_read failed: %d\n", ret);
+		p9_debug(P9_DEBUG_9P, "<<< p9dirent_read failed: %d\n", ret);
 		trace_9p_protocol_dump(clnt, &fake_pdu);
 		goto out;
 	}

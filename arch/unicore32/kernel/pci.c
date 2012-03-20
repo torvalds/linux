@@ -309,6 +309,11 @@ char * __devinit pcibios_setup(char *str)
 	return str;
 }
 
+void pcibios_set_master(struct pci_dev *dev)
+{
+	/* No special bus mastering setup handling */
+}
+
 /*
  * From arch/i386/kernel/pci-i386.c:
  *

@@ -245,7 +245,7 @@ bool cookie_check_timestamp(struct tcp_options_received *tcp_opt, bool *ecn_ok)
 	if (!sysctl_tcp_timestamps)
 		return false;
 
-	tcp_opt->sack_ok = (options >> 4) & 0x1;
+	tcp_opt->sack_ok = (options & (1 << 4)) ? TCP_SACK_SEEN : 0;
 	*ecn_ok = (options >> 5) & 1;
 	if (*ecn_ok && !sysctl_tcp_ecn)
 		return false;

@@ -19,6 +19,16 @@ config RATIONAL
 config GENERIC_FIND_FIRST_BIT
 	bool
 
+config NO_GENERIC_PCI_IOPORT_MAP
+	bool
+
+config GENERIC_PCI_IOMAP
+	bool
+
+config GENERIC_IOMAP
+	bool
+	select GENERIC_PCI_IOMAP
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -244,6 +254,9 @@ config CPU_RMAP
 	bool
 	depends on SMP
 
+config DQL
+	bool
+
 #
 # Netlink attribute parsing support is select'ed if needed
 #
@@ -269,11 +282,38 @@ config AVERAGE
 
 	  If unsure, say N.
 
+config CLZ_TAB
+	bool
+
 config CORDIC
-	tristate "Cordic function"
+	tristate "CORDIC algorithm"
 	help
-	  The option provides arithmetic function using cordic algorithm
-	  so its calculations are in fixed point. Modules can select this
-	  when they require this function. Module will be called cordic.
+	  This option provides an implementation of the CORDIC algorithm;
+	  calculations are in fixed point. Module will be called cordic.
+
+config MPILIB
+	tristate
+	select CLZ_TAB
+	help
+	  Multiprecision maths library from GnuPG.
+	  It is used to implement RSA digital signature verification,
+	  which is used by IMA/EVM digital signature extension.
+
+config MPILIB_EXTRA
+	bool
+	depends on MPILIB
+	help
+	  Additional sources of multiprecision maths library from GnuPG.
+	  This code is unnecessary for RSA digital signature verification,
+	  but can be compiled if needed.
+
+config SIGNATURE
+	tristate
+	depends on KEYS && CRYPTO
+	select CRYPTO_SHA1
+	select MPILIB
+	help
+	  Digital signature verification. Currently only RSA is supported.
+	  Implementation is done using GnuPG MPI library
 
 endmenu

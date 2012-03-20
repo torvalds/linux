@@ -117,8 +117,7 @@ out_no_tfm:
 	return status;
 }
 
-int
-nfsd4_create_clid_dir(struct nfs4_client *clp)
+void nfsd4_create_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
 	char *dname = clp->cl_recdir;
@@ -127,13 +126,14 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 
 	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
 
-	if (!rec_file || clp->cl_firststate)
-		return 0;
-
+	if (clp->cl_firststate)
+		return;
 	clp->cl_firststate = 1;
+	if (!rec_file)
+		return;
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
-		return status;
+		return;
 
 	dir = rec_file->f_path.dentry;
 	/* lock the parent */
@@ -144,14 +144,21 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 		status = PTR_ERR(dentry);
 		goto out_unlock;
 	}
-	status = -EEXIST;
 	if (dentry->d_inode)
+		/*
+		 * In the 4.1 case, where we're called from
+		 * reclaim_complete(), records from the previous reboot
+		 * may still be left, so this is OK.
+		 *
+		 * In the 4.0 case, we should never get here; but we may
+		 * as well be forgiving and just succeed silently.
+		 */
 		goto out_put;
-	status = mnt_want_write(rec_file->f_path.mnt);
+	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out_put;
 	status = vfs_mkdir(dir->d_inode, dentry, S_IRWXU);
-	mnt_drop_write(rec_file->f_path.mnt);
+	mnt_drop_write_file(rec_file);
 out_put:
 	dput(dentry);
 out_unlock:
@@ -164,7 +171,6 @@ out_unlock:
 				" and is writeable", status,
 				user_recovery_dirname);
 	nfs4_reset_creds(original_cred);
-	return status;
 }
 
 typedef int (recdir_func)(struct dentry *, struct dentry *);
@@ -268,7 +274,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	if (!rec_file || !clp->cl_firststate)
 		return;
 
-	status = mnt_want_write(rec_file->f_path.mnt);
+	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out;
 	clp->cl_firststate = 0;
@@ -281,7 +287,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	nfs4_reset_creds(original_cred);
 	if (status == 0)
 		vfs_fsync(rec_file, 0);
-	mnt_drop_write(rec_file->f_path.mnt);
+	mnt_drop_write_file(rec_file);
 out:
 	if (status)
 		printk("NFSD: Failed to remove expired client state directory"
@@ -311,13 +317,13 @@ nfsd4_recdir_purge_old(void) {
 
 	if (!rec_file)
 		return;
-	status = mnt_want_write(rec_file->f_path.mnt);
+	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out;
 	status = nfsd4_list_rec_dir(purge_old);
 	if (status == 0)
 		vfs_fsync(rec_file, 0);
-	mnt_drop_write(rec_file->f_path.mnt);
+	mnt_drop_write_file(rec_file);
 out:
 	if (status)
 		printk("nfsd4: failed to purge old clients from recovery"

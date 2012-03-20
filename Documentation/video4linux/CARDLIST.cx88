@@ -85,3 +85,5 @@
  84 -> Samsung SMT 7020 DVB-S                              [18ac:dc00,18ac:dccd]
  85 -> Twinhan VP-1027 DVB-S                               [1822:0023]
  86 -> TeVii S464 DVB-S/S2                                 [d464:9022]
+ 87 -> Leadtek WinFast DTV2000 H PLUS                      [107d:6f42]
+ 88 -> Leadtek WinFast DTV1800 H (XC4000)                  [107d:6f38]

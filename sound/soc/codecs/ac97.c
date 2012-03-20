@@ -39,7 +39,7 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 		SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_44100 |\
 		SNDRV_PCM_RATE_48000)
 
-static struct snd_soc_dai_ops ac97_dai_ops = {
+static const struct snd_soc_dai_ops ac97_dai_ops = {
 	.prepare	= ac97_prepare,
 };
 
@@ -99,7 +99,7 @@ static int ac97_soc_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int ac97_soc_suspend(struct snd_soc_codec *codec, pm_message_t msg)
+static int ac97_soc_suspend(struct snd_soc_codec *codec)
 {
 	snd_ac97_suspend(codec->ac97);
 
@@ -148,17 +148,7 @@ static struct platform_driver ac97_codec_driver = {
 	.remove = __devexit_p(ac97_remove),
 };
 
-static int __init ac97_init(void)
-{
-	return platform_driver_register(&ac97_codec_driver);
-}
-module_init(ac97_init);
-
-static void __exit ac97_exit(void)
-{
-	platform_driver_unregister(&ac97_codec_driver);
-}
-module_exit(ac97_exit);
+module_platform_driver(ac97_codec_driver);
 
 MODULE_DESCRIPTION("Soc Generic AC97 driver");
 MODULE_AUTHOR("Liam Girdwood");

@@ -276,6 +276,16 @@ Description:
 		If a discrete set of scale values are available, they
 		are listed in this attribute.
 
+What:		/sys/.../in_accel_filter_low_pass_3db_frequency
+What:		/sys/.../in_magn_filter_low_pass_3db_frequency
+What:		/sys/.../in_anglvel_filter_low_pass_3db_frequency
+KernelVersion:	3.2
+Contact:	linux-iio@vger.kernel.org
+Description:
+		If a known or controllable low pass filter is applied
+		to the underlying data channel, then this parameter
+		gives the 3dB frequency of the filter in Hz.
+
 What:		/sys/bus/iio/devices/iio:deviceX/out_voltageY_raw
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org

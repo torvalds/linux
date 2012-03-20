@@ -37,8 +37,7 @@
 #include <scsi/scsi_host.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_backend.h>
 
 #include "target_core_file.h"
 
@@ -86,7 +85,7 @@ static void fd_detach_hba(struct se_hba *hba)
 static void *fd_allocate_virtdevice(struct se_hba *hba, const char *name)
 {
 	struct fd_dev *fd_dev;
-	struct fd_host *fd_host = (struct fd_host *) hba->hba_ptr;
+	struct fd_host *fd_host = hba->hba_ptr;
 
 	fd_dev = kzalloc(sizeof(struct fd_dev), GFP_KERNEL);
 	if (!fd_dev) {
@@ -114,8 +113,8 @@ static struct se_device *fd_create_virtdevice(
 	struct se_device *dev;
 	struct se_dev_limits dev_limits;
 	struct queue_limits *limits;
-	struct fd_dev *fd_dev = (struct fd_dev *) p;
-	struct fd_host *fd_host = (struct fd_host *) hba->hba_ptr;
+	struct fd_dev *fd_dev = p;
+	struct fd_host *fd_host = hba->hba_ptr;
 	mm_segment_t old_fs;
 	struct file *file;
 	struct inode *inode = NULL;
@@ -240,7 +239,7 @@ fail:
  */
 static void fd_free_device(void *p)
 {
-	struct fd_dev *fd_dev = (struct fd_dev *) p;
+	struct fd_dev *fd_dev = p;
 
 	if (fd_dev->fd_file) {
 		filp_close(fd_dev->fd_file, NULL);
@@ -289,9 +288,9 @@ static int fd_do_readv(struct se_task *task)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < task->task_sg_nents; i++) {
-		iov[i].iov_len = sg[i].length;
-		iov[i].iov_base = sg_virt(&sg[i]);
+	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+		iov[i].iov_len = sg->length;
+		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
@@ -342,9 +341,9 @@ static int fd_do_writev(struct se_task *task)
 		return -ENOMEM;
 	}
 
-	for (i = 0; i < task->task_sg_nents; i++) {
-		iov[i].iov_len = sg[i].length;
-		iov[i].iov_base = sg_virt(&sg[i]);
+	for_each_sg(task->task_sg, sg, task->task_sg_nents, i) {
+		iov[i].iov_len = sg->length;
+		iov[i].iov_base = sg_virt(sg);
 	}
 
 	old_fs = get_fs();
@@ -438,7 +437,7 @@ static int fd_do_task(struct se_task *task)
 		if (ret > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_write_cache > 0 &&
 		    dev->se_sub_dev->se_dev_attrib.emulate_fua_write > 0 &&
-		    cmd->t_tasks_fua) {
+		    (cmd->se_cmd_flags & SCF_FUA)) {
 			/*
 			 * We might need to be a bit smarter here
 			 * and return some sense data to let the initiator
@@ -449,13 +448,15 @@ static int fd_do_task(struct se_task *task)
 
 	}
 
-	if (ret < 0)
+	if (ret < 0) {
+		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return ret;
+	}
 	if (ret) {
 		task->task_scsi_status = GOOD;
 		transport_complete_task(task, 1);
 	}
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 }
 
 /*	fd_free_task(): (Part of se_subsystem_api_t template)
@@ -496,7 +497,7 @@ static ssize_t fd_set_configfs_dev_params(
 
 	orig = opts;
 
-	while ((ptr = strsep(&opts, ",")) != NULL) {
+	while ((ptr = strsep(&opts, ",\n")) != NULL) {
 		if (!*ptr)
 			continue;
 
@@ -557,7 +558,7 @@ out:
 
 static ssize_t fd_check_configfs_dev_params(struct se_hba *hba, struct se_subsystem_dev *se_dev)
 {
-	struct fd_dev *fd_dev = (struct fd_dev *) se_dev->se_dev_su_ptr;
+	struct fd_dev *fd_dev = se_dev->se_dev_su_ptr;
 
 	if (!(fd_dev->fbd_flags & FBDF_HAS_PATH)) {
 		pr_err("Missing fd_dev_name=\n");

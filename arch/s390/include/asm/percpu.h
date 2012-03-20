@@ -19,7 +19,7 @@
 #define ARCH_NEEDS_WEAK_PER_CPU
 #endif
 
-#define arch_irqsafe_cpu_to_op(pcp, val, op)				\
+#define arch_this_cpu_to_op(pcp, val, op)				\
 do {									\
 	typedef typeof(pcp) pcp_op_T__;					\
 	pcp_op_T__ old__, new__, prev__;				\
@@ -41,27 +41,27 @@ do {									\
 	preempt_enable();						\
 } while (0)
 
-#define irqsafe_cpu_add_1(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, +)
-#define irqsafe_cpu_add_2(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, +)
-#define irqsafe_cpu_add_4(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, +)
-#define irqsafe_cpu_add_8(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, +)
+#define this_cpu_add_1(pcp, val) arch_this_cpu_to_op(pcp, val, +)
+#define this_cpu_add_2(pcp, val) arch_this_cpu_to_op(pcp, val, +)
+#define this_cpu_add_4(pcp, val) arch_this_cpu_to_op(pcp, val, +)
+#define this_cpu_add_8(pcp, val) arch_this_cpu_to_op(pcp, val, +)
 
-#define irqsafe_cpu_and_1(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, &)
-#define irqsafe_cpu_and_2(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, &)
-#define irqsafe_cpu_and_4(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, &)
-#define irqsafe_cpu_and_8(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, &)
+#define this_cpu_and_1(pcp, val) arch_this_cpu_to_op(pcp, val, &)
+#define this_cpu_and_2(pcp, val) arch_this_cpu_to_op(pcp, val, &)
+#define this_cpu_and_4(pcp, val) arch_this_cpu_to_op(pcp, val, &)
+#define this_cpu_and_8(pcp, val) arch_this_cpu_to_op(pcp, val, &)
 
-#define irqsafe_cpu_or_1(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, |)
-#define irqsafe_cpu_or_2(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, |)
-#define irqsafe_cpu_or_4(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, |)
-#define irqsafe_cpu_or_8(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, |)
+#define this_cpu_or_1(pcp, val) arch_this_cpu_to_op(pcp, val, |)
+#define this_cpu_or_2(pcp, val) arch_this_cpu_to_op(pcp, val, |)
+#define this_cpu_or_4(pcp, val) arch_this_cpu_to_op(pcp, val, |)
+#define this_cpu_or_8(pcp, val) arch_this_cpu_to_op(pcp, val, |)
 
-#define irqsafe_cpu_xor_1(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, ^)
-#define irqsafe_cpu_xor_2(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, ^)
-#define irqsafe_cpu_xor_4(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, ^)
-#define irqsafe_cpu_xor_8(pcp, val) arch_irqsafe_cpu_to_op(pcp, val, ^)
+#define this_cpu_xor_1(pcp, val) arch_this_cpu_to_op(pcp, val, ^)
+#define this_cpu_xor_2(pcp, val) arch_this_cpu_to_op(pcp, val, ^)
+#define this_cpu_xor_4(pcp, val) arch_this_cpu_to_op(pcp, val, ^)
+#define this_cpu_xor_8(pcp, val) arch_this_cpu_to_op(pcp, val, ^)
 
-#define arch_irqsafe_cpu_cmpxchg(pcp, oval, nval)			\
+#define arch_this_cpu_cmpxchg(pcp, oval, nval)			\
 ({									\
 	typedef typeof(pcp) pcp_op_T__;					\
 	pcp_op_T__ ret__;						\
@@ -79,10 +79,10 @@ do {									\
 	ret__;								\
 })
 
-#define irqsafe_cpu_cmpxchg_1(pcp, oval, nval) arch_irqsafe_cpu_cmpxchg(pcp, oval, nval)
-#define irqsafe_cpu_cmpxchg_2(pcp, oval, nval) arch_irqsafe_cpu_cmpxchg(pcp, oval, nval)
-#define irqsafe_cpu_cmpxchg_4(pcp, oval, nval) arch_irqsafe_cpu_cmpxchg(pcp, oval, nval)
-#define irqsafe_cpu_cmpxchg_8(pcp, oval, nval) arch_irqsafe_cpu_cmpxchg(pcp, oval, nval)
+#define this_cpu_cmpxchg_1(pcp, oval, nval) arch_this_cpu_cmpxchg(pcp, oval, nval)
+#define this_cpu_cmpxchg_2(pcp, oval, nval) arch_this_cpu_cmpxchg(pcp, oval, nval)
+#define this_cpu_cmpxchg_4(pcp, oval, nval) arch_this_cpu_cmpxchg(pcp, oval, nval)
+#define this_cpu_cmpxchg_8(pcp, oval, nval) arch_this_cpu_cmpxchg(pcp, oval, nval)
 
 #include <asm-generic/percpu.h>
 

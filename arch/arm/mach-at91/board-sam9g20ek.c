@@ -86,6 +86,8 @@ static void __init ek_init_early(void)
  */
 static struct at91_usbh_data __initdata ek_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*
@@ -93,7 +95,7 @@ static struct at91_usbh_data __initdata ek_usbh_data = {
  */
 static struct at91_udc_data __initdata ek_udc_data = {
 	.vbus_pin	= AT91_PIN_PC5,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 
@@ -123,7 +125,7 @@ static struct spi_board_info ek_spi_devices[] = {
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata ek_macb_data = {
+static struct macb_platform_data __initdata ek_macb_data = {
 	.phy_irq_pin	= AT91_PIN_PA7,
 	.is_rmii	= 1,
 };
@@ -163,6 +165,7 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 	.cle		= 22,
 	.rdy_pin	= AT91_PIN_PC13,
 	.enable_pin	= AT91_PIN_PC14,
+	.det_pin	= -EINVAL,
 	.parts		= ek_nand_partition,
 	.num_parts	= ARRAY_SIZE(ek_nand_partition),
 };
@@ -195,7 +198,7 @@ static void __init ek_add_device_nand(void)
 		ek_nand_smc_config.mode |= AT91_SMC_DBW_8;
 
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &ek_nand_smc_config);
+	sam9_smc_configure(0, 3, &ek_nand_smc_config);
 
 	at91_add_device_nand(&ek_nand_data);
 }
@@ -210,6 +213,7 @@ static struct mci_platform_data __initdata ek_mmc_data = {
 	.slot[1] = {
 		.bus_width	= 4,
 		.detect_pin	= AT91_PIN_PC9,
+		.wp_pin		= -EINVAL,
 	},
 
 };
@@ -218,6 +222,8 @@ static struct at91_mmc_data __initdata ek_mmc_data = {
 	.slot_b		= 1,	/* Only one slot so use slot B */
 	.wire4		= 1,
 	.det_pin	= AT91_PIN_PC9,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 #endif
 
@@ -227,6 +233,7 @@ static void __init ek_add_device_mmc(void)
 	if (ek_have_2mmc()) {
 		ek_mmc_data.slot[0].bus_width = 4;
 		ek_mmc_data.slot[0].detect_pin = AT91_PIN_PC2;
+		ek_mmc_data.slot[0].wp_pin = -1;
 	}
 	at91_add_device_mci(0, &ek_mmc_data);
 #else

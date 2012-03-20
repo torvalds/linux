@@ -703,21 +703,21 @@ static int tvp5150_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 	/* First tests should be against specific std */
 
 	if (std == V4L2_STD_ALL) {
-		fmt = 0;	/* Autodetect mode */
+		fmt = VIDEO_STD_AUTO_SWITCH_BIT;	/* Autodetect mode */
 	} else if (std & V4L2_STD_NTSC_443) {
-		fmt = 0xa;
+		fmt = VIDEO_STD_NTSC_4_43_BIT;
 	} else if (std & V4L2_STD_PAL_M) {
-		fmt = 0x6;
+		fmt = VIDEO_STD_PAL_M_BIT;
 	} else if (std & (V4L2_STD_PAL_N | V4L2_STD_PAL_Nc)) {
-		fmt = 0x8;
+		fmt = VIDEO_STD_PAL_COMBINATION_N_BIT;
 	} else {
 		/* Then, test against generic ones */
 		if (std & V4L2_STD_NTSC)
-			fmt = 0x2;
+			fmt = VIDEO_STD_NTSC_MJ_BIT;
 		else if (std & V4L2_STD_PAL)
-			fmt = 0x4;
+			fmt = VIDEO_STD_PAL_BDGHIN_BIT;
 		else if (std & V4L2_STD_SECAM)
-			fmt = 0xc;
+			fmt = VIDEO_STD_SECAM_BIT;
 	}
 
 	v4l2_dbg(1, debug, sd, "Set video std register to %d.\n", fmt);
@@ -777,6 +777,70 @@ static int tvp5150_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 	}
 	return -EINVAL;
+}
+
+static v4l2_std_id tvp5150_read_std(struct v4l2_subdev *sd)
+{
+	int val = tvp5150_read(sd, TVP5150_STATUS_REG_5);
+
+	switch (val & 0x0F) {
+	case 0x01:
+		return V4L2_STD_NTSC;
+	case 0x03:
+		return V4L2_STD_PAL;
+	case 0x05:
+		return V4L2_STD_PAL_M;
+	case 0x07:
+		return V4L2_STD_PAL_N | V4L2_STD_PAL_Nc;
+	case 0x09:
+		return V4L2_STD_NTSC_443;
+	case 0xb:
+		return V4L2_STD_SECAM;
+	default:
+		return V4L2_STD_UNKNOWN;
+	}
+}
+
+static int tvp5150_enum_mbus_fmt(struct v4l2_subdev *sd, unsigned index,
+						enum v4l2_mbus_pixelcode *code)
+{
+	if (index)
+		return -EINVAL;
+
+	*code = V4L2_MBUS_FMT_YUYV8_2X8;
+	return 0;
+}
+
+static int tvp5150_mbus_fmt(struct v4l2_subdev *sd,
+			    struct v4l2_mbus_framefmt *f)
+{
+	struct tvp5150 *decoder = to_tvp5150(sd);
+	v4l2_std_id std;
+
+	if (f == NULL)
+		return -EINVAL;
+
+	tvp5150_reset(sd, 0);
+
+	/* Calculate height and width based on current standard */
+	if (decoder->norm == V4L2_STD_ALL)
+		std = tvp5150_read_std(sd);
+	else
+		std = decoder->norm;
+
+	f->width = 720;
+	if (std & V4L2_STD_525_60)
+		f->height = 480;
+	else
+		f->height = 576;
+
+	f->code = V4L2_MBUS_FMT_YUYV8_2X8;
+	f->field = V4L2_FIELD_SEQ_TB;
+	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
+
+	v4l2_dbg(1, debug, sd, "width = %d, height = %d\n", f->width,
+			f->height);
+	return 0;
 }
 
 /****************************************************************************
@@ -931,6 +995,9 @@ static const struct v4l2_subdev_tuner_ops tvp5150_tuner_ops = {
 
 static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_routing = tvp5150_s_routing,
+	.enum_mbus_fmt = tvp5150_enum_mbus_fmt,
+	.s_mbus_fmt = tvp5150_mbus_fmt,
+	.try_mbus_fmt = tvp5150_mbus_fmt,
 };
 
 static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {

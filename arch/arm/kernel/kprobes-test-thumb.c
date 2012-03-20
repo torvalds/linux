@@ -222,8 +222,8 @@ void kprobe_thumb16_test_cases(void)
 DONT_TEST_IN_ITBLOCK(
 	TEST_BF_R(  "cbnz	r",0,0, ", 2f")
 	TEST_BF_R(  "cbz	r",2,-1,", 2f")
-	TEST_BF_RX( "cbnz	r",4,1, ", 2f",0x20)
-	TEST_BF_RX( "cbz	r",7,0, ", 2f",0x40)
+	TEST_BF_RX( "cbnz	r",4,1, ", 2f", SPACE_0x20)
+	TEST_BF_RX( "cbz	r",7,0, ", 2f", SPACE_0x40)
 )
 	TEST_R("sxth	r0, r",7, HH1,"")
 	TEST_R("sxth	r7, r",0, HH2,"")
@@ -246,7 +246,7 @@ DONT_TEST_IN_ITBLOCK(
 	TESTCASE_START(code)		\
 	TEST_ARG_PTR(13, offset)	\
 	TEST_ARG_END("")		\
-	TEST_BRANCH_F(code,0)		\
+	TEST_BRANCH_F(code)		\
 	TESTCASE_END
 
 	TEST("push	{r0}")
@@ -319,8 +319,8 @@ CONDITION_INSTRUCTIONS(8,
 
 	TEST_BF(  "b	2f")
 	TEST_BB(  "b	2b")
-	TEST_BF_X("b	2f", 0x400)
-	TEST_BB_X("b	2b", 0x400)
+	TEST_BF_X("b	2f", SPACE_0x400)
+	TEST_BB_X("b	2b", SPACE_0x400)
 
 	TEST_GROUP("Testing instructions in IT blocks")
 
@@ -746,7 +746,7 @@ CONDITION_INSTRUCTIONS(22,
 	TEST_BB("bne.w	2b")
 	TEST_BF("bgt.w	2f")
 	TEST_BB("blt.w	2b")
-	TEST_BF_X("bpl.w	2f",0x1000)
+	TEST_BF_X("bpl.w	2f", SPACE_0x1000)
 )
 
 	TEST_UNSUPPORTED("msr	cpsr, r0")
@@ -786,11 +786,11 @@ CONDITION_INSTRUCTIONS(22,
 
 	TEST_BF(  "b.w	2f")
 	TEST_BB(  "b.w	2b")
-	TEST_BF_X("b.w	2f", 0x1000)
+	TEST_BF_X("b.w	2f", SPACE_0x1000)
 
 	TEST_BF(  "bl.w	2f")
 	TEST_BB(  "bl.w	2b")
-	TEST_BB_X("bl.w	2b", 0x1000)
+	TEST_BB_X("bl.w	2b", SPACE_0x1000)
 
 	TEST_X(	"blx	__dummy_arm_subroutine",
 		".arm				\n\t"

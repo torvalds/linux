@@ -203,7 +203,7 @@ config P3060_QDS
 	select PPC_E500MC
 	select PHYS_64BIT
 	select SWIOTLB
-	select MPC8xxx_GPIO
+	select GPIO_MPC8XXX
 	select HAS_RAPIDIO
 	select PPC_EPAPR_HV_PIC
 	help

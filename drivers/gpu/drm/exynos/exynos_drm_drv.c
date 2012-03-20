@@ -27,20 +27,25 @@
 
 #include "drmP.h"
 #include "drm.h"
+#include "drm_crtc_helper.h"
 
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_crtc.h"
+#include "exynos_drm_encoder.h"
 #include "exynos_drm_fbdev.h"
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
+#include "exynos_drm_plane.h"
 
-#define DRIVER_NAME	"exynos-drm"
+#define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
 #define DRIVER_DATE	"20110530"
 #define DRIVER_MAJOR	1
 #define DRIVER_MINOR	0
+
+#define VBLANK_OFF_DELAY	50000
 
 static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 {
@@ -61,6 +66,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 
 	drm_mode_config_init(dev);
 
+	/* init kms poll for handling hpd */
+	drm_kms_helper_poll_init(dev);
+
 	exynos_drm_mode_config_init(dev);
 
 	/*
@@ -69,6 +77,12 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	 */
 	for (nr = 0; nr < MAX_CRTC; nr++) {
 		ret = exynos_drm_crtc_create(dev, nr);
+		if (ret)
+			goto err_crtc;
+	}
+
+	for (nr = 0; nr < MAX_PLANE; nr++) {
+		ret = exynos_plane_init(dev, nr);
 		if (ret)
 			goto err_crtc;
 	}
@@ -86,6 +100,9 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto err_vblank;
 
+	/* setup possible_clones. */
+	exynos_drm_encoder_setup(dev);
+
 	/*
 	 * create and configure fb helper and also exynos specific
 	 * fbdev object.
@@ -95,6 +112,8 @@ static int exynos_drm_load(struct drm_device *dev, unsigned long flags)
 		DRM_ERROR("failed to initialize drm fbdev\n");
 		goto err_drm_device;
 	}
+
+	drm_vblank_offdelay = VBLANK_OFF_DELAY;
 
 	return 0;
 
@@ -116,6 +135,7 @@ static int exynos_drm_unload(struct drm_device *dev)
 	exynos_drm_fbdev_fini(dev);
 	exynos_drm_device_unregister(dev);
 	drm_vblank_cleanup(dev);
+	drm_kms_helper_poll_fini(dev);
 	drm_mode_config_cleanup(dev);
 	kfree(dev->dev_private);
 
@@ -125,16 +145,21 @@ static int exynos_drm_unload(struct drm_device *dev)
 }
 
 static void exynos_drm_preclose(struct drm_device *dev,
-					struct drm_file *file_priv)
+					struct drm_file *file)
 {
-	struct exynos_drm_private *dev_priv = dev->dev_private;
+	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
-	/*
-	 * drm framework frees all events at release time,
-	 * so private event list should be cleared.
-	 */
-	if (!list_empty(&dev_priv->pageflip_event_list))
-		INIT_LIST_HEAD(&dev_priv->pageflip_event_list);
+}
+
+static void exynos_drm_postclose(struct drm_device *dev, struct drm_file *file)
+{
+	DRM_DEBUG_DRIVER("%s\n", __FILE__);
+
+	if (!file->driver_priv)
+		return;
+
+	kfree(file->driver_priv);
+	file->driver_priv = NULL;
 }
 
 static void exynos_drm_lastclose(struct drm_device *dev)
@@ -158,6 +183,18 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MMAP,
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_PLANE_SET_ZPOS, exynos_plane_set_zpos_ioctl,
+			DRM_UNLOCKED | DRM_AUTH),
+};
+
+static const struct file_operations exynos_drm_driver_fops = {
+	.owner		= THIS_MODULE,
+	.open		= drm_open,
+	.mmap		= exynos_drm_gem_mmap,
+	.poll		= drm_poll,
+	.read		= drm_read,
+	.unlocked_ioctl	= drm_ioctl,
+	.release	= drm_release,
 };
 
 static struct drm_driver exynos_drm_driver = {
@@ -167,6 +204,7 @@ static struct drm_driver exynos_drm_driver = {
 	.unload			= exynos_drm_unload,
 	.preclose		= exynos_drm_preclose,
 	.lastclose		= exynos_drm_lastclose,
+	.postclose		= exynos_drm_postclose,
 	.get_vblank_counter	= drm_vblank_count,
 	.enable_vblank		= exynos_drm_crtc_enable_vblank,
 	.disable_vblank		= exynos_drm_crtc_disable_vblank,
@@ -177,15 +215,7 @@ static struct drm_driver exynos_drm_driver = {
 	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
 	.dumb_destroy		= exynos_drm_gem_dumb_destroy,
 	.ioctls			= exynos_ioctls,
-	.fops = {
-		.owner		= THIS_MODULE,
-		.open		= drm_open,
-		.mmap		= exynos_drm_gem_mmap,
-		.poll		= drm_poll,
-		.read		= drm_read,
-		.unlocked_ioctl	= drm_ioctl,
-		.release	= drm_release,
-	},
+	.fops			= &exynos_drm_driver_fops,
 	.name	= DRIVER_NAME,
 	.desc	= DRIVER_DESC,
 	.date	= DRIVER_DATE,

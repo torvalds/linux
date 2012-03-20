@@ -25,6 +25,11 @@
 			dbgu: serial@fffff200 {
 				status = "okay";
 			};
+
+			macb0: ethernet@fffc4000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
 		};
 	};
 };

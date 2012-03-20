@@ -282,18 +282,9 @@ EXPORT_SYMBOL(blk_queue_resize_tags);
 void blk_queue_end_tag(struct request_queue *q, struct request *rq)
 {
 	struct blk_queue_tag *bqt = q->queue_tags;
-	int tag = rq->tag;
+	unsigned tag = rq->tag; /* negative tags invalid */
 
-	BUG_ON(tag == -1);
-
-	if (unlikely(tag >= bqt->max_depth)) {
-		/*
-		 * This can happen after tag depth has been reduced.
-		 * But tag shouldn't be larger than real_max_depth.
-		 */
-		WARN_ON(tag >= bqt->real_max_depth);
-		return;
-	}
+	BUG_ON(tag >= bqt->real_max_depth);
 
 	list_del_init(&rq->queuelist);
 	rq->cmd_flags &= ~REQ_QUEUED;

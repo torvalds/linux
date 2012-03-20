@@ -51,7 +51,7 @@
 #include <plat/usb.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
-#include <plat/common.h>
+#include "common.h"
 
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
 #define OMAP_OSK_ETHR_START		0x04800300
@@ -578,4 +578,5 @@ MACHINE_START(OMAP_OSK, "TI-OSK")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= osk_init,
 	.timer		= &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END

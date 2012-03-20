@@ -781,25 +781,7 @@ static struct usb_driver technisat_usb2_driver = {
 	.id_table   = technisat_usb2_id_table,
 };
 
-/* module stuff */
-static int __init technisat_usb2_module_init(void)
-{
-	int result = usb_register(&technisat_usb2_driver);
-	if (result) {
-		err("usb_register failed. Code %d", result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit technisat_usb2_module_exit(void)
-{
-	usb_deregister(&technisat_usb2_driver);
-}
-
-module_init(technisat_usb2_module_init);
-module_exit(technisat_usb2_module_exit);
+module_usb_driver(technisat_usb2_driver);
 
 MODULE_AUTHOR("Patrick Boettcher <pboettcher@kernellabs.com>");
 MODULE_DESCRIPTION("Driver for Technisat DVB-S/S2 USB 2.0 device");

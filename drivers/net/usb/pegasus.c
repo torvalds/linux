@@ -55,8 +55,8 @@ static const char driver_name[] = "pegasus";
 #define	BMSR_MEDIA	(BMSR_10HALF | BMSR_10FULL | BMSR_100HALF | \
 			BMSR_100FULL | BMSR_ANEGCAPABLE)
 
-static int loopback;
-static int mii_mode;
+static bool loopback;
+static bool mii_mode;
 static char *devid;
 
 static struct usb_eth_dev usb_dev_id[] = {
@@ -517,7 +517,7 @@ static inline int reset_mac(pegasus_t *pegasus)
 	for (i = 0; i < REG_TIMEOUT; i++) {
 		get_registers(pegasus, EthCtrl1, 1, &data);
 		if (~data & 0x08) {
-			if (loopback & 1)
+			if (loopback)
 				break;
 			if (mii_mode && (pegasus->features & HAS_HOME_PNA))
 				set_register(pegasus, Gpio1, 0x34);
@@ -561,7 +561,7 @@ static int enable_net_traffic(struct net_device *dev, struct usb_device *usb)
 		data[1] |= 0x10;	/* set 100 Mbps */
 	if (mii_mode)
 		data[1] = 0;
-	data[2] = (loopback & 1) ? 0x09 : 0x01;
+	data[2] = loopback ? 0x09 : 0x01;
 
 	memcpy(pegasus->eth_regs, data, sizeof(data));
 	ret = set_registers(pegasus, EthCtrl0, 3, data);

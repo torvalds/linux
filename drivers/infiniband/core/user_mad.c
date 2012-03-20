@@ -1175,7 +1175,7 @@ static void ib_umad_remove_one(struct ib_device *device)
 	kref_put(&umad_dev->ref, ib_umad_release_dev);
 }
 
-static char *umad_devnode(struct device *dev, mode_t *mode)
+static char *umad_devnode(struct device *dev, umode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "infiniband/%s", dev_name(dev));
 }

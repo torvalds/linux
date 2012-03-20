@@ -1053,18 +1053,7 @@ static struct platform_driver mbxfb_driver = {
 	},
 };
 
-int __devinit mbxfb_init(void)
-{
-	return platform_driver_register(&mbxfb_driver);
-}
-
-static void __devexit mbxfb_exit(void)
-{
-	platform_driver_unregister(&mbxfb_driver);
-}
-
-module_init(mbxfb_init);
-module_exit(mbxfb_exit);
+module_platform_driver(mbxfb_driver);
 
 MODULE_DESCRIPTION("loadable framebuffer driver for Marathon device");
 MODULE_AUTHOR("Mike Rapoport, Compulab");

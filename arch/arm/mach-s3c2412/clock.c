@@ -26,7 +26,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
@@ -659,6 +659,12 @@ static struct clk *clks[] __initdata = {
 	&clk_armclk,
 };
 
+static struct clk_lookup s3c2412_clk_lookup[] = {
+	CLKDEV_INIT(NULL, "clk_uart_baud1", &s3c24xx_uclk),
+	CLKDEV_INIT(NULL, "clk_uart_baud2", &clk_p),
+	CLKDEV_INIT(NULL, "clk_uart_baud3", &clk_usysclk),
+};
+
 int __init s3c2412_baseclk_add(void)
 {
 	unsigned long clkcon  = __raw_readl(S3C2410_CLKCON);
@@ -751,6 +757,7 @@ int __init s3c2412_baseclk_add(void)
 		s3c2412_clkcon_enable(clkp, 0);
 	}
 
+	clkdev_add_table(s3c2412_clk_lookup, ARRAY_SIZE(s3c2412_clk_lookup));
 	s3c_pwmclk_init();
 	return 0;
 }

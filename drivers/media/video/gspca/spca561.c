@@ -451,7 +451,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 
 	cam = &gspca_dev->cam;
-	gspca_dev->nbalt = 7 + 1;	/* choose alternate 7 first */
+	cam->needs_full_bandwidth = 1;
 
 	sd->chip_revision = id->driver_info;
 	if (sd->chip_revision == Rev012A) {
@@ -1106,15 +1106,4 @@ static struct usb_driver sd_driver = {
 #endif
 };
 
-/* -- module insert / remove -- */
-static int __init sd_mod_init(void)
-{
-	return usb_register(&sd_driver);
-}
-static void __exit sd_mod_exit(void)
-{
-	usb_deregister(&sd_driver);
-}
-
-module_init(sd_mod_init);
-module_exit(sd_mod_exit);
+module_usb_driver(sd_driver);

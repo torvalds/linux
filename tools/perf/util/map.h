@@ -18,9 +18,11 @@ enum map_type {
 extern const char *map_type__name[MAP__NR_TYPES];
 
 struct dso;
+struct ip_callchain;
 struct ref_reloc_sym;
 struct map_groups;
 struct machine;
+struct perf_evsel;
 
 struct map {
 	union {
@@ -61,7 +63,11 @@ struct map_groups {
 struct machine {
 	struct rb_node	  rb_node;
 	pid_t		  pid;
+	u16		  id_hdr_size;
 	char		  *root_dir;
+	struct rb_root	  threads;
+	struct list_head  dead_threads;
+	struct thread	  *last_match;
 	struct list_head  user_dsos;
 	struct list_head  kernel_dsos;
 	struct map_groups kmaps;
@@ -148,6 +154,13 @@ int machine__init(struct machine *self, const char *root_dir, pid_t pid);
 void machine__exit(struct machine *self);
 void machine__delete(struct machine *self);
 
+int machine__resolve_callchain(struct machine *machine,
+			       struct perf_evsel *evsel, struct thread *thread,
+			       struct ip_callchain *chain,
+			       struct symbol **parent);
+int maps__set_kallsyms_ref_reloc_sym(struct map **maps, const char *symbol_name,
+				     u64 addr);
+
 /*
  * Default guest kernel is defined by parameter --guestkallsyms
  * and --guestmodules
@@ -189,6 +202,12 @@ struct symbol *map_groups__find_symbol_by_name(struct map_groups *mg,
 					       const char *name,
 					       struct map **mapp,
 					       symbol_filter_t filter);
+
+
+struct thread *machine__findnew_thread(struct machine *machine, pid_t pid);
+void machine__remove_thread(struct machine *machine, struct thread *th);
+
+size_t machine__fprintf(struct machine *machine, FILE *fp);
 
 static inline
 struct symbol *machine__find_kernel_symbol(struct machine *self,

@@ -38,7 +38,7 @@ static bool __ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 
 	for (addr = 0; addr < SIZE_EEPROM_4K; addr++) {
 		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc, eep_data)) {
-			ath_dbg(common, ATH_DBG_EEPROM,
+			ath_dbg(common, EEPROM,
 				"Unable to read eeprom region\n");
 			return false;
 		}
@@ -62,8 +62,7 @@ static bool ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 
 	if (!ath9k_hw_use_flash(ah)) {
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Reading from EEPROM, not flash\n");
+		ath_dbg(common, EEPROM, "Reading from EEPROM, not flash\n");
 	}
 
 	if (common->bus_ops->ath_bus_type == ATH_USB)
@@ -204,8 +203,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 			return false;
 		}
 
-		ath_dbg(common, ATH_DBG_EEPROM,
-			"Read Magic = 0x%04X\n", magic);
+		ath_dbg(common, EEPROM, "Read Magic = 0x%04X\n", magic);
 
 		if (magic != AR5416_EEPROM_MAGIC) {
 			magic2 = swab16(magic);
@@ -227,7 +225,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 		}
 	}
 
-	ath_dbg(common, ATH_DBG_EEPROM, "need_swap = %s.\n",
+	ath_dbg(common, EEPROM, "need_swap = %s\n",
 		need_swap ? "True" : "False");
 
 	if (need_swap)
@@ -249,7 +247,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 		u32 integer;
 		u16 word;
 
-		ath_dbg(common, ATH_DBG_EEPROM,
+		ath_dbg(common, EEPROM,
 			"EEPROM Endianness is not native.. Changing\n");
 
 		word = swab16(eep->baseEepHeader.length);
@@ -435,11 +433,11 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 				reg32 = get_unaligned_le32(&pdadcValues[4 * j]);
 				REG_WRITE(ah, regOffset, reg32);
 
-				ath_dbg(common, ATH_DBG_EEPROM,
+				ath_dbg(common, EEPROM,
 					"PDADC (%d,%4x): %4.4x %8.8x\n",
 					i, regChainOffset, regOffset,
 					reg32);
-				ath_dbg(common, ATH_DBG_EEPROM,
+				ath_dbg(common, EEPROM,
 					"PDADC: Chain %d | "
 					"PDADC %3d Value %3d | "
 					"PDADC %3d Value %3d | "
@@ -473,7 +471,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 
 	int i;
 	u16 twiceMinEdgePower;
-	u16 twiceMaxEdgePower = MAX_RATE_POWER;
+	u16 twiceMaxEdgePower;
 	u16 scaledPower = 0, minCtlPower;
 	u16 numCtlModes;
 	const u16 *pCtlMode;
@@ -542,9 +540,7 @@ static void ath9k_hw_set_4k_power_per_rate_table(struct ath_hw *ah,
 		else
 			freq = centers.ctl_center;
 
-		if (ah->eep_ops->get_eeprom_ver(ah) == 14 &&
-		    ah->eep_ops->get_eeprom_rev(ah) <= 2)
-			twiceMaxEdgePower = MAX_RATE_POWER;
+		twiceMaxEdgePower = MAX_RATE_POWER;
 
 		for (i = 0; (i < AR5416_EEP4K_NUM_CTLS) &&
 			     pEepData->ctlIndex[i]; i++) {
@@ -1081,8 +1077,7 @@ static u16 ath9k_hw_4k_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 
 	u16 spur_val = AR_NO_SPUR;
 
-	ath_dbg(common, ATH_DBG_ANI,
-		"Getting spur idx:%d is2Ghz:%d val:%x\n",
+	ath_dbg(common, ANI, "Getting spur idx:%d is2Ghz:%d val:%x\n",
 		i, is2GHz, ah->config.spurchans[i][is2GHz]);
 
 	switch (ah->config.spurmode) {
@@ -1090,8 +1085,8 @@ static u16 ath9k_hw_4k_get_spur_channel(struct ath_hw *ah, u16 i, bool is2GHz)
 		break;
 	case SPUR_ENABLE_IOCTL:
 		spur_val = ah->config.spurchans[i][is2GHz];
-		ath_dbg(common, ATH_DBG_ANI,
-			"Getting spur val from new loc. %d\n", spur_val);
+		ath_dbg(common, ANI, "Getting spur val from new loc. %d\n",
+			spur_val);
 		break;
 	case SPUR_ENABLE_EEPROM:
 		spur_val = EEP_MAP4K_SPURCHAN;

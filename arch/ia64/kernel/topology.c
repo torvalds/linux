@@ -350,7 +350,7 @@ static int __cpuinit cpu_cache_sysfs_init(unsigned int cpu)
 }
 
 /* Add cache interface for CPU device */
-static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
+static int __cpuinit cache_add_dev(struct device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long i, j;
@@ -400,7 +400,7 @@ static int __cpuinit cache_add_dev(struct sys_device * sys_dev)
 }
 
 /* Remove cache interface for CPU device */
-static int __cpuinit cache_remove_dev(struct sys_device * sys_dev)
+static int __cpuinit cache_remove_dev(struct device * sys_dev)
 {
 	unsigned int cpu = sys_dev->id;
 	unsigned long i;
@@ -428,9 +428,9 @@ static int __cpuinit cache_cpu_callback(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	struct sys_device *sys_dev;
+	struct device *sys_dev;
 
-	sys_dev = get_cpu_sysdev(cpu);
+	sys_dev = get_cpu_device(cpu);
 	switch (action) {
 	case CPU_ONLINE:
 	case CPU_ONLINE_FROZEN:
@@ -454,7 +454,7 @@ static int __init cache_sysfs_init(void)
 	int i;
 
 	for_each_online_cpu(i) {
-		struct sys_device *sys_dev = get_cpu_sysdev((unsigned int)i);
+		struct device *sys_dev = get_cpu_device((unsigned int)i);
 		cache_add_dev(sys_dev);
 	}
 

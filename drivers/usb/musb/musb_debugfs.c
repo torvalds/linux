@@ -33,11 +33,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/list.h>
-#include <linux/platform_device.h>
-#include <linux/io.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
@@ -45,10 +41,6 @@
 
 #include "musb_core.h"
 #include "musb_debug.h"
-
-#ifdef CONFIG_ARCH_DAVINCI
-#include "davinci.h"
-#endif
 
 struct musb_register_map {
 	char			*name;

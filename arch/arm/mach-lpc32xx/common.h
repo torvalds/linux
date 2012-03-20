@@ -39,6 +39,8 @@ extern void __init lpc32xx_init_irq(void);
 extern void __init lpc32xx_map_io(void);
 extern void __init lpc32xx_serial_init(void);
 extern void __init lpc32xx_gpio_init(void);
+extern void lpc23xx_restart(char, const char *);
+
 
 /*
  * Structure used for setting up and querying the PLLS

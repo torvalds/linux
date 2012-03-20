@@ -121,18 +121,7 @@ static struct platform_driver s3c24xx_led_driver = {
 	},
 };
 
-static int __init s3c24xx_led_init(void)
-{
-	return platform_driver_register(&s3c24xx_led_driver);
-}
-
-static void __exit s3c24xx_led_exit(void)
-{
-	platform_driver_unregister(&s3c24xx_led_driver);
-}
-
-module_init(s3c24xx_led_init);
-module_exit(s3c24xx_led_exit);
+module_platform_driver(s3c24xx_led_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben@simtec.co.uk>");
 MODULE_DESCRIPTION("S3C24XX LED driver");

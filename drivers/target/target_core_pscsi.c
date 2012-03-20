@@ -44,8 +44,7 @@
 #include <scsi/scsi_tcq.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_backend.h>
 
 #include "target_core_pscsi.h"
 
@@ -105,7 +104,7 @@ static void pscsi_detach_hba(struct se_hba *hba)
 
 static int pscsi_pmode_enable_hba(struct se_hba *hba, unsigned long mode_flag)
 {
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)hba->hba_ptr;
+	struct pscsi_hba_virt *phv = hba->hba_ptr;
 	struct Scsi_Host *sh = phv->phv_lld_host;
 	/*
 	 * Release the struct Scsi_Host
@@ -351,7 +350,6 @@ static struct se_device *pscsi_add_device_to_list(
 	 * scsi_device_put() and the pdv->pdv_sd cleared.
 	 */
 	pdv->pdv_sd = sd;
-
 	dev = transport_add_device_to_core_hba(hba, &pscsi_template,
 				se_dev, dev_flags, pdv,
 				&dev_limits, NULL, NULL);
@@ -406,7 +404,7 @@ static struct se_device *pscsi_create_type_disk(
 	__releases(sh->host_lock)
 {
 	struct se_device *dev;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
+	struct pscsi_hba_virt *phv = pdv->pdv_se_hba->hba_ptr;
 	struct Scsi_Host *sh = sd->host;
 	struct block_device *bd;
 	u32 dev_flags = 0;
@@ -454,7 +452,7 @@ static struct se_device *pscsi_create_type_rom(
 	__releases(sh->host_lock)
 {
 	struct se_device *dev;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
+	struct pscsi_hba_virt *phv = pdv->pdv_se_hba->hba_ptr;
 	struct Scsi_Host *sh = sd->host;
 	u32 dev_flags = 0;
 
@@ -489,7 +487,7 @@ static struct se_device *pscsi_create_type_other(
 	__releases(sh->host_lock)
 {
 	struct se_device *dev;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)pdv->pdv_se_hba->hba_ptr;
+	struct pscsi_hba_virt *phv = pdv->pdv_se_hba->hba_ptr;
 	struct Scsi_Host *sh = sd->host;
 	u32 dev_flags = 0;
 
@@ -510,10 +508,10 @@ static struct se_device *pscsi_create_virtdevice(
 	struct se_subsystem_dev *se_dev,
 	void *p)
 {
-	struct pscsi_dev_virt *pdv = (struct pscsi_dev_virt *)p;
+	struct pscsi_dev_virt *pdv = p;
 	struct se_device *dev;
 	struct scsi_device *sd;
-	struct pscsi_hba_virt *phv = (struct pscsi_hba_virt *)hba->hba_ptr;
+	struct pscsi_hba_virt *phv = hba->hba_ptr;
 	struct Scsi_Host *sh = phv->phv_lld_host;
 	int legacy_mode_enable = 0;
 
@@ -695,7 +693,7 @@ static int pscsi_transport_complete(struct se_task *task)
 
 		if (task->task_se_cmd->se_deve->lun_flags &
 				TRANSPORT_LUNFLAGS_READ_ONLY) {
-			unsigned char *buf = transport_kmap_first_data_page(task->task_se_cmd);
+			unsigned char *buf = transport_kmap_data_sg(task->task_se_cmd);
 
 			if (cdb[0] == MODE_SENSE_10) {
 				if (!(buf[3] & 0x80))
@@ -705,7 +703,7 @@ static int pscsi_transport_complete(struct se_task *task)
 					buf[2] |= 0x80;
 			}
 
-			transport_kunmap_first_data_page(task->task_se_cmd);
+			transport_kunmap_data_sg(task->task_se_cmd);
 		}
 	}
 after_mode_sense:
@@ -818,7 +816,7 @@ static ssize_t pscsi_set_configfs_dev_params(struct se_hba *hba,
 
 	orig = opts;
 
-	while ((ptr = strsep(&opts, ",")) != NULL) {
+	while ((ptr = strsep(&opts, ",\n")) != NULL) {
 		if (!*ptr)
 			continue;
 
@@ -963,6 +961,7 @@ static inline struct bio *pscsi_get_bio(int sg_num)
 static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
 		struct bio **hbio)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	u32 task_sg_num = task->task_sg_nents;
 	struct bio *bio = NULL, *tbio = NULL;
@@ -971,7 +970,7 @@ static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
 	u32 data_len = task->task_size, i, len, bytes, off;
 	int nr_pages = (task->task_size + task_sg[0].offset +
 			PAGE_SIZE - 1) >> PAGE_SHIFT;
-	int nr_vecs = 0, rc, ret = PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+	int nr_vecs = 0, rc;
 	int rw = (task->task_data_direction == DMA_TO_DEVICE);
 
 	*hbio = NULL;
@@ -1058,11 +1057,13 @@ fail:
 		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
-	return ret;
+	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	return -ENOMEM;
 }
 
 static int pscsi_do_task(struct se_task *task)
 {
+	struct se_cmd *cmd = task->task_se_cmd;
 	struct pscsi_dev_virt *pdv = task->task_se_cmd->se_dev->dev_ptr;
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
 	struct request *req;
@@ -1078,7 +1079,9 @@ static int pscsi_do_task(struct se_task *task)
 		if (!req || IS_ERR(req)) {
 			pr_err("PSCSI: blk_get_request() failed: %ld\n",
 					req ? IS_ERR(req) : -ENOMEM);
-			return PYX_TRANSPORT_LU_COMM_FAILURE;
+			cmd->scsi_sense_reason =
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			return -ENODEV;
 		}
 	} else {
 		BUG_ON(!task->task_size);
@@ -1087,8 +1090,11 @@ static int pscsi_do_task(struct se_task *task)
 		 * Setup the main struct request for the task->task_sg[] payload
 		 */
 		ret = pscsi_map_sg(task, task->task_sg, &hbio);
-		if (ret < 0)
-			return PYX_TRANSPORT_LU_COMM_FAILURE;
+		if (ret < 0) {
+			cmd->scsi_sense_reason =
+				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			return ret;
+		}
 
 		req = blk_make_request(pdv->pdv_sd->request_queue, hbio,
 				       GFP_KERNEL);
@@ -1115,7 +1121,7 @@ static int pscsi_do_task(struct se_task *task)
 			(task->task_se_cmd->sam_task_attr == MSG_HEAD_TAG),
 			pscsi_req_done);
 
-	return PYX_TRANSPORT_SENT_TO_TRANSPORT;
+	return 0;
 
 fail:
 	while (hbio) {
@@ -1124,7 +1130,8 @@ fail:
 		bio->bi_next = NULL;
 		bio_endio(bio, 0);	/* XXX: should be error */
 	}
-	return PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES;
+	cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	return -ENOMEM;
 }
 
 /*	pscsi_get_sense_buffer():
@@ -1135,7 +1142,7 @@ static unsigned char *pscsi_get_sense_buffer(struct se_task *task)
 {
 	struct pscsi_plugin_task *pt = PSCSI_TASK(task);
 
-	return (unsigned char *)&pt->pscsi_sense[0];
+	return pt->pscsi_sense;
 }
 
 /*	pscsi_get_device_rev():
@@ -1198,9 +1205,8 @@ static inline void pscsi_process_SAM_status(
 			" 0x%02x Result: 0x%08x\n", task, pt->pscsi_cdb[0],
 			pt->pscsi_result);
 		task->task_scsi_status = SAM_STAT_CHECK_CONDITION;
-		task->task_error_status = PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
-		task->task_se_cmd->transport_error_status =
-					PYX_TRANSPORT_UNKNOWN_SAM_OPCODE;
+		task->task_se_cmd->scsi_sense_reason =
+					TCM_UNSUPPORTED_SCSI_OPCODE;
 		transport_complete_task(task, 0);
 		break;
 	}

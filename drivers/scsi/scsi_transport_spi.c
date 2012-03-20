@@ -1434,7 +1434,7 @@ static int spi_host_configure(struct transport_container *tc,
 	(si->f->show_##name ? S_IRUGO : 0) | \
 	(si->f->set_##name ? S_IWUSR : 0)
 
-static mode_t target_attribute_is_visible(struct kobject *kobj,
+static umode_t target_attribute_is_visible(struct kobject *kobj,
 					  struct attribute *attr, int i)
 {
 	struct device *cdev = container_of(kobj, struct device, kobj);

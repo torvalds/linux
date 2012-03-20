@@ -72,7 +72,7 @@ static int enic_set_port_profile(struct enic *enic, int vf)
 	struct enic_port_profile *pp;
 	struct vic_provinfo *vp;
 	const u8 oui[3] = VIC_PROVINFO_CISCO_OUI;
-	const u16 os_type = htons(VIC_GENERIC_PROV_OS_TYPE_LINUX);
+	const __be16 os_type = htons(VIC_GENERIC_PROV_OS_TYPE_LINUX);
 	char uuid_str[38];
 	char client_mac_str[18];
 	u8 *client_mac;

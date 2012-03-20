@@ -97,11 +97,11 @@ static const struct spi_device_id ad7606_id[] = {
 	{"ad7606-4", ID_AD7606_4},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad7606_id);
 
 static struct spi_driver ad7606_driver = {
 	.driver = {
 		.name = "ad7606",
-		.bus = &spi_bus_type,
 		.owner = THIS_MODULE,
 		.pm    = AD7606_SPI_PM_OPS,
 	},
@@ -109,20 +109,8 @@ static struct spi_driver ad7606_driver = {
 	.remove = __devexit_p(ad7606_spi_remove),
 	.id_table = ad7606_id,
 };
-
-static int __init ad7606_spi_init(void)
-{
-	return spi_register_driver(&ad7606_driver);
-}
-module_init(ad7606_spi_init);
-
-static void __exit ad7606_spi_exit(void)
-{
-	spi_unregister_driver(&ad7606_driver);
-}
-module_exit(ad7606_spi_exit);
+module_spi_driver(ad7606_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7606 ADC");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("spi:ad7606_spi");

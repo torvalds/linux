@@ -1695,28 +1695,7 @@ static struct usb_driver zr364xx_driver = {
 	.id_table = device_table
 };
 
-
-static int __init zr364xx_init(void)
-{
-	int retval;
-	retval = usb_register(&zr364xx_driver);
-	if (retval)
-		printk(KERN_ERR KBUILD_MODNAME ": usb_register failed!\n");
-	else
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-	return retval;
-}
-
-
-static void __exit zr364xx_exit(void)
-{
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC " module unloaded\n");
-	usb_deregister(&zr364xx_driver);
-}
-
-
-module_init(zr364xx_init);
-module_exit(zr364xx_exit);
+module_usb_driver(zr364xx_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

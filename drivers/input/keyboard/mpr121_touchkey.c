@@ -330,17 +330,7 @@ static struct i2c_driver mpr_touchkey_driver = {
 	.remove		= __devexit_p(mpr_touchkey_remove),
 };
 
-static int __init mpr_touchkey_init(void)
-{
-	return i2c_add_driver(&mpr_touchkey_driver);
-}
-module_init(mpr_touchkey_init);
-
-static void __exit mpr_touchkey_exit(void)
-{
-	i2c_del_driver(&mpr_touchkey_driver);
-}
-module_exit(mpr_touchkey_exit);
+module_i2c_driver(mpr_touchkey_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Zhang Jiejing <jiejing.zhang@freescale.com>");

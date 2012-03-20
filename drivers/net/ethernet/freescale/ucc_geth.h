@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/list.h>
+#include <linux/if_ether.h>
 
 #include <asm/immap_qe.h>
 #include <asm/qe.h>
@@ -881,7 +882,6 @@ struct ucc_geth_hardware_statistics {
 #define TX_RING_MOD_MASK(size)                  (size-1)
 #define RX_RING_MOD_MASK(size)                  (size-1)
 
-#define ENET_NUM_OCTETS_PER_ADDRESS             6
 #define ENET_GROUP_ADDR                         0x01	/* Group address mask
 							   for ethernet
 							   addresses */
@@ -1051,7 +1051,7 @@ enum ucc_geth_num_of_station_addresses {
 
 /* UCC GETH 82xx Ethernet Address Container */
 struct enet_addr_container {
-	u8 address[ENET_NUM_OCTETS_PER_ADDRESS];	/* ethernet address */
+	u8 address[ETH_ALEN];	/* ethernet address */
 	enum ucc_geth_enet_address_recognition_location location;	/* location in
 								   82xx address
 								   recognition
@@ -1194,7 +1194,7 @@ struct ucc_geth_private {
 	u16 cpucount[NUM_TX_QUEUES];
 	u16 __iomem *p_cpucount[NUM_TX_QUEUES];
 	int indAddrRegUsed[NUM_OF_PADDRS];
-	u8 paddr[NUM_OF_PADDRS][ENET_NUM_OCTETS_PER_ADDRESS];	/* ethernet address */
+	u8 paddr[NUM_OF_PADDRS][ETH_ALEN];	/* ethernet address */
 	u8 numGroupAddrInHash;
 	u8 numIndAddrInHash;
 	u8 numIndAddrInReg;

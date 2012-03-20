@@ -280,6 +280,10 @@
  * 5211/5212 we have one primary and 4 secondary registers.
  * So we have AR5K_ISR for 5210 and AR5K_PISR /SISRx for 5211/5212.
  * Most of these bits are common for all chipsets.
+ *
+ * NOTE: On 5211+ TXOK, TXDESC, TXERR, TXEOL and TXURN contain
+ * the logical OR from per-queue interrupt bits found on SISR registers
+ * (see below).
  */
 #define AR5K_ISR		0x001c			/* Register Address [5210] */
 #define AR5K_PISR		0x0080			/* Register Address [5211+] */
@@ -292,7 +296,10 @@
 #define AR5K_ISR_TXOK		0x00000040	/* Frame successfully transmitted */
 #define AR5K_ISR_TXDESC		0x00000080	/* TX descriptor request */
 #define AR5K_ISR_TXERR		0x00000100	/* Transmit error */
-#define AR5K_ISR_TXNOFRM	0x00000200	/* No frame transmitted (transmit timeout) */
+#define AR5K_ISR_TXNOFRM	0x00000200	/* No frame transmitted (transmit timeout)
+						 * NOTE: We don't have per-queue info for this
+						 * one, but we can enable it per-queue through
+						 * TXNOFRM_QCU field on TXNOFRM register */
 #define AR5K_ISR_TXEOL		0x00000400	/* Empty TX descriptor */
 #define AR5K_ISR_TXURN		0x00000800	/* Transmit FIFO underrun */
 #define AR5K_ISR_MIB		0x00001000	/* Update MIB counters */
@@ -302,20 +309,28 @@
 #define AR5K_ISR_SWBA		0x00010000	/* Software beacon alert */
 #define AR5K_ISR_BRSSI		0x00020000	/* Beacon rssi below threshold (?) */
 #define AR5K_ISR_BMISS		0x00040000	/* Beacon missed */
-#define AR5K_ISR_HIUERR		0x00080000	/* Host Interface Unit error [5211+] */
+#define AR5K_ISR_HIUERR		0x00080000	/* Host Interface Unit error [5211+]
+						 * 'or' of MCABT, SSERR, DPERR from SISR2 */
 #define AR5K_ISR_BNR		0x00100000	/* Beacon not ready [5211+] */
 #define AR5K_ISR_MCABT		0x00100000	/* Master Cycle Abort [5210] */
 #define AR5K_ISR_RXCHIRP	0x00200000	/* CHIRP Received [5212+] */
 #define AR5K_ISR_SSERR		0x00200000	/* Signaled System Error [5210] */
-#define AR5K_ISR_DPERR		0x00400000	/* Det par Error (?) [5210] */
+#define AR5K_ISR_DPERR		0x00400000	/* Bus parity error [5210] */
 #define AR5K_ISR_RXDOPPLER	0x00400000	/* Doppler chirp received [5212+] */
 #define AR5K_ISR_TIM		0x00800000	/* [5211+] */
-#define AR5K_ISR_BCNMISC	0x00800000	/* 'or' of TIM, CAB_END, DTIM_SYNC, BCN_TIMEOUT,
-						CAB_TIMEOUT and DTIM bits from SISR2 [5212+] */
+#define AR5K_ISR_BCNMISC	0x00800000	/* Misc beacon related interrupt
+						 * 'or' of TIM, CAB_END, DTIM_SYNC, BCN_TIMEOUT,
+						 * CAB_TIMEOUT and DTIM bits from SISR2 [5212+] */
 #define AR5K_ISR_GPIO		0x01000000	/* GPIO (rf kill) */
 #define AR5K_ISR_QCBRORN	0x02000000	/* QCU CBR overrun [5211+] */
 #define AR5K_ISR_QCBRURN	0x04000000	/* QCU CBR underrun [5211+] */
 #define AR5K_ISR_QTRIG		0x08000000	/* QCU scheduling trigger [5211+] */
+
+#define	AR5K_ISR_BITS_FROM_SISRS	(AR5K_ISR_TXOK | AR5K_ISR_TXDESC |\
+					AR5K_ISR_TXERR | AR5K_ISR_TXEOL |\
+					AR5K_ISR_TXURN | AR5K_ISR_HIUERR |\
+					AR5K_ISR_BCNMISC | AR5K_ISR_QCBRORN |\
+					AR5K_ISR_QCBRURN | AR5K_ISR_QTRIG)
 
 /*
  * Secondary status registers [5211+] (0 - 4)
@@ -347,7 +362,7 @@
 #define	AR5K_SISR2_BCN_TIMEOUT	0x08000000	/* Beacon Timeout [5212+] */
 #define	AR5K_SISR2_CAB_TIMEOUT	0x10000000	/* CAB Timeout [5212+] */
 #define	AR5K_SISR2_DTIM		0x20000000	/* [5212+] */
-#define	AR5K_SISR2_TSFOOR	0x80000000	/* TSF OOR (?) */
+#define	AR5K_SISR2_TSFOOR	0x80000000	/* TSF Out of range */
 
 #define AR5K_SISR3		0x0090			/* Register Address [5211+] */
 #define AR5K_SISR3_QCBRORN	0x000003ff	/* Mask for QCBRORN */

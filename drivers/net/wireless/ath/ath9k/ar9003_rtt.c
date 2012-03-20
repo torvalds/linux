@@ -16,6 +16,7 @@
 
 #include "hw.h"
 #include "ar9003_phy.h"
+#include "ar9003_rtt.h"
 
 #define RTT_RESTORE_TIMEOUT          1000
 #define RTT_ACCESS_TIMEOUT           100

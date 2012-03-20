@@ -10,7 +10,7 @@
 #include <linux/ata_platform.h>
 #include <linux/smsc911x.h>
 #include <linux/spinlock.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/usb/isp1760.h>
 #include <linux/clkdev.h>
 #include <linux/mtd/physmap.h>
@@ -23,6 +23,7 @@
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/sp810.h>
+#include <asm/hardware/gic.h>
 
 #include <mach/ct-ca9x4.h>
 #include <mach/motherboard.h>
@@ -437,7 +438,6 @@ static void __init v2m_init(void)
 		amba_device_register(v2m_amba_devs[i], &iomem_resource);
 
 	pm_power_off = v2m_power_off;
-	arm_pm_restart = v2m_restart;
 
 	ct_desc->init_tile();
 }
@@ -448,5 +448,7 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_early	= v2m_init_early,
 	.init_irq	= v2m_init_irq,
 	.timer		= &v2m_timer,
+	.handle_irq	= gic_handle_irq,
 	.init_machine	= v2m_init,
+	.restart	= v2m_restart,
 MACHINE_END

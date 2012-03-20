@@ -58,7 +58,6 @@ static struct inode *coda_alloc_inode(struct super_block *sb)
 static void coda_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(coda_inode_cachep, ITOC(inode));
 }
 
@@ -205,10 +204,12 @@ static int coda_fill_super(struct super_block *sb, void *data, int silent)
 	printk("coda_read_super: rootfid is %s\n", coda_f2s(&fid));
 	
 	/* make root inode */
-        error = coda_cnode_make(&root, &fid, sb);
-        if ( error || !root ) {
-	    printk("Failure of coda_cnode_make for root: error %d\n", error);
-	    goto error;
+        root = coda_cnode_make(&fid, sb);
+        if (IS_ERR(root)) {
+		error = PTR_ERR(root);
+		printk("Failure of coda_cnode_make for root: error %d\n", error);
+		root = NULL;
+		goto error;
 	} 
 
 	printk("coda_read_super: rootinode is %ld dev %s\n", 

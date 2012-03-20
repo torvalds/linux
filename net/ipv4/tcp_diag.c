@@ -34,11 +34,23 @@ static void tcp_diag_get_info(struct sock *sk, struct inet_diag_msg *r,
 		tcp_get_info(sk, info);
 }
 
+static void tcp_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
+		struct inet_diag_req_v2 *r, struct nlattr *bc)
+{
+	inet_diag_dump_icsk(&tcp_hashinfo, skb, cb, r, bc);
+}
+
+static int tcp_diag_dump_one(struct sk_buff *in_skb, const struct nlmsghdr *nlh,
+		struct inet_diag_req_v2 *req)
+{
+	return inet_diag_dump_one_icsk(&tcp_hashinfo, in_skb, nlh, req);
+}
+
 static const struct inet_diag_handler tcp_diag_handler = {
-	.idiag_hashinfo	 = &tcp_hashinfo,
+	.dump		 = tcp_diag_dump,
+	.dump_one	 = tcp_diag_dump_one,
 	.idiag_get_info	 = tcp_diag_get_info,
-	.idiag_type	 = TCPDIAG_GETSOCK,
-	.idiag_info_size = sizeof(struct tcp_info),
+	.idiag_type	 = IPPROTO_TCP,
 };
 
 static int __init tcp_diag_init(void)
@@ -54,4 +66,4 @@ static void __exit tcp_diag_exit(void)
 module_init(tcp_diag_init);
 module_exit(tcp_diag_exit);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_INET_DIAG, TCPDIAG_GETSOCK);
+MODULE_ALIAS_NET_PF_PROTO_TYPE(PF_NETLINK, NETLINK_SOCK_DIAG, 2-6 /* AF_INET - IPPROTO_TCP */);

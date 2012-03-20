@@ -92,6 +92,24 @@ static struct clk_ops div2_clk_ops = {
 	.recalc		= div2_recalc,
 };
 
+static unsigned long div7_recalc(struct clk *clk)
+{
+	return clk->parent->rate / 7;
+}
+
+static struct clk_ops div7_clk_ops = {
+	.recalc		= div7_recalc,
+};
+
+static unsigned long div13_recalc(struct clk *clk)
+{
+	return clk->parent->rate / 13;
+}
+
+static struct clk_ops div13_clk_ops = {
+	.recalc		= div13_recalc,
+};
+
 /* Divide extal1 by two */
 static struct clk extal1_div2_clk = {
 	.ops		= &div2_clk_ops,
@@ -111,6 +129,12 @@ static struct clk_ops main_clk_ops = {
 /* Main clock */
 static struct clk main_clk = {
 	.ops		= &main_clk_ops,
+};
+
+/* Divide Main clock by two */
+static struct clk main_div2_clk = {
+	.ops		= &div2_clk_ops,
+	.parent		= &main_clk,
 };
 
 /* PLL0, PLL1, PLL2, PLL3 */
@@ -168,10 +192,27 @@ static struct clk pll3_clk = {
 	.enable_bit	= 3,
 };
 
-/* Divide PLL1 by two */
+/* Divide PLL */
 static struct clk pll1_div2_clk = {
 	.ops		= &div2_clk_ops,
 	.parent		= &pll1_clk,
+};
+
+static struct clk pll1_div7_clk = {
+	.ops		= &div7_clk_ops,
+	.parent		= &pll1_clk,
+};
+
+static struct clk pll1_div13_clk = {
+	.ops		= &div13_clk_ops,
+	.parent		= &pll1_clk,
+};
+
+/* External input clock */
+struct clk sh73a0_extcki_clk = {
+};
+
+struct clk sh73a0_extalr_clk = {
 };
 
 static struct clk *main_clks[] = {
@@ -181,11 +222,16 @@ static struct clk *main_clks[] = {
 	&extal1_div2_clk,
 	&extal2_div2_clk,
 	&main_clk,
+	&main_div2_clk,
 	&pll0_clk,
 	&pll1_clk,
 	&pll2_clk,
 	&pll3_clk,
 	&pll1_div2_clk,
+	&pll1_div7_clk,
+	&pll1_div13_clk,
+	&sh73a0_extcki_clk,
+	&sh73a0_extalr_clk,
 };
 
 static void div4_kick(struct clk *clk)
@@ -239,27 +285,192 @@ enum { DIV6_VCK1, DIV6_VCK2, DIV6_VCK3, DIV6_ZB1,
 	DIV6_DSIT, DIV6_DSI0P, DIV6_DSI1P,
 	DIV6_NR };
 
+static struct clk *vck_parent[8] = {
+	[0] = &pll1_div2_clk,
+	[1] = &pll2_clk,
+	[2] = &sh73a0_extcki_clk,
+	[3] = &sh73a0_extal2_clk,
+	[4] = &main_div2_clk,
+	[5] = &sh73a0_extalr_clk,
+	[6] = &main_clk,
+};
+
+static struct clk *pll_parent[4] = {
+	[0] = &pll1_div2_clk,
+	[1] = &pll2_clk,
+	[2] = &pll1_div13_clk,
+};
+
+static struct clk *hsi_parent[4] = {
+	[0] = &pll1_div2_clk,
+	[1] = &pll2_clk,
+	[2] = &pll1_div7_clk,
+};
+
+static struct clk *pll_extal2_parent[] = {
+	[0] = &pll1_div2_clk,
+	[1] = &pll2_clk,
+	[2] = &sh73a0_extal2_clk,
+	[3] = &sh73a0_extal2_clk,
+};
+
+static struct clk *dsi_parent[8] = {
+	[0] = &pll1_div2_clk,
+	[1] = &pll2_clk,
+	[2] = &main_clk,
+	[3] = &sh73a0_extal2_clk,
+	[4] = &sh73a0_extcki_clk,
+};
+
 static struct clk div6_clks[DIV6_NR] = {
-	[DIV6_VCK1] = SH_CLK_DIV6(&pll1_div2_clk, VCLKCR1, 0),
-	[DIV6_VCK2] = SH_CLK_DIV6(&pll1_div2_clk, VCLKCR2, 0),
-	[DIV6_VCK3] = SH_CLK_DIV6(&pll1_div2_clk, VCLKCR3, 0),
-	[DIV6_ZB1] = SH_CLK_DIV6(&pll1_div2_clk, ZBCKCR, 0),
-	[DIV6_FLCTL] = SH_CLK_DIV6(&pll1_div2_clk, FLCKCR, 0),
-	[DIV6_SDHI0] = SH_CLK_DIV6(&pll1_div2_clk, SD0CKCR, 0),
-	[DIV6_SDHI1] = SH_CLK_DIV6(&pll1_div2_clk, SD1CKCR, 0),
-	[DIV6_SDHI2] = SH_CLK_DIV6(&pll1_div2_clk, SD2CKCR, 0),
-	[DIV6_FSIA] = SH_CLK_DIV6(&pll1_div2_clk, FSIACKCR, 0),
-	[DIV6_FSIB] = SH_CLK_DIV6(&pll1_div2_clk, FSIBCKCR, 0),
-	[DIV6_SUB] = SH_CLK_DIV6(&sh73a0_extal2_clk, SUBCKCR, 0),
-	[DIV6_SPUA] = SH_CLK_DIV6(&pll1_div2_clk, SPUACKCR, 0),
-	[DIV6_SPUV] = SH_CLK_DIV6(&pll1_div2_clk, SPUVCKCR, 0),
-	[DIV6_MSU] = SH_CLK_DIV6(&pll1_div2_clk, MSUCKCR, 0),
-	[DIV6_HSI] = SH_CLK_DIV6(&pll1_div2_clk, HSICKCR, 0),
-	[DIV6_MFG1] = SH_CLK_DIV6(&pll1_div2_clk, MFCK1CR, 0),
-	[DIV6_MFG2] = SH_CLK_DIV6(&pll1_div2_clk, MFCK2CR, 0),
-	[DIV6_DSIT] = SH_CLK_DIV6(&pll1_div2_clk, DSITCKCR, 0),
-	[DIV6_DSI0P] = SH_CLK_DIV6(&pll1_div2_clk, DSI0PCKCR, 0),
-	[DIV6_DSI1P] = SH_CLK_DIV6(&pll1_div2_clk, DSI1PCKCR, 0),
+	[DIV6_VCK1] = SH_CLK_DIV6_EXT(VCLKCR1, 0,
+			vck_parent, ARRAY_SIZE(vck_parent), 12, 3),
+	[DIV6_VCK2] = SH_CLK_DIV6_EXT(VCLKCR2, 0,
+			vck_parent, ARRAY_SIZE(vck_parent), 12, 3),
+	[DIV6_VCK3] = SH_CLK_DIV6_EXT(VCLKCR3, 0,
+			vck_parent, ARRAY_SIZE(vck_parent), 12, 3),
+	[DIV6_ZB1] = SH_CLK_DIV6_EXT(ZBCKCR, CLK_ENABLE_ON_INIT,
+			pll_parent, ARRAY_SIZE(pll_parent), 7, 1),
+	[DIV6_FLCTL] = SH_CLK_DIV6_EXT(FLCKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 7, 1),
+	[DIV6_SDHI0] = SH_CLK_DIV6_EXT(SD0CKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 6, 2),
+	[DIV6_SDHI1] = SH_CLK_DIV6_EXT(SD1CKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 6, 2),
+	[DIV6_SDHI2] = SH_CLK_DIV6_EXT(SD2CKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 6, 2),
+	[DIV6_FSIA] = SH_CLK_DIV6_EXT(FSIACKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 6, 1),
+	[DIV6_FSIB] = SH_CLK_DIV6_EXT(FSIBCKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 6, 1),
+	[DIV6_SUB] = SH_CLK_DIV6_EXT(SUBCKCR, 0,
+			pll_extal2_parent, ARRAY_SIZE(pll_extal2_parent), 6, 2),
+	[DIV6_SPUA] = SH_CLK_DIV6_EXT(SPUACKCR, 0,
+			pll_extal2_parent, ARRAY_SIZE(pll_extal2_parent), 6, 2),
+	[DIV6_SPUV] = SH_CLK_DIV6_EXT(SPUVCKCR, 0,
+			pll_extal2_parent, ARRAY_SIZE(pll_extal2_parent), 6, 2),
+	[DIV6_MSU] = SH_CLK_DIV6_EXT(MSUCKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 7, 1),
+	[DIV6_HSI] = SH_CLK_DIV6_EXT(HSICKCR, 0,
+			hsi_parent, ARRAY_SIZE(hsi_parent), 6, 2),
+	[DIV6_MFG1] = SH_CLK_DIV6_EXT(MFCK1CR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 7, 1),
+	[DIV6_MFG2] = SH_CLK_DIV6_EXT(MFCK2CR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 7, 1),
+	[DIV6_DSIT] = SH_CLK_DIV6_EXT(DSITCKCR, 0,
+			pll_parent, ARRAY_SIZE(pll_parent), 7, 1),
+	[DIV6_DSI0P] = SH_CLK_DIV6_EXT(DSI0PCKCR, 0,
+			dsi_parent, ARRAY_SIZE(dsi_parent), 12, 3),
+	[DIV6_DSI1P] = SH_CLK_DIV6_EXT(DSI1PCKCR, 0,
+			dsi_parent, ARRAY_SIZE(dsi_parent), 12, 3),
+};
+
+/* DSI DIV */
+static unsigned long dsiphy_recalc(struct clk *clk)
+{
+	u32 value;
+
+	value = __raw_readl(clk->mapping->base);
+
+	/* FIXME */
+	if (!(value & 0x000B8000))
+		return clk->parent->rate;
+
+	value &= 0x3f;
+	value += 1;
+
+	if ((value < 12) ||
+	    (value > 33)) {
+		pr_err("DSIPHY has wrong value (%d)", value);
+		return 0;
+	}
+
+	return clk->parent->rate / value;
+}
+
+static long dsiphy_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk_rate_mult_range_round(clk, 12, 33, rate);
+}
+
+static void dsiphy_disable(struct clk *clk)
+{
+	u32 value;
+
+	value = __raw_readl(clk->mapping->base);
+	value &= ~0x000B8000;
+
+	__raw_writel(value , clk->mapping->base);
+}
+
+static int dsiphy_enable(struct clk *clk)
+{
+	u32 value;
+	int multi;
+
+	value = __raw_readl(clk->mapping->base);
+	multi = (value & 0x3f) + 1;
+
+	if ((multi < 12) || (multi > 33))
+		return -EIO;
+
+	__raw_writel(value | 0x000B8000, clk->mapping->base);
+
+	return 0;
+}
+
+static int dsiphy_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 value;
+	int idx;
+
+	idx = rate / clk->parent->rate;
+	if ((idx < 12) || (idx > 33))
+		return -EINVAL;
+
+	idx += -1;
+
+	value = __raw_readl(clk->mapping->base);
+	value = (value & ~0x3f) + idx;
+
+	__raw_writel(value, clk->mapping->base);
+
+	return 0;
+}
+
+static struct clk_ops dsiphy_clk_ops = {
+	.recalc		= dsiphy_recalc,
+	.round_rate	= dsiphy_round_rate,
+	.set_rate	= dsiphy_set_rate,
+	.enable		= dsiphy_enable,
+	.disable	= dsiphy_disable,
+};
+
+static struct clk_mapping dsi0phy_clk_mapping = {
+	.phys	= DSI0PHYCR,
+	.len	= 4,
+};
+
+static struct clk_mapping dsi1phy_clk_mapping = {
+	.phys	= DSI1PHYCR,
+	.len	= 4,
+};
+
+static struct clk dsi0phy_clk = {
+	.ops		= &dsiphy_clk_ops,
+	.parent		= &div6_clks[DIV6_DSI0P], /* late install */
+	.mapping	= &dsi0phy_clk_mapping,
+};
+
+static struct clk dsi1phy_clk = {
+	.ops		= &dsiphy_clk_ops,
+	.parent		= &div6_clks[DIV6_DSI1P], /* late install */
+	.mapping	= &dsi1phy_clk_mapping,
+};
+
+static struct clk *late_main_clks[] = {
+	&dsi0phy_clk,
+	&dsi1phy_clk,
 };
 
 enum { MSTP001,
@@ -268,6 +479,7 @@ enum { MSTP001,
 	MSTP207, MSTP206, MSTP204, MSTP203, MSTP202, MSTP201, MSTP200,
 	MSTP331, MSTP329, MSTP325, MSTP323, MSTP318,
 	MSTP314, MSTP313, MSTP312, MSTP311,
+	MSTP303, MSTP302, MSTP301, MSTP300,
 	MSTP411, MSTP410, MSTP403,
 	MSTP_NR };
 
@@ -301,6 +513,10 @@ static struct clk mstp_clks[MSTP_NR] = {
 	[MSTP313] = MSTP(&div6_clks[DIV6_SDHI1], SMSTPCR3, 13, 0), /* SDHI1 */
 	[MSTP312] = MSTP(&div4_clks[DIV4_HP], SMSTPCR3, 12, 0), /* MMCIF0 */
 	[MSTP311] = MSTP(&div6_clks[DIV6_SDHI2], SMSTPCR3, 11, 0), /* SDHI2 */
+	[MSTP303] = MSTP(&main_div2_clk, SMSTPCR3, 3, 0), /* TPU1 */
+	[MSTP302] = MSTP(&main_div2_clk, SMSTPCR3, 2, 0), /* TPU2 */
+	[MSTP301] = MSTP(&main_div2_clk, SMSTPCR3, 1, 0), /* TPU3 */
+	[MSTP300] = MSTP(&main_div2_clk, SMSTPCR3, 0, 0), /* TPU4 */
 	[MSTP411] = MSTP(&div4_clks[DIV4_HP], SMSTPCR4, 11, 0), /* IIC3 */
 	[MSTP410] = MSTP(&div4_clks[DIV4_HP], SMSTPCR4, 10, 0), /* IIC4 */
 	[MSTP403] = MSTP(&r_clk, SMSTPCR4, 3, 0), /* KEYSC */
@@ -319,8 +535,10 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("sdhi2_clk", &div6_clks[DIV6_SDHI2]),
 	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSIT]),
 	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSIT]),
-	CLKDEV_ICK_ID("dsi0p_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSI0P]),
-	CLKDEV_ICK_ID("dsi1p_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSI1P]),
+	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSI0P]),
+	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSI1P]),
+	CLKDEV_ICK_ID("dsiphy_clk", "sh-mipi-dsi.0", &dsi0phy_clk),
+	CLKDEV_ICK_ID("dsiphy_clk", "sh-mipi-dsi.1", &dsi1phy_clk),
 
 	/* MSTP32 clocks */
 	CLKDEV_DEV_ID("i2c-sh_mobile.2", &mstp_clks[MSTP001]), /* I2C2 */
@@ -350,6 +568,10 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_DEV_ID("sh_mobile_sdhi.1", &mstp_clks[MSTP313]), /* SDHI1 */
 	CLKDEV_DEV_ID("sh_mmcif.0", &mstp_clks[MSTP312]), /* MMCIF0 */
 	CLKDEV_DEV_ID("sh_mobile_sdhi.2", &mstp_clks[MSTP311]), /* SDHI2 */
+	CLKDEV_DEV_ID("leds-renesas-tpu.12", &mstp_clks[MSTP303]), /* TPU1 */
+	CLKDEV_DEV_ID("leds-renesas-tpu.21", &mstp_clks[MSTP302]), /* TPU2 */
+	CLKDEV_DEV_ID("leds-renesas-tpu.30", &mstp_clks[MSTP301]), /* TPU3 */
+	CLKDEV_DEV_ID("leds-renesas-tpu.41", &mstp_clks[MSTP300]), /* TPU4 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.3", &mstp_clks[MSTP411]), /* I2C3 */
 	CLKDEV_DEV_ID("i2c-sh_mobile.4", &mstp_clks[MSTP410]), /* I2C4 */
 	CLKDEV_DEV_ID("sh_keysc.0", &mstp_clks[MSTP403]), /* KEYSC */
@@ -387,10 +609,13 @@ void __init sh73a0_clock_init(void)
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
 
 	if (!ret)
-		ret = sh_clk_div6_register(div6_clks, DIV6_NR);
+		ret = sh_clk_div6_reparent_register(div6_clks, DIV6_NR);
 
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
+
+	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
+		ret = clk_register(late_main_clks[k]);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

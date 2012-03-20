@@ -201,7 +201,7 @@ static int read_bbt(struct mtd_info *mtd, uint8_t *buf, int page, int num,
 			from += marker_len;
 			marker_len = 0;
 		}
-		res = mtd->read(mtd, from, len, &retlen, buf);
+		res = mtd_read(mtd, from, len, &retlen, buf);
 		if (res < 0) {
 			if (mtd_is_eccerr(res)) {
 				pr_info("nand_bbt: ECC error in BBT at "
@@ -298,7 +298,7 @@ static int scan_read_raw_data(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 	if (td->options & NAND_BBT_VERSION)
 		len++;
 
-	return mtd->read(mtd, offs, len, &retlen, buf);
+	return mtd_read(mtd, offs, len, &retlen, buf);
 }
 
 /* Scan read raw data from flash */
@@ -317,7 +317,7 @@ static int scan_read_raw_oob(struct mtd_info *mtd, uint8_t *buf, loff_t offs,
 		ops.len = min(len, (size_t)mtd->writesize);
 		ops.oobbuf = buf + ops.len;
 
-		res = mtd->read_oob(mtd, offs, &ops);
+		res = mtd_read_oob(mtd, offs, &ops);
 
 		if (res)
 			return res;
@@ -350,7 +350,7 @@ static int scan_write_bbt(struct mtd_info *mtd, loff_t offs, size_t len,
 	ops.oobbuf = oob;
 	ops.len = len;
 
-	return mtd->write_oob(mtd, offs, &ops);
+	return mtd_write_oob(mtd, offs, &ops);
 }
 
 static u32 bbt_get_ver_offs(struct mtd_info *mtd, struct nand_bbt_descr *td)
@@ -434,7 +434,7 @@ static int scan_block_fast(struct mtd_info *mtd, struct nand_bbt_descr *bd,
 		 * Read the full oob until read_oob is fixed to handle single
 		 * byte reads for 16 bit buswidth.
 		 */
-		ret = mtd->read_oob(mtd, offs, &ops);
+		ret = mtd_read_oob(mtd, offs, &ops);
 		/* Ignore ECC errors when checking for BBM */
 		if (ret && !mtd_is_bitflip_or_eccerr(ret))
 			return ret;
@@ -756,7 +756,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Make it block aligned */
 			to &= ~((loff_t)((1 << this->bbt_erase_shift) - 1));
 			len = 1 << this->bbt_erase_shift;
-			res = mtd->read(mtd, to, len, &retlen, buf);
+			res = mtd_read(mtd, to, len, &retlen, buf);
 			if (res < 0) {
 				if (retlen != len) {
 					pr_info("nand_bbt: error reading block "
@@ -769,7 +769,7 @@ static int write_bbt(struct mtd_info *mtd, uint8_t *buf,
 			/* Read oob data */
 			ops.ooblen = (len >> this->page_shift) * mtd->oobsize;
 			ops.oobbuf = &buf[len];
-			res = mtd->read_oob(mtd, to + mtd->writesize, &ops);
+			res = mtd_read_oob(mtd, to + mtd->writesize, &ops);
 			if (res < 0 || ops.oobretlen != ops.ooblen)
 				goto outerr;
 

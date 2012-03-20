@@ -1,5 +1,5 @@
-ifeq ($(CONFIG_ARCH_SA1100),y)
-   zreladdr-$(CONFIG_SA1111)		+= 0xc0208000
+ifeq ($(CONFIG_SA1111),y)
+   zreladdr-y	+= 0xc0208000
 else
    zreladdr-y	+= 0xc0008000
 endif

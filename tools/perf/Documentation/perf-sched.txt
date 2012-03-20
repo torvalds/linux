@@ -40,7 +40,7 @@ OPTIONS
 -------
 -i::
 --input=<file>::
-        Input file name. (default: perf.data)
+        Input file name. (default: perf.data unless stdin is a fifo)
 
 -v::
 --verbose::

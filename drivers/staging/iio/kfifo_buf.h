@@ -1,7 +1,7 @@
 
 #include <linux/kfifo.h>
 #include "iio.h"
-#include "buffer_generic.h"
+#include "buffer.h"
 
 extern const struct iio_buffer_access_funcs kfifo_access_funcs;
 

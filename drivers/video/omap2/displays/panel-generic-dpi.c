@@ -297,6 +297,72 @@ static struct panel_config generic_dpi_panels[] = {
 
 		.name			= "apollon",
 	},
+	/* FocalTech ETM070003DH6 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+
+			.pixel_clock	= 28000,
+
+			.hsw		= 48,
+			.hfp		= 40,
+			.hbp		= 40,
+
+			.vsw		= 3,
+			.vfp		= 13,
+			.vbp		= 29,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS,
+		.name			= "focaltech_etm070003dh6",
+	},
+
+	/* Microtips Technologies - UMSH-8173MD */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+
+			.pixel_clock	= 34560,
+
+			.hsw		= 13,
+			.hfp		= 101,
+			.hbp		= 101,
+
+			.vsw		= 23,
+			.vfp		= 1,
+			.vbp		= 1,
+		},
+		.acbi			= 0x0,
+		.acb			= 0x0,
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.power_on_delay		= 0,
+		.power_off_delay	= 0,
+		.name			= "microtips_umsh_8173md",
+	},
+
+	/* OrtusTech COM43H4M10XTC */
+	{
+		{
+			.x_res		= 480,
+			.y_res		= 272,
+
+			.pixel_clock	= 8000,
+
+			.hsw		= 41,
+			.hfp		= 8,
+			.hbp		= 4,
+
+			.vsw		= 10,
+			.vfp		= 4,
+			.vbp		= 2,
+		},
+		.config			= OMAP_DSS_LCD_TFT,
+
+		.name			= "ortustech_com43h4m10xtc",
+	},
 };
 
 struct panel_drv_data {

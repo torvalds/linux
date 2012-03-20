@@ -14,8 +14,6 @@
 
 #define TX_PAGES 12	/* Two Tx slots */
 
-#define ETHER_ADDR_LEN 6
-
 /* The 8390 specific per-packet-header format. */
 struct e8390_pkt_hdr {
   unsigned char status; /* status */

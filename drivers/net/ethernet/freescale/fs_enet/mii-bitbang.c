@@ -232,15 +232,4 @@ static struct platform_driver fs_enet_bb_mdio_driver = {
 	.remove = fs_enet_mdio_remove,
 };
 
-static int fs_enet_mdio_bb_init(void)
-{
-	return platform_driver_register(&fs_enet_bb_mdio_driver);
-}
-
-static void fs_enet_mdio_bb_exit(void)
-{
-	platform_driver_unregister(&fs_enet_bb_mdio_driver);
-}
-
-module_init(fs_enet_mdio_bb_init);
-module_exit(fs_enet_mdio_bb_exit);
+module_platform_driver(fs_enet_bb_mdio_driver);

@@ -25,7 +25,17 @@
 
 static u32 pit_cycle;		/* write-once */
 static u32 pit_cnt;		/* access only w/system irq blocked */
+static void __iomem *pit_base_addr __read_mostly;
 
+static inline unsigned int pit_read(unsigned int reg_offset)
+{
+	return __raw_readl(pit_base_addr + reg_offset);
+}
+
+static inline void pit_write(unsigned int reg_offset, unsigned long value)
+{
+	__raw_writel(value, pit_base_addr + reg_offset);
+}
 
 /*
  * Clocksource:  just a monotonic counter of MCK/16 cycles.
@@ -39,7 +49,7 @@ static cycle_t read_pit_clk(struct clocksource *cs)
 
 	raw_local_irq_save(flags);
 	elapsed = pit_cnt;
-	t = at91_sys_read(AT91_PIT_PIIR);
+	t = pit_read(AT91_PIT_PIIR);
 	raw_local_irq_restore(flags);
 
 	elapsed += PIT_PICNT(t) * pit_cycle;
@@ -64,8 +74,8 @@ pit_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		/* update clocksource counter */
-		pit_cnt += pit_cycle * PIT_PICNT(at91_sys_read(AT91_PIT_PIVR));
-		at91_sys_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN
+		pit_cnt += pit_cycle * PIT_PICNT(pit_read(AT91_PIT_PIVR));
+		pit_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN
 				| AT91_PIT_PITIEN);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -74,7 +84,7 @@ pit_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	case CLOCK_EVT_MODE_UNUSED:
 		/* disable irq, leaving the clocksource active */
-		at91_sys_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN);
+		pit_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		break;
@@ -103,11 +113,11 @@ static irqreturn_t at91sam926x_pit_interrupt(int irq, void *dev_id)
 
 	/* The PIT interrupt may be disabled, and is shared */
 	if ((pit_clkevt.mode == CLOCK_EVT_MODE_PERIODIC)
-			&& (at91_sys_read(AT91_PIT_SR) & AT91_PIT_PITS)) {
+			&& (pit_read(AT91_PIT_SR) & AT91_PIT_PITS)) {
 		unsigned nr_ticks;
 
 		/* Get number of ticks performed before irq, and ack it */
-		nr_ticks = PIT_PICNT(at91_sys_read(AT91_PIT_PIVR));
+		nr_ticks = PIT_PICNT(pit_read(AT91_PIT_PIVR));
 		do {
 			pit_cnt += pit_cycle;
 			pit_clkevt.event_handler(&pit_clkevt);
@@ -129,14 +139,14 @@ static struct irqaction at91sam926x_pit_irq = {
 static void at91sam926x_pit_reset(void)
 {
 	/* Disable timer and irqs */
-	at91_sys_write(AT91_PIT_MR, 0);
+	pit_write(AT91_PIT_MR, 0);
 
 	/* Clear any pending interrupts, wait for PIT to stop counting */
-	while (PIT_CPIV(at91_sys_read(AT91_PIT_PIVR)) != 0)
+	while (PIT_CPIV(pit_read(AT91_PIT_PIVR)) != 0)
 		cpu_relax();
 
 	/* Start PIT but don't enable IRQ */
-	at91_sys_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN);
+	pit_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN);
 }
 
 /*
@@ -178,7 +188,15 @@ static void __init at91sam926x_pit_init(void)
 static void at91sam926x_pit_suspend(void)
 {
 	/* Disable timer */
-	at91_sys_write(AT91_PIT_MR, 0);
+	pit_write(AT91_PIT_MR, 0);
+}
+
+void __init at91sam926x_ioremap_pit(u32 addr)
+{
+	pit_base_addr = ioremap(addr, 16);
+
+	if (!pit_base_addr)
+		panic("Impossible to ioremap PIT\n");
 }
 
 struct sys_timer at91sam926x_timer = {

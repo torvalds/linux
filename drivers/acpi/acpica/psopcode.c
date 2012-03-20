@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -638,7 +638,16 @@ const struct acpi_opcode_info acpi_gbl_aml_op_info[AML_NUM_OPCODES] = {
 
 /* 7E */ ACPI_OP("Timer", ARGP_TIMER_OP, ARGI_TIMER_OP, ACPI_TYPE_ANY,
 		 AML_CLASS_EXECUTE, AML_TYPE_EXEC_0A_0T_1R,
-		 AML_FLAGS_EXEC_0A_0T_1R)
+			 AML_FLAGS_EXEC_0A_0T_1R),
+
+/* ACPI 5.0 opcodes */
+
+/* 7F */ ACPI_OP("-ConnectField-", ARGP_CONNECTFIELD_OP,
+			 ARGI_CONNECTFIELD_OP, ACPI_TYPE_ANY,
+			 AML_CLASS_INTERNAL, AML_TYPE_BOGUS, AML_HAS_ARGS),
+/* 80 */ ACPI_OP("-ExtAccessField-", ARGP_CONNECTFIELD_OP,
+			 ARGI_CONNECTFIELD_OP, ACPI_TYPE_ANY,
+			 AML_CLASS_INTERNAL, AML_TYPE_BOGUS, 0)
 
 /*! [End] no source code translation !*/
 };
@@ -657,7 +666,7 @@ static const u8 acpi_gbl_short_op_index[256] = {
 /* 0x20 */ _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
 /* 0x28 */ _UNK, _UNK, _UNK, _UNK, _UNK, 0x63, _PFX, _PFX,
 /* 0x30 */ 0x67, 0x66, 0x68, 0x65, 0x69, 0x64, 0x6A, 0x7D,
-/* 0x38 */ _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
+/* 0x38 */ 0x7F, 0x80, _UNK, _UNK, _UNK, _UNK, _UNK, _UNK,
 /* 0x40 */ _UNK, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC,
 /* 0x48 */ _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC,
 /* 0x50 */ _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC, _ASC,

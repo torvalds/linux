@@ -43,7 +43,7 @@
 
 struct cputopo_arm cpu_topology[NR_CPUS];
 
-const struct cpumask *cpu_coregroup_mask(unsigned int cpu)
+const struct cpumask *cpu_coregroup_mask(int cpu)
 {
 	return &cpu_topology[cpu].core_sibling;
 }

@@ -2196,15 +2196,4 @@ static struct platform_driver smc911x_driver = {
 	},
 };
 
-static int __init smc911x_init(void)
-{
-	return platform_driver_register(&smc911x_driver);
-}
-
-static void __exit smc911x_cleanup(void)
-{
-	platform_driver_unregister(&smc911x_driver);
-}
-
-module_init(smc911x_init);
-module_exit(smc911x_cleanup);
+module_platform_driver(smc911x_driver);

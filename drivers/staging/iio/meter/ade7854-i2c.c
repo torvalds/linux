@@ -253,19 +253,7 @@ static struct i2c_driver ade7854_i2c_driver = {
 	.remove   = __devexit_p(ade7854_i2c_remove),
 	.id_table = ade7854_id,
 };
-
-static __init int ade7854_i2c_init(void)
-{
-	return i2c_add_driver(&ade7854_i2c_driver);
-}
-module_init(ade7854_i2c_init);
-
-static __exit void ade7854_i2c_exit(void)
-{
-	i2c_del_driver(&ade7854_i2c_driver);
-}
-module_exit(ade7854_i2c_exit);
-
+module_i2c_driver(ade7854_i2c_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices ADE7854/58/68/78 Polyphase Multifunction Energy Metering IC I2C Driver");

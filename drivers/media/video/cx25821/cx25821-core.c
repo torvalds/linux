@@ -804,8 +804,8 @@ void cx25821_set_pixel_format(struct cx25821_dev *dev, int channel_select,
 			      u32 format)
 {
 	if (channel_select <= 7 && channel_select >= 0) {
-		cx_write(dev->channels[channel_select].
-			sram_channels->pix_frmt, format);
+		cx_write(dev->channels[channel_select].sram_channels->pix_frmt,
+				format);
 		dev->channels[channel_select].pixel_formats = format;
 	}
 }
@@ -855,21 +855,19 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	}
 
 	cx25821_sram_channel_setup_audio(dev,
-				dev->channels[SRAM_CH08].sram_channels,
-				128, 0);
+			dev->channels[SRAM_CH08].sram_channels, 128, 0);
 
 	cx25821_gpio_init(dev);
 }
 
 static int cx25821_get_resources(struct cx25821_dev *dev)
 {
-	if (request_mem_region
-	    (pci_resource_start(dev->pci, 0), pci_resource_len(dev->pci, 0),
-	     dev->name))
+	if (request_mem_region(pci_resource_start(dev->pci, 0),
+				pci_resource_len(dev->pci, 0), dev->name))
 		return 0;
 
 	pr_err("%s: can't get MMIO memory @ 0x%llx\n",
-	       dev->name, (unsigned long long)pci_resource_start(dev->pci, 0));
+		dev->name, (unsigned long long)pci_resource_start(dev->pci, 0));
 
 	return -EBUSY;
 }
@@ -972,8 +970,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	dev->lmmio = ioremap(dev->base_io_addr, pci_resource_len(dev->pci, 0));
 
 	if (!dev->lmmio) {
-		CX25821_ERR
-		    ("ioremap failed, maybe increasing __VMALLOC_RESERVE in page.h\n");
+		CX25821_ERR("ioremap failed, maybe increasing __VMALLOC_RESERVE in page.h\n");
 		cx25821_iounmap(dev);
 		return -ENOMEM;
 	}
@@ -994,7 +991,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
  *  cx25821_i2c_register(&dev->i2c_bus[2]); */
 
 	CX25821_INFO("i2c register! bus->i2c_rc = %d\n",
-		     dev->i2c_bus[0].i2c_rc);
+			dev->i2c_bus[0].i2c_rc);
 
 	cx25821_card_setup(dev);
 
@@ -1004,9 +1001,8 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	cx25821_video_register(dev);
 
 	/* register IOCTL device */
-	dev->ioctl_dev =
-	   cx25821_vdev_init(dev, dev->pci, &cx25821_videoioctl_template,
-			      "video");
+	dev->ioctl_dev = cx25821_vdev_init(dev, dev->pci,
+			&cx25821_videoioctl_template, "video");
 
 	if (video_register_device
 	    (dev->ioctl_dev, VFL_TYPE_GRABBER, VIDEO_IOCTL_CH) < 0) {
@@ -1103,16 +1099,15 @@ static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 		}
 		if (bpl <= sg_dma_len(sg) - offset) {
 			/* fits into current chunk */
-			*(rp++) =
-			    cpu_to_le32(RISC_WRITE | RISC_SOL | RISC_EOL | bpl);
+			*(rp++) = cpu_to_le32(RISC_WRITE | RISC_SOL | RISC_EOL |
+					bpl);
 			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 			offset += bpl;
 		} else {
 			/* scanline needs to be split */
 			todo = bpl;
-			*(rp++) =
-			    cpu_to_le32(RISC_WRITE | RISC_SOL |
+			*(rp++) = cpu_to_le32(RISC_WRITE | RISC_SOL |
 					(sg_dma_len(sg) - offset));
 			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
@@ -1120,8 +1115,8 @@ static __le32 *cx25821_risc_field(__le32 * rp, struct scatterlist *sglist,
 			offset = 0;
 			sg++;
 			while (todo > sg_dma_len(sg)) {
-				*(rp++) =
-				    cpu_to_le32(RISC_WRITE | sg_dma_len(sg));
+				*(rp++) = cpu_to_le32(RISC_WRITE |
+						sg_dma_len(sg));
 				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 				todo -= sg_dma_len(sg);
@@ -1160,8 +1155,8 @@ int cx25821_risc_buffer(struct pci_dev *pci, struct btcx_riscmem *risc,
 	   can cause next bpl to start close to a page border.  First DMA
 	   region may be smaller than PAGE_SIZE */
 	/* write and jump need and extra dword */
-	instructions =
-	    fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE + lines);
+	instructions = fields * (1 + ((bpl + padding) * lines) / PAGE_SIZE +
+			lines);
 	instructions += 2;
 	rc = btcx_riscmem_alloc(pci, risc, instructions * 12);
 
@@ -1215,8 +1210,8 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 
 		if (bpl <= sg_dma_len(sg) - offset) {
 			/* fits into current chunk */
-			*(rp++) =
-			    cpu_to_le32(RISC_WRITE | sol | RISC_EOL | bpl);
+			*(rp++) = cpu_to_le32(RISC_WRITE | sol | RISC_EOL |
+					bpl);
 			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 			offset += bpl;
@@ -1224,7 +1219,7 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 			/* scanline needs to be split */
 			todo = bpl;
 			*(rp++) = cpu_to_le32(RISC_WRITE | sol |
-					      (sg_dma_len(sg) - offset));
+					(sg_dma_len(sg) - offset));
 			*(rp++) = cpu_to_le32(sg_dma_address(sg) + offset);
 			*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 			todo -= (sg_dma_len(sg) - offset);
@@ -1232,7 +1227,7 @@ static __le32 *cx25821_risc_field_audio(__le32 * rp, struct scatterlist *sglist,
 			sg++;
 			while (todo > sg_dma_len(sg)) {
 				*(rp++) = cpu_to_le32(RISC_WRITE |
-						      sg_dma_len(sg));
+						sg_dma_len(sg));
 				*(rp++) = cpu_to_le32(sg_dma_address(sg));
 				*(rp++) = cpu_to_le32(0);	/* bits 63-32 */
 				todo -= sg_dma_len(sg);
@@ -1339,8 +1334,8 @@ static irqreturn_t cx25821_irq(int irq, void *dev_id)
 				sram_channels->int_stat);
 
 			if (vid_status)
-				handled +=
-				cx25821_video_irq(dev, i, vid_status);
+				handled += cx25821_video_irq(dev, i,
+						vid_status);
 
 			cx_write(PCI_INT_STAT, mask[i]);
 		}
@@ -1427,9 +1422,8 @@ static int __devinit cx25821_initdev(struct pci_dev *pci_dev,
 		goto fail_irq;
 	}
 
-	err =
-	    request_irq(pci_dev->irq, cx25821_irq, IRQF_SHARED,
-			dev->name, dev);
+	err = request_irq(pci_dev->irq, cx25821_irq,
+			IRQF_SHARED, dev->name, dev);
 
 	if (err < 0) {
 		pr_err("%s: can't get IRQ %d\n", dev->name, pci_dev->irq);
@@ -1511,7 +1505,6 @@ static void __exit cx25821_fini(void)
 {
 	pci_unregister_driver(&cx25821_pci_driver);
 }
-
 
 module_init(cx25821_init);
 module_exit(cx25821_fini);

@@ -53,6 +53,7 @@ struct tda18271_std_map {
 	struct tda18271_std_map_item dvbt_7;
 	struct tda18271_std_map_item dvbt_8;
 	struct tda18271_std_map_item qam_6;
+	struct tda18271_std_map_item qam_7;
 	struct tda18271_std_map_item qam_8;
 };
 

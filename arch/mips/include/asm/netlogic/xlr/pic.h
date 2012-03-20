@@ -193,39 +193,72 @@
 /* end XLS */
 
 #ifndef __ASSEMBLY__
-static inline void pic_send_ipi(u32 ipi)
-{
-	nlm_reg_t *mmio = netlogic_io_mmio(NETLOGIC_IO_PIC_OFFSET);
-
-	netlogic_write_reg(mmio, PIC_IPI, ipi);
-}
-
-static inline u32 pic_read_control(void)
-{
-	nlm_reg_t *mmio = netlogic_io_mmio(NETLOGIC_IO_PIC_OFFSET);
-
-	return netlogic_read_reg(mmio, PIC_CTRL);
-}
-
-static inline void pic_write_control(u32 control)
-{
-	nlm_reg_t *mmio = netlogic_io_mmio(NETLOGIC_IO_PIC_OFFSET);
-
-	netlogic_write_reg(mmio, PIC_CTRL, control);
-}
-
-static inline void pic_update_control(u32 control)
-{
-	nlm_reg_t *mmio = netlogic_io_mmio(NETLOGIC_IO_PIC_OFFSET);
-
-	netlogic_write_reg(mmio, PIC_CTRL,
-		(control | netlogic_read_reg(mmio, PIC_CTRL)));
-}
 
 #define PIC_IRQ_IS_EDGE_TRIGGERED(irq)	(((irq) >= PIC_TIMER_0_IRQ) && \
 					((irq) <= PIC_TIMER_7_IRQ))
 #define PIC_IRQ_IS_IRT(irq)		(((irq) >= PIC_IRT_FIRST_IRQ) && \
 					((irq) <= PIC_IRT_LAST_IRQ))
-#endif
 
+static inline int
+nlm_irq_to_irt(int irq)
+{
+	if (PIC_IRQ_IS_IRT(irq) == 0)
+		return -1;
+
+	return PIC_IRQ_TO_INTR(irq);
+}
+
+static inline int
+nlm_irt_to_irq(int irt)
+{
+
+	return PIC_INTR_TO_IRQ(irt);
+}
+
+static inline void
+nlm_pic_enable_irt(uint64_t base, int irt)
+{
+	uint32_t reg;
+
+	reg = nlm_read_reg(base, PIC_IRT_1(irt));
+	nlm_write_reg(base, PIC_IRT_1(irt), reg | (1u << 31));
+}
+
+static inline void
+nlm_pic_disable_irt(uint64_t base, int irt)
+{
+	uint32_t reg;
+
+	reg = nlm_read_reg(base, PIC_IRT_1(irt));
+	nlm_write_reg(base, PIC_IRT_1(irt), reg & ~(1u << 31));
+}
+
+static inline void
+nlm_pic_send_ipi(uint64_t base, int hwt, int irq, int nmi)
+{
+	unsigned int tid, pid;
+
+	tid = hwt & 0x3;
+	pid = (hwt >> 2) & 0x07;
+	nlm_write_reg(base, PIC_IPI,
+		(pid << 20) | (tid << 16) | (nmi << 8) | irq);
+}
+
+static inline void
+nlm_pic_ack(uint64_t base, int irt)
+{
+	nlm_write_reg(base, PIC_INT_ACK, 1u << irt);
+}
+
+static inline void
+nlm_pic_init_irt(uint64_t base, int irt, int irq, int hwt)
+{
+	nlm_write_reg(base, PIC_IRT_0(irt), (1u << hwt));
+	/* local scheduling, invalid, level by default */
+	nlm_write_reg(base, PIC_IRT_1(irt),
+		(1 << 30) | (1 << 6) | irq);
+}
+
+extern uint64_t nlm_pic_base;
+#endif
 #endif /* _ASM_NLM_XLR_PIC_H */

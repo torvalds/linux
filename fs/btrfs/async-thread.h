@@ -109,8 +109,8 @@ struct btrfs_workers {
 	char *name;
 };
 
-int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work);
-int btrfs_start_workers(struct btrfs_workers *workers, int num_workers);
+void btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work);
+int btrfs_start_workers(struct btrfs_workers *workers);
 int btrfs_stop_workers(struct btrfs_workers *workers);
 void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max,
 			struct btrfs_workers *async_starter);

@@ -33,6 +33,14 @@ void btrfs_assert_tree_read_locked(struct extent_buffer *eb);
  */
 void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw)
 {
+	if (eb->lock_nested) {
+		read_lock(&eb->lock);
+		if (eb->lock_nested && current->pid == eb->lock_owner) {
+			read_unlock(&eb->lock);
+			return;
+		}
+		read_unlock(&eb->lock);
+	}
 	if (rw == BTRFS_WRITE_LOCK) {
 		if (atomic_read(&eb->blocking_writers) == 0) {
 			WARN_ON(atomic_read(&eb->spinning_writers) != 1);
@@ -57,6 +65,14 @@ void btrfs_set_lock_blocking_rw(struct extent_buffer *eb, int rw)
  */
 void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
 {
+	if (eb->lock_nested) {
+		read_lock(&eb->lock);
+		if (&eb->lock_nested && current->pid == eb->lock_owner) {
+			read_unlock(&eb->lock);
+			return;
+		}
+		read_unlock(&eb->lock);
+	}
 	if (rw == BTRFS_WRITE_LOCK_BLOCKING) {
 		BUG_ON(atomic_read(&eb->blocking_writers) != 1);
 		write_lock(&eb->lock);
@@ -81,12 +97,25 @@ void btrfs_clear_lock_blocking_rw(struct extent_buffer *eb, int rw)
 void btrfs_tree_read_lock(struct extent_buffer *eb)
 {
 again:
+	read_lock(&eb->lock);
+	if (atomic_read(&eb->blocking_writers) &&
+	    current->pid == eb->lock_owner) {
+		/*
+		 * This extent is already write-locked by our thread. We allow
+		 * an additional read lock to be added because it's for the same
+		 * thread. btrfs_find_all_roots() depends on this as it may be
+		 * called on a partly (write-)locked tree.
+		 */
+		BUG_ON(eb->lock_nested);
+		eb->lock_nested = 1;
+		read_unlock(&eb->lock);
+		return;
+	}
+	read_unlock(&eb->lock);
 	wait_event(eb->write_lock_wq, atomic_read(&eb->blocking_writers) == 0);
 	read_lock(&eb->lock);
 	if (atomic_read(&eb->blocking_writers)) {
 		read_unlock(&eb->lock);
-		wait_event(eb->write_lock_wq,
-			   atomic_read(&eb->blocking_writers) == 0);
 		goto again;
 	}
 	atomic_inc(&eb->read_locks);
@@ -129,6 +158,7 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
 	}
 	atomic_inc(&eb->write_locks);
 	atomic_inc(&eb->spinning_writers);
+	eb->lock_owner = current->pid;
 	return 1;
 }
 
@@ -137,6 +167,15 @@ int btrfs_try_tree_write_lock(struct extent_buffer *eb)
  */
 void btrfs_tree_read_unlock(struct extent_buffer *eb)
 {
+	if (eb->lock_nested) {
+		read_lock(&eb->lock);
+		if (eb->lock_nested && current->pid == eb->lock_owner) {
+			eb->lock_nested = 0;
+			read_unlock(&eb->lock);
+			return;
+		}
+		read_unlock(&eb->lock);
+	}
 	btrfs_assert_tree_read_locked(eb);
 	WARN_ON(atomic_read(&eb->spinning_readers) == 0);
 	atomic_dec(&eb->spinning_readers);
@@ -149,6 +188,15 @@ void btrfs_tree_read_unlock(struct extent_buffer *eb)
  */
 void btrfs_tree_read_unlock_blocking(struct extent_buffer *eb)
 {
+	if (eb->lock_nested) {
+		read_lock(&eb->lock);
+		if (eb->lock_nested && current->pid == eb->lock_owner) {
+			eb->lock_nested = 0;
+			read_unlock(&eb->lock);
+			return;
+		}
+		read_unlock(&eb->lock);
+	}
 	btrfs_assert_tree_read_locked(eb);
 	WARN_ON(atomic_read(&eb->blocking_readers) == 0);
 	if (atomic_dec_and_test(&eb->blocking_readers))
@@ -181,6 +229,7 @@ again:
 	WARN_ON(atomic_read(&eb->spinning_writers));
 	atomic_inc(&eb->spinning_writers);
 	atomic_inc(&eb->write_locks);
+	eb->lock_owner = current->pid;
 	return 0;
 }
 

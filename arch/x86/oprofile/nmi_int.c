@@ -595,24 +595,36 @@ static int __init p4_init(char **cpu_type)
 	return 0;
 }
 
-static int force_arch_perfmon;
-static int force_cpu_type(const char *str, struct kernel_param *kp)
+enum __force_cpu_type {
+	reserved = 0,		/* do not force */
+	timer,
+	arch_perfmon,
+};
+
+static int force_cpu_type;
+
+static int set_cpu_type(const char *str, struct kernel_param *kp)
 {
-	if (!strcmp(str, "arch_perfmon")) {
-		force_arch_perfmon = 1;
+	if (!strcmp(str, "timer")) {
+		force_cpu_type = timer;
+		printk(KERN_INFO "oprofile: forcing NMI timer mode\n");
+	} else if (!strcmp(str, "arch_perfmon")) {
+		force_cpu_type = arch_perfmon;
 		printk(KERN_INFO "oprofile: forcing architectural perfmon\n");
+	} else {
+		force_cpu_type = 0;
 	}
 
 	return 0;
 }
-module_param_call(cpu_type, force_cpu_type, NULL, NULL, 0);
+module_param_call(cpu_type, set_cpu_type, NULL, NULL, 0);
 
 static int __init ppro_init(char **cpu_type)
 {
 	__u8 cpu_model = boot_cpu_data.x86_model;
 	struct op_x86_model_spec *spec = &op_ppro_spec;	/* default */
 
-	if (force_arch_perfmon && cpu_has_arch_perfmon)
+	if (force_cpu_type == arch_perfmon && cpu_has_arch_perfmon)
 		return 0;
 
 	/*
@@ -677,6 +689,9 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	int ret = 0;
 
 	if (!cpu_has_apic)
+		return -ENODEV;
+
+	if (force_cpu_type == timer)
 		return -ENODEV;
 
 	switch (vendor) {

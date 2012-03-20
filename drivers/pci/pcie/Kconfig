@@ -39,7 +39,7 @@ config PCIEASPM
 	  Power Management) and Clock Power Management. ASPM supports
 	  state L0/L0s/L1.
 
-	  ASPM is initially set up the the firmware. With this option enabled,
+	  ASPM is initially set up by the firmware. With this option enabled,
 	  Linux can modify this state in order to disable ASPM on known-bad
 	  hardware or configurations and enable it when known-safe.
 

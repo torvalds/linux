@@ -143,7 +143,7 @@ u32 iwl_read_direct32(struct iwl_bus *bus, u32 reg)
 
 	spin_lock_irqsave(&bus->reg_lock, flags);
 	iwl_grab_nic_access(bus);
-	value = iwl_read32(bus(bus), reg);
+	value = iwl_read32(bus, reg);
 	iwl_release_nic_access(bus);
 	spin_unlock_irqrestore(&bus->reg_lock, flags);
 
@@ -283,16 +283,29 @@ u32 iwl_read_targ_mem(struct iwl_bus *bus, u32 addr)
 	return value;
 }
 
-void iwl_write_targ_mem(struct iwl_bus *bus, u32 addr, u32 val)
+int _iwl_write_targ_mem_words(struct iwl_bus *bus, u32 addr,
+				void *buf, int words)
 {
 	unsigned long flags;
+	int offs, result = 0;
+	u32 *vals = buf;
 
 	spin_lock_irqsave(&bus->reg_lock, flags);
 	if (!iwl_grab_nic_access(bus)) {
 		iwl_write32(bus, HBUS_TARG_MEM_WADDR, addr);
 		wmb();
-		iwl_write32(bus, HBUS_TARG_MEM_WDAT, val);
+
+		for (offs = 0; offs < words; offs++)
+			iwl_write32(bus, HBUS_TARG_MEM_WDAT, vals[offs]);
 		iwl_release_nic_access(bus);
-	}
+	} else
+		result = -EBUSY;
 	spin_unlock_irqrestore(&bus->reg_lock, flags);
+
+	return result;
+}
+
+int iwl_write_targ_mem(struct iwl_bus *bus, u32 addr, u32 val)
+{
+	return _iwl_write_targ_mem_words(bus, addr, &val, 1);
 }

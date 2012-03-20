@@ -107,7 +107,7 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 		}
 
 		if (isr & AR_ISR_RXORN) {
-			ath_dbg(common, ATH_DBG_INTERRUPT,
+			ath_dbg(common, INTERRUPT,
 				"receive FIFO overrun interrupt\n");
 		}
 
@@ -143,24 +143,24 @@ static bool ar9002_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		if (fatal_int) {
 			if (sync_cause & AR_INTR_SYNC_HOST1_FATAL) {
-				ath_dbg(common, ATH_DBG_ANY,
+				ath_dbg(common, ANY,
 					"received PCI FATAL interrupt\n");
 			}
 			if (sync_cause & AR_INTR_SYNC_HOST1_PERR) {
-				ath_dbg(common, ATH_DBG_ANY,
+				ath_dbg(common, ANY,
 					"received PCI PERR interrupt\n");
 			}
 			*masked |= ATH9K_INT_FATAL;
 		}
 		if (sync_cause & AR_INTR_SYNC_RADM_CPL_TIMEOUT) {
-			ath_dbg(common, ATH_DBG_INTERRUPT,
+			ath_dbg(common, INTERRUPT,
 				"AR_INTR_SYNC_RADM_CPL_TIMEOUT\n");
 			REG_WRITE(ah, AR_RC, AR_RC_HOSTIF);
 			REG_WRITE(ah, AR_RC, 0);
 			*masked |= ATH9K_INT_FATAL;
 		}
 		if (sync_cause & AR_INTR_SYNC_LOCAL_TIMEOUT) {
-			ath_dbg(common, ATH_DBG_INTERRUPT,
+			ath_dbg(common, INTERRUPT,
 				"AR_INTR_SYNC_LOCAL_TIMEOUT\n");
 		}
 

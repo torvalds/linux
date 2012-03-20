@@ -1067,7 +1067,7 @@ void __init at32_setup_serial_console(unsigned int usart_id)
  * -------------------------------------------------------------------- */
 
 #ifdef CONFIG_CPU_AT32AP7000
-static struct eth_platform_data macb0_data;
+static struct macb_platform_data macb0_data;
 static struct resource macb0_resource[] = {
 	PBMEM(0xfff01800),
 	IRQ(25),
@@ -1076,7 +1076,7 @@ DEFINE_DEV_DATA(macb, 0);
 DEV_CLK(hclk, macb0, hsb, 8);
 DEV_CLK(pclk, macb0, pbb, 6);
 
-static struct eth_platform_data macb1_data;
+static struct macb_platform_data macb1_data;
 static struct resource macb1_resource[] = {
 	PBMEM(0xfff01c00),
 	IRQ(26),
@@ -1086,7 +1086,7 @@ DEV_CLK(hclk, macb1, hsb, 9);
 DEV_CLK(pclk, macb1, pbb, 7);
 
 struct platform_device *__init
-at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
+at32_add_device_eth(unsigned int id, struct macb_platform_data *data)
 {
 	struct platform_device *pdev;
 	u32 pin_mask;
@@ -1163,7 +1163,7 @@ at32_add_device_eth(unsigned int id, struct eth_platform_data *data)
 		return NULL;
 	}
 
-	memcpy(pdev->dev.platform_data, data, sizeof(struct eth_platform_data));
+	memcpy(pdev->dev.platform_data, data, sizeof(struct macb_platform_data));
 	platform_device_register(pdev);
 
 	return pdev;

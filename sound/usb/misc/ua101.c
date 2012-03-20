@@ -52,7 +52,7 @@ MODULE_SUPPORTED_DEVICE("{{Edirol,UA-101},{Edirol,UA-1000}}");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;
 static unsigned int queue_length = 21;
 
 module_param_array(index, int, NULL, 0444);
@@ -1387,16 +1387,4 @@ static struct usb_driver ua101_driver = {
 #endif
 };
 
-static int __init alsa_card_ua101_init(void)
-{
-	return usb_register(&ua101_driver);
-}
-
-static void __exit alsa_card_ua101_exit(void)
-{
-	usb_deregister(&ua101_driver);
-	mutex_destroy(&devices_mutex);
-}
-
-module_init(alsa_card_ua101_init);
-module_exit(alsa_card_ua101_exit);
+module_usb_driver(ua101_driver);

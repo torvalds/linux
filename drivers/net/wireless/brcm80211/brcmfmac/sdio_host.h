@@ -116,11 +116,19 @@
 #define SUCCESS	0
 #define ERROR	1
 
+/* Packet alignment for most efficient SDIO (can change based on platform) */
+#define BRCMF_SDALIGN	(1 << 6)
+
+/* watchdog polling interval in ms */
+#define BRCMF_WD_POLL_MS	10
+
 struct brcmf_sdreg {
 	int func;
 	int offset;
 	int value;
 };
+
+struct brcmf_sdio;
 
 struct brcmf_sdio_dev {
 	struct sdio_func *func[SDIO_MAX_FUNCS];
@@ -132,9 +140,10 @@ struct brcmf_sdio_dev {
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
 	wait_queue_head_t request_word_wait;
-	wait_queue_head_t request_packet_wait;
+	wait_queue_head_t request_chain_wait;
 	wait_queue_head_t request_buffer_wait;
-
+	struct device *dev;
+	struct brcmf_bus *bus_if;
 };
 
 /* Register/deregister device interrupt handler. */
@@ -182,11 +191,21 @@ extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);
  * NOTE: Async operation is not currently supported.
  */
 extern int
+brcmf_sdcard_send_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt);
+extern int
 brcmf_sdcard_send_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt);
+		      uint flags, u8 *buf, uint nbytes);
+
+extern int
+brcmf_sdcard_recv_pkt(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+		      uint flags, struct sk_buff *pkt);
 extern int
 brcmf_sdcard_recv_buf(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
-		      uint flags, u8 *buf, uint nbytes, struct sk_buff *pkt);
+		      uint flags, u8 *buf, uint nbytes);
+extern int
+brcmf_sdcard_recv_chain(struct brcmf_sdio_dev *sdiodev, u32 addr, uint fn,
+			uint flags, struct sk_buff_head *pktq);
 
 /* Flags bits */
 
@@ -237,16 +256,20 @@ brcmf_sdioh_request_word(struct brcmf_sdio_dev *sdiodev,
 /* read or write any buffer using cmd53 */
 extern int
 brcmf_sdioh_request_buffer(struct brcmf_sdio_dev *sdiodev,
-			   uint fix_inc, uint rw, uint fnc_num,
-			   u32 addr, uint regwidth,
-			   u32 buflen, u8 *buffer, struct sk_buff *pkt);
+			   uint fix_inc, uint rw, uint fnc_num, u32 addr,
+			   struct sk_buff *pkt);
+extern int
+brcmf_sdioh_request_chain(struct brcmf_sdio_dev *sdiodev, uint fix_inc,
+			  uint write, uint func, uint addr,
+			  struct sk_buff_head *pktq);
 
 /* Watchdog timer interface for pm ops */
 extern void brcmf_sdio_wdtmr_enable(struct brcmf_sdio_dev *sdiodev,
 				    bool enable);
 
-extern void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
-				u32 regsva, struct brcmf_sdio_dev *sdiodev);
+extern void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev);
 extern void brcmf_sdbrcm_disconnect(void *ptr);
 extern void brcmf_sdbrcm_isr(void *arg);
+
+extern void brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick);
 #endif				/* _BRCM_SDH_H_ */

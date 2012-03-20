@@ -185,4 +185,28 @@ extern const char perf_version_string[];
 
 void pthread__unblock_sigwinch(void);
 
+struct perf_record_opts {
+	pid_t	     target_pid;
+	pid_t	     target_tid;
+	bool	     call_graph;
+	bool	     group;
+	bool	     inherit_stat;
+	bool	     no_delay;
+	bool	     no_inherit;
+	bool	     no_samples;
+	bool	     pipe_output;
+	bool	     raw_samples;
+	bool	     sample_address;
+	bool	     sample_time;
+	bool	     sample_id_all_avail;
+	bool	     system_wide;
+	bool	     period;
+	unsigned int freq;
+	unsigned int mmap_pages;
+	unsigned int user_freq;
+	u64	     default_interval;
+	u64	     user_interval;
+	const char   *cpu_list;
+};
+
 #endif

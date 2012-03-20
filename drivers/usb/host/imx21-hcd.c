@@ -473,7 +473,7 @@ static void free_epdmem(struct imx21 *imx21, struct usb_host_endpoint *ep)
 /* End handling 				*/
 /* ===========================================	*/
 
-/* Endpoint now idle - release it's ETD(s) or asssign to queued request */
+/* Endpoint now idle - release its ETD(s) or assign to queued request */
 static void ep_idle(struct imx21 *imx21, struct ep_priv *ep_priv)
 {
 	int i;
@@ -1924,18 +1924,7 @@ static struct platform_driver imx21_hcd_driver = {
 	.resume = NULL,
 };
 
-static int __init imx21_hcd_init(void)
-{
-	return platform_driver_register(&imx21_hcd_driver);
-}
-
-static void __exit imx21_hcd_cleanup(void)
-{
-	platform_driver_unregister(&imx21_hcd_driver);
-}
-
-module_init(imx21_hcd_init);
-module_exit(imx21_hcd_cleanup);
+module_platform_driver(imx21_hcd_driver);
 
 MODULE_DESCRIPTION("i.MX21 USB Host controller");
 MODULE_AUTHOR("Martin Fuzzey");

@@ -26,6 +26,7 @@
 #include <net/ip.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
+#include <net/flow_keys.h>
 
 /*
  * SFB uses two B[l][n] : L x N arrays of bins (L levels, N bins per level)
@@ -93,8 +94,7 @@ struct sfb_skb_cb {
 
 static inline struct sfb_skb_cb *sfb_skb_cb(const struct sk_buff *skb)
 {
-	BUILD_BUG_ON(sizeof(skb->cb) <
-		sizeof(struct qdisc_skb_cb) + sizeof(struct sfb_skb_cb));
+	qdisc_cb_private_validate(skb, sizeof(struct sfb_skb_cb));
 	return (struct sfb_skb_cb *)qdisc_skb_cb(skb)->data;
 }
 
@@ -286,6 +286,7 @@ static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	u32 minqlen = ~0;
 	u32 r, slot, salt, sfbhash;
 	int ret = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
+	struct flow_keys keys;
 
 	if (unlikely(sch->q.qlen >= q->limit)) {
 		sch->qstats.overlimits++;
@@ -309,13 +310,19 @@ static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		/* If using external classifiers, get result and record it. */
 		if (!sfb_classify(skb, q, &ret, &salt))
 			goto other_drop;
+		keys.src = salt;
+		keys.dst = 0;
+		keys.ports = 0;
 	} else {
-		salt = skb_get_rxhash(skb);
+		skb_flow_dissect(skb, &keys);
 	}
 
 	slot = q->slot;
 
-	sfbhash = jhash_1word(salt, q->bins[slot].perturbation);
+	sfbhash = jhash_3words((__force u32)keys.dst,
+			       (__force u32)keys.src,
+			       (__force u32)keys.ports,
+			       q->bins[slot].perturbation);
 	if (!sfbhash)
 		sfbhash = 1;
 	sfb_skb_cb(skb)->hashes[slot] = sfbhash;
@@ -347,7 +354,10 @@ static int sfb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (unlikely(p_min >= SFB_MAX_PROB)) {
 		/* Inelastic flow */
 		if (q->double_buffering) {
-			sfbhash = jhash_1word(salt, q->bins[slot].perturbation);
+			sfbhash = jhash_3words((__force u32)keys.dst,
+					       (__force u32)keys.src,
+					       (__force u32)keys.ports,
+					       q->bins[slot].perturbation);
 			if (!sfbhash)
 				sfbhash = 1;
 			sfb_skb_cb(skb)->hashes[slot] = sfbhash;

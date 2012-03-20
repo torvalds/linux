@@ -23,7 +23,7 @@ static inline struct neighbour *__ipv4_neigh_lookup(struct neigh_table *tbl, str
 
 	rcu_read_lock_bh();
 	nht = rcu_dereference_bh(tbl->nht);
-	hash_val = arp_hashfn(key, dev, nht->hash_rnd) >> (32 - nht->hash_shift);
+	hash_val = arp_hashfn(key, dev, nht->hash_rnd[0]) >> (32 - nht->hash_shift);
 	for (n = rcu_dereference_bh(nht->hash_buckets[hash_val]);
 	     n != NULL;
 	     n = rcu_dereference_bh(n->next)) {

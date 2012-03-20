@@ -35,7 +35,7 @@ MODULE_DESCRIPTION("i2c device driver for cs53l32a Audio ADC");
 MODULE_AUTHOR("Martin Vaughan");
 MODULE_LICENSE("GPL");
 
-static int debug;
+static bool debug;
 
 module_param(debug, bool, 0644);
 

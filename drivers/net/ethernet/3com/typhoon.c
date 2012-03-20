@@ -988,21 +988,23 @@ typhoon_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 
 	smp_rmb();
 	if(tp->card_state == Sleeping) {
-		strcpy(info->fw_version, "Sleep image");
+		strlcpy(info->fw_version, "Sleep image",
+			sizeof(info->fw_version));
 	} else {
 		INIT_COMMAND_WITH_RESPONSE(&xp_cmd, TYPHOON_CMD_READ_VERSIONS);
 		if(typhoon_issue_command(tp, 1, &xp_cmd, 3, xp_resp) < 0) {
-			strcpy(info->fw_version, "Unknown runtime");
+			strlcpy(info->fw_version, "Unknown runtime",
+				sizeof(info->fw_version));
 		} else {
 			u32 sleep_ver = le32_to_cpu(xp_resp[0].parm2);
-			snprintf(info->fw_version, 32, "%02x.%03x.%03x",
-				 sleep_ver >> 24, (sleep_ver >> 12) & 0xfff,
-				 sleep_ver & 0xfff);
+			snprintf(info->fw_version, sizeof(info->fw_version),
+				"%02x.%03x.%03x", sleep_ver >> 24,
+				(sleep_ver >> 12) & 0xfff, sleep_ver & 0xfff);
 		}
 	}
 
-	strcpy(info->driver, KBUILD_MODNAME);
-	strcpy(info->bus_info, pci_name(pci_dev));
+	strlcpy(info->driver, KBUILD_MODNAME, sizeof(info->driver));
+	strlcpy(info->bus_info, pci_name(pci_dev), sizeof(info->bus_info));
 }
 
 static int

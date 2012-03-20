@@ -36,7 +36,6 @@
 
 #ifdef CONFIG_ARCH_PXA
 #include <mach/regs-rtc.h>
-#include <mach/regs-ost.h>
 #endif
 
 #define RTC_DEF_DIVIDER		(32768 - 1)
@@ -188,8 +187,6 @@ static void sa1100_rtc_release(struct device *dev)
 {
 	spin_lock_irq(&sa1100_rtc_lock);
 	RTSR = 0;
-	OIER &= ~OIER_E1;
-	OSSR = OSSR_M1;
 	spin_unlock_irq(&sa1100_rtc_lock);
 
 	free_irq(IRQ_RTCAlrm, dev);
@@ -369,18 +366,7 @@ static struct platform_driver sa1100_rtc_driver = {
 	},
 };
 
-static int __init sa1100_rtc_init(void)
-{
-	return platform_driver_register(&sa1100_rtc_driver);
-}
-
-static void __exit sa1100_rtc_exit(void)
-{
-	platform_driver_unregister(&sa1100_rtc_driver);
-}
-
-module_init(sa1100_rtc_init);
-module_exit(sa1100_rtc_exit);
+module_platform_driver(sa1100_rtc_driver);
 
 MODULE_AUTHOR("Richard Purdie <rpurdie@rpsys.net>");
 MODULE_DESCRIPTION("SA11x0/PXA2xx Realtime Clock Driver (RTC)");

@@ -347,18 +347,28 @@ int snd_hdmi_get_eld(struct hdmi_eld *eld,
 
 	for (i = 0; i < size; i++) {
 		unsigned int val = hdmi_get_eld_data(codec, nid, i);
+		/*
+		 * Graphics driver might be writing to ELD buffer right now.
+		 * Just abort. The caller will repoll after a while.
+		 */
 		if (!(val & AC_ELDD_ELD_VALID)) {
-			if (!i) {
-				snd_printd(KERN_INFO
-					   "HDMI: invalid ELD data\n");
-				ret = -EINVAL;
-				goto error;
-			}
 			snd_printd(KERN_INFO
 				  "HDMI: invalid ELD data byte %d\n", i);
-			val = 0;
-		} else
-			val &= AC_ELDD_ELD_DATA;
+			ret = -EINVAL;
+			goto error;
+		}
+		val &= AC_ELDD_ELD_DATA;
+		/*
+		 * The first byte cannot be zero. This can happen on some DVI
+		 * connections. Some Intel chips may also need some 250ms delay
+		 * to return non-zero ELD data, even when the graphics driver
+		 * correctly writes ELD content before setting ELD_valid bit.
+		 */
+		if (!val && !i) {
+			snd_printdd(KERN_INFO "HDMI: 0 ELD data\n");
+			ret = -EINVAL;
+			goto error;
+		}
 		buf[i] = val;
 	}
 

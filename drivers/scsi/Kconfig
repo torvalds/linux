@@ -830,15 +830,10 @@ config SCSI_ISCI
 	tristate "Intel(R) C600 Series Chipset SAS Controller"
 	depends on PCI && SCSI
 	depends on X86
-	# (temporary): known alpha quality driver
-	depends on EXPERIMENTAL
 	select SCSI_SAS_LIBSAS
-	select SCSI_SAS_HOST_SMP
 	---help---
 	  This driver supports the 6Gb/s SAS capabilities of the storage
 	  control unit found in the Intel(R) C600 series chipset.
-
-	  The experimental tag will be removed after the driver exits alpha
 
 config SCSI_GENERIC_NCR5380
 	tristate "Generic NCR5380/53c400 SCSI PIO support"

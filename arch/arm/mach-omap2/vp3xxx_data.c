@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/init.h>
 
-#include <plat/common.h>
+#include "common.h"
 
 #include "prm-regbits-34xx.h"
 #include "voltage.h"

@@ -68,7 +68,7 @@ static char asr_expect_close;
 static unsigned int asr_type, asr_base, asr_length;
 static unsigned int asr_read_addr, asr_write_addr;
 static unsigned char asr_toggle_mask, asr_disable_mask;
-static spinlock_t asr_lock;
+static DEFINE_SPINLOCK(asr_lock);
 
 static void __asr_toggle(void)
 {
@@ -385,8 +385,6 @@ static int __init ibmasr_init(void)
 
 	if (!asr_type)
 		return -ENODEV;
-
-	spin_lock_init(&asr_lock);
 
 	rc = asr_get_base_address();
 	if (rc)

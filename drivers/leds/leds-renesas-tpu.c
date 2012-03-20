@@ -339,18 +339,7 @@ static struct platform_driver r_tpu_device_driver = {
 	}
 };
 
-static int __init r_tpu_init(void)
-{
-	return platform_driver_register(&r_tpu_device_driver);
-}
-
-static void __exit r_tpu_exit(void)
-{
-	platform_driver_unregister(&r_tpu_device_driver);
-}
-
-module_init(r_tpu_init);
-module_exit(r_tpu_exit);
+module_platform_driver(r_tpu_device_driver);
 
 MODULE_AUTHOR("Magnus Damm");
 MODULE_DESCRIPTION("Renesas TPU LED Driver");

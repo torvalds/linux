@@ -537,14 +537,14 @@ struct pci_bus *iop13xx_scan_bus(int nr, struct pci_sys_data *sys)
 			while(time_before(jiffies, atux_trhfa_timeout))
 				udelay(100);
 
-		bus = pci_bus_atux = pci_scan_bus(sys->busnr,
-						  &iop13xx_atux_ops,
-						  sys);
+		bus = pci_bus_atux = pci_scan_root_bus(NULL, sys->busnr,
+						       &iop13xx_atux_ops,
+						       sys, &sys->resources);
 		break;
 	case IOP13XX_INIT_ATU_ATUE:
-		bus = pci_bus_atue = pci_scan_bus(sys->busnr,
-						  &iop13xx_atue_ops,
-						  sys);
+		bus = pci_bus_atue = pci_scan_root_bus(NULL, sys->busnr,
+						       &iop13xx_atue_ops,
+						       sys, &sys->resources);
 		break;
 	}
 
@@ -1084,9 +1084,8 @@ int iop13xx_pci_setup(int nr, struct pci_sys_data *sys)
 	request_resource(&ioport_resource, &res[0]);
 	request_resource(&iomem_resource, &res[1]);
 
-	sys->resource[0] = &res[0];
-	sys->resource[1] = &res[1];
-	sys->resource[2] = NULL;
+	pci_add_resource(&sys->resources, &res[0]);
+	pci_add_resource(&sys->resources, &res[1]);
 
 	return 1;
 }

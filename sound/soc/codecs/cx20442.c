@@ -16,6 +16,7 @@
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/regulator/consumer.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -25,8 +26,8 @@
 
 
 struct cx20442_priv {
-	enum snd_soc_control_type control_type;
 	void *control_data;
+	struct regulator *por;
 };
 
 #define CX20442_PM		0x0
@@ -324,6 +325,38 @@ static struct snd_soc_dai_driver cx20442_dai = {
 	},
 };
 
+static int cx20442_set_bias_level(struct snd_soc_codec *codec,
+		enum snd_soc_bias_level level)
+{
+	struct cx20442_priv *cx20442 = snd_soc_codec_get_drvdata(codec);
+	int err = 0;
+
+	switch (level) {
+	case SND_SOC_BIAS_PREPARE:
+		if (codec->dapm.bias_level != SND_SOC_BIAS_STANDBY)
+			break;
+		if (IS_ERR(cx20442->por))
+			err = PTR_ERR(cx20442->por);
+		else
+			err = regulator_enable(cx20442->por);
+		break;
+	case SND_SOC_BIAS_STANDBY:
+		if (codec->dapm.bias_level != SND_SOC_BIAS_PREPARE)
+			break;
+		if (IS_ERR(cx20442->por))
+			err = PTR_ERR(cx20442->por);
+		else
+			err = regulator_disable(cx20442->por);
+		break;
+	default:
+		break;
+	}
+	if (!err)
+		codec->dapm.bias_level = level;
+
+	return err;
+}
+
 static int cx20442_codec_probe(struct snd_soc_codec *codec)
 {
 	struct cx20442_priv *cx20442;
@@ -331,9 +364,13 @@ static int cx20442_codec_probe(struct snd_soc_codec *codec)
 	cx20442 = kzalloc(sizeof(struct cx20442_priv), GFP_KERNEL);
 	if (cx20442 == NULL)
 		return -ENOMEM;
-	snd_soc_codec_set_drvdata(codec, cx20442);
 
+	cx20442->por = regulator_get(codec->dev, "POR");
+	if (IS_ERR(cx20442->por))
+		dev_warn(codec->dev, "failed to get the regulator");
 	cx20442->control_data = NULL;
+
+	snd_soc_codec_set_drvdata(codec, cx20442);
 	codec->hw_write = NULL;
 	codec->card->pop_time = 0;
 
@@ -350,6 +387,12 @@ static int cx20442_codec_remove(struct snd_soc_codec *codec)
 			tty_hangup(tty);
 	}
 
+	if (!IS_ERR(cx20442->por)) {
+		/* should be already in STANDBY, hence disabled */
+		regulator_put(cx20442->por);
+	}
+
+	snd_soc_codec_set_drvdata(codec, NULL);
 	kfree(cx20442);
 	return 0;
 }
@@ -359,6 +402,7 @@ static const u8 cx20442_reg;
 static struct snd_soc_codec_driver cx20442_codec_dev = {
 	.probe = 	cx20442_codec_probe,
 	.remove = 	cx20442_codec_remove,
+	.set_bias_level = cx20442_set_bias_level,
 	.reg_cache_default = &cx20442_reg,
 	.reg_cache_size = 1,
 	.reg_word_size = sizeof(u8),
@@ -391,17 +435,7 @@ static struct platform_driver cx20442_platform_driver = {
 	.remove = __exit_p(cx20442_platform_remove),
 };
 
-static int __init cx20442_init(void)
-{
-	return platform_driver_register(&cx20442_platform_driver);
-}
-module_init(cx20442_init);
-
-static void __exit cx20442_exit(void)
-{
-	platform_driver_unregister(&cx20442_platform_driver);
-}
-module_exit(cx20442_exit);
+module_platform_driver(cx20442_platform_driver);
 
 MODULE_DESCRIPTION("ASoC CX20442-11 voice modem codec driver");
 MODULE_AUTHOR("Janusz Krzysztofik");

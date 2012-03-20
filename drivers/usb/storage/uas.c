@@ -760,18 +760,7 @@ static struct usb_driver uas_driver = {
 	.id_table = uas_usb_ids,
 };
 
-static int uas_init(void)
-{
-	return usb_register(&uas_driver);
-}
-
-static void uas_exit(void)
-{
-	usb_deregister(&uas_driver);
-}
-
-module_init(uas_init);
-module_exit(uas_exit);
+module_usb_driver(uas_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Matthew Wilcox and Sarah Sharp");

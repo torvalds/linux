@@ -75,7 +75,7 @@ static u32 get_cfgspace_addr(struct ssb_pcicore *pc,
 	u32 tmp;
 
 	/* We do only have one cardbus device behind the bridge. */
-	if (pc->cardbusmode && (dev >= 1))
+	if (pc->cardbusmode && (dev > 1))
 		goto out;
 
 	if (bus == 0) {
@@ -517,10 +517,14 @@ static void ssb_pcicore_pcie_setup_workarounds(struct ssb_pcicore *pc)
 
 static void __devinit ssb_pcicore_init_clientmode(struct ssb_pcicore *pc)
 {
-	ssb_pcicore_fix_sprom_core_index(pc);
+	struct ssb_device *pdev = pc->dev;
+	struct ssb_bus *bus = pdev->bus;
+
+	if (bus->bustype == SSB_BUSTYPE_PCI)
+		ssb_pcicore_fix_sprom_core_index(pc);
 
 	/* Disable PCI interrupts. */
-	ssb_write32(pc->dev, SSB_INTVEC, 0);
+	ssb_write32(pdev, SSB_INTVEC, 0);
 
 	/* Additional PCIe always once-executed workarounds */
 	if (pc->dev->id.coreid == SSB_DEV_PCIE) {

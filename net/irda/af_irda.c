@@ -2558,8 +2558,8 @@ bed:
 			self->errno = 0;
 			setup_timer(&self->watchdog, irda_discovery_timeout,
 					(unsigned long)self);
-			self->watchdog.expires = jiffies + (val * HZ/1000);
-			add_timer(&(self->watchdog));
+			mod_timer(&self->watchdog,
+				  jiffies + msecs_to_jiffies(val));
 
 			/* Wait for IR-LMP to call us back */
 			__wait_event_interruptible(self->query_wait,

@@ -218,7 +218,7 @@ nv50_evo_channel_fini(struct nouveau_channel *evo)
 	}
 }
 
-static void
+void
 nv50_evo_destroy(struct drm_device *dev)
 {
 	struct nv50_display *disp = nv50_display(dev);
@@ -235,7 +235,7 @@ nv50_evo_destroy(struct drm_device *dev)
 	nv50_evo_channel_del(&disp->master);
 }
 
-static int
+int
 nv50_evo_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -388,12 +388,6 @@ nv50_evo_init(struct drm_device *dev)
 	struct nv50_display *disp = nv50_display(dev);
 	int ret, i;
 
-	if (!disp->master) {
-		ret = nv50_evo_create(dev);
-		if (ret)
-			return ret;
-	}
-
 	ret = nv50_evo_channel_init(disp->master);
 	if (ret)
 		return ret;
@@ -420,6 +414,4 @@ nv50_evo_fini(struct drm_device *dev)
 
 	if (disp->master)
 		nv50_evo_channel_fini(disp->master);
-
-	nv50_evo_destroy(dev);
 }

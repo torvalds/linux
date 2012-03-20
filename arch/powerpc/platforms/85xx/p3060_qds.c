@@ -70,7 +70,7 @@ define_machine(p3060_qds) {
 	.power_save		= e500_idle,
 };
 
-machine_device_initcall(p3060_qds, declare_of_platform_devices);
+machine_device_initcall(p3060_qds, corenet_ds_publish_devices);
 
 #ifdef CONFIG_SWIOTLB
 machine_arch_initcall(p3060_qds, swiotlb_setup_bus_notifier);

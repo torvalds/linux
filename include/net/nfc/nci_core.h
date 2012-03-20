@@ -109,15 +109,14 @@ struct nci_dev {
 				[NCI_MAX_SUPPORTED_RF_INTERFACES];
 	__u8			max_logical_connections;
 	__u16			max_routing_table_size;
-	__u8			max_control_packet_payload_length;
-	__u16			rf_sending_buffer_size;
-	__u16			rf_receiving_buffer_size;
-	__u16			manufacturer_id;
+	__u8			max_ctrl_pkt_payload_len;
+	__u16			max_size_for_large_params;
+	__u8			manufact_id;
+	__u32			manufact_specific_info;
 
-	/* received during NCI_OP_CORE_CONN_CREATE_RSP for static conn 0 */
-	__u8			max_pkt_payload_size;
+	/* received during NCI_OP_RF_INTF_ACTIVATED_NTF */
+	__u8			max_data_pkt_payload_size;
 	__u8			initial_num_credits;
-	__u8			conn_id;
 
 	/* stored during nci_data_exchange */
 	data_exchange_cb_t	data_exchange_cb;

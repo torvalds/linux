@@ -38,12 +38,10 @@ static struct gpio vpac270_cf_gpios[] = {
 static struct pcmcia_irqs cd_irqs[] = {
 	{
 		.sock = 0,
-		.irq  = IRQ_GPIO(GPIO84_VPAC270_PCMCIA_CD),
 		.str  = "PCMCIA CD"
 	},
 	{
 		.sock = 1,
-		.irq  = IRQ_GPIO(GPIO17_VPAC270_CF_CD),
 		.str  = "CF CD"
 	},
 };
@@ -57,6 +55,7 @@ static int vpac270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 				ARRAY_SIZE(vpac270_pcmcia_gpios));
 
 		skt->socket.pci_irq = gpio_to_irq(GPIO35_VPAC270_PCMCIA_RDY);
+		cd_irqs[0].irq = gpio_to_irq(GPIO84_VPAC270_PCMCIA_CD);
 
 		if (!ret)
 			ret = soc_pcmcia_request_irqs(skt, &cd_irqs[0], 1);
@@ -65,6 +64,7 @@ static int vpac270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 				ARRAY_SIZE(vpac270_cf_gpios));
 
 		skt->socket.pci_irq = gpio_to_irq(GPIO12_VPAC270_CF_RDY);
+		cd_irqs[1].irq = gpio_to_irq(GPIO17_VPAC270_CF_CD);
 
 		if (!ret)
 			ret = soc_pcmcia_request_irqs(skt, &cd_irqs[1], 1);

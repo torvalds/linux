@@ -16,6 +16,8 @@ struct btrfs_delayed_ref_node;
 struct btrfs_delayed_tree_ref;
 struct btrfs_delayed_data_ref;
 struct btrfs_delayed_ref_head;
+struct btrfs_block_group_cache;
+struct btrfs_free_cluster;
 struct map_lookup;
 struct extent_buffer;
 
@@ -43,6 +45,17 @@ struct extent_buffer;
 #define show_root_type(obj)						\
 	obj, ((obj >= BTRFS_DATA_RELOC_TREE_OBJECTID) ||		\
 	      (obj <= BTRFS_CSUM_TREE_OBJECTID )) ? __show_root_type(obj) : "-"
+
+#define BTRFS_GROUP_FLAGS	\
+	{ BTRFS_BLOCK_GROUP_DATA,	"DATA"}, \
+	{ BTRFS_BLOCK_GROUP_SYSTEM,	"SYSTEM"}, \
+	{ BTRFS_BLOCK_GROUP_METADATA,	"METADATA"}, \
+	{ BTRFS_BLOCK_GROUP_RAID0,	"RAID0"}, \
+	{ BTRFS_BLOCK_GROUP_RAID1,	"RAID1"}, \
+	{ BTRFS_BLOCK_GROUP_DUP,	"DUP"}, \
+	{ BTRFS_BLOCK_GROUP_RAID10,	"RAID10"}
+
+#define BTRFS_UUID_SIZE 16
 
 TRACE_EVENT(btrfs_transaction_commit,
 
@@ -621,6 +634,34 @@ TRACE_EVENT(btrfs_cow_block,
 		  __entry->cow_level)
 );
 
+TRACE_EVENT(btrfs_space_reservation,
+
+	TP_PROTO(struct btrfs_fs_info *fs_info, char *type, u64 val,
+		 u64 bytes, int reserve),
+
+	TP_ARGS(fs_info, type, val, bytes, reserve),
+
+	TP_STRUCT__entry(
+		__array(	u8,	fsid,	BTRFS_UUID_SIZE	)
+		__string(	type,	type			)
+		__field(	u64,	val			)
+		__field(	u64,	bytes			)
+		__field(	int,	reserve			)
+	),
+
+	TP_fast_assign(
+		memcpy(__entry->fsid, fs_info->fsid, BTRFS_UUID_SIZE);
+		__assign_str(type, type);
+		__entry->val		= val;
+		__entry->bytes		= bytes;
+		__entry->reserve	= reserve;
+	),
+
+	TP_printk("%pU: %s: %Lu %s %Lu", __entry->fsid, __get_str(type),
+		  __entry->val, __entry->reserve ? "reserve" : "release",
+		  __entry->bytes)
+);
+
 DECLARE_EVENT_CLASS(btrfs__reserved_extent,
 
 	TP_PROTO(struct btrfs_root *root, u64 start, u64 len),
@@ -657,6 +698,168 @@ DEFINE_EVENT(btrfs__reserved_extent,  btrfs_reserved_extent_free,
 	TP_PROTO(struct btrfs_root *root, u64 start, u64 len),
 
 	TP_ARGS(root, start, len)
+);
+
+TRACE_EVENT(find_free_extent,
+
+	TP_PROTO(struct btrfs_root *root, u64 num_bytes, u64 empty_size,
+		 u64 data),
+
+	TP_ARGS(root, num_bytes, empty_size, data),
+
+	TP_STRUCT__entry(
+		__field(	u64,	root_objectid		)
+		__field(	u64,	num_bytes		)
+		__field(	u64,	empty_size		)
+		__field(	u64,	data			)
+	),
+
+	TP_fast_assign(
+		__entry->root_objectid	= root->root_key.objectid;
+		__entry->num_bytes	= num_bytes;
+		__entry->empty_size	= empty_size;
+		__entry->data		= data;
+	),
+
+	TP_printk("root = %Lu(%s), len = %Lu, empty_size = %Lu, "
+		  "flags = %Lu(%s)", show_root_type(__entry->root_objectid),
+		  __entry->num_bytes, __entry->empty_size, __entry->data,
+		  __print_flags((unsigned long)__entry->data, "|",
+				 BTRFS_GROUP_FLAGS))
+);
+
+DECLARE_EVENT_CLASS(btrfs__reserve_extent,
+
+	TP_PROTO(struct btrfs_root *root,
+		 struct btrfs_block_group_cache *block_group, u64 start,
+		 u64 len),
+
+	TP_ARGS(root, block_group, start, len),
+
+	TP_STRUCT__entry(
+		__field(	u64,	root_objectid		)
+		__field(	u64,	bg_objectid		)
+		__field(	u64,	flags			)
+		__field(	u64,	start			)
+		__field(	u64,	len			)
+	),
+
+	TP_fast_assign(
+		__entry->root_objectid	= root->root_key.objectid;
+		__entry->bg_objectid	= block_group->key.objectid;
+		__entry->flags		= block_group->flags;
+		__entry->start		= start;
+		__entry->len		= len;
+	),
+
+	TP_printk("root = %Lu(%s), block_group = %Lu, flags = %Lu(%s), "
+		  "start = %Lu, len = %Lu",
+		  show_root_type(__entry->root_objectid), __entry->bg_objectid,
+		  __entry->flags, __print_flags((unsigned long)__entry->flags,
+						"|", BTRFS_GROUP_FLAGS),
+		  __entry->start, __entry->len)
+);
+
+DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent,
+
+	TP_PROTO(struct btrfs_root *root,
+		 struct btrfs_block_group_cache *block_group, u64 start,
+		 u64 len),
+
+	TP_ARGS(root, block_group, start, len)
+);
+
+DEFINE_EVENT(btrfs__reserve_extent, btrfs_reserve_extent_cluster,
+
+	TP_PROTO(struct btrfs_root *root,
+		 struct btrfs_block_group_cache *block_group, u64 start,
+		 u64 len),
+
+	TP_ARGS(root, block_group, start, len)
+);
+
+TRACE_EVENT(btrfs_find_cluster,
+
+	TP_PROTO(struct btrfs_block_group_cache *block_group, u64 start,
+		 u64 bytes, u64 empty_size, u64 min_bytes),
+
+	TP_ARGS(block_group, start, bytes, empty_size, min_bytes),
+
+	TP_STRUCT__entry(
+		__field(	u64,	bg_objectid		)
+		__field(	u64,	flags			)
+		__field(	u64,	start			)
+		__field(	u64,	bytes			)
+		__field(	u64,	empty_size		)
+		__field(	u64,	min_bytes		)
+	),
+
+	TP_fast_assign(
+		__entry->bg_objectid	= block_group->key.objectid;
+		__entry->flags		= block_group->flags;
+		__entry->start		= start;
+		__entry->bytes		= bytes;
+		__entry->empty_size	= empty_size;
+		__entry->min_bytes	= min_bytes;
+	),
+
+	TP_printk("block_group = %Lu, flags = %Lu(%s), start = %Lu, len = %Lu,"
+		  " empty_size = %Lu, min_bytes = %Lu", __entry->bg_objectid,
+		  __entry->flags,
+		  __print_flags((unsigned long)__entry->flags, "|",
+				BTRFS_GROUP_FLAGS), __entry->start,
+		  __entry->bytes, __entry->empty_size,  __entry->min_bytes)
+);
+
+TRACE_EVENT(btrfs_failed_cluster_setup,
+
+	TP_PROTO(struct btrfs_block_group_cache *block_group),
+
+	TP_ARGS(block_group),
+
+	TP_STRUCT__entry(
+		__field(	u64,	bg_objectid		)
+	),
+
+	TP_fast_assign(
+		__entry->bg_objectid	= block_group->key.objectid;
+	),
+
+	TP_printk("block_group = %Lu", __entry->bg_objectid)
+);
+
+TRACE_EVENT(btrfs_setup_cluster,
+
+	TP_PROTO(struct btrfs_block_group_cache *block_group,
+		 struct btrfs_free_cluster *cluster, u64 size, int bitmap),
+
+	TP_ARGS(block_group, cluster, size, bitmap),
+
+	TP_STRUCT__entry(
+		__field(	u64,	bg_objectid		)
+		__field(	u64,	flags			)
+		__field(	u64,	start			)
+		__field(	u64,	max_size		)
+		__field(	u64,	size			)
+		__field(	int,	bitmap			)
+	),
+
+	TP_fast_assign(
+		__entry->bg_objectid	= block_group->key.objectid;
+		__entry->flags		= block_group->flags;
+		__entry->start		= cluster->window_start;
+		__entry->max_size	= cluster->max_size;
+		__entry->size		= size;
+		__entry->bitmap		= bitmap;
+	),
+
+	TP_printk("block_group = %Lu, flags = %Lu(%s), window_start = %Lu, "
+		  "size = %Lu, max_size = %Lu, bitmap = %d",
+		  __entry->bg_objectid,
+		  __entry->flags,
+		  __print_flags((unsigned long)__entry->flags, "|",
+				BTRFS_GROUP_FLAGS), __entry->start,
+		  __entry->size, __entry->max_size, __entry->bitmap)
 );
 
 #endif /* _TRACE_BTRFS_H */

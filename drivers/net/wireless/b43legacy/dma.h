@@ -150,8 +150,9 @@ struct b43legacy_dmaring {
 	enum b43legacy_dmatype type;
 	/* Boolean. Is this ring stopped at ieee80211 level? */
 	bool stopped;
-	/* Lock, only used for TX. */
-	spinlock_t lock;
+	/* The QOS priority assigned to this ring. Only used for TX rings.
+	 * This is the mac80211 "queue" value. */
+	u8 queue_prio;
 	struct b43legacy_wldev *dev;
 #ifdef CONFIG_B43LEGACY_DEBUG
 	/* Maximum number of used slots. */

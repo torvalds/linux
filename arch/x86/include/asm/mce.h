@@ -50,10 +50,11 @@
 #define MCJ_CTX_MASK		3
 #define MCJ_CTX(flags)		((flags) & MCJ_CTX_MASK)
 #define MCJ_CTX_RANDOM		0    /* inject context: random */
-#define MCJ_CTX_PROCESS		1    /* inject context: process */
-#define MCJ_CTX_IRQ		2    /* inject context: IRQ */
-#define MCJ_NMI_BROADCAST	4    /* do NMI broadcasting */
-#define MCJ_EXCEPTION		8    /* raise as exception */
+#define MCJ_CTX_PROCESS		0x1  /* inject context: process */
+#define MCJ_CTX_IRQ		0x2  /* inject context: IRQ */
+#define MCJ_NMI_BROADCAST	0x4  /* do NMI broadcasting */
+#define MCJ_EXCEPTION		0x8  /* raise as exception */
+#define MCJ_IRQ_BRAODCAST	0x10 /* do IRQ broadcasting */
 
 /* Fields are zero when not available */
 struct mce {
@@ -120,7 +121,8 @@ struct mce_log {
 
 #ifdef __KERNEL__
 
-extern struct atomic_notifier_head x86_mce_decoder_chain;
+extern void mce_register_decode_chain(struct notifier_block *nb);
+extern void mce_unregister_decode_chain(struct notifier_block *nb);
 
 #include <linux/percpu.h>
 #include <linux/init.h>
@@ -149,7 +151,7 @@ static inline void enable_p5_mce(void) {}
 
 void mce_setup(struct mce *m);
 void mce_log(struct mce *m);
-DECLARE_PER_CPU(struct sys_device, mce_sysdev);
+extern struct device *mce_device[CONFIG_NR_CPUS];
 
 /*
  * Maximum banks number.

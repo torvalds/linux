@@ -220,14 +220,4 @@ static struct platform_driver sja1000_ofp_driver = {
 	.remove = __devexit_p(sja1000_ofp_remove),
 };
 
-static int __init sja1000_ofp_init(void)
-{
-	return platform_driver_register(&sja1000_ofp_driver);
-}
-module_init(sja1000_ofp_init);
-
-static void __exit sja1000_ofp_exit(void)
-{
-	return platform_driver_unregister(&sja1000_ofp_driver);
-};
-module_exit(sja1000_ofp_exit);
+module_platform_driver(sja1000_ofp_driver);

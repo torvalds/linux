@@ -87,6 +87,7 @@ static struct snd_soc_dai_link eukrea_tlv320_dai = {
 
 static struct snd_soc_card eukrea_tlv320 = {
 	.name		= "cpuimx-audio",
+	.owner		= THIS_MODULE,
 	.dai_link	= &eukrea_tlv320_dai,
 	.num_links	= 1,
 };

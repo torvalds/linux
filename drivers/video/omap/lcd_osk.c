@@ -116,7 +116,7 @@ static int osk_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver osk_panel_driver = {
+static struct platform_driver osk_panel_driver = {
 	.probe		= osk_panel_probe,
 	.remove		= osk_panel_remove,
 	.suspend	= osk_panel_suspend,
@@ -127,16 +127,4 @@ struct platform_driver osk_panel_driver = {
 	},
 };
 
-static int __init osk_panel_drv_init(void)
-{
-	return platform_driver_register(&osk_panel_driver);
-}
-
-static void __exit osk_panel_drv_cleanup(void)
-{
-	platform_driver_unregister(&osk_panel_driver);
-}
-
-module_init(osk_panel_drv_init);
-module_exit(osk_panel_drv_cleanup);
-
+module_platform_driver(osk_panel_driver);

@@ -159,6 +159,24 @@
 #define LOWPAN_DISPATCH_FRAG1	0xc0 /* 11000xxx */
 #define LOWPAN_DISPATCH_FRAGN	0xe0 /* 11100xxx */
 
+#define LOWPAN_DISPATCH_MASK	0xf8 /* 11111000 */
+
+#define LOWPAN_FRAG_TIMEOUT	(HZ * 60)	/* time-out 60 sec */
+
+#define LOWPAN_FRAG1_HEAD_SIZE	0x4
+#define LOWPAN_FRAGN_HEAD_SIZE	0x5
+
+/*
+ * According IEEE802.15.4 standard:
+ *   - MTU is 127 octets
+ *   - maximum MHR size is 37 octets
+ *   - MFR size is 2 octets
+ *
+ * so minimal payload size that we may guarantee is:
+ *   MTU - MHR - MFR = 88 octets
+ */
+#define LOWPAN_FRAG_SIZE	88
+
 /*
  * Values of fields within the IPHC encoding first byte
  * (C stands for compressed and I for inline)
@@ -200,6 +218,11 @@
 #define LOWPAN_NHC_UDP_ID		0xF0
 #define LOWPAN_NHC_UDP_CHECKSUMC	0x04
 #define LOWPAN_NHC_UDP_CHECKSUMI	0x00
+
+#define LOWPAN_NHC_UDP_4BIT_PORT	0xF0B0
+#define LOWPAN_NHC_UDP_4BIT_MASK	0xFFF0
+#define LOWPAN_NHC_UDP_8BIT_PORT	0xF000
+#define LOWPAN_NHC_UDP_8BIT_MASK	0xFF00
 
 /* values for port compression, _with checksum_ ie bit 5 set to 0 */
 #define LOWPAN_NHC_UDP_CS_P_00	0xF0 /* all inline */

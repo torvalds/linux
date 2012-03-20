@@ -169,7 +169,7 @@ static int nowrap = 1;      /* not implemented (yet) */
 static int hwcursor = 1;
 static char *mode_option __devinitdata;
 /* mtrr option */
-static int nomtrr __devinitdata;
+static bool nomtrr __devinitdata;
 
 /* -------------------------------------------------------------------------
  *			Hardware-specific funcions

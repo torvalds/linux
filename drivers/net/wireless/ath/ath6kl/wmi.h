@@ -93,11 +93,6 @@ struct sq_threshold_params {
 	u8 last_rssi_poll_event;
 };
 
-struct wmi_stats {
-	u32 cmd_len_err;
-	u32 cmd_id_err;
-};
-
 struct wmi_data_sync_bufs {
 	u8 traffic_class;
 	struct sk_buff *skb;
@@ -111,32 +106,26 @@ struct wmi_data_sync_bufs {
 #define WMM_AC_VO   3		/* voice */
 
 struct wmi {
-	bool ready;
 	u16 stream_exist_for_ac[WMM_NUM_AC];
 	u8 fat_pipe_exist;
 	struct ath6kl *parent_dev;
-	struct wmi_stats stat;
 	u8 pwr_mode;
-	u8 phy_mode;
-	u8 keep_alive_intvl;
 	spinlock_t lock;
 	enum htc_endpoint_id ep_id;
 	struct sq_threshold_params
 	    sq_threshld[SIGNAL_QUALITY_METRICS_NUM_MAX];
-	enum crypto_type pair_crypto_type;
-	enum crypto_type grp_crypto_type;
 	bool is_wmm_enabled;
-	u8 ht_allowed[A_NUM_BANDS];
 	u8 traffic_class;
 	bool is_probe_ssid;
 
 	u8 *last_mgmt_tx_frame;
 	size_t last_mgmt_tx_frame_len;
+	u8 saved_pwr_mode;
 };
 
 struct host_app_area {
-	u32 wmi_protocol_ver;
-};
+	__le32 wmi_protocol_ver;
+} __packed;
 
 enum wmi_msg_type {
 	DATA_MSGTYPE = 0x0,
@@ -184,6 +173,8 @@ enum wmi_data_hdr_data_type {
 #define WMI_DATA_HDR_META_MASK      0x7
 #define WMI_DATA_HDR_META_SHIFT     13
 
+#define WMI_DATA_HDR_IF_IDX_MASK    0xF
+
 struct wmi_data_hdr {
 	s8 rssi;
 
@@ -208,6 +199,12 @@ struct wmi_data_hdr {
 	 * b15:b13      - META_DATA_VERSION 0 - 7
 	 */
 	__le16 info2;
+
+	/*
+	 * usage of info3, 16-bit:
+	 * b3:b0	- Interface index
+	 * b15:b4	- Reserved
+	 */
 	__le16 info3;
 } __packed;
 
@@ -248,6 +245,11 @@ static inline u8 wmi_data_hdr_get_meta(struct wmi_data_hdr *dhdr)
 {
 	return (le16_to_cpu(dhdr->info2) >> WMI_DATA_HDR_META_SHIFT) &
 			       WMI_DATA_HDR_META_MASK;
+}
+
+static inline u8 wmi_data_hdr_get_if_idx(struct wmi_data_hdr *dhdr)
+{
+	return le16_to_cpu(dhdr->info3) & WMI_DATA_HDR_IF_IDX_MASK;
 }
 
 /* Tx meta version definitions */
@@ -299,6 +301,8 @@ struct wmi_rx_meta_v2 {
 	u8 csum_flags;
 } __packed;
 
+#define WMI_CMD_HDR_IF_ID_MASK 0xF
+
 /* Control Path */
 struct wmi_cmd_hdr {
 	__le16 cmd_id;
@@ -312,6 +316,11 @@ struct wmi_cmd_hdr {
 	__le16 reserved;
 } __packed;
 
+static inline u8 wmi_cmd_hdr_get_if_idx(struct wmi_cmd_hdr *chdr)
+{
+	return le16_to_cpu(chdr->info1) & WMI_CMD_HDR_IF_ID_MASK;
+}
+
 /* List of WMI commands */
 enum wmi_cmd_id {
 	WMI_CONNECT_CMDID = 0x0001,
@@ -320,6 +329,10 @@ enum wmi_cmd_id {
 	WMI_SYNCHRONIZE_CMDID,
 	WMI_CREATE_PSTREAM_CMDID,
 	WMI_DELETE_PSTREAM_CMDID,
+	/* WMI_START_SCAN_CMDID is to be deprecated. Use
+	 * WMI_BEGIN_SCAN_CMDID instead. The new cmd supports P2P mgmt
+	 * operations using station interface.
+	 */
 	WMI_START_SCAN_CMDID,
 	WMI_SET_SCAN_PARAMS_CMDID,
 	WMI_SET_BSS_FILTER_CMDID,
@@ -533,12 +546,61 @@ enum wmi_cmd_id {
 	WMI_GTK_OFFLOAD_OP_CMDID,
 	WMI_REMAIN_ON_CHNL_CMDID,
 	WMI_CANCEL_REMAIN_ON_CHNL_CMDID,
+	/* WMI_SEND_ACTION_CMDID is to be deprecated. Use
+	 * WMI_SEND_MGMT_CMDID instead. The new cmd supports P2P mgmt
+	 * operations using station interface.
+	 */
 	WMI_SEND_ACTION_CMDID,
 	WMI_PROBE_REQ_REPORT_CMDID,
 	WMI_DISABLE_11B_RATES_CMDID,
 	WMI_SEND_PROBE_RESPONSE_CMDID,
 	WMI_GET_P2P_INFO_CMDID,
 	WMI_AP_JOIN_BSS_CMDID,
+
+	WMI_SMPS_ENABLE_CMDID,
+	WMI_SMPS_CONFIG_CMDID,
+	WMI_SET_RATECTRL_PARM_CMDID,
+	/*  LPL specific commands*/
+	WMI_LPL_FORCE_ENABLE_CMDID,
+	WMI_LPL_SET_POLICY_CMDID,
+	WMI_LPL_GET_POLICY_CMDID,
+	WMI_LPL_GET_HWSTATE_CMDID,
+	WMI_LPL_SET_PARAMS_CMDID,
+	WMI_LPL_GET_PARAMS_CMDID,
+
+	WMI_SET_BUNDLE_PARAM_CMDID,
+
+	/*GreenTx specific commands*/
+
+	WMI_GREENTX_PARAMS_CMDID,
+
+	WMI_RTT_MEASREQ_CMDID,
+	WMI_RTT_CAPREQ_CMDID,
+	WMI_RTT_STATUSREQ_CMDID,
+
+	/* WPS Commands */
+	WMI_WPS_START_CMDID,
+	WMI_GET_WPS_STATUS_CMDID,
+
+	/* More P2P commands */
+	WMI_SET_NOA_CMDID,
+	WMI_GET_NOA_CMDID,
+	WMI_SET_OPPPS_CMDID,
+	WMI_GET_OPPPS_CMDID,
+	WMI_ADD_PORT_CMDID,
+	WMI_DEL_PORT_CMDID,
+
+	/* 802.11w cmd */
+	WMI_SET_RSN_CAP_CMDID,
+	WMI_GET_RSN_CAP_CMDID,
+	WMI_SET_IGTK_CMDID,
+
+	WMI_RX_FILTER_COALESCE_FILTER_OP_CMDID,
+	WMI_RX_FILTER_SET_FRAME_TEST_LIST_CMDID,
+
+	WMI_SEND_MGMT_CMDID,
+	WMI_BEGIN_SCAN_CMDID,
+
 };
 
 enum wmi_mgmt_frame_type {
@@ -558,6 +620,14 @@ enum network_type {
 	AP_NETWORK = 0x10,
 };
 
+enum network_subtype {
+	SUBTYPE_NONE,
+	SUBTYPE_BT,
+	SUBTYPE_P2PDEV,
+	SUBTYPE_P2PCLIENT,
+	SUBTYPE_P2PGO,
+};
+
 enum dot11_auth_mode {
 	OPEN_AUTH = 0x01,
 	SHARED_AUTH = 0x02,
@@ -575,9 +645,6 @@ enum auth_mode {
 	WPA_AUTH_CCKM = 0x20,
 	WPA2_AUTH_CCKM = 0x40,
 };
-
-#define WMI_MIN_CRYPTO_TYPE NONE_CRYPT
-#define WMI_MAX_CRYPTO_TYPE (AES_CRYPT + 1)
 
 #define WMI_MIN_KEY_INDEX   0
 #define WMI_MAX_KEY_INDEX   3
@@ -617,6 +684,7 @@ enum wmi_connect_ctrl_flags_bits {
 	CONNECT_CSA_FOLLOW_BSS = 0x0020,
 	CONNECT_DO_WPA_OFFLOAD = 0x0040,
 	CONNECT_DO_NOT_DEAUTH = 0x0080,
+	CONNECT_WPS_FLAG = 0x0100,
 };
 
 struct wmi_connect_cmd {
@@ -632,6 +700,7 @@ struct wmi_connect_cmd {
 	__le16 ch;
 	u8 bssid[ETH_ALEN];
 	__le32 ctrl_flags;
+	u8 nw_subtype;
 } __packed;
 
 /* WMI_RECONNECT_CMDID */
@@ -719,6 +788,43 @@ enum wmi_scan_type {
 	WMI_SHORT_SCAN = 1,
 };
 
+struct wmi_supp_rates {
+	u8 nrates;
+	u8 rates[ATH6KL_RATE_MAXSIZE];
+};
+
+struct wmi_begin_scan_cmd {
+	__le32 force_fg_scan;
+
+	/* for legacy cisco AP compatibility */
+	__le32 is_legacy;
+
+	/* max duration in the home channel(msec) */
+	__le32 home_dwell_time;
+
+	/* time interval between scans (msec) */
+	__le32 force_scan_intvl;
+
+	/* no CCK rates */
+	__le32 no_cck;
+
+	/* enum wmi_scan_type */
+	u8 scan_type;
+
+	/* Supported rates to advertise in the probe request frames */
+	struct wmi_supp_rates supp_rates[IEEE80211_NUM_BANDS];
+
+	/* how many channels follow */
+	u8 num_ch;
+
+	/* channels in Mhz */
+	__le16 ch_list[1];
+} __packed;
+
+/* wmi_start_scan_cmd is to be deprecated. Use
+ * wmi_begin_scan_cmd instead. The new structure supports P2P mgmt
+ * operations using station interface.
+ */
 struct wmi_start_scan_cmd {
 	__le32 force_fg_scan;
 
@@ -740,9 +846,6 @@ struct wmi_start_scan_cmd {
 	/* channels in Mhz */
 	__le16 ch_list[1];
 } __packed;
-
-/* WMI_SET_SCAN_PARAMS_CMDID */
-#define WMI_SHORTSCANRATIO_DEFAULT      3
 
 /*
  *  Warning: scan control flag value of 0xFF is used to disable
@@ -775,13 +878,6 @@ enum wmi_scan_ctrl_flags_bits {
 	 */
 	ENABLE_SCAN_ABORT_EVENT = 0x40
 };
-
-#define DEFAULT_SCAN_CTRL_FLAGS			\
-	(CONNECT_SCAN_CTRL_FLAGS |		\
-	 SCAN_CONNECTED_CTRL_FLAGS |		\
-	 ACTIVE_SCAN_CTRL_FLAGS |		\
-	 ROAM_SCAN_CTRL_FLAGS |			\
-	 ENABLE_AUTO_CTRL_FLAGS)
 
 struct wmi_scan_params_cmd {
 	  /* sec */
@@ -1365,14 +1461,20 @@ enum wmi_roam_ctrl {
 	WMI_SET_LRSSI_SCAN_PARAMS,
 };
 
+enum wmi_roam_mode {
+	WMI_DEFAULT_ROAM_MODE = 1, /* RSSI based roam */
+	WMI_HOST_BIAS_ROAM_MODE = 2, /* Host bias based roam */
+	WMI_LOCK_BSS_MODE = 3, /* Lock to the current BSS */
+};
+
 struct bss_bias {
 	u8 bssid[ETH_ALEN];
-	u8  bias;
+	s8 bias;
 } __packed;
 
 struct bss_bias_info {
 	u8 num_bss;
-	struct bss_bias bss_bias[1];
+	struct bss_bias bss_bias[0];
 } __packed;
 
 struct low_rssi_scan_params {
@@ -1385,10 +1487,11 @@ struct low_rssi_scan_params {
 
 struct roam_ctrl_cmd {
 	union {
-		u8 bssid[ETH_ALEN];
-		u8 roam_mode;
-		struct bss_bias_info bss;
-		struct low_rssi_scan_params params;
+		u8 bssid[ETH_ALEN]; /* WMI_FORCE_ROAM */
+		u8 roam_mode; /* WMI_SET_ROAM_MODE */
+		struct bss_bias_info bss; /* WMI_SET_HOST_BIAS */
+		struct low_rssi_scan_params params; /* WMI_SET_LRSSI_SCAN_PARAMS
+						     */
 	} __packed info;
 	u8 roam_ctrl;
 } __packed;
@@ -1454,6 +1557,10 @@ struct wmi_tkip_micerr_event {
 	u8 key_id;
 	u8 is_mcast;
 } __packed;
+
+enum wmi_scan_status {
+	WMI_SCAN_STATUS_SUCCESS = 0,
+};
 
 /* WMI_SCAN_COMPLETE_EVENTID */
 struct wmi_scan_complete_event {
@@ -1635,6 +1742,12 @@ struct wmi_bss_roam_info {
 	u8 reserved;
 } __packed;
 
+struct wmi_target_roam_tbl {
+	__le16 roam_mode;
+	__le16 num_entries;
+	struct wmi_bss_roam_info info[];
+} __packed;
+
 /* WMI_CAC_EVENTID */
 enum cac_indication {
 	CAC_INDICATION_ADMISSION = 0x00,
@@ -1771,7 +1884,6 @@ struct wmi_set_appie_cmd {
 #define WSC_REG_ACTIVE     1
 #define WSC_REG_INACTIVE   0
 
-#define WOW_MAX_FILTER_LISTS	 1
 #define WOW_MAX_FILTERS_PER_LIST 4
 #define WOW_PATTERN_SIZE	 64
 #define WOW_MASK_SIZE		 64
@@ -1794,17 +1906,52 @@ struct wmi_set_ip_cmd {
 	__le32 ips[MAX_IP_ADDRS];
 } __packed;
 
-/* WMI_GET_WOW_LIST_CMD reply  */
-struct wmi_get_wow_list_reply {
-	/* number of patterns in reply */
-	u8 num_filters;
+enum ath6kl_wow_filters {
+	WOW_FILTER_SSID			= BIT(1),
+	WOW_FILTER_OPTION_MAGIC_PACKET  = BIT(2),
+	WOW_FILTER_OPTION_EAP_REQ	= BIT(3),
+	WOW_FILTER_OPTION_PATTERNS	= BIT(4),
+	WOW_FILTER_OPTION_OFFLOAD_ARP	= BIT(5),
+	WOW_FILTER_OPTION_OFFLOAD_NS	= BIT(6),
+	WOW_FILTER_OPTION_OFFLOAD_GTK	= BIT(7),
+	WOW_FILTER_OPTION_8021X_4WAYHS	= BIT(8),
+	WOW_FILTER_OPTION_NLO_DISCVRY	= BIT(9),
+	WOW_FILTER_OPTION_NWK_DISASSOC	= BIT(10),
+	WOW_FILTER_OPTION_GTK_ERROR	= BIT(11),
+	WOW_FILTER_OPTION_TEST_MODE	= BIT(15),
+};
 
-	/* this is filter # x of total num_filters */
-	u8 this_filter_num;
+enum ath6kl_host_mode {
+	ATH6KL_HOST_MODE_AWAKE,
+	ATH6KL_HOST_MODE_ASLEEP,
+};
 
-	u8 wow_mode;
-	u8 host_mode;
-	struct wow_filter wow_filters[1];
+struct wmi_set_host_sleep_mode_cmd {
+	__le32 awake;
+	__le32 asleep;
+} __packed;
+
+enum ath6kl_wow_mode {
+	ATH6KL_WOW_MODE_DISABLE,
+	ATH6KL_WOW_MODE_ENABLE,
+};
+
+struct wmi_set_wow_mode_cmd {
+	__le32 enable_wow;
+	__le32 filter;
+	__le16 host_req_delay;
+} __packed;
+
+struct wmi_add_wow_pattern_cmd {
+	u8 filter_list_id;
+	u8 filter_size;
+	u8 filter_offset;
+	u8 filter[0];
+} __packed;
+
+struct wmi_del_wow_pattern_cmd {
+	__le16 filter_list_id;
+	__le16 filter_id;
 } __packed;
 
 /* WMI_SET_AKMP_PARAMS_CMD */
@@ -1905,7 +2052,7 @@ struct wmi_tx_complete_event {
  * !!! Warning !!!
  * -Changing the following values needs compilation of both driver and firmware
  */
-#define AP_MAX_NUM_STA          8
+#define AP_MAX_NUM_STA          10
 
 /* Spl. AID used to set DTIM flag in the beacons */
 #define MCAST_AID               0xFF
@@ -1988,10 +2135,23 @@ struct wmi_remain_on_chnl_cmd {
 	__le32 duration;
 } __packed;
 
+/* wmi_send_action_cmd is to be deprecated. Use
+ * wmi_send_mgmt_cmd instead. The new structure supports P2P mgmt
+ * operations using station interface.
+ */
 struct wmi_send_action_cmd {
 	__le32 id;
 	__le32 freq;
 	__le32 wait;
+	__le16 len;
+	u8 data[0];
+} __packed;
+
+struct wmi_send_mgmt_cmd {
+	__le32 id;
+	__le32 freq;
+	__le32 wait;
+	__le32 no_cck;
 	__le16 len;
 	u8 data[0];
 } __packed;
@@ -2163,120 +2323,162 @@ int ath6kl_wmi_dix_2_dot3(struct wmi *wmi, struct sk_buff *skb);
 int ath6kl_wmi_data_hdr_add(struct wmi *wmi, struct sk_buff *skb,
 			    u8 msg_type, bool more_data,
 			    enum wmi_data_hdr_data_type data_type,
-			    u8 meta_ver, void *tx_meta_info);
+			    u8 meta_ver, void *tx_meta_info, u8 if_idx);
 
 int ath6kl_wmi_dot11_hdr_remove(struct wmi *wmi, struct sk_buff *skb);
 int ath6kl_wmi_dot3_2_dix(struct sk_buff *skb);
-int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, struct sk_buff *skb,
-				       u32 layer2_priority, bool wmm_enabled,
-				       u8 *ac);
+int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, u8 if_idx,
+				       struct sk_buff *skb, u32 layer2_priority,
+				       bool wmm_enabled, u8 *ac);
 
 int ath6kl_wmi_control_rx(struct wmi *wmi, struct sk_buff *skb);
 
-int ath6kl_wmi_cmd_send(struct wmi *wmi, struct sk_buff *skb,
+int ath6kl_wmi_cmd_send(struct wmi *wmi, u8 if_idx, struct sk_buff *skb,
 			enum wmi_cmd_id cmd_id, enum wmi_sync_flag sync_flag);
 
-int ath6kl_wmi_connect_cmd(struct wmi *wmi, enum network_type nw_type,
+int ath6kl_wmi_connect_cmd(struct wmi *wmi, u8 if_idx,
+			   enum network_type nw_type,
 			   enum dot11_auth_mode dot11_auth_mode,
 			   enum auth_mode auth_mode,
 			   enum crypto_type pairwise_crypto,
 			   u8 pairwise_crypto_len,
 			   enum crypto_type group_crypto,
 			   u8 group_crypto_len, int ssid_len, u8 *ssid,
-			   u8 *bssid, u16 channel, u32 ctrl_flags);
+			   u8 *bssid, u16 channel, u32 ctrl_flags,
+			   u8 nw_subtype);
 
-int ath6kl_wmi_reconnect_cmd(struct wmi *wmi, u8 *bssid, u16 channel);
-int ath6kl_wmi_disconnect_cmd(struct wmi *wmi);
-int ath6kl_wmi_startscan_cmd(struct wmi *wmi, enum wmi_scan_type scan_type,
+int ath6kl_wmi_reconnect_cmd(struct wmi *wmi, u8 if_idx, u8 *bssid,
+			     u16 channel);
+int ath6kl_wmi_disconnect_cmd(struct wmi *wmi, u8 if_idx);
+int ath6kl_wmi_startscan_cmd(struct wmi *wmi, u8 if_idx,
+			     enum wmi_scan_type scan_type,
 			     u32 force_fgscan, u32 is_legacy,
 			     u32 home_dwell_time, u32 force_scan_interval,
 			     s8 num_chan, u16 *ch_list);
-int ath6kl_wmi_scanparams_cmd(struct wmi *wmi, u16 fg_start_sec,
+
+int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
+			     enum wmi_scan_type scan_type,
+			     u32 force_fgscan, u32 is_legacy,
+			     u32 home_dwell_time, u32 force_scan_interval,
+			     s8 num_chan, u16 *ch_list, u32 no_cck,
+			     u32 *rates);
+
+int ath6kl_wmi_scanparams_cmd(struct wmi *wmi, u8 if_idx, u16 fg_start_sec,
 			      u16 fg_end_sec, u16 bg_sec,
 			      u16 minact_chdw_msec, u16 maxact_chdw_msec,
 			      u16 pas_chdw_msec, u8 short_scan_ratio,
 			      u8 scan_ctrl_flag, u32 max_dfsch_act_time,
 			      u16 maxact_scan_per_ssid);
-int ath6kl_wmi_bssfilter_cmd(struct wmi *wmi, u8 filter, u32 ie_mask);
-int ath6kl_wmi_probedssid_cmd(struct wmi *wmi, u8 index, u8 flag,
+int ath6kl_wmi_bssfilter_cmd(struct wmi *wmi, u8 if_idx, u8 filter,
+			     u32 ie_mask);
+int ath6kl_wmi_probedssid_cmd(struct wmi *wmi, u8 if_idx, u8 index, u8 flag,
 			      u8 ssid_len, u8 *ssid);
-int ath6kl_wmi_listeninterval_cmd(struct wmi *wmi, u16 listen_interval,
+int ath6kl_wmi_listeninterval_cmd(struct wmi *wmi, u8 if_idx,
+				  u16 listen_interval,
 				  u16 listen_beacons);
-int ath6kl_wmi_powermode_cmd(struct wmi *wmi, u8 pwr_mode);
-int ath6kl_wmi_pmparams_cmd(struct wmi *wmi, u16 idle_period,
+int ath6kl_wmi_powermode_cmd(struct wmi *wmi, u8 if_idx, u8 pwr_mode);
+int ath6kl_wmi_pmparams_cmd(struct wmi *wmi, u8 if_idx, u16 idle_period,
 			    u16 ps_poll_num, u16 dtim_policy,
 			    u16 tx_wakup_policy, u16 num_tx_to_wakeup,
 			    u16 ps_fail_event_policy);
-int ath6kl_wmi_disctimeout_cmd(struct wmi *wmi, u8 timeout);
-int ath6kl_wmi_create_pstream_cmd(struct wmi *wmi,
+int ath6kl_wmi_create_pstream_cmd(struct wmi *wmi, u8 if_idx,
 				  struct wmi_create_pstream_cmd *pstream);
-int ath6kl_wmi_delete_pstream_cmd(struct wmi *wmi, u8 traffic_class, u8 tsid);
+int ath6kl_wmi_delete_pstream_cmd(struct wmi *wmi, u8 if_idx, u8 traffic_class,
+				  u8 tsid);
+int ath6kl_wmi_disctimeout_cmd(struct wmi *wmi, u8 if_idx, u8 timeout);
 
 int ath6kl_wmi_set_rts_cmd(struct wmi *wmi, u16 threshold);
-int ath6kl_wmi_set_lpreamble_cmd(struct wmi *wmi, u8 status,
+int ath6kl_wmi_set_lpreamble_cmd(struct wmi *wmi, u8 if_idx, u8 status,
 				 u8 preamble_policy);
 
 int ath6kl_wmi_get_challenge_resp_cmd(struct wmi *wmi, u32 cookie, u32 source);
 int ath6kl_wmi_config_debug_module_cmd(struct wmi *wmi, u32 valid, u32 config);
 
-int ath6kl_wmi_get_stats_cmd(struct wmi *wmi);
-int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 key_index,
+int ath6kl_wmi_get_stats_cmd(struct wmi *wmi, u8 if_idx);
+int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 			  enum crypto_type key_type,
 			  u8 key_usage, u8 key_len,
-			  u8 *key_rsc, u8 *key_material,
+			  u8 *key_rsc, unsigned int key_rsc_len,
+			  u8 *key_material,
 			  u8 key_op_ctrl, u8 *mac_addr,
 			  enum wmi_sync_flag sync_flag);
-int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 *krk);
-int ath6kl_wmi_deletekey_cmd(struct wmi *wmi, u8 key_index);
-int ath6kl_wmi_setpmkid_cmd(struct wmi *wmi, const u8 *bssid,
+int ath6kl_wmi_add_krk_cmd(struct wmi *wmi, u8 if_idx, u8 *krk);
+int ath6kl_wmi_deletekey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index);
+int ath6kl_wmi_setpmkid_cmd(struct wmi *wmi, u8 if_idx, const u8 *bssid,
 			    const u8 *pmkid, bool set);
-int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 dbM);
-int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi);
+int ath6kl_wmi_set_tx_pwr_cmd(struct wmi *wmi, u8 if_idx, u8 dbM);
+int ath6kl_wmi_get_tx_pwr_cmd(struct wmi *wmi, u8 if_idx);
+int ath6kl_wmi_get_roam_tbl_cmd(struct wmi *wmi);
 
-int ath6kl_wmi_set_wmm_txop(struct wmi *wmi, enum wmi_txop_cfg cfg);
-int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 keep_alive_intvl);
+int ath6kl_wmi_set_wmm_txop(struct wmi *wmi, u8 if_idx, enum wmi_txop_cfg cfg);
+int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 if_idx,
+				 u8 keep_alive_intvl);
 int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 
 s32 ath6kl_wmi_get_rate(s8 rate_index);
 
 int ath6kl_wmi_set_ip_cmd(struct wmi *wmi, struct wmi_set_ip_cmd *ip_cmd);
+int ath6kl_wmi_set_host_sleep_mode_cmd(struct wmi *wmi, u8 if_idx,
+				       enum ath6kl_host_mode host_mode);
+int ath6kl_wmi_set_wow_mode_cmd(struct wmi *wmi, u8 if_idx,
+				enum ath6kl_wow_mode wow_mode,
+				u32 filter, u16 host_req_delay);
+int ath6kl_wmi_add_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
+				   u8 list_id, u8 filter_size,
+				   u8 filter_offset, u8 *filter, u8 *mask);
+int ath6kl_wmi_del_wow_pattern_cmd(struct wmi *wmi, u8 if_idx,
+				   u16 list_id, u16 filter_id);
 int ath6kl_wmi_set_roam_lrssi_cmd(struct wmi *wmi, u8 lrssi);
+int ath6kl_wmi_force_roam_cmd(struct wmi *wmi, const u8 *bssid);
+int ath6kl_wmi_set_roam_mode_cmd(struct wmi *wmi, enum wmi_roam_mode mode);
 
 /* AP mode */
-int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, struct wmi_connect_cmd *p);
+int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, u8 if_idx,
+				 struct wmi_connect_cmd *p);
 
-int ath6kl_wmi_ap_set_mlme(struct wmi *wmip, u8 cmd, const u8 *mac, u16 reason);
+int ath6kl_wmi_ap_set_mlme(struct wmi *wmip, u8 if_idx, u8 cmd,
+			   const u8 *mac, u16 reason);
 
-int ath6kl_wmi_set_pvb_cmd(struct wmi *wmi, u16 aid, bool flag);
+int ath6kl_wmi_set_pvb_cmd(struct wmi *wmi, u8 if_idx, u16 aid, bool flag);
 
-int ath6kl_wmi_set_rx_frame_format_cmd(struct wmi *wmi, u8 rx_meta_version,
+int ath6kl_wmi_set_rx_frame_format_cmd(struct wmi *wmi, u8 if_idx,
+				       u8 rx_meta_version,
 				       bool rx_dot11_hdr, bool defrag_on_host);
 
-int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 mgmt_frm_type, const u8 *ie,
-			     u8 ie_len);
+int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
+			     const u8 *ie, u8 ie_len);
 
 /* P2P */
 int ath6kl_wmi_disable_11b_rates_cmd(struct wmi *wmi, bool disable);
 
-int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u32 freq, u32 dur);
+int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
+				  u32 dur);
 
-int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u32 id, u32 freq, u32 wait,
-			       const u8 *data, u16 data_len);
+int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
+			       u32 wait, const u8 *data, u16 data_len);
 
-int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u32 freq,
-				       const u8 *dst,
-				       const u8 *data, u16 data_len);
+int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
+			       u32 wait, const u8 *data, u16 data_len,
+			       u32 no_cck);
 
-int ath6kl_wmi_probe_report_req_cmd(struct wmi *wmi, bool enable);
+int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
+				       const u8 *dst, const u8 *data,
+				       u16 data_len);
 
-int ath6kl_wmi_info_req_cmd(struct wmi *wmi, u32 info_req_flags);
+int ath6kl_wmi_probe_report_req_cmd(struct wmi *wmi, u8 if_idx, bool enable);
 
-int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi);
+int ath6kl_wmi_info_req_cmd(struct wmi *wmi, u8 if_idx, u32 info_req_flags);
 
-int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 mgmt_frm_type, const u8 *ie,
-			     u8 ie_len);
+int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx);
 
+int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
+			     const u8 *ie, u8 ie_len);
+
+void ath6kl_wmi_sscan_timer(unsigned long ptr);
+
+struct ath6kl_vif *ath6kl_get_vif_by_index(struct ath6kl *ar, u8 if_idx);
 void *ath6kl_wmi_init(struct ath6kl *devt);
 void ath6kl_wmi_shutdown(struct wmi *wmi);
+void ath6kl_wmi_reset(struct wmi *wmi);
 
 #endif /* WMI_H */

@@ -69,6 +69,7 @@ unsigned int omap_rev(void);
  * cpu_is_omap343x():	True for OMAP3430
  * cpu_is_omap443x():	True for OMAP4430
  * cpu_is_omap446x():	True for OMAP4460
+ * cpu_is_omap447x():	True for OMAP4470
  */
 #define GET_OMAP_CLASS	(omap_rev() & 0xff)
 
@@ -76,6 +77,22 @@ unsigned int omap_rev(void);
 static inline int is_omap ##class (void)		\
 {							\
 	return (GET_OMAP_CLASS == (id)) ? 1 : 0;	\
+}
+
+#define GET_AM_CLASS	((omap_rev() >> 24) & 0xff)
+
+#define IS_AM_CLASS(class, id)				\
+static inline int is_am ##class (void)			\
+{							\
+	return (GET_AM_CLASS == (id)) ? 1 : 0;		\
+}
+
+#define GET_TI_CLASS	((omap_rev() >> 24) & 0xff)
+
+#define IS_TI_CLASS(class, id)			\
+static inline int is_ti ##class (void)		\
+{							\
+	return (GET_TI_CLASS == (id)) ? 1 : 0;	\
 }
 
 #define GET_OMAP_SUBCLASS	((omap_rev() >> 20) & 0x0fff)
@@ -92,12 +109,21 @@ static inline int is_ti ##subclass (void)		\
 	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
 }
 
+#define IS_AM_SUBCLASS(subclass, id)			\
+static inline int is_am ##subclass (void)		\
+{							\
+	return (GET_OMAP_SUBCLASS == (id)) ? 1 : 0;	\
+}
+
 IS_OMAP_CLASS(7xx, 0x07)
 IS_OMAP_CLASS(15xx, 0x15)
 IS_OMAP_CLASS(16xx, 0x16)
 IS_OMAP_CLASS(24xx, 0x24)
 IS_OMAP_CLASS(34xx, 0x34)
 IS_OMAP_CLASS(44xx, 0x44)
+IS_AM_CLASS(33xx, 0x33)
+
+IS_TI_CLASS(81xx, 0x81)
 
 IS_OMAP_SUBCLASS(242x, 0x242)
 IS_OMAP_SUBCLASS(243x, 0x243)
@@ -105,8 +131,11 @@ IS_OMAP_SUBCLASS(343x, 0x343)
 IS_OMAP_SUBCLASS(363x, 0x363)
 IS_OMAP_SUBCLASS(443x, 0x443)
 IS_OMAP_SUBCLASS(446x, 0x446)
+IS_OMAP_SUBCLASS(447x, 0x447)
 
 IS_TI_SUBCLASS(816x, 0x816)
+IS_TI_SUBCLASS(814x, 0x814)
+IS_AM_SUBCLASS(335x, 0x335)
 
 #define cpu_is_omap7xx()		0
 #define cpu_is_omap15xx()		0
@@ -116,10 +145,15 @@ IS_TI_SUBCLASS(816x, 0x816)
 #define cpu_is_omap243x()		0
 #define cpu_is_omap34xx()		0
 #define cpu_is_omap343x()		0
+#define cpu_is_ti81xx()			0
 #define cpu_is_ti816x()			0
+#define cpu_is_ti814x()			0
+#define cpu_is_am33xx()			0
+#define cpu_is_am335x()			0
 #define cpu_is_omap44xx()		0
 #define cpu_is_omap443x()		0
 #define cpu_is_omap446x()		0
+#define cpu_is_omap447x()		0
 
 #if defined(MULTI_OMAP1)
 # if defined(CONFIG_ARCH_OMAP730)
@@ -322,7 +356,11 @@ IS_OMAP_TYPE(3517, 0x3517)
 # undef cpu_is_omap3530
 # undef cpu_is_omap3505
 # undef cpu_is_omap3517
+# undef cpu_is_ti81xx
 # undef cpu_is_ti816x
+# undef cpu_is_ti814x
+# undef cpu_is_am33xx
+# undef cpu_is_am335x
 # define cpu_is_omap3430()		is_omap3430()
 # define cpu_is_omap3503()		(cpu_is_omap3430() &&		\
 						(!omap3_has_iva()) &&	\
@@ -339,16 +377,22 @@ IS_OMAP_TYPE(3517, 0x3517)
 						!omap3_has_sgx())
 # undef cpu_is_omap3630
 # define cpu_is_omap3630()		is_omap363x()
+# define cpu_is_ti81xx()		is_ti81xx()
 # define cpu_is_ti816x()		is_ti816x()
+# define cpu_is_ti814x()		is_ti814x()
+# define cpu_is_am33xx()		is_am33xx()
+# define cpu_is_am335x()		is_am335x()
 #endif
 
 # if defined(CONFIG_ARCH_OMAP4)
 # undef cpu_is_omap44xx
 # undef cpu_is_omap443x
 # undef cpu_is_omap446x
+# undef cpu_is_omap447x
 # define cpu_is_omap44xx()		is_omap44xx()
 # define cpu_is_omap443x()		is_omap443x()
 # define cpu_is_omap446x()		is_omap446x()
+# define cpu_is_omap447x()		is_omap447x()
 # endif
 
 /* Macros to detect if we have OMAP1 or OMAP2 */
@@ -386,14 +430,26 @@ IS_OMAP_TYPE(3517, 0x3517)
 #define TI8168_REV_ES1_0	TI816X_CLASS
 #define TI8168_REV_ES1_1	(TI816X_CLASS | (0x1 << 8))
 
+#define TI814X_CLASS		0x81400034
+#define TI8148_REV_ES1_0	TI814X_CLASS
+#define TI8148_REV_ES2_0	(TI814X_CLASS | (0x1 << 8))
+#define TI8148_REV_ES2_1	(TI814X_CLASS | (0x2 << 8))
+
+#define AM335X_CLASS		0x33500034
+#define AM335X_REV_ES1_0	AM335X_CLASS
+
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
 #define OMAP4430_REV_ES2_0	(OMAP443X_CLASS | (0x20 << 8))
 #define OMAP4430_REV_ES2_1	(OMAP443X_CLASS | (0x21 << 8))
 #define OMAP4430_REV_ES2_2	(OMAP443X_CLASS | (0x22 << 8))
+#define OMAP4430_REV_ES2_3	(OMAP443X_CLASS | (0x23 << 8))
 
 #define OMAP446X_CLASS		0x44600044
 #define OMAP4460_REV_ES1_0	(OMAP446X_CLASS | (0x10 << 8))
+
+#define OMAP447X_CLASS		0x44700044
+#define OMAP4470_REV_ES1_0	(OMAP447X_CLASS | (0x10 << 8))
 
 void omap2_check_revision(void);
 

@@ -41,13 +41,14 @@
 /* Supported palette hacks */
 enum {
 	cmap_unknown,
-	cmap_m64,		/* ATI Mach64 */
+	cmap_simple,		/* ATI Mach64 */
 	cmap_r128,		/* ATI Rage128 */
 	cmap_M3A,		/* ATI Rage Mobility M3 Head A */
 	cmap_M3B,		/* ATI Rage Mobility M3 Head B */
 	cmap_radeon,		/* ATI Radeon */
 	cmap_gxt2000,		/* IBM GXT2000 */
 	cmap_avivo,		/* ATI R5xx */
+	cmap_qemu,		/* qemu vga */
 };
 
 struct offb_par {
@@ -100,35 +101,31 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 			  u_int transp, struct fb_info *info)
 {
 	struct offb_par *par = (struct offb_par *) info->par;
-	int i, depth;
-	u32 *pal = info->pseudo_palette;
 
-	depth = info->var.bits_per_pixel;
-	if (depth == 16)
-		depth = (info->var.green.length == 5) ? 15 : 16;
+	if (info->fix.visual == FB_VISUAL_TRUECOLOR) {
+		u32 *pal = info->pseudo_palette;
+		u32 cr = red >> (16 - info->var.red.length);
+		u32 cg = green >> (16 - info->var.green.length);
+		u32 cb = blue >> (16 - info->var.blue.length);
+		u32 value;
 
-	if (regno > 255 ||
-	    (depth == 16 && regno > 63) ||
-	    (depth == 15 && regno > 31))
-		return 1;
+		if (regno >= 16)
+			return -EINVAL;
 
-	if (regno < 16) {
-		switch (depth) {
-		case 15:
-			pal[regno] = (regno << 10) | (regno << 5) | regno;
-			break;
-		case 16:
-			pal[regno] = (regno << 11) | (regno << 5) | regno;
-			break;
-		case 24:
-			pal[regno] = (regno << 16) | (regno << 8) | regno;
-			break;
-		case 32:
-			i = (regno << 8) | regno;
-			pal[regno] = (i << 16) | i;
-			break;
+		value = (cr << info->var.red.offset) |
+			(cg << info->var.green.offset) |
+			(cb << info->var.blue.offset);
+		if (info->var.transp.length > 0) {
+			u32 mask = (1 << info->var.transp.length) - 1;
+			mask <<= info->var.transp.offset;
+			value |= mask;
 		}
+		pal[regno] = value;
+		return 0;
 	}
+
+	if (regno > 255)
+		return -EINVAL;
 
 	red >>= 8;
 	green >>= 8;
@@ -138,7 +135,7 @@ static int offb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 		return 0;
 
 	switch (par->cmap_type) {
-	case cmap_m64:
+	case cmap_simple:
 		writeb(regno, par->cmap_adr);
 		writeb(red, par->cmap_data);
 		writeb(green, par->cmap_data);
@@ -208,7 +205,7 @@ static int offb_blank(int blank, struct fb_info *info)
 	if (blank)
 		for (i = 0; i < 256; i++) {
 			switch (par->cmap_type) {
-			case cmap_m64:
+			case cmap_simple:
 				writeb(i, par->cmap_adr);
 				for (j = 0; j < 3; j++)
 					writeb(0, par->cmap_data);
@@ -350,7 +347,7 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 		par->cmap_adr =
 			ioremap(base + 0x7ff000, 0x1000) + 0xcc0;
 		par->cmap_data = par->cmap_adr + 1;
-		par->cmap_type = cmap_m64;
+		par->cmap_type = cmap_simple;
 	} else if (dp && (of_device_is_compatible(dp, "pci1014,b7") ||
 			  of_device_is_compatible(dp, "pci1014,21c"))) {
 		par->cmap_adr = offb_map_reg(dp, 0, 0x6000, 0x1000);
@@ -371,6 +368,16 @@ static void offb_init_palette_hacks(struct fb_info *info, struct device_node *dp
 				par->cmap_type = cmap_avivo;
 		}
 		of_node_put(pciparent);
+	} else if (dp && of_device_is_compatible(dp, "qemu,std-vga")) {
+		const u32 io_of_addr[3] = { 0x01000000, 0x0, 0x0 };
+		u64 io_addr = of_translate_address(dp, io_of_addr);
+		if (io_addr != OF_BAD_ADDR) {
+			par->cmap_adr = ioremap(io_addr + 0x3c8, 2);
+			if (par->cmap_adr) {
+				par->cmap_type = cmap_simple;
+				par->cmap_data = par->cmap_adr + 1;
+			}
+		}
 	}
 	info->fix.visual = (par->cmap_type != cmap_unknown) ?
 		FB_VISUAL_PSEUDOCOLOR : FB_VISUAL_STATIC_PSEUDOCOLOR;
@@ -381,7 +388,7 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 				int pitch, unsigned long address,
 				int foreign_endian, struct device_node *dp)
 {
-	unsigned long res_size = pitch * height * (depth + 7) / 8;
+	unsigned long res_size = pitch * height;
 	struct offb_par *par = &default_par;
 	unsigned long res_start = address;
 	struct fb_fix_screeninfo *fix;

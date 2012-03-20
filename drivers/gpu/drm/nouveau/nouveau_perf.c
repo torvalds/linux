@@ -41,7 +41,7 @@ legacy_perf_init(struct drm_device *dev)
 		return;
 	}
 
-	perf = ROMPTR(bios, bmp[0x73]);
+	perf = ROMPTR(dev, bmp[0x73]);
 	if (!perf) {
 		NV_DEBUG(dev, "No memclock table pointer found.\n");
 		return;
@@ -87,7 +87,7 @@ nouveau_perf_timing(struct drm_device *dev, struct bit_entry *P,
 	 * ramcfg to select the correct subentry
 	 */
 	if (P->version == 2) {
-		u8 *tmap = ROMPTR(bios, P->data[4]);
+		u8 *tmap = ROMPTR(dev, P->data[4]);
 		if (!tmap) {
 			NV_DEBUG(dev, "no timing map pointer\n");
 			return NULL;
@@ -140,7 +140,6 @@ nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
 		     struct nouveau_pm_level *perflvl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->vbios;
 	u8 *vmap;
 	int id;
 
@@ -165,7 +164,7 @@ nouveau_perf_voltage(struct drm_device *dev, struct bit_entry *P,
 		return;
 	}
 
-	vmap = ROMPTR(bios, P->data[32]);
+	vmap = ROMPTR(dev, P->data[32]);
 	if (!vmap) {
 		NV_DEBUG(dev, "volt map table pointer invalid\n");
 		return;
@@ -200,12 +199,14 @@ nouveau_perf_init(struct drm_device *dev)
 			return;
 		}
 
-		perf = ROMPTR(bios, P.data[0]);
+		perf = ROMPTR(dev, P.data[0]);
 		version   = perf[0];
 		headerlen = perf[1];
 		if (version < 0x40) {
 			recordlen = perf[3] + (perf[4] * perf[5]);
 			entries   = perf[2];
+
+			pm->pwm_divisor = ROM16(perf[6]);
 		} else {
 			recordlen = perf[2] + (perf[3] * perf[4]);
 			entries   = perf[5];
@@ -216,7 +217,7 @@ nouveau_perf_init(struct drm_device *dev)
 			return;
 		}
 
-		perf = ROMPTR(bios, bios->data[bios->offset + 0x94]);
+		perf = ROMPTR(dev, bios->data[bios->offset + 0x94]);
 		if (!perf) {
 			NV_DEBUG(dev, "perf table pointer invalid\n");
 			return;
@@ -283,7 +284,6 @@ nouveau_perf_init(struct drm_device *dev)
 				perflvl->memory = ROM16(entry[11]) * 1000;
 			else
 				perflvl->memory = ROM16(entry[11]) * 2000;
-
 			break;
 		case 0x25:
 			perflvl->fanspeed = entry[4];
@@ -300,8 +300,8 @@ nouveau_perf_init(struct drm_device *dev)
 			perflvl->core = ROM16(entry[8]) * 1000;
 			perflvl->shader = ROM16(entry[10]) * 1000;
 			perflvl->memory = ROM16(entry[12]) * 1000;
-			/*XXX: confirm on 0x35 */
-			perflvl->unk05 = ROM16(entry[16]) * 1000;
+			perflvl->vdec = ROM16(entry[16]) * 1000;
+			perflvl->dom6 = ROM16(entry[20]) * 1000;
 			break;
 		case 0x40:
 #define subent(n) (ROM16(entry[perf[2] + ((n) * perf[3])]) & 0xfff) * 1000

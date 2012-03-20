@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -162,6 +162,7 @@ acpi_status acpi_ev_initialize_op_regions(void);
 
 acpi_status
 acpi_ev_address_space_dispatch(union acpi_operand_object *region_obj,
+			       union acpi_operand_object *field_obj,
 			       u32 function,
 			       u32 region_offset, u32 bit_width, u64 *value);
 

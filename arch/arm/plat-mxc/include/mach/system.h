@@ -17,16 +17,9 @@
 #ifndef __ASM_ARCH_MXC_SYSTEM_H__
 #define __ASM_ARCH_MXC_SYSTEM_H__
 
-extern void (*imx_idle)(void);
-
 static inline void arch_idle(void)
 {
-	if (imx_idle != NULL)
-		(imx_idle)();
-	else
-		cpu_do_idle();
+	cpu_do_idle();
 }
-
-void arch_reset(char mode, const char *cmd);
 
 #endif /* __ASM_ARCH_MXC_SYSTEM_H__ */

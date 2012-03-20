@@ -27,7 +27,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
@@ -1461,7 +1460,7 @@ static int dac33_soc_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int dac33_soc_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int dac33_soc_suspend(struct snd_soc_codec *codec)
 {
 	dac33_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -1499,7 +1498,7 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 			 SNDRV_PCM_RATE_48000)
 #define DAC33_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
-static struct snd_soc_dai_ops dac33_dai_ops = {
+static const struct snd_soc_dai_ops dac33_dai_ops = {
 	.startup	= dac33_startup,
 	.shutdown	= dac33_shutdown,
 	.hw_params	= dac33_hw_params,
@@ -1533,7 +1532,8 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 	}
 	pdata = client->dev.platform_data;
 
-	dac33 = kzalloc(sizeof(struct tlv320dac33_priv), GFP_KERNEL);
+	dac33 = devm_kzalloc(&client->dev, sizeof(struct tlv320dac33_priv),
+			     GFP_KERNEL);
 	if (dac33 == NULL)
 		return -ENOMEM;
 
@@ -1588,7 +1588,6 @@ err_get:
 	if (dac33->power_gpio >= 0)
 		gpio_free(dac33->power_gpio);
 err_gpio:
-	kfree(dac33);
 	return ret;
 }
 
@@ -1605,8 +1604,6 @@ static int __devexit dac33_i2c_remove(struct i2c_client *client)
 	regulator_bulk_free(ARRAY_SIZE(dac33->supplies), dac33->supplies);
 
 	snd_soc_unregister_codec(&client->dev);
-	kfree(dac33);
-
 	return 0;
 }
 

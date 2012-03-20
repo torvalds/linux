@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/input.h>
+#include <linux/of.h>
 
 #define MATRIX_MAX_ROWS		32
 #define MATRIX_MAX_COLS		32
@@ -105,5 +106,23 @@ matrix_keypad_build_keymap(const struct matrix_keymap_data *keymap_data,
 	}
 	__clear_bit(KEY_RESERVED, keybit);
 }
+
+#ifdef CONFIG_INPUT_OF_MATRIX_KEYMAP
+struct matrix_keymap_data *
+matrix_keyboard_of_fill_keymap(struct device_node *np, const char *propname);
+
+void matrix_keyboard_of_free_keymap(const struct matrix_keymap_data *kd);
+#else
+static inline struct matrix_keymap_data *
+matrix_keyboard_of_fill_keymap(struct device_node *np, const char *propname)
+{
+	return NULL;
+}
+
+static inline void
+matrix_keyboard_of_free_keymap(const struct matrix_keymap_data *kd)
+{
+}
+#endif
 
 #endif /* _MATRIX_KEYPAD_H */

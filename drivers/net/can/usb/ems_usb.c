@@ -627,9 +627,6 @@ static int ems_usb_start(struct ems_usb *dev)
 
 		err = usb_submit_urb(urb, GFP_KERNEL);
 		if (err) {
-			if (err == -ENODEV)
-				netif_device_detach(dev->netdev);
-
 			usb_unanchor_urb(urb);
 			usb_free_coherent(dev->udev, RX_BUFFER_SIZE, buf,
 					  urb->transfer_dma);
@@ -659,9 +656,6 @@ static int ems_usb_start(struct ems_usb *dev)
 
 	err = usb_submit_urb(dev->intr_urb, GFP_KERNEL);
 	if (err) {
-		if (err == -ENODEV)
-			netif_device_detach(dev->netdev);
-
 		dev_warn(netdev->dev.parent, "intr URB submit failed: %d\n",
 			 err);
 
@@ -692,9 +686,6 @@ static int ems_usb_start(struct ems_usb *dev)
 	return 0;
 
 failed:
-	if (err == -ENODEV)
-		netif_device_detach(dev->netdev);
-
 	dev_warn(netdev->dev.parent, "couldn't submit control: %d\n", err);
 
 	return err;
@@ -1115,28 +1106,4 @@ static struct usb_driver ems_usb_driver = {
 	.id_table = ems_usb_table,
 };
 
-static int __init ems_usb_init(void)
-{
-	int err;
-
-	printk(KERN_INFO "CPC-USB kernel driver loaded\n");
-
-	/* register this driver with the USB subsystem */
-	err = usb_register(&ems_usb_driver);
-
-	if (err) {
-		err("usb_register failed. Error number %d\n", err);
-		return err;
-	}
-
-	return 0;
-}
-
-static void __exit ems_usb_exit(void)
-{
-	/* deregister this driver with the USB subsystem */
-	usb_deregister(&ems_usb_driver);
-}
-
-module_init(ems_usb_init);
-module_exit(ems_usb_exit);
+module_usb_driver(ems_usb_driver);

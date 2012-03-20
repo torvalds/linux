@@ -126,6 +126,9 @@ void au_sleep(void)
 	case ALCHEMY_CPU_AU1200:
 		alchemy_sleep_au1550();
 		break;
+	case ALCHEMY_CPU_AU1300:
+		alchemy_sleep_au1300();
+		break;
 	}
 
 	restore_core_regs();

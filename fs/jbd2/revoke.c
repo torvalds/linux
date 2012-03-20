@@ -47,6 +47,10 @@
  *   overwriting the new data.  We don't even need to clear the revoke
  *   bit here.
  *
+ * We cache revoke status of a buffer in the current transaction in b_states
+ * bits.  As the name says, revokevalid flag indicates that the cached revoke
+ * status of a buffer is valid and we can rely on the cached status.
+ *
  * Revoke information on buffers is a tri-state value:
  *
  * RevokeValid clear:	no cached revoke status, need to look it up
@@ -476,6 +480,36 @@ int jbd2_journal_cancel_revoke(handle_t *handle, struct journal_head *jh)
 		}
 	}
 	return did_revoke;
+}
+
+/*
+ * journal_clear_revoked_flag clears revoked flag of buffers in
+ * revoke table to reflect there is no revoked buffers in the next
+ * transaction which is going to be started.
+ */
+void jbd2_clear_buffer_revoked_flags(journal_t *journal)
+{
+	struct jbd2_revoke_table_s *revoke = journal->j_revoke;
+	int i = 0;
+
+	for (i = 0; i < revoke->hash_size; i++) {
+		struct list_head *hash_list;
+		struct list_head *list_entry;
+		hash_list = &revoke->hash_table[i];
+
+		list_for_each(list_entry, hash_list) {
+			struct jbd2_revoke_record_s *record;
+			struct buffer_head *bh;
+			record = (struct jbd2_revoke_record_s *)list_entry;
+			bh = __find_get_block(journal->j_fs_dev,
+					      record->blocknr,
+					      journal->j_blocksize);
+			if (bh) {
+				clear_buffer_revoked(bh);
+				__brelse(bh);
+			}
+		}
+	}
 }
 
 /* journal_switch_revoke table select j_revoke for next transaction

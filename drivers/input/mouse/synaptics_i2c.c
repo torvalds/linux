@@ -185,17 +185,17 @@
 #define NO_DATA_SLEEP_MSECS	(MSEC_PER_SEC / 4)
 
 /* Control touchpad's No Deceleration option */
-static int no_decel = 1;
+static bool no_decel = 1;
 module_param(no_decel, bool, 0644);
 MODULE_PARM_DESC(no_decel, "No Deceleration. Default = 1 (on)");
 
 /* Control touchpad's Reduced Reporting option */
-static int reduce_report;
+static bool reduce_report;
 module_param(reduce_report, bool, 0644);
 MODULE_PARM_DESC(reduce_report, "Reduced Reporting. Default = 0 (off)");
 
 /* Control touchpad's No Filter option */
-static int no_filter;
+static bool no_filter;
 module_param(no_filter, bool, 0644);
 MODULE_PARM_DESC(no_filter, "No Filter. Default = 0 (off)");
 
@@ -672,18 +672,7 @@ static struct i2c_driver synaptics_i2c_driver = {
 	.id_table	= synaptics_i2c_id_table,
 };
 
-static int __init synaptics_i2c_init(void)
-{
-	return i2c_add_driver(&synaptics_i2c_driver);
-}
-
-static void __exit synaptics_i2c_exit(void)
-{
-	i2c_del_driver(&synaptics_i2c_driver);
-}
-
-module_init(synaptics_i2c_init);
-module_exit(synaptics_i2c_exit);
+module_i2c_driver(synaptics_i2c_driver);
 
 MODULE_DESCRIPTION("Synaptics I2C touchpad driver");
 MODULE_AUTHOR("Mike Rapoport, Igor Grinberg, Compulab");

@@ -163,7 +163,7 @@ coff)
     link_address='0x500000'
     pie=
     ;;
-miboot|uboot)
+miboot|uboot*)
     # miboot and U-boot want just the bare bits, not an ELF binary
     ext=bin
     objflags="-O binary"
@@ -244,6 +244,9 @@ gamecube|wii)
     link_address='0x600000'
     platformo="$object/$platform-head.o $object/$platform.o"
     ;;
+treeboot-currituck)
+    link_address='0x1000000'
+    ;;
 treeboot-iss4xx-mpic)
     platformo="$object/treeboot-iss4xx.o"
     ;;
@@ -257,6 +260,8 @@ vmz="$tmpdir/`basename \"$kernel\"`.$ext"
 if [ -z "$cacheit" -o ! -f "$vmz$gzip" -o "$vmz$gzip" -ot "$kernel" ]; then
     ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
 
+    strip_size=$(stat -c %s $vmz.$$)
+
     if [ -n "$gzip" ]; then
         gzip -n -f -9 "$vmz.$$"
     fi
@@ -266,6 +271,24 @@ if [ -z "$cacheit" -o ! -f "$vmz$gzip" -o "$vmz$gzip" -ot "$kernel" ]; then
     else
 	vmz="$vmz.$$"
     fi
+else
+    # Calculate the vmlinux.strip size
+    ${CROSS}objcopy $objflags "$kernel" "$vmz.$$"
+    strip_size=$(stat -c %s $vmz.$$)
+    rm -f $vmz.$$
+fi
+
+# Round the size to next higher MB limit
+round_size=$(((strip_size + 0xfffff) & 0xfff00000))
+
+round_size=0x$(printf "%x" $round_size)
+link_addr=$(printf "%d" $link_address)
+
+if [ $link_addr -lt $strip_size ]; then
+    echo "INFO: Uncompressed kernel (size 0x$(printf "%x\n" $strip_size))" \
+		"overlaps the address of the wrapper($link_address)"
+    echo "INFO: Fixing the link_address of wrapper to ($round_size)"
+    link_address=$round_size
 fi
 
 vmz="$vmz$gzip"
@@ -286,6 +309,26 @@ uboot)
     rm -f "$ofile"
     ${MKIMAGE} -A ppc -O linux -T kernel -C gzip -a $membase -e $membase \
 	$uboot_version -d "$vmz" "$ofile"
+    if [ -z "$cacheit" ]; then
+	rm -f "$vmz"
+    fi
+    exit 0
+    ;;
+uboot-obs600)
+    rm -f "$ofile"
+    # obs600 wants a multi image with an initrd, so we need to put a fake
+    # one in even when building a "normal" image.
+    if [ -n "$initrd" ]; then
+	real_rd="$initrd"
+    else
+	real_rd=`mktemp`
+	echo "\0" >>"$real_rd"
+    fi
+    ${MKIMAGE} -A ppc -O linux -T multi -C gzip -a $membase -e $membase \
+	$uboot_version -d "$vmz":"$real_rd":"$dtb" "$ofile"
+    if [ -z "$initrd" ]; then
+	rm -f "$real_rd"
+    fi
     if [ -z "$cacheit" ]; then
 	rm -f "$vmz"
     fi

@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 
 #include "wl12xx.h"
+#include "debug.h"
 #include "acx.h"
 #include "ps.h"
 #include "io.h"
@@ -316,12 +317,19 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 {
 	struct wl1271 *wl = file->private_data;
 	int res = 0;
-	char buf[1024];
+	ssize_t ret;
+	char *buf;
+
+#define DRIVER_STATE_BUF_LEN 1024
+
+	buf = kmalloc(DRIVER_STATE_BUF_LEN, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
 	mutex_lock(&wl->mutex);
 
 #define DRIVER_STATE_PRINT(x, fmt)   \
-	(res += scnprintf(buf + res, sizeof(buf) - res,\
+	(res += scnprintf(buf + res, DRIVER_STATE_BUF_LEN - res,\
 			  #x " = " fmt "\n", wl->x))
 
 #define DRIVER_STATE_PRINT_LONG(x) DRIVER_STATE_PRINT(x, "%ld")
@@ -346,29 +354,14 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_INT(tx_results_count);
 	DRIVER_STATE_PRINT_LHEX(flags);
 	DRIVER_STATE_PRINT_INT(tx_blocks_freed);
-	DRIVER_STATE_PRINT_INT(tx_security_last_seq_lsb);
 	DRIVER_STATE_PRINT_INT(rx_counter);
-	DRIVER_STATE_PRINT_INT(session_counter);
 	DRIVER_STATE_PRINT_INT(state);
-	DRIVER_STATE_PRINT_INT(bss_type);
 	DRIVER_STATE_PRINT_INT(channel);
-	DRIVER_STATE_PRINT_HEX(rate_set);
-	DRIVER_STATE_PRINT_HEX(basic_rate_set);
-	DRIVER_STATE_PRINT_HEX(basic_rate);
 	DRIVER_STATE_PRINT_INT(band);
-	DRIVER_STATE_PRINT_INT(beacon_int);
-	DRIVER_STATE_PRINT_INT(psm_entry_retry);
-	DRIVER_STATE_PRINT_INT(ps_poll_failures);
 	DRIVER_STATE_PRINT_INT(power_level);
-	DRIVER_STATE_PRINT_INT(rssi_thold);
-	DRIVER_STATE_PRINT_INT(last_rssi_event);
 	DRIVER_STATE_PRINT_INT(sg_enabled);
 	DRIVER_STATE_PRINT_INT(enable_11a);
 	DRIVER_STATE_PRINT_INT(noise);
-	DRIVER_STATE_PRINT_LHEX(ap_hlid_map[0]);
-	DRIVER_STATE_PRINT_INT(last_tx_hlid);
-	DRIVER_STATE_PRINT_INT(ba_support);
-	DRIVER_STATE_PRINT_HEX(ba_rx_bitmap);
 	DRIVER_STATE_PRINT_HEX(ap_fw_ps_map);
 	DRIVER_STATE_PRINT_LHEX(ap_ps_map);
 	DRIVER_STATE_PRINT_HEX(quirks);
@@ -387,14 +380,126 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 #undef DRIVER_STATE_PRINT_LHEX
 #undef DRIVER_STATE_PRINT_STR
 #undef DRIVER_STATE_PRINT
+#undef DRIVER_STATE_BUF_LEN
 
 	mutex_unlock(&wl->mutex);
 
-	return simple_read_from_buffer(user_buf, count, ppos, buf, res);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, res);
+	kfree(buf);
+	return ret;
 }
 
 static const struct file_operations driver_state_ops = {
 	.read = driver_state_read,
+	.open = wl1271_open_file_generic,
+	.llseek = default_llseek,
+};
+
+static ssize_t vifs_state_read(struct file *file, char __user *user_buf,
+				 size_t count, loff_t *ppos)
+{
+	struct wl1271 *wl = file->private_data;
+	struct wl12xx_vif *wlvif;
+	int ret, res = 0;
+	const int buf_size = 4096;
+	char *buf;
+	char tmp_buf[64];
+
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	mutex_lock(&wl->mutex);
+
+#define VIF_STATE_PRINT(x, fmt)				\
+	(res += scnprintf(buf + res, buf_size - res,	\
+			  #x " = " fmt "\n", wlvif->x))
+
+#define VIF_STATE_PRINT_LONG(x)  VIF_STATE_PRINT(x, "%ld")
+#define VIF_STATE_PRINT_INT(x)   VIF_STATE_PRINT(x, "%d")
+#define VIF_STATE_PRINT_STR(x)   VIF_STATE_PRINT(x, "%s")
+#define VIF_STATE_PRINT_LHEX(x)  VIF_STATE_PRINT(x, "0x%lx")
+#define VIF_STATE_PRINT_LLHEX(x) VIF_STATE_PRINT(x, "0x%llx")
+#define VIF_STATE_PRINT_HEX(x)   VIF_STATE_PRINT(x, "0x%x")
+
+#define VIF_STATE_PRINT_NSTR(x, len)				\
+	do {							\
+		memset(tmp_buf, 0, sizeof(tmp_buf));		\
+		memcpy(tmp_buf, wlvif->x,			\
+		       min_t(u8, len, sizeof(tmp_buf) - 1));	\
+		res += scnprintf(buf + res, buf_size - res,	\
+				 #x " = %s\n", tmp_buf);	\
+	} while (0)
+
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		VIF_STATE_PRINT_INT(role_id);
+		VIF_STATE_PRINT_INT(bss_type);
+		VIF_STATE_PRINT_LHEX(flags);
+		VIF_STATE_PRINT_INT(p2p);
+		VIF_STATE_PRINT_INT(dev_role_id);
+		VIF_STATE_PRINT_INT(dev_hlid);
+
+		if (wlvif->bss_type == BSS_TYPE_STA_BSS ||
+		    wlvif->bss_type == BSS_TYPE_IBSS) {
+			VIF_STATE_PRINT_INT(sta.hlid);
+			VIF_STATE_PRINT_INT(sta.ba_rx_bitmap);
+			VIF_STATE_PRINT_INT(sta.basic_rate_idx);
+			VIF_STATE_PRINT_INT(sta.ap_rate_idx);
+			VIF_STATE_PRINT_INT(sta.p2p_rate_idx);
+		} else {
+			VIF_STATE_PRINT_INT(ap.global_hlid);
+			VIF_STATE_PRINT_INT(ap.bcast_hlid);
+			VIF_STATE_PRINT_LHEX(ap.sta_hlid_map[0]);
+			VIF_STATE_PRINT_INT(ap.mgmt_rate_idx);
+			VIF_STATE_PRINT_INT(ap.bcast_rate_idx);
+			VIF_STATE_PRINT_INT(ap.ucast_rate_idx[0]);
+			VIF_STATE_PRINT_INT(ap.ucast_rate_idx[1]);
+			VIF_STATE_PRINT_INT(ap.ucast_rate_idx[2]);
+			VIF_STATE_PRINT_INT(ap.ucast_rate_idx[3]);
+		}
+		VIF_STATE_PRINT_INT(last_tx_hlid);
+		VIF_STATE_PRINT_LHEX(links_map[0]);
+		VIF_STATE_PRINT_NSTR(ssid, wlvif->ssid_len);
+		VIF_STATE_PRINT_INT(band);
+		VIF_STATE_PRINT_INT(channel);
+		VIF_STATE_PRINT_HEX(bitrate_masks[0]);
+		VIF_STATE_PRINT_HEX(bitrate_masks[1]);
+		VIF_STATE_PRINT_HEX(basic_rate_set);
+		VIF_STATE_PRINT_HEX(basic_rate);
+		VIF_STATE_PRINT_HEX(rate_set);
+		VIF_STATE_PRINT_INT(beacon_int);
+		VIF_STATE_PRINT_INT(default_key);
+		VIF_STATE_PRINT_INT(aid);
+		VIF_STATE_PRINT_INT(session_counter);
+		VIF_STATE_PRINT_INT(ps_poll_failures);
+		VIF_STATE_PRINT_INT(psm_entry_retry);
+		VIF_STATE_PRINT_INT(power_level);
+		VIF_STATE_PRINT_INT(rssi_thold);
+		VIF_STATE_PRINT_INT(last_rssi_event);
+		VIF_STATE_PRINT_INT(ba_support);
+		VIF_STATE_PRINT_INT(ba_allowed);
+		VIF_STATE_PRINT_LLHEX(tx_security_seq);
+		VIF_STATE_PRINT_INT(tx_security_last_seq_lsb);
+	}
+
+#undef VIF_STATE_PRINT_INT
+#undef VIF_STATE_PRINT_LONG
+#undef VIF_STATE_PRINT_HEX
+#undef VIF_STATE_PRINT_LHEX
+#undef VIF_STATE_PRINT_LLHEX
+#undef VIF_STATE_PRINT_STR
+#undef VIF_STATE_PRINT_NSTR
+#undef VIF_STATE_PRINT
+
+	mutex_unlock(&wl->mutex);
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, res);
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations vifs_state_ops = {
+	.read = vifs_state_read,
 	.open = wl1271_open_file_generic,
 	.llseek = default_llseek,
 };
@@ -520,6 +625,7 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 			   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
+	struct wl12xx_vif *wlvif;
 	unsigned long value;
 	int ret;
 
@@ -543,7 +649,9 @@ static ssize_t rx_streaming_interval_write(struct file *file,
 	if (ret < 0)
 		goto out;
 
-	wl1271_recalc_rx_streaming(wl);
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		wl1271_recalc_rx_streaming(wl, wlvif);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -572,6 +680,7 @@ static ssize_t rx_streaming_always_write(struct file *file,
 			   size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
+	struct wl12xx_vif *wlvif;
 	unsigned long value;
 	int ret;
 
@@ -595,7 +704,9 @@ static ssize_t rx_streaming_always_write(struct file *file,
 	if (ret < 0)
 		goto out;
 
-	wl1271_recalc_rx_streaming(wl);
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		wl1271_recalc_rx_streaming(wl, wlvif);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -624,6 +735,7 @@ static ssize_t beacon_filtering_write(struct file *file,
 				      size_t count, loff_t *ppos)
 {
 	struct wl1271 *wl = file->private_data;
+	struct wl12xx_vif *wlvif;
 	char buf[10];
 	size_t len;
 	unsigned long value;
@@ -646,7 +758,9 @@ static ssize_t beacon_filtering_write(struct file *file,
 	if (ret < 0)
 		goto out;
 
-	ret = wl1271_acx_beacon_filter_opt(wl, !!value);
+	wl12xx_for_each_wlvif(wl, wlvif) {
+		ret = wl1271_acx_beacon_filter_opt(wl, wlvif, !!value);
+	}
 
 	wl1271_ps_elp_sleep(wl);
 out:
@@ -770,6 +884,7 @@ static int wl1271_debugfs_add_files(struct wl1271 *wl,
 	DEBUGFS_ADD(gpio_power, rootdir);
 	DEBUGFS_ADD(start_recovery, rootdir);
 	DEBUGFS_ADD(driver_state, rootdir);
+	DEBUGFS_ADD(vifs_state, rootdir);
 	DEBUGFS_ADD(dtim_interval, rootdir);
 	DEBUGFS_ADD(beacon_interval, rootdir);
 	DEBUGFS_ADD(beacon_filtering, rootdir);

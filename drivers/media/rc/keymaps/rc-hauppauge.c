@@ -183,6 +183,57 @@ static struct rc_map_table rc5_hauppauge_new[] = {
 	{ 0x1d3f, KEY_HOME },
 
 	/*
+	 * Keycodes for PT# R-005 remote bundled with Haupauge HVR-930C
+	 * Keycodes start with address = 0x1c
+	 */
+	{ 0x1c3b, KEY_GOTO },
+	{ 0x1c3d, KEY_POWER },
+
+	{ 0x1c14, KEY_UP },
+	{ 0x1c15, KEY_DOWN },
+	{ 0x1c16, KEY_LEFT },
+	{ 0x1c17, KEY_RIGHT },
+	{ 0x1c25, KEY_OK },
+
+	{ 0x1c00, KEY_0 },
+	{ 0x1c01, KEY_1 },
+	{ 0x1c02, KEY_2 },
+	{ 0x1c03, KEY_3 },
+	{ 0x1c04, KEY_4 },
+	{ 0x1c05, KEY_5 },
+	{ 0x1c06, KEY_6 },
+	{ 0x1c07, KEY_7 },
+	{ 0x1c08, KEY_8 },
+	{ 0x1c09, KEY_9 },
+
+	{ 0x1c1f, KEY_EXIT },	/* BACK */
+	{ 0x1c0d, KEY_MENU },
+	{ 0x1c1c, KEY_TV },
+
+	{ 0x1c10, KEY_VOLUMEUP },
+	{ 0x1c11, KEY_VOLUMEDOWN },
+
+	{ 0x1c20, KEY_CHANNELUP },
+	{ 0x1c21, KEY_CHANNELDOWN },
+
+	{ 0x1c0f, KEY_MUTE },
+	{ 0x1c12, KEY_PREVIOUS }, /* Prev */
+
+	{ 0x1c36, KEY_STOP },
+	{ 0x1c37, KEY_RECORD },
+
+	{ 0x1c24, KEY_LAST },           /* <|             */
+	{ 0x1c1e, KEY_NEXT },           /* >|             */
+
+	{ 0x1c0a, KEY_TEXT },
+	{ 0x1c0e, KEY_SUBTITLE },	/* CC */
+
+	{ 0x1c32, KEY_REWIND },
+	{ 0x1c30, KEY_PAUSE },
+	{ 0x1c35, KEY_PLAY },
+	{ 0x1c34, KEY_FASTFORWARD },
+
+	/*
 	 * Keycodes for the old Black Remote Controller
 	 * This one also uses RC-5 protocol
 	 * Keycodes start with address = 0x00

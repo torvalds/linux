@@ -71,6 +71,7 @@ struct twlreg_info {
 #define VREG_TYPE		1
 #define VREG_REMAP		2
 #define VREG_DEDICATED		3	/* LDO control */
+#define VREG_VOLTAGE_SMPS_4030	9
 /* TWL6030 register offsets */
 #define VREG_TRANS		1
 #define VREG_STATE		2
@@ -514,6 +515,32 @@ static struct regulator_ops twl4030ldo_ops = {
 	.get_status	= twl4030reg_get_status,
 };
 
+static int
+twl4030smps_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
+			unsigned *selector)
+{
+	struct twlreg_info *info = rdev_get_drvdata(rdev);
+	int vsel = DIV_ROUND_UP(min_uV - 600000, 12500);
+
+	twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE_SMPS_4030,
+		vsel);
+	return 0;
+}
+
+static int twl4030smps_get_voltage(struct regulator_dev *rdev)
+{
+	struct twlreg_info *info = rdev_get_drvdata(rdev);
+	int vsel = twlreg_read(info, TWL_MODULE_PM_RECEIVER,
+		VREG_VOLTAGE_SMPS_4030);
+
+	return vsel * 12500 + 600000;
+}
+
+static struct regulator_ops twl4030smps_ops = {
+	.set_voltage	= twl4030smps_set_voltage,
+	.get_voltage	= twl4030smps_get_voltage,
+};
+
 static int twl6030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
@@ -856,6 +883,21 @@ static struct regulator_ops twlsmps_ops = {
 		}, \
 	}
 
+#define TWL4030_ADJUSTABLE_SMPS(label, offset, num, turnon_delay, remap_conf) \
+	{ \
+	.base = offset, \
+	.id = num, \
+	.delay = turnon_delay, \
+	.remap = remap_conf, \
+	.desc = { \
+		.name = #label, \
+		.id = TWL4030_REG_##label, \
+		.ops = &twl4030smps_ops, \
+		.type = REGULATOR_VOLTAGE, \
+		.owner = THIS_MODULE, \
+		}, \
+	}
+
 #define TWL6030_ADJUSTABLE_LDO(label, offset, min_mVolts, max_mVolts) { \
 	.base = offset, \
 	.min_mV = min_mVolts, \
@@ -947,8 +989,8 @@ static struct twlreg_info twl_regs[] = {
 	TWL4030_ADJUSTABLE_LDO(VINTANA2, 0x43, 12, 100, 0x08),
 	TWL4030_FIXED_LDO(VINTDIG, 0x47, 1500, 13, 100, 0x08),
 	TWL4030_ADJUSTABLE_LDO(VIO, 0x4b, 14, 1000, 0x08),
-	TWL4030_ADJUSTABLE_LDO(VDD1, 0x55, 15, 1000, 0x08),
-	TWL4030_ADJUSTABLE_LDO(VDD2, 0x63, 16, 1000, 0x08),
+	TWL4030_ADJUSTABLE_SMPS(VDD1, 0x55, 15, 1000, 0x08),
+	TWL4030_ADJUSTABLE_SMPS(VDD2, 0x63, 16, 1000, 0x08),
 	TWL4030_FIXED_LDO(VUSB1V5, 0x71, 1500, 17, 100, 0x08),
 	TWL4030_FIXED_LDO(VUSB1V8, 0x74, 1800, 18, 100, 0x08),
 	TWL4030_FIXED_LDO(VUSB3V1, 0x77, 3100, 19, 150, 0x08),
@@ -1070,7 +1112,7 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 		break;
 	}
 
-	rdev = regulator_register(&info->desc, &pdev->dev, initdata, info);
+	rdev = regulator_register(&info->desc, &pdev->dev, initdata, info, NULL);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "can't register %s, %ld\n",
 				info->desc.name, PTR_ERR(rdev));

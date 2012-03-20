@@ -33,7 +33,7 @@
 
 /* Module Parameters */
 static unsigned int num_modules = CMODIO_MAX_MODULES;
-static unsigned char *modules[CMODIO_MAX_MODULES] = {
+static char *modules[CMODIO_MAX_MODULES] = {
 	"empty", "empty", "empty", "empty",
 };
 

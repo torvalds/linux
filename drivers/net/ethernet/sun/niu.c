@@ -1151,19 +1151,8 @@ static int link_status_mii(struct niu *np, int *link_up_p)
 		supported |= SUPPORTED_1000baseT_Full;
 	lp->supported = supported;
 
-	advertising = 0;
-	if (advert & ADVERTISE_10HALF)
-		advertising |= ADVERTISED_10baseT_Half;
-	if (advert & ADVERTISE_10FULL)
-		advertising |= ADVERTISED_10baseT_Full;
-	if (advert & ADVERTISE_100HALF)
-		advertising |= ADVERTISED_100baseT_Half;
-	if (advert & ADVERTISE_100FULL)
-		advertising |= ADVERTISED_100baseT_Full;
-	if (ctrl1000 & ADVERTISE_1000HALF)
-		advertising |= ADVERTISED_1000baseT_Half;
-	if (ctrl1000 & ADVERTISE_1000FULL)
-		advertising |= ADVERTISED_1000baseT_Full;
+	advertising = mii_adv_to_ethtool_adv_t(advert);
+	advertising |= mii_ctrl1000_to_ethtool_adv_t(ctrl1000);
 
 	if (bmcr & BMCR_ANENABLE) {
 		int neg, neg1000;
@@ -3609,6 +3598,7 @@ static int release_tx_packet(struct niu *np, struct tx_ring_info *rp, int idx)
 static void niu_tx_work(struct niu *np, struct tx_ring_info *rp)
 {
 	struct netdev_queue *txq;
+	unsigned int tx_bytes;
 	u16 pkt_cnt, tmp;
 	int cons, index;
 	u64 cs;
@@ -3631,11 +3621,17 @@ static void niu_tx_work(struct niu *np, struct tx_ring_info *rp)
 	netif_printk(np, tx_done, KERN_DEBUG, np->dev,
 		     "%s() pkt_cnt[%u] cons[%d]\n", __func__, pkt_cnt, cons);
 
-	while (pkt_cnt--)
+	tx_bytes = 0;
+	tmp = pkt_cnt;
+	while (tmp--) {
+		tx_bytes += rp->tx_buffs[cons].skb->len;
 		cons = release_tx_packet(np, rp, cons);
+	}
 
 	rp->cons = cons;
 	smp_mb();
+
+	netdev_tx_completed_queue(txq, pkt_cnt, tx_bytes);
 
 out:
 	if (unlikely(netif_tx_queue_stopped(txq) &&
@@ -4337,6 +4333,7 @@ static void niu_free_channels(struct niu *np)
 			struct tx_ring_info *rp = &np->tx_rings[i];
 
 			niu_free_tx_ring_info(np, rp);
+			netdev_tx_reset_queue(netdev_get_tx_queue(np->dev, i));
 		}
 		kfree(np->tx_rings);
 		np->tx_rings = NULL;
@@ -6742,6 +6739,8 @@ static netdev_tx_t niu_start_xmit(struct sk_buff *skb,
 		prod = NEXT_TX(rp, prod);
 	}
 
+	netdev_tx_sent_queue(txq, skb->len);
+
 	if (prod < rp->prod)
 		rp->wrap_bit ^= TX_RING_KICK_WRAP;
 	rp->prod = prod;
@@ -6823,12 +6822,13 @@ static void niu_get_drvinfo(struct net_device *dev,
 	struct niu *np = netdev_priv(dev);
 	struct niu_vpd *vpd = &np->vpd;
 
-	strcpy(info->driver, DRV_MODULE_NAME);
-	strcpy(info->version, DRV_MODULE_VERSION);
-	sprintf(info->fw_version, "%d.%d",
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+	snprintf(info->fw_version, sizeof(info->fw_version), "%d.%d",
 		vpd->fcode_major, vpd->fcode_minor);
 	if (np->parent->plat_type != PLAT_TYPE_NIU)
-		strcpy(info->bus_info, pci_name(np->pdev));
+		strlcpy(info->bus_info, pci_name(np->pdev),
+			sizeof(info->bus_info));
 }
 
 static int niu_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -8589,9 +8589,11 @@ static int __devinit phy_record(struct niu_parent *parent,
 	if (dev_id_1 < 0 || dev_id_2 < 0)
 		return 0;
 	if (type == PHY_TYPE_PMA_PMD || type == PHY_TYPE_PCS) {
+		/* Because of the NIU_PHY_ID_MASK being applied, the 8704
+		 * test covers the 8706 as well.
+		 */
 		if (((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_BCM8704) &&
-		    ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_MRVL88X2011) &&
-		    ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_BCM8706))
+		    ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_MRVL88X2011))
 			return 0;
 	} else {
 		if ((id & NIU_PHY_ID_MASK) != NIU_PHY_ID_BCM5464R)

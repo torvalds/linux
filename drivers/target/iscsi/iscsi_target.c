@@ -27,8 +27,7 @@
 #include <scsi/scsi_device.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_tmr.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -284,8 +283,8 @@ static struct iscsi_np *iscsit_get_np(
 			sock_in6 = (struct sockaddr_in6 *)sockaddr;
 			sock_in6_e = (struct sockaddr_in6 *)&np->np_sockaddr;
 
-			if (!memcmp((void *)&sock_in6->sin6_addr.in6_u,
-				    (void *)&sock_in6_e->sin6_addr.in6_u,
+			if (!memcmp(&sock_in6->sin6_addr.in6_u,
+				    &sock_in6_e->sin6_addr.in6_u,
 				    sizeof(struct in6_addr)))
 				ip_match = 1;
 
@@ -614,13 +613,12 @@ int iscsit_add_reject(
 	hdr	= (struct iscsi_reject *) cmd->pdu;
 	hdr->reason = reason;
 
-	cmd->buf_ptr = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);
+	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
 		iscsit_release_cmd(cmd);
 		return -1;
 	}
-	memcpy(cmd->buf_ptr, buf, ISCSI_HDR_LEN);
 
 	spin_lock_bh(&conn->cmd_lock);
 	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
@@ -661,13 +659,12 @@ int iscsit_add_reject_from_cmd(
 	hdr	= (struct iscsi_reject *) cmd->pdu;
 	hdr->reason = reason;
 
-	cmd->buf_ptr = kzalloc(ISCSI_HDR_LEN, GFP_KERNEL);
+	cmd->buf_ptr = kmemdup(buf, ISCSI_HDR_LEN, GFP_KERNEL);
 	if (!cmd->buf_ptr) {
 		pr_err("Unable to allocate memory for cmd->buf_ptr\n");
 		iscsit_release_cmd(cmd);
 		return -1;
 	}
-	memcpy(cmd->buf_ptr, buf, ISCSI_HDR_LEN);
 
 	if (add_to_conn) {
 		spin_lock_bh(&conn->cmd_lock);
@@ -1017,11 +1014,6 @@ done:
 				" non-existent or non-exported iSCSI LUN:"
 				" 0x%016Lx\n", get_unaligned_le64(&hdr->lun));
 		}
-		if (ret == PYX_TRANSPORT_OUT_OF_MEMORY_RESOURCES)
-			return iscsit_add_reject_from_cmd(
-					ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-					1, 1, buf, cmd);
-
 		send_check_condition = 1;
 		goto attach_cmd;
 	}
@@ -1044,6 +1036,8 @@ done:
 		 */
 		send_check_condition = 1;
 	} else {
+		cmd->data_length = cmd->se_cmd.data_length;
+
 		if (iscsit_decide_list_to_build(cmd, payload_length) < 0)
 			return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
@@ -1067,7 +1061,7 @@ attach_cmd:
 	if (ret < 0)
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-				1, 1, buf, cmd);
+				1, 0, buf, cmd);
 	/*
 	 * Check the CmdSN against ExpCmdSN/MaxCmdSN here if
 	 * the Immediate Bit is not set, and no Immediate
@@ -1123,7 +1117,7 @@ attach_cmd:
 	 * the backend memory allocation.
 	 */
 	ret = transport_generic_new_cmd(&cmd->se_cmd);
-	if ((ret < 0) || (cmd->se_cmd.se_cmd_flags & SCF_SE_CMD_FAILED)) {
+	if (ret < 0) {
 		immed_ret = IMMEDIATE_DATA_NORMAL_OPERATION;
 		dump_immediate_data = 1;
 		goto after_immediate_data;
@@ -1230,7 +1224,7 @@ static void iscsit_do_crypto_hash_buf(
 
 	crypto_hash_init(hash);
 
-	sg_init_one(&sg, (u8 *)buf, payload_length);
+	sg_init_one(&sg, buf, payload_length);
 	crypto_hash_update(hash, &sg, payload_length);
 
 	if (padding) {
@@ -1341,7 +1335,7 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 
 		spin_lock_irqsave(&se_cmd->t_state_lock, flags);
 		if (!(se_cmd->se_cmd_flags & SCF_SUPPORTED_SAM_OPCODE) ||
-		     (se_cmd->se_cmd_flags & SCF_SE_CMD_FAILED))
+		     (se_cmd->se_cmd_flags & SCF_SCSI_CDB_EXCEPTION))
 			dump_unsolicited_data = 1;
 		spin_unlock_irqrestore(&se_cmd->t_state_lock, flags);
 
@@ -1608,7 +1602,7 @@ static int iscsit_handle_nop_out(
 		/*
 		 * Attach ping data to struct iscsi_cmd->buf_ptr.
 		 */
-		cmd->buf_ptr = (void *)ping_data;
+		cmd->buf_ptr = ping_data;
 		cmd->buf_ptr_size = payload_length;
 
 		pr_debug("Got %u bytes of NOPOUT ping"
@@ -2513,10 +2507,10 @@ static int iscsit_send_data_in(
 	if (hdr->flags & ISCSI_FLAG_DATA_STATUS) {
 		if (cmd->se_cmd.se_cmd_flags & SCF_OVERFLOW_BIT) {
 			hdr->flags |= ISCSI_FLAG_DATA_OVERFLOW;
-			hdr->residual_count = cpu_to_be32(cmd->residual_count);
+			hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 		} else if (cmd->se_cmd.se_cmd_flags & SCF_UNDERFLOW_BIT) {
 			hdr->flags |= ISCSI_FLAG_DATA_UNDERFLOW;
-			hdr->residual_count = cpu_to_be32(cmd->residual_count);
+			hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 		}
 	}
 	hton24(hdr->dlength, datain.length);
@@ -3018,10 +3012,10 @@ static int iscsit_send_status(
 	hdr->flags		|= ISCSI_FLAG_CMD_FINAL;
 	if (cmd->se_cmd.se_cmd_flags & SCF_OVERFLOW_BIT) {
 		hdr->flags |= ISCSI_FLAG_CMD_OVERFLOW;
-		hdr->residual_count = cpu_to_be32(cmd->residual_count);
+		hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 	} else if (cmd->se_cmd.se_cmd_flags & SCF_UNDERFLOW_BIT) {
 		hdr->flags |= ISCSI_FLAG_CMD_UNDERFLOW;
-		hdr->residual_count = cpu_to_be32(cmd->residual_count);
+		hdr->residual_count = cpu_to_be32(cmd->se_cmd.residual_count);
 	}
 	hdr->response		= cmd->iscsi_response;
 	hdr->cmd_status		= cmd->se_cmd.scsi_status;
@@ -3133,6 +3127,7 @@ static int iscsit_send_task_mgt_rsp(
 	hdr			= (struct iscsi_tm_rsp *) cmd->pdu;
 	memset(hdr, 0, ISCSI_HDR_LEN);
 	hdr->opcode		= ISCSI_OP_SCSI_TMFUNC_RSP;
+	hdr->flags		= ISCSI_FLAG_CMD_FINAL;
 	hdr->response		= iscsit_convert_tcm_tmr_rsp(se_tmr);
 	hdr->itt		= cpu_to_be32(cmd->init_task_tag);
 	cmd->stat_sn		= conn->stat_sn++;
@@ -3169,6 +3164,30 @@ static int iscsit_send_task_mgt_rsp(
 	return 0;
 }
 
+static bool iscsit_check_inaddr_any(struct iscsi_np *np)
+{
+	bool ret = false;
+
+	if (np->np_sockaddr.ss_family == AF_INET6) {
+		const struct sockaddr_in6 sin6 = {
+			.sin6_addr = IN6ADDR_ANY_INIT };
+		struct sockaddr_in6 *sock_in6 =
+			 (struct sockaddr_in6 *)&np->np_sockaddr;
+
+		if (!memcmp(sock_in6->sin6_addr.s6_addr,
+				sin6.sin6_addr.s6_addr, 16))
+			ret = true;
+	} else {
+		struct sockaddr_in * sock_in =
+			(struct sockaddr_in *)&np->np_sockaddr;
+
+		if (sock_in->sin_addr.s_addr == INADDR_ANY)
+			ret = true;
+	}
+
+	return ret;
+}
+
 static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 {
 	char *payload = NULL;
@@ -3201,7 +3220,7 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 			end_of_buf = 1;
 			goto eob;
 		}
-		memcpy((void *)payload + payload_len, buf, len);
+		memcpy(payload + payload_len, buf, len);
 		payload_len += len;
 
 		spin_lock(&tiqn->tiqn_tpg_lock);
@@ -3218,12 +3237,17 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 			spin_lock(&tpg->tpg_np_lock);
 			list_for_each_entry(tpg_np, &tpg->tpg_gnp_list,
 						tpg_np_list) {
+				struct iscsi_np *np = tpg_np->tpg_np;
+				bool inaddr_any = iscsit_check_inaddr_any(np);
+
 				len = sprintf(buf, "TargetAddress="
 					"%s%s%s:%hu,%hu",
-					(tpg_np->tpg_np->np_sockaddr.ss_family == AF_INET6) ?
-					"[" : "", tpg_np->tpg_np->np_ip,
-					(tpg_np->tpg_np->np_sockaddr.ss_family == AF_INET6) ?
-					"]" : "", tpg_np->tpg_np->np_port,
+					(np->np_sockaddr.ss_family == AF_INET6) ?
+					"[" : "", (inaddr_any == false) ?
+						np->np_ip : conn->local_ip,
+					(np->np_sockaddr.ss_family == AF_INET6) ?
+					"]" : "", (inaddr_any == false) ?
+						np->np_port : conn->local_port,
 					tpg->tpgt);
 				len += 1;
 
@@ -3233,7 +3257,7 @@ static int iscsit_build_sendtargets_response(struct iscsi_cmd *cmd)
 					end_of_buf = 1;
 					goto eob;
 				}
-				memcpy((void *)payload + payload_len, buf, len);
+				memcpy(payload + payload_len, buf, len);
 				payload_len += len;
 			}
 			spin_unlock(&tpg->tpg_np_lock);
@@ -3490,7 +3514,7 @@ int iscsi_target_tx_thread(void *arg)
 	struct iscsi_conn *conn;
 	struct iscsi_queue_req *qr = NULL;
 	struct se_cmd *se_cmd;
-	struct iscsi_thread_set *ts = (struct iscsi_thread_set *)arg;
+	struct iscsi_thread_set *ts = arg;
 	/*
 	 * Allow ourselves to be interrupted by SIGINT so that a
 	 * connection recovery / failure event can be triggered externally.
@@ -3779,7 +3803,7 @@ int iscsi_target_rx_thread(void *arg)
 	u8 buffer[ISCSI_HDR_LEN], opcode;
 	u32 checksum = 0, digest = 0;
 	struct iscsi_conn *conn = NULL;
-	struct iscsi_thread_set *ts = (struct iscsi_thread_set *)arg;
+	struct iscsi_thread_set *ts = arg;
 	struct kvec iov;
 	/*
 	 * Allow ourselves to be interrupted by SIGINT so that a

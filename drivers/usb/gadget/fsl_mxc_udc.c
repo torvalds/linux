@@ -16,6 +16,7 @@
 #include <linux/err.h>
 #include <linux/fsl_devices.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 
@@ -88,7 +89,6 @@ eenahb:
 void fsl_udc_clk_finalize(struct platform_device *pdev)
 {
 	struct fsl_usb2_platform_data *pdata = pdev->dev.platform_data;
-#if defined(CONFIG_SOC_IMX35)
 	if (cpu_is_mx35()) {
 		unsigned int v;
 
@@ -101,7 +101,6 @@ void fsl_udc_clk_finalize(struct platform_device *pdev)
 					USBPHYCTRL_OTGBASE_OFFSET));
 		}
 	}
-#endif
 
 	/* ULPI transceivers don't need usbpll */
 	if (pdata->phy_mode == FSL_USB2_PHY_ULPI) {

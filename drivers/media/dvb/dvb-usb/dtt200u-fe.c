@@ -16,7 +16,7 @@ struct dtt200u_fe_state {
 
 	fe_status_t stat;
 
-	struct dvb_frontend_parameters fep;
+	struct dtv_frontend_properties fep;
 	struct dvb_frontend frontend;
 };
 
@@ -100,22 +100,27 @@ static int dtt200u_fe_get_tune_settings(struct dvb_frontend* fe, struct dvb_fron
 	return 0;
 }
 
-static int dtt200u_fe_set_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
+static int dtt200u_fe_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dtt200u_fe_state *state = fe->demodulator_priv;
 	int i;
 	fe_status_t st;
 	u16 freq = fep->frequency / 250000;
 	u8 bwbuf[2] = { SET_BANDWIDTH, 0 },freqbuf[3] = { SET_RF_FREQ, 0, 0 };
 
-	switch (fep->u.ofdm.bandwidth) {
-		case BANDWIDTH_8_MHZ: bwbuf[1] = 8; break;
-		case BANDWIDTH_7_MHZ: bwbuf[1] = 7; break;
-		case BANDWIDTH_6_MHZ: bwbuf[1] = 6; break;
-		case BANDWIDTH_AUTO: return -EOPNOTSUPP;
-		default:
-			return -EINVAL;
+	switch (fep->bandwidth_hz) {
+	case 8000000:
+		bwbuf[1] = 8;
+		break;
+	case 7000000:
+		bwbuf[1] = 7;
+		break;
+	case 6000000:
+		bwbuf[1] = 6;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	dvb_usb_generic_write(state->d,bwbuf,2);
@@ -134,11 +139,11 @@ static int dtt200u_fe_set_frontend(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int dtt200u_fe_get_frontend(struct dvb_frontend* fe,
-				  struct dvb_frontend_parameters *fep)
+static int dtt200u_fe_get_frontend(struct dvb_frontend* fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dtt200u_fe_state *state = fe->demodulator_priv;
-	memcpy(fep,&state->fep,sizeof(struct dvb_frontend_parameters));
+	memcpy(fep, &state->fep, sizeof(struct dtv_frontend_properties));
 	return 0;
 }
 
@@ -172,9 +177,9 @@ error:
 }
 
 static struct dvb_frontend_ops dtt200u_fe_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "WideView USB DVB-T",
-		.type			= FE_OFDM,
 		.frequency_min		= 44250000,
 		.frequency_max		= 867250000,
 		.frequency_stepsize	= 250000,

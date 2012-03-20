@@ -20,6 +20,7 @@
 #define __BTRFS_BACKREF__
 
 #include "ioctl.h"
+#include "ulist.h"
 
 struct inode_fs_paths {
 	struct btrfs_path		*btrfs_path;
@@ -53,6 +54,10 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 				iterate_extent_inodes_t *iterate, void *ctx);
 
 int paths_from_inode(u64 inum, struct inode_fs_paths *ipath);
+
+int btrfs_find_all_roots(struct btrfs_trans_handle *trans,
+				struct btrfs_fs_info *fs_info, u64 bytenr,
+				u64 num_bytes, u64 seq, struct ulist **roots);
 
 struct btrfs_data_container *init_data_container(u32 total_bytes);
 struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,

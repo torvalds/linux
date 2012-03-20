@@ -450,7 +450,7 @@ static int dvb_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-static char *dvb_devnode(struct device *dev, mode_t *mode)
+static char *dvb_devnode(struct device *dev, umode_t *mode)
 {
 	struct dvb_device *dvbdev = dev_get_drvdata(dev);
 

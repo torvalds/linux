@@ -18,7 +18,7 @@
 #include <linux/memblock.h>
 #include <linux/timer.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
@@ -69,6 +69,8 @@
 #include <plat/ts.h>
 
 #include <sound/uda1380.h>
+
+#include "common.h"
 
 #define H1940_LATCH		((void __force __iomem *)0xF8000000)
 
@@ -751,4 +753,5 @@ MACHINE_START(H1940, "IPAQ-H1940")
 	.init_irq	= h1940_init_irq,
 	.init_machine	= h1940_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2410_restart,
 MACHINE_END

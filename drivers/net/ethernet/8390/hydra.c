@@ -129,7 +129,7 @@ static int __devinit hydra_init(struct zorro_dev *z)
     if (!dev)
 	return -ENOMEM;
 
-    for(j = 0; j < ETHER_ADDR_LEN; j++)
+    for (j = 0; j < ETH_ALEN; j++)
 	dev->dev_addr[j] = *((u8 *)(board + HYDRA_ADDRPROM + 2*j));
 
     /* We must set the 8390 for word mode. */

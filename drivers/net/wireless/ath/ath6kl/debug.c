@@ -143,49 +143,48 @@ void ath6kl_dump_registers(struct ath6kl_device *dev,
 
 static void dump_cred_dist(struct htc_endpoint_credit_dist *ep_dist)
 {
-	ath6kl_dbg(ATH6KL_DBG_ANY,
+	ath6kl_dbg(ATH6KL_DBG_CREDIT,
 		   "--- endpoint: %d  svc_id: 0x%X ---\n",
 		   ep_dist->endpoint, ep_dist->svc_id);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " dist_flags     : 0x%X\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " dist_flags     : 0x%X\n",
 		   ep_dist->dist_flags);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_norm      : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_norm      : %d\n",
 		   ep_dist->cred_norm);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_min       : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_min       : %d\n",
 		   ep_dist->cred_min);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " credits        : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " credits        : %d\n",
 		   ep_dist->credits);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_assngd    : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_assngd    : %d\n",
 		   ep_dist->cred_assngd);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " seek_cred      : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " seek_cred      : %d\n",
 		   ep_dist->seek_cred);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_sz        : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_sz        : %d\n",
 		   ep_dist->cred_sz);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_per_msg   : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_per_msg   : %d\n",
 		   ep_dist->cred_per_msg);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " cred_to_dist   : %d\n",
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " cred_to_dist   : %d\n",
 		   ep_dist->cred_to_dist);
-	ath6kl_dbg(ATH6KL_DBG_ANY, " txq_depth      : %d\n",
-		   get_queue_depth(&((struct htc_endpoint *)
-				     ep_dist->htc_rsvd)->txq));
-	ath6kl_dbg(ATH6KL_DBG_ANY,
+	ath6kl_dbg(ATH6KL_DBG_CREDIT, " txq_depth      : %d\n",
+		   get_queue_depth(&ep_dist->htc_ep->txq));
+	ath6kl_dbg(ATH6KL_DBG_CREDIT,
 		   "----------------------------------\n");
 }
 
+/* FIXME: move to htc.c */
 void dump_cred_dist_stats(struct htc_target *target)
 {
 	struct htc_endpoint_credit_dist *ep_list;
 
-	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_TRC))
+	if (!AR_DBG_LVL_CHECK(ATH6KL_DBG_CREDIT))
 		return;
 
 	list_for_each_entry(ep_list, &target->cred_dist_list, list)
 		dump_cred_dist(ep_list);
 
-	ath6kl_dbg(ATH6KL_DBG_HTC_SEND, "ctxt:%p dist:%p\n",
-		   target->cred_dist_cntxt, NULL);
-	ath6kl_dbg(ATH6KL_DBG_TRC, "credit distribution, total : %d, free : %d\n",
-		   target->cred_dist_cntxt->total_avail_credits,
-		   target->cred_dist_cntxt->cur_free_credits);
+	ath6kl_dbg(ATH6KL_DBG_CREDIT,
+		   "credit distribution total %d free %d\n",
+		   target->credit_info->total_avail_credits,
+		   target->credit_info->cur_free_credits);
 }
 
 static int ath6kl_debugfs_open(struct inode *inode, struct file *file)
@@ -397,12 +396,19 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
 	struct ath6kl *ar = file->private_data;
-	struct target_stats *tgt_stats = &ar->target_stats;
+	struct ath6kl_vif *vif;
+	struct target_stats *tgt_stats;
 	char *buf;
 	unsigned int len = 0, buf_len = 1500;
 	int i;
 	long left;
 	ssize_t ret_cnt;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	tgt_stats = &vif->target_stats;
 
 	buf = kzalloc(buf_len, GFP_KERNEL);
 	if (!buf)
@@ -413,9 +419,9 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 		return -EBUSY;
 	}
 
-	set_bit(STATS_UPDATE_PEND, &ar->flag);
+	set_bit(STATS_UPDATE_PEND, &vif->flags);
 
-	if (ath6kl_wmi_get_stats_cmd(ar->wmi)) {
+	if (ath6kl_wmi_get_stats_cmd(ar->wmi, 0)) {
 		up(&ar->sem);
 		kfree(buf);
 		return -EIO;
@@ -423,7 +429,7 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 
 	left = wait_event_interruptible_timeout(ar->event_wq,
 						!test_bit(STATS_UPDATE_PEND,
-						&ar->flag), WMI_TIMEOUT);
+						&vif->flags), WMI_TIMEOUT);
 
 	up(&ar->sem);
 
@@ -555,10 +561,10 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 
 	len += scnprintf(buf + len, buf_len - len, "%25s%5d\n",
 			 "Total Avail Credits: ",
-			 target->cred_dist_cntxt->total_avail_credits);
+			 target->credit_info->total_avail_credits);
 	len += scnprintf(buf + len, buf_len - len, "%25s%5d\n",
 			 "Free credits :",
-			 target->cred_dist_cntxt->cur_free_credits);
+			 target->credit_info->cur_free_credits);
 
 	len += scnprintf(buf + len, buf_len - len,
 			 " Epid  Flags    Cred_norm  Cred_min  Credits  Cred_assngd"
@@ -577,8 +583,7 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 		print_credit_info("%9d", cred_per_msg);
 		print_credit_info("%14d", cred_to_dist);
 		len += scnprintf(buf + len, buf_len - len, "%12d\n",
-				 get_queue_depth(&((struct htc_endpoint *)
-						 ep_list->htc_rsvd)->txq));
+				 get_queue_depth(&ep_list->htc_ep->txq));
 	}
 
 	if (len > buf_len)
@@ -592,6 +597,107 @@ static ssize_t read_file_credit_dist_stats(struct file *file,
 static const struct file_operations fops_credit_dist_stats = {
 	.read = read_file_credit_dist_stats,
 	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static unsigned int print_endpoint_stat(struct htc_target *target, char *buf,
+					unsigned int buf_len, unsigned int len,
+					int offset, const char *name)
+{
+	int i;
+	struct htc_endpoint_stats *ep_st;
+	u32 *counter;
+
+	len += scnprintf(buf + len, buf_len - len, "%s:", name);
+	for (i = 0; i < ENDPOINT_MAX; i++) {
+		ep_st = &target->endpoint[i].ep_st;
+		counter = ((u32 *) ep_st) + (offset / 4);
+		len += scnprintf(buf + len, buf_len - len, " %u", *counter);
+	}
+	len += scnprintf(buf + len, buf_len - len, "\n");
+
+	return len;
+}
+
+static ssize_t ath6kl_endpoint_stats_read(struct file *file,
+					  char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	struct htc_target *target = ar->htc_target;
+	char *buf;
+	unsigned int buf_len, len = 0;
+	ssize_t ret_cnt;
+
+	buf_len = sizeof(struct htc_endpoint_stats) / sizeof(u32) *
+		(25 + ENDPOINT_MAX * 11);
+	buf = kmalloc(buf_len, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+#define EPSTAT(name)							\
+	len = print_endpoint_stat(target, buf, buf_len, len,		\
+				  offsetof(struct htc_endpoint_stats, name), \
+				  #name)
+	EPSTAT(cred_low_indicate);
+	EPSTAT(tx_issued);
+	EPSTAT(tx_pkt_bundled);
+	EPSTAT(tx_bundles);
+	EPSTAT(tx_dropped);
+	EPSTAT(tx_cred_rpt);
+	EPSTAT(cred_rpt_from_rx);
+	EPSTAT(cred_rpt_from_other);
+	EPSTAT(cred_rpt_ep0);
+	EPSTAT(cred_from_rx);
+	EPSTAT(cred_from_other);
+	EPSTAT(cred_from_ep0);
+	EPSTAT(cred_cosumd);
+	EPSTAT(cred_retnd);
+	EPSTAT(rx_pkts);
+	EPSTAT(rx_lkahds);
+	EPSTAT(rx_bundl);
+	EPSTAT(rx_bundle_lkahd);
+	EPSTAT(rx_bundle_from_hdr);
+	EPSTAT(rx_alloc_thresh_hit);
+	EPSTAT(rxalloc_thresh_byte);
+#undef EPSTAT
+
+	if (len > buf_len)
+		len = buf_len;
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+	return ret_cnt;
+}
+
+static ssize_t ath6kl_endpoint_stats_write(struct file *file,
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	struct htc_target *target = ar->htc_target;
+	int ret, i;
+	u32 val;
+	struct htc_endpoint_stats *ep_st;
+
+	ret = kstrtou32_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
+	if (val == 0) {
+		for (i = 0; i < ENDPOINT_MAX; i++) {
+			ep_st = &target->endpoint[i].ep_st;
+			memset(ep_st, 0, sizeof(*ep_st));
+		}
+	}
+
+	return count;
+}
+
+static const struct file_operations fops_endpoint_stats = {
+	.open = ath6kl_debugfs_open,
+	.read = ath6kl_endpoint_stats_read,
+	.write = ath6kl_endpoint_stats_write,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -868,6 +974,660 @@ static const struct file_operations fops_diag_reg_write = {
 	.llseek = default_llseek,
 };
 
+int ath6kl_debug_roam_tbl_event(struct ath6kl *ar, const void *buf,
+				size_t len)
+{
+	const struct wmi_target_roam_tbl *tbl;
+	u16 num_entries;
+
+	if (len < sizeof(*tbl))
+		return -EINVAL;
+
+	tbl = (const struct wmi_target_roam_tbl *) buf;
+	num_entries = le16_to_cpu(tbl->num_entries);
+	if (sizeof(*tbl) + num_entries * sizeof(struct wmi_bss_roam_info) >
+	    len)
+		return -EINVAL;
+
+	if (ar->debug.roam_tbl == NULL ||
+	    ar->debug.roam_tbl_len < (unsigned int) len) {
+		kfree(ar->debug.roam_tbl);
+		ar->debug.roam_tbl = kmalloc(len, GFP_ATOMIC);
+		if (ar->debug.roam_tbl == NULL)
+			return -ENOMEM;
+	}
+
+	memcpy(ar->debug.roam_tbl, buf, len);
+	ar->debug.roam_tbl_len = len;
+
+	if (test_bit(ROAM_TBL_PEND, &ar->flag)) {
+		clear_bit(ROAM_TBL_PEND, &ar->flag);
+		wake_up(&ar->event_wq);
+	}
+
+	return 0;
+}
+
+static ssize_t ath6kl_roam_table_read(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	long left;
+	struct wmi_target_roam_tbl *tbl;
+	u16 num_entries, i;
+	char *buf;
+	unsigned int len, buf_len;
+	ssize_t ret_cnt;
+
+	if (down_interruptible(&ar->sem))
+		return -EBUSY;
+
+	set_bit(ROAM_TBL_PEND, &ar->flag);
+
+	ret = ath6kl_wmi_get_roam_tbl_cmd(ar->wmi);
+	if (ret) {
+		up(&ar->sem);
+		return ret;
+	}
+
+	left = wait_event_interruptible_timeout(
+		ar->event_wq, !test_bit(ROAM_TBL_PEND, &ar->flag), WMI_TIMEOUT);
+	up(&ar->sem);
+
+	if (left <= 0)
+		return -ETIMEDOUT;
+
+	if (ar->debug.roam_tbl == NULL)
+		return -ENOMEM;
+
+	tbl = (struct wmi_target_roam_tbl *) ar->debug.roam_tbl;
+	num_entries = le16_to_cpu(tbl->num_entries);
+
+	buf_len = 100 + num_entries * 100;
+	buf = kzalloc(buf_len, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+	len = 0;
+	len += scnprintf(buf + len, buf_len - len,
+			 "roam_mode=%u\n\n"
+			 "# roam_util bssid rssi rssidt last_rssi util bias\n",
+			 le16_to_cpu(tbl->roam_mode));
+
+	for (i = 0; i < num_entries; i++) {
+		struct wmi_bss_roam_info *info = &tbl->info[i];
+		len += scnprintf(buf + len, buf_len - len,
+				 "%d %pM %d %d %d %d %d\n",
+				 a_sle32_to_cpu(info->roam_util), info->bssid,
+				 info->rssi, info->rssidt, info->last_rssi,
+				 info->util, info->bias);
+	}
+
+	if (len > buf_len)
+		len = buf_len;
+
+	ret_cnt = simple_read_from_buffer(user_buf, count, ppos, buf, len);
+
+	kfree(buf);
+	return ret_cnt;
+}
+
+static const struct file_operations fops_roam_table = {
+	.read = ath6kl_roam_table_read,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_force_roam_write(struct file *file,
+				       const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	char buf[20];
+	size_t len;
+	u8 bssid[ETH_ALEN];
+	int i;
+	int addr[ETH_ALEN];
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+
+	if (sscanf(buf, "%02x:%02x:%02x:%02x:%02x:%02x",
+		   &addr[0], &addr[1], &addr[2], &addr[3], &addr[4], &addr[5])
+	    != ETH_ALEN)
+		return -EINVAL;
+	for (i = 0; i < ETH_ALEN; i++)
+		bssid[i] = addr[i];
+
+	ret = ath6kl_wmi_force_roam_cmd(ar->wmi, bssid);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_force_roam = {
+	.write = ath6kl_force_roam_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_roam_mode_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	char buf[20];
+	size_t len;
+	enum wmi_roam_mode mode;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+	if (len > 0 && buf[len - 1] == '\n')
+		buf[len - 1] = '\0';
+
+	if (strcasecmp(buf, "default") == 0)
+		mode = WMI_DEFAULT_ROAM_MODE;
+	else if (strcasecmp(buf, "bssbias") == 0)
+		mode = WMI_HOST_BIAS_ROAM_MODE;
+	else if (strcasecmp(buf, "lock") == 0)
+		mode = WMI_LOCK_BSS_MODE;
+	else
+		return -EINVAL;
+
+	ret = ath6kl_wmi_set_roam_mode_cmd(ar->wmi, mode);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_roam_mode = {
+	.write = ath6kl_roam_mode_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath6kl_debug_set_keepalive(struct ath6kl *ar, u8 keepalive)
+{
+	ar->debug.keepalive = keepalive;
+}
+
+static ssize_t ath6kl_keepalive_read(struct file *file, char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[16];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "%u\n", ar->debug.keepalive);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath6kl_keepalive_write(struct file *file,
+				      const char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	u8 val;
+
+	ret = kstrtou8_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_wmi_set_keepalive_cmd(ar->wmi, 0, val);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_keepalive = {
+	.open = ath6kl_debugfs_open,
+	.read = ath6kl_keepalive_read,
+	.write = ath6kl_keepalive_write,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+void ath6kl_debug_set_disconnect_timeout(struct ath6kl *ar, u8 timeout)
+{
+	ar->debug.disc_timeout = timeout;
+}
+
+static ssize_t ath6kl_disconnect_timeout_read(struct file *file,
+					      char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[16];
+	int len;
+
+	len = snprintf(buf, sizeof(buf), "%u\n", ar->debug.disc_timeout);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t ath6kl_disconnect_timeout_write(struct file *file,
+					       const char __user *user_buf,
+					       size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	int ret;
+	u8 val;
+
+	ret = kstrtou8_from_user(user_buf, count, 0, &val);
+	if (ret)
+		return ret;
+
+	ret = ath6kl_wmi_disctimeout_cmd(ar->wmi, 0, val);
+	if (ret)
+		return ret;
+
+	return count;
+}
+
+static const struct file_operations fops_disconnect_timeout = {
+	.open = ath6kl_debugfs_open,
+	.read = ath6kl_disconnect_timeout_read,
+	.write = ath6kl_disconnect_timeout_write,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_create_qos_write(struct file *file,
+						const char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+
+	struct ath6kl *ar = file->private_data;
+	struct ath6kl_vif *vif;
+	char buf[200];
+	ssize_t len;
+	char *sptr, *token;
+	struct wmi_create_pstream_cmd pstream;
+	u32 val32;
+	u16 val16;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &pstream.user_pri))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &pstream.traffic_direc))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &pstream.traffic_class))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &pstream.traffic_type))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &pstream.voice_psc_cap))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.min_service_int = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.max_service_int = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.inactivity_int = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.suspension_int = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.service_start_time = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &pstream.tsid))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou16(token, 0, &val16))
+		return -EINVAL;
+	pstream.nominal_msdu = cpu_to_le16(val16);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou16(token, 0, &val16))
+		return -EINVAL;
+	pstream.max_msdu = cpu_to_le16(val16);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.min_data_rate = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.mean_data_rate = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.peak_data_rate = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.max_burst_size = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.delay_bound = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.min_phy_rate = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.sba = cpu_to_le32(val32);
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou32(token, 0, &val32))
+		return -EINVAL;
+	pstream.medium_time = cpu_to_le32(val32);
+
+	ath6kl_wmi_create_pstream_cmd(ar->wmi, vif->fw_vif_idx, &pstream);
+
+	return count;
+}
+
+static const struct file_operations fops_create_qos = {
+	.write = ath6kl_create_qos_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_delete_qos_write(struct file *file,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+
+	struct ath6kl *ar = file->private_data;
+	struct ath6kl_vif *vif;
+	char buf[100];
+	ssize_t len;
+	char *sptr, *token;
+	u8 traffic_class;
+	u8 tsid;
+
+	vif = ath6kl_vif_first(ar);
+	if (!vif)
+		return -EIO;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &traffic_class))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou8(token, 0, &tsid))
+		return -EINVAL;
+
+	ath6kl_wmi_delete_pstream_cmd(ar->wmi, vif->fw_vif_idx,
+				      traffic_class, tsid);
+
+	return count;
+}
+
+static const struct file_operations fops_delete_qos = {
+	.write = ath6kl_delete_qos_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_bgscan_int_write(struct file *file,
+				const char __user *user_buf,
+				size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	u16 bgscan_int;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (kstrtou16(buf, 0, &bgscan_int))
+		return -EINVAL;
+
+	if (bgscan_int == 0)
+		bgscan_int = 0xffff;
+
+	ath6kl_wmi_scanparams_cmd(ar->wmi, 0, 0, 0, bgscan_int, 0, 0, 0, 3,
+				  0, 0, 0);
+
+	return count;
+}
+
+static const struct file_operations fops_bgscan_int = {
+	.write = ath6kl_bgscan_int_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_listen_int_write(struct file *file,
+						const char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	u16 listen_int_t, listen_int_b;
+	char buf[32];
+	char *sptr, *token;
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+
+	if (kstrtou16(token, 0, &listen_int_t))
+		return -EINVAL;
+
+	if (kstrtou16(sptr, 0, &listen_int_b))
+		return -EINVAL;
+
+	if ((listen_int_t < 15) || (listen_int_t > 5000))
+		return -EINVAL;
+
+	if ((listen_int_b < 1) || (listen_int_b > 50))
+		return -EINVAL;
+
+	ar->listen_intvl_t = listen_int_t;
+	ar->listen_intvl_b = listen_int_b;
+
+	ath6kl_wmi_listeninterval_cmd(ar->wmi, 0, ar->listen_intvl_t,
+				      ar->listen_intvl_b);
+
+	return count;
+}
+
+static ssize_t ath6kl_listen_int_read(struct file *file,
+						char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	char buf[32];
+	int len;
+
+	len = scnprintf(buf, sizeof(buf), "%u %u\n", ar->listen_intvl_t,
+					ar->listen_intvl_b);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static const struct file_operations fops_listen_int = {
+	.read = ath6kl_listen_int_read,
+	.write = ath6kl_listen_int_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+static ssize_t ath6kl_power_params_write(struct file *file,
+						const char __user *user_buf,
+						size_t count, loff_t *ppos)
+{
+	struct ath6kl *ar = file->private_data;
+	u8 buf[100];
+	unsigned int len = 0;
+	char *sptr, *token;
+	u16 idle_period, ps_poll_num, dtim,
+		tx_wakeup, num_tx;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+	buf[len] = '\0';
+	sptr = buf;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou16(token, 0, &idle_period))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou16(token, 0, &ps_poll_num))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou16(token, 0, &dtim))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou16(token, 0, &tx_wakeup))
+		return -EINVAL;
+
+	token = strsep(&sptr, " ");
+	if (!token)
+		return -EINVAL;
+	if (kstrtou16(token, 0, &num_tx))
+		return -EINVAL;
+
+	ath6kl_wmi_pmparams_cmd(ar->wmi, 0, idle_period, ps_poll_num,
+				dtim, tx_wakeup, num_tx, 0);
+
+	return count;
+}
+
+static const struct file_operations fops_power_params = {
+	.write = ath6kl_power_params_write,
+	.open = ath6kl_debugfs_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
 int ath6kl_debug_init(struct ath6kl *ar)
 {
 	ar->debug.fwlog_buf.buf = vmalloc(ATH6KL_FWLOG_SIZE);
@@ -889,7 +1649,7 @@ int ath6kl_debug_init(struct ath6kl *ar)
 	ar->debug.fwlog_mask = 0;
 
 	ar->debugfs_phy = debugfs_create_dir("ath6kl",
-					     ar->wdev->wiphy->debugfsdir);
+					     ar->wiphy->debugfsdir);
 	if (!ar->debugfs_phy) {
 		vfree(ar->debug.fwlog_buf.buf);
 		kfree(ar->debug.fwlog_tmp);
@@ -901,6 +1661,9 @@ int ath6kl_debug_init(struct ath6kl *ar)
 
 	debugfs_create_file("credit_dist_stats", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_credit_dist_stats);
+
+	debugfs_create_file("endpoint_stats", S_IRUSR | S_IWUSR,
+			    ar->debugfs_phy, ar, &fops_endpoint_stats);
 
 	debugfs_create_file("fwlog", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_fwlog);
@@ -923,6 +1686,33 @@ int ath6kl_debug_init(struct ath6kl *ar)
 	debugfs_create_file("war_stats", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_war_stats);
 
+	debugfs_create_file("roam_table", S_IRUSR, ar->debugfs_phy, ar,
+			    &fops_roam_table);
+
+	debugfs_create_file("force_roam", S_IWUSR, ar->debugfs_phy, ar,
+			    &fops_force_roam);
+
+	debugfs_create_file("roam_mode", S_IWUSR, ar->debugfs_phy, ar,
+			    &fops_roam_mode);
+
+	debugfs_create_file("keepalive", S_IRUSR | S_IWUSR, ar->debugfs_phy, ar,
+			    &fops_keepalive);
+
+	debugfs_create_file("disconnect_timeout", S_IRUSR | S_IWUSR,
+			    ar->debugfs_phy, ar, &fops_disconnect_timeout);
+
+	debugfs_create_file("create_qos", S_IWUSR, ar->debugfs_phy, ar,
+				&fops_create_qos);
+
+	debugfs_create_file("delete_qos", S_IWUSR, ar->debugfs_phy, ar,
+				&fops_delete_qos);
+
+	debugfs_create_file("bgscan_interval", S_IWUSR,
+				ar->debugfs_phy, ar, &fops_bgscan_int);
+
+	debugfs_create_file("power_params", S_IWUSR, ar->debugfs_phy, ar,
+						&fops_power_params);
+
 	return 0;
 }
 
@@ -930,6 +1720,7 @@ void ath6kl_debug_cleanup(struct ath6kl *ar)
 {
 	vfree(ar->debug.fwlog_buf.buf);
 	kfree(ar->debug.fwlog_tmp);
+	kfree(ar->debug.roam_tbl);
 }
 
 #endif

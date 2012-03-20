@@ -278,13 +278,19 @@ static int __init ebsa110_init(void)
 
 arch_initcall(ebsa110_init);
 
+static void ebsa110_restart(char mode, const char *cmd)
+{
+	soft_restart(0x80000000);
+}
+
 MACHINE_START(EBSA110, "EBSA110")
 	/* Maintainer: Russell King */
 	.atag_offset	= 0x400,
 	.reserve_lp0	= 1,
 	.reserve_lp2	= 1,
-	.soft_reboot	= 1,
+	.restart_mode	= 's',
 	.map_io		= ebsa110_map_io,
 	.init_irq	= ebsa110_init_irq,
 	.timer		= &ebsa110_timer,
+	.restart	= ebsa110_restart,
 MACHINE_END

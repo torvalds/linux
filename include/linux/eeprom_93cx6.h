@@ -33,6 +33,7 @@
 #define PCI_EEPROM_WIDTH_93C86	8
 #define PCI_EEPROM_WIDTH_OPCODE	3
 #define PCI_EEPROM_WRITE_OPCODE	0x05
+#define PCI_EEPROM_ERASE_OPCODE 0x07
 #define PCI_EEPROM_READ_OPCODE	0x06
 #define PCI_EEPROM_EWDS_OPCODE	0x10
 #define PCI_EEPROM_EWEN_OPCODE	0x13
@@ -46,6 +47,7 @@
  * @register_write(struct eeprom_93cx6 *eeprom): handler to
  * write to the eeprom register by using all reg_* fields.
  * @width: eeprom width, should be one of the PCI_EEPROM_WIDTH_* defines
+ * @drive_data: Set if we're driving the data line.
  * @reg_data_in: register field to indicate data input
  * @reg_data_out: register field to indicate data output
  * @reg_data_clock: register field to set the data clock
@@ -62,6 +64,7 @@ struct eeprom_93cx6 {
 
 	int width;
 
+	char drive_data;
 	char reg_data_in;
 	char reg_data_out;
 	char reg_data_clock;
@@ -72,3 +75,8 @@ extern void eeprom_93cx6_read(struct eeprom_93cx6 *eeprom,
 	const u8 word, u16 *data);
 extern void eeprom_93cx6_multiread(struct eeprom_93cx6 *eeprom,
 	const u8 word, __le16 *data, const u16 words);
+
+extern void eeprom_93cx6_wren(struct eeprom_93cx6 *eeprom, bool enable);
+
+extern void eeprom_93cx6_write(struct eeprom_93cx6 *eeprom,
+			       u8 addr, u16 data);

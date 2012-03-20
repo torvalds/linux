@@ -562,7 +562,7 @@ static int qib_tune_pcie_coalesce(struct qib_devdata *dd)
  */
 static int qib_pcie_caps;
 module_param_named(pcie_caps, qib_pcie_caps, int, S_IRUGO);
-MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (4lsb), ReadReq (D4..7)");
+MODULE_PARM_DESC(pcie_caps, "Max PCIe tuning: Payload (0..3), ReadReq (4..7)");
 
 static int qib_tune_pcie_caps(struct qib_devdata *dd)
 {

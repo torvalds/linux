@@ -32,6 +32,8 @@ extern struct pxa_device_desc mmp2_device_sdh3;
 extern struct pxa_device_desc mmp2_device_asram;
 extern struct pxa_device_desc mmp2_device_isram;
 
+extern struct platform_device mmp2_device_gpio;
+
 static inline int mmp2_add_uart(int id)
 {
 	struct pxa_device_desc *d = NULL;

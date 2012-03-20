@@ -147,9 +147,9 @@ int ceph_open(struct inode *inode, struct file *file)
 
 	/* trivially open snapdir */
 	if (ceph_snap(inode) == CEPH_SNAPDIR) {
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		__ceph_get_fmode(ci, fmode);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		return ceph_init_file(inode, file, fmode);
 	}
 
@@ -158,7 +158,7 @@ int ceph_open(struct inode *inode, struct file *file)
 	 * write) or any MDS (for read).  Update wanted set
 	 * asynchronously.
 	 */
-	spin_lock(&inode->i_lock);
+	spin_lock(&ci->i_ceph_lock);
 	if (__ceph_is_any_real_caps(ci) &&
 	    (((fmode & CEPH_FILE_MODE_WR) == 0) || ci->i_auth_cap)) {
 		int mds_wanted = __ceph_caps_mds_wanted(ci);
@@ -168,7 +168,7 @@ int ceph_open(struct inode *inode, struct file *file)
 		     inode, fmode, ceph_cap_string(wanted),
 		     ceph_cap_string(issued));
 		__ceph_get_fmode(ci, fmode);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 
 		/* adjust wanted? */
 		if ((issued & wanted) != wanted &&
@@ -180,10 +180,10 @@ int ceph_open(struct inode *inode, struct file *file)
 	} else if (ceph_snap(inode) != CEPH_NOSNAP &&
 		   (ci->i_snap_caps & wanted) == wanted) {
 		__ceph_get_fmode(ci, fmode);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		return ceph_init_file(inode, file, fmode);
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&ci->i_ceph_lock);
 
 	dout("open fmode %d wants %s\n", fmode, ceph_cap_string(wanted));
 	req = prepare_open_request(inode->i_sb, flags, 0);
@@ -743,9 +743,9 @@ retry_snap:
 		 */
 		int dirty;
 
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		ceph_put_cap_refs(ci, got);
 
 		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
@@ -764,9 +764,9 @@ retry_snap:
 
 	if (ret >= 0) {
 		int dirty;
-		spin_lock(&inode->i_lock);
+		spin_lock(&ci->i_ceph_lock);
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&ci->i_ceph_lock);
 		if (dirty)
 			__mark_inode_dirty(inode, dirty);
 	}
@@ -797,7 +797,8 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int origin)
 
 	mutex_lock(&inode->i_mutex);
 	__ceph_do_pending_vmtruncate(inode);
-	if (origin != SEEK_CUR || origin != SEEK_SET) {
+
+	if (origin == SEEK_END || origin == SEEK_DATA || origin == SEEK_HOLE) {
 		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
 		if (ret < 0) {
 			offset = ret;

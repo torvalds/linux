@@ -15,7 +15,7 @@
 #define _INET6_HASHTABLES_H
 
 
-#if defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 #include <linux/in6.h>
 #include <linux/ipv6.h>
 #include <linux/types.h>
@@ -110,5 +110,5 @@ extern struct sock *inet6_lookup(struct net *net, struct inet_hashinfo *hashinfo
 				 const struct in6_addr *saddr, const __be16 sport,
 				 const struct in6_addr *daddr, const __be16 dport,
 				 const int dif);
-#endif /* defined(CONFIG_IPV6) || defined (CONFIG_IPV6_MODULE) */
+#endif /* IS_ENABLED(CONFIG_IPV6) */
 #endif /* _INET6_HASHTABLES_H */

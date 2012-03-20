@@ -22,16 +22,7 @@
  */
 #define TIMEOUT	(20 * HZ)
 
-static inline int freezable(struct task_struct * p)
-{
-	if ((p == current) ||
-	    (p->flags & PF_NOFREEZE) ||
-	    (p->exit_state != 0))
-		return 0;
-	return 1;
-}
-
-static int try_to_freeze_tasks(bool sig_only)
+static int try_to_freeze_tasks(bool user_only)
 {
 	struct task_struct *g, *p;
 	unsigned long end_time;
@@ -46,17 +37,14 @@ static int try_to_freeze_tasks(bool sig_only)
 
 	end_time = jiffies + TIMEOUT;
 
-	if (!sig_only)
+	if (!user_only)
 		freeze_workqueues_begin();
 
 	while (true) {
 		todo = 0;
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			if (frozen(p) || !freezable(p))
-				continue;
-
-			if (!freeze_task(p, sig_only))
+			if (p == current || !freeze_task(p))
 				continue;
 
 			/*
@@ -77,7 +65,7 @@ static int try_to_freeze_tasks(bool sig_only)
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 
-		if (!sig_only) {
+		if (!user_only) {
 			wq_busy = freeze_workqueues_busy();
 			todo += wq_busy;
 		}
@@ -103,11 +91,6 @@ static int try_to_freeze_tasks(bool sig_only)
 	elapsed_csecs = elapsed_csecs64;
 
 	if (todo) {
-		/* This does not unfreeze processes that are already frozen
-		 * (we have slightly ugly calling convention in that respect,
-		 * and caller must call thaw_processes() if something fails),
-		 * but it cleans up leftover PF_FREEZE requests.
-		 */
 		printk("\n");
 		printk(KERN_ERR "Freezing of tasks %s after %d.%02d seconds "
 		       "(%d tasks refusing to freeze, wq_busy=%d):\n",
@@ -115,15 +98,11 @@ static int try_to_freeze_tasks(bool sig_only)
 		       elapsed_csecs / 100, elapsed_csecs % 100,
 		       todo - wq_busy, wq_busy);
 
-		thaw_workqueues();
-
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
-			task_lock(p);
-			if (!wakeup && freezing(p) && !freezer_should_skip(p))
+			if (!wakeup && !freezer_should_skip(p) &&
+			    p != current && freezing(p) && !frozen(p))
 				sched_show_task(p);
-			cancel_freezing(p);
-			task_unlock(p);
 		} while_each_thread(g, p);
 		read_unlock(&tasklist_lock);
 	} else {
@@ -136,12 +115,18 @@ static int try_to_freeze_tasks(bool sig_only)
 
 /**
  * freeze_processes - Signal user space processes to enter the refrigerator.
+ *
+ * On success, returns 0.  On failure, -errno and system is fully thawed.
  */
 int freeze_processes(void)
 {
 	int error;
 
+	if (!pm_freezing)
+		atomic_inc(&system_freezing_cnt);
+
 	printk("Freezing user space processes ... ");
+	pm_freezing = true;
 	error = try_to_freeze_tasks(true);
 	if (!error) {
 		printk("done.");
@@ -150,17 +135,25 @@ int freeze_processes(void)
 	printk("\n");
 	BUG_ON(in_atomic());
 
+	if (error)
+		thaw_processes();
 	return error;
 }
 
 /**
  * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
+ *
+ * On success, returns 0.  On failure, -errno and only the kernel threads are
+ * thawed, so as to give a chance to the caller to do additional cleanups
+ * (if any) before thawing the userspace tasks. So, it is the responsibility
+ * of the caller to thaw the userspace tasks, when the time is right.
  */
 int freeze_kernel_threads(void)
 {
 	int error;
 
 	printk("Freezing remaining freezable tasks ... ");
+	pm_nosig_freezing = true;
 	error = try_to_freeze_tasks(false);
 	if (!error)
 		printk("done.");
@@ -168,38 +161,52 @@ int freeze_kernel_threads(void)
 	printk("\n");
 	BUG_ON(in_atomic());
 
+	if (error)
+		thaw_kernel_threads();
 	return error;
-}
-
-static void thaw_tasks(bool nosig_only)
-{
-	struct task_struct *g, *p;
-
-	read_lock(&tasklist_lock);
-	do_each_thread(g, p) {
-		if (!freezable(p))
-			continue;
-
-		if (nosig_only && should_send_signal(p))
-			continue;
-
-		if (cgroup_freezing_or_frozen(p))
-			continue;
-
-		thaw_process(p);
-	} while_each_thread(g, p);
-	read_unlock(&tasklist_lock);
 }
 
 void thaw_processes(void)
 {
+	struct task_struct *g, *p;
+
+	if (pm_freezing)
+		atomic_dec(&system_freezing_cnt);
+	pm_freezing = false;
+	pm_nosig_freezing = false;
+
 	oom_killer_enable();
 
 	printk("Restarting tasks ... ");
+
 	thaw_workqueues();
-	thaw_tasks(true);
-	thaw_tasks(false);
+
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		__thaw_task(p);
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
+
 	schedule();
 	printk("done.\n");
 }
 
+void thaw_kernel_threads(void)
+{
+	struct task_struct *g, *p;
+
+	pm_nosig_freezing = false;
+	printk("Restarting kernel threads ... ");
+
+	thaw_workqueues();
+
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
+			__thaw_task(p);
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
+
+	schedule();
+	printk("done.\n");
+}

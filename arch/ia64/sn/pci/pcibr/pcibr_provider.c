@@ -127,12 +127,11 @@ pcibr_bus_fixup(struct pcibus_bussoft *prom_bussoft, struct pci_controller *cont
 	 * Allocate kernel bus soft and copy from prom.
 	 */
 
-	soft = kmalloc(sizeof(struct pcibus_info), GFP_KERNEL);
+	soft = kmemdup(prom_bussoft, sizeof(struct pcibus_info), GFP_KERNEL);
 	if (!soft) {
 		return NULL;
 	}
 
-	memcpy(soft, prom_bussoft, sizeof(struct pcibus_info));
 	soft->pbi_buscommon.bs_base = (unsigned long)
 		ioremap(REGION_OFFSET(soft->pbi_buscommon.bs_base),
 			sizeof(struct pic));

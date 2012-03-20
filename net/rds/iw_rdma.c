@@ -477,17 +477,6 @@ void rds_iw_sync_mr(void *trans_private, int direction)
 	}
 }
 
-static inline unsigned int rds_iw_flush_goal(struct rds_iw_mr_pool *pool, int free_all)
-{
-	unsigned int item_count;
-
-	item_count = atomic_read(&pool->item_count);
-	if (free_all)
-		return item_count;
-
-	return 0;
-}
-
 /*
  * Flush our pool of MRs.
  * At a minimum, all currently unused MRs are unmapped.
@@ -500,7 +489,7 @@ static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
 	LIST_HEAD(unmap_list);
 	LIST_HEAD(kill_list);
 	unsigned long flags;
-	unsigned int nfreed = 0, ncleaned = 0, unpinned = 0, free_goal;
+	unsigned int nfreed = 0, ncleaned = 0, unpinned = 0;
 	int ret = 0;
 
 	rds_iw_stats_inc(s_iw_rdma_mr_pool_flush);
@@ -513,8 +502,6 @@ static int rds_iw_flush_mr_pool(struct rds_iw_mr_pool *pool, int free_all)
 	if (free_all)
 		list_splice_init(&pool->clean_list, &kill_list);
 	spin_unlock_irqrestore(&pool->list_lock, flags);
-
-	free_goal = rds_iw_flush_goal(pool, free_all);
 
 	/* Batched invalidate of dirty MRs.
 	 * For FMR based MRs, the mappings on the unmap list are

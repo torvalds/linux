@@ -136,6 +136,8 @@ static inline void pci_remove_legacy_files(struct pci_bus *bus) { return; }
 /* Lock for read/write access to pci device and bus lists */
 extern struct rw_semaphore pci_bus_sem;
 
+extern raw_spinlock_t pci_lock;
+
 extern unsigned int pci_pm_d3_delay;
 
 #ifdef CONFIG_PCI_MSI
@@ -248,6 +250,14 @@ struct pci_sriov {
 	struct work_struct mtask; /* VF Migration task */
 	u8 __iomem *mstate;	/* VF Migration State Array */
 };
+
+#ifdef CONFIG_PCI_ATS
+extern void pci_restore_ats_state(struct pci_dev *dev);
+#else
+static inline void pci_restore_ats_state(struct pci_dev *dev)
+{
+}
+#endif /* CONFIG_PCI_ATS */
 
 #ifdef CONFIG_PCI_IOV
 extern int pci_iov_init(struct pci_dev *dev);

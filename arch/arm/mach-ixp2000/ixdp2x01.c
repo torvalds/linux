@@ -413,6 +413,35 @@ static void __init ixdp2x01_init_machine(void)
 	ixdp2x01_uart_init();
 }
 
+static void ixdp2401_restart(char mode, const char *cmd)
+{
+	/*
+	 * Reset flash banking register so that we are pointing at
+	 * RedBoot bank.
+	 */
+	ixp2000_reg_write(IXDP2X01_CPLD_FLASH_REG,
+				((0 >> IXDP2X01_FLASH_WINDOW_BITS)
+					| IXDP2X01_CPLD_FLASH_INTERN));
+	ixp2000_reg_wrb(IXDP2X01_CPLD_RESET_REG, 0xffffffff);
+
+	ixp2000_restart(mode, cmd);
+}
+
+static void ixdp280x_restart(char mode, const char *cmd)
+{
+	/*
+	 * On IXDP2801 we need to write this magic sequence to the CPLD
+	 * to cause a complete reset of the CPU and all external devices
+	 * and move the flash bank register back to 0.
+	 */
+	unsigned long reset_reg = *IXDP2X01_CPLD_RESET_REG;
+
+	reset_reg = 0x55AA0000 | (reset_reg & 0x0000FFFF);
+	ixp2000_reg_write(IXDP2X01_CPLD_RESET_REG, reset_reg);
+	ixp2000_reg_wrb(IXDP2X01_CPLD_RESET_REG, 0x80000000);
+
+	ixp2000_restart(mode, cmd);
+}
 
 #ifdef CONFIG_ARCH_IXDP2401
 MACHINE_START(IXDP2401, "Intel IXDP2401 Development Platform")
@@ -422,6 +451,7 @@ MACHINE_START(IXDP2401, "Intel IXDP2401 Development Platform")
 	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,
 	.init_machine	= ixdp2x01_init_machine,
+	.restart	= ixdp2401_restart,
 MACHINE_END
 #endif
 
@@ -433,6 +463,7 @@ MACHINE_START(IXDP2801, "Intel IXDP2801 Development Platform")
 	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,
 	.init_machine	= ixdp2x01_init_machine,
+	.restart	= ixdp280x_restart,
 MACHINE_END
 
 /*
@@ -446,6 +477,7 @@ MACHINE_START(IXDP28X5, "Intel IXDP2805/2855 Development Platform")
 	.init_irq	= ixdp2x01_init_irq,
 	.timer		= &ixdp2x01_timer,
 	.init_machine	= ixdp2x01_init_machine,
+	.restart	= ixdp280x_restart,
 MACHINE_END
 #endif
 

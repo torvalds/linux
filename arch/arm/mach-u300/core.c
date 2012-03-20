@@ -1605,15 +1605,15 @@ static struct platform_device pinmux_device = {
 };
 
 /* Pinmux settings */
-static struct pinmux_map u300_pinmux_map[] = {
+static struct pinmux_map __initdata u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
-	PINMUX_MAP_PRIMARY_SYS_HOG("POWER", "power"),
-	PINMUX_MAP_PRIMARY_SYS_HOG("EMIF0", "emif0"),
-	PINMUX_MAP_PRIMARY_SYS_HOG("EMIF1", "emif1"),
+	PINMUX_MAP_SYS_HOG("POWER", "pinmux-u300", "power"),
+	PINMUX_MAP_SYS_HOG("EMIF0", "pinmux-u300", "emif0"),
+	PINMUX_MAP_SYS_HOG("EMIF1", "pinmux-u300", "emif1"),
 	/* per-device maps for MMC/SD, SPI and UART */
-	PINMUX_MAP_PRIMARY("MMCSD", "mmc0", "mmci"),
-	PINMUX_MAP_PRIMARY("SPI", "spi0", "pl022"),
-	PINMUX_MAP_PRIMARY("UART0", "uart0", "uart0"),
+	PINMUX_MAP("MMCSD", "pinmux-u300", "mmc0", "mmci"),
+	PINMUX_MAP("SPI", "pinmux-u300", "spi0", "pl022"),
+	PINMUX_MAP("UART0", "pinmux-u300", "uart0", "uart0"),
 };
 
 struct u300_mux_hog {
@@ -1888,3 +1888,23 @@ static int core_module_init(void)
 	return mmc_init(&mmcsd_device);
 }
 module_init(core_module_init);
+
+/* Forward declare this function from the watchdog */
+void coh901327_watchdog_reset(void);
+
+void u300_restart(char mode, const char *cmd)
+{
+	switch (mode) {
+	case 's':
+	case 'h':
+#ifdef CONFIG_COH901327_WATCHDOG
+		coh901327_watchdog_reset();
+#endif
+		break;
+	default:
+		/* Do nothing */
+		break;
+	}
+	/* Wait for system do die/reset. */
+	while (1);
+}

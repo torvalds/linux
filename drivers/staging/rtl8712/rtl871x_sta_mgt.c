@@ -43,6 +43,7 @@ static void _init_stainfo(struct sta_info *psta)
 	_r8712_init_sta_xmit_priv(&psta->sta_xmitpriv);
 	_r8712_init_sta_recv_priv(&psta->sta_recvpriv);
 #ifdef CONFIG_R8712_AP
+	_init_listhead(&psta->asoc_list);
 	_init_listhead(&psta->auth_list);
 #endif
 }

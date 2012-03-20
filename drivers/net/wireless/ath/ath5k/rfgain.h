@@ -18,13 +18,17 @@
  *
  */
 
-/*
+/**
+ * struct ath5k_ini_rfgain - RF Gain table
+ * @rfg_register: RF Gain register address
+ * @rfg_value: Register value for 5 and 2GHz
+ *
  * Mode-specific RF Gain table (64bytes) for RF5111/5112
  * (RF5110 only comes with AR5210 and only supports a/turbo a mode so initial
  * RF Gain values are included in AR5K_AR5210_INI)
  */
 struct ath5k_ini_rfgain {
-	u16	rfg_register;	/* RF Gain register address */
+	u16	rfg_register;
 	u32	rfg_value[2];	/* [freq (see below)] */
 };
 
@@ -455,18 +459,31 @@ static const struct ath5k_ini_rfgain rfgain_2425[] = {
 #define AR5K_GAIN_CHECK_ADJUST(_g)		\
 	((_g)->g_current <= (_g)->g_low || (_g)->g_current >= (_g)->g_high)
 
+/**
+ * struct ath5k_gain_opt_step - An RF gain optimization step
+ * @gos_param: Set of parameters
+ * @gos_gain: Gain
+ */
 struct ath5k_gain_opt_step {
 	s8				gos_param[AR5K_GAIN_CRN_MAX_FIX_BITS];
 	s8				gos_gain;
 };
 
+/**
+ * struct ath5k_gain_opt - RF Gain optimization ladder
+ * @go_default: The default step
+ * @go_steps_count: How many optimization steps
+ * @go_step: Array of &struct ath5k_gain_opt_step
+ */
 struct ath5k_gain_opt {
 	u8				go_default;
 	u8				go_steps_count;
 	const struct ath5k_gain_opt_step	go_step[AR5K_GAIN_STEP_COUNT];
 };
 
+
 /*
+ * RF5111
  * Parameters on gos_param:
  * 1) Tx clip PHY register
  * 2) PWD 90 RF register
@@ -490,6 +507,7 @@ static const struct ath5k_gain_opt rfgain_opt_5111 = {
 };
 
 /*
+ * RF5112
  * Parameters on gos_param:
  * 1) Mixgain ovr RF register
  * 2) PWD 138 RF register

@@ -90,6 +90,7 @@
 #include <plat/iic.h>
 #include <plat/ts.h>
 
+#include "common.h"
 
 static struct pcf50633 *gta02_pcf;
 
@@ -600,4 +601,5 @@ MACHINE_START(NEO1973_GTA02, "GTA02")
 	.init_irq	= s3c24xx_init_irq,
 	.init_machine	= gta02_machine_init,
 	.timer		= &s3c24xx_timer,
+	.restart	= s3c2440_restart,
 MACHINE_END

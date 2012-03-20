@@ -1166,6 +1166,33 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_test);
 
+static int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head)
+{
+	struct nfs_pageio_descriptor pgio;
+	LIST_HEAD(failed);
+
+	/* Resend all requests through the MDS */
+	nfs_pageio_init_write_mds(&pgio, inode, FLUSH_STABLE);
+	while (!list_empty(head)) {
+		struct nfs_page *req = nfs_list_entry(head->next);
+
+		nfs_list_remove_request(req);
+		if (!nfs_pageio_add_request(&pgio, req))
+			nfs_list_add_request(req, &failed);
+	}
+	nfs_pageio_complete(&pgio);
+
+	if (!list_empty(&failed)) {
+		/* For some reason our attempt to resend pages. Mark the
+		 * overall send request as having failed, and let
+		 * nfs_writeback_release_full deal with the error.
+		 */
+		list_move(&failed, head);
+		return -EIO;
+	}
+	return 0;
+}
+
 /*
  * Called by non rpc-based layout drivers
  */
@@ -1175,9 +1202,17 @@ void pnfs_ld_write_done(struct nfs_write_data *data)
 		pnfs_set_layoutcommit(data);
 		data->mds_ops->rpc_call_done(&data->task, data);
 	} else {
-		put_lseg(data->lseg);
-		data->lseg = NULL;
 		dprintk("pnfs write error = %d\n", data->pnfs_error);
+		if (NFS_SERVER(data->inode)->pnfs_curr_ld->flags &
+						PNFS_LAYOUTRET_ON_ERROR) {
+			/* Don't lo_commit on error, Server will needs to
+			 * preform a file recovery.
+			 */
+			clear_bit(NFS_INO_LAYOUTCOMMIT,
+				  &NFS_I(data->inode)->flags);
+			pnfs_return_layout(data->inode);
+		}
+		data->task.tk_status = pnfs_write_done_resend_to_mds(data->inode, &data->pages);
 	}
 	data->mds_ops->rpc_release(data);
 }
@@ -1267,6 +1302,9 @@ static void pnfs_ld_handle_read_error(struct nfs_read_data *data)
 	put_lseg(data->lseg);
 	data->lseg = NULL;
 	dprintk("pnfs write error = %d\n", data->pnfs_error);
+	if (NFS_SERVER(data->inode)->pnfs_curr_ld->flags &
+						PNFS_LAYOUTRET_ON_ERROR)
+		pnfs_return_layout(data->inode);
 
 	nfs_pageio_init_read_mds(&pgio, data->inode);
 

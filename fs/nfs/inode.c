@@ -38,6 +38,7 @@
 #include <linux/nfs_xdr.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
+#include <linux/freezer.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -56,7 +57,7 @@
 #define NFS_64_BIT_INODE_NUMBERS_ENABLED	1
 
 /* Default is to see 64-bit inode numbers */
-static int enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
+static bool enable_ino64 = NFS_64_BIT_INODE_NUMBERS_ENABLED;
 
 static void nfs_invalidate_inode(struct inode *);
 static int nfs_update_inode(struct inode *, struct nfs_fattr *);
@@ -77,7 +78,7 @@ int nfs_wait_bit_killable(void *word)
 {
 	if (fatal_signal_pending(current))
 		return -ERESTARTSYS;
-	schedule();
+	freezable_schedule();
 	return 0;
 }
 
@@ -629,23 +630,28 @@ void nfs_close_context(struct nfs_open_context *ctx, int is_sync)
 	nfs_revalidate_inode(server, inode);
 }
 
-struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, struct rpc_cred *cred, fmode_t f_mode)
+struct nfs_open_context *alloc_nfs_open_context(struct dentry *dentry, fmode_t f_mode)
 {
 	struct nfs_open_context *ctx;
+	struct rpc_cred *cred = rpc_lookup_cred();
+	if (IS_ERR(cred))
+		return ERR_CAST(cred);
 
 	ctx = kmalloc(sizeof(*ctx), GFP_KERNEL);
-	if (ctx != NULL) {
-		nfs_sb_active(dentry->d_sb);
-		ctx->dentry = dget(dentry);
-		ctx->cred = get_rpccred(cred);
-		ctx->state = NULL;
-		ctx->mode = f_mode;
-		ctx->flags = 0;
-		ctx->error = 0;
-		nfs_init_lock_context(&ctx->lock_context);
-		ctx->lock_context.open_context = ctx;
-		INIT_LIST_HEAD(&ctx->list);
+	if (!ctx) {
+		put_rpccred(cred);
+		return ERR_PTR(-ENOMEM);
 	}
+	nfs_sb_active(dentry->d_sb);
+	ctx->dentry = dget(dentry);
+	ctx->cred = cred;
+	ctx->state = NULL;
+	ctx->mode = f_mode;
+	ctx->flags = 0;
+	ctx->error = 0;
+	nfs_init_lock_context(&ctx->lock_context);
+	ctx->lock_context.open_context = ctx;
+	INIT_LIST_HEAD(&ctx->list);
 	return ctx;
 }
 
@@ -738,15 +744,10 @@ static void nfs_file_clear_open_context(struct file *filp)
 int nfs_open(struct inode *inode, struct file *filp)
 {
 	struct nfs_open_context *ctx;
-	struct rpc_cred *cred;
 
-	cred = rpc_lookup_cred();
-	if (IS_ERR(cred))
-		return PTR_ERR(cred);
-	ctx = alloc_nfs_open_context(filp->f_path.dentry, cred, filp->f_mode);
-	put_rpccred(cred);
-	if (ctx == NULL)
-		return -ENOMEM;
+	ctx = alloc_nfs_open_context(filp->f_path.dentry, filp->f_mode);
+	if (IS_ERR(ctx))
+		return PTR_ERR(ctx);
 	nfs_file_set_open_context(filp, ctx);
 	put_nfs_open_context(ctx);
 	nfs_fscache_set_inode_cookie(inode, filp);
@@ -1019,6 +1020,8 @@ void nfs_fattr_init(struct nfs_fattr *fattr)
 	fattr->valid = 0;
 	fattr->time_start = jiffies;
 	fattr->gencount = nfs_inc_attr_generation_counter();
+	fattr->owner_name = NULL;
+	fattr->group_name = NULL;
 }
 
 struct nfs_fattr *nfs_alloc_fattr(void)
@@ -1464,7 +1467,6 @@ struct inode *nfs_alloc_inode(struct super_block *sb)
 static void nfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(nfs_inode_cachep, NFS_I(inode));
 }
 

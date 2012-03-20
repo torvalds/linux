@@ -314,7 +314,7 @@ static struct key *request_user_key(const char *master_desc, u8 **master_key,
 		goto error;
 
 	down_read(&ukey->sem);
-	upayload = rcu_dereference(ukey->payload.data);
+	upayload = ukey->payload.data;
 	*master_key = upayload->data;
 	*master_keylen = upayload->datalen;
 error:
@@ -810,7 +810,7 @@ static int encrypted_instantiate(struct key *key, const void *data,
 		goto out;
 	}
 
-	rcu_assign_pointer(key->payload.data, epayload);
+	rcu_assign_keypointer(key, epayload);
 out:
 	kfree(datablob);
 	return ret;
@@ -874,7 +874,7 @@ static int encrypted_update(struct key *key, const void *data, size_t datalen)
 	memcpy(new_epayload->payload_data, epayload->payload_data,
 	       epayload->payload_datalen);
 
-	rcu_assign_pointer(key->payload.data, new_epayload);
+	rcu_assign_keypointer(key, new_epayload);
 	call_rcu(&epayload->rcu, encrypted_rcu_free);
 out:
 	kfree(buf);

@@ -14,35 +14,11 @@
 #include <linux/spi/spi.h>
 
 #include "../iio.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 #include "../ring_sw.h"
 #include "../trigger_consumer.h"
 
 #include "ad7476.h"
-
-int ad7476_scan_from_ring(struct iio_dev *indio_dev)
-{
-	struct iio_buffer *ring = indio_dev->buffer;
-	int ret;
-	u8 *ring_data;
-
-	ring_data = kmalloc(ring->access->get_bytes_per_datum(ring),
-			    GFP_KERNEL);
-	if (ring_data == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-	ret = ring->access->read_last(ring, ring_data);
-	if (ret)
-		goto error_free_ring_data;
-
-	ret = (ring_data[0] << 8) | ring_data[1];
-
-error_free_ring_data:
-	kfree(ring_data);
-error_ret:
-	return ret;
-}
 
 /**
  * ad7476_ring_preenable() setup the parameters of the ring before enabling
@@ -56,7 +32,8 @@ static int ad7476_ring_preenable(struct iio_dev *indio_dev)
 	struct ad7476_state *st = iio_priv(indio_dev);
 	struct iio_buffer *ring = indio_dev->buffer;
 
-	st->d_size = ring->scan_count *
+	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
+				   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
 	if (ring->scan_timestamp) {
@@ -137,7 +114,7 @@ int ad7476_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	}
 
 	/* Ring buffer functions - here trigger setup related */
-	indio_dev->buffer->setup_ops = &ad7476_ring_setup_ops;
+	indio_dev->setup_ops = &ad7476_ring_setup_ops;
 	indio_dev->buffer->scan_timestamp = true;
 
 	/* Flag that polled ring buffering is possible */

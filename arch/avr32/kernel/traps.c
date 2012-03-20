@@ -24,7 +24,7 @@
 
 static DEFINE_SPINLOCK(die_lock);
 
-void NORET_TYPE die(const char *str, struct pt_regs *regs, long err)
+void die(const char *str, struct pt_regs *regs, long err)
 {
 	static int die_counter;
 

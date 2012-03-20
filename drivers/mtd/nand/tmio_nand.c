@@ -533,18 +533,7 @@ static struct platform_driver tmio_driver = {
 	.resume		= tmio_resume,
 };
 
-static int __init tmio_init(void)
-{
-	return platform_driver_register(&tmio_driver);
-}
-
-static void __exit tmio_exit(void)
-{
-	platform_driver_unregister(&tmio_driver);
-}
-
-module_init(tmio_init);
-module_exit(tmio_exit);
+module_platform_driver(tmio_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Ian Molton, Dirk Opfer, Chris Humbert, Dmitry Baryshkov");

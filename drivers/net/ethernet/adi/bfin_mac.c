@@ -1670,7 +1670,8 @@ static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
 	miibus->name = "bfin_mii_bus";
 	miibus->phy_mask = mii_bus_pd->phy_mask;
 
-	snprintf(miibus->id, MII_BUS_ID_SIZE, "0");
+	snprintf(miibus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pdev->name, pdev->id);
 	miibus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	if (!miibus->irq)
 		goto out_err_irq_alloc;

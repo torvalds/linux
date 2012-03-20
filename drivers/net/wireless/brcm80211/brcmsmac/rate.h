@@ -19,6 +19,7 @@
 
 #include "types.h"
 #include "d11.h"
+#include "phy_hal.h"
 
 extern const u8 rate_info[];
 extern const struct brcms_c_rateset cck_ofdm_mimo_rates;
@@ -198,11 +199,9 @@ static inline u8 cck_rspec(u8 cck)
 
 /* Convert encoded rate value in plcp header to numerical rates in 500 KHz
  * increments */
-extern const u8 ofdm_rate_lookup[];
-
 static inline u8 ofdm_phy2mac_rate(u8 rlpt)
 {
-	return ofdm_rate_lookup[rlpt & 0x7];
+	return wlc_phy_get_ofdm_rate_lookup()[rlpt & 0x7];
 }
 
 static inline u8 cck_phy2mac_rate(u8 signal)

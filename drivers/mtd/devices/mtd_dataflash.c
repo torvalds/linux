@@ -936,7 +936,6 @@ static int __devexit dataflash_remove(struct spi_device *spi)
 static struct spi_driver dataflash_driver = {
 	.driver = {
 		.name		= "mtd_dataflash",
-		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 		.of_match_table = dataflash_dt_ids,
 	},

@@ -594,7 +594,7 @@ static int ak4671_set_bias_level(struct snd_soc_codec *codec,
 
 #define AK4671_FORMATS		SNDRV_PCM_FMTBIT_S16_LE
 
-static struct snd_soc_dai_ops ak4671_dai_ops = {
+static const struct snd_soc_dai_ops ak4671_dai_ops = {
 	.hw_params	= ak4671_hw_params,
 	.set_sysclk	= ak4671_set_dai_sysclk,
 	.set_fmt	= ak4671_set_dai_fmt,
@@ -661,7 +661,8 @@ static int __devinit ak4671_i2c_probe(struct i2c_client *client,
 	struct ak4671_priv *ak4671;
 	int ret;
 
-	ak4671 = kzalloc(sizeof(struct ak4671_priv), GFP_KERNEL);
+	ak4671 = devm_kzalloc(&client->dev, sizeof(struct ak4671_priv),
+			      GFP_KERNEL);
 	if (ak4671 == NULL)
 		return -ENOMEM;
 
@@ -670,15 +671,12 @@ static int __devinit ak4671_i2c_probe(struct i2c_client *client,
 
 	ret = snd_soc_register_codec(&client->dev,
 			&soc_codec_dev_ak4671, &ak4671_dai, 1);
-	if (ret < 0)
-		kfree(ak4671);
 	return ret;
 }
 
 static __devexit int ak4671_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 

@@ -1623,18 +1623,7 @@ static struct platform_driver greth_of_driver = {
 	.remove = __devexit_p(greth_of_remove),
 };
 
-static int __init greth_init(void)
-{
-	return platform_driver_register(&greth_of_driver);
-}
-
-static void __exit greth_cleanup(void)
-{
-	platform_driver_unregister(&greth_of_driver);
-}
-
-module_init(greth_init);
-module_exit(greth_cleanup);
+module_platform_driver(greth_of_driver);
 
 MODULE_AUTHOR("Aeroflex Gaisler AB.");
 MODULE_DESCRIPTION("Aeroflex Gaisler Ethernet MAC driver");

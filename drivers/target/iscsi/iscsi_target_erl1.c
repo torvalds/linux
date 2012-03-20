@@ -21,7 +21,7 @@
 #include <linux/list.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_seq_pdu_list.h"
@@ -938,8 +938,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 		 * handle the SCF_SCSI_RESERVATION_CONFLICT case here as well.
 		 */
 		if (se_cmd->se_cmd_flags & SCF_SCSI_CDB_EXCEPTION) {
-			if (se_cmd->se_cmd_flags &
-					SCF_SCSI_RESERVATION_CONFLICT) {
+			if (se_cmd->scsi_sense_reason == TCM_RESERVATION_CONFLICT) {
 				cmd->i_state = ISTATE_SEND_STATUS;
 				spin_unlock_bh(&cmd->istate_lock);
 				iscsit_add_cmd_to_response_queue(cmd, cmd->conn,
@@ -1239,7 +1238,7 @@ void iscsit_mod_dataout_timer(struct iscsi_cmd *cmd)
 {
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	spin_lock_bh(&cmd->dataout_timeout_lock);
 	if (!(cmd->dataout_timer_flags & ISCSI_TF_RUNNING)) {
@@ -1262,7 +1261,7 @@ void iscsit_start_dataout_timer(
 	struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	if (cmd->dataout_timer_flags & ISCSI_TF_RUNNING)
 		return;

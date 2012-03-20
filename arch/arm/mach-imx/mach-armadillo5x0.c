@@ -561,4 +561,5 @@ MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	.handle_irq = imx31_handle_irq,
 	.timer = &armadillo5x0_timer,
 	.init_machine = armadillo5x0_init,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -170,7 +170,7 @@ static void ufs2_init_inodes_chunk(struct super_block *sb,
  * For other inodes, search forward from the parent directory's block
  * group to find a free inode.
  */
-struct inode * ufs_new_inode(struct inode * dir, int mode)
+struct inode *ufs_new_inode(struct inode *dir, umode_t mode)
 {
 	struct super_block * sb;
 	struct ufs_sb_info * sbi;

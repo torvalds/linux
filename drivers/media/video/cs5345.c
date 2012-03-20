@@ -31,7 +31,7 @@ MODULE_DESCRIPTION("i2c device driver for cs5345 Audio ADC");
 MODULE_AUTHOR("Hans Verkuil");
 MODULE_LICENSE("GPL");
 
-static int debug;
+static bool debug;
 
 module_param(debug, bool, 0644);
 

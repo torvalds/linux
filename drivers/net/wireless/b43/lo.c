@@ -826,7 +826,7 @@ void b43_gphy_dc_lt_init(struct b43_wldev *dev, bool update_all)
 	const struct b43_rfatt *rfatt;
 	const struct b43_bbatt *bbatt;
 	u64 power_vector;
-	bool table_changed = 0;
+	bool table_changed = false;
 
 	BUILD_BUG_ON(B43_DC_LT_SIZE != 32);
 	B43_WARN_ON(lo->rfatt_list.len * lo->bbatt_list.len > 64);
@@ -876,7 +876,7 @@ void b43_gphy_dc_lt_init(struct b43_wldev *dev, bool update_all)
 			lo->dc_lt[idx] = (lo->dc_lt[idx] & 0xFF00)
 					 | (val & 0x00FF);
 		}
-		table_changed = 1;
+		table_changed = true;
 	}
 	if (table_changed) {
 		/* The table changed in memory. Update the hardware table. */
@@ -938,7 +938,7 @@ void b43_lo_g_maintanance_work(struct b43_wldev *dev)
 	unsigned long now;
 	unsigned long expire;
 	struct b43_lo_calib *cal, *tmp;
-	bool current_item_expired = 0;
+	bool current_item_expired = false;
 	bool hwpctl;
 
 	if (!lo)
@@ -968,7 +968,7 @@ void b43_lo_g_maintanance_work(struct b43_wldev *dev)
 		if (b43_compare_bbatt(&cal->bbatt, &gphy->bbatt) &&
 		    b43_compare_rfatt(&cal->rfatt, &gphy->rfatt)) {
 			B43_WARN_ON(current_item_expired);
-			current_item_expired = 1;
+			current_item_expired = true;
 		}
 		if (b43_debug(dev, B43_DBG_LO)) {
 			b43dbg(dev->wl, "LO: Item BB(%u), RF(%u,%u), "

@@ -303,16 +303,16 @@ MODULE_LICENSE("Dual BSD/GPL");
 static struct {
 	char		*file[FSG_MAX_LUNS];
 	char		*serial;
-	int		ro[FSG_MAX_LUNS];
-	int		nofua[FSG_MAX_LUNS];
+	bool		ro[FSG_MAX_LUNS];
+	bool		nofua[FSG_MAX_LUNS];
 	unsigned int	num_filenames;
 	unsigned int	num_ros;
 	unsigned int	num_nofuas;
 	unsigned int	nluns;
 
-	int		removable;
-	int		can_stall;
-	int		cdrom;
+	bool		removable;
+	bool		can_stall;
+	bool		cdrom;
 
 	char		*transport_parm;
 	char		*protocol_parm;
@@ -2297,19 +2297,17 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 			DBG(fsg, "using LUN %d from CBW, "
 					"not LUN %d from CDB\n",
 					fsg->lun, lun);
-	} else
-		fsg->lun = lun;		// Use LUN from the command
+	}
 
 	/* Check the LUN */
-	if (fsg->lun < fsg->nluns) {
-		fsg->curlun = curlun = &fsg->luns[fsg->lun];
+	curlun = fsg->curlun;
+	if (curlun) {
 		if (fsg->cmnd[0] != REQUEST_SENSE) {
 			curlun->sense_data = SS_NO_SENSE;
 			curlun->sense_data_info = 0;
 			curlun->info_valid = 0;
 		}
 	} else {
-		fsg->curlun = curlun = NULL;
 		fsg->bad_lun_okay = 0;
 
 		/* INQUIRY and REQUEST SENSE commands are explicitly allowed
@@ -2351,6 +2349,16 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 	return 0;
 }
 
+/* wrapper of check_command for data size in blocks handling */
+static int check_command_size_in_blocks(struct fsg_dev *fsg, int cmnd_size,
+		enum data_direction data_dir, unsigned int mask,
+		int needs_medium, const char *name)
+{
+	if (fsg->curlun)
+		fsg->data_size_from_cmnd <<= fsg->curlun->blkbits;
+	return check_command(fsg, cmnd_size, data_dir,
+			mask, needs_medium, name);
+}
 
 static int do_scsi_command(struct fsg_dev *fsg)
 {
@@ -2425,26 +2433,27 @@ static int do_scsi_command(struct fsg_dev *fsg)
 
 	case READ_6:
 		i = fsg->cmnd[4];
-		fsg->data_size_from_cmnd = (i == 0 ? 256 : i) << fsg->curlun->blkbits;
-		if ((reply = check_command(fsg, 6, DATA_DIR_TO_HOST,
+		fsg->data_size_from_cmnd = (i == 0) ? 256 : i;
+		if ((reply = check_command_size_in_blocks(fsg, 6,
+				DATA_DIR_TO_HOST,
 				(7<<1) | (1<<4), 1,
 				"READ(6)")) == 0)
 			reply = do_read(fsg);
 		break;
 
 	case READ_10:
-		fsg->data_size_from_cmnd =
-				get_unaligned_be16(&fsg->cmnd[7]) << fsg->curlun->blkbits;
-		if ((reply = check_command(fsg, 10, DATA_DIR_TO_HOST,
+		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->cmnd[7]);
+		if ((reply = check_command_size_in_blocks(fsg, 10,
+				DATA_DIR_TO_HOST,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
 				"READ(10)")) == 0)
 			reply = do_read(fsg);
 		break;
 
 	case READ_12:
-		fsg->data_size_from_cmnd =
-				get_unaligned_be32(&fsg->cmnd[6]) << fsg->curlun->blkbits;
-		if ((reply = check_command(fsg, 12, DATA_DIR_TO_HOST,
+		fsg->data_size_from_cmnd = get_unaligned_be32(&fsg->cmnd[6]);
+		if ((reply = check_command_size_in_blocks(fsg, 12,
+				DATA_DIR_TO_HOST,
 				(1<<1) | (0xf<<2) | (0xf<<6), 1,
 				"READ(12)")) == 0)
 			reply = do_read(fsg);
@@ -2529,26 +2538,27 @@ static int do_scsi_command(struct fsg_dev *fsg)
 
 	case WRITE_6:
 		i = fsg->cmnd[4];
-		fsg->data_size_from_cmnd = (i == 0 ? 256 : i) << fsg->curlun->blkbits;
-		if ((reply = check_command(fsg, 6, DATA_DIR_FROM_HOST,
+		fsg->data_size_from_cmnd = (i == 0) ? 256 : i;
+		if ((reply = check_command_size_in_blocks(fsg, 6,
+				DATA_DIR_FROM_HOST,
 				(7<<1) | (1<<4), 1,
 				"WRITE(6)")) == 0)
 			reply = do_write(fsg);
 		break;
 
 	case WRITE_10:
-		fsg->data_size_from_cmnd =
-				get_unaligned_be16(&fsg->cmnd[7]) << fsg->curlun->blkbits;
-		if ((reply = check_command(fsg, 10, DATA_DIR_FROM_HOST,
+		fsg->data_size_from_cmnd = get_unaligned_be16(&fsg->cmnd[7]);
+		if ((reply = check_command_size_in_blocks(fsg, 10,
+				DATA_DIR_FROM_HOST,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
 				"WRITE(10)")) == 0)
 			reply = do_write(fsg);
 		break;
 
 	case WRITE_12:
-		fsg->data_size_from_cmnd =
-				get_unaligned_be32(&fsg->cmnd[6]) << fsg->curlun->blkbits;
-		if ((reply = check_command(fsg, 12, DATA_DIR_FROM_HOST,
+		fsg->data_size_from_cmnd = get_unaligned_be32(&fsg->cmnd[6]);
+		if ((reply = check_command_size_in_blocks(fsg, 12,
+				DATA_DIR_FROM_HOST,
 				(1<<1) | (0xf<<2) | (0xf<<6), 1,
 				"WRITE(12)")) == 0)
 			reply = do_write(fsg);
@@ -2715,7 +2725,17 @@ static int get_next_command(struct fsg_dev *fsg)
 		memcpy(fsg->cmnd, fsg->cbbuf_cmnd, fsg->cmnd_size);
 		fsg->cbbuf_cmnd_size = 0;
 		spin_unlock_irq(&fsg->lock);
+
+		/* Use LUN from the command */
+		fsg->lun = fsg->cmnd[1] >> 5;
 	}
+
+	/* Update current lun */
+	if (fsg->lun >= 0 && fsg->lun < fsg->nluns)
+		fsg->curlun = &fsg->luns[fsg->lun];
+	else
+		fsg->curlun = NULL;
+
 	return rc;
 }
 
@@ -3584,7 +3604,7 @@ static void fsg_resume(struct usb_gadget *gadget)
 /*-------------------------------------------------------------------------*/
 
 static struct usb_gadget_driver		fsg_driver = {
-	.speed		= USB_SPEED_SUPER,
+	.max_speed	= USB_SPEED_SUPER,
 	.function	= (char *) fsg_string_product,
 	.unbind		= fsg_unbind,
 	.disconnect	= fsg_disconnect,

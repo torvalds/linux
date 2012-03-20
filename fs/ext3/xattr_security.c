@@ -3,7 +3,6 @@
  * Handler for storing security labels as extended attributes.
  */
 
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/fs.h>

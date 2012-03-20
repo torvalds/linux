@@ -38,38 +38,6 @@ irqreturn_t lis3l02dq_data_rdy_trig_poll(int irq, void *private)
 		return IRQ_WAKE_THREAD;
 }
 
-/**
- * lis3l02dq_read_accel_from_buffer() individual acceleration read from buffer
- **/
-ssize_t lis3l02dq_read_accel_from_buffer(struct iio_buffer *buffer,
-					 int index,
-					 int *val)
-{
-	int ret;
-	s16 *data;
-
-	if (!iio_scan_mask_query(buffer, index))
-		return -EINVAL;
-
-	if (!buffer->access->read_last)
-		return -EBUSY;
-
-	data = kmalloc(buffer->access->get_bytes_per_datum(buffer),
-		       GFP_KERNEL);
-	if (data == NULL)
-		return -ENOMEM;
-
-	ret = buffer->access->read_last(buffer, (u8 *)data);
-	if (ret)
-		goto error_free_data;
-	*val = data[bitmap_weight(buffer->scan_mask, index)];
-error_free_data:
-
-	kfree(data);
-
-	return ret;
-}
-
 static const u8 read_all_tx_array[] = {
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_L_ADDR), 0,
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_H_ADDR), 0,
@@ -87,21 +55,21 @@ static const u8 read_all_tx_array[] = {
  **/
 static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 {
-	struct iio_buffer *buffer = indio_dev->buffer;
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 	struct spi_transfer *xfers;
 	struct spi_message msg;
 	int ret, i, j = 0;
 
-	xfers = kzalloc((buffer->scan_count) * 2
-			* sizeof(*xfers), GFP_KERNEL);
+	xfers = kcalloc(bitmap_weight(indio_dev->active_scan_mask,
+				      indio_dev->masklength) * 2,
+			sizeof(*xfers), GFP_KERNEL);
 	if (!xfers)
 		return -ENOMEM;
 
 	mutex_lock(&st->buf_lock);
 
 	for (i = 0; i < ARRAY_SIZE(read_all_tx_array)/4; i++)
-		if (test_bit(i, buffer->scan_mask)) {
+		if (test_bit(i, indio_dev->active_scan_mask)) {
 			/* lower byte */
 			xfers[j].tx_buf = st->tx + 2*j;
 			st->tx[2*j] = read_all_tx_array[i*4];
@@ -129,7 +97,8 @@ static int lis3l02dq_read_all(struct iio_dev *indio_dev, u8 *rx_array)
 	 * values in alternate bytes
 	 */
 	spi_message_init(&msg);
-	for (j = 0; j < buffer->scan_count * 2; j++)
+	for (j = 0; j < bitmap_weight(indio_dev->active_scan_mask,
+				      indio_dev->masklength) * 2; j++)
 		spi_message_add_tail(&xfers[j], &msg);
 
 	ret = spi_sync(st->us, &msg);
@@ -145,14 +114,16 @@ static int lis3l02dq_get_buffer_element(struct iio_dev *indio_dev,
 	int ret, i;
 	u8 *rx_array ;
 	s16 *data = (s16 *)buf;
+	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
+				       indio_dev->masklength);
 
-	rx_array = kzalloc(4 * (indio_dev->buffer->scan_count), GFP_KERNEL);
+	rx_array = kzalloc(4 * scan_count, GFP_KERNEL);
 	if (rx_array == NULL)
 		return -ENOMEM;
 	ret = lis3l02dq_read_all(indio_dev, rx_array);
 	if (ret < 0)
 		return ret;
-	for (i = 0; i < indio_dev->buffer->scan_count; i++)
+	for (i = 0; i < scan_count; i++)
 		data[i] = combine_8_to_16(rx_array[i*4+1],
 					rx_array[i*4+3]);
 	kfree(rx_array);
@@ -175,7 +146,7 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 		return -ENOMEM;
 	}
 
-	if (buffer->scan_count)
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		len = lis3l02dq_get_buffer_element(indio_dev, data);
 
 	  /* Guaranteed to be aligned with 8 byte boundary */
@@ -363,17 +334,17 @@ static int lis3l02dq_buffer_postenable(struct iio_dev *indio_dev)
 	if (ret)
 		goto error_ret;
 
-	if (iio_scan_mask_query(indio_dev->buffer, 0)) {
+	if (test_bit(0, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
 		oneenabled = true;
 	} else
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_X_ENABLE;
-	if (iio_scan_mask_query(indio_dev->buffer, 1)) {
+	if (test_bit(1, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
 		oneenabled = true;
 	} else
 		t &= ~LIS3L02DQ_REG_CTRL_1_AXES_Y_ENABLE;
-	if (iio_scan_mask_query(indio_dev->buffer, 2)) {
+	if (test_bit(2, indio_dev->active_scan_mask)) {
 		t |= LIS3L02DQ_REG_CTRL_1_AXES_Z_ENABLE;
 		oneenabled = true;
 	} else
@@ -437,11 +408,9 @@ int lis3l02dq_configure_buffer(struct iio_dev *indio_dev)
 	indio_dev->buffer = buffer;
 	/* Effectively select the buffer implementation */
 	indio_dev->buffer->access = &lis3l02dq_access_funcs;
-	buffer->bpe = 2;
 
 	buffer->scan_timestamp = true;
-	buffer->setup_ops = &lis3l02dq_buffer_setup_ops;
-	buffer->owner = THIS_MODULE;
+	indio_dev->setup_ops = &lis3l02dq_buffer_setup_ops;
 
 	/* Functions are NULL as we set handler below */
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,

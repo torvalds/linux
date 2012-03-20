@@ -187,7 +187,7 @@ out:
 	return error;
 }
 
-static inline void set_default_inode_attr(struct inode * inode, mode_t mode)
+static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
 {
 	inode->i_mode = mode;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
@@ -318,8 +318,11 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const cha
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
 
-	if (!dir_sd)
+	if (!dir_sd) {
+		WARN(1, KERN_WARNING "sysfs: can not remove '%s', no directory\n",
+			name);
 		return -ENOENT;
+	}
 
 	sysfs_addrm_start(&acxt, dir_sd);
 

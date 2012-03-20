@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/abx500.h>
-#include <linux/mfd/ab8500.h>
+#include <linux/mfd/abx500/ab8500.h>
 #include <linux/regulator/ab8500.h>
 
 /*
@@ -620,6 +620,7 @@ static struct resource __devinitdata ab8500_fg_resources[] = {
 
 static struct resource __devinitdata ab8500_chargalg_resources[] = {};
 
+#ifdef CONFIG_DEBUG_FS
 static struct resource __devinitdata ab8500_debug_resources[] = {
 	{
 		.name	= "IRQ_FIRST",
@@ -634,6 +635,7 @@ static struct resource __devinitdata ab8500_debug_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
+#endif
 
 static struct resource __devinitdata ab8500_usb_resources[] = {
 	{

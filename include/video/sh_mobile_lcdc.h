@@ -174,7 +174,8 @@ struct sh_mobile_lcdc_bl_info {
 
 struct sh_mobile_lcdc_chan_cfg {
 	int chan;
-	int bpp;
+	int fourcc;
+	int colorspace;
 	int interface_type; /* selects RGBn or SYSn I/F, see above */
 	int clock_divider;
 	unsigned long flags; /* LCDC_FLAGS_... */
@@ -184,7 +185,6 @@ struct sh_mobile_lcdc_chan_cfg {
 	struct sh_mobile_lcdc_board_cfg board_cfg;
 	struct sh_mobile_lcdc_bl_info bl_info;
 	struct sh_mobile_lcdc_sys_bus_cfg sys_bus_cfg; /* only for SYSn I/F */
-	int nonstd;
 	struct sh_mobile_meram_cfg *meram_cfg;
 };
 

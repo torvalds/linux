@@ -12,7 +12,7 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-extern void do_signal(struct pt_regs *regs, unsigned long thread_info_flags);
+extern void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags);
 
 extern void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 				  size_t frame_size, int is_32);

@@ -22,19 +22,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-#include "pwc-dec1.h"
+#include "pwc.h"
 
-int pwc_dec1_init(struct pwc_device *pwc, int type, int release, void *buffer)
+void pwc_dec1_init(struct pwc_device *pdev, const unsigned char *cmd)
 {
-	struct pwc_dec1_private *pdec;
+	struct pwc_dec1_private *pdec = &pdev->dec1;
 
-	if (pwc->decompress_data == NULL) {
-		pdec = kmalloc(sizeof(struct pwc_dec1_private), GFP_KERNEL);
-		if (pdec == NULL)
-			return -ENOMEM;
-		pwc->decompress_data = pdec;
-	}
-	pdec = pwc->decompress_data;
-
-	return 0;
+	pdec->version = pdev->release;
 }

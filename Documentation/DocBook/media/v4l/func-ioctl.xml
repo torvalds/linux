@@ -69,11 +69,3 @@ their respective function and parameters are specified in <xref
     the parameter remains unmodified.</para>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

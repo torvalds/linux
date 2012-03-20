@@ -89,7 +89,7 @@ static void udf_open_lvid(struct super_block *);
 static void udf_close_lvid(struct super_block *);
 static unsigned int udf_count_free(struct super_block *);
 static int udf_statfs(struct dentry *, struct kstatfs *);
-static int udf_show_options(struct seq_file *, struct vfsmount *);
+static int udf_show_options(struct seq_file *, struct dentry *);
 
 struct logicalVolIntegrityDescImpUse *udf_sb_lvidiu(struct udf_sb_info *sbi)
 {
@@ -138,7 +138,6 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 static void udf_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(udf_inode_cachep, UDF_I(inode));
 }
 
@@ -196,11 +195,11 @@ struct udf_options {
 	unsigned int fileset;
 	unsigned int rootdir;
 	unsigned int flags;
-	mode_t umask;
+	umode_t umask;
 	gid_t gid;
 	uid_t uid;
-	mode_t fmode;
-	mode_t dmode;
+	umode_t fmode;
+	umode_t dmode;
 	struct nls_table *nls_map;
 };
 
@@ -250,9 +249,9 @@ static int udf_sb_alloc_partition_maps(struct super_block *sb, u32 count)
 	return 0;
 }
 
-static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
+static int udf_show_options(struct seq_file *seq, struct dentry *root)
 {
-	struct super_block *sb = mnt->mnt_sb;
+	struct super_block *sb = root->d_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 
 	if (!UDF_QUERY_FLAG(sb, UDF_FLAG_STRICT))
@@ -280,11 +279,11 @@ static int udf_show_options(struct seq_file *seq, struct vfsmount *mnt)
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET))
 		seq_printf(seq, ",gid=%u", sbi->s_gid);
 	if (sbi->s_umask != 0)
-		seq_printf(seq, ",umask=%o", sbi->s_umask);
+		seq_printf(seq, ",umask=%ho", sbi->s_umask);
 	if (sbi->s_fmode != UDF_INVALID_MODE)
-		seq_printf(seq, ",mode=%o", sbi->s_fmode);
+		seq_printf(seq, ",mode=%ho", sbi->s_fmode);
 	if (sbi->s_dmode != UDF_INVALID_MODE)
-		seq_printf(seq, ",dmode=%o", sbi->s_dmode);
+		seq_printf(seq, ",dmode=%ho", sbi->s_dmode);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_SESSION_SET))
 		seq_printf(seq, ",session=%u", sbi->s_session);
 	if (UDF_QUERY_FLAG(sb, UDF_FLAG_LASTBLOCK_SET))
@@ -1799,6 +1798,12 @@ static void udf_close_lvid(struct super_block *sb)
 				le16_to_cpu(lvid->descTag.descCRCLength)));
 
 	lvid->descTag.tagChecksum = udf_tag_checksum(&lvid->descTag);
+	/*
+	 * We set buffer uptodate unconditionally here to avoid spurious
+	 * warnings from mark_buffer_dirty() when previous EIO has marked
+	 * the buffer as !uptodate
+	 */
+	set_buffer_uptodate(bh);
 	mark_buffer_dirty(bh);
 	sbi->s_lvid_dirty = 0;
 	mutex_unlock(&sbi->s_alloc_mutex);

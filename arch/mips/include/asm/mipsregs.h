@@ -1106,7 +1106,7 @@ do {									\
 #define read_c0_brcm_reset()		__read_32bit_c0_register($22, 5)
 #define write_c0_brcm_reset(val)	__write_32bit_c0_register($22, 5, val)
 
-/* BMIPS4380 */
+/* BMIPS43xx */
 #define read_c0_brcm_cmt_intr()		__read_32bit_c0_register($22, 1)
 #define write_c0_brcm_cmt_intr(val)	__write_32bit_c0_register($22, 1, val)
 
@@ -1667,6 +1667,13 @@ __BUILD_SET_C0(config)
 __BUILD_SET_C0(intcontrol)
 __BUILD_SET_C0(intctl)
 __BUILD_SET_C0(srsmap)
+__BUILD_SET_C0(brcm_config_0)
+__BUILD_SET_C0(brcm_bus_pll)
+__BUILD_SET_C0(brcm_reset)
+__BUILD_SET_C0(brcm_cmt_intr)
+__BUILD_SET_C0(brcm_cmt_ctrl)
+__BUILD_SET_C0(brcm_config)
+__BUILD_SET_C0(brcm_mode)
 
 #endif /* !__ASSEMBLY__ */
 

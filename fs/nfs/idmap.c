@@ -38,6 +38,89 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/nfs_idmap.h>
+#include <linux/nfs_fs.h>
+
+/**
+ * nfs_fattr_init_names - initialise the nfs_fattr owner_name/group_name fields
+ * @fattr: fully initialised struct nfs_fattr
+ * @owner_name: owner name string cache
+ * @group_name: group name string cache
+ */
+void nfs_fattr_init_names(struct nfs_fattr *fattr,
+		struct nfs4_string *owner_name,
+		struct nfs4_string *group_name)
+{
+	fattr->owner_name = owner_name;
+	fattr->group_name = group_name;
+}
+
+static void nfs_fattr_free_owner_name(struct nfs_fattr *fattr)
+{
+	fattr->valid &= ~NFS_ATTR_FATTR_OWNER_NAME;
+	kfree(fattr->owner_name->data);
+}
+
+static void nfs_fattr_free_group_name(struct nfs_fattr *fattr)
+{
+	fattr->valid &= ~NFS_ATTR_FATTR_GROUP_NAME;
+	kfree(fattr->group_name->data);
+}
+
+static bool nfs_fattr_map_owner_name(struct nfs_server *server, struct nfs_fattr *fattr)
+{
+	struct nfs4_string *owner = fattr->owner_name;
+	__u32 uid;
+
+	if (!(fattr->valid & NFS_ATTR_FATTR_OWNER_NAME))
+		return false;
+	if (nfs_map_name_to_uid(server, owner->data, owner->len, &uid) == 0) {
+		fattr->uid = uid;
+		fattr->valid |= NFS_ATTR_FATTR_OWNER;
+	}
+	return true;
+}
+
+static bool nfs_fattr_map_group_name(struct nfs_server *server, struct nfs_fattr *fattr)
+{
+	struct nfs4_string *group = fattr->group_name;
+	__u32 gid;
+
+	if (!(fattr->valid & NFS_ATTR_FATTR_GROUP_NAME))
+		return false;
+	if (nfs_map_group_to_gid(server, group->data, group->len, &gid) == 0) {
+		fattr->gid = gid;
+		fattr->valid |= NFS_ATTR_FATTR_GROUP;
+	}
+	return true;
+}
+
+/**
+ * nfs_fattr_free_names - free up the NFSv4 owner and group strings
+ * @fattr: a fully initialised nfs_fattr structure
+ */
+void nfs_fattr_free_names(struct nfs_fattr *fattr)
+{
+	if (fattr->valid & NFS_ATTR_FATTR_OWNER_NAME)
+		nfs_fattr_free_owner_name(fattr);
+	if (fattr->valid & NFS_ATTR_FATTR_GROUP_NAME)
+		nfs_fattr_free_group_name(fattr);
+}
+
+/**
+ * nfs_fattr_map_and_free_names - map owner/group strings into uid/gid and free
+ * @server: pointer to the filesystem nfs_server structure
+ * @fattr: a fully initialised nfs_fattr structure
+ *
+ * This helper maps the cached NFSv4 owner/group strings in fattr into
+ * their numeric uid/gid equivalents, and then frees the cached strings.
+ */
+void nfs_fattr_map_and_free_names(struct nfs_server *server, struct nfs_fattr *fattr)
+{
+	if (nfs_fattr_map_owner_name(server, fattr))
+		nfs_fattr_free_owner_name(fattr);
+	if (nfs_fattr_map_group_name(server, fattr))
+		nfs_fattr_free_group_name(fattr);
+}
 
 static int nfs_map_string_to_numeric(const char *name, size_t namelen, __u32 *res)
 {

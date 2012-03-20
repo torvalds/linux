@@ -3404,8 +3404,8 @@ static int __init parport_init_mode_setup(char *str)
 #endif
 
 #ifdef MODULE
-static const char *irq[PARPORT_PC_MAX_PORTS];
-static const char *dma[PARPORT_PC_MAX_PORTS];
+static char *irq[PARPORT_PC_MAX_PORTS];
+static char *dma[PARPORT_PC_MAX_PORTS];
 
 MODULE_PARM_DESC(io, "Base I/O address (SPP regs)");
 module_param_array(io, int, NULL, 0);

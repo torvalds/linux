@@ -227,18 +227,7 @@ static struct platform_driver rdc321x_gpio_driver = {
 	.remove		= __devexit_p(rdc321x_gpio_remove),
 };
 
-static int __init rdc321x_gpio_init(void)
-{
-	return platform_driver_register(&rdc321x_gpio_driver);
-}
-
-static void __exit rdc321x_gpio_exit(void)
-{
-	platform_driver_unregister(&rdc321x_gpio_driver);
-}
-
-module_init(rdc321x_gpio_init);
-module_exit(rdc321x_gpio_exit);
+module_platform_driver(rdc321x_gpio_driver);
 
 MODULE_AUTHOR("Florian Fainelli <florian@openwrt.org>");
 MODULE_DESCRIPTION("RDC321x GPIO driver");

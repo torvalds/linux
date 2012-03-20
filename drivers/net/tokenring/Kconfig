@@ -7,7 +7,6 @@ menuconfig TR
 	bool "Token Ring driver support"
 	depends on NETDEVICES && !UML
 	depends on (PCI || ISA || MCA || CCW || PCMCIA)
-	select LLC
 	help
 	  Token Ring is IBM's way of communication on a local network; the
 	  rest of the world uses Ethernet. To participate on a Token Ring
@@ -19,6 +18,10 @@ menuconfig TR
 	  say N here.
 
 if TR
+
+config WANT_LLC
+	def_bool y
+	select LLC
 
 config PCMCIA_IBMTR
 	tristate "IBM PCMCIA tokenring adapter support"

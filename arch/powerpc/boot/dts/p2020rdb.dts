@@ -1,7 +1,7 @@
 /*
  * P2020 RDB Device Tree Source
  *
- * Copyright 2009-2011 Freescale Semiconductor Inc.
+ * Copyright 2009-2012 Freescale Semiconductor Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -9,7 +9,7 @@
  * option) any later version.
  */
 
-/include/ "p2020si.dtsi"
+/include/ "fsl/p2020si-pre.dtsi"
 
 / {
 	model = "fsl,P2020RDB";
@@ -29,7 +29,8 @@
 		device_type = "memory";
 	};
 
-	localbus@ffe05000 {
+	lbc: localbus@ffe05000 {
+		reg = <0 0xffe05000 0 0x1000>;
 
 		/* NOR and NAND Flashes */
 		ranges = <0x0 0x0 0x0 0xef000000 0x01000000
@@ -140,7 +141,9 @@
 
 	};
 
-	soc@ffe00000 {
+	soc: soc@ffe00000 {
+		ranges = <0x0 0x0 0xffe00000 0x100000>;
+
 		i2c@3000 {
 			rtc@68 {
 				compatible = "dallas,ds1339";
@@ -148,17 +151,13 @@
 			};
 		};
 
-	spi@7000 {
-
-		fsl_m25p80@0 {
+		spi@7000 {
+			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "fsl,espi-flash";
+				compatible = "spansion,s25sl12801";
 				reg = <0>;
-				linux,modalias = "fsl_m25p80";
-				modal = "s25sl128b";
 				spi-max-frequency = <50000000>;
-				mode = <0>;
 
 				partition@0 {
 					/* 512KB for u-boot Bootloader Image */
@@ -198,19 +197,22 @@
 
 		usb@22000 {
 			phy_type = "ulpi";
+			dr_mode = "host";
 		};
 
 		mdio@24520 {
 			phy0: ethernet-phy@0 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
+				interrupts = <3 1 0 0>;
 				reg = <0x0>;
-				};
+			};
 			phy1: ethernet-phy@1 {
-				interrupt-parent = <&mpic>;
-				interrupts = <3 1>;
+				interrupts = <3 1 0 0>;
 				reg = <0x1>;
-				};
+			};
+			tbi-phy@2 {
+				device_type = "tbi-phy";
+				reg = <0x2>;
+			};
 		};
 
 		mdio@25520 {
@@ -224,11 +226,7 @@
 			status = "disabled";
 		};
 
-		ptp_clock@24E00 {
-			compatible = "fsl,etsec-ptp";
-			reg = <0x24E00 0xB0>;
-			interrupts = <68 2 69 2 70 2>;
-			interrupt-parent = < &mpic >;
+		ptp_clock@24e00 {
 			fsl,tclk-period = <5>;
 			fsl,tmr-prsc = <200>;
 			fsl,tmr-add = <0xCCCCCCCD>;
@@ -252,29 +250,18 @@
 			phy-handle = <&phy1>;
 			phy-connection-type = "rgmii-id";
 		};
-
 	};
 
 	pci0: pcie@ffe08000 {
+		reg = <0 0xffe08000 0 0x1000>;
 		status = "disabled";
 	};
 
 	pci1: pcie@ffe09000 {
+		reg = <0 0xffe09000 0 0x1000>;
 		ranges = <0x2000000 0x0 0xa0000000 0 0xa0000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc10000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x4 0x1
-			0000 0x0 0x0 0x2 &mpic 0x5 0x1
-			0000 0x0 0x0 0x3 &mpic 0x6 0x1
-			0000 0x0 0x0 0x4 &mpic 0x7 0x1
-			>;
-			pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
+		pcie@0 {
 			ranges = <0x2000000 0x0 0xa0000000
 				  0x2000000 0x0 0xa0000000
 				  0x0 0x20000000
@@ -286,21 +273,10 @@
 	};
 
 	pci2: pcie@ffe0a000 {
+		reg = <0 0xffe0a000 0 0x1000>;
 		ranges = <0x2000000 0x0 0x80000000 0 0x80000000 0x0 0x20000000
 			  0x1000000 0x0 0x00000000 0 0xffc00000 0x0 0x10000>;
-		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-		interrupt-map = <
-			/* IDSEL 0x0 */
-			0000 0x0 0x0 0x1 &mpic 0x0 0x1
-			0000 0x0 0x0 0x2 &mpic 0x1 0x1
-			0000 0x0 0x0 0x3 &mpic 0x2 0x1
-			0000 0x0 0x0 0x4 &mpic 0x3 0x1
-			>;
 		pcie@0 {
-			reg = <0x0 0x0 0x0 0x0 0x0>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			device_type = "pci";
 			ranges = <0x2000000 0x0 0x80000000
 				  0x2000000 0x0 0x80000000
 				  0x0 0x20000000
@@ -311,3 +287,5 @@
 		};
 	};
 };
+
+/include/ "fsl/p2020si-post.dtsi"

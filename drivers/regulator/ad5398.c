@@ -233,7 +233,7 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	chip->current_mask = (chip->current_level - 1) << chip->current_offset;
 
 	chip->rdev = regulator_register(&ad5398_reg, &client->dev,
-					init_data, chip);
+					init_data, chip, NULL);
 	if (IS_ERR(chip->rdev)) {
 		ret = PTR_ERR(chip->rdev);
 		dev_err(&client->dev, "failed to register %s %s\n",

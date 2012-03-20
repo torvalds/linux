@@ -78,6 +78,8 @@
 
 #define MAX_MSG_SIZE (MAX_H_SIZE + TIPC_MAX_USER_MSG_SIZE)
 
+#define TIPC_MEDIA_ADDR_OFFSET	5
+
 
 struct tipc_msg {
 	__be32 hdr[15];
@@ -682,6 +684,10 @@ static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
 	msg_set_bits(m, 5, 12, 0x1, r);
 }
 
+static inline char *msg_media_addr(struct tipc_msg *m)
+{
+	return (char *)&m->hdr[TIPC_MEDIA_ADDR_OFFSET];
+}
 
 /*
  * Word 9
@@ -733,15 +739,5 @@ void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
 int tipc_msg_build(struct tipc_msg *hdr, struct iovec const *msg_sect,
 		   u32 num_sect, unsigned int total_len,
 			    int max_size, int usrmem, struct sk_buff **buf);
-
-static inline void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(&((int *)m)[5], a, sizeof(*a));
-}
-
-static inline void msg_get_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
-{
-	memcpy(a, &((int *)m)[5], sizeof(*a));
-}
 
 #endif

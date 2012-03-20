@@ -395,6 +395,7 @@ int ttm_mem_global_init(struct ttm_mem_global *glob)
 		       zone->name, (unsigned long long) zone->max_mem >> 10);
 	}
 	ttm_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
+	ttm_dma_page_alloc_init(glob, glob->zone_kernel->max_mem/(2*PAGE_SIZE));
 	return 0;
 out_no_zone:
 	ttm_mem_global_release(glob);
@@ -409,6 +410,7 @@ void ttm_mem_global_release(struct ttm_mem_global *glob)
 
 	/* let the page allocator first stop the shrink work. */
 	ttm_page_alloc_fini();
+	ttm_dma_page_alloc_fini();
 
 	flush_workqueue(glob->swap_queue);
 	destroy_workqueue(glob->swap_queue);

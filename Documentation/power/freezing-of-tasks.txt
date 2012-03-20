@@ -21,7 +21,7 @@ freeze_processes() (defined in kernel/power/process.c) is called.  It executes
 try_to_freeze_tasks() that sets TIF_FREEZE for all of the freezable tasks and
 either wakes them up, if they are kernel threads, or sends fake signals to them,
 if they are user space processes.  A task that has TIF_FREEZE set, should react
-to it by calling the function called refrigerator() (defined in
+to it by calling the function called __refrigerator() (defined in
 kernel/freezer.c), which sets the task's PF_FROZEN flag, changes its state
 to TASK_UNINTERRUPTIBLE and makes it loop until PF_FROZEN is cleared for it.
 Then, we say that the task is 'frozen' and therefore the set of functions
@@ -29,10 +29,10 @@ handling this mechanism is referred to as 'the freezer' (these functions are
 defined in kernel/power/process.c, kernel/freezer.c & include/linux/freezer.h).
 User space processes are generally frozen before kernel threads.
 
-It is not recommended to call refrigerator() directly.  Instead, it is
-recommended to use the try_to_freeze() function (defined in
-include/linux/freezer.h), that checks the task's TIF_FREEZE flag and makes the
-task enter refrigerator() if the flag is set.
+__refrigerator() must not be called directly.  Instead, use the
+try_to_freeze() function (defined in include/linux/freezer.h), that checks
+the task's TIF_FREEZE flag and makes the task enter __refrigerator() if the
+flag is set.
 
 For user space processes try_to_freeze() is called automatically from the
 signal-handling code, but the freezable kernel threads need to call it
@@ -61,13 +61,13 @@ wait_event_freezable() and wait_event_freezable_timeout() macros.
 After the system memory state has been restored from a hibernation image and
 devices have been reinitialized, the function thaw_processes() is called in
 order to clear the PF_FROZEN flag for each frozen task.  Then, the tasks that
-have been frozen leave refrigerator() and continue running.
+have been frozen leave __refrigerator() and continue running.
 
 III. Which kernel threads are freezable?
 
 Kernel threads are not freezable by default.  However, a kernel thread may clear
 PF_NOFREEZE for itself by calling set_freezable() (the resetting of PF_NOFREEZE
-directly is strongly discouraged).  From this point it is regarded as freezable
+directly is not allowed).  From this point it is regarded as freezable
 and must call try_to_freeze() in a suitable place.
 
 IV. Why do we do that?
@@ -120,10 +120,10 @@ So in practice, the 'at all' may become a 'why freeze kernel threads?' and
 freezing user threads I don't find really objectionable."
 
 Still, there are kernel threads that may want to be freezable.  For example, if
-a kernel that belongs to a device driver accesses the device directly, it in
-principle needs to know when the device is suspended, so that it doesn't try to
-access it at that time.  However, if the kernel thread is freezable, it will be
-frozen before the driver's .suspend() callback is executed and it will be
+a kernel thread that belongs to a device driver accesses the device directly, it
+in principle needs to know when the device is suspended, so that it doesn't try
+to access it at that time.  However, if the kernel thread is freezable, it will
+be frozen before the driver's .suspend() callback is executed and it will be
 thawed after the driver's .resume() callback has run, so it won't be accessing
 the device while it's suspended.
 
@@ -176,3 +176,28 @@ tasks, since it generally exists anyway.
 A driver must have all firmwares it may need in RAM before suspend() is called.
 If keeping them is not practical, for example due to their size, they must be
 requested early enough using the suspend notifier API described in notifiers.txt.
+
+VI. Are there any precautions to be taken to prevent freezing failures?
+
+Yes, there are.
+
+First of all, grabbing the 'pm_mutex' lock to mutually exclude a piece of code
+from system-wide sleep such as suspend/hibernation is not encouraged.
+If possible, that piece of code must instead hook onto the suspend/hibernation
+notifiers to achieve mutual exclusion. Look at the CPU-Hotplug code
+(kernel/cpu.c) for an example.
+
+However, if that is not feasible, and grabbing 'pm_mutex' is deemed necessary,
+it is strongly discouraged to directly call mutex_[un]lock(&pm_mutex) since
+that could lead to freezing failures, because if the suspend/hibernate code
+successfully acquired the 'pm_mutex' lock, and hence that other entity failed
+to acquire the lock, then that task would get blocked in TASK_UNINTERRUPTIBLE
+state. As a consequence, the freezer would not be able to freeze that task,
+leading to freezing failure.
+
+However, the [un]lock_system_sleep() APIs are safe to use in this scenario,
+since they ask the freezer to skip freezing this task, since it is anyway
+"frozen enough" as it is blocked on 'pm_mutex', which will be released
+only after the entire suspend/hibernation sequence is complete.
+So, to summarize, use [un]lock_system_sleep() instead of directly using
+mutex_[un]lock(&pm_mutex). That would prevent freezing failures.

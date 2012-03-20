@@ -28,6 +28,7 @@
 #include <linux/semaphore.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/bcma/bcma.h>
 #include <asm/unaligned.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
@@ -35,6 +36,7 @@
 #include <brcm_hw_ids.h>
 #include <soc.h>
 #include "sdio_host.h"
+#include "sdio_chip.h"
 
 #define DCMD_RESP_TIMEOUT  2000	/* In milli second */
 
@@ -85,11 +87,8 @@ struct rte_console {
 #endif				/* BCMDBG */
 #include <chipcommon.h>
 
-#include "dhd.h"
 #include "dhd_bus.h"
-#include "dhd_proto.h"
 #include "dhd_dbg.h"
-#include <bcmchip.h>
 
 #define TXQLEN		2048	/* bulk tx queue length */
 #define TXHI		(TXQLEN - 256)	/* turn on flow control above TXHI */
@@ -133,33 +132,6 @@ struct rte_console {
 #define SBSDIO_DEVCTL_RST_BPRESET	0x10
 /*   Force no backplane reset */
 #define SBSDIO_DEVCTL_RST_NOBPRESET	0x20
-
-/* SBSDIO_FUNC1_CHIPCLKCSR */
-
-/* Force ALP request to backplane */
-#define SBSDIO_FORCE_ALP		0x01
-/* Force HT request to backplane */
-#define SBSDIO_FORCE_HT			0x02
-/* Force ILP request to backplane */
-#define SBSDIO_FORCE_ILP		0x04
-/* Make ALP ready (power up xtal) */
-#define SBSDIO_ALP_AVAIL_REQ		0x08
-/* Make HT ready (power up PLL) */
-#define SBSDIO_HT_AVAIL_REQ		0x10
-/* Squelch clock requests from HW */
-#define SBSDIO_FORCE_HW_CLKREQ_OFF	0x20
-/* Status: ALP is ready */
-#define SBSDIO_ALP_AVAIL		0x40
-/* Status: HT is ready */
-#define SBSDIO_HT_AVAIL			0x80
-
-#define SBSDIO_AVBITS		(SBSDIO_HT_AVAIL | SBSDIO_ALP_AVAIL)
-#define SBSDIO_ALPAV(regval)	((regval) & SBSDIO_AVBITS)
-#define SBSDIO_HTAV(regval)	(((regval) & SBSDIO_AVBITS) == SBSDIO_AVBITS)
-#define SBSDIO_ALPONLY(regval)	(SBSDIO_ALPAV(regval) && !SBSDIO_HTAV(regval))
-
-#define SBSDIO_CLKAV(regval, alponly) \
-	(SBSDIO_ALPAV(regval) && (alponly ? 1 : SBSDIO_HTAV(regval)))
 
 /* direct(mapped) cis space */
 
@@ -335,49 +307,16 @@ struct rte_console {
 /* Flags for SDH calls */
 #define F2SYNC	(SDIO_REQ_4BYTE | SDIO_REQ_FIXED)
 
-/* sbimstate */
-#define	SBIM_IBE		0x20000	/* inbanderror */
-#define	SBIM_TO			0x40000	/* timeout */
-#define	SBIM_BY			0x01800000	/* busy (sonics >= 2.3) */
-#define	SBIM_RJ			0x02000000	/* reject (sonics >= 2.3) */
+#define BRCMFMAC_FW_NAME	"brcm/brcmfmac.bin"
+#define BRCMFMAC_NV_NAME	"brcm/brcmfmac.txt"
+MODULE_FIRMWARE(BRCMFMAC_FW_NAME);
+MODULE_FIRMWARE(BRCMFMAC_NV_NAME);
 
-/* sbtmstatelow */
-
-/* reset */
-#define	SBTML_RESET		0x0001
-/* reject field */
-#define	SBTML_REJ_MASK		0x0006
-/* reject */
-#define	SBTML_REJ		0x0002
-/* temporary reject, for error recovery */
-#define	SBTML_TMPREJ		0x0004
-
-/* Shift to locate the SI control flags in sbtml */
-#define	SBTML_SICF_SHIFT	16
-
-/* sbtmstatehigh */
-#define	SBTMH_SERR		0x0001	/* serror */
-#define	SBTMH_INT		0x0002	/* interrupt */
-#define	SBTMH_BUSY		0x0004	/* busy */
-#define	SBTMH_TO		0x0020	/* timeout (sonics >= 2.3) */
-
-/* Shift to locate the SI status flags in sbtmh */
-#define	SBTMH_SISF_SHIFT	16
-
-/* sbidlow */
-#define	SBIDL_INIT		0x80	/* initiator */
-
-/* sbidhigh */
-#define	SBIDH_RC_MASK		0x000f	/* revision code */
-#define	SBIDH_RCE_MASK		0x7000	/* revision code extension field */
-#define	SBIDH_RCE_SHIFT		8
-#define	SBCOREREV(sbidh) \
-	((((sbidh) & SBIDH_RCE_MASK) >> SBIDH_RCE_SHIFT) | \
-	  ((sbidh) & SBIDH_RC_MASK))
-#define	SBIDH_CC_MASK		0x8ff0	/* core code */
-#define	SBIDH_CC_SHIFT		4
-#define	SBIDH_VC_MASK		0xffff0000	/* vendor code */
-#define	SBIDH_VC_SHIFT		16
+#define BRCMF_IDLE_IMMEDIATE	(-1)	/* Enter idle immediately */
+#define BRCMF_IDLE_ACTIVE	0	/* Do not request any SD clock change
+					 * when idle
+					 */
+#define BRCMF_IDLE_INTERVAL	1
 
 /*
  * Conversion of 802.1D priority to precedence level
@@ -387,17 +326,6 @@ static uint prio2prec(u32 prio)
 	return (prio == PRIO_8021D_NONE || prio == PRIO_8021D_BE) ?
 	       (prio^2) : prio;
 }
-
-/*
- * Core reg address translation.
- * Both macro's returns a 32 bits byte address on the backplane bus.
- */
-#define CORE_CC_REG(base, field) \
-		(base + offsetof(struct chipcregs, field))
-#define CORE_BUS_REG(base, field) \
-		(base + offsetof(struct sdpcmd_regs, field))
-#define CORE_SB(base, field) \
-		(base + SBCONFIGOFF + offsetof(struct sbconfig, field))
 
 /* core registers */
 struct sdpcmd_regs {
@@ -524,25 +452,8 @@ struct sdpcm_shared_le {
 
 
 /* misc chip info needed by some of the routines */
-struct chip_info {
-	u32 chip;
-	u32 chiprev;
-	u32 cccorebase;
-	u32 ccrev;
-	u32 cccaps;
-	u32 buscorebase; /* 32 bits backplane bus address */
-	u32 buscorerev;
-	u32 buscoretype;
-	u32 ramcorebase;
-	u32 armcorebase;
-	u32 pmurev;
-	u32 ramsize;
-};
-
 /* Private data for SDIO bus interaction */
-struct brcmf_bus {
-	struct brcmf_pub *drvr;
-
+struct brcmf_sdio {
 	struct brcmf_sdio_dev *sdiodev;	/* sdio device handler */
 	struct chip_info *ci;	/* Chip info struct */
 	char *vars;		/* Variables (from CIS and/or other) */
@@ -574,7 +485,7 @@ struct brcmf_bus {
 	uint txminmax;
 
 	struct sk_buff *glomd;	/* Packet containing glomming descriptor */
-	struct sk_buff *glom;	/* Packet chain for glommed superframe */
+	struct sk_buff_head glom; /* Packet list for glommed superframe */
 	uint glomerr;		/* Glom packet read errors */
 
 	u8 *rxbuf;		/* Buffer for receiving control packets */
@@ -637,6 +548,13 @@ struct brcmf_bus {
 	uint f2rxdata;		/* Number of frame data reads */
 	uint f2txdata;		/* Number of f2 frame writes */
 	uint f1regdata;		/* Number of f1 register accesses */
+	uint tickcnt;		/* Number of watchdog been schedule */
+	unsigned long tx_ctlerrs;	/* Err of sending ctrl frames */
+	unsigned long tx_ctlpkts;	/* Ctrl frames sent to dongle */
+	unsigned long rx_ctlerrs;	/* Err of processing rx ctrl frames */
+	unsigned long rx_ctlpkts;	/* Ctrl frames processed from dongle */
+	unsigned long rx_readahead_cnt;	/* Number of packets where header
+					 * read-ahead was used. */
 
 	u8 *ctrl_frame_buf;
 	u32 ctrl_frame_len;
@@ -657,50 +575,10 @@ struct brcmf_bus {
 
 	struct semaphore sdsem;
 
-	const char *fw_name;
 	const struct firmware *firmware;
-	const char *nv_name;
 	u32 fw_ptr;
-};
 
-struct sbconfig {
-	u32 PAD[2];
-	u32 sbipsflag;	/* initiator port ocp slave flag */
-	u32 PAD[3];
-	u32 sbtpsflag;	/* target port ocp slave flag */
-	u32 PAD[11];
-	u32 sbtmerrloga;	/* (sonics >= 2.3) */
-	u32 PAD;
-	u32 sbtmerrlog;	/* (sonics >= 2.3) */
-	u32 PAD[3];
-	u32 sbadmatch3;	/* address match3 */
-	u32 PAD;
-	u32 sbadmatch2;	/* address match2 */
-	u32 PAD;
-	u32 sbadmatch1;	/* address match1 */
-	u32 PAD[7];
-	u32 sbimstate;	/* initiator agent state */
-	u32 sbintvec;	/* interrupt mask */
-	u32 sbtmstatelow;	/* target state */
-	u32 sbtmstatehigh;	/* target state */
-	u32 sbbwa0;		/* bandwidth allocation table0 */
-	u32 PAD;
-	u32 sbimconfiglow;	/* initiator configuration */
-	u32 sbimconfighigh;	/* initiator configuration */
-	u32 sbadmatch0;	/* address match0 */
-	u32 PAD;
-	u32 sbtmconfiglow;	/* target configuration */
-	u32 sbtmconfighigh;	/* target configuration */
-	u32 sbbconfig;	/* broadcast configuration */
-	u32 PAD;
-	u32 sbbstate;	/* broadcast state */
-	u32 PAD[3];
-	u32 sbactcnfg;	/* activate configuration */
-	u32 PAD[3];
-	u32 sbflagst;	/* current sbflags */
-	u32 PAD[3];
-	u32 sbidlow;		/* identification */
-	u32 sbidhigh;	/* identification */
+	bool txoff;		/* Transmit flow-controlled */
 };
 
 /* clkstate */
@@ -737,7 +615,7 @@ static void pkt_align(struct sk_buff *p, int len, int align)
 }
 
 /* To check if there's window offered */
-static bool data_ok(struct brcmf_bus *bus)
+static bool data_ok(struct brcmf_sdio *bus)
 {
 	return (u8)(bus->tx_max - bus->tx_seq) != 0 &&
 	       ((u8)(bus->tx_max - bus->tx_seq) & 0x80) == 0;
@@ -748,12 +626,14 @@ static bool data_ok(struct brcmf_bus *bus)
  * adresses on the 32 bit backplane bus.
  */
 static void
-r_sdreg32(struct brcmf_bus *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
+r_sdreg32(struct brcmf_sdio *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
 {
+	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
 	*retryvar = 0;
 	do {
 		*regvar = brcmf_sdcard_reg_read(bus->sdiodev,
-				bus->ci->buscorebase + reg_offset, sizeof(u32));
+				bus->ci->c_inf[idx].base + reg_offset,
+				sizeof(u32));
 	} while (brcmf_sdcard_regfail(bus->sdiodev) &&
 		 (++(*retryvar) <= retry_limit));
 	if (*retryvar) {
@@ -766,12 +646,13 @@ r_sdreg32(struct brcmf_bus *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
 }
 
 static void
-w_sdreg32(struct brcmf_bus *bus, u32 regval, u32 reg_offset, u32 *retryvar)
+w_sdreg32(struct brcmf_sdio *bus, u32 regval, u32 reg_offset, u32 *retryvar)
 {
+	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
 	*retryvar = 0;
 	do {
 		brcmf_sdcard_reg_write(bus->sdiodev,
-				       bus->ci->buscorebase + reg_offset,
+				       bus->ci->c_inf[idx].base + reg_offset,
 				       sizeof(u32), regval);
 	} while (brcmf_sdcard_regfail(bus->sdiodev) &&
 		 (++(*retryvar) <= retry_limit));
@@ -790,14 +671,14 @@ w_sdreg32(struct brcmf_bus *bus, u32 regval, u32 reg_offset, u32 *retryvar)
 /* Packet free applicable unconditionally for sdio and sdspi.
  * Conditional if bufpool was present for gspi bus.
  */
-static void brcmf_sdbrcm_pktfree2(struct brcmf_bus *bus, struct sk_buff *pkt)
+static void brcmf_sdbrcm_pktfree2(struct brcmf_sdio *bus, struct sk_buff *pkt)
 {
 	if (bus->usebufpool)
 		brcmu_pkt_buf_free_skb(pkt);
 }
 
 /* Turn backplane clock on or off */
-static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
+static int brcmf_sdbrcm_htclk(struct brcmf_sdio *bus, bool on, bool pendok)
 {
 	int err;
 	u8 clkctl, clkreq, devctl;
@@ -812,23 +693,11 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 		clkreq =
 		    bus->alp_only ? SBSDIO_ALP_AVAIL_REQ : SBSDIO_HT_AVAIL_REQ;
 
-		if ((bus->ci->chip == BCM4329_CHIP_ID)
-		    && (bus->ci->chiprev == 0))
-			clkreq |= SBSDIO_FORCE_ALP;
-
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 				       SBSDIO_FUNC1_CHIPCLKCSR, clkreq, &err);
 		if (err) {
 			brcmf_dbg(ERROR, "HT Avail request error: %d\n", err);
 			return -EBADE;
-		}
-
-		if (pendok && ((bus->ci->buscoretype == PCMCIA_CORE_ID)
-			       && (bus->ci->buscorerev == 9))) {
-			u32 dummy, retries;
-			r_sdreg32(bus, &dummy,
-				  offsetof(struct sdpcmd_regs, clockctlstatus),
-				  &retries);
 		}
 
 		/* Check current status */
@@ -930,7 +799,7 @@ static int brcmf_sdbrcm_htclk(struct brcmf_bus *bus, bool on, bool pendok)
 }
 
 /* Change idle/active SD state */
-static int brcmf_sdbrcm_sdclk(struct brcmf_bus *bus, bool on)
+static int brcmf_sdbrcm_sdclk(struct brcmf_sdio *bus, bool on)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -943,7 +812,7 @@ static int brcmf_sdbrcm_sdclk(struct brcmf_bus *bus, bool on)
 }
 
 /* Transition SD and backplane clock readiness */
-static int brcmf_sdbrcm_clkctl(struct brcmf_bus *bus, uint target, bool pendok)
+static int brcmf_sdbrcm_clkctl(struct brcmf_sdio *bus, uint target, bool pendok)
 {
 #ifdef BCMDBG
 	uint oldstate = bus->clkstate;
@@ -999,7 +868,7 @@ static int brcmf_sdbrcm_clkctl(struct brcmf_bus *bus, uint target, bool pendok)
 	return 0;
 }
 
-static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
+static int brcmf_sdbrcm_bussleep(struct brcmf_sdio *bus, bool sleep)
 {
 	uint retries = 0;
 
@@ -1034,11 +903,9 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 			SBSDIO_FORCE_HW_CLKREQ_OFF, NULL);
 
 		/* Isolate the bus */
-		if (bus->ci->chip != BCM4329_CHIP_ID) {
-			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				SBSDIO_DEVICE_CTL,
-				SBSDIO_DEVCTL_PADS_ISO, NULL);
-		}
+		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
+			SBSDIO_DEVICE_CTL,
+			SBSDIO_DEVCTL_PADS_ISO, NULL);
 
 		/* Change state */
 		bus->sleeping = true;
@@ -1048,13 +915,6 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 
 		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 			SBSDIO_FUNC1_CHIPCLKCSR, 0, NULL);
-
-		/* Force pad isolation off if possible
-			 (in case power never toggled) */
-		if ((bus->ci->buscoretype == PCMCIA_CORE_ID)
-		    && (bus->ci->buscorerev >= 10))
-			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				SBSDIO_DEVICE_CTL, 0, NULL);
 
 		/* Make sure the controller has the bus up */
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
@@ -1080,13 +940,13 @@ static int brcmf_sdbrcm_bussleep(struct brcmf_bus *bus, bool sleep)
 	return 0;
 }
 
-static void bus_wake(struct brcmf_bus *bus)
+static void bus_wake(struct brcmf_sdio *bus)
 {
 	if (bus->sleeping)
 		brcmf_sdbrcm_bussleep(bus, false);
 }
 
-static u32 brcmf_sdbrcm_hostmail(struct brcmf_bus *bus)
+static u32 brcmf_sdbrcm_hostmail(struct brcmf_sdio *bus)
 {
 	u32 intstatus = 0;
 	u32 hmb_data;
@@ -1162,7 +1022,7 @@ static u32 brcmf_sdbrcm_hostmail(struct brcmf_bus *bus)
 	return intstatus;
 }
 
-static void brcmf_sdbrcm_rxfail(struct brcmf_bus *bus, bool abort, bool rtx)
+static void brcmf_sdbrcm_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 {
 	uint retries = 0;
 	u16 lastrbc;
@@ -1219,16 +1079,61 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_bus *bus, bool abort, bool rtx)
 
 	/* If we can't reach the device, signal failure */
 	if (err || brcmf_sdcard_regfail(bus->sdiodev))
-		bus->drvr->busstate = BRCMF_BUS_DOWN;
+		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 }
 
-static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
+/* copy a buffer into a pkt buffer chain */
+static uint brcmf_sdbrcm_glom_from_buf(struct brcmf_sdio *bus, uint len)
+{
+	uint n, ret = 0;
+	struct sk_buff *p;
+	u8 *buf;
+
+	buf = bus->dataptr;
+
+	/* copy the data */
+	skb_queue_walk(&bus->glom, p) {
+		n = min_t(uint, p->len, len);
+		memcpy(p->data, buf, n);
+		buf += n;
+		len -= n;
+		ret += n;
+		if (!len)
+			break;
+	}
+
+	return ret;
+}
+
+/* return total length of buffer chain */
+static uint brcmf_sdbrcm_glom_len(struct brcmf_sdio *bus)
+{
+	struct sk_buff *p;
+	uint total;
+
+	total = 0;
+	skb_queue_walk(&bus->glom, p)
+		total += p->len;
+	return total;
+}
+
+static void brcmf_sdbrcm_free_glom(struct brcmf_sdio *bus)
+{
+	struct sk_buff *cur, *next;
+
+	skb_queue_walk_safe(&bus->glom, cur, next) {
+		skb_unlink(cur, &bus->glom);
+		brcmu_pkt_buf_free_skb(cur);
+	}
+}
+
+static u8 brcmf_sdbrcm_rxglom(struct brcmf_sdio *bus, u8 rxseq)
 {
 	u16 dlen, totlen;
 	u8 *dptr, num = 0;
 
 	u16 sublen, check;
-	struct sk_buff *pfirst, *plast, *pnext, *save_pfirst;
+	struct sk_buff *pfirst, *pnext;
 
 	int errcode;
 	u8 chan, seq, doff, sfdoff;
@@ -1240,11 +1145,12 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 	/* If packets, issue read(s) and send up packet chain */
 	/* Return sequence numbers consumed? */
 
-	brcmf_dbg(TRACE, "start: glomd %p glom %p\n", bus->glomd, bus->glom);
+	brcmf_dbg(TRACE, "start: glomd %p glom %p\n",
+		  bus->glomd, skb_peek(&bus->glom));
 
 	/* If there's a descriptor, generate the packet chain */
 	if (bus->glomd) {
-		pfirst = plast = pnext = NULL;
+		pfirst = pnext = NULL;
 		dlen = (u16) (bus->glomd->len);
 		dptr = bus->glomd->data;
 		if (!dlen || (dlen & 1)) {
@@ -1287,12 +1193,7 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 					  num, sublen);
 				break;
 			}
-			if (!pfirst) {
-				pfirst = plast = pnext;
-			} else {
-				plast->next = pnext;
-				plast = pnext;
-			}
+			skb_queue_tail(&bus->glom, pnext);
 
 			/* Adhere to start alignment requirements */
 			pkt_align(pnext, sublen, BRCMF_SDALIGN);
@@ -1308,12 +1209,9 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 				brcmf_dbg(GLOM, "glomdesc mismatch: nextlen %d glomdesc %d rxseq %d\n",
 					  bus->nextlen, totlen, rxseq);
 			}
-			bus->glom = pfirst;
 			pfirst = pnext = NULL;
 		} else {
-			if (pfirst)
-				brcmu_pkt_buf_free_skb(pfirst);
-			bus->glom = NULL;
+			brcmf_sdbrcm_free_glom(bus);
 			num = 0;
 		}
 
@@ -1325,37 +1223,33 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 
 	/* Ok -- either we just generated a packet chain,
 		 or had one from before */
-	if (bus->glom) {
+	if (!skb_queue_empty(&bus->glom)) {
 		if (BRCMF_GLOM_ON()) {
 			brcmf_dbg(GLOM, "try superframe read, packet chain:\n");
-			for (pnext = bus->glom; pnext; pnext = pnext->next) {
+			skb_queue_walk(&bus->glom, pnext) {
 				brcmf_dbg(GLOM, "    %p: %p len 0x%04x (%d)\n",
 					  pnext, (u8 *) (pnext->data),
 					  pnext->len, pnext->len);
 			}
 		}
 
-		pfirst = bus->glom;
-		dlen = (u16) brcmu_pkttotlen(pfirst);
+		pfirst = skb_peek(&bus->glom);
+		dlen = (u16) brcmf_sdbrcm_glom_len(bus);
 
 		/* Do an SDIO read for the superframe.  Configurable iovar to
 		 * read directly into the chained packet, or allocate a large
 		 * packet and and copy into the chain.
 		 */
 		if (usechain) {
-			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
+			errcode = brcmf_sdcard_recv_chain(bus->sdiodev,
 					bus->sdiodev->sbwad,
-					SDIO_FUNC_2,
-					F2SYNC, (u8 *) pfirst->data, dlen,
-					pfirst);
+					SDIO_FUNC_2, F2SYNC, &bus->glom);
 		} else if (bus->dataptr) {
 			errcode = brcmf_sdcard_recv_buf(bus->sdiodev,
 					bus->sdiodev->sbwad,
-					SDIO_FUNC_2,
-					F2SYNC, bus->dataptr, dlen,
-					NULL);
-			sublen = (u16) brcmu_pktfrombuf(pfirst, 0, dlen,
-						bus->dataptr);
+					SDIO_FUNC_2, F2SYNC,
+					bus->dataptr, dlen);
+			sublen = (u16) brcmf_sdbrcm_glom_from_buf(bus, dlen);
 			if (sublen != dlen) {
 				brcmf_dbg(ERROR, "FAILED TO COPY, dlen %d sublen %d\n",
 					  dlen, sublen);
@@ -1373,16 +1267,15 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		if (errcode < 0) {
 			brcmf_dbg(ERROR, "glom read of %d bytes failed: %d\n",
 				  dlen, errcode);
-			bus->drvr->rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 
 			if (bus->glomerr++ < 3) {
 				brcmf_sdbrcm_rxfail(bus, true, true);
 			} else {
 				bus->glomerr = 0;
 				brcmf_sdbrcm_rxfail(bus, true, false);
-				brcmu_pkt_buf_free_skb(bus->glom);
 				bus->rxglomfail++;
-				bus->glom = NULL;
+				brcmf_sdbrcm_free_glom(bus);
 			}
 			return 0;
 		}
@@ -1455,10 +1348,14 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 		/* Remove superframe header, remember offset */
 		skb_pull(pfirst, doff);
 		sfdoff = doff;
+		num = 0;
 
 		/* Validate all the subframe headers */
-		for (num = 0, pnext = pfirst; pnext && !errcode;
-		     num++, pnext = pnext->next) {
+		skb_queue_walk(&bus->glom, pnext) {
+			/* leave when invalid subframe is found */
+			if (errcode)
+				break;
+
 			dptr = (u8 *) (pnext->data);
 			dlen = (u16) (pnext->len);
 			sublen = get_unaligned_le16(dptr);
@@ -1491,6 +1388,8 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 					  num, doff, sublen, SDPCM_HDRLEN);
 				errcode = -1;
 			}
+			/* increase the subframe count */
+			num++;
 		}
 
 		if (errcode) {
@@ -1503,23 +1402,16 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			} else {
 				bus->glomerr = 0;
 				brcmf_sdbrcm_rxfail(bus, true, false);
-				brcmu_pkt_buf_free_skb(bus->glom);
 				bus->rxglomfail++;
-				bus->glom = NULL;
+				brcmf_sdbrcm_free_glom(bus);
 			}
 			bus->nextlen = 0;
 			return 0;
 		}
 
 		/* Basic SD framing looks ok - process each packet (header) */
-		save_pfirst = pfirst;
-		bus->glom = NULL;
-		plast = NULL;
 
-		for (num = 0; pfirst; rxseq++, pfirst = pnext) {
-			pnext = pfirst->next;
-			pfirst->next = NULL;
-
+		skb_queue_walk_safe(&bus->glom, pfirst, pnext) {
 			dptr = (u8 *) (pfirst->data);
 			sublen = get_unaligned_le16(dptr);
 			chan = SDPCM_PACKET_CHANNEL(&dptr[SDPCM_FRAMETAG_LEN]);
@@ -1539,6 +1431,8 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 				bus->rx_badseq++;
 				rxseq = seq;
 			}
+			rxseq++;
+
 #ifdef BCMDBG
 			if (BRCMF_BYTES_ON() && BRCMF_DATA_ON()) {
 				printk(KERN_DEBUG "Rx Subframe Data:\n");
@@ -1551,36 +1445,22 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			skb_pull(pfirst, doff);
 
 			if (pfirst->len == 0) {
+				skb_unlink(pfirst, &bus->glom);
 				brcmu_pkt_buf_free_skb(pfirst);
-				if (plast)
-					plast->next = pnext;
-				else
-					save_pfirst = pnext;
-
 				continue;
-			} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx,
-						       pfirst) != 0) {
+			} else if (brcmf_proto_hdrpull(bus->sdiodev->dev,
+						       &ifidx, pfirst) != 0) {
 				brcmf_dbg(ERROR, "rx protocol error\n");
-				bus->drvr->rx_errors++;
+				bus->sdiodev->bus_if->dstats.rx_errors++;
+				skb_unlink(pfirst, &bus->glom);
 				brcmu_pkt_buf_free_skb(pfirst);
-				if (plast)
-					plast->next = pnext;
-				else
-					save_pfirst = pnext;
-
 				continue;
 			}
-
-			/* this packet will go up, link back into
-				 chain and count it */
-			pfirst->next = pnext;
-			plast = pfirst;
-			num++;
 
 #ifdef BCMDBG
 			if (BRCMF_GLOM_ON()) {
 				brcmf_dbg(GLOM, "subframe %d to stack, %p (%p/%d) nxt/lnk %p/%p\n",
-					  num, pfirst, pfirst->data,
+					  bus->glom.qlen, pfirst, pfirst->data,
 					  pfirst->len, pfirst->next,
 					  pfirst->prev);
 				print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
@@ -1589,19 +1469,20 @@ static u8 brcmf_sdbrcm_rxglom(struct brcmf_bus *bus, u8 rxseq)
 			}
 #endif				/* BCMDBG */
 		}
-		if (num) {
+		/* sent any remaining packets up */
+		if (bus->glom.qlen) {
 			up(&bus->sdsem);
-			brcmf_rx_frame(bus->drvr, ifidx, save_pfirst, num);
+			brcmf_rx_frame(bus->sdiodev->dev, ifidx, &bus->glom);
 			down(&bus->sdsem);
 		}
 
 		bus->rxglomframes++;
-		bus->rxglompkts += num;
+		bus->rxglompkts += bus->glom.qlen;
 	}
 	return num;
 }
 
-static int brcmf_sdbrcm_dcmd_resp_wait(struct brcmf_bus *bus, uint *condition,
+static int brcmf_sdbrcm_dcmd_resp_wait(struct brcmf_sdio *bus, uint *condition,
 					bool *pending)
 {
 	DECLARE_WAITQUEUE(wait, current);
@@ -1623,7 +1504,7 @@ static int brcmf_sdbrcm_dcmd_resp_wait(struct brcmf_bus *bus, uint *condition,
 	return timeout;
 }
 
-static int brcmf_sdbrcm_dcmd_resp_wake(struct brcmf_bus *bus)
+static int brcmf_sdbrcm_dcmd_resp_wake(struct brcmf_sdio *bus)
 {
 	if (waitqueue_active(&bus->dcmd_resp_wait))
 		wake_up_interruptible(&bus->dcmd_resp_wait);
@@ -1631,7 +1512,7 @@ static int brcmf_sdbrcm_dcmd_resp_wake(struct brcmf_bus *bus)
 	return 0;
 }
 static void
-brcmf_sdbrcm_read_control(struct brcmf_bus *bus, u8 *hdr, uint len, uint doff)
+brcmf_sdbrcm_read_control(struct brcmf_sdio *bus, u8 *hdr, uint len, uint doff)
 {
 	uint rdlen, pad;
 
@@ -1657,7 +1538,7 @@ brcmf_sdbrcm_read_control(struct brcmf_bus *bus, u8 *hdr, uint len, uint doff)
 	if (bus->roundup && bus->blocksize && (rdlen > bus->blocksize)) {
 		pad = bus->blocksize - (rdlen % bus->blocksize);
 		if ((pad <= bus->roundup) && (pad < bus->blocksize) &&
-		    ((len + pad) < bus->drvr->maxctl))
+		    ((len + pad) < bus->sdiodev->bus_if->maxctl))
 			rdlen += pad;
 	} else if (rdlen % BRCMF_SDALIGN) {
 		rdlen += BRCMF_SDALIGN - (rdlen % BRCMF_SDALIGN);
@@ -1668,18 +1549,18 @@ brcmf_sdbrcm_read_control(struct brcmf_bus *bus, u8 *hdr, uint len, uint doff)
 		rdlen = roundup(rdlen, ALIGNMENT);
 
 	/* Drop if the read is too big or it exceeds our maximum */
-	if ((rdlen + BRCMF_FIRSTREAD) > bus->drvr->maxctl) {
+	if ((rdlen + BRCMF_FIRSTREAD) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_dbg(ERROR, "%d-byte control read exceeds %d-byte buffer\n",
-			  rdlen, bus->drvr->maxctl);
-		bus->drvr->rx_errors++;
+			  rdlen, bus->sdiodev->bus_if->maxctl);
+		bus->sdiodev->bus_if->dstats.rx_errors++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		goto done;
 	}
 
-	if ((len - doff) > bus->drvr->maxctl) {
+	if ((len - doff) > bus->sdiodev->bus_if->maxctl) {
 		brcmf_dbg(ERROR, "%d-byte ctl frame (%d-byte ctl data) exceeds %d-byte limit\n",
-			  len, len - doff, bus->drvr->maxctl);
-		bus->drvr->rx_errors++;
+			  len, len - doff, bus->sdiodev->bus_if->maxctl);
+		bus->sdiodev->bus_if->dstats.rx_errors++;
 		bus->rx_toolong++;
 		brcmf_sdbrcm_rxfail(bus, false, false);
 		goto done;
@@ -1689,8 +1570,7 @@ brcmf_sdbrcm_read_control(struct brcmf_bus *bus, u8 *hdr, uint len, uint doff)
 	sdret = brcmf_sdcard_recv_buf(bus->sdiodev,
 				bus->sdiodev->sbwad,
 				SDIO_FUNC_2,
-				F2SYNC, (bus->rxctl + BRCMF_FIRSTREAD), rdlen,
-				NULL);
+				F2SYNC, (bus->rxctl + BRCMF_FIRSTREAD), rdlen);
 	bus->f2rxdata++;
 
 	/* Control frame failures need retransmission */
@@ -1721,7 +1601,7 @@ done:
 }
 
 /* Pad read to blocksize for efficiency */
-static void brcmf_pad(struct brcmf_bus *bus, u16 *pad, u16 *rdlen)
+static void brcmf_pad(struct brcmf_sdio *bus, u16 *pad, u16 *rdlen)
 {
 	if (bus->roundup && bus->blocksize && *rdlen > bus->blocksize) {
 		*pad = bus->blocksize - (*rdlen % bus->blocksize);
@@ -1734,7 +1614,7 @@ static void brcmf_pad(struct brcmf_bus *bus, u16 *pad, u16 *rdlen)
 }
 
 static void
-brcmf_alloc_pkt_and_read(struct brcmf_bus *bus, u16 rdlen,
+brcmf_alloc_pkt_and_read(struct brcmf_sdio *bus, u16 rdlen,
 			 struct sk_buff **pkt, u8 **rxbuf)
 {
 	int sdret;		/* Return code from calls */
@@ -1746,16 +1626,15 @@ brcmf_alloc_pkt_and_read(struct brcmf_bus *bus, u16 rdlen,
 	pkt_align(*pkt, rdlen, BRCMF_SDALIGN);
 	*rxbuf = (u8 *) ((*pkt)->data);
 	/* Read the entire frame */
-	sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
-				      SDIO_FUNC_2, F2SYNC,
-				      *rxbuf, rdlen, *pkt);
+	sdret = brcmf_sdcard_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
+				      SDIO_FUNC_2, F2SYNC, *pkt);
 	bus->f2rxdata++;
 
 	if (sdret < 0) {
 		brcmf_dbg(ERROR, "(nextlen): read %d bytes failed: %d\n",
 			  rdlen, sdret);
 		brcmu_pkt_buf_free_skb(*pkt);
-		bus->drvr->rx_errors++;
+		bus->sdiodev->bus_if->dstats.rx_errors++;
 		/* Force retry w/normal header read.
 		 * Don't attempt NAK for
 		 * gSPI
@@ -1767,7 +1646,7 @@ brcmf_alloc_pkt_and_read(struct brcmf_bus *bus, u16 rdlen,
 
 /* Checks the header */
 static int
-brcmf_check_rxbuf(struct brcmf_bus *bus, struct sk_buff *pkt, u8 *rxbuf,
+brcmf_check_rxbuf(struct brcmf_sdio *bus, struct sk_buff *pkt, u8 *rxbuf,
 		  u8 rxseq, u16 nextlen, u16 *len)
 {
 	u16 check;
@@ -1823,7 +1702,7 @@ fail:
 
 /* Return true if there may be more frames to read */
 static uint
-brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
+brcmf_sdbrcm_readframes(struct brcmf_sdio *bus, uint maxframes, bool *finished)
 {
 	u16 len, check;	/* Extracted hardware header fields */
 	u8 chan, seq, doff;	/* Extracted software header fields */
@@ -1846,14 +1725,15 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 	*finished = false;
 
 	for (rxseq = bus->rx_seq, rxleft = maxframes;
-	     !bus->rxskip && rxleft && bus->drvr->busstate != BRCMF_BUS_DOWN;
+	     !bus->rxskip && rxleft &&
+	     bus->sdiodev->bus_if->state != BRCMF_BUS_DOWN;
 	     rxseq++, rxleft--) {
 
 		/* Handle glomming separately */
-		if (bus->glom || bus->glomd) {
+		if (bus->glomd || !skb_queue_empty(&bus->glom)) {
 			u8 cnt;
 			brcmf_dbg(GLOM, "calling rxglom: glomd %p, glom %p\n",
-				  bus->glomd, bus->glom);
+				  bus->glomd, skb_peek(&bus->glom));
 			cnt = brcmf_sdbrcm_rxglom(bus, rxseq);
 			brcmf_dbg(GLOM, "rxglom returned %d\n", cnt);
 			rxseq += cnt - 1;
@@ -1905,7 +1785,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 				bus->nextlen = 0;
 			}
 
-			bus->drvr->rx_readahead_cnt++;
+			bus->rx_readahead_cnt++;
 
 			/* Handle Flow Control */
 			fcbits = SDPCM_FCMASK_VALUE(
@@ -1976,7 +1856,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 		/* Read frame header (hardware and software) */
 		sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
 					      SDIO_FUNC_2, F2SYNC, bus->rxhdr,
-					      BRCMF_FIRSTREAD, NULL);
+					      BRCMF_FIRSTREAD);
 		bus->f2rxhdrs++;
 
 		if (sdret < 0) {
@@ -2103,7 +1983,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 			/* Too long -- skip this frame */
 			brcmf_dbg(ERROR, "too long: len %d rdlen %d\n",
 				  len, rdlen);
-			bus->drvr->rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 			bus->rx_toolong++;
 			brcmf_sdbrcm_rxfail(bus, false, false);
 			continue;
@@ -2115,7 +1995,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 			/* Give up on data, request rtx of events */
 			brcmf_dbg(ERROR, "brcmu_pkt_buf_get_skb failed: rdlen %d chan %d\n",
 				  rdlen, chan);
-			bus->drvr->rx_dropped++;
+			bus->sdiodev->bus_if->dstats.rx_dropped++;
 			brcmf_sdbrcm_rxfail(bus, false, RETRYCHAN(chan));
 			continue;
 		}
@@ -2125,9 +2005,8 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 		pkt_align(pkt, rdlen, BRCMF_SDALIGN);
 
 		/* Read the remaining frame data */
-		sdret = brcmf_sdcard_recv_buf(bus->sdiodev, bus->sdiodev->sbwad,
-				SDIO_FUNC_2, F2SYNC, ((u8 *) (pkt->data)),
-				rdlen, pkt);
+		sdret = brcmf_sdcard_recv_pkt(bus->sdiodev, bus->sdiodev->sbwad,
+					      SDIO_FUNC_2, F2SYNC, pkt);
 		bus->f2rxdata++;
 
 		if (sdret < 0) {
@@ -2136,7 +2015,7 @@ brcmf_sdbrcm_readframes(struct brcmf_bus *bus, uint maxframes, bool *finished)
 				   : ((chan == SDPCM_DATA_CHANNEL) ? "data"
 				      : "test")), sdret);
 			brcmu_pkt_buf_free_skb(pkt);
-			bus->drvr->rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 			brcmf_sdbrcm_rxfail(bus, true, RETRYCHAN(chan));
 			continue;
 		}
@@ -2185,16 +2064,17 @@ deliver:
 		if (pkt->len == 0) {
 			brcmu_pkt_buf_free_skb(pkt);
 			continue;
-		} else if (brcmf_proto_hdrpull(bus->drvr, &ifidx, pkt) != 0) {
+		} else if (brcmf_proto_hdrpull(bus->sdiodev->dev, &ifidx,
+			   pkt) != 0) {
 			brcmf_dbg(ERROR, "rx protocol error\n");
 			brcmu_pkt_buf_free_skb(pkt);
-			bus->drvr->rx_errors++;
+			bus->sdiodev->bus_if->dstats.rx_errors++;
 			continue;
 		}
 
 		/* Unlock during rx call */
 		up(&bus->sdsem);
-		brcmf_rx_frame(bus->drvr, ifidx, pkt, 1);
+		brcmf_rx_packet(bus->sdiodev->dev, ifidx, pkt);
 		down(&bus->sdsem);
 	}
 	rxcount = maxframes - rxleft;
@@ -2214,16 +2094,8 @@ deliver:
 	return rxcount;
 }
 
-static int
-brcmf_sdbrcm_send_buf(struct brcmf_bus *bus, u32 addr, uint fn, uint flags,
-		    u8 *buf, uint nbytes, struct sk_buff *pkt)
-{
-	return brcmf_sdcard_send_buf
-		(bus->sdiodev, addr, fn, flags, buf, nbytes, pkt);
-}
-
 static void
-brcmf_sdbrcm_wait_for_event(struct brcmf_bus *bus, bool *lockvar)
+brcmf_sdbrcm_wait_for_event(struct brcmf_sdio *bus, bool *lockvar)
 {
 	up(&bus->sdsem);
 	wait_event_interruptible_timeout(bus->ctrl_wait,
@@ -2233,7 +2105,7 @@ brcmf_sdbrcm_wait_for_event(struct brcmf_bus *bus, bool *lockvar)
 }
 
 static void
-brcmf_sdbrcm_wait_event_wakeup(struct brcmf_bus *bus)
+brcmf_sdbrcm_wait_event_wakeup(struct brcmf_sdio *bus)
 {
 	if (waitqueue_active(&bus->ctrl_wait))
 		wake_up_interruptible(&bus->ctrl_wait);
@@ -2242,7 +2114,7 @@ brcmf_sdbrcm_wait_event_wakeup(struct brcmf_bus *bus)
 
 /* Writes a HW/SW header into the packet and sends it. */
 /* Assumes: (a) header space already there, (b) caller holds lock */
-static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
+static int brcmf_sdbrcm_txpkt(struct brcmf_sdio *bus, struct sk_buff *pkt,
 			      uint chan, bool free_pkt)
 {
 	int ret;
@@ -2262,7 +2134,7 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
 		if (skb_headroom(pkt) < pad) {
 			brcmf_dbg(INFO, "insufficient headroom %d for %d pad\n",
 				  skb_headroom(pkt), pad);
-			bus->drvr->tx_realloc++;
+			bus->sdiodev->bus_if->tx_realloc++;
 			new = brcmu_pkt_buf_get_skb(pkt->len + BRCMF_SDALIGN);
 			if (!new) {
 				brcmf_dbg(ERROR, "couldn't allocate new %d-byte packet\n",
@@ -2331,9 +2203,8 @@ static int brcmf_sdbrcm_txpkt(struct brcmf_bus *bus, struct sk_buff *pkt,
 	if (len & (ALIGNMENT - 1))
 			len = roundup(len, ALIGNMENT);
 
-	ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
-				    SDIO_FUNC_2, F2SYNC, frame,
-				    len, pkt);
+	ret = brcmf_sdcard_send_pkt(bus->sdiodev, bus->sdiodev->sbwad,
+				    SDIO_FUNC_2, F2SYNC, pkt);
 	bus->f2txdata++;
 
 	if (ret < 0) {
@@ -2371,7 +2242,7 @@ done:
 	/* restore pkt buffer pointer before calling tx complete routine */
 	skb_pull(pkt, SDPCM_HDRLEN + pad);
 	up(&bus->sdsem);
-	brcmf_txcomplete(bus->drvr, pkt, ret != 0);
+	brcmf_txcomplete(bus->sdiodev->dev, pkt, ret != 0);
 	down(&bus->sdsem);
 
 	if (free_pkt)
@@ -2380,7 +2251,7 @@ done:
 	return ret;
 }
 
-static uint brcmf_sdbrcm_sendfromq(struct brcmf_bus *bus, uint maxframes)
+static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 {
 	struct sk_buff *pkt;
 	u32 intstatus = 0;
@@ -2389,8 +2260,6 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_bus *bus, uint maxframes)
 	uint cnt = 0;
 	uint datalen;
 	u8 tx_prec_map;
-
-	struct brcmf_pub *drvr = bus->drvr;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -2409,9 +2278,9 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_bus *bus, uint maxframes)
 
 		ret = brcmf_sdbrcm_txpkt(bus, pkt, SDPCM_DATA_CHANNEL, true);
 		if (ret)
-			bus->drvr->tx_errors++;
+			bus->sdiodev->bus_if->dstats.tx_errors++;
 		else
-			bus->drvr->dstats.tx_bytes += datalen;
+			bus->sdiodev->bus_if->dstats.tx_bytes += datalen;
 
 		/* In poll mode, need to check for other events */
 		if (!bus->intr && cnt) {
@@ -2428,14 +2297,98 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_bus *bus, uint maxframes)
 	}
 
 	/* Deflow-control stack if needed */
-	if (drvr->up && (drvr->busstate == BRCMF_BUS_DATA) &&
-	    drvr->txoff && (pktq_len(&bus->txq) < TXLOW))
-		brcmf_txflowcontrol(drvr, 0, OFF);
+	if (bus->sdiodev->bus_if->drvr_up &&
+	    (bus->sdiodev->bus_if->state == BRCMF_BUS_DATA) &&
+	    bus->txoff && (pktq_len(&bus->txq) < TXLOW)) {
+		bus->txoff = OFF;
+		brcmf_txflowcontrol(bus->sdiodev->dev, 0, OFF);
+	}
 
 	return cnt;
 }
 
-static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
+static void brcmf_sdbrcm_bus_stop(struct device *dev)
+{
+	u32 local_hostintmask;
+	u8 saveclk;
+	uint retries;
+	int err;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio *bus = sdiodev->bus;
+
+	brcmf_dbg(TRACE, "Enter\n");
+
+	if (bus->watchdog_tsk) {
+		send_sig(SIGTERM, bus->watchdog_tsk, 1);
+		kthread_stop(bus->watchdog_tsk);
+		bus->watchdog_tsk = NULL;
+	}
+
+	if (bus->dpc_tsk && bus->dpc_tsk != current) {
+		send_sig(SIGTERM, bus->dpc_tsk, 1);
+		kthread_stop(bus->dpc_tsk);
+		bus->dpc_tsk = NULL;
+	}
+
+	down(&bus->sdsem);
+
+	bus_wake(bus);
+
+	/* Enable clock for device interrupts */
+	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
+
+	/* Disable and clear interrupts at the chip level also */
+	w_sdreg32(bus, 0, offsetof(struct sdpcmd_regs, hostintmask), &retries);
+	local_hostintmask = bus->hostintmask;
+	bus->hostintmask = 0;
+
+	/* Change our idea of bus state */
+	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
+
+	/* Force clocks on backplane to be sure F2 interrupt propagates */
+	saveclk = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
+					SBSDIO_FUNC1_CHIPCLKCSR, &err);
+	if (!err) {
+		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
+				       SBSDIO_FUNC1_CHIPCLKCSR,
+				       (saveclk | SBSDIO_FORCE_HT), &err);
+	}
+	if (err)
+		brcmf_dbg(ERROR, "Failed to force clock for F2: err %d\n", err);
+
+	/* Turn off the bus (F2), free any pending packets */
+	brcmf_dbg(INTR, "disable SDIO interrupts\n");
+	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
+			 SDIO_FUNC_ENABLE_1, NULL);
+
+	/* Clear any pending interrupts now that F2 is disabled */
+	w_sdreg32(bus, local_hostintmask,
+		  offsetof(struct sdpcmd_regs, intstatus), &retries);
+
+	/* Turn off the backplane clock (only) */
+	brcmf_sdbrcm_clkctl(bus, CLK_SDONLY, false);
+
+	/* Clear the data packet queues */
+	brcmu_pktq_flush(&bus->txq, true, NULL, NULL);
+
+	/* Clear any held glomming stuff */
+	if (bus->glomd)
+		brcmu_pkt_buf_free_skb(bus->glomd);
+	brcmf_sdbrcm_free_glom(bus);
+
+	/* Clear rx control and wake any waiters */
+	bus->rxlen = 0;
+	brcmf_sdbrcm_dcmd_resp_wake(bus);
+
+	/* Reset some F2 state stuff */
+	bus->rxskip = false;
+	bus->tx_seq = bus->rx_seq = 0;
+
+	up(&bus->sdsem);
+}
+
+static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 {
 	u32 intstatus, newstatus = 0;
 	uint retries = 0;
@@ -2463,7 +2416,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 					       SBSDIO_DEVICE_CTL, &err);
 		if (err) {
 			brcmf_dbg(ERROR, "error reading DEVCTL: %d\n", err);
-			bus->drvr->busstate = BRCMF_BUS_DOWN;
+			bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		}
 #endif				/* BCMDBG */
 
@@ -2473,7 +2426,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 		if (err) {
 			brcmf_dbg(ERROR, "error reading CSR: %d\n",
 				  err);
-			bus->drvr->busstate = BRCMF_BUS_DOWN;
+			bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		}
 
 		brcmf_dbg(INFO, "DPC: PENDING, devctl 0x%02x clkctl 0x%02x\n",
@@ -2486,7 +2439,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 			if (err) {
 				brcmf_dbg(ERROR, "error reading DEVCTL: %d\n",
 					  err);
-				bus->drvr->busstate = BRCMF_BUS_DOWN;
+				bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 			}
 			devctl &= ~SBSDIO_DEVCTL_CA_INT_ONLY;
 			brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
@@ -2494,7 +2447,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_bus *bus)
 			if (err) {
 				brcmf_dbg(ERROR, "error writing DEVCTL: %d\n",
 					  err);
-				bus->drvr->busstate = BRCMF_BUS_DOWN;
+				bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 			}
 			bus->clkstate = CLK_AVAIL;
 		} else {
@@ -2596,9 +2549,9 @@ clkwait:
 		(bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
 
-		ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
+		ret = brcmf_sdcard_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
 			SDIO_FUNC_2, F2SYNC, (u8 *) bus->ctrl_frame_buf,
-			(u32) bus->ctrl_frame_len, NULL);
+			(u32) bus->ctrl_frame_len);
 
 		if (ret < 0) {
 			/* On failure, abort the command and
@@ -2650,11 +2603,11 @@ clkwait:
 		 else await next interrupt */
 	/* On failed register access, all bets are off:
 		 no resched or interrupts */
-	if ((bus->drvr->busstate == BRCMF_BUS_DOWN) ||
+	if ((bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) ||
 	    brcmf_sdcard_regfail(bus->sdiodev)) {
 		brcmf_dbg(ERROR, "failed backplane access over SDIO, halting operation %d\n",
 			  brcmf_sdcard_regfail(bus->sdiodev));
-		bus->drvr->busstate = BRCMF_BUS_DOWN;
+		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		bus->intstatus = 0;
 	} else if (bus->clkstate == CLK_PENDING) {
 		brcmf_dbg(INFO, "rescheduled due to CLK_PENDING awaiting I_CHIPACTIVE interrupt\n");
@@ -2681,7 +2634,7 @@ clkwait:
 
 static int brcmf_sdbrcm_dpc_thread(void *data)
 {
-	struct brcmf_bus *bus = (struct brcmf_bus *) data;
+	struct brcmf_sdio *bus = (struct brcmf_sdio *) data;
 
 	allow_signal(SIGTERM);
 	/* Run until signal received */
@@ -2691,12 +2644,12 @@ static int brcmf_sdbrcm_dpc_thread(void *data)
 		if (!wait_for_completion_interruptible(&bus->dpc_wait)) {
 			/* Call bus dpc unless it indicated down
 			(then clean stop) */
-			if (bus->drvr->busstate != BRCMF_BUS_DOWN) {
+			if (bus->sdiodev->bus_if->state != BRCMF_BUS_DOWN) {
 				if (brcmf_sdbrcm_dpc(bus))
 					complete(&bus->dpc_wait);
 			} else {
 				/* after stopping the bus, exit thread */
-				brcmf_sdbrcm_bus_stop(bus);
+				brcmf_sdbrcm_bus_stop(bus->sdiodev->dev);
 				bus->dpc_tsk = NULL;
 				break;
 			}
@@ -2706,10 +2659,13 @@ static int brcmf_sdbrcm_dpc_thread(void *data)
 	return 0;
 }
 
-int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *pkt)
+static int brcmf_sdbrcm_bus_txdata(struct device *dev, struct sk_buff *pkt)
 {
 	int ret = -EBADE;
 	uint datalen, prec;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -2728,9 +2684,10 @@ int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *pkt)
 
 	/* Priority based enq */
 	spin_lock_bh(&bus->txqlock);
-	if (brcmf_c_prec_enq(bus->drvr, &bus->txq, pkt, prec) == false) {
+	if (brcmf_c_prec_enq(bus->sdiodev->dev, &bus->txq, pkt, prec) ==
+	    false) {
 		skb_pull(pkt, SDPCM_HDRLEN);
-		brcmf_txcomplete(bus->drvr, pkt, false);
+		brcmf_txcomplete(bus->sdiodev->dev, pkt, false);
 		brcmu_pkt_buf_free_skb(pkt);
 		brcmf_dbg(ERROR, "out of bus->txq !!!\n");
 		ret = -ENOSR;
@@ -2739,8 +2696,10 @@ int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *pkt)
 	}
 	spin_unlock_bh(&bus->txqlock);
 
-	if (pktq_len(&bus->txq) >= TXHI)
-		brcmf_txflowcontrol(bus->drvr, 0, ON);
+	if (pktq_len(&bus->txq) >= TXHI) {
+		bus->txoff = ON;
+		brcmf_txflowcontrol(bus->sdiodev->dev, 0, ON);
+	}
 
 #ifdef BCMDBG
 	if (pktq_plen(&bus->txq, prec) > qcount[prec])
@@ -2757,7 +2716,7 @@ int brcmf_sdbrcm_bus_txdata(struct brcmf_bus *bus, struct sk_buff *pkt)
 }
 
 static int
-brcmf_sdbrcm_membytes(struct brcmf_bus *bus, bool write, u32 address, u8 *data,
+brcmf_sdbrcm_membytes(struct brcmf_sdio *bus, bool write, u32 address, u8 *data,
 		 uint size)
 {
 	int bcmerror = 0;
@@ -2818,7 +2777,7 @@ xfer_done:
 #ifdef BCMDBG
 #define CONSOLE_LINE_MAX	192
 
-static int brcmf_sdbrcm_readconsole(struct brcmf_bus *bus)
+static int brcmf_sdbrcm_readconsole(struct brcmf_sdio *bus)
 {
 	struct brcmf_console *c = &bus->console;
 	u8 line[CONSOLE_LINE_MAX], ch;
@@ -2895,14 +2854,14 @@ break2:
 }
 #endif				/* BCMDBG */
 
-static int brcmf_tx_frame(struct brcmf_bus *bus, u8 *frame, u16 len)
+static int brcmf_tx_frame(struct brcmf_sdio *bus, u8 *frame, u16 len)
 {
 	int i;
 	int ret;
 
 	bus->ctrl_frame_stat = false;
-	ret = brcmf_sdbrcm_send_buf(bus, bus->sdiodev->sbwad,
-				    SDIO_FUNC_2, F2SYNC, frame, len, NULL);
+	ret = brcmf_sdcard_send_buf(bus->sdiodev, bus->sdiodev->sbwad,
+				    SDIO_FUNC_2, F2SYNC, frame, len);
 
 	if (ret < 0) {
 		/* On failure, abort the command and terminate the frame */
@@ -2937,8 +2896,8 @@ static int brcmf_tx_frame(struct brcmf_bus *bus, u8 *frame, u16 len)
 	return ret;
 }
 
-int
-brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
+static int
+brcmf_sdbrcm_bus_txctl(struct device *dev, unsigned char *msg, uint msglen)
 {
 	u8 *frame;
 	u16 len;
@@ -2946,6 +2905,9 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	uint retries = 0;
 	u8 doff = 0;
 	int ret = -1;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3045,19 +3007,22 @@ brcmf_sdbrcm_bus_txctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	up(&bus->sdsem);
 
 	if (ret)
-		bus->drvr->tx_ctlerrs++;
+		bus->tx_ctlerrs++;
 	else
-		bus->drvr->tx_ctlpkts++;
+		bus->tx_ctlpkts++;
 
 	return ret ? -EIO : 0;
 }
 
-int
-brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
+static int
+brcmf_sdbrcm_bus_rxctl(struct device *dev, unsigned char *msg, uint msglen)
 {
 	int timeleft;
 	uint rxlen = 0;
 	bool pending;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio *bus = sdiodev->bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3083,21 +3048,21 @@ brcmf_sdbrcm_bus_rxctl(struct brcmf_bus *bus, unsigned char *msg, uint msglen)
 	}
 
 	if (rxlen)
-		bus->drvr->rx_ctlpkts++;
+		bus->rx_ctlpkts++;
 	else
-		bus->drvr->rx_ctlerrs++;
+		bus->rx_ctlerrs++;
 
 	return rxlen ? (int)rxlen : -ETIMEDOUT;
 }
 
-static int brcmf_sdbrcm_downloadvars(struct brcmf_bus *bus, void *arg, int len)
+static int brcmf_sdbrcm_downloadvars(struct brcmf_sdio *bus, void *arg, int len)
 {
 	int bcmerror = 0;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* Basic sanity checks */
-	if (bus->drvr->up) {
+	if (bus->sdiodev->bus_if->drvr_up) {
 		bcmerror = -EISCONN;
 		goto err;
 	}
@@ -3123,7 +3088,7 @@ err:
 	return bcmerror;
 }
 
-static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
+static int brcmf_sdbrcm_write_vars(struct brcmf_sdio *bus)
 {
 	int bcmerror = 0;
 	u32 varsize;
@@ -3154,8 +3119,10 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 		/* Verify NVRAM bytes */
 		brcmf_dbg(INFO, "Compare NVRAM dl & ul; varsize=%d\n", varsize);
 		nvram_ularray = kmalloc(varsize, GFP_ATOMIC);
-		if (!nvram_ularray)
+		if (!nvram_ularray) {
+			kfree(vbuffer);
 			return -ENOMEM;
+		}
 
 		/* Upload image to verify downloaded contents. */
 		memset(nvram_ularray, 0xaa, varsize);
@@ -3210,135 +3177,11 @@ static int brcmf_sdbrcm_write_vars(struct brcmf_bus *bus)
 	return bcmerror;
 }
 
-static void
-brcmf_sdbrcm_chip_disablecore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
-{
-	u32 regdata;
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(corebase, sbtmstatelow), 4);
-	if (regdata & SBTML_RESET)
-		return;
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(corebase, sbtmstatelow), 4);
-	if ((regdata & (SICF_CLOCK_EN << SBTML_SICF_SHIFT)) != 0) {
-		/*
-		 * set target reject and spin until busy is clear
-		 * (preserve core-specific bits)
-		 */
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4);
-		brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow),
-				       4, regdata | SBTML_REJ);
-
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4);
-		udelay(1);
-		SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatehigh), 4) &
-			SBTMH_BUSY), 100000);
-
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatehigh), 4);
-		if (regdata & SBTMH_BUSY)
-			brcmf_dbg(ERROR, "ARM core still busy\n");
-
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbidlow), 4);
-		if (regdata & SBIDL_INIT) {
-			regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4) |
-				SBIM_RJ;
-			brcmf_sdcard_reg_write(sdiodev,
-				CORE_SB(corebase, sbimstate), 4,
-				regdata);
-			regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4);
-			udelay(1);
-			SPINWAIT((brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4) &
-				SBIM_BY), 100000);
-		}
-
-		/* set reset and reject while enabling the clocks */
-		brcmf_sdcard_reg_write(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4,
-			(((SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
-			SBTML_REJ | SBTML_RESET));
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbtmstatelow), 4);
-		udelay(10);
-
-		/* clear the initiator reject bit */
-		regdata = brcmf_sdcard_reg_read(sdiodev,
-			CORE_SB(corebase, sbidlow), 4);
-		if (regdata & SBIDL_INIT) {
-			regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_SB(corebase, sbimstate), 4) &
-				~SBIM_RJ;
-			brcmf_sdcard_reg_write(sdiodev,
-				CORE_SB(corebase, sbimstate), 4,
-				regdata);
-		}
-	}
-
-	/* leave reset and reject asserted */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SBTML_REJ | SBTML_RESET));
-	udelay(1);
-}
-
-static void
-brcmf_sdbrcm_chip_resetcore(struct brcmf_sdio_dev *sdiodev, u32 corebase)
-{
-	u32 regdata;
-
-	/*
-	 * Must do the disable sequence first to work for
-	 * arbitrary current core state.
-	 */
-	brcmf_sdbrcm_chip_disablecore(sdiodev, corebase);
-
-	/*
-	 * Now do the initialization sequence.
-	 * set reset while enabling the clock and
-	 * forcing them on throughout the core
-	 */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		((SICF_FGC | SICF_CLOCK_EN) << SBTML_SICF_SHIFT) |
-		SBTML_RESET);
-	udelay(1);
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(corebase, sbtmstatehigh), 4);
-	if (regdata & SBTMH_SERR)
-		brcmf_sdcard_reg_write(sdiodev,
-				       CORE_SB(corebase, sbtmstatehigh), 4, 0);
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(corebase, sbimstate), 4);
-	if (regdata & (SBIM_IBE | SBIM_TO))
-		brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbimstate), 4,
-			regdata & ~(SBIM_IBE | SBIM_TO));
-
-	/* clear reset and allow it to propagate throughout the core */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SICF_FGC << SBTML_SICF_SHIFT) |
-		(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
-	udelay(1);
-
-	/* leave clock enabled */
-	brcmf_sdcard_reg_write(sdiodev, CORE_SB(corebase, sbtmstatelow), 4,
-		(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
-	udelay(1);
-}
-
-static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
+static int brcmf_sdbrcm_download_state(struct brcmf_sdio *bus, bool enter)
 {
 	uint retries;
-	u32 regdata;
 	int bcmerror = 0;
+	struct chip_info *ci = bus->ci;
 
 	/* To enter download state, disable ARM and reset SOCRAM.
 	 * To exit download state, simply reset ARM (default is RAM boot).
@@ -3346,10 +3189,9 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 	if (enter) {
 		bus->alp_only = true;
 
-		brcmf_sdbrcm_chip_disablecore(bus->sdiodev,
-					      bus->ci->armcorebase);
+		ci->coredisable(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
 
-		brcmf_sdbrcm_chip_resetcore(bus->sdiodev, bus->ci->ramcorebase);
+		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_INTERNAL_MEM);
 
 		/* Clear the top bit of memory */
 		if (bus->ramsize) {
@@ -3358,11 +3200,7 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 					 (u8 *)&zeros, 4);
 		}
 	} else {
-		regdata = brcmf_sdcard_reg_read(bus->sdiodev,
-			CORE_SB(bus->ci->ramcorebase, sbtmstatelow), 4);
-		regdata &= (SBTML_RESET | SBTML_REJ_MASK |
-			(SICF_CLOCK_EN << SBTML_SICF_SHIFT));
-		if ((SICF_CLOCK_EN << SBTML_SICF_SHIFT) != regdata) {
+		if (!ci->iscoreup(bus->sdiodev, ci, BCMA_CORE_INTERNAL_MEM)) {
 			brcmf_dbg(ERROR, "SOCRAM core is down after reset?\n");
 			bcmerror = -EBADE;
 			goto fail;
@@ -3377,18 +3215,18 @@ static int brcmf_sdbrcm_download_state(struct brcmf_bus *bus, bool enter)
 		w_sdreg32(bus, 0xFFFFFFFF,
 			  offsetof(struct sdpcmd_regs, intstatus), &retries);
 
-		brcmf_sdbrcm_chip_resetcore(bus->sdiodev, bus->ci->armcorebase);
+		ci->resetcore(bus->sdiodev, ci, BCMA_CORE_ARM_CM3);
 
 		/* Allow HT Clock now that the ARM is running. */
 		bus->alp_only = false;
 
-		bus->drvr->busstate = BRCMF_BUS_LOAD;
+		bus->sdiodev->bus_if->state = BRCMF_BUS_LOAD;
 	}
 fail:
 	return bcmerror;
 }
 
-static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_bus *bus)
+static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_sdio *bus)
 {
 	if (bus->firmware->size < bus->fw_ptr + len)
 		len = bus->firmware->size - bus->fw_ptr;
@@ -3398,10 +3236,7 @@ static int brcmf_sdbrcm_get_image(char *buf, int len, struct brcmf_bus *bus)
 	return len;
 }
 
-MODULE_FIRMWARE(BCM4329_FW_NAME);
-MODULE_FIRMWARE(BCM4329_NV_NAME);
-
-static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus)
+static int brcmf_sdbrcm_download_code_file(struct brcmf_sdio *bus)
 {
 	int offset = 0;
 	uint len;
@@ -3410,8 +3245,7 @@ static int brcmf_sdbrcm_download_code_file(struct brcmf_bus *bus)
 
 	brcmf_dbg(INFO, "Enter\n");
 
-	bus->fw_name = BCM4329_FW_NAME;
-	ret = request_firmware(&bus->firmware, bus->fw_name,
+	ret = request_firmware(&bus->firmware, BRCMFMAC_FW_NAME,
 			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		brcmf_dbg(ERROR, "Fail to request firmware %d\n", ret);
@@ -3501,15 +3335,14 @@ static uint brcmf_process_nvram_vars(char *varbuf, uint len)
 	return buf_len;
 }
 
-static int brcmf_sdbrcm_download_nvram(struct brcmf_bus *bus)
+static int brcmf_sdbrcm_download_nvram(struct brcmf_sdio *bus)
 {
 	uint len;
 	char *memblock = NULL;
 	char *bufp;
 	int ret;
 
-	bus->nv_name = BCM4329_NV_NAME;
-	ret = request_firmware(&bus->firmware, bus->nv_name,
+	ret = request_firmware(&bus->firmware, BRCMFMAC_NV_NAME,
 			       &bus->sdiodev->func[2]->dev);
 	if (ret) {
 		brcmf_dbg(ERROR, "Fail to request nvram %d\n", ret);
@@ -3549,7 +3382,7 @@ err:
 	return ret;
 }
 
-static int _brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus)
+static int _brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 {
 	int bcmerror = -1;
 
@@ -3582,7 +3415,7 @@ err:
 }
 
 static bool
-brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus)
+brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 {
 	bool ret;
 
@@ -3596,91 +3429,11 @@ brcmf_sdbrcm_download_firmware(struct brcmf_bus *bus)
 	return ret;
 }
 
-void brcmf_sdbrcm_bus_stop(struct brcmf_bus *bus)
+static int brcmf_sdbrcm_bus_init(struct device *dev)
 {
-	u32 local_hostintmask;
-	u8 saveclk;
-	uint retries;
-	int err;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	if (bus->watchdog_tsk) {
-		send_sig(SIGTERM, bus->watchdog_tsk, 1);
-		kthread_stop(bus->watchdog_tsk);
-		bus->watchdog_tsk = NULL;
-	}
-
-	if (bus->dpc_tsk && bus->dpc_tsk != current) {
-		send_sig(SIGTERM, bus->dpc_tsk, 1);
-		kthread_stop(bus->dpc_tsk);
-		bus->dpc_tsk = NULL;
-	}
-
-	down(&bus->sdsem);
-
-	bus_wake(bus);
-
-	/* Enable clock for device interrupts */
-	brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
-
-	/* Disable and clear interrupts at the chip level also */
-	w_sdreg32(bus, 0, offsetof(struct sdpcmd_regs, hostintmask), &retries);
-	local_hostintmask = bus->hostintmask;
-	bus->hostintmask = 0;
-
-	/* Change our idea of bus state */
-	bus->drvr->busstate = BRCMF_BUS_DOWN;
-
-	/* Force clocks on backplane to be sure F2 interrupt propagates */
-	saveclk = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
-					SBSDIO_FUNC1_CHIPCLKCSR, &err);
-	if (!err) {
-		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				       SBSDIO_FUNC1_CHIPCLKCSR,
-				       (saveclk | SBSDIO_FORCE_HT), &err);
-	}
-	if (err)
-		brcmf_dbg(ERROR, "Failed to force clock for F2: err %d\n", err);
-
-	/* Turn off the bus (F2), free any pending packets */
-	brcmf_dbg(INTR, "disable SDIO interrupts\n");
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
-			 SDIO_FUNC_ENABLE_1, NULL);
-
-	/* Clear any pending interrupts now that F2 is disabled */
-	w_sdreg32(bus, local_hostintmask,
-		  offsetof(struct sdpcmd_regs, intstatus), &retries);
-
-	/* Turn off the backplane clock (only) */
-	brcmf_sdbrcm_clkctl(bus, CLK_SDONLY, false);
-
-	/* Clear the data packet queues */
-	brcmu_pktq_flush(&bus->txq, true, NULL, NULL);
-
-	/* Clear any held glomming stuff */
-	if (bus->glomd)
-		brcmu_pkt_buf_free_skb(bus->glomd);
-
-	if (bus->glom)
-		brcmu_pkt_buf_free_skb(bus->glom);
-
-	bus->glom = bus->glomd = NULL;
-
-	/* Clear rx control and wake any waiters */
-	bus->rxlen = 0;
-	brcmf_sdbrcm_dcmd_resp_wake(bus);
-
-	/* Reset some F2 state stuff */
-	bus->rxskip = false;
-	bus->tx_seq = bus->rx_seq = 0;
-
-	up(&bus->sdsem);
-}
-
-int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
-{
-	struct brcmf_bus *bus = drvr->bus;
+	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
+	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv;
+	struct brcmf_sdio *bus = sdiodev->bus;
 	unsigned long timeout;
 	uint retries = 0;
 	u8 ready, enable;
@@ -3690,16 +3443,16 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 	brcmf_dbg(TRACE, "Enter\n");
 
 	/* try to download image and nvram to the dongle */
-	if (drvr->busstate == BRCMF_BUS_DOWN) {
+	if (bus_if->state == BRCMF_BUS_DOWN) {
 		if (!(brcmf_sdbrcm_download_firmware(bus)))
 			return -1;
 	}
 
-	if (!bus->drvr)
+	if (!bus->sdiodev->bus_if->drvr)
 		return 0;
 
 	/* Start the watchdog timer */
-	bus->drvr->tickcnt = 0;
+	bus->tickcnt = 0;
 	brcmf_sdbrcm_wd_timer(bus, BRCMF_WD_POLL_MS);
 
 	down(&bus->sdsem);
@@ -3756,7 +3509,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 				       SBSDIO_WATERMARK, 8, &err);
 
 		/* Set bus state according to enable result */
-		drvr->busstate = BRCMF_BUS_DATA;
+		bus_if->state = BRCMF_BUS_DATA;
 	}
 
 	else {
@@ -3771,7 +3524,7 @@ int brcmf_sdbrcm_bus_init(struct brcmf_pub *drvr)
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
 	/* If we didn't come up, turn off backplane clock */
-	if (drvr->busstate != BRCMF_BUS_DATA)
+	if (bus_if->state != BRCMF_BUS_DATA)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
 
 exit:
@@ -3782,7 +3535,7 @@ exit:
 
 void brcmf_sdbrcm_isr(void *arg)
 {
-	struct brcmf_bus *bus = (struct brcmf_bus *) arg;
+	struct brcmf_sdio *bus = (struct brcmf_sdio *) arg;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3791,7 +3544,7 @@ void brcmf_sdbrcm_isr(void *arg)
 		return;
 	}
 
-	if (bus->drvr->busstate == BRCMF_BUS_DOWN) {
+	if (bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) {
 		brcmf_dbg(ERROR, "bus is down. we have nothing to do\n");
 		return;
 	}
@@ -3814,13 +3567,13 @@ void brcmf_sdbrcm_isr(void *arg)
 		complete(&bus->dpc_wait);
 }
 
-static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
+static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_sdio *bus)
 {
-	struct brcmf_bus *bus;
+#ifdef BCMDBG
+	struct brcmf_bus *bus_if = dev_get_drvdata(bus->sdiodev->dev);
+#endif	/* BCMDBG */
 
 	brcmf_dbg(TIMER, "Enter\n");
-
-	bus = drvr->bus;
 
 	/* Ignore the timer if simulating bus down */
 	if (bus->sleeping)
@@ -3865,7 +3618,8 @@ static bool brcmf_sdbrcm_bus_watchdog(struct brcmf_pub *drvr)
 	}
 #ifdef BCMDBG
 	/* Poll for console output periodically */
-	if (drvr->busstate == BRCMF_BUS_DATA && bus->console_interval != 0) {
+	if (bus_if->state == BRCMF_BUS_DATA &&
+	    bus->console_interval != 0) {
 		bus->console.count += BRCMF_WD_POLL_MS;
 		if (bus->console.count >= bus->console_interval) {
 			bus->console.count -= bus->console_interval;
@@ -3900,10 +3654,12 @@ static bool brcmf_sdbrcm_chipmatch(u16 chipid)
 {
 	if (chipid == BCM4329_CHIP_ID)
 		return true;
+	if (chipid == BCM4330_CHIP_ID)
+		return true;
 	return false;
 }
 
-static void brcmf_sdbrcm_release_malloc(struct brcmf_bus *bus)
+static void brcmf_sdbrcm_release_malloc(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -3915,13 +3671,13 @@ static void brcmf_sdbrcm_release_malloc(struct brcmf_bus *bus)
 	bus->databuf = NULL;
 }
 
-static bool brcmf_sdbrcm_probe_malloc(struct brcmf_bus *bus)
+static bool brcmf_sdbrcm_probe_malloc(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
-	if (bus->drvr->maxctl) {
+	if (bus->sdiodev->bus_if->maxctl) {
 		bus->rxblen =
-		    roundup((bus->drvr->maxctl + SDPCM_HDRLEN),
+		    roundup((bus->sdiodev->bus_if->maxctl + SDPCM_HDRLEN),
 			    ALIGNMENT) + BRCMF_SDALIGN;
 		bus->rxbuf = kmalloc(bus->rxblen, GFP_ATOMIC);
 		if (!(bus->rxbuf))
@@ -3950,276 +3706,14 @@ fail:
 	return false;
 }
 
-/* SDIO Pad drive strength to select value mappings */
-struct sdiod_drive_str {
-	u8 strength;	/* Pad Drive Strength in mA */
-	u8 sel;		/* Chip-specific select value */
-};
-
-/* SDIO Drive Strength to sel value table for PMU Rev 1 */
-static const struct sdiod_drive_str sdiod_drive_strength_tab1[] = {
-	{
-	4, 0x2}, {
-	2, 0x3}, {
-	1, 0x0}, {
-	0, 0x0}
-	};
-
-/* SDIO Drive Strength to sel value table for PMU Rev 2, 3 */
-static const struct sdiod_drive_str sdiod_drive_strength_tab2[] = {
-	{
-	12, 0x7}, {
-	10, 0x6}, {
-	8, 0x5}, {
-	6, 0x4}, {
-	4, 0x2}, {
-	2, 0x1}, {
-	0, 0x0}
-	};
-
-/* SDIO Drive Strength to sel value table for PMU Rev 8 (1.8V) */
-static const struct sdiod_drive_str sdiod_drive_strength_tab3[] = {
-	{
-	32, 0x7}, {
-	26, 0x6}, {
-	22, 0x5}, {
-	16, 0x4}, {
-	12, 0x3}, {
-	8, 0x2}, {
-	4, 0x1}, {
-	0, 0x0}
-	};
-
-#define SDIOD_DRVSTR_KEY(chip, pmu)     (((chip) << 16) | (pmu))
-
-static char *brcmf_chipname(uint chipid, char *buf, uint len)
-{
-	const char *fmt;
-
-	fmt = ((chipid > 0xa000) || (chipid < 0x4000)) ? "%d" : "%x";
-	snprintf(buf, len, fmt, chipid);
-	return buf;
-}
-
-static void brcmf_sdbrcm_sdiod_drive_strength_init(struct brcmf_bus *bus,
-						   u32 drivestrength) {
-	struct sdiod_drive_str *str_tab = NULL;
-	u32 str_mask = 0;
-	u32 str_shift = 0;
-	char chn[8];
-
-	if (!(bus->ci->cccaps & CC_CAP_PMU))
-		return;
-
-	switch (SDIOD_DRVSTR_KEY(bus->ci->chip, bus->ci->pmurev)) {
-	case SDIOD_DRVSTR_KEY(BCM4325_CHIP_ID, 1):
-		str_tab = (struct sdiod_drive_str *)&sdiod_drive_strength_tab1;
-		str_mask = 0x30000000;
-		str_shift = 28;
-		break;
-	case SDIOD_DRVSTR_KEY(BCM4325_CHIP_ID, 2):
-	case SDIOD_DRVSTR_KEY(BCM4325_CHIP_ID, 3):
-		str_tab = (struct sdiod_drive_str *)&sdiod_drive_strength_tab2;
-		str_mask = 0x00003800;
-		str_shift = 11;
-		break;
-	case SDIOD_DRVSTR_KEY(BCM4336_CHIP_ID, 8):
-		str_tab = (struct sdiod_drive_str *)&sdiod_drive_strength_tab3;
-		str_mask = 0x00003800;
-		str_shift = 11;
-		break;
-	default:
-		brcmf_dbg(ERROR, "No SDIO Drive strength init done for chip %s rev %d pmurev %d\n",
-			  brcmf_chipname(bus->ci->chip, chn, 8),
-			  bus->ci->chiprev, bus->ci->pmurev);
-		break;
-	}
-
-	if (str_tab != NULL) {
-		u32 drivestrength_sel = 0;
-		u32 cc_data_temp;
-		int i;
-
-		for (i = 0; str_tab[i].strength != 0; i++) {
-			if (drivestrength >= str_tab[i].strength) {
-				drivestrength_sel = str_tab[i].sel;
-				break;
-			}
-		}
-
-		brcmf_sdcard_reg_write(bus->sdiodev,
-			CORE_CC_REG(bus->ci->cccorebase, chipcontrol_addr),
-			4, 1);
-		cc_data_temp = brcmf_sdcard_reg_read(bus->sdiodev,
-			CORE_CC_REG(bus->ci->cccorebase, chipcontrol_addr), 4);
-		cc_data_temp &= ~str_mask;
-		drivestrength_sel <<= str_shift;
-		cc_data_temp |= drivestrength_sel;
-		brcmf_sdcard_reg_write(bus->sdiodev,
-			CORE_CC_REG(bus->ci->cccorebase, chipcontrol_addr),
-			4, cc_data_temp);
-
-		brcmf_dbg(INFO, "SDIO: %dmA drive strength selected, set to 0x%08x\n",
-			  drivestrength, cc_data_temp);
-	}
-}
-
-static int
-brcmf_sdbrcm_chip_recognition(struct brcmf_sdio_dev *sdiodev,
-			      struct chip_info *ci, u32 regs)
-{
-	u32 regdata;
-
-	/*
-	 * Get CC core rev
-	 * Chipid is assume to be at offset 0 from regs arg
-	 * For different chiptypes or old sdio hosts w/o chipcommon,
-	 * other ways of recognition should be added here.
-	 */
-	ci->cccorebase = regs;
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-				CORE_CC_REG(ci->cccorebase, chipid), 4);
-	ci->chip = regdata & CID_ID_MASK;
-	ci->chiprev = (regdata & CID_REV_MASK) >> CID_REV_SHIFT;
-
-	brcmf_dbg(INFO, "chipid=0x%x chiprev=%d\n", ci->chip, ci->chiprev);
-
-	/* Address of cores for new chips should be added here */
-	switch (ci->chip) {
-	case BCM4329_CHIP_ID:
-		ci->buscorebase = BCM4329_CORE_BUS_BASE;
-		ci->ramcorebase = BCM4329_CORE_SOCRAM_BASE;
-		ci->armcorebase	= BCM4329_CORE_ARM_BASE;
-		ci->ramsize = BCM4329_RAMSIZE;
-		break;
-	default:
-		brcmf_dbg(ERROR, "chipid 0x%x is not supported\n", ci->chip);
-		return -ENODEV;
-	}
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_SB(ci->cccorebase, sbidhigh), 4);
-	ci->ccrev = SBCOREREV(regdata);
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-		CORE_CC_REG(ci->cccorebase, pmucapabilities), 4);
-	ci->pmurev = regdata & PCAP_REV_MASK;
-
-	regdata = brcmf_sdcard_reg_read(sdiodev,
-					CORE_SB(ci->buscorebase, sbidhigh), 4);
-	ci->buscorerev = SBCOREREV(regdata);
-	ci->buscoretype = (regdata & SBIDH_CC_MASK) >> SBIDH_CC_SHIFT;
-
-	brcmf_dbg(INFO, "ccrev=%d, pmurev=%d, buscore rev/type=%d/0x%x\n",
-		  ci->ccrev, ci->pmurev, ci->buscorerev, ci->buscoretype);
-
-	/* get chipcommon capabilites */
-	ci->cccaps = brcmf_sdcard_reg_read(sdiodev,
-		CORE_CC_REG(ci->cccorebase, capabilities), 4);
-
-	return 0;
-}
-
-static int
-brcmf_sdbrcm_chip_attach(struct brcmf_bus *bus, u32 regs)
-{
-	struct chip_info *ci;
-	int err;
-	u8 clkval, clkset;
-
-	brcmf_dbg(TRACE, "Enter\n");
-
-	/* alloc chip_info_t */
-	ci = kzalloc(sizeof(struct chip_info), GFP_ATOMIC);
-	if (NULL == ci)
-		return -ENOMEM;
-
-	/* bus/core/clk setup for register access */
-	/* Try forcing SDIO core to do ALPAvail request only */
-	clkset = SBSDIO_FORCE_HW_CLKREQ_OFF | SBSDIO_ALP_AVAIL_REQ;
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-			       SBSDIO_FUNC1_CHIPCLKCSR,	clkset, &err);
-	if (err) {
-		brcmf_dbg(ERROR, "error writing for HT off\n");
-		goto fail;
-	}
-
-	/* If register supported, wait for ALPAvail and then force ALP */
-	/* This may take up to 15 milliseconds */
-	clkval = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
-			SBSDIO_FUNC1_CHIPCLKCSR, NULL);
-	if ((clkval & ~SBSDIO_AVBITS) == clkset) {
-		SPINWAIT(((clkval =
-				brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
-						SBSDIO_FUNC1_CHIPCLKCSR,
-						NULL)),
-				!SBSDIO_ALPAV(clkval)),
-				PMU_MAX_TRANSITION_DLY);
-		if (!SBSDIO_ALPAV(clkval)) {
-			brcmf_dbg(ERROR, "timeout on ALPAV wait, clkval 0x%02x\n",
-				  clkval);
-			err = -EBUSY;
-			goto fail;
-		}
-		clkset = SBSDIO_FORCE_HW_CLKREQ_OFF |
-				SBSDIO_FORCE_ALP;
-		brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-				SBSDIO_FUNC1_CHIPCLKCSR,
-				clkset, &err);
-		udelay(65);
-	} else {
-		brcmf_dbg(ERROR, "ChipClkCSR access: wrote 0x%02x read 0x%02x\n",
-			  clkset, clkval);
-		err = -EACCES;
-		goto fail;
-	}
-
-	/* Also, disable the extra SDIO pull-ups */
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-			       SBSDIO_FUNC1_SDIOPULLUP, 0, NULL);
-
-	err = brcmf_sdbrcm_chip_recognition(bus->sdiodev, ci, regs);
-	if (err)
-		goto fail;
-
-	/*
-	 * Make sure any on-chip ARM is off (in case strapping is wrong),
-	 * or downloaded code was already running.
-	 */
-	brcmf_sdbrcm_chip_disablecore(bus->sdiodev, ci->armcorebase);
-
-	brcmf_sdcard_reg_write(bus->sdiodev,
-		CORE_CC_REG(ci->cccorebase, gpiopullup), 4, 0);
-	brcmf_sdcard_reg_write(bus->sdiodev,
-		CORE_CC_REG(ci->cccorebase, gpiopulldown), 4, 0);
-
-	/* Disable F2 to clear any intermediate frame state on the dongle */
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
-		SDIO_FUNC_ENABLE_1, NULL);
-
-	/* WAR: cmd52 backplane read so core HW will drop ALPReq */
-	clkval = brcmf_sdcard_cfg_read(bus->sdiodev, SDIO_FUNC_1,
-			0, NULL);
-
-	/* Done with backplane-dependent accesses, can drop clock... */
-	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
-			       SBSDIO_FUNC1_CHIPCLKCSR, 0, NULL);
-
-	bus->ci = ci;
-	return 0;
-fail:
-	bus->ci = NULL;
-	kfree(ci);
-	return err;
-}
-
 static bool
-brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
+brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 {
 	u8 clkctl = 0;
 	int err = 0;
 	int reg_addr;
 	u32 reg_val;
+	u8 idx;
 
 	bus->alp_only = true;
 
@@ -4234,7 +3728,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 #endif				/* BCMDBG */
 
 	/*
-	 * Force PLL off until brcmf_sdbrcm_chip_attach()
+	 * Force PLL off until brcmf_sdio_chip_attach()
 	 * programs PLL control regs
 	 */
 
@@ -4252,8 +3746,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 		goto fail;
 	}
 
-	if (brcmf_sdbrcm_chip_attach(bus, regsva)) {
-		brcmf_dbg(ERROR, "brcmf_sdbrcm_chip_attach failed!\n");
+	if (brcmf_sdio_chip_attach(bus->sdiodev, &bus->ci, regsva)) {
+		brcmf_dbg(ERROR, "brcmf_sdio_chip_attach failed!\n");
 		goto fail;
 	}
 
@@ -4262,11 +3756,10 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 		goto fail;
 	}
 
-	brcmf_sdbrcm_sdiod_drive_strength_init(bus, SDIO_DRIVE_STRENGTH);
+	brcmf_sdio_chip_drivestrengthinit(bus->sdiodev, bus->ci,
+					  SDIO_DRIVE_STRENGTH);
 
-	/* Get info on the ARM and SOCRAM cores... */
-	brcmf_sdcard_reg_read(bus->sdiodev,
-		  CORE_SB(bus->ci->armcorebase, sbidhigh), 4);
+	/* Get info on the SOCRAM cores... */
 	bus->ramsize = bus->ci->ramsize;
 	if (!(bus->ramsize)) {
 		brcmf_dbg(ERROR, "failed to find SOCRAM memory!\n");
@@ -4274,7 +3767,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_bus *bus, u32 regsva)
 	}
 
 	/* Set core control so an SDIO reset does a backplane reset */
-	reg_addr = bus->ci->buscorebase +
+	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	reg_addr = bus->ci->c_inf[idx].base +
 		   offsetof(struct sdpcmd_regs, corecontrol);
 	reg_val = brcmf_sdcard_reg_read(bus->sdiodev, reg_addr, sizeof(u32));
 	brcmf_sdcard_reg_write(bus->sdiodev, reg_addr, sizeof(u32),
@@ -4298,7 +3792,7 @@ fail:
 	return false;
 }
 
-static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
+static bool brcmf_sdbrcm_probe_init(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4306,7 +3800,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_0, SDIO_CCCR_IOEx,
 			       SDIO_FUNC_ENABLE_1, NULL);
 
-	bus->drvr->busstate = BRCMF_BUS_DOWN;
+	bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 	bus->sleeping = false;
 	bus->rxflow = false;
 
@@ -4333,7 +3827,7 @@ static bool brcmf_sdbrcm_probe_init(struct brcmf_bus *bus)
 static int
 brcmf_sdbrcm_watchdog_thread(void *data)
 {
-	struct brcmf_bus *bus = (struct brcmf_bus *)data;
+	struct brcmf_sdio *bus = (struct brcmf_sdio *)data;
 
 	allow_signal(SIGTERM);
 	/* Run until signal received */
@@ -4341,9 +3835,9 @@ brcmf_sdbrcm_watchdog_thread(void *data)
 		if (kthread_should_stop())
 			break;
 		if (!wait_for_completion_interruptible(&bus->watchdog_wait)) {
-			brcmf_sdbrcm_bus_watchdog(bus->drvr);
+			brcmf_sdbrcm_bus_watchdog(bus);
 			/* Count the tick for reference */
-			bus->drvr->tickcnt++;
+			bus->tickcnt++;
 		} else
 			break;
 	}
@@ -4353,7 +3847,7 @@ brcmf_sdbrcm_watchdog_thread(void *data)
 static void
 brcmf_sdbrcm_watchdog(unsigned long data)
 {
-	struct brcmf_bus *bus = (struct brcmf_bus *)data;
+	struct brcmf_sdio *bus = (struct brcmf_sdio *)data;
 
 	if (bus->watchdog_tsk) {
 		complete(&bus->watchdog_wait);
@@ -4364,23 +3858,14 @@ brcmf_sdbrcm_watchdog(unsigned long data)
 	}
 }
 
-static void
-brcmf_sdbrcm_chip_detach(struct brcmf_bus *bus)
-{
-	brcmf_dbg(TRACE, "Enter\n");
-
-	kfree(bus->ci);
-	bus->ci = NULL;
-}
-
-static void brcmf_sdbrcm_release_dongle(struct brcmf_bus *bus)
+static void brcmf_sdbrcm_release_dongle(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
 	if (bus->ci) {
 		brcmf_sdbrcm_clkctl(bus, CLK_AVAIL, false);
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
-		brcmf_sdbrcm_chip_detach(bus);
+		brcmf_sdio_chip_detach(&bus->ci);
 		if (bus->vars && bus->varsz)
 			kfree(bus->vars);
 		bus->vars = NULL;
@@ -4390,7 +3875,7 @@ static void brcmf_sdbrcm_release_dongle(struct brcmf_bus *bus)
 }
 
 /* Detach and free everything */
-static void brcmf_sdbrcm_release(struct brcmf_bus *bus)
+static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 {
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4398,10 +3883,9 @@ static void brcmf_sdbrcm_release(struct brcmf_bus *bus)
 		/* De-register interrupt handler */
 		brcmf_sdcard_intr_dereg(bus->sdiodev);
 
-		if (bus->drvr) {
-			brcmf_detach(bus->drvr);
+		if (bus->sdiodev->bus_if->drvr) {
+			brcmf_detach(bus->sdiodev->dev);
 			brcmf_sdbrcm_release_dongle(bus);
-			bus->drvr = NULL;
 		}
 
 		brcmf_sdbrcm_release_malloc(bus);
@@ -4412,21 +3896,10 @@ static void brcmf_sdbrcm_release(struct brcmf_bus *bus)
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
 
-void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
-			 u32 regsva, struct brcmf_sdio_dev *sdiodev)
+void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 {
 	int ret;
-	struct brcmf_bus *bus;
-
-	/* Init global variables at run-time, not as part of the declaration.
-	 * This is required to support init/de-init of the driver.
-	 * Initialization
-	 * of globals as part of the declaration results in non-deterministic
-	 * behavior since the value of the globals may be different on the
-	 * first time that the driver is initialized vs subsequent
-	 * initializations.
-	 */
-	brcmf_c_init();
+	struct brcmf_sdio *bus;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4434,12 +3907,13 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	 * regsva == SI_ENUM_BASE*/
 
 	/* Allocate private bus interface state */
-	bus = kzalloc(sizeof(struct brcmf_bus), GFP_ATOMIC);
+	bus = kzalloc(sizeof(struct brcmf_sdio), GFP_ATOMIC);
 	if (!bus)
 		goto fail;
 
 	bus->sdiodev = sdiodev;
 	sdiodev->bus = bus;
+	skb_queue_head_init(&bus->glom);
 	bus->txbound = BRCMF_TXBOUND;
 	bus->rxbound = BRCMF_RXBOUND;
 	bus->txminmax = BRCMF_TXMINMAX;
@@ -4484,9 +3958,15 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 		bus->dpc_tsk = NULL;
 	}
 
+	/* Assign bus interface call back */
+	bus->sdiodev->bus_if->brcmf_bus_stop = brcmf_sdbrcm_bus_stop;
+	bus->sdiodev->bus_if->brcmf_bus_init = brcmf_sdbrcm_bus_init;
+	bus->sdiodev->bus_if->brcmf_bus_txdata = brcmf_sdbrcm_bus_txdata;
+	bus->sdiodev->bus_if->brcmf_bus_txctl = brcmf_sdbrcm_bus_txctl;
+	bus->sdiodev->bus_if->brcmf_bus_rxctl = brcmf_sdbrcm_bus_rxctl;
 	/* Attach to the brcmf/OS/network interface */
-	bus->drvr = brcmf_attach(bus, SDPCM_RESERVE);
-	if (!bus->drvr) {
+	ret = brcmf_attach(SDPCM_RESERVE, bus->sdiodev->dev);
+	if (ret != 0) {
 		brcmf_dbg(ERROR, "brcmf_attach failed\n");
 		goto fail;
 	}
@@ -4514,16 +3994,17 @@ void *brcmf_sdbrcm_probe(u16 bus_no, u16 slot, u16 func, uint bustype,
 	brcmf_dbg(INFO, "completed!!\n");
 
 	/* if firmware path present try to download and bring up bus */
-	ret = brcmf_bus_start(bus->drvr);
+	ret = brcmf_bus_start(bus->sdiodev->dev);
 	if (ret != 0) {
 		if (ret == -ENOLINK) {
 			brcmf_dbg(ERROR, "dongle is not responding\n");
 			goto fail;
 		}
 	}
-	/* Ok, have the per-port tell the stack we're open for business */
-	if (brcmf_net_attach(bus->drvr, 0) != 0) {
-		brcmf_dbg(ERROR, "Net attach failed!!\n");
+
+	/* add interface and open for business */
+	if (brcmf_add_if(bus->sdiodev->dev, 0, "wlan%d", NULL)) {
+		brcmf_dbg(ERROR, "Add primary net device interface failed!!\n");
 		goto fail;
 	}
 
@@ -4536,7 +4017,7 @@ fail:
 
 void brcmf_sdbrcm_disconnect(void *ptr)
 {
-	struct brcmf_bus *bus = (struct brcmf_bus *)ptr;
+	struct brcmf_sdio *bus = (struct brcmf_sdio *)ptr;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -4546,18 +4027,9 @@ void brcmf_sdbrcm_disconnect(void *ptr)
 	brcmf_dbg(TRACE, "Disconnected\n");
 }
 
-struct device *brcmf_bus_get_device(struct brcmf_bus *bus)
-{
-	return &bus->sdiodev->func[2]->dev;
-}
-
 void
-brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick)
+brcmf_sdbrcm_wd_timer(struct brcmf_sdio *bus, uint wdtick)
 {
-	/* don't start the wd until fw is loaded */
-	if (bus->drvr->busstate == BRCMF_BUS_DOWN)
-		return;
-
 	/* Totally stop the timer */
 	if (!wdtick && bus->wd_timer_valid == true) {
 		del_timer_sync(&bus->timer);
@@ -4565,6 +4037,10 @@ brcmf_sdbrcm_wd_timer(struct brcmf_bus *bus, uint wdtick)
 		bus->save_ms = wdtick;
 		return;
 	}
+
+	/* don't start the wd until fw is loaded */
+	if (bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN)
+		return;
 
 	if (wdtick) {
 		if (bus->save_ms != BRCMF_WD_POLL_MS) {

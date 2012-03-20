@@ -276,11 +276,12 @@ static void done(struct mv_ep *ep, struct mv_req *req, int status)
 
 static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 {
-	u32 tmp, epstatus, bit_pos, direction;
 	struct mv_udc *udc;
 	struct mv_dqh *dqh;
+	u32 bit_pos, direction;
+	u32 usbcmd, epstatus;
 	unsigned int loops;
-	int readsafe, retval = 0;
+	int retval = 0;
 
 	udc = ep->udc;
 	direction = ep_dir(ep);
@@ -293,30 +294,18 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 		lastreq = list_entry(ep->queue.prev, struct mv_req, queue);
 		lastreq->tail->dtd_next =
 			req->head->td_dma & EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-		if (readl(&udc->op_regs->epprime) & bit_pos) {
-			loops = LOOPS(PRIME_TIMEOUT);
-			while (readl(&udc->op_regs->epprime) & bit_pos) {
-				if (loops == 0) {
-					retval = -ETIME;
-					goto done;
-				}
-				udelay(LOOPS_USEC);
-				loops--;
-			}
-			if (readl(&udc->op_regs->epstatus) & bit_pos)
-				goto done;
-		}
-		readsafe = 0;
+
+		wmb();
+
+		if (readl(&udc->op_regs->epprime) & bit_pos)
+			goto done;
+
 		loops = LOOPS(READSAFE_TIMEOUT);
-		while (readsafe == 0) {
-			if (loops == 0) {
-				retval = -ETIME;
-				goto done;
-			}
+		while (1) {
 			/* start with setting the semaphores */
-			tmp = readl(&udc->op_regs->usbcmd);
-			tmp |= USBCMD_ATDTW_TRIPWIRE_SET;
-			writel(tmp, &udc->op_regs->usbcmd);
+			usbcmd = readl(&udc->op_regs->usbcmd);
+			usbcmd |= USBCMD_ATDTW_TRIPWIRE_SET;
+			writel(usbcmd, &udc->op_regs->usbcmd);
 
 			/* read the endpoint status */
 			epstatus = readl(&udc->op_regs->epstatus) & bit_pos;
@@ -329,97 +318,45 @@ static int queue_dtd(struct mv_ep *ep, struct mv_req *req)
 			 * primed.
 			 */
 			if (readl(&udc->op_regs->usbcmd)
-				& USBCMD_ATDTW_TRIPWIRE_SET) {
-				readsafe = 1;
-			}
+				& USBCMD_ATDTW_TRIPWIRE_SET)
+				break;
+
 			loops--;
+			if (loops == 0) {
+				dev_err(&udc->dev->dev,
+					"Timeout for ATDTW_TRIPWIRE...\n");
+				retval = -ETIME;
+				goto done;
+			}
 			udelay(LOOPS_USEC);
 		}
 
 		/* Clear the semaphore */
-		tmp = readl(&udc->op_regs->usbcmd);
-		tmp &= USBCMD_ATDTW_TRIPWIRE_CLEAR;
-		writel(tmp, &udc->op_regs->usbcmd);
+		usbcmd = readl(&udc->op_regs->usbcmd);
+		usbcmd &= USBCMD_ATDTW_TRIPWIRE_CLEAR;
+		writel(usbcmd, &udc->op_regs->usbcmd);
 
-		/* If endpoint is not active, we activate it now. */
-		if (!epstatus) {
-			if (direction == EP_DIR_IN) {
-				struct mv_dtd *curr_dtd = dma_to_virt(
-					&udc->dev->dev, dqh->curr_dtd_ptr);
-
-				loops = LOOPS(DTD_TIMEOUT);
-				while (curr_dtd->size_ioc_sts
-					& DTD_STATUS_ACTIVE) {
-					if (loops == 0) {
-						retval = -ETIME;
-						goto done;
-					}
-					loops--;
-					udelay(LOOPS_USEC);
-				}
-			}
-			/* No other transfers on the queue */
-
-			/* Write dQH next pointer and terminate bit to 0 */
-			dqh->next_dtd_ptr = req->head->td_dma
-				& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-			dqh->size_ioc_int_sts = 0;
-
-			/*
-			 * Ensure that updates to the QH will
-			 * occur before priming.
-			 */
-			wmb();
-
-			/* Prime the Endpoint */
-			writel(bit_pos, &udc->op_regs->epprime);
-		}
-	} else {
-		/* Write dQH next pointer and terminate bit to 0 */
-		dqh->next_dtd_ptr = req->head->td_dma
-			& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
-		dqh->size_ioc_int_sts = 0;
-
-		/* Ensure that updates to the QH will occur before priming. */
-		wmb();
-
-		/* Prime the Endpoint */
-		writel(bit_pos, &udc->op_regs->epprime);
-
-		if (direction == EP_DIR_IN) {
-			/* FIXME add status check after prime the IN ep */
-			int prime_again;
-			u32 curr_dtd_ptr = dqh->curr_dtd_ptr;
-
-			loops = LOOPS(DTD_TIMEOUT);
-			prime_again = 0;
-			while ((curr_dtd_ptr != req->head->td_dma)) {
-				curr_dtd_ptr = dqh->curr_dtd_ptr;
-				if (loops == 0) {
-					dev_err(&udc->dev->dev,
-						"failed to prime %s\n",
-						ep->name);
-					retval = -ETIME;
-					goto done;
-				}
-				loops--;
-				udelay(LOOPS_USEC);
-
-				if (loops == (LOOPS(DTD_TIMEOUT) >> 2)) {
-					if (prime_again)
-						goto done;
-					dev_info(&udc->dev->dev,
-						"prime again\n");
-					writel(bit_pos,
-						&udc->op_regs->epprime);
-					prime_again = 1;
-				}
-			}
-		}
+		if (epstatus)
+			goto done;
 	}
+
+	/* Write dQH next pointer and terminate bit to 0 */
+	dqh->next_dtd_ptr = req->head->td_dma
+				& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
+
+	/* clear active and halt bit, in case set from a previous error */
+	dqh->size_ioc_int_sts &= ~(DTD_STATUS_ACTIVE | DTD_STATUS_HALTED);
+
+	/* Ensure that updates to the QH will occure before priming. */
+	wmb();
+
+	/* Prime the Endpoint */
+	writel(bit_pos, &udc->op_regs->epprime);
+
 done:
 	return retval;
 }
+
 
 static struct mv_dtd *build_dtd(struct mv_req *req, unsigned *length,
 		dma_addr_t *dma, int *is_last)
@@ -841,6 +778,27 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	return 0;
 }
 
+static void mv_prime_ep(struct mv_ep *ep, struct mv_req *req)
+{
+	struct mv_dqh *dqh = ep->dqh;
+	u32 bit_pos;
+
+	/* Write dQH next pointer and terminate bit to 0 */
+	dqh->next_dtd_ptr = req->head->td_dma
+		& EP_QUEUE_HEAD_NEXT_POINTER_MASK;
+
+	/* clear active and halt bit, in case set from a previous error */
+	dqh->size_ioc_int_sts &= ~(DTD_STATUS_ACTIVE | DTD_STATUS_HALTED);
+
+	/* Ensure that updates to the QH will occure before priming. */
+	wmb();
+
+	bit_pos = 1 << (((ep_dir(ep) == EP_DIR_OUT) ? 0 : 16) + ep->ep_num);
+
+	/* Prime the Endpoint */
+	writel(bit_pos, &ep->udc->op_regs->epprime);
+}
+
 /* dequeues (cancels, unlinks) an I/O request from an endpoint */
 static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 {
@@ -883,15 +841,13 @@ static int mv_ep_dequeue(struct usb_ep *_ep, struct usb_request *_req)
 
 		/* The request isn't the last request in this ep queue */
 		if (req->queue.next != &ep->queue) {
-			struct mv_dqh *qh;
 			struct mv_req *next_req;
 
-			qh = ep->dqh;
-			next_req = list_entry(req->queue.next, struct mv_req,
-					queue);
+			next_req = list_entry(req->queue.next,
+				struct mv_req, queue);
 
 			/* Point the QH to the first TD of next request */
-			writel((u32) next_req->head, &qh->curr_dtd_ptr);
+			mv_prime_ep(ep, next_req);
 		} else {
 			struct mv_dqh *qh;
 
@@ -1056,6 +1012,8 @@ static void udc_stop(struct mv_udc *udc)
 		USBINTR_PORT_CHANGE_DETECT_EN | USBINTR_RESET_EN);
 	writel(tmp, &udc->op_regs->usbintr);
 
+	udc->stopped = 1;
+
 	/* Reset the Run the bit in the command register to stop VUSB */
 	tmp = readl(&udc->op_regs->usbcmd);
 	tmp &= ~USBCMD_RUN_STOP;
@@ -1071,6 +1029,8 @@ static void udc_start(struct mv_udc *udc)
 		| USBINTR_RESET_EN | USBINTR_DEVICE_SUSPEND;
 	/* Enable interrupts */
 	writel(usbintr, &udc->op_regs->usbintr);
+
+	udc->stopped = 0;
 
 	/* Set the Run bit in the command register */
 	writel(USBCMD_RUN_STOP, &udc->op_regs->usbcmd);
@@ -1134,11 +1094,11 @@ static int udc_reset(struct mv_udc *udc)
 	return 0;
 }
 
-static int mv_udc_enable(struct mv_udc *udc)
+static int mv_udc_enable_internal(struct mv_udc *udc)
 {
 	int retval;
 
-	if (udc->clock_gating == 0 || udc->active)
+	if (udc->active)
 		return 0;
 
 	dev_dbg(&udc->dev->dev, "enable udc\n");
@@ -1157,15 +1117,29 @@ static int mv_udc_enable(struct mv_udc *udc)
 	return 0;
 }
 
-static void mv_udc_disable(struct mv_udc *udc)
+static int mv_udc_enable(struct mv_udc *udc)
 {
-	if (udc->clock_gating && udc->active) {
+	if (udc->clock_gating)
+		return mv_udc_enable_internal(udc);
+
+	return 0;
+}
+
+static void mv_udc_disable_internal(struct mv_udc *udc)
+{
+	if (udc->active) {
 		dev_dbg(&udc->dev->dev, "disable udc\n");
 		if (udc->pdata->phy_deinit)
 			udc->pdata->phy_deinit(udc->phy_regs);
 		udc_clock_disable(udc);
 		udc->active = 0;
 	}
+}
+
+static void mv_udc_disable(struct mv_udc *udc)
+{
+	if (udc->clock_gating)
+		mv_udc_disable_internal(udc);
 }
 
 static int mv_udc_get_frame(struct usb_gadget *gadget)
@@ -1178,7 +1152,7 @@ static int mv_udc_get_frame(struct usb_gadget *gadget)
 
 	udc = container_of(gadget, struct mv_udc, gadget);
 
-	retval = readl(udc->op_regs->frindex) & USB_FRINDEX_MASKS;
+	retval = readl(&udc->op_regs->frindex) & USB_FRINDEX_MASKS;
 
 	return retval;
 }
@@ -1212,10 +1186,11 @@ static int mv_udc_vbus_session(struct usb_gadget *gadget, int is_active)
 	udc = container_of(gadget, struct mv_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 
+	udc->vbus_active = (is_active != 0);
+
 	dev_dbg(&udc->dev->dev, "%s: softconnect %d, vbus_active %d\n",
 		__func__, udc->softconnect, udc->vbus_active);
 
-	udc->vbus_active = (is_active != 0);
 	if (udc->driver && udc->softconnect && udc->vbus_active) {
 		retval = mv_udc_enable(udc);
 		if (retval == 0) {
@@ -1244,10 +1219,11 @@ static int mv_udc_pullup(struct usb_gadget *gadget, int is_on)
 	udc = container_of(gadget, struct mv_udc, gadget);
 	spin_lock_irqsave(&udc->lock, flags);
 
+	udc->softconnect = (is_on != 0);
+
 	dev_dbg(&udc->dev->dev, "%s: softconnect %d, vbus_active %d\n",
 			__func__, udc->softconnect, udc->vbus_active);
 
-	udc->softconnect = (is_on != 0);
 	if (udc->driver && udc->softconnect && udc->vbus_active) {
 		retval = mv_udc_enable(udc);
 		if (retval == 0) {
@@ -1405,6 +1381,20 @@ static int mv_udc_start(struct usb_gadget_driver *driver,
 		udc->driver = NULL;
 		udc->gadget.dev.driver = NULL;
 		return retval;
+	}
+
+	if (udc->transceiver) {
+		retval = otg_set_peripheral(udc->transceiver, &udc->gadget);
+		if (retval) {
+			dev_err(&udc->dev->dev,
+				"unable to register peripheral to otg\n");
+			if (driver->unbind) {
+				driver->unbind(&udc->gadget);
+				udc->gadget.dev.driver = NULL;
+				udc->driver = NULL;
+			}
+			return retval;
+		}
 	}
 
 	/* pullup is always on */
@@ -2026,6 +2016,10 @@ static irqreturn_t mv_udc_irq(int irq, void *dev)
 	struct mv_udc *udc = (struct mv_udc *)dev;
 	u32 status, intr;
 
+	/* Disable ISR when stopped bit is set */
+	if (udc->stopped)
+		return IRQ_NONE;
+
 	spin_lock(&udc->lock);
 
 	status = readl(&udc->op_regs->usbsts);
@@ -2109,7 +2103,12 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 		destroy_workqueue(udc->qwork);
 	}
 
-	if (udc->pdata && udc->pdata->vbus && udc->clock_gating)
+	/*
+	 * If we have transceiver inited,
+	 * then vbus irq will not be requested in udc driver.
+	 */
+	if (udc->pdata && udc->pdata->vbus
+		&& udc->clock_gating && udc->transceiver == NULL)
 		free_irq(udc->pdata->vbus->irq, &dev->dev);
 
 	/* free memory allocated in probe */
@@ -2129,11 +2128,9 @@ static int __devexit mv_udc_remove(struct platform_device *dev)
 
 	if (udc->cap_regs)
 		iounmap(udc->cap_regs);
-	udc->cap_regs = NULL;
 
 	if (udc->phy_regs)
-		iounmap((void *)udc->phy_regs);
-	udc->phy_regs = 0;
+		iounmap(udc->phy_regs);
 
 	if (udc->status_req) {
 		kfree(udc->status_req->req.buf);
@@ -2182,6 +2179,11 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 
 	udc->dev = dev;
 
+#ifdef CONFIG_USB_OTG_UTILS
+	if (pdata->mode == MV_USB_MODE_OTG)
+		udc->transceiver = otg_get_transceiver();
+#endif
+
 	udc->clknum = pdata->clknum;
 	for (clk_i = 0; clk_i < udc->clknum; clk_i++) {
 		udc->clk[clk_i] = clk_get(&dev->dev, pdata->clkname[clk_i]);
@@ -2213,24 +2215,20 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 		goto err_iounmap_capreg;
 	}
 
-	udc->phy_regs = (unsigned int)ioremap(r->start, resource_size(r));
-	if (udc->phy_regs == 0) {
+	udc->phy_regs = ioremap(r->start, resource_size(r));
+	if (udc->phy_regs == NULL) {
 		dev_err(&dev->dev, "failed to map phy I/O memory\n");
 		retval = -EBUSY;
 		goto err_iounmap_capreg;
 	}
 
 	/* we will acces controller register, so enable the clk */
-	udc_clock_enable(udc);
-	if (pdata->phy_init) {
-		retval = pdata->phy_init(udc->phy_regs);
-		if (retval) {
-			dev_err(&dev->dev, "phy init error %d\n", retval);
-			goto err_iounmap_phyreg;
-		}
-	}
+	retval = mv_udc_enable_internal(udc);
+	if (retval)
+		goto err_iounmap_phyreg;
 
-	udc->op_regs = (struct mv_op_regs __iomem *)((u32)udc->cap_regs
+	udc->op_regs =
+		(struct mv_op_regs __iomem *)((unsigned long)udc->cap_regs
 		+ (readl(&udc->cap_regs->caplength_hciversion)
 			& CAPLENGTH_MASK));
 	udc->max_eps = readl(&udc->cap_regs->dccparams) & DCCPARAMS_DEN_MASK;
@@ -2312,7 +2310,7 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	udc->gadget.ep0 = &udc->eps[0].ep;	/* gadget ep0 */
 	INIT_LIST_HEAD(&udc->gadget.ep_list);	/* ep_list */
 	udc->gadget.speed = USB_SPEED_UNKNOWN;	/* speed */
-	udc->gadget.is_dualspeed = 1;		/* support dual speed */
+	udc->gadget.max_speed = USB_SPEED_HIGH;	/* support dual speed */
 
 	/* the "gadget" abstracts/virtualizes the controller */
 	dev_set_name(&udc->gadget.dev, "gadget");
@@ -2328,7 +2326,9 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	eps_init(udc);
 
 	/* VBUS detect: we can disable/enable clock on demand.*/
-	if (pdata->vbus) {
+	if (udc->transceiver)
+		udc->clock_gating = 1;
+	else if (pdata->vbus) {
 		udc->clock_gating = 1;
 		retval = request_threaded_irq(pdata->vbus->irq, NULL,
 				mv_udc_vbus_irq, IRQF_ONESHOT, "vbus", udc);
@@ -2354,11 +2354,9 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	 * If not, it means that VBUS detection is not supported, we
 	 * have to enable vbus active all the time to let controller work.
 	 */
-	if (udc->clock_gating) {
-		if (udc->pdata->phy_deinit)
-			udc->pdata->phy_deinit(udc->phy_regs);
-		udc_clock_disable(udc);
-	} else
+	if (udc->clock_gating)
+		mv_udc_disable_internal(udc);
+	else
 		udc->vbus_active = 1;
 
 	retval = usb_add_gadget_udc(&dev->dev, &udc->gadget);
@@ -2371,7 +2369,8 @@ static int __devinit mv_udc_probe(struct platform_device *dev)
 	return 0;
 
 err_unregister:
-	if (udc->pdata && udc->pdata->vbus && udc->clock_gating)
+	if (udc->pdata && udc->pdata->vbus
+		&& udc->clock_gating && udc->transceiver == NULL)
 		free_irq(pdata->vbus->irq, &dev->dev);
 	device_unregister(&udc->gadget.dev);
 err_free_irq:
@@ -2387,11 +2386,9 @@ err_free_dma:
 	dma_free_coherent(&dev->dev, udc->ep_dqh_size,
 			udc->ep_dqh, udc->ep_dqh_dma);
 err_disable_clock:
-	if (udc->pdata->phy_deinit)
-		udc->pdata->phy_deinit(udc->phy_regs);
-	udc_clock_disable(udc);
+	mv_udc_disable_internal(udc);
 err_iounmap_phyreg:
-	iounmap((void *)udc->phy_regs);
+	iounmap(udc->phy_regs);
 err_iounmap_capreg:
 	iounmap(udc->cap_regs);
 err_put_clk:
@@ -2407,7 +2404,30 @@ static int mv_udc_suspend(struct device *_dev)
 {
 	struct mv_udc *udc = the_controller;
 
-	udc_stop(udc);
+	/* if OTG is enabled, the following will be done in OTG driver*/
+	if (udc->transceiver)
+		return 0;
+
+	if (udc->pdata->vbus && udc->pdata->vbus->poll)
+		if (udc->pdata->vbus->poll() == VBUS_HIGH) {
+			dev_info(&udc->dev->dev, "USB cable is connected!\n");
+			return -EAGAIN;
+		}
+
+	/*
+	 * only cable is unplugged, udc can suspend.
+	 * So do not care about clock_gating == 1.
+	 */
+	if (!udc->clock_gating) {
+		udc_stop(udc);
+
+		spin_lock_irq(&udc->lock);
+		/* stop all usb activities */
+		stop_activity(udc, udc->driver);
+		spin_unlock_irq(&udc->lock);
+
+		mv_udc_disable_internal(udc);
+	}
 
 	return 0;
 }
@@ -2417,19 +2437,21 @@ static int mv_udc_resume(struct device *_dev)
 	struct mv_udc *udc = the_controller;
 	int retval;
 
-	if (udc->pdata->phy_init) {
-		retval = udc->pdata->phy_init(udc->phy_regs);
-		if (retval) {
-			dev_err(&udc->dev->dev,
-				"init phy error %d when resume back\n",
-				retval);
+	/* if OTG is enabled, the following will be done in OTG driver*/
+	if (udc->transceiver)
+		return 0;
+
+	if (!udc->clock_gating) {
+		retval = mv_udc_enable_internal(udc);
+		if (retval)
 			return retval;
+
+		if (udc->driver && udc->softconnect) {
+			udc_reset(udc);
+			ep0_reset(udc);
+			udc_start(udc);
 		}
 	}
-
-	udc_reset(udc);
-	ep0_reset(udc);
-	udc_start(udc);
 
 	return 0;
 }
@@ -2457,30 +2479,16 @@ static struct platform_driver udc_driver = {
 	.shutdown	= mv_udc_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= "pxa-u2o",
+		.name	= "mv-udc",
 #ifdef CONFIG_PM
 		.pm	= &mv_udc_pm_ops,
 #endif
 	},
 };
-MODULE_ALIAS("platform:pxa-u2o");
 
+module_platform_driver(udc_driver);
+MODULE_ALIAS("platform:mv-udc");
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-
-
-static int __init init(void)
-{
-	return platform_driver_register(&udc_driver);
-}
-module_init(init);
-
-
-static void __exit cleanup(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(cleanup);
-

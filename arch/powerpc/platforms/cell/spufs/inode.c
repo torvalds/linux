@@ -74,7 +74,6 @@ spufs_alloc_inode(struct super_block *sb)
 static void spufs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(spufs_inode_cache, SPUFS_I(inode));
 }
 
@@ -92,7 +91,7 @@ spufs_init_once(void *p)
 }
 
 static struct inode *
-spufs_new_inode(struct super_block *sb, int mode)
+spufs_new_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *inode;
 
@@ -124,7 +123,7 @@ spufs_setattr(struct dentry *dentry, struct iattr *attr)
 
 static int
 spufs_new_file(struct super_block *sb, struct dentry *dentry,
-		const struct file_operations *fops, int mode,
+		const struct file_operations *fops, umode_t mode,
 		size_t size, struct spu_context *ctx)
 {
 	static const struct inode_operations spufs_file_iops = {
@@ -194,7 +193,7 @@ static int spufs_rmdir(struct inode *parent, struct dentry *dir)
 }
 
 static int spufs_fill_dir(struct dentry *dir,
-		const struct spufs_tree_descr *files, int mode,
+		const struct spufs_tree_descr *files, umode_t mode,
 		struct spu_context *ctx)
 {
 	struct dentry *dentry, *tmp;
@@ -264,7 +263,7 @@ EXPORT_SYMBOL_GPL(spufs_context_fops);
 
 static int
 spufs_mkdir(struct inode *dir, struct dentry *dentry, unsigned int flags,
-		int mode)
+		umode_t mode)
 {
 	int ret;
 	struct inode *inode;
@@ -447,7 +446,7 @@ spufs_set_affinity(unsigned int flags, struct spu_context *ctx,
 
 static int
 spufs_create_context(struct inode *inode, struct dentry *dentry,
-			struct vfsmount *mnt, int flags, int mode,
+			struct vfsmount *mnt, int flags, umode_t mode,
 			struct file *aff_filp)
 {
 	int ret;
@@ -521,7 +520,7 @@ out:
 }
 
 static int
-spufs_mkgang(struct inode *dir, struct dentry *dentry, int mode)
+spufs_mkgang(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int ret;
 	struct inode *inode;
@@ -584,7 +583,7 @@ out:
 
 static int spufs_create_gang(struct inode *inode,
 			struct dentry *dentry,
-			struct vfsmount *mnt, int mode)
+			struct vfsmount *mnt, umode_t mode)
 {
 	int ret;
 
@@ -612,7 +611,7 @@ out:
 static struct file_system_type spufs_type;
 
 long spufs_create(struct path *path, struct dentry *dentry,
-		unsigned int flags, mode_t mode, struct file *filp)
+		unsigned int flags, umode_t mode, struct file *filp)
 {
 	int ret;
 

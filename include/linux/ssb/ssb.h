@@ -94,6 +94,15 @@ struct ssb_sprom {
 		} ghz5;		/* 5GHz band */
 	} antenna_gain;
 
+	struct {
+		struct {
+			u8 tssipos, extpa_gain, pdet_range, tr_iso, antswlut;
+		} ghz2;
+		struct {
+			u8 tssipos, extpa_gain, pdet_range, tr_iso, antswlut;
+		} ghz5;
+	} fem;
+
 	/* TODO - add any parameters needed from rev 2, 3, 4, 5 or 8 SPROMs */
 };
 

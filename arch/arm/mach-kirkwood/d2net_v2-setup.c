@@ -227,4 +227,5 @@ MACHINE_START(D2NET_V2, "LaCie d2 Network v2")
 	.init_early	= kirkwood_init_early,
 	.init_irq	= kirkwood_init_irq,
 	.timer		= &kirkwood_timer,
+	.restart	= kirkwood_restart,
 MACHINE_END

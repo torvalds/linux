@@ -17,6 +17,8 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/namei.h>
+#include <linux/fs.h>
 #include "irq.h"
 
 static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
@@ -480,12 +482,76 @@ out:
 	return r;
 }
 
+/*
+ * We want to test whether the caller has been granted permissions to
+ * use this device.  To be able to configure and control the device,
+ * the user needs access to PCI configuration space and BAR resources.
+ * These are accessed through PCI sysfs.  PCI config space is often
+ * passed to the process calling this ioctl via file descriptor, so we
+ * can't rely on access to that file.  We can check for permissions
+ * on each of the BAR resource files, which is a pretty clear
+ * indicator that the user has been granted access to the device.
+ */
+static int probe_sysfs_permissions(struct pci_dev *dev)
+{
+#ifdef CONFIG_SYSFS
+	int i;
+	bool bar_found = false;
+
+	for (i = PCI_STD_RESOURCES; i <= PCI_STD_RESOURCE_END; i++) {
+		char *kpath, *syspath;
+		struct path path;
+		struct inode *inode;
+		int r;
+
+		if (!pci_resource_len(dev, i))
+			continue;
+
+		kpath = kobject_get_path(&dev->dev.kobj, GFP_KERNEL);
+		if (!kpath)
+			return -ENOMEM;
+
+		/* Per sysfs-rules, sysfs is always at /sys */
+		syspath = kasprintf(GFP_KERNEL, "/sys%s/resource%d", kpath, i);
+		kfree(kpath);
+		if (!syspath)
+			return -ENOMEM;
+
+		r = kern_path(syspath, LOOKUP_FOLLOW, &path);
+		kfree(syspath);
+		if (r)
+			return r;
+
+		inode = path.dentry->d_inode;
+
+		r = inode_permission(inode, MAY_READ | MAY_WRITE | MAY_ACCESS);
+		path_put(&path);
+		if (r)
+			return r;
+
+		bar_found = true;
+	}
+
+	/* If no resources, probably something special */
+	if (!bar_found)
+		return -EPERM;
+
+	return 0;
+#else
+	return -EINVAL; /* No way to control the device without sysfs */
+#endif
+}
+
 static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 				      struct kvm_assigned_pci_dev *assigned_dev)
 {
 	int r = 0, idx;
 	struct kvm_assigned_dev_kernel *match;
 	struct pci_dev *dev;
+	u8 header_type;
+
+	if (!(assigned_dev->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU))
+		return -EINVAL;
 
 	mutex_lock(&kvm->lock);
 	idx = srcu_read_lock(&kvm->srcu);
@@ -513,6 +579,18 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 		r = -EINVAL;
 		goto out_free;
 	}
+
+	/* Don't allow bridges to be assigned */
+	pci_read_config_byte(dev, PCI_HEADER_TYPE, &header_type);
+	if ((header_type & PCI_HEADER_TYPE) != PCI_HEADER_TYPE_NORMAL) {
+		r = -EPERM;
+		goto out_put;
+	}
+
+	r = probe_sysfs_permissions(dev);
+	if (r)
+		goto out_put;
+
 	if (pci_enable_device(dev)) {
 		printk(KERN_INFO "%s: Could not enable PCI device\n", __func__);
 		r = -EBUSY;
@@ -544,16 +622,14 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 
 	list_add(&match->list, &kvm->arch.assigned_dev_head);
 
-	if (assigned_dev->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU) {
-		if (!kvm->arch.iommu_domain) {
-			r = kvm_iommu_map_guest(kvm);
-			if (r)
-				goto out_list_del;
-		}
-		r = kvm_assign_device(kvm, match);
+	if (!kvm->arch.iommu_domain) {
+		r = kvm_iommu_map_guest(kvm);
 		if (r)
 			goto out_list_del;
 	}
+	r = kvm_assign_device(kvm, match);
+	if (r)
+		goto out_list_del;
 
 out:
 	srcu_read_unlock(&kvm->srcu, idx);
@@ -593,8 +669,7 @@ static int kvm_vm_ioctl_deassign_device(struct kvm *kvm,
 		goto out;
 	}
 
-	if (match->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU)
-		kvm_deassign_device(kvm, match);
+	kvm_deassign_device(kvm, match);
 
 	kvm_free_assigned_device(kvm, match);
 

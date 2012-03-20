@@ -63,17 +63,7 @@ static struct platform_driver wm8782_codec_driver = {
 	.remove = __devexit_p(wm8782_remove),
 };
 
-static int __init wm8782_init(void)
-{
-	return platform_driver_register(&wm8782_codec_driver);
-}
-module_init(wm8782_init);
-
-static void __exit wm8782_exit(void)
-{
-	platform_driver_unregister(&wm8782_codec_driver);
-}
-module_exit(wm8782_exit);
+module_platform_driver(wm8782_codec_driver);
 
 MODULE_DESCRIPTION("ASoC WM8782 driver");
 MODULE_AUTHOR("Johannes Stezenbach <js@sig21.net>");

@@ -34,6 +34,4 @@ static inline void arch_idle(void)
 	asm volatile ("mcr p15, 0, ip, c15, c1, 2" : : : "cc");
 }
 
-#define arch_reset(mode, cmd)	cpu_reset(0x80000000)
-
 #endif

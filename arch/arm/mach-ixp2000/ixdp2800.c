@@ -291,5 +291,6 @@ MACHINE_START(IXDP2800, "Intel IXDP2800 Development Platform")
 	.init_irq	= ixdp2800_init_irq,
 	.timer		= &ixdp2800_timer,
 	.init_machine	= ixdp2x00_init_machine,
+	.restart	= ixp2000_restart,
 MACHINE_END
 

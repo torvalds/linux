@@ -2177,6 +2177,12 @@ static __init int vpif_probe(struct platform_device *pdev)
 		return err;
 	}
 
+	err = v4l2_device_register(vpif_dev, &vpif_obj.v4l2_dev);
+	if (err) {
+		v4l2_err(vpif_dev->driver, "Error registering v4l2 device\n");
+		return err;
+	}
+
 	k = 0;
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
@@ -2246,12 +2252,6 @@ static __init int vpif_probe(struct platform_device *pdev)
 		goto probe_out;
 	}
 
-	err = v4l2_device_register(vpif_dev, &vpif_obj.v4l2_dev);
-	if (err) {
-		v4l2_err(vpif_dev->driver, "Error registering v4l2 device\n");
-		goto probe_subdev_out;
-	}
-
 	for (i = 0; i < subdev_count; i++) {
 		subdevdata = &config->subdev_info[i];
 		vpif_obj.sd[i] =
@@ -2281,7 +2281,6 @@ probe_subdev_out:
 
 	j = VPIF_CAPTURE_MAX_DEVICES;
 probe_out:
-	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 	for (k = 0; k < j; k++) {
 		/* Get the pointer to the channel object */
 		ch = vpif_obj.dev[k];
@@ -2303,6 +2302,7 @@ vpif_int_err:
 		if (res)
 			i = res->end;
 	}
+	v4l2_device_unregister(&vpif_obj.v4l2_dev);
 	return err;
 }
 

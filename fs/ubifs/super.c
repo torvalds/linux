@@ -276,7 +276,6 @@ static void ubifs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(ubifs_inode_slab, ui);
 }
 
@@ -420,9 +419,9 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	return 0;
 }
 
-static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
+static int ubifs_show_options(struct seq_file *s, struct dentry *root)
 {
-	struct ubifs_info *c = mnt->mnt_sb->s_fs_info;
+	struct ubifs_info *c = root->d_sb->s_fs_info;
 
 	if (c->mount_opts.unmount_mode == 2)
 		seq_printf(s, ",fast_unmount");
@@ -2264,19 +2263,12 @@ static int __init ubifs_init(void)
 		return -EINVAL;
 	}
 
-	err = register_filesystem(&ubifs_fs_type);
-	if (err) {
-		ubifs_err("cannot register file system, error %d", err);
-		return err;
-	}
-
-	err = -ENOMEM;
 	ubifs_inode_slab = kmem_cache_create("ubifs_inode_slab",
 				sizeof(struct ubifs_inode), 0,
 				SLAB_MEM_SPREAD | SLAB_RECLAIM_ACCOUNT,
 				&inode_slab_ctor);
 	if (!ubifs_inode_slab)
-		goto out_reg;
+		return -ENOMEM;
 
 	register_shrinker(&ubifs_shrinker_info);
 
@@ -2288,15 +2280,20 @@ static int __init ubifs_init(void)
 	if (err)
 		goto out_compr;
 
+	err = register_filesystem(&ubifs_fs_type);
+	if (err) {
+		ubifs_err("cannot register file system, error %d", err);
+		goto out_dbg;
+	}
 	return 0;
 
+out_dbg:
+	dbg_debugfs_exit();
 out_compr:
 	ubifs_compressors_exit();
 out_shrinker:
 	unregister_shrinker(&ubifs_shrinker_info);
 	kmem_cache_destroy(ubifs_inode_slab);
-out_reg:
-	unregister_filesystem(&ubifs_fs_type);
 	return err;
 }
 /* late_initcall to let compressors initialize first */

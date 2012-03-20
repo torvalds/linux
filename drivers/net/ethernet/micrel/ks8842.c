@@ -459,7 +459,7 @@ static int ks8842_tx_frame_dma(struct sk_buff *skb, struct net_device *netdev)
 		sg_dma_len(&ctl->sg) += 4 - sg_dma_len(&ctl->sg) % 4;
 
 	ctl->adesc = ctl->chan->device->device_prep_slave_sg(ctl->chan,
-		&ctl->sg, 1, DMA_TO_DEVICE,
+		&ctl->sg, 1, DMA_MEM_TO_DEV,
 		DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
 	if (!ctl->adesc)
 		return NETDEV_TX_BUSY;
@@ -571,7 +571,7 @@ static int __ks8842_start_new_rx_dma(struct net_device *netdev)
 		sg_dma_len(sg) = DMA_BUFFER_SIZE;
 
 		ctl->adesc = ctl->chan->device->device_prep_slave_sg(ctl->chan,
-			sg, 1, DMA_FROM_DEVICE,
+			sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_COMPL_SKIP_SRC_UNMAP);
 
 		if (!ctl->adesc)
@@ -1264,18 +1264,7 @@ static struct platform_driver ks8842_platform_driver = {
 	.remove		= ks8842_remove,
 };
 
-static int __init ks8842_init(void)
-{
-	return platform_driver_register(&ks8842_platform_driver);
-}
-
-static void __exit ks8842_exit(void)
-{
-	platform_driver_unregister(&ks8842_platform_driver);
-}
-
-module_init(ks8842_init);
-module_exit(ks8842_exit);
+module_platform_driver(ks8842_platform_driver);
 
 MODULE_DESCRIPTION("Timberdale KS8842 ethernet driver");
 MODULE_AUTHOR("Mocean Laboratories <info@mocean-labs.com>");

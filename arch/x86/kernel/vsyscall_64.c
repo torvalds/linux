@@ -57,7 +57,7 @@ DEFINE_VVAR(struct vsyscall_gtod_data, vsyscall_gtod_data) =
 	.lock = __SEQLOCK_UNLOCKED(__vsyscall_gtod_data.lock),
 };
 
-static enum { EMULATE, NATIVE, NONE } vsyscall_mode = NATIVE;
+static enum { EMULATE, NATIVE, NONE } vsyscall_mode = EMULATE;
 
 static int __init vsyscall_setup(char *str)
 {
@@ -140,11 +140,40 @@ static int addr_to_vsyscall_nr(unsigned long addr)
 	return nr;
 }
 
+static bool write_ok_or_segv(unsigned long ptr, size_t size)
+{
+	/*
+	 * XXX: if access_ok, get_user, and put_user handled
+	 * sig_on_uaccess_error, this could go away.
+	 */
+
+	if (!access_ok(VERIFY_WRITE, (void __user *)ptr, size)) {
+		siginfo_t info;
+		struct thread_struct *thread = &current->thread;
+
+		thread->error_code	= 6;  /* user fault, no page, write */
+		thread->cr2		= ptr;
+		thread->trap_no		= 14;
+
+		memset(&info, 0, sizeof(info));
+		info.si_signo		= SIGSEGV;
+		info.si_errno		= 0;
+		info.si_code		= SEGV_MAPERR;
+		info.si_addr		= (void __user *)ptr;
+
+		force_sig_info(SIGSEGV, &info, current);
+		return false;
+	} else {
+		return true;
+	}
+}
+
 bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 {
 	struct task_struct *tsk;
 	unsigned long caller;
 	int vsyscall_nr;
+	int prev_sig_on_uaccess_error;
 	long ret;
 
 	/*
@@ -180,35 +209,65 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	if (seccomp_mode(&tsk->seccomp))
 		do_exit(SIGKILL);
 
+	/*
+	 * With a real vsyscall, page faults cause SIGSEGV.  We want to
+	 * preserve that behavior to make writing exploits harder.
+	 */
+	prev_sig_on_uaccess_error = current_thread_info()->sig_on_uaccess_error;
+	current_thread_info()->sig_on_uaccess_error = 1;
+
+	/*
+	 * 0 is a valid user pointer (in the access_ok sense) on 32-bit and
+	 * 64-bit, so we don't need to special-case it here.  For all the
+	 * vsyscalls, 0 means "don't write anything" not "write it at
+	 * address 0".
+	 */
+	ret = -EFAULT;
 	switch (vsyscall_nr) {
 	case 0:
+		if (!write_ok_or_segv(regs->di, sizeof(struct timeval)) ||
+		    !write_ok_or_segv(regs->si, sizeof(struct timezone)))
+			break;
+
 		ret = sys_gettimeofday(
 			(struct timeval __user *)regs->di,
 			(struct timezone __user *)regs->si);
 		break;
 
 	case 1:
+		if (!write_ok_or_segv(regs->di, sizeof(time_t)))
+			break;
+
 		ret = sys_time((time_t __user *)regs->di);
 		break;
 
 	case 2:
+		if (!write_ok_or_segv(regs->di, sizeof(unsigned)) ||
+		    !write_ok_or_segv(regs->si, sizeof(unsigned)))
+			break;
+
 		ret = sys_getcpu((unsigned __user *)regs->di,
 				 (unsigned __user *)regs->si,
 				 0);
 		break;
 	}
 
+	current_thread_info()->sig_on_uaccess_error = prev_sig_on_uaccess_error;
+
 	if (ret == -EFAULT) {
-		/*
-		 * Bad news -- userspace fed a bad pointer to a vsyscall.
-		 *
-		 * With a real vsyscall, that would have caused SIGSEGV.
-		 * To make writing reliable exploits using the emulated
-		 * vsyscalls harder, generate SIGSEGV here as well.
-		 */
+		/* Bad news -- userspace fed a bad pointer to a vsyscall. */
 		warn_bad_vsyscall(KERN_INFO, regs,
 				  "vsyscall fault (exploit attempt?)");
-		goto sigsegv;
+
+		/*
+		 * If we failed to generate a signal for any reason,
+		 * generate one here.  (This should be impossible.)
+		 */
+		if (WARN_ON_ONCE(!sigismember(&tsk->pending.signal, SIGBUS) &&
+				 !sigismember(&tsk->pending.signal, SIGSEGV)))
+			goto sigsegv;
+
+		return true;  /* Don't emulate the ret. */
 	}
 
 	regs->ax = ret;

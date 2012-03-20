@@ -1149,23 +1149,37 @@ int ivtv_yuv_udma_stream_frame(struct ivtv *itv, void __user *src)
 {
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	struct ivtv_dma_frame dma_args;
+	int res;
 
 	ivtv_yuv_setup_stream_frame(itv);
 
 	/* We only need to supply source addresses for this */
 	dma_args.y_source = src;
 	dma_args.uv_source = src + 720 * ((yi->v4l2_src_h + 31) & ~31);
-	return ivtv_yuv_udma_frame(itv, &dma_args);
+	/* Wait for frame DMA. Note that serialize_lock is locked,
+	   so to allow other processes to access the driver while
+	   we are waiting unlock first and later lock again. */
+	mutex_unlock(&itv->serialize_lock);
+	res = ivtv_yuv_udma_frame(itv, &dma_args);
+	mutex_lock(&itv->serialize_lock);
+	return res;
 }
 
 /* IVTV_IOC_DMA_FRAME ioctl handler */
 int ivtv_yuv_prep_frame(struct ivtv *itv, struct ivtv_dma_frame *args)
 {
-/*	IVTV_DEBUG_INFO("yuv_prep_frame\n"); */
+	int res;
 
+/*	IVTV_DEBUG_INFO("yuv_prep_frame\n"); */
 	ivtv_yuv_next_free(itv);
 	ivtv_yuv_setup_frame(itv, args);
-	return ivtv_yuv_udma_frame(itv, args);
+	/* Wait for frame DMA. Note that serialize_lock is locked,
+	   so to allow other processes to access the driver while
+	   we are waiting unlock first and later lock again. */
+	mutex_unlock(&itv->serialize_lock);
+	res = ivtv_yuv_udma_frame(itv, args);
+	mutex_lock(&itv->serialize_lock);
+	return res;
 }
 
 void ivtv_yuv_close(struct ivtv *itv)
@@ -1174,7 +1188,9 @@ void ivtv_yuv_close(struct ivtv *itv)
 	int h_filter, v_filter_1, v_filter_2;
 
 	IVTV_DEBUG_YUV("ivtv_yuv_close\n");
+	mutex_unlock(&itv->serialize_lock);
 	ivtv_waitq(&itv->vsync_waitq);
+	mutex_lock(&itv->serialize_lock);
 
 	yi->running = 0;
 	atomic_set(&yi->next_dma_frame, -1);

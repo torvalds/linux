@@ -24,25 +24,7 @@ obj-$(CONFIG_USB_MUSB_UX500)			+= ux500.o
 # PIO only, or DMA (several potential schemes).
 # though PIO is always there to back up DMA, and for ep0
 
-ifneq ($(CONFIG_MUSB_PIO_ONLY),y)
-
-  ifeq ($(CONFIG_USB_INVENTRA_DMA),y)
-    musb_hdrc-y			+= musbhsdma.o
-
-  else
-    ifeq ($(CONFIG_USB_TI_CPPI_DMA),y)
-      musb_hdrc-y		+= cppi_dma.o
-
-    else
-      ifeq ($(CONFIG_USB_TUSB_OMAP_DMA),y)
-	musb_hdrc-y		+= tusb6010_omap.o
-
-      else
-        ifeq ($(CONFIG_USB_UX500_DMA),y)
-	  musb_hdrc-y		+= ux500_dma.o
-
-        endif
-      endif
-    endif
-  endif
-endif
+musb_hdrc-$(CONFIG_USB_INVENTRA_DMA)		+= musbhsdma.o
+musb_hdrc-$(CONFIG_USB_TI_CPPI_DMA)		+= cppi_dma.o
+musb_hdrc-$(CONFIG_USB_TUSB_OMAP_DMA)		+= tusb6010_omap.o
+musb_hdrc-$(CONFIG_USB_UX500_DMA)		+= ux500_dma.o

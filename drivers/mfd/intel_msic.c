@@ -485,17 +485,7 @@ static struct platform_driver intel_msic_driver = {
 	},
 };
 
-static int __init intel_msic_init(void)
-{
-	return platform_driver_register(&intel_msic_driver);
-}
-module_init(intel_msic_init);
-
-static void __exit intel_msic_exit(void)
-{
-	platform_driver_unregister(&intel_msic_driver);
-}
-module_exit(intel_msic_exit);
+module_platform_driver(intel_msic_driver);
 
 MODULE_DESCRIPTION("Driver for Intel MSIC");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");

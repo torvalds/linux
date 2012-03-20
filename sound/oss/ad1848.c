@@ -119,9 +119,9 @@ ad1848_port_info;
 static struct address_info cfg;
 static int nr_ad1848_devs;
 
-static int deskpro_xl;
-static int deskpro_m;
-static int soundpro;
+static bool deskpro_xl;
+static bool deskpro_m;
+static bool soundpro;
 
 static volatile signed char irq2dev[17] = {
 	-1, -1, -1, -1, -1, -1, -1, -1,
@@ -177,7 +177,7 @@ static struct {
 #ifdef CONFIG_PNP
 static int isapnp	= 1;
 static int isapnpjump;
-static int reverse;
+static bool reverse;
 
 static int audio_activated;
 #else

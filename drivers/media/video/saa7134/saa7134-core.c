@@ -1263,7 +1263,6 @@ static int saa7134_resume(struct pci_dev *pci_dev)
 	saa7134_tvaudio_setmute(dev);
 	saa7134_tvaudio_setvolume(dev, dev->ctl_volume);
 	saa7134_tvaudio_init(dev);
-	saa7134_tvaudio_do_scan(dev);
 	saa7134_enable_i2s(dev);
 	saa7134_hw_enable2(dev);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 - 2009 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2006 - 2011 Intel Corporation.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -56,7 +56,7 @@ static u16 nes_read16_eeprom(void __iomem *addr, u16 offset);
 u32 mh_detected;
 u32 mh_pauses_sent;
 
-u32 nes_set_pau(struct nes_device *nesdev)
+static u32 nes_set_pau(struct nes_device *nesdev)
 {
 	u32 ret = 0;
 	u32 counter;

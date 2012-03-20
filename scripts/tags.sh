@@ -132,7 +132,28 @@ exuberant()
 	--regex-asm='/^(ENTRY|_GLOBAL)\(([^)]*)\).*/\2/'        \
 	--regex-c='/^SYSCALL_DEFINE[[:digit:]]?\(([^,)]*).*/sys_\1/' \
 	--regex-c++='/^TRACE_EVENT\(([^,)]*).*/trace_\1/'		\
-	--regex-c++='/^DEFINE_EVENT\([^,)]*, *([^,)]*).*/trace_\1/'
+	--regex-c++='/^DEFINE_EVENT\([^,)]*, *([^,)]*).*/trace_\1/'	\
+	--regex-c++='/PAGEFLAG\(([^,)]*).*/Page\1/'			\
+	--regex-c++='/PAGEFLAG\(([^,)]*).*/SetPage\1/'			\
+	--regex-c++='/PAGEFLAG\(([^,)]*).*/ClearPage\1/'		\
+	--regex-c++='/TESTSETFLAG\(([^,)]*).*/TestSetPage\1/'		\
+	--regex-c++='/TESTPAGEFLAG\(([^,)]*).*/Page\1/'			\
+	--regex-c++='/SETPAGEFLAG\(([^,)]*).*/SetPage\1/'		\
+	--regex-c++='/__SETPAGEFLAG\(([^,)]*).*/__SetPage\1/'		\
+	--regex-c++='/TESTCLEARFLAG\(([^,)]*).*/TestClearPage\1/'	\
+	--regex-c++='/__TESTCLEARFLAG\(([^,)]*).*/TestClearPage\1/'	\
+	--regex-c++='/CLEARPAGEFLAG\(([^,)]*).*/ClearPage\1/'		\
+	--regex-c++='/__CLEARPAGEFLAG\(([^,)]*).*/__ClearPage\1/'	\
+	--regex-c++='/__PAGEFLAG\(([^,)]*).*/__SetPage\1/'		\
+	--regex-c++='/__PAGEFLAG\(([^,)]*).*/__ClearPage\1/'		\
+	--regex-c++='/PAGEFLAG_FALSE\(([^,)]*).*/Page\1/'		\
+	--regex-c++='/TESTSCFLAG\(([^,)]*).*/TestSetPage\1/'		\
+	--regex-c++='/TESTSCFLAG\(([^,)]*).*/TestClearPage\1/'		\
+	--regex-c++='/SETPAGEFLAG_NOOP\(([^,)]*).*/SetPage\1/'		\
+	--regex-c++='/CLEARPAGEFLAG_NOOP\(([^,)]*).*/ClearPage\1/'	\
+	--regex-c++='/__CLEARPAGEFLAG_NOOP\(([^,)]*).*/__ClearPage\1/'	\
+	--regex-c++='/TESTCLEARFLAG_FALSE\(([^,)]*).*/TestClearPage\1/' \
+	--regex-c++='/__TESTCLEARFLAG_FALSE\(([^,)]*).*/__TestClearPage\1/'
 
 	all_kconfigs | xargs $1 -a                              \
 	--langdef=kconfig --language-force=kconfig              \
@@ -146,6 +167,8 @@ exuberant()
 	--langdef=dotconfig --language-force=dotconfig          \
 	--regex-dotconfig='/^#?[[:blank:]]*(CONFIG_[[:alnum:]_]+)/\1/'
 
+	# Remove structure forward declarations.
+	LANG=C sed -i -e '/^\([a-zA-Z_][a-zA-Z0-9_]*\)\t.*\t\/\^struct \1;.*\$\/;"\tx$/d' tags
 }
 
 emacs()
@@ -154,7 +177,28 @@ emacs()
 	--regex='/^(ENTRY|_GLOBAL)(\([^)]*\)).*/\2/'            \
 	--regex='/^SYSCALL_DEFINE[0-9]?(\([^,)]*\).*/sys_\1/'   \
 	--regex='/^TRACE_EVENT(\([^,)]*\).*/trace_\1/'		\
-	--regex='/^DEFINE_EVENT([^,)]*, *\([^,)]*\).*/trace_\1/'
+	--regex='/^DEFINE_EVENT([^,)]*, *\([^,)]*\).*/trace_\1/' \
+	--regex='/PAGEFLAG\(([^,)]*).*/Page\1/'			\
+	--regex='/PAGEFLAG\(([^,)]*).*/SetPage\1/'		\
+	--regex='/PAGEFLAG\(([^,)]*).*/ClearPage\1/'		\
+	--regex='/TESTSETFLAG\(([^,)]*).*/TestSetPage\1/'	\
+	--regex='/TESTPAGEFLAG\(([^,)]*).*/Page\1/'		\
+	--regex='/SETPAGEFLAG\(([^,)]*).*/SetPage\1/'		\
+	--regex='/__SETPAGEFLAG\(([^,)]*).*/__SetPage\1/'	\
+	--regex='/TESTCLEARFLAG\(([^,)]*).*/TestClearPage\1/'	\
+	--regex='/__TESTCLEARFLAG\(([^,)]*).*/TestClearPage\1/'	\
+	--regex='/CLEARPAGEFLAG\(([^,)]*).*/ClearPage\1/'	\
+	--regex='/__CLEARPAGEFLAG\(([^,)]*).*/__ClearPage\1/'	\
+	--regex='/__PAGEFLAG\(([^,)]*).*/__SetPage\1/'		\
+	--regex='/__PAGEFLAG\(([^,)]*).*/__ClearPage\1/'	\
+	--regex='/PAGEFLAG_FALSE\(([^,)]*).*/Page\1/'		\
+	--regex='/TESTSCFLAG\(([^,)]*).*/TestSetPage\1/'	\
+	--regex='/TESTSCFLAG\(([^,)]*).*/TestClearPage\1/'	\
+	--regex='/SETPAGEFLAG_NOOP\(([^,)]*).*/SetPage\1/'	\
+	--regex='/CLEARPAGEFLAG_NOOP\(([^,)]*).*/ClearPage\1/'	\
+	--regex='/__CLEARPAGEFLAG_NOOP\(([^,)]*).*/__ClearPage\1/' \
+	--regex='/TESTCLEARFLAG_FALSE\(([^,)]*).*/TestClearPage\1/' \
+	--regex='/__TESTCLEARFLAG_FALSE\(([^,)]*).*/__TestClearPage\1/'
 
 	all_kconfigs | xargs $1 -a                              \
 	--regex='/^[ \t]*\(\(menu\)*config\)[ \t]+\([a-zA-Z0-9_]+\)/\3/'

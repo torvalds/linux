@@ -117,6 +117,7 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(REPLY_WOWLAN_TKIP_PARAMS);
 		IWL_CMD(REPLY_WOWLAN_KEK_KCK_MATERIAL);
 		IWL_CMD(REPLY_WOWLAN_GET_STATUS);
+		IWL_CMD(REPLY_D3_CONFIG);
 	default:
 		return "UNKNOWN";
 
@@ -317,7 +318,7 @@ static bool iwlagn_good_plcp_health(struct iwl_priv *priv,
 				 unsigned int msecs)
 {
 	int delta;
-	int threshold = priv->cfg->base_params->plcp_delta_threshold;
+	int threshold = cfg(priv)->base_params->plcp_delta_threshold;
 
 	if (threshold == IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE) {
 		IWL_DEBUG_RADIO(priv, "plcp_err check disabled\n");
@@ -582,8 +583,8 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 		iwlagn_rx_calc_noise(priv);
 		queue_work(priv->shrd->workqueue, &priv->run_time_calib_work);
 	}
-	if (priv->cfg->lib->temperature && change)
-		priv->cfg->lib->temperature(priv);
+	if (cfg(priv)->lib->temperature && change)
+		cfg(priv)->lib->temperature(priv);
 	return 0;
 }
 
@@ -800,7 +801,8 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 					       ctx->active.bssid_addr))
 				continue;
 			ctx->last_tx_rejected = false;
-			iwl_trans_wake_any_queue(trans(priv), ctx->ctxid);
+			iwl_trans_wake_any_queue(trans(priv), ctx->ctxid,
+				"channel got active");
 		}
 	}
 
@@ -1032,6 +1034,50 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	return 0;
 }
 
+static int iwlagn_rx_noa_notification(struct iwl_priv *priv,
+				      struct iwl_rx_mem_buffer *rxb,
+				      struct iwl_device_cmd *cmd)
+{
+	struct iwl_wipan_noa_data *new_data, *old_data;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_wipan_noa_notification *noa_notif = (void *)pkt->u.raw;
+
+	/* no condition -- we're in softirq */
+	old_data = rcu_dereference_protected(priv->noa_data, true);
+
+	if (noa_notif->noa_active) {
+		u32 len = le16_to_cpu(noa_notif->noa_attribute.length);
+		u32 copylen = len;
+
+		/* EID, len, OUI, subtype */
+		len += 1 + 1 + 3 + 1;
+		/* P2P id, P2P length */
+		len += 1 + 2;
+		copylen += 1 + 2;
+
+		new_data = kmalloc(sizeof(*new_data) + len, GFP_ATOMIC);
+		if (new_data) {
+			new_data->length = len;
+			new_data->data[0] = WLAN_EID_VENDOR_SPECIFIC;
+			new_data->data[1] = len - 2; /* not counting EID, len */
+			new_data->data[2] = (WLAN_OUI_WFA >> 16) & 0xff;
+			new_data->data[3] = (WLAN_OUI_WFA >> 8) & 0xff;
+			new_data->data[4] = (WLAN_OUI_WFA >> 0) & 0xff;
+			new_data->data[5] = WLAN_OUI_TYPE_WFA_P2P;
+			memcpy(&new_data->data[6], &noa_notif->noa_attribute,
+			       copylen);
+		}
+	} else
+		new_data = NULL;
+
+	rcu_assign_pointer(priv->noa_data, new_data);
+
+	if (old_data)
+		kfree_rcu(old_data, rcu_head);
+
+	return 0;
+}
+
 /**
  * iwl_setup_rx_handlers - Initialize Rx handler callbacks
  *
@@ -1054,6 +1100,8 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 		iwlagn_rx_pm_debug_statistics_notif;
 	handlers[BEACON_NOTIFICATION]		= iwlagn_rx_beacon_notif;
 	handlers[REPLY_ADD_STA]			= iwl_add_sta_callback;
+
+	handlers[REPLY_WIPAN_NOA_NOTIFICATION]	= iwlagn_rx_noa_notification;
 
 	/*
 	 * The same handler is used for both the REPLY to a discrete
@@ -1083,13 +1131,13 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_TX] = iwlagn_rx_reply_tx;
 
 	/* set up notification wait support */
-	spin_lock_init(&priv->notif_wait_lock);
-	INIT_LIST_HEAD(&priv->notif_waits);
-	init_waitqueue_head(&priv->notif_waitq);
+	spin_lock_init(&priv->shrd->notif_wait_lock);
+	INIT_LIST_HEAD(&priv->shrd->notif_waits);
+	init_waitqueue_head(&priv->shrd->notif_waitq);
 
 	/* Set up BT Rx handlers */
-	if (priv->cfg->lib->bt_rx_handler_setup)
-		priv->cfg->lib->bt_rx_handler_setup(priv);
+	if (cfg(priv)->lib->bt_rx_handler_setup)
+		cfg(priv)->lib->bt_rx_handler_setup(priv);
 
 }
 
@@ -1104,11 +1152,11 @@ int iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 	 * even if the RX handler consumes the RXB we have
 	 * access to it in the notification wait entry.
 	 */
-	if (!list_empty(&priv->notif_waits)) {
+	if (!list_empty(&priv->shrd->notif_waits)) {
 		struct iwl_notification_wait *w;
 
-		spin_lock(&priv->notif_wait_lock);
-		list_for_each_entry(w, &priv->notif_waits, list) {
+		spin_lock(&priv->shrd->notif_wait_lock);
+		list_for_each_entry(w, &priv->shrd->notif_waits, list) {
 			if (w->cmd != pkt->hdr.cmd)
 				continue;
 			IWL_DEBUG_RX(priv,
@@ -1117,11 +1165,11 @@ int iwl_rx_dispatch(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb,
 				pkt->hdr.cmd);
 			w->triggered = true;
 			if (w->fn)
-				w->fn(priv, pkt, w->fn_data);
+				w->fn(trans(priv), pkt, w->fn_data);
 		}
-		spin_unlock(&priv->notif_wait_lock);
+		spin_unlock(&priv->shrd->notif_wait_lock);
 
-		wake_up_all(&priv->notif_waitq);
+		wake_up_all(&priv->shrd->notif_waitq);
 	}
 
 	if (priv->pre_rx_handler)

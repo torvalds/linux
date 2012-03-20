@@ -857,7 +857,7 @@ typedef struct _EVENT_DATA_SAS_DISCOVERY
 #define MPI_EVENT_SAS_DSCVRY_PHY_BITS_MASK                  (0xFFFF0000)
 #define MPI_EVENT_SAS_DSCVRY_PHY_BITS_SHIFT                 (16)
 
-/* SAS Discovery Errror Event data */
+/* SAS Discovery Error Event data */
 
 typedef struct _EVENT_DATA_DISCOVERY_ERROR
 {

@@ -22,7 +22,7 @@ static void __init error(char *x)
 
 static __initdata struct hash {
 	int ino, minor, major;
-	mode_t mode;
+	umode_t mode;
 	struct hash *next;
 	char name[N_ALIGN(PATH_MAX)];
 } *head[32];
@@ -35,7 +35,7 @@ static inline int hash(int major, int minor, int ino)
 }
 
 static char __init *find_link(int major, int minor, int ino,
-			      mode_t mode, char *name)
+			      umode_t mode, char *name)
 {
 	struct hash **p, *q;
 	for (p = head + hash(major, minor, ino); *p; p = &(*p)->next) {
@@ -120,7 +120,7 @@ static __initdata time_t mtime;
 /* cpio header parsing */
 
 static __initdata unsigned long ino, major, minor, nlink;
-static __initdata mode_t mode;
+static __initdata umode_t mode;
 static __initdata unsigned long body_len, name_len;
 static __initdata uid_t uid;
 static __initdata gid_t gid;
@@ -276,7 +276,7 @@ static int __init maybe_link(void)
 	return 0;
 }
 
-static void __init clean_path(char *path, mode_t mode)
+static void __init clean_path(char *path, umode_t mode)
 {
 	struct stat st;
 

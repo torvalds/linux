@@ -75,7 +75,7 @@
  *        device is up and running or shutdown (through ifconfig up /
  *        down). Bus-generic only.
  *
- *  - control ops: control.c - implements various commmands for
+ *  - control ops: control.c - implements various commands for
  *        controlling the device. bus-generic only.
  *
  *  - device model glue: driver.c - implements helpers for the

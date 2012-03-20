@@ -115,8 +115,8 @@ static struct resource colibri_asix_resource[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
-		.end   = gpio_to_irq(COLIBRI_ETH_IRQ_GPIO),
+		.start = PXA_GPIO_TO_IRQ(COLIBRI_ETH_IRQ_GPIO),
+		.end   = PXA_GPIO_TO_IRQ(COLIBRI_ETH_IRQ_GPIO),
 		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_FALLING,
 	}
 };
@@ -146,7 +146,7 @@ static void __init colibri_pxa320_init_eth(void)
 static inline void __init colibri_pxa320_init_eth(void) {}
 #endif /* CONFIG_AX88796 */
 
-#if defined(CONFIG_USB_GADGET_PXA27X)||defined(CONFIG_USB_GADGET_PXA27X_MODULE)
+#if defined(CONFIG_USB_PXA27X)||defined(CONFIG_USB_PXA27X_MODULE)
 static struct gpio_vbus_mach_info colibri_pxa320_gpio_vbus_info = {
 	.gpio_vbus		= mfp_to_gpio(MFP_PIN_GPIO96),
 	.gpio_pullup		= -1,
@@ -259,5 +259,6 @@ MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,
+	.restart	= pxa_restart,
 MACHINE_END
 

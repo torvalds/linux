@@ -50,8 +50,6 @@
  * SUCH DAMAGE.
  */
 
-#define DEBUG
-
 #include <linux/bitops.h>
 #include <linux/if_arp.h>
 #include <linux/module.h>
@@ -112,6 +110,20 @@ struct lowpan_dev_record {
 	struct net_device *ldev;
 	struct list_head list;
 };
+
+struct lowpan_fragment {
+	struct sk_buff		*skb;		/* skb to be assembled */
+	spinlock_t		lock;		/* concurency lock */
+	u16			length;		/* length to be assemled */
+	u32			bytes_rcv;	/* bytes received */
+	u16			tag;		/* current fragment tag */
+	struct timer_list	timer;		/* assembling timer */
+	struct list_head	list;		/* fragments list */
+};
+
+static unsigned short fragment_tag;
+static LIST_HEAD(lowpan_fragments);
+spinlock_t flist_lock;
 
 static inline struct
 lowpan_dev_info *lowpan_dev_info(const struct net_device *dev)
@@ -234,6 +246,50 @@ lowpan_uncompress_addr(struct sk_buff *skb, struct in6_addr *ipaddr,
 	return 0;
 }
 
+static void
+lowpan_compress_udp_header(u8 **hc06_ptr, struct sk_buff *skb)
+{
+	struct udphdr *uh = udp_hdr(skb);
+
+	pr_debug("(%s): UDP header compression\n", __func__);
+
+	if (((uh->source & LOWPAN_NHC_UDP_4BIT_MASK) ==
+				LOWPAN_NHC_UDP_4BIT_PORT) &&
+	    ((uh->dest & LOWPAN_NHC_UDP_4BIT_MASK) ==
+				LOWPAN_NHC_UDP_4BIT_PORT)) {
+		pr_debug("(%s): both ports compression to 4 bits\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_11;
+		**(hc06_ptr + 1) = /* subtraction is faster */
+		   (u8)((uh->dest - LOWPAN_NHC_UDP_4BIT_PORT) +
+		       ((uh->source & LOWPAN_NHC_UDP_4BIT_PORT) << 4));
+		*hc06_ptr += 2;
+	} else if ((uh->dest & LOWPAN_NHC_UDP_8BIT_MASK) ==
+			LOWPAN_NHC_UDP_8BIT_PORT) {
+		pr_debug("(%s): remove 8 bits of dest\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_01;
+		memcpy(*hc06_ptr + 1, &uh->source, 2);
+		**(hc06_ptr + 3) = (u8)(uh->dest - LOWPAN_NHC_UDP_8BIT_PORT);
+		*hc06_ptr += 4;
+	} else if ((uh->source & LOWPAN_NHC_UDP_8BIT_MASK) ==
+			LOWPAN_NHC_UDP_8BIT_PORT) {
+		pr_debug("(%s): remove 8 bits of source\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_10;
+		memcpy(*hc06_ptr + 1, &uh->dest, 2);
+		**(hc06_ptr + 3) = (u8)(uh->source - LOWPAN_NHC_UDP_8BIT_PORT);
+		*hc06_ptr += 4;
+	} else {
+		pr_debug("(%s): can't compress header\n", __func__);
+		**hc06_ptr = LOWPAN_NHC_UDP_CS_P_00;
+		memcpy(*hc06_ptr + 1, &uh->source, 2);
+		memcpy(*hc06_ptr + 3, &uh->dest, 2);
+		*hc06_ptr += 5;
+	}
+
+	/* checksum is always inline */
+	memcpy(*hc06_ptr, &uh->check, 2);
+	*hc06_ptr += 2;
+}
+
 static u8 lowpan_fetch_skb_u8(struct sk_buff *skb)
 {
 	u8 ret;
@@ -242,6 +298,73 @@ static u8 lowpan_fetch_skb_u8(struct sk_buff *skb)
 	skb_pull(skb, 1);
 
 	return ret;
+}
+
+static u16 lowpan_fetch_skb_u16(struct sk_buff *skb)
+{
+	u16 ret;
+
+	BUG_ON(!pskb_may_pull(skb, 2));
+
+	ret = skb->data[0] | (skb->data[1] << 8);
+	skb_pull(skb, 2);
+	return ret;
+}
+
+static int
+lowpan_uncompress_udp_header(struct sk_buff *skb)
+{
+	struct udphdr *uh = udp_hdr(skb);
+	u8 tmp;
+
+	tmp = lowpan_fetch_skb_u8(skb);
+
+	if ((tmp & LOWPAN_NHC_UDP_MASK) == LOWPAN_NHC_UDP_ID) {
+		pr_debug("(%s): UDP header uncompression\n", __func__);
+		switch (tmp & LOWPAN_NHC_UDP_CS_P_11) {
+		case LOWPAN_NHC_UDP_CS_P_00:
+			memcpy(&uh->source, &skb->data[0], 2);
+			memcpy(&uh->dest, &skb->data[2], 2);
+			skb_pull(skb, 4);
+			break;
+		case LOWPAN_NHC_UDP_CS_P_01:
+			memcpy(&uh->source, &skb->data[0], 2);
+			uh->dest =
+			   skb->data[2] + LOWPAN_NHC_UDP_8BIT_PORT;
+			skb_pull(skb, 3);
+			break;
+		case LOWPAN_NHC_UDP_CS_P_10:
+			uh->source = skb->data[0] + LOWPAN_NHC_UDP_8BIT_PORT;
+			memcpy(&uh->dest, &skb->data[1], 2);
+			skb_pull(skb, 3);
+			break;
+		case LOWPAN_NHC_UDP_CS_P_11:
+			uh->source =
+			   LOWPAN_NHC_UDP_4BIT_PORT + (skb->data[0] >> 4);
+			uh->dest =
+			   LOWPAN_NHC_UDP_4BIT_PORT + (skb->data[0] & 0x0f);
+			skb_pull(skb, 1);
+			break;
+		default:
+			pr_debug("(%s) ERROR: unknown UDP format\n", __func__);
+			goto err;
+			break;
+		}
+
+		pr_debug("(%s): uncompressed UDP ports: src = %d, dst = %d\n",
+					__func__, uh->source, uh->dest);
+
+		/* copy checksum */
+		memcpy(&uh->check, &skb->data[0], 2);
+		skb_pull(skb, 2);
+	} else {
+		pr_debug("(%s): ERROR: unsupported NH format\n", __func__);
+		goto err;
+	}
+
+	return 0;
+err:
+	return -EINVAL;
 }
 
 static int lowpan_header_create(struct sk_buff *skb,
@@ -342,8 +465,6 @@ static int lowpan_header_create(struct sk_buff *skb,
 	if (hdr->nexthdr == UIP_PROTO_UDP)
 		iphc0 |= LOWPAN_IPHC_NH_C;
 
-/* TODO: next header compression */
-
 	if ((iphc0 & LOWPAN_IPHC_NH_C) == 0) {
 		*hc06_ptr = hdr->nexthdr;
 		hc06_ptr += 1;
@@ -431,8 +552,9 @@ static int lowpan_header_create(struct sk_buff *skb,
 		}
 	}
 
-	/* TODO: UDP header compression */
-	/* TODO: Next Header compression */
+	/* UDP header compression */
+	if (hdr->nexthdr == UIP_PROTO_UDP)
+		lowpan_compress_udp_header(&hc06_ptr, skb);
 
 	head[0] = iphc0;
 	head[1] = iphc1;
@@ -467,6 +589,7 @@ static int lowpan_header_create(struct sk_buff *skb,
 		memcpy(&(sa.hwaddr), saddr, 8);
 
 		mac_cb(skb)->flags = IEEE802154_FC_TYPE_DATA;
+
 		return dev_hard_header(skb, lowpan_dev_info(dev)->real_dev,
 				type, (void *)&da, (void *)&sa, skb->len);
 	}
@@ -511,6 +634,21 @@ static int lowpan_skb_deliver(struct sk_buff *skb, struct ipv6hdr *hdr)
 	return stat;
 }
 
+static void lowpan_fragment_timer_expired(unsigned long entry_addr)
+{
+	struct lowpan_fragment *entry = (struct lowpan_fragment *)entry_addr;
+
+	pr_debug("%s: timer expired for frame with tag %d\n", __func__,
+								entry->tag);
+
+	spin_lock(&flist_lock);
+	list_del(&entry->list);
+	spin_unlock(&flist_lock);
+
+	dev_kfree_skb(entry->skb);
+	kfree(entry);
+}
+
 static int
 lowpan_process_data(struct sk_buff *skb)
 {
@@ -525,6 +663,107 @@ lowpan_process_data(struct sk_buff *skb)
 	if (skb->len < 2)
 		goto drop;
 	iphc0 = lowpan_fetch_skb_u8(skb);
+
+	/* fragments assembling */
+	switch (iphc0 & LOWPAN_DISPATCH_MASK) {
+	case LOWPAN_DISPATCH_FRAG1:
+	case LOWPAN_DISPATCH_FRAGN:
+	{
+		struct lowpan_fragment *frame;
+		u8 len, offset;
+		u16 tag;
+		bool found = false;
+
+		len = lowpan_fetch_skb_u8(skb); /* frame length */
+		tag = lowpan_fetch_skb_u16(skb);
+
+		/*
+		 * check if frame assembling with the same tag is
+		 * already in progress
+		 */
+		spin_lock(&flist_lock);
+
+		list_for_each_entry(frame, &lowpan_fragments, list)
+			if (frame->tag == tag) {
+				found = true;
+				break;
+			}
+
+		/* alloc new frame structure */
+		if (!found) {
+			frame = kzalloc(sizeof(struct lowpan_fragment),
+								GFP_ATOMIC);
+			if (!frame)
+				goto unlock_and_drop;
+
+			INIT_LIST_HEAD(&frame->list);
+
+			frame->length = (iphc0 & 7) | (len << 3);
+			frame->tag = tag;
+
+			/* allocate buffer for frame assembling */
+			frame->skb = alloc_skb(frame->length +
+					sizeof(struct ipv6hdr), GFP_ATOMIC);
+
+			if (!frame->skb) {
+				kfree(frame);
+				goto unlock_and_drop;
+			}
+
+			frame->skb->priority = skb->priority;
+			frame->skb->dev = skb->dev;
+
+			/* reserve headroom for uncompressed ipv6 header */
+			skb_reserve(frame->skb, sizeof(struct ipv6hdr));
+			skb_put(frame->skb, frame->length);
+
+			init_timer(&frame->timer);
+			/* time out is the same as for ipv6 - 60 sec */
+			frame->timer.expires = jiffies + LOWPAN_FRAG_TIMEOUT;
+			frame->timer.data = (unsigned long)frame;
+			frame->timer.function = lowpan_fragment_timer_expired;
+
+			add_timer(&frame->timer);
+
+			list_add_tail(&frame->list, &lowpan_fragments);
+		}
+
+		if ((iphc0 & LOWPAN_DISPATCH_MASK) == LOWPAN_DISPATCH_FRAG1)
+			goto unlock_and_drop;
+
+		offset = lowpan_fetch_skb_u8(skb); /* fetch offset */
+
+		/* if payload fits buffer, copy it */
+		if (likely((offset * 8 + skb->len) <= frame->length))
+			skb_copy_to_linear_data_offset(frame->skb, offset * 8,
+							skb->data, skb->len);
+		else
+			goto unlock_and_drop;
+
+		frame->bytes_rcv += skb->len;
+
+		/* frame assembling complete */
+		if ((frame->bytes_rcv == frame->length) &&
+		     frame->timer.expires > jiffies) {
+			/* if timer haven't expired - first of all delete it */
+			del_timer(&frame->timer);
+			list_del(&frame->list);
+			spin_unlock(&flist_lock);
+
+			dev_kfree_skb(skb);
+			skb = frame->skb;
+			kfree(frame);
+			iphc0 = lowpan_fetch_skb_u8(skb);
+			break;
+		}
+		spin_unlock(&flist_lock);
+
+		return kfree_skb(skb), 0;
+	}
+	default:
+		break;
+	}
+
 	iphc1 = lowpan_fetch_skb_u8(skb);
 
 	_saddr = mac_cb(skb)->sa.hwaddr;
@@ -659,7 +898,10 @@ lowpan_process_data(struct sk_buff *skb)
 			goto drop;
 	}
 
-	/* TODO: UDP header parse */
+	/* UDP data uncompression */
+	if (iphc0 & LOWPAN_IPHC_NH_C)
+		if (lowpan_uncompress_udp_header(skb))
+			goto drop;
 
 	/* Not fragmented package */
 	hdr.payload_len = htons(skb->len);
@@ -674,6 +916,9 @@ lowpan_process_data(struct sk_buff *skb)
 	lowpan_raw_dump_table(__func__, "raw header dump", (u8 *)&hdr,
 							sizeof(hdr));
 	return lowpan_skb_deliver(skb, &hdr);
+
+unlock_and_drop:
+	spin_unlock(&flist_lock);
 drop:
 	kfree_skb(skb);
 	return -EINVAL;
@@ -692,18 +937,115 @@ static int lowpan_set_address(struct net_device *dev, void *p)
 	return 0;
 }
 
+static int lowpan_get_mac_header_length(struct sk_buff *skb)
+{
+	/*
+	 * Currently long addressing mode is supported only, so the overall
+	 * header size is 21:
+	 * FC SeqNum DPAN DA  SA  Sec
+	 * 2  +  1  +  2 + 8 + 8 + 0  = 21
+	 */
+	return 21;
+}
+
+static int
+lowpan_fragment_xmit(struct sk_buff *skb, u8 *head,
+			int mlen, int plen, int offset)
+{
+	struct sk_buff *frag;
+	int hlen, ret;
+
+	/* if payload length is zero, therefore it's a first fragment */
+	hlen = (plen == 0 ? LOWPAN_FRAG1_HEAD_SIZE :  LOWPAN_FRAGN_HEAD_SIZE);
+
+	lowpan_raw_dump_inline(__func__, "6lowpan fragment header", head, hlen);
+
+	frag = dev_alloc_skb(hlen + mlen + plen + IEEE802154_MFR_SIZE);
+	if (!frag)
+		return -ENOMEM;
+
+	frag->priority = skb->priority;
+	frag->dev = skb->dev;
+
+	/* copy header, MFR and payload */
+	memcpy(skb_put(frag, mlen), skb->data, mlen);
+	memcpy(skb_put(frag, hlen), head, hlen);
+
+	if (plen)
+		skb_copy_from_linear_data_offset(skb, offset + mlen,
+					skb_put(frag, plen), plen);
+
+	lowpan_raw_dump_table(__func__, " raw fragment dump", frag->data,
+								frag->len);
+
+	ret = dev_queue_xmit(frag);
+
+	return ret;
+}
+
+static int
+lowpan_skb_fragmentation(struct sk_buff *skb)
+{
+	int  err, header_length, payload_length, tag, offset = 0;
+	u8 head[5];
+
+	header_length = lowpan_get_mac_header_length(skb);
+	payload_length = skb->len - header_length;
+	tag = fragment_tag++;
+
+	/* first fragment header */
+	head[0] = LOWPAN_DISPATCH_FRAG1 | (payload_length & 0x7);
+	head[1] = (payload_length >> 3) & 0xff;
+	head[2] = tag & 0xff;
+	head[3] = tag >> 8;
+
+	err = lowpan_fragment_xmit(skb, head, header_length, 0, 0);
+
+	/* next fragment header */
+	head[0] &= ~LOWPAN_DISPATCH_FRAG1;
+	head[0] |= LOWPAN_DISPATCH_FRAGN;
+
+	while ((payload_length - offset > 0) && (err >= 0)) {
+		int len = LOWPAN_FRAG_SIZE;
+
+		head[4] = offset / 8;
+
+		if (payload_length - offset < len)
+			len = payload_length - offset;
+
+		err = lowpan_fragment_xmit(skb, head, header_length,
+							len, offset);
+		offset += len;
+	}
+
+	return err;
+}
+
 static netdev_tx_t lowpan_xmit(struct sk_buff *skb, struct net_device *dev)
 {
-	int err = 0;
+	int err = -1;
 
 	pr_debug("(%s): package xmit\n", __func__);
 
 	skb->dev = lowpan_dev_info(dev)->real_dev;
 	if (skb->dev == NULL) {
 		pr_debug("(%s) ERROR: no real wpan device found\n", __func__);
-		dev_kfree_skb(skb);
-	} else
+		goto error;
+	}
+
+	if (skb->len <= IEEE802154_MTU) {
 		err = dev_queue_xmit(skb);
+		goto out;
+	}
+
+	pr_debug("(%s): frame is too big, fragmentation is needed\n",
+								__func__);
+	err = lowpan_skb_fragmentation(skb);
+error:
+	dev_kfree_skb(skb);
+out:
+	if (err < 0)
+		pr_debug("(%s): ERROR: xmit failed\n", __func__);
 
 	return (err < 0 ? NETDEV_TX_BUSY : NETDEV_TX_OK);
 }
@@ -730,13 +1072,12 @@ static void lowpan_setup(struct net_device *dev)
 	dev->addr_len		= IEEE802154_ADDR_LEN;
 	memset(dev->broadcast, 0xff, IEEE802154_ADDR_LEN);
 	dev->type		= ARPHRD_IEEE802154;
-	dev->features		= NETIF_F_NO_CSUM;
 	/* Frame Control + Sequence Number + Address fields + Security Header */
 	dev->hard_header_len	= 2 + 1 + 20 + 14;
 	dev->needed_tailroom	= 2; /* FCS */
 	dev->mtu		= 1281;
 	dev->tx_queue_len	= 0;
-	dev->flags		= IFF_NOARP | IFF_BROADCAST;
+	dev->flags		= IFF_BROADCAST | IFF_MULTICAST;
 	dev->watchdog_timeo	= 0;
 
 	dev->netdev_ops		= &lowpan_netdev_ops;
@@ -765,8 +1106,15 @@ static int lowpan_rcv(struct sk_buff *skb, struct net_device *dev,
 		goto drop;
 
 	/* check that it's our buffer */
-	if ((skb->data[0] & 0xe0) == 0x60)
+	switch (skb->data[0] & 0xe0) {
+	case LOWPAN_DISPATCH_IPHC:	/* ipv6 datagram */
+	case LOWPAN_DISPATCH_FRAG1:	/* first fragment header */
+	case LOWPAN_DISPATCH_FRAGN:	/* next fragments headers */
 		lowpan_process_data(skb);
+		break;
+	default:
+		break;
+	}
 
 	return NET_RX_SUCCESS;
 
