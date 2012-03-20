@@ -1639,11 +1639,13 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 {
 	struct MPT2SAS_ADAPTER *ioc = phy_to_ioc(phy);
 	Mpi2SasIOUnitPage1_t *sas_iounit_pg1 = NULL;
+	Mpi2SasIOUnitPage0_t *sas_iounit_pg0 = NULL;
 	Mpi2ConfigReply_t mpi_reply;
 	u16 ioc_status;
 	u16 sz;
 	int rc = 0;
 	unsigned long flags;
+	int i, discovery_active;
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	if (_transport_sas_node_find_by_sas_address(ioc,
@@ -1661,7 +1663,50 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 
 	/* handle hba phys */
 
-	/* sas_iounit page 1 */
+	/* read sas_iounit page 0 */
+	sz = offsetof(Mpi2SasIOUnitPage0_t, PhyData) + (ioc->sas_hba.num_phys *
+	    sizeof(Mpi2SasIOUnit0PhyData_t));
+	sas_iounit_pg0 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_iounit_pg0) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -ENOMEM;
+		goto out;
+	}
+	if ((mpt2sas_config_get_sas_iounit_pg0(ioc, &mpi_reply,
+	    sas_iounit_pg0, sz))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -ENXIO;
+		goto out;
+	}
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -EIO;
+		goto out;
+	}
+
+	/* unable to enable/disable phys when when discovery is active */
+	for (i = 0, discovery_active = 0; i < ioc->sas_hba.num_phys ; i++) {
+		if (sas_iounit_pg0->PhyData[i].PortFlags &
+		    MPI2_SASIOUNIT0_PORTFLAGS_DISCOVERY_IN_PROGRESS) {
+			printk(MPT2SAS_ERR_FMT "discovery is active on "
+			    "port = %d, phy = %d: unable to enable/disable "
+			    "phys, try again later!\n", ioc->name,
+			    sas_iounit_pg0->PhyData[i].Port, i);
+			discovery_active = 1;
+		}
+	}
+
+	if (discovery_active) {
+		rc = -EAGAIN;
+		goto out;
+	}
+
+	/* read sas_iounit page 1 */
 	sz = offsetof(Mpi2SasIOUnitPage1_t, PhyData) + (ioc->sas_hba.num_phys *
 	    sizeof(Mpi2SasIOUnit1PhyData_t));
 	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
@@ -1686,7 +1731,18 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 		rc = -EIO;
 		goto out;
 	}
-
+	/* copy Port/PortFlags/PhyFlags from page 0 */
+	for (i = 0; i < ioc->sas_hba.num_phys ; i++) {
+		sas_iounit_pg1->PhyData[i].Port =
+		    sas_iounit_pg0->PhyData[i].Port;
+		sas_iounit_pg1->PhyData[i].PortFlags =
+		    (sas_iounit_pg0->PhyData[i].PortFlags &
+		    MPI2_SASIOUNIT0_PORTFLAGS_AUTO_PORT_CONFIG);
+		sas_iounit_pg1->PhyData[i].PhyFlags =
+		    (sas_iounit_pg0->PhyData[i].PhyFlags &
+		    (MPI2_SASIOUNIT0_PHYFLAGS_ZONING_ENABLED +
+		    MPI2_SASIOUNIT0_PHYFLAGS_PHY_DISABLED));
+	}
 	if (enable)
 		sas_iounit_pg1->PhyData[phy->number].PhyFlags
 		    &= ~MPI2_SASIOUNIT1_PHYFLAGS_PHY_DISABLE;
@@ -1702,6 +1758,7 @@ _transport_phy_enable(struct sas_phy *phy, int enable)
 
  out:
 	kfree(sas_iounit_pg1);
+	kfree(sas_iounit_pg0);
 	return rc;
 }
 
