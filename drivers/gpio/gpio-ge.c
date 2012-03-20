@@ -14,7 +14,7 @@
  *
  * Configuration of output modes (totem-pole/open-drain)
  * Interrupt configuration - interrupts are always generated the FPGA relies on
- * 	the I/O interrupt controllers mask to stop them propergating
+ * the I/O interrupt controllers mask to stop them propergating
  */
 
 #include <linux/kernel.h>
@@ -149,6 +149,34 @@ static int __init gef_gpio_init(void)
 		/* Setup pointers to chip functions */
 		gef_gpio_chip->gc.of_gpio_n_cells = 2;
 		gef_gpio_chip->gc.ngpio = 6;
+		gef_gpio_chip->gc.direction_input = gef_gpio_dir_in;
+		gef_gpio_chip->gc.direction_output = gef_gpio_dir_out;
+		gef_gpio_chip->gc.get = gef_gpio_get;
+		gef_gpio_chip->gc.set = gef_gpio_set;
+
+		/* This function adds a memory mapped GPIO chip */
+		retval = of_mm_gpiochip_add(np, gef_gpio_chip);
+		if (retval) {
+			kfree(gef_gpio_chip);
+			pr_err("%s: Unable to add GPIO\n", np->full_name);
+		}
+	}
+
+	for_each_compatible_node(np, NULL, "ge,imp3a-gpio") {
+
+		pr_debug("%s: Initialising GE GPIO\n", np->full_name);
+
+		/* Allocate chip structure */
+		gef_gpio_chip = kzalloc(sizeof(*gef_gpio_chip), GFP_KERNEL);
+		if (!gef_gpio_chip) {
+			pr_err("%s: Unable to allocate structure\n",
+				np->full_name);
+			continue;
+		}
+
+		/* Setup pointers to chip functions */
+		gef_gpio_chip->gc.of_gpio_n_cells = 2;
+		gef_gpio_chip->gc.ngpio = 16;
 		gef_gpio_chip->gc.direction_input = gef_gpio_dir_in;
 		gef_gpio_chip->gc.direction_output = gef_gpio_dir_out;
 		gef_gpio_chip->gc.get = gef_gpio_get;
