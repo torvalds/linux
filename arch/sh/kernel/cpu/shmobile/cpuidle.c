@@ -29,7 +29,6 @@ static int cpuidle_sleep_enter(struct cpuidle_device *dev,
 				int index)
 {
 	unsigned long allowed_mode = SUSP_SH_SLEEP;
-	ktime_t before, after;
 	int requested_state = index;
 	int allowed_state;
 	int k;
@@ -47,19 +46,16 @@ static int cpuidle_sleep_enter(struct cpuidle_device *dev,
 	 */
 	k = min_t(int, allowed_state, requested_state);
 
-	before = ktime_get();
 	sh_mobile_call_standby(cpuidle_mode[k]);
-	after = ktime_get();
-
-	dev->last_residency = (int)ktime_to_ns(ktime_sub(after, before)) >> 10;
 
 	return k;
 }
 
 static struct cpuidle_device cpuidle_dev;
 static struct cpuidle_driver cpuidle_driver = {
-	.name =		"sh_idle",
-	.owner =	THIS_MODULE,
+	.name			= "sh_idle",
+	.owner			= THIS_MODULE,
+	.en_core_tk_irqen	= 1,
 };
 
 void sh_mobile_setup_cpuidle(void)
