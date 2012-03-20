@@ -512,7 +512,24 @@ typedef struct {
 	(tsk_ctl)->thr_pid = -1; \
 }
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#define DAEMONIZE(a) daemonize(a); \
+	allow_signal(SIGKILL); \
+	allow_signal(SIGTERM);
+#else /* Linux 2.4 (w/o preemption patch) */
+#define RAISE_RX_SOFTIRQ() \
+	cpu_raise_softirq(smp_processor_id(), NET_RX_SOFTIRQ)
+#define DAEMONIZE(a) daemonize(); \
+	do { if (a) \
+		strncpy(current->comm, a, MIN(sizeof(current->comm), (strlen(a) + 1))); \
+	} while (0);
+#endif /* LINUX_VERSION_CODE  */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
+#define BLOCKABLE()	(!in_atomic())
+#else
+#define BLOCKABLE()	(!in_interrupt())
+#endif
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 31))
 #define KILL_PROC(nr, sig) \
