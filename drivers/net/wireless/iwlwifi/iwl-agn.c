@@ -2250,6 +2250,14 @@ static void iwl_nic_config(struct iwl_op_mode *op_mode)
 	priv->lib->nic_config(priv);
 }
 
+static void iwl_wimax_active(struct iwl_op_mode *op_mode)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	clear_bit(STATUS_READY, &priv->status);
+	IWL_ERR(priv, "RF is used by WiMAX\n");
+}
+
 static void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
@@ -2341,6 +2349,7 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.nic_error = iwl_nic_error,
 	.cmd_queue_full = iwl_cmd_queue_full,
 	.nic_config = iwl_nic_config,
+	.wimax_active = iwl_wimax_active,
 };
 
 /*****************************************************************************
