@@ -1087,7 +1087,7 @@ static int __init samsung_backlight_init(struct samsung_laptop *samsung)
 	return 0;
 }
 
-static mode_t samsung_sysfs_is_visible(struct kobject *kobj,
+static umode_t samsung_sysfs_is_visible(struct kobject *kobj,
 				       struct attribute *attr, int idx)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
