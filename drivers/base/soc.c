@@ -168,8 +168,6 @@ void soc_device_unregister(struct soc_device *soc_dev)
 
 static int __init soc_bus_register(void)
 {
-	spin_lock_init(&soc_lock);
-
 	return bus_register(&soc_bus_type);
 }
 core_initcall(soc_bus_register);
