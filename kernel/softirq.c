@@ -310,31 +310,21 @@ void irq_enter(void)
 	__irq_enter();
 }
 
+static inline void invoke_softirq(void)
+{
+	if (!force_irqthreads) {
 #ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
-static inline void invoke_softirq(void)
-{
-	if (!force_irqthreads)
 		__do_softirq();
-	else {
-		__local_bh_disable((unsigned long)__builtin_return_address(0),
-				SOFTIRQ_OFFSET);
-		wakeup_softirqd();
-		__local_bh_enable(SOFTIRQ_OFFSET);
-	}
-}
 #else
-static inline void invoke_softirq(void)
-{
-	if (!force_irqthreads)
 		do_softirq();
-	else {
+#endif
+	} else {
 		__local_bh_disable((unsigned long)__builtin_return_address(0),
 				SOFTIRQ_OFFSET);
 		wakeup_softirqd();
 		__local_bh_enable(SOFTIRQ_OFFSET);
 	}
 }
-#endif
 
 /*
  * Exit an interrupt context. Process softirqs if needed and possible:
