@@ -1746,7 +1746,12 @@ int cayman_vm_init(struct radeon_device *rdev)
 	/* number of VMs */
 	rdev->vm_manager.nvm = 8;
 	/* base offset of vram pages */
-	rdev->vm_manager.vram_base_offset = 0;
+	if (rdev->flags & RADEON_IS_IGP) {
+		u64 tmp = RREG32(FUS_MC_VM_FB_OFFSET);
+		tmp <<= 22;
+		rdev->vm_manager.vram_base_offset = tmp;
+	} else
+		rdev->vm_manager.vram_base_offset = 0;
 	return 0;
 }
 
