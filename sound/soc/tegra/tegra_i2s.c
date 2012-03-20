@@ -2,7 +2,7 @@
  * tegra_i2s.c - Tegra I2S driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
- * Copyright (C) 2010 - NVIDIA, Inc.
+ * Copyright (C) 2010,2012 - NVIDIA, Inc.
  *
  * Based on code copyright/by:
  *
@@ -409,10 +409,18 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
+	ret = tegra_pcm_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		goto err_unregister_dai;
+	}
+
 	tegra_i2s_debug_add(i2s);
 
 	return 0;
 
+err_unregister_dai:
+	snd_soc_unregister_dai(&pdev->dev);
 err_clk_put:
 	clk_put(i2s->clk_i2s);
 err:
@@ -423,6 +431,7 @@ static int __devexit tegra_i2s_platform_remove(struct platform_device *pdev)
 {
 	struct tegra_i2s *i2s = dev_get_drvdata(&pdev->dev);
 
+	tegra_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	tegra_i2s_debug_remove(i2s);

@@ -2,7 +2,7 @@
  * tegra_spdif.c - Tegra SPDIF driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
- * Copyright (C) 2011 - NVIDIA, Inc.
+ * Copyright (C) 2011-2012 - NVIDIA, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -306,10 +306,18 @@ static __devinit int tegra_spdif_platform_probe(struct platform_device *pdev)
 		goto err_unmap;
 	}
 
+	ret = tegra_pcm_platform_register(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Could not register PCM: %d\n", ret);
+		goto err_unregister_dai;
+	}
+
 	tegra_spdif_debug_add(spdif);
 
 	return 0;
 
+err_unregister_dai:
+	snd_soc_unregister_dai(&pdev->dev);
 err_unmap:
 	iounmap(spdif->regs);
 err_release:
@@ -327,6 +335,7 @@ static int __devexit tegra_spdif_platform_remove(struct platform_device *pdev)
 	struct tegra_spdif *spdif = dev_get_drvdata(&pdev->dev);
 	struct resource *res;
 
+	tegra_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	tegra_spdif_debug_remove(spdif);
