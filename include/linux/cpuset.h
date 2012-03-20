@@ -22,7 +22,7 @@ extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
 extern void cpuset_update_active_cpus(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
-extern int cpuset_cpus_allowed_fallback(struct task_struct *p);
+extern void cpuset_cpus_allowed_fallback(struct task_struct *p);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
 #define cpuset_current_mems_allowed (current->mems_allowed)
 void cpuset_init_current_mems_allowed(void);
@@ -144,10 +144,8 @@ static inline void cpuset_cpus_allowed(struct task_struct *p,
 	cpumask_copy(mask, cpu_possible_mask);
 }
 
-static inline int cpuset_cpus_allowed_fallback(struct task_struct *p)
+static inline void cpuset_cpus_allowed_fallback(struct task_struct *p)
 {
-	do_set_cpus_allowed(p, cpu_possible_mask);
-	return cpumask_any(cpu_active_mask);
 }
 
 static inline nodemask_t cpuset_mems_allowed(struct task_struct *p)
