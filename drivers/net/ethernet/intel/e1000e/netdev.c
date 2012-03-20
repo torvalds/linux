@@ -2524,33 +2524,31 @@ err:
 }
 
 /**
- * e1000_clean - NAPI Rx polling callback
+ * e1000e_poll - NAPI Rx polling callback
  * @napi: struct associated with this polling callback
- * @budget: amount of packets driver is allowed to process this poll
+ * @weight: number of packets driver is allowed to process this poll
  **/
-static int e1000_clean(struct napi_struct *napi, int budget)
+static int e1000e_poll(struct napi_struct *napi, int weight)
 {
-	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter, napi);
+	struct e1000_adapter *adapter = container_of(napi, struct e1000_adapter,
+						     napi);
 	struct e1000_hw *hw = &adapter->hw;
 	struct net_device *poll_dev = adapter->netdev;
 	int tx_cleaned = 1, work_done = 0;
 
 	adapter = netdev_priv(poll_dev);
 
-	if (adapter->msix_entries &&
-	    !(adapter->rx_ring->ims_val & adapter->tx_ring->ims_val))
-		goto clean_rx;
+	if (!adapter->msix_entries ||
+	    (adapter->rx_ring->ims_val & adapter->tx_ring->ims_val))
+		tx_cleaned = e1000_clean_tx_irq(adapter->tx_ring);
 
-	tx_cleaned = e1000_clean_tx_irq(adapter->tx_ring);
-
-clean_rx:
-	adapter->clean_rx(adapter->rx_ring, &work_done, budget);
+	adapter->clean_rx(adapter->rx_ring, &work_done, weight);
 
 	if (!tx_cleaned)
-		work_done = budget;
+		work_done = weight;
 
-	/* If budget not fully consumed, exit the polling mode */
-	if (work_done < budget) {
+	/* If weight not fully consumed, exit the polling mode */
+	if (work_done < weight) {
 		if (adapter->itr_setting & 3)
 			e1000_set_itr(adapter);
 		napi_complete(napi);
@@ -6201,7 +6199,7 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	netdev->netdev_ops		= &e1000e_netdev_ops;
 	e1000e_set_ethtool_ops(netdev);
 	netdev->watchdog_timeo		= 5 * HZ;
-	netif_napi_add(netdev, &adapter->napi, e1000_clean, 64);
+	netif_napi_add(netdev, &adapter->napi, e1000e_poll, 64);
 	strlcpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
 	netdev->mem_start = mmio_start;
