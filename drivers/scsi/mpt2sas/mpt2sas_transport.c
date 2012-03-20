@@ -169,6 +169,9 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
 	/* sas_address */
 	identify->sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
 
+	/* phy number of the parent device this device is linked to */
+	identify->phy_identifier = sas_device_pg0.PhyNum;
+
 	/* device_type */
 	switch (device_info & MPI2_SAS_DEVICE_INFO_MASK_DEVICE_TYPE) {
 	case MPI2_SAS_DEVICE_INFO_NO_DEVICE:
