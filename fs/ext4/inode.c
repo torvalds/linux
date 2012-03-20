@@ -272,7 +272,7 @@ void ext4_da_update_reserve_space(struct inode *inode,
 	trace_ext4_da_update_reserve_space(inode, used, quota_claim);
 	if (unlikely(used > ei->i_reserved_data_blocks)) {
 		ext4_msg(inode->i_sb, KERN_NOTICE, "%s: ino %lu, used %d "
-			 "with only %d reserved data blocks\n",
+			 "with only %d reserved data blocks",
 			 __func__, inode->i_ino, used,
 			 ei->i_reserved_data_blocks);
 		WARN_ON(1);
@@ -1165,7 +1165,7 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 		 */
 		ext4_msg(inode->i_sb, KERN_NOTICE, "ext4_da_release_space: "
 			 "ino %lu, to_free %d with only %d reserved "
-			 "data blocks\n", inode->i_ino, to_free,
+			 "data blocks", inode->i_ino, to_free,
 			 ei->i_reserved_data_blocks);
 		WARN_ON(1);
 		to_free = ei->i_reserved_data_blocks;

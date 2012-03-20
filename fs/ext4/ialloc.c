@@ -1102,9 +1102,9 @@ int ext4_init_inode_table(struct super_block *sb, ext4_group_t group,
 			    sbi->s_inodes_per_block);
 
 	if ((used_blks < 0) || (used_blks > sbi->s_itb_per_group)) {
-		ext4_error(sb, "Something is wrong with group %u\n"
-			   "Used itable blocks: %d"
-			   "itable unused count: %u\n",
+		ext4_error(sb, "Something is wrong with group %u: "
+			   "used itable blocks: %d; "
+			   "itable unused count: %u",
 			   group, used_blks,
 			   ext4_itable_unused_count(sb, gdp));
 		ret = 1;

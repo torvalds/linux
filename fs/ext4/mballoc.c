@@ -2762,7 +2762,7 @@ ext4_mb_mark_diskspace_used(struct ext4_allocation_context *ac,
 	len = EXT4_C2B(sbi, ac->ac_b_ex.fe_len);
 	if (!ext4_data_block_valid(sbi, block, len)) {
 		ext4_error(sb, "Allocating blocks %llu-%llu which overlap "
-			   "fs metadata\n", block, block+len);
+			   "fs metadata", block, block+len);
 		/* File system mounted not to panic on error
 		 * Fix the bitmap and repeat the block allocation
 		 * We leak some of the blocks here.
