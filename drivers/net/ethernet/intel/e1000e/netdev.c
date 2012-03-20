@@ -1084,6 +1084,10 @@ static void e1000_print_hw_hang(struct work_struct *work)
 	      phy_1000t_status,
 	      phy_ext_status,
 	      pci_status);
+
+	/* Suggest workaround for known h/w issue */
+	if ((hw->mac.type == e1000_pchlan) && (er32(CTRL) & E1000_CTRL_TFCE))
+		e_err("Try turning off Tx pause (flow control) via ethtool\n");
 }
 
 /**
