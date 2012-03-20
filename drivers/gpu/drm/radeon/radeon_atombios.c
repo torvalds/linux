@@ -253,7 +253,9 @@ static struct radeon_hpd radeon_atom_get_hpd_info_from_gpio(struct radeon_device
 
 	memset(&hpd, 0, sizeof(struct radeon_hpd));
 
-	if (ASIC_IS_DCE4(rdev))
+	if (ASIC_IS_DCE6(rdev))
+		reg = SI_DC_GPIO_HPD_A;
+	else if (ASIC_IS_DCE4(rdev))
 		reg = EVERGREEN_DC_GPIO_HPD_A;
 	else
 		reg = AVIVO_DC_GPIO_HPD_A;
