@@ -411,7 +411,7 @@ static int kbd_led_read(struct asus_wmi *asus, int *level, int *env)
 
 	if (retval >= 0) {
 		if (level)
-			*level = retval & 0x80 ? retval & 0x7F : 0;
+			*level = retval & 0x7F;
 		if (env)
 			*env = (retval >> 8) & 0x7F;
 		retval = 0;
