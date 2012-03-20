@@ -2949,7 +2949,7 @@ void si_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm)
 /*
  * RLC
  */
-static void si_rlc_fini(struct radeon_device *rdev)
+void si_rlc_fini(struct radeon_device *rdev)
 {
 	int r;
 
@@ -2978,7 +2978,7 @@ static void si_rlc_fini(struct radeon_device *rdev)
 	}
 }
 
-static int si_rlc_init(struct radeon_device *rdev)
+int si_rlc_init(struct radeon_device *rdev)
 {
 	int r;
 

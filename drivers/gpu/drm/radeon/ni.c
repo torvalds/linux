@@ -42,6 +42,8 @@ extern void evergreen_irq_suspend(struct radeon_device *rdev);
 extern int evergreen_mc_init(struct radeon_device *rdev);
 extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
 extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
+extern void si_rlc_fini(struct radeon_device *rdev);
+extern int si_rlc_init(struct radeon_device *rdev);
 
 #define EVERGREEN_PFP_UCODE_SIZE 1120
 #define EVERGREEN_PM4_UCODE_SIZE 1376
@@ -52,6 +54,8 @@ extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 #define CAYMAN_PM4_UCODE_SIZE 2176
 #define CAYMAN_RLC_UCODE_SIZE 1024
 #define CAYMAN_MC_UCODE_SIZE 6037
+
+#define ARUBA_RLC_UCODE_SIZE 1536
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
@@ -68,6 +72,9 @@ MODULE_FIRMWARE("radeon/CAYMAN_pfp.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_me.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_mc.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_rlc.bin");
+MODULE_FIRMWARE("radeon/ARUBA_pfp.bin");
+MODULE_FIRMWARE("radeon/ARUBA_me.bin");
+MODULE_FIRMWARE("radeon/ARUBA_rlc.bin");
 
 #define BTC_IO_MC_REGS_SIZE 29
 
@@ -326,6 +333,15 @@ int ni_init_microcode(struct radeon_device *rdev)
 		rlc_req_size = CAYMAN_RLC_UCODE_SIZE * 4;
 		mc_req_size = CAYMAN_MC_UCODE_SIZE * 4;
 		break;
+	case CHIP_ARUBA:
+		chip_name = "ARUBA";
+		rlc_chip_name = "ARUBA";
+		/* pfp/me same size as CAYMAN */
+		pfp_req_size = CAYMAN_PFP_UCODE_SIZE * 4;
+		me_req_size = CAYMAN_PM4_UCODE_SIZE * 4;
+		rlc_req_size = ARUBA_RLC_UCODE_SIZE * 4;
+		mc_req_size = 0;
+		break;
 	default: BUG();
 	}
 
@@ -365,15 +381,18 @@ int ni_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
-	err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
-	if (err)
-		goto out;
-	if (rdev->mc_fw->size != mc_req_size) {
-		printk(KERN_ERR
-		       "ni_mc: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->mc_fw->size, fw_name);
-		err = -EINVAL;
+	/* no MC ucode on TN */
+	if (!(rdev->flags & RADEON_IS_IGP)) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+		err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
+		if (err)
+			goto out;
+		if (rdev->mc_fw->size != mc_req_size) {
+			printk(KERN_ERR
+			       "ni_mc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->mc_fw->size, fw_name);
+			err = -EINVAL;
+		}
 	}
 out:
 	platform_device_unregister(pdev);
@@ -1484,17 +1503,28 @@ static int cayman_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	evergreen_pcie_gen2_enable(rdev);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
-		r = ni_init_microcode(rdev);
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+
+		r = ni_mc_load_microcode(rdev);
 		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
+			DRM_ERROR("Failed to load MC firmware!\n");
 			return r;
 		}
-	}
-	r = ni_mc_load_microcode(rdev);
-	if (r) {
-		DRM_ERROR("Failed to load MC firmware!\n");
-		return r;
 	}
 
 	r = r600_vram_scratch_init(rdev);
@@ -1512,6 +1542,15 @@ static int cayman_startup(struct radeon_device *rdev)
 		r600_blit_fini(rdev);
 		rdev->asic->copy.copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
+	}
+
+	/* allocate rlc buffers */
+	if (rdev->flags & RADEON_IS_IGP) {
+		r = si_rlc_init(rdev);
+		if (r) {
+			DRM_ERROR("Failed to init rlc BOs!\n");
+			return r;
+		}
 	}
 
 	/* allocate wb buffer */
@@ -1698,6 +1737,8 @@ int cayman_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		cayman_cp_fini(rdev);
 		r600_irq_fini(rdev);
+		if (rdev->flags & RADEON_IS_IGP)
+			si_rlc_fini(rdev);
 		radeon_wb_fini(rdev);
 		r100_ib_fini(rdev);
 		radeon_vm_manager_fini(rdev);
@@ -1709,8 +1750,11 @@ int cayman_init(struct radeon_device *rdev)
 	/* Don't start up if the MC ucode is missing.
 	 * The default clocks and voltages before the MC ucode
 	 * is loaded are not suffient for advanced operations.
+	 *
+	 * We can skip this check for TN, because there is no MC
+	 * ucode.
 	 */
-	if (!rdev->mc_fw) {
+	if (!rdev->mc_fw && !(rdev->flags & RADEON_IS_IGP)) {
 		DRM_ERROR("radeon: MC ucode required for NI+.\n");
 		return -EINVAL;
 	}
@@ -1723,6 +1767,8 @@ void cayman_fini(struct radeon_device *rdev)
 	r600_blit_fini(rdev);
 	cayman_cp_fini(rdev);
 	r600_irq_fini(rdev);
+	if (rdev->flags & RADEON_IS_IGP)
+		si_rlc_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	r100_ib_fini(rdev);
