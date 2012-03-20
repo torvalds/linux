@@ -204,7 +204,8 @@ static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
 	prz->ecc_symsize = 8;
 	prz->ecc_poly = 0x11d;
 
-	ecc_blocks = DIV_ROUND_UP(prz->buffer_size, prz->ecc_block_size);
+	ecc_blocks = DIV_ROUND_UP(prz->buffer_size - prz->ecc_size,
+				  prz->ecc_block_size + prz->ecc_size);
 	prz->buffer_size -= (ecc_blocks + 1) * prz->ecc_size;
 
 	if (prz->buffer_size > buffer_size) {
