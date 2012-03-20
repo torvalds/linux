@@ -53,7 +53,7 @@
 		printk(KERN_DEBUG f, ## a);				\
 	} while (0)
 #else
-#define ext4_debug(f, a...)	do {} while (0)
+#define ext4_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define EXT4_ERROR_INODE(inode, fmt, a...) \

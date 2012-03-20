@@ -2764,7 +2764,7 @@ static void ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 		goto out;
 
 	ext_debug("ext4_end_io_dio(): io_end 0x%p "
-		  "for inode %lu, iocb 0x%p, offset %llu, size %llu\n",
+		  "for inode %lu, iocb 0x%p, offset %llu, size %zd\n",
  		  iocb->private, io_end->inode->i_ino, iocb, offset,
 		  size);
 

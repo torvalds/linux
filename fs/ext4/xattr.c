@@ -82,8 +82,8 @@
 		printk("\n"); \
 	} while (0)
 #else
-# define ea_idebug(f...)
-# define ea_bdebug(f...)
+# define ea_idebug(inode, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
+# define ea_bdebug(bh, fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 static void ext4_xattr_cache_insert(struct buffer_head *);
@@ -217,7 +217,8 @@ ext4_xattr_block_get(struct inode *inode, int name_index, const char *name,
 	error = -ENODATA;
 	if (!EXT4_I(inode)->i_file_acl)
 		goto cleanup;
-	ea_idebug(inode, "reading block %u", EXT4_I(inode)->i_file_acl);
+	ea_idebug(inode, "reading block %llu",
+		  (unsigned long long)EXT4_I(inode)->i_file_acl);
 	bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
 	if (!bh)
 		goto cleanup;
@@ -360,7 +361,8 @@ ext4_xattr_block_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 	error = 0;
 	if (!EXT4_I(inode)->i_file_acl)
 		goto cleanup;
-	ea_idebug(inode, "reading block %u", EXT4_I(inode)->i_file_acl);
+	ea_idebug(inode, "reading block %llu",
+		  (unsigned long long)EXT4_I(inode)->i_file_acl);
 	bh = sb_bread(inode->i_sb, EXT4_I(inode)->i_file_acl);
 	error = -EIO;
 	if (!bh)
@@ -832,7 +834,8 @@ inserted:
 			if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 				BUG_ON(block > EXT4_MAX_BLOCK_FILE_PHYS);
 
-			ea_idebug(inode, "creating block %d", block);
+			ea_idebug(inode, "creating block %llu",
+				  (unsigned long long)block);
 
 			new_bh = sb_getblk(sb, block);
 			if (!new_bh) {
