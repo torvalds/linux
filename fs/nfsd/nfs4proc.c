@@ -1053,7 +1053,9 @@ struct nfsd4_operation {
 
 static struct nfsd4_operation nfsd4_ops[];
 
+#ifdef NFSD_DEBUG
 static const char *nfsd4_op_name(unsigned opnum);
+#endif
 
 /*
  * Enforce NFSv4.1 COMPOUND ordering rules:
@@ -1714,12 +1716,14 @@ static struct nfsd4_operation nfsd4_ops[] = {
 	},
 };
 
+#ifdef NFSD_DEBUG
 static const char *nfsd4_op_name(unsigned opnum)
 {
 	if (opnum < ARRAY_SIZE(nfsd4_ops))
 		return nfsd4_ops[opnum].op_name;
 	return "unknown_operation";
 }
+#endif
 
 #define nfsd4_voidres			nfsd4_voidargs
 struct nfsd4_voidargs { int dummy; };

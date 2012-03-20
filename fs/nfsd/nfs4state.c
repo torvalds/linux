@@ -622,12 +622,20 @@ hash_sessionid(struct nfs4_sessionid *sessionid)
 	return sid->sequence % SESSION_HASH_SIZE;
 }
 
+#ifdef NFSD_DEBUG
 static inline void
 dump_sessionid(const char *fn, struct nfs4_sessionid *sessionid)
 {
 	u32 *ptr = (u32 *)(&sessionid->data[0]);
 	dprintk("%s: %u:%u:%u:%u\n", fn, ptr[0], ptr[1], ptr[2], ptr[3]);
 }
+#else
+static inline void
+dump_sessionid(const char *fn, struct nfs4_sessionid *sessionid)
+{
+}
+#endif
+
 
 static void
 gen_sessionid(struct nfsd4_session *ses)
