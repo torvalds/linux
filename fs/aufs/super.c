@@ -310,107 +310,74 @@ static u64 au_add_till_max(u64 a, u64 b)
 	return ULLONG_MAX;
 }
 
-static u64 au_add_muldiv_till_max(u64 a, u64 b, u64 mul, u64 div)
+static u64 au_mul_till_max(u64 a, long mul)
 {
 	u64 old;
 
-	b *= mul;
-
 	old = a;
-	a += div64_u64(b, div);
+	a *= mul;
 	if (old <= a)
 		return a;
 	return ULLONG_MAX;
 }
 
-static u64 au_div_rup(u64 a, u64 b)
-{
-	u64 ret;
-
-	ret = div64_u64(a, b);
-	if (ret * b != a)
-		ret++;
-	return ret;
-}
-
 static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 {
 	int err;
-	long biggest;
+	long bsize, factor;
 	u64 blocks, bfree, bavail, files, ffree;
 	aufs_bindex_t bend, bindex, i;
 	unsigned char shared;
 	struct path h_path;
 	struct super_block *h_sb;
-	struct {
-		long bsize;
-		u64 blocks, bfree, bavail;
-	} *bs;
 
-	err = -ENOMEM;
-	bend = au_sbend(sb);
-	/*
-	 * if you really need so many branches, then replace kmalloc/kfree by
-	 * vmalloc/vfree.
-	 */
-	BUILD_BUG_ON(sizeof(*bs) * AUFS_BRANCH_MAX > KMALLOC_MAX_SIZE);
-	bs = kmalloc(sizeof(*bs) * (bend + 1), GFP_NOFS);
-	if (unlikely(!bs))
-		goto out;
-
-	biggest = 0;
+	err = 0;
+	bsize = LONG_MAX;
 	files = 0;
 	ffree = 0;
+	blocks = 0;
+	bfree = 0;
+	bavail = 0;
+	bend = au_sbend(sb);
 	for (bindex = 0; bindex <= bend; bindex++) {
 		h_path.mnt = au_sbr_mnt(sb, bindex);
 		h_sb = h_path.mnt->mnt_sb;
 		shared = 0;
 		for (i = 0; !shared && i < bindex; i++)
 			shared = (au_sbr_sb(sb, i) == h_sb);
-		if (shared) {
-			bs[bindex].bsize = 0;
+		if (shared)
 			continue;
-		}
 
 		/* sb->s_root for NFS is unreliable */
 		h_path.dentry = h_path.mnt->mnt_root;
 		err = vfs_statfs(&h_path, buf);
 		if (unlikely(err))
-			goto out_bs;
+			goto out;
 
-		if (buf->f_bsize > biggest)
-			biggest = buf->f_bsize;
-		bs[bindex].bsize = buf->f_bsize;
-		bs[bindex].blocks = buf->f_blocks;
-		bs[bindex].bfree = buf->f_bfree;
-		bs[bindex].bavail = buf->f_bavail;
+		if (bsize > buf->f_bsize) {
+			/*
+			 * we will reduce bsize, so we have to expand blocks
+			 * etc. to match them again
+			 */
+			factor = (bsize / buf->f_bsize);
+			blocks = au_mul_till_max(blocks, factor);
+			bfree = au_mul_till_max(bfree, factor);
+			bavail = au_mul_till_max(bavail, factor);
+			bsize = buf->f_bsize;
+		}
 
+		factor = (buf->f_bsize / bsize);
+		blocks = au_add_till_max(blocks,
+				au_mul_till_max(buf->f_blocks, factor));
+		bfree = au_add_till_max(bfree,
+				au_mul_till_max(buf->f_bfree, factor));
+		bavail = au_add_till_max(bavail,
+				au_mul_till_max(buf->f_bavail, factor));
 		files = au_add_till_max(files, buf->f_files);
 		ffree = au_add_till_max(ffree, buf->f_ffree);
 	}
 
-	blocks = 0;
-	bfree = 0;
-	bavail = 0;
-	for (bindex = 0; bindex <= bend; bindex++) {
-		if (!bs[bindex].bsize)
-			continue;
-		if (bs[bindex].bsize != biggest) {
-			bs[bindex].bsize = biggest / bs[bindex].bsize;
-			bs[bindex].blocks = au_div_rup(bs[bindex].blocks,
-						       bs[bindex].bsize);
-			bs[bindex].bfree = au_div_rup(bs[bindex].bfree,
-						      bs[bindex].bsize);
-			bs[bindex].bavail = au_div_rup(bs[bindex].bavail,
-						       bs[bindex].bsize);
-		}
-
-		blocks = au_add_till_max(blocks, bs[bindex].blocks);
-		bfree  = au_add_till_max(bfree, bs[bindex].bfree);
-		bavail = au_add_till_max(bavail, bs[bindex].bavail);
-	}
-
-	buf->f_bsize = biggest;
+	buf->f_bsize = bsize;
 	buf->f_blocks = blocks;
 	buf->f_bfree = bfree;
 	buf->f_bavail = bavail;
@@ -418,8 +385,6 @@ static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 	buf->f_ffree = ffree;
 	buf->f_frsize = 0;
 
-out_bs:
-	kfree(bs);
 out:
 	return err;
 }
