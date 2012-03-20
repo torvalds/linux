@@ -1152,15 +1152,21 @@ static int update_bl_status(struct backlight_device *bd)
 					    ctrl_param, NULL);
 		if (asus->driver->quirks->store_backlight_power)
 			asus->driver->panel_power = bd->props.power;
-	} else {
-		if (asus->driver->quirks->scalar_panel_brightness)
-			ctrl_param = get_scalar_command(bd);
-		else
-			ctrl_param = bd->props.brightness;
 
-		err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BRIGHTNESS,
-					    ctrl_param, NULL);
+		/* When using scalar brightness, updating the brightness
+		 * will mess with the backlight power */
+		if (asus->driver->quirks->scalar_panel_brightness)
+			return err;
 	}
+
+	if (asus->driver->quirks->scalar_panel_brightness)
+		ctrl_param = get_scalar_command(bd);
+	else
+		ctrl_param = bd->props.brightness;
+
+	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BRIGHTNESS,
+				    ctrl_param, NULL);
+
 	return err;
 }
 
