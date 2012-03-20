@@ -2915,7 +2915,7 @@ _scsih_ublock_io_all_device(struct MPT2SAS_ADAPTER *ioc)
  * During device pull we need to appropiately set the sdev state.
  */
 static void
-_scsih_ublock_io_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+_scsih_ublock_io_device(struct MPT2SAS_ADAPTER *ioc, u64 sas_address)
 {
 	struct MPT2SAS_DEVICE *sas_device_priv_data;
 	struct scsi_device *sdev;
@@ -2926,10 +2926,12 @@ _scsih_ublock_io_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 			continue;
 		if (!sas_device_priv_data->block)
 			continue;
-		if (sas_device_priv_data->sas_target->handle == handle) {
+		if (sas_device_priv_data->sas_target->sas_address ==
+								sas_address) {
 			dewtprintk(ioc, sdev_printk(KERN_INFO, sdev,
 			    MPT2SAS_INFO_FMT "SDEV_RUNNING: "
-			    "handle(0x%04x)\n", ioc->name, handle));
+			    "sas address(0x%016llx)\n", ioc->name,
+				(unsigned long long)sas_address));
 			sas_device_priv_data->block = 0;
 			scsi_internal_device_unblock(sdev);
 		}
@@ -3137,7 +3139,7 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "setting delete flag: "
 		"handle(0x%04x), sas_addr(0x%016llx)\n", ioc->name, handle,
 			(unsigned long long)sas_address));
-		_scsih_ublock_io_device(ioc, handle);
+		_scsih_ublock_io_device(ioc, sas_address);
 		sas_target_priv_data->handle = MPT2SAS_INVALID_DEVICE_HANDLE;
 	}
 
@@ -5185,7 +5187,7 @@ _scsih_check_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		return;
 	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-	_scsih_ublock_io_device(ioc, handle);
+	_scsih_ublock_io_device(ioc, sas_address);
 
 }
 
@@ -5322,7 +5324,7 @@ _scsih_remove_device(struct MPT2SAS_ADAPTER *ioc,
 	if (sas_device->starget && sas_device->starget->hostdata) {
 		sas_target_priv_data = sas_device->starget->hostdata;
 		sas_target_priv_data->deleted = 1;
-		_scsih_ublock_io_device(ioc, sas_device->handle);
+		_scsih_ublock_io_device(ioc, sas_device->sas_address);
 		sas_target_priv_data->handle =
 		     MPT2SAS_INVALID_DEVICE_HANDLE;
 	}
@@ -6998,8 +7000,8 @@ _scsih_remove_unresponding_sas_devices(struct MPT2SAS_ADAPTER *ioc)
 	list_for_each_entry_safe(sas_device, sas_device_next,
 	    &ioc->sas_device_list, list) {
 		if (!sas_device->responding)
-			_scsih_device_remove_by_handle(ioc,
-			    sas_device->handle);
+			mpt2sas_device_remove_by_sas_address(ioc,
+				sas_device->sas_address);
 		else
 			sas_device->responding = 0;
 	}
