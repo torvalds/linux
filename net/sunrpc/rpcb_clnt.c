@@ -817,11 +817,11 @@ static void rpcb_getport_done(struct rpc_task *child, void *data)
 static void rpcb_enc_mapping(struct rpc_rqst *req, struct xdr_stream *xdr,
 			     const struct rpcbind_args *rpcb)
 {
-	struct rpc_task *task = req->rq_task;
 	__be32 *p;
 
 	dprintk("RPC: %5u encoding PMAP_%s call (%u, %u, %d, %u)\n",
-			task->tk_pid, task->tk_msg.rpc_proc->p_name,
+			req->rq_task->tk_pid,
+			req->rq_task->tk_msg.rpc_proc->p_name,
 			rpcb->r_prog, rpcb->r_vers, rpcb->r_prot, rpcb->r_port);
 
 	p = xdr_reserve_space(xdr, RPCB_mappingargs_sz << 2);
@@ -834,7 +834,6 @@ static void rpcb_enc_mapping(struct rpc_rqst *req, struct xdr_stream *xdr,
 static int rpcb_dec_getport(struct rpc_rqst *req, struct xdr_stream *xdr,
 			    struct rpcbind_args *rpcb)
 {
-	struct rpc_task *task = req->rq_task;
 	unsigned long port;
 	__be32 *p;
 
@@ -845,8 +844,8 @@ static int rpcb_dec_getport(struct rpc_rqst *req, struct xdr_stream *xdr,
 		return -EIO;
 
 	port = be32_to_cpup(p);
-	dprintk("RPC: %5u PMAP_%s result: %lu\n", task->tk_pid,
-			task->tk_msg.rpc_proc->p_name, port);
+	dprintk("RPC: %5u PMAP_%s result: %lu\n", req->rq_task->tk_pid,
+			req->rq_task->tk_msg.rpc_proc->p_name, port);
 	if (unlikely(port > USHRT_MAX))
 		return -EIO;
 
@@ -857,7 +856,6 @@ static int rpcb_dec_getport(struct rpc_rqst *req, struct xdr_stream *xdr,
 static int rpcb_dec_set(struct rpc_rqst *req, struct xdr_stream *xdr,
 			unsigned int *boolp)
 {
-	struct rpc_task *task = req->rq_task;
 	__be32 *p;
 
 	p = xdr_inline_decode(xdr, 4);
@@ -869,7 +867,8 @@ static int rpcb_dec_set(struct rpc_rqst *req, struct xdr_stream *xdr,
 		*boolp = 1;
 
 	dprintk("RPC: %5u RPCB_%s call %s\n",
-			task->tk_pid, task->tk_msg.rpc_proc->p_name,
+			req->rq_task->tk_pid,
+			req->rq_task->tk_msg.rpc_proc->p_name,
 			(*boolp ? "succeeded" : "failed"));
 	return 0;
 }
@@ -889,11 +888,11 @@ static void encode_rpcb_string(struct xdr_stream *xdr, const char *string,
 static void rpcb_enc_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 			     const struct rpcbind_args *rpcb)
 {
-	struct rpc_task *task = req->rq_task;
 	__be32 *p;
 
 	dprintk("RPC: %5u encoding RPCB_%s call (%u, %u, '%s', '%s')\n",
-			task->tk_pid, task->tk_msg.rpc_proc->p_name,
+			req->rq_task->tk_pid,
+			req->rq_task->tk_msg.rpc_proc->p_name,
 			rpcb->r_prog, rpcb->r_vers,
 			rpcb->r_netid, rpcb->r_addr);
 
@@ -911,7 +910,6 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 {
 	struct sockaddr_storage address;
 	struct sockaddr *sap = (struct sockaddr *)&address;
-	struct rpc_task *task = req->rq_task;
 	__be32 *p;
 	u32 len;
 
@@ -928,7 +926,7 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	 */
 	if (len == 0) {
 		dprintk("RPC: %5u RPCB reply: program not registered\n",
-				task->tk_pid);
+				req->rq_task->tk_pid);
 		return 0;
 	}
 
@@ -938,8 +936,8 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 	p = xdr_inline_decode(xdr, len);
 	if (unlikely(p == NULL))
 		goto out_fail;
-	dprintk("RPC: %5u RPCB_%s reply: %s\n", task->tk_pid,
-			task->tk_msg.rpc_proc->p_name, (char *)p);
+	dprintk("RPC: %5u RPCB_%s reply: %s\n", req->rq_task->tk_pid,
+			req->rq_task->tk_msg.rpc_proc->p_name, (char *)p);
 
 	if (rpc_uaddr2sockaddr(req->rq_xprt->xprt_net, (char *)p, len,
 				sap, sizeof(address)) == 0)
@@ -950,7 +948,8 @@ static int rpcb_dec_getaddr(struct rpc_rqst *req, struct xdr_stream *xdr,
 
 out_fail:
 	dprintk("RPC: %5u malformed RPCB_%s reply\n",
-			task->tk_pid, task->tk_msg.rpc_proc->p_name);
+			req->rq_task->tk_pid,
+			req->rq_task->tk_msg.rpc_proc->p_name);
 	return -EIO;
 }
 
