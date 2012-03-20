@@ -46,7 +46,7 @@ static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 
 	result = DRX_Ctrl(demod, DRX_CTRL_POWER_MODE, &powerMode);
 	if (result != DRX_STS_OK) {
-		printk("Power state change failed\n");
+		printk(KERN_ERR "Power state change failed\n");
 		return 0;
 	}
 
@@ -54,7 +54,7 @@ static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 	return 0;
 }
 
-static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t * status)
+static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t *status)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
@@ -65,14 +65,14 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t * status)
 
 	result = DRX_Ctrl(demod, DRX_CTRL_LOCK_STATUS, &lock_status);
 	if (result != DRX_STS_OK) {
-		printk("drx39xxj: could not get lock status!\n");
+		printk(KERN_ERR "drx39xxj: could not get lock status!\n");
 		*status = 0;
 	}
 
 	switch (lock_status) {
 	case DRX_NEVER_LOCK:
 		*status = 0;
-		printk("drx says NEVER_LOCK\n");
+		printk(KERN_ERR "drx says NEVER_LOCK\n");
 		break;
 	case DRX_NOT_LOCKED:
 		*status = 0;
@@ -95,13 +95,13 @@ static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t * status)
 		    | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 		break;
 	default:
-		printk("Lock state unknown %d\n", lock_status);
+		printk(KERN_ERR "Lock state unknown %d\n", lock_status);
 	}
 
 	return 0;
 }
 
-static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 * ber)
+static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
@@ -110,7 +110,7 @@ static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 * ber)
 
 	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
-		printk("drx39xxj: could not get ber!\n");
+		printk(KERN_ERR "drx39xxj: could not get ber!\n");
 		*ber = 0;
 		return 0;
 	}
@@ -120,7 +120,7 @@ static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 * ber)
 }
 
 static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
-					 u16 * strength)
+					 u16 *strength)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
@@ -129,7 +129,7 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 
 	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
-		printk("drx39xxj: could not get signal strength!\n");
+		printk(KERN_ERR "drx39xxj: could not get signal strength!\n");
 		*strength = 0;
 		return 0;
 	}
@@ -139,7 +139,7 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 * snr)
+static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
@@ -148,7 +148,7 @@ static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 * snr)
 
 	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
-		printk("drx39xxj: could not read snr!\n");
+		printk(KERN_ERR "drx39xxj: could not read snr!\n");
 		*snr = 0;
 		return 0;
 	}
@@ -157,7 +157,7 @@ static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 * snr)
 	return 0;
 }
 
-static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
+static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
@@ -166,7 +166,7 @@ static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 
 	result = DRX_Ctrl(demod, DRX_CTRL_SIG_QUALITY, &sig_quality);
 	if (result != DRX_STS_OK) {
-		printk("drx39xxj: could not get uc blocks!\n");
+		printk(KERN_ERR "drx39xxj: could not get uc blocks!\n");
 		*ucblocks = 0;
 		return 0;
 	}
@@ -220,7 +220,8 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 		/* Set the standard (will be powered up if necessary */
 		result = DRX_Ctrl(demod, DRX_CTRL_SET_STANDARD, &standard);
 		if (result != DRX_STS_OK) {
-			printk("Failed to set standard! result=%02x\n", result);
+			printk(KERN_ERR "Failed to set standard! result=%02x\n",
+			       result);
 			return -EINVAL;
 		}
 		state->powered_up = 1;
@@ -236,22 +237,22 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	/* program channel */
 	result = DRX_Ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
 	if (result != DRX_STS_OK) {
-		printk("Failed to set channel!\n");
+		printk(KERN_ERR "Failed to set channel!\n");
 		return -EINVAL;
 	}
-	// Just for giggles, let's shut off the LNA again....
+	/* Just for giggles, let's shut off the LNA again.... */
 	uioData.uio = DRX_UIO1;
 	uioData.value = FALSE;
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
 	if (result != DRX_STS_OK) {
-		printk("Failed to disable LNA!\n");
+		printk(KERN_ERR "Failed to disable LNA!\n");
 		return 0;
 	}
 #ifdef DJH_DEBUG
 	for (i = 0; i < 2000; i++) {
 		fe_status_t status;
 		drx39xxj_read_status(fe, &status);
-		printk("i=%d status=%d\n", i, status);
+		printk(KERN_DBG "i=%d status=%d\n", i, status);
 		msleep(100);
 		i += 100;
 	}
@@ -274,7 +275,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	DRXStatus_t result;
 
 #ifdef DJH_DEBUG
-	printk("i2c gate call: enable=%d state=%d\n", enable,
+	printk(KERN_DBG "i2c gate call: enable=%d state=%d\n", enable,
 	       state->i2c_gate_open);
 #endif
 
@@ -290,7 +291,8 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 
 	result = DRX_Ctrl(demod, DRX_CTRL_I2C_BRIDGE, &i2c_gate_state);
 	if (result != DRX_STS_OK) {
-		printk("drx39xxj: could not open i2c gate [%d]\n", result);
+		printk(KERN_ERR "drx39xxj: could not open i2c gate [%d]\n",
+		       result);
 		dump_stack();
 	} else {
 		state->i2c_gate_open = enable;
@@ -368,7 +370,9 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	memcpy(demod->myCommonAttr, &DRXJDefaultCommAttr_g,
 	       sizeof(DRXCommonAttr_t));
 	demod->myCommonAttr->microcode = DRXJ_MC_MAIN;
-	//      demod->myCommonAttr->verifyMicrocode = FALSE;
+#if 0
+	demod->myCommonAttr->verifyMicrocode = FALSE;
+#endif
 	demod->myCommonAttr->verifyMicrocode = TRUE;
 	demod->myCommonAttr->intermediateFreq = 5000;
 
@@ -381,7 +385,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 
 	result = DRX_Open(demod);
 	if (result != DRX_STS_OK) {
-		printk("DRX open failed!  Aborting\n");
+		printk(KERN_ERR "DRX open failed!  Aborting\n");
 		kfree(state);
 		return NULL;
 	}
@@ -392,7 +396,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	/* Configure user-I/O #3: enable read/write */
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_CFG, &uioCfg);
 	if (result != DRX_STS_OK) {
-		printk("Failed to setup LNA GPIO!\n");
+		printk(KERN_ERR "Failed to setup LNA GPIO!\n");
 		return NULL;
 	}
 
@@ -400,7 +404,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	uioData.value = FALSE;
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
 	if (result != DRX_STS_OK) {
-		printk("Failed to disable LNA!\n");
+		printk(KERN_ERR "Failed to disable LNA!\n");
 		return NULL;
 	}
 
@@ -418,6 +422,7 @@ error:
 		kfree(demod);
 	return NULL;
 }
+EXPORT_SYMBOL(drx39xxj_attach);
 
 static struct dvb_frontend_ops drx39xxj_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
@@ -444,5 +449,3 @@ static struct dvb_frontend_ops drx39xxj_ops = {
 MODULE_DESCRIPTION("Micronas DRX39xxj Frontend");
 MODULE_AUTHOR("Devin Heitmueller");
 MODULE_LICENSE("GPL");
-
-EXPORT_SYMBOL(drx39xxj_attach);

@@ -42,6 +42,8 @@
 *
 */
 
+#include <linux/kernel.h>
+
 #ifndef __BSPI2C_H__
 #define __BSPI2C_H__
 /*------------------------------------------------------------------------------
@@ -49,29 +51,9 @@ INCLUDES
 ------------------------------------------------------------------------------*/
 #include "bsp_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 /*------------------------------------------------------------------------------
 TYPEDEFS
 ------------------------------------------------------------------------------*/
-/**
-* \typedef I2Caddr_t
-* \brief I2C device address (7-bit or 10-bit)
-*/
-	typedef u16_t I2Caddr_t;
-
-/**
-* \typedef I2CdevId_t
-* \brief Device identifier.
-*
-* The device ID can be useful if several devices share an I2C address,
-* or if multiple I2C busses are used.
-* It can be used to control a "switch" selecting the correct device and/or
-* I2C bus.
-*
-*/
-	typedef u16_t I2CdevId_t;
 
 /**
 * \struct _I2CDeviceAddr_t
@@ -81,10 +63,10 @@ TYPEDEFS
 * The userData pointer can be used for application specific purposes.
 *
 */
-	struct _I2CDeviceAddr_t {
-		I2Caddr_t i2cAddr;
+	struct I2CDeviceAddr_t {
+		u16 i2cAddr;
 			      /**< The I2C address of the device. */
-		I2CdevId_t i2cDevId;
+		u16 i2cDevId;
 			      /**< The device identifier. */
 		void *userData;
 			      /**< User data pointer */
@@ -97,7 +79,7 @@ TYPEDEFS
 * This structure contains the I2C address and the device ID.
 *
 */
-	typedef struct _I2CDeviceAddr_t I2CDeviceAddr_t;
+	typedef struct I2CDeviceAddr_t I2CDeviceAddr_t;
 
 /**
 * \typedef pI2CDeviceAddr_t
@@ -205,10 +187,4 @@ Exported FUNCTIONS
 */
 	extern int DRX_I2C_Error_g;
 
-/*------------------------------------------------------------------------------
-THE END
-------------------------------------------------------------------------------*/
-#ifdef __cplusplus
-}
-#endif
 #endif				/* __BSPI2C_H__ */
