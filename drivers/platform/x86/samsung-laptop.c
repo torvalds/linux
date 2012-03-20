@@ -25,6 +25,7 @@
 #include <linux/acpi.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/ctype.h>
 
 /*
  * This driver is needed because a number of Samsung laptops do not hook
