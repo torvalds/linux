@@ -1146,7 +1146,7 @@ FUNCTIONS
 ----------------------------------------------------------------------------*/
 /* Some prototypes */
 static DRXStatus_t
-HICommand(const struct i2c_device_addr *devAddr,
+HICommand(struct i2c_device_addr *devAddr,
 	  const pDRXJHiCmd_t cmd, pu16_t result);
 
 static DRXStatus_t
@@ -2258,7 +2258,7 @@ rw_error:
 *
 */
 static DRXStatus_t
-HICommand(const struct i2c_device_addr *devAddr, const pDRXJHiCmd_t cmd, pu16_t result)
+HICommand(struct i2c_device_addr *devAddr, const pDRXJHiCmd_t cmd, pu16_t result)
 {
 	u16_t waitCmd = 0;
 	u16_t nrRetries = 0;
