@@ -2778,7 +2778,7 @@ void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->ih.rptr = 0;
 }
 
-static int r600_ih_ring_alloc(struct radeon_device *rdev)
+int r600_ih_ring_alloc(struct radeon_device *rdev)
 {
 	int r;
 
@@ -2814,7 +2814,7 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev)
 	return 0;
 }
 
-static void r600_ih_ring_fini(struct radeon_device *rdev)
+void r600_ih_ring_fini(struct radeon_device *rdev)
 {
 	int r;
 	if (rdev->ih.ring_obj) {
