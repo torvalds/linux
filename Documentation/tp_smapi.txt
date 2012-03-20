@@ -1,0 +1,267 @@
+tp_smapi version 0.40
+IBM ThinkPad hardware functions driver
+
+Author:  Shem Multinymous <multinymous@gmail.com>
+Project: http://sourceforge.net/projects/tpctl
+Wiki:    http://thinkwiki.org/wiki/tp_smapi
+List:    linux-thinkpad@linux-thinkpad.org
+         (http://mailman.linux-thinkpad.org/mailman/listinfo/linux-thinkpad)
+
+Description
+-----------
+
+ThinkPad laptops include a proprietary interface called SMAPI BIOS
+(System Management Application Program Interface) which provides some
+hardware control functionality that is not accessible by other means.
+
+This driver exposes some features of the SMAPI BIOS through a sysfs
+interface. It is suitable for newer models, on which SMAPI is invoked
+through IO port writes. Older models use a different SMAPI interface;
+for those, try the "thinkpad" module from the "tpctl" package.
+
+WARNING:
+This driver uses undocumented features and direct hardware access.
+It thus cannot be guaranteed to work, and may cause arbitrary damage
+(especially on models it wasn't tested on).
+
+
+Module parameters
+-----------------
+
+thinkpad_ec module:
+  force_io=1 lets thinkpad_ec load on some recent ThinkPad models
+  (e.g., T400 and T500) whose BIOS's ACPI DSDT reserves the ports we need.
+tp_smapi module:
+  debug=1    enables verbose dmesg output.
+
+
+Usage
+-----
+
+Control of battery charging thresholds (in percents of current full charge
+capacity):
+
+# echo 40 > /sys/devices/platform/smapi/BAT0/start_charge_thresh
+# echo 70 > /sys/devices/platform/smapi/BAT0/stop_charge_thresh
+# cat /sys/devices/platform/smapi/BAT0/*_charge_thresh
+
+    (This is useful since Li-Ion batteries wear out much faster at very
+     high or low charge levels. The driver will also keeps the thresholds
+     across suspend-to-disk with AC disconnected; this isn't done
+     automatically by the hardware.)
+
+Inhibiting battery charging for 17 minutes (overrides thresholds):
+
+# echo 17 > /sys/devices/platform/smapi/BAT0/inhibit_charge_minutes
+# echo 0  > /sys/devices/platform/smapi/BAT0/inhibit_charge_minutes  # stop
+# cat /sys/devices/platform/smapi/BAT0/inhibit_charge_minutes
+
+    (This can be used to control which battery is charged when using an
+     Ultrabay battery.)
+
+Forcing battery discharging even if AC power available:
+
+# echo 1 > /sys/devices/platform/smapi/BAT0/force_discharge  # start discharge
+# echo 0 > /sys/devices/platform/smapi/BAT0/force_discharge  # stop discharge
+# cat /sys/devices/platform/smapi/BAT0/force_discharge
+
+    (When AC is connected, forced discharging will automatically stop
+     when battery is fully depleted -- this is useful for calibration.
+     Also, this attribute can be used to control which battery is discharged
+     when both a system battery and an Ultrabay battery are connected.)
+
+Misc read-only battery status attributes (see note about HDAPS below):
+
+/sys/devices/platform/smapi/BAT0/installed   # 0 or 1
+/sys/devices/platform/smapi/BAT0/state       # idle/charging/discharging
+/sys/devices/platform/smapi/BAT0/cycle_count # integer counter
+/sys/devices/platform/smapi/BAT0/current_now # instantaneous current
+/sys/devices/platform/smapi/BAT0/current_avg # last minute average
+/sys/devices/platform/smapi/BAT0/power_now   # instantaneous power
+/sys/devices/platform/smapi/BAT0/power_avg   # last minute average
+/sys/devices/platform/smapi/BAT0/last_full_capacity         # in mWh
+/sys/devices/platform/smapi/BAT0/remaining_percent          # remaining percent of energy (set by calibration)
+/sys/devices/platform/smapi/BAT0/remaining_percent_error    # error range of remaing_percent (not reset by calibration)
+/sys/devices/platform/smapi/BAT0/remaining_running_time     # in minutes, by last minute average power
+/sys/devices/platform/smapi/BAT0/remaining_running_time_now # in minutes, by instantenous power
+/sys/devices/platform/smapi/BAT0/remaining_charging_time    # in minutes
+/sys/devices/platform/smapi/BAT0/remaining_capacity         # in mWh
+/sys/devices/platform/smapi/BAT0/design_capacity            # in mWh
+/sys/devices/platform/smapi/BAT0/voltage           # in mV
+/sys/devices/platform/smapi/BAT0/design_voltage    # in mV
+/sys/devices/platform/smapi/BAT0/charging_max_current  # max charging current
+/sys/devices/platform/smapi/BAT0/charging_max_voltage  # max charging voltage
+/sys/devices/platform/smapi/BAT0/group{0,1,2,3}_voltage # see below
+/sys/devices/platform/smapi/BAT0/manufacturer      # string
+/sys/devices/platform/smapi/BAT0/model             # string
+/sys/devices/platform/smapi/BAT0/barcoding         # string
+/sys/devices/platform/smapi/BAT0/chemistry         # string
+/sys/devices/platform/smapi/BAT0/serial            # integer
+/sys/devices/platform/smapi/BAT0/manufacture_date  # YYYY-MM-DD
+/sys/devices/platform/smapi/BAT0/first_use_date    # YYYY-MM-DD
+/sys/devices/platform/smapi/BAT0/temperature  # in milli-Celsius
+/sys/devices/platform/smapi/BAT0/dump         # see below
+/sys/devices/platform/smapi/ac_connected      # 0 or 1
+
+The BAT0/group{0,1,2,3}_voltage attribute refers to the separate cell groups
+in each battery. For example, on the ThinkPad 600, X3x, T4x and R5x models,
+the battery contains 3 cell groups in series, where each group consisting of 2
+or 3 cells  connected in parallel. The voltage of each group is given by these
+attributes, and their sum (roughly) equals the "voltage" attribute.
+(The effective performance of the battery is determined by the weakest group,
+i.e., the one those voltage changes most rapidly during dis/charging.)
+
+The "BAT0/dump" attribute gives a a hex dump of the raw status data, which
+contains additional data now in the above (if you can figure it out). Some
+unused values are autodetected and replaced by "--":
+
+In all of the above, replace BAT0 with BAT1 to address the 2nd battery (e.g.
+in the UltraBay).
+
+
+Raw SMAPI calls:
+
+/sys/devices/platform/smapi/smapi_request
+This performs raw SMAPI calls. It uses a bad interface that cannot handle
+multiple simultaneous access. Don't touch it, it's for development only.
+If you did touch it, you would so something like
+# echo '211a 100 0 0' > /sys/devices/platform/smapi/smapi_request
+# cat /sys/devices/platform/smapi/smapi_request
+and notice that in the output "211a 34b b2 0 0 0 'OK'", the "4b" in the 2nd
+value, converted to decimal is 75: the current charge stop threshold.
+
+
+Model-specific status
+---------------------
+
+Works (at least partially) on the following ThinkPad model:
+* A30
+* G41
+* R40, R50p, R51, R52
+* T23, T40, T40p, T41, T41p, T42, T42p, T43, T43p, T60
+* X24, X31, X32, X40, X41, X60
+* Z60t, Z61m
+
+Not all functions are available on all models; for detailed status, see:
+  http://thinkwiki.org/wiki/tp_smapi
+
+Please report success/failure by e-mail or on the Wiki.
+If you get a "not implemented" or "not supported" message, your laptop
+probably just can't do that (at least not via the SMAPI BIOS).
+For negative reports, follow the bug reporting guidelines below.
+If you send me the necessary technical data (i.e., SMAPI function
+interfaces), I will support additional models.
+
+
+Additional HDAPS features
+-------------------------
+
+The modified hdaps driver has several improvements on the one in mainline
+(beyond resolving the conflict with thinkpad_ec and tp_smapi):
+
+- Fixes reliability and improves support for recent ThinkPad models
+  (especially *60 and newer). Unlike the mainline driver, the modified hdaps
+  correctly follows the Embedded Controller communication protocol.
+
+- Extends the "invert" parameter to cover all possible axis orientations.
+  The possible values are as follows.
+  Let X,Y denote the hardware readouts.
+  Let R denote the laptop's roll (tilt left/right).
+  Let P denote the laptop's pitch (tilt forward/backward).
+    invert=0:   R= X  P= Y   (same as mainline)
+    invert=1:   R=-X  P=-Y   (same as mainline)
+    invert=2:   R=-X  P= Y   (new)
+    invert=3:   R= X  P=-Y   (new)
+    invert=4:   R= Y  P= X   (new)
+    invert=5:   R=-Y  P=-X   (new)
+    invert=6:   R=-Y  P= X   (new)
+    invert=7:   R= Y  P=-X   (new)
+  It's probably easiest to just try all 8 possibilities and see which yields
+  correct results (e.g., in the hdaps-gl visualisation).
+
+- Adds a whitelist which automatically sets the correct axis orientation for
+  some models. If the value for your model is wrong or missing, you can override
+  it using the "invert" parameter. Please also update the tables at
+  http://www.thinkwiki.org/wiki/tp_smapi and
+  http://www.thinkwiki.org/wiki/List_of_DMI_IDs
+  and submit a patch for the whitelist in hdaps.c.
+
+- Provides new attributes:
+  /sys/devices/platform/hdaps/sampling_rate:
+    This determines the frequency at which the host queries the embedded
+    controller for accelerometer data (and informs the hdaps input devices).
+    Default=50.
+  /sys/devices/platform/hdaps/oversampling_ratio:
+    When set to X, the embedded controller is told to do physical accelerometer
+    measurements at a rate that is X times higher than the rate at which
+    the driver reads those measurements (i.e., X*sampling_rate). This
+    makes the readouts from the embedded controller more fresh, and is also
+    useful for the running average filter (see next). Default=5
+  /sys/devices/platform/hdaps/running_avg_filter_order:
+    When set to X, reported readouts will be the average of the last X physical
+    accelerometer measurements. Current firmware allows 1<=X<=8. Setting to a
+    high value decreases readout fluctuations. The averaging is handled by the
+    embedded controller, so no CPU resources are used. Higher values make the
+    readouts smoother, since it averages out both sensor noise (good) and abrupt
+    changes (bad). Default=2.
+
+- Provides a second input device, which publishes the raw accelerometer
+  measurements (without the fuzzing needed for joystick emulation). This input
+  device can be matched by a udev rule such as the following (all on one line):
+    KERNEL=="event[0-9]*", ATTRS{phys}=="hdaps/input1",
+    ATTRS{modalias}=="input:b0019v1014p5054e4801-*",
+    SYMLINK+="input/hdaps/accelerometer-event
+
+A new version of the hdapsd userspace daemon, which uses the input device
+interface instead of polling sysfs, is available seprately. Using this reduces
+the total interrupts per second generated by hdaps+hdapsd (on tickless kernels)
+to 50, down from a value that fluctuates between 50 and 100. Set the
+sampling_rate sysfs attribute to a lower value to further reduce interrupts,
+at the expense of response latency.
+
+Licensing note: all my changes to the HDAPS driver are licensed under the
+GPL version 2 or, at your option and to the extent allowed by derivation from
+prior works, any later version. My version of hdaps is derived work from the
+mainline version, which at the time of writing is available only under
+GPL version 2.
+
+Bug reporting
+-------------
+
+Mail <multinymous@gmail.com>. Please include:
+* Details about your model,
+* Relevant "dmesg" output. Make sure thinkpad_ec and tp_smapi are loaded with
+  the "debug=1" parameter (e.g., use "make load HDAPS=1 DEBUG=1").
+* Output of "dmidecode | grep -C5 Product"
+* Does the failed functionality works under Windows?
+
+
+More about SMAPI
+----------------
+
+For hints about what may be possible via the SMAPI BIOS and how, see:
+
+* IBM Technical Reference Manual for the ThinkPad 770
+  (http://www-307.ibm.com/pc/support/site.wss/document.do?lndocid=PFAN-3TUQQD)
+* Exported symbols in PWRMGRIF.DLL or TPPWRW32.DLL (e.g., use "objdump -x").
+* drivers/char/mwave/smapi.c in the Linux kernel tree.*
+* The "thinkpad" SMAPI module (http://tpctl.sourceforge.net).
+* The SMAPI_* constants in tp_smapi.c.
+
+Note that in the above Technical Reference and in the "thinkpad" module,
+SMAPI is invoked through a function call to some physical address. However,
+the interface used by tp_smapi and the above mwave drive, and apparently
+required by newer ThinkPad, is different: you set the parameters up in the
+CPU's registers and write to ports 0xB2 (the APM control port) and 0x4F; this
+triggers an SMI (System Management Interrupt), causing the CPU to enter
+SMM (System Management Mode) and run the BIOS firmware; the results are
+returned in the CPU's registers. It is not clear what is the relation between
+the two variants of SMAPI, though the assignment of error codes seems to be
+similar.
+
+In addition, the embedded controller on ThinkPad laptops has a non-standard
+interface at IO ports 0x1600-0x161F (mapped to LCP channel 3 of the H8S chip).
+The interface provides various system management services (currently known:
+battery information and accelerometer readouts). For more information see the
+thinkpad_ec module and the H8S hardware documentation:
+http://documentation.renesas.com/eng/products/mpumcu/rej09b0300_2140bhm.pdf

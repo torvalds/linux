@@ -445,9 +445,30 @@ config THINKPAD_ACPI_HOTKEY_POLL
 	  If you are not sure, say Y here.  The driver enables polling only if
 	  it is strictly necessary to do so.
 
+config THINKPAD_EC
+	tristate
+	depends on X86
+	---help---
+	  This is a low-level driver for accessing the ThinkPad H8S embedded
+	  controller over the LPC bus (not to be confused with the ACPI Embedded
+	  Controller interface).
+
+config TP_SMAPI
+	tristate "ThinkPad SMAPI Support"
+	depends on X86
+	select THINKPAD_EC
+	default n
+	help
+	  This adds SMAPI support on Lenovo/IBM ThinkPads, for features such
+	  as battery charging control. For more information about this driver
+	  see <http://www.thinkwiki.org/wiki/tp_smapi>.
+
+	  If you have a Lenovo/IBM ThinkPad laptop, say Y or M here.
+
 config SENSORS_HDAPS
 	tristate "Thinkpad Hard Drive Active Protection System (hdaps)"
 	depends on INPUT && X86
+	select THINKPAD_EC
 	select INPUT_POLLDEV
 	default n
 	help
