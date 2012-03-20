@@ -1438,7 +1438,7 @@ radeon_atom_encoder_dpms_ext(struct drm_encoder *encoder,
 	switch (mode) {
 	case DRM_MODE_DPMS_ON:
 	default:
-		if (ASIC_IS_DCE41(rdev)) {
+		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev)) {
 			atombios_external_encoder_setup(encoder, ext_encoder,
 							EXTERNAL_ENCODER_ACTION_V3_ENABLE_OUTPUT);
 			atombios_external_encoder_setup(encoder, ext_encoder,
@@ -1449,7 +1449,7 @@ radeon_atom_encoder_dpms_ext(struct drm_encoder *encoder,
 	case DRM_MODE_DPMS_STANDBY:
 	case DRM_MODE_DPMS_SUSPEND:
 	case DRM_MODE_DPMS_OFF:
-		if (ASIC_IS_DCE41(rdev)) {
+		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev)) {
 			atombios_external_encoder_setup(encoder, ext_encoder,
 							EXTERNAL_ENCODER_ACTION_V3_ENCODER_BLANKING);
 			atombios_external_encoder_setup(encoder, ext_encoder,
@@ -1822,7 +1822,7 @@ radeon_atom_encoder_init(struct radeon_device *rdev)
 			break;
 		}
 
-		if (ext_encoder && ASIC_IS_DCE41(rdev))
+		if (ext_encoder && (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev)))
 			atombios_external_encoder_setup(encoder, ext_encoder,
 							EXTERNAL_ENCODER_ACTION_V3_ENCODER_INIT);
 	}
@@ -1911,7 +1911,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	}
 
 	if (ext_encoder) {
-		if (ASIC_IS_DCE41(rdev))
+		if (ASIC_IS_DCE41(rdev) || ASIC_IS_DCE61(rdev))
 			atombios_external_encoder_setup(encoder, ext_encoder,
 							EXTERNAL_ENCODER_ACTION_V3_ENCODER_SETUP);
 		else
