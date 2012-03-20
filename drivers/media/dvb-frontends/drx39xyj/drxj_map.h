@@ -7331,8 +7331,8 @@ extern "C" {
 #define   SCU_RAM_AGC_CLP_CTRL_MODE_NARROW_POW__W                           1
 #define   SCU_RAM_AGC_CLP_CTRL_MODE_NARROW_POW__M                           0x1
 #define   SCU_RAM_AGC_CLP_CTRL_MODE_NARROW_POW__PRE                         0x0
-#define     SCU_RAM_AGC_CLP_CTRL_MODE_NARROW_POW_FALSE                      0x0
-#define     SCU_RAM_AGC_CLP_CTRL_MODE_NARROW_POW_TRUE                       0x1
+#define     SCU_RAM_AGC_CLP_CTRL_MODE_NARROW_POW_false                      0x0
+#define     SCU_RAM_AGC_CLP_CTRL_MODE_NARROW_POW_true                       0x1
 
 #define   SCU_RAM_AGC_CLP_CTRL_MODE_FAST_CLP_BP__B                          1
 #define   SCU_RAM_AGC_CLP_CTRL_MODE_FAST_CLP_BP__W                          1
@@ -8130,8 +8130,8 @@ extern "C" {
 #define   SCU_RAM_ATV_DETECT_DETECT__W                                      1
 #define   SCU_RAM_ATV_DETECT_DETECT__M                                      0x1
 #define   SCU_RAM_ATV_DETECT_DETECT__PRE                                    0x0
-#define     SCU_RAM_ATV_DETECT_DETECT_FALSE                                 0x0
-#define     SCU_RAM_ATV_DETECT_DETECT_TRUE                                  0x1
+#define     SCU_RAM_ATV_DETECT_DETECT_false                                 0x0
+#define     SCU_RAM_ATV_DETECT_DETECT_true                                  0x1
 
 #define SCU_RAM_ATV_DETECT_TH__A                                            0x831F4A
 #define SCU_RAM_ATV_DETECT_TH__W                                            8

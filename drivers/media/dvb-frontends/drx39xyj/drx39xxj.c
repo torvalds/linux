@@ -242,7 +242,7 @@ static int drx39xxj_set_frontend(struct dvb_frontend *fe)
 	}
 	/* Just for giggles, let's shut off the LNA again.... */
 	uioData.uio = DRX_UIO1;
-	uioData.value = FALSE;
+	uioData.value = false;
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "Failed to disable LNA!\n");
@@ -271,7 +271,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
-	Bool_t i2c_gate_state;
+	bool i2c_gate_state;
 	DRXStatus_t result;
 
 #ifdef DJH_DEBUG
@@ -280,9 +280,9 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 #endif
 
 	if (enable)
-		i2c_gate_state = TRUE;
+		i2c_gate_state = true;
 	else
-		i2c_gate_state = FALSE;
+		i2c_gate_state = false;
 
 	if (state->i2c_gate_open == enable) {
 		/* We're already in the desired state */
@@ -371,9 +371,9 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	       sizeof(DRXCommonAttr_t));
 	demod->myCommonAttr->microcode = DRXJ_MC_MAIN;
 #if 0
-	demod->myCommonAttr->verifyMicrocode = FALSE;
+	demod->myCommonAttr->verifyMicrocode = false;
 #endif
-	demod->myCommonAttr->verifyMicrocode = TRUE;
+	demod->myCommonAttr->verifyMicrocode = true;
 	demod->myCommonAttr->intermediateFreq = 5000;
 
 	demod->myExtAttr = demodExtAttr;
@@ -401,7 +401,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	}
 
 	uioData.uio = DRX_UIO1;
-	uioData.value = FALSE;
+	uioData.value = false;
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
 	if (result != DRX_STS_OK) {
 		printk(KERN_ERR "Failed to disable LNA!\n");

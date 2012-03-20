@@ -28,87 +28,14 @@
   POSSIBILITY OF SUCH DAMAGE.
 */
 
-/**
-* \file $Id: bsp_types.h,v 1.5 2009/08/06 12:55:57 carlo Exp $
-*
-* \brief General type definitions for board support packages
-*
-* This file contains type definitions that are needed for almost any
-* board support package.
-* The definitions are host and project independent.
-*
-*/
-
 #include <linux/kernel.h>
 
 #ifndef __BSP_TYPES_H__
 #define __BSP_TYPES_H__
-/*-------------------------------------------------------------------------
-INCLUDES
--------------------------------------------------------------------------*/
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-/*-------------------------------------------------------------------------
-TYPEDEFS
--------------------------------------------------------------------------*/
-
-/**
-* \typedef s32 DRXFrequency_t
-* \brief type definition of frequency
-*/
-	typedef s32 DRXFrequency_t;
-
-/**
-* \typedef DRXFrequency_t *pDRXFrequency_t
-* \brief type definition of a pointer to a frequency
-*/
-	typedef DRXFrequency_t *pDRXFrequency_t;
-
-/**
-* \typedef u32 DRXSymbolrate_t
-* \brief type definition of symbol rate
-*/
-	typedef u32 DRXSymbolrate_t;
-
-/**
-* \typedef DRXSymbolrate_t *pDRXSymbolrate_t
-* \brief type definition of a pointer to a symbol rate
-*/
-	typedef DRXSymbolrate_t *pDRXSymbolrate_t;
-
-/*-------------------------------------------------------------------------
-DEFINES
--------------------------------------------------------------------------*/
-/**
-* \def NULL
-* \brief Define NULL for target.
-*/
-#ifndef NULL
-#define NULL            (0)
-#endif
 
 /*-------------------------------------------------------------------------
 ENUM
 -------------------------------------------------------------------------*/
-
-/*
-* Boolean datatype. Only define if not already defined TRUE or FALSE.
-*/
-#if defined (TRUE) || defined (FALSE)
-	typedef int Bool_t;
-#else
-/**
-* \enum Bool_t
-* \brief Boolean type
-*/
-	typedef enum {
-		FALSE = 0,
-		TRUE
-	} Bool_t;
-#endif
-	typedef Bool_t *pBool_t;
 
 /**
 * \enum DRXStatus_t
@@ -125,18 +52,4 @@ ENUM
 				    /**< unavailable functionality   */
 	} DRXStatus_t, *pDRXStatus_t;
 
-/*-------------------------------------------------------------------------
-STRUCTS
--------------------------------------------------------------------------*/
-
-/**
-Exported FUNCTIONS
--------------------------------------------------------------------------*/
-
-/*-------------------------------------------------------------------------
-THE END
--------------------------------------------------------------------------*/
-#ifdef __cplusplus
-}
-#endif
 #endif				/* __BSP_TYPES_H__ */

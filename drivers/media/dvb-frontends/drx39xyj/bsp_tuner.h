@@ -94,19 +94,19 @@ TYPEDEFS
 	typedef struct {
 
 		char *name;	/* Tuner brand & type name */
-		DRXFrequency_t minFreqRF;	/* Lowest  RF input frequency, in kHz */
-		DRXFrequency_t maxFreqRF;	/* Highest RF input frequency, in kHz */
+		s32 minFreqRF;	/* Lowest  RF input frequency, in kHz */
+		s32 maxFreqRF;	/* Highest RF input frequency, in kHz */
 
 		u8 subMode;	/* Index to sub-mode in use */
 		pTUNERSubMode_t subModeDescriptions;	/* Pointer to description of sub-modes */
 		u8 subModes;	/* Number of available sub-modes      */
 
-		/* The following fields will be either 0, NULL or FALSE and do not need
+		/* The following fields will be either 0, NULL or false and do not need
 		   initialisation */
 		void *selfCheck;	/* gives proof of initialization  */
-		Bool_t programmed;	/* only valid if selfCheck is OK  */
-		DRXFrequency_t RFfrequency;	/* only valid if programmed       */
-		DRXFrequency_t IFfrequency;	/* only valid if programmed       */
+		bool programmed;	/* only valid if selfCheck is OK  */
+		s32 RFfrequency;	/* only valid if programmed       */
+		s32 IFfrequency;	/* only valid if programmed       */
 
 		void *myUserData;	/* pointer to associated demod instance */
 		u16 myCapabilities;	/* value for storing application flags  */
@@ -123,14 +123,14 @@ TYPEDEFS
 
 	typedef DRXStatus_t(*TUNERSetFrequencyFunc_t) (pTUNERInstance_t tuner,
 						       TUNERMode_t mode,
-						       DRXFrequency_t
+						       s32
 						       frequency);
 
 	typedef DRXStatus_t(*TUNERGetFrequencyFunc_t) (pTUNERInstance_t tuner,
 						       TUNERMode_t mode,
-						       pDRXFrequency_t
+						       s32 *
 						       RFfrequency,
-						       pDRXFrequency_t
+						       s32 *
 						       IFfrequency);
 
 	typedef DRXStatus_t(*TUNERLockStatusFunc_t) (pTUNERInstance_t tuner,
@@ -182,12 +182,12 @@ Exported FUNCTIONS
 
 	DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
 					      TUNERMode_t mode,
-					      DRXFrequency_t frequency);
+					      s32 frequency);
 
 	DRXStatus_t DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
 					      TUNERMode_t mode,
-					      pDRXFrequency_t RFfrequency,
-					      pDRXFrequency_t IFfrequency);
+					      s32 *RFfrequency,
+					      s32 *IFfrequency);
 
 	DRXStatus_t DRXBSP_TUNER_LockStatus(pTUNERInstance_t tuner,
 					    pTUNERLockStatus_t lockStat);

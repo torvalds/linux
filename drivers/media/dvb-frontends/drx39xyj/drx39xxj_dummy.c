@@ -25,7 +25,7 @@ DRXStatus_t DRXBSP_TUNER_Close(pTUNERInstance_t tuner)
 
 DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
 				      TUNERMode_t mode,
-				      DRXFrequency_t centerFrequency)
+				      s32 centerFrequency)
 {
 	return DRX_STS_OK;
 }
@@ -33,8 +33,8 @@ DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
 DRXStatus_t
 DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
 			  TUNERMode_t mode,
-			  pDRXFrequency_t RFfrequency,
-			  pDRXFrequency_t IFfrequency)
+			  s32 *RFfrequency,
+			  s32 *IFfrequency)
 {
 	return DRX_STS_OK;
 }

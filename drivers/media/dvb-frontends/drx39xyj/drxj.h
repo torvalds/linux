@@ -204,7 +204,7 @@ TYPEDEFS
 	typedef struct {
 		DRXStandard_t standard;	/* standard to which these settings apply */
 		u16 reference;	/* pre SAW reference value, range 0 .. 31 */
-		Bool_t usePreSaw;	/* TRUE algorithms must use pre SAW sense */
+		bool usePreSaw;	/* true algorithms must use pre SAW sense */
 	} DRXJCfgPreSaw_t, *pDRXJCfgPreSaw_t;
 
 /* DRXJ_CFG_AFE_GAIN */
@@ -279,8 +279,8 @@ TYPEDEFS
 * set MPEG output clock rate
 */
 	typedef struct {
-		Bool_t disableTEIHandling;	      /**< if TRUE pass (not change) TEI bit */
-		Bool_t bitReverseMpegOutout;	      /**< if TRUE, parallel: msb on MD0; serial: lsb out first */
+		bool disableTEIHandling;	      /**< if true pass (not change) TEI bit */
+		bool bitReverseMpegOutout;	      /**< if true, parallel: msb on MD0; serial: lsb out first */
 		DRXJMpegOutputClockRate_t mpegOutputClockRate;
 						      /**< set MPEG output clock rate that overwirtes the derived one from symbol rate */
 		DRXJMpegStartWidth_t mpegStartWidth;  /**< set MPEG output start width */
@@ -341,12 +341,12 @@ TYPEDEFS
 
 	typedef struct {
 		DRXJAgcStatus_t agc;
-		Bool_t eqLock;
-		Bool_t symTimingLock;
-		Bool_t phaseLock;
-		Bool_t freqLock;
-		Bool_t digGainLock;
-		Bool_t anaGainLock;
+		bool eqLock;
+		bool symTimingLock;
+		bool phaseLock;
+		bool freqLock;
+		bool digGainLock;
+		bool anaGainLock;
 		u8 state;
 	} DRXJCfgOOBMisc_t, *pDRXJCfgOOBMisc_t;
 
@@ -407,8 +407,8 @@ TYPEDEFS
 *
 */
 	typedef struct {
-		Bool_t enableCVBSOutput;	/* TRUE= enabled */
-		Bool_t enableSIFOutput;	/* TRUE= enabled */
+		bool enableCVBSOutput;	/* true= enabled */
+		bool enableSIFOutput;	/* true= enabled */
 		DRXJSIFAttenuation_t sifAttenuation;
 	} DRXJCfgAtvOutput_t, *pDRXJCfgAtvOutput_t;
 
@@ -447,25 +447,25 @@ TYPEDEFS
 */
 	typedef struct {
 		/* device capabilties (determined during DRX_Open()) */
-		Bool_t hasLNA;		  /**< TRUE if LNA (aka PGA) present */
-		Bool_t hasOOB;		  /**< TRUE if OOB supported */
-		Bool_t hasNTSC;		  /**< TRUE if NTSC supported */
-		Bool_t hasBTSC;		  /**< TRUE if BTSC supported */
-		Bool_t hasSMATX;	  /**< TRUE if mat_tx is available */
-		Bool_t hasSMARX;	  /**< TRUE if mat_rx is available */
-		Bool_t hasGPIO;		  /**< TRUE if GPIO is available */
-		Bool_t hasIRQN;		  /**< TRUE if IRQN is available */
+		bool hasLNA;		  /**< true if LNA (aka PGA) present */
+		bool hasOOB;		  /**< true if OOB supported */
+		bool hasNTSC;		  /**< true if NTSC supported */
+		bool hasBTSC;		  /**< true if BTSC supported */
+		bool hasSMATX;	  /**< true if mat_tx is available */
+		bool hasSMARX;	  /**< true if mat_rx is available */
+		bool hasGPIO;		  /**< true if GPIO is available */
+		bool hasIRQN;		  /**< true if IRQN is available */
 		/* A1/A2/A... */
 		u8 mfx;		  /**< metal fix */
 
 		/* tuner settings */
-		Bool_t mirrorFreqSpectOOB;/**< tuner inversion (TRUE = tuner mirrors the signal */
+		bool mirrorFreqSpectOOB;/**< tuner inversion (true = tuner mirrors the signal */
 
 		/* standard/channel settings */
 		DRXStandard_t standard;	  /**< current standard information                     */
 		DRXConstellation_t constellation;
 					  /**< current constellation                            */
-		DRXFrequency_t frequency; /**< center signal frequency in KHz                   */
+		s32 frequency; /**< center signal frequency in KHz                   */
 		DRXBandwidth_t currBandwidth;
 					  /**< current channel bandwidth                        */
 		DRXMirror_t mirror;	  /**< current channel mirror                           */
@@ -478,7 +478,7 @@ TYPEDEFS
 		u16 fecRsPlen;	  /**< defines RS BER measurement period                */
 		u16 fecRsPrescale;	  /**< ReedSolomon Measurement Prescale                 */
 		u16 fecRsPeriod;	  /**< ReedSolomon Measurement period                   */
-		Bool_t resetPktErrAcc;	  /**< Set a flag to reset accumulated packet error     */
+		bool resetPktErrAcc;	  /**< Set a flag to reset accumulated packet error     */
 		u16 pktErrAccStart;	  /**< Set a flag to reset accumulated packet error     */
 
 		/* HI configuration */
@@ -496,7 +496,7 @@ TYPEDEFS
 
 		/* IQM fs frequecy shift and inversion */
 		u32 iqmFsRateOfs;	   /**< frequency shifter setting after setchannel      */
-		Bool_t posImage;	   /**< Ture: positive image                            */
+		bool posImage;	   /**< Ture: positive image                            */
 		/* IQM RC frequecy shift */
 		u32 iqmRcRateOfs;	   /**< frequency shifter setting after setchannel      */
 
@@ -506,11 +506,11 @@ TYPEDEFS
 		s16 atvTopEqu1[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU1__A */
 		s16 atvTopEqu2[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU2__A */
 		s16 atvTopEqu3[DRXJ_COEF_IDX_MAX];	     /**< shadow of ATV_TOP_EQU3__A */
-		Bool_t phaseCorrectionBypass;/**< flag: TRUE=bypass */
+		bool phaseCorrectionBypass;/**< flag: true=bypass */
 		s16 atvTopVidPeak;	  /**< shadow of ATV_TOP_VID_PEAK__A */
 		u16 atvTopNoiseTh;	  /**< shadow of ATV_TOP_NOISE_TH__A */
-		Bool_t enableCVBSOutput;  /**< flag CVBS ouput enable */
-		Bool_t enableSIFOutput;	  /**< flag SIF ouput enable */
+		bool enableCVBSOutput;  /**< flag CVBS ouput enable */
+		bool enableSIFOutput;	  /**< flag SIF ouput enable */
 		 DRXJSIFAttenuation_t sifAttenuation;
 					  /**< current SIF att setting */
 		/* Agc configuration for QAM and VSB */
@@ -536,16 +536,16 @@ TYPEDEFS
 					  /**< allocated version list */
 
 		/* smart antenna configuration */
-		Bool_t smartAntInverted;
+		bool smartAntInverted;
 
 		/* Tracking filter setting for OOB */
 		u16 oobTrkFilterCfg[8];
-		Bool_t oobPowerOn;
+		bool oobPowerOn;
 
 		/* MPEG static bitrate setting */
 		u32 mpegTsStaticBitrate;  /**< bitrate static MPEG output */
-		Bool_t disableTEIhandling;  /**< MPEG TS TEI handling */
-		Bool_t bitReverseMpegOutout;/**< MPEG output bit order */
+		bool disableTEIhandling;  /**< MPEG TS TEI handling */
+		bool bitReverseMpegOutout;/**< MPEG output bit order */
 		 DRXJMpegOutputClockRate_t mpegOutputClockRate;
 					    /**< MPEG output clock rate */
 		 DRXJMpegStartWidth_t mpegStartWidth;
@@ -561,7 +561,7 @@ TYPEDEFS
 		u32 currSymbolRate;
 
 		/* pin-safe mode */
-		Bool_t pdrSafeMode;	    /**< PDR safe mode activated      */
+		bool pdrSafeMode;	    /**< PDR safe mode activated      */
 		u16 pdrSafeRestoreValGpio;
 		u16 pdrSafeRestoreValVSync;
 		u16 pdrSafeRestoreValSmaRx;
@@ -631,7 +631,7 @@ DEFINES
 * Fcentre = Fpc + DRXJ_NTSC_CARRIER_FREQ_OFFSET
 *
 */
-#define DRXJ_NTSC_CARRIER_FREQ_OFFSET           ((DRXFrequency_t)(1750))
+#define DRXJ_NTSC_CARRIER_FREQ_OFFSET           ((s32)(1750))
 
 /**
 * \def DRXJ_PAL_SECAM_BG_CARRIER_FREQ_OFFSET
@@ -647,7 +647,7 @@ DEFINES
 * care of this.
 *
 */
-#define DRXJ_PAL_SECAM_BG_CARRIER_FREQ_OFFSET   ((DRXFrequency_t)(2375))
+#define DRXJ_PAL_SECAM_BG_CARRIER_FREQ_OFFSET   ((s32)(2375))
 
 /**
 * \def DRXJ_PAL_SECAM_DKIL_CARRIER_FREQ_OFFSET
@@ -663,7 +663,7 @@ DEFINES
 * care of this.
 *
 */
-#define DRXJ_PAL_SECAM_DKIL_CARRIER_FREQ_OFFSET ((DRXFrequency_t)(2775))
+#define DRXJ_PAL_SECAM_DKIL_CARRIER_FREQ_OFFSET ((s32)(2775))
 
 /**
 * \def DRXJ_PAL_SECAM_LP_CARRIER_FREQ_OFFSET
@@ -678,7 +678,7 @@ DEFINES
 * In case the tuner module is NOT used the application programmer must take
 * care of this.
 */
-#define DRXJ_PAL_SECAM_LP_CARRIER_FREQ_OFFSET   ((DRXFrequency_t)(-3255))
+#define DRXJ_PAL_SECAM_LP_CARRIER_FREQ_OFFSET   ((s32)(-3255))
 
 /**
 * \def DRXJ_FM_CARRIER_FREQ_OFFSET
@@ -694,7 +694,7 @@ DEFINES
 * Ffm = Fsc + DRXJ_FM_CARRIER_FREQ_OFFSET
 *
 */
-#define DRXJ_FM_CARRIER_FREQ_OFFSET             ((DRXFrequency_t)(-3000))
+#define DRXJ_FM_CARRIER_FREQ_OFFSET             ((s32)(-3000))
 
 /* Revision types -------------------------------------------------------*/
 

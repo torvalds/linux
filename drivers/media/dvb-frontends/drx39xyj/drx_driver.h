@@ -274,17 +274,17 @@ MACROS
 * \brief Macro to sign extend signed 9 bit value to signed  16 bit value
 */
 #define DRX_S24TODRXFREQ(x) ( ( ( (u32) x ) & 0x00800000UL ) ? \
-				 (  (DRXFrequency_t) \
+				 (  (s32) \
 				    ( ( (u32) x ) | 0xFF000000 ) ) : \
-				 ( (DRXFrequency_t) x ) )
+				 ( (s32) x ) )
 
 /**
-* \brief Macro to convert 16 bit register value to a DRXFrequency_t
+* \brief Macro to convert 16 bit register value to a s32
 */
 #define DRX_U16TODRXFREQ(x)   (  ( x & 0x8000 ) ? \
-				 (  (DRXFrequency_t) \
+				 (  (s32) \
 				    ( ( (u32) x ) | 0xFFFF0000 ) ) : \
-				 ( (DRXFrequency_t) x ) )
+				 ( (s32) x ) )
 
 /*-------------------------------------------------------------------------
 ENUM
@@ -883,7 +883,7 @@ STRUCTS
 *
 */
 	typedef struct {
-		DRXFrequency_t frequency;
+		s32 frequency;
 					/**< frequency in kHz                 */
 		DRXBandwidth_t bandwidth;
 					/**< bandwidth                        */
@@ -898,7 +898,7 @@ STRUCTS
 		DRXFftmode_t fftmode;	/**< fftmode                          */
 		DRXClassification_t classification;
 					/**< classification                   */
-		DRXSymbolrate_t symbolrate;
+		u32 symbolrate;
 					/**< symbolrate in symbols/sec        */
 		DRXInterleaveModes_t interleavemode;
 					/**< interleaveMode QAM               */
@@ -967,11 +967,11 @@ STRUCTS
 * Used by DRX_CTRL_SCAN_INIT.
 */
 	typedef struct {
-		DRXFrequency_t first;
+		s32 first;
 			     /**< First centre frequency in this band        */
-		DRXFrequency_t last;
+		s32 last;
 			     /**< Last centre frequency in this band         */
-		DRXFrequency_t step;
+		s32 step;
 			     /**< Stepping frequency in this band            */
 		DRXBandwidth_t bandwidth;
 			     /**< Bandwidth within this frequency band       */
@@ -1037,7 +1037,7 @@ STRUCTS
 					  /**< Frequency plan (array)*/
 		u16 frequencyPlanSize;  /**< Number of bands       */
 		u32 numTries;		  /**< Max channels tried    */
-		DRXFrequency_t skip;	  /**< Minimum frequency step to take
+		s32 skip;	  /**< Minimum frequency step to take
 						after a channel is found */
 		void *extParams;	  /**< Standard specific params */
 	} DRXScanParam_t, *pDRXScanParam_t;
@@ -1062,7 +1062,7 @@ STRUCTS
 	typedef DRXStatus_t(*DRXScanFunc_t) (void *scanContext,
 					     DRXScanCommand_t scanCommand,
 					     pDRXChannel_t scanChannel,
-					     pBool_t getNextChannel);
+					     bool * getNextChannel);
 
 /*========================================*/
 
@@ -1208,8 +1208,8 @@ STRUCTS
 	typedef struct {
 		DRXUIO_t uio;
 		   /**< UIO identifier              */
-		Bool_t value;
-		   /**< UIO value (TRUE=1, FALSE=0) */
+		bool value;
+		   /**< UIO value (true=1, false=0) */
 	} DRXUIOData_t, *pDRXUIOData_t;
 
 /*========================================*/
@@ -1220,10 +1220,10 @@ STRUCTS
 * Used by DRX_CTRL_SET_OOB.
 */
 	typedef struct {
-		DRXFrequency_t frequency;	   /**< Frequency in kHz      */
+		s32 frequency;	   /**< Frequency in kHz      */
 		DRXOOBDownstreamStandard_t standard;
 						   /**< OOB standard          */
-		Bool_t spectrumInverted;	   /**< If TRUE, then spectrum
+		bool spectrumInverted;	   /**< If true, then spectrum
 							 is inverted          */
 	} DRXOOB_t, *pDRXOOB_t;
 
@@ -1235,7 +1235,7 @@ STRUCTS
 * Used by DRX_CTRL_GET_OOB.
 */
 	typedef struct {
-		DRXFrequency_t frequency; /**< Frequency in Khz         */
+		s32 frequency; /**< Frequency in Khz         */
 		DRXLockStatus_t lock;	  /**< Lock status              */
 		u32 mer;		  /**< MER                      */
 		s32 symbolRateOffset;	  /**< Symbolrate offset in ppm */
@@ -1278,16 +1278,16 @@ STRUCTS
 */
 
 	typedef struct {
-		Bool_t enableMPEGOutput;/**< If TRUE, enable MPEG output      */
-		Bool_t insertRSByte;	/**< If TRUE, insert RS byte          */
-		Bool_t enableParallel;	/**< If TRUE, parallel out otherwise
+		bool enableMPEGOutput;/**< If true, enable MPEG output      */
+		bool insertRSByte;	/**< If true, insert RS byte          */
+		bool enableParallel;	/**< If true, parallel out otherwise
 								     serial   */
-		Bool_t invertDATA;	/**< If TRUE, invert DATA signals     */
-		Bool_t invertERR;	/**< If TRUE, invert ERR signal       */
-		Bool_t invertSTR;	/**< If TRUE, invert STR signals      */
-		Bool_t invertVAL;	/**< If TRUE, invert VAL signals      */
-		Bool_t invertCLK;	/**< If TRUE, invert CLK signals      */
-		Bool_t staticCLK;	/**< If TRUE, static MPEG clockrate
+		bool invertDATA;	/**< If true, invert DATA signals     */
+		bool invertERR;	/**< If true, invert ERR signal       */
+		bool invertSTR;	/**< If true, invert STR signals      */
+		bool invertVAL;	/**< If true, invert VAL signals      */
+		bool invertCLK;	/**< If true, invert CLK signals      */
+		bool staticCLK;	/**< If true, static MPEG clockrate
 					     will be used, otherwise clockrate
 					     will adapt to the bitrate of the
 					     TS                               */
@@ -1314,7 +1314,7 @@ STRUCTS
 	typedef struct {
 		DRXCfgSMAIO_t io;
 		u16 ctrlData;
-		Bool_t smartAntInverted;
+		bool smartAntInverted;
 	} DRXCfgSMA_t, *pDRXCfgSMA_t;
 
 /*========================================*/
@@ -1391,11 +1391,11 @@ STRUCTS
 * \brief Audio status characteristics.
 */
 	typedef struct {
-		Bool_t stereo;		  /**< stereo detection               */
-		Bool_t carrierA;	  /**< carrier A detected             */
-		Bool_t carrierB;	  /**< carrier B detected             */
-		Bool_t sap;		  /**< sap / bilingual detection      */
-		Bool_t rds;		  /**< RDS data array present         */
+		bool stereo;		  /**< stereo detection               */
+		bool carrierA;	  /**< carrier A detected             */
+		bool carrierB;	  /**< carrier B detected             */
+		bool sap;		  /**< sap / bilingual detection      */
+		bool rds;		  /**< RDS data array present         */
 		DRXAudNICAMStatus_t nicamStatus;
 					  /**< status of NICAM carrier        */
 		s8 fmIdent;		  /**< FM Identification value        */
@@ -1408,7 +1408,7 @@ STRUCTS
 * \brief Raw RDS data array.
 */
 	typedef struct {
-		Bool_t valid;		  /**< RDS data validation            */
+		bool valid;		  /**< RDS data validation            */
 		u16 data[18];		  /**< data from one RDS data array   */
 	} DRXCfgAudRDS_t, *pDRXCfgAudRDS_t;
 
@@ -1451,7 +1451,7 @@ STRUCTS
 * \brief Audio volume configuration.
 */
 	typedef struct {
-		Bool_t mute;		  /**< mute overrides volume setting  */
+		bool mute;		  /**< mute overrides volume setting  */
 		s16 volume;		  /**< volume, range -114 to 12 dB    */
 		DRXAudAVCMode_t avcMode;  /**< AVC auto volume control mode   */
 		u16 avcRefLevel;	  /**< AVC reference level            */
@@ -1507,7 +1507,7 @@ STRUCTS
 * \brief I2S output configuration.
 */
 	typedef struct {
-		Bool_t outputEnable;	  /**< I2S output enable              */
+		bool outputEnable;	  /**< I2S output enable              */
 		u32 frequency;	  /**< range from 8000-48000 Hz       */
 		DRXI2SMode_t mode;	  /**< I2S mode, master or slave      */
 		DRXI2SWordLength_t wordLength;
@@ -1575,8 +1575,8 @@ STRUCTS
 	typedef struct {
 		u16 thres;	/* carrier detetcion threshold for primary carrier (A) */
 		DRXNoCarrierOption_t opt;	/* Mute or noise at no carrier detection (A) */
-		DRXFrequency_t shift;	/* DC level of incoming signal (A) */
-		DRXFrequency_t dco;	/* frequency adjustment (A) */
+		s32 shift;	/* DC level of incoming signal (A) */
+		s32 dco;	/* frequency adjustment (A) */
 	} DRXAudCarrier_t, *pDRXCfgAudCarrier_t;
 
 /**
@@ -1668,7 +1668,7 @@ STRUCTS
 	typedef struct {
 		s16 volume;	/* dB */
 		u16 frequency;	/* Hz */
-		Bool_t mute;
+		bool mute;
 	} DRXAudBeep_t, *pDRXAudBeep_t;
 
 /**
@@ -1686,7 +1686,7 @@ STRUCTS
 */
 	typedef struct {
 		/* audio storage */
-		Bool_t audioIsActive;
+		bool audioIsActive;
 		DRXAudStandard_t audioStandard;
 		DRXCfgI2SOutput_t i2sdata;
 		DRXCfgAudVolume_t volume;
@@ -1701,7 +1701,7 @@ STRUCTS
 		DRXAudBtscDetect_t btscDetect;
 		/* rds */
 		u16 rdsDataCounter;
-		Bool_t rdsDataPresent;
+		bool rdsDataPresent;
 	} DRXAudData_t, *pDRXAudData_t;
 
 /**
@@ -1838,37 +1838,37 @@ STRUCTS
 		u8 *microcode;   /**< Pointer to microcode image.           */
 		u16 microcodeSize;
 				   /**< Size of microcode image in bytes.     */
-		Bool_t verifyMicrocode;
+		bool verifyMicrocode;
 				   /**< Use microcode verify or not.          */
 		DRXMcVersionRec_t mcversion;
 				   /**< Version record of microcode from file */
 
 		/* Clocks and tuner attributes */
-		DRXFrequency_t intermediateFreq;
+		s32 intermediateFreq;
 				     /**< IF,if tuner instance not used. (kHz)*/
-		DRXFrequency_t sysClockFreq;
+		s32 sysClockFreq;
 				     /**< Systemclock frequency.  (kHz)       */
-		DRXFrequency_t oscClockFreq;
+		s32 oscClockFreq;
 				     /**< Oscillator clock frequency.  (kHz)  */
 		s16 oscClockDeviation;
 				     /**< Oscillator clock deviation.  (ppm)  */
-		Bool_t mirrorFreqSpect;
+		bool mirrorFreqSpect;
 				     /**< Mirror IF frequency spectrum or not.*/
 
 		/* Initial MPEG output attributes */
 		DRXCfgMPEGOutput_t mpegCfg;
 				     /**< MPEG configuration                  */
 
-		Bool_t isOpened;     /**< if TRUE instance is already opened. */
+		bool isOpened;     /**< if true instance is already opened. */
 
 		/* Channel scan */
 		pDRXScanParam_t scanParam;
 				      /**< scan parameters                    */
 		u16 scanFreqPlanIndex;
 				      /**< next index in freq plan            */
-		DRXFrequency_t scanNextFrequency;
+		s32 scanNextFrequency;
 				      /**< next freq to scan                  */
-		Bool_t scanReady;     /**< scan ready flag                    */
+		bool scanReady;     /**< scan ready flag                    */
 		u32 scanMaxChannels;/**< number of channels in freqplan     */
 		u32 scanChannelsScanned;
 					/**< number of channels scanned       */
@@ -1884,7 +1884,7 @@ STRUCTS
 				      /**< lock requirement for channel found */
 		/* scanActive can be used by SetChannel to decide how to program the tuner,
 		   fast or slow (but stable). Usually fast during scan. */
-		Bool_t scanActive;    /**< TRUE when scan routines are active */
+		bool scanActive;    /**< true when scan routines are active */
 
 		/* Power management */
 		DRXPowerMode_t currentPowerMode;
@@ -1892,13 +1892,13 @@ STRUCTS
 
 		/* Tuner */
 		u8 tunerPortNr;     /**< nr of I2C port to wich tuner is    */
-		DRXFrequency_t tunerMinFreqRF;
+		s32 tunerMinFreqRF;
 				      /**< minimum RF input frequency, in kHz */
-		DRXFrequency_t tunerMaxFreqRF;
+		s32 tunerMaxFreqRF;
 				      /**< maximum RF input frequency, in kHz */
-		Bool_t tunerRfAgcPol; /**< if TRUE invert RF AGC polarity     */
-		Bool_t tunerIfAgcPol; /**< if TRUE invert IF AGC polarity     */
-		Bool_t tunerSlowMode; /**< if TRUE invert IF AGC polarity     */
+		bool tunerRfAgcPol; /**< if true invert RF AGC polarity     */
+		bool tunerIfAgcPol; /**< if true invert IF AGC polarity     */
+		bool tunerSlowMode; /**< if true invert IF AGC polarity     */
 
 		DRXChannel_t currentChannel;
 				      /**< current channel parameters         */
@@ -1908,7 +1908,7 @@ STRUCTS
 				      /**< previous standard selection        */
 		DRXStandard_t diCacheStandard;
 				      /**< standard in DI cache if available  */
-		Bool_t useBootloader; /**< use bootloader in open             */
+		bool useBootloader; /**< use bootloader in open             */
 		u32 capabilities;   /**< capabilities flags                 */
 		u32 productId;      /**< product ID inc. metal fix number   */
 
@@ -2204,23 +2204,23 @@ Conversion from enum values to human readable form.
    ( x == DRX_AUD_STANDARD_UNKNOWN      )  ? "Unknown"                  : \
 					     "(Invalid)"  )
 #define DRX_STR_AUD_STEREO(x) ( \
-   ( x == TRUE                          )  ? "Stereo"           : \
-   ( x == FALSE                         )  ? "Mono"             : \
+   ( x == true                          )  ? "Stereo"           : \
+   ( x == false                         )  ? "Mono"             : \
 					     "(Invalid)"  )
 
 #define DRX_STR_AUD_SAP(x) ( \
-   ( x == TRUE                          )  ? "Present"          : \
-   ( x == FALSE                         )  ? "Not present"      : \
+   ( x == true                          )  ? "Present"          : \
+   ( x == false                         )  ? "Not present"      : \
 					     "(Invalid)"  )
 
 #define DRX_STR_AUD_CARRIER(x) ( \
-   ( x == TRUE                          )  ? "Present"          : \
-   ( x == FALSE                         )  ? "Not present"      : \
+   ( x == true                          )  ? "Present"          : \
+   ( x == false                         )  ? "Not present"      : \
 					     "(Invalid)"  )
 
 #define DRX_STR_AUD_RDS(x) ( \
-   ( x == TRUE                          )  ? "Available"        : \
-   ( x == FALSE                         )  ? "Not Available"    : \
+   ( x == true                          )  ? "Available"        : \
+   ( x == false                         )  ? "Not Available"    : \
 					     "(Invalid)"  )
 
 #define DRX_STR_AUD_NICAM_STATUS(x) ( \
@@ -2230,8 +2230,8 @@ Conversion from enum values to human readable form.
 					     "(Invalid)"  )
 
 #define DRX_STR_RDS_VALID(x) ( \
-   ( x == TRUE                          )  ? "Valid"            : \
-   ( x == FALSE                         )  ? "Not Valid"        : \
+   ( x == true                          )  ? "Valid"            : \
+   ( x == false                         )  ? "Not Valid"        : \
 					     "(Invalid)"  )
 
 /*-------------------------------------------------------------------------
@@ -2663,8 +2663,8 @@ Access macros
 
 /**
 * \brief Macro to check if std is an ATV standard
-* \retval TRUE std is an ATV standard
-* \retval FALSE std is an ATV standard
+* \retval true std is an ATV standard
+* \retval false std is an ATV standard
 */
 #define DRX_ISATVSTD( std ) ( ( (std) == DRX_STANDARD_PAL_SECAM_BG ) || \
 			      ( (std) == DRX_STANDARD_PAL_SECAM_DK ) || \
@@ -2676,8 +2676,8 @@ Access macros
 
 /**
 * \brief Macro to check if std is an QAM standard
-* \retval TRUE std is an QAM standards
-* \retval FALSE std is an QAM standards
+* \retval true std is an QAM standards
+* \retval false std is an QAM standards
 */
 #define DRX_ISQAMSTD( std ) ( ( (std) == DRX_STANDARD_ITU_A ) || \
 			      ( (std) == DRX_STANDARD_ITU_B ) || \
@@ -2686,15 +2686,15 @@ Access macros
 
 /**
 * \brief Macro to check if std is VSB standard
-* \retval TRUE std is VSB standard
-* \retval FALSE std is not VSB standard
+* \retval true std is VSB standard
+* \retval false std is not VSB standard
 */
 #define DRX_ISVSBSTD( std ) ( (std) == DRX_STANDARD_8VSB )
 
 /**
 * \brief Macro to check if std is DVBT standard
-* \retval TRUE std is DVBT standard
-* \retval FALSE std is not DVBT standard
+* \retval true std is DVBT standard
+* \retval false std is not DVBT standard
 */
 #define DRX_ISDVBTSTD( std ) ( (std) == DRX_STANDARD_DVBT )
 
