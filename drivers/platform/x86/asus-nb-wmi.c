@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/fb.h>
 
 #include "asus-wmi.h"
 
@@ -58,6 +59,7 @@ static void asus_nb_wmi_quirks(struct asus_wmi_driver *driver)
 {
 	driver->quirks = &quirk_asus_unknown;
 	driver->quirks->wapf = wapf;
+	driver->panel_power = FB_BLANK_UNBLANK;
 }
 
 static const struct key_entry asus_nb_wmi_keymap[] = {
