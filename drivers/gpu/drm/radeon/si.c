@@ -1608,3 +1608,331 @@ int si_asic_reset(struct radeon_device *rdev)
 	return si_gpu_soft_reset(rdev);
 }
 
+/* MC */
+static void si_mc_program(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	u32 tmp;
+	int i, j;
+
+	/* Initialize HDP */
+	for (i = 0, j = 0; i < 32; i++, j += 0x18) {
+		WREG32((0x2c14 + j), 0x00000000);
+		WREG32((0x2c18 + j), 0x00000000);
+		WREG32((0x2c1c + j), 0x00000000);
+		WREG32((0x2c20 + j), 0x00000000);
+		WREG32((0x2c24 + j), 0x00000000);
+	}
+	WREG32(HDP_REG_COHERENCY_FLUSH_CNTL, 0);
+
+	evergreen_mc_stop(rdev, &save);
+	if (radeon_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	/* Lockout access through VGA aperture*/
+	WREG32(VGA_HDP_CONTROL, VGA_MEMORY_DISABLE);
+	/* Update configuration */
+	WREG32(MC_VM_SYSTEM_APERTURE_LOW_ADDR,
+	       rdev->mc.vram_start >> 12);
+	WREG32(MC_VM_SYSTEM_APERTURE_HIGH_ADDR,
+	       rdev->mc.vram_end >> 12);
+	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR,
+	       rdev->vram_scratch.gpu_addr >> 12);
+	tmp = ((rdev->mc.vram_end >> 24) & 0xFFFF) << 16;
+	tmp |= ((rdev->mc.vram_start >> 24) & 0xFFFF);
+	WREG32(MC_VM_FB_LOCATION, tmp);
+	/* XXX double check these! */
+	WREG32(HDP_NONSURFACE_BASE, (rdev->mc.vram_start >> 8));
+	WREG32(HDP_NONSURFACE_INFO, (2 << 7) | (1 << 30));
+	WREG32(HDP_NONSURFACE_SIZE, 0x3FFFFFFF);
+	WREG32(MC_VM_AGP_BASE, 0);
+	WREG32(MC_VM_AGP_TOP, 0x0FFFFFFF);
+	WREG32(MC_VM_AGP_BOT, 0x0FFFFFFF);
+	if (radeon_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	evergreen_mc_resume(rdev, &save);
+	/* we need to own VRAM, so turn off the VGA renderer here
+	 * to stop it overwriting our objects */
+	rv515_vga_render_disable(rdev);
+}
+
+/* SI MC address space is 40 bits */
+static void si_vram_location(struct radeon_device *rdev,
+			     struct radeon_mc *mc, u64 base)
+{
+	mc->vram_start = base;
+	if (mc->mc_vram_size > (0xFFFFFFFFFFULL - base + 1)) {
+		dev_warn(rdev->dev, "limiting VRAM to PCI aperture size\n");
+		mc->real_vram_size = mc->aper_size;
+		mc->mc_vram_size = mc->aper_size;
+	}
+	mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
+	dev_info(rdev->dev, "VRAM: %lluM 0x%016llX - 0x%016llX (%lluM used)\n",
+			mc->mc_vram_size >> 20, mc->vram_start,
+			mc->vram_end, mc->real_vram_size >> 20);
+}
+
+static void si_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
+{
+	u64 size_af, size_bf;
+
+	size_af = ((0xFFFFFFFFFFULL - mc->vram_end) + mc->gtt_base_align) & ~mc->gtt_base_align;
+	size_bf = mc->vram_start & ~mc->gtt_base_align;
+	if (size_bf > size_af) {
+		if (mc->gtt_size > size_bf) {
+			dev_warn(rdev->dev, "limiting GTT\n");
+			mc->gtt_size = size_bf;
+		}
+		mc->gtt_start = (mc->vram_start & ~mc->gtt_base_align) - mc->gtt_size;
+	} else {
+		if (mc->gtt_size > size_af) {
+			dev_warn(rdev->dev, "limiting GTT\n");
+			mc->gtt_size = size_af;
+		}
+		mc->gtt_start = (mc->vram_end + 1 + mc->gtt_base_align) & ~mc->gtt_base_align;
+	}
+	mc->gtt_end = mc->gtt_start + mc->gtt_size - 1;
+	dev_info(rdev->dev, "GTT: %lluM 0x%016llX - 0x%016llX\n",
+			mc->gtt_size >> 20, mc->gtt_start, mc->gtt_end);
+}
+
+static void si_vram_gtt_location(struct radeon_device *rdev,
+				 struct radeon_mc *mc)
+{
+	if (mc->mc_vram_size > 0xFFC0000000ULL) {
+		/* leave room for at least 1024M GTT */
+		dev_warn(rdev->dev, "limiting VRAM\n");
+		mc->real_vram_size = 0xFFC0000000ULL;
+		mc->mc_vram_size = 0xFFC0000000ULL;
+	}
+	si_vram_location(rdev, &rdev->mc, 0);
+	rdev->mc.gtt_base_align = 0;
+	si_gtt_location(rdev, mc);
+}
+
+static int si_mc_init(struct radeon_device *rdev)
+{
+	u32 tmp;
+	int chansize, numchan;
+
+	/* Get VRAM informations */
+	rdev->mc.vram_is_ddr = true;
+	tmp = RREG32(MC_ARB_RAMCFG);
+	if (tmp & CHANSIZE_OVERRIDE) {
+		chansize = 16;
+	} else if (tmp & CHANSIZE_MASK) {
+		chansize = 64;
+	} else {
+		chansize = 32;
+	}
+	tmp = RREG32(MC_SHARED_CHMAP);
+	switch ((tmp & NOOFCHAN_MASK) >> NOOFCHAN_SHIFT) {
+	case 0:
+	default:
+		numchan = 1;
+		break;
+	case 1:
+		numchan = 2;
+		break;
+	case 2:
+		numchan = 4;
+		break;
+	case 3:
+		numchan = 8;
+		break;
+	case 4:
+		numchan = 3;
+		break;
+	case 5:
+		numchan = 6;
+		break;
+	case 6:
+		numchan = 10;
+		break;
+	case 7:
+		numchan = 12;
+		break;
+	case 8:
+		numchan = 16;
+		break;
+	}
+	rdev->mc.vram_width = numchan * chansize;
+	/* Could aper size report 0 ? */
+	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
+	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
+	/* size in MB on si */
+	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
+	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
+	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	si_vram_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
+
+	return 0;
+}
+
+/*
+ * GART
+ */
+void si_pcie_gart_tlb_flush(struct radeon_device *rdev)
+{
+	/* flush hdp cache */
+	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+
+	/* bits 0-15 are the VM contexts0-15 */
+	WREG32(VM_INVALIDATE_REQUEST, 1);
+}
+
+int si_pcie_gart_enable(struct radeon_device *rdev)
+{
+	int r, i;
+
+	if (rdev->gart.robj == NULL) {
+		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
+		return -EINVAL;
+	}
+	r = radeon_gart_table_vram_pin(rdev);
+	if (r)
+		return r;
+	radeon_gart_restore(rdev);
+	/* Setup TLB control */
+	WREG32(MC_VM_MX_L1_TLB_CNTL,
+	       (0xA << 7) |
+	       ENABLE_L1_TLB |
+	       SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	       ENABLE_ADVANCED_DRIVER_MODEL |
+	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
+	/* Setup L2 cache */
+	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE |
+	       ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
+	       ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE |
+	       EFFECTIVE_L2_QUEUE_SIZE(7) |
+	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
+	WREG32(VM_L2_CNTL2, INVALIDATE_ALL_L1_TLBS | INVALIDATE_L2_CACHE);
+	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
+	       L2_CACHE_BIGK_FRAGMENT_SIZE(0));
+	/* setup context0 */
+	WREG32(VM_CONTEXT0_PAGE_TABLE_START_ADDR, rdev->mc.gtt_start >> 12);
+	WREG32(VM_CONTEXT0_PAGE_TABLE_END_ADDR, rdev->mc.gtt_end >> 12);
+	WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR, rdev->gart.table_addr >> 12);
+	WREG32(VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
+			(u32)(rdev->dummy_page.addr >> 12));
+	WREG32(VM_CONTEXT0_CNTL2, 0);
+	WREG32(VM_CONTEXT0_CNTL, (ENABLE_CONTEXT | PAGE_TABLE_DEPTH(0) |
+				  RANGE_PROTECTION_FAULT_ENABLE_DEFAULT));
+
+	WREG32(0x15D4, 0);
+	WREG32(0x15D8, 0);
+	WREG32(0x15DC, 0);
+
+	/* empty context1-15 */
+	/* FIXME start with 1G, once using 2 level pt switch to full
+	 * vm size space
+	 */
+	/* set vm size, must be a multiple of 4 */
+	WREG32(VM_CONTEXT1_PAGE_TABLE_START_ADDR, 0);
+	WREG32(VM_CONTEXT1_PAGE_TABLE_END_ADDR, (1 << 30) / RADEON_GPU_PAGE_SIZE);
+	for (i = 1; i < 16; i++) {
+		if (i < 8)
+			WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (i << 2),
+			       rdev->gart.table_addr >> 12);
+		else
+			WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((i - 8) << 2),
+			       rdev->gart.table_addr >> 12);
+	}
+
+	/* enable context1-15 */
+	WREG32(VM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR,
+	       (u32)(rdev->dummy_page.addr >> 12));
+	WREG32(VM_CONTEXT1_CNTL2, 0);
+	WREG32(VM_CONTEXT1_CNTL, ENABLE_CONTEXT | PAGE_TABLE_DEPTH(0) |
+				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT);
+
+	si_pcie_gart_tlb_flush(rdev);
+	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+		 (unsigned)(rdev->mc.gtt_size >> 20),
+		 (unsigned long long)rdev->gart.table_addr);
+	rdev->gart.ready = true;
+	return 0;
+}
+
+void si_pcie_gart_disable(struct radeon_device *rdev)
+{
+	/* Disable all tables */
+	WREG32(VM_CONTEXT0_CNTL, 0);
+	WREG32(VM_CONTEXT1_CNTL, 0);
+	/* Setup TLB control */
+	WREG32(MC_VM_MX_L1_TLB_CNTL, SYSTEM_ACCESS_MODE_NOT_IN_SYS |
+	       SYSTEM_APERTURE_UNMAPPED_ACCESS_PASS_THRU);
+	/* Setup L2 cache */
+	WREG32(VM_L2_CNTL, ENABLE_L2_PTE_CACHE_LRU_UPDATE_BY_WRITE |
+	       ENABLE_L2_PDE0_CACHE_LRU_UPDATE_BY_WRITE |
+	       EFFECTIVE_L2_QUEUE_SIZE(7) |
+	       CONTEXT1_IDENTITY_ACCESS_MODE(1));
+	WREG32(VM_L2_CNTL2, 0);
+	WREG32(VM_L2_CNTL3, L2_CACHE_BIGK_ASSOCIATIVITY |
+	       L2_CACHE_BIGK_FRAGMENT_SIZE(0));
+	radeon_gart_table_vram_unpin(rdev);
+}
+
+void si_pcie_gart_fini(struct radeon_device *rdev)
+{
+	si_pcie_gart_disable(rdev);
+	radeon_gart_table_vram_free(rdev);
+	radeon_gart_fini(rdev);
+}
+
+/*
+ * vm
+ */
+int si_vm_init(struct radeon_device *rdev)
+{
+	/* number of VMs */
+	rdev->vm_manager.nvm = 16;
+	/* base offset of vram pages */
+	rdev->vm_manager.vram_base_offset = 0;
+
+	return 0;
+}
+
+void si_vm_fini(struct radeon_device *rdev)
+{
+}
+
+int si_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm, int id)
+{
+	if (id < 8)
+		WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (id << 2), vm->pt_gpu_addr >> 12);
+	else
+		WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((id - 8) << 2),
+		       vm->pt_gpu_addr >> 12);
+	/* flush hdp cache */
+	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+	/* bits 0-15 are the VM contexts0-15 */
+	WREG32(VM_INVALIDATE_REQUEST, 1 << id);
+	return 0;
+}
+
+void si_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
+{
+	if (vm->id < 8)
+		WREG32(VM_CONTEXT0_PAGE_TABLE_BASE_ADDR + (vm->id << 2), 0);
+	else
+		WREG32(VM_CONTEXT8_PAGE_TABLE_BASE_ADDR + ((vm->id - 8) << 2), 0);
+	/* flush hdp cache */
+	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+	/* bits 0-15 are the VM contexts0-15 */
+	WREG32(VM_INVALIDATE_REQUEST, 1 << vm->id);
+}
+
+void si_vm_tlb_flush(struct radeon_device *rdev, struct radeon_vm *vm)
+{
+	if (vm->id == -1)
+		return;
+
+	/* flush hdp cache */
+	WREG32(HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
+	/* bits 0-15 are the VM contexts0-15 */
+	WREG32(VM_INVALIDATE_REQUEST, 1 << vm->id);
+}
+
