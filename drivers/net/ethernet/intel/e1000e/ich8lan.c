@@ -105,6 +105,9 @@
 #define E1000_FEXTNVM_SW_CONFIG		1
 #define E1000_FEXTNVM_SW_CONFIG_ICH8M (1 << 27) /* Bit redefined for ICH8M :/ */
 
+#define E1000_FEXTNVM3_PHY_CFG_COUNTER_MASK    0x0C000000
+#define E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC  0x08000000
+
 #define E1000_FEXTNVM4_BEACON_DURATION_MASK    0x7
 #define E1000_FEXTNVM4_BEACON_DURATION_8USEC   0x7
 #define E1000_FEXTNVM4_BEACON_DURATION_16USEC  0x3
@@ -286,16 +289,23 @@ static inline void __ew32flash(struct e1000_hw *hw, unsigned long reg, u32 val)
 
 static void e1000_toggle_lanphypc_value_ich8lan(struct e1000_hw *hw)
 {
-	u32 ctrl;
+	u32 reg;
 
-	ctrl = er32(CTRL);
-	ctrl |= E1000_CTRL_LANPHYPC_OVERRIDE;
-	ctrl &= ~E1000_CTRL_LANPHYPC_VALUE;
-	ew32(CTRL, ctrl);
+	/* Set Phy Config Counter to 50msec */
+	reg = er32(FEXTNVM3);
+	reg &= ~E1000_FEXTNVM3_PHY_CFG_COUNTER_MASK;
+	reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
+	ew32(FEXTNVM3, reg);
+
+	/* Toggle LANPHYPC Value bit */
+	reg = er32(CTRL);
+	reg |= E1000_CTRL_LANPHYPC_OVERRIDE;
+	reg &= ~E1000_CTRL_LANPHYPC_VALUE;
+	ew32(CTRL, reg);
 	e1e_flush();
 	udelay(10);
-	ctrl &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
-	ew32(CTRL, ctrl);
+	reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
+	ew32(CTRL, reg);
 }
 
 /**
@@ -3071,8 +3081,8 @@ static s32 e1000_get_bus_info_ich8lan(struct e1000_hw *hw)
 static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 {
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
-	u16 reg;
-	u32 ctrl, kab;
+	u16 kum_cfg;
+	u32 ctrl, reg;
 	s32 ret_val;
 
 	/*
@@ -3106,12 +3116,12 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	}
 
 	if (hw->mac.type == e1000_pchlan) {
-		/* Save the NVM K1 bit setting*/
-		ret_val = e1000_read_nvm(hw, E1000_NVM_K1_CONFIG, 1, &reg);
+		/* Save the NVM K1 bit setting */
+		ret_val = e1000_read_nvm(hw, E1000_NVM_K1_CONFIG, 1, &kum_cfg);
 		if (ret_val)
 			return ret_val;
 
-		if (reg & E1000_NVM_K1_ENABLE)
+		if (kum_cfg & E1000_NVM_K1_ENABLE)
 			dev_spec->nvm_k1_enabled = true;
 		else
 			dev_spec->nvm_k1_enabled = false;
@@ -3141,6 +3151,14 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	/* cannot issue a flush here because it hangs the hardware */
 	msleep(20);
 
+	/* Set Phy Config Counter to 50msec */
+	if (hw->mac.type == e1000_pch2lan) {
+		reg = er32(FEXTNVM3);
+		reg &= ~E1000_FEXTNVM3_PHY_CFG_COUNTER_MASK;
+		reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
+		ew32(FEXTNVM3, reg);
+	}
+
 	if (!ret_val)
 		clear_bit(__E1000_ACCESS_SHARED_RESOURCE, &hw->adapter->state);
 
@@ -3165,9 +3183,9 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	ew32(IMC, 0xffffffff);
 	er32(ICR);
 
-	kab = er32(KABGTXD);
-	kab |= E1000_KABGTXD_BGSQLBIAS;
-	ew32(KABGTXD, kab);
+	reg = er32(KABGTXD);
+	reg |= E1000_KABGTXD_BGSQLBIAS;
+	ew32(KABGTXD, reg);
 
 	return 0;
 }

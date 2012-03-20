@@ -51,6 +51,7 @@ enum e1e_registers {
 	E1000_FEXTNVM  = 0x00028, /* Future Extended NVM - RW */
 	E1000_FCT      = 0x00030, /* Flow Control Type - RW */
 	E1000_VET      = 0x00038, /* VLAN Ether Type - RW */
+	E1000_FEXTNVM3 = 0x0003C, /* Future Extended NVM 3 - RW */
 	E1000_ICR      = 0x000C0, /* Interrupt Cause Read - R/clr */
 	E1000_ITR      = 0x000C4, /* Interrupt Throttling Rate - RW */
 	E1000_ICS      = 0x000C8, /* Interrupt Cause Set - WO */
