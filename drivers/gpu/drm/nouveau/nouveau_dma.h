@@ -50,8 +50,8 @@ void nv50_dma_push(struct nouveau_channel *, struct nouveau_bo *,
 enum {
 	NvSubM2MF	= 0,
 	NvSubSw		= 1,
-	NvSub2D		= 2,
 	NvSubCtxSurf2D  = 2,
+	NvSub2D		= 3,
 	NvSubGdiRect    = 3,
 	NvSubImageBlit  = 4
 };
