@@ -1,7 +1,9 @@
 /*
- * drivers/usb/host/ohci-pnx4008.c
+ * driver for NXP USB Host devices
  *
- * driver for Philips PNX4008 USB Host
+ * Currently supported OHCI host devices:
+ * - Philips PNX4008
+ * - NXP LPC32xx
  *
  * Authors: Dmitry Chigirev <source@mvista.com>
  *	    Vitaly Wool <vitalywool@gmail.com>
@@ -22,20 +24,24 @@
 #include <linux/i2c.h>
 
 #include <mach/hardware.h>
+#include <asm/mach-types.h>
 #include <asm/io.h>
 
 #include <mach/platform.h>
 #include <mach/irqs.h>
 #include <asm/gpio.h>
 
-#define USB_CTRL	IO_ADDRESS(PNX4008_PWRMAN_BASE + 0x64)
+#define USB_CONFIG_BASE		0x31020000
+#define PWRMAN_BASE		0x40004000
+
+#define USB_CTRL		IO_ADDRESS(PWRMAN_BASE + 0x64)
 
 /* USB_CTRL bit defines */
 #define USB_SLAVE_HCLK_EN	(1 << 24)
 #define USB_HOST_NEED_CLK_EN	(1 << 21)
 
-#define USB_OTG_CLK_CTRL	IO_ADDRESS(PNX4008_USB_CONFIG_BASE + 0xFF4)
-#define USB_OTG_CLK_STAT	IO_ADDRESS(PNX4008_USB_CONFIG_BASE + 0xFF8)
+#define USB_OTG_CLK_CTRL	IO_ADDRESS(USB_CONFIG_BASE + 0xFF4)
+#define USB_OTG_CLK_STAT	IO_ADDRESS(USB_CONFIG_BASE + 0xFF8)
 
 /* USB_OTG_CLK_CTRL bit defines */
 #define AHB_M_CLOCK_ON		(1 << 4)
@@ -44,7 +50,7 @@
 #define DEV_CLOCK_ON		(1 << 1)
 #define HOST_CLOCK_ON		(1 << 0)
 
-#define USB_OTG_STAT_CONTROL	IO_ADDRESS(PNX4008_USB_CONFIG_BASE + 0x110)
+#define USB_OTG_STAT_CONTROL	IO_ADDRESS(USB_CONFIG_BASE + 0x110)
 
 /* USB_OTG_STAT_CONTROL bit defines */
 #define TRANSPARENT_I2C_EN	(1 << 7)
@@ -98,6 +104,15 @@
 #define ISP1301_I2C_INTERRUPT_RISING 0xE
 #define ISP1301_I2C_REG_CLEAR_ADDR 1
 
+/* On LPC32xx, those are undefined */
+#ifndef start_int_set_falling_edge
+#define start_int_set_falling_edge(irq)
+#define start_int_set_rising_edge(irq)
+#define start_int_ack(irq)
+#define start_int_mask(irq)
+#define start_int_umask(irq)
+#endif
+
 static struct i2c_driver isp1301_driver;
 static struct i2c_client *isp1301_i2c_client;
 
@@ -121,73 +136,129 @@ static int isp1301_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id isp1301_id[] = {
-	{ "isp1301_pnx", 0 },
+	{ "isp1301_nxp", 0 },
 	{ }
 };
 
 static struct i2c_driver isp1301_driver = {
 	.driver = {
-		.name = "isp1301_pnx",
+		.name = "isp1301_nxp",
 	},
 	.probe = isp1301_probe,
 	.remove = isp1301_remove,
 	.id_table = isp1301_id,
 };
 
-static void i2c_write(u8 buf, u8 subaddr)
-{
-	char tmpbuf[2];
-
-	tmpbuf[0] = subaddr;	/*register number */
-	tmpbuf[1] = buf;	/*register data */
-	i2c_master_send(isp1301_i2c_client, &tmpbuf[0], 2);
-}
-
-static void isp1301_configure(void)
+static void isp1301_configure_pnx4008(void)
 {
 	/* PNX4008 only supports DAT_SE0 USB mode */
 	/* PNX4008 R2A requires setting the MAX603 to output 3.6V */
 	/* Power up externel charge-pump */
 
-	i2c_write(MC1_DAT_SE0 | MC1_SPEED_REG, ISP1301_I2C_MODE_CONTROL_1);
-	i2c_write(~(MC1_DAT_SE0 | MC1_SPEED_REG),
-		  ISP1301_I2C_MODE_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR);
-	i2c_write(MC2_BI_DI | MC2_PSW_EN | MC2_SPD_SUSP_CTRL,
-		  ISP1301_I2C_MODE_CONTROL_2);
-	i2c_write(~(MC2_BI_DI | MC2_PSW_EN | MC2_SPD_SUSP_CTRL),
-		  ISP1301_I2C_MODE_CONTROL_2 | ISP1301_I2C_REG_CLEAR_ADDR);
-	i2c_write(OTG1_DM_PULLDOWN | OTG1_DP_PULLDOWN,
-		  ISP1301_I2C_OTG_CONTROL_1);
-	i2c_write(~(OTG1_DM_PULLDOWN | OTG1_DP_PULLDOWN),
-		  ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR);
-	i2c_write(0xFF,
-		  ISP1301_I2C_INTERRUPT_LATCH | ISP1301_I2C_REG_CLEAR_ADDR);
-	i2c_write(0xFF,
-		  ISP1301_I2C_INTERRUPT_FALLING | ISP1301_I2C_REG_CLEAR_ADDR);
-	i2c_write(0xFF,
-		  ISP1301_I2C_INTERRUPT_RISING | ISP1301_I2C_REG_CLEAR_ADDR);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_MODE_CONTROL_1, MC1_DAT_SE0 | MC1_SPEED_REG);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_MODE_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR,
+		~(MC1_DAT_SE0 | MC1_SPEED_REG));
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_MODE_CONTROL_2,
+		MC2_BI_DI | MC2_PSW_EN | MC2_SPD_SUSP_CTRL);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_MODE_CONTROL_2 | ISP1301_I2C_REG_CLEAR_ADDR,
+		~(MC2_BI_DI | MC2_PSW_EN | MC2_SPD_SUSP_CTRL));
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_OTG_CONTROL_1, OTG1_DM_PULLDOWN | OTG1_DP_PULLDOWN);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR,
+		~(OTG1_DM_PULLDOWN | OTG1_DP_PULLDOWN));
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_LATCH | ISP1301_I2C_REG_CLEAR_ADDR, 0xFF);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_FALLING | ISP1301_I2C_REG_CLEAR_ADDR,
+		0xFF);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_RISING | ISP1301_I2C_REG_CLEAR_ADDR,
+		0xFF);
+}
 
+static void isp1301_configure_lpc32xx(void)
+{
+	/* LPC32XX only supports DAT_SE0 USB mode */
+	/* This sequence is important */
+
+	/* Disable transparent UART mode first */
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		(ISP1301_I2C_MODE_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR),
+		MC1_UART_EN);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		(ISP1301_I2C_MODE_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR),
+		~MC1_SPEED_REG);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+				  ISP1301_I2C_MODE_CONTROL_1, MC1_SPEED_REG);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		  (ISP1301_I2C_MODE_CONTROL_2 | ISP1301_I2C_REG_CLEAR_ADDR),
+		  ~0);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_MODE_CONTROL_2,
+		(MC2_BI_DI | MC2_PSW_EN | MC2_SPD_SUSP_CTRL));
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		(ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR), ~0);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_MODE_CONTROL_1, MC1_DAT_SE0);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_OTG_CONTROL_1,
+		(OTG1_DM_PULLDOWN | OTG1_DP_PULLDOWN));
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		(ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR),
+		(OTG1_DM_PULLUP | OTG1_DP_PULLUP));
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_LATCH | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_FALLING | ISP1301_I2C_REG_CLEAR_ADDR,
+		~0);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_INTERRUPT_RISING | ISP1301_I2C_REG_CLEAR_ADDR, ~0);
+
+	/* Enable usb_need_clk clock after transceiver is initialized */
+	__raw_writel((__raw_readl(USB_CTRL) | (1 << 22)), USB_CTRL);
+
+	printk(KERN_INFO "ISP1301 Vendor ID  : 0x%04x\n",
+	      i2c_smbus_read_word_data(isp1301_i2c_client, 0x00));
+	printk(KERN_INFO "ISP1301 Product ID : 0x%04x\n",
+	      i2c_smbus_read_word_data(isp1301_i2c_client, 0x02));
+	printk(KERN_INFO "ISP1301 Version ID : 0x%04x\n",
+	      i2c_smbus_read_word_data(isp1301_i2c_client, 0x14));
+}
+
+static void isp1301_configure(void)
+{
+	if (machine_is_pnx4008())
+		isp1301_configure_pnx4008();
+	else
+		isp1301_configure_lpc32xx();
 }
 
 static inline void isp1301_vbus_on(void)
 {
-	i2c_write(OTG1_VBUS_DRV, ISP1301_I2C_OTG_CONTROL_1);
+	i2c_smbus_write_byte_data(isp1301_i2c_client, ISP1301_I2C_OTG_CONTROL_1,
+				  OTG1_VBUS_DRV);
 }
 
 static inline void isp1301_vbus_off(void)
 {
-	i2c_write(OTG1_VBUS_DRV,
-		  ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR);
+	i2c_smbus_write_byte_data(isp1301_i2c_client,
+		ISP1301_I2C_OTG_CONTROL_1 | ISP1301_I2C_REG_CLEAR_ADDR,
+		OTG1_VBUS_DRV);
 }
 
-static void pnx4008_start_hc(void)
+static void nxp_start_hc(void)
 {
 	unsigned long tmp = __raw_readl(USB_OTG_STAT_CONTROL) | HOST_EN;
 	__raw_writel(tmp, USB_OTG_STAT_CONTROL);
 	isp1301_vbus_on();
 }
 
-static void pnx4008_stop_hc(void)
+static void nxp_stop_hc(void)
 {
 	unsigned long tmp;
 	isp1301_vbus_off();
@@ -195,7 +266,7 @@ static void pnx4008_stop_hc(void)
 	__raw_writel(tmp, USB_OTG_STAT_CONTROL);
 }
 
-static int __devinit ohci_pnx4008_start(struct usb_hcd *hcd)
+static int __devinit ohci_nxp_start(struct usb_hcd *hcd)
 {
 	struct ohci_hcd *ohci = hcd_to_ohci(hcd);
 	int ret;
@@ -211,9 +282,9 @@ static int __devinit ohci_pnx4008_start(struct usb_hcd *hcd)
 	return 0;
 }
 
-static const struct hc_driver ohci_pnx4008_hc_driver = {
+static const struct hc_driver ohci_nxp_hc_driver = {
 	.description = hcd_name,
-	.product_desc =		"pnx4008 OHCI",
+	.product_desc =		"nxp OHCI",
 
 	/*
 	 * generic hardware linkage
@@ -225,7 +296,7 @@ static const struct hc_driver ohci_pnx4008_hc_driver = {
 	/*
 	 * basic lifecycle operations
 	 */
-	.start = ohci_pnx4008_start,
+	.start = ohci_nxp_start,
 	.stop = ohci_stop,
 	.shutdown = ohci_shutdown,
 
@@ -255,54 +326,58 @@ static const struct hc_driver ohci_pnx4008_hc_driver = {
 
 #define USB_CLOCK_MASK (AHB_M_CLOCK_ON| OTG_CLOCK_ON | HOST_CLOCK_ON | I2C_CLOCK_ON)
 
-static void pnx4008_set_usb_bits(void)
+static void nxp_set_usb_bits(void)
 {
-	start_int_set_falling_edge(SE_USB_OTG_ATX_INT_N);
-	start_int_ack(SE_USB_OTG_ATX_INT_N);
-	start_int_umask(SE_USB_OTG_ATX_INT_N);
+	if (machine_is_pnx4008()) {
+		start_int_set_falling_edge(SE_USB_OTG_ATX_INT_N);
+		start_int_ack(SE_USB_OTG_ATX_INT_N);
+		start_int_umask(SE_USB_OTG_ATX_INT_N);
 
-	start_int_set_rising_edge(SE_USB_OTG_TIMER_INT);
-	start_int_ack(SE_USB_OTG_TIMER_INT);
-	start_int_umask(SE_USB_OTG_TIMER_INT);
+		start_int_set_rising_edge(SE_USB_OTG_TIMER_INT);
+		start_int_ack(SE_USB_OTG_TIMER_INT);
+		start_int_umask(SE_USB_OTG_TIMER_INT);
 
-	start_int_set_rising_edge(SE_USB_I2C_INT);
-	start_int_ack(SE_USB_I2C_INT);
-	start_int_umask(SE_USB_I2C_INT);
+		start_int_set_rising_edge(SE_USB_I2C_INT);
+		start_int_ack(SE_USB_I2C_INT);
+		start_int_umask(SE_USB_I2C_INT);
 
-	start_int_set_rising_edge(SE_USB_INT);
-	start_int_ack(SE_USB_INT);
-	start_int_umask(SE_USB_INT);
+		start_int_set_rising_edge(SE_USB_INT);
+		start_int_ack(SE_USB_INT);
+		start_int_umask(SE_USB_INT);
 
-	start_int_set_rising_edge(SE_USB_NEED_CLK_INT);
-	start_int_ack(SE_USB_NEED_CLK_INT);
-	start_int_umask(SE_USB_NEED_CLK_INT);
+		start_int_set_rising_edge(SE_USB_NEED_CLK_INT);
+		start_int_ack(SE_USB_NEED_CLK_INT);
+		start_int_umask(SE_USB_NEED_CLK_INT);
 
-	start_int_set_rising_edge(SE_USB_AHB_NEED_CLK_INT);
-	start_int_ack(SE_USB_AHB_NEED_CLK_INT);
-	start_int_umask(SE_USB_AHB_NEED_CLK_INT);
+		start_int_set_rising_edge(SE_USB_AHB_NEED_CLK_INT);
+		start_int_ack(SE_USB_AHB_NEED_CLK_INT);
+		start_int_umask(SE_USB_AHB_NEED_CLK_INT);
+	}
 }
 
-static void pnx4008_unset_usb_bits(void)
+static void nxp_unset_usb_bits(void)
 {
-	start_int_mask(SE_USB_OTG_ATX_INT_N);
-	start_int_mask(SE_USB_OTG_TIMER_INT);
-	start_int_mask(SE_USB_I2C_INT);
-	start_int_mask(SE_USB_INT);
-	start_int_mask(SE_USB_NEED_CLK_INT);
-	start_int_mask(SE_USB_AHB_NEED_CLK_INT);
+	if (machine_is_pnx4008()) {
+		start_int_mask(SE_USB_OTG_ATX_INT_N);
+		start_int_mask(SE_USB_OTG_TIMER_INT);
+		start_int_mask(SE_USB_I2C_INT);
+		start_int_mask(SE_USB_INT);
+		start_int_mask(SE_USB_NEED_CLK_INT);
+		start_int_mask(SE_USB_AHB_NEED_CLK_INT);
+	}
 }
 
-static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
+static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = 0;
 	struct ohci_hcd *ohci;
-	const struct hc_driver *driver = &ohci_pnx4008_hc_driver;
+	const struct hc_driver *driver = &ohci_nxp_hc_driver;
 	struct i2c_adapter *i2c_adap;
 	struct i2c_board_info i2c_info;
 
 	int ret = 0, irq;
 
-	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (pnx4008)\n", hcd_name);
+	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (nxp)\n", hcd_name);
 	if (usb_disabled()) {
 		err("USB is disabled");
 		ret = -ENODEV;
@@ -327,7 +402,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	}
 	i2c_adap = i2c_get_adapter(2);
 	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(i2c_info.type, "isp1301_pnx", I2C_NAME_SIZE);
+	strlcpy(i2c_info.type, "isp1301_nxp", I2C_NAME_SIZE);
 	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
 						   normal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);
@@ -375,7 +450,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	}
 
 	/* Set all USB bits in the Start Enable register */
-	pnx4008_set_usb_bits();
+	nxp_set_usb_bits();
 
 	hcd->rsrc_start = pdev->resource[0].start;
 	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
@@ -392,7 +467,7 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 		goto out4;
 	}
 
-	pnx4008_start_hc();
+	nxp_start_hc();
 	platform_set_drvdata(pdev, hcd);
 	ohci = hcd_to_ohci(hcd);
 	ohci_hcd_init(ohci);
@@ -402,9 +477,9 @@ static int __devinit usb_hcd_pnx4008_probe(struct platform_device *pdev)
 	if (ret == 0)
 		return ret;
 
-	pnx4008_stop_hc();
+	nxp_stop_hc();
 out4:
-	pnx4008_unset_usb_bits();
+	nxp_unset_usb_bits();
 	usb_put_hcd(hcd);
 out3:
 	clk_disable(usb_clk);
@@ -419,15 +494,15 @@ out:
 	return ret;
 }
 
-static int usb_hcd_pnx4008_remove(struct platform_device *pdev)
+static int usb_hcd_nxp_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_remove_hcd(hcd);
-	pnx4008_stop_hc();
+	nxp_stop_hc();
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	pnx4008_unset_usb_bits();
+	nxp_unset_usb_bits();
 	clk_disable(usb_clk);
 	clk_put(usb_clk);
 	i2c_unregister_device(isp1301_i2c_client);
@@ -442,12 +517,12 @@ static int usb_hcd_pnx4008_remove(struct platform_device *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("platform:usb-ohci");
 
-static struct platform_driver usb_hcd_pnx4008_driver = {
+static struct platform_driver usb_hcd_nxp_driver = {
 	.driver = {
 		.name = "usb-ohci",
 		.owner	= THIS_MODULE,
 	},
-	.probe = usb_hcd_pnx4008_probe,
-	.remove = usb_hcd_pnx4008_remove,
+	.probe = usb_hcd_nxp_probe,
+	.remove = usb_hcd_nxp_remove,
 };
 

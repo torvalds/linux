@@ -1,5 +1,5 @@
 /*
- * u_audio.h -- interface to USB gadget "ALSA AUDIO" utilities
+ * u_uac1.h -- interface to USB gadget "ALSA AUDIO" utilities
  *
  * Copyright (C) 2008 Bryan Wu <cooloney@kernel.org>
  * Copyright (C) 2008 Analog Devices, Inc

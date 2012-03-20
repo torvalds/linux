@@ -1,5 +1,5 @@
 /*
- * u_audio.c -- ALSA audio utilities for Gadget stack
+ * u_uac1.c -- ALSA audio utilities for Gadget stack
  *
  * Copyright (C) 2008 Bryan Wu <cooloney@kernel.org>
  * Copyright (C) 2008 Analog Devices, Inc
@@ -17,7 +17,7 @@
 #include <linux/random.h>
 #include <linux/syscalls.h>
 
-#include "u_audio.h"
+#include "u_uac1.h"
 
 /*
  * This component encapsulates the ALSA devices for USB audio gadget
