@@ -550,12 +550,6 @@ int __cpuinit start_secondary(void *cpuvoid)
 	S390_lowcore.restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) psw_restart_int_handler;
 	__ctl_set_bit(0, 28); /* Enable lowcore protection */
-	/*
-	 * Wait until the cpu which brought this one up marked it
-	 * active before enabling interrupts.
-	 */
-	while (!cpumask_test_cpu(smp_processor_id(), cpu_active_mask))
-		cpu_relax();
 	local_irq_enable();
 	/* cpu_idle will call schedule for us */
 	cpu_idle();
