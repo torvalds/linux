@@ -2401,31 +2401,39 @@ static int stop_discovery(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	if (hdev->discovery.state == DISCOVERY_FINDING) {
+	switch (hdev->discovery.state) {
+	case DISCOVERY_FINDING:
 		if (test_bit(HCI_INQUIRY, &hdev->flags))
 			err = hci_cancel_inquiry(hdev);
 		else
 			err = hci_cancel_le_scan(hdev);
 
-		if (err < 0)
+		break;
+
+	case DISCOVERY_RESOLVING:
+		e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY,
+							NAME_PENDING);
+		if (!e) {
 			mgmt_pending_remove(cmd);
-		else
-			hci_discovery_set_state(hdev, DISCOVERY_STOPPING);
-		goto unlock;
+			err = cmd_complete(sk, hdev->id,
+					   MGMT_OP_STOP_DISCOVERY, 0,
+					   &mgmt_cp->type,
+					   sizeof(mgmt_cp->type));
+			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
+			goto unlock;
+		}
+
+		bacpy(&cp.bdaddr, &e->data.bdaddr);
+		err = hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ_CANCEL,
+				   sizeof(cp), &cp);
+
+		break;
+
+	default:
+		BT_DBG("unknown discovery state %u", hdev->discovery.state);
+		err = -EFAULT;
 	}
 
-	e = hci_inquiry_cache_lookup_resolve(hdev, BDADDR_ANY, NAME_PENDING);
-	if (!e) {
-		mgmt_pending_remove(cmd);
-		err = cmd_complete(sk, hdev->id, MGMT_OP_STOP_DISCOVERY, 0,
-				   &mgmt_cp->type, sizeof(mgmt_cp->type));
-		hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
-		goto unlock;
-	}
-
-	bacpy(&cp.bdaddr, &e->data.bdaddr);
-	err = hci_send_cmd(hdev, HCI_OP_REMOTE_NAME_REQ_CANCEL, sizeof(cp),
-			   &cp);
 	if (err < 0)
 		mgmt_pending_remove(cmd);
 	else
