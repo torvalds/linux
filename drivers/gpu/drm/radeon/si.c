@@ -1882,6 +1882,315 @@ void si_pcie_gart_fini(struct radeon_device *rdev)
 	radeon_gart_fini(rdev);
 }
 
+/* vm parser */
+static bool si_vm_reg_valid(u32 reg)
+{
+	/* context regs are fine */
+	if (reg >= 0x28000)
+		return true;
+
+	/* check config regs */
+	switch (reg) {
+	case GRBM_GFX_INDEX:
+	case VGT_VTX_VECT_EJECT_REG:
+	case VGT_CACHE_INVALIDATION:
+	case VGT_ESGS_RING_SIZE:
+	case VGT_GSVS_RING_SIZE:
+	case VGT_GS_VERTEX_REUSE:
+	case VGT_PRIMITIVE_TYPE:
+	case VGT_INDEX_TYPE:
+	case VGT_NUM_INDICES:
+	case VGT_NUM_INSTANCES:
+	case VGT_TF_RING_SIZE:
+	case VGT_HS_OFFCHIP_PARAM:
+	case VGT_TF_MEMORY_BASE:
+	case PA_CL_ENHANCE:
+	case PA_SU_LINE_STIPPLE_VALUE:
+	case PA_SC_LINE_STIPPLE_STATE:
+	case PA_SC_ENHANCE:
+	case SQC_CACHES:
+	case SPI_STATIC_THREAD_MGMT_1:
+	case SPI_STATIC_THREAD_MGMT_2:
+	case SPI_STATIC_THREAD_MGMT_3:
+	case SPI_PS_MAX_WAVE_ID:
+	case SPI_CONFIG_CNTL:
+	case SPI_CONFIG_CNTL_1:
+	case TA_CNTL_AUX:
+		return true;
+	default:
+		DRM_ERROR("Invalid register 0x%x in CS\n", reg);
+		return false;
+	}
+}
+
+static int si_vm_packet3_ce_check(struct radeon_device *rdev,
+				  u32 *ib, struct radeon_cs_packet *pkt)
+{
+	switch (pkt->opcode) {
+	case PACKET3_NOP:
+	case PACKET3_SET_BASE:
+	case PACKET3_SET_CE_DE_COUNTERS:
+	case PACKET3_LOAD_CONST_RAM:
+	case PACKET3_WRITE_CONST_RAM:
+	case PACKET3_WRITE_CONST_RAM_OFFSET:
+	case PACKET3_DUMP_CONST_RAM:
+	case PACKET3_INCREMENT_CE_COUNTER:
+	case PACKET3_WAIT_ON_DE_COUNTER:
+	case PACKET3_CE_WRITE:
+		break;
+	default:
+		DRM_ERROR("Invalid CE packet3: 0x%x\n", pkt->opcode);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int si_vm_packet3_gfx_check(struct radeon_device *rdev,
+				   u32 *ib, struct radeon_cs_packet *pkt)
+{
+	u32 idx = pkt->idx + 1;
+	u32 idx_value = ib[idx];
+	u32 start_reg, end_reg, reg, i;
+
+	switch (pkt->opcode) {
+	case PACKET3_NOP:
+	case PACKET3_SET_BASE:
+	case PACKET3_CLEAR_STATE:
+	case PACKET3_INDEX_BUFFER_SIZE:
+	case PACKET3_DISPATCH_DIRECT:
+	case PACKET3_DISPATCH_INDIRECT:
+	case PACKET3_ALLOC_GDS:
+	case PACKET3_WRITE_GDS_RAM:
+	case PACKET3_ATOMIC_GDS:
+	case PACKET3_ATOMIC:
+	case PACKET3_OCCLUSION_QUERY:
+	case PACKET3_SET_PREDICATION:
+	case PACKET3_COND_EXEC:
+	case PACKET3_PRED_EXEC:
+	case PACKET3_DRAW_INDIRECT:
+	case PACKET3_DRAW_INDEX_INDIRECT:
+	case PACKET3_INDEX_BASE:
+	case PACKET3_DRAW_INDEX_2:
+	case PACKET3_CONTEXT_CONTROL:
+	case PACKET3_INDEX_TYPE:
+	case PACKET3_DRAW_INDIRECT_MULTI:
+	case PACKET3_DRAW_INDEX_AUTO:
+	case PACKET3_DRAW_INDEX_IMMD:
+	case PACKET3_NUM_INSTANCES:
+	case PACKET3_DRAW_INDEX_MULTI_AUTO:
+	case PACKET3_STRMOUT_BUFFER_UPDATE:
+	case PACKET3_DRAW_INDEX_OFFSET_2:
+	case PACKET3_DRAW_INDEX_MULTI_ELEMENT:
+	case PACKET3_DRAW_INDEX_INDIRECT_MULTI:
+	case PACKET3_MPEG_INDEX:
+	case PACKET3_WAIT_REG_MEM:
+	case PACKET3_MEM_WRITE:
+	case PACKET3_PFP_SYNC_ME:
+	case PACKET3_SURFACE_SYNC:
+	case PACKET3_EVENT_WRITE:
+	case PACKET3_EVENT_WRITE_EOP:
+	case PACKET3_EVENT_WRITE_EOS:
+	case PACKET3_SET_CONTEXT_REG:
+	case PACKET3_SET_CONTEXT_REG_INDIRECT:
+	case PACKET3_SET_SH_REG:
+	case PACKET3_SET_SH_REG_OFFSET:
+	case PACKET3_INCREMENT_DE_COUNTER:
+	case PACKET3_WAIT_ON_CE_COUNTER:
+	case PACKET3_WAIT_ON_AVAIL_BUFFER:
+	case PACKET3_ME_WRITE:
+		break;
+	case PACKET3_COPY_DATA:
+		if ((idx_value & 0xf00) == 0) {
+			reg = ib[idx + 3] * 4;
+			if (!si_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		break;
+	case PACKET3_WRITE_DATA:
+		if ((idx_value & 0xf00) == 0) {
+			start_reg = ib[idx + 1] * 4;
+			if (idx_value & 0x10000) {
+				if (!si_vm_reg_valid(start_reg))
+					return -EINVAL;
+			} else {
+				for (i = 0; i < (pkt->count - 2); i++) {
+					reg = start_reg + (4 * i);
+					if (!si_vm_reg_valid(reg))
+						return -EINVAL;
+				}
+			}
+		}
+		break;
+	case PACKET3_COND_WRITE:
+		if (idx_value & 0x100) {
+			reg = ib[idx + 5] * 4;
+			if (!si_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		break;
+	case PACKET3_COPY_DW:
+		if (idx_value & 0x2) {
+			reg = ib[idx + 3] * 4;
+			if (!si_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		break;
+	case PACKET3_SET_CONFIG_REG:
+		start_reg = (idx_value << 2) + PACKET3_SET_CONFIG_REG_START;
+		end_reg = 4 * pkt->count + start_reg - 4;
+		if ((start_reg < PACKET3_SET_CONFIG_REG_START) ||
+		    (start_reg >= PACKET3_SET_CONFIG_REG_END) ||
+		    (end_reg >= PACKET3_SET_CONFIG_REG_END)) {
+			DRM_ERROR("bad PACKET3_SET_CONFIG_REG\n");
+			return -EINVAL;
+		}
+		for (i = 0; i < pkt->count; i++) {
+			reg = start_reg + (4 * i);
+			if (!si_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		break;
+	default:
+		DRM_ERROR("Invalid GFX packet3: 0x%x\n", pkt->opcode);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static int si_vm_packet3_compute_check(struct radeon_device *rdev,
+				       u32 *ib, struct radeon_cs_packet *pkt)
+{
+	u32 idx = pkt->idx + 1;
+	u32 idx_value = ib[idx];
+	u32 start_reg, reg, i;
+
+	switch (pkt->opcode) {
+	case PACKET3_NOP:
+	case PACKET3_SET_BASE:
+	case PACKET3_CLEAR_STATE:
+	case PACKET3_DISPATCH_DIRECT:
+	case PACKET3_DISPATCH_INDIRECT:
+	case PACKET3_ALLOC_GDS:
+	case PACKET3_WRITE_GDS_RAM:
+	case PACKET3_ATOMIC_GDS:
+	case PACKET3_ATOMIC:
+	case PACKET3_OCCLUSION_QUERY:
+	case PACKET3_SET_PREDICATION:
+	case PACKET3_COND_EXEC:
+	case PACKET3_PRED_EXEC:
+	case PACKET3_CONTEXT_CONTROL:
+	case PACKET3_STRMOUT_BUFFER_UPDATE:
+	case PACKET3_WAIT_REG_MEM:
+	case PACKET3_MEM_WRITE:
+	case PACKET3_PFP_SYNC_ME:
+	case PACKET3_SURFACE_SYNC:
+	case PACKET3_EVENT_WRITE:
+	case PACKET3_EVENT_WRITE_EOP:
+	case PACKET3_EVENT_WRITE_EOS:
+	case PACKET3_SET_CONTEXT_REG:
+	case PACKET3_SET_CONTEXT_REG_INDIRECT:
+	case PACKET3_SET_SH_REG:
+	case PACKET3_SET_SH_REG_OFFSET:
+	case PACKET3_INCREMENT_DE_COUNTER:
+	case PACKET3_WAIT_ON_CE_COUNTER:
+	case PACKET3_WAIT_ON_AVAIL_BUFFER:
+	case PACKET3_ME_WRITE:
+		break;
+	case PACKET3_COPY_DATA:
+		if ((idx_value & 0xf00) == 0) {
+			reg = ib[idx + 3] * 4;
+			if (!si_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		break;
+	case PACKET3_WRITE_DATA:
+		if ((idx_value & 0xf00) == 0) {
+			start_reg = ib[idx + 1] * 4;
+			if (idx_value & 0x10000) {
+				if (!si_vm_reg_valid(start_reg))
+					return -EINVAL;
+			} else {
+				for (i = 0; i < (pkt->count - 2); i++) {
+					reg = start_reg + (4 * i);
+					if (!si_vm_reg_valid(reg))
+						return -EINVAL;
+				}
+			}
+		}
+		break;
+	case PACKET3_COND_WRITE:
+		if (idx_value & 0x100) {
+			reg = ib[idx + 5] * 4;
+			if (!si_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		break;
+	case PACKET3_COPY_DW:
+		if (idx_value & 0x2) {
+			reg = ib[idx + 3] * 4;
+			if (!si_vm_reg_valid(reg))
+				return -EINVAL;
+		}
+		break;
+	default:
+		DRM_ERROR("Invalid Compute packet3: 0x%x\n", pkt->opcode);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	int ret = 0;
+	u32 idx = 0;
+	struct radeon_cs_packet pkt;
+
+	do {
+		pkt.idx = idx;
+		pkt.type = CP_PACKET_GET_TYPE(ib->ptr[idx]);
+		pkt.count = CP_PACKET_GET_COUNT(ib->ptr[idx]);
+		pkt.one_reg_wr = 0;
+		switch (pkt.type) {
+		case PACKET_TYPE0:
+			dev_err(rdev->dev, "Packet0 not allowed!\n");
+			ret = -EINVAL;
+			break;
+		case PACKET_TYPE2:
+			idx += 1;
+			break;
+		case PACKET_TYPE3:
+			pkt.opcode = CP_PACKET3_GET_OPCODE(ib->ptr[idx]);
+			if (ib->is_const_ib)
+				ret = si_vm_packet3_ce_check(rdev, ib->ptr, &pkt);
+			else {
+				switch (ib->fence->ring) {
+				case RADEON_RING_TYPE_GFX_INDEX:
+					ret = si_vm_packet3_gfx_check(rdev, ib->ptr, &pkt);
+					break;
+				case CAYMAN_RING_TYPE_CP1_INDEX:
+				case CAYMAN_RING_TYPE_CP2_INDEX:
+					ret = si_vm_packet3_compute_check(rdev, ib->ptr, &pkt);
+					break;
+				default:
+					dev_err(rdev->dev, "Non-PM4 ring %d !\n", ib->fence->ring);
+					ret = -EINVAL;
+					break;
+				}
+			}
+			idx += pkt.count + 2;
+			break;
+		default:
+			dev_err(rdev->dev, "Unknown packet type %d !\n", pkt.type);
+			ret = -EINVAL;
+			break;
+		}
+		if (ret)
+			break;
+	} while (idx < ib->length_dw);
+
+	return ret;
+}
+
 /*
  * vm
  */

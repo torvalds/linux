@@ -255,6 +255,8 @@
 #define		SOFT_RESET_VGT					(1 << 14)
 #define		SOFT_RESET_IA					(1 << 15)
 
+#define GRBM_GFX_INDEX          			0x802C
+
 #define CP_ME_CNTL					0x86D8
 #define		CP_CE_HALT					(1 << 24)
 #define		CP_PFP_HALT					(1 << 26)
@@ -271,6 +273,8 @@
 
 #define	CP_PERFMON_CNTL					0x87FC
 
+#define	VGT_VTX_VECT_EJECT_REG				0x88B0
+
 #define	VGT_CACHE_INVALIDATION				0x88C4
 #define		CACHE_INVALIDATION(x)				((x) << 0)
 #define			VC_ONLY						0
@@ -281,10 +285,22 @@
 #define			ES_AUTO						1
 #define			GS_AUTO						2
 #define			ES_AND_GS_AUTO					3
+#define	VGT_ESGS_RING_SIZE				0x88C8
+#define	VGT_GSVS_RING_SIZE				0x88CC
 
 #define	VGT_GS_VERTEX_REUSE				0x88D4
 
+#define	VGT_PRIMITIVE_TYPE				0x8958
+#define	VGT_INDEX_TYPE					0x895C
+
+#define	VGT_NUM_INDICES					0x8970
 #define	VGT_NUM_INSTANCES				0x8974
+
+#define	VGT_TF_RING_SIZE				0x8988
+
+#define	VGT_HS_OFFCHIP_PARAM				0x89B0
+
+#define	VGT_TF_MEMORY_BASE				0x89B8
 
 #define CC_GC_SHADER_ARRAY_CONFIG			0x89bc
 #define GC_USER_SHADER_ARRAY_CONFIG			0x89c0
@@ -292,6 +308,8 @@
 #define	PA_CL_ENHANCE					0x8A14
 #define		CLIP_VTX_REORDER_ENA				(1 << 0)
 #define		NUM_CLIP_SEQ(x)					((x) << 1)
+
+#define	PA_SU_LINE_STIPPLE_VALUE			0x8A60
 
 #define	PA_SC_LINE_STIPPLE_STATE			0x8B10
 
@@ -305,9 +323,20 @@
 #define		SC_HIZ_TILE_FIFO_SIZE(x)			((x) << 15)
 #define		SC_EARLYZ_TILE_FIFO_SIZE(x)			((x) << 23)
 
+#define	PA_SC_ENHANCE					0x8BF0
+
 #define	SQ_CONFIG					0x8C00
 
+#define	SQC_CACHES					0x8C08
+
 #define	SX_DEBUG_1					0x9060
+
+#define	SPI_STATIC_THREAD_MGMT_1			0x90E0
+#define	SPI_STATIC_THREAD_MGMT_2			0x90E4
+#define	SPI_STATIC_THREAD_MGMT_3			0x90E8
+#define	SPI_PS_MAX_WAVE_ID				0x90EC
+
+#define	SPI_CONFIG_CNTL					0x9100
 
 #define	SPI_CONFIG_CNTL_1				0x913C
 #define		VTX_DONE_DELAY(x)				((x) << 0)
@@ -317,6 +346,8 @@
 #define	CGTS_USER_TCC_DISABLE				0x914C
 #define		TCC_DISABLE_MASK				0xFFFF0000
 #define		TCC_DISABLE_SHIFT				16
+
+#define	TA_CNTL_AUX					0x9508
 
 #define CC_RB_BACKEND_DISABLE				0x98F4
 #define		BACKEND_DISABLE(x)     			((x) << 16)
