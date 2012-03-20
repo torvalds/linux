@@ -209,6 +209,11 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 							  sizes->surface_depth);
 
 	ret = radeonfb_create_pinned_object(rfbdev, &mode_cmd, &gobj);
+	if (ret) {
+		DRM_ERROR("failed to create fbcon object %d\n", ret);
+		return ret;
+	}
+
 	rbo = gem_to_radeon_bo(gobj);
 
 	/* okay we have an object now allocate the framebuffer */
@@ -220,7 +225,11 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 
 	info->par = rfbdev;
 
-	radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
+	ret = radeon_framebuffer_init(rdev->ddev, &rfbdev->rfb, &mode_cmd, gobj);
+	if (ret) {
+		DRM_ERROR("failed to initalise framebuffer %d\n", ret);
+		goto out_unref;
+	}
 
 	fb = &rfbdev->rfb.base;
 

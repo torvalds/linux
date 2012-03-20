@@ -943,20 +943,21 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		}
 	}
 
-	if (nf_conntrack_event_report(IPCT_DESTROY, ct,
-				      NETLINK_CB(skb).pid,
-				      nlmsg_report(nlh)) < 0) {
+	if (del_timer(&ct->timeout)) {
+		if (nf_conntrack_event_report(IPCT_DESTROY, ct,
+					      NETLINK_CB(skb).pid,
+					      nlmsg_report(nlh)) < 0) {
+			nf_ct_delete_from_lists(ct);
+			/* we failed to report the event, try later */
+			nf_ct_insert_dying_list(ct);
+			nf_ct_put(ct);
+			return 0;
+		}
+		/* death_by_timeout would report the event again */
+		set_bit(IPS_DYING_BIT, &ct->status);
 		nf_ct_delete_from_lists(ct);
-		/* we failed to report the event, try later */
-		nf_ct_insert_dying_list(ct);
 		nf_ct_put(ct);
-		return 0;
 	}
-
-	/* death_by_timeout would report the event again */
-	set_bit(IPS_DYING_BIT, &ct->status);
-
-	nf_ct_kill(ct);
 	nf_ct_put(ct);
 
 	return 0;
@@ -1041,16 +1042,13 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 	if (!parse_nat_setup) {
 #ifdef CONFIG_MODULES
 		rcu_read_unlock();
-		spin_unlock_bh(&nf_conntrack_lock);
 		nfnl_unlock();
 		if (request_module("nf-nat-ipv4") < 0) {
 			nfnl_lock();
-			spin_lock_bh(&nf_conntrack_lock);
 			rcu_read_lock();
 			return -EOPNOTSUPP;
 		}
 		nfnl_lock();
-		spin_lock_bh(&nf_conntrack_lock);
 		rcu_read_lock();
 		if (nfnetlink_parse_nat_setup_hook)
 			return -EAGAIN;

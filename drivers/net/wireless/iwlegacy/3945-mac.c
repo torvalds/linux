@@ -2475,7 +2475,7 @@ il3945_bg_alive_start(struct work_struct *data)
 	    container_of(data, struct il_priv, alive_start.work);
 
 	mutex_lock(&il->mutex);
-	if (test_bit(S_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status) || il->txq == NULL)
 		goto out;
 
 	il3945_alive_start(il);

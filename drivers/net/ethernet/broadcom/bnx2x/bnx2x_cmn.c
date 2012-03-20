@@ -1934,7 +1934,7 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	}
 
 	if (bp->port.pmf)
-		bnx2x_update_drv_flags(bp, DRV_FLAGS_DCB_CONFIGURED, 0);
+		bnx2x_update_drv_flags(bp, 1 << DRV_FLAGS_DCB_CONFIGURED, 0);
 	else
 		bnx2x__link_status_update(bp);
 

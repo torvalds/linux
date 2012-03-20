@@ -247,7 +247,6 @@ static struct fb_ops psbfb_roll_ops = {
 	.fb_imageblit = cfb_imageblit,
 	.fb_pan_display = psbfb_pan,
 	.fb_mmap = psbfb_mmap,
-	.fb_sync = psbfb_sync,
 	.fb_ioctl = psbfb_ioctl,
 };
 

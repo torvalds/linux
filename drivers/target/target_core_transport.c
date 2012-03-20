@@ -2539,6 +2539,7 @@ static int transport_generic_cmd_sequencer(
 					cmd, cdb, pr_reg_type) != 0) {
 			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			cmd->se_cmd_flags |= SCF_SCSI_RESERVATION_CONFLICT;
+			cmd->scsi_status = SAM_STAT_RESERVATION_CONFLICT;
 			cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
 			return -EBUSY;
 		}

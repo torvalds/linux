@@ -27,6 +27,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/smsc911x.h>
+#include <linux/videodev2.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -241,7 +242,7 @@ static struct sh_mobile_lcdc_info lcdc0_info = {
 	.clock_source	= LCDC_CLK_BUS,
 	.ch[0] = {
 		.chan			= LCDC_CHAN_MAINLCD,
-		.bpp			= 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type		= RGB24,
 		.clock_divider		= 5,
 		.flags			= 0,

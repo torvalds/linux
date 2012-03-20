@@ -2255,8 +2255,7 @@ int mlx4_MODIFY_CQ_wrapper(struct mlx4_dev *dev, int slave,
 
 	if (vhcr->op_modifier == 0) {
 		err = handle_resize(dev, slave, vhcr, inbox, outbox, cmd, cq);
-		if (err)
-			goto ex_put;
+		goto ex_put;
 	}
 
 	err = mlx4_DMA_wrapper(dev, slave, vhcr, inbox, outbox, cmd);
