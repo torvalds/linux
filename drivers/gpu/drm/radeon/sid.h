@@ -273,12 +273,31 @@
 
 #define GRBM_GFX_INDEX          			0x802C
 
+#define	SCRATCH_REG0					0x8500
+#define	SCRATCH_REG1					0x8504
+#define	SCRATCH_REG2					0x8508
+#define	SCRATCH_REG3					0x850C
+#define	SCRATCH_REG4					0x8510
+#define	SCRATCH_REG5					0x8514
+#define	SCRATCH_REG6					0x8518
+#define	SCRATCH_REG7					0x851C
+
+#define	SCRATCH_UMSK					0x8540
+#define	SCRATCH_ADDR					0x8544
+
+#define	CP_SEM_WAIT_TIMER				0x85BC
+
+#define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x85C8
+
 #define CP_ME_CNTL					0x86D8
 #define		CP_CE_HALT					(1 << 24)
 #define		CP_PFP_HALT					(1 << 26)
 #define		CP_ME_HALT					(1 << 28)
 
+#define	CP_RB2_RPTR					0x86f8
+#define	CP_RB1_RPTR					0x86fc
 #define	CP_RB0_RPTR					0x8700
+#define	CP_RB_WPTR_DELAY				0x8704
 
 #define	CP_QUEUE_THRESHOLDS				0x8760
 #define		ROQ_IB1_START(x)				((x) << 0)
@@ -458,6 +477,40 @@
 #define	TCP_CHAN_STEER_LO				0xac0c
 #define	TCP_CHAN_STEER_HI				0xac10
 
+#define	CP_RB0_BASE					0xC100
+#define	CP_RB0_CNTL					0xC104
+#define		RB_BUFSZ(x)					((x) << 0)
+#define		RB_BLKSZ(x)					((x) << 8)
+#define		BUF_SWAP_32BIT					(2 << 16)
+#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_RPTR_WR_ENA					(1 << 31)
+
+#define	CP_RB0_RPTR_ADDR				0xC10C
+#define	CP_RB0_RPTR_ADDR_HI				0xC110
+#define	CP_RB0_WPTR					0xC114
+
+#define	CP_PFP_UCODE_ADDR				0xC150
+#define	CP_PFP_UCODE_DATA				0xC154
+#define	CP_ME_RAM_RADDR					0xC158
+#define	CP_ME_RAM_WADDR					0xC15C
+#define	CP_ME_RAM_DATA					0xC160
+
+#define	CP_CE_UCODE_ADDR				0xC168
+#define	CP_CE_UCODE_DATA				0xC16C
+
+#define	CP_RB1_BASE					0xC180
+#define	CP_RB1_CNTL					0xC184
+#define	CP_RB1_RPTR_ADDR				0xC188
+#define	CP_RB1_RPTR_ADDR_HI				0xC18C
+#define	CP_RB1_WPTR					0xC190
+#define	CP_RB2_BASE					0xC194
+#define	CP_RB2_CNTL					0xC198
+#define	CP_RB2_RPTR_ADDR				0xC19C
+#define	CP_RB2_RPTR_ADDR_HI				0xC1A0
+#define	CP_RB2_WPTR					0xC1A4
+
+#define	CP_DEBUG					0xC1FC
+
 /*
  * PM4
  */
@@ -482,6 +535,8 @@
 #define PACKET3(op, n)	((PACKET_TYPE3 << 30) |				\
 			 (((op) & 0xFF) << 8) |				\
 			 ((n) & 0x3FFF) << 16)
+
+#define PACKET3_COMPUTE(op, n) (PACKET3(op, n) | 1 << 1)
 
 /* Packet 3 types */
 #define	PACKET3_NOP					0x10

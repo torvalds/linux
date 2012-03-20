@@ -31,6 +31,7 @@
 #include "radeon_drm.h"
 #include "sid.h"
 #include "atom.h"
+#include "si_blit_shaders.h"
 
 #define SI_PFP_UCODE_SIZE 2144
 #define SI_PM4_UCODE_SIZE 2144
@@ -1859,6 +1860,272 @@ static void si_gpu_init(struct radeon_device *rdev)
 	WREG32(PA_CL_ENHANCE, CLIP_VTX_REORDER_ENA | NUM_CLIP_SEQ(3));
 
 	udelay(50);
+}
+
+/*
+ * CP.
+ */
+static void si_cp_enable(struct radeon_device *rdev, bool enable)
+{
+	if (enable)
+		WREG32(CP_ME_CNTL, 0);
+	else {
+		radeon_ttm_set_active_vram_size(rdev, rdev->mc.visible_vram_size);
+		WREG32(CP_ME_CNTL, (CP_ME_HALT | CP_PFP_HALT | CP_CE_HALT));
+		WREG32(SCRATCH_UMSK, 0);
+	}
+	udelay(50);
+}
+
+static int si_cp_load_microcode(struct radeon_device *rdev)
+{
+	const __be32 *fw_data;
+	int i;
+
+	if (!rdev->me_fw || !rdev->pfp_fw)
+		return -EINVAL;
+
+	si_cp_enable(rdev, false);
+
+	/* PFP */
+	fw_data = (const __be32 *)rdev->pfp_fw->data;
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+	for (i = 0; i < SI_PFP_UCODE_SIZE; i++)
+		WREG32(CP_PFP_UCODE_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+
+	/* CE */
+	fw_data = (const __be32 *)rdev->ce_fw->data;
+	WREG32(CP_CE_UCODE_ADDR, 0);
+	for (i = 0; i < SI_CE_UCODE_SIZE; i++)
+		WREG32(CP_CE_UCODE_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_CE_UCODE_ADDR, 0);
+
+	/* ME */
+	fw_data = (const __be32 *)rdev->me_fw->data;
+	WREG32(CP_ME_RAM_WADDR, 0);
+	for (i = 0; i < SI_PM4_UCODE_SIZE; i++)
+		WREG32(CP_ME_RAM_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_ME_RAM_WADDR, 0);
+
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+	WREG32(CP_CE_UCODE_ADDR, 0);
+	WREG32(CP_ME_RAM_WADDR, 0);
+	WREG32(CP_ME_RAM_RADDR, 0);
+	return 0;
+}
+
+static int si_cp_start(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	int r, i;
+
+	r = radeon_ring_lock(rdev, ring, 7 + 4);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		return r;
+	}
+	/* init the CP */
+	radeon_ring_write(ring, PACKET3(PACKET3_ME_INITIALIZE, 5));
+	radeon_ring_write(ring, 0x1);
+	radeon_ring_write(ring, 0x0);
+	radeon_ring_write(ring, rdev->config.si.max_hw_contexts - 1);
+	radeon_ring_write(ring, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, 0);
+
+	/* init the CE partitions */
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_BASE, 2));
+	radeon_ring_write(ring, PACKET3_BASE_INDEX(CE_PARTITION_BASE));
+	radeon_ring_write(ring, 0xc000);
+	radeon_ring_write(ring, 0xe000);
+	radeon_ring_unlock_commit(rdev, ring);
+
+	si_cp_enable(rdev, true);
+
+	r = radeon_ring_lock(rdev, ring, si_default_size + 10);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring (%d).\n", r);
+		return r;
+	}
+
+	/* setup clear context state */
+	radeon_ring_write(ring, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(ring, PACKET3_PREAMBLE_BEGIN_CLEAR_STATE);
+
+	for (i = 0; i < si_default_size; i++)
+		radeon_ring_write(ring, si_default_state[i]);
+
+	radeon_ring_write(ring, PACKET3(PACKET3_PREAMBLE_CNTL, 0));
+	radeon_ring_write(ring, PACKET3_PREAMBLE_END_CLEAR_STATE);
+
+	/* set clear context state */
+	radeon_ring_write(ring, PACKET3(PACKET3_CLEAR_STATE, 0));
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONTEXT_REG, 2));
+	radeon_ring_write(ring, 0x00000316);
+	radeon_ring_write(ring, 0x0000000e); /* VGT_VERTEX_REUSE_BLOCK_CNTL */
+	radeon_ring_write(ring, 0x00000010); /* VGT_OUT_DEALLOC_CNTL */
+
+	radeon_ring_unlock_commit(rdev, ring);
+
+	for (i = RADEON_RING_TYPE_GFX_INDEX; i <= CAYMAN_RING_TYPE_CP2_INDEX; ++i) {
+		ring = &rdev->ring[i];
+		r = radeon_ring_lock(rdev, ring, 2);
+
+		/* clear the compute context state */
+		radeon_ring_write(ring, PACKET3_COMPUTE(PACKET3_CLEAR_STATE, 0));
+		radeon_ring_write(ring, 0);
+
+		radeon_ring_unlock_commit(rdev, ring);
+	}
+
+	return 0;
+}
+
+static void si_cp_fini(struct radeon_device *rdev)
+{
+	si_cp_enable(rdev, false);
+	radeon_ring_fini(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	radeon_ring_fini(rdev, &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX]);
+	radeon_ring_fini(rdev, &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX]);
+}
+
+static int si_cp_resume(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring;
+	u32 tmp;
+	u32 rb_bufsz;
+	int r;
+
+	/* Reset cp; if cp is reset, then PA, SH, VGT also need to be reset */
+	WREG32(GRBM_SOFT_RESET, (SOFT_RESET_CP |
+				 SOFT_RESET_PA |
+				 SOFT_RESET_VGT |
+				 SOFT_RESET_SPI |
+				 SOFT_RESET_SX));
+	RREG32(GRBM_SOFT_RESET);
+	mdelay(15);
+	WREG32(GRBM_SOFT_RESET, 0);
+	RREG32(GRBM_SOFT_RESET);
+
+	WREG32(CP_SEM_WAIT_TIMER, 0x0);
+	WREG32(CP_SEM_INCOMPLETE_TIMER_CNTL, 0x0);
+
+	/* Set the write pointer delay */
+	WREG32(CP_RB_WPTR_DELAY, 0);
+
+	WREG32(CP_DEBUG, 0);
+	WREG32(SCRATCH_ADDR, ((rdev->wb.gpu_addr + RADEON_WB_SCRATCH_OFFSET) >> 8) & 0xFFFFFFFF);
+
+	/* ring 0 - compute and gfx */
+	/* Set ring buffer size */
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	rb_bufsz = drm_order(ring->ring_size / 8);
+	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+#ifdef __BIG_ENDIAN
+	tmp |= BUF_SWAP_32BIT;
+#endif
+	WREG32(CP_RB0_CNTL, tmp);
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32(CP_RB0_CNTL, tmp | RB_RPTR_WR_ENA);
+	ring->wptr = 0;
+	WREG32(CP_RB0_WPTR, ring->wptr);
+
+	/* set the wb address wether it's enabled or not */
+	WREG32(CP_RB0_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB0_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP_RPTR_OFFSET) & 0xFF);
+
+	if (rdev->wb.enabled)
+		WREG32(SCRATCH_UMSK, 0xff);
+	else {
+		tmp |= RB_NO_UPDATE;
+		WREG32(SCRATCH_UMSK, 0);
+	}
+
+	mdelay(1);
+	WREG32(CP_RB0_CNTL, tmp);
+
+	WREG32(CP_RB0_BASE, ring->gpu_addr >> 8);
+
+	ring->rptr = RREG32(CP_RB0_RPTR);
+
+	/* ring1  - compute only */
+	/* Set ring buffer size */
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX];
+	rb_bufsz = drm_order(ring->ring_size / 8);
+	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+#ifdef __BIG_ENDIAN
+	tmp |= BUF_SWAP_32BIT;
+#endif
+	WREG32(CP_RB1_CNTL, tmp);
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32(CP_RB1_CNTL, tmp | RB_RPTR_WR_ENA);
+	ring->wptr = 0;
+	WREG32(CP_RB1_WPTR, ring->wptr);
+
+	/* set the wb address wether it's enabled or not */
+	WREG32(CP_RB1_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB1_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP1_RPTR_OFFSET) & 0xFF);
+
+	mdelay(1);
+	WREG32(CP_RB1_CNTL, tmp);
+
+	WREG32(CP_RB1_BASE, ring->gpu_addr >> 8);
+
+	ring->rptr = RREG32(CP_RB1_RPTR);
+
+	/* ring2 - compute only */
+	/* Set ring buffer size */
+	ring = &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX];
+	rb_bufsz = drm_order(ring->ring_size / 8);
+	tmp = (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+#ifdef __BIG_ENDIAN
+	tmp |= BUF_SWAP_32BIT;
+#endif
+	WREG32(CP_RB2_CNTL, tmp);
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32(CP_RB2_CNTL, tmp | RB_RPTR_WR_ENA);
+	ring->wptr = 0;
+	WREG32(CP_RB2_WPTR, ring->wptr);
+
+	/* set the wb address wether it's enabled or not */
+	WREG32(CP_RB2_RPTR_ADDR, (rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET) & 0xFFFFFFFC);
+	WREG32(CP_RB2_RPTR_ADDR_HI, upper_32_bits(rdev->wb.gpu_addr + RADEON_WB_CP2_RPTR_OFFSET) & 0xFF);
+
+	mdelay(1);
+	WREG32(CP_RB2_CNTL, tmp);
+
+	WREG32(CP_RB2_BASE, ring->gpu_addr >> 8);
+
+	ring->rptr = RREG32(CP_RB2_RPTR);
+
+	/* start the rings */
+	si_cp_start(rdev);
+	rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = true;
+	rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = true;
+	rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = true;
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	if (r) {
+		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
+		rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
+		rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
+		return r;
+	}
+	r = radeon_ring_test(rdev, CAYMAN_RING_TYPE_CP1_INDEX, &rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX]);
+	if (r) {
+		rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
+	}
+	r = radeon_ring_test(rdev, CAYMAN_RING_TYPE_CP2_INDEX, &rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX]);
+	if (r) {
+		rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
+	}
+
+	return 0;
 }
 
 bool si_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
