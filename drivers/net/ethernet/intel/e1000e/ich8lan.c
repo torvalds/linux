@@ -135,6 +135,7 @@
 
 /* PHY Power Management Control */
 #define HV_PM_CTRL		PHY_REG(770, 17)
+#define HV_PM_CTRL_PLL_STOP_IN_K1_GIGA	0x100
 
 /* PHY Low Power Idle Control */
 #define I82579_LPI_CTRL				PHY_REG(772, 20)
@@ -1708,8 +1709,18 @@ static s32 e1000_k1_workaround_lv(struct e1000_hw *hw)
 			return ret_val;
 
 		if (status_reg & HV_M_STATUS_SPEED_1000) {
+			u16 pm_phy_reg;
+
 			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_8USEC;
 			phy_reg &= ~I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
+			/* LV 1G Packet drop issue wa  */
+			ret_val = e1e_rphy(hw, HV_PM_CTRL, &pm_phy_reg);
+			if (ret_val)
+				return ret_val;
+			pm_phy_reg &= ~HV_PM_CTRL_PLL_STOP_IN_K1_GIGA;
+			ret_val = e1e_wphy(hw, HV_PM_CTRL, pm_phy_reg);
+			if (ret_val)
+				return ret_val;
 		} else {
 			mac_reg |= E1000_FEXTNVM4_BEACON_DURATION_16USEC;
 			phy_reg |= I82579_LPI_CTRL_FORCE_PLL_LOCK_COUNT;
