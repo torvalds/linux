@@ -36,16 +36,6 @@ struct e1000_adapter;
 
 #include "defines.h"
 
-#define er32(reg)	__er32(hw, E1000_##reg)
-#define ew32(reg,val)	__ew32(hw, E1000_##reg, (val))
-#define e1e_flush()	er32(STATUS)
-
-#define E1000_WRITE_REG_ARRAY(a, reg, offset, value) \
-	(writel((value), ((a)->hw_addr + reg + ((offset) << 2))))
-
-#define E1000_READ_REG_ARRAY(a, reg, offset) \
-	(readl((a)->hw_addr + reg + ((offset) << 2)))
-
 enum e1e_registers {
 	E1000_CTRL     = 0x00000, /* Device Control - RW */
 	E1000_STATUS   = 0x00008, /* Device Status - RO */
