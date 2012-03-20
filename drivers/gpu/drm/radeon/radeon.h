@@ -241,6 +241,7 @@ extern int rv6xx_get_temp(struct radeon_device *rdev);
 extern int rv770_get_temp(struct radeon_device *rdev);
 extern int evergreen_get_temp(struct radeon_device *rdev);
 extern int sumo_get_temp(struct radeon_device *rdev);
+extern int si_get_temp(struct radeon_device *rdev);
 extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
 				    unsigned *bankh, unsigned *mtaspect,
 				    unsigned *tile_split);

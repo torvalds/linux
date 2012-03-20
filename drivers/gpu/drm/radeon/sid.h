@@ -24,6 +24,14 @@
 #ifndef SI_H
 #define SI_H
 
+#define	CG_MULT_THERMAL_STATUS					0x714
+#define		ASIC_MAX_TEMP(x)				((x) << 0)
+#define		ASIC_MAX_TEMP_MASK				0x000001ff
+#define		ASIC_MAX_TEMP_SHIFT				0
+#define		CTF_TEMP(x)					((x) << 9)
+#define		CTF_TEMP_MASK					0x0003fe00
+#define		CTF_TEMP_SHIFT					9
+
 #define MC_SHARED_CHMAP						0x2004
 #define		NOOFCHAN_SHIFT					12
 #define		NOOFCHAN_MASK					0x0000f000
