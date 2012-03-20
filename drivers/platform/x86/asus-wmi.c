@@ -784,7 +784,8 @@ static int asus_new_rfkill(struct asus_wmi *asus,
 	arfkill->dev_id = dev_id;
 	arfkill->asus = asus;
 
-	if (dev_id == ASUS_WMI_DEVID_WLAN && asus->driver->hotplug_wireless)
+	if (dev_id == ASUS_WMI_DEVID_WLAN &&
+	    asus->driver->quirks->hotplug_wireless)
 		*rfkill = rfkill_alloc(name, &asus->platform_device->dev, type,
 				       &asus_rfkill_wlan_ops, arfkill);
 	else
@@ -895,7 +896,7 @@ static int asus_wmi_rfkill_init(struct asus_wmi *asus)
 	if (result && result != -ENODEV)
 		goto exit;
 
-	if (!asus->driver->hotplug_wireless)
+	if (!asus->driver->quirks->hotplug_wireless)
 		goto exit;
 
 	result = asus_setup_pci_hotplug(asus);
@@ -1116,13 +1117,33 @@ static int read_brightness(struct backlight_device *bd)
 	return retval & ASUS_WMI_DSTS_BRIGHTNESS_MASK;
 }
 
+static u32 get_scalar_command(struct backlight_device *bd)
+{
+	struct asus_wmi *asus = bl_get_data(bd);
+	u32 ctrl_param = 0;
+
+	if ((asus->driver->brightness < bd->props.brightness) ||
+	    bd->props.brightness == bd->props.max_brightness)
+		ctrl_param = 0x00008001;
+	else if ((asus->driver->brightness > bd->props.brightness) ||
+		 bd->props.brightness == 0)
+		ctrl_param = 0x00008000;
+
+	asus->driver->brightness = bd->props.brightness;
+
+	return ctrl_param;
+}
+
 static int update_bl_status(struct backlight_device *bd)
 {
 	struct asus_wmi *asus = bl_get_data(bd);
 	u32 ctrl_param;
 	int power, err;
 
-	ctrl_param = bd->props.brightness;
+	if (asus->driver->quirks->scalar_panel_brightness)
+		ctrl_param = get_scalar_command(bd);
+	else
+		ctrl_param = bd->props.brightness;
 
 	err = asus_wmi_set_devstate(ASUS_WMI_DEVID_BRIGHTNESS,
 				    ctrl_param, NULL);
@@ -1199,6 +1220,8 @@ static int asus_wmi_backlight_init(struct asus_wmi *asus)
 	bd->props.brightness = read_brightness(bd);
 	bd->props.power = power;
 	backlight_update_status(bd);
+
+	asus->driver->brightness = bd->props.brightness;
 
 	return 0;
 }
@@ -1622,8 +1645,8 @@ static int asus_wmi_add(struct platform_device *pdev)
 	wdrv->platform_device = pdev;
 	platform_set_drvdata(asus->platform_device, asus);
 
-	if (wdrv->quirks)
-		wdrv->quirks(asus->driver);
+	if (wdrv->detect_quirks)
+		wdrv->detect_quirks(asus->driver);
 
 	err = asus_wmi_platform_init(asus);
 	if (err)

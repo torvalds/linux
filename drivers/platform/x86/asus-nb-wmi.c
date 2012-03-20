@@ -101,7 +101,7 @@ static struct asus_wmi_driver asus_nb_wmi_driver = {
 	.keymap = asus_nb_wmi_keymap,
 	.input_name = "Asus WMI hotkeys",
 	.input_phys = ASUS_NB_WMI_FILE "/input0",
-	.quirks = asus_nb_wmi_quirks,
+	.detect_quirks = asus_nb_wmi_quirks,
 };
 
 
