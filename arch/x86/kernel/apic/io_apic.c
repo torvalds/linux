@@ -2512,20 +2512,72 @@ static void ack_apic_edge(struct irq_data *data)
 
 atomic_t irq_mis_count;
 
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+static inline bool ioapic_irqd_mask(struct irq_data *data, struct irq_cfg *cfg)
+{
+	/* If we are moving the irq we need to mask it */
+	if (unlikely(irqd_is_setaffinity_pending(data))) {
+		mask_ioapic(cfg);
+		return true;
+	}
+	return false;
+}
+
+static inline void ioapic_irqd_unmask(struct irq_data *data,
+				      struct irq_cfg *cfg, bool masked)
+{
+	if (unlikely(masked)) {
+		/* Only migrate the irq if the ack has been received.
+		 *
+		 * On rare occasions the broadcast level triggered ack gets
+		 * delayed going to ioapics, and if we reprogram the
+		 * vector while Remote IRR is still set the irq will never
+		 * fire again.
+		 *
+		 * To prevent this scenario we read the Remote IRR bit
+		 * of the ioapic.  This has two effects.
+		 * - On any sane system the read of the ioapic will
+		 *   flush writes (and acks) going to the ioapic from
+		 *   this cpu.
+		 * - We get to see if the ACK has actually been delivered.
+		 *
+		 * Based on failed experiments of reprogramming the
+		 * ioapic entry from outside of irq context starting
+		 * with masking the ioapic entry and then polling until
+		 * Remote IRR was clear before reprogramming the
+		 * ioapic I don't trust the Remote IRR bit to be
+		 * completey accurate.
+		 *
+		 * However there appears to be no other way to plug
+		 * this race, so if the Remote IRR bit is not
+		 * accurate and is causing problems then it is a hardware bug
+		 * and you can go talk to the chipset vendor about it.
+		 */
+		if (!io_apic_level_ack_pending(cfg))
+			irq_move_masked_irq(data);
+		unmask_ioapic(cfg);
+	}
+}
+#else
+static inline bool ioapic_irqd_mask(struct irq_data *data, struct irq_cfg *cfg)
+{
+	return false;
+}
+static inline void ioapic_irqd_unmask(struct irq_data *data,
+				      struct irq_cfg *cfg, bool masked)
+{
+}
+#endif
+
 static void ack_apic_level(struct irq_data *data)
 {
 	struct irq_cfg *cfg = data->chip_data;
-	int i, do_unmask_irq = 0, irq = data->irq;
+	int i, irq = data->irq;
 	unsigned long v;
+	bool masked;
 
 	irq_complete_move(cfg);
-#ifdef CONFIG_GENERIC_PENDING_IRQ
-	/* If we are moving the irq we need to mask it */
-	if (unlikely(irqd_is_setaffinity_pending(data))) {
-		do_unmask_irq = 1;
-		mask_ioapic(cfg);
-	}
-#endif
+	masked = ioapic_irqd_mask(data, cfg);
 
 	/*
 	 * It appears there is an erratum which affects at least version 0x11
@@ -2581,38 +2633,7 @@ static void ack_apic_level(struct irq_data *data)
 		eoi_ioapic_irq(irq, cfg);
 	}
 
-	/* Now we can move and renable the irq */
-	if (unlikely(do_unmask_irq)) {
-		/* Only migrate the irq if the ack has been received.
-		 *
-		 * On rare occasions the broadcast level triggered ack gets
-		 * delayed going to ioapics, and if we reprogram the
-		 * vector while Remote IRR is still set the irq will never
-		 * fire again.
-		 *
-		 * To prevent this scenario we read the Remote IRR bit
-		 * of the ioapic.  This has two effects.
-		 * - On any sane system the read of the ioapic will
-		 *   flush writes (and acks) going to the ioapic from
-		 *   this cpu.
-		 * - We get to see if the ACK has actually been delivered.
-		 *
-		 * Based on failed experiments of reprogramming the
-		 * ioapic entry from outside of irq context starting
-		 * with masking the ioapic entry and then polling until
-		 * Remote IRR was clear before reprogramming the
-		 * ioapic I don't trust the Remote IRR bit to be
-		 * completey accurate.
-		 *
-		 * However there appears to be no other way to plug
-		 * this race, so if the Remote IRR bit is not
-		 * accurate and is causing problems then it is a hardware bug
-		 * and you can go talk to the chipset vendor about it.
-		 */
-		if (!io_apic_level_ack_pending(cfg))
-			irq_move_masked_irq(data);
-		unmask_ioapic(cfg);
-	}
+	ioapic_irqd_unmask(data, cfg, masked);
 }
 
 #ifdef CONFIG_IRQ_REMAP
