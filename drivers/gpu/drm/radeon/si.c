@@ -1863,6 +1863,84 @@ static void si_gpu_init(struct radeon_device *rdev)
 }
 
 /*
+ * GPU scratch registers helpers function.
+ */
+static void si_scratch_init(struct radeon_device *rdev)
+{
+	int i;
+
+	rdev->scratch.num_reg = 7;
+	rdev->scratch.reg_base = SCRATCH_REG0;
+	for (i = 0; i < rdev->scratch.num_reg; i++) {
+		rdev->scratch.free[i] = true;
+		rdev->scratch.reg[i] = rdev->scratch.reg_base + (i * 4);
+	}
+}
+
+void si_fence_ring_emit(struct radeon_device *rdev,
+			struct radeon_fence *fence)
+{
+	struct radeon_ring *ring = &rdev->ring[fence->ring];
+	u64 addr = rdev->fence_drv[fence->ring].gpu_addr;
+
+	/* flush read cache over gart */
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(ring, (CP_COHER_CNTL2 - PACKET3_SET_CONFIG_REG_START) >> 2);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
+	radeon_ring_write(ring, PACKET3_TCL1_ACTION_ENA |
+			  PACKET3_TC_ACTION_ENA |
+			  PACKET3_SH_KCACHE_ACTION_ENA |
+			  PACKET3_SH_ICACHE_ACTION_ENA);
+	radeon_ring_write(ring, 0xFFFFFFFF);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, 10); /* poll interval */
+	/* EVENT_WRITE_EOP - flush caches, send int */
+	radeon_ring_write(ring, PACKET3(PACKET3_EVENT_WRITE_EOP, 4));
+	radeon_ring_write(ring, EVENT_TYPE(CACHE_FLUSH_AND_INV_TS_EVENT) | EVENT_INDEX(5));
+	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, (upper_32_bits(addr) & 0xff) | DATA_SEL(1) | INT_SEL(2));
+	radeon_ring_write(ring, fence->seq);
+	radeon_ring_write(ring, 0);
+}
+
+/*
+ * IB stuff
+ */
+void si_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	struct radeon_ring *ring = &rdev->ring[ib->fence->ring];
+	u32 header;
+
+	if (ib->is_const_ib)
+		header = PACKET3(PACKET3_INDIRECT_BUFFER_CONST, 2);
+	else
+		header = PACKET3(PACKET3_INDIRECT_BUFFER, 2);
+
+	radeon_ring_write(ring, header);
+	radeon_ring_write(ring,
+#ifdef __BIG_ENDIAN
+			  (2 << 0) |
+#endif
+			  (ib->gpu_addr & 0xFFFFFFFC));
+	radeon_ring_write(ring, upper_32_bits(ib->gpu_addr) & 0xFFFF);
+	radeon_ring_write(ring, ib->length_dw | (ib->vm_id << 24));
+
+	/* flush read cache over gart for this vmid */
+	radeon_ring_write(ring, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(ring, (CP_COHER_CNTL2 - PACKET3_SET_CONFIG_REG_START) >> 2);
+	radeon_ring_write(ring, ib->vm_id);
+	radeon_ring_write(ring, PACKET3(PACKET3_SURFACE_SYNC, 3));
+	radeon_ring_write(ring, PACKET3_TCL1_ACTION_ENA |
+			  PACKET3_TC_ACTION_ENA |
+			  PACKET3_SH_KCACHE_ACTION_ENA |
+			  PACKET3_SH_ICACHE_ACTION_ENA);
+	radeon_ring_write(ring, 0xFFFFFFFF);
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, 10); /* poll interval */
+}
+
+/*
  * CP.
  */
 static void si_cp_enable(struct radeon_device *rdev, bool enable)

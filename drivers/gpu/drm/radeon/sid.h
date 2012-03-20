@@ -294,6 +294,8 @@
 #define		CP_PFP_HALT					(1 << 26)
 #define		CP_ME_HALT					(1 << 28)
 
+#define	CP_COHER_CNTL2					0x85E8
+
 #define	CP_RB2_RPTR					0x86f8
 #define	CP_RB1_RPTR					0x86fc
 #define	CP_RB0_RPTR					0x8700
@@ -511,6 +513,45 @@
 
 #define	CP_DEBUG					0xC1FC
 
+#define VGT_EVENT_INITIATOR                             0x28a90
+#       define SAMPLE_STREAMOUTSTATS1                   (1 << 0)
+#       define SAMPLE_STREAMOUTSTATS2                   (2 << 0)
+#       define SAMPLE_STREAMOUTSTATS3                   (3 << 0)
+#       define CACHE_FLUSH_TS                           (4 << 0)
+#       define CACHE_FLUSH                              (6 << 0)
+#       define CS_PARTIAL_FLUSH                         (7 << 0)
+#       define VGT_STREAMOUT_RESET                      (10 << 0)
+#       define END_OF_PIPE_INCR_DE                      (11 << 0)
+#       define END_OF_PIPE_IB_END                       (12 << 0)
+#       define RST_PIX_CNT                              (13 << 0)
+#       define VS_PARTIAL_FLUSH                         (15 << 0)
+#       define PS_PARTIAL_FLUSH                         (16 << 0)
+#       define CACHE_FLUSH_AND_INV_TS_EVENT             (20 << 0)
+#       define ZPASS_DONE                               (21 << 0)
+#       define CACHE_FLUSH_AND_INV_EVENT                (22 << 0)
+#       define PERFCOUNTER_START                        (23 << 0)
+#       define PERFCOUNTER_STOP                         (24 << 0)
+#       define PIPELINESTAT_START                       (25 << 0)
+#       define PIPELINESTAT_STOP                        (26 << 0)
+#       define PERFCOUNTER_SAMPLE                       (27 << 0)
+#       define SAMPLE_PIPELINESTAT                      (30 << 0)
+#       define SAMPLE_STREAMOUTSTATS                    (32 << 0)
+#       define RESET_VTX_CNT                            (33 << 0)
+#       define VGT_FLUSH                                (36 << 0)
+#       define BOTTOM_OF_PIPE_TS                        (40 << 0)
+#       define DB_CACHE_FLUSH_AND_INV                   (42 << 0)
+#       define FLUSH_AND_INV_DB_DATA_TS                 (43 << 0)
+#       define FLUSH_AND_INV_DB_META                    (44 << 0)
+#       define FLUSH_AND_INV_CB_DATA_TS                 (45 << 0)
+#       define FLUSH_AND_INV_CB_META                    (46 << 0)
+#       define CS_DONE                                  (47 << 0)
+#       define PS_DONE                                  (48 << 0)
+#       define FLUSH_AND_INV_CB_PIXEL_DATA              (49 << 0)
+#       define THREAD_TRACE_START                       (51 << 0)
+#       define THREAD_TRACE_STOP                        (52 << 0)
+#       define THREAD_TRACE_FLUSH                       (54 << 0)
+#       define THREAD_TRACE_FINISH                      (55 << 0)
+
 /*
  * PM4
  */
@@ -606,7 +647,31 @@
 #define		PACKET3_ME_INITIALIZE_DEVICE_ID(x) ((x) << 16)
 #define	PACKET3_COND_WRITE				0x45
 #define	PACKET3_EVENT_WRITE				0x46
+#define		EVENT_TYPE(x)                           ((x) << 0)
+#define		EVENT_INDEX(x)                          ((x) << 8)
+                /* 0 - any non-TS event
+		 * 1 - ZPASS_DONE
+		 * 2 - SAMPLE_PIPELINESTAT
+		 * 3 - SAMPLE_STREAMOUTSTAT*
+		 * 4 - *S_PARTIAL_FLUSH
+		 * 5 - EOP events
+		 * 6 - EOS events
+		 * 7 - CACHE_FLUSH, CACHE_FLUSH_AND_INV_EVENT
+		 */
+#define		INV_L2                                  (1 << 20)
+                /* INV TC L2 cache when EVENT_INDEX = 7 */
 #define	PACKET3_EVENT_WRITE_EOP				0x47
+#define		DATA_SEL(x)                             ((x) << 29)
+                /* 0 - discard
+		 * 1 - send low 32bit data
+		 * 2 - send 64bit data
+		 * 3 - send 64bit counter value
+		 */
+#define		INT_SEL(x)                              ((x) << 24)
+                /* 0 - none
+		 * 1 - interrupt only (DATA_SEL = 0)
+		 * 2 - interrupt when data write is confirmed
+		 */
 #define	PACKET3_EVENT_WRITE_EOS				0x48
 #define	PACKET3_PREAMBLE_CNTL				0x4A
 #              define PACKET3_PREAMBLE_BEGIN_CLEAR_STATE     (2 << 28)
