@@ -642,14 +642,10 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	wake_up_all(&server->response_q);
 
-	/*
-	 * Check if we have blocked requests that need to free. Note that
-	 * cifs_max_pending is normally 50, but can be set at module install
-	 * time to as little as two.
-	 */
+	/* Check if we have blocked requests that need to free. */
 	spin_lock(&GlobalMid_Lock);
-	if (atomic_read(&server->inFlight) >= cifs_max_pending)
-		atomic_set(&server->inFlight, cifs_max_pending - 1);
+	if (atomic_read(&server->inFlight) >= server->maxReq)
+		atomic_set(&server->inFlight, server->maxReq - 1);
 	/*
 	 * We do not want to set the max_pending too low or we could end up
 	 * with the counter going negative.
@@ -1910,6 +1906,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->noautotune = volume_info->noautotune;
 	tcp_ses->tcp_nodelay = volume_info->sockopt_tcp_nodelay;
 	atomic_set(&tcp_ses->inFlight, 0);
+	tcp_ses->maxReq = 1; /* enough to send negotiate request */
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
 	INIT_LIST_HEAD(&tcp_ses->pending_mid_q);
