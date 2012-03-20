@@ -62,4 +62,4 @@ THE END
 #ifdef __cplusplus
 }
 #endif
-#endif /* __DRXJ_OPTIONS_H__ */
+#endif				/* __DRXJ_OPTIONS_H__ */

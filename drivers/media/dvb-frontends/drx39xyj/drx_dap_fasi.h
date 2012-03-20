@@ -96,9 +96,8 @@
 #if ( ( DRXDAPFASI_LONG_ADDR_ALLOWED==0 ) && \
       ( DRXDAPFASI_SHORT_ADDR_ALLOWED==0 ) )
 #error  At least one of short- or long-addressing format must be allowed.
-*;   /* illegal statement to force compiler error */
+*;				/* illegal statement to force compiler error */
 #endif
-
 
 /********************************************
 * Single/master multi master setting
@@ -200,18 +199,18 @@
 #if ( (DRXDAPFASI_LONG_ADDR_ALLOWED==0)&&(DRXDAPFASI_SHORT_ADDR_ALLOWED==1) )
 #if DRXDAP_SINGLE_MASTER
 #error  DRXDAP_MAX_WCHUNKSIZE must be at least 3 in single master mode
-*;   /* illegal statement to force compiler error */
+*;				/* illegal statement to force compiler error */
 #else
 #error  DRXDAP_MAX_WCHUNKSIZE must be at least 5 in multi master mode
-*;   /* illegal statement to force compiler error */
+*;				/* illegal statement to force compiler error */
 #endif
 #else
 #if DRXDAP_SINGLE_MASTER
 #error  DRXDAP_MAX_WCHUNKSIZE must be at least 5 in single master mode
-*;   /* illegal statement to force compiler error */
+*;				/* illegal statement to force compiler error */
 #else
 #error  DRXDAP_MAX_WCHUNKSIZE must be at least 7 in multi master mode
-*;   /* illegal statement to force compiler error */
+*;				/* illegal statement to force compiler error */
 #endif
 #endif
 #endif
@@ -224,13 +223,13 @@
 /* check */
 #if  DRXDAP_MAX_RCHUNKSIZE < 2
 #error  DRXDAP_MAX_RCHUNKSIZE must be at least 2
-*;   /* illegal statement to force compiler error */
+*;				/* illegal statement to force compiler error */
 #endif
 
 /* check */
 #if  DRXDAP_MAX_RCHUNKSIZE & 1
 #error  DRXDAP_MAX_RCHUNKSIZE must be even
-*;   /* illegal statement to force compiler error */
+*;				/* illegal statement to force compiler error */
 #endif
 
 /*-------- Public API functions ----------------------------------------------*/
@@ -239,15 +238,14 @@
 extern "C" {
 #endif
 
-
-extern DRXAccessFunc_t drxDapFASIFunct_g;
+	extern DRXAccessFunc_t drxDapFASIFunct_g;
 
 #define DRXDAP_FASI_RMW           0x10000000
 #define DRXDAP_FASI_BROADCAST     0x20000000
 #define DRXDAP_FASI_CLEARCRC      0x80000000
 #define DRXDAP_FASI_SINGLE_MASTER 0xC0000000
 #define DRXDAP_FASI_MULTI_MASTER  0x40000000
-#define DRXDAP_FASI_SMM_SWITCH    0x40000000    /* single/multi master switch */
+#define DRXDAP_FASI_SMM_SWITCH    0x40000000	/* single/multi master switch */
 #define DRXDAP_FASI_MODEFLAGS     0xC0000000
 #define DRXDAP_FASI_FLAGS         0xF0000000
 
@@ -259,10 +257,7 @@ extern DRXAccessFunc_t drxDapFASIFunct_g;
 #define DRXDAP_FASI_LONG_FORMAT( addr )      (((addr)& 0xFC30FF80)!=0)
 #define DRXDAP_FASI_OFFSET_TOO_LARGE( addr ) (((addr)& 0x00008000)!=0)
 
-
 #ifdef __cplusplus
 }
 #endif
-
-
-#endif         /* __DRX_DAP_FASI_H__ */
+#endif				/* __DRX_DAP_FASI_H__ */

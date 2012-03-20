@@ -53,14 +53,9 @@ extern "C" {
 
 #ifdef _REGISTERTABLE_
 #include <registertable.h>
-extern RegisterTable_t drxj_map[];
-extern RegisterTableInfo_t drxj_map_info[];
+	extern RegisterTable_t drxj_map[];
+	extern RegisterTableInfo_t drxj_map_info[];
 #endif
-
-
-
-
-
 
 #define ATV_COMM_EXEC__A                                                    0xC00000
 #define ATV_COMM_EXEC__W                                                    2
@@ -107,8 +102,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ATV_COMM_KEY_KEY                                                  0xFABA
 #define   ATV_COMM_KEY_MIN                                                  0x0
 #define   ATV_COMM_KEY_MAX                                                  0xFFFF
-
-
 
 #define ATV_TOP_COMM_EXEC__A                                                0xC10000
 #define ATV_TOP_COMM_EXEC__W                                                2
@@ -167,7 +160,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ATV_TOP_COMM_MB_MUX_OBS_SIF_O                                   0x180
 #define     ATV_TOP_COMM_MB_MUX_OBS_SIF2025_O                               0x1C0
 #define     ATV_TOP_COMM_MB_MUX_OBS_POST_S                                  0x200
-
 
 #define ATV_TOP_COMM_INT_REQ__A                                             0xC10003
 #define ATV_TOP_COMM_INT_REQ__W                                             16
@@ -246,7 +238,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ATV_TOP_COMM_KEY_KEY_MIN                                        0x0
 #define     ATV_TOP_COMM_KEY_KEY_MAX                                        0xFFFF
 
-
 #define ATV_TOP_CR_AMP_TH__A                                                0xC10010
 #define ATV_TOP_CR_AMP_TH__W                                                8
 #define ATV_TOP_CR_AMP_TH__M                                                0xFF
@@ -279,14 +270,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ATV_TOP_CR_CONT_CR_I_MN                                         0x80
 #define     ATV_TOP_CR_CONT_CR_I_FM                                         0x0
 
-
 #define ATV_TOP_CR_OVM_TH__A                                                0xC10012
 #define ATV_TOP_CR_OVM_TH__W                                                8
 #define ATV_TOP_CR_OVM_TH__M                                                0xFF
 #define ATV_TOP_CR_OVM_TH__PRE                                              0xA0
 #define   ATV_TOP_CR_OVM_TH_MN                                              0xA0
 #define   ATV_TOP_CR_OVM_TH_FM                                              0x0
-
 
 #define ATV_TOP_NOISE_TH__A                                                 0xC10013
 #define ATV_TOP_NOISE_TH__W                                                 4
@@ -337,7 +326,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ATV_TOP_EQU3_EQU_C3__M                                            0x1FF
 #define   ATV_TOP_EQU3_EQU_C3__PRE                                          0x160
 #define     ATV_TOP_EQU3_EQU_C3_MN                                          0x60
-
 
 #define ATV_TOP_ROT_MODE__A                                                 0xC10018
 #define ATV_TOP_ROT_MODE__W                                                 1
@@ -398,14 +386,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ATV_TOP_STD_VID_POL_NEG                                         0x0
 #define     ATV_TOP_STD_VID_POL_POS                                         0x2
 
-
 #define ATV_TOP_VID_AMP__A                                                  0xC1001B
 #define ATV_TOP_VID_AMP__W                                                  12
 #define ATV_TOP_VID_AMP__M                                                  0xFFF
 #define ATV_TOP_VID_AMP__PRE                                                0x380
 #define   ATV_TOP_VID_AMP_MN                                                0x380
 #define   ATV_TOP_VID_AMP_FM                                                0x0
-
 
 #define ATV_TOP_VID_PEAK__A                                                 0xC1001C
 #define ATV_TOP_VID_PEAK__W                                                 5
@@ -418,13 +404,11 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define ATV_TOP_FAGC_TH__PRE                                                0x2B2
 #define   ATV_TOP_FAGC_TH_MN                                                0x2B2
 
-
 #define ATV_TOP_SYNC_SLICE__A                                               0xC1001E
 #define ATV_TOP_SYNC_SLICE__W                                               11
 #define ATV_TOP_SYNC_SLICE__M                                               0x7FF
 #define ATV_TOP_SYNC_SLICE__PRE                                             0x243
 #define   ATV_TOP_SYNC_SLICE_MN                                             0x243
-
 
 #define ATV_TOP_SIF_GAIN__A                                                 0xC1001F
 #define ATV_TOP_SIF_GAIN__W                                                 11
@@ -481,14 +465,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ATV_TOP_STDBY_CVBS_STDBY_A2_ACTIVE                              0x2
 #define     ATV_TOP_STDBY_CVBS_STDBY_A2_STANDBY                             0x0
 
-
 #define ATV_TOP_OVERRIDE_SFR__A                                             0xC10026
 #define ATV_TOP_OVERRIDE_SFR__W                                             1
 #define ATV_TOP_OVERRIDE_SFR__M                                             0x1
 #define ATV_TOP_OVERRIDE_SFR__PRE                                           0x0
 #define   ATV_TOP_OVERRIDE_SFR_ACTIVE                                       0x0
 #define   ATV_TOP_OVERRIDE_SFR_OVERRIDE                                     0x1
-
 
 #define ATV_TOP_SFR_VID_GAIN__A                                             0xC10027
 #define ATV_TOP_SFR_VID_GAIN__W                                             16
@@ -544,8 +526,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ATV_TOP_OUT_CONF_SIF_DAC_BR_NORMAL                              0x0
 #define     ATV_TOP_OUT_CONF_SIF_DAC_BR_BITREVERSED                         0x10
 
-
-
 #define ATV_AFT_COMM_EXEC__A                                                0xFF0000
 #define ATV_AFT_COMM_EXEC__W                                                2
 #define ATV_AFT_COMM_EXEC__M                                                0x3
@@ -554,15 +534,10 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ATV_AFT_COMM_EXEC_ACTIVE                                          0x1
 #define   ATV_AFT_COMM_EXEC_HOLD                                            0x2
 
-
 #define ATV_AFT_TST__A                                                      0xFF0010
 #define ATV_AFT_TST__W                                                      4
 #define ATV_AFT_TST__M                                                      0xF
 #define ATV_AFT_TST__PRE                                                    0x0
-
-
-
-
 
 #define AUD_COMM_EXEC__A                                                    0x1000000
 #define AUD_COMM_EXEC__W                                                    2
@@ -575,8 +550,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define AUD_COMM_MB__W                                                      16
 #define AUD_COMM_MB__M                                                      0xFFFF
 #define AUD_COMM_MB__PRE                                                    0x0
-
-
 
 #define AUD_TOP_COMM_EXEC__A                                                0x1010000
 #define AUD_TOP_COMM_EXEC__W                                                2
@@ -694,13 +667,10 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_TOP_TR_TIMER_CYCLES__M                                        0xFFFF
 #define   AUD_TOP_TR_TIMER_CYCLES__PRE                                      0x0
 
-
 #define AUD_TOP_DEMOD_TBO_SEL__A                                            0x1010014
 #define AUD_TOP_DEMOD_TBO_SEL__W                                            5
 #define AUD_TOP_DEMOD_TBO_SEL__M                                            0x1F
 #define AUD_TOP_DEMOD_TBO_SEL__PRE                                          0x0
-
-
 
 #define AUD_DEM_WR_MODUS__A                                                 0x1030030
 #define AUD_DEM_WR_MODUS__W                                                 16
@@ -803,8 +773,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     AUD_DEM_WR_STANDARD_SEL_STD_SEL_EIA_J                           0x30
 #define     AUD_DEM_WR_STANDARD_SEL_STD_SEL_FM_RADIO                        0x40
 
-
-
 #define AUD_DEM_RD_STANDARD_RES__A                                          0x102007E
 #define AUD_DEM_RD_STANDARD_RES__W                                          16
 #define AUD_DEM_RD_STANDARD_RES__M                                          0xFFFF
@@ -902,13 +870,10 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT__PRE                        0x0
 #define     AUD_DEM_RD_RDS_ARRAY_CNT_RDS_ARRAY_CT_RDS_DATA_NOT_VALID        0xFFF
 
-
 #define AUD_DEM_RD_RDS_DATA__A                                              0x1020210
 #define AUD_DEM_RD_RDS_DATA__W                                              12
 #define AUD_DEM_RD_RDS_DATA__M                                              0xFFF
 #define AUD_DEM_RD_RDS_DATA__PRE                                            0x0
-
-
 
 #define AUD_DSP_WR_FM_PRESC__A                                              0x105000E
 #define AUD_DSP_WR_FM_PRESC__W                                              16
@@ -926,7 +891,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     AUD_DSP_WR_FM_PRESC_FM_AM_PRESC_150_KHZ_FM_DEVIATION            0x1800
 #define     AUD_DSP_WR_FM_PRESC_FM_AM_PRESC_180_KHZ_FM_DEVIATION            0x1300
 #define     AUD_DSP_WR_FM_PRESC_FM_AM_PRESC_380_KHZ_FM_DEVIATION            0x900
-
 
 #define AUD_DSP_WR_NICAM_PRESC__A                                           0x1050010
 #define AUD_DSP_WR_NICAM_PRESC__W                                           16
@@ -1030,9 +994,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     AUD_DSP_WR_QPEAK_MAT_QP_STEREO                                  0x20
 #define     AUD_DSP_WR_QPEAK_MAT_QP_MONO                                    0x30
 
-
-
-
 #define AUD_DSP_RD_QPEAK_L__A                                               0x1040019
 #define AUD_DSP_RD_QPEAK_L__W                                               16
 #define AUD_DSP_RD_QPEAK_L__M                                               0xFFFF
@@ -1042,8 +1003,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define AUD_DSP_RD_QPEAK_R__W                                               16
 #define AUD_DSP_RD_QPEAK_R__M                                               0xFFFF
 #define AUD_DSP_RD_QPEAK_R__PRE                                             0x0
-
-
 
 #define AUD_DSP_WR_BEEPER__A                                                0x1050014
 #define AUD_DSP_WR_BEEPER__W                                                16
@@ -1059,8 +1018,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DSP_WR_BEEPER_BEEP_FREQUENCY__W                               7
 #define   AUD_DSP_WR_BEEPER_BEEP_FREQUENCY__M                               0x7F
 #define   AUD_DSP_WR_BEEPER_BEEP_FREQUENCY__PRE                             0x0
-
-
 
 #define AUD_DEM_WR_I2S_CONFIG2__A                                           0x1030050
 #define AUD_DEM_WR_I2S_CONFIG2__W                                           16
@@ -1109,8 +1066,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_32                      0x0
 #define     AUD_DEM_WR_I2S_CONFIG2_I2S_WORD_LEN_BIT_16                      0x1
 
-
-
 #define AUD_DSP_WR_I2S_OUT_FS__A                                            0x105002A
 #define AUD_DSP_WR_I2S_OUT_FS__W                                            16
 #define AUD_DSP_WR_I2S_OUT_FS__M                                            0xFFFF
@@ -1149,8 +1104,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     AUD_DSP_WR_AV_SYNC_AV_STD_SEL_NTSC                              0x2
 #define     AUD_DSP_WR_AV_SYNC_AV_STD_SEL_MONOCHROME                        0x3
 
-
-
 #define AUD_DSP_RD_STATUS2__A                                               0x104007B
 #define AUD_DSP_RD_STATUS2__W                                               16
 #define AUD_DSP_RD_STATUS2__M                                               0xFFFF
@@ -1182,9 +1135,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DSP_RD_XFP_FW_FP_FW_REV__W                                    16
 #define   AUD_DSP_RD_XFP_FW_FP_FW_REV__M                                    0xFFFF
 #define   AUD_DSP_RD_XFP_FW_FP_FW_REV__PRE                                  0x42
-
-
-
 
 #define AUD_DEM_WR_DCO_B_HI__A                                              0x103009B
 #define AUD_DEM_WR_DCO_B_HI__W                                              16
@@ -1255,8 +1205,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DEM_WR_CM_B_THRSHLD_CM_B_THLD__M                              0xFFF
 #define   AUD_DEM_WR_CM_B_THRSHLD_CM_B_THLD__PRE                            0x2A
 
-
-
 #define AUD_DEM_RD_NIC_C_AD_BITS__A                                         0x1020023
 #define AUD_DEM_RD_NIC_C_AD_BITS__W                                         16
 #define AUD_DEM_RD_NIC_C_AD_BITS__M                                         0xFFFF
@@ -1314,9 +1262,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DEM_RD_NIC_ERROR_RATE_ERROR_RATE__M                           0xFFF
 #define   AUD_DEM_RD_NIC_ERROR_RATE_ERROR_RATE__PRE                         0x0
 
-
-
-
 #define AUD_DEM_WR_FM_DEEMPH__A                                             0x103000F
 #define AUD_DEM_WR_FM_DEEMPH__W                                             16
 #define AUD_DEM_WR_FM_DEEMPH__M                                             0xFFFF
@@ -1324,7 +1269,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DEM_WR_FM_DEEMPH_50US                                         0x0
 #define   AUD_DEM_WR_FM_DEEMPH_75US                                         0x1
 #define   AUD_DEM_WR_FM_DEEMPH_OFF                                          0x3F
-
 
 #define AUD_DEM_WR_FM_MATRIX__A                                             0x103006F
 #define AUD_DEM_WR_FM_MATRIX__W                                             16
@@ -1335,8 +1279,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DEM_WR_FM_MATRIX_KOREAN_MATRIX                                0x2
 #define   AUD_DEM_WR_FM_MATRIX_SOUND_A                                      0x3
 #define   AUD_DEM_WR_FM_MATRIX_SOUND_B                                      0x4
-
-
 
 #define AUD_DSP_RD_FM_IDENT_VALUE__A                                        0x1040018
 #define AUD_DSP_RD_FM_IDENT_VALUE__W                                        16
@@ -1368,8 +1310,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_DSP_RD_FM_DC_LEVEL_B_FM_DC_LEV_B__M                           0xFFFF
 #define   AUD_DSP_RD_FM_DC_LEVEL_B_FM_DC_LEV_B__PRE                         0x0
 
-
-
 #define AUD_DEM_WR_FM_DC_NOTCH_SW__A                                        0x1030017
 #define AUD_DEM_WR_FM_DC_NOTCH_SW__W                                        16
 #define AUD_DEM_WR_FM_DC_NOTCH_SW__M                                        0xFFFF
@@ -1382,17 +1322,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW_ON                        0x0
 #define     AUD_DEM_WR_FM_DC_NOTCH_SW_FM_DC_NO_SW_OFF                       0x3F
 
-
-
-
 #define AUD_DSP_WR_SYNC_OUT__A                                              0x1050026
 #define AUD_DSP_WR_SYNC_OUT__W                                              16
 #define AUD_DSP_WR_SYNC_OUT__M                                              0xFFFF
 #define AUD_DSP_WR_SYNC_OUT__PRE                                            0x0
 #define   AUD_DSP_WR_SYNC_OUT_OFF                                           0x0
 #define   AUD_DSP_WR_SYNC_OUT_SYNCHRONOUS                                   0x1
-
-
 
 #define AUD_XFP_DRAM_1K__A                                                  0x1060000
 #define AUD_XFP_DRAM_1K__W                                                  16
@@ -1403,8 +1338,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_XFP_DRAM_1K_D__M                                              0xFFFF
 #define   AUD_XFP_DRAM_1K_D__PRE                                            0x0
 
-
-
 #define AUD_XFP_PRAM_4K__A                                                  0x1070000
 #define AUD_XFP_PRAM_4K__W                                                  16
 #define AUD_XFP_PRAM_4K__M                                                  0xFFFF
@@ -1413,8 +1346,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_XFP_PRAM_4K_D__W                                              16
 #define   AUD_XFP_PRAM_4K_D__M                                              0xFFFF
 #define   AUD_XFP_PRAM_4K_D__PRE                                            0x0
-
-
 
 #define AUD_XDFP_DRAM_1K__A                                                 0x1080000
 #define AUD_XDFP_DRAM_1K__W                                                 16
@@ -1425,8 +1356,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_XDFP_DRAM_1K_D__M                                             0xFFFF
 #define   AUD_XDFP_DRAM_1K_D__PRE                                           0x0
 
-
-
 #define AUD_XDFP_PRAM_4K__A                                                 0x1090000
 #define AUD_XDFP_PRAM_4K__W                                                 16
 #define AUD_XDFP_PRAM_4K__M                                                 0xFFFF
@@ -1435,10 +1364,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   AUD_XDFP_PRAM_4K_D__W                                             16
 #define   AUD_XDFP_PRAM_4K_D__M                                             0xFFFF
 #define   AUD_XDFP_PRAM_4K_D__PRE                                           0x0
-
-
-
-
 
 #define FEC_COMM_EXEC__A                                                    0x2400000
 #define FEC_COMM_EXEC__W                                                    2
@@ -1482,8 +1407,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define FEC_COMM_INT_STM__M                                                 0xFFFF
 #define FEC_COMM_INT_STM__PRE                                               0x0
 
-
-
 #define FEC_TOP_COMM_EXEC__A                                                0x2410000
 #define FEC_TOP_COMM_EXEC__W                                                2
 #define FEC_TOP_COMM_EXEC__M                                                0x3
@@ -1491,7 +1414,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_TOP_COMM_EXEC_STOP                                            0x0
 #define   FEC_TOP_COMM_EXEC_ACTIVE                                          0x1
 #define   FEC_TOP_COMM_EXEC_HOLD                                            0x2
-
 
 #define FEC_TOP_ANNEX__A                                                    0x2410010
 #define FEC_TOP_ANNEX__W                                                    2
@@ -1501,8 +1423,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_TOP_ANNEX_B                                                   0x1
 #define   FEC_TOP_ANNEX_C                                                   0x2
 #define   FEC_TOP_ANNEX_D                                                   0x3
-
-
 
 #define FEC_DI_COMM_EXEC__A                                                 0x2420000
 #define FEC_DI_COMM_EXEC__W                                                 2
@@ -1574,7 +1494,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_DI_COMM_INT_STM_TIMEOUT_INT__M                                0x2
 #define   FEC_DI_COMM_INT_STM_TIMEOUT_INT__PRE                              0x0
 
-
 #define FEC_DI_STATUS__A                                                    0x2420010
 #define FEC_DI_STATUS__W                                                    1
 #define FEC_DI_STATUS__M                                                    0x1
@@ -1599,7 +1518,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_DI_MODE_IGNORE_TIMEOUT__M                                     0x4
 #define   FEC_DI_MODE_IGNORE_TIMEOUT__PRE                                   0x0
 
-
 #define FEC_DI_CONTROL_WORD__A                                              0x2420012
 #define FEC_DI_CONTROL_WORD__W                                              4
 #define FEC_DI_CONTROL_WORD__M                                              0xF
@@ -1619,8 +1537,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define FEC_DI_TIMEOUT_HI__W                                                8
 #define FEC_DI_TIMEOUT_HI__M                                                0xFF
 #define FEC_DI_TIMEOUT_HI__PRE                                              0xA
-
-
 
 #define FEC_RS_COMM_EXEC__A                                                 0x2430000
 #define FEC_RS_COMM_EXEC__W                                                 2
@@ -1785,8 +1701,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_RS_NR_FAILURES_EXP__W                                         4
 #define   FEC_RS_NR_FAILURES_EXP__M                                         0xF000
 #define   FEC_RS_NR_FAILURES_EXP__PRE                                       0x0
-
-
 
 #define FEC_OC_COMM_EXEC__A                                                 0x2440000
 #define FEC_OC_COMM_EXEC__W                                                 2
@@ -2001,7 +1915,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_OC_DPR_MODE_NOSYNC_ENABLE__M                                  0x2
 #define   FEC_OC_DPR_MODE_NOSYNC_ENABLE__PRE                                0x0
 
-
 #define FEC_OC_DPR_UNLOCK__A                                                0x2440013
 #define FEC_OC_DPR_UNLOCK__W                                                1
 #define FEC_OC_DPR_UNLOCK__M                                                0x1
@@ -2025,7 +1938,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_OC_DTO_MODE_OFFSET_ENABLE__W                                  1
 #define   FEC_OC_DTO_MODE_OFFSET_ENABLE__M                                  0x4
 #define   FEC_OC_DTO_MODE_OFFSET_ENABLE__PRE                                0x0
-
 
 #define FEC_OC_DTO_PERIOD__A                                                0x2440015
 #define FEC_OC_DTO_PERIOD__W                                                8
@@ -2701,21 +2613,11 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   FEC_OC_OCR_GRAB_RD5_DATA__M                                       0x3FF
 #define   FEC_OC_OCR_GRAB_RD5_DATA__PRE                                     0x0
 
-
-
 #define FEC_DI_RAM__A                                                       0x2450000
-
-
 
 #define FEC_RS_RAM__A                                                       0x2460000
 
-
-
 #define FEC_OC_RAM__A                                                       0x2470000
-
-
-
-
 
 #define IQM_COMM_EXEC__A                                                    0x1800000
 #define IQM_COMM_EXEC__W                                                    2
@@ -2756,8 +2658,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define IQM_COMM_INT_STM__W                                                 16
 #define IQM_COMM_INT_STM__M                                                 0xFFFF
 #define IQM_COMM_INT_STM__PRE                                               0x0
-
-
 
 #define IQM_FS_COMM_EXEC__A                                                 0x1820000
 #define IQM_FS_COMM_EXEC__W                                                 2
@@ -2809,8 +2709,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_FS_ADJ_SEL_QAM                                                0x1
 #define   IQM_FS_ADJ_SEL_VSB                                                0x2
 
-
-
 #define IQM_FD_COMM_EXEC__A                                                 0x1830000
 #define IQM_FD_COMM_EXEC__W                                                 2
 #define IQM_FD_COMM_EXEC__M                                                 0x3
@@ -2835,8 +2733,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_FD_COMM_MB_OBS__PRE                                           0x0
 #define     IQM_FD_COMM_MB_OBS_OBS_OFF                                      0x0
 #define     IQM_FD_COMM_MB_OBS_OBS_ON                                       0x2
-
-
 
 #define IQM_RC_COMM_EXEC__A                                                 0x1840000
 #define IQM_RC_COMM_EXEC__W                                                 2
@@ -2898,7 +2794,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_RC_CROUT_ENA_ENA__M                                           0x1
 #define   IQM_RC_CROUT_ENA_ENA__PRE                                         0x0
 
-
 #define IQM_RC_STRETCH__A                                                   0x1840016
 #define IQM_RC_STRETCH__W                                                   5
 #define IQM_RC_STRETCH__M                                                   0x1F
@@ -2906,8 +2801,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_RC_STRETCH_QAM_B_64                                           0x1E
 #define   IQM_RC_STRETCH_QAM_B_256                                          0x1C
 #define   IQM_RC_STRETCH_ATV                                                0xF
-
-
 
 #define IQM_RT_COMM_EXEC__A                                                 0x1850000
 #define IQM_RT_COMM_EXEC__W                                                 2
@@ -2953,7 +2846,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     IQM_RT_ACTIVE_ACTIVE_CR_ATV_CR_OFF                              0x0
 #define     IQM_RT_ACTIVE_ACTIVE_CR_ATV_CR_ON                               0x2
 
-
 #define IQM_RT_LO_INCR__A                                                   0x1850011
 #define IQM_RT_LO_INCR__W                                                   12
 #define IQM_RT_LO_INCR__M                                                   0xFFF
@@ -2978,7 +2870,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_RT_ROT_BP_ROT_BPF__M                                          0x2
 #define   IQM_RT_ROT_BP_ROT_BPF__PRE                                        0x0
 
-
 #define IQM_RT_LP_BP__A                                                     0x1850013
 #define IQM_RT_LP_BP__W                                                     1
 #define IQM_RT_LP_BP__M                                                     0x1
@@ -2988,8 +2879,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define IQM_RT_DELAY__W                                                     7
 #define IQM_RT_DELAY__M                                                     0x7F
 #define IQM_RT_DELAY__PRE                                                   0x45
-
-
 
 #define IQM_CF_COMM_EXEC__A                                                 0x1860000
 #define IQM_CF_COMM_EXEC__W                                                 2
@@ -3096,7 +2985,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_CF_OUT_ENA_VSB__W                                             1
 #define   IQM_CF_OUT_ENA_VSB__M                                             0x4
 #define   IQM_CF_OUT_ENA_VSB__PRE                                           0x0
-
 
 #define IQM_CF_ADJ_SEL__A                                                   0x1860013
 #define IQM_CF_ADJ_SEL__W                                                   2
@@ -3353,8 +3241,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define IQM_CF_TAP_IM27__M                                                  0x7FF
 #define IQM_CF_TAP_IM27__PRE                                                0x2
 
-
-
 #define IQM_AF_COMM_EXEC__A                                                 0x1870000
 #define IQM_AF_COMM_EXEC__W                                                 2
 #define IQM_AF_COMM_EXEC__M                                                 0x3
@@ -3441,7 +3327,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_AF_COMM_INT_STM_SNS_INT_STA__M                                0x2
 #define   IQM_AF_COMM_INT_STM_SNS_INT_STA__PRE                              0x0
 
-
 #define IQM_AF_FDB_SEL__A                                                   0x1870010
 #define IQM_AF_FDB_SEL__W                                                   1
 #define IQM_AF_FDB_SEL__M                                                   0x1
@@ -3469,7 +3354,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_AF_CLKNEG_CLKNEGDATA__PRE                                     0x0
 #define     IQM_AF_CLKNEG_CLKNEGDATA_CLK_ADC_DATA_POS                       0x0
 #define     IQM_AF_CLKNEG_CLKNEGDATA_CLK_ADC_DATA_NEG                       0x2
-
 
 #define IQM_AF_MON_IN_MUX__A                                                0x1870013
 #define IQM_AF_MON_IN_MUX__W                                                2
@@ -3573,7 +3457,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     IQM_AF_ADC_CONF_BITREVERSE_NSSR_RFAGC_DAC_NORMAL                0x0
 #define     IQM_AF_ADC_CONF_BITREVERSE_NSSR_RFAGC_DAC_BITREVERSED           0x8
 
-
 #define IQM_AF_CLP_CLIP__A                                                  0x1870022
 #define IQM_AF_CLP_CLIP__W                                                  16
 #define IQM_AF_CLP_CLIP__M                                                  0xFFFF
@@ -3587,7 +3470,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_AF_CLP_LEN_QAM_B_256                                          0x400
 #define   IQM_AF_CLP_LEN_ATV                                                0x0
 
-
 #define IQM_AF_CLP_TH__A                                                    0x1870024
 #define IQM_AF_CLP_TH__W                                                    9
 #define IQM_AF_CLP_TH__M                                                    0x1FF
@@ -3596,14 +3478,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_AF_CLP_TH_QAM_B_256                                           0x80
 #define   IQM_AF_CLP_TH_ATV                                                 0x1C0
 
-
 #define IQM_AF_DCF_BYPASS__A                                                0x1870025
 #define IQM_AF_DCF_BYPASS__W                                                1
 #define IQM_AF_DCF_BYPASS__M                                                0x1
 #define IQM_AF_DCF_BYPASS__PRE                                              0x0
 #define   IQM_AF_DCF_BYPASS_ACTIVE                                          0x0
 #define   IQM_AF_DCF_BYPASS_BYPASS                                          0x1
-
 
 #define IQM_AF_SNS_LEN__A                                                   0x1870026
 #define IQM_AF_SNS_LEN__W                                                   16
@@ -3612,7 +3492,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   IQM_AF_SNS_LEN_QAM_B_64                                           0x400
 #define   IQM_AF_SNS_LEN_QAM_B_256                                          0x400
 #define   IQM_AF_SNS_LEN_ATV                                                0x0
-
 
 #define IQM_AF_SNS_SENSE__A                                                 0x1870027
 #define IQM_AF_SNS_SENSE__W                                                 16
@@ -3699,7 +3578,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     IQM_AF_STDBY_STDBY_TAGC_RF_A2_ACTIVE                            0x20
 #define     IQM_AF_STDBY_STDBY_TAGC_RF_A2_STANDBY                           0x0
 
-
 #define IQM_AF_AMUX__A                                                      0x187002D
 #define IQM_AF_AMUX__W                                                      2
 #define IQM_AF_AMUX__M                                                      0x3
@@ -3710,18 +3588,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define IQM_AF_TST_AFEMAIN__M                                               0xFF
 #define IQM_AF_TST_AFEMAIN__PRE                                             0x0
 
-
-
 #define IQM_RT_RAM__A                                                       0x1880000
 
 #define   IQM_RT_RAM_DLY__B                                                 0
 #define   IQM_RT_RAM_DLY__W                                                 13
 #define   IQM_RT_RAM_DLY__M                                                 0x1FFF
 #define   IQM_RT_RAM_DLY__PRE                                               0x0
-
-
-
-
 
 #define ORX_COMM_EXEC__A                                                    0x2000000
 #define ORX_COMM_EXEC__W                                                    2
@@ -3764,7 +3636,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_COMM_INT_REQ_NSU_REQ__M                                       0x10
 #define   ORX_COMM_INT_REQ_NSU_REQ__PRE                                     0x0
 
-
 #define ORX_COMM_INT_STA__A                                                 0x2000005
 #define ORX_COMM_INT_STA__W                                                 16
 #define ORX_COMM_INT_STA__M                                                 0xFFFF
@@ -3778,8 +3649,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define ORX_COMM_INT_STM__M                                                 0xFFFF
 #define ORX_COMM_INT_STM__PRE                                               0x0
 
-
-
 #define ORX_TOP_COMM_EXEC__A                                                0x2010000
 #define ORX_TOP_COMM_EXEC__W                                                2
 #define ORX_TOP_COMM_EXEC__M                                                0x3
@@ -3787,7 +3656,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_TOP_COMM_EXEC_STOP                                            0x0
 #define   ORX_TOP_COMM_EXEC_ACTIVE                                          0x1
 #define   ORX_TOP_COMM_EXEC_HOLD                                            0x2
-
 
 #define ORX_TOP_COMM_KEY__A                                                 0x201000F
 #define ORX_TOP_COMM_KEY__W                                                 16
@@ -3827,8 +3695,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ORX_TOP_AIF_CTRL_W_INV_MSB_NO_MSB_INVERSION_ADC                 0x0
 #define     ORX_TOP_AIF_CTRL_W_INV_MSB_MSB_INVERSION_ADC                    0x4
 
-
-
 #define ORX_FWP_COMM_EXEC__A                                                0x2020000
 #define ORX_FWP_COMM_EXEC__W                                                2
 #define ORX_FWP_COMM_EXEC__M                                                0x3
@@ -3864,7 +3730,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_FWP_COMM_MB_OBS_MUX__M                                        0xE0
 #define   ORX_FWP_COMM_MB_OBS_MUX__PRE                                      0x0
 
-
 #define ORX_FWP_AAG_LEN_W__A                                                0x2020010
 #define ORX_FWP_AAG_LEN_W__W                                                16
 #define ORX_FWP_AAG_LEN_W__M                                                0xFFFF
@@ -3893,7 +3758,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_FWP_PFI_A_W_RATE_1544KBPS                                     0xA4
 #define   ORX_FWP_PFI_A_W_RATE_3088KBPS                                     0xC0
 
-
 #define ORX_FWP_PFI_B_W__A                                                  0x2020015
 #define ORX_FWP_PFI_B_W__W                                                  8
 #define ORX_FWP_PFI_B_W__M                                                  0xFF
@@ -3902,7 +3766,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_FWP_PFI_B_W_RATE_1544KBPS                                     0x94
 #define   ORX_FWP_PFI_B_W_RATE_3088KBPS                                     0xB0
 
-
 #define ORX_FWP_PFI_C_W__A                                                  0x2020016
 #define ORX_FWP_PFI_C_W__W                                                  8
 #define ORX_FWP_PFI_C_W__M                                                  0xFF
@@ -3910,7 +3773,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_FWP_PFI_C_W_RATE_2048KBPS                                     0x5C
 #define   ORX_FWP_PFI_C_W_RATE_1544KBPS                                     0x64
 #define   ORX_FWP_PFI_C_W_RATE_3088KBPS                                     0x50
-
 
 #define ORX_FWP_KR1_AMP_R__A                                                0x2020017
 #define ORX_FWP_KR1_AMP_R__W                                                9
@@ -3936,7 +3798,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_FWP_SRC_DGN_W_EXP__M                                          0xF000
 #define   ORX_FWP_SRC_DGN_W_EXP__PRE                                        0x0
 
-
 #define ORX_FWP_NYQ_ADR_W__A                                                0x202001A
 #define ORX_FWP_NYQ_ADR_W__W                                                5
 #define ORX_FWP_NYQ_ADR_W__M                                                0x1F
@@ -3951,8 +3812,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define ORX_FWP_IQM_FRQ_W__W                                                16
 #define ORX_FWP_IQM_FRQ_W__M                                                0xFFFF
 #define ORX_FWP_IQM_FRQ_W__PRE                                              0x4301
-
-
 
 #define ORX_EQU_COMM_EXEC__A                                                0x2030000
 #define ORX_EQU_COMM_EXEC__W                                                2
@@ -4034,7 +3893,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_EQU_COMM_INT_STM_FBF_READ__M                                  0x2
 #define   ORX_EQU_COMM_INT_STM_FBF_READ__PRE                                0x0
 
-
 #define ORX_EQU_FFF_SCL_W__A                                                0x2030010
 #define ORX_EQU_FFF_SCL_W__W                                                1
 #define ORX_EQU_FFF_SCL_W__M                                                0x1
@@ -4042,14 +3900,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_EQU_FFF_SCL_W_SCALE_GAIN_1                                    0x0
 #define   ORX_EQU_FFF_SCL_W_SCALE_GAIN_2                                    0x1
 
-
 #define ORX_EQU_FFF_UPD_W__A                                                0x2030011
 #define ORX_EQU_FFF_UPD_W__W                                                1
 #define ORX_EQU_FFF_UPD_W__M                                                0x1
 #define ORX_EQU_FFF_UPD_W__PRE                                              0x0
 #define   ORX_EQU_FFF_UPD_W_NO_UPDATE                                       0x0
 #define   ORX_EQU_FFF_UPD_W_LMS_UPDATE                                      0x1
-
 
 #define ORX_EQU_FFF_STP_W__A                                                0x2030012
 #define ORX_EQU_FFF_STP_W__W                                                3
@@ -4183,14 +4039,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_EQU_MXB_SEL_W_UNDECIDED_SYMBOLS                               0x0
 #define   ORX_EQU_MXB_SEL_W_DECIDED_SYMBOLS                                 0x1
 
-
 #define ORX_EQU_FBF_UPD_W__A                                                0x203002C
 #define ORX_EQU_FBF_UPD_W__W                                                1
 #define ORX_EQU_FBF_UPD_W__M                                                0x1
 #define ORX_EQU_FBF_UPD_W__PRE                                              0x0
 #define   ORX_EQU_FBF_UPD_W_NO_UPDATE                                       0x0
 #define   ORX_EQU_FBF_UPD_W_LMS_UPDATE                                      0x1
-
 
 #define ORX_EQU_FBF_STP_W__A                                                0x203002D
 #define ORX_EQU_FBF_STP_W__W                                                3
@@ -4274,14 +4128,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_EQU_ERR_SEL_W_CMA_ERROR                                       0x0
 #define   ORX_EQU_ERR_SEL_W_DDA_ERROR                                       0x1
 
-
 #define ORX_EQU_ERR_TIS_W__A                                                0x203003D
 #define ORX_EQU_ERR_TIS_W__W                                                1
 #define ORX_EQU_ERR_TIS_W__M                                                0x1
 #define ORX_EQU_ERR_TIS_W__PRE                                              0x0
 #define   ORX_EQU_ERR_TIS_W_CMA_SIGNALS                                     0x0
 #define   ORX_EQU_ERR_TIS_W_DDA_SIGNALS                                     0x1
-
 
 #define ORX_EQU_ERR_EDI_R__A                                                0x203003E
 #define ORX_EQU_ERR_EDI_R__W                                                5
@@ -4317,8 +4169,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define ORX_EQU_SYN_LEN_W__W                                                16
 #define ORX_EQU_SYN_LEN_W__M                                                0xFFFF
 #define ORX_EQU_SYN_LEN_W__PRE                                              0x0
-
-
 
 #define ORX_DDC_COMM_EXEC__A                                                0x2040000
 #define ORX_DDC_COMM_EXEC__W                                                2
@@ -4435,8 +4285,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_DDC_OFO_SET_W_DISABLE__M                                      0x8000
 #define   ORX_DDC_OFO_SET_W_DISABLE__PRE                                    0x0
 
-
-
 #define ORX_CON_COMM_EXEC__A                                                0x2050000
 #define ORX_CON_COMM_EXEC__W                                                2
 #define ORX_CON_COMM_EXEC__M                                                0x3
@@ -4479,7 +4327,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_CON_RST_W_KRP__W                                              1
 #define   ORX_CON_RST_W_KRP__M                                              0x8
 #define   ORX_CON_RST_W_KRP__PRE                                            0x0
-
 
 #define ORX_CON_CPH_PHI_R__A                                                0x2050012
 #define ORX_CON_CPH_PHI_R__W                                                16
@@ -4540,7 +4387,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_CON_CPH_WLC_W_WLIM__M                                         0xF0
 #define   ORX_CON_CPH_WLC_W_WLIM__PRE                                       0x80
 
-
 #define ORX_CON_CPH_DLY_W__A                                                0x205001A
 #define ORX_CON_CPH_DLY_W__W                                                3
 #define ORX_CON_CPH_DLY_W__M                                                0x7
@@ -4585,8 +4431,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define ORX_CON_CTI_TAT_W__W                                                4
 #define ORX_CON_CTI_TAT_W__M                                                0xF
 #define ORX_CON_CTI_TAT_W__PRE                                              0x3
-
-
 
 #define ORX_NSU_COMM_EXEC__A                                                0x2060000
 #define ORX_NSU_COMM_EXEC__W                                                2
@@ -4673,7 +4517,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     ORX_NSU_AOX_STDBY_W_STDBYFLT_A2_OFF                             0x0
 #define     ORX_NSU_AOX_STDBY_W_STDBYFLT_A2_ON                              0x80
 
-
 #define ORX_NSU_AOX_LOFRQ_W__A                                              0x2060011
 #define ORX_NSU_AOX_LOFRQ_W__W                                              16
 #define ORX_NSU_AOX_LOFRQ_W__M                                              0xFFFF
@@ -4698,7 +4541,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_NSU_AOX_LOMDE_W_PLL_DIV__M                                    0xC000
 #define   ORX_NSU_AOX_LOMDE_W_PLL_DIV__PRE                                  0x0
 
-
 #define ORX_NSU_AOX_LOPOW_W__A                                              0x2060013
 #define ORX_NSU_AOX_LOPOW_W__W                                              2
 #define ORX_NSU_AOX_LOPOW_W__M                                              0x3
@@ -4707,7 +4549,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_NSU_AOX_LOPOW_W_POWER_MINUS5DB                                0x1
 #define   ORX_NSU_AOX_LOPOW_W_POWER_MINUS10DB                               0x2
 #define   ORX_NSU_AOX_LOPOW_W_POWER_MINUS15DB                               0x3
-
 
 #define ORX_NSU_AOX_STHR_W__A                                               0x2060014
 #define ORX_NSU_AOX_STHR_W__W                                               5
@@ -4748,8 +4589,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_NSU_NSS_BITSWAP_W_BITSWAP_NS2_BP__M                           0x4
 #define   ORX_NSU_NSS_BITSWAP_W_BITSWAP_NS2_BP__PRE                         0x0
 
-
-
 #define ORX_TST_COMM_EXEC__A                                                0x23F0000
 #define ORX_TST_COMM_EXEC__W                                                2
 #define ORX_TST_COMM_EXEC__M                                                0x3
@@ -4758,15 +4597,10 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   ORX_TST_COMM_EXEC_ACTIVE                                          0x1
 #define   ORX_TST_COMM_EXEC_HOLD                                            0x2
 
-
 #define ORX_TST_AOX_TST_W__A                                                0x23F0010
 #define ORX_TST_AOX_TST_W__W                                                8
 #define ORX_TST_AOX_TST_W__M                                                0xFF
 #define ORX_TST_AOX_TST_W__PRE                                              0x0
-
-
-
-
 
 #define QAM_COMM_EXEC__A                                                    0x1400000
 #define QAM_COMM_EXEC__W                                                    2
@@ -4818,8 +4652,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define QAM_COMM_INT_STM__M                                                 0xFFFF
 #define QAM_COMM_INT_STM__PRE                                               0x0
 
-
-
 #define QAM_TOP_COMM_EXEC__A                                                0x1410000
 #define QAM_TOP_COMM_EXEC__W                                                2
 #define QAM_TOP_COMM_EXEC__M                                                0x3
@@ -4827,7 +4659,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_TOP_COMM_EXEC_STOP                                            0x0
 #define   QAM_TOP_COMM_EXEC_ACTIVE                                          0x1
 #define   QAM_TOP_COMM_EXEC_HOLD                                            0x2
-
 
 #define QAM_TOP_ANNEX__A                                                    0x1410010
 #define QAM_TOP_ANNEX__W                                                    2
@@ -4837,7 +4668,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_TOP_ANNEX_B                                                   0x1
 #define   QAM_TOP_ANNEX_C                                                   0x2
 #define   QAM_TOP_ANNEX_D                                                   0x3
-
 
 #define QAM_TOP_CONSTELLATION__A                                            0x1410011
 #define QAM_TOP_CONSTELLATION__W                                            3
@@ -4851,8 +4681,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_TOP_CONSTELLATION_QAM64                                       0x5
 #define   QAM_TOP_CONSTELLATION_QAM128                                      0x6
 #define   QAM_TOP_CONSTELLATION_QAM256                                      0x7
-
-
 
 #define QAM_FQ_COMM_EXEC__A                                                 0x1420000
 #define QAM_FQ_COMM_EXEC__W                                                 2
@@ -4884,7 +4712,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_FQ_MODE_TAPDRAIN__M                                           0x4
 #define   QAM_FQ_MODE_TAPDRAIN__PRE                                         0x0
 #define     QAM_FQ_MODE_TAPDRAIN_DRAIN                                      0x4
-
 
 #define QAM_FQ_MU_FACTOR__A                                                 0x1420011
 #define QAM_FQ_MU_FACTOR__W                                                 3
@@ -5395,8 +5222,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_FQ_TAP_IM_EL23_TAP__M                                         0xFFF
 #define   QAM_FQ_TAP_IM_EL23_TAP__PRE                                       0x2
 
-
-
 #define QAM_SL_COMM_EXEC__A                                                 0x1430000
 #define QAM_SL_COMM_EXEC__W                                                 2
 #define QAM_SL_COMM_EXEC__M                                                 0x3
@@ -5529,7 +5354,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_SL_MODE_TILT_COMP__M                                          0x400
 #define   QAM_SL_MODE_TILT_COMP__PRE                                        0x0
 
-
 #define QAM_SL_K_FACTOR__A                                                  0x1430011
 #define QAM_SL_K_FACTOR__W                                                  4
 #define QAM_SL_K_FACTOR__M                                                  0xF
@@ -5558,7 +5382,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_SL_MEDIAN_FAST__W                                             1
 #define   QAM_SL_MEDIAN_FAST__M                                             0x2000
 #define   QAM_SL_MEDIAN_FAST__PRE                                           0x0
-
 
 #define QAM_SL_ALPHA__A                                                     0x1430013
 #define QAM_SL_ALPHA__W                                                     3
@@ -5589,13 +5412,10 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_SL_MEDIAN_ERROR_MEDIAN_ERR__M                                 0x3FF
 #define   QAM_SL_MEDIAN_ERROR_MEDIAN_ERR__PRE                               0x0
 
-
 #define QAM_SL_ERR_POWER__A                                                 0x1430017
 #define QAM_SL_ERR_POWER__W                                                 16
 #define QAM_SL_ERR_POWER__M                                                 0xFFFF
 #define QAM_SL_ERR_POWER__PRE                                               0x0
-
-
 
 #define QAM_DQ_COMM_EXEC__A                                                 0x1440000
 #define QAM_DQ_COMM_EXEC__W                                                 2
@@ -5636,7 +5456,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     QAM_DQ_MODE_FB_RADIUS                                           0x8
 #define     QAM_DQ_MODE_FB_DFB                                              0x10
 #define     QAM_DQ_MODE_FB_TRELLIS                                          0x18
-
 
 #define QAM_DQ_MU_FACTOR__A                                                 0x1440011
 #define QAM_DQ_MU_FACTOR__W                                                 3
@@ -6311,8 +6130,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_DQ_TAP_IM_EL27_TAP__M                                         0xFFF
 #define   QAM_DQ_TAP_IM_EL27_TAP__PRE                                       0x2
 
-
-
 #define QAM_LC_COMM_EXEC__A                                                 0x1450000
 #define QAM_LC_COMM_EXEC__W                                                 2
 #define QAM_LC_COMM_EXEC__M                                                 0x3
@@ -6768,8 +6585,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_LC_PHASE_ERROR_SIZE__M                                        0x3FF
 #define   QAM_LC_PHASE_ERROR_SIZE__PRE                                      0x0
 
-
-
 #define QAM_VD_COMM_EXEC__A                                                 0x1460000
 #define QAM_VD_COMM_EXEC__W                                                 2
 #define QAM_VD_COMM_EXEC__M                                                 0x3
@@ -6890,7 +6705,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_VD_TRACEBACK_DEPTH_LENGTH__M                                  0x1F
 #define   QAM_VD_TRACEBACK_DEPTH_LENGTH__PRE                                0x10
 
-
 #define QAM_VD_UNLOCK__A                                                    0x1460015
 #define QAM_VD_UNLOCK__W                                                    1
 #define QAM_VD_UNLOCK__M                                                    0x1
@@ -6969,8 +6783,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_VD_RELOCK_COUNT_COUNT__W                                      8
 #define   QAM_VD_RELOCK_COUNT_COUNT__M                                      0xFF
 #define   QAM_VD_RELOCK_COUNT_COUNT__PRE                                    0x0
-
-
 
 #define QAM_SY_COMM_EXEC__A                                                 0x1470000
 #define QAM_SY_COMM_EXEC__W                                                 2
@@ -7078,7 +6890,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_SY_STATUS_SYNC_STATE__M                                       0x3
 #define   QAM_SY_STATUS_SYNC_STATE__PRE                                     0x0
 
-
 #define QAM_SY_TIMEOUT__A                                                   0x1470011
 #define QAM_SY_TIMEOUT__W                                                   16
 #define QAM_SY_TIMEOUT__M                                                   0xFFFF
@@ -7113,21 +6924,11 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   QAM_SY_CONTROL_WORD_CTRL_WORD__M                                  0xF
 #define   QAM_SY_CONTROL_WORD_CTRL_WORD__PRE                                0x0
 
-
-
 #define QAM_VD_ISS_RAM__A                                                   0x1480000
-
-
 
 #define QAM_VD_QSS_RAM__A                                                   0x1490000
 
-
-
 #define QAM_VD_SYM_RAM__A                                                   0x14A0000
-
-
-
-
 
 #define SCU_COMM_EXEC__A                                                    0x800000
 #define SCU_COMM_EXEC__W                                                    2
@@ -7147,8 +6948,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_COMM_STATE_COMM_STATE__M                                      0xFFFF
 #define   SCU_COMM_STATE_COMM_STATE__PRE                                    0x0
 
-
-
 #define SCU_TOP_COMM_EXEC__A                                                0x810000
 #define SCU_TOP_COMM_EXEC__W                                                2
 #define SCU_TOP_COMM_EXEC__M                                                0x3
@@ -7156,7 +6955,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_TOP_COMM_EXEC_STOP                                            0x0
 #define   SCU_TOP_COMM_EXEC_ACTIVE                                          0x1
 #define   SCU_TOP_COMM_EXEC_HOLD                                            0x2
-
 
 #define SCU_TOP_COMM_STATE__A                                               0x810001
 #define SCU_TOP_COMM_STATE__W                                               16
@@ -7181,8 +6979,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     SCU_TOP_MWAIT_CTR_READY_DIS_NMI_ON                              0x0
 #define     SCU_TOP_MWAIT_CTR_READY_DIS_NMI_OFF                             0x2
 
-
-
 #define SCU_LOW_RAM__A                                                      0x820000
 
 #define   SCU_LOW_RAM_LOW__B                                                0
@@ -7190,19 +6986,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_LOW_RAM_LOW__M                                                0xFFFF
 #define   SCU_LOW_RAM_LOW__PRE                                              0x0
 
-
-
 #define SCU_HIGH_RAM__A                                                     0x830000
 
 #define   SCU_HIGH_RAM_HIGH__B                                              0
 #define   SCU_HIGH_RAM_HIGH__W                                              16
 #define   SCU_HIGH_RAM_HIGH__M                                              0xFFFF
 #define   SCU_HIGH_RAM_HIGH__PRE                                            0x0
-
-
-
-
-
 
 #define SCU_RAM_AGC_RF_MAX__A                                               0x831E96
 #define SCU_RAM_AGC_RF_MAX__W                                               15
@@ -7293,7 +7082,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_AGC_KI_RED_IAGC_RED__M                                    0x30
 #define   SCU_RAM_AGC_KI_RED_IAGC_RED__PRE                                  0x0
 
-
 #define SCU_RAM_AGC_KI_INNERGAIN_MIN__A                                     0x831E9F
 #define SCU_RAM_AGC_KI_INNERGAIN_MIN__W                                     16
 #define SCU_RAM_AGC_KI_INNERGAIN_MIN__M                                     0xFFFF
@@ -7352,7 +7140,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_AGC_KI_MAX_IF__W                                          4
 #define   SCU_RAM_AGC_KI_MAX_IF__M                                          0xF00
 #define   SCU_RAM_AGC_KI_MAX_IF__PRE                                        0x0
-
 
 #define SCU_RAM_AGC_CLP_SUM__A                                              0x831EA5
 #define SCU_RAM_AGC_CLP_SUM__W                                              16
@@ -7560,7 +7347,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_AGC_CLP_CTRL_MODE_FAST_CLP_DEC__PRE                       0x0
 #define     SCU_RAM_AGC_CLP_CTRL_MODE_FAST_CLP_DEC_DEC_DISABLE              0x0
 #define     SCU_RAM_AGC_CLP_CTRL_MODE_FAST_CLP_DEC_DEC_ENABLE               0x4
-
 
 #define SCU_RAM_AGC_KI_MIN_RFGAIN__A                                        0x831EC9
 #define SCU_RAM_AGC_KI_MIN_RFGAIN__W                                        16
@@ -7918,7 +7704,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ATV_BPC_KI_MIN_BPC_KI_MIN__M                              0xFFF
 #define   SCU_RAM_ATV_BPC_KI_MIN_BPC_KI_MIN__PRE                            0x0
 
-
 #define SCU_RAM_ORX_RF_RX_FREQUENCY_VALUE__A                                0x831F01
 #define SCU_RAM_ORX_RF_RX_FREQUENCY_VALUE__W                                16
 #define SCU_RAM_ORX_RF_RX_FREQUENCY_VALUE__M                                0xFFFF
@@ -7937,7 +7722,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_REGSPEC                      0xC0
 #define   SCU_RAM_ORX_RF_RX_DATA_RATE_3088KBPS_INVSPEC                      0xC1
 
-
 #define SCU_RAM_ORX_SCU_STATE__A                                            0x831F03
 #define SCU_RAM_ORX_SCU_STATE__W                                            8
 #define SCU_RAM_ORX_SCU_STATE__M                                            0xFF
@@ -7953,7 +7737,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ORX_SCU_STATE_EQT_HUNT                                    0x30
 #define   SCU_RAM_ORX_SCU_STATE_SYNC                                        0x40
 
-
 #define SCU_RAM_ORX_SCU_LOCK__A                                             0x831F04
 #define SCU_RAM_ORX_SCU_LOCK__W                                             16
 #define SCU_RAM_ORX_SCU_LOCK__M                                             0xFFFF
@@ -7967,7 +7750,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ORX_TARGET_MODE_3088KBPS                                  0x1
 #define   SCU_RAM_ORX_TARGET_MODE_2048KBPS_SQRT                             0x2
 #define   SCU_RAM_ORX_TARGET_MODE_2048KBPS_RO                               0x3
-
 
 #define SCU_RAM_ORX_MER_MIN_DB__A                                           0x831F06
 #define SCU_RAM_ORX_MER_MIN_DB__W                                           8
@@ -8116,7 +7898,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ORX_FREQ_GAIN_CORR_1544KBPS                               0x60
 #define   SCU_RAM_ORX_FREQ_GAIN_CORR_2048KBPS                               0x80
 #define   SCU_RAM_ORX_FREQ_GAIN_CORR_3088KBPS                               0xC0
-
 
 #define SCU_RAM_ORX_FRQ_OFFSET__A                                           0x831F23
 #define SCU_RAM_ORX_FRQ_OFFSET__W                                           16
@@ -8432,7 +8213,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     SCU_RAM_ATV_AGC_MODE_MOD_WA_BP_MWA_ENABLE                       0x0
 #define     SCU_RAM_ATV_AGC_MODE_MOD_WA_BP_MWA_DISABLE                      0x80
 
-
 #define SCU_RAM_ATV_RSV_01__A                                               0x831F4E
 #define SCU_RAM_ATV_RSV_01__W                                               16
 #define SCU_RAM_ATV_RSV_01__M                                               0xFFFF
@@ -8496,7 +8276,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ATV_ACT_AMI_ACT_AMI__M                                    0x7FF
 #define   SCU_RAM_ATV_ACT_AMI_ACT_AMI__PRE                                  0x0
 
-
 #define SCU_RAM_ATV_RSV_05__A                                               0x831F56
 #define SCU_RAM_ATV_RSV_05__W                                               16
 #define SCU_RAM_ATV_RSV_05__M                                               0xFFFF
@@ -8556,7 +8335,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ATV_VID_GAIN_LO_VID_GAIN_LO__M                            0xFF
 #define   SCU_RAM_ATV_VID_GAIN_LO_VID_GAIN_LO__PRE                          0x0
 
-
 #define SCU_RAM_ATV_RSV_13__A                                               0x831F60
 #define SCU_RAM_ATV_RSV_13__W                                               16
 #define SCU_RAM_ATV_RSV_13__M                                               0xFFFF
@@ -8595,7 +8373,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_ATV_SIF_GAIN_SIF_GAIN__W                                  11
 #define   SCU_RAM_ATV_SIF_GAIN_SIF_GAIN__M                                  0x7FF
 #define   SCU_RAM_ATV_SIF_GAIN_SIF_GAIN__PRE                                0x0
-
 
 #define SCU_RAM_ATV_RSV_17__A                                               0x831F66
 #define SCU_RAM_ATV_RSV_17__W                                               16
@@ -10086,7 +9863,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     SCU_RAM_VSB_CTL_MODE_VSB_CTL_MODE_MON_OFF                       0x0
 #define     SCU_RAM_VSB_CTL_MODE_VSB_CTL_MODE_MON_ON                        0x2
 
-
 #define SCU_RAM_VSB_NOTCH_THRESHOLD__A                                      0x831FD8
 #define SCU_RAM_VSB_NOTCH_THRESHOLD__W                                      16
 #define SCU_RAM_VSB_NOTCH_THRESHOLD__M                                      0xFFFF
@@ -10271,7 +10047,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_LOCKED                         0x8000
 #define   SCU_RAM_PARAM_1_RES_DEMOD_GET_LOCK_NEVER_LOCK                     0xC000
 
-
 #define SCU_RAM_PARAM_0__A                                                  0x831FFC
 #define SCU_RAM_PARAM_0__W                                                  16
 #define SCU_RAM_PARAM_0__M                                                  0xFFFF
@@ -10293,7 +10068,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_PARAM_0_RESULT_UNKSTD                                     0xFFFE
 #define   SCU_RAM_PARAM_0_RESULT_INVPAR                                     0xFFFD
 #define   SCU_RAM_PARAM_0_RESULT_SIZE                                       0xFFFC
-
 
 #define SCU_RAM_COMMAND__A                                                  0x831FFD
 #define SCU_RAM_COMMAND__W                                                  16
@@ -10385,10 +10159,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SCU_RAM_VERSION_LO_VER_PATCH_N1__M                                0xF
 #define   SCU_RAM_VERSION_LO_VER_PATCH_N1__PRE                              0x0
 
-
-
-
-
 #define SIO_COMM_EXEC__A                                                    0x400000
 #define SIO_COMM_EXEC__W                                                    2
 #define SIO_COMM_EXEC__M                                                    0x3
@@ -10433,8 +10203,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define SIO_COMM_INT_STM__M                                                 0xFFFF
 #define SIO_COMM_INT_STM__PRE                                               0x0
 
-
-
 #define SIO_TOP_COMM_EXEC__A                                                0x410000
 #define SIO_TOP_COMM_EXEC__W                                                2
 #define SIO_TOP_COMM_EXEC__M                                                0x3
@@ -10443,13 +10211,11 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_TOP_COMM_EXEC_ACTIVE                                          0x1
 #define   SIO_TOP_COMM_EXEC_HOLD                                            0x2
 
-
 #define SIO_TOP_COMM_KEY__A                                                 0x41000F
 #define SIO_TOP_COMM_KEY__W                                                 16
 #define SIO_TOP_COMM_KEY__M                                                 0xFFFF
 #define SIO_TOP_COMM_KEY__PRE                                               0x0
 #define   SIO_TOP_COMM_KEY_KEY                                              0xFABA
-
 
 #define SIO_TOP_JTAGID_LO__A                                                0x410012
 #define SIO_TOP_JTAGID_LO__W                                                16
@@ -10460,9 +10226,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define SIO_TOP_JTAGID_HI__W                                                16
 #define SIO_TOP_JTAGID_HI__M                                                0xFFFF
 #define SIO_TOP_JTAGID_HI__PRE                                              0x0
-
-
-
 
 #define SIO_HI_RA_RAM_S0_FLG_SMM__A                                         0x420010
 #define SIO_HI_RA_RAM_S0_FLG_SMM__W                                         1
@@ -10532,7 +10295,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_S0_ADDR_S0_SLV_ADDR__W                              16
 #define   SIO_HI_RA_RAM_S0_ADDR_S0_SLV_ADDR__M                              0xFFFF
 #define   SIO_HI_RA_RAM_S0_ADDR_S0_SLV_ADDR__PRE                            0x0
-
 
 #define SIO_HI_RA_RAM_S0_CRC__A                                             0x420017
 #define SIO_HI_RA_RAM_S0_CRC__W                                             16
@@ -10637,7 +10399,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_S1_ADDR_S1_SLV_ADDR__W                              16
 #define   SIO_HI_RA_RAM_S1_ADDR_S1_SLV_ADDR__M                              0xFFFF
 #define   SIO_HI_RA_RAM_S1_ADDR_S1_SLV_ADDR__PRE                            0x0
-
 
 #define SIO_HI_RA_RAM_S1_CRC__A                                             0x420027
 #define SIO_HI_RA_RAM_S1_CRC__W                                             16
@@ -10924,7 +10685,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_PAR_6_CFG_WDD__M                                    0xFF00
 #define   SIO_HI_RA_RAM_PAR_6_CFG_WDD__PRE                                  0x9500
 
-
 #define SIO_HI_RA_RAM_AB_TEMP__A                                            0x42006E
 #define SIO_HI_RA_RAM_AB_TEMP__W                                            16
 #define SIO_HI_RA_RAM_AB_TEMP__M                                            0xFFFF
@@ -10970,7 +10730,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET0_HI_MAP_OFF0__M                           0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET0_HI_MAP_OFF0__PRE                         0x0
 
-
 #define SIO_HI_RA_RAM_VB_ENTRY1__A                                          0x420072
 #define SIO_HI_RA_RAM_VB_ENTRY1__W                                          16
 #define SIO_HI_RA_RAM_VB_ENTRY1__M                                          0xFFFF
@@ -10984,7 +10743,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET1_HI_MAP_OFF__W                            16
 #define   SIO_HI_RA_RAM_VB_OFFSET1_HI_MAP_OFF__M                            0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET1_HI_MAP_OFF__PRE                          0x0
-
 
 #define SIO_HI_RA_RAM_VB_ENTRY2__A                                          0x420074
 #define SIO_HI_RA_RAM_VB_ENTRY2__W                                          16
@@ -11000,7 +10758,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET2_HI_MAP_OFF__M                            0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET2_HI_MAP_OFF__PRE                          0x0
 
-
 #define SIO_HI_RA_RAM_VB_ENTRY3__A                                          0x420076
 #define SIO_HI_RA_RAM_VB_ENTRY3__W                                          16
 #define SIO_HI_RA_RAM_VB_ENTRY3__M                                          0xFFFF
@@ -11014,7 +10771,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET3_HI_MAP_OFF__W                            16
 #define   SIO_HI_RA_RAM_VB_OFFSET3_HI_MAP_OFF__M                            0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET3_HI_MAP_OFF__PRE                          0x0
-
 
 #define SIO_HI_RA_RAM_VB_ENTRY4__A                                          0x420078
 #define SIO_HI_RA_RAM_VB_ENTRY4__W                                          16
@@ -11030,7 +10786,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET4_HI_MAP_OFF__M                            0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET4_HI_MAP_OFF__PRE                          0x0
 
-
 #define SIO_HI_RA_RAM_VB_ENTRY5__A                                          0x42007A
 #define SIO_HI_RA_RAM_VB_ENTRY5__W                                          16
 #define SIO_HI_RA_RAM_VB_ENTRY5__M                                          0xFFFF
@@ -11044,7 +10799,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET5_HI_MAP_OFF__W                            16
 #define   SIO_HI_RA_RAM_VB_OFFSET5_HI_MAP_OFF__M                            0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET5_HI_MAP_OFF__PRE                          0x0
-
 
 #define SIO_HI_RA_RAM_VB_ENTRY6__A                                          0x42007C
 #define SIO_HI_RA_RAM_VB_ENTRY6__W                                          16
@@ -11060,7 +10814,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET6_HI_MAP_OFF__M                            0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET6_HI_MAP_OFF__PRE                          0x0
 
-
 #define SIO_HI_RA_RAM_VB_ENTRY7__A                                          0x42007E
 #define SIO_HI_RA_RAM_VB_ENTRY7__W                                          16
 #define SIO_HI_RA_RAM_VB_ENTRY7__M                                          0xFFFF
@@ -11074,8 +10827,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_RA_RAM_VB_OFFSET7_HI_MAP_OFF__W                            16
 #define   SIO_HI_RA_RAM_VB_OFFSET7_HI_MAP_OFF__M                            0xFFFF
 #define   SIO_HI_RA_RAM_VB_OFFSET7_HI_MAP_OFF__PRE                          0x0
-
-
 
 #define SIO_HI_IF_RAM_TRP_BPT_0__A                                          0x430000
 #define SIO_HI_IF_RAM_TRP_BPT_0__W                                          12
@@ -11098,8 +10849,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define SIO_HI_IF_RAM_FUN_BASE__M                                           0xFFF
 #define SIO_HI_IF_RAM_FUN_BASE__PRE                                         0x0
 
-
-
 #define SIO_HI_IF_COMM_EXEC__A                                              0x440000
 #define SIO_HI_IF_COMM_EXEC__W                                              2
 #define SIO_HI_IF_COMM_EXEC__M                                              0x3
@@ -11108,7 +10857,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_IF_COMM_EXEC_ACTIVE                                        0x1
 #define   SIO_HI_IF_COMM_EXEC_HOLD                                          0x2
 #define   SIO_HI_IF_COMM_EXEC_STEP                                          0x3
-
 
 #define SIO_HI_IF_COMM_STATE__A                                             0x440001
 #define SIO_HI_IF_COMM_STATE__W                                             10
@@ -11203,8 +10951,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_HI_IF_BPT_ADDR__M                                             0x3FF
 #define   SIO_HI_IF_BPT_ADDR__PRE                                           0x2
 
-
-
 #define SIO_CC_COMM_EXEC__A                                                 0x450000
 #define SIO_CC_COMM_EXEC__W                                                 2
 #define SIO_CC_COMM_EXEC__M                                                 0x3
@@ -11239,7 +10985,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     SIO_CC_PLL_MODE_BYPASS_OHW                                      0x0
 #define     SIO_CC_PLL_MODE_BYPASS_OFF                                      0x10
 #define     SIO_CC_PLL_MODE_BYPASS_ON                                       0x20
-
 
 #define SIO_CC_PLL_TEST__A                                                  0x450011
 #define SIO_CC_PLL_TEST__W                                                  8
@@ -11299,14 +11044,11 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_CC_SOFT_RST_OSC__M                                            0x2
 #define   SIO_CC_SOFT_RST_OSC__PRE                                          0x0
 
-
 #define SIO_CC_UPDATE__A                                                    0x450017
 #define SIO_CC_UPDATE__W                                                    16
 #define SIO_CC_UPDATE__M                                                    0xFFFF
 #define SIO_CC_UPDATE__PRE                                                  0x0
 #define   SIO_CC_UPDATE_KEY                                                 0xFABA
-
-
 
 #define SIO_SA_COMM_EXEC__A                                                 0x460000
 #define SIO_SA_COMM_EXEC__W                                                 2
@@ -11485,8 +11227,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_SA_RX_STATUS_BUFF_FULL__W                                     1
 #define   SIO_SA_RX_STATUS_BUFF_FULL__M                                     0x2
 #define   SIO_SA_RX_STATUS_BUFF_FULL__PRE                                   0x0
-
-
 
 #define SIO_PDR_COMM_EXEC__A                                                0x7F0000
 #define SIO_PDR_COMM_EXEC__W                                                2
@@ -12308,11 +12048,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   SIO_PDR_SMA_TX_GPIO_FNC_SEL__M                                    0x3
 #define   SIO_PDR_SMA_TX_GPIO_FNC_SEL__PRE                                  0x0
 
-
-
-
-
-
 #define VSB_COMM_EXEC__A                                                    0x1C00000
 #define VSB_COMM_EXEC__W                                                    2
 #define VSB_COMM_EXEC__M                                                    0x3
@@ -12320,7 +12055,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_COMM_EXEC_STOP                                                0x0
 #define   VSB_COMM_EXEC_ACTIVE                                              0x1
 #define   VSB_COMM_EXEC_HOLD                                                0x2
-
 
 #define VSB_COMM_MB__A                                                      0x1C00002
 #define VSB_COMM_MB__W                                                      16
@@ -12336,7 +12070,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_COMM_INT_REQ_TOP_INT_REQ__M                                   0x1
 #define   VSB_COMM_INT_REQ_TOP_INT_REQ__PRE                                 0x0
 
-
 #define VSB_COMM_INT_STA__A                                                 0x1C00005
 #define VSB_COMM_INT_STA__W                                                 16
 #define VSB_COMM_INT_STA__M                                                 0xFFFF
@@ -12351,9 +12084,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define VSB_COMM_INT_STM__W                                                 16
 #define VSB_COMM_INT_STM__M                                                 0xFFFF
 #define VSB_COMM_INT_STM__PRE                                               0x0
-
-
-
 
 #define VSB_TOP_COMM_EXEC__A                                                0x1C10000
 #define VSB_TOP_COMM_EXEC__W                                                2
@@ -12400,7 +12130,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define     VSB_TOP_COMM_MB_MUX_OBS_VSB_FFE_2                               0x180
 #define     VSB_TOP_COMM_MB_MUX_OBS_VSB_DFE_1                               0x1C0
 #define     VSB_TOP_COMM_MB_MUX_OBS_VSB_DFE_2                               0x200
-
 
 #define VSB_TOP_COMM_INT_REQ__A                                             0x1C10003
 #define VSB_TOP_COMM_INT_REQ__W                                             1
@@ -12511,7 +12240,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_COMM_INT_STM_MERSER_STM__M                                0x20
 #define   VSB_TOP_COMM_INT_STM_MERSER_STM__PRE                              0x0
 
-
 #define VSB_TOP_CKGN1ACQ__A                                                 0x1C10010
 #define VSB_TOP_CKGN1ACQ__W                                                 8
 #define VSB_TOP_CKGN1ACQ__M                                                 0xFF
@@ -12590,7 +12318,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_SYNCCTRLWORD_AGCIGNOREFS__W                               1
 #define   VSB_TOP_SYNCCTRLWORD_AGCIGNOREFS__M                               0x10
 #define   VSB_TOP_SYNCCTRLWORD_AGCIGNOREFS__PRE                             0x0
-
 
 #define VSB_TOP_MAINSMUP__A                                                 0x1C1001B
 #define VSB_TOP_MAINSMUP__W                                                 8
@@ -12776,7 +12503,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_SMALL_NOTCH_CONTROL_SOFT_RESET__M                         0x80
 #define   VSB_TOP_SMALL_NOTCH_CONTROL_SOFT_RESET__PRE                       0x0
 
-
 #define VSB_TOP_TAPREADCYC__A                                               0x1C10025
 #define VSB_TOP_TAPREADCYC__W                                               9
 #define VSB_TOP_TAPREADCYC__M                                               0x1FF
@@ -12825,7 +12551,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_LOCKSTATUS_DDMON__W                                       1
 #define   VSB_TOP_LOCKSTATUS_DDMON__M                                       0x40
 #define   VSB_TOP_LOCKSTATUS_DDMON__PRE                                     0x0
-
 
 #define VSB_TOP_CTST__A                                                     0x1C1002B
 #define VSB_TOP_CTST__W                                                     4
@@ -13481,7 +13206,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_PREEQAGCCTRL_PREEQAGCFRZ__M                               0x10
 #define   VSB_TOP_PREEQAGCCTRL_PREEQAGCFRZ__PRE                             0x10
 
-
 #define VSB_TOP_PREEQAGCPWRREFLVLHI__A                                      0x1C1003A
 #define VSB_TOP_PREEQAGCPWRREFLVLHI__W                                      8
 #define VSB_TOP_PREEQAGCPWRREFLVLHI__M                                      0xFF
@@ -13535,7 +13259,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_BEDETCTRL_BYPASS_DMP__W                                   1
 #define   VSB_TOP_BEDETCTRL_BYPASS_DMP__M                                   0x100
 #define   VSB_TOP_BEDETCTRL_BYPASS_DMP__PRE                                 0x100
-
 
 #define VSB_TOP_LBAGCREFLVL__A                                              0x1C1003E
 #define VSB_TOP_LBAGCREFLVL__W                                              12
@@ -13621,7 +13344,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_AGC_TRUNCCTRL_TRUNC_EN__M                                 0x8
 #define   VSB_TOP_AGC_TRUNCCTRL_TRUNC_EN__PRE                               0x8
 
-
 #define VSB_TOP_BEAGC_DEADZONEINIT__A                                       0x1C1004C
 #define VSB_TOP_BEAGC_DEADZONEINIT__W                                       8
 #define VSB_TOP_BEAGC_DEADZONEINIT__M                                       0xFF
@@ -13646,7 +13368,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_BEAGC_REGINIT_BEAGC_RST__W                                1
 #define   VSB_TOP_BEAGC_REGINIT_BEAGC_RST__M                                0x4000
 #define   VSB_TOP_BEAGC_REGINIT_BEAGC_RST__PRE                              0x0
-
 
 #define VSB_TOP_BEAGC_SCALE__A                                              0x1C10050
 #define VSB_TOP_BEAGC_SCALE__W                                              14
@@ -13677,7 +13398,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_CFAGC_REGINIT_CFAGC_RST__W                                1
 #define   VSB_TOP_CFAGC_REGINIT_CFAGC_RST__M                                0x4000
 #define   VSB_TOP_CFAGC_REGINIT_CFAGC_RST__PRE                              0x0
-
 
 #define VSB_TOP_CFAGC_SCALE__A                                              0x1C10055
 #define VSB_TOP_CFAGC_SCALE__W                                              14
@@ -13767,7 +13487,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_PARAOWCTRL_PARAOWEN__W                                    1
 #define   VSB_TOP_PARAOWCTRL_PARAOWEN__M                                    0x40
 #define   VSB_TOP_PARAOWCTRL_PARAOWEN__PRE                                  0x0
-
 
 #define VSB_TOP_CURRENTSEGLOCAT__A                                          0x1C10065
 #define VSB_TOP_CURRENTSEGLOCAT__W                                          10
@@ -13863,7 +13582,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TOP_PHASELOCKCTRL_IQSWITCH__M                                 0x40
 #define   VSB_TOP_PHASELOCKCTRL_IQSWITCH__PRE                               0x0
 
-
 #define VSB_TOP_DLOCKACCUM__A                                               0x1C10071
 #define VSB_TOP_DLOCKACCUM__W                                               16
 #define VSB_TOP_DLOCKACCUM__M                                               0xFFFF
@@ -13888,9 +13606,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define VSB_TOP_DCRMVACUMQ__W                                               10
 #define VSB_TOP_DCRMVACUMQ__M                                               0x3FF
 #define VSB_TOP_DCRMVACUMQ__PRE                                             0x0
-
-
-
 
 #define VSB_SYSCTRL_RAM0_FFETRAINLKRATIO1__A                                0x1C20000
 #define VSB_SYSCTRL_RAM0_FFETRAINLKRATIO1__W                                12
@@ -14611,8 +14326,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_SYSCTRL_RAM0_FIRRCA1GAIN8_FIRRCA1DATAGAIN8__M                 0x7F00
 #define   VSB_SYSCTRL_RAM0_FIRRCA1GAIN8_FIRRCA1DATAGAIN8__PRE               0x0
 
-
-
 #define VSB_SYSCTRL_RAM1_FIRRCA1GAIN9__A                                    0x1C30000
 #define VSB_SYSCTRL_RAM1_FIRRCA1GAIN9__W                                    15
 #define VSB_SYSCTRL_RAM1_FIRRCA1GAIN9__M                                    0x7FFF
@@ -15213,7 +14926,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_SYSCTRL_RAM1_FIRDDM2GAIN12_FIRDDM2DATAGAIN12__M               0x7F00
 #define   VSB_SYSCTRL_RAM1_FIRDDM2GAIN12_FIRDDM2DATAGAIN12__PRE             0x0
 
-
 #define VSB_SYSCTRL_RAM1_DFETRAINLKRATIO__A                                 0x1C30028
 #define VSB_SYSCTRL_RAM1_DFETRAINLKRATIO__W                                 12
 #define VSB_SYSCTRL_RAM1_DFETRAINLKRATIO__M                                 0xFFF
@@ -15323,8 +15035,6 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_SYSCTRL_RAM1_DFEDDM2GAIN_DFEDDM2DATAGAIN__M                   0x7F00
 #define   VSB_SYSCTRL_RAM1_DFEDDM2GAIN_DFEDDM2DATAGAIN__PRE                 0x0
 
-
-
 #define VSB_TCMEQ_RAM__A                                                    0x1C40000
 
 #define   VSB_TCMEQ_RAM_TCMEQ_RAM__B                                        0
@@ -15332,16 +15042,12 @@ extern RegisterTableInfo_t drxj_map_info[];
 #define   VSB_TCMEQ_RAM_TCMEQ_RAM__M                                        0xFFFF
 #define   VSB_TCMEQ_RAM_TCMEQ_RAM__PRE                                      0x0
 
-
-
 #define VSB_FCPRE_RAM__A                                                    0x1C50000
 
 #define   VSB_FCPRE_RAM_FCPRE_RAM__B                                        0
 #define   VSB_FCPRE_RAM_FCPRE_RAM__W                                        16
 #define   VSB_FCPRE_RAM_FCPRE_RAM__M                                        0xFFFF
 #define   VSB_FCPRE_RAM_FCPRE_RAM__PRE                                      0x0
-
-
 
 #define VSB_EQTAP_RAM__A                                                    0x1C60000
 
@@ -15353,5 +15059,4 @@ extern RegisterTableInfo_t drxj_map_info[];
 #ifdef __cplusplus
 }
 #endif
-
 #endif

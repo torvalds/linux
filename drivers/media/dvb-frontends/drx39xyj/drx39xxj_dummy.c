@@ -13,59 +13,58 @@
 #include "drx39xxj.h"
 
 /* Dummy function to satisfy drxj.c */
-DRXStatus_t DRXBSP_TUNER_Open( pTUNERInstance_t tuner )
+DRXStatus_t DRXBSP_TUNER_Open(pTUNERInstance_t tuner)
 {
 	return DRX_STS_OK;
 }
 
-DRXStatus_t DRXBSP_TUNER_Close( pTUNERInstance_t tuner )
+DRXStatus_t DRXBSP_TUNER_Close(pTUNERInstance_t tuner)
 {
 	return DRX_STS_OK;
 }
 
-DRXStatus_t DRXBSP_TUNER_SetFrequency( pTUNERInstance_t tuner,
-				       TUNERMode_t mode,
-				       DRXFrequency_t centerFrequency )
+DRXStatus_t DRXBSP_TUNER_SetFrequency(pTUNERInstance_t tuner,
+				      TUNERMode_t mode,
+				      DRXFrequency_t centerFrequency)
 {
 	return DRX_STS_OK;
 }
 
 DRXStatus_t
-DRXBSP_TUNER_GetFrequency( pTUNERInstance_t tuner,
-			   TUNERMode_t      mode,
-			   pDRXFrequency_t  RFfrequency,
-			   pDRXFrequency_t  IFfrequency )
+DRXBSP_TUNER_GetFrequency(pTUNERInstance_t tuner,
+			  TUNERMode_t mode,
+			  pDRXFrequency_t RFfrequency,
+			  pDRXFrequency_t IFfrequency)
 {
 	return DRX_STS_OK;
 }
 
-DRXStatus_t DRXBSP_HST_Sleep( u32_t n )
+DRXStatus_t DRXBSP_HST_Sleep(u32_t n)
 {
 	msleep(n);
 	return DRX_STS_OK;
 }
 
-u32_t DRXBSP_HST_Clock( void )
+u32_t DRXBSP_HST_Clock(void)
 {
 	return jiffies_to_msecs(jiffies);
 }
 
-int DRXBSP_HST_Memcmp( void *s1, void *s2, u32_t n)
+int DRXBSP_HST_Memcmp(void *s1, void *s2, u32_t n)
 {
-	return ( memcmp( s1, s2, (size_t) n) );
+	return (memcmp(s1, s2, (size_t) n));
 }
 
-void* DRXBSP_HST_Memcpy( void *to, void *from, u32_t n)
+void *DRXBSP_HST_Memcpy(void *to, void *from, u32_t n)
 {
-	return ( memcpy( to, from, (size_t) n) );
+	return (memcpy(to, from, (size_t) n));
 }
 
-DRXStatus_t DRXBSP_I2C_WriteRead( pI2CDeviceAddr_t wDevAddr,
-				  u16_t            wCount,
-				  pu8_t            wData,
-				  pI2CDeviceAddr_t rDevAddr,
-				  u16_t            rCount,
-				  pu8_t            rData    )
+DRXStatus_t DRXBSP_I2C_WriteRead(pI2CDeviceAddr_t wDevAddr,
+				 u16_t wCount,
+				 pu8_t wData,
+				 pI2CDeviceAddr_t rDevAddr,
+				 u16_t rCount, pu8_t rData)
 {
 	struct drx39xxj_state *state;
 	struct i2c_msg msg[2];
@@ -102,8 +101,8 @@ DRXStatus_t DRXBSP_I2C_WriteRead( pI2CDeviceAddr_t wDevAddr,
 	}
 
 	if (state->i2c == NULL) {
-	  printk("i2c was zero, aborting\n");
-	  return 0;
+		printk("i2c was zero, aborting\n");
+		return 0;
 	}
 	if (i2c_transfer(state->i2c, msg, num_msgs) != num_msgs) {
 		printk(KERN_WARNING "drx3933: I2C write/read failed\n");
@@ -116,10 +115,10 @@ DRXStatus_t DRXBSP_I2C_WriteRead( pI2CDeviceAddr_t wDevAddr,
 	struct drx39xxj_state *state = wDevAddr->userData;
 
 	struct i2c_msg msg[2] = {
-		{ .addr = wDevAddr->i2cAddr,
-		  .flags = 0, .buf = wData, .len = wCount },
-		{ .addr = rDevAddr->i2cAddr,
-		  .flags = I2C_M_RD, .buf = rData, .len = rCount },
+		{.addr = wDevAddr->i2cAddr,
+		 .flags = 0,.buf = wData,.len = wCount},
+		{.addr = rDevAddr->i2cAddr,
+		 .flags = I2C_M_RD,.buf = rData,.len = rCount},
 	};
 
 	printk("drx3933 i2c operation addr=%x i2c=%p, wc=%x rc=%x\n",

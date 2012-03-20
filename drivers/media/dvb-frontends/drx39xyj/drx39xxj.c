@@ -32,7 +32,7 @@
 #include "drxj_mc.h"
 #include "drxj.h"
 
-static int drx39xxj_set_powerstate(struct dvb_frontend* fe, int enable)
+static int drx39xxj_set_powerstate(struct dvb_frontend *fe, int enable)
 {
 	struct drx39xxj_state *state = fe->demodulator_priv;
 	DRXDemodInstance_t *demod = state->demod;
@@ -54,10 +54,10 @@ static int drx39xxj_set_powerstate(struct dvb_frontend* fe, int enable)
 	return 0;
 }
 
-static int drx39xxj_read_status(struct dvb_frontend* fe, fe_status_t* status)
+static int drx39xxj_read_status(struct dvb_frontend *fe, fe_status_t * status)
 {
-	struct drx39xxj_state* state = fe->demodulator_priv;
-	DRXDemodInstance_t  *demod = state->demod;
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	DRXDemodInstance_t *demod = state->demod;
 	DRXStatus_t result;
 	DRXLockStatus_t lock_status;
 
@@ -87,16 +87,12 @@ static int drx39xxj_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	case DRX_LOCK_STATE_8:
 	case DRX_LOCK_STATE_9:
 		*status = FE_HAS_SIGNAL
-			| FE_HAS_CARRIER
-			| FE_HAS_VITERBI
-			| FE_HAS_SYNC;
+		    | FE_HAS_CARRIER | FE_HAS_VITERBI | FE_HAS_SYNC;
 		break;
 	case DRX_LOCKED:
 		*status = FE_HAS_SIGNAL
-			| FE_HAS_CARRIER
-			| FE_HAS_VITERBI
-			| FE_HAS_SYNC
-			| FE_HAS_LOCK;
+		    | FE_HAS_CARRIER
+		    | FE_HAS_VITERBI | FE_HAS_SYNC | FE_HAS_LOCK;
 		break;
 	default:
 		printk("Lock state unknown %d\n", lock_status);
@@ -105,10 +101,10 @@ static int drx39xxj_read_status(struct dvb_frontend* fe, fe_status_t* status)
 	return 0;
 }
 
-static int drx39xxj_read_ber(struct dvb_frontend* fe, u32* ber)
+static int drx39xxj_read_ber(struct dvb_frontend *fe, u32 * ber)
 {
-	struct drx39xxj_state* state = fe->demodulator_priv;
-	DRXDemodInstance_t  *demod = state->demod;
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	DRXDemodInstance_t *demod = state->demod;
 	DRXStatus_t result;
 	DRXSigQuality_t sig_quality;
 
@@ -123,10 +119,11 @@ static int drx39xxj_read_ber(struct dvb_frontend* fe, u32* ber)
 	return 0;
 }
 
-static int drx39xxj_read_signal_strength(struct dvb_frontend* fe, u16* strength)
+static int drx39xxj_read_signal_strength(struct dvb_frontend *fe,
+					 u16 * strength)
 {
-	struct drx39xxj_state* state = fe->demodulator_priv;
-	DRXDemodInstance_t  *demod = state->demod;
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	DRXDemodInstance_t *demod = state->demod;
 	DRXStatus_t result;
 	DRXSigQuality_t sig_quality;
 
@@ -142,10 +139,10 @@ static int drx39xxj_read_signal_strength(struct dvb_frontend* fe, u16* strength)
 	return 0;
 }
 
-static int drx39xxj_read_snr(struct dvb_frontend* fe, u16* snr)
+static int drx39xxj_read_snr(struct dvb_frontend *fe, u16 * snr)
 {
-	struct drx39xxj_state* state = fe->demodulator_priv;
-	DRXDemodInstance_t  *demod = state->demod;
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	DRXDemodInstance_t *demod = state->demod;
 	DRXStatus_t result;
 	DRXSigQuality_t sig_quality;
 
@@ -160,10 +157,10 @@ static int drx39xxj_read_snr(struct dvb_frontend* fe, u16* snr)
 	return 0;
 }
 
-static int drx39xxj_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
+static int drx39xxj_read_ucblocks(struct dvb_frontend *fe, u32 * ucblocks)
 {
-	struct drx39xxj_state* state = fe->demodulator_priv;
-	DRXDemodInstance_t  *demod = state->demod;
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	DRXDemodInstance_t *demod = state->demod;
 	DRXStatus_t result;
 	DRXSigQuality_t sig_quality;
 
@@ -178,38 +175,40 @@ static int drx39xxj_read_ucblocks(struct dvb_frontend* fe, u32* ucblocks)
 	return 0;
 }
 
-static int drx39xxj_get_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int drx39xxj_get_frontend(struct dvb_frontend *fe,
+				 struct dvb_frontend_parameters *p)
 {
 	return 0;
 }
 
-static int drx39xxj_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int drx39xxj_set_frontend(struct dvb_frontend *fe,
+				 struct dvb_frontend_parameters *p)
 {
 #ifdef DJH_DEBUG
 	int i;
 #endif
-	struct drx39xxj_state* state = fe->demodulator_priv;
-	DRXDemodInstance_t  *demod = state->demod;
+	struct drx39xxj_state *state = fe->demodulator_priv;
+	DRXDemodInstance_t *demod = state->demod;
 	DRXStandard_t standard = DRX_STANDARD_8VSB;
 	DRXChannel_t channel;
 	DRXStatus_t result;
 	DRXUIOData_t uioData;
-	DRXChannel_t defChannel = {/* frequency      */ 0,
-				 /* bandwidth      */ DRX_BANDWIDTH_6MHZ,
-				 /* mirror         */ DRX_MIRROR_NO,
-				 /* constellation  */ DRX_CONSTELLATION_AUTO,
-				 /* hierarchy      */ DRX_HIERARCHY_UNKNOWN,
-				 /* priority       */ DRX_PRIORITY_UNKNOWN,
-				 /* coderate       */ DRX_CODERATE_UNKNOWN,
-				 /* guard          */ DRX_GUARD_UNKNOWN,
-				 /* fftmode        */ DRX_FFTMODE_UNKNOWN,
-				 /* classification */ DRX_CLASSIFICATION_AUTO,
-				 /* symbolrate     */ 5057000,
-				 /* interleavemode */ DRX_INTERLEAVEMODE_UNKNOWN,
-				 /* ldpc           */ DRX_LDPC_UNKNOWN,
-				 /* carrier        */ DRX_CARRIER_UNKNOWN,
-				 /* frame mode     */ DRX_FRAMEMODE_UNKNOWN
-				 };
+	DRXChannel_t defChannel = { /* frequency      */ 0,
+		/* bandwidth      */ DRX_BANDWIDTH_6MHZ,
+		/* mirror         */ DRX_MIRROR_NO,
+		/* constellation  */ DRX_CONSTELLATION_AUTO,
+		/* hierarchy      */ DRX_HIERARCHY_UNKNOWN,
+		/* priority       */ DRX_PRIORITY_UNKNOWN,
+		/* coderate       */ DRX_CODERATE_UNKNOWN,
+		/* guard          */ DRX_GUARD_UNKNOWN,
+		/* fftmode        */ DRX_FFTMODE_UNKNOWN,
+		/* classification */ DRX_CLASSIFICATION_AUTO,
+		/* symbolrate     */ 5057000,
+		/* interleavemode */ DRX_INTERLEAVEMODE_UNKNOWN,
+		/* ldpc           */ DRX_LDPC_UNKNOWN,
+		/* carrier        */ DRX_CARRIER_UNKNOWN,
+		/* frame mode     */ DRX_FRAMEMODE_UNKNOWN
+	};
 
 	/* Bring the demod out of sleep */
 	drx39xxj_set_powerstate(fe, 1);
@@ -236,9 +235,9 @@ static int drx39xxj_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 
 	/* set channel parameters */
 	channel = defChannel;
-	channel.frequency      = p->frequency / 1000;
-	channel.bandwidth      = DRX_BANDWIDTH_6MHZ;
-	channel.constellation  = DRX_CONSTELLATION_AUTO;
+	channel.frequency = p->frequency / 1000;
+	channel.bandwidth = DRX_BANDWIDTH_6MHZ;
+	channel.constellation = DRX_CONSTELLATION_AUTO;
 
 	/* program channel */
 	result = DRX_Ctrl(demod, DRX_CTRL_SET_CHANNEL, &channel);
@@ -246,31 +245,28 @@ static int drx39xxj_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_pa
 		printk("Failed to set channel!\n");
 		return -EINVAL;
 	}
-
 	// Just for giggles, let's shut off the LNA again....
-	uioData.uio   = DRX_UIO1;
+	uioData.uio = DRX_UIO1;
 	uioData.value = FALSE;
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
 	if (result != DRX_STS_OK) {
 		printk("Failed to disable LNA!\n");
 		return 0;
 	}
-
 #ifdef DJH_DEBUG
-	for(i = 0; i < 2000; i++) {
-	  fe_status_t  status;
-	  drx39xxj_read_status(fe,  &status);
-	  printk("i=%d status=%d\n", i, status);
-	  msleep(100);
-	  i += 100;
+	for (i = 0; i < 2000; i++) {
+		fe_status_t status;
+		drx39xxj_read_status(fe, &status);
+		printk("i=%d status=%d\n", i, status);
+		msleep(100);
+		i += 100;
 	}
 #endif
 
 	return 0;
 }
 
-
-static int drx39xxj_sleep(struct dvb_frontend* fe)
+static int drx39xxj_sleep(struct dvb_frontend *fe)
 {
 	/* power-down the demodulator */
 	return drx39xxj_set_powerstate(fe, 0);
@@ -308,8 +304,7 @@ static int drx39xxj_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 	return 0;
 }
 
-
-static int drx39xxj_init(struct dvb_frontend* fe)
+static int drx39xxj_init(struct dvb_frontend *fe)
 {
 	/* Bring the demod out of sleep */
 	drx39xxj_set_powerstate(fe, 1);
@@ -318,15 +313,15 @@ static int drx39xxj_init(struct dvb_frontend* fe)
 }
 
 static int drx39xxj_get_tune_settings(struct dvb_frontend *fe,
-				     struct dvb_frontend_tune_settings *tune)
+				      struct dvb_frontend_tune_settings *tune)
 {
 	tune->min_delay_ms = 1000;
 	return 0;
 }
 
-static void drx39xxj_release(struct dvb_frontend* fe)
+static void drx39xxj_release(struct dvb_frontend *fe)
 {
-	struct drx39xxj_state* state = fe->demodulator_priv;
+	struct drx39xxj_state *state = fe->demodulator_priv;
 	kfree(state);
 }
 
@@ -334,31 +329,36 @@ static struct dvb_frontend_ops drx39xxj_ops;
 
 struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 {
-	struct drx39xxj_state* state = NULL;
+	struct drx39xxj_state *state = NULL;
 
-	I2CDeviceAddr_t     *demodAddr = NULL;
-	DRXCommonAttr_t     *demodCommAttr = NULL;
-	DRXJData_t          *demodExtAttr = NULL;
-	DRXDemodInstance_t  *demod = NULL;
+	I2CDeviceAddr_t *demodAddr = NULL;
+	DRXCommonAttr_t *demodCommAttr = NULL;
+	DRXJData_t *demodExtAttr = NULL;
+	DRXDemodInstance_t *demod = NULL;
 	DRXUIOCfg_t uioCfg;
 	DRXUIOData_t uioData;
 	DRXStatus_t result;
 
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct drx39xxj_state), GFP_KERNEL);
-	if (state == NULL) goto error;
+	if (state == NULL)
+		goto error;
 
 	demod = kmalloc(sizeof(DRXDemodInstance_t), GFP_KERNEL);
-	if (demod == NULL) goto error;
+	if (demod == NULL)
+		goto error;
 
 	demodAddr = kmalloc(sizeof(I2CDeviceAddr_t), GFP_KERNEL);
-	if (demodAddr == NULL) goto error;
+	if (demodAddr == NULL)
+		goto error;
 
 	demodCommAttr = kmalloc(sizeof(DRXCommonAttr_t), GFP_KERNEL);
-	if (demodCommAttr == NULL) goto error;
+	if (demodCommAttr == NULL)
+		goto error;
 
 	demodExtAttr = kmalloc(sizeof(DRXJData_t), GFP_KERNEL);
-	if (demodExtAttr == NULL) goto error;
+	if (demodExtAttr == NULL)
+		goto error;
 
 	/* setup the state */
 	state->i2c = i2c;
@@ -374,13 +374,14 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	memcpy(demod->myCommonAttr, &DRXJDefaultCommAttr_g,
 	       sizeof(DRXCommonAttr_t));
 	demod->myCommonAttr->microcode = DRXJ_MC_MAIN;
-	//	demod->myCommonAttr->verifyMicrocode = FALSE;
+	//      demod->myCommonAttr->verifyMicrocode = FALSE;
 	demod->myCommonAttr->verifyMicrocode = TRUE;
 	demod->myCommonAttr->intermediateFreq = 5000;
 
 	demod->myExtAttr = demodExtAttr;
 	memcpy(demod->myExtAttr, &DRXJData_g, sizeof(DRXJData_t));
-	((DRXJData_t *) demod->myExtAttr)->uioSmaTxMode = DRX_UIO_MODE_READWRITE;
+	((DRXJData_t *) demod->myExtAttr)->uioSmaTxMode =
+	    DRX_UIO_MODE_READWRITE;
 
 	demod->myTuner = NULL;
 
@@ -392,8 +393,8 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	}
 
 	/* Turn off the LNA */
-	uioCfg.uio    = DRX_UIO1;
-	uioCfg.mode   = DRX_UIO_MODE_READWRITE;
+	uioCfg.uio = DRX_UIO1;
+	uioCfg.mode = DRX_UIO_MODE_READWRITE;
 	/* Configure user-I/O #3: enable read/write */
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_CFG, &uioCfg);
 	if (result != DRX_STS_OK) {
@@ -401,7 +402,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 		return NULL;
 	}
 
-	uioData.uio   = DRX_UIO1;
+	uioData.uio = DRX_UIO1;
 	uioData.value = FALSE;
 	result = DRX_Ctrl(demod, DRX_CTRL_UIO_WRITE, &uioData);
 	if (result != DRX_STS_OK) {
@@ -427,13 +428,12 @@ error:
 static struct dvb_frontend_ops drx39xxj_ops = {
 
 	.info = {
-		.name			= "Micronas DRX39xxj family Frontend",
-		.type			= FE_ATSC | FE_QAM,
-		.frequency_stepsize	= 62500,
-		.frequency_min		= 51000000,
-		.frequency_max		= 858000000,
-		.caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB
-	},
+		 .name = "Micronas DRX39xxj family Frontend",
+		 .type = FE_ATSC | FE_QAM,
+		 .frequency_stepsize = 62500,
+		 .frequency_min = 51000000,
+		 .frequency_max = 858000000,
+		 .caps = FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB},
 
 	.init = drx39xxj_init,
 	.i2c_gate_ctrl = drx39xxj_i2c_gate_ctrl,

@@ -53,10 +53,9 @@ extern "C" {
 
 #ifdef _REGISTERTABLE_
 #include <registertable.h>
-extern RegisterTable_t drx_driver_version[];
-extern RegisterTableInfo_t drx_driver_version_info[];
-#endif /* _REGISTERTABLE_ */
-
+	extern RegisterTable_t drx_driver_version[];
+	extern RegisterTableInfo_t drx_driver_version_info[];
+#endif				/* _REGISTERTABLE_ */
 
 /*
  *==============================================================================
@@ -73,9 +72,7 @@ extern RegisterTableInfo_t drx_driver_version_info[];
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* __DRX_DRIVER_VERSION__H__ */
-
+#endif				/* __DRX_DRIVER_VERSION__H__ */
 /*
  * End of file (drx_driver_version.h)
  *******************************************************************************
