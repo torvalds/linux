@@ -231,6 +231,22 @@ static void atombios_blank_crtc(struct drm_crtc *crtc, int state)
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+static void atombios_powergate_crtc(struct drm_crtc *crtc, int state)
+{
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	int index = GetIndexIntoMasterTable(COMMAND, EnableDispPowerGating);
+	ENABLE_DISP_POWER_GATING_PARAMETERS_V2_1 args;
+
+	memset(&args, 0, sizeof(args));
+
+	args.ucDispPipeId = radeon_crtc->crtc_id;
+	args.ucEnable = state;
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
 void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct drm_device *dev = crtc->dev;
@@ -242,6 +258,9 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		radeon_crtc->enabled = true;
 		/* adjust pm to dpms changes BEFORE enabling crtcs */
 		radeon_pm_compute_clocks(rdev);
+		/* disable crtc pair power gating before programming */
+		if (ASIC_IS_DCE6(rdev))
+			atombios_powergate_crtc(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_ENABLE);
 		if (ASIC_IS_DCE3(rdev) && !ASIC_IS_DCE6(rdev))
 			atombios_enable_crtc_memreq(crtc, ATOM_ENABLE);
@@ -259,6 +278,25 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 			atombios_enable_crtc_memreq(crtc, ATOM_DISABLE);
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		radeon_crtc->enabled = false;
+		/* power gating is per-pair */
+		if (ASIC_IS_DCE6(rdev)) {
+			struct drm_crtc *other_crtc;
+			struct radeon_crtc *other_radeon_crtc;
+			list_for_each_entry(other_crtc, &rdev->ddev->mode_config.crtc_list, head) {
+				other_radeon_crtc = to_radeon_crtc(other_crtc);
+				if (((radeon_crtc->crtc_id == 0) && (other_radeon_crtc->crtc_id == 1)) ||
+				    ((radeon_crtc->crtc_id == 1) && (other_radeon_crtc->crtc_id == 0)) ||
+				    ((radeon_crtc->crtc_id == 2) && (other_radeon_crtc->crtc_id == 3)) ||
+				    ((radeon_crtc->crtc_id == 3) && (other_radeon_crtc->crtc_id == 2)) ||
+				    ((radeon_crtc->crtc_id == 4) && (other_radeon_crtc->crtc_id == 5)) ||
+				    ((radeon_crtc->crtc_id == 5) && (other_radeon_crtc->crtc_id == 4))) {
+					/* if both crtcs in the pair are off, enable power gating */
+					if (other_radeon_crtc->enabled == false)
+						atombios_powergate_crtc(crtc, ATOM_ENABLE);
+					break;
+				}
+			}
+		}
 		/* adjust pm to dpms changes AFTER disabling crtcs */
 		radeon_pm_compute_clocks(rdev);
 		break;
