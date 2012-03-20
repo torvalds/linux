@@ -337,8 +337,4 @@ extern unsigned int get_memclk_frequency_10khz(void);
 extern unsigned long get_clock_tick_rate(void);
 #endif
 
-#if defined(CONFIG_MACH_ARMCORE) && defined(CONFIG_PCI)
-#define ARCH_HAS_DMA_SET_COHERENT_MASK
-#endif
-
 #endif  /* _ASM_ARCH_HARDWARE_H */

@@ -77,7 +77,7 @@ static inline u64 dma_get_mask(struct device *dev)
 	return DMA_BIT_MASK(32);
 }
 
-#ifdef ARCH_HAS_DMA_SET_COHERENT_MASK
+#ifdef CONFIG_ARCH_HAS_DMA_SET_COHERENT_MASK
 int dma_set_coherent_mask(struct device *dev, u64 mask);
 #else
 static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
