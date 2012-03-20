@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007,2011 Freescale Semiconductor, Inc.
+ * Copyright (C) 2004-2007,2011-2012 Freescale Semiconductor, Inc.
  * All rights reserved.
  *
  * Author: Li Yang <leoli@freescale.com>
@@ -58,9 +58,8 @@ static const char driver_name[] = "fsl-usb2-udc";
 static const char driver_desc[] = DRIVER_DESC;
 
 static struct usb_dr_device *dr_regs;
-#ifndef CONFIG_ARCH_MXC
+
 static struct usb_sys_interface *usb_sys_regs;
-#endif
 
 /* it is initialized in probe()  */
 static struct fsl_udc *udc_controller = NULL;
@@ -244,10 +243,9 @@ static int dr_controller_setup(struct fsl_udc *udc)
 {
 	unsigned int tmp, portctrl, ep_num;
 	unsigned int max_no_of_ep;
-#ifndef CONFIG_ARCH_MXC
 	unsigned int ctrl;
-#endif
 	unsigned long timeout;
+
 #define FSL_UDC_RESET_TIMEOUT 1000
 
 	/* Config PHY interface */
@@ -255,12 +253,32 @@ static int dr_controller_setup(struct fsl_udc *udc)
 	portctrl &= ~(PORTSCX_PHY_TYPE_SEL | PORTSCX_PORT_WIDTH);
 	switch (udc->phy_mode) {
 	case FSL_USB2_PHY_ULPI:
+		if (udc->pdata->have_sysif_regs) {
+			if (udc->pdata->controller_ver) {
+				/* controller version 1.6 or above */
+				ctrl = __raw_readl(&usb_sys_regs->control);
+				ctrl &= ~USB_CTRL_UTMI_PHY_EN;
+				ctrl |= USB_CTRL_USB_EN;
+				__raw_writel(ctrl, &usb_sys_regs->control);
+			}
+		}
 		portctrl |= PORTSCX_PTS_ULPI;
 		break;
 	case FSL_USB2_PHY_UTMI_WIDE:
 		portctrl |= PORTSCX_PTW_16BIT;
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
+		if (udc->pdata->have_sysif_regs) {
+			if (udc->pdata->controller_ver) {
+				/* controller version 1.6 or above */
+				ctrl = __raw_readl(&usb_sys_regs->control);
+				ctrl |= (USB_CTRL_UTMI_PHY_EN |
+					USB_CTRL_USB_EN);
+				__raw_writel(ctrl, &usb_sys_regs->control);
+				mdelay(FSL_UTMI_PHY_DLY); /* Delay for UTMI
+					PHY CLK to become stable - 10ms*/
+			}
+		}
 		portctrl |= PORTSCX_PTS_UTMI;
 		break;
 	case FSL_USB2_PHY_SERIAL:

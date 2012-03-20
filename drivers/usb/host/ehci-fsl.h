@@ -1,4 +1,4 @@
-/* Copyright (C) 2005-2010 Freescale Semiconductor, Inc.
+/* Copyright (C) 2005-2010,2012 Freescale Semiconductor, Inc.
  * Copyright (c) 2005 MontaVista Software
  *
  * This program is free software; you can redistribute  it and/or modify it
@@ -50,4 +50,15 @@
 #define CTRL_UTMI_PHY_EN	(1<<9)
 #define CTRL_PHY_CLK_VALID	(1 << 17)
 #define SNOOP_SIZE_2GB		0x1e
+
+/* control Register Bit Masks */
+#define ULPI_INT_EN             (1<<0)
+#define WU_INT_EN               (1<<1)
+#define USB_CTRL_USB_EN         (1<<2)
+#define LINE_STATE_FILTER__EN   (1<<3)
+#define KEEP_OTG_ON             (1<<4)
+#define OTG_PORT                (1<<5)
+#define PLL_RESET               (1<<8)
+#define UTMI_PHY_EN             (1<<9)
+#define ULPI_PHY_CLK_SEL        (1<<10)
 #endif				/* _EHCI_FSL_H */
