@@ -1638,6 +1638,7 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE41(rdev) ((rdev->family >= CHIP_PALM) && \
 			     (rdev->flags & RADEON_IS_IGP))
 #define ASIC_IS_DCE5(rdev) ((rdev->family >= CHIP_BARTS))
+#define ASIC_IS_DCE6(rdev) ((rdev->family >= CHIP_TAHITI))
 
 /*
  * BIOS helpers.
