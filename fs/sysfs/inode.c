@@ -136,12 +136,13 @@ static int sysfs_sd_setsecdata(struct sysfs_dirent *sd, void **secdata, u32 *sec
 	void *old_secdata;
 	size_t old_secdata_len;
 
-	iattrs = sd->s_iattr;
-	if (!iattrs)
-		iattrs = sysfs_init_inode_attrs(sd);
-	if (!iattrs)
-		return -ENOMEM;
+	if (!sd->s_iattr) {
+		sd->s_iattr = sysfs_init_inode_attrs(sd);
+		if (!sd->s_iattr)
+			return -ENOMEM;
+	}
 
+	iattrs = sd->s_iattr;
 	old_secdata = iattrs->ia_secdata;
 	old_secdata_len = iattrs->ia_secdata_len;
 

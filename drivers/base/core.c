@@ -921,6 +921,7 @@ int device_private_init(struct device *dev)
 	dev->p->device = dev;
 	klist_init(&dev->p->klist_children, klist_children_get,
 		   klist_children_put);
+	INIT_LIST_HEAD(&dev->p->deferred_probe);
 	return 0;
 }
 
@@ -1188,6 +1189,7 @@ void device_del(struct device *dev)
 	device_remove_file(dev, &uevent_attr);
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
+	driver_deferred_probe_del(dev);
 
 	/*
 	 * Some platform devices are driven without driver attached
