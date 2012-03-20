@@ -1296,7 +1296,7 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	/* init dig PHYs, disp eng pll */
 	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
-		radeon_atom_dcpll_init(rdev);
+		radeon_atom_disp_eng_pll_init(rdev);
 	}
 
 	/* initialize hpd */

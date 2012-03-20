@@ -737,7 +737,7 @@ union set_pixel_clock {
 /* on DCE5, make sure the voltage is high enough to support the
  * required disp clk.
  */
-static void atombios_crtc_set_dcpll(struct radeon_device *rdev,
+static void atombios_crtc_set_disp_eng_pll(struct radeon_device *rdev,
 				    u32 dispclk)
 {
 	u8 frev, crev;
@@ -767,7 +767,10 @@ static void atombios_crtc_set_dcpll(struct radeon_device *rdev,
 			 * SetPixelClock provides the dividers
 			 */
 			args.v6.ulDispEngClkFreq = cpu_to_le32(dispclk);
-			args.v6.ucPpll = ATOM_DCPLL;
+			if (ASIC_IS_DCE6(rdev))
+				args.v6.ucPpll = ATOM_PPLL0;
+			else
+				args.v6.ucPpll = ATOM_DCPLL;
 			break;
 		default:
 			DRM_ERROR("Unknown table version %d %d\n", frev, crev);
@@ -1521,10 +1524,12 @@ static int radeon_atom_pick_pll(struct drm_crtc *crtc)
 
 }
 
-void radeon_atom_dcpll_init(struct radeon_device *rdev)
+void radeon_atom_disp_eng_pll_init(struct radeon_device *rdev)
 {
 	/* always set DCPLL */
-	if (ASIC_IS_DCE4(rdev)) {
+	if (ASIC_IS_DCE6(rdev))
+		atombios_crtc_set_disp_eng_pll(rdev, rdev->clock.default_dispclk);
+	else if (ASIC_IS_DCE4(rdev)) {
 		struct radeon_atom_ss ss;
 		bool ss_enabled = radeon_atombios_get_asic_ss_info(rdev, &ss,
 								   ASIC_INTERNAL_SS_ON_DCPLL,
@@ -1532,7 +1537,7 @@ void radeon_atom_dcpll_init(struct radeon_device *rdev)
 		if (ss_enabled)
 			atombios_crtc_program_ss(rdev, ATOM_DISABLE, ATOM_DCPLL, &ss);
 		/* XXX: DCE5, make sure voltage, dispclk is high enough */
-		atombios_crtc_set_dcpll(rdev, rdev->clock.default_dispclk);
+		atombios_crtc_set_disp_eng_pll(rdev, rdev->clock.default_dispclk);
 		if (ss_enabled)
 			atombios_crtc_program_ss(rdev, ATOM_ENABLE, ATOM_DCPLL, &ss);
 	}
