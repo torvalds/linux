@@ -461,4 +461,7 @@ void cayman_vm_set_page(struct radeon_device *rdev, struct radeon_vm *vm,
 			unsigned pfn, uint64_t addr, uint32_t flags);
 int evergreen_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib);
 
+/* DCE6 - SI */
+void dce6_bandwidth_update(struct radeon_device *rdev);
+
 #endif
