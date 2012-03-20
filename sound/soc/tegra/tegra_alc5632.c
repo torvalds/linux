@@ -1,16 +1,16 @@
 /*
-* tegra_alc5632.c  --  Toshiba AC100(PAZ00) machine ASoC driver
-*
-* Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
-*
-* Authors:  Leon Romanovsky <leon@leon.nu>
-*           Andrey Danin <danindrey@mail.ru>
-*           Marc Dietrich <marvin24@gmx.de>
-*
-* This program is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License version 2 as
-* published by the Free Software Foundation.
-*/
+ * tegra_alc5632.c  --  Toshiba AC100(PAZ00) machine ASoC driver
+ *
+ * Copyright (C) 2011 The AC100 Kernel Team <ac100@lists.lauchpad.net>
+ *
+ * Authors:  Leon Romanovsky <leon@leon.nu>
+ *           Andrey Danin <danindrey@mail.ru>
+ *           Marc Dietrich <marvin24@gmx.de>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
 
 #include <asm/mach-types.h>
 
