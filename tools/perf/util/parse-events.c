@@ -23,7 +23,8 @@ struct event_symbol {
 	const char	*alias;
 };
 
-int parse_events_parse(struct list_head *list, int *idx);
+int parse_events_parse(struct list_head *list, struct list_head *list_tmp,
+		       int *idx);
 
 #define CHW(x) .type = PERF_TYPE_HARDWARE, .config = PERF_COUNT_HW_##x
 #define CSW(x) .type = PERF_TYPE_SOFTWARE, .config = PERF_COUNT_SW_##x
@@ -671,6 +672,18 @@ int parse_events_add_pmu(struct list_head *list, int *idx,
 	return add_event(list, idx, &attr, (char *) "pmu");
 }
 
+void parse_events_update_lists(struct list_head *list_event,
+			       struct list_head *list_all)
+{
+	/*
+	 * Called for single event definition. Update the
+	 * 'all event' list, and reinit the 'signle event'
+	 * list, for next event definition.
+	 */
+	list_splice_tail(list_event, list_all);
+	INIT_LIST_HEAD(list_event);
+}
+
 int parse_events_modifier(struct list_head *list, char *str)
 {
 	struct perf_evsel *evsel;
@@ -736,14 +749,14 @@ int parse_events_modifier(struct list_head *list, char *str)
 
 int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 {
-	struct perf_evsel *evsel, *h;
 	LIST_HEAD(list);
+	LIST_HEAD(list_tmp);
 	YY_BUFFER_STATE buffer;
 	int ret, idx = evlist->nr_entries;
 
 	buffer = parse_events__scan_string(str);
 
-	ret = parse_events_parse(&list, &idx);
+	ret = parse_events_parse(&list, &list_tmp, &idx);
 
 	parse_events__flush_buffer(buffer);
 	parse_events__delete_buffer(buffer);
@@ -754,9 +767,11 @@ int parse_events(struct perf_evlist *evlist, const char *str, int unset __used)
 		return 0;
 	}
 
-	list_for_each_entry_safe(evsel, h, &list, node)
-		perf_evsel__delete(evsel);
-
+	/*
+	 * There are 2 users - builtin-record and builtin-test objects.
+	 * Both call perf_evlist__delete in case of error, so we dont
+	 * need to bother.
+	 */
 	fprintf(stderr, "invalid or unsupported event: '%s'\n", str);
 	fprintf(stderr, "Run 'perf list' for a list of valid events\n");
 	return ret;
