@@ -81,3 +81,6 @@
  81 -> Hauppauge WinTV HVR 930C                 (em2884)        [2040:1605]
  82 -> Terratec Cinergy HTC Stick               (em2884)        [0ccd:00b2]
  83 -> Honestech Vidbox NW03                    (em2860)        [eb1a:5006]
+ 84 -> MaxMedia UB425-TC                        (em2874)        [1b80:e425]
+ 85 -> PCTV QuatroStick (510e)                  (em2884)        [2304:0242]
+ 86 -> PCTV QuatroStick nano (520e)             (em2884)        [2013:0251]
