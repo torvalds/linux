@@ -4279,7 +4279,6 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		goto out_free_resources;
 
 	init_waitqueue_head(&ioc->reset_wq);
-
 	/* allocate memory pd handle bitmask list */
 	ioc->pd_handles_sz = (ioc->facts.MaxDevHandle / 8);
 	if (ioc->facts.MaxDevHandle % 8)
@@ -4290,7 +4289,12 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 		r = -ENOMEM;
 		goto out_free_resources;
 	}
-
+	ioc->blocking_handles = kzalloc(ioc->pd_handles_sz,
+	    GFP_KERNEL);
+	if (!ioc->blocking_handles) {
+		r = -ENOMEM;
+		goto out_free_resources;
+	}
 	ioc->fwfault_debug = mpt2sas_fwfault_debug;
 
 	/* base internal command bits */
@@ -4377,6 +4381,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	if (ioc->is_warpdrive)
 		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
+	kfree(ioc->blocking_handles);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
 	kfree(ioc->scsih_cmds.reply);
@@ -4418,6 +4423,7 @@ mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 	if (ioc->is_warpdrive)
 		kfree(ioc->reply_post_host_index);
 	kfree(ioc->pd_handles);
+	kfree(ioc->blocking_handles);
 	kfree(ioc->pfacts);
 	kfree(ioc->ctl_cmds.reply);
 	kfree(ioc->ctl_cmds.sense);

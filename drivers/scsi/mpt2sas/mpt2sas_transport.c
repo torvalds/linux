@@ -163,7 +163,7 @@ _transport_set_identify(struct MPT2SAS_ADAPTER *ioc, u16 handle,
 		return -EIO;
 	}
 
-	memset(identify, 0, sizeof(*identify));
+	memset(identify, 0, sizeof(struct sas_identify));
 	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
 
 	/* sas_address */
@@ -484,7 +484,7 @@ _transport_delete_port(struct MPT2SAS_ADAPTER *ioc,
 
 	ioc->logging_level |= MPT_DEBUG_TRANSPORT;
 	if (device_type == SAS_END_DEVICE)
-		mpt2sas_device_remove(ioc, sas_address);
+		mpt2sas_device_remove_by_sas_address(ioc, sas_address);
 	else if (device_type == SAS_EDGE_EXPANDER_DEVICE ||
 	    device_type == SAS_FANOUT_EXPANDER_DEVICE)
 		mpt2sas_expander_remove(ioc, sas_address);
@@ -792,9 +792,10 @@ mpt2sas_transport_port_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	sas_node = _transport_sas_node_find_by_sas_address(ioc,
 	    sas_address_parent);
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
-	if (!sas_node)
+	if (!sas_node) {
+		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return;
+	}
 	list_for_each_entry_safe(mpt2sas_port, next, &sas_node->sas_port_list,
 	    port_list) {
 		if (mpt2sas_port->remote_identify.sas_address != sas_address)
@@ -804,8 +805,10 @@ mpt2sas_transport_port_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
 		goto out;
 	}
  out:
-	if (!found)
+	if (!found) {
+		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return;
+	}
 
 	for (i = 0; i < sas_node->num_phys; i++) {
 		if (sas_node->phy[i].remote_identify.sas_address == sas_address)
@@ -813,6 +816,7 @@ mpt2sas_transport_port_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
 			    sizeof(struct sas_identify));
 	}
 
+	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 	list_for_each_entry_safe(mpt2sas_phy, next_phy,
 	    &mpt2sas_port->phy_list, port_siblings) {
 		if ((ioc->logging_level & MPT_DEBUG_TRANSPORT))
@@ -986,12 +990,14 @@ mpt2sas_transport_update_links(struct MPT2SAS_ADAPTER *ioc,
 
 	spin_lock_irqsave(&ioc->sas_node_lock, flags);
 	sas_node = _transport_sas_node_find_by_sas_address(ioc, sas_address);
-	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
-	if (!sas_node)
+	if (!sas_node) {
+		spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 		return;
+	}
 
 	mpt2sas_phy = &sas_node->phy[phy_number];
 	mpt2sas_phy->attached_handle = handle;
+	spin_unlock_irqrestore(&ioc->sas_node_lock, flags);
 	if (handle && (link_rate >= MPI2_SAS_NEG_LINK_RATE_1_5)) {
 		_transport_set_identify(ioc, handle,
 		    &mpt2sas_phy->remote_identify);
@@ -1310,17 +1316,20 @@ _transport_get_enclosure_identifier(struct sas_rphy *rphy, u64 *identifier)
 	struct MPT2SAS_ADAPTER *ioc = rphy_to_ioc(rphy);
 	struct _sas_device *sas_device;
 	unsigned long flags;
+	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 	    rphy->identify.sas_address);
+	if (sas_device) {
+		*identifier = sas_device->enclosure_logical_id;
+		rc = 0;
+	} else {
+		*identifier = 0;
+		rc = -ENXIO;
+	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-
-	if (!sas_device)
-		return -ENXIO;
-
-	*identifier = sas_device->enclosure_logical_id;
-	return 0;
+	return rc;
 }
 
 /**
@@ -1335,16 +1344,17 @@ _transport_get_bay_identifier(struct sas_rphy *rphy)
 	struct MPT2SAS_ADAPTER *ioc = rphy_to_ioc(rphy);
 	struct _sas_device *sas_device;
 	unsigned long flags;
+	int rc;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 	    rphy->identify.sas_address);
+	if (sas_device)
+		rc = sas_device->slot;
+	else
+		rc = -ENXIO;
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-
-	if (!sas_device)
-		return -ENXIO;
-
-	return sas_device->slot;
+	return rc;
 }
 
 /* phy control request structure */
