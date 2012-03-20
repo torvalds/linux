@@ -138,10 +138,10 @@ TYPEDEFS
 						     lockStat);
 
 	typedef DRXStatus_t(*TUNERi2cWriteReadFunc_t) (pTUNERInstance_t tuner,
-						       pI2CDeviceAddr_t
+						       struct i2c_device_addr *
 						       wDevAddr, u16_t wCount,
 						       pu8_t wData,
-						       pI2CDeviceAddr_t
+						       struct i2c_device_addr *
 						       rDevAddr, u16_t rCount,
 						       pu8_t rData);
 
@@ -157,7 +157,7 @@ TYPEDEFS
 
 	typedef struct TUNERInstance_s {
 
-		I2CDeviceAddr_t myI2CDevAddr;
+		struct i2c_device_addr myI2CDevAddr;
 		pTUNERCommonAttr_t myCommonAttr;
 		void *myExtAttr;
 		pTUNERFunc_t myFunct;
@@ -193,10 +193,10 @@ Exported FUNCTIONS
 					    pTUNERLockStatus_t lockStat);
 
 	DRXStatus_t DRXBSP_TUNER_DefaultI2CWriteRead(pTUNERInstance_t tuner,
-						     pI2CDeviceAddr_t wDevAddr,
+						     struct i2c_device_addr *wDevAddr,
 						     u16_t wCount,
 						     pu8_t wData,
-						     pI2CDeviceAddr_t rDevAddr,
+						     struct i2c_device_addr *rDevAddr,
 						     u16_t rCount, pu8_t rData);
 
 /*------------------------------------------------------------------------------

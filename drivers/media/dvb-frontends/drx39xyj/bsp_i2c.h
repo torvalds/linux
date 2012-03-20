@@ -46,54 +46,19 @@
 
 #ifndef __BSPI2C_H__
 #define __BSPI2C_H__
-/*------------------------------------------------------------------------------
-INCLUDES
-------------------------------------------------------------------------------*/
+
 #include "bsp_types.h"
 
-/*------------------------------------------------------------------------------
-TYPEDEFS
-------------------------------------------------------------------------------*/
+/*
+ * This structure contains the I2C address, the device ID and a userData pointer.
+ * The userData pointer can be used for application specific purposes.
+ */
+struct i2c_device_addr {
+	u16 i2cAddr;		/* The I2C address of the device. */
+	u16 i2cDevId;		/* The device identifier. */
+	void *userData;		/* User data pointer */
+};
 
-/**
-* \struct _I2CDeviceAddr_t
-* \brief I2C device parameters.
-*
-* This structure contains the I2C address, the device ID and a userData pointer.
-* The userData pointer can be used for application specific purposes.
-*
-*/
-	struct I2CDeviceAddr_t {
-		u16 i2cAddr;
-			      /**< The I2C address of the device. */
-		u16 i2cDevId;
-			      /**< The device identifier. */
-		void *userData;
-			      /**< User data pointer */
-	};
-
-/**
-* \typedef I2CDeviceAddr_t
-* \brief I2C device parameters.
-*
-* This structure contains the I2C address and the device ID.
-*
-*/
-	typedef struct I2CDeviceAddr_t I2CDeviceAddr_t;
-
-/**
-* \typedef pI2CDeviceAddr_t
-* \brief Pointer to I2C device parameters.
-*/
-	typedef I2CDeviceAddr_t *pI2CDeviceAddr_t;
-
-/*------------------------------------------------------------------------------
-DEFINES
-------------------------------------------------------------------------------*/
-
-/*------------------------------------------------------------------------------
-MACROS
-------------------------------------------------------------------------------*/
 
 /**
 * \def IS_I2C_10BIT( addr )
@@ -105,14 +70,6 @@ MACROS
 */
 #define IS_I2C_10BIT(addr) \
 	 (((addr) & 0xF8) == 0xF0)
-
-/*------------------------------------------------------------------------------
-ENUM
-------------------------------------------------------------------------------*/
-
-/*------------------------------------------------------------------------------
-STRUCTS
-------------------------------------------------------------------------------*/
 
 /*------------------------------------------------------------------------------
 Exported FUNCTIONS
@@ -137,10 +94,10 @@ Exported FUNCTIONS
 	DRXStatus_t DRXBSP_I2C_Term(void);
 
 /**
-* \fn DRXStatus_t DRXBSP_I2C_WriteRead( pI2CDeviceAddr_t wDevAddr,
+* \fn DRXStatus_t DRXBSP_I2C_WriteRead( struct i2c_device_addr *wDevAddr,
 *                                       u16_t wCount,
 *                                       pu8_t wData,
-*                                       pI2CDeviceAddr_t rDevAddr,
+*                                       struct i2c_device_addr *rDevAddr,
 *                                       u16_t rCount,
 *                                       pu8_t rData)
 * \brief Read and/or write count bytes from I2C bus, store them in data[].
@@ -166,10 +123,10 @@ Exported FUNCTIONS
 * The device ID can be useful if several devices share an I2C address.
 * It can be used to control a "switch" on the I2C bus to the correct device.
 */
-	DRXStatus_t DRXBSP_I2C_WriteRead(pI2CDeviceAddr_t wDevAddr,
+	DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
 					 u16_t wCount,
 					 pu8_t wData,
-					 pI2CDeviceAddr_t rDevAddr,
+					 struct i2c_device_addr *rDevAddr,
 					 u16_t rCount, pu8_t rData);
 
 /**

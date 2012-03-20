@@ -327,7 +327,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 {
 	struct drx39xxj_state *state = NULL;
 
-	I2CDeviceAddr_t *demodAddr = NULL;
+	struct i2c_device_addr *demodAddr = NULL;
 	DRXCommonAttr_t *demodCommAttr = NULL;
 	DRXJData_t *demodExtAttr = NULL;
 	DRXDemodInstance_t *demod = NULL;
@@ -344,7 +344,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 	if (demod == NULL)
 		goto error;
 
-	demodAddr = kmalloc(sizeof(I2CDeviceAddr_t), GFP_KERNEL);
+	demodAddr = kmalloc(sizeof(struct i2c_device_addr), GFP_KERNEL);
 	if (demodAddr == NULL)
 		goto error;
 
@@ -364,7 +364,7 @@ struct dvb_frontend *drx39xxj_attach(struct i2c_adapter *i2c)
 
 	demod->myI2CDevAddr = demodAddr;
 	memcpy(demod->myI2CDevAddr, &DRXJDefaultAddr_g,
-	       sizeof(I2CDeviceAddr_t));
+	       sizeof(struct i2c_device_addr));
 	demod->myI2CDevAddr->userData = state;
 	demod->myCommonAttr = demodCommAttr;
 	memcpy(demod->myCommonAttr, &DRXJDefaultCommAttr_g,

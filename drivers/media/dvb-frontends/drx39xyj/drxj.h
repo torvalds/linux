@@ -734,7 +734,7 @@ Exported GLOBAL VARIABLES
 	extern DRXAccessFunc_t drxDapDRXJFunct_g;
 	extern DRXDemodFunc_t DRXJFunctions_g;
 	extern DRXJData_t DRXJData_g;
-	extern I2CDeviceAddr_t DRXJDefaultAddr_g;
+	extern struct i2c_device_addr DRXJDefaultAddr_g;
 	extern DRXCommonAttr_t DRXJDefaultCommAttr_g;
 	extern DRXDemodInstance_t DRXJDefaultDemod_g;
 

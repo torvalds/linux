@@ -991,7 +991,7 @@ CtrlUCode(pDRXDemodInstance_t demod,
 	u16_t mcNrOfBlks = 0;
 	u16_t mcMagicWord = 0;
 	pu8_t mcData = (pu8_t) (NULL);
-	pI2CDeviceAddr_t devAddr = (pI2CDeviceAddr_t) (NULL);
+	struct i2c_device_addr *devAddr = (struct i2c_device_addr *) (NULL);
 
 	devAddr = demod->myI2CDevAddr;
 

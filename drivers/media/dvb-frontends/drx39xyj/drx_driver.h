@@ -1329,11 +1329,11 @@ STRUCTS
 */
 	typedef struct {
 		u16_t portNr;	/**< I2C port number               */
-		pI2CDeviceAddr_t wDevAddr;
+		struct i2c_device_addr *wDevAddr;
 				/**< Write device address          */
 		u16_t wCount;	/**< Size of write data in bytes   */
 		pu8_t wData;	/**< Pointer to write data         */
-		pI2CDeviceAddr_t rDevAddr;
+		struct i2c_device_addr *rDevAddr;
 				/**< Read device address           */
 		u16_t rCount;	/**< Size of data to read in bytes */
 		pu8_t rData;	/**< Pointer to read buffer        */
@@ -1726,71 +1726,71 @@ STRUCTS
 	typedef u32_t DRXflags_t, *pDRXflags_t;
 
 /* Write block of data to device */
-	typedef DRXStatus_t(*DRXWriteBlockFunc_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXWriteBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t addr,	/* address of register/memory   */
 						   u16_t datasize,	/* size of data in bytes        */
 						   pu8_t data,	/* data to send                 */
 						   DRXflags_t flags);
 
 /* Read block of data from device */
-	typedef DRXStatus_t(*DRXReadBlockFunc_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXReadBlockFunc_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  u16_t datasize,	/* size of data in bytes        */
 						  pu8_t data,	/* receive buffer               */
 						  DRXflags_t flags);
 
 /* Write 8-bits value to device */
-	typedef DRXStatus_t(*DRXWriteReg8Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  u8_t data,	/* data to send                 */
 						  DRXflags_t flags);
 
 /* Read 8-bits value to device */
-	typedef DRXStatus_t(*DRXReadReg8Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXReadReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						 DRXaddr_t addr,	/* address of register/memory   */
 						 pu8_t data,	/* receive buffer               */
 						 DRXflags_t flags);
 
 /* Read modify write 8-bits value to device */
-	typedef DRXStatus_t(*DRXReadModifyWriteReg8Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device       */
+	typedef DRXStatus_t(*DRXReadModifyWriteReg8Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
 							    DRXaddr_t waddr,	/* write address of register   */
 							    DRXaddr_t raddr,	/* read  address of register   */
 							    u8_t wdata,	/* data to write               */
 							    pu8_t rdata);	/* data to read                */
 
 /* Write 16-bits value to device */
-	typedef DRXStatus_t(*DRXWriteReg16Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t addr,	/* address of register/memory   */
 						   u16_t data,	/* data to send                 */
 						   DRXflags_t flags);
 
 /* Read 16-bits value to device */
-	typedef DRXStatus_t(*DRXReadReg16Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXReadReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  pu16_t data,	/* receive buffer               */
 						  DRXflags_t flags);
 
 /* Read modify write 16-bits value to device */
-	typedef DRXStatus_t(*DRXReadModifyWriteReg16Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device       */
+	typedef DRXStatus_t(*DRXReadModifyWriteReg16Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
 							     DRXaddr_t waddr,	/* write address of register   */
 							     DRXaddr_t raddr,	/* read  address of register   */
 							     u16_t wdata,	/* data to write               */
 							     pu16_t rdata);	/* data to read                */
 
 /* Write 32-bits value to device */
-	typedef DRXStatus_t(*DRXWriteReg32Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t addr,	/* address of register/memory   */
 						   u32_t data,	/* data to send                 */
 						   DRXflags_t flags);
 
 /* Read 32-bits value to device */
-	typedef DRXStatus_t(*DRXReadReg32Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+	typedef DRXStatus_t(*DRXReadReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						  DRXaddr_t addr,	/* address of register/memory   */
 						  pu32_t data,	/* receive buffer               */
 						  DRXflags_t flags);
 
 /* Read modify write 32-bits value to device */
-	typedef DRXStatus_t(*DRXReadModifyWriteReg32Func_t) (pI2CDeviceAddr_t devAddr,	/* address of I2C device       */
+	typedef DRXStatus_t(*DRXReadModifyWriteReg32Func_t) (struct i2c_device_addr *devAddr,	/* address of I2C device       */
 							     DRXaddr_t waddr,	/* write address of register   */
 							     DRXaddr_t raddr,	/* read  address of register   */
 							     u32_t wdata,	/* data to write               */
@@ -1948,7 +1948,7 @@ STRUCTS
 				    /**< data access protocol functions       */
 		pTUNERInstance_t myTuner;
 				    /**< tuner instance,if NULL then baseband */
-		pI2CDeviceAddr_t myI2CDevAddr;
+		struct i2c_device_addr *myI2CDevAddr;
 				    /**< i2c address and device identifier    */
 		pDRXCommonAttr_t myCommonAttr;
 				    /**< common DRX attributes                */

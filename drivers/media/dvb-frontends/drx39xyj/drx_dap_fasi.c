@@ -55,61 +55,61 @@
 /*============================================================================*/
 
 /* Function prototypes */
-static DRXStatus_t DRXDAP_FASI_WriteBlock(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_WriteBlock(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					  DRXaddr_t addr,	/* address of register/memory   */
 					  u16_t datasize,	/* size of data                 */
 					  pu8_t data,	/* data to send                 */
 					  DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_ReadBlock(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadBlock(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					 DRXaddr_t addr,	/* address of register/memory   */
 					 u16_t datasize,	/* size of data                 */
 					 pu8_t data,	/* data to send                 */
 					 DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_WriteReg8(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_WriteReg8(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					 DRXaddr_t addr,	/* address of register          */
 					 u8_t data,	/* data to write                */
 					 DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_ReadReg8(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadReg8(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					DRXaddr_t addr,	/* address of register          */
 					pu8_t data,	/* buffer to receive data       */
 					DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg8(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg8(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t waddr,	/* address of register          */
 						   DRXaddr_t raddr,	/* address to read back from    */
 						   u8_t datain,	/* data to send                 */
 						   pu8_t dataout);	/* data to receive back         */
 
-static DRXStatus_t DRXDAP_FASI_WriteReg16(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_WriteReg16(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					  DRXaddr_t addr,	/* address of register          */
 					  u16_t data,	/* data to write                */
 					  DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_ReadReg16(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadReg16(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					 DRXaddr_t addr,	/* address of register          */
 					 pu16_t data,	/* buffer to receive data       */
 					 DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg16(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg16(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						    DRXaddr_t waddr,	/* address of register          */
 						    DRXaddr_t raddr,	/* address to read back from    */
 						    u16_t datain,	/* data to send                 */
 						    pu16_t dataout);	/* data to receive back         */
 
-static DRXStatus_t DRXDAP_FASI_WriteReg32(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_WriteReg32(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					  DRXaddr_t addr,	/* address of register          */
 					  u32_t data,	/* data to write                */
 					  DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_ReadReg32(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadReg32(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					 DRXaddr_t addr,	/* address of register          */
 					 pu32_t data,	/* buffer to receive data       */
 					 DRXflags_t flags);	/* special device flags         */
 
-static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg32(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg32(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						    DRXaddr_t waddr,	/* address of register          */
 						    DRXaddr_t raddr,	/* address to read back from    */
 						    u32_t datain,	/* data to send                 */
@@ -149,7 +149,7 @@ DRXAccessFunc_t drxDapFASIFunct_g = {
 
 /* Functions not supported by protocol*/
 
-static DRXStatus_t DRXDAP_FASI_WriteReg8(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_WriteReg8(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					 DRXaddr_t addr,	/* address of register          */
 					 u8_t data,	/* data to write                */
 					 DRXflags_t flags)
@@ -157,7 +157,7 @@ static DRXStatus_t DRXDAP_FASI_WriteReg8(pI2CDeviceAddr_t devAddr,	/* address of
 	return DRX_STS_ERROR;
 }
 
-static DRXStatus_t DRXDAP_FASI_ReadReg8(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadReg8(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 					DRXaddr_t addr,	/* address of register          */
 					pu8_t data,	/* buffer to receive data       */
 					DRXflags_t flags)
@@ -165,7 +165,7 @@ static DRXStatus_t DRXDAP_FASI_ReadReg8(pI2CDeviceAddr_t devAddr,	/* address of 
 	return DRX_STS_ERROR;
 }
 
-static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg8(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg8(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						   DRXaddr_t waddr,	/* address of register          */
 						   DRXaddr_t raddr,	/* address to read back from    */
 						   u8_t datain,	/* data to send                 */
@@ -174,7 +174,7 @@ static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg8(pI2CDeviceAddr_t devAddr,	/* 
 	return DRX_STS_ERROR;
 }
 
-static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg32(pI2CDeviceAddr_t devAddr,	/* address of I2C device        */
+static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg32(struct i2c_device_addr *devAddr,	/* address of I2C device        */
 						    DRXaddr_t waddr,	/* address of register          */
 						    DRXaddr_t raddr,	/* address to read back from    */
 						    u32_t datain,	/* data to send                 */
@@ -188,7 +188,7 @@ static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg32(pI2CDeviceAddr_t devAddr,	/*
 /******************************
 *
 * DRXStatus_t DRXDAP_FASI_ReadBlock (
-*      pI2CDeviceAddr_t devAddr,      -- address of I2C device
+*      struct i2c_device_addr *devAddr,      -- address of I2C device
 *      DRXaddr_t        addr,         -- address of chip register/memory
 *      u16_t            datasize,     -- number of bytes to read
 *      pu8_t            data,         -- data to receive
@@ -210,7 +210,7 @@ static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg32(pI2CDeviceAddr_t devAddr,	/*
 *
 ******************************/
 
-static DRXStatus_t DRXDAP_FASI_ReadBlock(pI2CDeviceAddr_t devAddr,
+static DRXStatus_t DRXDAP_FASI_ReadBlock(struct i2c_device_addr *devAddr,
 					 DRXaddr_t addr,
 					 u16_t datasize,
 					 pu8_t data, DRXflags_t flags)
@@ -303,7 +303,7 @@ static DRXStatus_t DRXDAP_FASI_ReadBlock(pI2CDeviceAddr_t devAddr,
 /******************************
 *
 * DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg16 (
-*      pI2CDeviceAddr_t devAddr,   -- address of I2C device
+*      struct i2c_device_addr *devAddr,   -- address of I2C device
 *      DRXaddr_t        waddr,     -- address of chip register/memory
 *      DRXaddr_t        raddr,     -- chip address to read back from
 *      u16_t            wdata,     -- data to send
@@ -325,7 +325,7 @@ static DRXStatus_t DRXDAP_FASI_ReadBlock(pI2CDeviceAddr_t devAddr,
 *
 ******************************/
 
-static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg16(pI2CDeviceAddr_t devAddr,
+static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg16(struct i2c_device_addr *devAddr,
 						    DRXaddr_t waddr,
 						    DRXaddr_t raddr,
 						    u16_t wdata, pu16_t rdata)
@@ -349,7 +349,7 @@ static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg16(pI2CDeviceAddr_t devAddr,
 /******************************
 *
 * DRXStatus_t DRXDAP_FASI_ReadReg16 (
-*     pI2CDeviceAddr_t devAddr, -- address of I2C device
+*     struct i2c_device_addr *devAddr, -- address of I2C device
 *     DRXaddr_t        addr,    -- address of chip register/memory
 *     pu16_t           data,    -- data to receive
 *     DRXflags_t       flags)   -- special device flags
@@ -364,7 +364,7 @@ static DRXStatus_t DRXDAP_FASI_ReadModifyWriteReg16(pI2CDeviceAddr_t devAddr,
 *
 ******************************/
 
-static DRXStatus_t DRXDAP_FASI_ReadReg16(pI2CDeviceAddr_t devAddr,
+static DRXStatus_t DRXDAP_FASI_ReadReg16(struct i2c_device_addr *devAddr,
 					 DRXaddr_t addr,
 					 pu16_t data, DRXflags_t flags)
 {
@@ -382,7 +382,7 @@ static DRXStatus_t DRXDAP_FASI_ReadReg16(pI2CDeviceAddr_t devAddr,
 /******************************
 *
 * DRXStatus_t DRXDAP_FASI_ReadReg32 (
-*     pI2CDeviceAddr_t devAddr, -- address of I2C device
+*     struct i2c_device_addr *devAddr, -- address of I2C device
 *     DRXaddr_t        addr,    -- address of chip register/memory
 *     pu32_t           data,    -- data to receive
 *     DRXflags_t       flags)   -- special device flags
@@ -397,7 +397,7 @@ static DRXStatus_t DRXDAP_FASI_ReadReg16(pI2CDeviceAddr_t devAddr,
 *
 ******************************/
 
-static DRXStatus_t DRXDAP_FASI_ReadReg32(pI2CDeviceAddr_t devAddr,
+static DRXStatus_t DRXDAP_FASI_ReadReg32(struct i2c_device_addr *devAddr,
 					 DRXaddr_t addr,
 					 pu32_t data, DRXflags_t flags)
 {
@@ -417,7 +417,7 @@ static DRXStatus_t DRXDAP_FASI_ReadReg32(pI2CDeviceAddr_t devAddr,
 /******************************
 *
 * DRXStatus_t DRXDAP_FASI_WriteBlock (
-*      pI2CDeviceAddr_t devAddr,    -- address of I2C device
+*      struct i2c_device_addr *devAddr,    -- address of I2C device
 *      DRXaddr_t        addr,       -- address of chip register/memory
 *      u16_t            datasize,   -- number of bytes to read
 *      pu8_t            data,       -- data to receive
@@ -436,7 +436,7 @@ static DRXStatus_t DRXDAP_FASI_ReadReg32(pI2CDeviceAddr_t devAddr,
 *
 ******************************/
 
-static DRXStatus_t DRXDAP_FASI_WriteBlock(pI2CDeviceAddr_t devAddr,
+static DRXStatus_t DRXDAP_FASI_WriteBlock(struct i2c_device_addr *devAddr,
 					  DRXaddr_t addr,
 					  u16_t datasize,
 					  pu8_t data, DRXflags_t flags)
@@ -526,7 +526,7 @@ static DRXStatus_t DRXDAP_FASI_WriteBlock(pI2CDeviceAddr_t devAddr,
 			st = DRXBSP_I2C_WriteRead(devAddr,
 						  (u16_t) (bufx),
 						  buf,
-						  (pI2CDeviceAddr_t) (NULL),
+						  (struct i2c_device_addr *) (NULL),
 						  0, (pu8_t) (NULL));
 
 			if ((st != DRX_STS_OK) && (firstErr == DRX_STS_OK)) {
@@ -543,7 +543,7 @@ static DRXStatus_t DRXDAP_FASI_WriteBlock(pI2CDeviceAddr_t devAddr,
 		st = DRXBSP_I2C_WriteRead(devAddr,
 					  (u16_t) (bufx + todo),
 					  buf,
-					  (pI2CDeviceAddr_t) (NULL),
+					  (struct i2c_device_addr *) (NULL),
 					  0, (pu8_t) (NULL));
 
 		if ((st != DRX_STS_OK) && (firstErr == DRX_STS_OK)) {
@@ -561,7 +561,7 @@ static DRXStatus_t DRXDAP_FASI_WriteBlock(pI2CDeviceAddr_t devAddr,
 /******************************
 *
 * DRXStatus_t DRXDAP_FASI_WriteReg16 (
-*     pI2CDeviceAddr_t devAddr, -- address of I2C device
+*     struct i2c_device_addr *devAddr, -- address of I2C device
 *     DRXaddr_t        addr,    -- address of chip register/memory
 *     u16_t            data,    -- data to send
 *     DRXflags_t       flags)   -- special device flags
@@ -575,7 +575,7 @@ static DRXStatus_t DRXDAP_FASI_WriteBlock(pI2CDeviceAddr_t devAddr,
 *
 ******************************/
 
-static DRXStatus_t DRXDAP_FASI_WriteReg16(pI2CDeviceAddr_t devAddr,
+static DRXStatus_t DRXDAP_FASI_WriteReg16(struct i2c_device_addr *devAddr,
 					  DRXaddr_t addr,
 					  u16_t data, DRXflags_t flags)
 {
@@ -590,7 +590,7 @@ static DRXStatus_t DRXDAP_FASI_WriteReg16(pI2CDeviceAddr_t devAddr,
 /******************************
 *
 * DRXStatus_t DRXDAP_FASI_WriteReg32 (
-*     pI2CDeviceAddr_t devAddr, -- address of I2C device
+*     struct i2c_device_addr *devAddr, -- address of I2C device
 *     DRXaddr_t        addr,    -- address of chip register/memory
 *     u32_t            data,    -- data to send
 *     DRXflags_t       flags)   -- special device flags
@@ -604,7 +604,7 @@ static DRXStatus_t DRXDAP_FASI_WriteReg16(pI2CDeviceAddr_t devAddr,
 *
 ******************************/
 
-static DRXStatus_t DRXDAP_FASI_WriteReg32(pI2CDeviceAddr_t devAddr,
+static DRXStatus_t DRXDAP_FASI_WriteReg32(struct i2c_device_addr *devAddr,
 					  DRXaddr_t addr,
 					  u32_t data, DRXflags_t flags)
 {

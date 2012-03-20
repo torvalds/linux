@@ -60,10 +60,10 @@ void *DRXBSP_HST_Memcpy(void *to, void *from, u32_t n)
 	return (memcpy(to, from, (size_t) n));
 }
 
-DRXStatus_t DRXBSP_I2C_WriteRead(pI2CDeviceAddr_t wDevAddr,
+DRXStatus_t DRXBSP_I2C_WriteRead(struct i2c_device_addr *wDevAddr,
 				 u16_t wCount,
 				 pu8_t wData,
-				 pI2CDeviceAddr_t rDevAddr,
+				 struct i2c_device_addr *rDevAddr,
 				 u16_t rCount, pu8_t rData)
 {
 	struct drx39xxj_state *state;
