@@ -632,6 +632,7 @@ struct radeon_ib {
 	uint32_t		*ptr;
 	struct radeon_fence	*fence;
 	unsigned		vm_id;
+	bool			is_const_ib;
 };
 
 /*
@@ -836,7 +837,9 @@ struct radeon_cs_parser {
 	int			chunk_ib_idx;
 	int			chunk_relocs_idx;
 	int			chunk_flags_idx;
+	int			chunk_const_ib_idx;
 	struct radeon_ib	*ib;
+	struct radeon_ib	*const_ib;
 	void			*track;
 	unsigned		family;
 	int			parser_error;

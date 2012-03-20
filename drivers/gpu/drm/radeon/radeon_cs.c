@@ -170,6 +170,7 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	p->chunk_ib_idx = -1;
 	p->chunk_relocs_idx = -1;
 	p->chunk_flags_idx = -1;
+	p->chunk_const_ib_idx = -1;
 	p->chunks_array = kcalloc(cs->num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (p->chunks_array == NULL) {
 		return -ENOMEM;
@@ -205,6 +206,12 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_IB) {
 			p->chunk_ib_idx = i;
 			/* zero length IB isn't useful */
+			if (p->chunks[i].length_dw == 0)
+				return -EINVAL;
+		}
+		if (p->chunks[i].chunk_id == RADEON_CHUNK_ID_CONST_IB) {
+			p->chunk_const_ib_idx = i;
+			/* zero length CONST IB isn't useful */
 			if (p->chunks[i].length_dw == 0)
 				return -EINVAL;
 		}
@@ -389,6 +396,32 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if ((parser->cs_flags & RADEON_CS_USE_VM) == 0)
 		return 0;
 
+	if ((rdev->family >= CHIP_TAHITI) &&
+	    (parser->chunk_const_ib_idx != -1)) {
+		ib_chunk = &parser->chunks[parser->chunk_const_ib_idx];
+		if (ib_chunk->length_dw > RADEON_IB_VM_MAX_SIZE) {
+			DRM_ERROR("cs IB CONST too big: %d\n", ib_chunk->length_dw);
+			return -EINVAL;
+		}
+		r =  radeon_ib_get(rdev, parser->ring, &parser->const_ib,
+				   ib_chunk->length_dw * 4);
+		if (r) {
+			DRM_ERROR("Failed to get const ib !\n");
+			return r;
+		}
+		parser->const_ib->is_const_ib = true;
+		parser->const_ib->length_dw = ib_chunk->length_dw;
+		/* Copy the packet into the IB */
+		if (DRM_COPY_FROM_USER(parser->const_ib->ptr, ib_chunk->user_ptr,
+				       ib_chunk->length_dw * 4)) {
+			return -EFAULT;
+		}
+		r = radeon_ring_ib_parse(rdev, parser->ring, parser->const_ib);
+		if (r) {
+			return r;
+		}
+	}
+
 	ib_chunk = &parser->chunks[parser->chunk_ib_idx];
 	if (ib_chunk->length_dw > RADEON_IB_VM_MAX_SIZE) {
 		DRM_ERROR("cs IB too big: %d\n", ib_chunk->length_dw);
@@ -424,11 +457,25 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	if (r) {
 		DRM_ERROR("Failed to synchronize rings !\n");
 	}
+
+	if ((rdev->family >= CHIP_TAHITI) &&
+	    (parser->chunk_const_ib_idx != -1)) {
+		parser->const_ib->vm_id = vm->id;
+		/* ib pool is bind at 0 in virtual address space to gpu_addr is the
+		 * offset inside the pool bo
+		 */
+		parser->const_ib->gpu_addr = parser->const_ib->sa_bo.offset;
+		r = radeon_ib_schedule(rdev, parser->const_ib);
+		if (r)
+			goto out;
+	}
+
 	parser->ib->vm_id = vm->id;
 	/* ib pool is bind at 0 in virtual address space to gpu_addr is the
 	 * offset inside the pool bo
 	 */
 	parser->ib->gpu_addr = parser->ib->sa_bo.offset;
+	parser->ib->is_const_ib = false;
 	r = radeon_ib_schedule(rdev, parser->ib);
 out:
 	if (!r) {
