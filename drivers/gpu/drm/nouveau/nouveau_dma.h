@@ -53,6 +53,7 @@ enum {
 	NvSubCtxSurf2D  = 2,
 	NvSub2D		= 3,
 	NvSubGdiRect    = 3,
+	NvSubCopy	= 4,
 	NvSubImageBlit  = 4
 };
 

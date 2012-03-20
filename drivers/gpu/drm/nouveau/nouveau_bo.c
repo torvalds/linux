@@ -489,6 +489,27 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 }
 
 static int
+nve0_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+{
+	struct nouveau_mem *node = old_mem->mm_node;
+	int ret = RING_SPACE(chan, 10);
+	if (ret == 0) {
+		BEGIN_NVC0(chan, 2, NvSubCopy, 0x0400, 8);
+		OUT_RING  (chan, upper_32_bits(node->vma[0].offset));
+		OUT_RING  (chan, lower_32_bits(node->vma[0].offset));
+		OUT_RING  (chan, upper_32_bits(node->vma[1].offset));
+		OUT_RING  (chan, lower_32_bits(node->vma[1].offset));
+		OUT_RING  (chan, PAGE_SIZE);
+		OUT_RING  (chan, PAGE_SIZE);
+		OUT_RING  (chan, PAGE_SIZE);
+		OUT_RING  (chan, new_mem->num_pages);
+		BEGIN_NVC0(chan, 8, NvSubCopy, 0x0300, 0x0386);
+	}
+	return ret;
+}
+
+static int
 nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
@@ -727,7 +748,10 @@ nouveau_bo_move_m2mf(struct ttm_buffer_object *bo, int evict, bool intr,
 	if (dev_priv->card_type < NV_C0)
 		ret = nv50_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
 	else
+	if (dev_priv->card_type < NV_E0)
 		ret = nvc0_bo_move_m2mf(chan, bo, &bo->mem, new_mem);
+	else
+		ret = nve0_bo_move_copy(chan, bo, &bo->mem, new_mem);
 	if (ret == 0) {
 		ret = nouveau_bo_move_accel_cleanup(chan, nvbo, evict,
 						    no_wait_reserve,

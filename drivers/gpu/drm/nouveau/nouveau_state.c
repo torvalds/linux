@@ -657,6 +657,20 @@ nouveau_card_channel_init(struct drm_device *dev)
 
 		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0000, 1);
 		OUT_RING  (chan, 0x00009039);
+	} else
+	if (dev_priv->card_type <= NV_E0) {
+		/* not used, but created to get a graph context */
+		ret = nouveau_gpuobj_gr_new(chan, 0xa040, 0xa040);
+		if (ret)
+			goto error;
+
+		/* bind strange copy engine to subchannel 4 (fixed...) */
+		ret = RING_SPACE(chan, 2);
+		if (ret)
+			goto error;
+
+		BEGIN_NVC0(chan, 2, NvSubCopy, 0x0000, 1);
+		OUT_RING  (chan, 0x0000a0b5);
 	}
 
 	FIRE_RING (chan);
