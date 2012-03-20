@@ -1816,7 +1816,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc440",
 	},
 	{ /* 464 in APM821xx */
-		.pvr_mask		= 0xffffff00,
+		.pvr_mask		= 0xfffffff0,
 		.pvr_value		= 0x12C41C80,
 		.cpu_name		= "APM821XX",
 		.cpu_features		= CPU_FTRS_44X,
