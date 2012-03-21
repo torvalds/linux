@@ -1234,6 +1234,7 @@ static const struct soc_mbus_pixelfmt pxa_camera_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PLANAR_2Y_U_V,
 	},
 };
 

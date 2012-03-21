@@ -47,6 +47,24 @@ enum soc_mbus_order {
 };
 
 /**
+ * enum soc_mbus_layout - planes layout in memory
+ * @SOC_MBUS_LAYOUT_PACKED:		color components packed
+ * @SOC_MBUS_LAYOUT_PLANAR_2Y_U_V:	YUV components stored in 3 planes (4:2:2)
+ * @SOC_MBUS_LAYOUT_PLANAR_2Y_C:	YUV components stored in a luma and a
+ *					chroma plane (C plane is half the size
+ *					of Y plane)
+ * @SOC_MBUS_LAYOUT_PLANAR_Y_C:		YUV components stored in a luma and a
+ *					chroma plane (C plane is the same size
+ *					as Y plane)
+ */
+enum soc_mbus_layout {
+	SOC_MBUS_LAYOUT_PACKED = 0,
+	SOC_MBUS_LAYOUT_PLANAR_2Y_U_V,
+	SOC_MBUS_LAYOUT_PLANAR_2Y_C,
+	SOC_MBUS_LAYOUT_PLANAR_Y_C,
+};
+
+/**
  * struct soc_mbus_pixelfmt - Data format on the media bus
  * @name:		Name of the format
  * @fourcc:		Fourcc code, that will be obtained if the data is
@@ -60,6 +78,7 @@ struct soc_mbus_pixelfmt {
 	u32			fourcc;
 	enum soc_mbus_packing	packing;
 	enum soc_mbus_order	order;
+	enum soc_mbus_layout	layout;
 	u8			bits_per_sample;
 };
 

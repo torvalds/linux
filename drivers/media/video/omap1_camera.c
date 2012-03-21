@@ -989,6 +989,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
 	.code = V4L2_MBUS_FMT_VYUY8_2X8,
@@ -998,6 +999,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
 	.code = V4L2_MBUS_FMT_YUYV8_2X8,
@@ -1007,6 +1009,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
 	.code = V4L2_MBUS_FMT_YVYU8_2X8,
@@ -1016,6 +1019,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
 	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_BE,
@@ -1025,6 +1029,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
 	.code = V4L2_MBUS_FMT_RGB555_2X8_PADHI_LE,
@@ -1034,6 +1039,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
 	.code = V4L2_MBUS_FMT_RGB565_2X8_BE,
@@ -1043,6 +1049,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 }, {
 	.code = V4L2_MBUS_FMT_RGB565_2X8_LE,
@@ -1052,6 +1059,7 @@ static const struct soc_mbus_lookup omap1_cam_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_BE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 },
 };

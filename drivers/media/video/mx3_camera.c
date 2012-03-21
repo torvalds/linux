@@ -637,12 +637,14 @@ static const struct soc_mbus_pixelfmt mx3_camera_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_NONE,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	}, {
 		.fourcc			= V4L2_PIX_FMT_GREY,
 		.name			= "Monochrome 8 bit",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_NONE,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PACKED,
 	},
 };
 

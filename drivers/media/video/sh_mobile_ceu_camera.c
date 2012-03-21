@@ -955,24 +955,28 @@ static const struct soc_mbus_pixelfmt sh_mobile_ceu_formats[] = {
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_1_5X8,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PLANAR_2Y_C,
 	}, {
 		.fourcc			= V4L2_PIX_FMT_NV21,
 		.name			= "NV21",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_1_5X8,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PLANAR_2Y_C,
 	}, {
 		.fourcc			= V4L2_PIX_FMT_NV16,
 		.name			= "NV16",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PLANAR_Y_C,
 	}, {
 		.fourcc			= V4L2_PIX_FMT_NV61,
 		.name			= "NV61",
 		.bits_per_sample	= 8,
 		.packing		= SOC_MBUS_PACKING_2X8_PADHI,
 		.order			= SOC_MBUS_ORDER_LE,
+		.layout			= SOC_MBUS_LAYOUT_PLANAR_Y_C,
 	},
 };
 
