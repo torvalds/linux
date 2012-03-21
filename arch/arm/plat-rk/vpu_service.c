@@ -42,8 +42,7 @@
 #include <asm/uaccess.h>
 
 #include <mach/irqs.h>
-#include <mach/vpu_service.h>
-#include <mach/rk29_iomap.h>
+#include <plat/vpu_service.h>
 #include <mach/pmu.h>
 #include <mach/cru.h>
 
@@ -176,6 +175,7 @@ static void vpu_put_clk(void)
 
 static void vpu_reset(void)
 {
+#if defined(CONFIG_ARCH_RK29)
 	clk_disable(aclk_ddr_vepu);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, true);
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, true);
@@ -187,6 +187,19 @@ static void vpu_reset(void)
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
 	clk_enable(aclk_ddr_vepu);
+#elif defined(CONFIG_ARCH_RK30)
+	pmu_set_idle_request(IDLE_REQ_VIDEO, true);
+	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AXI, true);
+	mdelay(10);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AXI, false);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);
+	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, false);
+	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, false);
+	pmu_set_idle_request(IDLE_REQ_VIDEO, false);
+#endif
 	service.reg_codec = NULL;
 	service.reg_pproc = NULL;
 	service.reg_resev = NULL;
@@ -1086,6 +1099,10 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 static int __init vpu_service_init(void)
 {
 	int ret;
+
+#if defined(CONFIG_ARCH_RK30)
+#define RK29_VCODEC_PHYS	RK30_VCODEC_PHYS
+#endif
 
 	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", RK29_VCODEC_PHYS, IRQ_VDPU, IRQ_VEPU);
 
