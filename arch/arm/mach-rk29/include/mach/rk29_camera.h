@@ -33,6 +33,8 @@
 #define RK29_CAM_EIO_INVALID -1
 #define RK29_CAM_EIO_REQUESTFAIL -2
 
+#define RK29_CAM_SUPPORT_NUMS   6
+
 /*---------------- Camera Sensor Must Define Macro Begin  ------------------------*/
 #define RK29_CAM_SENSOR_OV7675 ov7675
 #define RK29_CAM_SENSOR_OV9650 ov9650
@@ -183,9 +185,9 @@ struct rk29camera_platform_data {
     int (*io_init)(void);
     int (*io_deinit)(int sensor);
 	int (*sensor_ioctrl)(struct device *dev,enum rk29camera_ioctrl_cmd cmd,int on);
-    struct rk29camera_gpio_res gpio_res[2];
+    struct rk29camera_gpio_res gpio_res[RK29_CAM_SUPPORT_NUMS];
 	struct rk29camera_mem_res meminfo;
-    struct rk29camera_info info[2];
+    struct rk29camera_info info[RK29_CAM_SUPPORT_NUMS];
 };
 
 struct rk29camera_platform_ioctl_cb {

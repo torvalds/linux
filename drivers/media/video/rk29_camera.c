@@ -56,6 +56,12 @@
 #define PMEM_CAM_NECESSARY   0x1200000
 #define PMEM_CAMIPP_NECESSARY    0x800000
 #endif
+
+#if CONFIG_VIDEO_RK29_CAMMEM_ION
+#undef PMEM_CAM_NECESSARY
+#define PMEM_CAM_NECESSARY   0x00000000
+#endif
+
 /*---------------- Camera Sensor Fixed Macro End  ------------------------*/
 #else   //#ifdef CONFIG_VIDEO_RK29 
 #define PMEM_CAM_NECESSARY   0x00000000
@@ -68,7 +74,7 @@
  *****************************************************************************************/
 #ifdef CONFIG_VIDEO_RK29 
 static int camera_debug;
-module_param(camera_debug, int, S_IRUGO|S_IWUSR);
+module_param(camera_debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 
 #define ddprintk(level, fmt, arg...) do {			\
 	if (camera_debug >= level) 					\
@@ -76,10 +82,27 @@ module_param(camera_debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(format, ...) ddprintk(1, format, ## __VA_ARGS__)    
 
-#define SENSOR_NAME_0 STR(CONFIG_SENSOR_0)			/* back camera sensor */
-#define SENSOR_NAME_1 STR(CONFIG_SENSOR_1)			/* front camera sensor */
+#define SENSOR_NAME_0 STR(CONFIG_SENSOR_0)			/* back camera sensor 0 */
 #define SENSOR_DEVICE_NAME_0  STR(CONS(CONFIG_SENSOR_0, _back))
+#ifdef CONFIG_SENSOR_01
+#define SENSOR_NAME_01 STR(CONFIG_SENSOR_01)			/* back camera sensor 1 */
+#define SENSOR_DEVICE_NAME_01  STR(CONS(CONFIG_SENSOR_01, _back_1))
+#endif
+#ifdef CONFIG_SENSOR_02
+#define SENSOR_NAME_02 STR(CONFIG_SENSOR_02)			/* back camera sensor 2 */
+#define SENSOR_DEVICE_NAME_02  STR(CONS(CONFIG_SENSOR_02, _back_2))
+#endif
+#define SENSOR_NAME_1 STR(CONFIG_SENSOR_1)			/* front camera sensor 0 */
 #define SENSOR_DEVICE_NAME_1  STR(CONS(CONFIG_SENSOR_1, _front))
+#ifdef CONFIG_SENSOR_11
+#define SENSOR_NAME_11 STR(CONFIG_SENSOR_11)			/* front camera sensor 1 */
+#define SENSOR_DEVICE_NAME_11  STR(CONS(CONFIG_SENSOR_11, _front_1))
+#endif
+#ifdef CONFIG_SENSOR_12
+#define SENSOR_NAME_12 STR(CONFIG_SENSOR_12)			/* front camera sensor 2 */
+#define SENSOR_DEVICE_NAME_12  STR(CONS(CONFIG_SENSOR_12, _front_2))
+#endif
+
 
 static int rk29_sensor_io_init(void);
 static int rk29_sensor_io_deinit(int sensor);
@@ -97,7 +120,43 @@ static struct rk29camera_platform_data rk29_camera_platform_data = {
             .gpio_flash = CONFIG_SENSOR_FALSH_PIN_0,
             .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_0|CONFIG_SENSOR_RESETACTIVE_LEVEL_0|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_0|CONFIG_SENSOR_FLASHACTIVE_LEVEL_0),
             .gpio_init = 0,            
-            .dev_name = SENSOR_DEVICE_NAME_0,
+            .dev_name = SENSOR_DEVICE_NAME_0,        
+        }, {
+        #ifdef CONFIG_SENSOR_01
+            .gpio_reset = CONFIG_SENSOR_RESET_PIN_01,
+            .gpio_power = CONFIG_SENSOR_POWER_PIN_01,
+            .gpio_powerdown = CONFIG_SENSOR_POWERDN_PIN_01,
+            .gpio_flash = CONFIG_SENSOR_FALSH_PIN_01,
+            .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_01|CONFIG_SENSOR_RESETACTIVE_LEVEL_01|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_01|CONFIG_SENSOR_FLASHACTIVE_LEVEL_01),
+            .gpio_init = 0,            
+            .dev_name = SENSOR_DEVICE_NAME_01,
+        #else
+            .gpio_reset = INVALID_GPIO,
+            .gpio_power = INVALID_GPIO,
+            .gpio_powerdown = INVALID_GPIO,
+            .gpio_flash = INVALID_GPIO,
+            .gpio_flag = 0,
+            .gpio_init = 0,            
+            .dev_name = NULL,
+        #endif
+        }, {
+        #ifdef CONFIG_SENSOR_02
+            .gpio_reset = CONFIG_SENSOR_RESET_PIN_02,
+            .gpio_power = CONFIG_SENSOR_POWER_PIN_02,
+            .gpio_powerdown = CONFIG_SENSOR_POWERDN_PIN_02,
+            .gpio_flash = CONFIG_SENSOR_FALSH_PIN_02,
+            .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_02|CONFIG_SENSOR_RESETACTIVE_LEVEL_02|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_02|CONFIG_SENSOR_FLASHACTIVE_LEVEL_02),
+            .gpio_init = 0,            
+            .dev_name = SENSOR_DEVICE_NAME_02, 
+        #else
+            .gpio_reset = INVALID_GPIO,
+            .gpio_power = INVALID_GPIO,
+            .gpio_powerdown = INVALID_GPIO,
+            .gpio_flash = INVALID_GPIO,
+            .gpio_flag = 0,
+            .gpio_init = 0,            
+            .dev_name = NULL,
+        #endif
         }, {
             .gpio_reset = CONFIG_SENSOR_RESET_PIN_1,
             .gpio_power = CONFIG_SENSOR_POWER_PIN_1,
@@ -106,6 +165,42 @@ static struct rk29camera_platform_data rk29_camera_platform_data = {
             .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_1|CONFIG_SENSOR_RESETACTIVE_LEVEL_1|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_1|CONFIG_SENSOR_FLASHACTIVE_LEVEL_1),
             .gpio_init = 0,
             .dev_name = SENSOR_DEVICE_NAME_1,
+        },{
+        #ifdef CONFIG_SENSOR_11
+            .gpio_reset = CONFIG_SENSOR_RESET_PIN_11,
+            .gpio_power = CONFIG_SENSOR_POWER_PIN_11,
+            .gpio_powerdown = CONFIG_SENSOR_POWERDN_PIN_11,
+            .gpio_flash = CONFIG_SENSOR_FALSH_PIN_11,
+            .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_11|CONFIG_SENSOR_RESETACTIVE_LEVEL_11|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_11|CONFIG_SENSOR_FLASHACTIVE_LEVEL_11),
+            .gpio_init = 0,
+            .dev_name = SENSOR_DEVICE_NAME_11,
+        #else
+            .gpio_reset = INVALID_GPIO,
+            .gpio_power = INVALID_GPIO,
+            .gpio_powerdown = INVALID_GPIO,
+            .gpio_flash = INVALID_GPIO,
+            .gpio_flag = 0,
+            .gpio_init = 0,            
+            .dev_name = NULL,
+        #endif        
+        }, {
+        #ifdef CONFIG_SENSOR_12
+            .gpio_reset = CONFIG_SENSOR_RESET_PIN_12,
+            .gpio_power = CONFIG_SENSOR_POWER_PIN_12,
+            .gpio_powerdown = CONFIG_SENSOR_POWERDN_PIN_12,
+            .gpio_flash = CONFIG_SENSOR_FALSH_PIN_12,
+            .gpio_flag = (CONFIG_SENSOR_POWERACTIVE_LEVEL_12|CONFIG_SENSOR_RESETACTIVE_LEVEL_12|CONFIG_SENSOR_POWERDNACTIVE_LEVEL_12|CONFIG_SENSOR_FLASHACTIVE_LEVEL_12),
+            .gpio_init = 0,
+            .dev_name = SENSOR_DEVICE_NAME_12,
+        #else
+            .gpio_reset = INVALID_GPIO,
+            .gpio_power = INVALID_GPIO,
+            .gpio_powerdown = INVALID_GPIO,
+            .gpio_flash = INVALID_GPIO,
+            .gpio_flag = 0,
+            .gpio_init = 0,            
+            .dev_name = NULL,
+        #endif
         }
     },
 	#ifdef CONFIG_VIDEO_RK29_WORK_IPP
@@ -118,11 +213,47 @@ static struct rk29camera_platform_data rk29_camera_platform_data = {
     .info = {
         {
             .dev_name = SENSOR_DEVICE_NAME_0,
-            .orientation = CONFIG_SENSOR_ORIENTATION_0, 
+            .orientation = CONFIG_SENSOR_ORIENTATION_0,  
+        #ifdef CONFIG_SENSOR_01
 	    },{
+	        .dev_name = SENSOR_DEVICE_NAME_01,
+            .orientation = CONFIG_SENSOR_ORIENTATION_01, 
+        #else
+        },{
+	        .dev_name = NULL,
+            .orientation = 0x00, 
+        #endif
+        #ifdef CONFIG_SENSOR_02
+	    },{
+	        .dev_name = SENSOR_DEVICE_NAME_02,
+            .orientation = CONFIG_SENSOR_ORIENTATION_02, 
+        #else
+        },{
+	        .dev_name = NULL,
+            .orientation = 0x00, 
+        #endif
+        },{
             .dev_name = SENSOR_DEVICE_NAME_1,
             .orientation = CONFIG_SENSOR_ORIENTATION_1,
-        }
+        #ifdef CONFIG_SENSOR_11 
+        },{
+            .dev_name = SENSOR_DEVICE_NAME_11,
+            .orientation = CONFIG_SENSOR_ORIENTATION_11, 
+        #else
+        },{
+	        .dev_name = NULL,
+            .orientation = 0x00, 
+        #endif
+        #ifdef CONFIG_SENSOR_12
+	    },{
+	        .dev_name = SENSOR_DEVICE_NAME_12,
+            .orientation = CONFIG_SENSOR_ORIENTATION_12, 
+        #else
+        },{
+	        .dev_name = NULL,
+            .orientation = 0x00, 
+        #endif
+	    }
 	}
 };
 
@@ -1099,7 +1230,7 @@ static int sensor_power_default_cb (struct rk29camera_gpio_res *res, int on)
     int ret = 0;
     
     if (camera_power != INVALID_GPIO)  {
-		     if (camera_io_init & RK29_CAM_POWERACTIVE_MASK) {
+		if (camera_io_init & RK29_CAM_POWERACTIVE_MASK) {
             if (on) {
             	gpio_set_value(camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
     			dprintk("%s..%s..PowerPin=%d ..PinLevel = %x   \n",__FUNCTION__,res->dev_name, camera_power, ((camera_ioflag&RK29_CAM_POWERACTIVE_MASK)>>RK29_CAM_POWERACTIVE_BITPOS));
@@ -1221,7 +1352,149 @@ static int sensor_flash_default_cb (struct rk29camera_gpio_res *res, int on)
     return ret;
 }
 
-
+static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
+{
+    switch (idx)
+    {
+        case 0:
+        {
+            if ((w==176) && (h==144)) {
+                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_0;
+            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_0
+            } else if ((w==240) && (h==160)) {
+                *val = CONFIG_SENSOR_240X160_FPS_FIXED_0;
+            #endif
+            } else if ((w==320) && (h==240)) {
+                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_0;
+            } else if ((w==352) && (h==288)) {
+                *val = CONFIG_SENSOR_CIF_FPS_FIXED_0;
+            } else if ((w==640) && (h==480)) {
+                *val = CONFIG_SENSOR_VGA_FPS_FIXED_0;
+            } else if ((w==720) && (h==480)) {
+                *val = CONFIG_SENSOR_480P_FPS_FIXED_0;
+            } else if ((w==1280) && (h==720)) {
+                *val = CONFIG_SENSOR_720P_FPS_FIXED_0;
+            }
+            break;
+        }
+        #ifdef CONFIG_SENSOR_01
+        case 1:
+        {
+            if ((w==176) && (h==144)) {
+                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_01;
+            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_01
+            } else if ((w==240) && (h==160)) {
+                *val = CONFIG_SENSOR_240X160_FPS_FIXED_01;
+            #endif
+            } else if ((w==320) && (h==240)) {
+                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_01;
+            } else if ((w==352) && (h==288)) {
+                *val = CONFIG_SENSOR_CIF_FPS_FIXED_01;
+            } else if ((w==640) && (h==480)) {
+                *val = CONFIG_SENSOR_VGA_FPS_FIXED_01;
+            } else if ((w==720) && (h==480)) {
+                *val = CONFIG_SENSOR_480P_FPS_FIXED_01;
+            } else if ((w==1280) && (h==720)) {
+                *val = CONFIG_SENSOR_720P_FPS_FIXED_01;
+            }
+            break;
+        }
+        #endif
+        #ifdef CONFIG_SENSOR_02
+        case 2:
+        {
+            if ((w==176) && (h==144)) {
+                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_02;
+            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_02
+            } else if ((w==240) && (h==160)) {
+                *val = CONFIG_SENSOR_240X160_FPS_FIXED_02;
+            #endif
+            } else if ((w==320) && (h==240)) {
+                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_02;
+            } else if ((w==352) && (h==288)) {
+                *val = CONFIG_SENSOR_CIF_FPS_FIXED_02;
+            } else if ((w==640) && (h==480)) {
+                *val = CONFIG_SENSOR_VGA_FPS_FIXED_02;
+            } else if ((w==720) && (h==480)) {
+                *val = CONFIG_SENSOR_480P_FPS_FIXED_02;
+            } else if ((w==1280) && (h==720)) {
+                *val = CONFIG_SENSOR_720P_FPS_FIXED_02;
+            }
+            break;
+        }
+        #endif
+        
+        case 3:
+        {
+            if ((w==176) && (h==144)) {
+                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_1;
+            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_1
+            } else if ((w==240) && (h==160)) {
+                *val = CONFIG_SENSOR_240X160_FPS_FIXED_1;
+            #endif
+            } else if ((w==320) && (h==240)) {
+                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_1;
+            } else if ((w==352) && (h==288)) {
+                *val = CONFIG_SENSOR_CIF_FPS_FIXED_1;
+            } else if ((w==640) && (h==480)) {
+                *val = CONFIG_SENSOR_VGA_FPS_FIXED_1;
+            } else if ((w==720) && (h==480)) {
+                *val = CONFIG_SENSOR_480P_FPS_FIXED_1;
+            } else if ((w==1280) && (h==720)) {
+                *val = CONFIG_SENSOR_720P_FPS_FIXED_1;
+            }
+            break;
+        }
+        #ifdef CONFIG_SENSOR_11
+        case 4:
+        {
+            if ((w==176) && (h==144)) {
+                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_11;
+            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_11
+            } else if ((w==240) && (h==160)) {
+                *val = CONFIG_SENSOR_240X160_FPS_FIXED_11;
+            #endif
+            } else if ((w==320) && (h==240)) {
+                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_11;
+            } else if ((w==352) && (h==288)) {
+                *val = CONFIG_SENSOR_CIF_FPS_FIXED_11;
+            } else if ((w==640) && (h==480)) {
+                *val = CONFIG_SENSOR_VGA_FPS_FIXED_11;
+            } else if ((w==720) && (h==480)) {
+                *val = CONFIG_SENSOR_480P_FPS_FIXED_11;
+            } else if ((w==1280) && (h==720)) {
+                *val = CONFIG_SENSOR_720P_FPS_FIXED_11;
+            }
+            break;
+        }
+        #endif
+        #ifdef CONFIG_SENSOR_12
+        case 5:
+        {
+            if ((w==176) && (h==144)) {
+                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_12;
+            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_12
+            } else if ((w==240) && (h==160)) {
+                *val = CONFIG_SENSOR_240X160_FPS_FIXED_12;
+            #endif
+            } else if ((w==320) && (h==240)) {
+                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_12;
+            } else if ((w==352) && (h==288)) {
+                *val = CONFIG_SENSOR_CIF_FPS_FIXED_12;
+            } else if ((w==640) && (h==480)) {
+                *val = CONFIG_SENSOR_VGA_FPS_FIXED_12;
+            } else if ((w==720) && (h==480)) {
+                *val = CONFIG_SENSOR_480P_FPS_FIXED_12;
+            } else if ((w==1280) && (h==720)) {
+                *val = CONFIG_SENSOR_720P_FPS_FIXED_12;
+            }
+            break;
+        }
+        #endif
+        default:
+            printk(KERN_ERR"rk29_cam_io: sensor-%d have not been define in board file!",idx);
+    }
+}
 static int rk29_sensor_io_init(void)
 {
     int ret = 0, i,j;
@@ -1238,7 +1511,10 @@ static int rk29_sensor_io_init(void)
     if (sensor_ioctl_cb.sensor_flash_cb == NULL)
         sensor_ioctl_cb.sensor_flash_cb = sensor_flash_default_cb;
     
-    for (i=0; i<2; i++) {
+    for (i=0; i<RK29_CAM_SUPPORT_NUMS; i++) {
+        if (rk29_camera_platform_data.gpio_res[i].dev_name == NULL)
+            continue;
+        
         camera_reset = rk29_camera_platform_data.gpio_res[i].gpio_reset;
         camera_power = rk29_camera_platform_data.gpio_res[i].gpio_power;
 		camera_powerdown = rk29_camera_platform_data.gpio_res[i].gpio_powerdown;
@@ -1253,7 +1529,11 @@ static int rk29_sensor_io_init(void)
                     printk("%s..%s..power pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_power);
 				    goto sensor_io_int_loop_end;
                 } else {
-                    if (camera_power != rk29_camera_platform_data.gpio_res[0].gpio_power) {
+                    for (j=0; j<i; j++) {
+                        if (camera_power == rk29_camera_platform_data.gpio_res[j].gpio_power)
+                            break;
+                    }
+                    if (i==j) {
                         printk("%s..%s..power pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_power);
                         goto sensor_io_int_loop_end;
                     }
@@ -1276,8 +1556,34 @@ static int rk29_sensor_io_init(void)
         if (camera_reset != INVALID_GPIO) {
             ret = gpio_request(camera_reset, "camera reset");
             if (ret) {
-                printk("%s..%s..reset pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_reset);
-                goto sensor_io_int_loop_end;
+                if (i==1) {
+                    if ((camera_reset == rk29_camera_platform_data.gpio_res[0].gpio_reset) 
+                        || (camera_reset == rk29_camera_platform_data.gpio_res[2].gpio_reset)) {
+                        ret = 0;
+                    }
+                }
+                if (i==2) {
+                    if ((camera_reset == rk29_camera_platform_data.gpio_res[0].gpio_reset) 
+                        || (camera_reset == rk29_camera_platform_data.gpio_res[1].gpio_reset)) {
+                        ret = 0;
+                    }
+                }
+                if (i==4) {
+                    if ((camera_reset == rk29_camera_platform_data.gpio_res[3].gpio_reset) 
+                        || (camera_reset == rk29_camera_platform_data.gpio_res[5].gpio_reset)) {
+                        ret = 0;
+                    }
+                }
+                if (i==5) {
+                    if ((camera_reset == rk29_camera_platform_data.gpio_res[3].gpio_reset) 
+                        || (camera_reset == rk29_camera_platform_data.gpio_res[4].gpio_reset)) {
+                        ret = 0;
+                    }
+                }
+                if (ret) {
+                    printk("%s..%s..reset pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_reset);
+                    goto sensor_io_int_loop_end;
+                }
             }
 
             if (rk29_sensor_iomux(camera_reset) < 0) {
@@ -1296,8 +1602,34 @@ static int rk29_sensor_io_init(void)
 		if (camera_powerdown != INVALID_GPIO) {
             ret = gpio_request(camera_powerdown, "camera powerdown");
             if (ret) {
-                printk("%s..%s..powerdown pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_powerdown);
-                goto sensor_io_int_loop_end;
+                if (i==1) {
+                    if ((camera_powerdown == rk29_camera_platform_data.gpio_res[0].gpio_powerdown) 
+                        || (camera_powerdown == rk29_camera_platform_data.gpio_res[2].gpio_powerdown)) {
+                        ret = 0;
+                    }
+                }
+                if (i==2) {
+                    if ((camera_powerdown == rk29_camera_platform_data.gpio_res[0].gpio_powerdown) 
+                        || (camera_powerdown == rk29_camera_platform_data.gpio_res[1].gpio_powerdown)) {
+                        ret = 0;
+                    }
+                }
+                if (i==4) {
+                    if ((camera_powerdown == rk29_camera_platform_data.gpio_res[3].gpio_powerdown) 
+                        || (camera_powerdown == rk29_camera_platform_data.gpio_res[5].gpio_powerdown)) {
+                        ret = 0;
+                    }
+                }
+                if (i==5) {
+                    if ((camera_powerdown == rk29_camera_platform_data.gpio_res[3].gpio_powerdown) 
+                        || (camera_powerdown == rk29_camera_platform_data.gpio_res[4].gpio_powerdown)) {
+                        ret = 0;
+                    }
+                }
+                if (ret) {
+                    printk("%s..%s..powerdown pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_powerdown);
+                    goto sensor_io_int_loop_end;
+                }
             }
 
             if (rk29_sensor_iomux(camera_powerdown) < 0) {
@@ -1316,8 +1648,34 @@ static int rk29_sensor_io_init(void)
 		if (camera_flash != INVALID_GPIO) {
             ret = gpio_request(camera_flash, "camera flash");
             if (ret) {
-                printk("%s..%s..flash pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_flash);
-				goto sensor_io_int_loop_end;
+                if (i==1) {
+                    if ((camera_flash == rk29_camera_platform_data.gpio_res[0].gpio_flash) 
+                        || (camera_flash == rk29_camera_platform_data.gpio_res[2].gpio_flash)) {
+                        ret = 0;
+                    }
+                }
+                if (i==2) {
+                    if ((camera_flash == rk29_camera_platform_data.gpio_res[0].gpio_flash) 
+                        || (camera_flash == rk29_camera_platform_data.gpio_res[1].gpio_flash)) {
+                        ret = 0;
+                    }
+                }
+                if (i==4) {
+                    if ((camera_flash == rk29_camera_platform_data.gpio_res[3].gpio_flash) 
+                        || (camera_flash == rk29_camera_platform_data.gpio_res[5].gpio_flash)) {
+                        ret = 0;
+                    }
+                }
+                if (i==5) {
+                    if ((camera_flash == rk29_camera_platform_data.gpio_res[3].gpio_flash) 
+                        || (camera_flash == rk29_camera_platform_data.gpio_res[4].gpio_flash)) {
+                        ret = 0;
+                    }
+                }
+                if (ret) {
+                    printk("%s..%s..flash pin(%d) init failed\n",__FUNCTION__,rk29_camera_platform_data.gpio_res[i].dev_name,camera_flash);
+    				goto sensor_io_int_loop_end;
+                }
             }
 
             if (rk29_sensor_iomux(camera_flash) < 0) {
@@ -1335,164 +1693,37 @@ static int rk29_sensor_io_init(void)
         
         for (j=0; j<10; j++) {
             memset(&rk29_camera_platform_data.info[i].fival[j],0x00,sizeof(struct v4l2_frmivalenum));
-        }
-        j=0;
-        if (strstr(rk29_camera_platform_data.info[i].dev_name,"_back")) {
-            
-            #if CONFIG_SENSOR_QCIF_FPS_FIXED_0
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QCIF_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 176;
-            rk29_camera_platform_data.info[i].fival[j].height = 144;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
 
-            #if CONFIG_SENSOR_QVGA_FPS_FIXED_0
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QVGA_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 320;
-            rk29_camera_platform_data.info[i].fival[j].height = 240;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_CIF_FPS_FIXED_0
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_CIF_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 352;
-            rk29_camera_platform_data.info[i].fival[j].height = 288;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_VGA_FPS_FIXED_0
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_VGA_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 640;
-            rk29_camera_platform_data.info[i].fival[j].height = 480;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_480P_FPS_FIXED_0
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_480P_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 720;
-            rk29_camera_platform_data.info[i].fival[j].height = 480;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif            
-
-            #if CONFIG_SENSOR_SVGA_FPS_FIXED_0
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_SVGA_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 800;
-            rk29_camera_platform_data.info[i].fival[j].height = 600;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_720P_FPS_FIXED_0
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_720P_FPS_FIXED_0;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 1280;
-            rk29_camera_platform_data.info[i].fival[j].height = 720;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-        } else {
-            #if CONFIG_SENSOR_QCIF_FPS_FIXED_1
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QCIF_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 176;
-            rk29_camera_platform_data.info[i].fival[j].height = 144;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_QVGA_FPS_FIXED_1
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_QVGA_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 320;
-            rk29_camera_platform_data.info[i].fival[j].height = 240;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_CIF_FPS_FIXED_1
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_CIF_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 352;
-            rk29_camera_platform_data.info[i].fival[j].height = 288;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_VGA_FPS_FIXED_1
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_VGA_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 640;
-            rk29_camera_platform_data.info[i].fival[j].height = 480;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_480P_FPS_FIXED_1
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_480P_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 720;
-            rk29_camera_platform_data.info[i].fival[j].height = 480;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif 
-
-            #if CONFIG_SENSOR_SVGA_FPS_FIXED_1
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_SVGA_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 800;
-            rk29_camera_platform_data.info[i].fival[j].height = 600;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
-
-            #if CONFIG_SENSOR_720P_FPS_FIXED_1
-            rk29_camera_platform_data.info[i].fival[j].discrete.denominator = CONFIG_SENSOR_720P_FPS_FIXED_1;
-            rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
-            rk29_camera_platform_data.info[i].fival[j].index = 0;
-            rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
-            rk29_camera_platform_data.info[i].fival[j].width = 1280;
-            rk29_camera_platform_data.info[i].fival[j].height = 720;
-            rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
-            j++;
-            #endif
+            if (j==0) {
+                rk29_camera_platform_data.info[i].fival[j].width = 176;
+                rk29_camera_platform_data.info[i].fival[j].height = 144;
+            } else if (j==1) {
+                rk29_camera_platform_data.info[i].fival[j].width = 320;
+                rk29_camera_platform_data.info[i].fival[j].height = 240;
+            } else if (j==2) {
+                rk29_camera_platform_data.info[i].fival[j].width = 352;
+                rk29_camera_platform_data.info[i].fival[j].height = 288;
+            } else if (j==3) {
+                rk29_camera_platform_data.info[i].fival[j].width = 640;
+                rk29_camera_platform_data.info[i].fival[j].height = 480;
+            } else if (j==4) {
+                rk29_camera_platform_data.info[i].fival[j].width = 720;
+                rk29_camera_platform_data.info[i].fival[j].height = 480;
+            } else if (j==5) {
+                rk29_camera_platform_data.info[i].fival[j].width = 1280;
+                rk29_camera_platform_data.info[i].fival[j].height = 720;
+            } else if (j==6) {
+                rk29_camera_platform_data.info[i].fival[j].width = 240;
+                rk29_camera_platform_data.info[i].fival[j].height = 160;
+            }
+            if (rk29_camera_platform_data.info[i].fival[j].width && rk29_camera_platform_data.info[i].fival[j].height) {
+                rk29_sensor_fps_get(i,&rk29_camera_platform_data.info[i].fival[j].discrete.denominator,
+                    rk29_camera_platform_data.info[i].fival[j].width,rk29_camera_platform_data.info[i].fival[j].height);
+                rk29_camera_platform_data.info[i].fival[j].discrete.numerator= 1000;
+                rk29_camera_platform_data.info[i].fival[j].index = 0;
+                rk29_camera_platform_data.info[i].fival[j].pixel_format = V4L2_PIX_FMT_NV12;
+                rk29_camera_platform_data.info[i].fival[j].type = V4L2_FRMIVAL_TYPE_DISCRETE;
+            }
         }
         
 		continue;
@@ -1550,13 +1781,14 @@ static int rk29_sensor_io_deinit(int sensor)
 static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd, int on)
 {
     struct rk29camera_gpio_res *res = NULL;    
-	int ret = RK29_CAM_IO_SUCCESS;
+	int ret = RK29_CAM_IO_SUCCESS,i;
 
-    if(rk29_camera_platform_data.gpio_res[0].dev_name &&  (strcmp(rk29_camera_platform_data.gpio_res[0].dev_name, dev_name(dev)) == 0)) {
-		res = (struct rk29camera_gpio_res *)&rk29_camera_platform_data.gpio_res[0];
-    } else if (rk29_camera_platform_data.gpio_res[1].dev_name && (strcmp(rk29_camera_platform_data.gpio_res[1].dev_name, dev_name(dev)) == 0)) {
-    	res = (struct rk29camera_gpio_res *)&rk29_camera_platform_data.gpio_res[1];
-    } else {
+    for (i=0; i<RK29_CAM_SUPPORT_NUMS; i++) {
+        if(rk29_camera_platform_data.gpio_res[i].dev_name &&  (strcmp(rk29_camera_platform_data.gpio_res[i].dev_name, dev_name(dev)) == 0)) {
+    		res = (struct rk29camera_gpio_res *)&rk29_camera_platform_data.gpio_res[i];
+        } 
+    }
+    if (res == NULL) {
         printk(KERN_ERR "%s is not regisiterd in rk29_camera_platform_data!!\n",dev_name(dev));
         ret = RK29_CAM_EIO_INVALID;
         goto rk29_sensor_ioctrl_end;
@@ -1615,12 +1847,18 @@ static int rk29_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd,
 rk29_sensor_ioctrl_end:
     return ret;
 }
+
+static int rk29_sensor_powerdown(struct device *dev, int on)
+{
+	return rk29_sensor_ioctrl(dev,Cam_PowerDown,on);
+}
 static int rk29_sensor_power(struct device *dev, int on)
 {
-	rk29_sensor_ioctrl(dev,Cam_Power,on);
+    if (!on)                        /* ddl@rock-chips.com : Ensure sensor enter standby or power off */
+        rk29_sensor_powerdown(dev,1);
+	rk29_sensor_ioctrl(dev,Cam_Power,on);    
     return 0;
 }
-#if (CONFIG_SENSOR_RESET_PIN_0 != INVALID_GPIO) || (CONFIG_SENSOR_RESET_PIN_1 != INVALID_GPIO)
 static int rk29_sensor_reset(struct device *dev)
 {
 	rk29_sensor_ioctrl(dev,Cam_Reset,1);
@@ -1628,11 +1866,7 @@ static int rk29_sensor_reset(struct device *dev)
 	rk29_sensor_ioctrl(dev,Cam_Reset,0);
 	return 0;
 }
-#endif
-static int rk29_sensor_powerdown(struct device *dev, int on)
-{
-	return rk29_sensor_ioctrl(dev,Cam_PowerDown,on);
-}
+
 #if (CONFIG_SENSOR_IIC_ADDR_0 != 0x00)
 static struct i2c_board_info rk29_i2c_cam_info_0[] = {
 	{
@@ -1691,6 +1925,130 @@ static struct platform_device rk29_soc_camera_pdrv_1 = {
 	},
 };
 #endif
+#ifdef CONFIG_SENSOR_01
+#if (CONFIG_SENSOR_IIC_ADDR_01 != 0x00)
+static struct i2c_board_info rk29_i2c_cam_info_01[] = {
+	{
+		I2C_BOARD_INFO(SENSOR_NAME_01, CONFIG_SENSOR_IIC_ADDR_01>>1)
+	},
+};
+
+static struct soc_camera_link rk29_iclink_01 = {
+	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
+	.power		= rk29_sensor_power,
+#if (CONFIG_SENSOR_RESET_PIN_01 != INVALID_GPIO)
+    .reset      = rk29_sensor_reset,
+#endif    
+	.powerdown  = rk29_sensor_powerdown,
+	.board_info	= &rk29_i2c_cam_info_01[0],
+	.i2c_adapter_id	= CONFIG_SENSOR_IIC_ADAPTER_ID_01,
+	.module_name	= SENSOR_NAME_01,
+};
+
+/*platform_device : soc-camera need  */
+static struct platform_device rk29_soc_camera_pdrv_01 = {
+	.name	= "soc-camera-pdrv",
+	.id	= 8,
+	.dev	= {
+		.init_name = SENSOR_DEVICE_NAME_01,
+		.platform_data = &rk29_iclink_01,
+	},
+};
+#endif
+#endif
+#ifdef CONFIG_SENSOR_02
+#if (CONFIG_SENSOR_IIC_ADDR_02 != 0x00)
+static struct i2c_board_info rk29_i2c_cam_info_02[] = {
+	{
+		I2C_BOARD_INFO(SENSOR_NAME_02, CONFIG_SENSOR_IIC_ADDR_02>>1)
+	},
+};
+
+static struct soc_camera_link rk29_iclink_02 = {
+	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
+	.power		= rk29_sensor_power,
+#if (CONFIG_SENSOR_RESET_PIN_02 != INVALID_GPIO)
+    .reset      = rk29_sensor_reset,
+#endif    
+	.powerdown  = rk29_sensor_powerdown,
+	.board_info	= &rk29_i2c_cam_info_02[0],
+	.i2c_adapter_id	= CONFIG_SENSOR_IIC_ADAPTER_ID_02,
+	.module_name	= SENSOR_NAME_02,
+};
+
+/*platform_device : soc-camera need  */
+static struct platform_device rk29_soc_camera_pdrv_02 = {
+	.name	= "soc-camera-pdrv",
+	.id	= 3,
+	.dev	= {
+		.init_name = SENSOR_DEVICE_NAME_02,
+		.platform_data = &rk29_iclink_02,
+	},
+};
+#endif
+#endif
+#ifdef CONFIG_SENSOR_11
+#if (CONFIG_SENSOR_IIC_ADDR_11 != 0x00)
+static struct i2c_board_info rk29_i2c_cam_info_11[] = {
+	{
+		I2C_BOARD_INFO(SENSOR_NAME_11, CONFIG_SENSOR_IIC_ADDR_11>>1)
+	},
+};
+
+static struct soc_camera_link rk29_iclink_11 = {
+	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
+	.power		= rk29_sensor_power,
+#if (CONFIG_SENSOR_RESET_PIN_11 != INVALID_GPIO)
+    .reset      = rk29_sensor_reset,
+#endif  	
+	.powerdown  = rk29_sensor_powerdown,
+	.board_info	= &rk29_i2c_cam_info_11[0],
+	.i2c_adapter_id	= CONFIG_SENSOR_IIC_ADAPTER_ID_11,
+	.module_name	= SENSOR_NAME_11,
+};
+
+/*platform_device : soc-camera need  */
+static struct platform_device rk29_soc_camera_pdrv_11 = {
+	.name	= "soc-camera-pdrv",
+	.id	= 4,
+	.dev	= {
+		.init_name = SENSOR_DEVICE_NAME_11,
+		.platform_data = &rk29_iclink_11,
+	},
+};
+#endif
+#endif
+#ifdef CONFIG_SENSOR_12
+#if (CONFIG_SENSOR_IIC_ADDR_12 != 0x00)
+static struct i2c_board_info rk29_i2c_cam_info_12[] = {
+	{
+		I2C_BOARD_INFO(SENSOR_NAME_12, CONFIG_SENSOR_IIC_ADDR_12>>1)
+	},
+};
+
+static struct soc_camera_link rk29_iclink_12 = {
+	.bus_id		= RK29_CAM_PLATFORM_DEV_ID,
+	.power		= rk29_sensor_power,
+#if (CONFIG_SENSOR_RESET_PIN_12 != INVALID_GPIO)
+    .reset      = rk29_sensor_reset,
+#endif  	
+	.powerdown  = rk29_sensor_powerdown,
+	.board_info	= &rk29_i2c_cam_info_12[0],
+	.i2c_adapter_id	= CONFIG_SENSOR_IIC_ADAPTER_ID_12,
+	.module_name	= SENSOR_NAME_12,
+};
+
+/*platform_device : soc-camera need  */
+static struct platform_device rk29_soc_camera_pdrv_12 = {
+	.name	= "soc-camera-pdrv",
+	.id	= 5,
+	.dev	= {
+		.init_name = SENSOR_DEVICE_NAME_12,
+		.platform_data = &rk29_iclink_12,
+	},
+};
+#endif
+#endif
 
 static u64 rockchip_device_camera_dmamask = 0xffffffffUL;
 static struct resource rk29_camera_resource[] = {
@@ -1718,7 +2076,7 @@ static struct platform_device rk29_device_camera = {
 		.platform_data  = &rk29_camera_platform_data,
 	}
 };
-
+#if (PMEM_CAM_SIZE > 0)
 static struct android_pmem_platform_data android_pmem_cam_pdata = {
 	.name		= "pmem_cam",
 	.start		= PMEM_CAM_BASE,
@@ -1734,7 +2092,7 @@ static struct platform_device android_pmem_cam_device = {
 		.platform_data = &android_pmem_cam_pdata,
 	},
 };
-
+#endif
 #endif
 
 #endif //#ifdef CONFIG_VIDEO_RK29

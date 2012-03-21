@@ -1109,8 +1109,8 @@ static void scan_add_host(struct soc_camera_host *ici)
 		if (icd->iface == ici->nr) {
 			int ret;
 			icd->dev.parent = ici->v4l2_dev.dev;
-			dev_set_name(&icd->dev, "%u-%u", icd->iface,
-				     icd->devnum);
+			dev_set_name(&icd->dev, "%u-%u-%s", icd->iface,
+				     icd->devnum,dev_name(icd->pdev));
 			ret = device_register(&icd->dev);
 			if (ret < 0) {
 				icd->dev.parent = NULL;
@@ -1184,8 +1184,6 @@ static int soc_camera_probe(struct device *dev)
 	struct v4l2_subdev *sd;
 	struct v4l2_mbus_framefmt mf;
 	int ret;
-
-	dev_info(dev, "Probing %s\n", dev_name(dev));
 
 	ret = regulator_bulk_get(icd->pdev, icl->num_regulators,
 				 icl->regulators);
@@ -1278,7 +1276,7 @@ static int soc_camera_probe(struct device *dev)
 	soc_camera_power_set(icd, icl, 0);
 
 	mutex_unlock(&icd->video_lock);
-
+    dev_info(dev, "Probe %s success\n", dev_name(icd->pdev));
 	return 0;
 
 evidstart:
@@ -1301,6 +1299,7 @@ eadd:
 epower:
 	regulator_bulk_free(icl->num_regulators, icl->regulators);
 ereg:
+    dev_err(dev, "Probe %s failed\n", dev_name(icd->pdev));
 	return ret;
 }
 

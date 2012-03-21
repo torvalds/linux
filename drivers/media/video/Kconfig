@@ -1185,6 +1185,19 @@ config VIDEO_RK29_DIGITALZOOM_IPP_OFF
 	bool "Digital zoom with IPP off"
 endchoice
 
+choice
+	prompt "RK29XX camera memory "
+	depends on VIDEO_RK29 
+	default VIDEO_RK29_CAMMEM_PMEM
+	---help---
+		where camera memory which is used for preview/raw/jpeg in android camera hal is alloced 
+config VIDEO_RK29_CAMMEM_PMEM
+	bool "Camera memory from pmem"
+
+config VIDEO_RK29_CAMMEM_ION
+	bool "Camera memory from ion"
+endchoice
+
 config VIDEO_MX2_HOSTSUPPORT
 	bool
 

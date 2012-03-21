@@ -8268,12 +8268,17 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		{
 			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
             if (sensor->sensor_io_request != NULL) { 
-                if (sensor->sensor_io_request->gpio_res[0].dev_name && 
-                    (strcmp(sensor->sensor_io_request->gpio_res[0].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
-                } else if (sensor->sensor_io_request->gpio_res[1].dev_name && 
-                    (strcmp(sensor->sensor_io_request->gpio_res[1].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
+                sensor->sensor_gpio_res = NULL;
+                for (i=0; i<RK29_CAM_SUPPORT_NUMS;i++) {
+                    if (sensor->sensor_io_request->gpio_res[i].dev_name && 
+                        (strcmp(sensor->sensor_io_request->gpio_res[i].dev_name, dev_name(icd->pdev)) == 0)) {
+                        sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[i];
+                    }
+                }
+                if (sensor->sensor_gpio_res == NULL) {
+                    SENSOR_TR("%s %s obtain gpio resource failed when RK29_CAM_SUBDEV_IOREQUEST \n",SENSOR_NAME_STRING(),__FUNCTION__);
+                    ret = -EINVAL;
+                    goto sensor_ioctl_end;
                 }
             } else {
                 SENSOR_TR("%s %s RK29_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);

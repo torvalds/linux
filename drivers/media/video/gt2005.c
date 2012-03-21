@@ -2679,7 +2679,7 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     const struct sensor_datafmt *fmt;
-    int ret = 0;
+    int ret = 0,set_w,set_h;
    
 	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
 				   ARRAY_SIZE(sensor_colour_fmts));
@@ -2698,6 +2698,52 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     else if (mf->width < SENSOR_MIN_WIDTH)
         mf->width = SENSOR_MIN_WIDTH;
 
+    set_w = mf->width;
+    set_h = mf->height;
+
+	if (((set_w <= 176) && (set_h <= 144)) && sensor_qcif[0].reg)
+	{
+        set_w = 176;
+        set_h = 144;
+	}
+	else if (((set_w <= 320) && (set_h <= 240)) && sensor_qvga[0].reg)
+    {
+        set_w = 320;
+        set_h = 240;
+    }
+    else if (((set_w <= 352) && (set_h<= 288)) && sensor_cif[0].reg)
+    {
+        set_w = 352;
+        set_h = 288;
+    }
+    else if (((set_w <= 640) && (set_h <= 480)) && sensor_vga[0].reg)
+    {
+        set_w = 640;
+        set_h = 480;
+    }
+    else if (((set_w <= 800) && (set_h <= 600)) && sensor_svga[0].reg)
+    {
+        set_w = 800;
+        set_h = 600;
+    }
+    else if (((set_w <= 1280) && (set_h <= 1024)) && sensor_sxga[0].reg)
+    {
+        set_w = 1280;
+        set_h = 1024;
+    }
+    else if (((set_w <= 1600) && (set_h <= 1200)) && sensor_uxga[0].reg)
+    {
+        set_w = 1600;
+        set_h = 1200;
+    }
+    else
+    {
+        set_w = SENSOR_INIT_WIDTH;
+        set_h = SENSOR_INIT_HEIGHT;
+    }
+
+	mf->width = set_w;
+    mf->height = set_h;
     mf->colorspace = fmt->colorspace;
     
     return ret;
@@ -3471,12 +3517,17 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		{
 			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
             if (sensor->sensor_io_request != NULL) { 
-                if (sensor->sensor_io_request->gpio_res[0].dev_name && 
-                    (strcmp(sensor->sensor_io_request->gpio_res[0].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
-                } else if (sensor->sensor_io_request->gpio_res[1].dev_name && 
-                    (strcmp(sensor->sensor_io_request->gpio_res[1].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
+                sensor->sensor_gpio_res = NULL;
+                for (i=0; i<RK29_CAM_SUPPORT_NUMS;i++) {
+                    if (sensor->sensor_io_request->gpio_res[i].dev_name && 
+                        (strcmp(sensor->sensor_io_request->gpio_res[i].dev_name, dev_name(icd->pdev)) == 0)) {
+                        sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[i];
+                    }
+                }
+                if (sensor->sensor_gpio_res == NULL) {
+                    SENSOR_TR("%s %s obtain gpio resource failed when RK29_CAM_SUBDEV_IOREQUEST \n",SENSOR_NAME_STRING(),__FUNCTION__);
+                    ret = -EINVAL;
+                    goto sensor_ioctl_end;
                 }
             } else {
                 SENSOR_TR("%s %s RK29_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
