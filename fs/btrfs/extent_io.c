@@ -3010,12 +3010,12 @@ static int lock_extent_buffer_for_io(struct extent_buffer *eb,
 			flush_write_bio(epd);
 			flush = 1;
 		}
-		wait_on_extent_buffer_writeback(eb);
-		btrfs_tree_lock(eb);
-		if (test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags)) {
-			printk(KERN_ERR "Um, ok?\n");
+		while (1) {
+			wait_on_extent_buffer_writeback(eb);
+			btrfs_tree_lock(eb);
+			if (!test_bit(EXTENT_BUFFER_WRITEBACK, &eb->bflags))
+				break;
 			btrfs_tree_unlock(eb);
-			return 0;
 		}
 	}
 
