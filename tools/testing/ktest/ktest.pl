@@ -1460,6 +1460,7 @@ sub get_sha1 {
 sub monitor {
     my $booted = 0;
     my $bug = 0;
+    my $bug_ignored = 0;
     my $skip_call_trace = 0;
     my $loops;
 
@@ -1531,9 +1532,13 @@ sub monitor {
 	}
 
 	if ($full_line =~ /call trace:/i) {
-	    if (!$ignore_errors && !$bug && !$skip_call_trace) {
-		$bug = 1;
-		$failure_start = time;
+	    if (!$bug && !$skip_call_trace) {
+		if ($ignore_errors) {
+		    $bug_ignored = 1;
+		} else {
+		    $bug = 1;
+		    $failure_start = time;
+		}
 	    }
 	}
 
@@ -1593,6 +1598,10 @@ sub monitor {
     if (!$booted) {
 	return 0 if ($in_bisect);
 	fail "failed - never got a boot prompt." and return 0;
+    }
+
+    if ($bug_ignored) {
+	doprint "WARNING: Call Trace detected but ignored due to IGNORE_ERRORS=1\n";
     }
 
     return 1;
