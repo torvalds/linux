@@ -123,7 +123,7 @@ acpi_status acpi_hw_legacy_sleep(u8 sleep_state)
 
 	/* Execute the _GTS method (Going To Sleep) */
 
-	acpi_hw_execute_sleep_method(METHOD_NAME__GTS, sleep_state);
+	acpi_hw_execute_sleep_method(METHOD_PATHNAME__GTS, sleep_state);
 
 	/* Get current value of PM1A control */
 
@@ -279,7 +279,7 @@ acpi_status acpi_hw_legacy_wake_prep(u8 sleep_state)
 		}
 	}
 
-	acpi_hw_execute_sleep_method(METHOD_NAME__BFS, sleep_state);
+	acpi_hw_execute_sleep_method(METHOD_PATHNAME__BFS, sleep_state);
 	return_ACPI_STATUS(status);
 }
 
@@ -305,7 +305,7 @@ acpi_status acpi_hw_legacy_wake(u8 sleep_state)
 	/* Ensure enter_sleep_state_prep -> enter_sleep_state ordering */
 
 	acpi_gbl_sleep_type_a = ACPI_SLEEP_TYPE_INVALID;
-	acpi_hw_execute_sleep_method(METHOD_NAME__SST, ACPI_SST_WAKING);
+	acpi_hw_execute_sleep_method(METHOD_PATHNAME__SST, ACPI_SST_WAKING);
 
 	/*
 	 * GPEs must be enabled before _WAK is called as GPEs
@@ -329,7 +329,7 @@ acpi_status acpi_hw_legacy_wake(u8 sleep_state)
 	 * Now we can execute _WAK, etc. Some machines require that the GPEs
 	 * are enabled before the wake methods are executed.
 	 */
-	acpi_hw_execute_sleep_method(METHOD_NAME__WAK, sleep_state);
+	acpi_hw_execute_sleep_method(METHOD_PATHNAME__WAK, sleep_state);
 
 	/*
 	 * Some BIOS code assumes that WAK_STS will be cleared on resume
@@ -361,7 +361,7 @@ acpi_status acpi_hw_legacy_wake(u8 sleep_state)
 		return_ACPI_STATUS(status);
 	}
 
-	acpi_hw_execute_sleep_method(METHOD_NAME__SST, ACPI_SST_WORKING);
+	acpi_hw_execute_sleep_method(METHOD_PATHNAME__SST, ACPI_SST_WORKING);
 	return_ACPI_STATUS(status);
 }
 
