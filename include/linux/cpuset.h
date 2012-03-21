@@ -89,42 +89,33 @@ extern void rebuild_sched_domains(void);
 extern void cpuset_print_task_mems_allowed(struct task_struct *p);
 
 /*
- * reading current mems_allowed and mempolicy in the fastpath must protected
- * by get_mems_allowed()
+ * get_mems_allowed is required when making decisions involving mems_allowed
+ * such as during page allocation. mems_allowed can be updated in parallel
+ * and depending on the new value an operation can fail potentially causing
+ * process failure. A retry loop with get_mems_allowed and put_mems_allowed
+ * prevents these artificial failures.
  */
-static inline void get_mems_allowed(void)
+static inline unsigned int get_mems_allowed(void)
 {
-	current->mems_allowed_change_disable++;
-
-	/*
-	 * ensure that reading mems_allowed and mempolicy happens after the
-	 * update of ->mems_allowed_change_disable.
-	 *
-	 * the write-side task finds ->mems_allowed_change_disable is not 0,
-	 * and knows the read-side task is reading mems_allowed or mempolicy,
-	 * so it will clear old bits lazily.
-	 */
-	smp_mb();
+	return read_seqcount_begin(&current->mems_allowed_seq);
 }
 
-static inline void put_mems_allowed(void)
+/*
+ * If this returns false, the operation that took place after get_mems_allowed
+ * may have failed. It is up to the caller to retry the operation if
+ * appropriate.
+ */
+static inline bool put_mems_allowed(unsigned int seq)
 {
-	/*
-	 * ensure that reading mems_allowed and mempolicy before reducing
-	 * mems_allowed_change_disable.
-	 *
-	 * the write-side task will know that the read-side task is still
-	 * reading mems_allowed or mempolicy, don't clears old bits in the
-	 * nodemask.
-	 */
-	smp_mb();
-	--ACCESS_ONCE(current->mems_allowed_change_disable);
+	return !read_seqcount_retry(&current->mems_allowed_seq, seq);
 }
 
 static inline void set_mems_allowed(nodemask_t nodemask)
 {
 	task_lock(current);
+	write_seqcount_begin(&current->mems_allowed_seq);
 	current->mems_allowed = nodemask;
+	write_seqcount_end(&current->mems_allowed_seq);
 	task_unlock(current);
 }
 
@@ -234,12 +225,14 @@ static inline void set_mems_allowed(nodemask_t nodemask)
 {
 }
 
-static inline void get_mems_allowed(void)
+static inline unsigned int get_mems_allowed(void)
 {
+	return 0;
 }
 
-static inline void put_mems_allowed(void)
+static inline bool put_mems_allowed(unsigned int seq)
 {
+	return true;
 }
 
 #endif /* !CONFIG_CPUSETS */

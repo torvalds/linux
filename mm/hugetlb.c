@@ -454,14 +454,16 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
 				struct vm_area_struct *vma,
 				unsigned long address, int avoid_reserve)
 {
-	struct page *page = NULL;
+	struct page *page;
 	struct mempolicy *mpol;
 	nodemask_t *nodemask;
 	struct zonelist *zonelist;
 	struct zone *zone;
 	struct zoneref *z;
+	unsigned int cpuset_mems_cookie;
 
-	get_mems_allowed();
+retry_cpuset:
+	cpuset_mems_cookie = get_mems_allowed();
 	zonelist = huge_zonelist(vma, address,
 					htlb_alloc_mask, &mpol, &nodemask);
 	/*
@@ -488,10 +490,15 @@ static struct page *dequeue_huge_page_vma(struct hstate *h,
 			}
 		}
 	}
+
+	mpol_cond_put(mpol);
+	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !page))
+		goto retry_cpuset;
+	return page;
+
 err:
 	mpol_cond_put(mpol);
-	put_mems_allowed();
-	return page;
+	return NULL;
 }
 
 static void update_and_free_page(struct hstate *h, struct page *page)
