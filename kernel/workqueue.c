@@ -476,13 +476,8 @@ static struct cpu_workqueue_struct *get_cwq(unsigned int cpu,
 					    struct workqueue_struct *wq)
 {
 	if (!(wq->flags & WQ_UNBOUND)) {
-		if (likely(cpu < nr_cpu_ids)) {
-#ifdef CONFIG_SMP
+		if (likely(cpu < nr_cpu_ids))
 			return per_cpu_ptr(wq->cpu_wq.pcpu, cpu);
-#else
-			return wq->cpu_wq.single;
-#endif
-		}
 	} else if (likely(cpu == WORK_CPU_UNBOUND))
 		return wq->cpu_wq.single;
 	return NULL;
@@ -2899,13 +2894,8 @@ static int alloc_cwqs(struct workqueue_struct *wq)
 	const size_t size = sizeof(struct cpu_workqueue_struct);
 	const size_t align = max_t(size_t, 1 << WORK_STRUCT_FLAG_BITS,
 				   __alignof__(unsigned long long));
-#ifdef CONFIG_SMP
-	bool percpu = !(wq->flags & WQ_UNBOUND);
-#else
-	bool percpu = false;
-#endif
 
-	if (percpu)
+	if (!(wq->flags & WQ_UNBOUND))
 		wq->cpu_wq.pcpu = __alloc_percpu(size, align);
 	else {
 		void *ptr;
@@ -2929,13 +2919,7 @@ static int alloc_cwqs(struct workqueue_struct *wq)
 
 static void free_cwqs(struct workqueue_struct *wq)
 {
-#ifdef CONFIG_SMP
-	bool percpu = !(wq->flags & WQ_UNBOUND);
-#else
-	bool percpu = false;
-#endif
-
-	if (percpu)
+	if (!(wq->flags & WQ_UNBOUND))
 		free_percpu(wq->cpu_wq.pcpu);
 	else if (wq->cpu_wq.single) {
 		/* the pointer to free is stored right after the cwq */
