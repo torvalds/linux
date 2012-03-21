@@ -324,6 +324,8 @@ struct hci_cp_inquiry {
 
 #define HCI_OP_INQUIRY_CANCEL		0x0402
 
+#define HCI_OP_PERIODIC_INQ		0x0403
+
 #define HCI_OP_EXIT_PERIODIC_INQ	0x0404
 
 #define HCI_OP_CREATE_CONN		0x0405
