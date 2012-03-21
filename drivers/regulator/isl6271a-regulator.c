@@ -63,23 +63,15 @@ static int isl6271a_set_voltage(struct regulator_dev *dev,
 				unsigned *selector)
 {
 	struct isl_pmic *pmic = rdev_get_drvdata(dev);
-	int vsel, err, data;
+	int err, data;
 
 	if (minuV < ISL6271A_VOLTAGE_MIN || minuV > ISL6271A_VOLTAGE_MAX)
 		return -EINVAL;
 	if (maxuV < ISL6271A_VOLTAGE_MIN || maxuV > ISL6271A_VOLTAGE_MAX)
 		return -EINVAL;
 
-	/* Align to 50000 mV */
-	vsel = minuV - (minuV % ISL6271A_VOLTAGE_STEP);
-
-	/* If the result fell out of [minuV,maxuV] range, put it back */
-	if (vsel < minuV)
-		vsel += ISL6271A_VOLTAGE_STEP;
-
-	/* Convert the microvolts to data for the chip */
-	data = (vsel - ISL6271A_VOLTAGE_MIN) / ISL6271A_VOLTAGE_STEP;
-
+	data = DIV_ROUND_UP(minuV - ISL6271A_VOLTAGE_MIN,
+			    ISL6271A_VOLTAGE_STEP);
 	*selector = data;
 
 	mutex_lock(&pmic->mtx);
