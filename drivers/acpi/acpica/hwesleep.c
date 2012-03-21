@@ -44,16 +44,9 @@
 
 #include <acpi/acpi.h>
 #include "accommon.h"
-#include <linux/module.h>
 
 #define _COMPONENT          ACPI_HARDWARE
 ACPI_MODULE_NAME("hwesleep")
-
-static unsigned int gts, bfs;
-module_param(gts, uint, 0644);
-module_param(bfs, uint, 0644);
-MODULE_PARM_DESC(gts, "Enable evaluation of _GTS on suspend.");
-MODULE_PARM_DESC(bfs, "Enable evaluation of _BFS on resume".);
 
 /*******************************************************************************
  *
@@ -75,12 +68,6 @@ void acpi_hw_execute_sleep_method(char *method_pathname, u32 integer_argument)
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(hw_execute_sleep_method);
-
-	if (!ACPI_STRCMP(METHOD_PATHNAME__GTS, method_pathname) && !gts)
-		return_VOID;
-
-	if (!ACPI_STRCMP(METHOD_PATHNAME__BFS, method_pathname) && !bfs)
-		return_VOID;
 
 	/* One argument, integer_argument; No return value expected */
 
