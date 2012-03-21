@@ -413,19 +413,32 @@ struct ecc_settings {
 };
 
 #ifdef CONFIG_EDAC_DEBUG
-#define NUM_DBG_ATTRS 5
+int amd64_create_sysfs_dbg_files(struct mem_ctl_info *mci);
+void amd64_remove_sysfs_dbg_files(struct mem_ctl_info *mci);
+
 #else
-#define NUM_DBG_ATTRS 0
+static inline int amd64_create_sysfs_dbg_files(struct mem_ctl_info *mci)
+{
+	return 0;
+}
+static void inline amd64_remove_sysfs_dbg_files(struct mem_ctl_info *mci)
+{
+}
 #endif
 
 #ifdef CONFIG_EDAC_AMD64_ERROR_INJECTION
-#define NUM_INJ_ATTRS 5
-#else
-#define NUM_INJ_ATTRS 0
-#endif
+int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci);
+void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci);
 
-extern struct mcidev_sysfs_attribute amd64_dbg_attrs[NUM_DBG_ATTRS],
-				     amd64_inj_attrs[NUM_INJ_ATTRS];
+#else
+static inline int amd64_create_sysfs_inject_files(struct mem_ctl_info *mci)
+{
+	return 0;
+}
+static inline void amd64_remove_sysfs_inject_files(struct mem_ctl_info *mci)
+{
+}
+#endif
 
 /*
  * Each of the PCI Device IDs types have their own set of hardware accessor
@@ -460,3 +473,5 @@ int __amd64_write_pci_cfg_dword(struct pci_dev *pdev, int offset,
 
 int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size);
+
+#define to_mci(k) container_of(k, struct mem_ctl_info, dev)
