@@ -486,20 +486,25 @@ static struct platform_device keysc_device = {
 };
 
 /* MIPI-DSI */
-#define PHYCTRL		0x0070
 static int sh_mipi_set_dot_clock(struct platform_device *pdev,
 				 void __iomem *base,
 				 int enable)
 {
 	struct clk *pck = clk_get(&pdev->dev, "dsip_clk");
-	void __iomem *phy =  base + PHYCTRL;
 
 	if (IS_ERR(pck))
 		return PTR_ERR(pck);
 
 	if (enable) {
+		/*
+		 * DSIPCLK	= 24MHz
+		 * D-PHY	= DSIPCLK * ((0x6*2)+1) = 312MHz (see .phyctrl)
+		 * HsByteCLK	= D-PHY/8 = 39MHz
+		 *
+		 *  X * Y * FPS =
+		 * (544+72+600+16) * (961+8+8+2) * 30 = 36.1MHz
+		 */
 		clk_set_rate(pck, clk_round_rate(pck, 24000000));
-		iowrite32(ioread32(phy) | (0xb << 8), phy);
 		clk_enable(pck);
 	} else {
 		clk_disable(pck);
@@ -530,6 +535,7 @@ static struct sh_mipi_dsi_info mipidsi0_info = {
 	.lcd_chan	= &lcdc_info.ch[0],
 	.lane		= 2,
 	.vsynw_offset	= 17,
+	.phyctrl	= 0x6 << 8,
 	.flags		= SH_MIPI_DSI_SYNC_PULSES_MODE |
 			  SH_MIPI_DSI_HSbyteCLK,
 	.set_dot_clock	= sh_mipi_set_dot_clock,

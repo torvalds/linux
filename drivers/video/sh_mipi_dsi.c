@@ -273,7 +273,7 @@ static int __init sh_mipi_setup(struct sh_mipi *mipi,
 	iowrite32(0x00000001, base + PHYCTRL);
 	udelay(200);
 	/* Deassert resets, power on */
-	iowrite32(0x03070001, base + PHYCTRL);
+	iowrite32(0x03070001 | pdata->phyctrl, base + PHYCTRL);
 
 	/*
 	 * Default = ULPS enable |
