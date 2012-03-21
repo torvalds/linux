@@ -102,6 +102,7 @@ enum {
 	HCI_DISCOVERABLE,
 	HCI_LINK_SECURITY,
 	HCI_PENDING_CLASS,
+	HCI_PERIODIC_INQ,
 };
 
 /* HCI ioctl defines */
