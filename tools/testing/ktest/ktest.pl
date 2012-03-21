@@ -46,6 +46,7 @@ my %default = (
     "DIE_ON_FAILURE"		=> 1,
     "SSH_EXEC"			=> "ssh \$SSH_USER\@\$MACHINE \$SSH_COMMAND",
     "SCP_TO_TARGET"		=> "scp \$SRC_FILE \$SSH_USER\@\$MACHINE:\$DST_FILE",
+    "SCP_TO_TARGET_INSTALL"	=> "\${SCP_TO_TARGET}",
     "REBOOT"			=> "ssh \$SSH_USER\@\$MACHINE reboot",
     "STOP_AFTER_SUCCESS"	=> 10,
     "STOP_AFTER_FAILURE"	=> 60,
@@ -91,6 +92,7 @@ my $powercycle_after_reboot;
 my $poweroff_after_halt;
 my $ssh_exec;
 my $scp_to_target;
+my $scp_to_target_install;
 my $power_off;
 my $grub_menu;
 my $grub_number;
@@ -243,6 +245,7 @@ my %option_map = (
     "BUILD_TARGET"		=> \$build_target,
     "SSH_EXEC"			=> \$ssh_exec,
     "SCP_TO_TARGET"		=> \$scp_to_target,
+    "SCP_TO_TARGET_INSTALL"	=> \$scp_to_target_install,
     "CHECKOUT"			=> \$checkout,
     "TARGET_IMAGE"		=> \$target_image,
     "LOCALVERSION"		=> \$localversion,
@@ -1349,13 +1352,28 @@ sub run_ssh {
 }
 
 sub run_scp {
-    my ($src, $dst) = @_;
-    my $cp_scp = $scp_to_target;
+    my ($src, $dst, $cp_scp) = @_;
 
     $cp_scp =~ s/\$SRC_FILE/$src/g;
     $cp_scp =~ s/\$DST_FILE/$dst/g;
 
     return run_command "$cp_scp";
+}
+
+sub run_scp_install {
+    my ($src, $dst) = @_;
+
+    my $cp_scp = $scp_to_target_install;
+
+    return run_scp($src, $dst, $cp_scp);
+}
+
+sub run_scp_mod {
+    my ($src, $dst) = @_;
+
+    my $cp_scp = $scp_to_target;
+
+    return run_scp($src, $dst, $cp_scp);
 }
 
 sub get_grub_index {
@@ -1630,7 +1648,7 @@ sub install {
 
     my $cp_target = eval_kernel_version $target_image;
 
-    run_scp "$outputdir/$build_target", "$cp_target" or
+    run_scp_install "$outputdir/$build_target", "$cp_target" or
 	dodie "failed to copy image";
 
     my $install_mods = 0;
@@ -1665,7 +1683,7 @@ sub install {
     run_command "cd $tmpdir && tar -cjf $modtar lib/modules/$version" or
 	dodie "making tarball";
 
-    run_scp "$tmpdir/$modtar", "/tmp" or
+    run_scp_mod "$tmpdir/$modtar", "/tmp" or
 	dodie "failed to copy modules";
 
     unlink "$tmpdir/$modtar";
