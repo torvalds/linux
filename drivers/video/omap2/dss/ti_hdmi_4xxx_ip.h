@@ -433,14 +433,4 @@ struct hdmi_core_audio_config {
 	bool					en_spdif;
 };
 
-#if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-void hdmi_core_audio_infoframe_config(struct hdmi_ip_data *ip_data,
-		struct snd_cea_861_aud_if *info_aud);
-void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
-					struct hdmi_core_audio_config *cfg);
-void hdmi_wp_audio_config_dma(struct hdmi_ip_data *ip_data,
-					struct hdmi_audio_dma *aud_dma);
-void hdmi_wp_audio_config_format(struct hdmi_ip_data *ip_data,
-					struct hdmi_audio_format *aud_fmt);
-#endif
 #endif

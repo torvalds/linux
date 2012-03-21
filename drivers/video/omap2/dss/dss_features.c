@@ -578,6 +578,7 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 	.audio_disable		=       ti_hdmi_4xxx_wp_audio_disable,
 	.audio_start		=       ti_hdmi_4xxx_audio_start,
 	.audio_stop		=       ti_hdmi_4xxx_audio_stop,
+	.audio_config		=	ti_hdmi_4xxx_audio_config,
 #endif
 
 };
