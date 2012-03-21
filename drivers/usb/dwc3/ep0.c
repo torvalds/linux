@@ -569,8 +569,9 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 		dwc->ep0_bounced = false;
 	} else {
 		transferred = ur->length - length;
-		ur->actual += transferred;
 	}
+
+	ur->actual += transferred;
 
 	if ((epnum & 1) && ur->actual < ur->length) {
 		/* for some reason we did not get everything out */
