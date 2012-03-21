@@ -2601,7 +2601,7 @@ sub config_bisect {
     # read directly what we want to check
     my %config_check;
     open (IN, $output_config)
-	or dodie "faied to open $output_config";
+	or dodie "failed to open $output_config";
 
     while (<IN>) {
 	if (/^((CONFIG\S*)=.*)/) {

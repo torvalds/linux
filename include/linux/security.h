@@ -812,7 +812,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Check permissions before connecting or sending datagrams from @sock to
  *	@other.
  *	@sock contains the socket structure.
- *	@sock contains the peer socket structure.
+ *	@other contains the peer socket structure.
  *	Return 0 if permission is granted.
  *
  * The @unix_stream_connect and @unix_may_send hooks were necessary because

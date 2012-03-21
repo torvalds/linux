@@ -856,7 +856,7 @@ reset_device:
 
 	/* semaphore stuck, reset device to avoid fw freeze later */
 	dev_warn(zd_mac_dev(mac), "CR_BCN_FIFO_SEMAPHORE stuck, "
-				  "reseting device...");
+				  "resetting device...");
 	usb_queue_reset_device(mac->chip.usb.intf);
 
 	return r;

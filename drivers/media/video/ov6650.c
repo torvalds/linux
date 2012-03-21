@@ -649,7 +649,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 			clkrc = CLKRC_24MHz;
 		} else {
 			dev_err(&client->dev,
-				"unspported input clock, check platform data\n");
+				"unsupported input clock, check platform data\n");
 			return -EINVAL;
 		}
 		mclk = sense->master_clock;
