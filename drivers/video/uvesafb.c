@@ -23,7 +23,6 @@
 #include <video/uvesafb.h>
 #ifdef CONFIG_X86
 #include <video/vga.h>
-#include <linux/pci.h>
 #endif
 #ifdef CONFIG_MTRR
 #include <asm/mtrr.h>
@@ -816,15 +815,8 @@ static int __devinit uvesafb_vbe_init(struct fb_info *info)
 	par->pmi_setpal = pmi_setpal;
 	par->ypan = ypan;
 
-	if (par->pmi_setpal || par->ypan) {
-		if (pcibios_enabled) {
-			uvesafb_vbe_getpmi(task, par);
-		} else {
-			par->pmi_setpal = par->ypan = 0;
-			printk(KERN_WARNING "uvesafb: PCI BIOS area is NX."
-				"Can't use protected mode interface\n");
-		}
-	}
+	if (par->pmi_setpal || par->ypan)
+		uvesafb_vbe_getpmi(task, par);
 #else
 	/* The protected mode interface is not available on non-x86. */
 	par->pmi_setpal = par->ypan = 0;
