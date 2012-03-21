@@ -91,6 +91,12 @@ enum ath6kl_fw_capability {
 	 */
 	ATH6KL_FW_CAPABILITY_STA_P2PDEV_DUPLEX,
 
+	/*
+	 * Firmware has support to cleanup inactive stations
+	 * in AP mode.
+	 */
+	ATH6KL_FW_CAPABILITY_INACTIVITY_TIMEOUT,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
