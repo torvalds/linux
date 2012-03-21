@@ -135,8 +135,6 @@ module_param(dbg, bool, 0644);
 #define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | PT_USER_MASK \
 			| PT64_NX_MASK)
 
-#define PTE_LIST_EXT 4
-
 #define ACC_EXEC_MASK    1
 #define ACC_WRITE_MASK   PT_WRITABLE_MASK
 #define ACC_USER_MASK    PT_USER_MASK
@@ -150,6 +148,9 @@ module_param(dbg, bool, 0644);
 #define SPTE_HOST_WRITEABLE (1ULL << PT_FIRST_AVAIL_BITS_SHIFT)
 
 #define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
+
+/* make pte_list_desc fit well in cache line */
+#define PTE_LIST_EXT 3
 
 struct pte_list_desc {
 	u64 *sptes[PTE_LIST_EXT];
