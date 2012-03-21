@@ -1177,9 +1177,7 @@ exit_cifs(void)
 	cFYI(DBG2, "exit_cifs");
 	cifs_proc_clean();
 	cifs_fscache_unregister();
-#ifdef CONFIG_CIFS_DFS_UPCALL
 	cifs_dfs_release_automount_timer();
-#endif
 #ifdef CONFIG_CIFS_ACL
 	cifs_destroy_idmaptrees();
 	exit_cifs_idmap();

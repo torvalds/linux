@@ -171,7 +171,13 @@ extern struct smb_vol *cifs_get_volume_info(char *mount_data,
 					    const char *devname);
 extern int cifs_mount(struct cifs_sb_info *, struct smb_vol *);
 extern void cifs_umount(struct cifs_sb_info *);
+
+#if IS_ENABLED(CONFIG_CIFS_DFS_UPCALL)
 extern void cifs_dfs_release_automount_timer(void);
+#else /* ! IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) */
+#define cifs_dfs_release_automount_timer()	do { } while (0)
+#endif /* ! IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) */
+
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 
