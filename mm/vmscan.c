@@ -1690,6 +1690,8 @@ static void shrink_active_list(unsigned long nr_to_scan,
 
 	lru_add_drain();
 
+	reset_reclaim_mode(sc);
+
 	if (!sc->may_unmap)
 		isolate_mode |= ISOLATE_UNMAPPED;
 	if (!sc->may_writepage)
