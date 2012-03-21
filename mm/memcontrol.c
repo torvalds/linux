@@ -1910,32 +1910,59 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *memcg, gfp_t mask, int order)
  * If there is, we take a lock.
  */
 
+void __mem_cgroup_begin_update_page_stat(struct page *page,
+				bool *locked, unsigned long *flags)
+{
+	struct mem_cgroup *memcg;
+	struct page_cgroup *pc;
+
+	pc = lookup_page_cgroup(page);
+again:
+	memcg = pc->mem_cgroup;
+	if (unlikely(!memcg || !PageCgroupUsed(pc)))
+		return;
+	/*
+	 * If this memory cgroup is not under account moving, we don't
+	 * need to take move_lock_page_cgroup(). Because we already hold
+	 * rcu_read_lock(), any calls to move_account will be delayed until
+	 * rcu_read_unlock() if mem_cgroup_stealed() == true.
+	 */
+	if (!mem_cgroup_stealed(memcg))
+		return;
+
+	move_lock_mem_cgroup(memcg, flags);
+	if (memcg != pc->mem_cgroup || !PageCgroupUsed(pc)) {
+		move_unlock_mem_cgroup(memcg, flags);
+		goto again;
+	}
+	*locked = true;
+}
+
+void __mem_cgroup_end_update_page_stat(struct page *page, unsigned long *flags)
+{
+	struct page_cgroup *pc = lookup_page_cgroup(page);
+
+	/*
+	 * It's guaranteed that pc->mem_cgroup never changes while
+	 * lock is held because a routine modifies pc->mem_cgroup
+	 * should take move_lock_page_cgroup().
+	 */
+	move_unlock_mem_cgroup(pc->mem_cgroup, flags);
+}
+
 void mem_cgroup_update_page_stat(struct page *page,
 				 enum mem_cgroup_page_stat_item idx, int val)
 {
 	struct mem_cgroup *memcg;
 	struct page_cgroup *pc = lookup_page_cgroup(page);
-	bool need_unlock = false;
 	unsigned long uninitialized_var(flags);
 
 	if (mem_cgroup_disabled())
 		return;
-again:
-	rcu_read_lock();
+
 	memcg = pc->mem_cgroup;
 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
-		goto out;
-	/* pc->mem_cgroup is unstable ? */
-	if (unlikely(mem_cgroup_stealed(memcg))) {
-		/* take a lock against to access pc->mem_cgroup */
-		move_lock_mem_cgroup(memcg, &flags);
-		if (memcg != pc->mem_cgroup || !PageCgroupUsed(pc)) {
-			move_unlock_mem_cgroup(memcg, &flags);
-			rcu_read_unlock();
-			goto again;
-		}
-		need_unlock = true;
-	}
+		return;
 
 	switch (idx) {
 	case MEMCG_NR_FILE_MAPPED:
@@ -1950,11 +1977,6 @@ again:
 	}
 
 	this_cpu_add(memcg->stat->count[idx], val);
-
-out:
-	if (unlikely(need_unlock))
-		move_unlock_mem_cgroup(memcg, &flags);
-	rcu_read_unlock();
 }
 
 /*
