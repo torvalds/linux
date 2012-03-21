@@ -86,7 +86,7 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev);
 /*
  * Driver data (common to all clients)
  */
- 
+
 static const struct i2c_device_id w83l785ts_id[] = {
 	{ "w83l785ts", 0 },
 	{ }
@@ -116,8 +116,7 @@ struct w83l785ts_data {
 	unsigned long last_updated; /* in jiffies */
 
 	/* registers values */
-	s8 temp[2]; /* 0: input
-		       1: critical limit */
+	s8 temp[2]; /* 0: input, 1: critical limit */
 };
 
 /*
@@ -250,8 +249,10 @@ static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval)
 	struct device *dev;
 	const char *prefix;
 
-	/* We might be called during detection, at which point the client
-	   isn't yet fully initialized, so we can't use dev_dbg on it */
+	/*
+	 * We might be called during detection, at which point the client
+	 * isn't yet fully initialized, so we can't use dev_dbg on it
+	 */
 	if (i2c_get_clientdata(client)) {
 		dev = &client->dev;
 		prefix = "";
@@ -260,9 +261,11 @@ static u8 w83l785ts_read_value(struct i2c_client *client, u8 reg, u8 defval)
 		prefix = "w83l785ts: ";
 	}
 
-	/* Frequent read errors have been reported on Asus boards, so we
+	/*
+	 * Frequent read errors have been reported on Asus boards, so we
 	 * retry on read errors. If it still fails (unlikely), return the
-	 * default value requested by the caller. */
+	 * default value requested by the caller.
+	 */
 	for (i = 1; i <= MAX_RETRIES; i++) {
 		value = i2c_smbus_read_byte_data(client, reg);
 		if (value >= 0) {
@@ -302,19 +305,8 @@ static struct w83l785ts_data *w83l785ts_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_w83l785ts_init(void)
-{
-	return i2c_add_driver(&w83l785ts_driver);
-}
-
-static void __exit sensors_w83l785ts_exit(void)
-{
-	i2c_del_driver(&w83l785ts_driver);
-}
+module_i2c_driver(w83l785ts_driver);
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");
 MODULE_DESCRIPTION("W83L785TS-S driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_w83l785ts_init);
-module_exit(sensors_w83l785ts_exit);

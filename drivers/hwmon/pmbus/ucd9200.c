@@ -81,7 +81,8 @@ static int ucd9200_probe(struct i2c_client *client,
 			   "Device mismatch: Configured %s, detected %s\n",
 			   id->name, mid->name);
 
-	info = kzalloc(sizeof(struct pmbus_driver_info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(struct pmbus_driver_info),
+			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -89,7 +90,7 @@ static int ucd9200_probe(struct i2c_client *client,
 					block_buffer);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to read phase information\n");
-		goto out;
+		return ret;
 	}
 
 	/*
@@ -106,8 +107,7 @@ static int ucd9200_probe(struct i2c_client *client,
 	}
 	if (!info->pages) {
 		dev_err(&client->dev, "No rails configured\n");
-		ret = -ENODEV;
-		goto out;
+		return -ENODEV;
 	}
 	dev_info(&client->dev, "%d rails configured\n", info->pages);
 
@@ -137,7 +137,7 @@ static int ucd9200_probe(struct i2c_client *client,
 		if (ret < 0) {
 			dev_err(&client->dev,
 				"Failed to initialize PHASE registers\n");
-			goto out;
+			return ret;
 		}
 	}
 	if (info->pages > 1)
@@ -160,25 +160,8 @@ static int ucd9200_probe(struct i2c_client *client,
 	if (mid->driver_data == ucd9240)
 		info->func[0] |= PMBUS_HAVE_FAN12 | PMBUS_HAVE_STATUS_FAN12;
 
-	ret = pmbus_do_probe(client, mid, info);
-	if (ret < 0)
-		goto out;
-	return 0;
-out:
-	kfree(info);
-	return ret;
+	return pmbus_do_probe(client, mid, info);
 }
-
-static int ucd9200_remove(struct i2c_client *client)
-{
-	const struct pmbus_driver_info *info;
-
-	info = pmbus_get_driver_info(client);
-	pmbus_do_remove(client);
-	kfree(info);
-	return 0;
-}
-
 
 /* This is the driver that will be inserted */
 static struct i2c_driver ucd9200_driver = {
@@ -186,22 +169,12 @@ static struct i2c_driver ucd9200_driver = {
 		.name = "ucd9200",
 	},
 	.probe = ucd9200_probe,
-	.remove = ucd9200_remove,
+	.remove = pmbus_do_remove,
 	.id_table = ucd9200_id,
 };
 
-static int __init ucd9200_init(void)
-{
-	return i2c_add_driver(&ucd9200_driver);
-}
-
-static void __exit ucd9200_exit(void)
-{
-	i2c_del_driver(&ucd9200_driver);
-}
+module_i2c_driver(ucd9200_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for TI UCD922x, UCD924x");
 MODULE_LICENSE("GPL");
-module_init(ucd9200_init);
-module_exit(ucd9200_exit);
