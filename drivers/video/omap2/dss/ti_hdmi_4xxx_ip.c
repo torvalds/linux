@@ -1202,63 +1202,6 @@ void hdmi_core_audio_infoframe_config(struct hdmi_ip_data *ip_data,
 	 */
 }
 
-int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
-				u32 sample_freq, u32 *n, u32 *cts)
-{
-	u32 r;
-	u32 deep_color = 0;
-	u32 pclk = ip_data->cfg.timings.pixel_clock;
-
-	if (n == NULL || cts == NULL)
-		return -EINVAL;
-	/*
-	 * Obtain current deep color configuration. This needed
-	 * to calculate the TMDS clock based on the pixel clock.
-	 */
-	r = REG_GET(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, 1, 0);
-	switch (r) {
-	case 1: /* No deep color selected */
-		deep_color = 100;
-		break;
-	case 2: /* 10-bit deep color selected */
-		deep_color = 125;
-		break;
-	case 3: /* 12-bit deep color selected */
-		deep_color = 150;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	switch (sample_freq) {
-	case 32000:
-		if ((deep_color == 125) && ((pclk == 54054)
-				|| (pclk == 74250)))
-			*n = 8192;
-		else
-			*n = 4096;
-		break;
-	case 44100:
-		*n = 6272;
-		break;
-	case 48000:
-		if ((deep_color == 125) && ((pclk == 54054)
-				|| (pclk == 74250)))
-			*n = 8192;
-		else
-			*n = 6144;
-		break;
-	default:
-		*n = 0;
-		return -EINVAL;
-	}
-
-	/* Calculate CTS. See HDMI 1.3a or 1.4a specifications */
-	*cts = pclk * (*n / 128) * deep_color / (sample_freq / 10);
-
-	return 0;
-}
-
 int ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data)
 {
 	REG_FLD_MOD(hdmi_wp_base(ip_data),

@@ -434,8 +434,6 @@ struct hdmi_core_audio_config {
 };
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
-				u32 sample_freq, u32 *n, u32 *cts);
 void hdmi_core_audio_infoframe_config(struct hdmi_ip_data *ip_data,
 		struct snd_cea_861_aud_if *info_aud);
 void hdmi_core_audio_config(struct hdmi_ip_data *ip_data,
