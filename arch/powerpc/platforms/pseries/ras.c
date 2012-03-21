@@ -59,7 +59,6 @@ static DEFINE_SPINLOCK(ras_log_buf_lock);
 static char global_mce_data_buf[RTAS_ERROR_LOG_MAX];
 static DEFINE_PER_CPU(__u64, mce_data_buf);
 
-static int ras_get_sensor_state_token;
 static int ras_check_exception_token;
 
 #define EPOW_SENSOR_TOKEN	9
@@ -77,7 +76,6 @@ static int __init init_ras_IRQ(void)
 {
 	struct device_node *np;
 
-	ras_get_sensor_state_token = rtas_token("get-sensor-state");
 	ras_check_exception_token = rtas_token("check-exception");
 
 	/* Internal Errors */
@@ -213,8 +211,7 @@ static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
 	int state;
 	int critical;
 
-	status = rtas_call(ras_get_sensor_state_token, 2, 2, &state,
-			   EPOW_SENSOR_TOKEN, EPOW_SENSOR_INDEX);
+	status = rtas_get_sensor(EPOW_SENSOR_TOKEN, EPOW_SENSOR_INDEX, &state);
 
 	if (state > 3)
 		critical = 1;		/* Time Critical */
