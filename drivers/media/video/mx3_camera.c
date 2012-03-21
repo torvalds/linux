@@ -199,8 +199,6 @@ static int mx3_videobuf_setup(struct vb2_queue *vq,
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
-	int bytes_per_line;
-	unsigned int height;
 
 	if (!mx3_cam->idmac_channel[0])
 		return -EINVAL;
@@ -208,21 +206,21 @@ static int mx3_videobuf_setup(struct vb2_queue *vq,
 	if (fmt) {
 		const struct soc_camera_format_xlate *xlate = soc_camera_xlate_by_fourcc(icd,
 								fmt->fmt.pix.pixelformat);
+		int bytes_per_line;
+
 		if (!xlate)
 			return -EINVAL;
+
 		bytes_per_line = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
 							 xlate->host_fmt);
-		height = fmt->fmt.pix.height;
+		if (bytes_per_line < 0)
+			return bytes_per_line;
+
+		sizes[0] = bytes_per_line * fmt->fmt.pix.height;
 	} else {
 		/* Called from VIDIOC_REQBUFS or in compatibility mode */
-		bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
-		height = icd->user_height;
+		sizes[0] = icd->sizeimage;
 	}
-	if (bytes_per_line < 0)
-		return bytes_per_line;
-
-	sizes[0] = bytes_per_line * height;
 
 	alloc_ctxs[0] = mx3_cam->alloc_ctx;
 
@@ -274,7 +272,7 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 
 	BUG_ON(bytes_per_line <= 0);
 
-	new_size = bytes_per_line * icd->user_height;
+	new_size = icd->sizeimage;
 
 	if (vb2_plane_size(vb, 0) < new_size) {
 		dev_err(icd->parent, "Buffer #%d too small (%lu < %zu)\n",

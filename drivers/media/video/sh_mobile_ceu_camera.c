@@ -210,27 +210,25 @@ static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
 	struct soc_camera_device *icd = container_of(vq, struct soc_camera_device, vb2_vidq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
-	int bytes_per_line;
-	unsigned int height;
 
 	if (fmt) {
 		const struct soc_camera_format_xlate *xlate = soc_camera_xlate_by_fourcc(icd,
 								fmt->fmt.pix.pixelformat);
+		int bytes_per_line;
+
 		if (!xlate)
 			return -EINVAL;
+
 		bytes_per_line = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
 							 xlate->host_fmt);
-		height = fmt->fmt.pix.height;
+		if (bytes_per_line < 0)
+			return bytes_per_line;
+
+		sizes[0] = bytes_per_line * fmt->fmt.pix.height;
 	} else {
 		/* Called from VIDIOC_REQBUFS or in compatibility mode */
-		bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
-		height = icd->user_height;
+		sizes[0] = icd->sizeimage;
 	}
-	if (bytes_per_line < 0)
-		return bytes_per_line;
-
-	sizes[0] = bytes_per_line * height;
 
 	alloc_ctxs[0] = pcdev->alloc_ctx;
 
@@ -377,13 +375,8 @@ static void sh_mobile_ceu_videobuf_queue(struct vb2_buffer *vb)
 	struct sh_mobile_ceu_dev *pcdev = ici->priv;
 	struct sh_mobile_ceu_buffer *buf = to_ceu_vb(vb);
 	unsigned long size;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-						icd->current_fmt->host_fmt);
 
-	if (bytes_per_line < 0)
-		goto error;
-
-	size = icd->user_height * bytes_per_line;
+	size = icd->sizeimage;
 
 	if (vb2_plane_size(vb, 0) < size) {
 		dev_err(icd->parent, "Buffer #%d too small (%lu < %lu)\n",

@@ -538,8 +538,6 @@ static int mx2_videobuf_setup(struct vb2_queue *vq,
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vq);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx2_camera_dev *pcdev = ici->priv;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-			icd->current_fmt->host_fmt);
 
 	dev_dbg(icd->parent, "count=%d, size=%d\n", *count, sizes[0]);
 
@@ -547,12 +545,9 @@ static int mx2_videobuf_setup(struct vb2_queue *vq,
 	if (fmt != NULL)
 		return -ENOTTY;
 
-	if (bytes_per_line < 0)
-		return bytes_per_line;
-
 	alloc_ctxs[0] = pcdev->alloc_ctx;
 
-	sizes[0] = bytes_per_line * icd->user_height;
+	sizes[0] = icd->sizeimage;
 
 	if (0 == *count)
 		*count = 32;
@@ -568,15 +563,10 @@ static int mx2_videobuf_setup(struct vb2_queue *vq,
 static int mx2_videobuf_prepare(struct vb2_buffer *vb)
 {
 	struct soc_camera_device *icd = soc_camera_from_vb2q(vb->vb2_queue);
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width,
-			icd->current_fmt->host_fmt);
 	int ret = 0;
 
 	dev_dbg(icd->parent, "%s (vb=0x%p) 0x%p %lu\n", __func__,
 		vb, vb2_plane_vaddr(vb, 0), vb2_get_plane_payload(vb, 0));
-
-	if (bytes_per_line < 0)
-		return bytes_per_line;
 
 #ifdef DEBUG
 	/*
@@ -587,7 +577,7 @@ static int mx2_videobuf_prepare(struct vb2_buffer *vb)
 	       0xaa, vb2_get_plane_payload(vb, 0));
 #endif
 
-	vb2_set_plane_payload(vb, 0, bytes_per_line * icd->user_height);
+	vb2_set_plane_payload(vb, 0, icd->sizeimage);
 	if (vb2_plane_vaddr(vb, 0) &&
 	    vb2_get_plane_payload(vb, 0) > vb2_plane_size(vb, 0)) {
 		ret = -EINVAL;
