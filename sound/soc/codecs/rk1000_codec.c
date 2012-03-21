@@ -389,7 +389,7 @@ static int rk1000_codec_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	struct rk1000_codec_priv *rk1000_codec = snd_soc_codec_get_drvdata(codec);
 	
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-		
+	freq = 12000000;	
 	switch (freq) {
 	case 11289600:
 	case 18432000:

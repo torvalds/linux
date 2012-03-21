@@ -275,12 +275,12 @@ static int rockchip_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	}
 	I2S_DBG("Enter::%s----%d, I2S_TXCR=0x%X\n",__FUNCTION__,__LINE__,tx_ctl);
 #if 0//defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
-        rx_ctl = tx_ctl;
-        rx_ctl &= ~I2S_MODE_MASK;   
-        rx_ctl |= I2S_SLAVE_MODE;  // set tx slave, rx master
-        writel(rx_ctl, &(pheadi2s->I2S_TXCR));
+	rx_ctl = tx_ctl;
+	rx_ctl &= ~I2S_MODE_MASK;   
+	rx_ctl |= I2S_SLAVE_MODE;  // set tx slave, rx master
+	writel(rx_ctl, &(pheadi2s->I2S_TXCR));
 #else
-        writel(tx_ctl, &(pheadi2s->I2S_TXCR));
+	writel(tx_ctl, &(pheadi2s->I2S_TXCR));
 #endif
 	rx_ctl = tx_ctl & 0x00007FFF;
 	writel(rx_ctl, &(pheadi2s->I2S_RXCR));
@@ -323,6 +323,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 			iismod |= I2S_DATA_WIDTH(31);
 			break;
 	}
+	
 	iis_ckr_value = readl(&(pheadi2s->I2S_CKR));
 	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
 	iis_ckr_value &= ~I2S_SLAVE_MODE;
@@ -331,6 +332,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	iis_ckr_value |= I2S_SLAVE_MODE;
 	#endif
 	writel(iis_ckr_value, &(pheadi2s->I2S_CKR));   
+	
 //	writel((16<<24) |(16<<18)|(16<<12)|(16<<6)|16, &(pheadi2s->I2S_FIFOLR));
 	dmarc = readl(&(pheadi2s->I2S_DMACR));
 
@@ -342,15 +344,16 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	writel(dmarc, &(pheadi2s->I2S_DMACR));
 	I2S_DBG("Enter %s, %d I2S_TXCR=0x%08X\n", __func__, __LINE__, iismod);  
 #if 0//defined(CONFIG_SND_RK29_SOC_alc5631) || defined(CONFIG_SND_RK29_SOC_alc5621)
-        dmarc = iismod;
-        dmarc &= ~I2S_MODE_MASK;   
-        dmarc |= I2S_SLAVE_MODE;     // set tx slave, rx master
-        writel(dmarc, &(pheadi2s->I2S_TXCR));
+	dmarc = iismod;
+	dmarc &= ~I2S_MODE_MASK;   
+	dmarc |= I2S_SLAVE_MODE;     // set tx slave, rx master
+	writel(dmarc, &(pheadi2s->I2S_TXCR));
 #else
-        writel(iismod, &(pheadi2s->I2S_TXCR));
+	writel(iismod, &(pheadi2s->I2S_TXCR));
 #endif
 	iismod = iismod & 0x00007FFF;
 	writel(iismod, &(pheadi2s->I2S_RXCR));   
+
 	return 0;
 }
 
@@ -388,8 +391,9 @@ static int rockchip_i2s_trigger(struct snd_pcm_substream *substream, int cmd, st
 
 	return ret;
 }
+
 /*
- * Set Rockchip Clock source
+ * Set Rockchip I2S MCLK source
  */
 static int rockchip_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 	int clk_id, unsigned int freq, int dir)
@@ -399,8 +403,8 @@ static int rockchip_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 	i2s = to_info(cpu_dai);
         
 	I2S_DBG("Enter:%s, %d, i2s=0x%p, freq=%d\n", __FUNCTION__, __LINE__, i2s, freq);
-        /*add scu clk source and enable clk*/
-	clk_set_rate(i2s->iis_clk, freq);
+	/*add scu clk source and enable clk*/
+//	clk_set_rate(i2s->iis_clk, freq);
 	return 0;
 }
 
@@ -410,37 +414,34 @@ static int rockchip_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
 static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	int div_id, int div)
 {
-/*
 	struct rk29_i2s_info *i2s;
-	u32    reg;
+	u32 reg;
 
 	i2s = to_info(cpu_dai);
         
 	//stereo mode MCLK/SCK=4  
 	
-	reg    = readl(&(pheadi2s->I2S_TXCKR));
+	reg = readl(&(pheadi2s->I2S_CKR));
 
 	I2S_DBG("Enter:%s, %d, div_id=0x%08X, div=0x%08X\n", __FUNCTION__, __LINE__, div_id, div);
         
 	//when i2s in master mode ,must set codec pll div
 	switch (div_id) {
         case ROCKCHIP_DIV_BCLK:
-                reg &= ~I2S_TX_SCLK_DIV_MASK;
-                reg |= I2S_TX_SCLK_DIV(div);
-                break;
+            reg &= ~I2S_TX_SCLK_DIV_MASK;
+            reg |= I2S_TX_SCLK_DIV(div);
+            break;
         case ROCKCHIP_DIV_MCLK:
-                reg &= ~I2S_MCLK_DIV_MASK;
-                reg |= I2S_MCLK_DIV(div);
-                break;
+            reg &= ~I2S_MCLK_DIV_MASK;
+            reg |= I2S_MCLK_DIV(div);
+            break;
         case ROCKCHIP_DIV_PRESCALER:
-                
-                break;
+            break;
         default:
-                return -EINVAL;
+			return -EINVAL;
 	}
-	writel(reg, &(pheadi2s->I2S_TXCKR));
-	writel(reg, &(pheadi2s->I2S_RXCKR));
-*/	
+	writel(reg, &(pheadi2s->I2S_CKR));
+
 	return 0;
 }
 
@@ -511,10 +512,10 @@ static int rockchip_i2s_dai_probe(struct snd_soc_dai *dai)
             rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME, GPIO0D_I2S2_2CH_SDO);
             break;				
         default:
-                I2S_DBG("Enter:%s, %d, Error For DevId!!!", __FUNCTION__, __LINE__);
-                return -EINVAL;
+            I2S_DBG("Enter:%s, %d, Error For DevId!!!", __FUNCTION__, __LINE__);
+            return -EINVAL;
         }
-        return 0;
+	return 0;
 }
 
 static int rk29_i2s_probe(struct platform_device *pdev,
@@ -555,7 +556,7 @@ static int rk29_i2s_probe(struct platform_device *pdev,
 		dev_err(dev, "cannot ioremap registers\n");
 		return -ENXIO;
 	}
-
+#if 0
 	i2s->iis_pclk = clk_get(dev, "i2s");
 	if (IS_ERR(i2s->iis_pclk)) {
 		dev_err(dev, "failed to get iis_clock\n");
@@ -564,7 +565,7 @@ static int rk29_i2s_probe(struct platform_device *pdev,
 	}
 
 	clk_enable(i2s->iis_pclk);
-
+#endif
 	/* Mark ourselves as in TXRX mode so we can run through our cleanup
 	 * process without warnings. */
 	rockchip_snd_txctrl(i2s, 0, true);
@@ -656,6 +657,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	 WARN_ON(rk29_dma_request(i2s->dma_playback->channel, i2s->dma_playback->client, NULL));
 	 WARN_ON(rk29_dma_request(i2s->dma_capture->channel, i2s->dma_capture->client, NULL));
 #endif
+#if 0
 	i2s->iis_clk = clk_get(&pdev->dev, "i2s");
 	I2S_DBG("Enter:%s, %d, iis_clk=%p\n", __FUNCTION__, __LINE__, i2s->iis_clk);
 	if (IS_ERR(i2s->iis_clk)) {
@@ -666,6 +668,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 
 	clk_enable(i2s->iis_clk);
 	clk_set_rate(i2s->iis_clk, 11289600);
+#endif	
 	ret = rk29_i2s_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;
@@ -673,6 +676,21 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	ret = snd_soc_register_dai(&pdev->dev, dai);
 	if (ret != 0)
 		goto err_i2sv2;
+#if 0
+		writel(0x0000000F, &(pheadi2s->I2S_TXCR));
+		writel(0x0000000F, &(pheadi2s->I2S_RXCR));
+		writel(0x00071f1F, &(pheadi2s->I2S_CKR));
+		writel(0x001F0110, &(pheadi2s->I2S_DMACR));
+		writel(0x00000003, &(pheadi2s->I2S_XFER));
+		while(1)
+		{
+			writel(0x5555aaaa, &(pheadi2s->I2S_TXDR));
+		//	msleep(1);
+		//	printk("-----------------------\n");
+		}		
+#endif
+	
+
 
 	return 0;
 
@@ -724,7 +742,13 @@ MODULE_LICENSE("GPL");
 #include <linux/seq_file.h>
 static int proc_i2s_show(struct seq_file *s, void *v)
 {
+#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
+	struct rk29_i2s_info *i2s=&rk29_i2s[0];
+#elif CONFIG_SND_RK29_SOC_I2S_2CH
 	struct rk29_i2s_info *i2s=&rk29_i2s[1];
+#else
+	struct rk29_i2s_info *i2s=&rk29_i2s[2];
+#endif
 	printk("========Show I2S reg========\n");
         
 	printk("I2S_TXCR = 0x%08X\n", readl(&(pheadi2s->I2S_TXCR)));
