@@ -19,7 +19,6 @@
 #include <sound/soc-dapm.h>
 #include <asm/io.h>
 #include <mach/hardware.h>
-#include <mach/rk29_iomap.h>
 #include "../codecs/rt5631.h"
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
