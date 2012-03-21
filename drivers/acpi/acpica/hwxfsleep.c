@@ -49,15 +49,16 @@
 ACPI_MODULE_NAME("hwxfsleep")
 
 /* Local prototypes */
-static acpi_status acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id);
+static acpi_status
+acpi_hw_sleep_dispatch(u8 sleep_state, u8 flags, u32 function_id);
 
 /*
  * Dispatch table used to efficiently branch to the various sleep
  * functions.
  */
-#define ACPI_SLEEP_FUNCTION         0
-#define ACPI_WAKE_PREP_FUNCTION     1
-#define ACPI_WAKE_FUNCTION          2
+#define ACPI_SLEEP_FUNCTION_ID         0
+#define ACPI_WAKE_PREP_FUNCTION_ID     1
+#define ACPI_WAKE_FUNCTION_ID          2
 
 /* Legacy functions are optional, based upon ACPI_REDUCED_HARDWARE */
 
@@ -233,7 +234,8 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_s4bios)
  *              function.
  *
  ******************************************************************************/
-static acpi_status acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id)
+static acpi_status
+acpi_hw_sleep_dispatch(u8 sleep_state, u8 flags, u32 function_id)
 {
 	acpi_status status;
 	struct acpi_sleep_functions *sleep_functions =
@@ -246,11 +248,11 @@ static acpi_status acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id)
 	 * use the extended sleep registers
 	 */
 	if (acpi_gbl_reduced_hardware || acpi_gbl_FADT.sleep_control.address) {
-		status = sleep_functions->extended_function(sleep_state);
+		status = sleep_functions->extended_function(sleep_state, flags);
 	} else {
 		/* Legacy sleep */
 
-		status = sleep_functions->legacy_function(sleep_state);
+		status = sleep_functions->legacy_function(sleep_state, flags);
 	}
 
 	return (status);
@@ -260,7 +262,7 @@ static acpi_status acpi_hw_sleep_dispatch(u8 sleep_state, u32 function_id)
 	 * For the case where reduced-hardware-only code is being generated,
 	 * we know that only the extended sleep registers are available
 	 */
-	status = sleep_functions->extended_function(sleep_state);
+	status = sleep_functions->extended_function(sleep_state, flags);
 	return (status);
 
 #endif				/* !ACPI_REDUCED_HARDWARE */
@@ -289,8 +291,6 @@ acpi_status acpi_enter_sleep_state_prep(u8 sleep_state)
 	u32 sst_value;
 
 	ACPI_FUNCTION_TRACE(acpi_enter_sleep_state_prep);
-
-	/* _PSW methods could be run here to enable wake-on keyboard, LAN, etc. */
 
 	status = acpi_get_sleep_type_data(sleep_state,
 					  &acpi_gbl_sleep_type_a,
@@ -349,6 +349,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
  * FUNCTION:    acpi_enter_sleep_state
  *
  * PARAMETERS:  sleep_state         - Which sleep state to enter
+ *              Flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -356,7 +357,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state_prep)
  *              THIS FUNCTION MUST BE CALLED WITH INTERRUPTS DISABLED
  *
  ******************************************************************************/
-acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
+acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state, u8 flags)
 {
 	acpi_status status;
 
@@ -369,7 +370,8 @@ acpi_status asmlinkage acpi_enter_sleep_state(u8 sleep_state)
 		return_ACPI_STATUS(AE_AML_OPERAND_VALUE);
 	}
 
-	status = acpi_hw_sleep_dispatch(sleep_state, ACPI_SLEEP_FUNCTION);
+	status =
+	    acpi_hw_sleep_dispatch(sleep_state, flags, ACPI_SLEEP_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
 
@@ -380,6 +382,7 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
  * FUNCTION:    acpi_leave_sleep_state_prep
  *
  * PARAMETERS:  sleep_state         - Which sleep state we are exiting
+ *              Flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -388,13 +391,15 @@ ACPI_EXPORT_SYMBOL(acpi_enter_sleep_state)
  *              Called with interrupts DISABLED.
  *
  ******************************************************************************/
-acpi_status acpi_leave_sleep_state_prep(u8 sleep_state)
+acpi_status acpi_leave_sleep_state_prep(u8 sleep_state, u8 flags)
 {
 	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state_prep);
 
-	status = acpi_hw_sleep_dispatch(sleep_state, ACPI_WAKE_PREP_FUNCTION);
+	status =
+	    acpi_hw_sleep_dispatch(sleep_state, flags,
+				   ACPI_WAKE_PREP_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
 
@@ -419,7 +424,7 @@ acpi_status acpi_leave_sleep_state(u8 sleep_state)
 	ACPI_FUNCTION_TRACE(acpi_leave_sleep_state);
 
 
-	status = acpi_hw_sleep_dispatch(sleep_state, ACPI_WAKE_FUNCTION);
+	status = acpi_hw_sleep_dispatch(sleep_state, 0, ACPI_WAKE_FUNCTION_ID);
 	return_ACPI_STATUS(status);
 }
 

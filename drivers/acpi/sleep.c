@@ -250,7 +250,8 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	switch (acpi_state) {
 	case ACPI_STATE_S1:
 		barrier();
-		status = acpi_enter_sleep_state(acpi_state);
+		status = acpi_enter_sleep_state(acpi_state,
+				ACPI_NO_OPTIONAL_METHODS);
 		break;
 
 	case ACPI_STATE_S3:
@@ -265,7 +266,7 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	acpi_write_bit_register(ACPI_BITREG_SCI_ENABLE, 1);
 
 	/* Reprogram control registers and execute _BFS */
-	acpi_leave_sleep_state_prep(acpi_state);
+	acpi_leave_sleep_state_prep(acpi_state, ACPI_NO_OPTIONAL_METHODS);
 
 	/* ACPI 3.0 specs (P62) says that it's the responsibility
 	 * of the OSPM to clear the status bit [ implying that the
@@ -534,9 +535,9 @@ static int acpi_hibernation_enter(void)
 	ACPI_FLUSH_CPU_CACHE();
 
 	/* This shouldn't return.  If it returns, we have a problem */
-	status = acpi_enter_sleep_state(ACPI_STATE_S4);
+	status = acpi_enter_sleep_state(ACPI_STATE_S4, ACPI_NO_OPTIONAL_METHODS);
 	/* Reprogram control registers and execute _BFS */
-	acpi_leave_sleep_state_prep(ACPI_STATE_S4);
+	acpi_leave_sleep_state_prep(ACPI_STATE_S4, ACPI_NO_OPTIONAL_METHODS);
 
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
 }
@@ -549,7 +550,7 @@ static void acpi_hibernation_leave(void)
 	 */
 	acpi_enable();
 	/* Reprogram control registers and execute _BFS */
-	acpi_leave_sleep_state_prep(ACPI_STATE_S4);
+	acpi_leave_sleep_state_prep(ACPI_STATE_S4, ACPI_NO_OPTIONAL_METHODS);
 	/* Check the hardware signature */
 	if (facs && s4_hardware_signature != facs->hardware_signature) {
 		printk(KERN_EMERG "ACPI: Hardware changed while hibernated, "
@@ -773,7 +774,7 @@ static void acpi_power_off(void)
 	/* acpi_sleep_prepare(ACPI_STATE_S5) should have already been called */
 	printk(KERN_DEBUG "%s called\n", __func__);
 	local_irq_disable();
-	acpi_enter_sleep_state(ACPI_STATE_S5);
+	acpi_enter_sleep_state(ACPI_STATE_S5, ACPI_NO_OPTIONAL_METHODS);
 }
 
 /*
