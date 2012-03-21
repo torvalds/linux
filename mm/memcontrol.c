@@ -4467,12 +4467,6 @@ static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 	else
 		BUG();
 
-	/*
-	 * Something went wrong if we trying to unregister a threshold
-	 * if we don't have thresholds
-	 */
-	BUG_ON(!thresholds);
-
 	if (!thresholds->primary)
 		goto unlock;
 
