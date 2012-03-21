@@ -1997,6 +1997,11 @@ static void sensor_af_workqueue(struct work_struct *work)
     SENSOR_DG("%s %s Enter, cmd:0x%x \n",SENSOR_NAME_STRING(), __FUNCTION__,sensor_work->cmd);
     
     mutex_lock(&sensor->wq_lock);
+    if((sensor_work->cmd != WqCmd_af_init) && (sensor->info_priv.auto_focus != SENSOR_AF_MODE_AUTO))
+        {
+        SENSOR_TR("auto focus status is wrong ,do nothing !");
+        goto set_end;
+        }
     switch (sensor_work->cmd) 
     {
         case WqCmd_af_init:
@@ -2071,7 +2076,7 @@ static void sensor_af_workqueue(struct work_struct *work)
             SENSOR_TR("Unknow command(%d) in %s af workqueue!",sensor_work->cmd,SENSOR_NAME_STRING());
             break;
     } 
-
+set_end:
     if (sensor_work->wait == false) {
         kfree((void*)sensor_work);
     } else {
@@ -3701,10 +3706,10 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		}
 		#endif
 	} else if (enable == 0) {
-		sensor->info_priv.enable = 0;
 		#if CONFIG_SENSOR_Focus	
         flush_workqueue(sensor->sensor_wq);
 		#endif
+		sensor->info_priv.enable = 0;
 	}
 	return 0;
 }
