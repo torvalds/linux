@@ -409,6 +409,9 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	} else {
 		spin_unlock(&walk->mm->page_table_lock);
 	}
+
+	if (pmd_trans_unstable(pmd))
+		return 0;
 	/*
 	 * The mmap_sem held all the way back in m_start() is what
 	 * keeps khugepaged out of here and from collapsing things
@@ -507,6 +510,8 @@ static int clear_refs_pte_range(pmd_t *pmd, unsigned long addr,
 	struct page *page;
 
 	split_huge_page_pmd(walk->mm, pmd);
+	if (pmd_trans_unstable(pmd))
+		return 0;
 
 	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (; addr != end; pte++, addr += PAGE_SIZE) {
@@ -670,6 +675,8 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	int err = 0;
 
 	split_huge_page_pmd(walk->mm, pmd);
+	if (pmd_trans_unstable(pmd))
+		return 0;
 
 	/* find the first VMA at or above 'addr' */
 	vma = find_vma(walk->mm, addr);
@@ -961,6 +968,8 @@ static int gather_pte_stats(pmd_t *pmd, unsigned long addr,
 		spin_unlock(&walk->mm->page_table_lock);
 	}
 
+	if (pmd_trans_unstable(pmd))
+		return 0;
 	orig_pte = pte = pte_offset_map_lock(walk->mm, pmd, addr, &ptl);
 	do {
 		struct page *page = can_gather_numa_stats(*pte, md->vma, addr);
