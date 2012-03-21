@@ -1455,9 +1455,15 @@ done:
 }
 EXPORT_SYMBOL(full_name_hash);
 
+#ifdef CONFIG_64BIT
 #define ONEBYTES	0x0101010101010101ul
 #define SLASHBYTES	0x2f2f2f2f2f2f2f2ful
 #define HIGHBITS	0x8080808080808080ul
+#else
+#define ONEBYTES	0x01010101ul
+#define SLASHBYTES	0x2f2f2f2ful
+#define HIGHBITS	0x80808080ul
+#endif
 
 /* Return the high bit set in the first byte that is a zero */
 static inline unsigned long has_zero(unsigned long a)
