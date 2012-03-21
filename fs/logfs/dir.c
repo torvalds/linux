@@ -558,9 +558,6 @@ static int logfs_link(struct dentry *old_dentry, struct inode *dir,
 {
 	struct inode *inode = old_dentry->d_inode;
 
-	if (inode->i_nlink >= LOGFS_LINK_MAX)
-		return -EMLINK;
-
 	inode->i_ctime = dir->i_ctime = dir->i_mtime = CURRENT_TIME;
 	ihold(inode);
 	inc_nlink(inode);

@@ -92,8 +92,6 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 		goto out_free;
 	}
 
-	to_mm->stub_pages = NULL;
-
 	return 0;
 
  out_free:
@@ -103,7 +101,7 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	return ret;
 }
 
-void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
+void uml_setup_stubs(struct mm_struct *mm)
 {
 	struct page **pages;
 	int err, ret;
@@ -120,29 +118,20 @@ void arch_dup_mmap(struct mm_struct *oldmm, struct mm_struct *mm)
 	if (ret)
 		goto out;
 
-	pages = kmalloc(2 * sizeof(struct page *), GFP_KERNEL);
-	if (pages == NULL) {
-		printk(KERN_ERR "arch_dup_mmap failed to allocate 2 page "
-		       "pointers\n");
-		goto out;
-	}
-
-	pages[0] = virt_to_page(&__syscall_stub_start);
-	pages[1] = virt_to_page(mm->context.id.stack);
-	mm->context.stub_pages = pages;
+	mm->context.stub_pages[0] = virt_to_page(&__syscall_stub_start);
+	mm->context.stub_pages[1] = virt_to_page(mm->context.id.stack);
 
 	/* dup_mmap already holds mmap_sem */
 	err = install_special_mapping(mm, STUB_START, STUB_END - STUB_START,
 				      VM_READ | VM_MAYREAD | VM_EXEC |
-				      VM_MAYEXEC | VM_DONTCOPY, pages);
+				      VM_MAYEXEC | VM_DONTCOPY,
+				      mm->context.stub_pages);
 	if (err) {
 		printk(KERN_ERR "install_special_mapping returned %d\n", err);
-		goto out_free;
+		goto out;
 	}
 	return;
 
-out_free:
-	kfree(pages);
 out:
 	force_sigsegv(SIGSEGV, current);
 }
@@ -151,8 +140,6 @@ void arch_exit_mmap(struct mm_struct *mm)
 {
 	pte_t *pte;
 
-	if (mm->context.stub_pages != NULL)
-		kfree(mm->context.stub_pages);
 	pte = virt_to_pte(mm, STUB_CODE);
 	if (pte != NULL)
 		pte_clear(mm, STUB_CODE, pte);

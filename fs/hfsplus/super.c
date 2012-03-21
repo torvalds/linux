@@ -465,6 +465,13 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_put_alloc_file;
 	}
 
+	sb->s_d_op = &hfsplus_dentry_operations;
+	sb->s_root = d_make_root(root);
+	if (!sb->s_root) {
+		err = -ENOMEM;
+		goto out_put_alloc_file;
+	}
+
 	str.len = sizeof(HFSP_HIDDENDIR_NAME) - 1;
 	str.name = HFSP_HIDDENDIR_NAME;
 	err = hfs_find_init(sbi->cat_tree, &fd);
@@ -515,13 +522,6 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 		}
 	}
 
-	sb->s_d_op = &hfsplus_dentry_operations;
-	sb->s_root = d_alloc_root(root);
-	if (!sb->s_root) {
-		err = -ENOMEM;
-		goto out_put_hidden_dir;
-	}
-
 	unload_nls(sbi->nls);
 	sbi->nls = nls;
 	return 0;
@@ -529,7 +529,8 @@ static int hfsplus_fill_super(struct super_block *sb, void *data, int silent)
 out_put_hidden_dir:
 	iput(sbi->hidden_dir);
 out_put_root:
-	iput(root);
+	dput(sb->s_root);
+	sb->s_root = NULL;
 out_put_alloc_file:
 	iput(sbi->alloc_file);
 out_close_cat_tree:

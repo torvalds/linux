@@ -684,7 +684,7 @@ extern void		    audit_log_untrustedstring(struct audit_buffer *ab,
 						      const char *string);
 extern void		    audit_log_d_path(struct audit_buffer *ab,
 					     const char *prefix,
-					     struct path *path);
+					     const struct path *path);
 extern void		    audit_log_key(struct audit_buffer *ab,
 					  char *key);
 extern void		    audit_log_lost(const char *message);

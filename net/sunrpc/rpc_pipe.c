@@ -1033,13 +1033,9 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_time_gran = 1;
 
 	inode = rpc_get_inode(sb, S_IFDIR | 0755);
-	if (!inode)
+	sb->s_root = root = d_make_root(inode);
+	if (!root)
 		return -ENOMEM;
-	sb->s_root = root = d_alloc_root(inode);
-	if (!root) {
-		iput(inode);
-		return -ENOMEM;
-	}
 	if (rpc_populate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF, NULL))
 		return -ENOMEM;
 	return 0;

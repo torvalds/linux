@@ -3,9 +3,9 @@
  */
 
 #include <linux/time.h>
-#include <linux/reiserfs_fs.h>
-#include <linux/reiserfs_acl.h>
-#include <linux/reiserfs_xattr.h>
+#include "reiserfs.h"
+#include "acl.h"
+#include "xattr.h"
 #include <asm/uaccess.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>

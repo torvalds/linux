@@ -92,17 +92,17 @@ struct linux_binfmt {
 	unsigned long min_coredump;	/* minimal dump size */
 };
 
-extern int __register_binfmt(struct linux_binfmt *fmt, int insert);
+extern void __register_binfmt(struct linux_binfmt *fmt, int insert);
 
 /* Registration of default binfmt handlers */
-static inline int register_binfmt(struct linux_binfmt *fmt)
+static inline void register_binfmt(struct linux_binfmt *fmt)
 {
-	return __register_binfmt(fmt, 0);
+	__register_binfmt(fmt, 0);
 }
 /* Same as above, but adds a new binfmt at the top of the list */
-static inline int insert_binfmt(struct linux_binfmt *fmt)
+static inline void insert_binfmt(struct linux_binfmt *fmt)
 {
-	return __register_binfmt(fmt, 1);
+	__register_binfmt(fmt, 1);
 }
 
 extern void unregister_binfmt(struct linux_binfmt *);

@@ -966,9 +966,9 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	}
 
 	err = -ENOMEM;
-	sb->s_root = d_alloc_root(root_inode);
+	sb->s_root = d_make_root(root_inode);
 	if (sb->s_root == NULL)
-		goto out_put;
+		goto out;
 
 	return 0;
 

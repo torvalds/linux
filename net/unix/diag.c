@@ -29,7 +29,7 @@ rtattr_failure:
 
 static int sk_diag_dump_vfs(struct sock *sk, struct sk_buff *nlskb)
 {
-	struct dentry *dentry = unix_sk(sk)->dentry;
+	struct dentry *dentry = unix_sk(sk)->path.dentry;
 	struct unix_diag_vfs *uv;
 
 	if (dentry) {

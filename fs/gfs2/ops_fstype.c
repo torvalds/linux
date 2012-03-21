@@ -431,10 +431,9 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 		fs_err(sdp, "can't read in %s inode: %ld\n", name, PTR_ERR(inode));
 		return PTR_ERR(inode);
 	}
-	dentry = d_alloc_root(inode);
+	dentry = d_make_root(inode);
 	if (!dentry) {
 		fs_err(sdp, "can't alloc %s dentry\n", name);
-		iput(inode);
 		return -ENOMEM;
 	}
 	*dptr = dentry;

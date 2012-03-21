@@ -642,7 +642,7 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 	cond_resched();
 	current->total_link_count++;
 
-	touch_atime(link->mnt, dentry);
+	touch_atime(link);
 	nd_set_link(nd, NULL);
 
 	error = security_inode_follow_link(link->dentry, nd);
@@ -2691,6 +2691,7 @@ SYSCALL_DEFINE3(mknod, const char __user *, filename, umode_t, mode, unsigned, d
 int vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int error = may_create(dir, dentry);
+	unsigned max_links = dir->i_sb->s_max_links;
 
 	if (error)
 		return error;
@@ -2702,6 +2703,9 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	error = security_inode_mkdir(dir, dentry, mode);
 	if (error)
 		return error;
+
+	if (max_links && dir->i_nlink >= max_links)
+		return -EMLINK;
 
 	error = dir->i_op->mkdir(dir, dentry, mode);
 	if (!error)
@@ -3033,6 +3037,7 @@ SYSCALL_DEFINE2(symlink, const char __user *, oldname, const char __user *, newn
 int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
+	unsigned max_links = dir->i_sb->s_max_links;
 	int error;
 
 	if (!inode)
@@ -3063,6 +3068,8 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
 	/* Make sure we don't allow creating hardlink to an unlinked file */
 	if (inode->i_nlink == 0)
 		error =  -ENOENT;
+	else if (max_links && inode->i_nlink >= max_links)
+		error = -EMLINK;
 	else
 		error = dir->i_op->link(old_dentry, dir, new_dentry);
 	mutex_unlock(&inode->i_mutex);
@@ -3172,6 +3179,7 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 {
 	int error = 0;
 	struct inode *target = new_dentry->d_inode;
+	unsigned max_links = new_dir->i_sb->s_max_links;
 
 	/*
 	 * If we are going to change the parent - check write permissions,
@@ -3193,6 +3201,11 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 
 	error = -EBUSY;
 	if (d_mountpoint(old_dentry) || d_mountpoint(new_dentry))
+		goto out;
+
+	error = -EMLINK;
+	if (max_links && !target && new_dir != old_dir &&
+	    new_dir->i_nlink >= max_links)
 		goto out;
 
 	if (target)
