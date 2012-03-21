@@ -223,7 +223,7 @@ static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
 	status = rtas_call(ras_check_exception_token, 6, 1, NULL,
 			   RTAS_VECTOR_EXTERNAL_INTERRUPT,
 			   virq_to_hw(irq),
-			   RTAS_EPOW_WARNING | RTAS_POWERMGM_EVENTS,
+			   RTAS_EPOW_WARNING,
 			   critical, __pa(&ras_log_buf),
 				rtas_get_error_log_max());
 

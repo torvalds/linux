@@ -74,7 +74,6 @@ struct rtas_suspend_me_data {
 /* RTAS event classes */
 #define RTAS_INTERNAL_ERROR		0x80000000 /* set bit 0 */
 #define RTAS_EPOW_WARNING		0x40000000 /* set bit 1 */
-#define RTAS_POWERMGM_EVENTS		0x20000000 /* set bit 2 */
 #define RTAS_HOTPLUG_EVENTS		0x10000000 /* set bit 3 */
 #define RTAS_IO_EVENTS			0x08000000 /* set bit 4 */
 #define RTAS_EVENT_SCAN_ALL_EVENTS	0xffffffff
