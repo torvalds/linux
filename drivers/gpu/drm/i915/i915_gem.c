@@ -1472,16 +1472,19 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 	list_move_tail(&obj->ring_list, &ring->active_list);
 
 	obj->last_rendering_seqno = seqno;
+
 	if (obj->fenced_gpu_access) {
-		struct drm_i915_fence_reg *reg;
-
-		BUG_ON(obj->fence_reg == I915_FENCE_REG_NONE);
-
 		obj->last_fenced_seqno = seqno;
 		obj->last_fenced_ring = ring;
 
-		reg = &dev_priv->fence_regs[obj->fence_reg];
-		list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
+		/* Bump MRU to take account of the delayed flush */
+		if (obj->fence_reg != I915_FENCE_REG_NONE) {
+			struct drm_i915_fence_reg *reg;
+
+			reg = &dev_priv->fence_regs[obj->fence_reg];
+			list_move_tail(&reg->lru_list,
+				       &dev_priv->mm.fence_list);
+		}
 	}
 }
 
