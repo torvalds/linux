@@ -1175,8 +1175,7 @@ static void __exit
 exit_cifs(void)
 {
 	cFYI(DBG2, "exit_cifs");
-	cifs_proc_clean();
-	cifs_fscache_unregister();
+	unregister_filesystem(&cifs_fs_type);
 	cifs_dfs_release_automount_timer();
 #ifdef CONFIG_CIFS_ACL
 	cifs_destroy_idmaptrees();
@@ -1185,10 +1184,11 @@ exit_cifs(void)
 #ifdef CONFIG_CIFS_UPCALL
 	unregister_key_type(&cifs_spnego_key_type);
 #endif
-	unregister_filesystem(&cifs_fs_type);
-	cifs_destroy_inodecache();
-	cifs_destroy_mids();
 	cifs_destroy_request_bufs();
+	cifs_destroy_mids();
+	cifs_destroy_inodecache();
+	cifs_fscache_unregister();
+	cifs_proc_clean();
 }
 
 MODULE_AUTHOR("Steve French <sfrench@us.ibm.com>");
