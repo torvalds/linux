@@ -144,6 +144,8 @@ static inline bool mem_cgroup_disabled(void)
 void __mem_cgroup_begin_update_page_stat(struct page *page, bool *locked,
 					 unsigned long *flags);
 
+extern atomic_t memcg_moving;
+
 static inline void mem_cgroup_begin_update_page_stat(struct page *page,
 					bool *locked, unsigned long *flags)
 {
@@ -151,7 +153,8 @@ static inline void mem_cgroup_begin_update_page_stat(struct page *page,
 		return;
 	rcu_read_lock();
 	*locked = false;
-	return __mem_cgroup_begin_update_page_stat(page, locked, flags);
+	if (atomic_read(&memcg_moving))
+		__mem_cgroup_begin_update_page_stat(page, locked, flags);
 }
 
 void __mem_cgroup_end_update_page_stat(struct page *page,

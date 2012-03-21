@@ -1306,8 +1306,13 @@ int mem_cgroup_swappiness(struct mem_cgroup *memcg)
  *                                              rcu_read_unlock()
  *         start move here.
  */
+
+/* for quick checking without looking up memcg */
+atomic_t memcg_moving __read_mostly;
+
 static void mem_cgroup_start_move(struct mem_cgroup *memcg)
 {
+	atomic_inc(&memcg_moving);
 	atomic_inc(&memcg->moving_account);
 	synchronize_rcu();
 }
@@ -1318,8 +1323,10 @@ static void mem_cgroup_end_move(struct mem_cgroup *memcg)
 	 * Now, mem_cgroup_clear_mc() may call this function with NULL.
 	 * We check NULL in callee rather than caller.
 	 */
-	if (memcg)
+	if (memcg) {
+		atomic_dec(&memcg_moving);
 		atomic_dec(&memcg->moving_account);
+	}
 }
 
 /*
