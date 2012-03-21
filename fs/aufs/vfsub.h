@@ -100,14 +100,6 @@ static inline void vfsub_dead_dir(struct inode *inode)
 	clear_nlink(inode);
 }
 
-static inline void vfsub_set_nlink(struct inode *inode, unsigned int nlink)
-{
-	if (nlink)
-		set_nlink(inode, nlink);
-	else
-		clear_nlink(inode);
-}
-
 /* ---------------------------------------------------------------------- */
 
 int vfsub_update_h_iattr(struct path *h_path, int *did);
