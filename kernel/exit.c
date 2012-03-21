@@ -52,6 +52,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/oom.h>
 #include <linux/writeback.h>
+#include <linux/shm.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>

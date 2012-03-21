@@ -168,7 +168,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
 		if (!(oldflags & (VM_ACCOUNT|VM_WRITE|VM_HUGETLB|
 						VM_SHARED|VM_NORESERVE))) {
 			charged = nrpages;
-			if (security_vm_enough_memory(charged))
+			if (security_vm_enough_memory_mm(mm, charged))
 				return -ENOMEM;
 			newflags |= VM_ACCOUNT;
 		}

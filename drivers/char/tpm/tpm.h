@@ -99,6 +99,8 @@ struct tpm_vendor_specific {
 	wait_queue_head_t int_queue;
 };
 
+#define TPM_VID_INTEL    0x8086
+
 struct tpm_chip {
 	struct device *dev;	/* Device stuff */
 
