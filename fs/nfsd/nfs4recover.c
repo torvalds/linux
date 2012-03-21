@@ -416,6 +416,13 @@ nfsd4_load_reboot_recovery_data(struct net *net)
 {
 	int status;
 
+	/* XXX: The legacy code won't work in a container */
+	if (net != &init_net) {
+		WARN(1, KERN_ERR "NFSD: attempt to initialize legacy client "
+			"tracking in a container!\n");
+		return -EINVAL;
+	}
+
 	nfs4_lock_state();
 	status = nfsd4_init_recdir();
 	if (!status)
