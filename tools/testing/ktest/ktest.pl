@@ -1116,7 +1116,6 @@ sub reboot_to_good {
 
     if (defined($switch_to_good)) {
 	run_command $switch_to_good;
-	return;
     }
 
     reboot $time;
