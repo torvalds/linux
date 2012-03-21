@@ -80,6 +80,9 @@ struct evergreen_cs_track {
 	bool			cb_dirty;
 	bool			db_dirty;
 	bool			streamout_dirty;
+	u32			htile_offset;
+	u32			htile_surface;
+	struct radeon_bo	*htile_bo;
 };
 
 static u32 evergreen_cs_get_aray_mode(u32 tiling_flags)
@@ -144,6 +147,9 @@ static void evergreen_cs_track_init(struct evergreen_cs_track *track)
 	track->db_s_read_bo = NULL;
 	track->db_s_write_bo = NULL;
 	track->db_dirty = true;
+	track->htile_bo = NULL;
+	track->htile_offset = 0xFFFFFFFF;
+	track->htile_surface = 0;
 
 	for (i = 0; i < 4; i++) {
 		track->vgt_strmout_size[i] = 0;
@@ -444,6 +450,62 @@ static int evergreen_cs_track_validate_cb(struct radeon_cs_parser *p, unsigned i
 	return 0;
 }
 
+static int evergreen_cs_track_validate_htile(struct radeon_cs_parser *p,
+						unsigned nbx, unsigned nby)
+{
+	struct evergreen_cs_track *track = p->track;
+	unsigned long size;
+
+	if (track->htile_bo == NULL) {
+		dev_warn(p->dev, "%s:%d htile enabled without htile surface 0x%08x\n",
+				__func__, __LINE__, track->db_z_info);
+		return -EINVAL;
+	}
+
+	if (G_028ABC_LINEAR(track->htile_surface)) {
+		/* pitch must be 16 htiles aligned == 16 * 8 pixel aligned */
+		nbx = round_up(nbx, 16 * 8);
+		/* height is npipes htiles aligned == npipes * 8 pixel aligned */
+		nby = round_up(nby, track->npipes * 8);
+	} else {
+		switch (track->npipes) {
+		case 8:
+			nbx = round_up(nbx, 64 * 8);
+			nby = round_up(nby, 64 * 8);
+			break;
+		case 4:
+			nbx = round_up(nbx, 64 * 8);
+			nby = round_up(nby, 32 * 8);
+			break;
+		case 2:
+			nbx = round_up(nbx, 32 * 8);
+			nby = round_up(nby, 32 * 8);
+			break;
+		case 1:
+			nbx = round_up(nbx, 32 * 8);
+			nby = round_up(nby, 16 * 8);
+			break;
+		default:
+			dev_warn(p->dev, "%s:%d invalid num pipes %d\n",
+					__func__, __LINE__, track->npipes);
+			return -EINVAL;
+		}
+	}
+	/* compute number of htile */
+	nbx = nbx / 8;
+	nby = nby / 8;
+	size = nbx * nby * 4;
+	size += track->htile_offset;
+
+	if (size > radeon_bo_size(track->htile_bo)) {
+		dev_warn(p->dev, "%s:%d htile surface too small %ld for %ld (%d %d)\n",
+				__func__, __LINE__, radeon_bo_size(track->htile_bo),
+				size, nbx, nby);
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int evergreen_cs_track_validate_stencil(struct radeon_cs_parser *p)
 {
 	struct evergreen_cs_track *track = p->track;
@@ -528,6 +590,14 @@ static int evergreen_cs_track_validate_stencil(struct radeon_cs_parser *p)
 			(unsigned long)track->db_s_write_offset << 8, mslice,
 			radeon_bo_size(track->db_s_write_bo));
 		return -EINVAL;
+	}
+
+	/* hyperz */
+	if (G_028040_TILE_SURFACE_ENABLE(track->db_z_info)) {
+		r = evergreen_cs_track_validate_htile(p, surf.nbx, surf.nby);
+		if (r) {
+			return r;
+		}
 	}
 
 	return 0;
@@ -615,6 +685,14 @@ static int evergreen_cs_track_validate_depth(struct radeon_cs_parser *p)
 			(unsigned long)track->db_z_write_offset << 8, mslice,
 			radeon_bo_size(track->db_z_write_bo));
 		return -EINVAL;
+	}
+
+	/* hyperz */
+	if (G_028040_TILE_SURFACE_ENABLE(track->db_z_info)) {
+		r = evergreen_cs_track_validate_htile(p, surf.nbx, surf.nby);
+		if (r) {
+			return r;
+		}
 	}
 
 	return 0;
@@ -850,7 +928,7 @@ static int evergreen_cs_track_check(struct radeon_cs_parser *p)
 				return r;
 		}
 		/* Check depth buffer */
-		if (G_028800_Z_WRITE_ENABLE(track->db_depth_control)) {
+		if (G_028800_Z_ENABLE(track->db_depth_control)) {
 			r = evergreen_cs_track_validate_depth(p);
 			if (r)
 				return r;
@@ -1616,6 +1694,23 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->cb_color_bo[tmp] = reloc->robj;
 		track->cb_dirty = true;
 		break;
+	case DB_HTILE_DATA_BASE:
+		r = evergreen_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		track->htile_offset = radeon_get_ib_value(p, idx);
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		track->htile_bo = reloc->robj;
+		track->db_dirty = true;
+		break;
+	case DB_HTILE_SURFACE:
+		/* 8x8 only */
+		track->htile_surface = radeon_get_ib_value(p, idx);
+		track->db_dirty = true;
+		break;
 	case CB_IMMED0_BASE:
 	case CB_IMMED1_BASE:
 	case CB_IMMED2_BASE:
@@ -1628,7 +1723,6 @@ static int evergreen_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 	case CB_IMMED9_BASE:
 	case CB_IMMED10_BASE:
 	case CB_IMMED11_BASE:
-	case DB_HTILE_DATA_BASE:
 	case SQ_PGM_START_FS:
 	case SQ_PGM_START_ES:
 	case SQ_PGM_START_VS:

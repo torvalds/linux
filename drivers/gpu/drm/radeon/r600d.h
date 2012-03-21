@@ -195,6 +195,14 @@
 #define		PREZ_MUST_WAIT_FOR_POSTZ_DONE			(1 << 31)
 #define	DB_DEPTH_BASE					0x2800C
 #define	DB_HTILE_DATA_BASE				0x28014
+#define	DB_HTILE_SURFACE				0x28D24
+#define   S_028D24_HTILE_WIDTH(x)                      (((x) & 0x1) << 0)
+#define   G_028D24_HTILE_WIDTH(x)                      (((x) >> 0) & 0x1)
+#define   C_028D24_HTILE_WIDTH                         0xFFFFFFFE
+#define   S_028D24_HTILE_HEIGHT(x)                      (((x) & 0x1) << 1)
+#define   G_028D24_HTILE_HEIGHT(x)                      (((x) >> 1) & 0x1)
+#define   C_028D24_HTILE_HEIGHT                         0xFFFFFFFD
+#define   G_028D24_LINEAR(x)                           (((x) >> 2) & 0x1)
 #define	DB_WATERMARKS					0x9838
 #define		DEPTH_FREE(x)					((x) << 0)
 #define		DEPTH_FLUSH(x)					((x) << 5)

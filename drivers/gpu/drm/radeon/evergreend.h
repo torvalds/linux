@@ -991,6 +991,14 @@
 #define   G_028008_SLICE_MAX(x)                        (((x) >> 13) & 0x7FF)
 #define   C_028008_SLICE_MAX                           0xFF001FFF
 #define DB_HTILE_DATA_BASE				0x28014
+#define DB_HTILE_SURFACE				0x28abc
+#define   S_028ABC_HTILE_WIDTH(x)                      (((x) & 0x1) << 0)
+#define   G_028ABC_HTILE_WIDTH(x)                      (((x) >> 0) & 0x1)
+#define   C_028ABC_HTILE_WIDTH                         0xFFFFFFFE
+#define   S_028ABC_HTILE_HEIGHT(x)                      (((x) & 0x1) << 1)
+#define   G_028ABC_HTILE_HEIGHT(x)                      (((x) >> 1) & 0x1)
+#define   C_028ABC_HTILE_HEIGHT                         0xFFFFFFFD
+#define   G_028ABC_LINEAR(x)                           (((x) >> 2) & 0x1)
 #define DB_Z_INFO					0x28040
 #       define Z_ARRAY_MODE(x)                          ((x) << 4)
 #       define DB_TILE_SPLIT(x)                         (((x) & 0x7) << 8)
