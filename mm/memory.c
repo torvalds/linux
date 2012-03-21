@@ -125,7 +125,7 @@ core_initcall(init_zero_pfn);
 
 #if defined(SPLIT_RSS_COUNTING)
 
-static void __sync_task_rss_stat(struct mm_struct *mm)
+void sync_mm_rss(struct mm_struct *mm)
 {
 	int i;
 
@@ -157,12 +157,7 @@ static void check_sync_rss_stat(struct task_struct *task)
 	if (unlikely(task != current))
 		return;
 	if (unlikely(task->rss_stat.events++ > TASK_RSS_EVENTS_THRESH))
-		__sync_task_rss_stat(task->mm);
-}
-
-void sync_mm_rss(struct mm_struct *mm)
-{
-	__sync_task_rss_stat(mm);
+		sync_mm_rss(task->mm);
 }
 #else /* SPLIT_RSS_COUNTING */
 
