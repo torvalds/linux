@@ -421,7 +421,7 @@ static int sr9700_android_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->ethtool_ops = &sr9700_android_ethtool_ops;
 	dev->net->hard_header_len += QF_TX_OVERHEAD;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
-	dev->rx_urb_size =4096;// dev->net->mtu + ETH_HLEN + QF_RX_OVERHEAD;
+	dev->rx_urb_size = dev->net->mtu + ETH_HLEN + QF_RX_OVERHEAD;
 
 	dev->mii.dev = dev->net;
 	dev->mii.mdio_read = sr9700_android_mdio_read;
