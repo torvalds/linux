@@ -2085,7 +2085,7 @@ nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 		goto out;
 
 	status = nfs_ok;
-	nfsd4_create_clid_dir(cstate->session->se_client);
+	nfsd4_client_record_create(cstate->session->se_client);
 out:
 	nfs4_unlock_state();
 	return status;
@@ -2280,7 +2280,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			conf = find_confirmed_client_by_str(unconf->cl_recdir,
 							    hash);
 			if (conf) {
-				nfsd4_remove_clid_dir(conf);
+				nfsd4_client_record_remove(conf);
 				expire_client(conf);
 			}
 			move_to_confirmed(unconf);
@@ -3159,7 +3159,7 @@ static void
 nfsd4_end_grace(void)
 {
 	dprintk("NFSD: end of grace period\n");
-	nfsd4_recdir_purge_old();
+	nfsd4_record_grace_done(&init_net, boot_time);
 	locks_end_grace(&nfsd4_manager);
 	/*
 	 * Now that every NFSv4 client has had the chance to recover and
@@ -3208,7 +3208,7 @@ nfs4_laundromat(void)
 		clp = list_entry(pos, struct nfs4_client, cl_lru);
 		dprintk("NFSD: purging unused client (clientid %08x)\n",
 			clp->cl_clientid.cl_id);
-		nfsd4_remove_clid_dir(clp);
+		nfsd4_client_record_remove(clp);
 		expire_client(clp);
 	}
 	spin_lock(&recall_lock);
@@ -3639,7 +3639,7 @@ nfsd4_open_confirm(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	dprintk("NFSD: %s: success, seqid=%d stateid=" STATEID_FMT "\n",
 		__func__, oc->oc_seqid, STATEID_VAL(&stp->st_stid.sc_stateid));
 
-	nfsd4_create_clid_dir(oo->oo_owner.so_client);
+	nfsd4_client_record_create(oo->oo_owner.so_client);
 	status = nfs_ok;
 out:
 	if (!cstate->replay_owner)
@@ -4481,7 +4481,7 @@ nfs4_client_to_reclaim(const char *name)
 	return 1;
 }
 
-static void
+void
 nfs4_release_reclaim(void)
 {
 	struct nfs4_client_reclaim *crp = NULL;
@@ -4501,7 +4501,7 @@ nfs4_release_reclaim(void)
 
 /*
  * called from OPEN, CLAIM_PREVIOUS with a new clientid. */
-static struct nfs4_client_reclaim *
+struct nfs4_client_reclaim *
 nfsd4_find_reclaim_client(struct nfs4_client *clp)
 {
 	unsigned int strhashval;
@@ -4519,22 +4519,6 @@ nfsd4_find_reclaim_client(struct nfs4_client *clp)
 		}
 	}
 	return NULL;
-}
-
-static int
-nfsd4_client_record_check(struct nfs4_client *clp)
-{
-	/* did we already find that this client is stable? */
-	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
-		return 0;
-
-	/* look for it in the reclaim hashtable otherwise */
-	if (nfsd4_find_reclaim_client(clp)) {
-		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
-		return 0;
-	}
-
-	return -ENOENT;
 }
 
 /*
@@ -4562,7 +4546,7 @@ void nfsd_forget_clients(u64 num)
 
 	nfs4_lock_state();
 	list_for_each_entry_safe(clp, next, &client_lru, cl_lru) {
-		nfsd4_remove_clid_dir(clp);
+		nfsd4_client_record_remove(clp);
 		expire_client(clp);
 		if (++count == num)
 			break;
@@ -4697,19 +4681,6 @@ nfs4_state_init(void)
 	reclaim_str_hashtbl_size = 0;
 }
 
-static void
-nfsd4_load_reboot_recovery_data(void)
-{
-	int status;
-
-	nfs4_lock_state();
-	nfsd4_init_recdir();
-	status = nfsd4_recdir_load();
-	nfs4_unlock_state();
-	if (status)
-		printk("NFSD: Failure reading reboot recovery data\n");
-}
-
 /*
  * Since the lifetime of a delegation isn't limited to that of an open, a
  * client may quite reasonably hang on to a delegation as long as it has
@@ -4738,7 +4709,15 @@ nfs4_state_start(void)
 {
 	int ret;
 
-	nfsd4_load_reboot_recovery_data();
+	/*
+	 * FIXME: For now, we hang most of the pernet global stuff off of
+	 * init_net until nfsd is fully containerized. Eventually, we'll
+	 * need to pass a net pointer into this function, take a reference
+	 * to that instead and then do most of the rest of this on a per-net
+	 * basis.
+	 */
+	get_net(&init_net);
+	nfsd4_client_tracking_init(&init_net);
 	boot_time = get_seconds();
 	locks_start_grace(&nfsd4_manager);
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
@@ -4762,8 +4741,8 @@ nfs4_state_start(void)
 out_free_laundry:
 	destroy_workqueue(laundry_wq);
 out_recovery:
-	nfs4_release_reclaim();
-	nfsd4_shutdown_recdir();
+	nfsd4_client_tracking_exit(&init_net);
+	put_net(&init_net);
 	return ret;
 }
 
@@ -4797,7 +4776,8 @@ __nfs4_state_shutdown(void)
 		unhash_delegation(dp);
 	}
 
-	nfsd4_shutdown_recdir();
+	nfsd4_client_tracking_exit(&init_net);
+	put_net(&init_net);
 }
 
 void
@@ -4807,7 +4787,6 @@ nfs4_state_shutdown(void)
 	destroy_workqueue(laundry_wq);
 	locks_end_grace(&nfsd4_manager);
 	nfs4_lock_state();
-	nfs4_release_reclaim();
 	__nfs4_state_shutdown();
 	nfs4_unlock_state();
 	nfsd4_destroy_callback_queue();

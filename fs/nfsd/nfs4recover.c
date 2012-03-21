@@ -43,9 +43,20 @@
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
+/* Declarations */
+struct nfsd4_client_tracking_ops {
+	int (*init)(struct net *);
+	void (*exit)(struct net *);
+	void (*create)(struct nfs4_client *);
+	void (*remove)(struct nfs4_client *);
+	int (*check)(struct nfs4_client *);
+	void (*grace_done)(struct net *, time_t);
+};
+
 /* Globals */
 static struct file *rec_file;
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
+static struct nfsd4_client_tracking_ops *client_tracking_ops;
 
 static int
 nfs4_save_creds(const struct cred **original_creds)
@@ -117,7 +128,8 @@ out_no_tfm:
 	return status;
 }
 
-void nfsd4_create_clid_dir(struct nfs4_client *clp)
+static void
+nfsd4_create_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
 	char *dname = clp->cl_recdir;
@@ -264,7 +276,7 @@ out_unlock:
 	return status;
 }
 
-void
+static void
 nfsd4_remove_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
@@ -291,7 +303,6 @@ out:
 	if (status)
 		printk("NFSD: Failed to remove expired client state directory"
 				" %.*s\n", HEXDIR_LEN, clp->cl_recdir);
-	return;
 }
 
 static int
@@ -310,8 +321,9 @@ purge_old(struct dentry *parent, struct dentry *child)
 	return 0;
 }
 
-void
-nfsd4_recdir_purge_old(void) {
+static void
+nfsd4_recdir_purge_old(struct net *net, time_t boot_time)
+{
 	int status;
 
 	if (!rec_file)
@@ -342,7 +354,7 @@ load_recdir(struct dentry *parent, struct dentry *child)
 	return 0;
 }
 
-int
+static int
 nfsd4_recdir_load(void) {
 	int status;
 
@@ -360,8 +372,8 @@ nfsd4_recdir_load(void) {
  * Hold reference to the recovery directory.
  */
 
-void
-nfsd4_init_recdir()
+static int
+nfsd4_init_recdir(void)
 {
 	const struct cred *original_cred;
 	int status;
@@ -376,26 +388,50 @@ nfsd4_init_recdir()
 		printk("NFSD: Unable to change credentials to find recovery"
 		       " directory: error %d\n",
 		       status);
-		return;
+		return status;
 	}
 
 	rec_file = filp_open(user_recovery_dirname, O_RDONLY | O_DIRECTORY, 0);
 	if (IS_ERR(rec_file)) {
 		printk("NFSD: unable to find recovery directory %s\n",
 				user_recovery_dirname);
+		status = PTR_ERR(rec_file);
 		rec_file = NULL;
 	}
 
 	nfs4_reset_creds(original_cred);
+	return status;
 }
 
-void
+static int
+nfsd4_load_reboot_recovery_data(struct net *net)
+{
+	int status;
+
+	nfs4_lock_state();
+	status = nfsd4_init_recdir();
+	if (!status)
+		status = nfsd4_recdir_load();
+	nfs4_unlock_state();
+	if (status)
+		printk(KERN_ERR "NFSD: Failure reading reboot recovery data\n");
+	return status;
+}
+
+static void
 nfsd4_shutdown_recdir(void)
 {
 	if (!rec_file)
 		return;
 	fput(rec_file);
 	rec_file = NULL;
+}
+
+static void
+nfsd4_legacy_tracking_exit(struct net *net)
+{
+	nfs4_release_reclaim();
+	nfsd4_shutdown_recdir();
 }
 
 /*
@@ -423,4 +459,84 @@ char *
 nfs4_recoverydir(void)
 {
 	return user_recovery_dirname;
+}
+
+static int
+nfsd4_check_legacy_client(struct nfs4_client *clp)
+{
+	/* did we already find that this client is stable? */
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return 0;
+
+	/* look for it in the reclaim hashtable otherwise */
+	if (nfsd4_find_reclaim_client(clp)) {
+		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
+static struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
+	.init		= nfsd4_load_reboot_recovery_data,
+	.exit		= nfsd4_legacy_tracking_exit,
+	.create		= nfsd4_create_clid_dir,
+	.remove		= nfsd4_remove_clid_dir,
+	.check		= nfsd4_check_legacy_client,
+	.grace_done	= nfsd4_recdir_purge_old,
+};
+
+int
+nfsd4_client_tracking_init(struct net *net)
+{
+	int status;
+
+	client_tracking_ops = &nfsd4_legacy_tracking_ops;
+
+	status = client_tracking_ops->init(net);
+	if (status) {
+		printk(KERN_WARNING "NFSD: Unable to initialize client "
+				    "recovery tracking! (%d)\n", status);
+		client_tracking_ops = NULL;
+	}
+	return status;
+}
+
+void
+nfsd4_client_tracking_exit(struct net *net)
+{
+	if (client_tracking_ops) {
+		client_tracking_ops->exit(net);
+		client_tracking_ops = NULL;
+	}
+}
+
+void
+nfsd4_client_record_create(struct nfs4_client *clp)
+{
+	if (client_tracking_ops)
+		client_tracking_ops->create(clp);
+}
+
+void
+nfsd4_client_record_remove(struct nfs4_client *clp)
+{
+	if (client_tracking_ops)
+		client_tracking_ops->remove(clp);
+}
+
+int
+nfsd4_client_record_check(struct nfs4_client *clp)
+{
+	if (client_tracking_ops)
+		return client_tracking_ops->check(clp);
+
+	return -EOPNOTSUPP;
+}
+
+void
+nfsd4_record_grace_done(struct net *net, time_t boot_time)
+{
+	if (client_tracking_ops)
+		client_tracking_ops->grace_done(net, boot_time);
 }

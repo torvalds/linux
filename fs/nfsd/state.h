@@ -457,6 +457,8 @@ extern __be32 nfs4_preprocess_stateid_op(struct nfsd4_compound_state *cstate,
 extern void nfs4_lock_state(void);
 extern void nfs4_unlock_state(void);
 extern int nfs4_in_grace(void);
+extern void nfs4_release_reclaim(void);
+extern struct nfs4_client_reclaim *nfsd4_find_reclaim_client(struct nfs4_client *crp);
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid);
 extern void nfs4_free_openowner(struct nfs4_openowner *);
 extern void nfs4_free_lockowner(struct nfs4_lockowner *);
@@ -471,16 +473,17 @@ extern void nfsd4_destroy_callback_queue(void);
 extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfs4_put_delegation(struct nfs4_delegation *dp);
 extern __be32 nfs4_make_rec_clidname(char *clidname, struct xdr_netobj *clname);
-extern void nfsd4_init_recdir(void);
-extern int nfsd4_recdir_load(void);
-extern void nfsd4_shutdown_recdir(void);
 extern int nfs4_client_to_reclaim(const char *name);
 extern int nfs4_has_reclaimed_state(const char *name, bool use_exchange_id);
-extern void nfsd4_recdir_purge_old(void);
-extern void nfsd4_create_clid_dir(struct nfs4_client *clp);
-extern void nfsd4_remove_clid_dir(struct nfs4_client *clp);
 extern void release_session_client(struct nfsd4_session *);
 extern __be32 nfs4_validate_stateid(struct nfs4_client *, stateid_t *);
 extern void nfsd4_purge_closed_stateid(struct nfs4_stateowner *);
 
+/* nfs4recover operations */
+extern int nfsd4_client_tracking_init(struct net *net);
+extern void nfsd4_client_tracking_exit(struct net *net);
+extern void nfsd4_client_record_create(struct nfs4_client *clp);
+extern void nfsd4_client_record_remove(struct nfs4_client *clp);
+extern int nfsd4_client_record_check(struct nfs4_client *clp);
+extern void nfsd4_record_grace_done(struct net *net, time_t boot_time);
 #endif   /* NFSD4_STATE_H */
