@@ -60,6 +60,7 @@ There are three components to pagemap:
     19. HWPOISON
     20. NOPAGE
     21. KSM
+    22. THP
 
 Short descriptions to the page flags:
 
@@ -96,6 +97,9 @@ Short descriptions to the page flags:
 
 21. KSM
     identical memory pages dynamically shared between one or more processes
+
+22. THP
+    contiguous pages which construct transparent hugepages
 
     [IO related page flags]
  1. ERROR     IO error occurred
