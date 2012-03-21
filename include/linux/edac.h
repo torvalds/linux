@@ -457,7 +457,6 @@ struct dimm_info {
 	/* Memory location data */
 	unsigned location[EDAC_MAX_LAYERS];
 
-	struct kobject kobj;		/* sysfs kobject for this csrow */
 	struct mem_ctl_info *mci;	/* the parent */
 
 	u32 grain;		/* granularity of reported error in bytes */
@@ -511,32 +510,9 @@ struct csrow_info {
 
 	struct mem_ctl_info *mci;	/* the parent */
 
-	struct kobject kobj;	/* sysfs kobject for this csrow */
-
 	/* channel information for this csrow */
 	u32 nr_channels;
 	struct rank_info *channels;
-};
-
-struct mcidev_sysfs_group {
-	const char *name;				/* group name */
-	const struct mcidev_sysfs_attribute *mcidev_attr; /* group attributes */
-};
-
-/* mcidev_sysfs_attribute structure
- *	used for driver sysfs attributes and in mem_ctl_info
- * 	sysfs top level entries
- */
-struct mcidev_sysfs_attribute {
-	/* It should use either attr or grp */
-	struct attribute attr;
-	const struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
-
-	/* Ops for show/store values at the attribute - not used on group */
-	ssize_t (*show)(struct mem_ctl_info *, char *);
-	ssize_t (*store)(struct mem_ctl_info *, const char *, size_t);
-
-	void *priv;
 };
 
 /*
@@ -640,12 +616,6 @@ struct mem_ctl_info {
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 
 	struct completion complete;
-
-	/* edac sysfs device control */
-	struct kobject edac_mci_kobj;
-
-	/* list for all grp instances within a mc */
-	struct list_head grp_kobj_list;
 
 	/* Additional top controller level attributes, but specified
 	 * by the low level driver.

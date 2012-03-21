@@ -426,9 +426,6 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail0;
 	}
 
-	/* Keeps mci available after edac_mc_del_mc() till edac_mc_free() */
-	kobject_get(&mci->edac_mci_kobj);
-
 	debugf3("%s(): init mci\n", __func__);
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR;
@@ -471,7 +468,6 @@ static int i82875p_probe1(struct pci_dev *pdev, int dev_idx)
 	return 0;
 
 fail1:
-	kobject_put(&mci->edac_mci_kobj);
 	edac_mc_free(mci);
 
 fail0:

@@ -1406,7 +1406,6 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	if (mci == NULL)
 		return -ENOMEM;
 
-	kobject_get(&mci->edac_mci_kobj);
 	debugf0("MC: %s: %s(): mci = %p\n", __FILE__, __func__, mci);
 
 	mci->pdev = &pdev->dev;	/* record ptr  to the generic device */
@@ -1479,7 +1478,6 @@ fail1:
 	i5000_put_devices(mci);
 
 fail0:
-	kobject_put(&mci->edac_mci_kobj);
 	edac_mc_free(mci);
 	return -ENODEV;
 }
@@ -1525,7 +1523,6 @@ static void __devexit i5000_remove_one(struct pci_dev *pdev)
 
 	/* retrieve references to resources, and free those resources */
 	i5000_put_devices(mci);
-	kobject_put(&mci->edac_mci_kobj);
 	edac_mc_free(mci);
 }
 

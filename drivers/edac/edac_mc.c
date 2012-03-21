@@ -372,7 +372,6 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	}
 
 	mci->op_state = OP_ALLOC;
-	INIT_LIST_HEAD(&mci->grp_kobj_list);
 
 	/* at this point, the root kobj is valid, and in order to
 	 * 'free' the object, then the function:
