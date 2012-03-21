@@ -1076,7 +1076,7 @@ static void init_local(void)
 	int i;
 
 	dlm_local_count = 0;
-	for (i = 0; i < DLM_MAX_ADDR_COUNT - 1; i++) {
+	for (i = 0; i < DLM_MAX_ADDR_COUNT; i++) {
 		if (dlm_our_addr(&sas, i))
 			break;
 
