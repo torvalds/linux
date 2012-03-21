@@ -87,6 +87,7 @@ my $reboot_on_error;
 my $switch_to_good;
 my $switch_to_test;
 my $poweroff_on_error;
+my $reboot_on_success;
 my $die_on_failure;
 my $powercycle_after_reboot;
 my $poweroff_after_halt;
@@ -213,6 +214,7 @@ my %option_map = (
     "SWITCH_TO_GOOD"		=> \$switch_to_good,
     "SWITCH_TO_TEST"		=> \$switch_to_test,
     "POWEROFF_ON_ERROR"		=> \$poweroff_on_error,
+    "REBOOT_ON_SUCCESS"		=> \$reboot_on_success,
     "DIE_ON_FAILURE"		=> \$die_on_failure,
     "POWER_OFF"			=> \$power_off,
     "POWERCYCLE_AFTER_REBOOT"	=> \$powercycle_after_reboot,
@@ -3552,8 +3554,10 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	    die "failed to checkout $checkout";
     }
 
-    $no_reboot = 0;
-
+    # A test may opt to not reboot the box
+    if ($reboot_on_success) {
+	$no_reboot = 0;
+    }
 
     if ($test_type eq "bisect") {
 	bisect $i;
@@ -3598,7 +3602,11 @@ if ($opt{"POWEROFF_ON_SUCCESS"}) {
     halt;
 } elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot) {
     reboot_to_good;
+} elsif (defined($switch_to_good)) {
+    # still need to get to the good kernel
+    run_command $switch_to_good;
 }
+
 
 doprint "\n    $successes of $opt{NUM_TESTS} tests were successful\n\n";
 
