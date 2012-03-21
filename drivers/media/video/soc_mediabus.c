@@ -378,6 +378,9 @@ EXPORT_SYMBOL(soc_mbus_samples_per_pixel);
 
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf)
 {
+	if (mf->layout != SOC_MBUS_LAYOUT_PACKED)
+		return width * mf->bits_per_sample / 8;
+
 	switch (mf->packing) {
 	case SOC_MBUS_PACKING_NONE:
 		return width * mf->bits_per_sample / 8;
