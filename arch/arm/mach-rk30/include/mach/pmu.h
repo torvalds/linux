@@ -34,6 +34,7 @@ enum pmu_power_domain {
 	PD_PERI = 6,
 	PD_VIO,
 	PD_VIDEO,
+	PD_VCODEC = PD_VIDEO,
 	PD_GPU,
 	PD_DBG,
 };
@@ -44,5 +45,15 @@ static inline bool pmu_power_domain_is_on(enum pmu_power_domain pd)
 }
 
 void pmu_set_power_domain(enum pmu_power_domain pd, bool on);
+
+enum pmu_idle_req {
+	IDLE_REQ_CPU = 0,
+	IDLE_REQ_PERI,
+	IDLE_REQ_GPU,
+	IDLE_REQ_VIDEO,
+	IDLE_REQ_VIO,
+};
+
+void pmu_set_idle_request(enum pmu_idle_req req, bool idle);
 
 #endif
