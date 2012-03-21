@@ -1722,6 +1722,9 @@ static inline void hci_inquiry_result_evt(struct hci_dev *hdev, struct sk_buff *
 	if (!num_rsp)
 		return;
 
+	if (test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags))
+		return;
+
 	hci_dev_lock(hdev);
 
 	for (; num_rsp; num_rsp--, info++) {
@@ -2826,6 +2829,9 @@ static inline void hci_inquiry_result_with_rssi_evt(struct hci_dev *hdev, struct
 	if (!num_rsp)
 		return;
 
+	if (test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags))
+		return;
+
 	hci_dev_lock(hdev);
 
 	if ((skb->len - 1) / num_rsp != sizeof(struct inquiry_info_with_rssi)) {
@@ -2995,6 +3001,9 @@ static inline void hci_extended_inquiry_result_evt(struct hci_dev *hdev, struct 
 	BT_DBG("%s num_rsp %d", hdev->name, num_rsp);
 
 	if (!num_rsp)
+		return;
+
+	if (test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags))
 		return;
 
 	hci_dev_lock(hdev);
