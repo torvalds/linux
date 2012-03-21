@@ -1105,8 +1105,6 @@ static int uvc_v4l2_put_xu_mapping(const struct uvc_xu_control_mapping *kp,
 	if (get_user(p, &up->menu_info))
 		return -EFAULT;
 	umenus = compat_ptr(p);
-	if (!access_ok(VERIFY_WRITE, umenus, kp->menu_count * sizeof(*umenus)))
-		return -EFAULT;
 
 	if (copy_in_user(umenus, kmenus, kp->menu_count * sizeof(*umenus)))
 		return -EFAULT;
