@@ -2280,6 +2280,10 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 		if (pte_dirty(pte))
 			set_page_dirty(page);
 		list_add(&page->lru, &page_list);
+
+		/* Bail out after unmapping reference page if supplied */
+		if (ref_page)
+			break;
 	}
 	flush_tlb_range(vma, start, end);
 	spin_unlock(&mm->page_table_lock);
