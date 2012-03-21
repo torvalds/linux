@@ -1395,7 +1395,8 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 				xlate->host_fmt);
 		if (pix->bytesperline < 0)
 			return pix->bytesperline;
-		pix->sizeimage = pix->height * pix->bytesperline;
+		pix->sizeimage = soc_mbus_image_size(xlate->host_fmt,
+						pix->bytesperline, pix->height);
 		/* Check against the CSIRXCNT limit */
 		if (pix->sizeimage > 4 * 0x3ffff) {
 			/* Adjust geometry, preserve aspect ratio */
@@ -1406,7 +1407,8 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 			pix->bytesperline = soc_mbus_bytes_per_line(pix->width,
 							xlate->host_fmt);
 			BUG_ON(pix->bytesperline < 0);
-			pix->sizeimage = pix->height * pix->bytesperline;
+			pix->sizeimage = soc_mbus_image_size(xlate->host_fmt,
+						pix->bytesperline, pix->height);
 		}
 	}
 
