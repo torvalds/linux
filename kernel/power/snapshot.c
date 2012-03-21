@@ -711,9 +711,10 @@ static void mark_nosave_pages(struct memory_bitmap *bm)
 	list_for_each_entry(region, &nosave_regions, list) {
 		unsigned long pfn;
 
-		pr_debug("PM: Marking nosave pages: %016lx - %016lx\n",
-				region->start_pfn << PAGE_SHIFT,
-				region->end_pfn << PAGE_SHIFT);
+		pr_debug("PM: Marking nosave pages: [mem %#010llx-%#010llx]\n",
+			 (unsigned long long) region->start_pfn << PAGE_SHIFT,
+			 ((unsigned long long) region->end_pfn << PAGE_SHIFT)
+				- 1);
 
 		for (pfn = region->start_pfn; pfn < region->end_pfn; pfn++)
 			if (pfn_valid(pfn)) {
