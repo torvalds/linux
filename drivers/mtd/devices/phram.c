@@ -215,7 +215,7 @@ static inline void kill_final_newline(char *str)
  */
 static __initdata char phram_paramline[64+12+12];
 
-static int phram_setup(const char *val)
+static int __init phram_setup(const char *val)
 {
 	char buf[64+12+12], *str = buf;
 	char *token[3];
