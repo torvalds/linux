@@ -164,6 +164,7 @@ static int soc_camera_try_fmt(struct soc_camera_device *icd,
 			      struct v4l2_format *f)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
+	const struct soc_camera_format_xlate *xlate;
 	struct v4l2_pix_format *pix = &f->fmt.pix;
 	int ret;
 
@@ -177,22 +178,22 @@ static int soc_camera_try_fmt(struct soc_camera_device *icd,
 	if (ret < 0)
 		return ret;
 
-	if (!pix->sizeimage) {
-		if (!pix->bytesperline) {
-			const struct soc_camera_format_xlate *xlate;
+	xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
+	if (!xlate)
+		return -EINVAL;
 
-			xlate = soc_camera_xlate_by_fourcc(icd, pix->pixelformat);
-			if (!xlate)
-				return -EINVAL;
+	ret = soc_mbus_bytes_per_line(pix->width, xlate->host_fmt);
+	if (ret < 0)
+		return ret;
 
-			ret = soc_mbus_bytes_per_line(pix->width,
-						      xlate->host_fmt);
-			if (ret > 0)
-				pix->bytesperline = ret;
-		}
-		if (pix->bytesperline)
-			pix->sizeimage = pix->bytesperline * pix->height;
-	}
+	pix->bytesperline = max_t(u32, pix->bytesperline, ret);
+
+	ret = soc_mbus_image_size(xlate->host_fmt, pix->bytesperline,
+				  pix->height);
+	if (ret < 0)
+		return ret;
+
+	pix->sizeimage = max_t(u32, pix->sizeimage, ret);
 
 	return 0;
 }

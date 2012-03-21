@@ -214,17 +214,25 @@ static int sh_mobile_ceu_videobuf_setup(struct vb2_queue *vq,
 	if (fmt) {
 		const struct soc_camera_format_xlate *xlate = soc_camera_xlate_by_fourcc(icd,
 								fmt->fmt.pix.pixelformat);
-		int bytes_per_line;
+		unsigned int bytes_per_line;
+		int ret;
 
 		if (!xlate)
 			return -EINVAL;
 
-		bytes_per_line = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
-							 xlate->host_fmt);
-		if (bytes_per_line < 0)
-			return bytes_per_line;
+		ret = soc_mbus_bytes_per_line(fmt->fmt.pix.width,
+					      xlate->host_fmt);
+		if (ret < 0)
+			return ret;
 
-		sizes[0] = bytes_per_line * fmt->fmt.pix.height;
+		bytes_per_line = max_t(u32, fmt->fmt.pix.bytesperline, ret);
+
+		ret = soc_mbus_image_size(xlate->host_fmt, bytes_per_line,
+					  fmt->fmt.pix.height);
+		if (ret < 0)
+			return ret;
+
+		sizes[0] = max_t(u32, fmt->fmt.pix.sizeimage, ret);
 	} else {
 		/* Called from VIDIOC_REQBUFS or in compatibility mode */
 		sizes[0] = icd->sizeimage;
