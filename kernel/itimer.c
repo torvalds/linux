@@ -284,8 +284,11 @@ SYSCALL_DEFINE3(setitimer, int, which, struct itimerval __user *, value,
 	if (value) {
 		if(copy_from_user(&set_buffer, value, sizeof(set_buffer)))
 			return -EFAULT;
-	} else
+	} else {
 		memset((char *) &set_buffer, 0, sizeof(set_buffer));
+		WARN_ONCE(1, "setitimer: new_value pointer is NULL."
+			  " Misfeature support will be removed\n");
+	}
 
 	error = do_setitimer(which, &set_buffer, ovalue ? &get_buffer : NULL);
 	if (error || !ovalue)
