@@ -1914,7 +1914,7 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct wm8996_priv *wm8996 = snd_soc_codec_get_drvdata(codec);
-	int bits, i, bclk_rate;
+	int bits, i, bclk_rate, best;
 	int aifdata = 0;
 	int lrclk = 0;
 	int dsp = 0;
@@ -1963,14 +1963,11 @@ static int wm8996_hw_params(struct snd_pcm_substream *substream,
 		return bits;
 	aifdata |= (bits << WM8996_AIF1TX_WL_SHIFT) | bits;
 
+	best = 0;
 	for (i = 0; i < ARRAY_SIZE(dsp_divs); i++) {
-		if (dsp_divs[i] == params_rate(params))
-			break;
-	}
-	if (i == ARRAY_SIZE(dsp_divs)) {
-		dev_err(codec->dev, "Unsupported sample rate %dHz\n",
-			params_rate(params));
-		return -EINVAL;
+		if (abs(dsp_divs[i] - params_rate(params)) <
+		    abs(dsp_divs[best] - params_rate(params)))
+			best = i;
 	}
 	dsp |= i << dsp_shift;
 
@@ -2030,13 +2027,16 @@ static int wm8996_set_sysclk(struct snd_soc_dai *dai,
 	}
 
 	switch (wm8996->sysclk) {
+	case 5644800:
 	case 6144000:
 		snd_soc_update_bits(codec, WM8996_AIF_RATE,
 				    WM8996_SYSCLK_RATE, 0);
 		break;
+	case 22579200:
 	case 24576000:
 		ratediv = WM8996_SYSCLK_DIV;
 		wm8996->sysclk /= 2;
+	case 11289600:
 	case 12288000:
 		snd_soc_update_bits(codec, WM8996_AIF_RATE,
 				    WM8996_SYSCLK_RATE, WM8996_SYSCLK_RATE);
@@ -3060,7 +3060,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8996 = {
 };
 
 #define WM8996_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
-		      SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000)
+		      SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |\
+		      SNDRV_PCM_RATE_48000)
 #define WM8996_FORMATS (SNDRV_PCM_FMTBIT_S8 | SNDRV_PCM_FMTBIT_S16_LE |\
 			SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE |\
 			SNDRV_PCM_FMTBIT_S32_LE)

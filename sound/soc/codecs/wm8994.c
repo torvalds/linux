@@ -777,36 +777,68 @@ static void vmid_reference(struct snd_soc_codec *codec)
 
 	if (wm8994->vmid_refcount == 1) {
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
-				    WM8994_LINEOUT_VMID_BUF_ENA |
 				    WM8994_LINEOUT1_DISCH |
-				    WM8994_LINEOUT2_DISCH,
-				    WM8994_LINEOUT_VMID_BUF_ENA);
+				    WM8994_LINEOUT2_DISCH, 0);
 
 		wm_hubs_vmid_ena(codec);
 
-		/* Startup bias, VMID ramp & buffer */
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-				    WM8994_BIAS_SRC |
-				    WM8994_VMID_DISCH |
-				    WM8994_STARTUP_BIAS_ENA |
-				    WM8994_VMID_BUF_ENA |
-				    WM8994_VMID_RAMP_MASK,
-				    WM8994_BIAS_SRC |
-				    WM8994_STARTUP_BIAS_ENA |
-				    WM8994_VMID_BUF_ENA |
-				    (0x2 << WM8994_VMID_RAMP_SHIFT));
+		switch (wm8994->vmid_mode) {
+		default:
+			WARN_ON(0 == "Invalid VMID mode");
+		case WM8994_VMID_NORMAL:
+			/* Startup bias, VMID ramp & buffer */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_BIAS_SRC |
+					    WM8994_VMID_DISCH |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    WM8994_VMID_RAMP_MASK,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    (0x3 << WM8994_VMID_RAMP_SHIFT));
 
-		/* Main bias enable, VMID=2x40k */
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-				    WM8994_BIAS_ENA |
-				    WM8994_VMID_SEL_MASK,
-				    WM8994_BIAS_ENA | 0x2);
+			/* Main bias enable, VMID=2x40k */
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+					    WM8994_BIAS_ENA |
+					    WM8994_VMID_SEL_MASK,
+					    WM8994_BIAS_ENA | 0x2);
 
-		msleep(50);
+			msleep(50);
 
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-				    WM8994_VMID_RAMP_MASK | WM8994_BIAS_SRC,
-				    0);
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_VMID_RAMP_MASK |
+					    WM8994_BIAS_SRC,
+					    0);
+			break;
+
+		case WM8994_VMID_FORCE:
+			/* Startup bias, slow VMID ramp & buffer */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_BIAS_SRC |
+					    WM8994_VMID_DISCH |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    WM8994_VMID_RAMP_MASK,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    (0x2 << WM8994_VMID_RAMP_SHIFT));
+
+			/* Main bias enable, VMID=2x40k */
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+					    WM8994_BIAS_ENA |
+					    WM8994_VMID_SEL_MASK,
+					    WM8994_BIAS_ENA | 0x2);
+
+			msleep(400);
+
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_VMID_RAMP_MASK |
+					    WM8994_BIAS_SRC,
+					    0);
+			break;
+		}
 	}
 }
 
@@ -820,40 +852,67 @@ static void vmid_dereference(struct snd_soc_codec *codec)
 		wm8994->vmid_refcount);
 
 	if (wm8994->vmid_refcount == 0) {
-		/* Switch over to startup biases */
+		if (wm8994->hubs.lineout1_se)
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_3,
+					    WM8994_LINEOUT1N_ENA |
+					    WM8994_LINEOUT1P_ENA,
+					    WM8994_LINEOUT1N_ENA |
+					    WM8994_LINEOUT1P_ENA);
+
+		if (wm8994->hubs.lineout2_se)
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_3,
+					    WM8994_LINEOUT2N_ENA |
+					    WM8994_LINEOUT2P_ENA,
+					    WM8994_LINEOUT2N_ENA |
+					    WM8994_LINEOUT2P_ENA);
+
+		/* Start discharging VMID */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
 				    WM8994_BIAS_SRC |
-				    WM8994_STARTUP_BIAS_ENA |
-				    WM8994_VMID_BUF_ENA |
-				    WM8994_VMID_RAMP_MASK,
+				    WM8994_VMID_DISCH,
 				    WM8994_BIAS_SRC |
-				    WM8994_STARTUP_BIAS_ENA |
-				    WM8994_VMID_BUF_ENA |
-				    (1 << WM8994_VMID_RAMP_SHIFT));
+				    WM8994_VMID_DISCH);
 
-		/* Disable main biases */
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-				    WM8994_BIAS_ENA |
-				    WM8994_VMID_SEL_MASK, 0);
+		switch (wm8994->vmid_mode) {
+		case WM8994_VMID_FORCE:
+			msleep(350);
+			break;
+		default:
+			break;
+		}
 
-		/* Discharge VMID */
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-				    WM8994_VMID_DISCH, WM8994_VMID_DISCH);
+		snd_soc_update_bits(codec, WM8994_ADDITIONAL_CONTROL,
+				    WM8994_VROI, WM8994_VROI);
 
-		/* Discharge line */
+		/* Active discharge */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
 				    WM8994_LINEOUT1_DISCH |
 				    WM8994_LINEOUT2_DISCH,
 				    WM8994_LINEOUT1_DISCH |
 				    WM8994_LINEOUT2_DISCH);
 
-		msleep(5);
+		msleep(150);
+
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_3,
+				    WM8994_LINEOUT1N_ENA |
+				    WM8994_LINEOUT1P_ENA |
+				    WM8994_LINEOUT2N_ENA |
+				    WM8994_LINEOUT2P_ENA, 0);
+
+		snd_soc_update_bits(codec, WM8994_ADDITIONAL_CONTROL,
+				    WM8994_VROI, 0);
 
 		/* Switch off startup biases */
 		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
 				    WM8994_BIAS_SRC |
 				    WM8994_STARTUP_BIAS_ENA |
 				    WM8994_VMID_BUF_ENA |
+				    WM8994_VMID_RAMP_MASK, 0);
+
+		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+				    WM8994_BIAS_ENA | WM8994_VMID_SEL_MASK, 0);
+
+		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
 				    WM8994_VMID_RAMP_MASK, 0);
 	}
 
@@ -2197,6 +2256,55 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
+int wm8994_vmid_mode(struct snd_soc_codec *codec, enum wm8994_vmid_mode mode)
+{
+	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
+
+	switch (mode) {
+	case WM8994_VMID_NORMAL:
+		if (wm8994->hubs.lineout1_se) {
+			snd_soc_dapm_disable_pin(&codec->dapm,
+						 "LINEOUT1N Driver");
+			snd_soc_dapm_disable_pin(&codec->dapm,
+						 "LINEOUT1P Driver");
+		}
+		if (wm8994->hubs.lineout2_se) {
+			snd_soc_dapm_disable_pin(&codec->dapm,
+						 "LINEOUT2N Driver");
+			snd_soc_dapm_disable_pin(&codec->dapm,
+						 "LINEOUT2P Driver");
+		}
+
+		/* Do the sync with the old mode to allow it to clean up */
+		snd_soc_dapm_sync(&codec->dapm);
+		wm8994->vmid_mode = mode;
+		break;
+
+	case WM8994_VMID_FORCE:
+		if (wm8994->hubs.lineout1_se) {
+			snd_soc_dapm_force_enable_pin(&codec->dapm,
+						      "LINEOUT1N Driver");
+			snd_soc_dapm_force_enable_pin(&codec->dapm,
+						      "LINEOUT1P Driver");
+		}
+		if (wm8994->hubs.lineout2_se) {
+			snd_soc_dapm_force_enable_pin(&codec->dapm,
+						      "LINEOUT2N Driver");
+			snd_soc_dapm_force_enable_pin(&codec->dapm,
+						      "LINEOUT2P Driver");
+		}
+
+		wm8994->vmid_mode = mode;
+		snd_soc_dapm_sync(&codec->dapm);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
@@ -2819,6 +2927,7 @@ static int wm8994_codec_resume(struct snd_soc_codec *codec)
 					    WM1811_JACKDET_MODE_JACK);
 			break;
 		}
+		break;
 	case WM8958:
 		if (wm8994->jack_cb)
 			snd_soc_update_bits(codec, WM8958_MIC_DETECT_1,
