@@ -300,6 +300,8 @@ struct mem_cgroup {
 	 * set > 0 if pages under this cgroup are moving to other cgroup.
 	 */
 	atomic_t	moving_account;
+	/* taken only while moving_account > 0 */
+	spinlock_t	move_lock;
 	/*
 	 * percpu counter.
 	 */
@@ -1376,6 +1378,24 @@ static bool mem_cgroup_wait_acct_move(struct mem_cgroup *memcg)
 	return false;
 }
 
+/*
+ * Take this lock when
+ * - a code tries to modify page's memcg while it's USED.
+ * - a code tries to modify page state accounting in a memcg.
+ * see mem_cgroup_stealed(), too.
+ */
+static void move_lock_mem_cgroup(struct mem_cgroup *memcg,
+				  unsigned long *flags)
+{
+	spin_lock_irqsave(&memcg->move_lock, *flags);
+}
+
+static void move_unlock_mem_cgroup(struct mem_cgroup *memcg,
+				unsigned long *flags)
+{
+	spin_unlock_irqrestore(&memcg->move_lock, *flags);
+}
+
 /**
  * mem_cgroup_print_oom_info: Called from OOM with tasklist_lock held in read mode.
  * @memcg: The memory cgroup that went over limit
@@ -1900,7 +1920,7 @@ void mem_cgroup_update_page_stat(struct page *page,
 
 	if (mem_cgroup_disabled())
 		return;
-
+again:
 	rcu_read_lock();
 	memcg = pc->mem_cgroup;
 	if (unlikely(!memcg || !PageCgroupUsed(pc)))
@@ -1908,11 +1928,13 @@ void mem_cgroup_update_page_stat(struct page *page,
 	/* pc->mem_cgroup is unstable ? */
 	if (unlikely(mem_cgroup_stealed(memcg))) {
 		/* take a lock against to access pc->mem_cgroup */
-		move_lock_page_cgroup(pc, &flags);
+		move_lock_mem_cgroup(memcg, &flags);
+		if (memcg != pc->mem_cgroup || !PageCgroupUsed(pc)) {
+			move_unlock_mem_cgroup(memcg, &flags);
+			rcu_read_unlock();
+			goto again;
+		}
 		need_unlock = true;
-		memcg = pc->mem_cgroup;
-		if (!memcg || !PageCgroupUsed(pc))
-			goto out;
 	}
 
 	switch (idx) {
@@ -1931,7 +1953,7 @@ void mem_cgroup_update_page_stat(struct page *page,
 
 out:
 	if (unlikely(need_unlock))
-		move_unlock_page_cgroup(pc, &flags);
+		move_unlock_mem_cgroup(memcg, &flags);
 	rcu_read_unlock();
 }
 
@@ -2500,8 +2522,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *memcg,
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 
-#define PCGF_NOCOPY_AT_SPLIT ((1 << PCG_LOCK) | (1 << PCG_MOVE_LOCK) |\
-			(1 << PCG_MIGRATION))
+#define PCGF_NOCOPY_AT_SPLIT ((1 << PCG_LOCK) | (1 << PCG_MIGRATION))
 /*
  * Because tail pages are not marked as "used", set it. We're under
  * zone->lru_lock, 'splitting on pmd' and compound_lock.
@@ -2572,7 +2593,7 @@ static int mem_cgroup_move_account(struct page *page,
 	if (!PageCgroupUsed(pc) || pc->mem_cgroup != from)
 		goto unlock;
 
-	move_lock_page_cgroup(pc, &flags);
+	move_lock_mem_cgroup(from, &flags);
 
 	if (PageCgroupFileMapped(pc)) {
 		/* Update mapped_file data for mem_cgroup */
@@ -2596,7 +2617,7 @@ static int mem_cgroup_move_account(struct page *page,
 	 * guaranteed that "to" is never removed. So, we don't check rmdir
 	 * status here.
 	 */
-	move_unlock_page_cgroup(pc, &flags);
+	move_unlock_mem_cgroup(from, &flags);
 	ret = 0;
 unlock:
 	unlock_page_cgroup(pc);
@@ -4971,6 +4992,7 @@ mem_cgroup_create(struct cgroup *cont)
 	atomic_set(&memcg->refcnt, 1);
 	memcg->move_charge_at_immigrate = 0;
 	mutex_init(&memcg->thresholds_lock);
+	spin_lock_init(&memcg->move_lock);
 	return &memcg->css;
 free_out:
 	__mem_cgroup_free(memcg);
