@@ -12,8 +12,6 @@
  *  published by the Free Software Foundation.
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -63,11 +61,6 @@ static void ep93xx_gpio_update_int_params(unsigned port)
 
 	__raw_writeb(gpio_int_unmasked[port] & gpio_int_enabled[port],
 		EP93XX_GPIO_REG(int_en_register_offset[port]));
-}
-
-static inline void ep93xx_gpio_int_mask(unsigned line)
-{
-	gpio_int_unmasked[line >> 3] &= ~(1 << (line & 7));
 }
 
 static void ep93xx_gpio_int_debounce(unsigned int irq, bool enable)
@@ -212,7 +205,6 @@ static int ep93xx_gpio_irq_type(struct irq_data *d, unsigned int type)
 		handler = handle_edge_irq;
 		break;
 	default:
-		pr_err("failed to set irq type %d for gpio %d\n", type, gpio);
 		return -EINVAL;
 	}
 
