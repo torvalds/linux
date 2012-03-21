@@ -73,8 +73,8 @@
 		usb0: ohci@00700000 {
 			status = "okay";
 			num-ports = <2>;
-			atmel,vbus-gpio = <&pioD 1 0
-					   &pioD 3 0>;
+			atmel,vbus-gpio = <&pioD 1 1
+					   &pioD 3 1>;
 		};
 
 		usb1: ehci@00800000 {
