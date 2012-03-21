@@ -964,7 +964,6 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
 {
 	bool need_loop;
 
-repeat:
 	/*
 	 * Allow tasks that have access to memory reserves because they have
 	 * been OOM killed to get memory anywhere.
@@ -983,45 +982,19 @@ repeat:
 	 */
 	need_loop = task_has_mempolicy(tsk) ||
 			!nodes_intersects(*newmems, tsk->mems_allowed);
+
+	if (need_loop)
+		write_seqcount_begin(&tsk->mems_allowed_seq);
+
 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
 	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
 
-	/*
-	 * ensure checking ->mems_allowed_change_disable after setting all new
-	 * allowed nodes.
-	 *
-	 * the read-side task can see an nodemask with new allowed nodes and
-	 * old allowed nodes. and if it allocates page when cpuset clears newly
-	 * disallowed ones continuous, it can see the new allowed bits.
-	 *
-	 * And if setting all new allowed nodes is after the checking, setting
-	 * all new allowed nodes and clearing newly disallowed ones will be done
-	 * continuous, and the read-side task may find no node to alloc page.
-	 */
-	smp_mb();
-
-	/*
-	 * Allocation of memory is very fast, we needn't sleep when waiting
-	 * for the read-side.
-	 */
-	while (need_loop && ACCESS_ONCE(tsk->mems_allowed_change_disable)) {
-		task_unlock(tsk);
-		if (!task_curr(tsk))
-			yield();
-		goto repeat;
-	}
-
-	/*
-	 * ensure checking ->mems_allowed_change_disable before clearing all new
-	 * disallowed nodes.
-	 *
-	 * if clearing newly disallowed bits before the checking, the read-side
-	 * task may find no node to alloc page.
-	 */
-	smp_mb();
-
 	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
 	tsk->mems_allowed = *newmems;
+
+	if (need_loop)
+		write_seqcount_end(&tsk->mems_allowed_seq);
+
 	task_unlock(tsk);
 }
 

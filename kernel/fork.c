@@ -985,6 +985,9 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 #ifdef CONFIG_CGROUPS
 	init_rwsem(&sig->threadgroup_fork_lock);
 #endif
+#ifdef CONFIG_CPUSETS
+	seqcount_init(&tsk->mems_allowed_seq);
+#endif
 
 	sig->oom_adj = current->signal->oom_adj;
 	sig->oom_score_adj = current->signal->oom_score_adj;
