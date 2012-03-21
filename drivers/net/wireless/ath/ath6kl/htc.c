@@ -1353,7 +1353,9 @@ static int ath6kl_htc_rx_setup(struct htc_target *target,
 					sizeof(*htc_hdr));
 
 	if (!htc_valid_rx_frame_len(target, ep->eid, full_len)) {
-		ath6kl_warn("Rx buffer requested with invalid length\n");
+		ath6kl_warn("Rx buffer requested with invalid length htc_hdr:eid %d, flags 0x%x, len %d\n",
+			    htc_hdr->eid, htc_hdr->flags,
+			    le16_to_cpu(htc_hdr->payld_len));
 		return -EINVAL;
 	}
 
