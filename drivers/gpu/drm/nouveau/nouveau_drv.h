@@ -1775,6 +1775,7 @@ nv44_graph_class(struct drm_device *dev)
 #define NV84_SUBCHAN_NOTIFY_INTR                                     0x00000020
 #define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
 #define NV10_SUBCHAN_REF_CNT                                         0x00000050
+#define NVSW_SUBCHAN_PAGE_FLIP                                       0x00000054
 #define NV11_SUBCHAN_DMA_SEMAPHORE                                   0x00000060
 #define NV11_SUBCHAN_SEMAPHORE_OFFSET                                0x00000064
 #define NV11_SUBCHAN_SEMAPHORE_ACQUIRE                               0x00000068
