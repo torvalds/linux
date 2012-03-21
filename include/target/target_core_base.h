@@ -73,9 +73,8 @@
 /*
  * struct se_device->dev_flags
  */
-#define DF_READ_ONLY				0x00000001
-#define DF_SPC2_RESERVATIONS			0x00000002
-#define DF_SPC2_RESERVATIONS_WITH_ISID		0x00000004
+#define DF_SPC2_RESERVATIONS			0x00000001
+#define DF_SPC2_RESERVATIONS_WITH_ISID		0x00000002
 
 /* struct se_dev_attrib sanity values */
 /* Default max_unmap_lba_count */

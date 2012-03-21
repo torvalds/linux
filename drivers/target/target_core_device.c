@@ -1341,7 +1341,6 @@ struct se_lun *core_dev_add_lun(
 	u32 lun)
 {
 	struct se_lun *lun_p;
-	u32 lun_access = 0;
 	int rc;
 
 	if (atomic_read(&dev->dev_access_obj.obj_access_count) != 0) {
@@ -1354,12 +1353,8 @@ struct se_lun *core_dev_add_lun(
 	if (IS_ERR(lun_p))
 		return lun_p;
 
-	if (dev->dev_flags & DF_READ_ONLY)
-		lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
-	else
-		lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
-
-	rc = core_tpg_post_addlun(tpg, lun_p, lun_access, dev);
+	rc = core_tpg_post_addlun(tpg, lun_p,
+				TRANSPORT_LUNFLAGS_READ_WRITE, dev);
 	if (rc < 0)
 		return ERR_PTR(rc);
 
