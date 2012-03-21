@@ -2315,6 +2315,12 @@ static int start_discovery(struct sock *sk, struct hci_dev *hdev,
 		goto failed;
 	}
 
+	if (test_bit(HCI_PERIODIC_INQ, &hdev->dev_flags)) {
+		err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
+				 MGMT_STATUS_BUSY);
+		goto failed;
+	}
+
 	if (hdev->discovery.state != DISCOVERY_STOPPED) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_START_DISCOVERY,
 				 MGMT_STATUS_BUSY);
