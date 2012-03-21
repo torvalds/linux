@@ -38,6 +38,7 @@
 #include "exynos_drm_fb.h"
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"
+#include "exynos_drm_vidi.h"
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -208,6 +209,8 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_PLANE_SET_ZPOS, exynos_plane_set_zpos_ioctl,
 			DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION,
+			vidi_connection_ioctl, DRM_UNLOCKED | DRM_AUTH),
 };
 
 static const struct file_operations exynos_drm_driver_fops = {
@@ -298,6 +301,12 @@ static int __init exynos_drm_init(void)
 		goto out_common_hdmi;
 #endif
 
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+	ret = platform_driver_register(&vidi_driver);
+	if (ret < 0)
+		goto out_vidi;
+#endif
+
 	ret = platform_driver_register(&exynos_drm_platform_driver);
 	if (ret < 0)
 		goto out;
@@ -305,6 +314,11 @@ static int __init exynos_drm_init(void)
 	return 0;
 
 out:
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+out_vidi:
+	platform_driver_unregister(&vidi_driver);
+#endif
+
 #ifdef CONFIG_DRM_EXYNOS_HDMI
 	platform_driver_unregister(&exynos_drm_common_hdmi_driver);
 out_common_hdmi:
@@ -331,6 +345,10 @@ static void __exit exynos_drm_exit(void)
 	platform_driver_unregister(&exynos_drm_common_hdmi_driver);
 	platform_driver_unregister(&mixer_driver);
 	platform_driver_unregister(&hdmi_driver);
+#endif
+
+#ifdef CONFIG_DRM_EXYNOS_VIDI
+	platform_driver_unregister(&vidi_driver);
 #endif
 
 #ifdef CONFIG_DRM_EXYNOS_FIMD

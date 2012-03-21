@@ -21,3 +21,9 @@ config DRM_EXYNOS_HDMI
 	depends on DRM_EXYNOS && !VIDEO_SAMSUNG_S5P_TV
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
+
+config DRM_EXYNOS_VIDI
+	bool "Exynos DRM Virtual Display"
+	depends on DRM_EXYNOS
+	help
+	  Choose this option if you want to use Exynos VIDI for DRM.

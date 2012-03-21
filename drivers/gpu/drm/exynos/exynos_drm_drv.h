@@ -32,9 +32,9 @@
 #include <linux/module.h>
 #include "drm.h"
 
-#define MAX_CRTC	2
+#define MAX_CRTC	3
 #define MAX_PLANE	5
-#define MAX_FB_BUFFER	3
+#define MAX_FB_BUFFER	4
 #define DEFAULT_ZPOS	-1
 
 struct drm_device;
@@ -50,6 +50,8 @@ enum exynos_drm_output_type {
 	EXYNOS_DISPLAY_TYPE_LCD,
 	/* HDMI Interface. */
 	EXYNOS_DISPLAY_TYPE_HDMI,
+	/* Virtual Display Interface. */
+	EXYNOS_DISPLAY_TYPE_VIDI,
 };
 
 /*
@@ -284,4 +286,5 @@ extern struct platform_driver fimd_driver;
 extern struct platform_driver hdmi_driver;
 extern struct platform_driver mixer_driver;
 extern struct platform_driver exynos_drm_common_hdmi_driver;
+extern struct platform_driver vidi_driver;
 #endif

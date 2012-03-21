@@ -74,6 +74,20 @@ struct drm_exynos_gem_mmap {
 	uint64_t mapped;
 };
 
+/**
+ * A structure for user connection request of virtual display.
+ *
+ * @connection: indicate whether doing connetion or not by user.
+ * @extensions: if this value is 1 then the vidi driver would need additional
+ *	128bytes edid data.
+ * @edid: the edid data pointer from user side.
+ */
+struct drm_exynos_vidi_connection {
+	unsigned int connection;
+	unsigned int extensions;
+	uint64_t *edid;
+};
+
 struct drm_exynos_plane_set_zpos {
 	__u32 plane_id;
 	__s32 zpos;
@@ -90,6 +104,7 @@ enum e_drm_exynos_gem_mem_type {
 #define DRM_EXYNOS_GEM_MMAP		0x02
 /* Reserved 0x03 ~ 0x05 for exynos specific gem ioctl */
 #define DRM_EXYNOS_PLANE_SET_ZPOS	0x06
+#define DRM_EXYNOS_VIDI_CONNECTION	0x07
 
 #define DRM_IOCTL_EXYNOS_GEM_CREATE		DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_GEM_CREATE, struct drm_exynos_gem_create)
@@ -102,6 +117,9 @@ enum e_drm_exynos_gem_mem_type {
 
 #define DRM_IOCTL_EXYNOS_PLANE_SET_ZPOS	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_PLANE_SET_ZPOS, struct drm_exynos_plane_set_zpos)
+
+#define DRM_IOCTL_EXYNOS_VIDI_CONNECTION	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_VIDI_CONNECTION, struct drm_exynos_vidi_connection)
 
 #ifdef __KERNEL__
 

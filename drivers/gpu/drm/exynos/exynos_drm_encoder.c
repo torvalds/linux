@@ -218,6 +218,7 @@ static unsigned int exynos_drm_encoder_clones(struct drm_encoder *encoder)
 		switch (display_ops->type) {
 		case EXYNOS_DISPLAY_TYPE_LCD:
 		case EXYNOS_DISPLAY_TYPE_HDMI:
+		case EXYNOS_DISPLAY_TYPE_VIDI:
 			clone_mask |= (1 << (cnt++));
 			break;
 		default:

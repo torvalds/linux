@@ -12,5 +12,6 @@ exynosdrm-$(CONFIG_DRM_EXYNOS_FIMD)	+= exynos_drm_fimd.o
 exynosdrm-$(CONFIG_DRM_EXYNOS_HDMI)	+= exynos_hdmi.o exynos_mixer.o \
 					   exynos_ddc.o exynos_hdmiphy.o \
 					   exynos_drm_hdmi.o
+exynosdrm-$(CONFIG_DRM_EXYNOS_VIDI)	+= exynos_drm_vidi.o
 
 obj-$(CONFIG_DRM_EXYNOS)		+= exynosdrm.o
