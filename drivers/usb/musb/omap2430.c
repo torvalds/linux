@@ -464,13 +464,13 @@ static int __init omap2430_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	ret = platform_device_add(musb);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device\n");
 		goto err2;
 	}
-
-	pm_runtime_enable(&pdev->dev);
 
 	return 0;
 
