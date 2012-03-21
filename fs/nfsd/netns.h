@@ -31,4 +31,5 @@ struct nfsd_net {
 };
 
 extern int nfsd_net_id;
+extern struct notifier_block nfsd4_cld_block;
 #endif /* __NFSD_NETNS_H__ */

@@ -13,6 +13,7 @@
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/gss_krb5_enctypes.h>
+#include <linux/sunrpc/rpc_pipe_fs.h>
 #include <linux/module.h>
 
 #include "idmap.h"
@@ -1136,9 +1137,12 @@ static int __init init_nfsd(void)
 	int retval;
 	printk(KERN_INFO "Installing knfsd (copyright (C) 1996 okir@monad.swb.de).\n");
 
+	retval = rpc_pipefs_notifier_register(&nfsd4_cld_block);
+	if (retval)
+		return retval;
 	retval = register_pernet_subsys(&nfsd_net_ops);
 	if (retval < 0)
-		return retval;
+		goto out_unregister_notifier;
 	retval = nfsd4_init_slabs();
 	if (retval)
 		goto out_unregister_pernet;
@@ -1181,6 +1185,8 @@ out_free_slabs:
 	nfsd4_free_slabs();
 out_unregister_pernet:
 	unregister_pernet_subsys(&nfsd_net_ops);
+out_unregister_notifier:
+	rpc_pipefs_notifier_unregister(&nfsd4_cld_block);
 	return retval;
 }
 
@@ -1197,6 +1203,7 @@ static void __exit exit_nfsd(void)
 	nfsd_fault_inject_cleanup();
 	unregister_filesystem(&nfsd_fs_type);
 	unregister_pernet_subsys(&nfsd_net_ops);
+	rpc_pipefs_notifier_unregister(&nfsd4_cld_block);
 }
 
 MODULE_AUTHOR("Olaf Kirch <okir@monad.swb.de>");
