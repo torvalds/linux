@@ -304,7 +304,7 @@ static int crypto_del_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 static int crypto_add_alg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			  struct nlattr **attrs)
 {
-	int exact;
+	int exact = 0;
 	const char *name;
 	struct crypto_alg *alg;
 	struct crypto_user_alg *p = nlmsg_data(nlh);
