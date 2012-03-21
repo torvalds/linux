@@ -1416,6 +1416,7 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 			pix->bytesperline = soc_mbus_bytes_per_line(pix->width,
 							xlate->host_fmt);
 			BUG_ON(pix->bytesperline < 0);
+			pix->sizeimage = pix->height * pix->bytesperline;
 		}
 	}
 
