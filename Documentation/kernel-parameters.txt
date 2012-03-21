@@ -1071,8 +1071,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			no_x2apic_optout
 				BIOS x2APIC opt-out request will be ignored
 
-	inttest=	[IA-64]
-
 	iomem=		Disable strict checking of access to MMIO memory
 		strict	regions from userspace.
 		relaxed
