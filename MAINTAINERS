@@ -5075,7 +5075,7 @@ F:	drivers/pci/
 F:	include/linux/pci*
 
 PCI HOTPLUG
-M:	Jesse Barnes <jbarnes@virtuousgeek.org>
+M:	Bjorn Helgaas <bhelgaas@google.com>
 L:	linux-pci@vger.kernel.org
 S:	Supported
 F:	drivers/pci/hotplug
