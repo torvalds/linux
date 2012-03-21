@@ -140,17 +140,18 @@ static inline void random_ether_addr(u8 *addr)
 }
 
 /**
- * dev_hw_addr_random - Create random MAC and set device flag
+ * eth_hw_addr_random - Generate software assigned random Ethernet and
+ * set device flag
  * @dev: pointer to net_device structure
- * @hwaddr: Pointer to a six-byte array containing the Ethernet address
  *
- * Generate random MAC to be used by a device and set addr_assign_type
- * so the state can be read by sysfs and be used by udev.
+ * Generate a random Ethernet address (MAC) to be used by a net device
+ * and set addr_assign_type so the state can be read by sysfs and be
+ * used by userspace.
  */
-static inline void dev_hw_addr_random(struct net_device *dev, u8 *hwaddr)
+static inline void eth_hw_addr_random(struct net_device *dev)
 {
 	dev->addr_assign_type |= NET_ADDR_RANDOM;
-	random_ether_addr(hwaddr);
+	random_ether_addr(dev->dev_addr);
 }
 
 /**

@@ -1,7 +1,7 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
  *
- * Marek Lindner, Simon Wunderlich
+ * Marek Lindner
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -19,17 +19,9 @@
  *
  */
 
-#ifndef _NET_BATMAN_ADV_OGM_H_
-#define _NET_BATMAN_ADV_OGM_H_
+#ifndef _NET_BATMAN_ADV_BAT_ALGO_H_
+#define _NET_BATMAN_ADV_BAT_ALGO_H_
 
-#include "main.h"
+int bat_iv_init(void);
 
-void bat_ogm_init(struct hard_iface *hard_iface);
-void bat_ogm_init_primary(struct hard_iface *hard_iface);
-void bat_ogm_update_mac(struct hard_iface *hard_iface);
-void bat_ogm_schedule(struct hard_iface *hard_iface, int tt_num_changes);
-void bat_ogm_emit(struct forw_packet *forw_packet);
-void bat_ogm_receive(const struct ethhdr *ethhdr, unsigned char *packet_buff,
-		     int packet_len, struct hard_iface *if_incoming);
-
-#endif /* _NET_BATMAN_ADV_OGM_H_ */
+#endif /* _NET_BATMAN_ADV_BAT_ALGO_H_ */

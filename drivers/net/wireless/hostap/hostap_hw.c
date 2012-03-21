@@ -347,11 +347,9 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
 		return -EINTR;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: hfa384x_cmd - kmalloc failed\n",
-		       dev->name);
+	if (entry == NULL)
 		return -ENOMEM;
-	}
+
 	atomic_set(&entry->usecnt, 1);
 	entry->type = CMD_SLEEP;
 	entry->cmd = cmd;
@@ -515,11 +513,9 @@ static int hfa384x_cmd_callback(struct net_device *dev, u16 cmd, u16 param0,
 	}
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: hfa384x_cmd_callback - kmalloc "
-		       "failed\n", dev->name);
+	if (entry == NULL)
 		return -ENOMEM;
-	}
+
 	atomic_set(&entry->usecnt, 1);
 	entry->type = CMD_CALLBACK;
 	entry->cmd = cmd;
@@ -2978,11 +2974,9 @@ static int prism2_set_tim(struct net_device *dev, int aid, int set)
 	local = iface->local;
 
 	new_entry = kzalloc(sizeof(*new_entry), GFP_ATOMIC);
-	if (new_entry == NULL) {
-		printk(KERN_DEBUG "%s: prism2_set_tim: kmalloc failed\n",
-		       local->dev->name);
+	if (new_entry == NULL)
 		return -ENOMEM;
-	}
+
 	new_entry->aid = aid;
 	new_entry->set = set;
 

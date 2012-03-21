@@ -79,7 +79,7 @@ int get_compat_msghdr(struct msghdr *kmsg, struct compat_msghdr __user *umsg)
 
 /* I've named the args so it is easy to tell whose space the pointers are in. */
 int verify_compat_iovec(struct msghdr *kern_msg, struct iovec *kern_iov,
-		   struct sockaddr *kern_address, int mode)
+		   struct sockaddr_storage *kern_address, int mode)
 {
 	int tot_len;
 

@@ -97,10 +97,6 @@
 #define E1000_ERR_MAC_INIT 5
 #define E1000_ERR_MBX      15
 
-#ifndef ETH_ADDR_LEN
-#define ETH_ADDR_LEN                 6
-#endif
-
 /* SRRCTL bit definitions */
 #define E1000_SRRCTL_BSIZEPKT_SHIFT                     10 /* Shift _right_ */
 #define E1000_SRRCTL_BSIZEHDRSIZE_MASK                  0x00000F00

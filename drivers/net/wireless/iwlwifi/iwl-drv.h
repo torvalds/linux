@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -58,20 +58,66 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
  *****************************************************************************/
 
-#include "iwl-trans.h"
+#ifndef __iwl_drv_h__
+#define __iwl_drv_h__
 
-int iwl_trans_send_cmd_pdu(struct iwl_trans *trans, u8 id,
-			   u32 flags, u16 len, const void *data)
-{
-	struct iwl_host_cmd cmd = {
-		.id = id,
-		.len = { len, },
-		.data = { data, },
-		.flags = flags,
-	};
+#include "iwl-shared.h"
 
-	return iwl_trans_send_cmd(trans, &cmd);
-}
+/**
+ * DOC: Driver system flows - drv component
+ *
+ * This component implements the system flows such as bus enumeration, bus
+ * removal. Bus dependent parts of system flows (such as iwl_pci_probe) are in
+ * bus specific files (transport files). This is the code that is common among
+ * different buses.
+ *
+ * This component is also in charge of managing the several implementations of
+ * the wifi flows: it will allow to have several fw API implementation. These
+ * different implementations will differ in the way they implement mac80211's
+ * handlers too.
+
+ * The init flow wrt to the drv component looks like this:
+ * 1) The bus specific component is called from module_init
+ * 2) The bus specific component registers the bus driver
+ * 3) The bus driver calls the probe function
+ * 4) The bus specific component configures the bus
+ * 5) The bus specific component calls to the drv bus agnostic part
+ *    (iwl_drv_start)
+ * 6) iwl_drv_start fetches the fw ASYNC, iwl_ucode_callback
+ * 7) iwl_ucode_callback parses the fw file
+ * 8) iwl_ucode_callback starts the wifi implementation to matches the fw
+ */
+
+/**
+ * iwl_drv_start - start the drv
+ *
+ * @shrd: the shrd area
+ * @trans_ops: the ops of the transport
+ * @cfg: device specific constants / virtual functions
+ *
+ * TODO: review the parameters given to this function
+ *
+ * starts the driver: fetches the firmware. This should be called by bus
+ * specific system flows implementations. For example, the bus specific probe
+ * function should do bus related operations only, and then call to this
+ * function.
+ */
+int iwl_drv_start(struct iwl_shared *shrd,
+		  struct iwl_trans *trans, const struct iwl_cfg *cfg);
+
+/**
+ * iwl_drv_stop - stop the drv
+ *
+ * @shrd: the shrd area
+ *
+ * TODO: review the parameters given to this function
+ *
+ * Stop the driver. This should be called by bus specific system flows
+ * implementations. For example, the bus specific remove function should first
+ * call this function and then do the bus related operations only.
+ */
+void iwl_drv_stop(struct iwl_shared *shrd);
+
+#endif /* __iwl_drv_h__ */

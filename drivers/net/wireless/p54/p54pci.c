@@ -624,36 +624,39 @@ static void __devexit p54p_remove(struct pci_dev *pdev)
 }
 
 #ifdef CONFIG_PM
-static int p54p_suspend(struct pci_dev *pdev, pm_message_t state)
+static int p54p_suspend(struct device *device)
 {
-	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
-	struct p54p_priv *priv = dev->priv;
-
-	if (priv->common.mode != NL80211_IFTYPE_UNSPECIFIED) {
-		ieee80211_stop_queues(dev);
-		p54p_stop(dev);
-	}
+	struct pci_dev *pdev = to_pci_dev(device);
 
 	pci_save_state(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	pci_set_power_state(pdev, PCI_D3hot);
+	pci_disable_device(pdev);
 	return 0;
 }
 
-static int p54p_resume(struct pci_dev *pdev)
+static int p54p_resume(struct device *device)
 {
-	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
-	struct p54p_priv *priv = dev->priv;
+	struct pci_dev *pdev = to_pci_dev(device);
+	int err;
 
-	pci_set_power_state(pdev, PCI_D0);
-	pci_restore_state(pdev);
-
-	if (priv->common.mode != NL80211_IFTYPE_UNSPECIFIED) {
-		p54p_open(dev);
-		ieee80211_wake_queues(dev);
-	}
-
-	return 0;
+	err = pci_reenable_device(pdev);
+	if (err)
+		return err;
+	return pci_set_power_state(pdev, PCI_D0);
 }
+
+static const struct dev_pm_ops p54pci_pm_ops = {
+	.suspend = p54p_suspend,
+	.resume = p54p_resume,
+	.freeze = p54p_suspend,
+	.thaw = p54p_resume,
+	.poweroff = p54p_suspend,
+	.restore = p54p_resume,
+};
+
+#define P54P_PM_OPS (&p54pci_pm_ops)
+#else
+#define P54P_PM_OPS (NULL)
 #endif /* CONFIG_PM */
 
 static struct pci_driver p54p_driver = {
@@ -661,10 +664,7 @@ static struct pci_driver p54p_driver = {
 	.id_table	= p54p_table,
 	.probe		= p54p_probe,
 	.remove		= __devexit_p(p54p_remove),
-#ifdef CONFIG_PM
-	.suspend	= p54p_suspend,
-	.resume		= p54p_resume,
-#endif /* CONFIG_PM */
+	.driver.pm	= P54P_PM_OPS,
 };
 
 static int __init p54p_init(void)

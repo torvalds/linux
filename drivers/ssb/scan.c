@@ -318,6 +318,9 @@ int ssb_bus_scan(struct ssb_bus *bus,
 			bus->chip_package = 0;
 		}
 	}
+	ssb_printk(KERN_INFO PFX "Found chip with id 0x%04X, rev 0x%02X and "
+		   "package 0x%02X\n", bus->chip_id, bus->chip_rev,
+		   bus->chip_package);
 	if (!bus->nr_devices)
 		bus->nr_devices = chipid_to_nrcores(bus->chip_id);
 	if (bus->nr_devices > ARRAY_SIZE(bus->devices)) {

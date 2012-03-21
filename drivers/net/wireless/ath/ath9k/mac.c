@@ -185,13 +185,6 @@ bool ath9k_hw_stop_dma_queue(struct ath_hw *ah, u32 q)
 }
 EXPORT_SYMBOL(ath9k_hw_stop_dma_queue);
 
-void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs)
-{
-	*txqs &= ah->intr_txqs;
-	ah->intr_txqs &= ~(*txqs);
-}
-EXPORT_SYMBOL(ath9k_hw_gettxintrtxqs);
-
 bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 			    const struct ath9k_tx_queue_info *qinfo)
 {
@@ -340,6 +333,15 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 }
 EXPORT_SYMBOL(ath9k_hw_setuptxqueue);
 
+static void ath9k_hw_clear_queue_interrupts(struct ath_hw *ah, u32 q)
+{
+	ah->txok_interrupt_mask &= ~(1 << q);
+	ah->txerr_interrupt_mask &= ~(1 << q);
+	ah->txdesc_interrupt_mask &= ~(1 << q);
+	ah->txeol_interrupt_mask &= ~(1 << q);
+	ah->txurn_interrupt_mask &= ~(1 << q);
+}
+
 bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -354,11 +356,7 @@ bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q)
 	ath_dbg(common, QUEUE, "Release TX queue: %u\n", q);
 
 	qi->tqi_type = ATH9K_TX_QUEUE_INACTIVE;
-	ah->txok_interrupt_mask &= ~(1 << q);
-	ah->txerr_interrupt_mask &= ~(1 << q);
-	ah->txdesc_interrupt_mask &= ~(1 << q);
-	ah->txeol_interrupt_mask &= ~(1 << q);
-	ah->txurn_interrupt_mask &= ~(1 << q);
+	ath9k_hw_clear_queue_interrupts(ah, q);
 	ath9k_hw_set_txq_interrupts(ah, qi);
 
 	return true;
@@ -510,26 +508,17 @@ bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q)
 	if (AR_SREV_9300_20_OR_LATER(ah))
 		REG_WRITE(ah, AR_Q_DESC_CRCCHK, AR_Q_DESC_CRCCHK_EN);
 
-	if (qi->tqi_qflags & TXQ_FLAG_TXOKINT_ENABLE)
+	ath9k_hw_clear_queue_interrupts(ah, q);
+	if (qi->tqi_qflags & TXQ_FLAG_TXINT_ENABLE) {
 		ah->txok_interrupt_mask |= 1 << q;
-	else
-		ah->txok_interrupt_mask &= ~(1 << q);
-	if (qi->tqi_qflags & TXQ_FLAG_TXERRINT_ENABLE)
 		ah->txerr_interrupt_mask |= 1 << q;
-	else
-		ah->txerr_interrupt_mask &= ~(1 << q);
+	}
 	if (qi->tqi_qflags & TXQ_FLAG_TXDESCINT_ENABLE)
 		ah->txdesc_interrupt_mask |= 1 << q;
-	else
-		ah->txdesc_interrupt_mask &= ~(1 << q);
 	if (qi->tqi_qflags & TXQ_FLAG_TXEOLINT_ENABLE)
 		ah->txeol_interrupt_mask |= 1 << q;
-	else
-		ah->txeol_interrupt_mask &= ~(1 << q);
 	if (qi->tqi_qflags & TXQ_FLAG_TXURNINT_ENABLE)
 		ah->txurn_interrupt_mask |= 1 << q;
-	else
-		ah->txurn_interrupt_mask &= ~(1 << q);
 	ath9k_hw_set_txq_interrupts(ah, qi);
 
 	return true;
@@ -745,7 +734,10 @@ int ath9k_hw_beaconq_setup(struct ath_hw *ah)
 	qi.tqi_aifs = 1;
 	qi.tqi_cwmin = 0;
 	qi.tqi_cwmax = 0;
-	/* NB: don't enable any interrupts */
+
+	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
+		qi.tqi_qflags = TXQ_FLAG_TXINT_ENABLE;
+
 	return ath9k_hw_setuptxqueue(ah, ATH9K_TX_QUEUE_BEACON, &qi);
 }
 EXPORT_SYMBOL(ath9k_hw_beaconq_setup);

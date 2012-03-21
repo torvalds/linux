@@ -173,7 +173,9 @@ static int igb_check_vf_assignment(struct igb_adapter *adapter);
 #endif
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *);
+#endif
 static int igb_resume(struct device *);
 #ifdef CONFIG_PM_RUNTIME
 static int igb_runtime_suspend(struct device *dev);
@@ -1767,9 +1769,20 @@ static int igb_set_features(struct net_device *netdev,
 	netdev_features_t features)
 {
 	netdev_features_t changed = netdev->features ^ features;
+	struct igb_adapter *adapter = netdev_priv(netdev);
 
 	if (changed & NETIF_F_HW_VLAN_RX)
 		igb_vlan_mode(netdev, features);
+
+	if (!(changed & NETIF_F_RXALL))
+		return 0;
+
+	netdev->features = features;
+
+	if (netif_running(netdev))
+		igb_reinit_locked(adapter);
+	else
+		igb_reset(adapter);
 
 	return 0;
 }
@@ -1952,6 +1965,7 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 
 	/* copy netdev features into list of user selectable features */
 	netdev->hw_features |= netdev->features;
+	netdev->hw_features |= NETIF_F_RXALL;
 
 	/* set this bit last since it cannot be part of hw_features */
 	netdev->features |= NETIF_F_HW_VLAN_FILTER;
@@ -1961,6 +1975,8 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 				 NETIF_F_IP_CSUM |
 				 NETIF_F_IPV6_CSUM |
 				 NETIF_F_SG;
+
+	netdev->priv_flags |= IFF_SUPP_NOFCS;
 
 	if (pci_using_dac) {
 		netdev->features |= NETIF_F_HIGHDMA;
@@ -2750,6 +2766,8 @@ void igb_configure_tx_ring(struct igb_adapter *adapter,
 
 	txdctl |= E1000_TXDCTL_QUEUE_ENABLE;
 	wr32(E1000_TXDCTL(reg_idx), txdctl);
+
+	netdev_tx_reset_queue(txring_txq(ring));
 }
 
 /**
@@ -2999,6 +3017,22 @@ void igb_setup_rctl(struct igb_adapter *adapter)
 		wr32(E1000_QDE, ALL_QUEUES);
 	}
 
+	/* This is useful for sniffing bad packets. */
+	if (adapter->netdev->features & NETIF_F_RXALL) {
+		/* UPE and MPE will be handled by normal PROMISC logic
+		 * in e1000e_set_rx_mode */
+		rctl |= (E1000_RCTL_SBP | /* Receive bad packets */
+			 E1000_RCTL_BAM | /* RX All Bcast Pkts */
+			 E1000_RCTL_PMCF); /* RX All MAC Ctrl Pkts */
+
+		rctl &= ~(E1000_RCTL_VFE | /* Disable VLAN filter */
+			  E1000_RCTL_DPF | /* Allow filtered pause */
+			  E1000_RCTL_CFIEN); /* Dis VLAN CFIEN Filter */
+		/* Do not mess with E1000_CTRL_VME, it affects transmit as well,
+		 * and that breaks VLANs.
+		 */
+	}
+
 	wr32(E1000_RCTL, rctl);
 }
 
@@ -3242,7 +3276,6 @@ static void igb_clean_tx_ring(struct igb_ring *tx_ring)
 		buffer_info = &tx_ring->tx_buffer_info[i];
 		igb_unmap_and_free_tx_resource(tx_ring, buffer_info);
 	}
-	netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	size = sizeof(struct igb_tx_buffer) * tx_ring->count;
 	memset(tx_ring->tx_buffer_info, 0, size);
@@ -4290,6 +4323,8 @@ static void igb_tx_map(struct igb_ring *tx_ring,
 
 	/* write last descriptor with RS and EOP bits */
 	cmd_type |= cpu_to_le32(size) | cpu_to_le32(IGB_TXD_DCMD);
+	if (unlikely(skb->no_fcs))
+		cmd_type &= ~(cpu_to_le32(E1000_ADVTXD_DCMD_IFCS));
 	tx_desc->read.cmd_type_len = cmd_type;
 
 	/* set the timestamp */
@@ -6095,8 +6130,9 @@ static bool igb_clean_rx_irq(struct igb_q_vector *q_vector, int budget)
 			goto next_desc;
 		}
 
-		if (igb_test_staterr(rx_desc,
-				     E1000_RXDEXT_ERR_FRAME_ERR_MASK)) {
+		if (unlikely((igb_test_staterr(rx_desc,
+					       E1000_RXDEXT_ERR_FRAME_ERR_MASK))
+			     && !(rx_ring->netdev->features & NETIF_F_RXALL))) {
 			dev_kfree_skb_any(skb);
 			goto next_desc;
 		}
@@ -6710,6 +6746,7 @@ static int __igb_shutdown(struct pci_dev *pdev, bool *enable_wake,
 }
 
 #ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int igb_suspend(struct device *dev)
 {
 	int retval;
@@ -6729,6 +6766,7 @@ static int igb_suspend(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static int igb_resume(struct device *dev)
 {

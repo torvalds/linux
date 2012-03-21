@@ -16,9 +16,9 @@
 static void
 #ifdef HFC_REGISTER_DEBUG
 HFC_outb_embsd(struct hfc_multi *hc, u_char reg, u_char val,
-		const char *function, int line)
+	       const char *function, int line)
 #else
-HFC_outb_embsd(struct hfc_multi *hc, u_char reg, u_char val)
+	HFC_outb_embsd(struct hfc_multi *hc, u_char reg, u_char val)
 #endif
 {
 	hc->immap->im_ioport.iop_padat |= PA_XHFC_A0;
@@ -30,7 +30,7 @@ static u_char
 #ifdef HFC_REGISTER_DEBUG
 HFC_inb_embsd(struct hfc_multi *hc, u_char reg, const char *function, int line)
 #else
-HFC_inb_embsd(struct hfc_multi *hc, u_char reg)
+	HFC_inb_embsd(struct hfc_multi *hc, u_char reg)
 #endif
 {
 	hc->immap->im_ioport.iop_padat |= PA_XHFC_A0;
@@ -42,7 +42,7 @@ static u_short
 #ifdef HFC_REGISTER_DEBUG
 HFC_inw_embsd(struct hfc_multi *hc, u_char reg, const char *function, int line)
 #else
-HFC_inw_embsd(struct hfc_multi *hc, u_char reg)
+	HFC_inw_embsd(struct hfc_multi *hc, u_char reg)
 #endif
 {
 	hc->immap->im_ioport.iop_padat |= PA_XHFC_A0;
@@ -54,7 +54,7 @@ static void
 #ifdef HFC_REGISTER_DEBUG
 HFC_wait_embsd(struct hfc_multi *hc, const char *function, int line)
 #else
-HFC_wait_embsd(struct hfc_multi *hc)
+	HFC_wait_embsd(struct hfc_multi *hc)
 #endif
 {
 	hc->immap->im_ioport.iop_padat |= PA_XHFC_A0;
@@ -96,8 +96,8 @@ static int
 setup_embedded(struct hfc_multi *hc, struct hm_map *m)
 {
 	printk(KERN_INFO
-	    "HFC-multi: card manufacturer: '%s' card name: '%s' clock: %s\n",
-	    m->vendor_name, m->card_name, m->clock2 ? "double" : "normal");
+	       "HFC-multi: card manufacturer: '%s' card name: '%s' clock: %s\n",
+	       m->vendor_name, m->card_name, m->clock2 ? "double" : "normal");
 
 	hc->pci_dev = NULL;
 	if (m->clock2)
@@ -129,20 +129,20 @@ setup_embedded(struct hfc_multi *hc, struct hm_map *m)
 		hc->write_fifo = write_fifo_embsd;
 		hc->xhfc_origmembase = XHFC_MEMBASE + XHFC_OFFSET * hc->id;
 		hc->xhfc_membase = (u_char *)ioremap(hc->xhfc_origmembase,
-				XHFC_MEMSIZE);
+						     XHFC_MEMSIZE);
 		if (!hc->xhfc_membase) {
 			printk(KERN_WARNING
-			    "HFC-multi: failed to remap xhfc address space. "
-			    "(internal error)\n");
+			       "HFC-multi: failed to remap xhfc address space. "
+			       "(internal error)\n");
 			return -EIO;
 		}
 		hc->xhfc_memaddr = (u_long *)(hc->xhfc_membase + 4);
 		hc->xhfc_memdata = (u_long *)(hc->xhfc_membase);
 		printk(KERN_INFO
-		    "HFC-multi: xhfc_membase:%#lx xhfc_origmembase:%#lx "
-		    "xhfc_memaddr:%#lx xhfc_memdata:%#lx\n",
-		    (u_long)hc->xhfc_membase, hc->xhfc_origmembase,
-		    (u_long)hc->xhfc_memaddr, (u_long)hc->xhfc_memdata);
+		       "HFC-multi: xhfc_membase:%#lx xhfc_origmembase:%#lx "
+		       "xhfc_memaddr:%#lx xhfc_memdata:%#lx\n",
+		       (u_long)hc->xhfc_membase, hc->xhfc_origmembase,
+		       (u_long)hc->xhfc_memaddr, (u_long)hc->xhfc_memdata);
 		break;
 	default:
 		printk(KERN_WARNING "HFC-multi: Invalid IO mode.\n");

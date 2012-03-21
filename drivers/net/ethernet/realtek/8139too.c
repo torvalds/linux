@@ -565,6 +565,12 @@ struct rtl_extra_stats {
 	unsigned long rx_lost_in_ring;
 };
 
+struct rtl8139_stats {
+	u64	packets;
+	u64	bytes;
+	struct u64_stats_sync	syncp;
+};
+
 struct rtl8139_private {
 	void __iomem		*mmio_addr;
 	int			drv_flags;
@@ -575,11 +581,13 @@ struct rtl8139_private {
 
 	unsigned char		*rx_ring;
 	unsigned int		cur_rx;	/* RX buf index of next pkt */
+	struct rtl8139_stats	rx_stats;
 	dma_addr_t		rx_ring_dma;
 
 	unsigned int		tx_flag;
 	unsigned long		cur_tx;
 	unsigned long		dirty_tx;
+	struct rtl8139_stats	tx_stats;
 	unsigned char		*tx_buf[NUM_TX_DESC];	/* Tx bounce buffers */
 	unsigned char		*tx_bufs;	/* Tx bounce buffer region. */
 	dma_addr_t		tx_bufs_dma;
@@ -641,7 +649,9 @@ static int rtl8139_poll(struct napi_struct *napi, int budget);
 static irqreturn_t rtl8139_interrupt (int irq, void *dev_instance);
 static int rtl8139_close (struct net_device *dev);
 static int netdev_ioctl (struct net_device *dev, struct ifreq *rq, int cmd);
-static struct net_device_stats *rtl8139_get_stats (struct net_device *dev);
+static struct rtnl_link_stats64 *rtl8139_get_stats64(struct net_device *dev,
+						    struct rtnl_link_stats64
+						    *stats);
 static void rtl8139_set_rx_mode (struct net_device *dev);
 static void __set_rx_mode (struct net_device *dev);
 static void rtl8139_hw_start (struct net_device *dev);
@@ -754,10 +764,9 @@ static __devinit struct net_device * rtl8139_init_board (struct pci_dev *pdev)
 
 	/* dev and priv zeroed in alloc_etherdev */
 	dev = alloc_etherdev (sizeof (*tp));
-	if (dev == NULL) {
-		dev_err(&pdev->dev, "Unable to alloc new net device\n");
+	if (dev == NULL)
 		return ERR_PTR(-ENOMEM);
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
 	tp = netdev_priv(dev);
@@ -908,10 +917,37 @@ err_out:
 	return ERR_PTR(rc);
 }
 
+static int rtl8139_set_features(struct net_device *dev, netdev_features_t features)
+{
+	struct rtl8139_private *tp = netdev_priv(dev);
+	unsigned long flags;
+	netdev_features_t changed = features ^ dev->features;
+	void __iomem *ioaddr = tp->mmio_addr;
+
+	if (!(changed & (NETIF_F_RXALL)))
+		return 0;
+
+	spin_lock_irqsave(&tp->lock, flags);
+
+	if (changed & NETIF_F_RXALL) {
+		int rx_mode = tp->rx_config;
+		if (features & NETIF_F_RXALL)
+			rx_mode |= (AcceptErr | AcceptRunt);
+		else
+			rx_mode &= ~(AcceptErr | AcceptRunt);
+		tp->rx_config = rtl8139_rx_config | rx_mode;
+		RTL_W32_F(RxConfig, tp->rx_config);
+	}
+
+	spin_unlock_irqrestore(&tp->lock, flags);
+
+	return 0;
+}
+
 static const struct net_device_ops rtl8139_netdev_ops = {
 	.ndo_open		= rtl8139_open,
 	.ndo_stop		= rtl8139_close,
-	.ndo_get_stats		= rtl8139_get_stats,
+	.ndo_get_stats64	= rtl8139_get_stats64,
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address 	= rtl8139_set_mac_address,
@@ -922,6 +958,7 @@ static const struct net_device_ops rtl8139_netdev_ops = {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= rtl8139_poll_controller,
 #endif
+	.ndo_set_features	= rtl8139_set_features,
 };
 
 static int __devinit rtl8139_init_one (struct pci_dev *pdev,
@@ -994,6 +1031,9 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	 */
 	dev->features |= NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_HIGHDMA;
 	dev->vlan_features = dev->features;
+
+	dev->hw_features |= NETIF_F_RXALL;
+	dev->hw_features |= NETIF_F_RXFCS;
 
 	dev->irq = pdev->irq;
 
@@ -1777,8 +1817,10 @@ static void rtl8139_tx_interrupt (struct net_device *dev,
 				dev->stats.tx_fifo_errors++;
 			}
 			dev->stats.collisions += (txstatus >> 24) & 15;
-			dev->stats.tx_bytes += txstatus & 0x7ff;
-			dev->stats.tx_packets++;
+			u64_stats_update_begin(&tp->tx_stats.syncp);
+			tp->tx_stats.packets++;
+			tp->tx_stats.bytes += txstatus & 0x7ff;
+			u64_stats_update_end(&tp->tx_stats.syncp);
 		}
 
 		dirty_tx++;
@@ -1941,7 +1983,10 @@ static int rtl8139_rx(struct net_device *dev, struct rtl8139_private *tp,
 		/* read size+status of next frame from DMA ring buffer */
 		rx_status = le32_to_cpu (*(__le32 *) (rx_ring + ring_offset));
 		rx_size = rx_status >> 16;
-		pkt_size = rx_size - 4;
+		if (likely(!(dev->features & NETIF_F_RXFCS)))
+			pkt_size = rx_size - 4;
+		else
+			pkt_size = rx_size;
 
 		netif_dbg(tp, rx_status, dev, "%s() status %04x, size %04x, cur %04x\n",
 			  __func__, rx_status, rx_size, cur_rx);
@@ -1979,11 +2024,30 @@ no_early_rx:
 		if (unlikely((rx_size > (MAX_ETH_FRAME_SIZE+4)) ||
 			     (rx_size < 8) ||
 			     (!(rx_status & RxStatusOK)))) {
+			if ((dev->features & NETIF_F_RXALL) &&
+			    (rx_size <= (MAX_ETH_FRAME_SIZE + 4)) &&
+			    (rx_size >= 8) &&
+			    (!(rx_status & RxStatusOK))) {
+				/* Length is at least mostly OK, but pkt has
+				 * error.  I'm hoping we can handle some of these
+				 * errors without resetting the chip. --Ben
+				 */
+				dev->stats.rx_errors++;
+				if (rx_status & RxCRCErr) {
+					dev->stats.rx_crc_errors++;
+					goto keep_pkt;
+				}
+				if (rx_status & RxRunt) {
+					dev->stats.rx_length_errors++;
+					goto keep_pkt;
+				}
+			}
 			rtl8139_rx_err (rx_status, dev, tp, ioaddr);
 			received = -1;
 			goto out;
 		}
 
+keep_pkt:
 		/* Malloc up new buffer, compatible with net-2e. */
 		/* Omit the four octet CRC from the length. */
 
@@ -1998,8 +2062,10 @@ no_early_rx:
 
 			skb->protocol = eth_type_trans (skb, dev);
 
-			dev->stats.rx_bytes += pkt_size;
-			dev->stats.rx_packets++;
+			u64_stats_update_begin(&tp->rx_stats.syncp);
+			tp->rx_stats.packets++;
+			tp->rx_stats.bytes += pkt_size;
+			u64_stats_update_end(&tp->rx_stats.syncp);
 
 			netif_receive_skb (skb);
 		} else {
@@ -2463,11 +2529,13 @@ static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 }
 
 
-static struct net_device_stats *rtl8139_get_stats (struct net_device *dev)
+static struct rtnl_link_stats64 *
+rtl8139_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 {
 	struct rtl8139_private *tp = netdev_priv(dev);
 	void __iomem *ioaddr = tp->mmio_addr;
 	unsigned long flags;
+	unsigned int start;
 
 	if (netif_running(dev)) {
 		spin_lock_irqsave (&tp->lock, flags);
@@ -2476,7 +2544,21 @@ static struct net_device_stats *rtl8139_get_stats (struct net_device *dev)
 		spin_unlock_irqrestore (&tp->lock, flags);
 	}
 
-	return &dev->stats;
+	netdev_stats_to_stats64(stats, &dev->stats);
+
+	do {
+		start = u64_stats_fetch_begin_bh(&tp->rx_stats.syncp);
+		stats->rx_packets = tp->rx_stats.packets;
+		stats->rx_bytes = tp->rx_stats.bytes;
+	} while (u64_stats_fetch_retry_bh(&tp->rx_stats.syncp, start));
+
+	do {
+		start = u64_stats_fetch_begin_bh(&tp->tx_stats.syncp);
+		stats->tx_packets = tp->tx_stats.packets;
+		stats->tx_bytes = tp->tx_stats.bytes;
+	} while (u64_stats_fetch_retry_bh(&tp->tx_stats.syncp, start));
+
+	return stats;
 }
 
 /* Set or clear the multicast filter for this adaptor.
@@ -2515,6 +2597,9 @@ static void __set_rx_mode (struct net_device *dev)
 			rx_mode |= AcceptMulticast;
 		}
 	}
+
+	if (dev->features & NETIF_F_RXALL)
+		rx_mode |= (AcceptErr | AcceptRunt);
 
 	/* We can safely update without stopping the chip. */
 	tmp = rtl8139_rx_config | rx_mode;

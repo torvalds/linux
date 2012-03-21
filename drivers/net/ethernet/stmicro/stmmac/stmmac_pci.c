@@ -85,7 +85,7 @@ static int __devinit stmmac_pci_probe(struct pci_dev *pdev,
 			continue;
 		addr = pci_iomap(pdev, i, 0);
 		if (addr == NULL) {
-			pr_err("%s: ERROR: cannot map regiser memory, aborting",
+			pr_err("%s: ERROR: cannot map register memory, aborting",
 			       __func__);
 			ret = -EIO;
 			goto err_out_map_failed;

@@ -196,7 +196,7 @@ static DEVICE_ATTR(channel, S_IRUGO, show_channel, NULL);
 static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 {
 	struct rfcomm_dev *dev, *entry;
-	struct list_head *head = &rfcomm_dev_list, *p;
+	struct list_head *head = &rfcomm_dev_list;
 	int err = 0;
 
 	BT_DBG("id %d channel %d", req->dev_id, req->channel);
@@ -215,7 +215,7 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 				break;
 
 			dev->id++;
-			head = p;
+			head = &entry->list;
 		}
 	} else {
 		dev->id = req->dev_id;
@@ -229,7 +229,7 @@ static int rfcomm_dev_add(struct rfcomm_dev_req *req, struct rfcomm_dlc *dlc)
 			if (entry->id > dev->id - 1)
 				break;
 
-			head = p;
+			head = &entry->list;
 		}
 	}
 

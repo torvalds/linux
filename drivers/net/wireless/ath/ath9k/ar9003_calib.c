@@ -925,7 +925,6 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_hw_cal_data *caldata = ah->caldata;
-	struct ath9k_hw_mci *mci_hw = &ah->btcoex_hw.mci;
 	bool txiqcal_done = false, txclcal_done = false;
 	bool is_reusable = true, status = true;
 	bool run_rtt_cal = false, run_agc_cal;
@@ -998,30 +997,8 @@ static bool ar9003_hw_init_cal(struct ath_hw *ah,
 	} else if (caldata && !caldata->done_txiqcal_once)
 		run_agc_cal = true;
 
-	if (mci && IS_CHAN_2GHZ(chan) &&
-	    (mci_hw->bt_state  == MCI_BT_AWAKE) &&
-	    run_agc_cal &&
-	    !(mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL)) {
-
-		u32 pld[4] = {0, 0, 0, 0};
-
-		/* send CAL_REQ only when BT is AWAKE. */
-		ath_dbg(common, MCI, "MCI send WLAN_CAL_REQ 0x%x\n",
-			mci_hw->wlan_cal_seq);
-		MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_REQ);
-		pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_seq++;
-		ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
-
-		/* Wait BT_CAL_GRANT for 50ms */
-		ath_dbg(common, MCI, "MCI wait for BT_CAL_GRANT\n");
-
-		if (ar9003_mci_wait_for_gpm(ah, MCI_GPM_BT_CAL_GRANT, 0, 50000))
-			ath_dbg(common, MCI, "MCI got BT_CAL_GRANT\n");
-		else {
-			is_reusable = false;
-			ath_dbg(common, MCI, "\nMCI BT is not responding\n");
-		}
-	}
+	if (mci && IS_CHAN_2GHZ(chan) && run_agc_cal)
+		ar9003_mci_init_cal_req(ah, &is_reusable);
 
 	txiqcal_done = ar9003_hw_tx_iq_cal_run(ah);
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_DIS);
@@ -1041,19 +1018,8 @@ skip_tx_iqcal:
 				       0, AH_WAIT_TIMEOUT);
 	}
 
-	if (mci && IS_CHAN_2GHZ(chan) &&
-	    (mci_hw->bt_state  == MCI_BT_AWAKE)	&&
-	    run_agc_cal	&&
-	    !(mci_hw->config & ATH_MCI_CONFIG_DISABLE_MCI_CAL)) {
-
-		u32 pld[4] = {0, 0, 0, 0};
-
-		ath_dbg(common, MCI, "MCI Send WLAN_CAL_DONE 0x%x\n",
-			mci_hw->wlan_cal_done);
-		MCI_GPM_SET_CAL_TYPE(pld, MCI_GPM_WLAN_CAL_DONE);
-		pld[MCI_GPM_WLAN_CAL_W_SEQUENCE] = mci_hw->wlan_cal_done++;
-		ar9003_mci_send_message(ah, MCI_GPM, 0, pld, 16, true, false);
-	}
+	if (mci && IS_CHAN_2GHZ(chan) && run_agc_cal)
+		ar9003_mci_init_cal_done(ah);
 
 	if (rtt && !run_rtt_cal) {
 		agc_ctrl |= agc_supp_cals;

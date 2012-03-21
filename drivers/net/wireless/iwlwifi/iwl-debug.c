@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2011 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -58,17 +58,70 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  *****************************************************************************/
 
-#ifndef __iwl_wifi_h__
-#define __iwl_wifi_h__
+#include <linux/interrupt.h>
+#include "iwl-debug.h"
 
-#include "iwl-shared.h"
+#define __iwl_fn(fn)						\
+void __iwl_ ##fn(struct device *dev, const char *fmt, ...)	\
+{								\
+	struct va_format vaf = {				\
+		.fmt = fmt,					\
+	};							\
+	va_list args;						\
+								\
+	va_start(args, fmt);					\
+	vaf.va = &args;						\
+	dev_ ##fn(dev, "%pV", &vaf);				\
+	trace_iwlwifi_ ##fn(&vaf);				\
+	va_end(args);						\
+}
 
-int iwl_send_bt_env(struct iwl_trans *trans, u8 action, u8 type);
-void iwl_send_prio_tbl(struct iwl_trans *trans);
-int iwl_init_alive_start(struct iwl_trans *trans);
-int iwl_run_init_ucode(struct iwl_trans *trans);
-int iwl_load_ucode_wait_alive(struct iwl_trans *trans,
-				 enum iwl_ucode_type ucode_type);
-#endif  /* __iwl_wifi_h__ */
+__iwl_fn(warn)
+__iwl_fn(info)
+__iwl_fn(crit)
+
+void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
+		const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	if (!trace_only) {
+		if (rfkill_prefix)
+			dev_err(dev, "(RFKILL) %pV", &vaf);
+		else
+			dev_err(dev, "%pV", &vaf);
+	}
+	trace_iwlwifi_err(&vaf);
+	va_end(args);
+}
+
+#if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
+void __iwl_dbg(struct device *dev,
+	       u32 level, bool limit, const char *function,
+	       const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_have_debug_level(level) &&
+	    (!limit || net_ratelimit()))
+		dev_err(dev, "%c %s %pV", in_interrupt() ? 'I' : 'U',
+			function, &vaf);
+#endif
+	trace_iwlwifi_dbg(level, in_interrupt(), function, &vaf);
+	va_end(args);
+}
+#endif

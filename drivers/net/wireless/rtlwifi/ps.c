@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -44,10 +44,11 @@ bool rtl_ps_enable_nic(struct ieee80211_hw *hw)
 
 	if (is_hal_stop(rtlhal))
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 ("Driver is already down!\n"));
+			 "Driver is already down!\n");
 
 	/*<2> Enable Adapter */
-	rtlpriv->cfg->ops->hw_init(hw);
+	if (rtlpriv->cfg->ops->hw_init(hw))
+		return 1;
 	RT_CLEAR_PS_LEVEL(ppsc, RT_RF_OFF_LEVL_HALT_NIC);
 
 	/*<3> Enable Interrupt */
@@ -104,8 +105,7 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 
 	case ERFOFF:
 
-		if ((changesource == RF_CHANGE_BY_HW)
-		    && (ppsc->hwradiooff == false)) {
+		if ((changesource == RF_CHANGE_BY_HW) && !ppsc->hwradiooff) {
 			ppsc->hwradiooff = true;
 		}
 
@@ -120,7 +120,7 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 
 	default:
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 ("switch case not process\n"));
+			 "switch case not processed\n");
 		break;
 	}
 
@@ -176,7 +176,7 @@ void rtl_ips_nic_off_wq_callback(void *data)
 
 	if (mac->opmode != NL80211_IFTYPE_STATION) {
 		RT_TRACE(rtlpriv, COMP_ERR, DBG_WARNING,
-			 ("not station return\n"));
+			 "not station return\n");
 		return;
 	}
 
@@ -207,7 +207,7 @@ void rtl_ips_nic_off_wq_callback(void *data)
 		    (mac->link_state == MAC80211_NOLINK) &&
 		    !mac->act_scanning) {
 			RT_TRACE(rtlpriv, COMP_RF, DBG_TRACE,
-				 ("IPSEnter(): Turn off RF.\n"));
+				 "IPSEnter(): Turn off RF\n");
 
 			ppsc->inactive_pwrstate = ERFOFF;
 			ppsc->in_powersavemode = true;
@@ -280,8 +280,7 @@ static bool rtl_get_fwlps_doze(struct ieee80211_hw *hw)
 
 	if (ps_timediff < 2000) {
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-			 ("Delay enter Fw LPS for DHCP, ARP,"
-			  " or EAPOL exchanging state.\n"));
+			 "Delay enter Fw LPS for DHCP, ARP, or EAPOL exchanging state\n");
 		return false;
 	}
 
@@ -328,8 +327,8 @@ static void rtl_lps_set_psmode(struct ieee80211_hw *hw, u8 rt_psmode)
 		bool fw_current_inps;
 		if (ppsc->dot11_psmode == EACTIVE) {
 			RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
-				 ("FW LPS leave ps_mode:%x\n",
-				  FW_PS_ACTIVE_MODE));
+				 "FW LPS leave ps_mode:%x\n",
+				 FW_PS_ACTIVE_MODE);
 
 			rpwm_val = 0x0C;	/* RF on */
 			fw_pwrmode = FW_PS_ACTIVE_MODE;
@@ -347,8 +346,8 @@ static void rtl_lps_set_psmode(struct ieee80211_hw *hw, u8 rt_psmode)
 		} else {
 			if (rtl_get_fwlps_doze(hw)) {
 				RT_TRACE(rtlpriv, COMP_RF, DBG_DMESG,
-						("FW LPS enter ps_mode:%x\n",
-						 ppsc->fwctrl_psmode));
+					 "FW LPS enter ps_mode:%x\n",
+					 ppsc->fwctrl_psmode);
 
 				rpwm_val = 0x02;	/* RF off */
 				fw_current_inps = true;
@@ -402,7 +401,7 @@ void rtl_lps_enter(struct ieee80211_hw *hw)
 	if (mac->cnt_after_linked >= 2) {
 		if (ppsc->dot11_psmode == EACTIVE) {
 			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-					("Enter 802.11 power save mode...\n"));
+				 "Enter 802.11 power save mode...\n");
 
 			rtl_lps_set_psmode(hw, EAUTOPS);
 		}
@@ -434,7 +433,7 @@ void rtl_lps_leave(struct ieee80211_hw *hw)
 			}
 
 			RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
-				 ("Busy Traffic,Leave 802.11 power save..\n"));
+				 "Busy Traffic,Leave 802.11 power save..\n");
 
 			rtl_lps_set_psmode(hw, EACTIVE);
 		}
@@ -518,8 +517,8 @@ void rtl_swlps_beacon(struct ieee80211_hw *hw, void *data, unsigned int len)
 		queue_delayed_work(rtlpriv->works.rtl_wq,
 				&rtlpriv->works.ps_work, MSECS(5));
 	} else {
-		RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG, ("u_bufferd: %x, "
-				"m_buffered: %x\n", u_buffed, m_buffed));
+		RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG,
+			 "u_bufferd: %x, m_buffered: %x\n", u_buffed, m_buffed);
 	}
 }
 
@@ -607,8 +606,8 @@ void rtl_swlps_rf_sleep(struct ieee80211_hw *hw)
 	 * sleep  = dtim_period, that meaons, we should
 	 * awake before every dtim */
 	RT_TRACE(rtlpriv, COMP_POWER, DBG_DMESG,
-		 ("dtim_counter:%x will sleep :%d"
-		 " beacon_intv\n", rtlpriv->psc.dtim_counter, sleep_intv));
+		 "dtim_counter:%x will sleep :%d beacon_intv\n",
+		 rtlpriv->psc.dtim_counter, sleep_intv);
 
 	/* we tested that 40ms is enough for sw & hw sw delay */
 	queue_delayed_work(rtlpriv->works.rtl_wq, &rtlpriv->works.ps_rfon_wq,

@@ -21,7 +21,7 @@
 #include <linux/mutex.h>
 #include <linux/ppp_defs.h>
 #include <linux/if.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/sched.h>
 #include <linux/serial.h>
 #include <linux/slab.h>

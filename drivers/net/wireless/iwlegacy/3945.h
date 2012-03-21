@@ -36,6 +36,8 @@ extern const struct pci_device_id il3945_hw_card_ids[];
 
 #include "common.h"
 
+extern const struct il_ops il3945_ops;
+
 /* Highest firmware API version supported */
 #define IL3945_UCODE_API_MAX 2
 
@@ -249,7 +251,7 @@ extern int il4965_get_temperature(const struct il_priv *il);
 extern void il3945_post_associate(struct il_priv *il);
 extern void il3945_config_ap(struct il_priv *il);
 
-extern int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx);
+extern int il3945_commit_rxon(struct il_priv *il);
 
 /**
  * il3945_hw_find_station - Find station id for a given BSSID
@@ -260,8 +262,6 @@ extern int il3945_commit_rxon(struct il_priv *il, struct il_rxon_context *ctx);
  * station tables.
  */
 extern u8 il3945_hw_find_station(struct il_priv *il, const u8 * bssid);
-
-extern struct ieee80211_ops il3945_hw_ops;
 
 extern __le32 il3945_get_antenna_flags(const struct il_priv *il);
 extern int il3945_init_hw_rate_table(struct il_priv *il);
@@ -595,13 +595,7 @@ struct il3945_tfd {
 } __packed;
 
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-ssize_t il3945_ucode_rx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il3945_ucode_tx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il3945_ucode_general_stats_read(struct file *file,
-					char __user *user_buf, size_t count,
-					loff_t *ppos);
+extern const struct il_debugfs_ops il3945_debugfs_ops;
 #endif
 
 #endif
