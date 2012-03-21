@@ -305,7 +305,18 @@ static u64 au_add_till_max(u64 a, u64 b)
 
 	old = a;
 	a += b;
-	if (old < a)
+	if (old <= a)
+		return a;
+	return ULLONG_MAX;
+}
+
+static u64 au_mul_till_max(u64 a, long mul)
+{
+	u64 old;
+
+	old = a;
+	a *= mul;
+	if (old <= a)
 		return a;
 	return ULLONG_MAX;
 }
@@ -313,25 +324,26 @@ static u64 au_add_till_max(u64 a, u64 b)
 static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 {
 	int err;
+	long bsize, factor;
 	u64 blocks, bfree, bavail, files, ffree;
 	aufs_bindex_t bend, bindex, i;
 	unsigned char shared;
 	struct path h_path;
 	struct super_block *h_sb;
 
+	err = 0;
+	bsize = LONG_MAX;
+	files = 0;
+	ffree = 0;
 	blocks = 0;
 	bfree = 0;
 	bavail = 0;
-	files = 0;
-	ffree = 0;
-
-	err = 0;
 	bend = au_sbend(sb);
-	for (bindex = bend; bindex >= 0; bindex--) {
+	for (bindex = 0; bindex <= bend; bindex++) {
 		h_path.mnt = au_sbr_mnt(sb, bindex);
 		h_sb = h_path.mnt->mnt_sb;
 		shared = 0;
-		for (i = bindex + 1; !shared && i <= bend; i++)
+		for (i = 0; !shared && i < bindex; i++)
 			shared = (au_sbr_sb(sb, i) == h_sb);
 		if (shared)
 			continue;
@@ -342,18 +354,36 @@ static int au_statfs_sum(struct super_block *sb, struct kstatfs *buf)
 		if (unlikely(err))
 			goto out;
 
-		blocks = au_add_till_max(blocks, buf->f_blocks);
-		bfree = au_add_till_max(bfree, buf->f_bfree);
-		bavail = au_add_till_max(bavail, buf->f_bavail);
+		if (bsize > buf->f_bsize) {
+			/*
+			 * we will reduce bsize, so we have to expand blocks
+			 * etc. to match them again
+			 */
+			factor = (bsize / buf->f_bsize);
+			blocks = au_mul_till_max(blocks, factor);
+			bfree = au_mul_till_max(bfree, factor);
+			bavail = au_mul_till_max(bavail, factor);
+			bsize = buf->f_bsize;
+		}
+
+		factor = (buf->f_bsize / bsize);
+		blocks = au_add_till_max(blocks,
+				au_mul_till_max(buf->f_blocks, factor));
+		bfree = au_add_till_max(bfree,
+				au_mul_till_max(buf->f_bfree, factor));
+		bavail = au_add_till_max(bavail,
+				au_mul_till_max(buf->f_bavail, factor));
 		files = au_add_till_max(files, buf->f_files);
 		ffree = au_add_till_max(ffree, buf->f_ffree);
 	}
 
+	buf->f_bsize = bsize;
 	buf->f_blocks = blocks;
 	buf->f_bfree = bfree;
 	buf->f_bavail = bavail;
 	buf->f_files = files;
 	buf->f_ffree = ffree;
+	buf->f_frsize = 0;
 
 out:
 	return err;
