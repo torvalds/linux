@@ -126,9 +126,8 @@ void nfsd4_create_clid_dir(struct nfs4_client *clp)
 
 	dprintk("NFSD: nfsd4_create_clid_dir for \"%s\"\n", dname);
 
-	if (clp->cl_firststate)
+	if (test_and_set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
-	clp->cl_firststate = 1;
 	if (!rec_file)
 		return;
 	status = nfs4_save_creds(&original_cred);
@@ -271,13 +270,13 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	const struct cred *original_cred;
 	int status;
 
-	if (!rec_file || !clp->cl_firststate)
+	if (!rec_file || !test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
 
 	status = mnt_want_write_file(rec_file);
 	if (status)
 		goto out;
-	clp->cl_firststate = 0;
+	clear_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)

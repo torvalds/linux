@@ -2069,7 +2069,8 @@ nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *csta
 
 	nfs4_lock_state();
 	status = nfserr_complete_already;
-	if (cstate->session->se_client->cl_firststate)
+	if (test_and_set_bit(NFSD4_CLIENT_RECLAIM_COMPLETE,
+			     &cstate->session->se_client->cl_flags))
 		goto out;
 
 	status = nfserr_stale_clientid;
@@ -2816,12 +2817,6 @@ static void
 nfs4_set_claim_prev(struct nfsd4_open *open, bool has_session)
 {
 	open->op_openowner->oo_flags |= NFS4_OO_CONFIRMED;
-	/*
-	 * On a 4.1+ client, we don't create a state record for a client
-	 * until it performs RECLAIM_COMPLETE:
-	 */
-	if (!has_session)
-		open->op_openowner->oo_owner.so_client->cl_firststate = 1;
 }
 
 /* Should we give out recallable state?: */
@@ -4462,7 +4457,7 @@ nfs4_has_reclaimed_state(const char *name, bool use_exchange_id)
 	clp = find_confirmed_client_by_str(name, strhashval);
 	if (!clp)
 		return 0;
-	return clp->cl_firststate;
+	return test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 }
 
 /*
@@ -4507,17 +4502,10 @@ nfs4_release_reclaim(void)
 /*
  * called from OPEN, CLAIM_PREVIOUS with a new clientid. */
 static struct nfs4_client_reclaim *
-nfs4_find_reclaim_client(clientid_t *clid)
+nfsd4_find_reclaim_client(struct nfs4_client *clp)
 {
 	unsigned int strhashval;
-	struct nfs4_client *clp;
 	struct nfs4_client_reclaim *crp = NULL;
-
-
-	/* find clientid in conf_id_hashtbl */
-	clp = find_confirmed_client(clid);
-	if (clp == NULL)
-		return NULL;
 
 	dprintk("NFSD: nfs4_find_reclaim_client for %.*s with recdir %s\n",
 		            clp->cl_name.len, clp->cl_name.data,
@@ -4533,13 +4521,36 @@ nfs4_find_reclaim_client(clientid_t *clid)
 	return NULL;
 }
 
+static int
+nfsd4_client_record_check(struct nfs4_client *clp)
+{
+	/* did we already find that this client is stable? */
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return 0;
+
+	/* look for it in the reclaim hashtable otherwise */
+	if (nfsd4_find_reclaim_client(clp)) {
+		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
+		return 0;
+	}
+
+	return -ENOENT;
+}
+
 /*
 * Called from OPEN. Look for clientid in reclaim list.
 */
 __be32
 nfs4_check_open_reclaim(clientid_t *clid)
 {
-	return nfs4_find_reclaim_client(clid) ? nfs_ok : nfserr_reclaim_bad;
+	struct nfs4_client *clp;
+
+	/* find clientid in conf_id_hashtbl */
+	clp = find_confirmed_client(clid);
+	if (clp == NULL)
+		return nfserr_reclaim_bad;
+
+	return nfsd4_client_record_check(clp) ? nfserr_reclaim_bad : nfs_ok;
 }
 
 #ifdef CONFIG_NFSD_FAULT_INJECTION

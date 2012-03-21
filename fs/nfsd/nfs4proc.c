@@ -319,7 +319,8 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * Before RECLAIM_COMPLETE done, server should deny new lock
 	 */
 	if (nfsd4_has_session(cstate) &&
-	    !cstate->session->se_client->cl_firststate &&
+	    !test_bit(NFSD4_CLIENT_RECLAIM_COMPLETE,
+		      &cstate->session->se_client->cl_flags) &&
 	    open->op_claim_type != NFS4_OPEN_CLAIM_PREVIOUS)
 		return nfserr_grace;
 
