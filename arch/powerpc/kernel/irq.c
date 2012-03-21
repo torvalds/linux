@@ -445,9 +445,9 @@ void do_IRQ(struct pt_regs *regs)
 	may_hard_irq_enable();
 
 	/* And finally process it */
-	if (irq != NO_IRQ && irq != NO_IRQ_IGNORE)
+	if (irq != NO_IRQ)
 		handle_one_irq(irq);
-	else if (irq != NO_IRQ_IGNORE)
+	else
 		__get_cpu_var(irq_stat).spurious_irqs++;
 
 	irq_exit();
