@@ -99,6 +99,8 @@ const struct soc_mbus_pixelfmt *soc_mbus_find_fmtdesc(
 const struct soc_mbus_pixelfmt *soc_mbus_get_fmtdesc(
 	enum v4l2_mbus_pixelcode code);
 s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf);
+s32 soc_mbus_image_size(const struct soc_mbus_pixelfmt *mf,
+			u32 bytes_per_line, u32 height);
 int soc_mbus_samples_per_pixel(const struct soc_mbus_pixelfmt *mf,
 			unsigned int *numerator, unsigned int *denominator);
 unsigned int soc_mbus_config_compatible(const struct v4l2_mbus_config *cfg,

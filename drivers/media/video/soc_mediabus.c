@@ -397,6 +397,24 @@ s32 soc_mbus_bytes_per_line(u32 width, const struct soc_mbus_pixelfmt *mf)
 }
 EXPORT_SYMBOL(soc_mbus_bytes_per_line);
 
+s32 soc_mbus_image_size(const struct soc_mbus_pixelfmt *mf,
+			u32 bytes_per_line, u32 height)
+{
+	if (mf->layout == SOC_MBUS_LAYOUT_PACKED)
+		return bytes_per_line * height;
+
+	switch (mf->packing) {
+	case SOC_MBUS_PACKING_2X8_PADHI:
+	case SOC_MBUS_PACKING_2X8_PADLO:
+		return bytes_per_line * height * 2;
+	case SOC_MBUS_PACKING_1_5X8:
+		return bytes_per_line * height * 3 / 2;
+	default:
+		return -EINVAL;
+	}
+}
+EXPORT_SYMBOL(soc_mbus_image_size);
+
 const struct soc_mbus_pixelfmt *soc_mbus_find_fmtdesc(
 	enum v4l2_mbus_pixelcode code,
 	const struct soc_mbus_lookup *lookup,
