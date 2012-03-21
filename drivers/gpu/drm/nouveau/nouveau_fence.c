@@ -93,18 +93,17 @@ nouveau_fence_update(struct nouveau_channel *chan)
 	}
 
 	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
-		sequence = fence->sequence;
+		if (fence->sequence > chan->fence.sequence_ack)
+			break;
+
 		fence->signalled = true;
 		list_del(&fence->entry);
-
-		if (unlikely(fence->work))
+		if (fence->work)
 			fence->work(fence->priv, true);
 
 		kref_put(&fence->refcount, nouveau_fence_del);
-
-		if (sequence == chan->fence.sequence_ack)
-			break;
 	}
+
 out:
 	spin_unlock(&chan->fence.lock);
 }
