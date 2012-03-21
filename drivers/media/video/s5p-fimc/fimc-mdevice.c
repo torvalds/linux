@@ -214,14 +214,20 @@ static struct v4l2_subdev *fimc_md_register_sensor(struct fimc_md *fmd,
 		return NULL;
 
 	adapter = i2c_get_adapter(s_info->pdata->i2c_bus_num);
-	if (!adapter)
-		return NULL;
+	if (!adapter) {
+		v4l2_warn(&fmd->v4l2_dev,
+			  "Failed to get I2C adapter %d, deferring probe\n",
+			  s_info->pdata->i2c_bus_num);
+		return ERR_PTR(-EPROBE_DEFER);
+	}
 	sd = v4l2_i2c_new_subdev_board(&fmd->v4l2_dev, adapter,
 				       s_info->pdata->board_info, NULL);
 	if (IS_ERR_OR_NULL(sd)) {
 		i2c_put_adapter(adapter);
-		v4l2_err(&fmd->v4l2_dev, "Failed to acquire subdev\n");
-		return NULL;
+		v4l2_warn(&fmd->v4l2_dev,
+			  "Failed to acquire subdev %s, deferring probe\n",
+			  s_info->pdata->board_info->type);
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 	v4l2_set_subdev_hostdata(sd, s_info);
 	sd->grp_id = SENSOR_GROUP_ID;
@@ -269,13 +275,22 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 
 	fmd->num_sensors = num_clients;
 	for (i = 0; i < num_clients; i++) {
+		struct v4l2_subdev *sd;
+
 		fmd->sensor[i].pdata = &pdata->isp_info[i];
 		ret = __fimc_md_set_camclk(fmd, &fmd->sensor[i], true);
 		if (ret)
 			break;
-		fmd->sensor[i].subdev =
-			fimc_md_register_sensor(fmd, &fmd->sensor[i]);
+		sd = fimc_md_register_sensor(fmd, &fmd->sensor[i]);
 		ret = __fimc_md_set_camclk(fmd, &fmd->sensor[i], false);
+
+		if (!IS_ERR(sd)) {
+			fmd->sensor[i].subdev = sd;
+		} else {
+			fmd->sensor[i].subdev = NULL;
+			ret = PTR_ERR(sd);
+			break;
+		}
 		if (ret)
 			break;
 	}
@@ -336,22 +351,45 @@ static int csis_register_callback(struct device *dev, void *p)
  */
 static int fimc_md_register_platform_entities(struct fimc_md *fmd)
 {
+	struct s5p_platform_fimc *pdata = fmd->pdev->dev.platform_data;
 	struct device_driver *driver;
-	int ret;
+	int ret, i;
 
 	driver = driver_find(FIMC_MODULE_NAME, &platform_bus_type);
-	if (!driver)
-		return -ENODEV;
+	if (!driver) {
+		v4l2_warn(&fmd->v4l2_dev,
+			 "%s driver not found, deffering probe\n",
+			 FIMC_MODULE_NAME);
+		return -EPROBE_DEFER;
+	}
+
 	ret = driver_for_each_device(driver, NULL, fmd,
 				     fimc_register_callback);
 	if (ret)
 		return ret;
+	/*
+	 * Check if there is any sensor on the MIPI-CSI2 bus and
+	 * if not skip the s5p-csis module loading.
+	 */
+	for (i = 0; i < pdata->num_clients; i++) {
+		if (pdata->isp_info[i].bus_type == FIMC_MIPI_CSI2) {
+			ret = 1;
+			break;
+		}
+	}
+	if (!ret)
+		return 0;
 
 	driver = driver_find(CSIS_DRIVER_NAME, &platform_bus_type);
-	if (driver)
-		ret = driver_for_each_device(driver, NULL, fmd,
-					     csis_register_callback);
-	return ret;
+	if (!driver || !try_module_get(driver->owner)) {
+		v4l2_warn(&fmd->v4l2_dev,
+			 "%s driver not found, deffering probe\n",
+			 CSIS_DRIVER_NAME);
+		return -EPROBE_DEFER;
+	}
+
+	return driver_for_each_device(driver, NULL, fmd,
+				      csis_register_callback);
 }
 
 static void fimc_md_unregister_entities(struct fimc_md *fmd)
@@ -369,6 +407,7 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 		if (fmd->csis[i].sd == NULL)
 			continue;
 		v4l2_device_unregister_subdev(fmd->csis[i].sd);
+		module_put(fmd->csis[i].sd->owner);
 		fmd->csis[i].sd = NULL;
 	}
 	for (i = 0; i < fmd->num_sensors; i++) {
@@ -744,7 +783,7 @@ static ssize_t fimc_md_sysfs_store(struct device *dev,
 static DEVICE_ATTR(subdev_conf_mode, S_IWUSR | S_IRUGO,
 		   fimc_md_sysfs_show, fimc_md_sysfs_store);
 
-static int __devinit fimc_md_probe(struct platform_device *pdev)
+static int fimc_md_probe(struct platform_device *pdev)
 {
 	struct v4l2_device *v4l2_dev;
 	struct fimc_md *fmd;
@@ -841,10 +880,12 @@ static struct platform_driver fimc_md_driver = {
 int __init fimc_md_init(void)
 {
 	int ret;
+
 	request_module("s5p-csis");
 	ret = fimc_register_driver();
 	if (ret)
 		return ret;
+
 	return platform_driver_register(&fimc_md_driver);
 }
 void __exit fimc_md_exit(void)

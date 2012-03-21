@@ -1992,7 +1992,7 @@ static struct platform_driver fimc_driver = {
 
 int __init fimc_register_driver(void)
 {
-	return platform_driver_probe(&fimc_driver, fimc_probe);
+	return platform_driver_register(&fimc_driver);
 }
 
 void __exit fimc_unregister_driver(void)
