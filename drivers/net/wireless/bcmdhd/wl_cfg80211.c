@@ -5571,6 +5571,14 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 	signal = notif_bss_info->rssi * 100;
 
 
+	if (!mgmt->u.probe_resp.timestamp) {
+		struct timeval tv;
+
+		do_gettimeofday(&tv);
+		mgmt->u.probe_resp.timestamp = ((u64)tv.tv_sec * 1000000)
+						+ tv.tv_usec;
+	}
+
 	cbss = cfg80211_inform_bss_frame(wiphy, channel, mgmt,
 		le16_to_cpu(notif_bss_info->frame_len), signal, aflags);
 	if (unlikely(!cbss)) {
