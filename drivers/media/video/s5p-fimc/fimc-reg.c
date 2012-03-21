@@ -674,6 +674,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 {
 	u32 cfg, tmp;
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
+	u32 csis_data_alignment = 32;
 
 	cfg = readl(fimc->regs + S5P_CIGCTRL);
 
@@ -703,7 +704,7 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 				 vid_cap->mf.code);
 			return -EINVAL;
 		}
-		tmp |= (cam->csi_data_align == 32) << 8;
+		tmp |= (csis_data_alignment == 32) << 8;
 
 		writel(tmp, fimc->regs + S5P_CSIIMGFMT);
 
