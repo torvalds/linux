@@ -766,18 +766,30 @@ static void __bond_resend_igmp_join_requests(struct net_device *dev)
  */
 static void bond_resend_igmp_join_requests(struct bonding *bond)
 {
-	struct net_device *vlan_dev;
+	struct net_device *bond_dev, *vlan_dev, *master_dev;
 	struct vlan_entry *vlan;
 
 	read_lock(&bond->lock);
 
+	bond_dev = bond->dev;
+
 	/* rejoin all groups on bond device */
-	__bond_resend_igmp_join_requests(bond->dev);
+	__bond_resend_igmp_join_requests(bond_dev);
+
+	/*
+	 * if bond is enslaved to a bridge,
+	 * then rejoin all groups on its master
+	 */
+	master_dev = bond_dev->master;
+	if (master_dev)
+		if ((master_dev->priv_flags & IFF_EBRIDGE)
+			&& (bond_dev->priv_flags & IFF_BRIDGE_PORT))
+			__bond_resend_igmp_join_requests(master_dev);
 
 	/* rejoin all groups on vlan devices */
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		rcu_read_lock();
-		vlan_dev = __vlan_find_dev_deep(bond->dev,
+		vlan_dev = __vlan_find_dev_deep(bond_dev,
 						vlan->vlan_id);
 		rcu_read_unlock();
 		if (vlan_dev)

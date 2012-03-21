@@ -121,9 +121,22 @@ static u32 *ipv6_cow_metrics(struct dst_entry *dst, unsigned long old)
 	return p;
 }
 
+static inline const void *choose_neigh_daddr(struct rt6_info *rt, const void *daddr)
+{
+	struct in6_addr *p = &rt->rt6i_gateway;
+
+	if (!ipv6_addr_any(p))
+		return (const void *) p;
+	return daddr;
+}
+
 static struct neighbour *ip6_neigh_lookup(const struct dst_entry *dst, const void *daddr)
 {
-	struct neighbour *n = __ipv6_neigh_lookup(&nd_tbl, dst->dev, daddr);
+	struct rt6_info *rt = (struct rt6_info *) dst;
+	struct neighbour *n;
+
+	daddr = choose_neigh_daddr(rt, daddr);
+	n = __ipv6_neigh_lookup(&nd_tbl, dst->dev, daddr);
 	if (n)
 		return n;
 	return neigh_create(&nd_tbl, daddr, dst->dev);

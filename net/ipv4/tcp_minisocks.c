@@ -359,13 +359,11 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 */
 		do {
 			struct tcp_md5sig_key *key;
-			memset(tcptw->tw_md5_key, 0, sizeof(tcptw->tw_md5_key));
-			tcptw->tw_md5_keylen = 0;
+			tcptw->tw_md5_key = NULL;
 			key = tp->af_specific->md5_lookup(sk, sk);
 			if (key != NULL) {
-				memcpy(&tcptw->tw_md5_key, key->key, key->keylen);
-				tcptw->tw_md5_keylen = key->keylen;
-				if (tcp_alloc_md5sig_pool(sk) == NULL)
+				tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
+				if (tcptw->tw_md5_key && tcp_alloc_md5sig_pool(sk) == NULL)
 					BUG();
 			}
 		} while (0);
@@ -405,8 +403,10 @@ void tcp_twsk_destructor(struct sock *sk)
 {
 #ifdef CONFIG_TCP_MD5SIG
 	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
-	if (twsk->tw_md5_keylen)
+	if (twsk->tw_md5_key) {
 		tcp_free_md5sig_pool();
+		kfree_rcu(twsk->tw_md5_key, rcu);
+	}
 #endif
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);

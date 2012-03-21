@@ -200,17 +200,11 @@ static int zl6100_probe(struct i2c_client *client,
 	data->id = mid->driver_data;
 
 	/*
-	 * ZL2005, ZL2008, ZL2105, and ZL6100 are known to require a wait time
-	 * between I2C accesses. ZL2004 and ZL6105 are known to be safe.
-	 * Other chips have not yet been tested.
-	 *
-	 * Only clear the wait time for chips known to be safe. The wait time
-	 * can be cleared later for additional chips if tests show that it
-	 * is not needed (in other words, better be safe than sorry).
+	 * According to information from the chip vendor, all currently
+	 * supported chips are known to require a wait time between I2C
+	 * accesses.
 	 */
 	data->delay = delay;
-	if (data->id == zl2004 || data->id == zl6105)
-		data->delay = 0;
 
 	/*
 	 * Since there was a direct I2C device access above, wait before

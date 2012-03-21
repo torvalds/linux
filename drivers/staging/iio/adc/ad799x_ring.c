@@ -26,7 +26,7 @@
 /**
  * ad799x_ring_preenable() setup the parameters of the ring before enabling
  *
- * The complex nature of the setting of the nuber of bytes per datum is due
+ * The complex nature of the setting of the number of bytes per datum is due
  * to this driver currently ensuring that the timestamp is stored at an 8
  * byte boundary.
  **/
@@ -141,8 +141,6 @@ int ad799x_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	/* Effectively select the ring buffer implementation */
-	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = iio_alloc_pollfunc(NULL,
 						 &ad799x_trigger_handler,
 						 IRQF_ONESHOT,

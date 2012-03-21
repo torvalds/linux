@@ -1405,7 +1405,7 @@ F:	net/ax25/
 B43 WIRELESS DRIVER
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
-L:	b43-dev@lists.infradead.org (moderated for non-subscribers)
+L:	b43-dev@lists.infradead.org
 W:	http://linuxwireless.org/en/users/Drivers/b43
 S:	Maintained
 F:	drivers/net/wireless/b43/
@@ -1414,6 +1414,7 @@ B43LEGACY WIRELESS DRIVER
 M:	Larry Finger <Larry.Finger@lwfinger.net>
 M:	Stefano Brivio <stefano.brivio@polimi.it>
 L:	linux-wireless@vger.kernel.org
+L:	b43-dev@lists.infradead.org
 W:	http://linuxwireless.org/en/users/Drivers/b43
 S:	Maintained
 F:	drivers/net/wireless/b43legacy/
@@ -1513,19 +1514,23 @@ F:	drivers/mtd/devices/block2mtd.c
 
 BLUETOOTH DRIVERS
 M:	Marcel Holtmann <marcel@holtmann.org>
-M:	"Gustavo F. Padovan" <padovan@profusion.mobi>
+M:	Gustavo Padovan <gustavo@padovan.org>
+M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jh/bluetooth.git
 S:	Maintained
 F:	drivers/bluetooth/
 
 BLUETOOTH SUBSYSTEM
 M:	Marcel Holtmann <marcel@holtmann.org>
-M:	"Gustavo F. Padovan" <padovan@profusion.mobi>
+M:	Gustavo Padovan <gustavo@padovan.org>
+M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jh/bluetooth.git
 S:	Maintained
 F:	net/bluetooth/
 F:	include/net/bluetooth/
@@ -1567,7 +1572,6 @@ F:	drivers/net/ethernet/broadcom/tg3.*
 
 BROADCOM BRCM80211 IEEE802.11n WIRELESS DRIVER
 M:	Brett Rudley <brudley@broadcom.com>
-M:	Henry Ptasinski <henryp@broadcom.com>
 M:	Roland Vossen <rvossen@broadcom.com>
 M:	Arend van Spriel <arend@broadcom.com>
 M:	Franky (Zhenhui) Lin <frankyl@broadcom.com>
@@ -1717,6 +1721,14 @@ F:	include/linux/can/error.h
 F:	include/linux/can/netlink.h
 F:	include/linux/can/platform/
 
+CAPABILITIES
+M:	Serge Hallyn <serge.hallyn@canonical.com>
+L:	linux-security-module@vger.kernel.org
+S:	Supported	
+F:	include/linux/capability.h
+F:	security/capability.c
+F:	security/commoncap.c 
+
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
 L:	linuxppc-dev@lists.ozlabs.org
@@ -1797,7 +1809,8 @@ F:	Documentation/zh_CN/
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
 M:	Roopa Prabhu <roprabhu@cisco.com>
-M:	David Wang <dwang2@cisco.com>
+M:	Neel Patel <neepatel@cisco.com>
+M:	Nishank Trivedi <nistrive@cisco.com>
 S:	Supported
 F:	drivers/net/ethernet/cisco/enic/
 
@@ -2350,6 +2363,15 @@ L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/exynos
 F:	include/drm/exynos*
+
+EXYNOS MIPI DISPLAY DRIVERS
+M:	Inki Dae <inki.dae@samsung.com>
+M:	Donghwa Lee <dh09.lee@samsung.com>
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+F:	drivers/video/exynos/exynos_mipi*
+F:	include/video/exynos_mipi*
 
 DSCC4 DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
@@ -4916,8 +4938,6 @@ F:	fs/ocfs2/
 
 ORINOCO DRIVER
 L:	linux-wireless@vger.kernel.org
-L:	orinoco-users@lists.sourceforge.net
-L:	orinoco-devel@lists.sourceforge.net
 W:	http://linuxwireless.org/en/users/Drivers/orinoco
 W:	http://www.nongnu.org/orinoco/
 S:	Orphan
@@ -5323,6 +5343,17 @@ M:	Jim Paris <jim@jtan.com>
 L:	cbe-oss-dev@lists.ozlabs.org
 S:	Maintained
 F:	drivers/block/ps3vram.c
+
+PTP HARDWARE CLOCK SUPPORT
+M:	Richard Cochran <richardcochran@gmail.com>
+S:	Maintained
+W:	http://linuxptp.sourceforge.net/
+F:	Documentation/ABI/testing/sysfs-ptp
+F:	Documentation/ptp/*
+F:	drivers/net/gianfar_ptp.c
+F:	drivers/net/phy/dp83640*
+F:	drivers/ptp/*
+F:	include/linux/ptp_cl*
 
 PTRACE SUPPORT
 M:	Roland McGrath <roland@redhat.com>
@@ -5859,6 +5890,7 @@ F:	drivers/mmc/host/sdhci-s3c.c
 
 SECURE DIGITAL HOST CONTROLLER INTERFACE (SDHCI) ST SPEAR DRIVER
 M:	Viresh Kumar <viresh.kumar@st.com>
+L:	spear-devel@list.st.com
 L:	linux-mmc@vger.kernel.org
 S:	Maintained
 F:	drivers/mmc/host/sdhci-spear.c
@@ -6190,8 +6222,8 @@ L:	sparclinux@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
+F:	include/linux/sunserialcore.h
 F:	drivers/tty/serial/suncore.c
-F:	drivers/tty/serial/suncore.h
 F:	drivers/tty/serial/sunhv.c
 F:	drivers/tty/serial/sunsab.c
 F:	drivers/tty/serial/sunsab.h
@@ -6201,24 +6233,32 @@ F:	drivers/tty/serial/sunzilog.h
 
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/plat-spear/
 
 SPEAR3XX MACHINE SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/mach-spear3xx/
 
 SPEAR6XX MACHINE SUPPORT
 M:	Rajeev Kumar <rajeev-dlh.kumar@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/mach-spear6xx/
 
 SPEAR CLOCK FRAMEWORK SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/mach-spear*/clock.c
@@ -6227,6 +6267,8 @@ F:	arch/arm/plat-spear/include/plat/clock.h
 
 SPEAR PAD MULTIPLEXING SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
+L:	spear-devel@list.st.com
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.st.com/spear
 S:	Maintained
 F:	arch/arm/plat-spear/include/plat/padmux.h
@@ -6362,6 +6404,11 @@ M:	Jon Nettleton <jon.nettleton@gmail.com>
 W:	http://wiki.laptop.org/go/DCON
 S:	Odd Fixes
 F:	drivers/staging/olpc_dcon/
+
+STAGING - OZMO DEVICES USB OVER WIFI DRIVER
+M:	Chris Kelly <ckelly@ozmodevices.com>
+S:	Maintained
+F:	drivers/staging/ozwpan/
 
 STAGING - PARALLEL LCD/KEYPAD PANEL DRIVER
 M:	Willy Tarreau <willy@meta-x.org>
@@ -7463,6 +7510,12 @@ T:	git git://oss.sgi.com/xfs/xfs.git
 S:	Supported
 F:	Documentation/filesystems/xfs.txt
 F:	fs/xfs/
+
+XILINX AXI ETHERNET DRIVER
+M:	Ariane Keller <ariane.keller@tik.ee.ethz.ch>
+M:	Daniel Borkmann <daniel.borkmann@tik.ee.ethz.ch>
+S:	Maintained
+F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 
 XILINX SYSTEMACE DRIVER
 M:	Grant Likely <grant.likely@secretlab.ca>

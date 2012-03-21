@@ -1545,13 +1545,11 @@ static int mlx4_init_steering(struct mlx4_dev *dev)
 	if (!priv->steer)
 		return -ENOMEM;
 
-	for (i = 0; i < num_entries; i++) {
+	for (i = 0; i < num_entries; i++)
 		for (j = 0; j < MLX4_NUM_STEERS; j++) {
 			INIT_LIST_HEAD(&priv->steer[i].promisc_qps[j]);
 			INIT_LIST_HEAD(&priv->steer[i].steer_entries[j]);
 		}
-		INIT_LIST_HEAD(&priv->steer[i].high_prios);
-	}
 	return 0;
 }
 

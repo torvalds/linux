@@ -608,13 +608,13 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	writel(val, base + ULPI_TIMING_CTRL_1);
 
 	/* Fix VbusInvalid due to floating VBUS */
-	ret = otg_io_write(phy->ulpi, 0x40, 0x08);
+	ret = usb_phy_io_write(phy->ulpi, 0x40, 0x08);
 	if (ret) {
 		pr_err("%s: ulpi write failed\n", __func__);
 		return ret;
 	}
 
-	ret = otg_io_write(phy->ulpi, 0x80, 0x0B);
+	ret = usb_phy_io_write(phy->ulpi, 0x80, 0x0B);
 	if (ret) {
 		pr_err("%s: ulpi write failed\n", __func__);
 		return ret;

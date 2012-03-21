@@ -172,7 +172,7 @@ static int fmr2_tea_ext_init(struct snd_tea575x *tea)
 		fmr2->volume = v4l2_ctrl_new_std(&tea->ctrl_handler, &fmr2_ctrl_ops, V4L2_CID_AUDIO_VOLUME, 0, 68, 2, 56);
 		fmr2->balance = v4l2_ctrl_new_std(&tea->ctrl_handler, &fmr2_ctrl_ops, V4L2_CID_AUDIO_BALANCE, -68, 68, 2, 0);
 		if (tea->ctrl_handler.error) {
-			printk(KERN_ERR "radio-sf16fmr2: can't initialize contrls\n");
+			printk(KERN_ERR "radio-sf16fmr2: can't initialize controls\n");
 			return tea->ctrl_handler.error;
 		}
 	}

@@ -3120,7 +3120,6 @@ static int __init gsm_init(void)
 		pr_err("gsm_init: tty allocation failed.\n");
 		return -EINVAL;
 	}
-	gsm_tty_driver->owner	= THIS_MODULE;
 	gsm_tty_driver->driver_name	= "gsmtty";
 	gsm_tty_driver->name		= "gsmtty";
 	gsm_tty_driver->major		= 0;	/* Dynamic */

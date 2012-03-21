@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2003-2008 Alan Stern
  * Copyright (C) 2009 Samsung Electronics
- *                    Author: Michal Nazarewicz <m.nazarewicz@samsung.com>
+ *                    Author: Michal Nazarewicz <mina86@mina86.com>
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify

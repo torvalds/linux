@@ -731,7 +731,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 			if (elreq.options != EXTERNAL_LOOPBACK) {
 				ql_dbg(ql_dbg_user, vha, 0x7020,
-				    "Internal: curent port config = %x\n",
+				    "Internal: current port config = %x\n",
 				    config[0]);
 				if (qla81xx_set_internal_loopback(vha, config,
 					new_config)) {

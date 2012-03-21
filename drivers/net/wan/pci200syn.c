@@ -299,7 +299,6 @@ static int __devinit pci200_pci_init_one(struct pci_dev *pdev,
 
 	card = kzalloc(sizeof(card_t), GFP_KERNEL);
 	if (card == NULL) {
-		pr_err("unable to allocate memory\n");
 		pci_release_regions(pdev);
 		pci_disable_device(pdev);
 		return -ENOBUFS;

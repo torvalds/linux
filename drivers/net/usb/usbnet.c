@@ -1336,10 +1336,8 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 
 	// set up our own records
 	net = alloc_etherdev(sizeof(*dev));
-	if (!net) {
-		dbg ("can't kmalloc dev");
+	if (!net)
 		goto out;
-	}
 
 	/* netdev_printk() needs this so do it as early as possible */
 	SET_NETDEV_DEV(net, &udev->dev);
@@ -1537,7 +1535,7 @@ int usbnet_resume (struct usb_interface *intf)
 
 		if (test_bit(EVENT_DEV_OPEN, &dev->flags)) {
 			if (!(dev->txq.qlen >= TX_QLEN(dev)))
-				netif_start_queue(dev->net);
+				netif_tx_wake_all_queues(dev->net);
 			tasklet_schedule (&dev->bh);
 		}
 	}

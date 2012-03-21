@@ -825,7 +825,6 @@ static int __init ehv_bc_init(void)
 		goto error;
 	}
 
-	ehv_bc_driver->owner = THIS_MODULE;
 	ehv_bc_driver->driver_name = "ehv-bc";
 	ehv_bc_driver->name = ehv_bc_console.name;
 	ehv_bc_driver->type = TTY_DRIVER_TYPE_CONSOLE;

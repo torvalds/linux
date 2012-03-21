@@ -340,7 +340,7 @@ int jffs2_unregister_compressor(struct jffs2_compressor *comp)
 
 	if (comp->usecount) {
 		spin_unlock(&jffs2_compressor_list_lock);
-		printk(KERN_WARNING "JFFS2: Compressor modul is in use. Unregister failed.\n");
+		printk(KERN_WARNING "JFFS2: Compressor module is in use. Unregister failed.\n");
 		return -1;
 	}
 	list_del(&comp->list);

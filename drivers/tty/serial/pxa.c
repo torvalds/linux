@@ -579,9 +579,9 @@ serial_pxa_pm(struct uart_port *port, unsigned int state,
 	struct uart_pxa_port *up = (struct uart_pxa_port *)port;
 
 	if (!state)
-		clk_enable(up->clk);
+		clk_prepare_enable(up->clk);
 	else
-		clk_disable(up->clk);
+		clk_disable_unprepare(up->clk);
 }
 
 static void serial_pxa_release_port(struct uart_port *port)
@@ -668,7 +668,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	struct uart_pxa_port *up = serial_pxa_ports[co->index];
 	unsigned int ier;
 
-	clk_enable(up->clk);
+	clk_prepare_enable(up->clk);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -685,7 +685,7 @@ serial_pxa_console_write(struct console *co, const char *s, unsigned int count)
 	wait_for_xmitr(up);
 	serial_out(up, UART_IER, ier);
 
-	clk_disable(up->clk);
+	clk_disable_unprepare(up->clk);
 }
 
 static int __init

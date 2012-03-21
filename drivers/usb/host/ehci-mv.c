@@ -28,7 +28,7 @@ struct ehci_hcd_mv {
 	void __iomem *cap_regs;
 	void __iomem *op_regs;
 
-	struct otg_transceiver *otg;
+	struct usb_phy *otg;
 
 	struct mv_usb_platform_data *pdata;
 
@@ -253,7 +253,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
 #ifdef CONFIG_USB_OTG_UTILS
-		ehci_mv->otg = otg_get_transceiver();
+		ehci_mv->otg = usb_get_transceiver();
 		if (!ehci_mv->otg) {
 			dev_err(&pdev->dev,
 				"unable to find transceiver\n");
@@ -261,7 +261,7 @@ static int mv_ehci_probe(struct platform_device *pdev)
 			goto err_disable_clk;
 		}
 
-		retval = otg_set_host(ehci_mv->otg, &hcd->self);
+		retval = otg_set_host(ehci_mv->otg->otg, &hcd->self);
 		if (retval < 0) {
 			dev_err(&pdev->dev,
 				"unable to register with transceiver\n");
@@ -303,7 +303,7 @@ err_set_vbus:
 #ifdef CONFIG_USB_OTG_UTILS
 err_put_transceiver:
 	if (ehci_mv->otg)
-		otg_put_transceiver(ehci_mv->otg);
+		usb_put_transceiver(ehci_mv->otg);
 #endif
 err_disable_clk:
 	mv_ehci_disable(ehci_mv);
@@ -332,8 +332,8 @@ static int mv_ehci_remove(struct platform_device *pdev)
 		usb_remove_hcd(hcd);
 
 	if (ehci_mv->otg) {
-		otg_set_host(ehci_mv->otg, NULL);
-		otg_put_transceiver(ehci_mv->otg);
+		otg_set_host(ehci_mv->otg->otg, NULL);
+		usb_put_transceiver(ehci_mv->otg);
 	}
 
 	if (ehci_mv->mode == MV_USB_MODE_HOST) {

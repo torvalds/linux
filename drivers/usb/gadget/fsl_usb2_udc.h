@@ -471,7 +471,7 @@ struct fsl_udc {
 
 	struct usb_ctrlrequest local_setup_buff;
 	spinlock_t lock;
-	struct otg_transceiver *transceiver;
+	struct usb_phy *transceiver;
 	unsigned softconnect:1;
 	unsigned vbus_active:1;
 	unsigned stopped:1;

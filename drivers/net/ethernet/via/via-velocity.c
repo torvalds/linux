@@ -1509,7 +1509,7 @@ static int velocity_alloc_rx_buf(struct velocity_info *vptr, int idx)
 	struct rx_desc *rd = &(vptr->rx.ring[idx]);
 	struct velocity_rd_info *rd_info = &(vptr->rx.info[idx]);
 
-	rd_info->skb = dev_alloc_skb(vptr->rx.buf_sz + 64);
+	rd_info->skb = netdev_alloc_skb(vptr->dev, vptr->rx.buf_sz + 64);
 	if (rd_info->skb == NULL)
 		return -ENOMEM;
 
@@ -2730,10 +2730,8 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	}
 
 	dev = alloc_etherdev(sizeof(struct velocity_info));
-	if (!dev) {
-		dev_err(&pdev->dev, "allocate net device failed.\n");
+	if (!dev)
 		goto out;
-	}
 
 	/* Chain it all together */
 

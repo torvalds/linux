@@ -176,6 +176,9 @@ config GENERIC_CPU_DEVICES
 	bool
 	default n
 
+config SOC_BUS
+	bool
+
 source "drivers/base/regmap/Kconfig"
 
 config DMA_SHARED_BUFFER

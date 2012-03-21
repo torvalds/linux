@@ -44,6 +44,7 @@ struct perf_record {
 	struct perf_evlist	*evlist;
 	struct perf_session	*session;
 	const char		*progname;
+	const char		*uid_str;
 	int			output;
 	unsigned int		page_size;
 	int			realtime_prio;
@@ -208,7 +209,7 @@ fallback_missing_features:
 		if (opts->exclude_guest_missing)
 			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
-		attr->sample_id_all = opts->sample_id_all_avail ? 1 : 0;
+		attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(pos, evlist->cpus, evlist->threads,
 				     opts->group, group_fd) < 0) {
@@ -227,11 +228,11 @@ try_again:
 						 "guest or host samples.\n");
 					opts->exclude_guest_missing = true;
 					goto fallback_missing_features;
-				} else if (opts->sample_id_all_avail) {
+				} else if (!opts->sample_id_all_missing) {
 					/*
 					 * Old kernel, no attr->sample_id_type_all field
 					 */
-					opts->sample_id_all_avail = false;
+					opts->sample_id_all_missing = true;
 					if (!opts->sample_time && !opts->raw_samples && !time_needed)
 						attr->sample_type &= ~PERF_SAMPLE_TIME;
 
@@ -396,7 +397,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 {
 	struct stat st;
 	int flags;
-	int err, output;
+	int err, output, feat;
 	unsigned long waking = 0;
 	const bool forks = argc > 0;
 	struct machine *machine;
@@ -463,30 +464,23 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	rec->session = session;
 
-	if (!rec->no_buildid)
-		perf_header__set_feat(&session->header, HEADER_BUILD_ID);
+	for (feat = HEADER_FIRST_FEATURE; feat < HEADER_LAST_FEATURE; feat++)
+		perf_header__set_feat(&session->header, feat);
+
+	if (rec->no_buildid)
+		perf_header__clear_feat(&session->header, HEADER_BUILD_ID);
+
+	if (!have_tracepoints(&evsel_list->entries))
+		perf_header__clear_feat(&session->header, HEADER_TRACE_INFO);
+
+	if (!rec->opts.branch_stack)
+		perf_header__clear_feat(&session->header, HEADER_BRANCH_STACK);
 
 	if (!rec->file_new) {
 		err = perf_session__read_header(session, output);
 		if (err < 0)
 			goto out_delete_session;
 	}
-
-	if (have_tracepoints(&evsel_list->entries))
-		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
-
-	perf_header__set_feat(&session->header, HEADER_HOSTNAME);
-	perf_header__set_feat(&session->header, HEADER_OSRELEASE);
-	perf_header__set_feat(&session->header, HEADER_ARCH);
-	perf_header__set_feat(&session->header, HEADER_CPUDESC);
-	perf_header__set_feat(&session->header, HEADER_NRCPUS);
-	perf_header__set_feat(&session->header, HEADER_EVENT_DESC);
-	perf_header__set_feat(&session->header, HEADER_CMDLINE);
-	perf_header__set_feat(&session->header, HEADER_VERSION);
-	perf_header__set_feat(&session->header, HEADER_CPU_TOPOLOGY);
-	perf_header__set_feat(&session->header, HEADER_TOTAL_MEM);
-	perf_header__set_feat(&session->header, HEADER_NUMA_TOPOLOGY);
-	perf_header__set_feat(&session->header, HEADER_CPUID);
 
 	if (forks) {
 		err = perf_evlist__prepare_workload(evsel_list, opts, argv);
@@ -647,6 +641,90 @@ out_delete_session:
 	return err;
 }
 
+#define BRANCH_OPT(n, m) \
+	{ .name = n, .mode = (m) }
+
+#define BRANCH_END { .name = NULL }
+
+struct branch_mode {
+	const char *name;
+	int mode;
+};
+
+static const struct branch_mode branch_modes[] = {
+	BRANCH_OPT("u", PERF_SAMPLE_BRANCH_USER),
+	BRANCH_OPT("k", PERF_SAMPLE_BRANCH_KERNEL),
+	BRANCH_OPT("hv", PERF_SAMPLE_BRANCH_HV),
+	BRANCH_OPT("any", PERF_SAMPLE_BRANCH_ANY),
+	BRANCH_OPT("any_call", PERF_SAMPLE_BRANCH_ANY_CALL),
+	BRANCH_OPT("any_ret", PERF_SAMPLE_BRANCH_ANY_RETURN),
+	BRANCH_OPT("ind_call", PERF_SAMPLE_BRANCH_IND_CALL),
+	BRANCH_END
+};
+
+static int
+parse_branch_stack(const struct option *opt, const char *str, int unset)
+{
+#define ONLY_PLM \
+	(PERF_SAMPLE_BRANCH_USER	|\
+	 PERF_SAMPLE_BRANCH_KERNEL	|\
+	 PERF_SAMPLE_BRANCH_HV)
+
+	uint64_t *mode = (uint64_t *)opt->value;
+	const struct branch_mode *br;
+	char *s, *os = NULL, *p;
+	int ret = -1;
+
+	if (unset)
+		return 0;
+
+	/*
+	 * cannot set it twice, -b + --branch-filter for instance
+	 */
+	if (*mode)
+		return -1;
+
+	/* str may be NULL in case no arg is passed to -b */
+	if (str) {
+		/* because str is read-only */
+		s = os = strdup(str);
+		if (!s)
+			return -1;
+
+		for (;;) {
+			p = strchr(s, ',');
+			if (p)
+				*p = '\0';
+
+			for (br = branch_modes; br->name; br++) {
+				if (!strcasecmp(s, br->name))
+					break;
+			}
+			if (!br->name) {
+				ui__warning("unknown branch filter %s,"
+					    " check man page\n", s);
+				goto error;
+			}
+
+			*mode |= br->mode;
+
+			if (!p)
+				break;
+
+			s = p + 1;
+		}
+	}
+	ret = 0;
+
+	/* default to any branch */
+	if ((*mode & ~ONLY_PLM) == 0) {
+		*mode = PERF_SAMPLE_BRANCH_ANY;
+	}
+error:
+	free(os);
+	return ret;
+}
+
 static const char * const record_usage[] = {
 	"perf record [<options>] [<command>]",
 	"perf record [<options>] -- <command> [<options>]",
@@ -665,13 +743,10 @@ static const char * const record_usage[] = {
  */
 static struct perf_record record = {
 	.opts = {
-		.target_pid	     = -1,
-		.target_tid	     = -1,
 		.mmap_pages	     = UINT_MAX,
 		.user_freq	     = UINT_MAX,
 		.user_interval	     = ULLONG_MAX,
 		.freq		     = 1000,
-		.sample_id_all_avail = true,
 	},
 	.write_mode = WRITE_FORCE,
 	.file_new   = true,
@@ -690,9 +765,9 @@ const struct option record_options[] = {
 		     parse_events_option),
 	OPT_CALLBACK(0, "filter", &record.evlist, "filter",
 		     "event filter", parse_filter),
-	OPT_INTEGER('p', "pid", &record.opts.target_pid,
+	OPT_STRING('p', "pid", &record.opts.target_pid, "pid",
 		    "record events on existing process id"),
-	OPT_INTEGER('t', "tid", &record.opts.target_tid,
+	OPT_STRING('t', "tid", &record.opts.target_tid, "tid",
 		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &record.realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
@@ -738,6 +813,15 @@ const struct option record_options[] = {
 	OPT_CALLBACK('G', "cgroup", &record.evlist, "name",
 		     "monitor event in cgroup name only",
 		     parse_cgroups),
+	OPT_STRING('u', "uid", &record.uid_str, "user", "user to profile"),
+
+	OPT_CALLBACK_NOOPT('b', "branch-any", &record.opts.branch_stack,
+		     "branch any", "sample any taken branches",
+		     parse_branch_stack),
+
+	OPT_CALLBACK('j', "branch-filter", &record.opts.branch_stack,
+		     "branch filter mask", "branch stack filter modes",
+		     parse_branch_stack),
 	OPT_END()
 };
 
@@ -758,8 +842,8 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && rec->opts.target_pid == -1 && rec->opts.target_tid == -1 &&
-		!rec->opts.system_wide && !rec->opts.cpu_list)
+	if (!argc && !rec->opts.target_pid && !rec->opts.target_tid &&
+		!rec->opts.system_wide && !rec->opts.cpu_list && !rec->uid_str)
 		usage_with_options(record_usage, record_options);
 
 	if (rec->force && rec->append_file) {
@@ -799,11 +883,17 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		goto out_symbol_exit;
 	}
 
-	if (rec->opts.target_pid != -1)
+	rec->opts.uid = parse_target_uid(rec->uid_str, rec->opts.target_tid,
+					 rec->opts.target_pid);
+	if (rec->uid_str != NULL && rec->opts.uid == UINT_MAX - 1)
+		goto out_free_fd;
+
+	if (rec->opts.target_pid)
 		rec->opts.target_tid = rec->opts.target_pid;
 
 	if (perf_evlist__create_maps(evsel_list, rec->opts.target_pid,
-				     rec->opts.target_tid, rec->opts.cpu_list) < 0)
+				     rec->opts.target_tid, rec->opts.uid,
+				     rec->opts.cpu_list) < 0)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {

@@ -4,6 +4,10 @@
 
 menu "File systems"
 
+# Use unaligned word dcache accesses
+config DCACHE_WORD_ACCESS
+       bool
+
 if BLOCK
 
 source "fs/ext2/Kconfig"

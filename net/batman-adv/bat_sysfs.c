@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -255,8 +255,8 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 			buff[count - 1] = '\0';
 
 		bat_info(net_dev,
-			 "Invalid parameter for 'vis mode' setting received: "
-			 "%s\n", buff);
+			 "Invalid parameter for 'vis mode' setting received: %s\n",
+			 buff);
 		return -EINVAL;
 	}
 
@@ -270,6 +270,13 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 
 	atomic_set(&bat_priv->vis_mode, (unsigned)vis_mode_tmp);
 	return count;
+}
+
+static ssize_t show_bat_algo(struct kobject *kobj, struct attribute *attr,
+			    char *buff)
+{
+	struct bat_priv *bat_priv = kobj_to_batpriv(kobj);
+	return sprintf(buff, "%s\n", bat_priv->bat_algo_ops->name);
 }
 
 static void post_gw_deselect(struct net_device *net_dev)
@@ -314,17 +321,17 @@ static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
 		gw_mode_tmp = GW_MODE_OFF;
 
 	if (strncmp(buff, GW_MODE_CLIENT_NAME,
-		   strlen(GW_MODE_CLIENT_NAME)) == 0)
+		    strlen(GW_MODE_CLIENT_NAME)) == 0)
 		gw_mode_tmp = GW_MODE_CLIENT;
 
 	if (strncmp(buff, GW_MODE_SERVER_NAME,
-		   strlen(GW_MODE_SERVER_NAME)) == 0)
+		    strlen(GW_MODE_SERVER_NAME)) == 0)
 		gw_mode_tmp = GW_MODE_SERVER;
 
 	if (gw_mode_tmp < 0) {
 		bat_info(net_dev,
-			 "Invalid parameter for 'gw mode' setting received: "
-			 "%s\n", buff);
+			 "Invalid parameter for 'gw mode' setting received: %s\n",
+			 buff);
 		return -EINVAL;
 	}
 
@@ -382,6 +389,7 @@ BAT_ATTR_BOOL(bonding, S_IRUGO | S_IWUSR, NULL);
 BAT_ATTR_BOOL(fragmentation, S_IRUGO | S_IWUSR, update_min_mtu);
 BAT_ATTR_BOOL(ap_isolation, S_IRUGO | S_IWUSR, NULL);
 static BAT_ATTR(vis_mode, S_IRUGO | S_IWUSR, show_vis_mode, store_vis_mode);
+static BAT_ATTR(routing_algo, S_IRUGO, show_bat_algo, NULL);
 static BAT_ATTR(gw_mode, S_IRUGO | S_IWUSR, show_gw_mode, store_gw_mode);
 BAT_ATTR_UINT(orig_interval, S_IRUGO | S_IWUSR, 2 * JITTER, INT_MAX, NULL);
 BAT_ATTR_UINT(hop_penalty, S_IRUGO | S_IWUSR, 0, TQ_MAX_VALUE, NULL);
@@ -399,6 +407,7 @@ static struct bat_attribute *mesh_attrs[] = {
 	&bat_attr_fragmentation,
 	&bat_attr_ap_isolation,
 	&bat_attr_vis_mode,
+	&bat_attr_routing_algo,
 	&bat_attr_gw_mode,
 	&bat_attr_orig_interval,
 	&bat_attr_hop_penalty,
@@ -493,8 +502,8 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 		buff[count - 1] = '\0';
 
 	if (strlen(buff) >= IFNAMSIZ) {
-		pr_err("Invalid parameter for 'mesh_iface' setting received: "
-		       "interface name too long '%s'\n", buff);
+		pr_err("Invalid parameter for 'mesh_iface' setting received: interface name too long '%s'\n",
+		       buff);
 		hardif_free_ref(hard_iface);
 		return -EINVAL;
 	}
@@ -668,8 +677,8 @@ out:
 		hardif_free_ref(primary_if);
 
 	if (ret)
-		bat_dbg(DBG_BATMAN, bat_priv, "Impossible to send "
-			"uevent for (%s,%s,%s) event (err: %d)\n",
+		bat_dbg(DBG_BATMAN, bat_priv,
+			"Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
 			uev_type_str[type], uev_action_str[action],
 			(action == UEV_DEL ? "NULL" : data), ret);
 	return ret;

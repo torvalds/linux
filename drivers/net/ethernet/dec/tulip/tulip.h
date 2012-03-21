@@ -1,5 +1,5 @@
 /*
-	drivers/net/tulip/tulip.h
+	drivers/net/ethernet/dec/tulip/tulip.h
 
 	Copyright 2000,2001  The Linux Kernel Team
 	Written/copyright 1994-2001 by Donald Becker.

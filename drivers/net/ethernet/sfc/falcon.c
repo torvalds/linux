@@ -19,7 +19,6 @@
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
-#include "mac.h"
 #include "spi.h"
 #include "nic.h"
 #include "regs.h"
@@ -89,7 +88,7 @@ static int falcon_getscl(void *data)
 	return EFX_OWORD_FIELD(reg, FRF_AB_GPIO0_IN);
 }
 
-static struct i2c_algo_bit_data falcon_i2c_bit_operations = {
+static const struct i2c_algo_bit_data falcon_i2c_bit_operations = {
 	.setsda		= falcon_setsda,
 	.setscl		= falcon_setscl,
 	.getsda		= falcon_getsda,
@@ -103,8 +102,6 @@ static void falcon_push_irq_moderation(struct efx_channel *channel)
 {
 	efx_dword_t timer_cmd;
 	struct efx_nic *efx = channel->efx;
-
-	BUILD_BUG_ON(EFX_IRQ_MOD_MAX > (1 << FRF_AB_TC_TIMER_VAL_WIDTH));
 
 	/* Set timer register */
 	if (channel->irq_moderation) {
@@ -177,27 +174,24 @@ irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 		   "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
 		   irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
+	/* Check to see if we have a serious error condition */
+	syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
+	if (unlikely(syserr))
+		return efx_nic_fatal_interrupt(efx);
+
 	/* Determine interrupting queues, clear interrupt status
 	 * register and acknowledge the device interrupt.
 	 */
 	BUILD_BUG_ON(FSF_AZ_NET_IVEC_INT_Q_WIDTH > EFX_MAX_CHANNELS);
 	queues = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_INT_Q);
-
-	/* Check to see if we have a serious error condition */
-	if (queues & (1U << efx->fatal_irq_level)) {
-		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
-		if (unlikely(syserr))
-			return efx_nic_fatal_interrupt(efx);
-	}
-
 	EFX_ZERO_OWORD(*int_ker);
 	wmb(); /* Ensure the vector is cleared before interrupt ack */
 	falcon_irq_ack_a1(efx);
 
 	if (queues & 1)
-		efx_schedule_channel(efx_get_channel(efx, 0));
+		efx_schedule_channel_irq(efx_get_channel(efx, 0));
 	if (queues & 2)
-		efx_schedule_channel(efx_get_channel(efx, 1));
+		efx_schedule_channel_irq(efx_get_channel(efx, 1));
 	return IRQ_HANDLED;
 }
 /**************************************************************************
@@ -613,7 +607,7 @@ static void falcon_stats_complete(struct efx_nic *efx)
 	nic_data->stats_pending = false;
 	if (*nic_data->stats_dma_done == FALCON_STATS_DONE) {
 		rmb(); /* read the done flag before the stats */
-		efx->mac_op->update_stats(efx);
+		falcon_update_stats_xmac(efx);
 	} else {
 		netif_err(efx, hw, efx->net_dev,
 			  "timed out waiting for statistics\n");
@@ -670,7 +664,7 @@ static int falcon_reconfigure_port(struct efx_nic *efx)
 	falcon_reset_macs(efx);
 
 	efx->phy_op->reconfigure(efx);
-	rc = efx->mac_op->reconfigure(efx);
+	rc = falcon_reconfigure_xmac(efx);
 	BUG_ON(rc);
 
 	falcon_start_nic_stats(efx);
@@ -1218,7 +1212,7 @@ static void falcon_monitor(struct efx_nic *efx)
 		falcon_deconfigure_mac_wrapper(efx);
 
 		falcon_reset_macs(efx);
-		rc = efx->mac_op->reconfigure(efx);
+		rc = falcon_reconfigure_xmac(efx);
 		BUG_ON(rc);
 
 		falcon_start_nic_stats(efx);
@@ -1337,6 +1331,12 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 out:
 	kfree(nvconfig);
 	return rc;
+}
+
+static void falcon_dimension_resources(struct efx_nic *efx)
+{
+	efx->rx_dc_base = 0x20000;
+	efx->tx_dc_base = 0x26000;
 }
 
 /* Probe all SPI devices on the NIC */
@@ -1471,6 +1471,8 @@ static int falcon_probe_nic(struct efx_nic *efx)
 			netif_err(efx, probe, efx->net_dev, "NVRAM is invalid\n");
 		goto fail5;
 	}
+
+	efx->timer_quantum_ns = 4968; /* 621 cycles */
 
 	/* Initialise I2C adapter */
 	board = falcon_board(efx);
@@ -1676,7 +1678,7 @@ static void falcon_update_nic_stats(struct efx_nic *efx)
 	    *nic_data->stats_dma_done == FALCON_STATS_DONE) {
 		nic_data->stats_pending = false;
 		rmb(); /* read the done flag before the stats */
-		efx->mac_op->update_stats(efx);
+		falcon_update_stats_xmac(efx);
 	}
 }
 
@@ -1753,6 +1755,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
+	.dimension_resources = falcon_dimension_resources,
 	.fini = efx_port_dummy_op_void,
 	.monitor = falcon_monitor,
 	.map_reset_reason = falcon_map_reset_reason,
@@ -1767,13 +1770,13 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.stop_stats = falcon_stop_nic_stats,
 	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
-	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
+	.reconfigure_mac = falcon_reconfigure_xmac,
+	.check_mac_fault = falcon_xmac_check_fault,
 	.get_wol = falcon_get_wol,
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
 	.test_nvram = falcon_test_nvram,
-	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_A1,
 	.mem_map_size = 0x20000,
@@ -1786,8 +1789,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.rx_buffer_padding = 0x24,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
 	.phys_addr_channels = 4,
-	.tx_dc_base = 0x130000,
-	.rx_dc_base = 0x100000,
+	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM,
 };
 
@@ -1795,6 +1797,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.probe = falcon_probe_nic,
 	.remove = falcon_remove_nic,
 	.init = falcon_init_nic,
+	.dimension_resources = falcon_dimension_resources,
 	.fini = efx_port_dummy_op_void,
 	.monitor = falcon_monitor,
 	.map_reset_reason = falcon_map_reset_reason,
@@ -1809,14 +1812,14 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.stop_stats = falcon_stop_nic_stats,
 	.set_id_led = falcon_set_id_led,
 	.push_irq_moderation = falcon_push_irq_moderation,
-	.push_multicast_hash = falcon_push_multicast_hash,
 	.reconfigure_port = falcon_reconfigure_port,
+	.reconfigure_mac = falcon_reconfigure_xmac,
+	.check_mac_fault = falcon_xmac_check_fault,
 	.get_wol = falcon_get_wol,
 	.set_wol = falcon_set_wol,
 	.resume_wol = efx_port_dummy_op_void,
 	.test_registers = falcon_b0_test_registers,
 	.test_nvram = falcon_test_nvram,
-	.default_mac_ops = &falcon_xmac_operations,
 
 	.revision = EFX_REV_FALCON_B0,
 	/* Map everything up to and including the RSS indirection
@@ -1837,8 +1840,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
 				   * interrupt handler only supports 32
 				   * channels */
-	.tx_dc_base = 0x130000,
-	.rx_dc_base = 0x100000,
+	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
 	.offload_features = NETIF_F_IP_CSUM | NETIF_F_RXHASH | NETIF_F_NTUPLE,
 };
 

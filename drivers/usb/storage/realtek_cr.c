@@ -219,7 +219,7 @@ static int rts51x_bulk_transport(struct us_data *us, u8 lun,
 	/* set up the command wrapper */
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = cpu_to_le32(buf_len);
-	bcb->Flags = (dir == DMA_FROM_DEVICE) ? 1 << 7 : 0;
+	bcb->Flags = (dir == DMA_FROM_DEVICE) ? US_BULK_FLAG_IN : 0;
 	bcb->Tag = ++us->tag;
 	bcb->Lun = lun;
 	bcb->Length = cmd_len;
@@ -305,7 +305,7 @@ static int rts51x_bulk_transport_special(struct us_data *us, u8 lun,
 	/* set up the command wrapper */
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
 	bcb->DataTransferLength = cpu_to_le32(buf_len);
-	bcb->Flags = (dir == DMA_FROM_DEVICE) ? 1 << 7 : 0;
+	bcb->Flags = (dir == DMA_FROM_DEVICE) ? US_BULK_FLAG_IN : 0;
 	bcb->Tag = ++us->tag;
 	bcb->Lun = lun;
 	bcb->Length = cmd_len;
@@ -507,8 +507,13 @@ static int __do_config_autodelink(struct us_data *us, u8 *data, u16 len)
 {
 	int retval;
 	u8 cmnd[12] = {0};
+	u8 *buf;
 
 	US_DEBUGP("%s, addr = 0xfe47, len = %d\n", __FUNCTION__, len);
+
+	buf = kmemdup(data, len, GFP_NOIO);
+	if (!buf)
+		return USB_STOR_TRANSPORT_ERROR;
 
 	cmnd[0] = 0xF0;
 	cmnd[1] = 0x0E;
@@ -517,7 +522,8 @@ static int __do_config_autodelink(struct us_data *us, u8 *data, u16 len)
 	cmnd[4] = (u8)(len >> 8);
 	cmnd[5] = (u8)len;
 
-	retval = rts51x_bulk_transport_special(us, 0, cmnd, 12, data, len, DMA_TO_DEVICE, NULL);
+	retval = rts51x_bulk_transport_special(us, 0, cmnd, 12, buf, len, DMA_TO_DEVICE, NULL);
+	kfree(buf);
 	if (retval != USB_STOR_TRANSPORT_GOOD) {
 		return -EIO;
 	}
@@ -1100,6 +1106,7 @@ static struct usb_driver realtek_cr_driver = {
 	.id_table = realtek_cr_ids,
 	.soft_unbind = 1,
 	.supports_autosuspend = 1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(realtek_cr_driver);

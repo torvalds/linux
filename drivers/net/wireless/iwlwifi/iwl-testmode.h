@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2010 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2010 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2010 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2010 - 2012 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -99,7 +99,7 @@
  *	to user application
  * @IWL_TM_CMD_DEV2APP_UCODE_RX_PKT:
  *	commands from kernel space to multicast the spontaneous messages
- *	to user application
+ *	to user application, or reply of host commands
  * @IWL_TM_CMD_DEV2APP_EEPROM_RSP:
  *	commands from kernel space to carry the eeprom response
  *	to user application
@@ -109,18 +109,22 @@
  *	if application has the ownership, the only host command from
  *	testmode will deliver to uCode. Default owner is driver
  *
- * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32:
- * @IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32:
- *	commands from user applicaiton to indirectly access peripheral register
- *
- * @IWL_TM_CMD_APP2DEV_READ_SRAM:
- * @IWL_TM_CMD_APP2DEV_DUMP_SRAM:
- *	commands from user applicaiton to read data in sram
- *
- * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Weak On Wireless LAN uCode image
+ * @IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW: load Wake On Wireless LAN uCode image
  * @IWL_TM_CMD_APP2DEV_GET_FW_VERSION: retrieve uCode version
  * @IWL_TM_CMD_APP2DEV_GET_DEVICE_ID: retrieve ID information in device
+ * @IWL_TM_CMD_APP2DEV_GET_FW_INFO:
+ *	retrieve information of existing loaded uCode image
  *
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ:
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP:
+ * @IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE:
+ *	Commands to read/write data from periphery or SRAM memory ranges.
+ *	Fore reading, a READ command is sent from the userspace and the data
+ *	is returned when the user calls a DUMP command.
+ *	For writing, only a WRITE command is used.
+ * @IWL_TM_CMD_APP2DEV_NOTIFICATIONS:
+ *	Command to enable/disable notifications (currently RX packets) from the
+ *	driver to userspace.
  */
 enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_UCODE		= 1,
@@ -140,14 +144,19 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_DEV2APP_UCODE_RX_PKT		= 15,
 	IWL_TM_CMD_DEV2APP_EEPROM_RSP		= 16,
 	IWL_TM_CMD_APP2DEV_OWNERSHIP		= 17,
-	IWL_TM_CMD_APP2DEV_INDIRECT_REG_READ32	= 18,
-	IWL_TM_CMD_APP2DEV_INDIRECT_REG_WRITE32	= 19,
-	IWL_TM_CMD_APP2DEV_READ_SRAM		= 20,
-	IWL_TM_CMD_APP2DEV_DUMP_SRAM		= 21,
+	RESERVED_18				= 18,
+	RESERVED_19				= 19,
+	RESERVED_20				= 20,
+	RESERVED_21				= 21,
 	IWL_TM_CMD_APP2DEV_LOAD_WOWLAN_FW	= 22,
 	IWL_TM_CMD_APP2DEV_GET_FW_VERSION	= 23,
 	IWL_TM_CMD_APP2DEV_GET_DEVICE_ID	= 24,
-	IWL_TM_CMD_MAX				= 25,
+	IWL_TM_CMD_APP2DEV_GET_FW_INFO		= 25,
+	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ = 26,
+	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP = 27,
+	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE = 28,
+	IWL_TM_CMD_APP2DEV_NOTIFICATIONS	= 29,
+	IWL_TM_CMD_MAX				= 30,
 };
 
 /*
@@ -168,8 +177,6 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_UCODE,
  *	The mandatory fields are :
  *	IWL_TM_ATTR_UCODE_CMD_ID for recognizable command ID;
- *	IWL_TM_ATTR_COMMAND_FLAG for the flags of the commands;
- *	The optional fields are:
  *	IWL_TM_ATTR_UCODE_CMD_DATA for the actual command payload
  *	to the ucode
  *
@@ -218,16 +225,19 @@ enum iwl_tm_cmd_t {
  *	The mandatory fields are:
  *	IWL_TM_ATTR_UCODE_OWNER for the new owner
  *
- * @IWL_TM_ATTR_SRAM_ADDR:
- * @IWL_TM_ATTR_SRAM_SIZE:
- *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_READ_SRAM,
+ * @IWL_TM_ATTR_MEM_ADDR:
+ * @IWL_TM_ATTR_BUFFER_SIZE:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ
+ *	or IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE.
  *	The mandatory fields are:
- *	IWL_TM_ATTR_SRAM_ADDR for the address in sram
- *	IWL_TM_ATTR_SRAM_SIZE for the buffer size of data reading
+ *	IWL_TM_ATTR_MEM_ADDR for the address in SRAM/periphery to read/write
+ *	IWL_TM_ATTR_BUFFER_SIZE for the buffer size of data to read/write.
  *
- * @IWL_TM_ATTR_SRAM_DUMP:
- *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_DUMP_SRAM,
- *	IWL_TM_ATTR_SRAM_DUMP for the data in sram
+ * @IWL_TM_ATTR_BUFFER_DUMP:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP,
+ *	IWL_TM_ATTR_BUFFER_DUMP is used for the data that was read.
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE,
+ *	this attribute contains the data to write.
  *
  * @IWL_TM_ATTR_FW_VERSION:
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_FW_VERSION,
@@ -237,6 +247,23 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_DEVICE_ID,
  *	IWL_TM_ATTR_DEVICE_ID for the device ID information
  *
+ * @IWL_TM_ATTR_FW_TYPE:
+ * @IWL_TM_ATTR_FW_INST_SIZE:
+ * @IWL_TM_ATTR_FW_DATA_SIZE:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_GET_FW_INFO,
+ *	The mandatory fields are:
+ *	IWL_TM_ATTR_FW_TYPE for the uCode type (INIT/RUNTIME/...)
+ *	IWL_TM_ATTR_FW_INST_SIZE for the size of instruction section
+ *	IWL_TM_ATTR_FW_DATA_SIZE for the size of data section
+ *
+ * @IWL_TM_ATTR_UCODE_CMD_SKB:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_UCODE this flag
+ *	indicates that the user wants to receive the response of the command
+ *	in a reply SKB. If it's not present, the response is not returned.
+ * @IWL_TM_ATTR_ENABLE_NOTIFICATIONS:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_NOTIFICATIONS, this
+ *	flag enables (if present) or disables (if not) the forwarding
+ *	to userspace.
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -254,12 +281,17 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_TRACE_DUMP			= 12,
 	IWL_TM_ATTR_FIXRATE			= 13,
 	IWL_TM_ATTR_UCODE_OWNER			= 14,
-	IWL_TM_ATTR_SRAM_ADDR			= 15,
-	IWL_TM_ATTR_SRAM_SIZE			= 16,
-	IWL_TM_ATTR_SRAM_DUMP			= 17,
+	IWL_TM_ATTR_MEM_ADDR			= 15,
+	IWL_TM_ATTR_BUFFER_SIZE			= 16,
+	IWL_TM_ATTR_BUFFER_DUMP			= 17,
 	IWL_TM_ATTR_FW_VERSION			= 18,
 	IWL_TM_ATTR_DEVICE_ID			= 19,
-	IWL_TM_ATTR_MAX				= 20,
+	IWL_TM_ATTR_FW_TYPE			= 20,
+	IWL_TM_ATTR_FW_INST_SIZE		= 21,
+	IWL_TM_ATTR_FW_DATA_SIZE		= 22,
+	IWL_TM_ATTR_UCODE_CMD_SKB		= 23,
+	IWL_TM_ATTR_ENABLE_NOTIFICATION		= 24,
+	IWL_TM_ATTR_MAX				= 25,
 };
 
 /* uCode trace buffer */
@@ -270,5 +302,8 @@ enum iwl_tm_attr_t {
 
 /* Maximum data size of each dump it packet */
 #define DUMP_CHUNK_SIZE		(PAGE_SIZE - 1024)
+
+/* Address offset of data segment in SRAM */
+#define SRAM_DATA_SEG_OFFSET   0x800000
 
 #endif

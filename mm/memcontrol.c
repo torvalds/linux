@@ -230,10 +230,30 @@ struct mem_cgroup {
 	 * the counter to account for memory usage
 	 */
 	struct res_counter res;
-	/*
-	 * the counter to account for mem+swap usage.
-	 */
-	struct res_counter memsw;
+
+	union {
+		/*
+		 * the counter to account for mem+swap usage.
+		 */
+		struct res_counter memsw;
+
+		/*
+		 * rcu_freeing is used only when freeing struct mem_cgroup,
+		 * so put it into a union to avoid wasting more memory.
+		 * It must be disjoint from the css field.  It could be
+		 * in a union with the res field, but res plays a much
+		 * larger part in mem_cgroup life than memsw, and might
+		 * be of interest, even at time of free, when debugging.
+		 * So share rcu_head with the less interesting memsw.
+		 */
+		struct rcu_head rcu_freeing;
+		/*
+		 * But when using vfree(), that cannot be done at
+		 * interrupt time, so we must then queue the work.
+		 */
+		struct work_struct work_freeing;
+	};
+
 	/*
 	 * Per cgroup active and inactive list, similar to the
 	 * per zone LRU lists.
@@ -4582,10 +4602,9 @@ static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
 	return mem_cgroup_sockets_init(cont, ss);
 };
 
-static void kmem_cgroup_destroy(struct cgroup_subsys *ss,
-				struct cgroup *cont)
+static void kmem_cgroup_destroy(struct cgroup *cont)
 {
-	mem_cgroup_sockets_destroy(cont, ss);
+	mem_cgroup_sockets_destroy(cont);
 }
 #else
 static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
@@ -4593,8 +4612,7 @@ static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
 	return 0;
 }
 
-static void kmem_cgroup_destroy(struct cgroup_subsys *ss,
-				struct cgroup *cont)
+static void kmem_cgroup_destroy(struct cgroup *cont)
 {
 }
 #endif
@@ -4780,6 +4798,27 @@ out_free:
 }
 
 /*
+ * Helpers for freeing a vzalloc()ed mem_cgroup by RCU,
+ * but in process context.  The work_freeing structure is overlaid
+ * on the rcu_freeing structure, which itself is overlaid on memsw.
+ */
+static void vfree_work(struct work_struct *work)
+{
+	struct mem_cgroup *memcg;
+
+	memcg = container_of(work, struct mem_cgroup, work_freeing);
+	vfree(memcg);
+}
+static void vfree_rcu(struct rcu_head *rcu_head)
+{
+	struct mem_cgroup *memcg;
+
+	memcg = container_of(rcu_head, struct mem_cgroup, rcu_freeing);
+	INIT_WORK(&memcg->work_freeing, vfree_work);
+	schedule_work(&memcg->work_freeing);
+}
+
+/*
  * At destroying mem_cgroup, references from swap_cgroup can remain.
  * (scanning all at force_empty is too costly...)
  *
@@ -4802,9 +4841,9 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
 
 	free_percpu(memcg->stat);
 	if (sizeof(struct mem_cgroup) < PAGE_SIZE)
-		kfree(memcg);
+		kfree_rcu(memcg, rcu_freeing);
 	else
-		vfree(memcg);
+		call_rcu(&memcg->rcu_freeing, vfree_rcu);
 }
 
 static void mem_cgroup_get(struct mem_cgroup *memcg)
@@ -4886,7 +4925,7 @@ err_cleanup:
 }
 
 static struct cgroup_subsys_state * __ref
-mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
+mem_cgroup_create(struct cgroup *cont)
 {
 	struct mem_cgroup *memcg, *parent;
 	long error = -ENOMEM;
@@ -4948,20 +4987,18 @@ free_out:
 	return ERR_PTR(error);
 }
 
-static int mem_cgroup_pre_destroy(struct cgroup_subsys *ss,
-					struct cgroup *cont)
+static int mem_cgroup_pre_destroy(struct cgroup *cont)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
 
 	return mem_cgroup_force_empty(memcg, false);
 }
 
-static void mem_cgroup_destroy(struct cgroup_subsys *ss,
-				struct cgroup *cont)
+static void mem_cgroup_destroy(struct cgroup *cont)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
 
-	kmem_cgroup_destroy(ss, cont);
+	kmem_cgroup_destroy(cont);
 
 	mem_cgroup_put(memcg);
 }
@@ -5298,9 +5335,8 @@ static void mem_cgroup_clear_mc(void)
 	mem_cgroup_end_move(from);
 }
 
-static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-				struct cgroup *cgroup,
-				struct cgroup_taskset *tset)
+static int mem_cgroup_can_attach(struct cgroup *cgroup,
+				 struct cgroup_taskset *tset)
 {
 	struct task_struct *p = cgroup_taskset_first(tset);
 	int ret = 0;
@@ -5338,9 +5374,8 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 	return ret;
 }
 
-static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-				struct cgroup *cgroup,
-				struct cgroup_taskset *tset)
+static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
+				     struct cgroup_taskset *tset)
 {
 	mem_cgroup_clear_mc();
 }
@@ -5455,9 +5490,8 @@ retry:
 	up_read(&mm->mmap_sem);
 }
 
-static void mem_cgroup_move_task(struct cgroup_subsys *ss,
-				struct cgroup *cont,
-				struct cgroup_taskset *tset)
+static void mem_cgroup_move_task(struct cgroup *cont,
+				 struct cgroup_taskset *tset)
 {
 	struct task_struct *p = cgroup_taskset_first(tset);
 	struct mm_struct *mm = get_task_mm(p);
@@ -5472,20 +5506,17 @@ static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 		mem_cgroup_clear_mc();
 }
 #else	/* !CONFIG_MMU */
-static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
-				struct cgroup *cgroup,
-				struct cgroup_taskset *tset)
+static int mem_cgroup_can_attach(struct cgroup *cgroup,
+				 struct cgroup_taskset *tset)
 {
 	return 0;
 }
-static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
-				struct cgroup *cgroup,
-				struct cgroup_taskset *tset)
+static void mem_cgroup_cancel_attach(struct cgroup *cgroup,
+				     struct cgroup_taskset *tset)
 {
 }
-static void mem_cgroup_move_task(struct cgroup_subsys *ss,
-				struct cgroup *cont,
-				struct cgroup_taskset *tset)
+static void mem_cgroup_move_task(struct cgroup *cont,
+				 struct cgroup_taskset *tset)
 {
 }
 #endif

@@ -534,14 +534,17 @@ static int atl1_get_permanent_address(struct atl1_hw *hw)
  */
 static s32 atl1_read_mac_addr(struct atl1_hw *hw)
 {
+	s32 ret = 0;
 	u16 i;
 
-	if (atl1_get_permanent_address(hw))
+	if (atl1_get_permanent_address(hw)) {
 		random_ether_addr(hw->perm_mac_addr);
+		ret = 1;
+	}
 
 	for (i = 0; i < ETH_ALEN; i++)
 		hw->mac_addr[i] = hw->perm_mac_addr[i];
-	return 0;
+	return ret;
 }
 
 /*
@@ -3007,7 +3010,10 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 	}
 
 	/* copy the MAC address out of the EEPROM */
-	atl1_read_mac_addr(&adapter->hw);
+	if (atl1_read_mac_addr(&adapter->hw)) {
+		/* mark random mac */
+		netdev->addr_assign_type |= NET_ADDR_RANDOM;
+	}
 	memcpy(netdev->dev_addr, adapter->hw.mac_addr, netdev->addr_len);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {

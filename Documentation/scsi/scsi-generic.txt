@@ -62,7 +62,7 @@ There are two packages of sg utilities:
                 and earlier
 Both packages will work in the lk 2.4 series however sg3_utils offers more
 capabilities. They can be found at: http://sg.danny.cz/sg/sg3_utils.html and 
-freshmeat.net
+freecode.com
 
 Another approach is to look at the applications that use the sg driver.
 These include cdrecord, cdparanoia, SANE and cdrdao.

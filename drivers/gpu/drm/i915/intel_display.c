@@ -7828,6 +7828,7 @@ int intel_framebuffer_init(struct drm_device *dev,
 	case DRM_FORMAT_RGB332:
 	case DRM_FORMAT_RGB565:
 	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_ARGB8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_ARGB2101010:

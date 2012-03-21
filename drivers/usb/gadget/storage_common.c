@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2003-2008 Alan Stern
  * Copyeight (C) 2009 Samsung Electronics
- * Author: Michal Nazarewicz (m.nazarewicz@samsung.com)
+ * Author: Michal Nazarewicz (mina86@mina86.com)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -145,47 +145,7 @@
 
 #endif /* DUMP_MSGS */
 
-
-
-
-
 /*-------------------------------------------------------------------------*/
-
-/* Bulk-only data structures */
-
-/* Command Block Wrapper */
-struct fsg_bulk_cb_wrap {
-	__le32	Signature;		/* Contains 'USBC' */
-	u32	Tag;			/* Unique per command id */
-	__le32	DataTransferLength;	/* Size of the data */
-	u8	Flags;			/* Direction in bit 7 */
-	u8	Lun;			/* LUN (normally 0) */
-	u8	Length;			/* Of the CDB, <= MAX_COMMAND_SIZE */
-	u8	CDB[16];		/* Command Data Block */
-};
-
-#define USB_BULK_CB_WRAP_LEN	31
-#define USB_BULK_CB_SIG		0x43425355	/* Spells out USBC */
-#define USB_BULK_IN_FLAG	0x80
-
-/* Command Status Wrapper */
-struct bulk_cs_wrap {
-	__le32	Signature;		/* Should = 'USBS' */
-	u32	Tag;			/* Same as original command */
-	__le32	Residue;		/* Amount not transferred */
-	u8	Status;			/* See below */
-};
-
-#define USB_BULK_CS_WRAP_LEN	13
-#define USB_BULK_CS_SIG		0x53425355	/* Spells out 'USBS' */
-#define USB_STATUS_PASS		0
-#define USB_STATUS_FAIL		1
-#define USB_STATUS_PHASE_ERROR	2
-
-/* Bulk-only class specific requests */
-#define USB_BULK_RESET_REQUEST		0xff
-#define USB_BULK_GET_MAX_LUN_REQUEST	0xfe
-
 
 /* CBI Interrupt data structure */
 struct interrupt_data {

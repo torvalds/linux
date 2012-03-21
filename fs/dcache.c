@@ -105,10 +105,10 @@ static unsigned int d_hash_shift __read_mostly;
 static struct hlist_bl_head *dentry_hashtable __read_mostly;
 
 static inline struct hlist_bl_head *d_hash(const struct dentry *parent,
-					unsigned long hash)
+					unsigned int hash)
 {
-	hash += ((unsigned long) parent ^ GOLDEN_RATIO_PRIME) / L1_CACHE_BYTES;
-	hash = hash ^ ((hash ^ GOLDEN_RATIO_PRIME) >> D_HASHBITS);
+	hash += (unsigned long) parent / L1_CACHE_BYTES;
+	hash = hash + (hash >> D_HASHBITS);
 	return dentry_hashtable + (hash & D_HASHMASK);
 }
 
@@ -144,6 +144,28 @@ int proc_nr_dentry(ctl_table *table, int write, void __user *buffer,
 static inline int dentry_cmp(const unsigned char *cs, size_t scount,
 				const unsigned char *ct, size_t tcount)
 {
+#ifdef CONFIG_DCACHE_WORD_ACCESS
+	unsigned long a,b,mask;
+
+	if (unlikely(scount != tcount))
+		return 1;
+
+	for (;;) {
+		a = *(unsigned long *)cs;
+		b = *(unsigned long *)ct;
+		if (tcount < sizeof(unsigned long))
+			break;
+		if (unlikely(a != b))
+			return 1;
+		cs += sizeof(unsigned long);
+		ct += sizeof(unsigned long);
+		tcount -= sizeof(unsigned long);
+		if (!tcount)
+			return 0;
+	}
+	mask = ~(~0ul << tcount*8);
+	return unlikely(!!((a ^ b) & mask));
+#else
 	if (scount != tcount)
 		return 1;
 
@@ -155,6 +177,7 @@ static inline int dentry_cmp(const unsigned char *cs, size_t scount,
 		tcount--;
 	} while (tcount);
 	return 0;
+#endif
 }
 
 static void __d_free(struct rcu_head *head)

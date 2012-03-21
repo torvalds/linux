@@ -187,7 +187,7 @@ typedef struct {
 #endif
 
 #include <linux/ppp_defs.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 
 #include <linux/isdn_ppp.h>
 #endif

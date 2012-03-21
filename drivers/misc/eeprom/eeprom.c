@@ -229,22 +229,10 @@ static struct i2c_driver eeprom_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init eeprom_init(void)
-{
-	return i2c_add_driver(&eeprom_driver);
-}
-
-static void __exit eeprom_exit(void)
-{
-	i2c_del_driver(&eeprom_driver);
-}
-
+module_i2c_driver(eeprom_driver);
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl> and "
 		"Philip Edelbrock <phil@netroedge.com> and "
 		"Greg Kroah-Hartman <greg@kroah.com>");
 MODULE_DESCRIPTION("I2C EEPROM driver");
 MODULE_LICENSE("GPL");
-
-module_init(eeprom_init);
-module_exit(eeprom_exit);

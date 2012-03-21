@@ -3470,20 +3470,20 @@ cfq_set_request(struct request_queue *q, struct request *rq, gfp_t gfp_mask)
 	const int rw = rq_data_dir(rq);
 	const bool is_sync = rq_is_sync(rq);
 	struct cfq_queue *cfqq;
+	unsigned int changed;
 
 	might_sleep_if(gfp_mask & __GFP_WAIT);
 
 	spin_lock_irq(q->queue_lock);
 
 	/* handle changed notifications */
-	if (unlikely(cic->icq.changed)) {
-		if (test_and_clear_bit(ICQ_IOPRIO_CHANGED, &cic->icq.changed))
-			changed_ioprio(cic);
+	changed = icq_get_changed(&cic->icq);
+	if (unlikely(changed & ICQ_IOPRIO_CHANGED))
+		changed_ioprio(cic);
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-		if (test_and_clear_bit(ICQ_CGROUP_CHANGED, &cic->icq.changed))
-			changed_cgroup(cic);
+	if (unlikely(changed & ICQ_CGROUP_CHANGED))
+		changed_cgroup(cic);
 #endif
-	}
 
 new_queue:
 	cfqq = cic_to_cfqq(cic, is_sync);

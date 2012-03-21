@@ -66,21 +66,6 @@ config TTY_PRINTK
 
 	  If unsure, say N.
 
-config BRIQ_PANEL
-	tristate 'Total Impact briQ front panel driver'
-	depends on PPC_CHRP
-	---help---
-	  The briQ is a small footprint CHRP computer with a frontpanel VFD, a
-	  tristate led and two switches. It is the size of a CDROM drive.
-
-	  If you have such one and want anything showing on the VFD then you
-	  must answer Y here.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called briq_panel.
-
-	  It's safe to say N here.
-
 config BFIN_OTP
 	tristate "Blackfin On-Chip OTP Memory Support"
 	depends on BLACKFIN && (BF51x || BF52x || BF54x)

@@ -128,14 +128,14 @@ s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw)
 	/* Disable relaxed ordering */
 	for (i = 0; i < hw->mac.max_tx_queues; i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL_82599(i));
-		regval &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		regval &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL_82599(i), regval);
 	}
 
 	for (i = 0; i < hw->mac.max_rx_queues; i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
-		regval &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-					IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		regval &= ~(IXGBE_DCA_RXCTRL_DATA_WRO_EN |
+			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
 
@@ -2585,6 +2585,58 @@ void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u16 mask)
 }
 
 /**
+ *  ixgbe_disable_rx_buff_generic - Stops the receive data path
+ *  @hw: pointer to hardware structure
+ *
+ *  Stops the receive data path and waits for the HW to internally
+ *  empty the Rx security block.
+ **/
+s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw)
+{
+#define IXGBE_MAX_SECRX_POLL 40
+	int i;
+	int secrxreg;
+
+	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
+	secrxreg |= IXGBE_SECRXCTRL_RX_DIS;
+	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, secrxreg);
+	for (i = 0; i < IXGBE_MAX_SECRX_POLL; i++) {
+		secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXSTAT);
+		if (secrxreg & IXGBE_SECRXSTAT_SECRX_RDY)
+			break;
+		else
+			/* Use interrupt-safe sleep just in case */
+			udelay(10);
+	}
+
+	/* For informational purposes only */
+	if (i >= IXGBE_MAX_SECRX_POLL)
+		hw_dbg(hw, "Rx unit being enabled before security "
+		       "path fully disabled.  Continuing with init.\n");
+
+	return 0;
+
+}
+
+/**
+ *  ixgbe_enable_rx_buff - Enables the receive data path
+ *  @hw: pointer to hardware structure
+ *
+ *  Enables the receive data path
+ **/
+s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw)
+{
+	int secrxreg;
+
+	secrxreg = IXGBE_READ_REG(hw, IXGBE_SECRXCTRL);
+	secrxreg &= ~IXGBE_SECRXCTRL_RX_DIS;
+	IXGBE_WRITE_REG(hw, IXGBE_SECRXCTRL, secrxreg);
+	IXGBE_WRITE_FLUSH(hw);
+
+	return 0;
+}
+
+/**
  *  ixgbe_enable_rx_dma_generic - Enable the Rx DMA unit
  *  @hw: pointer to hardware structure
  *  @regval: register value to write to RXCTRL
@@ -3343,7 +3395,7 @@ static u8 ixgbe_calculate_checksum(u8 *buffer, u32 length)
  *  @hw: pointer to the HW structure
  *  @buffer: contains the command to write and where the return status will
  *           be placed
- *  @lenght: lenght of buffer, must be multiple of 4 bytes
+ *  @length: length of buffer, must be multiple of 4 bytes
  *
  *  Communicates with the manageability block.  On success return 0
  *  else return IXGBE_ERR_HOST_INTERFACE_COMMAND.

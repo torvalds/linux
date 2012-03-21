@@ -257,7 +257,6 @@ static int __init bfin_jc_init(void)
 	if (!bfin_jc_driver)
 		goto err_driver;
 
-	bfin_jc_driver->owner        = THIS_MODULE;
 	bfin_jc_driver->driver_name  = DRV_NAME;
 	bfin_jc_driver->name         = DEV_NAME;
 	bfin_jc_driver->type         = TTY_DRIVER_TYPE_SERIAL;

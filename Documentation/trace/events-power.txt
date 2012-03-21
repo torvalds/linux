@@ -57,7 +57,7 @@ power_end		"cpu_id=%lu"
 The 'type' parameter takes one of those macros:
  . POWER_NONE	= 0,
  . POWER_CSTATE	= 1,	/* C-State */
- . POWER_PSTATE	= 2,	/* Fequency change or DVFS */
+ . POWER_PSTATE	= 2,	/* Frequency change or DVFS */
 
 The 'state' parameter is set depending on the type:
  . Target C-state for type=POWER_CSTATE,

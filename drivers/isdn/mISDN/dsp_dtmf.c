@@ -61,31 +61,31 @@ void dsp_dtmf_hardware(struct dsp *dsp)
 	if (dsp->tx_volume) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
 			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
-				"because tx_volume is changed\n",
-				__func__, dsp->name);
+			       "because tx_volume is changed\n",
+			       __func__, dsp->name);
 		hardware = 0;
 	}
 	if (dsp->rx_volume) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
 			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
-				"because rx_volume is changed\n",
-				__func__, dsp->name);
+			       "because rx_volume is changed\n",
+			       __func__, dsp->name);
 		hardware = 0;
 	}
 	/* check if encryption is enabled */
 	if (dsp->bf_enable) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
 			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
-				"because encryption is enabled\n",
-				__func__, dsp->name);
+			       "because encryption is enabled\n",
+			       __func__, dsp->name);
 		hardware = 0;
 	}
 	/* check if pipeline exists */
 	if (dsp->pipeline.inuse) {
 		if (dsp_debug & DEBUG_DSP_DTMF)
 			printk(KERN_DEBUG "%s dsp %s cannot do hardware DTMF, "
-				"because pipeline exists.\n",
-				__func__, dsp->name);
+			       "because pipeline exists.\n",
+			       __func__, dsp->name);
 		hardware = 0;
 	}
 
@@ -150,23 +150,23 @@ again:
 		if (len < 64) {
 			if (len > 0)
 				printk(KERN_ERR "%s: coefficients have invalid "
-					"size. (is=%d < must=%d)\n",
-					__func__, len, 64);
+				       "size. (is=%d < must=%d)\n",
+				       __func__, len, 64);
 			return dsp->dtmf.digits;
 		}
 		hfccoeff = (s32 *)data;
 		for (k = 0; k < NCOEFF; k++) {
-			sk2 = (*hfccoeff++)>>4;
-			sk = (*hfccoeff++)>>4;
+			sk2 = (*hfccoeff++) >> 4;
+			sk = (*hfccoeff++) >> 4;
 			if (sk > 32767 || sk < -32767 || sk2 > 32767
 			    || sk2 < -32767)
 				printk(KERN_WARNING
-					"DTMF-Detection overflow\n");
+				       "DTMF-Detection overflow\n");
 			/* compute |X(k)|**2 */
 			result[k] =
-				 (sk * sk) -
-				 (((cos2pik[k] * sk) >> 15) * sk2) +
-				 (sk2 * sk2);
+				(sk * sk) -
+				(((cos2pik[k] * sk) >> 15) * sk2) +
+				(sk2 * sk2);
 		}
 		data += 64;
 		len -= 64;
@@ -188,7 +188,7 @@ again:
 		buf = dsp->dtmf.buffer;
 		cos2pik_ = cos2pik[k];
 		for (n = 0; n < DSP_DTMF_NPOINTS; n++) {
-			sk = ((cos2pik_*sk1)>>15) - sk2 + (*buf++);
+			sk = ((cos2pik_ * sk1) >> 15) - sk2 + (*buf++);
 			sk2 = sk1;
 			sk1 = sk;
 		}
@@ -224,14 +224,14 @@ coefficients:
 
 	if (dsp_debug & DEBUG_DSP_DTMFCOEFF)
 		printk(KERN_DEBUG "a %3d %3d %3d %3d %3d %3d %3d %3d"
-			" tr:%3d r %3d %3d %3d %3d %3d %3d %3d %3d\n",
-			result[0]/10000, result[1]/10000, result[2]/10000,
-			result[3]/10000, result[4]/10000, result[5]/10000,
-			result[6]/10000, result[7]/10000, tresh/10000,
-			result[0]/(tresh/100), result[1]/(tresh/100),
-			result[2]/(tresh/100), result[3]/(tresh/100),
-			result[4]/(tresh/100), result[5]/(tresh/100),
-			result[6]/(tresh/100), result[7]/(tresh/100));
+		       " tr:%3d r %3d %3d %3d %3d %3d %3d %3d %3d\n",
+		       result[0] / 10000, result[1] / 10000, result[2] / 10000,
+		       result[3] / 10000, result[4] / 10000, result[5] / 10000,
+		       result[6] / 10000, result[7] / 10000, tresh / 10000,
+		       result[0] / (tresh / 100), result[1] / (tresh / 100),
+		       result[2] / (tresh / 100), result[3] / (tresh / 100),
+		       result[4] / (tresh / 100), result[5] / (tresh / 100),
+		       result[6] / (tresh / 100), result[7] / (tresh / 100));
 
 	/* calc digit (lowgroup/highgroup) */
 	lowgroup = -1;
@@ -247,7 +247,7 @@ coefficients:
 			break;  /* noise in between */
 		}
 		/* good level found. This is allowed only one time per group */
-		if (i < NCOEFF/2) {
+		if (i < NCOEFF / 2) {
 			/* lowgroup */
 			if (lowgroup >= 0) {
 				/* Bad. Another tone found. */
@@ -262,7 +262,7 @@ coefficients:
 				highgroup = -1;
 				break;
 			} else
-				highgroup = i-(NCOEFF/2);
+				highgroup = i - (NCOEFF / 2);
 		}
 	}
 
@@ -285,13 +285,13 @@ storedigit:
 			if (what) {
 				if (dsp_debug & DEBUG_DSP_DTMF)
 					printk(KERN_DEBUG "DTMF digit: %c\n",
-						what);
-				if ((strlen(dsp->dtmf.digits)+1)
-					< sizeof(dsp->dtmf.digits)) {
+					       what);
+				if ((strlen(dsp->dtmf.digits) + 1)
+				    < sizeof(dsp->dtmf.digits)) {
 					dsp->dtmf.digits[strlen(
-						dsp->dtmf.digits)+1] = '\0';
+							dsp->dtmf.digits) + 1] = '\0';
 					dsp->dtmf.digits[strlen(
-						dsp->dtmf.digits)] = what;
+							dsp->dtmf.digits)] = what;
 				}
 			}
 		}
@@ -302,5 +302,3 @@ storedigit:
 
 	goto again;
 }
-
-

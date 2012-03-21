@@ -3450,7 +3450,7 @@ static struct se_node_acl *srpt_alloc_fabric_acl(struct se_portal_group *se_tpg)
 
 	nacl = kzalloc(sizeof(struct srpt_node_acl), GFP_KERNEL);
 	if (!nacl) {
-		printk(KERN_ERR "Unable to alocate struct srpt_node_acl\n");
+		printk(KERN_ERR "Unable to allocate struct srpt_node_acl\n");
 		return NULL;
 	}
 

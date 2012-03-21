@@ -3,43 +3,6 @@
 
 #include <linux/blkdev.h>
 
-/* Bulk only data structures */
-
-/* command block wrapper */
-struct bulk_cb_wrap {
-	__le32	Signature;			/* contains 'USBC' */
-	__u32	Tag;				/* unique per command id */
-	__le32	DataTransferLength;	/* size of data */
-	__u8	Flags;				/* direction in bit 0 */
-	__u8	Lun;					/* LUN normally 0 */
-	__u8	Length;				/* of of the CDB */
-	__u8	CDB[16];				/* max command */
-};
-
-#define US_BULK_CB_WRAP_LEN	31
-#define US_BULK_CB_SIGN		0x43425355	/*spells out USBC */
-#define US_BULK_FLAG_IN		1
-#define US_BULK_FLAG_OUT	0
-
-/* command status wrapper */
-struct bulk_cs_wrap {
-	__le32	Signature;		/* should = 'USBS' */
-	__u32		Tag;			/* same as original command */
-	__le32	Residue;		/* amount not transferred */
-	__u8		Status;		/* see below */
-	__u8		Filler[18];
-};
-
-#define US_BULK_CS_WRAP_LEN	13
-#define US_BULK_CS_SIGN		0x53425355	/* spells out 'USBS' */
-#define US_BULK_STAT_OK		0
-#define US_BULK_STAT_FAIL	1
-#define US_BULK_STAT_PHASE	2
-
-/* bulk-only class specific requests */
-#define US_BULK_RESET_REQUEST	0xff
-#define US_BULK_GET_MAX_LUN	0xfe
-
 /* usb_stor_bulk_transfer_xxx() return codes, in order of severity */
 #define USB_STOR_XFER_GOOD	0	/* good transfer                 */
 #define USB_STOR_XFER_SHORT	1	/* transferred less than expected */

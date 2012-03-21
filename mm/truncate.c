@@ -184,7 +184,7 @@ int invalidate_inode_page(struct page *page)
 }
 
 /**
- * truncate_inode_pages - truncate range of pages specified by start & end byte offsets
+ * truncate_inode_pages_range - truncate range of pages specified by start & end byte offsets
  * @mapping: mapping to truncate
  * @lstart: offset from which to truncate
  * @lend: offset to which to truncate

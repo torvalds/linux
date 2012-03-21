@@ -1,52 +1,52 @@
 /*
  *
-  Copyright (c) Eicon Networks, 2000.
+ Copyright (c) Eicon Networks, 2000.
  *
-  This source file is supplied for the use with
-  Eicon Networks range of DIVA Server Adapters.
+ This source file is supplied for the use with
+ Eicon Networks range of DIVA Server Adapters.
  *
-  Eicon File Revision :    1.9
+ Eicon File Revision :    1.9
  *
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
  *
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
+ implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ See the GNU General Public License for more details.
  *
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 #ifndef __DIVA_EICON_TRACE_IDI_IFC_H__
 #define __DIVA_EICON_TRACE_IDI_IFC_H__
 
-void* SuperTraceOpenAdapter   (int AdapterNumber);
-int   SuperTraceCloseAdapter  (void* AdapterHandle);
-int   SuperTraceWrite         (void* AdapterHandle,
-                               const void* data, int length);
-int   SuperTraceReadRequest   (void* AdapterHandle,const char* name,byte* data);
-int   SuperTraceGetNumberOfChannels (void* AdapterHandle);
-int   SuperTraceASSIGN        (void* AdapterHandle, byte* data);
-int   SuperTraceREMOVE        (void* AdapterHandle);
-int   SuperTraceTraceOnRequest(void* hAdapter, const char* name, byte* data);
-int   SuperTraceWriteVar (void* AdapterHandle,
-												byte* data,
-										 		const char* name,
-										 		void* var,
-										 		byte type,
-										 		byte var_length);
-int   SuperTraceExecuteRequest (void* AdapterHandle,
-																const char* name,
-																byte* data);
+void *SuperTraceOpenAdapter(int AdapterNumber);
+int SuperTraceCloseAdapter(void *AdapterHandle);
+int SuperTraceWrite(void *AdapterHandle,
+		    const void *data, int length);
+int SuperTraceReadRequest(void *AdapterHandle, const char *name, byte *data);
+int SuperTraceGetNumberOfChannels(void *AdapterHandle);
+int SuperTraceASSIGN(void *AdapterHandle, byte *data);
+int SuperTraceREMOVE(void *AdapterHandle);
+int SuperTraceTraceOnRequest(void *hAdapter, const char *name, byte *data);
+int SuperTraceWriteVar(void *AdapterHandle,
+		       byte *data,
+		       const char *name,
+		       void *var,
+		       byte type,
+		       byte var_length);
+int SuperTraceExecuteRequest(void *AdapterHandle,
+			     const char *name,
+			     byte *data);
 
 typedef struct _diva_strace_path2action {
-	char               path[64]; /* Full path to variable            */
-	void*							 variable; /* Variable that will receive value */
+	char path[64]; /* Full path to variable            */
+	void *variable; /* Variable that will receive value */
 } diva_strace_path2action_t;
 
 #define DIVA_MAX_MANAGEMENT_TRANSFER_SIZE 4096
@@ -54,27 +54,27 @@ typedef struct _diva_strace_path2action {
 typedef struct _diva_strace_context {
 	diva_strace_library_interface_t	instance;
 
-	int   Adapter;
-	void* hAdapter;
+	int Adapter;
+	void *hAdapter;
 
 	int Channels;
-	int	req_busy;
+	int req_busy;
 
-  ENTITY   e;
-  IDI_CALL request;
-  BUFFERS  XData;
-  BUFFERS  RData;
+	ENTITY e;
+	IDI_CALL request;
+	BUFFERS XData;
+	BUFFERS RData;
 	byte buffer[DIVA_MAX_MANAGEMENT_TRANSFER_SIZE + 1];
-  int removal_state;
-  int general_b_ch_event;
-  int general_fax_event;
-  int general_mdm_event;
+	int removal_state;
+	int general_b_ch_event;
+	int general_fax_event;
+	int general_mdm_event;
 
-	byte	rc_ok;
+	byte rc_ok;
 
 	/*
-		Initialization request state machine
-		*/
+	  Initialization request state machine
+	*/
 	int ChannelsTraceActive;
 	int ModemTraceActive;
 	int FaxTraceActive;
@@ -93,8 +93,8 @@ typedef struct _diva_strace_context {
 	int l2_trace;
 
 	/*
-		Trace\Event Enable
-		*/
+	  Trace\Event Enable
+	*/
 	word trace_event_mask;
 	word current_trace_event_mask;
 
@@ -112,7 +112,7 @@ typedef struct _diva_strace_context {
 
 	int	parse_entries;
 	int	cur_parse_entry;
-	diva_strace_path2action_t* parse_table;
+	diva_strace_path2action_t *parse_table;
 
 	diva_trace_library_user_interface_t user_proc_table;
 
@@ -169,4 +169,3 @@ typedef struct _diva_man_var_header {
 } diva_man_var_header_t;
 
 #endif
-

@@ -868,6 +868,7 @@ static int team_set_mac_address(struct net_device *dev, void *p)
 	struct team_port *port;
 	struct sockaddr *addr = p;
 
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list)
@@ -1087,7 +1088,7 @@ static int team_newlink(struct net *src_net, struct net_device *dev,
 	int err;
 
 	if (tb[IFLA_ADDRESS] == NULL)
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 
 	err = register_netdevice(dev);
 	if (err)

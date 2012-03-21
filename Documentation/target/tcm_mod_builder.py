@@ -775,7 +775,7 @@ def tcm_mod_dump_fabric_ops(proto_ident, fabric_mod_dir_var, fabric_mod_name):
 			buf += "	struct " + fabric_mod_name + "_nacl *nacl;\n\n"
 			buf += "	nacl = kzalloc(sizeof(struct " + fabric_mod_name + "_nacl), GFP_KERNEL);\n"
 			buf += "	if (!nacl) {\n"
-			buf += "		printk(KERN_ERR \"Unable to alocate struct " + fabric_mod_name + "_nacl\\n\");\n"
+			buf += "		printk(KERN_ERR \"Unable to allocate struct " + fabric_mod_name + "_nacl\\n\");\n"
 			buf += "		return NULL;\n"
 			buf += "	}\n\n"
 			buf += "	return &nacl->se_node_acl;\n"

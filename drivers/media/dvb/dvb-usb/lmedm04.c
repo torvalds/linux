@@ -1054,7 +1054,7 @@ static int dm04_lme2510_tuner(struct dvb_usb_adapter *adap)
 	if (ret)
 		info("TUN Found %s tuner", tun_msg[ret]);
 	else {
-		info("TUN No tuner found --- reseting device");
+		info("TUN No tuner found --- resetting device");
 		lme_coldreset(adap->dev->udev);
 		return -ENODEV;
 	}

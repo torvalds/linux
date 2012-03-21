@@ -31,16 +31,33 @@ ftrace_enable_sysctl(struct ctl_table *table, int write,
 
 typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip);
 
+/*
+ * FTRACE_OPS_FL_* bits denote the state of ftrace_ops struct and are
+ * set in the flags member.
+ *
+ * ENABLED - set/unset when ftrace_ops is registered/unregistered
+ * GLOBAL  - set manualy by ftrace_ops user to denote the ftrace_ops
+ *           is part of the global tracers sharing the same filter
+ *           via set_ftrace_* debugfs files.
+ * DYNAMIC - set when ftrace_ops is registered to denote dynamically
+ *           allocated ftrace_ops which need special care
+ * CONTROL - set manualy by ftrace_ops user to denote the ftrace_ops
+ *           could be controled by following calls:
+ *             ftrace_function_local_enable
+ *             ftrace_function_local_disable
+ */
 enum {
 	FTRACE_OPS_FL_ENABLED		= 1 << 0,
 	FTRACE_OPS_FL_GLOBAL		= 1 << 1,
 	FTRACE_OPS_FL_DYNAMIC		= 1 << 2,
+	FTRACE_OPS_FL_CONTROL		= 1 << 3,
 };
 
 struct ftrace_ops {
 	ftrace_func_t			func;
 	struct ftrace_ops		*next;
 	unsigned long			flags;
+	int __percpu			*disabled;
 #ifdef CONFIG_DYNAMIC_FTRACE
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
@@ -96,6 +113,55 @@ static inline void ftrace_start(void)
 int register_ftrace_function(struct ftrace_ops *ops);
 int unregister_ftrace_function(struct ftrace_ops *ops);
 void clear_ftrace_function(void);
+
+/**
+ * ftrace_function_local_enable - enable controlled ftrace_ops on current cpu
+ *
+ * This function enables tracing on current cpu by decreasing
+ * the per cpu control variable.
+ * It must be called with preemption disabled and only on ftrace_ops
+ * registered with FTRACE_OPS_FL_CONTROL. If called without preemption
+ * disabled, this_cpu_ptr will complain when CONFIG_DEBUG_PREEMPT is enabled.
+ */
+static inline void ftrace_function_local_enable(struct ftrace_ops *ops)
+{
+	if (WARN_ON_ONCE(!(ops->flags & FTRACE_OPS_FL_CONTROL)))
+		return;
+
+	(*this_cpu_ptr(ops->disabled))--;
+}
+
+/**
+ * ftrace_function_local_disable - enable controlled ftrace_ops on current cpu
+ *
+ * This function enables tracing on current cpu by decreasing
+ * the per cpu control variable.
+ * It must be called with preemption disabled and only on ftrace_ops
+ * registered with FTRACE_OPS_FL_CONTROL. If called without preemption
+ * disabled, this_cpu_ptr will complain when CONFIG_DEBUG_PREEMPT is enabled.
+ */
+static inline void ftrace_function_local_disable(struct ftrace_ops *ops)
+{
+	if (WARN_ON_ONCE(!(ops->flags & FTRACE_OPS_FL_CONTROL)))
+		return;
+
+	(*this_cpu_ptr(ops->disabled))++;
+}
+
+/**
+ * ftrace_function_local_disabled - returns ftrace_ops disabled value
+ *                                  on current cpu
+ *
+ * This function returns value of ftrace_ops::disabled on current cpu.
+ * It must be called with preemption disabled and only on ftrace_ops
+ * registered with FTRACE_OPS_FL_CONTROL. If called without preemption
+ * disabled, this_cpu_ptr will complain when CONFIG_DEBUG_PREEMPT is enabled.
+ */
+static inline int ftrace_function_local_disabled(struct ftrace_ops *ops)
+{
+	WARN_ON_ONCE(!(ops->flags & FTRACE_OPS_FL_CONTROL));
+	return *this_cpu_ptr(ops->disabled);
+}
 
 extern void ftrace_stub(unsigned long a0, unsigned long a1);
 
@@ -178,12 +244,13 @@ struct dyn_ftrace {
 };
 
 int ftrace_force_update(void);
-void ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
+int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
 		       int len, int reset);
-void ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
+int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
 			int len, int reset);
 void ftrace_set_global_filter(unsigned char *buf, int len, int reset);
 void ftrace_set_global_notrace(unsigned char *buf, int len, int reset);
+void ftrace_free_filter(struct ftrace_ops *ops);
 
 int register_ftrace_command(struct ftrace_func_command *cmd);
 int unregister_ftrace_command(struct ftrace_func_command *cmd);
@@ -314,9 +381,6 @@ extern void ftrace_enable_daemon(void);
 #else
 static inline int skip_trace(unsigned long ip) { return 0; }
 static inline int ftrace_force_update(void) { return 0; }
-static inline void ftrace_set_filter(unsigned char *buf, int len, int reset)
-{
-}
 static inline void ftrace_disable_daemon(void) { }
 static inline void ftrace_enable_daemon(void) { }
 static inline void ftrace_release_mod(struct module *mod) {}
@@ -340,6 +404,9 @@ static inline int ftrace_text_reserved(void *start, void *end)
  */
 #define ftrace_regex_open(ops, flag, inod, file) ({ -ENODEV; })
 #define ftrace_set_early_filter(ops, buf, enable) do { } while (0)
+#define ftrace_set_filter(ops, buf, len, reset) ({ -ENODEV; })
+#define ftrace_set_notrace(ops, buf, len, reset) ({ -ENODEV; })
+#define ftrace_free_filter(ops) do { } while (0)
 
 static inline ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos) { return -ENODEV; }

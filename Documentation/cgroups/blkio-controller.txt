@@ -94,11 +94,11 @@ Throttling/Upper Limit policy
 
 Hierarchical Cgroups
 ====================
-- Currently none of the IO control policy supports hierarhical groups. But
-  cgroup interface does allow creation of hierarhical cgroups and internally
+- Currently none of the IO control policy supports hierarchical groups. But
+  cgroup interface does allow creation of hierarchical cgroups and internally
   IO policies treat them as flat hierarchy.
 
-  So this patch will allow creation of cgroup hierarhcy but at the backend
+  So this patch will allow creation of cgroup hierarchcy but at the backend
   everything will be treated as flat. So if somebody created a hierarchy like
   as follows.
 
@@ -266,7 +266,7 @@ Proportional weight policy files
 - blkio.idle_time
 	- Debugging aid only enabled if CONFIG_DEBUG_BLK_CGROUP=y.
 	  This is the amount of time spent by the IO scheduler idling for a
-	  given cgroup in anticipation of a better request than the exising ones
+	  given cgroup in anticipation of a better request than the existing ones
 	  from other queues/cgroups. This is in nanoseconds. If this is read
 	  when the cgroup is in an idling state, the stat will only report the
 	  idle_time accumulated till the last idle period and will not include
@@ -283,34 +283,34 @@ Throttling/Upper limit policy files
 -----------------------------------
 - blkio.throttle.read_bps_device
 	- Specifies upper limit on READ rate from the device. IO rate is
-	  specified in bytes per second. Rules are per deivce. Following is
+	  specified in bytes per second. Rules are per device. Following is
 	  the format.
 
   echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.throttle.read_bps_device
 
 - blkio.throttle.write_bps_device
 	- Specifies upper limit on WRITE rate to the device. IO rate is
-	  specified in bytes per second. Rules are per deivce. Following is
+	  specified in bytes per second. Rules are per device. Following is
 	  the format.
 
   echo "<major>:<minor>  <rate_bytes_per_second>" > /cgrp/blkio.throttle.write_bps_device
 
 - blkio.throttle.read_iops_device
 	- Specifies upper limit on READ rate from the device. IO rate is
-	  specified in IO per second. Rules are per deivce. Following is
+	  specified in IO per second. Rules are per device. Following is
 	  the format.
 
   echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.throttle.read_iops_device
 
 - blkio.throttle.write_iops_device
 	- Specifies upper limit on WRITE rate to the device. IO rate is
-	  specified in io per second. Rules are per deivce. Following is
+	  specified in io per second. Rules are per device. Following is
 	  the format.
 
   echo "<major>:<minor>  <rate_io_per_second>" > /cgrp/blkio.throttle.write_iops_device
 
 Note: If both BW and IOPS rules are specified for a device, then IO is
-      subjectd to both the constraints.
+      subjected to both the constraints.
 
 - blkio.throttle.io_serviced
 	- Number of IOs (bio) completed to/from the disk by the group (as

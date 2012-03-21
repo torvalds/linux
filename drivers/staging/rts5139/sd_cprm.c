@@ -233,7 +233,7 @@ RTY_SEND_CMD:
 	return STATUS_SUCCESS;
 }
 
-int ext_sd_get_rsp(struct rts51x_chip *chip, int len, u8 * rsp, u8 rsp_type)
+int ext_sd_get_rsp(struct rts51x_chip *chip, int len, u8 *rsp, u8 rsp_type)
 {
 	int retval, rsp_len;
 	u16 reg_addr;

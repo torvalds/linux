@@ -38,10 +38,8 @@ static int vnic_wq_alloc_bufs(struct vnic_wq *wq)
 
 	for (i = 0; i < blks; i++) {
 		wq->bufs[i] = kzalloc(VNIC_WQ_BUF_BLK_SZ(count), GFP_ATOMIC);
-		if (!wq->bufs[i]) {
-			pr_err("Failed to alloc wq_bufs\n");
+		if (!wq->bufs[i])
 			return -ENOMEM;
-		}
 	}
 
 	for (i = 0; i < blks; i++) {

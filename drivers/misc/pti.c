@@ -481,13 +481,9 @@ static int pti_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	int idx = tty->index;
 	struct pti_tty *pti_tty_data;
-	int ret = tty_init_termios(tty);
+	int ret = tty_standard_install(driver, tty);
 
 	if (ret == 0) {
-		tty_driver_kref_get(driver);
-		tty->count++;
-		driver->ttys[idx] = tty;
-
 		pti_tty_data = kmalloc(sizeof(struct pti_tty), GFP_KERNEL);
 		if (pti_tty_data == NULL)
 			return -ENOMEM;
@@ -911,21 +907,17 @@ static int __init pti_init(void)
 
 	/* First register module as tty device */
 
-	pti_tty_driver = alloc_tty_driver(1);
+	pti_tty_driver = alloc_tty_driver(PTITTY_MINOR_NUM);
 	if (pti_tty_driver == NULL) {
 		pr_err("%s(%d): Memory allocation failed for ptiTTY driver\n",
 			__func__, __LINE__);
 		return -ENOMEM;
 	}
 
-	pti_tty_driver->owner			= THIS_MODULE;
-	pti_tty_driver->magic			= TTY_DRIVER_MAGIC;
 	pti_tty_driver->driver_name		= DRIVERNAME;
 	pti_tty_driver->name			= TTYNAME;
 	pti_tty_driver->major			= 0;
 	pti_tty_driver->minor_start		= PTITTY_MINOR_START;
-	pti_tty_driver->minor_num		= PTITTY_MINOR_NUM;
-	pti_tty_driver->num			= PTITTY_MINOR_NUM;
 	pti_tty_driver->type			= TTY_DRIVER_TYPE_SYSTEM;
 	pti_tty_driver->subtype			= SYSTEM_TYPE_SYSCONS;
 	pti_tty_driver->flags			= TTY_DRIVER_REAL_RAW |

@@ -82,6 +82,7 @@ config X86
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_IOMAP
+	select DCACHE_WORD_ACCESS if !DEBUG_PAGEALLOC
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -177,6 +178,9 @@ config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
 config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
+config ARCH_HAS_CPU_AUTOPROBE
 	def_bool y
 
 config HAVE_SETUP_PER_CPU_AREA

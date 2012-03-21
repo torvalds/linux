@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/pci_ids.h>
 #include <linux/if_ether.h>
 #include <net/mac80211.h>
@@ -293,11 +295,11 @@ const u8 prio2fifo[NUMPRIO] = {
 
 /* debug/trace */
 uint brcm_msg_level =
-#if defined(BCMDBG)
+#if defined(DEBUG)
 	LOG_ERROR_VAL;
 #else
 	0;
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 /* TX FIFO number to WME/802.1E Access Category */
 static const u8 wme_fifo2ac[] = {
@@ -342,14 +344,14 @@ static const u16 xmtfifo_sz[][NFIFO] = {
 	{9, 58, 22, 14, 14, 5},
 };
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static const char * const fifo_names[] = {
 	"AC_BK", "AC_BE", "AC_VI", "AC_VO", "BCMC", "ATIM" };
 #else
 static const char fifo_names[6][0];
 #endif
 
-#ifdef BCMDBG
+#ifdef DEBUG
 /* pointer to most recently allocated wl/wlc */
 static struct brcms_c_info *wlc_info_dbg = (struct brcms_c_info *) (NULL);
 #endif
@@ -2899,7 +2901,6 @@ brcms_b_read_objmem(struct brcms_hardware *wlc_hw, uint offset, u32 sel)
 		objoff += 2;
 
 	return bcma_read16(core, objoff);
-;
 }
 
 static void
@@ -3075,30 +3076,30 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 {
 	int i;
 	struct macstat macstats;
-#ifdef BCMDBG
+#ifdef DEBUG
 	u16 delta;
 	u16 rxf0ovfl;
 	u16 txfunfl[NFIFO];
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* if driver down, make no sense to update stats */
 	if (!wlc->pub->up)
 		return;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	/* save last rx fifo 0 overflow count */
 	rxf0ovfl = wlc->core->macstat_snapshot->rxf0ovfl;
 
 	/* save last tx fifo  underflow count */
 	for (i = 0; i < NFIFO; i++)
 		txfunfl[i] = wlc->core->macstat_snapshot->txfunfl[i];
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* Read mac stats from contiguous shared memory */
 	brcms_b_copyfrom_objmem(wlc->hw, M_UCODE_MACSTAT, &macstats,
 				sizeof(struct macstat), OBJADDR_SHM_SEL);
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	/* check for rx fifo 0 overflow */
 	delta = (u16) (wlc->core->macstat_snapshot->rxf0ovfl - rxf0ovfl);
 	if (delta)
@@ -3114,7 +3115,7 @@ static void brcms_c_statsupd(struct brcms_c_info *wlc)
 			wiphy_err(wlc->wiphy, "wl%d: %u tx fifo %d underflows!"
 				  "\n", wlc->pub->unit, delta, i);
 	}
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 	/* merge counters from dma module */
 	for (i = 0; i < NFIFO; i++) {
@@ -3246,7 +3247,7 @@ static void brcms_b_coreinit(struct brcms_c_info *wlc)
 	}
 
 	/* For old ucode, txfifo sizes needs to be modified(increased) */
-	if (fifosz_fixup == true)
+	if (fifosz_fixup)
 		brcms_b_corerev_fifofixup(wlc_hw);
 
 	/* check txfifo allocations match between ucode and driver */
@@ -5425,7 +5426,7 @@ int brcms_c_set_gmode(struct brcms_c_info *wlc, u8 gmode, bool config)
 		return -EINVAL;
 
 	/* update configuration value */
-	if (config == true)
+	if (config)
 		brcms_c_protection_upd(wlc, BRCMS_PROT_G_USER, gmode);
 
 	/* Clear rateset override */
@@ -5765,62 +5766,49 @@ int brcms_c_module_unregister(struct brcms_pub *pub, const char *name,
 	return -ENODATA;
 }
 
-#ifdef BCMDBG
-static const char * const supr_reason[] = {
-	"None", "PMQ Entry", "Flush request",
-	"Previous frag failure", "Channel mismatch",
-	"Lifetime Expiry", "Underflow"
-};
-
-static void brcms_c_print_txs_status(u16 s)
-{
-	printk(KERN_DEBUG "[15:12]  %d  frame attempts\n",
-	       (s & TX_STATUS_FRM_RTX_MASK) >> TX_STATUS_FRM_RTX_SHIFT);
-	printk(KERN_DEBUG " [11:8]  %d  rts attempts\n",
-	       (s & TX_STATUS_RTS_RTX_MASK) >> TX_STATUS_RTS_RTX_SHIFT);
-	printk(KERN_DEBUG "    [7]  %d  PM mode indicated\n",
-	       ((s & TX_STATUS_PMINDCTD) ? 1 : 0));
-	printk(KERN_DEBUG "    [6]  %d  intermediate status\n",
-	       ((s & TX_STATUS_INTERMEDIATE) ? 1 : 0));
-	printk(KERN_DEBUG "    [5]  %d  AMPDU\n",
-	       (s & TX_STATUS_AMPDU) ? 1 : 0);
-	printk(KERN_DEBUG "  [4:2]  %d  Frame Suppressed Reason (%s)\n",
-	       ((s & TX_STATUS_SUPR_MASK) >> TX_STATUS_SUPR_SHIFT),
-	       supr_reason[(s & TX_STATUS_SUPR_MASK) >> TX_STATUS_SUPR_SHIFT]);
-	printk(KERN_DEBUG "    [1]  %d  acked\n",
-	       ((s & TX_STATUS_ACK_RCV) ? 1 : 0));
-}
-#endif				/* BCMDBG */
-
 void brcms_c_print_txstatus(struct tx_status *txs)
 {
-#if defined(BCMDBG)
-	u16 s = txs->status;
-	u16 ackphyrxsh = txs->ackphyrxsh;
+	pr_debug("\ntxpkt (MPDU) Complete\n");
 
-	printk(KERN_DEBUG "\ntxpkt (MPDU) Complete\n");
+	pr_debug("FrameID: %04x   TxStatus: %04x\n", txs->frameid, txs->status);
 
-	printk(KERN_DEBUG "FrameID: %04x   ", txs->frameid);
-	printk(KERN_DEBUG "TxStatus: %04x", s);
-	printk(KERN_DEBUG "\n");
+	pr_debug("[15:12]  %d  frame attempts\n",
+		  (txs->status & TX_STATUS_FRM_RTX_MASK) >>
+		 TX_STATUS_FRM_RTX_SHIFT);
+	pr_debug(" [11:8]  %d  rts attempts\n",
+		 (txs->status & TX_STATUS_RTS_RTX_MASK) >>
+		 TX_STATUS_RTS_RTX_SHIFT);
+	pr_debug("    [7]  %d  PM mode indicated\n",
+		 txs->status & TX_STATUS_PMINDCTD ? 1 : 0);
+	pr_debug("    [6]  %d  intermediate status\n",
+		 txs->status & TX_STATUS_INTERMEDIATE ? 1 : 0);
+	pr_debug("    [5]  %d  AMPDU\n",
+		 txs->status & TX_STATUS_AMPDU ? 1 : 0);
+	pr_debug("  [4:2]  %d  Frame Suppressed Reason (%s)\n",
+		 (txs->status & TX_STATUS_SUPR_MASK) >> TX_STATUS_SUPR_SHIFT,
+		 (const char *[]) {
+			"None",
+			"PMQ Entry",
+			"Flush request",
+			"Previous frag failure",
+			"Channel mismatch",
+			"Lifetime Expiry",
+			"Underflow"
+		 } [(txs->status & TX_STATUS_SUPR_MASK) >>
+		    TX_STATUS_SUPR_SHIFT]);
+	pr_debug("    [1]  %d  acked\n",
+		 txs->status & TX_STATUS_ACK_RCV ? 1 : 0);
 
-	brcms_c_print_txs_status(s);
-
-	printk(KERN_DEBUG "LastTxTime: %04x ", txs->lasttxtime);
-	printk(KERN_DEBUG "Seq: %04x ", txs->sequence);
-	printk(KERN_DEBUG "PHYTxStatus: %04x ", txs->phyerr);
-	printk(KERN_DEBUG "RxAckRSSI: %04x ",
-	       (ackphyrxsh & PRXS1_JSSI_MASK) >> PRXS1_JSSI_SHIFT);
-	printk(KERN_DEBUG "RxAckSQ: %04x",
-	       (ackphyrxsh & PRXS1_SQ_MASK) >> PRXS1_SQ_SHIFT);
-	printk(KERN_DEBUG "\n");
-#endif				/* defined(BCMDBG) */
+	pr_debug("LastTxTime: %04x Seq: %04x PHYTxStatus: %04x RxAckRSSI: %04x RxAckSQ: %04x\n",
+		 txs->lasttxtime, txs->sequence, txs->phyerr,
+		 (txs->ackphyrxsh & PRXS1_JSSI_MASK) >> PRXS1_JSSI_SHIFT,
+		 (txs->ackphyrxsh & PRXS1_SQ_MASK) >> PRXS1_SQ_SHIFT);
 }
 
 bool brcms_c_chipmatch(u16 vendor, u16 device)
 {
 	if (vendor != PCI_VENDOR_ID_BROADCOM) {
-		pr_err("chipmatch: unknown vendor id %04x\n", vendor);
+		pr_err("unknown vendor id %04x\n", vendor);
 		return false;
 	}
 
@@ -5833,11 +5821,11 @@ bool brcms_c_chipmatch(u16 vendor, u16 device)
 	if ((device == BCM43236_D11N_ID) || (device == BCM43236_D11N2G_ID))
 		return true;
 
-	pr_err("chipmatch: unknown device id %04x\n", device);
+	pr_err("unknown device id %04x\n", device);
 	return false;
 }
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 void brcms_c_print_txdesc(struct d11txh *txh)
 {
 	u16 mtcl = le16_to_cpu(txh->MacTxControlLow);
@@ -5871,57 +5859,56 @@ void brcms_c_print_txdesc(struct d11txh *txh)
 	struct ieee80211_rts rts = txh->rts_frame;
 
 	/* add plcp header along with txh descriptor */
-	printk(KERN_DEBUG "Raw TxDesc + plcp header:\n");
-	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET,
-			     txh, sizeof(struct d11txh) + 48);
+	brcmu_dbg_hex_dump(txh, sizeof(struct d11txh) + 48,
+			   "Raw TxDesc + plcp header:\n");
 
-	printk(KERN_DEBUG "TxCtlLow: %04x ", mtcl);
-	printk(KERN_DEBUG "TxCtlHigh: %04x ", mtch);
-	printk(KERN_DEBUG "FC: %04x ", mfc);
-	printk(KERN_DEBUG "FES Time: %04x\n", tfest);
-	printk(KERN_DEBUG "PhyCtl: %04x%s ", ptcw,
+	pr_debug("TxCtlLow: %04x ", mtcl);
+	pr_debug("TxCtlHigh: %04x ", mtch);
+	pr_debug("FC: %04x ", mfc);
+	pr_debug("FES Time: %04x\n", tfest);
+	pr_debug("PhyCtl: %04x%s ", ptcw,
 	       (ptcw & PHY_TXC_SHORT_HDR) ? " short" : "");
-	printk(KERN_DEBUG "PhyCtl_1: %04x ", ptcw_1);
-	printk(KERN_DEBUG "PhyCtl_1_Fbr: %04x\n", ptcw_1_Fbr);
-	printk(KERN_DEBUG "PhyCtl_1_Rts: %04x ", ptcw_1_Rts);
-	printk(KERN_DEBUG "PhyCtl_1_Fbr_Rts: %04x\n", ptcw_1_FbrRts);
-	printk(KERN_DEBUG "MainRates: %04x ", mainrates);
-	printk(KERN_DEBUG "XtraFrameTypes: %04x ", xtraft);
-	printk(KERN_DEBUG "\n");
+	pr_debug("PhyCtl_1: %04x ", ptcw_1);
+	pr_debug("PhyCtl_1_Fbr: %04x\n", ptcw_1_Fbr);
+	pr_debug("PhyCtl_1_Rts: %04x ", ptcw_1_Rts);
+	pr_debug("PhyCtl_1_Fbr_Rts: %04x\n", ptcw_1_FbrRts);
+	pr_debug("MainRates: %04x ", mainrates);
+	pr_debug("XtraFrameTypes: %04x ", xtraft);
+	pr_debug("\n");
 
 	print_hex_dump_bytes("SecIV:", DUMP_PREFIX_OFFSET, iv, sizeof(txh->IV));
 	print_hex_dump_bytes("RA:", DUMP_PREFIX_OFFSET,
 			     ra, sizeof(txh->TxFrameRA));
 
-	printk(KERN_DEBUG "Fb FES Time: %04x ", tfestfb);
+	pr_debug("Fb FES Time: %04x ", tfestfb);
 	print_hex_dump_bytes("Fb RTS PLCP:", DUMP_PREFIX_OFFSET,
 			     rtspfb, sizeof(txh->RTSPLCPFallback));
-	printk(KERN_DEBUG "RTS DUR: %04x ", rtsdfb);
+	pr_debug("RTS DUR: %04x ", rtsdfb);
 	print_hex_dump_bytes("PLCP:", DUMP_PREFIX_OFFSET,
 			     fragpfb, sizeof(txh->FragPLCPFallback));
-	printk(KERN_DEBUG "DUR: %04x", fragdfb);
-	printk(KERN_DEBUG "\n");
+	pr_debug("DUR: %04x", fragdfb);
+	pr_debug("\n");
 
-	printk(KERN_DEBUG "MModeLen: %04x ", mmodelen);
-	printk(KERN_DEBUG "MModeFbrLen: %04x\n", mmodefbrlen);
+	pr_debug("MModeLen: %04x ", mmodelen);
+	pr_debug("MModeFbrLen: %04x\n", mmodefbrlen);
 
-	printk(KERN_DEBUG "FrameID:     %04x\n", tfid);
-	printk(KERN_DEBUG "TxStatus:    %04x\n", txs);
+	pr_debug("FrameID:     %04x\n", tfid);
+	pr_debug("TxStatus:    %04x\n", txs);
 
-	printk(KERN_DEBUG "MaxNumMpdu:  %04x\n", mnmpdu);
-	printk(KERN_DEBUG "MaxAggbyte:  %04x\n", mabyte);
-	printk(KERN_DEBUG "MaxAggbyte_fb:  %04x\n", mabyte_f);
-	printk(KERN_DEBUG "MinByte:     %04x\n", mmbyte);
+	pr_debug("MaxNumMpdu:  %04x\n", mnmpdu);
+	pr_debug("MaxAggbyte:  %04x\n", mabyte);
+	pr_debug("MaxAggbyte_fb:  %04x\n", mabyte_f);
+	pr_debug("MinByte:     %04x\n", mmbyte);
 
 	print_hex_dump_bytes("RTS PLCP:", DUMP_PREFIX_OFFSET,
 			     rtsph, sizeof(txh->RTSPhyHeader));
 	print_hex_dump_bytes("RTS Frame:", DUMP_PREFIX_OFFSET,
 			     (u8 *)&rts, sizeof(txh->rts_frame));
-	printk(KERN_DEBUG "\n");
+	pr_debug("\n");
 }
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 static int
 brcms_c_format_flags(const struct brcms_c_bit_desc *bd, u32 flags, char *buf,
 		     int len)
@@ -5975,9 +5962,9 @@ brcms_c_format_flags(const struct brcms_c_bit_desc *bd, u32 flags, char *buf,
 
 	return (int)(p - buf);
 }
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 void brcms_c_print_rxh(struct d11rxhdr *rxh)
 {
 	u16 len = rxh->RxFrameSize;
@@ -5999,24 +5986,22 @@ void brcms_c_print_rxh(struct d11rxhdr *rxh)
 		{0, NULL}
 	};
 
-	printk(KERN_DEBUG "Raw RxDesc:\n");
-	print_hex_dump_bytes("", DUMP_PREFIX_OFFSET, rxh,
-			     sizeof(struct d11rxhdr));
+	brcmu_dbg_hex_dump(rxh, sizeof(struct d11rxhdr), "Raw RxDesc:\n");
 
 	brcms_c_format_flags(macstat_flags, macstatus1, flagstr, 64);
 
 	snprintf(lenbuf, sizeof(lenbuf), "0x%x", len);
 
-	printk(KERN_DEBUG "RxFrameSize:     %6s (%d)%s\n", lenbuf, len,
+	pr_debug("RxFrameSize:     %6s (%d)%s\n", lenbuf, len,
 	       (rxh->PhyRxStatus_0 & PRXS0_SHORTH) ? " short preamble" : "");
-	printk(KERN_DEBUG "RxPHYStatus:     %04x %04x %04x %04x\n",
+	pr_debug("RxPHYStatus:     %04x %04x %04x %04x\n",
 	       phystatus_0, phystatus_1, phystatus_2, phystatus_3);
-	printk(KERN_DEBUG "RxMACStatus:     %x %s\n", macstatus1, flagstr);
-	printk(KERN_DEBUG "RXMACaggtype:    %x\n",
+	pr_debug("RxMACStatus:     %x %s\n", macstatus1, flagstr);
+	pr_debug("RXMACaggtype:    %x\n",
 	       (macstatus2 & RXS_AGGTYPE_MASK));
-	printk(KERN_DEBUG "RxTSFTime:       %04x\n", rxh->RxTSFTime);
+	pr_debug("RxTSFTime:       %04x\n", rxh->RxTSFTime);
 }
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
 
 u16 brcms_b_rate_shm_offset(struct brcms_hardware *wlc_hw, u8 rate)
 {
@@ -8354,7 +8339,7 @@ brcms_c_attach(struct brcms_info *wl, struct bcma_device *core, uint unit,
 	wlc->wiphy = wl->wiphy;
 	pub = wlc->pub;
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 	wlc_info_dbg = wlc;
 #endif
 

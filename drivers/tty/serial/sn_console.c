@@ -461,12 +461,12 @@ sn_receive_chars(struct sn_cons_port *port, unsigned long flags)
 	struct tty_struct *tty;
 
 	if (!port) {
-		printk(KERN_ERR "sn_receive_chars - port NULL so can't receieve\n");
+		printk(KERN_ERR "sn_receive_chars - port NULL so can't receive\n");
 		return;
 	}
 
 	if (!port->sc_ops) {
-		printk(KERN_ERR "sn_receive_chars - port->sc_ops  NULL so can't receieve\n");
+		printk(KERN_ERR "sn_receive_chars - port->sc_ops  NULL so can't receive\n");
 		return;
 	}
 

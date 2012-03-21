@@ -4,7 +4,7 @@ Intel(R) Management Engine Interface (Intel(R) MEI)
 Introduction
 =======================
 
-The Intel Management Engine (Intel ME) is an isolated andprotected computing
+The Intel Management Engine (Intel ME) is an isolated and protected computing
 resource (Co-processor) residing inside certain Intel chipsets. The Intel ME
 provides support for computer/IT management features. The feature set
 depends on the Intel chipset SKU.
@@ -176,8 +176,8 @@ Intel AMT OS Health Watchdog:
 =============================
 The Intel AMT Watchdog is an OS Health (Hang/Crash) watchdog.
 Whenever the OS hangs or crashes, Intel AMT will send an event
-to any subsciber to this event. This mechanism means that
-IT knows when a platform crashes even when there is a hard failureon the host.
+to any subscriber to this event. This mechanism means that
+IT knows when a platform crashes even when there is a hard failure on the host.
 
 The Intel AMT Watchdog is composed of two parts:
 	1) Firmware feature - receives the heartbeats

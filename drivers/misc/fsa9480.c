@@ -458,7 +458,6 @@ fail2:
 	if (client->irq)
 		free_irq(client->irq, usbsw);
 fail1:
-	i2c_set_clientdata(client, NULL);
 	kfree(usbsw);
 	return ret;
 }
@@ -468,7 +467,6 @@ static int __devexit fsa9480_remove(struct i2c_client *client)
 	struct fsa9480_usbsw *usbsw = i2c_get_clientdata(client);
 	if (client->irq)
 		free_irq(client->irq, usbsw);
-	i2c_set_clientdata(client, NULL);
 
 	sysfs_remove_group(&client->dev.kobj, &fsa9480_group);
 	device_init_wakeup(&client->dev, 0);
@@ -541,17 +539,7 @@ static struct i2c_driver fsa9480_i2c_driver = {
 	.id_table = fsa9480_id,
 };
 
-static int __init fsa9480_init(void)
-{
-	return i2c_add_driver(&fsa9480_i2c_driver);
-}
-module_init(fsa9480_init);
-
-static void __exit fsa9480_exit(void)
-{
-	i2c_del_driver(&fsa9480_i2c_driver);
-}
-module_exit(fsa9480_exit);
+module_i2c_driver(fsa9480_i2c_driver);
 
 MODULE_AUTHOR("Minkyu Kang <mk7.kang@samsung.com>");
 MODULE_DESCRIPTION("FSA9480 USB Switch driver");

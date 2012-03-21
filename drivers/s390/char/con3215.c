@@ -933,13 +933,9 @@ console_initcall(con3215_init);
 static int tty3215_open(struct tty_struct *tty, struct file * filp)
 {
 	struct raw3215_info *raw;
-	int retval, line;
+	int retval;
 
-	line = tty->index;
-	if ((line < 0) || (line >= NR_3215))
-		return -ENODEV;
-
-	raw = raw3215[line];
+	raw = raw3215[tty->index];
 	if (raw == NULL)
 		return -ENODEV;
 
@@ -1145,7 +1141,6 @@ static int __init tty3215_init(void)
 	 * proc_entry, set_termios, flush_buffer, set_ldisc, write_proc
 	 */
 
-	driver->owner = THIS_MODULE;
 	driver->driver_name = "tty3215";
 	driver->name = "ttyS";
 	driver->major = TTY_MAJOR;

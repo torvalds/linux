@@ -42,6 +42,11 @@
 #include "net.h"
 #include "bearer.h"
 
+/*
+ * Out-of-range value for node signature
+ */
+#define INVALID_NODE_SIG 0x10000
+
 /* Flags used to block (re)establishment of contact with a neighboring node */
 
 #define WAIT_PEER_DOWN	0x0001	/* wait to see that peer's links are down */
@@ -61,13 +66,15 @@
  * @block_setup: bit mask of conditions preventing link establishment to node
  * @link_cnt: number of links to node
  * @permit_changeover: non-zero if node has redundant links to this system
+ * @signature: node instance identifier
  * @bclink: broadcast-related info
+ *    @supportable: non-zero if node supports TIPC b'cast link capability
  *    @supported: non-zero if node supports TIPC b'cast capability
  *    @acked: sequence # of last outbound b'cast message acknowledged by node
  *    @last_in: sequence # of last in-sequence b'cast message received from node
- *    @gap_after: sequence # of last message not requiring a NAK request
- *    @gap_to: sequence # of last message requiring a NAK request
- *    @nack_sync: counter that determines when NAK requests should be sent
+ *    @last_sent: sequence # of last b'cast message sent by node
+ *    @oos_state: state tracker for handling OOS b'cast messages
+ *    @deferred_size: number of OOS b'cast messages in deferred queue
  *    @deferred_head: oldest OOS b'cast message received from node
  *    @deferred_tail: newest OOS b'cast message received from node
  *    @defragm: list of partially reassembled b'cast message fragments from node
@@ -85,34 +92,22 @@ struct tipc_node {
 	int working_links;
 	int block_setup;
 	int permit_changeover;
+	u32 signature;
 	struct {
-		int supported;
+		u8 supportable;
+		u8 supported;
 		u32 acked;
 		u32 last_in;
-		u32 gap_after;
-		u32 gap_to;
-		u32 nack_sync;
+		u32 last_sent;
+		u32 oos_state;
+		u32 deferred_size;
 		struct sk_buff *deferred_head;
 		struct sk_buff *deferred_tail;
 		struct sk_buff *defragm;
 	} bclink;
 };
 
-#define NODE_HTABLE_SIZE 512
 extern struct list_head tipc_node_list;
-
-/*
- * A trivial power-of-two bitmask technique is used for speed, since this
- * operation is done for every incoming TIPC packet. The number of hash table
- * entries has been chosen so that no hash chain exceeds 8 nodes and will
- * usually be much smaller (typically only a single node).
- */
-static inline unsigned int tipc_hashfn(u32 addr)
-{
-	return addr & (NODE_HTABLE_SIZE - 1);
-}
-
-extern u32 tipc_own_tag;
 
 struct tipc_node *tipc_node_find(u32 addr);
 struct tipc_node *tipc_node_create(u32 addr);
