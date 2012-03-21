@@ -127,52 +127,52 @@ static struct pl022_ssp_controller ssp0_plat_data = {
  * RealView PB11MPCore AMBA devices
  */
 
-#define GPIO2_IRQ		{ IRQ_PB11MP_GPIO2, NO_IRQ }
-#define GPIO3_IRQ		{ IRQ_PB11MP_GPIO3, NO_IRQ }
-#define AACI_IRQ		{ IRQ_TC11MP_AACI, NO_IRQ }
+#define GPIO2_IRQ		{ IRQ_PB11MP_GPIO2 }
+#define GPIO3_IRQ		{ IRQ_PB11MP_GPIO3 }
+#define AACI_IRQ		{ IRQ_TC11MP_AACI }
 #define MMCI0_IRQ		{ IRQ_TC11MP_MMCI0A, IRQ_TC11MP_MMCI0B }
-#define KMI0_IRQ		{ IRQ_TC11MP_KMI0, NO_IRQ }
-#define KMI1_IRQ		{ IRQ_TC11MP_KMI1, NO_IRQ }
-#define PB11MP_SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define PB11MP_CLCD_IRQ		{ IRQ_PB11MP_CLCD, NO_IRQ }
-#define DMAC_IRQ		{ IRQ_PB11MP_DMAC, NO_IRQ }
-#define SCTL_IRQ		{ NO_IRQ, NO_IRQ }
-#define PB11MP_WATCHDOG_IRQ	{ IRQ_PB11MP_WATCHDOG, NO_IRQ }
-#define PB11MP_GPIO0_IRQ	{ IRQ_PB11MP_GPIO0, NO_IRQ }
-#define GPIO1_IRQ		{ IRQ_PB11MP_GPIO1, NO_IRQ }
-#define PB11MP_RTC_IRQ		{ IRQ_TC11MP_RTC, NO_IRQ }
-#define SCI_IRQ			{ IRQ_PB11MP_SCI, NO_IRQ }
-#define PB11MP_UART0_IRQ	{ IRQ_TC11MP_UART0, NO_IRQ }
-#define PB11MP_UART1_IRQ	{ IRQ_TC11MP_UART1, NO_IRQ }
-#define PB11MP_UART2_IRQ	{ IRQ_PB11MP_UART2, NO_IRQ }
-#define PB11MP_UART3_IRQ	{ IRQ_PB11MP_UART3, NO_IRQ }
-#define PB11MP_SSP_IRQ		{ IRQ_PB11MP_SSP, NO_IRQ }
+#define KMI0_IRQ		{ IRQ_TC11MP_KMI0 }
+#define KMI1_IRQ		{ IRQ_TC11MP_KMI1 }
+#define PB11MP_SMC_IRQ		{ }
+#define MPMC_IRQ		{ }
+#define PB11MP_CLCD_IRQ		{ IRQ_PB11MP_CLCD }
+#define DMAC_IRQ		{ IRQ_PB11MP_DMAC }
+#define SCTL_IRQ		{ }
+#define PB11MP_WATCHDOG_IRQ	{ IRQ_PB11MP_WATCHDOG }
+#define PB11MP_GPIO0_IRQ	{ IRQ_PB11MP_GPIO0 }
+#define GPIO1_IRQ		{ IRQ_PB11MP_GPIO1 }
+#define PB11MP_RTC_IRQ		{ IRQ_TC11MP_RTC }
+#define SCI_IRQ			{ IRQ_PB11MP_SCI }
+#define PB11MP_UART0_IRQ	{ IRQ_TC11MP_UART0 }
+#define PB11MP_UART1_IRQ	{ IRQ_TC11MP_UART1 }
+#define PB11MP_UART2_IRQ	{ IRQ_PB11MP_UART2 }
+#define PB11MP_UART3_IRQ	{ IRQ_PB11MP_UART3 }
+#define PB11MP_SSP_IRQ		{ IRQ_PB11MP_SSP }
 
 /* FPGA Primecells */
-AMBA_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
-AMBA_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
-AMBA_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
-AMBA_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
-AMBA_DEVICE(uart3,	"fpga:uart3",	PB11MP_UART3,	NULL);
+APB_DEVICE(aaci,	"fpga:aaci",	AACI,		NULL);
+APB_DEVICE(mmc0,	"fpga:mmc0",	MMCI0,		&realview_mmc0_plat_data);
+APB_DEVICE(kmi0,	"fpga:kmi0",	KMI0,		NULL);
+APB_DEVICE(kmi1,	"fpga:kmi1",	KMI1,		NULL);
+APB_DEVICE(uart3,	"fpga:uart3",	PB11MP_UART3,	NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,	"dev:smc",	PB11MP_SMC,	NULL);
-AMBA_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
-AMBA_DEVICE(wdog,	"dev:wdog",	PB11MP_WATCHDOG, NULL);
-AMBA_DEVICE(gpio0,	"dev:gpio0",	PB11MP_GPIO0,	&gpio0_plat_data);
-AMBA_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
-AMBA_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
-AMBA_DEVICE(rtc,	"dev:rtc",	PB11MP_RTC,	NULL);
-AMBA_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
-AMBA_DEVICE(uart0,	"dev:uart0",	PB11MP_UART0,	NULL);
-AMBA_DEVICE(uart1,	"dev:uart1",	PB11MP_UART1,	NULL);
-AMBA_DEVICE(uart2,	"dev:uart2",	PB11MP_UART2,	NULL);
-AMBA_DEVICE(ssp0,	"dev:ssp0",	PB11MP_SSP,	&ssp0_plat_data);
+AHB_DEVICE(smc,		"dev:smc",	PB11MP_SMC,	NULL);
+AHB_DEVICE(sctl,	"dev:sctl",	SCTL,		NULL);
+APB_DEVICE(wdog,	"dev:wdog",	PB11MP_WATCHDOG, NULL);
+APB_DEVICE(gpio0,	"dev:gpio0",	PB11MP_GPIO0,	&gpio0_plat_data);
+APB_DEVICE(gpio1,	"dev:gpio1",	GPIO1,		&gpio1_plat_data);
+APB_DEVICE(gpio2,	"dev:gpio2",	GPIO2,		&gpio2_plat_data);
+APB_DEVICE(rtc,		"dev:rtc",	PB11MP_RTC,	NULL);
+APB_DEVICE(sci0,	"dev:sci0",	SCI,		NULL);
+APB_DEVICE(uart0,	"dev:uart0",	PB11MP_UART0,	NULL);
+APB_DEVICE(uart1,	"dev:uart1",	PB11MP_UART1,	NULL);
+APB_DEVICE(uart2,	"dev:uart2",	PB11MP_UART2,	NULL);
+APB_DEVICE(ssp0,	"dev:ssp0",	PB11MP_SSP,	&ssp0_plat_data);
 
 /* Primecells on the NEC ISSP chip */
-AMBA_DEVICE(clcd,	"issp:clcd",	PB11MP_CLCD,	&clcd_plat_data);
-AMBA_DEVICE(dmac,	"issp:dmac",	DMAC,		NULL);
+AHB_DEVICE(clcd,	"issp:clcd",	PB11MP_CLCD,	&clcd_plat_data);
+AHB_DEVICE(dmac,	"issp:dmac",	DMAC,		NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,

@@ -27,7 +27,6 @@
 #include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
-#include <mach/system.h>
 
 #include "board.h"
 #include "clock.h"
