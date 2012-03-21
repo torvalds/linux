@@ -96,7 +96,7 @@ static int wm8962_regulator_event_##n(struct notifier_block *nb, \
 	struct wm8962_priv *wm8962 = container_of(nb, struct wm8962_priv, \
 						  disable_nb[n]); \
 	if (event & REGULATOR_EVENT_DISABLE) { \
-		regcache_cache_only(wm8962->regmap, true);	\
+		regcache_mark_dirty(wm8962->regmap);	\
 	} \
 	return 0; \
 }

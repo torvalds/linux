@@ -94,13 +94,14 @@ static int nfs4_validate_fspath(struct dentry *dentry,
 }
 
 static size_t nfs_parse_server_name(char *string, size_t len,
-		struct sockaddr *sa, size_t salen)
+		struct sockaddr *sa, size_t salen, struct nfs_server *server)
 {
+	struct net *net = rpc_net_ns(server->client);
 	ssize_t ret;
 
-	ret = rpc_pton(string, len, sa, salen);
+	ret = rpc_pton(net, string, len, sa, salen);
 	if (ret == 0) {
-		ret = nfs_dns_resolve_name(string, len, sa, salen);
+		ret = nfs_dns_resolve_name(net, string, len, sa, salen);
 		if (ret < 0)
 			ret = 0;
 	}
@@ -137,7 +138,8 @@ static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 			continue;
 
 		mountdata->addrlen = nfs_parse_server_name(buf->data, buf->len,
-				mountdata->addr, addr_bufsize);
+				mountdata->addr, addr_bufsize,
+				NFS_SB(mountdata->sb));
 		if (mountdata->addrlen == 0)
 			continue;
 

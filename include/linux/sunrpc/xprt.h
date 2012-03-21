@@ -21,8 +21,8 @@
 
 #define RPC_MIN_SLOT_TABLE	(2U)
 #define RPC_DEF_SLOT_TABLE	(16U)
-#define RPC_MAX_SLOT_TABLE	(128U)
 #define RPC_MAX_SLOT_TABLE_LIMIT	(65536U)
+#define RPC_MAX_SLOT_TABLE	RPC_MAX_SLOT_TABLE_LIMIT
 
 /*
  * This describes a timeout strategy
@@ -219,13 +219,17 @@ struct rpc_xprt {
 					connect_time,	/* jiffies waiting for connect */
 					sends,		/* how many complete requests */
 					recvs,		/* how many complete requests */
-					bad_xids;	/* lookup_rqst didn't find XID */
+					bad_xids,	/* lookup_rqst didn't find XID */
+					max_slots;	/* max rpc_slots used */
 
 		unsigned long long	req_u,		/* average requests on the wire */
-					bklog_u;	/* backlog queue utilization */
+					bklog_u,	/* backlog queue utilization */
+					sending_u,	/* send q utilization */
+					pending_u;	/* pend q utilization */
 	} stat;
 
 	struct net		*xprt_net;
+	const char		*servername;
 	const char		*address_strings[RPC_DISPLAY_MAX];
 };
 
@@ -255,6 +259,7 @@ struct xprt_create {
 	struct sockaddr *	srcaddr;	/* optional local address */
 	struct sockaddr *	dstaddr;	/* remote peer address */
 	size_t			addrlen;
+	const char		*servername;
 	struct svc_xprt		*bc_xprt;	/* NFSv4.1 backchannel */
 };
 
