@@ -445,9 +445,6 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	struct mm_struct *mm;
 	unsigned int victim_points = 0;
 
-	if (printk_ratelimit())
-		dump_header(p, gfp_mask, order, memcg, nodemask);
-
 	/*
 	 * If the task is already exiting, don't alarm the sysadmin or kill
 	 * its children or threads, just set TIF_MEMDIE so it can die quickly
@@ -456,6 +453,9 @@ static void oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 		set_tsk_thread_flag(p, TIF_MEMDIE);
 		return;
 	}
+
+	if (printk_ratelimit())
+		dump_header(p, gfp_mask, order, memcg, nodemask);
 
 	task_lock(p);
 	pr_err("%s: Kill process %d (%s) score %d or sacrifice child\n",
