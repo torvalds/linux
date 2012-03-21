@@ -1643,7 +1643,7 @@ sub install {
 	return;
     }
 
-    run_command "$make INSTALL_MOD_PATH=$tmpdir modules_install" or
+    run_command "$make INSTALL_MOD_STRIP=1 INSTALL_MOD_PATH=$tmpdir modules_install" or
 	dodie "Failed to install modules";
 
     my $modlib = "/lib/modules/$version";
