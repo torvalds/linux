@@ -135,7 +135,7 @@ struct mem_cgroup_reclaim_iter {
  */
 struct mem_cgroup_per_zone {
 	struct lruvec		lruvec;
-	unsigned long		count[NR_LRU_LISTS];
+	unsigned long		lru_size[NR_LRU_LISTS];
 
 	struct mem_cgroup_reclaim_iter reclaim_iter[DEF_PRIORITY + 1];
 
@@ -147,8 +147,6 @@ struct mem_cgroup_per_zone {
 	struct mem_cgroup	*memcg;		/* Back pointer, we cannot */
 						/* use container_of	   */
 };
-/* Macro for accessing counter */
-#define MEM_CGROUP_ZSTAT(mz, idx)	((mz)->count[(idx)])
 
 struct mem_cgroup_per_node {
 	struct mem_cgroup_per_zone zoneinfo[MAX_NR_ZONES];
@@ -728,7 +726,7 @@ mem_cgroup_zone_nr_lru_pages(struct mem_cgroup *memcg, int nid, int zid,
 
 	for_each_lru(l) {
 		if (BIT(l) & lru_mask)
-			ret += MEM_CGROUP_ZSTAT(mz, l);
+			ret += mz->lru_size[l];
 	}
 	return ret;
 }
@@ -1077,7 +1075,7 @@ struct lruvec *mem_cgroup_lru_add_list(struct zone *zone, struct page *page,
 
 	mz = page_cgroup_zoneinfo(memcg, page);
 	/* compound_order() is stabilized through lru_lock */
-	MEM_CGROUP_ZSTAT(mz, lru) += 1 << compound_order(page);
+	mz->lru_size[lru] += 1 << compound_order(page);
 	return &mz->lruvec;
 }
 
@@ -1105,8 +1103,8 @@ void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
 	VM_BUG_ON(!memcg);
 	mz = page_cgroup_zoneinfo(memcg, page);
 	/* huge page split is done under lru_lock. so, we have no races. */
-	VM_BUG_ON(MEM_CGROUP_ZSTAT(mz, lru) < (1 << compound_order(page)));
-	MEM_CGROUP_ZSTAT(mz, lru) -= 1 << compound_order(page);
+	VM_BUG_ON(mz->lru_size[lru] < (1 << compound_order(page)));
+	mz->lru_size[lru] -= 1 << compound_order(page);
 }
 
 void mem_cgroup_lru_del(struct page *page)
@@ -3629,7 +3627,7 @@ static int mem_cgroup_force_empty_list(struct mem_cgroup *memcg,
 	mz = mem_cgroup_zoneinfo(memcg, node, zid);
 	list = &mz->lruvec.lists[lru];
 
-	loop = MEM_CGROUP_ZSTAT(mz, lru);
+	loop = mz->lru_size[lru];
 	/* give some margin against EBUSY etc...*/
 	loop += 256;
 	busy = NULL;
