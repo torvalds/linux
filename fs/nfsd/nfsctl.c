@@ -19,6 +19,7 @@
 #include "nfsd.h"
 #include "cache.h"
 #include "fault_inject.h"
+#include "netns.h"
 
 /*
  *	We have a single directory with several nodes in it.
@@ -1124,14 +1125,23 @@ static int create_proc_exports_entry(void)
 }
 #endif
 
+int nfsd_net_id;
+static struct pernet_operations nfsd_net_ops = {
+	.id   = &nfsd_net_id,
+	.size = sizeof(struct nfsd_net),
+};
+
 static int __init init_nfsd(void)
 {
 	int retval;
 	printk(KERN_INFO "Installing knfsd (copyright (C) 1996 okir@monad.swb.de).\n");
 
+	retval = register_pernet_subsys(&nfsd_net_ops);
+	if (retval < 0)
+		return retval;
 	retval = nfsd4_init_slabs();
 	if (retval)
-		return retval;
+		goto out_unregister_pernet;
 	nfs4_state_init();
 	retval = nfsd_fault_inject_init(); /* nfsd fault injection controls */
 	if (retval)
@@ -1169,6 +1179,8 @@ out_free_stat:
 	nfsd_fault_inject_cleanup();
 out_free_slabs:
 	nfsd4_free_slabs();
+out_unregister_pernet:
+	unregister_pernet_subsys(&nfsd_net_ops);
 	return retval;
 }
 
@@ -1184,6 +1196,7 @@ static void __exit exit_nfsd(void)
 	nfsd4_free_slabs();
 	nfsd_fault_inject_cleanup();
 	unregister_filesystem(&nfsd_fs_type);
+	unregister_pernet_subsys(&nfsd_net_ops);
 }
 
 MODULE_AUTHOR("Olaf Kirch <okir@monad.swb.de>");
