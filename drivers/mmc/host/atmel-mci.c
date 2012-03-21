@@ -2023,6 +2023,8 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 	/* keep only major version number */
 	switch (version & 0xf00) {
 	case 0x100:
+		host->caps.has_pdc = 1;
+		break;
 	case 0x200:
 		host->caps.has_pdc = 1;
 		host->caps.has_rwproof = 1;
