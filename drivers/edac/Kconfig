@@ -31,6 +31,14 @@ if EDAC
 
 comment "Reporting subsystems"
 
+config EDAC_LEGACY_SYSFS
+	bool "EDAC legacy sysfs"
+	default y
+	help
+	  Enable the compatibility sysfs nodes.
+	  Use 'Y' if your edac utilities aren't ported to work with the newer
+	  structures.
+
 config EDAC_DEBUG
 	bool "Debugging"
 	help
