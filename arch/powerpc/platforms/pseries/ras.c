@@ -246,7 +246,7 @@ static irqreturn_t ras_epow_interrupt(int irq, void *dev_id)
 static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
 {
 	struct rtas_error_log *rtas_elog;
-	int status = 0xdeadbeef;
+	int status;
 	int fatal;
 
 	spin_lock(&ras_log_buf_lock);
@@ -254,7 +254,7 @@ static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
 	status = rtas_call(ras_check_exception_token, 6, 1, NULL,
 			   RTAS_VECTOR_EXTERNAL_INTERRUPT,
 			   virq_to_hw(irq),
-			   RTAS_INTERNAL_ERROR, 1 /*Time Critical */,
+			   RTAS_INTERNAL_ERROR, 1 /* Time Critical */,
 			   __pa(&ras_log_buf),
 				rtas_get_error_log_max());
 
@@ -269,24 +269,13 @@ static irqreturn_t ras_error_interrupt(int irq, void *dev_id)
 	log_error(ras_log_buf, ERR_TYPE_RTAS_LOG, fatal);
 
 	if (fatal) {
-		udbg_printf("Fatal HW Error <0x%lx 0x%x>\n",
-			    *((unsigned long *)&ras_log_buf), status);
-		printk(KERN_EMERG "Error: Fatal hardware error <0x%lx 0x%x>\n",
-		       *((unsigned long *)&ras_log_buf), status);
-
-#ifndef DEBUG_RTAS_POWER_OFF
-		/* Don't actually power off when debugging so we can test
-		 * without actually failing while injecting errors.
-		 * Error data will not be logged to syslog.
-		 */
-		ppc_md.power_off();
-#endif
+		pr_emerg("Fatal hardware error reported by firmware");
+		pr_emerg("Check RTAS error log for details");
+		pr_emerg("Immediate power off");
+		emergency_sync();
+		kernel_power_off();
 	} else {
-		udbg_printf("Recoverable HW Error <0x%lx 0x%x>\n",
-			    *((unsigned long *)&ras_log_buf), status);
-		printk(KERN_WARNING
-		       "Warning: Recoverable hardware error <0x%lx 0x%x>\n",
-		       *((unsigned long *)&ras_log_buf), status);
+		pr_err("Recoverable hardware error reported by firmware");
 	}
 
 	spin_unlock(&ras_log_buf_lock);
