@@ -208,8 +208,8 @@ notrace void arch_local_irq_restore(unsigned long en)
 	 * we are checking the "new" CPU instead of the old one. This
 	 * is only a problem if an event happened on the "old" CPU.
 	 *
-	 * External interrupt events on non-iseries will have caused
-	 * interrupts to be hard-disabled, so there is no problem, we
+	 * External interrupt events will have caused interrupts to
+	 * be hard-disabled, so there is no problem, we
 	 * cannot have preempted.
 	 */
 	irq_happened = get_irq_happened();

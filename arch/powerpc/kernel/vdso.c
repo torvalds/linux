@@ -721,10 +721,10 @@ static int __init vdso_init(void)
 	vdso_data->version.minor = SYSTEMCFG_MINOR;
 	vdso_data->processor = mfspr(SPRN_PVR);
 	/*
-	 * Fake the old platform number for pSeries and iSeries and add
+	 * Fake the old platform number for pSeries and add
 	 * in LPAR bit if necessary
 	 */
-	vdso_data->platform = machine_is(iseries) ? 0x200 : 0x100;
+	vdso_data->platform = 0x100;
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		vdso_data->platform |= 1;
 	vdso_data->physicalMemorySize = memblock_phys_mem_size();
