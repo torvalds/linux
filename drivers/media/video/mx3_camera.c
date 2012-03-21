@@ -265,12 +265,9 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 	struct idmac_channel *ichan = mx3_cam->idmac_channel[0];
 	struct idmac_video_param *video = &ichan->params.video;
 	const struct soc_mbus_pixelfmt *host_fmt = icd->current_fmt->host_fmt;
-	int bytes_per_line = soc_mbus_bytes_per_line(icd->user_width, host_fmt);
 	unsigned long flags;
 	dma_cookie_t cookie;
 	size_t new_size;
-
-	BUG_ON(bytes_per_line <= 0);
 
 	new_size = icd->sizeimage;
 
@@ -312,9 +309,9 @@ static void mx3_videobuf_queue(struct vb2_buffer *vb)
 		 * horizontal parameters in this case are expressed in bytes,
 		 * not in pixels.
 		 */
-		video->out_width	= bytes_per_line;
+		video->out_width	= icd->bytesperline;
 		video->out_height	= icd->user_height;
-		video->out_stride	= bytes_per_line;
+		video->out_stride	= icd->bytesperline;
 	} else {
 		/*
 		 * For IPU known formats the pixel unit will be managed

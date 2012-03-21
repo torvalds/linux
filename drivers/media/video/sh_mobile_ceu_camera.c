@@ -337,9 +337,7 @@ static int sh_mobile_ceu_capture(struct sh_mobile_ceu_dev *pcdev)
 		if (planar)
 			phys_addr_bottom = phys_addr_top + icd->user_width;
 		else
-			phys_addr_bottom = phys_addr_top +
-				soc_mbus_bytes_per_line(icd->user_width,
-							icd->current_fmt->host_fmt);
+			phys_addr_bottom = phys_addr_top + icd->bytesperline;
 		ceu_write(pcdev, bottom1, phys_addr_bottom);
 	}
 
