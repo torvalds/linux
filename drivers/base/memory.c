@@ -466,7 +466,7 @@ store_hard_offline_page(struct device *dev,
 	if (strict_strtoull(buf, 0, &pfn) < 0)
 		return -EINVAL;
 	pfn >>= PAGE_SHIFT;
-	ret = __memory_failure(pfn, 0, 0);
+	ret = memory_failure(pfn, 0, 0);
 	return ret ? ret : count;
 }
 
