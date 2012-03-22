@@ -1078,10 +1078,7 @@ int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (!obj->has_global_gtt_mapping)
 		i915_gem_gtt_bind_object(obj, obj->cache_level);
 
-	if (obj->tiling_mode == I915_TILING_NONE)
-		ret = i915_gem_object_put_fence(obj);
-	else
-		ret = i915_gem_object_get_fence(obj, NULL);
+	ret = i915_gem_object_get_fence(obj, NULL);
 	if (ret)
 		goto unlock;
 
@@ -2395,19 +2392,19 @@ i915_find_fence_reg(struct drm_device *dev,
 }
 
 /**
- * i915_gem_object_get_fence - set up a fence reg for an object
+ * i915_gem_object_get_fence - set up fencing for an object
  * @obj: object to map through a fence reg
  * @pipelined: ring on which to queue the change, or NULL for CPU access
- * @interruptible: must we wait uninterruptibly for the register to retire?
  *
  * When mapping objects through the GTT, userspace wants to be able to write
  * to them without having to worry about swizzling if the object is tiled.
- *
  * This function walks the fence regs looking for a free one for @obj,
  * stealing one if it can't find any.
  *
  * It then sets up the reg based on the object's properties: address, pitch
  * and tiling format.
+ *
+ * For an untiled surface, this removes any existing fence.
  */
 int
 i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
@@ -2417,6 +2414,9 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_fence_reg *reg;
 	int ret;
+
+	if (obj->tiling_mode == I915_TILING_NONE)
+		return i915_gem_object_put_fence(obj);
 
 	/* XXX disable pipelining. There are bugs. Shocking. */
 	pipelined = NULL;

@@ -530,18 +530,13 @@ pin_and_fence_object(struct drm_i915_gem_object *obj,
 
 	if (has_fenced_gpu_access) {
 		if (entry->flags & EXEC_OBJECT_NEEDS_FENCE) {
-			if (obj->tiling_mode) {
-				ret = i915_gem_object_get_fence(obj, ring);
-				if (ret)
-					goto err_unpin;
+			ret = i915_gem_object_get_fence(obj, ring);
+			if (ret)
+				goto err_unpin;
 
+			if (i915_gem_object_pin_fence(obj))
 				entry->flags |= __EXEC_OBJECT_HAS_FENCE;
-				i915_gem_object_pin_fence(obj);
-			} else {
-				ret = i915_gem_object_put_fence(obj);
-				if (ret)
-					goto err_unpin;
-			}
+
 			obj->pending_fenced_gpu_access = true;
 		}
 	}
