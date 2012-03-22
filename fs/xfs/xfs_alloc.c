@@ -69,7 +69,7 @@ xfs_alloc_lookup_eq(
  * Lookup the first record greater than or equal to [bno, len]
  * in the btree given by cur.
  */
-STATIC int				/* error */
+int				/* error */
 xfs_alloc_lookup_ge(
 	struct xfs_btree_cur	*cur,	/* btree cursor */
 	xfs_agblock_t		bno,	/* starting block of extent */
