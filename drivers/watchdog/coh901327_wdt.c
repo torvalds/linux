@@ -67,7 +67,7 @@
 #define U300_WDOG_IFR_WILL_BARK_IRQ_FORCE_ENABLE			0x0001U
 
 /* Default timeout in seconds = 1 minute */
-static int margin = 60;
+static unsigned int margin = 60;
 static resource_size_t phybase;
 static resource_size_t physize;
 static int irq;
@@ -153,7 +153,7 @@ static void coh901327_disable(void)
 
 static int coh901327_start(struct watchdog_device *wdt_dev)
 {
-	coh901327_enable(margin * 100);
+	coh901327_enable(wdt_dev->timeout * 100);
 	return 0;
 }
 
@@ -176,10 +176,10 @@ static int coh901327_ping(struct watchdog_device *wdd)
 static int coh901327_settimeout(struct watchdog_device *wdt_dev,
 				unsigned int time)
 {
-	margin = time;
+	wdt_dev->timeout = time;
 	clk_enable(clk);
 	/* Set new timeout value */
-	writew(margin * 100, virtbase + U300_WDOG_TR);
+	writew(time * 100, virtbase + U300_WDOG_TR);
 	/* Feed the dog */
 	writew(U300_WDOG_FR_FEED_RESTART_TIMER,
 	       virtbase + U300_WDOG_FR);
@@ -250,7 +250,7 @@ static struct watchdog_device coh901327_wdt = {
 	.info = &coh901327_ident,
 	.ops = &coh901327_ops,
 	/*
-	 * Max margin is 327 since the 10ms
+	 * Max timeout is 327 since the 10ms
 	 * timeout register is max
 	 * 0x7FFF = 327670ms ~= 327s.
 	 */
@@ -352,6 +352,10 @@ static int __init coh901327_probe(struct platform_device *pdev)
 	}
 
 	clk_disable(clk);
+
+	if (margin < 1 || margin > 327)
+		margin = 60;
+	coh901327_wdt.timeout = margin;
 
 	ret = watchdog_register_device(&coh901327_wdt);
 	if (ret == 0)
@@ -461,7 +465,7 @@ module_exit(coh901327_exit);
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
 MODULE_DESCRIPTION("COH 901 327 Watchdog");
 
-module_param(margin, int, 0);
+module_param(margin, uint, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds (default 60s)");
 
 MODULE_LICENSE("GPL");
