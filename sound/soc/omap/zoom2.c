@@ -131,7 +131,7 @@ static struct snd_soc_dai_link zoom2_dai[] = {
 	{
 		.name = "TWL4030 I2S",
 		.stream_name = "TWL4030 Audio",
-		.cpu_dai_name = "omap-mcbsp-dai.1",
+		.cpu_dai_name = "omap-mcbsp.2",
 		.codec_dai_name = "twl4030-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "twl4030-codec",
@@ -143,7 +143,7 @@ static struct snd_soc_dai_link zoom2_dai[] = {
 	{
 		.name = "TWL4030 PCM",
 		.stream_name = "TWL4030 Voice",
-		.cpu_dai_name = "omap-mcbsp-dai.2",
+		.cpu_dai_name = "omap-mcbsp.3",
 		.codec_dai_name = "twl4030-voice",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "twl4030-codec",

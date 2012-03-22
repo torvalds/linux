@@ -268,6 +268,17 @@ int regcache_sync(struct regmap *map)
 		map->cache_ops->name);
 	name = map->cache_ops->name;
 	trace_regcache_sync(map->dev, name, "start");
+
+	/* Apply any patch first */
+	for (i = 0; i < map->patch_regs; i++) {
+		ret = _regmap_write(map, map->patch[i].reg, map->patch[i].def);
+		if (ret != 0) {
+			dev_err(map->dev, "Failed to write %x = %x: %d\n",
+				map->patch[i].reg, map->patch[i].def, ret);
+			goto out;
+		}
+	}
+
 	if (!map->cache_dirty)
 		goto out;
 	if (map->cache_ops->sync) {

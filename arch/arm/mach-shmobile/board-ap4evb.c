@@ -737,26 +737,18 @@ fsi_set_rate_end:
 	return ret;
 }
 
-static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
-{
-	int ret;
-
-	if (is_porta)
-		ret = fsi_ak4642_set_rate(dev, rate, enable);
-	else
-		ret = fsi_hdmi_set_rate(dev, rate, enable);
-
-	return ret;
-}
-
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags = SH_FSI_BRS_INV,
-
-	.portb_flags = SH_FSI_BRS_INV |
-		       SH_FSI_BRM_INV |
-		       SH_FSI_LRS_INV |
-		       SH_FSI_FMT_SPDIF,
-	.set_rate = fsi_set_rate,
+	.port_a = {
+		.flags		= SH_FSI_BRS_INV,
+		.set_rate	= fsi_ak4642_set_rate,
+	},
+	.port_b = {
+		.flags		= SH_FSI_BRS_INV |
+				  SH_FSI_BRM_INV |
+				  SH_FSI_LRS_INV |
+				  SH_FSI_FMT_SPDIF,
+		.set_rate	= fsi_hdmi_set_rate,
+	},
 };
 
 static struct resource fsi_resources[] = {

@@ -172,7 +172,7 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 		break;
 	default:
 		WARN(1, "Unknown DCS readback method\n");
-		break;
+		return;
 	}
 
 	dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
@@ -207,7 +207,7 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 
 	/* Save the callibrated offset if we're in class W mode and
 	 * therefore don't have any analogue signal mixed in. */
-	if (hubs->class_w)
+	if (hubs->class_w && !hubs->no_cache_class_w)
 		hubs->class_w_dcs = dcs_cfg;
 }
 
@@ -500,6 +500,36 @@ static int earpiece_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int lineout_event(struct snd_soc_dapm_widget *w,
+			 struct snd_kcontrol *control, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	bool *flag;
+
+	switch (w->shift) {
+	case WM8993_LINEOUT1N_ENA_SHIFT:
+		flag = &hubs->lineout1n_ena;
+		break;
+	case WM8993_LINEOUT1P_ENA_SHIFT:
+		flag = &hubs->lineout1p_ena;
+		break;
+	case WM8993_LINEOUT2N_ENA_SHIFT:
+		flag = &hubs->lineout2n_ena;
+		break;
+	case WM8993_LINEOUT2P_ENA_SHIFT:
+		flag = &hubs->lineout2p_ena;
+		break;
+	default:
+		WARN(1, "Unknown line output");
+		return -EINVAL;
+	}
+
+	*flag = SND_SOC_DAPM_EVENT_ON(event);
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new in1l_pga[] = {
 SOC_DAPM_SINGLE("IN1LP Switch", WM8993_INPUT_MIXER2, 5, 1, 0),
 SOC_DAPM_SINGLE("IN1LN Switch", WM8993_INPUT_MIXER2, 4, 1, 0),
@@ -613,8 +643,6 @@ SND_SOC_DAPM_INPUT("IN2RP:VXRP"),
 SND_SOC_DAPM_SUPPLY("MICBIAS2", WM8993_POWER_MANAGEMENT_1, 5, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("MICBIAS1", WM8993_POWER_MANAGEMENT_1, 4, 0, NULL, 0),
 
-SND_SOC_DAPM_SUPPLY("LINEOUT_VMID_BUF", WM8993_ANTIPOP1, 7, 0, NULL, 0),
-
 SND_SOC_DAPM_MIXER("IN1L PGA", WM8993_POWER_MANAGEMENT_2, 6, 0,
 		   in1l_pga, ARRAY_SIZE(in1l_pga)),
 SND_SOC_DAPM_MIXER("IN1R PGA", WM8993_POWER_MANAGEMENT_2, 4, 0,
@@ -640,9 +668,8 @@ SND_SOC_DAPM_PGA("Right Output PGA", WM8993_POWER_MANAGEMENT_3, 6, 0, NULL, 0),
 
 SND_SOC_DAPM_SUPPLY("Headphone Supply", SND_SOC_NOPM, 0, 0, hp_supply_event, 
 		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
-SND_SOC_DAPM_PGA_E("Headphone PGA", SND_SOC_NOPM, 0, 0,
-		   NULL, 0,
-		   hp_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_OUT_DRV_E("Headphone PGA", SND_SOC_NOPM, 0, 0, NULL, 0,
+		       hp_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_MIXER("Earpiece Mixer", SND_SOC_NOPM, 0, 0,
 		   earpiece_mixer, ARRAY_SIZE(earpiece_mixer)),
@@ -656,10 +683,10 @@ SND_SOC_DAPM_MIXER("SPKR Boost", SND_SOC_NOPM, 0, 0,
 		   right_speaker_boost, ARRAY_SIZE(right_speaker_boost)),
 
 SND_SOC_DAPM_SUPPLY("TSHUT", WM8993_POWER_MANAGEMENT_2, 14, 0, NULL, 0),
-SND_SOC_DAPM_PGA("SPKL Driver", WM8993_POWER_MANAGEMENT_1, 12, 0,
-		 NULL, 0),
-SND_SOC_DAPM_PGA("SPKR Driver", WM8993_POWER_MANAGEMENT_1, 13, 0,
-		 NULL, 0),
+SND_SOC_DAPM_OUT_DRV("SPKL Driver", WM8993_POWER_MANAGEMENT_1, 12, 0,
+		     NULL, 0),
+SND_SOC_DAPM_OUT_DRV("SPKR Driver", WM8993_POWER_MANAGEMENT_1, 13, 0,
+		     NULL, 0),
 
 SND_SOC_DAPM_MIXER("LINEOUT1 Mixer", SND_SOC_NOPM, 0, 0,
 		   line1_mix, ARRAY_SIZE(line1_mix)),
@@ -675,14 +702,18 @@ SND_SOC_DAPM_MIXER("LINEOUT2N Mixer", SND_SOC_NOPM, 0, 0,
 SND_SOC_DAPM_MIXER("LINEOUT2P Mixer", SND_SOC_NOPM, 0, 0,
 		   line2p_mix, ARRAY_SIZE(line2p_mix)),
 
-SND_SOC_DAPM_PGA("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,
-		 NULL, 0),
-SND_SOC_DAPM_PGA("LINEOUT1P Driver", WM8993_POWER_MANAGEMENT_3, 12, 0,
-		 NULL, 0),
-SND_SOC_DAPM_PGA("LINEOUT2N Driver", WM8993_POWER_MANAGEMENT_3, 11, 0,
-		 NULL, 0),
-SND_SOC_DAPM_PGA("LINEOUT2P Driver", WM8993_POWER_MANAGEMENT_3, 10, 0,
-		 NULL, 0),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT1N Driver", WM8993_POWER_MANAGEMENT_3, 13, 0,
+		       NULL, 0, lineout_event,
+		     SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT1P Driver", WM8993_POWER_MANAGEMENT_3, 12, 0,
+		       NULL, 0, lineout_event,
+		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT2N Driver", WM8993_POWER_MANAGEMENT_3, 11, 0,
+		       NULL, 0, lineout_event,
+		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_OUT_DRV_E("LINEOUT2P Driver", WM8993_POWER_MANAGEMENT_3, 10, 0,
+		       NULL, 0, lineout_event,
+		       SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 SND_SOC_DAPM_OUTPUT("SPKOUTLP"),
 SND_SOC_DAPM_OUTPUT("SPKOUTLN"),
@@ -836,11 +867,9 @@ static const struct snd_soc_dapm_route lineout1_diff_routes[] = {
 };
 
 static const struct snd_soc_dapm_route lineout1_se_routes[] = {
-	{ "LINEOUT1N Mixer", NULL, "LINEOUT_VMID_BUF" },
 	{ "LINEOUT1N Mixer", "Left Output Switch", "Left Output PGA" },
 	{ "LINEOUT1N Mixer", "Right Output Switch", "Right Output PGA" },
 
-	{ "LINEOUT1P Mixer", NULL, "LINEOUT_VMID_BUF" },
 	{ "LINEOUT1P Mixer", "Left Output Switch", "Left Output PGA" },
 
 	{ "LINEOUT1N Driver", NULL, "LINEOUT1N Mixer" },
@@ -857,11 +886,9 @@ static const struct snd_soc_dapm_route lineout2_diff_routes[] = {
 };
 
 static const struct snd_soc_dapm_route lineout2_se_routes[] = {
-	{ "LINEOUT2N Mixer", NULL, "LINEOUT_VMID_BUF" },
 	{ "LINEOUT2N Mixer", "Left Output Switch", "Left Output PGA" },
 	{ "LINEOUT2N Mixer", "Right Output Switch", "Right Output PGA" },
 
-	{ "LINEOUT2P Mixer", NULL, "LINEOUT_VMID_BUF" },
 	{ "LINEOUT2P Mixer", "Right Output Switch", "Right Output PGA" },
 
 	{ "LINEOUT2N Driver", NULL, "LINEOUT2N Mixer" },
@@ -901,7 +928,7 @@ int wm_hubs_add_analogue_controls(struct snd_soc_codec *codec)
 			    WM8993_MIXOUTR_ZC | WM8993_MIXOUT_VU,
 			    WM8993_MIXOUTR_ZC | WM8993_MIXOUT_VU);
 
-	snd_soc_add_controls(codec, analogue_snd_controls,
+	snd_soc_add_codec_controls(codec, analogue_snd_controls,
 			     ARRAY_SIZE(analogue_snd_controls));
 
 	snd_soc_dapm_new_controls(dapm, analogue_dapm_widgets,
@@ -949,6 +976,11 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 				  int jd_scthr, int jd_thr, int micbias1_lvl,
 				  int micbias2_lvl)
 {
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+
+	hubs->lineout1_se = !lineout1_diff;
+	hubs->lineout2_se = !lineout2_diff;
+
 	if (!lineout1_diff)
 		snd_soc_update_bits(codec, WM8993_LINE_MIXER1,
 				    WM8993_LINEOUT1_MODE,
@@ -958,11 +990,10 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 				    WM8993_LINEOUT2_MODE,
 				    WM8993_LINEOUT2_MODE);
 
-	/* If the line outputs are differential then we aren't presenting
-	 * VMID as an output and can disable it.
-	 */
-	if (lineout1_diff && lineout2_diff)
-		codec->dapm.idle_bias_off = 1;
+	if (!lineout1_diff && !lineout2_diff)
+		snd_soc_update_bits(codec, WM8993_ANTIPOP1,
+				    WM8993_LINEOUT_VMID_BUF_ENA,
+				    WM8993_LINEOUT_VMID_BUF_ENA);
 
 	if (lineout1fb)
 		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,
@@ -983,6 +1014,69 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm_hubs_handle_analogue_pdata);
+
+void wm_hubs_vmid_ena(struct snd_soc_codec *codec)
+{
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	int val = 0;
+
+	if (hubs->lineout1_se)
+		val |= WM8993_LINEOUT1N_ENA | WM8993_LINEOUT1P_ENA;
+
+	if (hubs->lineout2_se)
+		val |= WM8993_LINEOUT2N_ENA | WM8993_LINEOUT2P_ENA;
+
+	/* Enable the line outputs while we power up */
+	snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_3, val, val);
+}
+EXPORT_SYMBOL_GPL(wm_hubs_vmid_ena);
+
+void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
+			    enum snd_soc_bias_level level)
+{
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	int val;
+
+	switch (level) {
+	case SND_SOC_BIAS_STANDBY:
+		/* Clamp the inputs to VMID while we ramp to charge caps */
+		snd_soc_update_bits(codec, WM8993_INPUTS_CLAMP_REG,
+				    WM8993_INPUTS_CLAMP, WM8993_INPUTS_CLAMP);
+		break;
+
+	case SND_SOC_BIAS_ON:
+		/* Turn off any unneded single ended outputs */
+		val = 0;
+
+		if (hubs->lineout1_se && hubs->lineout1n_ena)
+			val |= WM8993_LINEOUT1N_ENA;
+
+		if (hubs->lineout1_se && hubs->lineout1p_ena)
+			val |= WM8993_LINEOUT1P_ENA;
+
+		if (hubs->lineout2_se && hubs->lineout2n_ena)
+			val |= WM8993_LINEOUT2N_ENA;
+
+		if (hubs->lineout2_se && hubs->lineout2p_ena)
+			val |= WM8993_LINEOUT2P_ENA;
+
+		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_3,
+				    WM8993_LINEOUT1N_ENA |
+				    WM8993_LINEOUT1P_ENA |
+				    WM8993_LINEOUT2N_ENA |
+				    WM8993_LINEOUT2P_ENA,
+				    val);
+
+		/* Remove the input clamps */
+		snd_soc_update_bits(codec, WM8993_INPUTS_CLAMP_REG,
+				    WM8993_INPUTS_CLAMP, 0);
+		break;
+
+	default:
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(wm_hubs_set_bias_level);
 
 MODULE_DESCRIPTION("Shared support for Wolfson hubs products");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");

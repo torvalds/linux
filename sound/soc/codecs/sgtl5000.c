@@ -227,7 +227,7 @@ static const struct snd_soc_dapm_widget sgtl5000_dapm_widgets[] = {
 };
 
 /* routes for sgtl5000 */
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route sgtl5000_dapm_routes[] = {
 	{"Capture Mux", "LINE_IN", "LINE_IN"},	/* line_in --> adc_mux */
 	{"Capture Mux", "MIC_IN", "MIC_IN"},	/* mic_in --> adc_mux */
 
@@ -1248,7 +1248,7 @@ static int sgtl5000_enable_regulators(struct snd_soc_codec *codec)
 	}
 
 	rev = (reg & SGTL5000_REVID_MASK) >> SGTL5000_REVID_SHIFT;
-	dev_info(codec->dev, "sgtl5000 revision %d\n", rev);
+	dev_info(codec->dev, "sgtl5000 revision 0x%x\n", rev);
 
 	/*
 	 * workaround for revision 0x11 and later,
@@ -1353,15 +1353,6 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 	if (ret)
 		goto err;
 
-	snd_soc_add_controls(codec, sgtl5000_snd_controls,
-			     ARRAY_SIZE(sgtl5000_snd_controls));
-
-	snd_soc_dapm_new_controls(&codec->dapm, sgtl5000_dapm_widgets,
-				  ARRAY_SIZE(sgtl5000_dapm_widgets));
-
-	snd_soc_dapm_add_routes(&codec->dapm, audio_map,
-				ARRAY_SIZE(audio_map));
-
 	snd_soc_dapm_new_widgets(&codec->dapm);
 
 	return 0;
@@ -1402,6 +1393,12 @@ static struct snd_soc_codec_driver sgtl5000_driver = {
 	.reg_cache_step = 2,
 	.reg_cache_default = sgtl5000_regs,
 	.volatile_register = sgtl5000_volatile_register,
+	.controls = sgtl5000_snd_controls,
+	.num_controls = ARRAY_SIZE(sgtl5000_snd_controls),
+	.dapm_widgets = sgtl5000_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(sgtl5000_dapm_widgets),
+	.dapm_routes = sgtl5000_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(sgtl5000_dapm_routes),
 };
 
 static __devinit int sgtl5000_i2c_probe(struct i2c_client *client,
