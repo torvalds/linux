@@ -950,6 +950,22 @@ xfs_fs_evict_inode(
 	xfs_inactive(ip);
 }
 
+/*
+ * We do an unlocked check for XFS_IDONTCACHE here because we are already
+ * serialised against cache hits here via the inode->i_lock and igrab() in
+ * xfs_iget_cache_hit(). Hence a lookup that might clear this flag will not be
+ * racing with us, and it avoids needing to grab a spinlock here for every inode
+ * we drop the final reference on.
+ */
+STATIC int
+xfs_fs_drop_inode(
+	struct inode		*inode)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+
+	return generic_drop_inode(inode) || (ip->i_flags & XFS_IDONTCACHE);
+}
+
 STATIC void
 xfs_free_fsname(
 	struct xfs_mount	*mp)
@@ -1434,6 +1450,7 @@ static const struct super_operations xfs_super_operations = {
 	.destroy_inode		= xfs_fs_destroy_inode,
 	.dirty_inode		= xfs_fs_dirty_inode,
 	.evict_inode		= xfs_fs_evict_inode,
+	.drop_inode		= xfs_fs_drop_inode,
 	.put_super		= xfs_fs_put_super,
 	.sync_fs		= xfs_fs_sync_fs,
 	.freeze_fs		= xfs_fs_freeze,
