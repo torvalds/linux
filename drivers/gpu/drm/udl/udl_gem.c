@@ -234,7 +234,7 @@ int udl_gem_mmap(struct drm_file *file, struct drm_device *dev,
 
 	ret = udl_gem_get_pages(gobj, GFP_KERNEL);
 	if (ret)
-		return ret;
+		goto out;
 	if (!gobj->base.map_list.map) {
 		ret = drm_gem_create_mmap_offset(obj);
 		if (ret)
