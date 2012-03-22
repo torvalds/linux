@@ -227,8 +227,8 @@ static inline int imxdma_sg_next(struct imxdma_desc *d)
 
 	imx_dmav1_writel(imxdma, now, DMA_CNTR(imxdmac->channel));
 
-	pr_debug("imxdma%d: next sg chunk dst 0x%08x, src 0x%08x, "
-		"size 0x%08x\n", imxdmac->channel,
+	dev_dbg(imxdma->dev, " %s channel: %d dst 0x%08x, src 0x%08x, "
+		"size 0x%08x\n", __func__, imxdmac->channel,
 		 imx_dmav1_readl(imxdma, DMA_DAR(imxdmac->channel)),
 		 imx_dmav1_readl(imxdma, DMA_SAR(imxdmac->channel)),
 		 imx_dmav1_readl(imxdma, DMA_CNTR(imxdmac->channel)));
@@ -243,7 +243,7 @@ static void imxdma_enable_hw(struct imxdma_desc *d)
 	int channel = imxdmac->channel;
 	unsigned long flags;
 
-	pr_debug("imxdma%d: imx_dma_enable\n", channel);
+	dev_dbg(imxdma->dev, "%s channel %d\n", __func__, channel);
 
 	local_irq_save(flags);
 
@@ -274,7 +274,7 @@ static void imxdma_disable_hw(struct imxdma_channel *imxdmac)
 	int channel = imxdmac->channel;
 	unsigned long flags;
 
-	pr_debug("imxdma%d: imx_dma_disable\n", channel);
+	dev_dbg(imxdma->dev, "%s channel %d\n", __func__, channel);
 
 	if (imxdma_hw_chain(imxdmac))
 		del_timer(&imxdmac->watchdog);
@@ -298,7 +298,8 @@ static void imxdma_watchdog(unsigned long data)
 
 	/* Tasklet watchdog error handler */
 	tasklet_schedule(&imxdmac->dma_tasklet);
-	pr_debug("imxdma%d: watchdog timeout!\n", imxdmac->channel);
+	dev_dbg(imxdma->dev, "channel %d: watchdog timeout!\n",
+		imxdmac->channel);
 }
 
 static irqreturn_t imxdma_err_handler(int irq, void *dev_id)
@@ -426,8 +427,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 
 	disr = imx_dmav1_readl(imxdma, DMA_DISR);
 
-	pr_debug("imxdma: dma_irq_handler called, disr=0x%08x\n",
-		     disr);
+	dev_dbg(imxdma->dev, "%s called, disr=0x%08x\n", __func__, disr);
 
 	imx_dmav1_writel(imxdma, disr, DMA_DISR);
 	for (i = 0; i < IMX_DMA_CHANNELS; i++) {
@@ -875,14 +875,14 @@ static int __init imxdma_probe(struct platform_device *pdev)
 	if (cpu_is_mx1()) {
 		ret = request_irq(MX1_DMA_INT, dma_irq_handler, 0, "DMA", imxdma);
 		if (ret) {
-			pr_crit("Can't register IRQ for DMA\n");
+			dev_warn(imxdma->dev, "Can't register IRQ for DMA\n");
 			kfree(imxdma);
 			return ret;
 		}
 
 		ret = request_irq(MX1_DMA_ERR, imxdma_err_handler, 0, "DMA", imxdma);
 		if (ret) {
-			pr_crit("Can't register ERRIRQ for DMA\n");
+			dev_warn(imxdma->dev, "Can't register ERRIRQ for DMA\n");
 			free_irq(MX1_DMA_INT, NULL);
 			kfree(imxdma);
 			return ret;
@@ -912,8 +912,9 @@ static int __init imxdma_probe(struct platform_device *pdev)
 			ret = request_irq(MX2x_INT_DMACH0 + i,
 					dma_irq_handler, 0, "DMA", imxdma);
 			if (ret) {
-				pr_crit("Can't register IRQ %d for DMA channel %d\n",
-						MX2x_INT_DMACH0 + i, i);
+				dev_warn(imxdma->dev, "Can't register IRQ %d "
+					 "for DMA channel %d\n",
+					 MX2x_INT_DMACH0 + i, i);
 				goto err_init;
 			}
 			init_timer(&imxdmac->watchdog);
