@@ -168,6 +168,14 @@ static struct fc_function_template fcoe_nport_fc_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_active_fc4s = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_serial_number = 1,
+	.show_host_manufacturer = 1,
+	.show_host_model = 1,
+	.show_host_model_description = 1,
+	.show_host_hardware_version = 1,
+	.show_host_driver_version = 1,
+	.show_host_firmware_version = 1,
+	.show_host_optionrom_version = 1,
 
 	.show_host_port_id = 1,
 	.show_host_supported_speeds = 1,
@@ -208,6 +216,14 @@ static struct fc_function_template fcoe_vport_fc_functions = {
 	.show_host_supported_fc4s = 1,
 	.show_host_active_fc4s = 1,
 	.show_host_maxframe_size = 1,
+	.show_host_serial_number = 1,
+	.show_host_manufacturer = 1,
+	.show_host_model = 1,
+	.show_host_model_description = 1,
+	.show_host_hardware_version = 1,
+	.show_host_driver_version = 1,
+	.show_host_firmware_version = 1,
+	.show_host_optionrom_version = 1,
 
 	.show_host_port_id = 1,
 	.show_host_supported_speeds = 1,
@@ -364,11 +380,10 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 	if (!fcoe) {
 		FCOE_NETDEV_DBG(netdev, "Could not allocate fcoe structure\n");
 		fcoe = ERR_PTR(-ENOMEM);
-		goto out_nomod;
+		goto out_putmod;
 	}
 
 	dev_hold(netdev);
-	kref_init(&fcoe->kref);
 
 	/*
 	 * Initialize FIP.
@@ -384,51 +399,15 @@ static struct fcoe_interface *fcoe_interface_create(struct net_device *netdev,
 		kfree(fcoe);
 		dev_put(netdev);
 		fcoe = ERR_PTR(err);
-		goto out_nomod;
+		goto out_putmod;
 	}
 
 	goto out;
 
-out_nomod:
+out_putmod:
 	module_put(THIS_MODULE);
 out:
 	return fcoe;
-}
-
-/**
- * fcoe_interface_release() - fcoe_port kref release function
- * @kref: Embedded reference count in an fcoe_interface struct
- */
-static void fcoe_interface_release(struct kref *kref)
-{
-	struct fcoe_interface *fcoe;
-	struct net_device *netdev;
-
-	fcoe = container_of(kref, struct fcoe_interface, kref);
-	netdev = fcoe->netdev;
-	/* tear-down the FCoE controller */
-	fcoe_ctlr_destroy(&fcoe->ctlr);
-	kfree(fcoe);
-	dev_put(netdev);
-	module_put(THIS_MODULE);
-}
-
-/**
- * fcoe_interface_get() - Get a reference to a FCoE interface
- * @fcoe: The FCoE interface to be held
- */
-static inline void fcoe_interface_get(struct fcoe_interface *fcoe)
-{
-	kref_get(&fcoe->kref);
-}
-
-/**
- * fcoe_interface_put() - Put a reference to a FCoE interface
- * @fcoe: The FCoE interface to be released
- */
-static inline void fcoe_interface_put(struct fcoe_interface *fcoe)
-{
-	kref_put(&fcoe->kref, fcoe_interface_release);
 }
 
 /**
@@ -478,7 +457,11 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	rtnl_unlock();
 
 	/* Release the self-reference taken during fcoe_interface_create() */
-	fcoe_interface_put(fcoe);
+	/* tear-down the FCoE controller */
+	fcoe_ctlr_destroy(fip);
+	kfree(fcoe);
+	dev_put(netdev);
+	module_put(THIS_MODULE);
 }
 
 /**
@@ -734,6 +717,85 @@ static int fcoe_shost_config(struct fc_lport *lport, struct device *dev)
 	return 0;
 }
 
+
+/**
+ * fcoe_fdmi_info() - Get FDMI related info from net devive for SW FCoE
+ * @lport:  The local port that is associated with the net device
+ * @netdev: The associated net device
+ *
+ * Must be called after fcoe_shost_config() as it will use local port mutex
+ *
+ */
+static void fcoe_fdmi_info(struct fc_lport *lport, struct net_device *netdev)
+{
+	struct fcoe_interface *fcoe;
+	struct fcoe_port *port;
+	struct net_device *realdev;
+	int rc;
+	struct netdev_fcoe_hbainfo fdmi;
+
+	port = lport_priv(lport);
+	fcoe = port->priv;
+	realdev = fcoe->realdev;
+
+	if (!realdev)
+		return;
+
+	/* No FDMI state m/c for NPIV ports */
+	if (lport->vport)
+		return;
+
+	if (realdev->netdev_ops->ndo_fcoe_get_hbainfo) {
+		memset(&fdmi, 0, sizeof(fdmi));
+		rc = realdev->netdev_ops->ndo_fcoe_get_hbainfo(realdev,
+							       &fdmi);
+		if (rc) {
+			printk(KERN_INFO "fcoe: Failed to retrieve FDMI "
+					"information from netdev.\n");
+			return;
+		}
+
+		snprintf(fc_host_serial_number(lport->host),
+			 FC_SERIAL_NUMBER_SIZE,
+			 "%s",
+			 fdmi.serial_number);
+		snprintf(fc_host_manufacturer(lport->host),
+			 FC_SERIAL_NUMBER_SIZE,
+			 "%s",
+			 fdmi.manufacturer);
+		snprintf(fc_host_model(lport->host),
+			 FC_SYMBOLIC_NAME_SIZE,
+			 "%s",
+			 fdmi.model);
+		snprintf(fc_host_model_description(lport->host),
+			 FC_SYMBOLIC_NAME_SIZE,
+			 "%s",
+			 fdmi.model_description);
+		snprintf(fc_host_hardware_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.hardware_version);
+		snprintf(fc_host_driver_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.driver_version);
+		snprintf(fc_host_optionrom_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.optionrom_version);
+		snprintf(fc_host_firmware_version(lport->host),
+			 FC_VERSION_STRING_SIZE,
+			 "%s",
+			 fdmi.firmware_version);
+
+		/* Enable FDMI lport states */
+		lport->fdmi_enabled = 1;
+	} else {
+		lport->fdmi_enabled = 0;
+		printk(KERN_INFO "fcoe: No FDMI support.\n");
+	}
+}
+
 /**
  * fcoe_oem_match() - The match routine for the offloaded exchange manager
  * @fp: The I/O frame
@@ -880,9 +942,6 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	if (!is_zero_ether_addr(port->data_src_addr))
 		dev_uc_del(netdev, port->data_src_addr);
 	rtnl_unlock();
-
-	/* Release reference held in fcoe_if_create() */
-	fcoe_interface_put(fcoe);
 
 	/* Free queued packets for the per-CPU receive threads */
 	fcoe_percpu_clean(lport);
@@ -1047,6 +1106,9 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 		goto out_lp_destroy;
 	}
 
+	/* Initialized FDMI information */
+	fcoe_fdmi_info(lport, netdev);
+
 	/*
 	 * fcoe_em_alloc() and fcoe_hostlist_add() both
 	 * need to be atomic with respect to other changes to the
@@ -1070,7 +1132,6 @@ static struct fc_lport *fcoe_if_create(struct fcoe_interface *fcoe,
 		goto out_lp_destroy;
 	}
 
-	fcoe_interface_get(fcoe);
 	return lport;
 
 out_lp_destroy:
@@ -2009,20 +2070,13 @@ static void fcoe_destroy_work(struct work_struct *work)
 {
 	struct fcoe_port *port;
 	struct fcoe_interface *fcoe;
-	int npiv = 0;
 
 	port = container_of(work, struct fcoe_port, destroy_work);
 	mutex_lock(&fcoe_config_mutex);
 
-	/* set if this is an NPIV port */
-	npiv = port->lport->vport ? 1 : 0;
-
 	fcoe = port->priv;
 	fcoe_if_destroy(port->lport);
-
-	/* Do not tear down the fcoe interface for NPIV port */
-	if (!npiv)
-		fcoe_interface_cleanup(fcoe);
+	fcoe_interface_cleanup(fcoe);
 
 	mutex_unlock(&fcoe_config_mutex);
 }
@@ -2593,12 +2647,15 @@ static int fcoe_vport_destroy(struct fc_vport *vport)
 	struct Scsi_Host *shost = vport_to_shost(vport);
 	struct fc_lport *n_port = shost_priv(shost);
 	struct fc_lport *vn_port = vport->dd_data;
-	struct fcoe_port *port = lport_priv(vn_port);
 
 	mutex_lock(&n_port->lp_mutex);
 	list_del(&vn_port->list);
 	mutex_unlock(&n_port->lp_mutex);
-	queue_work(fcoe_wq, &port->destroy_work);
+
+	mutex_lock(&fcoe_config_mutex);
+	fcoe_if_destroy(vn_port);
+	mutex_unlock(&fcoe_config_mutex);
+
 	return 0;
 }
 

@@ -104,12 +104,10 @@ static void sas_form_port(struct asd_sas_phy *phy)
 
 	/* add the phy to the port */
 	list_add_tail(&phy->port_phy_el, &port->phy_list);
+	sas_phy_set_target(phy, port->port_dev);
 	phy->port = port;
 	port->num_phys++;
 	port->phy_mask |= (1U << phy->id);
-
-	if (!port->phy)
-		port->phy = phy->phy;
 
 	if (*(u64 *)port->attached_sas_addr == 0) {
 		port->class = phy->class;
@@ -125,7 +123,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
 	if (!port->port) {
-		port->port = sas_port_alloc(phy->phy->dev.parent, port->id);
+		port->port = sas_port_alloc(phy->phy->dev.parent, phy->id);
 		BUG_ON(!port->port);
 		sas_port_add(port->port);
 	}
@@ -170,13 +168,13 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 		dev->pathways--;
 
 	if (port->num_phys == 1) {
-		if (dev && gone)
-			dev->gone = 1;
-		sas_unregister_domain_devices(port);
+		sas_unregister_domain_devices(port, gone);
 		sas_port_delete(port->port);
 		port->port = NULL;
-	} else
+	} else {
 		sas_port_delete_phy(port->port, phy->phy);
+		sas_device_set_phy(dev, port->port);
+	}
 
 	if (si->dft->lldd_port_deformed)
 		si->dft->lldd_port_deformed(phy);
@@ -185,6 +183,7 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 	spin_lock(&port->phy_list_lock);
 
 	list_del_init(&phy->port_phy_el);
+	sas_phy_set_target(phy, NULL);
 	phy->port = NULL;
 	port->num_phys--;
 	port->phy_mask &= ~(1U << phy->id);
@@ -213,8 +212,7 @@ void sas_porte_bytes_dmaed(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_BYTES_DMAED, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_BYTES_DMAED, &phy->port_events_pending);
 
 	sas_form_port(phy);
 }
@@ -227,8 +225,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 	unsigned long flags;
 	u32 prim;
 
-	sas_begin_event(PORTE_BROADCAST_RCVD, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_BROADCAST_RCVD, &phy->port_events_pending);
 
 	spin_lock_irqsave(&phy->sas_prim_lock, flags);
 	prim = phy->sas_prim;
@@ -244,8 +241,7 @@ void sas_porte_link_reset_err(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_LINK_RESET_ERR, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_LINK_RESET_ERR, &phy->port_events_pending);
 
 	sas_deform_port(phy, 1);
 }
@@ -256,8 +252,7 @@ void sas_porte_timer_event(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_TIMER_EVENT, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_TIMER_EVENT, &phy->port_events_pending);
 
 	sas_deform_port(phy, 1);
 }
@@ -268,8 +263,7 @@ void sas_porte_hard_reset(struct work_struct *work)
 		container_of(work, struct asd_sas_event, work);
 	struct asd_sas_phy *phy = ev->phy;
 
-	sas_begin_event(PORTE_HARD_RESET, &phy->ha->event_lock,
-			&phy->port_events_pending);
+	clear_bit(PORTE_HARD_RESET, &phy->port_events_pending);
 
 	sas_deform_port(phy, 1);
 }
@@ -282,6 +276,8 @@ static void sas_init_port(struct asd_sas_port *port,
 	memset(port, 0, sizeof(*port));
 	port->id = i;
 	INIT_LIST_HEAD(&port->dev_list);
+	INIT_LIST_HEAD(&port->disco_list);
+	INIT_LIST_HEAD(&port->destroy_list);
 	spin_lock_init(&port->phy_list_lock);
 	INIT_LIST_HEAD(&port->phy_list);
 	port->ha = sas_ha;

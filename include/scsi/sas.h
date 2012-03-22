@@ -89,8 +89,7 @@ enum sas_oob_mode {
 	SAS_OOB_MODE
 };
 
-/* See sas_discover.c if you plan on changing these.
- */
+/* See sas_discover.c if you plan on changing these */
 enum sas_dev_type {
 	NO_DEVICE   = 0,	  /* protocol */
 	SAS_END_DEV = 1,	  /* protocol */
@@ -100,6 +99,7 @@ enum sas_dev_type {
 	SATA_DEV    = 5,
 	SATA_PM     = 7,
 	SATA_PM_PORT= 8,
+	SATA_PENDING  = 9,
 };
 
 enum sas_protocol {

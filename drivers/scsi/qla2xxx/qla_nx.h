@@ -888,7 +888,8 @@ struct ct6_dsd {
 };
 
 #define MBC_TOGGLE_INTERRUPT	0x10
-#define MBC_SET_LED_CONFIG	0x125
+#define MBC_SET_LED_CONFIG	0x125	/* FCoE specific LED control */
+#define MBC_GET_LED_CONFIG	0x126	/* FCoE specific LED control */
 
 /* Flash  offset */
 #define FLT_REG_BOOTLOAD_82XX	0x72
