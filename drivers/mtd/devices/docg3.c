@@ -875,6 +875,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	ops->retlen = 0;
 	ret = 0;
 	skip = from % DOC_LAYOUT_PAGE_SIZE;
+	mutex_lock(&docg3->cascade->lock);
 	while (!ret && (len > 0 || ooblen > 0)) {
 		calc_block_sector(from - skip, &block0, &block1, &page, &ofs,
 			docg3->reliable);
@@ -882,7 +883,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		nboob = min_t(size_t, ooblen, (size_t)DOC_LAYOUT_OOB_SIZE);
 		ret = doc_read_page_prepare(docg3, block0, block1, page, ofs);
 		if (ret < 0)
-			goto err;
+			goto out;
 		ret = doc_read_page_ecc_init(docg3, DOC_ECC_BCH_TOTAL_BYTES);
 		if (ret < 0)
 			goto err_in_read;
@@ -950,11 +951,12 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 		skip = 0;
 	}
 
+out:
+	mutex_unlock(&docg3->cascade->lock);
 	return ret;
 err_in_read:
 	doc_read_page_finish(docg3);
-err:
-	return ret;
+	goto out;
 }
 
 /**
@@ -1194,7 +1196,6 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
 	int block0, block1, page, ret, ofs = 0;
 
 	doc_dbg("doc_erase(from=%lld, len=%lld\n", info->addr, info->len);
-	doc_set_device_id(docg3, docg3->device_id);
 
 	info->state = MTD_ERASE_PENDING;
 	calc_block_sector(info->addr + info->len, &block0, &block1, &page,
@@ -1206,6 +1207,8 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
 	ret = 0;
 	calc_block_sector(info->addr, &block0, &block1, &page, &ofs,
 			  docg3->reliable);
+	mutex_lock(&docg3->cascade->lock);
+	doc_set_device_id(docg3, docg3->device_id);
 	doc_set_reliable_mode(docg3);
 	for (len = info->len; !ret && len > 0; len -= mtd->erasesize) {
 		info->state = MTD_ERASING;
@@ -1213,6 +1216,7 @@ static int doc_erase(struct mtd_info *mtd, struct erase_info *info)
 		block0 += 2;
 		block1 += 2;
 	}
+	mutex_unlock(&docg3->cascade->lock);
 
 	if (ret)
 		goto reset_err;
@@ -1399,7 +1403,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 			 struct mtd_oob_ops *ops)
 {
 	struct docg3 *docg3 = mtd->priv;
-	int block0, block1, page, ret, pofs = 0, autoecc, oobdelta;
+	int ret, autoecc, oobdelta;
 	u8 *oobbuf = ops->oobbuf;
 	u8 *buf = ops->datbuf;
 	size_t len, ooblen;
@@ -1451,6 +1455,7 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 	if (autoecc < 0)
 		return autoecc;
 
+	mutex_lock(&docg3->cascade->lock);
 	while (!ret && len > 0) {
 		memset(oob, 0, sizeof(oob));
 		if (ofs == docg3->oob_write_ofs)
@@ -1471,8 +1476,9 @@ static int doc_write_oob(struct mtd_info *mtd, loff_t ofs,
 		}
 		ops->retlen += DOC_LAYOUT_PAGE_SIZE;
 	}
-err:
+
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 	return ret;
 }
 
@@ -1529,9 +1535,11 @@ static ssize_t dps0_is_key_locked(struct device *dev,
 	struct docg3 *docg3 = sysfs_dev2docg3(dev, attr);
 	int dps0;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	dps0 = doc_register_readb(docg3, DOC_DPS0_STATUS);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 
 	return sprintf(buf, "%d\n", !(dps0 & DOC_DPS_KEY_OK));
 }
@@ -1542,9 +1550,11 @@ static ssize_t dps1_is_key_locked(struct device *dev,
 	struct docg3 *docg3 = sysfs_dev2docg3(dev, attr);
 	int dps1;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	dps1 = doc_register_readb(docg3, DOC_DPS1_STATUS);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 
 	return sprintf(buf, "%d\n", !(dps1 & DOC_DPS_KEY_OK));
 }
@@ -1559,10 +1569,12 @@ static ssize_t dps0_insert_key(struct device *dev,
 	if (count != DOC_LAYOUT_DPS_KEY_LENGTH)
 		return -EINVAL;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	for (i = 0; i < DOC_LAYOUT_DPS_KEY_LENGTH; i++)
 		doc_writeb(docg3, buf[i], DOC_DPS0_KEY);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 	return count;
 }
 
@@ -1576,10 +1588,12 @@ static ssize_t dps1_insert_key(struct device *dev,
 	if (count != DOC_LAYOUT_DPS_KEY_LENGTH)
 		return -EINVAL;
 
+	mutex_lock(&docg3->cascade->lock);
 	doc_set_device_id(docg3, docg3->device_id);
 	for (i = 0; i < DOC_LAYOUT_DPS_KEY_LENGTH; i++)
 		doc_writeb(docg3, buf[i], DOC_DPS1_KEY);
 	doc_set_device_id(docg3, 0);
+	mutex_unlock(&docg3->cascade->lock);
 	return count;
 }
 
@@ -1634,7 +1648,11 @@ static int dbg_flashctrl_show(struct seq_file *s, void *p)
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
 	int pos = 0;
-	u8 fctrl = doc_register_readb(docg3, DOC_FLASHCONTROL);
+	u8 fctrl;
+
+	mutex_lock(&docg3->cascade->lock);
+	fctrl = doc_register_readb(docg3, DOC_FLASHCONTROL);
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s,
 		 "FlashControl : 0x%02x (%s,CE# %s,%s,%s,flash %s)\n",
@@ -1652,9 +1670,12 @@ static int dbg_asicmode_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 
-	int pos = 0;
-	int pctrl = doc_register_readb(docg3, DOC_ASICMODE);
-	int mode = pctrl & 0x03;
+	int pos = 0, pctrl, mode;
+
+	mutex_lock(&docg3->cascade->lock);
+	pctrl = doc_register_readb(docg3, DOC_ASICMODE);
+	mode = pctrl & 0x03;
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s,
 			 "%04x : RAM_WE=%d,RSTIN_RESET=%d,BDETCT_RESET=%d,WRITE_ENABLE=%d,POWERDOWN=%d,MODE=%d%d (",
@@ -1686,7 +1707,11 @@ static int dbg_device_id_show(struct seq_file *s, void *p)
 {
 	struct docg3 *docg3 = (struct docg3 *)s->private;
 	int pos = 0;
-	int id = doc_register_readb(docg3, DOC_DEVICESELECT);
+	int id;
+
+	mutex_lock(&docg3->cascade->lock);
+	id = doc_register_readb(docg3, DOC_DEVICESELECT);
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s, "DeviceId = %d\n", id);
 	return pos;
@@ -1699,6 +1724,7 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 	int pos = 0;
 	int protect, dps0, dps0_low, dps0_high, dps1, dps1_low, dps1_high;
 
+	mutex_lock(&docg3->cascade->lock);
 	protect = doc_register_readb(docg3, DOC_PROTECTION);
 	dps0 = doc_register_readb(docg3, DOC_DPS0_STATUS);
 	dps0_low = doc_register_readw(docg3, DOC_DPS0_ADDRLOW);
@@ -1706,6 +1732,7 @@ static int dbg_protection_show(struct seq_file *s, void *p)
 	dps1 = doc_register_readb(docg3, DOC_DPS1_STATUS);
 	dps1_low = doc_register_readw(docg3, DOC_DPS1_ADDRLOW);
 	dps1_high = doc_register_readw(docg3, DOC_DPS1_ADDRHIGH);
+	mutex_unlock(&docg3->cascade->lock);
 
 	pos += seq_printf(s, "Protection = 0x%02x (",
 			 protect);
@@ -2022,6 +2049,7 @@ static int __init docg3_probe(struct platform_device *pdev)
 	if (!cascade)
 		goto nomem1;
 	cascade->base = base;
+	mutex_init(&cascade->lock);
 	cascade->bch = init_bch(DOC_ECC_BCH_M, DOC_ECC_BCH_T,
 			     DOC_ECC_BCH_PRIMPOLY);
 	if (!cascade->bch)

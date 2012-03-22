@@ -273,11 +273,13 @@
  * @floors: floors (ie. one physical docg3 chip is one floor)
  * @base: IO space to access all chips in the cascade
  * @bch: the BCH correcting control structure
+ * @lock: lock to protect docg3 IO space from concurrent accesses
  */
 struct docg3_cascade {
 	struct mtd_info *floors[DOC_MAX_NBFLOORS];
 	void __iomem *base;
 	struct bch_control *bch;
+	struct mutex lock;
 };
 
 /**
