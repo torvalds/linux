@@ -575,13 +575,13 @@ static int wm8350_dcdc25_set_suspend_enable(struct regulator_dev *rdev)
 		val = wm8350_reg_read(wm8350, WM8350_DCDC2_CONTROL)
 		    & ~WM8350_DC2_HIB_MODE_MASK;
 		wm8350_reg_write(wm8350, WM8350_DCDC2_CONTROL, val |
-				 WM8350_DC2_HIB_MODE_ACTIVE);
+		    (WM8350_DC2_HIB_MODE_ACTIVE << WM8350_DC2_HIB_MODE_SHIFT));
 		break;
 	case WM8350_DCDC_5:
 		val = wm8350_reg_read(wm8350, WM8350_DCDC5_CONTROL)
-		    & ~WM8350_DC2_HIB_MODE_MASK;
+		    & ~WM8350_DC5_HIB_MODE_MASK;
 		wm8350_reg_write(wm8350, WM8350_DCDC5_CONTROL, val |
-				 WM8350_DC5_HIB_MODE_ACTIVE);
+		    (WM8350_DC5_HIB_MODE_ACTIVE << WM8350_DC5_HIB_MODE_SHIFT));
 		break;
 	default:
 		return -EINVAL;
@@ -600,13 +600,13 @@ static int wm8350_dcdc25_set_suspend_disable(struct regulator_dev *rdev)
 		val = wm8350_reg_read(wm8350, WM8350_DCDC2_CONTROL)
 		    & ~WM8350_DC2_HIB_MODE_MASK;
 		wm8350_reg_write(wm8350, WM8350_DCDC2_CONTROL, val |
-				 WM8350_DC2_HIB_MODE_DISABLE);
+		    (WM8350_DC2_HIB_MODE_DISABLE << WM8350_DC2_HIB_MODE_SHIFT));
 		break;
 	case WM8350_DCDC_5:
 		val = wm8350_reg_read(wm8350, WM8350_DCDC5_CONTROL)
-		    & ~WM8350_DC2_HIB_MODE_MASK;
+		    & ~WM8350_DC5_HIB_MODE_MASK;
 		wm8350_reg_write(wm8350, WM8350_DCDC5_CONTROL, val |
-				 WM8350_DC2_HIB_MODE_DISABLE);
+		    (WM8350_DC5_HIB_MODE_DISABLE << WM8350_DC5_HIB_MODE_SHIFT));
 		break;
 	default:
 		return -EINVAL;
