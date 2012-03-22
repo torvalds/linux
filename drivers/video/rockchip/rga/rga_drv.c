@@ -49,9 +49,6 @@
 #include "rga_mmu_info.h"
 #include "RGA_API.h"
 
-extern struct fb_info * rk_get_fb(int fb_id);
-extern void rk_direct_fb_show(struct fb_info * fbi);
-
 
 #define RGA_TEST 0
 
@@ -60,8 +57,16 @@ extern void rk_direct_fb_show(struct fb_info * fbi);
 #define RGA_POWER_OFF_DELAY	4*HZ /* 4s */
 #define RGA_TIMEOUT_DELAY	2*HZ /* 2s */
 
-uint32_t dst_buf[800*480*4];
-uint32_t src_buf[1024*768*2];
+#define RGA_MAJOR		232
+
+#define RK30_RGA_PHYS	0x10114000
+#define RK30_RGA_SIZE	SZ_8K
+#define RGA_RESET_TIMEOUT	1000
+
+/* Driver information */
+#define DRIVER_DESC		"RGA Device Driver"
+#define DRIVER_NAME		"rga"
+
 
 struct rga_drvdata {
   	struct miscdevice miscdev;
@@ -93,17 +98,6 @@ rga_service_info rga_service;
 
 
 static int rga_blit_async(rga_session *session, struct rga_req *req);
-
-
-#define RGA_MAJOR		232
-
-#define RK30_RGA_PHYS	0x10114000
-#define RK30_RGA_SIZE	SZ_8K
-#define RGA_RESET_TIMEOUT	1000
-
-/* Driver information */
-#define DRIVER_DESC		"RGA Device Driver"
-#define DRIVER_NAME		"rga"
 
 
 /* Logging */
@@ -138,7 +132,8 @@ static void rga_soft_reset(void)
 
 	rga_write(1, RGA_SYS_CTRL); //RGA_SYS_CTRL
 
-	for(i = 0; i < RGA_RESET_TIMEOUT; i++) {
+	for(i = 0; i < RGA_RESET_TIMEOUT; i++) 
+    {
 		reg = rga_read(RGA_SYS_CTRL) & 1; //RGA_SYS_CTRL
 
 		if(reg == 0)
@@ -1052,6 +1047,8 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err_clock;
 	}
+
+    #endif
 	
 	data->axi_clk = clk_get(&pdev->dev, "aclk_rga");
 	if (IS_ERR(data->axi_clk))
@@ -1068,8 +1065,8 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err_clock;
 	}
-    #endif
-
+    
+    
 	/* map the memory */
     if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io")) 
     {
@@ -1139,9 +1136,7 @@ static int rga_drv_remove(struct platform_device *pdev)
     misc_deregister(&(data->miscdev));
 	free_irq(data->irq0, &data->miscdev);
     iounmap((void __iomem *)(data->rga_base));
-
             
-
     #if 0    
 	if(data->axi_clk) {
 		clk_put(data->axi_clk);
@@ -1150,6 +1145,7 @@ static int rga_drv_remove(struct platform_device *pdev)
 	if(data->ahb_clk) {
 		clk_put(data->ahb_clk);
 	}
+    
 	if(data->aclk_disp_matrix) {
 		clk_put(data->aclk_disp_matrix);
 	}
@@ -1195,7 +1191,6 @@ static struct platform_driver rga_driver = {
 	},
 };
 
-extern void rga_test_0();
 
 static int __init rga_init(void)
 {
