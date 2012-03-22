@@ -1352,6 +1352,10 @@ static struct map_desc mackerel_io_desc[] __initdata = {
 static void __init mackerel_map_io(void)
 {
 	iotable_init(mackerel_io_desc, ARRAY_SIZE(mackerel_io_desc));
+	/* DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
+	 * enough to allocate the frame buffer memory.
+	 */
+	init_consistent_dma_size(12 << 20);
 
 	/* setup early devices and console here as well */
 	sh7372_add_early_devices();

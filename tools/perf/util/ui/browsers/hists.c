@@ -840,18 +840,18 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
 
 	nr_events = convert_unit(nr_events, &unit);
-	printed = snprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
+	printed = scnprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
 
 	if (self->uid_filter_str)
 		printed += snprintf(bf + printed, size - printed,
 				    ", UID: %s", self->uid_filter_str);
 	if (thread)
-		printed += snprintf(bf + printed, size - printed,
+		printed += scnprintf(bf + printed, size - printed,
 				    ", Thread: %s(%d)",
 				    (thread->comm_set ? thread->comm : ""),
 				    thread->pid);
 	if (dso)
-		printed += snprintf(bf + printed, size - printed,
+		printed += scnprintf(bf + printed, size - printed,
 				    ", DSO: %s", dso->short_name);
 	return printed;
 }
@@ -1174,7 +1174,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 						       HE_COLORSET_NORMAL);
 
 	nr_events = convert_unit(nr_events, &unit);
-	printed = snprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
+	printed = scnprintf(bf, sizeof(bf), "%lu%c%s%s", nr_events,
 			   unit, unit == ' ' ? "" : " ", ev_name);
 	slsmg_printf("%s", bf);
 
@@ -1184,8 +1184,8 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 		if (!current_entry)
 			ui_browser__set_color(browser, HE_COLORSET_TOP);
 		nr_events = convert_unit(nr_events, &unit);
-		snprintf(bf, sizeof(bf), ": %ld%c%schunks LOST!", nr_events,
-			 unit, unit == ' ' ? "" : " ");
+		printed += scnprintf(bf, sizeof(bf), ": %ld%c%schunks LOST!",
+				     nr_events, unit, unit == ' ' ? "" : " ");
 		warn = bf;
 	}
 

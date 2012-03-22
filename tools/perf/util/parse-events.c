@@ -165,7 +165,7 @@ struct tracepoint_path *tracepoint_id_to_path(u64 config)
 	struct tracepoint_path *path = NULL;
 	DIR *sys_dir, *evt_dir;
 	struct dirent *sys_next, *evt_next, sys_dirent, evt_dirent;
-	char id_buf[4];
+	char id_buf[24];
 	int fd;
 	u64 id;
 	char evt_path[MAXPATHLEN];
