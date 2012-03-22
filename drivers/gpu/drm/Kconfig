@@ -88,6 +88,8 @@ config DRM_RADEON
 
 source "drivers/gpu/drm/radeon/Kconfig"
 
+source "drivers/gpu/drm/nouveau/Kconfig"
+
 config DRM_I810
 	tristate "Intel I810"
 	# !PREEMPT because of missing ioctl locking

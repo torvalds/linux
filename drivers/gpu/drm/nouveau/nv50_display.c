@@ -474,15 +474,15 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		}
 
 		if (dev_priv->chipset < 0xc0) {
-			BEGIN_RING(chan, NvSubSw, 0x0060, 2);
+			BEGIN_RING(chan, 0, 0x0060, 2);
 			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
 			OUT_RING  (chan, dispc->sem.offset);
-			BEGIN_RING(chan, NvSubSw, 0x006c, 1);
+			BEGIN_RING(chan, 0, 0x006c, 1);
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
-			BEGIN_RING(chan, NvSubSw, 0x0064, 2);
+			BEGIN_RING(chan, 0, 0x0064, 2);
 			OUT_RING  (chan, dispc->sem.offset ^ 0x10);
 			OUT_RING  (chan, 0x74b1e000);
-			BEGIN_RING(chan, NvSubSw, 0x0060, 1);
+			BEGIN_RING(chan, 0, 0x0060, 1);
 			if (dev_priv->chipset < 0x84)
 				OUT_RING  (chan, NvSema);
 			else
@@ -490,12 +490,12 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		} else {
 			u64 offset = chan->dispc_vma[nv_crtc->index].offset;
 			offset += dispc->sem.offset;
-			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset));
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
 			OUT_RING  (chan, 0x1002);
-			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
 			OUT_RING  (chan, 0x74b1e000);
