@@ -24,6 +24,7 @@
 #define _RADIO_ISA_H_
 
 #include <linux/isa.h>
+#include <linux/pnp.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -76,6 +77,9 @@ struct radio_isa_ops {
 /* Top level structure needed to instantiate the cards */
 struct radio_isa_driver {
 	struct isa_driver driver;
+#ifdef CONFIG_PNP
+	struct pnp_driver pnp_driver;
+#endif
 	const struct radio_isa_ops *ops;
 	/* The module_param_array with the specified I/O ports */
 	int *io_params;
@@ -101,5 +105,10 @@ struct radio_isa_driver {
 int radio_isa_match(struct device *pdev, unsigned int dev);
 int radio_isa_probe(struct device *pdev, unsigned int dev);
 int radio_isa_remove(struct device *pdev, unsigned int dev);
+#ifdef CONFIG_PNP
+int radio_isa_pnp_probe(struct pnp_dev *dev,
+			const struct pnp_device_id *dev_id);
+void radio_isa_pnp_remove(struct pnp_dev *dev);
+#endif
 
 #endif
