@@ -49,6 +49,8 @@ struct wacom_data {
 /*percent of battery capacity for Graphire
   8th value means AC online and show 100% capacity */
 static unsigned short batcap_gr[8] = { 1, 15, 25, 35, 50, 70, 100, 100 };
+/*percent of battery capacity for Intuos4 WL, AC has a separate bit*/
+static unsigned short batcap_i4[8] = { 1, 15, 30, 45, 60, 70, 85, 100 };
 
 static enum power_supply_property wacom_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
@@ -447,6 +449,7 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 	struct input_dev *input;
 	unsigned char *data = (unsigned char *) raw_data;
 	int i;
+	__u8 power_raw;
 
 	if (!(hdev->claimed & HID_CLAIMED_INPUT))
 		return 0;
@@ -474,6 +477,13 @@ static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 			wacom_i4_parse_report(hdev, wdata, input, data + i);
 			i += 10;
 			wacom_i4_parse_report(hdev, wdata, input, data + i);
+			power_raw = data[i+10];
+			if (power_raw != wdata->power_raw) {
+				wdata->power_raw = power_raw;
+				wdata->battery_capacity = batcap_i4[power_raw & 0x07];
+				wdata->ps_connected = power_raw & 0x08;
+			}
+
 			break;
 		default:
 			hid_err(hdev, "Unknown report: %d,%d size:%d\n",
