@@ -1211,7 +1211,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->AcmControl = 0;
 	priv->pFirmware = vzalloc(sizeof(struct rt_firmware));
 	if (!priv->pFirmware)
-		printk(KERN_ERR "rtl8193e: Unable to allocate space "
+		printk(KERN_ERR "rtl8192e: Unable to allocate space "
 		       "for firmware\n");
 
 	skb_queue_head_init(&priv->rx_queue);
