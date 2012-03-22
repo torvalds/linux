@@ -1418,7 +1418,7 @@ DEFINE_ALLOC_EVENT(xfs_alloc_vextent_noagbp);
 DEFINE_ALLOC_EVENT(xfs_alloc_vextent_loopfailed);
 DEFINE_ALLOC_EVENT(xfs_alloc_vextent_allfailed);
 
-DECLARE_EVENT_CLASS(xfs_dir2_class,
+DECLARE_EVENT_CLASS(xfs_da_class,
 	TP_PROTO(struct xfs_da_args *args),
 	TP_ARGS(args),
 	TP_STRUCT__entry(
@@ -1453,7 +1453,7 @@ DECLARE_EVENT_CLASS(xfs_dir2_class,
 )
 
 #define DEFINE_DIR2_EVENT(name) \
-DEFINE_EVENT(xfs_dir2_class, name, \
+DEFINE_EVENT(xfs_da_class, name, \
 	TP_PROTO(struct xfs_da_args *args), \
 	TP_ARGS(args))
 DEFINE_DIR2_EVENT(xfs_dir2_sf_addname);
@@ -1481,6 +1481,64 @@ DEFINE_DIR2_EVENT(xfs_dir2_node_lookup);
 DEFINE_DIR2_EVENT(xfs_dir2_node_replace);
 DEFINE_DIR2_EVENT(xfs_dir2_node_removename);
 DEFINE_DIR2_EVENT(xfs_dir2_node_to_leaf);
+
+#define DEFINE_ATTR_EVENT(name) \
+DEFINE_EVENT(xfs_da_class, name, \
+	TP_PROTO(struct xfs_da_args *args), \
+	TP_ARGS(args))
+DEFINE_ATTR_EVENT(xfs_attr_sf_add);
+DEFINE_ATTR_EVENT(xfs_attr_sf_addname);
+DEFINE_ATTR_EVENT(xfs_attr_sf_create);
+DEFINE_ATTR_EVENT(xfs_attr_sf_lookup);
+DEFINE_ATTR_EVENT(xfs_attr_sf_remove);
+DEFINE_ATTR_EVENT(xfs_attr_sf_removename);
+DEFINE_ATTR_EVENT(xfs_attr_sf_to_leaf);
+
+DEFINE_ATTR_EVENT(xfs_attr_leaf_add);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_add_old);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_add_new);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_addname);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_create);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_lookup);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_replace);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_removename);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_split);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_split_before);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_split_after);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_clearflag);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_setflag);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_flipflags);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_to_sf);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_to_node);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_rebalance);
+DEFINE_ATTR_EVENT(xfs_attr_leaf_unbalance);
+
+DEFINE_ATTR_EVENT(xfs_attr_node_addname);
+DEFINE_ATTR_EVENT(xfs_attr_node_lookup);
+DEFINE_ATTR_EVENT(xfs_attr_node_replace);
+DEFINE_ATTR_EVENT(xfs_attr_node_removename);
+
+#define DEFINE_DA_EVENT(name) \
+DEFINE_EVENT(xfs_da_class, name, \
+	TP_PROTO(struct xfs_da_args *args), \
+	TP_ARGS(args))
+DEFINE_DA_EVENT(xfs_da_split);
+DEFINE_DA_EVENT(xfs_da_join);
+DEFINE_DA_EVENT(xfs_da_link_before);
+DEFINE_DA_EVENT(xfs_da_link_after);
+DEFINE_DA_EVENT(xfs_da_unlink_back);
+DEFINE_DA_EVENT(xfs_da_unlink_forward);
+DEFINE_DA_EVENT(xfs_da_root_split);
+DEFINE_DA_EVENT(xfs_da_root_join);
+DEFINE_DA_EVENT(xfs_da_node_add);
+DEFINE_DA_EVENT(xfs_da_node_create);
+DEFINE_DA_EVENT(xfs_da_node_split);
+DEFINE_DA_EVENT(xfs_da_node_remove);
+DEFINE_DA_EVENT(xfs_da_node_rebalance);
+DEFINE_DA_EVENT(xfs_da_node_unbalance);
+DEFINE_DA_EVENT(xfs_da_swap_lastblock);
+DEFINE_DA_EVENT(xfs_da_grow_inode);
+DEFINE_DA_EVENT(xfs_da_shrink_inode);
 
 DECLARE_EVENT_CLASS(xfs_dir2_space_class,
 	TP_PROTO(struct xfs_da_args *args, int idx),
