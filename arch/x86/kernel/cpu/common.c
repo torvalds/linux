@@ -28,6 +28,7 @@
 #include <asm/apic.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/mtrr.h>
 #include <linux/numa.h>
 #include <asm/asm.h>
@@ -1045,7 +1046,6 @@ DEFINE_PER_CPU(char *, irq_stack_ptr) =
 DEFINE_PER_CPU(unsigned int, irq_count) = -1;
 
 DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
-EXPORT_PER_CPU_SYMBOL(fpu_owner_task);
 
 /*
  * Special IST stacks which the CPU switches to when it calls
@@ -1115,7 +1115,6 @@ void debug_stack_reset(void)
 DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
 DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
-EXPORT_PER_CPU_SYMBOL(fpu_owner_task);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
