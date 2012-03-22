@@ -131,8 +131,6 @@ enum  imxdma_prep_type {
 struct imxdma_channel_internal {
 	unsigned int resbytes;
 
-	int in_use;
-
 	struct timer_list watchdog;
 
 	int hw_chaining;
@@ -266,9 +264,6 @@ static void imxdma_enable_hw(struct imxdma_desc *d)
 
 	pr_debug("imxdma%d: imx_dma_enable\n", channel);
 
-	if (imxdmac->internal.in_use)
-		return;
-
 	local_irq_save(flags);
 
 	imx_dmav1_writel(1 << channel, DMA_DISR);
@@ -287,7 +282,6 @@ static void imxdma_enable_hw(struct imxdma_desc *d)
 				DMA_CCR(channel));
 		}
 	}
-	imxdmac->internal.in_use = 1;
 
 	local_irq_restore(flags);
 }
@@ -307,7 +301,6 @@ static void imxdma_disable_hw(struct imxdma_channel *imxdmac)
 	imx_dmav1_writel(imx_dmav1_readl(DMA_CCR(channel)) & ~CCR_CEN,
 			DMA_CCR(channel));
 	imx_dmav1_writel(1 << channel, DMA_DISR);
-	imxdmac->internal.in_use = 0;
 	local_irq_restore(flags);
 }
 
@@ -317,7 +310,6 @@ static void imxdma_watchdog(unsigned long data)
 	int channel = imxdmac->channel;
 
 	imx_dmav1_writel(0, DMA_CCR(channel));
-	imxdmac->internal.in_use = 0;
 
 	/* Tasklet watchdog error handler */
 	tasklet_schedule(&imxdmac->dma_tasklet);
@@ -436,7 +428,6 @@ static void dma_irq_handle_channel(struct imxdma_channel *imxdmac)
 
 out:
 	imx_dmav1_writel(0, DMA_CCR(chno));
-	imxdma->in_use = 0;
 	/* Tasklet irq */
 	tasklet_schedule(&imxdmac->dma_tasklet);
 }
