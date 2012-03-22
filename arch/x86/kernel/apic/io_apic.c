@@ -64,8 +64,27 @@
 #include <asm/apic.h>
 
 #define __apicdebuginit(type) static type __init
+
 #define for_each_irq_pin(entry, head) \
 	for (entry = head; entry; entry = entry->next)
+
+static void		__init __ioapic_init_mappings(void);
+
+static unsigned int	__io_apic_read  (unsigned int apic, unsigned int reg);
+static void		__io_apic_write (unsigned int apic, unsigned int reg, unsigned int val);
+static void		__io_apic_modify(unsigned int apic, unsigned int reg, unsigned int val);
+
+static struct io_apic_ops io_apic_ops = {
+	.init	= __ioapic_init_mappings,
+	.read	= __io_apic_read,
+	.write	= __io_apic_write,
+	.modify = __io_apic_modify,
+};
+
+void __init set_io_apic_ops(const struct io_apic_ops *ops)
+{
+	io_apic_ops = *ops;
+}
 
 /*
  *      Is the SiS APIC rmw bug present ?
@@ -294,6 +313,22 @@ static void free_irq_at(unsigned int at, struct irq_cfg *cfg)
 	irq_free_desc(at);
 }
 
+static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
+{
+	return io_apic_ops.read(apic, reg);
+}
+
+static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
+{
+	io_apic_ops.write(apic, reg, value);
+}
+
+static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
+{
+	io_apic_ops.modify(apic, reg, value);
+}
+
+
 struct io_apic {
 	unsigned int index;
 	unsigned int unused[3];
@@ -314,16 +349,17 @@ static inline void io_apic_eoi(unsigned int apic, unsigned int vector)
 	writel(vector, &io_apic->eoi);
 }
 
-static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
+static unsigned int __io_apic_read(unsigned int apic, unsigned int reg)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
 	writel(reg, &io_apic->index);
 	return readl(&io_apic->data);
 }
 
-static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
+static void __io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
+
 	writel(reg, &io_apic->index);
 	writel(value, &io_apic->data);
 }
@@ -334,7 +370,7 @@ static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned i
  *
  * Older SiS APIC requires we rewrite the index register
  */
-static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
+static void __io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
 
@@ -377,6 +413,7 @@ static struct IO_APIC_route_entry __ioapic_read_entry(int apic, int pin)
 
 	eu.w1 = io_apic_read(apic, 0x10 + 2 * pin);
 	eu.w2 = io_apic_read(apic, 0x11 + 2 * pin);
+
 	return eu.entry;
 }
 
@@ -384,9 +421,11 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 {
 	union entry_union eu;
 	unsigned long flags;
+
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	eu.entry = __ioapic_read_entry(apic, pin);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
+
 	return eu.entry;
 }
 
@@ -396,8 +435,7 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
  * the interrupt, and we need to make sure the entry is fully populated
  * before that happens.
  */
-static void
-__ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
+static void __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	union entry_union eu = {{0, 0}};
 
@@ -409,6 +447,7 @@ __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
+
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	__ioapic_write_entry(apic, pin, e);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
@@ -435,8 +474,7 @@ static void ioapic_mask_entry(int apic, int pin)
  * shared ISA-space IRQs, so we have to support them. We are super
  * fast in the common case, and fast for shared ISA-space IRQs.
  */
-static int
-__add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
+static int __add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
 {
 	struct irq_pin_list **last, *entry;
 
@@ -521,6 +559,7 @@ static void io_apic_sync(struct irq_pin_list *entry)
 	 * a dummy read from the IO-APIC
 	 */
 	struct io_apic __iomem *io_apic;
+
 	io_apic = io_apic_base(entry->apic);
 	readl(&io_apic->data);
 }
@@ -3893,6 +3932,11 @@ static struct resource * __init ioapic_setup_resources(int nr_ioapics)
 }
 
 void __init ioapic_and_gsi_init(void)
+{
+	io_apic_ops.init();
+}
+
+static void __init __ioapic_init_mappings(void)
 {
 	unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
 	struct resource *ioapic_res;
