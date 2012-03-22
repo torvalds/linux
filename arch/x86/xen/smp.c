@@ -59,7 +59,7 @@ static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 
 static void __cpuinit cpu_bringup(void)
 {
-	int cpu = smp_processor_id();
+	int cpu;
 
 	cpu_init();
 	touch_softlockup_watchdog();
