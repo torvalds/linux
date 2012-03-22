@@ -38,7 +38,6 @@ struct drm_hdmi_context {
 	struct exynos_drm_subdrv	subdrv;
 	struct exynos_drm_hdmi_context	*hdmi_ctx;
 	struct exynos_drm_hdmi_context	*mixer_ctx;
-	struct work_struct		work;
 };
 
 void exynos_drm_display_ops_register(struct exynos_hdmi_display_ops
@@ -49,7 +48,6 @@ void exynos_drm_display_ops_register(struct exynos_hdmi_display_ops
 	if (display_ops)
 		hdmi_display_ops = display_ops;
 }
-EXPORT_SYMBOL(exynos_drm_display_ops_register);
 
 void exynos_drm_manager_ops_register(struct exynos_hdmi_manager_ops
 					*manager_ops)
@@ -59,7 +57,6 @@ void exynos_drm_manager_ops_register(struct exynos_hdmi_manager_ops
 	if (manager_ops)
 		hdmi_manager_ops = manager_ops;
 }
-EXPORT_SYMBOL(exynos_drm_manager_ops_register);
 
 void exynos_drm_overlay_ops_register(struct exynos_hdmi_overlay_ops
 					*overlay_ops)
@@ -69,7 +66,6 @@ void exynos_drm_overlay_ops_register(struct exynos_hdmi_overlay_ops
 	if (overlay_ops)
 		hdmi_overlay_ops = overlay_ops;
 }
-EXPORT_SYMBOL(exynos_drm_overlay_ops_register);
 
 static bool drm_hdmi_is_connected(struct device *dev)
 {
@@ -155,6 +151,20 @@ static void drm_hdmi_disable_vblank(struct device *subdrv_dev)
 		return hdmi_overlay_ops->disable_vblank(ctx->mixer_ctx->ctx);
 }
 
+static void drm_hdmi_mode_fixup(struct device *subdrv_dev,
+				struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (hdmi_manager_ops && hdmi_manager_ops->mode_fixup)
+		hdmi_manager_ops->mode_fixup(ctx->hdmi_ctx->ctx, connector,
+						mode, adjusted_mode);
+}
+
 static void drm_hdmi_mode_set(struct device *subdrv_dev, void *mode)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
@@ -163,6 +173,18 @@ static void drm_hdmi_mode_set(struct device *subdrv_dev, void *mode)
 
 	if (hdmi_manager_ops && hdmi_manager_ops->mode_set)
 		hdmi_manager_ops->mode_set(ctx->hdmi_ctx->ctx, mode);
+}
+
+static void drm_hdmi_get_max_resol(struct device *subdrv_dev,
+				unsigned int *width, unsigned int *height)
+{
+	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
+
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	if (hdmi_manager_ops && hdmi_manager_ops->get_max_resol)
+		hdmi_manager_ops->get_max_resol(ctx->hdmi_ctx->ctx, width,
+							height);
 }
 
 static void drm_hdmi_commit(struct device *subdrv_dev)
@@ -200,7 +222,9 @@ static struct exynos_drm_manager_ops drm_hdmi_manager_ops = {
 	.dpms = drm_hdmi_dpms,
 	.enable_vblank = drm_hdmi_enable_vblank,
 	.disable_vblank = drm_hdmi_disable_vblank,
+	.mode_fixup = drm_hdmi_mode_fixup,
 	.mode_set = drm_hdmi_mode_set,
+	.get_max_resol = drm_hdmi_get_max_resol,
 	.commit = drm_hdmi_commit,
 };
 
@@ -249,7 +273,6 @@ static int hdmi_subdrv_probe(struct drm_device *drm_dev,
 	struct drm_hdmi_context *ctx;
 	struct platform_device *pdev = to_platform_device(dev);
 	struct exynos_drm_common_hdmi_pd *pd;
-	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -270,26 +293,13 @@ static int hdmi_subdrv_probe(struct drm_device *drm_dev,
 		return -EFAULT;
 	}
 
-	ret = platform_driver_register(&hdmi_driver);
-	if (ret) {
-		DRM_DEBUG_KMS("failed to register hdmi driver.\n");
-		return ret;
-	}
-
-	ret = platform_driver_register(&mixer_driver);
-	if (ret) {
-		DRM_DEBUG_KMS("failed to register mixer driver.\n");
-		goto err_hdmidrv;
-	}
-
 	ctx = get_ctx_from_subdrv(subdrv);
 
 	ctx->hdmi_ctx = (struct exynos_drm_hdmi_context *)
 				to_context(pd->hdmi_dev);
 	if (!ctx->hdmi_ctx) {
 		DRM_DEBUG_KMS("hdmi context is null.\n");
-		ret = -EFAULT;
-		goto err_mixerdrv;
+		return -EFAULT;
 	}
 
 	ctx->hdmi_ctx->drm_dev = drm_dev;
@@ -298,42 +308,12 @@ static int hdmi_subdrv_probe(struct drm_device *drm_dev,
 				to_context(pd->mixer_dev);
 	if (!ctx->mixer_ctx) {
 		DRM_DEBUG_KMS("mixer context is null.\n");
-		ret = -EFAULT;
-		goto err_mixerdrv;
+		return -EFAULT;
 	}
 
 	ctx->mixer_ctx->drm_dev = drm_dev;
 
 	return 0;
-
-err_mixerdrv:
-	platform_driver_unregister(&mixer_driver);
-err_hdmidrv:
-	platform_driver_unregister(&hdmi_driver);
-	return ret;
-}
-
-static void hdmi_subdrv_remove(struct drm_device *drm_dev)
-{
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	platform_driver_unregister(&hdmi_driver);
-	platform_driver_unregister(&mixer_driver);
-}
-
-static void exynos_drm_hdmi_late_probe(struct work_struct *work)
-{
-	struct drm_hdmi_context *ctx = container_of(work,
-				struct drm_hdmi_context, work);
-
-	/*
-	 * this function calls subdrv->probe() so this must be called
-	 * after probe context.
-	 *
-	 * PS. subdrv->probe() will call platform_driver_register() to probe
-	 * hdmi and mixer driver.
-	 */
-	exynos_drm_subdrv_register(&ctx->subdrv);
 }
 
 static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
@@ -353,7 +333,6 @@ static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
 	subdrv = &ctx->subdrv;
 
 	subdrv->probe = hdmi_subdrv_probe;
-	subdrv->remove = hdmi_subdrv_remove;
 	subdrv->manager.pipe = -1;
 	subdrv->manager.ops = &drm_hdmi_manager_ops;
 	subdrv->manager.overlay_ops = &drm_hdmi_overlay_ops;
@@ -362,9 +341,7 @@ static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, subdrv);
 
-	INIT_WORK(&ctx->work, exynos_drm_hdmi_late_probe);
-
-	schedule_work(&ctx->work);
+	exynos_drm_subdrv_register(subdrv);
 
 	return 0;
 }
@@ -400,7 +377,7 @@ static int __devexit exynos_drm_hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver exynos_drm_common_hdmi_driver = {
+struct platform_driver exynos_drm_common_hdmi_driver = {
 	.probe		= exynos_drm_hdmi_probe,
 	.remove		= __devexit_p(exynos_drm_hdmi_remove),
 	.driver		= {
@@ -409,31 +386,3 @@ static struct platform_driver exynos_drm_common_hdmi_driver = {
 		.pm = &hdmi_pm_ops,
 	},
 };
-
-static int __init exynos_drm_hdmi_init(void)
-{
-	int ret;
-
-	DRM_DEBUG_KMS("%s\n", __FILE__);
-
-	ret = platform_driver_register(&exynos_drm_common_hdmi_driver);
-	if (ret) {
-		DRM_DEBUG_KMS("failed to register hdmi common driver.\n");
-		return ret;
-	}
-
-	return ret;
-}
-
-static void __exit exynos_drm_hdmi_exit(void)
-{
-	platform_driver_unregister(&exynos_drm_common_hdmi_driver);
-}
-
-module_init(exynos_drm_hdmi_init);
-module_exit(exynos_drm_hdmi_exit);
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim, <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM HDMI Driver");
-MODULE_LICENSE("GPL");

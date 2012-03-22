@@ -87,7 +87,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
-		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.init		= nv04_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
@@ -134,7 +134,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
-		engine->vram.init		= nouveau_mem_detect;
+		if (dev_priv->chipset == 0x1a ||
+		    dev_priv->chipset == 0x1f)
+			engine->vram.init	= nv1a_fb_vram_init;
+		else
+			engine->vram.init	= nv10_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
@@ -153,11 +157,11 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.init		= nv04_timer_init;
 		engine->timer.read		= nv04_timer_read;
 		engine->timer.takedown		= nv04_timer_takedown;
-		engine->fb.init			= nv10_fb_init;
-		engine->fb.takedown		= nv10_fb_takedown;
-		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
-		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
-		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
+		engine->fb.init			= nv20_fb_init;
+		engine->fb.takedown		= nv20_fb_takedown;
+		engine->fb.init_tile_region	= nv20_fb_init_tile_region;
+		engine->fb.set_tile_region	= nv20_fb_set_tile_region;
+		engine->fb.free_tile_region	= nv20_fb_free_tile_region;
 		engine->fifo.channels		= 32;
 		engine->fifo.init		= nv10_fifo_init;
 		engine->fifo.takedown		= nv04_fifo_fini;
@@ -181,7 +185,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clocks_get		= nv04_pm_clocks_get;
 		engine->pm.clocks_pre		= nv04_pm_clocks_pre;
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
-		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.init		= nv20_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
@@ -230,7 +234,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.clocks_set		= nv04_pm_clocks_set;
 		engine->pm.voltage_get		= nouveau_voltage_gpio_get;
 		engine->pm.voltage_set		= nouveau_voltage_gpio_set;
-		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.init		= nv20_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
@@ -286,7 +290,7 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->pm.temp_get		= nv40_temp_get;
 		engine->pm.pwm_get		= nv40_pm_pwm_get;
 		engine->pm.pwm_set		= nv40_pm_pwm_set;
-		engine->vram.init		= nouveau_mem_detect;
+		engine->vram.init		= nv40_fb_vram_init;
 		engine->vram.takedown		= nouveau_stub_takedown;
 		engine->vram.flags_valid	= nouveau_mem_flags_valid;
 		break;
@@ -588,15 +592,33 @@ nouveau_card_init(struct drm_device *dev)
 		nv_mask(dev, 0x00088080, 0x00000800, 0x00000000);
 	}
 
-	nouveau_pm_init(dev);
-
-	ret = engine->vram.init(dev);
+	/* PMC */
+	ret = engine->mc.init(dev);
 	if (ret)
 		goto out_bios;
 
-	ret = nouveau_gpuobj_init(dev);
+	/* PTIMER */
+	ret = engine->timer.init(dev);
+	if (ret)
+		goto out_mc;
+
+	/* PFB */
+	ret = engine->fb.init(dev);
+	if (ret)
+		goto out_timer;
+
+	ret = engine->vram.init(dev);
+	if (ret)
+		goto out_fb;
+
+	/* PGPIO */
+	ret = nouveau_gpio_create(dev);
 	if (ret)
 		goto out_vram;
+
+	ret = nouveau_gpuobj_init(dev);
+	if (ret)
+		goto out_gpio;
 
 	ret = engine->instmem.init(dev);
 	if (ret)
@@ -609,26 +631,6 @@ nouveau_card_init(struct drm_device *dev)
 	ret = nouveau_mem_gart_init(dev);
 	if (ret)
 		goto out_ttmvram;
-
-	/* PMC */
-	ret = engine->mc.init(dev);
-	if (ret)
-		goto out_gart;
-
-	/* PGPIO */
-	ret = nouveau_gpio_create(dev);
-	if (ret)
-		goto out_mc;
-
-	/* PTIMER */
-	ret = engine->timer.init(dev);
-	if (ret)
-		goto out_gpio;
-
-	/* PFB */
-	ret = engine->fb.init(dev);
-	if (ret)
-		goto out_timer;
 
 	if (!dev_priv->noaccel) {
 		switch (dev_priv->card_type) {
@@ -734,11 +736,12 @@ nouveau_card_init(struct drm_device *dev)
 		goto out_irq;
 
 	nouveau_backlight_init(dev);
+	nouveau_pm_init(dev);
 
 	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_fence_init(dev);
 		if (ret)
-			goto out_disp;
+			goto out_pm;
 
 		ret = nouveau_channel_alloc(dev, &dev_priv->channel, NULL,
 					    NvDmaFB, NvDmaTT);
@@ -762,7 +765,8 @@ out_chan:
 	nouveau_channel_put_unlocked(&dev_priv->channel);
 out_fence:
 	nouveau_fence_fini(dev);
-out_disp:
+out_pm:
+	nouveau_pm_fini(dev);
 	nouveau_backlight_exit(dev);
 	nouveau_display_destroy(dev);
 out_irq:
@@ -779,15 +783,6 @@ out_engine:
 			dev_priv->eng[e]->destroy(dev,e );
 		}
 	}
-
-	engine->fb.takedown(dev);
-out_timer:
-	engine->timer.takedown(dev);
-out_gpio:
-	nouveau_gpio_destroy(dev);
-out_mc:
-	engine->mc.takedown(dev);
-out_gart:
 	nouveau_mem_gart_fini(dev);
 out_ttmvram:
 	nouveau_mem_vram_fini(dev);
@@ -795,10 +790,17 @@ out_instmem:
 	engine->instmem.takedown(dev);
 out_gpuobj:
 	nouveau_gpuobj_takedown(dev);
+out_gpio:
+	nouveau_gpio_destroy(dev);
 out_vram:
 	engine->vram.takedown(dev);
+out_fb:
+	engine->fb.takedown(dev);
+out_timer:
+	engine->timer.takedown(dev);
+out_mc:
+	engine->mc.takedown(dev);
 out_bios:
-	nouveau_pm_fini(dev);
 	nouveau_bios_takedown(dev);
 out_display_early:
 	engine->display.late_takedown(dev);
@@ -823,6 +825,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		nouveau_fence_fini(dev);
 	}
 
+	nouveau_pm_fini(dev);
 	nouveau_backlight_exit(dev);
 	nouveau_display_destroy(dev);
 
@@ -835,11 +838,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 			}
 		}
 	}
-	engine->fb.takedown(dev);
-	engine->timer.takedown(dev);
-	nouveau_gpio_destroy(dev);
-	engine->mc.takedown(dev);
-	engine->display.late_takedown(dev);
 
 	if (dev_priv->vga_ram) {
 		nouveau_bo_unpin(dev_priv->vga_ram);
@@ -855,12 +853,17 @@ static void nouveau_card_takedown(struct drm_device *dev)
 
 	engine->instmem.takedown(dev);
 	nouveau_gpuobj_takedown(dev);
+
+	nouveau_gpio_destroy(dev);
 	engine->vram.takedown(dev);
+	engine->fb.takedown(dev);
+	engine->timer.takedown(dev);
+	engine->mc.takedown(dev);
+
+	nouveau_bios_takedown(dev);
+	engine->display.late_takedown(dev);
 
 	nouveau_irq_fini(dev);
-
-	nouveau_pm_fini(dev);
-	nouveau_bios_takedown(dev);
 
 	vga_client_register(dev->pdev, NULL, NULL, NULL);
 }
@@ -990,7 +993,7 @@ static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
 int nouveau_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_nouveau_private *dev_priv;
-	uint32_t reg0, strap;
+	uint32_t reg0 = ~0, strap;
 	resource_size_t mmio_start_offs;
 	int ret;
 
@@ -1002,15 +1005,72 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	dev->dev_private = dev_priv;
 	dev_priv->dev = dev;
 
+	pci_set_master(dev->pdev);
+
 	dev_priv->flags = flags & NOUVEAU_FLAGS;
 
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
 
-	/* resource 0 is mmio regs */
-	/* resource 1 is linear FB */
-	/* resource 2 is RAMIN (mmio regs + 0x1000000) */
-	/* resource 6 is bios */
+	/* first up, map the start of mmio and determine the chipset */
+	dev_priv->mmio = ioremap(pci_resource_start(dev->pdev, 0), PAGE_SIZE);
+	if (dev_priv->mmio) {
+#ifdef __BIG_ENDIAN
+		/* put the card into big-endian mode if it's not */
+		if (nv_rd32(dev, NV03_PMC_BOOT_1) != 0x01000001)
+			nv_wr32(dev, NV03_PMC_BOOT_1, 0x01000001);
+		DRM_MEMORYBARRIER();
+#endif
+
+		/* determine chipset and derive architecture from it */
+		reg0 = nv_rd32(dev, NV03_PMC_BOOT_0);
+		if ((reg0 & 0x0f000000) > 0) {
+			dev_priv->chipset = (reg0 & 0xff00000) >> 20;
+			switch (dev_priv->chipset & 0xf0) {
+			case 0x10:
+			case 0x20:
+			case 0x30:
+				dev_priv->card_type = dev_priv->chipset & 0xf0;
+				break;
+			case 0x40:
+			case 0x60:
+				dev_priv->card_type = NV_40;
+				break;
+			case 0x50:
+			case 0x80:
+			case 0x90:
+			case 0xa0:
+				dev_priv->card_type = NV_50;
+				break;
+			case 0xc0:
+				dev_priv->card_type = NV_C0;
+				break;
+			case 0xd0:
+				dev_priv->card_type = NV_D0;
+				break;
+			default:
+				break;
+			}
+		} else
+		if ((reg0 & 0xff00fff0) == 0x20004000) {
+			if (reg0 & 0x00f00000)
+				dev_priv->chipset = 0x05;
+			else
+				dev_priv->chipset = 0x04;
+			dev_priv->card_type = NV_04;
+		}
+
+		iounmap(dev_priv->mmio);
+	}
+
+	if (!dev_priv->card_type) {
+		NV_ERROR(dev, "unsupported chipset 0x%08x\n", reg0);
+		ret = -EINVAL;
+		goto err_priv;
+	}
+
+	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
+		     dev_priv->card_type, reg0);
 
 	/* map the mmio regs */
 	mmio_start_offs = pci_resource_start(dev->pdev, 0);
@@ -1023,62 +1083,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	}
 	NV_DEBUG(dev, "regs mapped ok at 0x%llx\n",
 					(unsigned long long)mmio_start_offs);
-
-#ifdef __BIG_ENDIAN
-	/* Put the card in BE mode if it's not */
-	if (nv_rd32(dev, NV03_PMC_BOOT_1) != 0x01000001)
-		nv_wr32(dev, NV03_PMC_BOOT_1, 0x01000001);
-
-	DRM_MEMORYBARRIER();
-#endif
-
-	/* Time to determine the card architecture */
-	reg0 = nv_rd32(dev, NV03_PMC_BOOT_0);
-
-	/* We're dealing with >=NV10 */
-	if ((reg0 & 0x0f000000) > 0) {
-		/* Bit 27-20 contain the architecture in hex */
-		dev_priv->chipset = (reg0 & 0xff00000) >> 20;
-	/* NV04 or NV05 */
-	} else if ((reg0 & 0xff00fff0) == 0x20004000) {
-		if (reg0 & 0x00f00000)
-			dev_priv->chipset = 0x05;
-		else
-			dev_priv->chipset = 0x04;
-	} else
-		dev_priv->chipset = 0xff;
-
-	switch (dev_priv->chipset & 0xf0) {
-	case 0x00:
-	case 0x10:
-	case 0x20:
-	case 0x30:
-		dev_priv->card_type = dev_priv->chipset & 0xf0;
-		break;
-	case 0x40:
-	case 0x60:
-		dev_priv->card_type = NV_40;
-		break;
-	case 0x50:
-	case 0x80:
-	case 0x90:
-	case 0xa0:
-		dev_priv->card_type = NV_50;
-		break;
-	case 0xc0:
-		dev_priv->card_type = NV_C0;
-		break;
-	case 0xd0:
-		dev_priv->card_type = NV_D0;
-		break;
-	default:
-		NV_INFO(dev, "Unsupported chipset 0x%08x\n", reg0);
-		ret = -EINVAL;
-		goto err_mmio;
-	}
-
-	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
-		dev_priv->card_type, reg0);
 
 	/* determine frequency of timing crystal */
 	strap = nv_rd32(dev, 0x101000);

@@ -804,13 +804,23 @@ struct drm_radeon_gem_create {
 	uint32_t	flags;
 };
 
-#define RADEON_TILING_MACRO       0x1
-#define RADEON_TILING_MICRO       0x2
-#define RADEON_TILING_SWAP_16BIT  0x4
-#define RADEON_TILING_SWAP_32BIT  0x8
-#define RADEON_TILING_SURFACE     0x10 /* this object requires a surface
-					* when mapped - i.e. front buffer */
-#define RADEON_TILING_MICRO_SQUARE 0x20
+#define RADEON_TILING_MACRO				0x1
+#define RADEON_TILING_MICRO				0x2
+#define RADEON_TILING_SWAP_16BIT			0x4
+#define RADEON_TILING_SWAP_32BIT			0x8
+/* this object requires a surface when mapped - i.e. front buffer */
+#define RADEON_TILING_SURFACE				0x10
+#define RADEON_TILING_MICRO_SQUARE			0x20
+#define RADEON_TILING_EG_BANKW_SHIFT			8
+#define RADEON_TILING_EG_BANKW_MASK			0xf
+#define RADEON_TILING_EG_BANKH_SHIFT			12
+#define RADEON_TILING_EG_BANKH_MASK			0xf
+#define RADEON_TILING_EG_MACRO_TILE_ASPECT_SHIFT	16
+#define RADEON_TILING_EG_MACRO_TILE_ASPECT_MASK		0xf
+#define RADEON_TILING_EG_TILE_SPLIT_SHIFT		24
+#define RADEON_TILING_EG_TILE_SPLIT_MASK		0xf
+#define RADEON_TILING_EG_STENCIL_TILE_SPLIT_SHIFT	28
+#define RADEON_TILING_EG_STENCIL_TILE_SPLIT_MASK	0xf
 
 struct drm_radeon_gem_set_tiling {
 	uint32_t	handle;

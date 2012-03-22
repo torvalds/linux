@@ -77,7 +77,7 @@ static u32 psb_intel_lvds_get_max_backlight(struct drm_device *dev)
 		ret = REG_READ(BLC_PWM_CTL);
 		gma_power_end(dev);
 	} else /* Powered off, use the saved value */
-		ret = dev_priv->saveBLC_PWM_CTL;
+		ret = dev_priv->regs.saveBLC_PWM_CTL;
 
 	/* Top 15bits hold the frequency mask */
 	ret = (ret &  BACKLIGHT_MODULATION_FREQ_MASK) >>
@@ -86,7 +86,7 @@ static u32 psb_intel_lvds_get_max_backlight(struct drm_device *dev)
         ret *= 2;	/* Return a 16bit range as needed for setting */
         if (ret == 0)
                 dev_err(dev->dev, "BL bug: Reg %08x save %08X\n",
-                        REG_READ(BLC_PWM_CTL), dev_priv->saveBLC_PWM_CTL);
+                        REG_READ(BLC_PWM_CTL), dev_priv->regs.saveBLC_PWM_CTL);
 	return ret;
 }
 
@@ -203,13 +203,13 @@ static void psb_intel_lvds_set_backlight(struct drm_device *dev, int level)
 		REG_WRITE(BLC_PWM_CTL,
 				(blc_pwm_ctl |
 				(level << BACKLIGHT_DUTY_CYCLE_SHIFT)));
-		dev_priv->saveBLC_PWM_CTL = (blc_pwm_ctl |
+		dev_priv->regs.saveBLC_PWM_CTL = (blc_pwm_ctl |
 					(level << BACKLIGHT_DUTY_CYCLE_SHIFT));
 		gma_power_end(dev);
 	} else {
-		blc_pwm_ctl = dev_priv->saveBLC_PWM_CTL &
+		blc_pwm_ctl = dev_priv->regs.saveBLC_PWM_CTL &
 				~BACKLIGHT_DUTY_CYCLE_MASK;
-		dev_priv->saveBLC_PWM_CTL = (blc_pwm_ctl |
+		dev_priv->regs.saveBLC_PWM_CTL = (blc_pwm_ctl |
 					(level << BACKLIGHT_DUTY_CYCLE_SHIFT));
 	}
 }
@@ -283,7 +283,7 @@ static void psb_intel_lvds_save(struct drm_connector *connector)
 	lvds_priv->savePFIT_PGM_RATIOS = REG_READ(PFIT_PGM_RATIOS);
 
 	/*TODO: move backlight_duty_cycle to psb_intel_lvds_priv*/
-	dev_priv->backlight_duty_cycle = (dev_priv->saveBLC_PWM_CTL &
+	dev_priv->backlight_duty_cycle = (dev_priv->regs.saveBLC_PWM_CTL &
 						BACKLIGHT_DUTY_CYCLE_MASK);
 
 	/*

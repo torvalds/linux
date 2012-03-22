@@ -99,7 +99,6 @@ static int i810_mmap_buffers(struct file *filp, struct vm_area_struct *vma)
 	buf_priv = buf->dev_private;
 
 	vma->vm_flags |= (VM_IO | VM_DONTCOPY);
-	vma->vm_file = filp;
 
 	buf_priv->currently_mapped = I810_BUF_MAPPED;
 
@@ -1207,6 +1206,8 @@ int i810_driver_load(struct drm_device *dev, unsigned long flags)
 	dev->types[7] = _DRM_STAT_PRIMARY;
 	dev->types[8] = _DRM_STAT_SECONDARY;
 	dev->types[9] = _DRM_STAT_DMA;
+
+	pci_set_master(dev->pdev);
 
 	return 0;
 }

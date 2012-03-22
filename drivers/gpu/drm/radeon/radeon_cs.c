@@ -85,12 +85,6 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 			radeon_bo_list_add_object(&p->relocs[i].lobj,
 						  &p->validated);
 
-			if (p->relocs[i].robj->tbo.sync_obj && !(r->flags & RADEON_RELOC_DONT_SYNC)) {
-				struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
-				if (!radeon_fence_signaled(fence)) {
-					p->sync_to_ring[fence->ring] = true;
-				}
-			}
 		} else
 			p->relocs[i].handle = 0;
 	}
@@ -118,11 +112,24 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 
 static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
+	bool sync_to_ring[RADEON_NUM_RINGS] = { };
 	int i, r;
+
+	for (i = 0; i < p->nrelocs; i++) {
+		if (!p->relocs[i].robj || !p->relocs[i].robj->tbo.sync_obj)
+			continue;
+
+		if (!(p->relocs[i].flags & RADEON_RELOC_DONT_SYNC)) {
+			struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
+			if (!radeon_fence_signaled(fence)) {
+				sync_to_ring[fence->ring] = true;
+			}
+		}
+	}
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 		/* no need to sync to our own or unused rings */
-		if (i == p->ring || !p->sync_to_ring[i] || !p->rdev->ring[i].ready)
+		if (i == p->ring || !sync_to_ring[i] || !p->rdev->ring[i].ready)
 			continue;
 
 		if (!p->ib->fence->semaphore) {
@@ -236,20 +243,11 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	if ((p->cs_flags & RADEON_CS_USE_VM) &&
 	    !p->rdev->vm_manager.enabled) {
 		DRM_ERROR("VM not active on asic!\n");
-		if (p->chunk_relocs_idx != -1)
-			kfree(p->chunks[p->chunk_relocs_idx].kdata);
-		if (p->chunk_flags_idx != -1)
-			kfree(p->chunks[p->chunk_flags_idx].kdata);
 		return -EINVAL;
 	}
 
-	if (radeon_cs_get_ring(p, ring, priority)) {
-		if (p->chunk_relocs_idx != -1)
-			kfree(p->chunks[p->chunk_relocs_idx].kdata);
-		if (p->chunk_flags_idx != -1)
-			kfree(p->chunks[p->chunk_flags_idx].kdata);
+	if (radeon_cs_get_ring(p, ring, priority))
 		return -EINVAL;
-	}
 
 
 	/* deal with non-vm */
@@ -264,11 +262,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 		p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
 		if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
-		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
-			kfree(p->chunks[p->chunk_ib_idx].kpage[0]);
-			kfree(p->chunks[p->chunk_ib_idx].kpage[1]);
+		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL)
 			return -ENOMEM;
-		}
 		p->chunks[p->chunk_ib_idx].kpage_idx[0] = -1;
 		p->chunks[p->chunk_ib_idx].kpage_idx[1] = -1;
 		p->chunks[p->chunk_ib_idx].last_copied_page = -1;
@@ -341,7 +336,7 @@ static int radeon_cs_ib_chunk(struct radeon_device *rdev,
 		return r;
 	}
 	parser->ib->length_dw = ib_chunk->length_dw;
-	r = radeon_cs_parse(parser);
+	r = radeon_cs_parse(rdev, parser->ring, parser);
 	if (r || parser->parser_error) {
 		DRM_ERROR("Invalid command stream !\n");
 		return r;

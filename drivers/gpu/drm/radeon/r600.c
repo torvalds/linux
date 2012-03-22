@@ -2226,7 +2226,7 @@ int r600_cp_resume(struct radeon_device *rdev)
 
 	r600_cp_start(rdev);
 	ring->ready = true;
-	r = radeon_ring_test(rdev, ring);
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, ring);
 	if (r) {
 		ring->ready = false;
 		return r;
@@ -2452,7 +2452,7 @@ int r600_startup(struct radeon_device *rdev)
 	r = r600_blit_init(rdev);
 	if (r) {
 		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
+		rdev->asic->copy.copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
 
@@ -2493,7 +2493,7 @@ int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
@@ -2701,13 +2701,14 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_ring_write(ring, ib->length_dw);
 }
 
-int r600_ib_test(struct radeon_device *rdev, int ring)
+int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	struct radeon_ib *ib;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
 	int r;
+	int ring_index = radeon_ring_index(rdev, ring);
 
 	r = radeon_scratch_get(rdev, &scratch);
 	if (r) {
@@ -2715,7 +2716,7 @@ int r600_ib_test(struct radeon_device *rdev, int ring)
 		return r;
 	}
 	WREG32(scratch, 0xCAFEDEAD);
-	r = radeon_ib_get(rdev, ring, &ib, 256);
+	r = radeon_ib_get(rdev, ring_index, &ib, 256);
 	if (r) {
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;
@@ -2723,20 +2724,7 @@ int r600_ib_test(struct radeon_device *rdev, int ring)
 	ib->ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
 	ib->ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
 	ib->ptr[2] = 0xDEADBEEF;
-	ib->ptr[3] = PACKET2(0);
-	ib->ptr[4] = PACKET2(0);
-	ib->ptr[5] = PACKET2(0);
-	ib->ptr[6] = PACKET2(0);
-	ib->ptr[7] = PACKET2(0);
-	ib->ptr[8] = PACKET2(0);
-	ib->ptr[9] = PACKET2(0);
-	ib->ptr[10] = PACKET2(0);
-	ib->ptr[11] = PACKET2(0);
-	ib->ptr[12] = PACKET2(0);
-	ib->ptr[13] = PACKET2(0);
-	ib->ptr[14] = PACKET2(0);
-	ib->ptr[15] = PACKET2(0);
-	ib->length_dw = 16;
+	ib->length_dw = 3;
 	r = radeon_ib_schedule(rdev, ib);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);

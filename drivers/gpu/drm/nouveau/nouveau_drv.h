@@ -406,6 +406,9 @@ struct nouveau_display_engine {
 	struct drm_property *underscan_property;
 	struct drm_property *underscan_hborder_property;
 	struct drm_property *underscan_vborder_property;
+	/* not really hue and saturation: */
+	struct drm_property *vibrant_hue_property;
+	struct drm_property *color_vibrance_property;
 };
 
 struct nouveau_gpio_engine {
@@ -432,58 +435,85 @@ struct nouveau_pm_voltage {
 	int nr_level;
 };
 
+/* Exclusive upper limits */
+#define NV_MEM_CL_DDR2_MAX 8
+#define NV_MEM_WR_DDR2_MAX 9
+#define NV_MEM_CL_DDR3_MAX 17
+#define NV_MEM_WR_DDR3_MAX 17
+#define NV_MEM_CL_GDDR3_MAX 16
+#define NV_MEM_WR_GDDR3_MAX 18
+#define NV_MEM_CL_GDDR5_MAX 21
+#define NV_MEM_WR_GDDR5_MAX 20
+
 struct nouveau_pm_memtiming {
 	int id;
-	u32 reg_0; /* 0x10f290 on Fermi, 0x100220 for older */
-	u32 reg_1;
-	u32 reg_2;
-	u32 reg_3;
-	u32 reg_4;
-	u32 reg_5;
-	u32 reg_6;
-	u32 reg_7;
-	u32 reg_8;
-	/* To be written to 0x1002c0 */
-	u8 CL;
-	u8 WR;
+
+	u32 reg[9];
+	u32 mr[4];
+
+	u8 tCWL;
+
+	u8 odt;
+	u8 drive_strength;
 };
 
-struct nouveau_pm_tbl_header{
+struct nouveau_pm_tbl_header {
 	u8 version;
 	u8 header_len;
 	u8 entry_cnt;
 	u8 entry_len;
 };
 
-struct nouveau_pm_tbl_entry{
+struct nouveau_pm_tbl_entry {
 	u8 tWR;
-	u8 tUNK_1;
+	u8 tWTR;
 	u8 tCL;
-	u8 tRP;		/* Byte 3 */
+	u8 tRC;
 	u8 empty_4;
-	u8 tRAS;	/* Byte 5 */
+	u8 tRFC;	/* Byte 5 */
 	u8 empty_6;
-	u8 tRFC;	/* Byte 7 */
+	u8 tRAS;	/* Byte 7 */
 	u8 empty_8;
-	u8 tRC;		/* Byte 9 */
-	u8 tUNK_10, tUNK_11, tUNK_12, tUNK_13, tUNK_14;
-	u8 empty_15,empty_16,empty_17;
-	u8 tUNK_18, tUNK_19, tUNK_20, tUNK_21;
+	u8 tRP;		/* Byte 9 */
+	u8 tRCDRD;
+	u8 tRCDWR;
+	u8 tRRD;
+	u8 tUNK_13;
+	u8 RAM_FT1;		/* 14, a bitmask of random RAM features */
+	u8 empty_15;
+	u8 tUNK_16;
+	u8 empty_17;
+	u8 tUNK_18;
+	u8 tCWL;
+	u8 tUNK_20, tUNK_21;
 };
 
-/* nouveau_mem.c */
-void nv30_mem_timing_entry(struct drm_device *dev, struct nouveau_pm_tbl_header *hdr,
-							struct nouveau_pm_tbl_entry *e, uint8_t magic_number,
-							struct nouveau_pm_memtiming *timing);
+struct nouveau_pm_profile;
+struct nouveau_pm_profile_func {
+	void (*destroy)(struct nouveau_pm_profile *);
+	void (*init)(struct nouveau_pm_profile *);
+	void (*fini)(struct nouveau_pm_profile *);
+	struct nouveau_pm_level *(*select)(struct nouveau_pm_profile *);
+};
+
+struct nouveau_pm_profile {
+	const struct nouveau_pm_profile_func *func;
+	struct list_head head;
+	char name[8];
+};
 
 #define NOUVEAU_PM_MAX_LEVEL 8
 struct nouveau_pm_level {
+	struct nouveau_pm_profile profile;
 	struct device_attribute dev_attr;
 	char name[32];
 	int id;
 
-	u32 core;
+	struct nouveau_pm_memtiming timing;
 	u32 memory;
+	u16 memscript;
+
+	u32 core;
 	u32 shader;
 	u32 rop;
 	u32 copy;
@@ -498,9 +528,6 @@ struct nouveau_pm_level {
 	u32 volt_min; /* microvolts */
 	u32 volt_max;
 	u8  fanspeed;
-
-	u16 memscript;
-	struct nouveau_pm_memtiming *timing;
 };
 
 struct nouveau_pm_temp_sensor_constants {
@@ -517,27 +544,26 @@ struct nouveau_pm_threshold_temp {
 	s16 fan_boost;
 };
 
-struct nouveau_pm_memtimings {
-	bool supported;
-	struct nouveau_pm_memtiming *timing;
-	int nr_timing;
-};
-
 struct nouveau_pm_fan {
+	u32 percent;
 	u32 min_duty;
 	u32 max_duty;
 	u32 pwm_freq;
+	u32 pwm_divisor;
 };
 
 struct nouveau_pm_engine {
 	struct nouveau_pm_voltage voltage;
 	struct nouveau_pm_level perflvl[NOUVEAU_PM_MAX_LEVEL];
 	int nr_perflvl;
-	struct nouveau_pm_memtimings memtimings;
 	struct nouveau_pm_temp_sensor_constants sensor_constants;
 	struct nouveau_pm_threshold_temp threshold_temp;
 	struct nouveau_pm_fan fan;
-	u32 pwm_divisor;
+
+	struct nouveau_pm_profile *profile_ac;
+	struct nouveau_pm_profile *profile_dc;
+	struct nouveau_pm_profile *profile;
+	struct list_head profiles;
 
 	struct nouveau_pm_level boot;
 	struct nouveau_pm_level *cur;
@@ -669,14 +695,14 @@ struct nv04_mode_state {
 };
 
 enum nouveau_card_type {
-	NV_04      = 0x00,
+	NV_04      = 0x04,
 	NV_10      = 0x10,
 	NV_20      = 0x20,
 	NV_30      = 0x30,
 	NV_40      = 0x40,
 	NV_50      = 0x50,
 	NV_C0      = 0xc0,
-	NV_D0      = 0xd0
+	NV_D0      = 0xd0,
 };
 
 struct drm_nouveau_private {
@@ -772,8 +798,22 @@ struct drm_nouveau_private {
 	} tile;
 
 	/* VRAM/fb configuration */
+	enum {
+		NV_MEM_TYPE_UNKNOWN = 0,
+		NV_MEM_TYPE_STOLEN,
+		NV_MEM_TYPE_SGRAM,
+		NV_MEM_TYPE_SDRAM,
+		NV_MEM_TYPE_DDR1,
+		NV_MEM_TYPE_DDR2,
+		NV_MEM_TYPE_DDR3,
+		NV_MEM_TYPE_GDDR2,
+		NV_MEM_TYPE_GDDR3,
+		NV_MEM_TYPE_GDDR4,
+		NV_MEM_TYPE_GDDR5
+	} vram_type;
 	uint64_t vram_size;
 	uint64_t vram_sys_base;
+	bool vram_rank_B;
 
 	uint64_t fb_available_size;
 	uint64_t fb_mappable_pages;
@@ -846,6 +886,7 @@ extern int nouveau_uscript_lvds;
 extern int nouveau_uscript_tmds;
 extern int nouveau_vram_pushbuf;
 extern int nouveau_vram_notify;
+extern char *nouveau_vram_type;
 extern int nouveau_fbpercrtc;
 extern int nouveau_tv_disable;
 extern char *nouveau_tv_norm;
@@ -894,8 +935,12 @@ extern void nouveau_mem_gart_fini(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
 extern int  nouveau_mem_reset_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
-extern int  nouveau_mem_detect(struct drm_device *);
 extern bool nouveau_mem_flags_valid(struct drm_device *, u32 tile_flags);
+extern int  nouveau_mem_timing_calc(struct drm_device *, u32 freq,
+				    struct nouveau_pm_memtiming *);
+extern void nouveau_mem_timing_read(struct drm_device *,
+				    struct nouveau_pm_memtiming *);
+extern int nouveau_mem_vbios_type(struct drm_device *);
 extern struct nouveau_tile_reg *nv10_mem_set_tiling(
 	struct drm_device *dev, uint32_t addr, uint32_t size,
 	uint32_t pitch, uint32_t flags);
@@ -1117,19 +1162,14 @@ int nouveau_ttm_mmap(struct file *, struct vm_area_struct *);
 /* nouveau_hdmi.c */
 void nouveau_hdmi_mode_set(struct drm_encoder *, struct drm_display_mode *);
 
-/* nouveau_dp.c */
-int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
-		     uint8_t *data, int data_nr);
-bool nouveau_dp_detect(struct drm_encoder *);
-bool nouveau_dp_link_train(struct drm_encoder *, u32 datarate);
-void nouveau_dp_tu_update(struct drm_device *, int, int, u32, u32);
-u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_entry *, u8 **);
-
 /* nv04_fb.c */
+extern int  nv04_fb_vram_init(struct drm_device *);
 extern int  nv04_fb_init(struct drm_device *);
 extern void nv04_fb_takedown(struct drm_device *);
 
 /* nv10_fb.c */
+extern int  nv10_fb_vram_init(struct drm_device *dev);
+extern int  nv1a_fb_vram_init(struct drm_device *dev);
 extern int  nv10_fb_init(struct drm_device *);
 extern void nv10_fb_takedown(struct drm_device *);
 extern void nv10_fb_init_tile_region(struct drm_device *dev, int i,
@@ -1137,6 +1177,16 @@ extern void nv10_fb_init_tile_region(struct drm_device *dev, int i,
 				     uint32_t pitch, uint32_t flags);
 extern void nv10_fb_set_tile_region(struct drm_device *dev, int i);
 extern void nv10_fb_free_tile_region(struct drm_device *dev, int i);
+
+/* nv20_fb.c */
+extern int  nv20_fb_vram_init(struct drm_device *dev);
+extern int  nv20_fb_init(struct drm_device *);
+extern void nv20_fb_takedown(struct drm_device *);
+extern void nv20_fb_init_tile_region(struct drm_device *dev, int i,
+				     uint32_t addr, uint32_t size,
+				     uint32_t pitch, uint32_t flags);
+extern void nv20_fb_set_tile_region(struct drm_device *dev, int i);
+extern void nv20_fb_free_tile_region(struct drm_device *dev, int i);
 
 /* nv30_fb.c */
 extern int  nv30_fb_init(struct drm_device *);
@@ -1147,6 +1197,7 @@ extern void nv30_fb_init_tile_region(struct drm_device *dev, int i,
 extern void nv30_fb_free_tile_region(struct drm_device *dev, int i);
 
 /* nv40_fb.c */
+extern int  nv40_fb_vram_init(struct drm_device *dev);
 extern int  nv40_fb_init(struct drm_device *);
 extern void nv40_fb_takedown(struct drm_device *);
 extern void nv40_fb_set_tile_region(struct drm_device *dev, int i);
@@ -1703,6 +1754,7 @@ nv44_graph_class(struct drm_device *dev)
 #define NV_MEM_ACCESS_RW (NV_MEM_ACCESS_RO | NV_MEM_ACCESS_WO)
 #define NV_MEM_ACCESS_SYS 4
 #define NV_MEM_ACCESS_VM  8
+#define NV_MEM_ACCESS_NOSNOOP 16
 
 #define NV_MEM_TARGET_VRAM        0
 #define NV_MEM_TARGET_PCI         1
