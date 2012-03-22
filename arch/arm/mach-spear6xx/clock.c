@@ -660,8 +660,8 @@ static struct clk_lookup spear_clk_lookups[] = {
 	{ .dev_id = "dma",		.clk = &dma_clk},
 	{ .dev_id = "jpeg",		.clk = &jpeg_clk},
 	{ .dev_id = "gmac",		.clk = &gmac_clk},
-	{ .dev_id = "smi",		.clk = &smi_clk},
-	{ .dev_id = "fsmc-nand",	.clk = &fsmc_clk},
+	{ .dev_id = "fc000000.flash",	.clk = &smi_clk},
+	{ .dev_id = "d1800000.flash",	.clk = &fsmc_clk},
 	/* clock derived from apb clk */
 	{ .dev_id = "adc",		.clk = &adc_clk},
 	{ .dev_id = "ssp-pl022.0",	.clk = &ssp0_clk},
