@@ -3348,7 +3348,7 @@ static void calc_timer_values(struct perf_event *event,
 	*running = ctx_time - event->tstamp_running;
 }
 
-void __weak perf_update_user_clock(struct perf_event_mmap_page *userpg, u64 now)
+void __weak arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
 {
 }
 
@@ -3398,7 +3398,7 @@ void perf_event_update_userpage(struct perf_event *event)
 	userpg->time_running = running +
 			atomic64_read(&event->child_total_time_running);
 
-	perf_update_user_clock(userpg, now);
+	arch_perf_update_userpage(userpg, now);
 
 	barrier();
 	++userpg->lock;
