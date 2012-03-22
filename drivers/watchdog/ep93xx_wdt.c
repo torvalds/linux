@@ -42,8 +42,8 @@ static bool nowayout = WATCHDOG_NOWAYOUT;
 module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
-static int timeout = WDT_TIMEOUT;
-module_param(timeout, int, 0);
+static unsigned int timeout = WDT_TIMEOUT;
+module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. (1<=timeout<=3600, default="
 				__MODULE_STRING(WDT_TIMEOUT) ")");
@@ -55,7 +55,7 @@ static unsigned long next_heartbeat;
 #define EP93XX_WATCHDOG		0x00
 #define EP93XX_WDSTATUS		0x04
 
-/* reset the wdt every ~200ms */
+/* reset the wdt every ~200ms - the heartbeat of the device is 0.250 seconds*/
 #define WDT_INTERVAL (HZ/5)
 
 static void ep93xx_wdt_timer_ping(unsigned long data)
