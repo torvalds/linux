@@ -39,13 +39,16 @@ struct wacom_data {
 	__u32 id;
 	__u32 serial;
 	unsigned char high_speed;
-	int battery_capacity;
+	__u8 battery_capacity;
+	__u8 power_raw;
+	__u8 ps_connected;
 	struct power_supply battery;
 	struct power_supply ac;
 };
 
-/*percent of battery capacity, 0 means AC online*/
-static unsigned short batcap[8] = { 1, 15, 25, 35, 50, 70, 100, 0 };
+/*percent of battery capacity for Graphire
+  8th value means AC online and show 100% capacity */
+static unsigned short batcap_gr[8] = { 1, 15, 25, 35, 50, 70, 100, 100 };
 
 static enum power_supply_property wacom_battery_props[] = {
 	POWER_SUPPLY_PROP_PRESENT,
@@ -65,7 +68,6 @@ static int wacom_battery_get_property(struct power_supply *psy,
 {
 	struct wacom_data *wdata = container_of(psy,
 					struct wacom_data, battery);
-	int power_state = batcap[wdata->battery_capacity];
 	int ret = 0;
 
 	switch (psp) {
@@ -76,11 +78,7 @@ static int wacom_battery_get_property(struct power_supply *psy,
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
-		/* show 100% battery capacity when charging */
-		if (power_state == 0)
-			val->intval = 100;
-		else
-			val->intval = power_state;
+		val->intval = wdata->battery_capacity;
 		break;
 	default:
 		ret = -EINVAL;
@@ -94,17 +92,13 @@ static int wacom_ac_get_property(struct power_supply *psy,
 				union power_supply_propval *val)
 {
 	struct wacom_data *wdata = container_of(psy, struct wacom_data, ac);
-	int power_state = batcap[wdata->battery_capacity];
 	int ret = 0;
 
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
 		/* fall through */
 	case POWER_SUPPLY_PROP_ONLINE:
-		if (power_state == 0)
-			val->intval = 1;
-		else
-			val->intval = 0;
+		val->intval = wdata->ps_connected;
 		break;
 	case POWER_SUPPLY_PROP_SCOPE:
 		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
@@ -304,10 +298,16 @@ static int wacom_gr_parse_report(struct hid_device *hdev,
 		input_sync(input);
 	}
 
-	/* Store current battery capacity */
+	/* Store current battery capacity and power supply state*/
 	rw = (data[7] >> 2 & 0x07);
-	if (rw != wdata->battery_capacity)
-		wdata->battery_capacity = rw;
+	if (rw != wdata->power_raw) {
+		wdata->power_raw = rw;
+		wdata->battery_capacity = batcap_gr[rw];
+		if (rw == 7)
+			wdata->ps_connected = 1;
+		else
+			wdata->ps_connected = 0;
+	}
 	return 1;
 }
 
