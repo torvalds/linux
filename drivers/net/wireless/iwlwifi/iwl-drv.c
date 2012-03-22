@@ -859,7 +859,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
 	complete(&drv->request_firmware_complete);
 
-	drv->op_mode = iwl_dvm_ops.start(drv->trans, &drv->fw);
+	drv->op_mode = iwl_dvm_ops.start(drv->trans, cfg, &drv->fw);
 
 	if (!drv->op_mode)
 		goto out_unbind;

@@ -175,7 +175,7 @@ static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.tx_chains_num =
 		num_of_ant(priv->hw_params.valid_tx_ant);
-	if (cfg(priv)->rx_with_siso_diversity)
+	if (priv->cfg->rx_with_siso_diversity)
 		priv->hw_params.rx_chains_num = 1;
 	else
 		priv->hw_params.rx_chains_num =
@@ -256,7 +256,7 @@ static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.tx_chains_num =
 		num_of_ant(priv->hw_params.valid_tx_ant);
-	if (cfg(priv)->rx_with_siso_diversity)
+	if (priv->cfg->rx_with_siso_diversity)
 		priv->hw_params.rx_chains_num = 1;
 	else
 		priv->hw_params.rx_chains_num =
@@ -573,7 +573,7 @@ static void iwl6000_nic_config(struct iwl_priv *priv)
 {
 	iwl_rf_config(priv);
 
-	switch (cfg(priv)->device_family) {
+	switch (priv->cfg->device_family) {
 	case IWL_DEVICE_FAMILY_6005:
 	case IWL_DEVICE_FAMILY_6030:
 	case IWL_DEVICE_FAMILY_6000:
@@ -633,7 +633,7 @@ static void iwl6000_hw_set_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.tx_chains_num =
 		num_of_ant(priv->hw_params.valid_tx_ant);
-	if (cfg(priv)->rx_with_siso_diversity)
+	if (priv->cfg->rx_with_siso_diversity)
 		priv->hw_params.rx_chains_num = 1;
 	else
 		priv->hw_params.rx_chains_num =

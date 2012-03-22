@@ -674,7 +674,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 	priv->thermal_throttle.ct_kill_toggle = false;
 
-	if (cfg(priv)->base_params->support_ct_kill_exit) {
+	if (priv->cfg->base_params->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
 			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
@@ -791,10 +791,10 @@ int iwl_alive_start(struct iwl_priv *priv)
 	}
 
 	/* download priority table before any calibration request */
-	if (cfg(priv)->bt_params &&
-	    cfg(priv)->bt_params->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/* Configure Bluetooth device coexistence support */
-		if (cfg(priv)->bt_params->bt_sco_disable)
+		if (priv->cfg->bt_params->bt_sco_disable)
 			priv->bt_enable_pspoll = false;
 		else
 			priv->bt_enable_pspoll = true;
@@ -931,9 +931,9 @@ void iwl_down(struct iwl_priv *priv)
 	priv->bt_status = 0;
 	priv->cur_rssi_ctx = NULL;
 	priv->bt_is_sco = 0;
-	if (cfg(priv)->bt_params)
+	if (priv->cfg->bt_params)
 		priv->bt_traffic_load =
-			 cfg(priv)->bt_params->bt_init_traffic_load;
+			 priv->cfg->bt_params->bt_init_traffic_load;
 	else
 		priv->bt_traffic_load = 0;
 	priv->bt_full_concurrent = false;
@@ -1114,7 +1114,7 @@ void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 	iwl_setup_scan_deferred_work(priv);
 
-	if (cfg(priv)->bt_params)
+	if (priv->cfg->bt_params)
 		iwlagn_bt_setup_deferred_work(priv);
 
 	init_timer(&priv->statistics_periodic);
@@ -1128,7 +1128,7 @@ void iwl_setup_deferred_work(struct iwl_priv *priv)
 
 void iwl_cancel_deferred_work(struct iwl_priv *priv)
 {
-	if (cfg(priv)->bt_params)
+	if (priv->cfg->bt_params)
 		iwlagn_bt_cancel_deferred_work(priv);
 
 	cancel_work_sync(&priv->run_time_calib_work);
@@ -1179,8 +1179,8 @@ static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 
 	ht_info->ht_supported = true;
 
-	if (cfg(priv)->ht_params &&
-	    cfg(priv)->ht_params->ht_greenfield_support)
+	if (priv->cfg->ht_params &&
+	    priv->cfg->ht_params->ht_greenfield_support)
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
@@ -1362,7 +1362,7 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->band = IEEE80211_BAND_2GHZ;
 
 	priv->plcp_delta_threshold =
-		cfg(priv)->base_params->plcp_delta_threshold;
+		priv->cfg->base_params->plcp_delta_threshold;
 
 	priv->iw_mode = NL80211_IFTYPE_STATION;
 	priv->current_ht_config.smps = IEEE80211_SMPS_STATIC;
@@ -1379,8 +1379,8 @@ int iwl_init_drv(struct iwl_priv *priv)
 	iwl_init_scan_params(priv);
 
 	/* init bt coex */
-	if (cfg(priv)->bt_params &&
-	    cfg(priv)->bt_params->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		priv->kill_ack_mask = IWLAGN_BT_KILL_ACK_MASK_DEFAULT;
 		priv->kill_cts_mask = IWLAGN_BT_KILL_CTS_MASK_DEFAULT;
 		priv->bt_valid = IWLAGN_BT_ALL_VALID_MSK;
@@ -1425,9 +1425,9 @@ void iwl_uninit_drv(struct iwl_priv *priv)
 
 void iwl_set_hw_params(struct iwl_priv *priv)
 {
-	if (cfg(priv)->ht_params)
+	if (priv->cfg->ht_params)
 		priv->hw_params.use_rts_for_aggregation =
-			cfg(priv)->ht_params->use_rts_for_aggregation;
+			priv->cfg->ht_params->use_rts_for_aggregation;
 
 	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		priv->hw_params.sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
@@ -1474,6 +1474,7 @@ void iwl_debug_config(struct iwl_priv *priv)
 }
 
 static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
+						 const struct iwl_cfg *cfg,
 						 const struct iwl_fw *fw)
 {
 	struct iwl_priv *priv;
@@ -1499,8 +1500,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	hw = iwl_alloc_all();
 	if (!hw) {
-		pr_err("%s: Cannot allocate network device\n",
-				cfg(trans)->name);
+		pr_err("%s: Cannot allocate network device\n", cfg->name);
 		goto out;
 	}
 
@@ -1509,9 +1509,10 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv = IWL_OP_MODE_GET_DVM(op_mode);
 	priv->shrd = trans->shrd;
 	priv->trans = trans;
+	priv->cfg = cfg;
 	priv->fw = fw;
 
-	switch (cfg(priv)->device_family) {
+	switch (priv->cfg->device_family) {
 	case IWL_DEVICE_FAMILY_1000:
 	case IWL_DEVICE_FAMILY_100:
 		priv->lib = &iwl1000_lib;
@@ -1557,7 +1558,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.rx_buf_size_8k = iwlagn_mod_params.amsdu_size_8K;
 	if (!iwlagn_mod_params.wd_disable)
 		trans_cfg.queue_watchdog_timeout =
-			cfg(priv)->base_params->wd_timeout;
+			priv->cfg->base_params->wd_timeout;
 	else
 		trans_cfg.queue_watchdog_timeout = IWL_WATCHHDOG_DISABLED;
 	trans_cfg.command_names = iwl_dvm_cmd_strings;
@@ -1622,7 +1623,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 * 2. Read REV register
 	 ***********************/
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		cfg(priv)->name, priv->trans->hw_rev);
+		priv->cfg->name, priv->trans->hw_rev);
 
 	if (iwl_trans_start_hw(priv->trans))
 		goto out_free_traffic_mem;

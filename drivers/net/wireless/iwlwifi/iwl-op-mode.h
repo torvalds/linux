@@ -129,6 +129,7 @@ struct iwl_fw;
  */
 struct iwl_op_mode_ops {
 	struct iwl_op_mode *(*start)(struct iwl_trans *trans,
+				     const struct iwl_cfg *cfg,
 				     const struct iwl_fw *fw);
 	void (*stop)(struct iwl_op_mode *op_mode);
 	int (*rx)(struct iwl_op_mode *op_mode, struct iwl_rx_cmd_buffer *rxb,

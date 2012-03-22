@@ -236,8 +236,8 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
 	calib_ver = iwl_eeprom_calib_version(priv);
 
-	if (eeprom_ver < cfg(priv)->eeprom_ver ||
-	    calib_ver < cfg(priv)->eeprom_calib_ver)
+	if (eeprom_ver < priv->cfg->eeprom_ver ||
+	    calib_ver < priv->cfg->eeprom_calib_ver)
 		goto err;
 
 	IWL_INFO(priv, "device EEPROM VER=0x%x, CALIB=0x%x\n",
@@ -247,8 +247,8 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 err:
 	IWL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
 		  "CALIB=0x%x < 0x%x\n",
-		  eeprom_ver, cfg(priv)->eeprom_ver,
-		  calib_ver,  cfg(priv)->eeprom_calib_ver);
+		  eeprom_ver, priv->cfg->eeprom_ver,
+		  calib_ver,  priv->cfg->eeprom_calib_ver);
 	return -EINVAL;
 
 }
@@ -259,7 +259,7 @@ int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
 	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE &&
-	    !cfg(priv)->ht_params) {
+	    !priv->cfg->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
@@ -277,10 +277,10 @@ int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 	priv->hw_params.valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
 
 	/* check overrides (some devices have wrong EEPROM) */
-	if (cfg(priv)->valid_tx_ant)
-		priv->hw_params.valid_tx_ant = cfg(priv)->valid_tx_ant;
-	if (cfg(priv)->valid_rx_ant)
-		priv->hw_params.valid_rx_ant = cfg(priv)->valid_rx_ant;
+	if (priv->cfg->valid_tx_ant)
+		priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
+	if (priv->cfg->valid_rx_ant)
+		priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
 	if (!priv->hw_params.valid_tx_ant || !priv->hw_params.valid_rx_ant) {
 		IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
@@ -349,7 +349,7 @@ static u32 eeprom_indirect_address(struct iwl_priv *priv, u32 address)
 const u8 *iwl_eeprom_query_addr(struct iwl_priv *priv, size_t offset)
 {
 	u32 address = eeprom_indirect_address(priv, offset);
-	BUG_ON(address >= cfg(priv)->base_params->eeprom_size);
+	BUG_ON(address >= priv->cfg->base_params->eeprom_size);
 	return &priv->eeprom[address];
 }
 
@@ -693,7 +693,7 @@ static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 				 ((txp->delta_20_in_40 & 0xf0) >> 4),
 				 (txp->delta_20_in_40 & 0x0f));
 
-		max_txp_avg = iwl_get_max_txpower_avg(cfg(priv), txp_array, idx,
+		max_txp_avg = iwl_get_max_txpower_avg(priv->cfg, txp_array, idx,
 						      &max_txp_avg_halfdbm);
 
 		/*
@@ -730,7 +730,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	if (priv->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */
-	sz = cfg(priv)->base_params->eeprom_size;
+	sz = priv->cfg->base_params->eeprom_size;
 	IWL_DEBUG_EEPROM(priv, "NVM size = %d\n", sz);
 	priv->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!priv->eeprom) {
@@ -770,7 +770,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
-		if (!cfg(priv)->base_params->shadow_ram_support) {
+		if (!priv->cfg->base_params->shadow_ram_support) {
 			if (iwl_find_otp_image(priv->trans, &validblockaddr)) {
 				ret = -ENOENT;
 				goto done;

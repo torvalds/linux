@@ -473,8 +473,8 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 
 	switch (nla_get_u32(tb[IWL_TM_ATTR_COMMAND])) {
 	case IWL_TM_CMD_APP2DEV_GET_DEVICENAME:
-		rsp_data_ptr = (unsigned char *)cfg(priv)->name;
-		rsp_data_len = strlen(cfg(priv)->name);
+		rsp_data_ptr = (unsigned char *)priv->cfg->name;
+		rsp_data_len = strlen(priv->cfg->name);
 		skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
 							rsp_data_len + 20);
 		if (!skb) {
@@ -534,7 +534,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
 		if (priv->eeprom) {
 			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
-				cfg(priv)->base_params->eeprom_size + 20);
+				priv->cfg->base_params->eeprom_size + 20);
 			if (!skb) {
 				IWL_ERR(priv, "Memory allocation fail\n");
 				return -ENOMEM;
@@ -542,7 +542,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			NLA_PUT_U32(skb, IWL_TM_ATTR_COMMAND,
 				IWL_TM_CMD_DEV2APP_EEPROM_RSP);
 			NLA_PUT(skb, IWL_TM_ATTR_EEPROM,
-				cfg(priv)->base_params->eeprom_size,
+				priv->cfg->base_params->eeprom_size,
 				priv->eeprom);
 			status = cfg80211_testmode_reply(skb);
 			if (status < 0)

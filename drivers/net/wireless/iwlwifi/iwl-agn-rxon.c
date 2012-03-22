@@ -531,9 +531,9 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	}
 
 	if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
-	    cfg(priv)->ht_params && cfg(priv)->ht_params->smps_mode)
+	    priv->cfg->ht_params && priv->cfg->ht_params->smps_mode)
 		ieee80211_request_smps(ctx->vif,
-				       cfg(priv)->ht_params->smps_mode);
+				       priv->cfg->ht_params->smps_mode);
 
 	return 0;
 }
