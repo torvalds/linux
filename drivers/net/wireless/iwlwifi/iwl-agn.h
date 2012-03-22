@@ -481,7 +481,7 @@ do {									\
 	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
-		__iwl_err(trans(m)->dev, true,				\
+		__iwl_err((m)->dev, true,				\
 			  !iwl_have_debug_level(IWL_DL_RADIO),		\
 			  fmt, ##args);					\
 } while (0)
@@ -491,7 +491,7 @@ do {									\
 	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
-		__iwl_err(trans(m)->dev, true, true, fmt, ##args);	\
+		__iwl_err((m)->dev, true, true, fmt, ##args);	\
 } while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 

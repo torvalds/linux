@@ -80,6 +80,7 @@
  * @shrd: pointer to common shared structure
  * @op_mode: the running op_mode
  * @trans: transport layer
+ * @dev: for debug prints only
  * @cfg: configuration struct
  * @fw_index: firmware revision to try loading
  * @firmware_name: composite filename of ucode file to load
@@ -91,6 +92,7 @@ struct iwl_drv {
 	struct iwl_shared *shrd;
 	struct iwl_op_mode *op_mode;
 	struct iwl_trans *trans;
+	struct device *dev;
 	const struct iwl_cfg *cfg;
 
 	int fw_index;                   /* firmware we're trying to load */
@@ -898,6 +900,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
 	/* For printing only - temporary until we change the logger */
 	drv->shrd = shrd;
 	drv->trans = trans;
+	drv->dev = trans->dev;
 	drv->cfg = cfg;
 
 	init_completion(&drv->request_firmware_complete);

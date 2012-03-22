@@ -41,10 +41,10 @@ void __iwl_info(struct device *dev, const char *fmt, ...);
 void __iwl_crit(struct device *dev, const char *fmt, ...);
 
 /* No matter what is m (priv, bus, trans), this will work */
-#define IWL_ERR(m, f, a...) __iwl_err(trans(m)->dev, false, false, f, ## a)
-#define IWL_WARN(m, f, a...) __iwl_warn(trans(m)->dev, f, ## a)
-#define IWL_INFO(m, f, a...) __iwl_info(trans(m)->dev, f, ## a)
-#define IWL_CRIT(m, f, a...) __iwl_crit(trans(m)->dev, f, ## a)
+#define IWL_ERR(m, f, a...) __iwl_err((m)->dev, false, false, f, ## a)
+#define IWL_WARN(m, f, a...) __iwl_warn((m)->dev, f, ## a)
+#define IWL_INFO(m, f, a...) __iwl_info((m)->dev, f, ## a)
+#define IWL_CRIT(m, f, a...) __iwl_crit((m)->dev, f, ## a)
 
 #if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
 void __iwl_dbg(struct device *dev,
@@ -65,9 +65,9 @@ do {									\
 } while (0)
 
 #define IWL_DEBUG(m, level, fmt, args...)				\
-	__iwl_dbg(trans(m)->dev, level, false, __func__, fmt, ##args)
+	__iwl_dbg((m)->dev, level, false, __func__, fmt, ##args)
 #define IWL_DEBUG_LIMIT(m, level, fmt, args...)				\
-	__iwl_dbg(trans(m)->dev, level, true, __func__, fmt, ##args)
+	__iwl_dbg((m)->dev, level, true, __func__, fmt, ##args)
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define iwl_print_hex_dump(m, level, p, len)				\

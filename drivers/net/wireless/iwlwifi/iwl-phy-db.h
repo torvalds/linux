@@ -96,7 +96,7 @@ struct iwl_phy_db {
 	u32 channel_size;
 
 	/* for an access to the logger */
-	const struct iwl_shared *shrd;
+	struct device *dev;
 };
 
 enum iwl_phy_db_section_type {
@@ -114,7 +114,7 @@ struct iwl_phy_db_chg_txp {
 	__le16 max_channel_idx;
 } __packed;
 
-struct iwl_phy_db *iwl_phy_db_init(struct iwl_shared *shrd);
+struct iwl_phy_db *iwl_phy_db_init(struct device *dev);
 
 void iwl_phy_db_free(struct iwl_phy_db *phy_db);
 

@@ -1509,6 +1509,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv = IWL_OP_MODE_GET_DVM(op_mode);
 	priv->shrd = trans->shrd;
 	priv->trans = trans;
+	priv->dev = trans->dev;
 	priv->cfg = cfg;
 	priv->fw = fw;
 

@@ -761,6 +761,7 @@ struct iwl_priv {
 	/*data shared among all the driver's layers */
 	struct iwl_shared *shrd;
 	struct iwl_trans *trans;
+	struct device *dev;		/* for debug prints only */
 	const struct iwl_cfg *cfg;
 	const struct iwl_fw *fw;
 	const struct iwl_lib_ops *lib;
