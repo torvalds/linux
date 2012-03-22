@@ -5035,11 +5035,11 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		 */
 		first_cluster = 0;
 	}
-	range->len = trimmed * sb->s_blocksize;
 
 	if (!ret)
 		atomic_set(&EXT4_SB(sb)->s_last_trim_minblks, minlen);
 
 out:
+	range->len = trimmed * sb->s_blocksize;
 	return ret;
 }
