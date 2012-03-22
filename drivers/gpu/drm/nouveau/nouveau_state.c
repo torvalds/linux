@@ -852,7 +852,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_pm;
 
-	if (!dev_priv->noaccel) {
+	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_card_channel_init(dev);
 		if (ret)
 			goto out_fence;
