@@ -23,6 +23,15 @@ config FSL_85XX_CACHE_SRAM
 	  cache-sram-size and cache-sram-offset kernel boot
 	  parameters should be passed when this option is enabled.
 
+config BSC9131_RDB
+	bool "Freescale BSC9131RDB"
+	select DEFAULT_UIMAGE
+	help
+	  This option enables support for the Freescale BSC9131RDB board.
+	  The BSC9131 is a heterogeneous SoC containing an e500v2 powerpc and a
+	  StarCore SC3850 DSP
+	  Manufacturer : Freescale Semiconductor, Inc
+
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
 	select DEFAULT_UIMAGE
