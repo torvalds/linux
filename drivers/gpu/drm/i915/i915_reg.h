@@ -3063,18 +3063,26 @@
 #define DE_PIPEB_VBLANK_IVB		(1<<5)
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
 
+#define VLV_MASTER_IER			0x4400c /* Gunit master IER */
+#define   MASTER_INTERRUPT_ENABLE	(1<<31)
+
 #define DEISR   0x44000
 #define DEIMR   0x44004
 #define DEIIR   0x44008
 #define DEIER   0x4400c
 
 /* GT interrupt */
-#define GT_PIPE_NOTIFY		(1 << 4)
-#define GT_SYNC_STATUS          (1 << 2)
-#define GT_USER_INTERRUPT       (1 << 0)
-#define GT_BSD_USER_INTERRUPT   (1 << 5)
-#define GT_GEN6_BSD_USER_INTERRUPT	(1 << 12)
-#define GT_BLT_USER_INTERRUPT	(1 << 22)
+#define GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT	(1 << 26)
+#define GT_GEN6_BLT_CS_ERROR_INTERRUPT		(1 << 25)
+#define GT_BLT_USER_INTERRUPT			(1 << 22)
+#define GT_GEN6_BSD_CS_ERROR_INTERRUPT		(1 << 15)
+#define GT_GEN6_BSD_USER_INTERRUPT		(1 << 12)
+#define GT_BSD_USER_INTERRUPT			(1 << 5)
+#define GT_GEN7_L3_PARITY_ERROR_INTERRUPT	(1 << 5)
+#define GT_PIPE_NOTIFY				(1 << 4)
+#define GT_RENDER_CS_ERROR_INTERRUPT		(1 << 3)
+#define GT_SYNC_STATUS				(1 << 2)
+#define GT_USER_INTERRUPT			(1 << 0)
 
 #define GTISR   0x44010
 #define GTIMR   0x44014
