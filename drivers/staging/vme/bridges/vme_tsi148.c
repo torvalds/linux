@@ -29,6 +29,7 @@
 #include <linux/time.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/byteorder/generic.h>
 
 #include "../vme.h"
 #include "../vme_bridge.h"
@@ -1415,51 +1416,55 @@ static unsigned int tsi148_master_rmw(struct vme_master_resource *image,
 	return result;
 }
 
-static int tsi148_dma_set_vme_src_attributes(struct device *dev, u32 *attr,
+static int tsi148_dma_set_vme_src_attributes(struct device *dev, __be32 *attr,
 	u32 aspace, u32 cycle, u32 dwidth)
 {
+	u32 val;
+
+	val = be32_to_cpu(*attr);
+
 	/* Setup 2eSST speeds */
 	switch (cycle & (VME_2eSST160 | VME_2eSST267 | VME_2eSST320)) {
 	case VME_2eSST160:
-		*attr |= TSI148_LCSR_DSAT_2eSSTM_160;
+		val |= TSI148_LCSR_DSAT_2eSSTM_160;
 		break;
 	case VME_2eSST267:
-		*attr |= TSI148_LCSR_DSAT_2eSSTM_267;
+		val |= TSI148_LCSR_DSAT_2eSSTM_267;
 		break;
 	case VME_2eSST320:
-		*attr |= TSI148_LCSR_DSAT_2eSSTM_320;
+		val |= TSI148_LCSR_DSAT_2eSSTM_320;
 		break;
 	}
 
 	/* Setup cycle types */
 	if (cycle & VME_SCT)
-		*attr |= TSI148_LCSR_DSAT_TM_SCT;
+		val |= TSI148_LCSR_DSAT_TM_SCT;
 
 	if (cycle & VME_BLT)
-		*attr |= TSI148_LCSR_DSAT_TM_BLT;
+		val |= TSI148_LCSR_DSAT_TM_BLT;
 
 	if (cycle & VME_MBLT)
-		*attr |= TSI148_LCSR_DSAT_TM_MBLT;
+		val |= TSI148_LCSR_DSAT_TM_MBLT;
 
 	if (cycle & VME_2eVME)
-		*attr |= TSI148_LCSR_DSAT_TM_2eVME;
+		val |= TSI148_LCSR_DSAT_TM_2eVME;
 
 	if (cycle & VME_2eSST)
-		*attr |= TSI148_LCSR_DSAT_TM_2eSST;
+		val |= TSI148_LCSR_DSAT_TM_2eSST;
 
 	if (cycle & VME_2eSSTB) {
 		dev_err(dev, "Currently not setting Broadcast Select "
 			"Registers\n");
-		*attr |= TSI148_LCSR_DSAT_TM_2eSSTB;
+		val |= TSI148_LCSR_DSAT_TM_2eSSTB;
 	}
 
 	/* Setup data width */
 	switch (dwidth) {
 	case VME_D16:
-		*attr |= TSI148_LCSR_DSAT_DBW_16;
+		val |= TSI148_LCSR_DSAT_DBW_16;
 		break;
 	case VME_D32:
-		*attr |= TSI148_LCSR_DSAT_DBW_32;
+		val |= TSI148_LCSR_DSAT_DBW_32;
 		break;
 	default:
 		dev_err(dev, "Invalid data width\n");
@@ -1469,31 +1474,31 @@ static int tsi148_dma_set_vme_src_attributes(struct device *dev, u32 *attr,
 	/* Setup address space */
 	switch (aspace) {
 	case VME_A16:
-		*attr |= TSI148_LCSR_DSAT_AMODE_A16;
+		val |= TSI148_LCSR_DSAT_AMODE_A16;
 		break;
 	case VME_A24:
-		*attr |= TSI148_LCSR_DSAT_AMODE_A24;
+		val |= TSI148_LCSR_DSAT_AMODE_A24;
 		break;
 	case VME_A32:
-		*attr |= TSI148_LCSR_DSAT_AMODE_A32;
+		val |= TSI148_LCSR_DSAT_AMODE_A32;
 		break;
 	case VME_A64:
-		*attr |= TSI148_LCSR_DSAT_AMODE_A64;
+		val |= TSI148_LCSR_DSAT_AMODE_A64;
 		break;
 	case VME_CRCSR:
-		*attr |= TSI148_LCSR_DSAT_AMODE_CRCSR;
+		val |= TSI148_LCSR_DSAT_AMODE_CRCSR;
 		break;
 	case VME_USER1:
-		*attr |= TSI148_LCSR_DSAT_AMODE_USER1;
+		val |= TSI148_LCSR_DSAT_AMODE_USER1;
 		break;
 	case VME_USER2:
-		*attr |= TSI148_LCSR_DSAT_AMODE_USER2;
+		val |= TSI148_LCSR_DSAT_AMODE_USER2;
 		break;
 	case VME_USER3:
-		*attr |= TSI148_LCSR_DSAT_AMODE_USER3;
+		val |= TSI148_LCSR_DSAT_AMODE_USER3;
 		break;
 	case VME_USER4:
-		*attr |= TSI148_LCSR_DSAT_AMODE_USER4;
+		val |= TSI148_LCSR_DSAT_AMODE_USER4;
 		break;
 	default:
 		dev_err(dev, "Invalid address space\n");
@@ -1502,58 +1507,64 @@ static int tsi148_dma_set_vme_src_attributes(struct device *dev, u32 *attr,
 	}
 
 	if (cycle & VME_SUPER)
-		*attr |= TSI148_LCSR_DSAT_SUP;
+		val |= TSI148_LCSR_DSAT_SUP;
 	if (cycle & VME_PROG)
-		*attr |= TSI148_LCSR_DSAT_PGM;
+		val |= TSI148_LCSR_DSAT_PGM;
+
+	*attr = cpu_to_be32(val);
 
 	return 0;
 }
 
-static int tsi148_dma_set_vme_dest_attributes(struct device *dev, u32 *attr,
+static int tsi148_dma_set_vme_dest_attributes(struct device *dev, __be32 *attr,
 	u32 aspace, u32 cycle, u32 dwidth)
 {
+	u32 val;
+
+	val = be32_to_cpu(*attr);
+
 	/* Setup 2eSST speeds */
 	switch (cycle & (VME_2eSST160 | VME_2eSST267 | VME_2eSST320)) {
 	case VME_2eSST160:
-		*attr |= TSI148_LCSR_DDAT_2eSSTM_160;
+		val |= TSI148_LCSR_DDAT_2eSSTM_160;
 		break;
 	case VME_2eSST267:
-		*attr |= TSI148_LCSR_DDAT_2eSSTM_267;
+		val |= TSI148_LCSR_DDAT_2eSSTM_267;
 		break;
 	case VME_2eSST320:
-		*attr |= TSI148_LCSR_DDAT_2eSSTM_320;
+		val |= TSI148_LCSR_DDAT_2eSSTM_320;
 		break;
 	}
 
 	/* Setup cycle types */
 	if (cycle & VME_SCT)
-		*attr |= TSI148_LCSR_DDAT_TM_SCT;
+		val |= TSI148_LCSR_DDAT_TM_SCT;
 
 	if (cycle & VME_BLT)
-		*attr |= TSI148_LCSR_DDAT_TM_BLT;
+		val |= TSI148_LCSR_DDAT_TM_BLT;
 
 	if (cycle & VME_MBLT)
-		*attr |= TSI148_LCSR_DDAT_TM_MBLT;
+		val |= TSI148_LCSR_DDAT_TM_MBLT;
 
 	if (cycle & VME_2eVME)
-		*attr |= TSI148_LCSR_DDAT_TM_2eVME;
+		val |= TSI148_LCSR_DDAT_TM_2eVME;
 
 	if (cycle & VME_2eSST)
-		*attr |= TSI148_LCSR_DDAT_TM_2eSST;
+		val |= TSI148_LCSR_DDAT_TM_2eSST;
 
 	if (cycle & VME_2eSSTB) {
 		dev_err(dev, "Currently not setting Broadcast Select "
 			"Registers\n");
-		*attr |= TSI148_LCSR_DDAT_TM_2eSSTB;
+		val |= TSI148_LCSR_DDAT_TM_2eSSTB;
 	}
 
 	/* Setup data width */
 	switch (dwidth) {
 	case VME_D16:
-		*attr |= TSI148_LCSR_DDAT_DBW_16;
+		val |= TSI148_LCSR_DDAT_DBW_16;
 		break;
 	case VME_D32:
-		*attr |= TSI148_LCSR_DDAT_DBW_32;
+		val |= TSI148_LCSR_DDAT_DBW_32;
 		break;
 	default:
 		dev_err(dev, "Invalid data width\n");
@@ -1563,31 +1574,31 @@ static int tsi148_dma_set_vme_dest_attributes(struct device *dev, u32 *attr,
 	/* Setup address space */
 	switch (aspace) {
 	case VME_A16:
-		*attr |= TSI148_LCSR_DDAT_AMODE_A16;
+		val |= TSI148_LCSR_DDAT_AMODE_A16;
 		break;
 	case VME_A24:
-		*attr |= TSI148_LCSR_DDAT_AMODE_A24;
+		val |= TSI148_LCSR_DDAT_AMODE_A24;
 		break;
 	case VME_A32:
-		*attr |= TSI148_LCSR_DDAT_AMODE_A32;
+		val |= TSI148_LCSR_DDAT_AMODE_A32;
 		break;
 	case VME_A64:
-		*attr |= TSI148_LCSR_DDAT_AMODE_A64;
+		val |= TSI148_LCSR_DDAT_AMODE_A64;
 		break;
 	case VME_CRCSR:
-		*attr |= TSI148_LCSR_DDAT_AMODE_CRCSR;
+		val |= TSI148_LCSR_DDAT_AMODE_CRCSR;
 		break;
 	case VME_USER1:
-		*attr |= TSI148_LCSR_DDAT_AMODE_USER1;
+		val |= TSI148_LCSR_DDAT_AMODE_USER1;
 		break;
 	case VME_USER2:
-		*attr |= TSI148_LCSR_DDAT_AMODE_USER2;
+		val |= TSI148_LCSR_DDAT_AMODE_USER2;
 		break;
 	case VME_USER3:
-		*attr |= TSI148_LCSR_DDAT_AMODE_USER3;
+		val |= TSI148_LCSR_DDAT_AMODE_USER3;
 		break;
 	case VME_USER4:
-		*attr |= TSI148_LCSR_DDAT_AMODE_USER4;
+		val |= TSI148_LCSR_DDAT_AMODE_USER4;
 		break;
 	default:
 		dev_err(dev, "Invalid address space\n");
@@ -1596,21 +1607,25 @@ static int tsi148_dma_set_vme_dest_attributes(struct device *dev, u32 *attr,
 	}
 
 	if (cycle & VME_SUPER)
-		*attr |= TSI148_LCSR_DDAT_SUP;
+		val |= TSI148_LCSR_DDAT_SUP;
 	if (cycle & VME_PROG)
-		*attr |= TSI148_LCSR_DDAT_PGM;
+		val |= TSI148_LCSR_DDAT_PGM;
+
+	*attr = cpu_to_be32(val);
 
 	return 0;
 }
 
 /*
  * Add a link list descriptor to the list
+ *
+ * Note: DMA engine expects the DMA descriptor to be big endian.
  */
 static int tsi148_dma_list_add(struct vme_dma_list *list,
 	struct vme_dma_attr *src, struct vme_dma_attr *dest, size_t count)
 {
 	struct tsi148_dma_entry *entry, *prev;
-	u32 address_high, address_low;
+	u32 address_high, address_low, val;
 	struct vme_dma_pattern *pattern_attr;
 	struct vme_dma_pci *pci_attr;
 	struct vme_dma_vme *vme_attr;
@@ -1647,34 +1662,36 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	case VME_DMA_PATTERN:
 		pattern_attr = src->private;
 
-		entry->descriptor.dsal = pattern_attr->pattern;
-		entry->descriptor.dsat = TSI148_LCSR_DSAT_TYP_PAT;
+		entry->descriptor.dsal = cpu_to_be32(pattern_attr->pattern);
+
+		val = TSI148_LCSR_DSAT_TYP_PAT;
+
 		/* Default behaviour is 32 bit pattern */
 		if (pattern_attr->type & VME_DMA_PATTERN_BYTE)
-			entry->descriptor.dsat |= TSI148_LCSR_DSAT_PSZ;
+			val |= TSI148_LCSR_DSAT_PSZ;
 
 		/* It seems that the default behaviour is to increment */
 		if ((pattern_attr->type & VME_DMA_PATTERN_INCREMENT) == 0)
-			entry->descriptor.dsat |= TSI148_LCSR_DSAT_NIN;
-
+			val |= TSI148_LCSR_DSAT_NIN;
+		entry->descriptor.dsat = cpu_to_be32(val);
 		break;
 	case VME_DMA_PCI:
 		pci_attr = src->private;
 
 		reg_split((unsigned long long)pci_attr->address, &address_high,
 			&address_low);
-		entry->descriptor.dsau = address_high;
-		entry->descriptor.dsal = address_low;
-		entry->descriptor.dsat = TSI148_LCSR_DSAT_TYP_PCI;
+		entry->descriptor.dsau = cpu_to_be32(address_high);
+		entry->descriptor.dsal = cpu_to_be32(address_low);
+		entry->descriptor.dsat = cpu_to_be32(TSI148_LCSR_DSAT_TYP_PCI);
 		break;
 	case VME_DMA_VME:
 		vme_attr = src->private;
 
 		reg_split((unsigned long long)vme_attr->address, &address_high,
 			&address_low);
-		entry->descriptor.dsau = address_high;
-		entry->descriptor.dsal = address_low;
-		entry->descriptor.dsat = TSI148_LCSR_DSAT_TYP_VME;
+		entry->descriptor.dsau = cpu_to_be32(address_high);
+		entry->descriptor.dsal = cpu_to_be32(address_low);
+		entry->descriptor.dsat = cpu_to_be32(TSI148_LCSR_DSAT_TYP_VME);
 
 		retval = tsi148_dma_set_vme_src_attributes(
 			tsi148_bridge->parent, &entry->descriptor.dsat,
@@ -1690,9 +1707,8 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	}
 
 	/* Assume last link - this will be over-written by adding another */
-	entry->descriptor.dnlau = 0;
-	entry->descriptor.dnlal = TSI148_LCSR_DNLAL_LLA;
-
+	entry->descriptor.dnlau = cpu_to_be32(0);
+	entry->descriptor.dnlal = cpu_to_be32(TSI148_LCSR_DNLAL_LLA);
 
 	/* Fill out destination part */
 	switch (dest->type) {
@@ -1701,18 +1717,18 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 
 		reg_split((unsigned long long)pci_attr->address, &address_high,
 			&address_low);
-		entry->descriptor.ddau = address_high;
-		entry->descriptor.ddal = address_low;
-		entry->descriptor.ddat = TSI148_LCSR_DDAT_TYP_PCI;
+		entry->descriptor.ddau = cpu_to_be32(address_high);
+		entry->descriptor.ddal = cpu_to_be32(address_low);
+		entry->descriptor.ddat = cpu_to_be32(TSI148_LCSR_DDAT_TYP_PCI);
 		break;
 	case VME_DMA_VME:
 		vme_attr = dest->private;
 
 		reg_split((unsigned long long)vme_attr->address, &address_high,
 			&address_low);
-		entry->descriptor.ddau = address_high;
-		entry->descriptor.ddal = address_low;
-		entry->descriptor.ddat = TSI148_LCSR_DDAT_TYP_VME;
+		entry->descriptor.ddau = cpu_to_be32(address_high);
+		entry->descriptor.ddal = cpu_to_be32(address_low);
+		entry->descriptor.ddat = cpu_to_be32(TSI148_LCSR_DDAT_TYP_VME);
 
 		retval = tsi148_dma_set_vme_dest_attributes(
 			tsi148_bridge->parent, &entry->descriptor.ddat,
@@ -1728,7 +1744,7 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	}
 
 	/* Fill out count */
-	entry->descriptor.dcnt = (u32)count;
+	entry->descriptor.dcnt = cpu_to_be32((u32)count);
 
 	/* Add to list */
 	list_add_tail(&entry->list, &list->entries);
@@ -1742,8 +1758,11 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 			&entry->descriptor,
 			sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
 
-		reg_split((unsigned long long)entry->dma_handle,
-			&prev->descriptor.dnlau, &prev->descriptor.dnlal);
+		reg_split((unsigned long long)entry->dma_handle, &address_high,
+			&address_low);
+		entry->descriptor.dnlau = cpu_to_be32(address_high);
+		entry->descriptor.dnlal = cpu_to_be32(address_low);
+
 	}
 
 	return 0;
@@ -1831,12 +1850,16 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	iowrite32be(bus_addr_low, bridge->base +
 		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DNLAL);
 
+	dctlreg = ioread32be(bridge->base + TSI148_LCSR_DMA[channel] +
+		TSI148_LCSR_OFFSET_DCTL);
+
 	/* Start the operation */
 	iowrite32be(dctlreg | TSI148_LCSR_DCTL_DGO, bridge->base +
 		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DCTL);
 
 	wait_event_interruptible(bridge->dma_queue[channel],
 		tsi148_dma_busy(ctrlr->parent, channel));
+
 	/*
 	 * Read status register, this register is valid until we kick off a
 	 * new transfer.

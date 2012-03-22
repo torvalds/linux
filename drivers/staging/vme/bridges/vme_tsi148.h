@@ -56,16 +56,16 @@ struct tsi148_driver {
  *       correctly laid out - It must also be aligned on 64-bit boundaries.
  */
 struct tsi148_dma_descriptor {
-	u32 dsau;      /* Source Address */
-	u32 dsal;
-	u32 ddau;      /* Destination Address */
-	u32 ddal;
-	u32 dsat;      /* Source attributes */
-	u32 ddat;      /* Destination attributes */
-	u32 dnlau;     /* Next link address */
-	u32 dnlal;
-	u32 dcnt;      /* Byte count */
-	u32 ddbs;      /* 2eSST Broadcast select */
+	__be32 dsau;      /* Source Address */
+	__be32 dsal;
+	__be32 ddau;      /* Destination Address */
+	__be32 ddal;
+	__be32 dsat;      /* Source attributes */
+	__be32 ddat;      /* Destination attributes */
+	__be32 dnlau;     /* Next link address */
+	__be32 dnlal;
+	__be32 dcnt;      /* Byte count */
+	__be32 ddbs;      /* 2eSST Broadcast select */
 };
 
 struct tsi148_dma_entry {
