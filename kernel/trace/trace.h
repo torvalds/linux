@@ -154,6 +154,7 @@ struct trace_array {
 	struct ring_buffer	*buffer;
 	unsigned long		entries;
 	int			cpu;
+	int			buffer_disabled;
 	cycle_t			time_start;
 	struct task_struct	*waiter;
 	struct trace_array_cpu	*data[NR_CPUS];
@@ -835,13 +836,11 @@ extern const char *__stop___trace_bprintk_fmt[];
 		     filter)
 #include "trace_entries.h"
 
-#ifdef CONFIG_PERF_EVENTS
 #ifdef CONFIG_FUNCTION_TRACER
 int perf_ftrace_event_register(struct ftrace_event_call *call,
 			       enum trace_reg type, void *data);
 #else
 #define perf_ftrace_event_register NULL
 #endif /* CONFIG_FUNCTION_TRACER */
-#endif /* CONFIG_PERF_EVENTS */
 
 #endif /* _LINUX_KERNEL_TRACE_H */

@@ -249,7 +249,8 @@ static void update_ftrace_function(void)
 #else
 	__ftrace_trace_function = func;
 #endif
-	ftrace_trace_function = ftrace_test_stop_func;
+	ftrace_trace_function =
+		(func == ftrace_stub) ? func : ftrace_test_stop_func;
 #endif
 }
 
