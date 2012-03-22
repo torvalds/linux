@@ -4914,11 +4914,11 @@ ext4_trim_all_free(struct super_block *sb, ext4_group_t group,
 	start = (e4b.bd_info->bb_first_free > start) ?
 		e4b.bd_info->bb_first_free : start;
 
-	while (start < max) {
-		start = mb_find_next_zero_bit(bitmap, max, start);
-		if (start >= max)
+	while (start <= max) {
+		start = mb_find_next_zero_bit(bitmap, max + 1, start);
+		if (start > max)
 			break;
-		next = mb_find_next_bit(bitmap, max, start);
+		next = mb_find_next_bit(bitmap, max + 1, start);
 
 		if ((next - start) >= minblocks) {
 			ext4_trim_extent(sb, start,
@@ -4970,37 +4970,36 @@ out:
 int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 {
 	struct ext4_group_info *grp;
-	ext4_group_t first_group, last_group;
-	ext4_group_t group, ngroups = ext4_get_groups_count(sb);
+	ext4_group_t group, first_group, last_group;
 	ext4_grpblk_t cnt = 0, first_cluster, last_cluster;
-	uint64_t start, len, minlen, trimmed = 0;
+	uint64_t start, end, minlen, trimmed = 0;
 	ext4_fsblk_t first_data_blk =
 			le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
+	ext4_fsblk_t max_blks = ext4_blocks_count(EXT4_SB(sb)->s_es);
 	int ret = 0;
 
 	start = range->start >> sb->s_blocksize_bits;
-	len = range->len >> sb->s_blocksize_bits;
+	end = start + (range->len >> sb->s_blocksize_bits) - 1;
 	minlen = range->minlen >> sb->s_blocksize_bits;
 
-	if (unlikely(minlen > EXT4_CLUSTERS_PER_GROUP(sb)))
+	if (unlikely(minlen > EXT4_CLUSTERS_PER_GROUP(sb)) ||
+	    unlikely(start >= max_blks))
 		return -EINVAL;
-	if (start + len <= first_data_blk)
+	if (end >= max_blks)
+		end = max_blks - 1;
+	if (end <= first_data_blk)
 		goto out;
-	if (start < first_data_blk) {
-		len -= first_data_blk - start;
+	if (start < first_data_blk)
 		start = first_data_blk;
-	}
 
-	/* Determine first and last group to examine based on start and len */
+	/* Determine first and last group to examine based on start and end */
 	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) start,
 				     &first_group, &first_cluster);
-	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) (start + len),
+	ext4_get_group_no_and_offset(sb, (ext4_fsblk_t) end,
 				     &last_group, &last_cluster);
-	last_group = (last_group > ngroups - 1) ? ngroups - 1 : last_group;
-	last_cluster = EXT4_CLUSTERS_PER_GROUP(sb);
 
-	if (first_group > last_group)
-		return -EINVAL;
+	/* end now represents the last cluster to discard in this group */
+	end = EXT4_CLUSTERS_PER_GROUP(sb) - 1;
 
 	for (group = first_group; group <= last_group; group++) {
 		grp = ext4_get_group_info(sb, group);
@@ -5012,24 +5011,28 @@ int ext4_trim_fs(struct super_block *sb, struct fstrim_range *range)
 		}
 
 		/*
-		 * For all the groups except the last one, last block will
-		 * always be EXT4_BLOCKS_PER_GROUP(sb), so we only need to
-		 * change it for the last group in which case start +
-		 * len < EXT4_BLOCKS_PER_GROUP(sb).
+		 * For all the groups except the last one, last cluster will
+		 * always be EXT4_CLUSTERS_PER_GROUP(sb)-1, so we only need to
+		 * change it for the last group, note that last_cluster is
+		 * already computed earlier by ext4_get_group_no_and_offset()
 		 */
-		if (first_cluster + len < EXT4_CLUSTERS_PER_GROUP(sb))
-			last_cluster = first_cluster + len;
-		len -= last_cluster - first_cluster;
+		if (group == last_group)
+			end = last_cluster;
 
 		if (grp->bb_free >= minlen) {
 			cnt = ext4_trim_all_free(sb, group, first_cluster,
-						last_cluster, minlen);
+						end, minlen);
 			if (cnt < 0) {
 				ret = cnt;
 				break;
 			}
 		}
 		trimmed += cnt;
+
+		/*
+		 * For every group except the first one, we are sure
+		 * that the first cluster to discard will be cluster #0.
+		 */
 		first_cluster = 0;
 	}
 	range->len = trimmed * sb->s_blocksize;
