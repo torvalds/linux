@@ -4163,11 +4163,9 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
-		if (attr->ia_size != i_size_read(inode)) {
+		if (attr->ia_size != i_size_read(inode))
 			truncate_setsize(inode, attr->ia_size);
-			ext4_truncate(inode);
-		} else if (ext4_test_inode_flag(inode, EXT4_INODE_EOFBLOCKS))
-			ext4_truncate(inode);
+		ext4_truncate(inode);
 	}
 
 	if (!rc) {

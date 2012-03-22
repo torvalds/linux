@@ -3293,11 +3293,13 @@ static int check_eofblocks_fl(handle_t *handle, struct inode *inode,
 	depth = ext_depth(inode);
 	eh = path[depth].p_hdr;
 
-	if (unlikely(!eh->eh_entries)) {
-		EXT4_ERROR_INODE(inode, "eh->eh_entries == 0 and "
-				 "EOFBLOCKS_FL set");
-		return -EIO;
-	}
+	/*
+	 * We're going to remove EOFBLOCKS_FL entirely in future so we
+	 * do not care for this case anymore. Simply remove the flag
+	 * if there are no extents.
+	 */
+	if (unlikely(!eh->eh_entries))
+		goto out;
 	last_ex = EXT_LAST_EXTENT(eh);
 	/*
 	 * We should clear the EOFBLOCKS_FL flag if we are writing the
@@ -3321,6 +3323,7 @@ static int check_eofblocks_fl(handle_t *handle, struct inode *inode,
 	for (i = depth-1; i >= 0; i--)
 		if (path[i].p_idx != EXT_LAST_INDEX(path[i].p_hdr))
 			return 0;
+out:
 	ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
 	return ext4_mark_inode_dirty(handle, inode);
 }
