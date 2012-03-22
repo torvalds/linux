@@ -105,15 +105,15 @@ static int gpio_regulator_set_value(struct regulator_dev *dev,
 					int min, int max)
 {
 	struct gpio_regulator_data *data = rdev_get_drvdata(dev);
-	int ptr, target, state;
+	int ptr, target, state, best_val = INT_MAX;
 
-	target = -1;
 	for (ptr = 0; ptr < data->nr_states; ptr++)
-		if (data->states[ptr].value >= min &&
+		if (data->states[ptr].value < best_val &&
+		    data->states[ptr].value >= min &&
 		    data->states[ptr].value <= max)
 			target = data->states[ptr].gpios;
 
-	if (target < 0)
+	if (best_val == INT_MAX)
 		return -EINVAL;
 
 	for (ptr = 0; ptr < data->nr_gpios; ptr++) {
