@@ -140,21 +140,6 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 
 	mutex_lock(&m->lock);
 
-	/* Don't assume *ppos is where we left it */
-	if (unlikely(*ppos != m->read_pos)) {
-		m->read_pos = *ppos;
-		while ((err = traverse(m, *ppos)) == -EAGAIN)
-			;
-		if (err) {
-			/* With prejudice... */
-			m->read_pos = 0;
-			m->version = 0;
-			m->index = 0;
-			m->count = 0;
-			goto Done;
-		}
-	}
-
 	/*
 	 * seq_file->op->..m_start/m_stop/m_next may do special actions
 	 * or optimisations based on the file->f_version, so we want to
@@ -167,6 +152,23 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 	 * need of passing another argument to all the seq_file methods.
 	 */
 	m->version = file->f_version;
+
+	/* Don't assume *ppos is where we left it */
+	if (unlikely(*ppos != m->read_pos)) {
+		while ((err = traverse(m, *ppos)) == -EAGAIN)
+			;
+		if (err) {
+			/* With prejudice... */
+			m->read_pos = 0;
+			m->version = 0;
+			m->index = 0;
+			m->count = 0;
+			goto Done;
+		} else {
+			m->read_pos = *ppos;
+		}
+	}
+
 	/* grab buffer if we didn't have one */
 	if (!m->buf) {
 		m->buf = kmalloc(m->size = PAGE_SIZE, GFP_KERNEL);

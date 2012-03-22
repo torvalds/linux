@@ -507,8 +507,7 @@ int intel_idle_cpu_init(int cpu)
 		int num_substates;
 
 		if (cstate > max_cstate) {
-			printk(PREFIX "max_cstate %d reached\n",
-			       max_cstate);
+			printk(PREFIX "max_cstate %d reached\n", max_cstate);
 			break;
 		}
 
@@ -524,8 +523,9 @@ int intel_idle_cpu_init(int cpu)
 		dev->states_usage[dev->state_count].driver_data =
 			(void *)get_driver_data(cstate);
 
-			dev->state_count += 1;
-		}
+		dev->state_count += 1;
+	}
+
 	dev->cpu = cpu;
 
 	if (cpuidle_register_device(dev)) {

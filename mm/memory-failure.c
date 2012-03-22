@@ -1063,7 +1063,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	 * The check (unnecessarily) ignores LRU pages being isolated and
 	 * walked by the page reclaim code, however that's not a big loss.
 	 */
-	if (!PageHuge(p) && !PageTransCompound(p)) {
+	if (!PageHuge(p) && !PageTransTail(p)) {
 		if (!PageLRU(p))
 			shake_page(p, 0);
 		if (!PageLRU(p)) {

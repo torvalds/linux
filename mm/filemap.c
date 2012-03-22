@@ -101,9 +101,8 @@
  *    ->inode->i_lock		(zap_pte_range->set_page_dirty)
  *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
  *
- *  (code doesn't rely on that order, so you could switch it around)
- *  ->tasklist_lock             (memory_failure, collect_procs_ao)
- *    ->i_mmap_mutex
+ * ->i_mmap_mutex
+ *   ->tasklist_lock            (memory_failure, collect_procs_ao)
  */
 
 /*
@@ -500,10 +499,13 @@ struct page *__page_cache_alloc(gfp_t gfp)
 	struct page *page;
 
 	if (cpuset_do_page_mem_spread()) {
-		get_mems_allowed();
-		n = cpuset_mem_spread_node();
-		page = alloc_pages_exact_node(n, gfp, 0);
-		put_mems_allowed();
+		unsigned int cpuset_mems_cookie;
+		do {
+			cpuset_mems_cookie = get_mems_allowed();
+			n = cpuset_mem_spread_node();
+			page = alloc_pages_exact_node(n, gfp, 0);
+		} while (!put_mems_allowed(cpuset_mems_cookie) && !page);
+
 		return page;
 	}
 	return alloc_pages(gfp, 0);
@@ -2341,7 +2343,9 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
 	struct page *page;
 	gfp_t gfp_notmask = 0;
 
-	gfp_mask = mapping_gfp_mask(mapping) | __GFP_WRITE;
+	gfp_mask = mapping_gfp_mask(mapping);
+	if (mapping_cap_account_dirty(mapping))
+		gfp_mask |= __GFP_WRITE;
 	if (flags & AOP_FLAG_NOFS)
 		gfp_notmask = __GFP_FS;
 repeat:
