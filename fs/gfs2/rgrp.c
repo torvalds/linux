@@ -640,6 +640,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 		return 0;
 
 	error = 0; /* someone else read in the rgrp; free it and ignore it */
+	gfs2_glock_put(rgd->rd_gl);
 
 fail:
 	kfree(rgd->rd_bits);
