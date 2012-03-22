@@ -1144,7 +1144,8 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		break;
 	case 1:
 	case 2:
-		if (!(entry[5] & cond))
+		if ((table[0]  < 0x40 && !(entry[5] & cond)) ||
+		    (table[0] == 0x40 && !(entry[4] & cond)))
 			iexec->execute = false;
 		break;
 	case 5:

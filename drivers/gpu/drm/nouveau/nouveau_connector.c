@@ -867,6 +867,8 @@ drm_conntype_from_dcb(enum dcb_connector_type dcb)
 	case DCB_CONNECTOR_TV_0     :
 	case DCB_CONNECTOR_TV_1     :
 	case DCB_CONNECTOR_TV_3     : return DRM_MODE_CONNECTOR_TV;
+	case DCB_CONNECTOR_DMS59_0  :
+	case DCB_CONNECTOR_DMS59_1  :
 	case DCB_CONNECTOR_DVI_I    : return DRM_MODE_CONNECTOR_DVII;
 	case DCB_CONNECTOR_DVI_D    : return DRM_MODE_CONNECTOR_DVID;
 	case DCB_CONNECTOR_LVDS     :
@@ -1013,13 +1015,10 @@ nouveau_connector_create(struct drm_device *dev, int index)
 
 	/* Add overscan compensation options to digital outputs */
 	if (disp->underscan_property &&
-	    (nv_connector->type == DCB_CONNECTOR_DVI_D ||
-	     nv_connector->type == DCB_CONNECTOR_DVI_I ||
-	     nv_connector->type == DCB_CONNECTOR_HDMI_0 ||
-	     nv_connector->type == DCB_CONNECTOR_HDMI_1 ||
-	     nv_connector->type == DCB_CONNECTOR_DP ||
-	     nv_connector->type == DCB_CONNECTOR_DMS59_DP0 ||
-	     nv_connector->type == DCB_CONNECTOR_DMS59_DP1)) {
+	    (type == DRM_MODE_CONNECTOR_DVID ||
+	     type == DRM_MODE_CONNECTOR_DVII ||
+	     type == DRM_MODE_CONNECTOR_HDMIA ||
+	     type == DRM_MODE_CONNECTOR_DisplayPort)) {
 		drm_connector_attach_property(connector,
 					      disp->underscan_property,
 					      UNDERSCAN_OFF);
