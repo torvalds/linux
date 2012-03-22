@@ -1074,8 +1074,7 @@ static int fc_fcp_pkt_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp)
 	fsp->cdb_cmd.fc_dl = htonl(fsp->data_len);
 	fsp->cdb_cmd.fc_flags = fsp->req_flags & ~FCP_CFL_LEN_MASK;
 
-	int_to_scsilun(fsp->cmd->device->lun,
-		       (struct scsi_lun *)fsp->cdb_cmd.fc_lun);
+	int_to_scsilun(fsp->cmd->device->lun, &fsp->cdb_cmd.fc_lun);
 	memcpy(fsp->cdb_cmd.fc_cdb, fsp->cmd->cmnd, fsp->cmd->cmd_len);
 
 	spin_lock_irqsave(&si->scsi_queue_lock, flags);
@@ -1257,7 +1256,7 @@ static int fc_lun_reset(struct fc_lport *lport, struct fc_fcp_pkt *fsp,
 
 	fsp->cdb_cmd.fc_dl = htonl(fsp->data_len);
 	fsp->cdb_cmd.fc_tm_flags = FCP_TMF_LUN_RESET;
-	int_to_scsilun(lun, (struct scsi_lun *)fsp->cdb_cmd.fc_lun);
+	int_to_scsilun(lun, &fsp->cdb_cmd.fc_lun);
 
 	fsp->wait_for_comp = 1;
 	init_completion(&fsp->tm_done);
