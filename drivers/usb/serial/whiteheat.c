@@ -45,7 +45,6 @@ static bool debug;
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v2.0"
 #define DRIVER_AUTHOR "Greg Kroah-Hartman <greg@kroah.com>, Stuart MacDonald <stuartm@connecttech.com>"
 #define DRIVER_DESC "USB ConnectTech WhiteHEAT driver"
 
@@ -408,8 +407,8 @@ static int whiteheat_attach(struct usb_serial *serial)
 
 	hw_info = (struct whiteheat_hw_info *)&result[1];
 
-	dev_info(&serial->dev->dev, "%s: Driver %s: Firmware v%d.%02d\n",
-		 serial->type->description, DRIVER_VERSION,
+	dev_info(&serial->dev->dev, "%s: Firmware v%d.%02d\n",
+		 serial->type->description,
 		 hw_info->sw_major_rev, hw_info->sw_minor_rev);
 
 	for (i = 0; i < serial->num_ports; i++) {
