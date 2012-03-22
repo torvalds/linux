@@ -790,11 +790,13 @@ static struct domain_device *sas_ex_discover_end_dev(
 		if (res)
 			goto out_free;
 
-		rphy = sas_end_device_alloc(phy->port);
-		if (unlikely(!rphy))
-			goto out_free;
-
 		sas_init_dev(child);
+		res = sas_ata_init(child);
+		if (res)
+			goto out_free;
+		rphy = sas_end_device_alloc(phy->port);
+		if (!rphy)
+			goto out_free;
 
 		child->rphy = rphy;
 		get_device(&rphy->dev);

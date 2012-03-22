@@ -72,6 +72,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	struct asd_sas_phy *phy;
 	struct sas_rphy *rphy;
 	struct domain_device *dev;
+	int rc = -ENODEV;
 
 	dev = sas_alloc_device();
 	if (!dev)
@@ -110,9 +111,16 @@ static int sas_get_port_device(struct asd_sas_port *port)
 
 	sas_init_dev(dev);
 
+	dev->port = port;
 	switch (dev->dev_type) {
-	case SAS_END_DEV:
 	case SATA_DEV:
+		rc = sas_ata_init(dev);
+		if (rc) {
+			rphy = NULL;
+			break;
+		}
+		/* fall through */
+	case SAS_END_DEV:
 		rphy = sas_end_device_alloc(port->port);
 		break;
 	case EDGE_DEV:
@@ -131,7 +139,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 
 	if (!rphy) {
 		sas_put_device(dev);
-		return -ENODEV;
+		return rc;
 	}
 
 	rphy->identify.phy_identifier = phy->phy->identify.phy_identifier;
@@ -139,7 +147,6 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	sas_fill_in_rphy(dev, rphy);
 	sas_hash_addr(dev->hashed_sas_addr, dev->sas_addr);
 	port->port_dev = dev;
-	dev->port = port;
 	dev->linkrate = port->linkrate;
 	dev->min_linkrate = port->linkrate;
 	dev->max_linkrate = port->linkrate;

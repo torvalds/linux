@@ -3839,18 +3839,25 @@ void ata_sas_port_stop(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_stop);
 
-int ata_sas_async_port_init(struct ata_port *ap)
+/**
+ * ata_sas_async_probe - simply schedule probing and return
+ * @ap: Port to probe
+ *
+ * For batch scheduling of probe for sas attached ata devices, assumes
+ * the port has already been through ata_sas_port_init()
+ */
+void ata_sas_async_probe(struct ata_port *ap)
 {
-	int rc = ap->ops->port_start(ap);
-
-	if (!rc) {
-		ap->print_id = atomic_inc_return(&ata_print_id);
-		__ata_port_probe(ap);
-	}
-
-	return rc;
+	__ata_port_probe(ap);
 }
-EXPORT_SYMBOL_GPL(ata_sas_async_port_init);
+EXPORT_SYMBOL_GPL(ata_sas_async_probe);
+
+int ata_sas_sync_probe(struct ata_port *ap)
+{
+	return ata_port_probe(ap);
+}
+EXPORT_SYMBOL_GPL(ata_sas_sync_probe);
+
 
 /**
  *	ata_sas_port_init - Initialize a SATA device
@@ -3867,12 +3874,10 @@ int ata_sas_port_init(struct ata_port *ap)
 {
 	int rc = ap->ops->port_start(ap);
 
-	if (!rc) {
-		ap->print_id = atomic_inc_return(&ata_print_id);
-		rc = ata_port_probe(ap);
-	}
-
-	return rc;
+	if (rc)
+		return rc;
+	ap->print_id = atomic_inc_return(&ata_print_id);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_init);
 
