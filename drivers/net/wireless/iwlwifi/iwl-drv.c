@@ -114,7 +114,7 @@ struct fw_sec {
 static void iwl_free_fw_desc(struct iwl_drv *drv, struct fw_desc *desc)
 {
 	if (desc->v_addr)
-		dma_free_coherent(trans(drv)->dev, desc->len,
+		dma_free_coherent(drv->trans->dev, desc->len,
 				  desc->v_addr, desc->p_addr);
 	desc->v_addr = NULL;
 	desc->len = 0;
@@ -142,7 +142,7 @@ static int iwl_alloc_fw_desc(struct iwl_drv *drv, struct fw_desc *desc,
 		return -EINVAL;
 	}
 
-	desc->v_addr = dma_alloc_coherent(trans(drv)->dev, sec->size,
+	desc->v_addr = dma_alloc_coherent(drv->trans->dev, sec->size,
 					  &desc->p_addr, GFP_KERNEL);
 	if (!desc->v_addr)
 		return -ENOMEM;
@@ -189,7 +189,7 @@ static int iwl_request_firmware(struct iwl_drv *drv, bool first)
 		       drv->firmware_name);
 
 	return request_firmware_nowait(THIS_MODULE, 1, drv->firmware_name,
-				       trans(drv)->dev,
+				       drv->trans->dev,
 				       GFP_KERNEL, drv, iwl_ucode_callback);
 }
 
@@ -880,7 +880,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
  out_unbind:
 	complete(&drv->request_firmware_complete);
-	device_release_driver(trans(drv)->dev);
+	device_release_driver(drv->trans->dev);
 }
 
 struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
