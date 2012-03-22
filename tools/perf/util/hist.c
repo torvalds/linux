@@ -891,9 +891,9 @@ static int hist_entry__pcnt_snprintf(struct hist_entry *he, char *s,
 		diff = new_percent - old_percent;
 
 		if (fabs(diff) >= 0.01)
-			ret += scnprintf(bf, sizeof(bf), "%+4.2F%%", diff);
+			scnprintf(bf, sizeof(bf), "%+4.2F%%", diff);
 		else
-			ret += scnprintf(bf, sizeof(bf), " ");
+			scnprintf(bf, sizeof(bf), " ");
 
 		if (sep)
 			ret += scnprintf(s + ret, size - ret, "%c%s", *sep, bf);
@@ -902,9 +902,9 @@ static int hist_entry__pcnt_snprintf(struct hist_entry *he, char *s,
 
 		if (show_displacement) {
 			if (displacement)
-				ret += scnprintf(bf, sizeof(bf), "%+4ld", displacement);
+				scnprintf(bf, sizeof(bf), "%+4ld", displacement);
 			else
-				ret += scnprintf(bf, sizeof(bf), " ");
+				scnprintf(bf, sizeof(bf), " ");
 
 			if (sep)
 				ret += scnprintf(s + ret, size - ret, "%c%s", *sep, bf);

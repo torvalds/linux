@@ -170,4 +170,6 @@ static inline int perf_evsel__sample_size(struct perf_evsel *evsel)
 	return __perf_evsel__sample_size(evsel->attr.sample_type);
 }
 
+void hists__init(struct hists *hists);
+
 #endif /* __PERF_EVSEL_H */
