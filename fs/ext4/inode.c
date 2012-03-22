@@ -3340,16 +3340,16 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 {
 	struct inode *inode = file->f_path.dentry->d_inode;
 	if (!S_ISREG(inode->i_mode))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	if (!ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)) {
 		/* TODO: Add support for non extent hole punching */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	if (EXT4_SB(inode->i_sb)->s_cluster_ratio > 1) {
 		/* TODO: Add support for bigalloc file systems */
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return ext4_ext_punch_hole(file, offset, length);
