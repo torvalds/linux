@@ -103,6 +103,35 @@ choice
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
 
+	config DEBUG_DAVINCI_DA8XX_UART1
+		bool "Kernel low-level debugging on DaVinci DA8XX using UART1"
+		depends on ARCH_DAVINCI_DA8XX
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART1 serial port on DaVinci DA8XX devices.
+
+	config DEBUG_DAVINCI_DA8XX_UART2
+		bool "Kernel low-level debugging on DaVinci DA8XX using UART2"
+		depends on ARCH_DAVINCI_DA8XX
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART2 serial port on DaVinci DA8XX devices.
+
+	config DEBUG_DAVINCI_DMx_UART0
+		bool "Kernel low-level debugging on DaVinci DMx using UART0"
+		depends on ARCH_DAVINCI_DMx
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART0 serial port on DaVinci DMx devices.
+
+	config DEBUG_DAVINCI_TNETV107X_UART1
+		bool "Kernel low-level debugging on DaVinci TNETV107x using UART1"
+		depends on ARCH_DAVINCI_TNETV107X
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART1 serial port on DaVinci TNETV107X
+		  devices.
+
 	config DEBUG_DC21285_PORT
 		bool "Kernel low-level debugging messages via footbridge serial port"
 		depends on FOOTBRIDGE
