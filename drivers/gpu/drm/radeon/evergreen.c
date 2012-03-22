@@ -581,7 +581,7 @@ static u32 evergreen_line_buffer_adjust(struct radeon_device *rdev,
 	return 0;
 }
 
-static u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev)
+u32 evergreen_get_number_of_dram_channels(struct radeon_device *rdev)
 {
 	u32 tmp = RREG32(MC_SHARED_CHMAP);
 
@@ -1328,7 +1328,10 @@ void evergreen_mc_program(struct radeon_device *rdev)
 			rdev->mc.vram_end >> 12);
 	}
 	WREG32(MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR, rdev->vram_scratch.gpu_addr >> 12);
-	if (rdev->flags & RADEON_IS_IGP) {
+	/* llano/ontario only */
+	if ((rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_SUMO) ||
+	    (rdev->family == CHIP_SUMO2)) {
 		tmp = RREG32(MC_FUS_VM_FB_OFFSET) & 0x000FFFFF;
 		tmp |= ((rdev->mc.vram_end >> 20) & 0xF) << 24;
 		tmp |= ((rdev->mc.vram_start >> 20) & 0xF) << 20;
@@ -1972,7 +1975,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 
 	mc_shared_chmap = RREG32(MC_SHARED_CHMAP);
-	if (rdev->flags & RADEON_IS_IGP)
+	if ((rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_SUMO) ||
+	    (rdev->family == CHIP_SUMO2))
 		mc_arb_ramcfg = RREG32(FUS_MC_ARB_RAMCFG);
 	else
 		mc_arb_ramcfg = RREG32(MC_ARB_RAMCFG);
@@ -2362,7 +2367,9 @@ int evergreen_mc_init(struct radeon_device *rdev)
 
 	/* Get VRAM informations */
 	rdev->mc.vram_is_ddr = true;
-	if (rdev->flags & RADEON_IS_IGP)
+	if ((rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_SUMO) ||
+	    (rdev->family == CHIP_SUMO2))
 		tmp = RREG32(FUS_MC_ARB_RAMCFG);
 	else
 		tmp = RREG32(MC_ARB_RAMCFG);
@@ -2394,12 +2401,14 @@ int evergreen_mc_init(struct radeon_device *rdev)
 	rdev->mc.aper_base = pci_resource_start(rdev->pdev, 0);
 	rdev->mc.aper_size = pci_resource_len(rdev->pdev, 0);
 	/* Setup GPU memory space */
-	if (rdev->flags & RADEON_IS_IGP) {
+	if ((rdev->family == CHIP_PALM) ||
+	    (rdev->family == CHIP_SUMO) ||
+	    (rdev->family == CHIP_SUMO2)) {
 		/* size in bytes on fusion */
 		rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 		rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	} else {
-		/* size in MB on evergreen */
+		/* size in MB on evergreen/cayman/tn */
 		rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 		rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
 	}
@@ -2557,7 +2566,9 @@ void evergreen_disable_interrupt_state(struct radeon_device *rdev)
 		WREG32(GRPH_INT_CONTROL + EVERGREEN_CRTC5_REGISTER_OFFSET, 0);
 	}
 
-	WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
+	/* only one DAC on DCE6 */
+	if (!ASIC_IS_DCE6(rdev))
+		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
 	WREG32(DACB_AUTODETECT_INT_CONTROL, 0);
 
 	tmp = RREG32(DC_HPD1_INT_CONTROL) & DC_HPDx_INT_POLARITY;

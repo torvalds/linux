@@ -474,6 +474,9 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 	case THERMAL_TYPE_SUMO:
 		temp = sumo_get_temp(rdev);
 		break;
+	case THERMAL_TYPE_SI:
+		temp = si_get_temp(rdev);
+		break;
 	default:
 		temp = 0;
 		break;
@@ -514,6 +517,10 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_EVERGREEN:
 	case THERMAL_TYPE_NI:
 	case THERMAL_TYPE_SUMO:
+	case THERMAL_TYPE_SI:
+		/* No support for TN yet */
+		if (rdev->family == CHIP_ARUBA)
+			return err;
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
 		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
 			err = PTR_ERR(rdev->pm.int_hwmon_dev);

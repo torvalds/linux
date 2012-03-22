@@ -1408,6 +1408,200 @@ static struct radeon_asic cayman_asic = {
 	},
 };
 
+static struct radeon_asic trinity_asic = {
+	.init = &cayman_init,
+	.fini = &cayman_fini,
+	.suspend = &cayman_suspend,
+	.resume = &cayman_resume,
+	.gpu_is_lockup = &cayman_gpu_is_lockup,
+	.asic_reset = &cayman_asic_reset,
+	.vga_set_state = &r600_vga_set_state,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
+	.gui_idle = &r600_gui_idle,
+	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
+	.gart = {
+		.tlb_flush = &cayman_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
+	.ring = {
+		[RADEON_RING_TYPE_GFX_INDEX] = {
+			.ib_execute = &cayman_ring_ib_execute,
+			.ib_parse = &evergreen_ib_parse,
+			.emit_fence = &cayman_fence_ring_emit,
+			.emit_semaphore = &r600_semaphore_ring_emit,
+			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
+		},
+		[CAYMAN_RING_TYPE_CP1_INDEX] = {
+			.ib_execute = &cayman_ring_ib_execute,
+			.ib_parse = &evergreen_ib_parse,
+			.emit_fence = &cayman_fence_ring_emit,
+			.emit_semaphore = &r600_semaphore_ring_emit,
+			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
+		},
+		[CAYMAN_RING_TYPE_CP2_INDEX] = {
+			.ib_execute = &cayman_ring_ib_execute,
+			.ib_parse = &evergreen_ib_parse,
+			.emit_fence = &cayman_fence_ring_emit,
+			.emit_semaphore = &r600_semaphore_ring_emit,
+			.cs_parse = &evergreen_cs_parse,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
+		}
+	},
+	.irq = {
+		.set = &evergreen_irq_set,
+		.process = &evergreen_irq_process,
+	},
+	.display = {
+		.bandwidth_update = &dce6_bandwidth_update,
+		.get_vblank_counter = &evergreen_get_vblank_counter,
+		.wait_for_vblank = &dce4_wait_for_vblank,
+	},
+	.copy = {
+		.blit = &r600_copy_blit,
+		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = NULL,
+		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.copy = &r600_copy_blit,
+		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+	},
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
+	.hpd = {
+		.init = &evergreen_hpd_init,
+		.fini = &evergreen_hpd_fini,
+		.sense = &evergreen_hpd_sense,
+		.set_polarity = &evergreen_hpd_set_polarity,
+	},
+	.pm = {
+		.misc = &evergreen_pm_misc,
+		.prepare = &evergreen_pm_prepare,
+		.finish = &evergreen_pm_finish,
+		.init_profile = &sumo_pm_init_profile,
+		.get_dynpm_state = &r600_pm_get_dynpm_state,
+		.get_engine_clock = &radeon_atom_get_engine_clock,
+		.set_engine_clock = &radeon_atom_set_engine_clock,
+		.get_memory_clock = NULL,
+		.set_memory_clock = NULL,
+		.get_pcie_lanes = NULL,
+		.set_pcie_lanes = NULL,
+		.set_clock_gating = NULL,
+	},
+	.pflip = {
+		.pre_page_flip = &evergreen_pre_page_flip,
+		.page_flip = &evergreen_page_flip,
+		.post_page_flip = &evergreen_post_page_flip,
+	},
+};
+
+static const struct radeon_vm_funcs si_vm_funcs = {
+	.init = &si_vm_init,
+	.fini = &si_vm_fini,
+	.bind = &si_vm_bind,
+	.unbind = &si_vm_unbind,
+	.tlb_flush = &si_vm_tlb_flush,
+	.page_flags = &cayman_vm_page_flags,
+	.set_page = &cayman_vm_set_page,
+};
+
+static struct radeon_asic si_asic = {
+	.init = &si_init,
+	.fini = &si_fini,
+	.suspend = &si_suspend,
+	.resume = &si_resume,
+	.gpu_is_lockup = &si_gpu_is_lockup,
+	.asic_reset = &si_asic_reset,
+	.vga_set_state = &r600_vga_set_state,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
+	.gui_idle = &r600_gui_idle,
+	.mc_wait_for_idle = &evergreen_mc_wait_for_idle,
+	.gart = {
+		.tlb_flush = &si_pcie_gart_tlb_flush,
+		.set_page = &rs600_gart_set_page,
+	},
+	.ring = {
+		[RADEON_RING_TYPE_GFX_INDEX] = {
+			.ib_execute = &si_ring_ib_execute,
+			.ib_parse = &si_ib_parse,
+			.emit_fence = &si_fence_ring_emit,
+			.emit_semaphore = &r600_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
+		},
+		[CAYMAN_RING_TYPE_CP1_INDEX] = {
+			.ib_execute = &si_ring_ib_execute,
+			.ib_parse = &si_ib_parse,
+			.emit_fence = &si_fence_ring_emit,
+			.emit_semaphore = &r600_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
+		},
+		[CAYMAN_RING_TYPE_CP2_INDEX] = {
+			.ib_execute = &si_ring_ib_execute,
+			.ib_parse = &si_ib_parse,
+			.emit_fence = &si_fence_ring_emit,
+			.emit_semaphore = &r600_semaphore_ring_emit,
+			.cs_parse = NULL,
+			.ring_test = &r600_ring_test,
+			.ib_test = &r600_ib_test,
+		}
+	},
+	.irq = {
+		.set = &si_irq_set,
+		.process = &si_irq_process,
+	},
+	.display = {
+		.bandwidth_update = &dce6_bandwidth_update,
+		.get_vblank_counter = &evergreen_get_vblank_counter,
+		.wait_for_vblank = &dce4_wait_for_vblank,
+	},
+	.copy = {
+		.blit = NULL,
+		.blit_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.dma = NULL,
+		.dma_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+		.copy = NULL,
+		.copy_ring_index = RADEON_RING_TYPE_GFX_INDEX,
+	},
+	.surface = {
+		.set_reg = r600_set_surface_reg,
+		.clear_reg = r600_clear_surface_reg,
+	},
+	.hpd = {
+		.init = &evergreen_hpd_init,
+		.fini = &evergreen_hpd_fini,
+		.sense = &evergreen_hpd_sense,
+		.set_polarity = &evergreen_hpd_set_polarity,
+	},
+	.pm = {
+		.misc = &evergreen_pm_misc,
+		.prepare = &evergreen_pm_prepare,
+		.finish = &evergreen_pm_finish,
+		.init_profile = &sumo_pm_init_profile,
+		.get_dynpm_state = &r600_pm_get_dynpm_state,
+		.get_engine_clock = &radeon_atom_get_engine_clock,
+		.set_engine_clock = &radeon_atom_set_engine_clock,
+		.get_memory_clock = &radeon_atom_get_memory_clock,
+		.set_memory_clock = &radeon_atom_set_memory_clock,
+		.get_pcie_lanes = NULL,
+		.set_pcie_lanes = NULL,
+		.set_clock_gating = NULL,
+	},
+	.pflip = {
+		.pre_page_flip = &evergreen_pre_page_flip,
+		.page_flip = &evergreen_page_flip,
+		.post_page_flip = &evergreen_post_page_flip,
+	},
+};
+
 int radeon_asic_init(struct radeon_device *rdev)
 {
 	radeon_register_accessor_init(rdev);
@@ -1524,6 +1718,20 @@ int radeon_asic_init(struct radeon_device *rdev)
 		/* set num crtcs */
 		rdev->num_crtc = 6;
 		rdev->vm_manager.funcs = &cayman_vm_funcs;
+		break;
+	case CHIP_ARUBA:
+		rdev->asic = &trinity_asic;
+		/* set num crtcs */
+		rdev->num_crtc = 4;
+		rdev->vm_manager.funcs = &cayman_vm_funcs;
+		break;
+	case CHIP_TAHITI:
+	case CHIP_PITCAIRN:
+	case CHIP_VERDE:
+		rdev->asic = &si_asic;
+		/* set num crtcs */
+		rdev->num_crtc = 6;
+		rdev->vm_manager.funcs = &si_vm_funcs;
 		break;
 	default:
 		/* FIXME: not supported yet */

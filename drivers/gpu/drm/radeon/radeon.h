@@ -236,12 +236,12 @@ void radeon_pm_resume(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
 void radeon_atom_set_voltage(struct radeon_device *rdev, u16 voltage_level, u8 voltage_type);
-int radeon_atom_get_max_vddc(struct radeon_device *rdev, u16 *voltage);
 void rs690_pm_info(struct radeon_device *rdev);
 extern int rv6xx_get_temp(struct radeon_device *rdev);
 extern int rv770_get_temp(struct radeon_device *rdev);
 extern int evergreen_get_temp(struct radeon_device *rdev);
 extern int sumo_get_temp(struct radeon_device *rdev);
+extern int si_get_temp(struct radeon_device *rdev);
 extern void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
 				    unsigned *bankh, unsigned *mtaspect,
 				    unsigned *tile_split);
@@ -632,6 +632,7 @@ struct radeon_ib {
 	uint32_t		*ptr;
 	struct radeon_fence	*fence;
 	unsigned		vm_id;
+	bool			is_const_ib;
 };
 
 /*
@@ -771,6 +772,18 @@ struct r600_blit {
 
 void r600_blit_suspend(struct radeon_device *rdev);
 
+/*
+ * SI RLC stuff
+ */
+struct si_rlc {
+	/* for power gating */
+	struct radeon_bo	*save_restore_obj;
+	uint64_t		save_restore_gpu_addr;
+	/* for clear state */
+	struct radeon_bo	*clear_state_obj;
+	uint64_t		clear_state_gpu_addr;
+};
+
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib **ib, unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
@@ -836,7 +849,9 @@ struct radeon_cs_parser {
 	int			chunk_ib_idx;
 	int			chunk_relocs_idx;
 	int			chunk_flags_idx;
+	int			chunk_const_ib_idx;
 	struct radeon_ib	*ib;
+	struct radeon_ib	*const_ib;
 	void			*track;
 	unsigned		family;
 	int			parser_error;
@@ -978,6 +993,7 @@ enum radeon_int_thermal_type {
 	THERMAL_TYPE_EVERGREEN,
 	THERMAL_TYPE_SUMO,
 	THERMAL_TYPE_NI,
+	THERMAL_TYPE_SI,
 };
 
 struct radeon_voltage {
@@ -1369,6 +1385,37 @@ struct cayman_asic {
 	struct r100_gpu_lockup	lockup;
 };
 
+struct si_asic {
+	unsigned max_shader_engines;
+	unsigned max_pipes_per_simd;
+	unsigned max_tile_pipes;
+	unsigned max_simds_per_se;
+	unsigned max_backends_per_se;
+	unsigned max_texture_channel_caches;
+	unsigned max_gprs;
+	unsigned max_gs_threads;
+	unsigned max_hw_contexts;
+	unsigned sc_prim_fifo_size_frontend;
+	unsigned sc_prim_fifo_size_backend;
+	unsigned sc_hiz_tile_fifo_size;
+	unsigned sc_earlyz_tile_fifo_size;
+
+	unsigned num_shader_engines;
+	unsigned num_tile_pipes;
+	unsigned num_backends_per_se;
+	unsigned backend_disable_mask_per_asic;
+	unsigned backend_map;
+	unsigned num_texture_channel_caches;
+	unsigned mem_max_burst_length_bytes;
+	unsigned mem_row_size_in_kb;
+	unsigned shader_engine_tile_size;
+	unsigned num_gpus;
+	unsigned multi_gpu_tile_size;
+
+	unsigned tile_config;
+	struct r100_gpu_lockup	lockup;
+};
+
 union radeon_asic_config {
 	struct r300_asic	r300;
 	struct r100_asic	r100;
@@ -1376,6 +1423,7 @@ union radeon_asic_config {
 	struct rv770_asic	rv770;
 	struct evergreen_asic	evergreen;
 	struct cayman_asic	cayman;
+	struct si_asic		si;
 };
 
 /*
@@ -1491,10 +1539,12 @@ struct radeon_device {
 	const struct firmware *pfp_fw;	/* r6/700 PFP firmware */
 	const struct firmware *rlc_fw;	/* r6/700 RLC firmware */
 	const struct firmware *mc_fw;	/* NI MC firmware */
+	const struct firmware *ce_fw;	/* SI CE firmware */
 	struct r600_blit r600_blit;
 	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */
+	struct si_rlc rlc;
 	struct work_struct hotplug_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
@@ -1638,6 +1688,9 @@ void r100_pll_errata_after_index(struct radeon_device *rdev);
 #define ASIC_IS_DCE41(rdev) ((rdev->family >= CHIP_PALM) && \
 			     (rdev->flags & RADEON_IS_IGP))
 #define ASIC_IS_DCE5(rdev) ((rdev->family >= CHIP_BARTS))
+#define ASIC_IS_DCE6(rdev) ((rdev->family >= CHIP_ARUBA))
+#define ASIC_IS_DCE61(rdev) ((rdev->family >= CHIP_ARUBA) && \
+			     (rdev->flags & RADEON_IS_IGP))
 
 /*
  * BIOS helpers.
