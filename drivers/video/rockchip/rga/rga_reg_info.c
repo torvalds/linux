@@ -100,8 +100,8 @@ dst_ctrl_cal(const struct rga_req *msg, TILE_INFO *tile)
         
         ymax = MIN(MAX(MAX(MAX(pos[1], pos[3]), pos[5]), pos[7]), msg->clip.ymax);
         ymin = MAX(MIN(MIN(MIN(pos[1], pos[3]), pos[5]), pos[7]), msg->clip.ymin);
-
-        printk("xmax = %d, xmin = %d, ymin = %d, ymax = %d\n", xmax, xmin, ymin, ymax);
+        
+        //printk("xmax = %d, xmin = %d, ymin = %d, ymax = %d\n", xmax, xmin, ymin, ymax);
     }
     else if(msg->rotate_mode == 1)
     {
@@ -213,6 +213,8 @@ dst_ctrl_cal(const struct rga_req *msg, TILE_INFO *tile)
 
             ymax = MIN(ymax, msg->clip.ymax);
             ymin = MAX(ymin, msg->clip.ymin);
+
+            //printk("xmin = %d, xmax = %d, ymin = %d, ymax = %d\n", xmin, xmax, ymin, ymax);
         }
     }    
    
@@ -224,13 +226,15 @@ dst_ctrl_cal(const struct rga_req *msg, TILE_INFO *tile)
     if ((xmin >= msg->dst.vir_w)||(xmax < 0)||(ymin >= msg->dst.vir_h)||(ymax < 0)) {       
         xmin = xmax = ymin = ymax = 0;
     }
+
+    //printk("xmin = %d, xmax = %d, ymin = %d, ymax = %d\n", xmin, xmax, ymin, ymax);
     
     tile->dst_ctrl.w = (xmax - xmin);
     tile->dst_ctrl.h = (ymax - ymin);
     tile->dst_ctrl.x_off = xmin;
     tile->dst_ctrl.y_off = ymin;
 
-    printk("tile->dst_ctrl.w = %x, tile->dst_ctrl.h = %x\n", tile->dst_ctrl.w, tile->dst_ctrl.h);
+    //printk("tile->dst_ctrl.w = %x, tile->dst_ctrl.h = %x\n", tile->dst_ctrl.w, tile->dst_ctrl.h);
 
     tile->tile_x_num = (xmax - xmin + 1 + 7)>>3;
     tile->tile_y_num = (ymax - ymin + 1 + 7)>>3;
@@ -505,8 +509,7 @@ RGA_set_mode_ctrl(u8 *base, const struct rga_req *msg)
     reg = ((reg & (~m_RGA_MODE_CTRL_DST_RGB_PACK))     | (s_RGA_MODE_CTRL_DST_RGB_PACK(dst_rgb_pack)));
     reg = ((reg & (~m_RGA_MODE_CTRL_DST_RB_SWAP))      | (s_RGA_MODE_CTRL_DST_RB_SWAP(dst_rb_swp)));
     reg = ((reg & (~m_RGA_MODE_CTRL_DST_ALPHA_SWAP))   | (s_RGA_MODE_CTRL_DST_ALPHA_SWAP(dst_a_swp)));
-    reg = ((reg & (~m_RGA_MODE_CTRL_LUT_ENDIAN_MODE))  | (s_RGA_MODE_CTRL_LUT_ENDIAN_MODE(msg->endian_mode & 1)));    
-    reg = ((reg & (~m_RGA_MODE_CTRL_CMD_INT_ENABLE))   | (s_RGA_MODE_CTRL_CMD_INT_ENABLE(msg->CMD_fin_int_enable)));    
+    reg = ((reg & (~m_RGA_MODE_CTRL_LUT_ENDIAN_MODE))  | (s_RGA_MODE_CTRL_LUT_ENDIAN_MODE(msg->endian_mode & 1)));       
     reg = ((reg & (~m_RGA_MODE_CTRL_SRC_TRANS_MODE))   | (s_RGA_MODE_CTRL_SRC_TRANS_MODE(msg->src_trans_mode)));
     reg = ((reg & (~m_RGA_MODE_CTRL_ZERO_MODE_ENABLE)) | (s_RGA_MODE_CTRL_ZERO_MODE_ENABLE(msg->alpha_rop_mode >> 4)));
     reg = ((reg & (~m_RGA_MODE_CTRL_DST_ALPHA_ENABLE)) | (s_RGA_MODE_CTRL_DST_ALPHA_ENABLE(msg->alpha_rop_mode >> 5)));
@@ -997,8 +1000,8 @@ RGA_set_bitblt_reg_info(u8 *base, const struct rga_req * msg, TILE_INFO *tile)
 
         if (!((xmax < 0)||(xmin > msg->src.act_w - 1)||(ymax < 0)||(ymin > msg->src.act_h - 1)))
         {
-            xp = CLIP(xp, 0, msg->src.vir_w - 1);
-            yp = CLIP(yp, 0, msg->src.vir_h - 1);
+            xp = CLIP(xp, msg->src.x_offset, msg->src.x_offset + msg->src.act_w - 1);
+            yp = CLIP(yp, msg->src.y_offset, msg->src.y_offset + msg->src.act_h - 1);
         }
         
         switch(msg->src.format)
@@ -1419,7 +1422,7 @@ RGA_set_mmu_ctrl_reg_info(u8 *base, const struct rga_req *msg)
     reg = ((reg & (~m_RGA_MMU_CTRL_DST_FLUSH)) | s_RGA_MMU_CTRL_DST_FLUSH(dst_flag));
     reg = ((reg & (~m_RGA_MMU_CTRL_CMD_CHAN_FLUSH)) | s_RGA_MMU_CTRL_CMD_CHAN_FLUSH(CMD_flag));
     *RGA_MMU_CTRL_ADDR = reg;
-   
+
     return 0;
 }
 
@@ -1451,7 +1454,7 @@ RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base)
             RGA_set_dst(base, msg);    
             RGA_set_color(base, msg);
             RGA_set_fading(base, msg);
-            RGA_set_pat(base, msg);
+            RGA_set_pat(base, msg);            
             matrix_cal(msg, &tile);
             dst_ctrl_cal(msg, &tile);
             src_tile_info_cal(msg, &tile);

@@ -290,12 +290,7 @@ struct rga_req {
                                     /* ([4]   zero  mode en)    */
                                     /* ([5]   dst   alpha mode) */
 
-    uint8_t  src_trans_mode;
-
-    uint8_t CMD_fin_int_enable;                        
-
-    /* completion is reported through a callback */
-	void (*complete)(int retval);
+    uint8_t  src_trans_mode;                           
 };
 
     

@@ -460,26 +460,3 @@ void matrix_cal(const struct rga_req *msg, TILE_INFO *tile);
 unsigned int RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base);
 uint8_t   RGA_pixel_width_init(uint32_t format);
 
-
-
-/*
-u8   RGA_pixel_width_init(u32 format);
-void dst_ctrl_cal(msg_t *msg, TILE_INFO *tile);
-void src_tile_info_cal(msg_t *msg, TILE_INFO *tile);
-void RGA_set_mode_ctrl(u8 *base, msg_t *msg);
-void RGA_set_src(u8 *base, msg_t *msg, TILE_INFO *tile);
-s32  RGA_set_dst(u8 *base, msg_t *msg);
-void RGA_set_alpha_rop(u8 *base, msg_t *msg);
-void RGA_set_color(u8 *base, msg_t *msg);
-s32  RGA_set_fading(u8 *base, msg_t *msg);
-s32  RGA_set_pat(u8 *base, msg_t *msg);
-void RGA_set_bitblt_reg_info(u8 *base, msg_t * msg, TILE_INFO *tile);
-void RGA_set_color_palette_reg_info(u8 *base, msg_t *msg);
-void RGA_set_color_fill_reg_info(u8 *base, msg_t *msg);
-s32  RGA_set_line_drawing_reg_info(u8 *base, msg_t *msg);
-s32  RGA_set_filter_reg_info(u8 *base, msg_t *msg);
-s32  RGA_set_pre_scale_reg_info(u8 *base, msg_t *msg);
-s32 RGA_set_update_palette_table_reg_info(u8 *base, msg_t *msg);
-s32 RGA_set_update_patten_buff_reg_info(u8 *base, msg_t *msg);
-s32  RGA_set_mmu_ctrl_reg_info(u8 *base, msg_t *msg);
-*/

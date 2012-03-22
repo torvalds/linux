@@ -218,6 +218,8 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t i;
     uint32_t status;
 
+    status = 0;
+
     do
     {    
         down_read(&current->mm->mmap_sem);
@@ -369,7 +371,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     MMU_Base = NULL;
 
     do
-    {
+    {               
         /* cal src buf mmu info */                     
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
                                         req->src.format, req->src.vir_w, req->src.vir_h,
@@ -377,6 +379,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         if(SrcMemSize == 0) {
             return -EINVAL;                
         }
+        
 
         /* cal dst buf mmu info */    
         DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
@@ -392,6 +395,8 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             return -EINVAL; 
         }
 
+        
+        /* Cal out the needed mem size */
         AllSize = SrcMemSize + DstMemSize + CMDMemSize;
                    
         pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
@@ -425,10 +430,23 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         {
             MMU_p = MMU_Base + CMDMemSize;
             
-            for(i=0; i<SrcMemSize; i++)
+            if(req->src.yrgb_addr == (uint32_t)rga_service.pre_scale_buf)
             {
-                MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+                /* Down scale ratio over 2, Last prc    */
+                /* MMU table copy from pre scale table  */
+                
+                for(i=0; i<SrcMemSize; i++)
+                {
+                    MMU_p[i] = rga_service.pre_scale_buf[i];
+                }                
             }
+            else
+            {                           
+                for(i=0; i<SrcMemSize; i++)
+                {
+                    MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
+                }
+            }            
         }
         
         if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
@@ -451,8 +469,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         }
 
         /* zsq 
-         * change the buf address in req struct
-         * for the reason of lie to MMU          
+         * change the buf address in req struct     
          */
         
         req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);        
@@ -699,13 +716,12 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
         
                             
         /* zsq 
-         * change the buf address in req struct
-         * for the reason of lie to MMU 
+         * change the buf address in req struct 
          */
+         
         req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
-       
-        
+               
         /*record the malloc buf for the cmd end to release*/
         reg->MMU_base = MMU_Base;
 
@@ -1043,10 +1059,21 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
         {   
             /* kernel space */
             MMU_p = MMU_Base + CMDMemSize + SrcMemSize;
-            for(i=0; i<DstMemSize; i++) 
+
+            if(req->dst.yrgb_addr == (uint32_t)rga_service.pre_scale_buf)
             {
-                MMU_p[i] = virt_to_phys((uint32_t *)((DstStart + i)<< PAGE_SHIFT));        
+                for(i=0; i<DstMemSize; i++)
+                {
+                    MMU_p[i] = rga_service.pre_scale_buf[i];
+                }
             }
+            else
+            {
+                for(i=0; i<DstMemSize; i++) 
+                {
+                    MMU_p[i] = virt_to_phys((uint32_t *)((DstStart + i)<< PAGE_SHIFT));        
+                }    
+            }                                    
         }
         else 
         {
@@ -1066,21 +1093,11 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
          */
         req->mmu_info.base_addr = virt_to_phys(MMU_Base)>>2;
 
-        #if 0
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
         req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
         req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
 
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
-        #else
-
-        req->src.yrgb_addr &= 0xffffff;
-        req->src.uv_addr &= 0xfffffff;
-        req->src.v_addr &= 0xfffffff;
-
-        req->dst.yrgb_addr &= 0xfffffff;
-        
-        #endif
         
         /*record the malloc buf for the cmd end to release*/
         reg->MMU_base = MMU_Base;
