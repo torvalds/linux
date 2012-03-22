@@ -3,8 +3,8 @@
  *
  * SPEAr300 machine source file
  *
- * Copyright (C) 2009 ST Microelectronics
- * Viresh Kumar<viresh.kumar@st.com>
+ * Copyright (C) 2009-2012 ST Microelectronics
+ * Viresh Kumar <viresh.kumar@st.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -13,10 +13,9 @@
 
 #define pr_fmt(fmt) "SPEAr300: " fmt
 
-#include <linux/types.h>
-#include <linux/amba/pl061.h>
-#include <linux/ptrace.h>
-#include <asm/irq.h>
+#include <linux/of_platform.h>
+#include <asm/hardware/vic.h>
+#include <asm/mach/arch.h>
 #include <plat/shirq.h>
 #include <mach/generic.h>
 #include <mach/hardware.h>
@@ -425,24 +424,35 @@ static struct spear_shirq shirq_ras1 = {
 	},
 };
 
-/* Add spear300 specific devices here */
-/* arm gpio1 device registration */
-static struct pl061_platform_data gpio1_plat_data = {
-	.gpio_base	= 8,
-	.irq_base	= SPEAR300_GPIO1_INT_BASE,
+/* padmux devices to enable */
+static struct pmx_dev *spear300_evb_pmx_devs[] = {
+	/* spear3xx specific devices */
+	&spear3xx_pmx_i2c,
+	&spear3xx_pmx_ssp_cs,
+	&spear3xx_pmx_ssp,
+	&spear3xx_pmx_mii,
+	&spear3xx_pmx_uart0,
+
+	/* spear300 specific devices */
+	&spear300_pmx_fsmc_2_chips,
+	&spear300_pmx_clcd,
+	&spear300_pmx_telecom_sdhci_4bit,
+	&spear300_pmx_gpio1,
 };
 
-AMBA_APB_DEVICE(spear300_gpio1, "gpio1", 0, SPEAR300_GPIO_BASE,
-	{SPEAR300_VIRQ_GPIO1}, &gpio1_plat_data);
+/* Add SPEAr300 auxdata to pass platform data */
+static struct of_dev_auxdata spear300_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,pl022", SPEAR3XX_ICM1_SSP_BASE, NULL,
+			&pl022_plat_data),
+	{}
+};
 
-/* spear300 routines */
-void __init spear300_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
-		u8 pmx_dev_count)
+static void __init spear300_dt_init(void)
 {
-	int ret = 0;
+	int ret = -EINVAL;
 
-	/* call spear3xx family common init function */
-	spear3xx_init();
+	of_platform_populate(NULL, of_default_bus_match_table,
+			spear300_auxdata_lookup, NULL);
 
 	/* shared irq registration */
 	shirq_ras1.regs.base = ioremap(SPEAR300_TELECOM_BASE, SZ_4K);
@@ -452,18 +462,45 @@ void __init spear300_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 			pr_err("Error registering Shared IRQ\n");
 	}
 
-	/* pmx initialization */
-	pmx_driver.mode = pmx_mode;
-	pmx_driver.devs = pmx_devs;
-	pmx_driver.devs_count = pmx_dev_count;
+	if (of_machine_is_compatible("st,spear300-evb")) {
+		/* pmx initialization */
+		pmx_driver.mode = &spear300_photo_frame_mode;
+		pmx_driver.devs = spear300_evb_pmx_devs;
+		pmx_driver.devs_count = ARRAY_SIZE(spear300_evb_pmx_devs);
 
-	pmx_driver.base = ioremap(SPEAR300_SOC_CONFIG_BASE, SZ_4K);
-	if (pmx_driver.base) {
-		ret = pmx_register(&pmx_driver);
+		pmx_driver.base = ioremap(SPEAR300_SOC_CONFIG_BASE, SZ_4K);
+		if (pmx_driver.base) {
+			ret = pmx_register(&pmx_driver);
+			if (ret)
+				pr_err("padmux: registration failed. err no: %d\n",
+						ret);
+			/* Free Mapping, device selection already done */
+			iounmap(pmx_driver.base);
+		}
+
 		if (ret)
-			pr_err("padmux: registration failed. err no: %d\n",
-					ret);
-		/* Free Mapping, device selection already done */
-		iounmap(pmx_driver.base);
+			pr_err("Initialization Failed");
 	}
 }
+
+static const char * const spear300_dt_board_compat[] = {
+	"st,spear300",
+	"st,spear300-evb",
+	NULL,
+};
+
+static void __init spear300_map_io(void)
+{
+	spear3xx_map_io();
+	spear300_clk_init();
+}
+
+DT_MACHINE_START(SPEAR300_DT, "ST SPEAr300 SoC with Flattened Device Tree")
+	.map_io		=	spear300_map_io,
+	.init_irq	=	spear3xx_dt_init_irq,
+	.handle_irq	=	vic_handle_irq,
+	.timer		=	&spear3xx_timer,
+	.init_machine	=	spear300_dt_init,
+	.restart	=	spear_restart,
+	.dt_compat	=	spear300_dt_board_compat,
+MACHINE_END

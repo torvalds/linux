@@ -3,8 +3,8 @@
  *
  * SPEAr310 machine source file
  *
- * Copyright (C) 2009 ST Microelectronics
- * Viresh Kumar<viresh.kumar@st.com>
+ * Copyright (C) 2009-2012 ST Microelectronics
+ * Viresh Kumar <viresh.kumar@st.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
@@ -13,8 +13,11 @@
 
 #define pr_fmt(fmt) "SPEAr310: " fmt
 
-#include <linux/ptrace.h>
-#include <asm/irq.h>
+#include <linux/amba/pl08x.h>
+#include <linux/amba/serial.h>
+#include <linux/of_platform.h>
+#include <asm/hardware/vic.h>
+#include <asm/mach/arch.h>
 #include <plat/shirq.h>
 #include <mach/generic.h>
 #include <mach/hardware.h>
@@ -257,17 +260,79 @@ static struct spear_shirq shirq_intrcomm_ras = {
 	},
 };
 
-/* Add spear310 specific devices here */
+/* padmux devices to enable */
+static struct pmx_dev *spear310_evb_pmx_devs[] = {
+	/* spear3xx specific devices */
+	&spear3xx_pmx_i2c,
+	&spear3xx_pmx_ssp,
+	&spear3xx_pmx_gpio_pin0,
+	&spear3xx_pmx_gpio_pin1,
+	&spear3xx_pmx_gpio_pin2,
+	&spear3xx_pmx_gpio_pin3,
+	&spear3xx_pmx_gpio_pin4,
+	&spear3xx_pmx_gpio_pin5,
+	&spear3xx_pmx_uart0,
 
-/* spear310 routines */
-void __init spear310_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
-		u8 pmx_dev_count)
+	/* spear310 specific devices */
+	&spear310_pmx_emi_cs_0_1_4_5,
+	&spear310_pmx_emi_cs_2_3,
+	&spear310_pmx_uart1,
+	&spear310_pmx_uart2,
+	&spear310_pmx_uart3_4_5,
+	&spear310_pmx_fsmc,
+	&spear310_pmx_rs485_0_1,
+	&spear310_pmx_tdm0,
+};
+
+/* uart devices plat data */
+static struct amba_pl011_data spear310_uart_data[] = {
+	{
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart1_tx",
+		.dma_rx_param = "uart1_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart2_tx",
+		.dma_rx_param = "uart2_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart3_tx",
+		.dma_rx_param = "uart3_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart4_tx",
+		.dma_rx_param = "uart4_rx",
+	}, {
+		.dma_filter = pl08x_filter_id,
+		.dma_tx_param = "uart5_tx",
+		.dma_rx_param = "uart5_rx",
+	},
+};
+
+/* Add SPEAr310 auxdata to pass platform data */
+static struct of_dev_auxdata spear310_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("arm,pl022", SPEAR3XX_ICM1_SSP_BASE, NULL,
+			&pl022_plat_data),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART1_BASE, NULL,
+			&spear310_uart_data[0]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART2_BASE, NULL,
+			&spear310_uart_data[1]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART3_BASE, NULL,
+			&spear310_uart_data[2]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART4_BASE, NULL,
+			&spear310_uart_data[3]),
+	OF_DEV_AUXDATA("arm,pl011", SPEAR310_UART5_BASE, NULL,
+			&spear310_uart_data[4]),
+	{}
+};
+
+static void __init spear310_dt_init(void)
 {
 	void __iomem *base;
 	int ret = 0;
 
-	/* call spear3xx family common init function */
-	spear3xx_init();
+	of_platform_populate(NULL, of_default_bus_match_table,
+			spear310_auxdata_lookup, NULL);
 
 	/* shared irq registration */
 	base = ioremap(SPEAR310_SOC_CONFIG_BASE, SZ_4K);
@@ -297,13 +362,38 @@ void __init spear310_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 			pr_err("Error registering Shared IRQ 4\n");
 	}
 
-	/* pmx initialization */
-	pmx_driver.base = base;
-	pmx_driver.mode = pmx_mode;
-	pmx_driver.devs = pmx_devs;
-	pmx_driver.devs_count = pmx_dev_count;
+	if (of_machine_is_compatible("st,spear310-evb")) {
+		/* pmx initialization */
+		pmx_driver.base = base;
+		pmx_driver.mode = NULL;
+		pmx_driver.devs = spear310_evb_pmx_devs;
+		pmx_driver.devs_count = ARRAY_SIZE(spear310_evb_pmx_devs);
 
-	ret = pmx_register(&pmx_driver);
-	if (ret)
-		pr_err("padmux: registration failed. err no: %d\n", ret);
+		ret = pmx_register(&pmx_driver);
+		if (ret)
+			pr_err("padmux: registration failed. err no: %d\n",
+					ret);
+	}
 }
+
+static const char * const spear310_dt_board_compat[] = {
+	"st,spear310",
+	"st,spear310-evb",
+	NULL,
+};
+
+static void __init spear310_map_io(void)
+{
+	spear3xx_map_io();
+	spear310_clk_init();
+}
+
+DT_MACHINE_START(SPEAR310_DT, "ST SPEAr310 SoC with Flattened Device Tree")
+	.map_io		=	spear310_map_io,
+	.init_irq	=	spear3xx_dt_init_irq,
+	.handle_irq	=	vic_handle_irq,
+	.timer		=	&spear3xx_timer,
+	.init_machine	=	spear310_dt_init,
+	.restart	=	spear_restart,
+	.dt_compat	=	spear310_dt_board_compat,
+MACHINE_END
