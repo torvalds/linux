@@ -679,6 +679,7 @@ static dma_cookie_t imxdma_tx_submit(struct dma_async_tx_descriptor *tx)
 	unsigned long flags;
 
 	spin_lock_irqsave(&imxdma->lock, flags);
+	list_move_tail(imxdmac->ld_free.next, &imxdmac->ld_queue);
 	cookie = dma_cookie_assign(tx);
 	spin_unlock_irqrestore(&imxdma->lock, flags);
 
