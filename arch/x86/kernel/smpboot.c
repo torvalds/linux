@@ -833,7 +833,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 	if (apicid == BAD_APICID || apicid == boot_cpu_physical_apicid ||
 	    !physid_isset(apicid, phys_cpu_present_map) ||
-	    (!x2apic_mode && apicid >= 255)) {
+	    !apic->apic_id_valid(apicid)) {
 		printk(KERN_ERR "%s: bad cpu %d\n", __func__, cpu);
 		return -EINVAL;
 	}

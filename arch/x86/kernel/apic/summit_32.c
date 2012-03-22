@@ -496,6 +496,7 @@ static struct apic apic_summit = {
 	.name				= "summit",
 	.probe				= probe_summit,
 	.acpi_madt_oem_check		= summit_acpi_madt_oem_check,
+	.apic_id_valid			= default_apic_id_valid,
 	.apic_id_registered		= summit_apic_id_registered,
 
 	.irq_delivery_mode		= dest_LowestPrio,

@@ -78,16 +78,11 @@ int sfi_mrtc_num;
 
 static void mrst_power_off(void)
 {
-	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
-		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 1);
 }
 
 static void mrst_reboot(void)
 {
-	if (__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT)
-		intel_scu_ipc_simple_command(IPCMSG_COLD_RESET, 0);
-	else
-		intel_scu_ipc_simple_command(IPCMSG_COLD_BOOT, 0);
+	intel_scu_ipc_simple_command(IPCMSG_COLD_BOOT, 0);
 }
 
 /* parse all the mtimer info to a static mtimer array */
@@ -200,34 +195,28 @@ int __init sfi_parse_mrtc(struct sfi_table_header *table)
 
 static unsigned long __init mrst_calibrate_tsc(void)
 {
-	unsigned long flags, fast_calibrate;
-	if (__mrst_cpu_chip == MRST_CPU_CHIP_PENWELL) {
-		u32 lo, hi, ratio, fsb;
+	unsigned long fast_calibrate;
+	u32 lo, hi, ratio, fsb;
 
-		rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
-		pr_debug("IA32 perf status is 0x%x, 0x%0x\n", lo, hi);
-		ratio = (hi >> 8) & 0x1f;
-		pr_debug("ratio is %d\n", ratio);
-		if (!ratio) {
-			pr_err("read a zero ratio, should be incorrect!\n");
-			pr_err("force tsc ratio to 16 ...\n");
-			ratio = 16;
-		}
-		rdmsr(MSR_FSB_FREQ, lo, hi);
-		if ((lo & 0x7) == 0x7)
-			fsb = PENWELL_FSB_FREQ_83SKU;
-		else
-			fsb = PENWELL_FSB_FREQ_100SKU;
-		fast_calibrate = ratio * fsb;
-		pr_debug("read penwell tsc %lu khz\n", fast_calibrate);
-		lapic_timer_frequency = fsb * 1000 / HZ;
-		/* mark tsc clocksource as reliable */
-		set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
-	} else {
-		local_irq_save(flags);
-		fast_calibrate = apbt_quick_calibrate();
-		local_irq_restore(flags);
+	rdmsr(MSR_IA32_PERF_STATUS, lo, hi);
+	pr_debug("IA32 perf status is 0x%x, 0x%0x\n", lo, hi);
+	ratio = (hi >> 8) & 0x1f;
+	pr_debug("ratio is %d\n", ratio);
+	if (!ratio) {
+		pr_err("read a zero ratio, should be incorrect!\n");
+		pr_err("force tsc ratio to 16 ...\n");
+		ratio = 16;
 	}
+	rdmsr(MSR_FSB_FREQ, lo, hi);
+	if ((lo & 0x7) == 0x7)
+		fsb = PENWELL_FSB_FREQ_83SKU;
+	else
+		fsb = PENWELL_FSB_FREQ_100SKU;
+	fast_calibrate = ratio * fsb;
+	pr_debug("read penwell tsc %lu khz\n", fast_calibrate);
+	lapic_timer_frequency = fsb * 1000 / HZ;
+	/* mark tsc clocksource as reliable */
+	set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
 	
 	if (fast_calibrate)
 		return fast_calibrate;
@@ -261,16 +250,11 @@ static void __cpuinit mrst_arch_setup(void)
 {
 	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
 		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
-	else if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x26)
-		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
 	else {
-		pr_err("Unknown Moorestown CPU (%d:%d), default to Lincroft\n",
+		pr_err("Unknown Intel MID CPU (%d:%d), default to Penwell\n",
 			boot_cpu_data.x86, boot_cpu_data.x86_model);
-		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
 	}
-	pr_debug("Moorestown CPU %s identified\n",
-		(__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT) ?
-		"Lincroft" : "Penwell");
 }
 
 /* MID systems don't have i8042 controller */
@@ -686,6 +670,11 @@ static void *msic_ocd_platform_data(void *info)
 	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_OCD);
 }
 
+static void *msic_thermal_platform_data(void *info)
+{
+	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_THERMAL);
+}
+
 static const struct devs_id __initconst device_ids[] = {
 	{"bma023", SFI_DEV_TYPE_I2C, 1, &no_platform_data},
 	{"pmic_gpio", SFI_DEV_TYPE_SPI, 1, &pmic_gpio_platform_data},
@@ -705,6 +694,7 @@ static const struct devs_id __initconst device_ids[] = {
 	{"msic_audio", SFI_DEV_TYPE_IPC, 1, &msic_audio_platform_data},
 	{"msic_power_btn", SFI_DEV_TYPE_IPC, 1, &msic_power_btn_platform_data},
 	{"msic_ocd", SFI_DEV_TYPE_IPC, 1, &msic_ocd_platform_data},
+	{"msic_thermal", SFI_DEV_TYPE_IPC, 1, &msic_thermal_platform_data},
 
 	{},
 };
