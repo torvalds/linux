@@ -11,6 +11,7 @@
 #define __RGRP_DOT_H__
 
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 struct gfs2_rgrpd;
 struct gfs2_sbd;
@@ -18,7 +19,7 @@ struct gfs2_holder;
 
 extern void gfs2_rgrp_verify(struct gfs2_rgrpd *rgd);
 
-extern struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk);
+extern struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk, bool exact);
 extern struct gfs2_rgrpd *gfs2_rgrpd_get_first(struct gfs2_sbd *sdp);
 extern struct gfs2_rgrpd *gfs2_rgrpd_get_next(struct gfs2_rgrpd *rgd);
 
@@ -62,8 +63,9 @@ extern void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist, unsigned int state);
 extern void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);
 extern u64 gfs2_ri_total(struct gfs2_sbd *sdp);
 extern int gfs2_rgrp_dump(struct seq_file *seq, const struct gfs2_glock *gl);
-extern void gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
-				    struct buffer_head *bh,
-				    const struct gfs2_bitmap *bi);
+extern int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
+				   struct buffer_head *bh,
+				   const struct gfs2_bitmap *bi, unsigned minlen, u64 *ptrimmed);
+extern int gfs2_fitrim(struct file *filp, void __user *argp);
 
 #endif /* __RGRP_DOT_H__ */
