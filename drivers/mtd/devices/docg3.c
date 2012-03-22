@@ -1116,10 +1116,10 @@ static int doc_get_op_status(struct docg3 *docg3)
  */
 static int doc_write_erase_wait_status(struct docg3 *docg3)
 {
-	int status, ret = 0;
+	int i, status, ret = 0;
 
-	if (!doc_is_ready(docg3))
-		usleep_range(3000, 3000);
+	for (i = 0; !doc_is_ready(docg3) && i < 5; i++)
+		msleep(20);
 	if (!doc_is_ready(docg3)) {
 		doc_dbg("Timeout reached and the chip is still not ready\n");
 		ret = -EAGAIN;
