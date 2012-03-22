@@ -1439,10 +1439,10 @@ unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 
 	for (;;) {
 		a = *(unsigned long *)name;
-		hash *= 9;
 		if (len < sizeof(unsigned long))
 			break;
 		hash += a;
+		hash *= 9;
 		name += sizeof(unsigned long);
 		len -= sizeof(unsigned long);
 		if (!len)
