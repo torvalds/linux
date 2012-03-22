@@ -63,7 +63,7 @@ void au_cpup_attr_nlink(struct inode *inode, int force)
 	 * h_inode->i_mutex is not held, but it is harmless since once i_nlink
 	 * reaches 0, it will never become positive.
 	 */
-	vfsub_set_nlink(inode, h_inode->i_nlink);
+	set_nlink(inode, h_inode->i_nlink);
 
 	/*
 	 * fewer nlink makes find(1) noisy, but larger nlink doesn't.
