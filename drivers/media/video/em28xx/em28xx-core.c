@@ -666,7 +666,6 @@ int em28xx_capture_start(struct em28xx *dev, int start)
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(em28xx_capture_start);
 
 int em28xx_vbi_supported(struct em28xx *dev)
 {
@@ -1006,6 +1005,31 @@ void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode)
 	em28xx_capture_start(dev, 0);
 }
 EXPORT_SYMBOL_GPL(em28xx_uninit_isoc);
+
+/*
+ * Stop URBs
+ */
+void em28xx_stop_urbs(struct em28xx *dev)
+{
+	int i;
+	struct urb *urb;
+	struct em28xx_usb_isoc_bufs *isoc_bufs = &dev->isoc_ctl.digital_bufs;
+
+	em28xx_isocdbg("em28xx: called em28xx_stop_urbs\n");
+
+	for (i = 0; i < isoc_bufs->num_bufs; i++) {
+		urb = isoc_bufs->urb[i];
+		if (urb) {
+			if (!irqs_disabled())
+				usb_kill_urb(urb);
+			else
+				usb_unlink_urb(urb);
+		}
+	}
+
+	em28xx_capture_start(dev, 0);
+}
+EXPORT_SYMBOL_GPL(em28xx_stop_urbs);
 
 /*
  * Allocate URBs

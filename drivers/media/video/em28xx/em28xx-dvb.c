@@ -183,7 +183,7 @@ static int em28xx_stop_streaming(struct em28xx_dvb *dvb)
 {
 	struct em28xx *dev = dvb->adapter.priv;
 
-	em28xx_capture_start(dev, 0);
+	em28xx_stop_urbs(dev);
 
 	em28xx_set_mode(dev, EM28XX_SUSPEND);
 
