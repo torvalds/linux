@@ -53,6 +53,10 @@ static struct usb_driver usb_serial_driver = {
 	.no_dynamic_id = 	1,
 	.supports_autosuspend =	1,
 };
+#ifdef CONFIG_MU509
+static int MU509_USB = 0;
+#define MU509_USB_PORT     (SERIAL_TTY_MINORS - 10)
+#endif
 
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
    the MODULE_DEVICE_TABLE declarations in each serial driver
@@ -97,12 +101,17 @@ static struct usb_serial *get_free_serial(struct usb_serial *serial,
 {
 	unsigned int i, j;
 	int good_spot;
+	int a=0;
 
 	dbg("%s %d", __func__, num_ports);
 
 	*minor = 0;
 	mutex_lock(&table_lock);
-	for (i = 0; i < SERIAL_TTY_MINORS; ++i) {
+#ifdef CONFIG_MU509
+	if (MU509_USB)
+		a= MU509_USB_PORT;
+#endif
+	for (i = a; i < SERIAL_TTY_MINORS; ++i) {
 		if (serial_table[i])
 			continue;
 
@@ -1058,6 +1067,12 @@ int usb_serial_probe(struct usb_interface *interface,
 	} else {
 		serial->attached = 1;
 	}
+#ifdef CONFIG_MU509
+		if ((le16_to_cpu(dev->descriptor.idVendor) == 0x12D1 ) && (le16_to_cpu(dev->descriptor.idProduct) == 0x1001))
+			MU509_USB =1;
+		else
+			MU509_USB = 0;
+#endif
 
 	if (get_free_serial(serial, num_ports, &minor) == NULL) {
 		dev_err(&interface->dev, "No more free serial devices\n");
