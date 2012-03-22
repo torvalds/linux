@@ -974,7 +974,6 @@ void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode)
 	else
 		isoc_bufs = &dev->isoc_ctl.analog_bufs;
 
-	dev->isoc_ctl.nfields = -1;
 	for (i = 0; i < isoc_bufs->num_bufs; i++) {
 		urb = isoc_bufs->urb[i];
 		if (urb) {

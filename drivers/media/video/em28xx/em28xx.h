@@ -226,23 +226,9 @@ struct em28xx_usb_isoc_ctl {
 		/* isoc transfer buffers for digital mode */
 	struct em28xx_usb_isoc_bufs	digital_bufs;
 
-		/* Last buffer command and region */
-	u8				cmd;
-	int				pos, size, pktsize;
-
-		/* Last field: ODD or EVEN? */
-	int				field;
-
-		/* Stores incomplete commands */
-	u32				tmp_buf;
-	int				tmp_buf_len;
-
 		/* Stores already requested buffers */
 	struct em28xx_buffer    	*vid_buf;
 	struct em28xx_buffer    	*vbi_buf;
-
-		/* Stores the number of received fields */
-	int				nfields;
 
 		/* isoc urb callback */
 	int (*isoc_copy) (struct em28xx *dev, struct urb *urb);
