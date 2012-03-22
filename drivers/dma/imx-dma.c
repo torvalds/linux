@@ -260,41 +260,6 @@ static inline int imxdma_sg_next(struct imxdma_desc *d, struct scatterlist *sg)
 	return now;
 }
 
-static int
-imxdma_setup_mem2mem_hw(struct imxdma_channel *imxdmac, dma_addr_t dma_address,
-		     unsigned int dma_length, unsigned int dev_addr)
-{
-	int channel = imxdmac->channel;
-
-	imxdmac->internal.sg = NULL;
-
-	if (!dma_address) {
-		printk(KERN_ERR "imxdma%d: imx_dma_setup_single null address\n",
-		       channel);
-		return -EINVAL;
-	}
-
-	if (!dma_length) {
-		printk(KERN_ERR "imxdma%d: imx_dma_setup_single zero length\n",
-		       channel);
-		return -EINVAL;
-	}
-
-	pr_debug("imxdma%d: %s dma_addressg=0x%08x dma_length=%d "
-		"dev_addr=0x%08x for write\n",
-		channel, __func__, (unsigned int)dma_address,
-		dma_length, dev_addr);
-
-	imx_dmav1_writel(dma_address, DMA_SAR(channel));
-	imx_dmav1_writel(dev_addr, DMA_DAR(channel));
-	imx_dmav1_writel(imxdmac->internal.ccr_to_device,
-			 DMA_CCR(channel));
-
-	imx_dmav1_writel(dma_length, DMA_CNTR(channel));
-
-	return 0;
-}
-
 static void imxdma_enable_hw(struct imxdma_desc *d)
 {
 	struct imxdma_channel *imxdmac = to_imxdma_chan(d->desc.chan);
@@ -586,20 +551,26 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 static int imxdma_xfer_desc(struct imxdma_desc *d)
 {
 	struct imxdma_channel *imxdmac = to_imxdma_chan(d->desc.chan);
+	struct imxdma_engine *imxdma = imxdmac->imxdma;
 	int ret;
 
 	/* Configure and enable */
 	switch (d->type) {
 	case IMXDMA_DESC_MEMCPY:
-		ret = imxdma_config_channel_hw(imxdmac,
-					  d->config_port, d->config_mem, 0, 0);
-		if (ret < 0)
-			return ret;
-		ret = imxdma_setup_mem2mem_hw(imxdmac, d->src, d->len, d->dest);
-		if (ret < 0)
-			return ret;
-		break;
+		imxdmac->internal.sg = NULL;
 
+		imx_dmav1_writel(d->src, DMA_SAR(imxdmac->channel));
+		imx_dmav1_writel(d->dest, DMA_DAR(imxdmac->channel));
+		imx_dmav1_writel(d->config_mem | (d->config_port << 2),
+			 DMA_CCR(imxdmac->channel));
+
+		imx_dmav1_writel(d->len, DMA_CNTR(imxdmac->channel));
+
+		dev_dbg(imxdma->dev, "%s channel: %d dest=0x%08x src=0x%08x "
+			"dma_length=%d\n", __func__, imxdmac->channel,
+			d->dest, d->src, d->len);
+
+		break;
 	/* Cyclic transfer is the same as slave_sg with special sg configuration. */
 	case IMXDMA_DESC_CYCLIC:
 	case IMXDMA_DESC_SLAVE_SG:
