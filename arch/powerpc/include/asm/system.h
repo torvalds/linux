@@ -550,5 +550,43 @@ extern void reloc_got2(unsigned long);
 
 extern struct dentry *powerpc_debugfs_root;
 
+#ifdef CONFIG_PPC64
+
+extern void __ppc64_runlatch_on(void);
+extern void __ppc64_runlatch_off(void);
+
+/*
+ * We manually hard enable-disable, this is called
+ * in the idle loop and we don't want to mess up
+ * with soft-disable/enable & interrupt replay.
+ */
+#define ppc64_runlatch_off()					\
+	do {							\
+		if (cpu_has_feature(CPU_FTR_CTRL) &&		\
+		    test_thread_local_flags(_TLF_RUNLATCH)) {	\
+			unsigned long msr = mfmsr();		\
+			__hard_irq_disable();			\
+			__ppc64_runlatch_off();			\
+			if (msr & MSR_EE)			\
+				__hard_irq_enable();		\
+		}      						\
+	} while (0)
+
+#define ppc64_runlatch_on()					\
+	do {							\
+		if (cpu_has_feature(CPU_FTR_CTRL) &&		\
+		    !test_thread_local_flags(_TLF_RUNLATCH)) {	\
+			unsigned long msr = mfmsr();		\
+			__hard_irq_disable();			\
+			__ppc64_runlatch_on();			\
+			if (msr & MSR_EE)			\
+				__hard_irq_enable();		\
+		}      						\
+	} while (0)
+#else
+#define ppc64_runlatch_on()
+#define ppc64_runlatch_off()
+#endif /* CONFIG_PPC64 */
+
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_SYSTEM_H */

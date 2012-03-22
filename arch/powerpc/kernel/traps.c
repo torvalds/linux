@@ -57,6 +57,7 @@
 #include <asm/kexec.h>
 #include <asm/ppc-opcode.h>
 #include <asm/rio.h>
+#include <asm/fadump.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;
@@ -144,6 +145,8 @@ static void __kprobes oops_end(unsigned long flags, struct pt_regs *regs,
 		/* Nest count reaches zero, release the lock. */
 		arch_spin_unlock(&die_lock);
 	raw_local_irq_restore(flags);
+
+	crash_fadump(regs, "die oops");
 
 	/*
 	 * A system reset (0x100) is a request to dump, so we always send
@@ -243,6 +246,9 @@ void _exception(int signr, struct pt_regs *regs, int code, unsigned long addr)
 				   current->comm, current->pid, signr,
 				   addr, regs->nip, regs->link, code);
 	}
+
+	if (!arch_irq_disabled_regs(regs))
+		local_irq_enable();
 
 	memset(&info, 0, sizeof(info));
 	info.si_signo = signr;

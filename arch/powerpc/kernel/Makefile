@@ -60,6 +60,7 @@ obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_IBMEBUS)           += ibmebus.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
+obj-$(CONFIG_FA_DUMP)		+= fadump.o
 ifeq ($(CONFIG_PPC32),y)
 obj-$(CONFIG_E500)		+= idle_e500.o
 endif
@@ -113,15 +114,6 @@ obj-$(CONFIG_PPC_IO_WORKAROUNDS)	+= io-workarounds.o
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
 obj-$(CONFIG_FTRACE_SYSCALLS)	+= ftrace.o
-obj-$(CONFIG_PERF_EVENTS)	+= perf_callchain.o
-
-obj-$(CONFIG_PPC_PERF_CTRS)	+= perf_event.o
-obj64-$(CONFIG_PPC_PERF_CTRS)	+= power4-pmu.o ppc970-pmu.o power5-pmu.o \
-				   power5+-pmu.o power6-pmu.o power7-pmu.o
-obj32-$(CONFIG_PPC_PERF_CTRS)	+= mpc7450-pmu.o
-
-obj-$(CONFIG_FSL_EMB_PERF_EVENT) += perf_event_fsl_emb.o
-obj-$(CONFIG_FSL_EMB_PERF_EVENT_E500) += e500-pmu.o
 
 obj-$(CONFIG_8XX_MINIMAL_FPEMU) += softemu8xx.o
 

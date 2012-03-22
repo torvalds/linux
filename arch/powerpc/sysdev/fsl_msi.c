@@ -410,6 +410,7 @@ static int __devinit fsl_of_msi_probe(struct platform_device *dev)
 
 		msi->msi_regs = ioremap(res.start, resource_size(&res));
 		if (!msi->msi_regs) {
+			err = -ENOMEM;
 			dev_err(&dev->dev, "could not map node %s\n",
 				dev->dev.of_node->full_name);
 			goto error_out;

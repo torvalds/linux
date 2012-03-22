@@ -37,9 +37,9 @@
 
 #include <sysdev/fsl_pci.h>
 #include <sysdev/fsl_soc.h>
+#include <sysdev/ge/ge_pic.h>
 
 #include "mpc86xx.h"
-#include "gef_pic.h"
 
 #undef DEBUG
 

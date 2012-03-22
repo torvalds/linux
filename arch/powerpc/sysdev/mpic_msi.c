@@ -54,7 +54,7 @@ static int mpic_msi_reserve_u3_hwirqs(struct mpic *mpic)
 	for (i = 100; i < 105; i++)
 		msi_bitmap_reserve_hwirq(&mpic->msi_bitmap, i);
 
-	for (i = 124; i < mpic->irq_count; i++)
+	for (i = 124; i < mpic->num_sources; i++)
 		msi_bitmap_reserve_hwirq(&mpic->msi_bitmap, i);
 
 
@@ -83,7 +83,7 @@ int mpic_msi_init_allocator(struct mpic *mpic)
 {
 	int rc;
 
-	rc = msi_bitmap_alloc(&mpic->msi_bitmap, mpic->irq_count,
+	rc = msi_bitmap_alloc(&mpic->msi_bitmap, mpic->num_sources,
 			      mpic->irqhost->of_node);
 	if (rc)
 		return rc;
