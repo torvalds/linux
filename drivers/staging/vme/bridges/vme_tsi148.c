@@ -1614,7 +1614,6 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 	struct vme_dma_pattern *pattern_attr;
 	struct vme_dma_pci *pci_attr;
 	struct vme_dma_vme *vme_attr;
-	dma_addr_t desc_ptr;
 	int retval = 0;
 	struct vme_bridge *tsi148_bridge;
 
@@ -1739,9 +1738,12 @@ static int tsi148_dma_list_add(struct vme_dma_list *list,
 		prev = list_entry(entry->list.prev, struct tsi148_dma_entry,
 			list);
 		/* We need the bus address for the pointer */
-		desc_ptr = virt_to_bus(&entry->descriptor);
-		reg_split(desc_ptr, &prev->descriptor.dnlau,
-			&prev->descriptor.dnlal);
+		entry->dma_handle = dma_map_single(tsi148_bridge->parent,
+			&entry->descriptor,
+			sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
+
+		reg_split((unsigned long long)entry->dma_handle,
+			&prev->descriptor.dnlau, &prev->descriptor.dnlal);
 	}
 
 	return 0;
@@ -1784,7 +1786,6 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	struct vme_dma_resource *ctrlr;
 	int channel, retval = 0;
 	struct tsi148_dma_entry *entry;
-	dma_addr_t bus_addr;
 	u32 bus_addr_high, bus_addr_low;
 	u32 val, dctlreg = 0;
 	struct vme_bridge *tsi148_bridge;
@@ -1817,11 +1818,13 @@ static int tsi148_dma_list_exec(struct vme_dma_list *list)
 	entry = list_first_entry(&list->entries, struct tsi148_dma_entry,
 		list);
 
-	bus_addr = virt_to_bus(&entry->descriptor);
+	entry->dma_handle = dma_map_single(tsi148_bridge->parent,
+		&entry->descriptor,
+		sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
 
 	mutex_unlock(&ctrlr->mtx);
 
-	reg_split(bus_addr, &bus_addr_high, &bus_addr_low);
+	reg_split(entry->dma_handle, &bus_addr_high, &bus_addr_low);
 
 	iowrite32be(bus_addr_high, bridge->base +
 		TSI148_LCSR_DMA[channel] + TSI148_LCSR_OFFSET_DNLAU);
@@ -1864,10 +1867,15 @@ static int tsi148_dma_list_empty(struct vme_dma_list *list)
 	struct list_head *pos, *temp;
 	struct tsi148_dma_entry *entry;
 
+	struct vme_bridge *tsi148_bridge = list->parent->parent;
+
 	/* detach and free each entry */
 	list_for_each_safe(pos, temp, &list->entries) {
 		list_del(pos);
 		entry = list_entry(pos, struct tsi148_dma_entry, list);
+
+		dma_unmap_single(tsi148_bridge->parent, entry->dma_handle,
+			sizeof(struct tsi148_dma_descriptor), DMA_TO_DEVICE);
 		kfree(entry);
 	}
 
