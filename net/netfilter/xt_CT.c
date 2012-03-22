@@ -16,6 +16,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 #include <net/netfilter/nf_conntrack_zones.h>
 
@@ -243,11 +244,12 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 					info->timeout, timeout->l3num);
 				goto err3;
 			}
-			if (timeout->l4num != e->ip.proto) {
+			if (timeout->l4proto->l4proto != e->ip.proto) {
 				ret = -EINVAL;
 				pr_info("Timeout policy `%s' can only be "
 					"used by L4 protocol number %d\n",
-					info->timeout, timeout->l4num);
+					info->timeout,
+					timeout->l4proto->l4proto);
 				goto err3;
 			}
 			timeout_ext = nf_ct_timeout_ext_add(ct, timeout,

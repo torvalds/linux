@@ -15,7 +15,7 @@ struct ctnl_timeout {
 	atomic_t		refcnt;
 	char			name[CTNL_TIMEOUT_NAME_MAX];
 	__u16			l3num;
-	__u8			l4num;
+	struct nf_conntrack_l4proto *l4proto;
 	char			data[0];
 };
 
