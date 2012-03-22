@@ -543,11 +543,11 @@ done:
 	return ret;
 }
 
+/* called with &queue_irqlock held.. */
 static struct uvc_buffer *
 uvc_queue_next_buffer(struct uvc_video_queue *queue, struct uvc_buffer *buf)
 {
 	struct uvc_buffer *nextbuf;
-	unsigned long flags;
 
 	if ((queue->flags & UVC_QUEUE_DROP_INCOMPLETE) &&
 	    buf->buf.length != buf->buf.bytesused) {
@@ -556,14 +556,12 @@ uvc_queue_next_buffer(struct uvc_video_queue *queue, struct uvc_buffer *buf)
 		return buf;
 	}
 
-	spin_lock_irqsave(&queue->irqlock, flags);
 	list_del(&buf->queue);
 	if (!list_empty(&queue->irqqueue))
 		nextbuf = list_first_entry(&queue->irqqueue, struct uvc_buffer,
 					   queue);
 	else
 		nextbuf = NULL;
-	spin_unlock_irqrestore(&queue->irqlock, flags);
 
 	buf->buf.sequence = queue->sequence++;
 	do_gettimeofday(&buf->buf.timestamp);
