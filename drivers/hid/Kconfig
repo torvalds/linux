@@ -598,7 +598,7 @@ config HID_WACOM
 	depends on HID_WACOM
 	select POWER_SUPPLY
 	---help---
-	Support for Wacom Graphire Bluetooth tablet.
+	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
 
 config HID_WIIMOTE
 	tristate "Nintendo Wii Remote support"
