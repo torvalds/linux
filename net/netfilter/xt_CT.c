@@ -14,6 +14,7 @@
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CT.h>
 #include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
@@ -224,6 +225,7 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 
 		if (timeout_find_get) {
 			const struct ipt_entry *e = par->entryinfo;
+			struct nf_conntrack_l4proto *l4proto;
 
 			if (e->ip.invflags & IPT_INV_PROTO) {
 				ret = -EINVAL;
@@ -245,7 +247,12 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 					info->timeout, timeout->l3num);
 				goto err4;
 			}
-			if (timeout->l4proto->l4proto != e->ip.proto) {
+			/* Make sure the timeout policy matches any existing
+			 * protocol tracker, otherwise default to generic.
+			 */
+			l4proto = __nf_ct_l4proto_find(par->family,
+						       e->ip.proto);
+			if (timeout->l4proto->l4proto != l4proto->l4proto) {
 				ret = -EINVAL;
 				pr_info("Timeout policy `%s' can only be "
 					"used by L4 protocol number %d\n",
