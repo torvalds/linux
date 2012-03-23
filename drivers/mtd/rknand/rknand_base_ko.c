@@ -23,13 +23,7 @@
 //#include "api_flash.h"
 #include "rknand_base.h"
 
-#ifdef CONFIG_ARCH_RK30
-#define DRIVER_NAME	"rk30xxnand"
-#endif
-
-#ifdef CONFIG_ARCH_RK29
 #define DRIVER_NAME	"rk29xxnand"
-#endif
 
 const char rknand_base_version[] = "rknand_base.c version: 4.32 20120103";
 #define NAND_DEBUG_LEVEL0 0
@@ -43,8 +37,8 @@ struct mtd_info		rknand_mtd;
 struct mtd_partition *rknand_parts;
 struct rknand_info * gpNandInfo;
 
-#ifdef CONFIG_MTD_NAND_RK_DEBUG
-static int s_debug = CONFIG_MTD_NAND_RK_DEBUG_VERBOSE;
+#ifdef CONFIG_MTD_NAND_RK29XX_DEBUG
+static int s_debug = CONFIG_MTD_NAND_RK29XX_DEBUG_VERBOSE;
 #undef NAND_DEBUG
 #define NAND_DEBUG(n, format, arg...) \
 	if (n <= s_debug) {	 \

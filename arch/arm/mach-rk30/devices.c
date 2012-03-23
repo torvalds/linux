@@ -726,7 +726,7 @@ static struct resource resources_nand[] = {
 };
 
 static struct platform_device device_nand = {
-	.name		= "rk30xxnand",
+	.name		= "rk29xxnand",
 	.id		= -1,
 	.resource	= resources_nand,
 	.num_resources	= ARRAY_SIZE(resources_nand),

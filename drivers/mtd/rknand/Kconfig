@@ -10,7 +10,7 @@ config MTD_RKNAND
 	  RK NAND Device Support 
 if MTD_RKNAND 
  
-config MTD_NAND_RK
+config MTD_NAND_RK29XX 
 	tristate "RK on-chip NAND Flash Controller driver with FTL" 
 	depends on MTD_RKNAND 
     default y 
@@ -29,13 +29,13 @@ config MTD_EMMC_CLK_POWER_SAVE
     default n
 	help 
  
-config MTD_NAND_RK_DEBUG 
+config MTD_NAND_RK29XX_DEBUG 
 	tristate "RK Nand driver debug enables"
 	depends on MTD_RKNAND 
     default n 
 	help 
 	 
-config MTD_NAND_RK_DEBUG_VERBOSE 
+config MTD_NAND_RK29XX_DEBUG_VERBOSE 
 	int "Debugging verbosity (0 = quiet, 3 = noisy)" 
 	depends on MTD_NAND_RK29XX_DEBUG 
 	default "0" 
