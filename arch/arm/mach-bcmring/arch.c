@@ -49,7 +49,29 @@ HW_DECLARE_SPINLOCK(gpio)
 #endif
 
 /* sysctl */
-int bcmring_arch_warm_reboot;	/* do a warm reboot on hard reset */
+static int bcmring_arch_warm_reboot;	/* do a warm reboot on hard reset */
+
+static void bcmring_restart(char mode, const char *cmd)
+{
+	printk("arch_reset:%c %x\n", mode, bcmring_arch_warm_reboot);
+
+	if (mode == 'h') {
+		/* Reboot configured in proc entry */
+		if (bcmring_arch_warm_reboot) {
+			printk("warm reset\n");
+			/* Issue Warm reset (do not reset ethernet switch, keep alive) */
+			chipcHw_reset(chipcHw_REG_SOFT_RESET_CHIP_WARM);
+		} else {
+			/* Force reset of everything */
+			printk("force reset\n");
+			chipcHw_reset(chipcHw_REG_SOFT_RESET_CHIP_SOFT);
+		}
+	} else {
+		/* Force reset of everything */
+		printk("force reset\n");
+		chipcHw_reset(chipcHw_REG_SOFT_RESET_CHIP_SOFT);
+	}
+}
 
 static struct ctl_table_header *bcmring_sysctl_header;
 
@@ -172,5 +194,6 @@ MACHINE_START(BCMRING, "BCMRING")
 	.init_early = bcmring_init_early,
 	.init_irq = bcmring_init_irq,
 	.timer = &bcmring_timer,
-	.init_machine = bcmring_init_machine
+	.init_machine = bcmring_init_machine,
+	.restart = bcmring_restart,
 MACHINE_END

@@ -52,22 +52,22 @@ static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 
 	cval = it->expires;
 	cinterval = it->incr;
-	if (!cputime_eq(cval, cputime_zero)) {
+	if (cval) {
 		struct task_cputime cputime;
 		cputime_t t;
 
 		thread_group_cputimer(tsk, &cputime);
 		if (clock_id == CPUCLOCK_PROF)
-			t = cputime_add(cputime.utime, cputime.stime);
+			t = cputime.utime + cputime.stime;
 		else
 			/* CPUCLOCK_VIRT */
 			t = cputime.utime;
 
-		if (cputime_le(cval, t))
+		if (cval < t)
 			/* about to fire */
 			cval = cputime_one_jiffy;
 		else
-			cval = cputime_sub(cval, t);
+			cval = cval - t;
 	}
 
 	spin_unlock_irq(&tsk->sighand->siglock);
@@ -161,10 +161,9 @@ static void set_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 
 	cval = it->expires;
 	cinterval = it->incr;
-	if (!cputime_eq(cval, cputime_zero) ||
-	    !cputime_eq(nval, cputime_zero)) {
-		if (cputime_gt(nval, cputime_zero))
-			nval = cputime_add(nval, cputime_one_jiffy);
+	if (cval || nval) {
+		if (nval > 0)
+			nval += cputime_one_jiffy;
 		set_process_cpu_timer(tsk, clock_id, &nval, &cval);
 	}
 	it->expires = nval;

@@ -117,15 +117,6 @@ static int cfhsi_flush_fifo(struct cfhsi *cfhsi)
 	dev_dbg(&cfhsi->ndev->dev, "%s.\n",
 		__func__);
 
-
-	ret = cfhsi->dev->cfhsi_wake_up(cfhsi->dev);
-	if (ret) {
-		dev_warn(&cfhsi->ndev->dev,
-			"%s: can't wake up HSI interface: %d.\n",
-			__func__, ret);
-		return ret;
-	}
-
 	do {
 		ret = cfhsi->dev->cfhsi_fifo_occupancy(cfhsi->dev,
 				&fifo_occupancy);
@@ -167,8 +158,6 @@ static int cfhsi_flush_fifo(struct cfhsi *cfhsi)
 			break;
 		}
 	} while (1);
-
-	cfhsi->dev->cfhsi_wake_down(cfhsi->dev);
 
 	return ret;
 }
@@ -944,7 +933,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		/* Create HSI frame. */
 		len = cfhsi_tx_frm(desc, cfhsi);
-		BUG_ON(!len);
+		WARN_ON(!len);
 
 		/* Set up new transfer. */
 		res = cfhsi->dev->cfhsi_tx(cfhsi->tx_buf, len, cfhsi->dev);
@@ -989,7 +978,7 @@ static void cfhsi_setup(struct net_device *dev)
 	dev->netdev_ops = &cfhsi_ops;
 	dev->type = ARPHRD_CAIF;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP;
-	dev->mtu = CFHSI_MAX_PAYLOAD_SZ;
+	dev->mtu = CFHSI_MAX_CAIF_FRAME_SZ;
 	dev->tx_queue_len = 0;
 	dev->destructor = free_netdev;
 	skb_queue_head_init(&cfhsi->qhead);

@@ -44,10 +44,10 @@
 
 /* module parameters */
 extern int msp_debug;
-extern int msp_once;
-extern int msp_amsound;
+extern bool msp_once;
+extern bool msp_amsound;
 extern int msp_standard;
-extern int msp_dolby;
+extern bool msp_dolby;
 extern int msp_stereo_thresh;
 
 struct msp_state {

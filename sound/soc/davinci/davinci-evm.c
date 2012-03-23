@@ -242,6 +242,7 @@ static struct snd_soc_dai_link da850_evm_dai = {
 /* davinci dm6446 evm audio machine driver */
 static struct snd_soc_card dm6446_snd_soc_card_evm = {
 	.name = "DaVinci DM6446 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &dm6446_evm_dai,
 	.num_links = 1,
 };
@@ -249,6 +250,7 @@ static struct snd_soc_card dm6446_snd_soc_card_evm = {
 /* davinci dm355 evm audio machine driver */
 static struct snd_soc_card dm355_snd_soc_card_evm = {
 	.name = "DaVinci DM355 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &dm355_evm_dai,
 	.num_links = 1,
 };
@@ -256,6 +258,7 @@ static struct snd_soc_card dm355_snd_soc_card_evm = {
 /* davinci dm365 evm audio machine driver */
 static struct snd_soc_card dm365_snd_soc_card_evm = {
 	.name = "DaVinci DM365 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &dm365_evm_dai,
 	.num_links = 1,
 };
@@ -263,18 +266,21 @@ static struct snd_soc_card dm365_snd_soc_card_evm = {
 /* davinci dm6467 evm audio machine driver */
 static struct snd_soc_card dm6467_snd_soc_card_evm = {
 	.name = "DaVinci DM6467 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = dm6467_evm_dai,
 	.num_links = ARRAY_SIZE(dm6467_evm_dai),
 };
 
 static struct snd_soc_card da830_snd_soc_card = {
 	.name = "DA830/OMAP-L137 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &da830_evm_dai,
 	.num_links = 1,
 };
 
 static struct snd_soc_card da850_snd_soc_card = {
 	.name = "DA850/OMAP-L138 EVM",
+	.owner = THIS_MODULE,
 	.dai_link = &da850_evm_dai,
 	.num_links = 1,
 };

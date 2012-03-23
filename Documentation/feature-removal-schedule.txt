@@ -85,17 +85,6 @@ Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
 
 ---------------------------
 
-What:	Deprecated snapshot ioctls
-When:	2.6.36
-
-Why:	The ioctls in kernel/power/user.c were marked as deprecated long time
-	ago. Now they notify users about that so that they need to replace
-	their userspace. After some more time, remove them completely.
-
-Who:	Jiri Slaby <jirislaby@gmail.com>
-
----------------------------
-
 What:	The ieee80211_regdom module parameter
 When:	March 2010 / desktop catchup
 
@@ -263,8 +252,7 @@ Who:	Ravikiran Thirumalai <kiran@scalex86.org>
 
 What:	Code that is now under CONFIG_WIRELESS_EXT_SYSFS
 	(in net/core/net-sysfs.c)
-When:	After the only user (hal) has seen a release with the patches
-	for enough time, probably some time in 2010.
+When:	3.5
 Why:	Over 1K .text/.data size reduction, data is available in other
 	ways (ioctls)
 Who:	Johannes Berg <johannes@sipsolutions.net>
@@ -359,15 +347,6 @@ Files:	net/rfkill/core.c
 Why:	It is not possible to claim an rfkill driver since 2007. This is
 	Documented as obsolete since Feb 2010.
 Who: 	anybody or Florian Mickler <florian@mickler.org>
-
-----------------------------
-
-What:	KVM paravirt mmu host support
-When:	January 2011
-Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
-	on newer and older hardware.  It is already not exposed to the guest,
-	and kept only for live migration purposes.
-Who:	Avi Kivity <avi@redhat.com>
 
 ----------------------------
 
@@ -489,6 +468,20 @@ Why:    In 3.0, we can now autodetect internal 3G device and already have
 	information log when acer-wmi initial.
 Who:    Lee, Chun-Yi <jlee@novell.com>
 
+---------------------------
+
+What:	/sys/devices/platform/_UDC_/udc/_UDC_/is_dualspeed file and
+	is_dualspeed line in /sys/devices/platform/ci13xxx_*/udc/device file.
+When:	3.8
+Why:	The is_dualspeed file is superseded by maximum_speed in the same
+	directory and is_dualspeed line in device file is superseded by
+	max_speed line in the same file.
+
+	The maximum_speed/max_speed specifies maximum speed supported by UDC.
+	To check if dualspeeed is supported, check if the value is >= 3.
+	Various possible speeds are defined in <linux/usb/ch9.h>.
+Who:	Michal Nazarewicz <mina86@mina86.com>
+
 ----------------------------
 
 What:	The XFS nodelaylog mount option
@@ -505,3 +498,29 @@ When:	3.5
 Why:	The iwlagn module has been renamed iwlwifi.  The alias will be around
 	for backward compatibility for several cycles and then dropped.
 Who:	Don Fry <donald.h.fry@intel.com>
+
+----------------------------
+
+What:	pci_scan_bus_parented()
+When:	3.5
+Why:	The pci_scan_bus_parented() interface creates a new root bus.  The
+	bus is created with default resources (ioport_resource and
+	iomem_resource) that are always wrong, so we rely on arch code to
+	correct them later.  Callers of pci_scan_bus_parented() should
+	convert to using pci_scan_root_bus() so they can supply a list of
+	bus resources when the bus is created.
+Who:	Bjorn Helgaas <bhelgaas@google.com>
+
+----------------------------
+
+What:	The CAP9 SoC family will be removed
+When:	3.4
+Files:	arch/arm/mach-at91/at91cap9.c
+	arch/arm/mach-at91/at91cap9_devices.c
+	arch/arm/mach-at91/include/mach/at91cap9.h
+	arch/arm/mach-at91/include/mach/at91cap9_matrix.h
+	arch/arm/mach-at91/include/mach/at91cap9_ddrsdr.h
+	arch/arm/mach-at91/board-cap9adk.c
+Why:	The code is not actively maintained and platforms are now hard to find.
+Who:	Nicolas Ferre <nicolas.ferre@atmel.com>
+	Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>

@@ -260,6 +260,11 @@ void __init pnx4008_map_io(void)
 	iotable_init(pnx4008_io_desc, ARRAY_SIZE(pnx4008_io_desc));
 }
 
+static void pnx4008_restart(char mode, const char *cmd)
+{
+	soft_restart(0);
+}
+
 extern struct sys_timer pnx4008_timer;
 
 MACHINE_START(PNX4008, "Philips PNX4008")
@@ -269,4 +274,5 @@ MACHINE_START(PNX4008, "Philips PNX4008")
 	.init_irq 		= pnx4008_init_irq,
 	.init_machine 		= pnx4008_init,
 	.timer 			= &pnx4008_timer,
+	.restart		= pnx4008_restart,
 MACHINE_END

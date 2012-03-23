@@ -191,7 +191,7 @@ static const struct divisor_table_entry divisor_table[] = {
 };
 
 /* local variables */
-static int debug;
+static bool debug;
 
 static atomic_t CmdUrbs;	/* Number of outstanding Command Write Urbs */
 
@@ -610,7 +610,6 @@ static void edge_interrupt_callback(struct urb *urb)
 
 					/* we have pending bytes on the
 					   bulk in pipe, send a request */
-					edge_serial->read_urb->dev = edge_serial->serial->dev;
 					result = usb_submit_urb(edge_serial->read_urb, GFP_ATOMIC);
 					if (result) {
 						dev_err(&edge_serial->serial->dev->dev, "%s - usb_submit_urb(read bulk) failed with result = %d\n", __func__, result);
@@ -711,7 +710,6 @@ static void edge_bulk_in_callback(struct urb *urb)
 	/* check to see if there's any more data for us to read */
 	if (edge_serial->rxBytesAvail > 0) {
 		dbg("%s - posting a read", __func__);
-		edge_serial->read_urb->dev = edge_serial->serial->dev;
 		retval = usb_submit_urb(edge_serial->read_urb, GFP_ATOMIC);
 		if (retval) {
 			dev_err(&urb->dev->dev,
@@ -1330,7 +1328,6 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 	edge_port->txCredits -= count;
 	edge_port->icount.tx += count;
 
-	urb->dev = edge_serial->serial->dev;
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
 		/* something went wrong */

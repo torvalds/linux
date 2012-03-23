@@ -66,7 +66,7 @@ static int xattr_create(struct inode *dir, struct dentry *dentry, int mode)
 }
 #endif
 
-static int xattr_mkdir(struct inode *dir, struct dentry *dentry, int mode)
+static int xattr_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	BUG_ON(!mutex_is_locked(&dir->i_mutex));
 	return dir->i_op->mkdir(dir, dentry, mode);

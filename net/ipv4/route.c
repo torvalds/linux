@@ -109,7 +109,6 @@
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
-#include <net/atmclip.h>
 #include <net/secure_seq.h>
 
 #define RT_FL_TOS(oldflp4) \
@@ -133,7 +132,6 @@ static int ip_rt_mtu_expires __read_mostly	= 10 * 60 * HZ;
 static int ip_rt_min_pmtu __read_mostly		= 512 + 20 + 20;
 static int ip_rt_min_advmss __read_mostly	= 256;
 static int rt_chain_length_max __read_mostly	= 20;
-static int redirect_genid;
 
 static struct delayed_work expires_work;
 static unsigned long expires_ljiffies;
@@ -425,7 +423,7 @@ static int rt_cache_seq_show(struct seq_file *seq, void *v)
 		int len, HHUptod;
 
 		rcu_read_lock();
-		n = dst_get_neighbour(&r->dst);
+		n = dst_get_neighbour_noref(&r->dst);
 		HHUptod = (n && (n->nud_state & NUD_CONNECTED)) ? 1 : 0;
 		rcu_read_unlock();
 
@@ -938,7 +936,7 @@ static void rt_cache_invalidate(struct net *net)
 
 	get_random_bytes(&shuffle, sizeof(shuffle));
 	atomic_add(shuffle + 1U, &net->ipv4.rt_genid);
-	redirect_genid++;
+	inetpeer_invalidate_tree(AF_INET);
 }
 
 /*
@@ -1115,23 +1113,18 @@ static int slow_chain_length(const struct rtable *head)
 
 static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst, const void *daddr)
 {
-	struct neigh_table *tbl = &arp_tbl;
 	static const __be32 inaddr_any = 0;
 	struct net_device *dev = dst->dev;
 	const __be32 *pkey = daddr;
 	struct neighbour *n;
 
-#if defined(CONFIG_ATM_CLIP) || defined(CONFIG_ATM_CLIP_MODULE)
-	if (dev->type == ARPHRD_ATM)
-		tbl = clip_tbl_hook;
-#endif
 	if (dev->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
 		pkey = &inaddr_any;
 
-	n = __ipv4_neigh_lookup(tbl, dev, *(__force u32 *)pkey);
+	n = __ipv4_neigh_lookup(&arp_tbl, dev, *(__force u32 *)pkey);
 	if (n)
 		return n;
-	return neigh_create(tbl, pkey, dev);
+	return neigh_create(&arp_tbl, pkey, dev);
 }
 
 static int rt_bind_neighbour(struct rtable *rt)
@@ -1491,10 +1484,8 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 
 				peer = rt->peer;
 				if (peer) {
-					if (peer->redirect_learned.a4 != new_gw ||
-					    peer->redirect_genid != redirect_genid) {
+					if (peer->redirect_learned.a4 != new_gw) {
 						peer->redirect_learned.a4 = new_gw;
-						peer->redirect_genid = redirect_genid;
 						atomic_inc(&__rt_peer_genid);
 					}
 					check_peer_redir(&rt->dst, peer);
@@ -1799,8 +1790,6 @@ static void ipv4_validate_peer(struct rtable *rt)
 		if (peer) {
 			check_peer_pmtu(&rt->dst, peer);
 
-			if (peer->redirect_genid != redirect_genid)
-				peer->redirect_learned.a4 = 0;
 			if (peer->redirect_learned.a4 &&
 			    peer->redirect_learned.a4 != rt->rt_gateway)
 				check_peer_redir(&rt->dst, peer);
@@ -1964,8 +1953,7 @@ static void rt_init_metrics(struct rtable *rt, const struct flowi4 *fl4,
 		dst_init_metrics(&rt->dst, peer->metrics, false);
 
 		check_peer_pmtu(&rt->dst, peer);
-		if (peer->redirect_genid != redirect_genid)
-			peer->redirect_learned.a4 = 0;
+
 		if (peer->redirect_learned.a4 &&
 		    peer->redirect_learned.a4 != rt->rt_gateway) {
 			rt->rt_gateway = peer->redirect_learned.a4;

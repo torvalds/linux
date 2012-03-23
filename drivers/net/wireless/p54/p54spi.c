@@ -581,11 +581,7 @@ static void p54spi_op_stop(struct ieee80211_hw *dev)
 	struct p54s_priv *priv = dev->priv;
 	unsigned long flags;
 
-	if (mutex_lock_interruptible(&priv->mutex)) {
-		/* FIXME: how to handle this error? */
-		return;
-	}
-
+	mutex_lock(&priv->mutex);
 	WARN_ON(priv->fw_state != FW_STATE_READY);
 
 	p54spi_power_off(priv);
@@ -704,7 +700,6 @@ static int __devexit p54spi_remove(struct spi_device *spi)
 static struct spi_driver p54spi_driver = {
 	.driver = {
 		.name		= "p54spi",
-		.bus		= &spi_bus_type,
 		.owner		= THIS_MODULE,
 	},
 

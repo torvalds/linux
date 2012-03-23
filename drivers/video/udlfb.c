@@ -69,9 +69,9 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 /* module options */
-static int console = 1; /* Allow fbcon to open framebuffer */
-static int fb_defio = 1;  /* Detect mmap writes using page faults */
-static int shadow = 1; /* Optionally disable shadow framebuffer */
+static bool console = 1; /* Allow fbcon to open framebuffer */
+static bool fb_defio = 1;  /* Detect mmap writes using page faults */
+static bool shadow = 1; /* Optionally disable shadow framebuffer */
 
 /* dlfb keeps a list of urbs for efficient bulk transfers */
 static void dlfb_urb_completion(struct urb *urb);
@@ -1761,24 +1761,7 @@ static struct usb_driver dlfb_driver = {
 	.id_table = id_table,
 };
 
-static int __init dlfb_module_init(void)
-{
-	int res;
-
-	res = usb_register(&dlfb_driver);
-	if (res)
-		err("usb_register failed. Error number %d", res);
-
-	return res;
-}
-
-static void __exit dlfb_module_exit(void)
-{
-	usb_deregister(&dlfb_driver);
-}
-
-module_init(dlfb_module_init);
-module_exit(dlfb_module_exit);
+module_usb_driver(dlfb_driver);
 
 static void dlfb_urb_completion(struct urb *urb)
 {

@@ -18,7 +18,7 @@
 #include <linux/init.h>
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
-#include <linux/sysdev.h>
+#include <linux/device.h>
 #include <linux/syscore_ops.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -46,6 +46,7 @@
 #include <plat/pm.h>
 #include <plat/pll.h>
 #include <plat/nand-core.h>
+#include <plat/watchdog-reset.h>
 
 static struct map_desc s3c244x_iodesc[] __initdata = {
 	IODESC_ENT(CLKPWR),
@@ -135,17 +136,19 @@ void __init s3c244x_init_clocks(int xtal)
 	s3c2410_baseclk_add();
 }
 
-/* Since the S3C2442 and S3C2440 share  items, put both sysclasses here */
+/* Since the S3C2442 and S3C2440 share items, put both subsystems here */
 
-struct sysdev_class s3c2440_sysclass = {
+struct bus_type s3c2440_subsys = {
 	.name		= "s3c2440-core",
+	.dev_name	= "s3c2440-core",
 };
 
-struct sysdev_class s3c2442_sysclass = {
+struct bus_type s3c2442_subsys = {
 	.name		= "s3c2442-core",
+	.dev_name	= "s3c2442-core",
 };
 
-/* need to register class before we actually register the device, and
+/* need to register the subsystem before we actually register the device, and
  * we also need to ensure that it has been initialised before any of the
  * drivers even try to use it (even if not on an s3c2440 based system)
  * as a driver which may support both 2410 and 2440 may try and use it.
@@ -153,14 +156,14 @@ struct sysdev_class s3c2442_sysclass = {
 
 static int __init s3c2440_core_init(void)
 {
-	return sysdev_class_register(&s3c2440_sysclass);
+	return subsys_system_register(&s3c2440_subsys, NULL);
 }
 
 core_initcall(s3c2440_core_init);
 
 static int __init s3c2442_core_init(void)
 {
-	return sysdev_class_register(&s3c2442_sysclass);
+	return subsys_system_register(&s3c2442_subsys, NULL);
 }
 
 core_initcall(s3c2442_core_init);
@@ -194,3 +197,14 @@ struct syscore_ops s3c244x_pm_syscore_ops = {
 	.suspend	= s3c244x_suspend,
 	.resume		= s3c244x_resume,
 };
+
+void s3c244x_restart(char mode, const char *cmd)
+{
+	if (mode == 's')
+		soft_restart(0);
+
+	arch_wdt_reset();
+
+	/* we'll take a jump through zero as a poor second */
+	soft_restart(0);
+}

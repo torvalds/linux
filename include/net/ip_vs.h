@@ -21,7 +21,7 @@
 #include <linux/netfilter.h>		/* for union nf_inet_addr */
 #include <linux/ip.h>
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
-#include <net/ipv6.h>			/* for ipv6_addr_copy */
+#include <net/ipv6.h>
 #if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
 #include <net/netfilter/nf_conntrack.h>
 #endif
@@ -119,8 +119,8 @@ ip_vs_fill_iphdr(int af, const void *nh, struct ip_vs_iphdr *iphdr)
 		const struct ipv6hdr *iph = nh;
 		iphdr->len = sizeof(struct ipv6hdr);
 		iphdr->protocol = iph->nexthdr;
-		ipv6_addr_copy(&iphdr->saddr.in6, &iph->saddr);
-		ipv6_addr_copy(&iphdr->daddr.in6, &iph->daddr);
+		iphdr->saddr.in6 = iph->saddr;
+		iphdr->daddr.in6 = iph->daddr;
 	} else
 #endif
 	{
@@ -137,7 +137,7 @@ static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
 {
 #ifdef CONFIG_IP_VS_IPV6
 	if (af == AF_INET6)
-		ipv6_addr_copy(&dst->in6, &src->in6);
+		dst->in6 = src->in6;
 	else
 #endif
 	dst->ip = src->ip;

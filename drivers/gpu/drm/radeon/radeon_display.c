@@ -406,7 +406,7 @@ static int radeon_crtc_page_flip(struct drm_crtc *crtc,
 	if (!ASIC_IS_AVIVO(rdev)) {
 		/* crtc offset is from display base addr not FB location */
 		base -= radeon_crtc->legacy_display_base_addr;
-		pitch_pixels = fb->pitch / (fb->bits_per_pixel / 8);
+		pitch_pixels = fb->pitches[0] / (fb->bits_per_pixel / 8);
 
 		if (tiling_flags & RADEON_TILING_MACRO) {
 			if (ASIC_IS_R300(rdev)) {
@@ -1078,29 +1078,36 @@ static const struct drm_framebuffer_funcs radeon_fb_funcs = {
 	.create_handle = radeon_user_framebuffer_create_handle,
 };
 
-void
+int
 radeon_framebuffer_init(struct drm_device *dev,
 			struct radeon_framebuffer *rfb,
-			struct drm_mode_fb_cmd *mode_cmd,
+			struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *obj)
 {
+	int ret;
 	rfb->obj = obj;
-	drm_framebuffer_init(dev, &rfb->base, &radeon_fb_funcs);
+	ret = drm_framebuffer_init(dev, &rfb->base, &radeon_fb_funcs);
+	if (ret) {
+		rfb->obj = NULL;
+		return ret;
+	}
 	drm_helper_mode_fill_fb_struct(&rfb->base, mode_cmd);
+	return 0;
 }
 
 static struct drm_framebuffer *
 radeon_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *file_priv,
-			       struct drm_mode_fb_cmd *mode_cmd)
+			       struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct radeon_framebuffer *radeon_fb;
+	int ret;
 
-	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handle);
+	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
-			"can't create framebuffer\n", mode_cmd->handle);
+			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
 	}
 
@@ -1108,7 +1115,12 @@ radeon_user_framebuffer_create(struct drm_device *dev,
 	if (radeon_fb == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
+	ret = radeon_framebuffer_init(dev, radeon_fb, mode_cmd, obj);
+	if (ret) {
+		kfree(radeon_fb);
+		drm_gem_object_unreference_unlocked(obj);
+		return NULL;
+	}
 
 	return &radeon_fb->base;
 }
@@ -1305,9 +1317,11 @@ int radeon_modeset_init(struct radeon_device *rdev)
 		return ret;
 	}
 
-	/* init dig PHYs */
-	if (rdev->is_atom_bios)
+	/* init dig PHYs, disp eng pll */
+	if (rdev->is_atom_bios) {
 		radeon_atom_encoder_init(rdev);
+		radeon_atom_dcpll_init(rdev);
+	}
 
 	/* initialize hpd */
 	radeon_hpd_init(rdev);

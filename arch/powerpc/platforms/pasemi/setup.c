@@ -224,7 +224,7 @@ static __init void pas_init_IRQ(void)
 	openpic_addr = of_read_number(opprop, naddr);
 	printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
 
-	mpic_flags = MPIC_PRIMARY | MPIC_LARGE_VECTORS | MPIC_NO_BIAS;
+	mpic_flags = MPIC_LARGE_VECTORS | MPIC_NO_BIAS;
 
 	nmiprop = of_get_property(mpic_node, "nmi-source", NULL);
 	if (nmiprop)
@@ -234,7 +234,7 @@ static __init void pas_init_IRQ(void)
 			  mpic_flags, 0, 0, "PASEMI-OPIC");
 	BUG_ON(!mpic);
 
-	mpic_assign_isu(mpic, 0, openpic_addr + 0x10000);
+	mpic_assign_isu(mpic, 0, mpic->paddr + 0x10000);
 	mpic_init(mpic);
 	/* The NMI/MCK source needs to be prio 15 */
 	if (nmiprop) {

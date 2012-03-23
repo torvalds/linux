@@ -70,10 +70,10 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.1.18.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.1.29.0-k"
 
 /* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01011200
+#define VMXNET3_DRIVER_VERSION_NUM      0x01011D00
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -401,7 +401,7 @@ void
 vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
 
 int
-vmxnet3_set_features(struct net_device *netdev, u32 features);
+vmxnet3_set_features(struct net_device *netdev, netdev_features_t features);
 
 int
 vmxnet3_create_queues(struct vmxnet3_adapter *adapter,

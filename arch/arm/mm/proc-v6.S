@@ -55,6 +55,7 @@ ENTRY(cpu_v6_proc_fin)
  *	- loc   - location to jump to for soft reset
  */
 	.align	5
+	.pushsection	.idmap.text, "ax"
 ENTRY(cpu_v6_reset)
 	mrc	p15, 0, r1, c1, c0, 0		@ ctrl register
 	bic	r1, r1, #0x1			@ ...............m
@@ -62,6 +63,8 @@ ENTRY(cpu_v6_reset)
 	mov	r1, #0
 	mcr	p15, 0, r1, c7, c5, 4		@ ISB
 	mov	pc, r0
+ENDPROC(cpu_v6_reset)
+	.popsection
 
 /*
  *	cpu_v6_do_idle()

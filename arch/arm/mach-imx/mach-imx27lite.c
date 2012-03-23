@@ -84,4 +84,5 @@ MACHINE_START(IMX27LITE, "LogicPD i.MX27LITE")
 	.handle_irq = imx27_handle_irq,
 	.timer = &mx27lite_timer,
 	.init_machine = mx27lite_init,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -423,17 +423,7 @@ static struct platform_driver jz_nand_driver = {
 	},
 };
 
-static int __init jz_nand_init(void)
-{
-	return platform_driver_register(&jz_nand_driver);
-}
-module_init(jz_nand_init);
-
-static void __exit jz_nand_exit(void)
-{
-	platform_driver_unregister(&jz_nand_driver);
-}
-module_exit(jz_nand_exit);
+module_platform_driver(jz_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");

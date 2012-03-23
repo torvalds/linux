@@ -52,12 +52,6 @@
 #define DRV_VERSION	"0.28"
 #define DRV_RELDATE	"07Oct2011"
 
-/* PHY CHIP Address */
-#define PHY1_ADDR	1	/* For MAC1 */
-#define PHY2_ADDR	3	/* For MAC2 */
-#define PHY_MODE	0x3100	/* PHY CHIP Register 0 */
-#define PHY_CAP		0x01E1	/* PHY CHIP Register 4 */
-
 /* Time in jiffies before concluding the transmitter is hung. */
 #define TX_TIMEOUT	(6000 * HZ / 1000)
 
@@ -69,8 +63,11 @@
 
 /* MAC registers */
 #define MCR0		0x00	/* Control register 0 */
+#define  MCR0_RCVEN	0x0002	/* Receive enable */
 #define  MCR0_PROMISC	0x0020	/* Promiscuous mode */
 #define  MCR0_HASH_EN	0x0100	/* Enable multicast hash table function */
+#define  MCR0_XMTEN	0x1000	/* Transmission enable */
+#define  MCR0_FD	0x8000	/* Full/Half duplex */
 #define MCR1		0x04	/* Control register 1 */
 #define  MAC_RST	0x0001	/* Reset the MAC */
 #define MBCR		0x08	/* Bus control */
@@ -129,6 +126,7 @@
 #define PHY_CC		0x88	/* PHY status change configuration register */
 #define PHY_ST		0x8A	/* PHY status register */
 #define MAC_SM		0xAC	/* MAC status machine */
+#define  MAC_SM_RST	0x0002	/* MAC status machine reset */
 #define MAC_ID		0xBE	/* Identifier register */
 
 #define TX_DCNT		0x80	/* TX descriptor count */
@@ -154,9 +152,6 @@
 #define DSC_RX_MIDH_HIT	0x0004	/* RX MID table hit (no error) */
 #define DSC_RX_IDX_MID_MASK 3	/* RX mask for the index of matched MIDx */
 
-/* PHY settings */
-#define ICPLUS_PHY_ID	0x0243
-
 MODULE_AUTHOR("Sten Wang <sten.wang@rdc.com.tw>,"
 	"Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>,"
 	"Florian Fainelli <florian@openwrt.org>");
@@ -178,7 +173,7 @@ struct r6040_descriptor {
 	struct r6040_descriptor *vndescp;	/* 14-17 */
 	struct sk_buff *skb_ptr;	/* 18-1B */
 	u32	rev2;			/* 1C-1F */
-} __attribute__((aligned(32)));
+} __aligned(32);
 
 struct r6040_private {
 	spinlock_t lock;		/* driver lock */
@@ -191,7 +186,7 @@ struct r6040_private {
 	struct r6040_descriptor *tx_ring;
 	dma_addr_t rx_ring_dma;
 	dma_addr_t tx_ring_dma;
-	u16	tx_free_desc, phy_addr;
+	u16	tx_free_desc;
 	u16	mcr0, mcr1;
 	struct net_device *dev;
 	struct mii_bus *mii_bus;
@@ -205,8 +200,6 @@ struct r6040_private {
 static char version[] __devinitdata = DRV_NAME
 	": RDC R6040 NAPI net driver,"
 	"version "DRV_VERSION " (" DRV_RELDATE ")";
-
-static int phy_table[] = { PHY1_ADDR, PHY2_ADDR };
 
 /* Read a word data from PHY Chip */
 static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
@@ -379,11 +372,11 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	iowrite16(MAC_RST, ioaddr + MCR1);
 	while (limit--) {
 		cmd = ioread16(ioaddr + MCR1);
-		if (cmd & 0x1)
+		if (cmd & MAC_RST)
 			break;
 	}
 	/* Reset internal state machine */
-	iowrite16(2, ioaddr + MAC_SM);
+	iowrite16(MAC_SM_RST, ioaddr + MAC_SM);
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
 
@@ -409,7 +402,7 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	iowrite16(INT_MASK, ioaddr + MIER);
 
 	/* Enable TX and RX */
-	iowrite16(lp->mcr0 | 0x0002, ioaddr);
+	iowrite16(lp->mcr0 | MCR0_RCVEN, ioaddr);
 
 	/* Let TX poll the descriptors
 	 * we may got called by r6040_tx_timeout which has left
@@ -461,7 +454,7 @@ static void r6040_down(struct net_device *dev)
 	iowrite16(MAC_RST, ioaddr + MCR1);	/* Reset RDC MAC */
 	while (limit--) {
 		cmd = ioread16(ioaddr + MCR1);
-		if (cmd & 0x1)
+		if (cmd & MAC_RST)
 			break;
 	}
 
@@ -742,9 +735,10 @@ static void r6040_mac_address(struct net_device *dev)
 	void __iomem *ioaddr = lp->base;
 	u16 *adrp;
 
-	/* MAC operation register */
-	iowrite16(0x01, ioaddr + MCR1); /* Reset MAC */
-	iowrite16(2, ioaddr + MAC_SM); /* Reset internal state machine */
+	/* Reset MAC */
+	iowrite16(MAC_RST, ioaddr + MCR1);
+	/* Reset internal state machine */
+	iowrite16(MAC_SM_RST, ioaddr + MAC_SM);
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
 
@@ -1013,7 +1007,7 @@ static void r6040_adjust_link(struct net_device *dev)
 
 	/* reflect duplex change */
 	if (phydev->link && (lp->old_duplex != phydev->duplex)) {
-		lp->mcr0 |= (phydev->duplex == DUPLEX_FULL ? 0x8000 : 0);
+		lp->mcr0 |= (phydev->duplex == DUPLEX_FULL ? MCR0_FD : 0);
 		iowrite16(lp->mcr0, ioaddr);
 
 		status_changed = 1;
@@ -1166,8 +1160,7 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->dev = dev;
 
 	/* Init RDC private data */
-	lp->mcr0 = 0x1002;
-	lp->phy_addr = phy_table[card_idx];
+	lp->mcr0 = MCR0_XMTEN | MCR0_RCVEN;
 
 	/* The RDC-specific entries in the device structure. */
 	dev->netdev_ops = &r6040_netdev_ops;
@@ -1188,7 +1181,8 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 	lp->mii_bus->write = r6040_mdiobus_write;
 	lp->mii_bus->reset = r6040_mdiobus_reset;
 	lp->mii_bus->name = "r6040_eth_mii";
-	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%x", card_idx);
+	snprintf(lp->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		dev_name(&pdev->dev), card_idx);
 	lp->mii_bus->irq = kmalloc(sizeof(int)*PHY_MAX_ADDR, GFP_KERNEL);
 	if (!lp->mii_bus->irq) {
 		dev_err(&pdev->dev, "mii_bus irq allocation failed\n");

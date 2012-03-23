@@ -21,6 +21,7 @@
 #include <asm/byteorder.h>
 
 struct lpfc_hba;
+#define LPFC_FCP_CDB_LEN 16
 
 #define list_remove_head(list, entry, type, member)		\
 	do {							\
@@ -102,7 +103,7 @@ struct fcp_cmnd {
 #define  WRITE_DATA      0x01	/* Bit 0 */
 #define  READ_DATA       0x02	/* Bit 1 */
 
-	uint8_t fcpCdb[16];	/* SRB cdb field is copied here */
+	uint8_t fcpCdb[LPFC_FCP_CDB_LEN]; /* SRB cdb field is copied here */
 	uint32_t fcpDl;		/* Total transfer length */
 
 };
@@ -153,5 +154,5 @@ struct lpfc_scsi_buf {
 
 #define LPFC_SCSI_DMA_EXT_SIZE 264
 #define LPFC_BPL_SIZE          1024
-
+#define LPFC_RETRY_PAUSE       300
 #define MDAC_DIRECT_CMD                  0x22

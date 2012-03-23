@@ -151,17 +151,18 @@ void bpf_jit_compile(struct sk_filter *fp)
 	cleanup_addr = proglen; /* epilogue address */
 
 	for (pass = 0; pass < 10; pass++) {
+		u8 seen_or_pass0 = (pass == 0) ? (SEEN_XREG | SEEN_DATAREF | SEEN_MEM) : seen;
 		/* no prologue/epilogue for trivial filters (RET something) */
 		proglen = 0;
 		prog = temp;
 
-		if (seen) {
+		if (seen_or_pass0) {
 			EMIT4(0x55, 0x48, 0x89, 0xe5); /* push %rbp; mov %rsp,%rbp */
 			EMIT4(0x48, 0x83, 0xec, 96);	/* subq  $96,%rsp	*/
 			/* note : must save %rbx in case bpf_error is hit */
-			if (seen & (SEEN_XREG | SEEN_DATAREF))
+			if (seen_or_pass0 & (SEEN_XREG | SEEN_DATAREF))
 				EMIT4(0x48, 0x89, 0x5d, 0xf8); /* mov %rbx, -8(%rbp) */
-			if (seen & SEEN_XREG)
+			if (seen_or_pass0 & SEEN_XREG)
 				CLEAR_X(); /* make sure we dont leek kernel memory */
 
 			/*
@@ -170,7 +171,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 			 *  r9 = skb->len - skb->data_len
 			 *  r8 = skb->data
 			 */
-			if (seen & SEEN_DATAREF) {
+			if (seen_or_pass0 & SEEN_DATAREF) {
 				if (offsetof(struct sk_buff, len) <= 127)
 					/* mov    off8(%rdi),%r9d */
 					EMIT4(0x44, 0x8b, 0x4f, offsetof(struct sk_buff, len));
@@ -260,9 +261,14 @@ void bpf_jit_compile(struct sk_filter *fp)
 			case BPF_S_ALU_DIV_X: /* A /= X; */
 				seen |= SEEN_XREG;
 				EMIT2(0x85, 0xdb);	/* test %ebx,%ebx */
-				if (pc_ret0 != -1)
-					EMIT_COND_JMP(X86_JE, addrs[pc_ret0] - (addrs[i] - 4));
-				else {
+				if (pc_ret0 > 0) {
+					/* addrs[pc_ret0 - 1] is start address of target
+					 * (addrs[i] - 4) is the address following this jmp
+					 * ("xor %edx,%edx; div %ebx" being 4 bytes long)
+					 */
+					EMIT_COND_JMP(X86_JE, addrs[pc_ret0 - 1] -
+								(addrs[i] - 4));
+				} else {
 					EMIT_COND_JMP(X86_JNE, 2 + 5);
 					CLEAR_A();
 					EMIT1_off32(0xe9, cleanup_addr - (addrs[i] - 4)); /* jmp .+off32 */
@@ -335,12 +341,12 @@ void bpf_jit_compile(struct sk_filter *fp)
 				}
 				/* fallinto */
 			case BPF_S_RET_A:
-				if (seen) {
+				if (seen_or_pass0) {
 					if (i != flen - 1) {
 						EMIT_JMP(cleanup_addr - addrs[i]);
 						break;
 					}
-					if (seen & SEEN_XREG)
+					if (seen_or_pass0 & SEEN_XREG)
 						EMIT4(0x48, 0x8b, 0x5d, 0xf8);  /* mov  -8(%rbp),%rbx */
 					EMIT1(0xc9);		/* leaveq */
 				}
@@ -483,8 +489,9 @@ common_load:			seen |= SEEN_DATAREF;
 				goto common_load;
 			case BPF_S_LDX_B_MSH:
 				if ((int)K < 0) {
-					if (pc_ret0 != -1) {
-						EMIT_JMP(addrs[pc_ret0] - addrs[i]);
+					if (pc_ret0 > 0) {
+						/* addrs[pc_ret0 - 1] is the start address */
+						EMIT_JMP(addrs[pc_ret0 - 1] - addrs[i]);
 						break;
 					}
 					CLEAR_A();
@@ -599,13 +606,14 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
 		 * use it to give the cleanup instruction(s) addr
 		 */
 		cleanup_addr = proglen - 1; /* ret */
-		if (seen)
+		if (seen_or_pass0)
 			cleanup_addr -= 1; /* leaveq */
-		if (seen & SEEN_XREG)
+		if (seen_or_pass0 & SEEN_XREG)
 			cleanup_addr -= 4; /* mov  -8(%rbp),%rbx */
 
 		if (image) {
-			WARN_ON(proglen != oldproglen);
+			if (proglen != oldproglen)
+				pr_err("bpb_jit_compile proglen=%u != oldproglen=%u\n", proglen, oldproglen);
 			break;
 		}
 		if (proglen == oldproglen) {

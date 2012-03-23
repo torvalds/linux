@@ -33,9 +33,9 @@
  * software indicates your acceptance of these terms and conditions.  If you do
  * not agree with these terms and conditions, do not use the software.
  *
- * COPYRIGHT © 1994 - 1995   by AT&T.                All Rights Reserved
- * COPYRIGHT © 1996 - 2000 by Lucent Technologies.   All Rights Reserved
- * COPYRIGHT © 2001 - 2004   by Agere Systems Inc.   All Rights Reserved
+ * COPYRIGHT Â© 1994 - 1995   by AT&T.                All Rights Reserved
+ * COPYRIGHT Â© 1996 - 2000 by Lucent Technologies.   All Rights Reserved
+ * COPYRIGHT Â© 2001 - 2004   by Agere Systems Inc.   All Rights Reserved
  * All rights reserved.
  *
  * Redistribution and use in source or binary forms, with or without

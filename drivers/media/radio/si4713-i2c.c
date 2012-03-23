@@ -2106,17 +2106,4 @@ static struct i2c_driver si4713_i2c_driver = {
 	.id_table       = si4713_id,
 };
 
-/* Module Interface */
-static int __init si4713_module_init(void)
-{
-	return i2c_add_driver(&si4713_i2c_driver);
-}
-
-static void __exit si4713_module_exit(void)
-{
-	i2c_del_driver(&si4713_i2c_driver);
-}
-
-module_init(si4713_module_init);
-module_exit(si4713_module_exit);
-
+module_i2c_driver(si4713_i2c_driver);

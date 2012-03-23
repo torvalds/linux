@@ -156,6 +156,9 @@ static int omap_init_mcbsp(struct omap_hwmod *oh, void *unused)
 		else
 			/* The FIFO has 128 locations */
 			pdata->buffer_size = 0x80;
+	} else if (oh->class->rev == MCBSP_CONFIG_TYPE4) {
+		/* The FIFO has 128 locations for all instances */
+		pdata->buffer_size = 0x80;
 	}
 
 	if (oh->class->rev >= MCBSP_CONFIG_TYPE3)

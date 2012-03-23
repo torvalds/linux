@@ -34,7 +34,6 @@
 #include <linux/i2c/twl.h>
 #include <linux/slab.h>
 
-
 /*
  * The TWL4030 family chips include a keypad controller that supports
  * up to an 8x8 switch matrix.  The controller can issue system wakeup
@@ -302,7 +301,7 @@ static int __devinit twl4030_kp_program(struct twl4030_keypad *kp)
 	if (twl4030_kpwrite_u8(kp, i, KEYP_DEB) < 0)
 		return -EIO;
 
-	/* Set timeout period to 100 ms */
+	/* Set timeout period to 200 ms */
 	i = KEYP_PERIOD_US(200000, PTV_PRESCALER);
 	if (twl4030_kpwrite_u8(kp, (i & 0xFF), KEYP_TIMEOUT_L) < 0)
 		return -EIO;
@@ -460,21 +459,9 @@ static struct platform_driver twl4030_kp_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int __init twl4030_kp_init(void)
-{
-	return platform_driver_register(&twl4030_kp_driver);
-}
-module_init(twl4030_kp_init);
-
-static void __exit twl4030_kp_exit(void)
-{
-	platform_driver_unregister(&twl4030_kp_driver);
-}
-module_exit(twl4030_kp_exit);
+module_platform_driver(twl4030_kp_driver);
 
 MODULE_AUTHOR("Texas Instruments");
 MODULE_DESCRIPTION("TWL4030 Keypad Driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:twl4030_keypad");
-

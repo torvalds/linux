@@ -437,7 +437,7 @@ int radeon_crtc_do_set_base(struct drm_crtc *crtc,
 
 	crtc_offset_cntl = 0;
 
-	pitch_pixels = target_fb->pitch / (target_fb->bits_per_pixel / 8);
+	pitch_pixels = target_fb->pitches[0] / (target_fb->bits_per_pixel / 8);
 	crtc_pitch  = (((pitch_pixels * target_fb->bits_per_pixel) +
 			((target_fb->bits_per_pixel * 8) - 1)) /
 		       (target_fb->bits_per_pixel * 8));

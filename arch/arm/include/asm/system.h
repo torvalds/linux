@@ -80,6 +80,14 @@ struct siginfo;
 void arm_notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,
 		unsigned long err, unsigned long trap);
 
+#ifdef CONFIG_ARM_LPAE
+#define FAULT_CODE_ALIGNMENT	33
+#define FAULT_CODE_DEBUG	34
+#else
+#define FAULT_CODE_ALIGNMENT	1
+#define FAULT_CODE_DEBUG	2
+#endif
+
 void hook_fault_code(int nr, int (*fn)(unsigned long, unsigned int,
 				       struct pt_regs *),
 		     int sig, int code, const char *name);
@@ -100,7 +108,7 @@ extern void __show_regs(struct pt_regs *);
 extern int __pure cpu_architecture(void);
 extern void cpu_init(void);
 
-void arm_machine_restart(char mode, const char *cmd);
+void soft_restart(unsigned long);
 extern void (*arm_pm_restart)(char str, const char *cmd);
 
 #define UDBG_UNDEFINED	(1 << 0)

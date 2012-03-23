@@ -78,4 +78,5 @@ MACHINE_START(FORTUNET, "ARM-FortuNet")
 	.map_io		= clps711x_map_io,
 	.init_irq	= clps711x_init_irq,
 	.timer		= &clps711x_timer,
+	.restart	= clps711x_restart,
 MACHINE_END

@@ -10,13 +10,17 @@ if [ "$C" = "1" -o "$C" = "2" ]; then
 #    OPTIONS=$*
 
 # Workaround for Coccinelle < 0.2.3
-    FLAGS="-I $srctree/include -very_quiet"
-    shift $(( $# - 1 ))
-    OPTIONS=$1
+	FLAGS="-I $srctree/include -very_quiet"
+	shift $(( $# - 1 ))
+	OPTIONS=$1
 else
     ONLINE=0
     FLAGS="-very_quiet"
-    OPTIONS="-dir $srctree"
+    if [ "$KBUILD_EXTMOD" = "" ] ; then
+        OPTIONS="-dir $srctree"
+    else
+        OPTIONS="-dir $KBUILD_EXTMOD -patch $srctree -I $srctree/include -I $KBUILD_EXTMOD/include"
+    fi
 fi
 
 if [ ! -x "$SPATCH" ]; then

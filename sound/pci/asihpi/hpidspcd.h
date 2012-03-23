@@ -27,10 +27,6 @@ Functions for reading DSP code to load into DSP
 
 #include "hpi_internal.h"
 
-/** Code header version is decimal encoded e.g. 4.06.10 is 40601 */
-#define HPI_VER_DECIMAL ((int)(HPI_VER_MAJOR(HPI_VER) * 10000 + \
-HPI_VER_MINOR(HPI_VER) * 100 + HPI_VER_RELEASE(HPI_VER)))
-
 /** Header structure for dsp firmware file
  This structure must match that used in s2bin.c for generation of asidsp.bin
  */

@@ -66,6 +66,7 @@
 #include <net/mac80211.h>
 
 struct iwl_priv;
+struct iwl_shared;
 
 /*
  * EEPROM access time values:
@@ -305,11 +306,11 @@ struct iwl_eeprom_ops {
 
 
 int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev);
-void iwl_eeprom_free(struct iwl_priv *priv);
+void iwl_eeprom_free(struct iwl_shared *shrd);
 int  iwl_eeprom_check_version(struct iwl_priv *priv);
 int  iwl_eeprom_check_sku(struct iwl_priv *priv);
-const u8 *iwl_eeprom_query_addr(const struct iwl_priv *priv, size_t offset);
-u16 iwl_eeprom_query16(const struct iwl_priv *priv, size_t offset);
+const u8 *iwl_eeprom_query_addr(const struct iwl_shared *shrd, size_t offset);
+u16 iwl_eeprom_query16(const struct iwl_shared *shrd, size_t offset);
 int iwl_init_channel_map(struct iwl_priv *priv);
 void iwl_free_channel_map(struct iwl_priv *priv);
 const struct iwl_channel_info *iwl_get_channel_info(

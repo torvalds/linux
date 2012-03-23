@@ -677,11 +677,9 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 	u8 toggle;
 
 	deb_info("%s()\n", __func__);
-	if (d == NULL)
-		return;
-
 	if (d->rc_dev == NULL) {
 		/* This will occur if disable_rc_polling=1 */
+		kfree(purb->transfer_buffer);
 		usb_free_urb(purb);
 		return;
 	}
@@ -690,6 +688,7 @@ static void dib0700_rc_urb_completion(struct urb *purb)
 
 	if (purb->status < 0) {
 		deb_info("discontinuing polling\n");
+		kfree(purb->transfer_buffer);
 		usb_free_urb(purb);
 		return;
 	}
@@ -784,8 +783,11 @@ int dib0700_rc_setup(struct dvb_usb_device *d)
 			  dib0700_rc_urb_completion, d);
 
 	ret = usb_submit_urb(purb, GFP_ATOMIC);
-	if (ret)
+	if (ret) {
 		err("rc submit urb failed\n");
+		kfree(purb->transfer_buffer);
+		usb_free_urb(purb);
+	}
 
 	return ret;
 }
@@ -832,27 +834,7 @@ static struct usb_driver dib0700_driver = {
 	.id_table   = dib0700_usb_id_table,
 };
 
-/* module stuff */
-static int __init dib0700_module_init(void)
-{
-	int result;
-	info("loaded with support for %d different device-types", dib0700_device_count);
-	if ((result = usb_register(&dib0700_driver))) {
-		err("usb_register failed. Error number %d",result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit dib0700_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&dib0700_driver);
-}
-
-module_init (dib0700_module_init);
-module_exit (dib0700_module_exit);
+module_usb_driver(dib0700_driver);
 
 MODULE_FIRMWARE("dvb-usb-dib0700-1.20.fw");
 MODULE_AUTHOR("Patrick Boettcher <pboettcher@dibcom.fr>");

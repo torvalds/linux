@@ -56,17 +56,8 @@ int cap_netlink_send(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
-int cap_netlink_recv(struct sk_buff *skb, int cap)
-{
-	if (!cap_raised(current_cap(), cap))
-		return -EPERM;
-	return 0;
-}
-EXPORT_SYMBOL(cap_netlink_recv);
-
 /**
  * cap_capable - Determine whether a task has a particular effective capability
- * @tsk: The task to query
  * @cred: The credentials to use
  * @ns:  The user namespace in which we need the capability
  * @cap: The capability to check for
@@ -80,8 +71,8 @@ EXPORT_SYMBOL(cap_netlink_recv);
  * cap_has_capability() returns 0 when a task has a capability, but the
  * kernel's capable() and has_capability() returns 1 for this case.
  */
-int cap_capable(struct task_struct *tsk, const struct cred *cred,
-		struct user_namespace *targ_ns, int cap, int audit)
+int cap_capable(const struct cred *cred, struct user_namespace *targ_ns,
+		int cap, int audit)
 {
 	for (;;) {
 		/* The creator of the user namespace has all caps. */
@@ -222,9 +213,8 @@ static inline int cap_inh_is_capped(void)
 	/* they are so limited unless the current task has the CAP_SETPCAP
 	 * capability
 	 */
-	if (cap_capable(current, current_cred(),
-			current_cred()->user->user_ns, CAP_SETPCAP,
-			SECURITY_CAP_AUDIT) == 0)
+	if (cap_capable(current_cred(), current_cred()->user->user_ns,
+			CAP_SETPCAP, SECURITY_CAP_AUDIT) == 0)
 		return 0;
 	return 1;
 }
@@ -874,7 +864,7 @@ int cap_task_prctl(int option, unsigned long arg2, unsigned long arg3,
 		     & (new->securebits ^ arg2))			/*[1]*/
 		    || ((new->securebits & SECURE_ALL_LOCKS & ~arg2))	/*[2]*/
 		    || (arg2 & ~(SECURE_ALL_LOCKS | SECURE_ALL_BITS))	/*[3]*/
-		    || (cap_capable(current, current_cred(),
+		    || (cap_capable(current_cred(),
 				    current_cred()->user->user_ns, CAP_SETPCAP,
 				    SECURITY_CAP_AUDIT) != 0)		/*[4]*/
 			/*
@@ -940,7 +930,7 @@ int cap_vm_enough_memory(struct mm_struct *mm, long pages)
 {
 	int cap_sys_admin = 0;
 
-	if (cap_capable(current, current_cred(), &init_user_ns, CAP_SYS_ADMIN,
+	if (cap_capable(current_cred(), &init_user_ns, CAP_SYS_ADMIN,
 			SECURITY_CAP_NOAUDIT) == 0)
 		cap_sys_admin = 1;
 	return __vm_enough_memory(mm, pages, cap_sys_admin);
@@ -967,7 +957,7 @@ int cap_file_mmap(struct file *file, unsigned long reqprot,
 	int ret = 0;
 
 	if (addr < dac_mmap_min_addr) {
-		ret = cap_capable(current, current_cred(), &init_user_ns, CAP_SYS_RAWIO,
+		ret = cap_capable(current_cred(), &init_user_ns, CAP_SYS_RAWIO,
 				  SECURITY_CAP_AUDIT);
 		/* set PF_SUPERPRIV if it turns out we allow the low mmap */
 		if (ret == 0)

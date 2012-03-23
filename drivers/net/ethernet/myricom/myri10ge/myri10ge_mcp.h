@@ -356,7 +356,7 @@ enum myri10ge_mcp_cmd_type {
 	MXGEFW_CMD_GET_DCA_OFFSET = 56,
 	/* offset of dca control for WDMAs */
 
-	/* VMWare NetQueue commands */
+	/* VMware NetQueue commands */
 	MXGEFW_CMD_NETQ_GET_FILTERS_PER_QUEUE = 57,
 	MXGEFW_CMD_NETQ_ADD_FILTER = 58,
 	/* data0 = filter_id << 16 | queue << 8 | type */

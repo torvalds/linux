@@ -2826,6 +2826,16 @@ u16 hpi_volume_auto_fade(u32 h_control,
 		duration_ms, HPI_VOLUME_AUTOFADE_LOG);
 }
 
+u16 hpi_volume_query_auto_fade_profile(const u32 h_volume, const u32 i,
+	u16 *profile)
+{
+	u16 e;
+	u32 u;
+	e = hpi_control_query(h_volume, HPI_VOLUME_AUTOFADE, i, 0, &u);
+	*profile = (u16)u;
+	return e;
+}
+
 u16 hpi_vox_set_threshold(u32 h_control, short an_gain0_01dB)
 {
 	struct hpi_message hm;

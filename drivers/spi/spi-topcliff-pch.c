@@ -1,7 +1,7 @@
 /*
  * SPI bus driver for the Topcliff PCH used by Intel SoCs
  *
- * Copyright (C) 2010 OKI SEMICONDUCTOR Co., LTD.
+ * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -95,16 +95,18 @@
 #define PCH_CLOCK_HZ		50000000
 #define PCH_MAX_SPBR		1023
 
-/* Definition for ML7213 by OKI SEMICONDUCTOR */
+/* Definition for ML7213/ML7223/ML7831 by LAPIS Semiconductor */
 #define PCI_VENDOR_ID_ROHM		0x10DB
 #define PCI_DEVICE_ID_ML7213_SPI	0x802c
 #define PCI_DEVICE_ID_ML7223_SPI	0x800F
+#define PCI_DEVICE_ID_ML7831_SPI	0x8816
 
 /*
  * Set the number of SPI instance max
  * Intel EG20T PCH :		1ch
- * OKI SEMICONDUCTOR ML7213 IOH :	2ch
- * OKI SEMICONDUCTOR ML7223 IOH :	1ch
+ * LAPIS Semiconductor ML7213 IOH :	2ch
+ * LAPIS Semiconductor ML7223 IOH :	1ch
+ * LAPIS Semiconductor ML7831 IOH :	1ch
 */
 #define PCH_SPI_MAX_DEV			2
 
@@ -218,6 +220,7 @@ static struct pci_device_id pch_spi_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_GE_SPI),    1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_SPI), 2, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_SPI), 1, },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7831_SPI), 1, },
 	{ }
 };
 
@@ -1076,7 +1079,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	}
 	sg = dma->sg_rx_p;
 	desc_rx = dma->chan_rx->device->device_prep_slave_sg(dma->chan_rx, sg,
-					num, DMA_FROM_DEVICE,
+					num, DMA_DEV_TO_MEM,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_rx) {
 		dev_err(&data->master->dev, "%s:device_prep_slave_sg Failed\n",
@@ -1121,7 +1124,7 @@ static void pch_spi_handle_dma(struct pch_spi_data *data, int *bpw)
 	}
 	sg = dma->sg_tx_p;
 	desc_tx = dma->chan_tx->device->device_prep_slave_sg(dma->chan_tx,
-					sg, num, DMA_TO_DEVICE,
+					sg, num, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc_tx) {
 		dev_err(&data->master->dev, "%s:device_prep_slave_sg Failed\n",
@@ -1717,7 +1720,7 @@ static int pch_spi_resume(struct pci_dev *pdev)
 
 #endif
 
-static struct pci_driver pch_spi_pcidev = {
+static struct pci_driver pch_spi_pcidev_driver = {
 	.name = "pch_spi",
 	.id_table = pch_spi_pcidev_id,
 	.probe = pch_spi_probe,
@@ -1733,7 +1736,7 @@ static int __init pch_spi_init(void)
 	if (ret)
 		return ret;
 
-	ret = pci_register_driver(&pch_spi_pcidev);
+	ret = pci_register_driver(&pch_spi_pcidev_driver);
 	if (ret)
 		return ret;
 
@@ -1743,7 +1746,7 @@ module_init(pch_spi_init);
 
 static void __exit pch_spi_exit(void)
 {
-	pci_unregister_driver(&pch_spi_pcidev);
+	pci_unregister_driver(&pch_spi_pcidev_driver);
 	platform_driver_unregister(&pch_spi_pd_driver);
 }
 module_exit(pch_spi_exit);
@@ -1753,4 +1756,4 @@ MODULE_PARM_DESC(use_dma,
 		 "to use DMA for data transfers pass 1 else 0; default 1");
 
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("Intel EG20T PCH/OKI SEMICONDUCTOR ML7xxx IOH SPI Driver");
+MODULE_DESCRIPTION("Intel EG20T PCH/LAPIS Semiconductor ML7xxx IOH SPI Driver");

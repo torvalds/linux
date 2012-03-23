@@ -114,7 +114,7 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 			*val *= 128;
 
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->int_vref_mv * 100000)
 			>> (channel.scan_type.realbits - 1);
 		*val =  scale_uv / 100000;
@@ -127,12 +127,12 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 	[ID_AD7780] = {
 		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				    IIO_CHAN_INFO_SCALE_SHARED_BIT,
 				    0, 0, IIO_ST('s', 24, 32, 8), 0),
 	},
 	[ID_AD7781] = {
 		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				    (1 << IIO_CHAN_INFO_SCALE_SHARED),
+				    IIO_CHAN_INFO_SCALE_SHARED_BIT,
 				    0, 0, IIO_ST('s', 20, 32, 12), 0),
 	},
 };
@@ -272,29 +272,18 @@ static const struct spi_device_id ad7780_id[] = {
 	{"ad7781", ID_AD7781},
 	{}
 };
+MODULE_DEVICE_TABLE(spi, ad7780_id);
 
 static struct spi_driver ad7780_driver = {
 	.driver = {
 		.name	= "ad7780",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7780_probe,
 	.remove		= __devexit_p(ad7780_remove),
 	.id_table	= ad7780_id,
 };
-
-static int __init ad7780_init(void)
-{
-	return spi_register_driver(&ad7780_driver);
-}
-module_init(ad7780_init);
-
-static void __exit ad7780_exit(void)
-{
-	spi_unregister_driver(&ad7780_driver);
-}
-module_exit(ad7780_exit);
+module_spi_driver(ad7780_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7780/1 ADC");

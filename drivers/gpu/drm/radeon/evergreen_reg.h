@@ -35,6 +35,14 @@
 #define EVERGREEN_P1PLL_SS_CNTL                         0x414
 #define EVERGREEN_P2PLL_SS_CNTL                         0x454
 #       define EVERGREEN_PxPLL_SS_EN                    (1 << 12)
+
+#define EVERGREEN_AUDIO_PLL1_MUL			0x5b0
+#define EVERGREEN_AUDIO_PLL1_DIV			0x5b4
+#define EVERGREEN_AUDIO_PLL1_UNK			0x5bc
+
+#define EVERGREEN_AUDIO_ENABLE				0x5e78
+#define EVERGREEN_AUDIO_VENDOR_ID			0x5ec0
+
 /* GRPH blocks at 0x6800, 0x7400, 0x10000, 0x10c00, 0x11800, 0x12400 */
 #define EVERGREEN_GRPH_ENABLE                           0x6800
 #define EVERGREEN_GRPH_CONTROL                          0x6804
@@ -219,5 +227,10 @@
 #define EVERGREEN_DC_GPIO_HPD_A                         0x64b4
 #define EVERGREEN_DC_GPIO_HPD_EN                        0x64b8
 #define EVERGREEN_DC_GPIO_HPD_Y                         0x64bc
+
+/* HDMI blocks at 0x7030, 0x7c30, 0x10830, 0x11430, 0x12030, 0x12c30 */
+#define EVERGREEN_HDMI_BASE				0x7030
+
+#define EVERGREEN_HDMI_CONFIG_OFFSET			0xf0
 
 #endif

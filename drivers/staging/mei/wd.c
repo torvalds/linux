@@ -35,11 +35,15 @@ const u8 mei_wd_state_independence_msg[3][4] = {
 	{0x07, 0x02, 0x01, 0x10}
 };
 
+/*
+ * AMT Watchdog Device
+ */
+#define INTEL_AMT_WATCHDOG_ID "INTCAMT"
+
 /* UUIDs for AMT F/W clients */
 const uuid_le mei_wd_guid = UUID_LE(0x05B79A6F, 0x4628, 0x4D7F, 0x89,
 						0x9D, 0xA9, 0x15, 0x14, 0xCB,
 						0x32, 0xAB);
-
 
 void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
 {
@@ -331,14 +335,14 @@ static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int t
 /*
  * Watchdog Device structs
  */
-const struct watchdog_ops wd_ops = {
+static const struct watchdog_ops wd_ops = {
 		.owner = THIS_MODULE,
 		.start = mei_wd_ops_start,
 		.stop = mei_wd_ops_stop,
 		.ping = mei_wd_ops_ping,
 		.set_timeout = mei_wd_ops_set_timeout,
 };
-const struct watchdog_info wd_info = {
+static const struct watchdog_info wd_info = {
 		.identity = INTEL_AMT_WATCHDOG_ID,
 		.options = WDIOF_KEEPALIVEPING,
 };
@@ -351,4 +355,26 @@ struct watchdog_device amt_wd_dev = {
 		.max_timeout = AMT_WD_MAX_TIMEOUT,
 };
 
+
+void  mei_watchdog_register(struct mei_device *dev)
+{
+	dev_dbg(&dev->pdev->dev, "dev->wd_timeout =%d.\n", dev->wd_timeout);
+
+	dev->wd_due_counter = !!dev->wd_timeout;
+
+	if (watchdog_register_device(&amt_wd_dev)) {
+		dev_err(&dev->pdev->dev, "unable to register watchdog device.\n");
+		dev->wd_interface_reg = false;
+	} else {
+		dev_dbg(&dev->pdev->dev, "successfully register watchdog interface.\n");
+		dev->wd_interface_reg = true;
+	}
+}
+
+void mei_watchdog_unregister(struct mei_device *dev)
+{
+	if (dev->wd_interface_reg)
+		watchdog_unregister_device(&amt_wd_dev);
+	dev->wd_interface_reg = false;
+}
 

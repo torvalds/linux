@@ -107,13 +107,13 @@ struct lirc_serial {
 static int type;
 static int io;
 static int irq;
-static int iommap;
+static bool iommap;
 static int ioshift;
-static int softcarrier = 1;
-static int share_irq;
-static int debug;
+static bool softcarrier = 1;
+static bool share_irq;
+static bool debug;
 static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
-static int txsense;	/* 0 = active high, 1 = active low */
+static bool txsense;	/* 0 = active high, 1 = active low */
 
 #define dprintk(fmt, args...)					\
 	do {							\
@@ -1282,7 +1282,7 @@ MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O"
 /*
  * some architectures (e.g. intel xscale) align the 8bit serial registers
  * on 32bit word boundaries.
- * See linux-kernel/serial/8250.c serial_in()/out()
+ * See linux-kernel/drivers/tty/serial/8250/8250.c serial_in()/out()
  */
 module_param(ioshift, int, S_IRUGO);
 MODULE_PARM_DESC(ioshift, "shift I/O register offset (0 = no shift)");

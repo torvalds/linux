@@ -199,6 +199,26 @@ ENTRY(startup_64)
 	 * an identity mapped page table being provied that maps our
 	 * entire text+data+bss and hopefully all of memory.
 	 */
+#ifdef CONFIG_EFI_STUB
+	pushq	%rsi
+	mov	%rcx, %rdi
+	mov	%rdx, %rsi
+	call	efi_main
+	popq	%rsi
+	cmpq	$0,%rax
+	je	preferred_addr
+	movq	%rax,%rsi
+	call	1f
+1:
+	popq	%rax
+	subq	$1b, %rax
+	subq	BP_pref_address(%rsi), %rax
+	add	BP_code32_start(%esi), %eax
+	leaq	preferred_addr(%rax), %rax
+	jmp	*%rax
+
+preferred_addr:
+#endif
 
 	/* Setup data segments. */
 	xorl	%eax, %eax

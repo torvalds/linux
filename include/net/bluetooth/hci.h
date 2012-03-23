@@ -88,6 +88,14 @@ enum {
 	HCI_RESET,
 };
 
+/*
+ * BR/EDR and/or LE controller flags: the flags defined here should represent
+ * states from the controller.
+ */
+enum {
+	HCI_LE_SCAN,
+};
+
 /* HCI ioctl defines */
 #define HCIDEVUP	_IOW('H', 201, int)
 #define HCIDEVDOWN	_IOW('H', 202, int)
@@ -202,6 +210,7 @@ enum {
 
 #define LMP_EV4		0x01
 #define LMP_EV5		0x02
+#define LMP_NO_BREDR	0x20
 #define LMP_LE		0x40
 
 #define LMP_SNIFF_SUBR	0x02
@@ -263,6 +272,17 @@ enum {
 #define HCI_LK_SMP_LTK			0x81
 #define HCI_LK_SMP_IRK			0x82
 #define HCI_LK_SMP_CSRK			0x83
+
+/* ---- HCI Error Codes ---- */
+#define HCI_ERROR_AUTH_FAILURE		0x05
+#define HCI_ERROR_REJ_BAD_ADDR		0x0f
+#define HCI_ERROR_REMOTE_USER_TERM	0x13
+#define HCI_ERROR_LOCAL_HOST_TERM	0x16
+#define HCI_ERROR_PAIRING_NOT_ALLOWED	0x18
+
+/* Flow control modes */
+#define HCI_FLOW_CTL_MODE_PACKET_BASED	0x00
+#define HCI_FLOW_CTL_MODE_BLOCK_BASED	0x01
 
 /* -----  HCI Commands ---- */
 #define HCI_OP_NOP			0x0000
@@ -445,6 +465,14 @@ struct hci_rp_user_confirm_reply {
 } __packed;
 
 #define HCI_OP_USER_CONFIRM_NEG_REPLY	0x042d
+
+#define HCI_OP_USER_PASSKEY_REPLY		0x042e
+struct hci_cp_user_passkey_reply {
+	bdaddr_t bdaddr;
+	__le32	passkey;
+} __packed;
+
+#define HCI_OP_USER_PASSKEY_NEG_REPLY	0x042f
 
 #define HCI_OP_REMOTE_OOB_DATA_REPLY	0x0430
 struct hci_cp_remote_oob_data_reply {
@@ -662,6 +690,12 @@ struct hci_rp_read_local_oob_data {
 
 #define HCI_OP_READ_INQ_RSP_TX_POWER	0x0c58
 
+#define HCI_OP_READ_FLOW_CONTROL_MODE	0x0c66
+struct hci_rp_read_flow_control_mode {
+	__u8     status;
+	__u8     mode;
+} __packed;
+
 #define HCI_OP_WRITE_LE_HOST_SUPPORTED	0x0c6d
 struct hci_cp_write_le_host_supported {
 	__u8 le;
@@ -716,6 +750,14 @@ struct hci_rp_read_bd_addr {
 	bdaddr_t bdaddr;
 } __packed;
 
+#define HCI_OP_READ_DATA_BLOCK_SIZE	0x100a
+struct hci_rp_read_data_block_size {
+	__u8     status;
+	__le16   max_acl_len;
+	__le16   block_len;
+	__le16   num_blocks;
+} __packed;
+
 #define HCI_OP_WRITE_PAGE_SCAN_ACTIVITY	0x0c1c
 struct hci_cp_write_page_scan_activity {
 	__le16   interval;
@@ -725,6 +767,21 @@ struct hci_cp_write_page_scan_activity {
 #define HCI_OP_WRITE_PAGE_SCAN_TYPE	0x0c47
 	#define PAGE_SCAN_TYPE_STANDARD		0x00
 	#define PAGE_SCAN_TYPE_INTERLACED	0x01
+
+#define HCI_OP_READ_LOCAL_AMP_INFO	0x1409
+struct hci_rp_read_local_amp_info {
+	__u8     status;
+	__u8     amp_status;
+	__le32   total_bw;
+	__le32   max_bw;
+	__le32   min_latency;
+	__le32   max_pdu;
+	__u8     amp_type;
+	__le16   pal_cap;
+	__le16   max_assoc_size;
+	__le32   max_flush_to;
+	__le32   be_flush_to;
+} __packed;
 
 #define HCI_OP_LE_SET_EVENT_MASK	0x2001
 struct hci_cp_le_set_event_mask {
@@ -737,6 +794,18 @@ struct hci_rp_le_read_buffer_size {
 	__le16   le_mtu;
 	__u8     le_max_pkt;
 } __packed;
+
+#define HCI_OP_LE_SET_SCAN_PARAM	0x200b
+struct hci_cp_le_set_scan_param {
+	__u8    type;
+	__le16  interval;
+	__le16  window;
+	__u8    own_address_type;
+	__u8    filter_policy;
+} __packed;
+
+#define LE_SCANNING_DISABLED		0x00
+#define LE_SCANNING_ENABLED		0x01
 
 #define HCI_OP_LE_SET_SCAN_ENABLE	0x200c
 struct hci_cp_le_set_scan_enable {
@@ -913,9 +982,14 @@ struct hci_ev_role_change {
 } __packed;
 
 #define HCI_EV_NUM_COMP_PKTS		0x13
+struct hci_comp_pkts_info {
+	__le16   handle;
+	__le16   count;
+} __packed;
+
 struct hci_ev_num_comp_pkts {
 	__u8     num_hndl;
-	/* variable length part */
+	struct hci_comp_pkts_info handles[0];
 } __packed;
 
 #define HCI_EV_MODE_CHANGE		0x14
@@ -1052,6 +1126,11 @@ struct hci_ev_io_capa_reply {
 struct hci_ev_user_confirm_req {
 	bdaddr_t	bdaddr;
 	__le32		passkey;
+} __packed;
+
+#define HCI_EV_USER_PASSKEY_REQUEST	0x34
+struct hci_ev_user_passkey_req {
+	bdaddr_t	bdaddr;
 } __packed;
 
 #define HCI_EV_REMOTE_OOB_DATA_REQUEST	0x35
@@ -1308,5 +1387,7 @@ struct hci_inquiry_req {
 	__u8  num_rsp;
 };
 #define IREQ_CACHE_FLUSH 0x0001
+
+extern bool enable_hs;
 
 #endif /* __HCI_H */

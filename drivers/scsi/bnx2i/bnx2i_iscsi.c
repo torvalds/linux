@@ -2177,7 +2177,7 @@ static int bnx2i_nl_set_path(struct Scsi_Host *shost, struct iscsi_path *params)
 	return 0;
 }
 
-static mode_t bnx2i_attr_is_visible(int param_type, int param)
+static umode_t bnx2i_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
 	case ISCSI_HOST_PARAM:

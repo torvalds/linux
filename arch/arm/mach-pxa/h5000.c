@@ -209,4 +209,5 @@ MACHINE_START(H5400, "HP iPAQ H5000")
 	.handle_irq = pxa25x_handle_irq,
 	.timer = &pxa_timer,
 	.init_machine = h5000_init,
+	.restart	= pxa_restart,
 MACHINE_END

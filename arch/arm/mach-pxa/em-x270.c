@@ -70,7 +70,7 @@
 /* common  GPIOs */
 #define GPIO11_NAND_CS		(11)
 #define GPIO41_ETHIRQ		(41)
-#define EM_X270_ETHIRQ		IRQ_GPIO(GPIO41_ETHIRQ)
+#define EM_X270_ETHIRQ		PXA_GPIO_TO_IRQ(GPIO41_ETHIRQ)
 #define GPIO115_WLAN_PWEN	(115)
 #define GPIO19_WLAN_STRAP	(19)
 #define GPIO9_USB_VBUS_EN	(9)
@@ -805,7 +805,7 @@ static struct spi_board_info em_x270_spi_devices[] __initdata = {
 		.modalias		= "libertas_spi",
 		.max_speed_hz		= 13000000,
 		.bus_num		= 2,
-		.irq			= IRQ_GPIO(116),
+		.irq			= PXA_GPIO_TO_IRQ(116),
 		.chip_select		= 0,
 		.controller_data	= &em_x270_libertas_chip,
 		.platform_data		= &em_x270_libertas_pdata,
@@ -1203,7 +1203,7 @@ static struct da903x_platform_data em_x270_da9030_info = {
 
 static struct i2c_board_info em_x270_i2c_pmic_info = {
 	I2C_BOARD_INFO("da9030", 0x49),
-	.irq = IRQ_GPIO(0),
+	.irq = PXA_GPIO_TO_IRQ(0),
 	.platform_data = &em_x270_da9030_info,
 };
 
@@ -1305,6 +1305,7 @@ MACHINE_START(EM_X270, "Compulab EM-X270")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
+	.restart	= pxa_restart,
 MACHINE_END
 
 MACHINE_START(EXEDA, "Compulab eXeda")
@@ -1314,4 +1315,5 @@ MACHINE_START(EXEDA, "Compulab eXeda")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= em_x270_init,
+	.restart	= pxa_restart,
 MACHINE_END

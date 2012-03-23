@@ -83,14 +83,18 @@ netxen_nic_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	u32 fw_minor = 0;
 	u32 fw_build = 0;
 
-	strncpy(drvinfo->driver, netxen_nic_driver_name, 32);
-	strncpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID, 32);
+	strlcpy(drvinfo->driver, netxen_nic_driver_name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, NETXEN_NIC_LINUX_VERSIONID,
+		sizeof(drvinfo->version));
 	fw_major = NXRD32(adapter, NETXEN_FW_VERSION_MAJOR);
 	fw_minor = NXRD32(adapter, NETXEN_FW_VERSION_MINOR);
 	fw_build = NXRD32(adapter, NETXEN_FW_VERSION_SUB);
-	sprintf(drvinfo->fw_version, "%d.%d.%d", fw_major, fw_minor, fw_build);
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		"%d.%d.%d", fw_major, fw_minor, fw_build);
 
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->regdump_len = NETXEN_NIC_REGS_LEN;
 	drvinfo->eedump_len = netxen_nic_get_eeprom_len(dev);
 }

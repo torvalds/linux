@@ -1164,6 +1164,41 @@ static int af9015_af9013_sleep(struct dvb_frontend *fe)
 	return ret;
 }
 
+/* override tuner callbacks for resource locking */
+static int af9015_tuner_init(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->tuner_init[adap->id](fe);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+/* override tuner callbacks for resource locking */
+static int af9015_tuner_sleep(struct dvb_frontend *fe)
+{
+	int ret;
+	struct dvb_usb_adapter *adap = fe->dvb->priv;
+	struct af9015_state *priv = adap->dev->priv;
+
+	if (mutex_lock_interruptible(&adap->dev->usb_mutex))
+		return -EAGAIN;
+
+	ret = priv->tuner_sleep[adap->id](fe);
+
+	mutex_unlock(&adap->dev->usb_mutex);
+
+	return ret;
+}
+
+
 static int af9015_af9013_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
@@ -1283,6 +1318,7 @@ static struct mxl5007t_config af9015_mxl5007t_config = {
 static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
+	struct af9015_state *state = adap->dev->priv;
 	deb_info("%s:\n", __func__);
 
 	switch (af9015_af9013_config[adap->id].tuner) {
@@ -1340,6 +1376,19 @@ static int af9015_tuner_attach(struct dvb_usb_adapter *adap)
 		err("Unknown tuner id:%d",
 			af9015_af9013_config[adap->id].tuner);
 	}
+
+	if (adap->fe_adap[0].fe->ops.tuner_ops.init) {
+		state->tuner_init[adap->id] =
+			adap->fe_adap[0].fe->ops.tuner_ops.init;
+		adap->fe_adap[0].fe->ops.tuner_ops.init = af9015_tuner_init;
+	}
+
+	if (adap->fe_adap[0].fe->ops.tuner_ops.sleep) {
+		state->tuner_sleep[adap->id] =
+			adap->fe_adap[0].fe->ops.tuner_ops.sleep;
+		adap->fe_adap[0].fe->ops.tuner_ops.sleep = af9015_tuner_sleep;
+	}
+
 	return ret;
 }
 
@@ -1967,25 +2016,7 @@ static struct usb_driver af9015_usb_driver = {
 	.id_table = af9015_usb_table,
 };
 
-/* module stuff */
-static int __init af9015_usb_module_init(void)
-{
-	int ret;
-	ret = usb_register(&af9015_usb_driver);
-	if (ret)
-		err("module init failed:%d", ret);
-
-	return ret;
-}
-
-static void __exit af9015_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&af9015_usb_driver);
-}
-
-module_init(af9015_usb_module_init);
-module_exit(af9015_usb_module_exit);
+module_usb_driver(af9015_usb_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Driver for Afatech AF9015 DVB-T");

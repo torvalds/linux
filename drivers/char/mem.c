@@ -847,7 +847,7 @@ static const struct file_operations kmsg_fops = {
 
 static const struct memdev {
 	const char *name;
-	mode_t mode;
+	umode_t mode;
 	const struct file_operations *fops;
 	struct backing_dev_info *dev_info;
 } devlist[] = {
@@ -901,7 +901,7 @@ static const struct file_operations memory_fops = {
 	.llseek = noop_llseek,
 };
 
-static char *mem_devnode(struct device *dev, mode_t *mode)
+static char *mem_devnode(struct device *dev, umode_t *mode)
 {
 	if (mode && devlist[MINOR(dev->devt)].mode)
 		*mode = devlist[MINOR(dev->devt)].mode;

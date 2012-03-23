@@ -71,7 +71,7 @@ struct moschip_port {
 	struct urb		*write_urb_pool[NUM_URBS];
 };
 
-static int debug;
+static bool debug;
 
 static struct usb_serial_driver moschip7720_2port_driver;
 
@@ -939,14 +939,7 @@ static void mos7720_bulk_in_callback(struct urb *urb)
 	}
 	tty_kref_put(tty);
 
-	if (!port->read_urb) {
-		dbg("URB KILLED !!!");
-		return;
-	}
-
 	if (port->read_urb->status != -EINPROGRESS) {
-		port->read_urb->dev = port->serial->dev;
-
 		retval = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (retval)
 			dbg("usb_submit_urb(read bulk) failed, retval = %d",
@@ -1014,7 +1007,6 @@ static int mos77xx_calc_num_ports(struct usb_serial *serial)
 static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_serial *serial;
-	struct usb_serial_port *port0;
 	struct urb *urb;
 	struct moschip_port *mos7720_port;
 	int response;
@@ -1028,8 +1020,6 @@ static int mos7720_open(struct tty_struct *tty, struct usb_serial_port *port)
 	mos7720_port = usb_get_serial_port_data(port);
 	if (mos7720_port == NULL)
 		return -ENODEV;
-
-	port0 = serial->port[0];
 
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
@@ -1735,8 +1725,6 @@ static void change_port_settings(struct tty_struct *tty,
 	write_mos_reg(serial, port_number, IER, 0x0c);
 
 	if (port->read_urb->status != -EINPROGRESS) {
-		port->read_urb->dev = serial->dev;
-
 		status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (status)
 			dbg("usb_submit_urb(read bulk) failed, status = %d",
@@ -1786,13 +1774,7 @@ static void mos7720_set_termios(struct tty_struct *tty,
 	/* change the port settings to the new ones specified */
 	change_port_settings(tty, mos7720_port, old_termios);
 
-	if (!port->read_urb) {
-		dbg("%s", "URB KILLED !!!!!");
-		return;
-	}
-
 	if (port->read_urb->status != -EINPROGRESS) {
-		port->read_urb->dev = serial->dev;
 		status = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (status)
 			dbg("usb_submit_urb(read bulk) failed, status = %d",

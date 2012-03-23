@@ -45,7 +45,8 @@ int main(void)
 	DEFINE(__PT_PSW, offsetof(struct pt_regs, psw));
 	DEFINE(__PT_GPRS, offsetof(struct pt_regs, gprs));
 	DEFINE(__PT_ORIG_GPR2, offsetof(struct pt_regs, orig_gpr2));
-	DEFINE(__PT_SVC_CODE, offsetof(struct pt_regs, svc_code));
+	DEFINE(__PT_INT_CODE, offsetof(struct pt_regs, int_code));
+	DEFINE(__PT_INT_PARM_LONG, offsetof(struct pt_regs, int_parm_long));
 	DEFINE(__PT_SIZE, sizeof(struct pt_regs));
 	BLANK();
 	DEFINE(__SF_BACKCHAIN, offsetof(struct stack_frame, back_chain));
@@ -108,7 +109,9 @@ int main(void)
 	DEFINE(__LC_PGM_NEW_PSW, offsetof(struct _lowcore, program_new_psw));
 	DEFINE(__LC_MCK_NEW_PSW, offsetof(struct _lowcore, mcck_new_psw));
 	DEFINE(__LC_IO_NEW_PSW, offsetof(struct _lowcore, io_new_psw));
-	DEFINE(__LC_SAVE_AREA, offsetof(struct _lowcore, save_area));
+	DEFINE(__LC_SAVE_AREA_SYNC, offsetof(struct _lowcore, save_area_sync));
+	DEFINE(__LC_SAVE_AREA_ASYNC, offsetof(struct _lowcore, save_area_async));
+	DEFINE(__LC_SAVE_AREA_RESTART, offsetof(struct _lowcore, save_area_restart));
 	DEFINE(__LC_RETURN_PSW, offsetof(struct _lowcore, return_psw));
 	DEFINE(__LC_RETURN_MCCK_PSW, offsetof(struct _lowcore, return_mcck_psw));
 	DEFINE(__LC_SYNC_ENTER_TIMER, offsetof(struct _lowcore, sync_enter_timer));
@@ -150,7 +153,6 @@ int main(void)
 	DEFINE(__LC_LAST_BREAK, offsetof(struct _lowcore, breaking_event_addr));
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
 	DEFINE(__LC_GMAP, offsetof(struct _lowcore, gmap));
-	DEFINE(__LC_CMF_HPP, offsetof(struct _lowcore, cmf_hpp));
 	DEFINE(__GMAP_ASCE, offsetof(struct gmap, asce));
 #endif /* CONFIG_32BIT */
 	return 0;

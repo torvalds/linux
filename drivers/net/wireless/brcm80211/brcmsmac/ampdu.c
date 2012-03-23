@@ -649,7 +649,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		len = roundup(len, 4);
 		ampdu_len += (len + (ndelim + 1) * AMPDU_DELIMITER_LEN);
 
-		dma_len += (u16) brcmu_pkttotlen(p);
+		dma_len += (u16) p->len;
 
 		BCMMSG(wlc->wiphy, "wl%d: ampdu_len %d"
 			" seg_cnt %d null delim %d\n",
@@ -741,9 +741,7 @@ brcms_c_sendampdu(struct ampdu_info *ampdu, struct brcms_txq_info *qi,
 		if (p) {
 			if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) &&
 			    ((u8) (p->priority) == tid)) {
-
-				plen = brcmu_pkttotlen(p) +
-				       AMPDU_MAX_MPDU_OVERHEAD;
+				plen = p->len + AMPDU_MAX_MPDU_OVERHEAD;
 				plen = max(scb_ampdu->min_len, plen);
 
 				if ((plen + ampdu_len) > max_ampdu_bytes) {
@@ -1053,17 +1051,13 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		}
 		/* either retransmit or send bar if ack not recd */
 		if (!ack_recd) {
-			struct ieee80211_tx_rate *txrate =
-			    tx_info->status.rates;
-			if (retry && (txrate[0].count < (int)retry_limit)) {
+			if (retry && (ini->txretry[index] < (int)retry_limit)) {
 				ini->txretry[index]++;
 				ini->tx_in_transit--;
 				/*
 				 * Use high prededence for retransmit to
 				 * give some punch
 				 */
-				/* brcms_c_txq_enq(wlc, scb, p,
-				 * BRCMS_PRIO_TO_PREC(tid)); */
 				brcms_c_txq_enq(wlc, scb, p,
 						BRCMS_PRIO_TO_HI_PREC(tid));
 			} else {
@@ -1076,9 +1070,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				    IEEE80211_TX_STAT_AMPDU_NO_BACK;
 				skb_pull(p, D11_PHY_HDR_LEN);
 				skb_pull(p, D11_TXH_LEN);
-				wiphy_err(wiphy, "%s: BA Timeout, seq %d, in_"
-					"transit %d\n", "AMPDU status", seq,
-					ini->tx_in_transit);
+				BCMMSG(wiphy,
+				       "BA Timeout, seq %d, in_transit %d\n",
+				       seq, ini->tx_in_transit);
 				ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw,
 							    p);
 			}
@@ -1120,14 +1114,17 @@ brcms_c_ampdu_dotxstatus(struct ampdu_info *ampdu, struct scb *scb,
 		u8 status_delay = 0;
 
 		/* wait till the next 8 bytes of txstatus is available */
-		while (((s1 = R_REG(&wlc->regs->frmtxstatus)) & TXS_V) == 0) {
+		s1 = bcma_read32(wlc->hw->d11core, D11REGOFFS(frmtxstatus));
+		while ((s1 & TXS_V) == 0) {
 			udelay(1);
 			status_delay++;
 			if (status_delay > 10)
 				return; /* error condition */
+			s1 = bcma_read32(wlc->hw->d11core,
+					 D11REGOFFS(frmtxstatus));
 		}
 
-		s2 = R_REG(&wlc->regs->frmtxstatus2);
+		s2 = bcma_read32(wlc->hw->d11core, D11REGOFFS(frmtxstatus2));
 	}
 
 	if (scb) {

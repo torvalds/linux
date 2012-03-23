@@ -51,10 +51,7 @@ int mlx4_en_create_cq(struct mlx4_en_priv *priv,
 	int err;
 
 	cq->size = entries;
-	if (mode == RX)
-		cq->buf_size = cq->size * sizeof(struct mlx4_cqe);
-	else
-		cq->buf_size = sizeof(struct mlx4_cqe);
+	cq->buf_size = cq->size * sizeof(struct mlx4_cqe);
 
 	cq->ring = ring;
 	cq->is_tx = mode;
@@ -120,7 +117,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 		cq->size = priv->rx_ring[cq->ring].actual_size;
 
 	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt, &mdev->priv_uar,
-			    cq->wqres.db.dma, &cq->mcq, cq->vector, cq->is_tx);
+			    cq->wqres.db.dma, &cq->mcq, cq->vector, 0);
 	if (err)
 		return err;
 

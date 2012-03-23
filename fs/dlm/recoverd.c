@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2011 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -54,7 +54,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	unsigned long start;
 	int error, neg = 0;
 
-	log_debug(ls, "recover %llx", (unsigned long long)rv->seq);
+	log_debug(ls, "dlm_recover %llx", (unsigned long long)rv->seq);
 
 	mutex_lock(&ls->ls_recoverd_active);
 
@@ -76,14 +76,22 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * Add or remove nodes from the lockspace's ls_nodes list.
-	 * Also waits for all nodes to complete dlm_recover_members.
 	 */
 
 	error = dlm_recover_members(ls, rv, &neg);
 	if (error) {
-		log_debug(ls, "recover_members failed %d", error);
+		log_debug(ls, "dlm_recover_members error %d", error);
 		goto fail;
 	}
+
+	dlm_set_recover_status(ls, DLM_RS_NODES);
+
+	error = dlm_recover_members_wait(ls);
+	if (error) {
+		log_debug(ls, "dlm_recover_members_wait error %d", error);
+		goto fail;
+	}
+
 	start = jiffies;
 
 	/*
@@ -93,17 +101,15 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	error = dlm_recover_directory(ls);
 	if (error) {
-		log_debug(ls, "recover_directory failed %d", error);
+		log_debug(ls, "dlm_recover_directory error %d", error);
 		goto fail;
 	}
 
-	/*
-	 * Wait for all nodes to complete directory rebuild.
-	 */
+	dlm_set_recover_status(ls, DLM_RS_DIR);
 
 	error = dlm_recover_directory_wait(ls);
 	if (error) {
-		log_debug(ls, "recover_directory_wait failed %d", error);
+		log_debug(ls, "dlm_recover_directory_wait error %d", error);
 		goto fail;
 	}
 
@@ -133,7 +139,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 		error = dlm_recover_masters(ls);
 		if (error) {
-			log_debug(ls, "recover_masters failed %d", error);
+			log_debug(ls, "dlm_recover_masters error %d", error);
 			goto fail;
 		}
 
@@ -143,13 +149,15 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 		error = dlm_recover_locks(ls);
 		if (error) {
-			log_debug(ls, "recover_locks failed %d", error);
+			log_debug(ls, "dlm_recover_locks error %d", error);
 			goto fail;
 		}
 
+		dlm_set_recover_status(ls, DLM_RS_LOCKS);
+
 		error = dlm_recover_locks_wait(ls);
 		if (error) {
-			log_debug(ls, "recover_locks_wait failed %d", error);
+			log_debug(ls, "dlm_recover_locks_wait error %d", error);
 			goto fail;
 		}
 
@@ -170,7 +178,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 		error = dlm_recover_locks_wait(ls);
 		if (error) {
-			log_debug(ls, "recover_locks_wait failed %d", error);
+			log_debug(ls, "dlm_recover_locks_wait error %d", error);
 			goto fail;
 		}
 	}
@@ -186,9 +194,10 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	dlm_purge_requestqueue(ls);
 
 	dlm_set_recover_status(ls, DLM_RS_DONE);
+
 	error = dlm_recover_done_wait(ls);
 	if (error) {
-		log_debug(ls, "recover_done_wait failed %d", error);
+		log_debug(ls, "dlm_recover_done_wait error %d", error);
 		goto fail;
 	}
 
@@ -200,34 +209,35 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	error = enable_locking(ls, rv->seq);
 	if (error) {
-		log_debug(ls, "enable_locking failed %d", error);
+		log_debug(ls, "enable_locking error %d", error);
 		goto fail;
 	}
 
 	error = dlm_process_requestqueue(ls);
 	if (error) {
-		log_debug(ls, "process_requestqueue failed %d", error);
+		log_debug(ls, "dlm_process_requestqueue error %d", error);
 		goto fail;
 	}
 
 	error = dlm_recover_waiters_post(ls);
 	if (error) {
-		log_debug(ls, "recover_waiters_post failed %d", error);
+		log_debug(ls, "dlm_recover_waiters_post error %d", error);
 		goto fail;
 	}
 
 	dlm_grant_after_purge(ls);
 
-	log_debug(ls, "recover %llx done: %u ms",
-		  (unsigned long long)rv->seq,
+	log_debug(ls, "dlm_recover %llx generation %u done: %u ms",
+		  (unsigned long long)rv->seq, ls->ls_generation,
 		  jiffies_to_msecs(jiffies - start));
 	mutex_unlock(&ls->ls_recoverd_active);
 
+	dlm_lsop_recover_done(ls);
 	return 0;
 
  fail:
 	dlm_release_root_list(ls);
-	log_debug(ls, "recover %llx error %d",
+	log_debug(ls, "dlm_recover %llx error %d",
 		  (unsigned long long)rv->seq, error);
 	mutex_unlock(&ls->ls_recoverd_active);
 	return error;
@@ -250,8 +260,7 @@ static void do_ls_recovery(struct dlm_ls *ls)
 
 	if (rv) {
 		ls_recover(ls, rv);
-		kfree(rv->nodeids);
-		kfree(rv->new);
+		kfree(rv->nodes);
 		kfree(rv);
 	}
 }

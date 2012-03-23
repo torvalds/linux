@@ -17,7 +17,6 @@
 #include <linux/ctype.h>
 #include <linux/major.h>
 #include <linux/slab.h>
-#include <linux/buffer_head.h>
 #include <linux/hdreg.h>
 #include <linux/async.h>
 #include <linux/mutex.h>
@@ -1073,7 +1072,7 @@ static const struct file_operations dasd_stats_global_fops = {
 static void dasd_profile_init(struct dasd_profile *profile,
 			      struct dentry *base_dentry)
 {
-	mode_t mode;
+	umode_t mode;
 	struct dentry *pde;
 
 	if (!base_dentry)
@@ -1112,7 +1111,7 @@ static void dasd_statistics_removeroot(void)
 
 static void dasd_statistics_createroot(void)
 {
-	mode_t mode;
+	umode_t mode;
 	struct dentry *pde;
 
 	dasd_debugfs_root_entry = NULL;
@@ -3261,6 +3260,12 @@ void dasd_generic_path_event(struct ccw_device *cdev, int *path_event)
 			device->path_data.npm &= ~eventlpm;
 			device->path_data.tbvpm |= eventlpm;
 			dasd_schedule_device_bh(device);
+		}
+		if (path_event[chp] & PE_PATHGROUP_ESTABLISHED) {
+			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+				      "Pathgroup re-established\n");
+			if (device->discipline->kick_validate)
+				device->discipline->kick_validate(device);
 		}
 	}
 	dasd_put_device(device);

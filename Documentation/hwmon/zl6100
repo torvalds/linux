@@ -6,6 +6,10 @@ Supported chips:
     Prefix: 'zl2004'
     Addresses scanned: -
     Datasheet: http://www.intersil.com/data/fn/fn6847.pdf
+  * Intersil / Zilker Labs ZL2005
+    Prefix: 'zl2005'
+    Addresses scanned: -
+    Datasheet: http://www.intersil.com/data/fn/fn6848.pdf
   * Intersil / Zilker Labs ZL2006
     Prefix: 'zl2006'
     Addresses scanned: -
@@ -30,6 +34,17 @@ Supported chips:
     Prefix: 'zl6105'
     Addresses scanned: -
     Datasheet: http://www.intersil.com/data/fn/fn6906.pdf
+  * Ericsson BMR450, BMR451
+    Prefix: 'bmr450', 'bmr451'
+    Addresses scanned: -
+    Datasheet:
+http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146401
+  * Ericsson BMR462, BMR463, BMR464
+    Prefixes: 'bmr462', 'bmr463', 'bmr464'
+    Addresses scanned: -
+    Datasheet:
+http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146256
+
 
 Author: Guenter Roeck <guenter.roeck@ericsson.com>
 
@@ -73,14 +88,12 @@ Module parameters
 delay
 -----
 
-Some Intersil/Zilker Labs DC-DC controllers require a minimum interval between
-I2C bus accesses. According to Intersil, the minimum interval is 2 ms, though
-1 ms appears to be sufficient and has not caused any problems in testing.
-The problem is known to affect ZL6100, ZL2105, and ZL2008. It is known not to
-affect ZL2004 and ZL6105. The driver automatically sets the interval to 1 ms
-except for ZL2004 and ZL6105. To enable manual override, the driver provides a
-writeable module parameter, 'delay', which can be used to set the interval to
-a value between 0 and 65,535 microseconds.
+Intersil/Zilker Labs DC-DC controllers require a minimum interval between I2C
+bus accesses. According to Intersil, the minimum interval is 2 ms, though 1 ms
+appears to be sufficient and has not caused any problems in testing. The problem
+is known to affect all currently supported chips. For manual override, the
+driver provides a writeable module parameter, 'delay', which can be used to set
+the interval to a value between 0 and 65,535 microseconds.
 
 
 Sysfs entries

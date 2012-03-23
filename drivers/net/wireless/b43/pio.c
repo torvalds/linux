@@ -539,7 +539,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		/* Not enough memory on the queue. */
 		err = -EBUSY;
 		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
-		q->stopped = 1;
+		q->stopped = true;
 		goto out;
 	}
 
@@ -566,7 +566,7 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	    (q->free_packet_slots == 0)) {
 		/* The queue is full. */
 		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
-		q->stopped = 1;
+		q->stopped = true;
 	}
 
 out:
@@ -601,7 +601,7 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 
 	if (q->stopped) {
 		ieee80211_wake_queue(dev->wl->hw, q->queue_prio);
-		q->stopped = 0;
+		q->stopped = false;
 	}
 }
 

@@ -238,7 +238,7 @@ static ssize_t set_temp(
 	int ix = to_sensor_dev_attr(attr)->index;
 	long val;
 
-	int ret = strict_strtol(buf, 10, &val);
+	int ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 	val = SENSORS_LIMIT(val / 1000, -128, 127);
@@ -327,7 +327,7 @@ static ssize_t set_pwm1(
 	struct i2c_client *client = to_i2c_client(dev);
 	struct amc6821_data *data = i2c_get_clientdata(client);
 	long val;
-	int ret = strict_strtol(buf, 10, &val);
+	int ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -356,7 +356,7 @@ static ssize_t set_pwm1_enable(
 	struct i2c_client *client = to_i2c_client(dev);
 	struct amc6821_data *data = i2c_get_clientdata(client);
 	long val;
-	int config = strict_strtol(buf, 10, &val);
+	int config = kstrtol(buf, 10, &val);
 	if (config)
 		return config;
 
@@ -477,7 +477,7 @@ static ssize_t set_temp_auto_point_temp(
 	u8 reg;
 	int dpwm;
 	long val;
-	int ret = strict_strtol(buf, 10, &val);
+	int ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -556,7 +556,7 @@ static ssize_t set_pwm1_auto_point_pwm(
 	struct amc6821_data *data = i2c_get_clientdata(client);
 	int dpwm;
 	long val;
-	int ret = strict_strtol(buf, 10, &val);
+	int ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -623,7 +623,7 @@ static ssize_t set_fan(
 	struct amc6821_data *data = i2c_get_clientdata(client);
 	long val;
 	int ix = to_sensor_dev_attr(attr)->index;
-	int ret = strict_strtol(buf, 10, &val);
+	int ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 	val = 1 > val ? 0xFFFF : 6000000/val;
@@ -665,7 +665,7 @@ static ssize_t set_fan1_div(
 	struct i2c_client *client = to_i2c_client(dev);
 	struct amc6821_data *data = i2c_get_clientdata(client);
 	long val;
-	int config = strict_strtol(buf, 10, &val);
+	int config = kstrtol(buf, 10, &val);
 	if (config)
 		return config;
 

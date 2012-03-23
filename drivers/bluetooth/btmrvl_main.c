@@ -475,8 +475,6 @@ static int btmrvl_service_main_thread(void *data)
 
 	init_waitqueue_entry(&wait, current);
 
-	current->flags |= PF_NOFREEZE;
-
 	for (;;) {
 		add_wait_queue(&thread->wait_q, &wait);
 

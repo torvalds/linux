@@ -113,7 +113,7 @@ void __cpuinit check_tsc_sync_source(int cpu)
 	if (unsynchronized_tsc())
 		return;
 
-	if (boot_cpu_has(X86_FEATURE_TSC_RELIABLE)) {
+	if (tsc_clocksource_reliable) {
 		if (cpu == (nr_cpu_ids-1) || system_state != SYSTEM_BOOTING)
 			pr_info(
 			"Skipped synchronization checks as TSC is reliable.\n");
@@ -172,7 +172,7 @@ void __cpuinit check_tsc_sync_target(void)
 {
 	int cpus = 2;
 
-	if (unsynchronized_tsc() || boot_cpu_has(X86_FEATURE_TSC_RELIABLE))
+	if (unsynchronized_tsc() || tsc_clocksource_reliable)
 		return;
 
 	/*

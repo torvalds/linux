@@ -74,15 +74,16 @@ only used by the STOP command and contains one bit: If the
 encoding will continue until the end of the current <wordasword>Group
 Of Pictures</wordasword>, otherwise it will stop immediately.</para>
 
-    <para>A <function>read</function>() call sends a START command to
-the encoder if it has not been started yet. After a STOP command,
+    <para>A <function>read</function>() or &VIDIOC-STREAMON; call sends an implicit
+START command to the encoder if it has not been started yet. After a STOP command,
 <function>read</function>() calls will read the remaining data
 buffered by the driver. When the buffer is empty,
 <function>read</function>() will return zero and the next
 <function>read</function>() call will restart the encoder.</para>
 
-    <para>A <function>close</function>() call sends an immediate STOP
-to the encoder, and all buffered data is discarded.</para>
+    <para>A <function>close</function>() or &VIDIOC-STREAMOFF; call of a streaming
+file descriptor sends an implicit immediate STOP to the encoder, and all buffered
+data is discarded.</para>
 
     <para>These ioctls are optional, not all drivers may support
 them. They were introduced in Linux 2.6.21.</para>

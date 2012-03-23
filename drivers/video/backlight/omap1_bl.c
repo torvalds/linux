@@ -195,18 +195,7 @@ static struct platform_driver omapbl_driver = {
 	},
 };
 
-static int __init omapbl_init(void)
-{
-	return platform_driver_register(&omapbl_driver);
-}
-
-static void __exit omapbl_exit(void)
-{
-	platform_driver_unregister(&omapbl_driver);
-}
-
-module_init(omapbl_init);
-module_exit(omapbl_exit);
+module_platform_driver(omapbl_driver);
 
 MODULE_AUTHOR("Andrzej Zaborowski <balrog@zabor.org>");
 MODULE_DESCRIPTION("OMAP LCD Backlight driver");

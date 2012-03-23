@@ -401,7 +401,7 @@ static void venc_runtime_put(void)
 
 	DSSDBG("venc_runtime_put\n");
 
-	r = pm_runtime_put(&venc.pdev->dev);
+	r = pm_runtime_put_sync(&venc.pdev->dev);
 	WARN_ON(r < 0);
 }
 
@@ -417,9 +417,10 @@ static const struct venc_config *venc_timings_to_config(
 	BUG();
 }
 
-static void venc_power_on(struct omap_dss_device *dssdev)
+static int venc_power_on(struct omap_dss_device *dssdev)
 {
 	u32 l;
+	int r;
 
 	venc_reset();
 	venc_write_config(venc_timings_to_config(&dssdev->panel.timings));
@@ -447,7 +448,22 @@ static void venc_power_on(struct omap_dss_device *dssdev)
 	if (dssdev->platform_enable)
 		dssdev->platform_enable(dssdev);
 
-	dssdev->manager->enable(dssdev->manager);
+	r = dss_mgr_enable(dssdev->manager);
+	if (r)
+		goto err;
+
+	return 0;
+
+err:
+	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
+	dss_set_dac_pwrdn_bgz(0);
+
+	if (dssdev->platform_disable)
+		dssdev->platform_disable(dssdev);
+
+	regulator_disable(venc.vdda_dac_reg);
+
+	return r;
 }
 
 static void venc_power_off(struct omap_dss_device *dssdev)
@@ -455,7 +471,7 @@ static void venc_power_off(struct omap_dss_device *dssdev)
 	venc_write_reg(VENC_OUTPUT_CONTROL, 0);
 	dss_set_dac_pwrdn_bgz(0);
 
-	dssdev->manager->disable(dssdev->manager);
+	dss_mgr_disable(dssdev->manager);
 
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
@@ -504,7 +520,9 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 	if (r)
 		goto err1;
 
-	venc_power_on(dssdev);
+	r = venc_power_on(dssdev);
+	if (r)
+		goto err2;
 
 	venc.wss_data = 0;
 
@@ -512,6 +530,8 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 
 	mutex_unlock(&venc.venc_lock);
 	return 0;
+err2:
+	venc_runtime_put();
 err1:
 	omap_dss_stop_device(dssdev);
 err0:

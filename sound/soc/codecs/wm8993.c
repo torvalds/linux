@@ -444,6 +444,12 @@ static int _wm8993_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	/* Enable the FLL */
 	snd_soc_write(codec, WM8993_FLL_CONTROL_1, reg1 | WM8993_FLL_ENA);
 
+	/* Both overestimates */
+	if (Fref < 1000000)
+		msleep(3);
+	else
+		msleep(1);
+
 	dev_dbg(codec->dev, "FLL enabled at %dHz->%dHz\n", Fref, Fout);
 
 	wm8993->fll_fref = Fref;
@@ -934,28 +940,6 @@ static const struct snd_soc_dapm_route routes[] = {
 	{ "Right Headphone Mux", "DAC", "DACR" },
 };
 
-static void wm8993_cache_restore(struct snd_soc_codec *codec)
-{
-	u16 *cache = codec->reg_cache;
-	int i;
-
-	if (!codec->cache_sync)
-		return;
-
-	/* Reenable hardware writes */
-	codec->cache_only = 0;
-
-	/* Restore the register settings */
-	for (i = 1; i < WM8993_MAX_REGISTER; i++) {
-		if (cache[i] == wm8993_reg_defaults[i])
-			continue;
-		snd_soc_write(codec, i, cache[i]);
-	}
-
-	/* We're in sync again */
-	codec->cache_sync = 0;
-}
-
 static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
@@ -979,7 +963,7 @@ static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 			if (ret != 0)
 				return ret;
 
-			wm8993_cache_restore(codec);
+			snd_soc_cache_sync(codec);
 
 			/* Tune DC servo configuration */
 			snd_soc_write(codec, 0x44, 3);
@@ -1394,7 +1378,7 @@ out:
 	return 0;
 }
 
-static struct snd_soc_dai_ops wm8993_ops = {
+static const struct snd_soc_dai_ops wm8993_ops = {
 	.set_sysclk = wm8993_set_sysclk,
 	.set_fmt = wm8993_set_dai_fmt,
 	.hw_params = wm8993_hw_params,
@@ -1544,7 +1528,7 @@ static int wm8993_remove(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int wm8993_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8993_suspend(struct snd_soc_codec *codec)
 {
 	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int fll_fout = wm8993->fll_fout;
@@ -1613,7 +1597,8 @@ static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
 	struct wm8993_priv *wm8993;
 	int ret;
 
-	wm8993 = kzalloc(sizeof(struct wm8993_priv), GFP_KERNEL);
+	wm8993 = devm_kzalloc(&i2c->dev, sizeof(struct wm8993_priv),
+			      GFP_KERNEL);
 	if (wm8993 == NULL)
 		return -ENOMEM;
 
@@ -1621,8 +1606,6 @@ static __devinit int wm8993_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8993, &wm8993_dai, 1);
-	if (ret < 0)
-		kfree(wm8993);
 	return ret;
 }
 
@@ -1641,7 +1624,7 @@ MODULE_DEVICE_TABLE(i2c, wm8993_i2c_id);
 
 static struct i2c_driver wm8993_i2c_driver = {
 	.driver = {
-		.name = "wm8993-codec",
+		.name = "wm8993",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8993_i2c_probe,

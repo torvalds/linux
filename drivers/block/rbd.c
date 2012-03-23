@@ -380,6 +380,7 @@ static int rbd_get_client(struct rbd_device *rbd_dev, const char *mon_addr,
 	rbdc = __rbd_client_find(opt);
 	if (rbdc) {
 		ceph_destroy_options(opt);
+		kfree(rbd_opts);
 
 		/* using an existing client */
 		kref_get(&rbdc->kref);
@@ -406,15 +407,15 @@ done_err:
 
 /*
  * Destroy ceph client
+ *
+ * Caller must hold node_lock.
  */
 static void rbd_client_release(struct kref *kref)
 {
 	struct rbd_client *rbdc = container_of(kref, struct rbd_client, kref);
 
 	dout("rbd_release_client %p\n", rbdc);
-	spin_lock(&node_lock);
 	list_del(&rbdc->node);
-	spin_unlock(&node_lock);
 
 	ceph_destroy_client(rbdc->client);
 	kfree(rbdc->rbd_opts);
@@ -427,7 +428,9 @@ static void rbd_client_release(struct kref *kref)
  */
 static void rbd_put_client(struct rbd_device *rbd_dev)
 {
+	spin_lock(&node_lock);
 	kref_put(&rbd_dev->rbd_client->kref, rbd_client_release);
+	spin_unlock(&node_lock);
 	rbd_dev->rbd_client = NULL;
 	rbd_dev->client = NULL;
 }
@@ -2183,6 +2186,8 @@ static ssize_t rbd_add(struct bus_type *bus,
 	spin_lock_init(&rbd_dev->lock);
 	INIT_LIST_HEAD(&rbd_dev->node);
 	INIT_LIST_HEAD(&rbd_dev->snaps);
+
+	init_rwsem(&rbd_dev->header.snap_rwsem);
 
 	/* generate unique id: find highest unique id, add one */
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);

@@ -77,7 +77,6 @@ struct pt_regs {
 	long  syscallno;	/* Syscall number (used by strace) */
 	long dummy;		/* Cheap alignment fix */
 };
-#endif /* __ASSEMBLY__ */
 
 /* TODO: Rename this to REDZONE because that's what it is */
 #define STACK_FRAME_OVERHEAD  128  /* size of minimum stack frame */
@@ -86,6 +85,13 @@ struct pt_regs {
 #define user_mode(regs)			(((regs)->sr & SPR_SR_SM) == 0)
 #define user_stack_pointer(regs)	((unsigned long)(regs)->sp)
 #define profile_pc(regs)		instruction_pointer(regs)
+
+static inline long regs_return_value(struct pt_regs *regs)
+{
+	return regs->gpr[11];
+}
+
+#endif /* __ASSEMBLY__ */
 
 /*
  * Offsets used by 'ptrace' system call interface.

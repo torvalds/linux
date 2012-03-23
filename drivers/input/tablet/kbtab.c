@@ -198,22 +198,4 @@ static struct usb_driver kbtab_driver = {
 	.id_table =	kbtab_ids,
 };
 
-static int __init kbtab_init(void)
-{
-	int retval;
-	retval = usb_register(&kbtab_driver);
-	if (retval)
-		goto out;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-out:
-	return retval;
-}
-
-static void __exit kbtab_exit(void)
-{
-	usb_deregister(&kbtab_driver);
-}
-
-module_init(kbtab_init);
-module_exit(kbtab_exit);
+module_usb_driver(kbtab_driver);

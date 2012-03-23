@@ -19,17 +19,22 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <linux/export.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/irqdomain.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/syscore_ops.h>
 #include <linux/device.h>
 #include <linux/amba/bus.h>
 
+#include <asm/exception.h>
 #include <asm/mach/irq.h>
 #include <asm/hardware/vic.h>
 
-#ifdef CONFIG_PM
 /**
  * struct vic_device - VIC PM device
  * @irq: The IRQ number for the base of the VIC.
@@ -40,6 +45,7 @@
  * @int_enable: Save for VIC_INT_ENABLE.
  * @soft_int: Save for VIC_INT_SOFT.
  * @protect: Save for VIC_PROTECT.
+ * @domain: The IRQ domain for the VIC.
  */
 struct vic_device {
 	void __iomem	*base;
@@ -50,13 +56,13 @@ struct vic_device {
 	u32		int_enable;
 	u32		soft_int;
 	u32		protect;
+	struct irq_domain domain;
 };
 
 /* we cannot allocate memory when VICs are initially registered */
 static struct vic_device vic_devices[CONFIG_ARM_VIC_NR];
 
 static int vic_id;
-#endif /* CONFIG_PM */
 
 /**
  * vic_init2 - common initialisation code
@@ -156,39 +162,50 @@ static int __init vic_pm_init(void)
 	return 0;
 }
 late_initcall(vic_pm_init);
+#endif /* CONFIG_PM */
 
 /**
- * vic_pm_register - Register a VIC for later power management control
+ * vic_register() - Register a VIC.
  * @base: The base address of the VIC.
  * @irq: The base IRQ for the VIC.
  * @resume_sources: bitmask of interrupts allowed for resume sources.
+ * @node: The device tree node associated with the VIC.
  *
  * Register the VIC with the system device tree so that it can be notified
  * of suspend and resume requests and ensure that the correct actions are
  * taken to re-instate the settings on resume.
+ *
+ * This also configures the IRQ domain for the VIC.
  */
-static void __init vic_pm_register(void __iomem *base, unsigned int irq, u32 resume_sources)
+static void __init vic_register(void __iomem *base, unsigned int irq,
+				u32 resume_sources, struct device_node *node)
 {
 	struct vic_device *v;
 
-	if (vic_id >= ARRAY_SIZE(vic_devices))
+	if (vic_id >= ARRAY_SIZE(vic_devices)) {
 		printk(KERN_ERR "%s: too few VICs, increase CONFIG_ARM_VIC_NR\n", __func__);
-	else {
-		v = &vic_devices[vic_id];
-		v->base = base;
-		v->resume_sources = resume_sources;
-		v->irq = irq;
-		vic_id++;
+		return;
 	}
+
+	v = &vic_devices[vic_id];
+	v->base = base;
+	v->resume_sources = resume_sources;
+	v->irq = irq;
+	vic_id++;
+
+	v->domain.irq_base = irq;
+	v->domain.nr_irq = 32;
+#ifdef CONFIG_OF_IRQ
+	v->domain.of_node = of_node_get(node);
+#endif /* CONFIG_OF */
+	v->domain.ops = &irq_domain_simple_ops;
+	irq_domain_add(&v->domain);
 }
-#else
-static inline void vic_pm_register(void __iomem *base, unsigned int irq, u32 arg1) { }
-#endif /* CONFIG_PM */
 
 static void vic_ack_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
-	unsigned int irq = d->irq & 31;
+	unsigned int irq = d->hwirq;
 	writel(1 << irq, base + VIC_INT_ENABLE_CLEAR);
 	/* moreover, clear the soft-triggered, in case it was the reason */
 	writel(1 << irq, base + VIC_INT_SOFT_CLEAR);
@@ -197,14 +214,14 @@ static void vic_ack_irq(struct irq_data *d)
 static void vic_mask_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
-	unsigned int irq = d->irq & 31;
+	unsigned int irq = d->hwirq;
 	writel(1 << irq, base + VIC_INT_ENABLE_CLEAR);
 }
 
 static void vic_unmask_irq(struct irq_data *d)
 {
 	void __iomem *base = irq_data_get_irq_chip_data(d);
-	unsigned int irq = d->irq & 31;
+	unsigned int irq = d->hwirq;
 	writel(1 << irq, base + VIC_INT_ENABLE);
 }
 
@@ -226,7 +243,7 @@ static struct vic_device *vic_from_irq(unsigned int irq)
 static int vic_set_wake(struct irq_data *d, unsigned int on)
 {
 	struct vic_device *v = vic_from_irq(d->irq);
-	unsigned int off = d->irq & 31;
+	unsigned int off = d->hwirq;
 	u32 bit = 1 << off;
 
 	if (!v)
@@ -301,7 +318,7 @@ static void __init vic_set_irq_sources(void __iomem *base,
  *  and 020 within the page. We call this "second block".
  */
 static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
-				u32 vic_sources)
+			       u32 vic_sources, struct device_node *node)
 {
 	unsigned int i;
 	int vic_2nd_block = ((unsigned long)base & ~PAGE_MASK) != 0;
@@ -328,17 +345,12 @@ static void __init vic_init_st(void __iomem *base, unsigned int irq_start,
 	}
 
 	vic_set_irq_sources(base, irq_start, vic_sources);
+	vic_register(base, irq_start, 0, node);
 }
 
-/**
- * vic_init - initialise a vectored interrupt controller
- * @base: iomem base address
- * @irq_start: starting interrupt number, must be muliple of 32
- * @vic_sources: bitmask of interrupt sources to allow
- * @resume_sources: bitmask of interrupt sources to allow for resume
- */
-void __init vic_init(void __iomem *base, unsigned int irq_start,
-		     u32 vic_sources, u32 resume_sources)
+static void __init __vic_init(void __iomem *base, unsigned int irq_start,
+			      u32 vic_sources, u32 resume_sources,
+			      struct device_node *node)
 {
 	unsigned int i;
 	u32 cellid = 0;
@@ -356,7 +368,7 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 
 	switch(vendor) {
 	case AMBA_VENDOR_ST:
-		vic_init_st(base, irq_start, vic_sources);
+		vic_init_st(base, irq_start, vic_sources, node);
 		return;
 	default:
 		printk(KERN_WARNING "VIC: unknown vendor, continuing anyways\n");
@@ -375,5 +387,81 @@ void __init vic_init(void __iomem *base, unsigned int irq_start,
 
 	vic_set_irq_sources(base, irq_start, vic_sources);
 
-	vic_pm_register(base, irq_start, resume_sources);
+	vic_register(base, irq_start, resume_sources, node);
+}
+
+/**
+ * vic_init() - initialise a vectored interrupt controller
+ * @base: iomem base address
+ * @irq_start: starting interrupt number, must be muliple of 32
+ * @vic_sources: bitmask of interrupt sources to allow
+ * @resume_sources: bitmask of interrupt sources to allow for resume
+ */
+void __init vic_init(void __iomem *base, unsigned int irq_start,
+		     u32 vic_sources, u32 resume_sources)
+{
+	__vic_init(base, irq_start, vic_sources, resume_sources, NULL);
+}
+
+#ifdef CONFIG_OF
+int __init vic_of_init(struct device_node *node, struct device_node *parent)
+{
+	void __iomem *regs;
+	int irq_base;
+
+	if (WARN(parent, "non-root VICs are not supported"))
+		return -EINVAL;
+
+	regs = of_iomap(node, 0);
+	if (WARN_ON(!regs))
+		return -EIO;
+
+	irq_base = irq_alloc_descs(-1, 0, 32, numa_node_id());
+	if (WARN_ON(irq_base < 0))
+		goto out_unmap;
+
+	__vic_init(regs, irq_base, ~0, ~0, node);
+
+	return 0;
+
+ out_unmap:
+	iounmap(regs);
+
+	return -EIO;
+}
+#endif /* CONFIG OF */
+
+/*
+ * Handle each interrupt in a single VIC.  Returns non-zero if we've
+ * handled at least one interrupt.  This does a single read of the
+ * status register and handles all interrupts in order from LSB first.
+ */
+static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
+{
+	u32 stat, irq;
+	int handled = 0;
+
+	stat = readl_relaxed(vic->base + VIC_IRQ_STATUS);
+	while (stat) {
+		irq = ffs(stat) - 1;
+		handle_IRQ(irq_domain_to_irq(&vic->domain, irq), regs);
+		stat &= ~(1 << irq);
+		handled = 1;
+	}
+
+	return handled;
+}
+
+/*
+ * Keep iterating over all registered VIC's until there are no pending
+ * interrupts.
+ */
+asmlinkage void __exception_irq_entry vic_handle_irq(struct pt_regs *regs)
+{
+	int i, handled;
+
+	do {
+		for (i = 0, handled = 0; i < vic_id; ++i)
+			handled |= handle_one_vic(&vic_devices[i], regs);
+	} while (handled);
 }

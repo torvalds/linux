@@ -473,10 +473,12 @@ ixgb_get_drvinfo(struct net_device *netdev,
 {
 	struct ixgb_adapter *adapter = netdev_priv(netdev);
 
-	strncpy(drvinfo->driver,  ixgb_driver_name, 32);
-	strncpy(drvinfo->version, ixgb_driver_version, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
-	strncpy(drvinfo->bus_info, pci_name(adapter->pdev), 32);
+	strlcpy(drvinfo->driver,  ixgb_driver_name,
+		sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, ixgb_driver_version,
+		sizeof(drvinfo->version));
+	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = IXGB_STATS_LEN;
 	drvinfo->regdump_len = ixgb_get_regs_len(netdev);
 	drvinfo->eedump_len = ixgb_get_eeprom_len(netdev);

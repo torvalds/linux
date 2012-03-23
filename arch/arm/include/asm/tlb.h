@@ -198,12 +198,30 @@ static inline void __pte_free_tlb(struct mmu_gather *tlb, pgtable_t pte,
 	unsigned long addr)
 {
 	pgtable_page_dtor(pte);
-	tlb_add_flush(tlb, addr);
+
+	/*
+	 * With the classic ARM MMU, a pte page has two corresponding pmd
+	 * entries, each covering 1MB.
+	 */
+	addr &= PMD_MASK;
+	tlb_add_flush(tlb, addr + SZ_1M - PAGE_SIZE);
+	tlb_add_flush(tlb, addr + SZ_1M);
+
 	tlb_remove_page(tlb, pte);
 }
 
+static inline void __pmd_free_tlb(struct mmu_gather *tlb, pmd_t *pmdp,
+				  unsigned long addr)
+{
+#ifdef CONFIG_ARM_LPAE
+	tlb_add_flush(tlb, addr);
+	tlb_remove_page(tlb, virt_to_page(pmdp));
+#endif
+}
+
 #define pte_free_tlb(tlb, ptep, addr)	__pte_free_tlb(tlb, ptep, addr)
-#define pmd_free_tlb(tlb, pmdp, addr)	pmd_free((tlb)->mm, pmdp)
+#define pmd_free_tlb(tlb, pmdp, addr)	__pmd_free_tlb(tlb, pmdp, addr)
+#define pud_free_tlb(tlb, pudp, addr)	pud_free((tlb)->mm, pudp)
 
 #define tlb_migrate_finish(mm)		do { } while (0)
 

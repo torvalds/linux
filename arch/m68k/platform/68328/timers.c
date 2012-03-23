@@ -93,7 +93,6 @@ static struct clocksource m68328_clk = {
 	.name	= "timer",
 	.rating	= 250,
 	.read	= m68328_read_clk,
-	.shift	= 20,
 	.mask	= CLOCKSOURCE_MASK(32),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
@@ -115,8 +114,7 @@ void hw_timer_init(void)
 
 	/* Enable timer 1 */
 	TCTL |= TCTL_TEN;
-	m68328_clk.mult = clocksource_hz2mult(TICKS_PER_JIFFY*HZ, m68328_clk.shift);
-	clocksource_register(&m68328_clk);
+	clocksource_register_hz(&m68328_clk, TICKS_PER_JIFFY*HZ);
 }
 
 /***************************************************************************/

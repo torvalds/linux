@@ -1873,17 +1873,14 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 		    common->lun, lun);
 
 	/* Check the LUN */
-	if (common->lun < common->nluns) {
-		curlun = &common->luns[common->lun];
-		common->curlun = curlun;
+	curlun = common->curlun;
+	if (curlun) {
 		if (common->cmnd[0] != REQUEST_SENSE) {
 			curlun->sense_data = SS_NO_SENSE;
 			curlun->sense_data_info = 0;
 			curlun->info_valid = 0;
 		}
 	} else {
-		common->curlun = NULL;
-		curlun = NULL;
 		common->bad_lun_okay = 0;
 
 		/*
@@ -1927,6 +1924,17 @@ static int check_command(struct fsg_common *common, int cmnd_size,
 	}
 
 	return 0;
+}
+
+/* wrapper of check_command for data size in blocks handling */
+static int check_command_size_in_blocks(struct fsg_common *common,
+		int cmnd_size, enum data_direction data_dir,
+		unsigned int mask, int needs_medium, const char *name)
+{
+	if (common->curlun)
+		common->data_size_from_cmnd <<= common->curlun->blkbits;
+	return check_command(common, cmnd_size, data_dir,
+			mask, needs_medium, name);
 }
 
 static int do_scsi_command(struct fsg_common *common)
@@ -2011,9 +2019,9 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case READ_6:
 		i = common->cmnd[4];
-		common->data_size_from_cmnd = (i == 0 ? 256 : i) <<
-				common->curlun->blkbits;
-		reply = check_command(common, 6, DATA_DIR_TO_HOST,
+		common->data_size_from_cmnd = (i == 0) ? 256 : i;
+		reply = check_command_size_in_blocks(common, 6,
+				      DATA_DIR_TO_HOST,
 				      (7<<1) | (1<<4), 1,
 				      "READ(6)");
 		if (reply == 0)
@@ -2022,9 +2030,9 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case READ_10:
 		common->data_size_from_cmnd =
-				get_unaligned_be16(&common->cmnd[7]) <<
-						common->curlun->blkbits;
-		reply = check_command(common, 10, DATA_DIR_TO_HOST,
+				get_unaligned_be16(&common->cmnd[7]);
+		reply = check_command_size_in_blocks(common, 10,
+				      DATA_DIR_TO_HOST,
 				      (1<<1) | (0xf<<2) | (3<<7), 1,
 				      "READ(10)");
 		if (reply == 0)
@@ -2033,9 +2041,9 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case READ_12:
 		common->data_size_from_cmnd =
-				get_unaligned_be32(&common->cmnd[6]) <<
-						common->curlun->blkbits;
-		reply = check_command(common, 12, DATA_DIR_TO_HOST,
+				get_unaligned_be32(&common->cmnd[6]);
+		reply = check_command_size_in_blocks(common, 12,
+				      DATA_DIR_TO_HOST,
 				      (1<<1) | (0xf<<2) | (0xf<<6), 1,
 				      "READ(12)");
 		if (reply == 0)
@@ -2134,9 +2142,9 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case WRITE_6:
 		i = common->cmnd[4];
-		common->data_size_from_cmnd = (i == 0 ? 256 : i) <<
-					common->curlun->blkbits;
-		reply = check_command(common, 6, DATA_DIR_FROM_HOST,
+		common->data_size_from_cmnd = (i == 0) ? 256 : i;
+		reply = check_command_size_in_blocks(common, 6,
+				      DATA_DIR_FROM_HOST,
 				      (7<<1) | (1<<4), 1,
 				      "WRITE(6)");
 		if (reply == 0)
@@ -2145,9 +2153,9 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case WRITE_10:
 		common->data_size_from_cmnd =
-				get_unaligned_be16(&common->cmnd[7]) <<
-						common->curlun->blkbits;
-		reply = check_command(common, 10, DATA_DIR_FROM_HOST,
+				get_unaligned_be16(&common->cmnd[7]);
+		reply = check_command_size_in_blocks(common, 10,
+				      DATA_DIR_FROM_HOST,
 				      (1<<1) | (0xf<<2) | (3<<7), 1,
 				      "WRITE(10)");
 		if (reply == 0)
@@ -2156,9 +2164,9 @@ static int do_scsi_command(struct fsg_common *common)
 
 	case WRITE_12:
 		common->data_size_from_cmnd =
-				get_unaligned_be32(&common->cmnd[6]) <<
-						common->curlun->blkbits;
-		reply = check_command(common, 12, DATA_DIR_FROM_HOST,
+				get_unaligned_be32(&common->cmnd[6]);
+		reply = check_command_size_in_blocks(common, 12,
+				      DATA_DIR_FROM_HOST,
 				      (1<<1) | (0xf<<2) | (0xf<<6), 1,
 				      "WRITE(12)");
 		if (reply == 0)
@@ -2273,6 +2281,10 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	if (common->data_size == 0)
 		common->data_dir = DATA_DIR_NONE;
 	common->lun = cbw->Lun;
+	if (common->lun >= 0 && common->lun < common->nluns)
+		common->curlun = &common->luns[common->lun];
+	else
+		common->curlun = NULL;
 	common->tag = cbw->Tag;
 	return 0;
 }
@@ -2763,7 +2775,7 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	 * Create the LUNs, open their backing files, and register the
 	 * LUN devices in sysfs.
 	 */
-	curlun = kzalloc(nluns * sizeof *curlun, GFP_KERNEL);
+	curlun = kcalloc(nluns, sizeof(*curlun), GFP_KERNEL);
 	if (unlikely(!curlun)) {
 		rc = -ENOMEM;
 		goto error_release;
@@ -3111,15 +3123,15 @@ fsg_add(struct usb_composite_dev *cdev, struct usb_configuration *c,
 
 struct fsg_module_parameters {
 	char		*file[FSG_MAX_LUNS];
-	int		ro[FSG_MAX_LUNS];
-	int		removable[FSG_MAX_LUNS];
-	int		cdrom[FSG_MAX_LUNS];
-	int		nofua[FSG_MAX_LUNS];
+	bool		ro[FSG_MAX_LUNS];
+	bool		removable[FSG_MAX_LUNS];
+	bool		cdrom[FSG_MAX_LUNS];
+	bool		nofua[FSG_MAX_LUNS];
 
 	unsigned int	file_count, ro_count, removable_count, cdrom_count;
 	unsigned int	nofua_count;
 	unsigned int	luns;	/* nluns */
-	int		stall;	/* can_stall */
+	bool		stall;	/* can_stall */
 };
 
 #define _FSG_MODULE_PARAM_ARRAY(prefix, params, name, type, desc)	\

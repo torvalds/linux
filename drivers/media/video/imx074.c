@@ -468,18 +468,7 @@ static struct i2c_driver imx074_i2c_driver = {
 	.id_table	= imx074_id,
 };
 
-static int __init imx074_mod_init(void)
-{
-	return i2c_add_driver(&imx074_i2c_driver);
-}
-
-static void __exit imx074_mod_exit(void)
-{
-	i2c_del_driver(&imx074_i2c_driver);
-}
-
-module_init(imx074_mod_init);
-module_exit(imx074_mod_exit);
+module_i2c_driver(imx074_i2c_driver);
 
 MODULE_DESCRIPTION("Sony IMX074 Camera driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

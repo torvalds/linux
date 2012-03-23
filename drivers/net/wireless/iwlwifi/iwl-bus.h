@@ -122,7 +122,8 @@ struct iwl_bus;
  * struct iwl_bus_ops - bus specific operations
  * @get_pm_support: must returns true if the bus can go to sleep
  * @apm_config: will be called during the config of the APM
- * @get_hw_id: prints the hw_id in the provided buffer
+ * @get_hw_id_string: prints the hw_id in the provided buffer
+ * @get_hw_id: get hw_id in u32
  * @write8: write a byte to register at offset ofs
  * @write32: write a dword to register at offset ofs
  * @wread32: read a dword at register at offset ofs
@@ -130,7 +131,8 @@ struct iwl_bus;
 struct iwl_bus_ops {
 	bool (*get_pm_support)(struct iwl_bus *bus);
 	void (*apm_config)(struct iwl_bus *bus);
-	void (*get_hw_id)(struct iwl_bus *bus, char buf[], int buf_len);
+	void (*get_hw_id_string)(struct iwl_bus *bus, char buf[], int buf_len);
+	u32 (*get_hw_id)(struct iwl_bus *bus);
 	void (*write8)(struct iwl_bus *bus, u32 ofs, u8 val);
 	void (*write32)(struct iwl_bus *bus, u32 ofs, u32 val);
 	u32 (*read32)(struct iwl_bus *bus, u32 ofs);
@@ -172,9 +174,15 @@ static inline void bus_apm_config(struct iwl_bus *bus)
 	bus->ops->apm_config(bus);
 }
 
-static inline void bus_get_hw_id(struct iwl_bus *bus, char buf[], int buf_len)
+static inline void bus_get_hw_id_string(struct iwl_bus *bus, char buf[],
+		int buf_len)
 {
-	bus->ops->get_hw_id(bus, buf, buf_len);
+	bus->ops->get_hw_id_string(bus, buf, buf_len);
+}
+
+static inline u32 bus_get_hw_id(struct iwl_bus *bus)
+{
+	return bus->ops->get_hw_id(bus);
 }
 
 static inline void bus_write8(struct iwl_bus *bus, u32 ofs, u8 val)

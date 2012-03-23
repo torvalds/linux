@@ -1268,6 +1268,17 @@ nvc0_grctx_generate_9039(struct drm_device *dev)
 static void
 nvc0_grctx_generate_90c0(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int i;
+
+	for (i = 0; dev_priv->chipset == 0xd9 && i < 4; i++) {
+		nv_mthd(dev, 0x90c0, 0x2700 + (i * 0x40), 0x00000000);
+		nv_mthd(dev, 0x90c0, 0x2720 + (i * 0x40), 0x00000000);
+		nv_mthd(dev, 0x90c0, 0x2704 + (i * 0x40), 0x00000000);
+		nv_mthd(dev, 0x90c0, 0x2724 + (i * 0x40), 0x00000000);
+		nv_mthd(dev, 0x90c0, 0x2708 + (i * 0x40), 0x00000000);
+		nv_mthd(dev, 0x90c0, 0x2728 + (i * 0x40), 0x00000000);
+	}
 	nv_mthd(dev, 0x90c0, 0x270c, 0x00000000);
 	nv_mthd(dev, 0x90c0, 0x272c, 0x00000000);
 	nv_mthd(dev, 0x90c0, 0x274c, 0x00000000);
@@ -1276,6 +1287,12 @@ nvc0_grctx_generate_90c0(struct drm_device *dev)
 	nv_mthd(dev, 0x90c0, 0x27ac, 0x00000000);
 	nv_mthd(dev, 0x90c0, 0x27cc, 0x00000000);
 	nv_mthd(dev, 0x90c0, 0x27ec, 0x00000000);
+	for (i = 0; dev_priv->chipset == 0xd9 && i < 4; i++) {
+		nv_mthd(dev, 0x90c0, 0x2710 + (i * 0x40), 0x00014000);
+		nv_mthd(dev, 0x90c0, 0x2730 + (i * 0x40), 0x00014000);
+		nv_mthd(dev, 0x90c0, 0x2714 + (i * 0x40), 0x00000040);
+		nv_mthd(dev, 0x90c0, 0x2734 + (i * 0x40), 0x00000040);
+	}
 	nv_mthd(dev, 0x90c0, 0x030c, 0x00000001);
 	nv_mthd(dev, 0x90c0, 0x1944, 0x00000000);
 	nv_mthd(dev, 0x90c0, 0x0758, 0x00000100);
@@ -1471,14 +1488,20 @@ nvc0_grctx_generate_shaders(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->chipset != 0xc1) {
-		nv_wr32(dev, 0x405800, 0x078000bf);
-		nv_wr32(dev, 0x405830, 0x02180000);
-	} else {
+	if (dev_priv->chipset == 0xd9) {
 		nv_wr32(dev, 0x405800, 0x0f8000bf);
 		nv_wr32(dev, 0x405830, 0x02180218);
+		nv_wr32(dev, 0x405834, 0x08000000);
+	} else
+	if (dev_priv->chipset == 0xc1) {
+		nv_wr32(dev, 0x405800, 0x0f8000bf);
+		nv_wr32(dev, 0x405830, 0x02180218);
+		nv_wr32(dev, 0x405834, 0x00000000);
+	} else {
+		nv_wr32(dev, 0x405800, 0x078000bf);
+		nv_wr32(dev, 0x405830, 0x02180000);
+		nv_wr32(dev, 0x405834, 0x00000000);
 	}
-	nv_wr32(dev, 0x405834, 0x00000000);
 	nv_wr32(dev, 0x405838, 0x00000000);
 	nv_wr32(dev, 0x405854, 0x00000000);
 	nv_wr32(dev, 0x405870, 0x00000001);
@@ -1509,7 +1532,10 @@ nvc0_grctx_generate_unk64xx(struct drm_device *dev)
 	nv_wr32(dev, 0x4064ac, 0x00003fff);
 	nv_wr32(dev, 0x4064b4, 0x00000000);
 	nv_wr32(dev, 0x4064b8, 0x00000000);
-	if (dev_priv->chipset == 0xc1) {
+	if (dev_priv->chipset == 0xd9)
+		nv_wr32(dev, 0x4064bc, 0x00000000);
+	if (dev_priv->chipset == 0xc1 ||
+	    dev_priv->chipset == 0xd9) {
 		nv_wr32(dev, 0x4064c0, 0x80140078);
 		nv_wr32(dev, 0x4064c4, 0x0086ffff);
 	}
@@ -1550,10 +1576,23 @@ nvc0_grctx_generate_rop(struct drm_device *dev)
 	/* ROPC_BROADCAST */
 	nv_wr32(dev, 0x408800, 0x02802a3c);
 	nv_wr32(dev, 0x408804, 0x00000040);
-	nv_wr32(dev, 0x408808, chipset != 0xc1 ? 0x0003e00d : 0x1003e005);
-	nv_wr32(dev, 0x408900, 0x3080b801);
-	nv_wr32(dev, 0x408904, chipset != 0xc1 ? 0x02000001 : 0x62000001);
-	nv_wr32(dev, 0x408908, 0x00c80929);
+	if (chipset == 0xd9) {
+		nv_wr32(dev, 0x408808, 0x1043e005);
+		nv_wr32(dev, 0x408900, 0x3080b801);
+		nv_wr32(dev, 0x408904, 0x1043e005);
+		nv_wr32(dev, 0x408908, 0x00c8102f);
+	} else
+	if (chipset == 0xc1) {
+		nv_wr32(dev, 0x408808, 0x1003e005);
+		nv_wr32(dev, 0x408900, 0x3080b801);
+		nv_wr32(dev, 0x408904, 0x62000001);
+		nv_wr32(dev, 0x408908, 0x00c80929);
+	} else {
+		nv_wr32(dev, 0x408808, 0x0003e00d);
+		nv_wr32(dev, 0x408900, 0x3080b801);
+		nv_wr32(dev, 0x408904, 0x02000001);
+		nv_wr32(dev, 0x408908, 0x00c80929);
+	}
 	nv_wr32(dev, 0x40890c, 0x00000000);
 	nv_wr32(dev, 0x408980, 0x0000011d);
 }
@@ -1572,7 +1611,7 @@ nvc0_grctx_generate_gpc(struct drm_device *dev)
 	nv_wr32(dev, 0x418408, 0x00000000);
 	nv_wr32(dev, 0x41840c, 0x00001008);
 	nv_wr32(dev, 0x418410, 0x0fff0fff);
-	nv_wr32(dev, 0x418414, 0x00200fff);
+	nv_wr32(dev, 0x418414, chipset != 0xd9 ? 0x00200fff : 0x02200fff);
 	nv_wr32(dev, 0x418450, 0x00000000);
 	nv_wr32(dev, 0x418454, 0x00000000);
 	nv_wr32(dev, 0x418458, 0x00000000);
@@ -1587,14 +1626,17 @@ nvc0_grctx_generate_gpc(struct drm_device *dev)
 	nv_wr32(dev, 0x418700, 0x00000002);
 	nv_wr32(dev, 0x418704, 0x00000080);
 	nv_wr32(dev, 0x418708, 0x00000000);
-	nv_wr32(dev, 0x41870c, 0x07c80000);
+	nv_wr32(dev, 0x41870c, chipset != 0xd9 ? 0x07c80000 : 0x00000000);
 	nv_wr32(dev, 0x418710, 0x00000000);
-	nv_wr32(dev, 0x418800, 0x0006860a);
+	nv_wr32(dev, 0x418800, chipset != 0xd9 ? 0x0006860a : 0x7006860a);
 	nv_wr32(dev, 0x418808, 0x00000000);
 	nv_wr32(dev, 0x41880c, 0x00000000);
 	nv_wr32(dev, 0x418810, 0x00000000);
 	nv_wr32(dev, 0x418828, 0x00008442);
-	nv_wr32(dev, 0x418830, chipset != 0xc1 ? 0x00000001 : 0x10000001);
+	if (chipset == 0xc1 || chipset == 0xd9)
+		nv_wr32(dev, 0x418830, 0x10000001);
+	else
+		nv_wr32(dev, 0x418830, 0x00000001);
 	nv_wr32(dev, 0x4188d8, 0x00000008);
 	nv_wr32(dev, 0x4188e0, 0x01000000);
 	nv_wr32(dev, 0x4188e8, 0x00000000);
@@ -1602,7 +1644,12 @@ nvc0_grctx_generate_gpc(struct drm_device *dev)
 	nv_wr32(dev, 0x4188f0, 0x00000000);
 	nv_wr32(dev, 0x4188f4, 0x00000000);
 	nv_wr32(dev, 0x4188f8, 0x00000000);
-	nv_wr32(dev, 0x4188fc, chipset != 0xc1 ? 0x00100000 : 0x00100018);
+	if (chipset == 0xd9)
+		nv_wr32(dev, 0x4188fc, 0x20100008);
+	else if (chipset == 0xc1)
+		nv_wr32(dev, 0x4188fc, 0x00100018);
+	else
+		nv_wr32(dev, 0x4188fc, 0x00100000);
 	nv_wr32(dev, 0x41891c, 0x00ff00ff);
 	nv_wr32(dev, 0x418924, 0x00000000);
 	nv_wr32(dev, 0x418928, 0x00ffff00);
@@ -1616,7 +1663,7 @@ nvc0_grctx_generate_gpc(struct drm_device *dev)
 		nv_wr32(dev, 0x418a14 + (i * 0x20), 0x00000000);
 		nv_wr32(dev, 0x418a18 + (i * 0x20), 0x00000000);
 	}
-	nv_wr32(dev, 0x418b00, 0x00000000);
+	nv_wr32(dev, 0x418b00, chipset != 0xd9 ? 0x00000000 : 0x00000006);
 	nv_wr32(dev, 0x418b08, 0x0a418820);
 	nv_wr32(dev, 0x418b0c, 0x062080e6);
 	nv_wr32(dev, 0x418b10, 0x020398a4);
@@ -1633,7 +1680,7 @@ nvc0_grctx_generate_gpc(struct drm_device *dev)
 	nv_wr32(dev, 0x418c24, 0x00000000);
 	nv_wr32(dev, 0x418c28, 0x00000000);
 	nv_wr32(dev, 0x418c2c, 0x00000000);
-	if (chipset == 0xc1)
+	if (chipset == 0xc1 || chipset == 0xd9)
 		nv_wr32(dev, 0x418c6c, 0x00000001);
 	nv_wr32(dev, 0x418c80, 0x20200004);
 	nv_wr32(dev, 0x418c8c, 0x00000001);
@@ -1653,7 +1700,10 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419818, 0x00000000);
 	nv_wr32(dev, 0x41983c, 0x00038bc7);
 	nv_wr32(dev, 0x419848, 0x00000000);
-	nv_wr32(dev, 0x419864, chipset != 0xc1 ? 0x0000012a : 0x00000129);
+	if (chipset == 0xc1 || chipset == 0xd9)
+		nv_wr32(dev, 0x419864, 0x00000129);
+	else
+		nv_wr32(dev, 0x419864, 0x0000012a);
 	nv_wr32(dev, 0x419888, 0x00000000);
 	nv_wr32(dev, 0x419a00, 0x000001f0);
 	nv_wr32(dev, 0x419a04, 0x00000001);
@@ -1663,7 +1713,9 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419a14, 0x00000200);
 	nv_wr32(dev, 0x419a1c, 0x00000000);
 	nv_wr32(dev, 0x419a20, 0x00000800);
-	if (chipset != 0xc0 && chipset != 0xc8)
+	if (chipset == 0xd9)
+		nv_wr32(dev, 0x00419ac4, 0x0017f440);
+	else if (chipset != 0xc0 && chipset != 0xc8)
 		nv_wr32(dev, 0x00419ac4, 0x0007f440);
 	nv_wr32(dev, 0x419b00, 0x0a418820);
 	nv_wr32(dev, 0x419b04, 0x062080e6);
@@ -1672,21 +1724,33 @@ nvc0_grctx_generate_tp(struct drm_device *dev)
 	nv_wr32(dev, 0x419b10, 0x0a418820);
 	nv_wr32(dev, 0x419b14, 0x000000e6);
 	nv_wr32(dev, 0x419bd0, 0x00900103);
-	nv_wr32(dev, 0x419be0, chipset != 0xc1 ? 0x00000001 : 0x00400001);
+	if (chipset == 0xc1 || chipset == 0xd9)
+		nv_wr32(dev, 0x419be0, 0x00400001);
+	else
+		nv_wr32(dev, 0x419be0, 0x00000001);
 	nv_wr32(dev, 0x419be4, 0x00000000);
-	nv_wr32(dev, 0x419c00, 0x00000002);
+	nv_wr32(dev, 0x419c00, chipset != 0xd9 ? 0x00000002 : 0x0000000a);
 	nv_wr32(dev, 0x419c04, 0x00000006);
 	nv_wr32(dev, 0x419c08, 0x00000002);
 	nv_wr32(dev, 0x419c20, 0x00000000);
-	if (chipset == 0xce || chipset == 0xcf)
+	if (dev_priv->chipset == 0xd9) {
+		nv_wr32(dev, 0x419c24, 0x00084210);
+		nv_wr32(dev, 0x419c28, 0x3cf3cf3c);
 		nv_wr32(dev, 0x419cb0, 0x00020048);
-	else
+	} else
+	if (chipset == 0xce || chipset == 0xcf) {
+		nv_wr32(dev, 0x419cb0, 0x00020048);
+	} else {
 		nv_wr32(dev, 0x419cb0, 0x00060048);
+	}
 	nv_wr32(dev, 0x419ce8, 0x00000000);
 	nv_wr32(dev, 0x419cf4, 0x00000183);
-	nv_wr32(dev, 0x419d20, chipset != 0xc1 ? 0x02180000 : 0x12180000);
+	if (chipset == 0xc1 || chipset == 0xd9)
+		nv_wr32(dev, 0x419d20, 0x12180000);
+	else
+		nv_wr32(dev, 0x419d20, 0x02180000);
 	nv_wr32(dev, 0x419d24, 0x00001fff);
-	if (chipset == 0xc1)
+	if (chipset == 0xc1 || chipset == 0xd9)
 		nv_wr32(dev, 0x419d44, 0x02180218);
 	nv_wr32(dev, 0x419e04, 0x00000000);
 	nv_wr32(dev, 0x419e08, 0x00000000);
@@ -1986,6 +2050,10 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nv_icmd(dev, 0x00000215, 0x00000040);
 	nv_icmd(dev, 0x00000216, 0x00000040);
 	nv_icmd(dev, 0x00000217, 0x00000040);
+	if (dev_priv->chipset == 0xd9) {
+		for (i = 0x0400; i <= 0x0417; i++)
+			nv_icmd(dev, i, 0x00000040);
+	}
 	nv_icmd(dev, 0x00000218, 0x0000c080);
 	nv_icmd(dev, 0x00000219, 0x0000c080);
 	nv_icmd(dev, 0x0000021a, 0x0000c080);
@@ -1994,6 +2062,10 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nv_icmd(dev, 0x0000021d, 0x0000c080);
 	nv_icmd(dev, 0x0000021e, 0x0000c080);
 	nv_icmd(dev, 0x0000021f, 0x0000c080);
+	if (dev_priv->chipset == 0xd9) {
+		for (i = 0x0440; i <= 0x0457; i++)
+			nv_icmd(dev, i, 0x0000c080);
+	}
 	nv_icmd(dev, 0x000000ad, 0x0000013e);
 	nv_icmd(dev, 0x000000e1, 0x00000010);
 	nv_icmd(dev, 0x00000290, 0x00000000);
@@ -2556,7 +2628,8 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nv_icmd(dev, 0x0000053f, 0xffff0000);
 	nv_icmd(dev, 0x00000585, 0x0000003f);
 	nv_icmd(dev, 0x00000576, 0x00000003);
-	if (dev_priv->chipset == 0xc1)
+	if (dev_priv->chipset == 0xc1 ||
+	    dev_priv->chipset == 0xd9)
 		nv_icmd(dev, 0x0000057b, 0x00000059);
 	nv_icmd(dev, 0x00000586, 0x00000040);
 	nv_icmd(dev, 0x00000582, 0x00000080);
@@ -2658,6 +2731,8 @@ nvc0_grctx_generate(struct nouveau_channel *chan)
 	nv_icmd(dev, 0x00000957, 0x00000003);
 	nv_icmd(dev, 0x0000095e, 0x20164010);
 	nv_icmd(dev, 0x0000095f, 0x00000020);
+	if (dev_priv->chipset == 0xd9)
+		nv_icmd(dev, 0x0000097d, 0x00000020);
 	nv_icmd(dev, 0x00000683, 0x00000006);
 	nv_icmd(dev, 0x00000685, 0x003fffff);
 	nv_icmd(dev, 0x00000687, 0x00000c48);

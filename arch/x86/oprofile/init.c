@@ -16,37 +16,23 @@
  * with the NMI mode driver.
  */
 
+#ifdef CONFIG_X86_LOCAL_APIC
 extern int op_nmi_init(struct oprofile_operations *ops);
-extern int op_nmi_timer_init(struct oprofile_operations *ops);
 extern void op_nmi_exit(void);
-extern void x86_backtrace(struct pt_regs * const regs, unsigned int depth);
+#else
+static int op_nmi_init(struct oprofile_operations *ops) { return -ENODEV; }
+static void op_nmi_exit(void) { }
+#endif
 
-static int nmi_timer;
+extern void x86_backtrace(struct pt_regs * const regs, unsigned int depth);
 
 int __init oprofile_arch_init(struct oprofile_operations *ops)
 {
-	int ret;
-
-	ret = -ENODEV;
-
-#ifdef CONFIG_X86_LOCAL_APIC
-	ret = op_nmi_init(ops);
-#endif
-	nmi_timer = (ret != 0);
-#ifdef CONFIG_X86_IO_APIC
-	if (nmi_timer)
-		ret = op_nmi_timer_init(ops);
-#endif
 	ops->backtrace = x86_backtrace;
-
-	return ret;
+	return op_nmi_init(ops);
 }
-
 
 void oprofile_arch_exit(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
-	if (!nmi_timer)
-		op_nmi_exit();
-#endif
+	op_nmi_exit();
 }

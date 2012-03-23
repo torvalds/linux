@@ -185,7 +185,6 @@ static void
 rpc_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(rpc_inode_cachep, RPC_I(inode));
 }
 
@@ -954,7 +953,7 @@ static void rpc_cachedir_depopulate(struct dentry *dentry)
 }
 
 struct dentry *rpc_create_cache_dir(struct dentry *parent, struct qstr *name,
-				    mode_t umode, struct cache_detail *cd)
+				    umode_t umode, struct cache_detail *cd)
 {
 	return rpc_mkdir_populate(parent, name, umode, NULL,
 			rpc_cachedir_populate, cd);

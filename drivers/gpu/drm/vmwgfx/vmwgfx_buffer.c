@@ -28,6 +28,7 @@
 #include "vmwgfx_drv.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_placement.h"
+#include "ttm/ttm_page_alloc.h"
 
 static uint32_t vram_placement_flags = TTM_PL_FLAG_VRAM |
 	TTM_PL_FLAG_CACHED;
@@ -139,85 +140,63 @@ struct ttm_placement vmw_srf_placement = {
 	.busy_placement = gmr_vram_placement_flags
 };
 
-struct vmw_ttm_backend {
-	struct ttm_backend backend;
-	struct page **pages;
-	unsigned long num_pages;
+struct vmw_ttm_tt {
+	struct ttm_tt ttm;
 	struct vmw_private *dev_priv;
 	int gmr_id;
 };
 
-static int vmw_ttm_populate(struct ttm_backend *backend,
-			    unsigned long num_pages, struct page **pages,
-			    struct page *dummy_read_page,
-			    dma_addr_t *dma_addrs)
+static int vmw_ttm_bind(struct ttm_tt *ttm, struct ttm_mem_reg *bo_mem)
 {
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
-
-	vmw_be->pages = pages;
-	vmw_be->num_pages = num_pages;
-
-	return 0;
-}
-
-static int vmw_ttm_bind(struct ttm_backend *backend, struct ttm_mem_reg *bo_mem)
-{
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
+	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
 
 	vmw_be->gmr_id = bo_mem->start;
 
-	return vmw_gmr_bind(vmw_be->dev_priv, vmw_be->pages,
-			    vmw_be->num_pages, vmw_be->gmr_id);
+	return vmw_gmr_bind(vmw_be->dev_priv, ttm->pages,
+			    ttm->num_pages, vmw_be->gmr_id);
 }
 
-static int vmw_ttm_unbind(struct ttm_backend *backend)
+static int vmw_ttm_unbind(struct ttm_tt *ttm)
 {
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
+	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
 
 	vmw_gmr_unbind(vmw_be->dev_priv, vmw_be->gmr_id);
 	return 0;
 }
 
-static void vmw_ttm_clear(struct ttm_backend *backend)
+static void vmw_ttm_destroy(struct ttm_tt *ttm)
 {
-	struct vmw_ttm_backend *vmw_be =
-		container_of(backend, struct vmw_ttm_backend, backend);
+	struct vmw_ttm_tt *vmw_be = container_of(ttm, struct vmw_ttm_tt, ttm);
 
-	vmw_be->pages = NULL;
-	vmw_be->num_pages = 0;
-}
-
-static void vmw_ttm_destroy(struct ttm_backend *backend)
-{
-	struct vmw_ttm_backend *vmw_be =
-	    container_of(backend, struct vmw_ttm_backend, backend);
-
+	ttm_tt_fini(ttm);
 	kfree(vmw_be);
 }
 
 static struct ttm_backend_func vmw_ttm_func = {
-	.populate = vmw_ttm_populate,
-	.clear = vmw_ttm_clear,
 	.bind = vmw_ttm_bind,
 	.unbind = vmw_ttm_unbind,
 	.destroy = vmw_ttm_destroy,
 };
 
-struct ttm_backend *vmw_ttm_backend_init(struct ttm_bo_device *bdev)
+struct ttm_tt *vmw_ttm_tt_create(struct ttm_bo_device *bdev,
+				 unsigned long size, uint32_t page_flags,
+				 struct page *dummy_read_page)
 {
-	struct vmw_ttm_backend *vmw_be;
+	struct vmw_ttm_tt *vmw_be;
 
 	vmw_be = kmalloc(sizeof(*vmw_be), GFP_KERNEL);
 	if (!vmw_be)
 		return NULL;
 
-	vmw_be->backend.func = &vmw_ttm_func;
+	vmw_be->ttm.func = &vmw_ttm_func;
 	vmw_be->dev_priv = container_of(bdev, struct vmw_private, bdev);
 
-	return &vmw_be->backend;
+	if (ttm_tt_init(&vmw_be->ttm, bdev, size, page_flags, dummy_read_page)) {
+		kfree(vmw_be);
+		return NULL;
+	}
+
+	return &vmw_be->ttm;
 }
 
 int vmw_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
@@ -357,7 +336,9 @@ static int vmw_sync_obj_wait(void *sync_obj, void *sync_arg,
 }
 
 struct ttm_bo_driver vmw_bo_driver = {
-	.create_ttm_backend_entry = vmw_ttm_backend_init,
+	.ttm_tt_create = &vmw_ttm_tt_create,
+	.ttm_tt_populate = &ttm_pool_populate,
+	.ttm_tt_unpopulate = &ttm_pool_unpopulate,
 	.invalidate_caches = vmw_invalidate_caches,
 	.init_mem_type = vmw_init_mem_type,
 	.evict_flags = vmw_evict_flags,

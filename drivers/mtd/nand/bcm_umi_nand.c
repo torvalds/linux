@@ -546,18 +546,7 @@ static struct platform_driver nand_driver = {
 	.resume = bcm_umi_nand_resume,
 };
 
-static int __init nand_init(void)
-{
-	return platform_driver_register(&nand_driver);
-}
-
-static void __exit nand_exit(void)
-{
-	platform_driver_unregister(&nand_driver);
-}
-
-module_init(nand_init);
-module_exit(nand_exit);
+module_platform_driver(nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Broadcom");

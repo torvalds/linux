@@ -67,7 +67,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 	s64 dat64[2];
 	u32 *dat32 = (u32 *)dat64;
 
-	if (ring->scan_count)
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		if (ade7758_spi_read_burst(&indio_dev->dev) >= 0)
 			*dat32 = get_unaligned_be32(&st->rx_buf[5]) & 0xFFFFFF;
 
@@ -96,10 +96,11 @@ static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 	size_t d_size;
 	unsigned channel;
 
-	if (!ring->scan_count)
+	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
-	channel = find_first_bit(ring->scan_mask, indio_dev->masklength);
+	channel = find_first_bit(indio_dev->active_scan_mask,
+				 indio_dev->masklength);
 
 	d_size = st->ade7758_ring_channels[channel].scan_type.storagebits / 8;
 
@@ -145,8 +146,7 @@ int ade7758_configure_ring(struct iio_dev *indio_dev)
 
 	/* Effectively select the ring buffer implementation */
 	indio_dev->buffer->access = &ring_sw_access_funcs;
-	indio_dev->buffer->setup_ops = &ade7758_ring_setup_ops;
-	indio_dev->buffer->owner = THIS_MODULE;
+	indio_dev->setup_ops = &ade7758_ring_setup_ops;
 
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &ade7758_trigger_handler,

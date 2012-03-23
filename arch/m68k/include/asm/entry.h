@@ -222,15 +222,23 @@
  * Non-MMU systems do not reserve %a2 in this way, and this definition is
  * not used for them.
  */
+#ifdef CONFIG_MMU
+
 #define curptr a2
 
 #define GET_CURRENT(tmp) get_current tmp
 .macro get_current reg=%d0
 	movel	%sp,\reg
-	andw	#-THREAD_SIZE,\reg
+	andl	#-THREAD_SIZE,\reg
 	movel	\reg,%curptr
 	movel	%curptr@,%curptr
 .endm
+
+#else
+
+#define GET_CURRENT(tmp)
+
+#endif /* CONFIG_MMU */
 
 #else /* C source */
 

@@ -26,18 +26,7 @@ static int openrd_client_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	int ret;
-	unsigned int freq, fmt;
-
-	fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS;
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, fmt);
-	if (ret < 0)
-		return ret;
+	unsigned int freq;
 
 	switch (params_rate(params)) {
 	default:
@@ -69,6 +58,7 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 	.platform_name = "kirkwood-pcm-audio",
 	.codec_dai_name = "cs42l51-hifi",
 	.codec_name = "cs42l51-codec.0-004a",
+	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS,
 	.ops = &openrd_client_ops,
 },
 };
@@ -76,6 +66,7 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 
 static struct snd_soc_card openrd_client = {
 	.name = "OpenRD Client",
+	.owner = THIS_MODULE,
 	.dai_link = openrd_client_dai,
 	.num_links = ARRAY_SIZE(openrd_client_dai),
 };

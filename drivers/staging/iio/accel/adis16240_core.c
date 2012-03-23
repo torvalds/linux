@@ -21,7 +21,7 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../buffer.h"
 
 #include "adis16240.h"
 
@@ -389,8 +389,7 @@ static int adis16240_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SEPARATE):
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			*val = 0;
@@ -411,14 +410,14 @@ static int adis16240_read_raw(struct iio_dev *indio_dev,
 			return -EINVAL;
 		}
 		break;
-	case (1 << IIO_CHAN_INFO_PEAK_SCALE_SHARED):
+	case IIO_CHAN_INFO_PEAK_SCALE:
 		*val = 6;
 		*val2 = 629295;
 		return IIO_VAL_INT_PLUS_MICRO;
-	case (1 << IIO_CHAN_INFO_OFFSET_SEPARATE):
+	case IIO_CHAN_INFO_OFFSET:
 		*val = 25;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		bits = 10;
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16240_addresses[chan->address][1];
@@ -432,7 +431,7 @@ static int adis16240_read_raw(struct iio_dev *indio_dev,
 		*val = val16;
 		mutex_unlock(&indio_dev->mlock);
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_PEAK_SEPARATE):
+	case IIO_CHAN_INFO_PEAK:
 		bits = 10;
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16240_addresses[chan->address][2];
@@ -460,7 +459,7 @@ static int adis16240_write_raw(struct iio_dev *indio_dev,
 	s16 val16;
 	u8 addr;
 	switch (mask) {
-	case (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE):
+	case IIO_CHAN_INFO_CALIBBIAS:
 		val16 = val & ((1 << bits) - 1);
 		addr = adis16240_addresses[chan->address][1];
 		return adis16240_spi_write_reg_16(indio_dev, addr, val16);
@@ -470,7 +469,7 @@ static int adis16240_write_raw(struct iio_dev *indio_dev,
 
 static struct iio_chan_spec adis16240_channels[] = {
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "supply", 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 in_supply, ADIS16240_SCAN_SUPPLY,
 		 IIO_ST('u', 10, 16, 0), 0),
 	IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,
@@ -478,22 +477,22 @@ static struct iio_chan_spec adis16240_channels[] = {
 		 in_aux, ADIS16240_SCAN_AUX_ADC,
 		 IIO_ST('u', 10, 16, 0), 0),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_X,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED) |
-		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		 accel_x, ADIS16240_SCAN_ACC_X,
 		 IIO_ST('s', 10, 16, 0), 0),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Y,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED) |
-		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		 accel_y, ADIS16240_SCAN_ACC_Y,
 		 IIO_ST('s', 10, 16, 0), 0),
 	IIO_CHAN(IIO_ACCEL, 1, 0, 0, NULL, 0, IIO_MOD_Z,
-		 (1 << IIO_CHAN_INFO_SCALE_SHARED) |
-		 (1 << IIO_CHAN_INFO_CALIBBIAS_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		 accel_z, ADIS16240_SCAN_ACC_Z,
 		 IIO_ST('s', 10, 16, 0), 0),
 	IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,
-		 (1 << IIO_CHAN_INFO_SCALE_SEPARATE),
+		 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		 temp, ADIS16240_SCAN_TEMP,
 		 IIO_ST('u', 10, 16, 0), 0),
 	IIO_CHAN_SOFT_TIMESTAMP(6)
@@ -606,19 +605,9 @@ static struct spi_driver adis16240_driver = {
 	.probe = adis16240_probe,
 	.remove = __devexit_p(adis16240_remove),
 };
-
-static __init int adis16240_init(void)
-{
-	return spi_register_driver(&adis16240_driver);
-}
-module_init(adis16240_init);
-
-static __exit void adis16240_exit(void)
-{
-	spi_unregister_driver(&adis16240_driver);
-}
-module_exit(adis16240_exit);
+module_spi_driver(adis16240_driver);
 
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");
 MODULE_DESCRIPTION("Analog Devices Programmable Impact Sensor and Recorder");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("spi:adis16240");

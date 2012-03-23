@@ -2171,6 +2171,48 @@ static const u16 b43_ntab_loftlt1_r3[] = {
 	0x0000, 0x0000,
 };
 
+/* volatile  tables, PHY revision >= 3 */
+
+/* indexed by antswctl2g */
+static const u16 b43_ntab_antswctl2g_r3[4][32] = {
+	{
+		0x0082, 0x0082, 0x0211, 0x0222, 0x0328,
+		0x0000, 0x0000, 0x0000, 0x0144, 0x0000,
+		0x0000, 0x0000, 0x0188, 0x0000, 0x0000,
+		0x0000, 0x0082, 0x0082, 0x0211, 0x0222,
+		0x0328, 0x0000, 0x0000, 0x0000, 0x0144,
+		0x0000, 0x0000, 0x0000, 0x0188, 0x0000,
+		0x0000, 0x0000,
+	},
+	{
+		0x0022, 0x0022, 0x0011, 0x0022, 0x0022,
+		0x0000, 0x0000, 0x0000, 0x0011, 0x0000,
+		0x0000, 0x0000, 0x0022, 0x0000, 0x0000,
+		0x0000, 0x0022, 0x0022, 0x0011, 0x0022,
+		0x0022, 0x0000, 0x0000, 0x0000, 0x0011,
+		0x0000, 0x0000, 0x0000, 0x0022, 0x0000,
+		0x0000, 0x0000,
+	},
+	{
+		0x0088, 0x0088, 0x0044, 0x0088, 0x0088,
+		0x0000, 0x0000, 0x0000, 0x0044, 0x0000,
+		0x0000, 0x0000, 0x0088, 0x0000, 0x0000,
+		0x0000, 0x0088, 0x0088, 0x0044, 0x0088,
+		0x0088, 0x0000, 0x0000, 0x0000, 0x0044,
+		0x0000, 0x0000, 0x0000, 0x0088, 0x0000,
+		0x0000, 0x0000,
+	},
+	{
+		0x0022, 0x0022, 0x0011, 0x0022, 0x0000,
+		0x0000, 0x0000, 0x0000, 0x0011, 0x0000,
+		0x0000, 0x0000, 0x0022, 0x0000, 0x0000,
+		0x03cc, 0x0022, 0x0022, 0x0011, 0x0022,
+		0x0000, 0x0000, 0x0000, 0x0000, 0x0011,
+		0x0000, 0x0000, 0x0000, 0x0022, 0x0000,
+		0x0000, 0x03cc,
+	}
+};
+
 /* TX gain tables */
 const u32 b43_ntab_tx_gain_rev0_1_2[] = {
 	0x03cc2b44, 0x03cc2b42, 0x03cc2a44, 0x03cc2a42,
@@ -2652,7 +2694,7 @@ const u16 tbl_tx_iqlo_cal_cmds_fullcal_nphyrev3[] = {
 const s16 tbl_tx_filter_coef_rev4[7][15] = {
 	{  -377,   137,  -407,   208, -1527,
 	    956,    93,   186,    93,   230,
-	    -44,   230,    20,  -191,   201 },
+	    -44,   230,   201,  -191,   201 },
 	{   -77,    20,   -98,    49,   -93,
 	     60,    56,   111,    56,    26,
 	     -5,    26,    34,   -32,    34 },
@@ -2710,7 +2752,18 @@ const struct nphy_rf_control_override_rev3 tbl_rf_control_override_rev3[] = {
 	{ 0x00C0,  6, 0xE7, 0xF9, 0xEC, 0xFB }  /* field == 0x4000 (fls 15) */
 };
 
-struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][3] = {
+struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_wa_phy6_radio11_ghz2 = {
+	{ 10, 14, 19, 27 },
+	{ -5, 6, 10, 15 },
+	{ 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA },
+	{ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
+	0x427E,
+	{ 0x413F, 0x413F, 0x413F, 0x413F },
+	0x007E, 0x0066, 0x1074,
+	0x18, 0x18, 0x18,
+	0x01D0, 0x5,
+};
+struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][4] = {
 	{ /* 2GHz */
 		{ /* PHY rev 3 */
 			{ 7, 11, 16, 23 },
@@ -2734,15 +2787,26 @@ struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][3] = {
 			0x18, 0x18, 0x18,
 			0x01A1, 0x5,
 		},
-		{ /* PHY rev 5+ */
+		{ /* PHY rev 5 */
 			{ 9, 13, 18, 26 },
 			{ -3, 7, 11, 16 },
 			{ 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA },
 			{ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
 			0x427E, /* invalid for external LNA! */
 			{ 0x413F, 0x413F, 0x413F, 0x413F }, /* invalid for external LNA! */
-			0x1076, 0x0066, 0x106A,
-			0xC, 0xC, 0xC,
+			0x1076, 0x0066, 0x0000, /* low is invalid (the last one) */
+			0x18, 0x18, 0x18,
+			0x01D0, 0x9,
+		},
+		{ /* PHY rev 6+ */
+			{ 8, 13, 18, 25 },
+			{ -5, 6, 10, 14 },
+			{ 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA },
+			{ 3, 3, 3, 3, 3, 3, 3, 3, 3, 3 },
+			0x527E, /* invalid for external LNA! */
+			{ 0x513F, 0x513F, 0x513F, 0x513F }, /* invalid for external LNA! */
+			0x1076, 0x0066, 0x0000, /* low is invalid (the last one) */
+			0x18, 0x18, 0x18,
 			0x01D0, 0x5,
 		},
 	},
@@ -2769,7 +2833,7 @@ struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][3] = {
 			0x24, 0x24, 0x24,
 			0x0107, 25,
 		},
-		{ /* PHY rev 5+ */
+		{ /* PHY rev 5 */
 			{ 6, 10, 16, 21 },
 			{ -7, 0, 4, 8 },
 			{ 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD },
@@ -2779,6 +2843,17 @@ struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][3] = {
 			0x029E, 0x2084, 0x2086,
 			0x24, 0x24, 0x24,
 			0x00A9, 25,
+		},
+		{ /* PHY rev 6+ */
+			{ 6, 10, 16, 21 },
+			{ -7, 0, 4, 8 },
+			{ 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD, 0xD },
+			{ 4, 4, 4, 4, 4, 4, 4, 4, 4, 4 },
+			0x729E,
+			{ 0x714F, 0x714F, 0x714F, 0x714F },
+			0x029E, 0x2084, 0x2086,
+			0x24, 0x24, 0x24, /* low is invalid for radio rev 11! */
+			0x00F0, 25,
 		},
 	},
 };
@@ -2838,9 +2913,8 @@ u32 b43_ntab_read(struct b43_wldev *dev, u32 offset)
 		break;
 	case B43_NTAB_32BIT:
 		b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
-		value = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
-		value <<= 16;
-		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		value = b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+		value |= b43_phy_read(dev, B43_NPHY_TABLE_DATAHI) << 16;
 		break;
 	default:
 		B43_WARN_ON(1);
@@ -2864,6 +2938,12 @@ void b43_ntab_read_bulk(struct b43_wldev *dev, u32 offset,
 	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
 
 	for (i = 0; i < nr_elements; i++) {
+		/* Auto increment broken + caching issue on BCM43224? */
+		if (dev->dev->chip_id == 43224 && dev->dev->chip_rev == 1) {
+			b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset + i);
+		}
+
 		switch (type) {
 		case B43_NTAB_8BIT:
 			*data = b43_phy_read(dev, B43_NPHY_TABLE_DATALO) & 0xFF;
@@ -2874,9 +2954,10 @@ void b43_ntab_read_bulk(struct b43_wldev *dev, u32 offset,
 			data += 2;
 			break;
 		case B43_NTAB_32BIT:
-			*((u32 *)data) = b43_phy_read(dev, B43_NPHY_TABLE_DATAHI);
-			*((u32 *)data) <<= 16;
-			*((u32 *)data) |= b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			*((u32 *)data) =
+				b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			*((u32 *)data) |=
+				b43_phy_read(dev, B43_NPHY_TABLE_DATAHI) << 16;
 			data += 4;
 			break;
 		default:
@@ -2932,6 +3013,13 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 	b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset);
 
 	for (i = 0; i < nr_elements; i++) {
+		/* Auto increment broken + caching issue on BCM43224? */
+		if ((offset >> 10) == 9 && dev->dev->chip_id == 43224 &&
+		    dev->dev->chip_rev == 1) {
+			b43_phy_read(dev, B43_NPHY_TABLE_DATALO);
+			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, offset + i);
+		}
+
 		switch (type) {
 		case B43_NTAB_8BIT:
 			value = *data;
@@ -2999,6 +3087,8 @@ void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
 	} while (0)
 void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
 {
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
+
 	/* Static tables */
 	ntab_upload_r3(dev, B43_NTAB_FRAMESTRUCT_R3, b43_ntab_framestruct_r3);
 	ntab_upload_r3(dev, B43_NTAB_PILOT_R3, b43_ntab_pilot_r3);
@@ -3029,7 +3119,11 @@ void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
 	ntab_upload_r3(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
 
 	/* Volatile tables */
-	/* TODO */
+	if (sprom->fem.ghz2.antswlut < ARRAY_SIZE(b43_ntab_antswctl2g_r3))
+		ntab_upload_r3(dev, B43_NTAB_ANT_SW_CTL_R3,
+			       b43_ntab_antswctl2g_r3[sprom->fem.ghz2.antswlut]);
+	else
+		B43_WARN_ON(1);
 }
 
 struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
@@ -3037,26 +3131,67 @@ struct nphy_gain_ctl_workaround_entry *b43_nphy_get_gain_ctl_workaround_ent(
 {
 	struct nphy_gain_ctl_workaround_entry *e;
 	u8 phy_idx;
+	u8 tr_iso = ghz5 ? dev->dev->bus_sprom->fem.ghz5.tr_iso :
+			   dev->dev->bus_sprom->fem.ghz2.tr_iso;
+
+	if (!ghz5 && dev->phy.rev >= 6 && dev->phy.radio_rev == 11)
+		return &nphy_gain_ctl_wa_phy6_radio11_ghz2;
 
 	B43_WARN_ON(dev->phy.rev < 3);
-	if (dev->phy.rev >= 5)
+	if (dev->phy.rev >= 6)
+		phy_idx = 3;
+	else if (dev->phy.rev == 5)
 		phy_idx = 2;
 	else if (dev->phy.rev == 4)
 		phy_idx = 1;
 	else
 		phy_idx = 0;
-
 	e = &nphy_gain_ctl_workaround[ghz5][phy_idx];
 
-	/* Only one entry differs for external LNA, so instead making whole
-	 * table 2 times bigger, hack is here
-	 */
-	if (!ghz5 && dev->phy.rev >= 5 && ext_lna) {
-		e->rfseq_init[0] &= 0x0FFF;
-		e->rfseq_init[1] &= 0x0FFF;
-		e->rfseq_init[2] &= 0x0FFF;
-		e->rfseq_init[3] &= 0x0FFF;
-		e->init_gain &= 0x0FFF;
+	/* Some workarounds to the workarounds... */
+	if (ghz5 && dev->phy.rev >= 6) {
+		if (dev->phy.radio_rev == 11 &&
+		    !b43_channel_type_is_40mhz(dev->phy.channel_type))
+			e->cliplo_gain = 0x2d;
+	} else if (!ghz5 && dev->phy.rev >= 5) {
+		if (ext_lna) {
+			e->rfseq_init[0] &= ~0x4000;
+			e->rfseq_init[1] &= ~0x4000;
+			e->rfseq_init[2] &= ~0x4000;
+			e->rfseq_init[3] &= ~0x4000;
+			e->init_gain &= ~0x4000;
+		}
+		switch (tr_iso) {
+		case 0:
+			e->cliplo_gain = 0x0062;
+		case 1:
+			e->cliplo_gain = 0x0064;
+		case 2:
+			e->cliplo_gain = 0x006a;
+		case 3:
+			e->cliplo_gain = 0x106a;
+		case 4:
+			e->cliplo_gain = 0x106c;
+		case 5:
+			e->cliplo_gain = 0x1074;
+		case 6:
+			e->cliplo_gain = 0x107c;
+		case 7:
+			e->cliplo_gain = 0x207c;
+		default:
+			e->cliplo_gain = 0x106a;
+		}
+	} else if (ghz5 && dev->phy.rev == 4 && ext_lna) {
+		e->rfseq_init[0] &= ~0x4000;
+		e->rfseq_init[1] &= ~0x4000;
+		e->rfseq_init[2] &= ~0x4000;
+		e->rfseq_init[3] &= ~0x4000;
+		e->init_gain &= ~0x4000;
+		e->rfseq_init[0] |= 0x1000;
+		e->rfseq_init[1] |= 0x1000;
+		e->rfseq_init[2] |= 0x1000;
+		e->rfseq_init[3] |= 0x1000;
+		e->init_gain |= 0x1000;
 	}
 
 	return e;

@@ -298,6 +298,9 @@ enum {
 #define AC_AMPCAP_MUTE			(1<<31)    /* mute capable */
 #define AC_AMPCAP_MUTE_SHIFT		31
 
+/* driver-specific amp-caps: using bits 24-30 */
+#define AC_AMPCAP_MIN_MUTE		(1 << 30) /* min-volume = mute */
+
 /* Connection list */
 #define AC_CLIST_LENGTH			(0x7f<<0)
 #define AC_CLIST_LONG			(1<<7)
@@ -546,9 +549,6 @@ enum {
 
 /* max. codec address */
 #define HDA_MAX_CODEC_ADDRESS	0x0f
-
-/* max number of PCM devics per card */
-#define HDA_MAX_PCMS		10
 
 /*
  * generic arrays
@@ -868,6 +868,9 @@ struct hda_codec {
 	/* codec-specific additional proc output */
 	void (*proc_widget_hook)(struct snd_info_buffer *buffer,
 				 struct hda_codec *codec, hda_nid_t nid);
+
+	/* jack detection */
+	struct snd_array jacktbl;
 
 #ifdef CONFIG_SND_HDA_INPUT_JACK
 	/* jack detection */

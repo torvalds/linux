@@ -546,7 +546,7 @@ static struct ParameterData __devinitdata cfg_data[] = {
  * command line overrides will be used. If set to 1 then safe and
  * slow settings will be used.
  */
-static int use_safe_settings = 0;
+static bool use_safe_settings = 0;
 module_param_named(safe, use_safe_settings, bool, 0);
 MODULE_PARM_DESC(safe, "Use safe and slow settings only. Default: false");
 

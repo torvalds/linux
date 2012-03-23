@@ -1059,7 +1059,7 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 	struct ocfs2_move_extents range;
 	struct ocfs2_move_extents_context *context = NULL;
 
-	status = mnt_want_write(filp->f_path.mnt);
+	status = mnt_want_write_file(filp);
 	if (status)
 		return status;
 
@@ -1145,7 +1145,7 @@ out:
 
 	kfree(context);
 
-	mnt_drop_write(filp->f_path.mnt);
+	mnt_drop_write_file(filp);
 
 	return status;
 }

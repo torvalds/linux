@@ -47,6 +47,7 @@ struct platform_device *__init mx28_add_mxsfb(
 		const struct mxsfb_platform_data *pdata);
 
 extern const struct mxs_saif_data mx28_saif_data[] __initconst;
-#define mx28_add_saif(id)              mxs_add_saif(&mx28_saif_data[id])
+#define mx28_add_saif(id, pdata) \
+	mxs_add_saif(&mx28_saif_data[id], pdata)
 
 struct platform_device *__init mx28_add_rtc_stmp3xxx(void);

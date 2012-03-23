@@ -62,7 +62,6 @@
 
 #define WL_RADIO_SW_DISABLE		(1<<0)
 #define WL_RADIO_HW_DISABLE		(1<<1)
-#define WL_RADIO_MPC_DISABLE		(1<<2)
 /* some countries don't support any channel */
 #define WL_RADIO_COUNTRY_DISABLE	(1<<3)
 

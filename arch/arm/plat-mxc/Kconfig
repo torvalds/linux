@@ -17,25 +17,17 @@ config ARCH_IMX_V4_V5
 	  and ARMv5 SoCs
 
 config ARCH_IMX_V6_V7
-	bool "i.MX3, i.MX6"
+	bool "i.MX3, i.MX5, i.MX6"
 	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select ARM_PATCH_PHYS_VIRT
+	select MIGHT_HAVE_CACHE_L2X0
 	help
-	  This enables support for systems based on the Freescale i.MX3 and i.MX6
-	  family.
-
-config ARCH_MX5
-	bool "i.MX50, i.MX51, i.MX53"
-	select AUTO_ZRELADDR if !ZBOOT_ROM
-	select ARM_PATCH_PHYS_VIRT
-	help
-	  This enables support for machines using Freescale's i.MX50 and i.MX53
-	  processors.
+	  This enables support for systems based on the Freescale i.MX3, i.MX5
+	  and i.MX6 family.
 
 endchoice
 
 source "arch/arm/mach-imx/Kconfig"
-source "arch/arm/mach-mx5/Kconfig"
 
 endmenu
 

@@ -269,18 +269,8 @@ static struct platform_driver sdhci_pxav3_driver = {
 	.probe		= sdhci_pxav3_probe,
 	.remove		= __devexit_p(sdhci_pxav3_remove),
 };
-static int __init sdhci_pxav3_init(void)
-{
-	return platform_driver_register(&sdhci_pxav3_driver);
-}
 
-static void __exit sdhci_pxav3_exit(void)
-{
-	platform_driver_unregister(&sdhci_pxav3_driver);
-}
-
-module_init(sdhci_pxav3_init);
-module_exit(sdhci_pxav3_exit);
+module_platform_driver(sdhci_pxav3_driver);
 
 MODULE_DESCRIPTION("SDHCI driver for pxav3");
 MODULE_AUTHOR("Marvell International Ltd.");

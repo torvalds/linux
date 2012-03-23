@@ -174,7 +174,6 @@ config BOOKE
 config FSL_BOOKE
 	bool
 	depends on (E200 || E500) && PPC32
-	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT
 	default y
 
 # this is for common code between PPC32 & PPC64 FSL BOOKE
@@ -182,6 +181,7 @@ config PPC_FSL_BOOK3E
 	bool
 	select FSL_EMB_PERFMON
 	select PPC_SMP_MUXED_IPI
+	select SYS_SUPPORTS_HUGETLBFS if PHYS_64BIT || PPC64
 	default y if FSL_BOOKE
 
 config PTE_64BIT
@@ -236,7 +236,7 @@ config VSX
 
 config PPC_ICSWX
 	bool "Support for PowerPC icswx coprocessor instruction"
-	depends on POWER4
+	depends on POWER4 || PPC_A2
 	default n
 	---help---
 
@@ -249,6 +249,25 @@ config PPC_ICSWX
 	  on processors without the icswx coprocessor instruction.
 
 	  This option slightly increases kernel memory usage.
+
+	  If in doubt, say N here.
+
+config PPC_ICSWX_PID
+	bool "icswx requires direct PID management"
+	depends on PPC_ICSWX && POWER4
+	default y
+	---help---
+	  The PID register in server is used explicitly for ICSWX.  In
+	  embedded systems PID managment is done by the system.
+
+config PPC_ICSWX_USE_SIGILL
+	bool "Should a bad CT cause a SIGILL?"
+	depends on PPC_ICSWX
+	default n
+	---help---
+	  Should a bad CT used for "non-record form ICSWX" cause an
+	  illegal intruction signal or should it be silent as
+	  architected.
 
 	  If in doubt, say N here.
 
@@ -290,7 +309,7 @@ config PPC_BOOK3E_MMU
 
 config PPC_MM_SLICES
 	bool
-	default y if (PPC64 && HUGETLB_PAGE) || (PPC_STD_MMU_64 && PPC_64K_PAGES)
+	default y if (!PPC_FSL_BOOK3E && PPC64 && HUGETLB_PAGE) || (PPC_STD_MMU_64 && PPC_64K_PAGES)
 	default n
 
 config VIRT_CPU_ACCOUNTING

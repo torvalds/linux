@@ -770,15 +770,4 @@ static struct platform_driver n2rng_driver = {
 	.remove		= __devexit_p(n2rng_remove),
 };
 
-static int __init n2rng_init(void)
-{
-	return platform_driver_register(&n2rng_driver);
-}
-
-static void __exit n2rng_exit(void)
-{
-	platform_driver_unregister(&n2rng_driver);
-}
-
-module_init(n2rng_init);
-module_exit(n2rng_exit);
+module_platform_driver(n2rng_driver);

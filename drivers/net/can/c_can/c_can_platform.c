@@ -197,17 +197,7 @@ static struct platform_driver c_can_plat_driver = {
 	.remove = __devexit_p(c_can_plat_remove),
 };
 
-static int __init c_can_plat_init(void)
-{
-	return platform_driver_register(&c_can_plat_driver);
-}
-module_init(c_can_plat_init);
-
-static void __exit c_can_plat_exit(void)
-{
-	platform_driver_unregister(&c_can_plat_driver);
-}
-module_exit(c_can_plat_exit);
+module_platform_driver(c_can_plat_driver);
 
 MODULE_AUTHOR("Bhupesh Sharma <bhupesh.sharma@st.com>");
 MODULE_LICENSE("GPL v2");

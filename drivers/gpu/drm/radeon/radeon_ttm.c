@@ -114,24 +114,6 @@ static void radeon_ttm_global_fini(struct radeon_device *rdev)
 	}
 }
 
-struct ttm_backend *radeon_ttm_backend_create(struct radeon_device *rdev);
-
-static struct ttm_backend*
-radeon_create_ttm_backend_entry(struct ttm_bo_device *bdev)
-{
-	struct radeon_device *rdev;
-
-	rdev = radeon_get_rdev(bdev);
-#if __OS_HAS_AGP
-	if (rdev->flags & RADEON_IS_AGP) {
-		return ttm_agp_backend_init(bdev, rdev->ddev->agp->bridge);
-	} else
-#endif
-	{
-		return radeon_ttm_backend_create(rdev);
-	}
-}
-
 static int radeon_invalidate_caches(struct ttm_bo_device *bdev, uint32_t flags)
 {
 	return 0;
@@ -206,7 +188,7 @@ static void radeon_evict_flags(struct ttm_buffer_object *bo,
 	rbo = container_of(bo, struct radeon_bo, tbo);
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		if (rbo->rdev->cp.ready == false)
+		if (rbo->rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready == false)
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_CPU);
 		else
 			radeon_ttm_placement_from_domain(rbo, RADEON_GEM_DOMAIN_GTT);
@@ -241,10 +223,10 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	struct radeon_device *rdev;
 	uint64_t old_start, new_start;
 	struct radeon_fence *fence;
-	int r;
+	int r, i;
 
 	rdev = radeon_get_rdev(bo->bdev);
-	r = radeon_fence_create(rdev, &fence);
+	r = radeon_fence_create(rdev, &fence, rdev->copy_ring);
 	if (unlikely(r)) {
 		return r;
 	}
@@ -273,12 +255,42 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
 		return -EINVAL;
 	}
-	if (!rdev->cp.ready) {
-		DRM_ERROR("Trying to move memory with CP turned off.\n");
+	if (!rdev->ring[rdev->copy_ring].ready) {
+		DRM_ERROR("Trying to move memory with ring turned off.\n");
 		return -EINVAL;
 	}
 
 	BUILD_BUG_ON((PAGE_SIZE % RADEON_GPU_PAGE_SIZE) != 0);
+
+	/* sync other rings */
+	if (rdev->family >= CHIP_R600) {
+		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+			/* no need to sync to our own or unused rings */
+			if (i == rdev->copy_ring || !rdev->ring[i].ready)
+				continue;
+
+			if (!fence->semaphore) {
+				r = radeon_semaphore_create(rdev, &fence->semaphore);
+				/* FIXME: handle semaphore error */
+				if (r)
+					continue;
+			}
+
+			r = radeon_ring_lock(rdev, &rdev->ring[i], 3);
+			/* FIXME: handle ring lock error */
+			if (r)
+				continue;
+			radeon_semaphore_emit_signal(rdev, i, fence->semaphore);
+			radeon_ring_unlock_commit(rdev, &rdev->ring[i]);
+
+			r = radeon_ring_lock(rdev, &rdev->ring[rdev->copy_ring], 3);
+			/* FIXME: handle ring lock error */
+			if (r)
+				continue;
+			radeon_semaphore_emit_wait(rdev, rdev->copy_ring, fence->semaphore);
+			radeon_ring_unlock_commit(rdev, &rdev->ring[rdev->copy_ring]);
+		}
+	}
 
 	r = radeon_copy(rdev, old_start, new_start,
 			new_mem->num_pages * (PAGE_SIZE / RADEON_GPU_PAGE_SIZE), /* GPU pages */
@@ -398,7 +410,7 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 		radeon_move_null(bo, new_mem);
 		return 0;
 	}
-	if (!rdev->cp.ready || rdev->asic->copy == NULL) {
+	if (!rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready || rdev->asic->copy == NULL) {
 		/* use memcpy */
 		goto memcpy;
 	}
@@ -515,8 +527,166 @@ static bool radeon_sync_obj_signaled(void *sync_obj, void *sync_arg)
 	return radeon_fence_signaled((struct radeon_fence *)sync_obj);
 }
 
+/*
+ * TTM backend functions.
+ */
+struct radeon_ttm_tt {
+	struct ttm_dma_tt		ttm;
+	struct radeon_device		*rdev;
+	u64				offset;
+};
+
+static int radeon_ttm_backend_bind(struct ttm_tt *ttm,
+				   struct ttm_mem_reg *bo_mem)
+{
+	struct radeon_ttm_tt *gtt = (void*)ttm;
+	int r;
+
+	gtt->offset = (unsigned long)(bo_mem->start << PAGE_SHIFT);
+	if (!ttm->num_pages) {
+		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
+		     ttm->num_pages, bo_mem, ttm);
+	}
+	r = radeon_gart_bind(gtt->rdev, gtt->offset,
+			     ttm->num_pages, ttm->pages, gtt->ttm.dma_address);
+	if (r) {
+		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
+			  ttm->num_pages, (unsigned)gtt->offset);
+		return r;
+	}
+	return 0;
+}
+
+static int radeon_ttm_backend_unbind(struct ttm_tt *ttm)
+{
+	struct radeon_ttm_tt *gtt = (void *)ttm;
+
+	radeon_gart_unbind(gtt->rdev, gtt->offset, ttm->num_pages);
+	return 0;
+}
+
+static void radeon_ttm_backend_destroy(struct ttm_tt *ttm)
+{
+	struct radeon_ttm_tt *gtt = (void *)ttm;
+
+	ttm_dma_tt_fini(&gtt->ttm);
+	kfree(gtt);
+}
+
+static struct ttm_backend_func radeon_backend_func = {
+	.bind = &radeon_ttm_backend_bind,
+	.unbind = &radeon_ttm_backend_unbind,
+	.destroy = &radeon_ttm_backend_destroy,
+};
+
+struct ttm_tt *radeon_ttm_tt_create(struct ttm_bo_device *bdev,
+				    unsigned long size, uint32_t page_flags,
+				    struct page *dummy_read_page)
+{
+	struct radeon_device *rdev;
+	struct radeon_ttm_tt *gtt;
+
+	rdev = radeon_get_rdev(bdev);
+#if __OS_HAS_AGP
+	if (rdev->flags & RADEON_IS_AGP) {
+		return ttm_agp_tt_create(bdev, rdev->ddev->agp->bridge,
+					 size, page_flags, dummy_read_page);
+	}
+#endif
+
+	gtt = kzalloc(sizeof(struct radeon_ttm_tt), GFP_KERNEL);
+	if (gtt == NULL) {
+		return NULL;
+	}
+	gtt->ttm.ttm.func = &radeon_backend_func;
+	gtt->rdev = rdev;
+	if (ttm_dma_tt_init(&gtt->ttm, bdev, size, page_flags, dummy_read_page)) {
+		kfree(gtt);
+		return NULL;
+	}
+	return &gtt->ttm.ttm;
+}
+
+static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
+{
+	struct radeon_device *rdev;
+	struct radeon_ttm_tt *gtt = (void *)ttm;
+	unsigned i;
+	int r;
+
+	if (ttm->state != tt_unpopulated)
+		return 0;
+
+	rdev = radeon_get_rdev(ttm->bdev);
+#if __OS_HAS_AGP
+	if (rdev->flags & RADEON_IS_AGP) {
+		return ttm_agp_tt_populate(ttm);
+	}
+#endif
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		return ttm_dma_populate(&gtt->ttm, rdev->dev);
+	}
+#endif
+
+	r = ttm_pool_populate(ttm);
+	if (r) {
+		return r;
+	}
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		gtt->ttm.dma_address[i] = pci_map_page(rdev->pdev, ttm->pages[i],
+						       0, PAGE_SIZE,
+						       PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(rdev->pdev, gtt->ttm.dma_address[i])) {
+			while (--i) {
+				pci_unmap_page(rdev->pdev, gtt->ttm.dma_address[i],
+					       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+				gtt->ttm.dma_address[i] = 0;
+			}
+			ttm_pool_unpopulate(ttm);
+			return -EFAULT;
+		}
+	}
+	return 0;
+}
+
+static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
+{
+	struct radeon_device *rdev;
+	struct radeon_ttm_tt *gtt = (void *)ttm;
+	unsigned i;
+
+	rdev = radeon_get_rdev(ttm->bdev);
+#if __OS_HAS_AGP
+	if (rdev->flags & RADEON_IS_AGP) {
+		ttm_agp_tt_unpopulate(ttm);
+		return;
+	}
+#endif
+
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		ttm_dma_unpopulate(&gtt->ttm, rdev->dev);
+		return;
+	}
+#endif
+
+	for (i = 0; i < ttm->num_pages; i++) {
+		if (gtt->ttm.dma_address[i]) {
+			pci_unmap_page(rdev->pdev, gtt->ttm.dma_address[i],
+				       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+		}
+	}
+
+	ttm_pool_unpopulate(ttm);
+}
+
 static struct ttm_bo_driver radeon_bo_driver = {
-	.create_ttm_backend_entry = &radeon_create_ttm_backend_entry,
+	.ttm_tt_create = &radeon_ttm_tt_create,
+	.ttm_tt_populate = &radeon_ttm_tt_populate,
+	.ttm_tt_unpopulate = &radeon_ttm_tt_unpopulate,
 	.invalidate_caches = &radeon_invalidate_caches,
 	.init_mem_type = &radeon_init_mem_type,
 	.evict_flags = &radeon_evict_flags,
@@ -680,124 +850,6 @@ int radeon_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 
 
-/*
- * TTM backend functions.
- */
-struct radeon_ttm_backend {
-	struct ttm_backend		backend;
-	struct radeon_device		*rdev;
-	unsigned long			num_pages;
-	struct page			**pages;
-	struct page			*dummy_read_page;
-	dma_addr_t			*dma_addrs;
-	bool				populated;
-	bool				bound;
-	unsigned			offset;
-};
-
-static int radeon_ttm_backend_populate(struct ttm_backend *backend,
-				       unsigned long num_pages,
-				       struct page **pages,
-				       struct page *dummy_read_page,
-				       dma_addr_t *dma_addrs)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	gtt->pages = pages;
-	gtt->dma_addrs = dma_addrs;
-	gtt->num_pages = num_pages;
-	gtt->dummy_read_page = dummy_read_page;
-	gtt->populated = true;
-	return 0;
-}
-
-static void radeon_ttm_backend_clear(struct ttm_backend *backend)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	gtt->pages = NULL;
-	gtt->dma_addrs = NULL;
-	gtt->num_pages = 0;
-	gtt->dummy_read_page = NULL;
-	gtt->populated = false;
-	gtt->bound = false;
-}
-
-
-static int radeon_ttm_backend_bind(struct ttm_backend *backend,
-				   struct ttm_mem_reg *bo_mem)
-{
-	struct radeon_ttm_backend *gtt;
-	int r;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	gtt->offset = bo_mem->start << PAGE_SHIFT;
-	if (!gtt->num_pages) {
-		WARN(1, "nothing to bind %lu pages for mreg %p back %p!\n",
-		     gtt->num_pages, bo_mem, backend);
-	}
-	r = radeon_gart_bind(gtt->rdev, gtt->offset,
-			     gtt->num_pages, gtt->pages, gtt->dma_addrs);
-	if (r) {
-		DRM_ERROR("failed to bind %lu pages at 0x%08X\n",
-			  gtt->num_pages, gtt->offset);
-		return r;
-	}
-	gtt->bound = true;
-	return 0;
-}
-
-static int radeon_ttm_backend_unbind(struct ttm_backend *backend)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	radeon_gart_unbind(gtt->rdev, gtt->offset, gtt->num_pages);
-	gtt->bound = false;
-	return 0;
-}
-
-static void radeon_ttm_backend_destroy(struct ttm_backend *backend)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = container_of(backend, struct radeon_ttm_backend, backend);
-	if (gtt->bound) {
-		radeon_ttm_backend_unbind(backend);
-	}
-	kfree(gtt);
-}
-
-static struct ttm_backend_func radeon_backend_func = {
-	.populate = &radeon_ttm_backend_populate,
-	.clear = &radeon_ttm_backend_clear,
-	.bind = &radeon_ttm_backend_bind,
-	.unbind = &radeon_ttm_backend_unbind,
-	.destroy = &radeon_ttm_backend_destroy,
-};
-
-struct ttm_backend *radeon_ttm_backend_create(struct radeon_device *rdev)
-{
-	struct radeon_ttm_backend *gtt;
-
-	gtt = kzalloc(sizeof(struct radeon_ttm_backend), GFP_KERNEL);
-	if (gtt == NULL) {
-		return NULL;
-	}
-	gtt->backend.bdev = &rdev->mman.bdev;
-	gtt->backend.flags = 0;
-	gtt->backend.func = &radeon_backend_func;
-	gtt->rdev = rdev;
-	gtt->pages = NULL;
-	gtt->num_pages = 0;
-	gtt->dummy_read_page = NULL;
-	gtt->populated = false;
-	gtt->bound = false;
-	return &gtt->backend;
-}
-
 #define RADEON_DEBUGFS_MEM_TYPES 2
 
 #if defined(CONFIG_DEBUG_FS)
@@ -820,8 +872,8 @@ static int radeon_mm_dump_table(struct seq_file *m, void *data)
 static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES+1];
-	static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES+1][32];
+	static struct drm_info_list radeon_mem_types_list[RADEON_DEBUGFS_MEM_TYPES+2];
+	static char radeon_mem_types_names[RADEON_DEBUGFS_MEM_TYPES+2][32];
 	unsigned i;
 
 	for (i = 0; i < RADEON_DEBUGFS_MEM_TYPES; i++) {
@@ -843,8 +895,17 @@ static int radeon_ttm_debugfs_init(struct radeon_device *rdev)
 	radeon_mem_types_list[i].name = radeon_mem_types_names[i];
 	radeon_mem_types_list[i].show = &ttm_page_alloc_debugfs;
 	radeon_mem_types_list[i].driver_features = 0;
-	radeon_mem_types_list[i].data = NULL;
-	return radeon_debugfs_add_files(rdev, radeon_mem_types_list, RADEON_DEBUGFS_MEM_TYPES+1);
+	radeon_mem_types_list[i++].data = NULL;
+#ifdef CONFIG_SWIOTLB
+	if (swiotlb_nr_tbl()) {
+		sprintf(radeon_mem_types_names[i], "ttm_dma_page_pool");
+		radeon_mem_types_list[i].name = radeon_mem_types_names[i];
+		radeon_mem_types_list[i].show = &ttm_dma_page_alloc_debugfs;
+		radeon_mem_types_list[i].driver_features = 0;
+		radeon_mem_types_list[i++].data = NULL;
+	}
+#endif
+	return radeon_debugfs_add_files(rdev, radeon_mem_types_list, i);
 
 #endif
 	return 0;

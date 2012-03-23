@@ -44,7 +44,7 @@
 #define	METHOD_NAME__SUN	"_SUN"
 #define	METHOD_NAME_OSHP	"OSHP"
 
-static int debug_acpi;
+static bool debug_acpi;
 
 static acpi_status
 decode_type0_hpx_record(union acpi_object *record, struct hotplug_params *hpx)

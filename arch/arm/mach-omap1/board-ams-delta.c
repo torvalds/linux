@@ -35,7 +35,7 @@
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/board.h>
-#include <plat/common.h>
+#include "common.h"
 #include <mach/camera.h>
 
 #include <mach/ams-delta-fiq.h>
@@ -386,6 +386,7 @@ MACHINE_START(AMS_DELTA, "Amstrad E3 (Delta)")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= ams_delta_init,
 	.timer		= &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END
 
 EXPORT_SYMBOL(ams_delta_latch1_write);

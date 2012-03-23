@@ -611,20 +611,7 @@ static struct platform_driver mv64xxx_i2c_driver = {
 	},
 };
 
-static int __init
-mv64xxx_i2c_init(void)
-{
-	return platform_driver_register(&mv64xxx_i2c_driver);
-}
-
-static void __exit
-mv64xxx_i2c_exit(void)
-{
-	platform_driver_unregister(&mv64xxx_i2c_driver);
-}
-
-module_init(mv64xxx_i2c_init);
-module_exit(mv64xxx_i2c_exit);
+module_platform_driver(mv64xxx_i2c_driver);
 
 MODULE_AUTHOR("Mark A. Greer <mgreer@mvista.com>");
 MODULE_DESCRIPTION("Marvell mv64xxx host bridge i2c ctlr driver");

@@ -26,7 +26,6 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 
-#include <asm/macintosh.h>
 #include <asm/mac_via.h>
 
 #define CARDNAME "swim"

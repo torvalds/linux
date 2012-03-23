@@ -361,18 +361,7 @@ static struct platform_driver ds1553_rtc_driver = {
 	},
 };
 
-static __init int ds1553_init(void)
-{
-	return platform_driver_register(&ds1553_rtc_driver);
-}
-
-static __exit void ds1553_exit(void)
-{
-	platform_driver_unregister(&ds1553_rtc_driver);
-}
-
-module_init(ds1553_init);
-module_exit(ds1553_exit);
+module_platform_driver(ds1553_rtc_driver);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("Dallas DS1553 RTC driver");

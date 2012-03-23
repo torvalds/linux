@@ -25,15 +25,16 @@
 #include <linux/sched.h>
 #include <linux/cpuidle.h>
 #include <linux/export.h>
+#include <linux/cpu_pm.h>
 
 #include <plat/prcm.h>
 #include <plat/irqs.h>
 #include "powerdomain.h"
 #include "clockdomain.h"
-#include <plat/serial.h>
 
 #include "pm.h"
 #include "control.h"
+#include "common.h"
 
 #ifdef CONFIG_CPU_IDLE
 
@@ -123,8 +124,22 @@ static int omap3_enter_idle(struct cpuidle_device *dev,
 		pwrdm_for_each_clkdm(core_pd, _cpuidle_deny_idle);
 	}
 
+	/*
+	 * Call idle CPU PM enter notifier chain so that
+	 * VFP context is saved.
+	 */
+	if (mpu_state == PWRDM_POWER_OFF)
+		cpu_pm_enter();
+
 	/* Execute ARM wfi */
 	omap_sram_idle();
+
+	/*
+	 * Call idle CPU PM enter notifier chain to restore
+	 * VFP context.
+	 */
+	if (pwrdm_read_prev_pwrst(mpu_pd) == PWRDM_POWER_OFF)
+		cpu_pm_exit();
 
 	/* Re-allow idle for C1 */
 	if (index == 0) {
@@ -243,11 +258,6 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	u32 core_next_state, per_next_state = 0, per_saved_state = 0, cam_state;
 	struct omap3_idle_statedata *cx;
 	int ret;
-
-	if (!omap3_can_sleep()) {
-		new_state_idx = drv->safe_state_index;
-		goto select_state;
-	}
 
 	/*
 	 * Prevent idle completely if CAM is active.

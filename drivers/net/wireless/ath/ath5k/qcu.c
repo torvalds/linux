@@ -17,23 +17,48 @@
  */
 
 /********************************************\
-Queue Control Unit, DFS Control Unit Functions
+Queue Control Unit, DCF Control Unit Functions
 \********************************************/
 
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
+#include <linux/log2.h>
+
+/**
+ * DOC: Queue Control Unit (QCU)/DCF Control Unit (DCU) functions
+ *
+ * Here we setup parameters for the 12 available TX queues. Note that
+ * on the various registers we can usually only map the first 10 of them so
+ * basically we have 10 queues to play with. Each queue has a matching
+ * QCU that controls when the queue will get triggered and multiple QCUs
+ * can be mapped to a single DCU that controls the various DFS parameters
+ * for the various queues. In our setup we have a 1:1 mapping between QCUs
+ * and DCUs allowing us to have different DFS settings for each queue.
+ *
+ * When a frame goes into a TX queue, QCU decides when it'll trigger a
+ * transmission based on various criteria (such as how many data we have inside
+ * it's buffer or -if it's a beacon queue- if it's time to fire up the queue
+ * based on TSF etc), DCU adds backoff, IFSes etc and then a scheduler
+ * (arbitrator) decides the priority of each QCU based on it's configuration
+ * (e.g. beacons are always transmitted when they leave DCU bypassing all other
+ * frames from other queues waiting to be transmitted). After a frame leaves
+ * the DCU it goes to PCU for further processing and then to PHY for
+ * the actual transmission.
+ */
 
 
 /******************\
 * Helper functions *
 \******************/
 
-/*
- * Get number of pending frames
- * for a specific queue [5211+]
+/**
+ * ath5k_hw_num_tx_pending() - Get number of pending frames for a  given queue
+ * @ah: The &struct ath5k_hw
+ * @queue: One of enum ath5k_tx_queue_id
  */
-u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
+u32
+ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 {
 	u32 pending;
 	AR5K_ASSERT_ENTRY(queue, ah->ah_capabilities.cap_queues.q_tx_num);
@@ -58,10 +83,13 @@ u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue)
 	return pending;
 }
 
-/*
- * Set a transmit queue inactive
+/**
+ * ath5k_hw_release_tx_queue() - Set a transmit queue inactive
+ * @ah: The &struct ath5k_hw
+ * @queue: One of enum ath5k_tx_queue_id
  */
-void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
+void
+ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 {
 	if (WARN_ON(queue >= ah->ah_capabilities.cap_queues.q_tx_num))
 		return;
@@ -72,34 +100,56 @@ void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	AR5K_Q_DISABLE_BITS(ah->ah_txq_status, queue);
 }
 
-/*
+/**
+ * ath5k_cw_validate() - Make sure the given cw is valid
+ * @cw_req: The contention window value to check
+ *
  * Make sure cw is a power of 2 minus 1 and smaller than 1024
  */
-static u16 ath5k_cw_validate(u16 cw_req)
+static u16
+ath5k_cw_validate(u16 cw_req)
 {
-	u32 cw = 1;
 	cw_req = min(cw_req, (u16)1023);
 
-	while (cw < cw_req)
-		cw = (cw << 1) | 1;
+	/* Check if cw_req + 1 a power of 2 */
+	if (is_power_of_2(cw_req + 1))
+		return cw_req;
 
-	return cw;
+	/* Check if cw_req is a power of 2 */
+	if (is_power_of_2(cw_req))
+		return cw_req - 1;
+
+	/* If none of the above is correct
+	 * find the closest power of 2 */
+	cw_req = (u16) roundup_pow_of_two(cw_req) - 1;
+
+	return cw_req;
 }
 
-/*
- * Get properties for a transmit queue
+/**
+ * ath5k_hw_get_tx_queueprops() - Get properties for a transmit queue
+ * @ah: The &struct ath5k_hw
+ * @queue: One of enum ath5k_tx_queue_id
+ * @queue_info: The &struct ath5k_txq_info to fill
  */
-int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
+int
+ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
 		struct ath5k_txq_info *queue_info)
 {
 	memcpy(queue_info, &ah->ah_txq[queue], sizeof(struct ath5k_txq_info));
 	return 0;
 }
 
-/*
- * Set properties for a transmit queue
+/**
+ * ath5k_hw_set_tx_queueprops() - Set properties for a transmit queue
+ * @ah: The &struct ath5k_hw
+ * @queue: One of enum ath5k_tx_queue_id
+ * @qinfo: The &struct ath5k_txq_info to use
+ *
+ * Returns 0 on success or -EIO if queue is inactive
  */
-int ath5k_hw_set_tx_queueprops(struct ath5k_hw *ah, int queue,
+int
+ath5k_hw_set_tx_queueprops(struct ath5k_hw *ah, int queue,
 				const struct ath5k_txq_info *qinfo)
 {
 	struct ath5k_txq_info *qi;
@@ -139,10 +189,16 @@ int ath5k_hw_set_tx_queueprops(struct ath5k_hw *ah, int queue,
 	return 0;
 }
 
-/*
- * Initialize a transmit queue
+/**
+ * ath5k_hw_setup_tx_queue() - Initialize a transmit queue
+ * @ah: The &struct ath5k_hw
+ * @queue_type: One of enum ath5k_tx_queue
+ * @queue_info: The &struct ath5k_txq_info to use
+ *
+ * Returns 0 on success, -EINVAL on invalid arguments
  */
-int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
+int
+ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 		struct ath5k_txq_info *queue_info)
 {
 	unsigned int queue;
@@ -217,10 +273,16 @@ int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah, enum ath5k_tx_queue queue_type,
 * Single QCU/DCU initialization *
 \*******************************/
 
-/*
- * Set tx retry limits on DCU
+/**
+ * ath5k_hw_set_tx_retry_limits() - Set tx retry limits on DCU
+ * @ah: The &struct ath5k_hw
+ * @queue: One of enum ath5k_tx_queue_id
+ *
+ * This function is used when initializing a queue, to set
+ * retry limits based on ah->ah_retry_* and the chipset used.
  */
-void ath5k_hw_set_tx_retry_limits(struct ath5k_hw *ah,
+void
+ath5k_hw_set_tx_retry_limits(struct ath5k_hw *ah,
 				  unsigned int queue)
 {
 	/* Single data queue on AR5210 */
@@ -255,15 +317,15 @@ void ath5k_hw_set_tx_retry_limits(struct ath5k_hw *ah,
 }
 
 /**
- * ath5k_hw_reset_tx_queue - Initialize a single hw queue
+ * ath5k_hw_reset_tx_queue() - Initialize a single hw queue
+ * @ah: The &struct ath5k_hw
+ * @queue: One of enum ath5k_tx_queue_id
  *
- * @ah The &struct ath5k_hw
- * @queue The hw queue number
- *
- * Set DFS properties for the given transmit queue on DCU
+ * Set DCF properties for the given transmit queue on DCU
  * and configures all queue-specific parameters.
  */
-int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
+int
+ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 {
 	struct ath5k_txq_info *tq = &ah->ah_txq[queue];
 
@@ -491,10 +553,9 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 \**************************/
 
 /**
- * ath5k_hw_set_ifs_intervals  - Set global inter-frame spaces on DCU
- *
- * @ah The &struct ath5k_hw
- * @slot_time Slot time in us
+ * ath5k_hw_set_ifs_intervals()  - Set global inter-frame spaces on DCU
+ * @ah: The &struct ath5k_hw
+ * @slot_time: Slot time in us
  *
  * Sets the global IFS intervals on DCU (also works on AR5210) for
  * the given slot time and the current bwmode.
@@ -597,7 +658,15 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 }
 
 
-int ath5k_hw_init_queues(struct ath5k_hw *ah)
+/**
+ * ath5k_hw_init_queues() - Initialize tx queues
+ * @ah: The &struct ath5k_hw
+ *
+ * Initializes all tx queues based on information on
+ * ah->ah_txq* set by the driver
+ */
+int
+ath5k_hw_init_queues(struct ath5k_hw *ah)
 {
 	int i, ret;
 

@@ -174,16 +174,4 @@ static struct platform_driver jornada720_kbd_driver = {
 	.probe   = jornada720_kbd_probe,
 	.remove  = __devexit_p(jornada720_kbd_remove),
 };
-
-static int __init jornada720_kbd_init(void)
-{
-	return platform_driver_register(&jornada720_kbd_driver);
-}
-
-static void __exit jornada720_kbd_exit(void)
-{
-	platform_driver_unregister(&jornada720_kbd_driver);
-}
-
-module_init(jornada720_kbd_init);
-module_exit(jornada720_kbd_exit);
+module_platform_driver(jornada720_kbd_driver);

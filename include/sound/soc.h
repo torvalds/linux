@@ -231,6 +231,7 @@ enum snd_soc_bias_level {
 	SND_SOC_BIAS_ON = 3,
 };
 
+struct device_node;
 struct snd_jack;
 struct snd_soc_card;
 struct snd_soc_pcm_stream;
@@ -266,8 +267,6 @@ enum snd_soc_control_type {
 
 enum snd_soc_compress_type {
 	SND_SOC_FLAT_COMPRESSION = 1,
-	SND_SOC_LZO_COMPRESSION,
-	SND_SOC_RBTREE_COMPRESSION
 };
 
 enum snd_soc_pcm_subclass {
@@ -318,6 +317,7 @@ int snd_soc_platform_read(struct snd_soc_platform *platform,
 					unsigned int reg);
 int snd_soc_platform_write(struct snd_soc_platform *platform,
 					unsigned int reg, unsigned int val);
+int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num);
 
 /* Utility functions to get clock rates from various things */
 int snd_soc_calc_frame_size(int sample_size, int channels, int tdm_slots);
@@ -593,8 +593,7 @@ struct snd_soc_codec_driver {
 	/* driver ops */
 	int (*probe)(struct snd_soc_codec *);
 	int (*remove)(struct snd_soc_codec *);
-	int (*suspend)(struct snd_soc_codec *,
-			pm_message_t state);
+	int (*suspend)(struct snd_soc_codec *);
 	int (*resume)(struct snd_soc_codec *);
 
 	/* Default control and setup, added after probe() is run */
@@ -706,8 +705,11 @@ struct snd_soc_dai_link {
 	const char *name;			/* Codec name */
 	const char *stream_name;		/* Stream name */
 	const char *codec_name;		/* for multi-codec */
+	const struct device_node *codec_of_node;
 	const char *platform_name;	/* for multi-platform */
+	const struct device_node *platform_of_node;
 	const char *cpu_dai_name;
+	const struct device_node *cpu_dai_of_node;
 	const char *codec_dai_name;
 
 	unsigned int dai_fmt;           /* format to set on init */
@@ -717,6 +719,9 @@ struct snd_soc_dai_link {
 
 	/* Symmetry requirements */
 	unsigned int symmetric_rates:1;
+
+	/* pmdown_time is ignored at stop */
+	unsigned int ignore_pmdown_time:1;
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_pcm_runtime *rtd);
@@ -813,6 +818,7 @@ struct snd_soc_card {
 	int num_dapm_widgets;
 	const struct snd_soc_dapm_route *dapm_routes;
 	int num_dapm_routes;
+	bool fully_routed;
 
 	struct work_struct deferred_resume_work;
 
@@ -840,8 +846,8 @@ struct snd_soc_card {
 };
 
 /* SoC machine DAI configuration, glues a codec and cpu DAI together */
-struct snd_soc_pcm_runtime  {
-	struct device dev;
+struct snd_soc_pcm_runtime {
+	struct device *dev;
 	struct snd_soc_card *card;
 	struct snd_soc_dai_link *dai_link;
 	struct mutex pcm_mutex;
@@ -927,12 +933,12 @@ static inline void *snd_soc_platform_get_drvdata(struct snd_soc_platform *platfo
 static inline void snd_soc_pcm_set_drvdata(struct snd_soc_pcm_runtime *rtd,
 		void *data)
 {
-	dev_set_drvdata(&rtd->dev, data);
+	dev_set_drvdata(rtd->dev, data);
 }
 
 static inline void *snd_soc_pcm_get_drvdata(struct snd_soc_pcm_runtime *rtd)
 {
-	return dev_get_drvdata(&rtd->dev);
+	return dev_get_drvdata(rtd->dev);
 }
 
 static inline void snd_soc_initialize_card_lists(struct snd_soc_card *card)
@@ -959,6 +965,11 @@ static inline bool snd_soc_volsw_is_stereo(struct soc_mixer_control *mc)
 
 int snd_soc_util_init(void);
 void snd_soc_util_exit(void);
+
+int snd_soc_of_parse_card_name(struct snd_soc_card *card,
+			       const char *propname);
+int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
+				   const char *propname);
 
 #include <sound/soc-dai.h>
 

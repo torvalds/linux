@@ -66,11 +66,8 @@ struct hists {
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
 				      struct symbol *parent, u64 period);
-extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
-extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
-int hist_entry__fprintf(struct hist_entry *he, size_t size, struct hists *hists,
-			struct hists *pair_hists, bool show_displacement,
-			long displacement, FILE *fp, u64 session_total);
+int64_t hist_entry__cmp(struct hist_entry *left, struct hist_entry *right);
+int64_t hist_entry__collapse(struct hist_entry *left, struct hist_entry *right);
 int hist_entry__snprintf(struct hist_entry *self, char *bf, size_t size,
 			 struct hists *hists);
 void hist_entry__free(struct hist_entry *);
@@ -117,7 +114,6 @@ int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __used,
 
 static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 					   int evidx __used,
-					   int nr_events __used,
 					   void(*timer)(void *arg) __used,
 					   void *arg __used,
 					   int delay_secs __used)
@@ -128,7 +124,7 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 #define K_RIGHT -2
 #else
 #include "ui/keysyms.h"
-int hist_entry__tui_annotate(struct hist_entry *he, int evidx, int nr_events,
+int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 			     void(*timer)(void *arg), void *arg, int delay_secs);
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,

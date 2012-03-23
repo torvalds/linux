@@ -166,18 +166,7 @@ static struct platform_driver max8925_onkey_driver = {
 	.probe		= max8925_onkey_probe,
 	.remove		= __devexit_p(max8925_onkey_remove),
 };
-
-static int __init max8925_onkey_init(void)
-{
-	return platform_driver_register(&max8925_onkey_driver);
-}
-module_init(max8925_onkey_init);
-
-static void __exit max8925_onkey_exit(void)
-{
-	platform_driver_unregister(&max8925_onkey_driver);
-}
-module_exit(max8925_onkey_exit);
+module_platform_driver(max8925_onkey_driver);
 
 MODULE_DESCRIPTION("Maxim MAX8925 ONKEY driver");
 MODULE_AUTHOR("Haojian Zhuang <haojian.zhuang@marvell.com>");

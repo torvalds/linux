@@ -578,6 +578,33 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 			avg / avg_stats(&walltime_nsecs_stats));
 }
 
+/* used for get_ratio_color() */
+enum grc_type {
+	GRC_STALLED_CYCLES_FE,
+	GRC_STALLED_CYCLES_BE,
+	GRC_CACHE_MISSES,
+	GRC_MAX_NR
+};
+
+static const char *get_ratio_color(enum grc_type type, double ratio)
+{
+	static const double grc_table[GRC_MAX_NR][3] = {
+		[GRC_STALLED_CYCLES_FE] = { 50.0, 30.0, 10.0 },
+		[GRC_STALLED_CYCLES_BE] = { 75.0, 50.0, 20.0 },
+		[GRC_CACHE_MISSES] 	= { 20.0, 10.0, 5.0 },
+	};
+	const char *color = PERF_COLOR_NORMAL;
+
+	if (ratio > grc_table[type][0])
+		color = PERF_COLOR_RED;
+	else if (ratio > grc_table[type][1])
+		color = PERF_COLOR_MAGENTA;
+	else if (ratio > grc_table[type][2])
+		color = PERF_COLOR_YELLOW;
+
+	return color;
+}
+
 static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __used, double avg)
 {
 	double total, ratio = 0.0;
@@ -588,13 +615,7 @@ static void print_stalled_cycles_frontend(int cpu, struct perf_evsel *evsel __us
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 50.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 30.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 10.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_STALLED_CYCLES_FE, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -611,13 +632,7 @@ static void print_stalled_cycles_backend(int cpu, struct perf_evsel *evsel __use
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 75.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 50.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 20.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_STALLED_CYCLES_BE, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -634,13 +649,7 @@ static void print_branch_misses(int cpu, struct perf_evsel *evsel __used, double
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 20.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 10.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -657,13 +666,7 @@ static void print_l1_dcache_misses(int cpu, struct perf_evsel *evsel __used, dou
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 20.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 10.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -680,13 +683,7 @@ static void print_l1_icache_misses(int cpu, struct perf_evsel *evsel __used, dou
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 20.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 10.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -703,13 +700,7 @@ static void print_dtlb_cache_misses(int cpu, struct perf_evsel *evsel __used, do
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 20.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 10.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -726,13 +717,7 @@ static void print_itlb_cache_misses(int cpu, struct perf_evsel *evsel __used, do
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 20.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 10.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -749,13 +734,7 @@ static void print_ll_cache_misses(int cpu, struct perf_evsel *evsel __used, doub
 	if (total)
 		ratio = avg / total * 100.0;
 
-	color = PERF_COLOR_NORMAL;
-	if (ratio > 20.0)
-		color = PERF_COLOR_RED;
-	else if (ratio > 10.0)
-		color = PERF_COLOR_MAGENTA;
-	else if (ratio > 5.0)
-		color = PERF_COLOR_YELLOW;
+	color = get_ratio_color(GRC_CACHE_MISSES, ratio);
 
 	fprintf(output, " #  ");
 	color_fprintf(output, color, "%6.2f%%", ratio);
@@ -1108,22 +1087,13 @@ static const struct option options[] = {
  */
 static int add_default_attributes(void)
 {
-	struct perf_evsel *pos;
-	size_t attr_nr = 0;
-	size_t c;
-
 	/* Set attrs if no event is selected and !null_run: */
 	if (null_run)
 		return 0;
 
 	if (!evsel_list->nr_entries) {
-		for (c = 0; c < ARRAY_SIZE(default_attrs); c++) {
-			pos = perf_evsel__new(default_attrs + c, c + attr_nr);
-			if (pos == NULL)
-				return -1;
-			perf_evlist__add(evsel_list, pos);
-		}
-		attr_nr += c;
+		if (perf_evlist__add_attrs_array(evsel_list, default_attrs) < 0)
+			return -1;
 	}
 
 	/* Detailed events get appended to the event list: */
@@ -1132,38 +1102,21 @@ static int add_default_attributes(void)
 		return 0;
 
 	/* Append detailed run extra attributes: */
-	for (c = 0; c < ARRAY_SIZE(detailed_attrs); c++) {
-		pos = perf_evsel__new(detailed_attrs + c, c + attr_nr);
-		if (pos == NULL)
-			return -1;
-		perf_evlist__add(evsel_list, pos);
-	}
-	attr_nr += c;
+	if (perf_evlist__add_attrs_array(evsel_list, detailed_attrs) < 0)
+		return -1;
 
 	if (detailed_run < 2)
 		return 0;
 
 	/* Append very detailed run extra attributes: */
-	for (c = 0; c < ARRAY_SIZE(very_detailed_attrs); c++) {
-		pos = perf_evsel__new(very_detailed_attrs + c, c + attr_nr);
-		if (pos == NULL)
-			return -1;
-		perf_evlist__add(evsel_list, pos);
-	}
+	if (perf_evlist__add_attrs_array(evsel_list, very_detailed_attrs) < 0)
+		return -1;
 
 	if (detailed_run < 3)
 		return 0;
 
 	/* Append very, very detailed run extra attributes: */
-	for (c = 0; c < ARRAY_SIZE(very_very_detailed_attrs); c++) {
-		pos = perf_evsel__new(very_very_detailed_attrs + c, c + attr_nr);
-		if (pos == NULL)
-			return -1;
-		perf_evlist__add(evsel_list, pos);
-	}
-
-
-	return 0;
+	return perf_evlist__add_attrs_array(evsel_list, very_very_detailed_attrs);
 }
 
 int cmd_stat(int argc, const char **argv, const char *prefix __used)
@@ -1267,8 +1220,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
 		if (perf_evsel__alloc_stat_priv(pos) < 0 ||
-		    perf_evsel__alloc_counts(pos, evsel_list->cpus->nr) < 0 ||
-		    perf_evsel__alloc_fd(pos, evsel_list->cpus->nr, evsel_list->threads->nr) < 0)
+		    perf_evsel__alloc_counts(pos, evsel_list->cpus->nr) < 0)
 			goto out_free_fd;
 	}
 

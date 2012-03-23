@@ -1293,6 +1293,10 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		phba->sli_rev = LPFC_SLI_REV2;
 	mb->un.varCfgPort.sli_mode = phba->sli_rev;
 
+	/* If this is an SLI3 port, configure async status notification. */
+	if (phba->sli_rev == LPFC_SLI_REV3)
+		mb->un.varCfgPort.casabt = 1;
+
 	/* Now setup pcb */
 	phba->pcb->type = TYPE_NATIVE_SLI2;
 	phba->pcb->feature = FEATURE_INITIAL_SLI2;
@@ -2129,6 +2133,14 @@ lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
 	reg_vfi->bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 	bf_set(lpfc_reg_vfi_nport_id, reg_vfi, vport->fc_myDID);
+	lpfc_printf_vlog(vport, KERN_INFO, LOG_MBOX,
+			"3134 Register VFI, mydid:x%x, fcfi:%d, "
+			" vfi:%d, vpi:%d, fc_pname:%x%x\n",
+			vport->fc_myDID,
+			vport->phba->fcf.fcfi,
+			vport->phba->sli4_hba.vfi_ids[vport->vfi],
+			vport->phba->vpi_ids[vport->vpi],
+			reg_vfi->wwn[0], reg_vfi->wwn[1]);
 }
 
 /**
@@ -2175,16 +2187,15 @@ lpfc_unreg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport)
 }
 
 /**
- * lpfc_dump_fcoe_param - Dump config region 23 to get FCoe parameters.
+ * lpfc_sli4_dump_cfg_rg23 - Dump sli4 port config region 23
  * @phba: pointer to the hba structure containing.
  * @mbox: pointer to lpfc mbox command to initialize.
  *
- * This function create a SLI4 dump mailbox command to dump FCoE
- * parameters stored in region 23.
+ * This function create a SLI4 dump mailbox command to dump configure
+ * region 23.
  **/
 int
-lpfc_dump_fcoe_param(struct lpfc_hba *phba,
-		struct lpfcMboxq *mbox)
+lpfc_sli4_dump_cfg_rg23(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 {
 	struct lpfc_dmabuf *mp = NULL;
 	MAILBOX_t *mb;
@@ -2198,9 +2209,9 @@ lpfc_dump_fcoe_param(struct lpfc_hba *phba,
 
 	if (!mp || !mp->virt) {
 		kfree(mp);
-		/* dump_fcoe_param failed to allocate memory */
+		/* dump config region 23 failed to allocate memory */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
-			"2569 lpfc_dump_fcoe_param: memory"
+			"2569 lpfc dump config region 23: memory"
 			" allocation failed\n");
 		return 1;
 	}

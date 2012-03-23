@@ -519,31 +519,32 @@ void spu_init_channels(struct spu *spu)
 }
 EXPORT_SYMBOL_GPL(spu_init_channels);
 
-static struct sysdev_class spu_sysdev_class = {
+static struct bus_type spu_subsys = {
 	.name = "spu",
+	.dev_name = "spu",
 };
 
-int spu_add_sysdev_attr(struct sysdev_attribute *attr)
+int spu_add_dev_attr(struct device_attribute *attr)
 {
 	struct spu *spu;
 
 	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list)
-		sysdev_create_file(&spu->sysdev, attr);
+		device_create_file(&spu->dev, attr);
 	mutex_unlock(&spu_full_list_mutex);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(spu_add_sysdev_attr);
+EXPORT_SYMBOL_GPL(spu_add_dev_attr);
 
-int spu_add_sysdev_attr_group(struct attribute_group *attrs)
+int spu_add_dev_attr_group(struct attribute_group *attrs)
 {
 	struct spu *spu;
 	int rc = 0;
 
 	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list) {
-		rc = sysfs_create_group(&spu->sysdev.kobj, attrs);
+		rc = sysfs_create_group(&spu->dev.kobj, attrs);
 
 		/* we're in trouble here, but try unwinding anyway */
 		if (rc) {
@@ -552,7 +553,7 @@ int spu_add_sysdev_attr_group(struct attribute_group *attrs)
 
 			list_for_each_entry_continue_reverse(spu,
 					&spu_full_list, full_list)
-				sysfs_remove_group(&spu->sysdev.kobj, attrs);
+				sysfs_remove_group(&spu->dev.kobj, attrs);
 			break;
 		}
 	}
@@ -561,45 +562,45 @@ int spu_add_sysdev_attr_group(struct attribute_group *attrs)
 
 	return rc;
 }
-EXPORT_SYMBOL_GPL(spu_add_sysdev_attr_group);
+EXPORT_SYMBOL_GPL(spu_add_dev_attr_group);
 
 
-void spu_remove_sysdev_attr(struct sysdev_attribute *attr)
+void spu_remove_dev_attr(struct device_attribute *attr)
 {
 	struct spu *spu;
 
 	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list)
-		sysdev_remove_file(&spu->sysdev, attr);
+		device_remove_file(&spu->dev, attr);
 	mutex_unlock(&spu_full_list_mutex);
 }
-EXPORT_SYMBOL_GPL(spu_remove_sysdev_attr);
+EXPORT_SYMBOL_GPL(spu_remove_dev_attr);
 
-void spu_remove_sysdev_attr_group(struct attribute_group *attrs)
+void spu_remove_dev_attr_group(struct attribute_group *attrs)
 {
 	struct spu *spu;
 
 	mutex_lock(&spu_full_list_mutex);
 	list_for_each_entry(spu, &spu_full_list, full_list)
-		sysfs_remove_group(&spu->sysdev.kobj, attrs);
+		sysfs_remove_group(&spu->dev.kobj, attrs);
 	mutex_unlock(&spu_full_list_mutex);
 }
-EXPORT_SYMBOL_GPL(spu_remove_sysdev_attr_group);
+EXPORT_SYMBOL_GPL(spu_remove_dev_attr_group);
 
-static int spu_create_sysdev(struct spu *spu)
+static int spu_create_dev(struct spu *spu)
 {
 	int ret;
 
-	spu->sysdev.id = spu->number;
-	spu->sysdev.cls = &spu_sysdev_class;
-	ret = sysdev_register(&spu->sysdev);
+	spu->dev.id = spu->number;
+	spu->dev.bus = &spu_subsys;
+	ret = device_register(&spu->dev);
 	if (ret) {
 		printk(KERN_ERR "Can't register SPU %d with sysfs\n",
 				spu->number);
 		return ret;
 	}
 
-	sysfs_add_device_to_node(&spu->sysdev, spu->node);
+	sysfs_add_device_to_node(&spu->dev, spu->node);
 
 	return 0;
 }
@@ -635,7 +636,7 @@ static int __init create_spu(void *data)
 	if (ret)
 		goto out_destroy;
 
-	ret = spu_create_sysdev(spu);
+	ret = spu_create_dev(spu);
 	if (ret)
 		goto out_free_irqs;
 
@@ -692,10 +693,10 @@ static unsigned long long spu_acct_time(struct spu *spu,
 }
 
 
-static ssize_t spu_stat_show(struct sys_device *sysdev,
-				struct sysdev_attribute *attr, char *buf)
+static ssize_t spu_stat_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
 {
-	struct spu *spu = container_of(sysdev, struct spu, sysdev);
+	struct spu *spu = container_of(dev, struct spu, dev);
 
 	return sprintf(buf, "%s %llu %llu %llu %llu "
 		      "%llu %llu %llu %llu %llu %llu %llu %llu\n",
@@ -714,7 +715,7 @@ static ssize_t spu_stat_show(struct sys_device *sysdev,
 		spu->stats.libassist);
 }
 
-static SYSDEV_ATTR(stat, 0644, spu_stat_show, NULL);
+static DEVICE_ATTR(stat, 0644, spu_stat_show, NULL);
 
 #ifdef CONFIG_KEXEC
 
@@ -813,8 +814,8 @@ static int __init init_spu_base(void)
 	if (!spu_management_ops)
 		goto out;
 
-	/* create sysdev class for spus */
-	ret = sysdev_class_register(&spu_sysdev_class);
+	/* create system subsystem for spus */
+	ret = subsys_system_register(&spu_subsys, NULL);
 	if (ret)
 		goto out;
 
@@ -823,7 +824,7 @@ static int __init init_spu_base(void)
 	if (ret < 0) {
 		printk(KERN_WARNING "%s: Error initializing spus\n",
 			__func__);
-		goto out_unregister_sysdev_class;
+		goto out_unregister_subsys;
 	}
 
 	if (ret > 0)
@@ -833,15 +834,15 @@ static int __init init_spu_base(void)
 	xmon_register_spus(&spu_full_list);
 	crash_register_spus(&spu_full_list);
 	mutex_unlock(&spu_full_list_mutex);
-	spu_add_sysdev_attr(&attr_stat);
+	spu_add_dev_attr(&dev_attr_stat);
 	register_syscore_ops(&spu_syscore_ops);
 
 	spu_init_affinity();
 
 	return 0;
 
- out_unregister_sysdev_class:
-	sysdev_class_unregister(&spu_sysdev_class);
+ out_unregister_subsys:
+	bus_unregister(&spu_subsys);
  out:
 	return ret;
 }

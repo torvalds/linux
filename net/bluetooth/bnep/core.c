@@ -56,8 +56,8 @@
 
 #define VERSION "1.3"
 
-static int compress_src = 1;
-static int compress_dst = 1;
+static bool compress_src = true;
+static bool compress_dst = true;
 
 static LIST_HEAD(bnep_session_list);
 static DECLARE_RWSEM(bnep_session_sem);
@@ -65,15 +65,13 @@ static DECLARE_RWSEM(bnep_session_sem);
 static struct bnep_session *__bnep_get_session(u8 *dst)
 {
 	struct bnep_session *s;
-	struct list_head *p;
 
 	BT_DBG("");
 
-	list_for_each(p, &bnep_session_list) {
-		s = list_entry(p, struct bnep_session, list);
+	list_for_each_entry(s, &bnep_session_list, list)
 		if (!compare_ether_addr(dst, s->eh.h_source))
 			return s;
-	}
+
 	return NULL;
 }
 
@@ -665,16 +663,13 @@ static void __bnep_copy_ci(struct bnep_conninfo *ci, struct bnep_session *s)
 
 int bnep_get_connlist(struct bnep_connlist_req *req)
 {
-	struct list_head *p;
+	struct bnep_session *s;
 	int err = 0, n = 0;
 
 	down_read(&bnep_session_sem);
 
-	list_for_each(p, &bnep_session_list) {
-		struct bnep_session *s;
+	list_for_each_entry(s, &bnep_session_list, list) {
 		struct bnep_conninfo ci;
-
-		s = list_entry(p, struct bnep_session, list);
 
 		__bnep_copy_ci(&ci, s);
 

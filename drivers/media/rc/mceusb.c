@@ -156,9 +156,9 @@
 
 /* module parameters */
 #ifdef CONFIG_USB_DEBUG
-static int debug = 1;
+static bool debug = 1;
 #else
-static int debug;
+static bool debug;
 #endif
 
 #define mce_dbg(dev, fmt, ...)					\
@@ -361,6 +361,8 @@ static struct usb_device_id mceusb_dev_table[] = {
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03c) },
 	/* Formosa Industrial Computing */
 	{ USB_DEVICE(VENDOR_FORMOSA, 0xe03e) },
+	/* Formosa Industrial Computing */
+	{ USB_DEVICE(VENDOR_FORMOSA, 0xe042) },
 	/* Fintek eHome Infrared Transceiver (HP branded) */
 	{ USB_DEVICE(VENDOR_FINTEK, 0x5168) },
 	/* Fintek eHome Infrared Transceiver */
@@ -1448,25 +1450,7 @@ static struct usb_driver mceusb_dev_driver = {
 	.id_table =	mceusb_dev_table
 };
 
-static int __init mceusb_dev_init(void)
-{
-	int ret;
-
-	ret = usb_register(&mceusb_dev_driver);
-	if (ret < 0)
-		printk(KERN_ERR DRIVER_NAME
-		       ": usb register failed, result = %d\n", ret);
-
-	return ret;
-}
-
-static void __exit mceusb_dev_exit(void)
-{
-	usb_deregister(&mceusb_dev_driver);
-}
-
-module_init(mceusb_dev_init);
-module_exit(mceusb_dev_exit);
+module_usb_driver(mceusb_dev_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR(DRIVER_AUTHOR);

@@ -74,10 +74,15 @@ static int __clk_enable(struct clk *clk)
 	return 0;
 }
 
-/* This function increments the reference count on the clock and enables the
- * clock if not already enabled. The parent clock tree is recursively enabled
+/*
+ * The clk_enable/clk_disable could be called by drivers in atomic context,
+ * so they should not really hold mutex.  Instead, clk_prepare/clk_unprepare
+ * can hold a mutex, as the pair will only be called in non-atomic context.
+ * Before migrating to common clk framework, we can have __clk_enable and
+ * __clk_disable called in clk_prepare/clk_unprepare with mutex held and
+ * leave clk_enable/clk_disable as the dummy functions.
  */
-int clk_enable(struct clk *clk)
+int clk_prepare(struct clk *clk)
 {
 	int ret = 0;
 
@@ -90,13 +95,9 @@ int clk_enable(struct clk *clk)
 
 	return ret;
 }
-EXPORT_SYMBOL(clk_enable);
+EXPORT_SYMBOL(clk_prepare);
 
-/* This function decrements the reference count on the clock and disables
- * the clock when reference count is 0. The parent clock tree is
- * recursively disabled
- */
-void clk_disable(struct clk *clk)
+void clk_unprepare(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
 		return;
@@ -104,6 +105,18 @@ void clk_disable(struct clk *clk)
 	mutex_lock(&clocks_mutex);
 	__clk_disable(clk);
 	mutex_unlock(&clocks_mutex);
+}
+EXPORT_SYMBOL(clk_unprepare);
+
+int clk_enable(struct clk *clk)
+{
+	return 0;
+}
+EXPORT_SYMBOL(clk_enable);
+
+void clk_disable(struct clk *clk)
+{
+	/* nothing to do */
 }
 EXPORT_SYMBOL(clk_disable);
 
@@ -166,7 +179,7 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 		return ret;
 
 	if (clk->usecount)
-		clk_enable(parent);
+		clk_prepare_enable(parent);
 
 	mutex_lock(&clocks_mutex);
 	ret = clk->set_parent(clk, parent);

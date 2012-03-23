@@ -49,11 +49,9 @@ int roccat_common_send(struct usb_device *usb_dev, uint report_id,
 	char *buf;
 	int len;
 
-	buf = kmalloc(size, GFP_KERNEL);
+	buf = kmemdup(data, size, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
-
-	memcpy(buf, data, size);
 
 	len = usb_control_msg(usb_dev, usb_sndctrlpipe(usb_dev, 0),
 			HID_REQ_SET_REPORT,

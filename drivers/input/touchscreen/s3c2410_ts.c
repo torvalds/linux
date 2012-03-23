@@ -432,19 +432,7 @@ static struct platform_driver s3c_ts_driver = {
 	.probe		= s3c2410ts_probe,
 	.remove		= __devexit_p(s3c2410ts_remove),
 };
-
-static int __init s3c2410ts_init(void)
-{
-	return platform_driver_register(&s3c_ts_driver);
-}
-
-static void __exit s3c2410ts_exit(void)
-{
-	platform_driver_unregister(&s3c_ts_driver);
-}
-
-module_init(s3c2410ts_init);
-module_exit(s3c2410ts_exit);
+module_platform_driver(s3c_ts_driver);
 
 MODULE_AUTHOR("Arnaud Patard <arnaud.patard@rtp-net.org>, "
 	      "Ben Dooks <ben@simtec.co.uk>, "

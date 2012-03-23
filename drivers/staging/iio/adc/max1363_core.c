@@ -34,7 +34,8 @@
 
 #include "../iio.h"
 #include "../sysfs.h"
-#include "../buffer_generic.h"
+#include "../events.h"
+#include "../buffer.h"
 
 #include "max1363.h"
 
@@ -147,7 +148,8 @@ static const struct max1363_mode max1363_mode_table[] = {
 };
 
 const struct max1363_mode
-*max1363_match_mode(unsigned long *mask, const struct max1363_chip_info *ci)
+*max1363_match_mode(const unsigned long *mask,
+const struct max1363_chip_info *ci)
 {
 	int i;
 	if (mask)
@@ -189,7 +191,6 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 	int ret = 0;
 	s32 data;
 	char rxbuf[2];
-	const unsigned long *mask;
 	struct max1363_state *st = iio_priv(indio_dev);
 	struct i2c_client *client = st->client;
 
@@ -198,46 +199,38 @@ static int max1363_read_single_chan(struct iio_dev *indio_dev,
 	 * If monitor mode is enabled, the method for reading a single
 	 * channel will have to be rather different and has not yet
 	 * been implemented.
+	 *
+	 * Also, cannot read directly if buffered capture enabled.
 	 */
-	if (st->monitor_on) {
+	if (st->monitor_on || iio_buffer_enabled(indio_dev)) {
 		ret = -EBUSY;
 		goto error_ret;
 	}
 
-	/* If ring buffer capture is occurring, query the buffer */
-	if (iio_buffer_enabled(indio_dev)) {
-		mask = max1363_mode_table[chan->address].modemask;
-		data = max1363_single_channel_from_ring(mask, st);
+	/* Check to see if current scan mode is correct */
+	if (st->current_mode != &max1363_mode_table[chan->address]) {
+		/* Update scan mode if needed */
+		st->current_mode = &max1363_mode_table[chan->address];
+		ret = max1363_set_scan_mode(st);
+		if (ret < 0)
+			goto error_ret;
+	}
+	if (st->chip_info->bits != 8) {
+		/* Get reading */
+		data = i2c_master_recv(client, rxbuf, 2);
 		if (data < 0) {
 			ret = data;
 			goto error_ret;
 		}
+		data = (s32)(rxbuf[1]) | ((s32)(rxbuf[0] & 0x0F)) << 8;
 	} else {
-		/* Check to see if current scan mode is correct */
-		if (st->current_mode != &max1363_mode_table[chan->address]) {
-			/* Update scan mode if needed */
-			st->current_mode = &max1363_mode_table[chan->address];
-			ret = max1363_set_scan_mode(st);
-			if (ret < 0)
-				goto error_ret;
+		/* Get reading */
+		data = i2c_master_recv(client, rxbuf, 1);
+		if (data < 0) {
+			ret = data;
+			goto error_ret;
 		}
-		if (st->chip_info->bits != 8) {
-			/* Get reading */
-			data = i2c_master_recv(client, rxbuf, 2);
-			if (data < 0) {
-				ret = data;
-				goto error_ret;
-			}
-			data = (s32)(rxbuf[1]) | ((s32)(rxbuf[0] & 0x0F)) << 8;
-		} else {
-			/* Get reading */
-			data = i2c_master_recv(client, rxbuf, 1);
-			if (data < 0) {
-				ret = data;
-				goto error_ret;
-			}
-			data = rxbuf[0];
-		}
+		data = rxbuf[0];
 	}
 	*val = data;
 error_ret:
@@ -260,7 +253,7 @@ static int max1363_read_raw(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 		return IIO_VAL_INT;
-	case (1 << IIO_CHAN_INFO_SCALE_SHARED):
+	case IIO_CHAN_INFO_SCALE:
 		if ((1 << (st->chip_info->bits + 1)) >
 		    st->chip_info->int_vref_mv) {
 			*val = 0;
@@ -288,7 +281,7 @@ static const enum max1363_modes max1363_mode_list[] = {
 #define MAX1363_EV_M						\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)	\
 	 | IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
-#define MAX1363_INFO_MASK (1 << IIO_CHAN_INFO_SCALE_SHARED)
+#define MAX1363_INFO_MASK IIO_CHAN_INFO_SCALE_SHARED_BIT
 #define MAX1363_CHAN_U(num, addr, si, bits, evmask)			\
 	{								\
 		.type = IIO_VOLTAGE,					\
@@ -296,7 +289,13 @@ static const enum max1363_modes max1363_mode_list[] = {
 		.channel = num,						\
 		.address = addr,					\
 		.info_mask = MAX1363_INFO_MASK,				\
-		.scan_type = IIO_ST('u', bits, (bits > 8) ? 16 : 8, 0), \
+		.datasheet_name = "AIN"#num,				\
+		.scan_type = {						\
+			.sign = 'u',					\
+			.realbits = bits,				\
+			.storagebits = (bits > 8) ? 16 : 8,		\
+			.endianness = IIO_BE,				\
+		},							\
 		.scan_index = si,					\
 		.event_mask = evmask,					\
 	}
@@ -311,7 +310,13 @@ static const enum max1363_modes max1363_mode_list[] = {
 		.channel2 = num2,					\
 		.address = addr,					\
 		.info_mask = MAX1363_INFO_MASK,				\
-		.scan_type = IIO_ST('u', bits, (bits > 8) ? 16 : 8, 0), \
+		.datasheet_name = "AIN"#num"-AIN"#num2,			\
+		.scan_type = {						\
+			.sign = 's',					\
+			.realbits = bits,				\
+			.storagebits = (bits > 8) ? 16 : 8,		\
+			.endianness = IIO_BE,				\
+		},							\
 		.scan_index = si,					\
 		.event_mask = evmask,					\
 	}
@@ -833,6 +838,7 @@ static const struct iio_info max1363_info = {
 	.read_event_config = &max1363_read_event_config,
 	.write_event_config = &max1363_write_event_config,
 	.read_raw = &max1363_read_raw,
+	.update_scan_mode = &max1363_update_scan_mode,
 	.driver_module = THIS_MODULE,
 	.event_attrs = &max1363_event_attribute_group,
 };
@@ -1410,20 +1416,8 @@ static struct i2c_driver max1363_driver = {
 	.remove = max1363_remove,
 	.id_table = max1363_id,
 };
-
-static __init int max1363_init(void)
-{
-	return i2c_add_driver(&max1363_driver);
-}
-
-static __exit void max1363_exit(void)
-{
-	i2c_del_driver(&max1363_driver);
-}
+module_i2c_driver(max1363_driver);
 
 MODULE_AUTHOR("Jonathan Cameron <jic23@cam.ac.uk>");
 MODULE_DESCRIPTION("Maxim 1363 ADC");
 MODULE_LICENSE("GPL v2");
-
-module_init(max1363_init);
-module_exit(max1363_exit);

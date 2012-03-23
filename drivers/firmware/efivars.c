@@ -495,7 +495,8 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 	return 0;
 }
 
-static int efi_pstore_write(enum pstore_type_id type, u64 *id,
+static int efi_pstore_write(enum pstore_type_id type,
+		enum kmsg_dump_reason reason, u64 *id,
 		unsigned int part, size_t size, struct pstore_info *psi)
 {
 	char name[DUMP_NAME_LEN];
@@ -565,7 +566,7 @@ static int efi_pstore_write(enum pstore_type_id type, u64 *id,
 static int efi_pstore_erase(enum pstore_type_id type, u64 id,
 			    struct pstore_info *psi)
 {
-	efi_pstore_write(type, &id, (unsigned int)id, 0, psi);
+	efi_pstore_write(type, 0, &id, (unsigned int)id, 0, psi);
 
 	return 0;
 }
@@ -587,7 +588,8 @@ static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type,
 	return -1;
 }
 
-static int efi_pstore_write(enum pstore_type_id type, u64 *id,
+static int efi_pstore_write(enum pstore_type_id type,
+		enum kmsg_dump_reason reason, u64 *id,
 		unsigned int part, size_t size, struct pstore_info *psi)
 {
 	return 0;

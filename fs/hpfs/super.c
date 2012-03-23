@@ -181,7 +181,6 @@ static struct inode *hpfs_alloc_inode(struct super_block *sb)
 static void hpfs_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(hpfs_inode_cachep, hpfs_i(inode));
 }
 

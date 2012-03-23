@@ -23,7 +23,7 @@
 #include <linux/crypto.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_tq.h"
@@ -143,7 +143,7 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 	list_for_each_entry_safe(se_sess, se_sess_tmp, &se_tpg->tpg_sess_list,
 			sess_list) {
 
-		sess_p = (struct iscsi_session *)se_sess->fabric_sess_ptr;
+		sess_p = se_sess->fabric_sess_ptr;
 		spin_lock(&sess_p->conn_lock);
 		if (atomic_read(&sess_p->session_fall_back_to_erl0) ||
 		    atomic_read(&sess_p->session_logout) ||
@@ -151,9 +151,9 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 			spin_unlock(&sess_p->conn_lock);
 			continue;
 		}
-		if (!memcmp((void *)sess_p->isid, (void *)conn->sess->isid, 6) &&
-		   (!strcmp((void *)sess_p->sess_ops->InitiatorName,
-			    (void *)initiatorname_param->value) &&
+		if (!memcmp(sess_p->isid, conn->sess->isid, 6) &&
+		   (!strcmp(sess_p->sess_ops->InitiatorName,
+			    initiatorname_param->value) &&
 		   (sess_p->sess_ops->SessionType == sessiontype))) {
 			atomic_set(&sess_p->session_reinstatement, 1);
 			spin_unlock(&sess_p->conn_lock);
@@ -229,7 +229,7 @@ static int iscsi_login_zero_tsih_s1(
 
 	iscsi_login_set_conn_values(sess, conn, pdu->cid);
 	sess->init_task_tag	= pdu->itt;
-	memcpy((void *)&sess->isid, (void *)pdu->isid, 6);
+	memcpy(&sess->isid, pdu->isid, 6);
 	sess->exp_cmd_sn	= pdu->cmdsn;
 	INIT_LIST_HEAD(&sess->sess_conn_list);
 	INIT_LIST_HEAD(&sess->sess_ooo_cmdsn_list);
@@ -440,8 +440,7 @@ static int iscsi_login_non_zero_tsih_s2(
 		    atomic_read(&sess_p->session_logout) ||
 		   (sess_p->time2retain_timer_flags & ISCSI_TF_EXPIRED))
 			continue;
-		if (!memcmp((const void *)sess_p->isid,
-		     (const void *)pdu->isid, 6) &&
+		if (!memcmp(sess_p->isid, pdu->isid, 6) &&
 		     (sess_p->tsih == pdu->tsih)) {
 			iscsit_inc_session_usage_count(sess_p);
 			iscsit_stop_time2retain_timer(sess_p);
@@ -616,8 +615,8 @@ static int iscsi_post_login_handler(
 		}
 
 		pr_debug("iSCSI Login successful on CID: %hu from %s to"
-			" %s:%hu,%hu\n", conn->cid, conn->login_ip, np->np_ip,
-				np->np_port, tpg->tpgt);
+			" %s:%hu,%hu\n", conn->cid, conn->login_ip,
+			conn->local_ip, conn->local_port, tpg->tpgt);
 
 		list_add_tail(&conn->conn_list, &sess->sess_conn_list);
 		atomic_inc(&sess->nconn);
@@ -654,12 +653,13 @@ static int iscsi_post_login_handler(
 
 	spin_lock_bh(&se_tpg->session_lock);
 	__transport_register_session(&sess->tpg->tpg_se_tpg,
-			se_sess->se_node_acl, se_sess, (void *)sess);
+			se_sess->se_node_acl, se_sess, sess);
 	pr_debug("Moving to TARG_SESS_STATE_LOGGED_IN.\n");
 	sess->session_state = TARG_SESS_STATE_LOGGED_IN;
 
 	pr_debug("iSCSI Login successful on CID: %hu from %s to %s:%hu,%hu\n",
-		conn->cid, conn->login_ip, np->np_ip, np->np_port, tpg->tpgt);
+		conn->cid, conn->login_ip, conn->local_ip, conn->local_port,
+		tpg->tpgt);
 
 	spin_lock_bh(&sess->conn_lock);
 	list_add_tail(&conn->conn_list, &sess->sess_conn_list);
@@ -811,7 +811,7 @@ int iscsi_target_setup_login_socket(
 	 * Setup the np->np_sockaddr from the passed sockaddr setup
 	 * in iscsi_target_configfs.c code..
 	 */
-	memcpy((void *)&np->np_sockaddr, (void *)sockaddr,
+	memcpy(&np->np_sockaddr, sockaddr,
 			sizeof(struct __kernel_sockaddr_storage));
 
 	if (sockaddr->ss_family == AF_INET6)
@@ -821,6 +821,7 @@ int iscsi_target_setup_login_socket(
 	/*
 	 * Set SO_REUSEADDR, and disable Nagel Algorithm with TCP_NODELAY.
 	 */
+	/* FIXME: Someone please explain why this is endian-safe */
 	opt = 1;
 	if (np->np_network_transport == ISCSI_TCP) {
 		ret = kernel_setsockopt(sock, IPPROTO_TCP, TCP_NODELAY,
@@ -832,10 +833,19 @@ int iscsi_target_setup_login_socket(
 		}
 	}
 
+	/* FIXME: Someone please explain why this is endian-safe */
 	ret = kernel_setsockopt(sock, SOL_SOCKET, SO_REUSEADDR,
 			(char *)&opt, sizeof(opt));
 	if (ret < 0) {
 		pr_err("kernel_setsockopt() for SO_REUSEADDR"
+			" failed\n");
+		goto fail;
+	}
+
+	ret = kernel_setsockopt(sock, IPPROTO_IP, IP_FREEBIND,
+			(char *)&opt, sizeof(opt));
+	if (ret < 0) {
+		pr_err("kernel_setsockopt() for IP_FREEBIND"
 			" failed\n");
 		goto fail;
 	}
@@ -1019,6 +1029,18 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		snprintf(conn->login_ip, sizeof(conn->login_ip), "%pI6c",
 				&sock_in6.sin6_addr.in6_u);
 		conn->login_port = ntohs(sock_in6.sin6_port);
+
+		if (conn->sock->ops->getname(conn->sock,
+				(struct sockaddr *)&sock_in6, &err, 0) < 0) {
+			pr_err("sock_ops->getname() failed.\n");
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+					ISCSI_LOGIN_STATUS_TARGET_ERROR);
+			goto new_sess_out;
+		}
+		snprintf(conn->local_ip, sizeof(conn->local_ip), "%pI6c",
+				&sock_in6.sin6_addr.in6_u);
+		conn->local_port = ntohs(sock_in6.sin6_port);
+
 	} else {
 		memset(&sock_in, 0, sizeof(struct sockaddr_in));
 
@@ -1031,6 +1053,16 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 		}
 		sprintf(conn->login_ip, "%pI4", &sock_in.sin_addr.s_addr);
 		conn->login_port = ntohs(sock_in.sin_port);
+
+		if (conn->sock->ops->getname(conn->sock,
+				(struct sockaddr *)&sock_in, &err, 0) < 0) {
+			pr_err("sock_ops->getname() failed.\n");
+			iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
+					ISCSI_LOGIN_STATUS_TARGET_ERROR);
+			goto new_sess_out;
+		}
+		sprintf(conn->local_ip, "%pI4", &sock_in.sin_addr.s_addr);
+		conn->local_port = ntohs(sock_in.sin_port);
 	}
 
 	conn->network_transport = np->np_network_transport;
@@ -1038,7 +1070,7 @@ static int __iscsi_target_login_thread(struct iscsi_np *np)
 	pr_debug("Received iSCSI login request from %s on %s Network"
 			" Portal %s:%hu\n", conn->login_ip,
 		(conn->network_transport == ISCSI_TCP) ? "TCP" : "SCTP",
-			np->np_ip, np->np_port);
+			conn->local_ip, conn->local_port);
 
 	pr_debug("Moving to TARG_CONN_STATE_IN_LOGIN.\n");
 	conn->conn_state	= TARG_CONN_STATE_IN_LOGIN;
@@ -1206,7 +1238,7 @@ out:
 
 int iscsi_target_login_thread(void *arg)
 {
-	struct iscsi_np *np = (struct iscsi_np *)arg;
+	struct iscsi_np *np = arg;
 	int ret;
 
 	allow_signal(SIGINT);

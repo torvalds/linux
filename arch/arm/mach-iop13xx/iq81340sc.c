@@ -98,4 +98,5 @@ MACHINE_START(IQ81340SC, "Intel IQ81340SC")
 	.init_irq       = iop13xx_init_irq,
 	.timer          = &iq81340sc_timer,
 	.init_machine   = iq81340sc_init,
+	.restart	= iop13xx_restart,
 MACHINE_END

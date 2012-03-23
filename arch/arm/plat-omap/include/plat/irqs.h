@@ -357,7 +357,7 @@
 #define INT_35XX_EMAC_C0_TX_PULSE_IRQ	69
 #define INT_35XX_EMAC_C0_MISC_PULSE_IRQ	70
 #define INT_35XX_USBOTG_IRQ		71
-#define INT_35XX_UART4			84
+#define INT_35XX_UART4_IRQ		84
 #define INT_35XX_CCDC_VD0_IRQ		88
 #define INT_35XX_CCDC_VD1_IRQ		92
 #define INT_35XX_CCDC_VD2_IRQ		93
@@ -428,27 +428,21 @@
 #define OMAP_GPMC_NR_IRQS	8
 #define OMAP_GPMC_IRQ_END	(OMAP_GPMC_IRQ_BASE + OMAP_GPMC_NR_IRQS)
 
+/* PRCM IRQ handler */
+#ifdef CONFIG_ARCH_OMAP2PLUS
+#define OMAP_PRCM_IRQ_BASE	(OMAP_GPMC_IRQ_END)
+#define OMAP_PRCM_NR_IRQS	64
+#define OMAP_PRCM_IRQ_END	(OMAP_PRCM_IRQ_BASE + OMAP_PRCM_NR_IRQS)
+#else
+#define OMAP_PRCM_IRQ_END	OMAP_GPMC_IRQ_END
+#endif
 
-#define NR_IRQS			OMAP_GPMC_IRQ_END
+#define NR_IRQS			OMAP_PRCM_IRQ_END
 
 #define OMAP_IRQ_BIT(irq)	(1 << ((irq) % 32))
 
 #define INTCPS_NR_MIR_REGS	3
 #define INTCPS_NR_IRQS		96
-
-#ifndef __ASSEMBLY__
-extern void __iomem *omap_irq_base;
-void omap1_init_irq(void);
-void omap2_init_irq(void);
-void omap3_init_irq(void);
-void ti816x_init_irq(void);
-extern int omap_irq_pending(void);
-void omap_intc_save_context(void);
-void omap_intc_restore_context(void);
-void omap3_intc_suspend(void);
-void omap3_intc_prepare_idle(void);
-void omap3_intc_resume_idle(void);
-#endif
 
 #include <mach/hardware.h>
 

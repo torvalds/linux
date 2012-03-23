@@ -37,7 +37,7 @@
 #include <plat/tc.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
-#include <plat/common.h>
+#include "common.h"
 #include <plat/mmc.h>
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
@@ -416,13 +416,13 @@ static void __init innovator_init(void)
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		omap1_usb_init(&innovator1510_usb_config);
-		innovator_config[1].data = &innovator1510_lcd_config;
+		innovator_config[0].data = &innovator1510_lcd_config;
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
 	if (cpu_is_omap1610()) {
 		omap1_usb_init(&h2_usb_config);
-		innovator_config[1].data = &innovator1610_lcd_config;
+		innovator_config[0].data = &innovator1610_lcd_config;
 	}
 #endif
 	omap_board_config = innovator_config;
@@ -460,4 +460,5 @@ MACHINE_START(OMAP_INNOVATOR, "TI-Innovator")
 	.init_irq	= omap1_init_irq,
 	.init_machine	= innovator_init,
 	.timer		= &omap1_timer,
+	.restart	= omap1_restart,
 MACHINE_END

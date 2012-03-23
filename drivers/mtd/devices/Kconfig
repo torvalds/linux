@@ -191,6 +191,7 @@ comment "Disk-On-Chip Device Drivers"
 
 config MTD_DOC2000
 	tristate "M-Systems Disk-On-Chip 2000 and Millennium (DEPRECATED)"
+	depends on MTD_NAND
 	select MTD_DOCPROBE
 	select MTD_NAND_IDS
 	---help---
@@ -213,6 +214,7 @@ config MTD_DOC2000
 
 config MTD_DOC2001
 	tristate "M-Systems Disk-On-Chip Millennium-only alternative driver (DEPRECATED)"
+	depends on MTD_NAND
 	select MTD_DOCPROBE
 	select MTD_NAND_IDS
 	---help---
@@ -234,6 +236,7 @@ config MTD_DOC2001
 
 config MTD_DOC2001PLUS
 	tristate "M-Systems Disk-On-Chip Millennium Plus"
+	depends on MTD_NAND
 	select MTD_DOCPROBE
 	select MTD_NAND_IDS
 	---help---
@@ -251,6 +254,8 @@ config MTD_DOC2001PLUS
 
 config MTD_DOCG3
 	tristate "M-Systems Disk-On-Chip G3"
+	select BCH
+	select BCH_CONST_PARAMS
 	---help---
 	  This provides an MTD device driver for the M-Systems DiskOnChip
 	  G3 devices.
@@ -258,6 +263,13 @@ config MTD_DOCG3
 	  The driver provides access to G3 DiskOnChip, distributed by
 	  M-Systems and now Sandisk. The support is very experimental,
 	  and doesn't give access to any write operations.
+
+if MTD_DOCG3
+config BCH_CONST_M
+	default 14
+config BCH_CONST_T
+	default 4
+endif
 
 config MTD_DOCPROBE
 	tristate

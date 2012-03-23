@@ -357,4 +357,5 @@ MACHINE_START(PCM038, "phyCORE-i.MX27")
 	.handle_irq = imx27_handle_irq,
 	.timer = &pcm038_timer,
 	.init_machine = pcm038_init,
+	.restart	= mxc_restart,
 MACHINE_END

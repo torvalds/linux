@@ -248,7 +248,6 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 {
 	struct cfmuxl *muxl = container_obj(layr);
 	struct cflayer *layer;
-	int idx;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(layer, &muxl->srvl_list, node) {
@@ -257,14 +256,9 @@ static void cfmuxl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
 
 			if ((ctrl == _CAIF_CTRLCMD_PHYIF_DOWN_IND ||
 				ctrl == CAIF_CTRLCMD_REMOTE_SHUTDOWN_IND) &&
-					layer->id != 0) {
+					layer->id != 0)
+				cfmuxl_remove_uplayer(layr, layer->id);
 
-				idx = layer->id % UP_CACHE_SIZE;
-				spin_lock_bh(&muxl->receive_lock);
-				RCU_INIT_POINTER(muxl->up_cache[idx], NULL);
-				list_del_rcu(&layer->node);
-				spin_unlock_bh(&muxl->receive_lock);
-			}
 			/* NOTE: ctrlcmd is not allowed to block */
 			layer->ctrlcmd(layer, ctrl, phyid);
 		}

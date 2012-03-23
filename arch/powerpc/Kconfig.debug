@@ -336,4 +336,16 @@ config PPC_EARLY_DEBUG_CPM_ADDR
 	  platform probing is done, all platforms selected must
 	  share the same address.
 
+config STRICT_DEVMEM
+	def_bool y
+	prompt "Filter access to /dev/mem"
+	help
+	  This option restricts access to /dev/mem.  If this option is
+	  disabled, you allow userspace access to all memory, including
+	  kernel and userspace memory. Accidental memory access is likely
+	  to be disastrous.
+	  Memory access is required for experts who want to debug the kernel.
+
+	  If you are unsure, say Y.
+
 endmenu

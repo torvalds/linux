@@ -16,8 +16,13 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/mutex.h>
 #include "base.h"
 #include "power/power.h"
+
+/* /sys/devices/system */
+/* FIXME: make static after drivers/base/sys.c is deleted */
+struct kset *system_kset;
 
 #define to_bus_attr(_attr) container_of(_attr, struct bus_attribute, attr)
 
@@ -360,6 +365,47 @@ struct device *bus_find_device_by_name(struct bus_type *bus,
 }
 EXPORT_SYMBOL_GPL(bus_find_device_by_name);
 
+/**
+ * subsys_find_device_by_id - find a device with a specific enumeration number
+ * @subsys: subsystem
+ * @id: index 'id' in struct device
+ * @hint: device to check first
+ *
+ * Check the hint's next object and if it is a match return it directly,
+ * otherwise, fall back to a full list search. Either way a reference for
+ * the returned object is taken.
+ */
+struct device *subsys_find_device_by_id(struct bus_type *subsys, unsigned int id,
+					struct device *hint)
+{
+	struct klist_iter i;
+	struct device *dev;
+
+	if (!subsys)
+		return NULL;
+
+	if (hint) {
+		klist_iter_init_node(&subsys->p->klist_devices, &i, &hint->p->knode_bus);
+		dev = next_device(&i);
+		if (dev && dev->id == id && get_device(dev)) {
+			klist_iter_exit(&i);
+			return dev;
+		}
+		klist_iter_exit(&i);
+	}
+
+	klist_iter_init_node(&subsys->p->klist_devices, &i, NULL);
+	while ((dev = next_device(&i))) {
+		if (dev->id == id && get_device(dev)) {
+			klist_iter_exit(&i);
+			return dev;
+		}
+	}
+	klist_iter_exit(&i);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(subsys_find_device_by_id);
+
 static struct device_driver *next_driver(struct klist_iter *i)
 {
 	struct klist_node *n = klist_next(i);
@@ -487,38 +533,59 @@ out_put:
 void bus_probe_device(struct device *dev)
 {
 	struct bus_type *bus = dev->bus;
+	struct subsys_interface *sif;
 	int ret;
 
-	if (bus && bus->p->drivers_autoprobe) {
+	if (!bus)
+		return;
+
+	if (bus->p->drivers_autoprobe) {
 		ret = device_attach(dev);
 		WARN_ON(ret < 0);
 	}
+
+	mutex_lock(&bus->p->mutex);
+	list_for_each_entry(sif, &bus->p->interfaces, node)
+		if (sif->add_dev)
+			sif->add_dev(dev, sif);
+	mutex_unlock(&bus->p->mutex);
 }
 
 /**
  * bus_remove_device - remove device from bus
  * @dev: device to be removed
  *
- * - Remove symlink from bus's directory.
+ * - Remove device from all interfaces.
+ * - Remove symlink from bus' directory.
  * - Delete device from bus's list.
  * - Detach from its driver.
  * - Drop reference taken in bus_add_device().
  */
 void bus_remove_device(struct device *dev)
 {
-	if (dev->bus) {
-		sysfs_remove_link(&dev->kobj, "subsystem");
-		sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
-				  dev_name(dev));
-		device_remove_attrs(dev->bus, dev);
-		if (klist_node_attached(&dev->p->knode_bus))
-			klist_del(&dev->p->knode_bus);
+	struct bus_type *bus = dev->bus;
+	struct subsys_interface *sif;
 
-		pr_debug("bus: '%s': remove device %s\n",
-			 dev->bus->name, dev_name(dev));
-		device_release_driver(dev);
-		bus_put(dev->bus);
-	}
+	if (!bus)
+		return;
+
+	mutex_lock(&bus->p->mutex);
+	list_for_each_entry(sif, &bus->p->interfaces, node)
+		if (sif->remove_dev)
+			sif->remove_dev(dev, sif);
+	mutex_unlock(&bus->p->mutex);
+
+	sysfs_remove_link(&dev->kobj, "subsystem");
+	sysfs_remove_link(&dev->bus->p->devices_kset->kobj,
+			  dev_name(dev));
+	device_remove_attrs(dev->bus, dev);
+	if (klist_node_attached(&dev->p->knode_bus))
+		klist_del(&dev->p->knode_bus);
+
+	pr_debug("bus: '%s': remove device %s\n",
+		 dev->bus->name, dev_name(dev));
+	device_release_driver(dev);
+	bus_put(dev->bus);
 }
 
 static int driver_add_attrs(struct bus_type *bus, struct device_driver *drv)
@@ -847,14 +914,15 @@ static ssize_t bus_uevent_store(struct bus_type *bus,
 static BUS_ATTR(uevent, S_IWUSR, NULL, bus_uevent_store);
 
 /**
- * bus_register - register a bus with the system.
- * @bus: bus.
+ * __bus_register - register a driver-core subsystem
+ * @bus: bus to register
+ * @key: lockdep class key
  *
- * Once we have that, we registered the bus with the kobject
+ * Once we have that, we register the bus with the kobject
  * infrastructure, then register the children subsystems it has:
- * the devices and drivers that belong to the bus.
+ * the devices and drivers that belong to the subsystem.
  */
-int bus_register(struct bus_type *bus)
+int __bus_register(struct bus_type *bus, struct lock_class_key *key)
 {
 	int retval;
 	struct subsys_private *priv;
@@ -898,6 +966,8 @@ int bus_register(struct bus_type *bus)
 		goto bus_drivers_fail;
 	}
 
+	INIT_LIST_HEAD(&priv->interfaces);
+	__mutex_init(&priv->mutex, "subsys mutex", key);
 	klist_init(&priv->klist_devices, klist_devices_get, klist_devices_put);
 	klist_init(&priv->klist_drivers, NULL, NULL);
 
@@ -927,7 +997,7 @@ out:
 	bus->p = NULL;
 	return retval;
 }
-EXPORT_SYMBOL_GPL(bus_register);
+EXPORT_SYMBOL_GPL(__bus_register);
 
 /**
  * bus_unregister - remove a bus from the system
@@ -939,6 +1009,8 @@ EXPORT_SYMBOL_GPL(bus_register);
 void bus_unregister(struct bus_type *bus)
 {
 	pr_debug("bus: '%s': unregistering\n", bus->name);
+	if (bus->dev_root)
+		device_unregister(bus->dev_root);
 	bus_remove_attrs(bus);
 	remove_probe_files(bus);
 	kset_unregister(bus->p->drivers_kset);
@@ -1028,10 +1100,194 @@ void bus_sort_breadthfirst(struct bus_type *bus,
 }
 EXPORT_SYMBOL_GPL(bus_sort_breadthfirst);
 
+/**
+ * subsys_dev_iter_init - initialize subsys device iterator
+ * @iter: subsys iterator to initialize
+ * @subsys: the subsys we wanna iterate over
+ * @start: the device to start iterating from, if any
+ * @type: device_type of the devices to iterate over, NULL for all
+ *
+ * Initialize subsys iterator @iter such that it iterates over devices
+ * of @subsys.  If @start is set, the list iteration will start there,
+ * otherwise if it is NULL, the iteration starts at the beginning of
+ * the list.
+ */
+void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *subsys,
+			  struct device *start, const struct device_type *type)
+{
+	struct klist_node *start_knode = NULL;
+
+	if (start)
+		start_knode = &start->p->knode_bus;
+	klist_iter_init_node(&subsys->p->klist_devices, &iter->ki, start_knode);
+	iter->type = type;
+}
+EXPORT_SYMBOL_GPL(subsys_dev_iter_init);
+
+/**
+ * subsys_dev_iter_next - iterate to the next device
+ * @iter: subsys iterator to proceed
+ *
+ * Proceed @iter to the next device and return it.  Returns NULL if
+ * iteration is complete.
+ *
+ * The returned device is referenced and won't be released till
+ * iterator is proceed to the next device or exited.  The caller is
+ * free to do whatever it wants to do with the device including
+ * calling back into subsys code.
+ */
+struct device *subsys_dev_iter_next(struct subsys_dev_iter *iter)
+{
+	struct klist_node *knode;
+	struct device *dev;
+
+	for (;;) {
+		knode = klist_next(&iter->ki);
+		if (!knode)
+			return NULL;
+		dev = container_of(knode, struct device_private, knode_bus)->device;
+		if (!iter->type || iter->type == dev->type)
+			return dev;
+	}
+}
+EXPORT_SYMBOL_GPL(subsys_dev_iter_next);
+
+/**
+ * subsys_dev_iter_exit - finish iteration
+ * @iter: subsys iterator to finish
+ *
+ * Finish an iteration.  Always call this function after iteration is
+ * complete whether the iteration ran till the end or not.
+ */
+void subsys_dev_iter_exit(struct subsys_dev_iter *iter)
+{
+	klist_iter_exit(&iter->ki);
+}
+EXPORT_SYMBOL_GPL(subsys_dev_iter_exit);
+
+int subsys_interface_register(struct subsys_interface *sif)
+{
+	struct bus_type *subsys;
+	struct subsys_dev_iter iter;
+	struct device *dev;
+
+	if (!sif || !sif->subsys)
+		return -ENODEV;
+
+	subsys = bus_get(sif->subsys);
+	if (!subsys)
+		return -EINVAL;
+
+	mutex_lock(&subsys->p->mutex);
+	list_add_tail(&sif->node, &subsys->p->interfaces);
+	if (sif->add_dev) {
+		subsys_dev_iter_init(&iter, subsys, NULL, NULL);
+		while ((dev = subsys_dev_iter_next(&iter)))
+			sif->add_dev(dev, sif);
+		subsys_dev_iter_exit(&iter);
+	}
+	mutex_unlock(&subsys->p->mutex);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(subsys_interface_register);
+
+void subsys_interface_unregister(struct subsys_interface *sif)
+{
+	struct bus_type *subsys = sif->subsys;
+	struct subsys_dev_iter iter;
+	struct device *dev;
+
+	if (!sif)
+		return;
+
+	mutex_lock(&subsys->p->mutex);
+	list_del_init(&sif->node);
+	if (sif->remove_dev) {
+		subsys_dev_iter_init(&iter, subsys, NULL, NULL);
+		while ((dev = subsys_dev_iter_next(&iter)))
+			sif->remove_dev(dev, sif);
+		subsys_dev_iter_exit(&iter);
+	}
+	mutex_unlock(&subsys->p->mutex);
+
+	bus_put(subsys);
+}
+EXPORT_SYMBOL_GPL(subsys_interface_unregister);
+
+static void system_root_device_release(struct device *dev)
+{
+	kfree(dev);
+}
+/**
+ * subsys_system_register - register a subsystem at /sys/devices/system/
+ * @subsys: system subsystem
+ * @groups: default attributes for the root device
+ *
+ * All 'system' subsystems have a /sys/devices/system/<name> root device
+ * with the name of the subsystem. The root device can carry subsystem-
+ * wide attributes. All registered devices are below this single root
+ * device and are named after the subsystem with a simple enumeration
+ * number appended. The registered devices are not explicitely named;
+ * only 'id' in the device needs to be set.
+ *
+ * Do not use this interface for anything new, it exists for compatibility
+ * with bad ideas only. New subsystems should use plain subsystems; and
+ * add the subsystem-wide attributes should be added to the subsystem
+ * directory itself and not some create fake root-device placed in
+ * /sys/devices/system/<name>.
+ */
+int subsys_system_register(struct bus_type *subsys,
+			   const struct attribute_group **groups)
+{
+	struct device *dev;
+	int err;
+
+	err = bus_register(subsys);
+	if (err < 0)
+		return err;
+
+	dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	if (!dev) {
+		err = -ENOMEM;
+		goto err_dev;
+	}
+
+	err = dev_set_name(dev, "%s", subsys->name);
+	if (err < 0)
+		goto err_name;
+
+	dev->kobj.parent = &system_kset->kobj;
+	dev->groups = groups;
+	dev->release = system_root_device_release;
+
+	err = device_register(dev);
+	if (err < 0)
+		goto err_dev_reg;
+
+	subsys->dev_root = dev;
+	return 0;
+
+err_dev_reg:
+	put_device(dev);
+	dev = NULL;
+err_name:
+	kfree(dev);
+err_dev:
+	bus_unregister(subsys);
+	return err;
+}
+EXPORT_SYMBOL_GPL(subsys_system_register);
+
 int __init buses_init(void)
 {
 	bus_kset = kset_create_and_add("bus", &bus_uevent_ops, NULL);
 	if (!bus_kset)
 		return -ENOMEM;
+
+	system_kset = kset_create_and_add("system", NULL, &devices_kset->kobj);
+	if (!system_kset)
+		return -ENOMEM;
+
 	return 0;
 }

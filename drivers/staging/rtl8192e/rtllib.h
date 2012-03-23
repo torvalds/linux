@@ -25,7 +25,6 @@
 #define RTLLIB_H
 #include <linux/if_ether.h> /* ETH_ALEN */
 #include <linux/kernel.h>   /* ARRAY_SIZE */
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/jiffies.h>
@@ -36,12 +35,14 @@
 #include <linux/delay.h>
 #include <linux/wireless.h>
 
+#include "rtllib_debug.h"
 #include "rtl819x_HT.h"
 #include "rtl819x_BA.h"
 #include "rtl819x_TS.h"
 
 #include <linux/netdevice.h>
 #include <linux/if_arp.h> /* ARPHRD_ETHER */
+#include <net/lib80211.h>
 
 #define MAX_PRECMD_CNT 16
 #define MAX_RFDEPENDCMD_CNT 16
@@ -870,69 +871,6 @@ enum _REG_PREAMBLE_MODE {
 #define WLAN_ERP_USE_PROTECTION (1<<1)
 #define WLAN_ERP_BARKER_PREAMBLE (1<<2)
 
-/* Status codes */
-enum rtllib_statuscode {
-	WLAN_STATUS_SUCCESS = 0,
-	WLAN_STATUS_UNSPECIFIED_FAILURE = 1,
-	WLAN_STATUS_CAPS_UNSUPPORTED = 10,
-	WLAN_STATUS_REASSOC_NO_ASSOC = 11,
-	WLAN_STATUS_ASSOC_DENIED_UNSPEC = 12,
-	WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG = 13,
-	WLAN_STATUS_UNKNOWN_AUTH_TRANSACTION = 14,
-	WLAN_STATUS_CHALLENGE_FAIL = 15,
-	WLAN_STATUS_AUTH_TIMEOUT = 16,
-	WLAN_STATUS_AP_UNABLE_TO_HANDLE_NEW_STA = 17,
-	WLAN_STATUS_ASSOC_DENIED_RATES = 18,
-	/* 802.11b */
-	WLAN_STATUS_ASSOC_DENIED_NOSHORTPREAMBLE = 19,
-	WLAN_STATUS_ASSOC_DENIED_NOPBCC = 20,
-	WLAN_STATUS_ASSOC_DENIED_NOAGILITY = 21,
-	/* 802.11h */
-	WLAN_STATUS_ASSOC_DENIED_NOSPECTRUM = 22,
-	WLAN_STATUS_ASSOC_REJECTED_BAD_POWER = 23,
-	WLAN_STATUS_ASSOC_REJECTED_BAD_SUPP_CHAN = 24,
-	/* 802.11g */
-	WLAN_STATUS_ASSOC_DENIED_NOSHORTTIME = 25,
-	WLAN_STATUS_ASSOC_DENIED_NODSSSOFDM = 26,
-	/* 802.11i */
-	WLAN_STATUS_INVALID_IE = 40,
-	WLAN_STATUS_INVALID_GROUP_CIPHER = 41,
-	WLAN_STATUS_INVALID_PAIRWISE_CIPHER = 42,
-	WLAN_STATUS_INVALID_AKMP = 43,
-	WLAN_STATUS_UNSUPP_RSN_VERSION = 44,
-	WLAN_STATUS_INVALID_RSN_IE_CAP = 45,
-	WLAN_STATUS_CIPHER_SUITE_REJECTED = 46,
-};
-
-/* Reason codes */
-enum rtllib_reasoncode {
-	WLAN_REASON_UNSPECIFIED = 1,
-	WLAN_REASON_PREV_AUTH_NOT_VALID = 2,
-	WLAN_REASON_DEAUTH_LEAVING = 3,
-	WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY = 4,
-	WLAN_REASON_DISASSOC_AP_BUSY = 5,
-	WLAN_REASON_CLASS2_FRAME_FROM_NONAUTH_STA = 6,
-	WLAN_REASON_CLASS3_FRAME_FROM_NONASSOC_STA = 7,
-	WLAN_REASON_DISASSOC_STA_HAS_LEFT = 8,
-	WLAN_REASON_STA_REQ_ASSOC_WITHOUT_AUTH = 9,
-	/* 802.11h */
-	WLAN_REASON_DISASSOC_BAD_POWER = 10,
-	WLAN_REASON_DISASSOC_BAD_SUPP_CHAN = 11,
-	/* 802.11i */
-	WLAN_REASON_INVALID_IE = 13,
-	WLAN_REASON_MIC_FAILURE = 14,
-	WLAN_REASON_4WAY_HANDSHAKE_TIMEOUT = 15,
-	WLAN_REASON_GROUP_KEY_HANDSHAKE_TIMEOUT = 16,
-	WLAN_REASON_IE_DIFFERENT = 17,
-	WLAN_REASON_INVALID_GROUP_CIPHER = 18,
-	WLAN_REASON_INVALID_PAIRWISE_CIPHER = 19,
-	WLAN_REASON_INVALID_AKMP = 20,
-	WLAN_REASON_UNSUPP_RSN_VERSION = 21,
-	WLAN_REASON_INVALID_RSN_IE_CAP = 22,
-	WLAN_REASON_IEEE8021X_FAILED = 23,
-	WLAN_REASON_CIPHER_SUITE_REJECTED = 24,
-};
-
 #define RTLLIB_STATMASK_SIGNAL (1<<0)
 #define RTLLIB_STATMASK_RSSI (1<<1)
 #define RTLLIB_STATMASK_NOISE (1<<2)
@@ -1122,8 +1060,6 @@ struct rtllib_stats {
 
 struct rtllib_device;
 
-#include "rtllib_crypt.h"
-
 #define SEC_KEY_1	 (1<<0)
 #define SEC_KEY_2	 (1<<1)
 #define SEC_KEY_3	 (1<<2)
@@ -1146,7 +1082,6 @@ struct rtllib_device;
 #define SEC_ALG_TKIP		2
 #define SEC_ALG_CCMP		4
 
-#define WEP_KEYS		4
 #define WEP_KEY_LEN		13
 #define SCM_KEY_LEN		32
 #define SCM_TEMPORAL_KEY_LENGTH 16
@@ -1158,8 +1093,8 @@ struct rtllib_security {
 	    auth_algo:4,
 	    unicast_uses_group:1,
 	    encrypt:1;
-	u8 key_sizes[WEP_KEYS];
-	u8 keys[WEP_KEYS][SCM_KEY_LEN];
+	u8 key_sizes[NUM_WEP_KEYS];
+	u8 keys[NUM_WEP_KEYS][SCM_KEY_LEN];
 	u8 level;
 	u16 flags;
 } __packed;
@@ -2251,14 +2186,10 @@ struct rtllib_device {
 	u8 ap_mac_addr[6];
 	u16 pairwise_key_type;
 	u16 group_key_type;
-	struct list_head crypt_deinit_list;
-	struct rtllib_crypt_data *crypt[WEP_KEYS];
 
-	int tx_keyidx; /* default TX key index (crypt[tx_keyidx]) */
+	struct lib80211_crypt_info crypt_info;
+
 	struct sw_cam_table swcamtable[TOTAL_CAM_ENTRY];
-	struct timer_list crypt_deinit_timer;
-	int crypt_quiesced;
-
 	int bcrx_sta_key; /* use individual keys to override default keys even
 			   * with RX of broad/multicast frames */
 
@@ -2774,7 +2705,7 @@ extern void rtllib_rx_mgt(struct rtllib_device *ieee,
 			     struct rtllib_rx_stats *stats);
 extern void rtllib_rx_probe_rq(struct rtllib_device *ieee,
 			   struct sk_buff *skb);
-extern int IsLegalChannel(struct rtllib_device *rtllib, u8 channel);
+extern int rtllib_legal_channel(struct rtllib_device *rtllib, u8 channel);
 
 /* rtllib_wx.c */
 extern int rtllib_wx_get_scan(struct rtllib_device *ieee,
@@ -2804,7 +2735,7 @@ extern int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len);
 
 /* rtllib_softmac.c */
 extern short rtllib_is_54g(struct rtllib_network *net);
-extern short rtllib_is_shortslot(struct rtllib_network net);
+extern short rtllib_is_shortslot(const struct rtllib_network *net);
 extern int rtllib_rx_frame_softmac(struct rtllib_device *ieee,
 				   struct sk_buff *skb,
 				   struct rtllib_rx_stats *rx_stats, u16 type,
@@ -2971,8 +2902,8 @@ extern void HTInitializeHTInfo(struct rtllib_device *ieee);
 extern void HTInitializeBssDesc(struct bss_ht *pBssHT);
 extern void HTResetSelfAndSavePeerSetting(struct rtllib_device *ieee,
 					  struct rtllib_network *pNetwork);
-extern void HTUpdateSelfAndPeerSetting(struct rtllib_device *ieee,
-				       struct rtllib_network *pNetwork);
+extern void HT_update_self_and_peer_setting(struct rtllib_device *ieee,
+					    struct rtllib_network *pNetwork);
 extern u8 HTGetHighestMCSRate(struct rtllib_device *ieee, u8 *pMCSRateSet,
 			      u8 *pMCSFilter);
 extern u8 MCS_FILTER_ALL[];
@@ -3052,21 +2983,6 @@ static inline const char *escape_essid(const char *essid, u8 essid_len)
 	(HTMcsToDataRate(_ieee, (u8)_MGN_RATE)))
 
 /* fun with the built-in rtllib stack... */
-int rtllib_init(void);
-void rtllib_exit(void);
-int rtllib_crypto_init(void);
-void rtllib_crypto_deinit(void);
-int rtllib_crypto_tkip_init(void);
-void rtllib_crypto_tkip_exit(void);
-int rtllib_crypto_ccmp_init(void);
-void rtllib_crypto_ccmp_exit(void);
-int rtllib_crypto_wep_init(void);
-void rtllib_crypto_wep_exit(void);
-
-void rtllib_MgntDisconnectIBSS(struct rtllib_device *rtllib);
-void rtllib_MlmeDisassociateRequest(struct rtllib_device *rtllib, u8 *asSta,
-				    u8 asRsn);
-void rtllib_MgntDisconnectAP(struct rtllib_device *rtllib, u8 asRsn);
 bool rtllib_MgntDisconnect(struct rtllib_device *rtllib, u8 asRsn);
 
 
@@ -3133,12 +3049,5 @@ extern void rtllib_TURBO_Info(struct rtllib_device *ieee, u8 **tag_p);
 #define MUTEX_LOCK_PRIV(pmutex) mutex_lock(pmutex)
 #define MUTEX_UNLOCK_PRIV(pmutex) mutex_unlock(pmutex)
 #endif
-static inline void dump_buf(u8 *buf, u32 len)
-{
-	u32 i;
-	printk(KERN_INFO "-----------------Len %d----------------\n", len);
-	for (i = 0; i < len; i++)
-		printk("%2.2x-", *(buf+i));
-	printk("\n");
-}
+
 #endif /* RTLLIB_H */

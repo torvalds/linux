@@ -145,5 +145,6 @@ struct hal_priv {
 };
 
 uint	 rtl8712_hal_init(struct _adapter *padapter);
+int rtl871x_load_fw(struct _adapter *padapter);
 
 #endif

@@ -10,6 +10,7 @@
  * the Free Software Foundation.
  */
 
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
@@ -22,6 +23,7 @@
 struct vb2_vmalloc_buf {
 	void				*vaddr;
 	struct page			**pages;
+	struct vm_area_struct		*vma;
 	int				write;
 	unsigned long			size;
 	unsigned int			n_pages;
@@ -71,6 +73,8 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	struct vb2_vmalloc_buf *buf;
 	unsigned long first, last;
 	int n_pages, offset;
+	struct vm_area_struct *vma;
+	dma_addr_t physp;
 
 	buf = kzalloc(sizeof(*buf), GFP_KERNEL);
 	if (!buf)
@@ -80,23 +84,37 @@ static void *vb2_vmalloc_get_userptr(void *alloc_ctx, unsigned long vaddr,
 	offset = vaddr & ~PAGE_MASK;
 	buf->size = size;
 
-	first = vaddr >> PAGE_SHIFT;
-	last  = (vaddr + size - 1) >> PAGE_SHIFT;
-	buf->n_pages = last - first + 1;
-	buf->pages = kzalloc(buf->n_pages * sizeof(struct page *), GFP_KERNEL);
-	if (!buf->pages)
-		goto fail_pages_array_alloc;
 
-	/* current->mm->mmap_sem is taken by videobuf2 core */
-	n_pages = get_user_pages(current, current->mm, vaddr & PAGE_MASK,
-				 buf->n_pages, write, 1, /* force */
-				 buf->pages, NULL);
-	if (n_pages != buf->n_pages)
-		goto fail_get_user_pages;
+	vma = find_vma(current->mm, vaddr);
+	if (vma && (vma->vm_flags & VM_PFNMAP) && (vma->vm_pgoff)) {
+		if (vb2_get_contig_userptr(vaddr, size, &vma, &physp))
+			goto fail_pages_array_alloc;
+		buf->vma = vma;
+		buf->vaddr = ioremap_nocache(physp, size);
+		if (!buf->vaddr)
+			goto fail_pages_array_alloc;
+	} else {
+		first = vaddr >> PAGE_SHIFT;
+		last  = (vaddr + size - 1) >> PAGE_SHIFT;
+		buf->n_pages = last - first + 1;
+		buf->pages = kzalloc(buf->n_pages * sizeof(struct page *),
+				     GFP_KERNEL);
+		if (!buf->pages)
+			goto fail_pages_array_alloc;
 
-	buf->vaddr = vm_map_ram(buf->pages, buf->n_pages, -1, PAGE_KERNEL);
-	if (!buf->vaddr)
-		goto fail_get_user_pages;
+		/* current->mm->mmap_sem is taken by videobuf2 core */
+		n_pages = get_user_pages(current, current->mm,
+					 vaddr & PAGE_MASK, buf->n_pages,
+					 write, 1, /* force */
+					 buf->pages, NULL);
+		if (n_pages != buf->n_pages)
+			goto fail_get_user_pages;
+
+		buf->vaddr = vm_map_ram(buf->pages, buf->n_pages, -1,
+					PAGE_KERNEL);
+		if (!buf->vaddr)
+			goto fail_get_user_pages;
+	}
 
 	buf->vaddr += offset;
 	return buf;
@@ -120,14 +138,20 @@ static void vb2_vmalloc_put_userptr(void *buf_priv)
 	unsigned long vaddr = (unsigned long)buf->vaddr & PAGE_MASK;
 	unsigned int i;
 
-	if (vaddr)
-		vm_unmap_ram((void *)vaddr, buf->n_pages);
-	for (i = 0; i < buf->n_pages; ++i) {
-		if (buf->write)
-			set_page_dirty_lock(buf->pages[i]);
-		put_page(buf->pages[i]);
+	if (buf->pages) {
+		if (vaddr)
+			vm_unmap_ram((void *)vaddr, buf->n_pages);
+		for (i = 0; i < buf->n_pages; ++i) {
+			if (buf->write)
+				set_page_dirty_lock(buf->pages[i]);
+			put_page(buf->pages[i]);
+		}
+		kfree(buf->pages);
+	} else {
+		if (buf->vma)
+			vb2_put_vma(buf->vma);
+		iounmap(buf->vaddr);
 	}
-	kfree(buf->pages);
 	kfree(buf);
 }
 

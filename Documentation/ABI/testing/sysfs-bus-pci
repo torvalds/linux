@@ -66,6 +66,24 @@ Description:
 		re-discover previously removed devices.
 		Depends on CONFIG_HOTPLUG.
 
+What:		/sys/bus/pci/devices/.../msi_irqs/
+Date:		September, 2011
+Contact:	Neil Horman <nhorman@tuxdriver.com>
+Description:
+		The /sys/devices/.../msi_irqs directory contains a variable set
+		of sub-directories, with each sub-directory being named after a
+		corresponding msi irq vector allocated to that device.  Each
+		numbered sub-directory N contains attributes of that irq.
+		Note that this directory is not created for device drivers which
+		do not support msi irqs
+
+What:		/sys/bus/pci/devices/.../msi_irqs/<N>/mode
+Date:		September 2011
+Contact:	Neil Horman <nhorman@tuxdriver.com>
+Description:
+		This attribute indicates the mode that the irq vector named by
+		the parent directory is in (msi vs. msix)
+
 What:		/sys/bus/pci/devices/.../remove
 Date:		January 2009
 Contact:	Linux PCI developers <linux-pci@vger.kernel.org>

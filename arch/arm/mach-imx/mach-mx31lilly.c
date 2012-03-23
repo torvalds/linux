@@ -303,4 +303,5 @@ MACHINE_START(LILLY1131, "INCO startec LILLY-1131")
 	.handle_irq = imx31_handle_irq,
 	.timer = &mx31lilly_timer,
 	.init_machine = mx31lilly_board_init,
+	.restart	= mxc_restart,
 MACHINE_END

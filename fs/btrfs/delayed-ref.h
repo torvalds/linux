@@ -33,6 +33,9 @@ struct btrfs_delayed_ref_node {
 	/* the size of the extent */
 	u64 num_bytes;
 
+	/* seq number to keep track of insertion order */
+	u64 seq;
+
 	/* ref count on this data structure */
 	atomic_t refs;
 
@@ -98,19 +101,15 @@ struct btrfs_delayed_ref_head {
 
 struct btrfs_delayed_tree_ref {
 	struct btrfs_delayed_ref_node node;
-	union {
-		u64 root;
-		u64 parent;
-	};
+	u64 root;
+	u64 parent;
 	int level;
 };
 
 struct btrfs_delayed_data_ref {
 	struct btrfs_delayed_ref_node node;
-	union {
-		u64 root;
-		u64 parent;
-	};
+	u64 root;
+	u64 parent;
 	u64 objectid;
 	u64 offset;
 };
@@ -140,6 +139,26 @@ struct btrfs_delayed_ref_root {
 	int flushing;
 
 	u64 run_delayed_start;
+
+	/*
+	 * seq number of delayed refs. We need to know if a backref was being
+	 * added before the currently processed ref or afterwards.
+	 */
+	u64 seq;
+
+	/*
+	 * seq_list holds a list of all seq numbers that are currently being
+	 * added to the list. While walking backrefs (btrfs_find_all_roots,
+	 * qgroups), which might take some time, no newer ref must be processed,
+	 * as it might influence the outcome of the walk.
+	 */
+	struct list_head seq_head;
+
+	/*
+	 * when the only refs we have in the list must not be processed, we want
+	 * to wait for more refs to show up or for the end of backref walking.
+	 */
+	wait_queue_head_t seq_wait;
 };
 
 static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
@@ -151,16 +170,21 @@ static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 	}
 }
 
-int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
+int btrfs_add_delayed_tree_ref(struct btrfs_fs_info *fs_info,
+			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes, u64 parent,
 			       u64 ref_root, int level, int action,
-			       struct btrfs_delayed_extent_op *extent_op);
-int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
+			       struct btrfs_delayed_extent_op *extent_op,
+			       int for_cow);
+int btrfs_add_delayed_data_ref(struct btrfs_fs_info *fs_info,
+			       struct btrfs_trans_handle *trans,
 			       u64 bytenr, u64 num_bytes,
 			       u64 parent, u64 ref_root,
 			       u64 owner, u64 offset, int action,
-			       struct btrfs_delayed_extent_op *extent_op);
-int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
+			       struct btrfs_delayed_extent_op *extent_op,
+			       int for_cow);
+int btrfs_add_delayed_extent_op(struct btrfs_fs_info *fs_info,
+				struct btrfs_trans_handle *trans,
 				u64 bytenr, u64 num_bytes,
 				struct btrfs_delayed_extent_op *extent_op);
 
@@ -170,6 +194,60 @@ int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 			   struct btrfs_delayed_ref_head *head);
 int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
 			   struct list_head *cluster, u64 search_start);
+
+struct seq_list {
+	struct list_head list;
+	u64 seq;
+};
+
+static inline u64 inc_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs)
+{
+	assert_spin_locked(&delayed_refs->lock);
+	++delayed_refs->seq;
+	return delayed_refs->seq;
+}
+
+static inline void
+btrfs_get_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs,
+		      struct seq_list *elem)
+{
+	assert_spin_locked(&delayed_refs->lock);
+	elem->seq = delayed_refs->seq;
+	list_add_tail(&elem->list, &delayed_refs->seq_head);
+}
+
+static inline void
+btrfs_put_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs,
+		      struct seq_list *elem)
+{
+	spin_lock(&delayed_refs->lock);
+	list_del(&elem->list);
+	wake_up(&delayed_refs->seq_wait);
+	spin_unlock(&delayed_refs->lock);
+}
+
+int btrfs_check_delayed_seq(struct btrfs_delayed_ref_root *delayed_refs,
+			    u64 seq);
+
+/*
+ * delayed refs with a ref_seq > 0 must be held back during backref walking.
+ * this only applies to items in one of the fs-trees. for_cow items never need
+ * to be held back, so they won't get a ref_seq number.
+ */
+static inline int need_ref_seq(int for_cow, u64 rootid)
+{
+	if (for_cow)
+		return 0;
+
+	if (rootid == BTRFS_FS_TREE_OBJECTID)
+		return 1;
+
+	if ((s64)rootid >= (s64)BTRFS_FIRST_FREE_OBJECTID)
+		return 1;
+
+	return 0;
+}
+
 /*
  * a node might live in a head or a regular ref, this lets you
  * test for the proper type to use.

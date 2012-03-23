@@ -47,8 +47,6 @@
 #define sis190_rx_skb			netif_rx
 #define sis190_rx_quota(count, quota)	count
 
-#define MAC_ADDR_LEN		6
-
 #define NUM_TX_DESC		64	/* [8..1024] */
 #define NUM_RX_DESC		64	/* [8..8192] */
 #define TX_RING_BYTES		(NUM_TX_DESC * sizeof(struct TxDesc))
@@ -1601,7 +1599,7 @@ static int __devinit sis190_get_mac_addr_from_eeprom(struct pci_dev *pdev,
 	}
 
 	/* Get MAC address from EEPROM */
-	for (i = 0; i < MAC_ADDR_LEN / 2; i++) {
+	for (i = 0; i < ETH_ALEN / 2; i++) {
 		u16 w = sis190_read_eeprom(ioaddr, EEPROMMACAddr + i);
 
 		((__le16 *)dev->dev_addr)[i] = cpu_to_le16(w);
@@ -1653,7 +1651,7 @@ static int __devinit sis190_get_mac_addr_from_apc(struct pci_dev *pdev,
 	udelay(50);
 	pci_read_config_byte(isa_bridge, 0x48, &reg);
 
-        for (i = 0; i < MAC_ADDR_LEN; i++) {
+        for (i = 0; i < ETH_ALEN; i++) {
                 outb(0x9 + i, 0x78);
                 dev->dev_addr[i] = inb(0x79);
         }
@@ -1692,7 +1690,7 @@ static inline void sis190_init_rxfilter(struct net_device *dev)
 	 */
 	SIS_W16(RxMacControl, ctl & ~0x0f00);
 
-	for (i = 0; i < MAC_ADDR_LEN; i++)
+	for (i = 0; i < ETH_ALEN; i++)
 		SIS_W8(RxMacAddr + i, dev->dev_addr[i]);
 
 	SIS_W16(RxMacControl, ctl);
@@ -1760,9 +1758,10 @@ static void sis190_get_drvinfo(struct net_device *dev,
 {
 	struct sis190_private *tp = netdev_priv(dev);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
-	strcpy(info->bus_info, pci_name(tp->pci_dev));
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
+	strlcpy(info->bus_info, pci_name(tp->pci_dev),
+		sizeof(info->bus_info));
 }
 
 static int sis190_get_regs_len(struct net_device *dev)

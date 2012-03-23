@@ -1103,18 +1103,7 @@ static struct platform_driver w90p910_ether_driver = {
 	},
 };
 
-static int __init w90p910_ether_init(void)
-{
-	return platform_driver_register(&w90p910_ether_driver);
-}
-
-static void __exit w90p910_ether_exit(void)
-{
-	platform_driver_unregister(&w90p910_ether_driver);
-}
-
-module_init(w90p910_ether_init);
-module_exit(w90p910_ether_exit);
+module_platform_driver(w90p910_ether_driver);
 
 MODULE_AUTHOR("Wan ZongShun <mcuos.com@gmail.com>");
 MODULE_DESCRIPTION("w90p910 MAC driver!");

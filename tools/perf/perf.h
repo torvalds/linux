@@ -10,6 +10,9 @@ void get_term_dimensions(struct winsize *ws);
 #define rmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	"model name"
+#ifndef __NR_perf_event_open
+# define __NR_perf_event_open 336
+#endif
 #endif
 
 #if defined(__x86_64__)
@@ -17,6 +20,9 @@ void get_term_dimensions(struct winsize *ws);
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	"model name"
+#ifndef __NR_perf_event_open
+# define __NR_perf_event_open 298
+#endif
 #endif
 
 #ifdef __powerpc__
@@ -184,5 +190,30 @@ extern bool perf_host, perf_guest;
 extern const char perf_version_string[];
 
 void pthread__unblock_sigwinch(void);
+
+struct perf_record_opts {
+	pid_t	     target_pid;
+	pid_t	     target_tid;
+	bool	     call_graph;
+	bool	     group;
+	bool	     inherit_stat;
+	bool	     no_delay;
+	bool	     no_inherit;
+	bool	     no_samples;
+	bool	     pipe_output;
+	bool	     raw_samples;
+	bool	     sample_address;
+	bool	     sample_time;
+	bool	     sample_id_all_avail;
+	bool	     exclude_guest_missing;
+	bool	     system_wide;
+	bool	     period;
+	unsigned int freq;
+	unsigned int mmap_pages;
+	unsigned int user_freq;
+	u64	     default_interval;
+	u64	     user_interval;
+	const char   *cpu_list;
+};
 
 #endif

@@ -66,8 +66,6 @@ config SGI_NEWPORT_CONSOLE
           Say Y here if you want the console on the Newport aka XL graphics
           card of your Indy.  Most people say Y here.
 
-#  bool 'IODC console' CONFIG_IODC_CONSOLE
-
 config DUMMY_CONSOLE
 	bool
 	depends on VGA_CONSOLE!=y || SGI_NEWPORT_CONSOLE!=y 

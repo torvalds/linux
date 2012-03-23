@@ -111,7 +111,7 @@
 
 #define DRV_NAME "cmd640"
 
-static int cmd640_vlb;
+static bool cmd640_vlb;
 
 /*
  * CMD640 specific registers definition.

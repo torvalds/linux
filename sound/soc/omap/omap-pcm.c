@@ -378,7 +378,6 @@ static void omap_pcm_free_dma_buffers(struct snd_pcm *pcm)
 static int omap_pcm_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
-	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	int ret = 0;
 
@@ -387,14 +386,14 @@ static int omap_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	if (!card->dev->coherent_dma_mask)
 		card->dev->coherent_dma_mask = DMA_BIT_MASK(64);
 
-	if (dai->driver->playback.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = omap_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_PLAYBACK);
 		if (ret)
 			goto out;
 	}
 
-	if (dai->driver->capture.channels_min) {
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = omap_pcm_preallocate_dma_buffer(pcm,
 			SNDRV_PCM_STREAM_CAPTURE);
 		if (ret)
@@ -433,17 +432,7 @@ static struct platform_driver omap_pcm_driver = {
 	.remove = __devexit_p(omap_pcm_remove),
 };
 
-static int __init snd_omap_pcm_init(void)
-{
-	return platform_driver_register(&omap_pcm_driver);
-}
-module_init(snd_omap_pcm_init);
-
-static void __exit snd_omap_pcm_exit(void)
-{
-	platform_driver_unregister(&omap_pcm_driver);
-}
-module_exit(snd_omap_pcm_exit);
+module_platform_driver(omap_pcm_driver);
 
 MODULE_AUTHOR("Jarkko Nikula <jarkko.nikula@bitmer.com>");
 MODULE_DESCRIPTION("OMAP PCM DMA module");

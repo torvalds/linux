@@ -351,14 +351,12 @@ static int mxl111sf_ep6_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 					      adap_state->ep6_clockphase,
 					      0, 0);
 		mxl_fail(ret);
+#if 0
 	} else {
 		ret = mxl111sf_disable_656_port(state);
 		mxl_fail(ret);
+#endif
 	}
-
-	mxl111sf_read_reg(state, 0x12, &tmp);
-	tmp &= ~0x04;
-	mxl111sf_write_reg(state, 0x12, tmp);
 
 	return ret;
 }
@@ -1047,24 +1045,7 @@ static struct usb_driver mxl111sf_driver = {
 	.id_table	= mxl111sf_table,
 };
 
-static int __init mxl111sf_module_init(void)
-{
-	int result = usb_register(&mxl111sf_driver);
-	if (result) {
-		err("usb_register failed. Error number %d", result);
-		return result;
-	}
-
-	return 0;
-}
-
-static void __exit mxl111sf_module_exit(void)
-{
-	usb_deregister(&mxl111sf_driver);
-}
-
-module_init(mxl111sf_module_init);
-module_exit(mxl111sf_module_exit);
+module_usb_driver(mxl111sf_driver);
 
 MODULE_AUTHOR("Michael Krufky <mkrufky@kernellabs.com>");
 MODULE_DESCRIPTION("Driver for MaxLinear MxL111SF");

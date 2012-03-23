@@ -87,12 +87,12 @@ struct dst_entry {
 	};
 };
 
-static inline struct neighbour *dst_get_neighbour(struct dst_entry *dst)
+static inline struct neighbour *dst_get_neighbour_noref(struct dst_entry *dst)
 {
 	return rcu_dereference(dst->_neighbour);
 }
 
-static inline struct neighbour *dst_get_neighbour_raw(struct dst_entry *dst)
+static inline struct neighbour *dst_get_neighbour_noref_raw(struct dst_entry *dst)
 {
 	return rcu_dereference_raw(dst->_neighbour);
 }
@@ -393,7 +393,7 @@ static inline void dst_confirm(struct dst_entry *dst)
 		struct neighbour *n;
 
 		rcu_read_lock();
-		n = dst_get_neighbour(dst);
+		n = dst_get_neighbour_noref(dst);
 		neigh_confirm(n);
 		rcu_read_unlock();
 	}

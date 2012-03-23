@@ -742,7 +742,7 @@ static unsigned char ibm_architecture_vec[] = {
 	W(0xffffffff),			/* virt_base */
 	W(0xffffffff),			/* virt_size */
 	W(0xffffffff),			/* load_base */
-	W(64),				/* 64MB min RMA */
+	W(256),				/* 256MB min RMA */
 	W(0xffffffff),			/* full client load */
 	0,				/* min RMA percentage of total RAM */
 	48,				/* max log_2(hash table size) */
@@ -1224,14 +1224,6 @@ static void __init prom_init_mem(void)
 
 	RELOC(alloc_bottom) = PAGE_ALIGN((unsigned long)&RELOC(_end) + 0x4000);
 
-	/* Check if we have an initrd after the kernel, if we do move our bottom
-	 * point to after it
-	 */
-	if (RELOC(prom_initrd_start)) {
-		if (RELOC(prom_initrd_end) > RELOC(alloc_bottom))
-			RELOC(alloc_bottom) = PAGE_ALIGN(RELOC(prom_initrd_end));
-	}
-
 	/*
 	 * If prom_memory_limit is set we reduce the upper limits *except* for
 	 * alloc_top_high. This must be the real top of RAM so we can put
@@ -1268,6 +1260,15 @@ static void __init prom_init_mem(void)
 	RELOC(rmo_top) = min(0x30000000ul, RELOC(rmo_top));
 	RELOC(alloc_top) = RELOC(rmo_top);
 	RELOC(alloc_top_high) = RELOC(ram_top);
+
+	/*
+	 * Check if we have an initrd after the kernel but still inside
+	 * the RMO.  If we do move our bottom point to after it.
+	 */
+	if (RELOC(prom_initrd_start) &&
+	    RELOC(prom_initrd_start) < RELOC(rmo_top) &&
+	    RELOC(prom_initrd_end) > RELOC(alloc_bottom))
+		RELOC(alloc_bottom) = PAGE_ALIGN(RELOC(prom_initrd_end));
 
 	prom_printf("memory layout at init:\n");
 	prom_printf("  memory_limit : %x (16 MB aligned)\n", RELOC(prom_memory_limit));
@@ -2079,7 +2080,7 @@ static void __init prom_check_displays(void)
 		/* Setup a usable color table when the appropriate
 		 * method is available. Should update this to set-colors */
 		clut = RELOC(default_colors);
-		for (i = 0; i < 32; i++, clut += 3)
+		for (i = 0; i < 16; i++, clut += 3)
 			if (prom_set_color(ih, i, clut[0], clut[1],
 					   clut[2]) != 0)
 				break;
@@ -2844,7 +2845,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	RELOC(of_platform) = prom_find_machine_type();
 	prom_printf("Detected machine type: %x\n", RELOC(of_platform));
 
-#ifndef CONFIG_RELOCATABLE
+#ifndef CONFIG_NONSTATIC_KERNEL
 	/* Bail if this is a kdump kernel. */
 	if (PHYSICAL_START > 0)
 		prom_panic("Error: You can't boot a kdump kernel from OF!\n");
@@ -2969,9 +2970,11 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	/*
 	 * in case stdin is USB and still active on IBM machines...
 	 * Unfortunately quiesce crashes on some powermacs if we have
-	 * closed stdin already (in particular the powerbook 101).
+	 * closed stdin already (in particular the powerbook 101). It
+	 * appears that the OPAL version of OFW doesn't like it either.
 	 */
-	if (RELOC(of_platform) != PLATFORM_POWERMAC)
+	if (RELOC(of_platform) != PLATFORM_POWERMAC &&
+	    RELOC(of_platform) != PLATFORM_OPAL)
 		prom_close_stdin();
 
 	/*
@@ -2987,8 +2990,12 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 * is common to us and kexec
 	 */
 	hdr = RELOC(dt_header_start);
-	prom_printf("returning from prom_init\n");
-	prom_debug("->dt_header_start=0x%x\n", hdr);
+
+	/* Don't print anything after quiesce under OPAL, it crashes OFW */
+	if (RELOC(of_platform) != PLATFORM_OPAL) {
+		prom_printf("returning from prom_init\n");
+		prom_debug("->dt_header_start=0x%x\n", hdr);
+	}
 
 #ifdef CONFIG_PPC32
 	reloc_got2(-offset);

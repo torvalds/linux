@@ -265,4 +265,5 @@ MACHINE_START(PCM027, "Phytec Messtechnik GmbH phyCORE-PXA270")
 	.handle_irq	= pxa27x_handle_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= pcm027_init,
+	.restart	= pxa_restart,
 MACHINE_END

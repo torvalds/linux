@@ -563,10 +563,10 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	struct bcast_packet *bcast_packet;
 	struct vlan_ethhdr *vhdr;
 	struct softif_neigh *curr_softif_neigh = NULL;
-	struct orig_node *orig_node = NULL;
+	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
 	short vid = -1;
-	bool do_bcast;
+	bool do_bcast = false;
 
 	if (atomic_read(&bat_priv->mesh_state) != MESH_ACTIVE)
 		goto dropped;
@@ -598,17 +598,28 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	/* Register the client MAC in the transtable */
 	tt_local_add(soft_iface, ethhdr->h_source, skb->skb_iif);
 
-	orig_node = transtable_search(bat_priv, ethhdr->h_source,
-				      ethhdr->h_dest);
-	do_bcast = is_multicast_ether_addr(ethhdr->h_dest);
-	if (do_bcast || (orig_node && orig_node->gw_flags)) {
-		ret = gw_is_target(bat_priv, skb, orig_node);
+	if (is_multicast_ether_addr(ethhdr->h_dest)) {
+		do_bcast = true;
 
-		if (ret < 0)
-			goto dropped;
-
-		if (ret)
-			do_bcast = false;
+		switch (atomic_read(&bat_priv->gw_mode)) {
+		case GW_MODE_SERVER:
+			/* gateway servers should not send dhcp
+			 * requests into the mesh */
+			ret = gw_is_dhcp_target(skb, &header_len);
+			if (ret)
+				goto dropped;
+			break;
+		case GW_MODE_CLIENT:
+			/* gateway clients should send dhcp requests
+			 * via unicast to their gateway */
+			ret = gw_is_dhcp_target(skb, &header_len);
+			if (ret)
+				do_bcast = false;
+			break;
+		case GW_MODE_OFF:
+		default:
+			break;
+		}
 	}
 
 	/* ethernet packet should be broadcasted */
@@ -644,6 +655,12 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 
 	/* unicast packet */
 	} else {
+		if (atomic_read(&bat_priv->gw_mode) != GW_MODE_OFF) {
+			ret = gw_out_of_range(bat_priv, skb, ethhdr);
+			if (ret)
+				goto dropped;
+		}
+
 		ret = unicast_send_skb(skb, bat_priv);
 		if (ret != 0)
 			goto dropped_freed;
@@ -662,8 +679,6 @@ end:
 		softif_neigh_free_ref(curr_softif_neigh);
 	if (primary_if)
 		hardif_free_ref(primary_if);
-	if (orig_node)
-		orig_node_free_ref(orig_node);
 	return NETDEV_TX_OK;
 }
 
@@ -859,7 +874,7 @@ unreg_debugfs:
 unreg_sysfs:
 	sysfs_del_meshif(soft_iface);
 unreg_soft_iface:
-	unregister_netdev(soft_iface);
+	unregister_netdevice(soft_iface);
 	return NULL;
 
 free_soft_iface:

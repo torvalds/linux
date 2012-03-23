@@ -85,7 +85,8 @@ static int __devinit platform_lcd_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	plcd = kzalloc(sizeof(struct platform_lcd), GFP_KERNEL);
+	plcd = devm_kzalloc(&pdev->dev, sizeof(struct platform_lcd),
+			    GFP_KERNEL);
 	if (!plcd) {
 		dev_err(dev, "no memory for state\n");
 		return -ENOMEM;
@@ -98,7 +99,7 @@ static int __devinit platform_lcd_probe(struct platform_device *pdev)
 	if (IS_ERR(plcd->lcd)) {
 		dev_err(dev, "cannot register lcd device\n");
 		err = PTR_ERR(plcd->lcd);
-		goto err_mem;
+		goto err;
 	}
 
 	platform_set_drvdata(pdev, plcd);
@@ -106,8 +107,7 @@ static int __devinit platform_lcd_probe(struct platform_device *pdev)
 
 	return 0;
 
- err_mem:
-	kfree(plcd);
+ err:
 	return err;
 }
 
@@ -116,7 +116,6 @@ static int __devexit platform_lcd_remove(struct platform_device *pdev)
 	struct platform_lcd *plcd = platform_get_drvdata(pdev);
 
 	lcd_device_unregister(plcd->lcd);
-	kfree(plcd);
 
 	return 0;
 }
@@ -157,18 +156,7 @@ static struct platform_driver platform_lcd_driver = {
 	.resume         = platform_lcd_resume,
 };
 
-static int __init platform_lcd_init(void)
-{
-	return platform_driver_register(&platform_lcd_driver);
-}
-
-static void __exit platform_lcd_cleanup(void)
-{
-	platform_driver_unregister(&platform_lcd_driver);
-}
-
-module_init(platform_lcd_init);
-module_exit(platform_lcd_cleanup);
+module_platform_driver(platform_lcd_driver);
 
 MODULE_AUTHOR("Ben Dooks <ben-linux@fluff.org>");
 MODULE_LICENSE("GPL v2");

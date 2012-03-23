@@ -45,13 +45,16 @@ mlx4_en_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *drvinfo)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 
-	strncpy(drvinfo->driver, DRV_NAME, 32);
-	strncpy(drvinfo->version, DRV_VERSION " (" DRV_RELDATE ")", 32);
-	sprintf(drvinfo->fw_version, "%d.%d.%d",
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION " (" DRV_RELDATE ")",
+		sizeof(drvinfo->version));
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		"%d.%d.%d",
 		(u16) (mdev->dev->caps.fw_ver >> 32),
 		(u16) ((mdev->dev->caps.fw_ver >> 16) & 0xffff),
 		(u16) (mdev->dev->caps.fw_ver & 0xffff));
-	strncpy(drvinfo->bus_info, pci_name(mdev->dev->pdev), 32);
+	strlcpy(drvinfo->bus_info, pci_name(mdev->dev->pdev),
+		sizeof(drvinfo->bus_info));
 	drvinfo->n_stats = 0;
 	drvinfo->regdump_len = 0;
 	drvinfo->eedump_len = 0;
@@ -103,8 +106,17 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 	int err = 0;
 	u64 config = 0;
+	u64 mask;
 
-	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL)) {
+	if ((priv->port < 1) || (priv->port > 2)) {
+		en_err(priv, "Failed to get WoL information\n");
+		return;
+	}
+
+	mask = (priv->port == 1) ? MLX4_DEV_CAP_FLAG_WOL_PORT1 :
+		MLX4_DEV_CAP_FLAG_WOL_PORT2;
+
+	if (!(priv->mdev->dev->caps.flags & mask)) {
 		wol->supported = 0;
 		wol->wolopts = 0;
 		return;
@@ -133,8 +145,15 @@ static int mlx4_en_set_wol(struct net_device *netdev,
 	struct mlx4_en_priv *priv = netdev_priv(netdev);
 	u64 config = 0;
 	int err = 0;
+	u64 mask;
 
-	if (!(priv->mdev->dev->caps.flags & MLX4_DEV_CAP_FLAG_WOL))
+	if ((priv->port < 1) || (priv->port > 2))
+		return -EOPNOTSUPP;
+
+	mask = (priv->port == 1) ? MLX4_DEV_CAP_FLAG_WOL_PORT1 :
+		MLX4_DEV_CAP_FLAG_WOL_PORT2;
+
+	if (!(priv->mdev->dev->caps.flags & mask))
 		return -EOPNOTSUPP;
 
 	if (wol->supported & ~WAKE_MAGIC)
@@ -164,10 +183,11 @@ static int mlx4_en_set_wol(struct net_device *netdev,
 static int mlx4_en_get_sset_count(struct net_device *dev, int sset)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
+	int bit_count = hweight64(priv->stats_bitmap);
 
 	switch (sset) {
 	case ETH_SS_STATS:
-		return NUM_ALL_STATS +
+		return (priv->stats_bitmap ? bit_count : NUM_ALL_STATS) +
 			(priv->tx_ring_num + priv->rx_ring_num) * 2;
 	case ETH_SS_TEST:
 		return MLX4_EN_NUM_SELF_TEST - !(priv->mdev->dev->caps.flags
@@ -182,14 +202,34 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	int index = 0;
-	int i;
+	int i, j = 0;
 
 	spin_lock_bh(&priv->stats_lock);
 
-	for (i = 0; i < NUM_MAIN_STATS; i++)
-		data[index++] = ((unsigned long *) &priv->stats)[i];
-	for (i = 0; i < NUM_PORT_STATS; i++)
-		data[index++] = ((unsigned long *) &priv->port_stats)[i];
+	if (!(priv->stats_bitmap)) {
+		for (i = 0; i < NUM_MAIN_STATS; i++)
+			data[index++] =
+				((unsigned long *) &priv->stats)[i];
+		for (i = 0; i < NUM_PORT_STATS; i++)
+			data[index++] =
+				((unsigned long *) &priv->port_stats)[i];
+		for (i = 0; i < NUM_PKT_STATS; i++)
+			data[index++] =
+				((unsigned long *) &priv->pkstats)[i];
+	} else {
+		for (i = 0; i < NUM_MAIN_STATS; i++) {
+			if ((priv->stats_bitmap >> j) & 1)
+				data[index++] =
+				((unsigned long *) &priv->stats)[i];
+			j++;
+		}
+		for (i = 0; i < NUM_PORT_STATS; i++) {
+			if ((priv->stats_bitmap >> j) & 1)
+				data[index++] =
+				((unsigned long *) &priv->port_stats)[i];
+			j++;
+		}
+	}
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		data[index++] = priv->tx_ring[i].packets;
 		data[index++] = priv->tx_ring[i].bytes;
@@ -198,8 +238,6 @@ static void mlx4_en_get_ethtool_stats(struct net_device *dev,
 		data[index++] = priv->rx_ring[i].packets;
 		data[index++] = priv->rx_ring[i].bytes;
 	}
-	for (i = 0; i < NUM_PKT_STATS; i++)
-		data[index++] = ((unsigned long *) &priv->pkstats)[i];
 	spin_unlock_bh(&priv->stats_lock);
 
 }
@@ -228,11 +266,29 @@ static void mlx4_en_get_strings(struct net_device *dev,
 
 	case ETH_SS_STATS:
 		/* Add main counters */
-		for (i = 0; i < NUM_MAIN_STATS; i++)
-			strcpy(data + (index++) * ETH_GSTRING_LEN, main_strings[i]);
-		for (i = 0; i< NUM_PORT_STATS; i++)
-			strcpy(data + (index++) * ETH_GSTRING_LEN,
-			main_strings[i + NUM_MAIN_STATS]);
+		if (!priv->stats_bitmap) {
+			for (i = 0; i < NUM_MAIN_STATS; i++)
+				strcpy(data + (index++) * ETH_GSTRING_LEN,
+					main_strings[i]);
+			for (i = 0; i < NUM_PORT_STATS; i++)
+				strcpy(data + (index++) * ETH_GSTRING_LEN,
+					main_strings[i +
+					NUM_MAIN_STATS]);
+			for (i = 0; i < NUM_PKT_STATS; i++)
+				strcpy(data + (index++) * ETH_GSTRING_LEN,
+					main_strings[i +
+					NUM_MAIN_STATS +
+					NUM_PORT_STATS]);
+		} else
+			for (i = 0; i < NUM_MAIN_STATS + NUM_PORT_STATS; i++) {
+				if ((priv->stats_bitmap >> i) & 1) {
+					strcpy(data +
+					       (index++) * ETH_GSTRING_LEN,
+					       main_strings[i]);
+				}
+				if (!(priv->stats_bitmap >> i))
+					break;
+			}
 		for (i = 0; i < priv->tx_ring_num; i++) {
 			sprintf(data + (index++) * ETH_GSTRING_LEN,
 				"tx%d_packets", i);
@@ -245,9 +301,6 @@ static void mlx4_en_get_strings(struct net_device *dev,
 			sprintf(data + (index++) * ETH_GSTRING_LEN,
 				"rx%d_bytes", i);
 		}
-		for (i = 0; i< NUM_PKT_STATS; i++)
-			strcpy(data + (index++) * ETH_GSTRING_LEN,
-			main_strings[i + NUM_MAIN_STATS + NUM_PORT_STATS]);
 		break;
 	}
 }
@@ -460,6 +513,95 @@ static void mlx4_en_get_ringparam(struct net_device *dev,
 	param->tx_pending = priv->tx_ring[0].size;
 }
 
+static u32 mlx4_en_get_rxfh_indir_size(struct net_device *dev)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+
+	return priv->rx_ring_num;
+}
+
+static int mlx4_en_get_rxfh_indir(struct net_device *dev, u32 *ring_index)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_rss_map *rss_map = &priv->rss_map;
+	int rss_rings;
+	size_t n = priv->rx_ring_num;
+	int err = 0;
+
+	rss_rings = priv->prof->rss_rings ?: priv->rx_ring_num;
+
+	while (n--) {
+		ring_index[n] = rss_map->qps[n % rss_rings].qpn -
+			rss_map->base_qpn;
+	}
+
+	return err;
+}
+
+static int mlx4_en_set_rxfh_indir(struct net_device *dev,
+		const u32 *ring_index)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	int port_up = 0;
+	int err = 0;
+	int i;
+	int rss_rings = 0;
+
+	/* Calculate RSS table size and make sure flows are spread evenly
+	 * between rings
+	 */
+	for (i = 0; i < priv->rx_ring_num; i++) {
+		if (i > 0 && !ring_index[i] && !rss_rings)
+			rss_rings = i;
+
+		if (ring_index[i] != (i % (rss_rings ?: priv->rx_ring_num)))
+			return -EINVAL;
+	}
+
+	if (!rss_rings)
+		rss_rings = priv->rx_ring_num;
+
+	/* RSS table size must be an order of 2 */
+	if (!is_power_of_2(rss_rings))
+		return -EINVAL;
+
+	mutex_lock(&mdev->state_lock);
+	if (priv->port_up) {
+		port_up = 1;
+		mlx4_en_stop_port(dev);
+	}
+
+	priv->prof->rss_rings = rss_rings;
+
+	if (port_up) {
+		err = mlx4_en_start_port(dev);
+		if (err)
+			en_err(priv, "Failed starting port\n");
+	}
+
+	mutex_unlock(&mdev->state_lock);
+	return err;
+}
+
+static int mlx4_en_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
+			     u32 *rule_locs)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	int err = 0;
+
+	switch (cmd->cmd) {
+	case ETHTOOL_GRXRINGS:
+		cmd->data = priv->rx_ring_num;
+		break;
+	default:
+		err = -EOPNOTSUPP;
+		break;
+	}
+
+	return err;
+}
+
 const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.get_drvinfo = mlx4_en_get_drvinfo,
 	.get_settings = mlx4_en_get_settings,
@@ -479,6 +621,10 @@ const struct ethtool_ops mlx4_en_ethtool_ops = {
 	.set_pauseparam = mlx4_en_set_pauseparam,
 	.get_ringparam = mlx4_en_get_ringparam,
 	.set_ringparam = mlx4_en_set_ringparam,
+	.get_rxnfc = mlx4_en_get_rxnfc,
+	.get_rxfh_indir_size = mlx4_en_get_rxfh_indir_size,
+	.get_rxfh_indir = mlx4_en_get_rxfh_indir,
+	.set_rxfh_indir = mlx4_en_set_rxfh_indir,
 };
 
 

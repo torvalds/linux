@@ -140,7 +140,7 @@ static void rfbi_runtime_put(void)
 
 	DSSDBG("rfbi_runtime_put\n");
 
-	r = pm_runtime_put(&rfbi.pdev->dev);
+	r = pm_runtime_put_sync(&rfbi.pdev->dev);
 	WARN_ON(r < 0);
 }
 
@@ -784,7 +784,6 @@ int omap_rfbi_prepare_update(struct omap_dss_device *dssdev,
 	if (*w == 0 || *h == 0)
 		return -EINVAL;
 
-	dss_setup_partial_planes(dssdev, x, y, w, h, true);
 	dispc_mgr_set_lcd_size(dssdev->manager->id, *w, *h);
 
 	return 0;

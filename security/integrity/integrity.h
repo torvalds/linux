@@ -46,5 +46,26 @@ struct integrity_iint_cache {
 struct integrity_iint_cache *integrity_iint_insert(struct inode *inode);
 struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
+#define INTEGRITY_KEYRING_EVM		0
+#define INTEGRITY_KEYRING_MODULE	1
+#define INTEGRITY_KEYRING_IMA		2
+#define INTEGRITY_KEYRING_MAX		3
+
+#ifdef CONFIG_INTEGRITY_SIGNATURE
+
+int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
+					const char *digest, int digestlen);
+
+#else
+
+static inline int integrity_digsig_verify(const unsigned int id,
+					  const char *sig, int siglen,
+					  const char *digest, int digestlen)
+{
+	return -EOPNOTSUPP;
+}
+
+#endif /* CONFIG_INTEGRITY_SIGNATURE */
+
 /* set during initialization */
 extern int iint_initialized;

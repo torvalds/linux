@@ -133,7 +133,7 @@ static inline void netlbl_af4list_audit_addr(struct audit_buffer *audit_buf,
 }
 #endif
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 
 #define __af6list_entry(ptr) container_of(ptr, struct netlbl_af6list, list)
 

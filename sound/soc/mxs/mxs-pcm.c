@@ -136,7 +136,7 @@ static int snd_mxs_pcm_hw_params(struct snd_pcm_substream *substream,
 			iprtd->period_bytes * iprtd->periods,
 			iprtd->period_bytes,
 			substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
-			DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			DMA_MEM_TO_DEV : DMA_DEV_TO_MEM);
 	if (!iprtd->desc) {
 		dev_err(&chan->dev->device, "cannot prepare slave dma\n");
 		return -EINVAL;
@@ -346,17 +346,7 @@ static struct platform_driver mxs_pcm_driver = {
 	.remove = __devexit_p(mxs_soc_platform_remove),
 };
 
-static int __init snd_mxs_pcm_init(void)
-{
-	return platform_driver_register(&mxs_pcm_driver);
-}
-module_init(snd_mxs_pcm_init);
-
-static void __exit snd_mxs_pcm_exit(void)
-{
-	platform_driver_unregister(&mxs_pcm_driver);
-}
-module_exit(snd_mxs_pcm_exit);
+module_platform_driver(mxs_pcm_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:mxs-pcm-audio");

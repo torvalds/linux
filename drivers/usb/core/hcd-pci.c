@@ -187,7 +187,10 @@ int usb_hcd_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		return -ENODEV;
 	dev->current_state = PCI_D0;
 
-	if (!dev->irq) {
+	/* The xHCI driver supports MSI and MSI-X,
+	 * so don't fail if the BIOS doesn't provide a legacy IRQ.
+	 */
+	if (!dev->irq && (driver->flags & HCD_MASK) != HCD_USB3) {
 		dev_err(&dev->dev,
 			"Found HC with no IRQ.  Check BIOS/PCI %s setup!\n",
 			pci_name(dev));
@@ -452,10 +455,6 @@ static int resume_common(struct device *dev, int event)
 	}
 
 	pci_set_master(pci_dev);
-
-	clear_bit(HCD_FLAG_SAW_IRQ, &hcd->flags);
-	if (hcd->shared_hcd)
-		clear_bit(HCD_FLAG_SAW_IRQ, &hcd->shared_hcd->flags);
 
 	if (hcd->driver->pci_resume && !HCD_DEAD(hcd)) {
 		if (event != PM_EVENT_AUTO_RESUME)

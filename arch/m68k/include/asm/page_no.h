@@ -5,9 +5,6 @@
  
 extern unsigned long memory_start;
 extern unsigned long memory_end;
-extern unsigned long _rambase;
-extern unsigned long _ramstart;
-extern unsigned long _ramend;
 
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
 #define free_user_page(page, addr)	free_page(addr)

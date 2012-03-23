@@ -74,7 +74,7 @@ static ssize_t debug_input(struct file *file, const char __user *user_buf,
 static int debug_open(struct inode *inode, struct file *file);
 static int debug_close(struct inode *inode, struct file *file);
 static debug_info_t *debug_info_create(const char *name, int pages_per_area,
-			int nr_areas, int buf_size, mode_t mode);
+			int nr_areas, int buf_size, umode_t mode);
 static void debug_info_get(debug_info_t *);
 static void debug_info_put(debug_info_t *);
 static int debug_prolog_level_fn(debug_info_t * id,
@@ -330,7 +330,7 @@ debug_info_free(debug_info_t* db_info){
 
 static debug_info_t*
 debug_info_create(const char *name, int pages_per_area, int nr_areas,
-		  int buf_size, mode_t mode)
+		  int buf_size, umode_t mode)
 {
 	debug_info_t* rc;
 
@@ -688,7 +688,7 @@ debug_close(struct inode *inode, struct file *file)
  */
 
 debug_info_t *debug_register_mode(const char *name, int pages_per_area,
-				  int nr_areas, int buf_size, mode_t mode,
+				  int nr_areas, int buf_size, umode_t mode,
 				  uid_t uid, gid_t gid)
 {
 	debug_info_t *rc = NULL;
@@ -1090,7 +1090,7 @@ debug_register_view(debug_info_t * id, struct debug_view *view)
 	int rc = 0;
 	int i;
 	unsigned long flags;
-	mode_t mode;
+	umode_t mode;
 	struct dentry *pde;
 
 	if (!id)

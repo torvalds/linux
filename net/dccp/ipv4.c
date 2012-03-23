@@ -474,10 +474,11 @@ static struct dst_entry* dccp_v4_route_skb(struct net *net, struct sock *sk,
 					   struct sk_buff *skb)
 {
 	struct rtable *rt;
+	const struct iphdr *iph = ip_hdr(skb);
 	struct flowi4 fl4 = {
 		.flowi4_oif = skb_rtable(skb)->rt_iif,
-		.daddr = ip_hdr(skb)->saddr,
-		.saddr = ip_hdr(skb)->daddr,
+		.daddr = iph->saddr,
+		.saddr = iph->daddr,
 		.flowi4_tos = RT_CONN_FLAGS(sk),
 		.flowi4_proto = sk->sk_protocol,
 		.fl4_sport = dccp_hdr(skb)->dccph_dport,

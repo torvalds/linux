@@ -503,7 +503,7 @@ static ssize_t chassis_clear(struct device *dev,
 	struct adm9240_data *data = i2c_get_clientdata(client);
 	unsigned long val;
 
-	if (strict_strtoul(buf, 10, &val) || val != 0)
+	if (kstrtoul(buf, 10, &val) || val != 0)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);

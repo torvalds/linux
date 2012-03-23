@@ -59,6 +59,60 @@
 
 #include "debug.h"
 
+static char *maximum_speed = "super";
+module_param(maximum_speed, charp, 0);
+MODULE_PARM_DESC(maximum_speed, "Maximum supported speed.");
+
+/* -------------------------------------------------------------------------- */
+
+#define DWC3_DEVS_POSSIBLE	32
+
+static DECLARE_BITMAP(dwc3_devs, DWC3_DEVS_POSSIBLE);
+
+int dwc3_get_device_id(void)
+{
+	int		id;
+
+again:
+	id = find_first_zero_bit(dwc3_devs, DWC3_DEVS_POSSIBLE);
+	if (id < DWC3_DEVS_POSSIBLE) {
+		int old;
+
+		old = test_and_set_bit(id, dwc3_devs);
+		if (old)
+			goto again;
+	} else {
+		pr_err("dwc3: no space for new device\n");
+		id = -ENOMEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(dwc3_get_device_id);
+
+void dwc3_put_device_id(int id)
+{
+	int			ret;
+
+	if (id < 0)
+		return;
+
+	ret = test_bit(id, dwc3_devs);
+	WARN(!ret, "dwc3: ID %d not in use\n", id);
+	clear_bit(id, dwc3_devs);
+}
+EXPORT_SYMBOL_GPL(dwc3_put_device_id);
+
+void dwc3_set_mode(struct dwc3 *dwc, u32 mode)
+{
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg &= ~(DWC3_GCTL_PRTCAPDIR(DWC3_GCTL_PRTCAP_OTG));
+	reg |= DWC3_GCTL_PRTCAPDIR(mode);
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+}
+
 /**
  * dwc3_core_soft_reset - Issues core soft reset and PHY reset
  * @dwc: pointer to our context structure
@@ -150,7 +204,7 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 	struct dwc3_event_buffer	*evt;
 	int i;
 
-	for (i = 0; i < DWC3_EVENT_BUFFERS_NUM; i++) {
+	for (i = 0; i < dwc->num_event_buffers; i++) {
 		evt = dwc->ev_buffs[i];
 		if (evt) {
 			dwc3_free_one_event_buffer(dwc, evt);
@@ -162,16 +216,24 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 /**
  * dwc3_alloc_event_buffers - Allocates @num event buffers of size @length
  * @dwc: Pointer to out controller context structure
- * @num: number of event buffers to allocate
  * @length: size of event buffer
  *
  * Returns 0 on success otherwise negative errno. In error the case, dwc
  * may contain some buffers allocated but not all which were requested.
  */
-static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned num,
-		unsigned length)
+static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
 {
+	int			num;
 	int			i;
+
+	num = DWC3_NUM_INT(dwc->hwparams.hwparams1);
+	dwc->num_event_buffers = num;
+
+	dwc->ev_buffs = kzalloc(sizeof(*dwc->ev_buffs) * num, GFP_KERNEL);
+	if (!dwc->ev_buffs) {
+		dev_err(dwc->dev, "can't allocate event buffers array\n");
+		return -ENOMEM;
+	}
 
 	for (i = 0; i < num; i++) {
 		struct dwc3_event_buffer	*evt;
@@ -198,7 +260,7 @@ static int __devinit dwc3_event_buffers_setup(struct dwc3 *dwc)
 	struct dwc3_event_buffer	*evt;
 	int				n;
 
-	for (n = 0; n < DWC3_EVENT_BUFFERS_NUM; n++) {
+	for (n = 0; n < dwc->num_event_buffers; n++) {
 		evt = dwc->ev_buffs[n];
 		dev_dbg(dwc->dev, "Event buf %p dma %08llx length %d\n",
 				evt->buf, (unsigned long long) evt->dma,
@@ -221,7 +283,7 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 	struct dwc3_event_buffer	*evt;
 	int				n;
 
-	for (n = 0; n < DWC3_EVENT_BUFFERS_NUM; n++) {
+	for (n = 0; n < dwc->num_event_buffers; n++) {
 		evt = dwc->ev_buffs[n];
 		dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(n), 0);
 		dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(n), 0);
@@ -285,8 +347,32 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 		cpu_relax();
 	} while (true);
 
-	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_NUM,
-			DWC3_EVENT_BUFFERS_SIZE);
+	dwc3_cache_hwparams(dwc);
+
+	reg = dwc3_readl(dwc->regs, DWC3_GCTL);
+	reg &= ~DWC3_GCTL_SCALEDOWN(3);
+	reg &= ~DWC3_GCTL_DISSCRAMBLE;
+
+	switch (DWC3_GHWPARAMS1_EN_PWROPT(dwc->hwparams.hwparams1)) {
+	case DWC3_GHWPARAMS1_EN_PWROPT_CLK:
+		reg &= ~DWC3_GCTL_DSBLCLKGTNG;
+		break;
+	default:
+		dev_dbg(dwc->dev, "No power optimization available\n");
+	}
+
+	/*
+	 * WORKAROUND: DWC3 revisions <1.90a have a bug
+	 * when The device fails to connect at SuperSpeed
+	 * and falls back to high-speed mode which causes
+	 * the device to enter in a Connect/Disconnect loop
+	 */
+	if (dwc->revision < DWC3_REVISION_190A)
+		reg |= DWC3_GCTL_U2RSTECN;
+
+	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
+
+	ret = dwc3_alloc_event_buffers(dwc, DWC3_EVENT_BUFFERS_SIZE);
 	if (ret) {
 		dev_err(dwc->dev, "failed to allocate event buffers\n");
 		ret = -ENOMEM;
@@ -298,8 +384,6 @@ static int __devinit dwc3_core_init(struct dwc3 *dwc)
 		dev_err(dwc->dev, "failed to setup event buffers\n");
 		goto err1;
 	}
-
-	dwc3_cache_hwparams(dwc);
 
 	return 0;
 
@@ -320,14 +404,16 @@ static void dwc3_core_exit(struct dwc3 *dwc)
 
 static int __devinit dwc3_probe(struct platform_device *pdev)
 {
-	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct resource		*res;
 	struct dwc3		*dwc;
-	void __iomem		*regs;
-	unsigned int		features = id->driver_data;
+
 	int			ret = -ENOMEM;
 	int			irq;
+
+	void __iomem		*regs;
 	void			*mem;
+
+	u8			mode;
 
 	mem = kzalloc(sizeof(*dwc) + DWC3_ALIGN_MASK, GFP_KERNEL);
 	if (!mem) {
@@ -342,6 +428,8 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "missing resource\n");
 		goto err1;
 	}
+
+	dwc->res = res;
 
 	res = request_mem_region(res->start, resource_size(res),
 			dev_name(&pdev->dev));
@@ -370,6 +458,17 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	dwc->dev	= &pdev->dev;
 	dwc->irq	= irq;
 
+	if (!strncmp("super", maximum_speed, 5))
+		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
+	else if (!strncmp("high", maximum_speed, 4))
+		dwc->maximum_speed = DWC3_DCFG_HIGHSPEED;
+	else if (!strncmp("full", maximum_speed, 4))
+		dwc->maximum_speed = DWC3_DCFG_FULLSPEED1;
+	else if (!strncmp("low", maximum_speed, 3))
+		dwc->maximum_speed = DWC3_DCFG_LOWSPEED;
+	else
+		dwc->maximum_speed = DWC3_DCFG_SUPERSPEED;
+
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 	pm_runtime_forbid(&pdev->dev);
@@ -380,13 +479,44 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 		goto err3;
 	}
 
-	if (features & DWC3_HAS_PERIPHERAL) {
+	mode = DWC3_MODE(dwc->hwparams.hwparams0);
+
+	switch (mode) {
+	case DWC3_MODE_DEVICE:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 		ret = dwc3_gadget_init(dwc);
 		if (ret) {
-			dev_err(&pdev->dev, "failed to initialized gadget\n");
+			dev_err(&pdev->dev, "failed to initialize gadget\n");
 			goto err4;
 		}
+		break;
+	case DWC3_MODE_HOST:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_HOST);
+		ret = dwc3_host_init(dwc);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to initialize host\n");
+			goto err4;
+		}
+		break;
+	case DWC3_MODE_DRD:
+		dwc3_set_mode(dwc, DWC3_GCTL_PRTCAP_OTG);
+		ret = dwc3_host_init(dwc);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to initialize host\n");
+			goto err4;
+		}
+
+		ret = dwc3_gadget_init(dwc);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to initialize gadget\n");
+			goto err4;
+		}
+		break;
+	default:
+		dev_err(&pdev->dev, "Unsupported mode of operation %d\n", mode);
+		goto err4;
 	}
+	dwc->mode = mode;
 
 	ret = dwc3_debugfs_init(dwc);
 	if (ret) {
@@ -399,8 +529,21 @@ static int __devinit dwc3_probe(struct platform_device *pdev)
 	return 0;
 
 err5:
-	if (features & DWC3_HAS_PERIPHERAL)
+	switch (mode) {
+	case DWC3_MODE_DEVICE:
 		dwc3_gadget_exit(dwc);
+		break;
+	case DWC3_MODE_HOST:
+		dwc3_host_exit(dwc);
+		break;
+	case DWC3_MODE_DRD:
+		dwc3_host_exit(dwc);
+		dwc3_gadget_exit(dwc);
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
 
 err4:
 	dwc3_core_exit(dwc);
@@ -420,10 +563,8 @@ err0:
 
 static int __devexit dwc3_remove(struct platform_device *pdev)
 {
-	const struct platform_device_id *id = platform_get_device_id(pdev);
 	struct dwc3	*dwc = platform_get_drvdata(pdev);
 	struct resource	*res;
-	unsigned int	features = id->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -432,8 +573,21 @@ static int __devexit dwc3_remove(struct platform_device *pdev)
 
 	dwc3_debugfs_exit(dwc);
 
-	if (features & DWC3_HAS_PERIPHERAL)
+	switch (dwc->mode) {
+	case DWC3_MODE_DEVICE:
 		dwc3_gadget_exit(dwc);
+		break;
+	case DWC3_MODE_HOST:
+		dwc3_host_exit(dwc);
+		break;
+	case DWC3_MODE_DRD:
+		dwc3_host_exit(dwc);
+		dwc3_gadget_exit(dwc);
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
 
 	dwc3_core_exit(dwc);
 	release_mem_region(res->start, resource_size(res));
@@ -443,30 +597,15 @@ static int __devexit dwc3_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id dwc3_id_table[] __devinitconst = {
-	{
-		.name	= "dwc3-omap",
-		.driver_data = (DWC3_HAS_PERIPHERAL
-			| DWC3_HAS_XHCI
-			| DWC3_HAS_OTG),
-	},
-	{
-		.name	= "dwc3-pci",
-		.driver_data = DWC3_HAS_PERIPHERAL,
-	},
-	{  },	/* Terminating Entry */
-};
-MODULE_DEVICE_TABLE(platform, dwc3_id_table);
-
 static struct platform_driver dwc3_driver = {
 	.probe		= dwc3_probe,
 	.remove		= __devexit_p(dwc3_remove),
 	.driver		= {
 		.name	= "dwc3",
 	},
-	.id_table	= dwc3_id_table,
 };
 
+MODULE_ALIAS("platform:dwc3");
 MODULE_AUTHOR("Felipe Balbi <balbi@ti.com>");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_DESCRIPTION("DesignWare USB3 DRD Controller Driver");

@@ -74,22 +74,7 @@ static inline struct vlan_ethhdr *vlan_eth_hdr(const struct sk_buff *skb)
 /* found in socket.c */
 extern void vlan_ioctl_set(int (*hook)(struct net *, void __user *));
 
-/* if this changes, algorithm will have to be reworked because this
- * depends on completely exhausting the VLAN identifier space.  Thus
- * it gives constant time look-up, but in many cases it wastes memory.
- */
-#define VLAN_GROUP_ARRAY_SPLIT_PARTS  8
-#define VLAN_GROUP_ARRAY_PART_LEN     (VLAN_N_VID/VLAN_GROUP_ARRAY_SPLIT_PARTS)
-
-struct vlan_group {
-	struct net_device	*real_dev; /* The ethernet(like) device
-					    * the vlan is attached to.
-					    */
-	unsigned int		nr_vlans;
-	struct hlist_node	hlist;	/* linked list */
-	struct net_device **vlan_devices_arrays[VLAN_GROUP_ARRAY_SPLIT_PARTS];
-	struct rcu_head		rcu;
-};
+struct vlan_info;
 
 static inline int is_vlan_dev(struct net_device *dev)
 {
@@ -109,6 +94,13 @@ extern u16 vlan_dev_vlan_id(const struct net_device *dev);
 extern bool vlan_do_receive(struct sk_buff **skb, bool last_handler);
 extern struct sk_buff *vlan_untag(struct sk_buff *skb);
 
+extern int vlan_vid_add(struct net_device *dev, unsigned short vid);
+extern void vlan_vid_del(struct net_device *dev, unsigned short vid);
+
+extern int vlan_vids_add_by_dev(struct net_device *dev,
+				const struct net_device *by_dev);
+extern void vlan_vids_del_by_dev(struct net_device *dev,
+				 const struct net_device *by_dev);
 #else
 static inline struct net_device *
 __vlan_find_dev_deep(struct net_device *real_dev, u16 vlan_id)
@@ -138,6 +130,26 @@ static inline bool vlan_do_receive(struct sk_buff **skb, bool last_handler)
 static inline struct sk_buff *vlan_untag(struct sk_buff *skb)
 {
 	return skb;
+}
+
+static inline int vlan_vid_add(struct net_device *dev, unsigned short vid)
+{
+	return 0;
+}
+
+static inline void vlan_vid_del(struct net_device *dev, unsigned short vid)
+{
+}
+
+static inline int vlan_vids_add_by_dev(struct net_device *dev,
+				       const struct net_device *by_dev)
+{
+	return 0;
+}
+
+static inline void vlan_vids_del_by_dev(struct net_device *dev,
+					const struct net_device *by_dev)
+{
 }
 #endif
 
@@ -310,6 +322,40 @@ static inline __be16 vlan_get_protocol(const struct sk_buff *skb)
 
 	return protocol;
 }
+
+static inline void vlan_set_encap_proto(struct sk_buff *skb,
+					struct vlan_hdr *vhdr)
+{
+	__be16 proto;
+	unsigned char *rawp;
+
+	/*
+	 * Was a VLAN packet, grab the encapsulated protocol, which the layer
+	 * three protocols care about.
+	 */
+
+	proto = vhdr->h_vlan_encapsulated_proto;
+	if (ntohs(proto) >= 1536) {
+		skb->protocol = proto;
+		return;
+	}
+
+	rawp = skb->data;
+	if (*(unsigned short *) rawp == 0xFFFF)
+		/*
+		 * This is a magic hack to spot IPX packets. Older Novell
+		 * breaks the protocol design and runs IPX over 802.3 without
+		 * an 802.2 LLC layer. We look for FFFF which isn't a used
+		 * 802.2 SSAP/DSAP. This won't work for fault tolerant netware
+		 * but does for the rest.
+		 */
+		skb->protocol = htons(ETH_P_802_3);
+	else
+		/*
+		 * Real 802.2 LLC
+		 */
+		skb->protocol = htons(ETH_P_802_2);
+}
 #endif /* __KERNEL__ */
 
 /* VLAN IOCTLs are found in sockios.h */
@@ -352,7 +398,7 @@ struct vlan_ioctl_args {
 		unsigned int skb_priority;
 		unsigned int name_type;
 		unsigned int bind_type;
-		unsigned int flag; /* Matches vlan_dev_info flags */
+		unsigned int flag; /* Matches vlan_dev_priv flags */
         } u;
 
 	short vlan_qos;   

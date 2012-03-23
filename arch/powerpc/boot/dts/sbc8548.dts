@@ -316,7 +316,7 @@
 		serial0: serial@4500 {
 			cell-index = <0>;
 			device_type = "serial";
-			compatible = "ns16550";
+			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4500 0x100>;	// reg base, size
 			clock-frequency = <0>;	// should we fill in in uboot?
 			interrupts = <0x2a 0x2>;
@@ -326,7 +326,7 @@
 		serial1: serial@4600 {
 			cell-index = <1>;
 			device_type = "serial";
-			compatible = "ns16550";
+			compatible = "fsl,ns16550", "ns16550";
 			reg = <0x4600 0x100>;	// reg base, size
 			clock-frequency = <0>;	// should we fill in in uboot?
 			interrupts = <0x2a 0x2>;

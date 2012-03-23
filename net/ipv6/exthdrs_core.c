@@ -57,6 +57,9 @@ int ipv6_ext_hdr(u8 nexthdr)
  *	    it returns NULL.
  *	  - First fragment header is skipped, not-first ones
  *	    are considered as unparsable.
+ *	  - Reports the offset field of the final fragment header so it is
+ *	    possible to tell whether this is a first fragment, later fragment,
+ *	    or not fragmented.
  *	  - ESP is unparsable for now and considered like
  *	    normal payload protocol.
  *	  - Note also special handling of AUTH header. Thanks to IPsec wizards.
@@ -64,9 +67,12 @@ int ipv6_ext_hdr(u8 nexthdr)
  * --ANK (980726)
  */
 
-int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp)
+int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp,
+		     __be16 *frag_offp)
 {
 	u8 nexthdr = *nexthdrp;
+
+	*frag_offp = 0;
 
 	while (ipv6_ext_hdr(nexthdr)) {
 		struct ipv6_opt_hdr _hdr, *hp;
@@ -87,7 +93,8 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp)
 			if (fp == NULL)
 				return -1;
 
-			if (ntohs(*fp) & ~0x7)
+			*frag_offp = *fp;
+			if (ntohs(*frag_offp) & ~0x7)
 				break;
 			hdrlen = 8;
 		} else if (nexthdr == NEXTHDR_AUTH)

@@ -185,7 +185,7 @@ struct pxa3xx_nand_info {
 	uint32_t		ndcb2;
 };
 
-static int use_dma = 1;
+static bool use_dma = 1;
 module_param(use_dma, bool, 0444);
 MODULE_PARM_DESC(use_dma, "enable DMA for data transferring to/from NAND HW");
 
@@ -1258,7 +1258,7 @@ static int pxa3xx_nand_suspend(struct platform_device *pdev, pm_message_t state)
 
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		mtd = info->host[cs]->mtd;
-		mtd->suspend(mtd);
+		mtd_suspend(mtd);
 	}
 
 	return 0;
@@ -1291,7 +1291,7 @@ static int pxa3xx_nand_resume(struct platform_device *pdev)
 	nand_writel(info, NDSR, NDSR_MASK);
 	for (cs = 0; cs < pdata->num_cs; cs++) {
 		mtd = info->host[cs]->mtd;
-		mtd->resume(mtd);
+		mtd_resume(mtd);
 	}
 
 	return 0;
@@ -1311,17 +1311,7 @@ static struct platform_driver pxa3xx_nand_driver = {
 	.resume		= pxa3xx_nand_resume,
 };
 
-static int __init pxa3xx_nand_init(void)
-{
-	return platform_driver_register(&pxa3xx_nand_driver);
-}
-module_init(pxa3xx_nand_init);
-
-static void __exit pxa3xx_nand_exit(void)
-{
-	platform_driver_unregister(&pxa3xx_nand_driver);
-}
-module_exit(pxa3xx_nand_exit);
+module_platform_driver(pxa3xx_nand_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("PXA3xx NAND controller driver");

@@ -187,6 +187,8 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	nouveau_dma_pre_init(chan);
 	chan->user_put = 0x40;
 	chan->user_get = 0x44;
+	if (dev_priv->card_type >= NV_50)
+                chan->user_get_hi = 0x60;
 
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);

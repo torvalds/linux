@@ -77,6 +77,11 @@ void g2d_set_rop4(struct g2d_dev *d, u32 r)
 	w(r, ROP4_REG);
 }
 
+void g2d_set_flip(struct g2d_dev *d, u32 r)
+{
+	w(r, SRC_MSK_DIRECT_REG);
+}
+
 u32 g2d_cmd_stretch(u32 e)
 {
 	e &= 1;

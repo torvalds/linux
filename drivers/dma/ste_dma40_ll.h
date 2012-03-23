@@ -16,6 +16,8 @@
 
 #define D40_TYPE_TO_GROUP(type) (type / 16)
 #define D40_TYPE_TO_EVENT(type) (type % 16)
+#define D40_GROUP_SIZE 8
+#define D40_PHYS_TO_GROUP(phys) ((phys & (D40_GROUP_SIZE - 1)) / 2)
 
 /* Most bits of the CFG register are the same in log as in phy mode */
 #define D40_SREG_CFG_MST_POS		15
@@ -123,6 +125,15 @@
 
 /* DMA Register Offsets */
 #define D40_DREG_GCC		0x000
+#define D40_DREG_GCC_ENA	0x1
+/* This assumes that there are only 4 event groups */
+#define D40_DREG_GCC_ENABLE_ALL	0xff01
+#define D40_DREG_GCC_EVTGRP_POS 8
+#define D40_DREG_GCC_SRC 0
+#define D40_DREG_GCC_DST 1
+#define D40_DREG_GCC_EVTGRP_ENA(x, y) \
+	(1 << (D40_DREG_GCC_EVTGRP_POS + 2 * x + y))
+
 #define D40_DREG_PRTYP		0x004
 #define D40_DREG_PRSME		0x008
 #define D40_DREG_PRSMO		0x00C

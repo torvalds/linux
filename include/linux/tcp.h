@@ -238,6 +238,11 @@ struct tcp_sack_block {
 	u32	end_seq;
 };
 
+/*These are used to set the sack_ok field in struct tcp_options_received */
+#define TCP_SACK_SEEN     (1 << 0)   /*1 = peer is SACK capable, */
+#define TCP_FACK_ENABLED  (1 << 1)   /*1 = FACK is enabled locally*/
+#define TCP_DSACK_SEEN    (1 << 2)   /*1 = DSACK was received from peer*/
+
 struct tcp_options_received {
 /*	PAWS/RTTM data	*/
 	long	ts_recent_stamp;/* Time we stored ts_recent (for aging) */
@@ -407,7 +412,8 @@ struct tcp_sock {
 
 	struct tcp_sack_block recv_sack_cache[4];
 
-	struct sk_buff *highest_sack;   /* highest skb with SACK received
+	struct sk_buff *highest_sack;   /* skb just after the highest
+					 * skb with SACKed bit set
 					 * (validity guaranteed only if
 					 * sacked_out > 0)
 					 */

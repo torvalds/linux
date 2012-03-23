@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
-#include <linux/crash_dump.h>
 #include <linux/bootmem.h>
 #include <linux/elf.h>
 #include <asm/ipl.h>

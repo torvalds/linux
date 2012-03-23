@@ -159,7 +159,7 @@ ltq_mtd_probe(struct platform_device *pdev)
 	if (!ltq_mtd->mtd) {
 		dev_err(&pdev->dev, "probing failed\n");
 		err = -ENXIO;
-		goto err_unmap;
+		goto err_free;
 	}
 
 	ltq_mtd->mtd->owner = THIS_MODULE;
@@ -179,8 +179,6 @@ ltq_mtd_probe(struct platform_device *pdev)
 
 err_destroy:
 	map_destroy(ltq_mtd->mtd);
-err_unmap:
-	iounmap(ltq_mtd->map->virt);
 err_free:
 	kfree(ltq_mtd->map);
 err_out:
@@ -198,8 +196,6 @@ ltq_mtd_remove(struct platform_device *pdev)
 			mtd_device_unregister(ltq_mtd->mtd);
 			map_destroy(ltq_mtd->mtd);
 		}
-		if (ltq_mtd->map->virt)
-			iounmap(ltq_mtd->map->virt);
 		kfree(ltq_mtd->map);
 		kfree(ltq_mtd);
 	}

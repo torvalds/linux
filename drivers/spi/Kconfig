@@ -87,12 +87,12 @@ config SPI_BFIN_SPORT
 	  Enable support for a SPI bus via the Blackfin SPORT peripheral.
 
 config SPI_AU1550
-	tristate "Au1550/Au12x0 SPI Controller"
+	tristate "Au1550/Au1200/Au1300 SPI Controller"
 	depends on MIPS_ALCHEMY && EXPERIMENTAL
 	select SPI_BITBANG
 	help
 	  If you say yes to this option, support will be included for the
-	  Au1550 SPI controller (may also work with Au1200,Au1210,Au1250).
+	  PSC SPI controller found on Au1550, Au1200 and Au1300 series.
 
 config SPI_BITBANG
 	tristate "Utilities for Bitbanging SPI masters"
@@ -174,8 +174,7 @@ config SPI_LM70_LLP
 
 config SPI_MPC52xx
 	tristate "Freescale MPC52xx SPI (non-PSC) controller support"
-	depends on PPC_MPC52xx && SPI
-	select SPI_MASTER_OF
+	depends on PPC_MPC52xx
 	help
 	  This drivers supports the MPC52xx SPI controller in master SPI
 	  mode.
@@ -300,7 +299,7 @@ config SPI_S3C24XX_FIQ
 
 config SPI_S3C64XX
 	tristate "Samsung S3C64XX series type SPI"
-	depends on (ARCH_S3C64XX || ARCH_S5P64X0)
+	depends on (ARCH_S3C64XX || ARCH_S5P64X0 || ARCH_EXYNOS)
 	select S3C64XX_DMA if ARCH_S3C64XX
 	help
 	  SPI driver for Samsung S3C64XX and newer SoCs.
@@ -333,8 +332,7 @@ config SPI_STMP3XXX
 
 config SPI_TEGRA
 	tristate "Nvidia Tegra SPI controller"
-	depends on ARCH_TEGRA
-	select TEGRA_SYSTEM_DMA
+	depends on ARCH_TEGRA && TEGRA_SYSTEM_DMA
 	help
 	  SPI driver for NVidia Tegra SoCs
 
@@ -346,14 +344,14 @@ config SPI_TI_SSP
 	  serial port.
 
 config SPI_TOPCLIFF_PCH
-	tristate "Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH SPI controller"
+	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) SPI"
 	depends on PCI
 	help
 	  SPI driver for the Topcliff PCH (Platform Controller Hub) SPI bus
 	  used in some x86 embedded processors.
 
-	  This driver also supports the ML7213, a companion chip for the
-	  Atom E6xx series and compatible with the Intel EG20T PCH.
+	  This driver also supports the ML7213/ML7223/ML7831, a companion chip
+	  for the Atom E6xx series and compatible with the Intel EG20T PCH.
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"

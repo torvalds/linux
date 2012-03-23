@@ -189,7 +189,7 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_dai_ops ad1836_dai_ops = {
+static const struct snd_soc_dai_ops ad1836_dai_ops = {
 	.hw_params = ad1836_hw_params,
 	.set_fmt = ad1836_set_dai_fmt,
 };
@@ -223,7 +223,7 @@ static struct snd_soc_dai_driver ad183x_dais[] = {
 };
 
 #ifdef CONFIG_PM
-static int ad1836_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int ad1836_suspend(struct snd_soc_codec *codec)
 {
 	/* reset clock control mode */
 	return snd_soc_update_bits(codec, AD1836_ADC_CTRL2,
@@ -341,7 +341,8 @@ static int __devinit ad1836_spi_probe(struct spi_device *spi)
 	struct ad1836_priv *ad1836;
 	int ret;
 
-	ad1836 = kzalloc(sizeof(struct ad1836_priv), GFP_KERNEL);
+	ad1836 = devm_kzalloc(&spi->dev, sizeof(struct ad1836_priv),
+			      GFP_KERNEL);
 	if (ad1836 == NULL)
 		return -ENOMEM;
 
@@ -351,17 +352,15 @@ static int __devinit ad1836_spi_probe(struct spi_device *spi)
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_dev_ad1836, &ad183x_dais[ad1836->type], 1);
-	if (ret < 0)
-		kfree(ad1836);
 	return ret;
 }
 
 static int __devexit ad1836_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
-	kfree(spi_get_drvdata(spi));
 	return 0;
 }
+
 static const struct spi_device_id ad1836_ids[] = {
 	{ "ad1835", AD1835 },
 	{ "ad1836", AD1836 },

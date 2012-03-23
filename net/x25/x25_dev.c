@@ -161,7 +161,7 @@ void x25_establish_link(struct x25_neigh *nb)
 		*ptr = X25_IFACE_CONNECT;
 		break;
 
-#if defined(CONFIG_LLC) || defined(CONFIG_LLC_MODULE)
+#if IS_ENABLED(CONFIG_LLC)
 	case ARPHRD_ETHER:
 		return;
 #endif
@@ -180,7 +180,7 @@ void x25_terminate_link(struct x25_neigh *nb)
 	struct sk_buff *skb;
 	unsigned char *ptr;
 
-#if defined(CONFIG_LLC) || defined(CONFIG_LLC_MODULE)
+#if IS_ENABLED(CONFIG_LLC)
 	if (nb->dev->type == ARPHRD_ETHER)
 		return;
 #endif
@@ -213,7 +213,7 @@ void x25_send_frame(struct sk_buff *skb, struct x25_neigh *nb)
 		*dptr = X25_IFACE_DATA;
 		break;
 
-#if defined(CONFIG_LLC) || defined(CONFIG_LLC_MODULE)
+#if IS_ENABLED(CONFIG_LLC)
 	case ARPHRD_ETHER:
 		kfree_skb(skb);
 		return;

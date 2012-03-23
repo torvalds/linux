@@ -107,7 +107,6 @@ static struct inode *fuse_alloc_inode(struct super_block *sb)
 static void fuse_i_callback(struct rcu_head *head)
 {
 	struct inode *inode = container_of(head, struct inode, i_rcu);
-	INIT_LIST_HEAD(&inode->i_dentry);
 	kmem_cache_free(fuse_inode_cachep, inode);
 }
 
@@ -498,9 +497,10 @@ static int parse_fuse_opt(char *opt, struct fuse_mount_data *d, int is_bdev)
 	return 1;
 }
 
-static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
+static int fuse_show_options(struct seq_file *m, struct dentry *root)
 {
-	struct fuse_conn *fc = get_fuse_conn_super(mnt->mnt_sb);
+	struct super_block *sb = root->d_sb;
+	struct fuse_conn *fc = get_fuse_conn_super(sb);
 
 	seq_printf(m, ",user_id=%u", fc->user_id);
 	seq_printf(m, ",group_id=%u", fc->group_id);
@@ -510,9 +510,8 @@ static int fuse_show_options(struct seq_file *m, struct vfsmount *mnt)
 		seq_puts(m, ",allow_other");
 	if (fc->max_read != ~0)
 		seq_printf(m, ",max_read=%u", fc->max_read);
-	if (mnt->mnt_sb->s_bdev &&
-	    mnt->mnt_sb->s_blocksize != FUSE_DEFAULT_BLKSIZE)
-		seq_printf(m, ",blksize=%lu", mnt->mnt_sb->s_blocksize);
+	if (sb->s_bdev && sb->s_blocksize != FUSE_DEFAULT_BLKSIZE)
+		seq_printf(m, ",blksize=%lu", sb->s_blocksize);
 	return 0;
 }
 

@@ -14,9 +14,9 @@
 
 / {
 	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
+		serial0 = &uart1;
+		serial1 = &uart2;
+		serial2 = &uart3;
 	};
 
 	tzic: tz-interrupt-controller@e0000000 {
@@ -86,7 +86,7 @@
 					status = "disabled";
 				};
 
-				uart2: uart@7000c000 { /* UART3 */
+				uart3: uart@7000c000 {
 					compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 					reg = <0x7000c000 0x4000>;
 					interrupts = <33>;
@@ -117,7 +117,7 @@
 				};
 			};
 
-			gpio0: gpio@73f84000 { /* GPIO1 */
+			gpio1: gpio@73f84000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f84000 0x4000>;
 				interrupts = <50 51>;
@@ -127,7 +127,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio1: gpio@73f88000 { /* GPIO2 */
+			gpio2: gpio@73f88000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f88000 0x4000>;
 				interrupts = <52 53>;
@@ -137,7 +137,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio2: gpio@73f8c000 { /* GPIO3 */
+			gpio3: gpio@73f8c000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f8c000 0x4000>;
 				interrupts = <54 55>;
@@ -147,7 +147,7 @@
 				#interrupt-cells = <1>;
 			};
 
-			gpio3: gpio@73f90000 { /* GPIO4 */
+			gpio4: gpio@73f90000 {
 				compatible = "fsl,imx51-gpio", "fsl,imx31-gpio";
 				reg = <0x73f90000 0x4000>;
 				interrupts = <56 57>;
@@ -171,14 +171,14 @@
 				status = "disabled";
 			};
 
-			uart0: uart@73fbc000 {
+			uart1: uart@73fbc000 {
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fbc000 0x4000>;
 				interrupts = <31>;
 				status = "disabled";
 			};
 
-			uart1: uart@73fc0000 {
+			uart2: uart@73fc0000 {
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fc0000 0x4000>;
 				interrupts = <32>;

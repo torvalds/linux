@@ -314,7 +314,7 @@ static void carl9170_tx_release(struct kref *ref)
 			 *    feedback either [CTL_REQ_TX_STATUS not set]
 			 */
 
-			dev_kfree_skb_any(skb);
+			ieee80211_free_txskb(ar->hw, skb);
 			return;
 		} else {
 			/*
@@ -1234,6 +1234,7 @@ static bool carl9170_tx_ps_drop(struct ar9170 *ar, struct sk_buff *skb)
 {
 	struct ieee80211_sta *sta;
 	struct carl9170_sta_info *sta_info;
+	struct ieee80211_tx_info *tx_info;
 
 	rcu_read_lock();
 	sta = __carl9170_get_tx_sta(ar, skb);
@@ -1241,16 +1242,18 @@ static bool carl9170_tx_ps_drop(struct ar9170 *ar, struct sk_buff *skb)
 		goto out_rcu;
 
 	sta_info = (void *) sta->drv_priv;
-	if (unlikely(sta_info->sleeping)) {
-		struct ieee80211_tx_info *tx_info;
+	tx_info = IEEE80211_SKB_CB(skb);
 
+	if (unlikely(sta_info->sleeping) &&
+	    !(tx_info->flags & (IEEE80211_TX_CTL_POLL_RESPONSE |
+				IEEE80211_TX_CTL_CLEAR_PS_FILT))) {
 		rcu_read_unlock();
 
-		tx_info = IEEE80211_SKB_CB(skb);
 		if (tx_info->flags & IEEE80211_TX_CTL_AMPDU)
 			atomic_dec(&ar->tx_ampdu_upload);
 
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+		carl9170_release_dev_space(ar, skb);
 		carl9170_tx_status(ar, skb, false);
 		return true;
 	}
@@ -1432,7 +1435,7 @@ void carl9170_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 err_free:
 	ar->tx_dropped++;
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(ar->hw, skb);
 }
 
 void carl9170_tx_scheduler(struct ar9170 *ar)

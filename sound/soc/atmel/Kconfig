@@ -26,7 +26,7 @@ config SND_AT91_SOC_SAM9G20_WM8731
 
 config SND_AT91_SOC_AFEB9260
 	tristate "SoC Audio support for AFEB9260 board"
-	depends on ARCH_AT91 && MACH_AFEB9260 && SND_ATMEL_SOC
+	depends on ATMEL_SSC && ARCH_AT91 && MACH_AFEB9260 && SND_ATMEL_SOC
 	select SND_ATMEL_SOC_SSC
 	select SND_SOC_TLV320AIC23
 	help

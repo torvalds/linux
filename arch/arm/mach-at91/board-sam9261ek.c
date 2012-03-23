@@ -131,7 +131,7 @@ static struct sam9_smc_config __initdata dm9000_smc_config = {
 static void __init ek_add_device_dm9000(void)
 {
 	/* Configure chip-select 2 (DM9000) */
-	sam9_smc_configure(2, &dm9000_smc_config);
+	sam9_smc_configure(0, 2, &dm9000_smc_config);
 
 	/* Configure Reset signal as output */
 	at91_set_gpio_output(AT91_PIN_PC10, 0);
@@ -151,6 +151,8 @@ static void __init ek_add_device_dm9000(void) {}
  */
 static struct at91_usbh_data __initdata ek_usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 
@@ -159,7 +161,7 @@ static struct at91_usbh_data __initdata ek_usbh_data = {
  */
 static struct at91_udc_data __initdata ek_udc_data = {
 	.vbus_pin	= AT91_PIN_PB29,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 
@@ -182,7 +184,7 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 static struct atmel_nand_data __initdata ek_nand_data = {
 	.ale		= 22,
 	.cle		= 21,
-//	.det_pin	= ... not connected
+	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PC15,
 	.enable_pin	= AT91_PIN_PC14,
 	.parts		= ek_nand_partition,
@@ -217,7 +219,7 @@ static void __init ek_add_device_nand(void)
 		ek_nand_smc_config.mode |= AT91_SMC_DBW_8;
 
 	/* configure chip-select 3 (NAND) */
-	sam9_smc_configure(3, &ek_nand_smc_config);
+	sam9_smc_configure(0, 3, &ek_nand_smc_config);
 
 	at91_add_device_nand(&ek_nand_data);
 }
@@ -345,6 +347,9 @@ static struct spi_board_info ek_spi_devices[] = {
  */
 static struct at91_mmc_data __initdata ek_mmc_data = {
 	.wire4		= 1,
+	.det_pin	= -EINVAL,
+	.wp_pin		= -EINVAL,
+	.vcc_pin	= -EINVAL,
 };
 
 #endif /* CONFIG_SPI_ATMEL_* */

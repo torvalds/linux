@@ -41,6 +41,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 #include <mach/board-mx31moboard.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -584,10 +585,8 @@ struct sys_timer mx31moboard_timer = {
 static void __init mx31moboard_reserve(void)
 {
 	/* reserve 4 MiB for mx3-camera */
-	mx3_camera_base = memblock_alloc(MX3_CAMERA_BUF_SIZE,
+	mx3_camera_base = arm_memblock_steal(MX3_CAMERA_BUF_SIZE,
 			MX3_CAMERA_BUF_SIZE);
-	memblock_free(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
-	memblock_remove(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
 }
 
 MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
@@ -600,4 +599,5 @@ MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
 	.handle_irq = imx31_handle_irq,
 	.timer = &mx31moboard_timer,
 	.init_machine = mx31moboard_init,
+	.restart	= mxc_restart,
 MACHINE_END

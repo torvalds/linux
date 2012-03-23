@@ -28,17 +28,21 @@
 #include <linux/delay.h>
 #include "pmbus.h"
 
-enum chips { zl2004, zl2006, zl2008, zl2105, zl2106, zl6100, zl6105 };
+enum chips { zl2004, zl2005, zl2006, zl2008, zl2105, zl2106, zl6100, zl6105 };
 
 struct zl6100_data {
 	int id;
 	ktime_t access;		/* chip access time */
+	int delay;		/* Delay between chip accesses in uS */
 	struct pmbus_driver_info info;
 };
 
 #define to_zl6100_data(x)  container_of(x, struct zl6100_data, info)
 
+#define ZL6100_MFR_CONFIG		0xd0
 #define ZL6100_DEVICE_ID		0xe4
+
+#define ZL6100_MFR_XTEMP_ENABLE		(1 << 7)
 
 #define ZL6100_WAIT_TIME		1000	/* uS	*/
 
@@ -49,10 +53,10 @@ MODULE_PARM_DESC(delay, "Delay between chip accesses in uS");
 /* Some chips need a delay between accesses */
 static inline void zl6100_wait(const struct zl6100_data *data)
 {
-	if (delay) {
+	if (data->delay) {
 		s64 delta = ktime_us_delta(ktime_get(), data->access);
-		if (delta < delay)
-			udelay(delay - delta);
+		if (delta < data->delay)
+			udelay(data->delay - delta);
 	}
 }
 
@@ -64,6 +68,19 @@ static int zl6100_read_word_data(struct i2c_client *client, int page, int reg)
 
 	if (page || reg >= PMBUS_VIRT_BASE)
 		return -ENXIO;
+
+	if (data->id == zl2005) {
+		/*
+		 * Limit register detection is not reliable on ZL2005.
+		 * Make sure registers are not erroneously detected.
+		 */
+		switch (reg) {
+		case PMBUS_VOUT_OV_WARN_LIMIT:
+		case PMBUS_VOUT_UV_WARN_LIMIT:
+		case PMBUS_IOUT_OC_WARN_LIMIT:
+			return -ENXIO;
+		}
+	}
 
 	zl6100_wait(data);
 	ret = pmbus_read_word_data(client, page, reg);
@@ -122,7 +139,13 @@ static int zl6100_write_byte(struct i2c_client *client, int page, u8 value)
 }
 
 static const struct i2c_device_id zl6100_id[] = {
+	{"bmr450", zl2005},
+	{"bmr451", zl2005},
+	{"bmr462", zl2008},
+	{"bmr463", zl2008},
+	{"bmr464", zl2008},
 	{"zl2004", zl2004},
+	{"zl2005", zl2005},
 	{"zl2006", zl2006},
 	{"zl2008", zl2008},
 	{"zl2105", zl2105},
@@ -143,7 +166,7 @@ static int zl6100_probe(struct i2c_client *client,
 	const struct i2c_device_id *mid;
 
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_READ_BYTE_DATA
+				     I2C_FUNC_SMBUS_READ_WORD_DATA
 				     | I2C_FUNC_SMBUS_READ_BLOCK_DATA))
 		return -ENODEV;
 
@@ -177,25 +200,18 @@ static int zl6100_probe(struct i2c_client *client,
 	data->id = mid->driver_data;
 
 	/*
-	 * ZL2008, ZL2105, and ZL6100 are known to require a wait time
-	 * between I2C accesses. ZL2004 and ZL6105 are known to be safe.
-	 *
-	 * Only clear the wait time for chips known to be safe. The wait time
-	 * can be cleared later for additional chips if tests show that it
-	 * is not needed (in other words, better be safe than sorry).
+	 * According to information from the chip vendor, all currently
+	 * supported chips are known to require a wait time between I2C
+	 * accesses.
 	 */
-	if (data->id == zl2004 || data->id == zl6105)
-		delay = 0;
+	data->delay = delay;
 
 	/*
 	 * Since there was a direct I2C device access above, wait before
 	 * accessing the chip again.
-	 * Set the timestamp, wait, then set it again. This should provide
-	 * enough buffer time to be safe.
 	 */
 	data->access = ktime_get();
 	zl6100_wait(data);
-	data->access = ktime_get();
 
 	info = &data->info;
 
@@ -203,7 +219,16 @@ static int zl6100_probe(struct i2c_client *client,
 	info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_STATUS_INPUT
 	  | PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT
 	  | PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT
-	  | PMBUS_HAVE_TEMP | PMBUS_HAVE_TEMP2 | PMBUS_HAVE_STATUS_TEMP;
+	  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+
+	ret = i2c_smbus_read_word_data(client, ZL6100_MFR_CONFIG);
+	if (ret < 0)
+		goto err_mem;
+	if (ret & ZL6100_MFR_XTEMP_ENABLE)
+		info->func[0] |= PMBUS_HAVE_TEMP2;
+
+	data->access = ktime_get();
+	zl6100_wait(data);
 
 	info->read_word_data = zl6100_read_word_data;
 	info->read_byte_data = zl6100_read_byte_data;

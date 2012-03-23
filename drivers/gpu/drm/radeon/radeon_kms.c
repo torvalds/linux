@@ -250,6 +250,18 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 			return -EINVAL;
 		}
 		break;
+	case RADEON_INFO_VA_START:
+		/* this is where we report if vm is supported or not */
+		if (rdev->family < CHIP_CAYMAN)
+			return -EINVAL;
+		value = RADEON_VA_RESERVED_SIZE;
+		break;
+	case RADEON_INFO_IB_VM_MAX_SIZE:
+		/* this is where we report if vm is supported or not */
+		if (rdev->family < CHIP_CAYMAN)
+			return -EINVAL;
+		value = RADEON_IB_VM_MAX_SIZE;
+		break;
 	default:
 		DRM_DEBUG_KMS("Invalid request %d\n", info->request);
 		return -EINVAL;
@@ -270,7 +282,6 @@ int radeon_driver_firstopen_kms(struct drm_device *dev)
 	return 0;
 }
 
-
 void radeon_driver_lastclose_kms(struct drm_device *dev)
 {
 	vga_switcheroo_process_delayed_switch();
@@ -278,12 +289,45 @@ void radeon_driver_lastclose_kms(struct drm_device *dev)
 
 int radeon_driver_open_kms(struct drm_device *dev, struct drm_file *file_priv)
 {
+	struct radeon_device *rdev = dev->dev_private;
+
+	file_priv->driver_priv = NULL;
+
+	/* new gpu have virtual address space support */
+	if (rdev->family >= CHIP_CAYMAN) {
+		struct radeon_fpriv *fpriv;
+		int r;
+
+		fpriv = kzalloc(sizeof(*fpriv), GFP_KERNEL);
+		if (unlikely(!fpriv)) {
+			return -ENOMEM;
+		}
+
+		r = radeon_vm_init(rdev, &fpriv->vm);
+		if (r) {
+			radeon_vm_fini(rdev, &fpriv->vm);
+			kfree(fpriv);
+			return r;
+		}
+
+		file_priv->driver_priv = fpriv;
+	}
 	return 0;
 }
 
 void radeon_driver_postclose_kms(struct drm_device *dev,
 				 struct drm_file *file_priv)
 {
+	struct radeon_device *rdev = dev->dev_private;
+
+	/* new gpu have virtual address space support */
+	if (rdev->family >= CHIP_CAYMAN && file_priv->driver_priv) {
+		struct radeon_fpriv *fpriv = file_priv->driver_priv;
+
+		radeon_vm_fini(rdev, &fpriv->vm);
+		kfree(fpriv);
+		file_priv->driver_priv = NULL;
+	}
 }
 
 void radeon_driver_preclose_kms(struct drm_device *dev,
@@ -451,5 +495,6 @@ struct drm_ioctl_desc radeon_ioctls_kms[] = {
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_SET_TILING, radeon_gem_set_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_GET_TILING, radeon_gem_get_tiling_ioctl, DRM_AUTH|DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(RADEON_GEM_BUSY, radeon_gem_busy_ioctl, DRM_AUTH|DRM_UNLOCKED),
+	DRM_IOCTL_DEF_DRV(RADEON_GEM_VA, radeon_gem_va_ioctl, DRM_AUTH|DRM_UNLOCKED),
 };
 int radeon_max_kms_ioctl = DRM_ARRAY_SIZE(radeon_ioctls_kms);

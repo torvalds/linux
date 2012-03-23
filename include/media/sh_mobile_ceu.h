@@ -18,6 +18,8 @@ struct sh_mobile_ceu_companion {
 
 struct sh_mobile_ceu_info {
 	unsigned long flags;
+	int max_width;
+	int max_height;
 	struct sh_mobile_ceu_companion *csi2;
 };
 

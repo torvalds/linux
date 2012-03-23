@@ -1249,7 +1249,7 @@ static void s3c2410_dma_resume(void)
 	struct s3c2410_dma_chan *cp = s3c2410_chans + dma_channels - 1;
 	int channel;
 
-	for (channel = dma_channels - 1; channel >= 0; cp++, channel--)
+	for (channel = dma_channels - 1; channel >= 0; cp--, channel--)
 		s3c2410_dma_resume_chan(cp);
 }
 
@@ -1437,11 +1437,10 @@ int __init s3c24xx_dma_init_map(struct s3c24xx_dma_selection *sel)
 	size_t map_sz = sizeof(*nmap) * sel->map_size;
 	int ptr;
 
-	nmap = kmalloc(map_sz, GFP_KERNEL);
+	nmap = kmemdup(sel->map, map_sz, GFP_KERNEL);
 	if (nmap == NULL)
 		return -ENOMEM;
 
-	memcpy(nmap, sel->map, map_sz);
 	memcpy(&dma_sel, sel, sizeof(*sel));
 
 	dma_sel.map = nmap;

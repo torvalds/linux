@@ -490,8 +490,8 @@ static int dccp_feat_push_change(struct list_head *fn_list, u8 feat, u8 local,
 	new->feat_num	     = feat;
 	new->is_local	     = local;
 	new->state	     = FEAT_INITIALISING;
-	new->needs_confirm   = 0;
-	new->empty_confirm   = 0;
+	new->needs_confirm   = false;
+	new->empty_confirm   = false;
 	new->val	     = *fval;
 	new->needs_mandatory = mandatory;
 
@@ -517,12 +517,12 @@ static int dccp_feat_push_confirm(struct list_head *fn_list, u8 feat, u8 local,
 	new->feat_num	     = feat;
 	new->is_local	     = local;
 	new->state	     = FEAT_STABLE;	/* transition in 6.6.2 */
-	new->needs_confirm   = 1;
+	new->needs_confirm   = true;
 	new->empty_confirm   = (fval == NULL);
 	new->val.nn	     = 0;		/* zeroes the whole structure */
 	if (!new->empty_confirm)
 		new->val     = *fval;
-	new->needs_mandatory = 0;
+	new->needs_mandatory = false;
 
 	return 0;
 }
@@ -1155,7 +1155,7 @@ static u8 dccp_feat_change_recv(struct list_head *fn, u8 is_mandatory, u8 opt,
 	}
 
 	if (dccp_feat_reconcile(&entry->val, val, len, server, true)) {
-		entry->empty_confirm = 0;
+		entry->empty_confirm = false;
 	} else if (is_mandatory) {
 		return DCCP_RESET_CODE_MANDATORY_ERROR;
 	} else if (entry->state == FEAT_INITIALISING) {
@@ -1171,10 +1171,10 @@ static u8 dccp_feat_change_recv(struct list_head *fn, u8 is_mandatory, u8 opt,
 		defval = dccp_feat_default_value(feat);
 		if (!dccp_feat_reconcile(&entry->val, &defval, 1, server, true))
 			return DCCP_RESET_CODE_OPTION_ERROR;
-		entry->empty_confirm = 1;
+		entry->empty_confirm = true;
 	}
-	entry->needs_confirm   = 1;
-	entry->needs_mandatory = 0;
+	entry->needs_confirm   = true;
+	entry->needs_mandatory = false;
 	entry->state	       = FEAT_STABLE;
 	return 0;
 

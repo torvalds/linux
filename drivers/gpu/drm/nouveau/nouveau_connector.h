@@ -30,13 +30,43 @@
 #include "drm_edid.h"
 #include "nouveau_i2c.h"
 
+enum nouveau_underscan_type {
+	UNDERSCAN_OFF,
+	UNDERSCAN_ON,
+	UNDERSCAN_AUTO,
+};
+
+/* the enum values specifically defined here match nv50/nvd0 hw values, and
+ * the code relies on this
+ */
+enum nouveau_dithering_mode {
+	DITHERING_MODE_OFF = 0x00,
+	DITHERING_MODE_ON = 0x01,
+	DITHERING_MODE_DYNAMIC2X2 = 0x10 | DITHERING_MODE_ON,
+	DITHERING_MODE_STATIC2X2 = 0x18 | DITHERING_MODE_ON,
+	DITHERING_MODE_TEMPORAL = 0x20 | DITHERING_MODE_ON,
+	DITHERING_MODE_AUTO
+};
+
+enum nouveau_dithering_depth {
+	DITHERING_DEPTH_6BPC = 0x00,
+	DITHERING_DEPTH_8BPC = 0x02,
+	DITHERING_DEPTH_AUTO
+};
+
 struct nouveau_connector {
 	struct drm_connector base;
+	enum dcb_connector_type type;
+	u8 index;
+	u8 *dcb;
+	u8 hpd;
 
-	struct dcb_connector_table_entry *dcb;
-
+	int dithering_mode;
+	int dithering_depth;
 	int scaling_mode;
-	bool use_dithering;
+	enum nouveau_underscan_type underscan;
+	u32 underscan_hborder;
+	u32 underscan_vborder;
 
 	struct nouveau_encoder *detected_encoder;
 	struct edid *edid;

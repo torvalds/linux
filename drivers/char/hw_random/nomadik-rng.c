@@ -95,6 +95,8 @@ static struct amba_id nmk_rng_ids[] = {
 	{0, 0},
 };
 
+MODULE_DEVICE_TABLE(amba, nmk_rng_ids);
+
 static struct amba_driver nmk_rng_driver = {
 	.drv = {
 		.owner = THIS_MODULE,

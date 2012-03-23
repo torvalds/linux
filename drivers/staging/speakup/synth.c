@@ -22,7 +22,7 @@ static struct spk_synth *synths[MAXSYNTHS];
 struct spk_synth *synth;
 char pitch_buff[32] = "";
 static int module_status;
-int quiet_boot;
+bool quiet_boot;
 
 struct speakup_info_t speakup_info = {
 	.spinlock = __SPIN_LOCK_UNLOCKED(speakup_info.spinlock),

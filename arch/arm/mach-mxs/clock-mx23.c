@@ -545,11 +545,11 @@ int __init mx23_clocks_init(void)
 	 */
 	clk_set_parent(&ssp_clk, &ref_io_clk);
 
-	clk_enable(&cpu_clk);
-	clk_enable(&hbus_clk);
-	clk_enable(&xbus_clk);
-	clk_enable(&emi_clk);
-	clk_enable(&uart_clk);
+	clk_prepare_enable(&cpu_clk);
+	clk_prepare_enable(&hbus_clk);
+	clk_prepare_enable(&xbus_clk);
+	clk_prepare_enable(&emi_clk);
+	clk_prepare_enable(&uart_clk);
 
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 

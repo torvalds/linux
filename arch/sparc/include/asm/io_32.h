@@ -7,6 +7,7 @@
 
 #include <asm/page.h>      /* IO address mapping routines need this */
 #include <asm/system.h>
+#include <asm-generic/pci_iomap.h>
 
 #define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
@@ -324,7 +325,6 @@ extern void ioport_unmap(void __iomem *);
 
 /* Create a virtual mapping cookie for a PCI BAR (memory or IO) */
 struct pci_dev;
-extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 /*

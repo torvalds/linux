@@ -80,6 +80,8 @@ static void __init gsia18s_init_early(void)
  */
 static struct at91_usbh_data __initdata usbh_data = {
 	.ports		= 2,
+	.vbus_pin	= {-EINVAL, -EINVAL},
+	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 
 /*
@@ -87,13 +89,13 @@ static struct at91_usbh_data __initdata usbh_data = {
  */
 static struct at91_udc_data __initdata udc_data = {
 	.vbus_pin	= AT91_PIN_PA22,
-	.pullup_pin	= 0,		/* pull-up driven by UDC */
+	.pullup_pin	= -EINVAL,		/* pull-up driven by UDC */
 };
 
 /*
  * MACB Ethernet device
  */
-static struct at91_eth_data __initdata macb_data = {
+static struct macb_platform_data __initdata macb_data = {
 	.phy_irq_pin	= AT91_PIN_PA28,
 	.is_rmii	= 1,
 };
@@ -530,6 +532,7 @@ static struct i2c_board_info __initdata gsia18s_i2c_devices[] = {
 static struct at91_cf_data __initdata gsia18s_cf1_data = {
 	.irq_pin	= AT91_PIN_PA27,
 	.det_pin	= AT91_PIN_PB30,
+	.vcc_pin	= -EINVAL,
 	.rst_pin	= AT91_PIN_PB31,
 	.chipselect	= 5,
 	.flags		= AT91_CF_TRUE_IDE,

@@ -108,6 +108,7 @@
 #define	CP_RB_WPTR_ADDR_HI				0xC11C
 #define	CP_RB_WPTR_DELAY				0x8704
 #define	CP_SEM_WAIT_TIMER				0x85BC
+#define	CP_SEM_INCOMPLETE_TIMER_CNTL			0x85C8
 #define	CP_DEBUG					0xC1FC
 
 
@@ -242,6 +243,7 @@
 #define	PA_CL_ENHANCE					0x8A14
 #define		CLIP_VTX_REORDER_ENA				(1 << 0)
 #define		NUM_CLIP_SEQ(x)					((x) << 1)
+#define	PA_SC_ENHANCE					0x8BF0
 #define PA_SC_AA_CONFIG					0x28C04
 #define         MSAA_NUM_SAMPLES_SHIFT                  0
 #define         MSAA_NUM_SAMPLES_MASK                   0x3
@@ -319,6 +321,8 @@
 #define	SQ_GPR_RESOURCE_MGMT_3				0x8C0C
 #define		NUM_HS_GPRS(x)					((x) << 0)
 #define		NUM_LS_GPRS(x)					((x) << 16)
+#define	SQ_GLOBAL_GPR_RESOURCE_MGMT_1			0x8C10
+#define	SQ_GLOBAL_GPR_RESOURCE_MGMT_2			0x8C14
 #define	SQ_THREAD_RESOURCE_MGMT				0x8C18
 #define		NUM_PS_THREADS(x)				((x) << 0)
 #define		NUM_VS_THREADS(x)				((x) << 8)
@@ -337,6 +341,10 @@
 #define		NUM_HS_STACK_ENTRIES(x)				((x) << 0)
 #define		NUM_LS_STACK_ENTRIES(x)				((x) << 16)
 #define	SQ_DYN_GPR_CNTL_PS_FLUSH_REQ    		0x8D8C
+#define	SQ_DYN_GPR_SIMD_LOCK_EN    			0x8D94
+#define	SQ_STATIC_THREAD_MGMT_1    			0x8E20
+#define	SQ_STATIC_THREAD_MGMT_2    			0x8E24
+#define	SQ_STATIC_THREAD_MGMT_3    			0x8E28
 #define	SQ_LDS_RESOURCE_MGMT    			0x8E2C
 
 #define	SQ_MS_FIFO_SIZES				0x8CF0
@@ -691,6 +699,7 @@
 #define	PACKET3_DRAW_INDEX_MULTI_ELEMENT		0x36
 #define	PACKET3_MEM_SEMAPHORE				0x39
 #define	PACKET3_MPEG_INDEX				0x3A
+#define	PACKET3_COPY_DW					0x3B
 #define	PACKET3_WAIT_REG_MEM				0x3C
 #define	PACKET3_MEM_WRITE				0x3D
 #define	PACKET3_INDIRECT_BUFFER				0x32
@@ -767,6 +776,8 @@
 #define			SQ_TEX_VTX_INVALID_BUFFER			0x1
 #define			SQ_TEX_VTX_VALID_TEXTURE			0x2
 #define			SQ_TEX_VTX_VALID_BUFFER				0x3
+
+#define VGT_VTX_VECT_EJECT_REG				0x88b0
 
 #define SQ_CONST_MEM_BASE				0x8df8
 
@@ -892,8 +903,27 @@
 #define PA_SC_SCREEN_SCISSOR_TL                         0x28030
 #define PA_SC_GENERIC_SCISSOR_TL                        0x28240
 #define PA_SC_WINDOW_SCISSOR_TL                         0x28204
-#define VGT_PRIMITIVE_TYPE                              0x8958
 
+#define VGT_PRIMITIVE_TYPE                              0x8958
+#define VGT_INDEX_TYPE                                  0x895C
+
+#define VGT_NUM_INDICES                                 0x8970
+
+#define VGT_COMPUTE_DIM_X                               0x8990
+#define VGT_COMPUTE_DIM_Y                               0x8994
+#define VGT_COMPUTE_DIM_Z                               0x8998
+#define VGT_COMPUTE_START_X                             0x899C
+#define VGT_COMPUTE_START_Y                             0x89A0
+#define VGT_COMPUTE_START_Z                             0x89A4
+#define VGT_COMPUTE_INDEX                               0x89A8
+#define VGT_COMPUTE_THREAD_GROUP_SIZE                   0x89AC
+#define VGT_HS_OFFCHIP_PARAM                            0x89B0
+
+#define DB_DEBUG					0x9830
+#define DB_DEBUG2					0x9834
+#define DB_DEBUG3					0x9838
+#define DB_DEBUG4					0x983C
+#define DB_WATERMARKS					0x9854
 #define DB_DEPTH_CONTROL				0x28800
 #define DB_DEPTH_VIEW					0x28008
 #define DB_HTILE_DATA_BASE				0x28014
@@ -1189,8 +1219,40 @@
 #define SQ_VTX_CONSTANT_WORD6_0                         0x30018
 #define SQ_VTX_CONSTANT_WORD7_0                         0x3001c
 
+#define TD_PS_BORDER_COLOR_INDEX                        0xA400
+#define TD_PS_BORDER_COLOR_RED                          0xA404
+#define TD_PS_BORDER_COLOR_GREEN                        0xA408
+#define TD_PS_BORDER_COLOR_BLUE                         0xA40C
+#define TD_PS_BORDER_COLOR_ALPHA                        0xA410
+#define TD_VS_BORDER_COLOR_INDEX                        0xA414
+#define TD_VS_BORDER_COLOR_RED                          0xA418
+#define TD_VS_BORDER_COLOR_GREEN                        0xA41C
+#define TD_VS_BORDER_COLOR_BLUE                         0xA420
+#define TD_VS_BORDER_COLOR_ALPHA                        0xA424
+#define TD_GS_BORDER_COLOR_INDEX                        0xA428
+#define TD_GS_BORDER_COLOR_RED                          0xA42C
+#define TD_GS_BORDER_COLOR_GREEN                        0xA430
+#define TD_GS_BORDER_COLOR_BLUE                         0xA434
+#define TD_GS_BORDER_COLOR_ALPHA                        0xA438
+#define TD_HS_BORDER_COLOR_INDEX                        0xA43C
+#define TD_HS_BORDER_COLOR_RED                          0xA440
+#define TD_HS_BORDER_COLOR_GREEN                        0xA444
+#define TD_HS_BORDER_COLOR_BLUE                         0xA448
+#define TD_HS_BORDER_COLOR_ALPHA                        0xA44C
+#define TD_LS_BORDER_COLOR_INDEX                        0xA450
+#define TD_LS_BORDER_COLOR_RED                          0xA454
+#define TD_LS_BORDER_COLOR_GREEN                        0xA458
+#define TD_LS_BORDER_COLOR_BLUE                         0xA45C
+#define TD_LS_BORDER_COLOR_ALPHA                        0xA460
+#define TD_CS_BORDER_COLOR_INDEX                        0xA464
+#define TD_CS_BORDER_COLOR_RED                          0xA468
+#define TD_CS_BORDER_COLOR_GREEN                        0xA46C
+#define TD_CS_BORDER_COLOR_BLUE                         0xA470
+#define TD_CS_BORDER_COLOR_ALPHA                        0xA474
+
 /* cayman 3D regs */
-#define CAYMAN_VGT_OFFCHIP_LDS_BASE			0x89B0
+#define CAYMAN_VGT_OFFCHIP_LDS_BASE			0x89B4
+#define CAYMAN_SQ_EX_ALLOC_TABLE_SLOTS			0x8E48
 #define CAYMAN_DB_EQAA					0x28804
 #define CAYMAN_DB_DEPTH_INFO				0x2803C
 #define CAYMAN_PA_SC_AA_CONFIG				0x28BE0

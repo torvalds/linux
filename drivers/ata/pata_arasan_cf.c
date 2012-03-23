@@ -963,17 +963,7 @@ static struct platform_driver arasan_cf_driver = {
 	},
 };
 
-static int __init arasan_cf_init(void)
-{
-	return platform_driver_register(&arasan_cf_driver);
-}
-module_init(arasan_cf_init);
-
-static void __exit arasan_cf_exit(void)
-{
-	platform_driver_unregister(&arasan_cf_driver);
-}
-module_exit(arasan_cf_exit);
+module_platform_driver(arasan_cf_driver);
 
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@st.com>");
 MODULE_DESCRIPTION("Arasan ATA Compact Flash driver");

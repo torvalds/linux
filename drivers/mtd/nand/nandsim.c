@@ -737,7 +737,7 @@ static int parse_badblocks(struct nandsim *ns, struct mtd_info *mtd)
 			return -EINVAL;
 		}
 		offset = erase_block_no * ns->geom.secsz;
-		if (mtd->block_markbad(mtd, offset)) {
+		if (mtd_block_markbad(mtd, offset)) {
 			NS_ERR("invalid badblocks.\n");
 			return -EINVAL;
 		}

@@ -20,7 +20,7 @@
 #include "core.h"
 #include "sysregs.h"
 
-void arch_reset(char mode, const char *cmd)
+void highbank_restart(char mode, const char *cmd)
 {
 	if (mode == 'h')
 		hignbank_set_pwr_hard_reset();

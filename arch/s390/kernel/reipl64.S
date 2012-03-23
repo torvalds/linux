@@ -17,11 +17,11 @@
 #
 ENTRY(store_status)
 	/* Save register one and load save area base */
-	stg	%r1,__LC_SAVE_AREA+120(%r0)
+	stg	%r1,__LC_SAVE_AREA_RESTART
 	lghi	%r1,SAVE_AREA_BASE
 	/* General purpose registers */
 	stmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)
-	lg	%r2,__LC_SAVE_AREA+120(%r0)
+	lg	%r2,__LC_SAVE_AREA_RESTART
 	stg	%r2,__LC_GPREGS_SAVE_AREA-SAVE_AREA_BASE+8(%r1)
 	/* Control registers */
 	stctg	%c0,%c15,__LC_CREGS_SAVE_AREA-SAVE_AREA_BASE(%r1)

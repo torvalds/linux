@@ -28,6 +28,7 @@
 #include <linux/tcp.h>         /* struct tcphdr */
 #include <linux/skbuff.h>
 #include <linux/mii.h>         /* MII definitions */
+#include <linux/crc32.h>
 
 #include <asm/ip32/mace.h>
 #include <asm/ip32/ip32_ints.h>
@@ -58,12 +59,19 @@ static int timeout = TX_TIMEOUT;
 module_param(timeout, int, 0);
 
 /*
+ * Maximum number of multicast addresses to filter (vs. Rx-all-multicast).
+ * MACE Ethernet uses a 64 element hash table based on the Ethernet CRC.
+ */
+#define METH_MCF_LIMIT 32
+
+/*
  * This structure is private to each device. It is used to pass
  * packets in and out, so there is place for a packet
  */
 struct meth_private {
 	/* in-memory copy of MAC Control register */
-	unsigned long mac_ctrl;
+	u64 mac_ctrl;
+
 	/* in-memory copy of DMA Control register */
 	unsigned long dma_ctrl;
 	/* address of PHY, used by mdio_* functions, initialized in mdio_probe */
@@ -78,6 +86,9 @@ struct meth_private {
 	dma_addr_t rx_ring_dmas[RX_RING_ENTRIES];
 	struct sk_buff *rx_skbs[RX_RING_ENTRIES];
 	unsigned long rx_write;
+
+	/* Multicast filter. */
+	u64 mcast_filter;
 
 	spinlock_t meth_lock;
 };
@@ -765,6 +776,40 @@ static int meth_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	}
 }
 
+static void meth_set_rx_mode(struct net_device *dev)
+{
+	struct meth_private *priv = netdev_priv(dev);
+	unsigned long flags;
+
+	netif_stop_queue(dev);
+	spin_lock_irqsave(&priv->meth_lock, flags);
+	priv->mac_ctrl &= ~METH_PROMISC;
+
+	if (dev->flags & IFF_PROMISC) {
+		priv->mac_ctrl |= METH_PROMISC;
+		priv->mcast_filter = 0xffffffffffffffffUL;
+	} else if ((netdev_mc_count(dev) > METH_MCF_LIMIT) ||
+		   (dev->flags & IFF_ALLMULTI)) {
+		priv->mac_ctrl |= METH_ACCEPT_AMCAST;
+		priv->mcast_filter = 0xffffffffffffffffUL;
+	} else {
+		struct netdev_hw_addr *ha;
+		priv->mac_ctrl |= METH_ACCEPT_MCAST;
+
+		netdev_for_each_mc_addr(ha, dev)
+			set_bit((ether_crc(ETH_ALEN, ha->addr) >> 26),
+			        (volatile unsigned long *)&priv->mcast_filter);
+	}
+
+	/* Write the changes to the chip registers. */
+	mace->eth.mac_ctrl = priv->mac_ctrl;
+	mace->eth.mcast_filter = priv->mcast_filter;
+
+	/* Done! */
+	spin_unlock_irqrestore(&priv->meth_lock, flags);
+	netif_wake_queue(dev);
+}
+
 static const struct net_device_ops meth_netdev_ops = {
 	.ndo_open		= meth_open,
 	.ndo_stop		= meth_release,
@@ -774,6 +819,7 @@ static const struct net_device_ops meth_netdev_ops = {
 	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_set_rx_mode    	= meth_set_rx_mode,
 };
 
 /*
@@ -830,24 +876,7 @@ static struct platform_driver meth_driver = {
 	}
 };
 
-static int __init meth_init_module(void)
-{
-	int err;
-
-	err = platform_driver_register(&meth_driver);
-	if (err)
-		printk(KERN_ERR "Driver registration failed\n");
-
-	return err;
-}
-
-static void __exit meth_exit_module(void)
-{
-	platform_driver_unregister(&meth_driver);
-}
-
-module_init(meth_init_module);
-module_exit(meth_exit_module);
+module_platform_driver(meth_driver);
 
 MODULE_AUTHOR("Ilya Volynets <ilya@theIlya.com>");
 MODULE_DESCRIPTION("SGI O2 Builtin Fast Ethernet driver");

@@ -474,29 +474,6 @@ void file_sb_list_del(struct file *file)
 
 #endif
 
-int fs_may_remount_ro(struct super_block *sb)
-{
-	struct file *file;
-	/* Check that no files are currently opened for writing. */
-	lg_global_lock(files_lglock);
-	do_file_list_for_each_entry(sb, file) {
-		struct inode *inode = file->f_path.dentry->d_inode;
-
-		/* File with pending delete? */
-		if (inode->i_nlink == 0)
-			goto too_bad;
-
-		/* Writeable file? */
-		if (S_ISREG(inode->i_mode) && (file->f_mode & FMODE_WRITE))
-			goto too_bad;
-	} while_file_list_for_each_entry;
-	lg_global_unlock(files_lglock);
-	return 1; /* Tis' cool bro. */
-too_bad:
-	lg_global_unlock(files_lglock);
-	return 0;
-}
-
 /**
  *	mark_files_ro - mark all files read-only
  *	@sb: superblock in question

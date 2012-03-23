@@ -1552,7 +1552,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 	pep->smi_bus->name = "pxa168_eth smi";
 	pep->smi_bus->read = pxa168_smi_read;
 	pep->smi_bus->write = pxa168_smi_write;
-	snprintf(pep->smi_bus->id, MII_BUS_ID_SIZE, "%d", pdev->id);
+	snprintf(pep->smi_bus->id, MII_BUS_ID_SIZE, "%s-%d",
+		pdev->name, pdev->id);
 	pep->smi_bus->parent = &pdev->dev;
 	pep->smi_bus->phy_mask = 0xffffffff;
 	err = mdiobus_register(pep->smi_bus);
@@ -1645,18 +1646,7 @@ static struct platform_driver pxa168_eth_driver = {
 		   },
 };
 
-static int __init pxa168_init_module(void)
-{
-	return platform_driver_register(&pxa168_eth_driver);
-}
-
-static void __exit pxa168_cleanup_module(void)
-{
-	platform_driver_unregister(&pxa168_eth_driver);
-}
-
-module_init(pxa168_init_module);
-module_exit(pxa168_cleanup_module);
+module_platform_driver(pxa168_eth_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Ethernet driver for Marvell PXA168");

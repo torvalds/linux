@@ -553,7 +553,7 @@ void o2net_debugfs_exit(void)
 
 int o2net_debugfs_init(void)
 {
-	mode_t mode = S_IFREG|S_IRUSR;
+	umode_t mode = S_IFREG|S_IRUSR;
 
 	o2net_dentry = debugfs_create_dir(O2NET_DEBUG_DIR, NULL);
 	if (o2net_dentry)

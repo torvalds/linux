@@ -170,4 +170,5 @@ MACHINE_START(EUKREA_CPUIMX25SD, "Eukrea CPUIMX25")
 	.handle_irq = imx25_handle_irq,
 	.timer = &eukrea_cpuimx25_timer,
 	.init_machine = eukrea_cpuimx25_init,
+	.restart	= mxc_restart,
 MACHINE_END

@@ -31,6 +31,11 @@ config HID
 
 	  If unsure, say Y.
 
+config HID_BATTERY_STRENGTH
+	bool
+	depends on HID && POWER_SUPPLY && HID = POWER_SUPPLY
+	default y
+
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
 	depends on HID
@@ -335,6 +340,7 @@ config HID_MULTITOUCH
 	  Say Y here if you have one of the following devices:
 	  - 3M PCT touch screens
 	  - ActionStar dual touch panels
+	  - Atmel panels
 	  - Cando dual touch panels
 	  - Chunghwa panels
 	  - CVTouch panels
@@ -349,12 +355,15 @@ config HID_MULTITOUCH
 	  - Lumio CrystalTouch panels
 	  - MosArt dual-touch panels
 	  - PenMount dual touch panels
+	  - PixArt optical touch screen
 	  - Pixcir dual touch panels
+	  - Quanta panels
 	  - eGalax dual-touch panels, including the Joojoo and Wetab tablets
 	  - Stantum multitouch panels
 	  - Touch International Panels
 	  - Unitec Panels
 	  - XAT optical touch panels
+	  - Xiroku optical touch panels
 
 	  If unsure, say N.
 
@@ -466,12 +475,6 @@ config HID_PRIMAX
 	Support for Primax devices that are not fully compliant with the
 	HID standard.
 
-config HID_QUANTA
-	tristate "Quanta Optical Touch panels"
-	depends on USB_HID
-	---help---
-	Support for Quanta Optical Touch dual-touch panels.
-
 config HID_ROCCAT
 	tristate "Roccat special event support"
 	depends on USB_HID
@@ -491,6 +494,13 @@ config HID_ROCCAT_ARVO
 	depends on HID_ROCCAT
 	---help---
 	Support for Roccat Arvo keyboard.
+
+config HID_ROCCAT_ISKU
+	tristate "Roccat Isku keyboard support"
+	depends on USB_HID
+	depends on HID_ROCCAT
+	---help---
+	Support for Roccat Isku keyboard.
 
 config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
@@ -560,6 +570,12 @@ config GREENASIA_FF
 	(like MANTA Warrior MM816 and SpeedLink Strike2 SL-6635) or adapter
 	and want to enable force feedback support for it.
 
+config HID_HYPERV_MOUSE
+	tristate "Microsoft Hyper-V mouse driver"
+	depends on HYPERV
+	---help---
+	Select this option to enable the Hyper-V mouse driver.
+
 config HID_SMARTJOYPLUS
 	tristate "SmartJoy PLUS PS2/USB adapter support"
 	depends on USB_HID
@@ -620,8 +636,18 @@ config HID_WIIMOTE
 	depends on BT_HIDP
 	depends on LEDS_CLASS
 	select POWER_SUPPLY
+	select INPUT_FF_MEMLESS
 	---help---
 	Support for the Nintendo Wii Remote bluetooth device.
+
+config HID_WIIMOTE_EXT
+	bool "Nintendo Wii Remote Extension support"
+	depends on HID_WIIMOTE
+	default HID_WIIMOTE
+	---help---
+	Support for extension controllers of the Nintendo Wii Remote. Say yes
+	here if you want to use the Nintendo Motion+, Nunchuck or Classic
+	extension controllers with your Wii Remote.
 
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"

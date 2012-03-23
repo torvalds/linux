@@ -481,7 +481,7 @@ static int set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	if (i >= info->n_voltages)
 		i = info->n_voltages - 1;
 
-	*selector = info->voltages[i];
+	*selector = i;
 
 	return write_field(hw, &info->voltage, i);
 }
@@ -651,7 +651,7 @@ static int __devinit pmic_probe(struct spi_device *spi)
 			hw->desc[i].n_voltages = 1;
 
 		hw->rdev[i] = regulator_register(&hw->desc[i], dev,
-						 init_data, hw);
+						 init_data, hw, NULL);
 		if (IS_ERR(hw->rdev[i])) {
 			ret = PTR_ERR(hw->rdev[i]);
 			hw->rdev[i] = NULL;

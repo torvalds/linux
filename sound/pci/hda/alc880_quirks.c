@@ -26,8 +26,6 @@ enum {
 	ALC880_CLEVO,
 	ALC880_TCL_S700,
 	ALC880_LG,
-	ALC880_LG_LW,
-	ALC880_MEDION_RIM,
 #ifdef CONFIG_SND_DEBUG
 	ALC880_TEST,
 #endif
@@ -764,14 +762,20 @@ static void alc880_uniwill_unsol_event(struct hda_codec *codec,
 	/* Looks like the unsol event is incompatible with the standard
 	 * definition.  4bit tag is placed at 28 bit!
 	 */
-	switch (res >> 28) {
+	res >>= 28;
+	switch (res) {
 	case ALC_MIC_EVENT:
 		alc88x_simple_mic_automute(codec);
 		break;
 	default:
-		alc_sku_unsol_event(codec, res);
+		alc_exec_unsol_event(codec, res);
 		break;
 	}
+}
+
+static void alc880_unsol_event(struct hda_codec *codec, unsigned int res)
+{
+	alc_exec_unsol_event(codec, res >> 28);
 }
 
 static void alc880_uniwill_p53_setup(struct hda_codec *codec)
@@ -802,10 +806,11 @@ static void alc880_uniwill_p53_unsol_event(struct hda_codec *codec,
 	/* Looks like the unsol event is incompatible with the standard
 	 * definition.  4bit tag is placed at 28 bit!
 	 */
-	if ((res >> 28) == ALC_DCVOL_EVENT)
+	res >>= 28;
+	if (res == ALC_DCVOL_EVENT)
 		alc880_uniwill_p53_dcvol_automute(codec);
 	else
-		alc_sku_unsol_event(codec, res);
+		alc_exec_unsol_event(codec, res);
 }
 
 /*
@@ -1049,163 +1054,6 @@ static void alc880_lg_setup(struct hda_codec *codec)
 
 	spec->autocfg.hp_pins[0] = 0x1b;
 	spec->autocfg.speaker_pins[0] = 0x17;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-/*
- * LG LW20
- *
- * Pin assignment:
- *   Speaker-out: 0x14
- *   Mic-In: 0x18
- *   Built-in Mic-In: 0x19
- *   Line-In: 0x1b
- *   HP-Out: 0x1a
- *   SPDIF-Out: 0x1e
- */
-
-static const struct hda_input_mux alc880_lg_lw_capture_source = {
-	.num_items = 3,
-	.items = {
-		{ "Mic", 0x0 },
-		{ "Internal Mic", 0x1 },
-		{ "Line In", 0x2 },
-	},
-};
-
-#define alc880_lg_lw_modes alc880_threestack_modes
-
-static const struct snd_kcontrol_new alc880_lg_lw_mixer[] = {
-	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Surround Playback Switch", 0x0f, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME_MONO("Center Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0e, 2, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0e, 1, 2, HDA_INPUT),
-	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0e, 2, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Playback Switch", 0x0b, 0x01, HDA_INPUT),
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Channel Mode",
-		.info = alc_ch_mode_info,
-		.get = alc_ch_mode_get,
-		.put = alc_ch_mode_put,
-	},
-	{ } /* end */
-};
-
-static const struct hda_verb alc880_lg_lw_init_verbs[] = {
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
-	{0x10, AC_VERB_SET_CONNECT_SEL, 0x02}, /* mic/clfe */
-	{0x12, AC_VERB_SET_CONNECT_SEL, 0x03}, /* line/surround */
-
-	/* set capture source to mic-in */
-	{0x07, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x0b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(7)},
-	/* speaker-out */
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* HP-out */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* mic-in to input */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* built-in mic */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	/* jack sense */
-	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{ }
-};
-
-/* toggle speaker-output according to the hp-jack state */
-static void alc880_lg_lw_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x1b;
-	spec->autocfg.speaker_pins[0] = 0x14;
-	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
-}
-
-static const struct snd_kcontrol_new alc880_medion_rim_mixer[] = {
-	HDA_CODEC_VOLUME("Master Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
-	HDA_BIND_MUTE("Master Playback Switch", 0x0c, 2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Playback Switch", 0x0b, 0x1, HDA_INPUT),
-	{ } /* end */
-};
-
-static const struct hda_input_mux alc880_medion_rim_capture_source = {
-	.num_items = 2,
-	.items = {
-		{ "Mic", 0x0 },
-		{ "Internal Mic", 0x1 },
-	},
-};
-
-static const struct hda_verb alc880_medion_rim_init_verbs[] = {
-	{0x13, AC_VERB_SET_CONNECT_SEL, 0x00}, /* HP */
-
-	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-
-	/* Mic1 (rear panel) pin widget for input and vref at 80% */
-	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
-	{0x18, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	/* Mic2 (as headphone out) for HP output */
-	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
-	{0x19, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	/* Internal Speaker */
-	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-
-	{0x20, AC_VERB_SET_COEF_INDEX, 0x07},
-	{0x20, AC_VERB_SET_PROC_COEF,  0x3060},
-
-	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC_HP_EVENT},
-	{ }
-};
-
-/* toggle speaker-output according to the hp-jack state */
-static void alc880_medion_rim_automute(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-	alc_hp_automute(codec);
-	/* toggle EAPD */
-	if (spec->hp_jack_present)
-		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 0);
-	else
-		snd_hda_codec_write(codec, 0x01, 0, AC_VERB_SET_GPIO_DATA, 2);
-}
-
-static void alc880_medion_rim_unsol_event(struct hda_codec *codec,
-					  unsigned int res)
-{
-	/* Looks like the unsol event is incompatible with the standard
-	 * definition.  4bit tag is placed at 28 bit!
-	 */
-	if ((res >> 28) == ALC_HP_EVENT)
-		alc880_medion_rim_automute(codec);
-}
-
-static void alc880_medion_rim_setup(struct hda_codec *codec)
-{
-	struct alc_spec *spec = codec->spec;
-
-	spec->autocfg.hp_pins[0] = 0x14;
-	spec->autocfg.speaker_pins[0] = 0x1b;
 	alc_simple_setup_automute(spec, ALC_AUTOMUTE_AMP);
 }
 
@@ -1505,8 +1353,6 @@ static const char * const alc880_models[ALC880_MODEL_LAST] = {
 	[ALC880_FUJITSU]	= "fujitsu",
 	[ALC880_F1734]		= "F1734",
 	[ALC880_LG]		= "lg",
-	[ALC880_LG_LW]		= "lg-lw",
-	[ALC880_MEDION_RIM]	= "medion",
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST]		= "test",
 #endif
@@ -1557,18 +1403,15 @@ static const struct snd_pci_quirk alc880_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1584, 0x9070, "Uniwill", ALC880_UNIWILL),
 	SND_PCI_QUIRK(0x1584, 0x9077, "Uniwill P53", ALC880_UNIWILL_P53),
 	SND_PCI_QUIRK(0x161f, 0x203d, "W810", ALC880_W810),
-	SND_PCI_QUIRK(0x161f, 0x205d, "Medion Rim 2150", ALC880_MEDION_RIM),
 	SND_PCI_QUIRK(0x1695, 0x400d, "EPoX", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1695, 0x4012, "EPox EP-5LDA", ALC880_5ST_DIG),
 	SND_PCI_QUIRK(0x1734, 0x107c, "FSC F1734", ALC880_F1734),
 	SND_PCI_QUIRK(0x1734, 0x1094, "FSC Amilo M1451G", ALC880_FUJITSU),
 	SND_PCI_QUIRK(0x1734, 0x10ac, "FSC AMILO Xi 1526", ALC880_F1734),
 	SND_PCI_QUIRK(0x1734, 0x10b0, "Fujitsu", ALC880_FUJITSU),
-	SND_PCI_QUIRK(0x1854, 0x0018, "LG LW20", ALC880_LG_LW),
 	SND_PCI_QUIRK(0x1854, 0x003b, "LG", ALC880_LG),
 	SND_PCI_QUIRK(0x1854, 0x005f, "LG P1 Express", ALC880_LG),
 	SND_PCI_QUIRK(0x1854, 0x0068, "LG w1", ALC880_LG),
-	SND_PCI_QUIRK(0x1854, 0x0077, "LG LW25", ALC880_LG_LW),
 	SND_PCI_QUIRK(0x19db, 0x4188, "TCL S700", ALC880_TCL_S700),
 	SND_PCI_QUIRK(0x2668, 0x8086, NULL, ALC880_6ST_DIG), /* broken BIOS */
 	SND_PCI_QUIRK(0x8086, 0x2668, NULL, ALC880_6ST_DIG),
@@ -1841,41 +1684,12 @@ static const struct alc_config_preset alc880_presets[] = {
 		.channel_mode = alc880_lg_ch_modes,
 		.need_dac_fix = 1,
 		.input_mux = &alc880_lg_capture_source,
-		.unsol_event = alc_sku_unsol_event,
+		.unsol_event = alc880_unsol_event,
 		.setup = alc880_lg_setup,
 		.init_hook = alc_hp_automute,
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 		.loopbacks = alc880_lg_loopbacks,
 #endif
-	},
-	[ALC880_LG_LW] = {
-		.mixers = { alc880_lg_lw_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_lg_lw_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
-		.dac_nids = alc880_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_lg_lw_modes),
-		.channel_mode = alc880_lg_lw_modes,
-		.input_mux = &alc880_lg_lw_capture_source,
-		.unsol_event = alc_sku_unsol_event,
-		.setup = alc880_lg_lw_setup,
-		.init_hook = alc_hp_automute,
-	},
-	[ALC880_MEDION_RIM] = {
-		.mixers = { alc880_medion_rim_mixer },
-		.init_verbs = { alc880_volume_init_verbs,
-				alc880_medion_rim_init_verbs,
-				alc_gpio2_init_verbs },
-		.num_dacs = ARRAY_SIZE(alc880_dac_nids),
-		.dac_nids = alc880_dac_nids,
-		.dig_out_nid = ALC880_DIGOUT_NID,
-		.num_channel_mode = ARRAY_SIZE(alc880_2_jack_modes),
-		.channel_mode = alc880_2_jack_modes,
-		.input_mux = &alc880_medion_rim_capture_source,
-		.unsol_event = alc880_medion_rim_unsol_event,
-		.setup = alc880_medion_rim_setup,
-		.init_hook = alc880_medion_rim_automute,
 	},
 #ifdef CONFIG_SND_DEBUG
 	[ALC880_TEST] = {

@@ -54,6 +54,12 @@ EXPORT_SYMBOL_GPL(nf_unregister_afinfo);
 
 struct list_head nf_hooks[NFPROTO_NUMPROTO][NF_MAX_HOOKS] __read_mostly;
 EXPORT_SYMBOL(nf_hooks);
+
+#if defined(CONFIG_JUMP_LABEL)
+struct jump_label_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
+EXPORT_SYMBOL(nf_hooks_needed);
+#endif
+
 static DEFINE_MUTEX(nf_hook_mutex);
 
 int nf_register_hook(struct nf_hook_ops *reg)
@@ -70,6 +76,9 @@ int nf_register_hook(struct nf_hook_ops *reg)
 	}
 	list_add_rcu(&reg->list, elem->list.prev);
 	mutex_unlock(&nf_hook_mutex);
+#if defined(CONFIG_JUMP_LABEL)
+	jump_label_inc(&nf_hooks_needed[reg->pf][reg->hooknum]);
+#endif
 	return 0;
 }
 EXPORT_SYMBOL(nf_register_hook);
@@ -79,7 +88,9 @@ void nf_unregister_hook(struct nf_hook_ops *reg)
 	mutex_lock(&nf_hook_mutex);
 	list_del_rcu(&reg->list);
 	mutex_unlock(&nf_hook_mutex);
-
+#if defined(CONFIG_JUMP_LABEL)
+	jump_label_dec(&nf_hooks_needed[reg->pf][reg->hooknum]);
+#endif
 	synchronize_net();
 }
 EXPORT_SYMBOL(nf_unregister_hook);
@@ -218,7 +229,7 @@ int skb_make_writable(struct sk_buff *skb, unsigned int writable_len)
 }
 EXPORT_SYMBOL(skb_make_writable);
 
-#if defined(CONFIG_NF_CONNTRACK) || defined(CONFIG_NF_CONNTRACK_MODULE)
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 /* This does not belong here, but locally generated errors need it if connection
    tracking in use: without this, connection may not be in hash table, and hence
    manufactured ICMP or RST packets will not be associated with it. */

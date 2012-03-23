@@ -636,9 +636,7 @@ static int bt3c_close(bt3c_info_t *info)
 
 	bt3c_hci_close(hdev);
 
-	if (hci_unregister_dev(hdev) < 0)
-		BT_ERR("Can't unregister HCI device %s", hdev->name);
-
+	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
 
 	return 0;

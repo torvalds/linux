@@ -174,7 +174,7 @@ static int stmp3xxx_wdt_release(struct inode *inode, struct file *file)
 	if (!nowayout) {
 		if (!test_bit(WDT_OK_TO_CLOSE, &wdt_status)) {
 			wdt_ping();
-			pr_debug("%s: Device closed unexpectdly\n", __func__);
+			pr_debug("%s: Device closed unexpectedly\n", __func__);
 			ret = -EINVAL;
 		} else {
 			wdt_disable();
@@ -272,18 +272,7 @@ static struct platform_driver platform_wdt_driver = {
 	.resume = stmp3xxx_wdt_resume,
 };
 
-static int __init stmp3xxx_wdt_init(void)
-{
-	return platform_driver_register(&platform_wdt_driver);
-}
-
-static void __exit stmp3xxx_wdt_exit(void)
-{
-	return platform_driver_unregister(&platform_wdt_driver);
-}
-
-module_init(stmp3xxx_wdt_init);
-module_exit(stmp3xxx_wdt_exit);
+module_platform_driver(platform_wdt_driver);
 
 MODULE_DESCRIPTION("STMP3XXX Watchdog Driver");
 MODULE_LICENSE("GPL");

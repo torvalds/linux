@@ -1555,48 +1555,16 @@ static loff_t fuse_file_llseek(struct file *file, loff_t offset, int origin)
 	loff_t retval;
 	struct inode *inode = file->f_path.dentry->d_inode;
 
-	mutex_lock(&inode->i_mutex);
-	if (origin != SEEK_CUR && origin != SEEK_SET) {
-		retval = fuse_update_attributes(inode, NULL, file, NULL);
-		if (retval)
-			goto exit;
-	}
+	/* No i_mutex protection necessary for SEEK_CUR and SEEK_SET */
+	if (origin == SEEK_CUR || origin == SEEK_SET)
+		return generic_file_llseek(file, offset, origin);
 
-	switch (origin) {
-	case SEEK_END:
-		offset += i_size_read(inode);
-		break;
-	case SEEK_CUR:
-		if (offset == 0) {
-			retval = file->f_pos;
-			goto exit;
-		}
-		offset += file->f_pos;
-		break;
-	case SEEK_DATA:
-		if (offset >= i_size_read(inode)) {
-			retval = -ENXIO;
-			goto exit;
-		}
-		break;
-	case SEEK_HOLE:
-		if (offset >= i_size_read(inode)) {
-			retval = -ENXIO;
-			goto exit;
-		}
-		offset = i_size_read(inode);
-		break;
-	}
-	retval = -EINVAL;
-	if (offset >= 0 && offset <= inode->i_sb->s_maxbytes) {
-		if (offset != file->f_pos) {
-			file->f_pos = offset;
-			file->f_version = 0;
-		}
-		retval = offset;
-	}
-exit:
+	mutex_lock(&inode->i_mutex);
+	retval = fuse_update_attributes(inode, NULL, file, NULL);
+	if (!retval)
+		retval = generic_file_llseek(file, offset, origin);
 	mutex_unlock(&inode->i_mutex);
+
 	return retval;
 }
 
@@ -1808,7 +1776,7 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 	BUILD_BUG_ON(sizeof(struct fuse_ioctl_iovec) * FUSE_IOCTL_MAX_IOV > PAGE_SIZE);
 
 	err = -ENOMEM;
-	pages = kzalloc(sizeof(pages[0]) * FUSE_MAX_PAGES_PER_REQ, GFP_KERNEL);
+	pages = kcalloc(FUSE_MAX_PAGES_PER_REQ, sizeof(pages[0]), GFP_KERNEL);
 	iov_page = (struct iovec *) __get_free_page(GFP_KERNEL);
 	if (!pages || !iov_page)
 		goto out;
@@ -1958,8 +1926,8 @@ long fuse_do_ioctl(struct file *file, unsigned int cmd, unsigned long arg,
 }
 EXPORT_SYMBOL_GPL(fuse_do_ioctl);
 
-static long fuse_file_ioctl_common(struct file *file, unsigned int cmd,
-				   unsigned long arg, unsigned int flags)
+long fuse_ioctl_common(struct file *file, unsigned int cmd,
+		       unsigned long arg, unsigned int flags)
 {
 	struct inode *inode = file->f_dentry->d_inode;
 	struct fuse_conn *fc = get_fuse_conn(inode);
@@ -1976,13 +1944,13 @@ static long fuse_file_ioctl_common(struct file *file, unsigned int cmd,
 static long fuse_file_ioctl(struct file *file, unsigned int cmd,
 			    unsigned long arg)
 {
-	return fuse_file_ioctl_common(file, cmd, arg, 0);
+	return fuse_ioctl_common(file, cmd, arg, 0);
 }
 
 static long fuse_file_compat_ioctl(struct file *file, unsigned int cmd,
 				   unsigned long arg)
 {
-	return fuse_file_ioctl_common(file, cmd, arg, FUSE_IOCTL_COMPAT);
+	return fuse_ioctl_common(file, cmd, arg, FUSE_IOCTL_COMPAT);
 }
 
 /*
