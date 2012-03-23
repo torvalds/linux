@@ -150,40 +150,19 @@ static struct pcap_regulator vreg_table[] = {
 	VREG_INFO(SW2S,  PCAP_REG_LOWPWR,  NA, 20, NA, NA), */
 };
 
-static int pcap_regulator_set_voltage(struct regulator_dev *rdev,
-				      int min_uV, int max_uV,
-				      unsigned *selector)
+static int pcap_regulator_set_voltage_sel(struct regulator_dev *rdev,
+					  unsigned selector)
 {
 	struct pcap_regulator *vreg = &vreg_table[rdev_get_id(rdev)];
 	void *pcap = rdev_get_drvdata(rdev);
-	int uV;
-	u8 i;
 
 	/* the regulator doesn't support voltage switching */
 	if (vreg->n_voltages == 1)
 		return -EINVAL;
 
-	for (i = 0; i < vreg->n_voltages; i++) {
-		/* For V1 the first is not the best match */
-		if (i == 0 && rdev_get_id(rdev) == V1)
-			i = 1;
-		else if (i + 1 == vreg->n_voltages && rdev_get_id(rdev) == V1)
-			i = 0;
-
-		uV = vreg->voltage_table[i] * 1000;
-		if (min_uV <= uV && uV <= max_uV) {
-			*selector = i;
-			return ezx_pcap_set_bits(pcap, vreg->reg,
-					(vreg->n_voltages - 1) << vreg->index,
-					i << vreg->index);
-		}
-
-		if (i == 0 && rdev_get_id(rdev) == V1)
-			i = vreg->n_voltages - 1;
-	}
-
-	/* the requested voltage range is not supported by this regulator */
-	return -EINVAL;
+	return ezx_pcap_set_bits(pcap, vreg->reg,
+				 (vreg->n_voltages - 1) << vreg->index,
+				 selector << vreg->index);
 }
 
 static int pcap_regulator_get_voltage(struct regulator_dev *rdev)
@@ -248,7 +227,7 @@ static int pcap_regulator_list_voltage(struct regulator_dev *rdev,
 
 static struct regulator_ops pcap_regulator_ops = {
 	.list_voltage	= pcap_regulator_list_voltage,
-	.set_voltage	= pcap_regulator_set_voltage,
+	.set_voltage_sel = pcap_regulator_set_voltage_sel,
 	.get_voltage	= pcap_regulator_get_voltage,
 	.enable		= pcap_regulator_enable,
 	.disable	= pcap_regulator_disable,
