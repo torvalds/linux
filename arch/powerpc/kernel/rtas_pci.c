@@ -279,7 +279,7 @@ void __init find_and_init_phbs(void)
 	eeh_dev_phb_init();
 
 	/*
-	 * pci_probe_only and pci_assign_all_buses can be set via properties
+	 * PCI_PROBE_ONLY and PCI_REASSIGN_ALL_BUS can be set via properties
 	 * in chosen.
 	 */
 	if (of_chosen) {
@@ -287,8 +287,12 @@ void __init find_and_init_phbs(void)
 
 		prop = of_get_property(of_chosen,
 				"linux,pci-probe-only", NULL);
-		if (prop)
-			pci_probe_only = *prop;
+		if (prop) {
+			if (*prop)
+				pci_add_flags(PCI_PROBE_ONLY);
+			else
+				pci_clear_flags(PCI_PROBE_ONLY);
+		}
 
 #ifdef CONFIG_PPC32 /* Will be made generic soon */
 		prop = of_get_property(of_chosen,

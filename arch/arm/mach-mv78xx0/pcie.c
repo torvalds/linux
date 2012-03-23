@@ -155,8 +155,8 @@ static int __init mv78xx0_pcie_setup(int nr, struct pci_sys_data *sys)
 	orion_pcie_set_local_bus_nr(pp->base, sys->busnr);
 	orion_pcie_setup(pp->base);
 
-	pci_add_resource(&sys->resources, &pp->res[0]);
-	pci_add_resource(&sys->resources, &pp->res[1]);
+	pci_add_resource_offset(&sys->resources, &pp->res[0], sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &pp->res[1], sys->mem_offset);
 
 	return 1;
 }
