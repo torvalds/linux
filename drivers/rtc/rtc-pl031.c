@@ -352,7 +352,7 @@ static int pl031_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	if (request_irq(adev->irq[0], pl031_interrupt,
-			IRQF_DISABLED, "rtc-pl031", ldata)) {
+			0, "rtc-pl031", ldata)) {
 		ret = -EIO;
 		goto out_no_irq;
 	}
