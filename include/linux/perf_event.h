@@ -403,13 +403,6 @@ struct perf_event_mmap_page {
 	__u64	data_tail;		/* user-space written tail */
 };
 
-/*
- * Build time assertion that we keep the data_head at the intended location.
- * IOW, validation we got the __reserved[] size right.
- */
-extern char __assert_mmap_data_head_offset
-	[1 - 2*!!(offsetof(struct perf_event_mmap_page, data_head) != 1024)];
-
 #define PERF_RECORD_MISC_CPUMODE_MASK		(7 << 0)
 #define PERF_RECORD_MISC_CPUMODE_UNKNOWN	(0 << 0)
 #define PERF_RECORD_MISC_KERNEL			(1 << 0)
