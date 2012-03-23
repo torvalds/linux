@@ -176,6 +176,10 @@ static int set_rtc_irq_bit(unsigned char bit)
 	unsigned char val;
 	int ret;
 
+	/* if the bit is set, return from here */
+	if (rtc_irq_bits & bit)
+		return 0;
+
 	val = rtc_irq_bits | bit;
 	val &= ~BIT_RTC_INTERRUPTS_REG_EVERY_M;
 	ret = twl_rtc_write_u8(val, REG_RTC_INTERRUPTS_REG);
@@ -192,6 +196,10 @@ static int mask_rtc_irq_bit(unsigned char bit)
 {
 	unsigned char val;
 	int ret;
+
+	/* if the bit is clear, return from here */
+	if (!(rtc_irq_bits & bit))
+		return 0;
 
 	val = rtc_irq_bits & ~bit;
 	ret = twl_rtc_write_u8(val, REG_RTC_INTERRUPTS_REG);
