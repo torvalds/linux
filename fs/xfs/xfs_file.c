@@ -163,7 +163,6 @@ xfs_file_fsync(
 	struct inode		*inode = file->f_mapping->host;
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_trans	*tp;
 	int			error = 0;
 	int			log_flushed = 0;
 	xfs_lsn_t		lsn = 0;
@@ -194,75 +193,18 @@ xfs_file_fsync(
 	}
 
 	/*
-	 * We always need to make sure that the required inode state is safe on
-	 * disk.  The inode might be clean but we still might need to force the
-	 * log because of committed transactions that haven't hit the disk yet.
-	 * Likewise, there could be unflushed non-transactional changes to the
-	 * inode core that have to go to disk and this requires us to issue
-	 * a synchronous transaction to capture these changes correctly.
-	 *
-	 * This code relies on the assumption that if the i_update_core field
-	 * of the inode is clear and the inode is unpinned then it is clean
-	 * and no action is required.
+	 * All metadata updates are logged, which means that we just have
+	 * to flush the log up to the latest LSN that touched the inode.
 	 */
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-
-	/*
-	 * First check if the VFS inode is marked dirty.  All the dirtying
-	 * of non-transactional updates do not go through mark_inode_dirty*,
-	 * which allows us to distinguish between pure timestamp updates
-	 * and i_size updates which need to be caught for fdatasync.
-	 * After that also check for the dirty state in the XFS inode, which
-	 * might gets cleared when the inode gets written out via the AIL
-	 * or xfs_iflush_cluster.
-	 */
-	if (((inode->i_state & I_DIRTY_DATASYNC) ||
-	    ((inode->i_state & I_DIRTY_SYNC) && !datasync)) &&
-	    ip->i_update_core) {
-		/*
-		 * Kick off a transaction to log the inode core to get the
-		 * updates.  The sync transaction will also force the log.
-		 */
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-		tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
-		error = xfs_trans_reserve(tp, 0,
-				XFS_FSYNC_TS_LOG_RES(mp), 0, 0, 0);
-		if (error) {
-			xfs_trans_cancel(tp, 0);
-			return -error;
-		}
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
-
-		/*
-		 * Note - it's possible that we might have pushed ourselves out
-		 * of the way during trans_reserve which would flush the inode.
-		 * But there's no guarantee that the inode buffer has actually
-		 * gone out yet (it's delwri).	Plus the buffer could be pinned
-		 * anyway if it's part of an inode in another recent
-		 * transaction.	 So we play it safe and fire off the
-		 * transaction anyway.
-		 */
-		xfs_trans_ijoin(tp, ip, 0);
-		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-		error = xfs_trans_commit(tp, 0);
-
-		lsn = ip->i_itemp->ili_last_lsn;
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	} else {
-		/*
-		 * Timestamps/size haven't changed since last inode flush or
-		 * inode transaction commit.  That means either nothing got
-		 * written or a transaction committed which caught the updates.
-		 * If the latter happened and the transaction hasn't hit the
-		 * disk yet, the inode will be still be pinned.  If it is,
-		 * force the log.
-		 */
-		if (xfs_ipincount(ip))
+	if (xfs_ipincount(ip)) {
+		if (!datasync ||
+		    (ip->i_itemp->ili_fields & ~XFS_ILOG_TIMESTAMP))
 			lsn = ip->i_itemp->ili_last_lsn;
-		xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	}
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
-	if (!error && lsn)
+	if (lsn)
 		error = _xfs_log_force_lsn(mp, lsn, XFS_LOG_SYNC, &log_flushed);
 
 	/*
@@ -659,9 +601,6 @@ restart:
 		return error;
 	}
 
-	if (likely(!(file->f_mode & FMODE_NOCMTIME)))
-		file_update_time(file);
-
 	/*
 	 * If the offset is beyond the size of the file, we need to zero any
 	 * blocks that fall between the existing EOF and the start of this
@@ -683,6 +622,15 @@ restart:
 	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
 	if (error)
 		return error;
+
+	/*
+	 * Updating the timestamps will grab the ilock again from
+	 * xfs_fs_dirty_inode, so we have to call it after dropping the
+	 * lock above.  Eventually we should look into a way to avoid
+	 * the pointless lock roundtrip.
+	 */
+	if (likely(!(file->f_mode & FMODE_NOCMTIME)))
+		file_update_time(file);
 
 	/*
 	 * If we're writing the file then make sure to clear the setuid and

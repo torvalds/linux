@@ -29,16 +29,6 @@
  * when quotas are off.
  */
 
-/*
- * The hash chain headers (hash buckets)
- */
-typedef struct xfs_dqhash {
-	struct list_head  qh_list;
-	struct mutex	  qh_lock;
-	uint		  qh_version;	/* ever increasing version */
-	uint		  qh_nelems;	/* number of dquots on the list */
-} xfs_dqhash_t;
-
 struct xfs_mount;
 struct xfs_trans;
 
@@ -47,10 +37,7 @@ struct xfs_trans;
  */
 typedef struct xfs_dquot {
 	uint		 dq_flags;	/* various flags (XFS_DQ_*) */
-	struct list_head q_freelist;	/* global free list of dquots */
-	struct list_head q_mplist;	/* mount's list of dquots */
-	struct list_head q_hashlist;	/* gloabl hash list of dquots */
-	xfs_dqhash_t	*q_hash;	/* the hashchain header */
+	struct list_head q_lru;		/* global free list of dquots */
 	struct xfs_mount*q_mount;	/* filesystem this relates to */
 	struct xfs_trans*q_transp;	/* trans this belongs to currently */
 	uint		 q_nrefs;	/* # active refs from inodes */
@@ -110,9 +97,35 @@ static inline void xfs_dqlock(struct xfs_dquot *dqp)
 	mutex_lock(&dqp->q_qlock);
 }
 
-static inline void xfs_dqunlock_nonotify(struct xfs_dquot *dqp)
+static inline void xfs_dqunlock(struct xfs_dquot *dqp)
 {
 	mutex_unlock(&dqp->q_qlock);
+}
+
+static inline int xfs_this_quota_on(struct xfs_mount *mp, int type)
+{
+	switch (type & XFS_DQ_ALLTYPES) {
+	case XFS_DQ_USER:
+		return XFS_IS_UQUOTA_ON(mp);
+	case XFS_DQ_GROUP:
+	case XFS_DQ_PROJ:
+		return XFS_IS_OQUOTA_ON(mp);
+	default:
+		return 0;
+	}
+}
+
+static inline xfs_dquot_t *xfs_inode_dquot(struct xfs_inode *ip, int type)
+{
+	switch (type & XFS_DQ_ALLTYPES) {
+	case XFS_DQ_USER:
+		return ip->i_udquot;
+	case XFS_DQ_GROUP:
+	case XFS_DQ_PROJ:
+		return ip->i_gdquot;
+	default:
+		return NULL;
+	}
 }
 
 #define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
@@ -125,15 +138,10 @@ static inline void xfs_dqunlock_nonotify(struct xfs_dquot *dqp)
 				 XFS_DQ_TO_QINF(dqp)->qi_uquotaip : \
 				 XFS_DQ_TO_QINF(dqp)->qi_gquotaip)
 
-#define XFS_IS_THIS_QUOTA_OFF(d) (! (XFS_QM_ISUDQ(d) ? \
-				     (XFS_IS_UQUOTA_ON((d)->q_mount)) : \
-				     (XFS_IS_OQUOTA_ON((d)->q_mount))))
-
 extern int		xfs_qm_dqread(struct xfs_mount *, xfs_dqid_t, uint,
 					uint, struct xfs_dquot	**);
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(xfs_dquot_t *, uint);
-extern void		xfs_qm_dqpurge(xfs_dquot_t *);
 extern void		xfs_qm_dqunpin_wait(xfs_dquot_t *);
 extern void		xfs_qm_adjust_dqtimers(xfs_mount_t *,
 					xfs_disk_dquot_t *);
@@ -144,7 +152,6 @@ extern int		xfs_qm_dqget(xfs_mount_t *, xfs_inode_t *,
 extern void		xfs_qm_dqput(xfs_dquot_t *);
 
 extern void		xfs_dqlock2(struct xfs_dquot *, struct xfs_dquot *);
-extern void		xfs_dqunlock(struct xfs_dquot *);
 extern void		xfs_dqflock_pushbuf_wait(struct xfs_dquot *dqp);
 
 static inline struct xfs_dquot *xfs_qm_dqhold(struct xfs_dquot *dqp)
