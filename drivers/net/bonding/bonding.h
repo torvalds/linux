@@ -21,6 +21,7 @@
 #include <linux/cpumask.h>
 #include <linux/in6.h>
 #include <linux/netpoll.h>
+#include <linux/inetdevice.h>
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
@@ -166,7 +167,6 @@ struct bond_parm_tbl {
 
 struct vlan_entry {
 	struct list_head vlan_list;
-	__be32 vlan_ip;
 	unsigned short vlan_id;
 };
 
@@ -232,7 +232,6 @@ struct bonding {
 	struct   list_head bond_list;
 	struct   netdev_hw_addr_list mc_list;
 	int      (*xmit_hash_policy)(struct sk_buff *, int);
-	__be32   master_ip;
 	u16      rr_tx_counter;
 	struct   ad_bond_info ad_info;
 	struct   alb_bond_info alb_info;
@@ -376,6 +375,21 @@ static inline void bond_set_slave_active_flags(struct slave *slave)
 static inline bool bond_is_slave_inactive(struct slave *slave)
 {
 	return slave->inactive;
+}
+
+static inline __be32 bond_confirm_addr(struct net_device *dev, __be32 dst, __be32 local)
+{
+	struct in_device *in_dev;
+	__be32 addr = 0;
+
+	rcu_read_lock();
+	in_dev = __in_dev_get_rcu(dev);
+
+	if (in_dev)
+		addr = inet_confirm_addr(in_dev, dst, local, RT_SCOPE_HOST);
+
+	rcu_read_unlock();
+	return addr;
 }
 
 struct bond_net;
