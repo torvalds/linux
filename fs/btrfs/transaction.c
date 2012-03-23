@@ -718,7 +718,8 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 	BUG_ON(ret);
 
 	eb = btrfs_lock_root_node(fs_info->tree_root);
-	btrfs_cow_block(trans, fs_info->tree_root, eb, NULL, 0, &eb);
+	ret = btrfs_cow_block(trans, fs_info->tree_root, eb, NULL, 0, &eb);
+	BUG_ON(ret);
 	btrfs_tree_unlock(eb);
 	free_extent_buffer(eb);
 
@@ -949,7 +950,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_set_root_flags(new_root_item, root_flags);
 
 	old = btrfs_lock_root_node(root);
-	btrfs_cow_block(trans, root, old, NULL, 0, &old);
+	ret = btrfs_cow_block(trans, root, old, NULL, 0, &old);
+	BUG_ON(ret);
 	btrfs_set_lock_blocking(old);
 
 	btrfs_copy_root(trans, root, old, &tmp, objectid);
