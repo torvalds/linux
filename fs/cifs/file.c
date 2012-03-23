@@ -1399,7 +1399,10 @@ int cifs_lock(struct file *file, int cmd, struct file_lock *flock)
 	return rc;
 }
 
-/* update the file size (if needed) after a write */
+/*
+ * update the file size (if needed) after a write. Should be called with
+ * the inode->i_lock held
+ */
 void
 cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
 		      unsigned int bytes_written)
@@ -1471,7 +1474,9 @@ static ssize_t cifs_write(struct cifsFileInfo *open_file, __u32 pid,
 				return rc;
 			}
 		} else {
+			spin_lock(&dentry->d_inode->i_lock);
 			cifs_update_eof(cifsi, *poffset, bytes_written);
+			spin_unlock(&dentry->d_inode->i_lock);
 			*poffset += bytes_written;
 		}
 	}
@@ -2197,7 +2202,9 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 		if (written) {
 			len -= written;
 			total_written += written;
+			spin_lock(&inode->i_lock);
 			cifs_update_eof(CIFS_I(inode), *poffset, written);
+			spin_unlock(&inode->i_lock);
 			*poffset += written;
 		} else if (rc < 0) {
 			if (!total_written)

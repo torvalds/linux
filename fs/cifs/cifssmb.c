@@ -2044,7 +2044,9 @@ cifs_writev_complete(struct work_struct *work)
 	int i = 0;
 
 	if (wdata->result == 0) {
+		spin_lock(&inode->i_lock);
 		cifs_update_eof(CIFS_I(inode), wdata->offset, wdata->bytes);
+		spin_unlock(&inode->i_lock);
 		cifs_stats_bytes_written(tlink_tcon(wdata->cfile->tlink),
 					 wdata->bytes);
 	} else if (wdata->sync_mode == WB_SYNC_ALL && wdata->result == -EAGAIN)

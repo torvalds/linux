@@ -626,7 +626,7 @@ struct cifsInodeInfo {
 	bool delete_pending;		/* DELETE_ON_CLOSE is set */
 	bool invalid_mapping;		/* pagecache is invalid */
 	unsigned long time;		/* jiffies of last update of inode */
-	u64  server_eof;		/* current file size on server */
+	u64  server_eof;		/* current file size on server -- protected by i_lock */
 	u64  uniqueid;			/* server inode number */
 	u64  createtime;		/* creation time on server */
 #ifdef CONFIG_CIFS_FSCACHE
