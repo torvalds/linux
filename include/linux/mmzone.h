@@ -717,6 +717,19 @@ typedef struct pglist_data {
 	struct task_struct *kswapd;	/* Protected by lock_memory_hotplug() */
 	int kswapd_max_order;
 	enum zone_type classzone_idx;
+#ifdef CONFIG_NUMA_BALANCING
+	/*
+	 * Lock serializing the per destination node AutoNUMA memory
+	 * migration rate limiting data.
+	 */
+	spinlock_t numabalancing_migrate_lock;
+
+	/* Rate limiting time interval */
+	unsigned long numabalancing_migrate_next_window;
+
+	/* Number of pages migrated during the rate limiting time interval */
+	unsigned long numabalancing_migrate_nr_pages;
+#endif
 } pg_data_t;
 
 #define node_present_pages(nid)	(NODE_DATA(nid)->node_present_pages)
