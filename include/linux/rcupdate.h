@@ -418,7 +418,7 @@ extern int rcu_my_thread_group_empty(void);
  */
 #define rcu_lockdep_assert(c, s)					\
 	do {								\
-		static bool __warned;					\
+		static bool __section(.data.unlikely) __warned;		\
 		if (debug_lockdep_rcu_enabled() && !__warned && !(c)) {	\
 			__warned = true;				\
 			lockdep_rcu_suspicious(__FILE__, __LINE__, s);	\
