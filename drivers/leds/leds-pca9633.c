@@ -96,11 +96,9 @@ static int __devinit pca9633_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
 {
 	struct pca9633_led *pca9633;
-	struct i2c_adapter *adapter;
 	struct led_platform_data *pdata;
 	int i, err;
 
-	adapter = to_i2c_adapter(client->dev.parent);
 	pdata = client->dev.platform_data;
 
 	if (pdata) {
