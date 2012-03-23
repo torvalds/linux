@@ -61,7 +61,8 @@
 #define PTRACE_EVENT_EXEC	4
 #define PTRACE_EVENT_VFORK_DONE	5
 #define PTRACE_EVENT_EXIT	6
-#define PTRACE_EVENT_STOP	7
+/* Extended result codes which enabled by means other than options.  */
+#define PTRACE_EVENT_STOP	128
 
 /* options set using PTRACE_SETOPTIONS */
 #define PTRACE_O_TRACESYSGOOD	1
