@@ -206,6 +206,7 @@ static void __init rk30_timer_init(void)
 #ifdef CONFIG_HAVE_ARM_TWD
 	twd_base = RK30_PTIMER_BASE;
 #endif
+	__raw_writel(0x70000, RK30_CRU_BASE + 0xD4);
 	rk30_timer_init_clocksource();
 	rk30_timer_init_clockevent();
 	rk30_sched_clock_init();
