@@ -168,13 +168,9 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 	while (nr > 0) {
 		rcu_read_lock();
 
-		/*
-		 * Any nested-container's init processes won't ignore the
-		 * SEND_SIG_NOINFO signal, see send_signal()->si_fromuser().
-		 */
 		task = pid_task(find_vpid(nr), PIDTYPE_PID);
-		if (task)
-			send_sig_info(SIGKILL, SEND_SIG_NOINFO, task);
+		if (task && !__fatal_signal_pending(task))
+			send_sig_info(SIGKILL, SEND_SIG_FORCED, task);
 
 		rcu_read_unlock();
 
