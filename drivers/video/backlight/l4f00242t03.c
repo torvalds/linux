@@ -274,18 +274,7 @@ static struct spi_driver l4f00242t03_driver = {
 	.shutdown	= l4f00242t03_shutdown,
 };
 
-static __init int l4f00242t03_init(void)
-{
-	return spi_register_driver(&l4f00242t03_driver);
-}
-
-static __exit void l4f00242t03_exit(void)
-{
-	spi_unregister_driver(&l4f00242t03_driver);
-}
-
-module_init(l4f00242t03_init);
-module_exit(l4f00242t03_exit);
+module_spi_driver(l4f00242t03_driver);
 
 MODULE_AUTHOR("Alberto Panizzo <maramaopercheseimorto@gmail.com>");
 MODULE_DESCRIPTION("EPSON L4F00242T03 LCD");
