@@ -99,7 +99,7 @@ struct pll_clk_set {
 	.pllcon2 = PLL_CLK_BWADJ_SET(nf>>1),\
 	.clksel0 = CORE_PERIPH_W_MSK|CORE_PERIPH_##_periph_div,\
 	.clksel1 = CORE_ACLK_W_MSK|CORE_ACLK_##_axi_div|\
-	ACLK_HCLK_W_MSK|ACLK_HCLK_##_ahb_div,\
+	ACLK_HCLK_W_MSK|ACLK_HCLK_##_ahb_div|\
 	ACLK_PCLK_W_MSK|ACLK_PCLK_##_apb_div,\
 	_APLL_SET_LPJ(_mhz),\
 	.rst_dly=((nr*500)/24+1),\
@@ -178,6 +178,7 @@ void cru_writel_i2s(u32 v, u32 offset)
 void rk30_clkdev_add(struct clk_lookup *cl);
 #else
 #define regfile_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
+#define regfile_writel(v, offset) do { writel_relaxed(v, RK30_GRF_BASE + offset); dsb(); } while (0)
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
 
@@ -872,8 +873,8 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	local_irq_restore(flags);
 
 	//gate gpll path
-	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH)|CLK_GATE(CLK_GATE_CPU_GPLL_PATH)
-		, CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
+//	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH)|CLK_GATE(CLK_GATE_CPU_GPLL_PATH)
+//	, CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
 
 /*
 	printk("apll %x,%x,%x,%x\n",cru_readl(PLL_CONS(pll_id,0)),
@@ -894,8 +895,7 @@ static const struct apll_clk_set apll_clks[] = {
 	_APLL_SET_CLKS(1416, 1, 59, 1, 8, 31, 21, 81),
 	_APLL_SET_CLKS(1200, 1, 50, 1, 8, 31, 21, 81),
 	_APLL_SET_CLKS(1008, 1, 42, 1, 8, 21, 21, 81),
-	//_APLL_SET_CLKS(816 , 1, 34, 1, 8, 21, 21, 81),
-	_APLL_SET_CLKS(800 , 24, 800, 1, 8, 41, 21, 81),
+	_APLL_SET_CLKS(816 , 1, 34, 1, 8, 21, 21, 81),
 	_APLL_SET_CLKS(504 , 1, 21, 1, 4, 21, 21, 81),
 	_APLL_SET_CLKS(252 , 1, 21, 2, 2, 21, 21, 41),
 	_APLL_SET_CLKS(126 , 1, 21, 4, 2, 21, 21, 41),
@@ -2708,7 +2708,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 					unsigned long i2s_rate)
 {
 
-	//clk_set_rate_nolock(&clk_cpu, 816*MHZ);//816
+	clk_set_rate_nolock(&clk_cpu, 816*MHZ);//816
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
@@ -2799,7 +2799,11 @@ void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned 
 	//clk_disable_unused();
 	rk30_clock_common_init(gpll,cpll,max_i2s_rate);
 	//preset_lpj = loops_per_jiffy;
-	//clk_dump_regs();
+	
+	//gpio6_b7
+	//regfile_writel(0xc0004000,0x10c);
+	//cru_writel(0x07000000,CRU_MISC_CON);
+	
 }
 extern int rk30_dvfs_init(void);
 
