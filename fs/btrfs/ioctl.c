@@ -3067,8 +3067,8 @@ static long btrfs_ioctl_logical_to_ino(struct btrfs_root *root,
 		goto out;
 
 	extent_item_pos = loi->logical - key.objectid;
-	ret = iterate_extent_inodes(root->fs_info, path, key.objectid,
-					extent_item_pos, build_ino_list,
+	ret = iterate_extent_inodes(root->fs_info, key.objectid,
+					extent_item_pos, 0, build_ino_list,
 					inodes);
 
 	if (ret < 0)
