@@ -226,18 +226,7 @@ static struct spi_driver lms283gf05_driver = {
 	.remove		= __devexit_p(lms283gf05_remove),
 };
 
-static __init int lms283gf05_init(void)
-{
-	return spi_register_driver(&lms283gf05_driver);
-}
-
-static __exit void lms283gf05_exit(void)
-{
-	spi_unregister_driver(&lms283gf05_driver);
-}
-
-module_init(lms283gf05_init);
-module_exit(lms283gf05_exit);
+module_spi_driver(lms283gf05_driver);
 
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");
 MODULE_DESCRIPTION("LCD283GF05 LCD");

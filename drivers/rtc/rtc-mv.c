@@ -273,7 +273,7 @@ static int __devinit mv_rtc_probe(struct platform_device *pdev)
 	if (pdata->irq >= 0) {
 		writel(0, pdata->ioaddr + RTC_ALARM_INTERRUPT_MASK_REG_OFFS);
 		if (devm_request_irq(&pdev->dev, pdata->irq, mv_rtc_interrupt,
-				     IRQF_DISABLED | IRQF_SHARED,
+				     IRQF_SHARED,
 				     pdev->name, pdata) < 0) {
 			dev_warn(&pdev->dev, "interrupt not available.\n");
 			pdata->irq = -1;
