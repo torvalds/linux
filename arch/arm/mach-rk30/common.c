@@ -75,6 +75,6 @@ void __init rk30_fixup(struct machine_desc *desc, struct tag *tags,
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PLAT_PHYS_OFFSET;
-	mi->bank[0].size = SZ_128M;
+	mi->bank[0].size = SZ_1G;
 }
 
