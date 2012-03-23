@@ -66,8 +66,10 @@
 static const u16 dec_hw_ids[] = { 0x8190, 0x8170, 0x9170, 0x9190, 0x6731 };
 #if defined(CONFIG_ARCH_RK29)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
+#define DEC_PHY_OFFSET 				0x200
 #elif defined(CONFIG_ARCH_RK30)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270, 0x8290, 0x4831 };
+#define DEC_PHY_OFFSET 				0x400
 #endif
 
 #define VPU_REG_EN_ENC				14
@@ -1110,7 +1112,7 @@ static int __init vpu_service_init(void)
 
 	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", RK29_VCODEC_PHYS, IRQ_VDPU, IRQ_VEPU);
 
-	dec_dev.iobaseaddr 	= RK29_VCODEC_PHYS + 0x200;
+	dec_dev.iobaseaddr 	= RK29_VCODEC_PHYS + DEC_PHY_OFFSET;
 	dec_dev.iosize 		= DEC_IO_SIZE;
 	enc_dev.iobaseaddr 	= RK29_VCODEC_PHYS;
 	enc_dev.iosize 		= ENC_IO_SIZE;
