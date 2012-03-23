@@ -203,8 +203,6 @@ static void __init rk30_sched_clock_init(void)
 
 static void __init rk30_timer_init(void)
 {
-
-printk("rk30_timer_init\n");
 #ifdef CONFIG_HAVE_ARM_TWD
 	twd_base = RK30_PTIMER_BASE;
 #endif
