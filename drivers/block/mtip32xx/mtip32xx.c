@@ -422,6 +422,10 @@ static void mtip_init_port(struct mtip_port *port)
 	/* Clear any pending interrupts for this port */
 	writel(readl(port->mmio + PORT_IRQ_STAT), port->mmio + PORT_IRQ_STAT);
 
+	/* Clear any pending interrupts on the HBA. */
+	writel(readl(port->dd->mmio + HOST_IRQ_STAT),
+					port->dd->mmio + HOST_IRQ_STAT);
+
 	/* Enable port interrupts */
 	writel(DEF_PORT_IRQ, port->mmio + PORT_IRQ_MASK);
 }
@@ -490,11 +494,9 @@ static void mtip_restart_port(struct mtip_port *port)
 		dev_warn(&port->dd->pdev->dev,
 			"COM reset failed\n");
 
-	/* Clear SError, the PxSERR.DIAG.x should be set so clear it */
-	writel(readl(port->mmio + PORT_SCR_ERR), port->mmio + PORT_SCR_ERR);
+	mtip_init_port(port);
+	mtip_start_port(port);
 
-	/* Enable the DMA engine */
-	mtip_enable_engine(port, 1);
 }
 
 /*
@@ -3359,9 +3361,6 @@ static int mtip_pci_probe(struct pci_dev *pdev,
 		return -ENOMEM;
 	}
 
-	/* Set the atomic variable as 1 in case of SRSI */
-	atomic_set(&dd->drv_cleanup_done, true);
-
 	atomic_set(&dd->resumeflag, false);
 
 	/* Attach the private data to this PCI device.  */
@@ -3434,8 +3433,8 @@ iomap_err:
 	pci_set_drvdata(pdev, NULL);
 	return rv;
 done:
-	/* Set the atomic variable as 0 in case of SRSI */
-	atomic_set(&dd->drv_cleanup_done, true);
+	/* Set the atomic variable as 0 */
+	atomic_set(&dd->drv_cleanup_done, false);
 
 	return rv;
 }
@@ -3463,8 +3462,6 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 			}
 		}
 	}
-	/* Set the atomic variable as 1 in case of SRSI */
-	atomic_set(&dd->drv_cleanup_done, true);
 
 	/* Clean up the block layer. */
 	mtip_block_remove(dd);
