@@ -202,11 +202,18 @@ int main(int argc, char ** argv)
 
 	pe_header = *(unsigned int *)&buf[0x3c];
 
-	/* Size of code */
-	*(unsigned int *)&buf[pe_header + 0x1c] = file_sz;
-
 	/* Size of image */
 	*(unsigned int *)&buf[pe_header + 0x50] = file_sz;
+
+	/*
+	 * Subtract the size of the first section (512 bytes) which
+	 * includes the header and .reloc section. The remaining size
+	 * is that of the .text section.
+	 */
+	file_sz -= 512;
+
+	/* Size of code */
+	*(unsigned int *)&buf[pe_header + 0x1c] = file_sz;
 
 #ifdef CONFIG_X86_32
 	/* Address of entry point */
@@ -215,8 +222,14 @@ int main(int argc, char ** argv)
 	/* .text size */
 	*(unsigned int *)&buf[pe_header + 0xb0] = file_sz;
 
+	/* .text vma */
+	*(unsigned int *)&buf[pe_header + 0xb4] = 0x200;
+
 	/* .text size of initialised data */
 	*(unsigned int *)&buf[pe_header + 0xb8] = file_sz;
+
+	/* .text file offset */
+	*(unsigned int *)&buf[pe_header + 0xbc] = 0x200;
 #else
 	/*
 	 * Address of entry point. startup_32 is at the beginning and
@@ -228,8 +241,14 @@ int main(int argc, char ** argv)
 	/* .text size */
 	*(unsigned int *)&buf[pe_header + 0xc0] = file_sz;
 
+	/* .text vma */
+	*(unsigned int *)&buf[pe_header + 0xc4] = 0x200;
+
 	/* .text size of initialised data */
 	*(unsigned int *)&buf[pe_header + 0xc8] = file_sz;
+
+	/* .text file offset */
+	*(unsigned int *)&buf[pe_header + 0xcc] = 0x200;
 #endif /* CONFIG_X86_32 */
 #endif /* CONFIG_EFI_STUB */
 
