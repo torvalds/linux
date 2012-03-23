@@ -938,17 +938,7 @@ static struct i2c_driver ds1307_driver = {
 	.id_table	= ds1307_id,
 };
 
-static int __init ds1307_init(void)
-{
-	return i2c_add_driver(&ds1307_driver);
-}
-module_init(ds1307_init);
-
-static void __exit ds1307_exit(void)
-{
-	i2c_del_driver(&ds1307_driver);
-}
-module_exit(ds1307_exit);
+module_i2c_driver(ds1307_driver);
 
 MODULE_DESCRIPTION("RTC driver for DS1307 and similar chips");
 MODULE_LICENSE("GPL");
