@@ -1305,9 +1305,7 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	if (0 == INPUT(i)->type)
 		return -EINVAL;
 
-	dev->ctl_input = i;
-
-	video_mux(dev, dev->ctl_input);
+	video_mux(dev, i);
 	return 0;
 }
 
@@ -2518,7 +2516,6 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	dev->norm = em28xx_video_template.current_norm;
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
 	dev->interlaced = EM28XX_INTERLACED_DEFAULT;
-	dev->ctl_input = 0;
 
 	/* Analog specific initialization */
 	dev->format = &format[0];
@@ -2532,7 +2529,7 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	em28xx_set_video_format(dev, format[0].fourcc,
 				maxw, norm_maxh(dev));
 
-	video_mux(dev, dev->ctl_input);
+	video_mux(dev, 0);
 
 	/* Audio defaults */
 	dev->mute = 1;
