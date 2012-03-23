@@ -340,7 +340,6 @@ static int mxl111sf_ep6_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	struct mxl111sf_state *state = d->priv;
 	struct mxl111sf_adap_state *adap_state = adap->fe_adap[adap->active_fe].priv;
 	int ret = 0;
-	u8 tmp;
 
 	deb_info("%s(%d)\n", __func__, onoff);
 
