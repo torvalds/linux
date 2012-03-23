@@ -1,5 +1,5 @@
 /*
- * bfin_dma_5xx.c - Blackfin DMA implementation
+ * bfin_dma.c - Blackfin DMA implementation
  *
  * Copyright 2004-2008 Analog Devices Inc.
  *
@@ -218,6 +218,9 @@ int blackfin_dma_suspend(void)
 			dma_ch[i].saved_peripheral_map = dma_ch[i].regs->peripheral_map;
 	}
 
+#if ANOMALY_05000480
+	bfin_write_DMAC_TC_PER(0x0);
+#endif
 	return 0;
 }
 
@@ -231,6 +234,9 @@ void blackfin_dma_resume(void)
 		if (i < MAX_DMA_SUSPEND_CHANNELS)
 			dma_ch[i].regs->peripheral_map = dma_ch[i].saved_peripheral_map;
 	}
+#if ANOMALY_05000480
+	bfin_write_DMAC_TC_PER(0x0111);
+#endif
 }
 #endif
 
