@@ -32,6 +32,15 @@ struct lp5521_led_config {
 	u8		max_current;
 };
 
+struct lp5521_led_pattern {
+	u8 *r;
+	u8 *g;
+	u8 *b;
+	u8 size_r;
+	u8 size_g;
+	u8 size_b;
+};
+
 #define LP5521_CLOCK_AUTO	0
 #define LP5521_CLOCK_INT	1
 #define LP5521_CLOCK_EXT	2
@@ -57,6 +66,8 @@ struct lp5521_platform_data {
 	void	(*enable)(bool state);
 	const char *label;
 	u8	update_config;
+	struct lp5521_led_pattern *patterns;
+	int num_patterns;
 };
 
 #endif /* __LINUX_LP5521_H */

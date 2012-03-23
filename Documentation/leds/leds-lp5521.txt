@@ -111,3 +111,41 @@ static struct lp5521_platform_data lp5521_pdata = {
 	.clock_mode = LP5521_CLOCK_INT,
 	.update_config = LP5521_CONFIGS,
 };
+
+LED patterns : LP5521 has autonomous operation without external control.
+Pattern data can be defined in the platform data.
+
+example of led pattern data :
+
+/* RGB(50,5,0) 500ms on, 500ms off, infinite loop */
+static u8 pattern_red[] = {
+		0x40, 0x32, 0x60, 0x00,	0x40, 0x00, 0x60, 0x00,
+		};
+
+static u8 pattern_green[] = {
+		0x40, 0x05, 0x60, 0x00, 0x40, 0x00, 0x60, 0x00,
+		};
+
+static struct lp5521_led_pattern board_led_patterns[] = {
+	{
+		.r = pattern_red,
+		.g = pattern_green,
+		.size_r = ARRAY_SIZE(pattern_red),
+		.size_g = ARRAY_SIZE(pattern_green),
+	},
+};
+
+static struct lp5521_platform_data lp5521_platform_data = {
+        .led_config     = lp5521_led_config,
+        .num_channels   = ARRAY_SIZE(lp5521_led_config),
+        .clock_mode     = LP5521_CLOCK_EXT,
+	.patterns = board_led_patterns,
+	.num_patterns = ARRAY_SIZE(board_led_patterns),
+};
+
+Then predefined led pattern(s) can be executed via the sysfs.
+To start the pattern #1,
+# echo 1 > /sys/bus/i2c/devices/xxxx/led_pattern
+(xxxx : i2c bus & slave address)
+To end the pattern,
+# echo 0 > /sys/bus/i2c/devices/xxxx/led_pattern
