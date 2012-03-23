@@ -405,10 +405,13 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 /* get bpc from the EDID */
 static int convert_bpc_to_bpp(int bpc)
 {
+#if 0
 	if (bpc == 0)
 		return 24;
 	else
 		return bpc * 3;
+#endif
+	return 24;
 }
 
 /* get the max pix clock supported by the link rate and lane num */
