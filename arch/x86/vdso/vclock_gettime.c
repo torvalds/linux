@@ -94,7 +94,8 @@ notrace static inline long vgetns(void)
 	return (v * gtod->clock.mult) >> gtod->clock.shift;
 }
 
-notrace static noinline int do_realtime(struct timespec *ts)
+/* Code size doesn't matter (vdso is 4k anyway) and this is faster. */
+notrace static int __always_inline do_realtime(struct timespec *ts)
 {
 	unsigned long seq, ns;
 	int mode;
@@ -111,7 +112,7 @@ notrace static noinline int do_realtime(struct timespec *ts)
 	return mode;
 }
 
-notrace static noinline int do_monotonic(struct timespec *ts)
+notrace static int do_monotonic(struct timespec *ts)
 {
 	unsigned long seq, ns;
 	int mode;
@@ -128,7 +129,7 @@ notrace static noinline int do_monotonic(struct timespec *ts)
 	return mode;
 }
 
-notrace static noinline int do_realtime_coarse(struct timespec *ts)
+notrace static int do_realtime_coarse(struct timespec *ts)
 {
 	unsigned long seq;
 	do {
@@ -139,7 +140,7 @@ notrace static noinline int do_realtime_coarse(struct timespec *ts)
 	return 0;
 }
 
-notrace static noinline int do_monotonic_coarse(struct timespec *ts)
+notrace static int do_monotonic_coarse(struct timespec *ts)
 {
 	unsigned long seq;
 	do {
