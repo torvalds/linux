@@ -991,17 +991,7 @@ static struct i2c_driver adp8870_driver = {
 	.id_table = adp8870_id,
 };
 
-static int __init adp8870_init(void)
-{
-	return i2c_add_driver(&adp8870_driver);
-}
-module_init(adp8870_init);
-
-static void __exit adp8870_exit(void)
-{
-	i2c_del_driver(&adp8870_driver);
-}
-module_exit(adp8870_exit);
+module_i2c_driver(adp8870_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
