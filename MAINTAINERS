@@ -1331,6 +1331,13 @@ M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 S:	Supported
 F:	drivers/tty/serial/atmel_serial.c
 
+ATMEL ISI DRIVER
+M:	Josh Wu <josh.wu@atmel.com>
+L:	linux-media@vger.kernel.org
+S:	Supported
+F:	drivers/media/video/atmel-isi.c
+F:	include/media/atmel-isi.h
+
 ATMEL LCDFB DRIVER
 M:	Nicolas Ferre <nicolas.ferre@atmel.com>
 L:	linux-fbdev@vger.kernel.org
