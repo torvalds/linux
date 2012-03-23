@@ -609,6 +609,10 @@ struct dwc3 {
 #define DWC3_REVISION_185A	0x5533185a
 #define DWC3_REVISION_188A	0x5533188a
 #define DWC3_REVISION_190A	0x5533190a
+#define DWC3_REVISION_200A	0x5533200a
+#define DWC3_REVISION_202A	0x5533202a
+#define DWC3_REVISION_210A	0x5533210a
+#define DWC3_REVISION_220A	0x5533220a
 
 	unsigned		is_selfpowered:1;
 	unsigned		three_stage_setup:1;
