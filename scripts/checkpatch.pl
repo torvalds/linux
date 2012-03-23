@@ -2391,7 +2391,7 @@ sub process {
 			my ($where, $prefix) = ($-[1], $1);
 			if ($prefix !~ /$Type\s+$/ &&
 			    ($where != 0 || $prefix !~ /^.\s+$/) &&
-			    $prefix !~ /{\s+$/) {
+			    $prefix !~ /[{,]\s+$/) {
 				ERROR("BRACKET_SPACE",
 				      "space prohibited before open square bracket '['\n" . $herecurr);
 			}
