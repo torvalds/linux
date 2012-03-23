@@ -150,7 +150,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 			IWL_TRANS_GET_PCIE_TRANS(trans);
 
 		/* If power-saving is in use, make sure device is awake */
-		if (test_bit(STATUS_POWER_PMI, &trans_pcie->status)) {
+		if (test_bit(STATUS_TPOWER_PMI, &trans_pcie->status)) {
 			reg = iwl_read32(trans, CSR_UCODE_DRV_GP1);
 
 			if (reg & CSR_UCODE_DRV_GP1_BIT_MAC_SLEEP) {

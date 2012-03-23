@@ -1253,7 +1253,7 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	clear_bit(STATUS_HCMD_ACTIVE, &trans_pcie->status);
 	clear_bit(STATUS_INT_ENABLED, &trans_pcie->status);
 	clear_bit(STATUS_DEVICE_ENABLED, &trans_pcie->status);
-	clear_bit(STATUS_POWER_PMI, &trans_pcie->status);
+	clear_bit(STATUS_TPOWER_PMI, &trans_pcie->status);
 }
 
 static void iwl_trans_pcie_wowlan_suspend(struct iwl_trans *trans)
@@ -1574,9 +1574,9 @@ static void iwl_trans_pcie_set_pmi(struct iwl_trans *trans, bool state)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (state)
-		set_bit(STATUS_POWER_PMI, &trans_pcie->status);
+		set_bit(STATUS_TPOWER_PMI, &trans_pcie->status);
 	else
-		clear_bit(STATUS_POWER_PMI, &trans_pcie->status);
+		clear_bit(STATUS_TPOWER_PMI, &trans_pcie->status);
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -278,6 +278,14 @@ struct iwl_trans_pcie {
 	unsigned long wd_timeout;
 };
 
+/*****************************************************
+* DRIVER STATUS FUNCTIONS
+******************************************************/
+#define STATUS_HCMD_ACTIVE	0
+#define STATUS_DEVICE_ENABLED	1
+#define STATUS_TPOWER_PMI	2
+#define STATUS_INT_ENABLED	3
+
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
 	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))
 
