@@ -80,6 +80,7 @@ struct spear_rtc_config {
 	struct clk *clk;
 	spinlock_t lock;
 	void __iomem *ioaddr;
+	unsigned int irq_wake;
 };
 
 static inline void spear_rtc_clear_interrupt(struct spear_rtc_config *config)
@@ -463,9 +464,10 @@ static int spear_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 	int irq;
 
 	irq = platform_get_irq(pdev, 0);
-	if (device_may_wakeup(&pdev->dev))
-		enable_irq_wake(irq);
-	else {
+	if (device_may_wakeup(&pdev->dev)) {
+		if (!enable_irq_wake(irq))
+			config->irq_wake = 1;
+	} else {
 		spear_rtc_disable_interrupt(config);
 		clk_disable(config->clk);
 	}
@@ -481,9 +483,12 @@ static int spear_rtc_resume(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 
-	if (device_may_wakeup(&pdev->dev))
-		disable_irq_wake(irq);
-	else {
+	if (device_may_wakeup(&pdev->dev)) {
+		if (config->irq_wake) {
+			disable_irq_wake(irq);
+			config->irq_wake = 0;
+		}
+	} else {
 		clk_enable(config->clk);
 		spear_rtc_enable_interrupt(config);
 	}
