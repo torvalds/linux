@@ -74,7 +74,7 @@ struct intel_sdvo {
 	struct i2c_adapter ddc;
 
 	/* Register for the SDVO device: SDVOB or SDVOC */
-	int sdvo_reg;
+	uint32_t sdvo_reg;
 
 	/* Active outputs controlled by this SDVO output */
 	uint16_t controlled_output;
@@ -113,6 +113,9 @@ struct intel_sdvo {
 	 * shows up as RGB1 (VGA).
 	 */
 	bool is_tv;
+
+	/* On different gens SDVOB is at different places. */
+	bool is_sdvob;
 
 	/* This is for current tv format name */
 	int tv_format_index;
@@ -403,8 +406,7 @@ static const struct _sdvo_cmd_name {
 	SDVO_CMD_NAME_ENTRY(SDVO_CMD_GET_HBUF_DATA),
 };
 
-#define IS_SDVOB(reg)	(reg == SDVOB || reg == PCH_SDVOB)
-#define SDVO_NAME(svdo) (IS_SDVOB((svdo)->sdvo_reg) ? "SDVOB" : "SDVOC")
+#define SDVO_NAME(svdo) ((svdo)->is_sdvob ? "SDVOB" : "SDVOC")
 
 static void intel_sdvo_debug_write(struct intel_sdvo *intel_sdvo, u8 cmd,
 				   const void *args, int args_len)
@@ -1893,7 +1895,7 @@ intel_sdvo_select_ddc_bus(struct drm_i915_private *dev_priv,
 {
 	struct sdvo_device_mapping *mapping;
 
-	if (IS_SDVOB(reg))
+	if (sdvo->is_sdvob)
 		mapping = &(dev_priv->sdvo_mappings[0]);
 	else
 		mapping = &(dev_priv->sdvo_mappings[1]);
@@ -1911,7 +1913,7 @@ intel_sdvo_select_i2c_bus(struct drm_i915_private *dev_priv,
 	struct sdvo_device_mapping *mapping;
 	u8 pin;
 
-	if (IS_SDVOB(reg))
+	if (sdvo->is_sdvob)
 		mapping = &dev_priv->sdvo_mappings[0];
 	else
 		mapping = &dev_priv->sdvo_mappings[1];
@@ -1936,12 +1938,12 @@ intel_sdvo_is_hdmi_connector(struct intel_sdvo *intel_sdvo, int device)
 }
 
 static u8
-intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
+intel_sdvo_get_slave_addr(struct drm_device *dev, struct intel_sdvo *sdvo)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct sdvo_device_mapping *my_mapping, *other_mapping;
 
-	if (IS_SDVOB(sdvo_reg)) {
+	if (sdvo->is_sdvob) {
 		my_mapping = &dev_priv->sdvo_mappings[0];
 		other_mapping = &dev_priv->sdvo_mappings[1];
 	} else {
@@ -1966,7 +1968,7 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, int sdvo_reg)
 	/* No SDVO device info is found for another DVO port,
 	 * so use mapping assumption we had before BIOS parsing.
 	 */
-	if (IS_SDVOB(sdvo_reg))
+	if (sdvo->is_sdvob)
 		return 0x70;
 	else
 		return 0x72;
@@ -2482,7 +2484,7 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 	return i2c_add_adapter(&sdvo->ddc) == 0;
 }
 
-bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
+bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg, bool is_sdvob)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_encoder *intel_encoder;
@@ -2494,7 +2496,8 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 		return false;
 
 	intel_sdvo->sdvo_reg = sdvo_reg;
-	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, sdvo_reg) >> 1;
+	intel_sdvo->is_sdvob = is_sdvob;
+	intel_sdvo->slave_addr = intel_sdvo_get_slave_addr(dev, intel_sdvo) >> 1;
 	intel_sdvo_select_i2c_bus(dev_priv, intel_sdvo, sdvo_reg);
 	if (!intel_sdvo_init_ddc_proxy(intel_sdvo, dev)) {
 		kfree(intel_sdvo);
@@ -2511,13 +2514,13 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 		u8 byte;
 
 		if (!intel_sdvo_read_byte(intel_sdvo, i, &byte)) {
-			DRM_DEBUG_KMS("No SDVO device found on SDVO%c\n",
-				      IS_SDVOB(sdvo_reg) ? 'B' : 'C');
+			DRM_DEBUG_KMS("No SDVO device found on %s\n",
+				      SDVO_NAME(intel_sdvo));
 			goto err;
 		}
 	}
 
-	if (IS_SDVOB(sdvo_reg))
+	if (intel_sdvo->is_sdvob)
 		dev_priv->hotplug_supported_mask |= SDVOB_HOTPLUG_INT_STATUS;
 	else
 		dev_priv->hotplug_supported_mask |= SDVOC_HOTPLUG_INT_STATUS;
@@ -2538,8 +2541,8 @@ bool intel_sdvo_init(struct drm_device *dev, int sdvo_reg)
 
 	if (intel_sdvo_output_setup(intel_sdvo,
 				    intel_sdvo->caps.output_flags) != true) {
-		DRM_DEBUG_KMS("SDVO output failed to setup on SDVO%c\n",
-			      IS_SDVOB(sdvo_reg) ? 'B' : 'C');
+		DRM_DEBUG_KMS("SDVO output failed to setup on %s\n",
+			      SDVO_NAME(intel_sdvo));
 		goto err;
 	}
 

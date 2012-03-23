@@ -7810,7 +7810,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
-			found = intel_sdvo_init(dev, PCH_SDVOB);
+			found = intel_sdvo_init(dev, PCH_SDVOB, true);
 			if (!found)
 				intel_hdmi_init(dev, HDMIB);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
@@ -7834,7 +7834,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOB\n");
-			found = intel_sdvo_init(dev, SDVOB);
+			found = intel_sdvo_init(dev, SDVOB, true);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
 				intel_hdmi_init(dev, SDVOB);
@@ -7850,7 +7850,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOC\n");
-			found = intel_sdvo_init(dev, SDVOC);
+			found = intel_sdvo_init(dev, SDVOC, false);
 		}
 
 		if (!found && (I915_READ(SDVOC) & SDVO_DETECTED)) {
