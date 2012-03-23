@@ -22,10 +22,13 @@
 #include <linux/io.h>
 #include <asm/txx9tmr.h>
 
+#define WD_TIMER_CCD	7		/* 1/256 */
+#define WD_TIMER_CLK	(clk_get_rate(txx9_imclk) / (2 << WD_TIMER_CCD))
+#define WD_MAX_TIMEOUT	((0xffffffff >> (32 - TXX9_TIMER_BITS)) / WD_TIMER_CLK)
 #define TIMER_MARGIN	60		/* Default is 60 seconds */
 
-static int timeout = TIMER_MARGIN;	/* in seconds */
-module_param(timeout, int, 0);
+static unsigned int timeout = TIMER_MARGIN;	/* in seconds */
+module_param(timeout, uint, 0);
 MODULE_PARM_DESC(timeout,
 	"Watchdog timeout in seconds. "
 	"(0<timeout<((2^" __MODULE_STRING(TXX9_TIMER_BITS) ")/(IMCLK/256)), "
@@ -36,10 +39,6 @@ module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started "
 	"(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-
-#define WD_TIMER_CCD	7	/* 1/256 */
-#define WD_TIMER_CLK	(clk_get_rate(txx9_imclk) / (2 << WD_TIMER_CCD))
-#define WD_MAX_TIMEOUT	((0xffffffff >> (32 - TXX9_TIMER_BITS)) / WD_TIMER_CLK)
 
 static struct txx9_tmr_reg __iomem *txx9wdt_reg;
 static struct clk *txx9_imclk;
@@ -56,7 +55,7 @@ static int txx9wdt_ping(struct watchdog_device *wdt_dev)
 static int txx9wdt_start(struct watchdog_device *wdt_dev)
 {
 	spin_lock(&txx9_lock);
-	__raw_writel(WD_TIMER_CLK * timeout, &txx9wdt_reg->cpra);
+	__raw_writel(WD_TIMER_CLK * wdt_dev->timeout, &txx9wdt_reg->cpra);
 	__raw_writel(WD_TIMER_CCD, &txx9wdt_reg->ccdr);
 	__raw_writel(0, &txx9wdt_reg->tisr);	/* clear pending interrupt */
 	__raw_writel(TXx9_TMTCR_TCE | TXx9_TMTCR_CCDE | TXx9_TMTCR_TMODE_WDOG,
@@ -79,7 +78,7 @@ static int txx9wdt_stop(struct watchdog_device *wdt_dev)
 static int txx9wdt_set_timeout(struct watchdog_device *wdt_dev,
 			       unsigned int new_timeout)
 {
-	timeout = new_timeout;
+	wdt_dev->timeout = new_timeout;
 	txx9wdt_stop(wdt_dev);
 	txx9wdt_start(wdt_dev);
 	return 0;
@@ -128,6 +127,9 @@ static int __init txx9wdt_probe(struct platform_device *dev)
 		goto exit;
 	}
 
+	if (timeout < 1 || timeout > WD_MAX_TIMEOUT)
+		timeout = TIMER_MARGIN;
+	txx9wdt.timeout = timeout;
 	txx9wdt.min_timeout = 1;
 	txx9wdt.max_timeout = WD_MAX_TIMEOUT;
 	watchdog_set_nowayout(&txx9wdt, nowayout);
