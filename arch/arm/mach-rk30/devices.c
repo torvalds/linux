@@ -336,34 +336,34 @@ static void __init rk30_init_uart(void)
 #ifdef CONFIG_I2C2_CONTROLLER_RK29
 #define I2C2_ADAP_TYPE  I2C_RK29_ADAP
 #define I2C2_START      RK30_I2C2_PHYS
-#define I2C2_END        RK30_I2C2_PHYS + SZ_4K - 1
+#define I2C2_END        RK30_I2C2_PHYS + SZ_8K - 1
 #endif
 #ifdef CONFIG_I2C2_CONTROLLER_RK30
 #define I2C2_ADAP_TYPE   I2C_RK30_ADAP
-#define I2C2_START      RK30_I2C2_PHYS + SZ_4K
-#define I2C2_END        RK30_I2C2_PHYS + SZ_8K - 1
+#define I2C2_START      RK30_I2C2_PHYS + SZ_8K
+#define I2C2_END        RK30_I2C2_PHYS + SZ_16K - 1
 #endif
 
 #ifdef CONFIG_I2C3_CONTROLLER_RK29
 #define I2C3_ADAP_TYPE  I2C_RK29_ADAP
 #define I2C3_START      RK30_I2C3_PHYS
-#define I2C3_END        RK30_I2C3_PHYS + SZ_4K - 1
+#define I2C3_END        RK30_I2C3_PHYS + SZ_8K - 1
 #endif
 #ifdef CONFIG_I2C3_CONTROLLER_RK30
 #define I2C3_ADAP_TYPE   I2C_RK30_ADAP
-#define I2C3_START      RK30_I2C3_PHYS + SZ_4K
-#define I2C3_END        RK30_I2C3_PHYS + SZ_8K - 1
+#define I2C3_START      RK30_I2C3_PHYS + SZ_8K
+#define I2C3_END        RK30_I2C3_PHYS + SZ_16K - 1
 #endif
 
 #ifdef CONFIG_I2C4_CONTROLLER_RK29
 #define I2C4_ADAP_TYPE  I2C_RK29_ADAP
 #define I2C4_START      RK30_I2C4_PHYS
-#define I2C4_END        RK30_I2C4_PHYS + SZ_4K - 1
+#define I2C4_END        RK30_I2C4_PHYS + SZ_8K - 1
 #endif
 #ifdef CONFIG_I2C4_CONTROLLER_RK30
 #define I2C4_ADAP_TYPE   I2C_RK30_ADAP
-#define I2C4_START      RK30_I2C4_PHYS + SZ_4K
-#define I2C4_END        RK30_I2C4_PHYS + SZ_8K - 1
+#define I2C4_START      RK30_I2C4_PHYS + SZ_8K
+#define I2C4_END        RK30_I2C4_PHYS + SZ_16K - 1
 #endif
 
 #ifdef CONFIG_I2C0_RK30

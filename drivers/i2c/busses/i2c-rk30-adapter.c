@@ -98,17 +98,24 @@ static inline void rk30_i2c_last_ack(struct rk30_i2c *i2c, int enable)
 {
     unsigned int p = readl(i2c->regs + I2C_CON);
 
+    p = rk30_set_bit(p, 0, I2C_START_BIT);
+    p = rk30_set_bit(p, 0, I2C_STOP_BIT);
     writel(rk30_set_bit(p, enable, I2C_LAST_ACK_BIT), i2c->regs + I2C_CON);
 }
 static inline void rk30_i2c_act2ack(struct rk30_i2c *i2c, int enable)
 {
     unsigned int p = readl(i2c->regs + I2C_CON);
 
+    p = rk30_set_bit(p, 0, I2C_START_BIT);
+    p = rk30_set_bit(p, 0, I2C_STOP_BIT);
     writel(rk30_set_bit(p, enable, I2C_ACT2ACK_BIT), i2c->regs + I2C_CON);
 }
 static inline void rk30_i2c_enable(struct rk30_i2c *i2c, int enable)
 {
     unsigned int p = readl(i2c->regs + I2C_CON);
+
+    p = rk30_set_bit(p, 0, I2C_START_BIT);
+    p = rk30_set_bit(p, 0, I2C_STOP_BIT);
 
     writel(rk30_set_bit(p, enable, I2C_EN_BIT), i2c->regs + I2C_CON);
 }
@@ -116,6 +123,8 @@ static inline void rk30_i2c_set_mode(struct rk30_i2c *i2c)
 {
     unsigned int p = readl(i2c->regs + I2C_CON);
     
+    p = rk30_set_bit(p, 0, I2C_START_BIT);
+    p = rk30_set_bit(p, 0, I2C_STOP_BIT);
     writel(rk30_set_bits(p, i2c->mode, I2C_MOD_BIT, I2C_MOD_MASK), i2c->regs + I2C_CON);
 }
 static inline void rk30_i2c_disable_irq(struct rk30_i2c *i2c)
@@ -191,6 +200,7 @@ static void rk30_i2c_stop(struct rk30_i2c *i2c, int ret)
 	if (ret)
 		i2c->msg_idx = ret;
 
+        mdelay(10);
     i2c->state = STATE_STOP;
     rk30_i2c_send_stop(i2c);
 }
@@ -319,7 +329,7 @@ static irqreturn_t rk30_i2c_irq(int irq, void *dev_id)
     if(ipd & I2C_NAKRCVIPD) {
         writel(I2C_NAKRCVIPD, i2c->regs + I2C_IPD);
         rk30_i2c_stop(i2c, -EAGAIN);
-		dev_err(i2c->dev, "Addr[0x%02x] ack was not received\n", i2c->addr);
+		dev_dbg(i2c->dev, "Addr[0x%02x] ack was not received\n", i2c->addr);
         rk30_show_regs(i2c);
         goto out;
     }
