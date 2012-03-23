@@ -31,6 +31,7 @@
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
@@ -564,6 +565,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	int retry;
 	int ret;
 
+	pm_runtime_get_sync(&adap->dev);
 	clk_enable(i2c->clk);
 
 	for (retry = 0; retry < adap->retries; retry++) {
@@ -572,6 +574,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 
 		if (ret != -EAGAIN) {
 			clk_disable(i2c->clk);
+			pm_runtime_put_sync(&adap->dev);
 			return ret;
 		}
 
@@ -581,6 +584,7 @@ static int s3c24xx_i2c_xfer(struct i2c_adapter *adap,
 	}
 
 	clk_disable(i2c->clk);
+	pm_runtime_put_sync(&adap->dev);
 	return -EREMOTEIO;
 }
 
@@ -890,7 +894,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		}
 	}
 
-	i2c = kzalloc(sizeof(struct s3c24xx_i2c), GFP_KERNEL);
+	i2c = devm_kzalloc(&pdev->dev, sizeof(struct s3c24xx_i2c), GFP_KERNEL);
 	if (!i2c) {
 		dev_err(&pdev->dev, "no memory for state\n");
 		return -ENOMEM;
@@ -1013,6 +1017,9 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	of_i2c_register_devices(&i2c->adap);
 	platform_set_drvdata(pdev, i2c);
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_enable(&i2c->adap.dev);
+
 	dev_info(&pdev->dev, "%s: S3C I2C adapter\n", dev_name(&i2c->adap.dev));
 	clk_disable(i2c->clk);
 	return 0;
@@ -1035,7 +1042,6 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 	clk_put(i2c->clk);
 
  err_noclk:
-	kfree(i2c);
 	return ret;
 }
 
@@ -1047,6 +1053,9 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 static int s3c24xx_i2c_remove(struct platform_device *pdev)
 {
 	struct s3c24xx_i2c *i2c = platform_get_drvdata(pdev);
+
+	pm_runtime_disable(&i2c->adap.dev);
+	pm_runtime_disable(&pdev->dev);
 
 	s3c24xx_i2c_deregister_cpufreq(i2c);
 
@@ -1061,7 +1070,6 @@ static int s3c24xx_i2c_remove(struct platform_device *pdev)
 	release_resource(i2c->ioarea);
 	s3c24xx_i2c_dt_gpio_free(i2c);
 	kfree(i2c->ioarea);
-	kfree(i2c);
 
 	return 0;
 }
