@@ -604,16 +604,15 @@ is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
 }
 
 void
-dump_smb(struct smb_hdr *smb_buf, int smb_buf_length)
+dump_smb(void *buf, int smb_buf_length)
 {
 	int i, j;
 	char debug_line[17];
-	unsigned char *buffer;
+	unsigned char *buffer = buf;
 
 	if (traceSMB == 0)
 		return;
 
-	buffer = (unsigned char *) smb_buf;
 	for (i = 0, j = 0; i < smb_buf_length; i++, j++) {
 		if (i % 8 == 0) {
 			/* have reached the beginning of line */
