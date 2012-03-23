@@ -81,12 +81,13 @@ struct kvmppc_vcpu_book3s {
 	u64 sdr1;
 	u64 hior;
 	u64 msr_mask;
-	u64 vsid_next;
 #ifdef CONFIG_PPC_BOOK3S_32
 	u32 vsid_pool[VSID_POOL_SIZE];
+	u32 vsid_next;
 #else
-	u64 vsid_first;
-	u64 vsid_max;
+	u64 proto_vsid_first;
+	u64 proto_vsid_max;
+	u64 proto_vsid_next;
 #endif
 	int context_id[SID_CONTEXTS];
 
