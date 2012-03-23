@@ -420,8 +420,10 @@ check_smb_hdr(struct smb_hdr *smb, __u16 mid)
 }
 
 int
-checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int total_read)
+checkSMB(char *buf, unsigned int total_read)
 {
+	struct smb_hdr *smb = (struct smb_hdr *)buf;
+	__u16 mid = smb->Mid;
 	__u32 rfclen = be32_to_cpu(smb->smb_buf_length);
 	__u32 clc_len;  /* calculated length */
 	cFYI(0, "checkSMB Length: 0x%x, smb_buf_length: 0x%x",
@@ -502,8 +504,9 @@ checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int total_read)
 }
 
 bool
-is_valid_oplock_break(struct smb_hdr *buf, struct TCP_Server_Info *srv)
+is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 {
+	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct smb_com_lock_req *pSMB = (struct smb_com_lock_req *)buf;
 	struct list_head *tmp, *tmp1, *tmp2;
 	struct cifs_ses *ses;

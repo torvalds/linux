@@ -183,8 +183,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		-EINVAL = invalid transact2
 
  */
-static int check2ndT2(struct smb_hdr *pSMB)
+static int check2ndT2(char *buf)
 {
+	struct smb_hdr *pSMB = (struct smb_hdr *)buf;
 	struct smb_t2_rsp *pSMBt;
 	int remaining;
 	__u16 total_data_size, data_in_this_rsp;
@@ -224,10 +225,10 @@ static int check2ndT2(struct smb_hdr *pSMB)
 	return remaining;
 }
 
-static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
+static int coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 {
-	struct smb_t2_rsp *pSMBs = (struct smb_t2_rsp *)psecond;
-	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)pTargetSMB;
+	struct smb_t2_rsp *pSMBs = (struct smb_t2_rsp *)second_buf;
+	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)target_hdr;
 	char *data_area_of_tgt;
 	char *data_area_of_src;
 	int remaining;
@@ -280,23 +281,23 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	put_unaligned_le16(total_in_tgt, &pSMBt->t2_rsp.DataCount);
 
 	/* fix up the BCC */
-	byte_count = get_bcc(pTargetSMB);
+	byte_count = get_bcc(target_hdr);
 	byte_count += total_in_src;
 	/* is the result too big for the field? */
 	if (byte_count > USHRT_MAX) {
 		cFYI(1, "coalesced BCC too large (%u)", byte_count);
 		return -EPROTO;
 	}
-	put_bcc(byte_count, pTargetSMB);
+	put_bcc(byte_count, target_hdr);
 
-	byte_count = be32_to_cpu(pTargetSMB->smb_buf_length);
+	byte_count = be32_to_cpu(target_hdr->smb_buf_length);
 	byte_count += total_in_src;
 	/* don't allow buffer to overflow */
 	if (byte_count > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
 		cFYI(1, "coalesced BCC exceeds buffer size (%u)", byte_count);
 		return -ENOBUFS;
 	}
-	pTargetSMB->smb_buf_length = cpu_to_be32(byte_count);
+	target_hdr->smb_buf_length = cpu_to_be32(byte_count);
 
 	/* copy second buffer into end of first buffer */
 	memcpy(data_area_of_tgt, data_area_of_src, total_in_src);
@@ -337,6 +338,18 @@ requeue_echo:
 	queue_delayed_work(system_nrt_wq, &server->echo, SMB_ECHO_INTERVAL);
 }
 
+static inline size_t
+header_size(void)
+{
+	return sizeof(struct smb_hdr);
+}
+
+static inline size_t
+max_header_size(void)
+{
+	return MAX_CIFS_HDR_SIZE;
+}
+
 static bool
 allocate_buffers(struct TCP_Server_Info *server)
 {
@@ -350,7 +363,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		}
 	} else if (server->large_buf) {
 		/* we are reusing a dirty large buf, clear its start */
-		memset(server->bigbuf, 0, sizeof(struct smb_hdr));
+		memset(server->bigbuf, 0, header_size());
 	}
 
 	if (!server->smallbuf) {
@@ -364,7 +377,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		/* beginning of smb buffer is cleared in our buf_get */
 	} else {
 		/* if existing small buf clear beginning */
-		memset(server->smallbuf, 0, sizeof(struct smb_hdr));
+		memset(server->smallbuf, 0, header_size());
 	}
 
 	return true;
@@ -566,8 +579,9 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 }
 
 static struct mid_q_entry *
-find_mid(struct TCP_Server_Info *server, struct smb_hdr *buf)
+find_mid(struct TCP_Server_Info *server, char *buffer)
 {
+	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct mid_q_entry *mid;
 
 	spin_lock(&GlobalMid_Lock);
@@ -600,7 +614,7 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 
 static void
 handle_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server,
-	   struct smb_hdr *buf, int malformed)
+	   char *buf, int malformed)
 {
 	if (malformed == 0 && check2ndT2(buf) > 0) {
 		mid->multiRsp = true;
@@ -731,11 +745,10 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	int length;
 	char *buf = server->smallbuf;
-	struct smb_hdr *smb_buffer = (struct smb_hdr *)buf;
-	unsigned int pdu_length = be32_to_cpu(smb_buffer->smb_buf_length);
+	unsigned int pdu_length = get_rfc1002_length(buf);
 
 	/* make sure this will fit in a large buffer */
-	if (pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
+	if (pdu_length > CIFSMaxBufSize + max_header_size() - 4) {
 		cERROR(1, "SMB response too long (%u bytes)",
 			pdu_length);
 		cifs_reconnect(server);
@@ -746,20 +759,18 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	/* switch to large buffer if too big for a small one */
 	if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE - 4) {
 		server->large_buf = true;
-		memcpy(server->bigbuf, server->smallbuf, server->total_read);
+		memcpy(server->bigbuf, buf, server->total_read);
 		buf = server->bigbuf;
-		smb_buffer = (struct smb_hdr *)buf;
 	}
 
 	/* now read the rest */
-	length = cifs_read_from_socket(server,
-			  buf + sizeof(struct smb_hdr) - 1,
-			  pdu_length - sizeof(struct smb_hdr) + 1 + 4);
+	length = cifs_read_from_socket(server, buf + header_size() - 1,
+				       pdu_length - header_size() + 1 + 4);
 	if (length < 0)
 		return length;
 	server->total_read += length;
 
-	dump_smb(smb_buffer, server->total_read);
+	dump_smb(buf, server->total_read);
 
 	/*
 	 * We know that we received enough to get to the MID as we
@@ -770,7 +781,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * 48 bytes is enough to display the header and a little bit
 	 * into the payload for debugging purposes.
 	 */
-	length = checkSMB(smb_buffer, smb_buffer->Mid, server->total_read);
+	length = checkSMB(buf, server->total_read);
 	if (length != 0)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
@@ -778,7 +789,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	if (!mid)
 		return length;
 
-	handle_mid(mid, server, smb_buffer, length);
+	handle_mid(mid, server, buf, length);
 	return 0;
 }
 
@@ -789,7 +800,6 @@ cifs_demultiplex_thread(void *p)
 	struct TCP_Server_Info *server = p;
 	unsigned int pdu_length;
 	char *buf = NULL;
-	struct smb_hdr *smb_buffer = NULL;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 
@@ -810,7 +820,6 @@ cifs_demultiplex_thread(void *p)
 			continue;
 
 		server->large_buf = false;
-		smb_buffer = (struct smb_hdr *)server->smallbuf;
 		buf = server->smallbuf;
 		pdu_length = 4; /* enough to get RFC1001 header */
 
@@ -823,14 +832,14 @@ cifs_demultiplex_thread(void *p)
 		 * The right amount was read from socket - 4 bytes,
 		 * so we can now interpret the length field.
 		 */
-		pdu_length = be32_to_cpu(smb_buffer->smb_buf_length);
+		pdu_length = get_rfc1002_length(buf);
 
 		cFYI(1, "RFC1002 header 0x%x", pdu_length);
 		if (!is_smb_response(server, buf[0]))
 			continue;
 
 		/* make sure we have enough to get to the MID */
-		if (pdu_length < sizeof(struct smb_hdr) - 1 - 4) {
+		if (pdu_length < header_size() - 1 - 4) {
 			cERROR(1, "SMB response too short (%u bytes)",
 				pdu_length);
 			cifs_reconnect(server);
@@ -840,12 +849,12 @@ cifs_demultiplex_thread(void *p)
 
 		/* read down to the MID */
 		length = cifs_read_from_socket(server, buf + 4,
-					sizeof(struct smb_hdr) - 1 - 4);
+					       header_size() - 1 - 4);
 		if (length < 0)
 			continue;
 		server->total_read += length;
 
-		mid_entry = find_mid(server, smb_buffer);
+		mid_entry = find_mid(server, buf);
 
 		if (!mid_entry || !mid_entry->receive)
 			length = standard_receive3(server, mid_entry);
@@ -855,22 +864,19 @@ cifs_demultiplex_thread(void *p)
 		if (length < 0)
 			continue;
 
-		if (server->large_buf) {
+		if (server->large_buf)
 			buf = server->bigbuf;
-			smb_buffer = (struct smb_hdr *)buf;
-		}
 
 		server->lstrp = jiffies;
 		if (mid_entry != NULL) {
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
-		} else if (!is_valid_oplock_break(smb_buffer, server)) {
+		} else if (!is_valid_oplock_break(buf, server)) {
 			cERROR(1, "No task to wake, unknown frame received! "
 				   "NumMids %d", atomic_read(&midCount));
-			cifs_dump_mem("Received Data is: ", buf,
-				      sizeof(struct smb_hdr));
+			cifs_dump_mem("Received Data is: ", buf, header_size());
 #ifdef CONFIG_CIFS_DEBUG2
-			cifs_dump_detail(smb_buffer);
+			cifs_dump_detail(buf);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 

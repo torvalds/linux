@@ -730,7 +730,7 @@ struct mid_q_entry {
 	mid_receive_t *receive; /* call receive callback */
 	mid_callback_t *callback; /* call completion callback */
 	void *callback_data;	  /* general purpose pointer for callback */
-	struct smb_hdr *resp_buf;	/* pointer to received SMB header */
+	void *resp_buf;		/* pointer to received SMB header */
 	int midState;	/* wish this were enum but can not pass to wait_event */
 	__u8 command;	/* smb command code */
 	bool largeBuf:1;	/* if valid response, is pointer to large buf */

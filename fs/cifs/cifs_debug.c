@@ -58,14 +58,15 @@ cifs_dump_mem(char *label, void *data, int length)
 }
 
 #ifdef CONFIG_CIFS_DEBUG2
-void cifs_dump_detail(struct smb_hdr *smb)
+void cifs_dump_detail(void *buf)
 {
+	struct smb_hdr *smb = (struct smb_hdr *)buf;
+
 	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d",
 		  smb->Command, smb->Status.CifsError,
 		  smb->Flags, smb->Flags2, smb->Mid, smb->Pid);
 	cERROR(1, "smb buf %p len %d", smb, smbCalcSize(smb));
 }
-
 
 void cifs_dump_mids(struct TCP_Server_Info *server)
 {
