@@ -85,6 +85,17 @@ static inline unsigned long prio_tree_maxindex(unsigned int bits)
 	return index_bits_to_maxindex[bits - 1];
 }
 
+static void prio_set_parent(struct prio_tree_node *parent,
+			    struct prio_tree_node *child, bool left)
+{
+	if (left)
+		parent->left = child;
+	else
+		parent->right = child;
+
+	child->parent = parent;
+}
+
 /*
  * Extend a priority search tree so that it can store a node with heap_index
  * max_heap_index. In the worst case, this algorithm takes O((log n)^2).
@@ -113,15 +124,12 @@ static struct prio_tree_node *prio_tree_expand(struct prio_tree_root *root,
 		prio_tree_remove(root, root->prio_tree_node);
 		INIT_PRIO_TREE_NODE(tmp);
 
-		prev->left = tmp;
-		tmp->parent = prev;
+		prio_set_parent(prev, tmp, true);
 		prev = tmp;
 	}
 
-	if (!prio_tree_empty(root)) {
-		prev->left = root->prio_tree_node;
-		prev->left->parent = prev;
-	}
+	if (!prio_tree_empty(root))
+		prio_set_parent(prev, root->prio_tree_node, true);
 
 	root->prio_tree_node = node;
 	return node;
@@ -142,23 +150,14 @@ struct prio_tree_node *prio_tree_replace(struct prio_tree_root *root,
 		 * and does not help much to improve performance (IMO).
 		 */
 		root->prio_tree_node = node;
-	} else {
-		node->parent = old->parent;
-		if (old->parent->left == old)
-			old->parent->left = node;
-		else
-			old->parent->right = node;
-	}
+	} else
+		prio_set_parent(old->parent, node, old->parent->left == old);
 
-	if (!prio_tree_left_empty(old)) {
-		node->left = old->left;
-		old->left->parent = node;
-	}
+	if (!prio_tree_left_empty(old))
+		prio_set_parent(node, old->left, true);
 
-	if (!prio_tree_right_empty(old)) {
-		node->right = old->right;
-		old->right->parent = node;
-	}
+	if (!prio_tree_right_empty(old))
+		prio_set_parent(node, old->right, false);
 
 	return old;
 }
@@ -218,16 +217,14 @@ struct prio_tree_node *prio_tree_insert(struct prio_tree_root *root,
 		if (index & mask) {
 			if (prio_tree_right_empty(cur)) {
 				INIT_PRIO_TREE_NODE(node);
-				cur->right = node;
-				node->parent = cur;
+				prio_set_parent(cur, node, false);
 				return res;
 			} else
 				cur = cur->right;
 		} else {
 			if (prio_tree_left_empty(cur)) {
 				INIT_PRIO_TREE_NODE(node);
-				cur->left = node;
-				node->parent = cur;
+				prio_set_parent(cur, node, true);
 				return res;
 			} else
 				cur = cur->left;
