@@ -743,7 +743,6 @@ static int __devexit tca6507_remove(struct i2c_client *client)
 	}
 	tca6507_remove_gpio(tca);
 	cancel_work_sync(&tca->work);
-	i2c_set_clientdata(client, NULL);
 	kfree(tca);
 
 	return 0;
