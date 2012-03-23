@@ -457,18 +457,10 @@ static int __devinit twl_rtc_probe(struct platform_device *pdev)
 			REG_INT_MSK_STS_A);
 	}
 
-	/* Check RTC module status, Enable if it is off */
-	ret = twl_rtc_read_u8(&rd_reg, REG_RTC_CTRL_REG);
+	dev_info(&pdev->dev, "Enabling TWL-RTC\n");
+	ret = twl_rtc_write_u8(BIT_RTC_CTRL_REG_STOP_RTC_M, REG_RTC_CTRL_REG);
 	if (ret < 0)
 		goto out1;
-
-	if (!(rd_reg & BIT_RTC_CTRL_REG_STOP_RTC_M)) {
-		dev_info(&pdev->dev, "Enabling TWL-RTC.\n");
-		rd_reg = BIT_RTC_CTRL_REG_STOP_RTC_M;
-		ret = twl_rtc_write_u8(rd_reg, REG_RTC_CTRL_REG);
-		if (ret < 0)
-			goto out1;
-	}
 
 	/* init cached IRQ enable bits */
 	ret = twl_rtc_read_u8(&rtc_irq_bits, REG_RTC_INTERRUPTS_REG);
