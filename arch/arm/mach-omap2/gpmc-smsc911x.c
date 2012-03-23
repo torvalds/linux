@@ -39,7 +39,6 @@ static struct smsc911x_platform_config gpmc_smsc911x_config = {
 	.phy_interface	= PHY_INTERFACE_MODE_MII,
 	.irq_polarity	= SMSC911X_IRQ_POLARITY_ACTIVE_LOW,
 	.irq_type	= SMSC911X_IRQ_TYPE_OPEN_DRAIN,
-	.flags		= SMSC911X_USE_16BIT,
 };
 
 static struct regulator_consumer_supply gpmc_smsc911x_supply[] = {
@@ -135,8 +134,7 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *gpmc_cfg)
 		gpio_set_value(gpmc_cfg->gpio_reset, 1);
 	}
 
-	if (gpmc_cfg->flags)
-		gpmc_smsc911x_config.flags = gpmc_cfg->flags;
+	gpmc_smsc911x_config.flags = gpmc_cfg->flags ? : SMSC911X_USE_16BIT;
 
 	pdev = platform_device_register_resndata(NULL, "smsc911x", gpmc_cfg->id,
 		 gpmc_smsc911x_resources, ARRAY_SIZE(gpmc_smsc911x_resources),
