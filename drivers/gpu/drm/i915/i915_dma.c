@@ -1923,6 +1923,8 @@ static void
 i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 		unsigned long size)
 {
+	dev_priv->mm.gtt_mtrr = -1;
+
 #if defined(CONFIG_X86_PAT)
 	if (cpu_has_pat)
 		return;
