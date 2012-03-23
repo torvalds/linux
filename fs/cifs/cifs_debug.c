@@ -80,15 +80,15 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 	spin_lock(&GlobalMid_Lock);
 	list_for_each(tmp, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		cERROR(1, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %d",
-			mid_entry->midState,
-			(int)mid_entry->command,
+		cERROR(1, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %llu",
+			mid_entry->mid_state,
+			le16_to_cpu(mid_entry->command),
 			mid_entry->pid,
 			mid_entry->callback_data,
 			mid_entry->mid);
 #ifdef CONFIG_CIFS_STATS2
 		cERROR(1, "IsLarge: %d buf: %p time rcv: %ld now: %ld",
-			mid_entry->largeBuf,
+			mid_entry->large_buf,
 			mid_entry->resp_buf,
 			mid_entry->when_received,
 			jiffies);
@@ -218,12 +218,12 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 				mid_entry = list_entry(tmp3, struct mid_q_entry,
 					qhead);
 				seq_printf(m, "\tState: %d com: %d pid:"
-						" %d cbdata: %p mid %d\n",
-						mid_entry->midState,
-						(int)mid_entry->command,
-						mid_entry->pid,
-						mid_entry->callback_data,
-						mid_entry->mid);
+					      " %d cbdata: %p mid %llu\n",
+					      mid_entry->mid_state,
+					      le16_to_cpu(mid_entry->command),
+					      mid_entry->pid,
+					      mid_entry->callback_data,
+					      mid_entry->mid);
 			}
 			spin_unlock(&GlobalMid_Lock);
 		}

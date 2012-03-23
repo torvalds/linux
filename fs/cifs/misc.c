@@ -268,7 +268,7 @@ __u64 GetNextMid(struct TCP_Server_Info *server)
 		list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
 			++num_mids;
 			if (mid_entry->mid == cur_mid &&
-			    mid_entry->midState == MID_REQUEST_SUBMITTED) {
+			    mid_entry->mid_state == MID_REQUEST_SUBMITTED) {
 				/* This mid is in use, try a different one */
 				collision = true;
 				break;

@@ -143,8 +143,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		if (mid_entry->midState == MID_REQUEST_SUBMITTED)
-			mid_entry->midState = MID_RETRY_NEEDED;
+		if (mid_entry->mid_state == MID_REQUEST_SUBMITTED)
+			mid_entry->mid_state = MID_RETRY_NEEDED;
 		list_move(&mid_entry->qhead, &retry_list);
 	}
 	spin_unlock(&GlobalMid_Lock);
@@ -575,8 +575,8 @@ find_mid(struct TCP_Server_Info *server, char *buffer)
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if (mid->mid == buf->Mid &&
-		    mid->midState == MID_REQUEST_SUBMITTED &&
-		    mid->command == buf->Command) {
+		    mid->mid_state == MID_REQUEST_SUBMITTED &&
+		    le16_to_cpu(mid->command) == buf->Command) {
 			spin_unlock(&GlobalMid_Lock);
 			return mid;
 		}
@@ -593,9 +593,9 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 #endif
 	spin_lock(&GlobalMid_Lock);
 	if (!malformed)
-		mid->midState = MID_RESPONSE_RECEIVED;
+		mid->mid_state = MID_RESPONSE_RECEIVED;
 	else
-		mid->midState = MID_RESPONSE_MALFORMED;
+		mid->mid_state = MID_RESPONSE_MALFORMED;
 	list_del_init(&mid->qhead);
 	spin_unlock(&GlobalMid_Lock);
 }
@@ -622,13 +622,13 @@ handle_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		} else {
 			/* Have first buffer */
 			mid->resp_buf = buf;
-			mid->largeBuf = true;
+			mid->large_buf = true;
 			server->bigbuf = NULL;
 		}
 		return;
 	}
 	mid->resp_buf = buf;
-	mid->largeBuf = server->large_buf;
+	mid->large_buf = server->large_buf;
 	/* Was previous buf put in mpx struct for multi-rsp? */
 	if (!mid->multiRsp) {
 		/* smb buffer will be freed by user thread */
@@ -684,8 +684,8 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 		spin_lock(&GlobalMid_Lock);
 		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			cFYI(1, "Clearing mid 0x%x", mid_entry->mid);
-			mid_entry->midState = MID_SHUTDOWN;
+			cFYI(1, "Clearing mid 0x%llx", mid_entry->mid);
+			mid_entry->mid_state = MID_SHUTDOWN;
 			list_move(&mid_entry->qhead, &dispose_list);
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -693,7 +693,7 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 		/* now walk dispose list and issue callbacks */
 		list_for_each_safe(tmp, tmp2, &dispose_list) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			cFYI(1, "Callback mid 0x%x", mid_entry->mid);
+			cFYI(1, "Callback mid 0x%llx", mid_entry->mid);
 			list_del_init(&mid_entry->qhead);
 			mid_entry->callback(mid_entry);
 		}
