@@ -32,9 +32,6 @@ extern unsigned long __sw_hweight64(__u64 w);
 	     (bit) < (size);					\
 	     (bit) = find_next_bit((addr), (size), (bit) + 1))
 
-#define for_each_set_bit_cont(bit, addr, size) \
-	for_each_set_bit_from(bit, addr, size)
-
 static __inline__ int get_bitmask_order(unsigned int count)
 {
 	int order;

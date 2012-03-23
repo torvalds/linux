@@ -341,7 +341,7 @@ static int regcache_lzo_sync(struct regmap *map, unsigned int min,
 
 	lzo_blocks = map->cache;
 	i = min;
-	for_each_set_bit_cont(i, lzo_blocks[0]->sync_bmp,
+	for_each_set_bit_from(i, lzo_blocks[0]->sync_bmp,
 			      lzo_blocks[0]->sync_bmp_nbits) {
 		if (i > max)
 			continue;
