@@ -327,11 +327,39 @@ static int spear_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 	return 0;
 }
+
+static int spear_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct rtc_device *rtc = platform_get_drvdata(pdev);
+	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	int ret = 0;
+
+	spear_rtc_clear_interrupt(config);
+
+	switch (enabled) {
+	case 0:
+		/* alarm off */
+		spear_rtc_disable_interrupt(config);
+		break;
+	case 1:
+		/* alarm on */
+		spear_rtc_enable_interrupt(config);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static struct rtc_class_ops spear_rtc_ops = {
 	.read_time = spear_rtc_read_time,
 	.set_time = spear_rtc_set_time,
 	.read_alarm = spear_rtc_read_alarm,
 	.set_alarm = spear_rtc_set_alarm,
+	.alarm_irq_enable = spear_alarm_irq_enable,
 };
 
 static int __devinit spear_rtc_probe(struct platform_device *pdev)
