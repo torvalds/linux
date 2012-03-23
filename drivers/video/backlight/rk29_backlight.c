@@ -39,11 +39,9 @@
 #endif
 
 #if defined(CONFIG_ARCH_RK30)
-#include <mach/io.h>
 #define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK30_PWM01_BASE+(id>>1)*0x20000)+id*0x10)
-#define read_pwm_reg(id, addr)              __raw_readl(addr+(RK30_PWM01_BASE+(id>>1)*0x20000+id*0x10))    
+#define read_pwm_reg(id, addr)              __raw_readl(addr+(RK30_PWM01_BASE+(id>>1)*0x20000+id*0x10))
 #elif defined(CONFIG_ARCH_RK29)
-#include <mach/rk29_iomap.h>
 #define write_pwm_reg(id, addr, val)        __raw_writel(val, addr+(RK29_PWM_BASE+id*0x10))
 #define read_pwm_reg(id, addr)              __raw_readl(addr+(RK29_PWM_BASE+id*0x10))    
 #endif
@@ -198,10 +196,17 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;		
 	}
 
+#if defined(CONFIG_ARCH_RK29)
 	pwm_clk = clk_get(NULL, "pwm");
+#elif defined(CONFIG_ARCH_RK30)
+	if (id == 0 || id == 1)
+		pwm_clk = clk_get(NULL, "pwm01");
+	else if (id == 2 || id == 3)
+		pwm_clk = clk_get(NULL, "pwm23");
+#endif
 	if (IS_ERR(pwm_clk)) {
 		printk(KERN_ERR "failed to get pwm clock source\n");
-		//return -ENODEV;	
+		return -ENODEV;
 	}
 	pwm_clk_rate = clk_get_rate(pwm_clk);
 	div_total = pwm_clk_rate / PWM_APB_PRE_DIV;
@@ -221,7 +226,7 @@ static int rk29_backlight_probe(struct platform_device *pdev)
 	write_pwm_reg(id, PWM_REG_HRC, divh);
 	write_pwm_reg(id, PWM_REG_CNTR, 0x0);
 	write_pwm_reg(id, PWM_REG_CTRL, PWM_DIV|PWM_ENABLE|PWM_TIME_EN);
-	
+
 	rk29_bl->props.power = FB_BLANK_UNBLANK;
 	rk29_bl->props.fb_blank = FB_BLANK_UNBLANK;
 	rk29_bl->props.brightness = BL_STEP / 2;
