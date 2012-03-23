@@ -590,6 +590,33 @@ struct cm3217_platform_data cm3217_info = {
 #endif
 
 #ifdef CONFIG_FB_ROCKCHIP
+
+#define LCD_EN_MUX_NAME    GPIO4C7_SMCDATA7_TRACEDATA7_NAME
+#define LCD_EN_PIN         RK30_PIN4_PC7
+#define LCD_EN_VALUE       GPIO_HIGH
+
+static int rk_fb_io_init(void)
+{
+	int ret = 0;
+	rk30_mux_api_set(LCD_EN_MUX_NAME, GPIO4C_GPIO4C7);
+	ret = gpio_request(LCD_EN_PIN, NULL);
+	if (ret != 0)
+	{
+		gpio_free(LCD_EN_PIN);
+		printk(KERN_ERR "request lcd en pin fail!\n");
+		return -1;
+	}
+	else
+	{
+		gpio_direction_output(LCD_EN_PIN, 1);
+		gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	}
+	return 0;
+}
+static struct rk29lcd_info rk_fb_info = {
+	.io_init   = rk_fb_io_init,
+};
+
 static struct resource resource_fb[] = {
 	[0] = {
 		.name  = "fb0 buf",
@@ -616,6 +643,9 @@ static struct platform_device device_fb = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(resource_fb),
 	.resource	= resource_fb,
+	.dev            = {
+		.platform_data  = &rk_fb_info,
+	}
 };
 #endif
 

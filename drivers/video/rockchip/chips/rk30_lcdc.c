@@ -175,7 +175,7 @@ void rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
 
  
 
-  //  ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);
+    ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);
     if(ret)
     {
         printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
@@ -183,11 +183,10 @@ void rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
     lcdc_dev->driver->pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
     if(initscreen)
     {
-        //ret = clk_set_parent(lcdc_dev->aclk, lcdc_dev->aclk_parent);
         if(screen->lcdc_aclk){
            aclk_rate = screen->lcdc_aclk;
         }
-       // ret = clk_set_rate(lcdc_dev->aclk, aclk_rate);
+        ret = clk_set_rate(lcdc_dev->aclk, aclk_rate);
         if(ret){
             printk(KERN_ERR ">>>>>> set lcdc aclk failed\n");
         }

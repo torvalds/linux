@@ -519,8 +519,8 @@ static int request_fb_buffer(struct fb_info *fbi,int fb_id)
             }
             fbi->fix.mmio_start = res->start;
             fbi->fix.mmio_len = res->end - res->start + 1;
-            break;
         #endif
+	    break;
         case 2:
             res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "fb2 buf");
             if (res == NULL)
@@ -645,17 +645,21 @@ int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver)
 static int __devinit rk_fb_probe (struct platform_device *pdev)
 {
 	struct rk_fb_inf *fb_inf	= NULL;
+	struct rk29lcd_info *lcd_info = NULL;
 	int ret = 0;
 	g_fb_pdev=pdev;
-    /* Malloc rk29fb_inf and set it to pdev for drvdata */
-    fb_inf = kmalloc(sizeof(struct rk_fb_inf), GFP_KERNEL);
-    if(!fb_inf)
-    {
-        dev_err(&pdev->dev, ">>fb inf kmalloc fail!");
-        ret = -ENOMEM;
-    }
-    memset(fb_inf, 0, sizeof(struct rk_fb_inf));
+	lcd_info =  pdev->dev.platform_data;
+    /* Malloc rk_fb_inf and set it to pdev for drvdata */
+	fb_inf = kmalloc(sizeof(struct rk_fb_inf), GFP_KERNEL);
+	if(!fb_inf)
+	{
+        	dev_err(&pdev->dev, ">>fb inf kmalloc fail!");
+        	ret = -ENOMEM;
+    	}
+    	memset(fb_inf, 0, sizeof(struct rk_fb_inf));
 	platform_set_drvdata(pdev, fb_inf);
+	if(lcd_info->io_init)
+		lcd_info->io_init();
 	printk("rk fb probe ok!\n");
     return 0;
 }
