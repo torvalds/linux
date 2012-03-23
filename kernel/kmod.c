@@ -201,7 +201,15 @@ EXPORT_SYMBOL(call_usermodehelper_freeinfo);
 
 static void umh_complete(struct subprocess_info *sub_info)
 {
-	complete(sub_info->complete);
+	struct completion *comp = xchg(&sub_info->complete, NULL);
+	/*
+	 * See call_usermodehelper_exec(). If xchg() returns NULL
+	 * we own sub_info, the UMH_KILLABLE caller has gone away.
+	 */
+	if (comp)
+		complete(comp);
+	else
+		call_usermodehelper_freeinfo(sub_info);
 }
 
 /* Keventd can't block, but this (a child) can. */
@@ -251,6 +259,9 @@ static void __call_usermodehelper(struct work_struct *work)
 		container_of(work, struct subprocess_info, work);
 	enum umh_wait wait = sub_info->wait;
 	pid_t pid;
+
+	if (wait != UMH_NO_WAIT)
+		wait &= ~UMH_KILLABLE;
 
 	/* CLONE_VFORK: wait until the usermode helper has execve'd
 	 * successfully We need the data structures to stay around
@@ -461,9 +472,21 @@ int call_usermodehelper_exec(struct subprocess_info *sub_info,
 	queue_work(khelper_wq, &sub_info->work);
 	if (wait == UMH_NO_WAIT)	/* task has freed sub_info */
 		goto unlock;
-	wait_for_completion(&done);
-	retval = sub_info->retval;
 
+	if (wait & UMH_KILLABLE) {
+		retval = wait_for_completion_killable(&done);
+		if (!retval)
+			goto wait_done;
+
+		/* umh_complete() will see NULL and free sub_info */
+		if (xchg(&sub_info->complete, NULL))
+			goto unlock;
+		/* fallthrough, umh_complete() was already called */
+	}
+
+	wait_for_completion(&done);
+wait_done:
+	retval = sub_info->retval;
 out:
 	call_usermodehelper_freeinfo(sub_info);
 unlock:

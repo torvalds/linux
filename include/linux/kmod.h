@@ -54,6 +54,8 @@ enum umh_wait {
 	UMH_WAIT_PROC = 1,	/* wait for the process to complete */
 };
 
+#define UMH_KILLABLE	4	/* wait for EXEC/PROC killable */
+
 struct subprocess_info {
 	struct work_struct work;
 	struct completion *complete;
