@@ -61,14 +61,14 @@ config CRC_ITU_T
 	  functions require M here.
 
 config CRC32
-	tristate "CRC32 functions"
+	tristate "CRC32/CRC32c functions"
 	default y
 	select BITREVERSE
 	help
 	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC32 functions, but a module built outside the
-	  kernel tree does. Such modules that use library CRC32 functions
-	  require M here.
+	  modules require CRC32/CRC32c functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC32/CRC32c
+	  functions require M here.
 
 config CRC32_SELFTEST
 	bool "CRC32 perform self test on init"

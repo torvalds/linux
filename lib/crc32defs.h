@@ -7,6 +7,13 @@
 #define CRCPOLY_BE 0x04c11db7
 
 /*
+ * This is the CRC32c polynomial, as outlined by Castagnoli.
+ * x^32+x^28+x^27+x^26+x^25+x^23+x^22+x^20+x^19+x^18+x^14+x^13+x^11+x^10+x^9+
+ * x^8+x^6+x^0
+ */
+#define CRC32C_POLY_LE 0x82F63B78
+
+/*
  * How many bits at a time to use.  Valid values are 1, 2, 4, 8, 32 and 64.
  * For less performance-sensitive, use 4 or 8 to save table size.
  * For larger systems choose same as CPU architecture as default.

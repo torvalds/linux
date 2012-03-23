@@ -46,7 +46,7 @@
 #include "crc32table.h"
 
 MODULE_AUTHOR("Matt Domsch <Matt_Domsch@dell.com>");
-MODULE_DESCRIPTION("Ethernet CRC32 calculations");
+MODULE_DESCRIPTION("Various CRC32 calculations");
 MODULE_LICENSE("GPL");
 
 #if CRC_LE_BITS > 8 || CRC_BE_BITS > 8
@@ -135,45 +135,66 @@ crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
  * @p: pointer to buffer over which CRC is run
  * @len: length of buffer @p
  */
-u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
+static inline u32 __pure crc32_le_generic(u32 crc, unsigned char const *p,
+					  size_t len, const u32 (*tab)[256],
+					  u32 polynomial)
 {
 #if CRC_LE_BITS == 1
 	int i;
 	while (len--) {
 		crc ^= *p++;
 		for (i = 0; i < 8; i++)
-			crc = (crc >> 1) ^ ((crc & 1) ? CRCPOLY_LE : 0);
+			crc = (crc >> 1) ^ ((crc & 1) ? polynomial : 0);
 	}
 # elif CRC_LE_BITS == 2
 	while (len--) {
 		crc ^= *p++;
-		crc = (crc >> 2) ^ crc32table_le[0][crc & 3];
-		crc = (crc >> 2) ^ crc32table_le[0][crc & 3];
-		crc = (crc >> 2) ^ crc32table_le[0][crc & 3];
-		crc = (crc >> 2) ^ crc32table_le[0][crc & 3];
+		crc = (crc >> 2) ^ tab[0][crc & 3];
+		crc = (crc >> 2) ^ tab[0][crc & 3];
+		crc = (crc >> 2) ^ tab[0][crc & 3];
+		crc = (crc >> 2) ^ tab[0][crc & 3];
 	}
 # elif CRC_LE_BITS == 4
 	while (len--) {
 		crc ^= *p++;
-		crc = (crc >> 4) ^ crc32table_le[0][crc & 15];
-		crc = (crc >> 4) ^ crc32table_le[0][crc & 15];
+		crc = (crc >> 4) ^ tab[0][crc & 15];
+		crc = (crc >> 4) ^ tab[0][crc & 15];
 	}
 # elif CRC_LE_BITS == 8
 	/* aka Sarwate algorithm */
 	while (len--) {
 		crc ^= *p++;
-		crc = (crc >> 8) ^ crc32table_le[0][crc & 255];
+		crc = (crc >> 8) ^ tab[0][crc & 255];
 	}
 # else
-	const u32      (*tab)[] = crc32table_le;
-
 	crc = (__force u32) __cpu_to_le32(crc);
 	crc = crc32_body(crc, p, len, tab);
 	crc = __le32_to_cpu((__force __le32)crc);
 #endif
 	return crc;
 }
+
+#if CRC_LE_BITS == 1
+u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
+{
+	return crc32_le_generic(crc, p, len, NULL, CRCPOLY_LE);
+}
+u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
+{
+	return crc32_le_generic(crc, p, len, NULL, CRC32C_POLY_LE);
+}
+#else
+u32 __pure crc32_le(u32 crc, unsigned char const *p, size_t len)
+{
+	return crc32_le_generic(crc, p, len, crc32table_le, CRCPOLY_LE);
+}
+u32 __pure __crc32c_le(u32 crc, unsigned char const *p, size_t len)
+{
+	return crc32_le_generic(crc, p, len, crc32ctable_le, CRC32C_POLY_LE);
+}
+#endif
 EXPORT_SYMBOL(crc32_le);
+EXPORT_SYMBOL(__crc32c_le);
 
 /**
  * crc32_be() - Calculate bitwise big-endian Ethernet AUTODIN II CRC32
@@ -182,7 +203,9 @@ EXPORT_SYMBOL(crc32_le);
  * @p: pointer to buffer over which CRC is run
  * @len: length of buffer @p
  */
-u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
+static inline u32 __pure crc32_be_generic(u32 crc, unsigned char const *p,
+					  size_t len, const u32 (*tab)[256],
+					  u32 polynomial)
 {
 #if CRC_BE_BITS == 1
 	int i;
@@ -190,37 +213,47 @@ u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
 		crc ^= *p++ << 24;
 		for (i = 0; i < 8; i++)
 			crc =
-			    (crc << 1) ^ ((crc & 0x80000000) ? CRCPOLY_BE :
+			    (crc << 1) ^ ((crc & 0x80000000) ? polynomial :
 					  0);
 	}
 # elif CRC_BE_BITS == 2
 	while (len--) {
 		crc ^= *p++ << 24;
-		crc = (crc << 2) ^ crc32table_be[0][crc >> 30];
-		crc = (crc << 2) ^ crc32table_be[0][crc >> 30];
-		crc = (crc << 2) ^ crc32table_be[0][crc >> 30];
-		crc = (crc << 2) ^ crc32table_be[0][crc >> 30];
+		crc = (crc << 2) ^ tab[0][crc >> 30];
+		crc = (crc << 2) ^ tab[0][crc >> 30];
+		crc = (crc << 2) ^ tab[0][crc >> 30];
+		crc = (crc << 2) ^ tab[0][crc >> 30];
 	}
 # elif CRC_BE_BITS == 4
 	while (len--) {
 		crc ^= *p++ << 24;
-		crc = (crc << 4) ^ crc32table_be[0][crc >> 28];
-		crc = (crc << 4) ^ crc32table_be[0][crc >> 28];
+		crc = (crc << 4) ^ tab[0][crc >> 28];
+		crc = (crc << 4) ^ tab[0][crc >> 28];
 	}
 # elif CRC_BE_BITS == 8
 	while (len--) {
 		crc ^= *p++ << 24;
-		crc = (crc << 8) ^ crc32table_be[0][crc >> 24];
+		crc = (crc << 8) ^ tab[0][crc >> 24];
 	}
 # else
-	const u32      (*tab)[] = crc32table_be;
-
 	crc = (__force u32) __cpu_to_be32(crc);
 	crc = crc32_body(crc, p, len, tab);
 	crc = __be32_to_cpu((__force __be32)crc);
 # endif
 	return crc;
 }
+
+#if CRC_LE_BITS == 1
+u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
+{
+	return crc32_be_generic(crc, p, len, NULL, CRCPOLY_BE);
+}
+#else
+u32 __pure crc32_be(u32 crc, unsigned char const *p, size_t len)
+{
+	return crc32_be_generic(crc, p, len, crc32table_be, CRCPOLY_BE);
+}
+#endif
 EXPORT_SYMBOL(crc32_be);
 
 #ifdef CONFIG_CRC32_SELFTEST
