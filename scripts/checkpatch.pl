@@ -2894,6 +2894,12 @@ sub process {
 			{
 			}
 
+			# Flatten any obvious string concatentation.
+			while ($dstat =~ s/("X*")\s*$Ident/$1/ ||
+			       $dstat =~ s/$Ident\s*("X*")/$1/)
+			{
+			}
+
 			my $exceptions = qr{
 				$Declare|
 				module_param_named|
