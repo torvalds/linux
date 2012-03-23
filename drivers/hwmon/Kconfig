@@ -1360,10 +1360,10 @@ config SENSORS_APPLESMC
 	  the awesome power of applesmc.
 
 config SENSORS_MC13783_ADC
-        tristate "Freescale MC13783 ADC"
-        depends on MFD_MC13783
+        tristate "Freescale MC13783/MC13892 ADC"
+        depends on MFD_MC13XXX
         help
-          Support for the A/D converter on MC13783 PMIC.
+          Support for the A/D converter on MC13783 and MC13892 PMIC.
 
 if ACPI
 
