@@ -304,6 +304,40 @@ void prio_tree_remove(struct prio_tree_root *root, struct prio_tree_node *node)
 		cur = prio_tree_replace(root, cur->parent, cur);
 }
 
+static void iter_walk_down(struct prio_tree_iter *iter)
+{
+	iter->mask >>= 1;
+	if (iter->mask) {
+		if (iter->size_level)
+			iter->size_level++;
+		return;
+	}
+
+	if (iter->size_level) {
+		BUG_ON(!prio_tree_left_empty(iter->cur));
+		BUG_ON(!prio_tree_right_empty(iter->cur));
+		iter->size_level++;
+		iter->mask = ULONG_MAX;
+	} else {
+		iter->size_level = 1;
+		iter->mask = 1UL << (BITS_PER_LONG - 1);
+	}
+}
+
+static void iter_walk_up(struct prio_tree_iter *iter)
+{
+	if (iter->mask == ULONG_MAX)
+		iter->mask = 1UL;
+	else if (iter->size_level == 1)
+		iter->mask = 1UL;
+	else
+		iter->mask <<= 1;
+	if (iter->size_level)
+		iter->size_level--;
+	if (!iter->size_level && (iter->value & iter->mask))
+		iter->value ^= iter->mask;
+}
+
 /*
  * Following functions help to enumerate all prio_tree_nodes in the tree that
  * overlap with the input interval X [radix_index, heap_index]. The enumeration
@@ -322,21 +356,7 @@ static struct prio_tree_node *prio_tree_left(struct prio_tree_iter *iter,
 
 	if (iter->r_index <= *h_index) {
 		iter->cur = iter->cur->left;
-		iter->mask >>= 1;
-		if (iter->mask) {
-			if (iter->size_level)
-				iter->size_level++;
-		} else {
-			if (iter->size_level) {
-				BUG_ON(!prio_tree_left_empty(iter->cur));
-				BUG_ON(!prio_tree_right_empty(iter->cur));
-				iter->size_level++;
-				iter->mask = ULONG_MAX;
-			} else {
-				iter->size_level = 1;
-				iter->mask = 1UL << (BITS_PER_LONG - 1);
-			}
-		}
+		iter_walk_down(iter);
 		return iter->cur;
 	}
 
@@ -363,22 +383,7 @@ static struct prio_tree_node *prio_tree_right(struct prio_tree_iter *iter,
 
 	if (iter->r_index <= *h_index) {
 		iter->cur = iter->cur->right;
-		iter->mask >>= 1;
-		iter->value = value;
-		if (iter->mask) {
-			if (iter->size_level)
-				iter->size_level++;
-		} else {
-			if (iter->size_level) {
-				BUG_ON(!prio_tree_left_empty(iter->cur));
-				BUG_ON(!prio_tree_right_empty(iter->cur));
-				iter->size_level++;
-				iter->mask = ULONG_MAX;
-			} else {
-				iter->size_level = 1;
-				iter->mask = 1UL << (BITS_PER_LONG - 1);
-			}
-		}
+		iter_walk_down(iter);
 		return iter->cur;
 	}
 
@@ -388,16 +393,7 @@ static struct prio_tree_node *prio_tree_right(struct prio_tree_iter *iter,
 static struct prio_tree_node *prio_tree_parent(struct prio_tree_iter *iter)
 {
 	iter->cur = iter->cur->parent;
-	if (iter->mask == ULONG_MAX)
-		iter->mask = 1UL;
-	else if (iter->size_level == 1)
-		iter->mask = 1UL;
-	else
-		iter->mask <<= 1;
-	if (iter->size_level)
-		iter->size_level--;
-	if (!iter->size_level && (iter->value & iter->mask))
-		iter->value ^= iter->mask;
+	iter_walk_up(iter);
 	return iter->cur;
 }
 
