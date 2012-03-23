@@ -921,7 +921,16 @@ static int __init amd_iommu_v2_init(void)
 	size_t state_table_size;
 	int ret;
 
-	pr_info("AMD IOMMUv2 driver by Joerg Roedel <joerg.roedel@amd.com>");
+	pr_info("AMD IOMMUv2 driver by Joerg Roedel <joerg.roedel@amd.com>\n");
+
+	if (!amd_iommu_v2_supported()) {
+		pr_info("AMD IOMMUv2 functionality not available on this sytem\n");
+		/*
+		 * Load anyway to provide the symbols to other modules
+		 * which may use AMD IOMMUv2 optionally.
+		 */
+		return 0;
+	}
 
 	spin_lock_init(&state_lock);
 
@@ -960,6 +969,9 @@ static void __exit amd_iommu_v2_exit(void)
 	struct device_state *dev_state;
 	size_t state_table_size;
 	int i;
+
+	if (!amd_iommu_v2_supported())
+		return;
 
 	profile_event_unregister(PROFILE_TASK_EXIT, &profile_nb);
 	amd_iommu_unregister_ppr_notifier(&ppr_nb);
