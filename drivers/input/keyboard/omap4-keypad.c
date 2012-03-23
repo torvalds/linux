@@ -31,7 +31,7 @@
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
 
-#include <plat/omap4-keypad.h>
+#include <linux/platform_data/omap4-keypad.h>
 
 /* OMAP4 registers */
 #define OMAP4_KBD_REVISION		0x00

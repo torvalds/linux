@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/platform_data/omap4-keypad.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>
