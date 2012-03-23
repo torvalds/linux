@@ -220,7 +220,7 @@ static int __devexit mc13783_adc_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver mc13783_adc_driver = {
-	.remove 	= __devexit_p(mc13783_adc_remove),
+	.remove		= __devexit_p(mc13783_adc_remove),
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= MC13783_ADC_NAME,
