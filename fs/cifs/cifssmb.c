@@ -1414,8 +1414,7 @@ cifs_readdata_free(struct cifs_readdata *rdata)
 static int
 cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
-	READ_RSP *rsp = (READ_RSP *)server->smallbuf;
-	unsigned int rfclen = be32_to_cpu(rsp->hdr.smb_buf_length);
+	unsigned int rfclen = get_rfc1002_length(server->smallbuf);
 	int remaining = rfclen + 4 - server->total_read;
 	struct cifs_readdata *rdata = mid->callback_data;
 
@@ -1424,7 +1423,7 @@ cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 		length = cifs_read_from_socket(server, server->bigbuf,
 				min_t(unsigned int, remaining,
-					CIFSMaxBufSize + MAX_CIFS_HDR_SIZE));
+					CIFSMaxBufSize + max_header_size()));
 		if (length < 0)
 			return length;
 		server->total_read += length;
@@ -1435,14 +1434,35 @@ cifs_readv_discard(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	return 0;
 }
 
+static inline size_t
+read_rsp_size(void)
+{
+	return sizeof(READ_RSP);
+}
+
+static inline unsigned int
+read_data_offset(char *buf)
+{
+	READ_RSP *rsp = (READ_RSP *)buf;
+	return le16_to_cpu(rsp->DataOffset);
+}
+
+static inline unsigned int
+read_data_length(char *buf)
+{
+	READ_RSP *rsp = (READ_RSP *)buf;
+	return (le16_to_cpu(rsp->DataLengthHigh) << 16) +
+	       le16_to_cpu(rsp->DataLength);
+}
+
 static int
 cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	int length, len;
 	unsigned int data_offset, remaining, data_len;
 	struct cifs_readdata *rdata = mid->callback_data;
-	READ_RSP *rsp = (READ_RSP *)server->smallbuf;
-	unsigned int rfclen = be32_to_cpu(rsp->hdr.smb_buf_length) + 4;
+	char *buf = server->smallbuf;
+	unsigned int buflen = get_rfc1002_length(buf) + 4;
 	u64 eof;
 	pgoff_t eof_index;
 	struct page *page, *tpage;
@@ -1455,10 +1475,9 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * can if there's not enough data. At this point, we've read down to
 	 * the Mid.
 	 */
-	len = min_t(unsigned int, rfclen, sizeof(*rsp)) -
-			sizeof(struct smb_hdr) + 1;
+	len = min_t(unsigned int, buflen, read_rsp_size()) - header_size() + 1;
 
-	rdata->iov[0].iov_base = server->smallbuf + sizeof(struct smb_hdr) - 1;
+	rdata->iov[0].iov_base = buf + header_size() - 1;
 	rdata->iov[0].iov_len = len;
 
 	length = cifs_readv_from_socket(server, rdata->iov, 1, len);
@@ -1467,7 +1486,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	server->total_read += length;
 
 	/* Was the SMB read successful? */
-	rdata->result = map_smb_to_linux_error(&rsp->hdr, false);
+	rdata->result = map_smb_to_linux_error(buf, false);
 	if (rdata->result != 0) {
 		cFYI(1, "%s: server returned error %d", __func__,
 			rdata->result);
@@ -1475,14 +1494,14 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	/* Is there enough to get to the rest of the READ_RSP header? */
-	if (server->total_read < sizeof(READ_RSP)) {
+	if (server->total_read < read_rsp_size()) {
 		cFYI(1, "%s: server returned short header. got=%u expected=%zu",
-			__func__, server->total_read, sizeof(READ_RSP));
+			__func__, server->total_read, read_rsp_size());
 		rdata->result = -EIO;
 		return cifs_readv_discard(server, mid);
 	}
 
-	data_offset = le16_to_cpu(rsp->DataOffset) + 4;
+	data_offset = read_data_offset(buf) + 4;
 	if (data_offset < server->total_read) {
 		/*
 		 * win2k8 sometimes sends an offset of 0 when the read
@@ -1506,7 +1525,7 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	len = data_offset - server->total_read;
 	if (len > 0) {
 		/* read any junk before data into the rest of smallbuf */
-		rdata->iov[0].iov_base = server->smallbuf + server->total_read;
+		rdata->iov[0].iov_base = buf + server->total_read;
 		rdata->iov[0].iov_len = len;
 		length = cifs_readv_from_socket(server, rdata->iov, 1, len);
 		if (length < 0)
@@ -1515,15 +1534,14 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	}
 
 	/* set up first iov for signature check */
-	rdata->iov[0].iov_base = server->smallbuf;
+	rdata->iov[0].iov_base = buf;
 	rdata->iov[0].iov_len = server->total_read;
 	cFYI(1, "0: iov_base=%p iov_len=%zu",
 		rdata->iov[0].iov_base, rdata->iov[0].iov_len);
 
 	/* how much data is in the response? */
-	data_len = le16_to_cpu(rsp->DataLengthHigh) << 16;
-	data_len += le16_to_cpu(rsp->DataLength);
-	if (data_offset + data_len > rfclen) {
+	data_len = read_data_length(buf);
+	if (data_offset + data_len > buflen) {
 		/* data_len is corrupt -- discard frame */
 		rdata->result = -EIO;
 		return cifs_readv_discard(server, mid);
@@ -1602,11 +1620,11 @@ cifs_readv_receive(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 
 	rdata->bytes = length;
 
-	cFYI(1, "total_read=%u rfclen=%u remaining=%u", server->total_read,
-		rfclen, remaining);
+	cFYI(1, "total_read=%u buflen=%u remaining=%u", server->total_read,
+		buflen, remaining);
 
 	/* discard anything left over */
-	if (server->total_read < rfclen)
+	if (server->total_read < buflen)
 		return cifs_readv_discard(server, mid);
 
 	dequeue_mid(mid, false);

@@ -341,6 +341,18 @@ has_credits(struct TCP_Server_Info *server, int *credits)
 	return num > 0;
 }
 
+static inline size_t
+header_size(void)
+{
+	return sizeof(struct smb_hdr);
+}
+
+static inline size_t
+max_header_size(void)
+{
+	return MAX_CIFS_HDR_SIZE;
+}
+
 /*
  * Macros to allow the TCP_Server_Info->net field and related code to drop out
  * when CONFIG_NET_NS isn't set.

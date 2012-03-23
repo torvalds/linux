@@ -836,8 +836,9 @@ ntstatus_to_dos(__u32 ntstatus, __u8 *eclass, __u16 *ecode)
 }
 
 int
-map_smb_to_linux_error(struct smb_hdr *smb, bool logErr)
+map_smb_to_linux_error(char *buf, bool logErr)
 {
+	struct smb_hdr *smb = (struct smb_hdr *)buf;
 	unsigned int i;
 	int rc = -EIO;	/* if transport error smb error may not be set */
 	__u8 smberrclass;
