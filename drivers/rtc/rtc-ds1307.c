@@ -105,6 +105,8 @@ enum ds_type {
 struct ds1307 {
 	u8			offset; /* register's offset */
 	u8			regs[11];
+	u16			nvram_offset;
+	struct bin_attribute	*nvram;
 	enum ds_type		type;
 	unsigned long		flags;
 #define HAS_NVRAM	0		/* bit 0 == sysfs file active */
@@ -119,25 +121,33 @@ struct ds1307 {
 };
 
 struct chip_desc {
-	unsigned		nvram56:1;
 	unsigned		alarm:1;
+	u16			nvram_offset;
+	u16			nvram_size;
 };
 
 static const struct chip_desc chips[last_ds_type] = {
 	[ds_1307] = {
-		.nvram56	= 1,
+		.nvram_offset	= 8,
+		.nvram_size	= 56,
 	},
 	[ds_1337] = {
 		.alarm		= 1,
 	},
 	[ds_1338] = {
-		.nvram56	= 1,
+		.nvram_offset	= 8,
+		.nvram_size	= 56,
 	},
 	[ds_1339] = {
 		.alarm		= 1,
 	},
 	[ds_3231] = {
 		.alarm		= 1,
+	},
+	[mcp7941x] = {
+		/* this is battery backed SRAM */
+		.nvram_offset	= 0x20,
+		.nvram_size	= 0x40,
 	},
 };
 
@@ -543,8 +553,6 @@ static const struct rtc_class_ops ds13xx_rtc_ops = {
 
 /*----------------------------------------------------------------------*/
 
-#define NVRAM_SIZE	56
-
 static ssize_t
 ds1307_nvram_read(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr,
@@ -557,14 +565,15 @@ ds1307_nvram_read(struct file *filp, struct kobject *kobj,
 	client = kobj_to_i2c_client(kobj);
 	ds1307 = i2c_get_clientdata(client);
 
-	if (unlikely(off >= NVRAM_SIZE))
+	if (unlikely(off >= ds1307->nvram->size))
 		return 0;
-	if ((off + count) > NVRAM_SIZE)
-		count = NVRAM_SIZE - off;
+	if ((off + count) > ds1307->nvram->size)
+		count = ds1307->nvram->size - off;
 	if (unlikely(!count))
 		return count;
 
-	result = ds1307->read_block_data(client, 8 + off, count, buf);
+	result = ds1307->read_block_data(client, ds1307->nvram_offset + off,
+								count, buf);
 	if (result < 0)
 		dev_err(&client->dev, "%s error %d\n", "nvram read", result);
 	return result;
@@ -582,31 +591,21 @@ ds1307_nvram_write(struct file *filp, struct kobject *kobj,
 	client = kobj_to_i2c_client(kobj);
 	ds1307 = i2c_get_clientdata(client);
 
-	if (unlikely(off >= NVRAM_SIZE))
+	if (unlikely(off >= ds1307->nvram->size))
 		return -EFBIG;
-	if ((off + count) > NVRAM_SIZE)
-		count = NVRAM_SIZE - off;
+	if ((off + count) > ds1307->nvram->size)
+		count = ds1307->nvram->size - off;
 	if (unlikely(!count))
 		return count;
 
-	result = ds1307->write_block_data(client, 8 + off, count, buf);
+	result = ds1307->write_block_data(client, ds1307->nvram_offset + off,
+								count, buf);
 	if (result < 0) {
 		dev_err(&client->dev, "%s error %d\n", "nvram write", result);
 		return result;
 	}
 	return count;
 }
-
-static struct bin_attribute nvram = {
-	.attr = {
-		.name	= "nvram",
-		.mode	= S_IRUGO | S_IWUSR,
-	},
-
-	.read	= ds1307_nvram_read,
-	.write	= ds1307_nvram_write,
-	.size	= NVRAM_SIZE,
-};
 
 /*----------------------------------------------------------------------*/
 
@@ -894,16 +893,31 @@ read_rtc:
 		dev_dbg(&client->dev, "got IRQ %d\n", client->irq);
 	}
 
-	if (chip->nvram56) {
-		err = sysfs_create_bin_file(&client->dev.kobj, &nvram);
-		if (err == 0) {
-			set_bit(HAS_NVRAM, &ds1307->flags);
-			dev_info(&client->dev, "56 bytes nvram\n");
+	if (chip->nvram_size) {
+		ds1307->nvram = kzalloc(sizeof(struct bin_attribute),
+							GFP_KERNEL);
+		if (!ds1307->nvram) {
+			err = -ENOMEM;
+			goto exit_nvram;
 		}
+		ds1307->nvram->attr.name = "nvram";
+		ds1307->nvram->attr.mode = S_IRUGO | S_IWUSR;
+		ds1307->nvram->read = ds1307_nvram_read,
+		ds1307->nvram->write = ds1307_nvram_write,
+		ds1307->nvram->size = chip->nvram_size;
+		ds1307->nvram_offset = chip->nvram_offset;
+		err = sysfs_create_bin_file(&client->dev.kobj, ds1307->nvram);
+		if (err) {
+			kfree(ds1307->nvram);
+			goto exit_nvram;
+		}
+		set_bit(HAS_NVRAM, &ds1307->flags);
+		dev_info(&client->dev, "%zu bytes nvram\n", ds1307->nvram->size);
 	}
 
 	return 0;
 
+exit_nvram:
 exit_irq:
 	rtc_device_unregister(ds1307->rtc);
 exit_free:
@@ -920,8 +934,10 @@ static int __devexit ds1307_remove(struct i2c_client *client)
 		cancel_work_sync(&ds1307->work);
 	}
 
-	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags))
-		sysfs_remove_bin_file(&client->dev.kobj, &nvram);
+	if (test_and_clear_bit(HAS_NVRAM, &ds1307->flags)) {
+		sysfs_remove_bin_file(&client->dev.kobj, ds1307->nvram);
+		kfree(ds1307->nvram);
+	}
 
 	rtc_device_unregister(ds1307->rtc);
 	kfree(ds1307);
