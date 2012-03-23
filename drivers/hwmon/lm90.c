@@ -1336,6 +1336,15 @@ static void lm90_remove_files(struct i2c_client *client, struct lm90_data *data)
 	sysfs_remove_group(&dev->kobj, &lm90_group);
 }
 
+static void lm90_restore_conf(struct i2c_client *client, struct lm90_data *data)
+{
+	/* Restore initial configuration */
+	i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE,
+				  data->convrate_orig);
+	i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
+				  data->config_orig);
+}
+
 static void lm90_init_client(struct i2c_client *client)
 {
 	u8 config, convrate;
@@ -1424,7 +1433,7 @@ static int lm90_probe(struct i2c_client *client,
 	/* Register sysfs hooks */
 	err = sysfs_create_group(&dev->kobj, &lm90_group);
 	if (err)
-		goto exit_free;
+		goto exit_restore;
 	if (client->flags & I2C_CLIENT_PEC) {
 		err = device_create_file(dev, &dev_attr_pec);
 		if (err)
@@ -1463,7 +1472,8 @@ static int lm90_probe(struct i2c_client *client,
 
 exit_remove_files:
 	lm90_remove_files(client, data);
-exit_free:
+exit_restore:
+	lm90_restore_conf(client, data);
 	kfree(data);
 exit:
 	return err;
@@ -1475,12 +1485,7 @@ static int lm90_remove(struct i2c_client *client)
 
 	hwmon_device_unregister(data->hwmon_dev);
 	lm90_remove_files(client, data);
-
-	/* Restore initial configuration */
-	i2c_smbus_write_byte_data(client, LM90_REG_W_CONVRATE,
-				  data->convrate_orig);
-	i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
-				  data->config_orig);
+	lm90_restore_conf(client, data);
 
 	kfree(data);
 	return 0;
