@@ -26,8 +26,6 @@
 #include <plat/gpmc.h>
 #include <plat/gpmc-smsc911x.h>
 
-static struct omap_smsc911x_platform_data *gpmc_cfg;
-
 static struct resource gpmc_smsc911x_resources[] = {
 	[0] = {
 		.flags		= IORESOURCE_MEM,
@@ -93,13 +91,11 @@ static struct platform_device gpmc_smsc911x_regulator = {
  * assume that pin multiplexing is done in the board-*.c file,
  * or in the bootloader.
  */
-void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
+void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *gpmc_cfg)
 {
 	struct platform_device *pdev;
 	unsigned long cs_mem_base;
 	int ret;
-
-	gpmc_cfg = board_data;
 
 	if (!gpmc_cfg->id) {
 		ret = platform_device_register(&gpmc_smsc911x_regulator);
