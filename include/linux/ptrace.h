@@ -199,9 +199,10 @@ static inline void ptrace_event(int event, unsigned long message)
 	if (unlikely(ptrace_event_enabled(current, event))) {
 		current->ptrace_message = message;
 		ptrace_notify((event << 8) | SIGTRAP);
-	} else if (event == PTRACE_EVENT_EXEC && unlikely(current->ptrace)) {
+	} else if (event == PTRACE_EVENT_EXEC) {
 		/* legacy EXEC report via SIGTRAP */
-		send_sig(SIGTRAP, current, 0);
+		if ((current->ptrace & (PT_PTRACED|PT_SEIZED)) == PT_PTRACED)
+			send_sig(SIGTRAP, current, 0);
 	}
 }
 
