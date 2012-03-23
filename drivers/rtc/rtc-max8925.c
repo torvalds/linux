@@ -204,6 +204,7 @@ static int max8925_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 		alrm->pending = 1;
 	else
 		alrm->pending = 0;
+	return 0;
 out:
 	return ret;
 }
