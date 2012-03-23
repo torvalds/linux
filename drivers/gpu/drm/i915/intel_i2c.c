@@ -49,10 +49,7 @@ void
 intel_i2c_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	if (HAS_PCH_SPLIT(dev))
-		I915_WRITE(PCH_GMBUS0, 0);
-	else
-		I915_WRITE(GMBUS0, 0);
+	I915_WRITE(dev_priv->gpio_mmio_base + GMBUS0, 0);
 }
 
 static void intel_i2c_quirk_set(struct drm_i915_private *dev_priv, bool enable)
@@ -162,8 +159,7 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo = &bus->bit_algo;
 
 	bus->gpio_reg = map_pin_to_reg[pin];
-	if (HAS_PCH_SPLIT(dev_priv->dev))
-		bus->gpio_reg += PCH_GPIOA - GPIOA;
+	bus->gpio_reg += dev_priv->gpio_mmio_base;
 
 	bus->adapter.algo_data = algo;
 	algo->setsda = set_data;
@@ -219,7 +215,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 		goto out;
 	}
 
-	reg_offset = HAS_PCH_SPLIT(dev_priv->dev) ? PCH_GMBUS0 - GMBUS0 : 0;
+	reg_offset = dev_priv->gpio_mmio_base;
 
 	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
@@ -358,6 +354,11 @@ int intel_setup_gmbus(struct drm_device *dev)
 	};
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
+
+	if (HAS_PCH_SPLIT(dev))
+		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
+	else
+		dev_priv->gpio_mmio_base = 0;
 
 	dev_priv->gmbus = kcalloc(GMBUS_NUM_PORTS, sizeof(struct intel_gmbus),
 				  GFP_KERNEL);

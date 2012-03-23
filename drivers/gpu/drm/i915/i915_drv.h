@@ -333,6 +333,11 @@ typedef struct drm_i915_private {
 	 * controller on different i2c buses. */
 	struct mutex gmbus_mutex;
 
+	/**
+	 * Base address of the gmbus and gpio block.
+	 */
+	uint32_t gpio_mmio_base;
+
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer ring[I915_NUM_RINGS];
 	uint32_t next_seqno;
