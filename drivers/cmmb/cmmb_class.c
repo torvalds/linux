@@ -186,7 +186,7 @@ ssize_t cmmb_class_show_name(struct class * class, char * buf, size_t count, lof
 	
 }  
 
-static CLASS_ATTR(name, 0777, cmmb_class_show_name, NULL);
+static CLASS_ATTR(name, 0660, cmmb_class_show_name, NULL);
 
 static int __init init_cmmbclass(void)
 {
