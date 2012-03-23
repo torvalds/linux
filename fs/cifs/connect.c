@@ -88,7 +88,7 @@ enum {
 	Opt_sign, Opt_seal, Opt_direct,
 	Opt_strictcache, Opt_noac,
 	Opt_fsc, Opt_mfsymlinks,
-	Opt_multiuser,
+	Opt_multiuser, Opt_sloppy,
 
 	/* Mount options which take numeric value */
 	Opt_backupuid, Opt_backupgid, Opt_uid,
@@ -167,6 +167,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_fsc, "fsc" },
 	{ Opt_mfsymlinks, "mfsymlinks" },
 	{ Opt_multiuser, "multiuser" },
+	{ Opt_sloppy, "sloppy" },
 
 	{ Opt_backupuid, "backupuid=%s" },
 	{ Opt_backupgid, "backupgid=%s" },
@@ -1186,6 +1187,8 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	short int override_gid = -1;
 	bool uid_specified = false;
 	bool gid_specified = false;
+	bool sloppy = false;
+	char *invalid = NULL;
 	char *nodename = utsname()->nodename;
 	char *string = NULL;
 	char *tmp_end, *value;
@@ -1422,6 +1425,9 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_multiuser:
 			vol->multiuser = true;
+			break;
+		case Opt_sloppy:
+			sloppy = true;
 			break;
 
 		/* Numeric Values */
@@ -1870,13 +1876,22 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			break;
 		default:
-			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
-						data);
+			/*
+			 * An option we don't recognize. Save it off for later
+			 * if we haven't already found one
+			 */
+			if (!invalid)
+				invalid = data;
 			break;
 		}
 		/* Free up any allocated string */
 		kfree(string);
 		string = NULL;
+	}
+
+	if (!sloppy && invalid) {
+		printk(KERN_ERR "CIFS: Unknown mount option \"%s\"\n", invalid);
+		goto cifs_parse_mount_err;
 	}
 
 #ifndef CONFIG_KEYS
