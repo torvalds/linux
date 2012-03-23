@@ -192,7 +192,7 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 		.pages = pages,
 	};
 	struct nfs3_getaclres res = {
-		0
+		NULL,
 	};
 	struct rpc_message msg = {
 		.rpc_argp	= &args,

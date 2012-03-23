@@ -64,6 +64,7 @@ config NFS_V4
 	bool "NFS client support for NFS version 4"
 	depends on NFS_FS
 	select SUNRPC_GSS
+	select KEYS
 	help
 	  This option enables support for version 4 of the NFS protocol
 	  (RFC 3530) in the kernel's NFS client.
@@ -98,6 +99,18 @@ config PNFS_OBJLAYOUT
 	depends on NFS_FS && NFS_V4_1 && SCSI_OSD_ULD
 	default m
 
+config NFS_V4_1_IMPLEMENTATION_ID_DOMAIN
+	string "NFSv4.1 Implementation ID Domain"
+	depends on NFS_V4_1
+	default "kernel.org"
+	help
+	  This option defines the domain portion of the implementation ID that
+	  may be sent in the NFS exchange_id operation.  The value must be in
+	  the format of a DNS domain name and should be set to the DNS domain
+	  name of the distribution.
+	  If the NFS client is unchanged from the upstream kernel, this
+	  option should be set to the default "kernel.org".
+
 config ROOT_NFS
 	bool "Root file system on NFS"
 	depends on NFS_FS=y && IP_PNP
@@ -130,16 +143,10 @@ config NFS_USE_KERNEL_DNS
 	bool
 	depends on NFS_V4 && !NFS_USE_LEGACY_DNS
 	select DNS_RESOLVER
-	select KEYS
 	default y
 
-config NFS_USE_NEW_IDMAPPER
-	bool "Use the new idmapper upcall routine"
-	depends on NFS_V4 && KEYS
-	help
-	  Say Y here if you want NFS to use the new idmapper upcall functions.
-	  You will need /sbin/request-key (usually provided by the keyutils
-	  package).  For details, read
-	  <file:Documentation/filesystems/nfs/idmapper.txt>.
-
-	  If you are unsure, say N.
+config NFS_DEBUG
+	bool
+	depends on NFS_FS && SUNRPC_DEBUG
+	select CRC32
+	default y
