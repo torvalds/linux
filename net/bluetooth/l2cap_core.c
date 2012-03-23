@@ -298,7 +298,7 @@ void l2cap_chan_destroy(struct l2cap_chan *chan)
 	l2cap_chan_put(chan);
 }
 
-void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
+static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 {
 	BT_DBG("conn %p, psm 0x%2.2x, dcid 0x%4.4x", conn,
 	       __le16_to_cpu(chan->psm), chan->dcid);
@@ -347,7 +347,7 @@ void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 	list_add(&chan->list, &conn->chan_l);
 }
 
-void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
+static void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 {
 	mutex_lock(&conn->chan_lock);
 	__l2cap_chan_add(conn, chan);
