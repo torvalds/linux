@@ -601,9 +601,11 @@ struct cifs_io_parms {
  * Take a reference on the file private data. Must be called with
  * cifs_file_list_lock held.
  */
-static inline void cifsFileInfo_get(struct cifsFileInfo *cifs_file)
+static inline
+struct cifsFileInfo *cifsFileInfo_get(struct cifsFileInfo *cifs_file)
 {
 	++cifs_file->count;
+	return cifs_file;
 }
 
 void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
