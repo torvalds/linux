@@ -157,6 +157,7 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	u32 als_vmin, als_vmax, als_vstep;
 	struct lm3530_platform_data *pltfm = drvdata->pdata;
 	struct i2c_client *client = drvdata->client;
+	struct lm3530_pwm_data *pwm = &pltfm->pwm_data;
 
 	gen_config = (pltfm->brt_ramp_law << LM3530_RAMP_LAW_SHIFT) |
 			((pltfm->max_current & 7) << LM3530_MAX_CURR_SHIFT);
@@ -240,6 +241,15 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	}
 
 	for (i = 0; i < LM3530_REG_MAX; i++) {
+		/* do not update brightness register when pwm mode */
+		if (lm3530_reg[i] == LM3530_BRT_CTRL_REG &&
+		    drvdata->mode == LM3530_BL_MODE_PWM) {
+			if (pwm->pwm_set_intensity)
+				pwm->pwm_set_intensity(reg_val[i],
+					drvdata->led_dev.max_brightness);
+			continue;
+		}
+
 		ret = i2c_smbus_write_byte_data(client,
 				lm3530_reg[i], reg_val[i]);
 		if (ret)
@@ -255,6 +265,9 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	int err;
 	struct lm3530_data *drvdata =
 	    container_of(led_cdev, struct lm3530_data, led_dev);
+	struct lm3530_platform_data *pdata = drvdata->pdata;
+	struct lm3530_pwm_data *pwm = &pdata->pwm_data;
+	u8 max_brightness = led_cdev->max_brightness;
 
 	switch (drvdata->mode) {
 	case LM3530_BL_MODE_MANUAL:
@@ -288,6 +301,8 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 	case LM3530_BL_MODE_ALS:
 		break;
 	case LM3530_BL_MODE_PWM:
+		if (pwm->pwm_set_intensity)
+			pwm->pwm_set_intensity(brt_val, max_brightness);
 		break;
 	default:
 		break;
@@ -318,23 +333,24 @@ static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 {
 	struct led_classdev *led_cdev = dev_get_drvdata(dev);
 	struct lm3530_data *drvdata;
+	struct lm3530_pwm_data *pwm;
+	u8 max_brightness;
 	int mode, err;
 
 	drvdata = container_of(led_cdev, struct lm3530_data, led_dev);
+	pwm = &drvdata->pdata->pwm_data;
+	max_brightness = led_cdev->max_brightness;
 	mode = lm3530_get_mode_from_str(buf);
 	if (mode < 0) {
 		dev_err(dev, "Invalid mode\n");
 		return -EINVAL;
 	}
 
-	if (mode == LM3530_BL_MODE_MANUAL)
-		drvdata->mode = LM3530_BL_MODE_MANUAL;
-	else if (mode == LM3530_BL_MODE_ALS)
-		drvdata->mode = LM3530_BL_MODE_ALS;
-	else if (mode == LM3530_BL_MODE_PWM) {
-		dev_err(dev, "PWM mode not supported\n");
-		return -EINVAL;
-	}
+	drvdata->mode = mode;
+
+	/* set pwm to low if unnecessary */
+	if (mode != LM3530_BL_MODE_PWM && pwm->pwm_set_intensity)
+		pwm->pwm_set_intensity(0, max_brightness);
 
 	err = lm3530_init_registers(drvdata);
 	if (err) {
