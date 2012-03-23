@@ -331,7 +331,8 @@ out:
 	return ret;
 }
 
-static int regcache_lzo_sync(struct regmap *map)
+static int regcache_lzo_sync(struct regmap *map, unsigned int min,
+			     unsigned int max)
 {
 	struct regcache_lzo_ctx **lzo_blocks;
 	unsigned int val;
@@ -339,10 +340,21 @@ static int regcache_lzo_sync(struct regmap *map)
 	int ret;
 
 	lzo_blocks = map->cache;
-	for_each_set_bit(i, lzo_blocks[0]->sync_bmp, lzo_blocks[0]->sync_bmp_nbits) {
+	i = min;
+	for_each_set_bit_cont(i, lzo_blocks[0]->sync_bmp,
+			      lzo_blocks[0]->sync_bmp_nbits) {
+		if (i > max)
+			continue;
+
 		ret = regcache_read(map, i, &val);
 		if (ret)
 			return ret;
+
+		/* Is this the hardware default?  If so skip. */
+		ret = regcache_lookup_reg(map, i);
+		if (ret > 0 && val == map->reg_defaults[ret].def)
+			continue;
+
 		map->cache_bypass = 1;
 		ret = _regmap_write(map, i, val);
 		map->cache_bypass = 0;
