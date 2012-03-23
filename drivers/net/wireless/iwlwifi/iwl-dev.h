@@ -51,8 +51,6 @@
 #include "iwl-op-mode.h"
 #include "iwl-notif-wait.h"
 
-struct iwl_tx_queue;
-
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD_LEGACY   110 /* in Celsius */
 #define CT_KILL_THRESHOLD	   114 /* in Celsius */
