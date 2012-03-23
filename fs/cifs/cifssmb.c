@@ -2166,8 +2166,8 @@ cifs_async_writev(struct cifs_writedata *wdata)
 		goto async_writev_out;
 	}
 
-	smb->hdr.Pid = cpu_to_le16((__u16)wdata->cfile->pid);
-	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->cfile->pid >> 16));
+	smb->hdr.Pid = cpu_to_le16((__u16)wdata->pid);
+	smb->hdr.PidHigh = cpu_to_le16((__u16)(wdata->pid >> 16));
 
 	smb->AndXCommand = 0xFF;	/* none */
 	smb->Fid = wdata->cfile->netfid;

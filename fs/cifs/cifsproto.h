@@ -487,6 +487,7 @@ struct cifs_writedata {
 	struct work_struct		work;
 	struct cifsFileInfo		*cfile;
 	__u64				offset;
+	pid_t				pid;
 	unsigned int			bytes;
 	int				result;
 	unsigned int			nr_pages;
