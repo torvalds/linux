@@ -51,9 +51,6 @@
 #define PTRACE_INTERRUPT	0x4207
 #define PTRACE_LISTEN		0x4208
 
-/* flags in @data for PTRACE_SEIZE */
-#define PTRACE_SEIZE_DEVEL	0x80000000 /* temp flag for development */
-
 /* Wait extended result codes for the above trace options.  */
 #define PTRACE_EVENT_FORK	1
 #define PTRACE_EVENT_VFORK	2
@@ -64,7 +61,7 @@
 /* Extended result codes which enabled by means other than options.  */
 #define PTRACE_EVENT_STOP	128
 
-/* options set using PTRACE_SETOPTIONS */
+/* Options set using PTRACE_SETOPTIONS or using PTRACE_SEIZE @data param */
 #define PTRACE_O_TRACESYSGOOD	1
 #define PTRACE_O_TRACEFORK	(1 << PTRACE_EVENT_FORK)
 #define PTRACE_O_TRACEVFORK	(1 << PTRACE_EVENT_VFORK)

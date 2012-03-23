@@ -237,25 +237,10 @@ static int ptrace_attach(struct task_struct *task, long request,
 	bool seize = (request == PTRACE_SEIZE);
 	int retval;
 
-	/*
-	 * SEIZE will enable new ptrace behaviors which will be implemented
-	 * gradually.  SEIZE_DEVEL bit is used to prevent applications
-	 * expecting full SEIZE behaviors trapping on kernel commits which
-	 * are still in the process of implementing them.
-	 *
-	 * Only test programs for new ptrace behaviors being implemented
-	 * should set SEIZE_DEVEL.  If unset, SEIZE will fail with -EIO.
-	 *
-	 * Once SEIZE behaviors are completely implemented, this flag
-	 * will be removed.
-	 */
 	retval = -EIO;
 	if (seize) {
 		if (addr != 0)
 			goto out;
-		if (!(flags & PTRACE_SEIZE_DEVEL))
-			goto out;
-		flags &= ~(unsigned long)PTRACE_SEIZE_DEVEL;
 		if (flags & ~(unsigned long)PTRACE_O_MASK)
 			goto out;
 		flags = PT_PTRACED | PT_SEIZED | (flags << PT_OPT_FLAG_SHIFT);
