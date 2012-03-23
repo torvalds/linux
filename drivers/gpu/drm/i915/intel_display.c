@@ -8221,7 +8221,7 @@ void intel_init_emon(struct drm_device *dev)
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
-static bool intel_enable_rc6(struct drm_device *dev)
+static int intel_enable_rc6(struct drm_device *dev)
 {
 	/*
 	 * Respect the kernel parameter if it is set
@@ -8253,6 +8253,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	u32 pcu_mbox, rc6_mask = 0;
 	u32 gtfifodbg;
 	int cur_freq, min_freq, max_freq;
+	int rc6_mode;
 	int i;
 
 	/* Here begins a magic sequence of register writes to enable
@@ -8290,9 +8291,20 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6p_THRESHOLD, 100000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
-	if (intel_enable_rc6(dev_priv->dev))
-		rc6_mask = GEN6_RC_CTL_RC6_ENABLE |
-			((IS_GEN7(dev_priv->dev)) ? GEN6_RC_CTL_RC6p_ENABLE : 0);
+	rc6_mode = intel_enable_rc6(dev_priv->dev);
+	if (rc6_mode & INTEL_RC6_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6_ENABLE;
+
+	if (rc6_mode & INTEL_RC6p_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6p_ENABLE;
+
+	if (rc6_mode & INTEL_RC6pp_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6pp_ENABLE;
+
+	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
+			(rc6_mode & INTEL_RC6_ENABLE) ? "on" : "off",
+			(rc6_mode & INTEL_RC6p_ENABLE) ? "on" : "off",
+			(rc6_mode & INTEL_RC6pp_ENABLE) ? "on" : "off");
 
 	I915_WRITE(GEN6_RC_CONTROL,
 		   rc6_mask |
