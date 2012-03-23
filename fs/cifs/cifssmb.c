@@ -2142,7 +2142,6 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	WRITE_REQ *smb = NULL;
 	int wct;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct inode *inode = wdata->cfile->dentry->d_inode;
 	struct kvec *iov = NULL;
 
 	if (tcon->ses->capabilities & CAP_LARGE_FILES) {
@@ -2185,15 +2184,13 @@ cifs_async_writev(struct cifs_writedata *wdata)
 	iov[0].iov_len = be32_to_cpu(smb->hdr.smb_buf_length) + 4 + 1;
 	iov[0].iov_base = smb;
 
-	/* marshal up the pages into iov array */
-	wdata->bytes = 0;
-	for (i = 0; i < wdata->nr_pages; i++) {
-		iov[i + 1].iov_len = min(inode->i_size -
-				      page_offset(wdata->pages[i]),
-					(loff_t)PAGE_CACHE_SIZE);
-		iov[i + 1].iov_base = kmap(wdata->pages[i]);
-		wdata->bytes += iov[i + 1].iov_len;
-	}
+	/*
+	 * This function should marshal up the page array into the kvec
+	 * array, reserving [0] for the header. It should kmap the pages
+	 * and set the iov_len properly for each one. It may also set
+	 * wdata->bytes too.
+	 */
+	wdata->marshal_iov(iov, wdata);
 
 	cFYI(1, "async write at %llu %u bytes", wdata->offset, wdata->bytes);
 
