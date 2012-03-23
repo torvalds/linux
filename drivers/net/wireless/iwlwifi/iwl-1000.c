@@ -71,7 +71,6 @@ static const struct iwl_base_params iwl1000_base_params = {
 static const struct iwl_ht_params iwl1000_ht_params = {
 	.ht_greenfield_support = true,
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
-	.smps_mode = IEEE80211_SMPS_DYNAMIC,
 };
 
 #define IWL_DEVICE_1000						\
