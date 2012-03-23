@@ -72,6 +72,7 @@ MODULE_DEVICE_TABLE(usb, id_table);
 static bool console = 1; /* Allow fbcon to open framebuffer */
 static bool fb_defio = 1;  /* Detect mmap writes using page faults */
 static bool shadow = 1; /* Optionally disable shadow framebuffer */
+static int pixel_limit; /* Optionally force a pixel resolution limit */
 
 /* dlfb keeps a list of urbs for efficient bulk transfers */
 static void dlfb_urb_completion(struct urb *urb);
@@ -918,10 +919,6 @@ static void dlfb_free(struct kref *kref)
 {
 	struct dlfb_data *dev = container_of(kref, struct dlfb_data, kref);
 
-	/* this function will wait for all in-flight urbs to complete */
-	if (dev->urbs.count > 0)
-		dlfb_free_urb_list(dev);
-
 	if (dev->backing_buffer)
 		vfree(dev->backing_buffer);
 
@@ -940,35 +937,42 @@ static void dlfb_release_urb_work(struct work_struct *work)
 	up(&unode->dev->urbs.limit_sem);
 }
 
-static void dlfb_free_framebuffer_work(struct work_struct *work)
+static void dlfb_free_framebuffer(struct dlfb_data *dev)
 {
-	struct dlfb_data *dev = container_of(work, struct dlfb_data,
-					     free_framebuffer_work.work);
 	struct fb_info *info = dev->info;
-	int node = info->node;
 
-	unregister_framebuffer(info);
+	if (info) {
+		int node = info->node;
 
-	if (info->cmap.len != 0)
-		fb_dealloc_cmap(&info->cmap);
-	if (info->monspecs.modedb)
-		fb_destroy_modedb(info->monspecs.modedb);
-	if (info->screen_base)
-		vfree(info->screen_base);
+		unregister_framebuffer(info);
 
-	fb_destroy_modelist(&info->modelist);
+		if (info->cmap.len != 0)
+			fb_dealloc_cmap(&info->cmap);
+		if (info->monspecs.modedb)
+			fb_destroy_modedb(info->monspecs.modedb);
+		if (info->screen_base)
+			vfree(info->screen_base);
 
-	dev->info = 0;
+		fb_destroy_modelist(&info->modelist);
 
-	/* Assume info structure is freed after this point */
-	framebuffer_release(info);
+		dev->info = NULL;
 
-	pr_warn("fb_info for /dev/fb%d has been freed\n", node);
+		/* Assume info structure is freed after this point */
+		framebuffer_release(info);
+
+		pr_warn("fb_info for /dev/fb%d has been freed\n", node);
+	}
 
 	/* ref taken in probe() as part of registering framebfufer */
 	kref_put(&dev->kref, dlfb_free);
 }
 
+static void dlfb_free_framebuffer_work(struct work_struct *work)
+{
+	struct dlfb_data *dev = container_of(work, struct dlfb_data,
+					     free_framebuffer_work.work);
+	dlfb_free_framebuffer(dev);
+}
 /*
  * Assumes caller is holding info->lock mutex (for open and release at least)
  */
@@ -1012,7 +1016,8 @@ static int dlfb_is_valid_mode(struct fb_videomode *mode,
 		return 0;
 	}
 
-	pr_info("%dx%d valid mode\n", mode->xres, mode->yres);
+	pr_info("%dx%d @ %d Hz valid mode\n", mode->xres, mode->yres,
+		mode->refresh);
 
 	return 1;
 }
@@ -1427,19 +1432,22 @@ static ssize_t edid_store(
 	struct device *fbdev = container_of(kobj, struct device, kobj);
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
 	struct dlfb_data *dev = fb_info->par;
+	int ret;
 
 	/* We only support write of entire EDID at once, no offset*/
 	if ((src_size != EDID_LENGTH) || (src_off != 0))
-		return 0;
+		return -EINVAL;
 
-	dlfb_setup_modes(dev, fb_info, src, src_size);
+	ret = dlfb_setup_modes(dev, fb_info, src, src_size);
+	if (ret)
+		return ret;
 
-	if (dev->edid && (memcmp(src, dev->edid, src_size) == 0)) {
-		pr_info("sysfs written EDID is new default\n");
-		dlfb_ops_set_par(fb_info);
-		return src_size;
-	} else
-		return 0;
+	if (!dev->edid || memcmp(src, dev->edid, src_size))
+		return -EINVAL;
+
+	pr_info("sysfs written EDID is new default\n");
+	dlfb_ops_set_par(fb_info);
+	return src_size;
 }
 
 static ssize_t metrics_reset_store(struct device *fbdev,
@@ -1537,7 +1545,7 @@ static int dlfb_parse_vendor_descriptor(struct dlfb_data *dev,
 			u8 length;
 			u16 key;
 
-			key = *((u16 *) desc);
+			key = le16_to_cpu(*((u16 *) desc));
 			desc += sizeof(u16);
 			length = *desc;
 			desc++;
@@ -1570,14 +1578,15 @@ success:
 	kfree(buf);
 	return true;
 }
+
+static void dlfb_init_framebuffer_work(struct work_struct *work);
+
 static int dlfb_usb_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
 	struct usb_device *usbdev;
 	struct dlfb_data *dev = 0;
-	struct fb_info *info = 0;
 	int retval = -ENOMEM;
-	int i;
 
 	/* usb initialization */
 
@@ -1589,9 +1598,7 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	/* we need to wait for both usb and fbdev to spin down on disconnect */
 	kref_init(&dev->kref); /* matching kref_put in usb .disconnect fn */
-	kref_get(&dev->kref); /* matching kref_put in free_framebuffer_work */
 
 	dev->udev = usbdev;
 	dev->gdev = &usbdev->dev; /* our generic struct device * */
@@ -1613,16 +1620,53 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 		goto error;
 	}
 
+	if (pixel_limit) {
+		pr_warn("DL chip limit of %d overriden"
+			" by module param to %d\n",
+			dev->sku_pixel_limit, pixel_limit);
+		dev->sku_pixel_limit = pixel_limit;
+	}
+
+
 	if (!dlfb_alloc_urb_list(dev, WRITES_IN_FLIGHT, MAX_TRANSFER)) {
 		retval = -ENOMEM;
 		pr_err("dlfb_alloc_urb_list failed\n");
 		goto error;
 	}
 
+	kref_get(&dev->kref); /* matching kref_put in free_framebuffer_work */
+
 	/* We don't register a new USB class. Our client interface is fbdev */
 
+	/* Workitem keep things fast & simple during USB enumeration */
+	INIT_DELAYED_WORK(&dev->init_framebuffer_work,
+			  dlfb_init_framebuffer_work);
+	schedule_delayed_work(&dev->init_framebuffer_work, 0);
+
+	return 0;
+
+error:
+	if (dev) {
+
+		kref_put(&dev->kref, dlfb_free); /* ref for framebuffer */
+		kref_put(&dev->kref, dlfb_free); /* last ref from kref_init */
+
+		/* dev has been deallocated. Do not dereference */
+	}
+
+	return retval;
+}
+
+static void dlfb_init_framebuffer_work(struct work_struct *work)
+{
+	struct dlfb_data *dev = container_of(work, struct dlfb_data,
+					     init_framebuffer_work.work);
+	struct fb_info *info;
+	int retval;
+	int i;
+
 	/* allocates framebuffer driver structure, not framebuffer memory */
-	info = framebuffer_alloc(0, &interface->dev);
+	info = framebuffer_alloc(0, dev->gdev);
 	if (!info) {
 		retval = -ENOMEM;
 		pr_err("framebuffer_alloc failed\n");
@@ -1668,15 +1712,13 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++) {
 		retval = device_create_file(info->dev, &fb_device_attrs[i]);
 		if (retval) {
-			pr_err("device_create_file failed %d\n", retval);
-			goto err_del_attrs;
+			pr_warn("device_create_file failed %d\n", retval);
 		}
 	}
 
 	retval = device_create_bin_file(info->dev, &edid_attr);
 	if (retval) {
-		pr_err("device_create_bin_file failed %d\n", retval);
-		goto err_del_attrs;
+		pr_warn("device_create_bin_file failed %d\n", retval);
 	}
 
 	pr_info("DisplayLink USB device /dev/fb%d attached. %dx%d resolution."
@@ -1684,38 +1726,10 @@ static int dlfb_usb_probe(struct usb_interface *interface,
 			info->var.xres, info->var.yres,
 			((dev->backing_buffer) ?
 			info->fix.smem_len * 2 : info->fix.smem_len) >> 10);
-	return 0;
-
-err_del_attrs:
-	for (i -= 1; i >= 0; i--)
-		device_remove_file(info->dev, &fb_device_attrs[i]);
+	return;
 
 error:
-	if (dev) {
-
-		if (info) {
-			if (info->cmap.len != 0)
-				fb_dealloc_cmap(&info->cmap);
-			if (info->monspecs.modedb)
-				fb_destroy_modedb(info->monspecs.modedb);
-			if (info->screen_base)
-				vfree(info->screen_base);
-
-			fb_destroy_modelist(&info->modelist);
-
-			framebuffer_release(info);
-		}
-
-		if (dev->backing_buffer)
-			vfree(dev->backing_buffer);
-
-		kref_put(&dev->kref, dlfb_free); /* ref for framebuffer */
-		kref_put(&dev->kref, dlfb_free); /* last ref from kref_init */
-
-		/* dev has been deallocated. Do not dereference */
-	}
-
-	return retval;
+	dlfb_free_framebuffer(dev);
 }
 
 static void dlfb_usb_disconnect(struct usb_interface *interface)
@@ -1735,12 +1749,20 @@ static void dlfb_usb_disconnect(struct usb_interface *interface)
 	/* When non-active we'll update virtual framebuffer, but no new urbs */
 	atomic_set(&dev->usb_active, 0);
 
-	/* remove udlfb's sysfs interfaces */
-	for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
-		device_remove_file(info->dev, &fb_device_attrs[i]);
-	device_remove_bin_file(info->dev, &edid_attr);
-	unlink_framebuffer(info);
+	/* this function will wait for all in-flight urbs to complete */
+	dlfb_free_urb_list(dev);
+
+	if (info) {
+		/* remove udlfb's sysfs interfaces */
+		for (i = 0; i < ARRAY_SIZE(fb_device_attrs); i++)
+			device_remove_file(info->dev, &fb_device_attrs[i]);
+		device_remove_bin_file(info->dev, &edid_attr);
+		unlink_framebuffer(info);
+	}
+
 	usb_set_intfdata(interface, NULL);
+	dev->udev = NULL;
+	dev->gdev = NULL;
 
 	/* if clients still have us open, will be freed on last close */
 	if (dev->fb_count == 0)
@@ -1806,12 +1828,12 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 	int ret;
 	unsigned long flags;
 
-	pr_notice("Waiting for completes and freeing all render urbs\n");
+	pr_notice("Freeing all render urbs\n");
 
 	/* keep waiting and freeing, until we've got 'em all */
 	while (count--) {
 
-		/* Getting interrupted means a leak, but ok at shutdown*/
+		/* Getting interrupted means a leak, but ok at disconnect */
 		ret = down_interruptible(&dev->urbs.limit_sem);
 		if (ret)
 			break;
@@ -1833,6 +1855,7 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 		kfree(node);
 	}
 
+	dev->urbs.count = 0;
 }
 
 static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
@@ -1947,6 +1970,9 @@ MODULE_PARM_DESC(fb_defio, "Page fault detection of mmap writes");
 
 module_param(shadow, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(shadow, "Shadow vid mem. Disable to save mem but lose perf");
+
+module_param(pixel_limit, int, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
+MODULE_PARM_DESC(pixel_limit, "Force limit on max mode (in x*y pixels)");
 
 MODULE_AUTHOR("Roberto De Ioris <roberto@unbit.it>, "
 	      "Jaya Kumar <jayakumar.lkml@gmail.com>, "

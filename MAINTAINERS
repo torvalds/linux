@@ -2257,6 +2257,15 @@ F:	Documentation/filesystems/quota.txt
 F:	fs/quota/
 F:	include/linux/quota*.h
 
+DISPLAYLINK USB 2.0 FRAMEBUFFER DRIVER (UDLFB)
+M:	Bernie Thompson <bernie@plugable.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+W:	http://plugable.com/category/projects/udlfb/
+F:	drivers/video/udlfb.c
+F:	include/video/udlfb.h
+F:	Documentation/fb/udlfb.txt
+
 DISTRIBUTED LOCK MANAGER (DLM)
 M:	Christine Caulfield <ccaulfie@redhat.com>
 M:	David Teigland <teigland@redhat.com>
@@ -2377,15 +2386,6 @@ L:	dri-devel@lists.freedesktop.org
 S:	Supported
 F:	drivers/gpu/drm/exynos
 F:	include/drm/exynos*
-
-EXYNOS MIPI DISPLAY DRIVERS
-M:	Inki Dae <inki.dae@samsung.com>
-M:	Donghwa Lee <dh09.lee@samsung.com>
-M:	Kyungmin Park <kyungmin.park@samsung.com>
-L:	linux-fbdev@vger.kernel.org
-S:	Maintained
-F:	drivers/video/exynos/exynos_mipi*
-F:	include/video/exynos_mipi*
 
 DSCC4 DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
@@ -2666,6 +2666,21 @@ Extended Verification Module (EVM)
 M:	Mimi Zohar <zohar@us.ibm.com>
 S:	Supported
 F:	security/integrity/evm/
+
+EXYNOS DP DRIVER
+M:	Jingoo Han <jg1.han@samsung.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+F:	drivers/video/exynos/exynos_dp*
+
+EXYNOS MIPI DISPLAY DRIVERS
+M:	Inki Dae <inki.dae@samsung.com>
+M:	Donghwa Lee <dh09.lee@samsung.com>
+M:	Kyungmin Park <kyungmin.park@samsung.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Maintained
+F:	drivers/video/exynos/exynos_mipi*
+F:	include/video/exynos_mipi*
 
 F71805F HARDWARE MONITORING DRIVER
 M:	Jean Delvare <khali@linux-fr.org>

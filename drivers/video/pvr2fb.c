@@ -895,7 +895,7 @@ static int __init pvr2fb_dc_init(void)
 
 #ifdef CONFIG_PVR2_DMA
 	if (request_dma(pvr2dma, "pvr2") != 0) {
-		free_irq(HW_EVENT_VSYNC, 0);
+		free_irq(HW_EVENT_VSYNC, fb_info);
 		return -EBUSY;
 	}
 #endif
@@ -914,7 +914,7 @@ static void __exit pvr2fb_dc_exit(void)
 		currentpar->mmio_base = 0;
 	}
 
-	free_irq(HW_EVENT_VSYNC, 0);
+	free_irq(HW_EVENT_VSYNC, fb_info);
 #ifdef CONFIG_PVR2_DMA
 	free_dma(pvr2dma);
 #endif
