@@ -113,27 +113,17 @@ notrace static noinline int do_realtime(struct timespec *ts)
 
 notrace static noinline int do_monotonic(struct timespec *ts)
 {
-	unsigned long seq, ns, secs;
+	unsigned long seq, ns;
 	int mode;
 
 	do {
 		seq = read_seqcount_begin(&gtod->seq);
 		mode = gtod->clock.vclock_mode;
-		secs = gtod->wall_time_sec;
-		ns = gtod->wall_time_nsec + vgetns();
-		secs += gtod->wall_to_monotonic.tv_sec;
-		ns += gtod->wall_to_monotonic.tv_nsec;
+		ts->tv_sec = gtod->monotonic_time_sec;
+		ts->tv_nsec = gtod->monotonic_time_nsec;
+		ns = vgetns();
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
-
-	/* wall_time_nsec, vgetns(), and wall_to_monotonic.tv_nsec
-	 * are all guaranteed to be nonnegative.
-	 */
-	while (ns >= NSEC_PER_SEC) {
-		ns -= NSEC_PER_SEC;
-		++secs;
-	}
-	ts->tv_sec = secs;
-	ts->tv_nsec = ns;
+	timespec_add_ns(ts, ns);
 
 	return mode;
 }
@@ -151,24 +141,12 @@ notrace static noinline int do_realtime_coarse(struct timespec *ts)
 
 notrace static noinline int do_monotonic_coarse(struct timespec *ts)
 {
-	unsigned long seq, ns, secs;
+	unsigned long seq;
 	do {
 		seq = read_seqcount_begin(&gtod->seq);
-		secs = gtod->wall_time_coarse.tv_sec;
-		ns = gtod->wall_time_coarse.tv_nsec;
-		secs += gtod->wall_to_monotonic.tv_sec;
-		ns += gtod->wall_to_monotonic.tv_nsec;
+		ts->tv_sec = gtod->monotonic_time_coarse.tv_sec;
+		ts->tv_nsec = gtod->monotonic_time_coarse.tv_nsec;
 	} while (unlikely(read_seqcount_retry(&gtod->seq, seq)));
-
-	/* wall_time_nsec and wall_to_monotonic.tv_nsec are
-	 * guaranteed to be between 0 and NSEC_PER_SEC.
-	 */
-	if (ns >= NSEC_PER_SEC) {
-		ns -= NSEC_PER_SEC;
-		++secs;
-	}
-	ts->tv_sec = secs;
-	ts->tv_nsec = ns;
 
 	return 0;
 }
