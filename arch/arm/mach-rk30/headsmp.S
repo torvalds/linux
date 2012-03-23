@@ -55,7 +55,7 @@ ENDPROC(rk30_secondary_startup)
 
 ENTRY(rk30_sram_secondary_startup)
         ldr     pc, 1f
-        .word   0xdeadbeaf
+        ldr     pc, 1f
         ldr     pc, 1f
         ldr     pc, 1f
         ldr     pc, 1f
