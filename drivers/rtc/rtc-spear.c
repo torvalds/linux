@@ -77,6 +77,7 @@
 #define STATUS_FAIL		(LOST_WR_TIME | LOST_WR_DATE)
 
 struct spear_rtc_config {
+	struct rtc_device *rtc;
 	struct clk *clk;
 	spinlock_t lock;
 	void __iomem *ioaddr;
@@ -150,8 +151,7 @@ static void rtc_wait_not_busy(struct spear_rtc_config *config)
 
 static irqreturn_t spear_rtc_irq(int irq, void *dev_id)
 {
-	struct rtc_device *rtc = (struct rtc_device *)dev_id;
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = dev_id;
 	unsigned long flags, events = 0;
 	unsigned int irq_data;
 
@@ -162,7 +162,7 @@ static irqreturn_t spear_rtc_irq(int irq, void *dev_id)
 	if ((irq_data & RTC_INT_MASK)) {
 		spear_rtc_clear_interrupt(config);
 		events = RTC_IRQF | RTC_AF;
-		rtc_update_irq(rtc, 1, events);
+		rtc_update_irq(config->rtc, 1, events);
 		return IRQ_HANDLED;
 	} else
 		return IRQ_NONE;
@@ -204,9 +204,7 @@ static void bcd2tm(struct rtc_time *tm)
  */
 static int spear_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = dev_get_drvdata(dev);
 	unsigned int time, date;
 
 	/* we don't report wday/yday/isdst ... */
@@ -235,9 +233,7 @@ static int spear_rtc_read_time(struct device *dev, struct rtc_time *tm)
  */
 static int spear_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = dev_get_drvdata(dev);
 	unsigned int time, date, err = 0;
 
 	if (tm2bcd(tm) < 0)
@@ -267,9 +263,7 @@ static int spear_rtc_set_time(struct device *dev, struct rtc_time *tm)
  */
 static int spear_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = dev_get_drvdata(dev);
 	unsigned int time, date;
 
 	rtc_wait_not_busy(config);
@@ -299,9 +293,7 @@ static int spear_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
  */
 static int spear_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = dev_get_drvdata(dev);
 	unsigned int time, date, err = 0;
 
 	if (tm2bcd(&alm->time) < 0)
@@ -330,9 +322,7 @@ static int spear_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 
 static int spear_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = dev_get_drvdata(dev);
 	int ret = 0;
 
 	spear_rtc_clear_interrupt(config);
@@ -365,7 +355,6 @@ static struct rtc_class_ops spear_rtc_ops = {
 static int __devinit spear_rtc_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	struct rtc_device *rtc;
 	struct spear_rtc_config *config;
 	unsigned int status = 0;
 	int irq;
@@ -405,18 +394,16 @@ static int __devinit spear_rtc_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&config->lock);
+	platform_set_drvdata(pdev, config);
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev, &spear_rtc_ops,
-			THIS_MODULE);
-	if (IS_ERR(rtc)) {
+	config->rtc = rtc_device_register(pdev->name, &pdev->dev,
+			&spear_rtc_ops, THIS_MODULE);
+	if (IS_ERR(config->rtc)) {
 		dev_err(&pdev->dev, "can't register RTC device, err %ld\n",
-				PTR_ERR(rtc));
-		status = PTR_ERR(rtc);
+				PTR_ERR(config->rtc));
+		status = PTR_ERR(config->rtc);
 		goto err_iounmap;
 	}
-
-	platform_set_drvdata(pdev, rtc);
-	dev_set_drvdata(&rtc->dev, config);
 
 	/* alarm irqs */
 	irq = platform_get_irq(pdev, 0);
@@ -426,7 +413,7 @@ static int __devinit spear_rtc_probe(struct platform_device *pdev)
 		goto err_clear_platdata;
 	}
 
-	status = request_irq(irq, spear_rtc_irq, 0, pdev->name, rtc);
+	status = request_irq(irq, spear_rtc_irq, 0, pdev->name, config);
 	if (status) {
 		dev_err(&pdev->dev, "Alarm interrupt IRQ%d already \
 				claimed\n", irq);
@@ -440,8 +427,7 @@ static int __devinit spear_rtc_probe(struct platform_device *pdev)
 
 err_clear_platdata:
 	platform_set_drvdata(pdev, NULL);
-	dev_set_drvdata(&rtc->dev, NULL);
-	rtc_device_unregister(rtc);
+	rtc_device_unregister(config->rtc);
 err_iounmap:
 	iounmap(config->ioaddr);
 err_disable_clock:
@@ -458,8 +444,7 @@ err_release_region:
 
 static int __devexit spear_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 	int irq;
 	struct resource *res;
 
@@ -477,8 +462,7 @@ static int __devexit spear_rtc_remove(struct platform_device *pdev)
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 	platform_set_drvdata(pdev, NULL);
-	dev_set_drvdata(&rtc->dev, NULL);
-	rtc_device_unregister(rtc);
+	rtc_device_unregister(config->rtc);
 
 	return 0;
 }
@@ -487,8 +471,7 @@ static int __devexit spear_rtc_remove(struct platform_device *pdev)
 
 static int spear_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 	int irq;
 
 	irq = platform_get_irq(pdev, 0);
@@ -505,8 +488,7 @@ static int spear_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int spear_rtc_resume(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 	int irq;
 
 	irq = platform_get_irq(pdev, 0);
@@ -531,8 +513,7 @@ static int spear_rtc_resume(struct platform_device *pdev)
 
 static void spear_rtc_shutdown(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct spear_rtc_config *config = dev_get_drvdata(&rtc->dev);
+	struct spear_rtc_config *config = platform_get_drvdata(pdev);
 
 	spear_rtc_disable_interrupt(config);
 	clk_disable(config->clk);
