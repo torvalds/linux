@@ -921,12 +921,12 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 		/* "Safe default" - 13MHz */
 		recalculate_fifo_timeout(pcdev, 13000000);
 
-	clk_enable(pcdev->clk);
+	clk_prepare_enable(pcdev->clk);
 }
 
 static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 {
-	clk_disable(pcdev->clk);
+	clk_disable_unprepare(pcdev->clk);
 }
 
 static irqreturn_t pxa_camera_irq(int irq, void *data)

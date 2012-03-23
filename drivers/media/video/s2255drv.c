@@ -134,7 +134,7 @@
 
 /* usb config commands */
 #define IN_DATA_TOKEN	cpu_to_le32(0x2255c0de)
-#define CMD_2255	cpu_to_le32(0xc2255000)
+#define CMD_2255	0xc2255000
 #define CMD_SET_MODE	cpu_to_le32((CMD_2255 | 0x10))
 #define CMD_START	cpu_to_le32((CMD_2255 | 0x20))
 #define CMD_STOP	cpu_to_le32((CMD_2255 | 0x30))
@@ -852,15 +852,13 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 			       struct v4l2_fmtdesc *f)
 {
-	int index = 0;
-	if (f)
-		index = f->index;
+	int index = f->index;
 
 	if (index >= ARRAY_SIZE(formats))
 		return -EINVAL;
-    if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
-			 (formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
-	return -EINVAL;
+	if (!jpeg_enable && ((formats[index].fourcc == V4L2_PIX_FMT_JPEG) ||
+			(formats[index].fourcc == V4L2_PIX_FMT_MJPEG)))
+		return -EINVAL;
 	dprintk(4, "name %s\n", formats[index].name);
 	strlcpy(f->description, formats[index].name, sizeof(f->description));
 	f->pixelformat = formats[index].fourcc;
@@ -2027,7 +2025,7 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 					pdata[1]);
 				offset = jj + PREFIX_SIZE;
 				bframe = 1;
-				cc = pdword[1];
+				cc = le32_to_cpu(pdword[1]);
 				if (cc >= MAX_CHANNELS) {
 					printk(KERN_ERR
 					       "bad channel\n");
@@ -2036,22 +2034,22 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 				/* reverse it */
 				dev->cc = G_chnmap[cc];
 				channel = &dev->channel[dev->cc];
-				payload =  pdword[3];
+				payload =  le32_to_cpu(pdword[3]);
 				if (payload > channel->req_image_size) {
 					channel->bad_payload++;
 					/* discard the bad frame */
 					return -EINVAL;
 				}
 				channel->pkt_size = payload;
-				channel->jpg_size = pdword[4];
+				channel->jpg_size = le32_to_cpu(pdword[4]);
 				break;
 			case S2255_MARKER_RESPONSE:
 
 				pdata += DEF_USB_BLOCK;
 				jj += DEF_USB_BLOCK;
-				if (pdword[1] >= MAX_CHANNELS)
+				if (le32_to_cpu(pdword[1]) >= MAX_CHANNELS)
 					break;
-				cc = G_chnmap[pdword[1]];
+				cc = G_chnmap[le32_to_cpu(pdword[1])];
 				if (cc >= MAX_CHANNELS)
 					break;
 				channel = &dev->channel[cc];
@@ -2074,11 +2072,11 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 					wake_up(&dev->fw_data->wait_fw);
 					break;
 				case S2255_RESPONSE_STATUS:
-					channel->vidstatus = pdword[3];
+					channel->vidstatus = le32_to_cpu(pdword[3]);
 					channel->vidstatus_ready = 1;
 					wake_up(&channel->wait_vidstatus);
 					dprintk(5, "got vidstatus %x chan %d\n",
-						pdword[3], cc);
+						le32_to_cpu(pdword[3]), cc);
 					break;
 				default:
 					printk(KERN_INFO "s2255 unknown resp\n");
@@ -2605,10 +2603,11 @@ static int s2255_probe(struct usb_interface *interface,
 		__le32 *pRel;
 		pRel = (__le32 *) &dev->fw_data->fw->data[fw_size - 4];
 		printk(KERN_INFO "s2255 dsp fw version %x\n", *pRel);
-		dev->dsp_fw_ver = *pRel;
-		if (*pRel < S2255_CUR_DSP_FWVER)
+		dev->dsp_fw_ver = le32_to_cpu(*pRel);
+		if (dev->dsp_fw_ver < S2255_CUR_DSP_FWVER)
 			printk(KERN_INFO "s2255: f2255usb.bin out of date.\n");
-		if (dev->pid == 0x2257 && *pRel < S2255_MIN_DSP_COLORFILTER)
+		if (dev->pid == 0x2257 &&
+				dev->dsp_fw_ver < S2255_MIN_DSP_COLORFILTER)
 			printk(KERN_WARNING "s2255: 2257 requires firmware %d"
 			       " or above.\n", S2255_MIN_DSP_COLORFILTER);
 	}

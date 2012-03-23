@@ -881,18 +881,7 @@ static struct i2c_driver msp_driver = {
 	.id_table	= msp_id,
 };
 
-static __init int init_msp(void)
-{
-	return i2c_add_driver(&msp_driver);
-}
-
-static __exit void exit_msp(void)
-{
-	i2c_del_driver(&msp_driver);
-}
-
-module_init(init_msp);
-module_exit(exit_msp);
+module_i2c_driver(msp_driver);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

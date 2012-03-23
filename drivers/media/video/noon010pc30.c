@@ -725,8 +725,8 @@ static int noon010_probe(struct i2c_client *client,
 
 	mutex_init(&info->lock);
 	sd = &info->sd;
-	strlcpy(sd->name, MODULE_NAME, sizeof(sd->name));
 	v4l2_i2c_subdev_init(sd, client, &noon010_ops);
+	strlcpy(sd->name, MODULE_NAME, sizeof(sd->name));
 
 	sd->internal_ops = &noon010_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -844,18 +844,7 @@ static struct i2c_driver noon010_i2c_driver = {
 	.id_table	= noon010_id,
 };
 
-static int __init noon010_init(void)
-{
-	return i2c_add_driver(&noon010_i2c_driver);
-}
-
-static void __exit noon010_exit(void)
-{
-	i2c_del_driver(&noon010_i2c_driver);
-}
-
-module_init(noon010_init);
-module_exit(noon010_exit);
+module_i2c_driver(noon010_i2c_driver);
 
 MODULE_DESCRIPTION("Siliconfile NOON010PC30 camera driver");
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");

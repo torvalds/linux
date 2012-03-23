@@ -175,6 +175,15 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"16-bit CRC",
 		NULL
 	};
+	static const char * const mpeg_audio_dec_playback[] = {
+		"Auto",
+		"Stereo",
+		"Left",
+		"Right",
+		"Mono",
+		"Swapped Stereo",
+		NULL
+	};
 	static const char * const mpeg_video_encoding[] = {
 		"MPEG-1",
 		"MPEG-2",
@@ -236,8 +245,8 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char * const tune_preemphasis[] = {
 		"No Preemphasis",
-		"50 useconds",
-		"75 useconds",
+		"50 Microseconds",
+		"75 Microseconds",
 		NULL,
 	};
 	static const char * const header_mode[] = {
@@ -334,7 +343,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	};
 	static const char * const mpeg4_profile[] = {
 		"Simple",
-		"Adcanved Simple",
+		"Advanced Simple",
 		"Core",
 		"Simple Scalable",
 		"Advanced Coding Efficency",
@@ -350,6 +359,16 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	static const char * const flash_strobe_source[] = {
 		"Software",
 		"External",
+		NULL,
+	};
+
+	static const char * const jpeg_chroma_subsampling[] = {
+		"4:4:4",
+		"4:2:2",
+		"4:2:0",
+		"4:1:1",
+		"4:1:0",
+		"Gray",
 		NULL,
 	};
 
@@ -374,6 +393,9 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return mpeg_audio_emphasis;
 	case V4L2_CID_MPEG_AUDIO_CRC:
 		return mpeg_audio_crc;
+	case V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK:
+	case V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK:
+		return mpeg_audio_dec_playback;
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		return mpeg_video_encoding;
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
@@ -414,6 +436,9 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return mpeg_mpeg4_level;
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
 		return mpeg4_profile;
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
+		return jpeg_chroma_subsampling;
+
 	default:
 		return NULL;
 	}
@@ -492,6 +517,8 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_AUDIO_MUTE:		return "Audio Mute";
 	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE:	return "Audio AAC Bitrate";
 	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:	return "Audio AC-3 Bitrate";
+	case V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK:	return "Audio Playback";
+	case V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK: return "Audio Multilingual Playback";
 	case V4L2_CID_MPEG_VIDEO_ENCODING:	return "Video Encoding";
 	case V4L2_CID_MPEG_VIDEO_ASPECT:	return "Video Aspect";
 	case V4L2_CID_MPEG_VIDEO_B_FRAMES:	return "Video B Frames";
@@ -546,6 +573,8 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MAX_MB:		return "Number of MBs in a Slice";
 	case V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE:		return "Slice Partitioning Method";
 	case V4L2_CID_MPEG_VIDEO_VBV_SIZE:			return "VBV Buffer Size";
+	case V4L2_CID_MPEG_VIDEO_DEC_PTS:			return "Video Decoder PTS";
+	case V4L2_CID_MPEG_VIDEO_DEC_FRAME:			return "Video Decoder Frame Count";
 
 	/* CAMERA controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -606,6 +635,14 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_FLASH_FAULT:		return "Faults";
 	case V4L2_CID_FLASH_CHARGE:		return "Charge";
 	case V4L2_CID_FLASH_READY:		return "Ready to Strobe";
+
+	/* JPEG encoder controls */
+	/* Keep the order of the 'case's the same as in videodev2.h! */
+	case V4L2_CID_JPEG_CLASS:		return "JPEG Compression Controls";
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:	return "Chroma Subsampling";
+	case V4L2_CID_JPEG_RESTART_INTERVAL:	return "Restart Interval";
+	case V4L2_CID_JPEG_COMPRESSION_QUALITY:	return "Compression Quality";
+	case V4L2_CID_JPEG_ACTIVE_MARKER:	return "Active Markers";
 
 	default:
 		return NULL;
@@ -674,6 +711,8 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
 	case V4L2_CID_MPEG_AUDIO_EMPHASIS:
 	case V4L2_CID_MPEG_AUDIO_CRC:
+	case V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK:
+	case V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK:
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
@@ -693,6 +732,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_IDC:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_LEVEL:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_PROFILE:
+	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
 	case V4L2_CID_RDS_TX_PS_NAME:
@@ -704,6 +744,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_CLASS:
 	case V4L2_CID_FM_TX_CLASS:
 	case V4L2_CID_FLASH_CLASS:
+	case V4L2_CID_JPEG_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		/* You can neither read not write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
@@ -717,12 +758,18 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		*max = 0xFFFFFF;
 		break;
 	case V4L2_CID_FLASH_FAULT:
+	case V4L2_CID_JPEG_ACTIVE_MARKER:
 		*type = V4L2_CTRL_TYPE_BITMASK;
 		break;
 	case V4L2_CID_MIN_BUFFERS_FOR_CAPTURE:
 	case V4L2_CID_MIN_BUFFERS_FOR_OUTPUT:
 		*type = V4L2_CTRL_TYPE_INTEGER;
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY;
+		break;
+	case V4L2_CID_MPEG_VIDEO_DEC_FRAME:
+	case V4L2_CID_MPEG_VIDEO_DEC_PTS:
+		*type = V4L2_CTRL_TYPE_INTEGER64;
+		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_VOLATILE;
 		break;
 	default:
 		*type = V4L2_CTRL_TYPE_INTEGER;
@@ -1470,7 +1517,7 @@ EXPORT_SYMBOL(v4l2_ctrl_add_ctrl);
 int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 			  struct v4l2_ctrl_handler *add)
 {
-	struct v4l2_ctrl *ctrl;
+	struct v4l2_ctrl_ref *ref;
 	int ret = 0;
 
 	/* Do nothing if either handler is NULL or if they are the same */
@@ -1479,7 +1526,9 @@ int v4l2_ctrl_add_handler(struct v4l2_ctrl_handler *hdl,
 	if (hdl->error)
 		return hdl->error;
 	mutex_lock(&add->lock);
-	list_for_each_entry(ctrl, &add->ctrls, node) {
+	list_for_each_entry(ref, &add->ctrl_refs, node) {
+		struct v4l2_ctrl *ctrl = ref->ctrl;
+
 		/* Skip handler-private controls. */
 		if (ctrl->is_private)
 			continue;
@@ -2359,3 +2408,35 @@ void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
 	v4l2_ctrl_unlock(ctrl);
 }
 EXPORT_SYMBOL(v4l2_ctrl_del_event);
+
+int v4l2_ctrl_log_status(struct file *file, void *fh)
+{
+	struct video_device *vfd = video_devdata(file);
+	struct v4l2_fh *vfh = file->private_data;
+
+	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags) && vfd->v4l2_dev)
+		v4l2_ctrl_handler_log_status(vfh->ctrl_handler,
+			vfd->v4l2_dev->name);
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_ctrl_log_status);
+
+int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
+				struct v4l2_event_subscription *sub)
+{
+	if (sub->type == V4L2_EVENT_CTRL)
+		return v4l2_event_subscribe(fh, sub, 0);
+	return -EINVAL;
+}
+EXPORT_SYMBOL(v4l2_ctrl_subscribe_event);
+
+unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait)
+{
+	struct v4l2_fh *fh = file->private_data;
+
+	if (v4l2_event_pending(fh))
+		return POLLPRI;
+	poll_wait(file, &fh->wait, wait);
+	return 0;
+}
+EXPORT_SYMBOL(v4l2_ctrl_poll);

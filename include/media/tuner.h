@@ -136,6 +136,7 @@
 #define TUNER_TENA_TNF_5337		86
 
 #define TUNER_XC4000			87	/* Xceive Silicon Tuner */
+#define TUNER_XC5000C			88	/* Xceive Silicon Tuner */
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)
