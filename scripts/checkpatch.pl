@@ -1849,6 +1849,17 @@ sub process {
 			}
 		}
 
+		if ($line =~ /^\+.*\*[ \t]*\)[ \t]+/) {
+			CHK("SPACING",
+			    "No space is necessary after a cast\n" . $hereprev);
+		}
+
+		if ($rawline =~ /^\+[ \t]*\/\*[ \t]*$/ &&
+		    $prevrawline =~ /^\+[ \t]*$/) {
+			CHK("BLOCK_COMMENT_STYLE",
+			    "Don't begin block comments with only a /* line, use /* comment...\n" . $hereprev);
+		}
+
 # check for spaces at the beginning of a line.
 # Exceptions:
 #  1) within comments
@@ -2961,7 +2972,8 @@ sub process {
 			#print "chunks<$#chunks> linenr<$linenr> endln<$endln> level<$level>\n";
 			#print "APW: <<$chunks[1][0]>><<$chunks[1][1]>>\n";
 			if ($#chunks > 0 && $level == 0) {
-				my $allowed = 0;
+				my @allowed = ();
+				my $allow = 0;
 				my $seen = 0;
 				my $herectx = $here . "\n";
 				my $ln = $linenr - 1;
@@ -2972,6 +2984,7 @@ sub process {
 					my ($whitespace) = ($cond =~ /^((?:\s*\n[+-])*\s*)/s);
 					my $offset = statement_rawlines($whitespace) - 1;
 
+					$allowed[$allow] = 0;
 					#print "COND<$cond> whitespace<$whitespace> offset<$offset>\n";
 
 					# We have looked at and allowed this specific line.
@@ -2984,23 +2997,34 @@ sub process {
 
 					$seen++ if ($block =~ /^\s*{/);
 
-					#print "cond<$cond> block<$block> allowed<$allowed>\n";
+					#print "cond<$cond> block<$block> allowed<$allowed[$allow]>\n";
 					if (statement_lines($cond) > 1) {
 						#print "APW: ALLOWED: cond<$cond>\n";
-						$allowed = 1;
+						$allowed[$allow] = 1;
 					}
 					if ($block =~/\b(?:if|for|while)\b/) {
 						#print "APW: ALLOWED: block<$block>\n";
-						$allowed = 1;
+						$allowed[$allow] = 1;
 					}
 					if (statement_block_size($block) > 1) {
 						#print "APW: ALLOWED: lines block<$block>\n";
-						$allowed = 1;
+						$allowed[$allow] = 1;
 					}
+					$allow++;
 				}
-				if ($seen && !$allowed) {
-					WARN("BRACES",
-					     "braces {} are not necessary for any arm of this statement\n" . $herectx);
+				if ($seen) {
+					my $sum_allowed = 0;
+					foreach (@allowed) {
+						$sum_allowed += $_;
+					}
+					if ($sum_allowed == 0) {
+						WARN("BRACES",
+						     "braces {} are not necessary for any arm of this statement\n" . $herectx);
+					} elsif ($sum_allowed != $allow &&
+						 $seen != $allow) {
+						CHK("BRACES",
+						    "braces {} should be used on all arms of this statement\n" . $herectx);
+					}
 				}
 			}
 		}
