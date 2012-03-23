@@ -47,25 +47,28 @@ MODULE_LICENSE("GPL");
 
 #if CRC_LE_BITS > 8 || CRC_BE_BITS > 8
 
+/* implements slicing-by-4 or slicing-by-8 algorithm */
 static inline u32
 crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
 {
 # ifdef __LITTLE_ENDIAN
 #  define DO_CRC(x) crc = t0[(crc ^ (x)) & 255] ^ (crc >> 8)
-#  define DO_CRC4 crc = t3[(crc) & 255] ^ \
-		t2[(crc >> 8) & 255] ^ \
-		t1[(crc >> 16) & 255] ^ \
-		t0[(crc >> 24) & 255]
+#  define DO_CRC4 (t3[(q) & 255] ^ t2[(q >> 8) & 255] ^ \
+		   t1[(q >> 16) & 255] ^ t0[(q >> 24) & 255])
+#  define DO_CRC8 (t7[(q) & 255] ^ t6[(q >> 8) & 255] ^ \
+		   t5[(q >> 16) & 255] ^ t4[(q >> 24) & 255])
 # else
 #  define DO_CRC(x) crc = t0[((crc >> 24) ^ (x)) & 255] ^ (crc << 8)
-#  define DO_CRC4 crc = t0[(crc) & 255] ^ \
-		t1[(crc >> 8) & 255] ^  \
-		t2[(crc >> 16) & 255] ^	\
-		t3[(crc >> 24) & 255]
+#  define DO_CRC4 (t0[(q) & 255] ^ t1[(q >> 8) & 255] ^ \
+		   t2[(q >> 16) & 255] ^ t3[(q >> 24) & 255])
+#  define DO_CRC8 (t4[(q) & 255] ^ t5[(q >> 8) & 255] ^ \
+		   t6[(q >> 16) & 255] ^ t7[(q >> 24) & 255])
 # endif
 	const u32 *b;
 	size_t    rem_len;
 	const u32 *t0=tab[0], *t1=tab[1], *t2=tab[2], *t3=tab[3];
+	const u32 *t4 = tab[4], *t5 = tab[5], *t6 = tab[6], *t7 = tab[7];
+	u32 q;
 
 	/* Align it */
 	if (unlikely((long)buf & 3 && len)) {
@@ -73,13 +76,25 @@ crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
 			DO_CRC(*buf++);
 		} while ((--len) && ((long)buf)&3);
 	}
+
+# if CRC_LE_BITS == 32
 	rem_len = len & 3;
-	/* load data 32 bits wide, xor data 32 bits wide. */
 	len = len >> 2;
+# else
+	rem_len = len & 7;
+	len = len >> 3;
+# endif
+
 	b = (const u32 *)buf;
 	for (--b; len; --len) {
-		crc ^= *++b; /* use pre increment for speed */
-		DO_CRC4;
+		q = crc ^ *++b; /* use pre increment for speed */
+# if CRC_LE_BITS == 32
+		crc = DO_CRC4;
+# else
+		crc = DO_CRC8;
+		q = *++b;
+		crc ^= DO_CRC4;
+# endif
 	}
 	len = rem_len;
 	/* And the last few bytes */
@@ -92,6 +107,7 @@ crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
 	return crc;
 #undef DO_CRC
 #undef DO_CRC4
+#undef DO_CRC8
 }
 #endif
 
