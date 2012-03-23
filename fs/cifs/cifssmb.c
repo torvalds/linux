@@ -1689,7 +1689,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 		rdata->result = -EIO;
 	}
 
-	queue_work(system_nrt_wq, &rdata->work);
+	queue_work(cifsiod_wq, &rdata->work);
 	DeleteMidQEntry(mid);
 	cifs_add_credits(server, 1);
 }
@@ -2129,7 +2129,7 @@ cifs_writev_callback(struct mid_q_entry *mid)
 		break;
 	}
 
-	queue_work(system_nrt_wq, &wdata->work);
+	queue_work(cifsiod_wq, &wdata->work);
 	DeleteMidQEntry(mid);
 	cifs_add_credits(tcon->ses->server, 1);
 }

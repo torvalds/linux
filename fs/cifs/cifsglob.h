@@ -1070,5 +1070,6 @@ GLOBAL_EXTERN spinlock_t gidsidlock;
 void cifs_oplock_break(struct work_struct *work);
 
 extern const struct slow_work_ops cifs_oplock_break_ops;
+extern struct workqueue_struct *cifsiod_wq;
 
 #endif	/* _CIFS_GLOB_H */

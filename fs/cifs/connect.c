@@ -335,7 +335,7 @@ cifs_echo_request(struct work_struct *work)
 			server->hostname);
 
 requeue_echo:
-	queue_delayed_work(system_nrt_wq, &server->echo, SMB_ECHO_INTERVAL);
+	queue_delayed_work(cifsiod_wq, &server->echo, SMB_ECHO_INTERVAL);
 }
 
 static bool
@@ -1971,7 +1971,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	cifs_fscache_get_client_cookie(tcp_ses);
 
 	/* queue echo request delayed work */
-	queue_delayed_work(system_nrt_wq, &tcp_ses->echo, SMB_ECHO_INTERVAL);
+	queue_delayed_work(cifsiod_wq, &tcp_ses->echo, SMB_ECHO_INTERVAL);
 
 	return tcp_ses;
 
@@ -3537,7 +3537,7 @@ remote_path_check:
 	tlink_rb_insert(&cifs_sb->tlink_tree, tlink);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
-	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
+	queue_delayed_work(cifsiod_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
 
 mount_fail_check:
@@ -4091,6 +4091,6 @@ cifs_prune_tlinks(struct work_struct *work)
 	}
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
-	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
+	queue_delayed_work(cifsiod_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
 }
