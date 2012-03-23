@@ -365,7 +365,7 @@ out:
 
 static irqreturn_t twl_rtc_interrupt(int irq, void *rtc)
 {
-	unsigned long events = 0;
+	unsigned long events;
 	int ret = IRQ_NONE;
 	int res;
 	u8 rd_reg;
@@ -380,9 +380,9 @@ static irqreturn_t twl_rtc_interrupt(int irq, void *rtc)
 	 * by reading RTS_INTERRUPTS_REGISTER[IT_TIMER,IT_ALARM]
 	 */
 	if (rd_reg & BIT_RTC_STATUS_REG_ALARM_M)
-		events |= RTC_IRQF | RTC_AF;
+		events = RTC_IRQF | RTC_AF;
 	else
-		events |= RTC_IRQF | RTC_UF;
+		events = RTC_IRQF | RTC_PF;
 
 	res = twl_rtc_write_u8(BIT_RTC_STATUS_REG_ALARM_M,
 				   REG_RTC_STATUS_REG);
