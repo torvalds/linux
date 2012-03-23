@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/hardirq.h>
 #include <mach/cru.h>
+#include <mach/iomux.h>
 #include "clock.h"
 
 #ifndef RK30_CLK_OFFBOARD_TEST
@@ -111,8 +112,8 @@ struct pll_clk_set {
 
 
 #define CRU_SRC_SET(mask,shift ) \
-	.src_shift=(mask),\
-	.div_shift=(shift)
+	.src_mask=(mask),\
+	.src_shift=(shift)
 
 #define CRU_PARENTS_SET(parents_array) \
 	.parents=(parents_array),\
@@ -513,18 +514,17 @@ static int frac_div_get_seting(unsigned long rate_out,unsigned long rate,
 }
 /* *********************pll **************************/
 
-
 #define rk30_clock_udelay(a) udelay(a);
 
 /*********************pll lock status**********************************/
-#define GRF_SOC_CON0       0x15c
+//#define GRF_SOC_CON0       0x15c
 static void pll_wait_lock(int pll_idx)
 {
 	u32 pll_state[4]={1,0,2,3};
 	u32 bit = 0x10u << pll_state[pll_idx];
 	int delay = 2400000;
 	while (delay > 0) {
-		if (regfile_readl(GRF_SOC_CON0) & bit)
+		if (regfile_readl(GRF_SOC_STATUS0) & bit)
 			break;
 		delay--;
 	}
