@@ -1510,8 +1510,11 @@ void wl_wds_device_alloc( struct wl_private *lp )
     for( count = 0; count < NUM_WDS_PORTS; count++ ) {
         struct net_device *dev_wds = NULL;
 
-        dev_wds = kmalloc( sizeof( struct net_device ), GFP_KERNEL );
-        memset( dev_wds, 0, sizeof( struct net_device ));
+	dev_wds = kzalloc(sizeof(struct net_device), GFP_KERNEL);
+	if (!dev_wds) {
+		DBG_LEAVE(DbgInfo);
+		return;
+	}
 
         ether_setup( dev_wds );
 
