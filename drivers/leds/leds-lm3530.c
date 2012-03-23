@@ -160,9 +160,16 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 	gen_config = (pdata->brt_ramp_law << LM3530_RAMP_LAW_SHIFT) |
 			((pdata->max_current & 7) << LM3530_MAX_CURR_SHIFT);
 
-	if (drvdata->mode == LM3530_BL_MODE_MANUAL ||
-	    drvdata->mode == LM3530_BL_MODE_ALS)
-		gen_config |= (LM3530_ENABLE_I2C);
+	switch (drvdata->mode) {
+	case LM3530_BL_MODE_MANUAL:
+	case LM3530_BL_MODE_ALS:
+		gen_config |= LM3530_ENABLE_I2C;
+		break;
+	case LM3530_BL_MODE_PWM:
+		gen_config |= LM3530_ENABLE_PWM | LM3530_ENABLE_PWM_SIMPLE |
+			      (pdata->pwm_pol_hi << LM3530_PWM_POL_SHIFT);
+		break;
+	}
 
 	if (drvdata->mode == LM3530_BL_MODE_ALS) {
 		if (pdata->als_vmax == 0) {
@@ -195,11 +202,6 @@ static int lm3530_init_registers(struct lm3530_data *drvdata)
 			(pdata->als2_resistor_sel << LM3530_ALS2_IMP_SHIFT);
 
 	}
-
-	if (drvdata->mode == LM3530_BL_MODE_PWM)
-		gen_config |= (LM3530_ENABLE_PWM) |
-				(pdata->pwm_pol_hi << LM3530_PWM_POL_SHIFT) |
-				(LM3530_ENABLE_PWM_SIMPLE);
 
 	brt_ramp = (pdata->brt_ramp_fall << LM3530_BRT_RAMP_FALL_SHIFT) |
 			(pdata->brt_ramp_rise << LM3530_BRT_RAMP_RISE_SHIFT);
