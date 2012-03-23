@@ -36,6 +36,18 @@ struct lp5521_led_config {
 #define LP5521_CLOCK_INT	1
 #define LP5521_CLOCK_EXT	2
 
+/* Bits in CONFIG register */
+#define LP5521_PWM_HF			0x40	/* PWM: 0 = 256Hz, 1 = 558Hz */
+#define LP5521_PWRSAVE_EN		0x20	/* 1 = Power save mode */
+#define LP5521_CP_MODE_OFF		0	/* Charge pump (CP) off */
+#define LP5521_CP_MODE_BYPASS		8	/* CP forced to bypass mode */
+#define LP5521_CP_MODE_1X5		0x10	/* CP forced to 1.5x mode */
+#define LP5521_CP_MODE_AUTO		0x18	/* Automatic mode selection */
+#define LP5521_R_TO_BATT		4	/* R out: 0 = CP, 1 = Vbat */
+#define LP5521_CLK_SRC_EXT		0	/* Ext-clk source (CLK_32K) */
+#define LP5521_CLK_INT			1	/* Internal clock */
+#define LP5521_CLK_AUTO			2	/* Automatic clock selection */
+
 struct lp5521_platform_data {
 	struct lp5521_led_config *led_config;
 	u8	num_channels;
@@ -44,6 +56,7 @@ struct lp5521_platform_data {
 	void	(*release_resources)(void);
 	void	(*enable)(bool state);
 	const char *label;
+	u8	update_config;
 };
 
 #endif /* __LINUX_LP5521_H */
