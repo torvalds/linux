@@ -297,11 +297,11 @@ static void lm3530_brightness_set(struct led_classdev *led_cdev,
 static ssize_t lm3530_mode_get(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	struct i2c_client *client = container_of(
-					dev->parent, struct i2c_client, dev);
-	struct lm3530_data *drvdata = i2c_get_clientdata(client);
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct lm3530_data *drvdata;
 	int i, len = 0;
 
+	drvdata = container_of(led_cdev, struct lm3530_data, led_dev);
 	for (i = 0; i < ARRAY_SIZE(mode_map); i++)
 		if (drvdata->mode == mode_map[i].mode_val)
 			len += sprintf(buf + len, "[%s] ", mode_map[i].mode);
@@ -316,12 +316,11 @@ static ssize_t lm3530_mode_get(struct device *dev,
 static ssize_t lm3530_mode_set(struct device *dev, struct device_attribute
 				   *attr, const char *buf, size_t size)
 {
-	int err;
-	struct i2c_client *client = container_of(
-					dev->parent, struct i2c_client, dev);
-	struct lm3530_data *drvdata = i2c_get_clientdata(client);
-	int mode;
+	struct led_classdev *led_cdev = dev_get_drvdata(dev);
+	struct lm3530_data *drvdata;
+	int mode, err;
 
+	drvdata = container_of(led_cdev, struct lm3530_data, led_dev);
 	mode = lm3530_get_mode_from_str(buf);
 	if (mode < 0) {
 		dev_err(dev, "Invalid mode\n");
