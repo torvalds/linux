@@ -929,6 +929,14 @@ store_pwm_enable(struct device *dev, struct device_attribute *attr,
 	if (val < 1 || val > 2)
 		return -EINVAL;
 
+#ifndef CONFIG_SENSORS_W83795_FANCTRL
+	if (val > 1) {
+		dev_warn(dev, "Automatic fan speed control support disabled\n");
+		dev_warn(dev, "Build with CONFIG_SENSORS_W83795_FANCTRL=y if you want it\n");
+		return -EOPNOTSUPP;
+	}
+#endif
+
 	mutex_lock(&data->update_lock);
 	switch (val) {
 	case 1:
@@ -1625,18 +1633,18 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 #define SENSOR_ATTR_PWM(index) {					\
 	SENSOR_ATTR_2(pwm##index, S_IWUSR | S_IRUGO, show_pwm,		\
 		store_pwm, PWM_OUTPUT, index - 1),			\
+	SENSOR_ATTR_2(pwm##index##_enable, S_IWUSR | S_IRUGO,		\
+		show_pwm_enable, store_pwm_enable, NOT_USED, index - 1), \
+	SENSOR_ATTR_2(pwm##index##_mode, S_IRUGO,			\
+		show_pwm_mode, NULL, NOT_USED, index - 1),		\
+	SENSOR_ATTR_2(pwm##index##_freq, S_IWUSR | S_IRUGO,		\
+		show_pwm, store_pwm, PWM_FREQ, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_nonstop, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_NONSTOP, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_start, S_IWUSR | S_IRUGO,		\
 		show_pwm, store_pwm, PWM_START, index - 1),		\
 	SENSOR_ATTR_2(pwm##index##_stop_time, S_IWUSR | S_IRUGO,	\
 		show_pwm, store_pwm, PWM_STOP_TIME, index - 1),	 \
-	SENSOR_ATTR_2(pwm##index##_freq, S_IWUSR | S_IRUGO,	\
-		show_pwm, store_pwm, PWM_FREQ, index - 1),	 \
-	SENSOR_ATTR_2(pwm##index##_enable, S_IWUSR | S_IRUGO,		\
-		show_pwm_enable, store_pwm_enable, NOT_USED, index - 1), \
-	SENSOR_ATTR_2(pwm##index##_mode, S_IRUGO,			\
-		show_pwm_mode, NULL, NOT_USED, index - 1),		\
 	SENSOR_ATTR_2(fan##index##_target, S_IWUSR | S_IRUGO, \
 		show_fanin, store_fanin, FANIN_TARGET, index - 1) }
 
@@ -1953,6 +1961,14 @@ static int w83795_detect(struct i2c_client *client,
 	return 0;
 }
 
+#ifdef CONFIG_SENSORS_W83795_FANCTRL
+#define NUM_PWM_ATTRIBUTES	ARRAY_SIZE(w83795_pwm[0])
+#define NUM_TEMP_ATTRIBUTES	ARRAY_SIZE(w83795_temp[0])
+#else
+#define NUM_PWM_ATTRIBUTES	4
+#define NUM_TEMP_ATTRIBUTES	8
+#endif
+
 static int w83795_handle_files(struct device *dev, int (*fn)(struct device *,
 			       const struct device_attribute *))
 {
@@ -2006,24 +2022,18 @@ static int w83795_handle_files(struct device *dev, int (*fn)(struct device *,
 		}
 	}
 
-#ifdef CONFIG_SENSORS_W83795_FANCTRL
 	for (i = 0; i < data->has_pwm; i++) {
-		for (j = 0; j < ARRAY_SIZE(w83795_pwm[0]); j++) {
+		for (j = 0; j < NUM_PWM_ATTRIBUTES; j++) {
 			err = fn(dev, &w83795_pwm[i][j].dev_attr);
 			if (err)
 				return err;
 		}
 	}
-#endif
 
 	for (i = 0; i < ARRAY_SIZE(w83795_temp); i++) {
 		if (!(data->has_temp & (1 << i)))
 			continue;
-#ifdef CONFIG_SENSORS_W83795_FANCTRL
-		for (j = 0; j < ARRAY_SIZE(w83795_temp[0]); j++) {
-#else
-		for (j = 0; j < 8; j++) {
-#endif
+		for (j = 0; j < NUM_TEMP_ATTRIBUTES; j++) {
 			if (j == 7 && !data->enable_beep)
 				continue;
 			err = fn(dev, &w83795_temp[i][j].dev_attr);
