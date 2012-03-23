@@ -264,7 +264,7 @@ int __init rk30_iomux_init(void)
 			rk30_mux_set(&rk30_muxs[i]);	
 	}
 
-#ifdef CONFIG_UART0_RK29
+#if defined(CONFIG_UART0_RK29) || (CONFIG_RK_DEBUG_UART == 0)
 	rk30_mux_api_set(GPIO1A1_UART0SOUT_NAME, GPIO1A_UART0_SOUT);
 	rk30_mux_api_set(GPIO1A0_UART0SIN_NAME, GPIO1A_UART0_SIN);
 #ifdef CONFIG_UART0_CTS_RTS_RK30
@@ -272,7 +272,7 @@ int __init rk30_iomux_init(void)
 	rk30_mux_api_set(GPIO1A2_UART0CTSN_NAME, GPIO1A_UART0_CTS_N);
 #endif
 #endif
-#ifdef CONFIG_UART1_RK29	
+#if defined(CONFIG_UART1_RK29) || (CONFIG_RK_DEBUG_UART == 1)
 	//UART1 OR SPIM0
 	rk30_mux_api_set(GPIO1A5_UART1SOUT_SPI0CLK_NAME, GPIO1A_UART1_SOUT);
 	rk30_mux_api_set(GPIO1A4_UART1SIN_SPI0CSN0_NAME, GPIO1A_UART1_SIN);
@@ -282,11 +282,11 @@ int __init rk30_iomux_init(void)
 #endif
 #endif
 
-#ifdef CONFIG_UART2_RK29
+#if defined(CONFIG_UART2_RK29) || (CONFIG_RK_DEBUG_UART == 2)
 	rk30_mux_api_set(GPIO1B1_UART2SOUT_NAME, GPIO1B_UART2_SOUT);
 	rk30_mux_api_set(GPIO1B0_UART2SIN_NAME, GPIO1B_UART2_SIN);
 #endif
-#ifdef CONFIG_UART3_RK29
+#if defined(CONFIG_UART3_RK29) || (CONFIG_RK_DEBUG_UART == 3)
 	rk30_mux_api_set(GPIO3D4_UART3SOUT_NAME, GPIO3D_UART3_SOUT);
 	rk30_mux_api_set(GPIO3D3_UART3SIN_NAME, GPIO3D_UART3_SIN);
 #ifdef CONFIG_UART3_CTS_RTS_RK29
