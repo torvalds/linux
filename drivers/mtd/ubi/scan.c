@@ -789,9 +789,9 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 	int err;
 
 	mutex_lock(&ubi->buf_mutex);
-	memset(ubi->peb_buf1, 0x00, ubi->leb_size);
+	memset(ubi->peb_buf, 0x00, ubi->leb_size);
 
-	err = ubi_io_read(ubi, ubi->peb_buf1, pnum, ubi->leb_start,
+	err = ubi_io_read(ubi, ubi->peb_buf, pnum, ubi->leb_start,
 			  ubi->leb_size);
 	if (err == UBI_IO_BITFLIPS || mtd_is_eccerr(err)) {
 		/*
@@ -808,7 +808,7 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 	if (err)
 		goto out_unlock;
 
-	if (ubi_check_pattern(ubi->peb_buf1, 0xFF, ubi->leb_size))
+	if (ubi_check_pattern(ubi->peb_buf, 0xFF, ubi->leb_size))
 		goto out_unlock;
 
 	ubi_err("PEB %d contains corrupted VID header, and the data does not "
@@ -818,7 +818,7 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 	dbg_msg("hexdump of PEB %d offset %d, length %d",
 		pnum, ubi->leb_start, ubi->leb_size);
 	ubi_dbg_print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
-			       ubi->peb_buf1, ubi->leb_size, 1);
+			       ubi->peb_buf, ubi->leb_size, 1);
 	err = 1;
 
 out_unlock:
@@ -1174,7 +1174,7 @@ struct ubi_scan_info *ubi_scan(struct ubi_device *ubi)
 
 	ech = kzalloc(ubi->ec_hdr_alsize, GFP_KERNEL);
 	if (!ech)
-		goto out_slab;
+		goto out_si;
 
 	vidh = ubi_zalloc_vid_hdr(ubi, GFP_KERNEL);
 	if (!vidh)
@@ -1235,8 +1235,6 @@ out_vidh:
 	ubi_free_vid_hdr(ubi, vidh);
 out_ech:
 	kfree(ech);
-out_slab:
-	kmem_cache_destroy(si->scan_leb_slab);
 out_si:
 	ubi_scan_destroy_si(si);
 	return ERR_PTR(err);
@@ -1325,7 +1323,9 @@ void ubi_scan_destroy_si(struct ubi_scan_info *si)
 		}
 	}
 
-	kmem_cache_destroy(si->scan_leb_slab);
+	if (si->scan_leb_slab)
+		kmem_cache_destroy(si->scan_leb_slab);
+
 	kfree(si);
 }
 
