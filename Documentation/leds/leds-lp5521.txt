@@ -43,17 +43,23 @@ Format: 10x mA i.e 10 means 1.0 mA
 example platform data:
 
 Note: chan_nr can have values between 0 and 2.
+The name of each channel can be configurable.
+If the name field is not defined, the default name will be set to 'xxxx:channelN'
+(XXXX : pdata->label or i2c client name, N : channel number)
 
 static struct lp5521_led_config lp5521_led_config[] = {
         {
+		.name = "red",
                 .chan_nr        = 0,
                 .led_current    = 50,
 		.max_current    = 130,
         }, {
+		.name = "green",
                 .chan_nr        = 1,
                 .led_current    = 0,
 		.max_current    = 130,
         }, {
+		.name = "blue",
                 .chan_nr        = 2,
                 .led_current    = 0,
 		.max_current    = 130,
