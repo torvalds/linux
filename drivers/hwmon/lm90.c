@@ -57,6 +57,9 @@
  * This driver also supports the SA56004 from Philips. This device is
  * pin-compatible with the LM86, the ED/EDP parts are also address-compatible.
  *
+ * This driver also supports the G781 from GMT. This device is compatible
+ * with the ADM1032.
+ *
  * Since the LM90 was the first chipset supported by this driver, most
  * comments will refer to this chipset, but are actually general and
  * concern all supported chipsets, unless mentioned otherwise.
@@ -107,7 +110,7 @@ static const unsigned short normal_i2c[] = {
 	0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 enum chips { lm90, adm1032, lm99, lm86, max6657, max6659, adt7461, max6680,
-	max6646, w83l771, max6696, sa56004 };
+	max6646, w83l771, max6696, sa56004, g781 };
 
 /*
  * The LM90 registers
@@ -184,6 +187,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "adm1032", adm1032 },
 	{ "adt7461", adt7461 },
 	{ "adt7461a", adt7461 },
+	{ "g781", g781 },
 	{ "lm90", lm90 },
 	{ "lm86", lm86 },
 	{ "lm89", lm86 },
@@ -228,6 +232,12 @@ static const struct lm90_params lm90_params[] = {
 		  | LM90_HAVE_BROKEN_ALERT,
 		.alert_alarms = 0x7c,
 		.max_convrate = 10,
+	},
+	[g781] = {
+		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT
+		  | LM90_HAVE_BROKEN_ALERT,
+		.alert_alarms = 0x7c,
+		.max_convrate = 8,
 	},
 	[lm86] = {
 		.flags = LM90_HAVE_OFFSET | LM90_HAVE_REM_LIMIT_EXT,
@@ -1289,6 +1299,13 @@ static int lm90_detect(struct i2c_client *client,
 		 && convrate <= 0x09) {
 			name = "sa56004";
 		}
+	} else
+	if ((address == 0x4C || address == 0x4D)
+	 && man_id == 0x47) { /* GMT */
+		if (chip_id == 0x01 /* G781 */
+		 && (config1 & 0x3F) == 0x00
+		 && convrate <= 0x08)
+			name = "g781";
 	}
 
 	if (!name) { /* identification failed */

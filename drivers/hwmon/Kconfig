@@ -648,7 +648,8 @@ config SENSORS_LM90
 	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
 	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
 	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, ON Semiconductor NCT1008,
-	  Winbond/Nuvoton W83L771W/G/AWG/ASG and Philips SA56004 sensor chips.
+	  Winbond/Nuvoton W83L771W/G/AWG/ASG, Philips SA56004, and GMT G781
+	  sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
