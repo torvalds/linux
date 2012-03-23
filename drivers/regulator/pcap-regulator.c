@@ -165,21 +165,18 @@ static int pcap_regulator_set_voltage_sel(struct regulator_dev *rdev,
 				 selector << vreg->index);
 }
 
-static int pcap_regulator_get_voltage(struct regulator_dev *rdev)
+static int pcap_regulator_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct pcap_regulator *vreg = &vreg_table[rdev_get_id(rdev)];
 	void *pcap = rdev_get_drvdata(rdev);
 	u32 tmp;
-	int mV;
 
 	if (vreg->n_voltages == 1)
-		return vreg->voltage_table[0] * 1000;
+		return 0;
 
 	ezx_pcap_read(pcap, vreg->reg, &tmp);
 	tmp = ((tmp >> vreg->index) & (vreg->n_voltages - 1));
-	mV = vreg->voltage_table[tmp];
-
-	return mV * 1000;
+	return tmp;
 }
 
 static int pcap_regulator_enable(struct regulator_dev *rdev)
@@ -228,7 +225,7 @@ static int pcap_regulator_list_voltage(struct regulator_dev *rdev,
 static struct regulator_ops pcap_regulator_ops = {
 	.list_voltage	= pcap_regulator_list_voltage,
 	.set_voltage_sel = pcap_regulator_set_voltage_sel,
-	.get_voltage	= pcap_regulator_get_voltage,
+	.get_voltage_sel = pcap_regulator_get_voltage_sel,
 	.enable		= pcap_regulator_enable,
 	.disable	= pcap_regulator_disable,
 	.is_enabled	= pcap_regulator_is_enabled,
