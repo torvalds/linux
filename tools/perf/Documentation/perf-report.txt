@@ -48,6 +48,9 @@ OPTIONS
 	Only consider these symbols. CSV that understands
 	file://filename entries.
 
+--symbol-filter=::
+	Only show symbols that match (partially) with this filter.
+
 -U::
 --hide-unresolved::
         Only display entries resolved to a symbol.
@@ -109,6 +112,8 @@ OPTIONS
         zooming into DSOs or threads, among other features. Use of --tui
 	requires a tty, if one is not present, as when piping to other
 	commands, the stdio interface is used.
+
+--gtk:: Use the GTK2 interface.
 
 -k::
 --vmlinux=<file>::
