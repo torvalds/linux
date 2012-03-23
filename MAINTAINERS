@@ -1832,6 +1832,13 @@ L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/codecs/cs4270*
 
+CLEANCACHE API
+M:	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
+L:	linux-kernel@vger.kernel.org
+S:	Maintained
+F:	mm/cleancache.c
+F:	include/linux/cleancache.h
+
 CLK API
 M:	Russell King <linux@arm.linux.org.uk>
 F:	include/linux/clk.h
