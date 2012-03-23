@@ -139,6 +139,8 @@ struct l2cap_conninfo {
 
 #define L2CAP_CTRL_TXSEQ_SHIFT		1
 #define L2CAP_CTRL_SUPER_SHIFT		2
+#define L2CAP_CTRL_POLL_SHIFT		4
+#define L2CAP_CTRL_FINAL_SHIFT		7
 #define L2CAP_CTRL_REQSEQ_SHIFT		8
 #define L2CAP_CTRL_SAR_SHIFT		14
 
@@ -152,9 +154,11 @@ struct l2cap_conninfo {
 #define L2CAP_EXT_CTRL_FINAL		0x00000002
 #define L2CAP_EXT_CTRL_FRAME_TYPE	0x00000001 /* I- or S-Frame */
 
+#define L2CAP_EXT_CTRL_FINAL_SHIFT	1
 #define L2CAP_EXT_CTRL_REQSEQ_SHIFT	2
 #define L2CAP_EXT_CTRL_SAR_SHIFT	16
 #define L2CAP_EXT_CTRL_SUPER_SHIFT	16
+#define L2CAP_EXT_CTRL_POLL_SHIFT	18
 #define L2CAP_EXT_CTRL_TXSEQ_SHIFT	18
 
 /* L2CAP Supervisory Function */
@@ -186,6 +190,8 @@ struct l2cap_hdr {
 #define L2CAP_FCS_SIZE		2
 #define L2CAP_SDULEN_SIZE	2
 #define L2CAP_PSMLEN_SIZE	2
+#define L2CAP_ENH_CTRL_SIZE	2
+#define L2CAP_EXT_CTRL_SIZE	4
 
 struct l2cap_cmd_hdr {
 	__u8       code;
@@ -446,6 +452,9 @@ struct l2cap_chan {
 	__u16		monitor_timeout;
 	__u16		mps;
 
+	__u8		tx_state;
+	__u8		rx_state;
+
 	unsigned long	conf_state;
 	unsigned long	conn_state;
 	unsigned long	flags;
@@ -456,9 +465,11 @@ struct l2cap_chan {
 	__u16		buffer_seq;
 	__u16		buffer_seq_srej;
 	__u16		srej_save_reqseq;
+	__u16		last_acked_seq;
 	__u16		frames_sent;
 	__u16		unacked_frames;
 	__u8		retry_count;
+	__u16		srej_queue_next;
 	__u8		num_acked;
 	__u16		sdu_len;
 	struct sk_buff	*sdu;
@@ -598,6 +609,44 @@ enum {
 	FLAG_FLUSHABLE,
 	FLAG_EXT_CTRL,
 	FLAG_EFS_ENABLE,
+};
+
+enum {
+	L2CAP_TX_STATE_XMIT,
+	L2CAP_TX_STATE_WAIT_F,
+};
+
+enum {
+	L2CAP_RX_STATE_RECV,
+	L2CAP_RX_STATE_SREJ_SENT,
+};
+
+enum {
+	L2CAP_TXSEQ_EXPECTED,
+	L2CAP_TXSEQ_EXPECTED_SREJ,
+	L2CAP_TXSEQ_UNEXPECTED,
+	L2CAP_TXSEQ_UNEXPECTED_SREJ,
+	L2CAP_TXSEQ_DUPLICATE,
+	L2CAP_TXSEQ_DUPLICATE_SREJ,
+	L2CAP_TXSEQ_INVALID,
+	L2CAP_TXSEQ_INVALID_IGNORE,
+};
+
+enum {
+	L2CAP_EV_DATA_REQUEST,
+	L2CAP_EV_LOCAL_BUSY_DETECTED,
+	L2CAP_EV_LOCAL_BUSY_CLEAR,
+	L2CAP_EV_RECV_REQSEQ_AND_FBIT,
+	L2CAP_EV_RECV_FBIT,
+	L2CAP_EV_RETRANS_TO,
+	L2CAP_EV_MONITOR_TO,
+	L2CAP_EV_EXPLICIT_POLL,
+	L2CAP_EV_RECV_IFRAME,
+	L2CAP_EV_RECV_RR,
+	L2CAP_EV_RECV_REJ,
+	L2CAP_EV_RECV_RNR,
+	L2CAP_EV_RECV_SREJ,
+	L2CAP_EV_RECV_FRAME,
 };
 
 static inline void l2cap_chan_hold(struct l2cap_chan *c)
