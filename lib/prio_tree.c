@@ -151,7 +151,6 @@ struct prio_tree_node *prio_tree_replace(struct prio_tree_root *root,
 		 * We can reduce root->index_bits here. However, it is complex
 		 * and does not help much to improve performance (IMO).
 		 */
-		node->parent = node;
 		root->prio_tree_node = node;
 	} else {
 		node->parent = old->parent;
