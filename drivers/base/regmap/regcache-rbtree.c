@@ -396,7 +396,7 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 							   map->cache_word_size);
 
 			/* Is this the hardware default?  If so skip. */
-			ret = regcache_lookup_reg(map, i);
+			ret = regcache_lookup_reg(map, regtmp);
 			if (ret >= 0 && val == map->reg_defaults[ret].def)
 				continue;
 
