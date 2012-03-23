@@ -30,8 +30,35 @@ void __init rk30_init_irq(void);
 void __init rk30_map_io(void);
 struct machine_desc;
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi);
-void __init rk30_clock_init(void);
+void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned long max_i2s_rate);
+void __init board_clock_init(void);
 
 extern struct sys_timer rk30_timer;
+
+enum _periph_pll {
+	periph_pll_1485mhz = 148500000,
+	periph_pll_297mhz = 297000000,
+	periph_pll_1188mhz = 1188000000, /* for box*/
+	periph_pll_default = periph_pll_297mhz,
+};
+enum _codec_pll {
+	codec_pll_360mhz = 360000000, /* for HDMI */
+	codec_pll_408mhz = 408000000,
+	codec_pll_456mhz = 456000000,
+	codec_pll_504mhz = 504000000,
+	codec_pll_552mhz = 552000000, /* for HDMI */
+	codec_pll_600mhz = 600000000,
+	codec_pll_default = codec_pll_360mhz,
+};
+enum _max_i2s_rate {
+	max_i2s_8192khz = 8192000,
+	max_i2s_11289_6khz = 11289600,
+	max_i2s_12288khz = 12288000,
+	max_i2s_22579_2khz = 22579200,
+	max_i2s_24576khz = 24576000,//HDMI
+	max_i2s_49152khz = 24576000,//HDMI
+	max_i2s_default	= max_i2s_12288khz,
+};
+
 
 #endif

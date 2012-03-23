@@ -65,7 +65,7 @@ void __init rk30_map_io(void)
 	rk30_map_common_io();
 	rk29_setup_early_printk();
 	rk29_sram_init();
-	rk30_clock_init();
+	board_clock_init();
 	rk30_l2_cache_init();
 	rk30_iomux_init();
 }

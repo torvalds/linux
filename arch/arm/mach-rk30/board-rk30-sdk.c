@@ -1060,6 +1060,11 @@ static void __init rk30_reserve(void)
 	board_mem_reserved();
 }
 
+void __init board_clock_init(void)
+{
+	rk30_clock_data_init(periph_pll_297mhz, codec_pll_360mhz, max_i2s_12288khz);
+}
+
 MACHINE_START(RK30, "RK30board")
 	.boot_params	= PLAT_PHYS_OFFSET + 0x800,
 	.fixup		= rk30_fixup,

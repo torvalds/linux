@@ -35,6 +35,7 @@ enum rk_plls_id {
 /********************************************************************/
 
 #define CRU_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
+#define CRU_SET_VAL_BITS(val,bits_shift,msk) (((msk)<<((bits_shift)+16))|(val)) 
 
 /*******************PLL CON0 BITS***************************/
 
@@ -45,7 +46,7 @@ enum rk_plls_id {
 	((((reg) >> (shift)) & (msk)) + 1)
 
 #define PLL_OD_MSK		(0xf)
-#define PLL_OD_SHIFT		(0)
+#define PLL_OD_SHIFT (0x0)
 
 #define PLL_CLKOD(val)		PLL_CLKFACTOR_SET(val, PLL_OD_SHIFT, PLL_OD_MSK)
 #define PLL_NO(reg)		PLL_CLKFACTOR_GET(reg, PLL_OD_SHIFT, PLL_OD_MSK)
@@ -135,11 +136,21 @@ enum rk_plls_id {
 
 /*******************MODE BITS***************************/
 
-#define PLL_MODE_W_MSK(id)	(0x3 << (16 + (id) * 4))
 #define PLL_MODE_MSK(id)	(0x3 << ((id) * 4))
-#define PLL_MODE_SLOW(id)	(0x0 << ((id) * 4))
-#define PLL_MODE_NORM(id)	(0x1 << ((id) * 4))
-#define PLL_MODE_DEEP(id)	(0x2 << ((id) * 4))
+#define PLL_MODE_SLOW(id)	((0x0<<((id)*4))|(0x3<<(16+(id)*4)))
+#define PLL_MODE_NORM(id)	((0x1<<((id)*4))|(0x3<<(16+(id)*4)))
+#define PLL_MODE_DEEP(id)	((0x2<<((id)*4))|(0x3<<(16+(id)*4)))
+
+/*******************clksel10***************************/
+
+#define PERI_ACLK_DIV_MASK 0x1f
+#define PERI_ACLK_DIV_OFF 0
+
+#define PERI_HCLK_DIV_MASK 0x3
+#define PERI_HCLK_DIV_OFF 8
+
+#define PERI_PCLK_DIV_MASK 0x3
+#define PERI_PCLK_DIV_OFF 12
 
 /*******************gate BITS***************************/
 
