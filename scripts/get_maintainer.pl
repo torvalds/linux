@@ -1027,8 +1027,13 @@ sub add_categories {
 		    if ($email_list) {
 			if (!$hash_list_to{lc($list_address)}) {
 			    $hash_list_to{lc($list_address)} = 1;
-			    push(@list_to, [$list_address,
-					    "open list${list_role}"]);
+			    if ($list_additional =~ m/moderated/) {
+				push(@list_to, [$list_address,
+						"moderated list${list_role}"]);
+			    } else {
+				push(@list_to, [$list_address,
+						"open list${list_role}"]);
+			    }
 			}
 		    }
 		}
