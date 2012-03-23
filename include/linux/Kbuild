@@ -120,7 +120,6 @@ header-y += errno.h
 header-y += errqueue.h
 header-y += ethtool.h
 header-y += eventpoll.h
-header-y += ext2_fs.h
 header-y += fadvise.h
 header-y += falloc.h
 header-y += fanotify.h
