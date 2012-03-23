@@ -9,6 +9,8 @@
  * to those contributors as well.
  */
 
+#define pr_fmt(fmt) "NMI watchdog: " fmt
+
 #include <linux/mm.h>
 #include <linux/cpu.h>
 #include <linux/nmi.h>
@@ -373,18 +375,20 @@ static int watchdog_nmi_enable(int cpu)
 	/* Try to register using hardware perf events */
 	event = perf_event_create_kernel_counter(wd_attr, cpu, NULL, watchdog_overflow_callback, NULL);
 	if (!IS_ERR(event)) {
-		printk(KERN_INFO "NMI watchdog enabled, takes one hw-pmu counter.\n");
+		pr_info("enabled, takes one hw-pmu counter.\n");
 		goto out_save;
 	}
 
 
 	/* vary the KERN level based on the returned errno */
 	if (PTR_ERR(event) == -EOPNOTSUPP)
-		printk(KERN_INFO "NMI watchdog disabled (cpu%i): not supported (no LAPIC?)\n", cpu);
+		pr_info("disabled (cpu%i): not supported (no LAPIC?)\n", cpu);
 	else if (PTR_ERR(event) == -ENOENT)
-		printk(KERN_WARNING "NMI watchdog disabled (cpu%i): hardware events not enabled\n", cpu);
+		pr_warning("disabled (cpu%i): hardware events not enabled\n",
+			 cpu);
 	else
-		printk(KERN_ERR "NMI watchdog disabled (cpu%i): unable to create perf event: %ld\n", cpu, PTR_ERR(event));
+		pr_err("disabled (cpu%i): unable to create perf event: %ld\n",
+			cpu, PTR_ERR(event));
 	return PTR_ERR(event);
 
 	/* success path */
@@ -439,7 +443,7 @@ static int watchdog_enable(int cpu)
 		struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 		p = kthread_create_on_node(watchdog, NULL, cpu_to_node(cpu), "watchdog/%d", cpu);
 		if (IS_ERR(p)) {
-			printk(KERN_ERR "softlockup watchdog for %i failed\n", cpu);
+			pr_err("softlockup watchdog for %i failed\n", cpu);
 			if (!err) {
 				/* if hardlockup hasn't already set this */
 				err = PTR_ERR(p);
@@ -495,7 +499,7 @@ static void watchdog_enable_all_cpus(void)
 			watchdog_enabled = 1;
 
 	if (!watchdog_enabled)
-		printk(KERN_ERR "watchdog: failed to be enabled on some cpus\n");
+		pr_err("failed to be enabled on some cpus\n");
 
 }
 
