@@ -8239,11 +8239,11 @@ static int intel_enable_rc6(struct drm_device *dev)
 	 * Disable rc6 on Sandybridge
 	 */
 	if (INTEL_INFO(dev)->gen == 6) {
-		DRM_DEBUG_DRIVER("Sandybridge: RC6 disabled\n");
-		return 0;
+		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
+		return INTEL_RC6_ENABLE;
 	}
-	DRM_DEBUG_DRIVER("RC6 enabled\n");
-	return 1;
+	DRM_DEBUG_DRIVER("RC6 and deep RC6 enabled\n");
+	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 }
 
 void gen6_enable_rps(struct drm_i915_private *dev_priv)
