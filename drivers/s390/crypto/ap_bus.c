@@ -1862,7 +1862,5 @@ void ap_module_exit(void)
 	}
 }
 
-#ifndef CONFIG_ZCRYPT_MONOLITHIC
 module_init(ap_module_init);
 module_exit(ap_module_exit);
-#endif
