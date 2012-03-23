@@ -36,6 +36,7 @@ enum ds_type {
 	m41t00,
 	mcp7941x,
 	rx_8025,
+	last_ds_type /* always last */
 	// rs5c372 too?  different address...
 };
 
@@ -120,30 +121,23 @@ struct chip_desc {
 	unsigned		alarm:1;
 };
 
-static const struct chip_desc chips[] = {
-[ds_1307] = {
-	.nvram56	= 1,
-},
-[ds_1337] = {
-	.alarm		= 1,
-},
-[ds_1338] = {
-	.nvram56	= 1,
-},
-[ds_1339] = {
-	.alarm		= 1,
-},
-[ds_1340] = {
-},
-[ds_3231] = {
-	.alarm		= 1,
-},
-[m41t00] = {
-},
-[mcp7941x] = {
-},
-[rx_8025] = {
-}, };
+static const struct chip_desc chips[last_ds_type] = {
+	[ds_1307] = {
+		.nvram56	= 1,
+	},
+	[ds_1337] = {
+		.alarm		= 1,
+	},
+	[ds_1338] = {
+		.nvram56	= 1,
+	},
+	[ds_1339] = {
+		.alarm		= 1,
+	},
+	[ds_3231] = {
+		.alarm		= 1,
+	},
+};
 
 static const struct i2c_device_id ds1307_id[] = {
 	{ "ds1307", ds_1307 },
@@ -836,11 +830,7 @@ read_rtc:
 		}
 
 		break;
-	case rx_8025:
-	case ds_1337:
-	case ds_1339:
-	case ds_1388:
-	case ds_3231:
+	default:
 		break;
 	}
 
