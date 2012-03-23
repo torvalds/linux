@@ -52,12 +52,15 @@ struct pinctrl_dev {
  * @dev: the device using this pin control handle
  * @states: a list of states for this device
  * @state: the current state
+ * @dt_maps: the mapping table chunks dynamically parsed from device tree for
+ *	this device, if any
  */
 struct pinctrl {
 	struct list_head node;
 	struct device *dev;
 	struct list_head states;
 	struct pinctrl_state *state;
+	struct list_head dt_maps;
 };
 
 /**
@@ -100,7 +103,8 @@ struct pinctrl_setting_configs {
  * struct pinctrl_setting - an individual mux or config setting
  * @node: list node for struct pinctrl_settings's @settings field
  * @type: the type of setting
- * @pctldev: pin control device handling to be programmed
+ * @pctldev: pin control device handling to be programmed. Not used for
+ *   PIN_MAP_TYPE_DUMMY_STATE.
  * @data: Data specific to the setting type
  */
 struct pinctrl_setting {
@@ -153,4 +157,9 @@ static inline struct pin_desc *pin_desc_get(struct pinctrl_dev *pctldev,
 	return radix_tree_lookup(&pctldev->pin_desc_tree, pin);
 }
 
+int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
+			 bool dup, bool locked);
+void pinctrl_unregister_map(struct pinctrl_map const *map);
+
 extern struct mutex pinctrl_mutex;
+extern struct list_head pinctrldev_list;

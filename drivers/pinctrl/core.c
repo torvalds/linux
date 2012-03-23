@@ -26,6 +26,7 @@
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/machine.h>
 #include "core.h"
+#include "devicetree.h"
 #include "pinmux.h"
 #include "pinconf.h"
 
@@ -45,7 +46,7 @@ struct pinctrl_maps {
 DEFINE_MUTEX(pinctrl_mutex);
 
 /* Global list of pin control devices (struct pinctrl_dev) */
-static LIST_HEAD(pinctrldev_list);
+LIST_HEAD(pinctrldev_list);
 
 /* List of pin controller handles (struct pinctrl) */
 static LIST_HEAD(pinctrl_list);
@@ -579,6 +580,13 @@ static struct pinctrl *create_pinctrl(struct device *dev)
 	}
 	p->dev = dev;
 	INIT_LIST_HEAD(&p->states);
+	INIT_LIST_HEAD(&p->dt_maps);
+
+	ret = pinctrl_dt_to_map(p);
+	if (ret < 0) {
+		kfree(p);
+		return ERR_PTR(ret);
+	}
 
 	devname = dev_name(dev);
 
@@ -661,6 +669,8 @@ static void pinctrl_put_locked(struct pinctrl *p, bool inlist)
 		list_del(&state->node);
 		kfree(state);
 	}
+
+	pinctrl_dt_free_maps(p);
 
 	if (inlist)
 		list_del(&p->node);
@@ -787,15 +797,8 @@ int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *state)
 }
 EXPORT_SYMBOL_GPL(pinctrl_select_state);
 
-/**
- * pinctrl_register_mappings() - register a set of pin controller mappings
- * @maps: the pincontrol mappings table to register. This should probably be
- *	marked with __initdata so it can be discarded after boot. This
- *	function will perform a shallow copy for the mapping entries.
- * @num_maps: the number of maps in the mapping table
- */
-int pinctrl_register_mappings(struct pinctrl_map const *maps,
-			      unsigned num_maps)
+int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
+			 bool dup, bool locked)
 {
 	int i, ret;
 	struct pinctrl_maps *maps_node;
@@ -851,18 +854,50 @@ int pinctrl_register_mappings(struct pinctrl_map const *maps,
 	}
 
 	maps_node->num_maps = num_maps;
-	maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps, GFP_KERNEL);
-	if (!maps_node->maps) {
-		pr_err("failed to duplicate mapping table\n");
-		kfree(maps_node);
-		return -ENOMEM;
+	if (dup) {
+		maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps,
+					  GFP_KERNEL);
+		if (!maps_node->maps) {
+			pr_err("failed to duplicate mapping table\n");
+			kfree(maps_node);
+			return -ENOMEM;
+		}
+	} else {
+		maps_node->maps = maps;
 	}
 
-	mutex_lock(&pinctrl_mutex);
+	if (!locked)
+		mutex_lock(&pinctrl_mutex);
 	list_add_tail(&maps_node->node, &pinctrl_maps);
-	mutex_unlock(&pinctrl_mutex);
+	if (!locked)
+		mutex_unlock(&pinctrl_mutex);
 
 	return 0;
+}
+
+/**
+ * pinctrl_register_mappings() - register a set of pin controller mappings
+ * @maps: the pincontrol mappings table to register. This should probably be
+ *	marked with __initdata so it can be discarded after boot. This
+ *	function will perform a shallow copy for the mapping entries.
+ * @num_maps: the number of maps in the mapping table
+ */
+int pinctrl_register_mappings(struct pinctrl_map const *maps,
+			      unsigned num_maps)
+{
+	return pinctrl_register_map(maps, num_maps, true, false);
+}
+
+void pinctrl_unregister_map(struct pinctrl_map const *map)
+{
+	struct pinctrl_maps *maps_node;
+
+	list_for_each_entry(maps_node, &pinctrl_maps, node) {
+		if (maps_node->maps == map) {
+			list_del(&maps_node->node);
+			return;
+		}
+	}
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1229,6 +1264,9 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
 	    !ops->list_groups ||
 	    !ops->get_group_name ||
 	    !ops->get_group_pins)
+		return -EINVAL;
+
+	if (ops->dt_node_to_map && !ops->dt_free_map)
 		return -EINVAL;
 
 	return 0;
