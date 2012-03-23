@@ -2269,6 +2269,7 @@ config XEN_FBDEV_FRONTEND
 	select FB_SYS_IMAGEBLIT
 	select FB_SYS_FOPS
 	select FB_DEFERRED_IO
+	select INPUT_XEN_KBDDEV_FRONTEND
 	select XEN_XENBUS_FRONTEND
 	default y
 	help
