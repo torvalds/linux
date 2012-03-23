@@ -341,6 +341,13 @@ config BACKLIGHT_LP855X
 	  This supports TI LP8550, LP8551, LP8552, LP8553 and LP8556
 	  backlight driver.
 
+config BACKLIGHT_OT200
+	tristate "Backlight driver for ot200 visualisation device"
+	depends on BACKLIGHT_CLASS_DEVICE && CS5535_MFGPT
+	help
+	  To compile this driver as a module, choose M here: the module will be
+	  called ot200_bl.
+
 endif # BACKLIGHT_CLASS_DEVICE
 
 endif # BACKLIGHT_LCD_SUPPORT
