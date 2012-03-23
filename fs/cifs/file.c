@@ -1684,7 +1684,8 @@ retry:
 		tofind = min((cifs_sb->wsize / PAGE_CACHE_SIZE) - 1,
 				end - index) + 1;
 
-		wdata = cifs_writedata_alloc((unsigned int)tofind);
+		wdata = cifs_writedata_alloc((unsigned int)tofind,
+					     cifs_writev_complete);
 		if (!wdata) {
 			rc = -ENOMEM;
 			break;

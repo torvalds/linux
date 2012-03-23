@@ -2035,7 +2035,7 @@ cifs_writev_requeue(struct cifs_writedata *wdata)
 	kref_put(&wdata->refcount, cifs_writedata_release);
 }
 
-static void
+void
 cifs_writev_complete(struct work_struct *work)
 {
 	struct cifs_writedata *wdata = container_of(work,
@@ -2065,7 +2065,7 @@ cifs_writev_complete(struct work_struct *work)
 }
 
 struct cifs_writedata *
-cifs_writedata_alloc(unsigned int nr_pages)
+cifs_writedata_alloc(unsigned int nr_pages, work_func_t complete)
 {
 	struct cifs_writedata *wdata;
 
@@ -2079,7 +2079,7 @@ cifs_writedata_alloc(unsigned int nr_pages)
 	wdata = kzalloc(sizeof(*wdata) +
 			sizeof(struct page *) * (nr_pages - 1), GFP_NOFS);
 	if (wdata != NULL) {
-		INIT_WORK(&wdata->work, cifs_writev_complete);
+		INIT_WORK(&wdata->work, complete);
 		kref_init(&wdata->refcount);
 	}
 	return wdata;
