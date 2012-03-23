@@ -879,6 +879,8 @@ config ARCH_RK30
 	select PL330
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select ARM_ERRATA_764369
+	select ARM_ERRATA_754322
 	help
 	  Support for Rockchip's RK30xx SoCs.
 
