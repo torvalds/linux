@@ -306,16 +306,6 @@ struct cfq_data {
 	unsigned long last_delayed_sync;
 };
 
-static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg)
-{
-	return blkg_to_pdata(blkg, &blkio_policy_cfq);
-}
-
-static inline struct blkio_group *cfqg_to_blkg(struct cfq_group *cfqg)
-{
-	return pdata_to_blkg(cfqg, &blkio_policy_cfq);
-}
-
 static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
 
 static struct cfq_rb_root *service_tree_for(struct cfq_group *cfqg,
@@ -377,6 +367,26 @@ CFQ_CFQQ_FNS(wait_busy);
 #undef CFQ_CFQQ_FNS
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
+static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg)
+{
+	return blkg_to_pdata(blkg, &blkio_policy_cfq);
+}
+
+static inline struct blkio_group *cfqg_to_blkg(struct cfq_group *cfqg)
+{
+	return pdata_to_blkg(cfqg, &blkio_policy_cfq);
+}
+
+static inline void cfqg_get(struct cfq_group *cfqg)
+{
+	return blkg_get(cfqg_to_blkg(cfqg));
+}
+
+static inline void cfqg_put(struct cfq_group *cfqg)
+{
+	return blkg_put(cfqg_to_blkg(cfqg));
+}
+
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq%d%c %s " fmt, (cfqq)->pid, \
 			cfq_cfqq_sync((cfqq)) ? 'S' : 'A', \
@@ -386,11 +396,19 @@ CFQ_CFQQ_FNS(wait_busy);
 	blk_add_trace_msg((cfqd)->queue, "%s " fmt,			\
 			blkg_path(cfqg_to_blkg((cfqg))), ##args)	\
 
-#else
+#else	/* CONFIG_CFQ_GROUP_IOSCHED */
+
+static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg) { return NULL; }
+static inline struct blkio_group *cfqg_to_blkg(struct cfq_group *cfqg) { return NULL; }
+static inline void cfqg_get(struct cfq_group *cfqg) { }
+static inline void cfqg_put(struct cfq_group *cfqg) { }
+
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq%d " fmt, (cfqq)->pid, ##args)
 #define cfq_log_cfqg(cfqd, cfqg, fmt, args...)		do {} while (0)
-#endif
+
+#endif	/* CONFIG_CFQ_GROUP_IOSCHED */
+
 #define cfq_log(cfqd, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq " fmt, ##args)
 
@@ -1090,7 +1108,7 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 
 	cfqq->cfqg = cfqg;
 	/* cfqq reference on cfqg */
-	blkg_get(cfqg_to_blkg(cfqg));
+	cfqg_get(cfqg);
 }
 
 #else /* GROUP_IOSCHED */
@@ -2505,7 +2523,7 @@ static void cfq_put_queue(struct cfq_queue *cfqq)
 
 	BUG_ON(cfq_cfqq_on_rr(cfqq));
 	kmem_cache_free(cfq_pool, cfqq);
-	blkg_put(cfqg_to_blkg(cfqg));
+	cfqg_put(cfqg);
 }
 
 static void cfq_put_cooperator(struct cfq_queue *cfqq)
@@ -3276,7 +3294,7 @@ static void cfq_put_request(struct request *rq)
 		cfqq->allocated[rw]--;
 
 		/* Put down rq reference on cfqg */
-		blkg_put(cfqg_to_blkg(RQ_CFQG(rq)));
+		cfqg_put(RQ_CFQG(rq));
 		rq->elv.priv[0] = NULL;
 		rq->elv.priv[1] = NULL;
 
@@ -3364,7 +3382,7 @@ new_queue:
 	cfqq->allocated[rw]++;
 
 	cfqq->ref++;
-	blkg_get(cfqg_to_blkg(cfqq->cfqg));
+	cfqg_get(cfqq->cfqg);
 	rq->elv.priv[0] = cfqq;
 	rq->elv.priv[1] = cfqq->cfqg;
 	spin_unlock_irq(q->queue_lock);
@@ -3545,7 +3563,7 @@ static int cfq_init_queue(struct request_queue *q)
 
 	spin_lock_irq(q->queue_lock);
 	cfq_link_cfqq_cfqg(&cfqd->oom_cfqq, cfqd->root_group);
-	blkg_put(cfqg_to_blkg(cfqd->root_group));
+	cfqg_put(cfqd->root_group);
 	spin_unlock_irq(q->queue_lock);
 
 	init_timer(&cfqd->idle_slice_timer);
