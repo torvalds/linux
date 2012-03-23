@@ -483,6 +483,8 @@ int cifs_async_readv(struct cifs_readdata *rdata);
 /* asynchronous write support */
 struct cifs_writedata {
 	struct kref			refcount;
+	struct list_head		list;
+	struct completion		done;
 	enum writeback_sync_modes	sync_mode;
 	struct work_struct		work;
 	struct cifsFileInfo		*cfile;
