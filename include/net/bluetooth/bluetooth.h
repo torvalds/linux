@@ -215,6 +215,18 @@ void bt_accept_unlink(struct sock *sk);
 struct sock *bt_accept_dequeue(struct sock *parent, struct socket *newsock);
 
 /* Skb helpers */
+struct l2cap_ctrl {
+	unsigned int	sframe	: 1,
+			poll	: 1,
+			final	: 1,
+			fcs	: 1,
+			sar	: 2,
+			super	: 2;
+	__u16		reqseq;
+	__u16		txseq;
+	__u8		retries;
+};
+
 struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
@@ -223,6 +235,7 @@ struct bt_skb_cb {
 	__u8 retries;
 	__u8 sar;
 	__u8 force_active;
+	struct l2cap_ctrl control;
 };
 #define bt_cb(skb) ((struct bt_skb_cb *)((skb)->cb))
 
