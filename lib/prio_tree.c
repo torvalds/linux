@@ -94,43 +94,33 @@ static inline unsigned long prio_tree_maxindex(unsigned int bits)
 static struct prio_tree_node *prio_tree_expand(struct prio_tree_root *root,
 		struct prio_tree_node *node, unsigned long max_heap_index)
 {
-	struct prio_tree_node *first = NULL, *prev, *last = NULL;
+	struct prio_tree_node *prev;
 
 	if (max_heap_index > prio_tree_maxindex(root->index_bits))
 		root->index_bits++;
 
+	prev = node;
+	INIT_PRIO_TREE_NODE(node);
+
 	while (max_heap_index > prio_tree_maxindex(root->index_bits)) {
+		struct prio_tree_node *tmp = root->prio_tree_node;
+
 		root->index_bits++;
 
 		if (prio_tree_empty(root))
 			continue;
 
-		if (first == NULL) {
-			first = root->prio_tree_node;
-			prio_tree_remove(root, root->prio_tree_node);
-			INIT_PRIO_TREE_NODE(first);
-			last = first;
-		} else {
-			prev = last;
-			last = root->prio_tree_node;
-			prio_tree_remove(root, root->prio_tree_node);
-			INIT_PRIO_TREE_NODE(last);
-			prev->left = last;
-			last->parent = prev;
-		}
+		prio_tree_remove(root, root->prio_tree_node);
+		INIT_PRIO_TREE_NODE(tmp);
+
+		prev->left = tmp;
+		tmp->parent = prev;
+		prev = tmp;
 	}
 
-	INIT_PRIO_TREE_NODE(node);
-
-	if (first) {
-		node->left = first;
-		first->parent = node;
-	} else
-		last = node;
-
 	if (!prio_tree_empty(root)) {
-		last->left = root->prio_tree_node;
-		last->left->parent = last;
+		prev->left = root->prio_tree_node;
+		prev->left->parent = prev;
 	}
 
 	root->prio_tree_node = node;
