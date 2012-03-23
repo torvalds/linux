@@ -31,10 +31,12 @@ usage() {
 	echo "  -h    display this help text"
 	echo "  -m    only merge the fragments, do not execute the make command"
 	echo "  -n    use allnoconfig instead of alldefconfig"
+	echo "  -r    list redundant entries when merging fragments"
 }
 
 MAKE=true
 ALLTARGET=alldefconfig
+WARNREDUN=false
 
 while true; do
 	case $1 in
@@ -51,6 +53,11 @@ while true; do
 	"-h")
 		usage
 		exit
+		;;
+	"-r")
+		WARNREDUN=true
+		shift
+		continue
 		;;
 	*)
 		break
@@ -83,6 +90,8 @@ for MERGE_FILE in $MERGE_LIST ; do
 			echo Previous  value: $PREV_VAL
 			echo New value:       $NEW_VAL
 			echo
+			elif [ "$WARNREDUN" = "true" ]; then
+			echo Value of $CFG is redundant by fragment $MERGE_FILE:
 			fi
 			sed -i "/$CFG[ =]/d" $TMP_FILE
 		fi
