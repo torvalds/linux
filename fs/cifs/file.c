@@ -2114,7 +2114,7 @@ cifs_uncached_marshal_iov(struct kvec *iov, struct cifs_writedata *wdata)
 
 	/* marshal up the pages into iov array */
 	for (i = 0; i < wdata->nr_pages; i++) {
-		iov[i + 1].iov_len = min(bytes, PAGE_SIZE);
+		iov[i + 1].iov_len = min_t(size_t, bytes, PAGE_SIZE);
 		iov[i + 1].iov_base = kmap(wdata->pages[i]);
 		bytes -= iov[i + 1].iov_len;
 	}
