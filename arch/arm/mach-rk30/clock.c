@@ -78,15 +78,12 @@ static int clk_default_set_parent(struct clk *clk, struct clk *parent)
 int __init clk_disable_unused(void)
 {
 	struct clk *ck;
-	CLOCK_PRINTK_DBG("clk_disable_unused in\n");
-
 	list_for_each_entry(ck, &clocks, node) {
 	if (ck->usecount > 0 || ck->mode == NULL || (ck->flags & IS_PD))
 		continue;
-		CLOCK_PRINTK_DBG("disbale %s\n",ck->name);
 		LOCK();
 		clk_enable_nolock(ck);
-		//clk_disable_nolock(ck);
+		clk_disable_nolock(ck);
 		UNLOCK();
 	}
 	return 0;

@@ -440,9 +440,17 @@ static int gate_mode(struct clk *clk, int on)
 	/* ddr reconfig may change gate */
 	local_irq_save(flags);
 	if(on)
+	{
 		cru_writel(CLK_GATE_W_MSK(idx)|CLK_UN_GATE(idx), CLK_GATE_CLKID_CONS(idx));
+		//CRU_PRINTK_DBG("un gate id=%d %s(%x),con %x\n",idx,clk->name,
+		//	CLK_GATE_W_MSK(idx)|CLK_UN_GATE(idx),CLK_GATE_CLKID_CONS(idx));
+	}
 	else
+	{
 		cru_writel(CLK_GATE_W_MSK(idx)|CLK_GATE(idx), CLK_GATE_CLKID_CONS(idx));
+	//	CRU_PRINTK_DBG("gate id=%d %s(%x),con%x\n",idx,clk->name,
+		//	CLK_GATE_W_MSK(idx)|CLK_GATE(idx),CLK_GATE_CLKID_CONS(idx));
+	}
 	local_irq_restore(flags);
 	return 0;
 }
@@ -873,8 +881,8 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	local_irq_restore(flags);
 
 	//gate gpll path
-//	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH)|CLK_GATE(CLK_GATE_CPU_GPLL_PATH)
-//	, CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
+	cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH)|CLK_GATE(CLK_GATE_CPU_GPLL_PATH)
+	, CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
 
 /*
 	printk("apll %x,%x,%x,%x\n",cru_readl(PLL_CONS(pll_id,0)),
@@ -1279,6 +1287,7 @@ static struct clk aclk_periph = {
 	CRU_SRC_SET(1,15),
 	CRU_PARENTS_SET(aclk_periph_parents),
 };
+GATE_CLK(periph_src, aclk_periph, PEIRPH_SRC);
 
 static struct clk pclk_periph = {
 	.name		= "pclk_periph",
@@ -2319,18 +2328,18 @@ static struct clk_lookup clks[] = {
 	CLK("rk29_i2s.0", "i2s_div", &clk_i2s0_div),
 	CLK("rk29_i2s.0", "i2s_frac_div", &clk_i2s0_frac_div),
 	CLK("rk29_i2s.0", "i2s", &clk_i2s0),
-	CLK("rk29_i2s.0", "hclk_i2s", &clk_hclk_i2s0_2ch),
+	CLK("rk29_i2s.0", "hclk_i2s", &clk_hclk_i2s_8ch),
 
 	CLK("rk29_i2s.1", "i2s_div", &clk_i2s1_div),
 	CLK("rk29_i2s.1", "i2s_frac_div", &clk_i2s1_frac_div),
 	CLK("rk29_i2s.1", "i2s", &clk_i2s1),
-	CLK("rk29_i2s.1", "hclk_i2s", &clk_hclk_i2s1_2ch),
+	CLK("rk29_i2s.1", "hclk_i2s", &clk_hclk_i2s0_2ch),
 
 	CLK("rk29_i2s.2", "i2s_div", &clk_i2s2_div),
 	CLK("rk29_i2s.2", "i2s_frac_div", &clk_i2s2_frac_div),
 	CLK("rk29_i2s.2", "i2s", &clk_i2s2),
-	CLK("rk29_i2s.2", "hclk_i2s", &clk_hclk_i2s_8ch),
-	
+	CLK("rk29_i2s.2", "hclk_i2s", &clk_hclk_i2s1_2ch),
+
 	CLK1(spdif_div),
 	CLK1(spdif_frac_div),
 	CLK1(spdif),	
@@ -2567,37 +2576,28 @@ static void __init rk30_init_enable_clocks(void)
 
 
 	//apll 
+/*
 	clk_enable_nolock(&core_periph);
 	clk_enable_nolock(&hclk_cpu);
 	clk_enable_nolock(&pclk_cpu);
 	clk_enable_nolock(&atclk_cpu);
-
+*/
 	//usb
 	clk_enable_nolock(&clk_otgphy0);
 	clk_enable_nolock(&clk_otgphy1);
+	clk_enable_nolock(&clk_hclk_otg0);
+	clk_enable_nolock(&clk_hclk_otg1);
 
 
 	//periph clk
+	clk_enable_nolock(&clk_periph_src);
 	clk_enable_nolock(&hclk_periph);
 	clk_enable_nolock(&pclk_periph);
 
 	//uart
 	#if 1
-	clk_enable_nolock(&clk_uart0);
-	clk_enable_nolock(&clk_pclk_uart0);
-	clk_enable_nolock(&clk_uart0_frac_div);
-	
-	clk_enable_nolock(&clk_uart1);
 	clk_enable_nolock(&clk_pclk_uart1);
 	clk_enable_nolock(&clk_uart1_frac_div);
-
-	clk_enable_nolock(&clk_uart2);
-	clk_enable_nolock(&clk_pclk_uart2);
-	clk_enable_nolock(&clk_uart2_frac_div);
-
-	clk_enable_nolock(&clk_uart3);
-	clk_enable_nolock(&clk_pclk_uart3);
-	clk_enable_nolock(&clk_uart3_frac_div);
 	#endif
 	
 
@@ -2620,7 +2620,7 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_rom);
 	clk_enable_nolock(&clk_hclk_cpubus);
 	clk_enable_nolock(&clk_hclk_ahb2apb);
-	clk_enable_nolock(&clk_hclk_vio_bus);
+	//clk_enable_nolock(&clk_hclk_vio_bus);
 	//pclk_cpu
 	clk_enable_nolock(&clk_tzpc);
 	clk_enable_nolock(&clk_pclk_ddrupctl);
@@ -2635,8 +2635,7 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&clk_hclk_peri_ahb_arbi);
 	clk_enable_nolock(&clk_hclk_emem_peri);
 	clk_enable_nolock(&clk_nandc);
-	clk_enable_nolock(&clk_hclk_otg0);
-	clk_enable_nolock(&clk_hclk_otg1);
+
 	//aclk periph
 	clk_enable_nolock(&clk_dma2);
 	clk_enable_nolock(&clk_aclk_peri_niu);
@@ -2645,7 +2644,7 @@ static void __init rk30_init_enable_clocks(void)
 	//pclk periph
 	clk_enable_nolock(&clk_pclk_peri_axi_matrix);
 
-	
+	#if 0
 	clk_enable_nolock(&clk_hclk_hdmi);
 	clk_enable_nolock(&clk_hclk_rga);
 	clk_enable_nolock(&clk_hclk_ipp);
@@ -2656,7 +2655,7 @@ static void __init rk30_init_enable_clocks(void)
 	clk_enable_nolock(&cif0_out);
 	clk_enable_nolock(&cif1_in);
 	clk_enable_nolock(&cif0_in);
-
+#endif
 
 	
 

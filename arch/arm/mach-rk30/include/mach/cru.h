@@ -157,10 +157,10 @@ enum rk_plls_id {
 #define CLK_GATE_CLKID(i)	(16 * (i))
 #define CLK_GATE_CLKID_CONS(i)	CRU_CLKGATES_CON((i) / 16)
 
-#define CLK_GATE(i)		(1 << ((i) >> 4))
+#define CLK_GATE(i)		(1 << ((i)%16))
 #define CLK_UN_GATE(i)		(0)
 
-#define CLK_GATE_W_MSK(i)	(1 << (((i) / 16) + 16))
+#define CLK_GATE_W_MSK(i)	(1 << (((i) % 16) + 16))
 
 enum cru_clk_gate {
 	/* SCU CLK GATE 0 CON */
