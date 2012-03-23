@@ -627,8 +627,6 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			_req_may_be_done(req, m); /* Allowed while state.susp */
 		break;
 
-	case write_acked_by_peer_and_sis:
-		req->rq_state |= RQ_NET_SIS;
 	case conflict_discarded_by_peer:
 		/* for discarded conflicting writes of multiple primaries,
 		 * there is no need to keep anything in the tl, potential
@@ -639,18 +637,15 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 			      (unsigned long long)req->sector, req->size);
 		req->rq_state |= RQ_NET_DONE;
 		/* fall through */
+	case write_acked_by_peer_and_sis:
 	case write_acked_by_peer:
+		if (what == write_acked_by_peer_and_sis)
+			req->rq_state |= RQ_NET_SIS;
 		/* protocol C; successfully written on peer.
-		 * Nothing to do here.
+		 * Nothing more to do here.
 		 * We want to keep the tl in place for all protocols, to cater
-		 * for volatile write-back caches on lower level devices.
-		 *
-		 * A barrier request is expected to have forced all prior
-		 * requests onto stable storage, so completion of a barrier
-		 * request could set NET_DONE right here, and not wait for the
-		 * P_BARRIER_ACK, but that is an unnecessary optimization. */
+		 * for volatile write-back caches on lower level devices. */
 
-		/* this makes it effectively the same as for: */
 	case recv_acked_by_peer:
 		/* protocol B; pretends to be successfully written on peer.
 		 * see also notes above in handed_over_to_network about
