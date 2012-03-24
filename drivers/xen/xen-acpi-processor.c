@@ -501,11 +501,11 @@ static int __init xen_acpi_processor_init(void)
 
 		perf = per_cpu_ptr(acpi_perf_data, i);
 		rc = acpi_processor_register_performance(perf, i);
-		if (WARN_ON(rc))
+		if (rc)
 			goto err_out;
 	}
 	rc = acpi_processor_notify_smm(THIS_MODULE);
-	if (WARN_ON(rc))
+	if (rc)
 		goto err_unregister;
 
 	for_each_possible_cpu(i) {
