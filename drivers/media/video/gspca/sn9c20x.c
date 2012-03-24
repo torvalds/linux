@@ -1644,8 +1644,11 @@ static void set_exposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 exp[8] = {sd->i2c_intf, sd->i2c_addr,
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x1e};
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
 	int expo;
+
+	if (gspca_dev->streaming)
+		exp[7] = 0x1e;
 
 	expo = sd->ctrls[EXPOSURE].val;
 	switch (sd->sensor) {
@@ -1683,8 +1686,11 @@ static void set_gain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 gain[8] = {sd->i2c_intf, sd->i2c_addr,
-				0x00, 0x00, 0x00, 0x00, 0x00, 0x1d};
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
 	int g;
+
+	if (gspca_dev->streaming)
+		gain[7] = 0x15;		/* or 1d ? */
 
 	g = sd->ctrls[GAIN].val;
 	switch (sd->sensor) {
