@@ -103,21 +103,12 @@ neponset_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_sta
 		sa1111_set_io(s->dev, pa_dwr_mask, pa_dwr_set);
 	}
 
-	return 0;
-}
-
-static void neponset_pcmcia_socket_init(struct soc_pcmcia_socket *skt)
-{
-	if (skt->nr == 0)
-		NCR_0 &= ~(NCR_A0VPP | NCR_A1VPP);
-
-	sa1111_pcmcia_socket_init(skt);
+	return ret;
 }
 
 static struct pcmcia_low_level neponset_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 	.configure_socket	= neponset_pcmcia_configure_socket,
-	.socket_init		= neponset_pcmcia_socket_init,
 	.first			= 0,
 	.nr			= 2,
 };

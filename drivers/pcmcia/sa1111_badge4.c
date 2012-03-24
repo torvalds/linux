@@ -122,13 +122,12 @@ badge4_pcmcia_configure_socket(struct soc_pcmcia_socket *skt, const socket_state
 		local_irq_restore(flags);
 	}
 
-	return 0;
+	return ret;
 }
 
 static struct pcmcia_low_level badge4_pcmcia_ops = {
 	.owner			= THIS_MODULE,
 	.configure_socket	= badge4_pcmcia_configure_socket,
-	.socket_init		= sa1111_pcmcia_socket_init,
 	.first			= 0,
 	.nr			= 2,
 };

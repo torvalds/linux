@@ -22,14 +22,6 @@
 #define GPIO_PCMCIA_S0_RDYINT	(82)
 #define GPIO_PCMCIA_RESET	(53)
 
-#define PCMCIA_S0_CD_VALID	gpio_to_irq(GPIO_PCMCIA_S0_CD_VALID)
-#define PCMCIA_S0_RDYINT	gpio_to_irq(GPIO_PCMCIA_S0_RDYINT)
-
-
-static struct pcmcia_irqs irqs[] = {
-	{ .sock = 0, .str = "PCMCIA0 CD" },
-};
-
 static int cmx270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
 	int ret = gpio_request(GPIO_PCMCIA_RESET, "PCCard reset");
@@ -37,18 +29,16 @@ static int cmx270_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 		return ret;
 	gpio_direction_output(GPIO_PCMCIA_RESET, 0);
 
-	skt->socket.pci_irq = PCMCIA_S0_RDYINT;
-	irqs[0].irq = PCMCIA_S0_CD_VALID;
-	ret = soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
-	if (!ret)
-		gpio_free(GPIO_PCMCIA_RESET);
+	skt->stat[SOC_STAT_CD].gpio = GPIO_PCMCIA_S0_CD_VALID;
+	skt->stat[SOC_STAT_CD].name = "PCMCIA0 CD";
+	skt->stat[SOC_STAT_RDY].gpio = GPIO_PCMCIA_S0_RDYINT;
+	skt->stat[SOC_STAT_RDY].name = "PCMCIA0 RDY";
 
 	return ret;
 }
 
 static void cmx270_pcmcia_shutdown(struct soc_pcmcia_socket *skt)
 {
-	soc_pcmcia_free_irqs(skt, irqs, ARRAY_SIZE(irqs));
 	gpio_free(GPIO_PCMCIA_RESET);
 }
 
@@ -56,13 +46,8 @@ static void cmx270_pcmcia_shutdown(struct soc_pcmcia_socket *skt)
 static void cmx270_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
 				       struct pcmcia_state *state)
 {
-	state->detect = (gpio_get_value(GPIO_PCMCIA_S0_CD_VALID) == 0) ? 1 : 0;
-	state->ready  = (gpio_get_value(GPIO_PCMCIA_S0_RDYINT) == 0) ? 0 : 1;
-	state->bvd1   = 1;
-	state->bvd2   = 1;
 	state->vs_3v  = 0;
 	state->vs_Xv  = 0;
-	state->wrprot = 0;  /* not available */
 }
 
 
