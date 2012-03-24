@@ -874,8 +874,8 @@ static const struct i2c_reg_u8 ov7660_init[] = {
 	   0x10, 0x61 and sd->hstart, vstart = 3, fixes ugly colored borders */
 	{0x17, 0x10}, {0x18, 0x61},
 	{0x37, 0x0f}, {0x38, 0x02}, {0x39, 0x43},
-	{0x3a, 0x00}, {0x69, 0x90}, {0x2d, 0xf6},
-	{0x2e, 0x0b}, {0x01, 0x78}, {0x02, 0x50},
+	{0x3a, 0x00}, {0x69, 0x90}, {0x2d, 0x00},
+	{0x2e, 0x00}, {0x01, 0x78}, {0x02, 0x50},
 };
 
 static const struct i2c_reg_u8 ov7670_init[] = {
@@ -1645,7 +1645,7 @@ static void set_exposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 exp[8] = {sd->i2c_intf, sd->i2c_addr,
 				0x00, 0x00, 0x00, 0x00, 0x00, 0x10};
-	int expo;
+	int expo, expo2;
 
 	if (gspca_dev->streaming)
 		exp[7] = 0x1e;
@@ -1656,8 +1656,23 @@ static void set_exposure(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7670:
 	case SENSOR_OV9655:
 	case SENSOR_OV9650:
+		if (expo > 547)
+			expo2 = 547;
+		else
+			expo2 = expo;
+		exp[0] |= (2 << 4);
+		exp[2] = 0x10;			/* AECH */
+		exp[3] = expo2 >> 2;
+		exp[7] = 0x10;
+		i2c_w(gspca_dev, exp);
+		exp[2] = 0x04;			/* COM1 */
+		exp[3] = expo2 & 0x0003;
+		exp[7] = 0x10;
+		i2c_w(gspca_dev, exp);
+		expo -= expo2;
+		exp[7] = 0x1e;
 		exp[0] |= (3 << 4);
-		exp[2] = 0x2d;
+		exp[2] = 0x2d;			/* ADVFL & ADVFH */
 		exp[3] = expo;
 		exp[4] = expo >> 8;
 		break;
