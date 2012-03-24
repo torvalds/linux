@@ -23,9 +23,6 @@
 #define MXS_ICOLL_VBASE		MXS_IO_ADDRESS(MXS_ICOLL_BASE_ADDR)
 #define HW_ICOLL_STAT_OFFSET	0x70
 
-	.macro	disable_fiq
-	.endm
-
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
 	ldr	\irqnr, [\base, #HW_ICOLL_STAT_OFFSET]
 	cmp	\irqnr, #0x7F
@@ -35,7 +32,4 @@
 
 	.macro  get_irqnr_preamble, base, tmp
 	ldr	\base, =MXS_ICOLL_VBASE
-	.endm
-
-	.macro  arch_ret_to_user, tmp1, tmp2
 	.endm

@@ -585,58 +585,58 @@ static struct pl022_ssp_controller ssp0_plat_data = {
 	.num_chipselect = 1,
 };
 
-#define AACI_IRQ	{ IRQ_AACI, NO_IRQ }
+#define AACI_IRQ	{ IRQ_AACI }
 #define MMCI0_IRQ	{ IRQ_MMCI0A,IRQ_SIC_MMCI0B }
-#define KMI0_IRQ	{ IRQ_SIC_KMI0, NO_IRQ }
-#define KMI1_IRQ	{ IRQ_SIC_KMI1, NO_IRQ }
+#define KMI0_IRQ	{ IRQ_SIC_KMI0 }
+#define KMI1_IRQ	{ IRQ_SIC_KMI1 }
 
 /*
  * These devices are connected directly to the multi-layer AHB switch
  */
-#define SMC_IRQ		{ NO_IRQ, NO_IRQ }
-#define MPMC_IRQ	{ NO_IRQ, NO_IRQ }
-#define CLCD_IRQ	{ IRQ_CLCDINT, NO_IRQ }
-#define DMAC_IRQ	{ IRQ_DMAINT, NO_IRQ }
+#define SMC_IRQ		{ }
+#define MPMC_IRQ	{ }
+#define CLCD_IRQ	{ IRQ_CLCDINT }
+#define DMAC_IRQ	{ IRQ_DMAINT }
 
 /*
  * These devices are connected via the core APB bridge
  */
-#define SCTL_IRQ	{ NO_IRQ, NO_IRQ }
-#define WATCHDOG_IRQ	{ IRQ_WDOGINT, NO_IRQ }
-#define GPIO0_IRQ	{ IRQ_GPIOINT0, NO_IRQ }
-#define GPIO1_IRQ	{ IRQ_GPIOINT1, NO_IRQ }
-#define RTC_IRQ		{ IRQ_RTCINT, NO_IRQ }
+#define SCTL_IRQ	{ }
+#define WATCHDOG_IRQ	{ IRQ_WDOGINT }
+#define GPIO0_IRQ	{ IRQ_GPIOINT0 }
+#define GPIO1_IRQ	{ IRQ_GPIOINT1 }
+#define RTC_IRQ		{ IRQ_RTCINT }
 
 /*
  * These devices are connected via the DMA APB bridge
  */
-#define SCI_IRQ		{ IRQ_SCIINT, NO_IRQ }
-#define UART0_IRQ	{ IRQ_UARTINT0, NO_IRQ }
-#define UART1_IRQ	{ IRQ_UARTINT1, NO_IRQ }
-#define UART2_IRQ	{ IRQ_UARTINT2, NO_IRQ }
-#define SSP_IRQ		{ IRQ_SSPINT, NO_IRQ }
+#define SCI_IRQ		{ IRQ_SCIINT }
+#define UART0_IRQ	{ IRQ_UARTINT0 }
+#define UART1_IRQ	{ IRQ_UARTINT1 }
+#define UART2_IRQ	{ IRQ_UARTINT2 }
+#define SSP_IRQ		{ IRQ_SSPINT }
 
 /* FPGA Primecells */
-AMBA_DEVICE(aaci,  "fpga:04", AACI,     NULL);
-AMBA_DEVICE(mmc0,  "fpga:05", MMCI0,    &mmc0_plat_data);
-AMBA_DEVICE(kmi0,  "fpga:06", KMI0,     NULL);
-AMBA_DEVICE(kmi1,  "fpga:07", KMI1,     NULL);
+APB_DEVICE(aaci,  "fpga:04", AACI,     NULL);
+APB_DEVICE(mmc0,  "fpga:05", MMCI0,    &mmc0_plat_data);
+APB_DEVICE(kmi0,  "fpga:06", KMI0,     NULL);
+APB_DEVICE(kmi1,  "fpga:07", KMI1,     NULL);
 
 /* DevChip Primecells */
-AMBA_DEVICE(smc,   "dev:00",  SMC,      NULL);
-AMBA_DEVICE(mpmc,  "dev:10",  MPMC,     NULL);
-AMBA_DEVICE(clcd,  "dev:20",  CLCD,     &clcd_plat_data);
-AMBA_DEVICE(dmac,  "dev:30",  DMAC,     NULL);
-AMBA_DEVICE(sctl,  "dev:e0",  SCTL,     NULL);
-AMBA_DEVICE(wdog,  "dev:e1",  WATCHDOG, NULL);
-AMBA_DEVICE(gpio0, "dev:e4",  GPIO0,    &gpio0_plat_data);
-AMBA_DEVICE(gpio1, "dev:e5",  GPIO1,    &gpio1_plat_data);
-AMBA_DEVICE(rtc,   "dev:e8",  RTC,      NULL);
-AMBA_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
-AMBA_DEVICE(uart0, "dev:f1",  UART0,    NULL);
-AMBA_DEVICE(uart1, "dev:f2",  UART1,    NULL);
-AMBA_DEVICE(uart2, "dev:f3",  UART2,    NULL);
-AMBA_DEVICE(ssp0,  "dev:f4",  SSP,      &ssp0_plat_data);
+AHB_DEVICE(smc,   "dev:00",  SMC,      NULL);
+AHB_DEVICE(mpmc,  "dev:10",  MPMC,     NULL);
+AHB_DEVICE(clcd,  "dev:20",  CLCD,     &clcd_plat_data);
+AHB_DEVICE(dmac,  "dev:30",  DMAC,     NULL);
+APB_DEVICE(sctl,  "dev:e0",  SCTL,     NULL);
+APB_DEVICE(wdog,  "dev:e1",  WATCHDOG, NULL);
+APB_DEVICE(gpio0, "dev:e4",  GPIO0,    &gpio0_plat_data);
+APB_DEVICE(gpio1, "dev:e5",  GPIO1,    &gpio1_plat_data);
+APB_DEVICE(rtc,   "dev:e8",  RTC,      NULL);
+APB_DEVICE(sci0,  "dev:f0",  SCI,      NULL);
+APB_DEVICE(uart0, "dev:f1",  UART0,    NULL);
+APB_DEVICE(uart1, "dev:f2",  UART1,    NULL);
+APB_DEVICE(uart2, "dev:f3",  UART2,    NULL);
+APB_DEVICE(ssp0,  "dev:f4",  SSP,      &ssp0_plat_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&dmac_device,
