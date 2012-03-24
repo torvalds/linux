@@ -83,8 +83,9 @@ void update_vsyscall_tz(void)
 void update_vsyscall(struct timespec *wall_time, struct timespec *wtm,
 			struct clocksource *clock, u32 mult)
 {
-	write_seqcount_begin(&vsyscall_gtod_data.seq);
 	struct timespec monotonic;
+
+	write_seqcount_begin(&vsyscall_gtod_data.seq);
 
 	/* copy vsyscall data */
 	vsyscall_gtod_data.clock.vclock_mode	= clock->archdata.vclock_mode;
