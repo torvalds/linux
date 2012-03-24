@@ -105,6 +105,7 @@ struct sd {
 	u8 exposure_step;
 
 	u8 i2c_addr;
+	u8 i2c_intf;
 	u8 sensor;
 	u8 hstart;
 	u8 vstart;
@@ -1168,7 +1169,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 	 * from the point of view of the bridge, the length
 	 * includes the address
 	 */
-	row[0] = 0x81 | (2 << 4);
+	row[0] = sd->i2c_intf | (2 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = val;
@@ -1198,7 +1199,7 @@ static void i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 	 * from the point of view of the bridge, the length
 	 * includes the address
 	 */
-	row[0] = 0x81 | (3 << 4);
+	row[0] = sd->i2c_intf | (3 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = val >> 8;
@@ -1224,7 +1225,7 @@ static void i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | (1 << 4);
+	row[0] = sd->i2c_intf | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1233,7 +1234,7 @@ static void i2c_r1(struct gspca_dev *gspca_dev, u8 reg, u8 *val)
 	row[6] = 0;
 	row[7] = 0x10;
 	i2c_w(gspca_dev, row);
-	row[0] = 0x81 | (1 << 4) | 0x02;
+	row[0] = sd->i2c_intf | (1 << 4) | 0x02;
 	row[2] = 0;
 	i2c_w(gspca_dev, row);
 	reg_r(gspca_dev, 0x10c2, 5);
@@ -1245,7 +1246,7 @@ static void i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 row[8];
 
-	row[0] = 0x81 | (1 << 4);
+	row[0] = sd->i2c_intf | (1 << 4);
 	row[1] = sd->i2c_addr;
 	row[2] = reg;
 	row[3] = 0;
@@ -1254,7 +1255,7 @@ static void i2c_r2(struct gspca_dev *gspca_dev, u8 reg, u16 *val)
 	row[6] = 0;
 	row[7] = 0x10;
 	i2c_w(gspca_dev, row);
-	row[0] = 0x81 | (2 << 4) | 0x02;
+	row[0] = sd->i2c_intf | (2 << 4) | 0x02;
 	row[2] = 0;
 	i2c_w(gspca_dev, row);
 	reg_r(gspca_dev, 0x10c2, 5);
@@ -1642,7 +1643,8 @@ static void set_hvflip(struct gspca_dev *gspca_dev)
 static void set_exposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 exp[8] = {0x81, sd->i2c_addr, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1e};
+	u8 exp[8] = {sd->i2c_intf, sd->i2c_addr,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x1e};
 	int expo;
 
 	expo = sd->ctrls[EXPOSURE].val;
@@ -1680,7 +1682,8 @@ static void set_exposure(struct gspca_dev *gspca_dev)
 static void set_gain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 gain[8] = {0x81, sd->i2c_addr, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1d};
+	u8 gain[8] = {sd->i2c_intf, sd->i2c_addr,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x1d};
 	int g;
 
 	g = sd->ctrls[GAIN].val;
@@ -1828,6 +1831,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->sensor = id->driver_info >> 8;
 	sd->i2c_addr = id->driver_info;
 	sd->flags = id->driver_info >> 16;
+	sd->i2c_intf = 0x80;			/* i2c 100 Kb/s */
 
 	switch (sd->sensor) {
 	case SENSOR_MT9M112:
@@ -1841,6 +1845,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = mono_mode;
 		cam->nmodes = ARRAY_SIZE(mono_mode);
 		break;
+	case SENSOR_HV7131R:
+		sd->i2c_intf = 0x81;			/* i2c 400 Kb/s */
+		/* fall thru */
 	default:
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
