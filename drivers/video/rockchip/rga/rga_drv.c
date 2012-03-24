@@ -49,6 +49,8 @@
 #include "rga_mmu_info.h"
 #include "RGA_API.h"
 
+//#include "bug_320x240_swap0_ABGR8888.h"
+
 
 #define RGA_TEST 0
 
@@ -568,20 +570,18 @@ static void rga_try_set_reg(uint32_t num)
                 rga_copy_reg(reg, 0);            
                 rga_reg_from_wait_to_run(reg);
                 dmac_flush_range(&rga_service.cmd_buff[0], &rga_service.cmd_buff[28]);
-
+                outer_flush_range(virt_to_phys(&rga_service.cmd_buff[0]),virt_to_phys(&rga_service.cmd_buff[28]));
 
                 /*  
                  *  if cmd buf must use mmu
                  *  it should be configured before cmd start  
                  */
-                rga_write((2<<4)|0x1, RGA_MMU_CTRL);
+                rga_write((2<<4)|0x1, RGA_MMU_CTRL);               
+                
                 rga_write(virt_to_phys(reg->MMU_base)>>2, RGA_MMU_TBL);
                                 
                 /* CMD buff */
-                rga_write(virt_to_phys(rga_service.cmd_buff) & (~PAGE_MASK), RGA_CMD_ADDR);
-
-                /* master mode */
-                rga_write(0x1<<2, RGA_SYS_CTRL);
+                rga_write(virt_to_phys(rga_service.cmd_buff) & (~PAGE_MASK), RGA_CMD_ADDR);               
 
                 #ifdef RGA_TEST
                 {
@@ -593,12 +593,20 @@ static void rga_try_set_reg(uint32_t num)
                 }
                 #endif
 
+                /* master mode */
+                rga_write(0x1<<2, RGA_SYS_CTRL);
+                                                              
                 /* All CMD finish int */
                 rga_write(0x1<<10, RGA_INT);
+                
+                //rga_write(1, RGA_MMU_STA_CTRL);
 
                 /* Start proc */
                 atomic_set(&reg->session->done, 0);
-                rga_write(0x1, RGA_CMD_CTRL);
+                rga_write(0x1, RGA_CMD_CTRL);                
+
+                //while(1)
+                //    printk("mmu_status is %.8x\n", rga_read(RGA_MMU_STA));
 
                 #ifdef RGA_TEST
                 {
@@ -607,8 +615,7 @@ static void rga_try_set_reg(uint32_t num)
                     for (i=0; i<28; i++)                        
                         printk("%.8x\n", rga_read(0x100 + i*4));                                                                                
                 }
-                #endif
-
+                #endif                
             }
             num--;
         }
@@ -746,7 +753,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
         atomic_set(&reg->int_enable, 1);        
         rga_try_set_reg(1);
     }    
-
+    
     ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
     if (unlikely(ret_timeout< 0)) 
     {
@@ -757,6 +764,8 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
 		pr_err("pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
 		ret = -ETIMEDOUT;
 	}
+
+    
 
     return ret;
    
@@ -873,11 +882,14 @@ static irqreturn_t rga_irq(int irq,  void *dev_id)
     int int_enable = 0;
 
     DBG("rga_irq %d \n", irq);
-
+    
+    #if RGA_TEST
     printk("rga_irq is valid\n");
+    #endif
 
     /*clear INT */
 	rga_write(rga_read(RGA_INT) | (0x1<<6), RGA_INT);
+    rga_write(rga_read(RGA_INT) | (0x1<<7), RGA_INT);
 
     if(((rga_read(RGA_STATUS) & 0x1) != 0))// idle
 	{	
@@ -885,6 +897,7 @@ static irqreturn_t rga_irq(int irq,  void *dev_id)
 		rga_soft_reset();
 	}
 
+    
 
     spin_lock(&rga_service.lock);
     do
@@ -1048,7 +1061,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		goto err_clock;
 	}
 
-    #endif
+   
 	
 	data->axi_clk = clk_get(&pdev->dev, "aclk_rga");
 	if (IS_ERR(data->axi_clk))
@@ -1065,6 +1078,8 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err_clock;
 	}
+
+    #endif
     
     
 	/* map the memory */
@@ -1192,6 +1207,9 @@ static struct platform_driver rga_driver = {
 };
 
 
+//void rga_test_0(void);
+
+
 static int __init rga_init(void)
 {
 	int ret;
@@ -1227,6 +1245,8 @@ static int __init rga_init(void)
         ERR("Platform device register failed (%d).\n", ret);
 			return ret;
 	}
+
+    //rga_test_0();
     
 	INFO("Module initialized.\n");  
     
@@ -1251,6 +1271,93 @@ static void __exit rga_exit(void)
 	platform_driver_unregister(&rga_driver); 
 }
 
+
+#if 0
+extern uint32_t ABGR8888_320_240_swap0[240][320];
+
+unsigned int src_buf[800*480];
+unsigned int dst_buf[800*480];
+unsigned int mmu_buf[1024];
+
+void rga_test_0(void)
+{
+    struct rga_req req;
+    rga_session session;
+    unsigned int *src, *dst;
+
+    int i;
+
+    session.pid	= current->pid;
+	INIT_LIST_HEAD(&session.waiting);
+	INIT_LIST_HEAD(&session.running);
+	INIT_LIST_HEAD(&session.list_session);
+	init_waitqueue_head(&session.wait);
+	/* no need to protect */
+	list_add_tail(&session.list_session, &rga_service.session);
+	atomic_set(&session.task_running, 0);
+    atomic_set(&session.num_done, 0);
+	//file->private_data = (void *)session;
+
+    memset(&req, 0, sizeof(struct rga_req));
+    src = ABGR8888_320_240_swap0;
+    dst = dst_buf;
+
+    #if 0
+    memset(src_buf, 0x80, 800*480*4);
+    memset(dst_buf, 0xcc, 800*480*4);
+
+    dmac_flush_range(&src_buf[0], &src_buf[800*480]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[800*480]));
+    
+    dmac_flush_range(&dst_buf[0], &dst_buf[800*480]);
+    outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
+    #endif
+    
+    req.src.act_w = 320;
+    req.src.act_h = 240;
+
+    req.src.vir_w = 320;
+    req.src.vir_h = 240;
+    req.src.yrgb_addr = src;
+
+    req.dst.act_w = 320;
+    req.dst.act_h = 240;
+
+    req.dst.vir_w = 800;
+    req.dst.vir_h = 480;
+    req.dst.yrgb_addr = dst;
+
+    req.clip.xmin = 0;
+    req.clip.xmax = 799;
+    req.clip.ymin = 0;
+    req.clip.ymax = 479;
+    
+    
+
+    req.render_mode = 0;
+    req.rotate_mode = 0;
+
+    req.mmu_info.mmu_flag = 0x21;
+    req.mmu_info.mmu_en = 1;
+
+    rga_blit_sync(&session, &req);
+
+    #if 0
+    outer_inv_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480])); 
+    dmac_inv_range(&dst_buf[0], &dst_buf[800*480]);
+
+    for(i=0; i<800*480; i++)
+    {        
+        if(src[i] != dst[i])
+        {
+            printk("src != dst %d\n", i);
+            printk("src = %.8x, dst = %.8x \n", src[i], dst[i]);
+        }
+    }
+    #endif
+}
+
+#endif
 module_init(rga_init);
 module_exit(rga_exit);
 

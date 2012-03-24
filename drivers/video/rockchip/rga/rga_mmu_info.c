@@ -18,6 +18,7 @@
 #include "rga_mmu_info.h"
 
 extern rga_service_info rga_service;
+extern int mmu_buf[1024];
 
 #define KERNEL_SPACE_VALID    0xc0000000
 
@@ -413,9 +414,14 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             break;                
         }
 
+        printk("MMU_Base addr is %.8x\n", MMU_Base);
+        printk("CMDStart is %.8x\n",CMDStart);
+
         for(i=0; i<CMDMemSize; i++) {
             MMU_Base[i] = (uint32_t)virt_to_phys((uint32_t *)((CMDStart + i) << PAGE_SHIFT));            
         }
+
+        printk("MMU_Base[0] = %.8x\n", MMU_Base[0]);
 
         if(req->src.yrgb_addr < KERNEL_SPACE_VALID)
         {
@@ -448,6 +454,8 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
                 }
             }            
         }
+
+        printk("MMU_Base[1] = %.8x\n", MMU_Base[1]);
         
         if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
         {
@@ -471,7 +479,6 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         /* zsq 
          * change the buf address in req struct     
          */
-        
         req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);        
 
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
@@ -483,8 +490,10 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         /*record the malloc buf for the cmd end to release*/
         reg->MMU_base = MMU_Base;
 
+        /* flush data to DDR */
         dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
-
+        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
+        
         status = 0;
 
         /* Free the page table */        
