@@ -62,8 +62,6 @@ struct s3c_fb_platdata {
 	struct s3c_fb_pd_win	*win[S3C_FB_MAX_WIN];
 	struct fb_videomode     *vtiming;
 
-	u32			 default_win;
-
 	u32			 vidcon0;
 	u32			 vidcon1;
 };

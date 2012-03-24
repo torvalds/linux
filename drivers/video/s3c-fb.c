@@ -531,7 +531,7 @@ static int s3c_fb_set_par(struct fb_info *info)
 	/* disable the window whilst we update it */
 	writel(0, regs + WINCON(win_no));
 
-	if (win_no == sfb->pdata->default_win)
+	if (!sfb->output_on)
 		s3c_fb_enable(sfb, 1);
 
 	/* write the buffer address */
@@ -799,6 +799,7 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 	struct s3c_fb *sfb = win->parent;
 	unsigned int index = win->index;
 	u32 wincon;
+	u32 output_on = sfb->output_on;
 
 	dev_dbg(sfb->dev, "blank mode %d\n", blank_mode);
 
@@ -837,34 +838,18 @@ static int s3c_fb_blank(int blank_mode, struct fb_info *info)
 
 	shadow_protect_win(win, 1);
 	writel(wincon, sfb->regs + sfb->variant.wincon + (index * 4));
-	shadow_protect_win(win, 0);
 
 	/* Check the enabled state to see if we need to be running the
 	 * main LCD interface, as if there are no active windows then
 	 * it is highly likely that we also do not need to output
 	 * anything.
 	 */
-
-	/* We could do something like the following code, but the current
-	 * system of using framebuffer events means that we cannot make
-	 * the distinction between just window 0 being inactive and all
-	 * the windows being down.
-	 *
-	 * s3c_fb_enable(sfb, sfb->enabled ? 1 : 0);
-	*/
-
-	/* we're stuck with this until we can do something about overriding
-	 * the power control using the blanking event for a single fb.
-	 */
-	if (index == sfb->pdata->default_win) {
-		shadow_protect_win(win, 1);
-		s3c_fb_enable(sfb, blank_mode != FB_BLANK_POWERDOWN ? 1 : 0);
-		shadow_protect_win(win, 0);
-	}
+	s3c_fb_enable(sfb, sfb->enabled ? 1 : 0);
+	shadow_protect_win(win, 0);
 
 	pm_runtime_put_sync(sfb->dev);
 
-	return 0;
+	return output_on == sfb->output_on;
 }
 
 /**
