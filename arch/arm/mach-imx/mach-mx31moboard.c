@@ -530,6 +530,8 @@ static void __init mx31moboard_init(void)
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gpio_led_register_device(-1, &mx31moboard_led_pdata);
 
+	imx31_add_imx2_wdt(NULL);
+
 	imx31_add_imx_uart0(&uart0_pdata);
 	imx31_add_imx_uart4(&uart4_pdata);
 
@@ -590,7 +592,7 @@ static void __init mx31moboard_reserve(void)
 }
 
 MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
-	/* Maintainer: Valentin Longchamp, EPFL Mobots group */
+	/* Maintainer: Philippe Retornaz, EPFL Mobots group */
 	.atag_offset = 0x100,
 	.reserve = mx31moboard_reserve,
 	.map_io = mx31_map_io,

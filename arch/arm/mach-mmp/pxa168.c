@@ -168,6 +168,7 @@ struct resource pxa168_resource_gpio[] = {
 	}, {
 		.start	= IRQ_PXA168_GPIOX,
 		.end	= IRQ_PXA168_GPIOX,
+		.name	= "gpio_mux",
 		.flags	= IORESOURCE_IRQ,
 	},
 };

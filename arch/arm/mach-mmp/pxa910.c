@@ -173,6 +173,7 @@ struct resource pxa910_resource_gpio[] = {
 	}, {
 		.start	= IRQ_PXA910_AP_GPIO,
 		.end	= IRQ_PXA910_AP_GPIO,
+		.name	= "gpio_mux",
 		.flags	= IORESOURCE_IRQ,
 	},
 };
