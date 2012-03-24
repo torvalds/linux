@@ -75,8 +75,7 @@ static inline struct device *to_tps6586x_dev(struct regulator_dev *rdev)
 	return rdev_get_dev(rdev)->parent->parent;
 }
 
-static int tps6586x_ldo_list_voltage(struct regulator_dev *rdev,
-				     unsigned selector)
+static int tps6586x_list_voltage(struct regulator_dev *rdev, unsigned selector)
 {
 	struct tps6586x_regulator *info = rdev_get_drvdata(rdev);
 
@@ -163,18 +162,8 @@ static int tps6586x_regulator_is_enabled(struct regulator_dev *rdev)
 	return !!(reg_val & (1 << ri->enable_bit[0]));
 }
 
-static struct regulator_ops tps6586x_regulator_ldo_ops = {
-	.list_voltage = tps6586x_ldo_list_voltage,
-	.get_voltage_sel = tps6586x_get_voltage_sel,
-	.set_voltage_sel = tps6586x_set_voltage_sel,
-
-	.is_enabled = tps6586x_regulator_is_enabled,
-	.enable = tps6586x_regulator_enable,
-	.disable = tps6586x_regulator_disable,
-};
-
-static struct regulator_ops tps6586x_regulator_dvm_ops = {
-	.list_voltage = tps6586x_ldo_list_voltage,
+static struct regulator_ops tps6586x_regulator_ops = {
+	.list_voltage = tps6586x_list_voltage,
 	.get_voltage_sel = tps6586x_get_voltage_sel,
 	.set_voltage_sel = tps6586x_set_voltage_sel,
 
@@ -208,11 +197,11 @@ static int tps6586x_dvm_voltages[] = {
 	1325, 1350, 1375, 1400, 1425, 1450, 1475, 1500,
 };
 
-#define TPS6586X_REGULATOR(_id, vdata, _ops, vreg, shift, nbits,	\
+#define TPS6586X_REGULATOR(_id, vdata, vreg, shift, nbits,		\
 			   ereg0, ebit0, ereg1, ebit1)			\
 	.desc	= {							\
 		.name	= "REG-" #_id,					\
-		.ops	= &tps6586x_regulator_##_ops,			\
+		.ops	= &tps6586x_regulator_ops,			\
 		.type	= REGULATOR_VOLTAGE,				\
 		.id	= TPS6586X_ID_##_id,				\
 		.n_voltages = ARRAY_SIZE(tps6586x_##vdata##_voltages),	\
@@ -234,14 +223,14 @@ static int tps6586x_dvm_voltages[] = {
 #define TPS6586X_LDO(_id, vdata, vreg, shift, nbits,			\
 		     ereg0, ebit0, ereg1, ebit1)			\
 {									\
-	TPS6586X_REGULATOR(_id, vdata, ldo_ops, vreg, shift, nbits,	\
+	TPS6586X_REGULATOR(_id, vdata, vreg, shift, nbits,		\
 			   ereg0, ebit0, ereg1, ebit1)			\
 }
 
 #define TPS6586X_DVM(_id, vdata, vreg, shift, nbits,			\
 		     ereg0, ebit0, ereg1, ebit1, goreg, gobit)		\
 {									\
-	TPS6586X_REGULATOR(_id, vdata, dvm_ops, vreg, shift, nbits,	\
+	TPS6586X_REGULATOR(_id, vdata, vreg, shift, nbits,		\
 			   ereg0, ebit0, ereg1, ebit1)			\
 	TPS6586X_REGULATOR_DVM_GOREG(goreg, gobit)			\
 }
