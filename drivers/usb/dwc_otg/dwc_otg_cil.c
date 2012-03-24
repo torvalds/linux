@@ -3255,6 +3255,7 @@ void dwc_otg_dump_global_registers(dwc_otg_core_if_t *_core_if)
 
 void dump_scu_regs(void)
 {
+#ifdef CONFIG_ARCH_RK29
 	int regvalue;
     DWC_PRINT("_______________________System Regs________________________________\n");
 	regvalue = dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x00));
@@ -3329,6 +3330,7 @@ void dump_scu_regs(void)
 	DWC_PRINT("USB_PHY_CON1:     0x%08x\n",regvalue);
 	regvalue = dwc_read_reg32((uint32_t *)(USB_GRF_IOMUX));
 	DWC_PRINT("GRF_GPIO4L_IOMUX: 0x%08x\n",regvalue);
+#endif
 }
 void dwc_otg_dump_flags(dwc_otg_core_if_t *_core_if)
 {

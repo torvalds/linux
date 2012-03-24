@@ -253,7 +253,7 @@ static int periodic_channel_available(dwc_otg_hcd_t *_hcd)
 	 * non-periodic transactions.
 	 */
 	int status;
-#if 0
+#ifdef CONFIG_ARCH_RK30
 	int num_channels;
 
 	num_channels = _hcd->core_if->core_params->host_channels;
@@ -411,12 +411,10 @@ static int schedule_periodic(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
  */
 int dwc_otg_hcd_qh_add (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 {
+	unsigned long flags;
 	int status = 0;
 
-	if (!spin_is_locked(&_hcd->global_lock))	{
-		//pr_err("%s don't have hcd->global_lock\n", __func__);
-		//BUG();
-	}
+	local_irq_save(flags);
 
 	if (!list_empty(&_qh->qh_list_entry)) {
 		/* QH already in a schedule. */
@@ -432,7 +430,7 @@ int dwc_otg_hcd_qh_add (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 	}
 
  done:
-	//local_irq_restore(flags);
+	local_irq_restore(flags);
 
 	return status;
 }
@@ -475,10 +473,9 @@ static void deschedule_periodic(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
  * @param[in] _qh QH to remove from schedule. */
 void dwc_otg_hcd_qh_remove (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 {
-	if (!spin_is_locked(&_hcd->global_lock))	{
-		//pr_err("%s don't have hcd->global_lock\n", __func__);
-		//BUG();
-	}
+	unsigned long flags;
+
+	local_irq_save(flags);
 
 	if (list_empty(&_qh->qh_list_entry)) {
 		/* QH is not in a schedule. */
@@ -495,7 +492,7 @@ void dwc_otg_hcd_qh_remove (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 	}
 
  done:
-	;
+	local_irq_restore(flags);
 }
 
 /**
@@ -513,10 +510,9 @@ void dwc_otg_hcd_qh_remove (dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
  */
 void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, int sched_next_periodic_split)
 {
-	if (!spin_is_locked(&_hcd->global_lock))	{
-		//pr_err("%s don't have hcd->global_lock\n", __func__);
-		//BUG();
-	}
+	unsigned long flags;
+	local_irq_save(flags);
+
 	if (dwc_qh_is_non_per(_qh)) {
 		dwc_otg_hcd_qh_remove(_hcd, _qh);
 		if (!list_empty(&_qh->qtd_list)) {
@@ -578,7 +574,7 @@ void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, int sched
 		}
 	}
 
-
+	local_irq_restore(flags);
 }
 
 /** 
@@ -646,12 +642,11 @@ int dwc_otg_hcd_qtd_add (dwc_otg_qtd_t *_qtd,
 {
 	struct usb_host_endpoint *ep;
 	dwc_otg_qh_t *qh;
-	//unsigned long flags;
+	unsigned long flags;
 	int retval = 0;
 
 	struct urb *urb = _qtd->urb;
 
-	//local_irq_save(flags);
 
 	/*
 	 * Get the QH which holds the QTD-list to insert to. Create QH if it
@@ -667,14 +662,15 @@ int dwc_otg_hcd_qtd_add (dwc_otg_qtd_t *_qtd,
 		}
 		ep->hcpriv = qh;
 	}
-	
+
+	local_irq_save(flags);	
 	retval = dwc_otg_hcd_qh_add(_dwc_otg_hcd, qh);
 	if (retval == 0) {
 		list_add_tail(&_qtd->qtd_list_entry, &qh->qtd_list);
 	}
 
  done:
-	//local_irq_restore(flags);
+	local_irq_restore(flags);
 	return retval;
 }
 

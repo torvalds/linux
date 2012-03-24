@@ -366,8 +366,6 @@ typedef struct dwc_otg_hcd {
 	/* Tasket to do a reset */
 	struct tasklet_struct   *reset_tasklet;
 
-	spinlock_t global_lock;
-
 #ifdef DEBUG
 	uint32_t 		frrem_samples;
 	uint64_t 		frrem_accum;

@@ -606,9 +606,9 @@ void dwc_otg_pcd_stop(dwc_otg_pcd_t *_pcd)
 	/* report disconnect; the driver is already quiesced */
 	if (_pcd->driver && _pcd->driver->disconnect) 
 	{
-		SPIN_UNLOCK(&_pcd->lock);
+//		SPIN_UNLOCK(&_pcd->lock);
 		_pcd->driver->disconnect(&_pcd->gadget);
-		SPIN_LOCK(&_pcd->lock);
+//		SPIN_LOCK(&_pcd->lock);
 	}
 }
 
@@ -1032,7 +1032,6 @@ static inline void ep0_do_stall( dwc_otg_pcd_t *_pcd, const int err_val )
 	struct usb_ctrlrequest	*ctrl = &_pcd->setup_pkt->req;
 	DWC_WARN("req %02x.%02x v%04x i%04x l%04x protocol STALL; err %d\n",
 			 ctrl->bRequestType, ctrl->bRequest,ctrl->wValue, ctrl->wIndex, ctrl->wLength, err_val);		
-	dump_stack();
 
 	ep0->dwc_ep.is_in = 1;
 	dwc_otg_ep_set_stall( _pcd->otg_dev->core_if, &ep0->dwc_ep );		
