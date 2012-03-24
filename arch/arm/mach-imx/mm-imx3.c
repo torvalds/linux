@@ -156,6 +156,10 @@ static struct sdma_platform_data imx31_sdma_pdata __initdata = {
 	.script_addrs = &imx31_to2_sdma_script,
 };
 
+static const struct resource imx31_audmux_res[] __initconst = {
+	DEFINE_RES_MEM(MX31_AUDMUX_BASE_ADDR, SZ_16K),
+};
+
 void __init imx31_soc_init(void)
 {
 	int to_version = mx31_revision() >> 4;
@@ -173,6 +177,8 @@ void __init imx31_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx31-sdma", MX31_SDMA_BASE_ADDR, MX31_INT_SDMA, &imx31_sdma_pdata);
+	platform_device_register_simple("imx31-audmux", 0, imx31_audmux_res,
+					ARRAY_SIZE(imx31_audmux_res));
 }
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
@@ -239,6 +245,10 @@ static struct sdma_platform_data imx35_sdma_pdata __initdata = {
 	.script_addrs = &imx35_to2_sdma_script,
 };
 
+static const struct resource imx35_audmux_res[] __initconst = {
+	DEFINE_RES_MEM(MX35_AUDMUX_BASE_ADDR, SZ_16K),
+};
+
 void __init imx35_soc_init(void)
 {
 	int to_version = mx35_revision() >> 4;
@@ -257,5 +267,8 @@ void __init imx35_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx35-sdma", MX35_SDMA_BASE_ADDR, MX35_INT_SDMA, &imx35_sdma_pdata);
+	/* i.mx35 has the i.mx31 type audmux */
+	platform_device_register_simple("imx31-audmux", 0, imx35_audmux_res,
+					ARRAY_SIZE(imx35_audmux_res));
 }
 #endif /* ifdef CONFIG_SOC_IMX35 */

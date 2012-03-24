@@ -744,17 +744,17 @@ static const struct snd_kcontrol_new omap_mcbsp3_st_controls[] = {
 				      omap_mcbsp3_set_st_ch1_volume),
 };
 
-int omap_mcbsp_st_add_controls(struct snd_soc_codec *codec, int mcbsp_id)
+int omap_mcbsp_st_add_controls(struct snd_soc_dai *dai)
 {
 	if (!cpu_is_omap34xx())
 		return -ENODEV;
 
-	switch (mcbsp_id) {
+	switch (dai->id) {
 	case 1: /* McBSP 2 */
-		return snd_soc_add_controls(codec, omap_mcbsp2_st_controls,
+		return snd_soc_add_dai_controls(dai, omap_mcbsp2_st_controls,
 					ARRAY_SIZE(omap_mcbsp2_st_controls));
 	case 2: /* McBSP 3 */
-		return snd_soc_add_controls(codec, omap_mcbsp3_st_controls,
+		return snd_soc_add_dai_controls(dai, omap_mcbsp3_st_controls,
 					ARRAY_SIZE(omap_mcbsp3_st_controls));
 	default:
 		break;

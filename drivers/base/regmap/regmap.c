@@ -672,6 +672,79 @@ int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 }
 EXPORT_SYMBOL_GPL(regmap_update_bits_check);
 
+/**
+ * regmap_register_patch: Register and apply register updates to be applied
+ *                        on device initialistion
+ *
+ * @map: Register map to apply updates to.
+ * @regs: Values to update.
+ * @num_regs: Number of entries in regs.
+ *
+ * Register a set of register updates to be applied to the device
+ * whenever the device registers are synchronised with the cache and
+ * apply them immediately.  Typically this is used to apply
+ * corrections to be applied to the device defaults on startup, such
+ * as the updates some vendors provide to undocumented registers.
+ */
+int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
+			  int num_regs)
+{
+	int i, ret;
+	bool bypass;
+
+	/* If needed the implementation can be extended to support this */
+	if (map->patch)
+		return -EBUSY;
+
+	mutex_lock(&map->lock);
+
+	bypass = map->cache_bypass;
+
+	map->cache_bypass = true;
+
+	/* Write out first; it's useful to apply even if we fail later. */
+	for (i = 0; i < num_regs; i++) {
+		ret = _regmap_write(map, regs[i].reg, regs[i].def);
+		if (ret != 0) {
+			dev_err(map->dev, "Failed to write %x = %x: %d\n",
+				regs[i].reg, regs[i].def, ret);
+			goto out;
+		}
+	}
+
+	map->patch = kcalloc(sizeof(struct reg_default), num_regs, GFP_KERNEL);
+	if (map->patch != NULL) {
+		memcpy(map->patch, regs,
+		       num_regs * sizeof(struct reg_default));
+		map->patch_regs = num_regs;
+	} else {
+		ret = -ENOMEM;
+	}
+
+out:
+	map->cache_bypass = bypass;
+
+	mutex_unlock(&map->lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regmap_register_patch);
+
+/*
+ * regmap_get_val_bytes(): Report the size of a register value
+ *
+ * Report the size of a register value, mainly intended to for use by
+ * generic infrastructure built on top of regmap.
+ */
+int regmap_get_val_bytes(struct regmap *map)
+{
+	if (map->format.format_write)
+		return -EINVAL;
+
+	return map->format.val_bytes;
+}
+EXPORT_SYMBOL_GPL(regmap_get_val_bytes);
+
 static int __init regmap_initcall(void)
 {
 	regmap_debugfs_initcall();

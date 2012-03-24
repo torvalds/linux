@@ -513,7 +513,7 @@ static int cs4271_probe(struct snd_soc_codec *codec)
 	/* Power-up sequence requires 85 uS */
 	udelay(85);
 
-	return snd_soc_add_controls(codec, cs4271_snd_controls,
+	return snd_soc_add_codec_controls(codec, cs4271_snd_controls,
 		ARRAY_SIZE(cs4271_snd_controls));
 }
 

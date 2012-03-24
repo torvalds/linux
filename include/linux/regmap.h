@@ -143,11 +143,15 @@ int regmap_update_bits(struct regmap *map, unsigned int reg,
 int regmap_update_bits_check(struct regmap *map, unsigned int reg,
 			     unsigned int mask, unsigned int val,
 			     bool *change);
+int regmap_get_val_bytes(struct regmap *map);
 
 int regcache_sync(struct regmap *map);
 void regcache_cache_only(struct regmap *map, bool enable);
 void regcache_cache_bypass(struct regmap *map, bool enable);
 void regcache_mark_dirty(struct regmap *map);
+
+int regmap_register_patch(struct regmap *map, const struct reg_default *regs,
+			  int num_regs);
 
 /**
  * Description of an IRQ for the generic regmap irq_chip.
