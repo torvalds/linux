@@ -84,44 +84,31 @@ static int tps6586x_ldo_list_voltage(struct regulator_dev *rdev,
 }
 
 
-static int __tps6586x_ldo_set_voltage(struct device *parent,
-				      struct tps6586x_regulator *ri,
-				      int min_uV, int max_uV,
-				      unsigned *selector)
-{
-	int val, uV;
-	uint8_t mask;
-
-	for (val = 0; val < ri->desc.n_voltages; val++) {
-		uV = ri->voltages[val] * 1000;
-
-		/* LDO0 has minimal voltage 1.2 rather than 1.25 */
-		if (ri->desc.id == TPS6586X_ID_LDO_0 && val == 0)
-			uV -= 50 * 1000;
-
-		/* use the first in-range value */
-		if (min_uV <= uV && uV <= max_uV) {
-
-			*selector = val;
-
-			val <<= ri->volt_shift;
-			mask = ((1 << ri->volt_nbits) - 1) << ri->volt_shift;
-
-			return tps6586x_update(parent, ri->volt_reg, val, mask);
-		}
-	}
-
-	return -EINVAL;
-}
-
-static int tps6586x_ldo_set_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV, unsigned *selector)
+static int tps6586x_set_voltage_sel(struct regulator_dev *rdev,
+				    unsigned selector)
 {
 	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_tps6586x_dev(rdev);
+	int ret, val, rid = rdev_get_id(rdev);
+	uint8_t mask;
 
-	return __tps6586x_ldo_set_voltage(parent, ri, min_uV, max_uV,
-					  selector);
+	val = selector << ri->volt_shift;
+	mask = ((1 << ri->volt_nbits) - 1) << ri->volt_shift;
+
+	ret = tps6586x_update(parent, ri->volt_reg, val, mask);
+	if (ret)
+		return ret;
+
+	/* Update go bit for DVM regulators */
+	switch (rid) {
+	case TPS6586X_ID_LDO_2:
+	case TPS6586X_ID_LDO_4:
+	case TPS6586X_ID_SM_0:
+	case TPS6586X_ID_SM_1:
+		ret = tps6586x_set_bits(parent, ri->go_reg, 1 << ri->go_bit);
+		break;
+	}
+	return ret;
 }
 
 static int tps6586x_get_voltage_sel(struct regulator_dev *rdev)
@@ -142,21 +129,6 @@ static int tps6586x_get_voltage_sel(struct regulator_dev *rdev)
 		BUG();
 
 	return val;
-}
-
-static int tps6586x_dvm_set_voltage(struct regulator_dev *rdev,
-				    int min_uV, int max_uV, unsigned *selector)
-{
-	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps6586x_dev(rdev);
-	int ret;
-
-	ret = __tps6586x_ldo_set_voltage(parent, ri, min_uV, max_uV,
-					 selector);
-	if (ret)
-		return ret;
-
-	return tps6586x_set_bits(parent, ri->go_reg, 1 << ri->go_bit);
 }
 
 static int tps6586x_regulator_enable(struct regulator_dev *rdev)
@@ -194,7 +166,7 @@ static int tps6586x_regulator_is_enabled(struct regulator_dev *rdev)
 static struct regulator_ops tps6586x_regulator_ldo_ops = {
 	.list_voltage = tps6586x_ldo_list_voltage,
 	.get_voltage_sel = tps6586x_get_voltage_sel,
-	.set_voltage = tps6586x_ldo_set_voltage,
+	.set_voltage_sel = tps6586x_set_voltage_sel,
 
 	.is_enabled = tps6586x_regulator_is_enabled,
 	.enable = tps6586x_regulator_enable,
@@ -204,7 +176,7 @@ static struct regulator_ops tps6586x_regulator_ldo_ops = {
 static struct regulator_ops tps6586x_regulator_dvm_ops = {
 	.list_voltage = tps6586x_ldo_list_voltage,
 	.get_voltage_sel = tps6586x_get_voltage_sel,
-	.set_voltage = tps6586x_dvm_set_voltage,
+	.set_voltage_sel = tps6586x_set_voltage_sel,
 
 	.is_enabled = tps6586x_regulator_is_enabled,
 	.enable = tps6586x_regulator_enable,
