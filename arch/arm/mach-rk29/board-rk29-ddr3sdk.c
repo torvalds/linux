@@ -2818,31 +2818,9 @@ static struct platform_device *devices[] __initdata = {
     #if (CONFIG_SENSOR_IIC_ADDR_1 != 0x00)
  	&rk29_soc_camera_pdrv_1,
  	#endif
-    #ifdef CONFIG_SENSOR_01
-    #if (CONFIG_SENSOR_IIC_ADDR_01 != 0x00)
- 	&rk29_soc_camera_pdrv_01,
- 	#endif
-    #endif
-    #ifdef CONFIG_SENSOR_02
-    #if (CONFIG_SENSOR_IIC_ADDR_02 != 0x00)
- 	&rk29_soc_camera_pdrv_02,
- 	#endif
-    #endif
-    #ifdef CONFIG_SENSOR_11
-    #if (CONFIG_SENSOR_IIC_ADDR_11 != 0x00)
- 	&rk29_soc_camera_pdrv_11,
- 	#endif
-    #endif
-    #ifdef CONFIG_SENSOR_12
-    #if (CONFIG_SENSOR_IIC_ADDR_12 != 0x00)
- 	&rk29_soc_camera_pdrv_12,
- 	#endif
-    #endif
-
     #if (PMEM_CAM_SIZE > 0)
  	&android_pmem_cam_device,
  	#endif
-    
 #endif
 #if PMEM_SKYPE_SIZE > 0
 	&android_pmem_skype_device,

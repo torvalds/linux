@@ -57,7 +57,7 @@
 #define PMEM_CAMIPP_NECESSARY    0x800000
 #endif
 
-#if CONFIG_VIDEO_RK29_CAMMEM_ION
+#ifdef CONFIG_VIDEO_RK29_CAMMEM_ION
 #undef PMEM_CAM_NECESSARY
 #define PMEM_CAM_NECESSARY   0x00000000
 #endif
@@ -2093,6 +2093,38 @@ static struct platform_device android_pmem_cam_device = {
 	},
 };
 #endif
+
+static int rk_register_camera_devices(void)
+{   
+#ifdef CONFIG_SENSOR_IIC_ADDR_01
+#if CONFIG_SENSOR_IIC_ADDR_01
+    platform_device_register(&rk29_soc_camera_pdrv_01);
+#endif
+#endif
+
+#ifdef CONFIG_SENSOR_IIC_ADDR_02
+#if CONFIG_SENSOR_IIC_ADDR_02
+    platform_device_register(&rk29_soc_camera_pdrv_02);
+#endif
+#endif
+
+#ifdef CONFIG_SENSOR_IIC_ADDR_11
+#if CONFIG_SENSOR_IIC_ADDR_11
+    platform_device_register(&rk29_soc_camera_pdrv_11);
+#endif
+#endif
+
+#ifdef CONFIG_SENSOR_IIC_ADDR_12
+#if CONFIG_SENSOR_IIC_ADDR_12
+    platform_device_register(&rk29_soc_camera_pdrv_12);
+#endif
+#endif
+	return 0;
+}
+
+module_init(rk_register_camera_devices);
+
+
 #endif
 
 #endif //#ifdef CONFIG_VIDEO_RK29
