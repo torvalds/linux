@@ -513,13 +513,13 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 	struct fsnotify_event_private_data *fsn_event_priv;
 	int ret;
 
+	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
+
 	ignored_event = fsnotify_create_event(NULL, FS_IN_IGNORED, NULL,
 					      FSNOTIFY_EVENT_NONE, NULL, 0,
 					      GFP_NOFS);
 	if (!ignored_event)
-		return;
-
-	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
+		goto skip_send_ignore;
 
 	event_priv = kmem_cache_alloc(event_priv_cachep, GFP_NOFS);
 	if (unlikely(!event_priv))
@@ -541,9 +541,9 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 	}
 
 skip_send_ignore:
-
 	/* matches the reference taken when the event was created */
-	fsnotify_put_event(ignored_event);
+	if (ignored_event)
+		fsnotify_put_event(ignored_event);
 
 	/* remove this mark from the idr */
 	inotify_remove_from_idr(group, i_mark);
