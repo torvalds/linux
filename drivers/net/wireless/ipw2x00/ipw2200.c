@@ -11826,10 +11826,6 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	net_dev->wireless_data = &priv->wireless_data;
 	net_dev->wireless_handlers = &ipw_wx_handler_def;
 	net_dev->ethtool_ops = &ipw_ethtool_ops;
-	net_dev->irq = pdev->irq;
-	net_dev->base_addr = (unsigned long)priv->hw_base;
-	net_dev->mem_start = pci_resource_start(pdev, 0);
-	net_dev->mem_end = net_dev->mem_start + pci_resource_len(pdev, 0) - 1;
 
 	err = sysfs_create_group(&pdev->dev.kobj, &ipw_attribute_group);
 	if (err) {
