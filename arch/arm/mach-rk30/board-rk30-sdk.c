@@ -800,7 +800,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #if defined (CONFIG_GS_MMA8452)
 	{
 		.type	        = "gs_mma8452",
-		.addr	        = 0x1c,
+		.addr	        = 0x1d,
 		.flags	        = 0,
 		.irq	        = MMA8452_INT_PIN,
 		.platform_data = &mma8452_info,
