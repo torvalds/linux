@@ -10,6 +10,7 @@
 #include <linux/errno.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
+#include <linux/bug.h>
 #include <asm/uaccess.h>
 
 /*

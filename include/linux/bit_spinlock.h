@@ -4,6 +4,7 @@
 #include <linux/kernel.h>
 #include <linux/preempt.h>
 #include <linux/atomic.h>
+#include <linux/bug.h>
 
 /*
  *  bit-based spin_lock()

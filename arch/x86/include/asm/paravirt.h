@@ -10,6 +10,7 @@
 #include <asm/paravirt_types.h>
 
 #ifndef __ASSEMBLY__
+#include <linux/bug.h>
 #include <linux/types.h>
 #include <linux/cpumask.h>
 

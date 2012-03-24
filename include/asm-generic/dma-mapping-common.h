@@ -2,6 +2,7 @@
 #define _ASM_GENERIC_DMA_MAPPING_H
 
 #include <linux/kmemcheck.h>
+#include <linux/bug.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-debug.h>
 #include <linux/dma-attrs.h>
