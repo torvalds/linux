@@ -747,7 +747,7 @@ static const s16 hsv_blue_y[] = {
 	4,   2,   0,  -1,  -3,  -5,  -7,  -9, -11
 };
 
-static u16 i2c_ident[] = {
+static const u16 i2c_ident[] = {
 	V4L2_IDENT_OV9650,
 	V4L2_IDENT_OV9655,
 	V4L2_IDENT_SOI968,
@@ -763,7 +763,7 @@ static u16 i2c_ident[] = {
 [SENSOR_MT9VPRB] = V4L2_IDENT_UNKNOWN,
 };
 
-static u16 bridge_init[][2] = {
+static const u16 bridge_init[][2] = {
 	{0x1000, 0x78}, {0x1001, 0x40}, {0x1002, 0x1c},
 	{0x1020, 0x80}, {0x1061, 0x01}, {0x1067, 0x40},
 	{0x1068, 0x30}, {0x1069, 0x20},	{0x106a, 0x10},
@@ -787,7 +787,7 @@ static u16 bridge_init[][2] = {
 };
 
 /* Gain = (bit[3:0] / 16 + 1) * (bit[4] + 1) * (bit[5] + 1) * (bit[6] + 1) */
-static u8 ov_gain[] = {
+static const u8 ov_gain[] = {
 	0x00 /* 1x */, 0x04 /* 1.25x */, 0x08 /* 1.5x */, 0x0c /* 1.75x */,
 	0x10 /* 2x */, 0x12 /* 2.25x */, 0x14 /* 2.5x */, 0x16 /* 2.75x */,
 	0x18 /* 3x */, 0x1a /* 3.25x */, 0x1c /* 3.5x */, 0x1e /* 3.75x */,
@@ -799,7 +799,7 @@ static u8 ov_gain[] = {
 };
 
 /* Gain = (bit[8] + 1) * (bit[7] + 1) * (bit[6:0] * 0.03125) */
-static u16 micron1_gain[] = {
+static const u16 micron1_gain[] = {
 	/* 1x   1.25x   1.5x    1.75x */
 	0x0020, 0x0028, 0x0030, 0x0038,
 	/* 2x   2.25x   2.5x    2.75x */
@@ -820,7 +820,7 @@ static u16 micron1_gain[] = {
 
 /* mt9m001 sensor uses a different gain formula then other micron sensors */
 /* Gain = (bit[6] + 1) * (bit[5-0] * 0.125) */
-static u16 micron2_gain[] = {
+static const u16 micron2_gain[] = {
 	/* 1x   1.25x   1.5x    1.75x */
 	0x0008, 0x000a, 0x000c, 0x000e,
 	/* 2x   2.25x   2.5x    2.75x */
@@ -840,7 +840,7 @@ static u16 micron2_gain[] = {
 };
 
 /* Gain = .5 + bit[7:0] / 16 */
-static u8 hv7131r_gain[] = {
+static const u8 hv7131r_gain[] = {
 	0x08 /* 1x */, 0x0c /* 1.25x */, 0x10 /* 1.5x */, 0x14 /* 1.75x */,
 	0x18 /* 2x */, 0x1c /* 2.25x */, 0x20 /* 2.5x */, 0x24 /* 2.75x */,
 	0x28 /* 3x */, 0x2c /* 3.25x */, 0x30 /* 3.5x */, 0x34 /* 3.75x */,
@@ -851,7 +851,7 @@ static u8 hv7131r_gain[] = {
 	0x78 /* 8x */
 };
 
-static struct i2c_reg_u8 soi968_init[] = {
+static const struct i2c_reg_u8 soi968_init[] = {
 	{0x0c, 0x00}, {0x0f, 0x1f},
 	{0x11, 0x80}, {0x38, 0x52}, {0x1e, 0x00},
 	{0x33, 0x08}, {0x35, 0x8c}, {0x36, 0x0c},
@@ -865,7 +865,7 @@ static struct i2c_reg_u8 soi968_init[] = {
 	{0x00, 0x00}, {0x01, 0x80}, {0x02, 0x80},
 };
 
-static struct i2c_reg_u8 ov7660_init[] = {
+static const struct i2c_reg_u8 ov7660_init[] = {
 	{0x0e, 0x80}, {0x0d, 0x08}, {0x0f, 0xc3},
 	{0x04, 0xc3}, {0x10, 0x40}, {0x11, 0x40},
 	{0x12, 0x05}, {0x13, 0xba}, {0x14, 0x2a},
@@ -877,7 +877,7 @@ static struct i2c_reg_u8 ov7660_init[] = {
 	{0x2e, 0x0b}, {0x01, 0x78}, {0x02, 0x50},
 };
 
-static struct i2c_reg_u8 ov7670_init[] = {
+static const struct i2c_reg_u8 ov7670_init[] = {
 	{0x11, 0x80}, {0x3a, 0x04}, {0x12, 0x01},
 	{0x32, 0xb6}, {0x03, 0x0a}, {0x0c, 0x00}, {0x3e, 0x00},
 	{0x70, 0x3a}, {0x71, 0x35}, {0x72, 0x11}, {0x73, 0xf0},
@@ -934,7 +934,7 @@ static struct i2c_reg_u8 ov7670_init[] = {
 	{0x93, 0x00},
 };
 
-static struct i2c_reg_u8 ov9650_init[] = {
+static const struct i2c_reg_u8 ov9650_init[] = {
 	{0x00, 0x00}, {0x01, 0x78},
 	{0x02, 0x78}, {0x03, 0x36}, {0x04, 0x03},
 	{0x05, 0x00}, {0x06, 0x00}, {0x08, 0x00},
@@ -964,7 +964,7 @@ static struct i2c_reg_u8 ov9650_init[] = {
 	{0xaa, 0x92}, {0xab, 0x0a},
 };
 
-static struct i2c_reg_u8 ov9655_init[] = {
+static const struct i2c_reg_u8 ov9655_init[] = {
 	{0x0e, 0x61}, {0x11, 0x80}, {0x13, 0xba},
 	{0x14, 0x2e}, {0x16, 0x24}, {0x1e, 0x04}, {0x27, 0x08},
 	{0x28, 0x08}, {0x29, 0x15}, {0x2c, 0x08}, {0x34, 0x3d},
@@ -991,7 +991,7 @@ static struct i2c_reg_u8 ov9655_init[] = {
 	{0x04, 0x03}, {0x00, 0x13},
 };
 
-static struct i2c_reg_u16 mt9v112_init[] = {
+static const struct i2c_reg_u16 mt9v112_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0020},
 	{0x34, 0xc019}, {0x0a, 0x0011}, {0x0b, 0x000b},
 	{0x20, 0x0703}, {0x35, 0x2022}, {0xf0, 0x0001},
@@ -1010,7 +1010,7 @@ static struct i2c_reg_u16 mt9v112_init[] = {
 	{0x2c, 0x00ae}, {0x2d, 0x00ae}, {0x2e, 0x00ae},
 };
 
-static struct i2c_reg_u16 mt9v111_init[] = {
+static const struct i2c_reg_u16 mt9v111_init[] = {
 	{0x01, 0x0004}, {0x0d, 0x0001}, {0x0d, 0x0000},
 	{0x01, 0x0001}, {0x05, 0x0004}, {0x2d, 0xe0a0},
 	{0x2e, 0x0c64},	{0x2f, 0x0064}, {0x06, 0x600e},
@@ -1020,7 +1020,7 @@ static struct i2c_reg_u16 mt9v111_init[] = {
 	{0x0e, 0x0008}, {0x20, 0x0000}
 };
 
-static struct i2c_reg_u16 mt9v011_init[] = {
+static const struct i2c_reg_u16 mt9v011_init[] = {
 	{0x07, 0x0002},	{0x0d, 0x0001},	{0x0d, 0x0000},
 	{0x01, 0x0008},	{0x02, 0x0016},	{0x03, 0x01e1},
 	{0x04, 0x0281},	{0x05, 0x0083},	{0x06, 0x0006},
@@ -1047,7 +1047,7 @@ static struct i2c_reg_u16 mt9v011_init[] = {
 	{0x06, 0x0029},	{0x05, 0x0009},
 };
 
-static struct i2c_reg_u16 mt9m001_init[] = {
+static const struct i2c_reg_u16 mt9m001_init[] = {
 	{0x0d, 0x0001},
 	{0x0d, 0x0000},
 	{0x04, 0x0500},		/* hres = 1280 */
@@ -1063,21 +1063,21 @@ static struct i2c_reg_u16 mt9m001_init[] = {
 	{0x35, 0x0057},
 };
 
-static struct i2c_reg_u16 mt9m111_init[] = {
+static const struct i2c_reg_u16 mt9m111_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
 	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
 	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
 	{0xf0, 0x0000},
 };
 
-static struct i2c_reg_u16 mt9m112_init[] = {
+static const struct i2c_reg_u16 mt9m112_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
 	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
 	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
 	{0xf0, 0x0000},
 };
 
-static struct i2c_reg_u8 hv7131r_init[] = {
+static const struct i2c_reg_u8 hv7131r_init[] = {
 	{0x02, 0x08}, {0x02, 0x00}, {0x01, 0x08},
 	{0x02, 0x00}, {0x20, 0x00}, {0x21, 0xd0},
 	{0x22, 0x00}, {0x23, 0x09}, {0x01, 0x08},
@@ -1181,7 +1181,7 @@ static void i2c_w1(struct gspca_dev *gspca_dev, u8 reg, u8 val)
 }
 
 static void i2c_w1_buf(struct gspca_dev *gspca_dev,
-			struct i2c_reg_u8 *buf, int sz)
+			const struct i2c_reg_u8 *buf, int sz)
 {
 	while (--sz >= 0) {
 		i2c_w1(gspca_dev, buf->reg, buf->val);
@@ -1211,7 +1211,7 @@ static void i2c_w2(struct gspca_dev *gspca_dev, u8 reg, u16 val)
 }
 
 static void i2c_w2_buf(struct gspca_dev *gspca_dev,
-			struct i2c_reg_u16 *buf, int sz)
+			const struct i2c_reg_u16 *buf, int sz)
 {
 	while (--sz >= 0) {
 		i2c_w2(gspca_dev, buf->reg, buf->val);
@@ -2310,7 +2310,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum, is_jpeg;
-	static u8 frame_header[] =
+	static const u8 frame_header[] =
 		{0xff, 0xff, 0x00, 0xc4, 0xc4, 0x96};
 
 	is_jpeg = (sd->fmt & 0x03) == 0;
