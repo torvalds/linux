@@ -105,7 +105,7 @@ static int s5m87xx_i2c_probe(struct i2c_client *i2c,
 	s5m87xx->rtc = i2c_new_dummy(i2c->adapter, RTC_I2C_ADDR);
 	i2c_set_clientdata(s5m87xx->rtc, s5m87xx);
 
-	if (pdata->cfg_pmic_irq)
+	if (pdata && pdata->cfg_pmic_irq)
 		pdata->cfg_pmic_irq();
 
 	s5m_irq_init(s5m87xx);

@@ -1240,7 +1240,7 @@ int iwlagn_suspend(struct iwl_priv *priv,
 				.flags = CMD_SYNC,
 				.data[0] = key_data.rsc_tsc,
 				.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-				.len[0] = sizeof(key_data.rsc_tsc),
+				.len[0] = sizeof(*key_data.rsc_tsc),
 			};
 
 			ret = iwl_trans_send_cmd(trans(priv), &rsc_tsc_cmd);

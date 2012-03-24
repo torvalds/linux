@@ -96,7 +96,7 @@ void __init ath79_register_wmac(u8 *cal_data)
 {
 	if (soc_is_ar913x())
 		ar913x_wmac_setup();
-	if (soc_is_ar933x())
+	else if (soc_is_ar933x())
 		ar933x_wmac_setup();
 	else
 		BUG();

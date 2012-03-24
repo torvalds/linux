@@ -1870,11 +1870,12 @@ il3945_bg_reg_txpower_periodic(struct work_struct *work)
 	struct il_priv *il = container_of(work, struct il_priv,
 					  _3945.thermal_periodic.work);
 
-	if (test_bit(S_EXIT_PENDING, &il->status))
-		return;
-
 	mutex_lock(&il->mutex);
+	if (test_bit(S_EXIT_PENDING, &il->status) || il->txq == NULL)
+		goto out;
+
 	il3945_reg_txpower_periodic(il);
+out:
 	mutex_unlock(&il->mutex);
 }
 
