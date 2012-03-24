@@ -240,8 +240,7 @@ void rk30_mux_set(struct mux_config *cfg)
 	int regValue = 0;
 	int mask;
 	
-	mask = ((1<<(cfg->interleave))-1)<<cfg->offset << 16;
-	//regValue = readl(cfg->mux_reg);
+	mask = (((1<<(cfg->interleave))-1)<<cfg->offset) << 16;
 	regValue |= mask;
 	regValue |=(cfg->mode<<cfg->offset);
 #ifdef IOMUX_DBG
@@ -372,4 +371,25 @@ void rk30_mux_api_set(char *name, unsigned int mode)
 	}
 }
 EXPORT_SYMBOL(rk30_mux_api_set);
+
+
+int rk30_mux_api_get(char *name)
+{
+	int i,ret=0;
+	if (!name) {
+		return -1;
+	}
+	for(i=0;i<ARRAY_SIZE(rk30_muxs);i++)
+	{
+		if (!strcmp(rk30_muxs[i].name, name))
+		{
+			ret = readl(rk30_muxs[i].mux_reg);
+			ret = (ret >> rk30_muxs[i].offset) &((1<<(rk30_muxs[i].interleave))-1);
+			return ret;
+		}
+	}
+
+	return -1;
+}
+EXPORT_SYMBOL(rk30_mux_api_get);
 

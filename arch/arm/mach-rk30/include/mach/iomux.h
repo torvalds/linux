@@ -829,5 +829,6 @@ struct mux_config {
 
 extern int __init rk30_iomux_init(void);
 extern void rk30_mux_api_set(char *name, unsigned int mode);
+extern int rk30_mux_api_get(char *name);
 
 #endif
