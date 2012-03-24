@@ -125,4 +125,13 @@ struct amba_device name##_device = {				\
 	.periphid = id,						\
 }
 
+/*
+ * module_amba_driver() - Helper macro for drivers that don't do anything
+ * special in module init/exit.  This eliminates a lot of boilerplate.  Each
+ * module may only use this macro once, and calling it replaces module_init()
+ * and module_exit()
+ */
+#define module_amba_driver(__amba_drv) \
+	module_driver(__amba_drv, amba_driver_register, amba_driver_unregister)
+
 #endif
