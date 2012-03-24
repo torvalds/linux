@@ -760,6 +760,7 @@ static u16 i2c_ident[] = {
 	V4L2_IDENT_MT9M111,
 	V4L2_IDENT_MT9M112,
 	V4L2_IDENT_HV7131R,
+[SENSOR_MT9VPRB] = V4L2_IDENT_UNKNOWN,
 };
 
 static u16 bridge_init[][2] = {
