@@ -622,7 +622,7 @@ static int dm9620_bind(struct usbnet *dev, struct usb_interface *intf)
 	dev->net->hard_header_len += DM_TX_OVERHEAD;
 	dev->hard_mtu = dev->net->mtu + dev->net->hard_header_len;
 #ifdef RK2818   //harris 2010.12.27
-	dev->rx_urb_size = 8912; // ftp fail fixed
+	dev->rx_urb_size = dev->net->mtu + ETH_HLEN + DM_RX_OVERHEAD+1;
 #else
 	dev->rx_urb_size = 2048;//dev->net->mtu + ETH_HLEN + DM_RX_OVERHEAD+1; // ftp fail fixed
 #endif

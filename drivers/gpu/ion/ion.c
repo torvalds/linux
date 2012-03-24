@@ -930,6 +930,9 @@ static long ion_share_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 		if (copy_from_user(&region, (void __user *)arg,
 				sizeof(struct pmem_region)))
 			return -EFAULT;
+                if(!(region.offset & 0xf0000000))
+                        region.offset = buffer->vm_start;
+
 		dmac_flush_range((void *)region.offset, (void *)(region.offset + region.len));
 
 		break;
@@ -1108,6 +1111,40 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return err;
 		break;
 	}
+        case ION_GET_CLIENT: 
+        {
+                struct ion_handle *handle;
+		struct ion_client_data data;
+                struct rb_node *n;
+
+		if (copy_from_user(&data, (void __user *)arg,
+				   sizeof(struct ion_client_data)))
+			return -EFAULT;
+
+		mutex_lock(&client->lock);
+                switch (data.type) {
+                        case ION_TYPE_GET_TOTAL_SIZE:
+                                data.total_size = 0;
+	                        for (n = rb_first(&client->handles); n; n = rb_next(n)) {
+		                        handle = rb_entry(n, struct ion_handle, node);
+                                        data.total_size += handle->buffer->size;
+                                }
+                                break;
+                        case ION_TYPE_SIZE_GET_COUNT:
+                                data.count = 0;
+	                        for (n = rb_first(&client->handles); n; n = rb_next(n)) {
+		                        handle = rb_entry(n, struct ion_handle, node);
+                                        if(handle->buffer->size == data.size)
+                                                data.count++;
+                                }
+                                break;
+                }
+		mutex_unlock(&client->lock);
+		if (copy_to_user((void __user *)arg, &data,
+				 sizeof(struct ion_client_data)))
+			return -EFAULT;
+                break;
+        }
 	default:
 		return -ENOTTY;
 	}

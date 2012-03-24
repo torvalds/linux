@@ -6,6 +6,7 @@ FILES=(
 arch/arm/mach-rk29/clock.c
 arch/arm/mach-rk29/ddr.c
 arch/arm/mach-rk29/vpu*.c
+arch/arm/mach-rk29/verifyID.c
 
 drivers/staging/rk29/ipp/rk29-ipp.c
 )

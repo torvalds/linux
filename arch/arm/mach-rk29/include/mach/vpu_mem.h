@@ -28,7 +28,9 @@
 #define VPU_MEM_LINK            _IOW(VPU_MEM_IOCTL_MAGIC, 7, unsigned int)
 #define VPU_MEM_CACHE_CLEAN     _IOW(VPU_MEM_IOCTL_MAGIC, 8, unsigned int)
 #define VPU_MEM_CACHE_INVALID   _IOW(VPU_MEM_IOCTL_MAGIC, 9, unsigned int)
-
+#define VPU_MEM_POOL_SET        _IOW(VPU_MEM_IOCTL_MAGIC, 10, unsigned int)
+#define VPU_MEM_POOL_UNSET      _IOW(VPU_MEM_IOCTL_MAGIC, 11, unsigned int)
+#define VPU_MEM_POOL_CHECK      _IOW(VPU_MEM_IOCTL_MAGIC, 12, unsigned int)
 
 struct vpu_mem_platform_data
 {
