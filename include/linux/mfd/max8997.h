@@ -204,7 +204,6 @@ struct max8997_led_platform_data {
 
 struct max8997_platform_data {
 	/* IRQ */
-	int irq_base;
 	int ono;
 	int wakeup;
 
