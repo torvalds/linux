@@ -17,7 +17,6 @@
 #include <linux/kernel.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/device.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <asm/unaligned.h>
@@ -87,6 +86,8 @@
  * All work performed on the mac80211 workqueue must not acquire the RTNL lock.
  *
  */
+
+struct device;
 
 /**
  * enum ieee80211_max_queues - maximum number of queues

@@ -17,7 +17,6 @@
 #include <linux/ioport.h>
 #include <linux/list.h>
 #include <linux/errno.h>
-#include <linux/device.h>
 #include <linux/string.h>
 #include <linux/rio.h>
 

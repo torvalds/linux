@@ -7,7 +7,9 @@
 #ifndef MFD_AB8500_H
 #define MFD_AB8500_H
 
-#include <linux/device.h>
+#include <linux/mutex.h>
+
+struct device;
 
 /*
  * AB8500 bank addresses

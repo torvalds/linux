@@ -11,6 +11,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/rbtree.h>
 #include <linux/seq_file.h>

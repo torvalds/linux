@@ -3,7 +3,6 @@
 
 #ifdef CONFIG_CRASH_DUMP
 #include <linux/kexec.h>
-#include <linux/device.h>
 #include <linux/proc_fs.h>
 #include <linux/elf.h>
 

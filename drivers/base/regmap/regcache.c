@@ -12,6 +12,7 @@
 
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/device.h>
 #include <trace/events/regmap.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>

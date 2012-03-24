@@ -10,6 +10,7 @@
 #ifndef LINUX_MMC_CARD_H
 #define LINUX_MMC_CARD_H
 
+#include <linux/device.h>
 #include <linux/mmc/core.h>
 #include <linux/mod_devicetable.h>
 

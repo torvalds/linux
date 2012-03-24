@@ -11,6 +11,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/device.h>
 #include <linux/lzo.h>
 
 #include "internal.h"

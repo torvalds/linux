@@ -14,7 +14,7 @@
 #ifndef _HWMON_H_
 #define _HWMON_H_
 
-#include <linux/device.h>
+struct device;
 
 struct device *hwmon_device_register(struct device *dev);
 
