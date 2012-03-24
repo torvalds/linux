@@ -28,7 +28,7 @@
 #define i2c_dbg(dev, format, arg...)
 #endif
 
-#define I2C_WAIT_TIMEOUT            100  //100ms
+#define I2C_WAIT_TIMEOUT            200  //100ms
 
 #define rk30_set_bit(p, v, b)        (((p) & ~(1 << (b))) | ((v) << (b)))
 #define rk30_get_bit(p, b)           (((p) & (1 << (b))) >> (b))
@@ -75,6 +75,7 @@ struct rk30_i2c {
 	unsigned long		i2c_rate;
     unsigned int        addr;
     unsigned int        mode;
+    unsigned int        count;
 
     struct wake_lock    idlelock[5];
     int is_div_from_arm[5];

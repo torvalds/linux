@@ -1456,7 +1456,7 @@ int i2c_master_recv(const struct i2c_client *client, char *buf, int count)
 	msg.flags = client->flags | I2C_M_RD;
 	msg.len = count;
 	msg.buf = (char *)buf;
-	msg.scl_rate = 400 * 1000;
+	msg.scl_rate = 100 * 1000;
 	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);
