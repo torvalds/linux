@@ -124,7 +124,7 @@ static int tps6586x_ldo_set_voltage(struct regulator_dev *rdev,
 					  selector);
 }
 
-static int tps6586x_ldo_get_voltage(struct regulator_dev *rdev)
+static int tps6586x_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct tps6586x_regulator *ri = rdev_get_drvdata(rdev);
 	struct device *parent = to_tps6586x_dev(rdev);
@@ -141,7 +141,7 @@ static int tps6586x_ldo_get_voltage(struct regulator_dev *rdev)
 	if (val >= ri->desc.n_voltages)
 		BUG();
 
-	return ri->voltages[val] * 1000;
+	return val;
 }
 
 static int tps6586x_dvm_set_voltage(struct regulator_dev *rdev,
@@ -193,7 +193,7 @@ static int tps6586x_regulator_is_enabled(struct regulator_dev *rdev)
 
 static struct regulator_ops tps6586x_regulator_ldo_ops = {
 	.list_voltage = tps6586x_ldo_list_voltage,
-	.get_voltage = tps6586x_ldo_get_voltage,
+	.get_voltage_sel = tps6586x_get_voltage_sel,
 	.set_voltage = tps6586x_ldo_set_voltage,
 
 	.is_enabled = tps6586x_regulator_is_enabled,
@@ -203,7 +203,7 @@ static struct regulator_ops tps6586x_regulator_ldo_ops = {
 
 static struct regulator_ops tps6586x_regulator_dvm_ops = {
 	.list_voltage = tps6586x_ldo_list_voltage,
-	.get_voltage = tps6586x_ldo_get_voltage,
+	.get_voltage_sel = tps6586x_get_voltage_sel,
 	.set_voltage = tps6586x_dvm_set_voltage,
 
 	.is_enabled = tps6586x_regulator_is_enabled,
