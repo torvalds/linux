@@ -814,6 +814,7 @@ static struct platform_device device_ipp = {
 #endif
 
 #ifdef CONFIG_SND_RK29_SOC_I2S
+#ifdef CONFIG_SND_RK29_SOC_I2S_8CH
 static struct resource resource_iis0_8ch[] = {
 	[0] = {
 		.start	= RK30_I2S0_8CH_PHYS,
@@ -843,7 +844,8 @@ static struct platform_device device_iis0_8ch = {
 	.num_resources	= ARRAY_SIZE(resource_iis0_8ch),
 	.resource	= resource_iis0_8ch,
 };
-
+#endif
+#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
 static struct resource resource_iis1_2ch[] = {
 	[0] = {
 		.start	= RK30_I2S1_2CH_PHYS,
@@ -873,7 +875,8 @@ static struct platform_device device_iis1_2ch = {
 	.num_resources	= ARRAY_SIZE(resource_iis1_2ch),
 	.resource	= resource_iis1_2ch,
 };
-
+#endif
+#ifdef CONFIG_SND_RK_SOC_I2S2_2CH
 static struct resource resource_iis2_2ch[] = {
 	[0] = {
 		.start	= RK30_I2S2_2CH_PHYS,
@@ -903,6 +906,7 @@ static struct platform_device device_iis2_2ch = {
 	.num_resources	= ARRAY_SIZE(resource_iis2_2ch),
 	.resource	= resource_iis2_2ch,
 };
+#endif
 #endif
 
 static struct platform_device device_pcm = {

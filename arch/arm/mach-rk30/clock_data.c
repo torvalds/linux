@@ -2316,20 +2316,20 @@ static struct clk_lookup clks[] = {
 
 	
 	CLK1(i2s_pll),
-	CLK("rk30_i2s.0", "i2s_div", &clk_i2s0_div),
-	CLK("rk30_i2s.0", "i2s_frac_div", &clk_i2s0_frac_div),
-	CLK("rk30_i2s.0", "i2s", &clk_i2s0),
-	CLK("rk30_i2s.0", "hclk_i2s", &clk_hclk_i2s0_2ch),
+	CLK("rk29_i2s.0", "i2s_div", &clk_i2s0_div),
+	CLK("rk29_i2s.0", "i2s_frac_div", &clk_i2s0_frac_div),
+	CLK("rk29_i2s.0", "i2s", &clk_i2s0),
+	CLK("rk29_i2s.0", "hclk_i2s", &clk_hclk_i2s0_2ch),
 
-	CLK("rk30_i2s.1", "i2s_div", &clk_i2s1_div),
-	CLK("rk30_i2s.1", "i2s_frac_div", &clk_i2s1_frac_div),
-	CLK("rk30_i2s.1", "i2s", &clk_i2s1),
-	CLK("rk30_i2s.1", "hclk_i2s", &clk_hclk_i2s1_2ch),
+	CLK("rk29_i2s.1", "i2s_div", &clk_i2s1_div),
+	CLK("rk29_i2s.1", "i2s_frac_div", &clk_i2s1_frac_div),
+	CLK("rk29_i2s.1", "i2s", &clk_i2s1),
+	CLK("rk29_i2s.1", "hclk_i2s", &clk_hclk_i2s1_2ch),
 
-	CLK("rk30_i2s.2", "i2s_div", &clk_i2s2_div),
-	CLK("rk30_i2s.2", "i2s_frac_div", &clk_i2s2_frac_div),
-	CLK("rk30_i2s.2", "i2s", &clk_i2s2),
-	CLK("rk30_i2s.2", "hclk_i2s", &clk_hclk_i2s_8ch),
+	CLK("rk29_i2s.2", "i2s_div", &clk_i2s2_div),
+	CLK("rk29_i2s.2", "i2s_frac_div", &clk_i2s2_frac_div),
+	CLK("rk29_i2s.2", "i2s", &clk_i2s2),
+	CLK("rk29_i2s.2", "hclk_i2s", &clk_hclk_i2s_8ch),
 	
 	CLK1(spdif_div),
 	CLK1(spdif_frac_div),

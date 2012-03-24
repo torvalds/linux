@@ -1938,6 +1938,8 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 	int ret;
+
+	DBG("%s..............\n", __func__);
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -1991,7 +1993,7 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	pr_info("RT5631 initial ok!\n");
+	DBG("RT5631 initial ok!\n");
 
 	return 0;
 }
@@ -2112,7 +2114,7 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	struct rt5631_priv *rt5631;
 	int ret;
 
-	pr_info("RT5631 Audio Codec %s\n", RT5631_VERSION);
+	DBG("RT5631 Audio Codec %s\n", RT5631_VERSION);
 
 	rt5631 = kzalloc(sizeof(struct rt5631_priv), GFP_KERNEL);
 	if (NULL == rt5631)

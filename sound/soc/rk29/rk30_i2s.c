@@ -139,7 +139,6 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on, bool stopI2S)
 	else
 	{
 		//stop tx
-
 		flag_i2s_tx = 0;
 		if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
 		{
@@ -404,7 +403,7 @@ static int rockchip_i2s_set_sysclk(struct snd_soc_dai *cpu_dai,
         
 	I2S_DBG("Enter:%s, %d, i2s=0x%p, freq=%d\n", __FUNCTION__, __LINE__, i2s, freq);
 	/*add scu clk source and enable clk*/
-//	clk_set_rate(i2s->iis_clk, freq);
+	clk_set_rate(i2s->iis_clk, freq);
 	return 0;
 }
 
@@ -420,7 +419,6 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	i2s = to_info(cpu_dai);
         
 	//stereo mode MCLK/SCK=4  
-	
 	reg = readl(&(pheadi2s->I2S_CKR));
 
 	I2S_DBG("Enter:%s, %d, div_id=0x%08X, div=0x%08X\n", __FUNCTION__, __LINE__, div_id, div);
@@ -430,6 +428,8 @@ static int rockchip_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
         case ROCKCHIP_DIV_BCLK:
             reg &= ~I2S_TX_SCLK_DIV_MASK;
             reg |= I2S_TX_SCLK_DIV(div);
+            reg &= ~I2S_RX_SCLK_DIV_MASK;
+            reg |= I2S_RX_SCLK_DIV(div);			
             break;
         case ROCKCHIP_DIV_MCLK:
             reg &= ~I2S_MCLK_DIV_MASK;
@@ -556,16 +556,16 @@ static int rk29_i2s_probe(struct platform_device *pdev,
 		dev_err(dev, "cannot ioremap registers\n");
 		return -ENXIO;
 	}
-#if 0
-	i2s->iis_pclk = clk_get(dev, "i2s");
+
+	i2s->iis_pclk = clk_get(dev, "hclk_i2s");
 	if (IS_ERR(i2s->iis_pclk)) {
 		dev_err(dev, "failed to get iis_clock\n");
 		iounmap(i2s->regs);
 		return -ENOENT;
 	}
-
 	clk_enable(i2s->iis_pclk);
-#endif
+
+
 	/* Mark ourselves as in TXRX mode so we can run through our cleanup
 	 * process without warnings. */
 	rockchip_snd_txctrl(i2s, 0, true);
@@ -657,7 +657,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	 WARN_ON(rk29_dma_request(i2s->dma_playback->channel, i2s->dma_playback->client, NULL));
 	 WARN_ON(rk29_dma_request(i2s->dma_capture->channel, i2s->dma_capture->client, NULL));
 #endif
-#if 0
+
 	i2s->iis_clk = clk_get(&pdev->dev, "i2s");
 	I2S_DBG("Enter:%s, %d, iis_clk=%p\n", __FUNCTION__, __LINE__, i2s->iis_clk);
 	if (IS_ERR(i2s->iis_clk)) {
@@ -668,7 +668,7 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 
 	clk_enable(i2s->iis_clk);
 	clk_set_rate(i2s->iis_clk, 11289600);
-#endif	
+
 	ret = rk29_i2s_probe(pdev, dai, i2s, 0);
 	if (ret)
 		goto err_clk;
@@ -744,10 +744,12 @@ static int proc_i2s_show(struct seq_file *s, void *v)
 {
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
 	struct rk29_i2s_info *i2s=&rk29_i2s[0];
-#elif CONFIG_SND_RK29_SOC_I2S_2CH
+#else 
+#ifdef CONFIG_SND_RK29_SOC_I2S_2CH
 	struct rk29_i2s_info *i2s=&rk29_i2s[1];
 #else
 	struct rk29_i2s_info *i2s=&rk29_i2s[2];
+#endif
 #endif
 	printk("========Show I2S reg========\n");
         

@@ -166,8 +166,11 @@
 	#define I2S_MCLK_DIV(x)         ((0xFF&x)<<16)
 	#define I2S_MCLK_DIV_MASK       ((0xFF)<<16)
 	
+	#define I2S_RX_SCLK_DIV(x)      ((x&0xFF)<<8)
+	#define I2S_RX_SCLK_DIV_MASK    ((0xFF)<<8)
+	
 	#define I2S_TX_SCLK_DIV(x)      (x&0xFF)
-	#define I2S_TX_SCLK_DIV_MASK    (0xFF);	
+	#define I2S_TX_SCLK_DIV_MASK    (0xFF)
 #endif
 
 /* I2S_DMACR */
