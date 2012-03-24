@@ -94,31 +94,31 @@ static struct regulator_ops tps65090_ops = {
 	.is_enabled	= tps65090_reg_is_enabled,
 };
 
-#define tps65090_REG(_id, _en_reg, _en_bit, _ops)	\
+#define tps65090_REG(_id)				\
 {							\
-	.reg_en_reg	= _en_reg,			\
-	.en_bit		= _en_bit,			\
+	.reg_en_reg	= (TPS65090_ID_##_id) + 12,	\
+	.en_bit		= 0,				\
 	.id		= TPS65090_ID_##_id,		\
 	.desc = {					\
 		.name = tps65090_rails(_id),		\
 		.id = TPS65090_ID_##_id,		\
-		.ops = &_ops,				\
+		.ops = &tps65090_ops,			\
 		.type = REGULATOR_VOLTAGE,		\
 		.owner = THIS_MODULE,			\
 	},						\
 }
 
 static struct tps65090_regulator TPS65090_regulator[] = {
-	tps65090_REG(DCDC1, 12, 0, tps65090_ops),
-	tps65090_REG(DCDC2, 13, 0, tps65090_ops),
-	tps65090_REG(DCDC3, 14, 0, tps65090_ops),
-	tps65090_REG(FET1,  15, 0, tps65090_ops),
-	tps65090_REG(FET2,  16, 0, tps65090_ops),
-	tps65090_REG(FET3,  17, 0, tps65090_ops),
-	tps65090_REG(FET4,  18, 0, tps65090_ops),
-	tps65090_REG(FET5,  19, 0, tps65090_ops),
-	tps65090_REG(FET6,  20, 0, tps65090_ops),
-	tps65090_REG(FET7,  21, 0, tps65090_ops),
+	tps65090_REG(DCDC1),
+	tps65090_REG(DCDC2),
+	tps65090_REG(DCDC3),
+	tps65090_REG(FET1),
+	tps65090_REG(FET2),
+	tps65090_REG(FET3),
+	tps65090_REG(FET4),
+	tps65090_REG(FET5),
+	tps65090_REG(FET6),
+	tps65090_REG(FET7),
 };
 
 static inline struct tps65090_regulator *find_regulator_info(int id)
