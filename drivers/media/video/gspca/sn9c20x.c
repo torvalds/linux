@@ -59,7 +59,7 @@ MODULE_LICENSE("GPL");
 #define SENSOR_MT9M111	9
 #define SENSOR_MT9M112  10
 #define SENSOR_HV7131R	11
-#define SENSOR_MT9VPRB	20
+#define SENSOR_MT9VPRB	12
 
 /* camera flags */
 #define HAS_NO_BUTTON	0x1
