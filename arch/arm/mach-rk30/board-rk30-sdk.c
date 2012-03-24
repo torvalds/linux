@@ -212,7 +212,11 @@ static rk_sensor_user_init_data_s* rk_init_data_sensor_1_p = NULL;
 int goodix_init_platform_hw(void)
 {
 	int ret;
-	printk("goodix_init_platform_hw\n");
+	
+	rk30_mux_api_set(GPIO4D0_SMCDATA8_TRACEDATA8_NAME, GPIO4D_GPIO4D0);
+	rk30_mux_api_set(GPIO4C2_SMCDATA2_TRACEDATA2_NAME, GPIO4C_GPIO4C2);
+	printk("%s:0x%x,0x%x\n",__func__,rk30_mux_api_get(GPIO4D0_SMCDATA8_TRACEDATA8_NAME),rk30_mux_api_get(GPIO4C2_SMCDATA2_TRACEDATA2_NAME));
+
 	if (TOUCH_PWR_PIN != INVALID_GPIO) {
 		ret = gpio_request(TOUCH_PWR_PIN, "goodix power pin");
 		if (ret != 0) {
