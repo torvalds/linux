@@ -367,7 +367,7 @@ static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
 /*
  *	pci_device_id	table for which devices we are looking for
  */
-static const struct pci_device_id sbridge_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(sbridge_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA)},
 	{0,}			/* 0 terminated list. */
 };
