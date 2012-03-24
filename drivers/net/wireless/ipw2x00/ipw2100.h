@@ -488,6 +488,7 @@ enum {
 #define CAP_PRIVACY_ON          (1<<1)	/* Off = No privacy */
 
 struct ipw2100_priv {
+	void __iomem *ioaddr;
 
 	int stop_hang_check;	/* Set 1 when shutting down to kill hang_check */
 	int stop_rf_kill;	/* Set 1 when shutting down to kill rf_kill */
