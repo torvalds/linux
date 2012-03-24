@@ -2946,7 +2946,8 @@ out:
 				continue;
 
 			/* Would compaction fail due to lack of free memory? */
-			if (compaction_suitable(zone, order) == COMPACT_SKIPPED)
+			if (COMPACTION_BUILD &&
+			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
 				goto loop_again;
 
 			/* Confirm the zone is balanced for order-0 */
