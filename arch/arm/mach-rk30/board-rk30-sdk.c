@@ -854,7 +854,7 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
 	{
 		.type          = "wm8326",
-		.addr          = 0x36,    //0x34    ,is Decided by cs
+		.addr          = 0x34,
 		.flags         = 0,
 		.irq           = RK30_PIN6_PA4,
 		.platform_data = &wm831x_platdata,
@@ -1075,8 +1075,13 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
+#define POWER_ON_PIN RK30_PIN6_PB0   //power_hold
+
 static void __init machine_rk30_board_init(void)
 {
+	gpio_request(POWER_ON_PIN, "poweronpin");
+	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);	
+
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
