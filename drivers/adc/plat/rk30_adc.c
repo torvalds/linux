@@ -35,11 +35,9 @@ static void rk30_adc_start(struct adc_host *adc)
 	int chn = adc->cur->chn;
 
 	writel(0, dev->regs + ADC_CTRL);
-	writel(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chn), dev->regs + ADC_CTRL);
-	udelay(SAMPLE_RATE);
+        writel(0x08, dev->regs + ADC_DELAY_PU_SOC);
+	writel(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chn)|ADC_CTRL_IRQ_ENABLE, dev->regs + ADC_CTRL);
 
-	writel(readl(dev->regs + ADC_CTRL)|ADC_CTRL_IRQ_ENABLE|ADC_CTRL_START, 
-		dev->regs + ADC_CTRL);
 	return;
 }
 static void rk30_adc_stop(struct adc_host *adc)
@@ -58,6 +56,7 @@ static int rk30_adc_read(struct adc_host *adc)
 static irqreturn_t rk30_adc_irq(int irq, void *data)
 {
 	struct rk30_adc_device *dev = data;
+
 	adc_core_irq_handle(dev->adc);
 	return IRQ_HANDLED;
 }

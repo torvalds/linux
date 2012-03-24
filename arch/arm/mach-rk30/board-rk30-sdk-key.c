@@ -62,14 +62,15 @@ static struct rk29_keys_button key_button[] = {
 		//.code_long_press = EV_ENCALL,
 		.wakeup	= 1,
 	},
-#if 0
+#if 1
 	{
 		.desc	= "vol+",
 		.code	= KEY_VOLUMEDOWN,
-		.adc_value	= 95,
+		.adc_value	= 1,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
+#if 0
 	{
 		.desc	= "vol-",
 		.code	= KEY_VOLUMEUP,
@@ -77,33 +78,32 @@ static struct rk29_keys_button key_button[] = {
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
+#endif
 	{
 		.desc	= "menu",
 		.code	= EV_MENU,
-		.adc_value	= 406,
+		.adc_value	= 155,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "home",
 		.code	= KEY_HOME,
-		.code_long_press = KEY_F4,
-		.adc_value	= 561,
+		.adc_value	= 630,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
 		.desc	= "esc",
 		.code	= KEY_ESC,
-		.adc_value	= 726,
+		.adc_value	= 386,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
 	{
-		.desc	= "adkey6",
-		.code	= KEY_BACK,
-		.code_long_press = EV_ENCALL,
-		.adc_value	= 899,
+		.desc	= "camera",
+		.code	= KEY_CAMERA,
+		.adc_value	= 827,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
 	},
@@ -112,6 +112,6 @@ static struct rk29_keys_button key_button[] = {
 struct rk29_keys_platform_data rk29_keys_pdata = {
 	.buttons	= key_button,
 	.nbuttons	= ARRAY_SIZE(key_button),
-	.chn	= -1,  //chn: 0-7, if do not use ADC,set 'chn' -1
+	.chn	= 1,  //chn: 0-7, if do not use ADC,set 'chn' -1
 };
 
