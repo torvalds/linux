@@ -46,7 +46,7 @@
 
 #define pheadi2s  ((pI2S_REG)(i2s->regs))
 
-#define MAX_I2S         2
+#define MAX_I2S         3
 
 struct rk29_i2s_info {
 	struct device	*dev;

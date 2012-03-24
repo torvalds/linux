@@ -176,7 +176,7 @@ static struct rt5631_init_reg init_list[] = {
 	//{RT5631_STEREO_DAC_VOL_1	, 0x004C},
 	{RT5631_ADC_REC_MIXER		, 0xb0f0},//Record Mixer source from Mic1 by default
 	{RT5631_ADC_CTRL_1		, 0x0006},//STEREO ADC CONTROL 1
-	{RT5631_MIC_CTRL_2		, 0x6600},//0x8800},//0x5500}, //Mic1/Mic2 boost 40DB by default
+	{RT5631_MIC_CTRL_2		, 0x4400},//0x8800},//0x6600}, //Mic1/Mic2 boost 40DB by default
 	{RT5631_PWR_MANAG_ADD1		, 0x93e0},
 	
 #if RT5631_ALC_ADC_FUNC_ENA	
@@ -1910,8 +1910,13 @@ static int rt5631_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD2, 0,
-			PWR_MICBIAS1_VOL | PWR_MICBIAS2_VOL);
+	//	rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD2, 0,
+	//		PWR_MICBIAS1_VOL | PWR_MICBIAS2_VOL);
+		printk("standby rt5631\n");
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD1, 0x0000);
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD2, 0x0000);
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD3, 0x0000);
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD4, 0x0000);		
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -1938,8 +1943,6 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 	struct rt5631_priv *rt5631 = snd_soc_codec_get_drvdata(codec);
 	unsigned int val;
 	int ret;
-
-	DBG("%s..............\n", __func__);
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, SND_SOC_I2C);
 	if (ret != 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);

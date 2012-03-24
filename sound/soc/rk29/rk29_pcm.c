@@ -144,8 +144,22 @@ void rk29_audio_buffdone(void *dev_id, int size,
 		return;
 	if (!substream->runtime)
 		return;
+	switch(result)
+	{
+	case RK29_RES_OK:
+		DBG("::%s----%d  RK29_RES_OK\n",__FUNCTION__,__LINE__);
+		break;
+	case RK29_RES_ERR:
+		DBG("::%s----%d  RK29_RES_ERR\n",__FUNCTION__,__LINE__);
+		break;
+	case RK29_RES_ABORT:
+		DBG("Enter::%s----%d RK29_RES_ABORT \n",__FUNCTION__,__LINE__);
+		return;
+	}
 
 	prtd = substream->runtime->private_data;
+	if(!(prtd->state & ST_RUNNING))
+		return;	
 	DBG("Enter::%s----%d, substream=%p, prtd=%p\n",__FUNCTION__,__LINE__, substream, prtd);
 	if (substream){
 		snd_pcm_period_elapsed(substream);
