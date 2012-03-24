@@ -4267,7 +4267,7 @@ static int rtl8169_open(struct net_device *dev)
 	pm_runtime_get_sync(&pdev->dev);
 
 	/*
-	 * Rx and Tx desscriptors needs 256 bytes alignment.
+	 * Rx and Tx descriptors needs 256 bytes alignment.
 	 * dma_alloc_coherent provides more.
 	 */
 	tp->TxDescArray = dma_alloc_coherent(&pdev->dev, R8169_TX_RING_BYTES,
