@@ -113,6 +113,11 @@ static int rk_fb_release(struct fb_info *info,int user)
 
     return 0;
 }
+
+static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
+{
+	return 0;
+}
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
 			unsigned long arg)
 {
@@ -336,6 +341,7 @@ static int rk_fb_set_par(struct fb_info *info)
     }
    	CHK_SUSPEND(inf);
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
+#if 0
     switch (data_format)
     {
 	case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
@@ -379,6 +385,22 @@ static int rk_fb_set_par(struct fb_info *info)
 		printk("un supported format:0x%x\n",data_format);
             return -EINVAL;
     }
+#else
+	switch(var->bits_per_pixel)
+	{
+		case 32:
+			par->format = ARGB888;
+			fix->line_length = 4 * xvir;
+			par->y_offset = (yoffset*xvir + xoffset)*4;
+			break;
+		case 16:
+			par->format = RGB565;
+			fix->line_length = 2 * xvir;
+			par->y_offset = (yoffset*xvir + xoffset)*2;
+            		break;
+			
+	}
+#endif
 
     smem_len = fix->line_length * yvir + cblen + crlen;
    // map_size = PAGE_ALIGN(smem_len);
@@ -441,6 +463,7 @@ static struct fb_ops fb_ops = {
     .fb_set_par     = rk_fb_set_par,
     .fb_blank       = rk_fb_blank,
     .fb_ioctl       = rk_fb_ioctl,
+    .fb_pan_display = rk_pan_display,
     .fb_setcolreg   = fb_setcolreg,
     .fb_fillrect    = cfb_fillrect,
     .fb_copyarea    = cfb_copyarea,
@@ -509,6 +532,7 @@ static int request_fb_buffer(struct fb_info *fbi,int fb_id)
             fbi->fix.smem_len = res->end - res->start + 1;
             fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
             memset(fbi->screen_base, 0, fbi->fix.smem_len);
+	    printk("phy:%x\n>>vir:%x\n",fbi->fix.smem_start,fbi->screen_base);
         #ifdef CONFIG_FB_WORK_IPP
         /* alloc ipp buf for rotate */
             res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "ipp buf");

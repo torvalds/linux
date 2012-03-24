@@ -34,7 +34,7 @@
 
 
 
-static int dbg_thresd =1;
+static int dbg_thresd = 0;
 #define DBG(x...) do { if(unlikely(dbg_thresd)) printk(KERN_INFO x); } while (0)
 
 
@@ -75,38 +75,45 @@ int rk30_lcdc_deinit(void)
     return 0;
 }
 
-void rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
+int rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
 {
-    int ret = -EINVAL;
-    rk_screen *screen = to_screen(lcdc_dev);
-    u16 face;
-    u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
-    u16 right_margin = screen->right_margin;
+	int ret = -EINVAL;
+	rk_screen *screen = to_screen(lcdc_dev);
+	u16 face;
+	u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
+	u16 right_margin = screen->right_margin;
 	u16 lower_margin = screen->lower_margin;
-    u16 x_res = screen->x_res, y_res = screen->y_res;
-    u32 aclk_rate = 150000000;
+	u16 x_res = screen->x_res, y_res = screen->y_res;
+	u32 aclk_rate = 150000000;
 
-    // set the rgb or mcu
+	// set the rgb or mcu
 
 	if(screen->type==SCREEN_MCU)
 	{
-    	LcdMskReg(lcdc_dev, MCU_CTRL, m_MCU_OUTPUT_SELECT,v_MCU_OUTPUT_SELECT(1));
+    		LcdMskReg(lcdc_dev, MCU_CTRL, m_MCU_OUTPUT_SELECT,v_MCU_OUTPUT_SELECT(1));
 		// set out format and mcu timing
-   		 mcu_total  = (screen->mcu_wrperiod*150*1000)/1000000;
-    	if(mcu_total>31)    mcu_total = 31;
-   		if(mcu_total<3)     mcu_total = 3;
-    	mcu_rwstart = (mcu_total+1)/4 - 1;
-    	mcu_rwend = ((mcu_total+1)*3)/4 - 1;
-    	mcu_csstart = (mcu_rwstart>2) ? (mcu_rwstart-3) : (0);
-    	mcu_csend = (mcu_rwend>15) ? (mcu_rwend-1) : (mcu_rwend);
+   		mcu_total  = (screen->mcu_wrperiod*150*1000)/1000000;
+    		if(mcu_total>31)    
+			mcu_total = 31;
+   		if(mcu_total<3)    
+			mcu_total = 3;
+    		mcu_rwstart = (mcu_total+1)/4 - 1;
+    		mcu_rwend = ((mcu_total+1)*3)/4 - 1;
+    		mcu_csstart = (mcu_rwstart>2) ? (mcu_rwstart-3) : (0);
+    		mcu_csend = (mcu_rwend>15) ? (mcu_rwend-1) : (mcu_rwend);
 
-    	DBG(">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
-        mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend);
+    		DBG(">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
+        		mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend);
 
 		// set horizontal & vertical out timing
 	
-	    right_margin = x_res/6; 
+	    	right_margin = x_res/6; 
 		screen->pixclock = 150000000; //mcu fix to 150 MHz
+		LcdMskReg(lcdc_dev, MCU_CTRL,m_MCU_CS_ST | m_MCU_CS_END| m_MCU_RW_ST | m_MCU_RW_END |
+             		m_MCU_WRITE_PERIOD | m_MCU_HOLDMODE_SELECT | m_MCU_HOLDMODE_FRAME_ST,
+            		v_MCU_CS_ST(mcu_csstart) | v_MCU_CS_END(mcu_csend) | v_MCU_RW_ST(mcu_rwstart) |
+            		v_MCU_RW_END(mcu_rwend) |  v_MCU_WRITE_PERIOD(mcu_total) |
+            		v_MCU_HOLDMODE_SELECT((SCREEN_MCU==screen->type)?(1):(0)) | v_MCU_HOLDMODE_FRAME_ST(0));
 	
 	}
 
@@ -144,61 +151,65 @@ void rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
     }
 
 	//use default overlay,set vsyn hsync den dclk polarity
-     LcdMskReg(lcdc_dev, DSP_CTRL0,m_DISPLAY_FORMAT | m_HSYNC_POLARITY | m_VSYNC_POLARITY 
-	 	| m_DEN_POLARITY |m_DCLK_POLARITY,
-        v_DISPLAY_FORMAT(face) | v_HSYNC_POLARITY(screen->pin_hsync) | v_VSYNC_POLARITY(screen->pin_vsync) |
-        v_DEN_POLARITY(screen->pin_den) | v_DCLK_POLARITY(screen->pin_dclk));
+	LcdMskReg(lcdc_dev, DSP_CTRL0,m_DISPLAY_FORMAT | m_HSYNC_POLARITY | m_VSYNC_POLARITY |
+     		m_DEN_POLARITY |m_DCLK_POLARITY,v_DISPLAY_FORMAT(face) | 
+	 	v_HSYNC_POLARITY(screen->pin_hsync) | v_VSYNC_POLARITY(screen->pin_vsync) |
+        	v_DEN_POLARITY(screen->pin_den) | v_DCLK_POLARITY(screen->pin_dclk));
 
 	//set background color to black,set swap according to the screen panel
-     LcdMskReg(lcdc_dev, DSP_CTRL1, m_BG_COLOR | m_OUTPUT_RB_SWAP | m_OUTPUT_RG_SWAP | m_DELTA_SWAP | 
+	LcdMskReg(lcdc_dev, DSP_CTRL1, m_BG_COLOR | m_OUTPUT_RB_SWAP | m_OUTPUT_RG_SWAP | m_DELTA_SWAP | 
 	 	m_DUMMY_SWAP,  v_BG_COLOR(0x000000) | v_OUTPUT_RB_SWAP(screen->swap_rb) | 
 	 	v_OUTPUT_RG_SWAP(screen->swap_rg) | v_DELTA_SWAP(screen->swap_delta) | v_DUMMY_SWAP(screen->swap_dumy) );
 
 	
-    LcdWrReg(lcdc_dev, DSP_HTOTAL_HS_END,v_HSYNC(screen->hsync_len) |
+	LcdWrReg(lcdc_dev, DSP_HTOTAL_HS_END,v_HSYNC(screen->hsync_len) |
              v_HORPRD(screen->hsync_len + screen->left_margin + x_res + right_margin));
-    LcdWrReg(lcdc_dev, DSP_HACT_ST_END, v_HAEP(screen->hsync_len + screen->left_margin + x_res) |
+	LcdWrReg(lcdc_dev, DSP_HACT_ST_END, v_HAEP(screen->hsync_len + screen->left_margin + x_res) |
              v_HASP(screen->hsync_len + screen->left_margin));
 
-    LcdWrReg(lcdc_dev, DSP_VTOTAL_VS_END, v_VSYNC(screen->vsync_len) |
+	LcdWrReg(lcdc_dev, DSP_VTOTAL_VS_END, v_VSYNC(screen->vsync_len) |
               v_VERPRD(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
-    LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
+	LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
               v_VASP(screen->vsync_len + screen->upper_margin));
 	// let above to take effect
-    LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
                                                         
-    if(initscreen == 0)    //not init
-    {
-        clk_disable(lcdc_dev->dclk);
-      //  clk_disable(inf->aclk);
-    }
-
  
 
-    ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);
-    if(ret)
-    {
-        printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
-    }
-    lcdc_dev->driver->pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
-    if(initscreen)
-    {
-        if(screen->lcdc_aclk){
-           aclk_rate = screen->lcdc_aclk;
-        }
-        ret = clk_set_rate(lcdc_dev->aclk, aclk_rate);
-        if(ret){
-            printk(KERN_ERR ">>>>>> set lcdc aclk failed\n");
-        }
-        clk_enable(lcdc_dev->aclk);
-    }
+	ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);
+	if(ret)
+	{
+        	printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
+	}
+    	else
+    	{
+    		lcdc_dev->driver->pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
+	 	clk_enable(lcdc_dev->dclk);
+    		printk("%s: dclk:%lu ",lcdc_dev->driver->name,clk_get_rate(lcdc_dev->dclk));
+    	}
+    	if(initscreen)
+    	{
+        	if(screen->lcdc_aclk)
+		{
+			ret = clk_set_rate(lcdc_dev->aclk, screen->lcdc_aclk);
+			if(ret)
+			{
+           	 		printk(KERN_ERR ">>>>>> set lcdc aclk  rate failed\n");
+        		}
+			else
+			{
+        			clk_enable(lcdc_dev->aclk);
+				printk("aclk:%lu\n",clk_get_rate(lcdc_dev->aclk));
+			}
+        	}
+        	
+	}
   
-    clk_enable(lcdc_dev->dclk);
    
-    if(screen->init)
-    {
-    	screen->init();
-    }
+    	if(screen->init)
+    	{
+    		screen->init();
+    	}
 	printk("%s>>>>>ok!\n",__func__);
 }
 
@@ -324,7 +335,7 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
             break;
         case RGB888:  //rgb888
             LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
-            LcdMskReg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+            LcdMskReg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
             break;
         case RGB565:  //rgb565
             LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB565_VIRWIDTH(xvir));
@@ -396,11 +407,11 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
     {
         case ARGB888:
             LcdWrReg(lcdc_dev, WIN1_VIR,v_ARGB888_VIRWIDTH(xvir));
-            LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+            //LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
             break;
         case RGB888:  //rgb888
             LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB888_VIRWIDTH(xvir));
-            LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+           // LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
             break;
         case RGB565:  //rgb565
             LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB565_VIRWIDTH(xvir));
@@ -532,65 +543,65 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 
 	/*************Malloc rk30lcdc_inf and set it to pdev for drvdata**********/
 	inf = kmalloc(sizeof(struct lcdc_info), GFP_KERNEL);
-    if(!inf)
-    {
-        dev_err(&pdev->dev, ">>rk30 lcdc inf kmalloc fail!");
-        ret = -ENOMEM;
-    }
+    	if(!inf)
+    	{
+        	dev_err(&pdev->dev, ">>rk30 lcdc inf kmalloc fail!");
+        	return -ENOMEM;
+    	}
 	memset(inf, 0, sizeof(struct lcdc_info));
 	platform_set_drvdata(pdev, inf);
 
-	/****************	get lcdc0 reg  		*************************/
-	 res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lcdc0 reg");
-    if (res == NULL)
-    {
-        dev_err(&pdev->dev, "failed to get memory registers\n");
-        ret = -ENOENT;
-		//goto release_drvdata;
-    }
-    inf->lcdc0.reg_phy_base = res->start;
-    inf->lcdc0.len = (res->end - res->start) + 1;
-    mem = request_mem_region(inf->lcdc0.reg_phy_base, inf->lcdc0.len, pdev->name);
-    if (mem == NULL)
-    {
-        dev_err(&pdev->dev, "failed to get memory region\n");
-        ret = -ENOENT;
-		//goto release_drvdata;
-    }
-    inf->lcdc0.reg_vir_base = ioremap(inf->lcdc0.reg_phy_base, inf->lcdc0.len);
-    if (inf->lcdc0.reg_vir_base == NULL)
-    {
-        dev_err(&pdev->dev, "ioremap() of registers failed\n");
-        ret = -ENXIO;
-		//goto release_drvdata;
-    }
-    inf->lcdc0.preg = (LCDC_REG*)inf->lcdc0.reg_vir_base;
+	/****************get lcdc0 reg  *************************/
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lcdc0 reg");
+	if (res == NULL)
+    	{
+        	dev_err(&pdev->dev, "failed to get io resource for lcdc0 \n");
+        	ret = -ENOENT;
+		goto err0;
+    	}
+    	inf->lcdc0.reg_phy_base = res->start;
+    	inf->lcdc0.len = (res->end - res->start) + 1;
+    	mem = request_mem_region(inf->lcdc0.reg_phy_base, inf->lcdc0.len, pdev->name);
+    	if (mem == NULL)
+    	{
+        	dev_err(&pdev->dev, "failed to request mem region for lcdc0\n");
+        	ret = -ENOENT;
+		goto err0;
+    	}
+    	inf->lcdc0.reg_vir_base = ioremap(inf->lcdc0.reg_phy_base, inf->lcdc0.len);
+    	if (inf->lcdc0.reg_vir_base == NULL)
+    	{
+        	dev_err(&pdev->dev, "ioremap of lcdc0 register failed\n");
+        	ret = -ENXIO;
+		goto err1;
+    	}
+    	inf->lcdc0.preg = (LCDC_REG*)inf->lcdc0.reg_vir_base;
 	printk("lcdc0 reg_phy_base = 0x%08x,reg_vir_base:0x%p\n", inf->lcdc0.reg_phy_base, inf->lcdc0.preg);
 	/****************	get lcdc1 reg  		*************************/
-	 res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lcdc1 reg");
-    if (res == NULL)
-    {
-        dev_err(&pdev->dev, "failed to get memory registers\n");
-        ret = -ENOENT;
-		//goto release_drvdata;
-    }
-    inf->lcdc1.reg_phy_base = res->start;
-    inf->lcdc1.len = (res->end - res->start) + 1;
-    mem = request_mem_region(inf->lcdc1.reg_phy_base, inf->lcdc1.len, pdev->name);
-    if (mem == NULL)
-    {
-        dev_err(&pdev->dev, "failed to get memory region\n");
-        ret = -ENOENT;
-		//goto release_drvdata;
-    }
-    inf->lcdc1.reg_vir_base = ioremap(inf->lcdc1.reg_phy_base, inf->lcdc1.len);
-    if (inf->lcdc1.reg_vir_base == NULL)
-    {
-        dev_err(&pdev->dev, "ioremap() of registers failed\n");
-        ret = -ENXIO;
-		//goto release_drvdata;
-    }
-    inf->lcdc1.preg = (LCDC_REG*)inf->lcdc1.reg_vir_base;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lcdc1 reg");
+    	if (res == NULL)
+    	{
+        	dev_err(&pdev->dev, "failed to get io resource for lcdc1\n");
+        	ret = -ENOENT;
+		goto err2;
+    	}
+    	inf->lcdc1.reg_phy_base = res->start;
+    	inf->lcdc1.len = (res->end - res->start) + 1;
+    	mem = request_mem_region(inf->lcdc1.reg_phy_base, inf->lcdc1.len, pdev->name);
+    	if (mem == NULL)
+    	{
+        	dev_err(&pdev->dev, "failed to request memory region of lcdc1\n");
+        	ret = -ENOENT;
+		goto err2;
+    	}
+    	inf->lcdc1.reg_vir_base = ioremap(inf->lcdc1.reg_phy_base, inf->lcdc1.len);
+    	if (inf->lcdc1.reg_vir_base == NULL)
+    	{
+       		dev_err(&pdev->dev, "ioremap of lcdc1 register failed\n");
+        	ret = -ENXIO;
+		goto err3;
+    	}
+	inf->lcdc1.preg = (LCDC_REG*)inf->lcdc1.reg_vir_base;
 	printk("lcdc1 reg_phy_base = 0x%08x,reg_vir_base:0x%p\n", inf->lcdc1.reg_phy_base, inf->lcdc1.preg);
 	/*****************	 LCDC driver		********/
 	inf->lcdc0.driver = &lcdc0_driver;
@@ -601,16 +612,43 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	set_lcd_info(&inf->lcdc0.driver->screen, NULL);
 	set_lcd_info(&inf->lcdc1.driver->screen, NULL);
 	/*****************	INIT LCDC		********/
-	init_rk30_lcdc(inf);
-	rk30_load_screen(&inf->lcdc0,1);
+	ret = init_rk30_lcdc(inf);
+	if(ret < 0)
+	{
+		printk(KERN_ERR "init rk30 lcdc failed!\n");
+		goto err4;
+	}
+	ret = rk30_load_screen(&inf->lcdc0,1);
+	if(ret < 0)
+	{
+		printk(KERN_ERR "rk30 load screen for lcdc0 failed!\n");
+		goto err4;
+	}
 	//rk30_load_screen(&inf->lcdc1,1);
 	/*****************	lcdc register		********/
-	rk_fb_register(&lcdc0_driver);
+	ret = rk_fb_register(&lcdc0_driver);
+	if(ret < 0)
+	{
+		printk(KERN_ERR "registe fb for lcdc0 failed!\n");
+		goto err4;
+	}
 	//rk_fb_register(&lcdc1_driver);
 
-	
 	printk("rk30 lcdc probe ok!\n");
+
 	return 0;
+err4:
+	iounmap(inf->lcdc1.reg_vir_base);
+err3:	
+	release_mem_region(inf->lcdc1.reg_phy_base,inf->lcdc1.len);
+err2:
+	iounmap(inf->lcdc0.reg_vir_base);
+err1:
+	release_mem_region(inf->lcdc0.reg_phy_base,inf->lcdc0.len);
+err0:
+	platform_set_drvdata(pdev, NULL);
+	kfree(inf);
+	return ret;
     
 }
 static int __devexit rk30_lcdc_remove(struct platform_device *pdev)
