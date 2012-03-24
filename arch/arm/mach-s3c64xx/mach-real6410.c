@@ -118,43 +118,51 @@ static struct platform_device real6410_device_eth = {
 };
 
 static struct s3c_fb_pd_win real6410_lcd_type0_fb_win = {
-	.win_mode	= {	/* 4.3" 480x272 */
-		.left_margin	= 3,
-		.right_margin	= 2,
-		.upper_margin	= 1,
-		.lower_margin	= 1,
-		.hsync_len	= 40,
-		.vsync_len	= 1,
-		.xres		= 480,
-		.yres		= 272,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 480,
+	.yres		= 272,
+};
+
+static struct fb_videomode real6410_lcd_type0_timing = {
+	/* 4.3" 480x272 */
+	.left_margin	= 3,
+	.right_margin	= 2,
+	.upper_margin	= 1,
+	.lower_margin	= 1,
+	.hsync_len	= 40,
+	.vsync_len	= 1,
 };
 
 static struct s3c_fb_pd_win real6410_lcd_type1_fb_win = {
-	.win_mode	= {	/* 7.0" 800x480 */
-		.left_margin	= 8,
-		.right_margin	= 13,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
+};
+
+static struct fb_videomode real6410_lcd_type1_timing = {
+	/* 7.0" 800x480 */
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
 };
 
 static struct s3c_fb_platdata real6410_lcd_pdata[] __initdata = {
 	{
 		.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+		.vtiming	= &real6410_lcd_type0_timing,
 		.win[0]		= &real6410_lcd_type0_fb_win,
 		.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 		.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	}, {
 		.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+		.vtiming	= &real6410_lcd_type1_timing,
 		.win[0]		= &real6410_lcd_type1_fb_win,
 		.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 		.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
@@ -297,8 +305,8 @@ static void __init real6410_machine_init(void)
 	real6410_parse_features(&features, real6410_features_str);
 
 	printk(KERN_INFO "REAL6410: selected LCD display is %dx%d\n",
-		real6410_lcd_pdata[features.lcd_index].win[0]->win_mode.xres,
-		real6410_lcd_pdata[features.lcd_index].win[0]->win_mode.yres);
+		real6410_lcd_pdata[features.lcd_index].win[0]->xres,
+		real6410_lcd_pdata[features.lcd_index].win[0]->yres);
 
 	s3c_fb_set_platdata(&real6410_lcd_pdata[features.lcd_index]);
 	s3c_nand_set_platdata(&real6410_nand_info);

@@ -146,26 +146,29 @@ static struct platform_device smdk6410_lcd_powerdev = {
 };
 
 static struct s3c_fb_pd_win smdk6410_fb_win0 = {
-	/* this is to ensure we use win0 */
-	.win_mode	= {
-		.left_margin	= 8,
-		.right_margin	= 13,
-		.upper_margin	= 7,
-		.lower_margin	= 5,
-		.hsync_len	= 3,
-		.vsync_len	= 1,
-		.xres		= 800,
-		.yres		= 480,
-	},
 	.max_bpp	= 32,
 	.default_bpp	= 16,
+	.xres		= 800,
+	.yres		= 480,
 	.virtual_y	= 480 * 2,
 	.virtual_x	= 800,
+};
+
+static struct fb_videomode smdk6410_lcd_timing = {
+	.left_margin	= 8,
+	.right_margin	= 13,
+	.upper_margin	= 7,
+	.lower_margin	= 5,
+	.hsync_len	= 3,
+	.vsync_len	= 1,
+	.xres		= 800,
+	.yres		= 480,
 };
 
 /* 405566 clocks per frame => 60Hz refresh requires 24333960Hz clock */
 static struct s3c_fb_platdata smdk6410_lcd_pdata __initdata = {
 	.setup_gpio	= s3c64xx_fb_gpio_setup_24bpp,
+	.vtiming	= &smdk6410_lcd_timing,
 	.win[0]		= &smdk6410_fb_win0,
 	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
