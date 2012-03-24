@@ -5,7 +5,7 @@
  * Version 2.  See the file COPYING for more details.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/average.h>
 #include <linux/kernel.h>
 #include <linux/bug.h>

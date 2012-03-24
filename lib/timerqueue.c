@@ -25,7 +25,7 @@
 #include <linux/bug.h>
 #include <linux/timerqueue.h>
 #include <linux/rbtree.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 /**
  * timerqueue_add - Adds timer to timerqueue.
