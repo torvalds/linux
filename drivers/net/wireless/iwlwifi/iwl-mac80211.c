@@ -438,7 +438,6 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	unsigned long flags;
 	u32 base, status = 0xffffffff;
 	int ret = -EIO;
-	const struct fw_img *img;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
@@ -459,6 +458,8 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
+			const struct fw_img *img;
+
 			img = &(priv->fw->img[IWL_UCODE_WOWLAN]);
 			if (!priv->wowlan_sram) {
 				priv->wowlan_sram =
