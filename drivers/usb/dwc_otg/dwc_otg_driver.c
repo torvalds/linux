@@ -2012,6 +2012,9 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, false);
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, false);
 #endif
+#ifdef CONFIG_ARCH_RK30  
+    *(unsigned int*)(USBGRF_UOC1_CON2+4) = ((1<<5)|((1<<5)<<16));
+#endif    
 	if (dwc_otg_device == 0) 
 	{
 		dev_err(dev, "kmalloc of dwc_otg_device failed\n");
