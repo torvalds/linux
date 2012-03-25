@@ -300,6 +300,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
 	int hit_slowpath = 0;
+	int prefaulted = 0;
 	int needs_clflush = 0;
 	int release_page;
 
@@ -368,6 +369,16 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		page_cache_get(page);
 		mutex_unlock(&dev->struct_mutex);
 
+		if (!prefaulted) {
+			ret = fault_in_pages_writeable(user_data, remain);
+			/* Userspace is tricking us, but we've already clobbered
+			 * its pages with the prefault and promised to write the
+			 * data up to the first fault. Hence ignore any errors
+			 * and just continue. */
+			(void)ret;
+			prefaulted = 1;
+		}
+
 		vaddr = kmap(page);
 		if (needs_clflush)
 			drm_clflush_virt_range(vaddr + shmem_page_offset,
@@ -429,11 +440,6 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (!access_ok(VERIFY_WRITE,
 		       (char __user *)(uintptr_t)args->data_ptr,
 		       args->size))
-		return -EFAULT;
-
-	ret = fault_in_pages_writeable((char __user *)(uintptr_t)args->data_ptr,
-				       args->size);
-	if (ret)
 		return -EFAULT;
 
 	ret = i915_mutex_lock_interruptible(dev);
