@@ -691,84 +691,11 @@ out_unpin_pages:
 	return ret;
 }
 
-/**
- * This is the fast shmem pwrite path, which attempts to directly
- * copy_from_user into the kmapped pages backing the object.
- */
 static int
-i915_gem_shmem_pwrite_fast(struct drm_device *dev,
-			   struct drm_i915_gem_object *obj,
-			   struct drm_i915_gem_pwrite *args,
-			   struct drm_file *file)
-{
-	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
-	ssize_t remain;
-	loff_t offset;
-	char __user *user_data;
-	int page_offset, page_length;
-
-	user_data = (char __user *) (uintptr_t) args->data_ptr;
-	remain = args->size;
-
-	offset = args->offset;
-	obj->dirty = 1;
-
-	while (remain > 0) {
-		struct page *page;
-		char *vaddr;
-		int ret;
-
-		/* Operation in this page
-		 *
-		 * page_offset = offset within page
-		 * page_length = bytes to copy for this page
-		 */
-		page_offset = offset_in_page(offset);
-		page_length = remain;
-		if ((page_offset + remain) > PAGE_SIZE)
-			page_length = PAGE_SIZE - page_offset;
-
-		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
-
-		vaddr = kmap_atomic(page);
-		ret = __copy_from_user_inatomic(vaddr + page_offset,
-						user_data,
-						page_length);
-		kunmap_atomic(vaddr);
-
-		set_page_dirty(page);
-		mark_page_accessed(page);
-		page_cache_release(page);
-
-		/* If we get a fault while copying data, then (presumably) our
-		 * source page isn't available.  Return the error and we'll
-		 * retry in the slow path.
-		 */
-		if (ret)
-			return -EFAULT;
-
-		remain -= page_length;
-		user_data += page_length;
-		offset += page_length;
-	}
-
-	return 0;
-}
-
-/**
- * This is the fallback shmem pwrite path, which uses get_user_pages to pin
- * the memory and maps it using kmap_atomic for copying.
- *
- * This avoids taking mmap_sem for faulting on the user's address while the
- * struct_mutex is held.
- */
-static int
-i915_gem_shmem_pwrite_slow(struct drm_device *dev,
-			   struct drm_i915_gem_object *obj,
-			   struct drm_i915_gem_pwrite *args,
-			   struct drm_file *file)
+i915_gem_shmem_pwrite(struct drm_device *dev,
+		      struct drm_i915_gem_object *obj,
+		      struct drm_i915_gem_pwrite *args,
+		      struct drm_file *file)
 {
 	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
 	ssize_t remain;
@@ -776,6 +703,7 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 	char __user *user_data;
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
+	int hit_slowpath = 0;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -784,8 +712,6 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 
 	offset = args->offset;
 	obj->dirty = 1;
-
-	mutex_unlock(&dev->struct_mutex);
 
 	while (remain > 0) {
 		struct page *page;
@@ -811,6 +737,21 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
 			(page_to_phys(page) & (1 << 17)) != 0;
 
+		if (!page_do_bit17_swizzling) {
+			vaddr = kmap_atomic(page);
+			ret = __copy_from_user_inatomic(vaddr + shmem_page_offset,
+							user_data,
+							page_length);
+			kunmap_atomic(vaddr);
+
+			if (ret == 0)
+				goto next_page;
+		}
+
+		hit_slowpath = 1;
+
+		mutex_unlock(&dev->struct_mutex);
+
 		vaddr = kmap(page);
 		if (page_do_bit17_swizzling)
 			ret = __copy_from_user_swizzled(vaddr, shmem_page_offset,
@@ -822,6 +763,8 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 					       page_length);
 		kunmap(page);
 
+		mutex_lock(&dev->struct_mutex);
+next_page:
 		set_page_dirty(page);
 		mark_page_accessed(page);
 		page_cache_release(page);
@@ -837,15 +780,16 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev,
 	}
 
 out:
-	mutex_lock(&dev->struct_mutex);
-	/* Fixup: Kill any reinstated backing storage pages */
-	if (obj->madv == __I915_MADV_PURGED)
-		i915_gem_object_truncate(obj);
-	/* and flush dirty cachelines in case the object isn't in the cpu write
-	 * domain anymore. */
-	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
-		i915_gem_clflush_object(obj);
-		intel_gtt_chipset_flush();
+	if (hit_slowpath) {
+		/* Fixup: Kill any reinstated backing storage pages */
+		if (obj->madv == __I915_MADV_PURGED)
+			i915_gem_object_truncate(obj);
+		/* and flush dirty cachelines in case the object isn't in the cpu write
+		 * domain anymore. */
+		if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
+			i915_gem_clflush_object(obj);
+			intel_gtt_chipset_flush();
+		}
 	}
 
 	return ret;
@@ -939,11 +883,7 @@ out_unpin:
 	if (ret)
 		goto out;
 
-	ret = -EFAULT;
-	if (!i915_gem_object_needs_bit17_swizzle(obj))
-		ret = i915_gem_shmem_pwrite_fast(dev, obj, args, file);
-	if (ret == -EFAULT)
-		ret = i915_gem_shmem_pwrite_slow(dev, obj, args, file);
+	ret = i915_gem_shmem_pwrite(dev, obj, args, file);
 
 out:
 	drm_gem_object_unreference(&obj->base);
