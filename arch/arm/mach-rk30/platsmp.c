@@ -68,16 +68,19 @@ extern void rk30_sram_secondary_startup(void);
 
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	static bool copied;
+	static bool first = true;
 
-	if (!copied) {
+	if (first) {
 		unsigned long sz = 0x100;
+
+		pmu_set_power_domain(PD_A9_1, false);
 
 		memcpy(RK30_IMEM_BASE + sz - 4, (void *)rk30_sram_secondary_startup + sz - 4, 4);
 		memcpy(RK30_IMEM_BASE, rk30_sram_secondary_startup, sz);
 		flush_icache_range((unsigned long)RK30_IMEM_BASE, (unsigned long)RK30_IMEM_BASE + sz);
 		outer_clean_range(0, sz);
-		copied = true;
+
+		first = false;
 	}
 
 	dsb_sev();
