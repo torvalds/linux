@@ -38,14 +38,6 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 
-/*set touchscreen different type header*/
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI)
-#include "../../../drivers/input/touchscreen/xpt2046_ts.h"
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
-#include "../../../drivers/input/touchscreen/xpt2046_tslib_ts.h"
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
-#include "../../../drivers/input/touchscreen/xpt2046_cbn_ts.h"
-#endif
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
 #endif
@@ -253,118 +245,7 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
-/*****************************************************************************************
- * xpt2046 touch panel
- * author: hhb@rock-chips.com
- *****************************************************************************************/
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_NORMAL_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_TSLIB_SPI)
-#define XPT2046_GPIO_INT	RK30_PIN4_PC2
-#define DEBOUNCE_REPTIME  	3
-
-static struct xpt2046_platform_data xpt2046_info = {
-	.model = 2046,
-	.keep_vref_on = 1,
-	.swap_xy = 0,
-	.debounce_max = 7,
-	.debounce_rep = DEBOUNCE_REPTIME,
-	.debounce_tol = 20,
-	.gpio_pendown = XPT2046_GPIO_INT,
-	.pendown_iomux_name = GPIO4C2_SMCDATA2_TRACEDATA2_NAME,
-	.pendown_iomux_mode = GPIO4C_GPIO4C2,
-	.touch_virtualkey_length = 60,
-	.penirq_recheck_delay_usecs = 1,
-#if defined(CONFIG_TOUCHSCREEN_480X800)
-	.x_min = 0,
-	.x_max = 480,
-	.y_min = 0,
-	.y_max = 800,
-	.touch_ad_top = 3940,
-	.touch_ad_bottom = 310,
-	.touch_ad_left = 3772,
-	.touch_ad_right = 340,
-#elif defined(CONFIG_TOUCHSCREEN_800X480)
-	.x_min = 0,
-	.x_max = 800,
-	.y_min = 0,
-	.y_max = 480,
-	.touch_ad_top = 2447,
-	.touch_ad_bottom = 207,
-	.touch_ad_left = 5938,
-	.touch_ad_right = 153,
-#elif defined(CONFIG_TOUCHSCREEN_320X480)
-	.x_min = 0,
-	.x_max = 320,
-	.y_min = 0,
-	.y_max = 480,
-	.touch_ad_top = 3166,
-	.touch_ad_bottom = 256,
-	.touch_ad_left = 3658,
-	.touch_ad_right = 380,
-#endif
-};
-#elif defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
-static struct xpt2046_platform_data xpt2046_info = {
-	.model = 2046,
-	.keep_vref_on = 1,
-	.swap_xy = 0,
-	.debounce_max = 7,
-	.debounce_rep = DEBOUNCE_REPTIME,
-	.debounce_tol = 20,
-	.gpio_pendown = XPT2046_GPIO_INT,
-	.pendown_iomux_name = GPIO4C2_SMCDATA2_TRACEDATA2_NAME,
-	.pendown_iomux_mode = GPIO4C_GPIO4C2,
-	.touch_virtualkey_length = 60,
-	.penirq_recheck_delay_usecs = 1,
-
-#if defined(CONFIG_TOUCHSCREEN_480X800)
-	.x_min = 0,
-	.x_max = 480,
-	.y_min = 0,
-	.y_max = 800,
-	.screen_x = {70, 410, 70, 410, 240},
-	.screen_y = {50, 50, 740, 740, 400},
-	.uncali_x_default = {3267, 831, 3139, 715, 1845},
-	.uncali_y_default = {3638, 3664, 564, 591, 2087},
-#elif defined(CONFIG_TOUCHSCREEN_800X480)
-	.x_min = 0,
-	.x_max = 800,
-	.y_min = 0,
-	.y_max = 480,
-	.screen_x[5] = {50, 750, 50, 750, 400};
-	.screen_y[5] = {40, 40, 440, 440, 240};
-	.uncali_x_default[5] = {438, 565, 3507, 3631, 2105};
-	.uncali_y_default[5] = {3756, 489, 3792, 534, 2159};
-#elif defined(CONFIG_TOUCHSCREEN_320X480)
-	.x_min = 0,
-	.x_max = 320,
-	.y_min = 0,
-	.y_max = 480,
-	.screen_x[5] = {50, 270, 50, 270, 160};
-	.screen_y[5] = {40, 40, 440, 440, 240};
-	.uncali_x_default[5] = {812, 3341, 851, 3371, 2183};
-	.uncali_y_default[5] = {442, 435, 3193, 3195, 2004};
-#endif
-};
-#endif
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
-static struct rk29xx_spi_chip xpt2046_chip = {
-	//.poll_mode = 1,
-	.enable_dma = 1,
-};
-#endif
 static struct spi_board_info board_spi_devices[] = {
-#if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI)
-	{
-		.modalias	= "xpt2046_ts",
-		.chip_select	= 1,// 2,
-		.max_speed_hz	= 1 * 1000 * 800,/* (max sample rate @ 3V) * (cmd + data + overhead) */
-		.bus_num	= 0,
-		.irq 		= XPT2046_GPIO_INT,
-		.platform_data	= &xpt2046_info,
-		.controller_data = &xpt2046_chip,
-	},
-#endif
-
 };
 
 /***********************************************************
@@ -585,7 +466,7 @@ static void cm3217_exit_hw(void)
 	return;
 }
 
-struct cm3217_platform_data cm3217_info = {
+static struct cm3217_platform_data cm3217_info = {
 	.irq_pin = CM3217_IRQ_PIN,
 	.power_pin = CM3217_POWER_PIN,
 	.init_platform_hw = cm3217_init_hw,
@@ -664,12 +545,12 @@ static struct timed_gpio timed_gpios[] = {
 	},
 };
 
-struct timed_gpio_platform_data rk29_vibrator_info = {
+static struct timed_gpio_platform_data rk29_vibrator_info = {
 	.num_gpios = 1,
 	.gpios = timed_gpios,
 };
 
-struct platform_device rk29_device_vibrator = {
+static struct platform_device rk29_device_vibrator = {
 	.name = "timed-gpio",
 	.id = -1,
 	.dev = {
@@ -680,7 +561,7 @@ struct platform_device rk29_device_vibrator = {
 #endif
 
 #ifdef CONFIG_LEDS_GPIO_PLATFORM
-struct gpio_led rk29_leds[] = {
+static struct gpio_led rk29_leds[] = {
 	{
 		.name = "button-backlight",
 		.gpio = RK30_PIN4_PD7,
@@ -691,12 +572,12 @@ struct gpio_led rk29_leds[] = {
 	},
 };
 
-struct gpio_led_platform_data rk29_leds_pdata = {
-	.leds = &rk29_leds,
+static struct gpio_led_platform_data rk29_leds_pdata = {
+	.leds = rk29_leds,
 	.num_leds = ARRAY_SIZE(rk29_leds),
 };
 
-struct platform_device rk29_device_gpio_leds = {
+static struct platform_device rk29_device_gpio_leds = {
 	.name	= "leds-gpio",
 	.id	= -1,
 	.dev	= {
@@ -708,7 +589,7 @@ struct platform_device rk29_device_gpio_leds = {
 #ifdef CONFIG_RK_IRDA
 #define IRDA_IRQ_PIN           RK30_PIN6_PA1
 
-int irda_iomux_init(void)
+static int irda_iomux_init(void)
 {
 	int ret = 0;
 
@@ -724,7 +605,7 @@ int irda_iomux_init(void)
 	return 0;
 }
 
-int irda_iomux_deinit(void)
+static int irda_iomux_deinit(void)
 {
 	gpio_free(IRDA_IRQ_PIN);
 	return 0;
