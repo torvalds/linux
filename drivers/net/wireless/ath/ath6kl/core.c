@@ -40,6 +40,18 @@ module_param(uart_debug, uint, 0644);
 module_param(ath6kl_p2p, uint, 0644);
 module_param(testmode, uint, 0644);
 
+void ath6kl_core_tx_complete(struct ath6kl *ar, struct sk_buff *skb)
+{
+	ath6kl_htc_tx_complete(ar, skb);
+}
+EXPORT_SYMBOL(ath6kl_core_tx_complete);
+
+void ath6kl_core_rx_complete(struct ath6kl *ar, struct sk_buff *skb, u8 pipe)
+{
+	ath6kl_htc_rx_complete(ar, skb, pipe);
+}
+EXPORT_SYMBOL(ath6kl_core_rx_complete);
+
 int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 {
 	struct ath6kl_bmi_target_info targ_info;
@@ -49,6 +61,9 @@ int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 	switch (htc_type) {
 	case ATH6KL_HTC_TYPE_MBOX:
 		ath6kl_htc_mbox_attach(ar);
+		break;
+	case ATH6KL_HTC_TYPE_PIPE:
+		ath6kl_htc_pipe_attach(ar);
 		break;
 	default:
 		WARN_ON(1);

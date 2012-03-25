@@ -25,6 +25,7 @@
 /* send direction */
 #define HTC_FLAGS_NEED_CREDIT_UPDATE (1 << 0)
 #define HTC_FLAGS_SEND_BUNDLE        (1 << 1)
+#define HTC_FLAGS_TX_FIXUP_NETBUF    (1 << 2)
 
 /* receive direction */
 #define HTC_FLG_RX_UNUSED        (1 << 0)
@@ -56,6 +57,10 @@
 #define HTC_CONN_FLGS_THRESH_LVL_THREE_QUAT	0x2
 #define HTC_CONN_FLGS_REDUCE_CRED_DRIB		0x4
 #define HTC_CONN_FLGS_THRESH_MASK		0x3
+/* disable credit flow control on a specific service */
+#define HTC_CONN_FLGS_DISABLE_CRED_FLOW_CTRL          (1 << 3)
+#define HTC_CONN_FLGS_SET_RECV_ALLOC_SHIFT    8
+#define HTC_CONN_FLGS_SET_RECV_ALLOC_MASK     0xFF00
 
 /* connect response status codes */
 #define HTC_SERVICE_SUCCESS      0
@@ -75,6 +80,7 @@
 #define HTC_RECORD_LOOKAHEAD_BUNDLE 3
 
 #define HTC_SETUP_COMP_FLG_RX_BNDL_EN     (1 << 0)
+#define HTC_SETUP_COMP_FLG_DISABLE_TX_CREDIT_FLOW (1 << 1)
 
 #define MAKE_SERVICE_ID(group, index) \
 	(int)(((int)group << 8) | (int)(index))
@@ -109,6 +115,8 @@
 
 /* HTC operational parameters */
 #define HTC_TARGET_RESPONSE_TIMEOUT        2000	/* in ms */
+#define HTC_TARGET_RESPONSE_POLL_WAIT      10
+#define HTC_TARGET_RESPONSE_POLL_COUNT     200
 #define HTC_TARGET_DEBUG_INTR_MASK         0x01
 #define HTC_TARGET_CREDIT_INTR_MASK        0xF0
 
@@ -128,6 +136,7 @@
 
 #define HTC_RECV_WAIT_BUFFERS        (1 << 0)
 #define HTC_OP_STATE_STOPPING        (1 << 0)
+#define HTC_OP_STATE_SETUP_COMPLETE  (1 << 1)
 
 /*
  * The frame header length and message formats defined herein were selected
@@ -512,11 +521,28 @@ struct htc_endpoint {
 	u32 conn_flags;
 	struct htc_endpoint_stats ep_st;
 	u16 tx_drop_packet_threshold;
+
+	struct {
+		u8 pipeid_ul;
+		u8 pipeid_dl;
+		struct list_head tx_lookup_queue;
+		bool tx_credit_flow_enabled;
+	} pipe;
 };
 
 struct htc_control_buffer {
 	struct htc_packet packet;
 	u8 *buf;
+};
+
+struct htc_pipe_txcredit_alloc {
+	u16 service_id;
+	u8 credit_alloc;
+};
+
+enum htc_send_queue_result {
+	HTC_SEND_QUEUE_OK = 0,	/* packet was queued */
+	HTC_SEND_QUEUE_DROP = 1,	/* this packet should be dropped */
 };
 
 struct ath6kl_htc_ops {
@@ -593,6 +619,14 @@ struct htc_target {
 
 	/* counts the number of Tx without bundling continously per AC */
 	u32 ac_tx_count[WMM_NUM_AC];
+
+	struct {
+		struct htc_packet *htc_packet_pool;
+		u8 ctrl_response_buf[HTC_MAX_CTRL_MSG_LEN];
+		int ctrl_response_len;
+		bool ctrl_response_valid;
+		struct htc_pipe_txcredit_alloc txcredit_alloc[ENDPOINT_MAX];
+	} pipe;
 };
 
 int ath6kl_htc_rxmsg_pending_handler(struct htc_target *target,
@@ -637,6 +671,7 @@ static inline int get_queue_depth(struct list_head *queue)
 	return depth;
 }
 
+void ath6kl_htc_pipe_attach(struct ath6kl *ar);
 void ath6kl_htc_mbox_attach(struct ath6kl *ar);
 
 #endif
