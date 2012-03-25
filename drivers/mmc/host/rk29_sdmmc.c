@@ -299,8 +299,6 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         return count;
     }
     
-    spin_lock(&host->lock);
-    
     //envalue the address of host base on input-parameter.
     if( !strncmp(buf,"sd-" , strlen("sd-")) )
     {
@@ -308,7 +306,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         if(!host)
         {
             printk("%s..%d.. fail to call progress_store because the host is null. ==xbw==\n",__FUNCTION__,__LINE__);
-            goto progress_store_out;
+            return count;
         }
     }    
     else if(  !strncmp(buf,"sdio1-" , strlen("sdio1-")) )
@@ -317,7 +315,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         if(!host)
         {
             printk("%s..%d.. fail to call progress_store because the host-sdio1 is null. ==xbw==\n",__FUNCTION__,__LINE__);
-            goto progress_store_out;
+            return count;
         }
     }
     else if(  !strncmp(buf,"sdio2-" , strlen("sdio2-")) )
@@ -326,14 +324,16 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         if(!host)
         {
             printk("%s..%d.. fail to call progress_store because the host-sdio2 is null. ==xbw==\n",__FUNCTION__,__LINE__);
-            goto progress_store_out;
+            return count;
         }
     }
     else
     {
         printk("%s..%d.. You want to use sysfs for SDMMC but input-parameter is wrong.====xbw====\n",__FUNCTION__,__LINE__);
-        goto progress_store_out;//return count;
+        return count;
     }
+
+    spin_lock(&host->lock);
 
     if(strncmp(buf,oldbuf , strlen(buf)))
     {
@@ -458,7 +458,6 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         }
     }
     
-progress_store_out:
     spin_unlock(&host->lock);
     
     return count;
