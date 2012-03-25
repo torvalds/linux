@@ -36,6 +36,7 @@ struct irda_platform_data;
 void sa11x0_register_irda(struct irda_platform_data *irda);
 
 struct mcp_plat_data;
+void sa11x0_ppc_configure_mcp(void);
 void sa11x0_register_mcp(struct mcp_plat_data *data);
 
 struct sa1100fb_mach_info;

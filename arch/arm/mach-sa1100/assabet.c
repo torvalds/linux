@@ -15,6 +15,7 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
@@ -70,6 +71,12 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 }
 
 EXPORT_SYMBOL(ASSABET_BCR_frob);
+
+static void assabet_ucb1x00_reset(enum ucb1x00_reset state)
+{
+	if (state == UCB_RST_PROBE)
+		ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
+}
 
 
 /*
@@ -167,9 +174,15 @@ static struct irda_platform_data assabet_irda_data = {
 	.set_speed	= assabet_irda_set_speed,
 };
 
+static struct ucb1x00_plat_data assabet_ucb1x00_data = {
+	.reset		= assabet_ucb1x00_reset,
+	.gpio_base	= -1,
+};
+
 static struct mcp_plat_data assabet_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
+	.codec_pdata	= &assabet_ucb1x00_data,
 };
 
 static void assabet_lcd_set_visual(u32 visual)
@@ -308,6 +321,8 @@ static void __init assabet_init(void)
 	PSDR = 0;
 	PPDR |= PPC_TXD3 | PPC_TXD1;
 	PPSR |= PPC_TXD3 | PPC_TXD1;
+
+	sa11x0_ppc_configure_mcp();
 
 	if (machine_has_neponset()) {
 		/*

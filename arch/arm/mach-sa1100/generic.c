@@ -195,7 +195,8 @@ static struct platform_device sa11x0uart3_device = {
 
 static struct resource sa11x0mcp_resources[] = {
 	[0] = DEFINE_RES_MEM(__PREG(Ser4MCCR0), SZ_64K),
-	[1] = DEFINE_RES_IRQ(IRQ_Ser4MCP),
+	[1] = DEFINE_RES_MEM(__PREG(Ser4MCCR1), 4),
+	[2] = DEFINE_RES_IRQ(IRQ_Ser4MCP),
 };
 
 static u64 sa11x0mcp_dma_mask = 0xffffffffUL;
@@ -210,6 +211,16 @@ static struct platform_device sa11x0mcp_device = {
 	.num_resources	= ARRAY_SIZE(sa11x0mcp_resources),
 	.resource	= sa11x0mcp_resources,
 };
+
+void __init sa11x0_ppc_configure_mcp(void)
+{
+	/* Setup the PPC unit for the MCP */
+	PPDR &= ~PPC_RXD4;
+	PPDR |= PPC_TXD4 | PPC_SCLK | PPC_SFRM;
+	PSDR |= PPC_RXD4;
+	PSDR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+	PPSR &= ~(PPC_TXD4 | PPC_SCLK | PPC_SFRM);
+}
 
 void sa11x0_register_mcp(struct mcp_plat_data *data)
 {

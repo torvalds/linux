@@ -72,6 +72,7 @@ static struct sa1100fb_mach_info shannon_lcd_info = {
 
 static void __init shannon_init(void)
 {
+	sa11x0_ppc_configure_mcp();
 	sa11x0_register_lcd(&shannon_lcd_info);
 	sa11x0_register_mtd(&shannon_flash_data, &shannon_flash_resource, 1);
 	sa11x0_register_mcp(&shannon_mcp_data);

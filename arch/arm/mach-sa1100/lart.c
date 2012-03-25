@@ -107,6 +107,7 @@ static void __init lart_init(void)
 	if (inf)
 		sa11x0_register_lcd(inf);
 
+	sa11x0_ppc_configure_mcp();
 	sa11x0_register_mcp(&lart_mcp_data);
 }
 

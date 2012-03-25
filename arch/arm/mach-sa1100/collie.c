@@ -22,6 +22,7 @@
 #include <linux/tty.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
@@ -83,10 +84,14 @@ static struct scoop_pcmcia_config collie_pcmcia_config = {
 	.num_devs	= 1,
 };
 
+static struct ucb1x00_plat_data collie_ucb1x00_data = {
+	.gpio_base	= COLLIE_TC35143_GPIO_BASE,
+};
+
 static struct mcp_plat_data collie_mcp_data = {
 	.mccr0		= MCCR0_ADM | MCCR0_ExtClk,
 	.sclk_rate	= 9216000,
-	.gpio_base	= COLLIE_TC35143_GPIO_BASE,
+	.codec_pdata	= &collie_ucb1x00_data,
 };
 
 /*
@@ -341,6 +346,10 @@ static void __init collie_init(void)
 
 	collie_power_resource[0].start = gpio_to_irq(COLLIE_GPIO_AC_IN);
 	collie_power_resource[0].end = gpio_to_irq(COLLIE_GPIO_AC_IN);
+
+	sa11x0_ppc_configure_mcp();
+
+
 	platform_scoop_config = &collie_pcmcia_config;
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));

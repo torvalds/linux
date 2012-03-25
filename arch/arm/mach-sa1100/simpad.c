@@ -10,6 +10,7 @@
 #include <linux/string.h> 
 #include <linux/pm.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
@@ -180,10 +181,14 @@ static struct resource simpad_flash_resources [] = {
 	DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_16M),
 };
 
+static struct ucb1x00_plat_data simpad_ucb1x00_data = {
+	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
+};
+
 static struct mcp_plat_data simpad_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
-	.gpio_base	= SIMPAD_UCB1X00_GPIO_BASE,
+	.codec_pdata	= &simpad_ucb1x00_data,
 };
 
 
@@ -369,6 +374,7 @@ static int __init simpad_init(void)
 
 	pm_power_off = simpad_power_off;
 
+	sa11x0_ppc_configure_mcp();
 	sa11x0_register_mtd(&simpad_flash_data, simpad_flash_resources,
 			      ARRAY_SIZE(simpad_flash_resources));
 	sa11x0_register_mcp(&simpad_mcp_data);

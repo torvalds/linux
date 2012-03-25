@@ -121,6 +121,7 @@ static struct mcp_plat_data cerf_mcp_data = {
 
 static void __init cerf_init(void)
 {
+	sa11x0_ppc_configure_mcp();
 	platform_add_devices(cerf_devices, ARRAY_SIZE(cerf_devices));
 	sa11x0_register_mtd(&cerf_flash_data, &cerf_flash_resource, 1);
 	sa11x0_register_mcp(&cerf_mcp_data);
