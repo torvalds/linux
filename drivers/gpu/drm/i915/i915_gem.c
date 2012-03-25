@@ -301,6 +301,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
 	int hit_slowpath = 0;
 	int needs_clflush = 0;
+	int release_page;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -335,10 +336,16 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - shmem_page_offset;
 
-		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
-		if (IS_ERR(page)) {
-			ret = PTR_ERR(page);
-			goto out;
+		if (obj->pages) {
+			page = obj->pages[offset >> PAGE_SHIFT];
+			release_page = 0;
+		} else {
+			page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
+			if (IS_ERR(page)) {
+				ret = PTR_ERR(page);
+				goto out;
+			}
+			release_page = 1;
 		}
 
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
@@ -358,7 +365,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		}
 
 		hit_slowpath = 1;
-
+		page_cache_get(page);
 		mutex_unlock(&dev->struct_mutex);
 
 		vaddr = kmap(page);
@@ -377,9 +384,11 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		kunmap(page);
 
 		mutex_lock(&dev->struct_mutex);
+		page_cache_release(page);
 next_page:
 		mark_page_accessed(page);
-		page_cache_release(page);
+		if (release_page)
+			page_cache_release(page);
 
 		if (ret) {
 			ret = -EFAULT;
@@ -660,6 +669,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
 	int hit_slowpath = 0;
+	int release_page;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -684,10 +694,16 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - shmem_page_offset;
 
-		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
-		if (IS_ERR(page)) {
-			ret = PTR_ERR(page);
-			goto out;
+		if (obj->pages) {
+			page = obj->pages[offset >> PAGE_SHIFT];
+			release_page = 0;
+		} else {
+			page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
+			if (IS_ERR(page)) {
+				ret = PTR_ERR(page);
+				goto out;
+			}
+			release_page = 1;
 		}
 
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
@@ -705,7 +721,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		}
 
 		hit_slowpath = 1;
-
+		page_cache_get(page);
 		mutex_unlock(&dev->struct_mutex);
 
 		vaddr = kmap(page);
@@ -720,10 +736,12 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		kunmap(page);
 
 		mutex_lock(&dev->struct_mutex);
+		page_cache_release(page);
 next_page:
 		set_page_dirty(page);
 		mark_page_accessed(page);
-		page_cache_release(page);
+		if (release_page)
+			page_cache_release(page);
 
 		if (ret) {
 			ret = -EFAULT;
