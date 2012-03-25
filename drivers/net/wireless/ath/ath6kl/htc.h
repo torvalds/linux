@@ -326,6 +326,7 @@ struct htc_ep_callbacks {
 					      struct htc_packet *);
 	struct htc_packet *(*rx_allocthresh) (struct htc_target *,
 					      enum htc_endpoint_id, int);
+	void (*tx_comp_multi) (struct htc_target *, struct list_head *);
 	int rx_alloc_thresh;
 	int rx_refill_thresh;
 };
