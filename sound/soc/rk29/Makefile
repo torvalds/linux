@@ -1,6 +1,11 @@
 # ROCKCHIP Platform Support
 snd-soc-rockchip-objs := rk29_pcm.o
+ifdef CONFIG_ARCH_RK29
 snd-soc-rockchip-i2s-objs := rk29_i2s.o
+endif
+ifdef CONFIG_ARCH_RK30
+snd-soc-rockchip-i2s-objs := rk30_i2s.o
+endif
 
 obj-$(CONFIG_SND_RK29_SOC) += snd-soc-rockchip.o
 obj-$(CONFIG_SND_RK29_SOC_I2S) += snd-soc-rockchip-i2s.o

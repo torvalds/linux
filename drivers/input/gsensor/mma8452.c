@@ -66,7 +66,7 @@ static DECLARE_WAIT_QUEUE_HEAD(data_ready_wq);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend mma8452_early_suspend;
 #endif
-static int revision = -1;
+//static int revision = -1;
 static const char* vendor = "Freescale Semiconductor";
 
 
@@ -197,6 +197,7 @@ static int mma845x_active(struct i2c_client *client,int enable)
 	return ret;
 }
 
+#if 0
 static int mma8452_start_test(struct i2c_client *client)
 {
 	int ret = 0;
@@ -241,6 +242,7 @@ static int mma8452_start_test(struct i2c_client *client)
 
 	return ret;
 }
+#endif
 
 static int mma8452_start_dev(struct i2c_client *client, char rate)
 {
@@ -627,9 +629,9 @@ static void mma8452_resume(struct early_suspend *h)
 #else
 static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-	int ret;
+	int ret = 0;
+	//struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 	mmaprintkd("Gsensor mma7760 enter 2 level  suspend mma8452->status %d\n",mma8452->status);
-	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 //	if(mma8452->status == MMA8452_OPEN)
 //	{
 	//	mma8452->status = MMA8452_SUSPEND;
@@ -639,8 +641,8 @@ static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 }
 static int mma8452_resume(struct i2c_client *client)
 {
-	int ret;
-	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
+	int ret = 0;
+	//struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 	mmaprintkd("Gsensor mma7760 2 level resume!! mma8452->status %d\n",mma8452->status);
 //	if((mma8452->status == MMA8452_SUSPEND) && (mma8452->status != MMA8452_OPEN))
 //if (mma8452->status == MMA8452_OPEN)
@@ -782,7 +784,7 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 		goto exit_input_register_device_failed;
 	}
 
-    mma8452_device.parent = &client->dev;
+    	mma8452_device.parent = &client->dev;
 	err = misc_register(&mma8452_device);
 	if (err < 0) {
 		mmaprintk(KERN_ERR
@@ -798,10 +800,10 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	}
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
-    mma8452_early_suspend.suspend = mma8452_suspend;
-    mma8452_early_suspend.resume = mma8452_resume;
-    mma8452_early_suspend.level = 0x2;
-    register_early_suspend(&mma8452_early_suspend);
+	mma8452_early_suspend.suspend = mma8452_suspend;
+	mma8452_early_suspend.resume = mma8452_resume;
+	mma8452_early_suspend.level = 0x2;
+	register_early_suspend(&mma8452_early_suspend);
 #endif
 
 	printk(KERN_INFO "mma8452 probe ok\n");
@@ -812,9 +814,9 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	return 0;
 
 exit_gsensor_sysfs_init_failed:
-    misc_deregister(&mma8452_device);
+	misc_deregister(&mma8452_device);
 exit_misc_device_register_mma8452_device_failed:
-    input_unregister_device(mma8452->input_dev);
+	input_unregister_device(mma8452->input_dev);
 exit_input_register_device_failed:
 	input_free_device(mma8452->input_dev);
 exit_input_allocate_device_failed:

@@ -24,9 +24,8 @@
 #include <linux/adc.h>
 
 #include <asm/gpio.h>
-#include <mach/key.h>
 #include <mach/board.h>
-
+#include <plat/key.h>
 
 #define EMPTY_ADVALUE					950
 #define DRIFT_ADVALUE					70

@@ -176,7 +176,7 @@ static struct rt5631_init_reg init_list[] = {
 	//{RT5631_STEREO_DAC_VOL_1	, 0x004C},
 	{RT5631_ADC_REC_MIXER		, 0xb0f0},//Record Mixer source from Mic1 by default
 	{RT5631_ADC_CTRL_1		, 0x0006},//STEREO ADC CONTROL 1
-	{RT5631_MIC_CTRL_2		, 0x6600},//0x8800},//0x5500}, //Mic1/Mic2 boost 40DB by default
+	{RT5631_MIC_CTRL_2		, 0x4400},//0x8800},//0x6600}, //Mic1/Mic2 boost 40DB by default
 	{RT5631_PWR_MANAG_ADD1		, 0x93e0},
 	
 #if RT5631_ALC_ADC_FUNC_ENA	
@@ -1910,8 +1910,13 @@ static int rt5631_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD2, 0,
-			PWR_MICBIAS1_VOL | PWR_MICBIAS2_VOL);
+	//	rt5631_write_mask(codec, RT5631_PWR_MANAG_ADD2, 0,
+	//		PWR_MICBIAS1_VOL | PWR_MICBIAS2_VOL);
+		printk("standby rt5631\n");
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD1, 0x0000);
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD2, 0x0000);
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD3, 0x0000);
+		rt5631_write(codec, RT5631_PWR_MANAG_ADD4, 0x0000);		
 		break;
 
 	case SND_SOC_BIAS_OFF:
@@ -1991,7 +1996,7 @@ static int rt5631_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	pr_info("RT5631 initial ok!\n");
+	DBG("RT5631 initial ok!\n");
 
 	return 0;
 }
@@ -2112,7 +2117,7 @@ static int rt5631_i2c_probe(struct i2c_client *i2c,
 	struct rt5631_priv *rt5631;
 	int ret;
 
-	pr_info("RT5631 Audio Codec %s\n", RT5631_VERSION);
+	DBG("RT5631 Audio Codec %s\n", RT5631_VERSION);
 
 	rt5631 = kzalloc(sizeof(struct rt5631_priv), GFP_KERNEL);
 	if (NULL == rt5631)

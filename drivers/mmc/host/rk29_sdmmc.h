@@ -44,7 +44,20 @@
 #define SDMMC_TCBCNT          (0x05c)   //Transferred CIU card byte count
 #define SDMMC_TBBCNT          (0x060)   //Transferred host/DMA to/from BIU_FIFO byte count
 #define SDMMC_DEBNCE          (0x064)   //Card detect debounce register
+#define SDMMC_USRID           (0x068)   //User ID register
+
+#if defined(CONFIG_ARCH_RK29)
 #define SDMMC_DATA            (0x100)
+#elif defined(CONFIG_ARCH_RK30)
+#define SDMMC_VERID           (0x06c)   //Version ID register
+#define SDMMC_UHS_REG         (0x074)   //UHS-I register
+#define SDMMC_RST_n           (0x078)   //Hardware reset register
+#define SDMMC_CARDTHRCTL      (0x100)   //Card Read Threshold Enable
+#define SDMMC_BACK_END_POWER  (0x104)   //Back-end Power
+#define SDMMC_FIFO_BASE       (0x200)   //
+
+#define SDMMC_DATA            SDMMC_FIFO_BASE
+#endif
 
 #define RK2818_BIT(n)				(1<<(n))
 #define RK_CLEAR_BIT(n)		        (0<<(n))
@@ -87,7 +100,13 @@
 #define SDMMC_CTYPE_1BIT         RK_CLEAR_BIT(0)
 
 /* Interrupt status & mask register defines(base+0x24) */
+#if defined(CONFIG_ARCH_RK29)
 #define SDMMC_INT_SDIO          RK2818_BIT(16)      //SDIO interrupt
+#elif defined(CONFIG_ARCH_RK30)
+#define SDMMC_INT_SDIO          RK2818_BIT(24)      //SDIO interrupt
+#define SDMMC_INT_UNBUSY        RK2818_BIT(16)      //data no busy interrupt
+#endif
+
 #define SDMMC_INT_EBE           RK2818_BIT(15)      //End Bit Error(read)/Write no CRC
 #define SDMMC_INT_ACD           RK2818_BIT(14)      //Auto Command Done
 #define SDMMC_INT_SBE           RK2818_BIT(13)      //Start Bit Error
@@ -153,6 +172,7 @@
 #define SD_MSIZE_128      (0x6 << 28)
 #define SD_MSIZE_256      (0x7 << 28)
 
+#if defined(CONFIG_ARCH_RK29)
 #define FIFO_DEPTH        (0x20)       //FIFO depth = 32 word
 #define RX_WMARK_SHIFT    (16)
 #define TX_WMARK_SHIFT    (0)
@@ -161,6 +181,15 @@
 #define RX_WMARK          (0xF)        //RX watermark level set to 15
 #define TX_WMARK          (0x10)       //TX watermark level set to 16
 
+#elif defined(CONFIG_ARCH_RK30)
+#define FIFO_DEPTH        (0x100)       //FIFO depth = 256 word
+#define RX_WMARK_SHIFT    (16)
+#define TX_WMARK_SHIFT    (0)
+
+/* FIFO watermark */
+#define RX_WMARK          (FIFO_DEPTH/2-1)     //RX watermark level set to 127
+#define TX_WMARK          (FIFO_DEPTH/2)       //TX watermark level set to  128
+#endif
 
 /* CDETECT register defines (base+0x50)*/
 #define SDMMC_CARD_DETECT_N		RK2818_BIT(0)        //0--represents presence of card.

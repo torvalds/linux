@@ -418,6 +418,13 @@ static int wm831x_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, wm831x_rtc);
 	wm831x_rtc->wm831x = wm831x;
 
+#ifdef CONFIG_ARCH_RK30
+	wm831x_reg_read(wm831x, WM831X_CLOCK_CONTROL_1);
+	wm831x_set_bits(wm831x, WM831X_SECURITY_KEY, 0x9716, 0x9716);  //0x4090h bit15 is encrypted, if this bit need modify, we must write 0x4008h as 0x9716 first.
+	wm831x_set_bits(wm831x, WM831X_CLOCK_CONTROL_1, 0x8700, 0x8100); //open the clk out
+	wm831x_reg_read(wm831x, WM831X_CLOCK_CONTROL_1);
+#endif
+
 	ret = wm831x_reg_read(wm831x, WM831X_RTC_CONTROL);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to read RTC control: %d\n", ret);

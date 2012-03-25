@@ -393,7 +393,7 @@ config SND_SOC_WM9713
 
 config SND_SOC_RK1000
 	tristate
-	depends on RK1000_CONTROL
+#	depends on RK1000_CONTROL
 
 # Amp
 config SND_SOC_LM4857

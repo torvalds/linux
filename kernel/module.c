@@ -3395,7 +3395,7 @@ EXPORT_SYMBOL_GPL(__module_text_address);
 /* Don't grab lock, we're oopsing. */
 void print_modules(void)
 {
-#ifndef CONFIG_ARCH_RK29
+#ifndef CONFIG_PLAT_RK
 	struct module *mod;
 	char buf[8];
 

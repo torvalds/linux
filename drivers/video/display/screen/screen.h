@@ -34,8 +34,9 @@ typedef enum _MCU_STATUS {
 } MCU_STATUS;
 
 
+
 /* Screen description */
-struct rk29fb_screen {
+typedef struct rk29fb_screen {
     /* screen type & out face */
     u16 type;
     u16 face;
@@ -82,8 +83,7 @@ struct rk29fb_screen {
     int (*scandir)(u16 dir);
     int (*disparea)(u8 area);
 
-};
-
+} rk_screen;
 extern void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);
 extern void set_tv_info(struct rk29fb_screen *screen);
 extern void set_hdmi_info(struct rk29fb_screen *screen);

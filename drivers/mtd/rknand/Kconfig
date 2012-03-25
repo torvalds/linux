@@ -11,26 +11,26 @@ config MTD_RKNAND
 if MTD_RKNAND 
  
 config MTD_NAND_RK29XX 
-	tristate "RK29 on-chip NAND Flash Controller driver with FTL" 
+	tristate "RK on-chip NAND Flash Controller driver with FTL" 
 	depends on MTD_RKNAND 
     default y 
 	help 
 	  This enables the RK28xx on-chip NAND flash controller and NFTL driver. 
  
-config MTD_RKNAND_BUFFER 
-	tristate "RK29 Nand buffer write enables" 
+config MTD_RKNAND_BUFFER
+	tristate "RK Nand buffer write enables" 
 	depends on MTD_RKNAND 
     default y 
 	help 
 	
 config MTD_EMMC_CLK_POWER_SAVE 
-	tristate "RK29 emmc clock power save" 
+	tristate "RK emmc clock power save" 
 	depends on MTD_RKNAND 
     default n
 	help 
  
 config MTD_NAND_RK29XX_DEBUG 
-	tristate "RK29 Nand driver debug enables" 
+	tristate "RK Nand driver debug enables"
 	depends on MTD_RKNAND 
     default n 
 	help 

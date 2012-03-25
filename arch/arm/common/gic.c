@@ -92,7 +92,7 @@ static void gic_mask_irq(struct irq_data *d)
 	writel_relaxed(mask, gic_dist_base(d) + GIC_DIST_ENABLE_CLEAR + (gic_irq(d) / 32) * 4);
 	if (gic_arch_extn.irq_mask)
 		gic_arch_extn.irq_mask(d);
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_PLAT_RK) && !defined(CONFIG_SMP)
 	dsb();
 #endif
 	spin_unlock(&irq_controller_lock);
@@ -106,7 +106,7 @@ static void gic_unmask_irq(struct irq_data *d)
 	if (gic_arch_extn.irq_unmask)
 		gic_arch_extn.irq_unmask(d);
 	writel_relaxed(mask, gic_dist_base(d) + GIC_DIST_ENABLE_SET + (gic_irq(d) / 32) * 4);
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_PLAT_RK) && !defined(CONFIG_SMP)
 	dsb();
 #endif
 	spin_unlock(&irq_controller_lock);
@@ -121,7 +121,7 @@ static void gic_eoi_irq(struct irq_data *d)
 	}
 
 	writel_relaxed(gic_irq(d), gic_cpu_base(d) + GIC_CPU_EOI);
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 	dsb();
 #endif
 }
@@ -212,7 +212,7 @@ static int gic_set_wake(struct irq_data *d, unsigned int on)
 {
 	int ret = -ENXIO;
 
-#ifdef CONFIG_ARCH_RK29
+#ifdef CONFIG_PLAT_RK
 	return 0;
 #endif
 	if (gic_arch_extn.irq_set_wake)

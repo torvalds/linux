@@ -303,7 +303,6 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		/* if the client doesn't support this heap type */
 		if (!((1 << heap->type) & client->heap_mask))
 			continue;
-		
 		/* if the caller didn't specify this heap type */
 		if (!((1 << heap->id) & flags))
 			continue;
@@ -911,7 +910,7 @@ err:
 static long ion_share_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct ion_buffer *buffer = filp->private_data;
-	
+
 	switch (cmd) {
 	case PMEM_GET_PHYS:
 	{
@@ -966,7 +965,7 @@ static int ion_ioctl_share(struct file *parent, struct ion_client *client,
 
 	if (parent->f_flags & O_DSYNC)
 		file->f_flags |= O_DSYNC;
-	
+
 	ion_buffer_get(handle->buffer);
 	fd_install(fd, file);
 
@@ -985,15 +984,15 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case ION_IOC_ALLOC:
 	{
 		struct ion_allocation_data data;
+
 		if (copy_from_user(&data, (void __user *)arg, sizeof(data)))
 			return -EFAULT;
-
 		data.handle = ion_alloc(client, data.len, data.align,
 					     data.flags);
 		if (IS_ERR_OR_NULL(data.handle)) {
 			printk("%s: alloc 0x%x bytes failed\n", __func__, data.len);
-            return -ENOMEM;
-		} 
+			return -ENOMEM;
+		}
 		if (copy_to_user((void __user *)arg, &data, sizeof(data)))
 			return -EFAULT;
 		break;
@@ -1104,14 +1103,14 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return err;
 		}
 
-		err = data.handle->buffer->heap->ops->cache_op(buffer->heap, buffer, 
+		err = data.handle->buffer->heap->ops->cache_op(buffer->heap, buffer,
 			data.virt, data.size, cmd);
 		mutex_unlock(&client->lock);
 		if(err < 0)
 			return err;
 		break;
 	}
-        case ION_GET_CLIENT: 
+        case ION_GET_CLIENT:
         {
                 struct ion_handle *handle;
 		struct ion_client_data data;
@@ -1352,6 +1351,7 @@ static const struct file_operations debug_leak_fops = {
 	.llseek = seq_lseek,
 	.release = single_release,
 };
+
 struct ion_device *ion_device_create(long (*custom_ioctl)
 				     (struct ion_client *client,
 				      unsigned int cmd,

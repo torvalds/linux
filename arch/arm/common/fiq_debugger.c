@@ -372,6 +372,7 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		state->last_irqs[n] = kstat_irqs(n);
 	}
 
+#ifdef CONFIG_LOCAL_TIMERS
 	for (cpu = 0; cpu < NR_CPUS; cpu++) {
 
 		debug_printf(state, "LOC %d: %10u %11u\n", cpu,
@@ -381,6 +382,7 @@ static void dump_irqs(struct fiq_debugger_state *state)
 		state->last_local_timer_irqs[cpu] =
 			__IRQ_STAT(cpu, local_timer_irqs);
 	}
+#endif
 }
 
 struct stacktrace_state {
@@ -585,6 +587,17 @@ static void switch_cpu(struct fiq_debugger_state *state, int cpu)
 {
 	if (!debug_have_fiq(state))
 		smp_call_function_single(cpu, take_affinity, state, false);
+#ifdef CONFIG_PLAT_RK
+	else {
+		struct cpumask cpumask;
+
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(cpu, &cpumask);
+
+		irq_set_affinity(state->fiq, &cpumask);
+		irq_set_affinity(state->uart_irq, &cpumask);
+	}
+#endif
 	state->current_cpu = cpu;
 }
 

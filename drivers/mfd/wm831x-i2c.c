@@ -110,16 +110,16 @@ static int wm831x_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static int wm831x_i2c_suspend(struct i2c_client *i2c, pm_message_t mesg)
+static int wm831x_i2c_suspend(struct device *dev)
 {
-	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
 
 	return wm831x_device_suspend(wm831x);
 }
 
-static int wm831x_i2c_resume(struct i2c_client *i2c)
+static int wm831x_i2c_resume(struct device *dev)
 {
-	struct wm831x *wm831x = i2c_get_clientdata(i2c);
+	struct wm831x *wm831x = dev_get_drvdata(dev);
 	int i;
 	//set some intterupt again while resume 
 	for (i = 0; i < ARRAY_SIZE(wm831x->irq_masks_cur); i++) {
@@ -151,20 +151,24 @@ static const struct i2c_device_id wm831x_i2c_id[] = {
 	{ "wm8320", WM8320 },
 	{ "wm8321", WM8321 },
 	{ "wm8325", WM8325 },
+	{ "wm8326", WM8326 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, wm831x_i2c_id);
 
+static const struct dev_pm_ops wm831x_pm_ops = {
+	.suspend = wm831x_i2c_suspend,
+	.resume = wm831x_i2c_resume,
+};
 
 static struct i2c_driver wm831x_i2c_driver = {
 	.driver = {
-		   .name = "wm831x",
-		   .owner = THIS_MODULE,
+		.name = "wm831x",
+		.owner = THIS_MODULE,
+		.pm = &wm831x_pm_ops,
 	},
 	.probe = wm831x_i2c_probe,
 	.remove = wm831x_i2c_remove,
-	.suspend = wm831x_i2c_suspend,
-	.resume = wm831x_i2c_resume,
 	.shutdown = wm831x_i2c_shutdown,
 	.id_table = wm831x_i2c_id,
 };
@@ -172,16 +176,16 @@ static struct i2c_driver wm831x_i2c_driver = {
 static int __init wm831x_i2c_init(void)
 {
 	int ret;
-	printk("%s \n", __FUNCTION__);
+
+	printk("%s\n", __FUNCTION__);
 	ret = i2c_add_driver(&wm831x_i2c_driver);
 	if (ret != 0)
 		pr_err("Failed to register wm831x I2C driver: %d\n", ret);
 
 	return ret;
 }
-//subsys_initcall(wm831x_i2c_init);
-//fs_initcall(wm831x_i2c_init);
 subsys_initcall_sync(wm831x_i2c_init);
+
 static void __exit wm831x_i2c_exit(void)
 {
 	i2c_del_driver(&wm831x_i2c_driver);

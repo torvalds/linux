@@ -428,67 +428,39 @@ typedef enum _CRU_RST
 }eCRU_RST;
 
 //GRF Registers
- typedef volatile struct tagGRF_REG
-{
-    uint32 GRF_GPIO0_DIR;
-    uint32 GRF_GPIO1_DIR;
-    uint32 GRF_GPIO2_DIR;
-    uint32 GRF_GPIO3_DIR;
-    uint32 GRF_GPIO4_DIR;
-    uint32 GRF_GPIO5_DIR;
-    uint32 GRF_GPIO0_DO;
-    uint32 GRF_GPIO1_DO;
-    uint32 GRF_GPIO2_DO;
-    uint32 GRF_GPIO3_DO;
-    uint32 GRF_GPIO4_DO;
-    uint32 GRF_GPIO5_DO;
-    uint32 GRF_GPIO0_EN;
-    uint32 GRF_GPIO1_EN;
-    uint32 GRF_GPIO2_EN;
-    uint32 GRF_GPIO3_EN;
-    uint32 GRF_GPIO4_EN;
-    uint32 GRF_GPIO5_EN;
-    uint32 GRF_GPIO0L_IOMUX;
-    uint32 GRF_GPIO0H_IOMUX;
-    uint32 GRF_GPIO1L_IOMUX;
-    uint32 GRF_GPIO1H_IOMUX;
-    uint32 GRF_GPIO2L_IOMUX;
-    uint32 GRF_GPIO2H_IOMUX;
-    uint32 GRF_GPIO3L_IOMUX;
-    uint32 GRF_GPIO3H_IOMUX;
-    uint32 GRF_GPIO4L_IOMUX;
-    uint32 GRF_GPIO4H_IOMUX;
-    uint32 GRF_GPIO5L_IOMUX;
-    uint32 GRF_GPIO5H_IOMUX; 
-    uint32 GRF_GPIO0_PULL1;
-    uint32 GRF_GPIO1_PULL1;
-    uint32 GRF_GPIO2_PULL1;
-    uint32 GRF_GPIO3_PULL1;
-    uint32 GRF_GPIO4_PULL1;
-    uint32 GRF_GPIO5_PULL1;
-    uint32 GRF_GPIO6_PULL1;
-    uint32 GRF_UOC0_CON0;
-    uint32 GRF_UOC1_CON0;
-    uint32 GRF_USB_CON;
-    uint32 GRF_CPU_CON0;
-    uint32 GRF_CPU_CON1;
-    uint32 GRF_CPU_STATUS;
-    uint32 GRF_MEM_CON;
-    uint32 GRF_MEM_STATUS0;
-    uint32 GRF_MEM_STATUS1;
-    uint32 GRF_MEM_STATUS2;
-    uint32 GRF_SOC_CON0;
-    uint32 GRF_SOC_CON1;
-    uint32 GRF_SOC_CON2;
-    uint32 GRF_SOC_CON3;
-    uint32 GRF_SOC_CON4;
-    uint32 GRF_OS_REG0;
-    uint32 GRF_OS_REG1;
-    uint32 GRF_OS_REG2;
-    uint32 GRF_OS_REG3;
+    typedef struct tagGPIO_LH
+    {
+        uint32 GPIOL;
+        uint32 GPIOH;
+    }GPIO_LH_T;
     
-}GRF_REG, *pGRF_REG,*pAPB_REG, *pREG_FILE;
- 
+    typedef struct tagGPIO_IOMUX
+    {
+        uint32 GPIOA_IOMUX;
+        uint32 GPIOB_IOMUX;
+        uint32 GPIOC_IOMUX;
+        uint32 GPIOD_IOMUX;
+    }GPIO_IOMUX_T;
+    //REG FILE registers
+    typedef volatile struct tagGRF_REG
+    {
+        GPIO_LH_T GRF_GPIO_DIR[7];
+        GPIO_LH_T GRF_GPIO_DO[7];
+        GPIO_LH_T GRF_GPIO_EN[7];
+        GPIO_IOMUX_T GRF_GPIO_IOMUX[7];
+        GPIO_LH_T GRF_GPIO_PULL[7];
+        uint32 GRF_SOC_CON[3];
+        uint32 GRF_SOC_STATUS0;
+        uint32 GRF_DMAC1_CON[3];
+        uint32 GRF_DMAC2_CON[4];
+        uint32 GRF_UOC0_CON[3];
+        uint32 GRF_UOC1_CON[4];
+        uint32 GRF_DDRC_CON0;
+        uint32 GRF_DDRC_STAT;
+        uint32 reserved[(0x1c8-0x1a0)/4];
+        uint32 GRF_OS_REG[4];
+    } GRF_REG, *pGRF_REG;
+    
 //TIMER Registers
 typedef volatile struct tagTIMER_STRUCT
 {
@@ -522,7 +494,7 @@ typedef struct tagSCU_CLK_INFO
     uint32 armFreqLast;
 }SCU_CLK_INFO,*pSCU_CLK_INFO;
  
-#define g_cruReg ((pCRU_REG)RK29_CRU_BASE)
+#define g_cruReg ((pCRU_REG)RK29_CRU_REG_BASE)
 
 #endif
 	

@@ -1427,7 +1427,7 @@ int i2c_transfer(struct i2c_adapter *adap, struct i2c_msg *msgs, int num)
 }
 EXPORT_SYMBOL(i2c_transfer);
 
-#if defined (CONFIG_I2C_RK2818) || defined(CONFIG_I2C_RK29)
+#ifdef CONFIG_PLAT_RK
 int i2c_master_send(const struct i2c_client *client, const char *buf, int count)
 {
 	int ret;
@@ -1456,7 +1456,7 @@ int i2c_master_recv(const struct i2c_client *client, char *buf, int count)
 	msg.flags = client->flags | I2C_M_RD;
 	msg.len = count;
 	msg.buf = (char *)buf;
-	msg.scl_rate = 400 * 1000;
+	msg.scl_rate = 100 * 1000;
 	msg.udelay = client->udelay;
 
 	ret = i2c_transfer(adap, &msg, 1);

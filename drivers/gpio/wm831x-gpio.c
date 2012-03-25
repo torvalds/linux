@@ -293,6 +293,17 @@ static int __devinit wm831x_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+#ifdef CONFIG_PLAT_RK
+	if (pdata && pdata->pin_type_init) {
+		ret = pdata->pin_type_init(wm831x);
+		if (ret != 0) {
+			dev_err(wm831x->dev, "pin_type_init() failed: %d\n", ret);
+			WARN_ON(gpiochip_remove(&wm831x_gpio->gpio_chip));
+			goto err;
+		}
+	}
+#endif
+
 	platform_set_drvdata(pdev, wm831x_gpio);
 
 	return ret;

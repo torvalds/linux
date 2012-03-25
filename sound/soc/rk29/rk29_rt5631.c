@@ -19,7 +19,6 @@
 #include <sound/soc-dapm.h>
 #include <asm/io.h>
 #include <mach/hardware.h>
-#include <mach/rk29_iomap.h>
 #include "../codecs/rt5631.h"
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
@@ -196,7 +195,13 @@ static struct snd_soc_dai_link rk29_dai = {
 	.stream_name = "RT5631 PCM",
 	.codec_name = "RT5631.0-001a",
 	.platform_name = "rockchip-audio",
+#if defined(CONFIG_SND_RK29_SOC_I2S_8CH)	
 	.cpu_dai_name = "rk29_i2s.0",
+#elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
+	.cpu_dai_name = "rk29_i2s.1",
+#else
+	.cpu_dai_name = "rk29_i2s.2",
+#endif
 	.codec_dai_name = "RT5631 HiFi",
 	.init = rk29_rt5631_init,
 	.ops = &rk29_ops,

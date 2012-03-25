@@ -61,7 +61,7 @@ extern int i2c_master_send(const struct i2c_client *client, const char *buf,
 extern int i2c_master_recv(const struct i2c_client *client, char *buf,
 			   int count);
 
-#if defined (CONFIG_I2C_RK2818) || defined(CONFIG_I2C_RK29)
+#ifdef CONFIG_PLAT_RK
 /* If everything went ok, return 'count' transmitted, else error code. */
 extern int i2c_master_normal_send(const struct i2c_client *client, const char *buf, int count, int scl_rate);
 extern int i2c_master_normal_recv(const struct i2c_client *client, char *buf, int count, int scl_rate);

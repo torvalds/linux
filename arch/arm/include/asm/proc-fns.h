@@ -97,7 +97,21 @@ extern void cpu_resume(void);
 
 #ifdef CONFIG_MMU
 
+#ifdef CONFIG_SMP
+
+#define cpu_switch_mm(pgd, mm)	\
+	({							\
+		unsigned long flags;				\
+		local_irq_save(flags);				\
+		cpu_do_switch_mm(virt_to_phys(pgd), mm);	\
+		local_irq_restore(flags);			\
+	})
+
+#else /* SMP */
+
 #define cpu_switch_mm(pgd,mm) cpu_do_switch_mm(virt_to_phys(pgd),mm)
+
+#endif
 
 #define cpu_get_pgd()	\
 	({						\

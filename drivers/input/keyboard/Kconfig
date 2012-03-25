@@ -14,7 +14,7 @@ if INPUT_KEYBOARD
 
 config KEYS_RK29
 	tristate "rk29 keyboard"
-	depends on ARCH_RK29
+	depends on PLAT_RK
 	default y
 	help
 	  rk29 keyboard drivers(gpio and adc)

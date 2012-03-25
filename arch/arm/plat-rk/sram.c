@@ -14,7 +14,7 @@
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <mach/memory.h>
-#include <mach/rk29_iomap.h>
+#include <plat/sram.h>
 
 
 /* SRAM section definitions from the linker */
@@ -23,7 +23,7 @@ extern char __sram_data_start, __ssram_data, __esram_data;
 
 static struct map_desc sram_code_iomap[] __initdata = {
 	{
-		.virtual	= SRAM_CODE_OFFSET,
+		.virtual	= (unsigned long)SRAM_CODE_OFFSET & PAGE_MASK,
 		.pfn		= __phys_to_pfn(0x0),
 		.length		=  1024*1024,
 		.type		=  MT_MEMORY
@@ -67,4 +67,24 @@ int __init rk29_sram_init(void)
 	printk("CPU SRAM: copied sram data from %p to %p - %p\n", ram,start, end);
 
 	return 0;
+}
+
+void __sramfunc sram_printascii(const char *s)
+{
+	while (*s) {
+		sram_printch(*s);
+		s++;
+	}
+}
+
+void __sramfunc sram_printhex(unsigned int hex)
+{
+	int i = 8;
+	sram_printch('0');
+	sram_printch('x');
+	while (i--) {
+		unsigned char c = (hex & 0xF0000000) >> 28;
+		sram_printch(c < 0xa ? c + '0' : c - 0xa + 'a');
+		hex <<= 4;
+	}
 }

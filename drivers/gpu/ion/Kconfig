@@ -12,6 +12,6 @@ config ION_TEGRA
 
 config ION_ROCKCHIP
 	tristate "Ion for Rockchip"
-	depends on ARCH_RK29 && ION
+	depends on PLAT_RK && ION
 	help
 	  Choose this option if you wish to use ion on an Rockchip.

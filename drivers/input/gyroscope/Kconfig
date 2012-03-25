@@ -19,4 +19,12 @@ config GYRO_SENSOR_K3G
 	  To have support for your specific gyroscope sesnor you will have to
 	  select the proper drivers which depend on this option.
 
+config GYRO_L3G4200D
+  bool "gyroscope l3g4200d"
+	depends on GYRO_SENSOR_DEVICE
+	default n
+	help	 
+	  To have support for your specific gyroscope sesnor you will have to
+	  select the proper drivers which depend on this option.
+
 endif

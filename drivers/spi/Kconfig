@@ -425,19 +425,19 @@ config SPI_NUC900
 #
 
 config SPIM_RK29
-	tristate "RK29 SPI master controller core support"
-	depends on ARCH_RK29 && SPI_MASTER
+	tristate "RK SPI master controller core support"
+	depends on (ARCH_RK29 || ARCH_RK30) && SPI_MASTER
 	help
 	  general driver for SPI controller core from RockChips 
 
 config SPIM0_RK29
-	bool "RK29 SPI0 master controller"
+	bool "RK SPI0 master controller"
 	depends on SPIM_RK29
 	help
 	  enable SPI0 master controller for RK29 	 
 
 config SPIM1_RK29
-	bool "RK29 SPI1 master controller"
+	bool "RK SPI1 master controller"
 	depends on SPIM_RK29
 	help
 	  enable SPI1 master controller for RK29 		

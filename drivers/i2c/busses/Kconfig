@@ -839,6 +839,87 @@ config SCx200_I2C
 	depends on SCx200_GPIO
 	select I2C_ALGOBIT
 
+config I2C_RK30
+	tristate "RK I2C Adapter"
+	depends on PLAT_RK && !ARCH_RK29
+	default y
+	help
+		This supports I2C Adapter on RK Soc.
+
+if I2C_RK30
+	comment "Now, there are five selectable I2C channels."
+	
+	config I2C0_RK30
+		bool "I2C0 Channel Support"
+		default y
+		help
+			This supports the use of the I2C0 channel on RK Soc.
+		if I2C0_RK30
+			choice
+				prompt "I2C Controller Select"
+				config I2C0_CONTROLLER_RK29
+					bool "With RK29 I2C Controller"
+				config I2C0_CONTROLLER_RK30
+					bool "With RK30 I2C Controller"
+			endchoice
+		endif
+	config I2C1_RK30
+		bool "I2C1 Channel Support"
+		default y
+		help
+			This supports the use of the I2C1 channel on RK Soc.
+		if I2C1_RK30
+			choice
+				prompt "I2C Controller Select"
+				config I2C1_CONTROLLER_RK29
+					bool "With RK29 I2C Controller"
+				config I2C1_CONTROLLER_RK30
+					bool "With RK30 I2C Controller"
+			endchoice
+		endif
+	config I2C2_RK30
+		bool "I2C2 Channel Support"
+		default y
+		help
+			This supports the use of the I2C2 channel on RK Soc.
+		if I2C2_RK30
+			choice
+				prompt "I2C Controller Select"
+				config I2C2_CONTROLLER_RK29
+					bool "With RK29 I2C Controller"
+				config I2C2_CONTROLLER_RK30
+					bool "With RK30 I2C Controller"
+			endchoice
+		endif
+	config I2C3_RK30
+		bool "I2C3 Channel Support"
+		default y
+		help
+			This supports the use of the I2C3 channel on RK Soc.
+		if I2C3_RK30
+			choice
+				prompt "I2C Controller Select"
+				config I2C3_CONTROLLER_RK29
+					bool "With RK29 I2C Controller"
+				config I2C3_CONTROLLER_RK30
+					bool "With RK30 I2C Controller"
+			endchoice
+		endif
+	config I2C4_RK30
+		bool "I2C4 Channel Support"
+		default y
+		help
+			This supports the use of the I2C4 channel on RK Soc.
+		if I2C4_RK30
+			choice
+				prompt "I2C Controller Select"
+				config I2C4_CONTROLLER_RK29
+					bool "With RK29 I2C Controller"
+				config I2C4_CONTROLLER_RK30
+					bool "With RK30 I2C Controller"
+			endchoice
+		endif
+endif
 config I2C_RK29
 	tristate "RK29 i2c interface (I2C)"
 	depends on ARCH_RK29

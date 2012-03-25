@@ -42,8 +42,7 @@
 #include <asm/uaccess.h>
 
 #include <mach/irqs.h>
-#include <mach/vpu_service.h>
-#include <mach/rk29_iomap.h>
+#include <plat/vpu_service.h>
 #include <mach/pmu.h>
 #include <mach/cru.h>
 
@@ -65,7 +64,13 @@
 #define DEC_IO_SIZE 				((100 + 1) * 4) /* bytes */
 #define ENC_IO_SIZE 				(96 * 4)	/* bytes */
 static const u16 dec_hw_ids[] = { 0x8190, 0x8170, 0x9170, 0x9190, 0x6731 };
+#if defined(CONFIG_ARCH_RK29)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
+#define DEC_PHY_OFFSET 				0x200
+#elif defined(CONFIG_ARCH_RK30)
+static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270, 0x8290, 0x4831 };
+#define DEC_PHY_OFFSET 				0x400
+#endif
 
 #define VPU_REG_EN_ENC				14
 #define VPU_REG_ENC_GATE			2
@@ -176,6 +181,7 @@ static void vpu_put_clk(void)
 
 static void vpu_reset(void)
 {
+#if defined(CONFIG_ARCH_RK29)
 	clk_disable(aclk_ddr_vepu);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, true);
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, true);
@@ -187,6 +193,19 @@ static void vpu_reset(void)
 	cru_set_soft_reset(SOFT_RST_DDR_VCODEC_PORT, false);
 	cru_set_soft_reset(SOFT_RST_CPU_VODEC_A2A_AHB, false);
 	clk_enable(aclk_ddr_vepu);
+#elif defined(CONFIG_ARCH_RK30)
+	pmu_set_idle_request(IDLE_REQ_VIDEO, true);
+	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AXI, true);
+	mdelay(10);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AXI, false);
+	cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);
+	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, false);
+	cru_set_soft_reset(SOFT_RST_CPU_VCODEC, false);
+	pmu_set_idle_request(IDLE_REQ_VIDEO, false);
+#endif
 	service.reg_codec = NULL;
 	service.reg_pproc = NULL;
 	service.reg_resev = NULL;
@@ -1087,9 +1106,13 @@ static int __init vpu_service_init(void)
 {
 	int ret;
 
+#if defined(CONFIG_ARCH_RK30)
+#define RK29_VCODEC_PHYS	RK30_VCODEC_PHYS
+#endif
+
 	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", RK29_VCODEC_PHYS, IRQ_VDPU, IRQ_VEPU);
 
-	dec_dev.iobaseaddr 	= RK29_VCODEC_PHYS + 0x200;
+	dec_dev.iobaseaddr 	= RK29_VCODEC_PHYS + DEC_PHY_OFFSET;
 	dec_dev.iosize 		= DEC_IO_SIZE;
 	enc_dev.iobaseaddr 	= RK29_VCODEC_PHYS;
 	enc_dev.iosize 		= ENC_IO_SIZE;

@@ -84,8 +84,9 @@
 #include "dwc_otg_regs.h"
 
 #include <linux/usb/composite.h>
+#ifdef CONFIG_ARCH_RK29
 #include <mach/cru.h>
-
+#endif
 /**
  * Static PCD pointer for use in usb_gadget_register_driver and
  * usb_gadget_unregister_driver.  Initialized in dwc_otg_pcd_init.
@@ -729,7 +730,7 @@ static int dwc_otg_pcd_ep_dequeue(struct usb_ep *_ep,
 	pcd = ep->pcd;
 	if (!pcd->driver || pcd->gadget.speed == USB_SPEED_UNKNOWN) 
 	{
-		DWC_WARN("%s, bogus device state\n", __func__);
+		DWC_WARN("%s, bogus device state, %p, speed %d\n", __func__, pcd->driver, pcd->gadget.speed);
 		return -ESHUTDOWN;
 	}
 
@@ -1145,9 +1146,9 @@ static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 //#endif		
 	if (pcd->driver && pcd->driver->resume) 
 	{
-		SPIN_UNLOCK(&pcd->lock);
+//		SPIN_UNLOCK(&pcd->lock);
 		pcd->driver->suspend(&pcd->gadget);
-		SPIN_LOCK(&pcd->lock);
+//		SPIN_LOCK(&pcd->lock);
 	}
 	return 1;
 }
@@ -1559,7 +1560,7 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
     dwc_otg_core_if_t *core_if = GET_CORE_IF(pcd);
     dwc_otg_disable_global_interrupts( core_if );
     //
-
+#ifdef CONFIG_ARCH_RK29
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, true);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, true);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, true);
@@ -1568,7 +1569,7 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
     cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
-    
+#endif    
     //rockchip_scu_reset_unit(12);
     dwc_otg_pcd_reinit( pcd );
     dwc_otg_core_dev_init(core_if);
@@ -1585,8 +1586,12 @@ int dwc_pcd_reset(dwc_otg_pcd_t *pcd)
 int rk28_usb_suspend( int exitsuspend )
 {
 	dwc_otg_pcd_t *pcd = s_pcd;
-
+#ifdef CONFIG_ARCH_RK29
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+#endif
+#ifdef CONFIG_ARCH_RK30
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
+#endif
     if(exitsuspend && (pcd->phy_suspend == 1)) {
         clk_enable(pcd->otg_dev->ahbclk);
         clk_enable(pcd->otg_dev->phyclk);
@@ -1821,12 +1826,13 @@ int dwc_otg_pcd_init(struct device *dev)
 	
 	memset( pcd, 0, sizeof(dwc_otg_pcd_t));
 	spin_lock_init( &pcd->lock );
-	
+	spin_lock(&pcd->lock);
 	otg_dev->pcd = pcd;
 	s_pcd = pcd;
 	pcd->gadget.name = pcd_name;
 	//strcpy(pcd->gadget.dev.bus_id, "gadget");
 	
+	spin_unlock(&pcd->lock);
 	pcd->otg_dev = otg_dev;
 	
 	pcd->gadget.dev.parent = dev;
@@ -1906,7 +1912,8 @@ int dwc_otg_pcd_init(struct device *dev)
     pcd->vbus_status  = 0;
     pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
-        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S
+        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<2)); // delay 16 S +(HZ<<4)
+	DWC_PRINT("%s pass,everest\n", __func__);
 //    	dwc_otg_pcd_start_vbus_timer( pcd );
 	return 0;
 }

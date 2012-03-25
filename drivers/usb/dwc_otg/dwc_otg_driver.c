@@ -68,9 +68,9 @@
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_hcd.h"
-
+#ifdef CONFIG_ARCH_RK29
 #include <mach/cru.h>
-
+#endif
 //#define DWC_DRIVER_VERSION	"2.60a 22-NOV-2006"
 //#define DWC_DRIVER_VERSION	"2.70 2009-12-31"
 #define DWC_DRIVER_VERSION	"3.00 2010-12-12 rockchip"
@@ -1191,10 +1191,15 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	int irq;
 	int32_t regval;
     struct clk *ahbclk,*phyclk,*busclk;
+#ifdef CONFIG_ARCH_RK29    
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    
+#endif
+#ifdef CONFIG_ARCH_RK30
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
+#endif
     
     regval = * otg_phy_con1;
+#ifdef CONFIG_ARCH_RK29    
 #ifndef CONFIG_USB11_HOST
 	/*
 	 * disable usb host 1.1 controller if not support
@@ -1251,13 +1256,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     clk_disable(phyclk);
     clk_disable(ahbclk);
 #endif
-
-    #if 0
-    otgreg = ioremap(RK2818_USBOTG_PHYS,RK2818_USBOTG_SIZE);
-    DWC_PRINT("otgreg 0x%x",otgreg);
-    dwc_modify_reg32((uint32_t *)(otgreg+0xc),0x20000000,0x20000000);
-	dwc_write_reg32((uint32_t *)(otgreg+0x440), 0x1000);
-    #endif
+#endif
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
@@ -1271,6 +1270,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	memset(dwc_otg_device, 0, sizeof(*dwc_otg_device));
 	dwc_otg_device->reg_offset = 0xFFFFFFFF;
 	
+#ifdef CONFIG_ARCH_RK29
 	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, true);
 	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, true);
 	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, true);
@@ -1279,7 +1279,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_AHB_BUS, false);
 	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_PHY, false);
 	cru_set_soft_reset(SOFT_RST_USB_OTG_2_0_CONTROLLER, false);
-	
     busclk = clk_get(NULL, "hclk_usb_peri");
     if (IS_ERR(busclk)) {
             retval = PTR_ERR(busclk);
@@ -1316,6 +1315,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device->phyclk = phyclk;
 	dwc_otg_device->ahbclk = ahbclk;
 	dwc_otg_device->busclk = busclk;
+#endif	
 	/*
 	 * Map the DWC_otg Core memory into virtual address space.
 	 */
@@ -1446,7 +1446,12 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 /* Initialize the bus state.  If the core is in Device Mode
  * HALT the USB bus and return. */
 #ifndef CONFIG_DWC_OTG_DEVICE_ONLY
+#ifdef CONFIG_ARCH_RK29
     USB_IOMUX_INIT(GPIO4A5_OTG0DRVVBUS_NAME, GPIO4L_OTG0_DRV_VBUS);
+#endif
+#ifdef CONFIG_ARCH_RK30
+    USB_IOMUX_INIT(GPIO0A5_OTGDRVVBUS_NAME, GPIO0A_OTG_DRV_VBUS);    
+#endif
 	/*
 	 * Initialize the HCD
 	 */
@@ -1477,6 +1482,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	 * handlers are installed.
 	 */
 	dwc_otg_enable_global_interrupts( dwc_otg_device->core_if );
+#ifdef CONFIG_ARCH_RK29
 #ifndef CONFIG_DWC_OTG_DEVICE_ONLY
     if(dwc_otg_device->hcd->host_enabled == 0)
     {
@@ -1485,6 +1491,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
         *otg_phy_con1 |= (0x01<<2);
         *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
     }
+#endif
 #endif
 	return 0;
  fail:
@@ -1511,8 +1518,6 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     rk28_usb_suspend(0);
     del_timer(&otg_dev->pcd->check_vbus_timer); 
 	
-	//DWC_PRINT("CRU_CLKGATE1_CON: 0x%08x\n",dwc_read_reg32((uint32_t *)(SCU_BASE_ADDR_VA+0x60)));
-	//DWC_PRINT("USB_PHY_CON1:     0x%08x\n",dwc_read_reg32((uint32_t *)(USB_GRF_CON)));
     return 0;
 }
 #else
@@ -1972,7 +1977,12 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	/*
 	 *Enable usb phy
 	 */
+#ifdef CONFIG_ARCH_RK29    
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+#endif
+#ifdef CONFIG_ARCH_RK30
+    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC1_CON2);
+#endif
         
     otgreg = * otg_phy_con1;
     otgreg |= (0x01<<13);    // software control
@@ -1991,6 +2001,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
+#ifdef CONFIG_ARCH_RK29  
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, true);
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, true);
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, true);
@@ -2000,7 +2011,7 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_AHB_BUS, false);
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_PHY, false);
 	cru_set_soft_reset(SOFT_RST_USB_HOST_2_0_CONTROLLER, false);
-	
+#endif
 	if (dwc_otg_device == 0) 
 	{
 		dev_err(dev, "kmalloc of dwc_otg_device failed\n");
@@ -2019,7 +2030,12 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
     }
     clk_enable(phyclk);
     
+#ifdef CONFIG_ARCH_RK29  
     ahbclk = clk_get(NULL, "usbotg1");
+#endif
+#ifdef CONFIG_ARCH_RK30  
+    ahbclk = clk_get(NULL, "hclk_otg1");
+#endif    
     if (IS_ERR(ahbclk)) {
             retval = PTR_ERR(ahbclk);
             DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
@@ -2119,8 +2135,13 @@ static __devinit int host20_driver_probe(struct platform_device *pdev)
 	{
 		dwc_otg_device->common_irq_installed = 1;
 	}
-
+    
+#ifdef CONFIG_ARCH_RK29
     USB_IOMUX_INIT(GPIO4A6_OTG1DRVVBUS_NAME, GPIO4L_OTG1_DRV_VBUS);
+#endif    
+#ifdef CONFIG_ARCH_RK30
+    USB_IOMUX_INIT(GPIO0A6_HOSTDRVVBUS_NAME, GPIO0A_HOST_DRV_VBUS);    
+#endif
 	/*
 	 * Initialize the DWC_otg core.
 	 */

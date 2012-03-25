@@ -23,10 +23,17 @@ Revision:   1.00
 #include    <mach/board.h>
 #include    <mach/gpio.h>
 #include    <asm/dma.h>
-#include    <mach/rk29-dma-pl330.h>
 #include    "typedef.h"
+
+#ifdef CONFIG_ARCH_RK30
+#include    <mach/io.h>
+#include    <mach/irqs.h>
+#endif
+#ifdef CONFIG_ARCH_RK29
 #include    <mach/rk29_iomap.h>
 #include    <mach/iomux.h>
+#endif
+
 #include    <linux/interrupt.h>
 #include    "epphal.h"
 
@@ -64,7 +71,7 @@ extern void rkNand_cond_resched(void);
 
 extern unsigned long rk_dma_mem_alloc(int size);
 extern unsigned long rk_dma_mem_free(unsigned long buf);
-
+#undef PRINTF
 #define PRINTF RKNAND_DEBUG
 #endif
 

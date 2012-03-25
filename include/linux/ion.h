@@ -307,21 +307,24 @@ struct ion_phys_data {
 	unsigned long phys;
 	size_t size;
 };
+
 struct ion_flush_data {
 	struct ion_handle *handle;
 	void *virt;
 	size_t size;
 };
+
 struct ion_client_data {
 #define ION_TYPE_GET_TOTAL_SIZE  0
 #define ION_TYPE_SIZE_GET_COUNT  1
-        unsigned int type;
-        union {
-                size_t size;
-                size_t total_size;
-        };
-        unsigned int count;
+	unsigned int type;
+	union {
+		size_t size;
+		size_t total_size;
+	};
+	unsigned int count;
 };
+
 #define ION_IOC_MAGIC		'I'
 
 /**
@@ -381,5 +384,6 @@ struct ion_client_data {
 #define ION_CACHE_CLEAN		_IOWR(ION_IOC_MAGIC, 8, struct ion_flush_data)
 #define ION_CACHE_INVALID	_IOWR(ION_IOC_MAGIC, 9, struct ion_flush_data)
 #define ION_GET_PHYS		_IOWR(ION_IOC_MAGIC, 10, unsigned long)
-#define ION_GET_CLIENT	        _IOWR(ION_IOC_MAGIC, 11, struct ion_client_data)
+#define ION_GET_CLIENT		_IOWR(ION_IOC_MAGIC, 11, struct ion_client_data)
+
 #endif /* _LINUX_ION_H */
