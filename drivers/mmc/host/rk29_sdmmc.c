@@ -91,7 +91,7 @@ int debug_level = 5;
 #define RK29_CTRL_SDIO2_ID   2  
 #endif
 
-#define SDMMC_CLOCK_TEST     1
+#define SDMMC_CLOCK_TEST     0
 #define RK29_SDMMC_NOTIFY_REMOVE_INSERTION /* use sysfs to notify the removal or insertion of sd-card*/
 //#define RK29_SDMMC_LIST_QUEUE            /* use list-queue for multi-card*/
 
@@ -3278,7 +3278,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
     memcpy(host->dma_name, pdata->dma_name, 8);    
 	host->use_dma = pdata->use_dma;
 
-    printk("%s..%s..%d..***********  Bus clock= %d Khz  ====xbw[%s]===\n",\
+    xbwprintk(7,"%s..%s..%d..***********  Bus clock= %d Khz  ====xbw[%s]===\n",\
         __FILE__, __FUNCTION__,__LINE__,clk_get_rate(host->clk)/1000, host->dma_name);
 
 	/*DMA init*/

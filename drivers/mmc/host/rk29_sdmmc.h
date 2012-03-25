@@ -51,7 +51,7 @@
 #elif defined(CONFIG_ARCH_RK30)
 #define SDMMC_VERID           (0x06c)   //Version ID register
 #define SDMMC_UHS_REG         (0x074)   //UHS-I register
-#define SDMMC_RST_n           (0x068)   //Hardware reset register
+#define SDMMC_RST_n           (0x078)   //Hardware reset register
 #define SDMMC_CARDTHRCTL      (0x100)   //Card Read Threshold Enable
 #define SDMMC_BACK_END_POWER  (0x104)   //Back-end Power
 #define SDMMC_FIFO_BASE       (0x200)   //
