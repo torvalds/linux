@@ -432,7 +432,7 @@ static void htc_tx_complete(struct htc_endpoint *endpoint,
 		   "htc tx complete ep %d pkts %d\n",
 		   endpoint->eid, get_queue_depth(txq));
 
-	ath6kl_tx_complete(endpoint->target->dev->ar, txq);
+	ath6kl_tx_complete(endpoint->target, txq);
 }
 
 static void htc_tx_comp_handler(struct htc_target *target,

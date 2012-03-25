@@ -319,6 +319,7 @@ enum htc_send_full_action {
 };
 
 struct htc_ep_callbacks {
+	void (*tx_complete) (struct htc_target *, struct htc_packet *);
 	void (*rx) (struct htc_target *, struct htc_packet *);
 	void (*rx_refill) (struct htc_target *, enum htc_endpoint_id endpoint);
 	enum htc_send_full_action (*tx_full) (struct htc_target *,
