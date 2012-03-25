@@ -1396,7 +1396,6 @@ void dwc_otg_hcd_free(struct usb_hcd *_hcd)
 	return;
 }
 
-
 #ifdef DEBUG
 static void dump_urb_info(struct urb *_urb, char* _fn_name)
 {
@@ -1511,17 +1510,6 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 		return retval;
 	}
 #endif
-#if 1
-	/*
-	 * Make sure the start of frame interrupt is enabled now that
-	 * we know we should have queued data. The SOF interrupt
-	 * handler automatically disables itself when idle to reduce
-	 * the number of interrupts. See dwc_otg_hcd_handle_sof_intr()
-	 * for the disable
-	 */
-	dwc_modify_reg32(&dwc_otg_hcd->core_if->core_global_regs->gintmsk, 0,
-			 DWC_SOF_INTR_MASK);
-#endif
 #ifdef DEBUG
 	    if (CHK_DEBUG_LEVEL(DBG_HCDV | DBG_HCD_URB)) {
 		dump_urb_info(_urb, "dwc_otg_hcd_urb_enqueue");
@@ -1544,6 +1532,17 @@ int dwc_otg_hcd_urb_enqueue(struct usb_hcd *_hcd,
 			   "Error status %d\n", retval);
 		dwc_otg_hcd_qtd_free(qtd);
 	}
+#if 1
+	/*
+	 * Make sure the start of frame interrupt is enabled now that
+	 * we know we should have queued data. The SOF interrupt
+	 * handler automatically disables itself when idle to reduce
+	 * the number of interrupts. See dwc_otg_hcd_handle_sof_intr()
+	 * for the disable
+	 */
+	dwc_modify_reg32(&dwc_otg_hcd->core_if->core_global_regs->gintmsk, 0,
+			 DWC_SOF_INTR_MASK);
+#endif
 out:
 
 	return retval;

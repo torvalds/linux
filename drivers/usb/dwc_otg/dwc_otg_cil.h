@@ -429,7 +429,7 @@ typedef struct dwc_otg_core_params
 	 * Note: The FPGA configuration supports a maximum of 12 host channels.
 	 */
 	int32_t host_channels;
-#define dwc_param_host_channels_default 12
+#define dwc_param_host_channels_default 16
 
 	/** The number of endpoints in addition to EP0 available for device 
 	 * mode operations. 

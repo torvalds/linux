@@ -1912,7 +1912,7 @@ int dwc_otg_pcd_init(struct device *dev)
     pcd->vbus_status  = 0;
     pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
-        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<2)); // delay 16 S +(HZ<<4)
+        mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S
 	DWC_PRINT("%s pass,everest\n", __func__);
 //    	dwc_otg_pcd_start_vbus_timer( pcd );
 	return 0;
