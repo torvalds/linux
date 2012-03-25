@@ -570,16 +570,31 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
 	int hit_slowpath = 0;
+	int needs_clflush_after = 0;
+	int needs_clflush_before = 0;
 	int release_page;
-
-	ret = i915_gem_object_set_to_cpu_domain(obj, 1);
-	if (ret)
-		return ret;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
 
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
+
+	if (obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
+		/* If we're not in the cpu write domain, set ourself into the gtt
+		 * write domain and manually flush cachelines (if required). This
+		 * optimizes for the case when the gpu will use the data
+		 * right away and we therefore have to clflush anyway. */
+		if (obj->cache_level == I915_CACHE_NONE)
+			needs_clflush_after = 1;
+		ret = i915_gem_object_set_to_gtt_domain(obj, true);
+		if (ret)
+			return ret;
+	}
+	/* Same trick applies for invalidate partially written cachelines before
+	 * writing.  */
+	if (!(obj->base.read_domains & I915_GEM_DOMAIN_CPU)
+	    && obj->cache_level == I915_CACHE_NONE)
+		needs_clflush_before = 1;
 
 	offset = args->offset;
 	obj->dirty = 1;
@@ -587,6 +602,7 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 	while (remain > 0) {
 		struct page *page;
 		char *vaddr;
+		int partial_cacheline_write;
 
 		/* Operation in this page
 		 *
@@ -598,6 +614,13 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		page_length = remain;
 		if ((shmem_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - shmem_page_offset;
+
+		/* If we don't overwrite a cacheline completely we need to be
+		 * careful to have up-to-date data by first clflushing. Don't
+		 * overcomplicate things and flush the entire patch. */
+		partial_cacheline_write = needs_clflush_before &&
+			((shmem_page_offset | page_length)
+				& (boot_cpu_data.x86_clflush_size - 1));
 
 		if (obj->pages) {
 			page = obj->pages[offset >> PAGE_SHIFT];
@@ -616,9 +639,15 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 
 		if (!page_do_bit17_swizzling) {
 			vaddr = kmap_atomic(page);
+			if (partial_cacheline_write)
+				drm_clflush_virt_range(vaddr + shmem_page_offset,
+						       page_length);
 			ret = __copy_from_user_inatomic(vaddr + shmem_page_offset,
 							user_data,
 							page_length);
+			if (needs_clflush_after)
+				drm_clflush_virt_range(vaddr + shmem_page_offset,
+						       page_length);
 			kunmap_atomic(vaddr);
 
 			if (ret == 0)
@@ -630,6 +659,9 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		mutex_unlock(&dev->struct_mutex);
 
 		vaddr = kmap(page);
+		if (partial_cacheline_write)
+			drm_clflush_virt_range(vaddr + shmem_page_offset,
+					       page_length);
 		if (page_do_bit17_swizzling)
 			ret = __copy_from_user_swizzled(vaddr, shmem_page_offset,
 							user_data,
@@ -637,6 +669,9 @@ i915_gem_shmem_pwrite(struct drm_device *dev,
 		else
 			ret = __copy_from_user(vaddr + shmem_page_offset,
 					       user_data,
+					       page_length);
+		if (needs_clflush_after)
+			drm_clflush_virt_range(vaddr + shmem_page_offset,
 					       page_length);
 		kunmap(page);
 
@@ -670,6 +705,9 @@ out:
 			intel_gtt_chipset_flush();
 		}
 	}
+
+	if (needs_clflush_after)
+		intel_gtt_chipset_flush();
 
 	return ret;
 }
