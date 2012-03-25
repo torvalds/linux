@@ -368,7 +368,7 @@ static int ath6kl_usb_probe(struct usb_interface *interface,
 
 	ar_usb->ar = ar;
 
-	ret = ath6kl_core_init(ar);
+	ret = ath6kl_core_init(ar, ATH6KL_HTC_TYPE_MBOX);
 	if (ret) {
 		ath6kl_err("Failed to init ath6kl core: %d\n", ret);
 		goto err_core_free;

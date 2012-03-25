@@ -23,6 +23,7 @@
 
 #include "debug.h"
 #include "hif-ops.h"
+#include "htc-ops.h"
 #include "cfg80211.h"
 
 unsigned int debug_mask;
@@ -39,11 +40,20 @@ module_param(uart_debug, uint, 0644);
 module_param(ath6kl_p2p, uint, 0644);
 module_param(testmode, uint, 0644);
 
-int ath6kl_core_init(struct ath6kl *ar)
+int ath6kl_core_init(struct ath6kl *ar, enum ath6kl_htc_type htc_type)
 {
 	struct ath6kl_bmi_target_info targ_info;
 	struct net_device *ndev;
 	int ret = 0, i;
+
+	switch (htc_type) {
+	case ATH6KL_HTC_TYPE_MBOX:
+		ath6kl_htc_mbox_attach(ar);
+		break;
+	default:
+		WARN_ON(1);
+		return -ENOMEM;
+	}
 
 	ar->ath6kl_wq = create_singlethread_workqueue("ath6kl");
 	if (!ar->ath6kl_wq)

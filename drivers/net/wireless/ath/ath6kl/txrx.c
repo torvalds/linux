@@ -17,6 +17,7 @@
 
 #include "core.h"
 #include "debug.h"
+#include "htc-ops.h"
 
 /*
  * tid - tid_mux0..tid_mux3
@@ -572,7 +573,7 @@ void ath6kl_indicate_tx_activity(void *devt, u8 traffic_class, bool active)
 
 notify_htc:
 	/* notify HTC, this may cause credit distribution changes */
-	ath6kl_htc_indicate_activity_change(ar->htc_target, eid, active);
+	ath6kl_htc_activity_changed(ar->htc_target, eid, active);
 }
 
 enum htc_send_full_action ath6kl_tx_queue_full(struct htc_target *target,

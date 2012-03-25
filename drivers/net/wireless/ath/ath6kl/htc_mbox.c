@@ -23,6 +23,14 @@
 
 #define CALC_TXRX_PADDED_LEN(dev, len)  (__ALIGN_MASK((len), (dev)->block_mask))
 
+static void ath6kl_htc_mbox_cleanup(struct htc_target *target);
+static void ath6kl_htc_mbox_stop(struct htc_target *target);
+static int ath6kl_htc_mbox_add_rxbuf_multiple(struct htc_target *target,
+					      struct list_head *pkt_queue);
+static void ath6kl_htc_set_credit_dist(struct htc_target *target,
+				       struct ath6kl_htc_credit_info *cred_info,
+				       u16 svc_pri_order[], int len);
+
 /* threshold to re-enable Tx bundling for an AC*/
 #define TX_RESUME_BUNDLE_THRESHOLD	1500
 
@@ -130,8 +138,8 @@ static void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_info,
 }
 
 /* initialize and setup credit distribution */
-int ath6kl_credit_setup(struct htc_target *htc_target,
-			struct ath6kl_htc_credit_info *cred_info)
+static int ath6kl_htc_mbox_credit_setup(struct htc_target *htc_target,
+			       struct ath6kl_htc_credit_info *cred_info)
 {
 	u16 servicepriority[5];
 
@@ -1065,7 +1073,7 @@ static int htc_setup_tx_complete(struct htc_target *target)
 	return status;
 }
 
-void ath6kl_htc_set_credit_dist(struct htc_target *target,
+static void ath6kl_htc_set_credit_dist(struct htc_target *target,
 				struct ath6kl_htc_credit_info *credit_info,
 				u16 srvc_pri_order[], int list_len)
 {
@@ -1093,7 +1101,8 @@ void ath6kl_htc_set_credit_dist(struct htc_target *target,
 	}
 }
 
-int ath6kl_htc_tx(struct htc_target *target, struct htc_packet *packet)
+static int ath6kl_htc_mbox_tx(struct htc_target *target,
+			      struct htc_packet *packet)
 {
 	struct htc_endpoint *endpoint;
 	struct list_head queue;
@@ -1121,7 +1130,7 @@ int ath6kl_htc_tx(struct htc_target *target, struct htc_packet *packet)
 }
 
 /* flush endpoint TX queue */
-void ath6kl_htc_flush_txep(struct htc_target *target,
+static void ath6kl_htc_mbox_flush_txep(struct htc_target *target,
 			   enum htc_endpoint_id eid, u16 tag)
 {
 	struct htc_packet *packet, *tmp_pkt;
@@ -1173,12 +1182,13 @@ static void ath6kl_htc_flush_txep_all(struct htc_target *target)
 		if (endpoint->svc_id == 0)
 			/* not in use.. */
 			continue;
-		ath6kl_htc_flush_txep(target, i, HTC_TX_PACKET_TAG_ALL);
+		ath6kl_htc_mbox_flush_txep(target, i, HTC_TX_PACKET_TAG_ALL);
 	}
 }
 
-void ath6kl_htc_indicate_activity_change(struct htc_target *target,
-					 enum htc_endpoint_id eid, bool active)
+static void ath6kl_htc_mbox_activity_changed(struct htc_target *target,
+					     enum htc_endpoint_id eid,
+					     bool active)
 {
 	struct htc_endpoint *endpoint = &target->endpoint[eid];
 	bool dist = false;
@@ -1246,7 +1256,7 @@ static int htc_add_rxbuf(struct htc_target *target, struct htc_packet *packet)
 
 	INIT_LIST_HEAD(&queue);
 	list_add_tail(&packet->list, &queue);
-	return ath6kl_htc_add_rxbuf_multiple(target, &queue);
+	return ath6kl_htc_mbox_add_rxbuf_multiple(target, &queue);
 }
 
 static void htc_reclaim_rxbuf(struct htc_target *target,
@@ -2290,7 +2300,7 @@ fail_ctrl_rx:
 	return NULL;
 }
 
-int ath6kl_htc_add_rxbuf_multiple(struct htc_target *target,
+static int ath6kl_htc_mbox_add_rxbuf_multiple(struct htc_target *target,
 				  struct list_head *pkt_queue)
 {
 	struct htc_endpoint *endpoint;
@@ -2352,7 +2362,7 @@ int ath6kl_htc_add_rxbuf_multiple(struct htc_target *target,
 	return status;
 }
 
-void ath6kl_htc_flush_rx_buf(struct htc_target *target)
+static void ath6kl_htc_mbox_flush_rx_buf(struct htc_target *target)
 {
 	struct htc_endpoint *endpoint;
 	struct htc_packet *packet, *tmp_pkt;
@@ -2394,7 +2404,7 @@ void ath6kl_htc_flush_rx_buf(struct htc_target *target)
 	}
 }
 
-int ath6kl_htc_conn_service(struct htc_target *target,
+static int ath6kl_htc_mbox_conn_service(struct htc_target *target,
 			    struct htc_service_connect_req *conn_req,
 			    struct htc_service_connect_resp *conn_resp)
 {
@@ -2566,7 +2576,7 @@ static void reset_ep_state(struct htc_target *target)
 	INIT_LIST_HEAD(&target->cred_dist_list);
 }
 
-int ath6kl_htc_get_rxbuf_num(struct htc_target *target,
+static int ath6kl_htc_mbox_get_rxbuf_num(struct htc_target *target,
 			     enum htc_endpoint_id endpoint)
 {
 	int num;
@@ -2626,7 +2636,7 @@ static void htc_setup_msg_bndl(struct htc_target *target)
 	}
 }
 
-int ath6kl_htc_wait_target(struct htc_target *target)
+static int ath6kl_htc_mbox_wait_target(struct htc_target *target)
 {
 	struct htc_packet *packet = NULL;
 	struct htc_ready_ext_msg *rdy_msg;
@@ -2695,12 +2705,12 @@ int ath6kl_htc_wait_target(struct htc_target *target)
 	connect.svc_id = HTC_CTRL_RSVD_SVC;
 
 	/* connect fake service */
-	status = ath6kl_htc_conn_service((void *)target, &connect, &resp);
+	status = ath6kl_htc_mbox_conn_service((void *)target, &connect, &resp);
 
 	if (status)
 		/*
 		 * FIXME: this call doesn't make sense, the caller should
-		 * call ath6kl_htc_cleanup() when it wants remove htc
+		 * call ath6kl_htc_mbox_cleanup() when it wants remove htc
 		 */
 		ath6kl_hif_cleanup_scatter(target->dev->ar);
 
@@ -2717,7 +2727,7 @@ fail_wait_target:
  * Start HTC, enable interrupts and let the target know
  * host has finished setup.
  */
-int ath6kl_htc_start(struct htc_target *target)
+static int ath6kl_htc_mbox_start(struct htc_target *target)
 {
 	struct htc_packet *packet;
 	int status;
@@ -2754,7 +2764,7 @@ int ath6kl_htc_start(struct htc_target *target)
 	status = ath6kl_hif_unmask_intrs(target->dev);
 
 	if (status)
-		ath6kl_htc_stop(target);
+		ath6kl_htc_mbox_stop(target);
 
 	return status;
 }
@@ -2798,7 +2808,7 @@ static int ath6kl_htc_reset(struct htc_target *target)
 }
 
 /* htc_stop: stop interrupt reception, and flush all queued buffers */
-void ath6kl_htc_stop(struct htc_target *target)
+static void ath6kl_htc_mbox_stop(struct htc_target *target)
 {
 	spin_lock_bh(&target->htc_lock);
 	target->htc_flags |= HTC_OP_STATE_STOPPING;
@@ -2813,12 +2823,12 @@ void ath6kl_htc_stop(struct htc_target *target)
 
 	ath6kl_htc_flush_txep_all(target);
 
-	ath6kl_htc_flush_rx_buf(target);
+	ath6kl_htc_mbox_flush_rx_buf(target);
 
 	ath6kl_htc_reset(target);
 }
 
-void *ath6kl_htc_create(struct ath6kl *ar)
+static void *ath6kl_htc_mbox_create(struct ath6kl *ar)
 {
 	struct htc_target *target = NULL;
 	int status = 0;
@@ -2859,13 +2869,13 @@ void *ath6kl_htc_create(struct ath6kl *ar)
 	return target;
 
 err_htc_cleanup:
-	ath6kl_htc_cleanup(target);
+	ath6kl_htc_mbox_cleanup(target);
 
 	return NULL;
 }
 
 /* cleanup the HTC instance */
-void ath6kl_htc_cleanup(struct htc_target *target)
+static void ath6kl_htc_mbox_cleanup(struct htc_target *target)
 {
 	struct htc_packet *packet, *tmp_packet;
 
@@ -2889,4 +2899,25 @@ void ath6kl_htc_cleanup(struct htc_target *target)
 
 	kfree(target->dev);
 	kfree(target);
+}
+
+static const struct ath6kl_htc_ops ath6kl_htc_mbox_ops = {
+	.create = ath6kl_htc_mbox_create,
+	.wait_target = ath6kl_htc_mbox_wait_target,
+	.start = ath6kl_htc_mbox_start,
+	.conn_service = ath6kl_htc_mbox_conn_service,
+	.tx = ath6kl_htc_mbox_tx,
+	.stop = ath6kl_htc_mbox_stop,
+	.cleanup = ath6kl_htc_mbox_cleanup,
+	.flush_txep = ath6kl_htc_mbox_flush_txep,
+	.flush_rx_buf = ath6kl_htc_mbox_flush_rx_buf,
+	.activity_changed = ath6kl_htc_mbox_activity_changed,
+	.get_rxbuf_num = ath6kl_htc_mbox_get_rxbuf_num,
+	.add_rxbuf_multiple = ath6kl_htc_mbox_add_rxbuf_multiple,
+	.credit_setup = ath6kl_htc_mbox_credit_setup,
+};
+
+void ath6kl_htc_mbox_attach(struct ath6kl *ar)
+{
+	ar->htc_ops = &ath6kl_htc_mbox_ops;
 }

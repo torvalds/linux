@@ -27,6 +27,7 @@
 #include "target.h"
 #include "debug.h"
 #include "hif-ops.h"
+#include "htc-ops.h"
 
 static const struct ath6kl_hw hw_list[] = {
 	{
@@ -1510,7 +1511,7 @@ int ath6kl_init_hw_start(struct ath6kl *ar)
 	}
 
 	/* setup credit distribution */
-	ath6kl_credit_setup(ar->htc_target, &ar->credit_state_info);
+	ath6kl_htc_credit_setup(ar->htc_target, &ar->credit_state_info);
 
 	/* start HTC */
 	ret = ath6kl_htc_start(ar->htc_target);
