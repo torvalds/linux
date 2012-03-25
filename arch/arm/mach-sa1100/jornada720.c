@@ -23,9 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <video/s1d13xxxfb.h>
 
-#include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
-#include <asm/irq.h>
 #include <asm/page.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
@@ -33,6 +31,9 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
+
+#include <mach/hardware.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
@@ -46,7 +47,7 @@
 
 /* memory space (line 52 of HP's doc) */
 #define SA1111REGSTART	0x40000000
-#define SA1111REGLEN	0x00001fff
+#define SA1111REGLEN	0x00002000
 #define EPSONREGSTART	0x48000000
 #define EPSONREGLEN	0x00100000
 #define EPSONFBSTART	0x48200000
@@ -174,16 +175,8 @@ static struct s1d13xxxfb_pdata s1d13xxxfb_data = {
 };
 
 static struct resource s1d13xxxfb_resources[] = {
-	[0] = {
-		.start	= EPSONFBSTART,
-		.end	= EPSONFBSTART + EPSONFBLEN,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= EPSONREGSTART,
-		.end	= EPSONREGSTART + EPSONREGLEN,
-		.flags	= IORESOURCE_MEM,
-	}
+	[0] = DEFINE_RES_MEM(EPSONFBSTART, EPSONFBLEN),
+	[1] = DEFINE_RES_MEM(EPSONREGSTART, EPSONREGLEN),
 };
 
 static struct platform_device s1d13xxxfb_device = {
@@ -197,20 +190,12 @@ static struct platform_device s1d13xxxfb_device = {
 };
 
 static struct resource sa1111_resources[] = {
-	[0] = {
-		.start		= SA1111REGSTART,
-		.end		= SA1111REGSTART + SA1111REGLEN,
-		.flags		= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start		= IRQ_GPIO1,
-		.end		= IRQ_GPIO1,
-		.flags		= IORESOURCE_IRQ,
-	},
+	[0] = DEFINE_RES_MEM(SA1111REGSTART, SA1111REGLEN),
+	[1] = DEFINE_RES_IRQ(IRQ_GPIO1),
 };
 
 static struct sa1111_platform_data sa1111_info = {
-	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
 };
 
 static u64 sa1111_dmamask = 0xffffffffUL;
@@ -284,11 +269,6 @@ static struct map_desc jornada720_io_desc[] __initdata = {
 		.pfn		= __phys_to_pfn(EPSONFBSTART),
 		.length		= EPSONFBLEN,
 		.type		= MT_DEVICE
-	}, {	/* SA-1111 */
-		.virtual	= 0xf4000000,
-		.pfn		= __phys_to_pfn(SA1111REGSTART),
-		.length		= SA1111REGLEN,
-		.type		= MT_DEVICE
 	}
 };
 
@@ -352,11 +332,8 @@ static struct flash_platform_data jornada720_flash_data = {
 	.nr_parts	= ARRAY_SIZE(jornada720_partitions),
 };
 
-static struct resource jornada720_flash_resource = {
-	.start		= SA1100_CS0_PHYS,
-	.end		= SA1100_CS0_PHYS + SZ_32M - 1,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource jornada720_flash_resource =
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M);
 
 static void __init jornada720_mach_init(void)
 {
@@ -367,6 +344,7 @@ MACHINE_START(JORNADA720, "HP Jornada 720")
 	/* Maintainer: Kristoffer Ericson <Kristoffer.Ericson@gmail.com> */
 	.atag_offset	= 0x100,
 	.map_io		= jornada720_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= jornada720_mach_init,

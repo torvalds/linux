@@ -135,12 +135,8 @@ struct pci_bus * __init pci_nanoengine_scan_bus(int nr, struct pci_sys_data *sys
 				 &sys->resources);
 }
 
-static struct resource pci_io_ports = {
-	.name	= "PCI IO",
-	.start	= 0x400,
-	.end	= 0x7FF,
-	.flags	= IORESOURCE_IO,
-};
+static struct resource pci_io_ports =
+	DEFINE_RES_IO_NAMED(0x400, 0x400, "PCI IO");
 
 static struct resource pci_non_prefetchable_memory = {
 	.name	= "PCI non-prefetchable",

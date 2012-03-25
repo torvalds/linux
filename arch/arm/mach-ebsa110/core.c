@@ -30,10 +30,7 @@
 
 #include <asm/mach/time.h>
 
-#define IRQ_MASK		0xfe000000	/* read */
-#define IRQ_MSET		0xfe000000	/* write */
-#define IRQ_STAT		0xff000000	/* read */
-#define IRQ_MCLR		0xff000000	/* write */
+#include "core.h"
 
 static void ebsa110_mask_irq(struct irq_data *d)
 {
@@ -79,22 +76,22 @@ static struct map_desc ebsa110_io_desc[] __initdata = {
 	{	/* IRQ_STAT/IRQ_MCLR */
 		.virtual	= IRQ_STAT,
 		.pfn		= __phys_to_pfn(TRICK4_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK4_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* IRQ_MASK/IRQ_MSET */
 		.virtual	= IRQ_MASK,
 		.pfn		= __phys_to_pfn(TRICK3_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK3_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* SOFT_BASE */
 		.virtual	= SOFT_BASE,
 		.pfn		= __phys_to_pfn(TRICK1_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK1_SIZE,
 		.type		= MT_DEVICE
 	}, {	/* PIT_BASE */
 		.virtual	= PIT_BASE,
 		.pfn		= __phys_to_pfn(TRICK0_PHYS),
-		.length		= PGDIR_SIZE,
+		.length		= TRICK0_SIZE,
 		.type		= MT_DEVICE
 	},
 

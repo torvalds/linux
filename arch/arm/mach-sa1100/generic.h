@@ -16,9 +16,6 @@ extern void sa11x0_restart(char, const char *);
 	mi->bank[__nr].start = (__start), \
 	mi->bank[__nr].size = (__size)
 
-extern void (*sa1100fb_backlight_power)(int on);
-extern void (*sa1100fb_lcd_power)(int on);
-
 extern void sa1110_mb_enable(void);
 extern void sa1110_mb_disable(void);
 
@@ -39,4 +36,8 @@ struct irda_platform_data;
 void sa11x0_register_irda(struct irda_platform_data *irda);
 
 struct mcp_plat_data;
+void sa11x0_ppc_configure_mcp(void);
 void sa11x0_register_mcp(struct mcp_plat_data *data);
+
+struct sa1100fb_mach_info;
+void sa11x0_register_lcd(struct sa1100fb_mach_info *inf);
