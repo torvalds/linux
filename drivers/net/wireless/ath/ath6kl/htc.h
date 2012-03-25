@@ -311,6 +311,14 @@ struct htc_packet {
 
 	void (*completion) (struct htc_target *, struct htc_packet *);
 	struct htc_target *context;
+
+	/*
+	 * optimization for network-oriented data, the HTC packet
+	 * can pass the network buffer corresponding to the HTC packet
+	 * lower layers may optimized the transfer knowing this is
+	 * a network buffer
+	 */
+	struct sk_buff *skb;
 };
 
 enum htc_send_full_action {
