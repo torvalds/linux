@@ -43,8 +43,24 @@ static struct resource sa1111_resources[] = {
 	[1] = DEFINE_RES_IRQ(BADGE4_IRQ_GPIO_SA1111),
 };
 
+static int badge4_sa1111_enable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 1);
+	return 0;
+}
+
+static void badge4_sa1111_disable(void *data, unsigned devid)
+{
+	if (devid == SA1111_DEVID_USB)
+		badge4_set_5V(BADGE4_5V_USB, 0);
+}
+
 static struct sa1111_platform_data sa1111_info = {
 	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
+	.enable		= badge4_sa1111_enable,
+	.disable	= badge4_sa1111_disable,
 };
 
 static u64 sa1111_dmamask = 0xffffffffUL;
@@ -256,11 +272,6 @@ static struct map_desc badge4_io_desc[] __initdata = {
 	}, {	/* SRAM  bank 2 */
 		.virtual	= 0xf2000000,
 		.pfn		= __phys_to_pfn(0x10000000),
-		.length		= 0x00100000,
-		.type		= MT_DEVICE
-	}, {	/* SA-1111      */
-		.virtual	= 0xf4000000,
-		.pfn		= __phys_to_pfn(0x48000000),
 		.length		= 0x00100000,
 		.type		= MT_DEVICE
 	}

@@ -229,6 +229,7 @@ static struct irq_chip nochip = {
 
 static struct sa1111_platform_data sa1111_info = {
 	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
 };
 
 static int __devinit neponset_probe(struct platform_device *dev)
@@ -432,17 +433,3 @@ static int __init neponset_init(void)
 }
 
 subsys_initcall(neponset_init);
-
-static struct map_desc neponset_io_desc[] __initdata = {
-	{	/* SA-1111 */
-		.virtual	=  0xf4000000,
-		.pfn		= __phys_to_pfn(0x40000000),
-		.length		= SZ_1M,
-		.type		= MT_DEVICE
-	}
-};
-
-void __init neponset_map_io(void)
-{
-	iotable_init(neponset_io_desc, ARRAY_SIZE(neponset_io_desc));
-}

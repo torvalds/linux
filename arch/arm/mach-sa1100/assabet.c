@@ -425,21 +425,8 @@ static void __init assabet_map_io(void)
 	 */
 	Ser1SDCR0 |= SDCR0_SUS;
 
-	if (machine_has_neponset()) {
-#ifdef CONFIG_ASSABET_NEPONSET
-		extern void neponset_map_io(void);
-
-		/*
-		 * We map Neponset registers even if it isn't present since
-		 * many drivers will try to probe their stuff (and fail).
-		 * This is still more friendly than a kernel paging request
-		 * crash.
-		 */
-		neponset_map_io();
-#endif
-	} else {
+	if (!machine_has_neponset())
 		sa1100_register_uart_fns(&assabet_port_fns);
-	}
 
 	/*
 	 * When Neponset is attached, the first UART should be

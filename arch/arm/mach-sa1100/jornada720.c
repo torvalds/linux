@@ -195,6 +195,7 @@ static struct resource sa1111_resources[] = {
 
 static struct sa1111_platform_data sa1111_info = {
 	.irq_base	= IRQ_BOARD_END,
+	.disable_devs	= SA1111_DEVID_PS2_MSE,
 };
 
 static u64 sa1111_dmamask = 0xffffffffUL;
@@ -267,11 +268,6 @@ static struct map_desc jornada720_io_desc[] __initdata = {
 		.virtual	= 0xf1000000,
 		.pfn		= __phys_to_pfn(EPSONFBSTART),
 		.length		= EPSONFBLEN,
-		.type		= MT_DEVICE
-	}, {	/* SA-1111 */
-		.virtual	= 0xf4000000,
-		.pfn		= __phys_to_pfn(SA1111REGSTART),
-		.length		= SA1111REGLEN,
 		.type		= MT_DEVICE
 	}
 };
