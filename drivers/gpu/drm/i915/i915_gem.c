@@ -313,6 +313,28 @@ shmem_pread_fast(struct page *page, int shmem_page_offset, int page_length,
 	return ret;
 }
 
+static void
+shmem_clflush_swizzled_range(char *addr, unsigned long length,
+			     bool swizzled)
+{
+	if (swizzled) {
+		unsigned long start = (unsigned long) addr;
+		unsigned long end = (unsigned long) addr + length;
+
+		/* For swizzling simply ensure that we always flush both
+		 * channels. Lame, but simple and it works. Swizzled
+		 * pwrite/pread is far from a hotpath - current userspace
+		 * doesn't use it at all. */
+		start = round_down(start, 128);
+		end = round_up(end, 128);
+
+		drm_clflush_virt_range((void *)start, end - start);
+	} else {
+		drm_clflush_virt_range(addr, length);
+	}
+
+}
+
 /* Only difference to the fast-path function is that this can handle bit17
  * and uses non-atomic copy and kmap functions. */
 static int
@@ -325,8 +347,9 @@ shmem_pread_slow(struct page *page, int shmem_page_offset, int page_length,
 
 	vaddr = kmap(page);
 	if (needs_clflush)
-		drm_clflush_virt_range(vaddr + shmem_page_offset,
-				       page_length);
+		shmem_clflush_swizzled_range(vaddr + shmem_page_offset,
+					     page_length,
+					     page_do_bit17_swizzling);
 
 	if (page_do_bit17_swizzling)
 		ret = __copy_to_user_swizzled(user_data,
@@ -637,9 +660,10 @@ shmem_pwrite_slow(struct page *page, int shmem_page_offset, int page_length,
 	int ret;
 
 	vaddr = kmap(page);
-	if (needs_clflush_before)
-		drm_clflush_virt_range(vaddr + shmem_page_offset,
-				       page_length);
+	if (needs_clflush_before || page_do_bit17_swizzling)
+		shmem_clflush_swizzled_range(vaddr + shmem_page_offset,
+					     page_length,
+					     page_do_bit17_swizzling);
 	if (page_do_bit17_swizzling)
 		ret = __copy_from_user_swizzled(vaddr, shmem_page_offset,
 						user_data,
@@ -649,8 +673,9 @@ shmem_pwrite_slow(struct page *page, int shmem_page_offset, int page_length,
 				       user_data,
 				       page_length);
 	if (needs_clflush_after)
-		drm_clflush_virt_range(vaddr + shmem_page_offset,
-				       page_length);
+		shmem_clflush_swizzled_range(vaddr + shmem_page_offset,
+					     page_length,
+					     page_do_bit17_swizzling);
 	kunmap(page);
 
 	return ret;
