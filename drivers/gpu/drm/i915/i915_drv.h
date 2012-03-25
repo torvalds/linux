@@ -927,13 +927,6 @@ struct drm_i915_gem_object {
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
 
-
-	/**
-	 * If present, while GEM_DOMAIN_CPU is in the read domain this array
-	 * flags which individual pages are valid.
-	 */
-	uint8_t *page_cpu_valid;
-
 	/** User space pin count and filp owning the pin */
 	uint32_t user_pin_count;
 	struct drm_file *pin_filp;
