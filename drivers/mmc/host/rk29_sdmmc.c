@@ -65,10 +65,11 @@ int debug_level = 5;
 
 #define RK29_SDMMC_ERROR_FLAGS		(SDMMC_INT_FRUN | SDMMC_INT_HLE )
 
-#ifdef CONFIG_ARCH_RK29 
+#if defined(CONFIG_ARCH_RK29) 
 #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD)
 #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
-#else
+
+#elif defined(CONFIG_ARCH_RK30)
 #define RK29_SDMMC_INTMASK_USEDMA   (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD)
 #define RK29_SDMMC_INTMASK_USEIO    (SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_UNBUSY |RK29_SDMMC_ERROR_FLAGS | SDMMC_INT_CD| SDMMC_INT_TXDR | SDMMC_INT_RXDR )
 #endif
@@ -78,7 +79,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.3.02 The last modify date is 2012-03-12,modifyed by XBW." 
+#define RK29_SDMMC_VERSION "Ver.3.03 The last modify date is 2012-03-23,modifyed by XBW." 
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -90,6 +91,7 @@ int debug_level = 5;
 #define RK29_CTRL_SDIO2_ID   2  
 #endif
 
+#define SDMMC_CLOCK_TEST     1
 #define RK29_SDMMC_NOTIFY_REMOVE_INSERTION /* use sysfs to notify the removal or insertion of sd-card*/
 //#define RK29_SDMMC_LIST_QUEUE            /* use list-queue for multi-card*/
 
@@ -1430,9 +1432,9 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
     }
    
     /* reset */
-#ifdef CONFIG_ARCH_RK29     
+#if defined(CONFIG_ARCH_RK29)     
     rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET ));
-#else
+#elif defined(CONFIG_ARCH_RK30)
     rk29_sdmmc_write(host->regs, SDMMC_CTRL,(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 #endif
     timeOut = 1000;
@@ -1568,14 +1570,28 @@ static int rk29_sdmmc_control_clock(struct rk29_sdmmc *host, bool enable)
     if(RK29_CTRL_SDMMC_ID == host->pdev->id)
     { 
         //SDMMC use low-power mode
+        #if SDMMC_CLOCK_TEST
         if (enable)
         {
-            value = (SDMMC_CLKEN_LOW_PWR | SDMMC_CLKEN_ENABLE);
+            value = (SDMMC_CLKEN_ENABLE);
         }
         else
         {
-            value = (SDMMC_CLKEN_LOW_PWR | SDMMC_CLKEN_DISABLE);
+            value = (SDMMC_CLKEN_DISABLE);
         }
+        
+        #else
+        {
+            if (enable)
+            {
+                value = (SDMMC_CLKEN_LOW_PWR | SDMMC_CLKEN_ENABLE);
+            }
+            else
+            {
+                value = (SDMMC_CLKEN_LOW_PWR | SDMMC_CLKEN_DISABLE);
+            }
+        }
+        #endif
     }
     else
     {
@@ -2892,8 +2908,8 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
     	    host->error_times = 0;
 
     	    #if 1
-    	    del_timer_sync(&host->request_timer);
-	        del_timer_sync(&host->DTO_timer);
+    	    del_timer(&host->request_timer);
+	        del_timer(&host->DTO_timer);
     	    rk29_sdmmc_dealwith_timeout(host);       	    
             #endif
         	            
@@ -2983,7 +2999,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 				__FUNCTION__, __LINE__,host->cmd->opcode,pending, host->dma_name);
         
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_DTO); 
-        del_timer_sync(&host->DTO_timer); //delete the timer for INT_DTO
+        del_timer(&host->DTO_timer); //delete the timer for INT_DTO
 
     	host->data_status |= status;
 
@@ -3004,7 +3020,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
         goto Exit_INT;
     }
 
-#ifndef CONFIG_ARCH_RK29
+#if defined(CONFIG_ARCH_RK30)
     if(pending & SDMMC_INT_UNBUSY) 
     {
       //  printk("%d..%s:  ==test=== xbw======\n", __LINE__, __FUNCTION__);
@@ -3162,13 +3178,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&host->queue);
 #endif	
 
-#ifdef CONFIG_ARCH_RK29
 	host->clk = clk_get(&pdev->dev, "mmc");
-#elif CONFIG_ARCH_RK30
-    host->clk = clk_get(&pdev->dev, "sdmmc");
-#endif
-
-#if 0 //暂时屏蔽，RK30 CLOCK模块还未整理好。	!!!!!!!!!!!!!!!!!!!!!
 
 #if RK29_SDMMC_DEFAULT_SDIO_FREQ
     clk_set_rate(host->clk,SDHC_FPP_FREQ);
@@ -3180,15 +3190,8 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 
 #endif
 
-#endif
-
 	clk_enable(host->clk);
-
-#ifdef CONFIG_ARCH_RK29	
 	clk_enable(clk_get(&pdev->dev, "hclk_mmc"));
-#elif CONFIG_ARCH_RK30
-    clk_enable(clk_get(&pdev->dev, "hclk_sdmmc"));
-#endif
 
 	ret = -ENOMEM;
 	host->regs = ioremap(regs->start, regs->end - regs->start + 1);
@@ -3274,6 +3277,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 
     memcpy(host->dma_name, pdata->dma_name, 8);    
 	host->use_dma = pdata->use_dma;
+
+    printk("%s..%s..%d..***********  Bus clock= %d Khz  ====xbw[%s]===\n",\
+        __FILE__, __FUNCTION__,__LINE__,clk_get_rate(host->clk)/1000, host->dma_name);
 
 	/*DMA init*/
 	if(host->use_dma)
@@ -3464,7 +3470,7 @@ static int __exit rk29_sdmmc_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_PM
 
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_ARCH_RK29)
 static irqreturn_t det_keys_isr(int irq, void *dev_id)
 {
 	struct rk29_sdmmc *host = dev_id;
@@ -3499,7 +3505,8 @@ static void rk29_sdmmc_sdcard_resume(struct rk29_sdmmc *host)
 	gpio_free(RK29_PIN2_PA2);
 	rk29_mux_api_set(GPIO2A2_SDMMC0DETECTN_NAME, GPIO2L_SDMMC0_DETECT_N);
 }
-#else
+
+#elif defined(CONFIG_ARCH_RK30)
 static irqreturn_t det_keys_isr(int irq, void *dev_id)
 {
 	struct rk29_sdmmc *host = dev_id;

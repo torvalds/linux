@@ -46,9 +46,9 @@
 #define SDMMC_DEBNCE          (0x064)   //Card detect debounce register
 #define SDMMC_USRID           (0x068)   //User ID register
 
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_ARCH_RK29)
 #define SDMMC_DATA            (0x100)
-#else
+#elif defined(CONFIG_ARCH_RK30)
 #define SDMMC_VERID           (0x06c)   //Version ID register
 #define SDMMC_UHS_REG         (0x074)   //UHS-I register
 #define SDMMC_RST_n           (0x068)   //Hardware reset register
@@ -100,9 +100,9 @@
 #define SDMMC_CTYPE_1BIT         RK_CLEAR_BIT(0)
 
 /* Interrupt status & mask register defines(base+0x24) */
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_ARCH_RK29)
 #define SDMMC_INT_SDIO          RK2818_BIT(16)      //SDIO interrupt
-#else
+#elif defined(CONFIG_ARCH_RK30)
 #define SDMMC_INT_SDIO          RK2818_BIT(24)      //SDIO interrupt
 #define SDMMC_INT_UNBUSY        RK2818_BIT(16)      //data no busy interrupt
 #endif
@@ -172,7 +172,7 @@
 #define SD_MSIZE_128      (0x6 << 28)
 #define SD_MSIZE_256      (0x7 << 28)
 
-#ifdef CONFIG_ARCH_RK29
+#if defined(CONFIG_ARCH_RK29)
 #define FIFO_DEPTH        (0x20)       //FIFO depth = 32 word
 #define RX_WMARK_SHIFT    (16)
 #define TX_WMARK_SHIFT    (0)
@@ -180,7 +180,8 @@
 /* FIFO watermark */
 #define RX_WMARK          (0xF)        //RX watermark level set to 15
 #define TX_WMARK          (0x10)       //TX watermark level set to 16
-#else
+
+#elif defined(CONFIG_ARCH_RK30)
 #define FIFO_DEPTH        (0x100)       //FIFO depth = 256 word
 #define RX_WMARK_SHIFT    (16)
 #define TX_WMARK_SHIFT    (0)
