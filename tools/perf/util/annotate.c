@@ -408,7 +408,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	if (!notes->src->lines)
 		return -1;
 
-	start = map->unmap_ip(map, sym->start);
+	start = map__rip_2objdump(map, sym->start);
 
 	for (i = 0; i < len; i++) {
 		char *path = NULL;
