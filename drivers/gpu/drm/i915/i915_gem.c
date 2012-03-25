@@ -239,66 +239,6 @@ static int i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
 		obj->tiling_mode != I915_TILING_NONE;
 }
 
-/**
- * This is the fast shmem pread path, which attempts to copy_from_user directly
- * from the backing pages of the object to the user's address space.  On a
- * fault, it fails so we can fall back to i915_gem_shmem_pwrite_slow().
- */
-static int
-i915_gem_shmem_pread_fast(struct drm_device *dev,
-			  struct drm_i915_gem_object *obj,
-			  struct drm_i915_gem_pread *args,
-			  struct drm_file *file)
-{
-	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
-	ssize_t remain;
-	loff_t offset;
-	char __user *user_data;
-	int page_offset, page_length;
-
-	user_data = (char __user *) (uintptr_t) args->data_ptr;
-	remain = args->size;
-
-	offset = args->offset;
-
-	while (remain > 0) {
-		struct page *page;
-		char *vaddr;
-		int ret;
-
-		/* Operation in this page
-		 *
-		 * page_offset = offset within page
-		 * page_length = bytes to copy for this page
-		 */
-		page_offset = offset_in_page(offset);
-		page_length = remain;
-		if ((page_offset + remain) > PAGE_SIZE)
-			page_length = PAGE_SIZE - page_offset;
-
-		page = shmem_read_mapping_page(mapping, offset >> PAGE_SHIFT);
-		if (IS_ERR(page))
-			return PTR_ERR(page);
-
-		vaddr = kmap_atomic(page);
-		ret = __copy_to_user_inatomic(user_data,
-					      vaddr + page_offset,
-					      page_length);
-		kunmap_atomic(vaddr);
-
-		mark_page_accessed(page);
-		page_cache_release(page);
-		if (ret)
-			return -EFAULT;
-
-		remain -= page_length;
-		user_data += page_length;
-		offset += page_length;
-	}
-
-	return 0;
-}
-
 static inline int
 __copy_to_user_swizzled(char __user *cpu_vaddr,
 			const char *gpu_vaddr, int gpu_offset,
@@ -351,17 +291,11 @@ __copy_from_user_swizzled(char __user *gpu_vaddr, int gpu_offset,
 	return 0;
 }
 
-/**
- * This is the fallback shmem pread path, which allocates temporary storage
- * in kernel space to copy_to_user into outside of the struct_mutex, so we
- * can copy out of the object's backing pages while holding the struct mutex
- * and not take page faults.
- */
 static int
-i915_gem_shmem_pread_slow(struct drm_device *dev,
-			  struct drm_i915_gem_object *obj,
-			  struct drm_i915_gem_pread *args,
-			  struct drm_file *file)
+i915_gem_shmem_pread(struct drm_device *dev,
+		     struct drm_i915_gem_object *obj,
+		     struct drm_i915_gem_pread *args,
+		     struct drm_file *file)
 {
 	struct address_space *mapping = obj->base.filp->f_path.dentry->d_inode->i_mapping;
 	char __user *user_data;
@@ -369,6 +303,7 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 	loff_t offset;
 	int shmem_page_offset, page_length, ret = 0;
 	int obj_do_bit17_swizzling, page_do_bit17_swizzling;
+	int hit_slowpath = 0;
 
 	user_data = (char __user *) (uintptr_t) args->data_ptr;
 	remain = args->size;
@@ -376,8 +311,6 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 	obj_do_bit17_swizzling = i915_gem_object_needs_bit17_swizzle(obj);
 
 	offset = args->offset;
-
-	mutex_unlock(&dev->struct_mutex);
 
 	while (remain > 0) {
 		struct page *page;
@@ -402,6 +335,20 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 		page_do_bit17_swizzling = obj_do_bit17_swizzling &&
 			(page_to_phys(page) & (1 << 17)) != 0;
 
+		if (!page_do_bit17_swizzling) {
+			vaddr = kmap_atomic(page);
+			ret = __copy_to_user_inatomic(user_data,
+						      vaddr + shmem_page_offset,
+						      page_length);
+			kunmap_atomic(vaddr);
+			if (ret == 0) 
+				goto next_page;
+		}
+
+		hit_slowpath = 1;
+
+		mutex_unlock(&dev->struct_mutex);
+
 		vaddr = kmap(page);
 		if (page_do_bit17_swizzling)
 			ret = __copy_to_user_swizzled(user_data,
@@ -413,6 +360,8 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 					     page_length);
 		kunmap(page);
 
+		mutex_lock(&dev->struct_mutex);
+next_page:
 		mark_page_accessed(page);
 		page_cache_release(page);
 
@@ -427,10 +376,11 @@ i915_gem_shmem_pread_slow(struct drm_device *dev,
 	}
 
 out:
-	mutex_lock(&dev->struct_mutex);
-	/* Fixup: Kill any reinstated backing storage pages */
-	if (obj->madv == __I915_MADV_PURGED)
-		i915_gem_object_truncate(obj);
+	if (hit_slowpath) {
+		/* Fixup: Kill any reinstated backing storage pages */
+		if (obj->madv == __I915_MADV_PURGED)
+			i915_gem_object_truncate(obj);
+	}
 
 	return ret;
 }
@@ -486,11 +436,7 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out;
 
-	ret = -EFAULT;
-	if (!i915_gem_object_needs_bit17_swizzle(obj))
-		ret = i915_gem_shmem_pread_fast(dev, obj, args, file);
-	if (ret == -EFAULT)
-		ret = i915_gem_shmem_pread_slow(dev, obj, args, file);
+	ret = i915_gem_shmem_pread(dev, obj, args, file);
 
 out:
 	drm_gem_object_unreference(&obj->base);
