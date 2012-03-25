@@ -1048,11 +1048,13 @@ static struct sock *l2cap_sock_alloc(struct net *net, struct socket *sock, int p
 	sk->sk_protocol = proto;
 	sk->sk_state = BT_OPEN;
 
-	chan = l2cap_chan_create(sk);
+	chan = l2cap_chan_create();
 	if (!chan) {
 		l2cap_sock_kill(sk);
 		return NULL;
 	}
+
+	chan->sk = sk;
 
 	l2cap_pi(sk)->chan = chan;
 

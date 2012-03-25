@@ -262,7 +262,7 @@ static void l2cap_chan_timeout(struct work_struct *work)
 	l2cap_chan_put(chan);
 }
 
-struct l2cap_chan *l2cap_chan_create(struct sock *sk)
+struct l2cap_chan *l2cap_chan_create(void)
 {
 	struct l2cap_chan *chan;
 
@@ -271,8 +271,6 @@ struct l2cap_chan *l2cap_chan_create(struct sock *sk)
 		return NULL;
 
 	mutex_init(&chan->lock);
-
-	chan->sk = sk;
 
 	write_lock(&chan_list_lock);
 	list_add(&chan->global_l, &chan_list);
@@ -284,7 +282,7 @@ struct l2cap_chan *l2cap_chan_create(struct sock *sk)
 
 	atomic_set(&chan->refcnt, 1);
 
-	BT_DBG("sk %p chan %p", sk, chan);
+	BT_DBG("chan %p", chan);
 
 	return chan;
 }

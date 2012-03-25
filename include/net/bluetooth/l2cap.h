@@ -906,7 +906,7 @@ int __l2cap_wait_ack(struct sock *sk);
 int l2cap_add_psm(struct l2cap_chan *chan, bdaddr_t *src, __le16 psm);
 int l2cap_add_scid(struct l2cap_chan *chan,  __u16 scid);
 
-struct l2cap_chan *l2cap_chan_create(struct sock *sk);
+struct l2cap_chan *l2cap_chan_create(void);
 void l2cap_chan_close(struct l2cap_chan *chan, int reason);
 void l2cap_chan_destroy(struct l2cap_chan *chan);
 int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
