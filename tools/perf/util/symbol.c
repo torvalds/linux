@@ -50,6 +50,8 @@ struct symbol_conf symbol_conf = {
 
 int dso__name_len(const struct dso *dso)
 {
+	if (!dso)
+		return strlen("[unknown]");
 	if (verbose)
 		return dso->long_name_len;
 
