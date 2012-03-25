@@ -130,7 +130,7 @@ static void ath6kl_credit_init(struct ath6kl_htc_credit_info *cred_info,
 }
 
 /* initialize and setup credit distribution */
-int ath6kl_credit_setup(void *htc_handle,
+int ath6kl_credit_setup(struct htc_target *htc_target,
 			struct ath6kl_htc_credit_info *cred_info)
 {
 	u16 servicepriority[5];
@@ -144,7 +144,7 @@ int ath6kl_credit_setup(void *htc_handle,
 	servicepriority[4] = WMI_DATA_BK_SVC; /* lowest */
 
 	/* set priority list */
-	ath6kl_htc_set_credit_dist(htc_handle, cred_info, servicepriority, 5);
+	ath6kl_htc_set_credit_dist(htc_target, cred_info, servicepriority, 5);
 
 	return 0;
 }
