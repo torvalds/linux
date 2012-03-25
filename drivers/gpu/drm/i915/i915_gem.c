@@ -416,7 +416,7 @@ i915_gem_shmem_pread(struct drm_device *dev,
 		mutex_unlock(&dev->struct_mutex);
 
 		if (!prefaulted) {
-			ret = fault_in_pages_writeable(user_data, remain);
+			ret = fault_in_multipages_writeable(user_data, remain);
 			/* Userspace is tricking us, but we've already clobbered
 			 * its pages with the prefault and promised to write the
 			 * data up to the first fault. Hence ignore any errors
@@ -809,8 +809,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		       args->size))
 		return -EFAULT;
 
-	ret = fault_in_pages_readable((char __user *)(uintptr_t)args->data_ptr,
-				      args->size);
+	ret = fault_in_multipages_readable((char __user *)(uintptr_t)args->data_ptr,
+					   args->size);
 	if (ret)
 		return -EFAULT;
 
