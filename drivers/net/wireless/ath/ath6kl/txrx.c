@@ -1287,6 +1287,7 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	struct wmi_data_hdr *dhdr;
 	int min_hdr_len;
 	u8 meta_type, dot11_hdr = 0;
+	u8 pad_before_data_start;
 	int status = packet->status;
 	enum htc_endpoint_id ept = packet->endpoint;
 	bool is_amsdu, prev_ps, ps_state = false;
@@ -1498,6 +1499,10 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	seq_no = wmi_data_hdr_get_seqno(dhdr);
 	meta_type = wmi_data_hdr_get_meta(dhdr);
 	dot11_hdr = wmi_data_hdr_get_dot11(dhdr);
+	pad_before_data_start =
+		(le16_to_cpu(dhdr->info3) >> WMI_DATA_HDR_PAD_BEFORE_DATA_SHIFT)
+			& WMI_DATA_HDR_PAD_BEFORE_DATA_MASK;
+
 	skb_pull(skb, sizeof(struct wmi_data_hdr));
 
 	switch (meta_type) {
@@ -1515,6 +1520,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 	default:
 		break;
 	}
+
+	skb_pull(skb, pad_before_data_start);
 
 	if (dot11_hdr)
 		status = ath6kl_wmi_dot11_hdr_remove(ar->wmi, skb);
