@@ -539,18 +539,20 @@ int ath6kl_configure_target(struct ath6kl *ar)
 	 * but possible in theory.
 	 */
 
-	param = ar->hw.board_ext_data_addr;
-	ram_reserved_size = ar->hw.reserved_ram_size;
+	if (ar->target_type == TARGET_TYPE_AR6003) {
+		param = ar->hw.board_ext_data_addr;
+		ram_reserved_size = ar->hw.reserved_ram_size;
 
-	if (ath6kl_bmi_write_hi32(ar, hi_board_ext_data, param) != 0) {
-		ath6kl_err("bmi_write_memory for hi_board_ext_data failed\n");
-		return -EIO;
-	}
+		if (ath6kl_bmi_write_hi32(ar, hi_board_ext_data, param) != 0) {
+			ath6kl_err("bmi_write_memory for hi_board_ext_data failed\n");
+			return -EIO;
+		}
 
-	if (ath6kl_bmi_write_hi32(ar, hi_end_ram_reserve_sz,
-				  ram_reserved_size) != 0) {
-		ath6kl_err("bmi_write_memory for hi_end_ram_reserve_sz failed\n");
-		return -EIO;
+		if (ath6kl_bmi_write_hi32(ar, hi_end_ram_reserve_sz,
+					  ram_reserved_size) != 0) {
+			ath6kl_err("bmi_write_memory for hi_end_ram_reserve_sz failed\n");
+			return -EIO;
+		}
 	}
 
 	/* set the block size for the target */
