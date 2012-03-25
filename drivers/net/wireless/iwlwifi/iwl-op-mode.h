@@ -69,6 +69,7 @@ struct sk_buff;
 struct iwl_device_cmd;
 struct iwl_rx_cmd_buffer;
 struct iwl_fw;
+struct iwl_cfg;
 
 /**
  * DOC: Operational mode - what is it ?
