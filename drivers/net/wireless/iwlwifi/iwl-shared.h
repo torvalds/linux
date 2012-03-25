@@ -126,11 +126,4 @@ static inline bool iwl_have_debug_level(u32 level)
 	return iwlagn_mod_params.debug_level & level;
 }
 
-enum iwl_rxon_context_id {
-	IWL_RXON_CTX_BSS,
-	IWL_RXON_CTX_PAN,
-
-	NUM_IWL_RXON_CTX
-};
-
 #endif /* #__iwl_shared_h__ */

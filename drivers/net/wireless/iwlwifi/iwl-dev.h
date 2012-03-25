@@ -604,6 +604,13 @@ struct iwl_rf_reset {
 	unsigned long last_reset_jiffies;
 };
 
+enum iwl_rxon_context_id {
+	IWL_RXON_CTX_BSS,
+	IWL_RXON_CTX_PAN,
+
+	NUM_IWL_RXON_CTX
+};
+
 /* extend beacon time format bit shifting  */
 /*
  * for _agn devices
