@@ -17,6 +17,9 @@
 
 #include <mach/pmu.h>
 
+#define SCU_CTRL             0x00
+#define   SCU_STANDBY_EN     (1 << 5)
+
 #ifdef CONFIG_FIQ
 static void gic_raise_softirq_non_secure(const struct cpumask *mask, unsigned int irq)
 {
@@ -125,6 +128,8 @@ void __init platform_smp_prepare_cpus(unsigned int max_cpus)
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
 #endif
+
+	writel_relaxed(readl_relaxed(RK30_SCU_BASE + SCU_CTRL) | SCU_STANDBY_EN, RK30_SCU_BASE + SCU_CTRL);
 
 	scu_enable(RK30_SCU_BASE);
 }
