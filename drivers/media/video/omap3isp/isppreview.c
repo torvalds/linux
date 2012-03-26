@@ -889,6 +889,9 @@ static int preview_config(struct isp_prev_device *prev,
 	struct preview_update *attr;
 	int i, bit, rval = 0;
 
+	if (cfg->update == 0)
+		return 0;
+
 	params = &prev->params;
 
 	if (prev->state != ISP_PIPELINE_STREAM_STOPPED) {
@@ -943,6 +946,9 @@ static void preview_setup_hw(struct isp_prev_device *prev)
 	struct preview_update *attr;
 	int i, bit;
 	void *param_ptr;
+
+	if (prev->update == 0)
+		return;
 
 	for (i = 0; i < ARRAY_SIZE(update_attrs); i++) {
 		attr = &update_attrs[i];
