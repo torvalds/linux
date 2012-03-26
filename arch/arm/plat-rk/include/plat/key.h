@@ -6,7 +6,7 @@
 #define LONG_PRESS_COUNT			100 //100 * 10 = 1000ms
 #define ONE_SEC_COUNT				(1000/DEFAULT_DEBOUNCE_INTERVAL)
 
-#define ADC_SAMPLE_TIME				10
+#define ADC_SAMPLE_TIME				100
 
 struct rk29_keys_button {
 	int code;		
