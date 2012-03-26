@@ -800,21 +800,33 @@ static bool remote_due_to_read_balancing(struct drbd_conf *mdev, sector_t sector
  * The write_requests tree contains all active write requests which we
  * currently know about.  Wait for any requests to complete which conflict with
  * the new one.
+ *
+ * Only way out: remove the conflicting intervals from the tree.
  */
-static int complete_conflicting_writes(struct drbd_conf *mdev,
-				       sector_t sector, int size)
+static void complete_conflicting_writes(struct drbd_request *req)
 {
-	for(;;) {
-		struct drbd_interval *i;
-		int err;
+	DEFINE_WAIT(wait);
+	struct drbd_conf *mdev = req->w.mdev;
+	struct drbd_interval *i;
+	sector_t sector = req->i.sector;
+	int size = req->i.size;
 
+	i = drbd_find_overlap(&mdev->write_requests, sector, size);
+	if (!i)
+		return;
+
+	for (;;) {
+		prepare_to_wait(&mdev->misc_wait, &wait, TASK_UNINTERRUPTIBLE);
 		i = drbd_find_overlap(&mdev->write_requests, sector, size);
 		if (!i)
-			return 0;
-		err = drbd_wait_misc(mdev, i);
-		if (err)
-			return err;
+			break;
+		/* Indicate to wake up device->misc_wait on progress.  */
+		i->waiting = true;
+		spin_unlock_irq(&mdev->tconn->req_lock);
+		schedule();
+		spin_lock_irq(&mdev->tconn->req_lock);
 	}
+	finish_wait(&mdev->misc_wait, &wait);
 }
 
 int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
@@ -826,7 +838,7 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 	struct drbd_request *req;
 	struct net_conf *nc;
 	int local, remote, send_oos = 0;
-	int err;
+	int err = 0;
 	int ret = 0;
 	union drbd_dev_state s;
 
@@ -925,16 +937,10 @@ allocate_barrier:
 	spin_lock_irq(&mdev->tconn->req_lock);
 
 	if (rw == WRITE) {
-		err = complete_conflicting_writes(mdev, sector, size);
-		if (err) {
-			if (err != -ERESTARTSYS)
-				_conn_request_state(mdev->tconn,
-						    NS(conn, C_TIMEOUT),
-						    CS_HARD);
-			spin_unlock_irq(&mdev->tconn->req_lock);
-			err = -EIO;
-			goto fail_free_complete;
-		}
+		/* This may temporarily give up the req_lock,
+		 * but will re-aquire it before it returns here.
+		 * Needs to be before the check on drbd_suspended() */
+		complete_conflicting_writes(req);
 	}
 
 	if (drbd_suspended(mdev)) {
