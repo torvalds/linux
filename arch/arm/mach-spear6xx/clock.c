@@ -657,7 +657,7 @@ static struct clk_lookup spear_clk_lookups[] = {
 	/* clock derived from ahb clk */
 	CLKDEV_INIT(NULL, "apb_clk", &apb_clk),
 	CLKDEV_INIT("d0200000.i2c", NULL, &i2c_clk),
-	CLKDEV_INIT("dma", NULL, &dma_clk),
+	CLKDEV_INIT("fc400000.dma", NULL, &dma_clk),
 	CLKDEV_INIT("jpeg", NULL, &jpeg_clk),
 	CLKDEV_INIT("gmac", NULL, &gmac_clk),
 	CLKDEV_INIT("fc000000.flash", NULL, &smi_clk),

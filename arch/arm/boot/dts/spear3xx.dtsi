@@ -40,6 +40,14 @@
 			#interrupt-cells = <1>;
 		};
 
+		dma@fc400000 {
+			compatible = "arm,pl080", "arm,primecell";
+			reg = <0xfc400000 0x1000>;
+			interrupt-parent = <&vic>;
+			interrupts = <8>;
+			status = "disabled";
+		};
+
 		gmac: eth@e0800000 {
 			compatible = "st,spear600-gmac";
 			reg = <0xe0800000 0x8000>;

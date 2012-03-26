@@ -17,7 +17,9 @@
 #include <linux/amba/pl08x.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
+#include <asm/hardware/pl080.h>
 #include <asm/hardware/vic.h>
+#include <plat/pl080.h>
 #include <mach/generic.h>
 #include <mach/hardware.h>
 
@@ -463,6 +465,23 @@ struct pl022_ssp_controller pl022_plat_data = {
 	 * slave on each master requires a separate gpio pin.
 	 */
 	.num_chipselect = 2,
+};
+
+/* dmac device registration */
+struct pl08x_platform_data pl080_plat_data = {
+	.memcpy_channel = {
+		.bus_id = "memcpy",
+		.cctl = (PL080_BSIZE_16 << PL080_CONTROL_SB_SIZE_SHIFT | \
+			PL080_BSIZE_16 << PL080_CONTROL_DB_SIZE_SHIFT | \
+			PL080_WIDTH_32BIT << PL080_CONTROL_SWIDTH_SHIFT | \
+			PL080_WIDTH_32BIT << PL080_CONTROL_DWIDTH_SHIFT | \
+			PL080_CONTROL_PROT_BUFF | PL080_CONTROL_PROT_CACHE | \
+			PL080_CONTROL_PROT_SYS),
+	},
+	.lli_buses = PL08X_AHB1,
+	.mem_buses = PL08X_AHB1,
+	.get_signal = pl080_get_signal,
+	.put_signal = pl080_put_signal,
 };
 
 /*

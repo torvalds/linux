@@ -535,6 +535,193 @@ static struct pmx_dev *spear320_evb_pmx_devs[] = {
 	&spear320_pmx_mii1,
 };
 
+/* DMAC platform data's slave info */
+struct pl08x_channel_data spear320_dma_info[] = {
+	{
+		.bus_id = "uart0_rx",
+		.min_signal = 2,
+		.max_signal = 2,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "uart0_tx",
+		.min_signal = 3,
+		.max_signal = 3,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ssp0_rx",
+		.min_signal = 8,
+		.max_signal = 8,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ssp0_tx",
+		.min_signal = 9,
+		.max_signal = 9,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "i2c0_rx",
+		.min_signal = 10,
+		.max_signal = 10,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "i2c0_tx",
+		.min_signal = 11,
+		.max_signal = 11,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "irda",
+		.min_signal = 12,
+		.max_signal = 12,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "adc",
+		.min_signal = 13,
+		.max_signal = 13,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "to_jpeg",
+		.min_signal = 14,
+		.max_signal = 14,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "from_jpeg",
+		.min_signal = 15,
+		.max_signal = 15,
+		.muxval = 0,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB1,
+	}, {
+		.bus_id = "ssp1_rx",
+		.min_signal = 0,
+		.max_signal = 0,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "ssp1_tx",
+		.min_signal = 1,
+		.max_signal = 1,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "ssp2_rx",
+		.min_signal = 2,
+		.max_signal = 2,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "ssp2_tx",
+		.min_signal = 3,
+		.max_signal = 3,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "uart1_rx",
+		.min_signal = 4,
+		.max_signal = 4,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "uart1_tx",
+		.min_signal = 5,
+		.max_signal = 5,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "uart2_rx",
+		.min_signal = 6,
+		.max_signal = 6,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "uart2_tx",
+		.min_signal = 7,
+		.max_signal = 7,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "i2c1_rx",
+		.min_signal = 8,
+		.max_signal = 8,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "i2c1_tx",
+		.min_signal = 9,
+		.max_signal = 9,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "i2c2_rx",
+		.min_signal = 10,
+		.max_signal = 10,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "i2c2_tx",
+		.min_signal = 11,
+		.max_signal = 11,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "i2s_rx",
+		.min_signal = 12,
+		.max_signal = 12,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "i2s_tx",
+		.min_signal = 13,
+		.max_signal = 13,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "rs485_rx",
+		.min_signal = 14,
+		.max_signal = 14,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	}, {
+		.bus_id = "rs485_tx",
+		.min_signal = 15,
+		.max_signal = 15,
+		.muxval = 1,
+		.cctl = 0,
+		.periph_buses = PL08X_AHB2,
+	},
+};
+
 static struct pl022_ssp_controller spear320_ssp_data[] = {
 	{
 		.bus_id = 1,
@@ -569,6 +756,8 @@ static struct amba_pl011_data spear320_uart_data[] = {
 static struct of_dev_auxdata spear320_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,pl022", SPEAR3XX_ICM1_SSP_BASE, NULL,
 			&pl022_plat_data),
+	OF_DEV_AUXDATA("arm,pl080", SPEAR3XX_ICM3_DMA_BASE, NULL,
+			&pl080_plat_data),
 	OF_DEV_AUXDATA("arm,pl022", SPEAR320_SSP0_BASE, NULL,
 			&spear320_ssp_data[0]),
 	OF_DEV_AUXDATA("arm,pl022", SPEAR320_SSP1_BASE, NULL,
@@ -584,6 +773,9 @@ static void __init spear320_dt_init(void)
 {
 	void __iomem *base;
 	int ret = 0;
+
+	pl080_plat_data.slave_channels = spear320_dma_info;
+	pl080_plat_data.num_slave_channels = ARRAY_SIZE(spear320_dma_info);
 
 	of_platform_populate(NULL, of_default_bus_match_table,
 			spear320_auxdata_lookup, NULL);

@@ -29,6 +29,10 @@
 			status = "okay";
 		};
 
+		dma@fc400000 {
+			status = "okay";
+		};
+
 		fsmc: flash@94000000 {
 			status = "okay";
 		};

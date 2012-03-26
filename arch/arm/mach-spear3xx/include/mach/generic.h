@@ -14,6 +14,7 @@
 #ifndef __MACH_GENERIC_H
 #define __MACH_GENERIC_H
 
+#include <linux/amba/pl08x.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
@@ -33,6 +34,7 @@
 /* Add spear3xx family device structure declarations here */
 extern struct sys_timer spear3xx_timer;
 extern struct pl022_ssp_controller pl022_plat_data;
+extern struct pl08x_platform_data pl080_plat_data;
 
 /* Add spear3xx family function declarations here */
 void __init spear_setup_timer(void);

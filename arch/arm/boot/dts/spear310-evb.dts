@@ -25,6 +25,10 @@
 	};
 
 	ahb {
+		dma@fc400000 {
+			status = "okay";
+		};
+
 		fsmc: flash@44000000 {
 			status = "okay";
 		};
