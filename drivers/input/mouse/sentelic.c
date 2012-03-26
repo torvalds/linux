@@ -2,7 +2,7 @@
  * Finger Sensing Pad PS/2 mouse driver.
  *
  * Copyright (C) 2005-2007 Asia Vital Components Co., Ltd.
- * Copyright (C) 2005-2011 Tai-hwa Liang, Sentelic Corporation.
+ * Copyright (C) 2005-2012 Tai-hwa Liang, Sentelic Corporation.
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -21,6 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
 #include <linux/ctype.h>
 #include <linux/libps2.h>
 #include <linux/serio.h>
@@ -643,12 +644,24 @@ static void fsp_packet_debug(unsigned char packet[])
 }
 #endif
 
+static void fsp_set_slot(struct input_dev *dev, int slot, bool active,
+			 unsigned int x, unsigned int y)
+{
+	input_mt_slot(dev, slot);
+	input_mt_report_slot_state(dev, MT_TOOL_FINGER, active);
+	if (active) {
+		input_report_abs(dev, ABS_MT_POSITION_X, x);
+		input_report_abs(dev, ABS_MT_POSITION_Y, y);
+	}
+}
+
 static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 {
 	struct input_dev *dev = psmouse->dev;
 	struct fsp_data *ad = psmouse->private;
 	unsigned char *packet = psmouse->packet;
 	unsigned char button_status = 0, lscroll = 0, rscroll = 0;
+	unsigned short abs_x, abs_y, fgrs = 0;
 	int rel_x, rel_y;
 
 	if (psmouse->pktcnt < 4)
@@ -660,8 +673,66 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 
 	switch (psmouse->packet[0] >> FSP_PKT_TYPE_SHIFT) {
 	case FSP_PKT_TYPE_ABS:
-		psmouse_warn(psmouse,
-			     "Unexpected absolute mode packet, ignored.\n");
+		abs_x = (packet[1] << 2) | ((packet[3] >> 2) & 0x03);
+		abs_y = (packet[2] << 2) | (packet[3] & 0x03);
+
+		if (packet[0] & FSP_PB0_MFMC) {
+			/*
+			 * MFMC packet: assume that there are two fingers on
+			 * pad
+			 */
+			fgrs = 2;
+
+			/* MFMC packet */
+			if (packet[0] & FSP_PB0_MFMC_FGR2) {
+				/* 2nd finger */
+				if (ad->last_mt_fgr == 2) {
+					/*
+					 * workaround for buggy firmware
+					 * which doesn't clear MFMC bit if
+					 * the 1st finger is up
+					 */
+					fgrs = 1;
+					fsp_set_slot(dev, 0, false, 0, 0);
+				}
+				ad->last_mt_fgr = 2;
+
+				fsp_set_slot(dev, 1, fgrs == 2, abs_x, abs_y);
+			} else {
+				/* 1st finger */
+				if (ad->last_mt_fgr == 1) {
+					/*
+					 * workaround for buggy firmware
+					 * which doesn't clear MFMC bit if
+					 * the 2nd finger is up
+					 */
+					fgrs = 1;
+					fsp_set_slot(dev, 1, false, 0, 0);
+				}
+				ad->last_mt_fgr = 1;
+				fsp_set_slot(dev, 0, fgrs != 0, abs_x, abs_y);
+			}
+		} else {
+			/* SFAC packet */
+
+			/* no multi-finger information */
+			ad->last_mt_fgr = 0;
+
+			if (abs_x != 0 && abs_y != 0)
+				fgrs = 1;
+
+			fsp_set_slot(dev, 0, fgrs > 0, abs_x, abs_y);
+			fsp_set_slot(dev, 1, false, 0, 0);
+		}
+		if (fgrs > 0) {
+			input_report_abs(dev, ABS_X, abs_x);
+			input_report_abs(dev, ABS_Y, abs_y);
+		}
+		input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
+		input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
+		input_report_key(dev, BTN_TOUCH, fgrs);
+		input_report_key(dev, BTN_TOOL_FINGER, fgrs == 1);
+		input_report_key(dev, BTN_TOOL_DOUBLETAP, fgrs == 2);
 		break;
 
 	case FSP_PKT_TYPE_NORMAL_OPC:
@@ -785,6 +856,17 @@ static int fsp_activate_protocol(struct psmouse *psmouse)
 		/* Enable on-pad vertical and horizontal scrolling */
 		fsp_onpad_vscr(psmouse, true);
 		fsp_onpad_hscr(psmouse, true);
+	} else {
+		/* Enable absolute coordinates output for Cx/Dx hardware */
+		if (fsp_reg_write(psmouse, FSP_REG_SWC1,
+				  FSP_BIT_SWC1_EN_ABS_1F |
+				  FSP_BIT_SWC1_EN_ABS_2F |
+				  FSP_BIT_SWC1_EN_FUP_OUT |
+				  FSP_BIT_SWC1_EN_ABS_CON)) {
+			psmouse_err(psmouse,
+				    "Unable to enable absolute coordinates output.\n");
+			return -EIO;
+		}
 	}
 
 	return 0;
@@ -801,6 +883,32 @@ static int fsp_set_input_params(struct psmouse *psmouse)
 		__set_bit(BTN_FORWARD, dev->keybit);
 		__set_bit(REL_WHEEL, dev->relbit);
 		__set_bit(REL_HWHEEL, dev->relbit);
+	} else {
+		/*
+		 * Hardware prior to Cx performs much better in relative mode;
+		 * hence, only enable absolute coordinates output as well as
+		 * multi-touch output for the newer hardware.
+		 *
+		 * Maximum coordinates can be computed as:
+		 *
+		 *	number of scanlines * 64 - 57
+		 *
+		 * where number of X/Y scanline lines are 16/12.
+		 */
+		int abs_x = 967, abs_y = 711;
+
+		__set_bit(EV_ABS, dev->evbit);
+		__clear_bit(EV_REL, dev->evbit);
+		__set_bit(BTN_TOUCH, dev->keybit);
+		__set_bit(BTN_TOOL_FINGER, dev->keybit);
+		__set_bit(BTN_TOOL_DOUBLETAP, dev->keybit);
+		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
+
+		input_set_abs_params(dev, ABS_X, 0, abs_x, 0, 0);
+		input_set_abs_params(dev, ABS_Y, 0, abs_y, 0, 0);
+		input_mt_init_slots(dev, 2);
+		input_set_abs_params(dev, ABS_MT_POSITION_X, 0, abs_x, 0, 0);
+		input_set_abs_params(dev, ABS_MT_POSITION_Y, 0, abs_y, 0, 0);
 	}
 
 	return 0;
