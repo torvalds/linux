@@ -64,9 +64,6 @@ static int rd_attach_hba(struct se_hba *hba, u32 host_id)
 	pr_debug("CORE_HBA[%d] - TCM Ramdisk HBA Driver %s on"
 		" Generic Target Core Stack %s\n", hba->hba_id,
 		RD_HBA_VERSION, TARGET_CORE_MOD_VERSION);
-	pr_debug("CORE_HBA[%d] - Attached Ramdisk HBA: %u to Generic"
-		" MaxSectors: %u\n", hba->hba_id,
-		rd_host->rd_host_id, RD_MAX_SECTORS);
 
 	return 0;
 }
@@ -235,8 +232,8 @@ static struct se_device *rd_create_virtdevice(struct se_hba *hba,
 	snprintf(rev, 4, "%s", RD_MCP_VERSION);
 
 	dev_limits.limits.logical_block_size = RD_BLOCKSIZE;
-	dev_limits.limits.max_hw_sectors = RD_MAX_SECTORS;
-	dev_limits.limits.max_sectors = RD_MAX_SECTORS;
+	dev_limits.limits.max_hw_sectors = UINT_MAX;
+	dev_limits.limits.max_sectors = UINT_MAX;
 	dev_limits.hw_queue_depth = RD_MAX_DEVICE_QUEUE_DEPTH;
 	dev_limits.queue_depth = RD_DEVICE_QUEUE_DEPTH;
 

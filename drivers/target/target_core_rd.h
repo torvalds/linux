@@ -9,7 +9,6 @@
 #define RD_DEVICE_QUEUE_DEPTH	32
 #define RD_MAX_DEVICE_QUEUE_DEPTH 128
 #define RD_BLOCKSIZE		512
-#define RD_MAX_SECTORS		1024
 
 /* Used in target_core_init_configfs() for virtual LUN 0 access */
 int __init rd_module_init(void);
