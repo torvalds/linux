@@ -32,7 +32,7 @@
 #include <linux/earlysuspend.h>
 #endif
 
-#if 1
+#if 0
 #define mmaprintk(x...) printk(x)
 #else
 #define mmaprintk(x...)  
@@ -90,7 +90,7 @@ static int gsensor_sysfs_init(void)
 
 	android_gsensor_kobj = kobject_create_and_add("android_gyrosensor", NULL);
 	if (android_gsensor_kobj == NULL) {
-		mmaprintk(KERN_ERR
+		printk(KERN_ERR
 		       "L3G4200D gsensor_sysfs_init:"\
 		       "subsystem_register failed\n"); 
 		ret = -ENOMEM;
@@ -99,7 +99,7 @@ static int gsensor_sysfs_init(void)
 
 	ret = sysfs_create_file(android_gsensor_kobj, &dev_attr_vendor.attr);
 	if (ret) {
-		mmaprintk(KERN_ERR
+		printk(KERN_ERR
 		       "L3G4200D gsensor_sysfs_init:"\
 		       "sysfs_create_group failed\n");
 		goto err4;
@@ -112,7 +112,7 @@ err:
 	return ret ;
 }
 
-#if 1	
+#if 0	
 static int l3g4200d_rx_data(struct i2c_client *client, char *rxData, int length)
 {
 	int ret = 0;
@@ -124,20 +124,20 @@ static int l3g4200d_rx_data(struct i2c_client *client, char *rxData, int length)
 static int l3g4200d_rx_data(struct i2c_client *client, char *rxData, int length)
 {
 	int ret = 0;
-	int retry = 3;
 	char reg = rxData[0];
-again:
-	ret = i2c_master_reg8_recv(client, reg, rxData, length, L3G4200D_SPEED);
-	if(ret < 0)
+	int i = 0;
+	for(i=0; i<3; i++)
 	{
-	    retry--;
-	    mdelay(1);
-	    goto again;
+		ret = i2c_master_reg8_recv(client, reg, rxData, length, L3G4200D_SPEED);
+		if(ret < 0)
+		mdelay(1);
+		else
+		break;
 	}
 	return (ret > 0)? 0 : ret;
 }
 #endif
-#if 1	
+#if 0	
 static int l3g4200d_tx_data(struct i2c_client *client, char *txData, int length)
 {
 	int ret = 0;
@@ -150,53 +150,55 @@ static int l3g4200d_tx_data(struct i2c_client *client, char *txData, int length)
 {
 	int ret = 0;
 	char reg = txData[0];
-	int retry = 3;
-again:
-	ret = i2c_master_reg8_send(client, reg, &txData[1], length-1, L3G4200D_SPEED);
-	if(ret < 0)
+	int i = 0;
+	for(i=0; i<3; i++)
 	{
-	    retry--;
-	    mdelay(1);
-	    goto again;
+		ret = i2c_master_reg8_send(client, reg, &txData[1], length-1, L3G4200D_SPEED);
+		if(ret < 0)
+		mdelay(1);
+		else
+		break;
 	}
 	return (ret > 0)? 0 : ret;
 }
 #endif
 
-
+#if 0
 static int gyro_rx_data(struct i2c_client *client, char *rxData, int length)
 {
 	int ret = 0;
-	int retry = 3;
+	int i = 0;
 	char reg = rxData[0];
-//again:
-	ret = i2c_master_reg8_recv(client, reg, rxData, length, L3G4200D_SPEED);
-	if(ret < 0)
+	for(i=0; i<3; i++)
 	{
-	    retry--;
-	    mdelay(1);
-	    //goto again;
+		ret = i2c_master_reg8_recv(client, reg, rxData, length, L3G4200D_SPEED);
+		if(ret < 0)
+		mdelay(1);
+		else
+		break;
 	}
 	return (ret > 0)? 0 : ret;
 }
+#endif
 
 static int gyro_tx_data(struct i2c_client *client, char *txData, int length)
 {
 	int ret = 0;
 	char reg = txData[0];
-	int retry = 3;
-//again:
-	ret = i2c_master_reg8_send(client, reg, &txData[1], length-1, L3G4200D_SPEED);
-	if(ret < 0)
+	int i = 0;
+	
+	for(i=0; i<3; i++)
 	{
-	    retry--;
-	    mdelay(1);
-	   // goto again;
+		ret = i2c_master_reg8_send(client, reg, &txData[1], length-1, L3G4200D_SPEED);
+		if(ret < 0)
+		mdelay(1);
+		else
+		break;
 	}
 	return (ret > 0)? 0 : ret;
 }
 
-
+#if 0
 /*  i2c read routine for l3g4200d digital gyroscope */
 static char l3g4200d_i2c_read(unsigned char reg_addr,
 				   unsigned char *data,
@@ -211,6 +213,7 @@ static char l3g4200d_i2c_read(unsigned char reg_addr,
 	ret = gyro_rx_data(this_client, data, len);
 	return tmp;
 }
+#endif
 /*  i2c write routine for l3g4200d digital gyroscope */
 static char l3g4200d_i2c_write(unsigned char reg_addr,
 				    unsigned char *data,
@@ -260,15 +263,10 @@ static char l3g4200d_get_devid(struct i2c_client *client)
 	int tempvalue;
 	 tempvalue=l3g4200d_read_reg(client, WHO_AM_I);
 	if ((tempvalue & 0x00FF) == 0x00D3) {
-		#if DEBUG
-		printk(KERN_INFO "I2C driver registered!\n");
-		#endif
+		mmaprintk(KERN_INFO "I2C driver registered!\n");
 		return 1;
-	} else {
-		
-		#if DEBUG
-		printk(KERN_INFO "I2C driver %d!\n",tempvalue);
-		#endif
+	} else {		
+		mmaprintk(KERN_INFO "I2C driver %d!\n",tempvalue);	
 		return 0;
 	}	
 }
@@ -338,7 +336,7 @@ static int l3g4200d_start(struct i2c_client *client, char rate)
 { 
     struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
     
-    printk("%s::enter\n",__FUNCTION__); 
+    mmaprintk("%s::enter\n",__FUNCTION__); 
     if (l3g4200d->status == L3G4200D_OPEN) {
         return 0;      
     }
@@ -356,7 +354,7 @@ static int l3g4200d_close_dev(struct i2c_client *client)
 static int l3g4200d_close(struct i2c_client *client)
 {
 	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
-	printk("%s::enter\n",__FUNCTION__); 
+	mmaprintk("%s::enter\n",__FUNCTION__); 
 	l3g4200d->status = L3G4200D_CLOSE;
 
 	return l3g4200d_close_dev(client);
@@ -366,7 +364,7 @@ static int l3g4200d_reset_rate(struct i2c_client *client, char rate)
 {
 	int ret = 0;
 	
-	mmaprintk("\n----------------------------l3g4200d_reset_rate------------------------\n");
+	mmaprintk("%s\n",__func__);
 	
     ret = l3g4200d_close_dev(client);
     ret = l3g4200d_start_dev(client, rate);
@@ -397,7 +395,7 @@ static void l3g4200d_report_value(struct i2c_client *client, struct l3g4200d_axi
 	input_report_abs(l3g4200d->input_dev, ABS_RY, axis->y);
 	input_report_abs(l3g4200d->input_dev, ABS_RZ, axis->z);
 	input_sync(l3g4200d->input_dev);
-	mmaprintk("Gsensor x==%d  y==%d z==%d\n",axis->x,axis->y,axis->z);
+	mmaprintk("%s:x==%d  y==%d z==%d\n",__func__,axis->x,axis->y,axis->z);
 }
 
 
@@ -424,7 +422,7 @@ static int l3g4200d_get_data(struct i2c_client *client)
 	hw_d[1] = (short) (((gyro_data[3]) << 8) | gyro_data[2]);
 	hw_d[2] = (short) (((gyro_data[5]) << 8) | gyro_data[4]);
 
-	//mmaprintk("Gsensor x==%d  y==%d z==%d x==%d  y==%d z==%d\n",gyro_data[0],gyro_data[1],gyro_data[2],gyro_data[3],gyro_data[4],gyro_data[5]);
+	mmaprintk("%s: x==%d  y==%d z==%d x==%d  y==%d z==%d\n",__func__, gyro_data[0],gyro_data[1],gyro_data[2],gyro_data[3],gyro_data[4],gyro_data[5]);
 
 
 	axis.x = ((this_data->pdata->negate_x) ? (-hw_d[this_data->pdata->axis_map_x])
@@ -478,31 +476,30 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 	struct i2c_client *client = container_of(l3g4200d_device.parent, struct i2c_client, dev);
 	
 	switch (cmd) {
-	case L3G4200D_IOCTL_GET_ENABLE:
-		
-		printk("%s:line=%d,cmd=0x%x\n",__func__,__LINE__,cmd);
-		mmaprintk("%s :enter\n",__FUNCTION__);	
+	case L3G4200D_IOCTL_GET_ENABLE:	
+		mmaprintk("%s :L3G4200D_IOCTL_GET_ENABLE\n",__FUNCTION__);	
 		ret=!l3g4200d->status;
 		if (copy_to_user(argp, &ret, sizeof(ret)))
 			return 0;
 		break;
 	//case ECS_IOCTL_START:
-	case L3G4200D_IOCTL_SET_ENABLE:		
+	case L3G4200D_IOCTL_SET_ENABLE:			
+		mmaprintk("%s :L3G4200D_IOCTL_SET_ENABLE\n",__FUNCTION__);	
 		ret = l3g4200d_start(client, ODR100_BW12_5);
 		if (ret < 0)
 			return ret;
 		break;
 	case ECS_IOCTL_CLOSE:		
+		mmaprintk("%s :ECS_IOCTL_CLOSE\n",__FUNCTION__);
 		ret = l3g4200d_close(client);
 		if (ret < 0)
 			return ret;
 		break;
 	case L3G4200D_IOCTL_SET_DELAY:		
+		mmaprintk("%s :L3G4200D_IOCTL_SET_DELAY,rate=%d\n",__FUNCTION__,rate);
 		if (copy_from_user(&rate, argp, sizeof(rate)))
 		return -EFAULT;
-		ret = l3g4200d_reset_rate(client, 0x00);//rate<<4);//0x20
-		printk(KERN_ERR "%d\n",rate);
-		
+		ret = l3g4200d_reset_rate(client, 0x00);//rate<<4);//0x20		
 		if (ret < 0)
 			return ret;
 		break;
@@ -520,6 +517,7 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 		return -ENOTTY;
 	}
 	
+	mmaprintk("%s:line=%d,cmd=0x%x\n",__func__,__LINE__,cmd);
 	return 0;
 }
 
@@ -551,7 +549,7 @@ static irqreturn_t l3g4200d_interrupt(int irq, void *dev_id)
 	
 	disable_irq_nosync(irq);
 	schedule_delayed_work(&l3g4200d->delaywork, msecs_to_jiffies(200));
-	//mmaprintk("%s :enter\n",__FUNCTION__);	
+	mmaprintk("%s :enter\n",__FUNCTION__);	
 	return IRQ_HANDLED;
 }
 
@@ -811,13 +809,12 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 		printk(KERN_INFO "l3g4200d probe error\n");
 	
 
-	l3g4200d->status = -1;
+	l3g4200d->status = L3G4200D_CLOSE;
 #if  0	
 //	l3g4200d_start_test(this_client);
 	l3g4200d_start(client, L3G4200D_RATE_12P5);
 #endif
 	
-	printk("%s:ok\n",__FUNCTION__);
 	return 0;
 
 exit_gsensor_sysfs_init_failed:
@@ -834,8 +831,6 @@ exit_kfree:
 exit_request_gpio_irq_failed:
 	kfree(l3g4200d);	
 exit_alloc_data_failed:
-    ;
-exit:	
 	mmaprintk("%s error\n",__FUNCTION__);
 	return err;
 }
