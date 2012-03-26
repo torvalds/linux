@@ -115,6 +115,28 @@ int pwmchip_remove(struct pwm_chip *chip);
 struct pwm_device *pwm_request_from_chip(struct pwm_chip *chip,
 					 unsigned int index,
 					 const char *label);
+
+struct pwm_device *pwm_get(struct device *dev, const char *consumer);
+void pwm_put(struct pwm_device *pwm);
+
+struct pwm_lookup {
+	struct list_head list;
+	const char *provider;
+	unsigned int index;
+	const char *dev_id;
+	const char *con_id;
+};
+
+#define PWM_LOOKUP(_provider, _index, _dev_id, _con_id)	\
+	{						\
+		.provider = _provider,			\
+		.index = _index,			\
+		.dev_id = _dev_id,			\
+		.con_id = _con_id,			\
+	}
+
+void pwm_add_table(struct pwm_lookup *table, size_t num);
+
 #endif
 
 #endif /* __LINUX_PWM_H */

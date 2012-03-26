@@ -32,6 +32,8 @@
 
 #define MAX_PWMS 1024
 
+static DEFINE_MUTEX(pwm_lookup_lock);
+static LIST_HEAD(pwm_lookup_list);
 static DEFINE_MUTEX(pwm_lock);
 static LIST_HEAD(pwm_chips);
 static DECLARE_BITMAP(allocated_pwms, MAX_PWMS);
@@ -78,6 +80,29 @@ static void free_pwms(struct pwm_chip *chip)
 
 	kfree(chip->pwms);
 	chip->pwms = NULL;
+}
+
+static struct pwm_chip *pwmchip_find_by_name(const char *name)
+{
+	struct pwm_chip *chip;
+
+	if (!name)
+		return NULL;
+
+	mutex_lock(&pwm_lock);
+
+	list_for_each_entry(chip, &pwm_chips, list) {
+		const char *chip_name = dev_name(chip->dev);
+
+		if (chip_name && strcmp(chip_name, name) == 0) {
+			mutex_unlock(&pwm_lock);
+			return chip;
+		}
+	}
+
+	mutex_unlock(&pwm_lock);
+
+	return NULL;
 }
 
 static int pwm_device_request(struct pwm_device *pwm, const char *label)
@@ -218,6 +243,8 @@ EXPORT_SYMBOL_GPL(pwmchip_remove);
  * pwm_request() - request a PWM device
  * @pwm_id: global PWM device index
  * @label: PWM device label
+ *
+ * This function is deprecated, use pwm_get() instead.
  */
 struct pwm_device *pwm_request(int pwm, const char *label)
 {
@@ -281,24 +308,12 @@ EXPORT_SYMBOL_GPL(pwm_request_from_chip);
 /**
  * pwm_free() - free a PWM device
  * @pwm: PWM device
+ *
+ * This function is deprecated, use pwm_put() instead.
  */
 void pwm_free(struct pwm_device *pwm)
 {
-	mutex_lock(&pwm_lock);
-
-	if (!test_and_clear_bit(PWMF_REQUESTED, &pwm->flags)) {
-		pr_warning("PWM device already freed\n");
-		goto out;
-	}
-
-	if (pwm->chip->ops->free)
-		pwm->chip->ops->free(pwm->chip, pwm);
-
-	pwm->label = NULL;
-
-	module_put(pwm->chip->ops->owner);
-out:
-	mutex_unlock(&pwm_lock);
+	pwm_put(pwm);
 }
 EXPORT_SYMBOL_GPL(pwm_free);
 
@@ -340,6 +355,130 @@ void pwm_disable(struct pwm_device *pwm)
 		pwm->chip->ops->disable(pwm->chip, pwm);
 }
 EXPORT_SYMBOL_GPL(pwm_disable);
+
+/**
+ * pwm_add_table() - register PWM device consumers
+ * @table: array of consumers to register
+ * @num: number of consumers in table
+ */
+void __init pwm_add_table(struct pwm_lookup *table, size_t num)
+{
+	mutex_lock(&pwm_lookup_lock);
+
+	while (num--) {
+		list_add_tail(&table->list, &pwm_lookup_list);
+		table++;
+	}
+
+	mutex_unlock(&pwm_lookup_lock);
+}
+
+/**
+ * pwm_get() - look up and request a PWM device
+ * @dev: device for PWM consumer
+ * @con_id: consumer name
+ *
+ * Look up a PWM chip and a relative index via a table supplied by board setup
+ * code (see pwm_add_table()).
+ *
+ * Once a PWM chip has been found the specified PWM device will be requested
+ * and is ready to be used.
+ */
+struct pwm_device *pwm_get(struct device *dev, const char *con_id)
+{
+	struct pwm_device *pwm = ERR_PTR(-EPROBE_DEFER);
+	const char *dev_id = dev ? dev_name(dev): NULL;
+	struct pwm_chip *chip = NULL;
+	unsigned int best = 0;
+	struct pwm_lookup *p;
+	unsigned int index;
+	unsigned int match;
+
+	/*
+	 * We look up the provider in the static table typically provided by
+	 * board setup code. We first try to lookup the consumer device by
+	 * name. If the consumer device was passed in as NULL or if no match
+	 * was found, we try to find the consumer by directly looking it up
+	 * by name.
+	 *
+	 * If a match is found, the provider PWM chip is looked up by name
+	 * and a PWM device is requested using the PWM device per-chip index.
+	 *
+	 * The lookup algorithm was shamelessly taken from the clock
+	 * framework:
+	 *
+	 * We do slightly fuzzy matching here:
+	 *  An entry with a NULL ID is assumed to be a wildcard.
+	 *  If an entry has a device ID, it must match
+	 *  If an entry has a connection ID, it must match
+	 * Then we take the most specific entry - with the following order
+	 * of precedence: dev+con > dev only > con only.
+	 */
+	mutex_lock(&pwm_lookup_lock);
+
+	list_for_each_entry(p, &pwm_lookup_list, list) {
+		match = 0;
+
+		if (p->dev_id) {
+			if (!dev_id || strcmp(p->dev_id, dev_id))
+				continue;
+
+			match += 2;
+		}
+
+		if (p->con_id) {
+			if (!con_id || strcmp(p->con_id, con_id))
+				continue;
+
+			match += 1;
+		}
+
+		if (match > best) {
+			chip = pwmchip_find_by_name(p->provider);
+			index = p->index;
+
+			if (match != 3)
+				best = match;
+			else
+				break;
+		}
+	}
+
+	if (chip)
+		pwm = pwm_request_from_chip(chip, index, con_id ?: dev_id);
+
+	mutex_unlock(&pwm_lookup_lock);
+
+	return pwm;
+}
+EXPORT_SYMBOL_GPL(pwm_get);
+
+/**
+ * pwm_put() - release a PWM device
+ * @pwm: PWM device
+ */
+void pwm_put(struct pwm_device *pwm)
+{
+	if (!pwm)
+		return;
+
+	mutex_lock(&pwm_lock);
+
+	if (!test_and_clear_bit(PWMF_REQUESTED, &pwm->flags)) {
+		pr_warning("PWM device already freed\n");
+		goto out;
+	}
+
+	if (pwm->chip->ops->free)
+		pwm->chip->ops->free(pwm->chip, pwm);
+
+	pwm->label = NULL;
+
+	module_put(pwm->chip->ops->owner);
+out:
+	mutex_unlock(&pwm_lock);
+}
+EXPORT_SYMBOL_GPL(pwm_put);
 
 #ifdef CONFIG_DEBUG_FS
 static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
