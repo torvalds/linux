@@ -1956,8 +1956,16 @@ i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
+	struct intel_device_info *info;
 	int ret = 0, mmio_bar;
 	uint32_t aperture_size;
+
+	info = (struct intel_device_info *) flags;
+
+	/* Refuse to load on gen6+ without kms enabled. */
+	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 
 	/* i915 has 4 more counters */
 	dev->counters += 4;
@@ -1972,7 +1980,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->dev = dev;
-	dev_priv->info = (struct intel_device_info *) flags;
+	dev_priv->info = info;
 
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
