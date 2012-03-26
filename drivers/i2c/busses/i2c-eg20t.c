@@ -445,7 +445,10 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 			pch_i2c_init(adap);
 			return -EAGAIN;
 		} else { /* wait-event timeout */
+			pch_err(adap, "%s(L.%d):wait-event timeout\n",
+				__func__, __LINE__);
 			pch_i2c_stop(adap);
+			pch_i2c_init(adap);
 			return -ETIME;
 		}
 	} else {
@@ -469,7 +472,10 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 		pch_i2c_init(adap);
 		return -EAGAIN;
 	} else { /* wait-event timeout */
+		pch_err(adap, "%s(L.%d):wait-event timeout\n",
+			__func__, __LINE__);
 		pch_i2c_stop(adap);
+		pch_i2c_init(adap);
 		return -ETIME;
 	}
 
@@ -490,7 +496,10 @@ static s32 pch_i2c_writebytes(struct i2c_adapter *i2c_adap,
 			pch_clrbit(adap->pch_base_address, PCH_I2CSR,
 				   I2CMIF_BIT);
 		} else { /* wait-event timeout */
+			pch_err(adap, "%s(L.%d):wait-event timeout\n",
+				__func__, __LINE__);
 			pch_i2c_stop(adap);
+			pch_i2c_init(adap);
 			return -ETIME;
 		}
 	}
@@ -598,7 +607,10 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 			pch_i2c_init(adap);
 			return -EAGAIN;
 		} else { /* wait-event timeout */
+			pch_err(adap, "%s(L.%d):wait-event timeout\n",
+				__func__, __LINE__);
 			pch_i2c_stop(adap);
+			pch_i2c_init(adap);
 			return -ETIME;
 		}
 		pch_i2c_restart(adap);
@@ -621,7 +633,10 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 			pch_i2c_init(adap);
 			return -EAGAIN;
 		} else { /* wait-event timeout */
+			pch_err(adap, "%s(L.%d):wait-event timeout\n",
+				__func__, __LINE__);
 			pch_i2c_stop(adap);
+			pch_i2c_init(adap);
 			return -ETIME;
 		}
 	} else {
@@ -648,7 +663,10 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 		pch_i2c_init(adap);
 		return -EAGAIN;
 	} else { /* wait-event timeout */
+		pch_err(adap, "%s(L.%d):wait-event timeout\n",
+			__func__, __LINE__);
 		pch_i2c_stop(adap);
+		pch_i2c_init(adap);
 		return -ETIME;
 	}
 
@@ -677,7 +695,10 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 					return -EIO;
 				}
 			} else { /* wait-event timeout */
+				pch_err(adap, "%s(L.%d):wait-event timeout\n",
+					__func__, __LINE__);
 				pch_i2c_stop(adap);
+				pch_i2c_init(adap);
 				return -ETIME;
 			}
 
@@ -698,7 +719,10 @@ static s32 pch_i2c_readbytes(struct i2c_adapter *i2c_adap, struct i2c_msg *msgs,
 				return -EIO;
 			}
 		} else { /* wait-event timeout */
+			pch_err(adap, "%s(L.%d):wait-event timeout\n",
+				__func__, __LINE__);
 			pch_i2c_stop(adap);
+			pch_i2c_init(adap);
 			return -ETIME;
 		}
 
