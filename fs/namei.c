@@ -1849,13 +1849,7 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 static struct dentry *__lookup_hash(struct qstr *name,
 		struct dentry *base, struct nameidata *nd)
 {
-	struct inode *inode = base->d_inode;
 	struct dentry *dentry;
-	int err;
-
-	err = inode_permission(inode, MAY_EXEC);
-	if (err)
-		return ERR_PTR(err);
 
 	/*
 	 * Don't bother with __d_lookup: callers are for creat as
@@ -1922,6 +1916,7 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	struct qstr this;
 	unsigned int c;
+	int err;
 
 	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
 
@@ -1945,6 +1940,10 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 		if (err < 0)
 			return ERR_PTR(err);
 	}
+
+	err = inode_permission(base->d_inode, MAY_EXEC);
+	if (err)
+		return ERR_PTR(err);
 
 	return __lookup_hash(&this, base, NULL);
 }
