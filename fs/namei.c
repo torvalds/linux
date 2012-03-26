@@ -1869,9 +1869,7 @@ static struct dentry *__lookup_hash(struct qstr *name,
 		 * __lookup_hash is called with the parent dir's i_mutex already
 		 * held, so we are good to go here.
 		 */
-		dentry = d_inode_lookup(base, dentry, nd);
-		if (IS_ERR(dentry))
-			return dentry;
+		return d_inode_lookup(base, dentry, nd);
 	}
 
 	if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
