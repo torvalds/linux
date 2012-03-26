@@ -289,7 +289,7 @@ static int _try_outdate_peer_async(void *data)
 	*/
 	spin_lock_irq(&mdev->req_lock);
 	ns = mdev->state;
-	if (ns.conn < C_WF_REPORT_PARAMS) {
+	if (ns.conn < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &mdev->flags)) {
 		ns.pdsk = nps;
 		_drbd_set_state(mdev, ns, CS_VERBOSE, NULL);
 	}

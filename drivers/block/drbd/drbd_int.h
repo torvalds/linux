@@ -850,6 +850,7 @@ enum {
 	NEW_CUR_UUID,		/* Create new current UUID when thawing IO */
 	AL_SUSPENDED,		/* Activity logging is currently suspended. */
 	AHEAD_TO_SYNC_SOURCE,   /* Ahead -> SyncSource queued */
+	STATE_SENT,		/* Do not change state/UUIDs while this is set */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */

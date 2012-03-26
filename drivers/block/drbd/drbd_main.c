@@ -841,6 +841,13 @@ is_valid_state_transition(struct drbd_conf *mdev, union drbd_state ns,
 	if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
 		rv = SS_IN_TRANSIENT_STATE;
 
+	/* While establishing a connection only allow cstate to change.
+	   Delay/refuse role changes, detach attach etc... */
+	if (test_bit(STATE_SENT, &mdev->flags) &&
+	    !(os.conn == C_WF_REPORT_PARAMS ||
+	      (ns.conn == C_WF_REPORT_PARAMS && os.conn == C_WF_CONNECTION)))
+		rv = SS_IN_TRANSIENT_STATE;
+
 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
 		rv = SS_NEED_CONNECTION;
 
@@ -1667,6 +1674,12 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	 * it should (at least for non-empty resyncs) already know itself. */
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
 		drbd_send_state(mdev, ns);
+
+	/* Wake up role changes, that were delayed because of connection establishing */
+	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS) {
+		clear_bit(STATE_SENT, &mdev->flags);
+		wake_up(&mdev->state_wait);
+	}
 
 	/* This triggers bitmap writeout of potentially still unwritten pages
 	 * if the resync finished cleanly, or aborted because of peer disk
