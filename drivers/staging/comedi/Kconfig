@@ -233,6 +233,16 @@ config COMEDI_AMPLC_PC236_ISA
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc236.
 
+config COMEDI_AMPLC_PC263_ISA
+	tristate "Amplicon PC263 relay board support"
+	select COMEDI_AMPLC_PC263
+	default N
+	---help---
+	  Enable support for Amplicon PC263 ISA relay board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called amplc_pc263.
+
 config COMEDI_RTI800
 	tristate "Analog Devices RTI-800/815 ISA card support"
 	default N
@@ -814,11 +824,12 @@ config COMEDI_AMPLC_PC236_PCI
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc236.
 
-config COMEDI_AMPLC_PC263
-	tristate "Amplicon PC263 and PCI263 relay board support"
+config COMEDI_AMPLC_PC263_PCI
+	tristate "Amplicon PCI263 relay board support"
+	select COMEDI_AMPLC_PC263
 	default N
 	---help---
-	  Enable support for Amplicon PC263 and PCI263 relay boards
+	  Enable support for Amplicon PCI263 relay board.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc263.
@@ -1414,3 +1425,7 @@ config COMEDI_AMPLC_PC236
 	def_tristate N
 	depends on COMEDI
 	select COMEDI_8255
+
+config COMEDI_AMPLC_PC263
+	def_tristate N
+	depends on COMEDI
