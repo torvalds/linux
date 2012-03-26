@@ -11,6 +11,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) "SPEAr320: " fmt
+
 #include <linux/ptrace.h>
 #include <asm/irq.h>
 #include <plat/shirq.h>
@@ -527,19 +529,19 @@ void __init spear320_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 		shirq_ras1.regs.base = base;
 		ret = spear_shirq_register(&shirq_ras1);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ 1\n");
+			pr_err("Error registering Shared IRQ 1\n");
 
 		/* shirq 3 */
 		shirq_ras3.regs.base = base;
 		ret = spear_shirq_register(&shirq_ras3);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ 3\n");
+			pr_err("Error registering Shared IRQ 3\n");
 
 		/* shirq 4 */
 		shirq_intrcomm_ras.regs.base = base;
 		ret = spear_shirq_register(&shirq_intrcomm_ras);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ 4\n");
+			pr_err("Error registering Shared IRQ 4\n");
 	}
 
 	/* pmx initialization */
@@ -550,6 +552,5 @@ void __init spear320_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 
 	ret = pmx_register(&pmx_driver);
 	if (ret)
-		printk(KERN_ERR "padmux: registration failed. err no: %d\n",
-				ret);
+		pr_err("padmux: registration failed. err no: %d\n", ret);
 }

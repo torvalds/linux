@@ -11,6 +11,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) "SPEAr300: " fmt
+
 #include <linux/types.h>
 #include <linux/amba/pl061.h>
 #include <linux/ptrace.h>
@@ -447,7 +449,7 @@ void __init spear300_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 	if (shirq_ras1.regs.base) {
 		ret = spear_shirq_register(&shirq_ras1);
 		if (ret)
-			printk(KERN_ERR "Error registering Shared IRQ\n");
+			pr_err("Error registering Shared IRQ\n");
 	}
 
 	/* pmx initialization */
@@ -459,8 +461,8 @@ void __init spear300_init(struct pmx_mode *pmx_mode, struct pmx_dev **pmx_devs,
 	if (pmx_driver.base) {
 		ret = pmx_register(&pmx_driver);
 		if (ret)
-			printk(KERN_ERR "padmux: registration failed. err no"
-					": %d\n", ret);
+			pr_err("padmux: registration failed. err no: %d\n",
+					ret);
 		/* Free Mapping, device selection already done */
 		iounmap(pmx_driver.base);
 	}

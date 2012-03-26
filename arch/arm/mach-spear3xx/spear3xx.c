@@ -11,6 +11,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) "SPEAr3xx: " fmt
+
 #include <linux/types.h>
 #include <linux/amba/pl061.h>
 #include <linux/ptrace.h>
