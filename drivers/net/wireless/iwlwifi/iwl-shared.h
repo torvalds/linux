@@ -72,32 +72,6 @@
 #include "iwl-fw.h"
 #include "iwl-config.h"
 
-/**
- * DOC: shared area - role and goal
- *
- * The shared area contains all the data exported by the upper layer to the
- * other layers. Since the bus and transport layer shouldn't dereference
- * iwl_priv, all the data needed by the upper layer and the transport / bus
- * layer must be here.
- * The shared area also holds pointer to all the other layers. This allows a
- * layer to call a function from another layer.
- *
- * NOTE: All the layers hold a pointer to the shared area which must be shrd.
- *	A few macros assume that (_m)->shrd points to the shared area no matter
- *	what _m is.
- *
- * gets notifications about enumeration, suspend, resume.
- * For the moment, the bus layer is not a linux kernel module as itself, and
- * the module_init function of the driver must call the bus specific
- * registration functions. These functions are listed at the end of this file.
- * For the moment, there is only one implementation of this interface: PCI-e.
- * This implementation is iwl-pci.c
- */
-
-struct iwl_priv;
-struct iwl_trans;
-struct iwl_trans_ops;
-
 #define DRV_NAME        "iwlwifi"
 #define IWLWIFI_VERSION "in-tree:"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2012 Intel Corporation"
@@ -146,18 +120,6 @@ struct iwl_mod_params {
 	bool bt_ch_announce;
 	bool auto_agg;
 };
-
-/**
- * struct iwl_shared - shared fields for all the layers of the driver
- *
- * @trans: pointer to the transport layer data
- */
-struct iwl_shared {
-	struct iwl_trans *trans;
-};
-
-/*Whatever _m is (iwl_trans, iwl_priv, these macros will work */
-#define trans(_m)	((_m)->shrd->trans)
 
 static inline bool iwl_have_debug_level(u32 level)
 {

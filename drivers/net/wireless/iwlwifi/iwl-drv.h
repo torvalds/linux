@@ -91,30 +91,25 @@
  */
 
 struct iwl_drv;
+struct iwl_trans;
 /**
  * iwl_drv_start - start the drv
  *
- * @shrd: the shrd area
  * @trans_ops: the ops of the transport
  * @cfg: device specific constants / virtual functions
- *
- * TODO: review the parameters given to this function
  *
  * starts the driver: fetches the firmware. This should be called by bus
  * specific system flows implementations. For example, the bus specific probe
  * function should do bus related operations only, and then call to this
  * function. It returns the driver object or %NULL if an error occured.
  */
-struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
-			      struct iwl_trans *trans,
+struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 			      const struct iwl_cfg *cfg);
 
 /**
  * iwl_drv_stop - stop the drv
  *
- * @shrd: the shrd area
- *
- * TODO: review the parameters given to this function
+ * @drv:
  *
  * Stop the driver. This should be called by bus specific system flows
  * implementations. For example, the bus specific remove function should first

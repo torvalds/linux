@@ -268,30 +268,17 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
-	struct iwl_shared *shrd;
 	struct iwl_trans *iwl_trans;
 	struct iwl_trans_pcie *trans_pcie;
-	int err;
 
-	shrd = kzalloc(sizeof(*iwl_trans->shrd), GFP_KERNEL);
-	if (!shrd) {
-		dev_printk(KERN_ERR, &pdev->dev,
-			   "Couldn't allocate iwl_shared");
-		err = -ENOMEM;
-		goto out_free_bus;
-	}
+	iwl_trans = iwl_trans_pcie_alloc(pdev, ent, cfg);
+	if (iwl_trans == NULL)
+		return -ENOMEM;
 
-	iwl_trans = iwl_trans_pcie_alloc(shrd, pdev, ent, cfg);
-	if (iwl_trans == NULL) {
-		err = -ENOMEM;
-		goto out_free_bus;
-	}
-
-	shrd->trans = iwl_trans;
 	pci_set_drvdata(pdev, iwl_trans);
 
 	trans_pcie = IWL_TRANS_GET_PCIE_TRANS(iwl_trans);
-	trans_pcie->drv = iwl_drv_start(shrd, iwl_trans, cfg);
+	trans_pcie->drv = iwl_drv_start(iwl_trans, cfg);
 	if (!trans_pcie->drv)
 		goto out_free_trans;
 
@@ -300,23 +287,18 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 out_free_trans:
 	iwl_trans_free(iwl_trans);
 	pci_set_drvdata(pdev, NULL);
-out_free_bus:
-	kfree(shrd);
-	return err;
+	return -EFAULT;
 }
 
 static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 {
 	struct iwl_trans *trans = pci_get_drvdata(pdev);
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_shared *shrd = trans->shrd;
 
 	iwl_drv_stop(trans_pcie->drv);
 	iwl_trans_free(trans);
 
 	pci_set_drvdata(pdev, NULL);
-
-	kfree(shrd);
 }
 
 #endif /* CONFIG_IWLWIFI_IDI */

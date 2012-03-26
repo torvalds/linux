@@ -326,6 +326,8 @@ struct iwl_trans_config {
 	const char **command_names;
 };
 
+struct iwl_trans;
+
 /**
  * struct iwl_trans_ops - transport specific operations
  *
@@ -428,7 +430,6 @@ enum iwl_trans_state {
  *
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
- * @shrd - pointer to iwl_shared which holds shared data from the upper layer
  * @cfg - pointer to the configuration
  * @reg_lock - protect hw register access
  * @dev - pointer to struct device * that represents the device
@@ -441,7 +442,6 @@ enum iwl_trans_state {
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_op_mode *op_mode;
-	struct iwl_shared *shrd;
 	const struct iwl_cfg *cfg;
 	enum iwl_trans_state state;
 	spinlock_t reg_lock;
@@ -625,16 +625,14 @@ static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 struct pci_dev;
 struct pci_device_id;
 extern const struct iwl_trans_ops trans_ops_pcie;
-struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
-				       struct pci_dev *pdev,
+struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 				       const struct pci_device_id *ent,
 				       const struct iwl_cfg *cfg);
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
 
 extern const struct iwl_trans_ops trans_ops_idi;
-struct iwl_trans *iwl_trans_idi_alloc(struct iwl_shared *shrd,
-				      void *pdev_void,
+struct iwl_trans *iwl_trans_idi_alloc(void *pdev_void,
 				      const void *ent_void,
 				      const struct iwl_cfg *cfg);
 #endif /* __iwl_trans_h__ */

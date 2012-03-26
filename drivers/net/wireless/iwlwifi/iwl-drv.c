@@ -77,7 +77,6 @@
 /**
  * struct iwl_drv - drv common data
  * @fw: the iwl_fw structure
- * @shrd: pointer to common shared structure
  * @op_mode: the running op_mode
  * @trans: transport layer
  * @dev: for debug prints only
@@ -89,7 +88,6 @@
 struct iwl_drv {
 	struct iwl_fw fw;
 
-	struct iwl_shared *shrd;
 	struct iwl_op_mode *op_mode;
 	struct iwl_trans *trans;
 	struct device *dev;
@@ -885,8 +883,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	device_release_driver(drv->trans->dev);
 }
 
-struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
-			      struct iwl_trans *trans,
+struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 			      const struct iwl_cfg *cfg)
 {
 	struct iwl_drv *drv;
@@ -897,8 +894,6 @@ struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
 		dev_printk(KERN_ERR, trans->dev, "Couldn't allocate iwl_drv");
 		return NULL;
 	}
-	/* For printing only - temporary until we change the logger */
-	drv->shrd = shrd;
 	drv->trans = trans;
 	drv->dev = trans->dev;
 	drv->cfg = cfg;
