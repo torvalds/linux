@@ -654,154 +654,6 @@ static struct platform_device device_ion = {
 };
 #endif
 
-extern struct platform_device rk29sdk_wifi_device;
-
-static struct platform_device *devices[] __initdata = {
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-	&rk29_device_backlight,
-#endif
-#ifdef CONFIG_FB_ROCKCHIP
-	&device_fb,
-#endif
-#ifdef CONFIG_ION
-	&device_ion,
-#endif
-#ifdef CONFIG_ANDROID_TIMED_GPIO
-	&rk29_device_vibrator,
-#endif
-#ifdef CONFIG_LEDS_GPIO_PLATFORM
-	&rk29_device_gpio_leds,
-#endif
-#ifdef CONFIG_RK_IRDA
-	&irda_device,
-#endif
-#ifdef CONFIG_WIFI_CONTROL_FUNC
-	&rk29sdk_wifi_device,
-#endif
-};
-
-// i2c
-#ifdef CONFIG_I2C0_RK30
-static struct i2c_board_info __initdata i2c0_info[] = {
-#if defined (CONFIG_GS_MMA8452)
-	{
-		.type	        = "gs_mma8452",
-		.addr	        = 0x1d,
-		.flags	        = 0,
-		.irq	        = MMA8452_INT_PIN,
-		.platform_data = &mma8452_info,
-	},
-#endif
-#if defined (CONFIG_COMPASS_AK8975)
-	{
-		.type          = "ak8975",
-		.addr          = 0x0d,
-		.flags         = 0,
-		.irq           = RK30_PIN4_PC1,
-		.platform_data = &akm8975_info,
-	},
-#endif
-#if defined (CONFIG_GYRO_L3G4200D)
-	{
-		.type          = "l3g4200d_gryo",
-		.addr          = 0x69,
-		.flags         = 0,
-		.irq           = L3G4200D_INT_PIN,
-		.platform_data = &l3g4200d_info,
-	},
-#endif
-#if defined (CONFIG_SND_SOC_RK1000)
-	{
-		.type          = "rk1000_i2c_codec",
-		.addr          = 0x60,
-		.flags         = 0,
-	},
-	{
-		.type          = "rk1000_control",
-		.addr          = 0x40,
-		.flags         = 0,
-	},
-#endif
-#if defined (CONFIG_SND_SOC_RT5631)
-        {
-                .type                   = "rt5631",
-                .addr                   = 0x1a,
-                .flags                  = 0,
-        },
-#endif
-
-};
-#endif
-
-#ifdef CONFIG_I2C1_RK30
-#include "board-rk30-sdk-wm8326.c"
-
-static struct i2c_board_info __initdata i2c1_info[] = {
-#if defined (CONFIG_MFD_WM831X_I2C)
-	{
-		.type          = "wm8326",
-		.addr          = 0x34,              
-		.flags         = 0,
-		.irq           = RK30_PIN6_PA4,
-		.platform_data = &wm831x_platdata,
-	},
-#endif
-};
-#endif
-
-#ifdef CONFIG_I2C2_RK30
-static struct i2c_board_info __initdata i2c2_info[] = {
-#if defined (CONFIG_TOUCHSCREEN_GT8XX)
-	{
-		.type          = "Goodix-TS",
-		.addr          = 0x55,
-		.flags         = 0,
-		.irq           = RK30_PIN4_PC2,
-		.platform_data = &goodix_info,
-	},
-#endif
-#if defined (CONFIG_LS_CM3217)
-	{
-		.type          = "lightsensor",
-		.addr          = 0x20,
-		.flags         = 0,
-		.irq           = CM3217_IRQ_PIN,
-		.platform_data = &cm3217_info,
-	},
-#endif
-};
-#endif
-
-#ifdef CONFIG_I2C3_RK30
-static struct i2c_board_info __initdata i2c3_info[] = {
-};
-#endif
-
-#ifdef CONFIG_I2C4_RK30
-static struct i2c_board_info __initdata i2c4_info[] = {
-};
-#endif
-
-static void __init rk30_i2c_register_board_info(void)
-{
-#ifdef CONFIG_I2C0_RK30
-	i2c_register_board_info(0, i2c0_info, ARRAY_SIZE(i2c0_info));
-#endif
-#ifdef CONFIG_I2C1_RK30
-	i2c_register_board_info(1, i2c1_info, ARRAY_SIZE(i2c1_info));
-#endif
-#ifdef CONFIG_I2C2_RK30
-	i2c_register_board_info(2, i2c2_info, ARRAY_SIZE(i2c2_info));
-#endif
-#ifdef CONFIG_I2C3_RK30
-	i2c_register_board_info(3, i2c3_info, ARRAY_SIZE(i2c3_info));
-#endif
-#ifdef CONFIG_I2C4_RK30
-	i2c_register_board_info(4, i2c4_info, ARRAY_SIZE(i2c4_info));
-#endif
-}
-//end of i2c
-
 /**************************************************************************************************
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
@@ -961,18 +813,167 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
+static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+	&rk29_device_backlight,
+#endif
+#ifdef CONFIG_FB_ROCKCHIP
+	&device_fb,
+#endif
+#ifdef CONFIG_ION
+	&device_ion,
+#endif
+#ifdef CONFIG_ANDROID_TIMED_GPIO
+	&rk29_device_vibrator,
+#endif
+#ifdef CONFIG_LEDS_GPIO_PLATFORM
+	&rk29_device_gpio_leds,
+#endif
+#ifdef CONFIG_RK_IRDA
+	&irda_device,
+#endif
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	&rk29sdk_wifi_device,
+#endif
+};
+
+// i2c
+#ifdef CONFIG_I2C0_RK30
+static struct i2c_board_info __initdata i2c0_info[] = {
+#if defined (CONFIG_GS_MMA8452)
+	{
+		.type	        = "gs_mma8452",
+		.addr	        = 0x1d,
+		.flags	        = 0,
+		.irq	        = MMA8452_INT_PIN,
+		.platform_data = &mma8452_info,
+	},
+#endif
+#if defined (CONFIG_COMPASS_AK8975)
+	{
+		.type          = "ak8975",
+		.addr          = 0x0d,
+		.flags         = 0,
+		.irq           = RK30_PIN4_PC1,
+		.platform_data = &akm8975_info,
+	},
+#endif
+#if defined (CONFIG_GYRO_L3G4200D)
+	{
+		.type          = "l3g4200d_gryo",
+		.addr          = 0x69,
+		.flags         = 0,
+		.irq           = L3G4200D_INT_PIN,
+		.platform_data = &l3g4200d_info,
+	},
+#endif
+#if defined (CONFIG_SND_SOC_RK1000)
+	{
+		.type          = "rk1000_i2c_codec",
+		.addr          = 0x60,
+		.flags         = 0,
+	},
+	{
+		.type          = "rk1000_control",
+		.addr          = 0x40,
+		.flags         = 0,
+	},
+#endif
+#if defined (CONFIG_SND_SOC_RT5631)
+        {
+                .type                   = "rt5631",
+                .addr                   = 0x1a,
+                .flags                  = 0,
+        },
+#endif
+
+};
+#endif
+
+#ifdef CONFIG_I2C1_RK30
+#include "board-rk30-sdk-wm8326.c"
+
+static struct i2c_board_info __initdata i2c1_info[] = {
+#if defined (CONFIG_MFD_WM831X_I2C)
+	{
+		.type          = "wm8326",
+		.addr          = 0x34,
+		.flags         = 0,
+		.irq           = RK30_PIN6_PA4,
+		.platform_data = &wm831x_platdata,
+	},
+#endif
+};
+#endif
+
+#ifdef CONFIG_I2C2_RK30
+static struct i2c_board_info __initdata i2c2_info[] = {
+#if defined (CONFIG_TOUCHSCREEN_GT8XX)
+	{
+		.type          = "Goodix-TS",
+		.addr          = 0x55,
+		.flags         = 0,
+		.irq           = RK30_PIN4_PC2,
+		.platform_data = &goodix_info,
+	},
+#endif
+#if defined (CONFIG_LS_CM3217)
+	{
+		.type          = "lightsensor",
+		.addr          = 0x20,
+		.flags         = 0,
+		.irq           = CM3217_IRQ_PIN,
+		.platform_data = &cm3217_info,
+	},
+#endif
+};
+#endif
+
+#ifdef CONFIG_I2C3_RK30
+static struct i2c_board_info __initdata i2c3_info[] = {
+};
+#endif
+
+#ifdef CONFIG_I2C4_RK30
+static struct i2c_board_info __initdata i2c4_info[] = {
+};
+#endif
+
+static void __init rk30_i2c_register_board_info(void)
+{
+#ifdef CONFIG_I2C0_RK30
+	i2c_register_board_info(0, i2c0_info, ARRAY_SIZE(i2c0_info));
+#endif
+#ifdef CONFIG_I2C1_RK30
+	i2c_register_board_info(1, i2c1_info, ARRAY_SIZE(i2c1_info));
+#endif
+#ifdef CONFIG_I2C2_RK30
+	i2c_register_board_info(2, i2c2_info, ARRAY_SIZE(i2c2_info));
+#endif
+#ifdef CONFIG_I2C3_RK30
+	i2c_register_board_info(3, i2c3_info, ARRAY_SIZE(i2c3_info));
+#endif
+#ifdef CONFIG_I2C4_RK30
+	i2c_register_board_info(4, i2c4_info, ARRAY_SIZE(i2c4_info));
+#endif
+}
+//end of i2c
+
 #define POWER_ON_PIN RK30_PIN6_PB0   //power_hold
 
 static void __init machine_rk30_board_init(void)
 {
-
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
-	
+
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	board_usb_detect_init(RK30_PIN6_PA3);
+
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	rk29sdk_wifi_bt_gpio_control_init();
+#endif
 }
 
 static void __init rk30_reserve(void)

@@ -247,7 +247,7 @@ static void *rk29sdk_mem_prealloc(int section, unsigned long size)
         return wifi_mem_array[section].mem_ptr;
 }
 
-int __init rk29sdk_init_wifi_mem(void)
+static int __init rk29sdk_init_wifi_mem(void)
 {
         int i;
         int j;
@@ -302,7 +302,7 @@ static int rk29sdk_wifi_status_register(void (*callback)(int card_present, void 
         return 0;
 }
 
-int rk29sdk_wifi_bt_gpio_control_init(void)
+static int __init rk29sdk_wifi_bt_gpio_control_init(void)
 {
     rk29sdk_init_wifi_mem();
     
@@ -415,7 +415,7 @@ static struct wifi_platform_data rk29sdk_wifi_control = {
         .mem_prealloc   = rk29sdk_mem_prealloc,
 };
 
-struct platform_device rk29sdk_wifi_device = {
+static struct platform_device rk29sdk_wifi_device = {
         .name = "bcmdhd_wlan",
         .id = 1,
         .dev = {
