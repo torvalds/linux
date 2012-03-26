@@ -139,6 +139,7 @@ int em28xx_read_reg(struct em28xx *dev, u16 reg)
 {
 	return em28xx_read_reg_req(dev, USB_REQ_GET_STATUS, reg);
 }
+EXPORT_SYMBOL_GPL(em28xx_read_reg);
 
 /*
  * em28xx_write_regs_req()
@@ -205,6 +206,7 @@ int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(em28xx_write_regs);
 
 /* Write a single register */
 int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val)
@@ -239,6 +241,7 @@ int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 
 	return em28xx_write_regs(dev, reg, &newval, 1);
 }
+EXPORT_SYMBOL_GPL(em28xx_write_reg_bits);
 
 /*
  * em28xx_is_ac97_ready()
