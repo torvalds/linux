@@ -285,7 +285,7 @@ unsigned long __clk_get_rate(struct clk *clk)
 	unsigned long ret;
 
 	if (!clk) {
-		ret = -EINVAL;
+		ret = 0;
 		goto out;
 	}
 
@@ -295,7 +295,7 @@ unsigned long __clk_get_rate(struct clk *clk)
 		goto out;
 
 	if (!clk->parent)
-		ret = -ENODEV;
+		ret = 0;
 
 out:
 	return ret;
@@ -560,7 +560,7 @@ EXPORT_SYMBOL_GPL(clk_enable);
  * @clk: the clk whose rate is being returned
  *
  * Simply returns the cached rate of the clk.  Does not query the hardware.  If
- * clk is NULL then returns -EINVAL.
+ * clk is NULL then returns 0.
  */
 unsigned long clk_get_rate(struct clk *clk)
 {
