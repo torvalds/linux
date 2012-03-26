@@ -599,7 +599,7 @@ void iwl_init_sensitivity(struct iwl_priv *priv)
 	struct iwl_sensitivity_data *data = NULL;
 	const struct iwl_sensitivity_ranges *ranges = priv->hw_params.sens;
 
-	if (priv->disable_sens_cal)
+	if (priv->calib_disabled & IWL_SENSITIVITY_CALIB_DISABLED)
 		return;
 
 	IWL_DEBUG_CALIB(priv, "Start iwl_init_sensitivity\n");
@@ -663,7 +663,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv)
 	struct statistics_rx_phy *ofdm, *cck;
 	struct statistics_general_data statis;
 
-	if (priv->disable_sens_cal)
+	if (priv->calib_disabled & IWL_SENSITIVITY_CALIB_DISABLED)
 		return;
 
 	data = &(priv->sensitivity_data);
@@ -970,7 +970,7 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv)
 	 */
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
-	if (priv->disable_chain_noise_cal)
+	if (priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED)
 		return;
 
 	data = &(priv->chain_noise_data);

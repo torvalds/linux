@@ -2471,6 +2471,34 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_calib_disabled_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[120];
+	int pos = 0;
+	const size_t bufsz = sizeof(buf);
+
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "Sensitivity calibrations %s\n",
+			 (priv->calib_disabled &
+					IWL_SENSITIVITY_CALIB_DISABLED) ?
+			 "DISABLED" : "ENABLED");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "Chain noise calibrations %s\n",
+			 (priv->calib_disabled &
+					IWL_CHAIN_NOISE_CALIB_DISABLED) ?
+			 "DISABLED" : "ENABLED");
+	pos += scnprintf(buf + pos, bufsz - pos,
+			 "Tx power calibrations %s\n",
+			 (priv->calib_disabled &
+					IWL_TX_POWER_CALIB_DISABLED) ?
+			 "DISABLED" : "ENABLED");
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -2495,6 +2523,7 @@ DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
 DEBUGFS_READ_FILE_OPS(reply_tx_error);
 DEBUGFS_WRITE_FILE_OPS(echo_test);
 DEBUGFS_READ_WRITE_FILE_OPS(log_event);
+DEBUGFS_READ_FILE_OPS(calib_disabled);
 
 /*
  * Create the debugfs files and directories
@@ -2562,10 +2591,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	if (iwl_advanced_bt_coexist(priv))
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
 
-	DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
-			 &priv->disable_sens_cal);
-	DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
-			 &priv->disable_chain_noise_cal);
+	/* Calibrations disabled/enabled status*/
+	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IRUSR);
 
 	if (iwl_trans_dbgfs_register(trans(priv), dir_debug))
 		goto err;

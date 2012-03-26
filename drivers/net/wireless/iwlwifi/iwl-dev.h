@@ -741,6 +741,14 @@ struct iwl_wipan_noa_data {
 	u8 data[];
 };
 
+/* Calibration disabling bit mask */
+#define IWL_SENSITIVITY_CALIB_DISABLED	BIT(1)
+#define IWL_CHAIN_NOISE_CALIB_DISABLED	BIT(2)
+#define IWL_TX_POWER_CALIB_DISABLED	BIT(3)
+
+#define IWL_CALIB_ENABLE_ALL	0
+#define IWL_CALIB_DISABLE_ALL	0xFFFFFFFF
+
 #define IWL_OP_MODE_GET_DVM(_iwl_op_mode) \
 	((struct iwl_priv *) ((_iwl_op_mode)->op_mode_specific))
 
@@ -1010,8 +1018,7 @@ struct iwl_priv {
 	enum iwl_nvm_type nvm_device_type;
 
 	struct work_struct txpower_work;
-	u32 disable_sens_cal;
-	u32 disable_chain_noise_cal;
+	u32 calib_disabled;
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;

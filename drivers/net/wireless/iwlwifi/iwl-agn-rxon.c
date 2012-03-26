@@ -414,6 +414,9 @@ static int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	bool defer;
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 
+	if (priv->calib_disabled & IWL_TX_POWER_CALIB_DISABLED)
+		return 0;
+
 	lockdep_assert_held(&priv->mutex);
 
 	if (priv->tx_power_user_lmt == tx_power && !force)
@@ -1319,6 +1322,9 @@ static void iwlagn_chain_noise_reset(struct iwl_priv *priv)
 	struct iwl_chain_noise_data *data = &priv->chain_noise_data;
 	int ret;
 
+	if (!(priv->calib_disabled & IWL_CHAIN_NOISE_CALIB_DISABLED))
+		return;
+
 	if ((data->state == IWL_CHAIN_NOISE_ALIVE) &&
 	    iwl_is_any_associated(priv)) {
 		struct iwl_calib_chain_noise_reset_cmd cmd;
@@ -1471,8 +1477,7 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			iwl_power_update_mode(priv, false);
 
 		/* Enable RX differential gain and sensitivity calibrations */
-		if (!priv->disable_chain_noise_cal)
-			iwlagn_chain_noise_reset(priv);
+		iwlagn_chain_noise_reset(priv);
 		priv->start_calib = 1;
 	}
 
