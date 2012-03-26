@@ -112,6 +112,7 @@ struct wacom_wac {
 	struct wacom_shared *shared;
 	struct input_dev *input;
 	int pid;
+	int battery_capacity;
 };
 
 #endif

@@ -88,6 +88,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/usb/input.h>
+#include <linux/power_supply.h>
 #include <asm/unaligned.h>
 
 /*
@@ -121,6 +122,7 @@ struct wacom {
 		u8 hlv;       /* status led brightness button pressed (1..127) */
 		u8 img_lum;   /* OLED matrix display brightness */
 	} led;
+	struct power_supply battery;
 };
 
 static inline void wacom_schedule_work(struct wacom_wac *wacom_wac)

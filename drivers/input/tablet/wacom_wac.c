@@ -1054,17 +1054,20 @@ static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 
 	connected = data[1] & 0x01;
 	if (connected) {
-		int pid;
+		int pid, battery;
 
 		pid = get_unaligned_be16(&data[6]);
+		battery = data[5] & 0x3f;
 		if (wacom->pid != pid) {
 			wacom->pid = pid;
 			wacom_schedule_work(wacom);
 		}
+		wacom->battery_capacity = battery;
 	} else if (wacom->pid != 0) {
 		/* disconnected while previously connected */
 		wacom->pid = 0;
 		wacom_schedule_work(wacom);
+		wacom->battery_capacity = 0;
 	}
 
 	return 0;

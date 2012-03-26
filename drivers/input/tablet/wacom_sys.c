@@ -843,6 +843,55 @@ static void wacom_destroy_leds(struct wacom *wacom)
 	}
 }
 
+static enum power_supply_property wacom_battery_props[] = {
+	POWER_SUPPLY_PROP_CAPACITY
+};
+
+static int wacom_battery_get_property(struct power_supply *psy,
+				      enum power_supply_property psp,
+				      union power_supply_propval *val)
+{
+	struct wacom *wacom = container_of(psy, struct wacom, battery);
+	int ret = 0;
+
+	switch (psp) {
+		case POWER_SUPPLY_PROP_CAPACITY:
+			val->intval =
+				wacom->wacom_wac.battery_capacity * 100 / 31;
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+	}
+
+	return ret;
+}
+
+static int wacom_initialize_battery(struct wacom *wacom)
+{
+	int error = 0;
+
+	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_MONITOR) {
+		wacom->battery.properties = wacom_battery_props;
+		wacom->battery.num_properties = ARRAY_SIZE(wacom_battery_props);
+		wacom->battery.get_property = wacom_battery_get_property;
+		wacom->battery.name = "wacom_battery";
+		wacom->battery.type = POWER_SUPPLY_TYPE_BATTERY;
+		wacom->battery.use_for_apm = 0;
+
+		error = power_supply_register(&wacom->usbdev->dev,
+					      &wacom->battery);
+	}
+
+	return error;
+}
+
+static void wacom_destroy_battery(struct wacom *wacom)
+{
+	if (wacom->wacom_wac.features.quirks & WACOM_QUIRK_MONITOR)
+		power_supply_unregister(&wacom->battery);
+}
+
 static int wacom_register_input(struct wacom *wacom)
 {
 	struct input_dev *input_dev;
@@ -1016,10 +1065,14 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail4;
 
+	error = wacom_initialize_battery(wacom);
+	if (error)
+		goto fail5;
+
 	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
 		error = wacom_register_input(wacom);
 		if (error)
-			goto fail5;
+			goto fail6;
 	}
 
 	/* Note that if query fails it is not a hard failure */
@@ -1034,6 +1087,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	return 0;
 
+ fail6: wacom_destroy_battery(wacom);
  fail5: wacom_destroy_leds(wacom);
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
@@ -1052,6 +1106,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	cancel_work_sync(&wacom->work);
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
+	wacom_destroy_battery(wacom);
 	wacom_destroy_leds(wacom);
 	usb_free_urb(wacom->irq);
 	usb_free_coherent(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
