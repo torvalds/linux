@@ -37,6 +37,9 @@
 #define	FSP_CMD_TIMEOUT		200
 #define	FSP_CMD_TIMEOUT2	30
 
+#define	GET_ABS_X(packet)	((packet[1] << 2) | ((packet[3] >> 2) & 0x03))
+#define	GET_ABS_Y(packet)	((packet[2] << 2) | (packet[3] & 0x03))
+
 /** Driver version. */
 static const char fsp_drv_ver[] = "1.0.0-K";
 
@@ -619,18 +622,40 @@ static struct attribute_group fsp_attribute_group = {
 	.attrs = fsp_attributes,
 };
 
-#ifdef FSP_DEBUG
-static void fsp_packet_debug(unsigned char packet[])
+#ifdef	FSP_DEBUG
+static void fsp_packet_debug(struct psmouse *psmouse, unsigned char packet[])
 {
 	static unsigned int ps2_packet_cnt;
 	static unsigned int ps2_last_second;
 	unsigned int jiffies_msec;
+	const char *packet_type = "UNKNOWN";
+	unsigned short abs_x = 0, abs_y = 0;
+
+	/* Interpret & dump the packet data. */
+	switch (packet[0] >> FSP_PKT_TYPE_SHIFT) {
+	case FSP_PKT_TYPE_ABS:
+		packet_type = "Absolute";
+		abs_x = GET_ABS_X(packet);
+		abs_y = GET_ABS_Y(packet);
+		break;
+	case FSP_PKT_TYPE_NORMAL:
+		packet_type = "Normal";
+		break;
+	case FSP_PKT_TYPE_NOTIFY:
+		packet_type = "Notify";
+		break;
+	case FSP_PKT_TYPE_NORMAL_OPC:
+		packet_type = "Normal-OPC";
+		break;
+	}
 
 	ps2_packet_cnt++;
 	jiffies_msec = jiffies_to_msecs(jiffies);
 	psmouse_dbg(psmouse,
-		    "%08dms PS/2 packets: %02x, %02x, %02x, %02x\n",
-		    jiffies_msec, packet[0], packet[1], packet[2], packet[3]);
+		    "%08dms %s packets: %02x, %02x, %02x, %02x; "
+		    "abs_x: %d, abs_y: %d\n",
+		    jiffies_msec, packet_type,
+		    packet[0], packet[1], packet[2], packet[3], abs_x, abs_y);
 
 	if (jiffies_msec - ps2_last_second > 1000) {
 		psmouse_dbg(psmouse, "PS/2 packets/sec = %d\n", ps2_packet_cnt);
@@ -639,7 +664,7 @@ static void fsp_packet_debug(unsigned char packet[])
 	}
 }
 #else
-static void fsp_packet_debug(unsigned char packet[])
+static void fsp_packet_debug(struct psmouse *psmouse, unsigned char packet[])
 {
 }
 #endif
@@ -671,10 +696,12 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 	 * Full packet accumulated, process it
 	 */
 
+	fsp_packet_debug(psmouse, packet);
+
 	switch (psmouse->packet[0] >> FSP_PKT_TYPE_SHIFT) {
 	case FSP_PKT_TYPE_ABS:
-		abs_x = (packet[1] << 2) | ((packet[3] >> 2) & 0x03);
-		abs_y = (packet[2] << 2) | (packet[3] & 0x03);
+		abs_x = GET_ABS_X(packet);
+		abs_y = GET_ABS_Y(packet);
 
 		if (packet[0] & FSP_PB0_MFMC) {
 			/*
@@ -784,8 +811,6 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 	}
 
 	input_sync(dev);
-
-	fsp_packet_debug(packet);
 
 	return PSMOUSE_FULL_PACKET;
 }
