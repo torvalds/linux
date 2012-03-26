@@ -2255,7 +2255,7 @@ static ssize_t charge_full_store(struct ab8500_fg *di, const char *buf,
 
 	ret = strict_strtoul(buf, 10, &charge_full);
 
-	dev_dbg(di->dev, "Ret %d charge_full %lu", ret, charge_full);
+	dev_dbg(di->dev, "Ret %zd charge_full %lu", ret, charge_full);
 
 	if (!ret) {
 		di->bat_cap.max_mah = (int) charge_full;
@@ -2277,7 +2277,7 @@ static ssize_t charge_now_store(struct ab8500_fg *di, const char *buf,
 
 	ret = strict_strtoul(buf, 10, &charge_now);
 
-	dev_dbg(di->dev, "Ret %d charge_now %lu was %d",
+	dev_dbg(di->dev, "Ret %zd charge_now %lu was %d",
 		ret, charge_now, di->bat_cap.prev_mah);
 
 	if (!ret) {
