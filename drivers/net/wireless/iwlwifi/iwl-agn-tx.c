@@ -522,6 +522,7 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 {
 	struct iwl_tid_data *tid_data;
 	int sta_id, txq_id;
+	enum iwl_agg_state agg_state;
 
 	sta_id = iwl_sta_id(sta);
 
@@ -544,6 +545,13 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		* session was really started completely.
 		*/
 		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
+		goto turn_off;
+	case IWL_AGG_STARTING:
+		/*
+		 * This can happen when the session is stopped before
+		 * we receive ADDBA response
+		 */
+		IWL_DEBUG_HT(priv, "AGG stop before AGG became operational\n");
 		goto turn_off;
 	case IWL_AGG_ON:
 		break;
@@ -576,12 +584,17 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d\n",
 			    tid_data->agg.ssn);
 turn_off:
+	agg_state = priv->tid_data[sta_id][tid].agg.state;
 	priv->tid_data[sta_id][tid].agg.state = IWL_AGG_OFF;
 
 	spin_unlock_bh(&priv->sta_lock);
 
 	if (test_bit(txq_id, priv->agg_q_alloc)) {
-		iwl_trans_tx_agg_disable(priv->trans, txq_id);
+		/* If the transport didn't know that we wanted to start
+		 * agreggation, don't tell it that we want to stop them
+		 */
+		if (agg_state != IWL_AGG_STARTING)
+			iwl_trans_tx_agg_disable(priv->trans, txq_id);
 		iwlagn_dealloc_agg_txq(priv, txq_id);
 	}
 
@@ -634,7 +647,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (*ssn == tid_data->next_reclaimed) {
 		IWL_DEBUG_TX_QUEUES(priv, "Can proceed: ssn = next_recl = %d\n",
 				    tid_data->agg.ssn);
-		tid_data->agg.state = IWL_AGG_ON;
+		tid_data->agg.state = IWL_AGG_STARTING;
 		ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 	} else {
 		IWL_DEBUG_TX_QUEUES(priv, "Can't proceed: ssn %d, "
@@ -661,6 +674,7 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	spin_lock_bh(&priv->sta_lock);
 	ssn = priv->tid_data[sta_priv->sta_id][tid].agg.ssn;
 	q = priv->tid_data[sta_priv->sta_id][tid].agg.txq_id;
+	priv->tid_data[sta_priv->sta_id][tid].agg.state = IWL_AGG_ON;
 	spin_unlock_bh(&priv->sta_lock);
 
 	fifo = ctx->ac_to_fifo[tid_to_ac[tid]];
@@ -745,7 +759,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 			IWL_DEBUG_TX_QUEUES(priv,
 				"Can continue ADDBA flow ssn = next_recl ="
 				" %d", tid_data->next_reclaimed);
-			tid_data->agg.state = IWL_AGG_ON;
+			tid_data->agg.state = IWL_AGG_STARTING;
 			ieee80211_start_tx_ba_cb_irqsafe(vif, addr, tid);
 		}
 		break;
