@@ -50,7 +50,6 @@ static int rk30_adc_read(struct adc_host *adc)
 {
 	struct rk30_adc_device *dev  = adc_priv(adc);
 
-	udelay(SAMPLE_RATE);
 	return readl(dev->regs + ADC_DATA) & ADC_DATA_MASK;
 }
 static irqreturn_t rk30_adc_irq(int irq, void *data)
