@@ -1506,7 +1506,7 @@ open_bchannel(struct ipac_hw *ipac, struct channel_req *rq)
 {
 	struct bchannel		*bch;
 
-	if (rq->adr.channel > 2)
+	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
 	if (rq->protocol == ISDN_P_NONE)
 		return -EINVAL;
