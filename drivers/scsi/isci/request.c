@@ -53,12 +53,23 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <scsi/scsi_cmnd.h>
 #include "isci.h"
 #include "task.h"
 #include "request.h"
 #include "scu_completion_codes.h"
 #include "scu_event_codes.h"
 #include "sas.h"
+
+#undef C
+#define C(a) (#a)
+const char *req_state_name(enum sci_base_request_states state)
+{
+	static const char * const strings[] = REQUEST_STATES;
+
+	return strings[state];
+}
+#undef C
 
 static struct scu_sgl_element_pair *to_sgl_element_pair(struct isci_request *ireq,
 							int idx)
@@ -264,6 +275,141 @@ static void scu_ssp_reqeust_construct_task_context(
 	task_context->response_iu_lower = lower_32_bits(dma_addr);
 }
 
+static u8 scu_bg_blk_size(struct scsi_device *sdp)
+{
+	switch (sdp->sector_size) {
+	case 512:
+		return 0;
+	case 1024:
+		return 1;
+	case 4096:
+		return 3;
+	default:
+		return 0xff;
+	}
+}
+
+static u32 scu_dif_bytes(u32 len, u32 sector_size)
+{
+	return (len >> ilog2(sector_size)) * 8;
+}
+
+static void scu_ssp_ireq_dif_insert(struct isci_request *ireq, u8 type, u8 op)
+{
+	struct scu_task_context *tc = ireq->tc;
+	struct scsi_cmnd *scmd = ireq->ttype_ptr.io_task_ptr->uldd_task;
+	u8 blk_sz = scu_bg_blk_size(scmd->device);
+
+	tc->block_guard_enable = 1;
+	tc->blk_prot_en = 1;
+	tc->blk_sz = blk_sz;
+	/* DIF write insert */
+	tc->blk_prot_func = 0x2;
+
+	tc->transfer_length_bytes += scu_dif_bytes(tc->transfer_length_bytes,
+						   scmd->device->sector_size);
+
+	/* always init to 0, used by hw */
+	tc->interm_crc_val = 0;
+
+	tc->init_crc_seed = 0;
+	tc->app_tag_verify = 0;
+	tc->app_tag_gen = 0;
+	tc->ref_tag_seed_verify = 0;
+
+	/* always init to same as bg_blk_sz */
+	tc->UD_bytes_immed_val = scmd->device->sector_size;
+
+	tc->reserved_DC_0 = 0;
+
+	/* always init to 8 */
+	tc->DIF_bytes_immed_val = 8;
+
+	tc->reserved_DC_1 = 0;
+	tc->bgc_blk_sz = scmd->device->sector_size;
+	tc->reserved_E0_0 = 0;
+	tc->app_tag_gen_mask = 0;
+
+	/** setup block guard control **/
+	tc->bgctl = 0;
+
+	/* DIF write insert */
+	tc->bgctl_f.op = 0x2;
+
+	tc->app_tag_verify_mask = 0;
+
+	/* must init to 0 for hw */
+	tc->blk_guard_err = 0;
+
+	tc->reserved_E8_0 = 0;
+
+	if ((type & SCSI_PROT_DIF_TYPE1) || (type & SCSI_PROT_DIF_TYPE2))
+		tc->ref_tag_seed_gen = scsi_get_lba(scmd) & 0xffffffff;
+	else if (type & SCSI_PROT_DIF_TYPE3)
+		tc->ref_tag_seed_gen = 0;
+}
+
+static void scu_ssp_ireq_dif_strip(struct isci_request *ireq, u8 type, u8 op)
+{
+	struct scu_task_context *tc = ireq->tc;
+	struct scsi_cmnd *scmd = ireq->ttype_ptr.io_task_ptr->uldd_task;
+	u8 blk_sz = scu_bg_blk_size(scmd->device);
+
+	tc->block_guard_enable = 1;
+	tc->blk_prot_en = 1;
+	tc->blk_sz = blk_sz;
+	/* DIF read strip */
+	tc->blk_prot_func = 0x1;
+
+	tc->transfer_length_bytes += scu_dif_bytes(tc->transfer_length_bytes,
+						   scmd->device->sector_size);
+
+	/* always init to 0, used by hw */
+	tc->interm_crc_val = 0;
+
+	tc->init_crc_seed = 0;
+	tc->app_tag_verify = 0;
+	tc->app_tag_gen = 0;
+
+	if ((type & SCSI_PROT_DIF_TYPE1) || (type & SCSI_PROT_DIF_TYPE2))
+		tc->ref_tag_seed_verify = scsi_get_lba(scmd) & 0xffffffff;
+	else if (type & SCSI_PROT_DIF_TYPE3)
+		tc->ref_tag_seed_verify = 0;
+
+	/* always init to same as bg_blk_sz */
+	tc->UD_bytes_immed_val = scmd->device->sector_size;
+
+	tc->reserved_DC_0 = 0;
+
+	/* always init to 8 */
+	tc->DIF_bytes_immed_val = 8;
+
+	tc->reserved_DC_1 = 0;
+	tc->bgc_blk_sz = scmd->device->sector_size;
+	tc->reserved_E0_0 = 0;
+	tc->app_tag_gen_mask = 0;
+
+	/** setup block guard control **/
+	tc->bgctl = 0;
+
+	/* DIF read strip */
+	tc->bgctl_f.crc_verify = 1;
+	tc->bgctl_f.op = 0x1;
+	if ((type & SCSI_PROT_DIF_TYPE1) || (type & SCSI_PROT_DIF_TYPE2)) {
+		tc->bgctl_f.ref_tag_chk = 1;
+		tc->bgctl_f.app_f_detect = 1;
+	} else if (type & SCSI_PROT_DIF_TYPE3)
+		tc->bgctl_f.app_ref_f_detect = 1;
+
+	tc->app_tag_verify_mask = 0;
+
+	/* must init to 0 for hw */
+	tc->blk_guard_err = 0;
+
+	tc->reserved_E8_0 = 0;
+	tc->ref_tag_seed_gen = 0;
+}
+
 /**
  * This method is will fill in the SCU Task Context for a SSP IO request.
  * @sci_req:
@@ -274,6 +420,10 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
 						      u32 len)
 {
 	struct scu_task_context *task_context = ireq->tc;
+	struct sas_task *sas_task = ireq->ttype_ptr.io_task_ptr;
+	struct scsi_cmnd *scmd = sas_task->uldd_task;
+	u8 prot_type = scsi_get_prot_type(scmd);
+	u8 prot_op = scsi_get_prot_op(scmd);
 
 	scu_ssp_reqeust_construct_task_context(ireq, task_context);
 
@@ -296,6 +446,13 @@ static void scu_ssp_io_request_construct_task_context(struct isci_request *ireq,
 
 	if (task_context->transfer_length_bytes > 0)
 		sci_request_build_sgl(ireq);
+
+	if (prot_type != SCSI_PROT_DIF_TYPE0) {
+		if (prot_op == SCSI_PROT_READ_STRIP)
+			scu_ssp_ireq_dif_strip(ireq, prot_type, prot_op);
+		else if (prot_op == SCSI_PROT_WRITE_INSERT)
+			scu_ssp_ireq_dif_insert(ireq, prot_type, prot_op);
+	}
 }
 
 /**
@@ -519,18 +676,12 @@ sci_io_request_construct_sata(struct isci_request *ireq,
 	if (test_bit(IREQ_TMF, &ireq->flags)) {
 		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
 
-		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
-		    tmf->tmf_code == isci_tmf_sata_srst_low) {
-			scu_stp_raw_request_construct_task_context(ireq);
-			return SCI_SUCCESS;
-		} else {
-			dev_err(&ireq->owning_controller->pdev->dev,
-				"%s: Request 0x%p received un-handled SAT "
-				"management protocol 0x%x.\n",
-				__func__, ireq, tmf->tmf_code);
+		dev_err(&ireq->owning_controller->pdev->dev,
+			"%s: Request 0x%p received un-handled SAT "
+			"management protocol 0x%x.\n",
+			__func__, ireq, tmf->tmf_code);
 
-			return SCI_FAILURE;
-		}
+		return SCI_FAILURE;
 	}
 
 	if (!sas_protocol_ata(task->task_proto)) {
@@ -623,34 +774,6 @@ static enum sci_status sci_io_request_construct_basic_sata(struct isci_request *
 
 	if (status == SCI_SUCCESS)
 		sci_change_state(&ireq->sm, SCI_REQ_CONSTRUCTED);
-
-	return status;
-}
-
-enum sci_status sci_task_request_construct_sata(struct isci_request *ireq)
-{
-	enum sci_status status = SCI_SUCCESS;
-
-	/* check for management protocols */
-	if (test_bit(IREQ_TMF, &ireq->flags)) {
-		struct isci_tmf *tmf = isci_request_access_tmf(ireq);
-
-		if (tmf->tmf_code == isci_tmf_sata_srst_high ||
-		    tmf->tmf_code == isci_tmf_sata_srst_low) {
-			scu_stp_raw_request_construct_task_context(ireq);
-		} else {
-			dev_err(&ireq->owning_controller->pdev->dev,
-				"%s: Request 0x%p received un-handled SAT "
-				"Protocol 0x%x.\n",
-				__func__, ireq, tmf->tmf_code);
-
-			return SCI_FAILURE;
-		}
-	}
-
-	if (status != SCI_SUCCESS)
-		return status;
-	sci_change_state(&ireq->sm, SCI_REQ_CONSTRUCTED);
 
 	return status;
 }
@@ -756,9 +879,6 @@ sci_io_request_terminate(struct isci_request *ireq)
 	case SCI_REQ_STP_PIO_WAIT_FRAME:
 	case SCI_REQ_STP_PIO_DATA_IN:
 	case SCI_REQ_STP_PIO_DATA_OUT:
-	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED:
-	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG:
-	case SCI_REQ_STP_SOFT_RESET_WAIT_D2H:
 	case SCI_REQ_ATAPI_WAIT_H2D:
 	case SCI_REQ_ATAPI_WAIT_PIO_SETUP:
 	case SCI_REQ_ATAPI_WAIT_D2H:
@@ -800,7 +920,8 @@ enum sci_status sci_request_complete(struct isci_request *ireq)
 
 	state = ireq->sm.current_state_id;
 	if (WARN_ONCE(state != SCI_REQ_COMPLETED,
-		      "isci: request completion from wrong state (%d)\n", state))
+		      "isci: request completion from wrong state (%s)\n",
+		      req_state_name(state)))
 		return SCI_FAILURE_INVALID_STATE;
 
 	if (ireq->saved_rx_frame_index != SCU_INVALID_FRAME_INDEX)
@@ -821,8 +942,8 @@ enum sci_status sci_io_request_event_handler(struct isci_request *ireq,
 	state = ireq->sm.current_state_id;
 
 	if (state != SCI_REQ_STP_PIO_DATA_IN) {
-		dev_warn(&ihost->pdev->dev, "%s: (%x) in wrong state %d\n",
-			 __func__, event_code, state);
+		dev_warn(&ihost->pdev->dev, "%s: (%x) in wrong state %s\n",
+			 __func__, event_code, req_state_name(state));
 
 		return SCI_FAILURE_INVALID_STATE;
 	}
@@ -1304,9 +1425,9 @@ sci_stp_request_pio_data_in_copy_data_buffer(struct isci_stp_request *stp_req,
 			struct page *page = sg_page(sg);
 
 			copy_len = min_t(int, total_len, sg_dma_len(sg));
-			kaddr = kmap_atomic(page, KM_IRQ0);
+			kaddr = kmap_atomic(page);
 			memcpy(kaddr + sg->offset, src_addr, copy_len);
-			kunmap_atomic(kaddr, KM_IRQ0);
+			kunmap_atomic(kaddr);
 			total_len -= copy_len;
 			src_addr += copy_len;
 			sg = sg_next(sg);
@@ -1654,7 +1775,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 		sci_unsolicited_frame_control_get_header(&ihost->uf_control,
 							 frame_index,
 							 &frame_header);
-		kaddr = kmap_atomic(sg_page(sg), KM_IRQ0);
+		kaddr = kmap_atomic(sg_page(sg));
 		rsp = kaddr + sg->offset;
 		sci_swab32_cpy(rsp, frame_header, 1);
 
@@ -1691,7 +1812,7 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 			ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
 			sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
 		}
-		kunmap_atomic(kaddr, KM_IRQ0);
+		kunmap_atomic(kaddr);
 
 		sci_controller_release_frame(ihost, frame_index);
 
@@ -1938,59 +2059,6 @@ sci_io_request_frame_handler(struct isci_request *ireq,
 		return status;
 	}
 
-	case SCI_REQ_STP_SOFT_RESET_WAIT_D2H: {
-		struct dev_to_host_fis *frame_header;
-		u32 *frame_buffer;
-
-		status = sci_unsolicited_frame_control_get_header(&ihost->uf_control,
-								       frame_index,
-								       (void **)&frame_header);
-		if (status != SCI_SUCCESS) {
-			dev_err(&ihost->pdev->dev,
-				"%s: SCIC IO Request 0x%p could not get frame "
-				"header for frame index %d, status %x\n",
-				__func__,
-				stp_req,
-				frame_index,
-				status);
-			return status;
-		}
-
-		switch (frame_header->fis_type) {
-		case FIS_REGD2H:
-			sci_unsolicited_frame_control_get_buffer(&ihost->uf_control,
-								      frame_index,
-								      (void **)&frame_buffer);
-
-			sci_controller_copy_sata_response(&ireq->stp.rsp,
-							       frame_header,
-							       frame_buffer);
-
-			/* The command has completed with error */
-			ireq->scu_status = SCU_TASK_DONE_CHECK_RESPONSE;
-			ireq->sci_status = SCI_FAILURE_IO_RESPONSE_VALID;
-			break;
-
-		default:
-			dev_warn(&ihost->pdev->dev,
-				 "%s: IO Request:0x%p Frame Id:%d protocol "
-				 "violation occurred\n",
-				 __func__,
-				 stp_req,
-				 frame_index);
-
-			ireq->scu_status = SCU_TASK_DONE_UNEXP_FIS;
-			ireq->sci_status = SCI_FAILURE_PROTOCOL_VIOLATION;
-			break;
-		}
-
-		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
-
-		/* Frame has been decoded return it to the controller */
-		sci_controller_release_frame(ihost, frame_index);
-
-		return status;
-	}
 	case SCI_REQ_ATAPI_WAIT_PIO_SETUP: {
 		struct sas_task *task = isci_request_access_task(ireq);
 
@@ -2086,57 +2154,6 @@ static enum sci_status stp_request_udma_await_tc_event(struct isci_request *ireq
 	}
 
 	return status;
-}
-
-static enum sci_status
-stp_request_soft_reset_await_h2d_asserted_tc_event(struct isci_request *ireq,
-						   u32 completion_code)
-{
-	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		ireq->scu_status = SCU_TASK_DONE_GOOD;
-		ireq->sci_status = SCI_SUCCESS;
-		sci_change_state(&ireq->sm, SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG);
-		break;
-
-	default:
-		/*
-		 * All other completion status cause the IO to be complete.
-		 * If a NAK was received, then it is up to the user to retry
-		 * the request.
-		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
-		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
-		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
-		break;
-	}
-
-	return SCI_SUCCESS;
-}
-
-static enum sci_status
-stp_request_soft_reset_await_h2d_diagnostic_tc_event(struct isci_request *ireq,
-						     u32 completion_code)
-{
-	switch (SCU_GET_COMPLETION_TL_STATUS(completion_code)) {
-	case SCU_MAKE_COMPLETION_STATUS(SCU_TASK_DONE_GOOD):
-		ireq->scu_status = SCU_TASK_DONE_GOOD;
-		ireq->sci_status = SCI_SUCCESS;
-		sci_change_state(&ireq->sm, SCI_REQ_STP_SOFT_RESET_WAIT_D2H);
-		break;
-
-	default:
-		/* All other completion status cause the IO to be complete.  If
-		 * a NAK was received, then it is up to the user to retry the
-		 * request.
-		 */
-		ireq->scu_status = SCU_NORMALIZE_COMPLETION_STATUS(completion_code);
-		ireq->sci_status = SCI_FAILURE_CONTROLLER_SPECIFIC_IO_ERR;
-		sci_change_state(&ireq->sm, SCI_REQ_COMPLETED);
-		break;
-	}
-
-	return SCI_SUCCESS;
 }
 
 static enum sci_status atapi_raw_completion(struct isci_request *ireq, u32 completion_code,
@@ -2284,14 +2301,6 @@ sci_io_request_tc_completion(struct isci_request *ireq,
 	case SCI_REQ_STP_PIO_DATA_OUT:
 		return pio_data_out_tx_done_tc_event(ireq, completion_code);
 
-	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED:
-		return stp_request_soft_reset_await_h2d_asserted_tc_event(ireq,
-									  completion_code);
-
-	case SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG:
-		return stp_request_soft_reset_await_h2d_diagnostic_tc_event(ireq,
-									    completion_code);
-
 	case SCI_REQ_ABORTING:
 		return request_aborting_state_tc_event(ireq,
 						       completion_code);
@@ -2308,12 +2317,8 @@ sci_io_request_tc_completion(struct isci_request *ireq,
 		return atapi_data_tc_completion_handler(ireq, completion_code);
 
 	default:
-		dev_warn(&ihost->pdev->dev,
-			 "%s: SCIC IO Request given task completion "
-			 "notification %x while in wrong state %d\n",
-			 __func__,
-			 completion_code,
-			 state);
+		dev_warn(&ihost->pdev->dev, "%s: %x in wrong state %s\n",
+			 __func__, completion_code, req_state_name(state));
 		return SCI_FAILURE_INVALID_STATE;
 	}
 }
@@ -3023,10 +3028,10 @@ static void isci_request_io_request_complete(struct isci_host *ihost,
 		dma_unmap_sg(&ihost->pdev->dev, sg, 1, DMA_TO_DEVICE);
 
 		/* need to swab it back in case the command buffer is re-used */
-		kaddr = kmap_atomic(sg_page(sg), KM_IRQ0);
+		kaddr = kmap_atomic(sg_page(sg));
 		smp_req = kaddr + sg->offset;
 		sci_swab32_cpy(smp_req, smp_req, sg->length / sizeof(u32));
-		kunmap_atomic(kaddr, KM_IRQ0);
+		kunmap_atomic(kaddr);
 		break;
 	}
 	default:
@@ -3065,10 +3070,6 @@ static void sci_request_started_state_enter(struct sci_base_state_machine *sm)
 	 */
 	if (!task && dev->dev_type == SAS_END_DEV) {
 		state = SCI_REQ_TASK_WAIT_TC_COMP;
-	} else if (!task &&
-		   (isci_request_access_tmf(ireq)->tmf_code == isci_tmf_sata_srst_high ||
-		    isci_request_access_tmf(ireq)->tmf_code == isci_tmf_sata_srst_low)) {
-		state = SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED;
 	} else if (task && task->task_proto == SAS_PROTOCOL_SMP) {
 		state = SCI_REQ_SMP_WAIT_RESP;
 	} else if (task && sas_protocol_ata(task->task_proto) &&
@@ -3125,31 +3126,6 @@ static void sci_stp_request_started_pio_await_h2d_completion_enter(struct sci_ba
 	ireq->target_device->working_request = ireq;
 }
 
-static void sci_stp_request_started_soft_reset_await_h2d_asserted_completion_enter(struct sci_base_state_machine *sm)
-{
-	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
-
-	ireq->target_device->working_request = ireq;
-}
-
-static void sci_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter(struct sci_base_state_machine *sm)
-{
-	struct isci_request *ireq = container_of(sm, typeof(*ireq), sm);
-	struct scu_task_context *tc = ireq->tc;
-	struct host_to_dev_fis *h2d_fis;
-	enum sci_status status;
-
-	/* Clear the SRST bit */
-	h2d_fis = &ireq->stp.cmd;
-	h2d_fis->control = 0;
-
-	/* Clear the TC control bit */
-	tc->control_frame = 0;
-
-	status = sci_controller_continue_io(ireq);
-	WARN_ONCE(status != SCI_SUCCESS, "isci: continue io failure\n");
-}
-
 static const struct sci_base_state sci_request_state_table[] = {
 	[SCI_REQ_INIT] = { },
 	[SCI_REQ_CONSTRUCTED] = { },
@@ -3168,13 +3144,6 @@ static const struct sci_base_state sci_request_state_table[] = {
 	[SCI_REQ_STP_PIO_DATA_OUT] = { },
 	[SCI_REQ_STP_UDMA_WAIT_TC_COMP] = { },
 	[SCI_REQ_STP_UDMA_WAIT_D2H] = { },
-	[SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED] = {
-		.enter_state = sci_stp_request_started_soft_reset_await_h2d_asserted_completion_enter,
-	},
-	[SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG] = {
-		.enter_state = sci_stp_request_started_soft_reset_await_h2d_diagnostic_completion_enter,
-	},
-	[SCI_REQ_STP_SOFT_RESET_WAIT_D2H] = { },
 	[SCI_REQ_TASK_WAIT_TC_COMP] = { },
 	[SCI_REQ_TASK_WAIT_TC_RESP] = { },
 	[SCI_REQ_SMP_WAIT_RESP] = { },
@@ -3311,7 +3280,7 @@ sci_io_request_construct_smp(struct device *dev,
 	u8 req_len;
 	u32 cmd;
 
-	kaddr = kmap_atomic(sg_page(sg), KM_IRQ0);
+	kaddr = kmap_atomic(sg_page(sg));
 	smp_req = kaddr + sg->offset;
 	/*
 	 * Look at the SMP requests' header fields; for certain SAS 1.x SMP
@@ -3337,7 +3306,7 @@ sci_io_request_construct_smp(struct device *dev,
 	req_len = smp_req->req_len;
 	sci_swab32_cpy(smp_req, smp_req, sg->length / sizeof(u32));
 	cmd = *(u32 *) smp_req;
-	kunmap_atomic(kaddr, KM_IRQ0);
+	kunmap_atomic(kaddr);
 
 	if (!dma_map_sg(dev, sg, 1, DMA_TO_DEVICE))
 		return SCI_FAILURE;
@@ -3649,8 +3618,7 @@ int isci_request_execute(struct isci_host *ihost, struct isci_remote_device *ide
 		/* Cause this task to be scheduled in the SCSI error
 		 * handler thread.
 		 */
-		isci_execpath_callback(ihost, task,
-				       sas_task_abort);
+		sas_task_abort(task);
 
 		/* Change the status, since we are holding
 		 * the I/O until it is managed by the SCSI

@@ -226,6 +226,7 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
 	struct omap_musb_board_data *data = plat->board_data;
+	struct usb_otg *otg = musb->xceiv->otg;
 	unsigned long flags;
 	irqreturn_t ret = IRQ_NONE;
 	u32 epintr, usbintr;
@@ -289,14 +290,14 @@ static irqreturn_t am35x_musb_interrupt(int irq, void *hci)
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (is_host_enabled(musb) && drvvbus) {
 			MUSB_HST_MODE(musb);
-			musb->xceiv->default_a = 1;
+			otg->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&otg_workaround);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
-			musb->xceiv->default_a = 0;
+			otg->default_a = 0;
 			musb->xceiv->state = OTG_STATE_B_IDLE;
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
@@ -363,7 +364,7 @@ static int am35x_musb_init(struct musb *musb)
 		return -ENODEV;
 
 	usb_nop_xceiv_register();
-	musb->xceiv = otg_get_transceiver();
+	musb->xceiv = usb_get_transceiver();
 	if (!musb->xceiv)
 		return -ENODEV;
 
@@ -405,7 +406,7 @@ static int am35x_musb_exit(struct musb *musb)
 	if (data->set_phy_power)
 		data->set_phy_power(0);
 
-	otg_put_transceiver(musb->xceiv);
+	usb_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 
 	return 0;
@@ -456,7 +457,7 @@ static const struct musb_platform_ops am35x_ops = {
 
 static u64 am35x_dmamask = DMA_BIT_MASK(32);
 
-static int __init am35x_probe(struct platform_device *pdev)
+static int __devinit am35x_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -561,7 +562,7 @@ err0:
 	return ret;
 }
 
-static int __exit am35x_remove(struct platform_device *pdev)
+static int __devexit am35x_remove(struct platform_device *pdev)
 {
 	struct am35x_glue	*glue = platform_get_drvdata(pdev);
 
@@ -630,7 +631,8 @@ static struct dev_pm_ops am35x_pm_ops = {
 #endif
 
 static struct platform_driver am35x_driver = {
-	.remove		= __exit_p(am35x_remove),
+	.probe		= am35x_probe,
+	.remove		= __devexit_p(am35x_remove),
 	.driver		= {
 		.name	= "musb-am35x",
 		.pm	= DEV_PM_OPS,
@@ -643,9 +645,9 @@ MODULE_LICENSE("GPL v2");
 
 static int __init am35x_init(void)
 {
-	return platform_driver_probe(&am35x_driver, am35x_probe);
+	return platform_driver_register(&am35x_driver);
 }
-subsys_initcall(am35x_init);
+module_init(am35x_init);
 
 static void __exit am35x_exit(void)
 {

@@ -43,8 +43,8 @@
 #endif
 
 #include <linux/serial_core.h>
+#include <linux/sunserialcore.h>
 
-#include "suncore.h"
 #include "sunsab.h"
 
 struct uart_sunsab_port {

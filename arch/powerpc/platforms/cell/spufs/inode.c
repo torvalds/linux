@@ -646,6 +646,7 @@ long spufs_create(struct path *path, struct dentry *dentry,
 
 out:
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
+	dput(dentry);
 	return ret;
 }
 
@@ -757,9 +758,9 @@ spufs_create_root(struct super_block *sb, void *data)
 		goto out_iput;
 
 	ret = -ENOMEM;
-	sb->s_root = d_alloc_root(inode);
+	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
-		goto out_iput;
+		goto out;
 
 	return 0;
 out_iput:
@@ -828,19 +829,19 @@ static int __init spufs_init(void)
 	ret = spu_sched_init();
 	if (ret)
 		goto out_cache;
-	ret = register_filesystem(&spufs_type);
-	if (ret)
-		goto out_sched;
 	ret = register_spu_syscalls(&spufs_calls);
 	if (ret)
-		goto out_fs;
+		goto out_sched;
+	ret = register_filesystem(&spufs_type);
+	if (ret)
+		goto out_syscalls;
 
 	spufs_init_isolated_loader();
 
 	return 0;
 
-out_fs:
-	unregister_filesystem(&spufs_type);
+out_syscalls:
+	unregister_spu_syscalls(&spufs_calls);
 out_sched:
 	spu_sched_exit();
 out_cache:

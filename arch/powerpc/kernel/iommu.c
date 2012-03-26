@@ -39,6 +39,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/kdump.h>
+#include <asm/fadump.h>
 
 #define DBG(...)
 
@@ -445,7 +446,12 @@ void iommu_unmap_sg(struct iommu_table *tbl, struct scatterlist *sglist,
 
 static void iommu_table_clear(struct iommu_table *tbl)
 {
-	if (!is_kdump_kernel()) {
+	/*
+	 * In case of firmware assisted dump system goes through clean
+	 * reboot process at the time of system crash. Hence it's safe to
+	 * clear the TCE entries if firmware assisted dump is active.
+	 */
+	if (!is_kdump_kernel() || is_fadump_active()) {
 		/* Clear the table in case firmware left allocations in it */
 		ppc_md.tce_free(tbl, tbl->it_offset, tbl->it_size);
 		return;

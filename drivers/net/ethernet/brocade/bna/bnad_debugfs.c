@@ -62,8 +62,6 @@ bnad_debugfs_open_fwtrc(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		fw_debug = NULL;
-		pr_warn("bna %s: Failed to allocate fwtrc buffer\n",
-			pci_name(bnad->pcidev));
 		return -ENOMEM;
 	}
 
@@ -105,8 +103,6 @@ bnad_debugfs_open_fwsave(struct inode *inode, struct file *file)
 	if (!fw_debug->debug_buffer) {
 		kfree(fw_debug);
 		fw_debug = NULL;
-		pr_warn("bna %s: Failed to allocate fwsave buffer\n",
-			pci_name(bnad->pcidev));
 		return -ENOMEM;
 	}
 
@@ -208,8 +204,6 @@ bnad_debugfs_open_drvinfo(struct inode *inode, struct file *file)
 	if (!drv_info->debug_buffer) {
 		kfree(drv_info);
 		drv_info = NULL;
-		pr_warn("bna %s: Failed to allocate drv info buffer\n",
-			pci_name(bnad->pcidev));
 		return -ENOMEM;
 	}
 
@@ -348,11 +342,8 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 
 	/* Allocate memory to store the user space buf */
 	kern_buf = kzalloc(nbytes, GFP_KERNEL);
-	if (!kern_buf) {
-		pr_warn("bna %s: Failed to allocate user buffer\n",
-			pci_name(bnad->pcidev));
+	if (!kern_buf)
 		return -ENOMEM;
-	}
 
 	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
 		kfree(kern_buf);
@@ -373,11 +364,8 @@ bnad_debugfs_write_regrd(struct file *file, const char __user *buf,
 	bnad->reglen = 0;
 
 	bnad->regdata = kzalloc(len << 2, GFP_KERNEL);
-	if (!bnad->regdata) {
-		pr_warn("bna %s: Failed to allocate regrd buffer\n",
-			pci_name(bnad->pcidev));
+	if (!bnad->regdata)
 		return -ENOMEM;
-	}
 
 	bnad->reglen = len << 2;
 	rb = bfa_ioc_bar0(ioc);
@@ -421,11 +409,8 @@ bnad_debugfs_write_regwr(struct file *file, const char __user *buf,
 
 	/* Allocate memory to store the user space buf */
 	kern_buf = kzalloc(nbytes, GFP_KERNEL);
-	if (!kern_buf) {
-		pr_warn("bna %s: Failed to allocate user buffer\n",
-			pci_name(bnad->pcidev));
+	if (!kern_buf)
 		return -ENOMEM;
-	}
 
 	if (copy_from_user(kern_buf, (void  __user *)buf, nbytes)) {
 		kfree(kern_buf);
@@ -531,7 +516,7 @@ static const struct file_operations bnad_debugfs_op_drvinfo = {
 
 struct bnad_debugfs_entry {
 	const char *name;
-	mode_t  mode;
+	umode_t  mode;
 	const struct file_operations *fops;
 };
 

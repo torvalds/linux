@@ -192,7 +192,7 @@ static int get_prom(struct pcmcia_device *link)
     unsigned int ioaddr = dev->base_addr;
     int i, j;
 
-    /* This is based on drivers/net/ne.c */
+    /* This is based on drivers/net/ethernet/8390/ne.c */
     struct {
 	u_char value, offset;
     } program_seq[] = {
@@ -1408,7 +1408,7 @@ static void ei_receive(struct net_device *dev)
 		{
 			struct sk_buff *skb;
 			
-			skb = dev_alloc_skb(pkt_len+2);
+			skb = netdev_alloc_skb(dev, pkt_len + 2);
 			if (skb == NULL) 
 			{
 				if (ei_debug > 1)

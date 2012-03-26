@@ -552,7 +552,7 @@ static void ni5010_rx(struct net_device *dev)
 	}
 
 	/* Malloc up new buffer. */
-	skb = dev_alloc_skb(i_pkt_size + 3);
+	skb = netdev_alloc_skb(dev, i_pkt_size + 3);
 	if (skb == NULL) {
 		printk(KERN_WARNING "%s: Memory squeeze, dropping packet.\n", dev->name);
 		dev->stats.rx_dropped++;

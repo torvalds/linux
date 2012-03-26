@@ -338,9 +338,9 @@ rpcrdma_inline_pullup(struct rpc_rqst *rqst, int pad)
 			curlen = copy_len;
 		dprintk("RPC:       %s: page %d destp 0x%p len %d curlen %d\n",
 			__func__, i, destp, copy_len, curlen);
-		srcp = kmap_atomic(ppages[i], KM_SKB_SUNRPC_DATA);
+		srcp = kmap_atomic(ppages[i]);
 		memcpy(destp, srcp+page_base, curlen);
-		kunmap_atomic(srcp, KM_SKB_SUNRPC_DATA);
+		kunmap_atomic(srcp);
 		rqst->rq_svec[0].iov_len += curlen;
 		destp += curlen;
 		copy_len -= curlen;
@@ -639,10 +639,10 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 			dprintk("RPC:       %s: page %d"
 				" srcp 0x%p len %d curlen %d\n",
 				__func__, i, srcp, copy_len, curlen);
-			destp = kmap_atomic(ppages[i], KM_SKB_SUNRPC_DATA);
+			destp = kmap_atomic(ppages[i]);
 			memcpy(destp + page_base, srcp, curlen);
 			flush_dcache_page(ppages[i]);
-			kunmap_atomic(destp, KM_SKB_SUNRPC_DATA);
+			kunmap_atomic(destp);
 			srcp += curlen;
 			copy_len -= curlen;
 			if (copy_len == 0)
@@ -771,12 +771,17 @@ repost:
 
 	/* get request object */
 	req = rpcr_to_rdmar(rqst);
+	if (req->rl_reply) {
+		spin_unlock(&xprt->transport_lock);
+		dprintk("RPC:       %s: duplicate reply 0x%p to RPC "
+			"request 0x%p: xid 0x%08x\n", __func__, rep, req,
+			headerp->rm_xid);
+		goto repost;
+	}
 
 	dprintk("RPC:       %s: reply 0x%p completes request 0x%p\n"
 		"                   RPC request 0x%p xid 0x%08x\n",
 			__func__, rep, req, rqst, headerp->rm_xid);
-
-	BUG_ON(!req || req->rl_reply);
 
 	/* from here on, the reply is no longer an orphan */
 	req->rl_reply = rep;

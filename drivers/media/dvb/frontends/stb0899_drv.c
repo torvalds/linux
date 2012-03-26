@@ -67,7 +67,7 @@ static const struct stb0899_tab stb0899_cn_tab[] = {
  * Crude linear extrapolation below -84.8dBm and above -8.0dBm.
  */
 static const struct stb0899_tab stb0899_dvbsrf_tab[] = {
-	{ -950,	-128 },
+	{ -750,	-128 },
 	{ -748,	 -94 },
 	{ -745,	 -92 },
 	{ -735,	 -90 },
@@ -131,7 +131,7 @@ static const struct stb0899_tab stb0899_dvbs2rf_tab[] = {
 	{ -730,	13645 },
 	{ -750,	13909 },
 	{ -766,	14153 },
-	{ -999,	16383 }
+	{ -950,	16383 }
 };
 
 /* DVB-S2 Es/N0 quant in dB/100 vs read value * 100*/
@@ -964,6 +964,7 @@ static int stb0899_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 
 	int val;
 	u32 reg;
+	*strength = 0;
 	switch (state->delsys) {
 	case SYS_DVBS:
 	case SYS_DSS:
@@ -983,11 +984,11 @@ static int stb0899_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
 		break;
 	case SYS_DVBS2:
 		if (internal->lock) {
-			reg = STB0899_READ_S2REG(STB0899_DEMOD, IF_AGC_GAIN);
+			reg = STB0899_READ_S2REG(STB0899_S2DEMOD, IF_AGC_GAIN);
 			val = STB0899_GETFIELD(IF_AGC_GAIN, reg);
 
 			*strength = stb0899_table_lookup(stb0899_dvbs2rf_tab, ARRAY_SIZE(stb0899_dvbs2rf_tab) - 1, val);
-			*strength += 750;
+			*strength += 950;
 			dprintk(state->verbose, FE_DEBUG, 1, "IF_AGC_GAIN = 0x%04x, C = %d * 0.1 dBm",
 				val & 0x3fff, *strength);
 		}
@@ -1009,6 +1010,7 @@ static int stb0899_read_snr(struct dvb_frontend *fe, u16 *snr)
 	u8 buf[2];
 	u32 reg;
 
+	*snr = 0;
 	reg  = stb0899_read_reg(state, STB0899_VSTATUS);
 	switch (state->delsys) {
 	case SYS_DVBS:
@@ -1071,7 +1073,7 @@ static int stb0899_read_status(struct dvb_frontend *fe, enum fe_status *status)
 			reg  = stb0899_read_reg(state, STB0899_VSTATUS);
 			if (STB0899_GETFIELD(VSTATUS_LOCKEDVIT, reg)) {
 				dprintk(state->verbose, FE_DEBUG, 1, "--------> FE_HAS_CARRIER | FE_HAS_LOCK");
-				*status |= FE_HAS_CARRIER | FE_HAS_LOCK;
+				*status |= FE_HAS_SIGNAL | FE_HAS_CARRIER | FE_HAS_LOCK;
 
 				reg = stb0899_read_reg(state, STB0899_PLPARM);
 				if (STB0899_GETFIELD(VITCURPUN, reg)) {

@@ -187,11 +187,14 @@ static void sas_phy_control(struct sas_ha_struct *sas_ha, u8 phy_id,
 	struct sas_internal *i =
 		to_sas_internal(sas_ha->core.shost->transportt);
 	struct sas_phy_linkrates rates;
+	struct asd_sas_phy *asd_phy;
 
 	if (phy_id >= sas_ha->num_phys) {
 		resp_data[2] = SMP_RESP_NO_PHY;
 		return;
 	}
+
+	asd_phy = sas_ha->sas_phy[phy_id];
 	switch (phy_op) {
 	case PHY_FUNC_NOP:
 	case PHY_FUNC_LINK_RESET:
@@ -210,7 +213,13 @@ static void sas_phy_control(struct sas_ha_struct *sas_ha, u8 phy_id,
 	rates.minimum_linkrate = min;
 	rates.maximum_linkrate = max;
 
-	if (i->dft->lldd_control_phy(sas_ha->sas_phy[phy_id], phy_op, &rates))
+	/* filter reset requests through libata eh */
+	if (phy_op == PHY_FUNC_LINK_RESET && sas_try_ata_reset(asd_phy) == 0) {
+		resp_data[2] = SMP_RESP_FUNC_ACC;
+		return;
+	}
+
+	if (i->dft->lldd_control_phy(asd_phy, phy_op, &rates))
 		resp_data[2] = SMP_RESP_FUNC_FAILED;
 	else
 		resp_data[2] = SMP_RESP_FUNC_ACC;
@@ -246,9 +255,9 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 	}
 
 	local_irq_disable();
-	buf = kmap_atomic(bio_page(req->bio), KM_USER0) + bio_offset(req->bio);
+	buf = kmap_atomic(bio_page(req->bio));
 	memcpy(req_data, buf, blk_rq_bytes(req));
-	kunmap_atomic(buf - bio_offset(req->bio), KM_USER0);
+	kunmap_atomic(buf - bio_offset(req->bio));
 	local_irq_enable();
 
 	if (req_data[0] != SMP_REQUEST)
@@ -361,10 +370,10 @@ int sas_smp_host_handler(struct Scsi_Host *shost, struct request *req,
 	}
 
 	local_irq_disable();
-	buf = kmap_atomic(bio_page(rsp->bio), KM_USER0) + bio_offset(rsp->bio);
+	buf = kmap_atomic(bio_page(rsp->bio));
 	memcpy(buf, resp_data, blk_rq_bytes(rsp));
 	flush_kernel_dcache_page(bio_page(rsp->bio));
-	kunmap_atomic(buf - bio_offset(rsp->bio), KM_USER0);
+	kunmap_atomic(buf - bio_offset(rsp->bio));
 	local_irq_enable();
 
  out:

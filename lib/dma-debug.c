@@ -170,7 +170,7 @@ static bool driver_filter(struct device *dev)
 		return false;
 
 	/* driver filter on but not yet initialized */
-	drv = get_driver(dev->driver);
+	drv = dev->driver;
 	if (!drv)
 		return false;
 
@@ -185,7 +185,6 @@ static bool driver_filter(struct device *dev)
 	}
 
 	read_unlock_irqrestore(&driver_name_lock, flags);
-	put_driver(drv);
 
 	return ret;
 }

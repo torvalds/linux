@@ -20,7 +20,6 @@
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/asm-offsets.h>
 #include <asm/dma.h>

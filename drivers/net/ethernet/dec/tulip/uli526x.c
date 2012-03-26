@@ -232,8 +232,8 @@ static irqreturn_t uli526x_interrupt(int, void *);
 #ifdef CONFIG_NET_POLL_CONTROLLER
 static void uli526x_poll(struct net_device *dev);
 #endif
-static void uli526x_descriptor_init(struct uli526x_board_info *, unsigned long);
-static void allocate_rx_buffer(struct uli526x_board_info *);
+static void uli526x_descriptor_init(struct net_device *, unsigned long);
+static void allocate_rx_buffer(struct net_device *);
 static void update_cr6(u32, unsigned long);
 static void send_filter_frame(struct net_device *, int);
 static u16 phy_read(unsigned long, u8, u8, u32);
@@ -549,7 +549,7 @@ static void uli526x_init(struct net_device *dev)
 		db->op_mode = db->media_mode; 	/* Force Mode */
 
 	/* Initialize Transmit/Receive decriptor and CR3/4 */
-	uli526x_descriptor_init(db, ioaddr);
+	uli526x_descriptor_init(dev, ioaddr);
 
 	/* Init CR6 to program M526X operation */
 	update_cr6(db->cr6_data, ioaddr);
@@ -711,7 +711,7 @@ static irqreturn_t uli526x_interrupt(int irq, void *dev_id)
 
 	/* reallocate rx descriptor buffer */
 	if (db->rx_avail_cnt<RX_DESC_CNT)
-		allocate_rx_buffer(db);
+		allocate_rx_buffer(dev);
 
 	/* Free the transmitted descriptor */
 	if ( db->cr5_data & 0x01)
@@ -844,7 +844,7 @@ static void uli526x_rx_packet(struct net_device *dev, struct uli526x_board_info 
 				/* Good packet, send to upper layer */
 				/* Shorst packet used new SKB */
 				if ((rxlen < RX_COPY_SIZE) &&
-				    (((new_skb = dev_alloc_skb(rxlen + 2)) != NULL))) {
+				    (((new_skb = netdev_alloc_skb(dev, rxlen + 2)) != NULL))) {
 					skb = new_skb;
 					/* size less than COPY_SIZE, allocate a rxlen SKB */
 					skb_reserve(skb, 2); /* 16byte align */
@@ -1289,8 +1289,9 @@ static void uli526x_reuse_skb(struct uli526x_board_info *db, struct sk_buff * sk
  *	Using Chain structure, and allocate Tx/Rx buffer
  */
 
-static void uli526x_descriptor_init(struct uli526x_board_info *db, unsigned long ioaddr)
+static void uli526x_descriptor_init(struct net_device *dev, unsigned long ioaddr)
 {
+	struct uli526x_board_info *db = netdev_priv(dev);
 	struct tx_desc *tmp_tx;
 	struct rx_desc *tmp_rx;
 	unsigned char *tmp_buf;
@@ -1343,7 +1344,7 @@ static void uli526x_descriptor_init(struct uli526x_board_info *db, unsigned long
 	tmp_rx->next_rx_desc = db->first_rx_desc;
 
 	/* pre-allocate Rx buffer */
-	allocate_rx_buffer(db);
+	allocate_rx_buffer(dev);
 }
 
 
@@ -1433,15 +1434,17 @@ static void send_filter_frame(struct net_device *dev, int mc_cnt)
  *	As possible as allocate maxiumn Rx buffer
  */
 
-static void allocate_rx_buffer(struct uli526x_board_info *db)
+static void allocate_rx_buffer(struct net_device *dev)
 {
+	struct uli526x_board_info *db = netdev_priv(dev);
 	struct rx_desc *rxptr;
 	struct sk_buff *skb;
 
 	rxptr = db->rx_insert_ptr;
 
 	while(db->rx_avail_cnt < RX_DESC_CNT) {
-		if ( ( skb = dev_alloc_skb(RX_ALLOC_SIZE) ) == NULL )
+		skb = netdev_alloc_skb(dev, RX_ALLOC_SIZE);
+		if (skb == NULL)
 			break;
 		rxptr->rx_skb_ptr = skb; /* FIXME (?) */
 		rxptr->rdes2 = cpu_to_le32(pci_map_single(db->pdev,

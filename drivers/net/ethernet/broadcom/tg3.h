@@ -4,7 +4,7 @@
  * Copyright (C) 2001, 2002, 2003, 2004 David S. Miller (davem@redhat.com)
  * Copyright (C) 2001 Jeff Garzik (jgarzik@pobox.com)
  * Copyright (C) 2004 Sun Microsystems Inc.
- * Copyright (C) 2007-2011 Broadcom Corporation.
+ * Copyright (C) 2007-2012 Broadcom Corporation.
  */
 
 #ifndef _T3_H
@@ -2702,19 +2702,8 @@ struct tg3_link_config {
 	u8				active_flowctrl;
 
 	u8				active_duplex;
-#define SPEED_INVALID		0xffff
-#define DUPLEX_INVALID		0xff
-#define AUTONEG_INVALID		0xff
 	u16				active_speed;
 	u32				rmt_adv;
-
-	/* When we go in and out of low power mode we need
-	 * to swap with this state.
-	 */
-	u16				orig_speed;
-	u8				orig_duplex;
-	u8				orig_autoneg;
-	u32				orig_advertising;
 };
 
 struct tg3_bufmgr_config {
@@ -3018,6 +3007,7 @@ struct tg3 {
 	u32				rx_std_max_post;
 	u32				rx_offset;
 	u32				rx_pkt_map_sz;
+	bool				rx_refill;
 
 
 	/* begin "everything else" cacheline(s) section */
@@ -3075,6 +3065,7 @@ struct tg3 {
 
 	struct mii_bus			*mdio_bus;
 	int				mdio_irq[PHY_MAX_ADDR];
+	int				old_link;
 
 	u8				phy_addr;
 

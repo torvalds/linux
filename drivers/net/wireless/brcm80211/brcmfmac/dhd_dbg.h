@@ -32,20 +32,20 @@
 #define BRCMF_BTA_VAL	0x1000
 #define BRCMF_ISCAN_VAL 0x2000
 
-#if defined(BCMDBG)
+#if defined(DEBUG)
 
 #define brcmf_dbg(level, fmt, ...)					\
 do {									\
 	if (BRCMF_ERROR_VAL == BRCMF_##level##_VAL) {			\
 		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
 			if (net_ratelimit())				\
-				printk(KERN_DEBUG "%s: " fmt,		\
-				       __func__, ##__VA_ARGS__);	\
+				pr_debug("%s: " fmt,			\
+					 __func__, ##__VA_ARGS__);	\
 		}							\
 	} else {							\
 		if (brcmf_msg_level & BRCMF_##level##_VAL) {		\
-			printk(KERN_DEBUG "%s: " fmt,			\
-			       __func__, ##__VA_ARGS__);		\
+			pr_debug("%s: " fmt,				\
+				 __func__, ##__VA_ARGS__);		\
 		}							\
 	}								\
 } while (0)
@@ -56,7 +56,7 @@ do {									\
 #define BRCMF_BYTES_ON()	(brcmf_msg_level & BRCMF_BYTES_VAL)
 #define BRCMF_GLOM_ON()		(brcmf_msg_level & BRCMF_GLOM_VAL)
 
-#else	/* (defined BCMDBG) || (defined BCMDBG) */
+#else	/* (defined DEBUG) || (defined DEBUG) */
 
 #define brcmf_dbg(level, fmt, ...) no_printk(fmt, ##__VA_ARGS__)
 
@@ -66,7 +66,13 @@ do {									\
 #define BRCMF_BYTES_ON()	0
 #define BRCMF_GLOM_ON()		0
 
-#endif				/* defined(BCMDBG) */
+#endif				/* defined(DEBUG) */
+
+#define brcmf_dbg_hex_dump(test, data, len, fmt, ...)			\
+do {									\
+	if (test)							\
+		brcmu_dbg_hex_dump(data, len, fmt, ##__VA_ARGS__);	\
+} while (0)
 
 extern int brcmf_msg_level;
 

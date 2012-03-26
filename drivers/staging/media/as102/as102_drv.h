@@ -76,7 +76,7 @@ struct as102_dev_t {
 	struct as10x_bus_adapter_t bus_adap;
 	struct list_head device_entry;
 	struct kref kref;
-	unsigned long minor;
+	uint8_t elna_cfg;
 
 	struct dvb_adapter dvb_adap;
 	struct dvb_frontend dvb_fe;

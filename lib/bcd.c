@@ -1,5 +1,5 @@
 #include <linux/bcd.h>
-#include <linux/module.h>
+#include <linux/export.h>
 
 unsigned bcd2bin(unsigned char val)
 {

@@ -1,5 +1,5 @@
 /*
- * drivers/net/netx-eth.c
+ * drivers/net/ethernet/netx-eth.c
  *
  * Copyright (c) 2005 Sascha Hauer <s.hauer@pengutronix.de>, Pengutronix
  *
@@ -150,7 +150,7 @@ static void netx_eth_receive(struct net_device *ndev)
 	seg = (val & FIFO_PTR_SEGMENT_MASK) >> FIFO_PTR_SEGMENT_SHIFT;
 	len = (val & FIFO_PTR_FRAMELEN_MASK) >> FIFO_PTR_FRAMELEN_SHIFT;
 
-	skb = dev_alloc_skb(len);
+	skb = netdev_alloc_skb(ndev, len);
 	if (unlikely(skb == NULL)) {
 		printk(KERN_NOTICE "%s: Low memory, packet dropped.\n",
 			ndev->name);
@@ -383,7 +383,6 @@ static int netx_eth_drv_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof (struct netx_eth_priv));
 	if (!ndev) {
-		printk("%s: could not allocate device.\n", CARDNAME);
 		ret = -ENOMEM;
 		goto exit;
 	}

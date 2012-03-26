@@ -52,6 +52,10 @@ cropping and composing rectangles have the same size.</para>
 	  </textobject>
 	</mediaobject>
       </figure>
+
+For complete list of the available selection targets see table <xref
+linkend="v4l2-sel-target"/>
+
     </section>
 
   <section>
@@ -186,7 +190,7 @@ V4L2_SEL_TGT_COMPOSE_ACTIVE </constant> target.</para>
 
    <section>
 
-     <title>Scaling control.</title>
+     <title>Scaling control</title>
 
 <para>An application can detect if scaling is performed by comparing the width
 and the height of rectangles obtained using <constant> V4L2_SEL_TGT_CROP_ACTIVE
@@ -200,7 +204,7 @@ the scaling ratios using these values.</para>
 
   <section>
 
-    <title>Comparison with old cropping API.</title>
+    <title>Comparison with old cropping API</title>
 
 <para>The selection API was introduced to cope with deficiencies of previous
 <link linkend="crop"> API </link>, that was designed to control simple capture

@@ -598,11 +598,11 @@ config SENSORS_LM78
 	  will be called lm78.
 
 config SENSORS_LM80
-	tristate "National Semiconductor LM80"
+	tristate "National Semiconductor LM80 and LM96080"
 	depends on I2C
 	help
 	  If you say yes here you get support for National Semiconductor
-	  LM80 sensor chips.
+	  LM80 and LM96080 sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm80.
@@ -648,7 +648,8 @@ config SENSORS_LM90
 	  LM86, LM89 and LM99, Analog Devices ADM1032, ADT7461, and ADT7461A,
 	  Maxim MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
 	  MAX6680, MAX6681, MAX6692, MAX6695, MAX6696, ON Semiconductor NCT1008,
-	  Winbond/Nuvoton W83L771W/G/AWG/ASG and Philips SA56004 sensor chips.
+	  Winbond/Nuvoton W83L771W/G/AWG/ASG, Philips SA56004, and GMT G781
+	  sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
@@ -811,6 +812,16 @@ config SENSORS_MAX6650
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called max6650.
+
+config SENSORS_MCP3021
+	tristate "Microchip MCP3021"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the MCP3021 chip
+	  that is a A/D converter (ADC) with 10-bit resolution.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called mcp3021.
 
 config SENSORS_NTC_THERMISTOR
 	tristate "NTC thermistor support"
@@ -1028,7 +1039,8 @@ config SENSORS_SCH5627
 	select SENSORS_SCH56XX_COMMON
 	help
 	  If you say yes here you get support for the hardware monitoring
-	  features of the SMSC SCH5627 Super-I/O chip.
+	  features of the SMSC SCH5627 Super-I/O chip including support for
+	  the integrated watchdog.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sch5627.
@@ -1044,7 +1056,8 @@ config SENSORS_SCH5636
 
 	  Currently this driver only supports the Fujitsu Theseus SCH5636 based
 	  hwmon solution. Say yes here if you want support for the Fujitsu
-	  Theseus' hardware monitoring features.
+	  Theseus' hardware monitoring features including support for the
+	  integrated watchdog.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sch5636.
@@ -1227,18 +1240,19 @@ config SENSORS_W83795
 	depends on I2C && EXPERIMENTAL
 	help
 	  If you say yes here you get support for the Winbond W83795G and
-	  W83795ADG hardware monitoring chip.
+	  W83795ADG hardware monitoring chip, including manual fan speed
+	  control.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83795.
 
 config SENSORS_W83795_FANCTRL
-	boolean "Include fan control support (DANGEROUS)"
+	boolean "Include automatic fan control support (DANGEROUS)"
 	depends on SENSORS_W83795 && EXPERIMENTAL
 	default n
 	help
-	  If you say yes here, support for the both manual and automatic
-	  fan control features will be included in the driver.
+	  If you say yes here, support for automatic fan speed control
+	  will be included in the driver.
 
 	  This part of the code wasn't carefully reviewed and tested yet,
 	  so enabling this option is strongly discouraged on production
@@ -1356,10 +1370,10 @@ config SENSORS_APPLESMC
 	  the awesome power of applesmc.
 
 config SENSORS_MC13783_ADC
-        tristate "Freescale MC13783 ADC"
-        depends on MFD_MC13783
+        tristate "Freescale MC13783/MC13892 ADC"
+        depends on MFD_MC13XXX
         help
-          Support for the A/D converter on MC13783 PMIC.
+          Support for the A/D converter on MC13783 and MC13892 PMIC.
 
 if ACPI
 

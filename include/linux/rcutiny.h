@@ -27,13 +27,9 @@
 
 #include <linux/cache.h>
 
-#ifdef CONFIG_RCU_BOOST
 static inline void rcu_init(void)
 {
 }
-#else /* #ifdef CONFIG_RCU_BOOST */
-void rcu_init(void);
-#endif /* #else #ifdef CONFIG_RCU_BOOST */
 
 static inline void rcu_barrier_bh(void)
 {
@@ -81,6 +77,12 @@ static inline void synchronize_rcu_bh_expedited(void)
 static inline void synchronize_sched_expedited(void)
 {
 	synchronize_sched();
+}
+
+static inline void kfree_call_rcu(struct rcu_head *head,
+				  void (*func)(struct rcu_head *rcu))
+{
+	call_rcu(head, func);
 }
 
 #ifdef CONFIG_TINY_RCU

@@ -41,8 +41,10 @@
 struct thermal_data {
 	struct device *hwmon_dev;
 	struct mutex mutex;
-	/* Cache the hyst value so we don't keep re-reading it. In theory
-	   we could cache it forever as nobody else should be writing it. */
+	/*
+	 * Cache the hyst value so we don't keep re-reading it. In theory
+	 * we could cache it forever as nobody else should be writing it.
+	 */
 	u8 cached_hyst;
 	unsigned long hyst_valid;
 };
@@ -283,8 +285,10 @@ static int emc1403_detect(struct i2c_client *client,
 	case 0x23:
 		strlcpy(info->type, "emc1423", I2C_NAME_SIZE);
 		break;
-	/* Note: 0x25 is the 1404 which is very similar and this
-	   driver could be extended */
+	/*
+	 * Note: 0x25 is the 1404 which is very similar and this
+	 * driver could be extended
+	 */
 	default:
 		return -ENODEV;
 	}
@@ -366,18 +370,7 @@ static struct i2c_driver sensor_emc1403 = {
 	.address_list = emc1403_address_list,
 };
 
-static int __init sensor_emc1403_init(void)
-{
-	return i2c_add_driver(&sensor_emc1403);
-}
-
-static void  __exit sensor_emc1403_exit(void)
-{
-	i2c_del_driver(&sensor_emc1403);
-}
-
-module_init(sensor_emc1403_init);
-module_exit(sensor_emc1403_exit);
+module_i2c_driver(sensor_emc1403);
 
 MODULE_AUTHOR("Kalhan Trisal <kalhan.trisal@intel.com");
 MODULE_DESCRIPTION("emc1403 Thermal Driver");

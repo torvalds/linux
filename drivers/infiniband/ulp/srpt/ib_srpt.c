@@ -1378,7 +1378,9 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		break;
 	case SRPT_STATE_NEED_DATA:
 		/* DMA_TO_DEVICE (write) - RDMA read error. */
-		atomic_set(&ioctx->cmd.transport_lun_stop, 1);
+		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
+		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
+		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
 		transport_generic_handle_data(&ioctx->cmd);
 		break;
 	case SRPT_STATE_CMD_RSP_SENT:
@@ -1387,7 +1389,9 @@ static int srpt_abort_cmd(struct srpt_send_ioctx *ioctx)
 		 * not been received in time.
 		 */
 		srpt_unmap_sg_to_ib_sge(ioctx->ch, ioctx);
-		atomic_set(&ioctx->cmd.transport_lun_stop, 1);
+		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
+		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
+		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
 		kref_put(&ioctx->kref, srpt_put_send_ioctx_kref);
 		break;
 	case SRPT_STATE_MGMT_RSP_SENT:
@@ -1494,6 +1498,7 @@ static void srpt_handle_rdma_err_comp(struct srpt_rdma_ch *ch,
 {
 	struct se_cmd *cmd;
 	enum srpt_command_state state;
+	unsigned long flags;
 
 	cmd = &ioctx->cmd;
 	state = srpt_get_cmd_state(ioctx);
@@ -1513,7 +1518,9 @@ static void srpt_handle_rdma_err_comp(struct srpt_rdma_ch *ch,
 			       __func__, __LINE__, state);
 		break;
 	case SRPT_RDMA_WRITE_LAST:
-		atomic_set(&ioctx->cmd.transport_lun_stop, 1);
+		spin_lock_irqsave(&ioctx->cmd.t_state_lock, flags);
+		ioctx->cmd.transport_state |= CMD_T_LUN_STOP;
+		spin_unlock_irqrestore(&ioctx->cmd.t_state_lock, flags);
 		break;
 	default:
 		printk(KERN_ERR "%s[%d]: opcode = %u\n", __func__,
@@ -1750,6 +1757,7 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 		       srp_cmd->tag);
 		cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
+		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		goto send_sense;
 	}
 
@@ -1757,15 +1765,19 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 	cmd->data_direction = dir;
 	unpacked_lun = srpt_unpack_lun((uint8_t *)&srp_cmd->lun,
 				       sizeof(srp_cmd->lun));
-	if (transport_lookup_cmd_lun(cmd, unpacked_lun) < 0)
+	if (transport_lookup_cmd_lun(cmd, unpacked_lun) < 0) {
+		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		goto send_sense;
+	}
 	ret = transport_generic_allocate_tasks(cmd, srp_cmd->cdb);
-	if (cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT)
-		srpt_queue_status(cmd);
-	else if (cmd->se_cmd_flags & SCF_SCSI_CDB_EXCEPTION)
-		goto send_sense;
-	else
-		WARN_ON_ONCE(ret);
+	if (ret < 0) {
+		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
+		if (cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT) {
+			srpt_queue_status(cmd);
+			return 0;
+		} else
+			goto send_sense;
+	}
 
 	transport_handle_cdb_direct(cmd);
 	return 0;
@@ -1871,8 +1883,8 @@ static void srpt_handle_tsk_mgmt(struct srpt_rdma_ch *ch,
 			TMR_TASK_MGMT_FUNCTION_NOT_SUPPORTED;
 		goto process_tmr;
 	}
-	cmd->se_tmr_req = core_tmr_alloc_req(cmd, NULL, tcm_tmr, GFP_KERNEL);
-	if (!cmd->se_tmr_req) {
+	res = core_tmr_alloc_req(cmd, NULL, tcm_tmr, GFP_KERNEL);
+	if (res < 0) {
 		send_ioctx->cmd.se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 		send_ioctx->cmd.se_tmr_req->response = TMR_FUNCTION_REJECTED;
 		goto process_tmr;
@@ -3450,7 +3462,7 @@ static struct se_node_acl *srpt_alloc_fabric_acl(struct se_portal_group *se_tpg)
 
 	nacl = kzalloc(sizeof(struct srpt_node_acl), GFP_KERNEL);
 	if (!nacl) {
-		printk(KERN_ERR "Unable to alocate struct srpt_node_acl\n");
+		printk(KERN_ERR "Unable to allocate struct srpt_node_acl\n");
 		return NULL;
 	}
 
@@ -3514,25 +3526,6 @@ static void srpt_close_session(struct se_session *se_sess)
 }
 
 /**
- * To do: Find out whether stop_session() has a meaning for transports
- * other than iSCSI.
- */
-static void srpt_stop_session(struct se_session *se_sess, int sess_sleep,
-			      int conn_sleep)
-{
-}
-
-static void srpt_reset_nexus(struct se_session *sess)
-{
-	printk(KERN_ERR "This is the SRP protocol, not iSCSI\n");
-}
-
-static int srpt_sess_logged_in(struct se_session *se_sess)
-{
-	return true;
-}
-
-/**
  * srpt_sess_get_index() - Return the value of scsiAttIntrPortIndex (SCSI-MIB).
  *
  * A quote from RFC 4455 (SCSI-MIB) about this MIB object:
@@ -3572,11 +3565,6 @@ static u16 srpt_set_fabric_sense_len(struct se_cmd *cmd, u32 sense_length)
 }
 
 static u16 srpt_get_fabric_sense_len(void)
-{
-	return 0;
-}
-
-static int srpt_is_state_remove(struct se_cmd *se_cmd)
 {
 	return 0;
 }
@@ -3950,9 +3938,6 @@ static struct target_core_fabric_ops srpt_template = {
 	.check_stop_free		= srpt_check_stop_free,
 	.shutdown_session		= srpt_shutdown_session,
 	.close_session			= srpt_close_session,
-	.stop_session			= srpt_stop_session,
-	.fall_back_to_erl0		= srpt_reset_nexus,
-	.sess_logged_in			= srpt_sess_logged_in,
 	.sess_get_index			= srpt_sess_get_index,
 	.sess_get_initiator_sid		= NULL,
 	.write_pending			= srpt_write_pending,
@@ -3965,7 +3950,6 @@ static struct target_core_fabric_ops srpt_template = {
 	.queue_tm_rsp			= srpt_queue_response,
 	.get_fabric_sense_len		= srpt_get_fabric_sense_len,
 	.set_fabric_sense_len		= srpt_set_fabric_sense_len,
-	.is_state_remove		= srpt_is_state_remove,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

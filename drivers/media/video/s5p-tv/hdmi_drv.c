@@ -30,6 +30,7 @@
 #include <linux/clk.h>
 #include <linux/regulator/consumer.h>
 
+#include <media/s5p_hdmi.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-device.h>
@@ -66,16 +67,14 @@ struct hdmi_device {
 	struct v4l2_device v4l2_dev;
 	/** subdev of HDMIPHY interface */
 	struct v4l2_subdev *phy_sd;
+	/** subdev of MHL interface */
+	struct v4l2_subdev *mhl_sd;
 	/** configuration of current graphic mode */
 	const struct hdmi_preset_conf *cur_conf;
 	/** current preset */
 	u32 cur_preset;
 	/** other resources */
 	struct hdmi_resources res;
-};
-
-struct hdmi_driver_data {
-	int hdmiphy_bus;
 };
 
 struct hdmi_tg_regs {
@@ -129,23 +128,11 @@ struct hdmi_preset_conf {
 	struct v4l2_mbus_framefmt mbus_fmt;
 };
 
-/* I2C module and id for HDMIPHY */
-static struct i2c_board_info hdmiphy_info = {
-	I2C_BOARD_INFO("hdmiphy", 0x38),
-};
-
-static struct hdmi_driver_data hdmi_driver_data[] = {
-	{ .hdmiphy_bus = 3 },
-	{ .hdmiphy_bus = 8 },
-};
-
 static struct platform_device_id hdmi_driver_types[] = {
 	{
 		.name		= "s5pv210-hdmi",
-		.driver_data	= (unsigned long)&hdmi_driver_data[0],
 	}, {
 		.name		= "exynos4-hdmi",
-		.driver_data	= (unsigned long)&hdmi_driver_data[1],
 	}, {
 		/* end node */
 	}
@@ -587,7 +574,15 @@ static int hdmi_streamon(struct hdmi_device *hdev)
 	if (tries == 0) {
 		dev_err(dev, "hdmiphy's pll could not reach steady state.\n");
 		v4l2_subdev_call(hdev->phy_sd, video, s_stream, 0);
-		hdmi_dumpregs(hdev, "s_stream");
+		hdmi_dumpregs(hdev, "hdmiphy - s_stream");
+		return -EIO;
+	}
+
+	/* starting MHL */
+	ret = v4l2_subdev_call(hdev->mhl_sd, video, s_stream, 1);
+	if (hdev->mhl_sd && ret) {
+		v4l2_subdev_call(hdev->phy_sd, video, s_stream, 0);
+		hdmi_dumpregs(hdev, "mhl - s_stream");
 		return -EIO;
 	}
 
@@ -618,6 +613,7 @@ static int hdmi_streamoff(struct hdmi_device *hdev)
 	clk_set_parent(res->sclk_hdmi, res->sclk_pixel);
 	clk_enable(res->sclk_hdmi);
 
+	v4l2_subdev_call(hdev->mhl_sd, video, s_stream, 0);
 	v4l2_subdev_call(hdev->phy_sd, video, s_stream, 0);
 
 	hdmi_dumpregs(hdev, "streamoff");
@@ -739,6 +735,7 @@ static int hdmi_runtime_suspend(struct device *dev)
 	struct hdmi_device *hdev = sd_to_hdmi_dev(sd);
 
 	dev_dbg(dev, "%s\n", __func__);
+	v4l2_subdev_call(hdev->mhl_sd, core, s_power, 0);
 	hdmi_resource_poweroff(&hdev->res);
 	return 0;
 }
@@ -755,6 +752,11 @@ static int hdmi_runtime_resume(struct device *dev)
 
 	ret = hdmi_conf_apply(hdev);
 	if (ret)
+		goto fail;
+
+	/* starting MHL */
+	ret = v4l2_subdev_call(hdev->mhl_sd, core, s_power, 1);
+	if (hdev->mhl_sd && ret)
 		goto fail;
 
 	dev_dbg(dev, "poweron succeed\n");
@@ -867,15 +869,21 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
-	struct i2c_adapter *phy_adapter;
+	struct i2c_adapter *adapter;
 	struct v4l2_subdev *sd;
 	struct hdmi_device *hdmi_dev = NULL;
-	struct hdmi_driver_data *drv_data;
+	struct s5p_hdmi_platform_data *pdata = dev->platform_data;
 	int ret;
 
 	dev_dbg(dev, "probe start\n");
 
-	hdmi_dev = kzalloc(sizeof(*hdmi_dev), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "platform data is missing\n");
+		ret = -ENODEV;
+		goto fail;
+	}
+
+	hdmi_dev = devm_kzalloc(&pdev->dev, sizeof(*hdmi_dev), GFP_KERNEL);
 	if (!hdmi_dev) {
 		dev_err(dev, "out of memory\n");
 		ret = -ENOMEM;
@@ -886,7 +894,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	ret = hdmi_resources_init(hdmi_dev);
 	if (ret)
-		goto fail_hdev;
+		goto fail;
 
 	/* mapping HDMI registers */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -896,24 +904,26 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		goto fail_init;
 	}
 
-	hdmi_dev->regs = ioremap(res->start, resource_size(res));
+	hdmi_dev->regs = devm_ioremap(&pdev->dev, res->start,
+				      resource_size(res));
 	if (hdmi_dev->regs == NULL) {
 		dev_err(dev, "register mapping failed.\n");
 		ret = -ENXIO;
-		goto fail_hdev;
+		goto fail_init;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(dev, "get interrupt resource failed.\n");
 		ret = -ENXIO;
-		goto fail_regs;
+		goto fail_init;
 	}
 
-	ret = request_irq(res->start, hdmi_irq_handler, 0, "hdmi", hdmi_dev);
+	ret = devm_request_irq(&pdev->dev, res->start, hdmi_irq_handler, 0,
+			       "hdmi", hdmi_dev);
 	if (ret) {
 		dev_err(dev, "request interrupt failed.\n");
-		goto fail_regs;
+		goto fail_init;
 	}
 	hdmi_dev->irq = res->start;
 
@@ -924,26 +934,52 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(NULL, &hdmi_dev->v4l2_dev);
 	if (ret) {
 		dev_err(dev, "could not register v4l2 device.\n");
-		goto fail_irq;
+		goto fail_init;
 	}
 
-	drv_data = (struct hdmi_driver_data *)
-		platform_get_device_id(pdev)->driver_data;
-	phy_adapter = i2c_get_adapter(drv_data->hdmiphy_bus);
-	if (phy_adapter == NULL) {
-		dev_err(dev, "adapter request failed\n");
+	/* testing if hdmiphy info is present */
+	if (!pdata->hdmiphy_info) {
+		dev_err(dev, "hdmiphy info is missing in platform data\n");
+		ret = -ENXIO;
+		goto fail_vdev;
+	}
+
+	adapter = i2c_get_adapter(pdata->hdmiphy_bus);
+	if (adapter == NULL) {
+		dev_err(dev, "hdmiphy adapter request failed\n");
 		ret = -ENXIO;
 		goto fail_vdev;
 	}
 
 	hdmi_dev->phy_sd = v4l2_i2c_new_subdev_board(&hdmi_dev->v4l2_dev,
-		phy_adapter, &hdmiphy_info, NULL);
+		adapter, pdata->hdmiphy_info, NULL);
 	/* on failure or not adapter is no longer useful */
-	i2c_put_adapter(phy_adapter);
+	i2c_put_adapter(adapter);
 	if (hdmi_dev->phy_sd == NULL) {
 		dev_err(dev, "missing subdev for hdmiphy\n");
 		ret = -ENODEV;
 		goto fail_vdev;
+	}
+
+	/* initialization of MHL interface if present */
+	if (pdata->mhl_info) {
+		adapter = i2c_get_adapter(pdata->mhl_bus);
+		if (adapter == NULL) {
+			dev_err(dev, "MHL adapter request failed\n");
+			ret = -ENXIO;
+			goto fail_vdev;
+		}
+
+		hdmi_dev->mhl_sd = v4l2_i2c_new_subdev_board(
+			&hdmi_dev->v4l2_dev, adapter,
+			pdata->mhl_info, NULL);
+		/* on failure or not adapter is no longer useful */
+		i2c_put_adapter(adapter);
+		if (hdmi_dev->mhl_sd == NULL) {
+			dev_err(dev, "missing subdev for MHL\n");
+			ret = -ENODEV;
+			goto fail_vdev;
+		}
 	}
 
 	clk_enable(hdmi_dev->res.hdmi);
@@ -962,24 +998,15 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	/* storing subdev for call that have only access to struct device */
 	dev_set_drvdata(dev, sd);
 
-	dev_info(dev, "probe sucessful\n");
+	dev_info(dev, "probe successful\n");
 
 	return 0;
 
 fail_vdev:
 	v4l2_device_unregister(&hdmi_dev->v4l2_dev);
 
-fail_irq:
-	free_irq(hdmi_dev->irq, hdmi_dev);
-
-fail_regs:
-	iounmap(hdmi_dev->regs);
-
 fail_init:
 	hdmi_resources_cleanup(hdmi_dev);
-
-fail_hdev:
-	kfree(hdmi_dev);
 
 fail:
 	dev_err(dev, "probe failed\n");
@@ -996,11 +1023,8 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 	clk_disable(hdmi_dev->res.hdmi);
 	v4l2_device_unregister(&hdmi_dev->v4l2_dev);
 	disable_irq(hdmi_dev->irq);
-	free_irq(hdmi_dev->irq, hdmi_dev);
-	iounmap(hdmi_dev->regs);
 	hdmi_resources_cleanup(hdmi_dev);
-	kfree(hdmi_dev);
-	dev_info(dev, "remove sucessful\n");
+	dev_info(dev, "remove successful\n");
 
 	return 0;
 }

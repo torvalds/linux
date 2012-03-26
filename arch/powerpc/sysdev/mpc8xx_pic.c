@@ -17,7 +17,7 @@
 
 extern int cpm_get_irq(struct pt_regs *regs);
 
-static struct irq_host *mpc8xx_pic_host;
+static struct irq_domain *mpc8xx_pic_host;
 #define NR_MASK_WORDS   ((NR_IRQS + 31) / 32)
 static unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
 static sysconf8xx_t __iomem *siu_reg;
@@ -110,7 +110,7 @@ unsigned int mpc8xx_get_irq(void)
 
 }
 
-static int mpc8xx_pic_host_map(struct irq_host *h, unsigned int virq,
+static int mpc8xx_pic_host_map(struct irq_domain *h, unsigned int virq,
 			  irq_hw_number_t hw)
 {
 	pr_debug("mpc8xx_pic_host_map(%d, 0x%lx)\n", virq, hw);
@@ -121,7 +121,7 @@ static int mpc8xx_pic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 
-static int mpc8xx_pic_host_xlate(struct irq_host *h, struct device_node *ct,
+static int mpc8xx_pic_host_xlate(struct irq_domain *h, struct device_node *ct,
 			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
@@ -142,7 +142,7 @@ static int mpc8xx_pic_host_xlate(struct irq_host *h, struct device_node *ct,
 }
 
 
-static struct irq_host_ops mpc8xx_pic_host_ops = {
+static struct irq_domain_ops mpc8xx_pic_host_ops = {
 	.map = mpc8xx_pic_host_map,
 	.xlate = mpc8xx_pic_host_xlate,
 };
@@ -171,8 +171,7 @@ int mpc8xx_pic_init(void)
 		goto out;
 	}
 
-	mpc8xx_pic_host = irq_alloc_host(np, IRQ_HOST_MAP_LINEAR,
-					 64, &mpc8xx_pic_host_ops, 64);
+	mpc8xx_pic_host = irq_domain_add_linear(np, 64, &mpc8xx_pic_host_ops, NULL);
 	if (mpc8xx_pic_host == NULL) {
 		printk(KERN_ERR "MPC8xx PIC: failed to allocate irq host!\n");
 		ret = -ENOMEM;

@@ -41,6 +41,14 @@
 #define PC1_ON			(1 << 7)
 /* Data ready funtion enable bit: set during probe if using irq mode */
 #define DRDYE			(1 << 5)
+/* DATA CONTROL REGISTER BITS */
+#define ODR12_5F		0
+#define ODR25F			1
+#define ODR50F			2
+#define ODR100F		3
+#define ODR200F		4
+#define ODR400F		5
+#define ODR800F		6
 /* INTERRUPT CONTROL REGISTER 1 BITS */
 /* Set these during probe if using irq mode */
 #define KXTJ9_IEL		(1 << 3)
@@ -116,9 +124,13 @@ static void kxtj9_report_acceleration_data(struct kxtj9_data *tj9)
 	if (err < 0)
 		dev_err(&tj9->client->dev, "accelerometer data read failed\n");
 
-	x = le16_to_cpu(acc_data[tj9->pdata.axis_map_x]) >> tj9->shift;
-	y = le16_to_cpu(acc_data[tj9->pdata.axis_map_y]) >> tj9->shift;
-	z = le16_to_cpu(acc_data[tj9->pdata.axis_map_z]) >> tj9->shift;
+	x = le16_to_cpu(acc_data[tj9->pdata.axis_map_x]);
+	y = le16_to_cpu(acc_data[tj9->pdata.axis_map_y]);
+	z = le16_to_cpu(acc_data[tj9->pdata.axis_map_z]);
+
+	x >>= tj9->shift;
+	y >>= tj9->shift;
+	z >>= tj9->shift;
 
 	input_report_abs(tj9->input_dev, ABS_X, tj9->pdata.negate_x ? -x : x);
 	input_report_abs(tj9->input_dev, ABS_Y, tj9->pdata.negate_y ? -y : y);
@@ -487,7 +499,7 @@ static int __devinit kxtj9_verify(struct kxtj9_data *tj9)
 		goto out;
 	}
 
-	retval = retval != 0x06 ? -EIO : 0;
+	retval = (retval != 0x07 && retval != 0x08) ? -EIO : 0;
 
 out:
 	kxtj9_device_power_off(tj9);
@@ -537,7 +549,7 @@ static int __devinit kxtj9_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, tj9);
 
 	tj9->ctrl_reg1 = tj9->pdata.res_12bit | tj9->pdata.g_range;
-	tj9->data_ctrl = tj9->pdata.data_odr_init;
+	tj9->last_poll_interval = tj9->pdata.init_interval;
 
 	if (client->irq) {
 		/* If in irq mode, populate INT_CTRL_REG1 and enable DRDY. */
@@ -655,17 +667,7 @@ static struct i2c_driver kxtj9_driver = {
 	.id_table	= kxtj9_id,
 };
 
-static int __init kxtj9_init(void)
-{
-	return i2c_add_driver(&kxtj9_driver);
-}
-module_init(kxtj9_init);
-
-static void __exit kxtj9_exit(void)
-{
-	i2c_del_driver(&kxtj9_driver);
-}
-module_exit(kxtj9_exit);
+module_i2c_driver(kxtj9_driver);
 
 MODULE_DESCRIPTION("KXTJ9 accelerometer driver");
 MODULE_AUTHOR("Chris Hudson <chudson@kionix.com>");

@@ -852,9 +852,8 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = PTR_ERR(root);
 		goto unacquire_priv_sbp;
 	}
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
-		iput(root);
 		befs_error(sb, "get root inode failed");
 		goto unacquire_priv_sbp;
 	}

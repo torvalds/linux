@@ -623,6 +623,7 @@ struct crb_addr_pair {
 
 #define ADDR_ERROR	((unsigned long) 0xffffffff)
 #define MAX_CTL_CHECK	1000
+#define QLA82XX_FWERROR_CODE(code)	((code >> 8) & 0x1fffff)
 
 /***************************************************************************
  *		PCI related defines.

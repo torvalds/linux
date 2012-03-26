@@ -384,7 +384,7 @@ static const struct file_operations btmrvl_txdnldready_fops = {
 
 void btmrvl_debugfs_init(struct hci_dev *hdev)
 {
-	struct btmrvl_private *priv = hdev->driver_data;
+	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 	struct btmrvl_debugfs_data *dbg;
 
 	if (!hdev->debugfs)
@@ -401,36 +401,34 @@ void btmrvl_debugfs_init(struct hci_dev *hdev)
 	dbg->config_dir = debugfs_create_dir("config", hdev->debugfs);
 
 	dbg->psmode = debugfs_create_file("psmode", 0644, dbg->config_dir,
-				hdev->driver_data, &btmrvl_psmode_fops);
+					  priv, &btmrvl_psmode_fops);
 	dbg->pscmd = debugfs_create_file("pscmd", 0644, dbg->config_dir,
-				hdev->driver_data, &btmrvl_pscmd_fops);
+					 priv, &btmrvl_pscmd_fops);
 	dbg->gpiogap = debugfs_create_file("gpiogap", 0644, dbg->config_dir,
-				hdev->driver_data, &btmrvl_gpiogap_fops);
+					   priv, &btmrvl_gpiogap_fops);
 	dbg->hsmode =  debugfs_create_file("hsmode", 0644, dbg->config_dir,
-				hdev->driver_data, &btmrvl_hsmode_fops);
+					   priv, &btmrvl_hsmode_fops);
 	dbg->hscmd = debugfs_create_file("hscmd", 0644, dbg->config_dir,
-				hdev->driver_data, &btmrvl_hscmd_fops);
+					 priv, &btmrvl_hscmd_fops);
 	dbg->hscfgcmd = debugfs_create_file("hscfgcmd", 0644, dbg->config_dir,
-				hdev->driver_data, &btmrvl_hscfgcmd_fops);
+					    priv, &btmrvl_hscfgcmd_fops);
 
 	dbg->status_dir = debugfs_create_dir("status", hdev->debugfs);
 	dbg->curpsmode = debugfs_create_file("curpsmode", 0444,
-						dbg->status_dir,
-						hdev->driver_data,
-						&btmrvl_curpsmode_fops);
+					     dbg->status_dir, priv,
+					     &btmrvl_curpsmode_fops);
 	dbg->psstate = debugfs_create_file("psstate", 0444, dbg->status_dir,
-				hdev->driver_data, &btmrvl_psstate_fops);
+					   priv, &btmrvl_psstate_fops);
 	dbg->hsstate = debugfs_create_file("hsstate", 0444, dbg->status_dir,
-				hdev->driver_data, &btmrvl_hsstate_fops);
+					   priv, &btmrvl_hsstate_fops);
 	dbg->txdnldready = debugfs_create_file("txdnldready", 0444,
-						dbg->status_dir,
-						hdev->driver_data,
-						&btmrvl_txdnldready_fops);
+					       dbg->status_dir, priv,
+					       &btmrvl_txdnldready_fops);
 }
 
 void btmrvl_debugfs_remove(struct hci_dev *hdev)
 {
-	struct btmrvl_private *priv = hdev->driver_data;
+	struct btmrvl_private *priv = hci_get_drvdata(hdev);
 	struct btmrvl_debugfs_data *dbg = priv->debugfs_data;
 
 	if (!dbg)

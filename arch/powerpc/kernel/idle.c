@@ -84,7 +84,11 @@ void cpu_idle(void)
 
 				start_critical_timings();
 
-				local_irq_enable();
+				/* Some power_save functions return with
+				 * interrupts enabled, some don't.
+				 */
+				if (irqs_disabled())
+					local_irq_enable();
 				set_thread_flag(TIF_POLLING_NRFLAG);
 
 			} else {
@@ -101,11 +105,11 @@ void cpu_idle(void)
 		ppc64_runlatch_on();
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
-		if (cpu_should_die())
+		if (cpu_should_die()) {
+			sched_preempt_enable_no_resched();
 			cpu_die();
-		schedule();
-		preempt_disable();
+		}
+		schedule_preempt_disabled();
 	}
 }
 

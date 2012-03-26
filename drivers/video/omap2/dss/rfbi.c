@@ -922,34 +922,33 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 	rfbi_mem = platform_get_resource(rfbi.pdev, IORESOURCE_MEM, 0);
 	if (!rfbi_mem) {
 		DSSERR("can't get IORESOURCE_MEM RFBI\n");
-		r = -EINVAL;
-		goto err_ioremap;
+		return -EINVAL;
 	}
-	rfbi.base = ioremap(rfbi_mem->start, resource_size(rfbi_mem));
+
+	rfbi.base = devm_ioremap(&pdev->dev, rfbi_mem->start,
+				 resource_size(rfbi_mem));
 	if (!rfbi.base) {
 		DSSERR("can't ioremap RFBI\n");
-		r = -ENOMEM;
-		goto err_ioremap;
+		return -ENOMEM;
 	}
-
-	pm_runtime_enable(&pdev->dev);
-
-	r = rfbi_runtime_get();
-	if (r)
-		goto err_get_rfbi;
-
-	msleep(10);
 
 	clk = clk_get(&pdev->dev, "ick");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get ick\n");
-		r = PTR_ERR(clk);
-		goto err_get_ick;
+		return PTR_ERR(clk);
 	}
 
 	rfbi.l4_khz = clk_get_rate(clk) / 1000;
 
 	clk_put(clk);
+
+	pm_runtime_enable(&pdev->dev);
+
+	r = rfbi_runtime_get();
+	if (r)
+		goto err_runtime_get;
+
+	msleep(10);
 
 	rev = rfbi_read_reg(RFBI_REVISION);
 	dev_dbg(&pdev->dev, "OMAP RFBI rev %d.%d\n",
@@ -959,19 +958,14 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_get_ick:
-	rfbi_runtime_put();
-err_get_rfbi:
+err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
-	iounmap(rfbi.base);
-err_ioremap:
 	return r;
 }
 
 static int omap_rfbihw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
-	iounmap(rfbi.base);
 	return 0;
 }
 

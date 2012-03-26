@@ -26,11 +26,11 @@
 
 #include <linux/file.h>
 #include <linux/err.h>
-#include <linux/device.h>
 #include <linux/scatterlist.h>
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 
+struct device;
 struct dma_buf;
 struct dma_buf_attachment;
 

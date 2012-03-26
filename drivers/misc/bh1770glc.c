@@ -1399,19 +1399,8 @@ static struct i2c_driver bh1770_driver = {
 	.id_table = bh1770_id,
 };
 
-static int __init bh1770_init(void)
-{
-	return i2c_add_driver(&bh1770_driver);
-}
-
-static void __exit bh1770_exit(void)
-{
-	i2c_del_driver(&bh1770_driver);
-}
+module_i2c_driver(bh1770_driver);
 
 MODULE_DESCRIPTION("BH1770GLC / SFH7770 combined ALS and proximity sensor");
 MODULE_AUTHOR("Samu Onkalo, Nokia Corporation");
 MODULE_LICENSE("GPL v2");
-
-module_init(bh1770_init);
-module_exit(bh1770_exit);

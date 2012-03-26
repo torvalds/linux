@@ -133,6 +133,9 @@ int drm_open(struct inode *inode, struct file *filp)
 	if (!(dev = minor->dev))
 		return -ENODEV;
 
+	if (drm_device_is_unplugged(dev))
+		return -ENODEV;
+
 	retcode = drm_open_helper(inode, filp, dev);
 	if (!retcode) {
 		atomic_inc(&dev->counts[_DRM_STAT_OPENS]);
@@ -179,6 +182,9 @@ int drm_stub_open(struct inode *inode, struct file *filp)
 		goto out;
 
 	if (!(dev = minor->dev))
+		goto out;
+
+	if (drm_device_is_unplugged(dev))
 		goto out;
 
 	old_fops = filp->f_op;
@@ -579,6 +585,8 @@ int drm_release(struct inode *inode, struct file *filp)
 			retcode = -EBUSY;
 		} else
 			retcode = drm_lastclose(dev);
+		if (drm_device_is_unplugged(dev))
+			drm_put_dev(dev);
 	}
 	mutex_unlock(&drm_global_mutex);
 

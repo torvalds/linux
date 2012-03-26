@@ -8,6 +8,7 @@
  */
 #include <linux/types.h>
 #include <linux/gfp.h>
+#include <linux/bug.h>
 #include <linux/workqueue.h>
 #include <linux/kobject.h>
 

@@ -671,7 +671,7 @@ static int aic32x4_probe(struct snd_soc_codec *codec)
 	}
 
 	aic32x4_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	snd_soc_add_controls(codec, aic32x4_snd_controls,
+	snd_soc_add_codec_controls(codec, aic32x4_snd_controls,
 			     ARRAY_SIZE(aic32x4_snd_controls));
 	aic32x4_add_widgets(codec);
 

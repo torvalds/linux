@@ -1496,11 +1496,13 @@ int fat_fill_super(struct super_block *sb, void *data, int silent, int isvfat,
 	root_inode->i_ino = MSDOS_ROOT_INO;
 	root_inode->i_version = 1;
 	error = fat_read_root(root_inode);
-	if (error < 0)
+	if (error < 0) {
+		iput(root_inode);
 		goto out_fail;
+	}
 	error = -ENOMEM;
 	insert_inode_hash(root_inode);
-	sb->s_root = d_alloc_root(root_inode);
+	sb->s_root = d_make_root(root_inode);
 	if (!sb->s_root) {
 		fat_msg(sb, KERN_ERR, "get root inode failed");
 		goto out_fail;
@@ -1516,8 +1518,6 @@ out_invalid:
 out_fail:
 	if (fat_inode)
 		iput(fat_inode);
-	if (root_inode)
-		iput(root_inode);
 	unload_nls(sbi->nls_io);
 	unload_nls(sbi->nls_disk);
 	if (sbi->options.iocharset != fat_default_iocharset)

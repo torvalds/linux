@@ -10,7 +10,6 @@ struct kiocb;
 struct pipe_inode_info;
 struct uio;
 struct xfs_inode;
-struct xfs_iomap;
 
 
 int xfs_setattr_nonsize(struct xfs_inode *ip, struct iattr *vap, int flags);
@@ -49,8 +48,6 @@ int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
 int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int flags);
 int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
 		int flags, struct attrlist_cursor_kern *cursor);
-int xfs_bmap(struct xfs_inode *ip, xfs_off_t offset, ssize_t count,
-		int flags, struct xfs_iomap *iomapp, int *niomaps);
 void xfs_tosspages(struct xfs_inode *inode, xfs_off_t first,
 		xfs_off_t last, int fiopt);
 int xfs_flushinval_pages(struct xfs_inode *ip, xfs_off_t first,

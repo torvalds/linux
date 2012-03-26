@@ -21,10 +21,9 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include <mach/audmux.h>
-
 #include "imx-ssi.h"
 #include "../codecs/wm8350.h"
+#include "imx-audmux.h"
 
 /* There is a silicon mic on the board optionally connected via a solder pad
  * SP1.  Define this to enable it.
@@ -268,17 +267,17 @@ static int __init wm1133_ev1_audio_init(void)
 	unsigned int ptcr, pdcr;
 
 	/* SSI0 mastered by port 5 */
-	ptcr = MXC_AUDMUX_V2_PTCR_SYN |
-		MXC_AUDMUX_V2_PTCR_TFSDIR |
-		MXC_AUDMUX_V2_PTCR_TFSEL(MX31_AUDMUX_PORT5_SSI_PINS_5) |
-		MXC_AUDMUX_V2_PTCR_TCLKDIR |
-		MXC_AUDMUX_V2_PTCR_TCSEL(MX31_AUDMUX_PORT5_SSI_PINS_5);
-	pdcr = MXC_AUDMUX_V2_PDCR_RXDSEL(MX31_AUDMUX_PORT5_SSI_PINS_5);
-	mxc_audmux_v2_configure_port(MX31_AUDMUX_PORT1_SSI0, ptcr, pdcr);
+	ptcr = IMX_AUDMUX_V2_PTCR_SYN |
+		IMX_AUDMUX_V2_PTCR_TFSDIR |
+		IMX_AUDMUX_V2_PTCR_TFSEL(MX31_AUDMUX_PORT5_SSI_PINS_5) |
+		IMX_AUDMUX_V2_PTCR_TCLKDIR |
+		IMX_AUDMUX_V2_PTCR_TCSEL(MX31_AUDMUX_PORT5_SSI_PINS_5);
+	pdcr = IMX_AUDMUX_V2_PDCR_RXDSEL(MX31_AUDMUX_PORT5_SSI_PINS_5);
+	imx_audmux_v2_configure_port(MX31_AUDMUX_PORT1_SSI0, ptcr, pdcr);
 
-	ptcr = MXC_AUDMUX_V2_PTCR_SYN;
-	pdcr = MXC_AUDMUX_V2_PDCR_RXDSEL(MX31_AUDMUX_PORT1_SSI0);
-	mxc_audmux_v2_configure_port(MX31_AUDMUX_PORT5_SSI_PINS_5, ptcr, pdcr);
+	ptcr = IMX_AUDMUX_V2_PTCR_SYN;
+	pdcr = IMX_AUDMUX_V2_PDCR_RXDSEL(MX31_AUDMUX_PORT1_SSI0);
+	imx_audmux_v2_configure_port(MX31_AUDMUX_PORT5_SSI_PINS_5, ptcr, pdcr);
 
 	wm1133_ev1_snd_device = platform_device_alloc("soc-audio", -1);
 	if (!wm1133_ev1_snd_device)

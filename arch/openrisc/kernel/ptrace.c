@@ -188,11 +188,11 @@ asmlinkage long do_syscall_trace_enter(struct pt_regs *regs)
 		 */
 		ret = -1L;
 
-	audit_syscall_entry(audit_arch(), regs->syscallno,
+	audit_syscall_entry(audit_arch(), regs->gpr[11],
 			    regs->gpr[3], regs->gpr[4],
 			    regs->gpr[5], regs->gpr[6]);
 
-	return ret ? : regs->syscallno;
+	return ret ? : regs->gpr[11];
 }
 
 asmlinkage void do_syscall_trace_leave(struct pt_regs *regs)

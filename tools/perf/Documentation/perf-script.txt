@@ -115,7 +115,7 @@ OPTIONS
 -f::
 --fields::
         Comma separated list of fields to print. Options are:
-        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr.
+        comm, tid, pid, time, cpu, event, trace, ip, sym, dso, addr, symoff.
         Field list can be prepended with the type, trace, sw or hw,
         to indicate to which event type the field list applies.
         e.g., -f sw:comm,tid,time,ip,sym  and -f trace:time,cpu,trace
@@ -199,6 +199,9 @@ OPTIONS
 	information which may be very large and thus may clutter the display.
 	It currently includes: cpu and numa topology of the host system.
 	It can only be used with the perf script report mode.
+
+--show-kernel-path::
+	Try to resolve the path of [kernel.kallsyms]
 
 SEE ALSO
 --------

@@ -11,7 +11,7 @@
 #ifdef CONFIG_GENERIC_HARDIRQS
 #include <linux/interrupt.h>
 #endif
-#include <linux/module.h>
+#include <linux/export.h>
 
 /*
  * These functions maintain a mapping from CPUs to some ordered set of

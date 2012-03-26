@@ -25,6 +25,7 @@
 
 #include <linux/fs.h>
 #include <linux/slab.h>
+#include <linux/export.h>
 #include <linux/vmalloc.h>
 #include <linux/seq_file.h>
 #include <linux/miscdevice.h>

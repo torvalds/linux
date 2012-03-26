@@ -126,8 +126,8 @@ struct saa7134_card_ir {
 	unsigned                users;
 
 	u32			polling;
-        u32			last_gpio;
-        u32			mask_keycode, mask_keydown, mask_keyup;
+	u32			last_gpio;
+	u32			mask_keycode, mask_keydown, mask_keyup;
 
 	bool                    running;
 	bool			active;
@@ -331,6 +331,7 @@ struct saa7134_card_ir {
 #define SAA7134_BOARD_BEHOLD_501            186
 #define SAA7134_BOARD_BEHOLD_503FM          187
 #define SAA7134_BOARD_SENSORAY811_911       188
+#define SAA7134_BOARD_KWORLD_PC150U         189
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8

@@ -186,7 +186,7 @@ static int wm8350_isink_get_current(struct regulator_dev *rdev)
 		return 0;
 	}
 
-	return (isink_cur[val] + 50) / 100;
+	return DIV_ROUND_CLOSEST(isink_cur[val], 100);
 }
 
 /* turn on ISINK followed by DCDC */
@@ -1544,7 +1544,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 		return -ENOMEM;
 	}
 
-	led->isink_consumer.dev = &pdev->dev;
+	led->isink_consumer.dev_name = dev_name(&pdev->dev);
 	led->isink_consumer.supply = "led_isink";
 	led->isink_init.num_consumer_supplies = 1;
 	led->isink_init.consumer_supplies = &led->isink_consumer;
@@ -1559,7 +1559,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 		return ret;
 	}
 
-	led->dcdc_consumer.dev = &pdev->dev;
+	led->dcdc_consumer.dev_name = dev_name(&pdev->dev);
 	led->dcdc_consumer.supply = "led_vcc";
 	led->dcdc_init.num_consumer_supplies = 1;
 	led->dcdc_init.consumer_supplies = &led->dcdc_consumer;

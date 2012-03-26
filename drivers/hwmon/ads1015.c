@@ -305,19 +305,8 @@ static struct i2c_driver ads1015_driver = {
 	.id_table = ads1015_id,
 };
 
-static int __init sensors_ads1015_init(void)
-{
-	return i2c_add_driver(&ads1015_driver);
-}
-
-static void __exit sensors_ads1015_exit(void)
-{
-	i2c_del_driver(&ads1015_driver);
-}
+module_i2c_driver(ads1015_driver);
 
 MODULE_AUTHOR("Dirk Eibach <eibach@gdsys.de>");
 MODULE_DESCRIPTION("ADS1015 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_ads1015_init);
-module_exit(sensors_ads1015_exit);

@@ -25,7 +25,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/stop_machine.h>
 
 #define RCU_KTHREAD_PRIO 1
 
@@ -63,7 +62,10 @@ static void __init rcu_bootup_announce_oddness(void)
 	printk(KERN_INFO "\tRCU torture testing starts during boot.\n");
 #endif
 #if defined(CONFIG_TREE_PREEMPT_RCU) && !defined(CONFIG_RCU_CPU_STALL_VERBOSE)
-	printk(KERN_INFO "\tVerbose stalled-CPUs detection is disabled.\n");
+	printk(KERN_INFO "\tDump stacks of tasks blocking RCU-preempt GP.\n");
+#endif
+#if defined(CONFIG_RCU_CPU_STALL_INFO)
+	printk(KERN_INFO "\tAdditional per-CPU info printed with stalls.\n");
 #endif
 #if NUM_RCU_LVL_4 != 0
 	printk(KERN_INFO "\tExperimental four-level hierarchy is enabled.\n");
@@ -490,6 +492,31 @@ static void rcu_print_detail_task_stall(struct rcu_state *rsp)
 
 #endif /* #else #ifdef CONFIG_RCU_CPU_STALL_VERBOSE */
 
+#ifdef CONFIG_RCU_CPU_STALL_INFO
+
+static void rcu_print_task_stall_begin(struct rcu_node *rnp)
+{
+	printk(KERN_ERR "\tTasks blocked on level-%d rcu_node (CPUs %d-%d):",
+	       rnp->level, rnp->grplo, rnp->grphi);
+}
+
+static void rcu_print_task_stall_end(void)
+{
+	printk(KERN_CONT "\n");
+}
+
+#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
+
+static void rcu_print_task_stall_begin(struct rcu_node *rnp)
+{
+}
+
+static void rcu_print_task_stall_end(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */
+
 /*
  * Scan the current list of tasks blocked within RCU read-side critical
  * sections, printing out the tid of each.
@@ -501,12 +528,14 @@ static int rcu_print_task_stall(struct rcu_node *rnp)
 
 	if (!rcu_preempt_blocked_readers_cgp(rnp))
 		return 0;
+	rcu_print_task_stall_begin(rnp);
 	t = list_entry(rnp->gp_tasks,
 		       struct task_struct, rcu_node_entry);
 	list_for_each_entry_continue(t, &rnp->blkd_tasks, rcu_node_entry) {
-		printk(" P%d", t->pid);
+		printk(KERN_CONT " P%d", t->pid);
 		ndetected++;
 	}
+	rcu_print_task_stall_end();
 	return ndetected;
 }
 
@@ -581,7 +610,7 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	 * absolutely necessary, but this is a good performance/complexity
 	 * tradeoff.
 	 */
-	if (rcu_preempt_blocked_readers_cgp(rnp))
+	if (rcu_preempt_blocked_readers_cgp(rnp) && rnp->qsmask == 0)
 		retval |= RCU_OFL_TASKS_NORM_GP;
 	if (rcu_preempted_readers_exp(rnp))
 		retval |= RCU_OFL_TASKS_EXP_GP;
@@ -618,15 +647,15 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	return retval;
 }
 
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+
 /*
  * Do CPU-offline processing for preemptible RCU.
  */
-static void rcu_preempt_offline_cpu(int cpu)
+static void rcu_preempt_cleanup_dead_cpu(int cpu)
 {
-	__rcu_offline_cpu(cpu, &rcu_preempt_state);
+	rcu_cleanup_dead_cpu(cpu, &rcu_preempt_state);
 }
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Check for a quiescent state from the current CPU.  When a task blocks,
@@ -671,9 +700,23 @@ static void rcu_preempt_do_callbacks(void)
  */
 void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu))
 {
-	__call_rcu(head, func, &rcu_preempt_state);
+	__call_rcu(head, func, &rcu_preempt_state, 0);
 }
 EXPORT_SYMBOL_GPL(call_rcu);
+
+/*
+ * Queue an RCU callback for lazy invocation after a grace period.
+ * This will likely be later named something like "call_rcu_lazy()",
+ * but this change will require some way of tagging the lazy RCU
+ * callbacks in the list of pending callbacks.  Until then, this
+ * function may only be called from __kfree_rcu().
+ */
+void kfree_call_rcu(struct rcu_head *head,
+		    void (*func)(struct rcu_head *rcu))
+{
+	__call_rcu(head, func, &rcu_preempt_state, 1);
+}
+EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
 /**
  * synchronize_rcu - wait until a grace period has elapsed.
@@ -688,6 +731,10 @@ EXPORT_SYMBOL_GPL(call_rcu);
  */
 void synchronize_rcu(void)
 {
+	rcu_lockdep_assert(!lock_is_held(&rcu_bh_lock_map) &&
+			   !lock_is_held(&rcu_lock_map) &&
+			   !lock_is_held(&rcu_sched_lock_map),
+			   "Illegal synchronize_rcu() in RCU read-side critical section");
 	if (!rcu_scheduler_active)
 		return;
 	wait_rcu_gp(call_rcu);
@@ -788,10 +835,22 @@ sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
 		rcu_report_exp_rnp(rsp, rnp, false); /* Don't wake self. */
 }
 
-/*
- * Wait for an rcu-preempt grace period, but expedite it.  The basic idea
- * is to invoke synchronize_sched_expedited() to push all the tasks to
- * the ->blkd_tasks lists and wait for this list to drain.
+/**
+ * synchronize_rcu_expedited - Brute-force RCU grace period
+ *
+ * Wait for an RCU-preempt grace period, but expedite it.  The basic
+ * idea is to invoke synchronize_sched_expedited() to push all the tasks to
+ * the ->blkd_tasks lists and wait for this list to drain.  This consumes
+ * significant time on all CPUs and is unfriendly to real-time workloads,
+ * so is thus not recommended for any sort of common-case code.
+ * In fact, if you are using synchronize_rcu_expedited() in a loop,
+ * please restructure your code to batch your updates, and then Use a
+ * single synchronize_rcu() instead.
+ *
+ * Note that it is illegal to call this function while holding any lock
+ * that is acquired by a CPU-hotplug notifier.  And yes, it is also illegal
+ * to call this function from a CPU-hotplug notifier.  Failing to observe
+ * these restriction will result in deadlock.
  */
 void synchronize_rcu_expedited(void)
 {
@@ -869,9 +928,9 @@ static int rcu_preempt_pending(int cpu)
 }
 
 /*
- * Does preemptible RCU need the CPU to stay out of dynticks mode?
+ * Does preemptible RCU have callbacks on this CPU?
  */
-static int rcu_preempt_needs_cpu(int cpu)
+static int rcu_preempt_cpu_has_callbacks(int cpu)
 {
 	return !!per_cpu(rcu_preempt_data, cpu).nxtlist;
 }
@@ -894,11 +953,12 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 }
 
 /*
- * Move preemptible RCU's callbacks from dying CPU to other online CPU.
+ * Move preemptible RCU's callbacks from dying CPU to other online CPU
+ * and record a quiescent state.
  */
-static void rcu_preempt_send_cbs_to_online(void)
+static void rcu_preempt_cleanup_dying_cpu(void)
 {
-	rcu_send_cbs_to_online(&rcu_preempt_state);
+	rcu_cleanup_dying_cpu(&rcu_preempt_state);
 }
 
 /*
@@ -1034,15 +1094,15 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 	return 0;
 }
 
+#endif /* #ifdef CONFIG_HOTPLUG_CPU */
+
 /*
  * Because preemptible RCU does not exist, it never needs CPU-offline
  * processing.
  */
-static void rcu_preempt_offline_cpu(int cpu)
+static void rcu_preempt_cleanup_dead_cpu(int cpu)
 {
 }
-
-#endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 /*
  * Because preemptible RCU does not exist, it never has any callbacks
@@ -1059,6 +1119,22 @@ static void rcu_preempt_check_callbacks(int cpu)
 static void rcu_preempt_process_callbacks(void)
 {
 }
+
+/*
+ * Queue an RCU callback for lazy invocation after a grace period.
+ * This will likely be later named something like "call_rcu_lazy()",
+ * but this change will require some way of tagging the lazy RCU
+ * callbacks in the list of pending callbacks.  Until then, this
+ * function may only be called from __kfree_rcu().
+ *
+ * Because there is no preemptible RCU, we use RCU-sched instead.
+ */
+void kfree_call_rcu(struct rcu_head *head,
+		    void (*func)(struct rcu_head *rcu))
+{
+	__call_rcu(head, func, &rcu_sched_state, 1);
+}
+EXPORT_SYMBOL_GPL(kfree_call_rcu);
 
 /*
  * Wait for an rcu-preempt grace period, but make it happen quickly.
@@ -1093,9 +1169,9 @@ static int rcu_preempt_pending(int cpu)
 }
 
 /*
- * Because preemptible RCU does not exist, it never needs any CPU.
+ * Because preemptible RCU does not exist, it never has callbacks
  */
-static int rcu_preempt_needs_cpu(int cpu)
+static int rcu_preempt_cpu_has_callbacks(int cpu)
 {
 	return 0;
 }
@@ -1119,9 +1195,9 @@ static void __cpuinit rcu_preempt_init_percpu_data(int cpu)
 }
 
 /*
- * Because there is no preemptible RCU, there are no callbacks to move.
+ * Because there is no preemptible RCU, there is no cleanup to do.
  */
-static void rcu_preempt_send_cbs_to_online(void)
+static void rcu_preempt_cleanup_dying_cpu(void)
 {
 }
 
@@ -1823,132 +1899,6 @@ static void __cpuinit rcu_prepare_kthreads(int cpu)
 
 #endif /* #else #ifdef CONFIG_RCU_BOOST */
 
-#ifndef CONFIG_SMP
-
-void synchronize_sched_expedited(void)
-{
-	cond_resched();
-}
-EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
-
-#else /* #ifndef CONFIG_SMP */
-
-static atomic_t sync_sched_expedited_started = ATOMIC_INIT(0);
-static atomic_t sync_sched_expedited_done = ATOMIC_INIT(0);
-
-static int synchronize_sched_expedited_cpu_stop(void *data)
-{
-	/*
-	 * There must be a full memory barrier on each affected CPU
-	 * between the time that try_stop_cpus() is called and the
-	 * time that it returns.
-	 *
-	 * In the current initial implementation of cpu_stop, the
-	 * above condition is already met when the control reaches
-	 * this point and the following smp_mb() is not strictly
-	 * necessary.  Do smp_mb() anyway for documentation and
-	 * robustness against future implementation changes.
-	 */
-	smp_mb(); /* See above comment block. */
-	return 0;
-}
-
-/*
- * Wait for an rcu-sched grace period to elapse, but use "big hammer"
- * approach to force grace period to end quickly.  This consumes
- * significant time on all CPUs, and is thus not recommended for
- * any sort of common-case code.
- *
- * Note that it is illegal to call this function while holding any
- * lock that is acquired by a CPU-hotplug notifier.  Failing to
- * observe this restriction will result in deadlock.
- *
- * This implementation can be thought of as an application of ticket
- * locking to RCU, with sync_sched_expedited_started and
- * sync_sched_expedited_done taking on the roles of the halves
- * of the ticket-lock word.  Each task atomically increments
- * sync_sched_expedited_started upon entry, snapshotting the old value,
- * then attempts to stop all the CPUs.  If this succeeds, then each
- * CPU will have executed a context switch, resulting in an RCU-sched
- * grace period.  We are then done, so we use atomic_cmpxchg() to
- * update sync_sched_expedited_done to match our snapshot -- but
- * only if someone else has not already advanced past our snapshot.
- *
- * On the other hand, if try_stop_cpus() fails, we check the value
- * of sync_sched_expedited_done.  If it has advanced past our
- * initial snapshot, then someone else must have forced a grace period
- * some time after we took our snapshot.  In this case, our work is
- * done for us, and we can simply return.  Otherwise, we try again,
- * but keep our initial snapshot for purposes of checking for someone
- * doing our work for us.
- *
- * If we fail too many times in a row, we fall back to synchronize_sched().
- */
-void synchronize_sched_expedited(void)
-{
-	int firstsnap, s, snap, trycount = 0;
-
-	/* Note that atomic_inc_return() implies full memory barrier. */
-	firstsnap = snap = atomic_inc_return(&sync_sched_expedited_started);
-	get_online_cpus();
-
-	/*
-	 * Each pass through the following loop attempts to force a
-	 * context switch on each CPU.
-	 */
-	while (try_stop_cpus(cpu_online_mask,
-			     synchronize_sched_expedited_cpu_stop,
-			     NULL) == -EAGAIN) {
-		put_online_cpus();
-
-		/* No joy, try again later.  Or just synchronize_sched(). */
-		if (trycount++ < 10)
-			udelay(trycount * num_online_cpus());
-		else {
-			synchronize_sched();
-			return;
-		}
-
-		/* Check to see if someone else did our work for us. */
-		s = atomic_read(&sync_sched_expedited_done);
-		if (UINT_CMP_GE((unsigned)s, (unsigned)firstsnap)) {
-			smp_mb(); /* ensure test happens before caller kfree */
-			return;
-		}
-
-		/*
-		 * Refetching sync_sched_expedited_started allows later
-		 * callers to piggyback on our grace period.  We subtract
-		 * 1 to get the same token that the last incrementer got.
-		 * We retry after they started, so our grace period works
-		 * for them, and they started after our first try, so their
-		 * grace period works for us.
-		 */
-		get_online_cpus();
-		snap = atomic_read(&sync_sched_expedited_started);
-		smp_mb(); /* ensure read is before try_stop_cpus(). */
-	}
-
-	/*
-	 * Everyone up to our most recent fetch is covered by our grace
-	 * period.  Update the counter, but only if our work is still
-	 * relevant -- which it won't be if someone who started later
-	 * than we did beat us to the punch.
-	 */
-	do {
-		s = atomic_read(&sync_sched_expedited_done);
-		if (UINT_CMP_GE((unsigned)s, (unsigned)snap)) {
-			smp_mb(); /* ensure test happens before caller kfree */
-			break;
-		}
-	} while (atomic_cmpxchg(&sync_sched_expedited_done, s, snap) != s);
-
-	put_online_cpus();
-}
-EXPORT_SYMBOL_GPL(synchronize_sched_expedited);
-
-#endif /* #else #ifndef CONFIG_SMP */
-
 #if !defined(CONFIG_RCU_FAST_NO_HZ)
 
 /*
@@ -1981,7 +1931,7 @@ static void rcu_cleanup_after_idle(int cpu)
 }
 
 /*
- * Do the idle-entry grace-period work, which, because CONFIG_RCU_FAST_NO_HZ=y,
+ * Do the idle-entry grace-period work, which, because CONFIG_RCU_FAST_NO_HZ=n,
  * is nothing.
  */
 static void rcu_prepare_for_idle(int cpu)
@@ -2015,6 +1965,9 @@ static void rcu_prepare_for_idle(int cpu)
  *	number, be warned: Setting RCU_IDLE_GP_DELAY too high can hang your
  *	system.  And if you are -that- concerned about energy efficiency,
  *	just power the system down and be done with it!
+ * RCU_IDLE_LAZY_GP_DELAY gives the number of jiffies that a CPU is
+ *	permitted to sleep in dyntick-idle mode with only lazy RCU
+ *	callbacks pending.  Setting this too high can OOM your system.
  *
  * The values below work well in practice.  If future workloads require
  * adjustment, they can be converted into kernel config parameters, though
@@ -2023,11 +1976,13 @@ static void rcu_prepare_for_idle(int cpu)
 #define RCU_IDLE_FLUSHES 5		/* Number of dyntick-idle tries. */
 #define RCU_IDLE_OPT_FLUSHES 3		/* Optional dyntick-idle tries. */
 #define RCU_IDLE_GP_DELAY 6		/* Roughly one grace period. */
+#define RCU_IDLE_LAZY_GP_DELAY (6 * HZ)	/* Roughly six seconds. */
 
 static DEFINE_PER_CPU(int, rcu_dyntick_drain);
 static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
 static DEFINE_PER_CPU(struct hrtimer, rcu_idle_gp_timer);
-static ktime_t rcu_idle_gp_wait;
+static ktime_t rcu_idle_gp_wait;	/* If some non-lazy callbacks. */
+static ktime_t rcu_idle_lazy_gp_wait;	/* If only lazy callbacks. */
 
 /*
  * Allow the CPU to enter dyntick-idle mode if either: (1) There are no
@@ -2045,6 +2000,48 @@ int rcu_needs_cpu(int cpu)
 		return 0;
 	/* Otherwise, RCU needs the CPU only if it recently tried and failed. */
 	return per_cpu(rcu_dyntick_holdoff, cpu) == jiffies;
+}
+
+/*
+ * Does the specified flavor of RCU have non-lazy callbacks pending on
+ * the specified CPU?  Both RCU flavor and CPU are specified by the
+ * rcu_data structure.
+ */
+static bool __rcu_cpu_has_nonlazy_callbacks(struct rcu_data *rdp)
+{
+	return rdp->qlen != rdp->qlen_lazy;
+}
+
+#ifdef CONFIG_TREE_PREEMPT_RCU
+
+/*
+ * Are there non-lazy RCU-preempt callbacks?  (There cannot be if there
+ * is no RCU-preempt in the kernel.)
+ */
+static bool rcu_preempt_cpu_has_nonlazy_callbacks(int cpu)
+{
+	struct rcu_data *rdp = &per_cpu(rcu_preempt_data, cpu);
+
+	return __rcu_cpu_has_nonlazy_callbacks(rdp);
+}
+
+#else /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+static bool rcu_preempt_cpu_has_nonlazy_callbacks(int cpu)
+{
+	return 0;
+}
+
+#endif /* else #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+/*
+ * Does any flavor of RCU have non-lazy callbacks on the specified CPU?
+ */
+static bool rcu_cpu_has_nonlazy_callbacks(int cpu)
+{
+	return __rcu_cpu_has_nonlazy_callbacks(&per_cpu(rcu_sched_data, cpu)) ||
+	       __rcu_cpu_has_nonlazy_callbacks(&per_cpu(rcu_bh_data, cpu)) ||
+	       rcu_preempt_cpu_has_nonlazy_callbacks(cpu);
 }
 
 /*
@@ -2074,6 +2071,8 @@ static void rcu_prepare_for_idle_init(int cpu)
 		unsigned int upj = jiffies_to_usecs(RCU_IDLE_GP_DELAY);
 
 		rcu_idle_gp_wait = ns_to_ktime(upj * (u64)1000);
+		upj = jiffies_to_usecs(RCU_IDLE_LAZY_GP_DELAY);
+		rcu_idle_lazy_gp_wait = ns_to_ktime(upj * (u64)1000);
 		firsttime = 0;
 	}
 }
@@ -2109,10 +2108,6 @@ static void rcu_cleanup_after_idle(int cpu)
  */
 static void rcu_prepare_for_idle(int cpu)
 {
-	unsigned long flags;
-
-	local_irq_save(flags);
-
 	/*
 	 * If there are no callbacks on this CPU, enter dyntick-idle mode.
 	 * Also reset state to avoid prejudicing later attempts.
@@ -2120,7 +2115,6 @@ static void rcu_prepare_for_idle(int cpu)
 	if (!rcu_cpu_has_callbacks(cpu)) {
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
-		local_irq_restore(flags);
 		trace_rcu_prep_idle("No callbacks");
 		return;
 	}
@@ -2130,7 +2124,6 @@ static void rcu_prepare_for_idle(int cpu)
 	 * refrained from disabling the scheduling-clock tick.
 	 */
 	if (per_cpu(rcu_dyntick_holdoff, cpu) == jiffies) {
-		local_irq_restore(flags);
 		trace_rcu_prep_idle("In holdoff");
 		return;
 	}
@@ -2140,18 +2133,22 @@ static void rcu_prepare_for_idle(int cpu)
 		/* First time through, initialize the counter. */
 		per_cpu(rcu_dyntick_drain, cpu) = RCU_IDLE_FLUSHES;
 	} else if (per_cpu(rcu_dyntick_drain, cpu) <= RCU_IDLE_OPT_FLUSHES &&
-		   !rcu_pending(cpu)) {
+		   !rcu_pending(cpu) &&
+		   !local_softirq_pending()) {
 		/* Can we go dyntick-idle despite still having callbacks? */
 		trace_rcu_prep_idle("Dyntick with callbacks");
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
-		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
-		hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
-			      rcu_idle_gp_wait, HRTIMER_MODE_REL);
+		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
+		if (rcu_cpu_has_nonlazy_callbacks(cpu))
+			hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
+				      rcu_idle_gp_wait, HRTIMER_MODE_REL);
+		else
+			hrtimer_start(&per_cpu(rcu_idle_gp_timer, cpu),
+				      rcu_idle_lazy_gp_wait, HRTIMER_MODE_REL);
 		return; /* Nothing more to do immediately. */
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* We have hit the limit, so time to give up. */
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
-		local_irq_restore(flags);
 		trace_rcu_prep_idle("Begin holdoff");
 		invoke_rcu_core();  /* Force the CPU out of dyntick-idle. */
 		return;
@@ -2163,23 +2160,17 @@ static void rcu_prepare_for_idle(int cpu)
 	 */
 #ifdef CONFIG_TREE_PREEMPT_RCU
 	if (per_cpu(rcu_preempt_data, cpu).nxtlist) {
-		local_irq_restore(flags);
 		rcu_preempt_qs(cpu);
 		force_quiescent_state(&rcu_preempt_state, 0);
-		local_irq_save(flags);
 	}
 #endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
 	if (per_cpu(rcu_sched_data, cpu).nxtlist) {
-		local_irq_restore(flags);
 		rcu_sched_qs(cpu);
 		force_quiescent_state(&rcu_sched_state, 0);
-		local_irq_save(flags);
 	}
 	if (per_cpu(rcu_bh_data, cpu).nxtlist) {
-		local_irq_restore(flags);
 		rcu_bh_qs(cpu);
 		force_quiescent_state(&rcu_bh_state, 0);
-		local_irq_save(flags);
 	}
 
 	/*
@@ -2187,13 +2178,124 @@ static void rcu_prepare_for_idle(int cpu)
 	 * So try forcing the callbacks through the grace period.
 	 */
 	if (rcu_cpu_has_callbacks(cpu)) {
-		local_irq_restore(flags);
 		trace_rcu_prep_idle("More callbacks");
 		invoke_rcu_core();
-	} else {
-		local_irq_restore(flags);
+	} else
 		trace_rcu_prep_idle("Callbacks drained");
-	}
 }
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
+
+#ifdef CONFIG_RCU_CPU_STALL_INFO
+
+#ifdef CONFIG_RCU_FAST_NO_HZ
+
+static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
+{
+	struct hrtimer *hrtp = &per_cpu(rcu_idle_gp_timer, cpu);
+
+	sprintf(cp, "drain=%d %c timer=%lld",
+		per_cpu(rcu_dyntick_drain, cpu),
+		per_cpu(rcu_dyntick_holdoff, cpu) == jiffies ? 'H' : '.',
+		hrtimer_active(hrtp)
+			? ktime_to_us(hrtimer_get_remaining(hrtp))
+			: -1);
+}
+
+#else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
+
+/* Initiate the stall-info list. */
+static void print_cpu_stall_info_begin(void)
+{
+	printk(KERN_CONT "\n");
+}
+
+/*
+ * Print out diagnostic information for the specified stalled CPU.
+ *
+ * If the specified CPU is aware of the current RCU grace period
+ * (flavor specified by rsp), then print the number of scheduling
+ * clock interrupts the CPU has taken during the time that it has
+ * been aware.  Otherwise, print the number of RCU grace periods
+ * that this CPU is ignorant of, for example, "1" if the CPU was
+ * aware of the previous grace period.
+ *
+ * Also print out idle and (if CONFIG_RCU_FAST_NO_HZ) idle-entry info.
+ */
+static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
+{
+	char fast_no_hz[72];
+	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
+	struct rcu_dynticks *rdtp = rdp->dynticks;
+	char *ticks_title;
+	unsigned long ticks_value;
+
+	if (rsp->gpnum == rdp->gpnum) {
+		ticks_title = "ticks this GP";
+		ticks_value = rdp->ticks_this_gp;
+	} else {
+		ticks_title = "GPs behind";
+		ticks_value = rsp->gpnum - rdp->gpnum;
+	}
+	print_cpu_stall_fast_no_hz(fast_no_hz, cpu);
+	printk(KERN_ERR "\t%d: (%lu %s) idle=%03x/%llx/%d %s\n",
+	       cpu, ticks_value, ticks_title,
+	       atomic_read(&rdtp->dynticks) & 0xfff,
+	       rdtp->dynticks_nesting, rdtp->dynticks_nmi_nesting,
+	       fast_no_hz);
+}
+
+/* Terminate the stall-info list. */
+static void print_cpu_stall_info_end(void)
+{
+	printk(KERN_ERR "\t");
+}
+
+/* Zero ->ticks_this_gp for all flavors of RCU. */
+static void zero_cpu_stall_ticks(struct rcu_data *rdp)
+{
+	rdp->ticks_this_gp = 0;
+}
+
+/* Increment ->ticks_this_gp for all flavors of RCU. */
+static void increment_cpu_stall_ticks(void)
+{
+	__get_cpu_var(rcu_sched_data).ticks_this_gp++;
+	__get_cpu_var(rcu_bh_data).ticks_this_gp++;
+#ifdef CONFIG_TREE_PREEMPT_RCU
+	__get_cpu_var(rcu_preempt_data).ticks_this_gp++;
+#endif /* #ifdef CONFIG_TREE_PREEMPT_RCU */
+}
+
+#else /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
+
+static void print_cpu_stall_info_begin(void)
+{
+	printk(KERN_CONT " {");
+}
+
+static void print_cpu_stall_info(struct rcu_state *rsp, int cpu)
+{
+	printk(KERN_CONT " %d", cpu);
+}
+
+static void print_cpu_stall_info_end(void)
+{
+	printk(KERN_CONT "} ");
+}
+
+static void zero_cpu_stall_ticks(struct rcu_data *rdp)
+{
+}
+
+static void increment_cpu_stall_ticks(void)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_INFO */

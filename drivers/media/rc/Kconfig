@@ -266,4 +266,13 @@ config RC_LOOPBACK
 	   To compile this driver as a module, choose M here: the module will
 	   be called rc_loopback.
 
+config IR_GPIO_CIR
+	tristate "GPIO IR remote control"
+	depends on RC_CORE
+	---help---
+	   Say Y if you want to use GPIO based IR Receiver.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called gpio-ir-recv.
+
 endif #RC_CORE

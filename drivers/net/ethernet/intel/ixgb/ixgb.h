@@ -75,18 +75,6 @@ struct ixgb_adapter;
 #include "ixgb_ee.h"
 #include "ixgb_ids.h"
 
-#define PFX "ixgb: "
-
-#ifdef _DEBUG_DRIVER_
-#define IXGB_DBG(fmt, args...) printk(KERN_DEBUG PFX fmt, ##args)
-#else
-#define IXGB_DBG(fmt, args...)				\
-do {							\
-	if (0)						\
-		printk(KERN_DEBUG PFX fmt, ##args);	\
-} while (0)
-#endif
-
 /* TX/RX descriptor defines */
 #define DEFAULT_TXD      256
 #define MAX_TXD         4096

@@ -1019,6 +1019,8 @@ lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_wapp_cnt);
 	else if (dent == phba->debug_writeRef)
 		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_wref_cnt);
+	else if (dent == phba->debug_readGuard)
+		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_rgrd_cnt);
 	else if (dent == phba->debug_readApp)
 		cnt = snprintf(cbuf, 16, "%u\n", phba->lpfc_injerr_rapp_cnt);
 	else if (dent == phba->debug_readRef)
@@ -1057,6 +1059,8 @@ lpfc_debugfs_dif_err_write(struct file *file, const char __user *buf,
 		phba->lpfc_injerr_wapp_cnt = (uint32_t)tmp;
 	else if (dent == phba->debug_writeRef)
 		phba->lpfc_injerr_wref_cnt = (uint32_t)tmp;
+	else if (dent == phba->debug_readGuard)
+		phba->lpfc_injerr_rgrd_cnt = (uint32_t)tmp;
 	else if (dent == phba->debug_readApp)
 		phba->lpfc_injerr_rapp_cnt = (uint32_t)tmp;
 	else if (dent == phba->debug_readRef)
@@ -3978,6 +3982,17 @@ lpfc_debugfs_initialize(struct lpfc_vport *vport)
 			goto debug_failed;
 		}
 
+		snprintf(name, sizeof(name), "readGuardInjErr");
+		phba->debug_readGuard =
+			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
+			phba->hba_debugfs_root,
+			phba, &lpfc_debugfs_op_dif_err);
+		if (!phba->debug_readGuard) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
+				"0808 Cannot create debugfs readGuard\n");
+			goto debug_failed;
+		}
+
 		snprintf(name, sizeof(name), "readAppInjErr");
 		phba->debug_readApp =
 			debugfs_create_file(name, S_IFREG|S_IRUGO|S_IWUSR,
@@ -4317,6 +4332,10 @@ lpfc_debugfs_terminate(struct lpfc_vport *vport)
 		if (phba->debug_writeRef) {
 			debugfs_remove(phba->debug_writeRef); /* writeRef */
 			phba->debug_writeRef = NULL;
+		}
+		if (phba->debug_readGuard) {
+			debugfs_remove(phba->debug_readGuard); /* readGuard */
+			phba->debug_readGuard = NULL;
 		}
 		if (phba->debug_readApp) {
 			debugfs_remove(phba->debug_readApp); /* readApp */

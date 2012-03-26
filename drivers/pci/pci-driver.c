@@ -72,9 +72,7 @@ int pci_add_dynid(struct pci_driver *drv,
 	list_add_tail(&dynid->node, &drv->dynids.list);
 	spin_unlock(&drv->dynids.lock);
 
-	get_driver(&drv->driver);
 	retval = driver_attach(&drv->driver);
-	put_driver(&drv->driver);
 
 	return retval;
 }
@@ -190,43 +188,34 @@ store_remove_id(struct device_driver *driver, const char *buf, size_t count)
 static DRIVER_ATTR(remove_id, S_IWUSR, NULL, store_remove_id);
 
 static int
-pci_create_newid_file(struct pci_driver *drv)
+pci_create_newid_files(struct pci_driver *drv)
 {
 	int error = 0;
-	if (drv->probe != NULL)
+
+	if (drv->probe != NULL) {
 		error = driver_create_file(&drv->driver, &driver_attr_new_id);
+		if (error == 0) {
+			error = driver_create_file(&drv->driver,
+					&driver_attr_remove_id);
+			if (error)
+				driver_remove_file(&drv->driver,
+						&driver_attr_new_id);
+		}
+	}
 	return error;
 }
 
-static void pci_remove_newid_file(struct pci_driver *drv)
-{
-	driver_remove_file(&drv->driver, &driver_attr_new_id);
-}
-
-static int
-pci_create_removeid_file(struct pci_driver *drv)
-{
-	int error = 0;
-	if (drv->probe != NULL)
-		error = driver_create_file(&drv->driver,&driver_attr_remove_id);
-	return error;
-}
-
-static void pci_remove_removeid_file(struct pci_driver *drv)
+static void pci_remove_newid_files(struct pci_driver *drv)
 {
 	driver_remove_file(&drv->driver, &driver_attr_remove_id);
+	driver_remove_file(&drv->driver, &driver_attr_new_id);
 }
 #else /* !CONFIG_HOTPLUG */
-static inline int pci_create_newid_file(struct pci_driver *drv)
+static inline int pci_create_newid_files(struct pci_driver *drv)
 {
 	return 0;
 }
-static inline void pci_remove_newid_file(struct pci_driver *drv) {}
-static inline int pci_create_removeid_file(struct pci_driver *drv)
-{
-	return 0;
-}
-static inline void pci_remove_removeid_file(struct pci_driver *drv) {}
+static inline void pci_remove_newid_files(struct pci_driver *drv) {}
 #endif
 
 /**
@@ -430,6 +419,16 @@ static void pci_device_shutdown(struct device *dev)
 		drv->shutdown(pci_dev);
 	pci_msi_shutdown(pci_dev);
 	pci_msix_shutdown(pci_dev);
+
+	/*
+	 * Devices may be enabled to wake up by runtime PM, but they need not
+	 * be supposed to wake up the system from its "power off" state (e.g.
+	 * ACPI S5).  Therefore disable wakeup for all devices that aren't
+	 * supposed to wake up the system at this point.  The state argument
+	 * will be ignored by pci_enable_wake().
+	 */
+	if (!device_may_wakeup(dev))
+		pci_enable_wake(pci_dev, PCI_UNKNOWN, false);
 }
 
 #ifdef CONFIG_PM
@@ -1138,18 +1137,12 @@ int __pci_register_driver(struct pci_driver *drv, struct module *owner,
 	if (error)
 		goto out;
 
-	error = pci_create_newid_file(drv);
+	error = pci_create_newid_files(drv);
 	if (error)
 		goto out_newid;
-
-	error = pci_create_removeid_file(drv);
-	if (error)
-		goto out_removeid;
 out:
 	return error;
 
-out_removeid:
-	pci_remove_newid_file(drv);
 out_newid:
 	driver_unregister(&drv->driver);
 	goto out;
@@ -1168,8 +1161,7 @@ out_newid:
 void
 pci_unregister_driver(struct pci_driver *drv)
 {
-	pci_remove_removeid_file(drv);
-	pci_remove_newid_file(drv);
+	pci_remove_newid_files(drv);
 	driver_unregister(&drv->driver);
 	pci_free_dynids(drv);
 }

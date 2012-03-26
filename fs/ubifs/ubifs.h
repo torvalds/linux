@@ -84,9 +84,6 @@
 #define INUM_WARN_WATERMARK 0xFFF00000
 #define INUM_WATERMARK      0xFFFFFF00
 
-/* Largest key size supported in this implementation */
-#define CUR_MAX_KEY_LEN UBIFS_SK_LEN
-
 /* Maximum number of entries in each LPT (LEB category) heap */
 #define LPT_HEAP_SZ 256
 
@@ -277,10 +274,10 @@ struct ubifs_old_idx {
 
 /* The below union makes it easier to deal with keys */
 union ubifs_key {
-	uint8_t u8[CUR_MAX_KEY_LEN];
-	uint32_t u32[CUR_MAX_KEY_LEN/4];
-	uint64_t u64[CUR_MAX_KEY_LEN/8];
-	__le32 j32[CUR_MAX_KEY_LEN/4];
+	uint8_t u8[UBIFS_SK_LEN];
+	uint32_t u32[UBIFS_SK_LEN/4];
+	uint64_t u64[UBIFS_SK_LEN/8];
+	__le32 j32[UBIFS_SK_LEN/4];
 };
 
 /**

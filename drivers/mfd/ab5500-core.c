@@ -28,7 +28,6 @@
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/mfd/core.h>
-#include <linux/version.h>
 #include <linux/mfd/db5500-prcmu.h>
 
 #include "ab5500-core.h"

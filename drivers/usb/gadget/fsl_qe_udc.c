@@ -1638,6 +1638,7 @@ static int qe_ep_disable(struct usb_ep *_ep)
 	/* Nuke all pending requests (does flush) */
 	nuke(ep, -ESHUTDOWN);
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 	ep->tx_req = NULL;
 	qe_ep_reset(udc, ep->epnum);

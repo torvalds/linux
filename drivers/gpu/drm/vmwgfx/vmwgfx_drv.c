@@ -38,6 +38,10 @@
 #define VMWGFX_CHIP_SVGAII 0
 #define VMW_FB_RESERVATION 0
 
+#define VMW_MIN_INITIAL_WIDTH 800
+#define VMW_MIN_INITIAL_HEIGHT 600
+
+
 /**
  * Fully encoded drm commands. Might move to vmw_drm.h
  */
@@ -387,6 +391,41 @@ void vmw_3d_resource_dec(struct vmw_private *dev_priv,
 	BUG_ON(n3d < 0);
 }
 
+/**
+ * Sets the initial_[width|height] fields on the given vmw_private.
+ *
+ * It does so by reading SVGA_REG_[WIDTH|HEIGHT] regs and then
+ * clamping the value to fb_max_[width|height] fields and the
+ * VMW_MIN_INITIAL_[WIDTH|HEIGHT].
+ * If the values appear to be invalid, set them to
+ * VMW_MIN_INITIAL_[WIDTH|HEIGHT].
+ */
+static void vmw_get_initial_size(struct vmw_private *dev_priv)
+{
+	uint32_t width;
+	uint32_t height;
+
+	width = vmw_read(dev_priv, SVGA_REG_WIDTH);
+	height = vmw_read(dev_priv, SVGA_REG_HEIGHT);
+
+	width = max_t(uint32_t, width, VMW_MIN_INITIAL_WIDTH);
+	height = max_t(uint32_t, height, VMW_MIN_INITIAL_HEIGHT);
+
+	if (width > dev_priv->fb_max_width ||
+	    height > dev_priv->fb_max_height) {
+
+		/*
+		 * This is a host error and shouldn't occur.
+		 */
+
+		width = VMW_MIN_INITIAL_WIDTH;
+		height = VMW_MIN_INITIAL_HEIGHT;
+	}
+
+	dev_priv->initial_width = width;
+	dev_priv->initial_height = height;
+}
+
 static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	struct vmw_private *dev_priv;
@@ -399,6 +438,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		return -ENOMEM;
 	}
 	memset(dev_priv, 0, sizeof(*dev_priv));
+
+	pci_set_master(dev->pdev);
 
 	dev_priv->dev = dev;
 	dev_priv->vmw_chipset = chipset;
@@ -430,7 +471,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	svga_id = vmw_read(dev_priv, SVGA_REG_ID);
 	if (svga_id != SVGA_ID_2) {
 		ret = -ENOSYS;
-		DRM_ERROR("Unsuported SVGA ID 0x%x\n", svga_id);
+		DRM_ERROR("Unsupported SVGA ID 0x%x\n", svga_id);
 		mutex_unlock(&dev_priv->hw_mutex);
 		goto out_err0;
 	}
@@ -441,6 +482,9 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->mmio_size = vmw_read(dev_priv, SVGA_REG_MEM_SIZE);
 	dev_priv->fb_max_width = vmw_read(dev_priv, SVGA_REG_MAX_WIDTH);
 	dev_priv->fb_max_height = vmw_read(dev_priv, SVGA_REG_MAX_HEIGHT);
+
+	vmw_get_initial_size(dev_priv);
+
 	if (dev_priv->capabilities & SVGA_CAP_GMR) {
 		dev_priv->max_gmr_descriptors =
 			vmw_read(dev_priv,
@@ -688,6 +732,15 @@ static int vmw_driver_unload(struct drm_device *dev)
 	return 0;
 }
 
+static void vmw_preclose(struct drm_device *dev,
+			 struct drm_file *file_priv)
+{
+	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
+	struct vmw_private *dev_priv = vmw_priv(dev);
+
+	vmw_event_fence_fpriv_gone(dev_priv->fman, &vmw_fp->fence_events);
+}
+
 static void vmw_postclose(struct drm_device *dev,
 			 struct drm_file *file_priv)
 {
@@ -710,6 +763,7 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	if (unlikely(vmw_fp == NULL))
 		return ret;
 
+	INIT_LIST_HEAD(&vmw_fp->fence_events);
 	vmw_fp->tfile = ttm_object_file_init(dev_priv->tdev, 10);
 	if (unlikely(vmw_fp->tfile == NULL))
 		goto out_no_tfile;
@@ -1102,6 +1156,7 @@ static struct drm_driver driver = {
 	.master_set = vmw_master_set,
 	.master_drop = vmw_master_drop,
 	.open = vmw_driver_open,
+	.preclose = vmw_preclose,
 	.postclose = vmw_postclose,
 	.fops = &vmwgfx_driver_fops,
 	.name = VMWGFX_DRIVER_NAME,

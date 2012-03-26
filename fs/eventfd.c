@@ -16,7 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/anon_inodes.h>
 #include <linux/syscalls.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kref.h>
 #include <linux/eventfd.h>
 

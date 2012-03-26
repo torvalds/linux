@@ -650,7 +650,7 @@ static int de620_rx_intr(struct net_device *dev)
 		printk(KERN_WARNING "%s: Illegal packet size: %d!\n", dev->name, size);
 	}
 	else { /* Good packet? */
-		skb = dev_alloc_skb(size+2);
+		skb = netdev_alloc_skb(dev, size + 2);
 		if (skb == NULL) { /* Yeah, but no place to put it... */
 			printk(KERN_WARNING "%s: Couldn't allocate a sk_buff of size %d.\n", dev->name, size);
 			dev->stats.rx_dropped++;

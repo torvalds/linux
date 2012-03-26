@@ -142,14 +142,6 @@ static struct map_desc s5pv210_iodesc[] __initdata = {
 	}
 };
 
-static void s5pv210_idle(void)
-{
-	if (!need_resched())
-		cpu_do_idle();
-
-	local_irq_enable();
-}
-
 void s5pv210_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
@@ -247,10 +239,6 @@ core_initcall(s5pv210_core_init);
 int __init s5pv210_init(void)
 {
 	printk(KERN_INFO "S5PV210: Initializing architecture\n");
-
-	/* set idle function */
-	pm_idle = s5pv210_idle;
-
 	return device_register(&s5pv210_dev);
 }
 

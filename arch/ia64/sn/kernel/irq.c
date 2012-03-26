@@ -352,6 +352,8 @@ void sn_irq_fixup(struct pci_dev *pci_dev, struct sn_irq_info *sn_irq_info)
 	spin_lock(&sn_irq_info_lock);
 	list_add_rcu(&sn_irq_info->list, sn_irq_lh[sn_irq_info->irq_irq]);
 	reserve_irq_vector(sn_irq_info->irq_irq);
+	if (sn_irq_info->irq_int_bit != -1)
+		irq_set_handler(sn_irq_info->irq_irq, handle_level_irq);
 	spin_unlock(&sn_irq_info_lock);
 
 	register_intr_pda(sn_irq_info);

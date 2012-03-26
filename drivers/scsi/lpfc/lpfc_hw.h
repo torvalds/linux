@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -70,6 +70,7 @@
 /* vendor ID used in SCSI netlink calls */
 #define LPFC_NL_VENDOR_ID (SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX)
 
+#define FW_REV_STR_SIZE	32
 /* Common Transport structures and definitions */
 
 union CtRevisionId {
@@ -2567,6 +2568,8 @@ typedef struct {
 
 #define  DMP_MEM_REG             0x1
 #define  DMP_NV_PARAMS           0x2
+#define  DMP_LMSD                0x3 /* Link Module Serial Data */
+#define  DMP_WELL_KNOWN          0x4
 
 #define  DMP_REGION_VPD          0xe
 #define  DMP_VPD_SIZE            0x400  /* maximum amount of VPD */

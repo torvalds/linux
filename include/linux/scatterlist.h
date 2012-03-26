@@ -1,10 +1,12 @@
 #ifndef _LINUX_SCATTERLIST_H
 #define _LINUX_SCATTERLIST_H
 
+#include <linux/string.h>
+#include <linux/bug.h>
+#include <linux/mm.h>
+
 #include <asm/types.h>
 #include <asm/scatterlist.h>
-#include <linux/mm.h>
-#include <linux/string.h>
 #include <asm/io.h>
 
 struct sg_table {

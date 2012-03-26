@@ -568,6 +568,13 @@ minstrel_get_sample_rate(struct minstrel_priv *mp, struct minstrel_ht_sta *mi)
 	minstrel_next_sample_idx(mi);
 
 	/*
+	 * Sampling might add some overhead (RTS, no aggregation)
+	 * to the frame. Hence, don't use sampling for the currently
+	 * used max TP rate.
+	 */
+	if (sample_idx == mi->max_tp_rate)
+		return -1;
+	/*
 	 * When not using MRR, do not sample if the probability is already
 	 * higher than 95% to avoid wasting airtime
 	 */
@@ -692,6 +699,7 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	int ack_dur;
 	int stbc;
 	int i;
+	unsigned int smps;
 
 	/* fall back to the old minstrel for legacy stations */
 	if (!sta->ht_cap.ht_supported)
@@ -731,6 +739,9 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 	    oper_chan_type != NL80211_CHAN_HT40PLUS)
 		sta_cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
+	smps = (sta_cap & IEEE80211_HT_CAP_SM_PS) >>
+		IEEE80211_HT_CAP_SM_PS_SHIFT;
+
 	for (i = 0; i < ARRAY_SIZE(mi->groups); i++) {
 		u16 req = 0;
 
@@ -746,6 +757,11 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 			req |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
 		if ((sta_cap & req) != req)
+			continue;
+
+		/* Mark MCS > 7 as unsupported if STA is in static SMPS mode */
+		if (smps == WLAN_HT_CAP_SM_PS_STATIC &&
+		    minstrel_mcs_groups[i].streams > 1)
 			continue;
 
 		mi->groups[i].supported =

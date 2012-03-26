@@ -265,7 +265,7 @@ static int as102_fe_ts_bus_ctrl(struct dvb_frontend *fe, int acquire)
 
 	if (acquire) {
 		if (elna_enable)
-			as10x_cmd_set_context(&dev->bus_adap, 1010, 0xC0);
+			as10x_cmd_set_context(&dev->bus_adap, CONTEXT_LNA, dev->elna_cfg);
 
 		ret = as10x_cmd_turn_on(&dev->bus_adap);
 	} else {
@@ -337,7 +337,7 @@ int as102_dvb_register_fe(struct as102_dev_t *as102_dev,
 	strncpy(dvb_fe->ops.info.name, as102_dev->name,
 		sizeof(dvb_fe->ops.info.name));
 
-	/* register dbvb frontend */
+	/* register dvb frontend */
 	errno = dvb_register_frontend(dvb_adap, dvb_fe);
 	if (errno == 0)
 		dvb_fe->tuner_priv = as102_dev;
@@ -349,7 +349,7 @@ static void as10x_fe_copy_tps_parameters(struct dtv_frontend_properties *fe_tps,
 					 struct as10x_tps *as10x_tps)
 {
 
-	/* extract consteallation */
+	/* extract constellation */
 	switch (as10x_tps->modulation) {
 	case CONST_QPSK:
 		fe_tps->modulation = QPSK;

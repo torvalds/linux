@@ -111,6 +111,7 @@ struct in_addr {
 #define MCAST_LEAVE_SOURCE_GROUP	47
 #define MCAST_MSFILTER			48
 #define IP_MULTICAST_ALL		49
+#define IP_UNICAST_IF			50
 
 #define MCAST_EXCLUDE	0
 #define MCAST_INCLUDE	1
