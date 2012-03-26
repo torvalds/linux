@@ -1791,7 +1791,8 @@ static int __init init_mac80211_hwsim(void)
 			    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			    IEEE80211_HW_AMPDU_AGGREGATION;
 
-		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
+				    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
