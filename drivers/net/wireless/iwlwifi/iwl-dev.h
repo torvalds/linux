@@ -742,12 +742,15 @@ struct iwl_wipan_noa_data {
 };
 
 /* Calibration disabling bit mask */
-#define IWL_SENSITIVITY_CALIB_DISABLED	BIT(1)
-#define IWL_CHAIN_NOISE_CALIB_DISABLED	BIT(2)
-#define IWL_TX_POWER_CALIB_DISABLED	BIT(3)
+enum {
+	IWL_CALIB_ENABLE_ALL			= 0,
 
-#define IWL_CALIB_ENABLE_ALL	0
-#define IWL_CALIB_DISABLE_ALL	0xFFFFFFFF
+	IWL_SENSITIVITY_CALIB_DISABLED		= BIT(0),
+	IWL_CHAIN_NOISE_CALIB_DISABLED		= BIT(1),
+	IWL_TX_POWER_CALIB_DISABLED		= BIT(2),
+
+	IWL_CALIB_DISABLE_ALL			= 0xFFFFFFFF,
+};
 
 #define IWL_OP_MODE_GET_DVM(_iwl_op_mode) \
 	((struct iwl_priv *) ((_iwl_op_mode)->op_mode_specific))
