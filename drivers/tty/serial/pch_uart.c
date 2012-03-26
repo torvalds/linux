@@ -656,10 +656,13 @@ static void pch_free_dma(struct uart_port *port)
 		dma_release_channel(priv->chan_rx);
 		priv->chan_rx = NULL;
 	}
-	if (sg_dma_address(&priv->sg_rx))
-		dma_free_coherent(port->dev, port->fifosize,
-				  sg_virt(&priv->sg_rx),
-				  sg_dma_address(&priv->sg_rx));
+
+	if (priv->rx_buf_dma) {
+		dma_free_coherent(port->dev, port->fifosize, priv->rx_buf_virt,
+				  priv->rx_buf_dma);
+		priv->rx_buf_virt = NULL;
+		priv->rx_buf_dma = 0;
+	}
 
 	return;
 }
