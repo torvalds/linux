@@ -519,7 +519,7 @@ static void em28xx_deregister_snapshot_button(struct em28xx *dev)
 	return;
 }
 
-int em28xx_ir_init(struct em28xx *dev)
+static int em28xx_ir_init(struct em28xx *dev)
 {
 	struct em28xx_IR *ir;
 	struct rc_dev *rc;
@@ -599,7 +599,7 @@ int em28xx_ir_init(struct em28xx *dev)
 	return err;
 }
 
-int em28xx_ir_fini(struct em28xx *dev)
+static int em28xx_ir_fini(struct em28xx *dev)
 {
 	struct em28xx_IR *ir = dev->ir;
 
@@ -618,3 +618,26 @@ int em28xx_ir_fini(struct em28xx *dev)
 	return 0;
 }
 
+static struct em28xx_ops rc_ops = {
+	.id   = EM28XX_RC,
+	.name = "Em28xx Input Extension",
+	.init = em28xx_ir_init,
+	.fini = em28xx_ir_fini,
+};
+
+static int __init em28xx_rc_register(void)
+{
+	return em28xx_register_extension(&rc_ops);
+}
+
+static void __exit em28xx_rc_unregister(void)
+{
+	em28xx_unregister_extension(&rc_ops);
+}
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_DESCRIPTION("Em28xx Input driver");
+
+module_init(em28xx_rc_register);
+module_exit(em28xx_rc_unregister);

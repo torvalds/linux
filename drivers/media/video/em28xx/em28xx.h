@@ -453,6 +453,7 @@ enum em28xx_dev_state {
 /* em28xx extensions */
 #define EM28XX_AUDIO   0x10
 #define EM28XX_DVB     0x20
+#define EM28XX_RC      0x30
 
 /* em28xx resource types (used for res_get/res_lock etc */
 #define EM28XX_RESOURCE_VIDEO 0x01
@@ -704,20 +705,6 @@ extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
-
-/* Provided by em28xx-input.c */
-
-#ifdef CONFIG_VIDEO_EM28XX_RC
-
-int em28xx_ir_init(struct em28xx *dev);
-int em28xx_ir_fini(struct em28xx *dev);
-
-#else
-
-static inline int em28xx_ir_init(struct em28xx *dev) { return 0; }
-static inline int em28xx_ir_fini(struct em28xx *dev) { return 0; }
-
-#endif
 
 /* Provided by em28xx-vbi.c */
 extern struct videobuf_queue_ops em28xx_vbi_qops;

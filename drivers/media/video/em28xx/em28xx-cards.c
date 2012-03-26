@@ -2874,9 +2874,6 @@ void em28xx_card_setup(struct em28xx *dev)
 	}
 
 	em28xx_tuner_setup(dev);
-
-	if(!disable_ir)
-		em28xx_ir_init(dev);
 }
 
 
@@ -2893,6 +2890,8 @@ static void request_module_async(struct work_struct *work)
 
 	if (dev->board.has_dvb)
 		request_module("em28xx-dvb");
+	if (dev->board.has_ir_i2c && !disable_ir)
+		request_module("em28xx-rc");
 }
 
 static void request_modules(struct em28xx *dev)
@@ -2917,9 +2916,6 @@ static void flush_request_modules(struct em28xx *dev)
 */
 void em28xx_release_resources(struct em28xx *dev)
 {
-	if (dev->ir)
-		em28xx_ir_fini(dev);
-
 	/*FIXME: I2C IR should be disconnected */
 
 	em28xx_release_analog_resources(dev);
