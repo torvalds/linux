@@ -1594,18 +1594,6 @@ static inline struct page *page_chain_next(struct page *page)
 #define page_chain_for_each_safe(page, n) \
 	for (; page && ({ n = page_chain_next(page); 1; }); page = n)
 
-static inline int drbd_bio_has_active_page(struct bio *bio)
-{
-	struct bio_vec *bvec;
-	int i;
-
-	__bio_for_each_segment(bvec, bio, i, 0) {
-		if (page_count(bvec->bv_page) > 1)
-			return 1;
-	}
-
-	return 0;
-}
 
 static inline int drbd_peer_req_has_active_page(struct drbd_peer_request *peer_req)
 {
