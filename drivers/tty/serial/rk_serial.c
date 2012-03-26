@@ -238,7 +238,8 @@ static inline void serial_out(struct uart_rk_port *up, int offset, unsigned char
 {
 	dwapb_save_out_value(up, offset, value);
 	__raw_writeb(value, up->port.membase + (offset << 2));
-	dsb();
+	if (offset != UART_TX)
+		dsb();
 	dwapb_check_clear_ier(up, offset);
 }
 
@@ -1108,6 +1109,7 @@ static void serial_rk_break_ctl(struct uart_port *port, int break_state)
 	dev_dbg(port->dev, "-%s lcr: 0x%02x\n", __func__, up->lcr);
 }
 
+#if defined(CONFIG_SERIAL_RK_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /*
  *	Wait for transmitter & holding register to empty
  */
@@ -1128,6 +1130,7 @@ static void wait_for_xmitr(struct uart_rk_port *up, int bits)
 		udelay(1);
 	}
 }
+#endif
 
 #ifdef CONFIG_CONSOLE_POLL
 /*
@@ -1313,6 +1316,7 @@ static void serial_rk_shutdown(struct uart_port *port)
 	(void) serial_in(up, UART_RX);
 
 	free_irq(up->port.irq, up);
+	clk_disable(up->clk);
 }
 
 static void
@@ -1759,13 +1763,11 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 
 	sprintf(up->name, "rk29_serial.%d", pdev->id);
 	up->pdev = pdev;
-#ifdef CONFIG_ARCH_RK29
 	up->clk = clk_get(&pdev->dev, "uart");
 	if (unlikely(IS_ERR(up->clk))) {
 		ret = PTR_ERR(up->clk);
 		goto do_free;
 	}
-#endif
 	up->tx_loadsz = 30;
 #if USE_DMA
 	up->prk29_uart_dma_t = &rk29_uart_ports_dma_t[pdev->id];
