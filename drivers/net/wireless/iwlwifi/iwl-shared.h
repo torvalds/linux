@@ -150,16 +150,13 @@ struct iwl_mod_params {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
- * @cfg: see struct iwl_cfg
  * @trans: pointer to the transport layer data
  */
 struct iwl_shared {
-	const struct iwl_cfg *cfg;
 	struct iwl_trans *trans;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, these macros will work */
-#define cfg(_m)		((_m)->shrd->cfg)
 #define trans(_m)	((_m)->shrd->trans)
 
 static inline bool iwl_have_debug_level(u32 level)

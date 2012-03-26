@@ -281,7 +281,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_free_bus;
 	}
 
-	iwl_trans = iwl_trans_pcie_alloc(shrd, pdev, ent);
+	iwl_trans = iwl_trans_pcie_alloc(shrd, pdev, ent, cfg);
 	if (iwl_trans == NULL) {
 		err = -ENOMEM;
 		goto out_free_bus;

@@ -433,7 +433,7 @@ static int iwl_init_otp_access(struct iwl_trans *trans)
 		 * CSR auto clock gate disable bit -
 		 * this is only applicable for HW with OTP shadow RAM
 		 */
-		if (cfg(trans)->base_params->shadow_ram_support)
+		if (trans->cfg->base_params->shadow_ram_support)
 			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 				CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	}
@@ -554,7 +554,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 		}
 		/* more in the link list, continue */
 		usedblocks++;
-	} while (usedblocks <= cfg(trans)->base_params->max_ll_items);
+	} while (usedblocks <= trans->cfg->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
 	IWL_DEBUG_EEPROM(trans, "OTP has no valid blocks\n");

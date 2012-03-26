@@ -890,8 +890,6 @@ struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
 	struct iwl_drv *drv;
 	int ret;
 
-	shrd->cfg = cfg;
-
 	drv = kzalloc(sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
 		dev_printk(KERN_ERR, trans->dev, "Couldn't allocate iwl_drv");

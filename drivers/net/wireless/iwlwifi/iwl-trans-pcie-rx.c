@@ -140,7 +140,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 	if (q->need_update == 0)
 		goto exit_unlock;
 
-	if (cfg(trans)->base_params->shadow_reg_enable) {
+	if (trans->cfg->base_params->shadow_reg_enable) {
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
@@ -543,7 +543,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 static void iwl_irq_handle_error(struct iwl_trans *trans)
 {
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
-	if (cfg(trans)->internal_wimax_coex &&
+	if (trans->cfg->internal_wimax_coex &&
 	    (!(iwl_read_prph(trans, APMG_CLK_CTRL_REG) &
 			APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
@@ -680,7 +680,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
 		iwl_rx_queue_update_write_ptr(trans, &trans_pcie->rxq);
-		for (i = 0; i < cfg(trans)->base_params->num_of_queues; i++)
+		for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
 			iwl_txq_update_write_ptr(trans,
 						 &trans_pcie->txq[i]);
 
