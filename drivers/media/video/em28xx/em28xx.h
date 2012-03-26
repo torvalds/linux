@@ -702,7 +702,6 @@ extern void em28xx_card_setup(struct em28xx *dev);
 extern struct em28xx_board em28xx_boards[];
 extern struct usb_device_id em28xx_id_table[];
 extern const unsigned int em28xx_bcount;
-void em28xx_register_i2c_ir(struct em28xx *dev);
 int em28xx_tuner_callback(void *ptr, int component, int command, int arg);
 void em28xx_release_resources(struct em28xx *dev);
 
@@ -710,27 +709,11 @@ void em28xx_release_resources(struct em28xx *dev);
 
 #ifdef CONFIG_VIDEO_EM28XX_RC
 
-int em28xx_get_key_terratec(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
-int em28xx_get_key_em_haup(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw);
-int em28xx_get_key_pinnacle_usb_grey(struct IR_i2c *ir, u32 *ir_key,
-				     u32 *ir_raw);
-int em28xx_get_key_winfast_usbii_deluxe(struct IR_i2c *ir, u32 *ir_key,
-				     u32 *ir_raw);
-void em28xx_register_snapshot_button(struct em28xx *dev);
-void em28xx_deregister_snapshot_button(struct em28xx *dev);
-
 int em28xx_ir_init(struct em28xx *dev);
 int em28xx_ir_fini(struct em28xx *dev);
 
 #else
 
-#define em28xx_get_key_terratec			NULL
-#define em28xx_get_key_em_haup			NULL
-#define em28xx_get_key_pinnacle_usb_grey	NULL
-#define em28xx_get_key_winfast_usbii_deluxe	NULL
-
-static inline void em28xx_register_snapshot_button(struct em28xx *dev) {}
-static inline void em28xx_deregister_snapshot_button(struct em28xx *dev) {}
 static inline int em28xx_ir_init(struct em28xx *dev) { return 0; }
 static inline int em28xx_ir_fini(struct em28xx *dev) { return 0; }
 
