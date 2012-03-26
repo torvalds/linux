@@ -167,7 +167,7 @@ static inline void vfsub_touch_atime(struct vfsmount *h_mnt,
 		.dentry	= h_dentry,
 		.mnt	= h_mnt
 	};
-	touch_atime(h_mnt, h_dentry);
+	touch_atime(&h_path);
 	vfsub_update_h_iattr(&h_path, /*did*/NULL); /*ignore*/
 }
 
