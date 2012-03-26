@@ -1063,6 +1063,6 @@ module_exit(pch_pci_exit);
 
 MODULE_DESCRIPTION("Intel EG20T PCH/LAPIS Semico ML7213/ML7223/ML7831 IOH I2C");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Tomoya MORINAGA. <tomoya-linux@dsn.lapis-semi.com>");
+MODULE_AUTHOR("Tomoya MORINAGA. <tomoya.rohm@gmail.com>");
 module_param(pch_i2c_speed, int, (S_IRUSR | S_IWUSR));
 module_param(pch_clk, int, (S_IRUSR | S_IWUSR));
