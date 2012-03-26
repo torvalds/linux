@@ -130,11 +130,10 @@ static int max8952_get_voltage(struct regulator_dev *rdev)
 	return max8952_voltage(max8952, vid);
 }
 
-static int max8952_set_voltage(struct regulator_dev *rdev,
-			       int min_uV, int max_uV, unsigned *selector)
+static int max8952_set_voltage_sel(struct regulator_dev *rdev,
+				   unsigned selector)
 {
 	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
-	s8 vid = -1, i;
 
 	if (!gpio_is_valid(max8952->pdata->gpio_vid0) ||
 			!gpio_is_valid(max8952->pdata->gpio_vid1)) {
@@ -142,23 +141,10 @@ static int max8952_set_voltage(struct regulator_dev *rdev,
 		return -EPERM;
 	}
 
-	for (i = 0; i < MAX8952_NUM_DVS_MODE; i++) {
-		int volt = max8952_voltage(max8952, i);
-
-		/* Set the voltage as low as possible within the range */
-		if (volt <= max_uV && volt >= min_uV)
-			if (vid == -1 || max8952_voltage(max8952, vid) > volt)
-				vid = i;
-	}
-
-	if (vid >= 0 && vid < MAX8952_NUM_DVS_MODE) {
-		max8952->vid0 = vid & 0x1;
-		max8952->vid1 = (vid >> 1) & 0x1;
-		*selector = vid;
-		gpio_set_value(max8952->pdata->gpio_vid0, max8952->vid0);
-		gpio_set_value(max8952->pdata->gpio_vid1, max8952->vid1);
-	} else
-		return -EINVAL;
+	max8952->vid0 = selector & 0x1;
+	max8952->vid1 = (selector >> 1) & 0x1;
+	gpio_set_value(max8952->pdata->gpio_vid0, max8952->vid0);
+	gpio_set_value(max8952->pdata->gpio_vid1, max8952->vid1);
 
 	return 0;
 }
@@ -169,7 +155,7 @@ static struct regulator_ops max8952_ops = {
 	.enable			= max8952_enable,
 	.disable		= max8952_disable,
 	.get_voltage		= max8952_get_voltage,
-	.set_voltage		= max8952_set_voltage,
+	.set_voltage_sel	= max8952_set_voltage_sel,
 	.set_suspend_disable	= max8952_disable,
 };
 
