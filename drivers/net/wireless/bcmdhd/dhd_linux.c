@@ -49,6 +49,7 @@
 #include <epivers.h>
 #include <bcmutils.h>
 #include <bcmendian.h>
+#include <bcmdevs.h>
 
 #include <proto/ethernet.h>
 #include <dngl_stats.h>
@@ -1016,12 +1017,18 @@ dhd_op_if(dhd_if_t *ifp)
 			DHD_TRACE(("\n%s: got 'DHD_IF_DEL' state\n", __FUNCTION__));
 #ifdef WL_CFG80211
 			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
-				wl_cfg80211_notify_ifdel(ifp->net);
+				wl_cfg80211_ifdel_ops(ifp->net);
 			}
 #endif
 			netif_stop_queue(ifp->net);
 			unregister_netdev(ifp->net);
-			ret = DHD_DEL_IF;	/* Make sure the free_netdev() is called */
+			ret = DHD_DEL_IF;
+
+#ifdef WL_CFG80211
+			if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
+				wl_cfg80211_notify_ifdel();
+			}
+#endif
 		}
 		break;
 	case DHD_IF_DELETING:
@@ -2958,13 +2965,14 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	char buf[WLC_IOCTL_SMLEN];
 	char *ptr;
 	uint32 listen_interval = LISTEN_INTERVAL; /* Default Listen Interval in Beacons */
+	uint16 chipID;
 #if defined(SOFTAP)
 	uint dtim = 1;
 #endif
 #if (defined(AP) && !defined(WLP2P)) || (!defined(AP) && defined(WL_CFG80211))
 	uint32 mpc = 0; /* Turn MPC off for AP/APSTA mode */
 #endif
-#if defined(AP) || (defined(WLP2P) && defined(WL_ENABLE_P2P_IF))
+#if defined(AP) || defined(WLP2P)
 	uint32 apsta = 1; /* Enable APSTA mode */
 #endif /* defined(AP) || defined(WLP2P) */
 #ifdef GET_CUSTOM_MAC_ENABLE
@@ -2979,7 +2987,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
 		ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, buf, sizeof(buf), TRUE, 0);
 		if (ret < 0) {
-			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
+			DHD_ERROR(("%s: can't set custom MAC address , error=%d\n", __FUNCTION__, ret));
 			return BCME_NOTUP;
 		}
 		memcpy(dhd->mac.octet, ea_addr.octet, ETHER_ADDR_LEN);
@@ -3000,7 +3008,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #endif /* GET_CUSTOM_MAC_ENABLE */
 
 #ifdef SET_RANDOM_MAC_SOFTAP
-	if ((!op_mode && strstr(fw_path, "_apsta") != NULL) || (op_mode == 0x02)) {
+	if ((!op_mode && strstr(fw_path, "_apsta") != NULL) || (op_mode == HOSTAPD_MASK)) {
 		uint rand_mac;
 
 		srandom32((uint)jiffies);
@@ -3021,20 +3029,20 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* SET_RANDOM_MAC_SOFTAP */
 
-	DHD_TRACE(("Firmware = %s\n", fw_path));
-#if !defined(AP)  && defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
+	DHD_ERROR(("Firmware = %s\n", fw_path));
+#if !defined(AP)  && defined(WLP2P)
 	/* Check if firmware with WFD support used */
-	if ((!op_mode && strstr(fw_path, "_p2p") != NULL) || (op_mode == 0x04) ||
-		(dhd_concurrent_fw(dhd))) {
+	if ((!op_mode && strstr(fw_path, "_p2p") != NULL)
+#if defined(WL_ENABLE_P2P_IF)
+			|| (op_mode == 0x04) ||(dhd_concurrent_fw(dhd))
+#endif
+		) {
 		bcm_mkiovar("apsta", (char *)&apsta, 4, iovbuf, sizeof(iovbuf));
 		if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR,
 			iovbuf, sizeof(iovbuf), TRUE, 0)) < 0) {
 			DHD_ERROR(("%s APSTA for WFD failed ret= %d\n", __FUNCTION__, ret));
 		} else {
 			dhd->op_mode |= WFD_MASK;
-#if defined(ARP_OFFLOAD_SUPPORT)
-			arpoe = 0;
-#endif /* (ARP_OFFLOAD_SUPPORT) */
 			dhd_pkt_filter_enable = FALSE;
 		}
 	}
@@ -3042,8 +3050,14 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 
 #if !defined(AP) && defined(WL_CFG80211)
 	/* Check if firmware with HostAPD support used */
-	if ((!op_mode && strstr(fw_path, "_apsta") != NULL) || (op_mode == 0x02)) {
-			/* Turn off wme if we are having only g ONLY firmware */
+	if ((!op_mode && strstr(fw_path, "_apsta") != NULL) || (op_mode == HOSTAPD_MASK)) {
+			uint band = WLC_BAND_2G;
+
+			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_BAND, (char *)band, sizeof(band),
+				TRUE, 0)) < 0) {
+				DHD_ERROR(("%s:set band failed error (%d)\n", __FUNCTION__, ret));
+			}
+
 			bcm_mkiovar("nmode", 0, 0, buf, sizeof(buf));
 			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf),
 				FALSE, 0)) < 0) {
@@ -3111,8 +3125,12 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 
 	/* disable glom option per default */
-	bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
-	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+	chipID = (uint16)dhd_bus_chip_id(dhd);
+	if  ((chipID == BCM4330_CHIP_ID) || (chipID == BCM4329_CHIP_ID)) {
+		DHD_INFO(("%s disable glom for chipID=0x%X\n", __FUNCTION__, chipID));
+		bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
+		dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
+	}
 
 	/* Setup timeout if Beacons are lost and roam is off to report link down */
 	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));

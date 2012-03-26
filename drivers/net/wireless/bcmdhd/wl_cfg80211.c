@@ -733,7 +733,9 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 	s32 timeout = -1;
 	s32 wlif_type = -1;
 	s32 mode = 0;
+#if defined(WL_ENABLE_P2P_IF)
 	s32 dhd_mode = 0;
+#endif
 	chanspec_t chspec;
 	struct wl_priv *wl = wiphy_priv(wiphy);
 	struct net_device *_ndev;
@@ -866,14 +868,14 @@ wl_cfg80211_add_virtual_iface(struct wiphy *wiphy, char *name,
 				wl_alloc_netinfo(wl, _ndev, vwdev, mode);
 				WL_ERR((" virtual interface(%s) is "
 					"created net attach done\n", wl->p2p->vir_ifname));
+#if defined(WL_ENABLE_P2P_IF)
 				if (type == NL80211_IFTYPE_P2P_CLIENT)
 					dhd_mode = P2P_GC_ENABLED;
 				else if (type == NL80211_IFTYPE_P2P_GO)
 					dhd_mode = P2P_GO_ENABLED;
 				DNGL_FUNC(dhd_cfg80211_set_p2p_info, (wl, dhd_mode));
-				/* Start the P2P I/F with PM disabled. Enable PM from
-				 * the framework
-				 */
+#endif
+
 				 if ((type == NL80211_IFTYPE_P2P_CLIENT) || (
 					 type == NL80211_IFTYPE_P2P_GO))
 					vwdev->ps = NL80211_PS_DISABLED;
@@ -940,11 +942,13 @@ wl_cfg80211_del_virtual_iface(struct wiphy *wiphy, struct net_device *dev)
 
 			/* Wait for any pending scan req to get aborted from the sysioc context */
 			timeout = wait_event_interruptible_timeout(wl->netif_change_event,
-				(wl_get_p2p_status(wl, IF_DELETING) == false),
+				(wl->p2p->vif_created == false),
 				msecs_to_jiffies(MAX_WAIT_TIME));
-			if (timeout > 0 && !wl_get_p2p_status(wl, IF_DELETING)) {
+			if (timeout > 0 && (wl->p2p->vif_created == false)) {
 				WL_DBG(("IFDEL operation done\n"));
+#if  defined(WL_ENABLE_P2P_IF)
 				DNGL_FUNC(dhd_cfg80211_clean_p2p_info, (wl));
+#endif
 			} else {
 				WL_ERR(("IFDEL didn't complete properly\n"));
 			}
@@ -1067,7 +1071,18 @@ wl_cfg80211_notify_ifadd(struct net_device *ndev, s32 idx, s32 bssidx,
 }
 
 s32
-wl_cfg80211_notify_ifdel(struct net_device *ndev)
+wl_cfg80211_notify_ifdel(void)
+{
+	struct wl_priv *wl = wlcfg_drv_priv;
+
+	WL_DBG(("Enter \n"));
+	wl_clr_p2p_status(wl, IF_DELETING);
+
+	return 0;
+}
+
+s32
+wl_cfg80211_ifdel_ops(struct net_device *ndev)
 {
 	struct wl_priv *wl = wlcfg_drv_priv;
 	bool rollback_lock = false;
@@ -1103,7 +1118,6 @@ wl_cfg80211_notify_ifdel(struct net_device *ndev)
 		wl->p2p->vif_created = false;
 		wl_cfgp2p_clear_management_ie(wl,
 			index);
-		wl_clr_p2p_status(wl, IF_DELETING);
 		WL_DBG(("index : %d\n", index));
 
 	}
@@ -3600,11 +3614,12 @@ wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 	}
 	channel = ieee80211_frequency_to_channel(chan->center_freq);
 
-	if (wl_get_drv_status(wl, AP_CREATING, dev) && channel == 14) {
+	if (wl_get_drv_status(wl, AP_CREATING, dev)) {
 		WL_TRACE(("<0> %s: as!!! in AP creating mode, save chan num:%d\n",
 			__FUNCTION__, channel));
 		wl->hostapd_chan = channel;
-		return err;
+		if (channel == 14)
+			return err;
 	}
 
 	WL_DBG(("netdev_ifidx(%d), chan_type(%d) target channel(%d) \n",
@@ -4235,10 +4250,12 @@ int wl_cfg80211_sched_scan_start(struct wiphy *wiphy,
 	WL_DBG(("ssids:%d pno_time:%d pno_repeat:%d pno_freq:%d \n",
 		request->n_ssids, pno_time, pno_repeat, pno_freq_expo_max));
 
-	if (wl_get_drv_status_all(wl, SCANNING)) {
-		WL_ERR(("Scanning already\n"));
-		return -EAGAIN;
+#if defined(WL_ENABLE_P2P_IF)
+	if (dhd_cfg80211_get_opmode(wl) & P2P_GO_ENABLED) {
+		WL_DBG(("PNO not enabled! op_mode: P2P GO"));
+		return -1;
 	}
+#endif
 
 	if (!request || !request->n_ssids || !request->n_match_sets) {
 		WL_ERR(("Invalid sched scan req!! n_ssids:%d \n", request->n_ssids));
@@ -4532,9 +4549,11 @@ static s32 wl_inform_single_bss(struct wl_priv *wl, struct wl_bss_info *bi)
 
 #if defined(WLP2P) && defined(WL_ENABLE_P2P_IF)
 	if (wl->p2p_net && wl->scan_request &&
-		wl->scan_request->dev == wl->p2p_net) {
+		((wl->scan_request->dev == wl->p2p_net) ||
+		(wl->scan_request->dev == wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION)))){
 #else
-	if (p2p_is_on(wl) && p2p_scan(wl)) {
+	if (p2p_is_on(wl) && ( p2p_scan(wl) ||
+		(wl->scan_request->dev == wl_to_p2p_bss_ndev(wl, P2PAPI_BSSCFG_CONNECTION)))) {
 #endif
 		/* find the P2PIE, if we do not find it, we will discard this frame */
 		wifi_p2p_ie_t * p2p_ie;
@@ -5797,7 +5816,7 @@ static void wl_scan_timeout(unsigned long data)
 	if (wl->scan_request) {
 		WL_ERR(("timer expired\n"));
 		if (wl->escan_on)
-			wl_notify_escan_complete(wl, wl->escan_info.ndev, true, true);
+			wl_notify_escan_complete(wl, wl->escan_info.ndev, false, true);
 		else
 			wl_notify_iscan_complete(wl_to_iscan(wl), true);
 	}
@@ -5923,7 +5942,7 @@ static s32 wl_notify_escan_complete(struct wl_priv *wl,
 	spin_lock_irqsave(&wl->cfgdrv_lock, flags);
 
 #ifdef WL_SCHED_SCAN
-	if (wl->sched_scan_req && wl->sched_scan_running && !wl->scan_request) {
+	if (wl->sched_scan_req && !wl->scan_request) {
 		WL_DBG((" REPORTING SCHED SCAN RESULTS \n"));
 		if (aborted)
 			cfg80211_sched_scan_stopped(wl->sched_scan_req->wiphy);
@@ -6686,15 +6705,11 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 
 		if ((index >= 0) && nmode) {
 			wiphy->bands[index]->ht_cap.cap =
-			IEEE80211_HT_CAP_SGI_20 | IEEE80211_HT_CAP_DSSSCCK40
-			| IEEE80211_HT_CAP_MAX_AMSDU;
+			IEEE80211_HT_CAP_DSSSCCK40
+			| IEEE80211_HT_CAP_MAX_AMSDU | IEEE80211_HT_CAP_RX_STBC;
 			wiphy->bands[index]->ht_cap.ht_supported = TRUE;
-			wiphy->bands[index]->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
+			wiphy->bands[index]->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K;
 			wiphy->bands[index]->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16;
-		}
-
-		if ((index >= 0) && bw_40) {
-			wiphy->bands[index]->ht_cap.cap |= IEEE80211_HT_CAP_SGI_40;
 		}
 	}
 
@@ -6735,6 +6750,9 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	unsigned long flags;
 	struct net_info *iter, *next;
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
+#ifdef WL_ENABLE_P2P_IF
+	struct wiphy *wiphy = wl_to_prmry_ndev(wl)->ieee80211_ptr->wiphy;
+#endif
 
 	WL_DBG(("In\n"));
 	/* Check if cfg80211 interface is already down */
@@ -6761,6 +6779,11 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	}
 	wl_to_prmry_ndev(wl)->ieee80211_ptr->iftype =
 		NL80211_IFTYPE_STATION;
+#ifdef WL_ENABLE_P2P_IF
+	wiphy->interface_modes = (wiphy->interface_modes)
+					& (~(BIT(NL80211_IFTYPE_P2P_CLIENT)|
+					BIT(NL80211_IFTYPE_P2P_GO)));
+#endif
 	spin_unlock_irqrestore(&wl->cfgdrv_lock, flags);
 
 	DNGL_FUNC(dhd_cfg80211_down, (wl));

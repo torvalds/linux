@@ -643,7 +643,7 @@ extern s32 wl_cfg80211_down(void *para);
 extern s32 wl_cfg80211_notify_ifadd(struct net_device *ndev, s32 idx, s32 bssidx,
 	void* _net_attach);
 extern s32 wl_cfg80211_ifdel_ops(struct net_device *net);
-extern s32 wl_cfg80211_notify_ifdel(struct net_device *ndev);
+extern s32 wl_cfg80211_notify_ifdel(void);
 extern s32 wl_cfg80211_is_progress_ifadd(void);
 extern s32 wl_cfg80211_is_progress_ifchange(void);
 extern s32 wl_cfg80211_is_progress_ifadd(void);

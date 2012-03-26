@@ -6289,6 +6289,13 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 	return bcmerror;
 }
 
+uint dhd_bus_chip_id(dhd_pub_t *dhdp)
+{
+	dhd_bus_t *bus = dhdp->bus;
+
+       return  bus->sih->chip;
+}
+
 int
 dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size)
 {

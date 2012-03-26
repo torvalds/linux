@@ -24,12 +24,11 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 316856 2012-02-23 21:44:34Z $
+ * $Id: dhd.h 323282 2012-03-23 19:41:57Z $
  */
 
-/****************
- * Common types *
- */
+
+
 
 #ifndef _dhd_h_
 #define _dhd_h_
@@ -510,6 +509,7 @@ extern int  dhd_bus_start(dhd_pub_t *dhdp);
 extern int dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size);
 extern void dhd_print_buf(void *pbuf, int len, int bytes_per_line);
 extern bool dhd_is_associated(dhd_pub_t *dhd, void *bss_buf);
+extern uint dhd_bus_chip_id(dhd_pub_t *dhdp);
 
 #if defined(KEEP_ALIVE)
 extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);

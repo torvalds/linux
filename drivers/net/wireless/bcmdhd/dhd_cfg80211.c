@@ -41,9 +41,7 @@ static int dhd_dongle_up = FALSE;
 
 static s32 wl_dongle_up(struct net_device *ndev, u32 up);
 
-/**
- * Function implementations
- */
+
 
 s32 dhd_cfg80211_init(struct wl_priv *wl)
 {
@@ -57,6 +55,12 @@ s32 dhd_cfg80211_deinit(struct wl_priv *wl)
 	return 0;
 }
 
+s32 dhd_cfg80211_get_opmode(struct wl_priv *wl)
+{
+	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
+	return dhd->op_mode;
+}
+
 s32 dhd_cfg80211_down(struct wl_priv *wl)
 {
 	dhd_dongle_up = FALSE;
@@ -68,6 +72,12 @@ s32 dhd_cfg80211_set_p2p_info(struct wl_priv *wl, int val)
 	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
 	dhd->op_mode |= val;
 	WL_ERR(("Set : op_mode=%d\n", dhd->op_mode));
+
+#ifdef ARP_OFFLOAD_SUPPORT
+	dhd_arp_offload_set(dhd, 0);
+	dhd_arp_offload_enable(dhd, false);
+#endif
+
 	return 0;
 }
 
@@ -76,6 +86,12 @@ s32 dhd_cfg80211_clean_p2p_info(struct wl_priv *wl)
 	dhd_pub_t *dhd =  (dhd_pub_t *)(wl->pub);
 	dhd->op_mode &= ~CONCURENT_MASK;
 	WL_ERR(("Clean : op_mode=%d\n", dhd->op_mode));
+
+#ifdef ARP_OFFLOAD_SUPPORT
+	dhd_arp_offload_set(dhd, dhd_arp_mode);
+	dhd_arp_offload_enable(dhd, true);
+#endif
+
 	return 0;
 }
 
