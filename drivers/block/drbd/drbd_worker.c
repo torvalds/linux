@@ -244,26 +244,6 @@ void drbd_request_endio(struct bio *bio, int error)
 		complete_master_bio(mdev, &m);
 }
 
-int w_read_retry_remote(struct drbd_work *w, int cancel)
-{
-	struct drbd_request *req = container_of(w, struct drbd_request, w);
-	struct drbd_conf *mdev = w->mdev;
-
-	/* We should not detach for read io-error,
-	 * but try to WRITE the P_DATA_REPLY to the failed location,
-	 * to give the disk the chance to relocate that block */
-
-	spin_lock_irq(&mdev->tconn->req_lock);
-	if (cancel || mdev->state.pdsk != D_UP_TO_DATE) {
-		_req_mod(req, READ_RETRY_REMOTE_CANCELED);
-		spin_unlock_irq(&mdev->tconn->req_lock);
-		return 0;
-	}
-	spin_unlock_irq(&mdev->tconn->req_lock);
-
-	return w_send_read_req(w, 0);
-}
-
 void drbd_csum_ee(struct drbd_conf *mdev, struct crypto_hash *tfm,
 		  struct drbd_peer_request *peer_req, void *digest)
 {
