@@ -523,10 +523,7 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_queue_work(&mdev->tconn->data.work, &req->w);
 		break;
 
-	case OOS_HANDED_TO_NETWORK:
-		/* actually the same */
 	case SEND_CANCELED:
-		/* treat it the same */
 	case SEND_FAILED:
 		/* real cleanup will be done from tl_clear.  just update flags
 		 * so it is no longer marked as on the worker queue */
@@ -556,11 +553,14 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		}
 		req->rq_state &= ~RQ_NET_QUEUED;
 		req->rq_state |= RQ_NET_SENT;
-		/* because _drbd_send_zc_bio could sleep, and may want to
-		 * dereference the bio even after the "WRITE_ACKED_BY_PEER" and
-		 * "COMPLETED_OK" events came in, once we return from
-		 * _drbd_send_zc_bio (drbd_send_dblock), we have to check
-		 * whether it is done already, and end it.  */
+		_req_may_be_done_not_susp(req, m);
+		break;
+
+	case OOS_HANDED_TO_NETWORK:
+		/* Was not set PENDING, no longer QUEUED, so is now DONE
+		 * as far as this connection is concerned. */
+		req->rq_state &= ~RQ_NET_QUEUED;
+		req->rq_state |= RQ_NET_DONE;
 		_req_may_be_done_not_susp(req, m);
 		break;
 
