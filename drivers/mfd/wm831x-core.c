@@ -1679,17 +1679,17 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	wm831x_otp_init(wm831x);
 
 	if (pdata && pdata->post_init) {
-		wm831x_reg_unlock(wm831x);
+		wm831x_reg_write(wm831x, WM831X_SECURITY_KEY, 0x9716); //wm831x_reg_unlock
 		wm831x_set_bits(wm831x, WM831X_RESET_CONTROL,0x0010,0x0000);
 		wm831x_set_bits(wm831x, WM831X_LDO_ENABLE,0Xf800,0Xf800);
 		ret = pdata->post_init(wm831x);
-		wm831x_reg_lock(wm831x);
+		wm831x_reg_write(wm831x, WM831X_SECURITY_KEY, 0x0000);	 //wm831x_reg_lock
 		if (ret != 0) {
 			dev_err(wm831x->dev, "post_init() failed: %d\n", ret);
 			goto err_irq;
 		}
 	}
-
+	
 	return 0;
 
 err_irq:
@@ -1761,8 +1761,8 @@ int wm831x_device_suspend(struct wm831x *wm831x)
 
 	return 0;
 }
+
 void wm831x_enter_sleep(void){
-#if 1//def CONFIG_RK2818_SOC_PM
 	struct regulator *dcdc = regulator_get(NULL, "dcdc1");
 	int i;		
 	struct wm831x_dcdc *dc = regulator_get_drvdata(dcdc);
@@ -1778,12 +1778,10 @@ void wm831x_enter_sleep(void){
 		printk("%s:error!",__func__);
 	}
 	regulator_put(dcdc);
-#endif	
 }
 EXPORT_SYMBOL_GPL(wm831x_enter_sleep);
 
 void wm831x_exit_sleep(void){
-#if 1//def CONFIG_RK2818_SOC_PM
 	struct regulator *dcdc = regulator_get(NULL, "dcdc1");
 	struct wm831x_dcdc *dc = regulator_get_drvdata(dcdc);
 	struct wm831x *wm831x = dc->wm831x;
@@ -1795,7 +1793,6 @@ void wm831x_exit_sleep(void){
 		printk("%s:error!",__func__);
 	}
 	regulator_put(dcdc);
-#endif	
 }
 EXPORT_SYMBOL_GPL(wm831x_exit_sleep);
 
@@ -1810,7 +1807,6 @@ int wm831x_device_shutdown(struct wm831x *wm831x)
 		ret = pdata->last_deinit(wm831x);
 		if (ret != 0) {
 			dev_info(wm831x->dev, "last_deinit() failed: %d\n", ret);
-			//goto err_irq;
 		}
 	}
 

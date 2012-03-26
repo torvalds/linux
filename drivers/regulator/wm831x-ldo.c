@@ -324,7 +324,7 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	int ret, irq;
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
-	printk("Probing LDO%d\n", id + 1);
+//	printk("Probing LDO%d\n", id + 1);
 	if (pdata == NULL || pdata->ldo[id] == NULL)
 		return -ENODEV;
 
@@ -455,7 +455,7 @@ static int wm831x_aldo_set_voltage(struct regulator_dev *rdev,
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
 	int reg = ldo->base + WM831X_LDO_ON_CONTROL;
-	printk("%s base=%x,min_uV=%d,%d\n", __FUNCTION__,ldo->base,min_uV,max_uV);
+	//printk("%s base=%x,min_uV=%d,%d\n", __FUNCTION__,ldo->base,min_uV,max_uV);
 	return wm831x_aldo_set_voltage_int(rdev, reg, min_uV, max_uV);
 }
 
@@ -586,7 +586,7 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 	int ret, irq;
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
-	printk("Probing LDO%d--\n", id + 1);
+//	printk("Probing LDO%d--\n", id + 1);
 	if (pdata == NULL || pdata->ldo[id] == NULL)
 		return -ENODEV;
 
@@ -774,7 +774,7 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	int ret;
 
 	dev_dbg(&pdev->dev, "Probing LDO%d\n", id + 1);
-	printk("wm831x_alive_ldo_probe Probing LDO%d\n", id + 1);
+//	printk("wm831x_alive_ldo_probe Probing LDO%d\n", id + 1);
 	if (pdata == NULL || pdata->ldo[id] == NULL)
 		return -ENODEV;
 

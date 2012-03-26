@@ -914,7 +914,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		}
 	}
 
-	print_constraints(rdev);
+//	print_constraints(rdev);
 out:
 	return ret;
 }

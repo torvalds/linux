@@ -72,7 +72,7 @@ static int wm831x_pre_init(struct wm831x *parm)
 {
 	int ret;
 
-	printk("%s\n", __func__);
+//	printk("%s\n", __func__);
 	//ILIM = 900ma
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret & 0xfff8) | 0x04);
@@ -81,8 +81,13 @@ static int wm831x_pre_init(struct wm831x *parm)
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, 0x9716);	// unlock security key
 	wm831x_set_bits(parm, WM831X_RESET_CONTROL, 0x1000, 0x1000);
 	ret = wm831x_reg_read(parm, WM831X_RESET_CONTROL) & 0xffff & UNLOCK_SECURITY_KEY;	// enternal reset active in sleep
-	printk("%s:WM831X_RESET_CONTROL=0x%x\n", __func__, ret);
+//	printk("%s:WM831X_RESET_CONTROL=0x%x\n", __func__, ret);
 	wm831x_reg_write(parm, WM831X_RESET_CONTROL, ret);
+
+	wm831x_set_bits(parm,WM831X_DC1_ON_CONFIG ,0x0300,0x0000); //set dcdc mode is FCCM
+	wm831x_set_bits(parm,WM831X_DC2_ON_CONFIG ,0x0300,0x0000);
+	wm831x_set_bits(parm,WM831X_DC3_ON_CONFIG ,0x0300,0x0000);
+	wm831x_set_bits(parm,0x4066,0x0300,0x0000);
 
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, LOCK_SECURITY_KEY);	// lock security key
 
@@ -99,7 +104,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 3300000, 3300000);
 	regulator_set_suspend_voltage(ldo, 3300000);
 	regulator_enable(ldo);
-	printk("%s set ldo6 vcc_33=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo6 vcc_33=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 	
@@ -107,7 +112,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 1100000, 1100000);
 	regulator_set_suspend_voltage(ldo, 1100000);
 	regulator_enable(ldo);
-	printk("%s set ldo4 vdd_11=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo4 vdd_11=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
@@ -115,30 +120,30 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 1800000, 1800000);
 	regulator_set_suspend_voltage(ldo, 1800000);
 	regulator_enable(ldo);
-	printk("%s set ldo5 vcc_25=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo5 vcc_25=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 
 	dcdc = regulator_get(NULL, "dcdc4");	// vcc_io
 	regulator_set_voltage(dcdc, 3000000, 3000000);
 	regulator_set_suspend_voltage(dcdc, 3000000);
 	regulator_enable(dcdc);
-	printk("%s set dcdc4 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+//	printk("%s set dcdc4 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
 
-	dcdc = regulator_get(NULL, "dcdc2");	// vdd_arm
+	dcdc = regulator_get(NULL, "vdd_cpu");	// vdd_arm
 	regulator_set_voltage(dcdc, 1100000, 1100000);
 	regulator_set_suspend_voltage(dcdc, 1000000);
 	regulator_enable(dcdc);
-	printk("%s set dcdc2 vdd_arm=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	printk("%s set dcdc2 vdd_cpu(vdd_arm)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
 
-	dcdc = regulator_get(NULL, "dcdc1");	// vdd_log
+	dcdc = regulator_get(NULL, "vdd_core");	// vdd_log
 	regulator_set_voltage(dcdc, 1100000, 1100000);
 	regulator_set_suspend_voltage(dcdc, 1100000);
 	regulator_enable(dcdc);
-	printk("%s set dcdc1 vdd_log=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	printk("%s set dcdc1 vdd_core(vdd_log)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
 
@@ -146,7 +151,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(dcdc, 1150000, 1150000);
 	regulator_set_suspend_voltage(dcdc, 1150000);
 	regulator_enable(dcdc);
-	printk("%s set dcdc3 vcc_ddr=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+//	printk("%s set dcdc3 vcc_ddr=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
 
@@ -154,7 +159,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 2800000, 2800000);
 	regulator_set_suspend_voltage(ldo, 2800000);
 	regulator_enable(ldo);
-	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo7 vcc28_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
@@ -162,7 +167,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 1800000, 1800000);
 	regulator_set_suspend_voltage(ldo, 1800000);
 	regulator_enable(ldo);
-	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo1 vcc18_cif=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
@@ -170,15 +175,15 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 3300000, 3300000);
 	regulator_set_suspend_voltage(ldo, 3300000);
 	regulator_enable(ldo);
-	printk("%s set ldo8 vcca_33=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo8 vcca_33=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
 	ldo = regulator_get(NULL, "ldo2");	//vccio_wl
-	regulator_set_voltage(ldo, 2800000, 2800000);
-	regulator_set_suspend_voltage(ldo, 2800000);
+	regulator_set_voltage(ldo, 1800000, 1800000);
+	regulator_set_suspend_voltage(ldo, 1800000);
 	regulator_enable(ldo);
-	printk("%s set ldo2 vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo2 vccio_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
@@ -186,7 +191,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 3300000, 3300000);
 	regulator_set_suspend_voltage(ldo, 3300000);
 	regulator_enable(ldo);
-	printk("%s set ldo10 vcca_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo10 vcca_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
@@ -194,7 +199,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 1200000, 1200000);
 	regulator_set_suspend_voltage(ldo, 1200000);
 	regulator_enable(ldo);
-	printk("%s set ldo3 vdd_12=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo3 vdd_12=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
@@ -202,11 +207,11 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_set_voltage(ldo, 3300000, 3300000);
 	regulator_set_suspend_voltage(ldo, 3300000);
 	regulator_enable(ldo);
-	printk("%s set ldo9 vcc_tp=%dmV end\n", __func__, regulator_get_voltage(ldo));
+//	printk("%s set ldo9 vcc_tp=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
 	udelay(100);
 
-
+	printk("wm831x_post_init end");
 	return 0;
 }
 
@@ -273,17 +278,15 @@ struct wm831x_status_pdata wm831x_status_platdata[WM831X_MAX_STATUS] = {
 
 static struct regulator_consumer_supply dcdc1_consumers[] = {
 	{
-		.supply = "dcdc1",
+		.supply = "vdd_core",
 	}
 };
 
 static struct regulator_consumer_supply dcdc2_consumers[] = {
 	{
-		.supply = "dcdc2",
-	},
-	//      {
-	//      .supply = "vcore",
-	//}
+		.supply = "vdd_cpu",
+	}
+	
 };
 
 static struct regulator_consumer_supply dcdc3_consumers[] = {

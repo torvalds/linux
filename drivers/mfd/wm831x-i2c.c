@@ -26,6 +26,36 @@
 static int wm831x_i2c_read_device(struct wm831x *wm831x, unsigned short reg,
 				  int bytes, void *dest)
 {
+#if defined(CONFIG_ARCH_RK30)
+	const struct i2c_client *client = wm831x->control_data;
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msgs[2];
+	int ret;
+	char reg_buf[2];
+	const short regs = reg;
+	int scl_rate= 100 * 1000;
+	short *buf = dest;
+	int count = bytes/2;
+
+        reg_buf[0] = (regs & 0xff00) >> 8;
+        reg_buf[1] = regs & 0x00ff;
+
+	msgs[0].addr = client->addr;
+	msgs[0].flags = client->flags;
+	msgs[0].len = 2;
+	msgs[0].buf = reg_buf;
+	msgs[0].scl_rate = scl_rate;
+
+	msgs[1].addr = client->addr;
+	msgs[1].flags = client->flags | I2C_M_RD;
+	msgs[1].len = count * 2;
+	msgs[1].buf = (char *)buf;
+	msgs[1].scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, msgs, 2);
+
+	return (ret == 2)? count : ret;
+#else
 	struct i2c_client *i2c = wm831x->control_data;
 	int ret;
 	u16 r = cpu_to_be16(reg);
@@ -42,6 +72,7 @@ static int wm831x_i2c_read_device(struct wm831x *wm831x, unsigned short reg,
 	if (ret != bytes)
 		return -EIO;
 	return 0;
+#endif
 }
 
 /* Currently we allocate the write buffer on the stack; this is OK for
@@ -51,6 +82,37 @@ static int wm831x_i2c_read_device(struct wm831x *wm831x, unsigned short reg,
 static int wm831x_i2c_write_device(struct wm831x *wm831x, unsigned short reg,
 				   int bytes, void *src)
 {
+#if defined(CONFIG_ARCH_RK30)
+	const struct i2c_client *client = wm831x->control_data;
+	struct i2c_adapter *adap=client->adapter;
+	struct i2c_msg msg;
+	int ret;
+	const short regs = reg;
+	const short *buf = src;
+	int count = bytes/2;
+	int scl_rate = 100 * 1000;
+	int i;
+	
+	char *tx_buf = (char *)kmalloc(2 * (count + 1), GFP_KERNEL);
+	if(!tx_buf)
+		return -ENOMEM;
+        tx_buf[0] = (regs & 0xff00) >> 8;
+        tx_buf[1] = regs & 0x00ff;
+        for(i = 0; i < count; i++){
+                tx_buf[i*2+3] = (buf[i] & 0xff00) >> 8;
+                tx_buf[i*2+2] = buf[i] & 0x00ff;
+        }
+
+	msg.addr = client->addr;
+	msg.flags = client->flags;
+	msg.len = 2 * (count + 1);
+	msg.buf = (char *)tx_buf;
+	msg.scl_rate = scl_rate;
+
+	ret = i2c_transfer(adap, &msg, 1);
+	kfree(tx_buf);
+	return (ret == 1) ? count : ret;
+#else
 	struct i2c_client *i2c = wm831x->control_data;
 	unsigned char msg[bytes + 2];
 	int ret;
@@ -66,6 +128,7 @@ static int wm831x_i2c_write_device(struct wm831x *wm831x, unsigned short reg,
 		return -EIO;
 
 	return 0;
+#endif 
 }
 
 static int wm831x_i2c_probe(struct i2c_client *i2c,
