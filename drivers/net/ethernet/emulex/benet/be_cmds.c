@@ -15,6 +15,7 @@
  * Costa Mesa, CA 92626
  */
 
+#include <linux/module.h>
 #include "be.h"
 #include "be_cmds.h"
 
@@ -2556,3 +2557,41 @@ err:
 	pci_free_consistent(adapter->pdev, cmd.size, cmd.va, cmd.dma);
 	return status;
 }
+
+int be_roce_mcc_cmd(void *netdev_handle, void *wrb_payload,
+			int wrb_payload_size, u16 *cmd_status, u16 *ext_status)
+{
+	struct be_adapter *adapter = netdev_priv(netdev_handle);
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_hdr *hdr = (struct be_cmd_req_hdr *) wrb_payload;
+	struct be_cmd_req_hdr *req;
+	struct be_cmd_resp_hdr *resp;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	if (!wrb) {
+		status = -EBUSY;
+		goto err;
+	}
+	req = embedded_payload(wrb);
+	resp = embedded_payload(wrb);
+
+	be_wrb_cmd_hdr_prepare(req, hdr->subsystem,
+			       hdr->opcode, wrb_payload_size, wrb, NULL);
+	memcpy(req, wrb_payload, wrb_payload_size);
+	be_dws_cpu_to_le(req, wrb_payload_size);
+
+	status = be_mcc_notify_wait(adapter);
+	if (cmd_status)
+		*cmd_status = (status & 0xffff);
+	if (ext_status)
+		*ext_status = 0;
+	memcpy(wrb_payload, resp, sizeof(*resp) + resp->response_length);
+	be_dws_le_to_cpu(wrb_payload, sizeof(*resp) + resp->response_length);
+err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+EXPORT_SYMBOL(be_roce_mcc_cmd);
