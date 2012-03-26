@@ -1957,7 +1957,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
 	int ret = 0, mmio_bar;
-	uint32_t agp_size;
+	uint32_t aperture_size;
 
 	/* i915 has 4 more counters */
 	dev->counters += 4;
@@ -2011,16 +2011,16 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_rmmap;
 	}
 
-	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
 	dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev->agp->base, agp_size);
+		io_mapping_create_wc(dev->agp->base, aperture_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
 		goto out_rmmap;
 	}
 
-	i915_mtrr_setup(dev_priv, dev->agp->base, agp_size);
+	i915_mtrr_setup(dev_priv, dev->agp->base, aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -2272,7 +2272,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  * mode setting case, we want to restore the kernel's initial mode (just
  * in case the last client left us in a bad state).
  *
- * Additionally, in the non-mode setting case, we'll tear down the AGP
+ * Additionally, in the non-mode setting case, we'll tear down the GTT
  * and DMA structures, since the kernel won't be using them, and clea
  * up any GEM state.
  */
@@ -2350,16 +2350,10 @@ struct drm_ioctl_desc i915_ioctls[] = {
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);
 
-/**
- * Determine if the device really is AGP or not.
- *
- * All Intel graphics chipsets are treated as AGP, even if they are really
- * PCI-e.
- *
- * \param dev   The device to be tested.
- *
- * \returns
- * A value of 1 is always retured to indictate every i9x5 is AGP.
+/*
+ * This is really ugly: Because old userspace abused the linux agp interface to
+ * manage the gtt, we need to claim that all intel devices are agp.  For
+ * otherwise the drm core refuses to initialize the agp support code.
  */
 int i915_driver_device_is_agp(struct drm_device * dev)
 {
