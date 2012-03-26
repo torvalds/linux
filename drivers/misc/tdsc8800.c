@@ -33,6 +33,7 @@ MODULE_LICENSE("GPL");
 
 #define SLEEP 1
 #define READY 0
+#define RESET 1
 struct rk2818_23d_data *gpdata = NULL;
 
 
@@ -69,6 +70,16 @@ static int tdsc8800_release(struct inode *inode, struct file *file)
 }
 static long  tdsc8800_ioctl(struct file *file, unsigned int a, unsigned long b)
 {
+	switch(a){
+		case RESET:
+			modem_poweron_off(0);
+			msleep(1000);
+			modem_poweron_off(1);
+			break;
+		default:
+			MODEMDBG("cmd error !!!\n");
+			break;
+	}
 	return 0;
 }
 
