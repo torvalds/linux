@@ -604,7 +604,7 @@ void brcmf_sdio_exit(void)
 	sdio_unregister_driver(&brcmf_sdmmc_driver);
 }
 
-int brcmf_sdio_init(void)
+void brcmf_sdio_init(void)
 {
 	int ret;
 
@@ -614,6 +614,4 @@ int brcmf_sdio_init(void)
 
 	if (ret)
 		brcmf_dbg(ERROR, "sdio_register_driver failed: %d\n", ret);
-
-	return ret;
 }

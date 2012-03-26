@@ -572,23 +572,39 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 	size_t left = len;
 	u8 *pos = start;
 	bool calc_crc = filter != 0;
+	DECLARE_BITMAP(seen_elems, 256);
 
+	bitmap_zero(seen_elems, 256);
 	memset(elems, 0, sizeof(*elems));
 	elems->ie_start = start;
 	elems->total_len = len;
 
 	while (left >= 2) {
 		u8 id, elen;
+		bool elem_parse_failed;
 
 		id = *pos++;
 		elen = *pos++;
 		left -= 2;
 
-		if (elen > left)
+		if (elen > left) {
+			elems->parse_error = true;
 			break;
+		}
+
+		if (id != WLAN_EID_VENDOR_SPECIFIC &&
+		    id != WLAN_EID_QUIET &&
+		    test_bit(id, seen_elems)) {
+			elems->parse_error = true;
+			left -= elen;
+			pos += elen;
+			continue;
+		}
 
 		if (calc_crc && id < 64 && (filter & (1ULL << id)))
 			crc = crc32_be(crc, pos - 2, elen + 2);
+
+		elem_parse_failed = false;
 
 		switch (id) {
 		case WLAN_EID_SSID:
@@ -615,7 +631,8 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			if (elen >= sizeof(struct ieee80211_tim_ie)) {
 				elems->tim = (void *)pos;
 				elems->tim_len = elen;
-			}
+			} else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_IBSS_PARAMS:
 			elems->ibss_params = pos;
@@ -664,10 +681,14 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		case WLAN_EID_HT_CAPABILITY:
 			if (elen >= sizeof(struct ieee80211_ht_cap))
 				elems->ht_cap_elem = (void *)pos;
+			else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_HT_INFORMATION:
 			if (elen >= sizeof(struct ieee80211_ht_info))
 				elems->ht_info_elem = (void *)pos;
+			else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_MESH_ID:
 			elems->mesh_id = pos;
@@ -676,6 +697,8 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		case WLAN_EID_MESH_CONFIG:
 			if (elen >= sizeof(struct ieee80211_meshconf_ie))
 				elems->mesh_config = (void *)pos;
+			else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_PEER_MGMT:
 			elems->peering = pos;
@@ -696,6 +719,8 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 		case WLAN_EID_RANN:
 			if (elen >= sizeof(struct ieee80211_rann_ie))
 				elems->rann = (void *)pos;
+			else
+				elem_parse_failed = true;
 			break;
 		case WLAN_EID_CHANNEL_SWITCH:
 			elems->ch_switch_elem = pos;
@@ -724,9 +749,17 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			break;
 		}
 
+		if (elem_parse_failed)
+			elems->parse_error = true;
+		else
+			set_bit(id, seen_elems);
+
 		left -= elen;
 		pos += elen;
 	}
+
+	if (left != 0)
+		elems->parse_error = true;
 
 	return crc;
 }
@@ -737,7 +770,8 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 	ieee802_11_parse_elems_crc(start, len, elems, 0, 0);
 }
 
-void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
+void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
+			       bool bss_notify)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
@@ -807,7 +841,9 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR) {
 		sdata->vif.bss_conf.qos =
 			sdata->vif.type != NL80211_IFTYPE_STATION;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+		if (bss_notify)
+			ieee80211_bss_info_change_notify(sdata,
+							 BSS_CHANGED_QOS);
 	}
 }
 
@@ -829,7 +865,7 @@ void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
-	ieee80211_set_wmm_default(sdata);
+	ieee80211_set_wmm_default(sdata, true);
 }
 
 u32 ieee80211_mandatory_rates(struct ieee80211_local *local,

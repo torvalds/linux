@@ -413,6 +413,7 @@ struct cfg80211_beacon_data {
  * @crypto: crypto settings
  * @privacy: the BSS uses privacy
  * @auth_type: Authentication type (algorithm)
+ * @inactivity_timeout: time in seconds to determine station's inactivity.
  */
 struct cfg80211_ap_settings {
 	struct cfg80211_beacon_data beacon;
@@ -424,6 +425,7 @@ struct cfg80211_ap_settings {
 	struct cfg80211_crypto_settings crypto;
 	bool privacy;
 	enum nl80211_auth_type auth_type;
+	int inactivity_timeout;
 };
 
 /**
@@ -809,6 +811,7 @@ struct mesh_config {
 	 * Still keeping the same nomenclature to be in sync with the spec. */
 	bool  dot11MeshGateAnnouncementProtocol;
 	bool dot11MeshForwarding;
+	s32 rssi_threshold;
 };
 
 /**
@@ -1200,6 +1203,8 @@ struct cfg80211_ibss_params {
  * @key_idx: index of WEP key for shared key authentication
  * @key: WEP key for shared key authentication
  * @flags:  See &enum cfg80211_assoc_req_flags
+ * @bg_scan_period:  Background scan period in seconds
+ *   or -1 to indicate that default value is to be used.
  * @ht_capa:  HT Capabilities over-rides.  Values set in ht_capa_mask
  *   will be used in ht_capa.  Un-supported values will be ignored.
  * @ht_capa_mask:  The bits of ht_capa which are to be used.
@@ -1217,6 +1222,7 @@ struct cfg80211_connect_params {
 	const u8 *key;
 	u8 key_len, key_idx;
 	u32 flags;
+	int bg_scan_period;
 	struct ieee80211_ht_cap ht_capa;
 	struct ieee80211_ht_cap ht_capa_mask;
 };
@@ -1356,12 +1362,10 @@ struct cfg80211_gtk_rekey_data {
  *
  * @set_rekey_data: give the data necessary for GTK rekeying to the driver
  *
- * @add_beacon: Add a beacon with given parameters, @head, @interval
- *	and @dtim_period will be valid, @tail is optional.
- * @set_beacon: Change the beacon parameters for an access point mode
- *	interface. This should reject the call when no beacon has been
- *	configured.
- * @del_beacon: Remove beacon configuration and stop sending the beacon.
+ * @start_ap: Start acting in AP mode defined by the parameters.
+ * @change_beacon: Change the beacon parameters for an access point mode
+ *	interface. This should reject the call when AP mode wasn't started.
+ * @stop_ap: Stop being an AP, including stopping beaconing.
  *
  * @add_station: Add a new station.
  * @del_station: Remove a station; @mac may be NULL to remove all stations.
@@ -2693,7 +2697,7 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
  * @wiphy: the wiphy reporting the BSS
  * @channel: The channel the frame was received on
  * @bssid: the BSSID of the BSS
- * @timestamp: the TSF timestamp sent by the peer
+ * @tsf: the TSF sent by the peer in the beacon/probe response (or 0)
  * @capability: the capability field sent by the peer
  * @beacon_interval: the beacon interval announced by the peer
  * @ie: additional IEs sent by the peer
@@ -2709,9 +2713,8 @@ cfg80211_inform_bss_frame(struct wiphy *wiphy,
 struct cfg80211_bss * __must_check
 cfg80211_inform_bss(struct wiphy *wiphy,
 		    struct ieee80211_channel *channel,
-		    const u8 *bssid,
-		    u64 timestamp, u16 capability, u16 beacon_interval,
-		    const u8 *ie, size_t ielen,
+		    const u8 *bssid, u64 tsf, u16 capability,
+		    u16 beacon_interval, const u8 *ie, size_t ielen,
 		    s32 signal, gfp_t gfp);
 
 struct cfg80211_bss *cfg80211_get_bss(struct wiphy *wiphy,
@@ -3188,6 +3191,7 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
  * cfg80211_rx_mgmt - notification of received, unprocessed management frame
  * @dev: network device
  * @freq: Frequency on which the frame was received in MHz
+ * @sig_dbm: signal strength in mBm, or 0 if unknown
  * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @gfp: context flags
@@ -3200,8 +3204,8 @@ void cfg80211_del_sta(struct net_device *dev, const u8 *mac_addr, gfp_t gfp);
  * This function is called whenever an Action frame is received for a station
  * mode interface, but is not processed in kernel.
  */
-bool cfg80211_rx_mgmt(struct net_device *dev, int freq, const u8 *buf,
-		      size_t len, gfp_t gfp);
+bool cfg80211_rx_mgmt(struct net_device *dev, int freq, int sig_dbm,
+		      const u8 *buf, size_t len, gfp_t gfp);
 
 /**
  * cfg80211_mgmt_tx_status - notification of TX status for management frame
@@ -3314,6 +3318,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
  * @frame: the frame
  * @len: length of the frame
  * @freq: frequency the frame was received on
+ * @sig_dbm: signal strength in mBm, or 0 if unknown
  * @gfp: allocation flags
  *
  * Use this function to report to userspace when a beacon was
@@ -3322,7 +3327,7 @@ void cfg80211_probe_status(struct net_device *dev, const u8 *addr,
  */
 void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 				 const u8 *frame, size_t len,
-				 int freq, gfp_t gfp);
+				 int freq, int sig_dbm, gfp_t gfp);
 
 /*
  * cfg80211_can_beacon_sec_chan - test if ht40 on extension channel can be used
@@ -3333,6 +3338,14 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 int cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 				 struct ieee80211_channel *chan,
 				 enum nl80211_channel_type channel_type);
+
+/*
+ * cfg80211_calculate_bitrate - calculate actual bitrate (in 100Kbps units)
+ * @rate: given rate_info to calculate bitrate from
+ *
+ * return 0 if MCS index >= 32
+ */
+u16 cfg80211_calculate_bitrate(struct rate_info *rate);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 

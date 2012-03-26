@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/etherdevice.h>
 #include <linux/netdevice.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -101,7 +102,7 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if (sta->sdata == sdata &&
-		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
+		    compare_ether_addr(sta->sta.addr, addr) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
 					    lockdep_is_held(&local->sta_mtx));
@@ -124,7 +125,7 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 	while (sta) {
 		if ((sta->sdata == sdata ||
 		     (sta->sdata->bss && sta->sdata->bss == sdata->bss)) &&
-		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
+		    compare_ether_addr(sta->sta.addr, addr) == 0)
 			break;
 		sta = rcu_dereference_check(sta->hnext,
 					    lockdep_is_held(&local->sta_mtx));

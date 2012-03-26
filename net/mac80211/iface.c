@@ -304,7 +304,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		 * need to initialise the hardware if the hardware
 		 * doesn't start up with sane defaults
 		 */
-		ieee80211_set_wmm_default(sdata);
+		ieee80211_set_wmm_default(sdata, true);
 	}
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);

@@ -216,10 +216,6 @@
 #define SCD_TRANS_TBL_OFFSET_QUEUE(x) \
 	((SCD_TRANS_TBL_MEM_LOWER_BOUND + ((x) * 2)) & 0xfffc)
 
-#define SCD_QUEUECHAIN_SEL_ALL(priv)	\
-	(((1<<hw_params(priv).max_txq_num) - 1) &\
-	(~(1<<(priv)->shrd->cmd_queue)))
-
 #define SCD_BASE			(PRPH_BASE + 0xa02c00)
 
 #define SCD_SRAM_BASE_ADDR	(SCD_BASE + 0x0)

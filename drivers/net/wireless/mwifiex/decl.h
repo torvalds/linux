@@ -91,11 +91,6 @@ struct mwifiex_fw_image {
 	u32 fw_len;
 };
 
-struct mwifiex_802_11_ssid {
-	u32 ssid_len;
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-};
-
 struct mwifiex_wait_queue {
 	wait_queue_head_t wait;
 	int status;

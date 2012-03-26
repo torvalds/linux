@@ -229,7 +229,8 @@ enum ieee80211_rssi_event {
  *	valid in station mode only while @assoc is true and if also
  *	requested by %IEEE80211_HW_NEED_DTIM_PERIOD (cf. also hw conf
  *	@ps_dtim_period)
- * @timestamp: beacon timestamp
+ * @last_tsf: last beacon's/probe response's TSF timestamp (could be old
+ *	as it may have been received during scanning long ago)
  * @beacon_int: beacon interval
  * @assoc_capability: capabilities taken from assoc resp
  * @basic_rates: bitmap of basic rates, each bit stands for an
@@ -276,7 +277,7 @@ struct ieee80211_bss_conf {
 	u8 dtim_period;
 	u16 beacon_int;
 	u16 assoc_capability;
-	u64 timestamp;
+	u64 last_tsf;
 	u32 basic_rates;
 	int mcast_rate[IEEE80211_NUM_BANDS];
 	u16 ht_operation_mode;
@@ -659,6 +660,8 @@ ieee80211_tx_info_clear_status(struct ieee80211_tx_info *info)
  * @RX_FLAG_HT: HT MCS was used and rate_idx is MCS index
  * @RX_FLAG_40MHZ: HT40 (40 MHz) was used
  * @RX_FLAG_SHORT_GI: Short guard interval was used
+ * @RX_FLAG_NO_SIGNAL_VAL: The signal strength value is not present.
+ *	Valid only for data frames (mainly A-MPDU)
  */
 enum mac80211_rx_flags {
 	RX_FLAG_MMIC_ERROR	= 1<<0,
@@ -672,6 +675,7 @@ enum mac80211_rx_flags {
 	RX_FLAG_HT		= 1<<9,
 	RX_FLAG_40MHZ		= 1<<10,
 	RX_FLAG_SHORT_GI	= 1<<11,
+	RX_FLAG_NO_SIGNAL_VAL	= 1<<12,
 };
 
 /**
@@ -1763,20 +1767,6 @@ enum ieee80211_ampdu_mlme_action {
 };
 
 /**
- * enum ieee80211_tx_sync_type - TX sync type
- * @IEEE80211_TX_SYNC_AUTH: sync TX for authentication
- *	(and possibly also before direct probe)
- * @IEEE80211_TX_SYNC_ASSOC: sync TX for association
- * @IEEE80211_TX_SYNC_ACTION: sync TX for action frame
- *	(not implemented yet)
- */
-enum ieee80211_tx_sync_type {
-	IEEE80211_TX_SYNC_AUTH,
-	IEEE80211_TX_SYNC_ASSOC,
-	IEEE80211_TX_SYNC_ACTION,
-};
-
-/**
  * enum ieee80211_frame_release_type - frame release reason
  * @IEEE80211_FRAME_RELEASE_PSPOLL: frame released for PS-Poll
  * @IEEE80211_FRAME_RELEASE_UAPSD: frame(s) released due to
@@ -1885,26 +1875,6 @@ enum ieee80211_frame_release_type {
  *	for association indication. The @changed parameter indicates which
  *	of the bss parameters has changed when a call is made. The callback
  *	can sleep.
- *
- * @tx_sync: Called before a frame is sent to an AP/GO. In the GO case, the
- *	driver should sync with the GO's powersaving so the device doesn't
- *	transmit the frame while the GO is asleep. In the regular AP case
- *	it may be used by drivers for devices implementing other restrictions
- *	on talking to APs, e.g. due to regulatory enforcement or just HW
- *	restrictions.
- *	This function is called for every authentication, association and
- *	action frame separately since applications might attempt to auth
- *	with multiple APs before chosing one to associate to. If it returns
- *	an error, the corresponding authentication, association or frame
- *	transmission is aborted and reported as having failed. It is always
- *	called after tuning to the correct channel.
- *	The callback might be called multiple times before @finish_tx_sync
- *	(but @finish_tx_sync will be called once for each) but in practice
- *	this is unlikely to happen. It can also refuse in that case if the
- *	driver cannot handle that situation.
- *	This callback can sleep.
- * @finish_tx_sync: Called as a counterpart to @tx_sync, unless that returned
- *	an error. This callback can sleep.
  *
  * @prepare_multicast: Prepare for multicast filter configuration.
  *	This callback is optional, and its return value is passed
@@ -2176,13 +2146,6 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
-
-	int (*tx_sync)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       const u8 *bssid, enum ieee80211_tx_sync_type type);
-	void (*finish_tx_sync)(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif,
-			       const u8 *bssid,
-			       enum ieee80211_tx_sync_type type);
 
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
@@ -3565,6 +3528,8 @@ enum rate_control_changed {
  * @hw: The hardware the algorithm is invoked for.
  * @sband: The band this frame is being transmitted on.
  * @bss_conf: the current BSS configuration
+ * @skb: the skb that will be transmitted, the control information in it needs
+ *	to be filled in
  * @reported_rate: The rate control algorithm can fill this in to indicate
  *	which rate should be reported to userspace as the current rate and
  *	used for rate calculations in the mesh network.
@@ -3572,12 +3537,11 @@ enum rate_control_changed {
  *	RTS threshold
  * @short_preamble: whether mac80211 will request short-preamble transmission
  *	if the selected rate supports it
- * @max_rate_idx: user-requested maximum rate (not MCS for now)
+ * @max_rate_idx: user-requested maximum (legacy) rate
  *	(deprecated; this will be removed once drivers get updated to use
  *	rate_idx_mask)
- * @rate_idx_mask: user-requested rate mask (not MCS for now)
- * @skb: the skb that will be transmitted, the control information in it needs
- *	to be filled in
+ * @rate_idx_mask: user-requested (legacy) rate mask
+ * @rate_idx_mcs_mask: user-requested MCS rate mask
  * @bss: whether this frame is sent out in AP or IBSS mode
  */
 struct ieee80211_tx_rate_control {

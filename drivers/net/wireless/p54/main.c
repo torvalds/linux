@@ -227,6 +227,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 			     struct ieee80211_vif *vif)
 {
 	struct p54_common *priv = dev->priv;
+	int err;
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 
@@ -251,9 +252,9 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 	}
 
 	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
-	p54_setup_mac(priv);
+	err = p54_setup_mac(priv);
 	mutex_unlock(&priv->conf_mutex);
-	return 0;
+	return err;
 }
 
 static void p54_remove_interface(struct ieee80211_hw *dev,

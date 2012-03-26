@@ -176,6 +176,12 @@ int __bcma_driver_register(struct bcma_driver *drv, struct module *owner);
 
 extern void bcma_driver_unregister(struct bcma_driver *drv);
 
+/* Set a fallback SPROM.
+ * See kdoc at the function definition for complete documentation. */
+extern int bcma_arch_register_fallback_sprom(
+		int (*sprom_callback)(struct bcma_bus *bus,
+		struct ssb_sprom *out));
+
 struct bcma_bus {
 	/* The MMIO area. */
 	void __iomem *mmio;
@@ -284,6 +290,7 @@ static inline void bcma_maskset16(struct bcma_device *cc,
 	bcma_write16(cc, offset, (bcma_read16(cc, offset) & mask) | set);
 }
 
+extern struct bcma_device *bcma_find_core(struct bcma_bus *bus, u16 coreid);
 extern bool bcma_core_is_enabled(struct bcma_device *core);
 extern void bcma_core_disable(struct bcma_device *core, u32 flags);
 extern int bcma_core_enable(struct bcma_device *core, u32 flags);

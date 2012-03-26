@@ -91,9 +91,8 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 }
 
-static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
+static const struct iwl_sensitivity_ranges iwl2000_sensitivity = {
 	.min_nrg_cck = 97,
-	.max_nrg_cck = 0, /* not used, set to 0 */
 	.auto_corr_min_ofdm = 80,
 	.auto_corr_min_ofdm_mrc = 128,
 	.auto_corr_min_ofdm_x1 = 105,
@@ -118,23 +117,15 @@ static struct iwl_sensitivity_ranges iwl2000_sensitivity = {
 
 static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	if (iwlagn_mod_params.num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    iwlagn_mod_params.num_of_queues <= IWLAGN_NUM_QUEUES)
-		cfg(priv)->base_params->num_of_queues =
-			iwlagn_mod_params.num_of_queues;
-
-	hw_params(priv).max_txq_num = cfg(priv)->base_params->num_of_queues;
-
 	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
-	hw_params(priv).tx_chains_num = num_of_ant(cfg(priv)->valid_tx_ant);
+	hw_params(priv).tx_chains_num =
+		num_of_ant(hw_params(priv).valid_tx_ant);
 	if (cfg(priv)->rx_with_siso_diversity)
 		hw_params(priv).rx_chains_num = 1;
 	else
 		hw_params(priv).rx_chains_num =
-			num_of_ant(cfg(priv)->valid_rx_ant);
-	hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
-	hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+			num_of_ant(hw_params(priv).valid_rx_ant);
 
 	iwl2000_set_ct_threshold(priv);
 
@@ -155,16 +146,13 @@ static struct iwl_lib_ops iwl2000_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.update_enhanced_txpower = iwl_eeprom_enhanced_txpower,
+		.enhanced_txpower = true,
 	},
 	.temperature = iwlagn_temperature,
 };
 
 static struct iwl_lib_ops iwl2030_lib = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
-	.bt_rx_handler_setup = iwlagn_bt_rx_handler_setup,
-	.bt_setup_deferred_work = iwlagn_bt_setup_deferred_work,
-	.cancel_deferred_work = iwlagn_bt_cancel_deferred_work,
 	.nic_config = iwl2000_nic_config,
 	.eeprom_ops = {
 		.regulatory_bands = {
@@ -176,12 +164,12 @@ static struct iwl_lib_ops iwl2030_lib = {
 			EEPROM_6000_REG_BAND_24_HT40_CHANNELS,
 			EEPROM_REGULATORY_BAND_NO_HT40,
 		},
-		.update_enhanced_txpower = iwl_eeprom_enhanced_txpower,
+		.enhanced_txpower = true,
 	},
 	.temperature = iwlagn_temperature,
 };
 
-static struct iwl_base_params iwl2000_base_params = {
+static const struct iwl_base_params iwl2000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
@@ -200,7 +188,7 @@ static struct iwl_base_params iwl2000_base_params = {
 };
 
 
-static struct iwl_base_params iwl2030_base_params = {
+static const struct iwl_base_params iwl2030_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
@@ -218,12 +206,12 @@ static struct iwl_base_params iwl2030_base_params = {
 	.hd_v2 = true,
 };
 
-static struct iwl_ht_params iwl2000_ht_params = {
+static const struct iwl_ht_params iwl2000_ht_params = {
 	.ht_greenfield_support = true,
 	.use_rts_for_aggregation = true, /* use rts/cts protection */
 };
 
-static struct iwl_bt_params iwl2030_bt_params = {
+static const struct iwl_bt_params iwl2030_bt_params = {
 	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
 	.advanced_bt_coexist = true,
 	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
@@ -249,13 +237,13 @@ static struct iwl_bt_params iwl2030_bt_params = {
 	.led_mode = IWL_LED_RF_STATE,				\
 	.iq_invert = true					\
 
-struct iwl_cfg iwl2000_2bgn_cfg = {
+const struct iwl_cfg iwl2000_2bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 2200 BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
 };
 
-struct iwl_cfg iwl2000_2bgn_d_cfg = {
+const struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 2200D BGN",
 	IWL_DEVICE_2000,
 	.ht_params = &iwl2000_ht_params,
@@ -279,7 +267,7 @@ struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.adv_pm = true,						\
 	.iq_invert = true					\
 
-struct iwl_cfg iwl2030_2bgn_cfg = {
+const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
 	IWL_DEVICE_2030,
 	.ht_params = &iwl2000_ht_params,
@@ -303,13 +291,13 @@ struct iwl_cfg iwl2030_2bgn_cfg = {
 	.rx_with_siso_diversity = true,				\
 	.iq_invert = true					\
 
-struct iwl_cfg iwl105_bgn_cfg = {
+const struct iwl_cfg iwl105_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
 };
 
-struct iwl_cfg iwl105_bgn_d_cfg = {
+const struct iwl_cfg iwl105_bgn_d_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 105D BGN",
 	IWL_DEVICE_105,
 	.ht_params = &iwl2000_ht_params,
@@ -334,7 +322,7 @@ struct iwl_cfg iwl105_bgn_d_cfg = {
 	.rx_with_siso_diversity = true,				\
 	.iq_invert = true					\
 
-struct iwl_cfg iwl135_bgn_cfg = {
+const struct iwl_cfg iwl135_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",
 	IWL_DEVICE_135,
 	.ht_params = &iwl2000_ht_params,

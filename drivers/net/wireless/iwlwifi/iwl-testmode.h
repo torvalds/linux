@@ -122,6 +122,9 @@
  *	Fore reading, a READ command is sent from the userspace and the data
  *	is returned when the user calls a DUMP command.
  *	For writing, only a WRITE command is used.
+ * @IWL_TM_CMD_APP2DEV_NOTIFICATIONS:
+ *	Command to enable/disable notifications (currently RX packets) from the
+ *	driver to userspace.
  */
 enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_UCODE		= 1,
@@ -152,7 +155,8 @@ enum iwl_tm_cmd_t {
 	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_READ = 26,
 	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_DUMP = 27,
 	IWL_TM_CMD_APP2DEV_INDIRECT_BUFFER_WRITE = 28,
-	IWL_TM_CMD_MAX				= 29,
+	IWL_TM_CMD_APP2DEV_NOTIFICATIONS	= 29,
+	IWL_TM_CMD_MAX				= 30,
 };
 
 /*
@@ -256,6 +260,10 @@ enum iwl_tm_cmd_t {
  *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_UCODE this flag
  *	indicates that the user wants to receive the response of the command
  *	in a reply SKB. If it's not present, the response is not returned.
+ * @IWL_TM_ATTR_ENABLE_NOTIFICATIONS:
+ *	When IWL_TM_ATTR_COMMAND is IWL_TM_CMD_APP2DEV_NOTIFICATIONS, this
+ *	flag enables (if present) or disables (if not) the forwarding
+ *	to userspace.
  */
 enum iwl_tm_attr_t {
 	IWL_TM_ATTR_NOT_APPLICABLE		= 0,
@@ -282,7 +290,8 @@ enum iwl_tm_attr_t {
 	IWL_TM_ATTR_FW_INST_SIZE		= 21,
 	IWL_TM_ATTR_FW_DATA_SIZE		= 22,
 	IWL_TM_ATTR_UCODE_CMD_SKB		= 23,
-	IWL_TM_ATTR_MAX				= 24,
+	IWL_TM_ATTR_ENABLE_NOTIFICATION		= 24,
+	IWL_TM_ATTR_MAX				= 25,
 };
 
 /* uCode trace buffer */

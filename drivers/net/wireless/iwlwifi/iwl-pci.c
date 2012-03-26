@@ -263,7 +263,7 @@ MODULE_DEVICE_TABLE(pci, iwl_hw_card_ids);
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
+	const struct iwl_cfg *cfg = (struct iwl_cfg *)(ent->driver_data);
 	struct iwl_shared *shrd;
 	struct iwl_trans *iwl_trans;
 	int err;
@@ -278,17 +278,9 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_IWLWIFI_IDI
 	iwl_trans = iwl_trans_idi_alloc(shrd, pdev, ent);
-	if (iwl_trans == NULL) {
-		err = -ENOMEM;
-		goto out_free_bus;
-	}
-
-	shrd->trans = iwl_trans;
-	pci_set_drvdata(pdev, iwl_trans);
-
-	err = iwl_drv_start(shrd, iwl_trans, cfg);
 #else
 	iwl_trans = iwl_trans_pcie_alloc(shrd, pdev, ent);
+#endif
 	if (iwl_trans == NULL) {
 		err = -ENOMEM;
 		goto out_free_bus;
@@ -298,7 +290,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_set_drvdata(pdev, iwl_trans);
 
 	err = iwl_drv_start(shrd, iwl_trans, cfg);
-#endif
 	if (err)
 		goto out_free_trans;
 

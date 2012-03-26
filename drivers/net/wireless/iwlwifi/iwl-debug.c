@@ -104,7 +104,7 @@ void __iwl_err(struct device *dev, bool rfkill_prefix, bool trace_only,
 }
 
 #if defined(CONFIG_IWLWIFI_DEBUG) || defined(CONFIG_IWLWIFI_DEVICE_TRACING)
-void __iwl_dbg(struct iwl_shared *shared, struct device *dev,
+void __iwl_dbg(struct device *dev,
 	       u32 level, bool limit, const char *function,
 	       const char *fmt, ...)
 {
@@ -116,7 +116,7 @@ void __iwl_dbg(struct iwl_shared *shared, struct device *dev,
 	va_start(args, fmt);
 	vaf.va = &args;
 #ifdef CONFIG_IWLWIFI_DEBUG
-	if (iwl_get_debug_level(shared) & level &&
+	if (iwl_have_debug_level(level) &&
 	    (!limit || net_ratelimit()))
 		dev_err(dev, "%c %s %pV", in_interrupt() ? 'I' : 'U',
 			function, &vaf);

@@ -35,28 +35,24 @@ static int mwifiex_add_bss_prio_tbl(struct mwifiex_private *priv)
 {
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bss_prio_node *bss_prio;
+	struct mwifiex_bss_prio_tbl *tbl = adapter->bss_prio_tbl;
 	unsigned long flags;
 
 	bss_prio = kzalloc(sizeof(struct mwifiex_bss_prio_node), GFP_KERNEL);
 	if (!bss_prio) {
 		dev_err(adapter->dev, "%s: failed to alloc bss_prio\n",
-						__func__);
+			__func__);
 		return -ENOMEM;
 	}
 
 	bss_prio->priv = priv;
 	INIT_LIST_HEAD(&bss_prio->list);
-	if (!adapter->bss_prio_tbl[priv->bss_priority].bss_prio_cur)
-		adapter->bss_prio_tbl[priv->bss_priority].bss_prio_cur =
-			bss_prio;
+	if (!tbl[priv->bss_priority].bss_prio_cur)
+		tbl[priv->bss_priority].bss_prio_cur = bss_prio;
 
-	spin_lock_irqsave(&adapter->bss_prio_tbl[priv->bss_priority]
-			.bss_prio_lock, flags);
-	list_add_tail(&bss_prio->list,
-			&adapter->bss_prio_tbl[priv->bss_priority]
-			.bss_prio_head);
-	spin_unlock_irqrestore(&adapter->bss_prio_tbl[priv->bss_priority]
-			.bss_prio_lock, flags);
+	spin_lock_irqsave(&tbl[priv->bss_priority].bss_prio_lock, flags);
+	list_add_tail(&bss_prio->list, &tbl[priv->bss_priority].bss_prio_head);
+	spin_unlock_irqrestore(&tbl[priv->bss_priority].bss_prio_lock, flags);
 
 	return 0;
 }
@@ -157,13 +153,13 @@ static int mwifiex_allocate_adapter(struct mwifiex_adapter *adapter)
 	ret = mwifiex_alloc_cmd_buffer(adapter);
 	if (ret) {
 		dev_err(adapter->dev, "%s: failed to alloc cmd buffer\n",
-		       __func__);
+			__func__);
 		return -1;
 	}
 
 	adapter->sleep_cfm =
 		dev_alloc_skb(sizeof(struct mwifiex_opt_sleep_confirm)
-				+ INTF_HEADER_LEN);
+			      + INTF_HEADER_LEN);
 
 	if (!adapter->sleep_cfm) {
 		dev_err(adapter->dev, "%s: failed to alloc sleep cfm"
@@ -520,7 +516,7 @@ static void mwifiex_delete_bss_prio_tbl(struct mwifiex_private *priv)
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bss_prio_node *bssprio_node, *tmp_node, **cur;
 	struct list_head *head;
-	spinlock_t *lock;
+	spinlock_t *lock; /* bss priority lock */
 	unsigned long flags;
 
 	for (i = 0; i < adapter->priv_num; ++i) {
@@ -638,7 +634,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 	ret = adapter->if_ops.check_fw_status(adapter, poll_num);
 	if (!ret) {
 		dev_notice(adapter->dev,
-				"WLAN FW already running! Skip FW download\n");
+			   "WLAN FW already running! Skip FW download\n");
 		goto done;
 	}
 	poll_num = MAX_FIRMWARE_POLL_TRIES;
@@ -646,8 +642,7 @@ int mwifiex_dnld_fw(struct mwifiex_adapter *adapter,
 	/* Check if we are the winner for downloading FW */
 	if (!adapter->winner) {
 		dev_notice(adapter->dev,
-				"Other interface already running!"
-				" Skip FW download\n");
+			   "Other intf already running! Skip FW download\n");
 		poll_num = MAX_MULTI_INTERFACE_POLL_TRIES;
 		goto poll_fw;
 	}

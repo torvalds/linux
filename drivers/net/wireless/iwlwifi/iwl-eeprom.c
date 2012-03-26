@@ -75,6 +75,7 @@
 #include "iwl-agn.h"
 #include "iwl-eeprom.h"
 #include "iwl-io.h"
+#include "iwl-prph.h"
 
 /************************** EEPROM BANDS ****************************
  *
@@ -252,46 +253,46 @@ err:
 
 }
 
-int iwl_eeprom_check_sku(struct iwl_priv *priv)
+int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 {
 	struct iwl_shared *shrd = priv->shrd;
 	u16 radio_cfg;
 
-	if (!cfg(priv)->sku) {
-		/* not using sku overwrite */
-		cfg(priv)->sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
-		if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE &&
-		    !cfg(priv)->ht_params) {
-			IWL_ERR(priv, "Invalid 11n configuration\n");
-			return -EINVAL;
-		}
+	hw_params(priv).sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
+	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	    !cfg(priv)->ht_params) {
+		IWL_ERR(priv, "Invalid 11n configuration\n");
+		return -EINVAL;
 	}
-	if (!cfg(priv)->sku) {
+
+	if (!hw_params(priv).sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", cfg(priv)->sku);
+	IWL_INFO(priv, "Device SKU: 0x%X\n", hw_params(priv).sku);
 
-	if (!cfg(priv)->valid_tx_ant && !cfg(priv)->valid_rx_ant) {
-		/* not using .cfg overwrite */
-		radio_cfg = iwl_eeprom_query16(shrd, EEPROM_RADIO_CONFIG);
-		cfg(priv)->valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
-		cfg(priv)->valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
-		if (!cfg(priv)->valid_tx_ant || !cfg(priv)->valid_rx_ant) {
-			IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
-				cfg(priv)->valid_tx_ant,
-				cfg(priv)->valid_rx_ant);
-			return -EINVAL;
-		}
-		IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
-			 cfg(priv)->valid_tx_ant, cfg(priv)->valid_rx_ant);
+	radio_cfg = iwl_eeprom_query16(shrd, EEPROM_RADIO_CONFIG);
+
+	hw_params(priv).valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+	hw_params(priv).valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
+
+	/* check overrides (some devices have wrong EEPROM) */
+	if (cfg(priv)->valid_tx_ant)
+		hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
+	if (cfg(priv)->valid_rx_ant)
+		hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+
+	if (!hw_params(priv).valid_tx_ant || !hw_params(priv).valid_rx_ant) {
+		IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
+			hw_params(priv).valid_tx_ant,
+			hw_params(priv).valid_rx_ant);
+		return -EINVAL;
 	}
-	/*
-	 * for some special cases,
-	 * EEPROM did not reflect the correct antenna setting
-	 * so overwrite the valid tx/rx antenna from .cfg
-	 */
+
+	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
+		 hw_params(priv).valid_tx_ant, hw_params(priv).valid_rx_ant);
+
 	return 0;
 }
 
@@ -512,7 +513,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
  * iwl_get_max_txpower_avg - get the highest tx power from all chains.
  *     find the highest tx power from all chains for the channel
  */
-static s8 iwl_get_max_txpower_avg(struct iwl_cfg *cfg,
+static s8 iwl_get_max_txpower_avg(const struct iwl_cfg *cfg,
 		struct iwl_eeprom_enhanced_txpwr *enhanced_txpower,
 		int element, s8 *max_txpower_in_half_dbm)
 {
@@ -588,7 +589,7 @@ iwl_eeprom_enh_txp_read_element(struct iwl_priv *priv,
 #define TXP_CHECK_AND_PRINT(x) ((txp->flags & IWL_EEPROM_ENH_TXP_FL_##x) \
 			    ? # x " " : "")
 
-void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
+static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 {
 	struct iwl_shared *shrd = priv->shrd;
 	struct iwl_eeprom_enhanced_txpwr *txp_array, *txp;
@@ -1024,8 +1025,8 @@ int iwl_init_channel_map(struct iwl_priv *priv)
 	 * driver need to process addition information
 	 * to determine the max channel tx power limits
 	 */
-	if (cfg(priv)->lib->eeprom_ops.update_enhanced_txpower)
-		cfg(priv)->lib->eeprom_ops.update_enhanced_txpower(priv);
+	if (cfg(priv)->lib->eeprom_ops.enhanced_txpower)
+		iwl_eeprom_enhanced_txpower(priv);
 
 	return 0;
 }

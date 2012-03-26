@@ -10,6 +10,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/etherdevice.h>
 #include <net/mac80211.h>
 #include <asm/unaligned.h>
 #include "ieee80211_i.h"
@@ -377,7 +378,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	for_each_sta_info(local, hdr->addr1, sta, tmp) {
 		/* skip wrong virtual interface */
-		if (memcmp(hdr->addr2, sta->sdata->vif.addr, ETH_ALEN))
+		if (compare_ether_addr(hdr->addr2, sta->sdata->vif.addr))
 			continue;
 
 		if (info->flags & IEEE80211_TX_STATUS_EOSP)

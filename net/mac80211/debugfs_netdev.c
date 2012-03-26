@@ -49,16 +49,15 @@ static ssize_t ieee80211_if_write(
 	size_t count, loff_t *ppos,
 	ssize_t (*write)(struct ieee80211_sub_if_data *, const char *, int))
 {
-	u8 *buf;
+	char buf[64];
 	ssize_t ret;
 
-	buf = kmalloc(count, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (count >= sizeof(buf))
+		return -E2BIG;
 
-	ret = -EFAULT;
 	if (copy_from_user(buf, userbuf, count))
-		goto freebuf;
+		return -EFAULT;
+	buf[count] = '\0';
 
 	ret = -ENODEV;
 	rtnl_lock();
@@ -66,8 +65,6 @@ static ssize_t ieee80211_if_write(
 		ret = (*write)(sdata, buf, count);
 	rtnl_unlock();
 
-freebuf:
-	kfree(buf);
 	return ret;
 }
 
@@ -340,6 +337,62 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 
 __IEEE80211_IF_FILE_W(tkip_mic_test);
 
+static ssize_t ieee80211_if_fmt_uapsd_queues(
+	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
+{
+	const struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	return snprintf(buf, buflen, "0x%x\n", ifmgd->uapsd_queues);
+}
+
+static ssize_t ieee80211_if_parse_uapsd_queues(
+	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	u8 val;
+	int ret;
+
+	ret = kstrtou8(buf, 0, &val);
+	if (ret)
+		return ret;
+
+	if (val & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
+		return -ERANGE;
+
+	ifmgd->uapsd_queues = val;
+
+	return buflen;
+}
+__IEEE80211_IF_FILE_W(uapsd_queues);
+
+static ssize_t ieee80211_if_fmt_uapsd_max_sp_len(
+	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
+{
+	const struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	return snprintf(buf, buflen, "0x%x\n", ifmgd->uapsd_max_sp_len);
+}
+
+static ssize_t ieee80211_if_parse_uapsd_max_sp_len(
+	struct ieee80211_sub_if_data *sdata, const char *buf, int buflen)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	unsigned long val;
+	int ret;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret)
+		return -EINVAL;
+
+	if (val & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
+		return -ERANGE;
+
+	ifmgd->uapsd_max_sp_len = val;
+
+	return buflen;
+}
+__IEEE80211_IF_FILE_W(uapsd_max_sp_len);
+
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_authorized, u.ap.num_sta_authorized, ATOMIC);
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
@@ -443,6 +496,7 @@ IEEE80211_IF_FILE(dot11MeshGateAnnouncementProtocol,
 IEEE80211_IF_FILE(dot11MeshHWMPRannInterval,
 		u.mesh.mshcfg.dot11MeshHWMPRannInterval, DEC);
 IEEE80211_IF_FILE(dot11MeshForwarding, u.mesh.mshcfg.dot11MeshForwarding, DEC);
+IEEE80211_IF_FILE(rssi_threshold, u.mesh.mshcfg.rssi_threshold, DEC);
 #endif
 
 
@@ -471,6 +525,8 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(ave_beacon);
 	DEBUGFS_ADD_MODE(smps, 0600);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
+	DEBUGFS_ADD_MODE(uapsd_queues, 0600);
+	DEBUGFS_ADD_MODE(uapsd_max_sp_len, 0600);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
@@ -537,11 +593,15 @@ static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
 
 #ifdef CONFIG_MAC80211_MESH
 
+static void add_mesh_files(struct ieee80211_sub_if_data *sdata)
+{
+	DEBUGFS_ADD_MODE(tsf, 0600);
+}
+
 static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 {
 	struct dentry *dir = debugfs_create_dir("mesh_stats",
 						sdata->debugfs.dir);
-
 #define MESHSTATS_ADD(name)\
 	debugfs_create_file(#name, 0400, dir, sdata, &name##_ops);
 
@@ -581,6 +641,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 	MESHPARAMS_ADD(dot11MeshHWMPRootMode);
 	MESHPARAMS_ADD(dot11MeshHWMPRannInterval);
 	MESHPARAMS_ADD(dot11MeshGateAnnouncementProtocol);
+	MESHPARAMS_ADD(rssi_threshold);
 #undef MESHPARAMS_ADD
 }
 #endif
@@ -593,6 +654,7 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
+		add_mesh_files(sdata);
 		add_mesh_stats(sdata);
 		add_mesh_config(sdata);
 #endif

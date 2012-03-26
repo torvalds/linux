@@ -117,8 +117,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define BA_STREAM_NOT_ALLOWED   0xff
 
 #define IS_11N_ENABLED(priv) ((priv->adapter->config_bands & BAND_GN || \
-			priv->adapter->config_bands & BAND_AN) \
-			&& priv->curr_bss_params.bss_descriptor.bcn_ht_cap)
+			priv->adapter->config_bands & BAND_AN) && \
+			priv->curr_bss_params.bss_descriptor.bcn_ht_cap)
 #define INITIATOR_BIT(DelBAParamSet) (((DelBAParamSet) &\
 			BIT(DELBA_INITIATOR_POS)) >> DELBA_INITIATOR_POS)
 
@@ -852,11 +852,6 @@ struct mwifiex_user_scan_chan {
 	u32 scan_time;
 } __packed;
 
-struct mwifiex_user_scan_ssid {
-	u8 ssid[IEEE80211_MAX_SSID_LEN + 1];
-	u8 max_len;
-} __packed;
-
 struct mwifiex_user_scan_cfg {
 	/*
 	 *  BSS mode to be sent in the firmware command
@@ -867,8 +862,9 @@ struct mwifiex_user_scan_cfg {
 	u8 reserved;
 	/* BSSID filter sent in the firmware command to limit the results */
 	u8 specific_bssid[ETH_ALEN];
-	/* SSID filter list used in the to limit the scan results */
-	struct mwifiex_user_scan_ssid ssid_list[MWIFIEX_MAX_SSID_LIST_LENGTH];
+	/* SSID filter list used in the firmware to limit the scan results */
+	struct cfg80211_ssid *ssid_list;
+	u8 num_ssids;
 	/* Variable number (fixed maximum) of channels to scan up */
 	struct mwifiex_user_scan_chan chan_list[MWIFIEX_USER_SCAN_CHAN_MAX];
 } __packed;

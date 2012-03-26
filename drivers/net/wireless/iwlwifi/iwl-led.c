@@ -112,7 +112,7 @@ static int iwl_send_led_cmd(struct iwl_priv *priv, struct iwl_led_cmd *led_cmd)
 		iwl_write32(trans(priv), CSR_LED_REG,
 			    reg & CSR_LED_BSM_CTRL_MSK);
 
-	return iwl_trans_send_cmd(trans(priv), &cmd);
+	return iwl_dvm_send_cmd(priv, &cmd);
 }
 
 /* Set led pattern command */
@@ -126,7 +126,7 @@ static int iwl_led_cmd(struct iwl_priv *priv,
 	};
 	int ret;
 
-	if (!test_bit(STATUS_READY, &priv->shrd->status))
+	if (!test_bit(STATUS_READY, &priv->status))
 		return -EBUSY;
 
 	if (priv->blink_on == on && priv->blink_off == off)
