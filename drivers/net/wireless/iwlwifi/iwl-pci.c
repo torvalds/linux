@@ -67,7 +67,6 @@
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
 
-#include "iwl-shared.h"
 #include "iwl-trans.h"
 #include "iwl-cfg.h"
 #include "iwl-drv.h"

@@ -38,7 +38,6 @@
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
 {

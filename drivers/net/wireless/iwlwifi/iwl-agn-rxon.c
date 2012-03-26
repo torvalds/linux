@@ -30,7 +30,6 @@
 #include "iwl-core.h"
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
 
 /*
  * initialize rxon structure with default values from eeprom

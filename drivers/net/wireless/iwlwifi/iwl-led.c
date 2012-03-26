@@ -40,7 +40,6 @@
 #include "iwl-agn.h"
 #include "iwl-io.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
 
 /* Throughput		OFF time(ms)	ON time (ms)
  *	>300			25		25

@@ -72,7 +72,6 @@
 #include "iwl-trans-pcie-int.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
-#include "iwl-shared.h"
 #include "iwl-eeprom.h"
 #include "iwl-agn-hw.h"
 

@@ -38,7 +38,6 @@
 #include "iwl-io.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
-#include "iwl-shared.h"
 
 #define IWL_CMD_ENTRY(x) [x] = #x
 

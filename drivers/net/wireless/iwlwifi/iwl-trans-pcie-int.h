@@ -38,7 +38,6 @@
 
 #include "iwl-fh.h"
 #include "iwl-csr.h"
-#include "iwl-shared.h"
 #include "iwl-trans.h"
 #include "iwl-debug.h"
 #include "iwl-io.h"

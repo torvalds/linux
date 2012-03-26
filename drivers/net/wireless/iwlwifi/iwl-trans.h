@@ -66,7 +66,6 @@
 #include <linux/ieee80211.h>
 #include <linux/mm.h> /* for page_address */
 
-#include "iwl-shared.h"
 #include "iwl-debug.h"
 
 /**

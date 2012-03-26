@@ -63,8 +63,6 @@
 #ifndef __iwl_drv_h__
 #define __iwl_drv_h__
 
-#include "iwl-shared.h"
-
 /**
  * DOC: Driver system flows - drv component
  *
@@ -92,6 +90,7 @@
 
 struct iwl_drv;
 struct iwl_trans;
+struct iwl_cfg;
 /**
  * iwl_drv_start - start the drv
  *
