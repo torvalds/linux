@@ -1083,7 +1083,7 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 			ret = PCH_UART_HANDLED_MS_INT;
 			break;
 		default:	/* Never junp to this label */
-			dev_err(priv->port.dev, "%s:iid=%d (%lu)\n", __func__,
+			dev_err(priv->port.dev, "%s:iid=%02x (%lu)\n", __func__,
 				iid, jiffies);
 			ret = -1;
 			break;
