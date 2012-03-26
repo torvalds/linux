@@ -19,7 +19,6 @@
 
 extern struct snd_pcm_ops snd_line6_capture_ops;
 
-extern int line6_alloc_capture_buffer(struct snd_line6_pcm *line6pcm);
 extern void line6_capture_copy(struct snd_line6_pcm *line6pcm, char *fbuf,
 			       int fsize);
 extern void line6_capture_check_period(struct snd_line6_pcm *line6pcm,
@@ -30,6 +29,7 @@ extern int line6_submit_audio_in_all_urbs(struct snd_line6_pcm *line6pcm);
 extern void line6_unlink_audio_in_urbs(struct snd_line6_pcm *line6pcm);
 extern void line6_unlink_wait_clear_audio_in_urbs(struct snd_line6_pcm
 						  *line6pcm);
+extern void line6_wait_clear_audio_in_urbs(struct snd_line6_pcm *line6pcm);
 extern int snd_line6_capture_trigger(struct snd_line6_pcm *line6pcm, int cmd);
 
 #endif

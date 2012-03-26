@@ -615,14 +615,14 @@ static int read_disk_sb(struct md_rdev *rdev, int size)
 
 static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 {
-	struct md_rdev *r, *t;
+	struct md_rdev *r;
 	uint64_t failed_devices;
 	struct dm_raid_superblock *sb;
 
 	sb = page_address(rdev->sb_page);
 	failed_devices = le64_to_cpu(sb->failed_devices);
 
-	rdev_for_each(r, t, mddev)
+	rdev_for_each(r, mddev)
 		if ((r->raid_disk >= 0) && test_bit(Faulty, &r->flags))
 			failed_devices |= (1ULL << r->raid_disk);
 
@@ -707,7 +707,7 @@ static int super_init_validation(struct mddev *mddev, struct md_rdev *rdev)
 	struct dm_raid_superblock *sb;
 	uint32_t new_devs = 0;
 	uint32_t rebuilds = 0;
-	struct md_rdev *r, *t;
+	struct md_rdev *r;
 	struct dm_raid_superblock *sb2;
 
 	sb = page_address(rdev->sb_page);
@@ -750,7 +750,7 @@ static int super_init_validation(struct mddev *mddev, struct md_rdev *rdev)
 	 *    case the In_sync bit will /not/ be set and
 	 *    recovery_cp must be MaxSector.
 	 */
-	rdev_for_each(r, t, mddev) {
+	rdev_for_each(r, mddev) {
 		if (!test_bit(In_sync, &r->flags)) {
 			DMINFO("Device %d specified for rebuild: "
 			       "Clearing superblock", r->raid_disk);
@@ -782,7 +782,7 @@ static int super_init_validation(struct mddev *mddev, struct md_rdev *rdev)
 	 * Now we set the Faulty bit for those devices that are
 	 * recorded in the superblock as failed.
 	 */
-	rdev_for_each(r, t, mddev) {
+	rdev_for_each(r, mddev) {
 		if (!r->sb_page)
 			continue;
 		sb2 = page_address(r->sb_page);
@@ -855,11 +855,11 @@ static int super_validate(struct mddev *mddev, struct md_rdev *rdev)
 static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 {
 	int ret;
-	struct md_rdev *rdev, *freshest, *tmp;
+	struct md_rdev *rdev, *freshest;
 	struct mddev *mddev = &rs->md;
 
 	freshest = NULL;
-	rdev_for_each(rdev, tmp, mddev) {
+	rdev_for_each(rdev, mddev) {
 		if (!rdev->meta_bdev)
 			continue;
 
@@ -888,7 +888,7 @@ static int analyse_superblocks(struct dm_target *ti, struct raid_set *rs)
 	if (super_validate(mddev, freshest))
 		return -EINVAL;
 
-	rdev_for_each(rdev, tmp, mddev)
+	rdev_for_each(rdev, mddev)
 		if ((rdev != freshest) && super_validate(mddev, rdev))
 			return -EINVAL;
 

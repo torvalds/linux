@@ -97,7 +97,7 @@ int vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	int broadcast, int promisc, int allmulti);
 int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr);
 int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr);
-int vnic_dev_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
+int vnic_dev_get_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
 int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr);
 int vnic_dev_notify_unset(struct vnic_dev *vdev);
 int vnic_dev_link_status(struct vnic_dev *vdev);
@@ -131,5 +131,6 @@ int vnic_dev_init_prov2(struct vnic_dev *vdev, u8 *buf, u32 len);
 int vnic_dev_enable2(struct vnic_dev *vdev, int active);
 int vnic_dev_enable2_done(struct vnic_dev *vdev, int *status);
 int vnic_dev_deinit_done(struct vnic_dev *vdev, int *status);
+int vnic_dev_set_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
 
 #endif /* _VNIC_DEV_H_ */

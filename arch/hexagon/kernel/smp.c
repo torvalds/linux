@@ -179,8 +179,6 @@ void __cpuinit start_secondary(void)
 	printk(KERN_INFO "%s cpu %d\n", __func__, current_thread_info()->cpu);
 
 	set_cpu_online(cpu, true);
-	while (!cpumask_test_cpu(cpu, cpu_active_mask))
-		cpu_relax();
 	local_irq_enable();
 
 	cpu_idle();

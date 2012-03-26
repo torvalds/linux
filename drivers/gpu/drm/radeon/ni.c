@@ -42,6 +42,8 @@ extern void evergreen_irq_suspend(struct radeon_device *rdev);
 extern int evergreen_mc_init(struct radeon_device *rdev);
 extern void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev);
 extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
+extern void si_rlc_fini(struct radeon_device *rdev);
+extern int si_rlc_init(struct radeon_device *rdev);
 
 #define EVERGREEN_PFP_UCODE_SIZE 1120
 #define EVERGREEN_PM4_UCODE_SIZE 1376
@@ -52,6 +54,8 @@ extern void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 #define CAYMAN_PM4_UCODE_SIZE 2176
 #define CAYMAN_RLC_UCODE_SIZE 1024
 #define CAYMAN_MC_UCODE_SIZE 6037
+
+#define ARUBA_RLC_UCODE_SIZE 1536
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/BARTS_pfp.bin");
@@ -68,6 +72,9 @@ MODULE_FIRMWARE("radeon/CAYMAN_pfp.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_me.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_mc.bin");
 MODULE_FIRMWARE("radeon/CAYMAN_rlc.bin");
+MODULE_FIRMWARE("radeon/ARUBA_pfp.bin");
+MODULE_FIRMWARE("radeon/ARUBA_me.bin");
+MODULE_FIRMWARE("radeon/ARUBA_rlc.bin");
 
 #define BTC_IO_MC_REGS_SIZE 29
 
@@ -326,6 +333,15 @@ int ni_init_microcode(struct radeon_device *rdev)
 		rlc_req_size = CAYMAN_RLC_UCODE_SIZE * 4;
 		mc_req_size = CAYMAN_MC_UCODE_SIZE * 4;
 		break;
+	case CHIP_ARUBA:
+		chip_name = "ARUBA";
+		rlc_chip_name = "ARUBA";
+		/* pfp/me same size as CAYMAN */
+		pfp_req_size = CAYMAN_PFP_UCODE_SIZE * 4;
+		me_req_size = CAYMAN_PM4_UCODE_SIZE * 4;
+		rlc_req_size = ARUBA_RLC_UCODE_SIZE * 4;
+		mc_req_size = 0;
+		break;
 	default: BUG();
 	}
 
@@ -365,15 +381,18 @@ int ni_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
-	snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
-	err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
-	if (err)
-		goto out;
-	if (rdev->mc_fw->size != mc_req_size) {
-		printk(KERN_ERR
-		       "ni_mc: Bogus length %zu in firmware \"%s\"\n",
-		       rdev->mc_fw->size, fw_name);
-		err = -EINVAL;
+	/* no MC ucode on TN */
+	if (!(rdev->flags & RADEON_IS_IGP)) {
+		snprintf(fw_name, sizeof(fw_name), "radeon/%s_mc.bin", chip_name);
+		err = request_firmware(&rdev->mc_fw, fw_name, &pdev->dev);
+		if (err)
+			goto out;
+		if (rdev->mc_fw->size != mc_req_size) {
+			printk(KERN_ERR
+			       "ni_mc: Bogus length %zu in firmware \"%s\"\n",
+			       rdev->mc_fw->size, fw_name);
+			err = -EINVAL;
+		}
 	}
 out:
 	platform_device_unregister(pdev);
@@ -478,6 +497,7 @@ static u32 cayman_get_tile_pipe_to_backend_map(struct radeon_device *rdev,
 	memset((uint8_t *)&swizzle_pipe[0], 0, sizeof(u32) * CAYMAN_MAX_PIPES);
 	switch (rdev->family) {
 	case CHIP_CAYMAN:
+	case CHIP_ARUBA:
 		force_no_swizzle = true;
 		break;
 	default:
@@ -610,7 +630,6 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	switch (rdev->family) {
 	case CHIP_CAYMAN:
-	default:
 		rdev->config.cayman.max_shader_engines = 2;
 		rdev->config.cayman.max_pipes_per_simd = 4;
 		rdev->config.cayman.max_tile_pipes = 8;
@@ -629,6 +648,43 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		rdev->config.cayman.sq_num_cf_insts = 2;
 
 		rdev->config.cayman.sc_prim_fifo_size = 0x100;
+		rdev->config.cayman.sc_hiz_tile_fifo_size = 0x30;
+		rdev->config.cayman.sc_earlyz_tile_fifo_size = 0x130;
+		break;
+	case CHIP_ARUBA:
+	default:
+		rdev->config.cayman.max_shader_engines = 1;
+		rdev->config.cayman.max_pipes_per_simd = 4;
+		rdev->config.cayman.max_tile_pipes = 2;
+		if ((rdev->pdev->device == 0x9900) ||
+		    (rdev->pdev->device == 0x9901)) {
+			rdev->config.cayman.max_simds_per_se = 6;
+			rdev->config.cayman.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x9903) ||
+			   (rdev->pdev->device == 0x9904)) {
+			rdev->config.cayman.max_simds_per_se = 4;
+			rdev->config.cayman.max_backends_per_se = 2;
+		} else if ((rdev->pdev->device == 0x9990) ||
+			   (rdev->pdev->device == 0x9991)) {
+			rdev->config.cayman.max_simds_per_se = 3;
+			rdev->config.cayman.max_backends_per_se = 1;
+		} else {
+			rdev->config.cayman.max_simds_per_se = 2;
+			rdev->config.cayman.max_backends_per_se = 1;
+		}
+		rdev->config.cayman.max_texture_channel_caches = 2;
+		rdev->config.cayman.max_gprs = 256;
+		rdev->config.cayman.max_threads = 256;
+		rdev->config.cayman.max_gs_threads = 32;
+		rdev->config.cayman.max_stack_entries = 512;
+		rdev->config.cayman.sx_num_of_sets = 8;
+		rdev->config.cayman.sx_max_export_size = 256;
+		rdev->config.cayman.sx_max_export_pos_size = 64;
+		rdev->config.cayman.sx_max_export_smx_size = 192;
+		rdev->config.cayman.max_hw_contexts = 8;
+		rdev->config.cayman.sq_num_cf_insts = 2;
+
+		rdev->config.cayman.sc_prim_fifo_size = 0x40;
 		rdev->config.cayman.sc_hiz_tile_fifo_size = 0x30;
 		rdev->config.cayman.sc_earlyz_tile_fifo_size = 0x130;
 		break;
@@ -652,7 +708,9 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 
 	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE);
 	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG);
-	cgts_tcc_disable = 0xff000000;
+	cgts_tcc_disable = 0xffff0000;
+	for (i = 0; i < rdev->config.cayman.max_texture_channel_caches; i++)
+		cgts_tcc_disable &= ~(1 << (16 + i));
 	gc_user_rb_backend_disable = RREG32(GC_USER_RB_BACKEND_DISABLE);
 	gc_user_shader_pipe_config = RREG32(GC_USER_SHADER_PIPE_CONFIG);
 	cgts_user_tcc_disable = RREG32(CGTS_USER_TCC_DISABLE);
@@ -804,8 +862,13 @@ static void cayman_gpu_init(struct radeon_device *rdev)
 		rdev->config.cayman.tile_config |= (3 << 0);
 		break;
 	}
-	rdev->config.cayman.tile_config |=
-		((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
+
+	/* num banks is 8 on all fusion asics. 0 = 4, 1 = 8, 2 = 16 */
+	if (rdev->flags & RADEON_IS_IGP)
+		rdev->config.evergreen.tile_config |= 1 << 4;
+	else
+		rdev->config.cayman.tile_config |=
+			((mc_arb_ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT) << 4;
 	rdev->config.cayman.tile_config |=
 		((gb_addr_config & PIPE_INTERLEAVE_SIZE_MASK) >> PIPE_INTERLEAVE_SIZE_SHIFT) << 8;
 	rdev->config.cayman.tile_config |=
@@ -1318,7 +1381,7 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
 	rdev->ring[CAYMAN_RING_TYPE_CP2_INDEX].ready = false;
 	/* this only test cp0 */
-	r = radeon_ring_test(rdev, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
+	r = radeon_ring_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready = false;
 		rdev->ring[CAYMAN_RING_TYPE_CP1_INDEX].ready = false;
@@ -1440,17 +1503,28 @@ static int cayman_startup(struct radeon_device *rdev)
 	/* enable pcie gen2 link */
 	evergreen_pcie_gen2_enable(rdev);
 
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
-		r = ni_init_microcode(rdev);
+	if (rdev->flags & RADEON_IS_IGP) {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+	} else {
+		if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw || !rdev->mc_fw) {
+			r = ni_init_microcode(rdev);
+			if (r) {
+				DRM_ERROR("Failed to load firmware!\n");
+				return r;
+			}
+		}
+
+		r = ni_mc_load_microcode(rdev);
 		if (r) {
-			DRM_ERROR("Failed to load firmware!\n");
+			DRM_ERROR("Failed to load MC firmware!\n");
 			return r;
 		}
-	}
-	r = ni_mc_load_microcode(rdev);
-	if (r) {
-		DRM_ERROR("Failed to load MC firmware!\n");
-		return r;
 	}
 
 	r = r600_vram_scratch_init(rdev);
@@ -1466,8 +1540,17 @@ static int cayman_startup(struct radeon_device *rdev)
 	r = evergreen_blit_init(rdev);
 	if (r) {
 		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
+		rdev->asic->copy.copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
+	}
+
+	/* allocate rlc buffers */
+	if (rdev->flags & RADEON_IS_IGP) {
+		r = si_rlc_init(rdev);
+		if (r) {
+			DRM_ERROR("Failed to init rlc BOs!\n");
+			return r;
+		}
 	}
 
 	/* allocate wb buffer */
@@ -1518,7 +1601,7 @@ static int cayman_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
@@ -1654,6 +1737,8 @@ int cayman_init(struct radeon_device *rdev)
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
 		cayman_cp_fini(rdev);
 		r600_irq_fini(rdev);
+		if (rdev->flags & RADEON_IS_IGP)
+			si_rlc_fini(rdev);
 		radeon_wb_fini(rdev);
 		r100_ib_fini(rdev);
 		radeon_vm_manager_fini(rdev);
@@ -1665,8 +1750,11 @@ int cayman_init(struct radeon_device *rdev)
 	/* Don't start up if the MC ucode is missing.
 	 * The default clocks and voltages before the MC ucode
 	 * is loaded are not suffient for advanced operations.
+	 *
+	 * We can skip this check for TN, because there is no MC
+	 * ucode.
 	 */
-	if (!rdev->mc_fw) {
+	if (!rdev->mc_fw && !(rdev->flags & RADEON_IS_IGP)) {
 		DRM_ERROR("radeon: MC ucode required for NI+.\n");
 		return -EINVAL;
 	}
@@ -1679,6 +1767,8 @@ void cayman_fini(struct radeon_device *rdev)
 	r600_blit_fini(rdev);
 	cayman_cp_fini(rdev);
 	r600_irq_fini(rdev);
+	if (rdev->flags & RADEON_IS_IGP)
+		si_rlc_fini(rdev);
 	radeon_wb_fini(rdev);
 	radeon_vm_manager_fini(rdev);
 	r100_ib_fini(rdev);
@@ -1702,7 +1792,12 @@ int cayman_vm_init(struct radeon_device *rdev)
 	/* number of VMs */
 	rdev->vm_manager.nvm = 8;
 	/* base offset of vram pages */
-	rdev->vm_manager.vram_base_offset = 0;
+	if (rdev->flags & RADEON_IS_IGP) {
+		u64 tmp = RREG32(FUS_MC_VM_FB_OFFSET);
+		tmp <<= 22;
+		rdev->vm_manager.vram_base_offset = tmp;
+	} else
+		rdev->vm_manager.vram_base_offset = 0;
 	return 0;
 }
 

@@ -376,6 +376,12 @@ struct usb_bus {
 
 struct usb_tt;
 
+enum usb_device_removable {
+	USB_DEVICE_REMOVABLE_UNKNOWN = 0,
+	USB_DEVICE_REMOVABLE,
+	USB_DEVICE_FIXED,
+};
+
 /**
  * struct usb_device - kernel's representation of a USB device
  * @devnum: device number; address on a USB bus
@@ -432,6 +438,7 @@ struct usb_tt;
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
  * @slot_id: Slot ID assigned by xHCI
+ * @removable: Device can be physically removed from this port
  *
  * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use
@@ -494,7 +501,7 @@ struct usb_device {
 #endif
 
 	int maxchild;
-	struct usb_device *children[USB_MAXCHILDREN];
+	struct usb_device **children;
 
 	u32 quirks;
 	atomic_t urbnum;
@@ -509,6 +516,7 @@ struct usb_device {
 #endif
 	struct wusb_dev *wusb_dev;
 	int slot_id;
+	enum usb_device_removable removable;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 

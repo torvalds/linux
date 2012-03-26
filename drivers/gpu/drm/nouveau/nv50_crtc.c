@@ -170,6 +170,41 @@ nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool update)
 	return ret;
 }
 
+static int
+nv50_crtc_set_color_vibrance(struct nouveau_crtc *nv_crtc, bool update)
+{
+	struct drm_device *dev = nv_crtc->base.dev;
+	struct nouveau_channel *evo = nv50_display(dev)->master;
+	int ret;
+	int adj;
+	u32 hue, vib;
+
+	NV_DEBUG_KMS(dev, "vibrance = %i, hue = %i\n",
+		     nv_crtc->color_vibrance, nv_crtc->vibrant_hue);
+
+	ret = RING_SPACE(evo, 2 + (update ? 2 : 0));
+	if (ret) {
+		NV_ERROR(dev, "no space while setting color vibrance\n");
+		return ret;
+	}
+
+	adj = (nv_crtc->color_vibrance > 0) ? 50 : 0;
+	vib = ((nv_crtc->color_vibrance * 2047 + adj) / 100) & 0xfff;
+
+	hue = ((nv_crtc->vibrant_hue * 2047) / 100) & 0xfff;
+
+	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, COLOR_CTRL), 1);
+	OUT_RING  (evo, (hue << 20) | (vib << 8));
+
+	if (update) {
+		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+		OUT_RING  (evo, 0);
+		FIRE_RING (evo);
+	}
+
+	return 0;
+}
+
 struct nouveau_connector *
 nouveau_crtc_connector_get(struct nouveau_crtc *nv_crtc)
 {
@@ -577,8 +612,6 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc,
 	OUT_RING  (evo, fb->base.depth == 8 ?
 		   NV50_EVO_CRTC_CLUT_MODE_OFF : NV50_EVO_CRTC_CLUT_MODE_ON);
 
-	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, COLOR_CTRL), 1);
-	OUT_RING  (evo, NV50_EVO_CRTC_COLOR_CTRL_COLOR);
 	BEGIN_RING(evo, 0, NV50_EVO_CRTC(nv_crtc->index, FB_POS), 1);
 	OUT_RING  (evo, (y << 16) | x);
 
@@ -661,6 +694,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *umode,
 
 	nv_crtc->set_dither(nv_crtc, false);
 	nv_crtc->set_scale(nv_crtc, false);
+	nv_crtc->set_color_vibrance(nv_crtc, false);
 
 	return nv50_crtc_do_mode_set_base(crtc, old_fb, x, y, false);
 }
@@ -721,6 +755,9 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	if (!nv_crtc)
 		return -ENOMEM;
 
+	nv_crtc->color_vibrance = 50;
+	nv_crtc->vibrant_hue = 0;
+
 	/* Default CLUT parameters, will be activated on the hw upon
 	 * first mode set.
 	 */
@@ -751,6 +788,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	/* set function pointers */
 	nv_crtc->set_dither = nv50_crtc_set_dither;
 	nv_crtc->set_scale = nv50_crtc_set_scale;
+	nv_crtc->set_color_vibrance = nv50_crtc_set_color_vibrance;
 
 	drm_crtc_init(dev, &nv_crtc->base, &nv50_crtc_funcs);
 	drm_crtc_helper_add(&nv_crtc->base, &nv50_crtc_helper_funcs);

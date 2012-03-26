@@ -951,7 +951,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 	rcu_read_unlock();
 	if (ret < 0) {
 		if (net_ratelimit())
-			printk(KERN_WARNING "mroute: pending queue full, dropping entries.\n");
+			pr_warn("mroute: pending queue full, dropping entries\n");
 		kfree_skb(skb);
 	}
 
@@ -2538,7 +2538,7 @@ int __init ip_mr_init(void)
 		goto reg_notif_fail;
 #ifdef CONFIG_IP_PIMSM_V2
 	if (inet_add_protocol(&pim_protocol, IPPROTO_PIM) < 0) {
-		printk(KERN_ERR "ip_mr_init: can't add PIM protocol\n");
+		pr_err("%s: can't add PIM protocol\n", __func__);
 		err = -EAGAIN;
 		goto add_proto_fail;
 	}

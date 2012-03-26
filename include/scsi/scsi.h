@@ -143,6 +143,7 @@ struct scsi_cmnd;
 #define READ_ATTRIBUTE        0x8c
 #define WRITE_ATTRIBUTE	      0x8d
 #define VERIFY_16	      0x8f
+#define SYNCHRONIZE_CACHE_16  0x91
 #define WRITE_SAME_16	      0x93
 #define SERVICE_ACTION_IN     0x9e
 /* values for service action in */

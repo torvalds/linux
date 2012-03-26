@@ -33,7 +33,6 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/version.h>
 #include <media/adp1653.h>
@@ -482,24 +481,7 @@ static struct i2c_driver adp1653_i2c_driver = {
 	.id_table	= adp1653_id_table,
 };
 
-static int __init adp1653_init(void)
-{
-	int rval;
-
-	rval = i2c_add_driver(&adp1653_i2c_driver);
-	if (rval)
-		printk(KERN_ALERT "%s: failed at i2c_add_driver\n", __func__);
-
-	return rval;
-}
-
-static void __exit adp1653_exit(void)
-{
-	i2c_del_driver(&adp1653_i2c_driver);
-}
-
-module_init(adp1653_init);
-module_exit(adp1653_exit);
+module_i2c_driver(adp1653_i2c_driver);
 
 MODULE_AUTHOR("Sakari Ailus <sakari.ailus@nokia.com>");
 MODULE_DESCRIPTION("Analog Devices ADP1653 LED flash driver");

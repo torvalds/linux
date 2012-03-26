@@ -1170,6 +1170,8 @@ struct drm_device {
 	struct idr object_name_idr;
 	/*@} */
 	int switch_power_state;
+
+	atomic_t unplugged; /* device has been unplugged or gone away */
 };
 
 #define DRM_SWITCH_POWER_ON 0
@@ -1235,6 +1237,19 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 }
 #endif
 
+static inline void drm_device_set_unplugged(struct drm_device *dev)
+{
+	smp_wmb();
+	atomic_set(&dev->unplugged, 1);
+}
+
+static inline int drm_device_is_unplugged(struct drm_device *dev)
+{
+	int ret = atomic_read(&dev->unplugged);
+	smp_rmb();
+	return ret;
+}
+
 /******************************************************************/
 /** \name Internal function definitions */
 /*@{*/
@@ -1264,11 +1279,6 @@ extern unsigned int drm_poll(struct file *filp, struct poll_table_struct *wait);
 
 				/* Memory management support (drm_memory.h) */
 #include "drm_memory.h"
-extern void drm_mem_init(void);
-extern int drm_mem_info(char *buf, char **start, off_t offset,
-			int request, int *eof, void *data);
-extern void *drm_realloc(void *oldpt, size_t oldsize, size_t size, int area);
-
 extern void drm_free_agp(DRM_AGP_MEM * handle, int pages);
 extern int drm_bind_agp(DRM_AGP_MEM * handle, unsigned int start);
 extern DRM_AGP_MEM *drm_agp_bind_pages(struct drm_device *dev,
@@ -1383,12 +1393,8 @@ extern void drm_core_reclaim_buffers(struct drm_device *dev,
 				/* IRQ support (drm_irq.h) */
 extern int drm_control(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
-extern irqreturn_t drm_irq_handler(DRM_IRQ_ARGS);
 extern int drm_irq_install(struct drm_device *dev);
 extern int drm_irq_uninstall(struct drm_device *dev);
-extern void drm_driver_irq_preinstall(struct drm_device *dev);
-extern void drm_driver_irq_postinstall(struct drm_device *dev);
-extern void drm_driver_irq_uninstall(struct drm_device *dev);
 
 extern int drm_vblank_init(struct drm_device *dev, int num_crtcs);
 extern int drm_wait_vblank(struct drm_device *dev, void *data,
@@ -1464,6 +1470,7 @@ extern void drm_master_put(struct drm_master **master);
 
 extern void drm_put_dev(struct drm_device *dev);
 extern int drm_put_minor(struct drm_minor **minor);
+extern void drm_unplug_dev(struct drm_device *dev);
 extern unsigned int drm_debug;
 
 extern unsigned int drm_vblank_offdelay;

@@ -1,5 +1,5 @@
 /*
- * drivers/net/ibm_newemac/core.h
+ * drivers/net/ethernet/ibm/emac/core.h
  *
  * Driver for PowerPC 4xx on-chip ethernet controller.
  *
@@ -325,7 +325,14 @@ struct emac_instance {
  * Set if we need phy clock workaround for 460ex or 460gt
  */
 #define EMAC_FTR_460EX_PHY_CLK_FIX	0x00000400
-
+/*
+ * APM821xx requires Jumbo frame size set explicitly
+ */
+#define EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE	0x00000800
+/*
+ * APM821xx does not support Half Duplex mode
+ */
+#define EMAC_FTR_APM821XX_NO_HALF_DUPLEX	0x00001000
 
 /* Right now, we don't quite handle the always/possible masks on the
  * most optimal way as we don't have a way to say something like
@@ -353,7 +360,9 @@ enum {
 	    EMAC_FTR_NO_FLOW_CONTROL_40x |
 #endif
 	EMAC_FTR_460EX_PHY_CLK_FIX |
-	EMAC_FTR_440EP_PHY_CLK_FIX,
+	EMAC_FTR_440EP_PHY_CLK_FIX |
+	EMAC_APM821XX_REQ_JUMBO_FRAME_SIZE |
+	EMAC_FTR_APM821XX_NO_HALF_DUPLEX,
 };
 
 static inline int emac_has_feature(struct emac_instance *dev,

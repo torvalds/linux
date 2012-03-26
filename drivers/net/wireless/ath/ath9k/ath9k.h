@@ -299,7 +299,6 @@ struct ath_tx {
 
 struct ath_rx_edma {
 	struct sk_buff_head rx_fifo;
-	struct sk_buff_head rx_buffers;
 	u32 rx_fifo_hwsize;
 };
 
@@ -454,9 +453,39 @@ struct ath_btcoex {
 	struct ath_mci_profile mci;
 };
 
-int ath_init_btcoex_timer(struct ath_softc *sc);
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+int ath9k_init_btcoex(struct ath_softc *sc);
+void ath9k_deinit_btcoex(struct ath_softc *sc);
+void ath9k_start_btcoex(struct ath_softc *sc);
+void ath9k_stop_btcoex(struct ath_softc *sc);
 void ath9k_btcoex_timer_resume(struct ath_softc *sc);
 void ath9k_btcoex_timer_pause(struct ath_softc *sc);
+void ath9k_btcoex_handle_interrupt(struct ath_softc *sc, u32 status);
+u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc, u32 max_4ms_framelen);
+#else
+static inline int ath9k_init_btcoex(struct ath_softc *sc)
+{
+	return 0;
+}
+static inline void ath9k_deinit_btcoex(struct ath_softc *sc)
+{
+}
+static inline void ath9k_start_btcoex(struct ath_softc *sc)
+{
+}
+static inline void ath9k_stop_btcoex(struct ath_softc *sc)
+{
+}
+static inline void ath9k_btcoex_handle_interrupt(struct ath_softc *sc,
+						 u32 status)
+{
+}
+static inline u16 ath9k_btcoex_aggr_limit(struct ath_softc *sc,
+					  u32 max_4ms_framelen)
+{
+	return 0;
+}
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
 /********************/
 /*   LED Control    */
@@ -554,19 +583,13 @@ struct ath_ant_comb {
 
 #define SC_OP_INVALID                BIT(0)
 #define SC_OP_BEACONS                BIT(1)
-#define SC_OP_RXAGGR                 BIT(2)
-#define SC_OP_TXAGGR                 BIT(3)
-#define SC_OP_OFFCHANNEL             BIT(4)
-#define SC_OP_PREAMBLE_SHORT         BIT(5)
-#define SC_OP_PROTECT_ENABLE         BIT(6)
-#define SC_OP_RXFLUSH                BIT(7)
-#define SC_OP_LED_ASSOCIATED         BIT(8)
-#define SC_OP_LED_ON                 BIT(9)
-#define SC_OP_TSF_RESET              BIT(11)
-#define SC_OP_BT_PRIORITY_DETECTED   BIT(12)
-#define SC_OP_BT_SCAN		     BIT(13)
-#define SC_OP_ANI_RUN		     BIT(14)
-#define SC_OP_PRIM_STA_VIF	     BIT(15)
+#define SC_OP_OFFCHANNEL             BIT(2)
+#define SC_OP_RXFLUSH                BIT(3)
+#define SC_OP_TSF_RESET              BIT(4)
+#define SC_OP_BT_PRIORITY_DETECTED   BIT(5)
+#define SC_OP_BT_SCAN                BIT(6)
+#define SC_OP_ANI_RUN                BIT(7)
+#define SC_OP_PRIM_STA_VIF           BIT(8)
 
 /* Powersave flags */
 #define PS_WAIT_FOR_BEACON        BIT(0)
@@ -588,15 +611,12 @@ struct ath9k_vif_iter_data {
 	int nstations; /* number of station vifs */
 	int nwds;      /* number of WDS vifs */
 	int nadhocs;   /* number of adhoc vifs */
-	int nothers;   /* number of vifs not specified above. */
 };
 
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 
-	int chan_idx;
-	int chan_is_ht;
 	struct survey_info *cur_survey;
 	struct survey_info survey[ATH9K_NUM_CHANNELS];
 
@@ -650,8 +670,11 @@ struct ath_softc {
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct delayed_work hw_pll_work;
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex btcoex;
 	struct ath_mci_coex mci_coex;
+#endif
 
 	struct ath_descdma txsdma;
 

@@ -89,6 +89,21 @@
 	};
 };
 
+&rio {
+	compatible = "fsl,srio";
+	interrupts = <48 2 0 0>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+	fsl,srio-rmu-handle = <&rmu>;
+	ranges;
+
+	port1 {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		cell-index = <1>;
+	};
+};
+
 &soc {
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -134,6 +149,7 @@
 
 /include/ "pq3-sec2.1-0.dtsi"
 /include/ "pq3-mpic.dtsi"
+/include/ "pq3-rmu-0.dtsi"
 
 	global-utilities@e0000 {
 		compatible = "fsl,mpc8548-guts";

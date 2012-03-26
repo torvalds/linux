@@ -35,7 +35,6 @@
 struct stub_device {
 	struct usb_interface *interface;
 	struct usb_device *udev;
-	struct list_head list;
 
 	struct usbip_device ud;
 	__u32 devid;

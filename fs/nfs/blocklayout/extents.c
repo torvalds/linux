@@ -147,7 +147,7 @@ static int _preload_range(struct pnfs_inval_markings *marks,
 	count = (int)(end - start) / (int)tree->mtt_step_size;
 
 	/* Pre-malloc what memory we might need */
-	storage = kmalloc(sizeof(*storage) * count, GFP_NOFS);
+	storage = kcalloc(count, sizeof(*storage), GFP_NOFS);
 	if (!storage)
 		return -ENOMEM;
 	for (i = 0; i < count; i++) {

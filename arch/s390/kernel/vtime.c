@@ -26,6 +26,7 @@
 #include <asm/irq_regs.h>
 #include <asm/cputime.h>
 #include <asm/irq.h>
+#include "entry.h"
 
 static DEFINE_PER_CPU(struct vtimer_queue, virt_cpu_timer);
 
@@ -123,153 +124,53 @@ void account_system_vtime(struct task_struct *tsk)
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
 
-void __kprobes vtime_start_cpu(__u64 int_clock, __u64 enter_timer)
-{
-	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
-	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);
-	__u64 idle_time, expires;
-
-	if (idle->idle_enter == 0ULL)
-		return;
-
-	/* Account time spent with enabled wait psw loaded as idle time. */
-	idle_time = int_clock - idle->idle_enter;
-	account_idle_time(idle_time);
-	S390_lowcore.steal_timer +=
-		idle->idle_enter - S390_lowcore.last_update_clock;
-	S390_lowcore.last_update_clock = int_clock;
-
-	/* Account system time spent going idle. */
-	S390_lowcore.system_timer += S390_lowcore.last_update_timer - vq->idle;
-	S390_lowcore.last_update_timer = enter_timer;
-
-	/* Restart vtime CPU timer */
-	if (vq->do_spt) {
-		/* Program old expire value but first save progress. */
-		expires = vq->idle - enter_timer;
-		expires += get_vtimer();
-		set_vtimer(expires);
-	} else {
-		/* Don't account the CPU timer delta while the cpu was idle. */
-		vq->elapsed -= vq->idle - enter_timer;
-	}
-
-	idle->sequence++;
-	smp_wmb();
-	idle->idle_time += idle_time;
-	idle->idle_enter = 0ULL;
-	idle->idle_count++;
-	smp_wmb();
-	idle->sequence++;
-}
-
 void __kprobes vtime_stop_cpu(void)
 {
 	struct s390_idle_data *idle = &__get_cpu_var(s390_idle);
 	struct vtimer_queue *vq = &__get_cpu_var(virt_cpu_timer);
-	psw_t psw;
+	unsigned long long idle_time;
+	unsigned long psw_mask;
+
+	trace_hardirqs_on();
+	/* Don't trace preempt off for idle. */
+	stop_critical_timings();
 
 	/* Wait for external, I/O or machine check interrupt. */
-	psw.mask = psw_kernel_bits | PSW_MASK_WAIT |
-		PSW_MASK_DAT | PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
-
+	psw_mask = psw_kernel_bits | PSW_MASK_WAIT | PSW_MASK_DAT |
+		PSW_MASK_IO | PSW_MASK_EXT | PSW_MASK_MCHECK;
 	idle->nohz_delay = 0;
 
-	/* Check if the CPU timer needs to be reprogrammed. */
-	if (vq->do_spt) {
-		__u64 vmax = VTIMER_MAX_SLICE;
-		/*
-		 * The inline assembly is equivalent to
-		 *	vq->idle = get_cpu_timer();
-		 *	set_cpu_timer(VTIMER_MAX_SLICE);
-		 *	idle->idle_enter = get_clock();
-		 *	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
-		 *			   PSW_MASK_DAT | PSW_MASK_IO |
-		 *			   PSW_MASK_EXT | PSW_MASK_MCHECK);
-		 * The difference is that the inline assembly makes sure that
-		 * the last three instruction are stpt, stck and lpsw in that
-		 * order. This is done to increase the precision.
-		 */
-		asm volatile(
-#ifndef CONFIG_64BIT
-			"	basr	1,0\n"
-			"0:	ahi	1,1f-0b\n"
-			"	st	1,4(%2)\n"
-#else /* CONFIG_64BIT */
-			"	larl	1,1f\n"
-			"	stg	1,8(%2)\n"
-#endif /* CONFIG_64BIT */
-			"	stpt	0(%4)\n"
-			"	spt	0(%5)\n"
-			"	stck	0(%3)\n"
-#ifndef CONFIG_64BIT
-			"	lpsw	0(%2)\n"
-#else /* CONFIG_64BIT */
-			"	lpswe	0(%2)\n"
-#endif /* CONFIG_64BIT */
-			"1:"
-			: "=m" (idle->idle_enter), "=m" (vq->idle)
-			: "a" (&psw), "a" (&idle->idle_enter),
-			  "a" (&vq->idle), "a" (&vmax), "m" (vmax), "m" (psw)
-			: "memory", "cc", "1");
-	} else {
-		/*
-		 * The inline assembly is equivalent to
-		 *	vq->idle = get_cpu_timer();
-		 *	idle->idle_enter = get_clock();
-		 *	__load_psw_mask(psw_kernel_bits | PSW_MASK_WAIT |
-		 *			   PSW_MASK_DAT | PSW_MASK_IO |
-		 *			   PSW_MASK_EXT | PSW_MASK_MCHECK);
-		 * The difference is that the inline assembly makes sure that
-		 * the last three instruction are stpt, stck and lpsw in that
-		 * order. This is done to increase the precision.
-		 */
-		asm volatile(
-#ifndef CONFIG_64BIT
-			"	basr	1,0\n"
-			"0:	ahi	1,1f-0b\n"
-			"	st	1,4(%2)\n"
-#else /* CONFIG_64BIT */
-			"	larl	1,1f\n"
-			"	stg	1,8(%2)\n"
-#endif /* CONFIG_64BIT */
-			"	stpt	0(%4)\n"
-			"	stck	0(%3)\n"
-#ifndef CONFIG_64BIT
-			"	lpsw	0(%2)\n"
-#else /* CONFIG_64BIT */
-			"	lpswe	0(%2)\n"
-#endif /* CONFIG_64BIT */
-			"1:"
-			: "=m" (idle->idle_enter), "=m" (vq->idle)
-			: "a" (&psw), "a" (&idle->idle_enter),
-			  "a" (&vq->idle), "m" (psw)
-			: "memory", "cc", "1");
-	}
+	/* Call the assembler magic in entry.S */
+	psw_idle(idle, vq, psw_mask, !list_empty(&vq->list));
+
+	/* Reenable preemption tracer. */
+	start_critical_timings();
+
+	/* Account time spent with enabled wait psw loaded as idle time. */
+	idle->sequence++;
+	smp_wmb();
+	idle_time = idle->idle_exit - idle->idle_enter;
+	idle->idle_time += idle_time;
+	idle->idle_enter = idle->idle_exit = 0ULL;
+	idle->idle_count++;
+	account_idle_time(idle_time);
+	smp_wmb();
+	idle->sequence++;
 }
 
 cputime64_t s390_get_idle_time(int cpu)
 {
-	struct s390_idle_data *idle;
-	unsigned long long now, idle_time, idle_enter;
+	struct s390_idle_data *idle = &per_cpu(s390_idle, cpu);
+	unsigned long long now, idle_enter, idle_exit;
 	unsigned int sequence;
 
-	idle = &per_cpu(s390_idle, cpu);
-
-	now = get_clock();
-repeat:
-	sequence = idle->sequence;
-	smp_rmb();
-	if (sequence & 1)
-		goto repeat;
-	idle_time = 0;
-	idle_enter = idle->idle_enter;
-	if (idle_enter != 0ULL && idle_enter < now)
-		idle_time = now - idle_enter;
-	smp_rmb();
-	if (idle->sequence != sequence)
-		goto repeat;
-	return idle_time;
+	do {
+		now = get_clock();
+		sequence = ACCESS_ONCE(idle->sequence);
+		idle_enter = ACCESS_ONCE(idle->idle_enter);
+		idle_exit = ACCESS_ONCE(idle->idle_exit);
+	} while ((sequence & 1) || (idle->sequence != sequence));
+	return idle_enter ? ((idle_exit ? : now) - idle_enter) : 0;
 }
 
 /*
@@ -319,7 +220,7 @@ static void do_callbacks(struct list_head *cb_list)
 /*
  * Handler for the virtual CPU timer.
  */
-static void do_cpu_timer_interrupt(unsigned int ext_int_code,
+static void do_cpu_timer_interrupt(struct ext_code ext_code,
 				   unsigned int param32, unsigned long param64)
 {
 	struct vtimer_queue *vq;
@@ -346,7 +247,6 @@ static void do_cpu_timer_interrupt(unsigned int ext_int_code,
 	}
 	spin_unlock(&vq->lock);
 
-	vq->do_spt = list_empty(&cb_list);
 	do_callbacks(&cb_list);
 
 	/* next event is first in list */
@@ -355,8 +255,7 @@ static void do_cpu_timer_interrupt(unsigned int ext_int_code,
 	if (!list_empty(&vq->list)) {
 		event = list_first_entry(&vq->list, struct vtimer_list, entry);
 		next = event->expires;
-	} else
-		vq->do_spt = 0;
+	}
 	spin_unlock(&vq->lock);
 	/*
 	 * To improve precision add the time spent by the
@@ -570,6 +469,9 @@ void init_cpu_vtimer(void)
 
 	/* enable cpu timer interrupts */
 	__ctl_set_bit(0,10);
+
+	/* set initial cpu timer */
+	set_vtimer(0x7fffffffffffffffULL);
 }
 
 static int __cpuinit s390_nohz_notify(struct notifier_block *self,

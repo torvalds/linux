@@ -536,12 +536,6 @@ int iscsi_thread_set_init(void)
 		return -ENOMEM;
 	}
 
-	spin_lock_init(&active_ts_lock);
-	spin_lock_init(&inactive_ts_lock);
-	spin_lock_init(&ts_bitmap_lock);
-	INIT_LIST_HEAD(&active_ts_list);
-	INIT_LIST_HEAD(&inactive_ts_list);
-
 	return 0;
 }
 

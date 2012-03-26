@@ -591,7 +591,7 @@ static int scrub_fixup_check(struct scrub_bio *sbio, int ix)
 	u64 flags = sbio->spag[ix].flags;
 
 	page = sbio->bio->bi_io_vec[ix].bv_page;
-	buffer = kmap_atomic(page, KM_USER0);
+	buffer = kmap_atomic(page);
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
 		ret = scrub_checksum_data(sbio->sdev,
 					  sbio->spag + ix, buffer);
@@ -603,7 +603,7 @@ static int scrub_fixup_check(struct scrub_bio *sbio, int ix)
 	} else {
 		WARN_ON(1);
 	}
-	kunmap_atomic(buffer, KM_USER0);
+	kunmap_atomic(buffer);
 
 	return ret;
 }
@@ -792,7 +792,7 @@ static void scrub_checksum(struct btrfs_work *work)
 	}
 	for (i = 0; i < sbio->count; ++i) {
 		page = sbio->bio->bi_io_vec[i].bv_page;
-		buffer = kmap_atomic(page, KM_USER0);
+		buffer = kmap_atomic(page);
 		flags = sbio->spag[i].flags;
 		logical = sbio->logical + i * PAGE_SIZE;
 		ret = 0;
@@ -807,7 +807,7 @@ static void scrub_checksum(struct btrfs_work *work)
 		} else {
 			WARN_ON(1);
 		}
-		kunmap_atomic(buffer, KM_USER0);
+		kunmap_atomic(buffer);
 		if (ret) {
 			ret = scrub_recheck_error(sbio, i);
 			if (!ret) {

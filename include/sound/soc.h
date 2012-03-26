@@ -185,6 +185,20 @@
 		 .rreg = xreg_right, .shift = xshift, \
 		 .min = xmin, .max = xmax} }
 
+#define SND_SOC_BYTES(xname, xbase, xregs)		      \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
+	.put = snd_soc_bytes_put, .private_value =	      \
+		((unsigned long)&(struct soc_bytes)           \
+		{.base = xbase, .num_regs = xregs }) }
+
+#define SND_SOC_BYTES_MASK(xname, xbase, xregs, xmask)	      \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname,   \
+	.info = snd_soc_bytes_info, .get = snd_soc_bytes_get, \
+	.put = snd_soc_bytes_put, .private_value =	      \
+		((unsigned long)&(struct soc_bytes)           \
+		{.base = xbase, .num_regs = xregs,	      \
+		 .mask = xmask }) }
 
 /*
  * Simplified versions of above macros, declaring a struct and calculating
@@ -366,11 +380,15 @@ void snd_soc_free_ac97_codec(struct snd_soc_codec *codec);
  *Controls
  */
 struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
-				  void *data, char *long_name,
+				  void *data, const char *long_name,
 				  const char *prefix);
-int snd_soc_add_controls(struct snd_soc_codec *codec,
+int snd_soc_add_codec_controls(struct snd_soc_codec *codec,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_add_platform_controls(struct snd_soc_platform *platform,
+	const struct snd_kcontrol_new *controls, int num_controls);
+int snd_soc_add_card_controls(struct snd_soc_card *soc_card,
+	const struct snd_kcontrol_new *controls, int num_controls);
+int snd_soc_add_dai_controls(struct snd_soc_dai *dai,
 	const struct snd_kcontrol_new *controls, int num_controls);
 int snd_soc_info_enum_double(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_info *uinfo);
@@ -409,6 +427,13 @@ int snd_soc_get_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_bytes_info(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_info *uinfo);
+int snd_soc_bytes_get(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol);
+int snd_soc_bytes_put(struct snd_kcontrol *kcontrol,
+		      struct snd_ctl_elem_value *ucontrol);
+
 
 /**
  * struct snd_soc_reg_access - Describes whether a given register is
@@ -505,6 +530,7 @@ struct snd_soc_pcm_stream {
 	unsigned int rate_max;		/* max rate */
 	unsigned int channels_min;	/* min channels */
 	unsigned int channels_max;	/* max channels */
+	unsigned int sig_bits;		/* number of bits of content */
 };
 
 /* SoC audio ops */
@@ -559,6 +585,7 @@ struct snd_soc_codec {
 	unsigned int ac97_created:1; /* Codec has been created by SoC */
 	unsigned int sysfs_registered:1; /* codec has been sysfs registered */
 	unsigned int cache_init:1; /* codec cache has been initialized */
+	unsigned int using_regmap:1; /* using regmap access */
 	u32 cache_only;  /* Suppress writes to hardware */
 	u32 cache_sync; /* Cache needs to be synced to hardware */
 
@@ -637,6 +664,8 @@ struct snd_soc_codec_driver {
 	/* codec stream completion event */
 	int (*stream_event)(struct snd_soc_dapm_context *dapm, int event);
 
+	bool ignore_pmdown_time;  /* Doesn't benefit from pmdown delay */
+
 	/* probe ordering - for components with runtime dependencies */
 	int probe_order;
 	int remove_order;
@@ -689,6 +718,7 @@ struct snd_soc_platform {
 	int id;
 	struct device *dev;
 	struct snd_soc_platform_driver *driver;
+	struct mutex mutex;
 
 	unsigned int suspended:1; /* platform is suspended */
 	unsigned int probed:1;
@@ -698,6 +728,11 @@ struct snd_soc_platform {
 	struct list_head card_list;
 
 	struct snd_soc_dapm_context dapm;
+
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_platform_root;
+	struct dentry *debugfs_dapm;
+#endif
 };
 
 struct snd_soc_dai_link {
@@ -873,6 +908,12 @@ struct snd_soc_pcm_runtime {
 struct soc_mixer_control {
 	int min, max, platform_max;
 	unsigned int reg, rreg, shift, rshift, invert;
+};
+
+struct soc_bytes {
+	int base;
+	int num_regs;
+	u32 mask;
 };
 
 /* enumerated kcontrol */

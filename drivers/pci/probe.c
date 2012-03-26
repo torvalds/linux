@@ -15,6 +15,8 @@
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
 #define CARDBUS_RESERVE_BUSNR	3
 
+static LIST_HEAD(pci_host_bridges);
+
 /* Ugh.  Need to stop exporting this to modules. */
 LIST_HEAD(pci_root_buses);
 EXPORT_SYMBOL(pci_root_buses);
@@ -41,6 +43,82 @@ int no_pci_devices(void)
 	return no_devices;
 }
 EXPORT_SYMBOL(no_pci_devices);
+
+static struct pci_host_bridge *pci_host_bridge(struct pci_dev *dev)
+{
+	struct pci_bus *bus;
+	struct pci_host_bridge *bridge;
+
+	bus = dev->bus;
+	while (bus->parent)
+		bus = bus->parent;
+
+	list_for_each_entry(bridge, &pci_host_bridges, list) {
+		if (bridge->bus == bus)
+			return bridge;
+	}
+
+	return NULL;
+}
+
+static bool resource_contains(struct resource *res1, struct resource *res2)
+{
+	return res1->start <= res2->start && res1->end >= res2->end;
+}
+
+void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
+			     struct resource *res)
+{
+	struct pci_host_bridge *bridge = pci_host_bridge(dev);
+	struct pci_host_bridge_window *window;
+	resource_size_t offset = 0;
+
+	list_for_each_entry(window, &bridge->windows, list) {
+		if (resource_type(res) != resource_type(window->res))
+			continue;
+
+		if (resource_contains(window->res, res)) {
+			offset = window->offset;
+			break;
+		}
+	}
+
+	region->start = res->start - offset;
+	region->end = res->end - offset;
+}
+EXPORT_SYMBOL(pcibios_resource_to_bus);
+
+static bool region_contains(struct pci_bus_region *region1,
+			    struct pci_bus_region *region2)
+{
+	return region1->start <= region2->start && region1->end >= region2->end;
+}
+
+void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
+			     struct pci_bus_region *region)
+{
+	struct pci_host_bridge *bridge = pci_host_bridge(dev);
+	struct pci_host_bridge_window *window;
+	struct pci_bus_region bus_region;
+	resource_size_t offset = 0;
+
+	list_for_each_entry(window, &bridge->windows, list) {
+		if (resource_type(res) != resource_type(window->res))
+			continue;
+
+		bus_region.start = window->res->start - window->offset;
+		bus_region.end = window->res->end - window->offset;
+
+		if (region_contains(&bus_region, region)) {
+			offset = window->offset;
+			break;
+		}
+	}
+
+	res->start = region->start + offset;
+	res->end = region->end + offset;
+}
+EXPORT_SYMBOL(pcibios_bus_to_resource);
 
 /*
  * PCI Bus Class
@@ -135,6 +213,7 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 {
 	u32 l, sz, mask;
 	u16 orig_cmd;
+	struct pci_bus_region region;
 
 	mask = type ? PCI_ROM_ADDRESS_MASK : ~0;
 
@@ -214,11 +293,13 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 			/* Address above 32-bit boundary; disable the BAR */
 			pci_write_config_dword(dev, pos, 0);
 			pci_write_config_dword(dev, pos + 4, 0);
-			res->start = 0;
-			res->end = sz64;
+			region.start = 0;
+			region.end = sz64;
+			pcibios_bus_to_resource(dev, res, &region);
 		} else {
-			res->start = l64;
-			res->end = l64 + sz64;
+			region.start = l64;
+			region.end = l64 + sz64;
+			pcibios_bus_to_resource(dev, res, &region);
 			dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n",
 				   pos, res);
 		}
@@ -228,8 +309,9 @@ int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 		if (!sz)
 			goto fail;
 
-		res->start = l;
-		res->end = l + sz;
+		region.start = l;
+		region.end = l + sz;
+		pcibios_bus_to_resource(dev, res, &region);
 
 		dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n", pos, res);
 	}
@@ -266,7 +348,8 @@ static void __devinit pci_read_bridge_io(struct pci_bus *child)
 	struct pci_dev *dev = child->self;
 	u8 io_base_lo, io_limit_lo;
 	unsigned long base, limit;
-	struct resource *res;
+	struct pci_bus_region region;
+	struct resource *res, res2;
 
 	res = child->resource[0];
 	pci_read_config_byte(dev, PCI_IO_BASE, &io_base_lo);
@@ -284,10 +367,14 @@ static void __devinit pci_read_bridge_io(struct pci_bus *child)
 
 	if (base && base <= limit) {
 		res->flags = (io_base_lo & PCI_IO_RANGE_TYPE_MASK) | IORESOURCE_IO;
+		res2.flags = res->flags;
+		region.start = base;
+		region.end = limit + 0xfff;
+		pcibios_bus_to_resource(dev, &res2, &region);
 		if (!res->start)
-			res->start = base;
+			res->start = res2.start;
 		if (!res->end)
-			res->end = limit + 0xfff;
+			res->end = res2.end;
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	}
 }
@@ -297,6 +384,7 @@ static void __devinit pci_read_bridge_mmio(struct pci_bus *child)
 	struct pci_dev *dev = child->self;
 	u16 mem_base_lo, mem_limit_lo;
 	unsigned long base, limit;
+	struct pci_bus_region region;
 	struct resource *res;
 
 	res = child->resource[1];
@@ -306,8 +394,9 @@ static void __devinit pci_read_bridge_mmio(struct pci_bus *child)
 	limit = (mem_limit_lo & PCI_MEMORY_RANGE_MASK) << 16;
 	if (base && base <= limit) {
 		res->flags = (mem_base_lo & PCI_MEMORY_RANGE_TYPE_MASK) | IORESOURCE_MEM;
-		res->start = base;
-		res->end = limit + 0xfffff;
+		region.start = base;
+		region.end = limit + 0xfffff;
+		pcibios_bus_to_resource(dev, res, &region);
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	}
 }
@@ -317,6 +406,7 @@ static void __devinit pci_read_bridge_mmio_pref(struct pci_bus *child)
 	struct pci_dev *dev = child->self;
 	u16 mem_base_lo, mem_limit_lo;
 	unsigned long base, limit;
+	struct pci_bus_region region;
 	struct resource *res;
 
 	res = child->resource[2];
@@ -353,8 +443,9 @@ static void __devinit pci_read_bridge_mmio_pref(struct pci_bus *child)
 					 IORESOURCE_MEM | IORESOURCE_PREFETCH;
 		if (res->flags & PCI_PREF_RANGE_TYPE_64)
 			res->flags |= IORESOURCE_MEM_64;
-		res->start = base;
-		res->end = limit + 0xfffff;
+		region.start = base;
+		region.end = limit + 0xfffff;
+		pcibios_bus_to_resource(dev, res, &region);
 		dev_printk(KERN_DEBUG, &dev->dev, "  bridge window %pR\n", res);
 	}
 }
@@ -900,6 +991,8 @@ int pci_setup_device(struct pci_dev *dev)
 	u8 hdr_type;
 	struct pci_slot *slot;
 	int pos = 0;
+	struct pci_bus_region region;
+	struct resource *res;
 
 	if (pci_read_config_byte(dev, PCI_HEADER_TYPE, &hdr_type))
 		return -EIO;
@@ -926,12 +1019,10 @@ int pci_setup_device(struct pci_dev *dev)
 
 	pci_read_config_dword(dev, PCI_CLASS_REVISION, &class);
 	dev->revision = class & 0xff;
-	class >>= 8;				    /* upper 3 bytes */
-	dev->class = class;
-	class >>= 8;
+	dev->class = class >> 8;		    /* upper 3 bytes */
 
-	dev_printk(KERN_DEBUG, &dev->dev, "[%04x:%04x] type %d class %#08x\n",
-		   dev->vendor, dev->device, dev->hdr_type, class);
+	dev_printk(KERN_DEBUG, &dev->dev, "[%04x:%04x] type %02x class %#08x\n",
+		   dev->vendor, dev->device, dev->hdr_type, dev->class);
 
 	/* need to have dev->class ready */
 	dev->cfg_size = pci_cfg_space_size(dev);
@@ -963,20 +1054,28 @@ int pci_setup_device(struct pci_dev *dev)
 			u8 progif;
 			pci_read_config_byte(dev, PCI_CLASS_PROG, &progif);
 			if ((progif & 1) == 0) {
-				dev->resource[0].start = 0x1F0;
-				dev->resource[0].end = 0x1F7;
-				dev->resource[0].flags = LEGACY_IO_RESOURCE;
-				dev->resource[1].start = 0x3F6;
-				dev->resource[1].end = 0x3F6;
-				dev->resource[1].flags = LEGACY_IO_RESOURCE;
+				region.start = 0x1F0;
+				region.end = 0x1F7;
+				res = &dev->resource[0];
+				res->flags = LEGACY_IO_RESOURCE;
+				pcibios_bus_to_resource(dev, res, &region);
+				region.start = 0x3F6;
+				region.end = 0x3F6;
+				res = &dev->resource[1];
+				res->flags = LEGACY_IO_RESOURCE;
+				pcibios_bus_to_resource(dev, res, &region);
 			}
 			if ((progif & 4) == 0) {
-				dev->resource[2].start = 0x170;
-				dev->resource[2].end = 0x177;
-				dev->resource[2].flags = LEGACY_IO_RESOURCE;
-				dev->resource[3].start = 0x376;
-				dev->resource[3].end = 0x376;
-				dev->resource[3].flags = LEGACY_IO_RESOURCE;
+				region.start = 0x170;
+				region.end = 0x177;
+				res = &dev->resource[2];
+				res->flags = LEGACY_IO_RESOURCE;
+				pcibios_bus_to_resource(dev, res, &region);
+				region.start = 0x376;
+				region.end = 0x376;
+				res = &dev->resource[3];
+				res->flags = LEGACY_IO_RESOURCE;
+				pcibios_bus_to_resource(dev, res, &region);
 			}
 		}
 		break;
@@ -1013,8 +1112,8 @@ int pci_setup_device(struct pci_dev *dev)
 		return -EIO;
 
 	bad:
-		dev_err(&dev->dev, "ignoring class %02x (doesn't match header "
-			"type %02x)\n", class, dev->hdr_type);
+		dev_err(&dev->dev, "ignoring class %#08x (doesn't match header "
+			"type %02x)\n", dev->class, dev->hdr_type);
 		dev->class = PCI_CLASS_NOT_DEFINED;
 	}
 
@@ -1026,6 +1125,7 @@ static void pci_release_capabilities(struct pci_dev *dev)
 {
 	pci_vpd_release(dev);
 	pci_iov_release(dev);
+	pci_free_cap_save_buffers(dev);
 }
 
 /**
@@ -1118,6 +1218,42 @@ struct pci_dev *alloc_pci_dev(void)
 }
 EXPORT_SYMBOL(alloc_pci_dev);
 
+bool pci_bus_read_dev_vendor_id(struct pci_bus *bus, int devfn, u32 *l,
+				 int crs_timeout)
+{
+	int delay = 1;
+
+	if (pci_bus_read_config_dword(bus, devfn, PCI_VENDOR_ID, l))
+		return false;
+
+	/* some broken boards return 0 or ~0 if a slot is empty: */
+	if (*l == 0xffffffff || *l == 0x00000000 ||
+	    *l == 0x0000ffff || *l == 0xffff0000)
+		return false;
+
+	/* Configuration request Retry Status */
+	while (*l == 0xffff0001) {
+		if (!crs_timeout)
+			return false;
+
+		msleep(delay);
+		delay *= 2;
+		if (pci_bus_read_config_dword(bus, devfn, PCI_VENDOR_ID, l))
+			return false;
+		/* Card hasn't responded in 60 seconds?  Must be stuck. */
+		if (delay > crs_timeout) {
+			printk(KERN_WARNING "pci %04x:%02x:%02x.%d: not "
+					"responding\n", pci_domain_nr(bus),
+					bus->number, PCI_SLOT(devfn),
+					PCI_FUNC(devfn));
+			return false;
+		}
+	}
+
+	return true;
+}
+EXPORT_SYMBOL(pci_bus_read_dev_vendor_id);
+
 /*
  * Read the config data for a PCI device, sanity-check it
  * and fill in the dev structure...
@@ -1126,31 +1262,9 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
 	u32 l;
-	int delay = 1;
 
-	if (pci_bus_read_config_dword(bus, devfn, PCI_VENDOR_ID, &l))
+	if (!pci_bus_read_dev_vendor_id(bus, devfn, &l, 60*1000))
 		return NULL;
-
-	/* some broken boards return 0 or ~0 if a slot is empty: */
-	if (l == 0xffffffff || l == 0x00000000 ||
-	    l == 0x0000ffff || l == 0xffff0000)
-		return NULL;
-
-	/* Configuration request Retry Status */
-	while (l == 0xffff0001) {
-		msleep(delay);
-		delay *= 2;
-		if (pci_bus_read_config_dword(bus, devfn, PCI_VENDOR_ID, &l))
-			return NULL;
-		/* Card hasn't responded in 60 seconds?  Must be stuck. */
-		if (delay > 60 * 1000) {
-			printk(KERN_WARNING "pci %04x:%02x:%02x.%d: not "
-					"responding\n", pci_domain_nr(bus),
-					bus->number, PCI_SLOT(devfn),
-					PCI_FUNC(devfn));
-			return NULL;
-		}
-	}
 
 	dev = alloc_pci_dev();
 	if (!dev)
@@ -1211,6 +1325,9 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 
 	/* Fix up broken headers */
 	pci_fixup_device(pci_fixup_header, dev);
+
+	/* moved out from quirk header fixup code */
+	pci_reassigndev_resource_alignment(dev);
 
 	/* Clear the state_saved flag. */
 	dev->state_saved = false;
@@ -1530,21 +1647,27 @@ unsigned int __devinit pci_scan_child_bus(struct pci_bus *bus)
 struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 		struct pci_ops *ops, void *sysdata, struct list_head *resources)
 {
-	int error, i;
+	int error;
+	struct pci_host_bridge *bridge;
 	struct pci_bus *b, *b2;
 	struct device *dev;
-	struct pci_bus_resource *bus_res, *n;
+	struct pci_host_bridge_window *window, *n;
 	struct resource *res;
+	resource_size_t offset;
+	char bus_addr[64];
+	char *fmt;
+
+	bridge = kzalloc(sizeof(*bridge), GFP_KERNEL);
+	if (!bridge)
+		return NULL;
 
 	b = pci_alloc_bus();
 	if (!b)
-		return NULL;
+		goto err_bus;
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		kfree(b);
-		return NULL;
-	}
+	if (!dev)
+		goto err_dev;
 
 	b->sysdata = sysdata;
 	b->ops = ops;
@@ -1555,10 +1678,6 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 		dev_dbg(&b2->dev, "bus already known\n");
 		goto err_out;
 	}
-
-	down_write(&pci_bus_sem);
-	list_add_tail(&b->node, &pci_root_buses);
-	up_write(&pci_bus_sem);
 
 	dev->parent = parent;
 	dev->release = pci_release_bus_bridge_dev;
@@ -1585,19 +1704,37 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 
 	b->number = b->secondary = bus;
 
-	/* Add initial resources to the bus */
-	list_for_each_entry_safe(bus_res, n, resources, list)
-		list_move_tail(&bus_res->list, &b->resources);
+	bridge->bus = b;
+	INIT_LIST_HEAD(&bridge->windows);
 
 	if (parent)
 		dev_info(parent, "PCI host bridge to bus %s\n", dev_name(&b->dev));
 	else
 		printk(KERN_INFO "PCI host bridge to bus %s\n", dev_name(&b->dev));
 
-	pci_bus_for_each_resource(b, res, i) {
-		if (res)
-			dev_info(&b->dev, "root bus resource %pR\n", res);
+	/* Add initial resources to the bus */
+	list_for_each_entry_safe(window, n, resources, list) {
+		list_move_tail(&window->list, &bridge->windows);
+		res = window->res;
+		offset = window->offset;
+		pci_bus_add_resource(b, res, 0);
+		if (offset) {
+			if (resource_type(res) == IORESOURCE_IO)
+				fmt = " (bus address [%#06llx-%#06llx])";
+			else
+				fmt = " (bus address [%#010llx-%#010llx])";
+			snprintf(bus_addr, sizeof(bus_addr), fmt,
+				 (unsigned long long) (res->start - offset),
+				 (unsigned long long) (res->end - offset));
+		} else
+			bus_addr[0] = '\0';
+		dev_info(&b->dev, "root bus resource %pR%s\n", res, bus_addr);
 	}
+
+	down_write(&pci_bus_sem);
+	list_add_tail(&bridge->list, &pci_host_bridges);
+	list_add_tail(&b->node, &pci_root_buses);
+	up_write(&pci_bus_sem);
 
 	return b;
 
@@ -1605,11 +1742,15 @@ class_dev_reg_err:
 	device_unregister(dev);
 dev_reg_err:
 	down_write(&pci_bus_sem);
+	list_del(&bridge->list);
 	list_del(&b->node);
 	up_write(&pci_bus_sem);
 err_out:
 	kfree(dev);
+err_dev:
 	kfree(b);
+err_bus:
+	kfree(bridge);
 	return NULL;
 }
 
@@ -1667,36 +1808,29 @@ EXPORT_SYMBOL(pci_scan_bus);
 
 #ifdef CONFIG_HOTPLUG
 /**
- * pci_rescan_bus - scan a PCI bus for devices.
- * @bus: PCI bus to scan
+ * pci_rescan_bus_bridge_resize - scan a PCI bus for devices.
+ * @bridge: PCI bridge for the bus to scan
  *
- * Scan a PCI bus and child buses for new devices, adds them,
- * and enables them.
+ * Scan a PCI bus and child buses for new devices, add them,
+ * and enable them, resizing bridge mmio/io resource if necessary
+ * and possible.  The caller must ensure the child devices are already
+ * removed for resizing to occur.
  *
  * Returns the max number of subordinate bus discovered.
  */
-unsigned int __ref pci_rescan_bus(struct pci_bus *bus)
+unsigned int __ref pci_rescan_bus_bridge_resize(struct pci_dev *bridge)
 {
 	unsigned int max;
-	struct pci_dev *dev;
+	struct pci_bus *bus = bridge->subordinate;
 
 	max = pci_scan_child_bus(bus);
 
-	down_read(&pci_bus_sem);
-	list_for_each_entry(dev, &bus->devices, bus_list)
-		if (dev->hdr_type == PCI_HEADER_TYPE_BRIDGE ||
-		    dev->hdr_type == PCI_HEADER_TYPE_CARDBUS)
-			if (dev->subordinate)
-				pci_bus_size_bridges(dev->subordinate);
-	up_read(&pci_bus_sem);
+	pci_assign_unassigned_bridge_resources(bridge);
 
-	pci_bus_assign_resources(bus);
-	pci_enable_bridges(bus);
 	pci_bus_add_devices(bus);
 
 	return max;
 }
-EXPORT_SYMBOL_GPL(pci_rescan_bus);
 
 EXPORT_SYMBOL(pci_add_new_bus);
 EXPORT_SYMBOL(pci_scan_slot);

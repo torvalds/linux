@@ -194,21 +194,8 @@ static struct i2c_driver lm73_driver = {
 	.address_list	= normal_i2c,
 };
 
-/* module glue */
-
-static int __init sensors_lm73_init(void)
-{
-	return i2c_add_driver(&lm73_driver);
-}
-
-static void __exit sensors_lm73_exit(void)
-{
-	i2c_del_driver(&lm73_driver);
-}
+module_i2c_driver(lm73_driver);
 
 MODULE_AUTHOR("Guillaume Ligneul <guillaume.ligneul@gmail.com>");
 MODULE_DESCRIPTION("LM73 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm73_init);
-module_exit(sensors_lm73_exit);

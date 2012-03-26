@@ -1418,7 +1418,7 @@ void audit_log_untrustedstring(struct audit_buffer *ab, const char *string)
 
 /* This is a helper-function to print the escaped d_path */
 void audit_log_d_path(struct audit_buffer *ab, const char *prefix,
-		      struct path *path)
+		      const struct path *path)
 {
 	char *p, *pathname;
 

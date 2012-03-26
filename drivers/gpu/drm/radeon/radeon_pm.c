@@ -221,7 +221,7 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 		}
 
 		/* set memory clock */
-		if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
+		if (rdev->asic->pm.set_memory_clock && (mclk != rdev->pm.current_mclk)) {
 			radeon_pm_debug_check_in_vbl(rdev, false);
 			radeon_set_memory_clock(rdev, mclk);
 			radeon_pm_debug_check_in_vbl(rdev, true);
@@ -474,6 +474,9 @@ static ssize_t radeon_hwmon_show_temp(struct device *dev,
 	case THERMAL_TYPE_SUMO:
 		temp = sumo_get_temp(rdev);
 		break;
+	case THERMAL_TYPE_SI:
+		temp = si_get_temp(rdev);
+		break;
 	default:
 		temp = 0;
 		break;
@@ -514,6 +517,10 @@ static int radeon_hwmon_init(struct radeon_device *rdev)
 	case THERMAL_TYPE_EVERGREEN:
 	case THERMAL_TYPE_NI:
 	case THERMAL_TYPE_SUMO:
+	case THERMAL_TYPE_SI:
+		/* No support for TN yet */
+		if (rdev->family == CHIP_ARUBA)
+			return err;
 		rdev->pm.int_hwmon_dev = hwmon_device_register(rdev->dev);
 		if (IS_ERR(rdev->pm.int_hwmon_dev)) {
 			err = PTR_ERR(rdev->pm.int_hwmon_dev);
@@ -863,11 +870,11 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 	seq_printf(m, "default engine clock: %u0 kHz\n", rdev->pm.default_sclk);
 	seq_printf(m, "current engine clock: %u0 kHz\n", radeon_get_engine_clock(rdev));
 	seq_printf(m, "default memory clock: %u0 kHz\n", rdev->pm.default_mclk);
-	if (rdev->asic->get_memory_clock)
+	if (rdev->asic->pm.get_memory_clock)
 		seq_printf(m, "current memory clock: %u0 kHz\n", radeon_get_memory_clock(rdev));
 	if (rdev->pm.current_vddc)
 		seq_printf(m, "voltage: %u mV\n", rdev->pm.current_vddc);
-	if (rdev->asic->get_pcie_lanes)
+	if (rdev->asic->pm.get_pcie_lanes)
 		seq_printf(m, "PCIE lanes: %d\n", radeon_get_pcie_lanes(rdev));
 
 	return 0;

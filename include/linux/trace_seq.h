@@ -44,7 +44,7 @@ extern int trace_seq_putmem(struct trace_seq *s, const void *mem, size_t len);
 extern int trace_seq_putmem_hex(struct trace_seq *s, const void *mem,
 				size_t len);
 extern void *trace_seq_reserve(struct trace_seq *s, size_t len);
-extern int trace_seq_path(struct trace_seq *s, struct path *path);
+extern int trace_seq_path(struct trace_seq *s, const struct path *path);
 
 #else /* CONFIG_TRACING */
 static inline int trace_seq_printf(struct trace_seq *s, const char *fmt, ...)
@@ -88,7 +88,7 @@ static inline void *trace_seq_reserve(struct trace_seq *s, size_t len)
 {
 	return NULL;
 }
-static inline int trace_seq_path(struct trace_seq *s, struct path *path)
+static inline int trace_seq_path(struct trace_seq *s, const struct path *path)
 {
 	return 0;
 }

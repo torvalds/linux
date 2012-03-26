@@ -17,6 +17,8 @@
 #include <linux/lockd/lockd.h>
 #include <linux/mutex.h>
 
+#include <linux/sunrpc/svc_xprt.h>
+
 #include <net/ipv6.h>
 
 #define NLMDBG_FACILITY		NLMDBG_HOSTCACHE
@@ -54,6 +56,7 @@ struct nlm_lookup_host_info {
 	const char		*hostname;	/* remote's hostname */
 	const size_t		hostname_len;	/* it's length */
 	const int		noresvport;	/* use non-priv port */
+	struct net		*net;		/* network namespace to bind */
 };
 
 /*
@@ -155,6 +158,7 @@ static struct nlm_host *nlm_alloc_host(struct nlm_lookup_host_info *ni,
 	INIT_LIST_HEAD(&host->h_reclaim);
 	host->h_nsmhandle  = nsm;
 	host->h_addrbuf    = nsm->sm_addrbuf;
+	host->net	   = ni->net;
 
 out:
 	return host;
@@ -206,7 +210,8 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 				     const unsigned short protocol,
 				     const u32 version,
 				     const char *hostname,
-				     int noresvport)
+				     int noresvport,
+				     struct net *net)
 {
 	struct nlm_lookup_host_info ni = {
 		.server		= 0,
@@ -217,6 +222,7 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 		.hostname	= hostname,
 		.hostname_len	= strlen(hostname),
 		.noresvport	= noresvport,
+		.net		= net,
 	};
 	struct hlist_head *chain;
 	struct hlist_node *pos;
@@ -231,6 +237,8 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr *sap,
 
 	chain = &nlm_client_hosts[nlm_hash_address(sap)];
 	hlist_for_each_entry(host, pos, chain, h_hash) {
+		if (host->net != net)
+			continue;
 		if (!rpc_cmp_addr(nlm_addr(host), sap))
 			continue;
 
@@ -318,6 +326,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 	struct nsm_handle *nsm = NULL;
 	struct sockaddr *src_sap = svc_daddr(rqstp);
 	size_t src_len = rqstp->rq_daddrlen;
+	struct net *net = rqstp->rq_xprt->xpt_net;
 	struct nlm_lookup_host_info ni = {
 		.server		= 1,
 		.sap		= svc_addr(rqstp),
@@ -326,6 +335,7 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 		.version	= rqstp->rq_vers,
 		.hostname	= hostname,
 		.hostname_len	= hostname_len,
+		.net		= net,
 	};
 
 	dprintk("lockd: %s(host='%*s', vers=%u, proto=%s)\n", __func__,
@@ -339,6 +349,8 @@ struct nlm_host *nlmsvc_lookup_host(const struct svc_rqst *rqstp,
 
 	chain = &nlm_server_hosts[nlm_hash_address(ni.sap)];
 	hlist_for_each_entry(host, pos, chain, h_hash) {
+		if (host->net != net)
+			continue;
 		if (!rpc_cmp_addr(nlm_addr(host), ni.sap))
 			continue;
 
@@ -431,7 +443,7 @@ nlm_bind_host(struct nlm_host *host)
 			.to_retries	= 5U,
 		};
 		struct rpc_create_args args = {
-			.net		= &init_net,
+			.net		= host->net,
 			.protocol	= host->h_proto,
 			.address	= nlm_addr(host),
 			.addrsize	= host->h_addrlen,
@@ -553,12 +565,8 @@ void nlm_host_rebooted(const struct nlm_reboot *info)
 	nsm_release(nsm);
 }
 
-/*
- * Shut down the hosts module.
- * Note that this routine is called only at server shutdown time.
- */
 void
-nlm_shutdown_hosts(void)
+nlm_shutdown_hosts_net(struct net *net)
 {
 	struct hlist_head *chain;
 	struct hlist_node *pos;
@@ -570,6 +578,8 @@ nlm_shutdown_hosts(void)
 	/* First, make all hosts eligible for gc */
 	dprintk("lockd: nuking all hosts...\n");
 	for_each_host(host, pos, chain, nlm_server_hosts) {
+		if (net && host->net != net)
+			continue;
 		host->h_expires = jiffies - 1;
 		if (host->h_rpcclnt) {
 			rpc_shutdown_client(host->h_rpcclnt);
@@ -580,15 +590,29 @@ nlm_shutdown_hosts(void)
 	/* Then, perform a garbage collection pass */
 	nlm_gc_hosts();
 	mutex_unlock(&nlm_host_mutex);
+}
+
+/*
+ * Shut down the hosts module.
+ * Note that this routine is called only at server shutdown time.
+ */
+void
+nlm_shutdown_hosts(void)
+{
+	struct hlist_head *chain;
+	struct hlist_node *pos;
+	struct nlm_host	*host;
+
+	nlm_shutdown_hosts_net(NULL);
 
 	/* complain if any hosts are left */
 	if (nrhosts != 0) {
 		printk(KERN_WARNING "lockd: couldn't shutdown host module!\n");
 		dprintk("lockd: %lu hosts left:\n", nrhosts);
 		for_each_host(host, pos, chain, nlm_server_hosts) {
-			dprintk("       %s (cnt %d use %d exp %ld)\n",
+			dprintk("       %s (cnt %d use %d exp %ld net %p)\n",
 				host->h_name, atomic_read(&host->h_count),
-				host->h_inuse, host->h_expires);
+				host->h_inuse, host->h_expires, host->net);
 		}
 	}
 }

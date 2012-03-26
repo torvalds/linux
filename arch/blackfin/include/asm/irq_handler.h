@@ -9,6 +9,7 @@
 
 #include <linux/types.h>
 #include <linux/linkage.h>
+#include <mach/irq.h>
 
 /* init functions only */
 extern int __init init_arch_irq(void);

@@ -464,7 +464,7 @@ static int wl1273_probe(struct snd_soc_codec *codec)
 
 	snd_soc_codec_set_drvdata(codec, wl1273);
 
-	r = snd_soc_add_controls(codec, wl1273_controls,
+	r = snd_soc_add_codec_controls(codec, wl1273_controls,
 				 ARRAY_SIZE(wl1273_controls));
 	if (r)
 		kfree(wl1273);

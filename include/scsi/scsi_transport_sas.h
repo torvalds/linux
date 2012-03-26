@@ -75,7 +75,8 @@ struct sas_phy {
 	/* for the list of phys belonging to a port */
 	struct list_head	port_siblings;
 
-	struct work_struct      reset_work;
+	/* available to the lldd */
+	void			*hostdata;
 };
 
 #define dev_to_phy(d) \
@@ -169,6 +170,8 @@ struct sas_function_template {
 	int (*get_bay_identifier)(struct sas_rphy *);
 	int (*phy_reset)(struct sas_phy *, int);
 	int (*phy_enable)(struct sas_phy *, int);
+	int (*phy_setup)(struct sas_phy *);
+	void (*phy_release)(struct sas_phy *);
 	int (*set_phy_speed)(struct sas_phy *, struct sas_phy_linkrates *);
 	int (*smp_handler)(struct Scsi_Host *, struct sas_rphy *, struct request *);
 };
@@ -194,6 +197,7 @@ void sas_rphy_free(struct sas_rphy *);
 extern int sas_rphy_add(struct sas_rphy *);
 extern void sas_rphy_remove(struct sas_rphy *);
 extern void sas_rphy_delete(struct sas_rphy *);
+extern void sas_rphy_unlink(struct sas_rphy *);
 extern int scsi_is_sas_rphy(const struct device *);
 
 struct sas_port *sas_port_alloc(struct device *, int);
@@ -205,6 +209,12 @@ void sas_port_add_phy(struct sas_port *, struct sas_phy *);
 void sas_port_delete_phy(struct sas_port *, struct sas_phy *);
 void sas_port_mark_backlink(struct sas_port *);
 int scsi_is_sas_port(const struct device *);
+struct sas_phy *sas_port_get_phy(struct sas_port *port);
+static inline void sas_port_put_phy(struct sas_phy *phy)
+{
+	if (phy)
+		put_device(&phy->dev);
+}
 
 extern struct scsi_transport_template *
 sas_attach_transport(struct sas_function_template *);

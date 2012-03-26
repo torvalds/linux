@@ -1279,19 +1279,8 @@ static struct i2c_driver apds990x_driver = {
 	.id_table = apds990x_id,
 };
 
-static int __init apds990x_init(void)
-{
-	return i2c_add_driver(&apds990x_driver);
-}
-
-static void __exit apds990x_exit(void)
-{
-	i2c_del_driver(&apds990x_driver);
-}
+module_i2c_driver(apds990x_driver);
 
 MODULE_DESCRIPTION("APDS990X combined ALS and proximity sensor");
 MODULE_AUTHOR("Samu Onkalo, Nokia Corporation");
 MODULE_LICENSE("GPL v2");
-
-module_init(apds990x_init);
-module_exit(apds990x_exit);

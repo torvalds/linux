@@ -163,22 +163,24 @@ u32 mwifiex_get_active_data_rates(struct mwifiex_private *priv, u8 *rates)
 		return mwifiex_get_supported_rates(priv, rates);
 	else
 		return mwifiex_copy_rates(rates, 0,
-				       priv->curr_bss_params.data_rates,
-				       priv->curr_bss_params.num_of_rates);
+					  priv->curr_bss_params.data_rates,
+					  priv->curr_bss_params.num_of_rates);
 }
 
 /*
  * This function locates the Channel-Frequency-Power triplet based upon
- * band and channel parameters.
+ * band and channel/frequency parameters.
  */
 struct mwifiex_chan_freq_power *
-mwifiex_get_cfp_by_band_and_channel_from_cfg80211(struct mwifiex_private
-						  *priv, u8 band, u16 channel)
+mwifiex_get_cfp(struct mwifiex_private *priv, u8 band, u16 channel, u32 freq)
 {
 	struct mwifiex_chan_freq_power *cfp = NULL;
 	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *ch;
+	struct ieee80211_channel *ch = NULL;
 	int i;
+
+	if (!channel && !freq)
+		return cfp;
 
 	if (mwifiex_band_to_radio_type(band) == HostCmd_SCAN_RADIO_TYPE_BG)
 		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_2GHZ];
@@ -186,68 +188,40 @@ mwifiex_get_cfp_by_band_and_channel_from_cfg80211(struct mwifiex_private
 		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_5GHZ];
 
 	if (!sband) {
-		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d"
-				" & channel %d\n", __func__, band, channel);
+		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d\n",
+			__func__, band);
 		return cfp;
 	}
 
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
-		if (((ch->hw_value == channel) ||
-			(channel == FIRST_VALID_CHANNEL))
-			&& !(ch->flags & IEEE80211_CHAN_DISABLED)) {
-			priv->cfp.channel = channel;
-			priv->cfp.freq = ch->center_freq;
-			priv->cfp.max_tx_power = ch->max_power;
-			cfp = &priv->cfp;
-			break;
+
+		if (ch->flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
+		if (freq) {
+			if (ch->center_freq == freq)
+				break;
+		} else {
+			/* find by valid channel*/
+			if (ch->hw_value == channel ||
+			    channel == FIRST_VALID_CHANNEL)
+				break;
 		}
 	}
-	if (i == sband->n_channels)
+	if (i == sband->n_channels) {
 		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d"
-				" & channel %d\n", __func__, band, channel);
+			" & channel=%d freq=%d\n", __func__, band, channel,
+			freq);
+	} else {
+		if (!ch)
+			return cfp;
 
-	return cfp;
-}
-
-/*
- * This function locates the Channel-Frequency-Power triplet based upon
- * band and frequency parameters.
- */
-struct mwifiex_chan_freq_power *
-mwifiex_get_cfp_by_band_and_freq_from_cfg80211(struct mwifiex_private *priv,
-					       u8 band, u32 freq)
-{
-	struct mwifiex_chan_freq_power *cfp = NULL;
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_channel *ch;
-	int i;
-
-	if (mwifiex_band_to_radio_type(band) == HostCmd_SCAN_RADIO_TYPE_BG)
-		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_2GHZ];
-	else
-		sband = priv->wdev->wiphy->bands[IEEE80211_BAND_5GHZ];
-
-	if (!sband) {
-		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d"
-				" & freq %d\n", __func__, band, freq);
-		return cfp;
+		priv->cfp.channel = ch->hw_value;
+		priv->cfp.freq = ch->center_freq;
+		priv->cfp.max_tx_power = ch->max_power;
+		cfp = &priv->cfp;
 	}
-
-	for (i = 0; i < sband->n_channels; i++) {
-		ch = &sband->channels[i];
-		if ((ch->center_freq == freq) &&
-			!(ch->flags & IEEE80211_CHAN_DISABLED)) {
-			priv->cfp.channel = ch->hw_value;
-			priv->cfp.freq = freq;
-			priv->cfp.max_tx_power = ch->max_power;
-			cfp = &priv->cfp;
-			break;
-		}
-	}
-	if (i == sband->n_channels)
-		dev_err(priv->adapter->dev, "%s: cannot find cfp by band %d"
-				" & freq %d\n", __func__, band, freq);
 
 	return cfp;
 }

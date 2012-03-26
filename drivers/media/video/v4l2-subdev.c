@@ -194,8 +194,16 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	}
 #endif
 
-	case VIDIOC_LOG_STATUS:
-		return v4l2_subdev_call(sd, core, log_status);
+	case VIDIOC_LOG_STATUS: {
+		int ret;
+
+		pr_info("%s: =================  START STATUS  =================\n",
+			sd->name);
+		ret = v4l2_subdev_call(sd, core, log_status);
+		pr_info("%s: ==================  END STATUS  ==================\n",
+			sd->name);
+		return ret;
+	}
 
 #if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
 	case VIDIOC_SUBDEV_G_FMT: {

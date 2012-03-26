@@ -54,10 +54,12 @@
  *   2.10.0 - fusion 2D tiling
  *   2.11.0 - backend map, initial compute support for the CS checker
  *   2.12.0 - RADEON_CS_KEEP_TILING_FLAGS
- *   2.13.0 - virtual memory support
+ *   2.13.0 - virtual memory support, streamout
+ *   2.14.0 - add evergreen tiling informations
+ *   2.15.0 - add max_pipes query
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	13
+#define KMS_DRIVER_MINOR	15
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);

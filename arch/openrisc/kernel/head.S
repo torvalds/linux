@@ -26,6 +26,7 @@
 #include <asm/cache.h>
 #include <asm/spr_defs.h>
 #include <asm/asm-offsets.h>
+#include <linux/of_fdt.h>
 
 #define tophys(rd,rs)				\
 	l.movhi	rd,hi(-KERNELBASE)		;\
@@ -440,6 +441,9 @@ _dispatch_do_ipage_fault:
 	__HEAD
 	.global _start
 _start:
+	/* save kernel parameters */
+	l.or	r25,r0,r3	/* pointer to fdt */
+
 	/*
 	 * ensure a deterministic start
 	 */
@@ -471,7 +475,6 @@ _start:
 	CLEAR_GPR(r22)
 	CLEAR_GPR(r23)
 	CLEAR_GPR(r24)
-	CLEAR_GPR(r25)
 	CLEAR_GPR(r26)
 	CLEAR_GPR(r27)
 	CLEAR_GPR(r28)
@@ -565,6 +568,18 @@ enable_mmu:
 	// reset the simulation counters
 	l.nop 5
 
+	/* check fdt header magic word */
+	l.lwz	r3,0(r25)	/* load magic from fdt into r3 */
+	l.movhi	r4,hi(OF_DT_HEADER)
+	l.ori	r4,r4,lo(OF_DT_HEADER)
+	l.sfeq	r3,r4
+	l.bf	_fdt_found
+	 l.nop
+	/* magic number mismatch, set fdt pointer to null */
+	l.or	r25,r0,r0
+_fdt_found:
+	/* pass fdt pointer to or32_early_setup in r3 */
+	l.or	r3,r0,r25
 	LOAD_SYMBOL_2_GPR(r24, or32_early_setup)
 	l.jalr r24
 	 l.nop

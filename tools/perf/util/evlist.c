@@ -97,9 +97,9 @@ void perf_evlist__add(struct perf_evlist *evlist, struct perf_evsel *entry)
 	++evlist->nr_entries;
 }
 
-static void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
-					  struct list_head *list,
-					  int nr_entries)
+void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
+				   struct list_head *list,
+				   int nr_entries)
 {
 	list_splice_tail(list, &evlist->entries);
 	evlist->nr_entries += nr_entries;
@@ -597,15 +597,15 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_per_cpu(evlist, prot, mask);
 }
 
-int perf_evlist__create_maps(struct perf_evlist *evlist, pid_t target_pid,
-			     pid_t target_tid, const char *cpu_list)
+int perf_evlist__create_maps(struct perf_evlist *evlist, const char *target_pid,
+			     const char *target_tid, uid_t uid, const char *cpu_list)
 {
-	evlist->threads = thread_map__new(target_pid, target_tid);
+	evlist->threads = thread_map__new_str(target_pid, target_tid, uid);
 
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (cpu_list == NULL && target_tid != -1)
+	if (uid != UINT_MAX || (cpu_list == NULL && target_tid))
 		evlist->cpus = cpu_map__dummy_new();
 	else
 		evlist->cpus = cpu_map__new(cpu_list);
@@ -765,6 +765,7 @@ out_err:
 	list_for_each_entry_reverse(evsel, &evlist->entries, node)
 		perf_evsel__close(evsel, ncpus, nthreads);
 
+	errno = -err;
 	return err;
 }
 
@@ -824,7 +825,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		exit(-1);
 	}
 
-	if (!opts->system_wide && opts->target_tid == -1 && opts->target_pid == -1)
+	if (!opts->system_wide && !opts->target_tid && !opts->target_pid)
 		evlist->threads->map[0] = evlist->workload.pid;
 
 	close(child_ready_pipe[1]);

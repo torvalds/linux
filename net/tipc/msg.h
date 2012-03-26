@@ -384,11 +384,6 @@ static inline void msg_set_destnode(struct tipc_msg *m, u32 a)
 	msg_set_word(m, 7, a);
 }
 
-static inline int msg_is_dest(struct tipc_msg *m, u32 d)
-{
-	return msg_short(m) || (msg_destnode(m) == d);
-}
-
 static inline u32 msg_nametype(struct tipc_msg *m)
 {
 	return msg_word(m, 8);
@@ -515,6 +510,16 @@ static inline u32 msg_seq_gap(struct tipc_msg *m)
 static inline void msg_set_seq_gap(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 1, 16, 0x1fff, n);
+}
+
+static inline u32 msg_node_sig(struct tipc_msg *m)
+{
+	return msg_bits(m, 1, 0, 0xffff);
+}
+
+static inline void msg_set_node_sig(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 1, 0, 0xffff, n);
 }
 
 

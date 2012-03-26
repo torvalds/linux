@@ -123,17 +123,7 @@ static struct spi_driver ad714x_spi_driver = {
 	.remove		= __devexit_p(ad714x_spi_remove),
 };
 
-static __init int ad714x_spi_init(void)
-{
-	return spi_register_driver(&ad714x_spi_driver);
-}
-module_init(ad714x_spi_init);
-
-static __exit void ad714x_spi_exit(void)
-{
-	spi_unregister_driver(&ad714x_spi_driver);
-}
-module_exit(ad714x_spi_exit);
+module_spi_driver(ad714x_spi_driver);
 
 MODULE_DESCRIPTION("Analog Devices AD714X Capacitance Touch Sensor SPI Bus Driver");
 MODULE_AUTHOR("Barry Song <21cnbao@gmail.com>");

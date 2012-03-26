@@ -588,15 +588,4 @@ static struct i2c_driver vpx3220_driver = {
 	.id_table	= vpx3220_id,
 };
 
-static __init int init_vpx3220(void)
-{
-	return i2c_add_driver(&vpx3220_driver);
-}
-
-static __exit void exit_vpx3220(void)
-{
-	i2c_del_driver(&vpx3220_driver);
-}
-
-module_init(init_vpx3220);
-module_exit(exit_vpx3220);
+module_i2c_driver(vpx3220_driver);

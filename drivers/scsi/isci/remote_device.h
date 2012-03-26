@@ -82,10 +82,9 @@ struct isci_remote_device {
 	#define IDEV_START_PENDING 0
 	#define IDEV_STOP_PENDING 1
 	#define IDEV_ALLOCATED 2
-	#define IDEV_EH 3
-	#define IDEV_GONE 4
-	#define IDEV_IO_READY 5
-	#define IDEV_IO_NCQERROR 6
+	#define IDEV_GONE 3
+	#define IDEV_IO_READY 4
+	#define IDEV_IO_NCQERROR 5
 	unsigned long flags;
 	struct kref kref;
 	struct isci_port *isci_port;
@@ -180,122 +179,101 @@ enum sci_status sci_remote_device_reset_complete(
 /**
  * enum sci_remote_device_states - This enumeration depicts all the states
  *    for the common remote device state machine.
+ * @SCI_DEV_INITIAL: Simply the initial state for the base remote device
+ * state machine.
  *
+ * @SCI_DEV_STOPPED: This state indicates that the remote device has
+ * successfully been stopped.  In this state no new IO operations are
+ * permitted.  This state is entered from the INITIAL state.  This state
+ * is entered from the STOPPING state.
  *
+ * @SCI_DEV_STARTING: This state indicates the the remote device is in
+ * the process of becoming ready (i.e. starting).  In this state no new
+ * IO operations are permitted.  This state is entered from the STOPPED
+ * state.
+ *
+ * @SCI_DEV_READY: This state indicates the remote device is now ready.
+ * Thus, the user is able to perform IO operations on the remote device.
+ * This state is entered from the STARTING state.
+ *
+ * @SCI_STP_DEV_IDLE: This is the idle substate for the stp remote
+ * device.  When there are no active IO for the device it is is in this
+ * state.
+ *
+ * @SCI_STP_DEV_CMD: This is the command state for for the STP remote
+ * device.  This state is entered when the device is processing a
+ * non-NCQ command.  The device object will fail any new start IO
+ * requests until this command is complete.
+ *
+ * @SCI_STP_DEV_NCQ: This is the NCQ state for the STP remote device.
+ * This state is entered when the device is processing an NCQ reuqest.
+ * It will remain in this state so long as there is one or more NCQ
+ * requests being processed.
+ *
+ * @SCI_STP_DEV_NCQ_ERROR: This is the NCQ error state for the STP
+ * remote device.  This state is entered when an SDB error FIS is
+ * received by the device object while in the NCQ state.  The device
+ * object will only accept a READ LOG command while in this state.
+ *
+ * @SCI_STP_DEV_ATAPI_ERROR: This is the ATAPI error state for the STP
+ * ATAPI remote device.  This state is entered when ATAPI device sends
+ * error status FIS without data while the device object is in CMD
+ * state.  A suspension event is expected in this state.  The device
+ * object will resume right away.
+ *
+ * @SCI_STP_DEV_AWAIT_RESET: This is the READY substate indicates the
+ * device is waiting for the RESET task coming to be recovered from
+ * certain hardware specific error.
+ *
+ * @SCI_SMP_DEV_IDLE: This is the ready operational substate for the
+ * remote device.  This is the normal operational state for a remote
+ * device.
+ *
+ * @SCI_SMP_DEV_CMD: This is the suspended state for the remote device.
+ * This is the state that the device is placed in when a RNC suspend is
+ * received by the SCU hardware.
+ *
+ * @SCI_DEV_STOPPING: This state indicates that the remote device is in
+ * the process of stopping.  In this state no new IO operations are
+ * permitted, but existing IO operations are allowed to complete.  This
+ * state is entered from the READY state.  This state is entered from
+ * the FAILED state.
+ *
+ * @SCI_DEV_FAILED: This state indicates that the remote device has
+ * failed.  In this state no new IO operations are permitted.  This
+ * state is entered from the INITIALIZING state.  This state is entered
+ * from the READY state.
+ *
+ * @SCI_DEV_RESETTING: This state indicates the device is being reset.
+ * In this state no new IO operations are permitted.  This state is
+ * entered from the READY state.
+ *
+ * @SCI_DEV_FINAL: Simply the final state for the base remote device
+ * state machine.
  */
-enum sci_remote_device_states {
-	/**
-	 * Simply the initial state for the base remote device state machine.
-	 */
-	SCI_DEV_INITIAL,
-
-	/**
-	 * This state indicates that the remote device has successfully been
-	 * stopped.  In this state no new IO operations are permitted.
-	 * This state is entered from the INITIAL state.
-	 * This state is entered from the STOPPING state.
-	 */
-	SCI_DEV_STOPPED,
-
-	/**
-	 * This state indicates the the remote device is in the process of
-	 * becoming ready (i.e. starting).  In this state no new IO operations
-	 * are permitted.
-	 * This state is entered from the STOPPED state.
-	 */
-	SCI_DEV_STARTING,
-
-	/**
-	 * This state indicates the remote device is now ready.  Thus, the user
-	 * is able to perform IO operations on the remote device.
-	 * This state is entered from the STARTING state.
-	 */
-	SCI_DEV_READY,
-
-	/**
-	 * This is the idle substate for the stp remote device.  When there are no
-	 * active IO for the device it is is in this state.
-	 */
-	SCI_STP_DEV_IDLE,
-
-	/**
-	 * This is the command state for for the STP remote device.  This state is
-	 * entered when the device is processing a non-NCQ command.  The device object
-	 * will fail any new start IO requests until this command is complete.
-	 */
-	SCI_STP_DEV_CMD,
-
-	/**
-	 * This is the NCQ state for the STP remote device.  This state is entered
-	 * when the device is processing an NCQ reuqest.  It will remain in this state
-	 * so long as there is one or more NCQ requests being processed.
-	 */
-	SCI_STP_DEV_NCQ,
-
-	/**
-	 * This is the NCQ error state for the STP remote device.  This state is
-	 * entered when an SDB error FIS is received by the device object while in the
-	 * NCQ state.  The device object will only accept a READ LOG command while in
-	 * this state.
-	 */
-	SCI_STP_DEV_NCQ_ERROR,
-
-	/**
-	 * This is the ATAPI error state for the STP ATAPI remote device.
-	 * This state is entered when ATAPI device sends error status FIS
-	 * without data while the device object is in CMD state.
-	 * A suspension event is expected in this state.
-	 * The device object will resume right away.
-	 */
-	SCI_STP_DEV_ATAPI_ERROR,
-
-	/**
-	 * This is the READY substate indicates the device is waiting for the RESET task
-	 * coming to be recovered from certain hardware specific error.
-	 */
-	SCI_STP_DEV_AWAIT_RESET,
-
-	/**
-	 * This is the ready operational substate for the remote device.  This is the
-	 * normal operational state for a remote device.
-	 */
-	SCI_SMP_DEV_IDLE,
-
-	/**
-	 * This is the suspended state for the remote device.  This is the state that
-	 * the device is placed in when a RNC suspend is received by the SCU hardware.
-	 */
-	SCI_SMP_DEV_CMD,
-
-	/**
-	 * This state indicates that the remote device is in the process of
-	 * stopping.  In this state no new IO operations are permitted, but
-	 * existing IO operations are allowed to complete.
-	 * This state is entered from the READY state.
-	 * This state is entered from the FAILED state.
-	 */
-	SCI_DEV_STOPPING,
-
-	/**
-	 * This state indicates that the remote device has failed.
-	 * In this state no new IO operations are permitted.
-	 * This state is entered from the INITIALIZING state.
-	 * This state is entered from the READY state.
-	 */
-	SCI_DEV_FAILED,
-
-	/**
-	 * This state indicates the device is being reset.
-	 * In this state no new IO operations are permitted.
-	 * This state is entered from the READY state.
-	 */
-	SCI_DEV_RESETTING,
-
-	/**
-	 * Simply the final state for the base remote device state machine.
-	 */
-	SCI_DEV_FINAL,
-};
+#define REMOTE_DEV_STATES {\
+	C(DEV_INITIAL),\
+	C(DEV_STOPPED),\
+	C(DEV_STARTING),\
+	C(DEV_READY),\
+	C(STP_DEV_IDLE),\
+	C(STP_DEV_CMD),\
+	C(STP_DEV_NCQ),\
+	C(STP_DEV_NCQ_ERROR),\
+	C(STP_DEV_ATAPI_ERROR),\
+	C(STP_DEV_AWAIT_RESET),\
+	C(SMP_DEV_IDLE),\
+	C(SMP_DEV_CMD),\
+	C(DEV_STOPPING),\
+	C(DEV_FAILED),\
+	C(DEV_RESETTING),\
+	C(DEV_FINAL),\
+	}
+#undef C
+#define C(a) SCI_##a
+enum sci_remote_device_states REMOTE_DEV_STATES;
+#undef C
+const char *dev_state_name(enum sci_remote_device_states state);
 
 static inline struct isci_remote_device *rnc_to_dev(struct sci_remote_node_context *rnc)
 {

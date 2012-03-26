@@ -32,6 +32,8 @@
 #include <linux/usb/ulpi.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <media/soc_camera.h>
 
@@ -570,6 +572,11 @@ static int __init pcm037_otg_mode(char *options)
 }
 __setup("otg_mode=", pcm037_otg_mode);
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+};
+
 /*
  * Board specific initialization.
  */
@@ -578,6 +585,8 @@ static void __init pcm037_init(void)
 	int ret;
 
 	imx31_soc_init();
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	mxc_iomux_set_gpr(MUX_PGP_UH2, 1);
 

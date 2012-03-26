@@ -32,8 +32,6 @@
 #include <asm/dma.h>
 #include <linux/dvb/frontend.h>
 #include <linux/dvb/ca.h>
-#include <linux/dvb/video.h>
-#include <linux/dvb/audio.h>
 #include <linux/socket.h>
 
 #include "dmxdev.h"

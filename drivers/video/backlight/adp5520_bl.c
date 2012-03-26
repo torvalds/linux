@@ -289,7 +289,7 @@ static int __devinit adp5520_bl_probe(struct platform_device *pdev)
 	struct adp5520_bl *data;
 	int ret = 0;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -298,7 +298,6 @@ static int __devinit adp5520_bl_probe(struct platform_device *pdev)
 
 	if (data->pdata  == NULL) {
 		dev_err(&pdev->dev, "missing platform data\n");
-		kfree(data);
 		return -ENODEV;
 	}
 
@@ -314,7 +313,6 @@ static int __devinit adp5520_bl_probe(struct platform_device *pdev)
 				       &adp5520_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&pdev->dev, "failed to register backlight\n");
-		kfree(data);
 		return PTR_ERR(bl);
 	}
 
@@ -326,7 +324,6 @@ static int __devinit adp5520_bl_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register sysfs\n");
 		backlight_device_unregister(bl);
-		kfree(data);
 	}
 
 	platform_set_drvdata(pdev, bl);
@@ -348,7 +345,6 @@ static int __devexit adp5520_bl_remove(struct platform_device *pdev)
 				&adp5520_bl_attr_group);
 
 	backlight_device_unregister(bl);
-	kfree(data);
 
 	return 0;
 }

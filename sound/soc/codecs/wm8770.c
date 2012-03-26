@@ -580,8 +580,6 @@ static int wm8770_probe(struct snd_soc_codec *codec)
 	wm8770 = snd_soc_codec_get_drvdata(codec);
 	wm8770->codec = codec;
 
-	codec->dapm.idle_bias_off = 1;
-
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, wm8770->control_type);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
@@ -643,7 +641,7 @@ static int wm8770_probe(struct snd_soc_codec *codec)
 	/* mute all DACs */
 	snd_soc_update_bits(codec, WM8770_DACMUTE, 0x10, 0x10);
 
-	snd_soc_add_controls(codec, wm8770_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8770_snd_controls,
 			     ARRAY_SIZE(wm8770_snd_controls));
 	snd_soc_dapm_new_controls(&codec->dapm, wm8770_dapm_widgets,
 				  ARRAY_SIZE(wm8770_dapm_widgets));
@@ -679,6 +677,7 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8770 = {
 	.suspend = wm8770_suspend,
 	.resume = wm8770_resume,
 	.set_bias_level = wm8770_set_bias_level,
+	.idle_bias_off = true,
 	.reg_cache_size = ARRAY_SIZE(wm8770_reg_defs),
 	.reg_word_size = sizeof (u16),
 	.reg_cache_default = wm8770_reg_defs

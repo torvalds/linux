@@ -79,15 +79,15 @@ static int mlx4_uc_steer_add(struct mlx4_dev *dev, u8 port, u64 mac, int *qpn)
 {
 	struct mlx4_qp qp;
 	u8 gid[16] = {0};
+	__be64 be_mac;
 	int err;
 
 	qp.qpn = *qpn;
 
 	mac &= 0xffffffffffffULL;
-	mac = cpu_to_be64(mac << 16);
-	memcpy(&gid[10], &mac, ETH_ALEN);
+	be_mac = cpu_to_be64(mac << 16);
+	memcpy(&gid[10], &be_mac, ETH_ALEN);
 	gid[5] = port;
-	gid[7] = MLX4_UC_STEER << 1;
 
 	err = mlx4_unicast_attach(dev, &qp, gid, 0, MLX4_PROT_ETH);
 	if (err)
@@ -101,13 +101,13 @@ static void mlx4_uc_steer_release(struct mlx4_dev *dev, u8 port,
 {
 	struct mlx4_qp qp;
 	u8 gid[16] = {0};
+	__be64 be_mac;
 
 	qp.qpn = qpn;
 	mac &= 0xffffffffffffULL;
-	mac = cpu_to_be64(mac << 16);
-	memcpy(&gid[10], &mac, ETH_ALEN);
+	be_mac = cpu_to_be64(mac << 16);
+	memcpy(&gid[10], &be_mac, ETH_ALEN);
 	gid[5] = port;
-	gid[7] = MLX4_UC_STEER << 1;
 
 	mlx4_unicast_detach(dev, &qp, gid, MLX4_PROT_ETH);
 }
@@ -590,49 +590,6 @@ int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps)
 	return err;
 }
 
-int mlx4_check_ext_port_caps(struct mlx4_dev *dev, u8 port)
-{
-	struct mlx4_cmd_mailbox *inmailbox, *outmailbox;
-	u8 *inbuf, *outbuf;
-	int err, packet_error;
-
-	inmailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(inmailbox))
-		return PTR_ERR(inmailbox);
-
-	outmailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(outmailbox)) {
-		mlx4_free_cmd_mailbox(dev, inmailbox);
-		return PTR_ERR(outmailbox);
-	}
-
-	inbuf = inmailbox->buf;
-	outbuf = outmailbox->buf;
-	memset(inbuf, 0, 256);
-	memset(outbuf, 0, 256);
-	inbuf[0] = 1;
-	inbuf[1] = 1;
-	inbuf[2] = 1;
-	inbuf[3] = 1;
-
-	*(__be16 *) (&inbuf[16]) = MLX4_ATTR_EXTENDED_PORT_INFO;
-	*(__be32 *) (&inbuf[20]) = cpu_to_be32(port);
-
-	err = mlx4_cmd_box(dev, inmailbox->dma, outmailbox->dma, port, 3,
-			   MLX4_CMD_MAD_IFC, MLX4_CMD_TIME_CLASS_C,
-			   MLX4_CMD_NATIVE);
-
-	packet_error = be16_to_cpu(*(__be16 *) (outbuf + 4));
-
-	dev->caps.ext_port_cap[port] = (!err && !packet_error) ?
-				       MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO
-				       : 0;
-
-	mlx4_free_cmd_mailbox(dev, inmailbox);
-	mlx4_free_cmd_mailbox(dev, outmailbox);
-	return err;
-}
-
 static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 				u8 op_mod, struct mlx4_cmd_mailbox *inbox)
 {
@@ -766,10 +723,18 @@ int mlx4_SET_PORT_wrapper(struct mlx4_dev *dev, int slave,
 				    vhcr->op_modifier, inbox);
 }
 
+/* bit locations for set port command with zero op modifier */
+enum {
+	MLX4_SET_PORT_VL_CAP	 = 4, /* bits 7:4 */
+	MLX4_SET_PORT_MTU_CAP	 = 12, /* bits 15:12 */
+	MLX4_CHANGE_PORT_VL_CAP	 = 21,
+	MLX4_CHANGE_PORT_MTU_CAP = 22,
+};
+
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port)
 {
 	struct mlx4_cmd_mailbox *mailbox;
-	int err;
+	int err, vl_cap;
 
 	if (dev->caps.port_type[port] == MLX4_PORT_TYPE_ETH)
 		return 0;
@@ -781,8 +746,19 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port)
 	memset(mailbox->buf, 0, 256);
 
 	((__be32 *) mailbox->buf)[1] = dev->caps.ib_port_def_cap[port];
-	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+
+	/* IB VL CAP enum isn't used by the firmware, just numerical values */
+	for (vl_cap = 8; vl_cap >= 1; vl_cap >>= 1) {
+		((__be32 *) mailbox->buf)[0] = cpu_to_be32(
+			(1 << MLX4_CHANGE_PORT_MTU_CAP) |
+			(1 << MLX4_CHANGE_PORT_VL_CAP)  |
+			(dev->caps.port_ib_mtu[port] << MLX4_SET_PORT_MTU_CAP) |
+			(vl_cap << MLX4_SET_PORT_VL_CAP));
+		err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_PORT,
+				MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+		if (err != -ENOMEM)
+			break;
+	}
 
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;

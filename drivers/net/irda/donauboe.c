@@ -1608,7 +1608,6 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
   self->ringbuf = kmalloc(OBOE_RING_LEN << 1, GFP_KERNEL);
   if (!self->ringbuf)
     {
-      printk (KERN_ERR DRIVER_NAME ": can't allocate DMA buffers\n");
       err = -ENOMEM;
       goto freeregion;
     }
@@ -1647,7 +1646,6 @@ toshoboe_open (struct pci_dev *pci_dev, const struct pci_device_id *pdid)
 
   if (!ok)
     {
-      printk (KERN_ERR DRIVER_NAME ": can't allocate rx/tx buffers\n");
       err = -ENOMEM;
       goto freebufs;
     }

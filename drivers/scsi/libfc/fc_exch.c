@@ -1642,9 +1642,10 @@ static void fc_exch_recv_bls(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		case FC_RCTL_ACK_0:
 			break;
 		default:
-			FC_EXCH_DBG(ep, "BLS rctl %x - %s received",
-				    fh->fh_r_ctl,
-				    fc_exch_rctl_name(fh->fh_r_ctl));
+			if (ep)
+				FC_EXCH_DBG(ep, "BLS rctl %x - %s received",
+					    fh->fh_r_ctl,
+					    fc_exch_rctl_name(fh->fh_r_ctl));
 			break;
 		}
 		fc_frame_free(fp);

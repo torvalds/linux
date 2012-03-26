@@ -276,7 +276,6 @@ static struct usb_driver digi_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
 };
 
 
@@ -288,7 +287,6 @@ static struct usb_serial_driver digi_acceleport_2_device = {
 		.name =			"digi_2",
 	},
 	.description =			"Digi 2 port USB adapter",
-	.usb_driver = 			&digi_driver,
 	.id_table =			id_table_2,
 	.num_ports =			3,
 	.open =				digi_open,
@@ -316,7 +314,6 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 		.name =			"digi_4",
 	},
 	.description =			"Digi 4 port USB adapter",
-	.usb_driver = 			&digi_driver,
 	.id_table =			id_table_4,
 	.num_ports =			4,
 	.open =				digi_open,
@@ -337,6 +334,9 @@ static struct usb_serial_driver digi_acceleport_4_device = {
 	.release =			digi_release,
 };
 
+static struct usb_serial_driver * const serial_drivers[] = {
+	&digi_acceleport_2_device, &digi_acceleport_4_device, NULL
+};
 
 /* Functions */
 
@@ -995,7 +995,7 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* return length of new data written, or error */
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 	if (ret < 0)
-		dev_err(&port->dev,
+		dev_err_console(port,
 			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 	dbg("digi_write: returning %d", ret);
@@ -1065,7 +1065,7 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	spin_unlock(&priv->dp_port_lock);
 	if (ret && ret != -EPERM)
-		dev_err(&port->dev,
+		dev_err_console(port,
 			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 }
@@ -1580,40 +1580,7 @@ static int digi_read_oob_callback(struct urb *urb)
 
 }
 
-static int __init digi_init(void)
-{
-	int retval;
-	retval = usb_serial_register(&digi_acceleport_2_device);
-	if (retval)
-		goto failed_acceleport_2_device;
-	retval = usb_serial_register(&digi_acceleport_4_device);
-	if (retval)
-		goto failed_acceleport_4_device;
-	retval = usb_register(&digi_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&digi_acceleport_4_device);
-failed_acceleport_4_device:
-	usb_serial_deregister(&digi_acceleport_2_device);
-failed_acceleport_2_device:
-	return retval;
-}
-
-static void __exit digi_exit (void)
-{
-	usb_deregister(&digi_driver);
-	usb_serial_deregister(&digi_acceleport_2_device);
-	usb_serial_deregister(&digi_acceleport_4_device);
-}
-
-
-module_init(digi_init);
-module_exit(digi_exit);
-
+module_usb_serial_driver(digi_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

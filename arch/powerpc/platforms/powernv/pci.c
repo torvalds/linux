@@ -31,6 +31,7 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/abs_addr.h>
+#include <asm/firmware.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -561,10 +562,7 @@ void __init pnv_pci_init(void)
 {
 	struct device_node *np;
 
-	pci_set_flags(PCI_CAN_SKIP_ISA_ALIGN);
-
-	/* We do not want to just probe */
-	pci_probe_only = 0;
+	pci_add_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
 	/* OPAL absent, try POPAL first then RTAS detection of PHBs */
 	if (!firmware_has_feature(FW_FEATURE_OPAL)) {

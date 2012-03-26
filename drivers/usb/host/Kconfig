@@ -27,6 +27,10 @@ config USB_XHCI_HCD
 	  To compile this driver as a module, choose M here: the
 	  module will be called xhci-hcd.
 
+config USB_XHCI_PLATFORM
+	tristate
+	depends on USB_XHCI_HCD
+
 config USB_XHCI_HCD_DEBUGGING
 	bool "Debugging for the xHCI host controller"
 	depends on USB_XHCI_HCD
@@ -196,7 +200,7 @@ config USB_EHCI_S5P
 
 config USB_EHCI_MV
 	bool "EHCI support for Marvell on-chip controller"
-	depends on USB_EHCI_HCD
+	depends on USB_EHCI_HCD && (ARCH_PXA || ARCH_MMP)
 	select USB_EHCI_ROOT_HUB_TT
 	---help---
 	  Enables support for Marvell (including PXA and MMP series) on-chip
@@ -218,11 +222,15 @@ config USB_CNS3XXX_EHCI
 	  support.
 
 config USB_EHCI_ATH79
-	bool "EHCI support for AR7XXX/AR9XXX SoCs"
+	bool "EHCI support for AR7XXX/AR9XXX SoCs (DEPRECATED)"
 	depends on USB_EHCI_HCD && (SOC_AR71XX || SOC_AR724X || SOC_AR913X || SOC_AR933X)
 	select USB_EHCI_ROOT_HUB_TT
+	select USB_EHCI_HCD_PLATFORM
 	default y
 	---help---
+	  This option is deprecated now and the driver was removed, use
+	  USB_EHCI_HCD_PLATFORM instead.
+
 	  Enables support for the built-in EHCI controller present
 	  on the Atheros AR7XXX/AR9XXX SoCs.
 
@@ -312,10 +320,14 @@ config USB_OHCI_HCD_OMAP3
 	  OMAP3 and later chips.
 
 config USB_OHCI_ATH79
-	bool "USB OHCI support for the Atheros AR71XX/AR7240 SoCs"
+	bool "USB OHCI support for the Atheros AR71XX/AR7240 SoCs (DEPRECATED)"
 	depends on USB_OHCI_HCD && (SOC_AR71XX || SOC_AR724X)
+	select USB_OHCI_HCD_PLATFORM
 	default y
 	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enables support for the built-in OHCI controller present on the
 	  Atheros AR71XX/AR7240 SoCs.
 
@@ -392,6 +404,26 @@ config USB_CNS3XXX_OHCI
 	---help---
 	  Enable support for the CNS3XXX SOC's on-chip OHCI controller.
 	  It is needed for low-speed USB 1.0 device support.
+
+config USB_OHCI_HCD_PLATFORM
+	bool "Generic OHCI driver for a platform device"
+	depends on USB_OHCI_HCD && EXPERIMENTAL
+	default n
+	---help---
+	  Adds an OHCI host driver for a generic platform device, which
+	  provieds a memory space and an irq.
+
+	  If unsure, say N.
+
+config USB_EHCI_HCD_PLATFORM
+	bool "Generic EHCI driver for a platform device"
+	depends on USB_EHCI_HCD && EXPERIMENTAL
+	default n
+	---help---
+	  Adds an EHCI host driver for a generic platform device, which
+	  provieds a memory space and an irq.
+
+	  If unsure, say N.
 
 config USB_OHCI_BIG_ENDIAN_DESC
 	bool
@@ -606,10 +638,3 @@ config USB_OCTEON_OHCI
 config USB_OCTEON2_COMMON
 	bool
 	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
-
-config USB_PXA168_EHCI
-	bool "Marvell PXA168 on-chip EHCI HCD support"
-	depends on USB_EHCI_HCD && ARCH_MMP
-	help
-	  Enable support for Marvell PXA168 SoC's on-chip EHCI
-	  host controller

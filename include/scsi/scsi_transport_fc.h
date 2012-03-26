@@ -126,8 +126,8 @@ enum fc_vport_state {
 					     incapable of reporting */
 #define FC_PORTSPEED_1GBIT		1
 #define FC_PORTSPEED_2GBIT		2
-#define FC_PORTSPEED_4GBIT		4
-#define FC_PORTSPEED_10GBIT		8
+#define FC_PORTSPEED_10GBIT		4
+#define FC_PORTSPEED_4GBIT		8
 #define FC_PORTSPEED_8GBIT		0x10
 #define FC_PORTSPEED_16GBIT		0x20
 #define FC_PORTSPEED_NOT_NEGOTIATED	(1 << 15) /* Speed not established */
@@ -486,6 +486,13 @@ struct fc_host_attrs {
 	u32 maxframe_size;
 	u16 max_npiv_vports;
 	char serial_number[FC_SERIAL_NUMBER_SIZE];
+	char manufacturer[FC_SERIAL_NUMBER_SIZE];
+	char model[FC_SYMBOLIC_NAME_SIZE];
+	char model_description[FC_SYMBOLIC_NAME_SIZE];
+	char hardware_version[FC_VERSION_STRING_SIZE];
+	char driver_version[FC_VERSION_STRING_SIZE];
+	char firmware_version[FC_VERSION_STRING_SIZE];
+	char optionrom_version[FC_VERSION_STRING_SIZE];
 
 	/* Dynamic Attributes */
 	u32 port_id;
@@ -541,6 +548,20 @@ struct fc_host_attrs {
 	(((struct fc_host_attrs *)(x)->shost_data)->max_npiv_vports)
 #define fc_host_serial_number(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->serial_number)
+#define fc_host_manufacturer(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->manufacturer)
+#define fc_host_model(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->model)
+#define fc_host_model_description(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->model_description)
+#define fc_host_hardware_version(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->hardware_version)
+#define fc_host_driver_version(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->driver_version)
+#define fc_host_firmware_version(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->firmware_version)
+#define fc_host_optionrom_version(x)	\
+	(((struct fc_host_attrs *)(x)->shost_data)->optionrom_version)
 #define fc_host_port_id(x)	\
 	(((struct fc_host_attrs *)(x)->shost_data)->port_id)
 #define fc_host_port_type(x)	\
@@ -700,6 +721,13 @@ struct fc_function_template {
 	unsigned long	show_host_supported_speeds:1;
 	unsigned long	show_host_maxframe_size:1;
 	unsigned long	show_host_serial_number:1;
+	unsigned long	show_host_manufacturer:1;
+	unsigned long	show_host_model:1;
+	unsigned long	show_host_model_description:1;
+	unsigned long	show_host_hardware_version:1;
+	unsigned long	show_host_driver_version:1;
+	unsigned long	show_host_firmware_version:1;
+	unsigned long	show_host_optionrom_version:1;
 	/* host dynamic attributes */
 	unsigned long	show_host_port_id:1;
 	unsigned long	show_host_port_type:1;

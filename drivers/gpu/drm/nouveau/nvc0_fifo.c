@@ -436,6 +436,24 @@ nvc0_fifo_isr_vm_fault(struct drm_device *dev, int unit)
 	printk(" on channel 0x%010llx\n", (u64)inst << 12);
 }
 
+static int
+nvc0_fifo_page_flip(struct drm_device *dev, u32 chid)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_channel *chan = NULL;
+	unsigned long flags;
+	int ret = -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->channels.lock, flags);
+	if (likely(chid >= 0 && chid < dev_priv->engine.fifo.channels)) {
+		chan = dev_priv->channels.ptr[chid];
+		if (likely(chan))
+			ret = nouveau_finish_page_flip(chan, NULL);
+	}
+	spin_unlock_irqrestore(&dev_priv->channels.lock, flags);
+	return ret;
+}
+
 static void
 nvc0_fifo_isr_subfifo_intr(struct drm_device *dev, int unit)
 {
@@ -445,11 +463,21 @@ nvc0_fifo_isr_subfifo_intr(struct drm_device *dev, int unit)
 	u32 chid = nv_rd32(dev, 0x040120 + (unit * 0x2000)) & 0x7f;
 	u32 subc = (addr & 0x00070000);
 	u32 mthd = (addr & 0x00003ffc);
+	u32 show = stat;
 
-	NV_INFO(dev, "PSUBFIFO %d:", unit);
-	nouveau_bitfield_print(nvc0_fifo_subfifo_intr, stat);
-	NV_INFO(dev, "PSUBFIFO %d: ch %d subc %d mthd 0x%04x data 0x%08x\n",
-		unit, chid, subc, mthd, data);
+	if (stat & 0x00200000) {
+		if (mthd == 0x0054) {
+			if (!nvc0_fifo_page_flip(dev, chid))
+				show &= ~0x00200000;
+		}
+	}
+
+	if (show) {
+		NV_INFO(dev, "PFIFO%d:", unit);
+		nouveau_bitfield_print(nvc0_fifo_subfifo_intr, show);
+		NV_INFO(dev, "PFIFO%d: ch %d subc %d mthd 0x%04x data 0x%08x\n",
+			     unit, chid, subc, mthd, data);
+	}
 
 	nv_wr32(dev, 0x0400c0 + (unit * 0x2000), 0x80600008);
 	nv_wr32(dev, 0x040108 + (unit * 0x2000), stat);

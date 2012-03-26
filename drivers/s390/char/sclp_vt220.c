@@ -685,7 +685,6 @@ static int __init sclp_vt220_tty_init(void)
 	if (rc)
 		goto out_driver;
 
-	driver->owner = THIS_MODULE;
 	driver->driver_name = SCLP_VT220_DRIVER_NAME;
 	driver->name = SCLP_VT220_DEVICE_NAME;
 	driver->major = SCLP_VT220_MAJOR;

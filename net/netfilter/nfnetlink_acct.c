@@ -171,8 +171,10 @@ nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 	char *acct_name;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		return netlink_dump_start(nfnl, skb, nlh, nfnl_acct_dump,
-					  NULL, 0);
+		struct netlink_dump_control c = {
+			.dump = nfnl_acct_dump,
+		};
+		return netlink_dump_start(nfnl, skb, nlh, &c);
 	}
 
 	if (!tb[NFACCT_NAME])

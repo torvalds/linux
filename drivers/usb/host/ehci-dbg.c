@@ -107,7 +107,7 @@ static void dbg_hcc_params (struct ehci_hcd *ehci, char *label)
 			HCC_PER_PORT_CHANGE_EVENT(params) ? " ppce" : "",
 			HCC_HW_PREFETCH(params) ? " hw prefetch" : "",
 			HCC_32FRAME_PERIODIC_LIST(params) ?
-				" 32 peridic list" : "");
+				" 32 periodic list" : "");
 	}
 }
 #else

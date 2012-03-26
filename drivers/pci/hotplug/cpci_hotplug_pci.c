@@ -341,7 +341,7 @@ int cpci_unconfigure_slot(struct slot* slot)
 		dev = pci_get_slot(slot->bus,
 				    PCI_DEVFN(PCI_SLOT(slot->devfn), i));
 		if (dev) {
-			pci_remove_bus_device(dev);
+			pci_stop_and_remove_bus_device(dev);
 			pci_dev_put(dev);
 		}
 	}

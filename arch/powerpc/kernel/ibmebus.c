@@ -713,7 +713,7 @@ static struct dev_pm_ops ibmebus_bus_dev_pm_ops = {
 
 struct bus_type ibmebus_bus_type = {
 	.name      = "ibmebus",
-	.uevent    = of_device_uevent,
+	.uevent    = of_device_uevent_modalias,
 	.bus_attrs = ibmebus_bus_attrs,
 	.match     = ibmebus_bus_bus_match,
 	.probe     = ibmebus_bus_device_probe,

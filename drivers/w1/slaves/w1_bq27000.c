@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/power/bq27x00_battery.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
@@ -25,46 +26,37 @@
 
 static int F_ID;
 
-void w1_bq27000_write(struct device *dev, u8 buf, u8 reg)
-{
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
-
-	if (!dev) {
-		pr_info("Could not obtain slave dev ptr\n");
-		return;
-	}
-
-	w1_write_8(sl->master, HDQ_CMD_WRITE | reg);
-	w1_write_8(sl->master, buf);
-}
-EXPORT_SYMBOL(w1_bq27000_write);
-
-int w1_bq27000_read(struct device *dev, u8 reg)
+static int w1_bq27000_read(struct device *dev, unsigned int reg)
 {
 	u8 val;
-	struct w1_slave *sl = container_of(dev, struct w1_slave, dev);
+	struct w1_slave *sl = container_of(dev->parent, struct w1_slave, dev);
 
-	if (!dev)
-		return 0;
-
+	mutex_lock(&sl->master->mutex);
 	w1_write_8(sl->master, HDQ_CMD_READ | reg);
 	val = w1_read_8(sl->master);
+	mutex_unlock(&sl->master->mutex);
 
 	return val;
 }
-EXPORT_SYMBOL(w1_bq27000_read);
+
+static struct bq27000_platform_data bq27000_battery_info = {
+	.read   = w1_bq27000_read,
+	.name   = "bq27000-battery",
+};
 
 static int w1_bq27000_add_slave(struct w1_slave *sl)
 {
 	int ret;
-	int id = 1;
 	struct platform_device *pdev;
 
-	pdev = platform_device_alloc("bq27000-battery", id);
+	pdev = platform_device_alloc("bq27000-battery", -1);
 	if (!pdev) {
 		ret = -ENOMEM;
 		return ret;
 	}
+	ret = platform_device_add_data(pdev,
+				       &bq27000_battery_info,
+				       sizeof(bq27000_battery_info));
 	pdev->dev.parent = &sl->dev;
 
 	ret = platform_device_add(pdev);

@@ -1,15 +1,6 @@
 #ifndef _VB_STRUCT_
 #define _VB_STRUCT_
-
-struct XGI_LCDDataStruct {
-	unsigned short RVBHCMAX;
-	unsigned short RVBHCFACT;
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short LCDHT;
-	unsigned short LCDVT;
-};
-
+#include "../../video/sis/vstruct.h"
 
 struct XGI_LVDSCRT1HDataStruct {
 	unsigned char Reg[8];
@@ -17,22 +8,6 @@ struct XGI_LVDSCRT1HDataStruct {
 
 struct XGI_LVDSCRT1VDataStruct {
 	unsigned char Reg[7];
-};
-
-struct XGI_TVDataStruct {
-	unsigned short RVBHCMAX;
-	unsigned short RVBHCFACT;
-	unsigned short VGAHT;
-	unsigned short VGAVT;
-	unsigned short TVHDE;
-	unsigned short TVVDE;
-	unsigned short RVBHRS;
-	unsigned char FlickerMode;
-	unsigned short HALFRVBHRS;
-	unsigned char RY1COE;
-	unsigned char RY2COE;
-	unsigned char RY3COE;
-	unsigned char RY4COE;
 };
 
 struct XGI_StStruct {
@@ -45,18 +20,6 @@ struct XGI_StStruct {
 	unsigned char VB_StTVFlickerIndex;
 	unsigned char VB_StTVEdgeIndex;
 	unsigned char VB_StTVYFilterIndex;
-};
-
-struct XGI_StandTableStruct {
-	unsigned char CRT_COLS;
-	unsigned char ROWS;
-	unsigned char CHAR_HEIGHT;
-	unsigned short CRT_LEN;
-	unsigned char SR[4];
-	unsigned char MISC;
-	unsigned char CRTC[0x19];
-	unsigned char ATTR[0x14];
-	unsigned char GRC[9];
 };
 
 struct XGI_ExtStruct {
@@ -85,37 +48,9 @@ struct XGI_Ext2Struct {
 	/* unsigned short ROM_OFFSET; */
 };
 
-
-struct XGI_MCLKDataStruct {
-	unsigned char SR28, SR29, SR2A;
-	unsigned short CLOCK;
-};
-
 struct XGI_ECLKDataStruct {
 	unsigned char SR2E, SR2F, SR30;
 	unsigned short CLOCK;
-};
-
-struct XGI_VCLKDataStruct {
-	unsigned char SR2B, SR2C;
-	unsigned short CLOCK;
-};
-
-struct XGI_VBVCLKDataStruct {
-	unsigned char Part4_A, Part4_B;
-	unsigned short CLOCK;
-};
-
-struct XGI_StResInfoStruct {
-	unsigned short HTotal;
-	unsigned short VTotal;
-};
-
-struct XGI_ModeResInfoStruct {
-	unsigned short HTotal;
-	unsigned short VTotal;
-	unsigned char  XChar;
-	unsigned char  YChar;
 };
 
 /*add for new UNIVGABIOS*/
@@ -350,7 +285,7 @@ struct vb_device_info {
 	unsigned char  *pCRT2Data_4_D;
 	unsigned char  *pCRT2Data_4_E;
 	unsigned char  *pCRT2Data_4_10;
-	struct XGI_MCLKDataStruct  *MCLKData;
+	struct SiS_MCLKData  *MCLKData;
 	struct XGI_ECLKDataStruct  *ECLKData;
 
 	unsigned char   *XGI_TVDelayList;
@@ -380,15 +315,15 @@ struct vb_device_info {
 	struct XGI_TimingVStruct  *TimingV;
 
 	struct XGI_StStruct          *SModeIDTable;
-	struct XGI_StandTableStruct  *StandTable;
+	struct SiS_StandTable_S  *StandTable;
 	struct XGI_ExtStruct         *EModeIDTable;
 	struct XGI_Ext2Struct        *RefIndex;
 	/* XGINew_CRT1TableStruct *CRT1Table; */
 	struct XGI_CRT1TableStruct    *XGINEWUB_CRT1Table;
-	struct XGI_VCLKDataStruct    *VCLKData;
-	struct XGI_VBVCLKDataStruct  *VBVCLKData;
-	struct XGI_StResInfoStruct   *StResInfo;
-	struct XGI_ModeResInfoStruct *ModeResInfo;
+	struct SiS_VCLKData    *VCLKData;
+	struct SiS_VBVCLKData  *VBVCLKData;
+	struct SiS_StResInfo_S   *StResInfo;
+	struct SiS_ModeResInfo_S *ModeResInfo;
 	struct XGI_XG21CRT1Struct	  *UpdateCRT1;
 
 	int ram_type;

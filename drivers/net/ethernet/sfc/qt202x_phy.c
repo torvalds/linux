@@ -47,7 +47,7 @@
 #define PMA_PMD_FTX_STATIC_LBN	13
 #define PMA_PMD_VEND1_REG	0xc001
 #define PMA_PMD_VEND1_LBTXD_LBN	15
-#define PCS_VEND1_REG	   	0xc000
+#define PCS_VEND1_REG		0xc000
 #define PCS_VEND1_LBTXD_LBN	5
 
 void falcon_qt202x_set_led(struct efx_nic *p, int led, int mode)
@@ -453,9 +453,9 @@ const struct efx_phy_operations falcon_qt202x_phy_ops = {
 	.probe		 = qt202x_phy_probe,
 	.init		 = qt202x_phy_init,
 	.reconfigure	 = qt202x_phy_reconfigure,
-	.poll	     	 = qt202x_phy_poll,
+	.poll		 = qt202x_phy_poll,
 	.fini		 = efx_port_dummy_op_void,
-	.remove	  	 = qt202x_phy_remove,
+	.remove		 = qt202x_phy_remove,
 	.get_settings	 = qt202x_phy_get_settings,
 	.set_settings	 = efx_mdio_set_settings,
 	.test_alive	 = efx_mdio_test_alive,

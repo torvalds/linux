@@ -120,7 +120,7 @@ static void named_cluster_distribute(struct sk_buff *buf)
 		}
 	}
 
-	buf_discard(buf);
+	kfree_skb(buf);
 }
 
 /**
@@ -239,9 +239,6 @@ exit:
  *
  * Invoked for each publication issued by a newly failed node.
  * Removes publication structure from name table & deletes it.
- * In rare cases the link may have come back up again when this
- * function is called, and we have two items representing the same
- * publication. Nudge this item's key to distinguish it from the other.
  */
 
 static void named_purge_publ(struct publication *publ)
@@ -249,7 +246,6 @@ static void named_purge_publ(struct publication *publ)
 	struct publication *p;
 
 	write_lock_bh(&tipc_nametbl_lock);
-	publ->key += 1222345;
 	p = tipc_nametbl_remove_publ(publ->type, publ->lower,
 				     publ->node, publ->ref, publ->key);
 	if (p)
@@ -316,7 +312,7 @@ void tipc_named_recv(struct sk_buff *buf)
 		item++;
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
-	buf_discard(buf);
+	kfree_skb(buf);
 }
 
 /**

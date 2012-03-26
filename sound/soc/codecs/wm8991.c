@@ -1297,7 +1297,7 @@ static int wm8991_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, WM8991_LEFT_OUTPUT_VOLUME, 0x50 | (1<<8));
 	snd_soc_write(codec, WM8991_RIGHT_OUTPUT_VOLUME, 0x50 | (1<<8));
 
-	snd_soc_add_controls(codec, wm8991_snd_controls,
+	snd_soc_add_codec_controls(codec, wm8991_snd_controls,
 			     ARRAY_SIZE(wm8991_snd_controls));
 
 	snd_soc_dapm_new_controls(&codec->dapm, wm8991_dapm_widgets,

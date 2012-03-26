@@ -269,7 +269,7 @@ calc_clk(struct drm_device *dev, int clk, struct nvc0_pm_clock *info, u32 freq)
 	clk0 = calc_div(dev, clk, clk0, freq, &div1D);
 
 	/* see if we can get any closer using PLLs */
-	if (clk0 != freq) {
+	if (clk0 != freq && (0x00004387 & (1 << clk))) {
 		if (clk < 7)
 			clk1 = calc_pll(dev, clk, freq, &info->coef);
 		else

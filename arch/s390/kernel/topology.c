@@ -79,12 +79,12 @@ static struct mask_info *add_cpus_to_mask(struct topology_cpu *tl_cpu,
 	     cpu < TOPOLOGY_CPU_BITS;
 	     cpu = find_next_bit(&tl_cpu->mask[0], TOPOLOGY_CPU_BITS, cpu + 1))
 	{
-		unsigned int rcpu, lcpu;
+		unsigned int rcpu;
+		int lcpu;
 
 		rcpu = TOPOLOGY_CPU_BITS - 1 - cpu + tl_cpu->origin;
-		for_each_present_cpu(lcpu) {
-			if (cpu_logical_map(lcpu) != rcpu)
-				continue;
+		lcpu = smp_find_processor_id(rcpu);
+		if (lcpu >= 0) {
 			cpumask_set_cpu(lcpu, &book->mask);
 			cpu_book_id[lcpu] = book->id;
 			cpumask_set_cpu(lcpu, &core->mask);

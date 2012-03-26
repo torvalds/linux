@@ -260,6 +260,32 @@ config NET_SCH_INGRESS
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_ingress.
 
+config NET_SCH_PLUG
+	tristate "Plug network traffic until release (PLUG)"
+	---help---
+
+	  This queuing discipline allows userspace to plug/unplug a network
+	  output queue, using the netlink interface.  When it receives an
+	  enqueue command it inserts a plug into the outbound queue that
+	  causes following packets to enqueue until a dequeue command arrives
+	  over netlink, causing the plug to be removed and resuming the normal
+	  packet flow.
+
+	  This module also provides a generic "network output buffering"
+	  functionality (aka output commit), wherein upon arrival of a dequeue
+	  command, only packets up to the first plug are released for delivery.
+	  The Remus HA project uses this module to enable speculative execution
+	  of virtual machines by allowing the generated network output to be rolled
+	  back if needed.
+
+	  For more information, please refer to http://wiki.xensource.com/xenwiki/Remus
+
+	  Say Y here if you are using this kernel for Xen dom0 and
+	  want to protect Xen guests with Remus.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_plug.
+
 comment "Classification"
 
 config NET_CLS

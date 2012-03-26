@@ -1,0 +1,13 @@
+Freescale Digital Audio Mux (AUDMUX) device
+
+Required properties:
+- compatible : "fsl,imx21-audmux" for AUDMUX version firstly used on i.MX21,
+  or "fsl,imx31-audmux" for the version firstly used on i.MX31.
+- reg : Should contain AUDMUX registers location and length
+
+Example:
+
+audmux@021d8000 {
+	compatible = "fsl,imx6q-audmux", "fsl,imx31-audmux";
+	reg = <0x021d8000 0x4000>;
+};

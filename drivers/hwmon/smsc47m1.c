@@ -1,30 +1,30 @@
 /*
-    smsc47m1.c - Part of lm_sensors, Linux kernel modules
-                 for hardware monitoring
-
-    Supports the SMSC LPC47B27x, LPC47M10x, LPC47M112, LPC47M13x,
-    LPC47M14x, LPC47M15x, LPC47M192, LPC47M292 and LPC47M997
-    Super-I/O chips.
-
-    Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
-    Copyright (C) 2004-2007 Jean Delvare <khali@linux-fr.org>
-    Ported to Linux 2.6 by Gabriele Gorla <gorlik@yahoo.com>
-                        and Jean Delvare
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ * smsc47m1.c - Part of lm_sensors, Linux kernel modules
+ *		for hardware monitoring
+ *
+ * Supports the SMSC LPC47B27x, LPC47M10x, LPC47M112, LPC47M13x,
+ * LPC47M14x, LPC47M15x, LPC47M192, LPC47M292 and LPC47M997
+ * Super-I/O chips.
+ *
+ * Copyright (C) 2002 Mark D. Studebaker <mdsxyz123@yahoo.com>
+ * Copyright (C) 2004-2007 Jean Delvare <khali@linux-fr.org>
+ * Ported to Linux 2.6 by Gabriele Gorla <gorlik@yahoo.com>
+ *			and Jean Delvare
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -53,8 +53,8 @@ enum chips { smsc47m1, smsc47m2 };
 
 /* Super-I/0 registers and commands */
 
-#define	REG	0x2e	/* The register to read/write */
-#define	VAL	0x2f	/* The value to read/write */
+#define REG	0x2e	/* The register to read/write */
+#define VAL	0x2f	/* The value to read/write */
 
 static inline void
 superio_outb(int reg, int val)
@@ -111,10 +111,11 @@ static const u8 SMSC47M1_REG_PWM[3]		= { 0x56, 0x57, 0x69 };
 #define SMSC47M2_REG_PPIN3		0x2c
 #define SMSC47M2_REG_FANDIV3		0x6a
 
-#define MIN_FROM_REG(reg,div)		((reg)>=192 ? 0 : \
-					 983040/((192-(reg))*(div)))
-#define FAN_FROM_REG(reg,div,preload)	((reg)<=(preload) || (reg)==255 ? 0 : \
-					 983040/(((reg)-(preload))*(div)))
+#define MIN_FROM_REG(reg, div)		((reg) >= 192 ? 0 : \
+					 983040 / ((192 - (reg)) * (div)))
+#define FAN_FROM_REG(reg, div, preload)	((reg) <= (preload) || (reg) == 255 ? \
+					 0 : \
+					 983040 / (((reg) - (preload)) * (div)))
 #define DIV_FROM_REG(reg)		(1 << (reg))
 #define PWM_FROM_REG(reg)		(((reg) & 0x7E) << 1)
 #define PWM_EN_FROM_REG(reg)		((~(reg)) & 0x01)
@@ -171,10 +172,12 @@ static ssize_t get_fan(struct device *dev, struct device_attribute
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct smsc47m1_data *data = smsc47m1_update_device(dev, 0);
 	int nr = attr->index;
-	/* This chip (stupidly) stops monitoring fan speed if PWM is
-	   enabled and duty cycle is 0%. This is fine if the monitoring
-	   and control concern the same fan, but troublesome if they are
-	   not (which could as well happen). */
+	/*
+	 * This chip (stupidly) stops monitoring fan speed if PWM is
+	 * enabled and duty cycle is 0%. This is fine if the monitoring
+	 * and control concern the same fan, but troublesome if they are
+	 * not (which could as well happen).
+	 */
 	int rpm = (data->pwm[nr] & 0x7F) == 0x00 ? 0 :
 		  FAN_FROM_REG(data->fan[nr],
 			       DIV_FROM_REG(data->fan_div[nr]),
@@ -238,7 +241,13 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct smsc47m1_data *data = dev_get_drvdata(dev);
 	int nr = attr->index;
-	long rpmdiv, val = simple_strtol(buf, NULL, 10);
+	long rpmdiv;
+	long val;
+	int err;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	rpmdiv = val * DIV_FROM_REG(data->fan_div[nr]);
@@ -256,28 +265,44 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute
 	return count;
 }
 
-/* Note: we save and restore the fan minimum here, because its value is
-   determined in part by the fan clock divider.  This follows the principle
-   of least surprise; the user doesn't expect the fan minimum to change just
-   because the divider changed. */
+/*
+ * Note: we save and restore the fan minimum here, because its value is
+ * determined in part by the fan clock divider.  This follows the principle
+ * of least surprise; the user doesn't expect the fan minimum to change just
+ * because the divider changed.
+ */
 static ssize_t set_fan_div(struct device *dev, struct device_attribute
 			   *devattr, const char *buf, size_t count)
 {
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct smsc47m1_data *data = dev_get_drvdata(dev);
 	int nr = attr->index;
-	long new_div = simple_strtol(buf, NULL, 10), tmp;
+	long new_div;
+	int err;
+	long tmp;
 	u8 old_div = DIV_FROM_REG(data->fan_div[nr]);
+
+	err = kstrtol(buf, 10, &new_div);
+	if (err)
+		return err;
 
 	if (new_div == old_div) /* No change */
 		return count;
 
 	mutex_lock(&data->update_lock);
 	switch (new_div) {
-	case 1: data->fan_div[nr] = 0; break;
-	case 2: data->fan_div[nr] = 1; break;
-	case 4: data->fan_div[nr] = 2; break;
-	case 8: data->fan_div[nr] = 3; break;
+	case 1:
+		data->fan_div[nr] = 0;
+		break;
+	case 2:
+		data->fan_div[nr] = 1;
+		break;
+	case 4:
+		data->fan_div[nr] = 2;
+		break;
+	case 8:
+		data->fan_div[nr] = 3;
+		break;
 	default:
 		mutex_unlock(&data->update_lock);
 		return -EINVAL;
@@ -315,7 +340,12 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct smsc47m1_data *data = dev_get_drvdata(dev);
 	int nr = attr->index;
-	long val = simple_strtol(buf, NULL, 10);
+	long val;
+	int err;
+
+	err = kstrtol(buf, 10, &val);
+	if (err)
+		return err;
 
 	if (val < 0 || val > 255)
 		return -EINVAL;
@@ -336,9 +366,14 @@ static ssize_t set_pwm_en(struct device *dev, struct device_attribute
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct smsc47m1_data *data = dev_get_drvdata(dev);
 	int nr = attr->index;
-	long val = simple_strtol(buf, NULL, 10);
-	
-	if (val != 0 && val != 1)
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+
+	if (val > 1)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -380,30 +415,73 @@ static ssize_t show_name(struct device *dev, struct device_attribute
 }
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);
 
-/* Almost all sysfs files may or may not be created depending on the chip
-   setup so we create them individually. It is still convenient to define a
-   group to remove them all at once. */
-static struct attribute *smsc47m1_attributes[] = {
+static struct attribute *smsc47m1_attributes_fan1[] = {
 	&sensor_dev_attr_fan1_input.dev_attr.attr,
 	&sensor_dev_attr_fan1_min.dev_attr.attr,
 	&sensor_dev_attr_fan1_div.dev_attr.attr,
 	&sensor_dev_attr_fan1_alarm.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group smsc47m1_group_fan1 = {
+	.attrs = smsc47m1_attributes_fan1,
+};
+
+static struct attribute *smsc47m1_attributes_fan2[] = {
 	&sensor_dev_attr_fan2_input.dev_attr.attr,
 	&sensor_dev_attr_fan2_min.dev_attr.attr,
 	&sensor_dev_attr_fan2_div.dev_attr.attr,
 	&sensor_dev_attr_fan2_alarm.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group smsc47m1_group_fan2 = {
+	.attrs = smsc47m1_attributes_fan2,
+};
+
+static struct attribute *smsc47m1_attributes_fan3[] = {
 	&sensor_dev_attr_fan3_input.dev_attr.attr,
 	&sensor_dev_attr_fan3_min.dev_attr.attr,
 	&sensor_dev_attr_fan3_div.dev_attr.attr,
 	&sensor_dev_attr_fan3_alarm.dev_attr.attr,
+	NULL
+};
 
+static const struct attribute_group smsc47m1_group_fan3 = {
+	.attrs = smsc47m1_attributes_fan3,
+};
+
+static struct attribute *smsc47m1_attributes_pwm1[] = {
 	&sensor_dev_attr_pwm1.dev_attr.attr,
 	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group smsc47m1_group_pwm1 = {
+	.attrs = smsc47m1_attributes_pwm1,
+};
+
+static struct attribute *smsc47m1_attributes_pwm2[] = {
 	&sensor_dev_attr_pwm2.dev_attr.attr,
 	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group smsc47m1_group_pwm2 = {
+	.attrs = smsc47m1_attributes_pwm2,
+};
+
+static struct attribute *smsc47m1_attributes_pwm3[] = {
 	&sensor_dev_attr_pwm3.dev_attr.attr,
 	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	NULL
+};
 
+static const struct attribute_group smsc47m1_group_pwm3 = {
+	.attrs = smsc47m1_attributes_pwm3,
+};
+
+static struct attribute *smsc47m1_attributes[] = {
 	&dev_attr_alarms.attr,
 	&dev_attr_name.attr,
 	NULL
@@ -476,8 +554,10 @@ static int __init smsc47m1_find(unsigned short *addr,
 		return -ENODEV;
 	}
 
-	/* Enable only if address is set (needed at least on the
-	 * Compaq Presario S4000NX) */
+	/*
+	 * Enable only if address is set (needed at least on the
+	 * Compaq Presario S4000NX)
+	 */
 	sio_data->activate = superio_inb(SUPERIO_REG_ACT);
 	if ((sio_data->activate & 0x01) == 0) {
 		pr_info("Enabling device\n");
@@ -583,6 +663,17 @@ static int smsc47m1_handle_resources(unsigned short address, enum chips type,
 	return 0;
 }
 
+static void smsc47m1_remove_files(struct device *dev)
+{
+	sysfs_remove_group(&dev->kobj, &smsc47m1_group);
+	sysfs_remove_group(&dev->kobj, &smsc47m1_group_fan1);
+	sysfs_remove_group(&dev->kobj, &smsc47m1_group_fan2);
+	sysfs_remove_group(&dev->kobj, &smsc47m1_group_fan3);
+	sysfs_remove_group(&dev->kobj, &smsc47m1_group_pwm1);
+	sysfs_remove_group(&dev->kobj, &smsc47m1_group_pwm2);
+	sysfs_remove_group(&dev->kobj, &smsc47m1_group_pwm3);
+}
+
 static int __init smsc47m1_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -592,7 +683,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 	int err;
 	int fan1, fan2, fan3, pwm1, pwm2, pwm3;
 
-	static const char *names[] = {
+	static const char * const names[] = {
 		"smsc47m1",
 		"smsc47m2",
 	};
@@ -603,7 +694,8 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 	if (err < 0)
 		return err;
 
-	if (!(data = kzalloc(sizeof(struct smsc47m1_data), GFP_KERNEL))) {
+	data = kzalloc(sizeof(struct smsc47m1_data), GFP_KERNEL);
+	if (!data) {
 		err = -ENOMEM;
 		goto error_release;
 	}
@@ -614,8 +706,10 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 	mutex_init(&data->update_lock);
 	platform_set_drvdata(pdev, data);
 
-	/* If no function is properly configured, there's no point in
-	   actually registering the chip. */
+	/*
+	 * If no function is properly configured, there's no point in
+	 * actually registering the chip.
+	 */
 	pwm1 = (smsc47m1_read_value(data, SMSC47M1_REG_PPIN(0)) & 0x05)
 	       == 0x04;
 	pwm2 = (smsc47m1_read_value(data, SMSC47M1_REG_PPIN(1)) & 0x05)
@@ -643,84 +737,67 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 		goto error_free;
 	}
 
-	/* Some values (fan min, clock dividers, pwm registers) may be
-	   needed before any update is triggered, so we better read them
-	   at least once here. We don't usually do it that way, but in
-	   this particular case, manually reading 5 registers out of 8
-	   doesn't make much sense and we're better using the existing
-	   function. */
+	/*
+	 * Some values (fan min, clock dividers, pwm registers) may be
+	 * needed before any update is triggered, so we better read them
+	 * at least once here. We don't usually do it that way, but in
+	 * this particular case, manually reading 5 registers out of 8
+	 * doesn't make much sense and we're better using the existing
+	 * function.
+	 */
 	smsc47m1_update_device(dev, 1);
 
 	/* Register sysfs hooks */
 	if (fan1) {
-		if ((err = device_create_file(dev,
-				&sensor_dev_attr_fan1_input.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan1_min.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan1_div.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan1_alarm.dev_attr)))
+		err = sysfs_create_group(&dev->kobj,
+					 &smsc47m1_group_fan1);
+		if (err)
 			goto error_remove_files;
 	} else
 		dev_dbg(dev, "Fan 1 not enabled by hardware, skipping\n");
 
 	if (fan2) {
-		if ((err = device_create_file(dev,
-				&sensor_dev_attr_fan2_input.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan2_min.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan2_div.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan2_alarm.dev_attr)))
+		err = sysfs_create_group(&dev->kobj,
+					 &smsc47m1_group_fan2);
+		if (err)
 			goto error_remove_files;
 	} else
 		dev_dbg(dev, "Fan 2 not enabled by hardware, skipping\n");
 
 	if (fan3) {
-		if ((err = device_create_file(dev,
-				&sensor_dev_attr_fan3_input.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan3_min.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan3_div.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_fan3_alarm.dev_attr)))
+		err = sysfs_create_group(&dev->kobj,
+					 &smsc47m1_group_fan3);
+		if (err)
 			goto error_remove_files;
 	} else if (data->type == smsc47m2)
 		dev_dbg(dev, "Fan 3 not enabled by hardware, skipping\n");
 
 	if (pwm1) {
-		if ((err = device_create_file(dev,
-				&sensor_dev_attr_pwm1.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_pwm1_enable.dev_attr)))
+		err = sysfs_create_group(&dev->kobj,
+					 &smsc47m1_group_pwm1);
+		if (err)
 			goto error_remove_files;
 	} else
 		dev_dbg(dev, "PWM 1 not enabled by hardware, skipping\n");
 
 	if (pwm2) {
-		if ((err = device_create_file(dev,
-				&sensor_dev_attr_pwm2.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_pwm2_enable.dev_attr)))
+		err = sysfs_create_group(&dev->kobj,
+					 &smsc47m1_group_pwm2);
+		if (err)
 			goto error_remove_files;
 	} else
 		dev_dbg(dev, "PWM 2 not enabled by hardware, skipping\n");
 
 	if (pwm3) {
-		if ((err = device_create_file(dev,
-				&sensor_dev_attr_pwm3.dev_attr))
-		 || (err = device_create_file(dev,
-				&sensor_dev_attr_pwm3_enable.dev_attr)))
+		err = sysfs_create_group(&dev->kobj,
+					 &smsc47m1_group_pwm3);
+		if (err)
 			goto error_remove_files;
 	} else if (data->type == smsc47m2)
 		dev_dbg(dev, "PWM 3 not enabled by hardware, skipping\n");
 
-	if ((err = device_create_file(dev, &dev_attr_alarms)))
-		goto error_remove_files;
-	if ((err = device_create_file(dev, &dev_attr_name)))
+	err = sysfs_create_group(&dev->kobj, &smsc47m1_group);
+	if (err)
 		goto error_remove_files;
 
 	data->hwmon_dev = hwmon_device_register(dev);
@@ -732,7 +809,7 @@ static int __init smsc47m1_probe(struct platform_device *pdev)
 	return 0;
 
 error_remove_files:
-	sysfs_remove_group(&dev->kobj, &smsc47m1_group);
+	smsc47m1_remove_files(dev);
 error_free:
 	platform_set_drvdata(pdev, NULL);
 	kfree(data);
@@ -747,7 +824,7 @@ static int __exit smsc47m1_remove(struct platform_device *pdev)
 	struct resource *res;
 
 	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&pdev->dev.kobj, &smsc47m1_group);
+	smsc47m1_remove_files(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 	smsc47m1_handle_resources(res->start, data->type, RELEASE, &pdev->dev);

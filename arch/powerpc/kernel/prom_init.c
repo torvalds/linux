@@ -48,14 +48,6 @@
 #include <linux/linux_logo.h>
 
 /*
- * Properties whose value is longer than this get excluded from our
- * copy of the device tree. This value does need to be big enough to
- * ensure that we don't lose things like the interrupt-map property
- * on a PCI-PCI bridge.
- */
-#define MAX_PROPERTY_LENGTH	(1UL * 1024 * 1024)
-
-/*
  * Eventually bump that one up
  */
 #define DEVTREE_CHUNK_SIZE	0x100000
@@ -2273,13 +2265,6 @@ static void __init scan_dt_build_struct(phandle node, unsigned long *mem_start,
 		/* sanity checks */
 		if (l == PROM_ERROR)
 			continue;
-		if (l > MAX_PROPERTY_LENGTH) {
-			prom_printf("WARNING: ignoring large property ");
-			/* It seems OF doesn't null-terminate the path :-( */
-			prom_printf("[%s] ", path);
-			prom_printf("%s length 0x%x\n", RELOC(pname), l);
-			continue;
-		}
 
 		/* push property head */
 		dt_push_token(OF_DT_PROP, mem_start, mem_end);

@@ -48,7 +48,7 @@ intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 
 	adjusted_mode->clock = fixed_mode->clock;
 
-	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */
@@ -141,8 +141,8 @@ static u32 i915_read_blc_pwm_ctl(struct drm_i915_private *dev_priv)
 			dev_priv->saveBLC_PWM_CTL2 = val;
 		} else if (val == 0) {
 			I915_WRITE(BLC_PWM_PCH_CTL2,
-				   dev_priv->saveBLC_PWM_CTL);
-			val = dev_priv->saveBLC_PWM_CTL;
+				   dev_priv->saveBLC_PWM_CTL2);
+			val = dev_priv->saveBLC_PWM_CTL2;
 		}
 	} else {
 		val = I915_READ(BLC_PWM_CTL);

@@ -806,8 +806,6 @@ static int dac33_startup(struct snd_pcm_substream *substream,
 	/* Stream started, save the substream pointer */
 	dac33->substream = substream;
 
-	snd_pcm_hw_constraint_msbits(substream->runtime, 0, 32, 24);
-
 	return 0;
 }
 
@@ -1397,7 +1395,6 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 
 	codec->control_data = dac33->control_data;
 	codec->hw_write = (hw_write_t) i2c_master_send;
-	codec->dapm.idle_bias_off = 1;
 	dac33->codec = codec;
 
 	/* Read the tlv320dac33 ID registers */
@@ -1440,7 +1437,7 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 
 	/* Only add the FIFO controls, if we have valid IRQ number */
 	if (dac33->irq >= 0)
-		snd_soc_add_controls(codec, dac33_mode_snd_controls,
+		snd_soc_add_codec_controls(codec, dac33_mode_snd_controls,
 				     ARRAY_SIZE(dac33_mode_snd_controls));
 
 err_power:
@@ -1478,6 +1475,7 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 	.read = dac33_read_reg_cache,
 	.write = dac33_write_locked,
 	.set_bias_level = dac33_set_bias_level,
+	.idle_bias_off = true,
 	.reg_cache_size = ARRAY_SIZE(dac33_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = dac33_reg,
@@ -1515,7 +1513,9 @@ static struct snd_soc_dai_driver dac33_dai = {
 		.channels_min = 2,
 		.channels_max = 2,
 		.rates = DAC33_RATES,
-		.formats = DAC33_FORMATS,},
+		.formats = DAC33_FORMATS,
+		.sig_bits = 24,
+	},
 	.ops = &dac33_dai_ops,
 };
 

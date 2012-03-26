@@ -97,85 +97,6 @@ static const struct file_operations reset_ops = {
 	.llseek = noop_llseek,
 };
 
-static ssize_t uapsd_queues_read(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	return mac80211_format_buffer(user_buf, count, ppos, "0x%x\n",
-				      local->uapsd_queues);
-}
-
-static ssize_t uapsd_queues_write(struct file *file,
-				  const char __user *user_buf,
-				  size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	u8 val;
-	int ret;
-
-	ret = kstrtou8_from_user(user_buf, count, 0, &val);
-	if (ret)
-		return ret;
-
-	if (val & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
-		return -ERANGE;
-
-	local->uapsd_queues = val;
-
-	return count;
-}
-
-static const struct file_operations uapsd_queues_ops = {
-	.read = uapsd_queues_read,
-	.write = uapsd_queues_write,
-	.open = mac80211_open_file_generic,
-	.llseek = default_llseek,
-};
-
-static ssize_t uapsd_max_sp_len_read(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-
-	return mac80211_format_buffer(user_buf, count, ppos, "0x%x\n",
-				      local->uapsd_max_sp_len);
-}
-
-static ssize_t uapsd_max_sp_len_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	unsigned long val;
-	char buf[10];
-	size_t len;
-	int ret;
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	ret = kstrtoul(buf, 0, &val);
-
-	if (ret)
-		return -EINVAL;
-
-	if (val & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
-		return -ERANGE;
-
-	local->uapsd_max_sp_len = val;
-
-	return count;
-}
-
-static const struct file_operations uapsd_max_sp_len_ops = {
-	.read = uapsd_max_sp_len_read,
-	.write = uapsd_max_sp_len_write,
-	.open = mac80211_open_file_generic,
-	.llseek = default_llseek,
-};
-
 static ssize_t channel_type_read(struct file *file, char __user *user_buf,
 		       size_t count, loff_t *ppos)
 {
@@ -247,8 +168,6 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_DYNAMIC_PS\n");
 	if (local->hw.flags & IEEE80211_HW_MFP_CAPABLE)
 		sf += snprintf(buf + sf, mxln - sf, "MFP_CAPABLE\n");
-	if (local->hw.flags & IEEE80211_HW_BEACON_FILTER)
-		sf += snprintf(buf + sf, mxln - sf, "BEACON_FILTER\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_STATIC_SMPS)
 		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_STATIC_SMPS\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS)
@@ -259,14 +178,14 @@ static ssize_t hwflags_read(struct file *file, char __user *user_buf,
 		sf += snprintf(buf + sf, mxln - sf, "REPORTS_TX_ACK_STATUS\n");
 	if (local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
 		sf += snprintf(buf + sf, mxln - sf, "CONNECTION_MONITOR\n");
-	if (local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)
-		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_CQM_RSSI\n");
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_PER_STA_GTK)
 		sf += snprintf(buf + sf, mxln - sf, "SUPPORTS_PER_STA_GTK\n");
 	if (local->hw.flags & IEEE80211_HW_AP_LINK_PS)
 		sf += snprintf(buf + sf, mxln - sf, "AP_LINK_PS\n");
 	if (local->hw.flags & IEEE80211_HW_TX_AMPDU_SETUP_IN_HW)
 		sf += snprintf(buf + sf, mxln - sf, "TX_AMPDU_SETUP_IN_HW\n");
+	if (local->hw.flags & IEEE80211_HW_SCAN_WHILE_IDLE)
+		sf += snprintf(buf + sf, mxln - sf, "SCAN_WHILE_IDLE\n");
 
 	rv = simple_read_from_buffer(user_buf, count, ppos, buf, strlen(buf));
 	kfree(buf);
@@ -364,8 +283,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(queues);
 	DEBUGFS_ADD_MODE(reset, 0200);
-	DEBUGFS_ADD(uapsd_queues);
-	DEBUGFS_ADD(uapsd_max_sp_len);
 	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(hwflags);
 	DEBUGFS_ADD(user_power);

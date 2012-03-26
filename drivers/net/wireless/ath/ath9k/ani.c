@@ -407,20 +407,20 @@ static void ath9k_hw_ani_lower_immunity_old(struct ath_hw *ah)
 			if (aniState->ofdmWeakSigDetectOff) {
 				if (ath9k_hw_ani_control(ah,
 					 ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
-					 true) == true)
+					 true))
 					return;
 			}
 			if (aniState->firstepLevel > 0) {
 				if (ath9k_hw_ani_control(ah,
 					 ATH9K_ANI_FIRSTEP_LEVEL,
-					 aniState->firstepLevel - 1) == true)
+					 aniState->firstepLevel - 1))
 					return;
 			}
 		} else {
 			if (aniState->firstepLevel > 0) {
 				if (ath9k_hw_ani_control(ah,
 					 ATH9K_ANI_FIRSTEP_LEVEL,
-					 aniState->firstepLevel - 1) == true)
+					 aniState->firstepLevel - 1))
 					return;
 			}
 		}
