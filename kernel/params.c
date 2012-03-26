@@ -297,35 +297,18 @@ EXPORT_SYMBOL(param_ops_charp);
 /* Actually could be a bool or an int, for historical reasons. */
 int param_set_bool(const char *val, const struct kernel_param *kp)
 {
-	bool v;
-	int ret;
-
 	/* No equals means "set"... */
 	if (!val) val = "1";
 
 	/* One of =[yYnN01] */
-	ret = strtobool(val, &v);
-	if (ret)
-		return ret;
-
-	if (kp->flags & KPARAM_ISBOOL)
-		*(bool *)kp->arg = v;
-	else
-		*(int *)kp->arg = v;
-	return 0;
+	return strtobool(val, kp->arg);
 }
 EXPORT_SYMBOL(param_set_bool);
 
 int param_get_bool(char *buffer, const struct kernel_param *kp)
 {
-	bool val;
-	if (kp->flags & KPARAM_ISBOOL)
-		val = *(bool *)kp->arg;
-	else
-		val = *(int *)kp->arg;
-
 	/* Y and N chosen as being relatively non-coder friendly */
-	return sprintf(buffer, "%c", val ? 'Y' : 'N');
+	return sprintf(buffer, "%c", *(bool *)kp->arg ? 'Y' : 'N');
 }
 EXPORT_SYMBOL(param_get_bool);
 
@@ -343,7 +326,6 @@ int param_set_invbool(const char *val, const struct kernel_param *kp)
 	struct kernel_param dummy;
 
 	dummy.arg = &boolval;
-	dummy.flags = KPARAM_ISBOOL;
 	ret = param_set_bool(val, &dummy);
 	if (ret == 0)
 		*(bool *)kp->arg = !boolval;
@@ -372,7 +354,6 @@ int param_set_bint(const char *val, const struct kernel_param *kp)
 	/* Match bool exactly, by re-using it. */
 	boolkp = *kp;
 	boolkp.arg = &v;
-	boolkp.flags |= KPARAM_ISBOOL;
 
 	ret = param_set_bool(val, &boolkp);
 	if (ret == 0)
