@@ -399,7 +399,7 @@ static int rk_fb_set_par(struct fb_info *info)
     }
    	CHK_SUSPEND(inf);
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
-#if 0
+#if 1
     switch (data_format)
     {
 	case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
