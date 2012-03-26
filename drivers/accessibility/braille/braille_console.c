@@ -244,16 +244,13 @@ static int keyboard_notifier_call(struct notifier_block *blk,
 
 			switch (val) {
 			case KVAL(K_CAPS):
-				on_off = vc_kbd_led(kbd_table + fg_console,
-						VC_CAPSLOCK);
+				on_off = vt_get_leds(fg_console, VC_CAPSLOCK);
 				break;
 			case KVAL(K_NUM):
-				on_off = vc_kbd_led(kbd_table + fg_console,
-						VC_NUMLOCK);
+				on_off = vt_get_leds(fg_console, VC_NUMLOCK);
 				break;
 			case KVAL(K_HOLD):
-				on_off = vc_kbd_led(kbd_table + fg_console,
-						VC_SCROLLOCK);
+				on_off = vt_get_leds(fg_console, VC_SCROLLOCK);
 				break;
 			}
 			if (on_off == 1)

@@ -144,19 +144,8 @@ static struct i2c_driver em3027_driver = {
 	.id_table = em3027_id,
 };
 
-static int __init em3027_init(void)
-{
-	return i2c_add_driver(&em3027_driver);
-}
-
-static void __exit em3027_exit(void)
-{
-	i2c_del_driver(&em3027_driver);
-}
+module_i2c_driver(em3027_driver);
 
 MODULE_AUTHOR("Mike Rapoport <mike@compulab.co.il>");
 MODULE_DESCRIPTION("EM Microelectronic EM3027 RTC driver");
 MODULE_LICENSE("GPL");
-
-module_init(em3027_init);
-module_exit(em3027_exit);

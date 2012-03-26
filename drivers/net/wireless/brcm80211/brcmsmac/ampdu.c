@@ -915,7 +915,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);
 	struct wiphy *wiphy = wlc->wiphy;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	u8 hole[AMPDU_MAX_MPDU];
 	memset(hole, 0, sizeof(hole));
 #endif
@@ -959,14 +959,13 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		if (supr_status) {
 			update_rate = false;
 			if (supr_status == TX_STATUS_SUPR_BADCH) {
-				wiphy_err(wiphy, "%s: Pkt tx suppressed, "
-					  "illegal channel possibly %d\n",
+				wiphy_err(wiphy,
+					  "%s: Pkt tx suppressed, illegal channel possibly %d\n",
 					  __func__, CHSPEC_CHANNEL(
 					  wlc->default_bss->chanspec));
 			} else {
 				if (supr_status != TX_STATUS_SUPR_FRAG)
-					wiphy_err(wiphy, "%s:"
-						  "supr_status 0x%x\n",
+					wiphy_err(wiphy, "%s: supr_status 0x%x\n",
 						  __func__, supr_status);
 			}
 			/* no need to retry for badch; will fail again */
@@ -988,9 +987,8 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			wiphy_err(wiphy, "wl%d: ampdu tx phy "
-				  "error (0x%x)\n", wlc->pub->unit,
-				  txs->phyerr);
+			wiphy_err(wiphy, "%s: ampdu tx phy error (0x%x)\n",
+				  __func__, txs->phyerr);
 
 			if (brcm_msg_level & LOG_ERROR_VAL) {
 				brcmu_prpkt("txpkt (AMPDU)", p);
@@ -1018,10 +1016,10 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		ack_recd = false;
 		if (ba_recd) {
 			bindex = MODSUB_POW2(seq, start_seq, SEQNUM_MAX);
-			BCMMSG(wlc->wiphy, "tid %d seq %d,"
-				" start_seq %d, bindex %d set %d, index %d\n",
-				tid, seq, start_seq, bindex,
-				isset(bitmap, bindex), index);
+			BCMMSG(wiphy,
+			       "tid %d seq %d, start_seq %d, bindex %d set %d, index %d\n",
+			       tid, seq, start_seq, bindex,
+			       isset(bitmap, bindex), index);
 			/* if acked then clear bit and free packet */
 			if ((bindex < AMPDU_TX_BA_MAX_WSIZE)
 			    && isset(bitmap, bindex)) {

@@ -132,8 +132,8 @@ number of contacts (f1 and f0 in the table below).
  byte 5:    0    1    ?    ?    ?    ?   f1   f0
 
 This packet only appears after a position packet with the mt bit set, and
-ususally only appears when there are two or more contacts (although
-ocassionally it's seen with only a single contact).
+usually only appears when there are two or more contacts (although
+occassionally it's seen with only a single contact).
 
 The final v3 packet type is the trackstick packet.
 

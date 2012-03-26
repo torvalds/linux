@@ -201,14 +201,6 @@ static struct map_desc exynos4_iodesc1[] __initdata = {
 	},
 };
 
-static void exynos_idle(void)
-{
-	if (!need_resched())
-		cpu_do_idle();
-
-	local_irq_enable();
-}
-
 void exynos4_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
@@ -402,7 +394,7 @@ void __init exynos4_init_irq(void)
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
 
 	if (!of_have_populated_dt())
-		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset);
+		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset, NULL);
 #ifdef CONFIG_OF
 	else
 		of_irq_init(exynos4_dt_irq_match);
@@ -467,10 +459,6 @@ early_initcall(exynos4_l2x0_cache_init);
 int __init exynos_init(void)
 {
 	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
-
-	/* set idle function */
-	pm_idle = exynos_idle;
-
 	return device_register(&exynos4_dev);
 }
 

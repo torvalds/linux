@@ -14,6 +14,8 @@
  * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/kthread.h>
@@ -590,8 +592,8 @@ static void brcmf_ethtool_get_drvinfo(struct net_device *ndev,
 	sprintf(info->bus_info, "%s", dev_name(drvr->dev));
 }
 
-static struct ethtool_ops brcmf_ethtool_ops = {
-	.get_drvinfo = brcmf_ethtool_get_drvinfo
+static const struct ethtool_ops brcmf_ethtool_ops = {
+	.get_drvinfo = brcmf_ethtool_get_drvinfo,
 };
 
 static int brcmf_ethtool(struct brcmf_pub *drvr, void __user *uaddr)
@@ -794,18 +796,19 @@ static int brcmf_netdev_open(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
+	struct brcmf_bus *bus_if = drvr->bus_if;
 	u32 toe_ol;
 	s32 ret = 0;
 
 	brcmf_dbg(TRACE, "ifidx %d\n", ifp->idx);
 
 	if (ifp->idx == 0) {	/* do it only for primary eth0 */
-		/* try to bring up bus */
-		ret = brcmf_bus_start(drvr->dev);
-		if (ret != 0) {
-			brcmf_dbg(ERROR, "failed with code %d\n", ret);
-			return -1;
+		/* If bus is not ready, can't continue */
+		if (bus_if->state != BRCMF_BUS_DATA) {
+			brcmf_dbg(ERROR, "failed bus is not ready\n");
+			return -EAGAIN;
 		}
+
 		atomic_set(&drvr->pend_8021x_cnt, 0);
 
 		memcpy(ndev->dev_addr, drvr->mac, ETH_ALEN);
@@ -977,12 +980,6 @@ int brcmf_bus_start(struct device *dev)
 		return ret;
 	}
 
-	/* If bus is not ready, can't come up */
-	if (bus_if->state != BRCMF_BUS_DATA) {
-		brcmf_dbg(ERROR, "failed bus is not ready\n");
-		return -ENODEV;
-	}
-
 	brcmf_c_mkiovar("event_msgs", drvr->eventmask, BRCMF_EVENTING_MASK_LEN,
 		      iovbuf, sizeof(iovbuf));
 	brcmf_proto_cdc_query_dcmd(drvr, 0, BRCMF_C_GET_VAR, iovbuf,
@@ -1019,6 +1016,8 @@ int brcmf_bus_start(struct device *dev)
 	if (ret < 0)
 		return ret;
 
+	/* signal bus ready */
+	bus_if->state = BRCMF_BUS_DATA;
 	return 0;
 }
 
@@ -1107,13 +1106,13 @@ void brcmf_detach(struct device *dev)
 		if (drvr->iflist[i])
 			brcmf_del_if(drvr, i);
 
-	cancel_work_sync(&drvr->setmacaddr_work);
-	cancel_work_sync(&drvr->multicast_work);
-
 	brcmf_bus_detach(drvr);
 
-	if (drvr->prot)
+	if (drvr->prot) {
+		cancel_work_sync(&drvr->setmacaddr_work);
+		cancel_work_sync(&drvr->multicast_work);
 		brcmf_proto_detach(drvr);
+	}
 
 	bus_if->drvr = NULL;
 	kfree(drvr);
@@ -1146,7 +1145,7 @@ int brcmf_netdev_wait_pend8021x(struct net_device *ndev)
 	return pend;
 }
 
-#ifdef BCMDBG
+#ifdef DEBUG
 int brcmf_write_to_file(struct brcmf_pub *drvr, const u8 *buf, int size)
 {
 	int ret = 0;
@@ -1180,4 +1179,38 @@ exit:
 
 	return ret;
 }
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
+
+static void brcmf_driver_init(struct work_struct *work)
+{
+#ifdef CONFIG_BRCMFMAC_SDIO
+	brcmf_sdio_init();
+#endif
+#ifdef CONFIG_BRCMFMAC_USB
+	brcmf_usb_init();
+#endif
+}
+static DECLARE_WORK(brcmf_driver_work, brcmf_driver_init);
+
+static int __init brcmfmac_module_init(void)
+{
+	if (!schedule_work(&brcmf_driver_work))
+		return -EBUSY;
+
+	return 0;
+}
+
+static void __exit brcmfmac_module_exit(void)
+{
+	cancel_work_sync(&brcmf_driver_work);
+
+#ifdef CONFIG_BRCMFMAC_SDIO
+	brcmf_sdio_exit();
+#endif
+#ifdef CONFIG_BRCMFMAC_USB
+	brcmf_usb_exit();
+#endif
+}
+
+module_init(brcmfmac_module_init);
+module_exit(brcmfmac_module_exit);

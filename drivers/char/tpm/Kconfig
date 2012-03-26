@@ -5,7 +5,6 @@
 menuconfig TCG_TPM
 	tristate "TPM Hardware Support"
 	depends on HAS_IOMEM
-	depends on EXPERIMENTAL
 	select SECURITYFS
 	---help---
 	  If you have a TPM security chip in your system, which

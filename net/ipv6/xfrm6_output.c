@@ -146,7 +146,7 @@ static int __xfrm6_output(struct sk_buff *skb)
 		return -EMSGSIZE;
 	}
 
-	if ((x && x->props.mode == XFRM_MODE_TUNNEL) &&
+	if (x->props.mode == XFRM_MODE_TUNNEL &&
 	    ((skb->len > mtu && !skb_is_gso(skb)) ||
 		dst_allfrag(skb_dst(skb)))) {
 			return ip6_fragment(skb, x->outer_mode->afinfo->output_finish);

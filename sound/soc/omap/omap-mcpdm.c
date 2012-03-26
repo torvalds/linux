@@ -419,12 +419,14 @@ static struct snd_soc_dai_driver omap_mcpdm_dai = {
 		.channels_max = 5,
 		.rates = OMAP_MCPDM_RATES,
 		.formats = OMAP_MCPDM_FORMATS,
+		.sig_bits = 24,
 	},
 	.capture = {
 		.channels_min = 1,
 		.channels_max = 3,
 		.rates = OMAP_MCPDM_RATES,
 		.formats = OMAP_MCPDM_FORMATS,
+		.sig_bits = 24,
 	},
 	.ops = &omap_mcpdm_dai_ops,
 };

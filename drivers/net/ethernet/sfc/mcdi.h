@@ -56,6 +56,15 @@ struct efx_mcdi_iface {
 	size_t resplen;
 };
 
+struct efx_mcdi_mon {
+	struct efx_buffer dma_buf;
+	struct mutex update_lock;
+	unsigned long last_update;
+	struct device *device;
+	struct efx_mcdi_mon_attribute *attrs;
+	unsigned int n_attrs;
+};
+
 extern void efx_mcdi_init(struct efx_nic *efx);
 
 extern int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd, const u8 *inbuf,
@@ -68,6 +77,7 @@ extern void efx_mcdi_mode_event(struct efx_nic *efx);
 
 extern void efx_mcdi_process_event(struct efx_channel *channel,
 				   efx_qword_t *event);
+extern void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev);
 
 #define MCDI_PTR2(_buf, _ofst)						\
 	(((u8 *)_buf) + _ofst)
@@ -83,6 +93,10 @@ extern void efx_mcdi_process_event(struct efx_channel *channel,
 
 #define MCDI_PTR(_buf, _ofst)						\
 	MCDI_PTR2(_buf, MC_CMD_ ## _ofst ## _OFST)
+#define MCDI_ARRAY_PTR(_buf, _field, _type, _index)			\
+	MCDI_PTR2(_buf,							\
+		  MC_CMD_ ## _field ## _OFST +				\
+		  (_index) * MC_CMD_ ## _type ## _TYPEDEF_LEN)
 #define MCDI_SET_DWORD(_buf, _ofst, _value)				\
 	MCDI_SET_DWORD2(_buf, MC_CMD_ ## _ofst ## _OFST, _value)
 #define MCDI_DWORD(_buf, _ofst)						\
@@ -92,12 +106,18 @@ extern void efx_mcdi_process_event(struct efx_channel *channel,
 
 #define MCDI_EVENT_FIELD(_ev, _field)			\
 	EFX_QWORD_FIELD(_ev, MCDI_EVENT_ ## _field)
+#define MCDI_ARRAY_FIELD(_buf, _field1, _type, _index, _field2)		\
+	EFX_DWORD_FIELD(						\
+		*((efx_dword_t *)					\
+		  (MCDI_ARRAY_PTR(_buf, _field1, _type, _index) +	\
+		   (MC_CMD_ ## _type ## _TYPEDEF_ ## _field2 ## _OFST & ~3))), \
+		MC_CMD_ ## _type ## _TYPEDEF_ ## _field2)
 
 extern void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len);
 extern int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			       bool *was_attached_out);
 extern int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
-				  u16 *fw_subtype_list);
+				  u16 *fw_subtype_list, u32 *capabilities);
 extern int efx_mcdi_log_ctrl(struct efx_nic *efx, bool evq, bool uart,
 			     u32 dest_evq);
 extern int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out);
@@ -126,5 +146,19 @@ extern int efx_mcdi_wol_filter_set_magic(struct efx_nic *efx,
 extern int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out);
 extern int efx_mcdi_wol_filter_remove(struct efx_nic *efx, int id);
 extern int efx_mcdi_wol_filter_reset(struct efx_nic *efx);
+extern int efx_mcdi_flush_rxqs(struct efx_nic *efx);
+extern int efx_mcdi_set_mac(struct efx_nic *efx);
+extern int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
+			      u32 dma_len, int enable, int clear);
+extern int efx_mcdi_mac_reconfigure(struct efx_nic *efx);
+extern bool efx_mcdi_mac_check_fault(struct efx_nic *efx);
+
+#ifdef CONFIG_SFC_MCDI_MON
+extern int efx_mcdi_mon_probe(struct efx_nic *efx);
+extern void efx_mcdi_mon_remove(struct efx_nic *efx);
+#else
+static inline int efx_mcdi_mon_probe(struct efx_nic *efx) { return 0; }
+static inline void efx_mcdi_mon_remove(struct efx_nic *efx) {}
+#endif
 
 #endif /* EFX_MCDI_H */

@@ -224,13 +224,13 @@ static void xhci_free_irq(struct xhci_hcd *xhci)
 	int ret;
 
 	/* return if using legacy interrupt */
-	if (xhci_to_hcd(xhci)->irq >= 0)
+	if (xhci_to_hcd(xhci)->irq > 0)
 		return;
 
 	ret = xhci_free_msi(xhci);
 	if (!ret)
 		return;
-	if (pdev->irq >= 0)
+	if (pdev->irq > 0)
 		free_irq(pdev->irq, xhci_to_hcd(xhci));
 
 	return;
@@ -341,7 +341,7 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 	/* unregister the legacy interrupt */
 	if (hcd->irq)
 		free_irq(hcd->irq, hcd);
-	hcd->irq = -1;
+	hcd->irq = 0;
 
 	ret = xhci_setup_msix(xhci);
 	if (ret)
@@ -349,7 +349,7 @@ static int xhci_try_enable_msi(struct usb_hcd *hcd)
 		ret = xhci_setup_msi(xhci);
 
 	if (!ret)
-		/* hcd->irq is -1, we have MSI */
+		/* hcd->irq is 0, we have MSI */
 		return 0;
 
 	if (!pdev->irq) {
@@ -729,6 +729,7 @@ static void xhci_clear_command_ring(struct xhci_hcd *xhci)
 	ring->enq_seg = ring->deq_seg;
 	ring->enqueue = ring->dequeue;
 
+	ring->num_trbs_free = ring->num_segs * (TRBS_PER_SEGMENT - 1) - 1;
 	/*
 	 * Ring is now zeroed, so the HW should look for change of ownership
 	 * when the cycle bit is set to 1.
@@ -3614,26 +3615,38 @@ static int xhci_besl_encoding[16] = {125, 150, 200, 300, 400, 500, 1000, 2000,
 	3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000};
 
 /* Calculate HIRD/BESL for USB2 PORTPMSC*/
-static int xhci_calculate_hird_besl(int u2del, bool use_besl)
+static int xhci_calculate_hird_besl(struct xhci_hcd *xhci,
+					struct usb_device *udev)
 {
-	int hird;
+	int u2del, besl, besl_host;
+	int besl_device = 0;
+	u32 field;
 
-	if (use_besl) {
-		for (hird = 0; hird < 16; hird++) {
-			if (xhci_besl_encoding[hird] >= u2del)
+	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
+	field = le32_to_cpu(udev->bos->ext_cap->bmAttributes);
+
+	if (field & USB_BESL_SUPPORT) {
+		for (besl_host = 0; besl_host < 16; besl_host++) {
+			if (xhci_besl_encoding[besl_host] >= u2del)
 				break;
 		}
+		/* Use baseline BESL value as default */
+		if (field & USB_BESL_BASELINE_VALID)
+			besl_device = USB_GET_BESL_BASELINE(field);
+		else if (field & USB_BESL_DEEP_VALID)
+			besl_device = USB_GET_BESL_DEEP(field);
 	} else {
 		if (u2del <= 50)
-			hird = 0;
+			besl_host = 0;
 		else
-			hird = (u2del - 51) / 75 + 1;
-
-		if (hird > 15)
-			hird = 15;
+			besl_host = (u2del - 51) / 75 + 1;
 	}
 
-	return hird;
+	besl = besl_host + besl_device;
+	if (besl > 15)
+		besl = 15;
+
+	return besl;
 }
 
 static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
@@ -3646,7 +3659,7 @@ static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
 	u32		temp, dev_id;
 	unsigned int	port_num;
 	unsigned long	flags;
-	int		u2del, hird;
+	int		hird;
 	int		ret;
 
 	if (hcd->speed == HCD_USB3 || !xhci->sw_lpm_support ||
@@ -3692,12 +3705,7 @@ static int xhci_usb2_software_lpm_test(struct usb_hcd *hcd,
 	 * HIRD or BESL shoule be used. See USB2.0 LPM errata.
 	 */
 	pm_addr = port_array[port_num] + 1;
-	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
-	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
-		hird = xhci_calculate_hird_besl(u2del, 1);
-	else
-		hird = xhci_calculate_hird_besl(u2del, 0);
-
+	hird = xhci_calculate_hird_besl(xhci, udev);
 	temp = PORT_L1DS(udev->slot_id) | PORT_HIRD(hird);
 	xhci_writel(xhci, temp, pm_addr);
 
@@ -3776,7 +3784,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	u32		temp;
 	unsigned int	port_num;
 	unsigned long	flags;
-	int		u2del, hird;
+	int		hird;
 
 	if (hcd->speed == HCD_USB3 || !xhci->hw_lpm_support ||
 			!udev->lpm_capable)
@@ -3799,11 +3807,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	xhci_dbg(xhci, "%s port %d USB2 hardware LPM\n",
 			enable ? "enable" : "disable", port_num);
 
-	u2del = HCS_U2_LATENCY(xhci->hcs_params3);
-	if (le32_to_cpu(udev->bos->ext_cap->bmAttributes) & (1 << 2))
-		hird = xhci_calculate_hird_besl(u2del, 1);
-	else
-		hird = xhci_calculate_hird_besl(u2del, 0);
+	hird = xhci_calculate_hird_besl(xhci, udev);
 
 	if (enable) {
 		temp &= ~PORT_HIRD_MASK;
@@ -3964,7 +3968,8 @@ int xhci_gen_setup(struct usb_hcd *hcd, xhci_get_quirks_t get_quirks)
 	int			retval;
 	u32			temp;
 
-	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 2;
+	/* Accept arbitrarily long scatter-gather lists */
+	hcd->self.sg_tablesize = ~0;
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
 		xhci = kzalloc(sizeof(struct xhci_hcd), GFP_KERNEL);
@@ -4059,6 +4064,11 @@ static int __init xhci_hcd_init(void)
 		printk(KERN_DEBUG "Problem registering PCI driver.");
 		return retval;
 	}
+	retval = xhci_register_plat();
+	if (retval < 0) {
+		printk(KERN_DEBUG "Problem registering platform driver.");
+		goto unreg_pci;
+	}
 	/*
 	 * Check the compiler generated sizes of structures that must be laid
 	 * out in specific ways for hardware access.
@@ -4078,11 +4088,15 @@ static int __init xhci_hcd_init(void)
 	BUILD_BUG_ON(sizeof(struct xhci_run_regs) != (8+8*128)*32/8);
 	BUILD_BUG_ON(sizeof(struct xhci_doorbell_array) != 256*32/8);
 	return 0;
+unreg_pci:
+	xhci_unregister_pci();
+	return retval;
 }
 module_init(xhci_hcd_init);
 
 static void __exit xhci_hcd_cleanup(void)
 {
 	xhci_unregister_pci();
+	xhci_unregister_plat();
 }
 module_exit(xhci_hcd_cleanup);

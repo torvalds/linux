@@ -53,6 +53,35 @@ struct pci_dev;
 #define  BCMA_CORE_PCI_SBTOPCI1_MASK		0xFC000000
 #define BCMA_CORE_PCI_SBTOPCI2			0x0108	/* Backplane to PCI translation 2 (sbtopci2) */
 #define  BCMA_CORE_PCI_SBTOPCI2_MASK		0xC0000000
+#define BCMA_CORE_PCI_CONFIG_ADDR		0x0120	/* pcie config space access */
+#define BCMA_CORE_PCI_CONFIG_DATA		0x0124	/* pcie config space access */
+#define BCMA_CORE_PCI_MDIO_CONTROL		0x0128	/* controls the mdio access */
+#define  BCMA_CORE_PCI_MDIOCTL_DIVISOR_MASK	0x7f	/* clock to be used on MDIO */
+#define  BCMA_CORE_PCI_MDIOCTL_DIVISOR_VAL	0x2
+#define  BCMA_CORE_PCI_MDIOCTL_PREAM_EN		0x80	/* Enable preamble sequnce */
+#define  BCMA_CORE_PCI_MDIOCTL_ACCESS_DONE	0x100	/* Tranaction complete */
+#define BCMA_CORE_PCI_MDIO_DATA			0x012c	/* Data to the mdio access */
+#define  BCMA_CORE_PCI_MDIODATA_MASK		0x0000ffff /* data 2 bytes */
+#define  BCMA_CORE_PCI_MDIODATA_TA		0x00020000 /* Turnaround */
+#define  BCMA_CORE_PCI_MDIODATA_REGADDR_SHF_OLD	18	/* Regaddr shift (rev < 10) */
+#define  BCMA_CORE_PCI_MDIODATA_REGADDR_MASK_OLD	0x003c0000 /* Regaddr Mask (rev < 10) */
+#define  BCMA_CORE_PCI_MDIODATA_DEVADDR_SHF_OLD	22	/* Physmedia devaddr shift (rev < 10) */
+#define  BCMA_CORE_PCI_MDIODATA_DEVADDR_MASK_OLD	0x0fc00000 /* Physmedia devaddr Mask (rev < 10) */
+#define  BCMA_CORE_PCI_MDIODATA_REGADDR_SHF	18	/* Regaddr shift */
+#define  BCMA_CORE_PCI_MDIODATA_REGADDR_MASK	0x007c0000 /* Regaddr Mask */
+#define  BCMA_CORE_PCI_MDIODATA_DEVADDR_SHF	23	/* Physmedia devaddr shift */
+#define  BCMA_CORE_PCI_MDIODATA_DEVADDR_MASK	0x0f800000 /* Physmedia devaddr Mask */
+#define  BCMA_CORE_PCI_MDIODATA_WRITE		0x10000000 /* write Transaction */
+#define  BCMA_CORE_PCI_MDIODATA_READ		0x20000000 /* Read Transaction */
+#define  BCMA_CORE_PCI_MDIODATA_START		0x40000000 /* start of Transaction */
+#define  BCMA_CORE_PCI_MDIODATA_DEV_ADDR	0x0	/* dev address for serdes */
+#define  BCMA_CORE_PCI_MDIODATA_BLK_ADDR	0x1F	/* blk address for serdes */
+#define  BCMA_CORE_PCI_MDIODATA_DEV_PLL		0x1d	/* SERDES PLL Dev */
+#define  BCMA_CORE_PCI_MDIODATA_DEV_TX		0x1e	/* SERDES TX Dev */
+#define  BCMA_CORE_PCI_MDIODATA_DEV_RX		0x1f	/* SERDES RX Dev */
+#define BCMA_CORE_PCI_PCIEIND_ADDR		0x0130	/* indirect access to the internal register */
+#define BCMA_CORE_PCI_PCIEIND_DATA		0x0134	/* Data to/from the internal regsiter */
+#define BCMA_CORE_PCI_CLKREQENCTRL		0x0138	/*  >= rev 6, Clkreq rdma control */
 #define BCMA_CORE_PCI_PCICFG0			0x0400	/* PCI config space 0 (rev >= 8) */
 #define BCMA_CORE_PCI_PCICFG1			0x0500	/* PCI config space 1 (rev >= 8) */
 #define BCMA_CORE_PCI_PCICFG2			0x0600	/* PCI config space 2 (rev >= 8) */
@@ -72,20 +101,114 @@ struct pci_dev;
 #define  BCMA_CORE_PCI_SBTOPCI_RC_READL		0x00000010 /* Memory read line */
 #define  BCMA_CORE_PCI_SBTOPCI_RC_READM		0x00000020 /* Memory read multiple */
 
+/* PCIE protocol PHY diagnostic registers */
+#define BCMA_CORE_PCI_PLP_MODEREG		0x200	/* Mode */
+#define BCMA_CORE_PCI_PLP_STATUSREG		0x204	/* Status */
+#define  BCMA_CORE_PCI_PLP_POLARITYINV_STAT	0x10	/* Status reg PCIE_PLP_STATUSREG */
+#define BCMA_CORE_PCI_PLP_LTSSMCTRLREG		0x208	/* LTSSM control */
+#define BCMA_CORE_PCI_PLP_LTLINKNUMREG		0x20c	/* Link Training Link number */
+#define BCMA_CORE_PCI_PLP_LTLANENUMREG		0x210	/* Link Training Lane number */
+#define BCMA_CORE_PCI_PLP_LTNFTSREG		0x214	/* Link Training N_FTS */
+#define BCMA_CORE_PCI_PLP_ATTNREG		0x218	/* Attention */
+#define BCMA_CORE_PCI_PLP_ATTNMASKREG		0x21C	/* Attention Mask */
+#define BCMA_CORE_PCI_PLP_RXERRCTR		0x220	/* Rx Error */
+#define BCMA_CORE_PCI_PLP_RXFRMERRCTR		0x224	/* Rx Framing Error */
+#define BCMA_CORE_PCI_PLP_RXERRTHRESHREG	0x228	/* Rx Error threshold */
+#define BCMA_CORE_PCI_PLP_TESTCTRLREG		0x22C	/* Test Control reg */
+#define BCMA_CORE_PCI_PLP_SERDESCTRLOVRDREG	0x230	/* SERDES Control Override */
+#define BCMA_CORE_PCI_PLP_TIMINGOVRDREG		0x234	/* Timing param override */
+#define BCMA_CORE_PCI_PLP_RXTXSMDIAGREG		0x238	/* RXTX State Machine Diag */
+#define BCMA_CORE_PCI_PLP_LTSSMDIAGREG		0x23C	/* LTSSM State Machine Diag */
+
+/* PCIE protocol DLLP diagnostic registers */
+#define BCMA_CORE_PCI_DLLP_LCREG		0x100	/* Link Control */
+#define BCMA_CORE_PCI_DLLP_LSREG		0x104	/* Link Status */
+#define BCMA_CORE_PCI_DLLP_LAREG		0x108	/* Link Attention */
+#define  BCMA_CORE_PCI_DLLP_LSREG_LINKUP	(1 << 16)
+#define BCMA_CORE_PCI_DLLP_LAMASKREG		0x10C	/* Link Attention Mask */
+#define BCMA_CORE_PCI_DLLP_NEXTTXSEQNUMREG	0x110	/* Next Tx Seq Num */
+#define BCMA_CORE_PCI_DLLP_ACKEDTXSEQNUMREG	0x114	/* Acked Tx Seq Num */
+#define BCMA_CORE_PCI_DLLP_PURGEDTXSEQNUMREG	0x118	/* Purged Tx Seq Num */
+#define BCMA_CORE_PCI_DLLP_RXSEQNUMREG		0x11C	/* Rx Sequence Number */
+#define BCMA_CORE_PCI_DLLP_LRREG		0x120	/* Link Replay */
+#define BCMA_CORE_PCI_DLLP_LACKTOREG		0x124	/* Link Ack Timeout */
+#define BCMA_CORE_PCI_DLLP_PMTHRESHREG		0x128	/* Power Management Threshold */
+#define BCMA_CORE_PCI_DLLP_RTRYWPREG		0x12C	/* Retry buffer write ptr */
+#define BCMA_CORE_PCI_DLLP_RTRYRPREG		0x130	/* Retry buffer Read ptr */
+#define BCMA_CORE_PCI_DLLP_RTRYPPREG		0x134	/* Retry buffer Purged ptr */
+#define BCMA_CORE_PCI_DLLP_RTRRWREG		0x138	/* Retry buffer Read/Write */
+#define BCMA_CORE_PCI_DLLP_ECTHRESHREG		0x13C	/* Error Count Threshold */
+#define BCMA_CORE_PCI_DLLP_TLPERRCTRREG		0x140	/* TLP Error Counter */
+#define BCMA_CORE_PCI_DLLP_ERRCTRREG		0x144	/* Error Counter */
+#define BCMA_CORE_PCI_DLLP_NAKRXCTRREG		0x148	/* NAK Received Counter */
+#define BCMA_CORE_PCI_DLLP_TESTREG		0x14C	/* Test */
+#define BCMA_CORE_PCI_DLLP_PKTBIST		0x150	/* Packet BIST */
+#define BCMA_CORE_PCI_DLLP_PCIE11		0x154	/* DLLP PCIE 1.1 reg */
+
+/* SERDES RX registers */
+#define BCMA_CORE_PCI_SERDES_RX_CTRL		1	/* Rx cntrl */
+#define  BCMA_CORE_PCI_SERDES_RX_CTRL_FORCE	0x80	/* rxpolarity_force */
+#define  BCMA_CORE_PCI_SERDES_RX_CTRL_POLARITY	0x40	/* rxpolarity_value */
+#define BCMA_CORE_PCI_SERDES_RX_TIMER1		2	/* Rx Timer1 */
+#define BCMA_CORE_PCI_SERDES_RX_CDR		6	/* CDR */
+#define BCMA_CORE_PCI_SERDES_RX_CDRBW		7	/* CDR BW */
+
+/* SERDES PLL registers */
+#define BCMA_CORE_PCI_SERDES_PLL_CTRL		1	/* PLL control reg */
+#define BCMA_CORE_PCI_PLL_CTRL_FREQDET_EN	0x4000	/* bit 14 is FREQDET on */
+
 /* PCIcore specific boardflags */
 #define BCMA_CORE_PCI_BFL_NOPCI			0x00000400 /* Board leaves PCI floating */
+
+/* PCIE Config space accessing MACROS */
+#define BCMA_CORE_PCI_CFG_BUS_SHIFT		24	/* Bus shift */
+#define BCMA_CORE_PCI_CFG_SLOT_SHIFT		19	/* Slot/Device shift */
+#define BCMA_CORE_PCI_CFG_FUN_SHIFT		16	/* Function shift */
+#define BCMA_CORE_PCI_CFG_OFF_SHIFT		0	/* Register shift */
+
+#define BCMA_CORE_PCI_CFG_BUS_MASK		0xff	/* Bus mask */
+#define BCMA_CORE_PCI_CFG_SLOT_MASK		0x1f	/* Slot/Device mask */
+#define BCMA_CORE_PCI_CFG_FUN_MASK		7	/* Function mask */
+#define BCMA_CORE_PCI_CFG_OFF_MASK		0xfff	/* Register mask */
+
+/* PCIE Root Capability Register bits (Host mode only) */
+#define BCMA_CORE_PCI_RC_CRS_VISIBILITY		0x0001
+
+struct bcma_drv_pci;
+
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+struct bcma_drv_pci_host {
+	struct bcma_drv_pci *pdev;
+
+	u32 host_cfg_addr;
+	spinlock_t cfgspace_lock;
+
+	struct pci_controller pci_controller;
+	struct pci_ops pci_ops;
+	struct resource mem_resource;
+	struct resource io_resource;
+};
+#endif
 
 struct bcma_drv_pci {
 	struct bcma_device *core;
 	u8 setup_done:1;
+	u8 hostmode:1;
+
+#ifdef CONFIG_BCMA_DRIVER_PCI_HOSTMODE
+	struct bcma_drv_pci_host *host_controller;
+#endif
 };
 
 /* Register access */
 #define pcicore_read32(pc, offset)		bcma_read32((pc)->core, offset)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
-extern void bcma_core_pci_init(struct bcma_drv_pci *pc);
+extern void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
+
+extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
+extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);
 
 #endif /* LINUX_BCMA_DRIVER_PCI_H_ */

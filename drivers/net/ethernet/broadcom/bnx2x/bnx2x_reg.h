@@ -1,6 +1,6 @@
 /* bnx2x_reg.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2011 Broadcom Corporation
+ * Copyright (c) 2007-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -4812,6 +4812,7 @@
    The fields are: [4:0] - tail pointer; 10:5] - Link List size; 15:11] -
    header pointer. */
 #define UCM_REG_XX_TABLE					 0xe0300
+#define UMAC_COMMAND_CONFIG_REG_HD_ENA				 (0x1<<10)
 #define UMAC_COMMAND_CONFIG_REG_IGNORE_TX_PAUSE			 (0x1<<28)
 #define UMAC_COMMAND_CONFIG_REG_LOOP_ENA			 (0x1<<15)
 #define UMAC_COMMAND_CONFIG_REG_NO_LGTH_CHECK			 (0x1<<24)
@@ -5731,6 +5732,7 @@
 #define MISC_REGISTERS_GPIO_PORT_SHIFT				 4
 #define MISC_REGISTERS_GPIO_SET_POS				 8
 #define MISC_REGISTERS_RESET_REG_1_CLEAR			 0x588
+#define MISC_REGISTERS_RESET_REG_1_RST_DORQ			 (0x1<<19)
 #define MISC_REGISTERS_RESET_REG_1_RST_HC			 (0x1<<29)
 #define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
 #define MISC_REGISTERS_RESET_REG_1_RST_PXP			 (0x1<<26)
@@ -5783,15 +5785,17 @@
 #define MISC_REGISTERS_SPIO_OUTPUT_HIGH 			 1
 #define MISC_REGISTERS_SPIO_OUTPUT_LOW				 0
 #define MISC_REGISTERS_SPIO_SET_POS				 8
-#define HW_LOCK_DRV_FLAGS					 10
 #define HW_LOCK_MAX_RESOURCE_VALUE				 31
+#define HW_LOCK_RESOURCE_DRV_FLAGS				 10
 #define HW_LOCK_RESOURCE_GPIO					 1
 #define HW_LOCK_RESOURCE_MDIO					 0
+#define HW_LOCK_RESOURCE_NVRAM					 12
 #define HW_LOCK_RESOURCE_PORT0_ATT_MASK				 3
 #define HW_LOCK_RESOURCE_RECOVERY_LEADER_0			 8
 #define HW_LOCK_RESOURCE_RECOVERY_LEADER_1			 9
-#define HW_LOCK_RESOURCE_SPIO					 2
+#define HW_LOCK_RESOURCE_RECOVERY_REG				 11
 #define HW_LOCK_RESOURCE_RESET					 5
+#define HW_LOCK_RESOURCE_SPIO					 2
 #define AEU_INPUTS_ATTN_BITS_ATC_HW_INTERRUPT			 (0x1<<4)
 #define AEU_INPUTS_ATTN_BITS_ATC_PARITY_ERROR			 (0x1<<5)
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR			 (0x1<<18)
@@ -6023,7 +6027,8 @@
 #define PCICFG_MSI_CONTROL_64_BIT_ADDR_CAP	(0x1<<23)
 #define PCICFG_MSI_CONTROL_MSI_PVMASK_CAPABLE	(0x1<<24)
 #define PCICFG_GRC_ADDRESS				0x78
-#define PCICFG_GRC_DATA 				0x80
+#define PCICFG_GRC_DATA				0x80
+#define PCICFG_ME_REGISTER				0x98
 #define PCICFG_MSIX_CAP_ID_OFFSET			0xa0
 #define PCICFG_MSIX_CONTROL_TABLE_SIZE		(0x7ff<<16)
 #define PCICFG_MSIX_CONTROL_RESERVED		(0x7<<27)
@@ -6401,6 +6406,7 @@
 #define MDIO_CL73_IEEEB1_AN_LP_ADV1_ASYMMETRIC		0x0800
 #define MDIO_CL73_IEEEB1_AN_LP_ADV1_PAUSE_BOTH		0x0C00
 #define MDIO_CL73_IEEEB1_AN_LP_ADV1_PAUSE_MASK		0x0C00
+#define MDIO_CL73_IEEEB1_AN_LP_ADV2			0x04
 
 #define MDIO_REG_BANK_RX0				0x80b0
 #define MDIO_RX0_RX_STATUS				0x10
@@ -6794,14 +6800,16 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_AN_REG_ADV_PAUSE_MASK		0x0C00
 #define MDIO_AN_REG_ADV 		0x0011
 #define MDIO_AN_REG_ADV2		0x0012
-#define MDIO_AN_REG_LP_AUTO_NEG 	0x0013
+#define MDIO_AN_REG_LP_AUTO_NEG		0x0013
+#define MDIO_AN_REG_LP_AUTO_NEG2	0x0014
 #define MDIO_AN_REG_MASTER_STATUS	0x0021
 /*bcm*/
 #define MDIO_AN_REG_LINK_STATUS 	0x8304
 #define MDIO_AN_REG_CL37_CL73		0x8370
 #define MDIO_AN_REG_CL37_AN		0xffe0
 #define MDIO_AN_REG_CL37_FC_LD		0xffe4
-#define MDIO_AN_REG_CL37_FC_LP		0xffe5
+#define		MDIO_AN_REG_CL37_FC_LP		0xffe5
+#define		MDIO_AN_REG_1000T_STATUS	0xffea
 
 #define MDIO_AN_REG_8073_2_5G		0x8329
 #define MDIO_AN_REG_8073_BAM		0x8350
@@ -6966,6 +6974,7 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_WC_REG_SERDESDIGITAL_MISC1			0x8308
 #define MDIO_WC_REG_SERDESDIGITAL_MISC2			0x8309
 #define MDIO_WC_REG_DIGITAL3_UP1			0x8329
+#define MDIO_WC_REG_DIGITAL3_LP_UP1			 0x832c
 #define MDIO_WC_REG_DIGITAL4_MISC3			0x833c
 #define MDIO_WC_REG_DIGITAL5_MISC6			0x8345
 #define MDIO_WC_REG_DIGITAL5_MISC7			0x8349

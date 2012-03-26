@@ -431,11 +431,8 @@ struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
 	struct htc_target *target;
 
 	target = kzalloc(sizeof(struct htc_target), GFP_KERNEL);
-	if (!target) {
-		printk(KERN_ERR "Unable to allocate memory for"
-			"target device\n");
+	if (!target)
 		return NULL;
-	}
 
 	init_completion(&target->target_wait);
 	init_completion(&target->cmd_wait);

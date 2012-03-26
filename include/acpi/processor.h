@@ -225,6 +225,7 @@ struct acpi_processor_errata {
 	} piix4;
 };
 
+extern void acpi_processor_load_module(struct acpi_processor *pr);
 extern int acpi_processor_preregister_performance(struct
 						  acpi_processor_performance
 						  __percpu *performance);

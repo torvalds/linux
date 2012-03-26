@@ -8,7 +8,7 @@
 
 struct iblock_req {
 	struct se_task ib_task;
-	atomic_t ib_bio_cnt;
+	atomic_t pending;
 	atomic_t ib_bio_err_cnt;
 } ____cacheline_aligned;
 
@@ -19,11 +19,6 @@ struct iblock_dev {
 	u32	ibd_flags;
 	struct bio_set	*ibd_bio_set;
 	struct block_device *ibd_bd;
-	struct iblock_hba *ibd_host;
-} ____cacheline_aligned;
-
-struct iblock_hba {
-	int		iblock_host_id;
 } ____cacheline_aligned;
 
 #endif /* TARGET_CORE_IBLOCK_H */

@@ -246,9 +246,9 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type = RGB16,
 		.clock_divider = 2,
-		.lcd_cfg = migor_lcd_modes,
-		.num_cfg = ARRAY_SIZE(migor_lcd_modes),
-		.lcd_size_cfg = { /* 7.0 inch */
+		.lcd_modes = migor_lcd_modes,
+		.num_modes = ARRAY_SIZE(migor_lcd_modes),
+		.panel_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
 		},
@@ -260,13 +260,11 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
 		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type = SYS16A,
 		.clock_divider = 10,
-		.lcd_cfg = migor_lcd_modes,
-		.num_cfg = ARRAY_SIZE(migor_lcd_modes),
-		.lcd_size_cfg = { /* 2.4 inch */
-			.width = 49,
+		.lcd_modes = migor_lcd_modes,
+		.num_modes = ARRAY_SIZE(migor_lcd_modes),
+		.panel_cfg = {
+			.width = 49,	/* 2.4 inch */
 			.height = 37,
-		},
-		.board_cfg = {
 			.setup_sys = migor_lcd_qvga_setup,
 		},
 		.sys_bus_cfg = {

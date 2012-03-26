@@ -3838,6 +3838,19 @@ void ata_sas_port_stop(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ata_sas_port_stop);
 
+int ata_sas_async_port_init(struct ata_port *ap)
+{
+	int rc = ap->ops->port_start(ap);
+
+	if (!rc) {
+		ap->print_id = ata_print_id++;
+		__ata_port_probe(ap);
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ata_sas_async_port_init);
+
 /**
  *	ata_sas_port_init - Initialize a SATA device
  *	@ap: SATA port to initialize

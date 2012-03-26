@@ -5,7 +5,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/stat.h>
 #include <linux/buffer_head.h>
 #include <linux/slab.h>

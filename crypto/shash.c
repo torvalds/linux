@@ -281,10 +281,10 @@ int shash_ahash_digest(struct ahash_request *req, struct shash_desc *desc)
 	if (nbytes < min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset)) {
 		void *data;
 
-		data = crypto_kmap(sg_page(sg), 0);
+		data = kmap_atomic(sg_page(sg));
 		err = crypto_shash_digest(desc, data + offset, nbytes,
 					  req->result);
-		crypto_kunmap(data, 0);
+		kunmap_atomic(data);
 		crypto_yield(desc->flags);
 	} else
 		err = crypto_shash_init(desc) ?:
@@ -420,9 +420,9 @@ static int shash_compat_digest(struct hash_desc *hdesc, struct scatterlist *sg,
 
 		desc->flags = hdesc->flags;
 
-		data = crypto_kmap(sg_page(sg), 0);
+		data = kmap_atomic(sg_page(sg));
 		err = crypto_shash_digest(desc, data + offset, nbytes, out);
-		crypto_kunmap(data, 0);
+		kunmap_atomic(data);
 		crypto_yield(desc->flags);
 		goto out;
 	}

@@ -12,7 +12,6 @@
  * GNU General Public License for more details.
  *
  */
-void arch_idle(void);
 
 /* low level hardware reset hook -- for example, hitting the
  * PSHOLD line on the PMIC to hard reset the system

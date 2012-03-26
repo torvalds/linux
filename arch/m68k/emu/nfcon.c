@@ -127,7 +127,6 @@ static int __init nfcon_init(void)
 	if (!nfcon_tty_driver)
 		return -ENOMEM;
 
-	nfcon_tty_driver->owner = THIS_MODULE;
 	nfcon_tty_driver->driver_name = "nfcon";
 	nfcon_tty_driver->name = "nfcon";
 	nfcon_tty_driver->type = TTY_DRIVER_TYPE_SYSTEM;

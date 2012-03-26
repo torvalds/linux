@@ -206,12 +206,21 @@ using a certain resistor value - pull up and pull down - so that the pin has a
 stable value when nothing is driving the rail it is connected to, or when it's
 unconnected.
 
-For example, a platform may do this:
+Pin configuration can be programmed either using the explicit APIs described
+immediately below, or by adding configuration entries into the mapping table;
+see section "Board/machine configuration" below.
+
+For example, a platform may do the following to pull up a pin to VDD:
+
+#include <linux/pinctrl/consumer.h>
 
 ret = pin_config_set("foo-dev", "FOO_GPIO_PIN", PLATFORM_X_PULL_UP);
 
-To pull up a pin to VDD. The pin configuration driver implements callbacks for
-changing pin configuration in the pin controller ops like this:
+The format and meaning of the configuration parameter, PLATFORM_X_PULL_UP
+above, is entirely defined by the pin controller driver.
+
+The pin configuration driver implements callbacks for changing pin
+configuration in the pin controller ops like this:
 
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinconf.h>
@@ -492,14 +501,10 @@ Definitions:
     {"map-i2c0", i2c0, pinctrl0, fi2c0, gi2c0}
   }
 
-  Every map must be assigned a symbolic name, pin controller and function.
-  The group is not compulsory - if it is omitted the first group presented by
-  the driver as applicable for the function will be selected, which is
-  useful for simple cases.
-
-  The device name is present in map entries tied to specific devices. Maps
-  without device names are referred to as SYSTEM pinmuxes, such as can be taken
-  by the machine implementation on boot and not tied to any specific device.
+  Every map must be assigned a state name, pin controller, device and
+  function. The group is not compulsory - if it is omitted the first group
+  presented by the driver as applicable for the function will be selected,
+  which is useful for simple cases.
 
   It is possible to map several groups to the same combination of device,
   pin controller and function. This is for cases where a certain function on
@@ -726,19 +731,19 @@ same time.
 All the above functions are mandatory to implement for a pinmux driver.
 
 
-Pinmux interaction with the GPIO subsystem
-==========================================
+Pin control interaction with the GPIO subsystem
+===============================================
 
-The public pinmux API contains two functions named pinmux_request_gpio()
-and pinmux_free_gpio(). These two functions shall *ONLY* be called from
+The public pinmux API contains two functions named pinctrl_request_gpio()
+and pinctrl_free_gpio(). These two functions shall *ONLY* be called from
 gpiolib-based drivers as part of their gpio_request() and
-gpio_free() semantics. Likewise the pinmux_gpio_direction_[input|output]
+gpio_free() semantics. Likewise the pinctrl_gpio_direction_[input|output]
 shall only be called from within respective gpio_direction_[input|output]
 gpiolib implementation.
 
 NOTE that platforms and individual drivers shall *NOT* request GPIO pins to be
-muxed in. Instead, implement a proper gpiolib driver and have that driver
-request proper muxing for its pins.
+controlled e.g. muxed in. Instead, implement a proper gpiolib driver and have
+that driver request proper muxing and other control for its pins.
 
 The function list could become long, especially if you can convert every
 individual pin into a GPIO pin independent of any other pins, and then try
@@ -747,7 +752,7 @@ the approach to define every pin as a function.
 In this case, the function array would become 64 entries for each GPIO
 setting and then the device functions.
 
-For this reason there are two functions a pinmux driver can implement
+For this reason there are two functions a pin control driver can implement
 to enable only GPIO on an individual pin: .gpio_request_enable() and
 .gpio_disable_free().
 
@@ -762,12 +767,12 @@ gpiolib driver and the affected GPIO range, pin offset and desired direction
 will be passed along to this function.
 
 Alternatively to using these special functions, it is fully allowed to use
-named functions for each GPIO pin, the pinmux_request_gpio() will attempt to
+named functions for each GPIO pin, the pinctrl_request_gpio() will attempt to
 obtain the function "gpioN" where "N" is the global GPIO pin number if no
 special GPIO-handler is registered.
 
 
-Pinmux board/machine configuration
+Board/machine configuration
 ==================================
 
 Boards and machines define how a certain complete running system is put
@@ -775,27 +780,33 @@ together, including how GPIOs and devices are muxed, how regulators are
 constrained and how the clock tree looks. Of course pinmux settings are also
 part of this.
 
-A pinmux config for a machine looks pretty much like a simple regulator
-configuration, so for the example array above we want to enable i2c and
-spi on the second function mapping:
+A pin controller configuration for a machine looks pretty much like a simple
+regulator configuration, so for the example array above we want to enable i2c
+and spi on the second function mapping:
 
 #include <linux/pinctrl/machine.h>
 
-static const struct pinmux_map __initdata pmx_mapping[] = {
+static const struct pinctrl_map __initdata mapping[] = {
 	{
-		.ctrl_dev_name = "pinctrl-foo",
-		.function = "spi0",
 		.dev_name = "foo-spi.0",
+		.name = PINCTRL_STATE_DEFAULT,
+		.type = PIN_MAP_TYPE_MUX_GROUP,
+		.ctrl_dev_name = "pinctrl-foo",
+		.data.mux.function = "spi0",
 	},
 	{
-		.ctrl_dev_name = "pinctrl-foo",
-		.function = "i2c0",
 		.dev_name = "foo-i2c.0",
+		.name = PINCTRL_STATE_DEFAULT,
+		.type = PIN_MAP_TYPE_MUX_GROUP,
+		.ctrl_dev_name = "pinctrl-foo",
+		.data.mux.function = "i2c0",
 	},
 	{
-		.ctrl_dev_name = "pinctrl-foo",
-		.function = "mmc0",
 		.dev_name = "foo-mmc.0",
+		.name = PINCTRL_STATE_DEFAULT,
+		.type = PIN_MAP_TYPE_MUX_GROUP,
+		.ctrl_dev_name = "pinctrl-foo",
+		.data.mux.function = "mmc0",
 	},
 };
 
@@ -805,21 +816,51 @@ must match a function provided by the pinmux driver handling this pin range.
 
 As you can see we may have several pin controllers on the system and thus
 we need to specify which one of them that contain the functions we wish
-to map. The map can also use struct device * directly, so there is no
-inherent need to use strings to specify .dev_name or .ctrl_dev_name, these
-are for the situation where you do not have a handle to the struct device *,
-for example if they are not yet instantiated or cumbersome to obtain.
+to map.
 
 You register this pinmux mapping to the pinmux subsystem by simply:
 
-       ret = pinmux_register_mappings(pmx_mapping, ARRAY_SIZE(pmx_mapping));
+       ret = pinctrl_register_mappings(mapping, ARRAY_SIZE(mapping));
 
 Since the above construct is pretty common there is a helper macro to make
 it even more compact which assumes you want to use pinctrl-foo and position
 0 for mapping, for example:
 
-static struct pinmux_map __initdata pmx_mapping[] = {
-       PINMUX_MAP("I2CMAP", "pinctrl-foo", "i2c0", "foo-i2c.0"),
+static struct pinctrl_map __initdata mapping[] = {
+	PIN_MAP_MUX_GROUP("foo-i2c.o", PINCTRL_STATE_DEFAULT, "pinctrl-foo", NULL, "i2c0"),
+};
+
+The mapping table may also contain pin configuration entries. It's common for
+each pin/group to have a number of configuration entries that affect it, so
+the table entries for configuration reference an array of config parameters
+and values. An example using the convenience macros is shown below:
+
+static unsigned long i2c_grp_configs[] = {
+	FOO_PIN_DRIVEN,
+	FOO_PIN_PULLUP,
+};
+
+static unsigned long i2c_pin_configs[] = {
+	FOO_OPEN_COLLECTOR,
+	FOO_SLEW_RATE_SLOW,
+};
+
+static struct pinctrl_map __initdata mapping[] = {
+	PIN_MAP_MUX_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", "i2c0"),
+	PIN_MAP_MUX_CONFIGS_GROUP("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0", i2c_grp_configs),
+	PIN_MAP_MUX_CONFIGS_PIN("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0scl", i2c_pin_configs),
+	PIN_MAP_MUX_CONFIGS_PIN("foo-i2c.0", PINCTRL_STATE_DEFAULT, "pinctrl-foo", "i2c0sda", i2c_pin_configs),
+};
+
+Finally, some devices expect the mapping table to contain certain specific
+named states. When running on hardware that doesn't need any pin controller
+configuration, the mapping table must still contain those named states, in
+order to explicitly indicate that the states were provided and intended to
+be empty. Table entry macro PIN_MAP_DUMMY_STATE serves the purpose of defining
+a named state without causing any pin controller to be programmed:
+
+static struct pinctrl_map __initdata mapping[] = {
+	PIN_MAP_DUMMY_STATE("foo-i2c.0", PINCTRL_STATE_DEFAULT),
 };
 
 
@@ -831,81 +872,96 @@ As it is possible to map a function to different groups of pins an optional
 
 ...
 {
+	.dev_name = "foo-spi.0",
 	.name = "spi0-pos-A",
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_0_grp",
-	.dev_name = "foo-spi.0",
 },
 {
+	.dev_name = "foo-spi.0",
 	.name = "spi0-pos-B",
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "spi0",
 	.group = "spi0_1_grp",
-	.dev_name = "foo-spi.0",
 },
 ...
 
 This example mapping is used to switch between two positions for spi0 at
 runtime, as described further below under the heading "Runtime pinmuxing".
 
-Further it is possible to match several groups of pins to the same function
-for a single device, say for example in the mmc0 example above, where you can
+Further it is possible for one named state to affect the muxing of several
+groups of pins, say for example in the mmc0 example above, where you can
 additively expand the mmc0 bus from 2 to 4 to 8 pins. If we want to use all
 three groups for a total of 2+2+4 = 8 pins (for an 8-bit MMC bus as is the
 case), we define a mapping like this:
 
 ...
 {
+	.dev_name = "foo-mmc.0",
 	.name = "2bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "4bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_1_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "4bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "8bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
+	.function = "mmc0",
 	.group = "mmc0_1_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "8bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_2_grp",
-	.dev_name = "foo-mmc.0",
 },
 {
+	.dev_name = "foo-mmc.0",
 	.name = "8bit"
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "mmc0",
 	.group = "mmc0_3_grp",
-	.dev_name = "foo-mmc.0",
 },
 ...
 
 The result of grabbing this mapping from the device with something like
 this (see next paragraph):
 
-	pmx = pinmux_get(&device, "8bit");
+	p = pinctrl_get(dev);
+	s = pinctrl_lookup_state(p, "8bit");
+	ret = pinctrl_select_state(p, s);
+
+or more simply:
+
+	p = pinctrl_get_select(dev, "8bit");
 
 Will be that you activate all the three bottom records in the mapping at
-once. Since they share the same name, pin controller device, funcion and
+once. Since they share the same name, pin controller device, function and
 device, and since we allow multiple groups to match to a single device, they
 all get selected, and they all get enabled and disable simultaneously by the
 pinmux core.
@@ -914,97 +970,111 @@ pinmux core.
 Pinmux requests from drivers
 ============================
 
-Generally it is discouraged to let individual drivers get and enable pinmuxes.
-So if possible, handle the pinmuxes in platform code or some other place where
-you have access to all the affected struct device * pointers. In some cases
-where a driver needs to switch between different mux mappings at runtime
-this is not possible.
+Generally it is discouraged to let individual drivers get and enable pin
+control. So if possible, handle the pin control in platform code or some other
+place where you have access to all the affected struct device * pointers. In
+some cases where a driver needs to e.g. switch between different mux mappings
+at runtime this is not possible.
 
-A driver may request a certain mux to be activated, usually just the default
-mux like this:
+A driver may request a certain control state to be activated, usually just the
+default state like this:
 
-#include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/consumer.h>
 
 struct foo_state {
-       struct pinmux *pmx;
+       struct pinctrl *p;
+       struct pinctrl_state *s;
        ...
 };
 
 foo_probe()
 {
-	/* Allocate a state holder named "state" etc */
-	struct pinmux pmx;
+	/* Allocate a state holder named "foo" etc */
+	struct foo_state *foo = ...;
 
-	pmx = pinmux_get(&device, NULL);
-	if IS_ERR(pmx)
-		return PTR_ERR(pmx);
-	pinmux_enable(pmx);
+	foo->p = pinctrl_get(&device);
+	if (IS_ERR(foo->p)) {
+		/* FIXME: clean up "foo" here */
+		return PTR_ERR(foo->p);
+	}
 
-	state->pmx = pmx;
+	foo->s = pinctrl_lookup_state(foo->p, PINCTRL_STATE_DEFAULT);
+	if (IS_ERR(foo->s)) {
+		pinctrl_put(foo->p);
+		/* FIXME: clean up "foo" here */
+		return PTR_ERR(s);
+	}
+
+	ret = pinctrl_select_state(foo->s);
+	if (ret < 0) {
+		pinctrl_put(foo->p);
+		/* FIXME: clean up "foo" here */
+		return ret;
+	}
 }
 
 foo_remove()
 {
-	pinmux_disable(state->pmx);
-	pinmux_put(state->pmx);
+	pinctrl_put(state->p);
 }
 
-If you want to grab a specific mux mapping and not just the first one found for
-this device you can specify a specific mapping name, for example in the above
-example the second i2c0 setting: pinmux_get(&device, "spi0-pos-B");
-
-This get/enable/disable/put sequence can just as well be handled by bus drivers
+This get/lookup/select/put sequence can just as well be handled by bus drivers
 if you don't want each and every driver to handle it and you know the
 arrangement on your bus.
 
-The semantics of the get/enable respective disable/put is as follows:
+The semantics of the pinctrl APIs are:
 
-- pinmux_get() is called in process context to reserve the pins affected with
-  a certain mapping and set up the pinmux core and the driver. It will allocate
-  a struct from the kernel memory to hold the pinmux state.
+- pinctrl_get() is called in process context to obtain a handle to all pinctrl
+  information for a given client device. It will allocate a struct from the
+  kernel memory to hold the pinmux state. All mapping table parsing or similar
+  slow operations take place within this API.
 
-- pinmux_enable()/pinmux_disable() is quick and can be called from fastpath
-  (irq context) when you quickly want to set up/tear down the hardware muxing
-  when running a device driver. Usually it will just poke some values into a
-  register.
+- pinctrl_lookup_state() is called in process context to obtain a handle to a
+  specific state for a the client device. This operation may be slow too.
 
-- pinmux_disable() is called in process context to tear down the pin requests
-  and release the state holder struct for the mux setting.
+- pinctrl_select_state() programs pin controller hardware according to the
+  definition of the state as given by the mapping table. In theory this is a
+  fast-path operation, since it only involved blasting some register settings
+  into hardware. However, note that some pin controllers may have their
+  registers on a slow/IRQ-based bus, so client devices should not assume they
+  can call pinctrl_select_state() from non-blocking contexts.
 
-Usually the pinmux core handled the get/put pair and call out to the device
-drivers bookkeeping operations, like checking available functions and the
-associated pins, whereas the enable/disable pass on to the pin controller
+- pinctrl_put() frees all information associated with a pinctrl handle.
+
+Usually the pin control core handled the get/put pair and call out to the
+device drivers bookkeeping operations, like checking available functions and
+the associated pins, whereas the enable/disable pass on to the pin controller
 driver which takes care of activating and/or deactivating the mux setting by
 quickly poking some registers.
 
-The pins are allocated for your device when you issue the pinmux_get() call,
+The pins are allocated for your device when you issue the pinctrl_get() call,
 after this you should be able to see this in the debugfs listing of all pins.
 
 
-System pinmux hogging
-=====================
+System pin control hogging
+==========================
 
-A system pinmux map entry, i.e. a pinmux setting that does not have a device
-associated with it, can be hogged by the core when the pin controller is
-registered. This means that the core will attempt to call pinmux_get() and
-pinmux_enable() on it immediately after the pin control device has been
-registered.
+Pin control map entries can be hogged by the core when the pin controller
+is registered. This means that the core will attempt to call pinctrl_get(),
+lookup_state() and select_state() on it immediately after the pin control
+device has been registered.
 
-This is enabled by simply setting the .hog_on_boot field in the map to true,
-like this:
+This occurs for mapping table entries where the client device name is equal
+to the pin controller device name, and the state name is PINCTRL_STATE_DEFAULT.
 
 {
-	.name = "POWERMAP"
+	.dev_name = "pinctrl-foo",
+	.name = PINCTRL_STATE_DEFAULT,
+	.type = PIN_MAP_TYPE_MUX_GROUP,
 	.ctrl_dev_name = "pinctrl-foo",
 	.function = "power_func",
-	.hog_on_boot = true,
 },
 
 Since it may be common to request the core to hog a few always-applicable
 mux settings on the primary pin controller, there is a convenience macro for
 this:
 
-PINMUX_MAP_PRIMARY_SYS_HOG("POWERMAP", "power_func")
+PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-foo", NULL /* group */, "power_func")
 
 This gives the exact same result as the above construction.
 
@@ -1016,32 +1086,47 @@ It is possible to mux a certain function in and out at runtime, say to move
 an SPI port from one set of pins to another set of pins. Say for example for
 spi0 in the example above, we expose two different groups of pins for the same
 function, but with different named in the mapping as described under
-"Advanced mapping" above. So we have two mappings named "spi0-pos-A" and
-"spi0-pos-B".
+"Advanced mapping" above. So that for an SPI device, we have two states named
+"pos-A" and "pos-B".
 
 This snippet first muxes the function in the pins defined by group A, enables
 it, disables and releases it, and muxes it in on the pins defined by group B:
 
+#include <linux/pinctrl/consumer.h>
+
 foo_switch()
 {
-	struct pinmux *pmx;
+	struct pinctrl *p;
+	struct pinctrl_state *s1, *s2;
+
+	/* Setup */
+	p = pinctrl_get(&device);
+	if (IS_ERR(p))
+		...
+
+	s1 = pinctrl_lookup_state(foo->p, "pos-A");
+	if (IS_ERR(s1))
+		...
+
+	s2 = pinctrl_lookup_state(foo->p, "pos-B");
+	if (IS_ERR(s2))
+		...
 
 	/* Enable on position A */
-	pmx = pinmux_get(&device, "spi0-pos-A");
-	if IS_ERR(pmx)
-		return PTR_ERR(pmx);
-	pinmux_enable(pmx);
+	ret = pinctrl_select_state(s1);
+	if (ret < 0)
+	    ...
 
-	/* This releases the pins again */
-	pinmux_disable(pmx);
-	pinmux_put(pmx);
+	...
 
 	/* Enable on position B */
-	pmx = pinmux_get(&device, "spi0-pos-B");
-	if IS_ERR(pmx)
-		return PTR_ERR(pmx);
-	pinmux_enable(pmx);
+	ret = pinctrl_select_state(s2);
+	if (ret < 0)
+	    ...
+
 	...
+
+	pinctrl_put(p);
 }
 
 The above has to be done from process context.

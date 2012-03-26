@@ -20,6 +20,7 @@
 #include <asm/xcr.h>
 #include <asm/suspend.h>
 #include <asm/debugreg.h>
+#include <asm/fpu-internal.h> /* pcntxt_mask */
 
 #ifdef CONFIG_X86_32
 static struct saved_context saved_context;

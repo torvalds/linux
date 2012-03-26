@@ -62,4 +62,6 @@ int	transport_set_vpd_ident(struct t10_vpd *, unsigned char *);
 void	*transport_kmap_data_sg(struct se_cmd *);
 void	transport_kunmap_data_sg(struct se_cmd *);
 
+void	array_free(void *array, int n);
+
 #endif /* TARGET_CORE_BACKEND_H */

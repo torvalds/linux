@@ -38,17 +38,16 @@ struct il_rxon_context;
 
 /* configuration for the _4965 devices */
 extern struct il_cfg il4965_cfg;
+extern const struct il_ops il4965_ops;
 
 extern struct il_mod_params il4965_mod_params;
-
-extern struct ieee80211_ops il4965_hw_ops;
 
 /* tx queue */
 void il4965_free_tfds_in_queue(struct il_priv *il, int sta_id, int tid,
 			       int freed);
 
 /* RXON */
-void il4965_set_rxon_chain(struct il_priv *il, struct il_rxon_context *ctx);
+void il4965_set_rxon_chain(struct il_priv *il);
 
 /* uCode */
 int il4965_verify_ucode(struct il_priv *il);
@@ -61,6 +60,8 @@ int il4965_rx_init(struct il_priv *il, struct il_rx_queue *rxq);
 int il4965_hw_nic_init(struct il_priv *il);
 int il4965_dump_fh(struct il_priv *il, char **buf, bool display);
 
+void il4965_nic_config(struct il_priv *il);
+
 /* rx */
 void il4965_rx_queue_restock(struct il_priv *il);
 void il4965_rx_replenish(struct il_priv *il);
@@ -68,8 +69,6 @@ void il4965_rx_replenish_now(struct il_priv *il);
 void il4965_rx_queue_free(struct il_priv *il, struct il_rx_queue *rxq);
 int il4965_rxq_stop(struct il_priv *il);
 int il4965_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
-void il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb);
-void il4965_hdl_rx_phy(struct il_priv *il, struct il_rx_buf *rxb);
 void il4965_rx_handle(struct il_priv *il);
 
 /* tx */
@@ -85,7 +84,6 @@ int il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 int il4965_tx_agg_stop(struct il_priv *il, struct ieee80211_vif *vif,
 		       struct ieee80211_sta *sta, u16 tid);
 int il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id);
-void il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb);
 int il4965_tx_queue_reclaim(struct il_priv *il, int txq_id, int idx);
 void il4965_hw_txq_ctx_free(struct il_priv *il);
 int il4965_txq_ctx_alloc(struct il_priv *il);
@@ -106,12 +104,6 @@ void il4965_set_wr_ptrs(struct il_priv *il, int txq_id, u32 idx);
  */
 void il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 				int tx_fifo_id, int scd_retry);
-
-/* rx */
-void il4965_hdl_missed_beacon(struct il_priv *il, struct il_rx_buf *rxb);
-bool il4965_good_plcp_health(struct il_priv *il, struct il_rx_pkt *pkt);
-void il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb);
-void il4965_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb);
 
 /* scan */
 int il4965_request_scan(struct il_priv *il, struct ieee80211_vif *vif);
@@ -134,21 +126,18 @@ il4965_get_tx_fail_reason(u32 status)
 #endif
 
 /* station management */
-int il4965_alloc_bcast_station(struct il_priv *il, struct il_rxon_context *ctx);
-int il4965_add_bssid_station(struct il_priv *il, struct il_rxon_context *ctx,
-			     const u8 *addr, u8 *sta_id_r);
+int il4965_alloc_bcast_station(struct il_priv *il);
+int il4965_add_bssid_station(struct il_priv *il, const u8 *addr, u8 *sta_id_r);
 int il4965_remove_default_wep_key(struct il_priv *il,
-				  struct il_rxon_context *ctx,
 				  struct ieee80211_key_conf *key);
-int il4965_set_default_wep_key(struct il_priv *il, struct il_rxon_context *ctx,
+int il4965_set_default_wep_key(struct il_priv *il,
 			       struct ieee80211_key_conf *key);
-int il4965_restore_default_wep_keys(struct il_priv *il,
-				    struct il_rxon_context *ctx);
-int il4965_set_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
+int il4965_restore_default_wep_keys(struct il_priv *il);
+int il4965_set_dynamic_key(struct il_priv *il,
 			   struct ieee80211_key_conf *key, u8 sta_id);
-int il4965_remove_dynamic_key(struct il_priv *il, struct il_rxon_context *ctx,
+int il4965_remove_dynamic_key(struct il_priv *il,
 			      struct ieee80211_key_conf *key, u8 sta_id);
-void il4965_update_tkip_key(struct il_priv *il, struct il_rxon_context *ctx,
+void il4965_update_tkip_key(struct il_priv *il,
 			    struct ieee80211_key_conf *keyconf,
 			    struct ieee80211_sta *sta, u32 iv32,
 			    u16 *phase1key);
@@ -279,6 +268,7 @@ il4965_hw_valid_rtc_data_addr(u32 addr)
 	((t) < IL_TX_POWER_TEMPERATURE_MIN || \
 	 (t) > IL_TX_POWER_TEMPERATURE_MAX)
 
+extern void il4965_temperature_calib(struct il_priv *il);
 /********************* END TEMPERATURE ***************************************/
 
 /********************* START TXPOWER *****************************************/
@@ -937,17 +927,10 @@ void il4965_chain_noise_calibration(struct il_priv *il, void *stat_resp);
 void il4965_sensitivity_calibration(struct il_priv *il, void *resp);
 void il4965_init_sensitivity(struct il_priv *il);
 void il4965_reset_run_time_calib(struct il_priv *il);
-void il4965_calib_free_results(struct il_priv *il);
 
 /* Debug */
 #ifdef CONFIG_IWLEGACY_DEBUGFS
-ssize_t il4965_ucode_rx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il4965_ucode_tx_stats_read(struct file *file, char __user *user_buf,
-				   size_t count, loff_t *ppos);
-ssize_t il4965_ucode_general_stats_read(struct file *file,
-					char __user *user_buf, size_t count,
-					loff_t *ppos);
+extern const struct il_debugfs_ops il4965_debugfs_ops;
 #endif
 
 /****************************/

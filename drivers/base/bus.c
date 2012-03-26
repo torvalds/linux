@@ -1194,12 +1194,14 @@ EXPORT_SYMBOL_GPL(subsys_interface_register);
 
 void subsys_interface_unregister(struct subsys_interface *sif)
 {
-	struct bus_type *subsys = sif->subsys;
+	struct bus_type *subsys;
 	struct subsys_dev_iter iter;
 	struct device *dev;
 
-	if (!sif)
+	if (!sif || !sif->subsys)
 		return;
+
+	subsys = sif->subsys;
 
 	mutex_lock(&subsys->p->mutex);
 	list_del_init(&sif->node);

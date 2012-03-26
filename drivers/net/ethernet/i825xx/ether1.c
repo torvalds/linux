@@ -867,7 +867,7 @@ ether1_recv_done (struct net_device *dev)
 			struct sk_buff *skb;
 
 			length = (length + 1) & ~1;
-			skb = dev_alloc_skb (length + 2);
+			skb = netdev_alloc_skb(dev, length + 2);
 
 			if (skb) {
 				skb_reserve (skb, 2);

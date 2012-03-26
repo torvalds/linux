@@ -82,6 +82,7 @@ struct ad198x_spec {
 	unsigned int inv_jack_detect: 1;/* inverted jack-detection */
 	unsigned int inv_eapd: 1;	/* inverted EAPD implementation */
 	unsigned int analog_beep: 1;	/* analog beep input present */
+	unsigned int avoid_init_slave_vol:1;
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_loopback_check loopback;
@@ -137,51 +138,17 @@ static int ad198x_init(struct hda_codec *codec)
 	return 0;
 }
 
-static const char * const ad_slave_vols[] = {
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"Center Playback Volume",
-	"LFE Playback Volume",
-	"Side Playback Volume",
-	"Headphone Playback Volume",
-	"Mono Playback Volume",
-	"Speaker Playback Volume",
-	"IEC958 Playback Volume",
+static const char * const ad_slave_pfxs[] = {
+	"Front", "Surround", "Center", "LFE", "Side",
+	"Headphone", "Mono", "Speaker", "IEC958",
 	NULL
 };
 
-static const char * const ad_slave_sws[] = {
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"Center Playback Switch",
-	"LFE Playback Switch",
-	"Side Playback Switch",
-	"Headphone Playback Switch",
-	"Mono Playback Switch",
-	"Speaker Playback Switch",
-	"IEC958 Playback Switch",
+static const char * const ad1988_6stack_fp_slave_pfxs[] = {
+	"Front", "Surround", "Center", "LFE", "Side", "IEC958",
 	NULL
 };
 
-static const char * const ad1988_6stack_fp_slave_vols[] = {
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"Center Playback Volume",
-	"LFE Playback Volume",
-	"Side Playback Volume",
-	"IEC958 Playback Volume",
-	NULL
-};
-
-static const char * const ad1988_6stack_fp_slave_sws[] = {
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"Center Playback Switch",
-	"LFE Playback Switch",
-	"Side Playback Switch",
-	"IEC958 Playback Switch",
-	NULL
-};
 static void ad198x_free_kctls(struct hda_codec *codec);
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
@@ -257,10 +224,12 @@ static int ad198x_build_controls(struct hda_codec *codec)
 		unsigned int vmaster_tlv[4];
 		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 					HDA_OUTPUT, vmaster_tlv);
-		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+		err = __snd_hda_add_vmaster(codec, "Master Playback Volume",
 					  vmaster_tlv,
 					  (spec->slave_vols ?
-					   spec->slave_vols : ad_slave_vols));
+					   spec->slave_vols : ad_slave_pfxs),
+					  "Playback Volume",
+					  !spec->avoid_init_slave_vol, NULL);
 		if (err < 0)
 			return err;
 	}
@@ -268,7 +237,8 @@ static int ad198x_build_controls(struct hda_codec *codec)
 		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
 					  NULL,
 					  (spec->slave_sws ?
-					   spec->slave_sws : ad_slave_sws));
+					   spec->slave_sws : ad_slave_pfxs),
+					  "Playback Switch");
 		if (err < 0)
 			return err;
 	}
@@ -3385,8 +3355,8 @@ static int patch_ad1988(struct hda_codec *codec)
 
 	if (spec->autocfg.hp_pins[0]) {
 		spec->mixers[spec->num_mixers++] = ad1988_hp_mixers;
-		spec->slave_vols = ad1988_6stack_fp_slave_vols;
-		spec->slave_sws = ad1988_6stack_fp_slave_sws;
+		spec->slave_vols = ad1988_6stack_fp_slave_pfxs;
+		spec->slave_sws = ad1988_6stack_fp_slave_pfxs;
 		spec->alt_dac_nid = ad1988_alt_dac_nid;
 		spec->stream_analog_alt_playback =
 			&ad198x_pcm_analog_alt_playback;
@@ -3594,16 +3564,8 @@ static const struct hda_amp_list ad1884_loopbacks[] = {
 #endif
 
 static const char * const ad1884_slave_vols[] = {
-	"PCM Playback Volume",
-	"Mic Playback Volume",
-	"Mono Playback Volume",
-	"Front Mic Playback Volume",
-	"Mic Playback Volume",
-	"CD Playback Volume",
-	"Internal Mic Playback Volume",
-	"Docking Mic Playback Volume",
-	/* "Beep Playback Volume", */
-	"IEC958 Playback Volume",
+	"PCM", "Mic", "Mono", "Front Mic", "Mic", "CD",
+	"Internal Mic", "Docking Mic", /* "Beep", */ "IEC958",
 	NULL
 };
 
@@ -3644,6 +3606,8 @@ static int patch_ad1884(struct hda_codec *codec)
 	spec->vmaster_nid = 0x04;
 	/* we need to cover all playback volumes */
 	spec->slave_vols = ad1884_slave_vols;
+	/* slaves may contain input volumes, so we can't raise to 0dB blindly */
+	spec->avoid_init_slave_vol = 1;
 
 	codec->patch_ops = ad198x_patch_ops;
 

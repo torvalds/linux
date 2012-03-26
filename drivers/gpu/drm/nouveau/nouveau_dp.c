@@ -161,116 +161,6 @@ out:
 	return ret;
 }
 
-static u32
-dp_link_bw_get(struct drm_device *dev, int or, int link)
-{
-	u32 ctrl = nv_rd32(dev, 0x614300 + (or * 0x800));
-	if (!(ctrl & 0x000c0000))
-		return 162000;
-	return 270000;
-}
-
-static int
-dp_lane_count_get(struct drm_device *dev, int or, int link)
-{
-	u32 ctrl = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
-	switch (ctrl & 0x000f0000) {
-	case 0x00010000: return 1;
-	case 0x00030000: return 2;
-	default:
-		return 4;
-	}
-}
-
-void
-nouveau_dp_tu_update(struct drm_device *dev, int or, int link, u32 clk, u32 bpp)
-{
-	const u32 symbol = 100000;
-	int bestTU = 0, bestVTUi = 0, bestVTUf = 0, bestVTUa = 0;
-	int TU, VTUi, VTUf, VTUa;
-	u64 link_data_rate, link_ratio, unk;
-	u32 best_diff = 64 * symbol;
-	u32 link_nr, link_bw, r;
-
-	/* calculate packed data rate for each lane */
-	link_nr = dp_lane_count_get(dev, or, link);
-	link_data_rate = (clk * bpp / 8) / link_nr;
-
-	/* calculate ratio of packed data rate to link symbol rate */
-	link_bw = dp_link_bw_get(dev, or, link);
-	link_ratio = link_data_rate * symbol;
-	r = do_div(link_ratio, link_bw);
-
-	for (TU = 64; TU >= 32; TU--) {
-		/* calculate average number of valid symbols in each TU */
-		u32 tu_valid = link_ratio * TU;
-		u32 calc, diff;
-
-		/* find a hw representation for the fraction.. */
-		VTUi = tu_valid / symbol;
-		calc = VTUi * symbol;
-		diff = tu_valid - calc;
-		if (diff) {
-			if (diff >= (symbol / 2)) {
-				VTUf = symbol / (symbol - diff);
-				if (symbol - (VTUf * diff))
-					VTUf++;
-
-				if (VTUf <= 15) {
-					VTUa  = 1;
-					calc += symbol - (symbol / VTUf);
-				} else {
-					VTUa  = 0;
-					VTUf  = 1;
-					calc += symbol;
-				}
-			} else {
-				VTUa  = 0;
-				VTUf  = min((int)(symbol / diff), 15);
-				calc += symbol / VTUf;
-			}
-
-			diff = calc - tu_valid;
-		} else {
-			/* no remainder, but the hw doesn't like the fractional
-			 * part to be zero.  decrement the integer part and
-			 * have the fraction add a whole symbol back
-			 */
-			VTUa = 0;
-			VTUf = 1;
-			VTUi--;
-		}
-
-		if (diff < best_diff) {
-			best_diff = diff;
-			bestTU = TU;
-			bestVTUa = VTUa;
-			bestVTUf = VTUf;
-			bestVTUi = VTUi;
-			if (diff == 0)
-				break;
-		}
-	}
-
-	if (!bestTU) {
-		NV_ERROR(dev, "DP: unable to find suitable config\n");
-		return;
-	}
-
-	/* XXX close to vbios numbers, but not right */
-	unk  = (symbol - link_ratio) * bestTU;
-	unk *= link_ratio;
-	r = do_div(unk, symbol);
-	r = do_div(unk, symbol);
-	unk += 6;
-
-	nv_mask(dev, NV50_SOR_DP_CTRL(or, link), 0x000001fc, bestTU << 2);
-	nv_mask(dev, NV50_SOR_DP_SCFG(or, link), 0x010f7f3f, bestVTUa << 24 |
-							     bestVTUf << 16 |
-							     bestVTUi << 8 |
-							     unk);
-}
-
 u8 *
 nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
 {
@@ -298,6 +188,7 @@ nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
 	case 0x20:
 	case 0x21:
 	case 0x30:
+	case 0x40:
 		break;
 	default:
 		NV_ERROR(dev, "displayport table 0x%02x unknown\n", table[0]);
@@ -318,13 +209,10 @@ nouveau_dp_bios_data(struct drm_device *dev, struct dcb_entry *dcb, u8 **entry)
  * link training
  *****************************************************************************/
 struct dp_state {
+	struct dp_train_func *func;
 	struct dcb_entry *dcb;
-	u8 *table;
-	u8 *entry;
 	int auxch;
 	int crtc;
-	int or;
-	int link;
 	u8 *dpcd;
 	int link_nr;
 	u32 link_bw;
@@ -335,141 +223,57 @@ struct dp_state {
 static void
 dp_set_link_config(struct drm_device *dev, struct dp_state *dp)
 {
-	int or = dp->or, link = dp->link;
-	u8 *entry, sink[2];
-	u32 dp_ctrl;
-	u16 script;
+	u8 sink[2];
 
 	NV_DEBUG_KMS(dev, "%d lanes at %d KB/s\n", dp->link_nr, dp->link_bw);
 
-	/* set selected link rate on source */
-	switch (dp->link_bw) {
-	case 270000:
-		nv_mask(dev, 0x614300 + (or * 0x800), 0x000c0000, 0x00040000);
-		sink[0] = DP_LINK_BW_2_7;
-		break;
-	default:
-		nv_mask(dev, 0x614300 + (or * 0x800), 0x000c0000, 0x00000000);
-		sink[0] = DP_LINK_BW_1_62;
-		break;
-	}
-
-	/* offset +0x0a of each dp encoder table entry is a pointer to another
-	 * table, that has (among other things) pointers to more scripts that
-	 * need to be executed, this time depending on link speed.
-	 */
-	entry = ROMPTR(dev, dp->entry[10]);
-	if (entry) {
-		if (dp->table[0] < 0x30) {
-			while (dp->link_bw < (ROM16(entry[0]) * 10))
-				entry += 4;
-			script = ROM16(entry[2]);
-		} else {
-			while (dp->link_bw < (entry[0] * 27000))
-				entry += 3;
-			script = ROM16(entry[1]);
-		}
-
-		nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
-	}
-
-	/* configure lane count on the source */
-	dp_ctrl = ((1 << dp->link_nr) - 1) << 16;
-	sink[1] = dp->link_nr;
-	if (dp->dpcd[2] & DP_ENHANCED_FRAME_CAP) {
-		dp_ctrl |= 0x00004000;
-		sink[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
-	}
-
-	nv_mask(dev, NV50_SOR_DP_CTRL(or, link), 0x001f4000, dp_ctrl);
+	/* set desired link configuration on the source */
+	dp->func->link_set(dev, dp->dcb, dp->crtc, dp->link_nr, dp->link_bw,
+			   dp->dpcd[2] & DP_ENHANCED_FRAME_CAP);
 
 	/* inform the sink of the new configuration */
+	sink[0] = dp->link_bw / 27000;
+	sink[1] = dp->link_nr;
+	if (dp->dpcd[2] & DP_ENHANCED_FRAME_CAP)
+		sink[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+
 	auxch_tx(dev, dp->auxch, 8, DP_LINK_BW_SET, sink, 2);
 }
 
 static void
-dp_set_training_pattern(struct drm_device *dev, struct dp_state *dp, u8 tp)
+dp_set_training_pattern(struct drm_device *dev, struct dp_state *dp, u8 pattern)
 {
 	u8 sink_tp;
 
-	NV_DEBUG_KMS(dev, "training pattern %d\n", tp);
+	NV_DEBUG_KMS(dev, "training pattern %d\n", pattern);
 
-	nv_mask(dev, NV50_SOR_DP_CTRL(dp->or, dp->link), 0x0f000000, tp << 24);
+	dp->func->train_set(dev, dp->dcb, pattern);
 
 	auxch_tx(dev, dp->auxch, 9, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
 	sink_tp &= ~DP_TRAINING_PATTERN_MASK;
-	sink_tp |= tp;
+	sink_tp |= pattern;
 	auxch_tx(dev, dp->auxch, 8, DP_TRAINING_PATTERN_SET, &sink_tp, 1);
 }
-
-static const u8 nv50_lane_map[] = { 16, 8, 0, 24 };
-static const u8 nvaf_lane_map[] = { 24, 16, 8, 0 };
 
 static int
 dp_link_train_commit(struct drm_device *dev, struct dp_state *dp)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	u32 mask = 0, drv = 0, pre = 0, unk = 0;
-	const u8 *shifts;
-	int link = dp->link;
-	int or = dp->or;
 	int i;
 
-	if (dev_priv->chipset != 0xaf)
-		shifts = nv50_lane_map;
-	else
-		shifts = nvaf_lane_map;
-
 	for (i = 0; i < dp->link_nr; i++) {
-		u8 *conf = dp->entry + dp->table[4];
 		u8 lane = (dp->stat[4 + (i >> 1)] >> ((i & 1) * 4)) & 0xf;
 		u8 lpre = (lane & 0x0c) >> 2;
 		u8 lvsw = (lane & 0x03) >> 0;
 
-		mask |= 0xff << shifts[i];
-		unk |= 1 << (shifts[i] >> 3);
-
 		dp->conf[i] = (lpre << 3) | lvsw;
 		if (lvsw == DP_TRAIN_VOLTAGE_SWING_1200)
 			dp->conf[i] |= DP_TRAIN_MAX_SWING_REACHED;
-		if (lpre == DP_TRAIN_PRE_EMPHASIS_9_5)
+		if ((lpre << 3) == DP_TRAIN_PRE_EMPHASIS_9_5)
 			dp->conf[i] |= DP_TRAIN_MAX_PRE_EMPHASIS_REACHED;
 
 		NV_DEBUG_KMS(dev, "config lane %d %02x\n", i, dp->conf[i]);
-
-		if (dp->table[0] < 0x30) {
-			u8 *last = conf + (dp->entry[4] * dp->table[5]);
-			while (lvsw != conf[0] || lpre != conf[1]) {
-				conf += dp->table[5];
-				if (conf >= last)
-					return -EINVAL;
-			}
-
-			conf += 2;
-		} else {
-			/* no lookup table anymore, set entries for each
-			 * combination of voltage swing and pre-emphasis
-			 * level allowed by the DP spec.
-			 */
-			switch (lvsw) {
-			case 0: lpre += 0; break;
-			case 1: lpre += 4; break;
-			case 2: lpre += 7; break;
-			case 3: lpre += 9; break;
-			}
-
-			conf = conf + (lpre * dp->table[5]);
-			conf++;
-		}
-
-		drv |= conf[0] << shifts[i];
-		pre |= conf[1] << shifts[i];
-		unk  = (unk & ~0x0000ff00) | (conf[2] << 8);
+		dp->func->train_adj(dev, dp->dcb, i, lvsw, lpre);
 	}
-
-	nv_mask(dev, NV50_SOR_DP_UNK118(or, link), mask, drv);
-	nv_mask(dev, NV50_SOR_DP_UNK120(or, link), mask, pre);
-	nv_mask(dev, NV50_SOR_DP_UNK130(or, link), 0x0000ff0f, unk);
 
 	return auxch_tx(dev, dp->auxch, 8, DP_TRAINING_LANE0_SET, dp->conf, 4);
 }
@@ -554,8 +358,60 @@ dp_link_train_eq(struct drm_device *dev, struct dp_state *dp)
 	return eq_done ? 0 : -1;
 }
 
+static void
+dp_set_downspread(struct drm_device *dev, struct dp_state *dp, bool enable)
+{
+	u16 script = 0x0000;
+	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
+	if (table) {
+		if (table[0] >= 0x20 && table[0] <= 0x30) {
+			if (enable) script = ROM16(entry[12]);
+			else        script = ROM16(entry[14]);
+		} else
+		if (table[0] == 0x40) {
+			if (enable) script = ROM16(entry[11]);
+			else        script = ROM16(entry[13]);
+		}
+	}
+
+	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+}
+
+static void
+dp_link_train_init(struct drm_device *dev, struct dp_state *dp)
+{
+	u16 script = 0x0000;
+	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
+	if (table) {
+		if (table[0] >= 0x20 && table[0] <= 0x30)
+			script = ROM16(entry[6]);
+		else
+		if (table[0] == 0x40)
+			script = ROM16(entry[5]);
+	}
+
+	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+}
+
+static void
+dp_link_train_fini(struct drm_device *dev, struct dp_state *dp)
+{
+	u16 script = 0x0000;
+	u8 *entry, *table = nouveau_dp_bios_data(dev, dp->dcb, &entry);
+	if (table) {
+		if (table[0] >= 0x20 && table[0] <= 0x30)
+			script = ROM16(entry[8]);
+		else
+		if (table[0] == 0x40)
+			script = ROM16(entry[7]);
+	}
+
+	nouveau_bios_run_init_table(dev, script, dp->dcb, dp->crtc);
+}
+
 bool
-nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
+nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate,
+		      struct dp_train_func *func)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(encoder->crtc);
@@ -571,16 +427,14 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	if (!auxch)
 		return false;
 
-	dp.table = nouveau_dp_bios_data(dev, nv_encoder->dcb, &dp.entry);
-	if (!dp.table)
-		return -EINVAL;
-
+	dp.func = func;
 	dp.dcb = nv_encoder->dcb;
 	dp.crtc = nv_crtc->index;
 	dp.auxch = auxch->drive;
-	dp.or = nv_encoder->or;
-	dp.link = !(nv_encoder->dcb->sorconf.link & 1);
 	dp.dpcd = nv_encoder->dp.dpcd;
+
+	/* adjust required bandwidth for 8B/10B coding overhead */
+	datarate = (datarate / 8) * 10;
 
 	/* some sinks toggle hotplug in response to some of the actions
 	 * we take during link training (DP_SET_POWER is one), we need
@@ -589,16 +443,10 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, false);
 
 	/* enable down-spreading, if possible */
-	if (dp.table[1] >= 16) {
-		u16 script = ROM16(dp.entry[14]);
-		if (nv_encoder->dp.dpcd[3] & 1)
-			script = ROM16(dp.entry[12]);
-
-		nouveau_bios_run_init_table(dev, script, dp.dcb, dp.crtc);
-	}
+	dp_set_downspread(dev, &dp, nv_encoder->dp.dpcd[3] & 1);
 
 	/* execute pre-train script from vbios */
-	nouveau_bios_run_init_table(dev, ROM16(dp.entry[6]), dp.dcb, dp.crtc);
+	dp_link_train_init(dev, &dp);
 
 	/* start off at highest link rate supported by encoder and display */
 	while (*link_bw > nv_encoder->dp.link_bw)
@@ -632,11 +480,34 @@ nouveau_dp_link_train(struct drm_encoder *encoder, u32 datarate)
 	dp_set_training_pattern(dev, &dp, DP_TRAINING_PATTERN_DISABLE);
 
 	/* execute post-train script from vbios */
-	nouveau_bios_run_init_table(dev, ROM16(dp.entry[8]), dp.dcb, dp.crtc);
+	dp_link_train_fini(dev, &dp);
 
 	/* re-enable hotplug detect */
 	nouveau_gpio_irq(dev, 0, nv_connector->hpd, 0xff, true);
 	return true;
+}
+
+void
+nouveau_dp_dpms(struct drm_encoder *encoder, int mode, u32 datarate,
+		struct dp_train_func *func)
+{
+	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct nouveau_i2c_chan *auxch;
+	u8 status;
+
+	auxch = nouveau_i2c_find(encoder->dev, nv_encoder->dcb->i2c_index);
+	if (!auxch)
+		return;
+
+	if (mode == DRM_MODE_DPMS_ON)
+		status = DP_SET_POWER_D0;
+	else
+		status = DP_SET_POWER_D3;
+
+	nouveau_dp_auxch(auxch, 8, DP_SET_POWER, &status, 1);
+
+	if (mode == DRM_MODE_DPMS_ON)
+		nouveau_dp_link_train(encoder, datarate, func);
 }
 
 bool

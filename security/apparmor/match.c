@@ -335,12 +335,12 @@ unsigned int aa_dfa_match_len(struct aa_dfa *dfa, unsigned int start,
 }
 
 /**
- * aa_dfa_next_state - traverse @dfa to find state @str stops at
+ * aa_dfa_match - traverse @dfa to find state @str stops at
  * @dfa: the dfa to match @str against  (NOT NULL)
  * @start: the state of the dfa to start matching in
  * @str: the null terminated string of bytes to match against the dfa (NOT NULL)
  *
- * aa_dfa_next_state will match @str against the dfa and return the state it
+ * aa_dfa_match will match @str against the dfa and return the state it
  * finished matching in. The final state can be used to look up the accepting
  * label, or as the start state of a continuing match.
  *
@@ -349,5 +349,79 @@ unsigned int aa_dfa_match_len(struct aa_dfa *dfa, unsigned int start,
 unsigned int aa_dfa_match(struct aa_dfa *dfa, unsigned int start,
 			  const char *str)
 {
-	return aa_dfa_match_len(dfa, start, str, strlen(str));
+	u16 *def = DEFAULT_TABLE(dfa);
+	u32 *base = BASE_TABLE(dfa);
+	u16 *next = NEXT_TABLE(dfa);
+	u16 *check = CHECK_TABLE(dfa);
+	unsigned int state = start, pos;
+
+	if (state == 0)
+		return 0;
+
+	/* current state is <state>, matching character *str */
+	if (dfa->tables[YYTD_ID_EC]) {
+		/* Equivalence class table defined */
+		u8 *equiv = EQUIV_TABLE(dfa);
+		/* default is direct to next state */
+		while (*str) {
+			pos = base[state] + equiv[(u8) *str++];
+			if (check[pos] == state)
+				state = next[pos];
+			else
+				state = def[state];
+		}
+	} else {
+		/* default is direct to next state */
+		while (*str) {
+			pos = base[state] + (u8) *str++;
+			if (check[pos] == state)
+				state = next[pos];
+			else
+				state = def[state];
+		}
+	}
+
+	return state;
+}
+
+/**
+ * aa_dfa_next - step one character to the next state in the dfa
+ * @dfa: the dfa to tranverse (NOT NULL)
+ * @state: the state to start in
+ * @c: the input character to transition on
+ *
+ * aa_dfa_match will step through the dfa by one input character @c
+ *
+ * Returns: state reach after input @c
+ */
+unsigned int aa_dfa_next(struct aa_dfa *dfa, unsigned int state,
+			  const char c)
+{
+	u16 *def = DEFAULT_TABLE(dfa);
+	u32 *base = BASE_TABLE(dfa);
+	u16 *next = NEXT_TABLE(dfa);
+	u16 *check = CHECK_TABLE(dfa);
+	unsigned int pos;
+
+	/* current state is <state>, matching character *str */
+	if (dfa->tables[YYTD_ID_EC]) {
+		/* Equivalence class table defined */
+		u8 *equiv = EQUIV_TABLE(dfa);
+		/* default is direct to next state */
+
+		pos = base[state] + equiv[(u8) c];
+		if (check[pos] == state)
+			state = next[pos];
+		else
+			state = def[state];
+	} else {
+		/* default is direct to next state */
+		pos = base[state] + (u8) c;
+		if (check[pos] == state)
+			state = next[pos];
+		else
+			state = def[state];
+	}
+
+	return state;
 }

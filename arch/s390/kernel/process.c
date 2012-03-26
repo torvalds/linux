@@ -77,13 +77,8 @@ static void default_idle(void)
 		local_irq_enable();
 		return;
 	}
-	trace_hardirqs_on();
-	/* Don't trace preempt off for idle. */
-	stop_critical_timings();
-	/* Stop virtual timer and halt the cpu. */
+	/* Halt the cpu and keep track of cpu time accounting. */
 	vtime_stop_cpu();
-	/* Reenable preemption tracer. */
-	start_critical_timings();
 }
 
 void cpu_idle(void)
@@ -97,9 +92,7 @@ void cpu_idle(void)
 		tick_nohz_idle_exit();
 		if (test_thread_flag(TIF_MCCK_PENDING))
 			s390_handle_mcck();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 

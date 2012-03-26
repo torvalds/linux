@@ -7,8 +7,8 @@ Please try and keep the descriptions small enough to fit on one line.
 
 Following translations are available on the WWW:
 
-   - Japanese, maintained by the JF Project (JF@linux.or.jp), at
-     http://www.linux.or.jp/JF/
+   - Japanese, maintained by the JF Project (jf@listserv.linux.or.jp), at
+     http://linuxjf.sourceforge.jp/
 
 00-INDEX
 	- this file.
@@ -104,6 +104,8 @@ cpuidle/
 	- info on CPU_IDLE, CPU idle state management subsystem.
 cputopology.txt
 	- documentation on how CPU topology info is exported via sysfs.
+crc32.txt
+	- brief tutorial on CRC computation
 cris/
 	- directory with info about Linux on CRIS architecture.
 crypto/

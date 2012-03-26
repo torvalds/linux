@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -28,7 +28,6 @@
 #include "vis.h"
 #include "gateway_common.h"
 #include "originator.h"
-#include "bat_ogm.h"
 
 static void send_outstanding_bcast_packet(struct work_struct *work);
 
@@ -46,8 +45,8 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 		goto send_skb_err;
 
 	if (!(hard_iface->net_dev->flags & IFF_UP)) {
-		pr_warning("Interface %s is not up - can't send packet via "
-			   "that interface!\n", hard_iface->net_dev->name);
+		pr_warning("Interface %s is not up - can't send packet via that interface!\n",
+			   hard_iface->net_dev->name);
 		goto send_skb_err;
 	}
 
@@ -57,7 +56,7 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 
 	skb_reset_mac_header(skb);
 
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
 	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
 	ethhdr->h_proto = __constant_htons(ETH_P_BATMAN);
@@ -168,7 +167,7 @@ void schedule_bat_ogm(struct hard_iface *hard_iface)
 	if (primary_if)
 		hardif_free_ref(primary_if);
 
-	bat_ogm_schedule(hard_iface, tt_num_changes);
+	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface, tt_num_changes);
 }
 
 static void forw_packet_free(struct forw_packet *forw_packet)
@@ -234,7 +233,7 @@ int add_bcast_packet_to_list(struct bat_priv *bat_priv,
 
 	/* as we have a copy now, it is safe to decrease the TTL */
 	bcast_packet = (struct bcast_packet *)newskb->data;
-	bcast_packet->ttl--;
+	bcast_packet->header.ttl--;
 
 	skb_reset_mac_header(newskb);
 
@@ -318,7 +317,7 @@ void send_outstanding_bat_ogm_packet(struct work_struct *work)
 	if (atomic_read(&bat_priv->mesh_state) == MESH_DEACTIVATING)
 		goto out;
 
-	bat_ogm_emit(forw_packet);
+	bat_priv->bat_algo_ops->bat_ogm_emit(forw_packet);
 
 	/**
 	 * we have to have at least one packet in the queue

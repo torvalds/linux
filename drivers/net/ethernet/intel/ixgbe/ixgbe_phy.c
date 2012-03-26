@@ -834,6 +834,7 @@ out:
  **/
 s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 {
+	struct ixgbe_adapter *adapter = hw->back;
 	s32 status = IXGBE_ERR_PHY_ADDR_INVALID;
 	u32 vendor_oui = 0;
 	enum ixgbe_sfp_type stored_sfp_type = hw->phy.sfp_type;
@@ -1068,9 +1069,16 @@ s32 ixgbe_identify_sfp_module_generic(struct ixgbe_hw *hw)
 			if (hw->phy.type == ixgbe_phy_sfp_intel) {
 				status = 0;
 			} else {
-				hw_dbg(hw, "SFP+ module not supported\n");
-				hw->phy.type = ixgbe_phy_sfp_unsupported;
-				status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+				if (hw->allow_unsupported_sfp) {
+					e_warn(drv, "WARNING: Intel (R) Network Connections are quality tested using Intel (R) Ethernet Optics.  Using untested modules is not supported and may cause unstable operation or damage to the module or the adapter.  Intel Corporation is not responsible for any harm caused by using untested modules.");
+					status = 0;
+				} else {
+					hw_dbg(hw,
+					       "SFP+ module not supported\n");
+					hw->phy.type =
+						ixgbe_phy_sfp_unsupported;
+					status = IXGBE_ERR_SFP_NOT_SUPPORTED;
+				}
 			}
 		} else {
 			status = 0;

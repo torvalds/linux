@@ -32,8 +32,6 @@ asmlinkage void trap(void);
 asmlinkage void bad_interrupt(void);
 asmlinkage void inthandler(void);
 
-extern void *_ramvec[];
-
 static void intc_irq_unmask(struct irq_data *d)
 {
 	pquicc->intr_cimr |= (1 << d->irq);

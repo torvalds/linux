@@ -529,9 +529,6 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.release_cmd =			ft_release_cmd,
 	.shutdown_session =		ft_sess_shutdown,
 	.close_session =		ft_sess_close,
-	.stop_session =			ft_sess_stop,
-	.fall_back_to_erl0 =		ft_sess_set_erl0,
-	.sess_logged_in =		ft_sess_logged_in,
 	.sess_get_index =		ft_sess_get_index,
 	.sess_get_initiator_sid =	NULL,
 	.write_pending =		ft_write_pending,
@@ -544,7 +541,6 @@ static struct target_core_fabric_ops ft_fabric_ops = {
 	.queue_tm_rsp =			ft_queue_tm_resp,
 	.get_fabric_sense_len =		ft_get_fabric_sense_len,
 	.set_fabric_sense_len =		ft_set_fabric_sense_len,
-	.is_state_remove =		ft_is_state_remove,
 	/*
 	 * Setup function pointers for generic logic in
 	 * target_core_fabric_configfs.c

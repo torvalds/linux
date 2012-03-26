@@ -66,32 +66,15 @@ target_fill_alua_data(struct se_port *port, unsigned char *buf)
 }
 
 static int
-target_emulate_inquiry_std(struct se_cmd *cmd)
+target_emulate_inquiry_std(struct se_cmd *cmd, char *buf)
 {
 	struct se_lun *lun = cmd->se_lun;
 	struct se_device *dev = cmd->se_dev;
-	struct se_portal_group *tpg = lun->lun_sep->sep_tpg;
-	unsigned char *buf;
 
-	/*
-	 * Make sure we at least have 6 bytes of INQUIRY response
-	 * payload going back for EVPD=0
-	 */
-	if (cmd->data_length < 6) {
-		pr_err("SCSI Inquiry payload length: %u"
-			" too small for EVPD=0\n", cmd->data_length);
-		return -EINVAL;
-	}
+	/* Set RMB (removable media) for tape devices */
+	if (dev->transport->get_device_type(dev) == TYPE_TAPE)
+		buf[1] = 0x80;
 
-	buf = transport_kmap_data_sg(cmd);
-
-	if (dev == tpg->tpg_virt_lun0.lun_se_dev) {
-		buf[0] = 0x3f; /* Not connected */
-	} else {
-		buf[0] = dev->transport->get_device_type(dev);
-		if (buf[0] == TYPE_TAPE)
-			buf[1] = 0x80;
-	}
 	buf[2] = dev->transport->get_device_rev(dev);
 
 	/*
@@ -112,29 +95,13 @@ target_emulate_inquiry_std(struct se_cmd *cmd)
 	if (dev->se_sub_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED)
 		target_fill_alua_data(lun->lun_sep, buf);
 
-	if (cmd->data_length < 8) {
-		buf[4] = 1; /* Set additional length to 1 */
-		goto out;
-	}
-
-	buf[7] = 0x32; /* Sync=1 and CmdQue=1 */
-
-	/*
-	 * Do not include vendor, product, reversion info in INQUIRY
-	 * response payload for cdbs with a small allocation length.
-	 */
-	if (cmd->data_length < 36) {
-		buf[4] = 3; /* Set additional length to 3 */
-		goto out;
-	}
+	buf[7] = 0x2; /* CmdQue=1 */
 
 	snprintf(&buf[8], 8, "LIO-ORG");
 	snprintf(&buf[16], 16, "%s", dev->se_sub_dev->t10_wwn.model);
 	snprintf(&buf[32], 4, "%s", dev->se_sub_dev->t10_wwn.revision);
 	buf[4] = 31; /* Set additional length to 31 */
 
-out:
-	transport_kunmap_data_sg(cmd);
 	return 0;
 }
 
@@ -152,12 +119,6 @@ target_emulate_evpd_80(struct se_cmd *cmd, unsigned char *buf)
 		unit_serial_len = strlen(dev->se_sub_dev->t10_wwn.unit_serial);
 		unit_serial_len++; /* For NULL Terminator */
 
-		if (((len + 4) + unit_serial_len) > cmd->data_length) {
-			len += unit_serial_len;
-			buf[2] = ((len >> 8) & 0xff);
-			buf[3] = (len & 0xff);
-			return 0;
-		}
 		len += sprintf(&buf[4], "%s",
 			dev->se_sub_dev->t10_wwn.unit_serial);
 		len++; /* Extra Byte for NULL Terminator */
@@ -229,9 +190,6 @@ target_emulate_evpd_83(struct se_cmd *cmd, unsigned char *buf)
 	if (!(dev->se_sub_dev->su_dev_flags & SDF_EMULATED_VPD_UNIT_SERIAL))
 		goto check_t10_vend_desc;
 
-	if (off + 20 > cmd->data_length)
-		goto check_t10_vend_desc;
-
 	/* CODE SET == Binary */
 	buf[off++] = 0x1;
 
@@ -283,12 +241,6 @@ check_t10_vend_desc:
 			strlen(&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 		unit_serial_len++; /* For NULL Terminator */
 
-		if ((len + (id_len + 4) +
-		    (prod_len + unit_serial_len)) >
-				cmd->data_length) {
-			len += (prod_len + unit_serial_len);
-			goto check_port;
-		}
 		id_len += sprintf(&buf[off+12], "%s:%s", prod,
 				&dev->se_sub_dev->t10_wwn.unit_serial[0]);
 	}
@@ -306,7 +258,6 @@ check_t10_vend_desc:
 	/*
 	 * struct se_port is only set for INQUIRY VPD=1 through $FABRIC_MOD
 	 */
-check_port:
 	port = lun->lun_sep;
 	if (port) {
 		struct t10_alua_lu_gp *lu_gp;
@@ -323,10 +274,6 @@ check_port:
 		 * Get the PROTOCOL IDENTIFIER as defined by spc4r17
 		 * section 7.5.1 Table 362
 		 */
-		if (((len + 4) + 8) > cmd->data_length) {
-			len += 8;
-			goto check_tpgi;
-		}
 		buf[off] =
 			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x1; /* CODE SET == Binary */
@@ -350,15 +297,10 @@ check_port:
 		 * Get the PROTOCOL IDENTIFIER as defined by spc4r17
 		 * section 7.5.1 Table 362
 		 */
-check_tpgi:
 		if (dev->se_sub_dev->t10_alua.alua_type !=
 				SPC3_ALUA_EMULATED)
 			goto check_scsi_name;
 
-		if (((len + 4) + 8) > cmd->data_length) {
-			len += 8;
-			goto check_lu_gp;
-		}
 		tg_pt_gp_mem = port->sep_alua_tg_pt_gp_mem;
 		if (!tg_pt_gp_mem)
 			goto check_lu_gp;
@@ -391,10 +333,6 @@ check_tpgi:
 		 * section 7.7.3.8
 		 */
 check_lu_gp:
-		if (((len + 4) + 8) > cmd->data_length) {
-			len += 8;
-			goto check_scsi_name;
-		}
 		lu_gp_mem = dev->dev_alua_lu_gp_mem;
 		if (!lu_gp_mem)
 			goto check_scsi_name;
@@ -435,10 +373,6 @@ check_scsi_name:
 		/* Header size + Designation descriptor */
 		scsi_name_len += 4;
 
-		if (((len + 4) + scsi_name_len) > cmd->data_length) {
-			len += scsi_name_len;
-			goto set_len;
-		}
 		buf[off] =
 			(tpg->se_tpg_tfo->get_fabric_proto_ident(tpg) << 4);
 		buf[off++] |= 0x3; /* CODE SET == UTF-8 */
@@ -474,7 +408,6 @@ check_scsi_name:
 		/* Header size + Designation descriptor */
 		len += (scsi_name_len + 4);
 	}
-set_len:
 	buf[2] = ((len >> 8) & 0xff);
 	buf[3] = (len & 0xff); /* Page Length for VPD 0x83 */
 	return 0;
@@ -484,9 +417,6 @@ set_len:
 static int
 target_emulate_evpd_86(struct se_cmd *cmd, unsigned char *buf)
 {
-	if (cmd->data_length < 60)
-		return 0;
-
 	buf[3] = 0x3c;
 	/* Set HEADSUP, ORDSUP, SIMPSUP */
 	buf[5] = 0x07;
@@ -512,20 +442,6 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
 		have_tp = 1;
 
-	if (cmd->data_length < (0x10 + 4)) {
-		pr_debug("Received data_length: %u"
-			" too small for EVPD 0xb0\n",
-			cmd->data_length);
-		return -EINVAL;
-	}
-
-	if (have_tp && cmd->data_length < (0x3c + 4)) {
-		pr_debug("Received data_length: %u"
-			" too small for TPE=1 EVPD 0xb0\n",
-			cmd->data_length);
-		have_tp = 0;
-	}
-
 	buf[0] = dev->transport->get_device_type(dev);
 	buf[3] = have_tp ? 0x3c : 0x10;
 
@@ -540,7 +456,7 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
 	 */
-	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.max_sectors, &buf[8]);
+	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.fabric_max_sectors, &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH
@@ -548,10 +464,9 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.optimal_sectors, &buf[12]);
 
 	/*
-	 * Exit now if we don't support TP or the initiator sent a too
-	 * short buffer.
+	 * Exit now if we don't support TP.
 	 */
-	if (!have_tp || cmd->data_length < (0x3c + 4))
+	if (!have_tp)
 		return 0;
 
 	/*
@@ -589,10 +504,7 @@ target_emulate_evpd_b1(struct se_cmd *cmd, unsigned char *buf)
 
 	buf[0] = dev->transport->get_device_type(dev);
 	buf[3] = 0x3c;
-
-	if (cmd->data_length >= 5 &&
-	    dev->se_sub_dev->se_dev_attrib.is_nonrot)
-		buf[5] = 1;
+	buf[5] = dev->se_sub_dev->se_dev_attrib.is_nonrot ? 1 : 0;
 
 	return 0;
 }
@@ -671,8 +583,6 @@ target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 {
 	int p;
 
-	if (cmd->data_length < 8)
-		return 0;
 	/*
 	 * Only report the INQUIRY EVPD=1 pages after a valid NAA
 	 * Registered Extended LUN WWN has been set via ConfigFS
@@ -681,8 +591,7 @@ target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 	if (cmd->se_dev->se_sub_dev->su_dev_flags &
 			SDF_EMULATED_VPD_UNIT_SERIAL) {
 		buf[3] = ARRAY_SIZE(evpd_handlers);
-		for (p = 0; p < min_t(int, ARRAY_SIZE(evpd_handlers),
-				      cmd->data_length - 4); ++p)
+		for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p)
 			buf[p + 4] = evpd_handlers[p].page;
 	}
 
@@ -693,45 +602,54 @@ int target_emulate_inquiry(struct se_task *task)
 {
 	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
-	unsigned char *buf;
+	struct se_portal_group *tpg = cmd->se_lun->lun_sep->sep_tpg;
+	unsigned char *buf, *map_buf;
 	unsigned char *cdb = cmd->t_task_cdb;
 	int p, ret;
+
+	map_buf = transport_kmap_data_sg(cmd);
+	/*
+	 * If SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC is not set, then we
+	 * know we actually allocated a full page.  Otherwise, if the
+	 * data buffer is too small, allocate a temporary buffer so we
+	 * don't have to worry about overruns in all our INQUIRY
+	 * emulation handling.
+	 */
+	if (cmd->data_length < SE_INQUIRY_BUF &&
+	    (cmd->se_cmd_flags & SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC)) {
+		buf = kzalloc(SE_INQUIRY_BUF, GFP_KERNEL);
+		if (!buf) {
+			transport_kunmap_data_sg(cmd);
+			cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+			return -ENOMEM;
+		}
+	} else {
+		buf = map_buf;
+	}
+
+	if (dev == tpg->tpg_virt_lun0.lun_se_dev)
+		buf[0] = 0x3f; /* Not connected */
+	else
+		buf[0] = dev->transport->get_device_type(dev);
 
 	if (!(cdb[1] & 0x1)) {
 		if (cdb[2]) {
 			pr_err("INQUIRY with EVPD==0 but PAGE CODE=%02x\n",
 			       cdb[2]);
 			cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
-		ret = target_emulate_inquiry_std(cmd);
+		ret = target_emulate_inquiry_std(cmd, buf);
 		goto out;
 	}
-
-	/*
-	 * Make sure we at least have 4 bytes of INQUIRY response
-	 * payload for 0x00 going back for EVPD=1.  Note that 0x80
-	 * and 0x83 will check for enough payload data length and
-	 * jump to set_len: label when there is not enough inquiry EVPD
-	 * payload length left for the next outgoing EVPD metadata
-	 */
-	if (cmd->data_length < 4) {
-		pr_err("SCSI Inquiry payload length: %u"
-			" too small for EVPD=1\n", cmd->data_length);
-		cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
-		return -EINVAL;
-	}
-
-	buf = transport_kmap_data_sg(cmd);
-
-	buf[0] = dev->transport->get_device_type(dev);
 
 	for (p = 0; p < ARRAY_SIZE(evpd_handlers); ++p) {
 		if (cdb[2] == evpd_handlers[p].page) {
 			buf[1] = cdb[2];
 			ret = evpd_handlers[p].emulate(cmd, buf);
-			goto out_unmap;
+			goto out;
 		}
 	}
 
@@ -739,9 +657,13 @@ int target_emulate_inquiry(struct se_task *task)
 	cmd->scsi_sense_reason = TCM_INVALID_CDB_FIELD;
 	ret = -EINVAL;
 
-out_unmap:
-	transport_kunmap_data_sg(cmd);
 out:
+	if (buf != map_buf) {
+		memcpy(map_buf, buf, cmd->data_length);
+		kfree(buf);
+	}
+	transport_kunmap_data_sg(cmd);
+
 	if (!ret) {
 		task->task_scsi_status = GOOD;
 		transport_complete_task(task, 1);
@@ -772,11 +694,6 @@ int target_emulate_readcapacity(struct se_task *task)
 	buf[5] = (dev->se_sub_dev->se_dev_attrib.block_size >> 16) & 0xff;
 	buf[6] = (dev->se_sub_dev->se_dev_attrib.block_size >> 8) & 0xff;
 	buf[7] = dev->se_sub_dev->se_dev_attrib.block_size & 0xff;
-	/*
-	 * Set max 32-bit blocks to signal SERVICE ACTION READ_CAPACITY_16
-	*/
-	if (dev->se_sub_dev->se_dev_attrib.emulate_tpu || dev->se_sub_dev->se_dev_attrib.emulate_tpws)
-		put_unaligned_be32(0xFFFFFFFF, &buf[0]);
 
 	transport_kunmap_data_sg(cmd);
 

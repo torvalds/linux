@@ -17,6 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <sound/pcm.h>
@@ -626,41 +627,82 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 
 /* Codec private data */
 struct da7210_priv {
-	enum snd_soc_control_type control_type;
+	struct regmap *regmap;
 };
 
-/*
- * Register cache
- */
-static const u8 da7210_reg[] = {
-	0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R0  - R7  */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,	/* R8  - RF  */
-	0x00, 0x00, 0x00, 0x00, 0x08, 0x10, 0x10, 0x54,	/* R10 - R17 */
-	0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R18 - R1F */
-	0x00, 0x00, 0x00, 0x02, 0x00, 0x76, 0x00, 0x00,	/* R20 - R27 */
-	0x04, 0x00, 0x00, 0x30, 0x2A, 0x00, 0x40, 0x00,	/* R28 - R2F */
-	0x40, 0x00, 0x40, 0x00, 0x40, 0x00, 0x40, 0x00,	/* R30 - R37 */
-	0x40, 0x00, 0x40, 0x00, 0x40, 0x00, 0x00, 0x00,	/* R38 - R3F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R40 - R4F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R48 - R4F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R50 - R57 */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R58 - R5F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R60 - R67 */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R68 - R6F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R70 - R77 */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x54, 0x00,	/* R78 - R7F */
-	0x00, 0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R80 - R87 */
-	0x00,						/* R88       */
+static struct reg_default da7210_reg_defaults[] = {
+	{ 0x01, 0x11 },
+	{ 0x03, 0x00 },
+	{ 0x04, 0x00 },
+	{ 0x05, 0x00 },
+	{ 0x06, 0x00 },
+	{ 0x07, 0x00 },
+	{ 0x08, 0x00 },
+	{ 0x09, 0x00 },
+	{ 0x0a, 0x00 },
+	{ 0x0b, 0x00 },
+	{ 0x0c, 0x00 },
+	{ 0x0d, 0x00 },
+	{ 0x0e, 0x00 },
+	{ 0x0f, 0x08 },
+	{ 0x10, 0x00 },
+	{ 0x11, 0x00 },
+	{ 0x12, 0x00 },
+	{ 0x13, 0x00 },
+	{ 0x14, 0x08 },
+	{ 0x15, 0x10 },
+	{ 0x16, 0x10 },
+	{ 0x17, 0x54 },
+	{ 0x18, 0x40 },
+	{ 0x19, 0x00 },
+	{ 0x1a, 0x00 },
+	{ 0x1b, 0x00 },
+	{ 0x1c, 0x00 },
+	{ 0x1d, 0x00 },
+	{ 0x1e, 0x00 },
+	{ 0x1f, 0x00 },
+	{ 0x20, 0x00 },
+	{ 0x21, 0x00 },
+	{ 0x22, 0x00 },
+	{ 0x23, 0x02 },
+	{ 0x24, 0x00 },
+	{ 0x25, 0x76 },
+	{ 0x26, 0x00 },
+	{ 0x27, 0x00 },
+	{ 0x28, 0x04 },
+	{ 0x29, 0x00 },
+	{ 0x2a, 0x00 },
+	{ 0x2b, 0x30 },
+	{ 0x2c, 0x2A },
+	{ 0x83, 0x00 },
+	{ 0x84, 0x00 },
+	{ 0x85, 0x00 },
+	{ 0x86, 0x00 },
+	{ 0x87, 0x00 },
+	{ 0x88, 0x00 },
 };
 
-static int da7210_volatile_register(struct snd_soc_codec *codec,
+static bool da7210_readable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case DA7210_A_HID_UNLOCK:
+	case DA7210_A_TEST_UNLOCK:
+	case DA7210_A_PLL1:
+	case DA7210_A_CP_MODE:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static bool da7210_volatile_register(struct device *dev,
 				    unsigned int reg)
 {
 	switch (reg) {
 	case DA7210_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -866,7 +908,8 @@ static int da7210_probe(struct snd_soc_codec *codec)
 
 	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, da7210->control_type);
+	codec->control_data = da7210->regmap;
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -983,12 +1026,14 @@ static int da7210_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_EN, DA7210_PLL_EN);
 
 	/* As suggested by Dialog */
-	snd_soc_write(codec, DA7210_A_HID_UNLOCK,	0x8B); /* unlock */
-	snd_soc_write(codec, DA7210_A_TEST_UNLOCK,	0xB4);
-	snd_soc_write(codec, DA7210_A_PLL1,		0x01);
-	snd_soc_write(codec, DA7210_A_CP_MODE,		0x7C);
-	snd_soc_write(codec, DA7210_A_HID_UNLOCK,	0x00); /* re-lock */
-	snd_soc_write(codec, DA7210_A_TEST_UNLOCK,	0x00);
+	/* unlock */
+	regmap_write(da7210->regmap, DA7210_A_HID_UNLOCK,	0x8B);
+	regmap_write(da7210->regmap, DA7210_A_TEST_UNLOCK,	0xB4);
+	regmap_write(da7210->regmap, DA7210_A_PLL1,		0x01);
+	regmap_write(da7210->regmap, DA7210_A_CP_MODE,		0x7C);
+	/* re-lock */
+	regmap_write(da7210->regmap, DA7210_A_HID_UNLOCK,	0x00);
+	regmap_write(da7210->regmap, DA7210_A_TEST_UNLOCK,	0x00);
 
 	/* Activate all enabled subsystem */
 	snd_soc_write(codec, DA7210_STARTUP1, DA7210_SC_MST_EN);
@@ -1000,10 +1045,6 @@ static int da7210_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.probe			= da7210_probe,
-	.reg_cache_size		= ARRAY_SIZE(da7210_reg),
-	.reg_word_size		= sizeof(u8),
-	.reg_cache_default	= da7210_reg,
-	.volatile_register	= da7210_volatile_register,
 
 	.controls		= da7210_snd_controls,
 	.num_controls		= ARRAY_SIZE(da7210_snd_controls),
@@ -1012,6 +1053,17 @@ static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.num_dapm_widgets	= ARRAY_SIZE(da7210_dapm_widgets),
 	.dapm_routes		= da7210_audio_map,
 	.num_dapm_routes	= ARRAY_SIZE(da7210_audio_map),
+};
+
+static struct regmap_config da7210_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.reg_defaults = da7210_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(da7210_reg_defaults),
+	.volatile_reg = da7210_volatile_register,
+	.readable_reg = da7210_readable_register,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
@@ -1027,16 +1079,34 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, da7210);
-	da7210->control_type = SND_SOC_I2C;
+
+	da7210->regmap = regmap_init_i2c(i2c, &da7210_regmap);
+	if (IS_ERR(da7210->regmap)) {
+		ret = PTR_ERR(da7210->regmap);
+		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
+		return ret;
+	}
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_da7210, &da7210_dai, 1);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
+		goto err_regmap;
+	}
+	return ret;
+
+err_regmap:
+	regmap_exit(da7210->regmap);
+
 	return ret;
 }
 
 static int __devexit da7210_i2c_remove(struct i2c_client *client)
 {
+	struct da7210_priv *da7210 = i2c_get_clientdata(client);
+
 	snd_soc_unregister_codec(&client->dev);
+	regmap_exit(da7210->regmap);
 	return 0;
 }
 

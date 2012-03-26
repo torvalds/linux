@@ -135,8 +135,7 @@ static struct i2c_driver max6650_driver = {
  * Client data (each client gets its own)
  */
 
-struct max6650_data
-{
+struct max6650_data {
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	int nr_fans;
@@ -160,13 +159,13 @@ static ssize_t get_fan(struct device *dev, struct device_attribute *devattr,
 	int rpm;
 
 	/*
-	* Calculation details:
-	*
-	* Each tachometer counts over an interval given by the "count"
-	* register (0.25, 0.5, 1 or 2 seconds). This module assumes
-	* that the fans produce two pulses per revolution (this seems
-	* to be the most common).
-	*/
+	 * Calculation details:
+	 *
+	 * Each tachometer counts over an interval given by the "count"
+	 * register (0.25, 0.5, 1 or 2 seconds). This module assumes
+	 * that the fans produce two pulses per revolution (this seems
+	 * to be the most common).
+	 */
 
 	rpm = ((data->tach[attr->index] * 120) / DIV_FROM_REG(data->count));
 	return sprintf(buf, "%d\n", rpm);
@@ -220,12 +219,12 @@ static ssize_t get_target(struct device *dev, struct device_attribute *devattr,
 	int kscale, ktach, rpm;
 
 	/*
-	* Use the datasheet equation:
-	*
-	*    FanSpeed = KSCALE x fCLK / [256 x (KTACH + 1)]
-	*
-	* then multiply by 60 to give rpm.
-	*/
+	 * Use the datasheet equation:
+	 *
+	 *    FanSpeed = KSCALE x fCLK / [256 x (KTACH + 1)]
+	 *
+	 * then multiply by 60 to give rpm.
+	 */
 
 	kscale = DIV_FROM_REG(data->config);
 	ktach = data->speed;
@@ -238,17 +237,22 @@ static ssize_t set_target(struct device *dev, struct device_attribute *devattr,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max6650_data *data = i2c_get_clientdata(client);
-	int rpm = simple_strtoul(buf, NULL, 10);
 	int kscale, ktach;
+	unsigned long rpm;
+	int err;
+
+	err = kstrtoul(buf, 10, &rpm);
+	if (err)
+		return err;
 
 	rpm = SENSORS_LIMIT(rpm, FAN_RPM_MIN, FAN_RPM_MAX);
 
 	/*
-	* Divide the required speed by 60 to get from rpm to rps, then
-	* use the datasheet equation:
-	*
-	*     KTACH = [(fCLK x KSCALE) / (256 x FanSpeed)] - 1
-	*/
+	 * Divide the required speed by 60 to get from rpm to rps, then
+	 * use the datasheet equation:
+	 *
+	 *     KTACH = [(fCLK x KSCALE) / (256 x FanSpeed)] - 1
+	 */
 
 	mutex_lock(&data->update_lock);
 
@@ -282,8 +286,10 @@ static ssize_t get_pwm(struct device *dev, struct device_attribute *devattr,
 	int pwm;
 	struct max6650_data *data = max6650_update_device(dev);
 
-	/* Useful range for dac is 0-180 for 12V fans and 0-76 for 5V fans.
-	   Lower DAC values mean higher speeds. */
+	/*
+	 * Useful range for dac is 0-180 for 12V fans and 0-76 for 5V fans.
+	 * Lower DAC values mean higher speeds.
+	 */
 	if (data->config & MAX6650_CFG_V12)
 		pwm = 255 - (255 * (int)data->dac)/180;
 	else
@@ -300,7 +306,12 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max6650_data *data = i2c_get_clientdata(client);
-	int pwm = simple_strtoul(buf, NULL, 10);
+	unsigned long pwm;
+	int err;
+
+	err = kstrtoul(buf, 10, &pwm);
+	if (err)
+		return err;
 
 	pwm = SENSORS_LIMIT(pwm, 0, 255);
 
@@ -341,14 +352,16 @@ static ssize_t set_enable(struct device *dev, struct device_attribute *devattr,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max6650_data *data = i2c_get_clientdata(client);
-	int mode = simple_strtoul(buf, NULL, 10);
 	int max6650_modes[3] = {0, 3, 2};
+	unsigned long mode;
+	int err;
 
-	if ((mode < 0)||(mode > 2)) {
-		dev_err(&client->dev,
-			"illegal value for pwm1_enable (%d)\n", mode);
+	err = kstrtoul(buf, 10, &mode);
+	if (err)
+		return err;
+
+	if (mode > 2)
 		return -EINVAL;
-	}
 
 	mutex_lock(&data->update_lock);
 
@@ -389,7 +402,12 @@ static ssize_t set_div(struct device *dev, struct device_attribute *devattr,
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	struct max6650_data *data = i2c_get_clientdata(client);
-	int div = simple_strtoul(buf, NULL, 10);
+	unsigned long div;
+	int err;
+
+	err = kstrtoul(buf, 10, &div);
+	if (err)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	switch (div) {
@@ -407,8 +425,6 @@ static ssize_t set_div(struct device *dev, struct device_attribute *devattr,
 		break;
 	default:
 		mutex_unlock(&data->update_lock);
-		dev_err(&client->dev,
-			"illegal value for fan divider (%d)\n", div);
 		return -EINVAL;
 	}
 
@@ -529,7 +545,8 @@ static int max6650_probe(struct i2c_client *client,
 	struct max6650_data *data;
 	int err;
 
-	if (!(data = kzalloc(sizeof(struct max6650_data), GFP_KERNEL))) {
+	data = kzalloc(sizeof(struct max6650_data), GFP_KERNEL);
+	if (!data) {
 		dev_err(&client->dev, "out of memory.\n");
 		return -ENOMEM;
 	}
@@ -596,55 +613,54 @@ static int max6650_init_client(struct i2c_client *client)
 	}
 
 	switch (fan_voltage) {
-		case 0:
-			break;
-		case 5:
-			config &= ~MAX6650_CFG_V12;
-			break;
-		case 12:
-			config |= MAX6650_CFG_V12;
-			break;
-		default:
-			dev_err(&client->dev,
-				"illegal value for fan_voltage (%d)\n",
-				fan_voltage);
+	case 0:
+		break;
+	case 5:
+		config &= ~MAX6650_CFG_V12;
+		break;
+	case 12:
+		config |= MAX6650_CFG_V12;
+		break;
+	default:
+		dev_err(&client->dev, "illegal value for fan_voltage (%d)\n",
+			fan_voltage);
 	}
 
 	dev_info(&client->dev, "Fan voltage is set to %dV.\n",
 		 (config & MAX6650_CFG_V12) ? 12 : 5);
 
 	switch (prescaler) {
-		case 0:
-			break;
-		case 1:
-			config &= ~MAX6650_CFG_PRESCALER_MASK;
-			break;
-		case 2:
-			config = (config & ~MAX6650_CFG_PRESCALER_MASK)
-				 | MAX6650_CFG_PRESCALER_2;
-			break;
-		case  4:
-			config = (config & ~MAX6650_CFG_PRESCALER_MASK)
-				 | MAX6650_CFG_PRESCALER_4;
-			break;
-		case  8:
-			config = (config & ~MAX6650_CFG_PRESCALER_MASK)
-				 | MAX6650_CFG_PRESCALER_8;
-			break;
-		case 16:
-			config = (config & ~MAX6650_CFG_PRESCALER_MASK)
-				 | MAX6650_CFG_PRESCALER_16;
-			break;
-		default:
-			dev_err(&client->dev,
-				"illegal value for prescaler (%d)\n",
-				prescaler);
+	case 0:
+		break;
+	case 1:
+		config &= ~MAX6650_CFG_PRESCALER_MASK;
+		break;
+	case 2:
+		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+			 | MAX6650_CFG_PRESCALER_2;
+		break;
+	case  4:
+		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+			 | MAX6650_CFG_PRESCALER_4;
+		break;
+	case  8:
+		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+			 | MAX6650_CFG_PRESCALER_8;
+		break;
+	case 16:
+		config = (config & ~MAX6650_CFG_PRESCALER_MASK)
+			 | MAX6650_CFG_PRESCALER_16;
+		break;
+	default:
+		dev_err(&client->dev, "illegal value for prescaler (%d)\n",
+			prescaler);
 	}
 
 	dev_info(&client->dev, "Prescaler is set to %d.\n",
 		 1 << (config & MAX6650_CFG_PRESCALER_MASK));
 
-	/* If mode is set to "full off", we change it to "open loop" and
+	/*
+	 * If mode is set to "full off", we change it to "open loop" and
 	 * set DAC to 255, which has the same effect. We do this because
 	 * there's no "full off" mode defined in hwmon specifcations.
 	 */
@@ -698,9 +714,11 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 							MAX6650_REG_COUNT);
 		data->dac = i2c_smbus_read_byte_data(client, MAX6650_REG_DAC);
 
-		/* Alarms are cleared on read in case the condition that
+		/*
+		 * Alarms are cleared on read in case the condition that
 		 * caused the alarm is removed. Keep the value latched here
-		 * for providing the register through different alarm files. */
+		 * for providing the register through different alarm files.
+		 */
 		data->alarm |= i2c_smbus_read_byte_data(client,
 							MAX6650_REG_ALARM);
 
@@ -713,19 +731,8 @@ static struct max6650_data *max6650_update_device(struct device *dev)
 	return data;
 }
 
-static int __init sensors_max6650_init(void)
-{
-	return i2c_add_driver(&max6650_driver);
-}
-
-static void __exit sensors_max6650_exit(void)
-{
-	i2c_del_driver(&max6650_driver);
-}
+module_i2c_driver(max6650_driver);
 
 MODULE_AUTHOR("Hans J. Koch");
 MODULE_DESCRIPTION("MAX6650 sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_max6650_init);
-module_exit(sensors_max6650_exit);

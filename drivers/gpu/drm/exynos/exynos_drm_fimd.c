@@ -1007,7 +1007,7 @@ static const struct dev_pm_ops fimd_pm_ops = {
 	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
 };
 
-static struct platform_driver fimd_driver = {
+struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= __devexit_p(fimd_remove),
 	.driver		= {
@@ -1016,21 +1016,3 @@ static struct platform_driver fimd_driver = {
 		.pm	= &fimd_pm_ops,
 	},
 };
-
-static int __init fimd_init(void)
-{
-	return platform_driver_register(&fimd_driver);
-}
-
-static void __exit fimd_exit(void)
-{
-	platform_driver_unregister(&fimd_driver);
-}
-
-module_init(fimd_init);
-module_exit(fimd_exit);
-
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samsung DRM FIMD Driver");
-MODULE_LICENSE("GPL");

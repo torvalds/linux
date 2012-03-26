@@ -98,9 +98,9 @@ struct psif {
 	struct serio		*io;
 	void __iomem		*regs;
 	unsigned int		irq;
-	unsigned int		open;
 	/* Prevent concurrent writes to PSIF THR. */
 	spinlock_t		lock;
+	bool			open;
 };
 
 static irqreturn_t psif_interrupt(int irq, void *_ptr)
@@ -164,7 +164,7 @@ static int psif_open(struct serio *io)
 	psif_writel(psif, CR, PSIF_BIT(CR_TXEN) | PSIF_BIT(CR_RXEN));
 	psif_writel(psif, IER, PSIF_BIT(RXRDY));
 
-	psif->open = 1;
+	psif->open = true;
 out:
 	return retval;
 }
@@ -173,7 +173,7 @@ static void psif_close(struct serio *io)
 {
 	struct psif *psif = io->port_data;
 
-	psif->open = 0;
+	psif->open = false;
 
 	psif_writel(psif, IDR, ~0UL);
 	psif_writel(psif, CR, PSIF_BIT(CR_TXDIS) | PSIF_BIT(CR_RXDIS));
@@ -319,9 +319,10 @@ static int __exit psif_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int psif_suspend(struct platform_device *pdev, pm_message_t state)
+#ifdef CONFIG_PM_SLEEP
+static int psif_suspend(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct psif *psif = platform_get_drvdata(pdev);
 
 	if (psif->open) {
@@ -332,8 +333,9 @@ static int psif_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int psif_resume(struct platform_device *pdev)
+static int psif_resume(struct device *dev)
 {
+	struct platform_device *pdev = to_platform_device(dev);
 	struct psif *psif = platform_get_drvdata(pdev);
 
 	if (psif->open) {
@@ -344,19 +346,17 @@ static int psif_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define psif_suspend	NULL
-#define psif_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(psif_pm_ops, psif_suspend, psif_resume);
 
 static struct platform_driver psif_driver = {
 	.remove		= __exit_p(psif_remove),
 	.driver		= {
 		.name	= "atmel_psif",
 		.owner	= THIS_MODULE,
+		.pm	= &psif_pm_ops,
 	},
-	.suspend	= psif_suspend,
-	.resume		= psif_resume,
 };
 
 static int __init psif_init(void)

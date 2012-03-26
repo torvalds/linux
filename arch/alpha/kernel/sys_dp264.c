@@ -366,7 +366,7 @@ clipper_init_irq(void)
  */
 
 static int __init
-isa_irq_fixup(struct pci_dev *dev, int irq)
+isa_irq_fixup(const struct pci_dev *dev, int irq)
 {
 	u8 irq8;
 

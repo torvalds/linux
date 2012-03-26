@@ -910,9 +910,9 @@ void flush_dcache_icache_hugepage(struct page *page)
 		if (!PageHighMem(page)) {
 			__flush_dcache_icache(page_address(page+i));
 		} else {
-			start = kmap_atomic(page+i, KM_PPC_SYNC_ICACHE);
+			start = kmap_atomic(page+i);
 			__flush_dcache_icache(start);
-			kunmap_atomic(start, KM_PPC_SYNC_ICACHE);
+			kunmap_atomic(start);
 		}
 	}
 }

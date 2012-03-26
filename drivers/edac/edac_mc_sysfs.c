@@ -452,7 +452,7 @@ static ssize_t mci_sdram_scrub_rate_store(struct mem_ctl_info *mci,
 	int new_bw = 0;
 
 	if (!mci->set_sdram_scrub_rate)
-		return -EINVAL;
+		return -ENODEV;
 
 	if (strict_strtoul(data, 10, &bandwidth) < 0)
 		return -EINVAL;
@@ -475,7 +475,7 @@ static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
 	int bandwidth = 0;
 
 	if (!mci->get_sdram_scrub_rate)
-		return -EINVAL;
+		return -ENODEV;
 
 	bandwidth = mci->get_sdram_scrub_rate(mci);
 	if (bandwidth < 0) {

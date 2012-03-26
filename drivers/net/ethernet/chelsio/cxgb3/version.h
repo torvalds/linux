@@ -35,10 +35,10 @@
 #define DRV_DESC "Chelsio T3 Network Driver"
 #define DRV_NAME "cxgb3"
 /* Driver version */
-#define DRV_VERSION "1.1.4-ko"
+#define DRV_VERSION "1.1.5-ko"
 
 /* Firmware version */
 #define FW_VERSION_MAJOR 7
-#define FW_VERSION_MINOR 10
+#define FW_VERSION_MINOR 12
 #define FW_VERSION_MICRO 0
 #endif				/* __CHELSIO_VERSION_H */

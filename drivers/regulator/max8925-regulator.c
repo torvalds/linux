@@ -73,7 +73,7 @@ static int max8925_set_voltage(struct regulator_dev *rdev,
 			min_uV, max_uV);
 		return -EINVAL;
 	}
-	data = (min_uV - info->min_uV + info->step_uV - 1) / info->step_uV;
+	data = DIV_ROUND_UP(min_uV - info->min_uV, info->step_uV);
 	*selector = data;
 	data <<= info->vol_shift;
 	mask = ((1 << info->vol_nbits) - 1) << info->vol_shift;
@@ -140,7 +140,7 @@ static int max8925_set_dvm_voltage(struct regulator_dev *rdev, int uV)
 	if (uV < SD1_DVM_VMIN || uV > SD1_DVM_VMAX)
 		return -EINVAL;
 
-	data = (uV - SD1_DVM_VMIN + SD1_DVM_STEP - 1) / SD1_DVM_STEP;
+	data = DIV_ROUND_UP(uV - SD1_DVM_VMIN, SD1_DVM_STEP);
 	data <<= SD1_DVM_SHIFT;
 	mask = 3 << SD1_DVM_SHIFT;
 

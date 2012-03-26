@@ -19,14 +19,13 @@
 
 #include <linux/kernel.h>
 #include <video/omapdss.h>
-#include "dispc.h"
 
-#define ARRAY_LEN(array) (sizeof(array) / sizeof(array[0]))
+#include "dispc.h"
 
 static const struct dispc_coef coef3_M8[8] = {
 	{ 0,  0, 128,  0, 0 },
 	{ 0, -4, 123,  9, 0 },
-	{ 0, -4, 108, 87, 0 },
+	{ 0, -4, 108, 24, 0 },
 	{ 0, -2,  87, 43, 0 },
 	{ 0, 64,  64,  0, 0 },
 	{ 0, 43,  87, -2, 0 },
@@ -168,7 +167,7 @@ static const struct dispc_coef coef5_M8[8] = {
 
 static const struct dispc_coef coef5_M9[8] = {
 	{  -3,  10, 114,  10,  -3 },
-	{  -6,  24, 110,   0,  -1 },
+	{  -6,  24, 111,   0,  -1 },
 	{  -8,  40, 103,  -7,   0 },
 	{ -11,  58,  91, -11,   1 },
 	{   0, -12,  76,  76, -12 },
@@ -319,7 +318,7 @@ const struct dispc_coef *dispc_ovl_get_scale_coef(int inc, int five_taps)
 	};
 
 	inc /= 128;
-	for (i = 0; i < ARRAY_LEN(coefs); ++i)
+	for (i = 0; i < ARRAY_SIZE(coefs); ++i)
 		if (inc >= coefs[i].Mmin && inc <= coefs[i].Mmax)
 			return five_taps ? coefs[i].coef_5 : coefs[i].coef_3;
 	return NULL;

@@ -611,7 +611,7 @@ static const struct file_operations fops_regset32 = {
  * %NULL or !%NULL instead as to eliminate the need for #ifdef in the calling
  * code.
  */
-struct dentry *debugfs_create_regset32(const char *name, mode_t mode,
+struct dentry *debugfs_create_regset32(const char *name, umode_t mode,
 				       struct dentry *parent,
 				       struct debugfs_regset32 *regset)
 {

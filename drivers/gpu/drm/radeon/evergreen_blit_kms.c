@@ -32,17 +32,7 @@
 #include "evergreend.h"
 #include "evergreen_blit_shaders.h"
 #include "cayman_blit_shaders.h"
-
-#define DI_PT_RECTLIST        0x11
-#define DI_INDEX_SIZE_16_BIT  0x0
-#define DI_SRC_SEL_AUTO_INDEX 0x2
-
-#define FMT_8                 0x1
-#define FMT_5_6_5             0x8
-#define FMT_8_8_8_8           0x1a
-#define COLOR_8               0x1
-#define COLOR_5_6_5           0x8
-#define COLOR_8_8_8_8         0x1a
+#include "radeon_blit_common.h"
 
 /* emits 17 */
 static void
@@ -236,7 +226,7 @@ set_scissors(struct radeon_device *rdev, int x1, int y1,
 		x1 = 1;
 	if (y2 == 0)
 		y1 = 1;
-	if (rdev->family == CHIP_CAYMAN) {
+	if (rdev->family >= CHIP_CAYMAN) {
 		if ((x2 == 1) && (y2 == 1))
 			x2 = 2;
 	}

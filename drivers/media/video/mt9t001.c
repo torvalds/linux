@@ -817,18 +817,7 @@ static struct i2c_driver mt9t001_driver = {
 	.id_table	= mt9t001_id,
 };
 
-static int __init mt9t001_init(void)
-{
-	return i2c_add_driver(&mt9t001_driver);
-}
-
-static void __exit mt9t001_exit(void)
-{
-	i2c_del_driver(&mt9t001_driver);
-}
-
-module_init(mt9t001_init);
-module_exit(mt9t001_exit);
+module_i2c_driver(mt9t001_driver);
 
 MODULE_DESCRIPTION("Aptina (Micron) MT9T001 Camera driver");
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");

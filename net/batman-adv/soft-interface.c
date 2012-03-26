@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -252,8 +252,8 @@ static void softif_neigh_vid_select(struct bat_priv *bat_priv,
 			vid, curr_neigh->addr);
 	else if ((curr_neigh) && (new_neigh))
 		bat_dbg(DBG_ROUTES, bat_priv,
-			"Changing mesh exit point on vid: %d from %pM "
-			"to %pM.\n", vid, curr_neigh->addr, new_neigh->addr);
+			"Changing mesh exit point on vid: %d from %pM to %pM.\n",
+			vid, curr_neigh->addr, new_neigh->addr);
 	else if ((!curr_neigh) && (new_neigh))
 		bat_dbg(DBG_ROUTES, bat_priv,
 			"Setting mesh exit point on vid: %d to %pM.\n",
@@ -327,15 +327,15 @@ int softif_neigh_seq_print_text(struct seq_file *seq, void *offset)
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if) {
-		ret = seq_printf(seq, "BATMAN mesh %s disabled - "
-				 "please specify interfaces to enable it\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
 				 net_dev->name);
 		goto out;
 	}
 
 	if (primary_if->if_status != IF_ACTIVE) {
-		ret = seq_printf(seq, "BATMAN mesh %s "
-				 "disabled - primary interface not active\n",
+		ret = seq_printf(seq,
+				 "BATMAN mesh %s disabled - primary interface not active\n",
 				 net_dev->name);
 		goto out;
 	}
@@ -396,15 +396,14 @@ void softif_neigh_purge(struct bat_priv *bat_priv)
 		hlist_for_each_entry_safe(softif_neigh, node_tmp, node_tmp2,
 					  &softif_neigh_vid->softif_neigh_list,
 					  list) {
-			if ((!time_after(jiffies, softif_neigh->last_seen +
-				msecs_to_jiffies(SOFTIF_NEIGH_TIMEOUT))) &&
+			if ((!has_timed_out(softif_neigh->last_seen,
+					    SOFTIF_NEIGH_TIMEOUT)) &&
 			    (atomic_read(&bat_priv->mesh_state) == MESH_ACTIVE))
 				continue;
 
 			if (curr_softif_neigh == softif_neigh) {
 				bat_dbg(DBG_ROUTES, bat_priv,
-					"Current mesh exit point on vid: %d "
-					"'%pM' vanished.\n",
+					"Current mesh exit point on vid: %d '%pM' vanished.\n",
 					softif_neigh_vid->vid,
 					softif_neigh->addr);
 				do_deselect = 1;
@@ -457,10 +456,10 @@ static void softif_batman_recv(struct sk_buff *skb, struct net_device *dev,
 		batman_ogm_packet = (struct batman_ogm_packet *)
 							(skb->data + ETH_HLEN);
 
-	if (batman_ogm_packet->version != COMPAT_VERSION)
+	if (batman_ogm_packet->header.version != COMPAT_VERSION)
 		goto out;
 
-	if (batman_ogm_packet->packet_type != BAT_OGM)
+	if (batman_ogm_packet->header.packet_type != BAT_OGM)
 		goto out;
 
 	if (!(batman_ogm_packet->flags & PRIMARIES_FIRST_HOP))
@@ -541,6 +540,7 @@ static int interface_set_mac_addr(struct net_device *dev, void *p)
 	}
 
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	return 0;
 }
 
@@ -632,11 +632,11 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 			goto dropped;
 
 		bcast_packet = (struct bcast_packet *)skb->data;
-		bcast_packet->version = COMPAT_VERSION;
-		bcast_packet->ttl = TTL;
+		bcast_packet->header.version = COMPAT_VERSION;
+		bcast_packet->header.ttl = TTL;
 
 		/* batman packet type: broadcast */
-		bcast_packet->packet_type = BAT_BCAST;
+		bcast_packet->header.packet_type = BAT_BCAST;
 
 		/* hw address of first interface is the orig mac because only
 		 * this mac is known throughout the mesh */
@@ -725,8 +725,8 @@ void interface_rx(struct net_device *soft_iface,
 		skb_push(skb, hdr_size);
 		unicast_packet = (struct unicast_packet *)skb->data;
 
-		if ((unicast_packet->packet_type != BAT_UNICAST) &&
-		    (unicast_packet->packet_type != BAT_UNICAST_FRAG))
+		if ((unicast_packet->header.packet_type != BAT_UNICAST) &&
+		    (unicast_packet->header.packet_type != BAT_UNICAST_FRAG))
 			goto dropped;
 
 		skb_reset_mac_header(skb);
@@ -783,7 +783,6 @@ static const struct net_device_ops bat_netdev_ops = {
 static void interface_setup(struct net_device *dev)
 {
 	struct bat_priv *priv = netdev_priv(dev);
-	char dev_addr[ETH_ALEN];
 
 	ether_setup(dev);
 
@@ -800,8 +799,7 @@ static void interface_setup(struct net_device *dev)
 	dev->hard_header_len = BAT_HEADER_LEN;
 
 	/* generate random address */
-	random_ether_addr(dev_addr);
-	memcpy(dev->dev_addr, dev_addr, ETH_ALEN);
+	eth_hw_addr_random(dev);
 
 	SET_ETHTOOL_OPS(dev, &bat_ethtool_ops);
 
@@ -854,6 +852,10 @@ struct net_device *softif_create(const char *name)
 
 	bat_priv->primary_if = NULL;
 	bat_priv->num_ifaces = 0;
+
+	ret = bat_algo_select(bat_priv, bat_routing_algo);
+	if (ret < 0)
+		goto unreg_soft_iface;
 
 	ret = sysfs_add_meshif(soft_iface);
 	if (ret < 0)

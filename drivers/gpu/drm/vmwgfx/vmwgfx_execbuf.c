@@ -1109,10 +1109,11 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 			void *kernel_commands,
 			uint32_t command_size,
 			uint64_t throttle_us,
-			struct drm_vmw_fence_rep __user *user_fence_rep)
+			struct drm_vmw_fence_rep __user *user_fence_rep,
+			struct vmw_fence_obj **out_fence)
 {
 	struct vmw_sw_context *sw_context = &dev_priv->ctx;
-	struct vmw_fence_obj *fence;
+	struct vmw_fence_obj *fence = NULL;
 	uint32_t handle;
 	void *cmd;
 	int ret;
@@ -1208,8 +1209,13 @@ int vmw_execbuf_process(struct drm_file *file_priv,
 	vmw_execbuf_copy_fence_user(dev_priv, vmw_fpriv(file_priv), ret,
 				    user_fence_rep, fence, handle);
 
-	if (likely(fence != NULL))
+	/* Don't unreference when handing fence out */
+	if (unlikely(out_fence != NULL)) {
+		*out_fence = fence;
+		fence = NULL;
+	} else if (likely(fence != NULL)) {
 		vmw_fence_obj_unreference(&fence);
+	}
 
 	mutex_unlock(&dev_priv->cmdbuf_mutex);
 	return 0;
@@ -1362,7 +1368,8 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 	ret = vmw_execbuf_process(file_priv, dev_priv,
 				  (void __user *)(unsigned long)arg->commands,
 				  NULL, arg->command_size, arg->throttle_us,
-				  (void __user *)(unsigned long)arg->fence_rep);
+				  (void __user *)(unsigned long)arg->fence_rep,
+				  NULL);
 
 	if (unlikely(ret != 0))
 		goto out_unlock;

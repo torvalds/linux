@@ -100,7 +100,6 @@ void r8712_cpwm_int_hdl(struct _adapter *padapter,
 {
 	struct pwrctrl_priv *pwrpriv = &(padapter->pwrctrlpriv);
 	struct cmd_priv	*pcmdpriv = &(padapter->cmdpriv);
-	struct xmit_priv *pxmitpriv = &(padapter->xmitpriv);
 
 	if (pwrpriv->cpwm_tog == ((preportpwrstate->state) & 0x80))
 		return;
@@ -110,8 +109,6 @@ void r8712_cpwm_int_hdl(struct _adapter *padapter,
 	if (pwrpriv->cpwm >= PS_STATE_S2) {
 		if (pwrpriv->alives & CMD_ALIVE)
 			up(&(pcmdpriv->cmd_queue_sema));
-		if (pwrpriv->alives & XMIT_ALIVE)
-			up(&(pxmitpriv->xmit_sema));
 	}
 	pwrpriv->cpwm_tog = (preportpwrstate->state) & 0x80;
 	up(&pwrpriv->lock);
@@ -145,12 +142,12 @@ static void SetPSModeWorkItemCallback(struct work_struct *work)
 				       struct pwrctrl_priv, SetPSModeWorkItem);
 	struct _adapter *padapter = container_of(pwrpriv,
 				    struct _adapter, pwrctrlpriv);
-	_enter_pwrlock(&pwrpriv->lock);
 	if (!pwrpriv->bSleep) {
+		_enter_pwrlock(&pwrpriv->lock);
 		if (pwrpriv->pwr_mode == PS_MODE_ACTIVE)
 			r8712_set_rpwm(padapter, PS_STATE_S4);
+		up(&pwrpriv->lock);
 	}
-	up(&pwrpriv->lock);
 }
 
 static void rpwm_workitem_callback(struct work_struct *work)
@@ -160,13 +157,13 @@ static void rpwm_workitem_callback(struct work_struct *work)
 	struct _adapter *padapter = container_of(pwrpriv,
 				    struct _adapter, pwrctrlpriv);
 	u8 cpwm = pwrpriv->cpwm;
-	_enter_pwrlock(&pwrpriv->lock);
 	if (pwrpriv->cpwm != pwrpriv->rpwm) {
+		_enter_pwrlock(&pwrpriv->lock);
 		cpwm = r8712_read8(padapter, SDIO_HCPWM);
 		pwrpriv->rpwm_retry = 1;
 		r8712_set_rpwm(padapter, pwrpriv->rpwm);
+		up(&pwrpriv->lock);
 	}
-	up(&pwrpriv->lock);
 }
 
 static void rpwm_check_handler (void *FunctionContext)

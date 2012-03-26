@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/bootmem.h>
 
 int __first_cpu(const cpumask_t *srcp)

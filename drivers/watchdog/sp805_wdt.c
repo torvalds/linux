@@ -370,17 +370,7 @@ static struct amba_driver sp805_wdt_driver = {
 	.remove = __devexit_p(sp805_wdt_remove),
 };
 
-static int __init sp805_wdt_init(void)
-{
-	return amba_driver_register(&sp805_wdt_driver);
-}
-module_init(sp805_wdt_init);
-
-static void __exit sp805_wdt_exit(void)
-{
-	amba_driver_unregister(&sp805_wdt_driver);
-}
-module_exit(sp805_wdt_exit);
+module_amba_driver(sp805_wdt_driver);
 
 module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout,

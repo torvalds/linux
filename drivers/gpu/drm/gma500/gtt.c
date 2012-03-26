@@ -57,7 +57,7 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
  *	Given a gtt_range object return the GTT offset of the page table
  *	entries for this gtt_range
  */
-u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
+static u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long offset;
@@ -378,7 +378,7 @@ void psb_gtt_free_range(struct drm_device *dev, struct gtt_range *gt)
 	kfree(gt);
 }
 
-void psb_gtt_alloc(struct drm_device *dev)
+static void psb_gtt_alloc(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	init_rwsem(&dev_priv->gtt.sem);

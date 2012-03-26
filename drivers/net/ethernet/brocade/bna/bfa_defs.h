@@ -297,6 +297,7 @@ enum bfa_mode {
 #define BFA_FLASH_PART_ENTRY_SIZE	32	/* partition entry size */
 #define BFA_FLASH_PART_MAX		32	/* maximal # of partitions */
 #define BFA_TOTAL_FLASH_SIZE		0x400000
+#define BFA_FLASH_PART_FWIMG		2
 #define BFA_FLASH_PART_MFG		7
 
 /*

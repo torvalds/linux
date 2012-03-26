@@ -812,9 +812,6 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	if (!se_nacl_new)
 		return ERR_PTR(-ENOMEM);
 
-	acl = container_of(se_nacl_new, struct iscsi_node_acl,
-				se_node_acl);
-
 	cmdsn_depth = ISCSI_TPG_ATTRIB(tpg)->default_cmdsn_depth;
 	/*
 	 * se_nacl_new may be released by core_tpg_add_initiator_node_acl()
@@ -825,7 +822,8 @@ static struct se_node_acl *lio_target_make_nodeacl(
 	if (IS_ERR(se_nacl))
 		return se_nacl;
 
-	stats_cg = &acl->se_node_acl.acl_fabric_stat_group;
+	acl = container_of(se_nacl, struct iscsi_node_acl, se_node_acl);
+	stats_cg = &se_nacl->acl_fabric_stat_group;
 
 	stats_cg->default_groups = kzalloc(sizeof(struct config_group) * 2,
 				GFP_KERNEL);
@@ -1505,28 +1503,6 @@ static int iscsi_get_cmd_state(struct se_cmd *se_cmd)
 	return cmd->i_state;
 }
 
-static int iscsi_is_state_remove(struct se_cmd *se_cmd)
-{
-	struct iscsi_cmd *cmd = container_of(se_cmd, struct iscsi_cmd, se_cmd);
-
-	return (cmd->i_state == ISTATE_REMOVE);
-}
-
-static int lio_sess_logged_in(struct se_session *se_sess)
-{
-	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
-	int ret;
-	/*
-	 * Called with spin_lock_bh(&tpg_lock); and
-	 * spin_lock(&se_tpg->session_lock); held.
-	 */
-	spin_lock(&sess->conn_lock);
-	ret = (sess->session_state != TARG_SESS_STATE_LOGGED_IN);
-	spin_unlock(&sess->conn_lock);
-
-	return ret;
-}
-
 static u32 lio_sess_get_index(struct se_session *se_sess)
 {
 	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
@@ -1700,8 +1676,8 @@ static int lio_tpg_shutdown_session(struct se_session *se_sess)
 	atomic_set(&sess->session_reinstatement, 1);
 	spin_unlock(&sess->conn_lock);
 
-	iscsit_inc_session_usage_count(sess);
 	iscsit_stop_time2retain_timer(sess);
+	iscsit_stop_session(sess, 1, 1);
 
 	return 1;
 }
@@ -1717,26 +1693,7 @@ static void lio_tpg_close_session(struct se_session *se_sess)
 	 * If the iSCSI Session for the iSCSI Initiator Node exists,
 	 * forcefully shutdown the iSCSI NEXUS.
 	 */
-	iscsit_stop_session(sess, 1, 1);
-	iscsit_dec_session_usage_count(sess);
 	iscsit_close_session(sess);
-}
-
-static void lio_tpg_stop_session(
-	struct se_session *se_sess,
-	int sess_sleep,
-	int conn_sleep)
-{
-	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
-
-	iscsit_stop_session(sess, sess_sleep, conn_sleep);
-}
-
-static void lio_tpg_fall_back_to_erl0(struct se_session *se_sess)
-{
-	struct iscsi_session *sess = se_sess->fabric_sess_ptr;
-
-	iscsit_fall_back_to_erl0(sess);
 }
 
 static u32 lio_tpg_get_inst_index(struct se_portal_group *se_tpg)
@@ -1802,9 +1759,6 @@ int iscsi_target_register_configfs(void)
 	fabric->tf_ops.release_cmd = &lio_release_cmd;
 	fabric->tf_ops.shutdown_session = &lio_tpg_shutdown_session;
 	fabric->tf_ops.close_session = &lio_tpg_close_session;
-	fabric->tf_ops.stop_session = &lio_tpg_stop_session;
-	fabric->tf_ops.fall_back_to_erl0 = &lio_tpg_fall_back_to_erl0;
-	fabric->tf_ops.sess_logged_in = &lio_sess_logged_in;
 	fabric->tf_ops.sess_get_index = &lio_sess_get_index;
 	fabric->tf_ops.sess_get_initiator_sid = &lio_sess_get_initiator_sid;
 	fabric->tf_ops.write_pending = &lio_write_pending;
@@ -1818,7 +1772,6 @@ int iscsi_target_register_configfs(void)
 	fabric->tf_ops.queue_tm_rsp = &lio_queue_tm_rsp;
 	fabric->tf_ops.set_fabric_sense_len = &lio_set_fabric_sense_len;
 	fabric->tf_ops.get_fabric_sense_len = &lio_get_fabric_sense_len;
-	fabric->tf_ops.is_state_remove = &iscsi_is_state_remove;
 	/*
 	 * Setup function pointers for generic logic in target_core_fabric_configfs.c
 	 */

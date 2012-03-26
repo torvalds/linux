@@ -25,7 +25,7 @@
 static inline int
 syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
-	return regs->syscallno ? regs->syscallno : -1;
+	return regs->orig_gpr11;
 }
 
 static inline void
@@ -50,10 +50,7 @@ static inline void
 syscall_set_return_value(struct task_struct *task, struct pt_regs *regs,
 			 int error, long val)
 {
-	if (error)
-		regs->gpr[11] = -error;
-	else
-		regs->gpr[11] = val;
+	regs->gpr[11] = (long) error ?: val;
 }
 
 static inline void

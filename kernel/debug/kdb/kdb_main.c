@@ -1400,6 +1400,9 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 	if (KDB_STATE(DOING_SS))
 		KDB_STATE_CLEAR(SSBPT);
 
+	/* Clean up any keyboard devices before leaving */
+	kdb_kbd_cleanup_state();
+
 	return result;
 }
 

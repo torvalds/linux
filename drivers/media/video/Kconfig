@@ -273,6 +273,16 @@ config VIDEO_ADV7180
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7180.
 
+config VIDEO_ADV7183
+	tristate "Analog Devices ADV7183 decoder"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  V4l2 subdevice driver for the Analog Devices
+	  ADV7183 video decoder.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adv7183.
+
 config VIDEO_BT819
 	tristate "BT819A VideoStream decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -459,6 +469,9 @@ config VIDEO_AK881X
 
 comment "Camera sensor devices"
 
+config VIDEO_APTINA_PLL
+	tristate
+
 config VIDEO_OV7670
 	tristate "OmniVision OV7670 sensor support"
 	depends on I2C && VIDEO_V4L2
@@ -467,9 +480,28 @@ config VIDEO_OV7670
 	  OV7670 VGA camera.  It currently only works with the M88ALP01
 	  controller.
 
+config VIDEO_VS6624
+	tristate "ST VS6624 sensor support"
+	depends on VIDEO_V4L2 && I2C
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the ST VS6624
+	  camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vs6624.
+
+config VIDEO_MT9M032
+	tristate "MT9M032 camera sensor support"
+	depends on I2C && VIDEO_V4L2
+	select VIDEO_APTINA_PLL
+	---help---
+	  This driver supports MT9M032 camera sensors from Aptina, monochrome
+	  models only.
+
 config VIDEO_MT9P031
 	tristate "Aptina MT9P031 support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select VIDEO_APTINA_PLL
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Aptina
 	  (Micron) mt9p031 5 Mpixel camera.
@@ -851,6 +883,8 @@ source "drivers/media/video/davinci/Kconfig"
 
 source "drivers/media/video/omap/Kconfig"
 
+source "drivers/media/video/blackfin/Kconfig"
+
 config VIDEO_SH_VOU
 	tristate "SuperH VOU video output driver"
 	depends on VIDEO_DEV && ARCH_SHMOBILE
@@ -1087,7 +1121,7 @@ config VIDEO_MX2_HOSTSUPPORT
 config VIDEO_MX2
 	tristate "i.MX27/i.MX25 Camera Sensor Interface driver"
 	depends on VIDEO_DEV && SOC_CAMERA && (MACH_MX27 || ARCH_MX25)
-	select VIDEOBUF_DMA_CONTIG
+	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_MX2_HOSTSUPPORT
 	---help---
 	  This is a v4l2 driver for the i.MX27 and the i.MX25 Camera Sensor
@@ -1116,7 +1150,8 @@ config VIDEO_ATMEL_ISI
 
 config VIDEO_S5P_MIPI_CSIS
 	tristate "Samsung S5P and EXYNOS4 MIPI CSI receiver driver"
-	depends on VIDEO_V4L2 && PM_RUNTIME && PLAT_S5P && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_V4L2 && PM_RUNTIME && PLAT_S5P
+	depends on VIDEO_V4L2_SUBDEV_API && REGULATOR
 	---help---
 	  This is a v4l2 driver for Samsung S5P/EXYNOS4 MIPI-CSI receiver.
 
@@ -1175,5 +1210,15 @@ config VIDEO_SAMSUNG_S5P_MFC
 	default n
 	help
 	    MFC 5.1 driver for V4L2.
+
+config VIDEO_MX2_EMMAPRP
+	tristate "MX2 eMMa-PrP support"
+	depends on VIDEO_DEV && VIDEO_V4L2 && SOC_IMX27
+	select VIDEOBUF2_DMA_CONTIG
+	select V4L2_MEM2MEM_DEV
+	help
+	    MX2X chips have a PrP that can be used to process buffers from
+	    memory to memory. Operations include resizing and format
+	    conversion.
 
 endif # V4L_MEM2MEM_DRIVERS

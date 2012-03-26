@@ -38,7 +38,7 @@
 #define dac_reg	(0x3c8)
 #define dac_val	(0x3c9)
 
-extern char *smtc_RegBaseAddress;
+extern char __iomem *smtc_RegBaseAddress;
 #define smtc_mmiowb(dat, reg)	writeb(dat, smtc_RegBaseAddress + reg)
 #define smtc_mmioww(dat, reg)	writew(dat, smtc_RegBaseAddress + reg)
 #define smtc_mmiowl(dat, reg)	writel(dat, smtc_RegBaseAddress + reg)

@@ -65,195 +65,232 @@ static bool nv_cksum(const uint8_t *data, unsigned int length)
 }
 
 static int
-score_vbios(struct drm_device *dev, const uint8_t *data, const bool writeable)
+score_vbios(struct nvbios *bios, const bool writeable)
 {
-	if (!(data[0] == 0x55 && data[1] == 0xAA)) {
-		NV_TRACEWARN(dev, "... BIOS signature not found\n");
+	if (!bios->data || bios->data[0] != 0x55 || bios->data[1] != 0xAA) {
+		NV_TRACEWARN(bios->dev, "... BIOS signature not found\n");
 		return 0;
 	}
 
-	if (nv_cksum(data, data[2] * 512)) {
-		NV_TRACEWARN(dev, "... BIOS checksum invalid\n");
+	if (nv_cksum(bios->data, bios->data[2] * 512)) {
+		NV_TRACEWARN(bios->dev, "... BIOS checksum invalid\n");
 		/* if a ro image is somewhat bad, it's probably all rubbish */
 		return writeable ? 2 : 1;
-	} else
-		NV_TRACE(dev, "... appears to be valid\n");
+	}
 
+	NV_TRACE(bios->dev, "... appears to be valid\n");
 	return 3;
 }
 
-static void load_vbios_prom(struct drm_device *dev, uint8_t *data)
+static void
+bios_shadow_prom(struct nvbios *bios)
 {
+	struct drm_device *dev = bios->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t pci_nv_20, save_pci_nv_20;
-	int pcir_ptr;
+	u32 pcireg, access;
+	u16 pcir;
 	int i;
 
+	/* enable access to rom */
 	if (dev_priv->card_type >= NV_50)
-		pci_nv_20 = 0x88050;
+		pcireg = 0x088050;
 	else
-		pci_nv_20 = NV_PBUS_PCI_NV_20;
+		pcireg = NV_PBUS_PCI_NV_20;
+	access = nv_mask(dev, pcireg, 0x00000001, 0x00000000);
 
-	/* enable ROM access */
-	save_pci_nv_20 = nvReadMC(dev, pci_nv_20);
-	nvWriteMC(dev, pci_nv_20,
-		  save_pci_nv_20 & ~NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
+	/* bail if no rom signature, with a workaround for a PROM reading
+	 * issue on some chipsets.  the first read after a period of
+	 * inactivity returns the wrong result, so retry the first header
+	 * byte a few times before giving up as a workaround
+	 */
+	i = 16;
+	do {
+		if (nv_rd08(dev, NV_PROM_OFFSET + 0) == 0x55)
+			break;
+	} while (i--);
 
-	/* bail if no rom signature */
-	if (nv_rd08(dev, NV_PROM_OFFSET) != 0x55 ||
-	    nv_rd08(dev, NV_PROM_OFFSET + 1) != 0xaa)
+	if (!i || nv_rd08(dev, NV_PROM_OFFSET + 1) != 0xaa)
 		goto out;
 
 	/* additional check (see note below) - read PCI record header */
-	pcir_ptr = nv_rd08(dev, NV_PROM_OFFSET + 0x18) |
-		   nv_rd08(dev, NV_PROM_OFFSET + 0x19) << 8;
-	if (nv_rd08(dev, NV_PROM_OFFSET + pcir_ptr) != 'P' ||
-	    nv_rd08(dev, NV_PROM_OFFSET + pcir_ptr + 1) != 'C' ||
-	    nv_rd08(dev, NV_PROM_OFFSET + pcir_ptr + 2) != 'I' ||
-	    nv_rd08(dev, NV_PROM_OFFSET + pcir_ptr + 3) != 'R')
+	pcir = nv_rd08(dev, NV_PROM_OFFSET + 0x18) |
+	       nv_rd08(dev, NV_PROM_OFFSET + 0x19) << 8;
+	if (nv_rd08(dev, NV_PROM_OFFSET + pcir + 0) != 'P' ||
+	    nv_rd08(dev, NV_PROM_OFFSET + pcir + 1) != 'C' ||
+	    nv_rd08(dev, NV_PROM_OFFSET + pcir + 2) != 'I' ||
+	    nv_rd08(dev, NV_PROM_OFFSET + pcir + 3) != 'R')
 		goto out;
 
-	/* on some 6600GT/6800LE prom reads are messed up.  nvclock alleges a
-	 * a good read may be obtained by waiting or re-reading (cargocult: 5x)
-	 * each byte.  we'll hope pramin has something usable instead
-	 */
-	for (i = 0; i < NV_PROM_SIZE; i++)
-		data[i] = nv_rd08(dev, NV_PROM_OFFSET + i);
+	/* read entire bios image to system memory */
+	bios->length = nv_rd08(dev, NV_PROM_OFFSET + 2) * 512;
+	bios->data = kmalloc(bios->length, GFP_KERNEL);
+	if (bios->data) {
+		for (i = 0; i < bios->length; i++)
+			bios->data[i] = nv_rd08(dev, NV_PROM_OFFSET + i);
+	}
 
 out:
-	/* disable ROM access */
-	nvWriteMC(dev, pci_nv_20,
-		  save_pci_nv_20 | NV_PBUS_PCI_NV_20_ROM_SHADOW_ENABLED);
+	/* disable access to rom */
+	nv_wr32(dev, pcireg, access);
 }
 
-static void load_vbios_pramin(struct drm_device *dev, uint8_t *data)
+static void
+bios_shadow_pramin(struct nvbios *bios)
 {
+	struct drm_device *dev = bios->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t old_bar0_pramin = 0;
+	u32 bar0 = 0;
 	int i;
 
 	if (dev_priv->card_type >= NV_50) {
 		u64 addr = (u64)(nv_rd32(dev, 0x619f04) & 0xffffff00) << 8;
 		if (!addr) {
-			addr  = (u64)nv_rd32(dev, 0x1700) << 16;
+			addr  = (u64)nv_rd32(dev, 0x001700) << 16;
 			addr += 0xf0000;
 		}
 
-		old_bar0_pramin = nv_rd32(dev, 0x1700);
-		nv_wr32(dev, 0x1700, addr >> 16);
+		bar0 = nv_mask(dev, 0x001700, 0xffffffff, addr >> 16);
 	}
 
 	/* bail if no rom signature */
-	if (nv_rd08(dev, NV_PRAMIN_OFFSET) != 0x55 ||
+	if (nv_rd08(dev, NV_PRAMIN_OFFSET + 0) != 0x55 ||
 	    nv_rd08(dev, NV_PRAMIN_OFFSET + 1) != 0xaa)
 		goto out;
 
-	for (i = 0; i < NV_PROM_SIZE; i++)
-		data[i] = nv_rd08(dev, NV_PRAMIN_OFFSET + i);
+	bios->length = nv_rd08(dev, NV_PRAMIN_OFFSET + 2) * 512;
+	bios->data = kmalloc(bios->length, GFP_KERNEL);
+	if (bios->data) {
+		for (i = 0; i < bios->length; i++)
+			bios->data[i] = nv_rd08(dev, NV_PRAMIN_OFFSET + i);
+	}
 
 out:
 	if (dev_priv->card_type >= NV_50)
-		nv_wr32(dev, 0x1700, old_bar0_pramin);
+		nv_wr32(dev, 0x001700, bar0);
 }
 
-static void load_vbios_pci(struct drm_device *dev, uint8_t *data)
+static void
+bios_shadow_pci(struct nvbios *bios)
 {
-	void __iomem *rom = NULL;
-	size_t rom_len;
-	int ret;
+	struct pci_dev *pdev = bios->dev->pdev;
+	size_t length;
 
-	ret = pci_enable_rom(dev->pdev);
-	if (ret)
-		return;
+	if (!pci_enable_rom(pdev)) {
+		void __iomem *rom = pci_map_rom(pdev, &length);
+		if (rom) {
+			bios->data = kmalloc(length, GFP_KERNEL);
+			if (bios->data) {
+				memcpy_fromio(bios->data, rom, length);
+				bios->length = length;
+			}
+			pci_unmap_rom(pdev, rom);
+		}
 
-	rom = pci_map_rom(dev->pdev, &rom_len);
-	if (!rom)
-		goto out;
-	memcpy_fromio(data, rom, rom_len);
-	pci_unmap_rom(dev->pdev, rom);
-
-out:
-	pci_disable_rom(dev->pdev);
-}
-
-static void load_vbios_acpi(struct drm_device *dev, uint8_t *data)
-{
-	int i;
-	int ret;
-	int size = 64 * 1024;
-
-	if (!nouveau_acpi_rom_supported(dev->pdev))
-		return;
-
-	for (i = 0; i < (size / ROM_BIOS_PAGE); i++) {
-		ret = nouveau_acpi_get_bios_chunk(data,
-						  (i * ROM_BIOS_PAGE),
-						  ROM_BIOS_PAGE);
-		if (ret <= 0)
-			break;
+		pci_disable_rom(pdev);
 	}
-	return;
+}
+
+static void
+bios_shadow_acpi(struct nvbios *bios)
+{
+	struct pci_dev *pdev = bios->dev->pdev;
+	int ptr, len, ret;
+	u8 data[3];
+
+	if (!nouveau_acpi_rom_supported(pdev))
+		return;
+
+	ret = nouveau_acpi_get_bios_chunk(data, 0, sizeof(data));
+	if (ret != sizeof(data))
+		return;
+
+	bios->length = min(data[2] * 512, 65536);
+	bios->data = kmalloc(bios->length, GFP_KERNEL);
+	if (!bios->data)
+		return;
+
+	len = bios->length;
+	ptr = 0;
+	while (len) {
+		int size = (len > ROM_BIOS_PAGE) ? ROM_BIOS_PAGE : len;
+
+		ret = nouveau_acpi_get_bios_chunk(bios->data, ptr, size);
+		if (ret != size) {
+			kfree(bios->data);
+			bios->data = NULL;
+			return;
+		}
+
+		len -= size;
+		ptr += size;
+	}
 }
 
 struct methods {
 	const char desc[8];
-	void (*loadbios)(struct drm_device *, uint8_t *);
+	void (*shadow)(struct nvbios *);
 	const bool rw;
+	int score;
+	u32 size;
+	u8 *data;
 };
 
-static struct methods shadow_methods[] = {
-	{ "PRAMIN", load_vbios_pramin, true },
-	{ "PROM", load_vbios_prom, false },
-	{ "PCIROM", load_vbios_pci, true },
-	{ "ACPI", load_vbios_acpi, true },
-};
-#define NUM_SHADOW_METHODS ARRAY_SIZE(shadow_methods)
-
-static bool NVShadowVBIOS(struct drm_device *dev, uint8_t *data)
+static bool
+bios_shadow(struct drm_device *dev)
 {
-	struct methods *methods = shadow_methods;
-	int testscore = 3;
-	int scores[NUM_SHADOW_METHODS], i;
+	struct methods shadow_methods[] = {
+		{ "PRAMIN", bios_shadow_pramin, true, 0, 0, NULL },
+		{ "PROM", bios_shadow_prom, false, 0, 0, NULL },
+		{ "ACPI", bios_shadow_acpi, true, 0, 0, NULL },
+		{ "PCIROM", bios_shadow_pci, true, 0, 0, NULL },
+		{}
+	};
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->vbios;
+	struct methods *mthd, *best;
 
 	if (nouveau_vbios) {
-		for (i = 0; i < NUM_SHADOW_METHODS; i++)
-			if (!strcasecmp(nouveau_vbios, methods[i].desc))
-				break;
+		mthd = shadow_methods;
+		do {
+			if (strcasecmp(nouveau_vbios, mthd->desc))
+				continue;
+			NV_INFO(dev, "VBIOS source: %s\n", mthd->desc);
 
-		if (i < NUM_SHADOW_METHODS) {
-			NV_INFO(dev, "Attempting to use BIOS image from %s\n",
-				methods[i].desc);
-
-			methods[i].loadbios(dev, data);
-			if (score_vbios(dev, data, methods[i].rw))
+			mthd->shadow(bios);
+			mthd->score = score_vbios(bios, mthd->rw);
+			if (mthd->score)
 				return true;
-		}
+		} while ((++mthd)->shadow);
 
 		NV_ERROR(dev, "VBIOS source \'%s\' invalid\n", nouveau_vbios);
 	}
 
-	for (i = 0; i < NUM_SHADOW_METHODS; i++) {
-		NV_TRACE(dev, "Attempting to load BIOS image from %s\n",
-			 methods[i].desc);
-		data[0] = data[1] = 0;	/* avoid reuse of previous image */
-		methods[i].loadbios(dev, data);
-		scores[i] = score_vbios(dev, data, methods[i].rw);
-		if (scores[i] == testscore)
-			return true;
-	}
+	mthd = shadow_methods;
+	do {
+		NV_TRACE(dev, "Checking %s for VBIOS\n", mthd->desc);
+		mthd->shadow(bios);
+		mthd->score = score_vbios(bios, mthd->rw);
+		mthd->size = bios->length;
+		mthd->data = bios->data;
+	} while (mthd->score != 3 && (++mthd)->shadow);
 
-	while (--testscore > 0) {
-		for (i = 0; i < NUM_SHADOW_METHODS; i++) {
-			if (scores[i] == testscore) {
-				NV_TRACE(dev, "Using BIOS image from %s\n",
-					 methods[i].desc);
-				methods[i].loadbios(dev, data);
-				return true;
-			}
+	mthd = shadow_methods;
+	best = mthd;
+	do {
+		if (mthd->score > best->score) {
+			kfree(best->data);
+			best = mthd;
 		}
+	} while ((++mthd)->shadow);
+
+	if (best->score) {
+		NV_TRACE(dev, "Using VBIOS from %s\n", best->desc);
+		bios->length = best->size;
+		bios->data = best->data;
+		return true;
 	}
 
-	NV_ERROR(dev, "No valid BIOS image found\n");
+	NV_ERROR(dev, "No valid VBIOS image found\n");
 	return false;
 }
 
@@ -1107,7 +1144,8 @@ init_dp_condition(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		break;
 	case 1:
 	case 2:
-		if (!(entry[5] & cond))
+		if ((table[0]  < 0x40 && !(entry[5] & cond)) ||
+		    (table[0] == 0x40 && !(entry[4] & cond)))
 			iexec->execute = false;
 		break;
 	case 5:
@@ -6334,11 +6372,7 @@ static bool NVInitVBIOS(struct drm_device *dev)
 	spin_lock_init(&bios->lock);
 	bios->dev = dev;
 
-	if (!NVShadowVBIOS(dev, bios->data))
-		return false;
-
-	bios->length = NV_PROM_SIZE;
-	return true;
+	return bios_shadow(dev);
 }
 
 static int nouveau_parse_vbios_struct(struct drm_device *dev)
@@ -6498,6 +6532,10 @@ nouveau_bios_init(struct drm_device *dev)
 void
 nouveau_bios_takedown(struct drm_device *dev)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
 	nouveau_mxm_fini(dev);
 	nouveau_i2c_fini(dev);
+
+	kfree(dev_priv->vbios.data);
 }

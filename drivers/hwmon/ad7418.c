@@ -167,7 +167,11 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct ad7418_data *data = i2c_get_clientdata(client);
-	long temp = simple_strtol(buf, NULL, 10);
+	long temp;
+	int ret = kstrtol(buf, 10, &temp);
+
+	if (ret < 0)
+		return ret;
 
 	mutex_lock(&data->lock);
 	data->temp[attr->index] = LM75_TEMP_TO_REG(temp);
@@ -228,7 +232,8 @@ static int ad7418_probe(struct i2c_client *client,
 		goto exit;
 	}
 
-	if (!(data = kzalloc(sizeof(struct ad7418_data), GFP_KERNEL))) {
+	data = kzalloc(sizeof(struct ad7418_data), GFP_KERNEL);
+	if (!data) {
 		err = -ENOMEM;
 		goto exit;
 	}
@@ -261,7 +266,8 @@ static int ad7418_probe(struct i2c_client *client,
 	ad7418_init_client(client);
 
 	/* Register sysfs hooks */
-	if ((err = sysfs_create_group(&client->dev.kobj, &data->attrs)))
+	err = sysfs_create_group(&client->dev.kobj, &data->attrs);
+	if (err)
 		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&client->dev);
@@ -289,20 +295,9 @@ static int ad7418_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __init ad7418_init(void)
-{
-	return i2c_add_driver(&ad7418_driver);
-}
-
-static void __exit ad7418_exit(void)
-{
-	i2c_del_driver(&ad7418_driver);
-}
+module_i2c_driver(ad7418_driver);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("AD7416/17/18 driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ad7418_init);
-module_exit(ad7418_exit);

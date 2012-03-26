@@ -2524,7 +2524,7 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 			size = ring->mtu + ALIGN_SIZE + BUF0_LEN + 4;
 
 		/* allocate skb */
-		skb = dev_alloc_skb(size);
+		skb = netdev_alloc_skb(nic->dev, size);
 		if (!skb) {
 			DBG_PRINT(INFO_DBG, "%s: Could not allocate skb\n",
 				  ring->dev->name);
@@ -5248,7 +5248,7 @@ static int s2io_set_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
@@ -6820,7 +6820,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			 */
 			rxdp1->Buffer0_ptr = *temp0;
 		} else {
-			*skb = dev_alloc_skb(size);
+			*skb = netdev_alloc_skb(dev, size);
 			if (!(*skb)) {
 				DBG_PRINT(INFO_DBG,
 					  "%s: Out of memory to allocate %s\n",
@@ -6849,7 +6849,7 @@ static int set_rxd_buffer_pointer(struct s2io_nic *sp, struct RxD_t *rxdp,
 			rxdp3->Buffer0_ptr = *temp0;
 			rxdp3->Buffer1_ptr = *temp1;
 		} else {
-			*skb = dev_alloc_skb(size);
+			*skb = netdev_alloc_skb(dev, size);
 			if (!(*skb)) {
 				DBG_PRINT(INFO_DBG,
 					  "%s: Out of memory to allocate %s\n",
@@ -7760,7 +7760,6 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	else
 		dev = alloc_etherdev(sizeof(struct s2io_nic));
 	if (dev == NULL) {
-		DBG_PRINT(ERR_DBG, "Device allocation failed\n");
 		pci_disable_device(pdev);
 		pci_release_regions(pdev);
 		return -ENODEV;

@@ -1069,7 +1069,7 @@ static int tomoyo_write_task(struct tomoyo_acl_param *param)
  *
  * @domainname: The name of domain.
  *
- * Returns 0.
+ * Returns 0 on success, negative value otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
@@ -1081,7 +1081,7 @@ static int tomoyo_delete_domain(char *domainname)
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
-		return 0;
+		return -EINTR;
 	/* Is there an active domain? */
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		/* Never delete tomoyo_kernel_domain */
@@ -1164,15 +1164,16 @@ static int tomoyo_write_domain(struct tomoyo_io_buffer *head)
 	bool is_select = !is_delete && tomoyo_str_starts(&data, "select ");
 	unsigned int profile;
 	if (*data == '<') {
+		int ret = 0;
 		domain = NULL;
 		if (is_delete)
-			tomoyo_delete_domain(data);
+			ret = tomoyo_delete_domain(data);
 		else if (is_select)
 			domain = tomoyo_find_domain(data);
 		else
 			domain = tomoyo_assign_domain(data, false);
 		head->w.domain = domain;
-		return 0;
+		return ret;
 	}
 	if (!domain)
 		return -EINVAL;
@@ -2111,7 +2112,7 @@ static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
 	struct tomoyo_domain_info *domain = NULL;
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each_entry(ptr, &tomoyo_query_list, list) {
-		if (ptr->serial != serial || ptr->answer)
+		if (ptr->serial != serial)
 			continue;
 		domain = ptr->domain;
 		break;
@@ -2130,28 +2131,13 @@ static struct tomoyo_domain_info *tomoyo_find_domain_by_qid
  *
  * Waits for access requests which violated policy in enforcing mode.
  */
-static int tomoyo_poll_query(struct file *file, poll_table *wait)
+static unsigned int tomoyo_poll_query(struct file *file, poll_table *wait)
 {
-	struct list_head *tmp;
-	bool found = false;
-	u8 i;
-	for (i = 0; i < 2; i++) {
-		spin_lock(&tomoyo_query_list_lock);
-		list_for_each(tmp, &tomoyo_query_list) {
-			struct tomoyo_query *ptr =
-				list_entry(tmp, typeof(*ptr), list);
-			if (ptr->answer)
-				continue;
-			found = true;
-			break;
-		}
-		spin_unlock(&tomoyo_query_list_lock);
-		if (found)
-			return POLLIN | POLLRDNORM;
-		if (i)
-			break;
-		poll_wait(file, &tomoyo_query_wait, wait);
-	}
+	if (!list_empty(&tomoyo_query_list))
+		return POLLIN | POLLRDNORM;
+	poll_wait(file, &tomoyo_query_wait, wait);
+	if (!list_empty(&tomoyo_query_list))
+		return POLLIN | POLLRDNORM;
 	return 0;
 }
 
@@ -2175,8 +2161,6 @@ static void tomoyo_read_query(struct tomoyo_io_buffer *head)
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each(tmp, &tomoyo_query_list) {
 		struct tomoyo_query *ptr = list_entry(tmp, typeof(*ptr), list);
-		if (ptr->answer)
-			continue;
 		if (pos++ != head->r.query_index)
 			continue;
 		len = ptr->query_len;
@@ -2194,8 +2178,6 @@ static void tomoyo_read_query(struct tomoyo_io_buffer *head)
 	spin_lock(&tomoyo_query_list_lock);
 	list_for_each(tmp, &tomoyo_query_list) {
 		struct tomoyo_query *ptr = list_entry(tmp, typeof(*ptr), list);
-		if (ptr->answer)
-			continue;
 		if (pos++ != head->r.query_index)
 			continue;
 		/*
@@ -2243,8 +2225,10 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 		struct tomoyo_query *ptr = list_entry(tmp, typeof(*ptr), list);
 		if (ptr->serial != serial)
 			continue;
-		if (!ptr->answer)
-			ptr->answer = answer;
+		ptr->answer = answer;
+		/* Remove from tomoyo_query_list. */
+		if (ptr->answer)
+			list_del_init(&ptr->list);
 		break;
 	}
 	spin_unlock(&tomoyo_query_list_lock);
@@ -2477,18 +2461,17 @@ int tomoyo_open_control(const u8 type, struct file *file)
  * tomoyo_poll_control - poll() for /sys/kernel/security/tomoyo/ interface.
  *
  * @file: Pointer to "struct file".
- * @wait: Pointer to "poll_table".
+ * @wait: Pointer to "poll_table". Maybe NULL.
  *
- * Waits for read readiness.
- * /sys/kernel/security/tomoyo/query is handled by /usr/sbin/tomoyo-queryd and
- * /sys/kernel/security/tomoyo/audit is handled by /usr/sbin/tomoyo-auditd.
+ * Returns POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM if ready to read/write,
+ * POLLOUT | POLLWRNORM otherwise.
  */
-int tomoyo_poll_control(struct file *file, poll_table *wait)
+unsigned int tomoyo_poll_control(struct file *file, poll_table *wait)
 {
 	struct tomoyo_io_buffer *head = file->private_data;
-	if (!head->poll)
-		return -ENOSYS;
-	return head->poll(file, wait);
+	if (head->poll)
+		return head->poll(file, wait) | POLLOUT | POLLWRNORM;
+	return POLLIN | POLLRDNORM | POLLOUT | POLLWRNORM;
 }
 
 /**

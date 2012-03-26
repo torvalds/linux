@@ -2098,23 +2098,29 @@ static int me4000_dio_insn_config(struct comedi_device *dev,
 
 	CALL_PDEBUG("In me4000_dio_insn_config()\n");
 
-	if (data[0] == INSN_CONFIG_DIO_QUERY) {
+	switch (data[0]) {
+	default:
+		return -EINVAL;
+	case INSN_CONFIG_DIO_QUERY:
 		data[1] =
 		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		return insn->n;
+	case INSN_CONFIG_DIO_INPUT:
+	case INSN_CONFIG_DIO_OUTPUT:
+		break;
 	}
 
 	/*
 	 * The input or output configuration of each digital line is
 	 * configured by a special insn_config instruction.  chanspec
 	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT.
+	 * value INSN_CONFIG_DIO_INPUT or INSN_CONFIG_DIO_OUTPUT.
 	 * On the ME-4000 it is only possible to switch port wise (8 bit)
 	 */
 
 	tmp = me4000_inl(dev, info->dio_context.ctrl_reg);
 
-	if (data[0] == COMEDI_OUTPUT) {
+	if (data[0] == INSN_CONFIG_DIO_OUTPUT) {
 		if (chan < 8) {
 			s->io_bits |= 0xFF;
 			tmp &= ~(ME4000_DIO_CTRL_BIT_MODE_0 |
