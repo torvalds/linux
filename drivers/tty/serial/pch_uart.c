@@ -228,7 +228,6 @@ struct eg20t_port {
 	int start_tx;
 	int start_rx;
 	int tx_empty;
-	int int_dis_flag;
 	int trigger;
 	int trigger_level;
 	struct pch_uart_buffer rxbuf;
@@ -1101,10 +1100,6 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 		}
 		handled |= (unsigned int)ret;
 	}
-	if (handled == 0 && iid <= 1) {
-		if (priv->int_dis_flag)
-			priv->int_dis_flag = 0;
-	}
 
 	spin_unlock_irqrestore(&priv->port.lock, flags);
 	return IRQ_RETVAL(handled);
@@ -1199,7 +1194,6 @@ static void pch_uart_stop_rx(struct uart_port *port)
 	priv = container_of(port, struct eg20t_port, port);
 	priv->start_rx = 0;
 	pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_RX_INT);
-	priv->int_dis_flag = 1;
 }
 
 /* Enable the modem status interrupts. */
