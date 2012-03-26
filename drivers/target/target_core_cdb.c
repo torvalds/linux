@@ -432,6 +432,7 @@ static int
 target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 {
 	struct se_device *dev = cmd->se_dev;
+	u32 max_sectors;
 	int have_tp = 0;
 
 	/*
@@ -456,7 +457,9 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	/*
 	 * Set MAXIMUM TRANSFER LENGTH
 	 */
-	put_unaligned_be32(dev->se_sub_dev->se_dev_attrib.fabric_max_sectors, &buf[8]);
+	max_sectors = min(dev->se_sub_dev->se_dev_attrib.fabric_max_sectors,
+			  dev->se_sub_dev->se_dev_attrib.max_sectors);
+	put_unaligned_be32(max_sectors, &buf[8]);
 
 	/*
 	 * Set OPTIMAL TRANSFER LENGTH

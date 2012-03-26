@@ -3183,7 +3183,8 @@ static int transport_generic_cmd_sequencer(
 	}
 
 	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB &&
-	    sectors > dev->se_sub_dev->se_dev_attrib.fabric_max_sectors) {
+	    (sectors > dev->se_sub_dev->se_dev_attrib.fabric_max_sectors ||
+	     sectors > dev->se_sub_dev->se_dev_attrib.max_sectors)) {
 		printk_ratelimited(KERN_ERR "SCSI OP %02xh with too big sectors %u\n",
 				   cdb[0], sectors);
 		goto out_invalid_cdb_field;
@@ -3446,12 +3447,7 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 	while (!list_empty(&dispose_list)) {
 		task = list_first_entry(&dispose_list, struct se_task, t_list);
 
-		if (task->task_sg != cmd->t_data_sg &&
-		    task->task_sg != cmd->t_bidi_data_sg)
-			kfree(task->task_sg);
-
 		list_del(&task->t_list);
-
 		cmd->se_dev->transport->free_task(task);
 	}
 }
@@ -3782,112 +3778,35 @@ transport_allocate_data_tasks(struct se_cmd *cmd,
 	struct scatterlist *cmd_sg, unsigned int sgl_nents)
 {
 	struct se_device *dev = cmd->se_dev;
-	int task_count, i;
-	unsigned long long lba;
-	sector_t sectors, dev_max_sectors;
-	u32 sector_size;
+	struct se_dev_attrib *attr = &dev->se_sub_dev->se_dev_attrib;
+	sector_t sectors;
+	struct se_task *task;
+	unsigned long flags;
 
 	if (transport_cmd_get_valid_sectors(cmd) < 0)
 		return -EINVAL;
 
-	dev_max_sectors = dev->se_sub_dev->se_dev_attrib.max_sectors;
-	sector_size = dev->se_sub_dev->se_dev_attrib.block_size;
+	sectors = DIV_ROUND_UP(cmd->data_length, attr->block_size);
 
-	WARN_ON(cmd->data_length % sector_size);
+	BUG_ON(cmd->data_length % attr->block_size);
+	BUG_ON(sectors > attr->max_sectors);
 
-	lba = cmd->t_task_lba;
-	sectors = DIV_ROUND_UP(cmd->data_length, sector_size);
-	task_count = DIV_ROUND_UP_SECTOR_T(sectors, dev_max_sectors);
+	task = transport_generic_get_task(cmd, data_direction);
+	if (!task)
+		return -ENOMEM;
 
-	/*
-	 * If we need just a single task reuse the SG list in the command
-	 * and avoid a lot of work.
-	 */
-	if (task_count == 1) {
-		struct se_task *task;
-		unsigned long flags;
+	task->task_sg = cmd_sg;
+	task->task_sg_nents = sgl_nents;
+	task->task_size = cmd->data_length;
 
-		task = transport_generic_get_task(cmd, data_direction);
-		if (!task)
-			return -ENOMEM;
+	task->task_lba = cmd->t_task_lba;
+	task->task_sectors = sectors;
 
-		task->task_sg = cmd_sg;
-		task->task_sg_nents = sgl_nents;
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	list_add_tail(&task->t_list, &cmd->t_task_list);
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-		task->task_lba = lba;
-		task->task_sectors = sectors;
-		task->task_size = task->task_sectors * sector_size;
-
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		list_add_tail(&task->t_list, &cmd->t_task_list);
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-		return task_count;
-	}
-
-	for (i = 0; i < task_count; i++) {
-		struct se_task *task;
-		unsigned int task_size, task_sg_nents_padded;
-		struct scatterlist *sg;
-		unsigned long flags;
-		int count;
-
-		task = transport_generic_get_task(cmd, data_direction);
-		if (!task)
-			return -ENOMEM;
-
-		task->task_lba = lba;
-		task->task_sectors = min(sectors, dev_max_sectors);
-		task->task_size = task->task_sectors * sector_size;
-
-		/*
-		 * This now assumes that passed sg_ents are in PAGE_SIZE chunks
-		 * in order to calculate the number per task SGL entries
-		 */
-		task->task_sg_nents = DIV_ROUND_UP(task->task_size, PAGE_SIZE);
-		/*
-		 * Check if the fabric module driver is requesting that all
-		 * struct se_task->task_sg[] be chained together..  If so,
-		 * then allocate an extra padding SG entry for linking and
-		 * marking the end of the chained SGL for every task except
-		 * the last one for (task_count > 1) operation, or skipping
-		 * the extra padding for the (task_count == 1) case.
-		 */
-		if (cmd->se_tfo->task_sg_chaining && (i < (task_count - 1))) {
-			task_sg_nents_padded = (task->task_sg_nents + 1);
-		} else
-			task_sg_nents_padded = task->task_sg_nents;
-
-		task->task_sg = kmalloc(sizeof(struct scatterlist) *
-					task_sg_nents_padded, GFP_KERNEL);
-		if (!task->task_sg) {
-			cmd->se_dev->transport->free_task(task);
-			return -ENOMEM;
-		}
-
-		sg_init_table(task->task_sg, task_sg_nents_padded);
-
-		task_size = task->task_size;
-
-		/* Build new sgl, only up to task_size */
-		for_each_sg(task->task_sg, sg, task->task_sg_nents, count) {
-			if (cmd_sg->length > task_size)
-				break;
-
-			*sg = *cmd_sg;
-			task_size -= cmd_sg->length;
-			cmd_sg = sg_next(cmd_sg);
-		}
-
-		lba += task->task_sectors;
-		sectors -= task->task_sectors;
-
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		list_add_tail(&task->t_list, &cmd->t_task_list);
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	}
-
-	return task_count;
+	return 1;
 }
 
 static int
