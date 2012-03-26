@@ -89,19 +89,19 @@ static void rk30_show_regs(struct rk30_i2c *i2c)
 {
         int i;
         i2c_dbg(i2c->dev, "i2c->start = %d\n", i2c->state);
-        i2c_dbg(i2c->dev, "I2C_CON: 0x%08x\n", readl(i2c->regs + I2C_CON));
-        i2c_dbg(i2c->dev, "I2C_CLKDIV: 0x%08x\n", readl(i2c->regs + I2C_CLKDIV));
-        i2c_dbg(i2c->dev, "I2C_MRXADDR: 0x%08x\n", readl(i2c->regs + I2C_MRXADDR));
-        i2c_dbg(i2c->dev, "I2C_MRXRADDR: 0x%08x\n", readl(i2c->regs + I2C_MRXRADDR));
-        i2c_dbg(i2c->dev, "I2C_MTXCNT: 0x%08x\n", readl(i2c->regs + I2C_MTXCNT));
-        i2c_dbg(i2c->dev, "I2C_MRXCNT: 0x%08x\n", readl(i2c->regs + I2C_MRXCNT));
-        i2c_dbg(i2c->dev, "I2C_IEN: 0x%08x\n", readl(i2c->regs + I2C_IEN));
-        i2c_dbg(i2c->dev, "I2C_IPD: 0x%08x\n", readl(i2c->regs + I2C_IPD));
-        i2c_dbg(i2c->dev, "I2C_FCNT: 0x%08x\n", readl(i2c->regs + I2C_FCNT));
+        i2c_dbg(i2c->dev, "I2C_CON: 0x%08x\n", i2c_readl(i2c->regs + I2C_CON));
+        i2c_dbg(i2c->dev, "I2C_CLKDIV: 0x%08x\n", i2c_readl(i2c->regs + I2C_CLKDIV));
+        i2c_dbg(i2c->dev, "I2C_MRXADDR: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXADDR));
+        i2c_dbg(i2c->dev, "I2C_MRXRADDR: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXRADDR));
+        i2c_dbg(i2c->dev, "I2C_MTXCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_MTXCNT));
+        i2c_dbg(i2c->dev, "I2C_MRXCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_MRXCNT));
+        i2c_dbg(i2c->dev, "I2C_IEN: 0x%08x\n", i2c_readl(i2c->regs + I2C_IEN));
+        i2c_dbg(i2c->dev, "I2C_IPD: 0x%08x\n", i2c_readl(i2c->regs + I2C_IPD));
+        i2c_dbg(i2c->dev, "I2C_FCNT: 0x%08x\n", i2c_readl(i2c->regs + I2C_FCNT));
         for( i = 0; i < 8; i ++) 
-                i2c_dbg(i2c->dev, "I2C_TXDATA%d: 0x%08x\n", i, readl(i2c->regs + I2C_TXDATA_BASE + i * 4));
+                i2c_dbg(i2c->dev, "I2C_TXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_TXDATA_BASE + i * 4));
         for( i = 0; i < 8; i ++) 
-                i2c_dbg(i2c->dev, "I2C_RXDATA%d: 0x%08x\n", i, readl(i2c->regs + I2C_RXDATA_BASE + i * 4));
+                i2c_dbg(i2c->dev, "I2C_RXDATA%d: 0x%08x\n", i, i2c_readl(i2c->regs + I2C_RXDATA_BASE + i * 4));
 }
 static inline void rk30_i2c_enable(struct rk30_i2c *i2c, unsigned int lastnak)
 {
@@ -112,56 +112,56 @@ static inline void rk30_i2c_enable(struct rk30_i2c *i2c, unsigned int lastnak)
         if(lastnak)
                 con |= I2C_CON_LASTACK;
         con |= I2C_CON_START;
-        writel(con, i2c->regs + I2C_CON);
+        i2c_writel(con, i2c->regs + I2C_CON);
 }
 static inline void rk30_i2c_disable(struct rk30_i2c *i2c)
 {
-        writel( 0, i2c->regs + I2C_CON);
+        i2c_writel( 0, i2c->regs + I2C_CON);
 }
 
 static inline void rk30_i2c_clean_start(struct rk30_i2c *i2c)
 {
-        unsigned int con = readl(i2c->regs + I2C_CON);
+        unsigned int con = i2c_readl(i2c->regs + I2C_CON);
 
         con &= ~I2C_CON_START;
-        writel(con, i2c->regs + I2C_CON);
+        i2c_writel(con, i2c->regs + I2C_CON);
 }
 static inline void rk30_i2c_send_start(struct rk30_i2c *i2c)
 {
-        unsigned int con = readl(i2c->regs + I2C_CON);
+        unsigned int con = i2c_readl(i2c->regs + I2C_CON);
 
         con |= I2C_CON_START;
         if(con & I2C_CON_STOP)
                 dev_warn(i2c->dev, "I2C_CON: stop bit is set\n");
         
-        writel(con, i2c->regs + I2C_CON);
+        i2c_writel(con, i2c->regs + I2C_CON);
 }
 static inline void rk30_i2c_send_stop(struct rk30_i2c *i2c)
 {
-        unsigned int con = readl(i2c->regs + I2C_CON);
+        unsigned int con = i2c_readl(i2c->regs + I2C_CON);
 
         con |= I2C_CON_STOP;
         if(con & I2C_CON_START)
                 dev_warn(i2c->dev, "I2C_CON: start bit is set\n");
         
-        writel(con, i2c->regs + I2C_CON);
+        i2c_writel(con, i2c->regs + I2C_CON);
 }
 static inline void rk30_i2c_clean_stop(struct rk30_i2c *i2c)
 {
-        unsigned int con = readl(i2c->regs + I2C_CON);
+        unsigned int con = i2c_readl(i2c->regs + I2C_CON);
 
         con &= ~I2C_CON_STOP;
-        writel(con, i2c->regs + I2C_CON);
+        i2c_writel(con, i2c->regs + I2C_CON);
 }
 
 static inline void rk30_i2c_disable_irq(struct rk30_i2c *i2c)
 {
-        writel(IRQ_ALL_DISABLE, i2c->regs + I2C_IEN);
+        i2c_writel(IRQ_ALL_DISABLE, i2c->regs + I2C_IEN);
 }
 
 static inline void rk30_i2c_enable_irq(struct rk30_i2c *i2c)
 {
-        writel(IRQ_MST_ENABLE, i2c->regs + I2C_IEN);
+        i2c_writel(IRQ_MST_ENABLE, i2c->regs + I2C_IEN);
 }
 
 /* SCL Divisor = 8 * (CLKDIVL + CLKDIVH)
@@ -179,8 +179,8 @@ static void  rk30_i2c_set_clk(struct rk30_i2c *i2c, unsigned long scl_rate)
         i2c->scl_rate = scl_rate;
         div = rk30_ceil(i2c_rate, scl_rate * 8);
         divh = divl = rk30_ceil(div, 2);
-        writel(I2C_CLKDIV_VAL(divl, divh), i2c->regs + I2C_CLKDIV);
-        i2c_dbg(i2c->dev, "set clk(I2C_CLKDIV: 0x%08x)\n", readl(i2c->regs + I2C_CLKDIV));
+        i2c_writel(I2C_CLKDIV_VAL(divl, divh), i2c->regs + I2C_CLKDIV);
+        i2c_dbg(i2c->dev, "set clk(I2C_CLKDIV: 0x%08x)\n", i2c_readl(i2c->regs + I2C_CLKDIV));
         return;
 }
 static void rk30_i2c_init_hw(struct rk30_i2c *i2c, unsigned long scl_rate)
@@ -209,19 +209,19 @@ static void rk30_i2c_stop(struct rk30_i2c *i2c, int ret)
 	i2c->msg_num = 0;
 	if (ret)
 		i2c->msg_idx = ret;
-        writel(I2C_STOPIEN, i2c->regs + I2C_IEN);
+        i2c_writel(I2C_STOPIEN, i2c->regs + I2C_IEN);
         i2c->state = STATE_STOP;
         rk30_i2c_send_stop(i2c);
 }
 static inline void rk30_set_rx_mode(struct rk30_i2c *i2c, unsigned int lastnak)
 {
-        unsigned long con = readl(i2c->regs + I2C_CON);
+        unsigned long con = i2c_readl(i2c->regs + I2C_CON);
 
         con &= (~I2C_CON_MASK);
         con |= (I2C_CON_MOD_RX << 1);
         if(lastnak)
                 con |= I2C_CON_LASTACK;
-        writel(con, i2c->regs + I2C_CON);
+        i2c_writel(con, i2c->regs + I2C_CON);
 }
 static void rk30_irq_read_prepare(struct rk30_i2c *i2c)
 {
@@ -240,7 +240,7 @@ static void rk30_irq_read_prepare(struct rk30_i2c *i2c)
         cnt = 32;
     else
         cnt = len;
-    writel(cnt, i2c->regs + I2C_MRXCNT);
+    i2c_writel(cnt, i2c->regs + I2C_MRXCNT);
 }
 static void rk30_irq_read_get_data(struct rk30_i2c *i2c)
 {
@@ -251,7 +251,7 @@ static void rk30_irq_read_get_data(struct rk30_i2c *i2c)
 
      for(i = 0; i < len; i++){
          if(i%4 == 0)
-             p = readl(i2c->regs + I2C_RXDATA_BASE +  (i/4) * 4);
+             p = i2c_readl(i2c->regs + I2C_RXDATA_BASE +  (i/4) * 4);
          i2c->msg->buf[i2c->msg_ptr++] = (p >>((i%4) * 8)) & 0xff;
     }
 
@@ -278,11 +278,11 @@ static void rk30_irq_write_prepare(struct rk30_i2c *i2c)
             cnt++;
             data |= (byte << (j * 8));
         }
-        writel(data, i2c->regs + I2C_TXDATA_BASE + 4 * i);
+        i2c_writel(data, i2c->regs + I2C_TXDATA_BASE + 4 * i);
         if(is_msgend(i2c)) 
             break;
     }
-    writel(cnt, i2c->regs + I2C_MTXCNT);
+    i2c_writel(cnt, i2c->regs + I2C_MTXCNT);
 }
 static void rk30_i2c_irq_nextblock(struct rk30_i2c *i2c, unsigned int ipd)
 {
@@ -290,26 +290,26 @@ static void rk30_i2c_irq_nextblock(struct rk30_i2c *i2c, unsigned int ipd)
         case STATE_IDLE:
                 dev_err(i2c->dev, "Addr[0x%02x] called in STATE_IDLE\n", i2c->addr);
                 rk30_show_regs(i2c);
-                writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
+                i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                 goto out;
         case STATE_START:
                 if(!(ipd & I2C_STARTIPD)){
                         rk30_i2c_stop(i2c, -ENXIO);
                         dev_err(i2c->dev, "Addr[0x%02x] no start irq in STATE_START\n", i2c->addr);
                         rk30_show_regs(i2c);
-                        writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
+                        i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                         goto out;
                 }
 
                         rk30_show_regs(i2c);
-                writel(I2C_STARTIPD, i2c->regs + I2C_IPD);
+                i2c_writel(I2C_STARTIPD, i2c->regs + I2C_IPD);
                 rk30_i2c_clean_start(i2c);
                 if(i2c->mode ==  I2C_CON_MOD_TX){
-                        writel(I2C_MBTFIEN  | I2C_NAKRCVIEN, i2c->regs + I2C_IEN);
+                        i2c_writel(I2C_MBTFIEN  | I2C_NAKRCVIEN, i2c->regs + I2C_IEN);
                         i2c->state = STATE_WRITE;
                         goto prepare_write;
                 } else {
-                        writel(I2C_MBRFIEN | I2C_NAKRCVIEN, i2c->regs + I2C_IEN);
+                        i2c_writel(I2C_MBRFIEN | I2C_NAKRCVIEN, i2c->regs + I2C_IEN);
                         i2c->state = STATE_READ;
                         goto prepare_read;
                 }
@@ -318,11 +318,11 @@ static void rk30_i2c_irq_nextblock(struct rk30_i2c *i2c, unsigned int ipd)
                         rk30_i2c_stop(i2c, -ENXIO);
                         dev_err(i2c->dev, "Addr[0x%02x] no mbtf irq in STATE_WRITE\n", i2c->addr);
                         rk30_show_regs(i2c);
-                        writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
+                        i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                         goto out;
                 }
                         rk30_show_regs(i2c);
-                writel(I2C_MBTFIPD, i2c->regs + I2C_IPD);
+                i2c_writel(I2C_MBTFIPD, i2c->regs + I2C_IPD);
 prepare_write:
                 rk30_irq_write_prepare(i2c);
                 break;
@@ -331,11 +331,11 @@ prepare_write:
                         rk30_i2c_stop(i2c, -ENXIO);
                         dev_err(i2c->dev, "Addr[0x%02x] no mbrf irq in STATE_READ\n", i2c->addr);
                         rk30_show_regs(i2c);
-                        writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
+                        i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                         goto out;
                 }
                         rk30_show_regs(i2c);
-                writel(I2C_MBRFIPD, i2c->regs + I2C_IPD);
+                i2c_writel(I2C_MBRFIPD, i2c->regs + I2C_IPD);
                 rk30_irq_read_get_data(i2c);
 prepare_read:
                 rk30_irq_read_prepare(i2c);
@@ -345,12 +345,12 @@ prepare_read:
                         rk30_i2c_stop(i2c, -ENXIO);
                         dev_err(i2c->dev, "Addr[0x%02x] no stop irq in STATE_STOP\n", i2c->addr);
                         rk30_show_regs(i2c);
-                        writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
+                        i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                         goto out;
                 }
                         rk30_show_regs(i2c);
                 rk30_i2c_clean_stop(i2c);
-                writel(I2C_STOPIPD, i2c->regs + I2C_IPD);
+                i2c_writel(I2C_STOPIPD, i2c->regs + I2C_IPD);
                 i2c->state = STATE_IDLE;
 	        wake_up(&i2c->wait);
                 break;
@@ -366,12 +366,12 @@ static irqreturn_t rk30_i2c_irq(int irq, void *dev_id)
         unsigned int ipd;
 
         spin_lock(&i2c->lock);
-        ipd = readl(i2c->regs + I2C_IPD);
+        ipd = i2c_readl(i2c->regs + I2C_IPD);
 #if 1
         if((ipd & I2C_NAKRCVIPD)  && (i2c->state != STATE_STOP)){
 		dev_err(i2c->dev, "Addr[0x%02x] ack was not received\n", i2c->addr);
                 rk30_show_regs(i2c);
-                writel(I2C_NAKRCVIPD, i2c->regs + I2C_IPD);
+                i2c_writel(I2C_NAKRCVIPD, i2c->regs + I2C_IPD);
                 rk30_i2c_stop(i2c, -EAGAIN);
                 goto out;
         }
@@ -398,7 +398,7 @@ static int rk30_i2c_set_master(struct rk30_i2c *i2c, struct i2c_msg *msgs, int n
                 else {
                         addr |= 1;
                         i2c->msg = &msgs[0];
-                        writel(addr | I2C_MRXADDR_LOW, i2c->regs + I2C_MRXADDR);
+                        i2c_writel(addr | I2C_MRXADDR_LOW, i2c->regs + I2C_MRXADDR);
                         i2c->mode = I2C_CON_MOD_RX;
                 }
         }
@@ -423,14 +423,14 @@ static int rk30_i2c_set_master(struct rk30_i2c *i2c, struct i2c_msg *msgs, int n
                 if((msgs[0].flags & I2C_M_RD) && (msgs[1].flags & I2C_M_RD)) {
                         addr |= 1;
                         i2c->msg = &msgs[1];
-                        writel(addr | I2C_MRXADDR_LOW, i2c->regs + I2C_MRXADDR);
-                        writel(reg_addr | reg_valid_bits, i2c->regs + I2C_MRXRADDR);
+                        i2c_writel(addr | I2C_MRXADDR_LOW, i2c->regs + I2C_MRXADDR);
+                        i2c_writel(reg_addr | reg_valid_bits, i2c->regs + I2C_MRXRADDR);
                         i2c->mode = I2C_CON_MOD_RRX;
                 }
                 else if(!(msgs[0].flags & I2C_M_RD) && (msgs[1].flags & I2C_M_RD)) {
                         i2c->msg = &msgs[1];
-                        writel(addr | I2C_MRXADDR_LOW, i2c->regs + I2C_MRXADDR);
-                        writel(reg_addr | reg_valid_bits, i2c->regs + I2C_MRXRADDR);
+                        i2c_writel(addr | I2C_MRXADDR_LOW, i2c->regs + I2C_MRXADDR);
+                        i2c_writel(reg_addr | reg_valid_bits, i2c->regs + I2C_MRXRADDR);
                         i2c->mode = I2C_CON_MOD_TRX;
                 }
                 else 
@@ -471,7 +471,7 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 
 	spin_unlock_irq(&i2c->lock);
 
-        writel(I2C_STARTIEN, i2c->regs + I2C_IEN);
+        i2c_writel(I2C_STARTIEN, i2c->regs + I2C_IEN);
         rk30_i2c_enable(i2c, (i2c->count > 32)?0:1); //if count > 32,  byte(32) send ack
         rk30_show_regs(i2c);
 	//rk30_i2c_enable_irq(i2c);
@@ -488,7 +488,7 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
                         rk30_i2c_send_stop(i2c);
                 ret = -ETIMEDOUT;
         }
-        writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
+        i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
 	rk30_i2c_disable_irq(i2c);
         rk30_i2c_disable(i2c);
         i2c_dbg(i2c->dev, "i2c transfer finished ret = %d\n", ret);

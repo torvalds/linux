@@ -28,6 +28,9 @@
 #define i2c_dbg(dev, format, arg...)
 #endif
 
+#define i2c_writel                 writel_relaxed
+#define i2c_readl                  readl_relaxed
+
 #define I2C_WAIT_TIMEOUT            200  //100ms
 
 #define rk30_set_bit(p, v, b)        (((p) & ~(1 << (b))) | ((v) << (b)))
