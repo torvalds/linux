@@ -236,7 +236,6 @@ struct eg20t_port {
 	unsigned int fcr;
 	unsigned int mcr;
 	unsigned int use_dma;
-	unsigned int use_dma_flag;
 	struct dma_async_tx_descriptor	*desc_tx;
 	struct dma_async_tx_descriptor	*desc_rx;
 	struct pch_dma_slave		param_tx;
@@ -1441,7 +1440,6 @@ static int pch_uart_verify_port(struct uart_port *port,
 		return -EOPNOTSUPP;
 #endif
 		priv->use_dma = 1;
-		priv->use_dma_flag = 1;
 		dev_info(priv->port.dev, "PCH UART : Use DMA Mode\n");
 	}
 
