@@ -188,7 +188,7 @@ static inline struct dma_buf *dma_buf_export(void *priv,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline int dma_buf_fd(struct dma_buf *dmabuf)
+static inline int dma_buf_fd(struct dma_buf *dmabuf, int flags)
 {
 	return -ENODEV;
 }
@@ -215,36 +215,37 @@ static inline void dma_buf_unmap_attachment(struct dma_buf_attachment *attach,
 	return;
 }
 
-static inline int dma_buf_begin_cpu_access(struct dma_buf *,
-					   size_t, size_t,
-					   enum dma_data_direction)
+static inline int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+					   size_t start, size_t len,
+					   enum dma_data_direction dir)
 {
 	return -ENODEV;
 }
 
-static inline void dma_buf_end_cpu_access(struct dma_buf *,
-					  size_t, size_t,
-					  enum dma_data_direction)
+static inline void dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+					  size_t start, size_t len,
+					  enum dma_data_direction dir)
 {
 }
 
-static inline void *dma_buf_kmap_atomic(struct dma_buf *, unsigned long)
-{
-	return NULL;
-}
-
-static inline void dma_buf_kunmap_atomic(struct dma_buf *, unsigned long,
-					 void *)
-{
-}
-
-static inline void *dma_buf_kmap(struct dma_buf *, unsigned long)
+static inline void *dma_buf_kmap_atomic(struct dma_buf *dmabuf,
+					unsigned long pnum)
 {
 	return NULL;
 }
 
-static inline void dma_buf_kunmap(struct dma_buf *, unsigned long,
-				  void *)
+static inline void dma_buf_kunmap_atomic(struct dma_buf *dmabuf,
+					 unsigned long pnum, void *vaddr)
+{
+}
+
+static inline void *dma_buf_kmap(struct dma_buf *dmabuf, unsigned long pnum)
+{
+	return NULL;
+}
+
+static inline void dma_buf_kunmap(struct dma_buf *dmabuf,
+				  unsigned long pnum, void *vaddr)
 {
 }
 #endif /* CONFIG_DMA_SHARED_BUFFER */
