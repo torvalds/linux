@@ -903,7 +903,7 @@ static int preview_config(struct isp_prev_device *prev,
 		attr = &update_attrs[i];
 		bit = 0;
 
-		if (!(cfg->update & attr->cfg_bit))
+		if (attr->cfg_bit == -1 || !(cfg->update & attr->cfg_bit))
 			continue;
 
 		bit = cfg->flag & attr->cfg_bit;
