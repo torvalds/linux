@@ -140,6 +140,7 @@ void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
 
 const char *get_mgmt_string(int cmd)
 {
+#define IWL_CMD(x) case x: return #x
 	switch (cmd) {
 		IWL_CMD(MANAGEMENT_ASSOC_REQ);
 		IWL_CMD(MANAGEMENT_ASSOC_RESP);
@@ -157,10 +158,12 @@ const char *get_mgmt_string(int cmd)
 		return "UNKNOWN";
 
 	}
+#undef IWL_CMD
 }
 
 const char *get_ctrl_string(int cmd)
 {
+#define IWL_CMD(x) case x: return #x
 	switch (cmd) {
 		IWL_CMD(CONTROL_BACK_REQ);
 		IWL_CMD(CONTROL_BACK);
@@ -174,6 +177,7 @@ const char *get_ctrl_string(int cmd)
 		return "UNKNOWN";
 
 	}
+#undef IWL_CMD
 }
 
 void iwl_clear_traffic_stats(struct iwl_priv *priv)

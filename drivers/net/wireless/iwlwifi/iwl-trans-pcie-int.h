@@ -273,6 +273,7 @@ struct iwl_trans_pcie {
 	bool rx_buf_size_8k;
 	u32 rx_page_order;
 
+	const char **command_names;
 
 	/* queue watchdog */
 	unsigned long wd_timeout;
@@ -415,6 +416,14 @@ static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
 {
 	return index & (q->n_window - 1);
+}
+
+static inline const char *
+trans_pcie_get_cmd_string(struct iwl_trans_pcie *trans_pcie, u8 cmd)
+{
+	if (!trans_pcie->command_names || !trans_pcie->command_names[cmd])
+		return "UNKNOWN";
+	return trans_pcie->command_names[cmd];
 }
 
 #endif /* __iwl_trans_int_pcie_h__ */

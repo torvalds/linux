@@ -495,6 +495,16 @@ do {									\
 } while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
+extern const char *iwl_dvm_cmd_strings[REPLY_MAX];
+
+static inline const char *iwl_dvm_get_cmd_string(u8 cmd)
+{
+	const char *s = iwl_dvm_cmd_strings[cmd];
+	if (s)
+		return s;
+	return "UNKNOWN";
+}
+
 /* API method exported for mvm hybrid state */
 void iwl_setup_deferred_work(struct iwl_priv *priv);
 int iwl_send_wimax_coex(struct iwl_priv *priv);

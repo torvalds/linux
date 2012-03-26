@@ -393,8 +393,9 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 			break;
 
 		IWL_DEBUG_RX(trans, "cmd at offset %d: %s (0x%.2x)\n",
-			     rxcb._offset, get_cmd_string(pkt->hdr.cmd),
-			     pkt->hdr.cmd);
+			rxcb._offset,
+			trans_pcie_get_cmd_string(trans_pcie, pkt->hdr.cmd),
+			pkt->hdr.cmd);
 
 		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
 		len += sizeof(u32); /* account for status word */

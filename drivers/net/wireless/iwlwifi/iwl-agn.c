@@ -1560,6 +1560,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 			cfg(priv)->base_params->wd_timeout;
 	else
 		trans_cfg.queue_watchdog_timeout = IWL_WATCHHDOG_DISABLED;
+	trans_cfg.command_names = iwl_dvm_cmd_strings;
 
 	ucode_flags = fw->ucode_capa.flags;
 

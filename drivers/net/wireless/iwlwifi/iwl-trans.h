@@ -309,6 +309,8 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  *	if unset 4k will be the RX buffer size
  * @queue_watchdog_timeout: time (in ms) after which queues
  *	are considered stuck and will trigger device restart
+ * @command_names: array of command names, must be 256 entries
+ *	(one for each command); for debugging only
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -321,6 +323,7 @@ struct iwl_trans_config {
 
 	bool rx_buf_size_8k;
 	unsigned int queue_watchdog_timeout;
+	const char **command_names;
 };
 
 /**

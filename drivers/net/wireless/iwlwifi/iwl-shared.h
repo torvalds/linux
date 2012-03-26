@@ -181,8 +181,4 @@ enum iwl_rxon_context_id {
 	NUM_IWL_RXON_CTX
 };
 
-const char *get_cmd_string(u8 cmd);
-
-#define IWL_CMD(x) case x: return #x
-
 #endif /* #__iwl_shared_h__ */

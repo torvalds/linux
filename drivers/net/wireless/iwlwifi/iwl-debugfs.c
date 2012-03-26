@@ -575,7 +575,7 @@ static ssize_t iwl_dbgfs_rx_handlers_read(struct file *file,
 		if (priv->rx_handlers_stats[cnt] > 0)
 			pos += scnprintf(buf + pos, bufsz - pos,
 				"\tRx handler[%36s]:\t\t %u\n",
-				get_cmd_string(cnt),
+				iwl_dvm_get_cmd_string(cnt),
 				priv->rx_handlers_stats[cnt]);
 	}
 
