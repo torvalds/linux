@@ -584,7 +584,7 @@ struct drbd_tl_epoch {
 };
 
 struct drbd_epoch {
-	struct drbd_conf *mdev;
+	struct drbd_tconn *tconn;
 	struct list_head list;
 	unsigned int barrier_nr;
 	atomic_t epoch_size; /* increased on every request added. */
@@ -1060,7 +1060,7 @@ extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_f
 extern int drbd_send_state(struct drbd_conf *mdev, union drbd_state s);
 extern int drbd_send_current_state(struct drbd_conf *mdev);
 extern int drbd_send_sync_param(struct drbd_conf *mdev);
-extern void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr,
+extern void drbd_send_b_ack(struct drbd_tconn *tconn, u32 barrier_nr,
 			    u32 set_size);
 extern int drbd_send_ack(struct drbd_conf *, enum drbd_packet,
 			 struct drbd_peer_request *);

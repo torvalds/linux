@@ -1463,21 +1463,21 @@ int drbd_send_bitmap(struct drbd_conf *mdev)
 	return err;
 }
 
-void drbd_send_b_ack(struct drbd_conf *mdev, u32 barrier_nr, u32 set_size)
+void drbd_send_b_ack(struct drbd_tconn *tconn, u32 barrier_nr, u32 set_size)
 {
 	struct drbd_socket *sock;
 	struct p_barrier_ack *p;
 
-	if (mdev->state.conn < C_CONNECTED)
+	if (tconn->cstate < C_WF_REPORT_PARAMS)
 		return;
 
-	sock = &mdev->tconn->meta;
-	p = drbd_prepare_command(mdev, sock);
+	sock = &tconn->meta;
+	p = conn_prepare_command(tconn, sock);
 	if (!p)
 		return;
 	p->barrier = barrier_nr;
 	p->set_size = cpu_to_be32(set_size);
-	drbd_send_command(mdev, sock, P_BARRIER_ACK, sizeof(*p), NULL, 0);
+	conn_send_command(tconn, sock, P_BARRIER_ACK, sizeof(*p), NULL, 0);
 }
 
 /**

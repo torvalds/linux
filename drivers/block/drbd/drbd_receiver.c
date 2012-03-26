@@ -1169,11 +1169,15 @@ static enum finish_epoch drbd_may_finish_epoch(struct drbd_tconn *tconn,
 		    (test_bit(DE_HAVE_BARRIER_NUMBER, &epoch->flags) || ev & EV_CLEANUP)) {
 			if (!(ev & EV_CLEANUP)) {
 				spin_unlock(&tconn->epoch_lock);
-				drbd_send_b_ack(epoch->mdev, epoch->barrier_nr, epoch_size);
+				drbd_send_b_ack(epoch->tconn, epoch->barrier_nr, epoch_size);
 				spin_lock(&tconn->epoch_lock);
 			}
+#if 0
+			/* FIXME: dec unacked on connection, once we have
+			 * something to count pending connection packets in. */
 			if (test_bit(DE_HAVE_BARRIER_NUMBER, &epoch->flags))
-				dec_unacked(epoch->mdev);
+				dec_unacked(epoch->tconn);
+#endif
 
 			if (tconn->current_epoch != epoch) {
 				next_epoch = list_entry(epoch->list.next, struct drbd_epoch, list);
@@ -1369,19 +1373,15 @@ void conn_wait_active_ee_empty(struct drbd_tconn *tconn)
 
 static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 {
-	struct drbd_conf *mdev;
 	int rv;
 	struct p_barrier *p = pi->data;
 	struct drbd_epoch *epoch;
 
-	mdev = vnr_to_mdev(tconn, pi->vnr);
-	if (!mdev)
-		return -EIO;
-
-	inc_unacked(mdev);
-
+	/* FIXME these are unacked on connection,
+	 * not a specific (peer)device.
+	 */
 	tconn->current_epoch->barrier_nr = p->barrier;
-	tconn->current_epoch->mdev = mdev;
+	tconn->current_epoch->tconn = tconn;
 	rv = drbd_may_finish_epoch(tconn, tconn->current_epoch, EV_GOT_BARRIER_NR);
 
 	/* P_BARRIER_ACK may imply that the corresponding extent is dropped from
@@ -1400,7 +1400,7 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 		if (epoch)
 			break;
 		else
-			dev_warn(DEV, "Allocation of an epoch failed, slowing down\n");
+			conn_warn(tconn, "Allocation of an epoch failed, slowing down\n");
 			/* Fall through */
 
 	case WO_bdev_flush:
@@ -1414,15 +1414,9 @@ static int receive_Barrier(struct drbd_tconn *tconn, struct packet_info *pi)
 				break;
 		}
 
-		epoch = tconn->current_epoch;
-		wait_event(mdev->ee_wait, atomic_read(&epoch->epoch_size) == 0);
-
-		D_ASSERT(atomic_read(&epoch->active) == 0);
-		D_ASSERT(epoch->flags == 0);
-
 		return 0;
 	default:
-		dev_err(DEV, "Strangeness in tconn->write_ordering %d\n", tconn->write_ordering);
+		conn_err(tconn, "Strangeness in tconn->write_ordering %d\n", tconn->write_ordering);
 		return -EIO;
 	}
 
@@ -5049,21 +5043,22 @@ static int got_NegRSDReply(struct drbd_tconn *tconn, struct packet_info *pi)
 
 static int got_BarrierAck(struct drbd_tconn *tconn, struct packet_info *pi)
 {
-	struct drbd_conf *mdev;
 	struct p_barrier_ack *p = pi->data;
+	struct drbd_conf *mdev;
+	int vnr;
 
-	mdev = vnr_to_mdev(tconn, pi->vnr);
-	if (!mdev)
-		return -EIO;
+	tl_release(tconn, p->barrier, be32_to_cpu(p->set_size));
 
-	tl_release(mdev->tconn, p->barrier, be32_to_cpu(p->set_size));
-
-	if (mdev->state.conn == C_AHEAD &&
-	    atomic_read(&mdev->ap_in_flight) == 0 &&
-	    !test_and_set_bit(AHEAD_TO_SYNC_SOURCE, &mdev->flags)) {
-		mdev->start_resync_timer.expires = jiffies + HZ;
-		add_timer(&mdev->start_resync_timer);
+	rcu_read_lock();
+	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
+		if (mdev->state.conn == C_AHEAD &&
+		    atomic_read(&mdev->ap_in_flight) == 0 &&
+		    !test_and_set_bit(AHEAD_TO_SYNC_SOURCE, &mdev->flags)) {
+			mdev->start_resync_timer.expires = jiffies + HZ;
+			add_timer(&mdev->start_resync_timer);
+		}
 	}
+	rcu_read_unlock();
 
 	return 0;
 }
