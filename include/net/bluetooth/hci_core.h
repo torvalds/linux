@@ -909,6 +909,9 @@ static inline bool eir_has_data_type(u8 *data, size_t data_len, u8 type)
 {
 	size_t parsed = 0;
 
+	if (data_len < 2)
+		return false;
+
 	while (parsed < data_len - 1) {
 		u8 field_len = data[0];
 
