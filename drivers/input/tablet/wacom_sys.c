@@ -167,6 +167,19 @@ static void wacom_close(struct input_dev *dev)
 		usb_autopm_put_interface(wacom->intf);
 }
 
+/*
+ * Static values for max X/Y and resolution of Pen interface is stored in
+ * features. This mean physical size of active area can be computed.
+ * This is useful to do when Pen and Touch have same active area of tablet.
+ * This means for Touch device, we only need to find max X/Y value and we
+ * have enough information to compute resolution of touch.
+ */
+static void wacom_set_phy_from_res(struct wacom_features *features)
+{
+	features->x_phy = (features->x_max * 100) / features->x_resolution;
+	features->y_phy = (features->y_max * 100) / features->y_resolution;
+}
+
 static int wacom_parse_logical_collection(unsigned char *report,
 					  struct wacom_features *features)
 {
@@ -178,15 +191,7 @@ static int wacom_parse_logical_collection(unsigned char *report,
 		features->pktlen = WACOM_PKGLEN_BBTOUCH3;
 		features->device_type = BTN_TOOL_FINGER;
 
-		/*
-		 * Stylus and Touch have same active area
-		 * so compute physical size based on stylus
-		 * data before its overwritten.
-		 */
-		features->x_phy =
-			(features->x_max * features->x_resolution) / 100;
-		features->y_phy =
-			(features->y_max * features->y_resolution) / 100;
+		wacom_set_phy_from_res(features);
 
 		features->x_max = features->y_max =
 			get_unaligned_le16(&report[10]);
@@ -869,6 +874,72 @@ static int wacom_register_input(struct wacom *wacom)
 	return error;
 }
 
+static void wacom_wireless_work(struct work_struct *work)
+{
+	struct wacom *wacom = container_of(work, struct wacom, work);
+	struct usb_device *usbdev = wacom->usbdev;
+	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
+
+	/*
+	 * Regardless if this is a disconnect or a new tablet,
+	 * remove any existing input devices.
+	 */
+
+	/* Stylus interface */
+	wacom = usb_get_intfdata(usbdev->config->interface[1]);
+	if (wacom->wacom_wac.input)
+		input_unregister_device(wacom->wacom_wac.input);
+	wacom->wacom_wac.input = 0;
+
+	/* Touch interface */
+	wacom = usb_get_intfdata(usbdev->config->interface[2]);
+	if (wacom->wacom_wac.input)
+		input_unregister_device(wacom->wacom_wac.input);
+	wacom->wacom_wac.input = 0;
+
+	if (wacom_wac->pid == 0) {
+		printk(KERN_INFO "wacom: wireless tablet disconnected\n");
+	} else {
+		const struct usb_device_id *id = wacom_ids;
+
+		printk(KERN_INFO
+		       "wacom: wireless tablet connected with PID %x\n",
+		       wacom_wac->pid);
+
+		while (id->match_flags) {
+			if (id->idVendor == USB_VENDOR_ID_WACOM &&
+			    id->idProduct == wacom_wac->pid)
+				break;
+			id++;
+		}
+
+		if (!id->match_flags) {
+			printk(KERN_INFO
+			       "wacom: ignorning unknown PID.\n");
+			return;
+		}
+
+		/* Stylus interface */
+		wacom = usb_get_intfdata(usbdev->config->interface[1]);
+		wacom_wac = &wacom->wacom_wac;
+		wacom_wac->features =
+			*((struct wacom_features *)id->driver_info);
+		wacom_wac->features.device_type = BTN_TOOL_PEN;
+		wacom_register_input(wacom);
+
+		/* Touch interface */
+		wacom = usb_get_intfdata(usbdev->config->interface[2]);
+		wacom_wac = &wacom->wacom_wac;
+		wacom_wac->features =
+			*((struct wacom_features *)id->driver_info);
+		wacom_wac->features.pktlen = WACOM_PKGLEN_BBTOUCH3;
+		wacom_wac->features.device_type = BTN_TOOL_FINGER;
+		wacom_set_phy_from_res(&wacom_wac->features);
+		wacom_wac->features.x_max = wacom_wac->features.y_max = 4096;
+		wacom_register_input(wacom);
+	}
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -907,6 +978,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	wacom->usbdev = dev;
 	wacom->intf = intf;
 	mutex_init(&wacom->lock);
+	INIT_WORK(&wacom->work, wacom_wireless_work);
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
@@ -977,6 +1049,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	usb_kill_urb(wacom->irq);
+	cancel_work_sync(&wacom->work);
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
 	wacom_destroy_leds(wacom);

@@ -1046,8 +1046,26 @@ static int wacom_bpt_irq(struct wacom_wac *wacom, size_t len)
 
 static int wacom_wireless_irq(struct wacom_wac *wacom, size_t len)
 {
-	if (len != WACOM_PKGLEN_WIRELESS)
+	unsigned char *data = wacom->data;
+	int connected;
+
+	if (len != WACOM_PKGLEN_WIRELESS || data[0] != 0x80)
 		return 0;
+
+	connected = data[1] & 0x01;
+	if (connected) {
+		int pid;
+
+		pid = get_unaligned_be16(&data[6]);
+		if (wacom->pid != pid) {
+			wacom->pid = pid;
+			wacom_schedule_work(wacom);
+		}
+	} else if (wacom->pid != 0) {
+		/* disconnected while previously connected */
+		wacom->pid = 0;
+		wacom_schedule_work(wacom);
+	}
 
 	return 0;
 }
