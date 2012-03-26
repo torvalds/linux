@@ -64,12 +64,23 @@
 #define	FSP_PKT_TYPE_NORMAL_OPC	(0x03)
 #define	FSP_PKT_TYPE_SHIFT	(6)
 
+/* hardware revisions */
+#define	FSP_VER_STL3888_A4	(0xC1)
+#define	FSP_VER_STL3888_B0	(0xD0)
+#define	FSP_VER_STL3888_B1	(0xD1)
+#define	FSP_VER_STL3888_B2	(0xD2)
+#define	FSP_VER_STL3888_C0	(0xE0)
+#define	FSP_VER_STL3888_C1	(0xE1)
+#define	FSP_VER_STL3888_D0	(0xE2)
+#define	FSP_VER_STL3888_D1	(0xE3)
+#define	FSP_VER_STL3888_E0	(0xE4)
+
 #ifdef __KERNEL__
 
 struct fsp_data {
 	unsigned char	ver;		/* hardware version */
 	unsigned char	rev;		/* hardware revison */
-	unsigned char	buttons;	/* Number of buttons */
+	unsigned int	buttons;	/* Number of buttons */
 	unsigned int	flags;
 #define	FSPDRV_FLAG_EN_OPC	(0x001)	/* enable on-pad clicking */
 
