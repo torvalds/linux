@@ -116,6 +116,64 @@ static int rk_fb_release(struct fb_info *info,int user)
 
 static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
+	struct fb_fix_screeninfo *fix = &info->fix;
+	struct rk_lcdc_device_driver * dev_drv = NULL;
+    	struct layer_par *par = NULL;
+    	int layer_id = 0;
+	u32 xoffset = var->xoffset;		// offset from virtual to visible 
+	u32 yoffset = var->yoffset;				
+	u32 xvir = var->xres_virtual;
+	u8 data_format = var->nonstd&0xff;
+	if(!strcmp(fix->id,"fb1")){
+		dev_drv = inf->rk_lcdc_device[0];
+		par = &dev_drv->layer_par[0];
+		layer_id = 0;
+	}else if(!strcmp(fix->id,"fb0")){
+		dev_drv = inf->rk_lcdc_device[0];
+		par = &dev_drv->layer_par[1];
+		layer_id = 1;
+	}else if(!strcmp(fix->id,"fb3")){
+		dev_drv = inf->rk_lcdc_device[1];
+		par = &dev_drv->layer_par[0];
+		layer_id = 0;
+	}else if(!strcmp(fix->id,"fb2")){
+		dev_drv = inf->rk_lcdc_device[1];
+		par = &dev_drv->layer_par[1];
+		layer_id = 1;
+	}else{
+		dev_drv = inf->rk_lcdc_device[0];
+		par = &dev_drv->layer_par[1];
+		layer_id = 0;
+	}
+	switch (par->format)
+    	{
+		case ARGB888:
+			par->y_offset = (yoffset*xvir + xoffset)*4;
+			break;
+		case  RGB888:
+			par->y_offset = (yoffset*xvir + xoffset)*3;
+			break;
+		case RGB565:
+			par->y_offset = (yoffset*xvir + xoffset)*2;
+	            	break;
+		case  YUV422:
+			par->y_offset = yoffset*xvir + xoffset;
+			par->c_offset = par->y_offset;
+	            	break;
+		case  YUV420:
+			par->y_offset = yoffset*xvir + xoffset;
+			par->c_offset = (yoffset>>1)*xvir + xoffset;
+	            	break;
+		case  YUV444 : // yuv444
+			par->y_offset = yoffset*xvir + xoffset;
+			par->c_offset = yoffset*2*xvir +(xoffset<<1);
+			break;
+		default:
+			printk("un supported format:0x%x\n",data_format);
+            		return -EINVAL;
+    	}
+	dev_drv->pan_display(dev_drv,layer_id);
 	return 0;
 }
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,
@@ -345,15 +403,15 @@ static int rk_fb_set_par(struct fb_info *info)
     switch (data_format)
     {
 	case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
+	case HAL_PIXEL_FORMAT_RGBX_8888: 
 		par->format = ARGB888;
 		fix->line_length = 4 * xvir;
 		par->y_offset = (yoffset*xvir + xoffset)*4;
 		break;
-	case HAL_PIXEL_FORMAT_RGBX_8888: 
 	case HAL_PIXEL_FORMAT_RGB_888 :
 		par->format = RGB888;
-		fix->line_length = 4 * xvir;
-		par->y_offset = (yoffset*xvir + xoffset)*4;
+		fix->line_length = 3 * xvir;
+		par->y_offset = (yoffset*xvir + xoffset)*3;
 		break;
 	case HAL_PIXEL_FORMAT_RGB_565:  //RGB565
 		par->format = RGB565;
@@ -532,7 +590,7 @@ static int request_fb_buffer(struct fb_info *fbi,int fb_id)
             fbi->fix.smem_len = res->end - res->start + 1;
             fbi->screen_base = ioremap(res->start, fbi->fix.smem_len);
             memset(fbi->screen_base, 0, fbi->fix.smem_len);
-	    printk("phy:%x\n>>vir:%x\n",fbi->fix.smem_start,fbi->screen_base);
+	    printk("phy:%lx\n>>vir:%p\n",fbi->fix.smem_start,fbi->screen_base);
         #ifdef CONFIG_FB_WORK_IPP
         /* alloc ipp buf for rotate */
             res = platform_get_resource_byname(g_fb_pdev, IORESOURCE_MEM, "ipp buf");
@@ -635,6 +693,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
         fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-2]->cmap, fb_inf->fb[fb_inf->num_fb-2]);
         fb_show_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR);
         fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_blank(FB_BLANK_UNBLANK, fb_inf->fb[fb_inf->num_fb-2]);
+	fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-2]->var), fb_inf->fb[fb_inf->num_fb-2]);
     }
 #endif
 	return 0;

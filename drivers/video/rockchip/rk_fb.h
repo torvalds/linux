@@ -187,7 +187,7 @@ struct rk_lcdc_device_driver{
 	int (*resume)(struct layer_par *layer_par);
 	int (*blank)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id,int blank_mode);
 	int (*set_par)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id);
-	int (*pan)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id);
+	int (*pan_display)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id);
 	
 };
 
