@@ -77,10 +77,6 @@ static inline int alarmtimer_callback_running(struct alarm *timer)
 
 
 /* Provide way to access the rtc device being used by alarmtimers */
-#ifdef CONFIG_RTC_CLASS
 struct rtc_device *alarmtimer_get_rtcdev(void);
-#else
-#define alarmtimer_get_rtcdev() (0)
-#endif
 
 #endif
