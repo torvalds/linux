@@ -18,16 +18,8 @@
 #define _LINUX_ION_H
 
 #include <linux/types.h>
+#define ION_VERSION     "1.0"
 
-
-#define CACHED          1
-#define UNCACHED        0
-
-#define ION_CACHE_SHIFT 0
-
-#define ION_SET_CACHE(__cache)  ((__cache) << ION_CACHE_SHIFT)
-
-#define ION_IS_CACHED(__flags)	((__flags) & (1 << ION_CACHE_SHIFT))
 struct ion_handle;
 /**
  * enum ion_heap_types - list of all possible types of heaps
@@ -305,24 +297,31 @@ struct ion_custom_data {
 struct ion_phys_data {
 	struct ion_handle *handle;
 	unsigned long phys;
-	size_t size;
+	unsigned long size;
 };
-
-struct ion_flush_data {
+struct ion_cacheop_data {
+#define ION_CACHE_FLUSH		0
+#define ION_CACHE_CLEAN		1
+#define ION_CACHE_INV		2
+	unsigned int type;
 	struct ion_handle *handle;
 	void *virt;
-	size_t size;
 };
-
-struct ion_client_data {
-#define ION_TYPE_GET_TOTAL_SIZE  0
-#define ION_TYPE_SIZE_GET_COUNT  1
-	unsigned int type;
-	union {
-		size_t size;
-		size_t total_size;
-	};
+struct ion_buffer_info {
+	unsigned long phys;
+	unsigned long size;
+};
+struct ion_client_info {
+#define MAX_BUFFER_COUNT	127
 	unsigned int count;
+	unsigned long total_size;
+	struct ion_buffer_info buf[MAX_BUFFER_COUNT];
+};
+struct ion_heap_info {
+	unsigned int id;
+	unsigned long allocated_size;
+	unsigned long max_allocated;
+	unsigned long total_size;
 };
 
 #define ION_IOC_MAGIC		'I'
@@ -379,11 +378,24 @@ struct ion_client_data {
  * Takes the argument of the architecture specific ioctl to call and
  * passes appropriate userdata for that ioctl
  */
-#define ION_IOC_CUSTOM		_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
-#define ION_CACHE_FLUSH		_IOWR(ION_IOC_MAGIC, 7, struct ion_flush_data)
-#define ION_CACHE_CLEAN		_IOWR(ION_IOC_MAGIC, 8, struct ion_flush_data)
-#define ION_CACHE_INVALID	_IOWR(ION_IOC_MAGIC, 9, struct ion_flush_data)
-#define ION_GET_PHYS		_IOWR(ION_IOC_MAGIC, 10, unsigned long)
-#define ION_GET_CLIENT		_IOWR(ION_IOC_MAGIC, 11, struct ion_client_data)
+#define ION_IOC_CUSTOM			_IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
 
+#define ION_CUSTOM_GET_PHYS		_IOWR(ION_IOC_MAGIC, 7, \
+				      		struct ion_phys_data)
+				      
+#define ION_CUSTOM_CACHE_OP		_IOWR(ION_IOC_MAGIC, 8, \
+				      		struct ion_cacheop_data) 				     
+
+#define ION_CUSTOM_GET_CLIENT_INFO	_IOWR(ION_IOC_MAGIC, 9, \
+				      		struct ion_client_info) 
+
+#define ION_CUSTOM_GET_HEAP_INFO	_IOWR(ION_IOC_MAGIC, 10, \
+				      		struct ion_heap_info) 
+/* Compatible with pmem */
+struct ion_pmem_region {
+	unsigned long offset;
+	unsigned long len;
+};
+#define ION_PMEM_GET_PHYS		_IOW('p', 1, unsigned int)
+#define ION_PMEM_CACHE_FLUSH		_IOW('p', 8, unsigned int)
 #endif /* _LINUX_ION_H */

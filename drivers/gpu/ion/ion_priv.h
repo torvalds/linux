@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/debugfs.h>
+#include <linux/list.h>
 
 struct ion_mapping;
 
@@ -39,6 +40,11 @@ struct ion_kernel_mapping {
 	void *vaddr;
 };
 
+struct ion_user_map_addr {
+	unsigned long vaddr;
+	unsigned long size;
+	struct list_head list;
+};
 struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 
 /**
@@ -75,7 +81,8 @@ struct ion_buffer {
 	void *vaddr;
 	int dmap_cnt;
 	struct scatterlist *sglist;
-	unsigned long vm_start;
+        struct list_head map_addr;
+	pid_t pid;
 	int marked;
 };
 
@@ -104,9 +111,9 @@ struct ion_heap_ops {
 	void * (*map_kernel) (struct ion_heap *heap, struct ion_buffer *buffer);
 	void (*unmap_kernel) (struct ion_heap *heap, struct ion_buffer *buffer);
 	int (*map_user) (struct ion_heap *mapper, struct ion_buffer *buffer,
-			 struct vm_area_struct *vma, unsigned long flags);
+			 struct vm_area_struct *vma);
 	int (*cache_op)(struct ion_heap *heap, struct ion_buffer *buffer,
-			void *virt, size_t size, unsigned int cmd);
+			void *virt, unsigned int type);
 	int (*print_debug)(struct ion_heap *heap, struct seq_file *s);
 };
 
@@ -133,6 +140,10 @@ struct ion_heap {
 	struct ion_heap_ops *ops;
 	int id;
 	const char *name;
+
+	unsigned long allocated_size;
+	unsigned long max_allocated;
+	unsigned long total_size;
 };
 
 /**
@@ -181,9 +192,9 @@ void ion_carveout_heap_destroy(struct ion_heap *);
  * used to back an architecture specific custom heap
  */
 ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap, unsigned long size,
-				      unsigned long align, unsigned long flags);
+				      unsigned long align);
 void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
-		       unsigned long size, unsigned long flags);
+		       unsigned long size);
 /**
  * The carveout heap returns physical addresses, since 0 may be a valid
  * physical address, this is used to indicate allocation failed

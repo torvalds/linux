@@ -55,6 +55,7 @@ static int rockchip_ion_probe(struct platform_device *pdev)
 		ion_device_add_heap(idev, heaps[i]);
 	}
 	platform_set_drvdata(pdev, idev);
+        pr_info("Rockchip ion module(version: %s) is successfully loaded\n", ION_VERSION);
 	return 0;
 err:
 	for (i = 0; i < num_heaps; i++) {

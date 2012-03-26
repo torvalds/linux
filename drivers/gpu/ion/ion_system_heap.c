@@ -86,7 +86,7 @@ void ion_system_heap_unmap_kernel(struct ion_heap *heap,
 }
 
 int ion_system_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
-			     struct vm_area_struct *vma, unsigned long flags)
+			     struct vm_area_struct *vma)
 {
 	return remap_vmalloc_range(vma, buffer->priv_virt, vma->vm_pgoff);
 }
@@ -159,8 +159,7 @@ struct scatterlist *ion_system_contig_heap_map_dma(struct ion_heap *heap,
 
 int ion_system_contig_heap_map_user(struct ion_heap *heap,
 				    struct ion_buffer *buffer,
-				    struct vm_area_struct *vma,
-				    unsigned long flags)
+				    struct vm_area_struct *vma)
 {
 	unsigned long pfn = __phys_to_pfn(virt_to_phys(buffer->priv_virt));
 	return remap_pfn_range(vma, vma->vm_start, pfn + vma->vm_pgoff,
