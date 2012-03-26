@@ -272,6 +272,20 @@ config COMEDI_DAS16M1
 	  To compile this driver as a module, choose M here: the module will be
 	  called das16m1.
 
+config COMEDI_DAS08_ISA
+	tristate "DAS-08 compatible ISA and PC/104 card support"
+	select COMEDI_DAS08
+	default N
+	---help---
+	  Enable support for Keithley Metrabyte/ComputerBoards DAS08
+	  and compatible ISA and PC/104 cards:
+	  Keithley Metrabyte/ComputerBoards DAS08, DAS08-PGM, DAS08-PGH,
+	  DAS08-PGL, DAS08-AOH, DAS08-AOL, DAS08-AOM, DAS08/JR-AO,
+	  DAS08/JR-16-AO, PC104-DAS08, DAS08/JR/16.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called das08.
+
 config COMEDI_DAS16
 	tristate "DAS-16 compatible ISA and PC/104 card support"
 	select COMEDI_8255
@@ -864,6 +878,16 @@ config COMEDI_CONTEC_PCI_DIO
 	  To compile this driver as a module, choose M here: the module will be
 	  called contec_pci_dio.
 
+config COMEDI_DAS08_PCI
+	tristate "DAS-08 PCI support"
+	select COMEDI_DAS08
+	default N
+	---help---
+	  Enable support for PCI DAS-08 cards.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called das08.
+
 config COMEDI_DT3000
 	tristate "Data Translation DT3000 series support"
 	default N
@@ -1390,20 +1414,6 @@ config COMEDI_8255
 	  To compile this driver as a module, choose M here: the module will be
 	  called 8255.
 
-config COMEDI_DAS08
-	tristate "DAS-08 compatible support"
-	depends on COMEDI
-	select COMEDI_8255
-	default N
-	---help---
-	  Enable support for DAS08 and compatible ISA, PC/104 and PCI cards.
-
-	  Note that PCMCIA DAS08 cards are not directly supported by this
-	  driver, and need a separate driver as a wrapper.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called das08.
-
 config COMEDI_FC
 	tristate "Comedi shared functions for low-level driver support"
 	depends on COMEDI
@@ -1429,3 +1439,8 @@ config COMEDI_AMPLC_PC236
 config COMEDI_AMPLC_PC263
 	def_tristate N
 	depends on COMEDI
+
+config COMEDI_DAS08
+	def_tristate N
+	depends on COMEDI
+	select COMEDI_8255
