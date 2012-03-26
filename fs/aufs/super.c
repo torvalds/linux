@@ -803,12 +803,12 @@ static int alloc_root(struct super_block *sb)
 	set_nlink(inode, 2);
 	unlock_new_inode(inode);
 
-	root = d_alloc_root(inode);
+	root = d_make_root(inode);
 	if (unlikely(!root))
-		goto out_iput;
+		goto out;
 	err = PTR_ERR(root);
 	if (IS_ERR(root))
-		goto out_iput;
+		goto out;
 
 	err = au_di_init(root);
 	if (!err) {
@@ -816,13 +816,9 @@ static int alloc_root(struct super_block *sb)
 		return 0; /* success */
 	}
 	dput(root);
-	goto out; /* do not iput */
 
-out_iput:
-	iget_failed(inode);
 out:
 	return err;
-
 }
 
 static int aufs_fill_super(struct super_block *sb, void *raw_data,
