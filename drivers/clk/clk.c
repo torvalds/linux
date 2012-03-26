@@ -763,25 +763,38 @@ static void clk_calc_subtree(struct clk *clk, unsigned long new_rate)
 static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
 {
 	struct clk *top = clk;
-	unsigned long best_parent_rate = clk->parent->rate;
+	unsigned long best_parent_rate;
 	unsigned long new_rate;
 
-	if (!clk->ops->round_rate && !(clk->flags & CLK_SET_RATE_PARENT)) {
-		clk->new_rate = clk->rate;
+	/* sanity */
+	if (IS_ERR_OR_NULL(clk))
+		return NULL;
+
+	/* never propagate up to the parent */
+	if (!(clk->flags & CLK_SET_RATE_PARENT)) {
+		if (!clk->ops->round_rate) {
+			clk->new_rate = clk->rate;
+			return NULL;
+		} else {
+			new_rate = clk->ops->round_rate(clk->hw, rate, NULL);
+			goto out;
+		}
+	}
+
+	/* need clk->parent from here on out */
+	if (!clk->parent) {
+		pr_debug("%s: %s has NULL parent\n", __func__, clk->name);
 		return NULL;
 	}
 
-	if (!clk->ops->round_rate && (clk->flags & CLK_SET_RATE_PARENT)) {
+	if (!clk->ops->round_rate) {
 		top = clk_calc_new_rates(clk->parent, rate);
 		new_rate = clk->new_rate = clk->parent->new_rate;
 
 		goto out;
 	}
 
-	if (clk->flags & CLK_SET_RATE_PARENT)
-		new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
-	else
-		new_rate = clk->ops->round_rate(clk->hw, rate, NULL);
+	new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
 
 	if (best_parent_rate != clk->parent->rate) {
 		top = clk_calc_new_rates(clk->parent, best_parent_rate);
