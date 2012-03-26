@@ -715,6 +715,8 @@ static int __devexit max17042_remove(struct i2c_client *client)
 {
 	struct max17042_chip *chip = i2c_get_clientdata(client);
 
+	if (client->irq)
+		free_irq(client->irq, chip);
 	power_supply_unregister(&chip->battery);
 	return 0;
 }
