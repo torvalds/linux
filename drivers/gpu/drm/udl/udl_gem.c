@@ -180,6 +180,18 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 	int page_count = obj->base.size / PAGE_SIZE;
 	int ret;
 
+	if (obj->base.import_attach) {
+		ret = dma_buf_begin_cpu_access(obj->base.import_attach->dmabuf,
+					       0, obj->base.size, DMA_BIDIRECTIONAL);
+		if (ret)
+			return -EINVAL;
+
+		obj->vmapping = dma_buf_vmap(obj->base.import_attach->dmabuf);
+		if (!obj->vmapping)
+			return -ENOMEM;
+		return 0;
+	}
+		
 	ret = udl_gem_get_pages(obj, GFP_KERNEL);
 	if (ret)
 		return ret;
@@ -192,6 +204,13 @@ int udl_gem_vmap(struct udl_gem_object *obj)
 
 void udl_gem_vunmap(struct udl_gem_object *obj)
 {
+	if (obj->base.import_attach) {
+		dma_buf_vunmap(obj->base.import_attach->dmabuf, obj->vmapping);
+		dma_buf_end_cpu_access(obj->base.import_attach->dmabuf, 0,
+				       obj->base.size, DMA_BIDIRECTIONAL);
+		return;
+	}
+
 	if (obj->vmapping)
 		vunmap(obj->vmapping);
 
@@ -202,11 +221,11 @@ void udl_gem_free_object(struct drm_gem_object *gem_obj)
 {
 	struct udl_gem_object *obj = to_udl_bo(gem_obj);
 
-	if (gem_obj->import_attach)
-		drm_prime_gem_destroy(gem_obj, obj->sg);
-
 	if (obj->vmapping)
 		udl_gem_vunmap(obj);
+
+	if (gem_obj->import_attach)
+		drm_prime_gem_destroy(gem_obj, obj->sg);
 
 	if (obj->pages)
 		udl_gem_put_pages(obj);
