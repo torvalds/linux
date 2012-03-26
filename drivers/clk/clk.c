@@ -1202,6 +1202,20 @@ void __clk_init(struct device *dev, struct clk *clk)
 	if (__clk_lookup(clk->name))
 		goto out;
 
+	/* check that clk_ops are sane.  See Documentation/clk.txt */
+	if (clk->ops->set_rate &&
+			!(clk->ops->round_rate && clk->ops->recalc_rate)) {
+		pr_warning("%s: %s must implement .round_rate & .recalc_rate\n",
+				__func__, clk->name);
+		goto out;
+	}
+
+	if (clk->ops->set_parent && !clk->ops->get_parent) {
+		pr_warning("%s: %s must implement .get_parent & .set_parent\n",
+				__func__, clk->name);
+		goto out;
+	}
+
 	/* throw a WARN if any entries in parent_names are NULL */
 	for (i = 0; i < clk->num_parents; i++)
 		WARN(!clk->parent_names[i],
