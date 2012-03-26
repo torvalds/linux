@@ -654,6 +654,8 @@ static struct platform_device device_ion = {
 };
 #endif
 
+extern struct platform_device rk29sdk_wifi_device;
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -672,6 +674,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK_IRDA
 	&irda_device,
+#endif
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+	&rk29sdk_wifi_device,
 #endif
 };
 

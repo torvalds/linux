@@ -1047,6 +1047,8 @@ static void __init rk30_init_sdmmc(void)
 #endif
 }
 
+extern int rk29sdk_wifi_bt_gpio_control_init(void);
+
 static int __init rk30_init_devices(void)
 {
 	rk30_init_dma();
@@ -1084,6 +1086,11 @@ static int __init rk30_init_devices(void)
 #if defined(CONFIG_FIQ_DEBUGGER) && defined(DEBUG_UART_PHYS)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_UART0 + CONFIG_RK_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
+
+#ifdef CONFIG_WIFI_CONTROL_FUNC
+        rk29sdk_wifi_bt_gpio_control_init();
+#endif
+
 	rk30_init_i2s();
 	return 0;
 }
