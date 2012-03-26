@@ -65,7 +65,7 @@ static struct rk29_keys_button key_button[] = {
 #if 1
 	{
 		.desc	= "vol+",
-		.code	= KEY_VOLUMEDOWN,
+		.code	= KEY_VOLUMEUP,
 		.adc_value	= 1,
 		.gpio = INVALID_GPIO,
 		.active_low = PRESS_LEV_LOW,
