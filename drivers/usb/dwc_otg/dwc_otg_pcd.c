@@ -286,7 +286,8 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 		return -ESHUTDOWN;
 	}
 
-	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
+	local_irq_save(flags);
+//	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
 		
 	ep->desc = _desc;
 	ep->ep.maxpacket = le16_to_cpu (_desc->wMaxPacketSize);
@@ -352,7 +353,8 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 					ep->dwc_ep.type, ep->dwc_ep.maxpacket, ep->desc );
 		
 	dwc_otg_ep_activate( GET_CORE_IF(pcd), &ep->dwc_ep );
-	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
+//	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
+    local_irq_restore(flags);
 	return 0;
 }
 
@@ -379,7 +381,8 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
 		return -EINVAL;
 	}
 		
-	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
+//	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
+    local_irq_save(flags);
 	request_nuke( ep );		   
 
 	dwc_otg_ep_deactivate( GET_CORE_IF(ep->pcd), &ep->dwc_ep );
@@ -392,7 +395,8 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
 		release_tx_fifo(GET_CORE_IF(ep->pcd), ep->dwc_ep.tx_fifo_num);
 	}	
 	
-	SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
+//	SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
+    local_irq_restore(flags);
 
 	DWC_DEBUGPL(DBG_PCD, "%s disabled\n", _ep->name);
 	return 0;
@@ -1649,20 +1653,18 @@ void dwc_otg_msc_lock(dwc_otg_pcd_t *pcd)
 {
 	unsigned long		flags;
 
-	spin_lock_irqsave(&pcd->lock, flags);
-
+	local_irq_save(flags);
     wake_lock(&pcd->wake_lock);
-
-	spin_unlock_irqrestore(&pcd->lock, flags);
+    local_irq_restore(flags);
 
 }
 
 void dwc_otg_msc_unlock(dwc_otg_pcd_t *pcd)
 {
 	unsigned long		flags;
-	spin_lock_irqsave(&pcd->lock, flags);
+	local_irq_save(flags);
 	wake_unlock(&pcd->wake_lock);
-    spin_unlock_irqrestore(&pcd->lock, flags);
+	local_irq_restore(flags);
 }
 static void dwc_phy_reconnect(struct work_struct *work)
 {
@@ -1826,13 +1828,11 @@ int dwc_otg_pcd_init(struct device *dev)
 	
 	memset( pcd, 0, sizeof(dwc_otg_pcd_t));
 	spin_lock_init( &pcd->lock );
-	spin_lock(&pcd->lock);
 	otg_dev->pcd = pcd;
 	s_pcd = pcd;
 	pcd->gadget.name = pcd_name;
 	//strcpy(pcd->gadget.dev.bus_id, "gadget");
 	
-	spin_unlock(&pcd->lock);
 	pcd->otg_dev = otg_dev;
 	
 	pcd->gadget.dev.parent = dev;

@@ -438,7 +438,7 @@ typedef struct dwc_otg_core_params
 	 * endpoints in addition to EP0.
 	 */
 	int32_t dev_endpoints;
-#define dwc_param_dev_endpoints_default 6
+#define dwc_param_dev_endpoints_default 10
 
 		/** 
 		 * Specifies the type of PHY interface to use. By default, the driver

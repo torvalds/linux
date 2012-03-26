@@ -89,7 +89,7 @@
  */
 static __inline__ uint32_t dwc_read_reg32( volatile uint32_t *_reg) 
 {
-        return readl(_reg);
+        return readl_relaxed(_reg);
 };
 
 /** 
@@ -103,7 +103,8 @@ static __inline__ uint32_t dwc_read_reg32( volatile uint32_t *_reg)
  */
 static __inline__ void dwc_write_reg32( volatile uint32_t *_reg, const uint32_t _value) 
 {
-        writel( _value, _reg );
+        writel_relaxed( _value, _reg );
+        dsb();
 };
 
 /**  
@@ -122,7 +123,8 @@ static __inline__ void dwc_write_reg32( volatile uint32_t *_reg, const uint32_t 
 static __inline__
  void dwc_modify_reg32( volatile uint32_t *_reg, const uint32_t _clear_mask, const uint32_t _set_mask) 
 {
-        writel( (readl(_reg) & ~_clear_mask) | _set_mask, _reg );  
+        writel_relaxed( (readl_relaxed(_reg) & ~_clear_mask) | _set_mask, _reg );  
+        dsb();
 };
 
 
@@ -152,7 +154,7 @@ static __inline__ void MDELAY( const uint32_t _msecs )
  */
 static __inline__ void SPIN_LOCK( spinlock_t *_lock )  
 {
-        spin_lock(_lock);
+//        spin_lock(_lock);
 }
 
 /**
@@ -163,7 +165,7 @@ static __inline__ void SPIN_LOCK( spinlock_t *_lock )
  */
 static __inline__ void SPIN_UNLOCK( spinlock_t *_lock )     
 { 
-        spin_unlock(_lock);
+//        spin_unlock(_lock);
 }
 
 /**

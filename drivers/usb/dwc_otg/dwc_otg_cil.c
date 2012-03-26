@@ -3002,6 +3002,10 @@ extern void dwc_otg_cil_register_pcd_callbacks( dwc_otg_core_if_t *_core_if,
 void dwc_otg_dump_dev_registers(dwc_otg_core_if_t *_core_if)
 {
 	volatile uint32_t *addr;
+	uint32_t hwcfg1;
+	int i;
+
+	hwcfg1 = ~_core_if->core_global_regs->ghwcfg1;
 	
 	DWC_PRINT("Device Global Registers\n");
 	addr=&_core_if->dev_if->dev_global_regs->dcfg;
@@ -3045,101 +3049,35 @@ void dwc_otg_dump_dev_registers(dwc_otg_core_if_t *_core_if)
 		DWC_PRINT("DTKNQR4	 @0x%08X : 0x%08X\n",
 				  (uint32_t)addr, dwc_read_reg32(addr));
 	}
-	DWC_PRINT("Device IN EP 0 Registers\n");
-	addr=&_core_if->dev_if->in_ep_regs[0]->diepctl;
-	DWC_PRINT("DIEPCTL0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[0]->diepint;
-	DWC_PRINT("DIEPINT0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[0]->dieptsiz;
-	DWC_PRINT("DIETSIZ0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[0]->diepdma;
-	DWC_PRINT("DIEPDMA0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[0]->dtxfsts;
-	DWC_PRINT("DTXFSTS0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-
-	DWC_PRINT("Device OUT EP 0 Registers\n");
-	addr=&_core_if->dev_if->out_ep_regs[0]->doepctl;
-	DWC_PRINT("DOEPCTL0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[0]->doepfn;
-	DWC_PRINT("DOEPFN0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[0]->doepint;
-	DWC_PRINT("DOEPINT0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[0]->doeptsiz;
-	DWC_PRINT("DOETSIZ0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[0]->doepdma;
-	DWC_PRINT("DOEPDMA0	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-
-	DWC_PRINT("Device IN EP 1 Registers\n");
-	addr=&_core_if->dev_if->in_ep_regs[1]->diepctl;
-	DWC_PRINT("DIEPCTL1	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[1]->diepint;
-	DWC_PRINT("DIEPINT1	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[1]->dieptsiz;
-	DWC_PRINT("DIETSIZ1	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[1]->diepdma;
-	DWC_PRINT("DIEPDMA1	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[1]->dtxfsts;
-	DWC_PRINT("DTXFSTS1	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-
-	DWC_PRINT("Device OUT EP 2 Registers\n");
-	addr=&_core_if->dev_if->out_ep_regs[2]->doepctl;
-	DWC_PRINT("DOEPCTL2	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[2]->doepfn;
-	DWC_PRINT("DOEPFN2	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[2]->doepint;
-	DWC_PRINT("DOEPINT2	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[2]->doeptsiz;
-	DWC_PRINT("DOETSIZ2	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[2]->doepdma;
-	DWC_PRINT("DOEPDMA2	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	
-	DWC_PRINT("Device IN EP 3 Registers\n");
-	addr=&_core_if->dev_if->in_ep_regs[3]->diepctl;
-	DWC_PRINT("DIEPCTL3	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[3]->diepint;
-	DWC_PRINT("DIEPINT3	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[3]->dieptsiz;
-	DWC_PRINT("DIETSIZ3	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[3]->diepdma;
-	DWC_PRINT("DIEPDMA3	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[3]->dtxfsts;
-	DWC_PRINT("DTXFSTS3	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-
-	DWC_PRINT("Device OUT EP 4 Registers\n");
-	addr=&_core_if->dev_if->out_ep_regs[4]->doepctl;
-	DWC_PRINT("DOEPCTL4	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[4]->doepfn;
-	DWC_PRINT("DOEPFN4	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[4]->doepint;
-	DWC_PRINT("DOEPINT4	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[4]->doeptsiz;
-	DWC_PRINT("DOETSIZ4	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[4]->doepdma;
-	DWC_PRINT("DOEPDMA4	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	
-	DWC_PRINT("Device IN EP 5 Registers\n");
-	addr=&_core_if->dev_if->in_ep_regs[5]->diepctl;
-	DWC_PRINT("DIEPCTL5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[5]->diepint;
-	DWC_PRINT("DIEPINT5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[5]->dieptsiz;
-	DWC_PRINT("DIETSIZ5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[5]->diepdma;
-	DWC_PRINT("DIEPDMA5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->in_ep_regs[5]->dtxfsts;
-	DWC_PRINT("DTXFSTS5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-
-	DWC_PRINT("Device OUT EP 6 Registers\n");
-	addr=&_core_if->dev_if->out_ep_regs[6]->doepctl;
-	DWC_PRINT("DOEPCTL6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[6]->doepfn;
-	DWC_PRINT("DOEPFN6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[6]->doepint;
-	DWC_PRINT("DOEPINT6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[6]->doeptsiz;
-	DWC_PRINT("DOETSIZ6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
-	addr=&_core_if->dev_if->out_ep_regs[6]->doepdma;
-	DWC_PRINT("DOEPDMA6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+	for (i=0; i<_core_if->core_params->dev_endpoints; i++) 
+	{
+	    if(hwcfg1 & (2<<(i<<1))){
+        	DWC_PRINT("Device IN EP %d Registers\n", i);
+        	addr=&_core_if->dev_if->in_ep_regs[i]->diepctl;
+        	DWC_PRINT("DIEPCTL5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->in_ep_regs[i]->diepint;
+        	DWC_PRINT("DIEPINT5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->in_ep_regs[i]->dieptsiz;
+        	DWC_PRINT("DIETSIZ5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->in_ep_regs[i]->diepdma;
+        	DWC_PRINT("DIEPDMA5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->in_ep_regs[i]->dtxfsts;
+        	DWC_PRINT("DTXFSTS5	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+	    }
+	    if(hwcfg1 & (1<<(i<<1))){
+        	DWC_PRINT("Device OUT EP %d Registers\n", i);
+        	addr=&_core_if->dev_if->out_ep_regs[i]->doepctl;
+        	DWC_PRINT("DOEPCTL6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->out_ep_regs[i]->doepfn;
+        	DWC_PRINT("DOEPFN6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->out_ep_regs[i]->doepint;
+        	DWC_PRINT("DOEPINT6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->out_ep_regs[i]->doeptsiz;
+        	DWC_PRINT("DOETSIZ6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+        	addr=&_core_if->dev_if->out_ep_regs[i]->doepdma;
+        	DWC_PRINT("DOEPDMA6	 @0x%08X : 0x%08X\n",(uint32_t)addr,dwc_read_reg32(addr));
+	    }
+	}
 
 	return;
 }
