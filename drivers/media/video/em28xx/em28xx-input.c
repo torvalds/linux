@@ -448,6 +448,15 @@ int em28xx_ir_init(struct em28xx *dev)
 	if (err)
 		goto err_out_stop;
 
+	em28xx_register_i2c_ir(dev);
+
+#if defined(CONFIG_MODULES) && defined(MODULE)
+	if (dev->board.has_ir_i2c)
+		request_module("ir-kbd-i2c");
+#endif
+	if (dev->board.has_snapshot_button)
+		em28xx_register_snapshot_button(dev);
+
 	return 0;
 
  err_out_stop:
@@ -461,6 +470,8 @@ int em28xx_ir_init(struct em28xx *dev)
 int em28xx_ir_fini(struct em28xx *dev)
 {
 	struct em28xx_IR *ir = dev->ir;
+
+	em28xx_deregister_snapshot_button(dev);
 
 	/* skip detach on non attached boards */
 	if (!ir)

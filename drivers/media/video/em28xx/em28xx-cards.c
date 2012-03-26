@@ -2849,13 +2849,6 @@ void em28xx_card_setup(struct em28xx *dev)
 		break;
 	}
 
-#if defined(CONFIG_MODULES) && defined(MODULE)
-	if (dev->board.has_ir_i2c && !disable_ir)
-		request_module("ir-kbd-i2c");
-#endif
-	if (dev->board.has_snapshot_button)
-		em28xx_register_snapshot_button(dev);
-
 	if (dev->board.valid == EM28XX_BOARD_NOT_VALIDATED) {
 		em28xx_errdev("\n\n");
 		em28xx_errdev("The support for this board weren't "
@@ -2972,9 +2965,6 @@ static void flush_request_modules(struct em28xx *dev)
 */
 void em28xx_release_resources(struct em28xx *dev)
 {
-	if (dev->sbutton_input_dev)
-		em28xx_deregister_snapshot_button(dev);
-
 	if (dev->ir)
 		em28xx_ir_fini(dev);
 
