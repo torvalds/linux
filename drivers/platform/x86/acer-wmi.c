@@ -43,6 +43,7 @@
 #include <linux/input/sparse-keymap.h>
 
 #include <acpi/acpi_drivers.h>
+#include <acpi/video.h>
 
 MODULE_AUTHOR("Carlos Corbacho");
 MODULE_DESCRIPTION("Acer Laptop WMI Extras Driver");
@@ -502,6 +503,25 @@ static struct dmi_system_id acer_quirks[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "0687A31"),
 		},
 		.driver_data = &quirk_fujitsu_amilo_li_1718,
+	},
+	{}
+};
+
+static int video_set_backlight_video_vendor(const struct dmi_system_id *d)
+{
+	interface->capability &= ~ACER_CAP_BRIGHTNESS;
+	pr_info("Brightness must be controlled by generic video driver\n");
+	return 0;
+}
+
+static const struct dmi_system_id video_vendor_dmi_table[] = {
+	{
+		.callback = video_set_backlight_video_vendor,
+		.ident = "Acer TravelMate 4750",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 4750"),
+		},
 	},
 	{}
 };
@@ -2017,8 +2037,13 @@ static int __init acer_wmi_init(void)
 	set_quirks();
 
 	if (acpi_video_backlight_support()) {
-		interface->capability &= ~ACER_CAP_BRIGHTNESS;
-		pr_info("Brightness must be controlled by generic video driver\n");
+		if (dmi_check_system(video_vendor_dmi_table)) {
+			acpi_video_unregister();
+		} else {
+			interface->capability &= ~ACER_CAP_BRIGHTNESS;
+			pr_info("Brightness must be controlled by "
+				"acpi video driver\n");
+		}
 	}
 
 	if (wmi_has_guid(WMID_GUID3)) {
