@@ -738,7 +738,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 	case FSP_PKT_TYPE_NORMAL_OPC:
 		/* on-pad click, filter it if necessary */
 		if ((ad->flags & FSPDRV_FLAG_EN_OPC) != FSPDRV_FLAG_EN_OPC)
-			packet[0] &= ~BIT(0);
+			packet[0] &= ~FSP_PB0_LBTN;
 		/* fall through */
 
 	case FSP_PKT_TYPE_NORMAL:
