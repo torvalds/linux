@@ -2661,54 +2661,6 @@ static int em28xx_hint_board(struct em28xx *dev)
 	return -1;
 }
 
-/* ----------------------------------------------------------------------- */
-void em28xx_register_i2c_ir(struct em28xx *dev)
-{
-	/* Leadtek winfast tv USBII deluxe can find a non working IR-device */
-	/* at address 0x18, so if that address is needed for another board in */
-	/* the future, please put it after 0x1f. */
-	struct i2c_board_info info;
-	const unsigned short addr_list[] = {
-		 0x1f, 0x30, 0x47, I2C_CLIENT_END
-	};
-
-	if (disable_ir)
-		return;
-
-	memset(&info, 0, sizeof(struct i2c_board_info));
-	memset(&dev->init_data, 0, sizeof(dev->init_data));
-	strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
-
-	/* detect & configure */
-	switch (dev->model) {
-	case EM2800_BOARD_TERRATEC_CINERGY_200:
-	case EM2820_BOARD_TERRATEC_CINERGY_250:
-		dev->init_data.ir_codes = RC_MAP_EM_TERRATEC;
-		dev->init_data.get_key = em28xx_get_key_terratec;
-		dev->init_data.name = "i2c IR (EM28XX Terratec)";
-		break;
-	case EM2820_BOARD_PINNACLE_USB_2:
-		dev->init_data.ir_codes = RC_MAP_PINNACLE_GREY;
-		dev->init_data.get_key = em28xx_get_key_pinnacle_usb_grey;
-		dev->init_data.name = "i2c IR (EM28XX Pinnacle PCTV)";
-		break;
-	case EM2820_BOARD_HAUPPAUGE_WINTV_USB_2:
-		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE;
-		dev->init_data.get_key = em28xx_get_key_em_haup;
-		dev->init_data.name = "i2c IR (EM2840 Hauppauge)";
-		break;
-	case EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE:
-		dev->init_data.ir_codes = RC_MAP_WINFAST_USBII_DELUXE;
-		dev->init_data.get_key = em28xx_get_key_winfast_usbii_deluxe;
-		dev->init_data.name = "i2c IR (EM2820 Winfast TV USBII Deluxe)";
-		break;
-	}
-
-	if (dev->init_data.name)
-		info.platform_data = &dev->init_data;
-	i2c_new_probed_device(&dev->i2c_adap, &info, addr_list, NULL);
-}
-
 void em28xx_card_setup(struct em28xx *dev)
 {
 	/*
