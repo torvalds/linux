@@ -101,7 +101,7 @@ ENTRY(stext)
 	.long 0x81000000
 #elif CONFIG_CHIP_ID == 1123
 #warning "chip id: 1123"
-1:	.long 0xf34
+1:	.long 0x1008
 	.long 0x81000000
 #elif CONFIG_CHIP_ID == 1125
 #warning "chip id: 1125"

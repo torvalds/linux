@@ -1169,7 +1169,7 @@ elite_ulk		MACH_ELITE_ULK		ELITE_ULK		3888
 pov2			MACH_POV2		POV2			3889
 ipod_touch_2g		MACH_IPOD_TOUCH_2G	IPOD_TOUCH_2G		3890
 da850_pqab		MACH_DA850_PQAB		DA850_PQAB		3891
-sun4i                   MACH_SUN4I              SUN4I                   3892
+sun4i			MACH_SUN4I		SUN4I			4104
 sun5i                   MACH_SUN5I              SUN5I                   3893
 sun6i                   MACH_SUN6I              SUN6I                   3894
 sun3i                   MACH_SUN3I              SUN3I                   3895
