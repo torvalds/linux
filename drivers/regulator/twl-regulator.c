@@ -473,31 +473,12 @@ static int twl4030ldo_list_voltage(struct regulator_dev *rdev, unsigned index)
 }
 
 static int
-twl4030ldo_set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
-		       unsigned *selector)
+twl4030ldo_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 {
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
-	int			vsel;
 
-	for (vsel = 0; vsel < info->table_len; vsel++) {
-		int mV = info->table[vsel];
-		int uV;
-
-		if (IS_UNSUP(mV))
-			continue;
-		uV = LDO_MV(mV) * 1000;
-
-		/* REVISIT for VAUX2, first match may not be best/lowest */
-
-		/* use the first in-range value */
-		if (min_uV <= uV && uV <= max_uV) {
-			*selector = vsel;
-			return twlreg_write(info, TWL_MODULE_PM_RECEIVER,
-							VREG_VOLTAGE, vsel);
-		}
-	}
-
-	return -EDOM;
+	return twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_VOLTAGE,
+			    selector);
 }
 
 static int twl4030ldo_get_voltage(struct regulator_dev *rdev)
@@ -516,7 +497,7 @@ static int twl4030ldo_get_voltage(struct regulator_dev *rdev)
 static struct regulator_ops twl4030ldo_ops = {
 	.list_voltage	= twl4030ldo_list_voltage,
 
-	.set_voltage	= twl4030ldo_set_voltage,
+	.set_voltage_sel = twl4030ldo_set_voltage_sel,
 	.get_voltage	= twl4030ldo_get_voltage,
 
 	.enable		= twl4030reg_enable,
