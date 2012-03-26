@@ -422,6 +422,7 @@ static int wacom_query_tablet_data(struct usb_interface *intf, struct wacom_feat
 						report_id, rep_data, 4, 1);
 		} while ((error < 0 || rep_data[1] != 4) && limit++ < WAC_MSG_RETRIES);
 	} else if (features->type != TABLETPC &&
+		   features->type != WIRELESS &&
 		   features->device_type == BTN_TOOL_PEN) {
 		do {
 			rep_data[0] = 2;
@@ -453,6 +454,21 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	features->y_fuzz = 4;
 	features->pressure_fuzz = 0;
 	features->distance_fuzz = 0;
+
+	/*
+	 * The wireless device HID is basic and layout conflicts with
+	 * other tablets (monitor and touch interface can look like pen).
+	 * Skip the query for this type and modify defaults based on
+	 * interface number.
+	 */
+	if (features->type == WIRELESS) {
+		if (intf->cur_altsetting->desc.bInterfaceNumber == 0) {
+			features->device_type = 0;
+		} else if (intf->cur_altsetting->desc.bInterfaceNumber == 2) {
+			features->device_type = BTN_TOOL_DOUBLETAP;
+			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+		}
+	}
 
 	/* only Tablet PCs and Bamboo P&T need to retrieve the info */
 	if ((features->type != TABLETPC) && (features->type != TABLETPC2FG) &&
@@ -928,14 +944,22 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail4;
 
-	error = wacom_register_input(wacom);
-	if (error)
-		goto fail5;
+	if (!(features->quirks & WACOM_QUIRK_NO_INPUT)) {
+		error = wacom_register_input(wacom);
+		if (error)
+			goto fail5;
+	}
 
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
 
 	usb_set_intfdata(intf, wacom);
+
+	if (features->quirks & WACOM_QUIRK_MONITOR) {
+		if (usb_submit_urb(wacom->irq, GFP_KERNEL))
+			goto fail5;
+	}
+
 	return 0;
 
  fail5: wacom_destroy_leds(wacom);
@@ -953,7 +977,8 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_set_intfdata(intf, NULL);
 
 	usb_kill_urb(wacom->irq);
-	input_unregister_device(wacom->wacom_wac.input);
+	if (wacom->wacom_wac.input)
+		input_unregister_device(wacom->wacom_wac.input);
 	wacom_destroy_leds(wacom);
 	usb_free_urb(wacom->irq);
 	usb_free_coherent(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
@@ -985,7 +1010,8 @@ static int wacom_resume(struct usb_interface *intf)
 	wacom_query_tablet_data(intf, features);
 	wacom_led_control(wacom);
 
-	if (wacom->open && usb_submit_urb(wacom->irq, GFP_NOIO) < 0)
+	if ((wacom->open || features->quirks & WACOM_QUIRK_MONITOR)
+	     && usb_submit_urb(wacom->irq, GFP_NOIO) < 0)
 		rv = -EIO;
 
 	mutex_unlock(&wacom->lock);
