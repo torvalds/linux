@@ -10,7 +10,7 @@
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/security.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/uaccess.h>
 #include <linux/writeback.h>
 #include <linux/buffer_head.h>

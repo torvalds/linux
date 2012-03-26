@@ -2234,7 +2234,6 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 
 			if (!network)
 				return 1;
-			memset(network, 0, sizeof(*network));
 			ieee->state = RTLLIB_LINKED;
 			ieee->assoc_id = aid;
 			ieee->softmac_stats.rx_ass_ok++;
@@ -2259,8 +2258,8 @@ inline int rtllib_rx_assoc_resp(struct rtllib_device *ieee, struct sk_buff *skb,
 					ieee->handle_assoc_response(ieee->dev,
 						 (struct rtllib_assoc_response_frame *)header,
 						 network);
-				kfree(network);
 			}
+			kfree(network);
 
 			kfree(ieee->assocresp_ies);
 			ieee->assocresp_ies = NULL;

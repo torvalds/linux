@@ -271,30 +271,36 @@ static inline bool ktime_lt(const ktime_t cmp1, const ktime_t cmp2)
 /**
  * pch_i2c_wait_for_bus_idle() - check the status of bus.
  * @adap:	Pointer to struct i2c_algo_pch_data.
- * @timeout:	waiting time counter (us).
+ * @timeout:	waiting time counter (ms).
  */
 static s32 pch_i2c_wait_for_bus_idle(struct i2c_algo_pch_data *adap,
 				     s32 timeout)
 {
 	void __iomem *p = adap->pch_base_address;
-	ktime_t ns_val;
+	int schedule = 0;
+	unsigned long end = jiffies + msecs_to_jiffies(timeout);
 
-	if ((ioread32(p + PCH_I2CSR) & I2CMBB_BIT) == 0)
-		return 0;
+	while (ioread32(p + PCH_I2CSR) & I2CMBB_BIT) {
+		if (time_after(jiffies, end)) {
+			pch_dbg(adap, "I2CSR = %x\n", ioread32(p + PCH_I2CSR));
+			pch_err(adap, "%s: Timeout Error.return%d\n",
+					__func__, -ETIME);
+			pch_i2c_init(adap);
 
-	/* MAX timeout value is timeout*1000*1000nsec */
-	ns_val = ktime_add_ns(ktime_get(), timeout*1000*1000);
-	do {
-		msleep(20);
-		if ((ioread32(p + PCH_I2CSR) & I2CMBB_BIT) == 0)
-			return 0;
-	} while (ktime_lt(ktime_get(), ns_val));
+			return -ETIME;
+		}
 
-	pch_dbg(adap, "I2CSR = %x\n", ioread32(p + PCH_I2CSR));
-	pch_err(adap, "%s: Timeout Error.return%d\n", __func__, -ETIME);
-	pch_i2c_init(adap);
+		if (!schedule)
+			/* Retry after some usecs */
+			udelay(5);
+		else
+			/* Wait a bit more without consuming CPU */
+			usleep_range(20, 1000);
 
-	return -ETIME;
+		schedule = 1;
+	}
+
+	return 0;
 }
 
 /**
@@ -778,8 +784,6 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct i2c_msg *pmsg;
 	u32 i = 0;
 	u32 status;
-	u32 msglen;
-	u32 subaddrlen;
 	s32 ret;
 
 	struct i2c_algo_pch_data *adap = i2c_adap->algo_data;
@@ -804,12 +808,6 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 		status = pmsg->flags;
 		pch_dbg(adap,
 			"After invoking I2C_MODE_SEL :flag= 0x%x\n", status);
-		/* calculate sub address length and message length */
-		/* these are applicable only for buffer mode */
-		subaddrlen = pmsg->buf[0];
-		/* calculate actual message length excluding
-		 * the sub address fields */
-		msglen = (pmsg->len) - (subaddrlen + 1);
 
 		if ((status & (I2C_M_RD)) != false) {
 			ret = pch_i2c_readbytes(i2c_adap, pmsg, (i + 1 == num),

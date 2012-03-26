@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation.
+ * Copyright(c) 2009-2012  Realtek Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -30,12 +30,15 @@
 #ifndef __RTL_WIFI_H__
 #define __RTL_WIFI_H__
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/sched.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/usb.h>
 #include <net/mac80211.h>
+#include <linux/completion.h>
 #include "debug.h"
 
 #define RF_CHANGE_BY_INIT			0
@@ -1045,7 +1048,6 @@ struct rtl_hal {
 	u16 fw_subversion;
 	bool h2c_setinprogress;
 	u8 last_hmeboxnum;
-	bool fw_ready;
 	/*Reserve page start offset except beacon in TxQ. */
 	u8 fw_rsvdpage_startoffset;
 	u8 h2c_txcmd_seq;
@@ -1591,6 +1593,7 @@ struct rtl_debug {
 };
 
 struct rtl_priv {
+	struct completion firmware_loading_complete;
 	struct rtl_locks locks;
 	struct rtl_works works;
 	struct rtl_mac mac80211;
@@ -1612,6 +1615,7 @@ struct rtl_priv {
 	struct rtl_rate_priv *rate_priv;
 
 	struct rtl_debug dbg;
+	int max_fw_size;
 
 	/*
 	 *hal_cfg : for diff cards

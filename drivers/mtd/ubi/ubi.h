@@ -118,7 +118,7 @@ enum {
  *                     PEB
  * MOVE_TARGET_WR_ERR: canceled because there was a write error to the target
  *                     PEB
- * MOVE_CANCEL_BITFLIPS: canceled because a bit-flip was detected in the
+ * MOVE_TARGET_BITFLIPS: canceled because a bit-flip was detected in the
  *                       target PEB
  * MOVE_RETRY: retry scrubbing the PEB
  */
@@ -127,7 +127,7 @@ enum {
 	MOVE_SOURCE_RD_ERR,
 	MOVE_TARGET_RD_ERR,
 	MOVE_TARGET_WR_ERR,
-	MOVE_CANCEL_BITFLIPS,
+	MOVE_TARGET_BITFLIPS,
 	MOVE_RETRY,
 };
 
@@ -387,9 +387,8 @@ struct ubi_wl_entry;
  *                  time (MTD write buffer size)
  * @mtd: MTD device descriptor
  *
- * @peb_buf1: a buffer of PEB size used for different purposes
- * @peb_buf2: another buffer of PEB size used for different purposes
- * @buf_mutex: protects @peb_buf1 and @peb_buf2
+ * @peb_buf: a buffer of PEB size used for different purposes
+ * @buf_mutex: protects @peb_buf
  * @ckvol_mutex: serializes static volume checking when opening
  *
  * @dbg: debugging information for this UBI device
@@ -471,8 +470,7 @@ struct ubi_device {
 	int max_write_size;
 	struct mtd_info *mtd;
 
-	void *peb_buf1;
-	void *peb_buf2;
+	void *peb_buf;
 	struct mutex buf_mutex;
 	struct mutex ckvol_mutex;
 

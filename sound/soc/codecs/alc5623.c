@@ -925,22 +925,22 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 
 	switch (alc5623->id) {
 	case 0x21:
-		snd_soc_add_controls(codec, alc5621_vol_snd_controls,
+		snd_soc_add_codec_controls(codec, alc5621_vol_snd_controls,
 			ARRAY_SIZE(alc5621_vol_snd_controls));
 		break;
 	case 0x22:
-		snd_soc_add_controls(codec, alc5622_vol_snd_controls,
+		snd_soc_add_codec_controls(codec, alc5622_vol_snd_controls,
 			ARRAY_SIZE(alc5622_vol_snd_controls));
 		break;
 	case 0x23:
-		snd_soc_add_controls(codec, alc5623_vol_snd_controls,
+		snd_soc_add_codec_controls(codec, alc5623_vol_snd_controls,
 			ARRAY_SIZE(alc5623_vol_snd_controls));
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_add_controls(codec, alc5623_snd_controls,
+	snd_soc_add_codec_controls(codec, alc5623_snd_controls,
 			ARRAY_SIZE(alc5623_snd_controls));
 
 	snd_soc_dapm_new_controls(dapm, alc5623_dapm_widgets,
@@ -992,7 +992,7 @@ static struct snd_soc_codec_driver soc_codec_device_alc5623 = {
  *    low  = 0x1a
  *    high = 0x1b
  */
-static int alc5623_i2c_probe(struct i2c_client *client,
+static __devinit int alc5623_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct alc5623_platform_data *pdata;
@@ -1059,7 +1059,7 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int alc5623_i2c_remove(struct i2c_client *client)
+static __devexit int alc5623_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;

@@ -760,7 +760,7 @@ static s32 ixgbe_blink_led_start_X540(struct ixgbe_hw *hw, u32 index)
 	 * This will be reversed when we stop the blinking.
 	 */
 	hw->mac.ops.check_link(hw, &speed, &link_up, false);
-	if (link_up == false) {
+	if (!link_up) {
 		macc_reg = IXGBE_READ_REG(hw, IXGBE_MACC);
 		macc_reg |= IXGBE_MACC_FLU | IXGBE_MACC_FSV_10G | IXGBE_MACC_FS;
 		IXGBE_WRITE_REG(hw, IXGBE_MACC, macc_reg);
@@ -847,6 +847,8 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync_X540,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync_X540,
+	.disable_rx_buff	= &ixgbe_disable_rx_buff_generic,
+	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {

@@ -24,8 +24,6 @@
 
 #ifdef __KERNEL__
 struct notifier_block;
-extern const int NR_TYPES;
-extern const int max_vals[];
 extern unsigned short *key_maps[MAX_NR_KEYMAPS];
 extern unsigned short plain_map[NR_KEYS];
 

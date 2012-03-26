@@ -11,6 +11,7 @@
  */
 
 #include <linux/kobject.h>
+#include <linux/device.h>
 #include <linux/edac.h>
 #include <linux/module.h>
 #include <asm/mce.h>

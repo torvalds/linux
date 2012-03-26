@@ -155,13 +155,9 @@ static int setup_vsync(struct panel_info *panel, int init)
 		ret = 0;
 		goto uninit;
 	}
-	ret = gpio_request(gpio, "vsync");
+	ret = gpio_request_one(gpio, GPIOF_IN, "vsync");
 	if (ret)
 		goto err_request_gpio_failed;
-
-	ret = gpio_direction_input(gpio);
-	if (ret)
-		goto err_gpio_direction_input_failed;
 
 	ret = irq = gpio_to_irq(gpio);
 	if (ret < 0)
@@ -180,7 +176,6 @@ uninit:
 	free_irq(gpio_to_irq(gpio), panel->client_data);
 err_request_irq_failed:
 err_get_irq_num_failed:
-err_gpio_direction_input_failed:
 	gpio_free(gpio);
 err_request_gpio_failed:
 	return ret;

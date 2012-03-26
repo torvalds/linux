@@ -48,7 +48,7 @@ void wl1271_scan_sched_scan_results(struct wl1271 *wl);
 #define WL1271_SCAN_CURRENT_TX_PWR     0
 #define WL1271_SCAN_OPT_ACTIVE         0
 #define WL1271_SCAN_OPT_PASSIVE	       1
-#define WL1271_SCAN_OPT_TRIGGERED_SCAN 2
+#define WL1271_SCAN_OPT_SPLIT_SCAN     2
 #define WL1271_SCAN_OPT_PRIORITY_HIGH  4
 /* scan even if we fail to enter psm */
 #define WL1271_SCAN_OPT_FORCE          8

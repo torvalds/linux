@@ -202,20 +202,9 @@ static struct i2c_driver ds1672_driver = {
 	.id_table = ds1672_id,
 };
 
-static int __init ds1672_init(void)
-{
-	return i2c_add_driver(&ds1672_driver);
-}
-
-static void __exit ds1672_exit(void)
-{
-	i2c_del_driver(&ds1672_driver);
-}
+module_i2c_driver(ds1672_driver);
 
 MODULE_AUTHOR("Alessandro Zummo <a.zummo@towertech.it>");
 MODULE_DESCRIPTION("Dallas/Maxim DS1672 timekeeper driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(ds1672_init);
-module_exit(ds1672_exit);

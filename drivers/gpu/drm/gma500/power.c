@@ -58,7 +58,8 @@ void gma_power_init(struct drm_device *dev)
 	spin_lock_init(&power_ctrl_lock);
 	mutex_init(&power_mutex);
 
-	dev_priv->ops->init_pm(dev);
+	if (dev_priv->ops->init_pm)
+		dev_priv->ops->init_pm(dev);
 }
 
 /**
@@ -101,9 +102,6 @@ static void gma_resume_display(struct pci_dev *pdev)
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	struct drm_psb_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->suspended == false)
-		return;
-
 	/* turn on the display power island */
 	dev_priv->ops->power_up(dev);
 	dev_priv->suspended = false;
@@ -132,9 +130,9 @@ static void gma_suspend_pci(struct pci_dev *pdev)
 
 	pci_save_state(pdev);
 	pci_read_config_dword(pdev, 0x5C, &bsm);
-	dev_priv->saveBSM = bsm;
+	dev_priv->regs.saveBSM = bsm;
 	pci_read_config_dword(pdev, 0xFC, &vbt);
-	dev_priv->saveVBT = vbt;
+	dev_priv->regs.saveVBT = vbt;
 	pci_read_config_dword(pdev, PSB_PCIx_MSI_ADDR_LOC, &dev_priv->msi_addr);
 	pci_read_config_dword(pdev, PSB_PCIx_MSI_DATA_LOC, &dev_priv->msi_data);
 
@@ -162,8 +160,8 @@ static bool gma_resume_pci(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
-	pci_write_config_dword(pdev, 0x5c, dev_priv->saveBSM);
-	pci_write_config_dword(pdev, 0xFC, dev_priv->saveVBT);
+	pci_write_config_dword(pdev, 0x5c, dev_priv->regs.saveBSM);
+	pci_write_config_dword(pdev, 0xFC, dev_priv->regs.saveVBT);
 	/* restoring MSI address and data in PCIx space */
 	pci_write_config_dword(pdev, PSB_PCIx_MSI_ADDR_LOC, dev_priv->msi_addr);
 	pci_write_config_dword(pdev, PSB_PCIx_MSI_DATA_LOC, dev_priv->msi_data);
@@ -195,6 +193,7 @@ int gma_power_suspend(struct device *_dev)
 	if (!dev_priv->suspended) {
 		if (dev_priv->display_count) {
 			mutex_unlock(&power_mutex);
+			dev_err(dev->dev, "GPU hardware busy, cannot suspend\n");
 			return -EBUSY;
 		}
 		psb_irq_uninstall(dev);
@@ -302,7 +301,7 @@ int psb_runtime_suspend(struct device *dev)
 
 int psb_runtime_resume(struct device *dev)
 {
-	return gma_power_resume(dev);;
+	return gma_power_resume(dev);
 }
 
 int psb_runtime_idle(struct device *dev)

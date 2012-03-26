@@ -14,7 +14,6 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/interrupt.h>

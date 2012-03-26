@@ -506,7 +506,7 @@ static int stv0288_set_frontend(struct dvb_frontend *fe)
 		tda[1] = (unsigned char)tm;
 		stv0288_writeregI(state, 0x2b, tda[1]);
 		stv0288_writeregI(state, 0x2c, tda[2]);
-		udelay(30);
+		msleep(30);
 	}
 	state->tuner_frequency = c->frequency;
 	state->fec_inner = FEC_AUTO;

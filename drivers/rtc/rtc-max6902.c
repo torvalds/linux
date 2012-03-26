@@ -160,17 +160,7 @@ static struct spi_driver max6902_driver = {
 	.remove = __devexit_p(max6902_remove),
 };
 
-static __init int max6902_init(void)
-{
-	return spi_register_driver(&max6902_driver);
-}
-module_init(max6902_init);
-
-static __exit void max6902_exit(void)
-{
-	spi_unregister_driver(&max6902_driver);
-}
-module_exit(max6902_exit);
+module_spi_driver(max6902_driver);
 
 MODULE_DESCRIPTION ("max6902 spi RTC driver");
 MODULE_AUTHOR ("Raphael Assenat");

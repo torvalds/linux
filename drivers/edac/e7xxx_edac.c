@@ -525,7 +525,7 @@ static void __devexit e7xxx_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static const struct pci_device_id e7xxx_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(e7xxx_pci_tbl) = {
 	{
 	 PCI_VEND_DEV(INTEL, 7205_0), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 	 E7205},

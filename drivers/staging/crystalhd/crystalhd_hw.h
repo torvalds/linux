@@ -27,8 +27,7 @@
 #ifndef _CRYSTALHD_HW_H_
 #define _CRYSTALHD_HW_H_
 
-#include "crystalhd_misc.h"
-#include "crystalhd_fw_if.h"
+#include "crystalhd.h"
 
 /* HW constants..*/
 #define DMA_ENGINE_CNT		2

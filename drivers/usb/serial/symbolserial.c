@@ -287,7 +287,6 @@ static struct usb_driver symbol_driver = {
 	.probe =		usb_serial_probe,
 	.disconnect =		usb_serial_disconnect,
 	.id_table =		id_table,
-	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver symbol_device = {
@@ -296,7 +295,6 @@ static struct usb_serial_driver symbol_device = {
 		.name =		"symbol",
 	},
 	.id_table =		id_table,
-	.usb_driver = 		&symbol_driver,
 	.num_ports =		1,
 	.attach =		symbol_startup,
 	.open =			symbol_open,
@@ -307,27 +305,12 @@ static struct usb_serial_driver symbol_device = {
 	.unthrottle =		symbol_unthrottle,
 };
 
-static int __init symbol_init(void)
-{
-	int retval;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&symbol_device, NULL
+};
 
-	retval = usb_serial_register(&symbol_device);
-	if (retval)
-		return retval;
-	retval = usb_register(&symbol_driver);
-	if (retval)
-		usb_serial_deregister(&symbol_device);
-	return retval;
-}
+module_usb_serial_driver(symbol_driver, serial_drivers);
 
-static void __exit symbol_exit(void)
-{
-	usb_deregister(&symbol_driver);
-	usb_serial_deregister(&symbol_device);
-}
-
-module_init(symbol_init);
-module_exit(symbol_exit);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);

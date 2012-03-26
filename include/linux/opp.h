@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 
 struct opp;
+struct device;
 
 enum opp_event {
 	OPP_EVENT_ADD, OPP_EVENT_ENABLE, OPP_EVENT_DISABLE,

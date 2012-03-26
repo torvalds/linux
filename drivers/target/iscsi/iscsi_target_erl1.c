@@ -416,7 +416,7 @@ static int iscsit_handle_recovery_datain(
 	struct iscsi_datain_req *dr;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
-	if (!atomic_read(&se_cmd->t_transport_complete)) {
+	if (!(se_cmd->transport_state & CMD_T_COMPLETE)) {
 		pr_err("Ignoring ITT: 0x%08x Data SNACK\n",
 				cmd->init_task_tag);
 		return 0;

@@ -37,6 +37,9 @@ struct omap_fbdev {
 	struct drm_framebuffer *fb;
 	struct drm_gem_object *bo;
 	bool ywrap_enabled;
+
+	/* for deferred dmm roll when getting called in atomic ctx */
+	struct work_struct work;
 };
 
 static void omap_fbdev_flush(struct fb_info *fbi, int x, int y, int w, int h);
@@ -75,12 +78,22 @@ static void omap_fbdev_imageblit(struct fb_info *fbi,
 				image->width, image->height);
 }
 
+static void pan_worker(struct work_struct *work)
+{
+	struct omap_fbdev *fbdev = container_of(work, struct omap_fbdev, work);
+	struct fb_info *fbi = fbdev->base.fbdev;
+	int npages;
+
+	/* DMM roll shifts in 4K pages: */
+	npages = fbi->fix.line_length >> PAGE_SHIFT;
+	omap_gem_roll(fbdev->bo, fbi->var.yoffset * npages);
+}
+
 static int omap_fbdev_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info *fbi)
 {
 	struct drm_fb_helper *helper = get_fb(fbi);
 	struct omap_fbdev *fbdev = to_omap_fbdev(helper);
-	int npages;
 
 	if (!helper)
 		goto fallback;
@@ -88,9 +101,12 @@ static int omap_fbdev_pan_display(struct fb_var_screeninfo *var,
 	if (!fbdev->ywrap_enabled)
 		goto fallback;
 
-	/* DMM roll shifts in 4K pages: */
-	npages = fbi->fix.line_length >> PAGE_SHIFT;
-	omap_gem_roll(fbdev->bo, var->yoffset * npages);
+	if (drm_can_sleep()) {
+		pan_worker(&fbdev->work);
+	} else {
+		struct omap_drm_private *priv = helper->dev->dev_private;
+		queue_work(priv->wq, &fbdev->work);
+	}
 
 	return 0;
 
@@ -335,6 +351,8 @@ struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev)
 		dev_err(dev->dev, "could not allocate fbdev\n");
 		goto fail;
 	}
+
+	INIT_WORK(&fbdev->work, pan_worker);
 
 	helper = &fbdev->base;
 

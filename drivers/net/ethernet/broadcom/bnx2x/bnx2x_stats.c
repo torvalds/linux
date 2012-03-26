@@ -1,6 +1,6 @@
 /* bnx2x_stats.c: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2011 Broadcom Corporation
+ * Copyright (c) 2007-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ static void bnx2x_storm_stats_post(struct bnx2x *bp)
 		bp->fw_stats_req->hdr.drv_stats_counter =
 			cpu_to_le16(bp->stats_counter++);
 
-		DP(NETIF_MSG_TIMER, "Sending statistics ramrod %d\n",
+		DP(BNX2X_MSG_STATS, "Sending statistics ramrod %d\n",
 			bp->fw_stats_req->hdr.drv_stats_counter);
 
 
@@ -128,6 +128,8 @@ static void bnx2x_hw_stats_post(struct bnx2x *bp)
 
 	} else if (bp->func_stx) {
 		*stats_comp = 0;
+		memcpy(bnx2x_sp(bp, func_stats), &bp->func_stats,
+		       sizeof(bp->func_stats));
 		bnx2x_post_dmae(bp, dmae, INIT_DMAE_C(bp));
 	}
 }
@@ -161,7 +163,7 @@ static void bnx2x_stats_pmf_update(struct bnx2x *bp)
 	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
 
 	/* sanity */
-	if (!IS_MF(bp) || !bp->port.pmf || !bp->port.port_stx) {
+	if (!bp->port.pmf || !bp->port.port_stx) {
 		BNX2X_ERR("BUG!\n");
 		return;
 	}
@@ -626,31 +628,30 @@ static void bnx2x_mstat_stats_update(struct bnx2x *bp)
 			tx_stat_dot3statsinternalmactransmiterrors);
 	ADD_STAT64(stats_tx.tx_gtufl, tx_stat_mac_ufl);
 
-	ADD_64(estats->etherstatspkts1024octetsto1522octets_hi,
-	       new->stats_tx.tx_gt1518_hi,
-	       estats->etherstatspkts1024octetsto1522octets_lo,
-	       new->stats_tx.tx_gt1518_lo);
+	estats->etherstatspkts1024octetsto1522octets_hi =
+	    pstats->mac_stx[1].tx_stat_etherstatspkts1024octetsto1522octets_hi;
+	estats->etherstatspkts1024octetsto1522octets_lo =
+	    pstats->mac_stx[1].tx_stat_etherstatspkts1024octetsto1522octets_lo;
+
+	estats->etherstatspktsover1522octets_hi =
+	    pstats->mac_stx[1].tx_stat_mac_2047_hi;
+	estats->etherstatspktsover1522octets_lo =
+	    pstats->mac_stx[1].tx_stat_mac_2047_lo;
 
 	ADD_64(estats->etherstatspktsover1522octets_hi,
-	       new->stats_tx.tx_gt2047_hi,
+	       pstats->mac_stx[1].tx_stat_mac_4095_hi,
 	       estats->etherstatspktsover1522octets_lo,
-	       new->stats_tx.tx_gt2047_lo);
+	       pstats->mac_stx[1].tx_stat_mac_4095_lo);
 
 	ADD_64(estats->etherstatspktsover1522octets_hi,
-	       new->stats_tx.tx_gt4095_hi,
+	       pstats->mac_stx[1].tx_stat_mac_9216_hi,
 	       estats->etherstatspktsover1522octets_lo,
-	       new->stats_tx.tx_gt4095_lo);
+	       pstats->mac_stx[1].tx_stat_mac_9216_lo);
 
 	ADD_64(estats->etherstatspktsover1522octets_hi,
-	       new->stats_tx.tx_gt9216_hi,
+	       pstats->mac_stx[1].tx_stat_mac_16383_hi,
 	       estats->etherstatspktsover1522octets_lo,
-	       new->stats_tx.tx_gt9216_lo);
-
-
-	ADD_64(estats->etherstatspktsover1522octets_hi,
-	       new->stats_tx.tx_gt16383_hi,
-	       estats->etherstatspktsover1522octets_lo,
-	       new->stats_tx.tx_gt16383_lo);
+	       pstats->mac_stx[1].tx_stat_mac_16383_lo);
 
 	estats->pause_frames_received_hi =
 				pstats->mac_stx[1].rx_stat_mac_xpf_hi;
@@ -803,8 +804,9 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 				&bp->fw_stats_data->port.tstorm_port_statistics;
 	struct tstorm_per_pf_stats *tfunc =
 				&bp->fw_stats_data->pf.tstorm_pf_statistics;
-	struct host_func_stats *fstats = bnx2x_sp(bp, func_stats);
+	struct host_func_stats *fstats = &bp->func_stats;
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
+	struct bnx2x_eth_stats_old *estats_old = &bp->eth_stats_old;
 	struct stats_counter *counters = &bp->fw_stats_data->storm_counters;
 	int i;
 	u16 cur_stats_counter;
@@ -818,48 +820,35 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 
 	/* are storm stats valid? */
 	if (le16_to_cpu(counters->xstats_counter) != cur_stats_counter) {
-		DP(BNX2X_MSG_STATS, "stats not updated by xstorm"
-		   "  xstorm counter (0x%x) != stats_counter (0x%x)\n",
+		DP(BNX2X_MSG_STATS,
+		   "stats not updated by xstorm  xstorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->xstats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
 
 	if (le16_to_cpu(counters->ustats_counter) != cur_stats_counter) {
-		DP(BNX2X_MSG_STATS, "stats not updated by ustorm"
-		   "  ustorm counter (0x%x) != stats_counter (0x%x)\n",
+		DP(BNX2X_MSG_STATS,
+		   "stats not updated by ustorm  ustorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->ustats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
 
 	if (le16_to_cpu(counters->cstats_counter) != cur_stats_counter) {
-		DP(BNX2X_MSG_STATS, "stats not updated by cstorm"
-		   "  cstorm counter (0x%x) != stats_counter (0x%x)\n",
+		DP(BNX2X_MSG_STATS,
+		   "stats not updated by cstorm  cstorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->cstats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
 
 	if (le16_to_cpu(counters->tstats_counter) != cur_stats_counter) {
-		DP(BNX2X_MSG_STATS, "stats not updated by tstorm"
-		   "  tstorm counter (0x%x) != stats_counter (0x%x)\n",
+		DP(BNX2X_MSG_STATS,
+		   "stats not updated by tstorm  tstorm counter (0x%x) != stats_counter (0x%x)\n",
 		   le16_to_cpu(counters->tstats_counter), bp->stats_counter);
 		return -EAGAIN;
 	}
 
-	memcpy(&(fstats->total_bytes_received_hi),
-	       &(bnx2x_sp(bp, func_stats_base)->total_bytes_received_hi),
-	       sizeof(struct host_func_stats) - 2*sizeof(u32));
 	estats->error_bytes_received_hi = 0;
 	estats->error_bytes_received_lo = 0;
-	estats->etherstatsoverrsizepkts_hi = 0;
-	estats->etherstatsoverrsizepkts_lo = 0;
-	estats->no_buff_discard_hi = 0;
-	estats->no_buff_discard_lo = 0;
-	estats->total_tpa_aggregations_hi = 0;
-	estats->total_tpa_aggregations_lo = 0;
-	estats->total_tpa_aggregated_frames_hi = 0;
-	estats->total_tpa_aggregated_frames_lo = 0;
-	estats->total_tpa_bytes_hi = 0;
-	estats->total_tpa_bytes_lo = 0;
 
 	for_each_eth_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
@@ -876,29 +865,22 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 			xstorm_queue_statistics;
 		struct xstorm_per_queue_stats *old_xclient = &fp->old_xclient;
 		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
+		struct bnx2x_eth_q_stats_old *qstats_old = &fp->eth_q_stats_old;
+
 		u32 diff;
 
-		DP(BNX2X_MSG_STATS, "queue[%d]: ucast_sent 0x%x, "
-				    "bcast_sent 0x%x mcast_sent 0x%x\n",
+		DP(BNX2X_MSG_STATS, "queue[%d]: ucast_sent 0x%x, bcast_sent 0x%x mcast_sent 0x%x\n",
 		   i, xclient->ucast_pkts_sent,
 		   xclient->bcast_pkts_sent, xclient->mcast_pkts_sent);
 
 		DP(BNX2X_MSG_STATS, "---------------\n");
 
-		qstats->total_broadcast_bytes_received_hi =
-			le32_to_cpu(tclient->rcv_bcast_bytes.hi);
-		qstats->total_broadcast_bytes_received_lo =
-			le32_to_cpu(tclient->rcv_bcast_bytes.lo);
-
-		qstats->total_multicast_bytes_received_hi =
-			le32_to_cpu(tclient->rcv_mcast_bytes.hi);
-		qstats->total_multicast_bytes_received_lo =
-			le32_to_cpu(tclient->rcv_mcast_bytes.lo);
-
-		qstats->total_unicast_bytes_received_hi =
-			le32_to_cpu(tclient->rcv_ucast_bytes.hi);
-		qstats->total_unicast_bytes_received_lo =
-			le32_to_cpu(tclient->rcv_ucast_bytes.lo);
+		UPDATE_QSTAT(tclient->rcv_bcast_bytes,
+			     total_broadcast_bytes_received);
+		UPDATE_QSTAT(tclient->rcv_mcast_bytes,
+			     total_multicast_bytes_received);
+		UPDATE_QSTAT(tclient->rcv_ucast_bytes,
+			     total_unicast_bytes_received);
 
 		/*
 		 * sum to total_bytes_received all
@@ -931,9 +913,9 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 					total_multicast_packets_received);
 		UPDATE_EXTEND_TSTAT(rcv_bcast_pkts,
 					total_broadcast_packets_received);
-		UPDATE_EXTEND_TSTAT(pkts_too_big_discard,
-					etherstatsoverrsizepkts);
-		UPDATE_EXTEND_TSTAT(no_buff_discard, no_buff_discard);
+		UPDATE_EXTEND_E_TSTAT(pkts_too_big_discard,
+				      etherstatsoverrsizepkts);
+		UPDATE_EXTEND_E_TSTAT(no_buff_discard, no_buff_discard);
 
 		SUB_EXTEND_USTAT(ucast_no_buff_pkts,
 					total_unicast_packets_received);
@@ -941,24 +923,17 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 					total_multicast_packets_received);
 		SUB_EXTEND_USTAT(bcast_no_buff_pkts,
 					total_broadcast_packets_received);
-		UPDATE_EXTEND_USTAT(ucast_no_buff_pkts, no_buff_discard);
-		UPDATE_EXTEND_USTAT(mcast_no_buff_pkts, no_buff_discard);
-		UPDATE_EXTEND_USTAT(bcast_no_buff_pkts, no_buff_discard);
+		UPDATE_EXTEND_E_USTAT(ucast_no_buff_pkts, no_buff_discard);
+		UPDATE_EXTEND_E_USTAT(mcast_no_buff_pkts, no_buff_discard);
+		UPDATE_EXTEND_E_USTAT(bcast_no_buff_pkts, no_buff_discard);
 
-		qstats->total_broadcast_bytes_transmitted_hi =
-			le32_to_cpu(xclient->bcast_bytes_sent.hi);
-		qstats->total_broadcast_bytes_transmitted_lo =
-			le32_to_cpu(xclient->bcast_bytes_sent.lo);
+		UPDATE_QSTAT(xclient->bcast_bytes_sent,
+			     total_broadcast_bytes_transmitted);
+		UPDATE_QSTAT(xclient->mcast_bytes_sent,
+			     total_multicast_bytes_transmitted);
+		UPDATE_QSTAT(xclient->ucast_bytes_sent,
+			     total_unicast_bytes_transmitted);
 
-		qstats->total_multicast_bytes_transmitted_hi =
-			le32_to_cpu(xclient->mcast_bytes_sent.hi);
-		qstats->total_multicast_bytes_transmitted_lo =
-			le32_to_cpu(xclient->mcast_bytes_sent.lo);
-
-		qstats->total_unicast_bytes_transmitted_hi =
-			le32_to_cpu(xclient->ucast_bytes_sent.hi);
-		qstats->total_unicast_bytes_transmitted_lo =
-			le32_to_cpu(xclient->ucast_bytes_sent.lo);
 		/*
 		 * sum to total_bytes_transmitted all
 		 * unicast/multicast/broadcast
@@ -994,110 +969,54 @@ static int bnx2x_storm_stats_update(struct bnx2x *bp)
 				    total_transmitted_dropped_packets_error);
 
 		/* TPA aggregations completed */
-		UPDATE_EXTEND_USTAT(coalesced_events, total_tpa_aggregations);
+		UPDATE_EXTEND_E_USTAT(coalesced_events, total_tpa_aggregations);
 		/* Number of network frames aggregated by TPA */
-		UPDATE_EXTEND_USTAT(coalesced_pkts,
-				    total_tpa_aggregated_frames);
+		UPDATE_EXTEND_E_USTAT(coalesced_pkts,
+				      total_tpa_aggregated_frames);
 		/* Total number of bytes in completed TPA aggregations */
-		qstats->total_tpa_bytes_lo =
-			le32_to_cpu(uclient->coalesced_bytes.lo);
-		qstats->total_tpa_bytes_hi =
-			le32_to_cpu(uclient->coalesced_bytes.hi);
+		UPDATE_QSTAT(uclient->coalesced_bytes, total_tpa_bytes);
 
-		/* TPA stats per-function */
-		ADD_64(estats->total_tpa_aggregations_hi,
-		       qstats->total_tpa_aggregations_hi,
-		       estats->total_tpa_aggregations_lo,
-		       qstats->total_tpa_aggregations_lo);
-		ADD_64(estats->total_tpa_aggregated_frames_hi,
-		       qstats->total_tpa_aggregated_frames_hi,
-		       estats->total_tpa_aggregated_frames_lo,
-		       qstats->total_tpa_aggregated_frames_lo);
-		ADD_64(estats->total_tpa_bytes_hi,
-		       qstats->total_tpa_bytes_hi,
-		       estats->total_tpa_bytes_lo,
-		       qstats->total_tpa_bytes_lo);
+		UPDATE_ESTAT_QSTAT_64(total_tpa_bytes);
 
-		ADD_64(fstats->total_bytes_received_hi,
-		       qstats->total_bytes_received_hi,
-		       fstats->total_bytes_received_lo,
-		       qstats->total_bytes_received_lo);
-		ADD_64(fstats->total_bytes_transmitted_hi,
-		       qstats->total_bytes_transmitted_hi,
-		       fstats->total_bytes_transmitted_lo,
-		       qstats->total_bytes_transmitted_lo);
-		ADD_64(fstats->total_unicast_packets_received_hi,
-		       qstats->total_unicast_packets_received_hi,
-		       fstats->total_unicast_packets_received_lo,
-		       qstats->total_unicast_packets_received_lo);
-		ADD_64(fstats->total_multicast_packets_received_hi,
-		       qstats->total_multicast_packets_received_hi,
-		       fstats->total_multicast_packets_received_lo,
-		       qstats->total_multicast_packets_received_lo);
-		ADD_64(fstats->total_broadcast_packets_received_hi,
-		       qstats->total_broadcast_packets_received_hi,
-		       fstats->total_broadcast_packets_received_lo,
-		       qstats->total_broadcast_packets_received_lo);
-		ADD_64(fstats->total_unicast_packets_transmitted_hi,
-		       qstats->total_unicast_packets_transmitted_hi,
-		       fstats->total_unicast_packets_transmitted_lo,
-		       qstats->total_unicast_packets_transmitted_lo);
-		ADD_64(fstats->total_multicast_packets_transmitted_hi,
-		       qstats->total_multicast_packets_transmitted_hi,
-		       fstats->total_multicast_packets_transmitted_lo,
-		       qstats->total_multicast_packets_transmitted_lo);
-		ADD_64(fstats->total_broadcast_packets_transmitted_hi,
-		       qstats->total_broadcast_packets_transmitted_hi,
-		       fstats->total_broadcast_packets_transmitted_lo,
-		       qstats->total_broadcast_packets_transmitted_lo);
-		ADD_64(fstats->valid_bytes_received_hi,
-		       qstats->valid_bytes_received_hi,
-		       fstats->valid_bytes_received_lo,
-		       qstats->valid_bytes_received_lo);
-
-		ADD_64(estats->etherstatsoverrsizepkts_hi,
-		       qstats->etherstatsoverrsizepkts_hi,
-		       estats->etherstatsoverrsizepkts_lo,
-		       qstats->etherstatsoverrsizepkts_lo);
-		ADD_64(estats->no_buff_discard_hi, qstats->no_buff_discard_hi,
-		       estats->no_buff_discard_lo, qstats->no_buff_discard_lo);
+		UPDATE_FSTAT_QSTAT(total_bytes_received);
+		UPDATE_FSTAT_QSTAT(total_bytes_transmitted);
+		UPDATE_FSTAT_QSTAT(total_unicast_packets_received);
+		UPDATE_FSTAT_QSTAT(total_multicast_packets_received);
+		UPDATE_FSTAT_QSTAT(total_broadcast_packets_received);
+		UPDATE_FSTAT_QSTAT(total_unicast_packets_transmitted);
+		UPDATE_FSTAT_QSTAT(total_multicast_packets_transmitted);
+		UPDATE_FSTAT_QSTAT(total_broadcast_packets_transmitted);
+		UPDATE_FSTAT_QSTAT(valid_bytes_received);
 	}
 
-	ADD_64(fstats->total_bytes_received_hi,
+	ADD_64(estats->total_bytes_received_hi,
 	       estats->rx_stat_ifhcinbadoctets_hi,
-	       fstats->total_bytes_received_lo,
+	       estats->total_bytes_received_lo,
 	       estats->rx_stat_ifhcinbadoctets_lo);
 
-	ADD_64(fstats->total_bytes_received_hi,
+	ADD_64(estats->total_bytes_received_hi,
 	       le32_to_cpu(tfunc->rcv_error_bytes.hi),
-	       fstats->total_bytes_received_lo,
+	       estats->total_bytes_received_lo,
 	       le32_to_cpu(tfunc->rcv_error_bytes.lo));
-
-	memcpy(estats, &(fstats->total_bytes_received_hi),
-	       sizeof(struct host_func_stats) - 2*sizeof(u32));
 
 	ADD_64(estats->error_bytes_received_hi,
 	       le32_to_cpu(tfunc->rcv_error_bytes.hi),
 	       estats->error_bytes_received_lo,
 	       le32_to_cpu(tfunc->rcv_error_bytes.lo));
 
-	ADD_64(estats->etherstatsoverrsizepkts_hi,
-	       estats->rx_stat_dot3statsframestoolong_hi,
-	       estats->etherstatsoverrsizepkts_lo,
-	       estats->rx_stat_dot3statsframestoolong_lo);
+	UPDATE_ESTAT(etherstatsoverrsizepkts, rx_stat_dot3statsframestoolong);
+
 	ADD_64(estats->error_bytes_received_hi,
 	       estats->rx_stat_ifhcinbadoctets_hi,
 	       estats->error_bytes_received_lo,
 	       estats->rx_stat_ifhcinbadoctets_lo);
 
 	if (bp->port.pmf) {
-		estats->mac_filter_discard =
-				le32_to_cpu(tport->mac_filter_discard);
-		estats->mf_tag_discard =
-				le32_to_cpu(tport->mf_tag_discard);
-		estats->brb_truncate_discard =
-				le32_to_cpu(tport->brb_truncate_discard);
-		estats->mac_discard = le32_to_cpu(tport->mac_discard);
+		struct bnx2x_fw_port_stats_old *fwstats = &bp->fw_stats_old;
+		UPDATE_FW_STAT(mac_filter_discard);
+		UPDATE_FW_STAT(mf_tag_discard);
+		UPDATE_FW_STAT(brb_truncate_discard);
+		UPDATE_FW_STAT(mac_discard);
 	}
 
 	fstats->host_func_stats_start = ++fstats->host_func_stats_end;
@@ -1131,7 +1050,7 @@ static void bnx2x_net_stats_update(struct bnx2x *bp)
 	tmp = estats->mac_discard;
 	for_each_rx_queue(bp, i)
 		tmp += le32_to_cpu(bp->fp[i].old_tclient.checksum_discard);
-	nstats->rx_dropped = tmp;
+	nstats->rx_dropped = tmp + bp->net_stats_old.rx_dropped;
 
 	nstats->tx_dropped = 0;
 
@@ -1179,17 +1098,15 @@ static void bnx2x_drv_stats_update(struct bnx2x *bp)
 	struct bnx2x_eth_stats *estats = &bp->eth_stats;
 	int i;
 
-	estats->driver_xoff = 0;
-	estats->rx_err_discard_pkt = 0;
-	estats->rx_skb_alloc_failed = 0;
-	estats->hw_csum_err = 0;
 	for_each_queue(bp, i) {
 		struct bnx2x_eth_q_stats *qstats = &bp->fp[i].eth_q_stats;
+		struct bnx2x_eth_q_stats_old *qstats_old =
+						&bp->fp[i].eth_q_stats_old;
 
-		estats->driver_xoff += qstats->driver_xoff;
-		estats->rx_err_discard_pkt += qstats->rx_err_discard_pkt;
-		estats->rx_skb_alloc_failed += qstats->rx_skb_alloc_failed;
-		estats->hw_csum_err += qstats->hw_csum_err;
+		UPDATE_ESTAT_QSTAT(driver_xoff);
+		UPDATE_ESTAT_QSTAT(rx_err_discard_pkt);
+		UPDATE_ESTAT_QSTAT(rx_skb_alloc_failed);
+		UPDATE_ESTAT_QSTAT(hw_csum_err);
 	}
 }
 
@@ -1231,51 +1148,9 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 
 	if (netif_msg_timer(bp)) {
 		struct bnx2x_eth_stats *estats = &bp->eth_stats;
-		int i, cos;
 
 		netdev_dbg(bp->dev, "brb drops %u  brb truncate %u\n",
 		       estats->brb_drop_lo, estats->brb_truncate_lo);
-
-		for_each_eth_queue(bp, i) {
-			struct bnx2x_fastpath *fp = &bp->fp[i];
-			struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
-
-			pr_debug("%s: rx usage(%4u)  *rx_cons_sb(%u)  rx pkt(%lu)  rx calls(%lu %lu)\n",
-				 fp->name, (le16_to_cpu(*fp->rx_cons_sb) -
-					    fp->rx_comp_cons),
-				 le16_to_cpu(*fp->rx_cons_sb),
-				 bnx2x_hilo(&qstats->
-					    total_unicast_packets_received_hi),
-				 fp->rx_calls, fp->rx_pkt);
-		}
-
-		for_each_eth_queue(bp, i) {
-			struct bnx2x_fastpath *fp = &bp->fp[i];
-			struct bnx2x_fp_txdata *txdata;
-			struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
-			struct netdev_queue *txq;
-
-			pr_debug("%s: tx pkt(%lu) (Xoff events %u)",
-				 fp->name,
-				 bnx2x_hilo(
-					 &qstats->total_unicast_packets_transmitted_hi),
-				 qstats->driver_xoff);
-
-			for_each_cos_in_tx_queue(fp, cos) {
-				txdata = &fp->txdata[cos];
-				txq = netdev_get_tx_queue(bp->dev,
-						FP_COS_TO_TXQ(fp, cos));
-
-				pr_debug("%d: tx avail(%4u)  *tx_cons_sb(%u)  tx calls (%lu)  %s\n",
-					 cos,
-					 bnx2x_tx_avail(bp, txdata),
-					 le16_to_cpu(*txdata->tx_cons_sb),
-					 txdata->tx_pkt,
-					 (netif_tx_queue_stopped(txq) ?
-					  "Xoff" : "Xon")
-					);
-			}
-		}
 	}
 
 	bnx2x_hw_stats_post(bp);
@@ -1425,63 +1300,6 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
 	dmae->dst_addr_lo = bp->port.port_stx >> 2;
 	dmae->dst_addr_hi = 0;
 	dmae->len = bnx2x_get_port_stats_dma_len(bp);
-	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, stats_comp));
-	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, stats_comp));
-	dmae->comp_val = DMAE_COMP_VAL;
-
-	*stats_comp = 0;
-	bnx2x_hw_stats_post(bp);
-	bnx2x_stats_comp(bp);
-}
-
-static void bnx2x_func_stats_base_init(struct bnx2x *bp)
-{
-	int vn, vn_max = IS_MF(bp) ? BP_MAX_VN_NUM(bp) : E1VN_MAX;
-	u32 func_stx;
-
-	/* sanity */
-	if (!bp->port.pmf || !bp->func_stx) {
-		BNX2X_ERR("BUG!\n");
-		return;
-	}
-
-	/* save our func_stx */
-	func_stx = bp->func_stx;
-
-	for (vn = VN_0; vn < vn_max; vn++) {
-		int mb_idx = BP_FW_MB_IDX_VN(bp, vn);
-
-		bp->func_stx = SHMEM_RD(bp, func_mb[mb_idx].fw_mb_param);
-		bnx2x_func_stats_init(bp);
-		bnx2x_hw_stats_post(bp);
-		bnx2x_stats_comp(bp);
-	}
-
-	/* restore our func_stx */
-	bp->func_stx = func_stx;
-}
-
-static void bnx2x_func_stats_base_update(struct bnx2x *bp)
-{
-	struct dmae_command *dmae = &bp->stats_dmae;
-	u32 *stats_comp = bnx2x_sp(bp, stats_comp);
-
-	/* sanity */
-	if (!bp->func_stx) {
-		BNX2X_ERR("BUG!\n");
-		return;
-	}
-
-	bp->executer_idx = 0;
-	memset(dmae, 0, sizeof(struct dmae_command));
-
-	dmae->opcode = bnx2x_dmae_opcode(bp, DMAE_SRC_GRC, DMAE_DST_PCI,
-					 true, DMAE_COMP_PCI);
-	dmae->src_addr_lo = bp->func_stx >> 2;
-	dmae->src_addr_hi = 0;
-	dmae->dst_addr_lo = U64_LO(bnx2x_sp_mapping(bp, func_stats_base));
-	dmae->dst_addr_hi = U64_HI(bnx2x_sp_mapping(bp, func_stats_base));
-	dmae->len = sizeof(struct host_func_stats) >> 2;
 	dmae->comp_addr_lo = U64_LO(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_addr_hi = U64_HI(bnx2x_sp_mapping(bp, stats_comp));
 	dmae->comp_val = DMAE_COMP_VAL;
@@ -1641,6 +1459,10 @@ void bnx2x_stats_init(struct bnx2x *bp)
 	DP(BNX2X_MSG_STATS, "port_stx 0x%x  func_stx 0x%x\n",
 	   bp->port.port_stx, bp->func_stx);
 
+	/* pmf should retrieve port statistics from SP on a non-init*/
+	if (!bp->stats_init && bp->port.pmf && bp->port.port_stx)
+		bnx2x_stats_handle(bp, STATS_EVENT_PMF);
+
 	port = BP_PORT(bp);
 	/* port stats */
 	memset(&(bp->port.old_nig_stats), 0, sizeof(struct nig_stats));
@@ -1662,24 +1484,80 @@ void bnx2x_stats_init(struct bnx2x *bp)
 		memset(&fp->old_tclient, 0, sizeof(fp->old_tclient));
 		memset(&fp->old_uclient, 0, sizeof(fp->old_uclient));
 		memset(&fp->old_xclient, 0, sizeof(fp->old_xclient));
-		memset(&fp->eth_q_stats, 0, sizeof(fp->eth_q_stats));
+		if (bp->stats_init) {
+			memset(&fp->eth_q_stats, 0, sizeof(fp->eth_q_stats));
+			memset(&fp->eth_q_stats_old, 0,
+			       sizeof(fp->eth_q_stats_old));
+		}
 	}
 
 	/* Prepare statistics ramrod data */
 	bnx2x_prep_fw_stats_req(bp);
 
 	memset(&bp->dev->stats, 0, sizeof(bp->dev->stats));
-	memset(&bp->eth_stats, 0, sizeof(bp->eth_stats));
+	if (bp->stats_init) {
+		memset(&bp->net_stats_old, 0, sizeof(bp->net_stats_old));
+		memset(&bp->fw_stats_old, 0, sizeof(bp->fw_stats_old));
+		memset(&bp->eth_stats_old, 0, sizeof(bp->eth_stats_old));
+		memset(&bp->eth_stats, 0, sizeof(bp->eth_stats));
+		memset(&bp->func_stats, 0, sizeof(bp->func_stats));
+
+		/* Clean SP from previous statistics */
+		if (bp->func_stx) {
+			memset(bnx2x_sp(bp, func_stats), 0,
+			       sizeof(struct host_func_stats));
+			bnx2x_func_stats_init(bp);
+			bnx2x_hw_stats_post(bp);
+			bnx2x_stats_comp(bp);
+		}
+	}
 
 	bp->stats_state = STATS_STATE_DISABLED;
 
-	if (bp->port.pmf) {
-		if (bp->port.port_stx)
-			bnx2x_port_stats_base_init(bp);
+	if (bp->port.pmf && bp->port.port_stx)
+		bnx2x_port_stats_base_init(bp);
 
-		if (bp->func_stx)
-			bnx2x_func_stats_base_init(bp);
+	/* mark the end of statistics initializiation */
+	bp->stats_init = false;
+}
 
-	} else if (bp->func_stx)
-		bnx2x_func_stats_base_update(bp);
+void bnx2x_save_statistics(struct bnx2x *bp)
+{
+	int i;
+	struct net_device_stats *nstats = &bp->dev->stats;
+
+	/* save queue statistics */
+	for_each_eth_queue(bp, i) {
+		struct bnx2x_fastpath *fp = &bp->fp[i];
+		struct bnx2x_eth_q_stats *qstats = &fp->eth_q_stats;
+		struct bnx2x_eth_q_stats_old *qstats_old = &fp->eth_q_stats_old;
+
+		UPDATE_QSTAT_OLD(total_unicast_bytes_received_hi);
+		UPDATE_QSTAT_OLD(total_unicast_bytes_received_lo);
+		UPDATE_QSTAT_OLD(total_broadcast_bytes_received_hi);
+		UPDATE_QSTAT_OLD(total_broadcast_bytes_received_lo);
+		UPDATE_QSTAT_OLD(total_multicast_bytes_received_hi);
+		UPDATE_QSTAT_OLD(total_multicast_bytes_received_lo);
+		UPDATE_QSTAT_OLD(total_unicast_bytes_transmitted_hi);
+		UPDATE_QSTAT_OLD(total_unicast_bytes_transmitted_lo);
+		UPDATE_QSTAT_OLD(total_broadcast_bytes_transmitted_hi);
+		UPDATE_QSTAT_OLD(total_broadcast_bytes_transmitted_lo);
+		UPDATE_QSTAT_OLD(total_multicast_bytes_transmitted_hi);
+		UPDATE_QSTAT_OLD(total_multicast_bytes_transmitted_lo);
+		UPDATE_QSTAT_OLD(total_tpa_bytes_hi);
+		UPDATE_QSTAT_OLD(total_tpa_bytes_lo);
+	}
+
+	/* save net_device_stats statistics */
+	bp->net_stats_old.rx_dropped = nstats->rx_dropped;
+
+	/* store port firmware statistics */
+	if (bp->port.pmf && IS_MF(bp)) {
+		struct bnx2x_eth_stats *estats = &bp->eth_stats;
+		struct bnx2x_fw_port_stats_old *fwstats = &bp->fw_stats_old;
+		UPDATE_FW_STAT_OLD(mac_filter_discard);
+		UPDATE_FW_STAT_OLD(mf_tag_discard);
+		UPDATE_FW_STAT_OLD(brb_truncate_discard);
+		UPDATE_FW_STAT_OLD(mac_discard);
+	}
 }

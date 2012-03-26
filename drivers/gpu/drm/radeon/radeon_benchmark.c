@@ -43,17 +43,19 @@ static int radeon_benchmark_do_move(struct radeon_device *rdev, unsigned size,
 
 	start_jiffies = jiffies;
 	for (i = 0; i < n; i++) {
-		r = radeon_fence_create(rdev, &fence, RADEON_RING_TYPE_GFX_INDEX);
-		if (r)
-			return r;
-
 		switch (flag) {
 		case RADEON_BENCHMARK_COPY_DMA:
+			r = radeon_fence_create(rdev, &fence, radeon_copy_dma_ring_index(rdev));
+			if (r)
+				return r;
 			r = radeon_copy_dma(rdev, saddr, daddr,
 					    size / RADEON_GPU_PAGE_SIZE,
 					    fence);
 			break;
 		case RADEON_BENCHMARK_COPY_BLIT:
+			r = radeon_fence_create(rdev, &fence, radeon_copy_blit_ring_index(rdev));
+			if (r)
+				return r;
 			r = radeon_copy_blit(rdev, saddr, daddr,
 					     size / RADEON_GPU_PAGE_SIZE,
 					     fence);
@@ -129,7 +131,7 @@ static void radeon_benchmark_move(struct radeon_device *rdev, unsigned size,
 	/* r100 doesn't have dma engine so skip the test */
 	/* also, VRAM-to-VRAM test doesn't make much sense for DMA */
 	/* skip it as well if domains are the same */
-	if ((rdev->asic->copy_dma) && (sdomain != ddomain)) {
+	if ((rdev->asic->copy.dma) && (sdomain != ddomain)) {
 		time = radeon_benchmark_do_move(rdev, size, saddr, daddr,
 						RADEON_BENCHMARK_COPY_DMA, n);
 		if (time < 0)
@@ -208,22 +210,22 @@ void radeon_benchmark(struct radeon_device *rdev, int test_number)
 		break;
 	case 3:
 		/* GTT to VRAM, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 65536; i <<= 1)
-			radeon_benchmark_move(rdev, i*1024,
+		for (i = 1; i <= 16384; i <<= 1)
+			radeon_benchmark_move(rdev, i * RADEON_GPU_PAGE_SIZE,
 					      RADEON_GEM_DOMAIN_GTT,
 					      RADEON_GEM_DOMAIN_VRAM);
 		break;
 	case 4:
 		/* VRAM to GTT, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 65536; i <<= 1)
-			radeon_benchmark_move(rdev, i*1024,
+		for (i = 1; i <= 16384; i <<= 1)
+			radeon_benchmark_move(rdev, i * RADEON_GPU_PAGE_SIZE,
 					      RADEON_GEM_DOMAIN_VRAM,
 					      RADEON_GEM_DOMAIN_GTT);
 		break;
 	case 5:
 		/* VRAM to VRAM, buffer size sweep, powers of 2 */
-		for (i = 1; i <= 65536; i <<= 1)
-			radeon_benchmark_move(rdev, i*1024,
+		for (i = 1; i <= 16384; i <<= 1)
+			radeon_benchmark_move(rdev, i * RADEON_GPU_PAGE_SIZE,
 					      RADEON_GEM_DOMAIN_VRAM,
 					      RADEON_GEM_DOMAIN_VRAM);
 		break;

@@ -1,5 +1,5 @@
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/cryptohash.h>
 
 /* F, G and H are basic MD4 functions: selection, majority, parity */

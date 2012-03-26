@@ -274,18 +274,7 @@ static struct i2c_driver mcs_touchkey_driver = {
 	.id_table	= mcs_touchkey_id,
 };
 
-static int __init mcs_touchkey_init(void)
-{
-	return i2c_add_driver(&mcs_touchkey_driver);
-}
-
-static void __exit mcs_touchkey_exit(void)
-{
-	i2c_del_driver(&mcs_touchkey_driver);
-}
-
-module_init(mcs_touchkey_init);
-module_exit(mcs_touchkey_exit);
+module_i2c_driver(mcs_touchkey_driver);
 
 /* Module information */
 MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");

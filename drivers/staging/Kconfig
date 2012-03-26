@@ -64,8 +64,6 @@ source "drivers/staging/phison/Kconfig"
 
 source "drivers/staging/line6/Kconfig"
 
-source "drivers/gpu/drm/nouveau/Kconfig"
-
 source "drivers/staging/octeon/Kconfig"
 
 source "drivers/staging/serqt_usb2/Kconfig"
@@ -76,8 +74,6 @@ source "drivers/staging/vt6655/Kconfig"
 
 source "drivers/staging/vt6656/Kconfig"
 
-source "drivers/staging/hv/Kconfig"
-
 source "drivers/staging/vme/Kconfig"
 
 source "drivers/staging/sep/Kconfig"
@@ -87,6 +83,8 @@ source "drivers/staging/iio/Kconfig"
 source "drivers/staging/zram/Kconfig"
 
 source "drivers/staging/zcache/Kconfig"
+
+source "drivers/staging/zsmalloc/Kconfig"
 
 source "drivers/staging/wlags49_h2/Kconfig"
 
@@ -127,5 +125,11 @@ source "drivers/staging/media/Kconfig"
 source "drivers/staging/omapdrm/Kconfig"
 
 source "drivers/staging/android/Kconfig"
+
+source "drivers/staging/telephony/Kconfig"
+
+source "drivers/staging/ramster/Kconfig"
+
+source "drivers/staging/ozwpan/Kconfig"
 
 endif # STAGING

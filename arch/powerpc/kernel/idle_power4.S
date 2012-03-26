@@ -14,6 +14,7 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/irqflags.h>
 
 #undef DEBUG
 
@@ -29,14 +30,31 @@ END_FTR_SECTION_IFCLR(CPU_FTR_CAN_NAP)
 	cmpwi	0,r4,0
 	beqlr
 
-	/* Go to NAP now */
+	/* Hard disable interrupts */
 	mfmsr	r7
 	rldicl	r0,r7,48,1
 	rotldi	r0,r0,16
-	mtmsrd	r0,1			/* hard-disable interrupts */
+	mtmsrd	r0,1
+
+	/* Check if something happened while soft-disabled */
+	lbz	r0,PACAIRQHAPPENED(r13)
+	cmpwi	cr0,r0,0
+	bnelr
+
+	/* Soft-enable interrupts */
+#ifdef CONFIG_TRACE_IRQFLAGS
+	mflr	r0
+	std	r0,16(r1)
+	stdu    r1,-128(r1)
+	bl	.trace_hardirqs_on
+	addi    r1,r1,128
+	ld	r0,16(r1)
+	mtlr	r0
+	mfmsr	r7
+#endif /* CONFIG_TRACE_IRQFLAGS */
+
 	li	r0,1
 	stb	r0,PACASOFTIRQEN(r13)	/* we'll hard-enable shortly */
-	stb	r0,PACAHARDIRQEN(r13)
 BEGIN_FTR_SECTION
 	DSSALL
 	sync

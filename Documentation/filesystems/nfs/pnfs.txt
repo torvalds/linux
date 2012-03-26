@@ -53,3 +53,57 @@ lseg maintains an extra reference corresponding to the NFS_LSEG_VALID
 bit which holds it in the pnfs_layout_hdr's list.  When the final lseg
 is removed from the pnfs_layout_hdr's list, the NFS_LAYOUT_DESTROYED
 bit is set, preventing any new lsegs from being added.
+
+layout drivers
+--------------
+
+PNFS utilizes what is called layout drivers. The STD defines 3 basic
+layout types: "files" "objects" and "blocks". For each of these types
+there is a layout-driver with a common function-vectors table which
+are called by the nfs-client pnfs-core to implement the different layout
+types.
+
+Files-layout-driver code is in: fs/nfs/nfs4filelayout.c && nfs4filelayoutdev.c
+Objects-layout-deriver code is in: fs/nfs/objlayout/.. directory
+Blocks-layout-deriver code is in: fs/nfs/blocklayout/.. directory
+
+objects-layout setup
+--------------------
+
+As part of the full STD implementation the objlayoutdriver.ko needs, at times,
+to automatically login to yet undiscovered iscsi/osd devices. For this the
+driver makes up-calles to a user-mode script called *osd_login*
+
+The path_name of the script to use is by default:
+	/sbin/osd_login.
+This name can be overridden by the Kernel module parameter:
+	objlayoutdriver.osd_login_prog
+
+If Kernel does not find the osd_login_prog path it will zero it out
+and will not attempt farther logins. An admin can then write new value
+to the objlayoutdriver.osd_login_prog Kernel parameter to re-enable it.
+
+The /sbin/osd_login is part of the nfs-utils package, and should usually
+be installed on distributions that support this Kernel version.
+
+The API to the login script is as follows:
+	Usage: $0 -u <URI> -o <OSDNAME> -s <SYSTEMID>
+	Options:
+		-u		target uri e.g. iscsi://<ip>:<port>
+				(allways exists)
+				(More protocols can be defined in the future.
+				 The client does not interpret this string it is
+				 passed unchanged as recieved from the Server)
+		-o		osdname of the requested target OSD
+				(Might be empty)
+				(A string which denotes the OSD name, there is a
+				 limit of 64 chars on this string)
+		-s 		systemid of the requested target OSD
+				(Might be empty)
+				(This string, if not empty is always an hex
+				 representation of the 20 bytes osd_system_id)
+
+blocks-layout setup
+-------------------
+
+TODO: Document the setup needs of the blocks layout driver

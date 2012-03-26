@@ -41,7 +41,7 @@ extern int compat_sock_get_timestampns(struct sock *, struct timespec __user *);
 #endif /* defined(CONFIG_COMPAT) */
 
 extern int get_compat_msghdr(struct msghdr *, struct compat_msghdr __user *);
-extern int verify_compat_iovec(struct msghdr *, struct iovec *, struct sockaddr *, int);
+extern int verify_compat_iovec(struct msghdr *, struct iovec *, struct sockaddr_storage *, int);
 extern asmlinkage long compat_sys_sendmsg(int,struct compat_msghdr __user *,unsigned);
 extern asmlinkage long compat_sys_sendmmsg(int, struct compat_mmsghdr __user *,
 					   unsigned, unsigned);

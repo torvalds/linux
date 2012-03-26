@@ -66,6 +66,7 @@ static int internal_dev_mac_addr(struct net_device *dev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 	return 0;
 }
@@ -145,7 +146,7 @@ static void do_setup(struct net_device *netdev)
 	netdev->vlan_features = netdev->features;
 	netdev->features |= NETIF_F_HW_VLAN_TX;
 	netdev->hw_features = netdev->features & ~NETIF_F_LLTX;
-	random_ether_addr(netdev->dev_addr);
+	eth_hw_addr_random(netdev);
 }
 
 static struct vport *internal_dev_create(const struct vport_parms *parms)

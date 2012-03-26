@@ -25,6 +25,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/input.h>
 #include <linux/smc91x.h>
+#include <linux/omapfb.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -370,10 +371,6 @@ static inline void innovator_mmc_init(void)
 }
 #endif
 
-static struct omap_board_config_kernel innovator_config[] = {
-	{ OMAP_TAG_LCD,		NULL },
-};
-
 static void __init innovator_init(void)
 {
 	if (cpu_is_omap1510())
@@ -416,17 +413,15 @@ static void __init innovator_init(void)
 #ifdef CONFIG_ARCH_OMAP15XX
 	if (cpu_is_omap1510()) {
 		omap1_usb_init(&innovator1510_usb_config);
-		innovator_config[0].data = &innovator1510_lcd_config;
+		omapfb_set_lcd_config(&innovator1510_lcd_config);
 	}
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
 	if (cpu_is_omap1610()) {
 		omap1_usb_init(&h2_usb_config);
-		innovator_config[0].data = &innovator1610_lcd_config;
+		omapfb_set_lcd_config(&innovator1610_lcd_config);
 	}
 #endif
-	omap_board_config = innovator_config;
-	omap_board_config_size = ARRAY_SIZE(innovator_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	innovator_mmc_init();

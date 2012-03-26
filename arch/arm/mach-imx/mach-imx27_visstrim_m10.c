@@ -263,6 +263,7 @@ static void __init visstrim_m10_board_init(void)
 	imx27_add_fec(NULL);
 	imx_add_gpio_keys(&visstrim_gpio_keys_platform_data);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
+	imx_add_platform_device("mx27vis", 0, NULL, 0, NULL, 0);
 }
 
 static void __init visstrim_m10_timer_init(void)

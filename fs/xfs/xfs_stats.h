@@ -183,6 +183,16 @@ struct xfsstats {
 	__uint32_t		xs_ibt_2_alloc;
 	__uint32_t		xs_ibt_2_free;
 	__uint32_t		xs_ibt_2_moves;
+#define XFSSTAT_END_XQMSTAT		(XFSSTAT_END_IBT_V2+6)
+	__uint32_t		xs_qm_dqreclaims;
+	__uint32_t		xs_qm_dqreclaim_misses;
+	__uint32_t		xs_qm_dquot_dups;
+	__uint32_t		xs_qm_dqcachemisses;
+	__uint32_t		xs_qm_dqcachehits;
+	__uint32_t		xs_qm_dqwants;
+#define XFSSTAT_END_QM			(XFSSTAT_END_XQMSTAT+2)
+	__uint32_t		xs_qm_dquot;
+	__uint32_t		xs_qm_dquot_unused;
 /* Extra precision counters */
 	__uint64_t		xs_xstrat_bytes;
 	__uint64_t		xs_write_bytes;

@@ -350,18 +350,19 @@ static void prot_queue_add(struct ubi_device *ubi, struct ubi_wl_entry *e)
 /**
  * find_wl_entry - find wear-leveling entry closest to certain erase counter.
  * @root: the RB-tree where to look for
- * @max: highest possible erase counter
+ * @diff: maximum possible difference from the smallest erase counter
  *
  * This function looks for a wear leveling entry with erase counter closest to
- * @max and less than @max.
+ * min + @diff, where min is the smallest erase counter.
  */
-static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int max)
+static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int diff)
 {
 	struct rb_node *p;
 	struct ubi_wl_entry *e;
+	int max;
 
 	e = rb_entry(rb_first(root), struct ubi_wl_entry, u.rb);
-	max += e->ec;
+	max = e->ec + diff;
 
 	p = root->rb_node;
 	while (p) {
@@ -389,7 +390,7 @@ static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int max)
  */
 int ubi_wl_get_peb(struct ubi_device *ubi, int dtype)
 {
-	int err, medium_ec;
+	int err;
 	struct ubi_wl_entry *e, *first, *last;
 
 	ubi_assert(dtype == UBI_LONGTERM || dtype == UBI_SHORTTERM ||
@@ -427,7 +428,7 @@ retry:
 		 * For unknown data we pick a physical eraseblock with medium
 		 * erase counter. But we by no means can pick a physical
 		 * eraseblock with erase counter greater or equivalent than the
-		 * lowest erase counter plus %WL_FREE_MAX_DIFF.
+		 * lowest erase counter plus %WL_FREE_MAX_DIFF/2.
 		 */
 		first = rb_entry(rb_first(&ubi->free), struct ubi_wl_entry,
 					u.rb);
@@ -436,10 +437,8 @@ retry:
 		if (last->ec - first->ec < WL_FREE_MAX_DIFF)
 			e = rb_entry(ubi->free.rb_node,
 					struct ubi_wl_entry, u.rb);
-		else {
-			medium_ec = (first->ec + WL_FREE_MAX_DIFF)/2;
-			e = find_wl_entry(&ubi->free, medium_ec);
-		}
+		else
+			e = find_wl_entry(&ubi->free, WL_FREE_MAX_DIFF/2);
 		break;
 	case UBI_SHORTTERM:
 		/*
@@ -799,7 +798,7 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			scrubbing = 1;
 			goto out_not_moved;
 		}
-		if (err == MOVE_CANCEL_BITFLIPS || err == MOVE_TARGET_WR_ERR ||
+		if (err == MOVE_TARGET_BITFLIPS || err == MOVE_TARGET_WR_ERR ||
 		    err == MOVE_TARGET_RD_ERR) {
 			/*
 			 * Target PEB had bit-flips or write error - torture it.

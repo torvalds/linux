@@ -249,9 +249,9 @@ int ms_delay_write(struct rts51x_chip *chip);
 #ifdef SUPPORT_MAGIC_GATE
 
 int ms_switch_clock(struct rts51x_chip *chip);
-int ms_write_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 * data,
+int ms_write_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 *data,
 		   int data_len);
-int ms_read_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 * data,
+int ms_read_bytes(struct rts51x_chip *chip, u8 tpc, u8 cnt, u8 cfg, u8 *data,
 		  int data_len);
 int ms_set_rw_reg_addr(struct rts51x_chip *chip, u8 read_start, u8 read_cnt,
 		       u8 write_start, u8 write_cnt);

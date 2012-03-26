@@ -367,15 +367,6 @@ static int get_pipe(struct stub_device *sdev, int epnum, int dir)
 	}
 
 	epd = &ep->desc;
-#if 0
-	/* epnum 0 is always control */
-	if (epnum == 0) {
-		if (dir == USBIP_DIR_OUT)
-			return usb_sndctrlpipe(udev, 0);
-		else
-			return usb_rcvctrlpipe(udev, 0);
-	}
-#endif
 	if (usb_endpoint_xfer_control(epd)) {
 		if (dir == USBIP_DIR_OUT)
 			return usb_sndctrlpipe(udev, epnum);

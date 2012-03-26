@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2010-2011 Atheros Communications Inc.
+ * Copyright (c) 2011 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,6 +16,7 @@
  */
 
 #include "testmode.h"
+#include "debug.h"
 
 #include <net/netlink.h>
 
@@ -30,7 +32,7 @@ enum ath6kl_tm_attr {
 
 enum ath6kl_tm_cmd {
 	ATH6KL_TM_CMD_TCMD		= 0,
-	ATH6KL_TM_CMD_RX_REPORT		= 1,
+	ATH6KL_TM_CMD_RX_REPORT		= 1,	/* not used anymore */
 };
 
 #define ATH6KL_TM_DATA_MAX_LEN		5000
@@ -41,84 +43,33 @@ static const struct nla_policy ath6kl_tm_policy[ATH6KL_TM_ATTR_MAX + 1] = {
 					    .len = ATH6KL_TM_DATA_MAX_LEN },
 };
 
-void ath6kl_tm_rx_report_event(struct ath6kl *ar, void *buf, size_t buf_len)
+void ath6kl_tm_rx_event(struct ath6kl *ar, void *buf, size_t buf_len)
 {
-	if (down_interruptible(&ar->sem))
+	struct sk_buff *skb;
+
+	if (!buf || buf_len == 0)
 		return;
 
-	kfree(ar->tm.rx_report);
-
-	ar->tm.rx_report = kmemdup(buf, buf_len, GFP_KERNEL);
-	ar->tm.rx_report_len = buf_len;
-
-	up(&ar->sem);
-
-	wake_up(&ar->event_wq);
-}
-
-static int ath6kl_tm_rx_report(struct ath6kl *ar, void *buf, size_t buf_len,
-			       struct sk_buff *skb)
-{
-	int ret = 0;
-	long left;
-
-	if (down_interruptible(&ar->sem))
-		return -ERESTARTSYS;
-
-	if (!test_bit(WMI_READY, &ar->flag)) {
-		ret = -EIO;
-		goto out;
+	skb = cfg80211_testmode_alloc_event_skb(ar->wiphy, buf_len, GFP_KERNEL);
+	if (!skb) {
+		ath6kl_warn("failed to allocate testmode rx skb!\n");
+		return;
 	}
-
-	if (test_bit(DESTROY_IN_PROGRESS, &ar->flag)) {
-		ret = -EBUSY;
-		goto out;
-	}
-
-	if (ath6kl_wmi_test_cmd(ar->wmi, buf, buf_len) < 0) {
-		up(&ar->sem);
-		return -EIO;
-	}
-
-	left = wait_event_interruptible_timeout(ar->event_wq,
-						ar->tm.rx_report != NULL,
-						WMI_TIMEOUT);
-
-	if (left == 0) {
-		ret = -ETIMEDOUT;
-		goto out;
-	} else if (left < 0) {
-		ret = left;
-		goto out;
-	}
-
-	if (ar->tm.rx_report == NULL || ar->tm.rx_report_len == 0) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	NLA_PUT(skb, ATH6KL_TM_ATTR_DATA, ar->tm.rx_report_len,
-		ar->tm.rx_report);
-
-	kfree(ar->tm.rx_report);
-	ar->tm.rx_report = NULL;
-
-out:
-	up(&ar->sem);
-
-	return ret;
+	NLA_PUT_U32(skb, ATH6KL_TM_ATTR_CMD, ATH6KL_TM_CMD_TCMD);
+	NLA_PUT(skb, ATH6KL_TM_ATTR_DATA, buf_len, buf);
+	cfg80211_testmode_event(skb, GFP_KERNEL);
+	return;
 
 nla_put_failure:
-	ret = -ENOBUFS;
-	goto out;
+	kfree_skb(skb);
+	ath6kl_warn("nla_put failed on testmode rx skb!\n");
 }
 
 int ath6kl_tm_cmd(struct wiphy *wiphy, void *data, int len)
 {
 	struct ath6kl *ar = wiphy_priv(wiphy);
 	struct nlattr *tb[ATH6KL_TM_ATTR_MAX + 1];
-	int err, buf_len, reply_len;
-	struct sk_buff *skb;
+	int err, buf_len;
 	void *buf;
 
 	err = nla_parse(tb, ATH6KL_TM_ATTR_MAX, data, len,
@@ -143,24 +94,6 @@ int ath6kl_tm_cmd(struct wiphy *wiphy, void *data, int len)
 
 		break;
 	case ATH6KL_TM_CMD_RX_REPORT:
-		if (!tb[ATH6KL_TM_ATTR_DATA])
-			return -EINVAL;
-
-		buf = nla_data(tb[ATH6KL_TM_ATTR_DATA]);
-		buf_len = nla_len(tb[ATH6KL_TM_ATTR_DATA]);
-
-		reply_len = nla_total_size(ATH6KL_TM_DATA_MAX_LEN);
-		skb = cfg80211_testmode_alloc_reply_skb(wiphy, reply_len);
-		if (!skb)
-			return -ENOMEM;
-
-		err = ath6kl_tm_rx_report(ar, buf, buf_len, skb);
-		if (err < 0) {
-			kfree_skb(skb);
-			return err;
-		}
-
-		return cfg80211_testmode_reply(skb);
 	default:
 		return -EOPNOTSUPP;
 	}

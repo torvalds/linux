@@ -644,19 +644,8 @@ static struct i2c_driver rx8025_driver = {
 	.id_table	= rx8025_id,
 };
 
-static int __init rx8025_init(void)
-{
-	return i2c_add_driver(&rx8025_driver);
-}
-
-static void __exit rx8025_exit(void)
-{
-	i2c_del_driver(&rx8025_driver);
-}
+module_i2c_driver(rx8025_driver);
 
 MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
 MODULE_DESCRIPTION("RX-8025 SA/NB RTC driver");
 MODULE_LICENSE("GPL");
-
-module_init(rx8025_init);
-module_exit(rx8025_exit);

@@ -3910,10 +3910,8 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	static int board_number;
 
 	netdev = alloc_etherdev_mq(sizeof(*mgp), MYRI10GE_MAX_SLICES);
-	if (netdev == NULL) {
-		dev_err(dev, "Could not allocate ethernet device\n");
+	if (netdev == NULL)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 

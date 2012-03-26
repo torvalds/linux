@@ -526,22 +526,6 @@ static void rt2x00usb_watchdog_tx_dma(struct data_queue *queue)
 	rt2x00queue_flush_queue(queue, true);
 }
 
-static void rt2x00usb_watchdog_tx_status(struct data_queue *queue)
-{
-	WARNING(queue->rt2x00dev, "TX queue %d status timed out,"
-		" invoke forced tx handler\n", queue->qid);
-
-	queue_work(queue->rt2x00dev->workqueue, &queue->rt2x00dev->txdone_work);
-}
-
-static int rt2x00usb_status_timeout(struct data_queue *queue)
-{
-	struct queue_entry *entry;
-
-	entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-	return rt2x00queue_status_timeout(entry);
-}
-
 static int rt2x00usb_dma_timeout(struct data_queue *queue)
 {
 	struct queue_entry *entry;
@@ -558,8 +542,6 @@ void rt2x00usb_watchdog(struct rt2x00_dev *rt2x00dev)
 		if (!rt2x00queue_empty(queue)) {
 			if (rt2x00usb_dma_timeout(queue))
 				rt2x00usb_watchdog_tx_dma(queue);
-			if (rt2x00usb_status_timeout(queue))
-				rt2x00usb_watchdog_tx_status(queue);
 		}
 	}
 }
@@ -829,7 +811,8 @@ int rt2x00usb_probe(struct usb_interface *usb_intf,
 
 	INIT_WORK(&rt2x00dev->rxdone_work, rt2x00usb_work_rxdone);
 	INIT_WORK(&rt2x00dev->txdone_work, rt2x00usb_work_txdone);
-	init_timer(&rt2x00dev->txstatus_timer);
+	hrtimer_init(&rt2x00dev->txstatus_timer, CLOCK_MONOTONIC,
+		     HRTIMER_MODE_REL);
 
 	retval = rt2x00usb_alloc_reg(rt2x00dev);
 	if (retval)

@@ -173,18 +173,16 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  * omap_default_idle - OMAP4 default ilde routine.'
  *
  * Implements OMAP4 memory, IO ordering requirements which can't be addressed
- * with default arch_idle() hook. Used by all CPUs with !CONFIG_CPUIDLE and
+ * with default cpu_do_idle() hook. Used by all CPUs with !CONFIG_CPUIDLE and
  * by secondary CPU with CONFIG_CPUIDLE.
  */
 static void omap_default_idle(void)
 {
-	local_irq_disable();
 	local_fiq_disable();
 
 	omap_do_wfi();
 
 	local_fiq_enable();
-	local_irq_enable();
 }
 
 /**
@@ -255,8 +253,8 @@ static int __init omap4_pm_init(void)
 	suspend_set_ops(&omap_pm_ops);
 #endif /* CONFIG_SUSPEND */
 
-	/* Overwrite the default arch_idle() */
-	pm_idle = omap_default_idle;
+	/* Overwrite the default cpu_do_idle() */
+	arm_pm_idle = omap_default_idle;
 
 	omap4_idle_init();
 

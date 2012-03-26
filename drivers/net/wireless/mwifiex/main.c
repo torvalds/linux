@@ -64,11 +64,10 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	adapter->priv_num = 0;
 
 	/* Allocate memory for private structure */
-	adapter->priv[0] = kzalloc(sizeof(struct mwifiex_private),
-			GFP_KERNEL);
+	adapter->priv[0] = kzalloc(sizeof(struct mwifiex_private), GFP_KERNEL);
 	if (!adapter->priv[0]) {
-		dev_err(adapter->dev, "%s: failed to alloc priv[0]\n",
-		       __func__);
+		dev_err(adapter->dev,
+			"%s: failed to alloc priv[0]\n", __func__);
 		goto error;
 	}
 
@@ -169,8 +168,8 @@ process_start:
 		if ((adapter->ps_state == PS_STATE_SLEEP) &&
 		    (adapter->pm_wakeup_card_req &&
 		     !adapter->pm_wakeup_fw_try) &&
-		    (is_command_pending(adapter)
-		     || !mwifiex_wmm_lists_empty(adapter))) {
+		    (is_command_pending(adapter) ||
+		     !mwifiex_wmm_lists_empty(adapter))) {
 			adapter->pm_wakeup_fw_try = true;
 			adapter->if_ops.wakeup(adapter);
 			continue;
@@ -187,10 +186,10 @@ process_start:
 			    adapter->tx_lock_flag)
 				break;
 
-			if (adapter->scan_processing || adapter->data_sent
-			    || mwifiex_wmm_lists_empty(adapter)) {
-				if (adapter->cmd_sent || adapter->curr_cmd
-				    || (!is_command_pending(adapter)))
+			if (adapter->scan_processing || adapter->data_sent ||
+			    mwifiex_wmm_lists_empty(adapter)) {
+				if (adapter->cmd_sent || adapter->curr_cmd ||
+				    (!is_command_pending(adapter)))
 					break;
 			}
 		}
@@ -223,10 +222,10 @@ process_start:
 		/* * The ps_state may have been changed during processing of
 		 * Sleep Request event.
 		 */
-		if ((adapter->ps_state == PS_STATE_SLEEP)
-		    || (adapter->ps_state == PS_STATE_PRE_SLEEP)
-		    || (adapter->ps_state == PS_STATE_SLEEP_CFM)
-		    || adapter->tx_lock_flag)
+		if ((adapter->ps_state == PS_STATE_SLEEP) ||
+		    (adapter->ps_state == PS_STATE_PRE_SLEEP) ||
+		    (adapter->ps_state == PS_STATE_SLEEP_CFM) ||
+		    adapter->tx_lock_flag)
 			continue;
 
 		if (!adapter->cmd_sent && !adapter->curr_cmd) {
@@ -249,8 +248,8 @@ process_start:
 		}
 
 		if (adapter->delay_null_pkt && !adapter->cmd_sent &&
-		    !adapter->curr_cmd && !is_command_pending(adapter)
-		    && mwifiex_wmm_lists_empty(adapter)) {
+		    !adapter->curr_cmd && !is_command_pending(adapter) &&
+		    mwifiex_wmm_lists_empty(adapter)) {
 			if (!mwifiex_send_null_packet
 			    (mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
 			     MWIFIEX_TxPD_POWER_MGMT_NULL_PACKET |
@@ -371,7 +370,7 @@ mwifiex_fill_buffer(struct sk_buff *skb)
 		iph = ip_hdr(skb);
 		tid = IPTOS_PREC(iph->tos);
 		pr_debug("data: packet type ETH_P_IP: %04x, tid=%#x prio=%#x\n",
-		       eth->h_proto, tid, skb->priority);
+			 eth->h_proto, tid, skb->priority);
 		break;
 	case __constant_htons(ETH_P_ARP):
 		pr_debug("data: ARP packet: %04x\n", eth->h_proto);
@@ -424,8 +423,8 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct sk_buff *new_skb;
 	struct mwifiex_txinfo *tx_info;
 
-	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d): Data <= kernel\n",
-				jiffies, priv->bss_index);
+	dev_dbg(priv->adapter->dev, "data: %lu BSS(%d-%d): Data <= kernel\n",
+		jiffies, priv->bss_type, priv->bss_num);
 
 	if (priv->adapter->surprise_removed) {
 		kfree_skb(skb);
@@ -441,7 +440,7 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN) {
 		dev_dbg(priv->adapter->dev,
 			"data: Tx: insufficient skb headroom %d\n",
-		       skb_headroom(skb));
+			skb_headroom(skb));
 		/* Insufficient skb headroom - allocate a new skb */
 		new_skb =
 			skb_realloc_headroom(skb, MWIFIEX_MIN_DATA_HEADER_LEN);
@@ -454,14 +453,15 @@ mwifiex_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		kfree_skb(skb);
 		skb = new_skb;
 		dev_dbg(priv->adapter->dev, "info: new skb headroomd %d\n",
-				skb_headroom(skb));
+			skb_headroom(skb));
 	}
 
 	tx_info = MWIFIEX_SKB_TXCB(skb);
-	tx_info->bss_index = priv->bss_index;
+	tx_info->bss_num = priv->bss_num;
+	tx_info->bss_type = priv->bss_type;
 	mwifiex_fill_buffer(skb);
 
-	mwifiex_wmm_add_buf_txqueue(priv->adapter, skb);
+	mwifiex_wmm_add_buf_txqueue(priv, skb);
 	atomic_inc(&priv->adapter->tx_pending);
 
 	if (atomic_read(&priv->adapter->tx_pending) >= MAX_TX_PENDING) {
@@ -493,8 +493,8 @@ mwifiex_set_mac_address(struct net_device *dev, void *addr)
 	if (!ret)
 		memcpy(priv->netdev->dev_addr, priv->curr_addr, ETH_ALEN);
 	else
-		dev_err(priv->adapter->dev, "set mac address failed: ret=%d"
-					    "\n", ret);
+		dev_err(priv->adapter->dev,
+			"set mac address failed: ret=%d\n", ret);
 
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 
@@ -531,8 +531,8 @@ mwifiex_tx_timeout(struct net_device *dev)
 {
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
-	dev_err(priv->adapter->dev, "%lu : Tx timeout, bss_index=%d\n",
-				jiffies, priv->bss_index);
+	dev_err(priv->adapter->dev, "%lu : Tx timeout, bss_type-num = %d-%d\n",
+		jiffies, priv->bss_type, priv->bss_num);
 	mwifiex_set_trans_start(dev);
 	priv->num_tx_timeout++;
 }
@@ -602,18 +602,6 @@ int is_command_pending(struct mwifiex_adapter *adapter)
 	spin_unlock_irqrestore(&adapter->cmd_pending_q_lock, flags);
 
 	return !is_cmd_pend_q_empty;
-}
-
-/*
- * This function returns the correct private structure pointer based
- * upon the BSS number.
- */
-struct mwifiex_private *
-mwifiex_bss_index_to_priv(struct mwifiex_adapter *adapter, u8 bss_index)
-{
-	if (!adapter || (bss_index >= adapter->priv_num))
-		return NULL;
-	return adapter->priv[bss_index];
 }
 
 /*
@@ -715,7 +703,7 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 	rtnl_lock();
 	/* Create station interface by default */
 	if (!mwifiex_add_virtual_intf(priv->wdev->wiphy, "mlan%d",
-				NL80211_IFTYPE_STATION, NULL, NULL)) {
+				      NL80211_IFTYPE_STATION, NULL, NULL)) {
 		rtnl_unlock();
 		dev_err(adapter->dev, "cannot create default station"
 				" interface\n");
@@ -792,7 +780,7 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 		if (priv && priv->netdev) {
 			if (!netif_queue_stopped(priv->netdev))
 				mwifiex_stop_net_dev_queue(priv->netdev,
-								adapter);
+							   adapter);
 			if (netif_carrier_ok(priv->netdev))
 				netif_carrier_off(priv->netdev);
 		}

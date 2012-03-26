@@ -1,7 +1,7 @@
 /*
  *
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2011, Intel Corporation.
+ * Copyright (c) 2003-2012, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -38,7 +38,6 @@
 #include "mei_dev.h"
 #include "mei.h"
 #include "interface.h"
-#include "mei_version.h"
 
 
 #define MEI_READ_TIMEOUT 45
@@ -50,7 +49,6 @@
  */
 static char mei_driver_name[] = MEI_DRIVER_NAME;
 static const char mei_driver_string[] = "Intel(R) Management Engine Interface";
-static const char mei_driver_version[] = MEI_DRIVER_VERSION;
 
 /* The device pointer */
 /* Currently this driver works as long as there is only a single AMT device. */
@@ -430,7 +428,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto free;
 	} else if ((!cl->read_cb || !cl->read_cb->information) &&
 		    *offset > 0) {
-		/*Offset needs to be cleaned for contingous reads*/
+		/*Offset needs to be cleaned for contiguous reads*/
 		*offset = 0;
 		rets = 0;
 		goto out;
@@ -493,7 +491,7 @@ copy_buffer:
 		goto free;
 	}
 
-	/* length is being turncated to PAGE_SIZE, however, */
+	/* length is being truncated to PAGE_SIZE, however, */
 	/* information size may be longer */
 	length = min_t(size_t, length, (cb->information - *offset));
 
@@ -740,7 +738,7 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		mei_hdr.reserved = 0;
 		dev_dbg(&dev->pdev->dev, "call mei_write_message header=%08x.\n",
 		    *((u32 *) &mei_hdr));
-		if (!mei_write_message(dev, &mei_hdr,
+		if (mei_write_message(dev, &mei_hdr,
 			(unsigned char *) (write_cb->request_buffer.data),
 			mei_hdr.length)) {
 			rets = -ENODEV;
@@ -1206,8 +1204,7 @@ static int __init mei_init_module(void)
 {
 	int ret;
 
-	pr_debug("mei: %s - version %s\n",
-		mei_driver_string, mei_driver_version);
+	pr_debug("mei: %s\n", mei_driver_string);
 	/* init pci module */
 	ret = pci_register_driver(&mei_driver);
 	if (ret < 0)
@@ -1238,4 +1235,3 @@ module_exit(mei_exit_module);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel(R) Management Engine Interface");
 MODULE_LICENSE("GPL v2");
-MODULE_VERSION(MEI_DRIVER_VERSION);

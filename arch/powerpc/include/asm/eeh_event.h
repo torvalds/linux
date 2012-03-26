@@ -1,6 +1,4 @@
 /*
- *	eeh_event.h
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -22,32 +20,19 @@
 #define ASM_POWERPC_EEH_EVENT_H
 #ifdef __KERNEL__
 
-/** EEH event -- structure holding pci controller data that describes
- *  a change in the isolation status of a PCI slot.  A pointer
- *  to this struct is passed as the data pointer in a notify callback.
+/*
+ * structure holding pci controller data that describes a
+ * change in the isolation status of a PCI slot.  A pointer
+ * to this struct is passed as the data pointer in a notify
+ * callback.
  */
 struct eeh_event {
-	struct list_head     list;
-	struct device_node 	*dn;   /* struct device node */
-	struct pci_dev       *dev;  /* affected device */
+	struct list_head	list;	/* to form event queue	*/
+	struct eeh_dev		*edev;	/* EEH device		*/
 };
 
-/**
- * eeh_send_failure_event - generate a PCI error event
- * @dev pci device
- *
- * This routine builds a PCI error event which will be delivered
- * to all listeners on the eeh_notifier_chain.
- *
- * This routine can be called within an interrupt context;
- * the actual event will be delivered in a normal context
- * (from a workqueue).
- */
-int eeh_send_failure_event (struct device_node *dn,
-                            struct pci_dev *dev);
-
-/* Main recovery function */
-struct pci_dn * handle_eeh_events (struct eeh_event *);
+int eeh_send_failure_event(struct eeh_dev *edev);
+struct eeh_dev *handle_eeh_events(struct eeh_event *);
 
 #endif /* __KERNEL__ */
 #endif /* ASM_POWERPC_EEH_EVENT_H */

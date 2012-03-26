@@ -63,6 +63,41 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream,
 }
 
 /*
+ * List of sample sizes that might go over the bus for parameter
+ * application.  There ought to be a wildcard sample size for things
+ * like the DAC/ADC resolution to use but there isn't right now.
+ */
+static int sample_sizes[] = {
+	24, 32,
+};
+
+static void soc_pcm_apply_msb(struct snd_pcm_substream *substream,
+			      struct snd_soc_dai *dai)
+{
+	int ret, i, bits;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		bits = dai->driver->playback.sig_bits;
+	else
+		bits = dai->driver->capture.sig_bits;
+
+	if (!bits)
+		return;
+
+	for (i = 0; i < ARRAY_SIZE(sample_sizes); i++) {
+		if (bits >= sample_sizes[i])
+			continue;
+
+		ret = snd_pcm_hw_constraint_msbits(substream->runtime, 0,
+						   sample_sizes[i], bits);
+		if (ret != 0)
+			dev_warn(dai->dev,
+				 "Failed to set MSB %d/%d: %d\n",
+				 bits, sample_sizes[i], ret);
+	}
+}
+
+/*
  * Called by ALSA when a PCM substream is opened, the runtime->hw record is
  * then initialized and any private data can be allocated. This also calls
  * startup for the cpu DAI, platform, machine and codec DAI.
@@ -88,8 +123,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (cpu_dai->driver->ops->startup) {
 		ret = cpu_dai->driver->ops->startup(substream, cpu_dai);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: can't open interface %s\n",
-				cpu_dai->name);
+			dev_err(cpu_dai->dev, "can't open interface %s: %d\n",
+				cpu_dai->name, ret);
 			goto out;
 		}
 	}
@@ -97,7 +132,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (platform->driver->ops && platform->driver->ops->open) {
 		ret = platform->driver->ops->open(substream);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: can't open platform %s\n", platform->name);
+			dev_err(platform->dev, "can't open platform %s: %d\n",
+				platform->name, ret);
 			goto platform_err;
 		}
 	}
@@ -105,8 +141,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (codec_dai->driver->ops->startup) {
 		ret = codec_dai->driver->ops->startup(substream, codec_dai);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: can't open codec %s\n",
-				codec_dai->name);
+			dev_err(codec_dai->dev, "can't open codec %s: %d\n",
+				codec_dai->name, ret);
 			goto codec_dai_err;
 		}
 	}
@@ -114,7 +150,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	if (rtd->dai_link->ops && rtd->dai_link->ops->startup) {
 		ret = rtd->dai_link->ops->startup(substream);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: %s startup failed\n", rtd->dai_link->name);
+			pr_err("asoc: %s startup failed: %d\n",
+			       rtd->dai_link->name, ret);
 			goto machine_err;
 		}
 	}
@@ -186,6 +223,9 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 				codec_dai->name, cpu_dai->name);
 		goto config_err;
 	}
+
+	soc_pcm_apply_msb(substream, codec_dai);
+	soc_pcm_apply_msb(substream, cpu_dai);
 
 	/* Symmetry only applies if we've already got an active stream. */
 	if (cpu_dai->active) {
@@ -267,9 +307,8 @@ static void close_delayed_work(struct work_struct *work)
 	/* are we waiting on this codec DAI stream */
 	if (codec_dai->pop_wait == 1) {
 		codec_dai->pop_wait = 0;
-		snd_soc_dapm_stream_event(rtd,
-			codec_dai->driver->playback.stream_name,
-			SND_SOC_DAPM_STREAM_STOP);
+		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_PLAYBACK,
+					  codec_dai, SND_SOC_DAPM_STREAM_STOP);
 	}
 
 	mutex_unlock(&rtd->pcm_mutex);
@@ -329,12 +368,13 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 	cpu_dai->runtime = NULL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		if (codec->ignore_pmdown_time ||
+		if (!rtd->pmdown_time || codec->ignore_pmdown_time ||
 		    rtd->dai_link->ignore_pmdown_time) {
 			/* powered down playback stream now */
 			snd_soc_dapm_stream_event(rtd,
-				codec_dai->driver->playback.stream_name,
-				SND_SOC_DAPM_STREAM_STOP);
+						  SNDRV_PCM_STREAM_PLAYBACK,
+						  codec_dai,
+						  SND_SOC_DAPM_STREAM_STOP);
 		} else {
 			/* start delayed pop wq here for playback streams */
 			codec_dai->pop_wait = 1;
@@ -343,9 +383,8 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 		}
 	} else {
 		/* capture streams can be powered down now */
-		snd_soc_dapm_stream_event(rtd,
-			codec_dai->driver->capture.stream_name,
-			SND_SOC_DAPM_STREAM_STOP);
+		snd_soc_dapm_stream_event(rtd, SNDRV_PCM_STREAM_CAPTURE,
+					  codec_dai, SND_SOC_DAPM_STREAM_STOP);
 	}
 
 	mutex_unlock(&rtd->pcm_mutex);
@@ -375,7 +414,7 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (rtd->dai_link->ops && rtd->dai_link->ops->prepare) {
 		ret = rtd->dai_link->ops->prepare(substream);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: machine prepare error\n");
+			pr_err("asoc: machine prepare error: %d\n", ret);
 			goto out;
 		}
 	}
@@ -383,7 +422,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (platform->driver->ops && platform->driver->ops->prepare) {
 		ret = platform->driver->ops->prepare(substream);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: platform prepare error\n");
+			dev_err(platform->dev, "platform prepare error: %d\n",
+				ret);
 			goto out;
 		}
 	}
@@ -391,7 +431,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (codec_dai->driver->ops->prepare) {
 		ret = codec_dai->driver->ops->prepare(substream, codec_dai);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: codec DAI prepare error\n");
+			dev_err(codec_dai->dev, "DAI prepare error: %d\n",
+				ret);
 			goto out;
 		}
 	}
@@ -399,7 +440,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 	if (cpu_dai->driver->ops->prepare) {
 		ret = cpu_dai->driver->ops->prepare(substream, cpu_dai);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: cpu DAI prepare error\n");
+			dev_err(cpu_dai->dev, "DAI prepare error: %d\n",
+				ret);
 			goto out;
 		}
 	}
@@ -411,14 +453,8 @@ static int soc_pcm_prepare(struct snd_pcm_substream *substream)
 		cancel_delayed_work(&rtd->delayed_work);
 	}
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		snd_soc_dapm_stream_event(rtd,
-					  codec_dai->driver->playback.stream_name,
-					  SND_SOC_DAPM_STREAM_START);
-	else
-		snd_soc_dapm_stream_event(rtd,
-					  codec_dai->driver->capture.stream_name,
-					  SND_SOC_DAPM_STREAM_START);
+	snd_soc_dapm_stream_event(rtd, substream->stream, codec_dai,
+				  SND_SOC_DAPM_STREAM_START);
 
 	snd_soc_dai_digital_mute(codec_dai, 0);
 
@@ -446,7 +482,7 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (rtd->dai_link->ops && rtd->dai_link->ops->hw_params) {
 		ret = rtd->dai_link->ops->hw_params(substream, params);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: machine hw_params failed\n");
+			pr_err("asoc: machine hw_params failed: %d\n", ret);
 			goto out;
 		}
 	}
@@ -454,8 +490,8 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (codec_dai->driver->ops->hw_params) {
 		ret = codec_dai->driver->ops->hw_params(substream, params, codec_dai);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: can't set codec %s hw params\n",
-				codec_dai->name);
+			dev_err(codec_dai->dev, "can't set %s hw params: %d\n",
+				codec_dai->name, ret);
 			goto codec_err;
 		}
 	}
@@ -463,8 +499,8 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (cpu_dai->driver->ops->hw_params) {
 		ret = cpu_dai->driver->ops->hw_params(substream, params, cpu_dai);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: interface %s hw params failed\n",
-				cpu_dai->name);
+			dev_err(cpu_dai->dev, "%s hw params failed: %d\n",
+				cpu_dai->name, ret);
 			goto interface_err;
 		}
 	}
@@ -472,8 +508,8 @@ static int soc_pcm_hw_params(struct snd_pcm_substream *substream,
 	if (platform->driver->ops && platform->driver->ops->hw_params) {
 		ret = platform->driver->ops->hw_params(substream, params);
 		if (ret < 0) {
-			printk(KERN_ERR "asoc: platform %s hw params failed\n",
-				platform->name);
+			dev_err(platform->dev, "%s hw params failed: %d\n",
+			       platform->name, ret);
 			goto platform_err;
 		}
 	}

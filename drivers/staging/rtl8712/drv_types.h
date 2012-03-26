@@ -140,7 +140,6 @@ struct dvobj_priv {
 	u8   ishighspeed;
 	uint(*inirp_init)(struct _adapter *adapter);
 	uint(*inirp_deinit)(struct _adapter *adapter);
-	struct semaphore usb_suspend_sema;
 	struct usb_device *pusbdev;
 };
 

@@ -24,8 +24,8 @@
  * bit 1 = enable hfc hardware acceleration for all channels
  *
  */
-#define DSP_OPT_ULAW		(1<<0)
-#define DSP_OPT_NOHARDWARE	(1<<1)
+#define DSP_OPT_ULAW		(1 << 0)
+#define DSP_OPT_NOHARDWARE	(1 << 1)
 
 #include <linux/timer.h>
 #include <linux/workqueue.h>
@@ -97,12 +97,12 @@ struct dsp_conf_member {
 struct dsp_conf {
 	struct list_head	list;
 	u32			id;
-				/* all cmx stacks with the same ID are
-				 connected */
+	/* all cmx stacks with the same ID are
+	   connected */
 	struct list_head	mlist;
 	int			software; /* conf is processed by software */
 	int			hardware; /* conf is processed by hardware */
-				/* note: if both unset, has only one member */
+	/* note: if both unset, has only one member */
 };
 
 
@@ -122,7 +122,7 @@ struct dsp_dtmf {
 	int		hardware; /* dtmf uses hardware decoding */
 	int		size; /* number of bytes in buffer */
 	signed short	buffer[DSP_DTMF_NPOINTS];
-		/* buffers one full dtmf frame */
+	/* buffers one full dtmf frame */
 	u8		lastwhat, lastdigit;
 	int		count;
 	u8		digits[16]; /* dtmf result */
@@ -189,7 +189,7 @@ struct dsp {
 	u32		conf_id;
 	struct dsp_conf	*conf;
 	struct dsp_conf_member
-			*member;
+	*member;
 
 	/* buffer stuff */
 	int		rx_W; /* current write pos for data without timestamp */
@@ -203,7 +203,7 @@ struct dsp {
 	u8		rx_buff[CMX_BUFF_SIZE];
 	int		last_tx; /* if set, we transmitted last poll interval */
 	int		cmx_delay; /* initial delay of buffers,
-				or 0 for dynamic jitter buffer */
+				      or 0 for dynamic jitter buffer */
 	int		tx_dejitter; /* if set, dejitter tx buffer */
 	int		tx_data; /* enables tx-data of CMX to upper layer */
 
@@ -231,7 +231,7 @@ struct dsp {
 	int		bf_sync;
 
 	struct dsp_pipeline
-			pipeline;
+	pipeline;
 };
 
 /* functions */
@@ -253,7 +253,7 @@ extern int dsp_cmx_del_conf(struct dsp_conf *conf);
 extern void dsp_dtmf_goertzel_init(struct dsp *dsp);
 extern void dsp_dtmf_hardware(struct dsp *dsp);
 extern u8 *dsp_dtmf_goertzel_decode(struct dsp *dsp, u8 *data, int len,
-		int fmt);
+				    int fmt);
 
 extern int dsp_tone(struct dsp *dsp, int tone);
 extern void dsp_tone_copy(struct dsp *dsp, u8 *data, int len);
@@ -270,7 +270,6 @@ extern int  dsp_pipeline_init(struct dsp_pipeline *pipeline);
 extern void dsp_pipeline_destroy(struct dsp_pipeline *pipeline);
 extern int  dsp_pipeline_build(struct dsp_pipeline *pipeline, const char *cfg);
 extern void dsp_pipeline_process_tx(struct dsp_pipeline *pipeline, u8 *data,
-		int len);
+				    int len);
 extern void dsp_pipeline_process_rx(struct dsp_pipeline *pipeline, u8 *data,
-		int len, unsigned int txlen);
-
+				    int len, unsigned int txlen);

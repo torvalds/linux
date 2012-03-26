@@ -699,6 +699,11 @@ void venc_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, venc_read_reg(r))
 
+	if (cpu_is_omap44xx()) {
+		seq_printf(s, "VENC currently disabled on OMAP44xx\n");
+		return;
+	}
+
 	if (venc_runtime_get())
 		return;
 
@@ -790,39 +795,41 @@ static int omap_venchw_probe(struct platform_device *pdev)
 	venc_mem = platform_get_resource(venc.pdev, IORESOURCE_MEM, 0);
 	if (!venc_mem) {
 		DSSERR("can't get IORESOURCE_MEM VENC\n");
-		r = -EINVAL;
-		goto err_ioremap;
+		return -EINVAL;
 	}
-	venc.base = ioremap(venc_mem->start, resource_size(venc_mem));
+
+	venc.base = devm_ioremap(&pdev->dev, venc_mem->start,
+				 resource_size(venc_mem));
 	if (!venc.base) {
 		DSSERR("can't ioremap VENC\n");
-		r = -ENOMEM;
-		goto err_ioremap;
+		return -ENOMEM;
 	}
 
 	r = venc_get_clocks(pdev);
 	if (r)
-		goto err_get_clk;
+		return r;
 
 	pm_runtime_enable(&pdev->dev);
 
 	r = venc_runtime_get();
 	if (r)
-		goto err_get_venc;
+		goto err_runtime_get;
 
 	rev_id = (u8)(venc_read_reg(VENC_REV_ID) & 0xff);
 	dev_dbg(&pdev->dev, "OMAP VENC rev %d\n", rev_id);
 
 	venc_runtime_put();
 
-	return omap_dss_register_driver(&venc_driver);
+	r = omap_dss_register_driver(&venc_driver);
+	if (r)
+		goto err_reg_panel_driver;
 
-err_get_venc:
+	return 0;
+
+err_reg_panel_driver:
+err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 	venc_put_clocks();
-err_get_clk:
-	iounmap(venc.base);
-err_ioremap:
 	return r;
 }
 
@@ -837,7 +844,6 @@ static int omap_venchw_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	venc_put_clocks();
 
-	iounmap(venc.base);
 	return 0;
 }
 

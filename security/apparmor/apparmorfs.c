@@ -18,12 +18,14 @@
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
 #include <linux/namei.h>
+#include <linux/capability.h>
 
 #include "include/apparmor.h"
 #include "include/apparmorfs.h"
 #include "include/audit.h"
 #include "include/context.h"
 #include "include/policy.h"
+#include "include/resource.h"
 
 /**
  * aa_simple_write_to_buffer - common routine for getting policy from user
@@ -142,38 +144,166 @@ static const struct file_operations aa_fs_profile_remove = {
 	.llseek = default_llseek,
 };
 
+static int aa_fs_seq_show(struct seq_file *seq, void *v)
+{
+	struct aa_fs_entry *fs_file = seq->private;
+
+	if (!fs_file)
+		return 0;
+
+	switch (fs_file->v_type) {
+	case AA_FS_TYPE_BOOLEAN:
+		seq_printf(seq, "%s\n", fs_file->v.boolean ? "yes" : "no");
+		break;
+	case AA_FS_TYPE_STRING:
+		seq_printf(seq, "%s\n", fs_file->v.string);
+		break;
+	case AA_FS_TYPE_U64:
+		seq_printf(seq, "%#08lx\n", fs_file->v.u64);
+		break;
+	default:
+		/* Ignore unpritable entry types. */
+		break;
+	}
+
+	return 0;
+}
+
+static int aa_fs_seq_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, aa_fs_seq_show, inode->i_private);
+}
+
+const struct file_operations aa_fs_seq_file_ops = {
+	.owner		= THIS_MODULE,
+	.open		= aa_fs_seq_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
 /** Base file system setup **/
 
-static struct dentry *aa_fs_dentry __initdata;
+static struct aa_fs_entry aa_fs_entry_file[] = {
+	AA_FS_FILE_STRING("mask", "create read write exec append mmap_exec " \
+				  "link lock"),
+	{ }
+};
 
-static void __init aafs_remove(const char *name)
+static struct aa_fs_entry aa_fs_entry_domain[] = {
+	AA_FS_FILE_BOOLEAN("change_hat",	1),
+	AA_FS_FILE_BOOLEAN("change_hatv",	1),
+	AA_FS_FILE_BOOLEAN("change_onexec",	1),
+	AA_FS_FILE_BOOLEAN("change_profile",	1),
+	{ }
+};
+
+static struct aa_fs_entry aa_fs_entry_features[] = {
+	AA_FS_DIR("domain",			aa_fs_entry_domain),
+	AA_FS_DIR("file",			aa_fs_entry_file),
+	AA_FS_FILE_U64("capability",		VFS_CAP_FLAGS_MASK),
+	AA_FS_DIR("rlimit",			aa_fs_entry_rlimit),
+	{ }
+};
+
+static struct aa_fs_entry aa_fs_entry_apparmor[] = {
+	AA_FS_FILE_FOPS(".load", 0640, &aa_fs_profile_load),
+	AA_FS_FILE_FOPS(".replace", 0640, &aa_fs_profile_replace),
+	AA_FS_FILE_FOPS(".remove", 0640, &aa_fs_profile_remove),
+	AA_FS_DIR("features", aa_fs_entry_features),
+	{ }
+};
+
+static struct aa_fs_entry aa_fs_entry =
+	AA_FS_DIR("apparmor", aa_fs_entry_apparmor);
+
+/**
+ * aafs_create_file - create a file entry in the apparmor securityfs
+ * @fs_file: aa_fs_entry to build an entry for (NOT NULL)
+ * @parent: the parent dentry in the securityfs
+ *
+ * Use aafs_remove_file to remove entries created with this fn.
+ */
+static int __init aafs_create_file(struct aa_fs_entry *fs_file,
+				   struct dentry *parent)
 {
-	struct dentry *dentry;
+	int error = 0;
 
-	dentry = lookup_one_len(name, aa_fs_dentry, strlen(name));
-	if (!IS_ERR(dentry)) {
-		securityfs_remove(dentry);
-		dput(dentry);
+	fs_file->dentry = securityfs_create_file(fs_file->name,
+						 S_IFREG | fs_file->mode,
+						 parent, fs_file,
+						 fs_file->file_ops);
+	if (IS_ERR(fs_file->dentry)) {
+		error = PTR_ERR(fs_file->dentry);
+		fs_file->dentry = NULL;
 	}
+	return error;
 }
 
 /**
- * aafs_create - create an entry in the apparmor filesystem
- * @name: name of the entry (NOT NULL)
- * @mask: file permission mask of the file
- * @fops: file operations for the file (NOT NULL)
+ * aafs_create_dir - recursively create a directory entry in the securityfs
+ * @fs_dir: aa_fs_entry (and all child entries) to build (NOT NULL)
+ * @parent: the parent dentry in the securityfs
  *
- * Used aafs_remove to remove entries created with this fn.
+ * Use aafs_remove_dir to remove entries created with this fn.
  */
-static int __init aafs_create(const char *name, umode_t mask,
-			      const struct file_operations *fops)
+static int __init aafs_create_dir(struct aa_fs_entry *fs_dir,
+				  struct dentry *parent)
 {
-	struct dentry *dentry;
+	int error;
+	struct aa_fs_entry *fs_file;
 
-	dentry = securityfs_create_file(name, S_IFREG | mask, aa_fs_dentry,
-					NULL, fops);
+	fs_dir->dentry = securityfs_create_dir(fs_dir->name, parent);
+	if (IS_ERR(fs_dir->dentry)) {
+		error = PTR_ERR(fs_dir->dentry);
+		fs_dir->dentry = NULL;
+		goto failed;
+	}
 
-	return IS_ERR(dentry) ? PTR_ERR(dentry) : 0;
+	for (fs_file = fs_dir->v.files; fs_file->name; ++fs_file) {
+		if (fs_file->v_type == AA_FS_TYPE_DIR)
+			error = aafs_create_dir(fs_file, fs_dir->dentry);
+		else
+			error = aafs_create_file(fs_file, fs_dir->dentry);
+		if (error)
+			goto failed;
+	}
+
+	return 0;
+
+failed:
+	return error;
+}
+
+/**
+ * aafs_remove_file - drop a single file entry in the apparmor securityfs
+ * @fs_file: aa_fs_entry to detach from the securityfs (NOT NULL)
+ */
+static void __init aafs_remove_file(struct aa_fs_entry *fs_file)
+{
+	if (!fs_file->dentry)
+		return;
+
+	securityfs_remove(fs_file->dentry);
+	fs_file->dentry = NULL;
+}
+
+/**
+ * aafs_remove_dir - recursively drop a directory entry from the securityfs
+ * @fs_dir: aa_fs_entry (and all child entries) to detach (NOT NULL)
+ */
+static void __init aafs_remove_dir(struct aa_fs_entry *fs_dir)
+{
+	struct aa_fs_entry *fs_file;
+
+	for (fs_file = fs_dir->v.files; fs_file->name; ++fs_file) {
+		if (fs_file->v_type == AA_FS_TYPE_DIR)
+			aafs_remove_dir(fs_file);
+		else
+			aafs_remove_file(fs_file);
+	}
+
+	aafs_remove_file(fs_dir);
 }
 
 /**
@@ -183,14 +313,7 @@ static int __init aafs_create(const char *name, umode_t mask,
  */
 void __init aa_destroy_aafs(void)
 {
-	if (aa_fs_dentry) {
-		aafs_remove(".remove");
-		aafs_remove(".replace");
-		aafs_remove(".load");
-
-		securityfs_remove(aa_fs_dentry);
-		aa_fs_dentry = NULL;
-	}
+	aafs_remove_dir(&aa_fs_entry);
 }
 
 /**
@@ -207,25 +330,13 @@ static int __init aa_create_aafs(void)
 	if (!apparmor_initialized)
 		return 0;
 
-	if (aa_fs_dentry) {
+	if (aa_fs_entry.dentry) {
 		AA_ERROR("%s: AppArmor securityfs already exists\n", __func__);
 		return -EEXIST;
 	}
 
-	aa_fs_dentry = securityfs_create_dir("apparmor", NULL);
-	if (IS_ERR(aa_fs_dentry)) {
-		error = PTR_ERR(aa_fs_dentry);
-		aa_fs_dentry = NULL;
-		goto error;
-	}
-
-	error = aafs_create(".load", 0640, &aa_fs_profile_load);
-	if (error)
-		goto error;
-	error = aafs_create(".replace", 0640, &aa_fs_profile_replace);
-	if (error)
-		goto error;
-	error = aafs_create(".remove", 0640, &aa_fs_profile_remove);
+	/* Populate fs tree. */
+	error = aafs_create_dir(&aa_fs_entry, NULL);
 	if (error)
 		goto error;
 

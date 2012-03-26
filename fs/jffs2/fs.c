@@ -561,9 +561,9 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 	ret = -ENOMEM;
 
 	D1(printk(KERN_DEBUG "jffs2_do_fill_super(): d_alloc_root()\n"));
-	sb->s_root = d_alloc_root(root_i);
+	sb->s_root = d_make_root(root_i);
 	if (!sb->s_root)
-		goto out_root_i;
+		goto out_root;
 
 	sb->s_maxbytes = 0xFFFFFFFF;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
@@ -573,8 +573,6 @@ int jffs2_do_fill_super(struct super_block *sb, void *data, int silent)
 		jffs2_start_garbage_collect_thread(c);
 	return 0;
 
- out_root_i:
-	iput(root_i);
 out_root:
 	jffs2_free_ino_caches(c);
 	jffs2_free_raw_node_refs(c);

@@ -286,8 +286,16 @@ hauppauge_tuner[] =
 	{ TUNER_ABSENT,                 "MaxLinear 301"},
 	{ TUNER_ABSENT,                 "Mirics MSi001"},
 	{ TUNER_ABSENT,                 "MaxLinear MxL241SF"},
-	{ TUNER_ABSENT,                 "Xceive XC5000C"},
+	{ TUNER_XC5000C,                "Xceive XC5000C"},
 	{ TUNER_ABSENT,                 "Montage M68TS2020"},
+	{ TUNER_ABSENT,                 "Siano SMS1530"},
+	{ TUNER_ABSENT,                 "Dibcom 7090"},
+	{ TUNER_ABSENT,                 "Xceive XC5200C"},
+	{ TUNER_ABSENT,                 "NXP 18273"},
+	{ TUNER_ABSENT,                 "Montage M88TS2022"},
+	/* 180-189 */
+	{ TUNER_ABSENT,                 "NXP 18272M"},
+	{ TUNER_ABSENT,                 "NXP 18272S"},
 };
 
 /* Use V4L2_IDENT_AMBIGUOUS for those audio 'chips' that are

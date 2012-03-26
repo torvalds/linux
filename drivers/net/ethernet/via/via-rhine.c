@@ -927,7 +927,6 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	dev = alloc_etherdev(sizeof(struct rhine_private));
 	if (!dev) {
 		rc = -ENOMEM;
-		dev_err(&pdev->dev, "alloc_etherdev failed\n");
 		goto err_out;
 	}
 	SET_NETDEV_DEV(dev, &pdev->dev);
@@ -984,7 +983,7 @@ static int __devinit rhine_init_one(struct pci_dev *pdev,
 	if (!is_valid_ether_addr(dev->dev_addr)) {
 		/* Report it and use a random ethernet address instead */
 		netdev_err(dev, "Invalid MAC address: %pM\n", dev->dev_addr);
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		netdev_info(dev, "Using random MAC address: %pM\n",
 			    dev->dev_addr);
 	}
@@ -1156,7 +1155,6 @@ static void alloc_rbufs(struct net_device *dev)
 		rp->rx_skbuff[i] = skb;
 		if (skb == NULL)
 			break;
-		skb->dev = dev;                 /* Mark as being used by this device. */
 
 		rp->rx_skbuff_dma[i] =
 			pci_map_single(rp->pdev, skb->data, rp->rx_buf_sz,
@@ -1941,7 +1939,6 @@ static int rhine_rx(struct net_device *dev, int limit)
 			rp->rx_skbuff[entry] = skb;
 			if (skb == NULL)
 				break;	/* Better luck next round. */
-			skb->dev = dev;	/* Mark as being used by this device. */
 			rp->rx_skbuff_dma[entry] =
 				pci_map_single(rp->pdev, skb->data,
 					       rp->rx_buf_sz,

@@ -1121,10 +1121,9 @@ static int __devinit vortex_probe1(struct device *gendev,
 
 	dev = alloc_etherdev(sizeof(*vp));
 	retval = -ENOMEM;
-	if (!dev) {
-		pr_err(PFX "unable to allocate etherdev, aborting\n");
+	if (!dev)
 		goto out;
-	}
+
 	SET_NETDEV_DEV(dev, gendev);
 	vp = netdev_priv(dev);
 
@@ -2500,7 +2499,7 @@ static int vortex_rx(struct net_device *dev)
 			int pkt_len = rx_status & 0x1fff;
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len + 5);
+			skb = netdev_alloc_skb(dev, pkt_len + 5);
 			if (vortex_debug > 4)
 				pr_debug("Receiving packet size %d status %4.4x.\n",
 					   pkt_len, rx_status);
@@ -2579,7 +2578,8 @@ boomerang_rx(struct net_device *dev)
 
 			/* Check if the packet is long enough to just accept without
 			   copying to a properly sized skbuff. */
-			if (pkt_len < rx_copybreak && (skb = dev_alloc_skb(pkt_len + 2)) != NULL) {
+			if (pkt_len < rx_copybreak &&
+			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */

@@ -969,6 +969,7 @@ enum {
 #define NX_RCODE_FATAL_ERROR		0x80000000
 #define NX_FWERROR_PEGNUM(code)		((code) & 0xff)
 #define NX_FWERROR_CODE(code)		((code >> 8) & 0xfffff)
+#define NX_FWERROR_PEGSTAT1(code)	((code >> 8) & 0x1fffff)
 
 #define FW_POLL_DELAY			(2 * HZ)
 #define FW_FAIL_THRESH			3

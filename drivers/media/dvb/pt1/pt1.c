@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/ratelimit.h>
 
 #include "dvbdev.h"
 #include "dvb_demux.h"
@@ -77,6 +78,8 @@ struct pt1 {
 	struct pt1_adapter *adaps[PT1_NR_ADAPS];
 	struct pt1_table *tables;
 	struct task_struct *kthread;
+	int table_index;
+	int buf_index;
 
 	struct mutex lock;
 	int power;
@@ -90,12 +93,12 @@ struct pt1_adapter {
 	u8 *buf;
 	int upacket_count;
 	int packet_count;
+	int st_count;
 
 	struct dvb_adapter adap;
 	struct dvb_demux demux;
 	int users;
 	struct dmxdev dmxdev;
-	struct dvb_net net;
 	struct dvb_frontend *fe;
 	int (*orig_set_voltage)(struct dvb_frontend *fe,
 				fe_sec_voltage_t voltage);
@@ -119,7 +122,7 @@ static u32 pt1_read_reg(struct pt1 *pt1, int reg)
 	return readl(pt1->regs + reg * 4);
 }
 
-static int pt1_nr_tables = 64;
+static int pt1_nr_tables = 8;
 module_param_named(nr_tables, pt1_nr_tables, int, 0);
 
 static void pt1_increment_table_count(struct pt1 *pt1)
@@ -264,6 +267,7 @@ static int pt1_filter(struct pt1 *pt1, struct pt1_buffer_page *page)
 	struct pt1_adapter *adap;
 	int offset;
 	u8 *buf;
+	int sc;
 
 	if (!page->upackets[PT1_NR_UPACKETS - 1])
 		return 0;
@@ -279,6 +283,16 @@ static int pt1_filter(struct pt1 *pt1, struct pt1_buffer_page *page)
 			adap->upacket_count = 0;
 		else if (!adap->upacket_count)
 			continue;
+
+		if (upacket >> 24 & 1)
+			printk_ratelimited(KERN_INFO "earth-pt1: device "
+				"buffer overflowing. table[%d] buf[%d]\n",
+				pt1->table_index, pt1->buf_index);
+		sc = upacket >> 26 & 0x7;
+		if (adap->st_count != -1 && sc != ((adap->st_count + 1) & 0x7))
+			printk_ratelimited(KERN_INFO "earth-pt1: data loss"
+				" in streamID(adapter)[%d]\n", index);
+		adap->st_count = sc;
 
 		buf = adap->buf;
 		offset = adap->packet_count * 188 + adap->upacket_count * 3;
@@ -303,30 +317,25 @@ static int pt1_filter(struct pt1 *pt1, struct pt1_buffer_page *page)
 static int pt1_thread(void *data)
 {
 	struct pt1 *pt1;
-	int table_index;
-	int buf_index;
 	struct pt1_buffer_page *page;
 
 	pt1 = data;
 	set_freezable();
 
-	table_index = 0;
-	buf_index = 0;
-
 	while (!kthread_should_stop()) {
 		try_to_freeze();
 
-		page = pt1->tables[table_index].bufs[buf_index].page;
+		page = pt1->tables[pt1->table_index].bufs[pt1->buf_index].page;
 		if (!pt1_filter(pt1, page)) {
 			schedule_timeout_interruptible((HZ + 999) / 1000);
 			continue;
 		}
 
-		if (++buf_index >= PT1_NR_BUFS) {
+		if (++pt1->buf_index >= PT1_NR_BUFS) {
 			pt1_increment_table_count(pt1);
-			buf_index = 0;
-			if (++table_index >= pt1_nr_tables)
-				table_index = 0;
+			pt1->buf_index = 0;
+			if (++pt1->table_index >= pt1_nr_tables)
+				pt1->table_index = 0;
 		}
 	}
 
@@ -477,21 +486,60 @@ err:
 	return ret;
 }
 
+static int pt1_start_polling(struct pt1 *pt1)
+{
+	int ret = 0;
+
+	mutex_lock(&pt1->lock);
+	if (!pt1->kthread) {
+		pt1->kthread = kthread_run(pt1_thread, pt1, "earth-pt1");
+		if (IS_ERR(pt1->kthread)) {
+			ret = PTR_ERR(pt1->kthread);
+			pt1->kthread = NULL;
+		}
+	}
+	mutex_unlock(&pt1->lock);
+	return ret;
+}
+
 static int pt1_start_feed(struct dvb_demux_feed *feed)
 {
 	struct pt1_adapter *adap;
 	adap = container_of(feed->demux, struct pt1_adapter, demux);
-	if (!adap->users++)
+	if (!adap->users++) {
+		int ret;
+
+		ret = pt1_start_polling(adap->pt1);
+		if (ret)
+			return ret;
 		pt1_set_stream(adap->pt1, adap->index, 1);
+	}
 	return 0;
+}
+
+static void pt1_stop_polling(struct pt1 *pt1)
+{
+	int i, count;
+
+	mutex_lock(&pt1->lock);
+	for (i = 0, count = 0; i < PT1_NR_ADAPS; i++)
+		count += pt1->adaps[i]->users;
+
+	if (count == 0 && pt1->kthread) {
+		kthread_stop(pt1->kthread);
+		pt1->kthread = NULL;
+	}
+	mutex_unlock(&pt1->lock);
 }
 
 static int pt1_stop_feed(struct dvb_demux_feed *feed)
 {
 	struct pt1_adapter *adap;
 	adap = container_of(feed->demux, struct pt1_adapter, demux);
-	if (!--adap->users)
+	if (!--adap->users) {
 		pt1_set_stream(adap->pt1, adap->index, 0);
+		pt1_stop_polling(adap->pt1);
+	}
 	return 0;
 }
 
@@ -575,7 +623,6 @@ static int pt1_wakeup(struct dvb_frontend *fe)
 
 static void pt1_free_adapter(struct pt1_adapter *adap)
 {
-	dvb_net_release(&adap->net);
 	adap->demux.dmx.close(&adap->demux.dmx);
 	dvb_dmxdev_release(&adap->dmxdev);
 	dvb_dmx_release(&adap->demux);
@@ -616,6 +663,7 @@ pt1_alloc_adapter(struct pt1 *pt1)
 	adap->buf = buf;
 	adap->upacket_count = 0;
 	adap->packet_count = 0;
+	adap->st_count = -1;
 
 	dvb_adap = &adap->adap;
 	dvb_adap->priv = adap;
@@ -643,8 +691,6 @@ pt1_alloc_adapter(struct pt1 *pt1)
 	ret = dvb_dmxdev_init(dmxdev, dvb_adap);
 	if (ret < 0)
 		goto err_dmx_release;
-
-	dvb_net_init(dvb_adap, &adap->net, &demux->dmx);
 
 	return adap;
 
@@ -1020,7 +1066,8 @@ static void __devexit pt1_remove(struct pci_dev *pdev)
 	pt1 = pci_get_drvdata(pdev);
 	regs = pt1->regs;
 
-	kthread_stop(pt1->kthread);
+	if (pt1->kthread)
+		kthread_stop(pt1->kthread);
 	pt1_cleanup_tables(pt1);
 	pt1_cleanup_frontends(pt1);
 	pt1_disable_ram(pt1);
@@ -1043,7 +1090,6 @@ pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	void __iomem *regs;
 	struct pt1 *pt1;
 	struct i2c_adapter *i2c_adap;
-	struct task_struct *kthread;
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0)
@@ -1139,17 +1185,8 @@ pt1_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto err_pt1_cleanup_frontends;
 
-	kthread = kthread_run(pt1_thread, pt1, "pt1");
-	if (IS_ERR(kthread)) {
-		ret = PTR_ERR(kthread);
-		goto err_pt1_cleanup_tables;
-	}
-
-	pt1->kthread = kthread;
 	return 0;
 
-err_pt1_cleanup_tables:
-	pt1_cleanup_tables(pt1);
 err_pt1_cleanup_frontends:
 	pt1_cleanup_frontends(pt1);
 err_pt1_disable_ram:

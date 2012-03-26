@@ -58,7 +58,7 @@
 #define PCI_DEVICE_ID_IBM_OBSIDIAN_E	0x0339
 
 #define PCI_DEVICE_ID_IBM_CROC_FPGA_E2          0x033D
-#define PCI_DEVICE_ID_IBM_CROC_ASIC_E2          0x034A
+#define PCI_DEVICE_ID_IBM_CROCODILE             0x034A
 
 #define IPR_SUBS_DEV_ID_2780	0x0264
 #define IPR_SUBS_DEV_ID_5702	0x0266
@@ -92,7 +92,7 @@
 #define IPR_SUBS_DEV_ID_57B1    0x0355
 
 #define IPR_SUBS_DEV_ID_574D    0x0356
-#define IPR_SUBS_DEV_ID_575D    0x035D
+#define IPR_SUBS_DEV_ID_57C8    0x035D
 
 #define IPR_NAME				"ipr"
 

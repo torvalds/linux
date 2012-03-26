@@ -2,10 +2,10 @@
  *
  * ISDN interface module for Eicon active cards DIVA.
  * CAPI Interface
- * 
- * Copyright 2000-2003 by Armin Schindler (mac@melware.de) 
+ *
+ * Copyright 2000-2003 by Armin Schindler (mac@melware.de)
  * Copyright 2000-2003 Cytronics & Melware (info@melware.de)
- * 
+ *
  * This software may be used and distributed according to the terms
  * of the GNU General Public License, incorporated herein by reference.
  */
@@ -28,7 +28,7 @@
 
 static char *main_revision = "$Revision: 1.24 $";
 static char *DRIVERNAME =
-    "Eicon DIVA - CAPI Interface driver (http://www.melware.net)";
+	"Eicon DIVA - CAPI Interface driver (http://www.melware.net)";
 static char *DRIVERLNAME = "divacapi";
 
 MODULE_DESCRIPTION("CAPI driver for Eicon DIVA cards");
@@ -69,7 +69,7 @@ diva_os_message_buffer_s *diva_os_alloc_message_buffer(unsigned long size,
 /*
  * free a message buffer
  */
-void diva_os_free_message_buffer(diva_os_message_buffer_s * dmb)
+void diva_os_free_message_buffer(diva_os_message_buffer_s *dmb)
 {
 	kfree_skb(dmb);
 }

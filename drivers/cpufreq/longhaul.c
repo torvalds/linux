@@ -35,6 +35,7 @@
 #include <linux/acpi.h>
 
 #include <asm/msr.h>
+#include <asm/cpu_device_id.h>
 #include <acpi/processor.h>
 
 #include "longhaul.h"
@@ -951,12 +952,17 @@ static struct cpufreq_driver longhaul_driver = {
 	.attr	= longhaul_attr,
 };
 
+static const struct x86_cpu_id longhaul_id[] = {
+	{ X86_VENDOR_CENTAUR, 6 },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, longhaul_id);
 
 static int __init longhaul_init(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 
-	if (c->x86_vendor != X86_VENDOR_CENTAUR || c->x86 != 6)
+	if (!x86_match_cpu(longhaul_id))
 		return -ENODEV;
 
 #ifdef CONFIG_SMP

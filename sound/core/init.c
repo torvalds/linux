@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/module.h>
+#include <linux/device.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/time.h>
@@ -480,74 +481,104 @@ int snd_card_free(struct snd_card *card)
 
 EXPORT_SYMBOL(snd_card_free);
 
-static void snd_card_set_id_no_lock(struct snd_card *card, const char *nid)
+/* retrieve the last word of shortname or longname */
+static const char *retrieve_id_from_card_name(const char *name)
 {
-	int i, len, idx_flag = 0, loops = SNDRV_CARDS;
-	const char *spos, *src;
+	const char *spos = name;
+
+	while (*name) {
+		if (isspace(*name) && isalnum(name[1]))
+			spos = name + 1;
+		name++;
+	}
+	return spos;
+}
+
+/* return true if the given id string doesn't conflict any other card ids */
+static bool card_id_ok(struct snd_card *card, const char *id)
+{
+	int i;
+	if (!snd_info_check_reserved_words(id))
+		return false;
+	for (i = 0; i < snd_ecards_limit; i++) {
+		if (snd_cards[i] && snd_cards[i] != card &&
+		    !strcmp(snd_cards[i]->id, id))
+			return false;
+	}
+	return true;
+}
+
+/* copy to card->id only with valid letters from nid */
+static void copy_valid_id_string(struct snd_card *card, const char *src,
+				 const char *nid)
+{
+	char *id = card->id;
+
+	while (*nid && !isalnum(*nid))
+		nid++;
+	if (isdigit(*nid))
+		*id++ = isalpha(*src) ? *src : 'D';
+	while (*nid && (size_t)(id - card->id) < sizeof(card->id) - 1) {
+		if (isalnum(*nid))
+			*id++ = *nid;
+		nid++;
+	}
+	*id = 0;
+}
+
+/* Set card->id from the given string
+ * If the string conflicts with other ids, add a suffix to make it unique.
+ */
+static void snd_card_set_id_no_lock(struct snd_card *card, const char *src,
+				    const char *nid)
+{
+	int len, loops;
+	bool with_suffix;
+	bool is_default = false;
 	char *id;
 	
-	if (nid == NULL) {
-		id = card->shortname;
-		spos = src = id;
-		while (*id != '\0') {
-			if (*id == ' ')
-				spos = id + 1;
-			id++;
-		}
-	} else {
-		spos = src = nid;
-	}
+	copy_valid_id_string(card, src, nid);
 	id = card->id;
-	while (*spos != '\0' && !isalnum(*spos))
-		spos++;
-	if (isdigit(*spos))
-		*id++ = isalpha(src[0]) ? src[0] : 'D';
-	while (*spos != '\0' && (size_t)(id - card->id) < sizeof(card->id) - 1) {
-		if (isalnum(*spos))
-			*id++ = *spos;
-		spos++;
-	}
-	*id = '\0';
 
-	id = card->id;
-	
-	if (*id == '\0')
+ again:
+	/* use "Default" for obviously invalid strings
+	 * ("card" conflicts with proc directories)
+	 */
+	if (!*id || !strncmp(id, "card", 4)) {
 		strcpy(id, "Default");
+		is_default = true;
+	}
 
-	while (1) {
-	      	if (loops-- == 0) {
-			snd_printk(KERN_ERR "unable to set card id (%s)\n", id);
-      			strcpy(card->id, card->proc_root->name);
-      			return;
-      		}
-	      	if (!snd_info_check_reserved_words(id))
-      			goto __change;
-		for (i = 0; i < snd_ecards_limit; i++) {
-			if (snd_cards[i] && !strcmp(snd_cards[i]->id, id))
-				goto __change;
-		}
-		break;
+	with_suffix = false;
+	for (loops = 0; loops < SNDRV_CARDS; loops++) {
+		if (card_id_ok(card, id))
+			return; /* OK */
 
-	      __change:
 		len = strlen(id);
-		if (idx_flag) {
-			if (id[len-1] != '9')
-				id[len-1]++;
-			else
-				id[len-1] = 'A';
-		} else if ((size_t)len <= sizeof(card->id) - 3) {
-			strcat(id, "_1");
-			idx_flag++;
+		if (!with_suffix) {
+			/* add the "_X" suffix */
+			char *spos = id + len;
+			if (len >  sizeof(card->id) - 3)
+				spos = id + sizeof(card->id) - 3;
+			strcpy(spos, "_1");
+			with_suffix = true;
 		} else {
-			spos = id + len - 2;
-			if ((size_t)len <= sizeof(card->id) - 2)
-				spos++;
-			*(char *)spos++ = '_';
-			*(char *)spos++ = '1';
-			*(char *)spos++ = '\0';
-			idx_flag++;
+			/* modify the existing suffix */
+			if (id[len - 1] != '9')
+				id[len - 1]++;
+			else
+				id[len - 1] = 'A';
 		}
 	}
+	/* fallback to the default id */
+	if (!is_default) {
+		*id = 0;
+		goto again;
+	}
+	/* last resort... */
+	snd_printk(KERN_ERR "unable to set card id (%s)\n", id);
+	if (card->proc_root->name)
+		strcpy(card->id, card->proc_root->name);
 }
 
 /**
@@ -564,7 +595,7 @@ void snd_card_set_id(struct snd_card *card, const char *nid)
 	if (card->id[0] != '\0')
 		return;
 	mutex_lock(&snd_card_mutex);
-	snd_card_set_id_no_lock(card, nid);
+	snd_card_set_id_no_lock(card, nid, nid);
 	mutex_unlock(&snd_card_mutex);
 }
 EXPORT_SYMBOL(snd_card_set_id);
@@ -596,22 +627,12 @@ card_id_store_attr(struct device *dev, struct device_attribute *attr,
 	memcpy(buf1, buf, copy);
 	buf1[copy] = '\0';
 	mutex_lock(&snd_card_mutex);
-	if (!snd_info_check_reserved_words(buf1)) {
-	     __exist:
+	if (!card_id_ok(NULL, buf1)) {
 		mutex_unlock(&snd_card_mutex);
 		return -EEXIST;
 	}
-	for (idx = 0; idx < snd_ecards_limit; idx++) {
-		if (snd_cards[idx] && !strcmp(snd_cards[idx]->id, buf1)) {
-			if (card == snd_cards[idx])
-				goto __ok;
-			else
-				goto __exist;
-		}
-	}
 	strcpy(card->id, buf1);
 	snd_info_card_id_change(card);
-__ok:
 	mutex_unlock(&snd_card_mutex);
 
 	return count;
@@ -665,7 +686,18 @@ int snd_card_register(struct snd_card *card)
 		mutex_unlock(&snd_card_mutex);
 		return 0;
 	}
-	snd_card_set_id_no_lock(card, card->id[0] == '\0' ? NULL : card->id);
+	if (*card->id) {
+		/* make a unique id name from the given string */
+		char tmpid[sizeof(card->id)];
+		memcpy(tmpid, card->id, sizeof(card->id));
+		snd_card_set_id_no_lock(card, tmpid, tmpid);
+	} else {
+		/* create an id from either shortname or longname */
+		const char *src;
+		src = *card->shortname ? card->shortname : card->longname;
+		snd_card_set_id_no_lock(card, src,
+					retrieve_id_from_card_name(src));
+	}
 	snd_cards[card->number] = card;
 	mutex_unlock(&snd_card_mutex);
 	init_info_for_card(card);

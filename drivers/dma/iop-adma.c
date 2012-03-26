@@ -1482,7 +1482,7 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 		goto err_free_adev;
 	}
 
-	dev_dbg(&pdev->dev, "%s: allocted descriptor pool virt %p phys %p\n",
+	dev_dbg(&pdev->dev, "%s: allocated descriptor pool virt %p phys %p\n",
 		__func__, adev->dma_desc_pool_virt,
 		(void *) adev->dma_desc_pool);
 

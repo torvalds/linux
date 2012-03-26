@@ -1582,8 +1582,8 @@ static int s5k6aa_probe(struct i2c_client *client,
 	s5k6aa->inv_vflip = pdata->vert_flip;
 
 	sd = &s5k6aa->sd;
-	strlcpy(sd->name, DRIVER_NAME, sizeof(sd->name));
 	v4l2_i2c_subdev_init(sd, client, &s5k6aa_subdev_ops);
+	strlcpy(sd->name, DRIVER_NAME, sizeof(sd->name));
 
 	sd->internal_ops = &s5k6aa_subdev_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
@@ -1663,18 +1663,7 @@ static struct i2c_driver s5k6aa_i2c_driver = {
 	.id_table	= s5k6aa_id,
 };
 
-static int __init s5k6aa_init(void)
-{
-	return i2c_add_driver(&s5k6aa_i2c_driver);
-}
-
-static void __exit s5k6aa_exit(void)
-{
-	i2c_del_driver(&s5k6aa_i2c_driver);
-}
-
-module_init(s5k6aa_init);
-module_exit(s5k6aa_exit);
+module_i2c_driver(s5k6aa_i2c_driver);
 
 MODULE_DESCRIPTION("Samsung S5K6AA(FX) SXGA camera driver");
 MODULE_AUTHOR("Sylwester Nawrocki <s.nawrocki@samsung.com>");

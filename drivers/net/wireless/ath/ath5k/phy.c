@@ -1871,31 +1871,15 @@ ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 		ret = 0;
 	}
 
-	/* On full calibration do an AGC calibration and
-	 * request a PAPD probe for gainf calibration if
-	 * needed */
-	if (ah->ah_cal_mask & AR5K_CALIBRATION_FULL) {
+	/* On full calibration request a PAPD probe for
+	 * gainf calibration if needed */
+	if ((ah->ah_cal_mask & AR5K_CALIBRATION_FULL) &&
+	    (ah->ah_radio == AR5K_RF5111 ||
+	     ah->ah_radio == AR5K_RF5112) &&
+	    channel->hw_value != AR5K_MODE_11B)
+		ath5k_hw_request_rfgain_probe(ah);
 
-		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
-					AR5K_PHY_AGCCTL_CAL);
-
-		ret = ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
-			AR5K_PHY_AGCCTL_CAL | AR5K_PHY_AGCCTL_NF,
-			0, false);
-		if (ret) {
-			ATH5K_ERR(ah,
-				"gain calibration timeout (%uMHz)\n",
-				channel->center_freq);
-		}
-
-		if ((ah->ah_radio == AR5K_RF5111 ||
-			ah->ah_radio == AR5K_RF5112)
-			&& (channel->hw_value != AR5K_MODE_11B))
-			ath5k_hw_request_rfgain_probe(ah);
-	}
-
-	/* Update noise floor
-	 * XXX: Only do this after AGC calibration */
+	/* Update noise floor */
 	if (!(ah->ah_cal_mask & AR5K_CALIBRATION_NF))
 		ath5k_hw_update_noise_floor(ah);
 

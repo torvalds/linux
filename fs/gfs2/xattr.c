@@ -251,7 +251,7 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	if (!blks)
 		return 0;
 
-	rgd = gfs2_blk2rgrpd(sdp, bn);
+	rgd = gfs2_blk2rgrpd(sdp, bn, 1);
 	if (!rgd) {
 		gfs2_consist_inode(ip);
 		return -EIO;
@@ -1439,7 +1439,7 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 	struct gfs2_holder gh;
 	int error;
 
-	rgd = gfs2_blk2rgrpd(sdp, ip->i_eattr);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_eattr, 1);
 	if (!rgd) {
 		gfs2_consist_inode(ip);
 		return -EIO;

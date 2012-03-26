@@ -79,7 +79,7 @@ struct qe_ic {
 	volatile u32 __iomem *regs;
 
 	/* The remapper for this QEIC */
-	struct irq_host *irqhost;
+	struct irq_domain *irqhost;
 
 	/* The "linux" controller struct */
 	struct irq_chip hc_irq;

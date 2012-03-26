@@ -1426,15 +1426,15 @@ static void carl9170_calc_ctl(struct ar9170 *ar, u32 freq, enum carl9170_bw bw)
 #undef EDGES
 }
 
-static int carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
-				  enum carl9170_bw bw)
+static void carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
+				   enum carl9170_bw bw)
 {
 	struct ar9170_calibration_target_power_legacy *ctpl;
 	struct ar9170_calibration_target_power_ht *ctph;
 	u8 *ctpres;
 	int ntargets;
 	int idx, i, n;
-	u8 ackpower, ackchains, f;
+	u8 f;
 	u8 pwr_freqs[AR5416_MAX_NUM_TGT_PWRS];
 
 	if (freq < 3000)
@@ -1523,32 +1523,6 @@ static int carl9170_set_power_cal(struct ar9170 *ar, u32 freq,
 
 	/* calc. conformance test limits and apply to ar->power*[] */
 	carl9170_calc_ctl(ar, freq, bw);
-
-	/* set ACK/CTS TX power */
-	carl9170_regwrite_begin(ar);
-
-	if (ar->eeprom.tx_mask != 1)
-		ackchains = AR9170_TX_PHY_TXCHAIN_2;
-	else
-		ackchains = AR9170_TX_PHY_TXCHAIN_1;
-
-	if (freq < 3000)
-		ackpower = ar->power_2G_ofdm[0] & 0x3f;
-	else
-		ackpower = ar->power_5G_leg[0] & 0x3f;
-
-	carl9170_regwrite(AR9170_MAC_REG_ACK_TPC,
-			  0x3c1e | ackpower << 20 | ackchains << 26);
-	carl9170_regwrite(AR9170_MAC_REG_RTS_CTS_TPC,
-			  ackpower << 5 | ackchains << 11 |
-			  ackpower << 21 | ackchains << 27);
-
-	carl9170_regwrite(AR9170_MAC_REG_CFEND_QOSNULL_TPC,
-			  ackpower << 5 | ackchains << 11 |
-			  ackpower << 21 | ackchains << 27);
-
-	carl9170_regwrite_finish();
-	return carl9170_regwrite_result();
 }
 
 int carl9170_get_noisefloor(struct ar9170 *ar)
@@ -1712,7 +1686,9 @@ int carl9170_set_channel(struct ar9170 *ar, struct ieee80211_channel *channel,
 	if (err)
 		return err;
 
-	err = carl9170_set_power_cal(ar, channel->center_freq, bw);
+	carl9170_set_power_cal(ar, channel->center_freq, bw);
+
+	err = carl9170_set_mac_tpc(ar, channel);
 	if (err)
 		return err;
 

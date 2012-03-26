@@ -191,7 +191,7 @@ static int ariadne_rx(struct net_device *dev)
 			short pkt_len = swapw(priv->rx_ring[entry]->RMD3);
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len + 2);
+			skb = netdev_alloc_skb(dev, pkt_len + 2);
 			if (skb == NULL) {
 				netdev_warn(dev, "Memory squeeze, deferring packet\n");
 				for (i = 0; i < RX_RING_SIZE; i++)

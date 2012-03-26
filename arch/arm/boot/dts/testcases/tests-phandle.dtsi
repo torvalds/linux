@@ -31,6 +31,8 @@
 				phandle-list-bad-phandle = <12345678 0 0>;
 				phandle-list-bad-args = <&provider2 1 0>,
 							<&provider3 0>;
+				empty-property;
+				unterminated-string = [40 41 42 43];
 			};
 		};
 	};
