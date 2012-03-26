@@ -1911,6 +1911,33 @@ static void update_peer_seq(struct drbd_conf *mdev, unsigned int peer_seq)
 	}
 }
 
+static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
+{
+	return !((s1 + (l1>>9) <= s2) || (s1 >= s2 + (l2>>9)));
+}
+
+/* maybe change sync_ee into interval trees as well? */
+static bool overlaping_resync_write(struct drbd_conf *mdev, struct drbd_peer_request *peer_req)
+{
+	struct drbd_peer_request *rs_req;
+	bool rv = 0;
+
+	spin_lock_irq(&mdev->tconn->req_lock);
+	list_for_each_entry(rs_req, &mdev->sync_ee, w.list) {
+		if (overlaps(peer_req->i.sector, peer_req->i.size,
+			     rs_req->i.sector, rs_req->i.size)) {
+			rv = 1;
+			break;
+		}
+	}
+	spin_unlock_irq(&mdev->tconn->req_lock);
+
+	if (rv)
+		dev_warn(DEV, "WARN: Avoiding concurrent data/resync write to single sector.\n");
+
+	return rv;
+}
+
 /* Called from receive_Data.
  * Synchronize packets on sock with packets on msock.
  *
@@ -2191,6 +2218,9 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 		spin_lock_irq(&mdev->tconn->req_lock);
 	list_add(&peer_req->w.list, &mdev->active_ee);
 	spin_unlock_irq(&mdev->tconn->req_lock);
+
+	if (mdev->state.conn == C_SYNC_TARGET)
+		wait_event(mdev->ee_wait, !overlaping_resync_write(mdev, peer_req));
 
 	if (mdev->tconn->agreed_pro_version < 100) {
 		rcu_read_lock();
