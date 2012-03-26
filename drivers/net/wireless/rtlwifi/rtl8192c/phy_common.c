@@ -1893,7 +1893,7 @@ void rtl92c_phy_set_io(struct ieee80211_hw *hw)
 		break;
 	case IO_CMD_PAUSE_DM_BY_SCAN:
 		rtlphy->initgain_backup.xaagccore1 = dm_digtable.cur_igvalue;
-		dm_digtable.cur_igvalue = 0x17;
+		dm_digtable.cur_igvalue = 0x37;
 		rtl92c_dm_write_dig(hw);
 		break;
 	default:
