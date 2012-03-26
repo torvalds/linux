@@ -1207,8 +1207,6 @@ static int i915_load_gem_init(struct drm_device *dev)
 		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
 		 * aperture accordingly when using aliasing ppgtt. */
 		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
-		/* For paranoia keep the guard page in between. */
-		gtt_size -= PAGE_SIZE;
 
 		i915_gem_init_global_gtt(dev, 0, mappable_size, gtt_size);
 
@@ -1227,7 +1225,7 @@ static int i915_load_gem_init(struct drm_device *dev)
 		 * aperture.
 		 */
 		i915_gem_init_global_gtt(dev, 0, mappable_size,
-					 gtt_size - PAGE_SIZE);
+					 gtt_size);
 	}
 
 	ret = i915_gem_init_hw(dev);
