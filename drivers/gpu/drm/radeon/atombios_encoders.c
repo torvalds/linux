@@ -541,7 +541,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 		dp_clock = dig_connector->dp_clock;
 		dp_lane_count = dig_connector->dp_lane_count;
 		hpd_id = radeon_connector->hpd.hpd;
-		/* bpc = connector->display_info.bpc; */
+		bpc = radeon_get_monitor_bpc(connector);
 	}
 
 	/* no dig encoder assigned */
@@ -1159,7 +1159,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 		dp_lane_count = dig_connector->dp_lane_count;
 		connector_object_id =
 			(radeon_connector->connector_object_id & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
-		/* bpc = connector->display_info.bpc; */
+		bpc = radeon_get_monitor_bpc(connector);
 	}
 
 	memset(&args, 0, sizeof(args));

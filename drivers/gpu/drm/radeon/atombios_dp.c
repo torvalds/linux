@@ -405,13 +405,10 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 /* get bpc from the EDID */
 static int convert_bpc_to_bpp(int bpc)
 {
-#if 0
 	if (bpc == 0)
 		return 24;
 	else
 		return bpc * 3;
-#endif
-	return 24;
 }
 
 /* get the max pix clock supported by the link rate and lane num */
@@ -463,7 +460,7 @@ static int radeon_dp_get_dp_lane_number(struct drm_connector *connector,
 					u8 dpcd[DP_DPCD_SIZE],
 					int pix_clock)
 {
-	int bpp = convert_bpc_to_bpp(connector->display_info.bpc);
+	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));
 	int max_link_rate = dp_get_max_link_rate(dpcd);
 	int max_lane_num = dp_get_max_lane_number(dpcd);
 	int lane_num;
@@ -482,7 +479,7 @@ static int radeon_dp_get_dp_link_clock(struct drm_connector *connector,
 				       u8 dpcd[DP_DPCD_SIZE],
 				       int pix_clock)
 {
-	int bpp = convert_bpc_to_bpp(connector->display_info.bpc);
+	int bpp = convert_bpc_to_bpp(radeon_get_monitor_bpc(connector));
 	int lane_num, max_pix_clock;
 
 	if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) ==

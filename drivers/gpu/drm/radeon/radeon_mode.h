@@ -476,6 +476,7 @@ extern u16 radeon_encoder_get_dp_bridge_encoder_id(struct drm_encoder *encoder);
 extern u16 radeon_connector_encoder_get_dp_bridge_encoder_id(struct drm_connector *connector);
 extern bool radeon_connector_encoder_is_hbr2(struct drm_connector *connector);
 extern bool radeon_connector_is_dp12_capable(struct drm_connector *connector);
+extern int radeon_get_monitor_bpc(struct drm_connector *connector);
 
 extern void radeon_connector_hotplug(struct drm_connector *connector);
 extern int radeon_dp_mode_valid_helper(struct drm_connector *connector,
