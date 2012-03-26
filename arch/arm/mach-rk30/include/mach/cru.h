@@ -35,7 +35,9 @@ enum rk_plls_id {
 /********************************************************************/
 
 #define CRU_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
-#define CRU_SET_VAL_BITS(val,bits_shift,msk) (((msk)<<((bits_shift)+16))|(val)) 
+#define CRU_SET_BITS(val,bits_shift, msk)	(((val)&(msk)) << (bits_shift))
+
+#define CRU_W_MSK_SETBITS(val,bits_shift,msk) (CRU_W_MSK(bits_shift, msk)|CRU_SET_BITS(val,bits_shift, msk))
 
 /*******************PLL CON0 BITS***************************/
 
@@ -133,6 +135,12 @@ enum rk_plls_id {
 #define ACLK_PCLK_21		(1 << 12)
 #define ACLK_PCLK_41		(2 << 12)
 #define ACLK_PCLK_81		(3 << 12)
+// ahb2apb div
+#define AHB2APB_W_MSK		(3 << 30)
+#define AHB2APB_MSK			(3 << 14)
+#define AHB2APB_11			(0 << 14)
+#define AHB2APB_21			(1 << 14)
+#define AHB2APB_41			(2 << 14)
 
 /*******************MODE BITS***************************/
 

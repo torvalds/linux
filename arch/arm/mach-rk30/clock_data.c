@@ -186,8 +186,8 @@ void rk30_clkdev_add(struct clk_lookup *cl);
 #endif
 
 
-#define CRU_PRINTK_DBG(fmt, args...) printk(fmt, ## args);
-#define CRU_PRINTK_ERR(fmt, args...) printk(fmt, ## args);
+#define CRU_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args);
+#define CRU_PRINTK_ERR(fmt, args...) pr_err(fmt, ## args);
 
 
 #define get_cru_bits(con,mask,shift)\
@@ -1180,7 +1180,7 @@ static struct clk clk_i2s2_frac_div = {
 	.parent		= &clk_i2s2_div,
 	.recalc		= clksel_recalc_frac,
 	.set_rate	= clk_i2s_fracdiv_set_rate,
-	.clksel_con	= CRU_CLKSELS_CON(7),
+	.clksel_con	= CRU_CLKSELS_CON(8),
 };
 static struct clk clk_spdif_frac_div = {
 	.name		= "spdif_frac_div",
@@ -1257,7 +1257,7 @@ static struct clk *clk_i2s2_parents[3]={&clk_i2s2_div,&clk_i2s2_frac_div,&clk_12
 static struct clk clk_i2s2 = {
 	.name		= "i2s2",
 	.set_rate	= i2s_set_rate,
-	.clksel_con	= CRU_CLKSELS_CON(3),
+	.clksel_con	= CRU_CLKSELS_CON(4),
 	CRU_SRC_SET(0x3,8),
 	CRU_PARENTS_SET(clk_i2s2_parents),
 };
@@ -1268,7 +1268,7 @@ static struct clk clk_spdif = {
 	.name		= "spdif",
 	.parent		= &clk_spdif_frac_div,
 	.set_rate	= i2s_set_rate,
-	.clksel_con = CRU_CLKSELS_CON(4),
+	.clksel_con = CRU_CLKSELS_CON(5),
 	CRU_SRC_SET(0x3,8),
 	CRU_PARENTS_SET(clk_spdif_parents),
 };
@@ -1992,10 +1992,10 @@ static struct clk cif1_in = {
 	CRU_PARENTS_SET(cif1_in_parents),
 };
 
-static struct clk *aclk_lcdc0_parents[]={&codec_pll_clk,&general_pll_clk};
+static struct clk *aclk_lcdc0_ipp_parents[]={&codec_pll_clk,&general_pll_clk};
 
-static struct clk aclk_lcdc0 = {
-	.name		= "aclk_lcdc0",
+static struct clk aclk_lcdc0_ipp_parent = {
+	.name		= "aclk_lcdc0_ipp_parent",
 	.parent		= &codec_pll_clk,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
@@ -2005,13 +2005,13 @@ static struct clk aclk_lcdc0 = {
 	.clksel_con	= CRU_CLKSELS_CON(31),
 	CRU_DIV_SET(0x1f,0,32),
 	CRU_SRC_SET(0x1,7),
-	CRU_PARENTS_SET(aclk_lcdc0_parents),
+	CRU_PARENTS_SET(aclk_lcdc0_ipp_parents),
 };
 
-static struct clk *aclk_lcdc1_parents[]={&codec_pll_clk,&general_pll_clk};
+static struct clk *aclk_lcdc1_rga_parents[]={&codec_pll_clk,&general_pll_clk};
 
-static struct clk aclk_lcdc1 = {
-	.name		= "aclk_lcdc1",
+static struct clk aclk_lcdc1_rga_parent = {
+	.name		= "aclk_lcdc1_rga_parent",
 	.parent		= &codec_pll_clk,
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
@@ -2020,7 +2020,7 @@ static struct clk aclk_lcdc1 = {
 	.clksel_con	= CRU_CLKSELS_CON(31),
 	CRU_DIV_SET(0x1f,8,32),
 	CRU_SRC_SET(0x1,15),
-	CRU_PARENTS_SET(aclk_lcdc1_parents),
+	CRU_PARENTS_SET(aclk_lcdc1_rga_parents),
 };
 
 
@@ -2273,14 +2273,17 @@ GATE_CLK(gpio4, pclk_periph, PCLK_GPIO4);
 GATE_CLK(pclk_saradc, pclk_periph, PCLK_SARADC);
 GATE_CLK(pclk_tsadc, pclk_periph, PCLK_TSADC);
 /*************************aclk_lcdc0***********************/
-GATE_CLK(aclk_vio0, aclk_lcdc0, ACLK_VIO0);
-GATE_CLK(aclk_cif0, aclk_lcdc0, ACLK_CIF0);
-GATE_CLK(aclk_ipp, aclk_lcdc0, ACLK_IPP);
+GATE_CLK(aclk_lcdc0, aclk_lcdc0_ipp_parent, ACLK_LCDC0);
+GATE_CLK(aclk_vio0, aclk_lcdc0_ipp_parent, ACLK_VIO0);
+GATE_CLK(aclk_cif0, aclk_lcdc0_ipp_parent, ACLK_CIF0);
+GATE_CLK(aclk_ipp,  aclk_lcdc0_ipp_parent, ACLK_IPP);
 
 /*************************aclk_lcdc0***********************/
-GATE_CLK(aclk_vio1, aclk_lcdc1, ACLK_VIO1);
-GATE_CLK(aclk_cif1, aclk_lcdc1, ACLK_CIF0);
-GATE_CLK(aclk_rga, aclk_lcdc1, ACLK_RGA);
+
+GATE_CLK(aclk_lcdc1, aclk_lcdc1_rga_parent, ACLK_LCDC1);
+GATE_CLK(aclk_vio1, aclk_lcdc1_rga_parent, ACLK_VIO1);
+GATE_CLK(aclk_cif1, aclk_lcdc1_rga_parent, ACLK_CIF0);
+GATE_CLK(aclk_rga,  aclk_lcdc1_rga_parent, ACLK_RGA);
 
 
 #if 1
@@ -2418,16 +2421,18 @@ static struct clk_lookup clks[] = {
 	CLK1(hsadc),
 	CLK1(hclk_hsadc),
 
+	CLK(NULL, "aclk_lcdc0_ipp_parent", &aclk_lcdc0_ipp_parent),
+	CLK(NULL, "aclk_lcdc1_rga_parent", &aclk_lcdc1_rga_parent),
 
 	CLK(NULL, "dclk_lcdc0_div", &dclk_lcdc0_div),
 	CLK(NULL, "dclk_lcdc1_div", &dclk_lcdc1_div),
 	
 	CLK(NULL, "dclk_lcdc0", &dclk_lcdc0),
-	CLK(NULL, "aclk_lcdc0",	&aclk_lcdc0),
+	CLK(NULL, "aclk_lcdc0",	&clk_aclk_lcdc0),
 	CLK1(hclk_lcdc0),
 	
 	CLK(NULL, "dclk_lcdc1", &dclk_lcdc1),
-	CLK(NULL, "aclk_lcdc1",	&aclk_lcdc1),
+	CLK(NULL, "aclk_lcdc1",	&clk_aclk_lcdc1),
 	CLK1(hclk_lcdc1),
 	
 	CLK(NULL, "cif_out_pll", &cif_out_pll),
@@ -2744,6 +2749,8 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 	//axi lcdc auto sel
 	//clk_set_parent_nolock(&aclk_lcdc0, &general_pll_clk);
 	//clk_set_parent_nolock(&aclk_lcdc1, &general_pll_clk);
+	clk_set_rate_nolock(&aclk_lcdc0_ipp_parent, 300*MHZ);
+	clk_set_rate_nolock(&aclk_lcdc1_rga_parent, 300*MHZ);
 
 	//axi vepu auto sel
 	//clk_set_parent_nolock(&aclk_vepu, &general_pll_clk);
@@ -2774,7 +2781,6 @@ void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned 
 	
 	for (lk = clks; lk < clks + ARRAY_SIZE(clks); lk++) {
 		#ifdef RK30_CLK_OFFBOARD_TEST
-		fdsf
 			rk30_clkdev_add(lk);
 		#else
 			clkdev_add(lk);
