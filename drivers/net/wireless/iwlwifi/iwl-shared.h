@@ -150,19 +150,12 @@ struct iwl_mod_params {
 /**
  * struct iwl_shared - shared fields for all the layers of the driver
  *
- * @wowlan: are we running wowlan uCode
- * @bus: pointer to the bus layer data
  * @cfg: see struct iwl_cfg
- * @priv: pointer to the upper layer data
  * @trans: pointer to the transport layer data
- * @nic: pointer to the nic data
- * @lock: protect general shared data
- * @eeprom: pointer to the eeprom/OTP image
  */
 struct iwl_shared {
 	const struct iwl_cfg *cfg;
 	struct iwl_trans *trans;
-	void *drv;
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, these macros will work */

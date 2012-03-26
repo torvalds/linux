@@ -215,6 +215,7 @@ struct iwl_tx_queue {
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
  * @rx_replenish: work that will be called when buffers need to be allocated
+ * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
  * @irq - the irq number for the device
  * @irq_requested: true when the irq has been requested
@@ -235,6 +236,7 @@ struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
 	struct work_struct rx_replenish;
 	struct iwl_trans *trans;
+	struct iwl_drv *drv;
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;

@@ -90,6 +90,7 @@
  * 8) iwl_ucode_callback starts the wifi implementation to matches the fw
  */
 
+struct iwl_drv;
 /**
  * iwl_drv_start - start the drv
  *
@@ -102,10 +103,11 @@
  * starts the driver: fetches the firmware. This should be called by bus
  * specific system flows implementations. For example, the bus specific probe
  * function should do bus related operations only, and then call to this
- * function.
+ * function. It returns the driver object or %NULL if an error occured.
  */
-int iwl_drv_start(struct iwl_shared *shrd,
-		  struct iwl_trans *trans, const struct iwl_cfg *cfg);
+struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
+			      struct iwl_trans *trans,
+			      const struct iwl_cfg *cfg);
 
 /**
  * iwl_drv_stop - stop the drv
@@ -118,6 +120,6 @@ int iwl_drv_start(struct iwl_shared *shrd,
  * implementations. For example, the bus specific remove function should first
  * call this function and then do the bus related operations only.
  */
-void iwl_drv_stop(struct iwl_shared *shrd);
+void iwl_drv_stop(struct iwl_drv *drv);
 
 #endif /* __iwl_drv_h__ */

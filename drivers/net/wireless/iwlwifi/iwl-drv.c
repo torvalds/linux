@@ -88,6 +88,7 @@ struct iwl_drv {
 
 	struct iwl_shared *shrd;
 	struct iwl_op_mode *op_mode;
+	struct iwl_trans *trans;
 
 	int fw_index;                   /* firmware we're trying to load */
 	char firmware_name[25];         /* name of firmware file to load */
@@ -858,7 +859,7 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	release_firmware(ucode_raw);
 	complete(&drv->request_firmware_complete);
 
-	drv->op_mode = iwl_dvm_ops.start(drv->shrd->trans, &drv->fw);
+	drv->op_mode = iwl_dvm_ops.start(drv->trans, &drv->fw);
 
 	if (!drv->op_mode)
 		goto out_unbind;
@@ -881,8 +882,9 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	device_release_driver(trans(drv)->dev);
 }
 
-int iwl_drv_start(struct iwl_shared *shrd,
-		  struct iwl_trans *trans, const struct iwl_cfg *cfg)
+struct iwl_drv *iwl_drv_start(struct iwl_shared *shrd,
+			      struct iwl_trans *trans,
+			      const struct iwl_cfg *cfg)
 {
 	struct iwl_drv *drv;
 	int ret;
@@ -892,10 +894,11 @@ int iwl_drv_start(struct iwl_shared *shrd,
 	drv = kzalloc(sizeof(*drv), GFP_KERNEL);
 	if (!drv) {
 		dev_printk(KERN_ERR, trans->dev, "Couldn't allocate iwl_drv");
-		return -ENOMEM;
+		return NULL;
 	}
+	/* For printing only - temporary until we change the logger */
 	drv->shrd = shrd;
-	shrd->drv = drv;
+	drv->trans = trans;
 
 	init_completion(&drv->request_firmware_complete);
 
@@ -904,16 +907,14 @@ int iwl_drv_start(struct iwl_shared *shrd,
 	if (ret) {
 		dev_printk(KERN_ERR, trans->dev, "Couldn't request the fw");
 		kfree(drv);
-		shrd->drv = NULL;
+		drv = NULL;
 	}
 
-	return ret;
+	return drv;
 }
 
-void iwl_drv_stop(struct iwl_shared *shrd)
+void iwl_drv_stop(struct iwl_drv *drv)
 {
-	struct iwl_drv *drv = shrd->drv;
-
 	wait_for_completion(&drv->request_firmware_complete);
 
 	/* op_mode can be NULL if its start failed */
@@ -923,5 +924,4 @@ void iwl_drv_stop(struct iwl_shared *shrd)
 	iwl_dealloc_ucode(drv);
 
 	kfree(drv);
-	shrd->drv = NULL;
 }
