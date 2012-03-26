@@ -398,21 +398,18 @@ static int dispatch_discard_io(struct xen_blkif *blkif,
 	int err = 0;
 	int status = BLKIF_RSP_OKAY;
 	struct block_device *bdev = blkif->vbd.bdev;
+	unsigned long secure;
 
 	blkif->st_ds_req++;
 
 	xen_blkif_get(blkif);
-	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY ||
-	    blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
-		unsigned long secure = (blkif->vbd.discard_secure &&
-			(req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
-			BLKDEV_DISCARD_SECURE : 0;
-		err = blkdev_issue_discard(bdev,
-				req->u.discard.sector_number,
-				req->u.discard.nr_sectors,
-				GFP_KERNEL, secure);
-	} else
-		err = -EOPNOTSUPP;
+	secure = (blkif->vbd.discard_secure &&
+		 (req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
+		 BLKDEV_DISCARD_SECURE : 0;
+
+	err = blkdev_issue_discard(bdev, req->u.discard.sector_number,
+				   req->u.discard.nr_sectors,
+				   GFP_KERNEL, secure);
 
 	if (err == -EOPNOTSUPP) {
 		pr_debug(DRV_PFX "discard op failed, not supported\n");
