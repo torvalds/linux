@@ -129,6 +129,10 @@ i915_gem_init_ioctl(struct drm_device *dev, void *data,
 	    (args->gtt_end | args->gtt_start) & (PAGE_SIZE - 1))
 		return -EINVAL;
 
+	/* GEM with user mode setting was never supported on ilk and later. */
+	if (INTEL_INFO(dev)->gen >= 5)
+		return -ENODEV;
+
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_init_global_gtt(dev, args->gtt_start,
 				 args->gtt_end, args->gtt_end);
