@@ -1251,6 +1251,9 @@ struct drv_func_mb {
 
 	#define DRV_MSG_CODE_LINK_STATUS_CHANGED        0x01000000
 
+	#define DRV_MSG_CODE_INITIATE_FLR               0x02000000
+	#define REQ_BC_VER_4_INITIATE_FLR               0x00070213
+
 	#define BIOS_MSG_CODE_LIC_CHALLENGE             0xff010000
 	#define BIOS_MSG_CODE_LIC_RESPONSE              0xff020000
 	#define BIOS_MSG_CODE_VIRT_MAC_PRIM             0xff030000

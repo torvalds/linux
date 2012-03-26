@@ -89,6 +89,8 @@
 #define PFC_BRB_FULL_LB_XON_THRESHOLD				250
 
 #define MAXVAL(a, b) (((a) > (b)) ? (a) : (b))
+
+#define BMAC_CONTROL_RX_ENABLE		2
 /***********************************************************/
 /*                         Structs                         */
 /***********************************************************/
