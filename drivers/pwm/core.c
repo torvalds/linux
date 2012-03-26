@@ -27,6 +27,8 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #define MAX_PWMS 1024
 
@@ -338,3 +340,91 @@ void pwm_disable(struct pwm_device *pwm)
 		pwm->chip->ops->disable(pwm->chip, pwm);
 }
 EXPORT_SYMBOL_GPL(pwm_disable);
+
+#ifdef CONFIG_DEBUG_FS
+static void pwm_dbg_show(struct pwm_chip *chip, struct seq_file *s)
+{
+	unsigned int i;
+
+	for (i = 0; i < chip->npwm; i++) {
+		struct pwm_device *pwm = &chip->pwms[i];
+
+		seq_printf(s, " pwm-%-3d (%-20.20s):", i, pwm->label);
+
+		if (test_bit(PWMF_REQUESTED, &pwm->flags))
+			seq_printf(s, " requested");
+
+		if (test_bit(PWMF_ENABLED, &pwm->flags))
+			seq_printf(s, " enabled");
+
+		seq_printf(s, "\n");
+	}
+}
+
+static void *pwm_seq_start(struct seq_file *s, loff_t *pos)
+{
+	mutex_lock(&pwm_lock);
+	s->private = "";
+
+	return seq_list_start(&pwm_chips, *pos);
+}
+
+static void *pwm_seq_next(struct seq_file *s, void *v, loff_t *pos)
+{
+	s->private = "\n";
+
+	return seq_list_next(v, &pwm_chips, pos);
+}
+
+static void pwm_seq_stop(struct seq_file *s, void *v)
+{
+	mutex_unlock(&pwm_lock);
+}
+
+static int pwm_seq_show(struct seq_file *s, void *v)
+{
+	struct pwm_chip *chip = list_entry(v, struct pwm_chip, list);
+
+	seq_printf(s, "%s%s/%s, %d PWM device%s\n", (char *)s->private,
+		   chip->dev->bus ? chip->dev->bus->name : "no-bus",
+		   dev_name(chip->dev), chip->npwm,
+		   (chip->npwm != 1) ? "s" : "");
+
+	if (chip->ops->dbg_show)
+		chip->ops->dbg_show(chip, s);
+	else
+		pwm_dbg_show(chip, s);
+
+	return 0;
+}
+
+static const struct seq_operations pwm_seq_ops = {
+	.start = pwm_seq_start,
+	.next = pwm_seq_next,
+	.stop = pwm_seq_stop,
+	.show = pwm_seq_show,
+};
+
+static int pwm_seq_open(struct inode *inode, struct file *file)
+{
+	return seq_open(file, &pwm_seq_ops);
+}
+
+static const struct file_operations pwm_debugfs_ops = {
+	.owner = THIS_MODULE,
+	.open = pwm_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release,
+};
+
+static int __init pwm_debugfs_init(void)
+{
+	debugfs_create_file("pwm", S_IFREG | S_IRUGO, NULL, NULL,
+			    &pwm_debugfs_ops);
+
+	return 0;
+}
+
+subsys_initcall(pwm_debugfs_init);
+#endif /* CONFIG_DEBUG_FS */

@@ -2,6 +2,7 @@
 #define __LINUX_PWM_H
 
 struct pwm_device;
+struct seq_file;
 
 /*
  * pwm_request - request a PWM device
@@ -65,6 +66,7 @@ static inline unsigned int pwm_get_period(struct pwm_device *pwm)
  * @config: configure duty cycles and period length for this PWM
  * @enable: enable PWM output toggling
  * @disable: disable PWM output toggling
+ * @dbg_show: optional routine to show contents in debugfs
  * @owner: helps prevent removal of modules exporting active PWMs
  */
 struct pwm_ops {
@@ -79,6 +81,10 @@ struct pwm_ops {
 					  struct pwm_device *pwm);
 	void			(*disable)(struct pwm_chip *chip,
 					   struct pwm_device *pwm);
+#ifdef CONFIG_DEBUG_FS
+	void			(*dbg_show)(struct pwm_chip *chip,
+					    struct seq_file *s);
+#endif
 	struct module		*owner;
 };
 
