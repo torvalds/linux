@@ -1043,10 +1043,15 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 	int ret = 0;
 	unsigned char iid;
 	unsigned long flags;
+	int next = 1;
+	u8 msr;
 
 	spin_lock_irqsave(&priv->port.lock, flags);
 	handled = 0;
-	while ((iid = pch_uart_hal_get_iid(priv)) > 1) {
+	while (next) {
+		iid = pch_uart_hal_get_iid(priv);
+		if (iid & PCH_UART_IIR_IP) /* No Interrupt */
+			break;
 		switch (iid) {
 		case PCH_UART_IID_RLS:	/* Receiver Line Status */
 			lsr = pch_uart_hal_get_line_status(priv);
@@ -1080,12 +1085,18 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 				ret = handle_tx(priv);
 			break;
 		case PCH_UART_IID_MS:	/* Modem Status */
-			ret = PCH_UART_HANDLED_MS_INT;
+			msr = pch_uart_hal_get_modem(priv);
+			next = 0; /* MS ir prioirty is the lowest. So, MS ir
+				     means final interrupt */
+			if ((msr & UART_MSR_ANY_DELTA) == 0)
+				break;
+			ret |= PCH_UART_HANDLED_MS_INT;
 			break;
 		default:	/* Never junp to this label */
 			dev_err(priv->port.dev, "%s:iid=%02x (%lu)\n", __func__,
 				iid, jiffies);
 			ret = -1;
+			next = 0;
 			break;
 		}
 		handled |= (unsigned int)ret;
