@@ -266,6 +266,12 @@ eb_destroy(struct eb_objects *eb)
 	kfree(eb);
 }
 
+static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
+{
+	return (obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
+		obj->cache_level != I915_CACHE_NONE);
+}
+
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_objects *eb,
@@ -354,10 +360,18 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return ret;
 	}
 
+	/* We can't wait for rendering with pagefaults disabled */
+	if (obj->active && in_atomic())
+		return -EFAULT;
+
 	reloc->delta += target_offset;
-	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
+	if (use_cpu_reloc(obj)) {
 		uint32_t page_offset = reloc->offset & ~PAGE_MASK;
 		char *vaddr;
+
+		ret = i915_gem_object_set_to_cpu_domain(obj, 1);
+		if (ret)
+			return ret;
 
 		vaddr = kmap_atomic(obj->pages[reloc->offset >> PAGE_SHIFT]);
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
@@ -366,10 +380,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		struct drm_i915_private *dev_priv = dev->dev_private;
 		uint32_t __iomem *reloc_entry;
 		void __iomem *reloc_page;
-
-		/* We can't wait for rendering with pagefaults disabled */
-		if (obj->active && in_atomic())
-			return -EFAULT;
 
 		ret = i915_gem_object_set_to_gtt_domain(obj, 1);
 		if (ret)
@@ -493,6 +503,13 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 #define  __EXEC_OBJECT_HAS_FENCE (1<<31)
 
 static int
+need_reloc_mappable(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
+	return entry->relocation_count && !use_cpu_reloc(obj);
+}
+
+static int
 pin_and_fence_object(struct drm_i915_gem_object *obj,
 		     struct intel_ring_buffer *ring)
 {
@@ -505,8 +522,7 @@ pin_and_fence_object(struct drm_i915_gem_object *obj,
 		has_fenced_gpu_access &&
 		entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 		obj->tiling_mode != I915_TILING_NONE;
-	need_mappable =
-		entry->relocation_count ? true : need_fence;
+	need_mappable = need_fence || need_reloc_mappable(obj);
 
 	ret = i915_gem_object_pin(obj, entry->alignment, need_mappable);
 	if (ret)
@@ -563,8 +579,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			has_fenced_gpu_access &&
 			entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 			obj->tiling_mode != I915_TILING_NONE;
-		need_mappable =
-			entry->relocation_count ? true : need_fence;
+		need_mappable = need_fence || need_reloc_mappable(obj);
 
 		if (need_mappable)
 			list_move(&obj->exec_list, &ordered_objects);
@@ -604,8 +619,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 				has_fenced_gpu_access &&
 				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 				obj->tiling_mode != I915_TILING_NONE;
-			need_mappable =
-				entry->relocation_count ? true : need_fence;
+			need_mappable = need_fence || need_reloc_mappable(obj);
 
 			if ((entry->alignment && obj->gtt_offset & (entry->alignment - 1)) ||
 			    (need_mappable && !obj->map_and_fenceable))

@@ -39,8 +39,6 @@
 static __must_check int i915_gem_object_flush_gpu_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
-static __must_check int i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj,
-							  bool write);
 static __must_check int i915_gem_object_set_cpu_read_domain_range(struct drm_i915_gem_object *obj,
 								  uint64_t offset,
 								  uint64_t size);
@@ -3073,7 +3071,7 @@ i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj)
  * This function returns when the move is complete, including waiting on
  * flushes to occur.
  */
-static int
+int
 i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 {
 	uint32_t old_write_domain, old_read_domains;
