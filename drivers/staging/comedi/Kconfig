@@ -223,6 +223,16 @@ config COMEDI_AMPLC_DIO200_ISA
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_dio200.
 
+config COMEDI_AMPLC_PC236_ISA
+	tristate "Amplicon PC36AT DIO board support"
+	select COMEDI_AMPLC_PC236
+	default N
+	---help---
+	  Enable support for Amplicon PC36AT ISA DIO board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called amplc_pc236.
+
 config COMEDI_RTI800
 	tristate "Analog Devices RTI-800/815 ISA card support"
 	default N
@@ -794,12 +804,12 @@ config COMEDI_AMPLC_DIO200_PCI
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_dio200.
 
-config COMEDI_AMPLC_PC236
-	tristate "Amplicon PC36AT and PCI236 DIO board support"
-	select COMEDI_8255
+config COMEDI_AMPLC_PC236_PCI
+	tristate "Amplicon PCI236 DIO board support"
+	select COMEDI_AMPLC_PC236
 	default N
 	---help---
-	  Enable support for Amplicon PC36AT and PCI236 DIO boards
+	  Enable support for Amplicon PCI236 DIO board.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc236.
@@ -1396,6 +1406,11 @@ config COMEDI_FC
 	  called comedi_fc.
 
 config COMEDI_AMPLC_DIO200
+	def_tristate N
+	depends on COMEDI
+	select COMEDI_8255
+
+config COMEDI_AMPLC_PC236
 	def_tristate N
 	depends on COMEDI
 	select COMEDI_8255
