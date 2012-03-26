@@ -20,10 +20,14 @@ static void __init rk30_l2_cache_init(void)
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl, aux_ctrl_mask;
 
-	//Tag Ram Latency All 1-cycle
+	// Tag Ram Latency All 1-cycle
 	writel_relaxed(0x0, RK30_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
 	// Data Ram Latency [10:8] 1-cycle [6:4] 4-cycles [2:0] 2 cycles
 	writel_relaxed(0x031, RK30_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
+
+	/* L2X0 Power Control */
+	writel_relaxed(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN, RK30_L2C_BASE + L2X0_POWER_CTRL);
+
 	/*
          * 16-way associativity, parity disabled
          * Way size - 32KB
