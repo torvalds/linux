@@ -211,6 +211,18 @@ config COMEDI_PCM3730
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcm3730.
 
+config COMEDI_AMPLC_DIO200_ISA
+	tristate "Amplicon PC212E/PC214E/PC215E/PC218E/PC272E"
+	select COMEDI_AMPLC_DIO200
+	depends on COMEDI_ISA_DRIVERS
+	default N
+	---help---
+	  Enable support for Amplicon PC212E, PC214E, PC215E, PC218E and
+	  PC272E ISA DIO boards
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called amplc_dio200.
+
 config COMEDI_RTI800
 	tristate "Analog Devices RTI-800/815 ISA card support"
 	default N
@@ -772,12 +784,12 @@ config COMEDI_ADV_PCI_DIO
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci_dio.
 
-config COMEDI_AMPLC_DIO200
-	tristate "Amplicon PC272E and PCI272 DIO board support"
-	select COMEDI_8255
+config COMEDI_AMPLC_DIO200_PCI
+	tristate "Amplicon PCI215 and PCI272 DIO board support"
+	select COMEDI_AMPLC_DIO200
 	default N
 	---help---
-	  Enable support for Amplicon PC272E and PCI272 DIO boards
+	  Enable support for Amplicon PCI215 and PCI272 DIO boards.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_dio200.
@@ -1382,3 +1394,8 @@ config COMEDI_FC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called comedi_fc.
+
+config COMEDI_AMPLC_DIO200
+	def_tristate N
+	depends on COMEDI
+	select COMEDI_8255
