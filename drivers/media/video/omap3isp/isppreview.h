@@ -69,6 +69,8 @@ enum preview_ycpos_mode {
 
 /*
  * struct prev_params - Structure for all configuration
+ * @busy: Bitmask of busy parameters (being updated or used)
+ * @update: Bitmask of the parameters to be updated
  * @features: Set of features enabled.
  * @cfa: CFA coefficients.
  * @csup: Chroma suppression coefficients.
@@ -86,6 +88,8 @@ enum preview_ycpos_mode {
  * @brightness: Brightness.
  */
 struct prev_params {
+	u32 busy;
+	u32 update;
 	u32 features;
 	struct omap3isp_prev_cfa cfa;
 	struct omap3isp_prev_csup csup;
@@ -118,12 +122,11 @@ struct prev_params {
  * @output: Bitmask of the active output
  * @video_in: Input video entity
  * @video_out: Output video entity
- * @params: Module configuration data
- * @shadow_update: If set, update the hardware configured in the next interrupt
+ * @params.params : Active and shadow parameters sets
+ * @params.active: Bitmask of parameters active in set 0
+ * @params.lock: Parameters lock, protects params.active and params.shadow
  * @underrun: Whether the preview entity has queued buffers on the output
  * @state: Current preview pipeline state
- * @lock: Shadow update lock
- * @update: Bitmask of the parameters to be updated
  *
  * This structure is used to store the OMAP ISP Preview module Information.
  */
@@ -140,13 +143,15 @@ struct isp_prev_device {
 	struct isp_video video_in;
 	struct isp_video video_out;
 
-	struct prev_params params;
-	unsigned int shadow_update:1;
+	struct {
+		struct prev_params params[2];
+		u32 active;
+		spinlock_t lock;
+	} params;
+
 	enum isp_pipeline_stream_state state;
 	wait_queue_head_t wait;
 	atomic_t stopping;
-	spinlock_t lock;
-	u32 update;
 };
 
 struct isp_device;
