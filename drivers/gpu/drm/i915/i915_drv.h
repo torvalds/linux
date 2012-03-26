@@ -1253,10 +1253,6 @@ int __must_check i915_gem_init_hw(struct drm_device *dev);
 void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_init_ppgtt(struct drm_device *dev);
 void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
-void i915_gem_do_init(struct drm_device *dev,
-		      unsigned long start,
-		      unsigned long mappable_end,
-		      unsigned long end);
 int __must_check i915_gpu_idle(struct drm_device *dev, bool do_retire);
 int __must_check i915_gem_idle(struct drm_device *dev);
 int __must_check i915_add_request(struct intel_ring_buffer *ring,
@@ -1305,6 +1301,10 @@ void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 				enum i915_cache_level cache_level);
 void i915_gem_gtt_unbind_object(struct drm_i915_gem_object *obj);
 void i915_gem_gtt_finish_object(struct drm_i915_gem_object *obj);
+void i915_gem_init_global_gtt(struct drm_device *dev,
+			      unsigned long start,
+			      unsigned long mappable_end,
+			      unsigned long end);
 
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,

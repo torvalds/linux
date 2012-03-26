@@ -1210,7 +1210,7 @@ static int i915_load_gem_init(struct drm_device *dev)
 		/* For paranoia keep the guard page in between. */
 		gtt_size -= PAGE_SIZE;
 
-		i915_gem_do_init(dev, 0, mappable_size, gtt_size);
+		i915_gem_init_global_gtt(dev, 0, mappable_size, gtt_size);
 
 		ret = i915_gem_init_aliasing_ppgtt(dev);
 		if (ret)
@@ -1226,7 +1226,8 @@ static int i915_load_gem_init(struct drm_device *dev)
 		 * should be enough to keep any prefetching inside of the
 		 * aperture.
 		 */
-		i915_gem_do_init(dev, 0, mappable_size, gtt_size - PAGE_SIZE);
+		i915_gem_init_global_gtt(dev, 0, mappable_size,
+					 gtt_size - PAGE_SIZE);
 	}
 
 	ret = i915_gem_init_hw(dev);
