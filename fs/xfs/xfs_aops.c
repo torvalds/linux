@@ -1146,7 +1146,14 @@ __xfs_get_blocks(
 	if (!create && direct && offset >= i_size_read(inode))
 		return 0;
 
-	if (create) {
+	/*
+	 * Direct I/O is usually done on preallocated files, so try getting
+	 * a block mapping without an exclusive lock first.  For buffered
+	 * writes we already have the exclusive iolock anyway, so avoiding
+	 * a lock roundtrip here by taking the ilock exclusive from the
+	 * beginning is a useful micro optimization.
+	 */
+	if (create && !direct) {
 		lockmode = XFS_ILOCK_EXCL;
 		xfs_ilock(ip, lockmode);
 	} else {
@@ -1169,22 +1176,37 @@ __xfs_get_blocks(
 	     (imap.br_startblock == HOLESTARTBLOCK ||
 	      imap.br_startblock == DELAYSTARTBLOCK))) {
 		if (direct) {
+			/*
+			 * Drop the ilock in preparation for starting the block
+			 * allocation transaction.  It will be retaken
+			 * exclusively inside xfs_iomap_write_direct for the
+			 * actual allocation.
+			 */
+			xfs_iunlock(ip, lockmode);
 			error = xfs_iomap_write_direct(ip, offset, size,
 						       &imap, nimaps);
+			if (error)
+				return -error;
 		} else {
+			/*
+			 * Delalloc reservations do not require a transaction,
+			 * we can go on without dropping the lock here.
+			 */
 			error = xfs_iomap_write_delay(ip, offset, size, &imap);
+			if (error)
+				goto out_unlock;
+
+			xfs_iunlock(ip, lockmode);
 		}
-		if (error)
-			goto out_unlock;
 
 		trace_xfs_get_blocks_alloc(ip, offset, size, 0, &imap);
 	} else if (nimaps) {
 		trace_xfs_get_blocks_found(ip, offset, size, 0, &imap);
+		xfs_iunlock(ip, lockmode);
 	} else {
 		trace_xfs_get_blocks_notfound(ip, offset, size);
 		goto out_unlock;
 	}
-	xfs_iunlock(ip, lockmode);
 
 	if (imap.br_startblock != HOLESTARTBLOCK &&
 	    imap.br_startblock != DELAYSTARTBLOCK) {
