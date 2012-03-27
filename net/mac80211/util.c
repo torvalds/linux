@@ -404,12 +404,6 @@ void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 }
 
-void ieee80211_add_pending_skbs(struct ieee80211_local *local,
-				struct sk_buff_head *skbs)
-{
-	ieee80211_add_pending_skbs_fn(local, skbs, NULL, NULL);
-}
-
 void ieee80211_stop_queues_by_reason(struct ieee80211_hw *hw,
 				    enum queue_stop_reason reason)
 {
