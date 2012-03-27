@@ -255,7 +255,7 @@ struct mpic
 	struct device_node *node;
 
 	/* The remapper for this MPIC */
-	struct irq_host		*irqhost;
+	struct irq_domain	*irqhost;
 
 	/* The "linux" controller struct */
 	struct irq_chip		hc_irq;

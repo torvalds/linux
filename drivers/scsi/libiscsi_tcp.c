@@ -135,7 +135,7 @@ static void iscsi_tcp_segment_map(struct iscsi_segment *segment, int recv)
 
 	if (recv) {
 		segment->atomic_mapped = true;
-		segment->sg_mapped = kmap_atomic(sg_page(sg), KM_SOFTIRQ0);
+		segment->sg_mapped = kmap_atomic(sg_page(sg));
 	} else {
 		segment->atomic_mapped = false;
 		/* the xmit path can sleep with the page mapped so use kmap */
@@ -149,7 +149,7 @@ void iscsi_tcp_segment_unmap(struct iscsi_segment *segment)
 {
 	if (segment->sg_mapped) {
 		if (segment->atomic_mapped)
-			kunmap_atomic(segment->sg_mapped, KM_SOFTIRQ0);
+			kunmap_atomic(segment->sg_mapped);
 		else
 			kunmap(sg_page(segment->sg));
 		segment->sg_mapped = NULL;

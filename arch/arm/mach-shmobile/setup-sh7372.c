@@ -1043,6 +1043,8 @@ void __init sh7372_add_standard_devices(void)
 	sh7372_add_device_to_domain(&sh7372_a4r, &veu2_device);
 	sh7372_add_device_to_domain(&sh7372_a4r, &veu3_device);
 	sh7372_add_device_to_domain(&sh7372_a4r, &jpu_device);
+	sh7372_add_device_to_domain(&sh7372_a4r, &tmu00_device);
+	sh7372_add_device_to_domain(&sh7372_a4r, &tmu01_device);
 }
 
 void __init sh7372_add_early_devices(void)

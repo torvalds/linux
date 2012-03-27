@@ -230,7 +230,7 @@ void *generic_pipe_buf_map(struct pipe_inode_info *pipe,
 {
 	if (atomic) {
 		buf->flags |= PIPE_BUF_FLAG_ATOMIC;
-		return kmap_atomic(buf->page, KM_USER0);
+		return kmap_atomic(buf->page);
 	}
 
 	return kmap(buf->page);
@@ -251,7 +251,7 @@ void generic_pipe_buf_unmap(struct pipe_inode_info *pipe,
 {
 	if (buf->flags & PIPE_BUF_FLAG_ATOMIC) {
 		buf->flags &= ~PIPE_BUF_FLAG_ATOMIC;
-		kunmap_atomic(map_data, KM_USER0);
+		kunmap_atomic(map_data);
 	} else
 		kunmap(buf->page);
 }
@@ -565,14 +565,14 @@ redo1:
 			iov_fault_in_pages_read(iov, chars);
 redo2:
 			if (atomic)
-				src = kmap_atomic(page, KM_USER0);
+				src = kmap_atomic(page);
 			else
 				src = kmap(page);
 
 			error = pipe_iov_copy_from_user(src, iov, chars,
 							atomic);
 			if (atomic)
-				kunmap_atomic(src, KM_USER0);
+				kunmap_atomic(src);
 			else
 				kunmap(page);
 

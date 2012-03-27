@@ -1,6 +1,7 @@
 config PPC_ISERIES
 	bool "IBM Legacy iSeries"
 	depends on PPC64 && PPC_BOOK3S
+	select OF_DYNAMIC
 	select PPC_SMP_MUXED_IPI
 	select PPC_INDIRECT_PIO
 	select PPC_INDIRECT_MMIO

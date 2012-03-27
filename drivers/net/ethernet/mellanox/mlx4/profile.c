@@ -83,11 +83,30 @@ u64 mlx4_make_profile(struct mlx4_dev *dev,
 	u64 total_size = 0;
 	struct mlx4_resource *profile;
 	struct mlx4_resource tmp;
+	struct sysinfo si;
 	int i, j;
 
 	profile = kcalloc(MLX4_RES_NUM, sizeof(*profile), GFP_KERNEL);
 	if (!profile)
 		return -ENOMEM;
+
+	/*
+	 * We want to scale the number of MTTs with the size of the
+	 * system memory, since it makes sense to register a lot of
+	 * memory on a system with a lot of memory.  As a heuristic,
+	 * make sure we have enough MTTs to cover twice the system
+	 * memory (with PAGE_SIZE entries).
+	 *
+	 * This number has to be a power of two and fit into 32 bits
+	 * due to device limitations, so cap this at 2^31 as well.
+	 * That limits us to 8TB of memory registration per HCA with
+	 * 4KB pages, which is probably OK for the next few months.
+	 */
+	si_meminfo(&si);
+	request->num_mtt =
+		roundup_pow_of_two(max_t(unsigned, request->num_mtt,
+					 min(1UL << 31,
+					     si.totalram >> (log_mtts_per_seg - 1))));
 
 	profile[MLX4_RES_QP].size     = dev_cap->qpc_entry_sz;
 	profile[MLX4_RES_RDMARC].size = dev_cap->rdmarc_entry_sz;

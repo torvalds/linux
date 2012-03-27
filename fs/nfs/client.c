@@ -36,6 +36,7 @@
 #include <linux/inet.h>
 #include <linux/in6.h>
 #include <linux/slab.h>
+#include <linux/idr.h>
 #include <net/ipv6.h>
 #include <linux/nfs_xdr.h>
 #include <linux/sunrpc/bc_xprt.h>

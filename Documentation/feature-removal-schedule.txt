@@ -535,3 +535,11 @@ Why:	This driver provides support for USB storage devices like "USB
         (CONFIG_USB_STORAGE) which only drawback is the additional SCSI
         stack.
 Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+
+----------------------------
+
+What:	kmap_atomic(page, km_type)
+When:	3.5
+Why:	The old kmap_atomic() with two arguments is deprecated, we only
+	keep it for backward compatibility for few cycles and then drop it.
+Who:	Cong Wang <amwang@redhat.com>

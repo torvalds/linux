@@ -18,6 +18,8 @@
 #include <linux/string.h>
 #include <linux/kdev_t.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/genhd.h>
 #include <linux/kallsyms.h>
 #include <linux/mutex.h>
@@ -266,6 +268,9 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 
 	if (dev->driver)
 		add_uevent_var(env, "DRIVER=%s", dev->driver->name);
+
+	/* Add common DT information about the device */
+	of_device_uevent(dev, env);
 
 	/* have the bus specific function add its stuff */
 	if (dev->bus && dev->bus->uevent) {
