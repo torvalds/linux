@@ -220,7 +220,7 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	if (!init_data)
 		return -EINVAL;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -246,7 +246,6 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	return 0;
 
 err:
-	kfree(chip);
 	return ret;
 }
 
@@ -255,8 +254,6 @@ static int __devexit ad5398_remove(struct i2c_client *client)
 	struct ad5398_chip_info *chip = i2c_get_clientdata(client);
 
 	regulator_unregister(chip->rdev);
-	kfree(chip);
-
 	return 0;
 }
 
