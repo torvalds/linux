@@ -593,35 +593,31 @@ xfs_file_aio_write_checks(
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			error = 0;
 
-	xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
 restart:
 	error = generic_write_checks(file, pos, count, S_ISBLK(inode->i_mode));
-	if (error) {
-		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+	if (error)
 		return error;
-	}
 
 	/*
 	 * If the offset is beyond the size of the file, we need to zero any
 	 * blocks that fall between the existing EOF and the start of this
 	 * write.  If zeroing is needed and we are currently holding the
-	 * iolock shared, we need to update it to exclusive which involves
-	 * dropping all locks and relocking to maintain correct locking order.
-	 * If we do this, restart the function to ensure all checks and values
-	 * are still valid.
+	 * iolock shared, we need to update it to exclusive which implies
+	 * having to redo all checks before.
 	 */
 	if (*pos > i_size_read(inode)) {
 		if (*iolock == XFS_IOLOCK_SHARED) {
-			xfs_rw_iunlock(ip, XFS_ILOCK_EXCL | *iolock);
+			xfs_rw_iunlock(ip, *iolock);
 			*iolock = XFS_IOLOCK_EXCL;
-			xfs_rw_ilock(ip, XFS_ILOCK_EXCL | *iolock);
+			xfs_rw_ilock(ip, *iolock);
 			goto restart;
 		}
+		xfs_rw_ilock(ip, XFS_ILOCK_EXCL);
 		error = -xfs_zero_eof(ip, *pos, i_size_read(inode));
+		xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
+		if (error)
+			return error;
 	}
-	xfs_rw_iunlock(ip, XFS_ILOCK_EXCL);
-	if (error)
-		return error;
 
 	/*
 	 * Updating the timestamps will grab the ilock again from
@@ -638,7 +634,6 @@ restart:
 	 * people from modifying setuid and setgid binaries.
 	 */
 	return file_remove_suid(file);
-
 }
 
 /*
