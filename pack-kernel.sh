@@ -11,10 +11,6 @@ arch/arm/mach-rk29/verifyID.c
 drivers/staging/rk29/ipp/rk29-ipp.c
 )
 
-DIRS=(
-drivers/staging/rk29/vivante/
-)
-
 EXCLUDES=(
 arch/arm/mach-rk2818/*.c
 arch/arm/mach-rk2818/*.h
@@ -27,8 +23,7 @@ include/*rk28*
 
 arch/arm/mach-rk29/ddr_reconfig.c
 
-drivers/staging/rk29/vivante/*.c
-drivers/staging/rk29/vivante/*.h
+drivers/staging/rk29/vivante
 
 arch/arm/mach-rk29/board-rk29sdk.c
 arch/arm/configs/rk29_sdk_defconfig

@@ -492,6 +492,26 @@ gckVIDMEM_Construct(
         banks       ++;
     }
 
+// dkm : gcdTILESTATUS_SINGLE_BANK
+#if gcdTILESTATUS_SINGLE_BANK
+    /* Assign all the bank mappings. */
+    memory->mapping[gcvSURF_RENDER_TARGET]      = banks - 1;
+    memory->mapping[gcvSURF_BITMAP]             = banks - 1;
+    if (banks > 1) --banks;
+    memory->mapping[gcvSURF_TILE_STATUS]        = banks - 1;
+    memory->tilestatusBank = banks - 1;
+    if (banks > 1) --banks;
+    memory->mapping[gcvSURF_DEPTH]              = banks - 1;
+    memory->mapping[gcvSURF_HIERARCHICAL_DEPTH] = banks - 1;
+    if (banks > 1) --banks;
+    memory->mapping[gcvSURF_TEXTURE]            = banks - 1;
+    if (banks > 1) --banks;
+    memory->mapping[gcvSURF_VERTEX]             = banks - 1;
+    if (banks > 1) --banks;
+    memory->mapping[gcvSURF_INDEX]              = banks - 1;
+    if (banks > 1) --banks;
+    memory->mapping[gcvSURF_TYPE_UNKNOWN]       = 0;
+#else
     /* Assign all the bank mappings. */
     memory->mapping[gcvSURF_RENDER_TARGET]      = banks - 1;
     memory->mapping[gcvSURF_BITMAP]             = banks - 1;
@@ -508,6 +528,7 @@ gckVIDMEM_Construct(
     memory->mapping[gcvSURF_TILE_STATUS]        = banks - 1;
     if (banks > 1) --banks;
     memory->mapping[gcvSURF_TYPE_UNKNOWN]       = 0;
+#endif
 
     gcmkTRACE_ZONE(gcvLEVEL_INFO, gcvZONE_VIDMEM,
                   "[GALCORE] INDEX:         bank %d",
@@ -822,7 +843,7 @@ gckVIDMEM_AllocateLinear(
 
     acquired = gcvTRUE;
 
-#if 0
+#if gcdTILESTATUS_SINGLE_BANK
     // dkm: 对于花屏死机的问题，感觉VV这么做只是规避，还是没有找到问题的原因
 	if (Type == gcvSURF_TILE_STATUS
     && (Bytes + (1 << 20) > Memory->freeBytes))
@@ -859,11 +880,18 @@ gckVIDMEM_AllocateLinear(
     node = _FindNode(Memory, bank, Bytes, &alignment);
 
     /* Out of memory? */
+#if gcdTILESTATUS_SINGLE_BANK
+    if (node == gcvNULL && Type!=gcvSURF_TILE_STATUS)
+#else
     if (node == gcvNULL)
+#endif
     {
         /* Walk all lower banks. */
         for (i = bank - 1; i >= 0; --i)
         {
+#if gcdTILESTATUS_SINGLE_BANK
+            if(i==Memory->tilestatusBank)    continue;
+#endif
             /* Find a free node inside the current bank. */
             node = _FindNode(Memory, i, Bytes, &alignment);
             if (node != gcvNULL)
@@ -873,7 +901,11 @@ gckVIDMEM_AllocateLinear(
         }
     }
 
+#if gcdTILESTATUS_SINGLE_BANK
+    if (node == gcvNULL && Type!=gcvSURF_TILE_STATUS)
+#else
     if (node == gcvNULL)
+#endif
     {
         /* Walk all upper banks. */
         for (i = bank + 1; i < gcmCOUNTOF(Memory->sentinel); ++i)
@@ -884,6 +916,9 @@ gckVIDMEM_AllocateLinear(
                 break;
             }
 
+#if gcdTILESTATUS_SINGLE_BANK
+            if(i==Memory->tilestatusBank)    continue;
+#endif
             /* Find a free node inside the current bank. */
             node = _FindNode(Memory, i, Bytes, &alignment);
             if (node != gcvNULL)

@@ -343,6 +343,10 @@ struct _gckVIDMEM
 
     /* The heap mutex. */
     gctPOINTER                  mutex;
+
+#if gcdTILESTATUS_SINGLE_BANK
+    gctINT                      tilestatusBank;
+#endif
 };
 
 /* gckMMU object. */

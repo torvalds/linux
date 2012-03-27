@@ -2586,7 +2586,7 @@ static struct platform_device rk29sdk_rfkill = {
 };
 
 
-#ifdef CONFIG_VIVANTE
+//#ifdef CONFIG_VIVANTE
 #define GPU_HIGH_CLOCK        552
 #define GPU_LOW_CLOCK         (periph_pll_default / 1000000) /* same as general pll clock rate below */
 static struct resource resources_gpu[] = {
@@ -2621,7 +2621,7 @@ static struct platform_device rk29_device_gpu = {
     .num_resources    = ARRAY_SIZE(resources_gpu),
     .resource         = resources_gpu,
 };
-#endif
+//#endif
 
 #ifdef CONFIG_KEYS_RK29
 extern struct rk29_keys_platform_data rk29_keys_pdata;
@@ -2807,9 +2807,9 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_RK29_VMAC
 	&rk29_device_vmac,
 #endif
-#ifdef CONFIG_VIVANTE
+//#ifdef CONFIG_VIVANTE
 	&rk29_device_gpu,
-#endif
+//#endif
 #ifdef CONFIG_VIDEO_RK29
  	&rk29_device_camera,      /* ddl@rock-chips.com : camera support  */
  	#if (CONFIG_SENSOR_IIC_ADDR_0 != 0x00)

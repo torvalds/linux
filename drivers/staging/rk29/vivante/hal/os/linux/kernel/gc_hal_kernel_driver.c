@@ -1271,91 +1271,6 @@ static struct platform_device * gpu_device;
 #endif
 #endif
 
-static int __init gpu_init(void)
-{
-	int ret = 0;
-
-#if 0   //add by dkm
-#ifndef CONFIG_DOVE_GPU
-	gpu_resources[0].start = gpu_resources[0].end = irqLine;
-
-	gpu_resources[1].start = registerMemBase;
-	gpu_resources[1].end   = registerMemBase + registerMemSize - 1;
-
-	gpu_resources[2].start = contiguousBase;
-	gpu_resources[2].end   = contiguousBase + contiguousSize - 1;
-
-	/* Allocate device */
-	gpu_device = platform_device_alloc(DEVICE_NAME, -1);
-	if (!gpu_device)
-	{
-		printk(KERN_ERR "galcore: platform_device_alloc failed.\n");
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	/* Insert resource */
-	ret = platform_device_add_resources(gpu_device, gpu_resources, 3);
-	if (ret)
-	{
-		printk(KERN_ERR "galcore: platform_device_add_resources failed.\n");
-		goto put_dev;
-	}
-
-	/* Add device */
-	ret = platform_device_add(gpu_device);
-	if (ret)
-	{
-		printk(KERN_ERR "galcore: platform_device_add failed.\n");
-		goto del_dev;
-	}
-#endif
-#endif
-	ret = platform_driver_register(&gpu_driver);
-	if (!ret)
-	{
-// add by vv
-#if gcdkREPORT_VIDMEM_USAGE
-        gckDeviceProc_Register();
-#endif
-        
-		goto out;
-	}
-
-#if 0   //add by dkm
-#ifndef CONFIG_DOVE_GPU
-del_dev:
-	platform_device_del(gpu_device);
-put_dev:
-	platform_device_put(gpu_device);
-#endif
-#endif
-
-out:
-	return ret;
-
-}
-
-static void __exit gpu_exit(void)
-{
-	platform_driver_unregister(&gpu_driver);
-#if 0   //add by dkm
-#ifndef CONFIG_DOVE_GPU
-	platform_device_unregister(gpu_device);
-#endif
-#endif
-
-// add by vv
-#if gcdkREPORT_VIDMEM_USAGE
-   gckDeviceProc_UnRegister();
-#endif
-   printk("UnLoad galcore.ko success.\n");
-}
-
-module_init(gpu_init);
-module_exit(gpu_exit);
-
-
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -1491,15 +1406,98 @@ static const struct file_operations proc_gpu_fops = {
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
+#endif /* CONFIG_PROC_FS */
 
-static int __init gpu_proc_init(void)
+static int __init gpu_init(void)
 {
-	proc_create("gpu", 0, NULL, &proc_gpu_fops);
-	return 0;
+	int ret = 0;
+
+#ifdef CONFIG_PROC_FS
+    proc_create("gpu", 0, NULL, &proc_gpu_fops);
+#endif
+
+#if 0   //add by dkm
+#ifndef CONFIG_DOVE_GPU
+	gpu_resources[0].start = gpu_resources[0].end = irqLine;
+
+	gpu_resources[1].start = registerMemBase;
+	gpu_resources[1].end   = registerMemBase + registerMemSize - 1;
+
+	gpu_resources[2].start = contiguousBase;
+	gpu_resources[2].end   = contiguousBase + contiguousSize - 1;
+
+	/* Allocate device */
+	gpu_device = platform_device_alloc(DEVICE_NAME, -1);
+	if (!gpu_device)
+	{
+		printk(KERN_ERR "galcore: platform_device_alloc failed.\n");
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Insert resource */
+	ret = platform_device_add_resources(gpu_device, gpu_resources, 3);
+	if (ret)
+	{
+		printk(KERN_ERR "galcore: platform_device_add_resources failed.\n");
+		goto put_dev;
+	}
+
+	/* Add device */
+	ret = platform_device_add(gpu_device);
+	if (ret)
+	{
+		printk(KERN_ERR "galcore: platform_device_add failed.\n");
+		goto del_dev;
+	}
+#endif
+#endif
+	ret = platform_driver_register(&gpu_driver);
+	if (!ret)
+	{
+// add by vv
+#if gcdkREPORT_VIDMEM_USAGE
+        gckDeviceProc_Register();
+#endif
+        
+		goto out;
+	}
+
+#if 0   //add by dkm
+#ifndef CONFIG_DOVE_GPU
+del_dev:
+	platform_device_del(gpu_device);
+put_dev:
+	platform_device_put(gpu_device);
+#endif
+#endif
+
+out:
+	return ret;
 
 }
-late_initcall(gpu_proc_init);
-#endif /* CONFIG_PROC_FS */
+
+static void __exit gpu_exit(void)
+{
+	platform_driver_unregister(&gpu_driver);
+#if 0   //add by dkm
+#ifndef CONFIG_DOVE_GPU
+	platform_device_unregister(gpu_device);
+#endif
+#endif
+
+// add by vv
+#if gcdkREPORT_VIDMEM_USAGE
+   gckDeviceProc_UnRegister();
+#endif
+   printk("UnLoad galcore.ko success.\n");
+}
+
+module_init(gpu_init);
+module_exit(gpu_exit);
+
+
+
 
 #endif
 

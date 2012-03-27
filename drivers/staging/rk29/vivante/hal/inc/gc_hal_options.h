@@ -266,7 +266,7 @@
     
     GPU固件版本(最大19个字符串)
 */
-#define GPU_FW_VERSION                      "2.2.2"
+#define GPU_FW_VERSION                      "2.2.4"
 
 
 /*
@@ -369,6 +369,18 @@
 	   1 - use
 */
 #define gcdENABLE_MMU_PROTECTING 			1
+
+
+/*
+	dkm: gcdTILESTATUS_SINGLE_BANK
+
+	make TileStatus alloced in one single bank.
+	gcdTILESTATUS_SINGLE_BANK:
+	   0 - no use,original code
+	   1 - use
+*/
+#define gcdTILESTATUS_SINGLE_BANK 			0
+
 
 #endif /* __gc_hal_options_h_ */
 

@@ -1937,6 +1937,7 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 	local_irq_restore(flags);
 	mdelay(10);
 }
+EXPORT_SYMBOL(pmu_set_power_domain);
 
 static int pd_vcodec_mode(struct clk *clk, int on)
 {
