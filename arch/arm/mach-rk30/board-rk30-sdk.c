@@ -52,12 +52,12 @@
 /*---------------- Camera Sensor Configuration Macro Begin ------------------------*/
 #define CONFIG_SENSOR_0 RK29_CAM_SENSOR_OV5642						/* back camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_0		0x78
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  1
-#define CONFIG_SENSOR_CIF_INDEX_0                    0
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_0	  4
+#define CONFIG_SENSOR_CIF_INDEX_0                    1
 #define CONFIG_SENSOR_ORIENTATION_0 	  90
 #define CONFIG_SENSOR_POWER_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_0		  INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_0 	  INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_0 	  RK30_PIN1_PD6
 #define CONFIG_SENSOR_FALSH_PIN_0		  INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_0 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_0 RK29_CAM_RESETACTIVE_L
@@ -74,12 +74,12 @@
 
 #define CONFIG_SENSOR_1 RK29_CAM_SENSOR_OV2659						/* front camera sensor */
 #define CONFIG_SENSOR_IIC_ADDR_1		0x60
-#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  1
-#define CONFIG_SENSOR_CIF_INDEX_1				  1
+#define CONFIG_SENSOR_IIC_ADAPTER_ID_1	  3
+#define CONFIG_SENSOR_CIF_INDEX_1				  0
 #define CONFIG_SENSOR_ORIENTATION_1 	  270
 #define CONFIG_SENSOR_POWER_PIN_1		  INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_1		  INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_1 	  INVALID_GPIO
+#define CONFIG_SENSOR_POWERDN_PIN_1 	  RK30_PIN1_PB7
 #define CONFIG_SENSOR_FALSH_PIN_1		  INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_1 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_1 RK29_CAM_RESETACTIVE_L
@@ -94,23 +94,12 @@
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_1		15000
 #define CONFIG_SENSOR_720P_FPS_FIXED_1		30000
 
-#define CONFIG_USE_CIF_0	1
-#define CONFIG_USE_CIF_1      1
 #endif	//#ifdef CONFIG_VIDEO_RK29
 /*---------------- Camera Sensor Configuration Macro End------------------------*/
 #include "../../../drivers/media/video/rk30_camera.c"
 /*---------------- Camera Sensor Macro Define End  ---------*/
 
-//RK30,use  ion to allocate mem , set it as 0
-#define PMEM_CAM_SIZE		0//PMEM_CAM_NECESSARY
-#ifdef CONFIG_VIDEO_RK29_WORK_IPP
-#define MEM_CAMIPP_SIZE_CIF_0 	PMEM_CAMIPP_NECESSARY_CIF_0
-#define MEM_CAMIPP_SIZE_CIF_1 	PMEM_CAMIPP_NECESSARY_CIF_0
-#else
-#define MEM_CAMIPP_SIZE_CIF_0	0
-#define MEM_CAMIPP_SIZE_CIF_1	0
-
-#endif
+#define PMEM_CAM_SIZE PMEM_CAM_NECESSARY
 /*****************************************************************************************
  * camera  devices
  * author: ddl@rock-chips.com
@@ -174,6 +163,8 @@ static struct rk29camera_platform_ioctl_cb	sensor_ioctl_cb = {
 	.sensor_flash_cb = NULL,
 	#endif
 };
+
+#if CONFIG_SENSOR_IIC_ADDR_0
 static struct reginfo_t rk_init_data_sensor_reg_0[] =
 {
 		{0x0000, 0x00,0,0}
@@ -181,19 +172,39 @@ static struct reginfo_t rk_init_data_sensor_reg_0[] =
 static struct reginfo_t rk_init_data_sensor_winseqreg_0[] ={
 	{0x0000, 0x00,0,0}
 	};
-static rk_sensor_user_init_data_s rk_init_data_sensor_0 = 
-{	
-	.rk_sensor_init_width = INVALID_VALUE,
-	.rk_sensor_init_height = INVALID_VALUE,
-	.rk_sensor_init_bus_param = INVALID_VALUE,
-	.rk_sensor_init_pixelcode = INVALID_VALUE,
-	.rk_sensor_init_data = rk_init_data_sensor_reg_0,
-	.rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_0,
-	.rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
-	
+#endif
+
+#if CONFIG_SENSOR_IIC_ADDR_1
+static struct reginfo_t rk_init_data_sensor_reg_1[] =
+{
+    {0x0000, 0x00,0,0}
 };
-static rk_sensor_user_init_data_s* rk_init_data_sensor_0_p = NULL;
-static rk_sensor_user_init_data_s* rk_init_data_sensor_1_p = NULL;
+static struct reginfo_t rk_init_data_sensor_winseqreg_1[] =
+{
+       {0x0000, 0x00,0,0}
+};
+#endif
+static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] = 
+{
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_0,
+       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_0,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
+    },{
+        .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
+       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+    }
+
+ };
 #include "../../../drivers/media/video/rk30_camera.c"
 
 #endif /* CONFIG_VIDEO_RK29 */

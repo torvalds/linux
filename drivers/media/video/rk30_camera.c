@@ -2,7 +2,7 @@
 #include <mach/iomux.h>
 #include <media/soc_camera.h>
 #include <linux/android_pmem.h>
-
+#include <mach/rk30_camera.h>
 #ifndef PMEM_CAM_SIZE
 #include "../../../arch/arm/plat-rk/rk_camera.c"
 #else
@@ -848,7 +848,7 @@ static int rk_sensor_iomux(int pin)
     }
     return 0;
 }
-
+#define PMEM_CAM_BASE 0 //just for compile ,no meaning
 #include "../../../arch/arm/plat-rk/rk_camera.c"
 
 
@@ -939,7 +939,12 @@ static void rk30_camera_request_reserve_mem(void)
         rk_camera_platform_data.meminfo_cif1.start =board_mem_reserve_add("camera_ipp_mem_1",PMEM_CAMIPP_NECESSARY_CIF_1);
         rk_camera_platform_data.meminfo_cif1.size= PMEM_CAMIPP_NECESSARY_CIF_1;
     #endif
-#endif
+ #endif
+ #if PMEM_CAM_NECESSARY
+        android_pmem_cam_pdata.start = board_mem_reserve_add((char*)(android_pmem_cam_pdata.name),PMEM_CAM_NECESSARY);
+        android_pmem_cam_pdata.size= PMEM_CAM_NECESSARY;
+ #endif
+
 }
 static int rk_register_camera_devices(void)
 {
@@ -971,6 +976,10 @@ static int rk_register_camera_devices(void)
             platform_device_register(&rk_camera_platform_data.register_dev[i].device_info);
         }
     }
+ #if PMEM_CAM_NECESSARY
+            platform_device_register(&android_pmem_cam_device);
+ #endif
+    
 	return 0;
 }
 

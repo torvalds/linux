@@ -257,7 +257,7 @@
     #endif
 #else
     #ifdef CONFIG_ARCH_RK30
-    #error "Camera driver memory configuration is alloc from pmem, but ARCH_RK30 isn't support"
+//    #error "Camera driver memory configuration is alloc from pmem, but ARCH_RK30 isn't support"
     #endif    
 #endif
 
@@ -963,11 +963,7 @@ static int rk_sensor_io_init(void)
 	} else {
 		is_init = true;
 	}
-    printk("PMEM_CAM_NECESSARY:0x%x PMEM_CAMIPP_NECESSARY:0x%x"
-        "PMEM_CAM_NECESSARY_CIF_1:0x%x PMEM_CAMIPP_NECESSARY_CIF_1:0x%x"
-        "PMEM_CAM_NECESSARY_CIF_0:0x%x PMEM_CAMIPP_NECESSARY_CIF_0:0x%x",
-        PMEM_CAM_NECESSARY,PMEM_CAMIPP_NECESSARY,PMEM_CAM_NECESSARY_CIF_1,PMEM_CAMIPP_NECESSARY_CIF_1,
-        PMEM_CAM_NECESSARY_CIF_0,PMEM_CAMIPP_NECESSARY_CIF_0);
+    
     if (sensor_ioctl_cb.sensor_power_cb == NULL)
         sensor_ioctl_cb.sensor_power_cb = sensor_power_default_cb;
     if (sensor_ioctl_cb.sensor_reset_cb == NULL)
@@ -1279,7 +1275,7 @@ static int rk_sensor_powerdown(struct device *dev, int on)
 	return rk_sensor_ioctrl(dev,Cam_PowerDown,on);
 }
 
-#ifdef PMEM_CAM_BASE
+#ifdef PMEM_CAM_NECESSARY
 static struct android_pmem_platform_data android_pmem_cam_pdata = {
 	.name		= "pmem_cam",
 	.start		= PMEM_CAM_BASE,

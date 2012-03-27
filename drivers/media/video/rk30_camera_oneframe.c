@@ -29,7 +29,6 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
-#include <plat/rk_camera.h>
 #include <mach/iomux.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -38,7 +37,7 @@
 #include <media/soc_mediabus.h>
 #include <mach/io.h>
 #include <plat/ipp.h>
-
+#include <mach/rk30_camera.h>
 
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
@@ -147,7 +146,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define MIN(x,y)   ((x<y) ? x: y)
 #define MAX(x,y)    ((x>y) ? x: y)
-#define RK_SENSOR_24MHZ      24           /* MHz */
+#define RK_SENSOR_24MHZ      24*1000*1000          /* MHz */
 #define RK_SENSOR_48MHZ      48
 
 #define write_cif_reg(base,addr, val)  __raw_writel(val, addr+(base))
@@ -268,20 +267,10 @@ struct rk_camera_dev
 	struct soc_camera_device *icd;
 
 	//************must modify start************/
-	struct clk *aclk_ddr_lcdc;
-	struct clk *aclk_disp_matrix;
-
-	struct clk *hclk_cpu_display;
-	struct clk *vip_slave;
-
-	struct clk *vip_out;
-	struct clk *vip_input;
-	struct clk *vip_bus;
-
-	struct clk *hclk_disp_matrix;
-	struct clk *vip_matrix;
-
-	struct clk *pd_display;
+	struct clk *aclk_cif;
+    struct clk *hclk_cif;
+    struct clk *cif_clk_in;
+    struct clk *cif_clk_out;
 	//************must modify end************/
 	void __iomem *base;
 	int frame_inval;           /* ddl@rock-chips.com : The first frames is invalidate  */
@@ -759,64 +748,24 @@ static void rk_camera_init_videobuf(struct videobuf_queue *q,
 }
 static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_device *icd)
 {
-    unsigned long sensor_bus_flags = SOCAM_MCLK_24MHZ;
-    struct clk *parent;
-
-    RKCAMERA_TR("%s..%d.. \n",__FUNCTION__,__LINE__);
-	#if 0
-    if (!pcdev->aclk_ddr_lcdc || !pcdev->aclk_disp_matrix ||  !pcdev->hclk_cpu_display ||
-		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus || !pcdev->pd_display ||
-		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) || IS_ERR(pcdev->pd_display) ||
-		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip_out) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
-
-        RKCAMERA_TR(KERN_ERR "failed to get vip_clk(axi) source\n");
+    int err = 0;
+    if(!pcdev->aclk_cif || !pcdev->hclk_cif || !pcdev->cif_clk_in || !pcdev->cif_clk_out){
+        RKCAMERA_TR(KERN_ERR "failed to get cif clock source\n");
+        err = -ENOENT;
         goto RK_CAMERA_ACTIVE_ERR;
-    }
-	RKCAMERA_TR("%s..%d.. \n",__FUNCTION__,__LINE__);
-	if (!pcdev->hclk_disp_matrix || !pcdev->vip_matrix ||
-		IS_ERR(pcdev->hclk_disp_matrix) || IS_ERR(pcdev->vip_matrix))  {
+        }
+	clk_enable(pcdev->aclk_cif);
 
-        RKCAMERA_TR(KERN_ERR "failed to get vip_clk(ahb) source\n");
-        goto RK_CAMERA_ACTIVE_ERR;
-    }
-	clk_enable(pcdev->pd_display);
-
-	clk_enable(pcdev->aclk_ddr_lcdc);
-	clk_enable(pcdev->aclk_disp_matrix);
-
-	clk_enable(pcdev->hclk_cpu_display);
-	clk_enable(pcdev->vip_slave);
-	RK29CAMERA_TR("%s..%d.. \n",__FUNCTION__,__LINE__);
-
-	clk_enable(pcdev->vip_input);
-	clk_enable(pcdev->vip_bus);
+	clk_enable(pcdev->hclk_cif);
+	clk_enable(pcdev->cif_clk_in);
 
     //if (icd->ops->query_bus_param)                                                  /* ddl@rock-chips.com : Query Sensor's xclk */
         //sensor_bus_flags = icd->ops->query_bus_param(icd);
 
-    if (sensor_bus_flags & SOCAM_MCLK_48MHZ) {
-        parent = clk_get(NULL, "clk48m");
-        if (!parent || IS_ERR(parent))
-             goto RK_CAMERA_ACTIVE_ERR;
-    } else if (sensor_bus_flags & SOCAM_MCLK_27MHZ) {
-        parent = clk_get(NULL, "extclk");
-        if (!parent || IS_ERR(parent))
-             goto RK_CAMERA_ACTIVE_ERR;
-    } else {
-        parent = clk_get(NULL, "xin24m");
-        if (!parent || IS_ERR(parent))
-             goto RK_CAMERA_ACTIVE_ERR;
-    }
-    clk_set_parent(pcdev->vip_out, parent);
-
-    clk_enable(pcdev->vip_out);
-   // rk30_mux_api_set(GPIO1B4_VIPCLKOUT_NAME, GPIO1L_VIP_CLKOUT);
-    ndelay(10);
+	clk_enable(pcdev->cif_clk_out);
+    clk_set_rate(pcdev->cif_clk_out,RK_SENSOR_24MHZ);
 
 	ndelay(10);
-//    write_vip_reg(pcdev->base,RK29_VIP_RESET, 0x76543210);  /* ddl@rock-chips.com : vip software reset */
-//    udelay(10);
-#endif
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
     write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01);    //capture complete interrupt enable
    RKCAMERA_TR("%s..%d.. CIF_CIF_CTRL = 0x%x\n",__FUNCTION__,__LINE__,read_cif_reg(pcdev->base, CIF_CIF_CTRL));
@@ -828,25 +777,11 @@ RK_CAMERA_ACTIVE_ERR:
 static void rk_camera_deactivate(struct rk_camera_dev *pcdev)
 {
     //pcdev->active = NULL;
-#if 0
-    write_cif_reg(pcdev->base,CIF_CIF_CTRL, 0);
-    read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);             //clear vip interrupte single
+	clk_disable(pcdev->aclk_cif);
 
-//    rk29_mux_api_set(GPIO1B4_VIPCLKOUT_NAME, GPIO1L_GPIO1B4);
-    clk_disable(pcdev->vip_out);
-
-	clk_disable(pcdev->vip_input);
-	clk_disable(pcdev->vip_bus);
-
-
-	clk_disable(pcdev->hclk_cpu_display);
-	clk_disable(pcdev->vip_slave);
-
-	clk_disable(pcdev->aclk_ddr_lcdc);
-	clk_disable(pcdev->aclk_disp_matrix);
-
-	clk_disable(pcdev->pd_display);
-	#endif
+	clk_disable(pcdev->hclk_cif);
+	clk_disable(pcdev->cif_clk_in);
+	clk_disable(pcdev->cif_clk_out);
     return;
 }
 
@@ -1426,8 +1361,8 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 		if (CAM_IPPWORK_IS_EN()) {
 			BUG_ON(pcdev->vipmem_phybase == 0);
 		}
-        pix->width = mf.width;
-    	pix->height = mf.height;
+        pix->width = usr_w;
+    	pix->height = usr_h;
     	pix->field = mf.field;
     	pix->colorspace = mf.colorspace;
     	icd->current_fmt = xlate;        
@@ -1719,22 +1654,22 @@ static void rk_camera_reinit_work(struct work_struct *work)
 	struct rk_camera_dev *pcdev = camera_work->pcdev;
 	//dump regs
 	{
-		RKCAMERA_TR("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
-		RKCAMERA_TR("CIF_CIF_INTEN = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_INTEN));
-		RKCAMERA_TR("CIF_CIF_INTSTAT = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_INTSTAT));
-		RKCAMERA_TR("CIF_CIF_FOR = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_FOR));
-		RKCAMERA_TR("CIF_CIF_CROP = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CROP));
-		RKCAMERA_TR("CIF_CIF_SET_SIZE = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE));
-		RKCAMERA_TR("CIF_CIF_SCL_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL));
-		RKCAMERA_TR("CRU_PCLK_REG30 = 0X%x\n",read_cru_reg(CRU_PCLK_REG30));
-		RKCAMERA_TR("CIF_CIF_LAST_LINE = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE));
+		RKCAMERA_DG("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CTRL));
+		RKCAMERA_DG("CIF_CIF_INTEN = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_INTEN));
+		RKCAMERA_DG("CIF_CIF_INTSTAT = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_INTSTAT));
+		RKCAMERA_DG("CIF_CIF_FOR = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_FOR));
+		RKCAMERA_DG("CIF_CIF_CROP = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_CROP));
+		RKCAMERA_DG("CIF_CIF_SET_SIZE = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE));
+		RKCAMERA_DG("CIF_CIF_SCL_CTRL = 0x%x\n",read_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL));
+		RKCAMERA_DG("CRU_PCLK_REG30 = 0X%x\n",read_cru_reg(CRU_PCLK_REG30));
+		RKCAMERA_DG("CIF_CIF_LAST_LINE = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_LINE));
 		
-		RKCAMERA_TR("CIF_CIF_LAST_PIX = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_PIX));
-		RKCAMERA_TR("CIF_CIF_VIR_LINE_WIDTH = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH));
-	RKCAMERA_TR("CIF_CIF_LINE_NUM_ADDR = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LINE_NUM_ADDR));
-	RKCAMERA_TR("CIF_CIF_FRM0_ADDR_Y = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_Y));
-	RKCAMERA_TR("CIF_CIF_FRM0_ADDR_UV = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_UV));
-	RKCAMERA_TR("CIF_CIF_FRAME_STATUS = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
+		RKCAMERA_DG("CIF_CIF_LAST_PIX = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LAST_PIX));
+		RKCAMERA_DG("CIF_CIF_VIR_LINE_WIDTH = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH));
+    	RKCAMERA_DG("CIF_CIF_LINE_NUM_ADDR = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_LINE_NUM_ADDR));
+    	RKCAMERA_DG("CIF_CIF_FRM0_ADDR_Y = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_Y));
+    	RKCAMERA_DG("CIF_CIF_FRM0_ADDR_UV = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRM0_ADDR_UV));
+    	RKCAMERA_DG("CIF_CIF_FRAME_STATUS = 0X%x\n",read_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS));
 	}
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
 
@@ -2084,47 +2019,38 @@ static int rk_camera_probe(struct platform_device *pdev)
         goto exit_alloc;
     }
 
-
-    /*config output clk*/ // must modify start
-    #if 0
-	pcdev->aclk_ddr_lcdc = clk_get(&pdev->dev, "aclk_ddr_lcdc");
-	pcdev->aclk_disp_matrix = clk_get(&pdev->dev, "aclk_disp_matrix");
-
-	pcdev->hclk_cpu_display = clk_get(&pdev->dev, "hclk_cpu_display");
-	pcdev->vip_slave = clk_get(&pdev->dev, "vip_slave");
-	pcdev->vip_out = clk_get(&pdev->dev,"vip_out");
-	pcdev->vip_input = clk_get(&pdev->dev,"vip_input");
-	pcdev->vip_bus = clk_get(&pdev->dev, "vip_bus");
-
-	pcdev->hclk_disp_matrix = clk_get(&pdev->dev,"hclk_disp_matrix");
-	pcdev->vip_matrix = clk_get(&pdev->dev,"vip_matrix");
-
-	pcdev->pd_display = clk_get(&pdev->dev,"pd_display");
-
 	pcdev->zoominfo.zoom_rate = 100;
-
-    if (!pcdev->aclk_ddr_lcdc || !pcdev->aclk_disp_matrix ||  !pcdev->hclk_cpu_display ||
-		!pcdev->vip_slave || !pcdev->vip_out || !pcdev->vip_input || !pcdev->vip_bus || !pcdev->pd_display ||
-		IS_ERR(pcdev->aclk_ddr_lcdc) || IS_ERR(pcdev->aclk_disp_matrix) ||  IS_ERR(pcdev->hclk_cpu_display) || IS_ERR(pcdev->pd_display) ||
-		IS_ERR(pcdev->vip_slave) || IS_ERR(pcdev->vip_out) || IS_ERR(pcdev->vip_input) || IS_ERR(pcdev->vip_bus))  {
-//must modify end
-        RKCAMERA_TR(KERN_ERR "failed to get vip_clk(axi) source\n");
+	pcdev->hostid = pdev->id;
+    /*config output clk*/ // must modify start
+    if(IS_CIF0()){
+     //   printk("it is cif 0!!!!!!!1\n");
+        pcdev->aclk_cif = clk_get(NULL, "aclk_cif0");
+        pcdev->hclk_cif = clk_get(NULL, "hclk_cif0");
+        pcdev->cif_clk_in = clk_get(NULL, "cif0_in");
+        pcdev->cif_clk_out = clk_get(NULL, "cif0_out");
+        rk30_mux_api_set(GPIO1B3_CIF0CLKOUT_NAME, GPIO1B_CIF0_CLKOUT);
+        }
+    else{
+    //    printk("it is cif 1!!!!!!!1\n");
+        pcdev->aclk_cif = clk_get(NULL, "aclk_cif1");
+        pcdev->hclk_cif = clk_get(NULL, "hclk_cif1");
+        pcdev->cif_clk_in = clk_get(NULL, "cif1_in");
+        pcdev->cif_clk_out = clk_get(NULL, "cif1_out");
+        rk30_mux_api_set(GPIO1D7_CIF1CLKOUT_NAME,GPIO1D_CIF1_CLKOUT);
+        rk30_mux_api_set(GPIO1D2_CIF1CLKIN_NAME,GPIO1D_CIF1_CLKIN);
+        rk30_mux_api_set(GPIO1D1_CIF1HREF_MIIMDCLK_NAME,GPIO1D_CIF1_HREF);
+        rk30_mux_api_set(GPIO1D0_CIF1VSYNC_MIIMD_NAME,GPIO1D_CIF1_VSYNC);
+        rk30_mux_api_set(GPIO1C0_CIF1DATA2_RMIICLKOUT_RMIICLKIN_NAME,GPIO1C_CIF1_DATA2);
+        rk30_mux_api_set(GPIO1C2_CIF1DATA4_RMIITXD1_NAME,GPIO1C_CIF1_DATA4);
+        }
+    if(!pcdev->aclk_cif || !pcdev->hclk_cif || !pcdev->cif_clk_in || !pcdev->cif_clk_out){
+        RKCAMERA_TR(KERN_ERR "failed to get cif clock source\n");
         err = -ENOENT;
         goto exit_reqmem_vip;
-    }
-
-	if (!pcdev->hclk_disp_matrix || !pcdev->vip_matrix ||
-		IS_ERR(pcdev->hclk_disp_matrix) || IS_ERR(pcdev->vip_matrix))  {
-
-        RKCAMERA_TR(KERN_ERR "failed to get vip_clk(ahb) source\n");
-        err = -ENOENT;
-        goto exit_reqmem_vip;
-    }
-#endif
+        }
     dev_set_drvdata(&pdev->dev, pcdev);
     pcdev->res = res;
     pcdev->pdata = pdev->dev.platform_data;             /* ddl@rock-chips.com : Request IO in init function */
-	pcdev->hostid = pdev->id;
 
 	if (pcdev->pdata && pcdev->pdata->io_init) {
         pcdev->pdata->io_init();
@@ -2231,42 +2157,15 @@ exit_ioremap_vip:
     release_mem_region(res->start, res->end - res->start + 1);
 
 exit_reqmem_vip:
-    if (pcdev->aclk_ddr_lcdc) {
-		clk_put(pcdev->aclk_ddr_lcdc);
-		pcdev->aclk_ddr_lcdc = NULL;
-    }
-	if (pcdev->aclk_disp_matrix) {
-		clk_put(pcdev->aclk_disp_matrix);
-		pcdev->aclk_disp_matrix = NULL;
-    }
-	if (pcdev->hclk_cpu_display) {
-		clk_put(pcdev->hclk_cpu_display);
-		pcdev->hclk_cpu_display = NULL;
-    }
-	if (pcdev->vip_slave) {
-		clk_put(pcdev->vip_slave);
-		pcdev->vip_slave = NULL;
-    }
-	if (pcdev->vip_out) {
-		clk_put(pcdev->vip_out);
-		pcdev->vip_out = NULL;
-    }
-	if (pcdev->vip_input) {
-		clk_put(pcdev->vip_input);
-		pcdev->vip_input = NULL;
-    }
-	if (pcdev->vip_bus) {
-		clk_put(pcdev->vip_bus);
-		pcdev->vip_bus = NULL;
-    }
-    if (pcdev->hclk_disp_matrix) {
-		clk_put(pcdev->hclk_disp_matrix);
-		pcdev->hclk_disp_matrix = NULL;
-    }
-	if (pcdev->vip_matrix) {
-		clk_put(pcdev->vip_matrix);
-		pcdev->vip_matrix = NULL;
-    }
+    if(pcdev->aclk_cif)
+        pcdev->aclk_cif = NULL;
+    if(pcdev->hclk_cif)
+        pcdev->hclk_cif = NULL;
+    if(pcdev->cif_clk_in)
+        pcdev->cif_clk_in = NULL;
+    if(pcdev->cif_clk_out)
+        pcdev->cif_clk_out = NULL;
+
     kfree(pcdev);
 exit_alloc:
 //    rk_camdev_info_ptr = NULL;
@@ -2303,7 +2202,8 @@ static int __devexit rk_camera_remove(struct platform_device *pdev)
     res = pcdev->res;
     release_mem_region(res->start, res->end - res->start + 1);
     if (pcdev->pdata && pcdev->pdata->io_deinit) {         /* ddl@rock-chips.com : Free IO in deinit function */
-        pcdev->pdata->io_deinit(pcdev->hostid);
+        pcdev->pdata->io_deinit(0);
+        pcdev->pdata->io_deinit(1);
     }
 
     kfree(pcdev);

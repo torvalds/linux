@@ -1203,7 +1203,7 @@ choice
 	depends on VIDEO_RK29
 	default VIDEO_RKCIF_WORK_SIMUL_OFF
 	---help---
-		where camera memory which is used for preview/raw/jpeg in android camera hal is alloced 
+               CIFs work simultaneity 
 config VIDEO_RKCIF_WORK_SIMUL_ON
 	bool "Two cif controller can work sumultaneity"
 
