@@ -2676,14 +2676,6 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		}
 	}
 
-	/*
-	 * Profile changing sanity checks.  Skip them if a simple
-	 * balance is requested.
-	 */
-	if (!((bctl->data.flags | bctl->sys.flags | bctl->meta.flags) &
-	      BTRFS_BALANCE_ARGS_CONVERT))
-		goto do_balance;
-
 	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
 	if (fs_info->fs_devices->num_devices == 1)
 		allowed |= BTRFS_BLOCK_GROUP_DUP;
@@ -2693,24 +2685,27 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1 |
 				BTRFS_BLOCK_GROUP_RAID10);
 
-	if (!alloc_profile_is_valid(bctl->data.target, 1) ||
-	    bctl->data.target & ~allowed) {
+	if ((bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (!alloc_profile_is_valid(bctl->data.target, 1) ||
+	     (bctl->data.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "data profile %llu\n",
 		       (unsigned long long)bctl->data.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if (!alloc_profile_is_valid(bctl->meta.target, 1) ||
-	    bctl->meta.target & ~allowed) {
+	if ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (!alloc_profile_is_valid(bctl->meta.target, 1) ||
+	     (bctl->meta.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "metadata profile %llu\n",
 		       (unsigned long long)bctl->meta.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if (!alloc_profile_is_valid(bctl->sys.target, 1) ||
-	    bctl->sys.target & ~allowed) {
+	if ((bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (!alloc_profile_is_valid(bctl->sys.target, 1) ||
+	     (bctl->sys.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "system profile %llu\n",
 		       (unsigned long long)bctl->sys.target);
@@ -2718,7 +2713,8 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		goto out;
 	}
 
-	if (bctl->data.target & BTRFS_BLOCK_GROUP_DUP) {
+	if ((bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (bctl->data.target & BTRFS_BLOCK_GROUP_DUP)) {
 		printk(KERN_ERR "btrfs: dup for data is not allowed\n");
 		ret = -EINVAL;
 		goto out;
@@ -2744,7 +2740,6 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		}
 	}
 
-do_balance:
 	ret = insert_balance_item(fs_info->tree_root, bctl);
 	if (ret && ret != -EEXIST)
 		goto out;
