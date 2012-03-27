@@ -12,6 +12,13 @@
 
 	i2c@7000c000 {
 		clock-frequency = <400000>;
+
+		alc5632: alc5632@1e {
+			compatible = "realtek,alc5632";
+			reg = <0x1e>;
+			gpio-controller;
+			#gpio-cells = <2>;
+		};
 	};
 
 	i2c@7000c400 {
@@ -40,6 +47,29 @@
 			compatible = "adi,adt7461";
 			reg = <0x4c>;
 		};
+	};
+
+	i2s@70002a00 {
+		status = "disable";
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-alc5632-paz00",
+			"nvidia,tegra-audio-alc5632";
+
+		nvidia,model = "Compal PAZ00";
+
+		nvidia,audio-routing =
+			"Int Spk", "SPKOUT",
+			"Int Spk", "SPKOUTN",
+			"Headset Mic", "MICBIAS1",
+			"MIC1", "Headset Mic",
+			"Headset Stereophone", "HPR",
+			"Headset Stereophone", "HPL";
+
+		nvidia,audio-codec = <&alc5632>;
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,hp-det-gpios = <&gpio 178 0>; /* gpio PW2 */
 	};
 
 	serial@70006000 {

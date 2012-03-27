@@ -14,6 +14,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/gpio.h>
+#include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 #include <linux/atmel-mci.h>
@@ -28,7 +29,10 @@
 #include <mach/at_hdmac.h>
 #include <mach/atmel-mci.h>
 
+#include <media/atmel-isi.h>
+
 #include "generic.h"
+#include "clock.h"
 
 
 /* --------------------------------------------------------------------
@@ -868,6 +872,96 @@ void __init at91_add_device_ac97(struct ac97c_platform_data *data)
 }
 #else
 void __init at91_add_device_ac97(struct ac97c_platform_data *data) {}
+#endif
+
+/* --------------------------------------------------------------------
+ *  Image Sensor Interface
+ * -------------------------------------------------------------------- */
+#if defined(CONFIG_VIDEO_ATMEL_ISI) || defined(CONFIG_VIDEO_ATMEL_ISI_MODULE)
+static u64 isi_dmamask = DMA_BIT_MASK(32);
+static struct isi_platform_data isi_data;
+
+struct resource isi_resources[] = {
+	[0] = {
+		.start	= AT91SAM9G45_BASE_ISI,
+		.end	= AT91SAM9G45_BASE_ISI + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9G45_ID_ISI,
+		.end	= AT91SAM9G45_ID_ISI,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device at91sam9g45_isi_device = {
+	.name		= "atmel_isi",
+	.id		= 0,
+	.dev		= {
+			.dma_mask		= &isi_dmamask,
+			.coherent_dma_mask	= DMA_BIT_MASK(32),
+			.platform_data		= &isi_data,
+	},
+	.resource	= isi_resources,
+	.num_resources	= ARRAY_SIZE(isi_resources),
+};
+
+static struct clk_lookup isi_mck_lookups[] = {
+	CLKDEV_CON_DEV_ID("isi_mck", "atmel_isi.0", NULL),
+};
+
+void __init at91_add_device_isi(struct isi_platform_data *data,
+		bool use_pck_as_mck)
+{
+	struct clk *pck;
+	struct clk *parent;
+
+	if (!data)
+		return;
+	isi_data = *data;
+
+	at91_set_A_periph(AT91_PIN_PB20, 0);	/* ISI_D0 */
+	at91_set_A_periph(AT91_PIN_PB21, 0);	/* ISI_D1 */
+	at91_set_A_periph(AT91_PIN_PB22, 0);	/* ISI_D2 */
+	at91_set_A_periph(AT91_PIN_PB23, 0);	/* ISI_D3 */
+	at91_set_A_periph(AT91_PIN_PB24, 0);	/* ISI_D4 */
+	at91_set_A_periph(AT91_PIN_PB25, 0);	/* ISI_D5 */
+	at91_set_A_periph(AT91_PIN_PB26, 0);	/* ISI_D6 */
+	at91_set_A_periph(AT91_PIN_PB27, 0);	/* ISI_D7 */
+	at91_set_A_periph(AT91_PIN_PB28, 0);	/* ISI_PCK */
+	at91_set_A_periph(AT91_PIN_PB30, 0);	/* ISI_HSYNC */
+	at91_set_A_periph(AT91_PIN_PB29, 0);	/* ISI_VSYNC */
+	at91_set_B_periph(AT91_PIN_PB8, 0);	/* ISI_PD8 */
+	at91_set_B_periph(AT91_PIN_PB9, 0);	/* ISI_PD9 */
+	at91_set_B_periph(AT91_PIN_PB10, 0);	/* ISI_PD10 */
+	at91_set_B_periph(AT91_PIN_PB11, 0);	/* ISI_PD11 */
+
+	platform_device_register(&at91sam9g45_isi_device);
+
+	if (use_pck_as_mck) {
+		at91_set_B_periph(AT91_PIN_PB31, 0);	/* ISI_MCK (PCK1) */
+
+		pck = clk_get(NULL, "pck1");
+		parent = clk_get(NULL, "plla");
+
+		BUG_ON(IS_ERR(pck) || IS_ERR(parent));
+
+		if (clk_set_parent(pck, parent)) {
+			pr_err("Failed to set PCK's parent\n");
+		} else {
+			/* Register PCK as ISI_MCK */
+			isi_mck_lookups[0].clk = pck;
+			clkdev_add_table(isi_mck_lookups,
+					ARRAY_SIZE(isi_mck_lookups));
+		}
+
+		clk_put(pck);
+		clk_put(parent);
+	}
+}
+#else
+void __init at91_add_device_isi(struct isi_platform_data *data,
+		bool use_pck_as_mck) {}
 #endif
 
 

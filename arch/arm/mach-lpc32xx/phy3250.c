@@ -254,6 +254,7 @@ static struct platform_device *phy3250_devs[] __initdata = {
 	&lpc32xx_i2c2_device,
 	&lpc32xx_watchdog_device,
 	&lpc32xx_gpio_led_device,
+	&lpc32xx_adc_device,
 };
 
 static struct amba_device *amba_devs[] __initdata = {

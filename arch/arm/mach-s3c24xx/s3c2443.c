@@ -41,6 +41,7 @@
 #include <plat/fb-core.h>
 #include <plat/nand-core.h>
 #include <plat/adc-core.h>
+#include <plat/rtc-core.h>
 
 static struct map_desc s3c2443_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -73,6 +74,7 @@ int __init s3c2443_init(void)
 	s3c_fb_setname("s3c2443-fb");
 
 	s3c_adc_setname("s3c2443-adc");
+	s3c_rtc_setname("s3c2443-rtc");
 
 	/* change WDT IRQ number */
 	s3c_device_wdt.resource[1].start = IRQ_S3C2443_WDT;

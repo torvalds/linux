@@ -789,6 +789,13 @@ static struct clk exynos4_clk_pdma1 = {
 	.ctrlbit	= (1 << 1),
 };
 
+static struct clk exynos4_clk_mdma1 = {
+	.name		= "dma",
+	.devname	= "dma-pl330.2",
+	.enable		= exynos4_clk_ip_image_ctrl,
+	.ctrlbit	= ((1 << 8) | (1 << 5) | (1 << 2)),
+};
+
 struct clk *exynos4_clkset_group_list[] = {
 	[0] = &clk_ext_xtal_mux,
 	[1] = &clk_xusbxti,
@@ -1307,6 +1314,7 @@ static struct clksrc_clk *exynos4_sysclks[] = {
 static struct clk *exynos4_clk_cdev[] = {
 	&exynos4_clk_pdma0,
 	&exynos4_clk_pdma1,
+	&exynos4_clk_mdma1,
 };
 
 static struct clksrc_clk *exynos4_clksrc_cdev[] = {
@@ -1335,6 +1343,7 @@ static struct clk_lookup exynos4_clk_lookup[] = {
 	CLKDEV_INIT("s3c-sdhci.3", "mmc_busclk.2", &exynos4_clk_sclk_mmc3.clk),
 	CLKDEV_INIT("dma-pl330.0", "apb_pclk", &exynos4_clk_pdma0),
 	CLKDEV_INIT("dma-pl330.1", "apb_pclk", &exynos4_clk_pdma1),
+	CLKDEV_INIT("dma-pl330.2", "apb_pclk", &exynos4_clk_mdma1),
 	CLKDEV_INIT("s3c64xx-spi.0", "spi_busclk0", &exynos4_clk_sclk_spi0.clk),
 	CLKDEV_INIT("s3c64xx-spi.1", "spi_busclk0", &exynos4_clk_sclk_spi1.clk),
 	CLKDEV_INIT("s3c64xx-spi.2", "spi_busclk0", &exynos4_clk_sclk_spi2.clk),

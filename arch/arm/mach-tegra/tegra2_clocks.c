@@ -720,7 +720,7 @@ static void tegra2_pllx_clk_init(struct clk *c)
 {
 	tegra2_pll_clk_init(c);
 
-	if (tegra_sku_id() == 7)
+	if (tegra_sku_id == 7)
 		c->max_rate = 750000000;
 }
 

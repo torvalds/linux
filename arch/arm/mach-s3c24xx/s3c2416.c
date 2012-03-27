@@ -59,6 +59,7 @@
 #include <plat/fb-core.h>
 #include <plat/nand-core.h>
 #include <plat/adc-core.h>
+#include <plat/rtc-core.h>
 
 static struct map_desc s3c2416_iodesc[] __initdata = {
 	IODESC_ENT(WATCHDOG),
@@ -98,6 +99,7 @@ int __init s3c2416_init(void)
 	s3c_fb_setname("s3c2443-fb");
 
 	s3c_adc_setname("s3c2416-adc");
+	s3c_rtc_setname("s3c2416-rtc");
 
 #ifdef CONFIG_PM
 	register_syscore_ops(&s3c2416_pm_syscore_ops);
