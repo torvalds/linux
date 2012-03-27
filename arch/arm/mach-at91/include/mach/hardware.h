@@ -34,6 +34,8 @@
 #include <mach/at91sam9rl.h>
 #elif defined(CONFIG_ARCH_AT91SAM9G45)
 #include <mach/at91sam9g45.h>
+#elif defined(CONFIG_ARCH_AT91SAM9X5)
+#include <mach/at91sam9x5.h>
 #elif defined(CONFIG_ARCH_AT91X40)
 #include <mach/at91x40.h>
 #else

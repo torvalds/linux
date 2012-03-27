@@ -30,12 +30,13 @@
 #include <mach/regs-mct.h>
 #include <asm/mach/time.h>
 
+#define TICK_BASE_CNT	1
+
 enum {
 	MCT_INT_SPI,
 	MCT_INT_PPI
 };
 
-static unsigned long clk_cnt_per_tick;
 static unsigned long clk_rate;
 static unsigned int mct_int_type;
 
@@ -206,11 +207,14 @@ static int exynos4_comp_set_next_event(unsigned long cycles,
 static void exynos4_comp_set_mode(enum clock_event_mode mode,
 				  struct clock_event_device *evt)
 {
+	unsigned long cycles_per_jiffy;
 	exynos4_mct_comp0_stop();
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		exynos4_mct_comp0_start(mode, clk_cnt_per_tick);
+		cycles_per_jiffy =
+			(((unsigned long long) NSEC_PER_SEC / HZ * evt->mult) >> evt->shift);
+		exynos4_mct_comp0_start(mode, cycles_per_jiffy);
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -249,9 +253,7 @@ static struct irqaction mct_comp_event_irq = {
 
 static void exynos4_clockevent_init(void)
 {
-	clk_cnt_per_tick = clk_rate / 2	/ HZ;
-
-	clockevents_calc_mult_shift(&mct_comp_device, clk_rate / 2, 5);
+	clockevents_calc_mult_shift(&mct_comp_device, clk_rate, 5);
 	mct_comp_device.max_delta_ns =
 		clockevent_delta2ns(0xffffffff, &mct_comp_device);
 	mct_comp_device.min_delta_ns =
@@ -315,12 +317,15 @@ static inline void exynos4_tick_set_mode(enum clock_event_mode mode,
 					 struct clock_event_device *evt)
 {
 	struct mct_clock_event_device *mevt = this_cpu_ptr(&percpu_mct_tick);
+	unsigned long cycles_per_jiffy;
 
 	exynos4_mct_tick_stop(mevt);
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		exynos4_mct_tick_start(clk_cnt_per_tick, mevt);
+		cycles_per_jiffy =
+			(((unsigned long long) NSEC_PER_SEC / HZ * evt->mult) >> evt->shift);
+		exynos4_mct_tick_start(cycles_per_jiffy, mevt);
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
@@ -394,7 +399,7 @@ static int __cpuinit exynos4_local_timer_setup(struct clock_event_device *evt)
 	evt->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
 	evt->rating = 450;
 
-	clockevents_calc_mult_shift(evt, clk_rate / 2, 5);
+	clockevents_calc_mult_shift(evt, clk_rate / (TICK_BASE_CNT + 1), 5);
 	evt->max_delta_ns =
 		clockevent_delta2ns(0x7fffffff, evt);
 	evt->min_delta_ns =
@@ -402,7 +407,7 @@ static int __cpuinit exynos4_local_timer_setup(struct clock_event_device *evt)
 
 	clockevents_register_device(evt);
 
-	exynos4_mct_write(0x1, mevt->base + MCT_L_TCNTB_OFFSET);
+	exynos4_mct_write(TICK_BASE_CNT, mevt->base + MCT_L_TCNTB_OFFSET);
 
 	if (mct_int_type == MCT_INT_SPI) {
 		if (cpu == 0) {
