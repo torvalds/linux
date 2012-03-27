@@ -422,6 +422,67 @@ nfsd4_decode_access(struct nfsd4_compoundargs *argp, struct nfsd4_access *access
 	DECODE_TAIL;
 }
 
+static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_cb_sec *cbs)
+{
+	DECODE_HEAD;
+	u32 dummy;
+	char *machine_name;
+	int i;
+	int nr_secflavs;
+
+	/* callback_sec_params4 */
+	READ_BUF(4);
+	READ32(nr_secflavs);
+	for (i = 0; i < nr_secflavs; ++i) {
+		READ_BUF(4);
+		READ32(dummy);
+		switch (dummy) {
+		case RPC_AUTH_NULL:
+			/* Nothing to read */
+			break;
+		case RPC_AUTH_UNIX:
+			READ_BUF(8);
+			/* stamp */
+			READ32(dummy);
+
+			/* machine name */
+			READ32(dummy);
+			READ_BUF(dummy);
+			SAVEMEM(machine_name, dummy);
+
+			/* uid, gid */
+			READ_BUF(8);
+			READ32(cbs->uid);
+			READ32(cbs->gid);
+
+			/* more gids */
+			READ_BUF(4);
+			READ32(dummy);
+			READ_BUF(dummy * 4);
+			break;
+		case RPC_AUTH_GSS:
+			dprintk("RPC_AUTH_GSS callback secflavor "
+				"not supported!\n");
+			READ_BUF(8);
+			/* gcbp_service */
+			READ32(dummy);
+			/* gcbp_handle_from_server */
+			READ32(dummy);
+			READ_BUF(dummy);
+			p += XDR_QUADLEN(dummy);
+			/* gcbp_handle_from_client */
+			READ_BUF(4);
+			READ32(dummy);
+			READ_BUF(dummy);
+			break;
+		default:
+			dprintk("Illegal callback secflavor\n");
+			return nfserr_inval;
+		}
+	}
+	DECODE_TAIL;
+}
+
 static __be32 nfsd4_decode_bind_conn_to_session(struct nfsd4_compoundargs *argp, struct nfsd4_bind_conn_to_session *bcts)
 {
 	DECODE_HEAD;
@@ -1237,11 +1298,7 @@ nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 			    struct nfsd4_create_session *sess)
 {
 	DECODE_HEAD;
-
 	u32 dummy;
-	char *machine_name;
-	int i;
-	int nr_secflavs;
 
 	READ_BUF(16);
 	COPYMEM(&sess->clientid, 8);
@@ -1282,58 +1339,9 @@ nfsd4_decode_create_session(struct nfsd4_compoundargs *argp,
 		goto xdr_error;
 	}
 
-	READ_BUF(8);
+	READ_BUF(4);
 	READ32(sess->callback_prog);
-
-	/* callback_sec_params4 */
-	READ32(nr_secflavs);
-	for (i = 0; i < nr_secflavs; ++i) {
-		READ_BUF(4);
-		READ32(dummy);
-		switch (dummy) {
-		case RPC_AUTH_NULL:
-			/* Nothing to read */
-			break;
-		case RPC_AUTH_UNIX:
-			READ_BUF(8);
-			/* stamp */
-			READ32(dummy);
-
-			/* machine name */
-			READ32(dummy);
-			READ_BUF(dummy);
-			SAVEMEM(machine_name, dummy);
-
-			/* uid, gid */
-			READ_BUF(8);
-			READ32(sess->uid);
-			READ32(sess->gid);
-
-			/* more gids */
-			READ_BUF(4);
-			READ32(dummy);
-			READ_BUF(dummy * 4);
-			break;
-		case RPC_AUTH_GSS:
-			dprintk("RPC_AUTH_GSS callback secflavor "
-				"not supported!\n");
-			READ_BUF(8);
-			/* gcbp_service */
-			READ32(dummy);
-			/* gcbp_handle_from_server */
-			READ32(dummy);
-			READ_BUF(dummy);
-			p += XDR_QUADLEN(dummy);
-			/* gcbp_handle_from_client */
-			READ_BUF(4);
-			READ32(dummy);
-			READ_BUF(dummy);
-			break;
-		default:
-			dprintk("Illegal callback secflavor\n");
-			return nfserr_inval;
-		}
-	}
+	nfsd4_decode_cb_sec(argp, &sess->cb_sec);
 	DECODE_TAIL;
 }
 

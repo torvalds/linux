@@ -150,6 +150,11 @@ struct nfsd4_channel_attrs {
 	u32		rdma_attrs;
 };
 
+struct nfsd4_cb_sec {
+	u32	uid;
+	u32	gid;
+};
+
 struct nfsd4_create_session {
 	clientid_t			clientid;
 	struct nfs4_sessionid		sessionid;
@@ -158,8 +163,7 @@ struct nfsd4_create_session {
 	struct nfsd4_channel_attrs	fore_channel;
 	struct nfsd4_channel_attrs	back_channel;
 	u32				callback_prog;
-	u32				uid;
-	u32				gid;
+	struct nfsd4_cb_sec		cb_sec;
 };
 
 struct nfsd4_bind_conn_to_session {
@@ -192,6 +196,7 @@ struct nfsd4_session {
 	struct nfs4_sessionid	se_sessionid;
 	struct nfsd4_channel_attrs se_fchannel;
 	struct nfsd4_channel_attrs se_bchannel;
+	struct nfsd4_cb_sec	se_cb_sec;
 	struct list_head	se_conns;
 	u32			se_cb_prog;
 	u32			se_cb_seq_nr;
