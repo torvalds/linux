@@ -270,7 +270,7 @@ void foo(void)
 
 	/* used by fsys_gettimeofday in arch/ia64/kernel/fsys.S */
 	DEFINE(IA64_GTOD_SEQ_OFFSET,
-		offsetof (struct fsyscall_gtod_data_t, seq);
+	       offsetof (struct fsyscall_gtod_data_t, seq));
 	DEFINE(IA64_GTOD_WALL_TIME_OFFSET,
 		offsetof (struct fsyscall_gtod_data_t, wall_time));
 	DEFINE(IA64_GTOD_MONO_TIME_OFFSET,
