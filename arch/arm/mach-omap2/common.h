@@ -177,6 +177,18 @@ void omap3_intc_handle_irq(struct pt_regs *regs);
 extern void __iomem *omap4_get_l2cache_base(void);
 #endif
 
+struct device_node;
+#ifdef CONFIG_OF
+int __init omap_intc_of_init(struct device_node *node,
+			     struct device_node *parent);
+#else
+int __init omap_intc_of_init(struct device_node *node,
+			     struct device_node *parent)
+{
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_SMP
 extern void __iomem *omap4_get_scu_base(void);
 #else

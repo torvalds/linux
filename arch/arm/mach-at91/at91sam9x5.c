@@ -301,8 +301,7 @@ static void __init at91sam9x5_map_io(void)
 
 static void __init at91sam9x5_ioremap_registers(void)
 {
-	if (of_at91sam926x_pit_init() < 0)
-		panic("Impossible to find PIT\n");
+	at91_ioremap_ramc(0, AT91SAM9X5_BASE_DDRSDRC0, 512);
 }
 
 void __init at91sam9x5_initialize(void)
@@ -317,10 +316,6 @@ void __init at91sam9x5_initialize(void)
 /* --------------------------------------------------------------------
  *  AT91SAM9x5 devices (temporary before modification of code)
  * -------------------------------------------------------------------- */
-void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
-void __init at91_set_serial_console(unsigned portnr) {}
-struct platform_device *atmel_default_console_device = NULL;
-
 void __init at91_add_device_nand(struct atmel_nand_data *data) {}
 
 /* --------------------------------------------------------------------

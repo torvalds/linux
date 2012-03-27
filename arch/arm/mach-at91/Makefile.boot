@@ -13,4 +13,10 @@ params_phys-y	:= 0x20000100
 initrd_phys-y	:= 0x20410000
 endif
 
-dtb-$(CONFIG_MACH_AT91SAM_DT) += at91sam9m10g45ek.dtb usb_a9g20.dtb
+# Keep dtb files sorted alphabetically for each SoC
+# sam9g20
+dtb-$(CONFIG_MACH_AT91SAM_DT) += usb_a9g20.dtb
+# sam9g45
+dtb-$(CONFIG_MACH_AT91SAM_DT) += at91sam9m10g45ek.dtb
+# sam9x5
+dtb-$(CONFIG_MACH_AT91SAM_DT) += at91sam9g25ek.dtb

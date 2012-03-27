@@ -65,7 +65,8 @@
 			"Headset Mic", "MICBIAS1",
 			"MIC1", "Headset Mic",
 			"Headset Stereophone", "HPR",
-			"Headset Stereophone", "HPL";
+			"Headset Stereophone", "HPL",
+			"DMICDAT", "Digital Mic";
 
 		nvidia,audio-codec = <&alc5632>;
 		nvidia,i2s-controller = <&tegra_i2s1>;

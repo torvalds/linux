@@ -59,9 +59,10 @@
 
 /*
  * On all at91 have the Advanced Interrupt Controller starts at address
- * 0xfffff000
+ * 0xfffff000 and the Power Management Controller starts at 0xfffffc00
  */
 #define AT91_AIC	0xfffff000
+#define AT91_PMC	0xfffffc00
 
 /*
  * Peripheral identifiers/interrupts.
