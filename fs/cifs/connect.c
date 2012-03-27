@@ -140,6 +140,7 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_nobrl, "nobrl" },
 	{ Opt_nobrl, "nolock" },
 	{ Opt_forcemandatorylock, "forcemandatorylock" },
+	{ Opt_forcemandatorylock, "forcemand" },
 	{ Opt_setuids, "setuids" },
 	{ Opt_nosetuids, "nosetuids" },
 	{ Opt_dynperm, "dynperm" },
@@ -1326,9 +1327,11 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			break;
 		case Opt_nobrl:
 			vol->nobrl =  1;
-			/* turn off mandatory locking in mode
+			/*
+			 * turn off mandatory locking in mode
 			 * if remote locking is turned off since the
-			 * local vfs will do advisory */
+			 * local vfs will do advisory
+			 */
 			if (vol->file_mode ==
 				(S_IALLUGO & ~(S_ISUID | S_IXGRP)))
 				vol->file_mode = S_IALLUGO;
