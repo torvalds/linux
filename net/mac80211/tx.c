@@ -230,9 +230,9 @@ ieee80211_tx_h_dynamic_ps(struct ieee80211_tx_data *tx)
 	 * changed via debugfs, user needs to reassociate manually to have
 	 * everything in sync.
 	 */
-	if ((ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED)
-	    && (ifmgd->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO)
-	    && skb_get_queue_mapping(tx->skb) == 0)
+	if ((ifmgd->flags & IEEE80211_STA_UAPSD_ENABLED) &&
+	    (ifmgd->uapsd_queues & IEEE80211_WMM_IE_STA_QOSINFO_AC_VO) &&
+	    skb_get_queue_mapping(tx->skb) == IEEE80211_AC_VO)
 		return TX_CONTINUE;
 
 	if (local->hw.conf.flags & IEEE80211_CONF_PS) {
