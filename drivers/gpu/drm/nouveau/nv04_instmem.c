@@ -41,12 +41,8 @@ int nv04_instmem_init(struct drm_device *dev)
 		rsvd += 16 * 1024;
 		rsvd *= dev_priv->engine.fifo.channels;
 
-		/* pciegart table */
-		if (pci_is_pcie(dev->pdev))
-			rsvd += 512 * 1024;
-
-		/* object storage */
-		rsvd += 512 * 1024;
+		rsvd += 512 * 1024; /* pci(e)gart table */
+		rsvd += 512 * 1024; /* object storage */
 
 		dev_priv->ramin_rsvd_vram = round_up(rsvd, 4096);
 	} else {
