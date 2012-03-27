@@ -76,6 +76,10 @@ static int genregs_get(struct task_struct *target,
 	dummy = pt_cause(regs);
 	ONEXT(&dummy, cause);
 	ONEXT(&pt_badva(regs), badva);
+#if CONFIG_HEXAGON_ARCH_VERSION >=4
+	ONEXT(&regs->cs0, cs0);
+	ONEXT(&regs->cs1, cs1);
+#endif
 
 	/* Pad the rest with zeros, if needed */
 	if (!ret)
@@ -122,6 +126,11 @@ static int genregs_set(struct task_struct *target,
 	/* CAUSE and BADVA aren't writeable. */
 	INEXT(&bucket, cause);
 	INEXT(&bucket, badva);
+
+#if CONFIG_HEXAGON_ARCH_VERSION >=4
+	INEXT(&regs->cs0, cs0);
+	INEXT(&regs->cs1, cs1);
+#endif
 
 	/* Ignore the rest, if needed */
 	if (!ret)

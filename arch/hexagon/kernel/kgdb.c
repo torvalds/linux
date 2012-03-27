@@ -70,6 +70,8 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] = {
 	{ "lc1", GDB_SIZEOF_REG, offsetof(struct pt_regs, lc1)},
 	{ " gp", GDB_SIZEOF_REG, offsetof(struct pt_regs, gp)},
 	{ "ugp", GDB_SIZEOF_REG, offsetof(struct pt_regs, ugp)},
+	{ "cs0", GDB_SIZEOF_REG, offsetof(struct pt_regs, cs0)},
+	{ "cs1", GDB_SIZEOF_REG, offsetof(struct pt_regs, cs1)},
 	{ "psp", GDB_SIZEOF_REG, offsetof(struct pt_regs, hvmer.vmpsp)},
 	{ "elr", GDB_SIZEOF_REG, offsetof(struct pt_regs, hvmer.vmel)},
 	{ "est", GDB_SIZEOF_REG, offsetof(struct pt_regs, hvmer.vmest)},

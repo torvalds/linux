@@ -66,7 +66,10 @@ static int setup_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc)
 	err |= __put_user(regs->preds, &sc->sc_regs.p3_0);
 	err |= __put_user(regs->gp, &sc->sc_regs.gp);
 	err |= __put_user(regs->ugp, &sc->sc_regs.ugp);
-
+#if CONFIG_HEXAGON_ARCH_VERSION >= 4
+	err |= __put_user(regs->cs0, &sc->sc_regs.cs0);
+	err |= __put_user(regs->cs1, &sc->sc_regs.cs1);
+#endif
 	tmp = pt_elr(regs); err |= __put_user(tmp, &sc->sc_regs.pc);
 	tmp = pt_cause(regs); err |= __put_user(tmp, &sc->sc_regs.cause);
 	tmp = pt_badva(regs); err |= __put_user(tmp, &sc->sc_regs.badva);
@@ -93,7 +96,10 @@ static int restore_sigcontext(struct pt_regs *regs,
 	err |= __get_user(regs->preds, &sc->sc_regs.p3_0);
 	err |= __get_user(regs->gp, &sc->sc_regs.gp);
 	err |= __get_user(regs->ugp, &sc->sc_regs.ugp);
-
+#if CONFIG_HEXAGON_ARCH_VERSION >= 4
+	err |= __get_user(regs->cs0, &sc->sc_regs.cs0);
+	err |= __get_user(regs->cs1, &sc->sc_regs.cs1);
+#endif
 	err |= __get_user(tmp, &sc->sc_regs.pc); pt_set_elr(regs, tmp);
 
 	return err;

@@ -57,10 +57,17 @@ struct pt_regs {
 	};
 	union {
 		struct {
-			unsigned long gp;
 			unsigned long ugp;
+			unsigned long gp;
 		};
-		long long int ugpgp;
+		long long int gpugp;
+	};
+	union {
+		struct {
+			unsigned long cs0;
+			unsigned long cs1;
+		};
+		long long int cs1cs0;
 	};
 	/*
 	* Be extremely careful with rearranging these, if at all.  Some code
