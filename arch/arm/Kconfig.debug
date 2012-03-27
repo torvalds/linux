@@ -86,7 +86,7 @@ choice
 		depends on HAVE_AT91_DBGU0
 
 	config AT91_DEBUG_LL_DBGU1
-		bool "Kernel low-level debugging on 9263, 9g45 and cap9"
+		bool "Kernel low-level debugging on 9263 and 9g45"
 		depends on HAVE_AT91_DBGU1
 
 	config DEBUG_CLPS711X_UART1

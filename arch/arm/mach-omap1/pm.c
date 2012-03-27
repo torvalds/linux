@@ -49,7 +49,6 @@
 #include <asm/mach/irq.h>
 
 #include <plat/cpu.h>
-#include <mach/irqs.h>
 #include <plat/clock.h>
 #include <plat/sram.h>
 #include <plat/tc.h>
@@ -57,6 +56,9 @@
 #include <plat/dma.h>
 #include <plat/dmtimer.h>
 
+#include <mach/irqs.h>
+
+#include "iomap.h"
 #include "pm.h"
 
 static unsigned int arm_sleep_save[ARM_SLEEP_SAVE_SIZE];

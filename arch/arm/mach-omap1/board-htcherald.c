@@ -27,7 +27,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/io.h>
+#include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/i2c.h>
@@ -42,7 +42,6 @@
 #include <asm/mach/arch.h>
 
 #include <plat/omap7xx.h>
-#include "common.h"
 #include <plat/board.h>
 #include <plat/keypad.h>
 #include <plat/usb.h>
@@ -50,7 +49,7 @@
 
 #include <mach/irqs.h>
 
-#include <linux/delay.h>
+#include "common.h"
 
 /* LCD register definition */
 #define       OMAP_LCDC_CONTROL               (0xfffec000 + 0x00)

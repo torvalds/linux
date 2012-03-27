@@ -42,66 +42,7 @@
 #define RTC_DEF_TRIM		0
 
 static const unsigned long RTC_FREQ = 1024;
-static struct rtc_time rtc_alarm;
 static DEFINE_SPINLOCK(sa1100_rtc_lock);
-
-static inline int rtc_periodic_alarm(struct rtc_time *tm)
-{
-	return  (tm->tm_year == -1) ||
-		((unsigned)tm->tm_mon >= 12) ||
-		((unsigned)(tm->tm_mday - 1) >= 31) ||
-		((unsigned)tm->tm_hour > 23) ||
-		((unsigned)tm->tm_min > 59) ||
-		((unsigned)tm->tm_sec > 59);
-}
-
-/*
- * Calculate the next alarm time given the requested alarm time mask
- * and the current time.
- */
-static void rtc_next_alarm_time(struct rtc_time *next, struct rtc_time *now,
-	struct rtc_time *alrm)
-{
-	unsigned long next_time;
-	unsigned long now_time;
-
-	next->tm_year = now->tm_year;
-	next->tm_mon = now->tm_mon;
-	next->tm_mday = now->tm_mday;
-	next->tm_hour = alrm->tm_hour;
-	next->tm_min = alrm->tm_min;
-	next->tm_sec = alrm->tm_sec;
-
-	rtc_tm_to_time(now, &now_time);
-	rtc_tm_to_time(next, &next_time);
-
-	if (next_time < now_time) {
-		/* Advance one day */
-		next_time += 60 * 60 * 24;
-		rtc_time_to_tm(next_time, next);
-	}
-}
-
-static int rtc_update_alarm(struct rtc_time *alrm)
-{
-	struct rtc_time alarm_tm, now_tm;
-	unsigned long now, time;
-	int ret;
-
-	do {
-		now = RCNR;
-		rtc_time_to_tm(now, &now_tm);
-		rtc_next_alarm_time(&alarm_tm, &now_tm, alrm);
-		ret = rtc_tm_to_time(&alarm_tm, &time);
-		if (ret != 0)
-			break;
-
-		RTSR = RTSR & (RTSR_HZE|RTSR_ALE|RTSR_AL);
-		RTAR = time;
-	} while (now != RCNR);
-
-	return ret;
-}
 
 static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 {
@@ -145,9 +86,6 @@ static irqreturn_t sa1100_rtc_interrupt(int irq, void *dev_id)
 		events |= RTC_UF | RTC_IRQF;
 
 	rtc_update_irq(rtc, 1, events);
-
-	if (rtsr & RTSR_AL && rtc_periodic_alarm(&rtc_alarm))
-		rtc_update_alarm(&rtc_alarm);
 
 	spin_unlock(&sa1100_rtc_lock);
 
@@ -224,7 +162,6 @@ static int sa1100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
 	u32	rtsr;
 
-	memcpy(&alrm->time, &rtc_alarm, sizeof(struct rtc_time));
 	rtsr = RTSR;
 	alrm->enabled = (rtsr & RTSR_ALE) ? 1 : 0;
 	alrm->pending = (rtsr & RTSR_AL) ? 1 : 0;
@@ -233,16 +170,20 @@ static int sa1100_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 
 static int sa1100_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alrm)
 {
+	unsigned long time;
 	int ret;
 
 	spin_lock_irq(&sa1100_rtc_lock);
-	ret = rtc_update_alarm(&alrm->time);
-	if (ret == 0) {
-		if (alrm->enabled)
-			RTSR |= RTSR_ALE;
-		else
-			RTSR &= ~RTSR_ALE;
-	}
+	ret = rtc_tm_to_time(&alrm->time, &time);
+	if (ret != 0)
+		goto out;
+	RTSR = RTSR & (RTSR_HZE|RTSR_ALE|RTSR_AL);
+	RTAR = time;
+	if (alrm->enabled)
+		RTSR |= RTSR_ALE;
+	else
+		RTSR &= ~RTSR_ALE;
+out:
 	spin_unlock_irq(&sa1100_rtc_lock);
 
 	return ret;

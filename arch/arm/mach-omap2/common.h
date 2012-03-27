@@ -134,6 +134,8 @@ void omap4_map_io(void);
 void ti81xx_map_io(void);
 void omap_barriers_init(void);
 
+extern void __init omap_init_consistent_dma_size(void);
+
 /**
  * omap_test_timeout - busy-loop, testing a condition
  * @cond: condition to test until it evaluates to true
@@ -236,5 +238,10 @@ static inline u32 omap4_mpuss_read_prev_context_state(void)
 	return 0;
 }
 #endif
+
+struct omap_sdrc_params;
+extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
+				      struct omap_sdrc_params *sdrc_cs1);
+
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */

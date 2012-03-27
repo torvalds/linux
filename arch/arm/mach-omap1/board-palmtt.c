@@ -25,8 +25,9 @@
 #include <linux/mtd/physmap.h>
 #include <linux/leds.h>
 #include <linux/omapfb.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -40,10 +41,10 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
-#include "common.h"
 
-#include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
+#include <mach/hardware.h>
+
+#include "common.h"
 
 #define PALMTT_USBDETECT_GPIO	0
 #define PALMTT_CABLE_GPIO	1

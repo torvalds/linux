@@ -138,17 +138,14 @@ static struct lp5523_platform_data rx51_lp5523_platform_data = {
 
 static struct omap2_mcspi_device_config wl1251_mcspi_config = {
 	.turbo_mode	= 0,
-	.single_channel	= 1,
 };
 
 static struct omap2_mcspi_device_config mipid_mcspi_config = {
 	.turbo_mode	= 0,
-	.single_channel	= 1,
 };
 
 static struct omap2_mcspi_device_config tsc2005_mcspi_config = {
 	.turbo_mode	= 0,
-	.single_channel	= 1,
 };
 
 static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {

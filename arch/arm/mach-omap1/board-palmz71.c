@@ -28,8 +28,9 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/omapfb.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -42,10 +43,10 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
-#include "common.h"
 
-#include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
+#include <mach/hardware.h>
+
+#include "common.h"
 
 #define PALMZ71_USBDETECT_GPIO	0
 #define PALMZ71_PENIRQ_GPIO	6

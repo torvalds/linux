@@ -121,7 +121,6 @@ static struct omap_dss_board_info zoom_dss_data = {
 
 static struct omap2_mcspi_device_config dss_lcd_mcspi_config = {
 	.turbo_mode		= 1,
-	.single_channel	= 1,  /* 0: slave, 1: master */
 };
 
 static struct spi_board_info nec_8048_spi_board_info[] __initdata = {

@@ -25,7 +25,7 @@
 #include <asm/mach/map.h>
 #include <asm/pmu.h>
 
-#include <plat/tc.h>
+#include "iomap.h"
 #include <plat/board.h>
 #include <plat/mmc.h>
 #include <plat/dma.h>

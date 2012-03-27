@@ -29,7 +29,6 @@
 #include <linux/apm-emulation.h>
 #include <linux/omapfb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -42,6 +41,9 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
+
+#include <mach/hardware.h>
+
 #include "common.h"
 
 #define PALMTE_USBDETECT_GPIO	0

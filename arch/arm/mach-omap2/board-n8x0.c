@@ -133,7 +133,6 @@ static void __init n8x0_usb_init(void) {}
 
 static struct omap2_mcspi_device_config p54spi_mcspi_config = {
 	.turbo_mode	= 0,
-	.single_channel = 1,
 };
 
 static struct spi_board_info n800_spi_board_info[] __initdata = {

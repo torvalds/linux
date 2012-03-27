@@ -30,6 +30,7 @@
 #include <plat/omap-pm.h>
 #include "common.h"
 
+#include "iomap.h"
 #include "mux.h"
 #include "control.h"
 #include "display.h"

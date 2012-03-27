@@ -14,10 +14,13 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <mach/hardware.h>
+
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
+
+#include "iomap.h"
 
 /* selected INTC register offsets */
 
