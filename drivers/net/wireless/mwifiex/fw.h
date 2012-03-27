@@ -1012,7 +1012,7 @@ struct ieee_types_wmm_parameter {
 	struct ieee_types_vendor_header vend_hdr;
 	u8 qos_info_bitmap;
 	u8 reserved;
-	struct ieee_types_wmm_ac_parameters ac_params[IEEE80211_MAX_QUEUES];
+	struct ieee_types_wmm_ac_parameters ac_params[IEEE80211_NUM_ACS];
 } __packed;
 
 struct ieee_types_wmm_info {
@@ -1033,7 +1033,7 @@ struct ieee_types_wmm_info {
 
 struct host_cmd_ds_wmm_get_status {
 	u8 queue_status_tlv[sizeof(struct mwifiex_ie_types_wmm_queue_status) *
-			      IEEE80211_MAX_QUEUES];
+			      IEEE80211_NUM_ACS];
 	u8 wmm_param_tlv[sizeof(struct ieee_types_wmm_parameter) + 2];
 } __packed;
 

@@ -201,10 +201,10 @@ struct mwifiex_wmm_desc {
 	u32 packets_out[MAX_NUM_TID];
 	/* spin lock to protect ra_list */
 	spinlock_t ra_list_spinlock;
-	struct mwifiex_wmm_ac_status ac_status[IEEE80211_MAX_QUEUES];
-	enum mwifiex_wmm_ac_e ac_down_graded_vals[IEEE80211_MAX_QUEUES];
+	struct mwifiex_wmm_ac_status ac_status[IEEE80211_NUM_ACS];
+	enum mwifiex_wmm_ac_e ac_down_graded_vals[IEEE80211_NUM_ACS];
 	u32 drv_pkt_delay_max;
-	u8 queue_priority[IEEE80211_MAX_QUEUES];
+	u8 queue_priority[IEEE80211_NUM_ACS];
 	u32 user_pri_pkt_tx_ctrl[WMM_HIGHEST_PRIORITY + 1];	/* UP: 0 to 7 */
 	/* Number of transmit packets queued */
 	atomic_t tx_pkts_queued;
