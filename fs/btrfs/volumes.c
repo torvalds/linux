@@ -2598,6 +2598,30 @@ error:
 	return ret;
 }
 
+/**
+ * alloc_profile_is_valid - see if a given profile is valid and reduced
+ * @flags: profile to validate
+ * @extended: if true @flags is treated as an extended profile
+ */
+static int alloc_profile_is_valid(u64 flags, int extended)
+{
+	u64 mask = (extended ? BTRFS_EXTENDED_PROFILE_MASK :
+			       BTRFS_BLOCK_GROUP_PROFILE_MASK);
+
+	flags &= ~BTRFS_BLOCK_GROUP_TYPE_MASK;
+
+	/* 1) check that all other bits are zeroed */
+	if (flags & ~mask)
+		return 0;
+
+	/* 2) see if profile is reduced */
+	if (flags == 0)
+		return !extended; /* "0" is valid for usual profiles */
+
+	/* true if exactly one bit set */
+	return (flags & (flags - 1)) == 0;
+}
+
 static inline int balance_need_close(struct btrfs_fs_info *fs_info)
 {
 	/* cancel requested || normal exit path */
@@ -3124,11 +3148,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int i;
 	int j;
 
-	if ((type & BTRFS_BLOCK_GROUP_RAID1) &&
-	    (type & BTRFS_BLOCK_GROUP_DUP)) {
-		WARN_ON(1);
-		type &= ~BTRFS_BLOCK_GROUP_DUP;
-	}
+	BUG_ON(!alloc_profile_is_valid(type, 0));
 
 	if (list_empty(&fs_devices->alloc_list))
 		return -ENOSPC;
