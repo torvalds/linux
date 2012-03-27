@@ -2735,22 +2735,27 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info);
 }
 /**
- * profile_is_valid - tests whether a given profile is valid and reduced
+ * alloc_profile_is_valid - see if a given profile is valid and reduced
  * @flags: profile to validate
  * @extended: if true @flags is treated as an extended profile
  */
-static inline int profile_is_valid(u64 flags, int extended)
+static inline int alloc_profile_is_valid(u64 flags, int extended)
 {
-	u64 mask = ~BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	u64 mask = (extended ? BTRFS_EXTENDED_PROFILE_MASK :
+			       BTRFS_BLOCK_GROUP_PROFILE_MASK);
 
 	flags &= ~BTRFS_BLOCK_GROUP_TYPE_MASK;
-	if (extended)
-		mask &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
 
-	if (flags & mask)
+	/* 1) check that all other bits are zeroed */
+	if (flags & ~mask)
 		return 0;
-	/* true if zero or exactly one bit set */
-	return (flags & (~flags + 1)) == flags;
+
+	/* 2) see if profile is reduced */
+	if (flags == 0)
+		return !extended; /* "0" is valid for usual profiles */
+
+	/* true if exactly one bit set */
+	return (flags & (flags - 1)) == 0;
 }
 
 /* root-item.c */

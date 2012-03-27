@@ -2669,7 +2669,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1 |
 				BTRFS_BLOCK_GROUP_RAID10);
 
-	if (!profile_is_valid(bctl->data.target, 1) ||
+	if (!alloc_profile_is_valid(bctl->data.target, 1) ||
 	    bctl->data.target & ~allowed) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "data profile %llu\n",
@@ -2677,7 +2677,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (!profile_is_valid(bctl->meta.target, 1) ||
+	if (!alloc_profile_is_valid(bctl->meta.target, 1) ||
 	    bctl->meta.target & ~allowed) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "metadata profile %llu\n",
@@ -2685,7 +2685,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		ret = -EINVAL;
 		goto out;
 	}
-	if (!profile_is_valid(bctl->sys.target, 1) ||
+	if (!alloc_profile_is_valid(bctl->sys.target, 1) ||
 	    bctl->sys.target & ~allowed) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "system profile %llu\n",
