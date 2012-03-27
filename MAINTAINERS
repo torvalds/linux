@@ -5487,10 +5487,16 @@ S:	Maintained
 F:	Documentation/video4linux/README.pvrusb2
 F:	drivers/media/video/pvrusb2/
 
-PWM core
-M:	Sascha Hauer <s.hauer@pengutronix.de>
+PWM SUBSYSTEM
+M:	Thierry Reding <thierry.reding@avionic-design.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
+W:	http://gitorious.org/linux-pwm
+T:	git git://gitorious.org/linux-pwm/linux-pwm.git
+F:	Documentation/pwm.txt
+F:	Documentation/devicetree/bindings/pwm/
+F:	include/linux/pwm.h
+F:	include/linux/of_pwm.h
 F:	drivers/pwm/
 
 PXA2xx/PXA3xx SUPPORT
