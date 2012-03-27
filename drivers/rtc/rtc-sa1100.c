@@ -30,6 +30,7 @@
 #include <linux/string.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>

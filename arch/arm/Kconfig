@@ -180,6 +180,9 @@ config ZONE_DMA
 config NEED_DMA_MAP_STATE
        def_bool y
 
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+	bool
+
 config GENERIC_ISA_DMA
 	bool
 
@@ -547,6 +550,7 @@ config ARCH_IXP2000
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
 	select CLKSRC_MMIO
 	select CPU_XSCALE
 	select GENERIC_GPIO
