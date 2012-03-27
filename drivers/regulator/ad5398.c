@@ -99,8 +99,8 @@ static int ad5398_set_current_limit(struct regulator_dev *rdev, int min_uA, int 
 	if (ad5398_calc_current(chip, selector) > max_uA)
 		return -EINVAL;
 
-	dev_dbg(&client->dev, "changing current %dmA\n",
-		ad5398_calc_current(chip, selector) / 1000);
+	dev_dbg(&client->dev, "changing current %duA\n",
+		ad5398_calc_current(chip, selector));
 
 	/* read chip enable bit */
 	ret = ad5398_read_reg(client, &data);
