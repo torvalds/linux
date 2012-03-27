@@ -1003,6 +1003,11 @@ RGA_set_bitblt_reg_info(u8 *base, const struct rga_req * msg, TILE_INFO *tile)
             xp = CLIP(xp, msg->src.x_offset, msg->src.x_offset + msg->src.act_w - 1);
             yp = CLIP(yp, msg->src.y_offset, msg->src.y_offset + msg->src.act_h - 1);
         }
+
+        printk("xoffset = %.8x\n", msg->src.x_offset);
+        printk("yoffset = %.8x\n", msg->src.y_offset);
+        printk("xp = %.8x\n", xp);
+        printk("yp = %.8x\n", yp);
         
         switch(msg->src.format)
         {        
@@ -1046,6 +1051,8 @@ RGA_set_bitblt_reg_info(u8 *base, const struct rga_req * msg, TILE_INFO *tile)
                 y_addr = msg->src.yrgb_addr + yp*stride + xp*pixel_width;
                 break;
         }
+
+        printk("y_addr is %.8x\n", y_addr);
 
         *bRGA_SRC_Y_MST = y_addr;
         *bRGA_SRC_CB_MST = u_addr;
@@ -1290,8 +1297,11 @@ RGA_set_pre_scale_reg_info(u8 *base, const struct rga_req *msg)
    dst_width = msg->dst.act_w;
    dst_height = msg->dst.act_h;
 
-   h_ratio = (src_width )<<16 / dst_width;
-   v_ratio = (src_height)<<16 / dst_height;
+   printk("src_act_w = %.8x, src_act_h =%.8x dst_act_w = %.8x, dst_act_h = %.8x\n", 
+    msg->src.act_w, msg->src.act_h, msg->dst.act_w, msg->dst.act_h);
+
+   h_ratio = (src_width <<16) / dst_width;
+   v_ratio = (src_height<<16) / dst_height;
 
    if (h_ratio <= (1<<16))    
        h_ratio = 0;

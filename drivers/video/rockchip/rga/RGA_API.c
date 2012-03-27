@@ -93,8 +93,8 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
     mp = msg1;
     w_ratio = (msg->src.act_w << 16) / msg->dst.act_w;
     h_ratio = (msg->src.act_h << 16) / msg->dst.act_h;
-
-    memcpy(&msg1, &msg, sizeof(struct rga_req));
+   
+    memcpy(msg1, msg, sizeof(struct rga_req));
 
     msg->dst.format = msg->src.format;
 
@@ -142,17 +142,27 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
             msg->src.act_h = (dah - 1) << 3;                                                    
         }
     }
+
+    printk("test_2\n");
+    
     msg->dst.act_h = dah;
     msg->dst.vir_h = dah;
             
-    msg->dst.yrgb_addr = (u32)rga_service.pre_scale_buf;
+    //msg->dst.yrgb_addr = (u32)rga_service.pre_scale_buf;
     msg->dst.uv_addr = msg->dst.yrgb_addr + stride * dah;
     msg->dst.v_addr = msg->dst.uv_addr + ((stride * dah) >> 1);
 
     msg->render_mode = pre_scaling_mode;
 
-    memcpy(&msg1->src, &msg->dst, sizeof(rga_img_info_t));
-        
+    msg1->src.yrgb_addr = msg->dst.yrgb_addr;
+    msg1->src.uv_addr = msg->dst.uv_addr;
+    msg1->src.v_addr = msg->dst.v_addr;
+
+    msg1->src.act_w = msg->dst.act_w;
+    msg1->src.act_h = msg->dst.act_h;
+    msg1->src.vir_w = msg->dst.vir_w;
+    msg1->src.vir_h = msg->dst.vir_h;
+            
     return 0;
 }
 
