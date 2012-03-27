@@ -105,6 +105,17 @@ const struct clk_ops clk_gate_ops = {
 };
 EXPORT_SYMBOL_GPL(clk_gate_ops);
 
+/**
+ * clk_register_gate - register a gate clock with the clock framework
+ * @dev: device that is registering this clock
+ * @name: name of this clock
+ * @parent_name: name of this clock's parent
+ * @flags: framework-specific flags for this clock
+ * @reg: register address to control gating of this clock
+ * @bit_idx: which bit in the register controls gating of this clock
+ * @clk_gate_flags: gate-specific flags for this clock
+ * @lock: shared register lock for this clock
+ */
 struct clk *clk_register_gate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		void __iomem *reg, u8 bit_idx,
@@ -113,11 +124,11 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 	struct clk_gate *gate;
 	struct clk *clk;
 
+	/* allocate the gate */
 	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
-
 	if (!gate) {
 		pr_err("%s: could not allocate gated clk\n", __func__);
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	/* struct clk_gate assignments */
@@ -126,22 +137,15 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 	gate->flags = clk_gate_flags;
 	gate->lock = lock;
 
-	if (parent_name) {
-		gate->parent[0] = kstrdup(parent_name, GFP_KERNEL);
-		if (!gate->parent[0])
-			goto out;
-	}
-
+	/* register the clock */
 	clk = clk_register(dev, name,
 			&clk_gate_ops, &gate->hw,
-			gate->parent,
+			(parent_name ? &parent_name : NULL),
 			(parent_name ? 1 : 0),
 			flags);
-	if (clk)
-		return clk;
-out:
-	kfree(gate->parent[0]);
-	kfree(gate);
 
-	return NULL;
+	if (IS_ERR(clk))
+		kfree(gate);
+
+	return clk;
 }

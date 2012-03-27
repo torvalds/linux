@@ -94,9 +94,10 @@ struct clk *clk_register_mux(struct device *dev, const char *name,
 		u8 clk_mux_flags, spinlock_t *lock)
 {
 	struct clk_mux *mux;
+	struct clk *clk;
 
+	/* allocate the mux */
 	mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
-
 	if (!mux) {
 		pr_err("%s: could not allocate mux clk\n", __func__);
 		return ERR_PTR(-ENOMEM);
@@ -109,6 +110,11 @@ struct clk *clk_register_mux(struct device *dev, const char *name,
 	mux->flags = clk_mux_flags;
 	mux->lock = lock;
 
-	return clk_register(dev, name, &clk_mux_ops, &mux->hw,
+	clk = clk_register(dev, name, &clk_mux_ops, &mux->hw,
 			parent_names, num_parents, flags);
+
+	if (IS_ERR(clk))
+		kfree(mux);
+
+	return clk;
 }
