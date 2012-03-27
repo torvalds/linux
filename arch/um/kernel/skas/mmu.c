@@ -103,7 +103,6 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 
 void uml_setup_stubs(struct mm_struct *mm)
 {
-	struct page **pages;
 	int err, ret;
 
 	if (!skas_needs_stub)
