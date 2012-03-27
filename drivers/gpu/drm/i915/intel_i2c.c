@@ -137,6 +137,35 @@ static void set_data(void *data, int state_high)
 	POSTING_READ(bus->gpio_reg);
 }
 
+static int
+intel_gpio_pre_xfer(struct i2c_adapter *adapter)
+{
+	struct intel_gmbus *bus = container_of(adapter,
+					       struct intel_gmbus,
+					       adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+
+	intel_i2c_reset(dev_priv->dev);
+	intel_i2c_quirk_set(dev_priv, true);
+	set_data(bus, 1);
+	set_clock(bus, 1);
+	udelay(I2C_RISEFALL_TIME);
+	return 0;
+}
+
+static void
+intel_gpio_post_xfer(struct i2c_adapter *adapter)
+{
+	struct intel_gmbus *bus = container_of(adapter,
+					       struct intel_gmbus,
+					       adapter);
+	struct drm_i915_private *dev_priv = bus->dev_priv;
+
+	set_data(bus, 1);
+	set_clock(bus, 1);
+	intel_i2c_quirk_set(dev_priv, false);
+}
+
 static bool
 intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 {
@@ -166,35 +195,13 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo->setscl = set_clock;
 	algo->getsda = get_data;
 	algo->getscl = get_clock;
+	algo->pre_xfer = intel_gpio_pre_xfer;
+	algo->post_xfer = intel_gpio_post_xfer;
 	algo->udelay = I2C_RISEFALL_TIME;
 	algo->timeout = usecs_to_jiffies(2200);
 	algo->data = bus;
 
 	return true;
-}
-
-static int
-intel_i2c_quirk_xfer(struct intel_gmbus *bus,
-		     struct i2c_msg *msgs,
-		     int num)
-{
-	struct drm_i915_private *dev_priv = bus->dev_priv;
-	int ret;
-
-	intel_i2c_reset(dev_priv->dev);
-
-	intel_i2c_quirk_set(dev_priv, true);
-	set_data(bus, 1);
-	set_clock(bus, 1);
-	udelay(I2C_RISEFALL_TIME);
-
-	ret = i2c_bit_algo.master_xfer(&bus->adapter, msgs, num);
-
-	set_data(bus, 1);
-	set_clock(bus, 1);
-	intel_i2c_quirk_set(dev_priv, false);
-
-	return ret;
 }
 
 static int
@@ -287,7 +294,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	mutex_lock(&dev_priv->gmbus_mutex);
 
 	if (bus->force_bit) {
-		ret = intel_i2c_quirk_xfer(bus, msgs, num);
+		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 		goto out;
 	}
 
@@ -351,8 +358,9 @@ timeout:
 		ret = -EIO;
 	} else {
 		bus->force_bit = true;
-		ret = intel_i2c_quirk_xfer(bus, msgs, num);
+		ret = i2c_bit_algo.master_xfer(adapter, msgs, num);
 	}
+
 out:
 	mutex_unlock(&dev_priv->gmbus_mutex);
 	return ret;
