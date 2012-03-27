@@ -764,9 +764,7 @@ xfs_setattr_size(
 		 * before the inode is joined to the transaction to modify
 		 * i_size.
 		 */
-		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		error = xfs_zero_eof(ip, newsize, oldsize);
-		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		if (error)
 			goto out_unlock;
 	}
