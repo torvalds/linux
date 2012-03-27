@@ -71,7 +71,6 @@ static int clk_gate_enable(struct clk_hw *hw)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(clk_gate_enable);
 
 static void clk_gate_disable(struct clk_hw *hw)
 {
@@ -82,7 +81,6 @@ static void clk_gate_disable(struct clk_hw *hw)
 	else
 		clk_gate_clear_bit(gate);
 }
-EXPORT_SYMBOL_GPL(clk_gate_disable);
 
 static int clk_gate_is_enabled(struct clk_hw *hw)
 {
@@ -99,7 +97,6 @@ static int clk_gate_is_enabled(struct clk_hw *hw)
 
 	return reg ? 1 : 0;
 }
-EXPORT_SYMBOL_GPL(clk_gate_is_enabled);
 
 struct clk_ops clk_gate_ops = {
 	.enable = clk_gate_enable,
