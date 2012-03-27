@@ -34,6 +34,7 @@
 #include <asm/mach/time.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/r8a7740.h>
+#include <mach/irqs.h>
 #include <video/sh_mobile_lcdc.h>
 
 /*

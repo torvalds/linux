@@ -5,7 +5,6 @@ menu "Integrator Options"
 config ARCH_INTEGRATOR_AP
 	bool "Support Integrator/AP and Integrator/PP2 platforms"
 	select CLKSRC_MMIO
-	select HAVE_SCHED_CLOCK
 	select MIGHT_HAVE_PCI
 	select SERIAL_AMBA_PL010
 	select SERIAL_AMBA_PL010_CONSOLE

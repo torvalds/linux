@@ -94,19 +94,9 @@ static struct amba_pl011_data uart0_plat_data = {
 #endif
 };
 
-static struct amba_device uart0_device = {
-	.dev = {
-		.coherent_dma_mask = ~0,
-		.init_name = "uart0", /* Slow device at 0x3000 offset */
-		.platform_data = &uart0_plat_data,
-	},
-	.res = {
-		.start = U300_UART0_BASE,
-		.end   = U300_UART0_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = { IRQ_U300_UART0, NO_IRQ },
-};
+/* Slow device at 0x3000 offset */
+static AMBA_APB_DEVICE(uart0, "uart0", 0, U300_UART0_BASE,
+	{ IRQ_U300_UART0 }, &uart0_plat_data);
 
 /* The U335 have an additional UART1 on the APP CPU */
 #ifdef CONFIG_MACH_U300_BS335
@@ -118,71 +108,28 @@ static struct amba_pl011_data uart1_plat_data = {
 #endif
 };
 
-static struct amba_device uart1_device = {
-	.dev = {
-		.coherent_dma_mask = ~0,
-		.init_name = "uart1", /* Fast device at 0x7000 offset */
-		.platform_data = &uart1_plat_data,
-	},
-	.res = {
-		.start = U300_UART1_BASE,
-		.end   = U300_UART1_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = { IRQ_U300_UART1, NO_IRQ },
-};
+/* Fast device at 0x7000 offset */
+static AMBA_APB_DEVICE(uart1, "uart1", 0, U300_UART1_BASE,
+	{ IRQ_U300_UART1 }, &uart1_plat_data);
 #endif
 
-static struct amba_device pl172_device = {
-	.dev = {
-		.init_name = "pl172", /* AHB device at 0x4000 offset */
-		.platform_data = NULL,
-	},
-	.res = {
-		.start = U300_EMIF_CFG_BASE,
-		.end   = U300_EMIF_CFG_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-};
+/* AHB device at 0x4000 offset */
+static AMBA_APB_DEVICE(pl172, "pl172", 0, U300_EMIF_CFG_BASE, { }, NULL);
 
 
 /*
  * Everything within this next ifdef deals with external devices connected to
  * the APP SPI bus.
  */
-static struct amba_device pl022_device = {
-	.dev = {
-		.coherent_dma_mask = ~0,
-		.init_name = "pl022", /* Fast device at 0x6000 offset */
-	},
-	.res = {
-		.start = U300_SPI_BASE,
-		.end   = U300_SPI_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_U300_SPI, NO_IRQ },
-	/*
-	 * This device has a DMA channel but the Linux driver does not use
-	 * it currently.
-	 */
-};
+/* Fast device at 0x6000 offset */
+static AMBA_APB_DEVICE(pl022, "pl022", 0, U300_SPI_BASE,
+	{ IRQ_U300_SPI }, NULL);
 
-static struct amba_device mmcsd_device = {
-	.dev = {
-		.init_name = "mmci", /* Fast device at 0x1000 offset */
-		.platform_data = NULL, /* Added later */
-	},
-	.res = {
-		.start = U300_MMCSD_BASE,
-		.end   = U300_MMCSD_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_U300_MMCSD_MCIINTR0, IRQ_U300_MMCSD_MCIINTR1 },
-	/*
-	 * This device has a DMA channel but the Linux driver does not use
-	 * it currently.
-	 */
-};
+/* Fast device at 0x1000 offset */
+#define U300_MMCSD_IRQS	{ IRQ_U300_MMCSD_MCIINTR0, IRQ_U300_MMCSD_MCIINTR1 }
+
+static AMBA_APB_DEVICE(mmcsd, "mmci", 0, U300_MMCSD_BASE,
+	U300_MMCSD_IRQS, NULL);
 
 /*
  * The order of device declaration may be important, since some devices

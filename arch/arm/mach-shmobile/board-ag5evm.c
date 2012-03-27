@@ -42,6 +42,7 @@
 #include <video/sh_mipi_dsi.h>
 #include <sound/sh_fsi.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/sh73a0.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>

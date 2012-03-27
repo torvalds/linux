@@ -42,9 +42,9 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/atomic.h>
 
 #include <asm/irq.h>
-#include <linux/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
@@ -108,13 +108,7 @@ void omap1_pm_idle(void)
 	__u32 use_idlect1 = arm_idlect1_mask;
 	int do_sleep = 0;
 
-	local_irq_disable();
 	local_fiq_disable();
-	if (need_resched()) {
-		local_fiq_enable();
-		local_irq_enable();
-		return;
-	}
 
 #if defined(CONFIG_OMAP_MPU_TIMER) && !defined(CONFIG_OMAP_DM_TIMER)
 #warning Enable 32kHz OS timer in order to allow sleep states in idle
@@ -157,14 +151,12 @@ void omap1_pm_idle(void)
 		omap_writel(saved_idlect1, ARM_IDLECT1);
 
 		local_fiq_enable();
-		local_irq_enable();
 		return;
 	}
 	omap_sram_suspend(omap_readl(ARM_IDLECT1),
 			  omap_readl(ARM_IDLECT2));
 
 	local_fiq_enable();
-	local_irq_enable();
 }
 
 /*
@@ -583,8 +575,6 @@ static void omap_pm_init_proc(void)
 
 #endif /* DEBUG && CONFIG_PROC_FS */
 
-static void (*saved_idle)(void) = NULL;
-
 /*
  *	omap_pm_prepare - Do preliminary suspend work.
  *
@@ -592,8 +582,7 @@ static void (*saved_idle)(void) = NULL;
 static int omap_pm_prepare(void)
 {
 	/* We cannot sleep in idle until we have resumed */
-	saved_idle = pm_idle;
-	pm_idle = NULL;
+	disable_hlt();
 
 	return 0;
 }
@@ -630,7 +619,7 @@ static int omap_pm_enter(suspend_state_t state)
 
 static void omap_pm_finish(void)
 {
-	pm_idle = saved_idle;
+	enable_hlt();
 }
 
 
@@ -687,7 +676,7 @@ static int __init omap_pm_init(void)
 		return -ENODEV;
 	}
 
-	pm_idle = omap1_pm_idle;
+	arm_pm_idle = omap1_pm_idle;
 
 	if (cpu_is_omap7xx())
 		setup_irq(INT_7XX_WAKE_UP_REQ, &omap_wakeup_irq);

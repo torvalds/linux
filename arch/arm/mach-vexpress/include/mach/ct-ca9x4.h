@@ -35,7 +35,7 @@
  * Interrupts.  Those in {} are for AMBA devices
  */
 #define IRQ_CT_CA9X4_CLCDC	{ 76 }
-#define IRQ_CT_CA9X4_DMC	{ -1 }
+#define IRQ_CT_CA9X4_DMC	{ 0 }
 #define IRQ_CT_CA9X4_SMC	{ 77, 78 }
 #define IRQ_CT_CA9X4_TIMER0	80
 #define IRQ_CT_CA9X4_TIMER1	81

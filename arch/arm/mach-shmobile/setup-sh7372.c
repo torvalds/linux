@@ -32,6 +32,7 @@
 #include <linux/sh_timer.h>
 #include <linux/pm_domain.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/sh7372.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

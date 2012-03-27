@@ -347,32 +347,14 @@ static struct mmci_platform_data mmc_data = {
 	.gpio_cd	= -1,
 };
 
-static struct amba_device mmc_device = {
-	.dev		= {
-		.init_name = "mb:1c",
-		.platform_data = &mmc_data,
-	},
-	.res		= {
-		.start	= INTEGRATOR_CP_MMC_BASE,
-		.end	= INTEGRATOR_CP_MMC_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 },
-	.periphid	= 0,
-};
+#define INTEGRATOR_CP_MMC_IRQS	{ IRQ_CP_MMCIINT0, IRQ_CP_MMCIINT1 }
+#define INTEGRATOR_CP_AACI_IRQS	{ IRQ_CP_AACIINT }
 
-static struct amba_device aaci_device = {
-	.dev		= {
-		.init_name = "mb:1d",
-	},
-	.res		= {
-		.start	= INTEGRATOR_CP_AACI_BASE,
-		.end	= INTEGRATOR_CP_AACI_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_CP_AACIINT, NO_IRQ },
-	.periphid	= 0,
-};
+static AMBA_APB_DEVICE(mmc, "mb:1c", 0, INTEGRATOR_CP_MMC_BASE,
+	INTEGRATOR_CP_MMC_IRQS, &mmc_data);
+
+static AMBA_APB_DEVICE(aaci, "mb:1d", 0, INTEGRATOR_CP_AACI_BASE,
+	INTEGRATOR_CP_AACI_IRQS, NULL);
 
 
 /*
@@ -425,21 +407,8 @@ static struct clcd_board clcd_data = {
 	.remove		= versatile_clcd_remove_dma,
 };
 
-static struct amba_device clcd_device = {
-	.dev		= {
-		.init_name = "mb:c0",
-		.coherent_dma_mask = ~0,
-		.platform_data = &clcd_data,
-	},
-	.res		= {
-		.start	= INTCP_PA_CLCD_BASE,
-		.end	= INTCP_PA_CLCD_BASE + SZ_4K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	.dma_mask	= ~0,
-	.irq		= { IRQ_CP_CLCDCINT, NO_IRQ },
-	.periphid	= 0,
-};
+static AMBA_AHB_DEVICE(clcd, "mb:c0", 0, INTCP_PA_CLCD_BASE,
+	{ IRQ_CP_CLCDCINT }, &clcd_data);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&mmc_device,
