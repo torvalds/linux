@@ -380,7 +380,8 @@ static int wm831x_buckv_set_current_limit(struct regulator_dev *rdev,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_dcdc_ilim); i++) {
-		if (max_uA <= wm831x_dcdc_ilim[i])
+		if ((min_uA <= wm831x_dcdc_ilim[i]) &&
+		    (wm831x_dcdc_ilim[i] <= max_uA))
 			break;
 	}
 	if (i == ARRAY_SIZE(wm831x_dcdc_ilim))
