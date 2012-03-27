@@ -196,6 +196,8 @@ typedef __be64 xfs_bmbt_ptr_t, xfs_bmdr_ptr_t;
 #define XFS_BMDR_SPACE_CALC(nrecs) \
 	(int)(sizeof(xfs_bmdr_block_t) + \
 	       ((nrecs) * (sizeof(xfs_bmbt_key_t) + sizeof(xfs_bmbt_ptr_t))))
+#define XFS_BMAP_BMDR_SPACE(bb) \
+	(XFS_BMDR_SPACE_CALC(be16_to_cpu((bb)->bb_numrecs)))
 
 /*
  * Maximum number of bmap btree levels.
