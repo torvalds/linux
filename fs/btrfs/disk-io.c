@@ -360,9 +360,11 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 					  u64 start, u64 parent_transid)
 {
 	struct extent_io_tree *io_tree;
+	int failed = 0;
 	int ret;
 	int num_copies = 0;
 	int mirror_num = 0;
+	int failed_mirror = 0;
 
 	clear_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags);
 	io_tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
@@ -371,7 +373,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 					       WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
 		if (!ret && !verify_parent_transid(io_tree, eb, parent_transid))
-			return ret;
+			break;
 
 		/*
 		 * This buffer's crc is fine, but its contents are corrupted, so
@@ -379,18 +381,31 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		 * any less wrong.
 		 */
 		if (test_bit(EXTENT_BUFFER_CORRUPT, &eb->bflags))
-			return ret;
+			break;
+
+		if (!failed_mirror) {
+			failed = 1;
+			printk(KERN_ERR "failed mirror was %d\n", eb->failed_mirror);
+			failed_mirror = eb->failed_mirror;
+		}
 
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
 					      eb->start, eb->len);
 		if (num_copies == 1)
-			return ret;
+			break;
 
 		mirror_num++;
+		if (mirror_num == failed_mirror)
+			mirror_num++;
+
 		if (mirror_num > num_copies)
-			return ret;
+			break;
 	}
-	return -EIO;
+
+	if (failed && !ret)
+		repair_eb_io_failure(root, eb, failed_mirror);
+
+	return ret;
 }
 
 /*
@@ -575,6 +590,11 @@ static int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (!reads_done)
 		goto err;
 
+	if (test_bit(EXTENT_BUFFER_IOERR, &eb->bflags)) {
+		ret = -EIO;
+		goto err;
+	}
+
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != eb->start) {
 		printk_ratelimited(KERN_INFO "btrfs bad tree block start "
@@ -626,21 +646,16 @@ out:
 	return ret;
 }
 
-static int btree_io_failed_hook(struct bio *failed_bio,
-			 struct page *page, u64 start, u64 end,
-			 int mirror_num, struct extent_state *state)
+static int btree_io_failed_hook(struct page *page, int failed_mirror)
 {
 	struct extent_buffer *eb;
 	struct btrfs_root *root = BTRFS_I(page->mapping->host)->root;
 
 	eb = (struct extent_buffer *)page->private;
-	if (page != eb->pages[0])
-		return -EIO;
-
-	if (test_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags)) {
-		clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags);
+	set_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
+	eb->failed_mirror = failed_mirror;
+	if (test_and_clear_bit(EXTENT_BUFFER_READAHEAD, &eb->bflags))
 		btree_readahead_hook(root, eb, eb->start, -EIO);
-	}
 	return -EIO;	/* we fixed nothing */
 }
 

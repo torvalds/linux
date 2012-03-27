@@ -1915,6 +1915,26 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 	return 0;
 }
 
+int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
+			 int mirror_num)
+{
+	struct btrfs_mapping_tree *map_tree = &root->fs_info->mapping_tree;
+	u64 start = eb->start;
+	unsigned long i, num_pages = num_extent_pages(eb->start, eb->len);
+	int ret;
+
+	for (i = 0; i < num_pages; i++) {
+		struct page *p = extent_buffer_page(eb, i);
+		ret = repair_io_failure(map_tree, start, PAGE_CACHE_SIZE,
+					start, p, mirror_num);
+		if (ret)
+			break;
+		start += PAGE_CACHE_SIZE;
+	}
+
+	return ret;
+}
+
 /*
  * each time an IO finishes, we do a fast check in the IO failure tree
  * to see if we need to process or clean up an io_failure_record
@@ -2261,6 +2281,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 	u64 start;
 	u64 end;
 	int whole_page;
+	int failed_mirror;
 	int ret;
 
 	if (err)
@@ -2307,9 +2328,16 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			else
 				clean_io_failure(start, page);
 		}
-		if (!uptodate) {
-			int failed_mirror;
+
+		if (!uptodate)
 			failed_mirror = (int)(unsigned long)bio->bi_bdev;
+
+		if (!uptodate && tree->ops && tree->ops->readpage_io_failed_hook) {
+			ret = tree->ops->readpage_io_failed_hook(page, failed_mirror);
+			if (!ret && !err &&
+			    test_bit(BIO_UPTODATE, &bio->bi_flags))
+				uptodate = 1;
+		} else if (!uptodate) {
 			/*
 			 * The generic bio_readpage_error handles errors the
 			 * following way: If possible, new read requests are
@@ -2323,20 +2351,12 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			ret = bio_readpage_error(bio, page, start, end,
 							failed_mirror, NULL);
 			if (ret == 0) {
-error_handled:
 				uptodate =
 					test_bit(BIO_UPTODATE, &bio->bi_flags);
 				if (err)
 					uptodate = 0;
 				uncache_state(&cached);
 				continue;
-			}
-			if (tree->ops && tree->ops->readpage_io_failed_hook) {
-				ret = tree->ops->readpage_io_failed_hook(
-							bio, page, start, end,
-							failed_mirror, state);
-				if (ret == 0)
-					goto error_handled;
 			}
 		}
 
@@ -4396,6 +4416,8 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 		goto unlock_exit;
 	}
 
+	clear_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
+	eb->failed_mirror = 0;
 	atomic_set(&eb->io_pages, num_reads);
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);

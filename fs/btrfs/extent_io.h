@@ -58,6 +58,7 @@
 #define EXTENT_PAGE_PRIVATE_FIRST_PAGE 3
 
 struct extent_state;
+struct btrfs_root;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num,
@@ -73,9 +74,7 @@ struct extent_io_ops {
 			      size_t size, struct bio *bio,
 			      unsigned long bio_flags);
 	int (*readpage_io_hook)(struct page *page, u64 start, u64 end);
-	int (*readpage_io_failed_hook)(struct bio *bio, struct page *page,
-				       u64 start, u64 end, int failed_mirror,
-				       struct extent_state *state);
+	int (*readpage_io_failed_hook)(struct page *page, int failed_mirror);
 	int (*writepage_io_failed_hook)(struct bio *bio, struct page *page,
 					u64 start, u64 end,
 				       struct extent_state *state);
@@ -136,6 +135,7 @@ struct extent_buffer {
 	spinlock_t refs_lock;
 	atomic_t refs;
 	atomic_t io_pages;
+	int failed_mirror;
 	struct list_head leak_list;
 	struct rcu_head rcu_head;
 	pid_t lock_owner;
@@ -327,4 +327,6 @@ int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 			u64 length, u64 logical, struct page *page,
 			int mirror_num);
 int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
+int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
+			 int mirror_num);
 #endif
