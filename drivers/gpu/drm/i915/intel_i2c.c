@@ -333,17 +333,20 @@ done:
 	 * till then let it sleep.
 	 */
 	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0, 10))
-		DRM_INFO("GMBUS timed out waiting for idle\n");
+		DRM_INFO("GMBUS [%s] timed out waiting for idle\n",
+			 bus->adapter.name);
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 	ret = i;
 	goto out;
 
 timeout:
-	DRM_INFO("GMBUS timed out, falling back to bit banging on pin %d [%s]\n",
-		 bus->reg0 & 0xff, bus->adapter.name);
+	DRM_INFO("GMBUS [%s] timed out, falling back to bit banging on pin %d\n",
+		 bus->adapter.name, bus->reg0 & 0xff);
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 
-	/* Hardware may not support GMBUS over these pins? Try GPIO bitbanging instead. */
+	/* Hardware may not support GMBUS over these pins?
+	 * Try GPIO bitbanging instead.
+	 */
 	if (!bus->has_gpio) {
 		ret = -EIO;
 	} else {
