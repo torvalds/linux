@@ -15,12 +15,12 @@
 #include <linux/init.h>
 
 #include <asm/assembler.h>
+#include <asm/cp15.h>
 #include <asm/domain.h>
 #include <asm/ptrace.h>
 #include <asm/asm-offsets.h>
 #include <asm/memory.h>
 #include <asm/thread_info.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 
 #ifdef CONFIG_DEBUG_LL
@@ -265,7 +265,7 @@ __create_page_tables:
 	str	r6, [r3]
 
 #ifdef CONFIG_DEBUG_LL
-#ifndef CONFIG_DEBUG_ICEDCC
+#if !defined(CONFIG_DEBUG_ICEDCC) && !defined(CONFIG_DEBUG_SEMIHOSTING)
 	/*
 	 * Map in IO space for serial debugging.
 	 * This allows debug messages to be output
@@ -297,10 +297,10 @@ __create_page_tables:
 	cmp	r0, r6
 	blo	1b
 
-#else /* CONFIG_DEBUG_ICEDCC */
-	/* we don't need any serial debugging mappings for ICEDCC */
+#else /* CONFIG_DEBUG_ICEDCC || CONFIG_DEBUG_SEMIHOSTING */
+	/* we don't need any serial debugging mappings */
 	ldr	r7, [r10, #PROCINFO_IO_MMUFLAGS] @ io_mmuflags
-#endif /* !CONFIG_DEBUG_ICEDCC */
+#endif
 
 #if defined(CONFIG_ARCH_NETWINDER) || defined(CONFIG_ARCH_CATS)
 	/*

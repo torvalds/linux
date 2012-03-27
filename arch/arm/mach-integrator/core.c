@@ -25,8 +25,9 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <asm/irq.h>
 #include <mach/cm.h>
+#include <mach/irqs.h>
+
 #include <asm/system.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>

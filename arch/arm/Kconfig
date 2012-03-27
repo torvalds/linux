@@ -9,6 +9,7 @@ config ARM
 	select SYS_SUPPORTS_APM_EMULATION
 	select GENERIC_ATOMIC64 if (CPU_V6 || !CPU_32v6K || !AEABI)
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if !XIP_KERNEL
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
@@ -21,6 +22,7 @@ config ARM
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_XZ
 	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
@@ -32,6 +34,7 @@ config ARM
 	select GENERIC_IRQ_SHOW
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select GENERIC_PCI_IOMAP
+	select HAVE_BPF_JIT if NET
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -266,6 +269,7 @@ config ARCH_INTEGRATOR
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_FPGA_IRQ
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for ARM's Integrator platform.
 
@@ -312,6 +316,7 @@ config ARCH_VEXPRESS
 	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
 	select ICST
+	select NO_IOPORT
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	help

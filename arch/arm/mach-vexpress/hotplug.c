@@ -13,7 +13,7 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
-#include <asm/system.h>
+#include <asm/cp15.h>
 
 extern volatile int pen_release;
 

@@ -697,13 +697,12 @@ void __init gic_init_bases(unsigned int gic_nr, int irq_start,
 	 * For primary GICs, skip over SGIs.
 	 * For secondary GICs, skip over PPIs, too.
 	 */
-	domain->hwirq_base = 32;
-	if (gic_nr == 0) {
-		if ((irq_start & 31) > 0) {
-			domain->hwirq_base = 16;
-			if (irq_start != -1)
-				irq_start = (irq_start & ~31) + 16;
-		}
+	if (gic_nr == 0 && (irq_start & 31) > 0) {
+		domain->hwirq_base = 16;
+		if (irq_start != -1)
+			irq_start = (irq_start & ~31) + 16;
+	} else {
+		domain->hwirq_base = 32;
 	}
 
 	/*
