@@ -1342,12 +1342,6 @@ int paths_from_inode(u64 inum, struct inode_fs_paths *ipath)
 				inode_to_path, ipath);
 }
 
-/*
- * allocates space to return multiple file system paths for an inode.
- * total_bytes to allocate are passed, note that space usable for actual path
- * information will be total_bytes - sizeof(struct inode_fs_paths).
- * the returned pointer must be freed with free_ipath() in the end.
- */
 struct btrfs_data_container *init_data_container(u32 total_bytes)
 {
 	struct btrfs_data_container *data;
@@ -1403,5 +1397,6 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 
 void free_ipath(struct inode_fs_paths *ipath)
 {
+	kfree(ipath->fspath);
 	kfree(ipath);
 }
