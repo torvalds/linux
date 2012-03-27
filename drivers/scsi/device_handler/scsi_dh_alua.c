@@ -63,6 +63,7 @@ struct alua_dh_data {
 	int			rel_port;
 	int			tpgs;
 	int			state;
+	int			pref;
 	unsigned		flags; /* used for optimizing STPG */
 	unsigned char		inq[ALUA_INQUIRY_SIZE];
 	unsigned char		*buff;
@@ -558,14 +559,16 @@ static int alua_rtpg(struct scsi_device *sdev, struct alua_dh_data *h)
 	for (k = 4, ucp = h->buff + 4; k < len; k += off, ucp += off) {
 		if (h->group_id == (ucp[2] << 8) + ucp[3]) {
 			h->state = ucp[0] & 0x0f;
+			h->pref = ucp[0] >> 7;
 			valid_states = ucp[1];
 		}
 		off = 8 + (ucp[7] * 4);
 	}
 
 	sdev_printk(KERN_INFO, sdev,
-		    "%s: port group %02x state %c supports %c%c%c%c%c%c%c\n",
+		    "%s: port group %02x state %c %s supports %c%c%c%c%c%c%c\n",
 		    ALUA_DH_NAME, h->group_id, print_alua_state(h->state),
+		    h->pref ? "preferred" : "non-preferred",
 		    valid_states&TPGS_SUPPORT_TRANSITION?'T':'t',
 		    valid_states&TPGS_SUPPORT_OFFLINE?'O':'o',
 		    valid_states&TPGS_SUPPORT_LBA_DEPENDENT?'L':'l',
