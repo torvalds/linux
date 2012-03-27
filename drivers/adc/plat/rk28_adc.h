@@ -16,7 +16,7 @@
 #define ADC_STAS_BUSY		(1<<0)
 
 #define ADC_CTRL			0x08
-#define ADC_CTRL_CH(ch)		((ch)<<0)
+#define ADC_CTRL_CH(ch)		(ch >> SARADC_CHN_SHIFT)
 #define ADC_CTRL_POWER_UP	(1<<3)
 #define ADC_CTRL_START		(1<<4)
 #define ADC_CTRL_IRQ_ENABLE	(1<<5)

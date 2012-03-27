@@ -4,26 +4,15 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
 */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/err.h>
-#include <linux/clk.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/adc.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
 
-
+#include "../adc_priv.h"
 #include "rk30_adc.h"
 
 //#define ADC_TEST
 
 struct rk30_adc_device {
-	int			 		irq;
+	int			 irq;
 	void __iomem		*regs;
 	struct clk *		clk;
 	struct resource		*ioarea;
@@ -34,9 +23,9 @@ static void rk30_adc_start(struct adc_host *adc)
 	struct rk30_adc_device *dev  = adc_priv(adc);
 	int chn = adc->cur->chn;
 
-	writel(0, dev->regs + ADC_CTRL);
-        writel(0x08, dev->regs + ADC_DELAY_PU_SOC);
-	writel(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chn)|ADC_CTRL_IRQ_ENABLE, dev->regs + ADC_CTRL);
+	adc_writel(0, dev->regs + ADC_CTRL);
+        adc_writel(0x08, dev->regs + ADC_DELAY_PU_SOC);
+	adc_writel(ADC_CTRL_POWER_UP|ADC_CTRL_CH(chn)|ADC_CTRL_IRQ_ENABLE, dev->regs + ADC_CTRL);
 
 	return;
 }
@@ -44,13 +33,13 @@ static void rk30_adc_stop(struct adc_host *adc)
 {
 	struct rk30_adc_device *dev  = adc_priv(adc);
 	
-	writel(0, dev->regs + ADC_CTRL);
+	adc_writel(0, dev->regs + ADC_CTRL);
 }
 static int rk30_adc_read(struct adc_host *adc)
 {
 	struct rk30_adc_device *dev  = adc_priv(adc);
 
-	return readl(dev->regs + ADC_DATA) & ADC_DATA_MASK;
+	return adc_readl(dev->regs + ADC_DATA) & ADC_DATA_MASK;
 }
 static irqreturn_t rk30_adc_irq(int irq, void *data)
 {
@@ -77,11 +66,8 @@ static void callback(struct adc_client *client, void *param, int result)
 }
 static void adc_timer(unsigned long data)
 {
-	//int sync_read = 0;
 	 struct adc_test_data *test=(struct adc_test_data *)data;
 	
-	//sync_read = adc_sync_read(test->client);
-	//dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", 0, sync_read);
 	schedule_work(&test->timer_work);
 	add_timer(&test->timer);
 }
@@ -92,7 +78,7 @@ static void adc_timer_work(struct work_struct *work)
 						timer_work);
 	adc_async_read(test->client);
 	sync_read = adc_sync_read(test->client);
-	dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", 0, sync_read);
+	dev_info(test->client->adc->dev, "[chn%d] sync_read = %d\n", test->client->chn, sync_read);
 }
 
 static int rk30_adc_test(void)
@@ -101,10 +87,10 @@ static int rk30_adc_test(void)
 
 	test = kzalloc(sizeof(struct adc_test_data), GFP_KERNEL);
 	
-	test->client = adc_register(0, callback, NULL);
+	test->client = adc_register(1, callback, NULL);
 	INIT_WORK(&test->timer_work, adc_timer_work);
 	setup_timer(&test->timer, adc_timer, (unsigned long)test);
-	test->timer.expires  = jiffies + 100;
+	test->timer.expires  = jiffies + 1;
 	add_timer(&test->timer);
 	
 	return 0;
@@ -119,12 +105,9 @@ static int rk30_adc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	adc = adc_alloc_host(sizeof(struct rk30_adc_device), &pdev->dev);
+	adc = adc_alloc_host(&pdev->dev, sizeof(struct rk30_adc_device), SARADC_CHN_MASK);
 	if (!adc)
 		return -ENOMEM;
-	spin_lock_init(&adc->lock);
-	adc->dev = &pdev->dev;
-	adc->is_suspended = 0;
 	adc->ops = &rk30_adc_ops;
 	dev = adc_priv(adc);
 	dev->adc = adc;
@@ -176,8 +159,6 @@ static int rk30_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "rk30 adc: driver initialized\n");
 	return 0;
-// err_iomap:
-//	iounmap(dev->regs);
 
  err_ioarea:
 	release_resource(dev->ioarea);

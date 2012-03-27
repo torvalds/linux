@@ -4,19 +4,9 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
 */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/err.h>
-#include <linux/clk.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/adc.h>
-#include <linux/delay.h>
 
-
+#include "../adc_priv.h"
 #include "rk28_adc.h"
 
 //#define ADC_TEST
@@ -91,12 +81,9 @@ static int rk28_adc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	adc = adc_alloc_host(sizeof(struct rk28_adc_device), &pdev->dev);
+	adc = adc_alloc_host(&pdev->dev, sizeof(struct rk28_adc_device), SARADC_CHN_MASK);
 	if (!adc)
 		return -ENOMEM;
-	mutex_init(&adc->queue_mutex);
-	adc->dev = &pdev->dev;
-	adc->is_suspended = 0;
 	adc->ops = &rk28_adc_ops;
 	dev = adc_priv(adc);
 	dev->adc = adc;
@@ -151,8 +138,6 @@ static int rk28_adc_probe(struct platform_device *pdev)
 	rk28_adc_test();
 #endif
 	return 0;
-// err_iomap:
-//	iounmap(dev->regs);
 
  err_ioarea:
 	release_resource(dev->ioarea);

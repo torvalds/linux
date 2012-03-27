@@ -9,69 +9,40 @@
 #ifndef __ASM_ADC_CORE_H
 #define __ASM_ADC_CORE_H
 
-#define MAX_ADC_CHN 4
-#define MAX_ADC_FIFO_DEPTH 8
+#include <linux/list.h>
+#include <linux/wait.h>
 
-
-struct adc_client {
-	int chn;
-	int time;
-	int result;
-	void (*callback)(struct adc_client *, void *, int);
-	void *callback_param;
-
-	struct adc_host *adc;
+enum host_chn_shift{
+        SARADC_CHN_SHIFT = 0,
+        CUSTOM_CHN_SHIFT = 28
 };
 
-struct adc_request {
-	int result;
-	int chn;
-	void (*callback)(struct adc_client *, void *, int);
-	void *callback_param;
-	struct adc_client *client;
-	/* Used in case of sync requests */
-	struct completion completion;
-#define ASYNC_READ 0
-#define SYNC_READ 1
-	int status;
+enum host_chn_mask{
+        SARADC_CHN_MASK = 0x0000000f,  // saradc: 0 -- 15
+        CUSTOM_CHN_MASK = 0xf0000000,
 };
+
 struct adc_host;
-struct adc_ops {
-	void (*start)(struct adc_host *);
-	void (*stop)(struct adc_host *);
-	int (*read)(struct adc_host *);
+struct adc_client {
+        unsigned int index;
+        unsigned int chn;
+        unsigned int is_finished;
+        int result;
+	struct adc_host *adc;
+        struct list_head list;
+        wait_queue_head_t	wait;
+	void (*callback)(struct adc_client *, void *, int);
+	void *callback_param;
 };
-	
-	
-struct adc_host {
-	struct device *dev;
-	int is_suspended;
-	struct adc_request *queue[MAX_ADC_FIFO_DEPTH];
-	int queue_head;
-	int queue_tail;
-	spinlock_t			lock;
-	struct adc_client *cur;
-	const struct adc_ops *ops;
-	unsigned long		private[0];
-};
-static inline void *adc_priv(struct adc_host *adc)
-{
-	return (void *)adc->private;
-}
-	
-extern struct adc_host *adc_alloc_host(int extra, struct device *dev);
-extern void adc_free_host(struct adc_host *adc);
-extern void adc_core_irq_handle(struct adc_host *adc);
-
 
 #ifdef CONFIG_ADC
-extern struct adc_client *adc_register(int chn,
+struct adc_client *adc_register(int chn,
 				void (*callback)(struct adc_client *, void *, int), 
 				void *callback_param);
-extern void adc_unregister(struct adc_client *client);
+void adc_unregister(struct adc_client *client);
 
-extern int adc_sync_read(struct adc_client *client);
-extern int adc_async_read(struct adc_client *client);
+int adc_sync_read(struct adc_client *client);
+int adc_async_read(struct adc_client *client);
 #else
 static inline struct adc_client *adc_register(int chn,
 				void (*callback)(struct adc_client *, void *, int),
@@ -80,8 +51,8 @@ static inline struct adc_client *adc_register(int chn,
 	return NULL;
 }
 static inline void adc_unregister(struct adc_client *client) {}
-static inline int adc_sync_read(struct adc_client *client) { return -EINVAL; }
-static inline int adc_async_read(struct adc_client *client) { return -EINVAL; }
+static inline int adc_sync_read(struct adc_client *client) { return -1; }
+static inline int adc_async_read(struct adc_client *client) { return -1; }
 #endif
 
 #endif

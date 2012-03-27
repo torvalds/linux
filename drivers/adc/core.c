@@ -4,229 +4,185 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
 */
-
-#include <linux/kernel.h>
-#include <linux/device.h>
-#include <linux/completion.h>
-#include <linux/delay.h>
-#include <linux/err.h>
 #include <linux/adc.h>
-#include <linux/slab.h>
+#include "adc_priv.h"
 
+struct list_head adc_host_head;
 
-static struct adc_host *g_adc = NULL;
-
-struct adc_host *adc_alloc_host(int extra, struct device *dev)
+struct adc_host *adc_alloc_host(struct device *dev, int extra, enum host_chn_mask mask)
 {
 	struct adc_host *adc;
 	
 	adc = kzalloc(sizeof(struct adc_host) + extra, GFP_KERNEL);
 	if (!adc)
 		return NULL;
+        adc->mask = mask;
 	adc->dev = dev;
-	g_adc = adc;
+        spin_lock_init(&adc->lock);
+        INIT_LIST_HEAD(&adc->request_head);
+
+        list_add_tail(&adc->entry, &adc_host_head);
+
 	return adc;
 }
-EXPORT_SYMBOL(adc_alloc_host);
+
 void adc_free_host(struct adc_host *adc)
 {
+        list_del(&adc->entry);
 	kfree(adc);
 	adc = NULL;
 	return;
 }
-EXPORT_SYMBOL(adc_free_host);
-
 
 struct adc_client *adc_register(int chn,
 				void (*callback)(struct adc_client *, void *, int), 
 				void *callback_param)
+
 {
-	struct adc_client *client;
-	if(!g_adc)
-	{
-		printk(KERN_ERR "adc host has not initialized\n");
-		return NULL;
-	}
-	if(chn >= MAX_ADC_CHN)
-	{
-		dev_err(g_adc->dev, "channel[%d] is greater than the maximum[%d]\n", chn, MAX_ADC_CHN);
-		return NULL;
-	}
-	client = kzalloc(sizeof(struct adc_client), GFP_KERNEL);
-	if(!client)
-	{
-		dev_err(g_adc->dev, "no memory for adc client\n");
-		return NULL;
-	}
-	client->callback = callback;
-	client->callback_param = callback_param;
-	client->chn = chn;
+        struct adc_client *client = NULL;
+        struct adc_host *adc = NULL;
 
-	client->adc = g_adc;
+        list_for_each_entry(adc, &adc_host_head, entry) {
+                if((chn == 0 && adc->mask == SARADC_CHN_MASK) ||
+                (chn & adc->mask)){
+	                client = kzalloc(sizeof(struct adc_client), GFP_KERNEL);
+                        if(!client)
+                                return NULL;
+	                client->callback = callback;
+	                client->callback_param = callback_param;
+	                client->chn = chn;
+	                client->adc = adc;
+                        client->index = adc->client_count;
+                        init_waitqueue_head(&client->wait);
+                        adc->client_count++;
 
-	return client;
+                        return client;
+                }
+        }
+        dev_err(adc->dev, "chn(%d) is not support\n", chn);
+        return NULL;
 }
-EXPORT_SYMBOL(adc_register);
 
 void adc_unregister(struct adc_client *client)
 {
+        struct adc_host *adc = client->adc;
+
+        adc->client_count--;
 	kfree(client);
 	client = NULL;
 	return;
 }
-EXPORT_SYMBOL(adc_unregister);
 
-
-static void trigger_next_adc_job_if_any(struct adc_host *adc)
+static inline void trigger_next_adc_job_if_any(struct adc_host *adc)
 {
-	int head = adc->queue_head;
+        struct adc_request *req = NULL;
 
-	if (!adc->queue[head])
-		return;
-	adc->cur = adc->queue[head]->client;
+        if(list_empty(&adc->request_head))
+                return;
+
+        req = list_first_entry(&adc->request_head, struct adc_request, entry);
+
+        if(req == NULL)
+                return;
+        list_del(&req->entry);
+	adc->cur = req->client;
+	kfree(req);
 	adc->ops->start(adc);
 	return;
 }
-
-static int
-adc_enqueue_request(struct adc_host *adc, struct adc_request *req)
+static int adc_request_add(struct adc_host *adc, struct adc_client *client)
 {
-	int head, tail;
-	unsigned long flags;
-	
-	spin_lock_irqsave(&adc->lock, flags);
-	head = adc->queue_head;
-	tail = adc->queue_tail;
+        struct adc_request *req = NULL;
 
-	if (adc->queue[tail]) {
-		spin_unlock_irqrestore(&adc->lock,flags);
-		dev_err(adc->dev, "ADC queue is full, dropping request\n");
-		return -EBUSY;
-	}
+        list_for_each_entry(req, &adc->request_head, entry) {
+                if(req->client->index == client->index)
+                        return 0;
+        }
+        req = kzalloc(sizeof(struct adc_request), GFP_KERNEL);
 
-	adc->queue[tail] = req;
-	if (head == tail)
-		trigger_next_adc_job_if_any(adc);
-	adc->queue_tail = (tail + 1) & (MAX_ADC_FIFO_DEPTH - 1);
+        if(!req)
+                return -ENOMEM;
+        req->client = client;
+        list_add_tail(&req->entry, &adc->request_head);
 
-	spin_unlock_irqrestore(&adc->lock,flags);
+        trigger_next_adc_job_if_any(adc);
 
-	return 0;
+        return 0;
 }
-
 static void
 adc_sync_read_callback(struct adc_client *client, void *param, int result)
 {
-	struct adc_request *req = param;
+        client->result = result;
+}
+void adc_core_irq_handle(struct adc_host *adc)
+{
+        int result = adc->ops->read(adc);
 
-	client->result = result;
-	complete(&req->completion);
+        adc->ops->stop(adc);
+        adc->cur->callback(adc->cur, adc->cur->callback_param, result);
+        adc_sync_read_callback(adc->cur, NULL, result);
+        adc->cur->is_finished = 1;
+        wake_up(&adc->cur->wait);
+
+        trigger_next_adc_job_if_any(adc);
+}
+
+int adc_host_read(struct adc_client *client, enum read_type type)
+{
+        int tmo;
+	unsigned long flags;
+        struct adc_host *adc = NULL;
+
+	if(client == NULL) {
+		printk(KERN_ERR "client is NULL");
+		return -EINVAL;
+	}
+        adc = client->adc;
+	if(adc->is_suspended == 1) {
+		dev_dbg(adc->dev, "system enter sleep\n");
+		return -EIO;
+	}
+
+	spin_lock_irqsave(&adc->lock, flags);
+        adc_request_add(adc, client);
+        client->is_finished = 0;
+	spin_unlock_irqrestore(&adc->lock, flags);
+
+        if(type == ADC_ASYNC_READ)
+                return 0;
+
+        tmo = wait_event_timeout(client->wait, ( client->is_finished == 1 ), msecs_to_jiffies(ADC_READ_TMO));
+        if(tmo <= 0) {
+                adc->ops->stop(adc);
+                dev_dbg(adc->dev, "get adc value timeout\n");
+                return -ETIMEDOUT;
+        } 
+
+        return client->result;
 }
 
 int adc_sync_read(struct adc_client *client)
 {
-	struct adc_request *req = NULL;
-	int err, tmo, tail;
-
-	if(client == NULL) {
-		printk(KERN_ERR "client point is NULL");
-		return -EINVAL;
-	}
-	if(client->adc->is_suspended == 1) {
-		dev_dbg(client->adc->dev, "system enter sleep\n");
-		return -1;
-	}
-	req = kzalloc(sizeof(*req), GFP_ATOMIC);
-	if (!req){
-		dev_err(client->adc->dev, "no memory for adc request\n");
-		return -ENOMEM;
-	}
-	req->chn = client->chn;
-	req->callback =  adc_sync_read_callback;
-	req->callback_param = req;
-	req->client = client;
-	req->status = SYNC_READ;
-
-	init_completion(&req->completion);
-	err = adc_enqueue_request(client->adc, req);
-	if (err)
-	{
-		dev_err(client->adc->dev, "fail to enqueue request\n");
-		kfree(req);
-		return err;
-	}
-	tmo = wait_for_completion_timeout(&req->completion,msecs_to_jiffies(100));
-	kfree(req);
-	req = NULL;
-	if(tmo == 0) {
-		tail = (client->adc->queue_tail - 1) & (MAX_ADC_FIFO_DEPTH - 1);
-		client->adc->queue[tail] = NULL;
-		client->adc->queue_tail = tail;
-		return -ETIMEDOUT;
-	}
-	return client->result;
+        return adc_host_read(client, ADC_SYNC_READ);
 }
-EXPORT_SYMBOL(adc_sync_read);
 
 int adc_async_read(struct adc_client *client)
 {
-	int ret = 0;
-	struct adc_request *req = NULL;
-	
-	if(client == NULL) {
-		printk(KERN_ERR "client point is NULL");
-		return -EINVAL;
-	}
-	if(client->adc->is_suspended == 1) {
-		dev_dbg(client->adc->dev, "system enter sleep\n");
-		return -1;
-	}
-	req = kzalloc(sizeof(*req), GFP_ATOMIC);
-	if (!req) {
-		dev_err(client->adc->dev, "no memory for adc request\n");
-		return -ENOMEM;
-	}
-	req->chn = client->chn;
-	req->callback = client->callback;
-	req->callback_param = client->callback_param;
-	req->client = client;
-	req->status = ASYNC_READ;
-
-	ret = adc_enqueue_request(client->adc, req);
-	if(ret < 0)
-		kfree(req);
-
-	return ret;
+        return adc_host_read(client, ADC_ASYNC_READ);
 }
-EXPORT_SYMBOL(adc_async_read);
 
-void adc_core_irq_handle(struct adc_host *adc)
+
+static int __init adc_core_init(void)
 {
-	struct adc_request *req;
-	int head, res;
-	spin_lock(&adc->lock);
-	head = adc->queue_head;
-
-	req = adc->queue[head];
-	if (WARN_ON(!req)) {
-		spin_unlock(&adc->lock);
-		dev_err(adc->dev, "adc irq: ADC queue empty!\n");
-		return;
-	}
-	adc->queue[head] = NULL;
-	adc->queue_head = (head + 1) & (MAX_ADC_FIFO_DEPTH - 1);
-	
-	res = adc->ops->read(adc);
-	adc->ops->stop(adc);
-	trigger_next_adc_job_if_any(adc);
-
-	req->callback(adc->cur, req->callback_param, res);
-	if(req->status == ASYNC_READ) {
-		kfree(req);
-		req = NULL;
-	}
-	spin_unlock(&adc->lock);
+        INIT_LIST_HEAD(&adc_host_head);
+        return 0;
 }
-EXPORT_SYMBOL(adc_core_irq_handle);
+subsys_initcall(adc_core_init);
+
+static void __exit adc_core_exit(void)
+{
+        return;
+}
+module_exit(adc_core_exit);  
 
 

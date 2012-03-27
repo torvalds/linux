@@ -4,20 +4,9 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License.
 */
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/init.h>
-#include <linux/device.h>
-#include <linux/platform_device.h>
-#include <linux/err.h>
-#include <linux/clk.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
 #include <linux/adc.h>
-#include <linux/delay.h>
-#include <linux/slab.h>
 
-
+#include "../adc_priv.h"
 #include "rk29_adc.h"
 
 //#define ADC_TEST
@@ -121,12 +110,9 @@ static int rk29_adc_probe(struct platform_device *pdev)
 	struct resource *res;
 	int ret;
 
-	adc = adc_alloc_host(sizeof(struct rk29_adc_device), &pdev->dev);
+	adc = adc_alloc_host(&pdev->dev, sizeof(struct rk29_adc_device), SARADC_CHN_MASK);
 	if (!adc)
 		return -ENOMEM;
-	spin_lock_init(&adc->lock);
-	adc->dev = &pdev->dev;
-	adc->is_suspended = 0;
 	adc->ops = &rk29_adc_ops;
 	dev = adc_priv(adc);
 	dev->adc = adc;
@@ -178,8 +164,6 @@ static int rk29_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, dev);
 	dev_info(&pdev->dev, "rk29 adc: driver initialized\n");
 	return 0;
-// err_iomap:
-//	iounmap(dev->regs);
 
  err_ioarea:
 	release_resource(dev->ioarea);
