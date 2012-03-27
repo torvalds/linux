@@ -69,6 +69,9 @@ config ARCH_PHYS_ADDR_T_64BIT
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
 
+config NEED_DMA_MAP_STATE
+	def_bool y
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -118,7 +121,7 @@ config 64BIT
 
 config ARCH_DEFCONFIG
 	string
-	default "arch/tile/configs/tile_defconfig" if !TILEGX
+	default "arch/tile/configs/tilepro_defconfig" if !TILEGX
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
 
 source "init/Kconfig"
