@@ -75,8 +75,6 @@ static int __devinit sdhci_probe(struct platform_device *pdev)
 	struct spear_sdhci *sdhci;
 	int ret;
 
-	BUG_ON(pdev == NULL);
-
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem) {
 		ret = -ENOMEM;
