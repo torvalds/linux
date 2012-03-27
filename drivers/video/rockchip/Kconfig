@@ -1,5 +1,5 @@
 config FB_ROCKCHIP
-        tristate "Frame buffer support for Rockchip lcd controller"
+        tristate "Frame buffer support for Rockchip "
         depends on FB
         select FB_CFB_FILLRECT
         select FB_CFB_COPYAREA
@@ -8,9 +8,23 @@ config FB_ROCKCHIP
           Framebuffer driver for rockchip based platform
 
 config LCDC_RK30
-        tristate "Frame buffer driver support for rk30 lcdc "
+        tristate "rk30 lcdc support "
         depends on FB_ROCKCHIP
         help
-          Frame buffer driver for rk30 lcdc based boards.
+          Driver for rk30 lcdc .There are two lcd controllers on rk30
+
+config LCDC0_RK30
+	bool "lcdc0 support"
+	depends on LCDC_RK30
+	default y
+	help 
+	   Support rk30 lcdc0 if you say y here
+
+config LCDC1_RK30
+        bool "lcdc1 support"
+        depends on LCDC_RK30
+        default y
+        help
+           Support rk30 lcdc1 if you say y here
 
 source "drivers/video/rockchip/rga/Kconfig"

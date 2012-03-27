@@ -174,20 +174,20 @@ struct layer_par {
 };
 
 struct rk_lcdc_device_driver{
-	const char *name;
+	char name[6];
 	int id;
 	struct device  *dev;
 	
 	struct layer_par *layer_par;
 	int num_layer;
-	rk_screen screen;
+	rk_screen *screen;
 	u32 pixclock;
-	int (*ioctl)(unsigned int cmd, unsigned long arg,struct layer_par *layer_par);
+	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);
 	int (*suspend)(struct layer_par *layer_par);
 	int (*resume)(struct layer_par *layer_par);
-	int (*blank)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id,int blank_mode);
-	int (*set_par)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id);
-	int (*pan_display)(struct rk_lcdc_device_driver *rk_fb_dev_drv,int layer_id);
+	int (*blank)(struct rk_lcdc_device_driver *dev_drv,int layer_id,int blank_mode);
+	int (*set_par)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
+	int (*pan_display)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	
 };
 
@@ -195,12 +195,13 @@ struct rk_fb_inf {
     struct fb_info *fb[RK_MAX_FB_SUPPORT];
     int num_fb;
     
-    struct rk_lcdc_device_driver *rk_lcdc_device[RK30_MAX_LCDC_SUPPORT];
+    struct rk_lcdc_device_driver *lcdc_dev_drv[RK30_MAX_LCDC_SUPPORT];
     int num_lcdc;
 
     int video_mode;  //when play video set it to 1
 };
 extern int rk_fb_register(struct rk_lcdc_device_driver *fb_device_driver);
 extern int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver);
-
+extern int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
+	struct rk_lcdc_device_driver *dev_drv,int id);
 #endif

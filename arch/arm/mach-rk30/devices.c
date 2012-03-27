@@ -734,27 +734,39 @@ static struct platform_device device_nand = {
 };
 #endif
 
-#ifdef CONFIG_LCDC_RK30
-static struct resource resource_lcdc[] = {
+#ifdef CONFIG_LCDC0_RK30
+static struct resource resource_lcdc0[] = {
 	[0] = {
 		.name  = "lcdc0 reg",
 		.start = RK30_LCDC0_PHYS,
 		.end   = RK30_LCDC0_PHYS + RK30_LCDC0_SIZE - 1,
 		.flags = IORESOURCE_MEM,
 	},
+	
 	[1] = {
-		.name  = "lcdc1 reg",
-		.start = RK30_LCDC1_PHYS,
-		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	[2] = {
 		.name  = "lcdc0 irq",
 		.start = IRQ_LCDC0,
 		.end   = IRQ_LCDC0,
 		.flags = IORESOURCE_IRQ,
 	},
-	[3] = {
+};
+
+static struct platform_device device_lcdc0 = {
+	.name		  = "rk30-lcdc",
+	.id		  = 0,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc0),
+	.resource	  = resource_lcdc0,
+};
+#endif
+#ifdef CONFIG_LCDC1_RK30
+static struct resource resource_lcdc1[] = {
+	[0] = {
+		.name  = "lcdc1 reg",
+		.start = RK30_LCDC1_PHYS,
+		.end   = RK30_LCDC1_PHYS + RK30_LCDC1_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
 		.name  = "lcdc1 irq",
 		.start = IRQ_LCDC1,
 		.end   = IRQ_LCDC1,
@@ -762,11 +774,11 @@ static struct resource resource_lcdc[] = {
 	},
 };
 
-static struct platform_device device_lcdc = {
+static struct platform_device device_lcdc1 = {
 	.name		  = "rk30-lcdc",
-	.id		  = 4,
-	.num_resources	  = ARRAY_SIZE(resource_lcdc),
-	.resource	  = resource_lcdc,
+	.id		  = 1,
+	.num_resources	  = ARRAY_SIZE(resource_lcdc1),
+	.resource	  = resource_lcdc1,
 };
 #endif
 
@@ -1071,8 +1083,11 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_RK29_IPP
 	platform_device_register(&device_ipp);
 #endif
-#ifdef CONFIG_LCDC_RK30
-	platform_device_register(&device_lcdc);
+#ifdef CONFIG_LCDC0_RK30
+	platform_device_register(&device_lcdc0);
+#endif
+#ifdef CONFIG_LCDC1_RK30
+	platform_device_register(&device_lcdc1);
 #endif
 #ifdef CONFIG_ADC_RK30
 	platform_device_register(&device_adc);
