@@ -55,7 +55,7 @@ struct clk {
  * alternative macro for static initialization
  */
 
-extern struct clk_ops clk_fixed_rate_ops;
+extern const struct clk_ops clk_fixed_rate_ops;
 
 #define DEFINE_CLK_FIXED_RATE(_name, _flags, _rate,		\
 				_fixed_rate_flags)		\
@@ -78,7 +78,7 @@ extern struct clk_ops clk_fixed_rate_ops;
 		.flags = _flags,				\
 	};
 
-extern struct clk_ops clk_gate_ops;
+extern const struct clk_ops clk_gate_ops;
 
 #define DEFINE_CLK_GATE(_name, _parent_name, _parent_ptr,	\
 				_flags, _reg, _bit_idx,		\
@@ -110,7 +110,7 @@ extern struct clk_ops clk_gate_ops;
 		.flags = _flags,				\
 	};
 
-extern struct clk_ops clk_divider_ops;
+extern const struct clk_ops clk_divider_ops;
 
 #define DEFINE_CLK_DIVIDER(_name, _parent_name, _parent_ptr,	\
 				_flags, _reg, _shift, _width,	\
@@ -143,7 +143,7 @@ extern struct clk_ops clk_divider_ops;
 		.flags = _flags,				\
 	};
 
-extern struct clk_ops clk_mux_ops;
+extern const struct clk_ops clk_mux_ops;
 
 #define DEFINE_CLK_MUX(_name, _parent_names, _parents, _flags,	\
 				_reg, _shift, _width,		\
