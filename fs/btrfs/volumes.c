@@ -2987,7 +2987,7 @@ again:
 	key.offset = (u64)-1;
 	key.type = BTRFS_DEV_EXTENT_KEY;
 
-	while (1) {
+	do {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto done;
@@ -3029,8 +3029,7 @@ again:
 			goto done;
 		if (ret == -ENOSPC)
 			failed++;
-		key.offset -= 1;
-	}
+	} while (key.offset-- > 0);
 
 	if (failed && !retried) {
 		failed = 0;
