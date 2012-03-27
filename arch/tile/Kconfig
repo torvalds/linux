@@ -12,7 +12,7 @@ config TILE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
 	select SYS_HYPERVISOR
-	select ARCH_HAVE_NMI_SAFE_CMPXCHG if !M386
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
