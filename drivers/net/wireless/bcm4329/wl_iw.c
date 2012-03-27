@@ -7082,14 +7082,14 @@ int wl_iw_process_private_ascii_cmd(
 
 #define BCM4329_WAKELOCK_NAME "bcm4329_wifi_wakelock"
 
-static struct wake_lock bcm4329_suspend_lock;
+//static struct wake_lock bcm4329_suspend_lock;
 
 int bcm4329_wakelock_init = 0;
 
 void bcm4329_power_save_init(void)
 {
-        wake_lock_init(&bcm4329_suspend_lock, WAKE_LOCK_SUSPEND, BCM4329_WAKELOCK_NAME);
-        wake_lock(&bcm4329_suspend_lock);
+        //wake_lock_init(&bcm4329_suspend_lock, WAKE_LOCK_SUSPEND, BCM4329_WAKELOCK_NAME);
+        //wake_lock(&bcm4329_suspend_lock);
         
 	bcm4329_wakelock_init = 2;
 }
@@ -7099,9 +7099,9 @@ void bcm4329_power_save_exit(void)
         bcm4329_wakelock_init = 0;
         msleep(100);
         
-	if (bcm4329_wakelock_init == 2)
-                wake_unlock(&bcm4329_suspend_lock);
-        wake_lock_destroy(&bcm4329_suspend_lock);
+	//if (bcm4329_wakelock_init == 2)
+        //        wake_unlock(&bcm4329_suspend_lock);
+        //wake_lock_destroy(&bcm4329_suspend_lock);
 }
 
 static int wl_iw_set_priv(
@@ -7131,7 +7131,7 @@ static int wl_iw_set_priv(
 		if (strnicmp(extra, "START", strlen("START")) == 0) {
 			if (bcm4329_wakelock_init == 1)
                         {
-                                wake_lock(&bcm4329_suspend_lock);
+                                //wake_lock(&bcm4329_suspend_lock);
                                 bcm4329_wakelock_init = 2;
                         }
 			wl_iw_control_wl_on(dev, info);
@@ -7171,7 +7171,7 @@ static int wl_iw_set_priv(
 			ret = wl_iw_control_wl_off(dev, info);
 			if (bcm4329_wakelock_init == 2)
                         {
-                                wake_unlock(&bcm4329_suspend_lock);
+                                //wake_unlock(&bcm4329_suspend_lock);
                                 bcm4329_wakelock_init = 1;
                         }
 		}

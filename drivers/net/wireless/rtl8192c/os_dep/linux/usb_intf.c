@@ -62,8 +62,10 @@ int ui_pid[3] = {0, 0, 0};
 #endif
 int sleep_resume = 1;
 
+#ifdef RK_DRIVER_LOCK
 extern void rtl8188_power_save_exit(void);
 extern void rtl8188_power_save_init(void);
+#endif
 
 extern int pm_netdev_open(struct net_device *pnetdev,u8 bnormal);
 static int rtw_suspend(struct usb_interface *intf, pm_message_t message);
@@ -1284,8 +1286,9 @@ static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device
 		,padapter->bup
 		,padapter->hw_init_completed
 	);
+#ifdef RK_DRIVER_LOCK
 	rtl8188_power_save_init();
-
+#endif
 	return 0;
 
 error:
@@ -1413,8 +1416,9 @@ _func_exit_;
 	rtw_dump_mem_stat ();
 	#endif
 _func_exit_;
+#ifdef RK_DRIVER_LOCK
 	rtl8188_power_save_exit();
-
+#endif
 	return;
 
 }
