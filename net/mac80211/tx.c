@@ -1467,12 +1467,12 @@ void ieee80211_xmit(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) &&
 	    ieee80211_is_data(hdr->frame_control) &&
-		!is_multicast_ether_addr(hdr->addr1))
-			if (mesh_nexthop_resolve(skb, sdata)) {
-				/* skb queued: don't free */
-				rcu_read_unlock();
-				return;
-			}
+	    !is_multicast_ether_addr(hdr->addr1) &&
+	    mesh_nexthop_resolve(skb, sdata)) {
+		/* skb queued: don't free */
+		rcu_read_unlock();
+		return;
+	}
 
 	ieee80211_set_qos_hdr(sdata, skb);
 	ieee80211_tx(sdata, skb, false);
