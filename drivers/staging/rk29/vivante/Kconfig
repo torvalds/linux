@@ -1,9 +1,0 @@
-menu "GPU Vivante"
-	depends on ARCH_RK29
-
-config VIVANTE
-	tristate "ROCKCHIP Vivante GPU"
-	default m
-	help
-          Vivante GPU module.
-endmenu
