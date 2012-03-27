@@ -303,7 +303,6 @@ struct intel_fbc_work;
 struct intel_gmbus {
 	struct i2c_adapter adapter;
 	bool force_bit;
-	bool has_gpio;
 	u32 reg0;
 	u32 gpio_reg;
 	struct i2c_algo_bit_data bit_algo;
@@ -1344,7 +1343,7 @@ extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
 extern inline bool intel_gmbus_is_port_valid(unsigned port)
 {
-	return (port >= GMBUS_PORT_DISABLED && port <= GMBUS_PORT_RESERVED);
+	return (port >= GMBUS_PORT_SSC && port <= GMBUS_PORT_DPD);
 }
 
 extern struct i2c_adapter *intel_gmbus_get_adapter(
