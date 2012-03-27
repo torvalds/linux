@@ -69,7 +69,7 @@ static void __init tegra30_dt_init(void)
 }
 
 static const char *tegra30_dt_board_compat[] = {
-	"nvidia,cardhu",
+	"nvidia,tegra30",
 	NULL
 };
 

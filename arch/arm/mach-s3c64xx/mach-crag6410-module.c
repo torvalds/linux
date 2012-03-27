@@ -11,6 +11,7 @@
 #include <linux/export.h>
 #include <linux/interrupt.h>
 #include <linux/i2c.h>
+#include <linux/spi/spi.h>
 
 #include <linux/mfd/wm831x/irq.h>
 #include <linux/mfd/wm831x/gpio.h>
@@ -21,7 +22,24 @@
 #include <sound/wm8962.h>
 #include <sound/wm9081.h>
 
+#include <plat/s3c64xx-spi.h>
+
 #include <mach/crag6410.h>
+
+static struct s3c64xx_spi_csinfo wm0010_spi_csinfo = {
+	.set_level = gpio_set_value,
+	.line = S3C64XX_GPC(3),
+};
+
+static struct spi_board_info wm1253_devs[] = {
+	[0] = {
+		.modalias	= "wm0010",
+		.bus_num	= 0,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_0,
+		.controller_data = &wm0010_spi_csinfo,
+	},
+};
 
 static struct wm5100_pdata wm5100_pdata = {
 	.ldo_ena = S3C64XX_GPN(7),
@@ -159,14 +177,21 @@ static __devinitdata const struct {
 	const char *name;
 	const struct i2c_board_info *i2c_devs;
 	int num_i2c_devs;
+	const struct spi_board_info *spi_devs;
+	int num_spi_devs;
 } gf_mods[] = {
 	{ .id = 0x01, .name = "1250-EV1 Springbank" },
 	{ .id = 0x02, .name = "1251-EV1 Jura" },
 	{ .id = 0x03, .name = "1252-EV1 Glenlivet" },
 	{ .id = 0x11, .name = "6249-EV2 Glenfarclas", },
+	{ .id = 0x14, .name = "6271-EV1 Lochnagar" },
+	{ .id = 0x15, .name = "XXXX-EV1 Bells" },
 	{ .id = 0x21, .name = "1275-EV1 Mortlach" },
 	{ .id = 0x25, .name = "1274-EV1 Glencadam" },
-	{ .id = 0x31, .name = "1253-EV1 Tomatin", },
+	{ .id = 0x31, .name = "1253-EV1 Tomatin",
+	  .spi_devs = wm1253_devs, .num_spi_devs = ARRAY_SIZE(wm1253_devs) },
+	{ .id = 0x32, .name = "XXXX-EV1 Caol Illa" },
+	{ .id = 0x33, .name = "XXXX-EV1 Oban" },
 	{ .id = 0x39, .name = "1254-EV1 Dallas Dhu",
 	  .i2c_devs = wm1254_devs, .num_i2c_devs = ARRAY_SIZE(wm1254_devs) },
 	{ .id = 0x3a, .name = "1259-EV1 Tobermory",
@@ -198,12 +223,16 @@ static __devinit int wlf_gf_module_probe(struct i2c_client *i2c,
 	if (i < ARRAY_SIZE(gf_mods)) {
 		dev_info(&i2c->dev, "%s revision %d\n",
 			 gf_mods[i].name, rev + 1);
+
 		for (j = 0; j < gf_mods[i].num_i2c_devs; j++) {
 			if (!i2c_new_device(i2c->adapter,
 					    &(gf_mods[i].i2c_devs[j])))
 				dev_err(&i2c->dev,
 					"Failed to register dev: %d\n", ret);
 		}
+
+		spi_register_board_info(gf_mods[i].spi_devs,
+					gf_mods[i].num_spi_devs);
 	} else {
 		dev_warn(&i2c->dev, "Unknown module ID 0x%x revision %d\n",
 			 id, rev + 1);

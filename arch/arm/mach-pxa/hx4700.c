@@ -97,9 +97,9 @@ static unsigned long hx4700_pin_config[] __initdata = {
 
 	/* BTUART */
 	GPIO42_BTUART_RXD,
-	GPIO43_BTUART_TXD,
+	GPIO43_BTUART_TXD_LPM_LOW,
 	GPIO44_BTUART_CTS,
-	GPIO45_BTUART_RTS,
+	GPIO45_BTUART_RTS_LPM_LOW,
 
 	/* PWM 1 (Backlight) */
 	GPIO17_PWM1_OUT,
@@ -245,6 +245,21 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOD15_nPIOW,
 };
 
+static struct asic3_led asic3_leds[ASIC3_NUM_LEDS] = {
+	[0] = {
+		.name = "hx4700:amber",
+		.default_trigger = "ds2760-battery.0-charging-blink-full-solid",
+	},
+	[1] = {
+		.name = "hx4700:green",
+		.default_trigger = "unused",
+	},
+	[2] = {
+		.name = "hx4700:blue",
+		.default_trigger = "hx4700-radio",
+	},
+};
+
 static struct resource asic3_resources[] = {
 	/* GPIO part */
 	[0] = {
@@ -275,6 +290,7 @@ static struct asic3_platform_data asic3_platform_data = {
 	.gpio_config_num = ARRAY_SIZE(asic3_gpio_config),
 	.irq_base        = IRQ_BOARD_START,
 	.gpio_base       = HX4700_ASIC3_GPIO_BASE,
+	.leds            = asic3_leds,
 };
 
 static struct platform_device asic3 = {
@@ -705,10 +721,9 @@ static void hx4700_set_vpp(struct platform_device *pdev, int vpp)
 	gpio_set_value(GPIO91_HX4700_FLASH_VPEN, vpp);
 }
 
-static struct resource strataflash_resource = {
-	.start = PXA_CS0_PHYS,
-	.end   = PXA_CS0_PHYS + SZ_128M - 1,
-	.flags = IORESOURCE_MEM,
+static struct resource strataflash_resource[] = {
+	[0] = DEFINE_RES_MEM(PXA_CS0_PHYS, SZ_64M),
+	[1] = DEFINE_RES_MEM(PXA_CS0_PHYS + SZ_64M, SZ_64M),
 };
 
 static struct physmap_flash_data strataflash_data = {
@@ -719,8 +734,8 @@ static struct physmap_flash_data strataflash_data = {
 static struct platform_device strataflash = {
 	.name          = "physmap-flash",
 	.id            = -1,
-	.resource      = &strataflash_resource,
-	.num_resources = 1,
+	.resource      = strataflash_resource,
+	.num_resources = ARRAY_SIZE(strataflash_resource),
 	.dev = {
 		.platform_data = &strataflash_data,
 	},
@@ -788,17 +803,6 @@ static struct platform_device audio = {
 
 
 /*
- * PCMCIA
- */
-
-static struct platform_device pcmcia = {
-	.name = "hx4700-pcmcia",
-	.dev  = {
-		.parent = &asic3.dev,
-	},
-};
-
-/*
  * Platform devices
  */
 
@@ -814,7 +818,6 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&strataflash,
 	&audio,
-	&pcmcia,
 };
 
 static struct gpio global_gpios[] = {
@@ -830,7 +833,6 @@ static struct gpio global_gpios[] = {
 	{ GPIO32_HX4700_RS232_ON,         GPIOF_OUT_INIT_HIGH, "RS232_ON" },
 	{ GPIO71_HX4700_ASIC3_nRESET,     GPIOF_OUT_INIT_HIGH, "ASIC3_nRESET" },
 	{ GPIO82_HX4700_EUART_RESET,      GPIOF_OUT_INIT_HIGH, "EUART_RESET" },
-	{ GPIO105_HX4700_nIR_ON,          GPIOF_OUT_INIT_HIGH, "nIR_EN" },
 };
 
 static void __init hx4700_init(void)
