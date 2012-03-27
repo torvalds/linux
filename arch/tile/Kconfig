@@ -243,6 +243,7 @@ endchoice
 
 config PAGE_OFFSET
 	hex
+	depends on !64BIT
 	default 0xF0000000 if VMSPLIT_3_75G
 	default 0xE0000000 if VMSPLIT_3_5G
 	default 0xB0000000 if VMSPLIT_2_75G
