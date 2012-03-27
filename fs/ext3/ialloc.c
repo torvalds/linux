@@ -180,8 +180,7 @@ error_return:
  * It's OK to put directory into a group unless
  * it has too many directories already (max_dirs) or
  * it has too few free inodes left (min_inodes) or
- * it has too few free blocks left (min_blocks) or
- * it's already running too large debt (max_debt).
+ * it has too few free blocks left (min_blocks).
  * Parent's group is preferred, if it doesn't satisfy these
  * conditions we search cyclically through the rest. If none
  * of the groups look good we just look for a group with more
@@ -191,21 +190,16 @@ error_return:
  * when we allocate an inode, within 0--255.
  */
 
-#define INODE_COST 64
-#define BLOCK_COST 256
-
 static int find_group_orlov(struct super_block *sb, struct inode *parent)
 {
 	int parent_group = EXT3_I(parent)->i_block_group;
 	struct ext3_sb_info *sbi = EXT3_SB(sb);
-	struct ext3_super_block *es = sbi->s_es;
 	int ngroups = sbi->s_groups_count;
 	int inodes_per_group = EXT3_INODES_PER_GROUP(sb);
 	unsigned int freei, avefreei;
 	ext3_fsblk_t freeb, avefreeb;
-	ext3_fsblk_t blocks_per_dir;
 	unsigned int ndirs;
-	int max_debt, max_dirs, min_inodes;
+	int max_dirs, min_inodes;
 	ext3_grpblk_t min_blocks;
 	int group = -1, i;
 	struct ext3_group_desc *desc;
@@ -242,19 +236,9 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 		goto fallback;
 	}
 
-	blocks_per_dir = (le32_to_cpu(es->s_blocks_count) - freeb) / ndirs;
-
 	max_dirs = ndirs / ngroups + inodes_per_group / 16;
 	min_inodes = avefreei - inodes_per_group / 4;
 	min_blocks = avefreeb - EXT3_BLOCKS_PER_GROUP(sb) / 4;
-
-	max_debt = EXT3_BLOCKS_PER_GROUP(sb) / max(blocks_per_dir, (ext3_fsblk_t)BLOCK_COST);
-	if (max_debt * INODE_COST > inodes_per_group)
-		max_debt = inodes_per_group / INODE_COST;
-	if (max_debt > 255)
-		max_debt = 255;
-	if (max_debt == 0)
-		max_debt = 1;
 
 	for (i = 0; i < ngroups; i++) {
 		group = (parent_group + i) % ngroups;
