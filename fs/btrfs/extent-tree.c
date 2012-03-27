@@ -3098,11 +3098,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 
 static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
-	u64 extra_flags = flags & BTRFS_BLOCK_GROUP_PROFILE_MASK;
-
-	/* chunk -> extended profile */
-	if (extra_flags == 0)
-		extra_flags = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+	u64 extra_flags = chunk_to_extended(flags) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		fs_info->avail_data_alloc_bits |= extra_flags;
@@ -3181,9 +3178,7 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 	}
 
 out:
-	/* extended -> chunk profile */
-	flags &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-	return flags;
+	return extended_to_chunk(flags);
 }
 
 static u64 get_alloc_profile(struct btrfs_root *root, u64 flags)
@@ -6914,11 +6909,8 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 			tgt = BTRFS_BLOCK_GROUP_METADATA | bctl->meta.target;
 		}
 
-		if (tgt) {
-			/* extended -> chunk profile */
-			tgt &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-			return tgt;
-		}
+		if (tgt)
+			return extended_to_chunk(tgt);
 	}
 
 	/*
@@ -7597,11 +7589,8 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 static void clear_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
-	u64 extra_flags = flags & BTRFS_BLOCK_GROUP_PROFILE_MASK;
-
-	/* chunk -> extended profile */
-	if (extra_flags == 0)
-		extra_flags = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+	u64 extra_flags = chunk_to_extended(flags) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		fs_info->avail_data_alloc_bits &= ~extra_flags;

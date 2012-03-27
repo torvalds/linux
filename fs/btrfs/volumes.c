@@ -2250,15 +2250,13 @@ static void unset_balance_control(struct btrfs_fs_info *fs_info)
  * Balance filters.  Return 1 if chunk should be filtered out
  * (should not be balanced).
  */
-static int chunk_profiles_filter(u64 chunk_profile,
+static int chunk_profiles_filter(u64 chunk_type,
 				 struct btrfs_balance_args *bargs)
 {
-	chunk_profile &= BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	chunk_type = chunk_to_extended(chunk_type) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
-	if (chunk_profile == 0)
-		chunk_profile = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-
-	if (bargs->profiles & chunk_profile)
+	if (bargs->profiles & chunk_type)
 		return 0;
 
 	return 1;
@@ -2365,18 +2363,16 @@ static int chunk_vrange_filter(struct extent_buffer *leaf,
 	return 1;
 }
 
-static int chunk_soft_convert_filter(u64 chunk_profile,
+static int chunk_soft_convert_filter(u64 chunk_type,
 				     struct btrfs_balance_args *bargs)
 {
 	if (!(bargs->flags & BTRFS_BALANCE_ARGS_CONVERT))
 		return 0;
 
-	chunk_profile &= BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	chunk_type = chunk_to_extended(chunk_type) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
-	if (chunk_profile == 0)
-		chunk_profile = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-
-	if (bargs->target & chunk_profile)
+	if (bargs->target == chunk_type)
 		return 1;
 
 	return 0;
