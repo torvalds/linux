@@ -148,7 +148,7 @@ static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
 
 static bool has_get_frontend(struct dvb_frontend *fe)
 {
-	return fe->ops.get_frontend;
+	return fe->ops.get_frontend != NULL;
 }
 
 /*
