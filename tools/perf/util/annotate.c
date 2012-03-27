@@ -64,8 +64,8 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr > sym->end)
-		return 0;
+	if (addr < sym->start || addr > sym->end)
+		return -ERANGE;
 
 	offset = addr - sym->start;
 	h = annotation__histogram(notes, evidx);
