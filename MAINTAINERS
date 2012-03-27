@@ -786,7 +786,6 @@ M:	Sascha Hauer <kernel@pengutronix.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.pengutronix.de/git/imx/linux-2.6.git
-F:	arch/arm/mach-mx*/
 F:	arch/arm/mach-imx/
 F:	arch/arm/plat-mxc/
 
@@ -816,9 +815,12 @@ S:	Maintained
 
 ARM/H4700 (HP IPAQ HX4700) MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
+M:	Paul Parsons <lost.distance@yahoo.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-pxa/hx4700.c
 F:	arch/arm/mach-pxa/include/mach/hx4700.h
+F:	sound/soc/pxa/hx4700.c
 
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 M:	Kristoffer Ericson <kristoffer.ericson@gmail.com>
@@ -5420,7 +5422,7 @@ F:	drivers/media/video/pvrusb2/
 PXA2xx/PXA3xx SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
 M:	Russell King <linux@arm.linux.org.uk>
-M:	Haojian Zhuang <haojian.zhuang@marvell.com>
+M:	Haojian Zhuang <haojian.zhuang@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/hzhuang1/linux.git
 T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
@@ -5435,7 +5437,7 @@ F:	sound/soc/pxa
 
 MMP SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
-M:	Haojian Zhuang <haojian.zhuang@marvell.com>
+M:	Haojian Zhuang <haojian.zhuang@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/hzhuang1/linux.git
 T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
@@ -6062,7 +6064,8 @@ F:	arch/arm/mach-s3c2410/bast-irq.c
 TI DAVINCI MACHINE SUPPORT
 M:	Sekhar Nori <nsekhar@ti.com>
 M:	Kevin Hilman <khilman@ti.com>
-L:	davinci-linux-open-source@linux.davincidsp.com (subscribers-only)
+L:	davinci-linux-open-source@linux.davincidsp.com (moderated for non-subscribers)
+T:	git git://gitorious.org/linux-davinci/linux-davinci.git
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
 F:	arch/arm/mach-davinci
@@ -6605,9 +6608,10 @@ F:	include/linux/if_team.h
 TEGRA SUPPORT
 M:	Colin Cross <ccross@android.com>
 M:	Olof Johansson <olof@lixom.net>
-M:	Stephen Warren <swarren@nvidia.com>
+M:	Stephen Warren <swarren@wwwdotorg.org>
 L:	linux-tegra@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/olof/tegra.git
+Q:	http://patchwork.ozlabs.org/project/linux-tegra/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/swarren/linux-tegra.git
 S:	Supported
 F:	arch/arm/mach-tegra
 
