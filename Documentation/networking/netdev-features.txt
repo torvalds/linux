@@ -152,3 +152,16 @@ NETIF_F_VLAN_CHALLENGED should be set for devices which can't cope with VLAN
 headers. Some drivers set this because the cards can't handle the bigger MTU.
 [FIXME: Those cases could be fixed in VLAN code by allowing only reduced-MTU
 VLANs. This may be not useful, though.]
+
+*  rx-fcs
+
+This requests that the NIC append the Ethernet Frame Checksum (FCS)
+to the end of the skb data.  This allows sniffers and other tools to
+read the CRC recorded by the NIC on receipt of the packet.
+
+*  rx-all
+
+This requests that the NIC receive all possible frames, including errored
+frames (such as bad FCS, etc).  This can be helpful when sniffing a link with
+bad packets on it.  Some NICs may receive more packets if also put into normal
+PROMISC mdoe.

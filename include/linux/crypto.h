@@ -75,6 +75,11 @@
  */
 #define CRYPTO_ALG_INSTANCE		0x00000800
 
+/* Set this bit if the algorithm provided is hardware accelerated but
+ * not available to userspace via instruction set or so.
+ */
+#define CRYPTO_ALG_KERN_DRIVER_ONLY	0x00001000
+
 /*
  * Transform masks and values (for crt_flags).
  */
@@ -309,6 +314,8 @@ struct crypto_alg {
  */
 int crypto_register_alg(struct crypto_alg *alg);
 int crypto_unregister_alg(struct crypto_alg *alg);
+int crypto_register_algs(struct crypto_alg *algs, int count);
+int crypto_unregister_algs(struct crypto_alg *algs, int count);
 
 /*
  * Algorithm query interface.

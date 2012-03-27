@@ -34,7 +34,7 @@
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/ppp_defs.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/if_pppox.h>
 #include <linux/mtio.h>
 #include <linux/auto_fs.h>

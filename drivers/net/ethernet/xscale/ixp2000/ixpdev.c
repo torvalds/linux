@@ -398,11 +398,8 @@ int ixpdev_init(int __nds_count, struct net_device **__nds,
 	}
 
 	for (i = 0; i < nds_count; i++) {
-		printk(KERN_INFO "%s: IXP2000 MSF ethernet (port %d), "
-			"%.2x:%.2x:%.2x:%.2x:%.2x:%.2x.\n", nds[i]->name, i,
-			nds[i]->dev_addr[0], nds[i]->dev_addr[1],
-			nds[i]->dev_addr[2], nds[i]->dev_addr[3],
-			nds[i]->dev_addr[4], nds[i]->dev_addr[5]);
+		printk(KERN_INFO "%s: IXP2000 MSF ethernet (port %d), %pM.\n",
+				 nds[i]->name, i, nds[i]->dev_addr);
 	}
 
 	return 0;

@@ -185,7 +185,8 @@ err_out:
 void insn_get_opcode(struct insn *insn)
 {
 	struct insn_field *opcode = &insn->opcode;
-	insn_byte_t op, pfx;
+	insn_byte_t op;
+	int pfx_id;
 	if (opcode->got)
 		return;
 	if (!insn->prefixes.got)
@@ -212,8 +213,8 @@ void insn_get_opcode(struct insn *insn)
 		/* Get escaped opcode */
 		op = get_next(insn_byte_t, insn);
 		opcode->bytes[opcode->nbytes++] = op;
-		pfx = insn_last_prefix(insn);
-		insn->attr = inat_get_escape_attribute(op, pfx, insn->attr);
+		pfx_id = insn_last_prefix_id(insn);
+		insn->attr = inat_get_escape_attribute(op, pfx_id, insn->attr);
 	}
 	if (inat_must_vex(insn->attr))
 		insn->attr = 0;	/* This instruction is bad */
@@ -235,7 +236,7 @@ err_out:
 void insn_get_modrm(struct insn *insn)
 {
 	struct insn_field *modrm = &insn->modrm;
-	insn_byte_t pfx, mod;
+	insn_byte_t pfx_id, mod;
 	if (modrm->got)
 		return;
 	if (!insn->opcode.got)
@@ -246,8 +247,8 @@ void insn_get_modrm(struct insn *insn)
 		modrm->value = mod;
 		modrm->nbytes = 1;
 		if (inat_is_group(insn->attr)) {
-			pfx = insn_last_prefix(insn);
-			insn->attr = inat_get_group_attribute(mod, pfx,
+			pfx_id = insn_last_prefix_id(insn);
+			insn->attr = inat_get_group_attribute(mod, pfx_id,
 							      insn->attr);
 			if (insn_is_avx(insn) && !inat_accept_vex(insn->attr))
 				insn->attr = 0;	/* This is bad */

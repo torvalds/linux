@@ -13,14 +13,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/gpio.h>
 #include <linux/leds.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/module.h>
-
-#include <asm/gpio.h>
 
 struct gpio_led_data {
 	struct led_classdev cdev;

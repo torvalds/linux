@@ -22,22 +22,36 @@
 #ifndef __LINUX_SECURITY_H
 #define __LINUX_SECURITY_H
 
-#include <linux/fs.h>
-#include <linux/fsnotify.h>
-#include <linux/binfmts.h>
-#include <linux/dcache.h>
-#include <linux/signal.h>
-#include <linux/resource.h>
-#include <linux/sem.h>
-#include <linux/shm.h>
-#include <linux/mm.h> /* PAGE_ALIGN */
-#include <linux/msg.h>
-#include <linux/sched.h>
 #include <linux/key.h>
-#include <linux/xfrm.h>
+#include <linux/capability.h>
 #include <linux/slab.h>
-#include <linux/xattr.h>
-#include <net/flow.h>
+#include <linux/err.h>
+
+struct linux_binprm;
+struct cred;
+struct rlimit;
+struct siginfo;
+struct sem_array;
+struct sembuf;
+struct kern_ipc_perm;
+struct audit_context;
+struct super_block;
+struct inode;
+struct dentry;
+struct file;
+struct vfsmount;
+struct path;
+struct qstr;
+struct nameidata;
+struct iattr;
+struct fown_struct;
+struct file_operations;
+struct shmid_kernel;
+struct msg_msg;
+struct msg_queue;
+struct xattr;
+struct xfrm_sec_ctx;
+struct mm_struct;
 
 /* Maximum number of letters for an LSM name string */
 #define SECURITY_NAME_MAX	10
@@ -49,6 +63,7 @@
 struct ctl_table;
 struct audit_krule;
 struct user_namespace;
+struct timezone;
 
 /*
  * These functions are in security/capability.c and are used
@@ -131,18 +146,6 @@ struct request_sock;
 #define LSM_UNSAFE_PTRACE_CAP	4
 
 #ifdef CONFIG_MMU
-/*
- * If a hint addr is less than mmap_min_addr change hint to be as
- * low as possible but still greater than mmap_min_addr
- */
-static inline unsigned long round_hint_to_min(unsigned long hint)
-{
-	hint &= PAGE_MASK;
-	if (((void *)hint != NULL) &&
-	    (hint < mmap_min_addr))
-		return PAGE_ALIGN(mmap_min_addr);
-	return hint;
-}
 extern int mmap_min_addr_handler(struct ctl_table *table, int write,
 				 void __user *buffer, size_t *lenp, loff_t *ppos);
 #endif
@@ -651,6 +654,10 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	manual page for definitions of the @clone_flags.
  *	@clone_flags contains the flags indicating what should be shared.
  *	Return 0 if permission is granted.
+ * @task_free:
+ *	@task task being freed
+ *	Handle release of task-related resources. (Note that this can be called
+ *	from interrupt context.)
  * @cred_alloc_blank:
  *	@cred points to the credentials.
  *	@gfp indicates the atomicity of any memory allocations.
@@ -812,7 +819,7 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	Check permissions before connecting or sending datagrams from @sock to
  *	@other.
  *	@sock contains the socket structure.
- *	@sock contains the peer socket structure.
+ *	@other contains the peer socket structure.
  *	Return 0 if permission is granted.
  *
  * The @unix_stream_connect and @unix_may_send hooks were necessary because
@@ -1493,6 +1500,7 @@ struct security_operations {
 	int (*dentry_open) (struct file *file, const struct cred *cred);
 
 	int (*task_create) (unsigned long clone_flags);
+	void (*task_free) (struct task_struct *task);
 	int (*cred_alloc_blank) (struct cred *cred, gfp_t gfp);
 	void (*cred_free) (struct cred *cred);
 	int (*cred_prepare)(struct cred *new, const struct cred *old,
@@ -1674,9 +1682,7 @@ int security_quotactl(int cmds, int type, int id, struct super_block *sb);
 int security_quota_on(struct dentry *dentry);
 int security_syslog(int type);
 int security_settime(const struct timespec *ts, const struct timezone *tz);
-int security_vm_enough_memory(long pages);
 int security_vm_enough_memory_mm(struct mm_struct *mm, long pages);
-int security_vm_enough_memory_kern(long pages);
 int security_bprm_set_creds(struct linux_binprm *bprm);
 int security_bprm_check(struct linux_binprm *bprm);
 void security_bprm_committing_creds(struct linux_binprm *bprm);
@@ -1752,6 +1758,7 @@ int security_file_send_sigiotask(struct task_struct *tsk,
 int security_file_receive(struct file *file);
 int security_dentry_open(struct file *file, const struct cred *cred);
 int security_task_create(unsigned long clone_flags);
+void security_task_free(struct task_struct *task);
 int security_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 void security_cred_free(struct cred *cred);
 int security_prepare_creds(struct cred *new, const struct cred *old, gfp_t gfp);
@@ -1896,23 +1903,9 @@ static inline int security_settime(const struct timespec *ts,
 	return cap_settime(ts, tz);
 }
 
-static inline int security_vm_enough_memory(long pages)
-{
-	WARN_ON(current->mm == NULL);
-	return cap_vm_enough_memory(current->mm, pages);
-}
-
 static inline int security_vm_enough_memory_mm(struct mm_struct *mm, long pages)
 {
-	WARN_ON(mm == NULL);
 	return cap_vm_enough_memory(mm, pages);
-}
-
-static inline int security_vm_enough_memory_kern(long pages)
-{
-	/* If current->mm is a kernel thread then we will pass NULL,
-	   for this specific case that is fine */
-	return cap_vm_enough_memory(current->mm, pages);
 }
 
 static inline int security_bprm_set_creds(struct linux_binprm *bprm)
@@ -2244,6 +2237,9 @@ static inline int security_task_create(unsigned long clone_flags)
 {
 	return 0;
 }
+
+static inline void security_task_free(struct task_struct *task)
+{ }
 
 static inline int security_cred_alloc_blank(struct cred *cred, gfp_t gfp)
 {

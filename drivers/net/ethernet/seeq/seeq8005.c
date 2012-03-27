@@ -548,7 +548,7 @@ static void seeq8005_rx(struct net_device *dev)
 			struct sk_buff *skb;
 			unsigned char *buf;
 
-			skb = dev_alloc_skb(pkt_len);
+			skb = netdev_alloc_skb(dev, pkt_len);
 			if (skb == NULL) {
 				printk("%s: Memory squeeze, dropping packet.\n", dev->name);
 				dev->stats.rx_dropped++;

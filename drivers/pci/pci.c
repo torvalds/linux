@@ -3163,6 +3163,31 @@ int __pci_reset_function(struct pci_dev *dev)
 EXPORT_SYMBOL_GPL(__pci_reset_function);
 
 /**
+ * __pci_reset_function_locked - reset a PCI device function while holding
+ * the @dev mutex lock.
+ * @dev: PCI device to reset
+ *
+ * Some devices allow an individual function to be reset without affecting
+ * other functions in the same device.  The PCI device must be responsive
+ * to PCI config space in order to use this function.
+ *
+ * The device function is presumed to be unused and the caller is holding
+ * the device mutex lock when this function is called.
+ * Resetting the device will make the contents of PCI configuration space
+ * random, so any caller of this must be prepared to reinitialise the
+ * device including MSI, bus mastering, BARs, decoding IO and memory spaces,
+ * etc.
+ *
+ * Returns 0 if the device function was successfully reset or negative if the
+ * device doesn't support resetting a single function.
+ */
+int __pci_reset_function_locked(struct pci_dev *dev)
+{
+	return pci_dev_reset(dev, 1);
+}
+EXPORT_SYMBOL_GPL(__pci_reset_function_locked);
+
+/**
  * pci_probe_reset_function - check whether the device can be safely reset
  * @dev: PCI device to reset
  *

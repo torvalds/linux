@@ -98,8 +98,11 @@ static const struct of_device_id sic_of_match[] __initconst = {
 
 void __init versatile_init_irq(void)
 {
-	vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0);
-	irq_domain_generate_simple(vic_of_match, VERSATILE_VIC_BASE, IRQ_VIC_START);
+	struct device_node *np;
+
+	np = of_find_matching_node_by_address(NULL, vic_of_match,
+					      VERSATILE_VIC_BASE);
+	__vic_init(VA_VIC_BASE, IRQ_VIC_START, ~0, 0, np);
 
 	writel(~0, VA_SIC_BASE + SIC_IRQ_ENABLE_CLEAR);
 

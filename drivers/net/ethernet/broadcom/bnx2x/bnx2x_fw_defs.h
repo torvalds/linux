@@ -1,6 +1,6 @@
 /* bnx2x_fw_defs.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2011 Broadcom Corporation
+ * Copyright (c) 2007-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -242,18 +242,6 @@
 #define XSTORM_VF_TO_PF_OFFSET(funcId) \
 	(IRO[48].base + ((funcId) * IRO[48].m1))
 #define COMMON_ASM_INVALID_ASSERT_OPCODE 0x0
-
-/**
-* This file defines HSI constants for the ETH flow
-*/
-#ifdef _EVEREST_MICROCODE
-#include "Microcode\Generated\DataTypes\eth_rx_bd.h"
-#include "Microcode\Generated\DataTypes\eth_tx_bd.h"
-#include "Microcode\Generated\DataTypes\eth_rx_cqe.h"
-#include "Microcode\Generated\DataTypes\eth_rx_sge.h"
-#include "Microcode\Generated\DataTypes\eth_rx_cqe_next_page.h"
-#endif
-
 
 /* Ethernet Ring parameters */
 #define X_ETH_LOCAL_RING_SIZE 13

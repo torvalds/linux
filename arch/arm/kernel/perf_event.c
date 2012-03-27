@@ -539,6 +539,10 @@ static int armpmu_event_init(struct perf_event *event)
 	int err = 0;
 	atomic_t *active_events = &armpmu->active_events;
 
+	/* does not support taken branch sampling */
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
+
 	if (armpmu->map_event(event) == -ENOENT)
 		return -ENOENT;
 

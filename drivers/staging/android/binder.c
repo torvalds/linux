@@ -103,7 +103,7 @@ static uint32_t binder_debug_mask = BINDER_DEBUG_USER_ERROR |
 	BINDER_DEBUG_FAILED_TRANSACTION | BINDER_DEBUG_DEAD_TRANSACTION;
 module_param_named(debug_mask, binder_debug_mask, uint, S_IWUSR | S_IRUGO);
 
-static int binder_debug_no_lock;
+static bool binder_debug_no_lock;
 module_param_named(proc_no_lock, binder_debug_no_lock, bool, S_IWUSR | S_IRUGO);
 
 static DECLARE_WAIT_QUEUE_HEAD(binder_user_error_wait);
@@ -258,7 +258,7 @@ struct binder_ref {
 };
 
 struct binder_buffer {
-	struct list_head entry; /* free and allocated entries by addesss */
+	struct list_head entry; /* free and allocated entries by address */
 	struct rb_node rb_node; /* free entry by size or allocated entry */
 				/* by address */
 	unsigned free:1;
@@ -288,6 +288,7 @@ struct binder_proc {
 	struct rb_root refs_by_node;
 	int pid;
 	struct vm_area_struct *vma;
+	struct mm_struct *vma_vm_mm;
 	struct task_struct *tsk;
 	struct files_struct *files;
 	struct hlist_node deferred_work_node;
@@ -633,7 +634,7 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
 	if (mm) {
 		down_write(&mm->mmap_sem);
 		vma = proc->vma;
-		if (vma && mm != vma->vm_mm) {
+		if (vma && mm != proc->vma_vm_mm) {
 			pr_err("binder: %d: vma mm and task mm mismatch\n",
 				proc->pid);
 			vma = NULL;
@@ -2776,6 +2777,7 @@ static void binder_vma_close(struct vm_area_struct *vma)
 		     (vma->vm_end - vma->vm_start) / SZ_1K, vma->vm_flags,
 		     (unsigned long)pgprot_val(vma->vm_page_prot));
 	proc->vma = NULL;
+	proc->vma_vm_mm = NULL;
 	binder_defer_work(proc, BINDER_DEFERRED_PUT_FILES);
 }
 
@@ -2858,6 +2860,7 @@ static int binder_mmap(struct file *filp, struct vm_area_struct *vma)
 	barrier();
 	proc->files = get_files_struct(proc->tsk);
 	proc->vma = vma;
+	proc->vma_vm_mm = vma->vm_mm;
 
 	/*printk(KERN_INFO "binder_mmap: %d %lx-%lx maps %p\n",
 		 proc->pid, vma->vm_start, vma->vm_end, proc->buffer);*/

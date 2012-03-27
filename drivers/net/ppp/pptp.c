@@ -23,7 +23,7 @@
 #include <linux/ppp_channel.h>
 #include <linux/ppp_defs.h>
 #include <linux/if_pppox.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/notifier.h>
 #include <linux/file.h>
 #include <linux/in.h>
@@ -481,7 +481,7 @@ static int pptp_connect(struct socket *sock, struct sockaddr *uservaddr,
 
 	po->chan.mtu = dst_mtu(&rt->dst);
 	if (!po->chan.mtu)
-		po->chan.mtu = PPP_MTU;
+		po->chan.mtu = PPP_MRU;
 	ip_rt_put(rt);
 	po->chan.mtu -= PPTP_HEADER_OVERHEAD;
 
@@ -670,10 +670,8 @@ static int __init pptp_init_module(void)
 	pr_info("PPTP driver version " PPTP_DRIVER_VERSION "\n");
 
 	callid_sock = vzalloc((MAX_CALLID + 1) * sizeof(void *));
-	if (!callid_sock) {
-		pr_err("PPTP: cann't allocate memory\n");
+	if (!callid_sock)
 		return -ENOMEM;
-	}
 
 	err = gre_add_protocol(&gre_pptp_protocol, GREPROTO_PPTP);
 	if (err) {

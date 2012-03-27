@@ -561,8 +561,6 @@ static int ad7192_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 		ret = -ENOMEM;
 		goto error_ret;
 	}
-	/* Effectively select the ring buffer implementation */
-	indio_dev->buffer->access = &ring_sw_access_funcs;
 	indio_dev->pollfunc = iio_alloc_pollfunc(&iio_pollfunc_store_time,
 						 &ad7192_trigger_handler,
 						 IRQF_ONESHOT,
@@ -824,25 +822,20 @@ static struct attribute *ad7192_attributes[] = {
 	NULL
 };
 
-static umode_t ad7192_attr_is_visible(struct kobject *kobj,
-				     struct attribute *attr, int n)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct ad7192_state *st = iio_priv(indio_dev);
-
-	umode_t mode = attr->mode;
-
-	if ((st->devid != ID_AD7195) &&
-		(attr == &iio_dev_attr_ac_excitation_en.dev_attr.attr))
-		mode = 0;
-
-	return mode;
-}
-
 static const struct attribute_group ad7192_attribute_group = {
 	.attrs = ad7192_attributes,
-	.is_visible = ad7192_attr_is_visible,
+};
+
+static struct attribute *ad7195_attributes[] = {
+	&iio_dev_attr_sampling_frequency.dev_attr.attr,
+	&iio_dev_attr_in_v_m_v_scale_available.dev_attr.attr,
+	&iio_dev_attr_in_voltage_scale_available.dev_attr.attr,
+	&iio_dev_attr_bridge_switch_en.dev_attr.attr,
+	NULL
+};
+
+static const struct attribute_group ad7195_attribute_group = {
+	.attrs = ad7195_attributes,
 };
 
 static int ad7192_read_raw(struct iio_dev *indio_dev,
@@ -972,6 +965,15 @@ static const struct iio_info ad7192_info = {
 	.driver_module = THIS_MODULE,
 };
 
+static const struct iio_info ad7195_info = {
+	.read_raw = &ad7192_read_raw,
+	.write_raw = &ad7192_write_raw,
+	.write_raw_get_fmt = &ad7192_write_raw_get_fmt,
+	.attrs = &ad7195_attribute_group,
+	.validate_trigger = ad7192_validate_trigger,
+	.driver_module = THIS_MODULE,
+};
+
 #define AD7192_CHAN_DIFF(_chan, _chan2, _name, _address, _si)		\
 	{ .type = IIO_VOLTAGE,						\
 	  .differential = 1,						\
@@ -1064,7 +1066,10 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 	indio_dev->channels = ad7192_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7192_channels);
 	indio_dev->available_scan_masks = st->available_scan_masks;
-	indio_dev->info = &ad7192_info;
+	if (st->devid == ID_AD7195)
+		indio_dev->info = &ad7195_info;
+	else
+		indio_dev->info = &ad7192_info;
 
 	for (i = 0; i < indio_dev->num_channels; i++)
 		st->available_scan_masks[i] = (1 << i) | (1 <<

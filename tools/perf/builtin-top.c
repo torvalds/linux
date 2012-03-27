@@ -64,7 +64,6 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 
-
 void get_term_dimensions(struct winsize *ws)
 {
 	char *s = getenv("LINES");
@@ -544,10 +543,20 @@ static void perf_top__sort_new_samples(void *arg)
 
 static void *display_thread_tui(void *arg)
 {
+	struct perf_evsel *pos;
 	struct perf_top *top = arg;
 	const char *help = "For a higher level overview, try: perf top --sort comm,dso";
 
 	perf_top__sort_new_samples(top);
+
+	/*
+	 * Initialize the uid_filter_str, in the future the TUI will allow
+	 * Zooming in/out UIDs. For now juse use whatever the user passed
+	 * via --uid.
+	 */
+	list_for_each_entry(pos, &top->evlist->entries, node)
+		pos->hists.uid_filter_str = top->uid_str;
+
 	perf_evlist__tui_browse_hists(top->evlist, help,
 				      perf_top__sort_new_samples,
 				      top, top->delay_secs);
@@ -665,6 +674,12 @@ static void perf_event__process_sample(struct perf_tool *tool,
 	if (!machine && perf_guest) {
 		pr_err("Can't find guest [%d]'s kernel information\n",
 			event->ip.pid);
+		return;
+	}
+
+	if (!machine) {
+		pr_err("%u unprocessable samples recorded.",
+		       top->session->hists.stats.nr_unprocessable_samples++);
 		return;
 	}
 
@@ -861,7 +876,7 @@ fallback_missing_features:
 		if (top->exclude_guest_missing)
 			attr->exclude_guest = attr->exclude_host = 0;
 retry_sample_id:
-		attr->sample_id_all = top->sample_id_all_avail ? 1 : 0;
+		attr->sample_id_all = top->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(counter, top->evlist->cpus,
 				     top->evlist->threads, top->group,
@@ -878,11 +893,11 @@ try_again:
 						 "guest or host samples.\n");
 					top->exclude_guest_missing = true;
 					goto fallback_missing_features;
-				} else if (top->sample_id_all_avail) {
+				} else if (!top->sample_id_all_missing) {
 					/*
 					 * Old kernel, no attr->sample_id_type_all field
 					 */
-					top->sample_id_all_avail = false;
+					top->sample_id_all_missing = true;
 					goto retry_sample_id;
 				}
 			}
@@ -967,7 +982,7 @@ static int __cmd_top(struct perf_top *top)
 	if (ret)
 		goto out_delete;
 
-	if (top->target_tid != -1)
+	if (top->target_tid || top->uid != UINT_MAX)
 		perf_event__synthesize_thread_map(&top->tool, top->evlist->threads,
 						  perf_event__process,
 						  &top->session->host_machine);
@@ -1105,10 +1120,8 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
-		.target_pid	     = -1,
-		.target_tid	     = -1,
+		.uid		     = UINT_MAX,
 		.freq		     = 1000, /* 1 KHz */
-		.sample_id_all_avail = true,
 		.mmap_pages	     = 128,
 		.sym_pcnt_filter     = 5,
 	};
@@ -1119,9 +1132,9 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		     parse_events_option),
 	OPT_INTEGER('c', "count", &top.default_interval,
 		    "event period to sample"),
-	OPT_INTEGER('p', "pid", &top.target_pid,
+	OPT_STRING('p', "pid", &top.target_pid, "pid",
 		    "profile events on existing process id"),
-	OPT_INTEGER('t', "tid", &top.target_tid,
+	OPT_STRING('t', "tid", &top.target_tid, "tid",
 		    "profile events on existing thread id"),
 	OPT_BOOLEAN('a', "all-cpus", &top.system_wide,
 			    "system-wide collection from all CPUs"),
@@ -1180,6 +1193,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		    "Display raw encoding of assembly instructions (default)"),
 	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
+	OPT_STRING('u', "uid", &top.uid_str, "user", "user to profile"),
 	OPT_END()
 	};
 
@@ -1205,18 +1219,22 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	setup_browser(false);
 
+	top.uid = parse_target_uid(top.uid_str, top.target_tid, top.target_pid);
+	if (top.uid_str != NULL && top.uid == UINT_MAX - 1)
+		goto out_delete_evlist;
+
 	/* CPU and PID are mutually exclusive */
-	if (top.target_tid > 0 && top.cpu_list) {
+	if (top.target_tid && top.cpu_list) {
 		printf("WARNING: PID switch overriding CPU\n");
 		sleep(1);
 		top.cpu_list = NULL;
 	}
 
-	if (top.target_pid != -1)
+	if (top.target_pid)
 		top.target_tid = top.target_pid;
 
 	if (perf_evlist__create_maps(top.evlist, top.target_pid,
-				     top.target_tid, top.cpu_list) < 0)
+				     top.target_tid, top.uid, top.cpu_list) < 0)
 		usage_with_options(top_usage, options);
 
 	if (!top.evlist->nr_entries &&
@@ -1280,6 +1298,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	status = __cmd_top(&top);
 
+out_delete_evlist:
 	perf_evlist__delete(top.evlist);
 
 	return status;

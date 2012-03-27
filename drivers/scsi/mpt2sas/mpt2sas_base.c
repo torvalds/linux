@@ -2575,6 +2575,11 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 
 	ioc->chain_lookup = (struct chain_tracker *)__get_free_pages(
 	    GFP_KERNEL, ioc->chain_pages);
+	if (!ioc->chain_lookup) {
+		printk(MPT2SAS_ERR_FMT "chain_lookup: get_free_pages failed, "
+		    "sz(%d)\n", ioc->name, (int)sz);
+		goto out;
+	}
 	ioc->chain_dma_pool = pci_pool_create("chain pool", ioc->pdev,
 	    ioc->request_sz, 16, 0);
 	if (!ioc->chain_dma_pool) {

@@ -33,7 +33,6 @@
 
 #include <asm/setup.h>
 
-#include <plat/sram.h>
 #include <plat/vram.h>
 #include <plat/dma.h>
 
@@ -42,10 +41,6 @@
 #else
 #define DBG(format, ...)
 #endif
-
-#define OMAP2_SRAM_START		0x40200000
-/* Maximum size, in reality this is smaller if SRAM is partially locked. */
-#define OMAP2_SRAM_SIZE			0xa0000		/* 640k */
 
 /* postponed regions are used to temporarily store region information at boot
  * time when we cannot yet allocate the region list */
@@ -73,15 +68,6 @@ struct vram_region {
 
 static DEFINE_MUTEX(region_mutex);
 static LIST_HEAD(region_list);
-
-static inline int region_mem_type(unsigned long paddr)
-{
-	if (paddr >= OMAP2_SRAM_START &&
-	    paddr < OMAP2_SRAM_START + OMAP2_SRAM_SIZE)
-		return OMAP_VRAM_MEMTYPE_SRAM;
-	else
-		return OMAP_VRAM_MEMTYPE_SDRAM;
-}
 
 static struct vram_region *omap_vram_create_region(unsigned long paddr,
 		unsigned pages)
@@ -212,9 +198,6 @@ static int _omap_vram_reserve(unsigned long paddr, unsigned pages)
 
 		DBG("checking region %lx %d\n", rm->paddr, rm->pages);
 
-		if (region_mem_type(rm->paddr) != region_mem_type(paddr))
-			continue;
-
 		start = rm->paddr;
 		end = start + (rm->pages << PAGE_SHIFT) - 1;
 		if (start > paddr || end < paddr + size - 1)
@@ -320,7 +303,7 @@ err:
 	return r;
 }
 
-static int _omap_vram_alloc(int mtype, unsigned pages, unsigned long *paddr)
+static int _omap_vram_alloc(unsigned pages, unsigned long *paddr)
 {
 	struct vram_region *rm;
 	struct vram_alloc *alloc;
@@ -329,9 +312,6 @@ static int _omap_vram_alloc(int mtype, unsigned pages, unsigned long *paddr)
 		unsigned long start, end;
 
 		DBG("checking region %lx %d\n", rm->paddr, rm->pages);
-
-		if (region_mem_type(rm->paddr) != mtype)
-			continue;
 
 		start = rm->paddr;
 
@@ -365,21 +345,21 @@ found:
 	return -ENOMEM;
 }
 
-int omap_vram_alloc(int mtype, size_t size, unsigned long *paddr)
+int omap_vram_alloc(size_t size, unsigned long *paddr)
 {
 	unsigned pages;
 	int r;
 
-	BUG_ON(mtype > OMAP_VRAM_MEMTYPE_MAX || !size);
+	BUG_ON(!size);
 
-	DBG("alloc mem type %d size %d\n", mtype, size);
+	DBG("alloc mem size %d\n", size);
 
 	size = PAGE_ALIGN(size);
 	pages = size >> PAGE_SHIFT;
 
 	mutex_lock(&region_mutex);
 
-	r = _omap_vram_alloc(mtype, pages, paddr);
+	r = _omap_vram_alloc(pages, paddr);
 
 	mutex_unlock(&region_mutex);
 
@@ -501,10 +481,6 @@ arch_initcall(omap_vram_init);
 /* boottime vram alloc stuff */
 
 /* set from board file */
-static u32 omap_vram_sram_start __initdata;
-static u32 omap_vram_sram_size __initdata;
-
-/* set from board file */
 static u32 omap_vram_sdram_start __initdata;
 static u32 omap_vram_sdram_size __initdata;
 
@@ -587,73 +563,8 @@ void __init omap_vram_reserve_sdram_memblock(void)
 	pr_info("Reserving %u bytes SDRAM for VRAM\n", size);
 }
 
-/*
- * Called at sram init time, before anything is pushed to the SRAM stack.
- * Because of the stack scheme, we will allocate everything from the
- * start of the lowest address region to the end of SRAM. This will also
- * include padding for page alignment and possible holes between regions.
- *
- * As opposed to the SDRAM case, we'll also do any dynamic allocations at
- * this point, since the driver built as a module would have problem with
- * freeing / reallocating the regions.
- */
-unsigned long __init omap_vram_reserve_sram(unsigned long sram_pstart,
-				  unsigned long sram_vstart,
-				  unsigned long sram_size,
-				  unsigned long pstart_avail,
-				  unsigned long size_avail)
-{
-	unsigned long			pend_avail;
-	unsigned long			reserved;
-	u32 paddr;
-	u32 size;
-
-	paddr = omap_vram_sram_start;
-	size = omap_vram_sram_size;
-
-	if (!size)
-		return 0;
-
-	reserved = 0;
-	pend_avail = pstart_avail + size_avail;
-
-	if (!paddr) {
-		/* Dynamic allocation */
-		if ((size_avail & PAGE_MASK) < size) {
-			pr_err("Not enough SRAM for VRAM\n");
-			return 0;
-		}
-		size_avail = (size_avail - size) & PAGE_MASK;
-		paddr = pstart_avail + size_avail;
-	}
-
-	if (paddr < sram_pstart ||
-			paddr + size > sram_pstart + sram_size) {
-		pr_err("Illegal SRAM region for VRAM\n");
-		return 0;
-	}
-
-	/* Reserve everything above the start of the region. */
-	if (pend_avail - paddr > reserved)
-		reserved = pend_avail - paddr;
-	size_avail = pend_avail - reserved - pstart_avail;
-
-	omap_vram_add_region(paddr, size);
-
-	if (reserved)
-		pr_info("Reserving %lu bytes SRAM for VRAM\n", reserved);
-
-	return reserved;
-}
-
 void __init omap_vram_set_sdram_vram(u32 size, u32 start)
 {
 	omap_vram_sdram_start = start;
 	omap_vram_sdram_size = size;
-}
-
-void __init omap_vram_set_sram_vram(u32 size, u32 start)
-{
-	omap_vram_sram_start = start;
-	omap_vram_sram_size = size;
 }

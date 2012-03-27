@@ -101,9 +101,8 @@
  *    ->inode->i_lock		(zap_pte_range->set_page_dirty)
  *    ->private_lock		(zap_pte_range->__set_page_dirty_buffers)
  *
- *  (code doesn't rely on that order, so you could switch it around)
- *  ->tasklist_lock             (memory_failure, collect_procs_ao)
- *    ->i_mmap_mutex
+ * ->i_mmap_mutex
+ *   ->tasklist_lock            (memory_failure, collect_procs_ao)
  */
 
 /*
@@ -123,7 +122,7 @@ void __delete_from_page_cache(struct page *page)
 	if (PageUptodate(page) && PageMappedToDisk(page))
 		cleancache_put_page(page);
 	else
-		cleancache_flush_page(mapping, page);
+		cleancache_invalidate_page(mapping, page);
 
 	radix_tree_delete(&mapping->page_tree, page->index);
 	page->mapping = NULL;
@@ -500,10 +499,13 @@ struct page *__page_cache_alloc(gfp_t gfp)
 	struct page *page;
 
 	if (cpuset_do_page_mem_spread()) {
-		get_mems_allowed();
-		n = cpuset_mem_spread_node();
-		page = alloc_pages_exact_node(n, gfp, 0);
-		put_mems_allowed();
+		unsigned int cpuset_mems_cookie;
+		do {
+			cpuset_mems_cookie = get_mems_allowed();
+			n = cpuset_mem_spread_node();
+			page = alloc_pages_exact_node(n, gfp, 0);
+		} while (!put_mems_allowed(cpuset_mems_cookie) && !page);
+
 		return page;
 	}
 	return alloc_pages(gfp, 0);
@@ -1318,10 +1320,10 @@ int file_read_actor(read_descriptor_t *desc, struct page *page,
 	 * taking the kmap.
 	 */
 	if (!fault_in_pages_writeable(desc->arg.buf, size)) {
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		left = __copy_to_user_inatomic(desc->arg.buf,
 						kaddr + offset, size);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		if (left == 0)
 			goto success;
 	}
@@ -2045,7 +2047,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 	size_t copied;
 
 	BUG_ON(!in_atomic());
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	if (likely(i->nr_segs == 1)) {
 		int left;
 		char __user *buf = i->iov->iov_base + i->iov_offset;
@@ -2055,7 +2057,7 @@ size_t iov_iter_copy_from_user_atomic(struct page *page,
 		copied = __iovec_copy_from_user_inatomic(kaddr + offset,
 						i->iov, i->iov_offset, bytes);
 	}
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 
 	return copied;
 }
@@ -2341,7 +2343,9 @@ struct page *grab_cache_page_write_begin(struct address_space *mapping,
 	struct page *page;
 	gfp_t gfp_notmask = 0;
 
-	gfp_mask = mapping_gfp_mask(mapping) | __GFP_WRITE;
+	gfp_mask = mapping_gfp_mask(mapping);
+	if (mapping_cap_account_dirty(mapping))
+		gfp_mask |= __GFP_WRITE;
 	if (flags & AOP_FLAG_NOFS)
 		gfp_notmask = __GFP_FS;
 repeat:

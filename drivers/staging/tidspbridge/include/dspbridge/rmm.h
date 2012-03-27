@@ -115,18 +115,6 @@ extern int rmm_create(struct rmm_target_obj **target_obj,
 extern void rmm_delete(struct rmm_target_obj *target);
 
 /*
- *  ======== rmm_exit ========
- *  Exit the RMM module
- *
- *  Parameters:
- *  Returns:
- *  Requires:
- *      rmm_init successfully called.
- *  Ensures:
- */
-extern void rmm_exit(void);
-
-/*
  *  ======== rmm_free ========
  *  Free or unreserve memory allocated through rmm_alloc().
  *
@@ -146,19 +134,6 @@ extern void rmm_exit(void);
  */
 extern bool rmm_free(struct rmm_target_obj *target, u32 segid, u32 dsp_addr,
 		     u32 size, bool reserved);
-
-/*
- *  ======== rmm_init ========
- *  Initialize the RMM module
- *
- *  Parameters:
- *  Returns:
- *      TRUE:   Success.
- *      FALSE:  Failure.
- *  Requires:
- *  Ensures:
- */
-extern bool rmm_init(void);
 
 /*
  *  ======== rmm_stat ========

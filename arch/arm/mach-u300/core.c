@@ -26,7 +26,8 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/fsmc.h>
 #include <linux/pinctrl/machine.h>
-#include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/consumer.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/dma-mapping.h>
 
 #include <asm/types.h>
@@ -1477,7 +1478,7 @@ static struct coh901318_platform coh901318_platform = {
 	.max_channels = U300_DMA_CHANNELS,
 };
 
-static struct resource pinmux_resources[] = {
+static struct resource pinctrl_resources[] = {
 	{
 		.start = U300_SYSCON_BASE,
 		.end   = U300_SYSCON_BASE + SZ_4K - 1,
@@ -1506,6 +1507,13 @@ static struct platform_device i2c1_device = {
 	.resource = i2c1_resources,
 };
 
+static struct platform_device pinctrl_device = {
+	.name = "pinctrl-u300",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(pinctrl_resources),
+	.resource = pinctrl_resources,
+};
+
 /*
  * The different variants have a few different versions of the
  * GPIO block, with different number of ports.
@@ -1525,6 +1533,7 @@ static struct u300_gpio_platform u300_gpio_plat = {
 #endif
 	.gpio_base = 0,
 	.gpio_irq_base = IRQ_U300_GPIO_BASE,
+	.pinctrl_device = &pinctrl_device,
 };
 
 static struct platform_device gpio_device = {
@@ -1597,71 +1606,67 @@ static struct platform_device dma_device = {
 	},
 };
 
-static struct platform_device pinmux_device = {
-	.name = "pinmux-u300",
-	.id = -1,
-	.num_resources = ARRAY_SIZE(pinmux_resources),
-	.resource = pinmux_resources,
+static unsigned long pin_pullup_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_UP, 1),
 };
 
-/* Pinmux settings */
-static struct pinmux_map __initdata u300_pinmux_map[] = {
+static unsigned long pin_highz_conf[] = {
+	PIN_CONF_PACKED(PIN_CONFIG_BIAS_HIGH_IMPEDANCE, 0),
+};
+
+/* Pin control settings */
+static struct pinctrl_map __initdata u300_pinmux_map[] = {
 	/* anonymous maps for chip power and EMIFs */
-	PINMUX_MAP_SYS_HOG("POWER", "pinmux-u300", "power"),
-	PINMUX_MAP_SYS_HOG("EMIF0", "pinmux-u300", "emif0"),
-	PINMUX_MAP_SYS_HOG("EMIF1", "pinmux-u300", "emif1"),
+	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "power"),
+	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "emif0"),
+	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-u300", NULL, "emif1"),
 	/* per-device maps for MMC/SD, SPI and UART */
-	PINMUX_MAP("MMCSD", "pinmux-u300", "mmc0", "mmci"),
-	PINMUX_MAP("SPI", "pinmux-u300", "spi0", "pl022"),
-	PINMUX_MAP("UART0", "pinmux-u300", "uart0", "uart0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("mmci",  "pinctrl-u300", NULL, "mmc0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("pl022", "pinctrl-u300", NULL, "spi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("uart0", "pinctrl-u300", NULL, "uart0"),
+	/* This pin is used for clock return rather than GPIO */
+	PIN_MAP_CONFIGS_PIN_DEFAULT("mmci", "pinctrl-u300", "PIO APP GPIO 11",
+				    pin_pullup_conf),
+	/* This pin is used for card detect */
+	PIN_MAP_CONFIGS_PIN_DEFAULT("mmci", "pinctrl-u300", "PIO MS INS",
+				    pin_highz_conf),
 };
 
 struct u300_mux_hog {
-	const char *name;
 	struct device *dev;
-	struct pinmux *pmx;
+	struct pinctrl *p;
 };
 
 static struct u300_mux_hog u300_mux_hogs[] = {
 	{
-		.name = "uart0",
 		.dev = &uart0_device.dev,
 	},
 	{
-		.name = "spi0",
 		.dev = &pl022_device.dev,
 	},
 	{
-		.name = "mmc0",
 		.dev = &mmcsd_device.dev,
 	},
 };
 
-static int __init u300_pinmux_fetch(void)
+static int __init u300_pinctrl_fetch(void)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(u300_mux_hogs); i++) {
-		struct pinmux *pmx;
-		int ret;
+		struct pinctrl *p;
 
-		pmx = pinmux_get(u300_mux_hogs[i].dev, NULL);
-		if (IS_ERR(pmx)) {
-			pr_err("u300: could not get pinmux hog %s\n",
-			       u300_mux_hogs[i].name);
+		p = pinctrl_get_select_default(u300_mux_hogs[i].dev);
+		if (IS_ERR(p)) {
+			pr_err("u300: could not get pinmux hog for dev %s\n",
+			       dev_name(u300_mux_hogs[i].dev));
 			continue;
 		}
-		ret = pinmux_enable(pmx);
-		if (ret) {
-			pr_err("u300: could enable pinmux hog %s\n",
-			       u300_mux_hogs[i].name);
-			continue;
-		}
-		u300_mux_hogs[i].pmx = pmx;
+		u300_mux_hogs[i].p = p;
 	}
 	return 0;
 }
-subsys_initcall(u300_pinmux_fetch);
+subsys_initcall(u300_pinctrl_fetch);
 
 /*
  * Notice that AMBA devices are initialized before platform devices.
@@ -1676,7 +1681,6 @@ static struct platform_device *platform_devs[] __initdata = {
 	&gpio_device,
 	&nand_device,
 	&wdog_device,
-	&pinmux_device,
 };
 
 /*
@@ -1861,8 +1865,8 @@ void __init u300_init_devices(void)
 	u300_assign_physmem();
 
 	/* Initialize pinmuxing */
-	pinmux_register_mappings(u300_pinmux_map,
-				 ARRAY_SIZE(u300_pinmux_map));
+	pinctrl_register_mappings(u300_pinmux_map,
+				  ARRAY_SIZE(u300_pinmux_map));
 
 	/* Register subdevices on the I2C buses */
 	u300_i2c_register_board_devices();

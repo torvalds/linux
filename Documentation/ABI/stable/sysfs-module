@@ -6,7 +6,7 @@ Description:
 		The name of the module that is in the kernel.  This
 		module name will show up either if the module is built
 		directly into the kernel, or if it is loaded as a
-		dyanmic module.
+		dynamic module.
 
 	/sys/module/MODULENAME/parameters
 		This directory contains individual files that are each

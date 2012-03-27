@@ -1177,6 +1177,7 @@ static int check_tape(struct scsi_tape *STp, struct file *filp)
 static int st_open(struct inode *inode, struct file *filp)
 {
 	int i, retval = (-EIO);
+	int resumed = 0;
 	struct scsi_tape *STp;
 	struct st_partstat *STps;
 	int dev = TAPE_NR(inode);
@@ -1211,6 +1212,11 @@ static int st_open(struct inode *inode, struct file *filp)
 	write_unlock(&st_dev_arr_lock);
 	STp->rew_at_close = STp->autorew_dev = (iminor(inode) & 0x80) == 0;
 
+	if (scsi_autopm_get_device(STp->device) < 0) {
+		retval = -EIO;
+		goto err_out;
+	}
+	resumed = 1;
 	if (!scsi_block_when_processing_errors(STp->device)) {
 		retval = (-ENXIO);
 		goto err_out;
@@ -1258,6 +1264,8 @@ static int st_open(struct inode *inode, struct file *filp)
 	normalize_buffer(STp->buffer);
 	STp->in_use = 0;
 	scsi_tape_put(STp);
+	if (resumed)
+		scsi_autopm_put_device(STp->device);
 	mutex_unlock(&st_mutex);
 	return retval;
 
@@ -1391,6 +1399,7 @@ static int st_release(struct inode *inode, struct file *filp)
 	write_lock(&st_dev_arr_lock);
 	STp->in_use = 0;
 	write_unlock(&st_dev_arr_lock);
+	scsi_autopm_put_device(STp->device);
 	scsi_tape_put(STp);
 
 	return result;
@@ -4154,6 +4163,7 @@ static int st_probe(struct device *dev)
 		if (error)
 			goto out_free_tape;
 	}
+	scsi_autopm_put_device(SDp);
 
 	sdev_printk(KERN_NOTICE, SDp,
 		    "Attached scsi tape %s\n", tape_name(tpnt));
@@ -4201,6 +4211,7 @@ static int st_remove(struct device *dev)
 	struct scsi_tape *tpnt;
 	int i, j, mode;
 
+	scsi_autopm_get_device(SDp);
 	write_lock(&st_dev_arr_lock);
 	for (i = 0; i < st_dev_max; i++) {
 		tpnt = scsi_tapes[i];

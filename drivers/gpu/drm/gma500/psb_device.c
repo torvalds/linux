@@ -177,16 +177,17 @@ static int psb_save_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
+	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration control + watermarks */
-	dev_priv->saveDSPARB = PSB_RVDC32(DSPARB);
-	dev_priv->saveDSPFW1 = PSB_RVDC32(DSPFW1);
-	dev_priv->saveDSPFW2 = PSB_RVDC32(DSPFW2);
-	dev_priv->saveDSPFW3 = PSB_RVDC32(DSPFW3);
-	dev_priv->saveDSPFW4 = PSB_RVDC32(DSPFW4);
-	dev_priv->saveDSPFW5 = PSB_RVDC32(DSPFW5);
-	dev_priv->saveDSPFW6 = PSB_RVDC32(DSPFW6);
-	dev_priv->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
+	regs->saveDSPARB = PSB_RVDC32(DSPARB);
+	regs->saveDSPFW1 = PSB_RVDC32(DSPFW1);
+	regs->saveDSPFW2 = PSB_RVDC32(DSPFW2);
+	regs->saveDSPFW3 = PSB_RVDC32(DSPFW3);
+	regs->saveDSPFW4 = PSB_RVDC32(DSPFW4);
+	regs->saveDSPFW5 = PSB_RVDC32(DSPFW5);
+	regs->saveDSPFW6 = PSB_RVDC32(DSPFW6);
+	regs->saveCHICKENBIT = PSB_RVDC32(DSPCHICKENBIT);
 
 	/* Save crtc and output state */
 	mutex_lock(&dev->mode_config.mutex);
@@ -213,16 +214,17 @@ static int psb_restore_display_registers(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc;
 	struct drm_connector *connector;
+	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration + watermarks */
-	PSB_WVDC32(dev_priv->saveDSPARB, DSPARB);
-	PSB_WVDC32(dev_priv->saveDSPFW1, DSPFW1);
-	PSB_WVDC32(dev_priv->saveDSPFW2, DSPFW2);
-	PSB_WVDC32(dev_priv->saveDSPFW3, DSPFW3);
-	PSB_WVDC32(dev_priv->saveDSPFW4, DSPFW4);
-	PSB_WVDC32(dev_priv->saveDSPFW5, DSPFW5);
-	PSB_WVDC32(dev_priv->saveDSPFW6, DSPFW6);
-	PSB_WVDC32(dev_priv->saveCHICKENBIT, DSPCHICKENBIT);
+	PSB_WVDC32(regs->saveDSPARB, DSPARB);
+	PSB_WVDC32(regs->saveDSPFW1, DSPFW1);
+	PSB_WVDC32(regs->saveDSPFW2, DSPFW2);
+	PSB_WVDC32(regs->saveDSPFW3, DSPFW3);
+	PSB_WVDC32(regs->saveDSPFW4, DSPFW4);
+	PSB_WVDC32(regs->saveDSPFW5, DSPFW5);
+	PSB_WVDC32(regs->saveDSPFW6, DSPFW6);
+	PSB_WVDC32(regs->saveCHICKENBIT, DSPCHICKENBIT);
 
 	/*make sure VGA plane is off. it initializes to on after reset!*/
 	PSB_WVDC32(0x80000000, VGACNTRL);

@@ -2161,6 +2161,24 @@ DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_BROADCOM,
 			PCI_DEVICE_ID_NX2_5709S,
 			quirk_brcm_570x_limit_vpd);
 
+static void __devinit quirk_brcm_5719_limit_mrrs(struct pci_dev *dev)
+{
+	u32 rev;
+
+	pci_read_config_dword(dev, 0xf4, &rev);
+
+	/* Only CAP the MRRS if the device is a 5719 A0 */
+	if (rev == 0x05719000) {
+		int readrq = pcie_get_readrq(dev);
+		if (readrq > 2048)
+			pcie_set_readrq(dev, 2048);
+	}
+}
+
+DECLARE_PCI_FIXUP_ENABLE(PCI_VENDOR_ID_BROADCOM,
+			 PCI_DEVICE_ID_TIGON3_5719,
+			 quirk_brcm_5719_limit_mrrs);
+
 /* Originally in EDAC sources for i82875P:
  * Intel tells BIOS developers to hide device 6 which
  * configures the overflow device access containing

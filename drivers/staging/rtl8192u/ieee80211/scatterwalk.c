@@ -13,8 +13,6 @@
  * any later version.
  *
  */
-#include "kmap_types.h"
-
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -22,13 +20,6 @@
 #include <asm/scatterlist.h>
 #include "internal.h"
 #include "scatterwalk.h"
-
-enum km_type crypto_km_types[] = {
-	KM_USER0,
-	KM_USER1,
-	KM_SOFTIRQ0,
-	KM_SOFTIRQ1,
-};
 
 void *scatterwalk_whichbuf(struct scatter_walk *walk, unsigned int nbytes, void *scratch)
 {
@@ -62,9 +53,9 @@ void scatterwalk_start(struct scatter_walk *walk, struct scatterlist *sg)
 	walk->offset = sg->offset;
 }
 
-void scatterwalk_map(struct scatter_walk *walk, int out)
+void scatterwalk_map(struct scatter_walk *walk)
 {
-	walk->data = crypto_kmap(walk->page, out) + walk->offset;
+	walk->data = kmap_atomic(walk->page) + walk->offset;
 }
 
 static void scatterwalk_pagedone(struct scatter_walk *walk, int out,
@@ -103,7 +94,7 @@ void scatterwalk_done(struct scatter_walk *walk, int out, int more)
  * has been verified as multiple of the block size.
  */
 int scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
-			   size_t nbytes, int out)
+			   size_t nbytes)
 {
 	if (buf != walk->data) {
 		while (nbytes > walk->len_this_page) {
@@ -111,9 +102,9 @@ int scatterwalk_copychunks(void *buf, struct scatter_walk *walk,
 			buf += walk->len_this_page;
 			nbytes -= walk->len_this_page;
 
-			crypto_kunmap(walk->data, out);
+			kunmap_atomic(walk->data);
 			scatterwalk_pagedone(walk, out, 1);
-			scatterwalk_map(walk, out);
+			scatterwalk_map(walk);
 		}
 
 		memcpy_dir(buf, walk->data, nbytes, out);

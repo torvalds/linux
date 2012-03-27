@@ -525,19 +525,8 @@ static struct i2c_driver lm95245_driver = {
 	.address_list	= normal_i2c,
 };
 
-static int __init sensors_lm95245_init(void)
-{
-	return i2c_add_driver(&lm95245_driver);
-}
-
-static void __exit sensors_lm95245_exit(void)
-{
-	i2c_del_driver(&lm95245_driver);
-}
+module_i2c_driver(lm95245_driver);
 
 MODULE_AUTHOR("Alexander Stein <alexander.stein@systec-electronic.com>");
 MODULE_DESCRIPTION("LM95245 sensor driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm95245_init);
-module_exit(sensors_lm95245_exit);

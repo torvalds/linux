@@ -1284,7 +1284,7 @@ int writeback_inodes_sb_if_idle(struct super_block *sb, enum wb_reason reason)
 EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
 
 /**
- * writeback_inodes_sb_if_idle	-	start writeback if none underway
+ * writeback_inodes_sb_nr_if_idle	-	start writeback if none underway
  * @sb: the superblock
  * @nr: the number of pages to write
  * @reason: reason why some writeback work was initiated

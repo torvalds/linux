@@ -38,6 +38,13 @@
 
 #ifdef __KERNEL__
 
+/*
+ * Enable dprintk() debugging support for nfs client.
+ */
+#ifdef CONFIG_NFS_DEBUG
+# define NFS_DEBUG
+#endif
+
 #include <linux/in.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
@@ -171,13 +178,9 @@ struct nfs_inode {
 	 */
 	__be32			cookieverf[2];
 
-	/*
-	 * This is the list of dirty unwritten pages.
-	 */
-	struct radix_tree_root	nfs_page_tree;
-
 	unsigned long		npages;
 	unsigned long		ncommit;
+	struct list_head	commit_list;
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
@@ -394,6 +397,29 @@ static inline void nfs_free_fhandle(const struct nfs_fh *fh)
 {
 	kfree(fh);
 }
+
+#ifdef NFS_DEBUG
+extern u32 _nfs_display_fhandle_hash(const struct nfs_fh *fh);
+static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
+{
+	return _nfs_display_fhandle_hash(fh);
+}
+extern void _nfs_display_fhandle(const struct nfs_fh *fh, const char *caption);
+#define nfs_display_fhandle(fh, caption)			\
+	do {							\
+		if (unlikely(nfs_debug & NFSDBG_FACILITY))	\
+			_nfs_display_fhandle(fh, caption);	\
+	} while (0)
+#else
+static inline u32 nfs_display_fhandle_hash(const struct nfs_fh *fh)
+{
+	return 0;
+}
+static inline void nfs_display_fhandle(const struct nfs_fh *fh,
+				       const char *caption)
+{
+}
+#endif
 
 /*
  * linux/fs/nfs/nfsroot.c
@@ -632,19 +658,13 @@ nfs_fileid_to_ino_t(u64 fileid)
 
 #ifdef __KERNEL__
 
-/*
- * Enable debugging support for nfs client.
- * Requires RPC_DEBUG.
- */
-#ifdef RPC_DEBUG
-# define NFS_DEBUG
-#endif
-
 # undef ifdebug
 # ifdef NFS_DEBUG
 #  define ifdebug(fac)		if (unlikely(nfs_debug & NFSDBG_##fac))
+#  define NFS_IFDEBUG(x)	x
 # else
 #  define ifdebug(fac)		if (0)
+#  define NFS_IFDEBUG(x)
 # endif
 #endif /* __KERNEL */
 

@@ -71,8 +71,6 @@ do {                                                            	\
  * @ctlr:	      The FCoE controller (for FIP)
  * @oem:	      The offload exchange manager for all local port
  *		      instances associated with this port
- * @kref:	      The kernel reference
- *
  * This structure is 1:1 with a net devive.
  */
 struct fcoe_interface {
@@ -83,7 +81,6 @@ struct fcoe_interface {
 	struct packet_type fip_packet_type;
 	struct fcoe_ctlr   ctlr;
 	struct fc_exch_mgr *oem;
-	struct kref	   kref;
 };
 
 #define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)

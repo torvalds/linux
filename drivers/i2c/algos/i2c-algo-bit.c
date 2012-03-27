@@ -616,10 +616,11 @@ static u32 bit_func(struct i2c_adapter *adap)
 
 /* -----exported algorithm data: -------------------------------------	*/
 
-static const struct i2c_algorithm i2c_bit_algo = {
+const struct i2c_algorithm i2c_bit_algo = {
 	.master_xfer	= bit_xfer,
 	.functionality	= bit_func,
 };
+EXPORT_SYMBOL(i2c_bit_algo);
 
 /*
  * registering functions to load algorithms at runtime

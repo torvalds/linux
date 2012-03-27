@@ -37,7 +37,7 @@
 #include <linux/time.h>
 #include <linux/semaphore.h>
 #include <linux/vmalloc.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>

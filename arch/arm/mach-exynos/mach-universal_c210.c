@@ -971,7 +971,6 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s3c_device_i2c5,
 	&s5p_device_i2c_hdmiphy,
 	&hdmi_fixed_voltage,
-	&exynos4_device_pd[PD_TV],
 	&s5p_device_hdmi,
 	&s5p_device_sdo,
 	&s5p_device_mixer,
@@ -984,9 +983,6 @@ static struct platform_device *universal_devices[] __initdata = {
 	&s5p_device_mfc,
 	&s5p_device_mfc_l,
 	&s5p_device_mfc_r,
-	&exynos4_device_pd[PD_MFC],
-	&exynos4_device_pd[PD_LCD0],
-	&exynos4_device_pd[PD_CAM],
 	&cam_i_core_fixed_reg_dev,
 	&cam_s_if_fixed_reg_dev,
 	&s5p_device_fimc_md,
@@ -1005,10 +1001,6 @@ void s5p_tv_setup(void)
 	gpio_request_one(EXYNOS4_GPX3(7), GPIOF_IN, "hpd-plug");
 	s3c_gpio_cfgpin(EXYNOS4_GPX3(7), S3C_GPIO_SFN(0x3));
 	s3c_gpio_setpull(EXYNOS4_GPX3(7), S3C_GPIO_PULL_NONE);
-
-	/* setup dependencies between TV devices */
-	s5p_device_hdmi.dev.parent = &exynos4_device_pd[PD_TV].dev;
-	s5p_device_mixer.dev.parent = &exynos4_device_pd[PD_TV].dev;
 }
 
 static void __init universal_reserve(void)
@@ -1042,15 +1034,6 @@ static void __init universal_machine_init(void)
 
 	/* Last */
 	platform_add_devices(universal_devices, ARRAY_SIZE(universal_devices));
-
-	s5p_device_mfc.dev.parent = &exynos4_device_pd[PD_MFC].dev;
-	s5p_device_fimd0.dev.parent = &exynos4_device_pd[PD_LCD0].dev;
-
-	s5p_device_fimc0.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_fimc1.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_fimc2.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_fimc3.dev.parent = &exynos4_device_pd[PD_CAM].dev;
-	s5p_device_mipi_csis0.dev.parent = &exynos4_device_pd[PD_CAM].dev;
 }
 
 MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")

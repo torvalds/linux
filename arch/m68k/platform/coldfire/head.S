@@ -158,6 +158,10 @@ _start:
 #if defined(CONFIG_UBOOT)
 	movel	%sp,_init_sp			/* save initial stack pointer */
 #endif
+#ifdef CONFIG_MBAR
+	movel	#CONFIG_MBAR+1,%d0		/* configured MBAR address */
+	movec	%d0,%MBAR			/* set it */
+#endif
 
 	/*
 	 *	Do any platform or board specific setup now. Most boards

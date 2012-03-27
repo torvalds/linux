@@ -17,6 +17,7 @@
  *  - Zytronic capacitive touchscreen
  *  - NEXIO/iNexio
  *  - Elo TouchSystems 2700 IntelliTouch
+ *  - EasyTouch USB Dual/Multi touch controller from Data Modul
  *
  * Copyright (C) 2004-2007 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -140,6 +141,7 @@ enum {
 	DEVTYPE_TC45USB,
 	DEVTYPE_NEXIO,
 	DEVTYPE_ELO,
+	DEVTYPE_ETOUCH,
 };
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
@@ -245,6 +247,10 @@ static const struct usb_device_id usbtouch_devices[] = {
 	{USB_DEVICE(0x04e7, 0x0020), .driver_info = DEVTYPE_ELO},
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_USB_EASYTOUCH
+	{USB_DEVICE(0x7374, 0x0001), .driver_info = DEVTYPE_ETOUCH},
+#endif
+
 	{}
 };
 
@@ -326,6 +332,51 @@ static int egalax_get_pkt_len(unsigned char *buf, int len)
 }
 #endif
 
+/*****************************************************************************
+ * EasyTouch part
+ */
+
+#ifdef CONFIG_TOUCHSCREEN_USB_EASYTOUCH
+
+#ifndef MULTI_PACKET
+#define MULTI_PACKET
+#endif
+
+#define ETOUCH_PKT_TYPE_MASK		0xFE
+#define ETOUCH_PKT_TYPE_REPT		0x80
+#define ETOUCH_PKT_TYPE_REPT2		0xB0
+#define ETOUCH_PKT_TYPE_DIAG		0x0A
+
+static int etouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
+{
+	if ((pkt[0] & ETOUCH_PKT_TYPE_MASK) != ETOUCH_PKT_TYPE_REPT &&
+		(pkt[0] & ETOUCH_PKT_TYPE_MASK) != ETOUCH_PKT_TYPE_REPT2)
+		return 0;
+
+	dev->x = ((pkt[1] & 0x1F) << 7) | (pkt[2] & 0x7F);
+	dev->y = ((pkt[3] & 0x1F) << 7) | (pkt[4] & 0x7F);
+	dev->touch = pkt[0] & 0x01;
+
+	return 1;
+}
+
+static int etouch_get_pkt_len(unsigned char *buf, int len)
+{
+	switch (buf[0] & ETOUCH_PKT_TYPE_MASK) {
+	case ETOUCH_PKT_TYPE_REPT:
+	case ETOUCH_PKT_TYPE_REPT2:
+		return 5;
+
+	case ETOUCH_PKT_TYPE_DIAG:
+		if (len < 2)
+			return -1;
+
+		return buf[1] + 2;
+	}
+
+	return 0;
+}
+#endif
 
 /*****************************************************************************
  * PanJit Part
@@ -1173,6 +1224,18 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.alloc		= nexio_alloc,
 		.init		= nexio_init,
 		.exit		= nexio_exit,
+	},
+#endif
+#ifdef CONFIG_TOUCHSCREEN_USB_EASYTOUCH
+	[DEVTYPE_ETOUCH] = {
+		.min_xc		= 0x0,
+		.max_xc		= 0x07ff,
+		.min_yc		= 0x0,
+		.max_yc		= 0x07ff,
+		.rept_size	= 16,
+		.process_pkt	= usbtouch_process_multi,
+		.get_pkt_len	= etouch_get_pkt_len,
+		.read_data	= etouch_read_data,
 	},
 #endif
 };

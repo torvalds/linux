@@ -560,4 +560,25 @@ struct amba_id {
 #endif
 };
 
+/*
+ * Match x86 CPUs for CPU specific drivers.
+ * See documentation of "x86_match_cpu" for details.
+ */
+
+struct x86_cpu_id {
+	__u16 vendor;
+	__u16 family;
+	__u16 model;
+	__u16 feature;	/* bit index */
+	kernel_ulong_t driver_data;
+};
+
+#define X86_FEATURE_MATCH(x) \
+	{ X86_VENDOR_ANY, X86_FAMILY_ANY, X86_MODEL_ANY, x }
+
+#define X86_VENDOR_ANY 0xffff
+#define X86_FAMILY_ANY 0
+#define X86_MODEL_ANY  0
+#define X86_FEATURE_ANY 0	/* Same as FPU, you can't test for that */
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

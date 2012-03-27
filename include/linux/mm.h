@@ -893,9 +893,9 @@ struct page *vm_normal_page(struct vm_area_struct *vma, unsigned long addr,
 
 int zap_vma_ptes(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size);
-unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
+void zap_page_range(struct vm_area_struct *vma, unsigned long address,
 		unsigned long size, struct zap_details *);
-unsigned long unmap_vmas(struct mmu_gather *tlb,
+void unmap_vmas(struct mmu_gather *tlb,
 		struct vm_area_struct *start_vma, unsigned long start_addr,
 		unsigned long end_addr, unsigned long *nr_accounted,
 		struct zap_details *);
@@ -1040,6 +1040,9 @@ static inline int stack_guard_page_end(struct vm_area_struct *vma,
 		!vma_growsup(vma->vm_next, addr);
 }
 
+extern pid_t
+vm_is_stack(struct task_struct *task, struct vm_area_struct *vma, int in_group);
+
 extern unsigned long move_page_tables(struct vm_area_struct *vma,
 		unsigned long old_addr, struct vm_area_struct *new_vma,
 		unsigned long new_addr, unsigned long len);
@@ -1058,19 +1061,20 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 /*
  * per-process(per-mm_struct) statistics.
  */
-static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
-{
-	atomic_long_set(&mm->rss_stat.count[member], value);
-}
-
-#if defined(SPLIT_RSS_COUNTING)
-unsigned long get_mm_counter(struct mm_struct *mm, int member);
-#else
 static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
 {
-	return atomic_long_read(&mm->rss_stat.count[member]);
-}
+	long val = atomic_long_read(&mm->rss_stat.count[member]);
+
+#ifdef SPLIT_RSS_COUNTING
+	/*
+	 * counter is updated in asynchronous manner and may go to minus.
+	 * But it's never be expected number for users.
+	 */
+	if (val < 0)
+		val = 0;
 #endif
+	return (unsigned long)val;
+}
 
 static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
 {
@@ -1127,9 +1131,9 @@ static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
 }
 
 #if defined(SPLIT_RSS_COUNTING)
-void sync_mm_rss(struct task_struct *task, struct mm_struct *mm);
+void sync_mm_rss(struct mm_struct *mm);
 #else
-static inline void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
+static inline void sync_mm_rss(struct mm_struct *mm)
 {
 }
 #endif
@@ -1291,8 +1295,6 @@ extern void get_pfn_range_for_nid(unsigned int nid,
 extern unsigned long find_min_pfn_with_active_regions(void);
 extern void free_bootmem_with_active_regions(int nid,
 						unsigned long max_low_pfn);
-int add_from_early_node_map(struct range *range, int az,
-				   int nr_range, int nid);
 extern void sparse_memory_present_with_active_regions(int nid);
 
 #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
@@ -1598,9 +1600,9 @@ void vmemmap_populate_print_last(void);
 
 enum mf_flags {
 	MF_COUNT_INCREASED = 1 << 0,
+	MF_ACTION_REQUIRED = 1 << 1,
 };
-extern void memory_failure(unsigned long pfn, int trapno);
-extern int __memory_failure(unsigned long pfn, int trapno, int flags);
+extern int memory_failure(unsigned long pfn, int trapno, int flags);
 extern void memory_failure_queue(unsigned long pfn, int trapno, int flags);
 extern int unpoison_memory(unsigned long pfn);
 extern int sysctl_memory_failure_early_kill;

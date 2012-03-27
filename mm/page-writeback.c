@@ -1472,6 +1472,7 @@ void throttle_vm_writeout(gfp_t gfp_mask)
 
         for ( ; ; ) {
 		global_dirty_limits(&background_thresh, &dirty_thresh);
+		dirty_thresh = hard_dirty_limit(dirty_thresh);
 
                 /*
                  * Boost the allowable dirty threshold a bit for page

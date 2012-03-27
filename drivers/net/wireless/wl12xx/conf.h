@@ -66,7 +66,8 @@ enum {
 };
 
 enum {
-	CONF_HW_RXTX_RATE_MCS7 = 0,
+	CONF_HW_RXTX_RATE_MCS7_SGI = 0,
+	CONF_HW_RXTX_RATE_MCS7,
 	CONF_HW_RXTX_RATE_MCS6,
 	CONF_HW_RXTX_RATE_MCS5,
 	CONF_HW_RXTX_RATE_MCS4,
@@ -90,6 +91,10 @@ enum {
 	CONF_HW_RXTX_RATE_MAX,
 	CONF_HW_RXTX_RATE_UNSUPPORTED = 0xff
 };
+
+/* Rates between and including these are MCS rates */
+#define CONF_HW_RXTX_RATE_MCS_MIN CONF_HW_RXTX_RATE_MCS7_SGI
+#define CONF_HW_RXTX_RATE_MCS_MAX CONF_HW_RXTX_RATE_MCS0
 
 enum {
 	CONF_SG_DISABLE = 0,
@@ -311,6 +316,10 @@ enum {
 	CONF_AP_CONNECTION_PROTECTION_TIME,
 	CONF_AP_BT_ACL_VAL_BT_SERVE_TIME,
 	CONF_AP_BT_ACL_VAL_WL_SERVE_TIME,
+
+	/* CTS Diluting params */
+	CONF_SG_CTS_DILUTED_BAD_RX_PACKETS_TH,
+	CONF_SG_CTS_CHOP_IN_DUAL_ANT_SCO_MASTER,
 
 	CONF_SG_TEMP_PARAM_1,
 	CONF_SG_TEMP_PARAM_2,
@@ -681,6 +690,9 @@ struct conf_tx_settings {
 	 */
 	u8 tmpl_short_retry_limit;
 	u8 tmpl_long_retry_limit;
+
+	/* Time in ms for Tx watchdog timer to expire */
+	u32 tx_watchdog_timeout;
 };
 
 enum {
@@ -810,6 +822,19 @@ struct conf_conn_settings {
 	u8 listen_interval;
 
 	/*
+	 * Firmware wakeup conditions during suspend
+	 * Range: CONF_WAKE_UP_EVENT_*
+	 */
+	u8 suspend_wake_up_event;
+
+	/*
+	 * Listen interval during suspend.
+	 * Currently will be in DTIMs (1-10)
+	 *
+	 */
+	u8 suspend_listen_interval;
+
+	/*
 	 * Enable or disable the beacon filtering.
 	 *
 	 * Range: CONF_BCN_FILT_MODE_*
@@ -868,13 +893,6 @@ struct conf_conn_settings {
 	u8 ps_poll_threshold;
 
 	/*
-	 * PS Poll failure recovery ACTIVE period length
-	 *
-	 * Range: u32 (ms)
-	 */
-	u32 ps_poll_recovery_period;
-
-	/*
 	 * Configuration of signal average weights.
 	 */
 	struct conf_sig_weights sig_weights;
@@ -920,6 +938,18 @@ struct conf_conn_settings {
 	 * Range 0 - 255
 	 */
 	u8 psm_entry_nullfunc_retries;
+
+	/*
+	 * Specifies the dynamic PS timeout in ms that will be used
+	 * by the FW when in AUTO_PS mode
+	 */
+	u16 dynamic_ps_timeout;
+
+	/*
+	 * Specifies whether dynamic PS should be disabled and PSM forced.
+	 * This is required for certain WiFi certification tests.
+	 */
+	u8 forced_ps;
 
 	/*
 	 *
@@ -1055,6 +1085,14 @@ struct conf_scan_settings {
 	 */
 	u16 num_probe_reqs;
 
+	/*
+	 * Scan trigger (split scan) timeout. The FW will split the scan
+	 * operation into slices of the given time and allow the FW to schedule
+	 * other tasks in between.
+	 *
+	 * Range: u32 Microsecs
+	 */
+	u32 split_scan_timeout;
 };
 
 struct conf_sched_scan_settings {

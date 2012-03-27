@@ -444,7 +444,7 @@ linkend="pixfmt-rgb"><constant>V4L2_PIX_FMT_BGR24</constant></link></para></entr
 		<entry><para><link
 linkend="pixfmt-rgb"><constant>V4L2_PIX_FMT_BGR32</constant></link><footnote>
 		      <para>Presumably all V4L RGB formats are
-little-endian, although some drivers might interpret them according to machine endianess. V4L2 defines little-endian, big-endian and red/blue
+little-endian, although some drivers might interpret them according to machine endianness. V4L2 defines little-endian, big-endian and red/blue
 swapped variants. For details see <xref linkend="pixfmt-rgb" />.</para>
 		    </footnote></para></entry>
 	      </row>
@@ -823,7 +823,7 @@ standard); 35468950&nbsp;Hz PAL and SECAM (625-line standards)</entry>
 		<row>
 		  <entry>sample_format</entry>
 		  <entry>V4L2_PIX_FMT_GREY. The last four bytes (a
-machine endianess integer) contain a frame counter.</entry>
+machine endianness integer) contain a frame counter.</entry>
 		</row>
 		<row>
 		  <entry>start[]</entry>

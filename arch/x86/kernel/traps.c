@@ -54,6 +54,7 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/mce.h>
 
 #include <asm/mach_traps.h>

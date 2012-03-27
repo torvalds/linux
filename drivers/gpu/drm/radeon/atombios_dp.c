@@ -63,12 +63,12 @@ static int radeon_process_aux_ch(struct radeon_i2c_chan *chan,
 
 	memset(&args, 0, sizeof(args));
 
-	base = (unsigned char *)rdev->mode_info.atom_context->scratch;
+	base = (unsigned char *)(rdev->mode_info.atom_context->scratch + 1);
 
 	memcpy(base, send, send_bytes);
 
-	args.v1.lpAuxRequest = 0;
-	args.v1.lpDataOut = 16;
+	args.v1.lpAuxRequest = 0 + 4;
+	args.v1.lpDataOut = 16 + 4;
 	args.v1.ucDataOutLen = 0;
 	args.v1.ucChannelID = chan->rec.i2c_id;
 	args.v1.ucDelay = delay / 10;
@@ -746,7 +746,8 @@ static int radeon_dp_link_train_init(struct radeon_dp_link_train_info *dp_info)
 
 	/* set the lane count on the sink */
 	tmp = dp_info->dp_lane_count;
-	if (dp_info->dpcd[0] >= 0x11)
+	if (dp_info->dpcd[DP_DPCD_REV] >= 0x11 &&
+	    dp_info->dpcd[DP_MAX_LANE_COUNT] & DP_ENHANCED_FRAME_CAP)
 		tmp |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 	radeon_write_dpcd_reg(dp_info->radeon_connector, DP_LANE_COUNT_SET, tmp);
 

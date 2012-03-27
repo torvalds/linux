@@ -1,0 +1,10 @@
+TODO
+. Determine if the boards are still in use
+  and move this module back to drivers/telephony if necessary
+. Coding style cleanups
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+cc Joe Perches <joe@perches.com> if the module should be reactivated.
+
+If no module activity occurs before version 3.6 is released, this
+module should be removed.

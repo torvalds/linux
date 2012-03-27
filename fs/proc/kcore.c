@@ -513,7 +513,7 @@ read_kcore(struct file *file, char __user *buffer, size_t buflen, loff_t *fpos)
 
 				n = copy_to_user(buffer, (char *)start, tsz);
 				/*
-				 * We cannot distingush between fault on source
+				 * We cannot distinguish between fault on source
 				 * and fault on destination. When this happens
 				 * we clear too and hope it will trigger the
 				 * EFAULT again.

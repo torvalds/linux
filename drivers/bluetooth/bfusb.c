@@ -411,7 +411,7 @@ unlock:
 
 static int bfusb_open(struct hci_dev *hdev)
 {
-	struct bfusb_data *data = hdev->driver_data;
+	struct bfusb_data *data = hci_get_drvdata(hdev);
 	unsigned long flags;
 	int i, err;
 
@@ -437,7 +437,7 @@ static int bfusb_open(struct hci_dev *hdev)
 
 static int bfusb_flush(struct hci_dev *hdev)
 {
-	struct bfusb_data *data = hdev->driver_data;
+	struct bfusb_data *data = hci_get_drvdata(hdev);
 
 	BT_DBG("hdev %p bfusb %p", hdev, data);
 
@@ -448,7 +448,7 @@ static int bfusb_flush(struct hci_dev *hdev)
 
 static int bfusb_close(struct hci_dev *hdev)
 {
-	struct bfusb_data *data = hdev->driver_data;
+	struct bfusb_data *data = hci_get_drvdata(hdev);
 	unsigned long flags;
 
 	BT_DBG("hdev %p bfusb %p", hdev, data);
@@ -483,7 +483,7 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	if (!test_bit(HCI_RUNNING, &hdev->flags))
 		return -EBUSY;
 
-	data = hdev->driver_data;
+	data = hci_get_drvdata(hdev);
 
 	switch (bt_cb(skb)->pkt_type) {
 	case HCI_COMMAND_PKT:
@@ -542,15 +542,6 @@ static int bfusb_send_frame(struct sk_buff *skb)
 	kfree_skb(skb);
 
 	return 0;
-}
-
-static void bfusb_destruct(struct hci_dev *hdev)
-{
-	struct bfusb_data *data = hdev->driver_data;
-
-	BT_DBG("hdev %p bfusb %p", hdev, data);
-
-	kfree(data);
 }
 
 static int bfusb_ioctl(struct hci_dev *hdev, unsigned int cmd, unsigned long arg)
@@ -705,17 +696,14 @@ static int bfusb_probe(struct usb_interface *intf, const struct usb_device_id *i
 	data->hdev = hdev;
 
 	hdev->bus = HCI_USB;
-	hdev->driver_data = data;
+	hci_set_drvdata(hdev, data);
 	SET_HCIDEV_DEV(hdev, &intf->dev);
 
 	hdev->open     = bfusb_open;
 	hdev->close    = bfusb_close;
 	hdev->flush    = bfusb_flush;
 	hdev->send     = bfusb_send_frame;
-	hdev->destruct = bfusb_destruct;
 	hdev->ioctl    = bfusb_ioctl;
-
-	hdev->owner = THIS_MODULE;
 
 	if (hci_register_dev(hdev) < 0) {
 		BT_ERR("Can't register HCI device");
@@ -753,6 +741,7 @@ static void bfusb_disconnect(struct usb_interface *intf)
 
 	hci_unregister_dev(hdev);
 	hci_free_dev(hdev);
+	kfree(data);
 }
 
 static struct usb_driver bfusb_driver = {

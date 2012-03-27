@@ -239,6 +239,12 @@ struct rcu_data {
 	bool		preemptible;	/* Preemptible RCU? */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
+#ifdef CONFIG_RCU_CPU_STALL_INFO
+	unsigned long	ticks_this_gp;	/* The number of scheduling-clock */
+					/*  ticks this CPU has handled */
+					/*  during and after the last grace */
+					/* period it is aware of. */
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
 
 	/* 2) batch handling */
 	/*
@@ -265,7 +271,8 @@ struct rcu_data {
 	 */
 	struct rcu_head *nxtlist;
 	struct rcu_head **nxttail[RCU_NEXT_SIZE];
-	long		qlen;		/* # of queued callbacks */
+	long		qlen_lazy;	/* # of lazy queued callbacks */
+	long		qlen;		/* # of queued callbacks, incl lazy */
 	long		qlen_last_fqs_check;
 					/* qlen at last check for QS forcing */
 	unsigned long	n_cbs_invoked;	/* count of RCU cbs invoked. */
@@ -282,7 +289,6 @@ struct rcu_data {
 	/* 4) reasons this CPU needed to be kicked by force_quiescent_state */
 	unsigned long dynticks_fqs;	/* Kicked due to dynticks idle. */
 	unsigned long offline_fqs;	/* Kicked due to being offline. */
-	unsigned long resched_ipi;	/* Sent a resched IPI. */
 
 	/* 5) __rcu_pending() statistics. */
 	unsigned long n_rcu_pending;	/* rcu_pending() calls since boot. */
@@ -313,12 +319,6 @@ struct rcu_data {
 #else
 #define RCU_STALL_DELAY_DELTA	       0
 #endif
-
-#define RCU_SECONDS_TILL_STALL_CHECK   (CONFIG_RCU_CPU_STALL_TIMEOUT * HZ + \
-					RCU_STALL_DELAY_DELTA)
-						/* for rsp->jiffies_stall */
-#define RCU_SECONDS_TILL_STALL_RECHECK (3 * RCU_SECONDS_TILL_STALL_CHECK + 30)
-						/* for rsp->jiffies_stall */
 #define RCU_STALL_RAT_DELAY		2	/* Allow other CPUs time */
 						/*  to take at least one */
 						/*  scheduling clock irq */
@@ -438,8 +438,8 @@ static void rcu_preempt_check_blocked_tasks(struct rcu_node *rnp);
 static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 				     struct rcu_node *rnp,
 				     struct rcu_data *rdp);
-static void rcu_preempt_offline_cpu(int cpu);
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
+static void rcu_preempt_cleanup_dead_cpu(int cpu);
 static void rcu_preempt_check_callbacks(int cpu);
 static void rcu_preempt_process_callbacks(void);
 void call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu));
@@ -448,9 +448,9 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp,
 			       bool wake);
 #endif /* #if defined(CONFIG_HOTPLUG_CPU) || defined(CONFIG_TREE_PREEMPT_RCU) */
 static int rcu_preempt_pending(int cpu);
-static int rcu_preempt_needs_cpu(int cpu);
+static int rcu_preempt_cpu_has_callbacks(int cpu);
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu);
-static void rcu_preempt_send_cbs_to_online(void);
+static void rcu_preempt_cleanup_dying_cpu(void);
 static void __init __rcu_init_preempt(void);
 static void rcu_initiate_boost(struct rcu_node *rnp, unsigned long flags);
 static void rcu_preempt_boost_start_gp(struct rcu_node *rnp);
@@ -471,5 +471,10 @@ static void __cpuinit rcu_prepare_kthreads(int cpu);
 static void rcu_prepare_for_idle_init(int cpu);
 static void rcu_cleanup_after_idle(int cpu);
 static void rcu_prepare_for_idle(int cpu);
+static void print_cpu_stall_info_begin(void);
+static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
+static void print_cpu_stall_info_end(void);
+static void zero_cpu_stall_ticks(struct rcu_data *rdp);
+static void increment_cpu_stall_ticks(void);
 
 #endif /* #ifndef RCU_TREE_NONCORE */

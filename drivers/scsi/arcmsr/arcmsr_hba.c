@@ -1736,7 +1736,7 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb,
 						(uint32_t ) cmd->cmnd[8];
 						/* 4 bytes: Areca io control code */
 	sg = scsi_sglist(cmd);
-	buffer = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
+	buffer = kmap_atomic(sg_page(sg)) + sg->offset;
 	if (scsi_sg_count(cmd) > 1) {
 		retvalue = ARCMSR_MESSAGE_FAIL;
 		goto message_out;
@@ -1985,7 +1985,7 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb,
 	}
 	message_out:
 	sg = scsi_sglist(cmd);
-	kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+	kunmap_atomic(buffer - sg->offset);
 	return retvalue;
 }
 
@@ -2035,11 +2035,11 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 		strncpy(&inqdata[32], "R001", 4); /* Product Revision */
 
 		sg = scsi_sglist(cmd);
-		buffer = kmap_atomic(sg_page(sg), KM_IRQ0) + sg->offset;
+		buffer = kmap_atomic(sg_page(sg)) + sg->offset;
 
 		memcpy(buffer, inqdata, sizeof(inqdata));
 		sg = scsi_sglist(cmd);
-		kunmap_atomic(buffer - sg->offset, KM_IRQ0);
+		kunmap_atomic(buffer - sg->offset);
 
 		cmd->scsi_done(cmd);
 	}

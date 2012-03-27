@@ -91,8 +91,10 @@ static int ltc4215_get_voltage(struct device *dev, u8 reg)
 		voltage = regval * 605 / 10;
 		break;
 	case LTC4215_ADIN:
-		/* The ADIN input is divided by 12.5, and has 4.82 mV
-		 * per increment, so we have the additional multiply */
+		/*
+		 * The ADIN input is divided by 12.5, and has 4.82 mV
+		 * per increment, so we have the additional multiply
+		 */
 		voltage = regval * 482 * 125 / 1000;
 		break;
 	default:
@@ -109,7 +111,8 @@ static unsigned int ltc4215_get_current(struct device *dev)
 {
 	struct ltc4215_data *data = ltc4215_update_device(dev);
 
-	/* The strange looking conversions that follow are fixed-point
+	/*
+	 * The strange looking conversions that follow are fixed-point
 	 * math, since we cannot do floating point in the kernel.
 	 *
 	 * Step 1: convert sense register to microVolts
@@ -176,7 +179,8 @@ static ssize_t ltc4215_show_alarm(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%u\n", (reg & mask) ? 1 : 0);
 }
 
-/* These macros are used below in constructing device attribute objects
+/*
+ * These macros are used below in constructing device attribute objects
  * for use with sysfs_create_group() to make a sysfs device file
  * for each register.
  */
@@ -215,7 +219,8 @@ LTC4215_ALARM(in1_min_alarm,	(1 << 1),	LTC4215_STATUS);
 LTC4215_VOLTAGE(in2_input,			LTC4215_SOURCE);
 LTC4215_ALARM(in2_min_alarm,	(1 << 3),	LTC4215_STATUS);
 
-/* Finally, construct an array of pointers to members of the above objects,
+/*
+ * Finally, construct an array of pointers to members of the above objects,
  * as required for sysfs_create_group()
  */
 static struct attribute *ltc4215_attributes[] = {
@@ -309,19 +314,8 @@ static struct i2c_driver ltc4215_driver = {
 	.id_table	= ltc4215_id,
 };
 
-static int __init ltc4215_init(void)
-{
-	return i2c_add_driver(&ltc4215_driver);
-}
-
-static void __exit ltc4215_exit(void)
-{
-	i2c_del_driver(&ltc4215_driver);
-}
+module_i2c_driver(ltc4215_driver);
 
 MODULE_AUTHOR("Ira W. Snyder <iws@ovro.caltech.edu>");
 MODULE_DESCRIPTION("LTC4215 driver");
 MODULE_LICENSE("GPL");
-
-module_init(ltc4215_init);
-module_exit(ltc4215_exit);

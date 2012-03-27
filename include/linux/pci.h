@@ -746,28 +746,28 @@ int pci_bus_write_config_dword(struct pci_bus *bus, unsigned int devfn,
 			       int where, u32 val);
 struct pci_ops *pci_bus_set_ops(struct pci_bus *bus, struct pci_ops *ops);
 
-static inline int pci_read_config_byte(struct pci_dev *dev, int where, u8 *val)
+static inline int pci_read_config_byte(const struct pci_dev *dev, int where, u8 *val)
 {
 	return pci_bus_read_config_byte(dev->bus, dev->devfn, where, val);
 }
-static inline int pci_read_config_word(struct pci_dev *dev, int where, u16 *val)
+static inline int pci_read_config_word(const struct pci_dev *dev, int where, u16 *val)
 {
 	return pci_bus_read_config_word(dev->bus, dev->devfn, where, val);
 }
-static inline int pci_read_config_dword(struct pci_dev *dev, int where,
+static inline int pci_read_config_dword(const struct pci_dev *dev, int where,
 					u32 *val)
 {
 	return pci_bus_read_config_dword(dev->bus, dev->devfn, where, val);
 }
-static inline int pci_write_config_byte(struct pci_dev *dev, int where, u8 val)
+static inline int pci_write_config_byte(const struct pci_dev *dev, int where, u8 val)
 {
 	return pci_bus_write_config_byte(dev->bus, dev->devfn, where, val);
 }
-static inline int pci_write_config_word(struct pci_dev *dev, int where, u16 val)
+static inline int pci_write_config_word(const struct pci_dev *dev, int where, u16 val)
 {
 	return pci_bus_write_config_word(dev->bus, dev->devfn, where, val);
 }
-static inline int pci_write_config_dword(struct pci_dev *dev, int where,
+static inline int pci_write_config_dword(const struct pci_dev *dev, int where,
 					 u32 val)
 {
 	return pci_bus_write_config_dword(dev->bus, dev->devfn, where, val);
@@ -817,6 +817,7 @@ int pcie_set_readrq(struct pci_dev *dev, int rq);
 int pcie_get_mps(struct pci_dev *dev);
 int pcie_set_mps(struct pci_dev *dev, int mps);
 int __pci_reset_function(struct pci_dev *dev);
+int __pci_reset_function_locked(struct pci_dev *dev);
 int pci_reset_function(struct pci_dev *dev);
 void pci_update_resource(struct pci_dev *dev, int resno);
 int __must_check pci_assign_resource(struct pci_dev *dev, int i);
@@ -946,6 +947,19 @@ int __must_check __pci_register_driver(struct pci_driver *, struct module *,
 	__pci_register_driver(driver, THIS_MODULE, KBUILD_MODNAME)
 
 void pci_unregister_driver(struct pci_driver *dev);
+
+/**
+ * module_pci_driver() - Helper macro for registering a PCI driver
+ * @__pci_driver: pci_driver struct
+ *
+ * Helper macro for PCI drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only
+ * use this macro once, and calling it replaces module_init() and module_exit()
+ */
+#define module_pci_driver(__pci_driver) \
+	module_driver(__pci_driver, pci_register_driver, \
+		       pci_unregister_driver)
+
 void pci_remove_behind_bridge(struct pci_dev *dev);
 struct pci_driver *pci_dev_driver(const struct pci_dev *dev);
 int pci_add_dynid(struct pci_driver *drv,
@@ -1646,6 +1660,13 @@ static inline void pci_release_of_node(struct pci_dev *dev) { }
 static inline void pci_set_bus_of_node(struct pci_bus *bus) { }
 static inline void pci_release_bus_of_node(struct pci_bus *bus) { }
 #endif  /* CONFIG_OF */
+
+#ifdef CONFIG_EEH
+static inline struct eeh_dev *pci_dev_to_eeh_dev(struct pci_dev *pdev)
+{
+	return pdev->dev.archdata.edev;
+}
+#endif
 
 /**
  * pci_find_upstream_pcie_bridge - find upstream PCIe-to-PCI bridge of a device
