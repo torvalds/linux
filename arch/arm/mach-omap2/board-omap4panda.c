@@ -271,9 +271,9 @@ static int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
 	struct omap2_hsmmc_info *c;
 
-	omap2_hsmmc_init(controllers);
+	omap_hsmmc_init(controllers);
 	for (c = controllers; c->mmc; c++)
-		omap4_twl6030_hsmmc_set_late_init(c->dev);
+		omap4_twl6030_hsmmc_set_late_init(&c->pdev->dev);
 
 	return 0;
 }
@@ -504,7 +504,7 @@ static struct omap_dss_board_info omap4_panda_dss_data = {
 	.default_device	= &omap4_panda_dvi_device,
 };
 
-void omap4_panda_display_init(void)
+void __init omap4_panda_display_init(void)
 {
 	int r;
 

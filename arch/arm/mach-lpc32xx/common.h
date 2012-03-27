@@ -65,7 +65,6 @@ extern u32 clk_get_pclk_div(void);
  */
 extern void lpc32xx_get_uid(u32 devid[4]);
 
-extern void lpc32xx_watchdog_reset(void);
 extern u32 lpc32xx_return_iram_size(void);
 
 /*

@@ -101,10 +101,13 @@ void __init gpmc_smsc911x_init(struct omap_smsc911x_platform_data *board_data)
 
 	gpmc_cfg = board_data;
 
-	ret = platform_device_register(&gpmc_smsc911x_regulator);
-	if (ret < 0) {
-		pr_err("Unable to register smsc911x regulators: %d\n", ret);
-		return;
+	if (!gpmc_cfg->id) {
+		ret = platform_device_register(&gpmc_smsc911x_regulator);
+		if (ret < 0) {
+			pr_err("Unable to register smsc911x regulators: %d\n",
+			       ret);
+			return;
+		}
 	}
 
 	if (gpmc_cs_request(gpmc_cfg->cs, SZ_16M, &cs_mem_base) < 0) {
