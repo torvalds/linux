@@ -790,20 +790,20 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 			aCWmin = 15;
 
 		switch (queue) {
-		case 3: /* AC_BK */
+		case IEEE80211_AC_BK:
 			qparam.cw_max = aCWmax;
 			qparam.cw_min = aCWmin;
 			qparam.txop = 0;
 			qparam.aifs = 7;
 			break;
 		default: /* never happens but let's not leave undefined */
-		case 2: /* AC_BE */
+		case IEEE80211_AC_BE:
 			qparam.cw_max = aCWmax;
 			qparam.cw_min = aCWmin;
 			qparam.txop = 0;
 			qparam.aifs = 3;
 			break;
-		case 1: /* AC_VI */
+		case IEEE80211_AC_VI:
 			qparam.cw_max = aCWmin;
 			qparam.cw_min = (aCWmin + 1) / 2 - 1;
 			if (use_11b)
@@ -812,7 +812,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 				qparam.txop = 3008/32;
 			qparam.aifs = 2;
 			break;
-		case 0: /* AC_VO */
+		case IEEE80211_AC_VO:
 			qparam.cw_max = (aCWmin + 1) / 2 - 1;
 			qparam.cw_min = (aCWmin + 1) / 4 - 1;
 			if (use_11b)
