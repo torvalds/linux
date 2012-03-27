@@ -1,7 +1,7 @@
 /*-*-linux-c-*-*/
 
 /*
-  Copyright (C) 2007,2008 Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
+  Copyright (C) 2007,2008 Jonathan Woithe <jwoithe@just42.net>
   Copyright (C) 2008 Peter Gruber <nokos@gmx.net>
   Copyright (C) 2008 Tony Vroon <tony@linx.net>
   Based on earlier work:

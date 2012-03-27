@@ -7,7 +7,7 @@
     Thanks to Pierfrancesco 'qM2' Passerini.
 
     Generalised for soundcards based on DT-0196 and ALS-007 chips
-    by Jonathan Woithe <jwoithe@physics.adelaide.edu.au>: June 2002.
+    by Jonathan Woithe <jwoithe@just42.net>: June 2002.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
