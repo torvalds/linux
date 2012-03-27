@@ -463,7 +463,7 @@ static int rk_fb_set_par(struct fb_info *info)
     smem_len = fix->line_length * yvir + cblen + crlen;
    // map_size = PAGE_ALIGN(smem_len);
 
-    fix->smem_len = smem_len;
+    //fix->smem_len = smem_len;
     par->xpos = xpos;
     par->ypos = ypos;
     par->xsize = xsize;
