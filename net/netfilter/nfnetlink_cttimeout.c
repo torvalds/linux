@@ -98,11 +98,13 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 		break;
 	}
 
-	l4proto = __nf_ct_l4proto_find(l3num, l4num);
+	l4proto = nf_ct_l4proto_find_get(l3num, l4num);
 
 	/* This protocol is not supportted, skip. */
-	if (l4proto->l4proto != l4num)
-		return -EOPNOTSUPP;
+	if (l4proto->l4proto != l4num) {
+		ret = -EOPNOTSUPP;
+		goto err_proto_put;
+	}
 
 	if (matching) {
 		if (nlh->nlmsg_flags & NLM_F_REPLACE) {
@@ -110,20 +112,25 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 			 * different kind, sorry.
 			 */
 			if (matching->l3num != l3num ||
-			    matching->l4num != l4num)
-				return -EINVAL;
+			    matching->l4proto->l4proto != l4num) {
+				ret = -EINVAL;
+				goto err_proto_put;
+			}
 
 			ret = ctnl_timeout_parse_policy(matching, l4proto,
 							cda[CTA_TIMEOUT_DATA]);
 			return ret;
 		}
-		return -EBUSY;
+		ret = -EBUSY;
+		goto err_proto_put;
 	}
 
 	timeout = kzalloc(sizeof(struct ctnl_timeout) +
 			  l4proto->ctnl_timeout.obj_size, GFP_KERNEL);
-	if (timeout == NULL)
-		return -ENOMEM;
+	if (timeout == NULL) {
+		ret = -ENOMEM;
+		goto err_proto_put;
+	}
 
 	ret = ctnl_timeout_parse_policy(timeout, l4proto,
 					cda[CTA_TIMEOUT_DATA]);
@@ -132,13 +139,15 @@ cttimeout_new_timeout(struct sock *ctnl, struct sk_buff *skb,
 
 	strcpy(timeout->name, nla_data(cda[CTA_TIMEOUT_NAME]));
 	timeout->l3num = l3num;
-	timeout->l4num = l4num;
+	timeout->l4proto = l4proto;
 	atomic_set(&timeout->refcnt, 1);
 	list_add_tail_rcu(&timeout->head, &cttimeout_list);
 
 	return 0;
 err:
 	kfree(timeout);
+err_proto_put:
+	nf_ct_l4proto_put(l4proto);
 	return ret;
 }
 
@@ -149,7 +158,7 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
 	unsigned int flags = pid ? NLM_F_MULTI : 0;
-	struct nf_conntrack_l4proto *l4proto;
+	struct nf_conntrack_l4proto *l4proto = timeout->l4proto;
 
 	event |= NFNL_SUBSYS_CTNETLINK_TIMEOUT << 8;
 	nlh = nlmsg_put(skb, pid, seq, event, sizeof(*nfmsg), flags);
@@ -163,19 +172,9 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
 
 	NLA_PUT_STRING(skb, CTA_TIMEOUT_NAME, timeout->name);
 	NLA_PUT_BE16(skb, CTA_TIMEOUT_L3PROTO, htons(timeout->l3num));
-	NLA_PUT_U8(skb, CTA_TIMEOUT_L4PROTO, timeout->l4num);
+	NLA_PUT_U8(skb, CTA_TIMEOUT_L4PROTO, timeout->l4proto->l4proto);
 	NLA_PUT_BE32(skb, CTA_TIMEOUT_USE,
 			htonl(atomic_read(&timeout->refcnt)));
-
-	l4proto = __nf_ct_l4proto_find(timeout->l3num, timeout->l4num);
-
-	/* If the timeout object does not match the layer 4 protocol tracker,
-	 * then skip dumping the data part since we don't know how to
-	 * interpret it. This may happen for UPDlite, SCTP and DCCP since
-	 * you can unload the module.
-	 */
-	if (timeout->l4num != l4proto->l4proto)
-		goto out;
 
 	if (likely(l4proto->ctnl_timeout.obj_to_nlattr)) {
 		struct nlattr *nest_parms;
@@ -192,7 +191,7 @@ ctnl_timeout_fill_info(struct sk_buff *skb, u32 pid, u32 seq, u32 type,
 
 		nla_nest_end(skb, nest_parms);
 	}
-out:
+
 	nlmsg_end(skb, nlh);
 	return skb->len;
 
@@ -293,6 +292,7 @@ static int ctnl_timeout_try_del(struct ctnl_timeout *timeout)
 	if (atomic_dec_and_test(&timeout->refcnt)) {
 		/* We are protected by nfnl mutex. */
 		list_del_rcu(&timeout->head);
+		nf_ct_l4proto_put(timeout->l4proto);
 		kfree_rcu(timeout, rcu_head);
 	} else {
 		/* still in use, restore reference counter. */
@@ -417,6 +417,7 @@ static void __exit cttimeout_exit(void)
 		/* We are sure that our objects have no clients at this point,
 		 * it's safe to release them all without checking refcnt.
 		 */
+		nf_ct_l4proto_put(cur->l4proto);
 		kfree_rcu(cur, rcu_head);
 	}
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
