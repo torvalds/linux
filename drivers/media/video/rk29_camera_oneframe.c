@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
+#ifdef CONFIG_ARCH_RK29
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -151,8 +151,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *v0.x.7 : this driver product resolution by IPP crop and scale, which user request but sensor can't support;
 *         note: this version is only provide yifang client, which is not official version;
 *v0.x.8 : this driver and rk29_camera.c support upto 3 back-sensors and upto 3 front-sensors;
+*v0.x.9 : camera io code is compatible for rk29xx and rk30xx
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 8)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 9)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -2280,3 +2281,4 @@ module_exit(rk29_camera_exit);
 MODULE_DESCRIPTION("RK29 Soc Camera Host driver");
 MODULE_AUTHOR("ddl <ddl@rock-chips>");
 MODULE_LICENSE("GPL");
+#endif

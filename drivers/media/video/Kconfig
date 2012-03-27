@@ -1186,7 +1186,7 @@ config VIDEO_RK29_DIGITALZOOM_IPP_OFF
 endchoice
 
 choice
-	prompt "RK29XX camera memory "
+	prompt "RKXX camera memory "
 	depends on VIDEO_RK29 
 	default VIDEO_RK29_CAMMEM_PMEM
 	---help---
@@ -1196,6 +1196,19 @@ config VIDEO_RK29_CAMMEM_PMEM
 
 config VIDEO_RK29_CAMMEM_ION
 	bool "Camera memory from ion"
+endchoice
+
+choice
+	prompt "RKXX CIF work simultaneity"
+	depends on VIDEO_RK29
+	default VIDEO_RKCIF_WORK_SIMUL_OFF
+	---help---
+		where camera memory which is used for preview/raw/jpeg in android camera hal is alloced 
+config VIDEO_RKCIF_WORK_SIMUL_ON
+	bool "Two cif controller can work sumultaneity"
+
+config VIDEO_RKCIF_WORK_SIMUL_OFF
+	bool "Two cif controller cann't work sumultaneity"
 endchoice
 
 config VIDEO_MX2_HOSTSUPPORT

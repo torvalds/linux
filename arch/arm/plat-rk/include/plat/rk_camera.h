@@ -24,7 +24,8 @@
 
 #include <linux/videodev2.h>
 #include <media/soc_camera.h>
-#define RK29_CAM_DRV_NAME "rk30xx-camera"
+
+
 #define RK29_CAM_PLATFORM_DEV_ID 33
 #define RK_CAM_PLATFORM_DEV_ID_0 RK29_CAM_PLATFORM_DEV_ID
 #define RK_CAM_PLATFORM_DEV_ID_1 (RK_CAM_PLATFORM_DEV_ID_0+1)
@@ -34,7 +35,9 @@
 #define RK29_CAM_EIO_INVALID -1
 #define RK29_CAM_EIO_REQUESTFAIL -2
 
-#define RK_CAM_NUM 2
+#define RK_CAM_NUM 6
+#define RK29_CAM_SUPPORT_NUMS  RK_CAM_NUM
+#define RK_CAM_SUPPORT_RESOLUTION 0x500000
 /*---------------- Camera Sensor Must Define Macro Begin  ------------------------*/
 #define RK29_CAM_SENSOR_OV7675 ov7675
 #define RK29_CAM_SENSOR_OV9650 ov9650
@@ -197,15 +200,24 @@ typedef struct rk_sensor_user_init_data{
 	int rk_sensor_winseq_size;
 	struct reginfo_t * rk_sensor_init_winseq;
 }rk_sensor_user_init_data_s;
+
+typedef struct rk_camera_device_register_info {
+    struct i2c_board_info i2c_cam_info;
+    struct soc_camera_link link_info;
+    struct platform_device device_info;
+}rk_camera_device_register_info_t;
+
 struct rk29camera_platform_data {
     int (*io_init)(void);
     int (*io_deinit)(int sensor);
+    int (*iomux)(int pin);
 	int (*sensor_ioctrl)(struct device *dev,enum rk29camera_ioctrl_cmd cmd,int on);
 	rk_sensor_user_init_data_s* sensor_init_data[RK_CAM_NUM];
 	struct rk29camera_gpio_res gpio_res[RK_CAM_NUM];
 	struct rk29camera_mem_res meminfo;
 	struct rk29camera_mem_res meminfo_cif1;
 	struct rk29camera_info info[RK_CAM_NUM];
+    rk_camera_device_register_info_t register_dev[RK_CAM_NUM];
 };
 
 struct rk29camera_platform_ioctl_cb {
@@ -218,7 +230,5 @@ struct rk29camera_platform_ioctl_cb {
 typedef struct rk29_camera_sensor_cb {
     int (*sensor_cb)(void *arg); 
 }rk29_camera_sensor_cb_s;
-
-
 #endif /* __ASM_ARCH_CAMERA_H_ */
 

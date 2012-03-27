@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#if CONFIG_ARCH_RK30
+#ifdef CONFIG_ARCH_RK30
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
