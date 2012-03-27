@@ -57,8 +57,6 @@
 #include <mach/sh7372.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
-#include <asm/mach/map.h>
 #include <asm/mach-types.h>
 
 /*
@@ -1329,29 +1327,13 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
-static struct map_desc mackerel_io_desc[] __initdata = {
-	/* create a 1:1 entity map for 0xe6xxxxxx
-	 * used by CPGA, INTC and PFC.
-	 */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 256 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
 static void __init mackerel_map_io(void)
 {
-	iotable_init(mackerel_io_desc, ARRAY_SIZE(mackerel_io_desc));
+	sh7372_map_io();
 	/* DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
 	 * enough to allocate the frame buffer memory.
 	 */
 	init_consistent_dma_size(12 << 20);
-
-	/* setup early devices and console here as well */
-	sh7372_add_early_devices();
-	shmobile_setup_console();
 }
 
 #define GPIO_PORT9CR	0xE6051009
@@ -1365,6 +1347,9 @@ static void __init mackerel_init(void)
 	u32 srcr4;
 	struct clk *clk;
 	int ret;
+
+	/* External clock source */
+	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 
 	sh7372_pinmux_init();
 
@@ -1569,23 +1554,11 @@ static void __init mackerel_init(void)
 	pm_clk_add(&hdmi_lcdc_device.dev, "hdmi");
 }
 
-static void __init mackerel_timer_init(void)
-{
-	sh7372_clock_init();
-	shmobile_timer.init();
-
-	/* External clock source */
-	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
-}
-
-static struct sys_timer mackerel_timer = {
-	.init		= mackerel_timer_init,
-};
-
 MACHINE_START(MACKEREL, "mackerel")
 	.map_io		= mackerel_map_io,
+	.init_early	= sh7372_add_early_devices,
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= mackerel_init,
-	.timer		= &mackerel_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END
