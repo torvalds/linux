@@ -230,6 +230,7 @@ config IMX_SDMA
 
 config IMX_DMA
 	tristate "i.MX DMA support"
+	depends on ARCH_MXC
 	select DMA_ENGINE
 	help
 	  Support the i.MX DMA engine. This engine is integrated into
