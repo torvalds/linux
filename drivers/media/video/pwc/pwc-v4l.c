@@ -1166,4 +1166,6 @@ const struct v4l2_ioctl_ops pwc_ioctl_ops = {
 	.vidioc_enum_frameintervals	    = pwc_enum_frameintervals,
 	.vidioc_g_parm			    = pwc_g_parm,
 	.vidioc_s_parm			    = pwc_s_parm,
+	.vidioc_subscribe_event		    = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event	    = v4l2_event_unsubscribe,
 };
