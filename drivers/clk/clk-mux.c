@@ -97,7 +97,7 @@ struct clk *clk_register_mux(struct device *dev, const char *name,
 {
 	struct clk_mux *mux;
 
-	mux = kmalloc(sizeof(struct clk_mux), GFP_KERNEL);
+	mux = kzalloc(sizeof(struct clk_mux), GFP_KERNEL);
 
 	if (!mux) {
 		pr_err("%s: could not allocate mux clk\n", __func__);
