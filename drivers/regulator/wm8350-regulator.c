@@ -99,7 +99,7 @@ static int get_isink_val(int min_uA, int max_uA, u16 *setting)
 {
 	int i;
 
-	for (i = ARRAY_SIZE(isink_cur) - 1; i >= 0; i--) {
+	for (i = 0; i < ARRAY_SIZE(isink_cur); i++) {
 		if (min_uA <= isink_cur[i] && max_uA >= isink_cur[i]) {
 			*setting = i;
 			return 0;
