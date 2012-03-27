@@ -38,7 +38,7 @@ static inline void *cvm_oct_get_buffer_ptr(union cvmx_buf_ptr packet_ptr)
 }
 
 /**
- * INTERFACE - convert IPD port to locgical interface
+ * INTERFACE - convert IPD port to logical interface
  * @ipd_port: Port to check
  *
  * Returns Logical interface
