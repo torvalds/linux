@@ -28,9 +28,3 @@ config ADC_RK30
 	help
 		This supports the use of the ADC interface on rk30 processors.
 endchoice
-
-config TSADC_RK30
-	bool "RK30 tsadc interface"
-        depends on ARCH_RK30
-	help
-		This supports the use of the TSADC interface on rk30 processors.
