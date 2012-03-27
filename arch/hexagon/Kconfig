@@ -33,19 +33,6 @@ config HEXAGON
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
 
-
-config HEXAGON_ARCH_V1
-	bool
-
-config HEXAGON_ARCH_V2
-	bool
-
-config HEXAGON_ARCH_V3
-	bool
-
-config HEXAGON_ARCH_V4
-	bool
-
 config HEXAGON_PHYS_OFFSET
 	def_bool y
 	---help---
@@ -109,11 +96,14 @@ choice
 
 config HEXAGON_COMET
 	bool "Comet Board"
-	select HEXAGON_ARCH_V2
 	---help---
 	  Support for the Comet platform.
 
 endchoice
+
+config HEXAGON_ARCH_VERSION
+	int "Architecture version"
+	default 2
 
 config HEXAGON_VM
 	def_bool y
