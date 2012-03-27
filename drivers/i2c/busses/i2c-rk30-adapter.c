@@ -301,7 +301,6 @@ static void rk30_i2c_irq_nextblock(struct rk30_i2c *i2c, unsigned int ipd)
                         goto out;
                 }
 
-                        rk30_show_regs(i2c);
                 i2c_writel(I2C_STARTIPD, i2c->regs + I2C_IPD);
                 rk30_i2c_clean_start(i2c);
                 if(i2c->mode ==  I2C_CON_MOD_TX){
@@ -321,7 +320,6 @@ static void rk30_i2c_irq_nextblock(struct rk30_i2c *i2c, unsigned int ipd)
                         i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                         goto out;
                 }
-                        rk30_show_regs(i2c);
                 i2c_writel(I2C_MBTFIPD, i2c->regs + I2C_IPD);
 prepare_write:
                 rk30_irq_write_prepare(i2c);
@@ -334,7 +332,6 @@ prepare_write:
                         i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                         goto out;
                 }
-                        rk30_show_regs(i2c);
                 i2c_writel(I2C_MBRFIPD, i2c->regs + I2C_IPD);
                 rk30_irq_read_get_data(i2c);
 prepare_read:
@@ -348,7 +345,6 @@ prepare_read:
                         i2c_writel(I2C_IPD_ALL_CLEAN, i2c->regs + I2C_IPD);
                         goto out;
                 }
-                        rk30_show_regs(i2c);
                 rk30_i2c_clean_stop(i2c);
                 i2c_writel(I2C_STOPIPD, i2c->regs + I2C_IPD);
                 i2c->state = STATE_IDLE;
@@ -473,7 +469,6 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 
         i2c_writel(I2C_STARTIEN, i2c->regs + I2C_IEN);
         rk30_i2c_enable(i2c, (i2c->count > 32)?0:1); //if count > 32,  byte(32) send ack
-        rk30_show_regs(i2c);
 	//rk30_i2c_enable_irq(i2c);
         //rk30_i2c_send_start(i2c);
 
@@ -492,7 +487,6 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 	rk30_i2c_disable_irq(i2c);
         rk30_i2c_disable(i2c);
         i2c_dbg(i2c->dev, "i2c transfer finished ret = %d\n", ret);
-        rk30_show_regs(i2c);
 	return ret;
 }
 
