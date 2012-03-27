@@ -13,7 +13,24 @@
 #include <mach/iomux.h>
 #include <mach/fiq.h>
 
-
+static void __init rk30_cpu_axi_init(void)
+{
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0088);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0108);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0188);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x0388);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x4008);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x5008);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x6008);
+	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x7008);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7088);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7108);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7188);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7208);
+	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7288);
+	writel_relaxed(0x3f, RK30_CPU_AXI_BUS_BASE + 0x0014);
+	dsb();
+}
 
 static void __init rk30_l2_cache_init(void)
 {
@@ -68,6 +85,7 @@ void __init rk30_map_io(void)
 {
 	rk30_map_common_io();
 	rk29_setup_early_printk();
+	rk30_cpu_axi_init();
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();

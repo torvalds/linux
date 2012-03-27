@@ -29,6 +29,7 @@
 
 static struct map_desc rk30_io_desc[] __initdata = {
 	RK30_DEVICE(CORE),
+	RK30_DEVICE(CPU_AXI_BUS),
 #if CONFIG_RK_DEBUG_UART == 0
 	RK30_DEVICE(UART0),
 #elif CONFIG_RK_DEBUG_UART == 1
