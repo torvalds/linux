@@ -101,8 +101,9 @@ void rk30_fiq_init(void)
 		writel_relaxed(0xffffffff, RK30_GICD_BASE + GIC_DIST_SECURITY + (i<<2));
 	}
 	dsb();
-
 	writel_relaxed(0x3, RK30_GICD_BASE + GIC_DIST_CTRL);
-	writel_relaxed(0xf, RK30_GICC_BASE + GIC_CPU_CTRL);
+	writel_relaxed(0x0f, RK30_GICC_BASE + GIC_CPU_CTRL);
+	//set the uart 2(the debug port) priority a little higher than other interrupts
+	writel_relaxed(0xa0a0a090, RK30_GICD_BASE + GIC_DIST_PRI + (IRQ_UART2/4)*4);
 	dsb();
 }
