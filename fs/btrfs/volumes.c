@@ -622,6 +622,8 @@ static int __btrfs_open_devices(struct btrfs_fs_devices *fs_devices,
 			printk(KERN_INFO "open %s failed\n", device->name);
 			goto error;
 		}
+		filemap_write_and_wait(bdev->bd_inode->i_mapping);
+		invalidate_bdev(bdev);
 		set_blocksize(bdev, 4096);
 
 		bh = btrfs_read_dev_super(bdev);
@@ -1354,6 +1356,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		}
 
 		set_blocksize(bdev, 4096);
+		invalidate_bdev(bdev);
 		bh = btrfs_read_dev_super(bdev);
 		if (!bh) {
 			ret = -EINVAL;

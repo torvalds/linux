@@ -2031,6 +2031,7 @@ int open_ctree(struct super_block *sb,
 	__setup_root(4096, 4096, 4096, 4096, tree_root,
 		     fs_info, BTRFS_ROOT_TREE_OBJECTID);
 
+	invalidate_bdev(fs_devices->latest_bdev);
 	bh = btrfs_read_dev_super(fs_devices->latest_bdev);
 	if (!bh) {
 		err = -EINVAL;
