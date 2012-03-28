@@ -3487,6 +3487,11 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+static int valleyview_get_display_clock_speed(struct drm_device *dev)
+{
+	return 400000; /* FIXME */
+}
+
 static int i945_get_display_clock_speed(struct drm_device *dev)
 {
 	return 400000;
@@ -8987,7 +8992,10 @@ static void intel_init_display(struct drm_device *dev)
 	}
 
 	/* Returns the core display clock speed */
-	if (IS_I945G(dev) || (IS_G33(dev) && !IS_PINEVIEW_M(dev)))
+	if (IS_VALLEYVIEW(dev))
+		dev_priv->display.get_display_clock_speed =
+			valleyview_get_display_clock_speed;
+	else if (IS_I945G(dev) || (IS_G33(dev) && !IS_PINEVIEW_M(dev)))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
 	else if (IS_I915G(dev))

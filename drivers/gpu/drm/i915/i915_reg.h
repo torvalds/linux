@@ -796,7 +796,9 @@
 #define DPLL(pipe) _PIPE(pipe, _DPLL_A, _DPLL_B)
 #define   DPLL_VCO_ENABLE		(1 << 31)
 #define   DPLL_DVO_HIGH_SPEED		(1 << 30)
+#define   DPLL_EXT_BUFFER_ENABLE_VLV	(1 << 30)
 #define   DPLL_SYNCLOCK_ENABLE		(1 << 29)
+#define   DPLL_REFA_CLK_ENABLE_VLV	(1 << 29)
 #define   DPLL_VGA_MODE_DIS		(1 << 28)
 #define   DPLLB_MODE_DAC_SERIAL		(1 << 26) /* i915 */
 #define   DPLLB_MODE_LVDS		(2 << 26) /* i915 */
@@ -808,6 +810,7 @@
 #define   DPLL_P2_CLOCK_DIV_MASK	0x03000000 /* i915 */
 #define   DPLL_FPA01_P1_POST_DIV_MASK	0x00ff0000 /* i915 */
 #define   DPLL_FPA01_P1_POST_DIV_MASK_PINEVIEW	0x00ff8000 /* Pineview */
+#define   DPLL_INTEGRATED_CLOCK_VLV	(1<<13)
 
 #define SRX_INDEX		0x3c4
 #define SRX_DATA		0x3c5
@@ -903,6 +906,7 @@
 #define   DPLL_MD_VGA_UDI_MULTIPLIER_SHIFT	0
 #define _DPLL_B_MD 0x06020 /* 965+ only */
 #define DPLL_MD(pipe) _PIPE(pipe, _DPLL_A_MD, _DPLL_B_MD)
+
 #define _FPA0	0x06040
 #define _FPA1	0x06044
 #define _FPB0	0x06048
