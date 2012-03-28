@@ -209,6 +209,7 @@ static int microblaze_debugfs_init(void)
 }
 arch_initcall(microblaze_debugfs_init);
 
+# ifdef CONFIG_MMU
 static int __init debugfs_tlb(void)
 {
 	struct dentry *d;
@@ -221,6 +222,7 @@ static int __init debugfs_tlb(void)
 		return -ENOMEM;
 }
 device_initcall(debugfs_tlb);
+# endif
 #endif
 
 static int dflt_bus_notify(struct notifier_block *nb,
