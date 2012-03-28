@@ -1171,6 +1171,17 @@ static int gen6_drpc_info(struct seq_file *m)
 
 	seq_printf(m, "Core Power Down: %s\n",
 		   yesno(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
+
+	/* Not exactly sure what this is */
+	seq_printf(m, "RC6 \"Locked to RPn\" residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6_LOCKED));
+	seq_printf(m, "RC6 residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6));
+	seq_printf(m, "RC6+ residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6p));
+	seq_printf(m, "RC6++ residency since boot: %u\n",
+		   I915_READ(GEN6_GT_GFX_RC6pp));
+
 	return 0;
 }
 
