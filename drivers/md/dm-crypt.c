@@ -1044,16 +1044,14 @@ static void kcryptd_queue_io(struct dm_crypt_io *io)
 	queue_work(cc->io_queue, &io->work);
 }
 
-static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io,
-					  int error, int async)
+static void kcryptd_crypt_write_io_submit(struct dm_crypt_io *io, int async)
 {
 	struct bio *clone = io->ctx.bio_out;
 	struct crypt_config *cc = io->target->private;
 
-	if (unlikely(error < 0)) {
+	if (unlikely(io->error < 0)) {
 		crypt_free_buffer_pages(cc, clone);
 		bio_put(clone);
-		io->error = -EIO;
 		crypt_dec_pending(io);
 		return;
 	}
@@ -1104,12 +1102,16 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 		sector += bio_sectors(clone);
 
 		crypt_inc_pending(io);
+
 		r = crypt_convert(cc, &io->ctx);
+		if (r < 0)
+			io->error = -EIO;
+
 		crypt_finished = atomic_dec_and_test(&io->ctx.pending);
 
 		/* Encryption was already finished, submit io now */
 		if (crypt_finished) {
-			kcryptd_crypt_write_io_submit(io, r, 0);
+			kcryptd_crypt_write_io_submit(io, 0);
 
 			/*
 			 * If there was an error, do not try next fragments.
@@ -1160,11 +1162,8 @@ static void kcryptd_crypt_write_convert(struct dm_crypt_io *io)
 	crypt_dec_pending(io);
 }
 
-static void kcryptd_crypt_read_done(struct dm_crypt_io *io, int error)
+static void kcryptd_crypt_read_done(struct dm_crypt_io *io)
 {
-	if (unlikely(error < 0))
-		io->error = -EIO;
-
 	crypt_dec_pending(io);
 }
 
@@ -1179,9 +1178,11 @@ static void kcryptd_crypt_read_convert(struct dm_crypt_io *io)
 			   io->sector);
 
 	r = crypt_convert(cc, &io->ctx);
+	if (r < 0)
+		io->error = -EIO;
 
 	if (atomic_dec_and_test(&io->ctx.pending))
-		kcryptd_crypt_read_done(io, r);
+		kcryptd_crypt_read_done(io);
 
 	crypt_dec_pending(io);
 }
@@ -1202,15 +1203,18 @@ static void kcryptd_async_done(struct crypto_async_request *async_req,
 	if (!error && cc->iv_gen_ops && cc->iv_gen_ops->post)
 		error = cc->iv_gen_ops->post(cc, iv_of_dmreq(cc, dmreq), dmreq);
 
+	if (error < 0)
+		io->error = -EIO;
+
 	mempool_free(req_of_dmreq(cc, dmreq), cc->req_pool);
 
 	if (!atomic_dec_and_test(&ctx->pending))
 		return;
 
 	if (bio_data_dir(io->base_bio) == READ)
-		kcryptd_crypt_read_done(io, error);
+		kcryptd_crypt_read_done(io);
 	else
-		kcryptd_crypt_write_io_submit(io, error, 1);
+		kcryptd_crypt_write_io_submit(io, 1);
 }
 
 static void kcryptd_crypt(struct work_struct *work)
