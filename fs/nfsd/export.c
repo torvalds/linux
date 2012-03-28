@@ -71,9 +71,9 @@ static int expkey_upcall(struct cache_detail *cd, struct cache_head *h)
 	return sunrpc_cache_pipe_upcall(cd, h, expkey_request);
 }
 
-static struct svc_expkey *svc_expkey_update(struct svc_expkey *new, struct svc_expkey *old);
-static struct svc_expkey *svc_expkey_lookup(struct svc_expkey *);
-static struct cache_detail svc_expkey_cache;
+static struct svc_expkey *svc_expkey_update(struct cache_detail *cd, struct svc_expkey *new,
+					    struct svc_expkey *old);
+static struct svc_expkey *svc_expkey_lookup(struct cache_detail *cd, struct svc_expkey *);
 
 static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 {
@@ -131,7 +131,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	key.ek_fsidtype = fsidtype;
 	memcpy(key.ek_fsid, buf, len);
 
-	ek = svc_expkey_lookup(&key);
+	ek = svc_expkey_lookup(cd, &key);
 	err = -ENOMEM;
 	if (!ek)
 		goto out;
@@ -145,7 +145,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	err = 0;
 	if (len == 0) {
 		set_bit(CACHE_NEGATIVE, &key.h.flags);
-		ek = svc_expkey_update(&key, ek);
+		ek = svc_expkey_update(cd, &key, ek);
 		if (!ek)
 			err = -ENOMEM;
 	} else {
@@ -155,7 +155,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 		dprintk("Found the path %s\n", buf);
 
-		ek = svc_expkey_update(&key, ek);
+		ek = svc_expkey_update(cd, &key, ek);
 		if (!ek)
 			err = -ENOMEM;
 		path_put(&key.ek_path);
@@ -268,13 +268,12 @@ svc_expkey_hash(struct svc_expkey *item)
 }
 
 static struct svc_expkey *
-svc_expkey_lookup(struct svc_expkey *item)
+svc_expkey_lookup(struct cache_detail *cd, struct svc_expkey *item)
 {
 	struct cache_head *ch;
 	int hash = svc_expkey_hash(item);
 
-	ch = sunrpc_cache_lookup(&svc_expkey_cache, &item->h,
-				 hash);
+	ch = sunrpc_cache_lookup(cd, &item->h, hash);
 	if (ch)
 		return container_of(ch, struct svc_expkey, h);
 	else
@@ -282,13 +281,13 @@ svc_expkey_lookup(struct svc_expkey *item)
 }
 
 static struct svc_expkey *
-svc_expkey_update(struct svc_expkey *new, struct svc_expkey *old)
+svc_expkey_update(struct cache_detail *cd, struct svc_expkey *new,
+		  struct svc_expkey *old)
 {
 	struct cache_head *ch;
 	int hash = svc_expkey_hash(new);
 
-	ch = sunrpc_cache_update(&svc_expkey_cache, &new->h,
-				 &old->h, hash);
+	ch = sunrpc_cache_update(cd, &new->h, &old->h, hash);
 	if (ch)
 		return container_of(ch, struct svc_expkey, h);
 	else
@@ -763,7 +762,8 @@ svc_export_update(struct svc_export *new, struct svc_export *old)
 
 
 static struct svc_expkey *
-exp_find_key(svc_client *clp, int fsid_type, u32 *fsidv, struct cache_req *reqp)
+exp_find_key(struct cache_detail *cd, svc_client *clp, int fsid_type,
+	     u32 *fsidv, struct cache_req *reqp)
 {
 	struct svc_expkey key, *ek;
 	int err;
@@ -775,10 +775,10 @@ exp_find_key(svc_client *clp, int fsid_type, u32 *fsidv, struct cache_req *reqp)
 	key.ek_fsidtype = fsid_type;
 	memcpy(key.ek_fsid, fsidv, key_len(fsid_type));
 
-	ek = svc_expkey_lookup(&key);
+	ek = svc_expkey_lookup(cd, &key);
 	if (ek == NULL)
 		return ERR_PTR(-ENOMEM);
-	err = cache_check(&svc_expkey_cache, &ek->h, reqp);
+	err = cache_check(cd, &ek->h, reqp);
 	if (err)
 		return ERR_PTR(err);
 	return ek;
@@ -879,7 +879,7 @@ static struct svc_export *exp_find(struct auth_domain *clp, int fsid_type,
 				   u32 *fsidv, struct cache_req *reqp)
 {
 	struct svc_export *exp;
-	struct svc_expkey *ek = exp_find_key(clp, fsid_type, fsidv, reqp);
+	struct svc_expkey *ek = exp_find_key(&svc_expkey_cache, clp, fsid_type, fsidv, reqp);
 	if (IS_ERR(ek))
 		return ERR_CAST(ek);
 
