@@ -124,7 +124,7 @@ struct cell {
 	struct hlist_node list;
 	struct bio_prison *prison;
 	struct cell_key key;
-	unsigned count;
+	struct bio *holder;
 	struct bio_list bios;
 };
 
@@ -220,54 +220,59 @@ static struct cell *__search_bucket(struct hlist_head *bucket,
  * This may block if a new cell needs allocating.  You must ensure that
  * cells will be unlocked even if the calling thread is blocked.
  *
- * Returns the number of entries in the cell prior to the new addition
- * or < 0 on failure.
+ * Returns 1 if the cell was already held, 0 if @inmate is the new holder.
  */
 static int bio_detain(struct bio_prison *prison, struct cell_key *key,
 		      struct bio *inmate, struct cell **ref)
 {
-	int r;
+	int r = 1;
 	unsigned long flags;
 	uint32_t hash = hash_key(prison, key);
-	struct cell *uninitialized_var(cell), *cell2 = NULL;
+	struct cell *cell, *cell2;
 
 	BUG_ON(hash > prison->nr_buckets);
 
 	spin_lock_irqsave(&prison->lock, flags);
+
 	cell = __search_bucket(prison->cells + hash, key);
-
-	if (!cell) {
-		/*
-		 * Allocate a new cell
-		 */
-		spin_unlock_irqrestore(&prison->lock, flags);
-		cell2 = mempool_alloc(prison->cell_pool, GFP_NOIO);
-		spin_lock_irqsave(&prison->lock, flags);
-
-		/*
-		 * We've been unlocked, so we have to double check that
-		 * nobody else has inserted this cell in the meantime.
-		 */
-		cell = __search_bucket(prison->cells + hash, key);
-
-		if (!cell) {
-			cell = cell2;
-			cell2 = NULL;
-
-			cell->prison = prison;
-			memcpy(&cell->key, key, sizeof(cell->key));
-			cell->count = 0;
-			bio_list_init(&cell->bios);
-			hlist_add_head(&cell->list, prison->cells + hash);
-		}
+	if (cell) {
+		bio_list_add(&cell->bios, inmate);
+		goto out;
 	}
 
-	r = cell->count++;
-	bio_list_add(&cell->bios, inmate);
+	/*
+	 * Allocate a new cell
+	 */
 	spin_unlock_irqrestore(&prison->lock, flags);
+	cell2 = mempool_alloc(prison->cell_pool, GFP_NOIO);
+	spin_lock_irqsave(&prison->lock, flags);
 
-	if (cell2)
+	/*
+	 * We've been unlocked, so we have to double check that
+	 * nobody else has inserted this cell in the meantime.
+	 */
+	cell = __search_bucket(prison->cells + hash, key);
+	if (cell) {
 		mempool_free(cell2, prison->cell_pool);
+		bio_list_add(&cell->bios, inmate);
+		goto out;
+	}
+
+	/*
+	 * Use new cell.
+	 */
+	cell = cell2;
+
+	cell->prison = prison;
+	memcpy(&cell->key, key, sizeof(cell->key));
+	cell->holder = inmate;
+	bio_list_init(&cell->bios);
+	hlist_add_head(&cell->list, prison->cells + hash);
+
+	r = 0;
+
+out:
+	spin_unlock_irqrestore(&prison->lock, flags);
 
 	*ref = cell;
 
@@ -283,8 +288,8 @@ static void __cell_release(struct cell *cell, struct bio_list *inmates)
 
 	hlist_del(&cell->list);
 
-	if (inmates)
-		bio_list_merge(inmates, &cell->bios);
+	bio_list_add(inmates, cell->holder);
+	bio_list_merge(inmates, &cell->bios);
 
 	mempool_free(cell, prison->cell_pool);
 }
@@ -305,22 +310,44 @@ static void cell_release(struct cell *cell, struct bio_list *bios)
  * bio may be in the cell.  This function releases the cell, and also does
  * a sanity check.
  */
+static void __cell_release_singleton(struct cell *cell, struct bio *bio)
+{
+	hlist_del(&cell->list);
+	BUG_ON(cell->holder != bio);
+	BUG_ON(!bio_list_empty(&cell->bios));
+}
+
 static void cell_release_singleton(struct cell *cell, struct bio *bio)
 {
-	struct bio_prison *prison = cell->prison;
-	struct bio_list bios;
-	struct bio *b;
 	unsigned long flags;
-
-	bio_list_init(&bios);
+	struct bio_prison *prison = cell->prison;
 
 	spin_lock_irqsave(&prison->lock, flags);
-	__cell_release(cell, &bios);
+	__cell_release_singleton(cell, bio);
 	spin_unlock_irqrestore(&prison->lock, flags);
+}
 
-	b = bio_list_pop(&bios);
-	BUG_ON(b != bio);
-	BUG_ON(!bio_list_empty(&bios));
+/*
+ * Sometimes we don't want the holder, just the additional bios.
+ */
+static void __cell_release_no_holder(struct cell *cell, struct bio_list *inmates)
+{
+	struct bio_prison *prison = cell->prison;
+
+	hlist_del(&cell->list);
+	bio_list_merge(inmates, &cell->bios);
+
+	mempool_free(cell, prison->cell_pool);
+}
+
+static void cell_release_no_holder(struct cell *cell, struct bio_list *inmates)
+{
+	unsigned long flags;
+	struct bio_prison *prison = cell->prison;
+
+	spin_lock_irqsave(&prison->lock, flags);
+	__cell_release_no_holder(cell, inmates);
+	spin_unlock_irqrestore(&prison->lock, flags);
 }
 
 static void cell_error(struct cell *cell)
@@ -800,21 +827,16 @@ static void cell_defer(struct thin_c *tc, struct cell *cell,
  * Same as cell_defer above, except it omits one particular detainee,
  * a write bio that covers the block and has already been processed.
  */
-static void cell_defer_except(struct thin_c *tc, struct cell *cell,
-			      struct bio *exception)
+static void cell_defer_except(struct thin_c *tc, struct cell *cell)
 {
 	struct bio_list bios;
-	struct bio *bio;
 	struct pool *pool = tc->pool;
 	unsigned long flags;
 
 	bio_list_init(&bios);
-	cell_release(cell, &bios);
 
 	spin_lock_irqsave(&pool->lock, flags);
-	while ((bio = bio_list_pop(&bios)))
-		if (bio != exception)
-			bio_list_add(&pool->deferred_bios, bio);
+	cell_release_no_holder(cell, &pool->deferred_bios);
 	spin_unlock_irqrestore(&pool->lock, flags);
 
 	wake_worker(pool);
@@ -854,7 +876,7 @@ static void process_prepared_mapping(struct new_mapping *m)
 	 * the bios in the cell.
 	 */
 	if (bio) {
-		cell_defer_except(tc, m->cell, bio);
+		cell_defer_except(tc, m->cell);
 		bio_endio(bio, 0);
 	} else
 		cell_defer(tc, m->cell, m->data_block);
