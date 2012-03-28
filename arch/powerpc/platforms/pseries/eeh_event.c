@@ -59,7 +59,7 @@ static int eeh_event_handler(void * dummy)
 	struct eeh_event *event;
 	struct eeh_dev *edev;
 
-	daemonize("eehd");
+	set_task_comm(current, "eehd");
 	set_current_state(TASK_INTERRUPTIBLE);
 
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
