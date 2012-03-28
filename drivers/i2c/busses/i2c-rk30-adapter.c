@@ -395,7 +395,9 @@ static int rk30_i2c_set_master(struct rk30_i2c *i2c, struct i2c_msg *msgs, int n
                         addr |= 1;
                         i2c->msg = &msgs[0];
                         i2c_writel(addr | I2C_MRXADDR_LOW, i2c->regs + I2C_MRXADDR);
-                        i2c->mode = I2C_CON_MOD_RX;
+                        i2c_writel(0, i2c->regs + I2C_MRXRADDR);
+                        i2c->mode = I2C_CON_MOD_TRX;
+                        //i2c->mode = I2C_CON_MOD_RX;
                 }
         }
         else if(num == 2) {
