@@ -180,6 +180,7 @@ struct rk_lcdc_device_driver{
 	
 	struct layer_par *layer_par;
 	int num_layer;
+	int fb_index_base;                     //the first fb index of the lcdc device
 	rk_screen *screen;
 	u32 pixclock;
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);

@@ -67,17 +67,24 @@ static int init_rk30_lcdc(struct rk30_lcdc_device *lcdc_dev)
 	}
 	if ((IS_ERR(lcdc_dev->aclk)) ||(IS_ERR(lcdc_dev->dclk)) || (IS_ERR(lcdc_dev->hclk)))
     	{
-       		printk(KERN_ERR "failed to get lcdc clk source\n");
-   	 }
+       		printk(KERN_ERR "failed to get lcdc%d clk source\n",lcdc_dev->id);
+   	}
 	clk_enable(lcdc_dev->hclk);  //enable aclk for register config
 	LcdSetBit(lcdc_dev,DSP_CTRL0, m_LCDC_AXICLK_AUTO_ENABLE);//eanble axi-clk auto gating for low power
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);  // write any value to  REG_CFG_DONE let config become effective
 	return 0;
 }
 
-int rk30_lcdc_deinit(void)
+static int rk30_lcdc_deinit(struct rk30_lcdc_device *lcdc_dev)
 {
-    return 0;
+	clk_disable(lcdc_dev->aclk);
+	clk_disable(lcdc_dev->dclk);
+	clk_disable(lcdc_dev->hclk);
+	clk_put(lcdc_dev->aclk);
+	clk_put(lcdc_dev->dclk);
+	clk_put(lcdc_dev->hclk);
+	
+	return 0;
 }
 
 int rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
@@ -183,7 +190,7 @@ int rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
 	ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);
 	if(ret)
 	{
-        	printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
+        	printk(KERN_ERR ">>>>>> set lcdc%d dclk failed\n",lcdc_dev->id);
 	}
     	lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 	clk_enable(lcdc_dev->dclk);
@@ -195,7 +202,7 @@ int rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
 			ret = clk_set_rate(lcdc_dev->aclk, screen->lcdc_aclk);
 			if(ret)
 			{
-           	 		printk(KERN_ERR ">>>>>> set lcdc aclk  rate failed\n");
+           	 		printk(KERN_ERR ">>>>>> set lcdc%d aclk  rate failed\n",lcdc_dev->id);
         		}
 			
         		clk_enable(lcdc_dev->aclk);
@@ -224,14 +231,14 @@ static int win0_blank(int blank_mode,struct rk30_lcdc_device *lcdc_dev)
 	switch(blank_mode)
 	{
 		case FB_BLANK_UNBLANK:
-        	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(1));
-        	break;
-    	case FB_BLANK_NORMAL:
-         	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(0));
-	     	break;
-    	default:
-        	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W1_EN(1));
-        	break;
+        		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(1));
+        		break;
+    		case FB_BLANK_NORMAL:
+         		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(0));
+	     		break;
+    		default:
+        		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W1_EN(1));
+        		break;
 	}
   	mcu_refresh(lcdc_dev);
     return 0;
@@ -241,17 +248,17 @@ static int win1_blank(int blank_mode, struct rk30_lcdc_device *lcdc_dev)
 {
 	printk(KERN_INFO "%s>>>>>>>>>>mode:%d\n",__func__,blank_mode);
 	switch(blank_mode)
-    {
-    case FB_BLANK_UNBLANK:
-        LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(1));
-        break;
-    case FB_BLANK_NORMAL:
-         LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(0));
-	     break;
-    default:
-        LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(0));
-        break;
-    }
+    	{
+    		case FB_BLANK_UNBLANK:
+        		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(1));
+        		break;
+    		case FB_BLANK_NORMAL:
+         		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(0));
+	     		break;
+    		default:
+        		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(0));
+        		break;
+    	}
     
 	//mcu_refresh(inf);
     return 0;
@@ -269,7 +276,8 @@ static int rk30_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,in
 	}
 
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
-    return 0;
+	
+    	return 0;
 }
 
 static  int win0_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par )
@@ -581,6 +589,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 		goto err1;
     	}
     	lcdc_dev->reg_phy_base = res->start;
+	lcdc_dev->len = resource_size(res);
     	mem = request_mem_region(lcdc_dev->reg_phy_base, resource_size(res), pdev->name);
     	if (mem == NULL)
     	{
@@ -641,12 +650,25 @@ err0:
 }
 static int __devexit rk30_lcdc_remove(struct platform_device *pdev)
 {
+	struct rk30_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	rk_fb_unregister(&(lcdc_dev->driver));
+	rk30_lcdc_deinit(lcdc_dev);
+	iounmap(lcdc_dev->reg_vir_base);
+	release_mem_region(lcdc_dev->reg_phy_base,lcdc_dev->len);
+	kfree(lcdc_dev->screen);
+	kfree(lcdc_dev);
 	return 0;
 }
 
 static void rk30_lcdc_shutdown(struct platform_device *pdev)
 {
-
+	struct rk30_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	rk_fb_unregister(&(lcdc_dev->driver));
+	rk30_lcdc_deinit(lcdc_dev);
+	iounmap(lcdc_dev->reg_vir_base);
+	release_mem_region(lcdc_dev->reg_phy_base,lcdc_dev->len);
+	kfree(lcdc_dev->screen);
+	kfree(lcdc_dev);
 }
 
 
