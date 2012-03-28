@@ -35,7 +35,7 @@
 #define WM831X_DCDC_MODE_IDLE    2
 #define WM831X_DCDC_MODE_STANDBY 3
 
-#define WM831X_DCDC_MAX_NAME 6
+#define WM831X_DCDC_MAX_NAME 9
 
 /* Register offsets in control block */
 #define WM831X_DCDC_CONTROL_1     0
@@ -50,6 +50,7 @@
 
 struct wm831x_dcdc {
 	char name[WM831X_DCDC_MAX_NAME];
+	char supply_name[WM831X_DCDC_MAX_NAME];
 	struct regulator_desc desc;
 	int base;
 	struct wm831x *wm831x;
@@ -534,6 +535,11 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 
 	snprintf(dcdc->name, sizeof(dcdc->name), "DCDC%d", id + 1);
 	dcdc->desc.name = dcdc->name;
+
+	snprintf(dcdc->supply_name, sizeof(dcdc->supply_name),
+		 "DC%dVDD", id + 1);
+	dcdc->desc.supply_name = dcdc->supply_name;
+
 	dcdc->desc.id = id;
 	dcdc->desc.type = REGULATOR_VOLTAGE;
 	dcdc->desc.n_voltages = WM831X_BUCKV_MAX_SELECTOR + 1;
@@ -748,6 +754,11 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 
 	snprintf(dcdc->name, sizeof(dcdc->name), "DCDC%d", id + 1);
 	dcdc->desc.name = dcdc->name;
+
+	snprintf(dcdc->supply_name, sizeof(dcdc->supply_name),
+		 "DC%dVDD", id + 1);
+	dcdc->desc.supply_name = dcdc->supply_name;
+
 	dcdc->desc.id = id;
 	dcdc->desc.type = REGULATOR_VOLTAGE;
 	dcdc->desc.n_voltages = WM831X_BUCKP_MAX_SELECTOR + 1;
