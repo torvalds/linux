@@ -212,8 +212,6 @@ static int au1200_nand_device_ready(struct mtd_info *mtd)
 	return __raw_readl((void __iomem *)MEM_STSTAT) & 1;
 }
 
-static const char *db1200_part_probes[] = { "cmdlinepart", NULL };
-
 static struct mtd_partition db1200_nand_parts[] = {
 	{
 		.name	= "NAND FS 0",
@@ -234,7 +232,6 @@ struct platform_nand_data db1200_nand_platdata = {
 		.nr_partitions	= ARRAY_SIZE(db1200_nand_parts),
 		.partitions	= db1200_nand_parts,
 		.chip_delay	= 20,
-		.part_probe_types = db1200_part_probes,
 	},
 	.ctrl = {
 		.dev_ready	= au1200_nand_device_ready,
