@@ -339,17 +339,24 @@ static DECLARE_WAIT_QUEUE_HEAD(running_helpers_waitq);
  */
 #define RUNNING_HELPERS_TIMEOUT	(5 * HZ)
 
-void read_lock_usermodehelper(void)
+int usermodehelper_read_trylock(void)
 {
-	down_read(&umhelper_sem);
-}
-EXPORT_SYMBOL_GPL(read_lock_usermodehelper);
+	int ret = 0;
 
-void read_unlock_usermodehelper(void)
+	down_read(&umhelper_sem);
+	if (usermodehelper_disabled) {
+		up_read(&umhelper_sem);
+		ret = -EAGAIN;
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(usermodehelper_read_trylock);
+
+void usermodehelper_read_unlock(void)
 {
 	up_read(&umhelper_sem);
 }
-EXPORT_SYMBOL_GPL(read_unlock_usermodehelper);
+EXPORT_SYMBOL_GPL(usermodehelper_read_unlock);
 
 /**
  * usermodehelper_disable - prevent new helpers from being started
@@ -389,15 +396,6 @@ void usermodehelper_enable(void)
 	usermodehelper_disabled = 0;
 	up_write(&umhelper_sem);
 }
-
-/**
- * usermodehelper_is_disabled - check if new helpers are allowed to be started
- */
-bool usermodehelper_is_disabled(void)
-{
-	return usermodehelper_disabled;
-}
-EXPORT_SYMBOL_GPL(usermodehelper_is_disabled);
 
 static void helper_lock(void)
 {
