@@ -93,7 +93,6 @@
 #include <linux/fs.h>
 #include <linux/ioctl.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <linux/pci.h>
 
 #include <linux/mtd/mtd.h>

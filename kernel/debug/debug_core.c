@@ -52,7 +52,6 @@
 #include <asm/cacheflush.h>
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
-#include <asm/system.h>
 
 #include "debug_core.h"
 

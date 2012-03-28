@@ -26,7 +26,6 @@
 #include <linux/kmod.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>

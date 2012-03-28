@@ -42,7 +42,6 @@ static const char *verstr = "20101219";
 
 #include <asm/uaccess.h>
 #include <asm/dma.h>
-#include <asm/system.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_dbg.h>

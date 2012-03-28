@@ -53,7 +53,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 #define WDT_IS_PCI
 #include "wd501p.h"

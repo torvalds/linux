@@ -40,7 +40,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 #define DRV_NAME "advantechwdt"
 #define PFX DRV_NAME ": "

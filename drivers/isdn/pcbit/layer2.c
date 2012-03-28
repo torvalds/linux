@@ -36,7 +36,6 @@
 
 #include <linux/isdnif.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 
 

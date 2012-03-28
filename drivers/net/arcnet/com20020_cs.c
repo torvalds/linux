@@ -47,7 +47,6 @@
 #include <pcmcia/ds.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #define VERSION "arcnet: COM20020 PCMCIA support loaded.\n"
 

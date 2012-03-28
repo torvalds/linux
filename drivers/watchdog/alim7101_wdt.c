@@ -34,7 +34,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 #define OUR_NAME "alim7101_wdt"
 #define PFX OUR_NAME ": "

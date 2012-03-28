@@ -29,7 +29,6 @@
 #include <linux/kernel.h>
 
 #include <asm/unaligned.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/barrier.h>
 

@@ -56,7 +56,6 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <asm/system.h>
 
 #define OUR_NAME "w83877f_wdt"
 #define PFX OUR_NAME ": "

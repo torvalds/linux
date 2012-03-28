@@ -34,7 +34,6 @@
 #include <linux/kthread.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/types.h>
 
 #include <linux/nbd.h>

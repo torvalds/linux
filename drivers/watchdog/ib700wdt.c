@@ -44,7 +44,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 static struct platform_device *ibwdt_platform_device;
 static unsigned long ibwdt_is_open;

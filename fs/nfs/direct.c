@@ -51,7 +51,6 @@
 #include <linux/nfs_page.h>
 #include <linux/sunrpc/clnt.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/atomic.h>
 

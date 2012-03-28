@@ -23,7 +23,6 @@
 #include <mach/dma.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/system.h>
 #include <mach/mcp.h>
 
 #include <mach/assabet.h>

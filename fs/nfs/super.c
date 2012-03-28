@@ -53,7 +53,6 @@
 #include <linux/magic.h>
 #include <linux/parser.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include "nfs4_fs.h"

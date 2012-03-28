@@ -54,7 +54,6 @@
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/byteorder.h>
 
 #include <linux/dvb/video.h>

@@ -17,7 +17,6 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include "i82092aa.h"

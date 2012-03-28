@@ -40,7 +40,6 @@
 #include <linux/compat.h>
 #include <linux/freezer.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include "nfs4_fs.h"

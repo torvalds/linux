@@ -145,7 +145,6 @@ static const int cap_last_cap = CAP_LAST_CAP;
 #include <linux/inotify.h>
 #endif
 #ifdef CONFIG_SPARC
-#include <asm/system.h>
 #endif
 
 #ifdef CONFIG_SPARC64

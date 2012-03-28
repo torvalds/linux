@@ -19,7 +19,6 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/system.h>
 
 #include "pd6729.h"
 #include "i82365.h"

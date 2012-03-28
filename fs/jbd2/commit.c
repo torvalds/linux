@@ -28,7 +28,6 @@
 #include <linux/blkdev.h>
 #include <linux/bitops.h>
 #include <trace/events/jbd2.h>
-#include <asm/system.h>
 
 /*
  * Default IO end handler for temporary BJ_IO buffer_heads.

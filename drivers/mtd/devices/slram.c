@@ -42,7 +42,6 @@
 #include <linux/ioctl.h>
 #include <linux/init.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <linux/mtd/mtd.h>
 

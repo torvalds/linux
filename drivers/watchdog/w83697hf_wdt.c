@@ -39,7 +39,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 #define WATCHDOG_NAME "w83697hf/hg WDT"
 #define PFX WATCHDOG_NAME ": "

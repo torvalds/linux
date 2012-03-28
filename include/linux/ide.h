@@ -23,7 +23,6 @@
 #include <acpi/acpi.h>
 #endif
 #include <asm/byteorder.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 /* for request_sense */
