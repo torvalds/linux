@@ -412,6 +412,21 @@ static struct clk usbd_clk = {
 	.recalc = &follow_parent,
 };
 
+/* clock derived from usbh clk */
+/* usbh0 clock */
+static struct clk usbh0_clk = {
+	.flags = ALWAYS_ENABLED,
+	.pclk = &usbh_clk,
+	.recalc = &follow_parent,
+};
+
+/* usbh1 clock */
+static struct clk usbh1_clk = {
+	.flags = ALWAYS_ENABLED,
+	.pclk = &usbh_clk,
+	.recalc = &follow_parent,
+};
+
 /* clock derived from ahb clk */
 /* apb masks structure */
 static struct bus_clk_masks apb_masks = {
@@ -679,6 +694,9 @@ static struct clk_lookup spear_clk_lookups[] = {
 	/* clock derived from pll3 clk */
 	CLKDEV_INIT("designware_udc", NULL, &usbd_clk),
 	CLKDEV_INIT(NULL, "usbh_clk", &usbh_clk),
+	/* clock derived from usbh clk */
+	CLKDEV_INIT(NULL, "usbh.0_clk", &usbh0_clk),
+	CLKDEV_INIT(NULL, "usbh.1_clk", &usbh1_clk),
 	/* clock derived from ahb clk */
 	CLKDEV_INIT(NULL, "apb_clk", &apb_clk),
 	CLKDEV_INIT("i2c_designware.0", NULL, &i2c_clk),
