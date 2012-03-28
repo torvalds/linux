@@ -245,8 +245,6 @@ static void ts78xx_ts_nand_read_buf(struct mtd_info *mtd,
 		readsb(io_base, buf, len);
 }
 
-const char *ts_nand_part_probes[] = { "cmdlinepart", NULL };
-
 static struct mtd_partition ts78xx_ts_nand_parts[] = {
 	{
 		.name		= "mbr",
@@ -271,7 +269,6 @@ static struct mtd_partition ts78xx_ts_nand_parts[] = {
 static struct platform_nand_data ts78xx_ts_nand_data = {
 	.chip	= {
 		.nr_chips		= 1,
-		.part_probe_types	= ts_nand_part_probes,
 		.partitions		= ts78xx_ts_nand_parts,
 		.nr_partitions		= ARRAY_SIZE(ts78xx_ts_nand_parts),
 		.chip_delay		= 15,

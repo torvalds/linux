@@ -202,8 +202,6 @@ static int nand_dev_ready(struct mtd_info *mtd)
 	return gpio_get_value(H3_NAND_RB_GPIO_PIN);
 }
 
-static const char *part_probes[] = { "cmdlinepart", NULL };
-
 static struct platform_nand_data nand_platdata = {
 	.chip	= {
 		.nr_chips		= 1,
@@ -211,7 +209,6 @@ static struct platform_nand_data nand_platdata = {
 		.nr_partitions		= ARRAY_SIZE(nand_partitions),
 		.partitions		= nand_partitions,
 		.options		= NAND_SAMSUNG_LP_OPTIONS,
-		.part_probe_types	= part_probes,
 	},
 	.ctrl	= {
 		.cmd_ctrl	= nand_cmd_ctl,

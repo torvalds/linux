@@ -679,8 +679,6 @@ static struct mtd_partition balloon3_partition_info[] = {
 	},
 };
 
-static const char *balloon3_part_probes[] = { "cmdlinepart", NULL };
-
 struct platform_nand_data balloon3_nand_pdata = {
 	.chip = {
 		.nr_chips	= 4,
@@ -688,7 +686,6 @@ struct platform_nand_data balloon3_nand_pdata = {
 		.nr_partitions	= ARRAY_SIZE(balloon3_partition_info),
 		.partitions	= balloon3_partition_info,
 		.chip_delay	= 50,
-		.part_probe_types = balloon3_part_probes,
 	},
 	.ctrl = {
 		.hwcontrol	= 0,

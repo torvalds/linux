@@ -200,8 +200,6 @@ static int h2_nand_dev_ready(struct mtd_info *mtd)
 	return gpio_get_value(H2_NAND_RB_GPIO_PIN);
 }
 
-static const char *h2_part_probes[] = { "cmdlinepart", NULL };
-
 static struct platform_nand_data h2_nand_platdata = {
 	.chip	= {
 		.nr_chips		= 1,
@@ -209,7 +207,6 @@ static struct platform_nand_data h2_nand_platdata = {
 		.nr_partitions		= ARRAY_SIZE(h2_nand_partitions),
 		.partitions		= h2_nand_partitions,
 		.options		= NAND_SAMSUNG_LP_OPTIONS,
-		.part_probe_types	= h2_part_probes,
 	},
 	.ctrl	= {
 		.cmd_ctrl	= h2_nand_cmd_ctl,
