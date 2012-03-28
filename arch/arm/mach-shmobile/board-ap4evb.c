@@ -1186,6 +1186,7 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
+
 #define GPIO_PORT9CR	0xE6051009
 #define GPIO_PORT10CR	0xE605100A
 #define USCCR1		0xE6058144
