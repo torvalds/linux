@@ -1,6 +1,8 @@
 /*
  * padata.c - generic interface to process data streams in parallel
  *
+ * See Documentation/padata.txt for an api documentation.
+ *
  * Copyright (C) 2008, 2009 secunet Security Networks AG
  * Copyright (C) 2008, 2009 Steffen Klassert <steffen.klassert@secunet.com>
  *
