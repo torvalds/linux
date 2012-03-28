@@ -1035,6 +1035,7 @@ static void *e_start(struct seq_file *m, loff_t *pos)
 	unsigned hash, export;
 	struct cache_head *ch;
 	struct cache_detail *cd = m->private;
+	struct cache_head **export_table = cd->hash_table;
 
 	read_lock(&cd->hash_lock);
 	if (!n--)
@@ -1061,6 +1062,8 @@ static void *e_next(struct seq_file *m, void *p, loff_t *pos)
 {
 	struct cache_head *ch = p;
 	int hash = (*pos >> 32);
+	struct cache_detail *cd = m->private;
+	struct cache_head **export_table = cd->hash_table;
 
 	if (p == SEQ_START_TOKEN)
 		hash = 0;
