@@ -296,6 +296,17 @@ void l2cap_chan_destroy(struct l2cap_chan *chan)
 	l2cap_chan_put(chan);
 }
 
+void l2cap_chan_set_defaults(struct l2cap_chan *chan)
+{
+	chan->fcs  = L2CAP_FCS_CRC16;
+	chan->max_tx = L2CAP_DEFAULT_MAX_TX;
+	chan->tx_win = L2CAP_DEFAULT_TX_WINDOW;
+	chan->tx_win_max = L2CAP_DEFAULT_TX_WINDOW;
+	chan->sec_level = BT_SECURITY_LOW;
+
+	set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
+}
+
 static void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 {
 	BT_DBG("conn %p, psm 0x%2.2x, dcid 0x%4.4x", conn,

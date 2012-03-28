@@ -1006,12 +1006,8 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		} else {
 			chan->mode = L2CAP_MODE_BASIC;
 		}
-		chan->max_tx = L2CAP_DEFAULT_MAX_TX;
-		chan->fcs  = L2CAP_FCS_CRC16;
-		chan->tx_win = L2CAP_DEFAULT_TX_WINDOW;
-		chan->tx_win_max = L2CAP_DEFAULT_TX_WINDOW;
-		chan->sec_level = BT_SECURITY_LOW;
-		set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
+
+		l2cap_chan_set_defaults(chan);
 	}
 
 	/* Default config options */

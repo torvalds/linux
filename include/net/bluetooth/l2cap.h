@@ -915,5 +915,6 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 								u32 priority);
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy);
 int l2cap_chan_check_security(struct l2cap_chan *chan);
+void l2cap_chan_set_defaults(struct l2cap_chan *chan);
 
 #endif /* __L2CAP_H */
