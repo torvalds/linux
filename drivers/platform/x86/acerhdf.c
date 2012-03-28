@@ -244,12 +244,11 @@ static void acerhdf_change_fanstate(int state)
 	unsigned char cmd;
 
 	if (verbose)
-		pr_notice("fan %s\n", (state == ACERHDF_FAN_OFF) ?
-				"OFF" : "ON");
+		pr_notice("fan %s\n", state == ACERHDF_FAN_OFF ? "OFF" : "ON");
 
 	if ((state != ACERHDF_FAN_OFF) && (state != ACERHDF_FAN_AUTO)) {
 		pr_err("invalid fan state %d requested, setting to auto!\n",
-			state);
+		       state);
 		state = ACERHDF_FAN_AUTO;
 	}
 
@@ -264,19 +263,18 @@ static void acerhdf_check_param(struct thermal_zone_device *thermal)
 {
 	if (fanon > ACERHDF_MAX_FANON) {
 		pr_err("fanon temperature too high, set to %d\n",
-				ACERHDF_MAX_FANON);
+		       ACERHDF_MAX_FANON);
 		fanon = ACERHDF_MAX_FANON;
 	}
 
 	if (kernelmode && prev_interval != interval) {
 		if (interval > ACERHDF_MAX_INTERVAL) {
 			pr_err("interval too high, set to %d\n",
-				ACERHDF_MAX_INTERVAL);
+			       ACERHDF_MAX_INTERVAL);
 			interval = ACERHDF_MAX_INTERVAL;
 		}
 		if (verbose)
-			pr_notice("interval changed to: %d\n",
-					interval);
+			pr_notice("interval changed to: %d\n", interval);
 		thermal->polling_delay = interval*1000;
 		prev_interval = interval;
 	}
@@ -587,8 +585,8 @@ static int acerhdf_check_hardware(void)
 	}
 
 	if (!bios_cfg) {
-		pr_err("unknown (unsupported) BIOS version %s/%s/%s, "
-			"please report, aborting!\n", vendor, product, version);
+		pr_err("unknown (unsupported) BIOS version %s/%s/%s, please report, aborting!\n",
+		       vendor, product, version);
 		return -EINVAL;
 	}
 
@@ -598,8 +596,7 @@ static int acerhdf_check_hardware(void)
 	 */
 	if (!kernelmode) {
 		pr_notice("Fan control off, to enable do:\n");
-		pr_notice("echo -n \"enabled\" > "
-			"/sys/class/thermal/thermal_zone0/mode\n");
+		pr_notice("echo -n \"enabled\" > /sys/class/thermal/thermal_zone0/mode\n");
 	}
 
 	return 0;

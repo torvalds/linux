@@ -142,17 +142,7 @@ static struct platform_driver mfld_pb_driver = {
 	.remove	= __devexit_p(mfld_pb_remove),
 };
 
-static int __init mfld_pb_init(void)
-{
-	return platform_driver_register(&mfld_pb_driver);
-}
-module_init(mfld_pb_init);
-
-static void __exit mfld_pb_exit(void)
-{
-	platform_driver_unregister(&mfld_pb_driver);
-}
-module_exit(mfld_pb_exit);
+module_platform_driver(mfld_pb_driver);
 
 MODULE_AUTHOR("Hong Liu <hong.liu@intel.com>");
 MODULE_DESCRIPTION("Intel Medfield Power Button Driver");
