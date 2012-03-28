@@ -24,7 +24,6 @@
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/system.h>
 #include <mach/mcp.h>
 
 #define DRIVER_NAME "sa11x0-mcp"

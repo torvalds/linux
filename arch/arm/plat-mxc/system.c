@@ -25,8 +25,8 @@
 
 #include <mach/hardware.h>
 #include <mach/common.h>
+#include <asm/system_misc.h>
 #include <asm/proc-fns.h>
-#include <asm/system.h>
 #include <asm/mach-types.h>
 
 void __iomem *(*imx_ioremap)(unsigned long, size_t, unsigned int) = NULL;

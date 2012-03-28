@@ -1,7 +1,7 @@
 #ifndef __ALPHA_IRQFLAGS_H
 #define __ALPHA_IRQFLAGS_H
 
-#include <asm/system.h>
+#include <asm/pal.h>
 
 #define IPL_MIN		0
 #define IPL_SW0		1

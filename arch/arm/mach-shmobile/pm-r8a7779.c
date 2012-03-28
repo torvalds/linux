@@ -18,7 +18,6 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/console.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <mach/common.h>
 #include <mach/r8a7779.h>

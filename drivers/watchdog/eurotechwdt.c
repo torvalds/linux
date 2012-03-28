@@ -61,7 +61,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 static unsigned long eurwdt_is_open;
 static int eurwdt_timeout;

@@ -254,5 +254,19 @@ int fixup_exception(struct pt_regs *regs);
 unsigned long search_exception_table(unsigned long addr);
 const struct exception_table_entry *search_exception_tables(unsigned long addr);
 
+extern void *set_exception_table_vec(unsigned int vec, void *handler);
+
+static inline void *set_exception_table_evt(unsigned int evt, void *handler)
+{
+	return set_exception_table_vec(evt >> 5, handler);
+}
+
+struct mem_access {
+	unsigned long (*from)(void *dst, const void __user *src, unsigned long cnt);
+	unsigned long (*to)(void __user *dst, const void *src, unsigned long cnt);
+};
+
+int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
+			    struct mem_access *ma, int, unsigned long address);
 
 #endif /* __ASM_SH_UACCESS_H */

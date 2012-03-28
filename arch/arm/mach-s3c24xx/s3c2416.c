@@ -43,6 +43,7 @@
 #include <mach/hardware.h>
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
+#include <asm/system_misc.h>
 
 #include <mach/regs-s3c2443-clock.h>
 

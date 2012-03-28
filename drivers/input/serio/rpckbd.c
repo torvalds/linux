@@ -38,7 +38,6 @@
 
 #include <mach/hardware.h>
 #include <asm/hardware/iomd.h>
-#include <asm/system.h>
 
 MODULE_AUTHOR("Vojtech Pavlik, Russell King");
 MODULE_DESCRIPTION("Acorn RiscPC PS/2 keyboard controller driver");

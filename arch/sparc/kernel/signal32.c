@@ -28,6 +28,7 @@
 #include <asm/fpumacro.h>
 #include <asm/visasm.h>
 #include <asm/compat_signal.h>
+#include <asm/switch_to.h>
 
 #include "sigutil.h"
 

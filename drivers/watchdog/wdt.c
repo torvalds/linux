@@ -48,7 +48,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 #include "wd501p.h"
 
 static unsigned long wdt_is_open;

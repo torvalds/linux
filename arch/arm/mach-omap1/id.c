@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <asm/system_info.h>
 
 #include <plat/cpu.h>
 

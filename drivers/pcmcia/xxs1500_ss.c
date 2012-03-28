@@ -21,7 +21,6 @@
 #include <pcmcia/cistpl.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/mach-au1x00/au1000.h>
 
 #define MEM_MAP_SIZE	0x400000

@@ -33,6 +33,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
+#include <asm/system_misc.h>
 
 #include <plat/clock.h>
 #include <plat/sram.h>

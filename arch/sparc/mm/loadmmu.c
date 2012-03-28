@@ -11,7 +11,6 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>

@@ -73,7 +73,6 @@
 #include <stdarg.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <linux/errno.h>
 #include <linux/fs.h>

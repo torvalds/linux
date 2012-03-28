@@ -32,7 +32,6 @@
 #include <linux/namei.h>
 #include <linux/security.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include "nfs4_fs.h"

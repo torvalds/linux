@@ -23,7 +23,6 @@
 #include <linux/sched.h>
 #include <linux/atomic.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/smp.h>
 #include <asm/cacheflush.h>

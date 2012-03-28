@@ -28,6 +28,7 @@
 #include <asm/page.h>
 #include <asm/domain.h>
 #include <asm/setup.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>

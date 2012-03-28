@@ -30,7 +30,6 @@
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
 
-#include <asm/system.h>
 #include <asm/prom.h>
 #include <asm/pgtable.h>
 

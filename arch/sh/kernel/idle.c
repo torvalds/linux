@@ -18,9 +18,9 @@
 #include <linux/smp.h>
 #include <linux/cpuidle.h>
 #include <asm/pgalloc.h>
-#include <asm/system.h>
 #include <linux/atomic.h>
 #include <asm/smp.h>
+#include <asm/bl_bit.h>
 
 void (*pm_idle)(void);
 

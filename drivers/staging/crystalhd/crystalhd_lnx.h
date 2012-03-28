@@ -45,7 +45,6 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <linux/uaccess.h>
 
 #include "crystalhd.h"

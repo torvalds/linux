@@ -84,7 +84,6 @@ extern unsigned int vdso_enabled;
 	(((x)->e_machine == EM_386) || ((x)->e_machine == EM_486))
 
 #include <asm/processor.h>
-#include <asm/system.h>
 
 #ifdef CONFIG_X86_32
 #include <asm/desc.h>

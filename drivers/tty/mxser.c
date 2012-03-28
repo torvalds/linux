@@ -41,7 +41,6 @@
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>

@@ -55,8 +55,8 @@
 #include <linux/kernel.h>
 #include <linux/stringify.h>
 #include <linux/bottom_half.h>
+#include <asm/barrier.h>
 
-#include <asm/system.h>
 
 /*
  * Must define these before including other files, inline functions need them

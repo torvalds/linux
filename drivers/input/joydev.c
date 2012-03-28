@@ -13,7 +13,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/joystick.h>

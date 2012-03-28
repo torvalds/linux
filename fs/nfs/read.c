@@ -20,7 +20,6 @@
 #include <linux/nfs_page.h>
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include "pnfs.h"
 
 #include "nfs4_fs.h"

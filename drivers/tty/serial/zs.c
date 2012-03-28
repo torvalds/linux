@@ -67,7 +67,6 @@
 #include <linux/types.h>
 
 #include <linux/atomic.h>
-#include <asm/system.h>
 
 #include <asm/dec/interrupts.h>
 #include <asm/dec/ioasic_addrs.h>

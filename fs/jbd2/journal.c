@@ -50,7 +50,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/page.h>
-#include <asm/system.h>
 
 EXPORT_SYMBOL(jbd2_journal_extend);
 EXPORT_SYMBOL(jbd2_journal_stop);

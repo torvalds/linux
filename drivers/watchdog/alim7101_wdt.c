@@ -36,7 +36,6 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 
 #define WDT_ENABLE 0x9C
 #define WDT_DISABLE 0x8C

@@ -31,7 +31,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/mach-types.h>
-#include <asm/system.h>
 
 #include <mach/reg_nand.h>
 #include <mach/reg_umi.h>

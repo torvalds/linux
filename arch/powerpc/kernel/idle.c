@@ -26,11 +26,11 @@
 #include <linux/sysctl.h>
 #include <linux/tick.h>
 
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/time.h>
 #include <asm/machdep.h>
+#include <asm/runlatch.h>
 #include <asm/smp.h>
 
 #ifdef CONFIG_HOTPLUG_CPU

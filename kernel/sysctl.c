@@ -68,6 +68,9 @@
 #include <asm/stacktrace.h>
 #include <asm/io.h>
 #endif
+#ifdef CONFIG_SPARC
+#include <asm/setup.h>
+#endif
 #ifdef CONFIG_BSD_PROCESS_ACCT
 #include <linux/acct.h>
 #endif
@@ -142,7 +145,6 @@ static const int cap_last_cap = CAP_LAST_CAP;
 #include <linux/inotify.h>
 #endif
 #ifdef CONFIG_SPARC
-#include <asm/system.h>
 #endif
 
 #ifdef CONFIG_SPARC64

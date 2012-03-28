@@ -25,12 +25,12 @@
 #include <linux/compat.h>
 #include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
 #include <asm/vdso.h>
+#include <asm/facility.h>
 
 #if defined(CONFIG_32BIT) || defined(CONFIG_COMPAT)
 extern char vdso32_start, vdso32_end;

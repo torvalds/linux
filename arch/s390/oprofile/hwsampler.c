@@ -17,6 +17,8 @@
 #include <linux/semaphore.h>
 #include <linux/oom.h>
 #include <linux/oprofile.h>
+
+#include <asm/facility.h>
 #include <asm/cpu_mf.h>
 #include <asm/irq.h>
 

@@ -21,7 +21,6 @@
 #include <asm/thread_info.h>
 #include <asm/sal.h>
 #include <asm/signal.h>
-#include <asm/system.h>
 #include <asm/unistd.h>
 
 #include "entry.h"

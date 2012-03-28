@@ -30,7 +30,6 @@
 #include <linux/blkdev.h>
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include <scsi/scsi.h>
