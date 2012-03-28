@@ -3636,6 +3636,20 @@ static const struct intel_watermark_params g4x_cursor_wm_info = {
 	2,
 	G4X_FIFO_LINE_SIZE,
 };
+static const struct intel_watermark_params valleyview_wm_info = {
+	VALLEYVIEW_FIFO_SIZE,
+	VALLEYVIEW_MAX_WM,
+	VALLEYVIEW_MAX_WM,
+	2,
+	G4X_FIFO_LINE_SIZE,
+};
+static const struct intel_watermark_params valleyview_cursor_wm_info = {
+	I965_CURSOR_FIFO,
+	VALLEYVIEW_CURSOR_MAX_WM,
+	I965_CURSOR_DFT_WM,
+	2,
+	G4X_FIFO_LINE_SIZE,
+};
 static const struct intel_watermark_params i965_cursor_wm_info = {
 	I965_CURSOR_FIFO,
 	I965_CURSOR_MAX_WM,
@@ -4159,6 +4173,55 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 }
 
 #define single_plane_enabled(mask) is_power_of_2(mask)
+
+static void valleyview_update_wm(struct drm_device *dev)
+{
+	static const int sr_latency_ns = 12000;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
+	int plane_sr, cursor_sr;
+	unsigned int enabled = 0;
+
+	if (g4x_compute_wm0(dev, 0,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planea_wm, &cursora_wm))
+		enabled |= 1;
+
+	if (g4x_compute_wm0(dev, 1,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planeb_wm, &cursorb_wm))
+		enabled |= 2;
+
+	plane_sr = cursor_sr = 0;
+	if (single_plane_enabled(enabled) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     sr_latency_ns,
+			     &valleyview_wm_info,
+			     &valleyview_cursor_wm_info,
+			     &plane_sr, &cursor_sr))
+		I915_WRITE(FW_BLC_SELF_VLV, FW_CSPWRDWNEN);
+	else
+		I915_WRITE(FW_BLC_SELF_VLV,
+			   I915_READ(FW_BLC_SELF_VLV) & ~FW_CSPWRDWNEN);
+
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
+		      planea_wm, cursora_wm,
+		      planeb_wm, cursorb_wm,
+		      plane_sr, cursor_sr);
+
+	I915_WRITE(DSPFW1,
+		   (plane_sr << DSPFW_SR_SHIFT) |
+		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
+		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
+		   planea_wm);
+	I915_WRITE(DSPFW2,
+		   (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (cursora_wm << DSPFW_CURSORA_SHIFT));
+	I915_WRITE(DSPFW3,
+		   (I915_READ(DSPFW3) | (cursor_sr << DSPFW_CURSOR_SR_SHIFT)));
+}
 
 static void g4x_update_wm(struct drm_device *dev)
 {
@@ -9019,6 +9082,8 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else
 			dev_priv->display.update_wm = NULL;
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->display.update_wm = valleyview_update_wm;
 	} else if (IS_PINEVIEW(dev)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
 					    dev_priv->is_ddr3,

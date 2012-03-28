@@ -1043,6 +1043,9 @@
 #define RAMCLK_GATE_D		0x6210		/* CRL only */
 #define DEUC			0x6214          /* CRL only */
 
+#define FW_BLC_SELF_VLV		0x6500
+#define  FW_CSPWRDWNEN		(1<<15)
+
 /*
  * Palette regs
  */
@@ -2495,6 +2498,7 @@
 #define I915_FIFO_LINE_SIZE	64
 #define I830_FIFO_LINE_SIZE	32
 
+#define VALLEYVIEW_FIFO_SIZE	255
 #define G4X_FIFO_SIZE		127
 #define I965_FIFO_SIZE		512
 #define I945_FIFO_SIZE		127
@@ -2502,6 +2506,7 @@
 #define I855GM_FIFO_SIZE	127 /* In cachelines */
 #define I830_FIFO_SIZE		95
 
+#define VALLEYVIEW_MAX_WM	0xff
 #define G4X_MAX_WM		0x3f
 #define I915_MAX_WM		0x3f
 
@@ -2516,6 +2521,7 @@
 #define PINEVIEW_CURSOR_DFT_WM	0
 #define PINEVIEW_CURSOR_GUARD_WM	5
 
+#define VALLEYVIEW_CURSOR_MAX_WM 64
 #define I965_CURSOR_FIFO	64
 #define I965_CURSOR_MAX_WM	32
 #define I965_CURSOR_DFT_WM	8
