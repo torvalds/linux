@@ -614,7 +614,7 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	if (r < 0)
 		goto out;
 
-	r = dm_sm_root_size(pmd->metadata_sm, &data_len);
+	r = dm_sm_root_size(pmd->data_sm, &data_len);
 	if (r < 0)
 		goto out;
 
