@@ -223,7 +223,13 @@ i) Constructor
 	      <low water mark (blocks)> [<number of feature args> [<arg>]*]
 
     Optional feature arguments:
-    - 'skip_block_zeroing': skips the zeroing of newly-provisioned blocks.
+
+      skip_block_zeroing: Skip the zeroing of newly-provisioned blocks.
+
+      ignore_discard: Disable discard support.
+
+      no_discard_passdown: Don't pass discards down to the underlying
+			   data device, but just remove the mapping.
 
     Data block size must be between 64KB (128 sectors) and 1GB
     (2097152 sectors) inclusive.

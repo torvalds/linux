@@ -489,6 +489,13 @@ static void build_virtual_key(struct dm_thin_device *td, dm_block_t b,
  * devices.
  */
 struct new_mapping;
+
+struct pool_features {
+	unsigned zero_new_blocks:1;
+	unsigned discard_enabled:1;
+	unsigned discard_passdown:1;
+};
+
 struct pool {
 	struct list_head list;
 	struct dm_target *ti;	/* Only set if a pool target is bound */
@@ -502,7 +509,7 @@ struct pool {
 	dm_block_t offset_mask;
 	dm_block_t low_water_blocks;
 
-	unsigned zero_new_blocks:1;
+	struct pool_features pf;
 	unsigned low_water_triggered:1;	/* A dm event has been sent */
 	unsigned no_free_space:1;	/* A -ENOSPC warning has been issued */
 
@@ -543,7 +550,7 @@ struct pool_c {
 	struct dm_target_callbacks callbacks;
 
 	dm_block_t low_water_blocks;
-	unsigned zero_new_blocks:1;
+	struct pool_features pf;
 };
 
 /*
@@ -1051,7 +1058,7 @@ static void schedule_zero(struct thin_c *tc, dm_block_t virt_block,
 	 * zeroing pre-existing data, we can issue the bio immediately.
 	 * Otherwise we use kcopyd to zero the data first.
 	 */
-	if (!pool->zero_new_blocks)
+	if (!pool->pf.zero_new_blocks)
 		process_prepared_mapping(m);
 
 	else if (io_overwrites_block(pool, bio)) {
@@ -1202,7 +1209,7 @@ static void process_discard(struct thin_c *tc, struct bio *bio)
 			 */
 			m = get_next_mapping(pool);
 			m->tc = tc;
-			m->pass_discard = !lookup_result.shared;
+			m->pass_discard = (!lookup_result.shared) & pool->pf.discard_passdown;
 			m->virt_block = block;
 			m->data_block = lookup_result.block;
 			m->cell = cell;
@@ -1617,7 +1624,7 @@ static int bind_control_target(struct pool *pool, struct dm_target *ti)
 
 	pool->ti = ti;
 	pool->low_water_blocks = pt->low_water_blocks;
-	pool->zero_new_blocks = pt->zero_new_blocks;
+	pool->pf = pt->pf;
 
 	return 0;
 }
@@ -1631,6 +1638,14 @@ static void unbind_control_target(struct pool *pool, struct dm_target *ti)
 /*----------------------------------------------------------------
  * Pool creation
  *--------------------------------------------------------------*/
+/* Initialize pool features. */
+static void pool_features_init(struct pool_features *pf)
+{
+	pf->zero_new_blocks = 1;
+	pf->discard_enabled = 1;
+	pf->discard_passdown = 1;
+}
+
 static void __pool_destroy(struct pool *pool)
 {
 	__pool_table_remove(pool);
@@ -1678,7 +1693,7 @@ static struct pool *pool_create(struct mapped_device *pool_md,
 	pool->block_shift = ffs(block_size) - 1;
 	pool->offset_mask = block_size - 1;
 	pool->low_water_blocks = 0;
-	pool->zero_new_blocks = 1;
+	pool_features_init(&pool->pf);
 	pool->prison = prison_create(PRISON_CELLS);
 	if (!pool->prison) {
 		*error = "Error creating pool's bio prison";
@@ -1775,7 +1790,8 @@ static void __pool_dec(struct pool *pool)
 
 static struct pool *__pool_find(struct mapped_device *pool_md,
 				struct block_device *metadata_dev,
-				unsigned long block_size, char **error)
+				unsigned long block_size, char **error,
+				int *created)
 {
 	struct pool *pool = __pool_table_lookup_metadata_dev(metadata_dev);
 
@@ -1791,8 +1807,10 @@ static struct pool *__pool_find(struct mapped_device *pool_md,
 				return ERR_PTR(-EINVAL);
 			__pool_inc(pool);
 
-		} else
+		} else {
 			pool = pool_create(pool_md, metadata_dev, block_size, error);
+			*created = 1;
+		}
 	}
 
 	return pool;
@@ -1816,10 +1834,6 @@ static void pool_dtr(struct dm_target *ti)
 	mutex_unlock(&dm_thin_pool_table.mutex);
 }
 
-struct pool_features {
-	unsigned zero_new_blocks:1;
-};
-
 static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 			       struct dm_target *ti)
 {
@@ -1828,7 +1842,7 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 	const char *arg_name;
 
 	static struct dm_arg _args[] = {
-		{0, 1, "Invalid number of pool feature arguments"},
+		{0, 3, "Invalid number of pool feature arguments"},
 	};
 
 	/*
@@ -1848,6 +1862,12 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 		if (!strcasecmp(arg_name, "skip_block_zeroing")) {
 			pf->zero_new_blocks = 0;
 			continue;
+		} else if (!strcasecmp(arg_name, "ignore_discard")) {
+			pf->discard_enabled = 0;
+			continue;
+		} else if (!strcasecmp(arg_name, "no_discard_passdown")) {
+			pf->discard_passdown = 0;
+			continue;
 		}
 
 		ti->error = "Unrecognised pool feature requested";
@@ -1865,10 +1885,12 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
  *
  * Optional feature arguments are:
  *	     skip_block_zeroing: skips the zeroing of newly-provisioned blocks.
+ *	     ignore_discard: disable discard
+ *	     no_discard_passdown: don't pass discards down to the data device
  */
 static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
-	int r;
+	int r, pool_created = 0;
 	struct pool_c *pt;
 	struct pool *pool;
 	struct pool_features pf;
@@ -1928,8 +1950,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	/*
 	 * Set default pool features.
 	 */
-	memset(&pf, 0, sizeof(pf));
-	pf.zero_new_blocks = 1;
+	pool_features_init(&pf);
 
 	dm_consume_args(&as, 4);
 	r = parse_pool_features(&as, &pf, ti);
@@ -1943,10 +1964,35 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	pool = __pool_find(dm_table_get_md(ti->table), metadata_dev->bdev,
-			   block_size, &ti->error);
+			   block_size, &ti->error, &pool_created);
 	if (IS_ERR(pool)) {
 		r = PTR_ERR(pool);
 		goto out_free_pt;
+	}
+
+	/*
+	 * 'pool_created' reflects whether this is the first table load.
+	 * Top level discard support is not allowed to be changed after
+	 * initial load.  This would require a pool reload to trigger thin
+	 * device changes.
+	 */
+	if (!pool_created && pf.discard_enabled != pool->pf.discard_enabled) {
+		ti->error = "Discard support cannot be disabled once enabled";
+		r = -EINVAL;
+		goto out_flags_changed;
+	}
+
+	/*
+	 * If discard_passdown was enabled verify that the data device
+	 * supports discards.  Disable discard_passdown if not; otherwise
+	 * -EOPNOTSUPP will be returned.
+	 */
+	if (pf.discard_passdown) {
+		struct request_queue *q = bdev_get_queue(data_dev->bdev);
+		if (!q || !blk_queue_discard(q)) {
+			DMWARN("Discard unsupported by data device: Disabling discard passdown.");
+			pf.discard_passdown = 0;
+		}
 	}
 
 	pt->pool = pool;
@@ -1954,10 +2000,22 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	pt->metadata_dev = metadata_dev;
 	pt->data_dev = data_dev;
 	pt->low_water_blocks = low_water_blocks;
-	pt->zero_new_blocks = pf.zero_new_blocks;
+	pt->pf = pf;
 	ti->num_flush_requests = 1;
-	ti->num_discard_requests = 1;
-	ti->discards_supported = 1;
+	/*
+	 * Only need to enable discards if the pool should pass
+	 * them down to the data device.  The thin device's discard
+	 * processing will cause mappings to be removed from the btree.
+	 */
+	if (pf.discard_enabled && pf.discard_passdown) {
+		ti->num_discard_requests = 1;
+		/*
+		 * Setting 'discards_supported' circumvents the normal
+		 * stacking of discard limits (this keeps the pool and
+		 * thin devices' discard limits consistent).
+		 */
+		ti->discards_supported = 1;
+	}
 	ti->private = pt;
 
 	pt->callbacks.congested_fn = pool_is_congested;
@@ -1967,6 +2025,8 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	return 0;
 
+out_flags_changed:
+	__pool_dec(pool);
 out_free_pt:
 	kfree(pt);
 out:
@@ -2255,7 +2315,7 @@ static int pool_message(struct dm_target *ti, unsigned argc, char **argv)
 static int pool_status(struct dm_target *ti, status_type_t type,
 		       char *result, unsigned maxlen)
 {
-	int r;
+	int r, count;
 	unsigned sz = 0;
 	uint64_t transaction_id;
 	dm_block_t nr_free_blocks_data;
@@ -2318,10 +2378,19 @@ static int pool_status(struct dm_target *ti, status_type_t type,
 		       (unsigned long)pool->sectors_per_block,
 		       (unsigned long long)pt->low_water_blocks);
 
-		DMEMIT("%u ", !pool->zero_new_blocks);
+		count = !pool->pf.zero_new_blocks + !pool->pf.discard_enabled +
+			!pool->pf.discard_passdown;
+		DMEMIT("%u ", count);
 
-		if (!pool->zero_new_blocks)
+		if (!pool->pf.zero_new_blocks)
 			DMEMIT("skip_block_zeroing ");
+
+		if (!pool->pf.discard_enabled)
+			DMEMIT("ignore_discard ");
+
+		if (!pool->pf.discard_passdown)
+			DMEMIT("no_discard_passdown ");
+
 		break;
 	}
 
@@ -2352,6 +2421,9 @@ static int pool_merge(struct dm_target *ti, struct bvec_merge_data *bvm,
 
 static void set_discard_limits(struct pool *pool, struct queue_limits *limits)
 {
+	/*
+	 * FIXME: these limits may be incompatible with the pool's data device
+	 */
 	limits->max_discard_sectors = pool->sectors_per_block;
 
 	/*
@@ -2359,6 +2431,7 @@ static void set_discard_limits(struct pool *pool, struct queue_limits *limits)
 	 * bios that overlap 2 blocks.
 	 */
 	limits->discard_granularity = pool->sectors_per_block << SECTOR_SHIFT;
+	limits->discard_zeroes_data = pool->pf.zero_new_blocks;
 }
 
 static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
@@ -2368,14 +2441,15 @@ static void pool_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 	blk_limits_io_min(limits, 0);
 	blk_limits_io_opt(limits, pool->sectors_per_block << SECTOR_SHIFT);
-	set_discard_limits(pool, limits);
+	if (pool->pf.discard_enabled)
+		set_discard_limits(pool, limits);
 }
 
 static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 0, 0},
+	.version = {1, 1, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,
@@ -2417,6 +2491,9 @@ static void thin_dtr(struct dm_target *ti)
  * pool_dev: the path to the pool (eg, /dev/mapper/my_pool)
  * dev_id: the internal device identifier
  * origin_dev: a device external to the pool that should act as the origin
+ *
+ * If the pool device has discards disabled, they get disabled for the thin
+ * device as well.
  */
 static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 {
@@ -2485,8 +2562,12 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	ti->split_io = tc->pool->sectors_per_block;
 	ti->num_flush_requests = 1;
-	ti->num_discard_requests = 1;
-	ti->discards_supported = 1;
+
+	/* In case the pool supports discards, pass them on. */
+	if (tc->pool->pf.discard_enabled) {
+		ti->discards_supported = 1;
+		ti->num_discard_requests = 1;
+	}
 
 	dm_put(pool_md);
 
