@@ -330,8 +330,9 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 	struct cpc925_mc_pdata *pdata = mci->pvt_info;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
+	enum dev_type dtype;
 	int index, j;
-	u32 mbmr, mbbar, bba;
+	u32 mbmr, mbbar, bba, grain;
 	unsigned long row_size, nr_pages, last_nr_pages = 0;
 
 	get_total_mem(pdata);
@@ -355,37 +356,36 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 		csrow->last_page = csrow->first_page + nr_pages - 1;
 		last_nr_pages = csrow->last_page + 1;
 
+		switch (csrow->nr_channels) {
+		case 1: /* Single channel */
+			grain = 32; /* four-beat burst of 32 bytes */
+			break;
+		case 2: /* Dual channel */
+		default:
+			grain = 64; /* four-beat burst of 64 bytes */
+			break;
+		}
+		switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
+		case 6: /* 0110, no way to differentiate X8 VS X16 */
+		case 5:	/* 0101 */
+		case 8: /* 1000 */
+			dtype = DEV_X16;
+			break;
+		case 7: /* 0111 */
+		case 9: /* 1001 */
+			dtype = DEV_X8;
+			break;
+		default:
+			dtype = DEV_UNKNOWN;
+		break;
+		}
 		for (j = 0; j < csrow->nr_channels; j++) {
 			dimm = csrow->channels[j].dimm;
-
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
 			dimm->mtype = MEM_RDDR;
 			dimm->edac_mode = EDAC_SECDED;
-
-			switch (csrow->nr_channels) {
-			case 1: /* Single channel */
-				dimm->grain = 32; /* four-beat burst of 32 bytes */
-				break;
-			case 2: /* Dual channel */
-			default:
-				dimm->grain = 64; /* four-beat burst of 64 bytes */
-				break;
-			}
-
-			switch ((mbmr & MBMR_MODE_MASK) >> MBMR_MODE_SHIFT) {
-			case 6: /* 0110, no way to differentiate X8 VS X16 */
-			case 5:	/* 0101 */
-			case 8: /* 1000 */
-				dimm->dtype = DEV_X16;
-				break;
-			case 7: /* 0111 */
-			case 9: /* 1001 */
-				dimm->dtype = DEV_X8;
-				break;
-			default:
-				dimm->dtype = DEV_UNKNOWN;
-				break;
-			}
+			dimm->grain = grain;
+			dimm->dtype = dtype;
 		}
 	}
 }

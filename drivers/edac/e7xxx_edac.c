@@ -362,6 +362,7 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	int drc_chan, drc_drbg, drc_ddim, mem_dev;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
+	enum edac_type edac_mode;
 
 	pci_read_config_dword(pdev, E7XXX_DRA, &dra);
 	drc_chan = dual_channel_active(drc, dev_idx);
@@ -392,6 +393,21 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		nr_pages = cumul_size - last_cumul_size;
 		last_cumul_size = cumul_size;
 
+		/*
+		* if single channel or x8 devices then SECDED
+		* if dual channel and x4 then S4ECD4ED
+		*/
+		if (drc_ddim) {
+			if (drc_chan && mem_dev) {
+				edac_mode = EDAC_S4ECD4ED;
+				mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
+			} else {
+				edac_mode = EDAC_SECDED;
+				mci->edac_cap |= EDAC_FLAG_SECDED;
+			}
+		} else
+			edac_mode = EDAC_NONE;
+
 		for (j = 0; j < drc_chan + 1; j++) {
 			dimm = csrow->channels[j].dimm;
 
@@ -399,21 +415,7 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 			dimm->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
 			dimm->mtype = MEM_RDDR;	/* only one type supported */
 			dimm->dtype = mem_dev ? DEV_X4 : DEV_X8;
-
-			/*
-			* if single channel or x8 devices then SECDED
-			* if dual channel and x4 then S4ECD4ED
-			*/
-			if (drc_ddim) {
-				if (drc_chan && mem_dev) {
-					dimm->edac_mode = EDAC_S4ECD4ED;
-					mci->edac_cap |= EDAC_FLAG_S4ECD4ED;
-				} else {
-					dimm->edac_mode = EDAC_SECDED;
-					mci->edac_cap |= EDAC_FLAG_SECDED;
-				}
-			} else
-				dimm->edac_mode = EDAC_NONE;
+			dimm->edac_mode = edac_mode;
 		}
 	}
 }
