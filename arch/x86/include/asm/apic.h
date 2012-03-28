@@ -11,7 +11,6 @@
 #include <linux/atomic.h>
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
-#include <asm/system.h>
 #include <asm/msr.h>
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1

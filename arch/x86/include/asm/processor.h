@@ -14,13 +14,13 @@ struct mm_struct;
 #include <asm/sigcontext.h>
 #include <asm/current.h>
 #include <asm/cpufeature.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable_types.h>
 #include <asm/percpu.h>
 #include <asm/msr.h>
 #include <asm/desc_defs.h>
 #include <asm/nops.h>
+#include <asm/special_insns.h>
 
 #include <linux/personality.h>
 #include <linux/cpumask.h>
@@ -29,6 +29,15 @@ struct mm_struct;
 #include <linux/math64.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/irqflags.h>
+
+/*
+ * We handle most unaligned accesses in hardware.  On the other hand
+ * unaligned DMA can be quite expensive on some Nehalem processors.
+ *
+ * Based on this we disable the IP header alignment in network drivers.
+ */
+#define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
 /*
@@ -1021,5 +1030,25 @@ extern bool cpu_has_amd_erratum(const int *);
 #else
 #define cpu_has_amd_erratum(x)	(false)
 #endif /* CONFIG_CPU_SUP_AMD */
+
+#ifdef CONFIG_X86_32
+/*
+ * disable hlt during certain critical i/o operations
+ */
+#define HAVE_DISABLE_HLT
+#endif
+
+void disable_hlt(void);
+void enable_hlt(void);
+
+void cpu_idle_wait(void);
+
+extern unsigned long arch_align_stack(unsigned long sp);
+extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
+
+void default_idle(void);
+bool set_pm_idle_to_default(void);
+
+void stop_this_cpu(void *dummy);
 
 #endif /* _ASM_X86_PROCESSOR_H */
