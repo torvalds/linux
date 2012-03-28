@@ -370,4 +370,24 @@ config DM_FLAKEY
        ---help---
          A target that intermittently fails I/O for debugging purposes.
 
+config DM_VERITY
+	tristate "Verity target support (EXPERIMENTAL)"
+	depends on BLK_DEV_DM && EXPERIMENTAL
+	select CRYPTO
+	select CRYPTO_HASH
+	select DM_BUFIO
+	---help---
+	  This device-mapper target creates a read-only device that
+	  transparently validates the data on one underlying device against
+	  a pre-generated tree of cryptographic checksums stored on a second
+	  device.
+
+	  You'll need to activate the digests you're going to use in the
+	  cryptoapi configuration.
+
+	  To compile this code as a module, choose M here: the module will
+	  be called dm-verity.
+
+	  If unsure, say N.
+
 endif # MD
