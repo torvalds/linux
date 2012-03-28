@@ -980,14 +980,13 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 		return -EIO;
 	}
 
+	iwl_enable_rfkill_int(trans);
+
 	/* If platform's RF_KILL switch is NOT set to KILL */
 	hw_rfkill = iwl_is_rfkill_set(trans);
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
-
-	if (hw_rfkill) {
-		iwl_enable_rfkill_int(trans);
+	if (hw_rfkill)
 		return -ERFKILL;
-	}
 
 	iwl_write32(trans, CSR_INT, 0xFFFFFFFF);
 
@@ -1560,14 +1559,13 @@ static int iwl_trans_pcie_resume(struct iwl_trans *trans)
 {
 	bool hw_rfkill;
 
+	iwl_enable_rfkill_int(trans);
+
 	hw_rfkill = iwl_is_rfkill_set(trans);
-
-	if (hw_rfkill)
-		iwl_enable_rfkill_int(trans);
-	else
-		iwl_enable_interrupts(trans);
-
 	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
+
+	if (!hw_rfkill)
+		iwl_enable_interrupts(trans);
 
 	return 0;
 }
