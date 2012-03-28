@@ -273,6 +273,7 @@ static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= 126,
 		.ext_clock	= 0,
+		.deferred	= true,
 	},
 	{
 		.mmc		= 2,
@@ -281,6 +282,7 @@ static struct omap2_hsmmc_info omap3pandora_mmc[] = {
 		.gpio_wp	= 127,
 		.ext_clock	= 1,
 		.transceiver	= true,
+		.deferred	= true,
 	},
 	{
 		.mmc		= 3,
@@ -300,7 +302,7 @@ static int omap3pandora_twl_gpio_setup(struct device *dev,
 	/* gpio + {0,1} is "mmc{0,1}_cd" (input/IRQ) */
 	omap3pandora_mmc[0].gpio_cd = gpio + 0;
 	omap3pandora_mmc[1].gpio_cd = gpio + 1;
-	omap2_hsmmc_init(omap3pandora_mmc);
+	omap_hsmmc_late_init(omap3pandora_mmc);
 
 	/* gpio + 13 drives 32kHz buffer for wifi module */
 	gpio_32khz = gpio + 13;
@@ -343,7 +345,7 @@ static struct regulator_consumer_supply pandora_vcc_lcd_supply[] = {
 };
 
 static struct regulator_consumer_supply pandora_usb_phy_supply[] = {
-	REGULATOR_SUPPLY("hsusb0", "ehci-omap.0"),
+	REGULATOR_SUPPLY("hsusb1", "ehci-omap.0"),
 };
 
 /* ads7846 on SPI and 2 nub controllers on I2C */
@@ -561,13 +563,13 @@ static struct platform_device *omap3pandora_devices[] __initdata = {
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
 
-	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[1] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
+	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
 
 	.phy_reset  = true,
-	.reset_gpio_port[0]  = 16,
-	.reset_gpio_port[1]  = -EINVAL,
+	.reset_gpio_port[0]  = -EINVAL,
+	.reset_gpio_port[1]  = 16,
 	.reset_gpio_port[2]  = -EINVAL
 };
 
@@ -580,6 +582,7 @@ static struct omap_board_mux board_mux[] __initdata = {
 static void __init omap3pandora_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
+	omap_hsmmc_init(omap3pandora_mmc);
 	omap3pandora_i2c_init();
 	pandora_wl1251_init();
 	platform_add_devices(omap3pandora_devices,

@@ -76,7 +76,7 @@ static void __iomem *imx3_ioremap(unsigned long phys_addr, size_t size,
 	return __arm_ioremap(phys_addr, size, mtype);
 }
 
-void imx3_init_l2x0(void)
+void __init imx3_init_l2x0(void)
 {
 	void __iomem *l2x0_base;
 	void __iomem *clkctl_base;
