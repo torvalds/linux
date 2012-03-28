@@ -147,7 +147,7 @@ extern struct cache_detail svc_export_cache;
 
 static inline void exp_put(struct svc_export *exp)
 {
-	cache_put(&exp->h, &svc_export_cache);
+	cache_put(&exp->h, exp->cd);
 }
 
 static inline void exp_get(struct svc_export *exp)
