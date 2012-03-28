@@ -44,7 +44,7 @@ static void write_bytes(char *addr)
 		*(addr + i) = (char)i;
 }
 
-static void read_bytes(char *addr)
+static int read_bytes(char *addr)
 {
 	unsigned long i;
 
@@ -52,13 +52,15 @@ static void read_bytes(char *addr)
 	for (i = 0; i < LENGTH; i++)
 		if (*(addr + i) != (char)i) {
 			printf("Mismatch at %lu\n", i);
-			break;
+			return 1;
 		}
+	return 0;
 }
 
 int main(void)
 {
 	void *addr;
+	int ret;
 
 	addr = mmap(ADDR, LENGTH, PROTECTION, FLAGS, 0, 0);
 	if (addr == MAP_FAILED) {
@@ -69,9 +71,9 @@ int main(void)
 	printf("Returned address is %p\n", addr);
 	check_bytes(addr);
 	write_bytes(addr);
-	read_bytes(addr);
+	ret = read_bytes(addr);
 
 	munmap(addr, LENGTH);
 
-	return 0;
+	return ret;
 }

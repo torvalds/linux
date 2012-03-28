@@ -1,4 +1,4 @@
-TARGETS = breakpoints
+TARGETS = breakpoints vm
 
 all:
 	for TARGET in $(TARGETS); do \
