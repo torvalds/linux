@@ -410,6 +410,9 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 			cumul_size);
 
 		nr_pages = cumul_size - last_cumul_size;
+		if (!nr_pages)
+			continue;
+
 		/*
 		 * Initialise dram labels
 		 * index values:
@@ -420,9 +423,6 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		for (chan = 0; chan < csrow->nr_channels; chan++) {
 			dimm = mci->csrows[index].channels[chan].dimm;
 
-			if (!nr_pages)
-				continue;
-
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
 			strncpy(csrow->channels[chan].dimm->label,
 					labels[(index >> 1) + (chan * 2)],
@@ -432,9 +432,6 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 			dimm->mtype = MEM_DDR2; /* I82975x supports only DDR2 */
 			dimm->edac_mode = EDAC_SECDED; /* only supported */
 		}
-
-		if (!nr_pages)
-			continue;	/* not populated */
 
 		csrow->first_page = last_cumul_size;
 		csrow->last_page = cumul_size - 1;
