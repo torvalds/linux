@@ -127,7 +127,16 @@ static const struct file_operations transaction_ops = {
 
 static int exports_open(struct inode *inode, struct file *file)
 {
-	return seq_open(file, &nfs_exports_op);
+	int err;
+	struct seq_file *seq;
+
+	err = seq_open(file, &nfs_exports_op);
+	if (err)
+		return err;
+
+	seq = file->private_data;
+	seq->private = &svc_export_cache;
+	return 0;
 }
 
 static const struct file_operations exports_operations = {

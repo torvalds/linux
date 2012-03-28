@@ -1029,13 +1029,14 @@ exp_pseudoroot(struct svc_rqst *rqstp, struct svc_fh *fhp)
 /* Iterator */
 
 static void *e_start(struct seq_file *m, loff_t *pos)
-	__acquires(svc_export_cache.hash_lock)
+	__acquires(((struct cache_detail *)m->private)->hash_lock)
 {
 	loff_t n = *pos;
 	unsigned hash, export;
 	struct cache_head *ch;
-	
-	read_lock(&svc_export_cache.hash_lock);
+	struct cache_detail *cd = m->private;
+
+	read_lock(&cd->hash_lock);
 	if (!n--)
 		return SEQ_START_TOKEN;
 	hash = n >> 32;
@@ -1082,9 +1083,11 @@ static void *e_next(struct seq_file *m, void *p, loff_t *pos)
 }
 
 static void e_stop(struct seq_file *m, void *p)
-	__releases(svc_export_cache.hash_lock)
+	__releases(((struct cache_detail *)m->private)->hash_lock)
 {
-	read_unlock(&svc_export_cache.hash_lock);
+	struct cache_detail *cd = m->private;
+
+	read_unlock(&cd->hash_lock);
 }
 
 static struct flags {
@@ -1195,6 +1198,7 @@ static int e_show(struct seq_file *m, void *p)
 {
 	struct cache_head *cp = p;
 	struct svc_export *exp = container_of(cp, struct svc_export, h);
+	struct cache_detail *cd = m->private;
 
 	if (p == SEQ_START_TOKEN) {
 		seq_puts(m, "# Version 1.1\n");
@@ -1203,10 +1207,10 @@ static int e_show(struct seq_file *m, void *p)
 	}
 
 	cache_get(&exp->h);
-	if (cache_check(&svc_export_cache, &exp->h, NULL))
+	if (cache_check(cd, &exp->h, NULL))
 		return 0;
 	exp_put(exp);
-	return svc_export_show(m, &svc_export_cache, cp);
+	return svc_export_show(m, cd, cp);
 }
 
 const struct seq_operations nfs_exports_op = {
