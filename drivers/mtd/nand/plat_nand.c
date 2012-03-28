@@ -23,6 +23,8 @@ struct plat_nand_data {
 	void __iomem		*io_base;
 };
 
+static const char *part_probe_types[] = { "cmdlinepart", NULL };
+
 /*
  * Probe for the NAND device.
  */
@@ -31,6 +33,7 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 	struct platform_nand_data *pdata = pdev->dev.platform_data;
 	struct plat_nand_data *data;
 	struct resource *res;
+	const char **part_types;
 	int err = 0;
 
 	if (pdata->chip.nr_chips < 1) {
@@ -98,8 +101,9 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	err = mtd_device_parse_register(&data->mtd,
-					pdata->chip.part_probe_types, NULL,
+	part_types = pdata->chip.part_probe_types ? : part_probe_types;
+
+	err = mtd_device_parse_register(&data->mtd, part_types, NULL,
 					pdata->chip.partitions,
 					pdata->chip.nr_partitions);
 
