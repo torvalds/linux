@@ -5,6 +5,11 @@ all:
 		make -C $$TARGET; \
 	done;
 
+run_tests:
+	for TARGET in $(TARGETS); do \
+		make -C $$TARGET run_tests; \
+	done;
+
 clean:
 	for TARGET in $(TARGETS); do \
 		make -C $$TARGET clean; \
