@@ -1565,8 +1565,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 			/* Obtain the value string */
 			value = strchr(data, '=');
-			if (value != NULL)
-				*value++ = '\0';
+			value++;
 
 			/* Set tmp_end to end of the string */
 			tmp_end = (char *) value + strlen(value);
