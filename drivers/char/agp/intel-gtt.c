@@ -1206,12 +1206,16 @@ static inline int needs_idle_maps(void)
 static int i9xx_setup(void)
 {
 	u32 reg_addr;
+	int size = KB(512);
 
 	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &reg_addr);
 
 	reg_addr &= 0xfff80000;
 
-	intel_private.registers = ioremap(reg_addr, 128 * 4096);
+	if (INTEL_GTT_GEN >= 7)
+		size = MB(2);
+
+	intel_private.registers = ioremap(reg_addr, size);
 	if (!intel_private.registers)
 		return -ENOMEM;
 
