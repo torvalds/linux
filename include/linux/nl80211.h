@@ -2223,7 +2223,7 @@ enum nl80211_mesh_setup_params {
 /**
  * enum nl80211_txq_attr - TX queue parameter attributes
  * @__NL80211_TXQ_ATTR_INVALID: Attribute number 0 is reserved
- * @NL80211_TXQ_ATTR_QUEUE: TX queue identifier (NL80211_TXQ_Q_*)
+ * @NL80211_TXQ_ATTR_AC: AC identifier (NL80211_AC_*)
  * @NL80211_TXQ_ATTR_TXOP: Maximum burst time in units of 32 usecs, 0 meaning
  *	disabled
  * @NL80211_TXQ_ATTR_CWMIN: Minimum contention window [a value of the form
@@ -2236,7 +2236,7 @@ enum nl80211_mesh_setup_params {
  */
 enum nl80211_txq_attr {
 	__NL80211_TXQ_ATTR_INVALID,
-	NL80211_TXQ_ATTR_QUEUE,
+	NL80211_TXQ_ATTR_AC,
 	NL80211_TXQ_ATTR_TXOP,
 	NL80211_TXQ_ATTR_CWMIN,
 	NL80211_TXQ_ATTR_CWMAX,
@@ -2247,12 +2247,20 @@ enum nl80211_txq_attr {
 	NL80211_TXQ_ATTR_MAX = __NL80211_TXQ_ATTR_AFTER_LAST - 1
 };
 
-enum nl80211_txq_q {
-	NL80211_TXQ_Q_VO,
-	NL80211_TXQ_Q_VI,
-	NL80211_TXQ_Q_BE,
-	NL80211_TXQ_Q_BK
+enum nl80211_ac {
+	NL80211_AC_VO,
+	NL80211_AC_VI,
+	NL80211_AC_BE,
+	NL80211_AC_BK,
+	NL80211_NUM_ACS
 };
+
+/* backward compat */
+#define NL80211_TXQ_ATTR_QUEUE	NL80211_TXQ_ATTR_AC
+#define NL80211_TXQ_Q_VO	NL80211_AC_VO
+#define NL80211_TXQ_Q_VI	NL80211_AC_VI
+#define NL80211_TXQ_Q_BE	NL80211_AC_BE
+#define NL80211_TXQ_Q_BK	NL80211_AC_BK
 
 enum nl80211_channel_type {
 	NL80211_CHAN_NO_HT,

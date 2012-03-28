@@ -492,7 +492,7 @@ static inline void drv_sta_rc_update(struct ieee80211_local *local,
 }
 
 static inline int drv_conf_tx(struct ieee80211_local *local,
-			      struct ieee80211_sub_if_data *sdata, u16 queue,
+			      struct ieee80211_sub_if_data *sdata, u16 ac,
 			      const struct ieee80211_tx_queue_params *params)
 {
 	int ret = -EOPNOTSUPP;
@@ -501,10 +501,10 @@ static inline int drv_conf_tx(struct ieee80211_local *local,
 
 	check_sdata_in_driver(sdata);
 
-	trace_drv_conf_tx(local, sdata, queue, params);
+	trace_drv_conf_tx(local, sdata, ac, params);
 	if (local->ops->conf_tx)
 		ret = local->ops->conf_tx(&local->hw, &sdata->vif,
-					  queue, params);
+					  ac, params);
 	trace_drv_return_int(local, ret);
 	return ret;
 }

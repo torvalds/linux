@@ -845,7 +845,7 @@ struct mesh_setup {
 
 /**
  * struct ieee80211_txq_params - TX queue parameters
- * @queue: TX queue identifier (NL80211_TXQ_Q_*)
+ * @ac: AC identifier
  * @txop: Maximum burst time in units of 32 usecs, 0 meaning disabled
  * @cwmin: Minimum contention window [a value of the form 2^n-1 in the range
  *	1..32767]
@@ -854,7 +854,7 @@ struct mesh_setup {
  * @aifs: Arbitration interframe space [0..255]
  */
 struct ieee80211_txq_params {
-	enum nl80211_txq_q queue;
+	enum nl80211_ac ac;
 	u16 txop;
 	u16 cwmin;
 	u16 cwmax;
