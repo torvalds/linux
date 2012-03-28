@@ -32,6 +32,7 @@
 
 
 #include <linux/cpufreq.h>
+#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -48,6 +49,8 @@
 #include <asm/system.h>
 
 #include "soc_common.h"
+
+static irqreturn_t soc_common_pcmcia_interrupt(int irq, void *dev);
 
 #ifdef CONFIG_PCMCIA_DEBUG
 
@@ -104,12 +107,115 @@ void soc_common_pcmcia_get_timing(struct soc_pcmcia_socket *skt,
 }
 EXPORT_SYMBOL(soc_common_pcmcia_get_timing);
 
+static void __soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt,
+	unsigned int nr)
+{
+	unsigned int i;
+
+	for (i = 0; i < nr; i++) {
+		if (skt->stat[i].irq)
+			free_irq(skt->stat[i].irq, skt);
+		if (gpio_is_valid(skt->stat[i].gpio))
+			gpio_free(skt->stat[i].gpio);
+	}
+
+	if (skt->ops->hw_shutdown)
+		skt->ops->hw_shutdown(skt);
+}
+
+static void soc_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
+{
+	__soc_pcmcia_hw_shutdown(skt, ARRAY_SIZE(skt->stat));
+}
+
+static int soc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
+{
+	int ret = 0, i;
+
+	if (skt->ops->hw_init) {
+		ret = skt->ops->hw_init(skt);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(skt->stat); i++) {
+		if (gpio_is_valid(skt->stat[i].gpio)) {
+			int irq;
+
+			ret = gpio_request_one(skt->stat[i].gpio, GPIOF_IN,
+					       skt->stat[i].name);
+			if (ret) {
+				__soc_pcmcia_hw_shutdown(skt, i);
+				return ret;
+			}
+
+			irq = gpio_to_irq(skt->stat[i].gpio);
+
+			if (i == SOC_STAT_RDY)
+				skt->socket.pci_irq = irq;
+			else
+				skt->stat[i].irq = irq;
+		}
+
+		if (skt->stat[i].irq) {
+			ret = request_irq(skt->stat[i].irq,
+					  soc_common_pcmcia_interrupt,
+					  IRQF_TRIGGER_NONE,
+					  skt->stat[i].name, skt);
+			if (ret) {
+				if (gpio_is_valid(skt->stat[i].gpio))
+					gpio_free(skt->stat[i].gpio);
+				__soc_pcmcia_hw_shutdown(skt, i);
+				return ret;
+			}
+		}
+	}
+
+	return ret;
+}
+
+static void soc_pcmcia_hw_enable(struct soc_pcmcia_socket *skt)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(skt->stat); i++)
+		if (skt->stat[i].irq) {
+			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_EDGE_RISING);
+			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_EDGE_BOTH);
+		}
+}
+
+static void soc_pcmcia_hw_disable(struct soc_pcmcia_socket *skt)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(skt->stat); i++)
+		if (skt->stat[i].irq)
+			irq_set_irq_type(skt->stat[i].irq, IRQ_TYPE_NONE);
+}
+
 static unsigned int soc_common_pcmcia_skt_state(struct soc_pcmcia_socket *skt)
 {
 	struct pcmcia_state state;
 	unsigned int stat;
 
 	memset(&state, 0, sizeof(struct pcmcia_state));
+
+	/* Make battery voltage state report 'good' */
+	state.bvd1 = 1;
+	state.bvd2 = 1;
+
+	/* CD is active low by default */
+	if (gpio_is_valid(skt->stat[SOC_STAT_CD].gpio))
+		state.detect = !gpio_get_value(skt->stat[SOC_STAT_CD].gpio);
+
+	/* RDY and BVD are active high by default */
+	if (gpio_is_valid(skt->stat[SOC_STAT_RDY].gpio))
+		state.ready = !!gpio_get_value(skt->stat[SOC_STAT_RDY].gpio);
+	if (gpio_is_valid(skt->stat[SOC_STAT_BVD1].gpio))
+		state.bvd1 = !!gpio_get_value(skt->stat[SOC_STAT_BVD1].gpio);
+	if (gpio_is_valid(skt->stat[SOC_STAT_BVD2].gpio))
+		state.bvd2 = !!gpio_get_value(skt->stat[SOC_STAT_BVD2].gpio);
 
 	skt->ops->socket_state(skt, &state);
 
@@ -188,6 +294,7 @@ static int soc_common_pcmcia_sock_init(struct pcmcia_socket *sock)
 	debug(skt, 2, "initializing socket\n");
 	if (skt->ops->socket_init)
 		skt->ops->socket_init(skt);
+	soc_pcmcia_hw_enable(skt);
 	return 0;
 }
 
@@ -207,6 +314,7 @@ static int soc_common_pcmcia_suspend(struct pcmcia_socket *sock)
 
 	debug(skt, 2, "suspending socket\n");
 
+	soc_pcmcia_hw_disable(skt);
 	if (skt->ops->socket_suspend)
 		skt->ops->socket_suspend(skt);
 
@@ -526,69 +634,6 @@ static struct pccard_operations soc_common_pcmcia_operations = {
 };
 
 
-int soc_pcmcia_request_irqs(struct soc_pcmcia_socket *skt,
-			    struct pcmcia_irqs *irqs, int nr)
-{
-	int i, res = 0;
-
-	for (i = 0; i < nr; i++) {
-		if (irqs[i].sock != skt->nr)
-			continue;
-		res = request_irq(irqs[i].irq, soc_common_pcmcia_interrupt,
-				  IRQF_DISABLED, irqs[i].str, skt);
-		if (res)
-			break;
-		irq_set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
-	}
-
-	if (res) {
-		printk(KERN_ERR "PCMCIA: request for IRQ%d failed (%d)\n",
-			irqs[i].irq, res);
-
-		while (i--)
-			if (irqs[i].sock == skt->nr)
-				free_irq(irqs[i].irq, skt);
-	}
-	return res;
-}
-EXPORT_SYMBOL(soc_pcmcia_request_irqs);
-
-void soc_pcmcia_free_irqs(struct soc_pcmcia_socket *skt,
-			  struct pcmcia_irqs *irqs, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		if (irqs[i].sock == skt->nr)
-			free_irq(irqs[i].irq, skt);
-}
-EXPORT_SYMBOL(soc_pcmcia_free_irqs);
-
-void soc_pcmcia_disable_irqs(struct soc_pcmcia_socket *skt,
-			     struct pcmcia_irqs *irqs, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		if (irqs[i].sock == skt->nr)
-			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_NONE);
-}
-EXPORT_SYMBOL(soc_pcmcia_disable_irqs);
-
-void soc_pcmcia_enable_irqs(struct soc_pcmcia_socket *skt,
-			    struct pcmcia_irqs *irqs, int nr)
-{
-	int i;
-
-	for (i = 0; i < nr; i++)
-		if (irqs[i].sock == skt->nr) {
-			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_RISING);
-			irq_set_irq_type(irqs[i].irq, IRQ_TYPE_EDGE_BOTH);
-		}
-}
-EXPORT_SYMBOL(soc_pcmcia_enable_irqs);
-
-
 static LIST_HEAD(soc_pcmcia_sockets);
 static DEFINE_MUTEX(soc_pcmcia_sockets_lock);
 
@@ -635,6 +680,21 @@ module_exit(soc_pcmcia_cpufreq_unregister);
 
 #endif
 
+void soc_pcmcia_init_one(struct soc_pcmcia_socket *skt,
+	struct pcmcia_low_level *ops, struct device *dev)
+{
+	int i;
+
+	skt->ops = ops;
+	skt->socket.owner = ops->owner;
+	skt->socket.dev.parent = dev;
+	skt->socket.pci_irq = NO_IRQ;
+
+	for (i = 0; i < ARRAY_SIZE(skt->stat); i++)
+		skt->stat[i].gpio = -EINVAL;
+}
+EXPORT_SYMBOL(soc_pcmcia_init_one);
+
 void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 {
 	mutex_lock(&soc_pcmcia_sockets_lock);
@@ -642,8 +702,9 @@ void soc_pcmcia_remove_one(struct soc_pcmcia_socket *skt)
 
 	pcmcia_unregister_socket(&skt->socket);
 
-	skt->ops->hw_shutdown(skt);
+	soc_pcmcia_hw_shutdown(skt);
 
+	/* should not be required; violates some lowlevel drivers */
 	soc_common_pcmcia_config_skt(skt, &dead_socket);
 
 	list_del(&skt->node);
@@ -700,7 +761,7 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 	 */
 	skt->ops->set_timing(skt);
 
-	ret = skt->ops->hw_init(skt);
+	ret = soc_pcmcia_hw_init(skt);
 	if (ret)
 		goto out_err_6;
 
@@ -733,7 +794,7 @@ int soc_pcmcia_add_one(struct soc_pcmcia_socket *skt)
 	pcmcia_unregister_socket(&skt->socket);
 
  out_err_7:
-	skt->ops->hw_shutdown(skt);
+	soc_pcmcia_hw_shutdown(skt);
  out_err_6:
 	list_del(&skt->node);
 	mutex_unlock(&soc_pcmcia_sockets_lock);

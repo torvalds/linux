@@ -167,4 +167,4 @@ driver specific data to and a pointer to the data itself.
 
 The watchdog_get_drvdata function allows you to retrieve driver specific data.
 The argument of this function is the watchdog device where you want to retrieve
-data from. The function retruns the pointer to the driver specific data.
+data from. The function returns the pointer to the driver specific data.

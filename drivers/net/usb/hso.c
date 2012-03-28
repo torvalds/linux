@@ -3313,7 +3313,6 @@ static int __init hso_init(void)
 
 	/* fill in all needed values */
 	tty_drv->magic = TTY_DRIVER_MAGIC;
-	tty_drv->owner = THIS_MODULE;
 	tty_drv->driver_name = driver_name;
 	tty_drv->name = tty_filename;
 
@@ -3322,7 +3321,6 @@ static int __init hso_init(void)
 		tty_drv->major = tty_major;
 
 	tty_drv->minor_start = 0;
-	tty_drv->num = HSO_SERIAL_TTY_MINORS;
 	tty_drv->type = TTY_DRIVER_TYPE_SERIAL;
 	tty_drv->subtype = SERIAL_TYPE_NORMAL;
 	tty_drv->flags = TTY_DRIVER_REAL_RAW | TTY_DRIVER_DYNAMIC_DEV;

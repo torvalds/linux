@@ -682,7 +682,6 @@ static int __init wsp_setup_one_phb(struct device_node *np)
 	/* XXX Force re-assigning of everything for now */
 	pci_add_flags(PCI_REASSIGN_ALL_BUS | PCI_REASSIGN_ALL_RSRC |
 		      PCI_ENABLE_PROC_DOMAINS);
-	pci_probe_only = 0;
 
 	/* Calculate how the TCE space is divided */
 	phb->dma32_base		= 0;

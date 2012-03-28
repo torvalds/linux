@@ -652,30 +652,7 @@ static struct i2c_driver bu21013_driver = {
 	.id_table	=	bu21013_id,
 };
 
-/**
- * bu21013_init() - initializes the bu21013 touchscreen driver
- *
- * This function used to initializes the bu21013
- * touchscreen driver and returns integer.
- */
-static int __init bu21013_init(void)
-{
-	return i2c_add_driver(&bu21013_driver);
-}
-
-/**
- * bu21013_exit() - de-initializes the bu21013 touchscreen driver
- *
- * This function uses to de-initializes the bu21013
- * touchscreen driver and returns none.
- */
-static void __exit bu21013_exit(void)
-{
-	i2c_del_driver(&bu21013_driver);
-}
-
-module_init(bu21013_init);
-module_exit(bu21013_exit);
+module_i2c_driver(bu21013_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Naveen Kumar G <naveen.gaddipati@stericsson.com>");

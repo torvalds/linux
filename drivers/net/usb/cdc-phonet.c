@@ -164,12 +164,14 @@ static void rx_complete(struct urb *req)
 				/* Can't use pskb_pull() on page in IRQ */
 				memcpy(skb_put(skb, 1), page_address(page), 1);
 				skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-						page, 1, req->actual_length);
+						page, 1, req->actual_length,
+						req->actual_length);
 				page = NULL;
 			}
 		} else {
 			skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags,
-					page, 0, req->actual_length);
+					page, 0, req->actual_length,
+					req->actual_length);
 			page = NULL;
 		}
 		if (req->actual_length < PAGE_SIZE)

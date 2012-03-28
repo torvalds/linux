@@ -26,6 +26,7 @@
 #include "drmP.h"
 #include "drm.h"
 
+#include <linux/shmem_fs.h>
 #include <drm/exynos_drm.h>
 
 #include "exynos_drm_drv.h"
@@ -53,6 +54,178 @@ static unsigned int convert_to_vm_err_msg(int msg)
 	}
 
 	return out_msg;
+}
+
+static unsigned int mask_gem_flags(unsigned int flags)
+{
+	return flags &= EXYNOS_BO_NONCONTIG;
+}
+
+static struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
+						gfp_t gfpmask)
+{
+	struct inode *inode;
+	struct address_space *mapping;
+	struct page *p, **pages;
+	int i, npages;
+
+	/* This is the shared memory object that backs the GEM resource */
+	inode = obj->filp->f_path.dentry->d_inode;
+	mapping = inode->i_mapping;
+
+	npages = obj->size >> PAGE_SHIFT;
+
+	pages = drm_malloc_ab(npages, sizeof(struct page *));
+	if (pages == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	gfpmask |= mapping_gfp_mask(mapping);
+
+	for (i = 0; i < npages; i++) {
+		p = shmem_read_mapping_page_gfp(mapping, i, gfpmask);
+		if (IS_ERR(p))
+			goto fail;
+		pages[i] = p;
+	}
+
+	return pages;
+
+fail:
+	while (i--)
+		page_cache_release(pages[i]);
+
+	drm_free_large(pages);
+	return ERR_PTR(PTR_ERR(p));
+}
+
+static void exynos_gem_put_pages(struct drm_gem_object *obj,
+					struct page **pages,
+					bool dirty, bool accessed)
+{
+	int i, npages;
+
+	npages = obj->size >> PAGE_SHIFT;
+
+	for (i = 0; i < npages; i++) {
+		if (dirty)
+			set_page_dirty(pages[i]);
+
+		if (accessed)
+			mark_page_accessed(pages[i]);
+
+		/* Undo the reference we took when populating the table */
+		page_cache_release(pages[i]);
+	}
+
+	drm_free_large(pages);
+}
+
+static int exynos_drm_gem_map_pages(struct drm_gem_object *obj,
+					struct vm_area_struct *vma,
+					unsigned long f_vaddr,
+					pgoff_t page_offset)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	struct exynos_drm_gem_buf *buf = exynos_gem_obj->buffer;
+	unsigned long pfn;
+
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
+		unsigned long usize = buf->size;
+
+		if (!buf->pages)
+			return -EINTR;
+
+		while (usize > 0) {
+			pfn = page_to_pfn(buf->pages[page_offset++]);
+			vm_insert_mixed(vma, f_vaddr, pfn);
+			f_vaddr += PAGE_SIZE;
+			usize -= PAGE_SIZE;
+		}
+
+		return 0;
+	}
+
+	pfn = (buf->dma_addr >> PAGE_SHIFT) + page_offset;
+
+	return vm_insert_mixed(vma, f_vaddr, pfn);
+}
+
+static int exynos_drm_gem_get_pages(struct drm_gem_object *obj)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	struct exynos_drm_gem_buf *buf = exynos_gem_obj->buffer;
+	struct scatterlist *sgl;
+	struct page **pages;
+	unsigned int npages, i = 0;
+	int ret;
+
+	if (buf->pages) {
+		DRM_DEBUG_KMS("already allocated.\n");
+		return -EINVAL;
+	}
+
+	pages = exynos_gem_get_pages(obj, GFP_KERNEL);
+	if (IS_ERR(pages)) {
+		DRM_ERROR("failed to get pages.\n");
+		return PTR_ERR(pages);
+	}
+
+	npages = obj->size >> PAGE_SHIFT;
+
+	buf->sgt = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
+	if (!buf->sgt) {
+		DRM_ERROR("failed to allocate sg table.\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = sg_alloc_table(buf->sgt, npages, GFP_KERNEL);
+	if (ret < 0) {
+		DRM_ERROR("failed to initialize sg table.\n");
+		ret = -EFAULT;
+		goto err1;
+	}
+
+	sgl = buf->sgt->sgl;
+
+	/* set all pages to sg list. */
+	while (i < npages) {
+		sg_set_page(sgl, pages[i], PAGE_SIZE, 0);
+		sg_dma_address(sgl) = page_to_phys(pages[i]);
+		i++;
+		sgl = sg_next(sgl);
+	}
+
+	/* add some codes for UNCACHED type here. TODO */
+
+	buf->pages = pages;
+	return ret;
+err1:
+	kfree(buf->sgt);
+	buf->sgt = NULL;
+err:
+	exynos_gem_put_pages(obj, pages, true, false);
+	return ret;
+
+}
+
+static void exynos_drm_gem_put_pages(struct drm_gem_object *obj)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
+	struct exynos_drm_gem_buf *buf = exynos_gem_obj->buffer;
+
+	/*
+	 * if buffer typs is EXYNOS_BO_NONCONTIG then release all pages
+	 * allocated at gem fault handler.
+	 */
+	sg_free_table(buf->sgt);
+	kfree(buf->sgt);
+	buf->sgt = NULL;
+
+	exynos_gem_put_pages(obj, buf->pages, true, false);
+	buf->pages = NULL;
+
+	/* add some codes for UNCACHED type here. TODO */
 }
 
 static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
@@ -90,7 +263,15 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 
 	DRM_DEBUG_KMS("handle count = %d\n", atomic_read(&obj->handle_count));
 
-	exynos_drm_buf_destroy(obj->dev, exynos_gem_obj->buffer);
+	if ((exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) &&
+			exynos_gem_obj->buffer->pages)
+		exynos_drm_gem_put_pages(obj);
+	else
+		exynos_drm_free_buf(obj->dev, exynos_gem_obj->flags,
+					exynos_gem_obj->buffer);
+
+	exynos_drm_fini_buf(obj->dev, exynos_gem_obj->buffer);
+	exynos_gem_obj->buffer = NULL;
 
 	if (obj->map_list.map)
 		drm_gem_free_mmap_offset(obj);
@@ -99,6 +280,7 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	drm_gem_object_release(obj);
 
 	kfree(exynos_gem_obj);
+	exynos_gem_obj = NULL;
 }
 
 static struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
@@ -114,6 +296,7 @@ static struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 		return NULL;
 	}
 
+	exynos_gem_obj->size = size;
 	obj = &exynos_gem_obj->base;
 
 	ret = drm_gem_object_init(dev, obj, size);
@@ -129,27 +312,55 @@ static struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 }
 
 struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
-						 unsigned long size)
+						unsigned int flags,
+						unsigned long size)
 {
-	struct exynos_drm_gem_buf *buffer;
 	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct exynos_drm_gem_buf *buf;
+	int ret;
 
 	size = roundup(size, PAGE_SIZE);
 	DRM_DEBUG_KMS("%s: size = 0x%lx\n", __FILE__, size);
 
-	buffer = exynos_drm_buf_create(dev, size);
-	if (!buffer)
+	flags = mask_gem_flags(flags);
+
+	buf = exynos_drm_init_buf(dev, size);
+	if (!buf)
 		return ERR_PTR(-ENOMEM);
 
 	exynos_gem_obj = exynos_drm_gem_init(dev, size);
 	if (!exynos_gem_obj) {
-		exynos_drm_buf_destroy(dev, buffer);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err;
 	}
 
-	exynos_gem_obj->buffer = buffer;
+	exynos_gem_obj->buffer = buf;
+
+	/* set memory type and cache attribute from user side. */
+	exynos_gem_obj->flags = flags;
+
+	/*
+	 * allocate all pages as desired size if user wants to allocate
+	 * physically non-continuous memory.
+	 */
+	if (flags & EXYNOS_BO_NONCONTIG) {
+		ret = exynos_drm_gem_get_pages(&exynos_gem_obj->base);
+		if (ret < 0) {
+			drm_gem_object_release(&exynos_gem_obj->base);
+			goto err;
+		}
+	} else {
+		ret = exynos_drm_alloc_buf(dev, buf, flags);
+		if (ret < 0) {
+			drm_gem_object_release(&exynos_gem_obj->base);
+			goto err;
+		}
+	}
 
 	return exynos_gem_obj;
+err:
+	exynos_drm_fini_buf(dev, buf);
+	return ERR_PTR(ret);
 }
 
 int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
@@ -161,7 +372,7 @@ int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	exynos_gem_obj = exynos_drm_gem_create(dev, args->size);
+	exynos_gem_obj = exynos_drm_gem_create(dev, args->flags, args->size);
 	if (IS_ERR(exynos_gem_obj))
 		return PTR_ERR(exynos_gem_obj);
 
@@ -173,6 +384,64 @@ int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 	}
 
 	return 0;
+}
+
+void *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
+					unsigned int gem_handle,
+					struct drm_file *file_priv)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
+		DRM_DEBUG_KMS("not support NONCONTIG type.\n");
+		drm_gem_object_unreference_unlocked(obj);
+
+		/* TODO */
+		return ERR_PTR(-EINVAL);
+	}
+
+	return &exynos_gem_obj->buffer->dma_addr;
+}
+
+void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
+					unsigned int gem_handle,
+					struct drm_file *file_priv)
+{
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(dev, file_priv, gem_handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return;
+	}
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
+		DRM_DEBUG_KMS("not support NONCONTIG type.\n");
+		drm_gem_object_unreference_unlocked(obj);
+
+		/* TODO */
+		return;
+	}
+
+	drm_gem_object_unreference_unlocked(obj);
+
+	/*
+	 * decrease obj->refcount one more time because we has already
+	 * increased it at exynos_drm_gem_get_dma_addr().
+	 */
+	drm_gem_object_unreference_unlocked(obj);
 }
 
 int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
@@ -200,7 +469,8 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 	struct drm_gem_object *obj = filp->private_data;
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 	struct exynos_drm_gem_buf *buffer;
-	unsigned long pfn, vm_size;
+	unsigned long pfn, vm_size, usize, uaddr = vma->vm_start;
+	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -208,9 +478,9 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 
 	/* in case of direct mapping, always having non-cachable attribute */
 	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	vma->vm_file = filp;
 
-	vm_size = vma->vm_end - vma->vm_start;
+	vm_size = usize = vma->vm_end - vma->vm_start;
+
 	/*
 	 * a buffer contains information to physically continuous memory
 	 * allocated by user request or at framebuffer creation.
@@ -221,18 +491,37 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 	if (vm_size > buffer->size)
 		return -EINVAL;
 
-	/*
-	 * get page frame number to physical memory to be mapped
-	 * to user space.
-	 */
-	pfn = ((unsigned long)exynos_gem_obj->buffer->dma_addr) >> PAGE_SHIFT;
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
+		int i = 0;
 
-	DRM_DEBUG_KMS("pfn = 0x%lx\n", pfn);
+		if (!buffer->pages)
+			return -EINVAL;
 
-	if (remap_pfn_range(vma, vma->vm_start, pfn, vm_size,
-				vma->vm_page_prot)) {
-		DRM_ERROR("failed to remap pfn range.\n");
-		return -EAGAIN;
+		do {
+			ret = vm_insert_page(vma, uaddr, buffer->pages[i++]);
+			if (ret) {
+				DRM_ERROR("failed to remap user space.\n");
+				return ret;
+			}
+
+			uaddr += PAGE_SIZE;
+			usize -= PAGE_SIZE;
+		} while (usize > 0);
+	} else {
+		/*
+		 * get page frame number to physical memory to be mapped
+		 * to user space.
+		 */
+		pfn = ((unsigned long)exynos_gem_obj->buffer->dma_addr) >>
+								PAGE_SHIFT;
+
+		DRM_DEBUG_KMS("pfn = 0x%lx\n", pfn);
+
+		if (remap_pfn_range(vma, vma->vm_start, pfn, vm_size,
+					vma->vm_page_prot)) {
+			DRM_ERROR("failed to remap pfn range.\n");
+			return -EAGAIN;
+		}
 	}
 
 	return 0;
@@ -312,9 +601,9 @@ int exynos_drm_gem_dumb_create(struct drm_file *file_priv,
 	 */
 
 	args->pitch = args->width * args->bpp >> 3;
-	args->size = args->pitch * args->height;
+	args->size = PAGE_ALIGN(args->pitch * args->height);
 
-	exynos_gem_obj = exynos_drm_gem_create(dev, args->size);
+	exynos_gem_obj = exynos_drm_gem_create(dev, args->flags, args->size);
 	if (IS_ERR(exynos_gem_obj))
 		return PTR_ERR(exynos_gem_obj);
 
@@ -398,20 +687,31 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct drm_gem_object *obj = vma->vm_private_data;
 	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 	struct drm_device *dev = obj->dev;
-	unsigned long pfn;
+	unsigned long f_vaddr;
 	pgoff_t page_offset;
 	int ret;
 
 	page_offset = ((unsigned long)vmf->virtual_address -
 			vma->vm_start) >> PAGE_SHIFT;
+	f_vaddr = (unsigned long)vmf->virtual_address;
 
 	mutex_lock(&dev->struct_mutex);
 
-	pfn = (((unsigned long)exynos_gem_obj->buffer->dma_addr) >>
-			PAGE_SHIFT) + page_offset;
+	/*
+	 * allocate all pages as desired size if user wants to allocate
+	 * physically non-continuous memory.
+	 */
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
+		ret = exynos_drm_gem_get_pages(obj);
+		if (ret < 0)
+			goto err;
+	}
 
-	ret = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address, pfn);
+	ret = exynos_drm_gem_map_pages(obj, vma, f_vaddr, page_offset);
+	if (ret < 0)
+		DRM_ERROR("failed to map pages.\n");
 
+err:
 	mutex_unlock(&dev->struct_mutex);
 
 	return convert_to_vm_err_msg(ret);
@@ -435,7 +735,3 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 
 	return ret;
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM GEM Module");
-MODULE_LICENSE("GPL");

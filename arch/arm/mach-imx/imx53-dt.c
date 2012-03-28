@@ -51,7 +51,7 @@ static const struct of_dev_auxdata imx53_auxdata_lookup[] __initconst = {
 static int __init imx53_tzic_add_irq_domain(struct device_node *np,
 				struct device_node *interrupt_parent)
 {
-	irq_domain_add_simple(np, 0);
+	irq_domain_add_legacy(np, 128, 0, 0, &irq_domain_simple_ops, NULL);
 	return 0;
 }
 
@@ -61,7 +61,7 @@ static int __init imx53_gpio_add_irq_domain(struct device_node *np,
 	static int gpio_irq_base = MXC_GPIO_IRQ_START + ARCH_NR_GPIOS;
 
 	gpio_irq_base -= 32;
-	irq_domain_add_simple(np, gpio_irq_base);
+	irq_domain_add_legacy(np, 32, gpio_irq_base, 0, &irq_domain_simple_ops, NULL);
 
 	return 0;
 }
@@ -114,6 +114,7 @@ static const char *imx53_dt_board_compat[] __initdata = {
 	"fsl,imx53-evk",
 	"fsl,imx53-qsb",
 	"fsl,imx53-smd",
+	"fsl,imx53",
 	NULL
 };
 

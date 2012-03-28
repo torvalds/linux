@@ -23,6 +23,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
+#include <linux/bug.h>
 
 struct wpan_phy {
 	struct mutex pib_lock;

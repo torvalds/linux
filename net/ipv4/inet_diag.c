@@ -960,9 +960,12 @@ static int inet_diag_rcv_msg_compat(struct sk_buff *skb, struct nlmsghdr *nlh)
 			    inet_diag_bc_audit(nla_data(attr), nla_len(attr)))
 				return -EINVAL;
 		}
-
-		return netlink_dump_start(sock_diag_nlsk, skb, nlh,
-					  inet_diag_dump_compat, NULL, 0);
+		{
+			struct netlink_dump_control c = {
+				.dump = inet_diag_dump_compat,
+			};
+			return netlink_dump_start(sock_diag_nlsk, skb, nlh, &c);
+		}
 	}
 
 	return inet_diag_get_exact_compat(skb, nlh);
@@ -985,9 +988,12 @@ static int inet_diag_handler_dump(struct sk_buff *skb, struct nlmsghdr *h)
 			    inet_diag_bc_audit(nla_data(attr), nla_len(attr)))
 				return -EINVAL;
 		}
-
-		return netlink_dump_start(sock_diag_nlsk, skb, h,
-					  inet_diag_dump, NULL, 0);
+		{
+			struct netlink_dump_control c = {
+				.dump = inet_diag_dump,
+			};
+			return netlink_dump_start(sock_diag_nlsk, skb, h, &c);
+		}
 	}
 
 	return inet_diag_get_exact(skb, h, (struct inet_diag_req_v2 *)NLMSG_DATA(h));

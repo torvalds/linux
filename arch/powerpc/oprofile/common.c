@@ -195,9 +195,6 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 	if (!cur_cpu_spec->oprofile_cpu_type)
 		return -ENODEV;
 
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		return -ENODEV;
-
 	switch (cur_cpu_spec->oprofile_type) {
 #ifdef CONFIG_PPC_BOOK3S_64
 #ifdef CONFIG_OPROFILE_CELL

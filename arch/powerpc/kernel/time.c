@@ -17,8 +17,7 @@
  *
  * TODO (not necessarily in this file):
  * - improve precision and reproducibility of timebase frequency
- * measurement at boot time. (for iSeries, we calibrate the timebase
- * against the Titan chip's clock.)
+ * measurement at boot time.
  * - for astronomical applications: add a new function to get
  * non ambiguous timestamps even around leap seconds. This needs
  * a new timestamp format and a good name.
@@ -70,10 +69,6 @@
 #include <asm/vdso_datapage.h>
 #include <asm/firmware.h>
 #include <asm/cputime.h>
-#ifdef CONFIG_PPC_ISERIES
-#include <asm/iseries/it_lp_queue.h>
-#include <asm/iseries/hv_call_xm.h>
-#endif
 
 /* powerpc clocksource/clockevent code */
 
@@ -116,14 +111,6 @@ static struct clock_event_device decrementer_clockevent = {
 
 DEFINE_PER_CPU(u64, decrementers_next_tb);
 static DEFINE_PER_CPU(struct clock_event_device, decrementers);
-
-#ifdef CONFIG_PPC_ISERIES
-static unsigned long __initdata iSeries_recal_titan;
-static signed long __initdata iSeries_recal_tb;
-
-/* Forward declaration is only needed for iSereis compiles */
-static void __init clocksource_init(void);
-#endif
 
 #define XSEC_PER_SEC (1024*1024)
 
@@ -259,7 +246,6 @@ void accumulate_stolen_time(void)
 	u64 sst, ust;
 
 	u8 save_soft_enabled = local_paca->soft_enabled;
-	u8 save_hard_enabled = local_paca->hard_enabled;
 
 	/* We are called early in the exception entry, before
 	 * soft/hard_enabled are sync'ed to the expected state
@@ -268,7 +254,6 @@ void accumulate_stolen_time(void)
 	 * complain
 	 */
 	local_paca->soft_enabled = 0;
-	local_paca->hard_enabled = 0;
 
 	sst = scan_dispatch_log(local_paca->starttime_user);
 	ust = scan_dispatch_log(local_paca->starttime);
@@ -277,7 +262,6 @@ void accumulate_stolen_time(void)
 	local_paca->stolen_time += ust + sst;
 
 	local_paca->soft_enabled = save_soft_enabled;
-	local_paca->hard_enabled = save_hard_enabled;
 }
 
 static inline u64 calculate_stolen_time(u64 stop_tb)
@@ -426,74 +410,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 #endif
 
-#ifdef CONFIG_PPC_ISERIES
-
-/* 
- * This function recalibrates the timebase based on the 49-bit time-of-day
- * value in the Titan chip.  The Titan is much more accurate than the value
- * returned by the service processor for the timebase frequency.
- */
-
-static int __init iSeries_tb_recal(void)
-{
-	unsigned long titan, tb;
-
-	/* Make sure we only run on iSeries */
-	if (!firmware_has_feature(FW_FEATURE_ISERIES))
-		return -ENODEV;
-
-	tb = get_tb();
-	titan = HvCallXm_loadTod();
-	if ( iSeries_recal_titan ) {
-		unsigned long tb_ticks = tb - iSeries_recal_tb;
-		unsigned long titan_usec = (titan - iSeries_recal_titan) >> 12;
-		unsigned long new_tb_ticks_per_sec   = (tb_ticks * USEC_PER_SEC)/titan_usec;
-		unsigned long new_tb_ticks_per_jiffy =
-			DIV_ROUND_CLOSEST(new_tb_ticks_per_sec, HZ);
-		long tick_diff = new_tb_ticks_per_jiffy - tb_ticks_per_jiffy;
-		char sign = '+';		
-		/* make sure tb_ticks_per_sec and tb_ticks_per_jiffy are consistent */
-		new_tb_ticks_per_sec = new_tb_ticks_per_jiffy * HZ;
-
-		if ( tick_diff < 0 ) {
-			tick_diff = -tick_diff;
-			sign = '-';
-		}
-		if ( tick_diff ) {
-			if ( tick_diff < tb_ticks_per_jiffy/25 ) {
-				printk( "Titan recalibrate: new tb_ticks_per_jiffy = %lu (%c%ld)\n",
-						new_tb_ticks_per_jiffy, sign, tick_diff );
-				tb_ticks_per_jiffy = new_tb_ticks_per_jiffy;
-				tb_ticks_per_sec   = new_tb_ticks_per_sec;
-				calc_cputime_factors();
-				vdso_data->tb_ticks_per_sec = tb_ticks_per_sec;
-				setup_cputime_one_jiffy();
-			}
-			else {
-				printk( "Titan recalibrate: FAILED (difference > 4 percent)\n"
-					"                   new tb_ticks_per_jiffy = %lu\n"
-					"                   old tb_ticks_per_jiffy = %lu\n",
-					new_tb_ticks_per_jiffy, tb_ticks_per_jiffy );
-			}
-		}
-	}
-	iSeries_recal_titan = titan;
-	iSeries_recal_tb = tb;
-
-	/* Called here as now we know accurate values for the timebase */
-	clocksource_init();
-	return 0;
-}
-late_initcall(iSeries_tb_recal);
-
-/* Called from platform early init */
-void __init iSeries_time_init_early(void)
-{
-	iSeries_recal_tb = get_tb();
-	iSeries_recal_titan = HvCallXm_loadTod();
-}
-#endif /* CONFIG_PPC_ISERIES */
-
 #ifdef CONFIG_IRQ_WORK
 
 /*
@@ -550,16 +466,6 @@ void arch_irq_work_raise(void)
 #endif /* CONFIG_IRQ_WORK */
 
 /*
- * For iSeries shared processors, we have to let the hypervisor
- * set the hardware decrementer.  We set a virtual decrementer
- * in the lppaca and call the hypervisor if the virtual
- * decrementer is less than the current value in the hardware
- * decrementer. (almost always the new decrementer value will
- * be greater than the current hardware decementer so the hypervisor
- * call will not be needed)
- */
-
-/*
  * timer_interrupt - gets called when the decrementer overflows,
  * with interrupts disabled.
  */
@@ -580,6 +486,11 @@ void timer_interrupt(struct pt_regs * regs)
 	if (!cpu_online(smp_processor_id()))
 		return;
 
+	/* Conditionally hard-enable interrupts now that the DEC has been
+	 * bumped to its maximum value
+	 */
+	may_hard_irq_enable();
+
 	trace_timer_interrupt_entry(regs);
 
 	__get_cpu_var(irq_stat).timer_irqs++;
@@ -597,19 +508,9 @@ void timer_interrupt(struct pt_regs * regs)
 		irq_work_run();
 	}
 
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES))
-		get_lppaca()->int_dword.fields.decr_int = 0;
-#endif
-
 	*next_tb = ~(u64)0;
 	if (evt->event_handler)
 		evt->event_handler(evt);
-
-#ifdef CONFIG_PPC_ISERIES
-	if (firmware_has_feature(FW_FEATURE_ISERIES) && hvlpevent_is_pending())
-		process_hvlpevents();
-#endif
 
 #ifdef CONFIG_PPC64
 	/* collect purr register values often, for accurate calculations */
@@ -982,9 +883,8 @@ void __init time_init(void)
 	 */
 	start_cpu_decrementer();
 
-	/* Register the clocksource, if we're not running on iSeries */
-	if (!firmware_has_feature(FW_FEATURE_ISERIES))
-		clocksource_init();
+	/* Register the clocksource */
+	clocksource_init();
 
 	init_decrementer_clockevent();
 }

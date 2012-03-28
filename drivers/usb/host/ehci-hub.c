@@ -107,7 +107,7 @@ static void ehci_handover_companion_ports(struct ehci_hcd *ehci)
 	ehci->owned_ports = 0;
 }
 
-static int ehci_port_change(struct ehci_hcd *ehci)
+static int __maybe_unused ehci_port_change(struct ehci_hcd *ehci)
 {
 	int i = HCS_N_PORTS(ehci->hcs_params);
 
@@ -727,7 +727,7 @@ static int ehci_hub_control (
 #ifdef CONFIG_USB_OTG
 			if ((hcd->self.otg_port == (wIndex + 1))
 			    && hcd->self.b_hnp_enable) {
-				otg_start_hnp(ehci->transceiver);
+				otg_start_hnp(ehci->transceiver->otg);
 				break;
 			}
 #endif
@@ -1076,7 +1076,8 @@ error_exit:
 	return retval;
 }
 
-static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
+static void __maybe_unused ehci_relinquish_port(struct usb_hcd *hcd,
+		int portnum)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 
@@ -1085,7 +1086,8 @@ static void ehci_relinquish_port(struct usb_hcd *hcd, int portnum)
 	set_owner(ehci, --portnum, PORT_OWNER);
 }
 
-static int ehci_port_handed_over(struct usb_hcd *hcd, int portnum)
+static int __maybe_unused ehci_port_handed_over(struct usb_hcd *hcd,
+		int portnum)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	u32 __iomem		*reg;

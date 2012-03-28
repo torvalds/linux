@@ -637,19 +637,8 @@ static struct i2c_driver max6639_driver = {
 	.address_list = normal_i2c,
 };
 
-static int __init max6639_init(void)
-{
-	return i2c_add_driver(&max6639_driver);
-}
-
-static void __exit max6639_exit(void)
-{
-	i2c_del_driver(&max6639_driver);
-}
+module_i2c_driver(max6639_driver);
 
 MODULE_AUTHOR("Roland Stigge <stigge@antcom.de>");
 MODULE_DESCRIPTION("max6639 driver");
 MODULE_LICENSE("GPL");
-
-module_init(max6639_init);
-module_exit(max6639_exit);

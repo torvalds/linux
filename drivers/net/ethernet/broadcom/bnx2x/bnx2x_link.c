@@ -1,4 +1,4 @@
-/* Copyright 2008-2011 Broadcom Corporation
+/* Copyright 2008-2012 Broadcom Corporation
  *
  * Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -1611,6 +1611,9 @@ static void bnx2x_umac_enable(struct link_params *params,
 
 	if (!(vars->flow_ctrl & BNX2X_FLOW_CTRL_RX))
 		val |= UMAC_COMMAND_CONFIG_REG_PAUSE_IGNORE;
+
+	if (vars->duplex == DUPLEX_HALF)
+		val |= UMAC_COMMAND_CONFIG_REG_HD_ENA;
 
 	REG_WR(bp, umac_base + UMAC_REG_COMMAND_CONFIG, val);
 	udelay(50);
@@ -3635,45 +3638,50 @@ static void bnx2x_pause_resolve(struct link_vars *vars, u32 pause_result)
 		vars->link_status |= LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE;
 }
 
+static void bnx2x_ext_phy_update_adv_fc(struct bnx2x_phy *phy,
+					struct link_params *params,
+					struct link_vars *vars)
+{
+	u16 ld_pause;		/* local */
+	u16 lp_pause;		/* link partner */
+	u16 pause_result;
+	struct bnx2x *bp = params->bp;
+	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE) {
+		bnx2x_cl22_read(bp, phy, 0x4, &ld_pause);
+		bnx2x_cl22_read(bp, phy, 0x5, &lp_pause);
+	} else {
+		bnx2x_cl45_read(bp, phy,
+				MDIO_AN_DEVAD,
+				MDIO_AN_REG_ADV_PAUSE, &ld_pause);
+		bnx2x_cl45_read(bp, phy,
+				MDIO_AN_DEVAD,
+				MDIO_AN_REG_LP_AUTO_NEG, &lp_pause);
+	}
+	pause_result = (ld_pause &
+			MDIO_AN_REG_ADV_PAUSE_MASK) >> 8;
+	pause_result |= (lp_pause &
+			 MDIO_AN_REG_ADV_PAUSE_MASK) >> 10;
+	DP(NETIF_MSG_LINK, "Ext PHY pause result 0x%x\n", pause_result);
+	bnx2x_pause_resolve(vars, pause_result);
+
+}
 static u8 bnx2x_ext_phy_resolve_fc(struct bnx2x_phy *phy,
 				   struct link_params *params,
 				   struct link_vars *vars)
 {
-	struct bnx2x *bp = params->bp;
-	u16 ld_pause;		/* local */
-	u16 lp_pause;		/* link partner */
-	u16 pause_result;
 	u8 ret = 0;
-	/* read twice */
-
 	vars->flow_ctrl = BNX2X_FLOW_CTRL_NONE;
-
-	if (phy->req_flow_ctrl != BNX2X_FLOW_CTRL_AUTO)
+	if (phy->req_flow_ctrl != BNX2X_FLOW_CTRL_AUTO) {
+		/* Update the advertised flow-controled of LD/LP in AN */
+		if (phy->req_line_speed == SPEED_AUTO_NEG)
+			bnx2x_ext_phy_update_adv_fc(phy, params, vars);
+		/* But set the flow-control result as the requested one */
 		vars->flow_ctrl = phy->req_flow_ctrl;
-	else if (phy->req_line_speed != SPEED_AUTO_NEG)
+	} else if (phy->req_line_speed != SPEED_AUTO_NEG)
 		vars->flow_ctrl = params->req_fc_auto_adv;
 	else if (vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) {
 		ret = 1;
-		if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE) {
-			bnx2x_cl22_read(bp, phy,
-					0x4, &ld_pause);
-			bnx2x_cl22_read(bp, phy,
-					0x5, &lp_pause);
-		} else {
-			bnx2x_cl45_read(bp, phy,
-					MDIO_AN_DEVAD,
-					MDIO_AN_REG_ADV_PAUSE, &ld_pause);
-			bnx2x_cl45_read(bp, phy,
-					MDIO_AN_DEVAD,
-					MDIO_AN_REG_LP_AUTO_NEG, &lp_pause);
-		}
-		pause_result = (ld_pause &
-				MDIO_AN_REG_ADV_PAUSE_MASK) >> 8;
-		pause_result |= (lp_pause &
-				 MDIO_AN_REG_ADV_PAUSE_MASK) >> 10;
-		DP(NETIF_MSG_LINK, "Ext PHY pause result 0x%x\n",
-		   pause_result);
-		bnx2x_pause_resolve(vars, pause_result);
+		bnx2x_ext_phy_update_adv_fc(phy, params, vars);
 	}
 	return ret;
 }
@@ -3785,7 +3793,7 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 
 	/* Enable Autoneg */
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
-			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x1000);
+			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0x1200);
 
 }
 
@@ -5216,22 +5224,69 @@ static int bnx2x_direct_parallel_detect_used(struct bnx2x_phy *phy,
 	return 0;
 }
 
+static void bnx2x_update_adv_fc(struct bnx2x_phy *phy,
+				struct link_params *params,
+				struct link_vars *vars,
+				u32 gp_status)
+{
+	u16 ld_pause;   /* local driver */
+	u16 lp_pause;   /* link partner */
+	u16 pause_result;
+	struct bnx2x *bp = params->bp;
+	if ((gp_status &
+	     (MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_AUTONEG_COMPLETE |
+	      MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_MR_LP_NP_AN_ABLE)) ==
+	    (MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_AUTONEG_COMPLETE |
+	     MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_MR_LP_NP_AN_ABLE)) {
+
+		CL22_RD_OVER_CL45(bp, phy,
+				  MDIO_REG_BANK_CL73_IEEEB1,
+				  MDIO_CL73_IEEEB1_AN_ADV1,
+				  &ld_pause);
+		CL22_RD_OVER_CL45(bp, phy,
+				  MDIO_REG_BANK_CL73_IEEEB1,
+				  MDIO_CL73_IEEEB1_AN_LP_ADV1,
+				  &lp_pause);
+		pause_result = (ld_pause &
+				MDIO_CL73_IEEEB1_AN_ADV1_PAUSE_MASK) >> 8;
+		pause_result |= (lp_pause &
+				 MDIO_CL73_IEEEB1_AN_LP_ADV1_PAUSE_MASK) >> 10;
+		DP(NETIF_MSG_LINK, "pause_result CL73 0x%x\n", pause_result);
+	} else {
+		CL22_RD_OVER_CL45(bp, phy,
+				  MDIO_REG_BANK_COMBO_IEEE0,
+				  MDIO_COMBO_IEEE0_AUTO_NEG_ADV,
+				  &ld_pause);
+		CL22_RD_OVER_CL45(bp, phy,
+			MDIO_REG_BANK_COMBO_IEEE0,
+			MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1,
+			&lp_pause);
+		pause_result = (ld_pause &
+				MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK)>>5;
+		pause_result |= (lp_pause &
+				 MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK)>>7;
+		DP(NETIF_MSG_LINK, "pause_result CL37 0x%x\n", pause_result);
+	}
+	bnx2x_pause_resolve(vars, pause_result);
+
+}
+
 static void bnx2x_flow_ctrl_resolve(struct bnx2x_phy *phy,
 				    struct link_params *params,
 				    struct link_vars *vars,
 				    u32 gp_status)
 {
 	struct bnx2x *bp = params->bp;
-	u16 ld_pause;   /* local driver */
-	u16 lp_pause;   /* link partner */
-	u16 pause_result;
-
 	vars->flow_ctrl = BNX2X_FLOW_CTRL_NONE;
 
 	/* resolve from gp_status in case of AN complete and not sgmii */
-	if (phy->req_flow_ctrl != BNX2X_FLOW_CTRL_AUTO)
+	if (phy->req_flow_ctrl != BNX2X_FLOW_CTRL_AUTO) {
+		/* Update the advertised flow-controled of LD/LP in AN */
+		if (phy->req_line_speed == SPEED_AUTO_NEG)
+			bnx2x_update_adv_fc(phy, params, vars, gp_status);
+		/* But set the flow-control result as the requested one */
 		vars->flow_ctrl = phy->req_flow_ctrl;
-	else if (phy->req_line_speed != SPEED_AUTO_NEG)
+	} else if (phy->req_line_speed != SPEED_AUTO_NEG)
 		vars->flow_ctrl = params->req_fc_auto_adv;
 	else if ((gp_status & MDIO_AN_CL73_OR_37_COMPLETE) &&
 		 (!(vars->phy_flags & PHY_SGMII_FLAG))) {
@@ -5239,45 +5294,7 @@ static void bnx2x_flow_ctrl_resolve(struct bnx2x_phy *phy,
 			vars->flow_ctrl = params->req_fc_auto_adv;
 			return;
 		}
-		if ((gp_status &
-		    (MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_AUTONEG_COMPLETE |
-		     MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_MR_LP_NP_AN_ABLE)) ==
-		    (MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_AUTONEG_COMPLETE |
-		     MDIO_GP_STATUS_TOP_AN_STATUS1_CL73_MR_LP_NP_AN_ABLE)) {
-
-			CL22_RD_OVER_CL45(bp, phy,
-					  MDIO_REG_BANK_CL73_IEEEB1,
-					  MDIO_CL73_IEEEB1_AN_ADV1,
-					  &ld_pause);
-			CL22_RD_OVER_CL45(bp, phy,
-					  MDIO_REG_BANK_CL73_IEEEB1,
-					  MDIO_CL73_IEEEB1_AN_LP_ADV1,
-					  &lp_pause);
-			pause_result = (ld_pause &
-					MDIO_CL73_IEEEB1_AN_ADV1_PAUSE_MASK)
-					>> 8;
-			pause_result |= (lp_pause &
-					MDIO_CL73_IEEEB1_AN_LP_ADV1_PAUSE_MASK)
-					>> 10;
-			DP(NETIF_MSG_LINK, "pause_result CL73 0x%x\n",
-				 pause_result);
-		} else {
-			CL22_RD_OVER_CL45(bp, phy,
-					  MDIO_REG_BANK_COMBO_IEEE0,
-					  MDIO_COMBO_IEEE0_AUTO_NEG_ADV,
-					  &ld_pause);
-			CL22_RD_OVER_CL45(bp, phy,
-				MDIO_REG_BANK_COMBO_IEEE0,
-				MDIO_COMBO_IEEE0_AUTO_NEG_LINK_PARTNER_ABILITY1,
-				&lp_pause);
-			pause_result = (ld_pause &
-				MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK)>>5;
-			pause_result |= (lp_pause &
-				MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_MASK)>>7;
-			DP(NETIF_MSG_LINK, "pause_result CL37 0x%x\n",
-				 pause_result);
-		}
-		bnx2x_pause_resolve(vars, pause_result);
+		bnx2x_update_adv_fc(phy, params, vars, gp_status);
 	}
 	DP(NETIF_MSG_LINK, "flow_ctrl 0x%x\n", vars->flow_ctrl);
 }
@@ -5496,6 +5513,33 @@ static int bnx2x_link_settings_status(struct bnx2x_phy *phy,
 		}
 	}
 
+	/* Read LP advertised speeds*/
+	if (SINGLE_MEDIA_DIRECT(params) &&
+	    (vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE)) {
+		u16 val;
+
+		CL22_RD_OVER_CL45(bp, phy, MDIO_REG_BANK_CL73_IEEEB1,
+				  MDIO_CL73_IEEEB1_AN_LP_ADV2, &val);
+
+		if (val & MDIO_CL73_IEEEB1_AN_ADV2_ADVR_1000M_KX)
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE;
+		if (val & (MDIO_CL73_IEEEB1_AN_ADV2_ADVR_10G_KX4 |
+			   MDIO_CL73_IEEEB1_AN_ADV2_ADVR_10G_KR))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
+
+		CL22_RD_OVER_CL45(bp, phy, MDIO_REG_BANK_OVER_1G,
+				  MDIO_OVER_1G_LP_UP1, &val);
+
+		if (val & MDIO_OVER_1G_UP1_2_5G)
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE;
+		if (val & (MDIO_OVER_1G_UP1_10G | MDIO_OVER_1G_UP1_10GH))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
+	}
+
 	DP(NETIF_MSG_LINK, "duplex %x  flow_ctrl 0x%x link_status 0x%x\n",
 		   vars->duplex, vars->flow_ctrl, vars->link_status);
 	return rc;
@@ -5552,6 +5596,34 @@ static int bnx2x_warpcore_read_status(struct bnx2x_phy *phy,
 			bnx2x_ext_phy_resolve_fc(phy, params, vars);
 		}
 	}
+
+	if ((vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) &&
+	    SINGLE_MEDIA_DIRECT(params)) {
+		u16 val;
+
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_LP_AUTO_NEG2, &val);
+
+		if (val & MDIO_CL73_IEEEB1_AN_ADV2_ADVR_1000M_KX)
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE;
+		if (val & (MDIO_CL73_IEEEB1_AN_ADV2_ADVR_10G_KX4 |
+			   MDIO_CL73_IEEEB1_AN_ADV2_ADVR_10G_KR))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
+
+		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
+				MDIO_WC_REG_DIGITAL3_LP_UP1, &val);
+
+		if (val & MDIO_OVER_1G_UP1_2_5G)
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE;
+		if (val & (MDIO_OVER_1G_UP1_10G | MDIO_OVER_1G_UP1_10GH))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
+
+	}
+
 
 	if (lane < 2) {
 		bnx2x_cl45_read(bp, phy, MDIO_WC_DEVAD,
@@ -5970,8 +6042,8 @@ static int bnx2x_null_format_ver(u32 spirom_ver, u8 *str, u16 *len)
 	return 0;
 }
 
-int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
-				 u8 *version, u16 len)
+int bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 *version,
+				 u16 len)
 {
 	struct bnx2x *bp;
 	u32 spirom_ver = 0;
@@ -6418,7 +6490,9 @@ static int bnx2x_update_link_down(struct link_params *params,
 			       LINK_STATUS_AUTO_NEGOTIATE_COMPLETE |
 			       LINK_STATUS_RX_FLOW_CONTROL_FLAG_MASK |
 			       LINK_STATUS_TX_FLOW_CONTROL_FLAG_MASK |
-			       LINK_STATUS_PARALLEL_DETECTION_FLAG_MASK);
+			       LINK_STATUS_PARALLEL_DETECTION_FLAG_MASK |
+			       LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE |
+			       LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE);
 	vars->line_speed = 0;
 	bnx2x_update_mng(params, vars->link_status);
 
@@ -7367,6 +7441,19 @@ static u8 bnx2x_8073_read_status(struct bnx2x_phy *phy,
 		bnx2x_8073_resolve_fc(phy, params, vars);
 		vars->duplex = DUPLEX_FULL;
 	}
+
+	if (vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) {
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_LP_AUTO_NEG2, &val1);
+
+		if (val1 & (1<<5))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE;
+		if (val1 & (1<<7))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
+	}
+
 	return link_up;
 }
 
@@ -9405,13 +9492,8 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 {
 	struct bnx2x *bp = params->bp;
 	u16 autoneg_val, an_1000_val, an_10_100_val, an_10g_val;
-	u16 tmp_req_line_speed;
 
-	tmp_req_line_speed = phy->req_line_speed;
-	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
-		if (phy->req_line_speed == SPEED_10000)
-			phy->req_line_speed = SPEED_AUTO_NEG;
-	} else {
+	if (phy->type != PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
 		/* Save spirom version */
 		bnx2x_save_848xx_spirom_version(phy, bp, params->port);
 	}
@@ -9554,8 +9636,6 @@ static int bnx2x_848xx_cmn_config_init(struct bnx2x_phy *phy,
 				 MDIO_AN_DEVAD,
 				 MDIO_AN_REG_8481_10GBASE_T_AN_CTRL,
 				 1);
-
-	phy->req_line_speed = tmp_req_line_speed;
 
 	return 0;
 }
@@ -9948,6 +10028,42 @@ static u8 bnx2x_848xx_read_status(struct bnx2x_phy *phy,
 		DP(NETIF_MSG_LINK, "BCM84823: link speed is %d\n",
 			   vars->line_speed);
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+
+		/* Read LP advertised speeds */
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_CL37_FC_LP, &val);
+		if (val & (1<<5))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10THD_CAPABLE;
+		if (val & (1<<6))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10TFD_CAPABLE;
+		if (val & (1<<7))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_100TXHD_CAPABLE;
+		if (val & (1<<8))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_100TXFD_CAPABLE;
+		if (val & (1<<9))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_100T4_CAPABLE;
+
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_1000T_STATUS, &val);
+
+		if (val & (1<<10))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE;
+		if (val & (1<<11))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE;
+
+		bnx2x_cl45_read(bp, phy, MDIO_AN_DEVAD,
+				MDIO_AN_REG_MASTER_STATUS, &val);
+
+		if (val & (1<<11))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
 	}
 
 	return link_up;
@@ -10571,6 +10687,35 @@ static u8 bnx2x_54618se_read_status(struct bnx2x_phy *phy,
 		}
 
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+
+		if (vars->link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) {
+			/* report LP advertised speeds */
+			bnx2x_cl22_read(bp, phy, 0x5, &val);
+
+			if (val & (1<<5))
+				vars->link_status |=
+				  LINK_STATUS_LINK_PARTNER_10THD_CAPABLE;
+			if (val & (1<<6))
+				vars->link_status |=
+				  LINK_STATUS_LINK_PARTNER_10TFD_CAPABLE;
+			if (val & (1<<7))
+				vars->link_status |=
+				  LINK_STATUS_LINK_PARTNER_100TXHD_CAPABLE;
+			if (val & (1<<8))
+				vars->link_status |=
+				  LINK_STATUS_LINK_PARTNER_100TXFD_CAPABLE;
+			if (val & (1<<9))
+				vars->link_status |=
+				  LINK_STATUS_LINK_PARTNER_100T4_CAPABLE;
+
+			bnx2x_cl22_read(bp, phy, 0xa, &val);
+			if (val & (1<<10))
+				vars->link_status |=
+				  LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE;
+			if (val & (1<<11))
+				vars->link_status |=
+				  LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE;
+		}
 	}
 	return link_up;
 }
@@ -10699,6 +10844,11 @@ static u8 bnx2x_7101_read_status(struct bnx2x_phy *phy,
 			   val2, (val2 & (1<<14)));
 		bnx2x_ext_phy_10G_an_resolve(bp, phy, vars);
 		bnx2x_ext_phy_resolve_fc(phy, params, vars);
+
+		/* read LP advertised speeds */
+		if (val2 & (1<<11))
+			vars->link_status |=
+				LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE;
 	}
 	return link_up;
 }

@@ -580,22 +580,14 @@ void b43_tsf_read(struct b43_wldev *dev, u64 *tsf)
 
 static void b43_time_lock(struct b43_wldev *dev)
 {
-	u32 macctl;
-
-	macctl = b43_read32(dev, B43_MMIO_MACCTL);
-	macctl |= B43_MACCTL_TBTTHOLD;
-	b43_write32(dev, B43_MMIO_MACCTL, macctl);
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~0, B43_MACCTL_TBTTHOLD);
 	/* Commit the write */
 	b43_read32(dev, B43_MMIO_MACCTL);
 }
 
 static void b43_time_unlock(struct b43_wldev *dev)
 {
-	u32 macctl;
-
-	macctl = b43_read32(dev, B43_MMIO_MACCTL);
-	macctl &= ~B43_MACCTL_TBTTHOLD;
-	b43_write32(dev, B43_MMIO_MACCTL, macctl);
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_TBTTHOLD, 0);
 	/* Commit the write */
 	b43_read32(dev, B43_MMIO_MACCTL);
 }
@@ -2398,8 +2390,14 @@ error:
 	return err;
 }
 
-static int b43_request_firmware(struct b43_wldev *dev)
+static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl);
+static void b43_one_core_detach(struct b43_bus_dev *dev);
+
+static void b43_request_firmware(struct work_struct *work)
 {
+	struct b43_wl *wl = container_of(work,
+			    struct b43_wl, firmware_load);
+	struct b43_wldev *dev = wl->current_dev;
 	struct b43_request_fw_context *ctx;
 	unsigned int i;
 	int err;
@@ -2407,23 +2405,23 @@ static int b43_request_firmware(struct b43_wldev *dev)
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
-		return -ENOMEM;
+		return;
 	ctx->dev = dev;
 
 	ctx->req_type = B43_FWTYPE_PROPRIETARY;
 	err = b43_try_request_fw(ctx);
 	if (!err)
-		goto out; /* Successfully loaded it. */
-	err = ctx->fatal_failure;
-	if (err)
+		goto start_ieee80211; /* Successfully loaded it. */
+	/* Was fw version known? */
+	if (ctx->fatal_failure)
 		goto out;
 
+	/* proprietary fw not found, try open source */
 	ctx->req_type = B43_FWTYPE_OPENSOURCE;
 	err = b43_try_request_fw(ctx);
 	if (!err)
-		goto out; /* Successfully loaded it. */
-	err = ctx->fatal_failure;
-	if (err)
+		goto start_ieee80211; /* Successfully loaded it. */
+	if(ctx->fatal_failure)
 		goto out;
 
 	/* Could not find a usable firmware. Print the errors. */
@@ -2433,11 +2431,20 @@ static int b43_request_firmware(struct b43_wldev *dev)
 			b43err(dev->wl, errmsg);
 	}
 	b43_print_fw_helptext(dev->wl, 1);
-	err = -ENOENT;
+	goto out;
+
+start_ieee80211:
+	err = ieee80211_register_hw(wl->hw);
+	if (err)
+		goto err_one_core_detach;
+	b43_leds_register(wl->current_dev);
+	goto out;
+
+err_one_core_detach:
+	b43_one_core_detach(dev->dev);
 
 out:
 	kfree(ctx);
-	return err;
 }
 
 static int b43_upload_microcode(struct b43_wldev *dev)
@@ -2487,10 +2494,8 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	b43_write32(dev, B43_MMIO_GEN_IRQ_REASON, B43_IRQ_ALL);
 
 	/* Start the microcode PSM */
-	macctl = b43_read32(dev, B43_MMIO_MACCTL);
-	macctl &= ~B43_MACCTL_PSM_JMP0;
-	macctl |= B43_MACCTL_PSM_RUN;
-	b43_write32(dev, B43_MMIO_MACCTL, macctl);
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_PSM_JMP0,
+		      B43_MACCTL_PSM_RUN);
 
 	/* Wait for the microcode to load and respond */
 	i = 0;
@@ -2590,10 +2595,9 @@ static int b43_upload_microcode(struct b43_wldev *dev)
 	return 0;
 
 error:
-	macctl = b43_read32(dev, B43_MMIO_MACCTL);
-	macctl &= ~B43_MACCTL_PSM_RUN;
-	macctl |= B43_MACCTL_PSM_JMP0;
-	b43_write32(dev, B43_MMIO_MACCTL, macctl);
+	/* Stop the microcode PSM. */
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_PSM_RUN,
+		      B43_MACCTL_PSM_JMP0);
 
 	return err;
 }
@@ -2708,11 +2712,8 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	struct ssb_device *gpiodev;
 	u32 mask, set;
 
-	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
-		    & ~B43_MACCTL_GPOUTSMSK);
-
-	b43_write16(dev, B43_MMIO_GPIO_MASK, b43_read16(dev, B43_MMIO_GPIO_MASK)
-		    | 0x000F);
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_GPOUTSMSK, 0);
+	b43_maskset16(dev, B43_MMIO_GPIO_MASK, ~0, 0xF);
 
 	mask = 0x0000001F;
 	set = 0x0000000F;
@@ -2720,6 +2721,8 @@ static int b43_gpio_init(struct b43_wldev *dev)
 		mask |= 0x0060;
 		set |= 0x0060;
 	}
+	if (dev->dev->chip_id == 0x5354)
+		set &= 0xff02;
 	if (0 /* FIXME: conditional unknown */ ) {
 		b43_write16(dev, B43_MMIO_GPIO_MASK,
 			    b43_read16(dev, B43_MMIO_GPIO_MASK)
@@ -2800,9 +2803,7 @@ void b43_mac_enable(struct b43_wldev *dev)
 	dev->mac_suspended--;
 	B43_WARN_ON(dev->mac_suspended < 0);
 	if (dev->mac_suspended == 0) {
-		b43_write32(dev, B43_MMIO_MACCTL,
-			    b43_read32(dev, B43_MMIO_MACCTL)
-			    | B43_MACCTL_ENABLED);
+		b43_maskset32(dev, B43_MMIO_MACCTL, ~0, B43_MACCTL_ENABLED);
 		b43_write32(dev, B43_MMIO_GEN_IRQ_REASON,
 			    B43_IRQ_MAC_SUSPENDED);
 		/* Commit writes */
@@ -2823,9 +2824,7 @@ void b43_mac_suspend(struct b43_wldev *dev)
 
 	if (dev->mac_suspended == 0) {
 		b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
-		b43_write32(dev, B43_MMIO_MACCTL,
-			    b43_read32(dev, B43_MMIO_MACCTL)
-			    & ~B43_MACCTL_ENABLED);
+		b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_ENABLED, 0);
 		/* force pci to flush the write */
 		b43_read32(dev, B43_MMIO_MACCTL);
 		for (i = 35; i; i--) {
@@ -2931,15 +2930,10 @@ static void b43_adjust_opmode(struct b43_wldev *dev)
 	 *        so always disable it. If we want to implement PMQ,
 	 *        we need to enable it here (clear DISCPMQ) in AP mode.
 	 */
-	if (0  /* ctl & B43_MACCTL_AP */) {
-		b43_write32(dev, B43_MMIO_MACCTL,
-			    b43_read32(dev, B43_MMIO_MACCTL)
-			    & ~B43_MACCTL_DISCPMQ);
-	} else {
-		b43_write32(dev, B43_MMIO_MACCTL,
-			    b43_read32(dev, B43_MMIO_MACCTL)
-			    | B43_MACCTL_DISCPMQ);
-	}
+	if (0  /* ctl & B43_MACCTL_AP */)
+		b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_DISCPMQ, 0);
+	else
+		b43_maskset32(dev, B43_MMIO_MACCTL, ~0, B43_MACCTL_DISCPMQ);
 }
 
 static void b43_rate_memory_write(struct b43_wldev *dev, u16 rate, int is_ofdm)
@@ -3044,9 +3038,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 	macctl |= B43_MACCTL_INFRA;
 	b43_write32(dev, B43_MMIO_MACCTL, macctl);
 
-	err = b43_request_firmware(dev);
-	if (err)
-		goto out;
 	err = b43_upload_microcode(dev);
 	if (err)
 		goto out;	/* firmware is released later */
@@ -3083,10 +3074,8 @@ static int b43_chip_init(struct b43_wldev *dev)
 	if (dev->dev->core_rev < 5)
 		b43_write32(dev, 0x010C, 0x01000000);
 
-	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
-		    & ~B43_MACCTL_INFRA);
-	b43_write32(dev, B43_MMIO_MACCTL, b43_read32(dev, B43_MMIO_MACCTL)
-		    | B43_MACCTL_INFRA);
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_INFRA, 0);
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~0, B43_MACCTL_INFRA);
 
 	/* Probe Response Timeout value */
 	/* FIXME: Default to 0, has to be set by ioctl probably... :-/ */
@@ -4178,6 +4167,7 @@ redo:
 	mutex_unlock(&wl->mutex);
 	cancel_delayed_work_sync(&dev->periodic_work);
 	cancel_work_sync(&wl->tx_work);
+	cancel_work_sync(&wl->firmware_load);
 	mutex_lock(&wl->mutex);
 	dev = wl->current_dev;
 	if (!dev || b43_status(dev) < B43_STAT_STARTED) {
@@ -4564,8 +4554,6 @@ static void b43_set_pretbtt(struct b43_wldev *dev)
 /* Locking: wl->mutex */
 static void b43_wireless_core_exit(struct b43_wldev *dev)
 {
-	u32 macctl;
-
 	B43_WARN_ON(dev && b43_status(dev) > B43_STAT_INITIALIZED);
 	if (!dev || b43_status(dev) != B43_STAT_INITIALIZED)
 		return;
@@ -4576,10 +4564,8 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	b43_set_status(dev, B43_STAT_UNINIT);
 
 	/* Stop the microcode PSM. */
-	macctl = b43_read32(dev, B43_MMIO_MACCTL);
-	macctl &= ~B43_MACCTL_PSM_RUN;
-	macctl |= B43_MACCTL_PSM_JMP0;
-	b43_write32(dev, B43_MMIO_MACCTL, macctl);
+	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_PSM_RUN,
+		      B43_MACCTL_PSM_JMP0);
 
 	b43_dma_free(dev);
 	b43_pio_free(dev);
@@ -5341,16 +5327,13 @@ static int b43_bcma_probe(struct bcma_device *core)
 	if (err)
 		goto bcma_err_wireless_exit;
 
-	err = ieee80211_register_hw(wl->hw);
-	if (err)
-		goto bcma_err_one_core_detach;
-	b43_leds_register(wl->current_dev);
+	/* setup and start work to load firmware */
+	INIT_WORK(&wl->firmware_load, b43_request_firmware);
+	schedule_work(&wl->firmware_load);
 
 bcma_out:
 	return err;
 
-bcma_err_one_core_detach:
-	b43_one_core_detach(dev);
 bcma_err_wireless_exit:
 	ieee80211_free_hw(wl->hw);
 	return err;
@@ -5417,18 +5400,13 @@ int b43_ssb_probe(struct ssb_device *sdev, const struct ssb_device_id *id)
 	if (err)
 		goto err_wireless_exit;
 
-	if (first) {
-		err = ieee80211_register_hw(wl->hw);
-		if (err)
-			goto err_one_core_detach;
-		b43_leds_register(wl->current_dev);
-	}
+	/* setup and start work to load firmware */
+	INIT_WORK(&wl->firmware_load, b43_request_firmware);
+	schedule_work(&wl->firmware_load);
 
       out:
 	return err;
 
-      err_one_core_detach:
-	b43_one_core_detach(dev);
       err_wireless_exit:
 	if (first)
 		b43_wireless_exit(dev, wl);

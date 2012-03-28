@@ -1079,6 +1079,7 @@ __be32 inet_confirm_addr(struct in_device *in_dev,
 
 	return addr;
 }
+EXPORT_SYMBOL(inet_confirm_addr);
 
 /*
  *	Device notifier

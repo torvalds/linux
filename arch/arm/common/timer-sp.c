@@ -26,6 +26,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#include <asm/sched_clock.h>
 #include <asm/hardware/arm_timer.h>
 
 static long __init sp804_get_clock_rate(const char *name)
@@ -67,7 +68,16 @@ static long __init sp804_get_clock_rate(const char *name)
 	return rate;
 }
 
-void __init sp804_clocksource_init(void __iomem *base, const char *name)
+static void __iomem *sched_clock_base;
+
+static u32 sp804_read(void)
+{
+	return ~readl_relaxed(sched_clock_base + TIMER_VALUE);
+}
+
+void __init __sp804_clocksource_and_sched_clock_init(void __iomem *base,
+						     const char *name,
+						     int use_sched_clock)
 {
 	long rate = sp804_get_clock_rate(name);
 
@@ -83,6 +93,11 @@ void __init sp804_clocksource_init(void __iomem *base, const char *name)
 
 	clocksource_mmio_init(base + TIMER_VALUE, name,
 		rate, 200, 32, clocksource_mmio_readl_down);
+
+	if (use_sched_clock) {
+		sched_clock_base = base;
+		setup_sched_clock(sp804_read, 32, rate);
+	}
 }
 
 

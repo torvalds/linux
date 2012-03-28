@@ -17,7 +17,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 
-#include <plat/io.h>
 #include "common.h"
 #include <plat/clock.h>
 #include <plat/sdrc.h>

@@ -114,6 +114,7 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 			       enum snd_soc_control_type control)
 {
 	struct regmap_config config;
+	int ret;
 
 	memset(&config, 0, sizeof(config));
 	codec->write = hw_write;
@@ -140,6 +141,12 @@ int snd_soc_codec_set_cache_io(struct snd_soc_codec *codec,
 
 	case SND_SOC_REGMAP:
 		/* Device has made its own regmap arrangements */
+		codec->using_regmap = true;
+
+		ret = regmap_get_val_bytes(codec->control_data);
+		/* Errors are legitimate for non-integer byte multiples */
+		if (ret > 0)
+			codec->val_bytes = ret;
 		break;
 
 	default:

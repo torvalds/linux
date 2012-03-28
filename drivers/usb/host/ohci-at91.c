@@ -448,10 +448,11 @@ static irqreturn_t ohci_hcd_at91_overcurrent_irq(int irq, void *data)
 
 	/* From the GPIO notifying the over-current situation, find
 	 * out the corresponding port */
-	gpio = irq_to_gpio(irq);
 	for (port = 0; port < ARRAY_SIZE(pdata->overcurrent_pin); port++) {
-		if (pdata->overcurrent_pin[port] == gpio)
+		if (gpio_to_irq(pdata->overcurrent_pin[port]) == irq) {
+			gpio = pdata->overcurrent_pin[port];
 			break;
+		}
 	}
 
 	if (port == ARRAY_SIZE(pdata->overcurrent_pin)) {

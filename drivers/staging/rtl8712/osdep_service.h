@@ -72,18 +72,6 @@ static inline struct list_head *get_list_head(struct  __queue *queue)
 #define LIST_CONTAINOR(ptr, type, member) \
 	((type *)((char *)(ptr)-(SIZE_T)(&((type *)0)->member)))
 
-static inline void _enter_hwio_critical(struct semaphore *prwlock,
-					unsigned long *pirqL)
-{
-	down(prwlock);
-}
-
-static inline void _exit_hwio_critical(struct semaphore *prwlock,
-				       unsigned long *pirqL)
-{
-	up(prwlock);
-}
-
 static inline void list_delete(struct list_head *plist)
 {
 	list_del_init(plist);
@@ -150,11 +138,6 @@ static inline u32 _down_sema(struct semaphore *sema)
 		return _FAIL;
 	else
 		return _SUCCESS;
-}
-
-static inline void _rtl_rwlock_init(struct semaphore *prwlock)
-{
-	sema_init(prwlock, 1);
 }
 
 static inline void _init_listhead(struct list_head *list)

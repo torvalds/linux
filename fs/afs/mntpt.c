@@ -200,9 +200,9 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		if (PageError(page))
 			goto error;
 
-		buf = kmap_atomic(page, KM_USER0);
+		buf = kmap_atomic(page);
 		memcpy(devname, buf, size);
-		kunmap_atomic(buf, KM_USER0);
+		kunmap_atomic(buf);
 		page_cache_release(page);
 		page = NULL;
 	}

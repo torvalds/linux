@@ -119,43 +119,6 @@
 
 /*
  */
-
-/* command block wrapper */
-struct bulk_cb_wrap {
-	__le32	Signature;		/* contains 'USBC' */
-	u32	Tag;			/* unique per command id */
-	__le32	DataTransferLength;	/* size of data */
-	u8	Flags;			/* direction in bit 0 */
-	u8	Lun;			/* LUN */
-	u8	Length;			/* of of the CDB */
-	u8	CDB[UB_MAX_CDB_SIZE];	/* max command */
-};
-
-#define US_BULK_CB_WRAP_LEN	31
-#define US_BULK_CB_SIGN		0x43425355	/*spells out USBC */
-#define US_BULK_FLAG_IN		1
-#define US_BULK_FLAG_OUT	0
-
-/* command status wrapper */
-struct bulk_cs_wrap {
-	__le32	Signature;		/* should = 'USBS' */
-	u32	Tag;			/* same as original command */
-	__le32	Residue;		/* amount not transferred */
-	u8	Status;			/* see below */
-};
-
-#define US_BULK_CS_WRAP_LEN	13
-#define US_BULK_CS_SIGN		0x53425355	/* spells out 'USBS' */
-#define US_BULK_STAT_OK		0
-#define US_BULK_STAT_FAIL	1
-#define US_BULK_STAT_PHASE	2
-
-/* bulk-only class specific requests */
-#define US_BULK_RESET_REQUEST	0xff
-#define US_BULK_GET_MAX_LUN	0xfe
-
-/*
- */
 struct ub_dev;
 
 #define UB_MAX_REQ_SG	9	/* cdrecord requires 32KB and maybe a header */
@@ -2477,6 +2440,8 @@ static int __init ub_init(void)
 	int rc;
 	int i;
 
+	pr_info("'Low Performance USB Block' driver is deprecated. "
+			"Please switch to usb-storage\n");
 	for (i = 0; i < UB_QLOCK_NUM; i++)
 		spin_lock_init(&ub_qlockv[i]);
 

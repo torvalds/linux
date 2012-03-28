@@ -17,6 +17,7 @@
 #include <linux/syscore_ops.h>
 
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <asm/mach/irq.h>
 
 #include "generic.h"
@@ -221,11 +222,8 @@ static struct irq_chip sa1100_normal_chip = {
 	.irq_set_wake	= sa1100_set_wake,
 };
 
-static struct resource irq_resource = {
-	.name	= "irqs",
-	.start	= 0x90050000,
-	.end	= 0x9005ffff,
-};
+static struct resource irq_resource =
+	DEFINE_RES_MEM_NAMED(0x90050000, SZ_64K, "irqs");
 
 static struct sa1100irq_state {
 	unsigned int	saved;

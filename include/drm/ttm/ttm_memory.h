@@ -30,6 +30,7 @@
 
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
+#include <linux/bug.h>
 #include <linux/wait.h>
 #include <linux/errno.h>
 #include <linux/kobject.h>

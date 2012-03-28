@@ -34,8 +34,6 @@
 /* Doesn't really apply... */
 #define MAX_DMA_ADDRESS		(~0UL)
 
-#if !defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI)
-
 #ifdef HAVE_REALLY_SLOW_DMA_CONTROLLER
 #define dma_outb	outb_p
 #else
@@ -353,8 +351,6 @@ extern int isa_dma_bridge_buggy;
 #else
 #define isa_dma_bridge_buggy	(0)
 #endif
-
-#endif	/* !defined(CONFIG_PPC_ISERIES) || defined(CONFIG_PCI) */
 
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_DMA_H */

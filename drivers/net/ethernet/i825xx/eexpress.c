@@ -955,7 +955,7 @@ static void eexp_hw_rx_pio(struct net_device *dev)
 			{
 				struct sk_buff *skb;
 				pkt_len &= 0x3fff;
-				skb = dev_alloc_skb(pkt_len+16);
+				skb = netdev_alloc_skb(dev, pkt_len + 16);
 				if (skb == NULL)
 				{
 					printk(KERN_WARNING "%s: Memory squeeze, dropping packet\n",dev->name);

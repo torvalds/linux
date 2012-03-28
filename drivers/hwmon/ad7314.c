@@ -167,17 +167,7 @@ static struct spi_driver ad7314_driver = {
 	.id_table = ad7314_id,
 };
 
-static __init int ad7314_init(void)
-{
-	return spi_register_driver(&ad7314_driver);
-}
-module_init(ad7314_init);
-
-static __exit void ad7314_exit(void)
-{
-	spi_unregister_driver(&ad7314_driver);
-}
-module_exit(ad7314_exit);
+module_spi_driver(ad7314_driver);
 
 MODULE_AUTHOR("Sonic Zhang <sonic.zhang@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD7314, ADT7301 and ADT7302 digital"

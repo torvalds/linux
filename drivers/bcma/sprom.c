@@ -2,6 +2,8 @@
  * Broadcom specific AMBA
  * SPROM reading
  *
+ * Copyright 2011, 2012, Hauke Mehrtens <hauke@hauke-m.de>
+ *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
@@ -14,7 +16,57 @@
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 
-#define SPOFF(offset)	((offset) / sizeof(u16))
+static int(*get_fallback_sprom)(struct bcma_bus *dev, struct ssb_sprom *out);
+
+/**
+ * bcma_arch_register_fallback_sprom - Registers a method providing a
+ * fallback SPROM if no SPROM is found.
+ *
+ * @sprom_callback: The callback function.
+ *
+ * With this function the architecture implementation may register a
+ * callback handler which fills the SPROM data structure. The fallback is
+ * used for PCI based BCMA devices, where no valid SPROM can be found
+ * in the shadow registers and to provide the SPROM for SoCs where BCMA is
+ * to controll the system bus.
+ *
+ * This function is useful for weird architectures that have a half-assed
+ * BCMA device hardwired to their PCI bus.
+ *
+ * This function is available for architecture code, only. So it is not
+ * exported.
+ */
+int bcma_arch_register_fallback_sprom(int (*sprom_callback)(struct bcma_bus *bus,
+				     struct ssb_sprom *out))
+{
+	if (get_fallback_sprom)
+		return -EEXIST;
+	get_fallback_sprom = sprom_callback;
+
+	return 0;
+}
+
+static int bcma_fill_sprom_with_fallback(struct bcma_bus *bus,
+					 struct ssb_sprom *out)
+{
+	int err;
+
+	if (!get_fallback_sprom) {
+		err = -ENOENT;
+		goto fail;
+	}
+
+	err = get_fallback_sprom(bus, out);
+	if (err)
+		goto fail;
+
+	pr_debug("Using SPROM revision %d provided by"
+		 " platform.\n", bus->sprom.revision);
+	return 0;
+fail:
+	pr_warn("Using fallback SPROM failed (err %d)\n", err);
+	return err;
+}
 
 /**************************************************
  * R/W ops.
@@ -124,10 +176,21 @@ static int bcma_sprom_valid(const u16 *sprom)
  * SPROM extraction.
  **************************************************/
 
+#define SPOFF(offset)	((offset) / sizeof(u16))
+
+#define SPEX(_field, _offset, _mask, _shift)	\
+	bus->sprom._field = ((sprom[SPOFF(_offset)] & (_mask)) >> (_shift))
+
 static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 {
-	u16 v;
+	u16 v, o;
 	int i;
+	u16 pwr_info_offset[] = {
+		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
+		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
+	};
+	BUILD_BUG_ON(ARRAY_SIZE(pwr_info_offset) !=
+			ARRAY_SIZE(bus->sprom.core_pwr_info));
 
 	bus->sprom.revision = sprom[SSB_SPROMSIZE_WORDS_R4 - 1] &
 		SSB_SPROM_REVISION_REV;
@@ -137,85 +200,229 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 		*(((__be16 *)bus->sprom.il0mac) + i) = cpu_to_be16(v);
 	}
 
-	bus->sprom.board_rev = sprom[SPOFF(SSB_SPROM8_BOARDREV)];
+	SPEX(board_rev, SSB_SPROM8_BOARDREV, ~0, 0);
 
-	bus->sprom.txpid2g[0] = (sprom[SPOFF(SSB_SPROM4_TXPID2G01)] &
-	     SSB_SPROM4_TXPID2G0) >> SSB_SPROM4_TXPID2G0_SHIFT;
-	bus->sprom.txpid2g[1] = (sprom[SPOFF(SSB_SPROM4_TXPID2G01)] &
-	     SSB_SPROM4_TXPID2G1) >> SSB_SPROM4_TXPID2G1_SHIFT;
-	bus->sprom.txpid2g[2] = (sprom[SPOFF(SSB_SPROM4_TXPID2G23)] &
-	     SSB_SPROM4_TXPID2G2) >> SSB_SPROM4_TXPID2G2_SHIFT;
-	bus->sprom.txpid2g[3] = (sprom[SPOFF(SSB_SPROM4_TXPID2G23)] &
-	     SSB_SPROM4_TXPID2G3) >> SSB_SPROM4_TXPID2G3_SHIFT;
+	SPEX(txpid2g[0], SSB_SPROM4_TXPID2G01, SSB_SPROM4_TXPID2G0,
+	     SSB_SPROM4_TXPID2G0_SHIFT);
+	SPEX(txpid2g[1], SSB_SPROM4_TXPID2G01, SSB_SPROM4_TXPID2G1,
+	     SSB_SPROM4_TXPID2G1_SHIFT);
+	SPEX(txpid2g[2], SSB_SPROM4_TXPID2G23, SSB_SPROM4_TXPID2G2,
+	     SSB_SPROM4_TXPID2G2_SHIFT);
+	SPEX(txpid2g[3], SSB_SPROM4_TXPID2G23, SSB_SPROM4_TXPID2G3,
+	     SSB_SPROM4_TXPID2G3_SHIFT);
 
-	bus->sprom.txpid5gl[0] = (sprom[SPOFF(SSB_SPROM4_TXPID5GL01)] &
-	     SSB_SPROM4_TXPID5GL0) >> SSB_SPROM4_TXPID5GL0_SHIFT;
-	bus->sprom.txpid5gl[1] = (sprom[SPOFF(SSB_SPROM4_TXPID5GL01)] &
-	     SSB_SPROM4_TXPID5GL1) >> SSB_SPROM4_TXPID5GL1_SHIFT;
-	bus->sprom.txpid5gl[2] = (sprom[SPOFF(SSB_SPROM4_TXPID5GL23)] &
-	     SSB_SPROM4_TXPID5GL2) >> SSB_SPROM4_TXPID5GL2_SHIFT;
-	bus->sprom.txpid5gl[3] = (sprom[SPOFF(SSB_SPROM4_TXPID5GL23)] &
-	     SSB_SPROM4_TXPID5GL3) >> SSB_SPROM4_TXPID5GL3_SHIFT;
+	SPEX(txpid5gl[0], SSB_SPROM4_TXPID5GL01, SSB_SPROM4_TXPID5GL0,
+	     SSB_SPROM4_TXPID5GL0_SHIFT);
+	SPEX(txpid5gl[1], SSB_SPROM4_TXPID5GL01, SSB_SPROM4_TXPID5GL1,
+	     SSB_SPROM4_TXPID5GL1_SHIFT);
+	SPEX(txpid5gl[2], SSB_SPROM4_TXPID5GL23, SSB_SPROM4_TXPID5GL2,
+	     SSB_SPROM4_TXPID5GL2_SHIFT);
+	SPEX(txpid5gl[3], SSB_SPROM4_TXPID5GL23, SSB_SPROM4_TXPID5GL3,
+	     SSB_SPROM4_TXPID5GL3_SHIFT);
 
-	bus->sprom.txpid5g[0] = (sprom[SPOFF(SSB_SPROM4_TXPID5G01)] &
-	     SSB_SPROM4_TXPID5G0) >> SSB_SPROM4_TXPID5G0_SHIFT;
-	bus->sprom.txpid5g[1] = (sprom[SPOFF(SSB_SPROM4_TXPID5G01)] &
-	     SSB_SPROM4_TXPID5G1) >> SSB_SPROM4_TXPID5G1_SHIFT;
-	bus->sprom.txpid5g[2] = (sprom[SPOFF(SSB_SPROM4_TXPID5G23)] &
-	     SSB_SPROM4_TXPID5G2) >> SSB_SPROM4_TXPID5G2_SHIFT;
-	bus->sprom.txpid5g[3] = (sprom[SPOFF(SSB_SPROM4_TXPID5G23)] &
-	     SSB_SPROM4_TXPID5G3) >> SSB_SPROM4_TXPID5G3_SHIFT;
+	SPEX(txpid5g[0], SSB_SPROM4_TXPID5G01, SSB_SPROM4_TXPID5G0,
+	     SSB_SPROM4_TXPID5G0_SHIFT);
+	SPEX(txpid5g[1], SSB_SPROM4_TXPID5G01, SSB_SPROM4_TXPID5G1,
+	     SSB_SPROM4_TXPID5G1_SHIFT);
+	SPEX(txpid5g[2], SSB_SPROM4_TXPID5G23, SSB_SPROM4_TXPID5G2,
+	     SSB_SPROM4_TXPID5G2_SHIFT);
+	SPEX(txpid5g[3], SSB_SPROM4_TXPID5G23, SSB_SPROM4_TXPID5G3,
+	     SSB_SPROM4_TXPID5G3_SHIFT);
 
-	bus->sprom.txpid5gh[0] = (sprom[SPOFF(SSB_SPROM4_TXPID5GH01)] &
-	     SSB_SPROM4_TXPID5GH0) >> SSB_SPROM4_TXPID5GH0_SHIFT;
-	bus->sprom.txpid5gh[1] = (sprom[SPOFF(SSB_SPROM4_TXPID5GH01)] &
-	     SSB_SPROM4_TXPID5GH1) >> SSB_SPROM4_TXPID5GH1_SHIFT;
-	bus->sprom.txpid5gh[2] = (sprom[SPOFF(SSB_SPROM4_TXPID5GH23)] &
-	     SSB_SPROM4_TXPID5GH2) >> SSB_SPROM4_TXPID5GH2_SHIFT;
-	bus->sprom.txpid5gh[3] = (sprom[SPOFF(SSB_SPROM4_TXPID5GH23)] &
-	     SSB_SPROM4_TXPID5GH3) >> SSB_SPROM4_TXPID5GH3_SHIFT;
+	SPEX(txpid5gh[0], SSB_SPROM4_TXPID5GH01, SSB_SPROM4_TXPID5GH0,
+	     SSB_SPROM4_TXPID5GH0_SHIFT);
+	SPEX(txpid5gh[1], SSB_SPROM4_TXPID5GH01, SSB_SPROM4_TXPID5GH1,
+	     SSB_SPROM4_TXPID5GH1_SHIFT);
+	SPEX(txpid5gh[2], SSB_SPROM4_TXPID5GH23, SSB_SPROM4_TXPID5GH2,
+	     SSB_SPROM4_TXPID5GH2_SHIFT);
+	SPEX(txpid5gh[3], SSB_SPROM4_TXPID5GH23, SSB_SPROM4_TXPID5GH3,
+	     SSB_SPROM4_TXPID5GH3_SHIFT);
 
-	bus->sprom.boardflags_lo = sprom[SPOFF(SSB_SPROM8_BFLLO)];
-	bus->sprom.boardflags_hi = sprom[SPOFF(SSB_SPROM8_BFLHI)];
-	bus->sprom.boardflags2_lo = sprom[SPOFF(SSB_SPROM8_BFL2LO)];
-	bus->sprom.boardflags2_hi = sprom[SPOFF(SSB_SPROM8_BFL2HI)];
+	SPEX(boardflags_lo, SSB_SPROM8_BFLLO, ~0, 0);
+	SPEX(boardflags_hi, SSB_SPROM8_BFLHI, ~0, 0);
+	SPEX(boardflags2_lo, SSB_SPROM8_BFL2LO, ~0, 0);
+	SPEX(boardflags2_hi, SSB_SPROM8_BFL2HI, ~0, 0);
 
-	bus->sprom.country_code = sprom[SPOFF(SSB_SPROM8_CCODE)];
+	SPEX(country_code, SSB_SPROM8_CCODE, ~0, 0);
 
-	bus->sprom.fem.ghz2.tssipos = (sprom[SPOFF(SSB_SPROM8_FEM2G)] &
-		SSB_SROM8_FEM_TSSIPOS) >> SSB_SROM8_FEM_TSSIPOS_SHIFT;
-	bus->sprom.fem.ghz2.extpa_gain = (sprom[SPOFF(SSB_SPROM8_FEM2G)] &
-		SSB_SROM8_FEM_EXTPA_GAIN) >> SSB_SROM8_FEM_EXTPA_GAIN_SHIFT;
-	bus->sprom.fem.ghz2.pdet_range = (sprom[SPOFF(SSB_SPROM8_FEM2G)] &
-		SSB_SROM8_FEM_PDET_RANGE) >> SSB_SROM8_FEM_PDET_RANGE_SHIFT;
-	bus->sprom.fem.ghz2.tr_iso = (sprom[SPOFF(SSB_SPROM8_FEM2G)] &
-		SSB_SROM8_FEM_TR_ISO) >> SSB_SROM8_FEM_TR_ISO_SHIFT;
-	bus->sprom.fem.ghz2.antswlut = (sprom[SPOFF(SSB_SPROM8_FEM2G)] &
-		SSB_SROM8_FEM_ANTSWLUT) >> SSB_SROM8_FEM_ANTSWLUT_SHIFT;
+	/* Extract cores power info info */
+	for (i = 0; i < ARRAY_SIZE(pwr_info_offset); i++) {
+		o = pwr_info_offset[i];
+		SPEX(core_pwr_info[i].itssi_2g, o + SSB_SROM8_2G_MAXP_ITSSI,
+			SSB_SPROM8_2G_ITSSI, SSB_SPROM8_2G_ITSSI_SHIFT);
+		SPEX(core_pwr_info[i].maxpwr_2g, o + SSB_SROM8_2G_MAXP_ITSSI,
+			SSB_SPROM8_2G_MAXP, 0);
 
-	bus->sprom.fem.ghz5.tssipos = (sprom[SPOFF(SSB_SPROM8_FEM5G)] &
-		SSB_SROM8_FEM_TSSIPOS) >> SSB_SROM8_FEM_TSSIPOS_SHIFT;
-	bus->sprom.fem.ghz5.extpa_gain = (sprom[SPOFF(SSB_SPROM8_FEM5G)] &
-		SSB_SROM8_FEM_EXTPA_GAIN) >> SSB_SROM8_FEM_EXTPA_GAIN_SHIFT;
-	bus->sprom.fem.ghz5.pdet_range = (sprom[SPOFF(SSB_SPROM8_FEM5G)] &
-		SSB_SROM8_FEM_PDET_RANGE) >> SSB_SROM8_FEM_PDET_RANGE_SHIFT;
-	bus->sprom.fem.ghz5.tr_iso = (sprom[SPOFF(SSB_SPROM8_FEM5G)] &
-		SSB_SROM8_FEM_TR_ISO) >> SSB_SROM8_FEM_TR_ISO_SHIFT;
-	bus->sprom.fem.ghz5.antswlut = (sprom[SPOFF(SSB_SPROM8_FEM5G)] &
-		SSB_SROM8_FEM_ANTSWLUT) >> SSB_SROM8_FEM_ANTSWLUT_SHIFT;
+		SPEX(core_pwr_info[i].pa_2g[0], o + SSB_SROM8_2G_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_2g[1], o + SSB_SROM8_2G_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_2g[2], o + SSB_SROM8_2G_PA_2, ~0, 0);
+
+		SPEX(core_pwr_info[i].itssi_5g, o + SSB_SROM8_5G_MAXP_ITSSI,
+			SSB_SPROM8_5G_ITSSI, SSB_SPROM8_5G_ITSSI_SHIFT);
+		SPEX(core_pwr_info[i].maxpwr_5g, o + SSB_SROM8_5G_MAXP_ITSSI,
+			SSB_SPROM8_5G_MAXP, 0);
+		SPEX(core_pwr_info[i].maxpwr_5gh, o + SSB_SPROM8_5GHL_MAXP,
+			SSB_SPROM8_5GH_MAXP, 0);
+		SPEX(core_pwr_info[i].maxpwr_5gl, o + SSB_SPROM8_5GHL_MAXP,
+			SSB_SPROM8_5GL_MAXP, SSB_SPROM8_5GL_MAXP_SHIFT);
+
+		SPEX(core_pwr_info[i].pa_5gl[0], o + SSB_SROM8_5GL_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gl[1], o + SSB_SROM8_5GL_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gl[2], o + SSB_SROM8_5GL_PA_2, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[0], o + SSB_SROM8_5G_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[1], o + SSB_SROM8_5G_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5g[2], o + SSB_SROM8_5G_PA_2, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[0], o + SSB_SROM8_5GH_PA_0, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[1], o + SSB_SROM8_5GH_PA_1, ~0, 0);
+		SPEX(core_pwr_info[i].pa_5gh[2], o + SSB_SROM8_5GH_PA_2, ~0, 0);
+	}
+
+	SPEX(fem.ghz2.tssipos, SSB_SPROM8_FEM2G, SSB_SROM8_FEM_TSSIPOS,
+	     SSB_SROM8_FEM_TSSIPOS_SHIFT);
+	SPEX(fem.ghz2.extpa_gain, SSB_SPROM8_FEM2G, SSB_SROM8_FEM_EXTPA_GAIN,
+	     SSB_SROM8_FEM_EXTPA_GAIN_SHIFT);
+	SPEX(fem.ghz2.pdet_range, SSB_SPROM8_FEM2G, SSB_SROM8_FEM_PDET_RANGE,
+	     SSB_SROM8_FEM_PDET_RANGE_SHIFT);
+	SPEX(fem.ghz2.tr_iso, SSB_SPROM8_FEM2G, SSB_SROM8_FEM_TR_ISO,
+	     SSB_SROM8_FEM_TR_ISO_SHIFT);
+	SPEX(fem.ghz2.antswlut, SSB_SPROM8_FEM2G, SSB_SROM8_FEM_ANTSWLUT,
+	     SSB_SROM8_FEM_ANTSWLUT_SHIFT);
+
+	SPEX(fem.ghz5.tssipos, SSB_SPROM8_FEM5G, SSB_SROM8_FEM_TSSIPOS,
+	     SSB_SROM8_FEM_TSSIPOS_SHIFT);
+	SPEX(fem.ghz5.extpa_gain, SSB_SPROM8_FEM5G, SSB_SROM8_FEM_EXTPA_GAIN,
+	     SSB_SROM8_FEM_EXTPA_GAIN_SHIFT);
+	SPEX(fem.ghz5.pdet_range, SSB_SPROM8_FEM5G, SSB_SROM8_FEM_PDET_RANGE,
+	     SSB_SROM8_FEM_PDET_RANGE_SHIFT);
+	SPEX(fem.ghz5.tr_iso, SSB_SPROM8_FEM5G, SSB_SROM8_FEM_TR_ISO,
+	     SSB_SROM8_FEM_TR_ISO_SHIFT);
+	SPEX(fem.ghz5.antswlut, SSB_SPROM8_FEM5G, SSB_SROM8_FEM_ANTSWLUT,
+	     SSB_SROM8_FEM_ANTSWLUT_SHIFT);
+}
+
+/*
+ * Indicates the presence of external SPROM.
+ */
+static bool bcma_sprom_ext_available(struct bcma_bus *bus)
+{
+	u32 chip_status;
+	u32 srom_control;
+	u32 present_mask;
+
+	if (bus->drv_cc.core->id.rev >= 31) {
+		if (!(bus->drv_cc.capabilities & BCMA_CC_CAP_SPROM))
+			return false;
+
+		srom_control = bcma_read32(bus->drv_cc.core,
+					   BCMA_CC_SROM_CONTROL);
+		return srom_control & BCMA_CC_SROM_CONTROL_PRESENT;
+	}
+
+	/* older chipcommon revisions use chip status register */
+	chip_status = bcma_read32(bus->drv_cc.core, BCMA_CC_CHIPSTAT);
+	switch (bus->chipinfo.id) {
+	case 0x4313:
+		present_mask = BCMA_CC_CHIPST_4313_SPROM_PRESENT;
+		break;
+
+	case 0x4331:
+		present_mask = BCMA_CC_CHIPST_4331_SPROM_PRESENT;
+		break;
+
+	default:
+		return true;
+	}
+
+	return chip_status & present_mask;
+}
+
+/*
+ * Indicates that on-chip OTP memory is present and enabled.
+ */
+static bool bcma_sprom_onchip_available(struct bcma_bus *bus)
+{
+	u32 chip_status;
+	u32 otpsize = 0;
+	bool present;
+
+	chip_status = bcma_read32(bus->drv_cc.core, BCMA_CC_CHIPSTAT);
+	switch (bus->chipinfo.id) {
+	case 0x4313:
+		present = chip_status & BCMA_CC_CHIPST_4313_OTP_PRESENT;
+		break;
+
+	case 0x4331:
+		present = chip_status & BCMA_CC_CHIPST_4331_OTP_PRESENT;
+		break;
+
+	case 43224:
+	case 43225:
+		/* for these chips OTP is always available */
+		present = true;
+		break;
+
+	default:
+		present = false;
+		break;
+	}
+
+	if (present) {
+		otpsize = bus->drv_cc.capabilities & BCMA_CC_CAP_OTPS;
+		otpsize >>= BCMA_CC_CAP_OTPS_SHIFT;
+	}
+
+	return otpsize != 0;
+}
+
+/*
+ * Verify OTP is filled and determine the byte
+ * offset where SPROM data is located.
+ *
+ * On error, returns 0; byte offset otherwise.
+ */
+static int bcma_sprom_onchip_offset(struct bcma_bus *bus)
+{
+	struct bcma_device *cc = bus->drv_cc.core;
+	u32 offset;
+
+	/* verify OTP status */
+	if ((bcma_read32(cc, BCMA_CC_OTPS) & BCMA_CC_OTPS_GU_PROG_HW) == 0)
+		return 0;
+
+	/* obtain bit offset from otplayout register */
+	offset = (bcma_read32(cc, BCMA_CC_OTPL) & BCMA_CC_OTPL_GURGN_OFFSET);
+	return BCMA_CC_SPROM + (offset >> 3);
 }
 
 int bcma_sprom_get(struct bcma_bus *bus)
 {
-	u16 offset;
+	u16 offset = BCMA_CC_SPROM;
 	u16 *sprom;
 	int err = 0;
 
 	if (!bus->drv_cc.core)
 		return -EOPNOTSUPP;
 
-	if (!(bus->drv_cc.capabilities & BCMA_CC_CAP_SPROM))
-		return -ENOENT;
+	if (!bcma_sprom_ext_available(bus)) {
+		/*
+		 * External SPROM takes precedence so check
+		 * on-chip OTP only when no external SPROM
+		 * is present.
+		 */
+		if (bcma_sprom_onchip_available(bus)) {
+			/* determine offset */
+			offset = bcma_sprom_onchip_offset(bus);
+		}
+		if (!offset) {
+			/*
+			 * Maybe there is no SPROM on the device?
+			 * Now we ask the arch code if there is some sprom
+			 * available for this device in some other storage.
+			 */
+			err = bcma_fill_sprom_with_fallback(bus, &bus->sprom);
+			return err;
+		}
+	}
 
 	sprom = kcalloc(SSB_SPROMSIZE_WORDS_R4, sizeof(u16),
 			GFP_KERNEL);
@@ -225,11 +432,7 @@ int bcma_sprom_get(struct bcma_bus *bus)
 	if (bus->chipinfo.id == 0x4331)
 		bcma_chipco_bcm4331_ext_pa_lines_ctl(&bus->drv_cc, false);
 
-	/* Most cards have SPROM moved by additional offset 0x30 (48 dwords).
-	 * According to brcm80211 this applies to cards with PCIe rev >= 6
-	 * TODO: understand this condition and use it */
-	offset = (bus->chipinfo.id == 0x4331) ? BCMA_CC_SPROM :
-		BCMA_CC_SPROM_PCIE6;
+	pr_debug("SPROM offset 0x%x\n", offset);
 	bcma_sprom_read(bus, offset, sprom);
 
 	if (bus->chipinfo.id == 0x4331)

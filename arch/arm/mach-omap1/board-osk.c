@@ -34,14 +34,11 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/smc91x.h>
-
+#include <linux/omapfb.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-
 #include <linux/i2c/tps65010.h>
-
-#include <mach/hardware.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -51,6 +48,9 @@
 #include <plat/usb.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
+
+#include <mach/hardware.h>
+
 #include "common.h"
 
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
@@ -300,12 +300,6 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 };
 #endif
 
-static struct omap_board_config_kernel osk_config[] __initdata = {
-#ifdef	CONFIG_OMAP_OSK_MISTRAL
-	{ OMAP_TAG_LCD,			&osk_lcd_config },
-#endif
-};
-
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
 #include <linux/input.h>
@@ -549,8 +543,6 @@ static void __init osk_init(void)
 	osk_flash_resource.end = osk_flash_resource.start = omap_cs3_phys();
 	osk_flash_resource.end += SZ_32M - 1;
 	platform_add_devices(osk5912_devices, ARRAY_SIZE(osk5912_devices));
-	omap_board_config = osk_config;
-	omap_board_config_size = ARRAY_SIZE(osk_config);
 
 	l = omap_readl(USB_TRANSCEIVER_CTRL);
 	l |= (3 << 1);
@@ -567,6 +559,11 @@ static void __init osk_init(void)
 	omap_register_i2c_bus(1, 400, osk_i2c_board_info,
 			      ARRAY_SIZE(osk_i2c_board_info));
 	osk_mistral_init();
+
+#ifdef	CONFIG_OMAP_OSK_MISTRAL
+	omapfb_set_lcd_config(&osk_lcd_config);
+#endif
+
 }
 
 MACHINE_START(OMAP_OSK, "TI-OSK")

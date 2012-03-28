@@ -1074,7 +1074,7 @@ static int rv770_startup(struct radeon_device *rdev)
 	r = r600_blit_init(rdev);
 	if (r) {
 		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
+		rdev->asic->copy.copy = NULL;
 		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
 
@@ -1114,7 +1114,7 @@ static int rv770_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		dev_err(rdev->dev, "IB test failed (%d).\n", r);
 		rdev->accel_working = false;

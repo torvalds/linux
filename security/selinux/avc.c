@@ -457,62 +457,13 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 			   ad->selinux_audit_data.tclass);
 }
 
-/**
- * avc_audit - Audit the granting or denial of permissions.
- * @ssid: source security identifier
- * @tsid: target security identifier
- * @tclass: target security class
- * @requested: requested permissions
- * @avd: access vector decisions
- * @result: result from avc_has_perm_noaudit
- * @a:  auxiliary audit data
- * @flags: VFS walk flags
- *
- * Audit the granting or denial of permissions in accordance
- * with the policy.  This function is typically called by
- * avc_has_perm() after a permission check, but can also be
- * called directly by callers who use avc_has_perm_noaudit()
- * in order to separate the permission check from the auditing.
- * For example, this separation is useful when the permission check must
- * be performed under a lock, to allow the lock to be released
- * before calling the auditing code.
- */
-int avc_audit(u32 ssid, u32 tsid,
-	       u16 tclass, u32 requested,
-	       struct av_decision *avd, int result, struct common_audit_data *a,
-	       unsigned flags)
+/* This is the slow part of avc audit with big stack footprint */
+static noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
+		u32 requested, u32 audited, u32 denied,
+		struct av_decision *avd, struct common_audit_data *a,
+		unsigned flags)
 {
 	struct common_audit_data stack_data;
-	u32 denied, audited;
-	denied = requested & ~avd->allowed;
-	if (denied) {
-		audited = denied & avd->auditdeny;
-		/*
-		 * a->selinux_audit_data.auditdeny is TRICKY!  Setting a bit in
-		 * this field means that ANY denials should NOT be audited if
-		 * the policy contains an explicit dontaudit rule for that
-		 * permission.  Take notice that this is unrelated to the
-		 * actual permissions that were denied.  As an example lets
-		 * assume:
-		 *
-		 * denied == READ
-		 * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
-		 * selinux_audit_data.auditdeny & ACCESS == 1
-		 *
-		 * We will NOT audit the denial even though the denied
-		 * permission was READ and the auditdeny checks were for
-		 * ACCESS
-		 */
-		if (a &&
-		    a->selinux_audit_data.auditdeny &&
-		    !(a->selinux_audit_data.auditdeny & avd->auditdeny))
-			audited = 0;
-	} else if (result)
-		audited = denied = requested;
-	else
-		audited = requested & avd->auditallow;
-	if (!audited)
-		return 0;
 
 	if (!a) {
 		a = &stack_data;
@@ -540,6 +491,67 @@ int avc_audit(u32 ssid, u32 tsid,
 	a->lsm_post_audit = avc_audit_post_callback;
 	common_lsm_audit(a);
 	return 0;
+}
+
+/**
+ * avc_audit - Audit the granting or denial of permissions.
+ * @ssid: source security identifier
+ * @tsid: target security identifier
+ * @tclass: target security class
+ * @requested: requested permissions
+ * @avd: access vector decisions
+ * @result: result from avc_has_perm_noaudit
+ * @a:  auxiliary audit data
+ * @flags: VFS walk flags
+ *
+ * Audit the granting or denial of permissions in accordance
+ * with the policy.  This function is typically called by
+ * avc_has_perm() after a permission check, but can also be
+ * called directly by callers who use avc_has_perm_noaudit()
+ * in order to separate the permission check from the auditing.
+ * For example, this separation is useful when the permission check must
+ * be performed under a lock, to allow the lock to be released
+ * before calling the auditing code.
+ */
+int avc_audit(u32 ssid, u32 tsid,
+	       u16 tclass, u32 requested,
+	       struct av_decision *avd, int result, struct common_audit_data *a,
+	       unsigned flags)
+{
+	u32 denied, audited;
+	denied = requested & ~avd->allowed;
+	if (unlikely(denied)) {
+		audited = denied & avd->auditdeny;
+		/*
+		 * a->selinux_audit_data.auditdeny is TRICKY!  Setting a bit in
+		 * this field means that ANY denials should NOT be audited if
+		 * the policy contains an explicit dontaudit rule for that
+		 * permission.  Take notice that this is unrelated to the
+		 * actual permissions that were denied.  As an example lets
+		 * assume:
+		 *
+		 * denied == READ
+		 * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
+		 * selinux_audit_data.auditdeny & ACCESS == 1
+		 *
+		 * We will NOT audit the denial even though the denied
+		 * permission was READ and the auditdeny checks were for
+		 * ACCESS
+		 */
+		if (a &&
+		    a->selinux_audit_data.auditdeny &&
+		    !(a->selinux_audit_data.auditdeny & avd->auditdeny))
+			audited = 0;
+	} else if (result)
+		audited = denied = requested;
+	else
+		audited = requested & avd->auditallow;
+	if (likely(!audited))
+		return 0;
+
+	return slow_avc_audit(ssid, tsid, tclass,
+		requested, audited, denied,
+		avd, a, flags);
 }
 
 /**

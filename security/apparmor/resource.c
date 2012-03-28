@@ -23,6 +23,11 @@
  */
 #include "rlim_names.h"
 
+struct aa_fs_entry aa_fs_entry_rlimit[] = {
+	AA_FS_FILE_STRING("mask", AA_FS_RLIMIT_MASK),
+	{ }
+};
+
 /* audit callback for resource specific fields */
 static void audit_cb(struct audit_buffer *ab, void *va)
 {

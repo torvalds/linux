@@ -33,65 +33,6 @@
 #include "event.h"
 #include "rx.h"
 
-static struct wl1271_partition_set part_table[PART_TABLE_LEN] = {
-	[PART_DOWN] = {
-		.mem = {
-			.start = 0x00000000,
-			.size  = 0x000177c0
-		},
-		.reg = {
-			.start = REGISTERS_BASE,
-			.size  = 0x00008800
-		},
-		.mem2 = {
-			.start = 0x00000000,
-			.size  = 0x00000000
-		},
-		.mem3 = {
-			.start = 0x00000000,
-			.size  = 0x00000000
-		},
-	},
-
-	[PART_WORK] = {
-		.mem = {
-			.start = 0x00040000,
-			.size  = 0x00014fc0
-		},
-		.reg = {
-			.start = REGISTERS_BASE,
-			.size  = 0x0000a000
-		},
-		.mem2 = {
-			.start = 0x003004f8,
-			.size  = 0x00000004
-		},
-		.mem3 = {
-			.start = 0x00040404,
-			.size  = 0x00000000
-		},
-	},
-
-	[PART_DRPW] = {
-		.mem = {
-			.start = 0x00040000,
-			.size  = 0x00014fc0
-		},
-		.reg = {
-			.start = DRPW_BASE,
-			.size  = 0x00006000
-		},
-		.mem2 = {
-			.start = 0x00000000,
-			.size  = 0x00000000
-		},
-		.mem3 = {
-			.start = 0x00000000,
-			.size  = 0x00000000
-		}
-	}
-};
-
 static void wl1271_boot_set_ecpu_ctrl(struct wl1271 *wl, u32 flag)
 {
 	u32 cpu_ctrl;
@@ -181,13 +122,13 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		return -ENOMEM;
 	}
 
-	memcpy(&partition, &part_table[PART_DOWN], sizeof(partition));
+	memcpy(&partition, &wl12xx_part_table[PART_DOWN], sizeof(partition));
 	partition.mem.start = dest;
 	wl1271_set_partition(wl, &partition);
 
 	/* 10.1 set partition limit and chunk num */
 	chunk_num = 0;
-	partition_limit = part_table[PART_DOWN].mem.size;
+	partition_limit = wl12xx_part_table[PART_DOWN].mem.size;
 
 	while (chunk_num < fw_data_len / CHUNK_SIZE) {
 		/* 10.2 update partition, if needed */
@@ -195,7 +136,7 @@ static int wl1271_boot_upload_firmware_chunk(struct wl1271 *wl, void *buf,
 		if (addr > partition_limit) {
 			addr = dest + chunk_num * CHUNK_SIZE;
 			partition_limit = chunk_num * CHUNK_SIZE +
-				part_table[PART_DOWN].mem.size;
+				wl12xx_part_table[PART_DOWN].mem.size;
 			partition.mem.start = addr;
 			wl1271_set_partition(wl, &partition);
 		}
@@ -317,12 +258,12 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	}
 
 	/* update current MAC address to NVS */
-	nvs_ptr[11] = wl->mac_addr[0];
-	nvs_ptr[10] = wl->mac_addr[1];
-	nvs_ptr[6] = wl->mac_addr[2];
-	nvs_ptr[5] = wl->mac_addr[3];
-	nvs_ptr[4] = wl->mac_addr[4];
-	nvs_ptr[3] = wl->mac_addr[5];
+	nvs_ptr[11] = wl->addresses[0].addr[0];
+	nvs_ptr[10] = wl->addresses[0].addr[1];
+	nvs_ptr[6] = wl->addresses[0].addr[2];
+	nvs_ptr[5] = wl->addresses[0].addr[3];
+	nvs_ptr[4] = wl->addresses[0].addr[4];
+	nvs_ptr[3] = wl->addresses[0].addr[5];
 
 	/*
 	 * Layout before the actual NVS tables:
@@ -383,7 +324,7 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	nvs_len -= nvs_ptr - (u8 *)wl->nvs;
 
 	/* Now we must set the partition correctly */
-	wl1271_set_partition(wl, &part_table[PART_WORK]);
+	wl1271_set_partition(wl, &wl12xx_part_table[PART_WORK]);
 
 	/* Copy the NVS tables to a new block to ensure alignment */
 	nvs_aligned = kmemdup(nvs_ptr, nvs_len, GFP_KERNEL);
@@ -492,7 +433,7 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	wl->event_box_addr = wl1271_read32(wl, REG_EVENT_MAILBOX_PTR);
 
 	/* set the working partition to its "running" mode offset */
-	wl1271_set_partition(wl, &part_table[PART_WORK]);
+	wl1271_set_partition(wl, &wl12xx_part_table[PART_WORK]);
 
 	wl1271_debug(DEBUG_MAILBOX, "cmd_box_addr 0x%x event_box_addr 0x%x",
 		     wl->cmd_box_addr, wl->event_box_addr);
@@ -507,8 +448,7 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	/* unmask required mbox events  */
 	wl->event_mask = BSS_LOSE_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
-		PS_REPORT_EVENT_ID |
-		DISCONNECT_EVENT_COMPLETE_ID |
+		ROLE_STOP_COMPLETE_EVENT_ID |
 		RSSI_SNR_TRIGGER_0_EVENT_ID |
 		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
 		SOFT_GEMINI_SENSE_EVENT_ID |
@@ -545,19 +485,6 @@ static int wl1271_boot_write_irq_polarity(struct wl1271 *wl)
 	wl1271_top_reg_write(wl, OCP_REG_POLARITY, polarity);
 
 	return 0;
-}
-
-static void wl1271_boot_hw_version(struct wl1271 *wl)
-{
-	u32 fuse;
-
-	if (wl->chip.id == CHIP_ID_1283_PG20)
-		fuse = wl1271_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1);
-	else
-		fuse = wl1271_top_reg_read(wl, WL127X_REG_FUSE_DATA_2_1);
-	fuse = (fuse & PG_VER_MASK) >> PG_VER_OFFSET;
-
-	wl->hw_pg_ver = (s8)fuse;
 }
 
 static int wl128x_switch_tcxo_to_fref(struct wl1271 *wl)
@@ -698,7 +625,7 @@ static int wl127x_boot_clk(struct wl1271 *wl)
 	u32 pause;
 	u32 clk;
 
-	if (((wl->hw_pg_ver & PG_MAJOR_VER_MASK) >> PG_MAJOR_VER_OFFSET) < 3)
+	if (WL127X_PG_GET_MAJOR(wl->hw_pg_ver) < 3)
 		wl->quirks |= WL12XX_QUIRK_END_OF_TRANSACTION;
 
 	if (wl->ref_clock == CONF_REF_CLK_19_2_E ||
@@ -753,8 +680,6 @@ int wl1271_load_firmware(struct wl1271 *wl)
 	u32 tmp, clk;
 	int selected_clock = -1;
 
-	wl1271_boot_hw_version(wl);
-
 	if (wl->chip.id == CHIP_ID_1283_PG20) {
 		ret = wl128x_boot_clk(wl, &selected_clock);
 		if (ret < 0)
@@ -769,7 +694,7 @@ int wl1271_load_firmware(struct wl1271 *wl)
 	wl1271_write32(wl, WELP_ARM_COMMAND, WELP_ARM_COMMAND_VAL);
 	udelay(500);
 
-	wl1271_set_partition(wl, &part_table[PART_DRPW]);
+	wl1271_set_partition(wl, &wl12xx_part_table[PART_DRPW]);
 
 	/* Read-modify-write DRPW_SCRATCH_START register (see next state)
 	   to be used by DRPw FW. The RTRIM value will be added by the FW
@@ -788,7 +713,7 @@ int wl1271_load_firmware(struct wl1271 *wl)
 
 	wl1271_write32(wl, DRPW_SCRATCH_START, clk);
 
-	wl1271_set_partition(wl, &part_table[PART_WORK]);
+	wl1271_set_partition(wl, &wl12xx_part_table[PART_WORK]);
 
 	/* Disable interrupts */
 	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);

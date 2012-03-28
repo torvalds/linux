@@ -25,8 +25,6 @@
 #ifndef _SSP_PL022_H
 #define _SSP_PL022_H
 
-#include <linux/device.h>
-
 /**
  * whether SSP is in loopback mode or not
  */
@@ -241,6 +239,8 @@ struct dma_chan;
  * @autosuspend_delay: delay in ms following transfer completion before the
  *     runtime power management system suspends the device. A setting of 0
  *     indicates no delay and the device will be suspended immediately.
+ * @rt: indicates the controller should run the message pump with realtime
+ *     priority to minimise the transfer latency on the bus.
  */
 struct pl022_ssp_controller {
 	u16 bus_id;
@@ -250,6 +250,7 @@ struct pl022_ssp_controller {
 	void *dma_rx_param;
 	void *dma_tx_param;
 	int autosuspend_delay;
+	bool rt;
 };
 
 /**

@@ -54,9 +54,9 @@ attributes are read-only.
 
 in1_label		"vin".
 in1_input		Measured voltage. From READ_VIN register.
-in1_min			Minumum Voltage. From VIN_UV_WARN_LIMIT register.
+in1_min			Minimum Voltage. From VIN_UV_WARN_LIMIT register.
 in1_max			Maximum voltage. From VIN_OV_WARN_LIMIT register.
-in1_lcrit		Critical minumum Voltage. VIN_UV_FAULT_LIMIT register.
+in1_lcrit		Critical minimum Voltage. VIN_UV_FAULT_LIMIT register.
 in1_crit		Critical maximum voltage. From VIN_OV_FAULT_LIMIT register.
 in1_min_alarm		Voltage low alarm. From VIN_UV_WARNING status.
 in1_max_alarm		Voltage high alarm. From VIN_OV_WARNING status.
@@ -65,9 +65,9 @@ in1_crit_alarm		Voltage critical high alarm. From VIN_OV_FAULT status.
 
 in[2-5]_label		"vout[1-4]".
 in[2-5]_input		Measured voltage. From READ_VOUT register.
-in[2-5]_min		Minumum Voltage. From VOUT_UV_WARN_LIMIT register.
+in[2-5]_min		Minimum Voltage. From VOUT_UV_WARN_LIMIT register.
 in[2-5]_max		Maximum voltage. From VOUT_OV_WARN_LIMIT register.
-in[2-5]_lcrit		Critical minumum Voltage. VOUT_UV_FAULT_LIMIT register.
+in[2-5]_lcrit		Critical minimum Voltage. VOUT_UV_FAULT_LIMIT register.
 in[2-5]_crit		Critical maximum voltage. From VOUT_OV_FAULT_LIMIT register.
 in[2-5]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in[2-5]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
@@ -80,7 +80,7 @@ curr1_input		Measured current. From READ_IIN register.
 curr[2-5]_label		"iout[1-4]".
 curr[2-5]_input		Measured current. From READ_IOUT register.
 curr[2-5]_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
-curr[2-5]_lcrit		Critical minumum output current. From IOUT_UC_FAULT_LIMIT
+curr[2-5]_lcrit		Critical minimum output current. From IOUT_UC_FAULT_LIMIT
 			register.
 curr[2-5]_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT register.
 curr[2-5]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.

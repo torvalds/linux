@@ -475,17 +475,7 @@ static struct i2c_driver mpu3050_i2c_driver = {
 	.id_table	= mpu3050_ids,
 };
 
-static int __init mpu3050_init(void)
-{
-	return i2c_add_driver(&mpu3050_i2c_driver);
-}
-module_init(mpu3050_init);
-
-static void __exit mpu3050_exit(void)
-{
-	i2c_del_driver(&mpu3050_i2c_driver);
-}
-module_exit(mpu3050_exit);
+module_i2c_driver(mpu3050_i2c_driver);
 
 MODULE_AUTHOR("Wistron Corp.");
 MODULE_DESCRIPTION("MPU3050 Tri-axis gyroscope driver");

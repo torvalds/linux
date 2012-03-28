@@ -605,24 +605,24 @@ static struct rpc_version nfs_cb_version4 = {
 	.procs			= nfs4_cb_procedures
 };
 
-static struct rpc_version *nfs_cb_version[] = {
+static const struct rpc_version *nfs_cb_version[] = {
 	&nfs_cb_version4,
 };
 
-static struct rpc_program cb_program;
+static const struct rpc_program cb_program;
 
 static struct rpc_stat cb_stats = {
 	.program		= &cb_program
 };
 
 #define NFS4_CALLBACK 0x40000000
-static struct rpc_program cb_program = {
+static const struct rpc_program cb_program = {
 	.name			= "nfs4_cb",
 	.number			= NFS4_CALLBACK,
 	.nrvers			= ARRAY_SIZE(nfs_cb_version),
 	.version		= nfs_cb_version,
 	.stats			= &cb_stats,
-	.pipe_dir_name		= "/nfsd4_cb",
+	.pipe_dir_name		= "nfsd4_cb",
 };
 
 static int max_cb_time(void)

@@ -22,7 +22,7 @@ static const char *avm_revision = "$Revision: 2.15.2.4 $";
 #define	 AVM_A1_STAT_HSCX	0x02
 #define	 AVM_A1_STAT_TIMER	0x04
 
-#define byteout(addr,val) outb(val,addr)
+#define byteout(addr, val) outb(val, addr)
 #define bytein(addr) inb(addr)
 
 static inline u_char
@@ -39,13 +39,13 @@ writereg(unsigned int adr, u_char off, u_char data)
 
 
 static inline void
-read_fifo(unsigned int adr, u_char * data, int size)
+read_fifo(unsigned int adr, u_char *data, int size)
 {
 	insb(adr, data, size);
 }
 
 static void
-write_fifo(unsigned int adr, u_char * data, int size)
+write_fifo(unsigned int adr, u_char *data, int size)
 {
 	outsb(adr, data, size);
 }
@@ -65,13 +65,13 @@ WriteISAC(struct IsdnCardState *cs, u_char offset, u_char value)
 }
 
 static void
-ReadISACfifo(struct IsdnCardState *cs, u_char * data, int size)
+ReadISACfifo(struct IsdnCardState *cs, u_char *data, int size)
 {
 	read_fifo(cs->hw.avm.isacfifo, data, size);
 }
 
 static void
-WriteISACfifo(struct IsdnCardState *cs, u_char * data, int size)
+WriteISACfifo(struct IsdnCardState *cs, u_char *data, int size)
 {
 	write_fifo(cs->hw.avm.isacfifo, data, size);
 }
@@ -158,23 +158,23 @@ AVM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	u_long flags;
 
 	switch (mt) {
-		case CARD_RESET:
-			return(0);
-		case CARD_RELEASE:
-			release_ioregs(cs, 0x3f);
-			return(0);
-		case CARD_INIT:
-			spin_lock_irqsave(&cs->lock, flags);
-			inithscxisac(cs, 1);
-			byteout(cs->hw.avm.cfg_reg, 0x16);
-			byteout(cs->hw.avm.cfg_reg, 0x1E);
-			inithscxisac(cs, 2);
-			spin_unlock_irqrestore(&cs->lock, flags);
-			return(0);
-		case CARD_TEST:
-			return(0);
+	case CARD_RESET:
+		return (0);
+	case CARD_RELEASE:
+		release_ioregs(cs, 0x3f);
+		return (0);
+	case CARD_INIT:
+		spin_lock_irqsave(&cs->lock, flags);
+		inithscxisac(cs, 1);
+		byteout(cs->hw.avm.cfg_reg, 0x16);
+		byteout(cs->hw.avm.cfg_reg, 0x1E);
+		inithscxisac(cs, 2);
+		spin_unlock_irqrestore(&cs->lock, flags);
+		return (0);
+	case CARD_TEST:
+		return (0);
 	}
-	return(0);
+	return (0);
 }
 
 int __devinit

@@ -29,6 +29,10 @@ config GENERIC_IOMAP
 	bool
 	select GENERIC_PCI_IOMAP
 
+config GENERIC_IO
+	boolean
+	default n
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -61,14 +65,67 @@ config CRC_ITU_T
 	  functions require M here.
 
 config CRC32
-	tristate "CRC32 functions"
+	tristate "CRC32/CRC32c functions"
 	default y
 	select BITREVERSE
 	help
 	  This option is provided for the case where no in-kernel-tree
-	  modules require CRC32 functions, but a module built outside the
-	  kernel tree does. Such modules that use library CRC32 functions
-	  require M here.
+	  modules require CRC32/CRC32c functions, but a module built outside
+	  the kernel tree does. Such modules that use library CRC32/CRC32c
+	  functions require M here.
+
+config CRC32_SELFTEST
+	bool "CRC32 perform self test on init"
+	default n
+	depends on CRC32
+	help
+	  This option enables the CRC32 library functions to perform a
+	  self test on initialization. The self test computes crc32_le
+	  and crc32_be over byte strings with random alignment and length
+	  and computes the total elapsed time and number of bytes processed.
+
+choice
+	prompt "CRC32 implementation"
+	depends on CRC32
+	default CRC32_SLICEBY8
+
+config CRC32_SLICEBY8
+	bool "Slice by 8 bytes"
+	help
+	  Calculate checksum 8 bytes at a time with a clever slicing algorithm.
+	  This is the fastest algorithm, but comes with a 8KiB lookup table.
+	  Most modern processors have enough cache to hold this table without
+	  thrashing the cache.
+
+	  This is the default implementation choice.  Choose this one unless
+	  you have a good reason not to.
+
+config CRC32_SLICEBY4
+	bool "Slice by 4 bytes"
+	help
+	  Calculate checksum 4 bytes at a time with a clever slicing algorithm.
+	  This is a bit slower than slice by 8, but has a smaller 4KiB lookup
+	  table.
+
+	  Only choose this option if you know what you are doing.
+
+config CRC32_SARWATE
+	bool "Sarwate's Algorithm (one byte at a time)"
+	help
+	  Calculate checksum a byte at a time using Sarwate's algorithm.  This
+	  is not particularly fast, but has a small 256 byte lookup table.
+
+	  Only choose this option if you know what you are doing.
+
+config CRC32_BIT
+	bool "Classic Algorithm (one bit at a time)"
+	help
+	  Calculate checksum one bit at a time.  This is VERY slow, but has
+	  no lookup table.  This is provided as a debugging option.
+
+	  Only choose this option if you are debugging crc32.
+
+endchoice
 
 config CRC7
 	tristate "CRC7 functions"
@@ -224,6 +281,7 @@ config BTREE
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM
+	select GENERIC_IO
 	default y
 
 config HAS_IOPORT

@@ -154,7 +154,7 @@ static void free_fib_info_rcu(struct rcu_head *head)
 void free_fib_info(struct fib_info *fi)
 {
 	if (fi->fib_dead == 0) {
-		pr_warning("Freeing alive fib_info %p\n", fi);
+		pr_warn("Freeing alive fib_info %p\n", fi);
 		return;
 	}
 	change_nexthops(fi) {

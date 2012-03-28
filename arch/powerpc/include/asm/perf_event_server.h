@@ -61,8 +61,6 @@ struct pt_regs;
 extern unsigned long perf_misc_flags(struct pt_regs *regs);
 extern unsigned long perf_instruction_pointer(struct pt_regs *regs);
 
-#define PERF_EVENT_INDEX_OFFSET	1
-
 /*
  * Only override the default definitions in include/linux/perf_event.h
  * if we have hardware PMU support.

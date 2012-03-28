@@ -535,11 +535,13 @@ static irqreturn_t bfin_serial_dma_tx_int(int irq, void *dev_id)
 		 *		when start a new tx.
 		 */
 		UART_CLEAR_IER(uart, ETBEI);
-		xmit->tail = (xmit->tail + uart->tx_count) & (UART_XMIT_SIZE - 1);
 		uart->port.icount.tx += uart->tx_count;
+		if (!uart_circ_empty(xmit)) {
+			xmit->tail = (xmit->tail + uart->tx_count) & (UART_XMIT_SIZE - 1);
 
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-			uart_write_wakeup(&uart->port);
+			if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+				uart_write_wakeup(&uart->port);
+		}
 
 		bfin_serial_dma_tx_chars(uart);
 	}

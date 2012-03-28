@@ -96,6 +96,12 @@ struct dev_pm_ops {
 	int (*thaw)(struct device *dev);
 	int (*poweroff)(struct device *dev);
 	int (*restore)(struct device *dev);
+	int (*suspend_late)(struct device *dev);
+	int (*resume_early)(struct device *dev);
+	int (*freeze_late)(struct device *dev);
+	int (*thaw_early)(struct device *dev);
+	int (*poweroff_late)(struct device *dev);
+	int (*restore_early)(struct device *dev);
 	int (*suspend_noirq)(struct device *dev);
 	int (*resume_noirq)(struct device *dev);
 	int (*freeze_noirq)(struct device *dev);
@@ -305,7 +311,7 @@ Entering System Suspend
 -----------------------
 When the system goes into the standby or memory sleep state, the phases are:
 
-		prepare, suspend, suspend_noirq.
+		prepare, suspend, suspend_late, suspend_noirq.
 
     1.	The prepare phase is meant to prevent races by preventing new devices
 	from being registered; the PM core would never know that all the
@@ -324,7 +330,12 @@ When the system goes into the standby or memory sleep state, the phases are:
 	appropriate low-power state, depending on the bus type the device is on,
 	and they may enable wakeup events.
 
-    3.	The suspend_noirq phase occurs after IRQ handlers have been disabled,
+    3	For a number of devices it is convenient to split suspend into the
+	"quiesce device" and "save device state" phases, in which cases
+	suspend_late is meant to do the latter.  It is always executed after
+	runtime power management has been disabled for all devices.
+
+    4.	The suspend_noirq phase occurs after IRQ handlers have been disabled,
 	which means that the driver's interrupt handler will not be called while
 	the callback method is running.  The methods should save the values of
 	the device's registers that weren't saved previously and finally put the
@@ -359,7 +370,7 @@ Leaving System Suspend
 ----------------------
 When resuming from standby or memory sleep, the phases are:
 
-		resume_noirq, resume, complete.
+		resume_noirq, resume_early, resume, complete.
 
     1.	The resume_noirq callback methods should perform any actions needed
 	before the driver's interrupt handlers are invoked.  This generally
@@ -375,14 +386,18 @@ When resuming from standby or memory sleep, the phases are:
 	device driver's ->pm.resume_noirq() method to perform device-specific
 	actions.
 
-    2.	The resume methods should bring the the device back to its operating
+    2.	The resume_early methods should prepare devices for the execution of
+	the resume methods.  This generally involves undoing the actions of the
+	preceding suspend_late phase.
+
+    3	The resume methods should bring the the device back to its operating
 	state, so that it can perform normal I/O.  This generally involves
 	undoing the actions of the suspend phase.
 
-    3.	The complete phase uses only a bus callback.  The method should undo the
-	actions of the prepare phase.  Note, however, that new children may be
-	registered below the device as soon as the resume callbacks occur; it's
-	not necessary to wait until the complete phase.
+    4.	The complete phase should undo the actions of the prepare phase.  Note,
+	however, that new children may be registered below the device as soon as
+	the resume callbacks occur; it's not necessary to wait until the
+	complete phase.
 
 At the end of these phases, drivers should be as functional as they were before
 suspending: I/O can be performed using DMA and IRQs, and the relevant clocks are
@@ -429,8 +444,8 @@ an image of the system memory while everything is stable, reactivate all
 devices (thaw), write the image to permanent storage, and finally shut down the
 system (poweroff).  The phases used to accomplish this are:
 
-	prepare, freeze, freeze_noirq, thaw_noirq, thaw, complete,
-	prepare, poweroff, poweroff_noirq
+	prepare, freeze, freeze_late, freeze_noirq, thaw_noirq, thaw_early,
+	thaw, complete, prepare, poweroff, poweroff_late, poweroff_noirq
 
     1.	The prepare phase is discussed in the "Entering System Suspend" section
 	above.
@@ -441,7 +456,11 @@ system (poweroff).  The phases used to accomplish this are:
 	save time it's best not to do so.  Also, the device should not be
 	prepared to generate wakeup events.
 
-    3.	The freeze_noirq phase is analogous to the suspend_noirq phase discussed
+    3.	The freeze_late phase is analogous to the suspend_late phase described
+	above, except that the device should not be put in a low-power state and
+	should not be allowed to generate wakeup events by it.
+
+    4.	The freeze_noirq phase is analogous to the suspend_noirq phase discussed
 	above, except again that the device should not be put in a low-power
 	state and should not be allowed to generate wakeup events.
 
@@ -449,15 +468,19 @@ At this point the system image is created.  All devices should be inactive and
 the contents of memory should remain undisturbed while this happens, so that the
 image forms an atomic snapshot of the system state.
 
-    4.	The thaw_noirq phase is analogous to the resume_noirq phase discussed
+    5.	The thaw_noirq phase is analogous to the resume_noirq phase discussed
 	above.  The main difference is that its methods can assume the device is
 	in the same state as at the end of the freeze_noirq phase.
 
-    5.	The thaw phase is analogous to the resume phase discussed above.  Its
+    6.	The thaw_early phase is analogous to the resume_early phase described
+	above.  Its methods should undo the actions of the preceding
+	freeze_late, if necessary.
+
+    7.	The thaw phase is analogous to the resume phase discussed above.  Its
 	methods should bring the device back to an operating state, so that it
 	can be used for saving the image if necessary.
 
-    6.	The complete phase is discussed in the "Leaving System Suspend" section
+    8.	The complete phase is discussed in the "Leaving System Suspend" section
 	above.
 
 At this point the system image is saved, and the devices then need to be
@@ -465,16 +488,19 @@ prepared for the upcoming system shutdown.  This is much like suspending them
 before putting the system into the standby or memory sleep state, and the phases
 are similar.
 
-    7.	The prepare phase is discussed above.
+    9.	The prepare phase is discussed above.
 
-    8.	The poweroff phase is analogous to the suspend phase.
+    10.	The poweroff phase is analogous to the suspend phase.
 
-    9.	The poweroff_noirq phase is analogous to the suspend_noirq phase.
+    11.	The poweroff_late phase is analogous to the suspend_late phase.
 
-The poweroff and poweroff_noirq callbacks should do essentially the same things
-as the suspend and suspend_noirq callbacks.  The only notable difference is that
-they need not store the device register values, because the registers should
-already have been stored during the freeze or freeze_noirq phases.
+    12.	The poweroff_noirq phase is analogous to the suspend_noirq phase.
+
+The poweroff, poweroff_late and poweroff_noirq callbacks should do essentially
+the same things as the suspend, suspend_late and suspend_noirq callbacks,
+respectively.  The only notable difference is that they need not store the
+device register values, because the registers should already have been stored
+during the freeze, freeze_late or freeze_noirq phases.
 
 
 Leaving Hibernation
@@ -518,22 +544,25 @@ To achieve this, the image kernel must restore the devices' pre-hibernation
 functionality.  The operation is much like waking up from the memory sleep
 state, although it involves different phases:
 
-	restore_noirq, restore, complete
+	restore_noirq, restore_early, restore, complete
 
     1.	The restore_noirq phase is analogous to the resume_noirq phase.
 
-    2.	The restore phase is analogous to the resume phase.
+    2.	The restore_early phase is analogous to the resume_early phase.
 
-    3.	The complete phase is discussed above.
+    3.	The restore phase is analogous to the resume phase.
 
-The main difference from resume[_noirq] is that restore[_noirq] must assume the
-device has been accessed and reconfigured by the boot loader or the boot kernel.
-Consequently the state of the device may be different from the state remembered
-from the freeze and freeze_noirq phases.  The device may even need to be reset
-and completely re-initialized.  In many cases this difference doesn't matter, so
-the resume[_noirq] and restore[_norq] method pointers can be set to the same
-routines.  Nevertheless, different callback pointers are used in case there is a
-situation where it actually matters.
+    4.	The complete phase is discussed above.
+
+The main difference from resume[_early|_noirq] is that restore[_early|_noirq]
+must assume the device has been accessed and reconfigured by the boot loader or
+the boot kernel.  Consequently the state of the device may be different from the
+state remembered from the freeze, freeze_late and freeze_noirq phases.  The
+device may even need to be reset and completely re-initialized.  In many cases
+this difference doesn't matter, so the resume[_early|_noirq] and
+restore[_early|_norq] method pointers can be set to the same routines.
+Nevertheless, different callback pointers are used in case there is a situation
+where it actually does matter.
 
 
 Device Power Management Domains

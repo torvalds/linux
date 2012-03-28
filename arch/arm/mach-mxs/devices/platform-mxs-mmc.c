@@ -41,6 +41,8 @@ const struct mxs_mxs_mmc_data mx23_mxs_mmc_data[] __initconst = {
 const struct mxs_mxs_mmc_data mx28_mxs_mmc_data[] __initconst = {
 	mxs_mxs_mmc_data_entry(MX28, 0, 0),
 	mxs_mxs_mmc_data_entry(MX28, 1, 1),
+	mxs_mxs_mmc_data_entry(MX28, 2, 2),
+	mxs_mxs_mmc_data_entry(MX28, 3, 3),
 };
 #endif
 

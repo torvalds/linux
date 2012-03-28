@@ -94,7 +94,6 @@ static struct usb_driver cypress_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
 };
 
 enum packet_format {
@@ -163,7 +162,6 @@ static struct usb_serial_driver cypress_earthmate_device = {
 		.name =			"earthmate",
 	},
 	.description =			"DeLorme Earthmate USB",
-	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_earthmate,
 	.num_ports =			1,
 	.attach =			cypress_earthmate_startup,
@@ -190,7 +188,6 @@ static struct usb_serial_driver cypress_hidcom_device = {
 		.name =			"cyphidcom",
 	},
 	.description =			"HID->COM RS232 Adapter",
-	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_cyphidcomrs232,
 	.num_ports =			1,
 	.attach =			cypress_hidcom_startup,
@@ -217,7 +214,6 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 		.name =			"nokiaca42v2",
 	},
 	.description =			"Nokia CA-42 V2 Adapter",
-	.usb_driver = 			&cypress_driver,
 	.id_table =			id_table_nokiaca42v2,
 	.num_ports =			1,
 	.attach =			cypress_ca42v2_startup,
@@ -236,6 +232,11 @@ static struct usb_serial_driver cypress_ca42v2_device = {
 	.unthrottle =			cypress_unthrottle,
 	.read_int_callback =		cypress_read_int_callback,
 	.write_int_callback =		cypress_write_int_callback,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&cypress_earthmate_device, &cypress_hidcom_device,
+	&cypress_ca42v2_device, NULL
 };
 
 /*****************************************************************************
@@ -800,7 +801,7 @@ send:
 		cypress_write_int_callback, port, priv->write_urb_interval);
 	result = usb_submit_urb(port->interrupt_out_urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev,
+		dev_err_console(port,
 				"%s - failed submitting write urb, error %d\n",
 							__func__, result);
 		priv->write_urb_in_use = 0;
@@ -1345,58 +1346,7 @@ static void cypress_write_int_callback(struct urb *urb)
 	cypress_send(port);
 }
 
-
-/*****************************************************************************
- * Module functions
- *****************************************************************************/
-
-static int __init cypress_init(void)
-{
-	int retval;
-
-	dbg("%s", __func__);
-
-	retval = usb_serial_register(&cypress_earthmate_device);
-	if (retval)
-		goto failed_em_register;
-	retval = usb_serial_register(&cypress_hidcom_device);
-	if (retval)
-		goto failed_hidcom_register;
-	retval = usb_serial_register(&cypress_ca42v2_device);
-	if (retval)
-		goto failed_ca42v2_register;
-	retval = usb_register(&cypress_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-	return 0;
-
-failed_usb_register:
-	usb_serial_deregister(&cypress_ca42v2_device);
-failed_ca42v2_register:
-	usb_serial_deregister(&cypress_hidcom_device);
-failed_hidcom_register:
-	usb_serial_deregister(&cypress_earthmate_device);
-failed_em_register:
-	return retval;
-}
-
-
-static void __exit cypress_exit(void)
-{
-	dbg("%s", __func__);
-
-	usb_deregister(&cypress_driver);
-	usb_serial_deregister(&cypress_earthmate_device);
-	usb_serial_deregister(&cypress_hidcom_device);
-	usb_serial_deregister(&cypress_ca42v2_device);
-}
-
-
-module_init(cypress_init);
-module_exit(cypress_exit);
+module_usb_serial_driver(cypress_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

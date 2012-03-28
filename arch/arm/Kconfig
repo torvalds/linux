@@ -186,6 +186,9 @@ config GENERIC_ISA_DMA
 config FIQ
 	bool
 
+config NEED_RET_TO_USER
+	bool
+
 config ARCH_MTD_XIP
 	bool
 
@@ -322,9 +325,10 @@ config ARCH_AT91
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
+	select IRQ_DOMAIN
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
-	  AT91SAM9 and AT91CAP9 processors.
+	  AT91SAM9 processors.
 
 config ARCH_BCMRING
 	bool "Broadcom BCMRING"
@@ -479,6 +483,7 @@ config ARCH_IOP13XX
 	select ARCH_SUPPORTS_MSI
 	select VMSPLIT_1G
 	select NEED_MACH_MEMORY_H
+	select NEED_RET_TO_USER
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -486,6 +491,7 @@ config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
 	select CPU_XSCALE
+	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
@@ -497,6 +503,7 @@ config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
 	select CPU_XSCALE
+	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
@@ -731,7 +738,6 @@ config ARCH_RPC
 	bool "RiscPC"
 	select ARCH_ACORN
 	select FIQ
-	select TIMER_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
@@ -754,31 +760,31 @@ config ARCH_SA1100
 	select ARCH_HAS_CPUFREQ
 	select CPU_FREQ
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
+	select CLKDEV_LOOKUP
 	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_IDE
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for StrongARM 11x0 based boards.
 
-config ARCH_S3C2410
-	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443, S3C2450"
+config ARCH_S3C24XX
+	bool "Samsung S3C24XX SoCs"
 	select GENERIC_GPIO
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	help
-	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
-	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
-	  the Samsung SMDK2410 development board (and derivatives).
-
-	  Note, the S3C2416 and the S3C2450 are so close that they even share
-	  the same SoC ID code. This means that there is no separate machine
-	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
+	  Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443
+	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
+	  (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or the
+	  Samsung SMDK2410 development board (and derivatives).
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
@@ -901,6 +907,7 @@ config ARCH_U300
 
 config ARCH_U8500
 	bool "ST-Ericsson U8500 Series"
+	depends on MMU
 	select CPU_V7
 	select ARM_AMBA
 	select GENERIC_CLOCKEVENTS
@@ -1066,12 +1073,10 @@ source "arch/arm/plat-s5p/Kconfig"
 
 source "arch/arm/plat-spear/Kconfig"
 
-if ARCH_S3C2410
-source "arch/arm/mach-s3c2410/Kconfig"
+source "arch/arm/mach-s3c24xx/Kconfig"
+if ARCH_S3C24XX
 source "arch/arm/mach-s3c2412/Kconfig"
-source "arch/arm/mach-s3c2416/Kconfig"
 source "arch/arm/mach-s3c2440/Kconfig"
-source "arch/arm/mach-s3c2443/Kconfig"
 endif
 
 if ARCH_S3C64XX
@@ -1127,6 +1132,7 @@ config PLAT_VERSATILE
 config ARM_TIMER_SP804
 	bool
 	select CLKSRC_MMIO
+	select HAVE_SCHED_CLOCK
 
 source arch/arm/mm/Kconfig
 
@@ -1577,7 +1583,8 @@ config LOCAL_TIMERS
 config ARCH_NR_GPIO
 	int
 	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
-	default 350 if ARCH_U8500
+	default 355 if ARCH_U8500
+	default 264 if MACH_H4700
 	default 0
 	help
 	  Maximum number of GPIOs in the system.
@@ -1588,7 +1595,7 @@ source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
+	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
@@ -2114,7 +2121,7 @@ config CPU_FREQ_S3C
 
 config CPU_FREQ_S3C24XX
 	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
-	depends on ARCH_S3C2410 && CPU_FREQ && EXPERIMENTAL
+	depends on ARCH_S3C24XX && CPU_FREQ && EXPERIMENTAL
 	select CPU_FREQ_S3C
 	help
 	  This enables the CPUfreq driver for the Samsung S3C24XX family

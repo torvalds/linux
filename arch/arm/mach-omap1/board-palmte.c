@@ -27,8 +27,8 @@
 #include <linux/spi/spi.h>
 #include <linux/interrupt.h>
 #include <linux/apm-emulation.h>
+#include <linux/omapfb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -41,6 +41,9 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
+
+#include <mach/hardware.h>
+
 #include "common.h"
 
 #define PALMTE_USBDETECT_GPIO	0
@@ -209,10 +212,6 @@ static struct omap_lcd_config palmte_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel palmte_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&palmte_lcd_config },
-};
-
 static struct spi_board_info palmte_spi_info[] __initdata = {
 	{
 		.modalias	= "tsc2102",
@@ -250,9 +249,6 @@ static void __init omap_palmte_init(void)
 	omap_cfg_reg(UART3_TX);
 	omap_cfg_reg(UART3_RX);
 
-	omap_board_config = palmte_config;
-	omap_board_config_size = ARRAY_SIZE(palmte_config);
-
 	platform_add_devices(palmte_devices, ARRAY_SIZE(palmte_devices));
 
 	spi_register_board_info(palmte_spi_info, ARRAY_SIZE(palmte_spi_info));
@@ -260,6 +256,8 @@ static void __init omap_palmte_init(void)
 	omap_serial_init();
 	omap1_usb_init(&palmte_usb_config);
 	omap_register_i2c_bus(1, 100, NULL, 0);
+
+	omapfb_set_lcd_config(&palmte_lcd_config);
 }
 
 MACHINE_START(OMAP_PALMTE, "OMAP310 based Palm Tungsten E")

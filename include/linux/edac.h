@@ -13,7 +13,11 @@
 #define _LINUX_EDAC_H_
 
 #include <linux/atomic.h>
-#include <linux/device.h>
+#include <linux/kobject.h>
+#include <linux/completion.h>
+#include <linux/workqueue.h>
+
+struct device;
 
 #define EDAC_OPSTATE_INVAL	-1
 #define EDAC_OPSTATE_POLL	0

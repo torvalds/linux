@@ -108,5 +108,5 @@ void cb_free(struct pcmcia_socket *s)
 	struct pci_dev *bridge = s->cb_dev;
 
 	if (bridge)
-		pci_remove_behind_bridge(bridge);
+		pci_stop_and_remove_behind_bridge(bridge);
 }
