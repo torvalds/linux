@@ -435,7 +435,7 @@ static void firmware_class_timeout(u_long data)
 }
 
 static struct firmware_priv *
-fw_create_instance(struct firmware *firmware, const char *fw_name,
+fw_create_instance(const struct firmware *firmware, const char *fw_name,
 		   struct device *device, bool uevent, bool nowait)
 {
 	struct firmware_priv *fw_priv;
@@ -449,7 +449,7 @@ fw_create_instance(struct firmware *firmware, const char *fw_name,
 		goto err_out;
 	}
 
-	fw_priv->fw = firmware;
+	fw_priv->fw = (struct firmware *)firmware;
 	fw_priv->nowait = nowait;
 	strcpy(fw_priv->fw_id, fw_name);
 	init_completion(&fw_priv->completion);
@@ -510,13 +510,10 @@ static void fw_destroy_instance(struct firmware_priv *fw_priv)
 	device_unregister(f_dev);
 }
 
-static int _request_firmware(const struct firmware **firmware_p,
-			     const char *name, struct device *device,
-			     bool uevent, bool nowait)
+static int _request_firmware_prepare(const struct firmware **firmware_p,
+				     const char *name, struct device *device)
 {
-	struct firmware_priv *fw_priv;
 	struct firmware *firmware;
-	int retval = 0;
 
 	if (!firmware_p)
 		return -EINVAL;
@@ -533,10 +530,26 @@ static int _request_firmware(const struct firmware **firmware_p,
 		return 0;
 	}
 
+	return 1;
+}
+
+static void _request_firmware_cleanup(const struct firmware **firmware_p)
+{
+	release_firmware(*firmware_p);
+	*firmware_p = NULL;
+}
+
+static int _request_firmware(const struct firmware *firmware,
+			     const char *name, struct device *device,
+			     bool uevent, bool nowait)
+{
+	struct firmware_priv *fw_priv;
+	int retval;
+
 	retval = usermodehelper_read_trylock();
 	if (WARN_ON(retval)) {
 		dev_err(device, "firmware: %s will not be loaded\n", name);
-		goto out_nolock;
+		return retval;
 	}
 
 	if (uevent)
@@ -572,13 +585,6 @@ static int _request_firmware(const struct firmware **firmware_p,
 
 out:
 	usermodehelper_read_unlock();
-
-out_nolock:
-	if (retval) {
-		release_firmware(firmware);
-		*firmware_p = NULL;
-	}
-
 	return retval;
 }
 
@@ -601,7 +607,17 @@ int
 request_firmware(const struct firmware **firmware_p, const char *name,
                  struct device *device)
 {
-        return _request_firmware(firmware_p, name, device, true, false);
+	int ret;
+
+	ret = _request_firmware_prepare(firmware_p, name, device);
+	if (ret <= 0)
+		return ret;
+
+	ret = _request_firmware(*firmware_p, name, device, true, false);
+	if (ret)
+		_request_firmware_cleanup(firmware_p);
+
+	return ret;
 }
 
 /**
@@ -639,8 +655,16 @@ static int request_firmware_work_func(void *arg)
 		return 0;
 	}
 
-	ret = _request_firmware(&fw, fw_work->name, fw_work->device,
+	ret = _request_firmware_prepare(&fw, fw_work->name, fw_work->device);
+	if (ret <= 0)
+		goto out;
+
+	ret = _request_firmware(fw, fw_work->name, fw_work->device,
 				fw_work->uevent, true);
+	if (ret)
+		_request_firmware_cleanup(&fw);
+
+ out:
 	fw_work->cont(fw, fw_work->context);
 
 	module_put(fw_work->module);
