@@ -1133,11 +1133,15 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	struct net_device *ndev;
 	struct ieee80211_sub_if_data *sdata = NULL;
 	int ret, i;
+	int txqs = 1;
 
 	ASSERT_RTNL();
 
+	if (local->hw.queues >= IEEE80211_NUM_ACS)
+		txqs = IEEE80211_NUM_ACS;
+
 	ndev = alloc_netdev_mqs(sizeof(*sdata) + local->hw.vif_data_size,
-				name, ieee80211_if_setup, local->hw.queues, 1);
+				name, ieee80211_if_setup, txqs, 1);
 	if (!ndev)
 		return -ENOMEM;
 	dev_net_set(ndev, wiphy_net(local->hw.wiphy));

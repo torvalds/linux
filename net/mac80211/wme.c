@@ -108,7 +108,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 
 	if (local->hw.queues < 4 || skb->len < 6) {
 		skb->priority = 0; /* required for correct WPA/11i MIC */
-		return min_t(u16, local->hw.queues - 1, IEEE80211_AC_BE);
+		return 0;
 	}
 
 	rcu_read_lock();
