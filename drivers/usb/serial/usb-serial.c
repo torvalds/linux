@@ -1070,17 +1070,12 @@ int usb_serial_probe(struct usb_interface *interface,
 		port = serial->port[i];
 		dev_set_name(&port->dev, "ttyUSB%d", port->number);
 		dbg ("%s - registering %s", __func__, dev_name(&port->dev));
-		port->dev_state = PORT_REGISTERING;
 		device_enable_async_suspend(&port->dev);
 
 		retval = device_add(&port->dev);
-		if (retval) {
+		if (retval)
 			dev_err(&port->dev, "Error registering port device, "
 				"continuing\n");
-			port->dev_state = PORT_UNREGISTERED;
-		} else {
-			port->dev_state = PORT_REGISTERED;
-		}
 	}
 
 	usb_serial_console_init(debug, minor);
@@ -1124,22 +1119,8 @@ void usb_serial_disconnect(struct usb_interface *interface)
 			}
 			kill_traffic(port);
 			cancel_work_sync(&port->work);
-			if (port->dev_state == PORT_REGISTERED) {
-
-				/* Make sure the port is bound so that the
-				 * driver's port_remove method is called.
-				 */
-				if (!port->dev.driver) {
-					int rc;
-
-					port->dev.driver =
-							&serial->type->driver;
-					rc = device_bind_driver(&port->dev);
-				}
-				port->dev_state = PORT_UNREGISTERING;
+			if (device_is_registered(&port->dev))
 				device_del(&port->dev);
-				port->dev_state = PORT_UNREGISTERED;
-			}
 		}
 	}
 	serial->type->disconnect(serial);
