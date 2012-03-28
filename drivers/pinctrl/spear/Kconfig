@@ -1,0 +1,14 @@
+#
+# ST Microelectronics SPEAr PINCTRL drivers
+#
+
+if PLAT_SPEAR
+
+config PINCTRL_SPEAR
+	bool
+	depends on OF
+	select PINMUX
+	help
+	  This enables pin control drivers for SPEAr Platform
+
+endif
