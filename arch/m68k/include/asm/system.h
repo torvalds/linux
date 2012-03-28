@@ -68,6 +68,8 @@ asmlinkage void resume(void);
 struct __xchg_dummy { unsigned long a[100]; };
 #define __xg(x) ((volatile struct __xchg_dummy *)(x))
 
+extern unsigned long __invalid_xchg_size(unsigned long, volatile void *, int);
+
 #ifndef CONFIG_RMW_INSNS
 static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
 {
@@ -92,7 +94,8 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 		x = tmp;
 		break;
 	default:
-		BUG();
+		tmp = __invalid_xchg_size(x, ptr, size);
+		break;
 	}
 
 	local_irq_restore(flags);
@@ -102,7 +105,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int size)
 {
 	switch (size) {
-	    case 1:
+	case 1:
 		__asm__ __volatile__
 			("moveb %2,%0\n\t"
 			 "1:\n\t"
@@ -110,7 +113,7 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 			 "jne 1b"
 			 : "=&d" (x) : "d" (x), "m" (*__xg(ptr)) : "memory");
 		break;
-	    case 2:
+	case 2:
 		__asm__ __volatile__
 			("movew %2,%0\n\t"
 			 "1:\n\t"
@@ -118,13 +121,16 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 			 "jne 1b"
 			 : "=&d" (x) : "d" (x), "m" (*__xg(ptr)) : "memory");
 		break;
-	    case 4:
+	case 4:
 		__asm__ __volatile__
 			("movel %2,%0\n\t"
 			 "1:\n\t"
 			 "casl %0,%1,%2\n\t"
 			 "jne 1b"
 			 : "=&d" (x) : "d" (x), "m" (*__xg(ptr)) : "memory");
+		break;
+	default:
+		x = __invalid_xchg_size(x, ptr, size);
 		break;
 	}
 	return x;
@@ -134,6 +140,9 @@ static inline unsigned long __xchg(unsigned long x, volatile void * ptr, int siz
 #include <asm-generic/cmpxchg-local.h>
 
 #define cmpxchg64_local(ptr, o, n) __cmpxchg64_local_generic((ptr), (o), (n))
+
+extern unsigned long __invalid_cmpxchg_size(volatile void *,
+					    unsigned long, unsigned long, int);
 
 /*
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
@@ -161,6 +170,9 @@ static inline unsigned long __cmpxchg(volatile void *p, unsigned long old,
 		__asm__ __volatile__ ("casl %0,%2,%1"
 				      : "=d" (old), "=m" (*(int *)p)
 				      : "d" (new), "0" (old), "m" (*(int *)p));
+		break;
+	default:
+		old = __invalid_cmpxchg_size(p, old, new, size);
 		break;
 	}
 	return old;
