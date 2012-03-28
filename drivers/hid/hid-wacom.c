@@ -687,5 +687,5 @@ static void __exit wacom_exit(void)
 
 module_init(wacom_init);
 module_exit(wacom_exit);
+MODULE_DESCRIPTION("Driver for Wacom Graphire Bluetooth and Wacom Intuos4 WL");
 MODULE_LICENSE("GPL");
-
