@@ -246,7 +246,7 @@ static int pm8607_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 	return ret;
 }
 
-static int pm8607_get_voltage(struct regulator_dev *rdev)
+static int pm8607_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
 	uint8_t val, mask;
@@ -259,7 +259,7 @@ static int pm8607_get_voltage(struct regulator_dev *rdev)
 	mask = (rdev->desc->n_voltages - 1)  << info->vol_shift;
 	val = ((unsigned char)ret & mask) >> info->vol_shift;
 
-	return pm8607_list_voltage(rdev, val);
+	return val;
 }
 
 static int pm8607_enable(struct regulator_dev *rdev)
@@ -294,7 +294,7 @@ static int pm8607_is_enabled(struct regulator_dev *rdev)
 static struct regulator_ops pm8607_regulator_ops = {
 	.list_voltage	= pm8607_list_voltage,
 	.set_voltage_sel = pm8607_set_voltage_sel,
-	.get_voltage	= pm8607_get_voltage,
+	.get_voltage_sel = pm8607_get_voltage_sel,
 	.enable		= pm8607_enable,
 	.disable	= pm8607_disable,
 	.is_enabled	= pm8607_is_enabled,
