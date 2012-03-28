@@ -1205,7 +1205,7 @@ static int e_show(struct seq_file *m, void *p)
 	cache_get(&exp->h);
 	if (cache_check(&svc_export_cache, &exp->h, NULL))
 		return 0;
-	cache_put(&exp->h, &svc_export_cache);
+	exp_put(exp);
 	return svc_export_show(m, &svc_export_cache, cp);
 }
 
