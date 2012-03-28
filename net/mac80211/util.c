@@ -769,11 +769,14 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
-	int queue;
+	int ac;
 	bool use_11b;
 	int aCWmin, aCWmax;
 
 	if (!local->ops->conf_tx)
+		return;
+
+	if (local->hw.queues < IEEE80211_NUM_ACS)
 		return;
 
 	memset(&qparam, 0, sizeof(qparam));
@@ -781,7 +784,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	use_11b = (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
 
-	for (queue = 0; queue < local->hw.queues; queue++) {
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		/* Set defaults according to 802.11-2007 Table 7-37 */
 		aCWmax = 1023;
 		if (use_11b)
@@ -789,7 +792,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 		else
 			aCWmin = 15;
 
-		switch (queue) {
+		switch (ac) {
 		case IEEE80211_AC_BK:
 			qparam.cw_max = aCWmax;
 			qparam.cw_min = aCWmin;
@@ -825,8 +828,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 
 		qparam.uapsd = false;
 
-		sdata->tx_conf[queue] = qparam;
-		drv_conf_tx(local, sdata, queue, &qparam);
+		sdata->tx_conf[ac] = qparam;
+		drv_conf_tx(local, sdata, ac, &qparam);
 	}
 
 	/* after reinitialize QoS TX queues setting to default,
@@ -1226,14 +1229,17 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mutex_unlock(&local->sta_mtx);
 
 	/* reconfigure tx conf */
-	list_for_each_entry(sdata, &local->interfaces, list) {
-		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-		    sdata->vif.type == NL80211_IFTYPE_MONITOR ||
-		    !ieee80211_sdata_running(sdata))
-			continue;
+	if (hw->queues >= IEEE80211_NUM_ACS) {
+		list_for_each_entry(sdata, &local->interfaces, list) {
+			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+			    sdata->vif.type == NL80211_IFTYPE_MONITOR ||
+			    !ieee80211_sdata_running(sdata))
+				continue;
 
-		for (i = 0; i < hw->queues; i++)
-			drv_conf_tx(local, sdata, i, &sdata->tx_conf[i]);
+			for (i = 0; i < IEEE80211_NUM_ACS; i++)
+				drv_conf_tx(local, sdata, i,
+					    &sdata->tx_conf[i]);
+		}
 	}
 
 	/* reconfigure hardware */

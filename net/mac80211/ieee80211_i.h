@@ -687,7 +687,7 @@ struct ieee80211_sub_if_data {
 	__be16 control_port_protocol;
 	bool control_port_no_encrypt;
 
-	struct ieee80211_tx_queue_params tx_conf[IEEE80211_MAX_QUEUES];
+	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 
 	struct work_struct work;
 	struct sk_buff_head skb_queue;

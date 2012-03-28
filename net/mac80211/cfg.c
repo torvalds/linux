@@ -1437,6 +1437,9 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	if (!local->ops->conf_tx)
 		return -EOPNOTSUPP;
 
+	if (local->hw.queues < IEEE80211_NUM_ACS)
+		return -EOPNOTSUPP;
+
 	memset(&p, 0, sizeof(p));
 	p.aifs = params->aifs;
 	p.cw_max = params->cwmax;
@@ -1448,9 +1451,6 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	 * called in master mode.
 	 */
 	p.uapsd = false;
-
-	if (params->ac >= local->hw.queues)
-		return -EINVAL;
 
 	sdata->tx_conf[params->ac] = p;
 	if (drv_conf_tx(local, sdata, params->ac, &p)) {
