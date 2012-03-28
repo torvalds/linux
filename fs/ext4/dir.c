@@ -91,17 +91,17 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		return 0;
 
 	if (filp)
-		ext4_error_file(filp, function, line, bh ? bh->b_blocknr : 0,
+		ext4_error_file(filp, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset%bh->b_size),
+				error_msg, (unsigned) (offset % bh->b_size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 	else
-		ext4_error_inode(dir, function, line, bh ? bh->b_blocknr : 0,
+		ext4_error_inode(dir, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset%bh->b_size),
+				error_msg, (unsigned) (offset % bh->b_size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 
@@ -425,8 +425,9 @@ static int call_filldir(struct file *filp, void *dirent,
 	sb = inode->i_sb;
 
 	if (!fname) {
-		printk(KERN_ERR "EXT4-fs: call_filldir: called with "
-		       "null fname?!?\n");
+		ext4_msg(sb, KERN_ERR, "%s:%d: inode #%lu: comm %s: "
+			 "called with null fname?!?", __func__, __LINE__,
+			 inode->i_ino, current->comm);
 		return 0;
 	}
 	curr_pos = hash2pos(fname->hash, fname->minor_hash);
