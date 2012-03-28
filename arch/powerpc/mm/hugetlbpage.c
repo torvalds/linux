@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/hugetlb.h>
+#include <linux/export.h>
 #include <linux/of_fdt.h>
 #include <linux/memblock.h>
 #include <linux/bootmem.h>
@@ -103,6 +104,7 @@ pte_t *find_linux_pte_or_hugepte(pgd_t *pgdir, unsigned long ea, unsigned *shift
 		*shift = hugepd_shift(*hpdp);
 	return hugepte_offset(hpdp, ea, pdshift);
 }
+EXPORT_SYMBOL_GPL(find_linux_pte_or_hugepte);
 
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
 {

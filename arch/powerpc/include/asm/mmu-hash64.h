@@ -108,11 +108,11 @@ extern char initial_stab[];
 #define HPTE_V_VRMA_MASK	ASM_CONST(0x4001ffffff000000)
 
 /* Values for PP (assumes Ks=0, Kp=1) */
-/* pp0 will always be 0 for linux     */
 #define PP_RWXX	0	/* Supervisor read/write, User none */
 #define PP_RWRX 1	/* Supervisor read/write, User read */
 #define PP_RWRW 2	/* Supervisor read/write, User read/write */
 #define PP_RXRX 3	/* Supervisor read,       User read */
+#define PP_RXXX	(HPTE_R_PP0 | 2)	/* Supervisor read, user none */
 
 #ifndef __ASSEMBLY__
 

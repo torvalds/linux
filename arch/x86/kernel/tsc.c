@@ -630,7 +630,7 @@ static void set_cyc2ns_scale(unsigned long cpu_khz, int cpu)
 
 static unsigned long long cyc2ns_suspend;
 
-void save_sched_clock_state(void)
+void tsc_save_sched_clock_state(void)
 {
 	if (!sched_clock_stable)
 		return;
@@ -646,7 +646,7 @@ void save_sched_clock_state(void)
  * that sched_clock() continues from the point where it was left off during
  * suspend.
  */
-void restore_sched_clock_state(void)
+void tsc_restore_sched_clock_state(void)
 {
 	unsigned long long offset;
 	unsigned long flags;
