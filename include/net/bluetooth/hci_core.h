@@ -427,7 +427,7 @@ enum {
 static inline bool hci_conn_ssp_enabled(struct hci_conn *conn)
 {
 	struct hci_dev *hdev = conn->hdev;
-	return (test_bit(HCI_SSP_ENABLED, &hdev->flags) &&
+	return (test_bit(HCI_SSP_ENABLED, &hdev->dev_flags) &&
 				test_bit(HCI_CONN_SSP_ENABLED, &conn->flags));
 }
 
