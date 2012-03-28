@@ -2225,13 +2225,16 @@ W:	http://lanana.org/docs/device-list/index.html
 S:	Maintained
 
 DEVICE-MAPPER  (LVM)
-P:	Alasdair Kergon
+M:	Alasdair Kergon <agk@redhat.com>
+M:	dm-devel@redhat.com
 L:	dm-devel@redhat.com
 W:	http://sources.redhat.com/dm
 Q:	http://patchwork.kernel.org/project/dm-devel/list/
+T:	quilt http://people.redhat.com/agk/patches/linux/editing/
 S:	Maintained
 F:	Documentation/device-mapper/
 F:	drivers/md/dm*
+F:	drivers/md/persistent-data/
 F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 
