@@ -53,6 +53,8 @@ static struct map_desc rk30_io_desc[] __initdata = {
 	RK30_DEVICE(TIMER2),
 	RK30_DEVICE(PWM01),
 	RK30_DEVICE(PWM23),
+	RK30_DEVICE(DDR_PCTL),
+	RK30_DEVICE(DDR_PUBL),
 };
 
 void __init rk30_map_common_io(void)
