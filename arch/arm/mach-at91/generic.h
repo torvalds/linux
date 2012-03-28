@@ -20,6 +20,7 @@ extern void __init at91_init_sram(int bank, unsigned long base,
 extern void __init at91rm9200_set_type(int type);
 extern void __init at91_initialize(unsigned long main_clock);
 extern void __init at91x40_initialize(unsigned long main_clock);
+extern void __init at91_dt_initialize(void);
 
  /* Interrupts */
 extern void __init at91_init_irq_default(void);
@@ -52,6 +53,7 @@ extern void __init at91sam9rl_set_console_clock(int id);
 extern void __init at91sam9g45_set_console_clock(int id);
 #ifdef CONFIG_AT91_PMC_UNIT
 extern int __init at91_clock_init(unsigned long main_clock);
+extern int __init at91_dt_clock_init(void);
 #else
 static int inline at91_clock_init(unsigned long main_clock) { return 0; }
 #endif

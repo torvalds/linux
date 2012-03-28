@@ -29,6 +29,8 @@
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -1707,7 +1709,27 @@ static void at91udc_shutdown(struct platform_device *dev)
 	spin_unlock_irqrestore(&udc->lock, flags);
 }
 
-static int __init at91udc_probe(struct platform_device *pdev)
+static void __devinit at91udc_of_init(struct at91_udc *udc,
+				     struct device_node *np)
+{
+	struct at91_udc_data *board = &udc->board;
+	u32 val;
+	enum of_gpio_flags flags;
+
+	if (of_property_read_u32(np, "atmel,vbus-polled", &val) == 0)
+		board->vbus_polled = 1;
+
+	board->vbus_pin = of_get_named_gpio_flags(np, "atmel,vbus-gpio", 0,
+						  &flags);
+	board->vbus_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+
+	board->pullup_pin = of_get_named_gpio_flags(np, "atmel,pullup-gpio", 0,
+						  &flags);
+
+	board->pullup_active_low = (flags & OF_GPIO_ACTIVE_LOW) ? 1 : 0;
+}
+
+static int __devinit at91udc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct at91_udc	*udc;
@@ -1742,7 +1764,11 @@ static int __init at91udc_probe(struct platform_device *pdev)
 	/* init software state */
 	udc = &controller;
 	udc->gadget.dev.parent = dev;
-	udc->board = *(struct at91_udc_data *) dev->platform_data;
+	if (pdev->dev.of_node)
+		at91udc_of_init(udc, pdev->dev.of_node);
+	else
+		memcpy(&udc->board, dev->platform_data,
+		       sizeof(struct at91_udc_data));
 	udc->pdev = pdev;
 	udc->enabled = 0;
 	spin_lock_init(&udc->lock);
@@ -1971,6 +1997,15 @@ static int at91udc_resume(struct platform_device *pdev)
 #define	at91udc_resume	NULL
 #endif
 
+#if defined(CONFIG_OF)
+static const struct of_device_id at91_udc_dt_ids[] = {
+	{ .compatible = "atmel,at91rm9200-udc" },
+	{ /* sentinel */ }
+};
+
+MODULE_DEVICE_TABLE(of, at91_udc_dt_ids);
+#endif
+
 static struct platform_driver at91_udc_driver = {
 	.remove		= __exit_p(at91udc_remove),
 	.shutdown	= at91udc_shutdown,
@@ -1979,6 +2014,7 @@ static struct platform_driver at91_udc_driver = {
 	.driver		= {
 		.name	= (char *) driver_name,
 		.owner	= THIS_MODULE,
+		.of_match_table	= of_match_ptr(at91_udc_dt_ids),
 	},
 };
 

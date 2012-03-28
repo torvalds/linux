@@ -232,6 +232,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	/* more tc lookup table for DT entries */
 	CLKDEV_CON_DEV_ID("t0_clk", "fff7c000.timer", &tcb0_clk),
 	CLKDEV_CON_DEV_ID("t0_clk", "fffd4000.timer", &tcb0_clk),
+	CLKDEV_CON_DEV_ID("hclk", "700000.ohci", &uhphs_clk),
+	CLKDEV_CON_DEV_ID("ehci_clk", "800000.ehci", &uhphs_clk),
 	/* fake hclk clock */
 	CLKDEV_CON_DEV_ID("hclk", "at91_ohci", &uhphs_clk),
 	CLKDEV_CON_ID("pioA", &pioA_clk),
