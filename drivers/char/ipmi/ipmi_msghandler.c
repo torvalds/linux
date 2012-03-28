@@ -2794,15 +2794,17 @@ channel_handler(ipmi_smi_t intf, struct ipmi_recv_msg *msg)
 	return;
 }
 
-void ipmi_poll_interface(ipmi_user_t user)
+static void ipmi_poll(ipmi_smi_t intf)
 {
-	ipmi_smi_t intf = user->intf;
-
 	if (intf->handlers->poll)
 		intf->handlers->poll(intf->send_info);
-
 	/* In case something came in */
 	handle_new_recv_msgs(intf);
+}
+
+void ipmi_poll_interface(ipmi_user_t user)
+{
+	ipmi_poll(user->intf);
 }
 EXPORT_SYMBOL(ipmi_poll_interface);
 
@@ -4204,12 +4206,48 @@ EXPORT_SYMBOL(ipmi_free_recv_msg);
 
 #ifdef CONFIG_IPMI_PANIC_EVENT
 
+static atomic_t panic_done_count = ATOMIC_INIT(0);
+
 static void dummy_smi_done_handler(struct ipmi_smi_msg *msg)
 {
+	atomic_dec(&panic_done_count);
 }
 
 static void dummy_recv_done_handler(struct ipmi_recv_msg *msg)
 {
+	atomic_dec(&panic_done_count);
+}
+
+/*
+ * Inside a panic, send a message and wait for a response.
+ */
+static void ipmi_panic_request_and_wait(ipmi_smi_t           intf,
+					struct ipmi_addr     *addr,
+					struct kernel_ipmi_msg *msg)
+{
+	struct ipmi_smi_msg  smi_msg;
+	struct ipmi_recv_msg recv_msg;
+	int rv;
+
+	smi_msg.done = dummy_smi_done_handler;
+	recv_msg.done = dummy_recv_done_handler;
+	atomic_add(2, &panic_done_count);
+	rv = i_ipmi_request(NULL,
+			    intf,
+			    addr,
+			    0,
+			    msg,
+			    intf,
+			    &smi_msg,
+			    &recv_msg,
+			    0,
+			    intf->channels[0].address,
+			    intf->channels[0].lun,
+			    0, 1); /* Don't retry, and don't wait. */
+	if (rv)
+		atomic_sub(2, &panic_done_count);
+	while (atomic_read(&panic_done_count) != 0)
+		ipmi_poll(intf);
 }
 
 #ifdef CONFIG_IPMI_PANIC_STRING
@@ -4248,8 +4286,6 @@ static void send_panic_events(char *str)
 	unsigned char                     data[16];
 	struct ipmi_system_interface_addr *si;
 	struct ipmi_addr                  addr;
-	struct ipmi_smi_msg               smi_msg;
-	struct ipmi_recv_msg              recv_msg;
 
 	si = (struct ipmi_system_interface_addr *) &addr;
 	si->addr_type = IPMI_SYSTEM_INTERFACE_ADDR_TYPE;
@@ -4277,9 +4313,6 @@ static void send_panic_events(char *str)
 		data[7] = str[2];
 	}
 
-	smi_msg.done = dummy_smi_done_handler;
-	recv_msg.done = dummy_recv_done_handler;
-
 	/* For every registered interface, send the event. */
 	list_for_each_entry_rcu(intf, &ipmi_interfaces, link) {
 		if (!intf->handlers)
@@ -4289,18 +4322,7 @@ static void send_panic_events(char *str)
 		intf->run_to_completion = 1;
 		/* Send the event announcing the panic. */
 		intf->handlers->set_run_to_completion(intf->send_info, 1);
-		i_ipmi_request(NULL,
-			       intf,
-			       &addr,
-			       0,
-			       &msg,
-			       intf,
-			       &smi_msg,
-			       &recv_msg,
-			       0,
-			       intf->channels[0].address,
-			       intf->channels[0].lun,
-			       0, 1); /* Don't retry, and don't wait. */
+		ipmi_panic_request_and_wait(intf, &addr, &msg);
 	}
 
 #ifdef CONFIG_IPMI_PANIC_STRING
@@ -4348,18 +4370,7 @@ static void send_panic_events(char *str)
 		msg.data = NULL;
 		msg.data_len = 0;
 		intf->null_user_handler = device_id_fetcher;
-		i_ipmi_request(NULL,
-			       intf,
-			       &addr,
-			       0,
-			       &msg,
-			       intf,
-			       &smi_msg,
-			       &recv_msg,
-			       0,
-			       intf->channels[0].address,
-			       intf->channels[0].lun,
-			       0, 1); /* Don't retry, and don't wait. */
+		ipmi_panic_request_and_wait(intf, &addr, &msg);
 
 		if (intf->local_event_generator) {
 			/* Request the event receiver from the local MC. */
@@ -4368,18 +4379,7 @@ static void send_panic_events(char *str)
 			msg.data = NULL;
 			msg.data_len = 0;
 			intf->null_user_handler = event_receiver_fetcher;
-			i_ipmi_request(NULL,
-				       intf,
-				       &addr,
-				       0,
-				       &msg,
-				       intf,
-				       &smi_msg,
-				       &recv_msg,
-				       0,
-				       intf->channels[0].address,
-				       intf->channels[0].lun,
-				       0, 1); /* no retry, and no wait. */
+			ipmi_panic_request_and_wait(intf, &addr, &msg);
 		}
 		intf->null_user_handler = NULL;
 
@@ -4436,18 +4436,7 @@ static void send_panic_events(char *str)
 			strncpy(data+5, p, 11);
 			p += size;
 
-			i_ipmi_request(NULL,
-				       intf,
-				       &addr,
-				       0,
-				       &msg,
-				       intf,
-				       &smi_msg,
-				       &recv_msg,
-				       0,
-				       intf->channels[0].address,
-				       intf->channels[0].lun,
-				       0, 1); /* no retry, and no wait. */
+			ipmi_panic_request_and_wait(intf, &addr, &msg);
 		}
 	}
 #endif /* CONFIG_IPMI_PANIC_STRING */
