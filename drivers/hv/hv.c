@@ -252,7 +252,7 @@ void hv_cleanup(void)
  *
  * This involves a hypercall.
  */
-u16 hv_post_message(union hv_connection_id connection_id,
+int hv_post_message(union hv_connection_id connection_id,
 		  enum hv_message_type message_type,
 		  void *payload, size_t payload_size)
 {
