@@ -79,7 +79,7 @@ u16 ieee80211_select_queue_80211(struct ieee80211_local *local,
 {
 	u8 *p;
 
-	if (local->hw.queues < 4)
+	if (local->hw.queues < IEEE80211_NUM_ACS)
 		return 0;
 
 	if (!ieee80211_is_data(hdr->frame_control)) {
@@ -106,7 +106,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	const u8 *ra = NULL;
 	bool qos = false;
 
-	if (local->hw.queues < 4 || skb->len < 6) {
+	if (local->hw.queues < IEEE80211_NUM_ACS || skb->len < 6) {
 		skb->priority = 0; /* required for correct WPA/11i MIC */
 		return 0;
 	}

@@ -1134,7 +1134,7 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	if (!local->ops->conf_tx)
 		return;
 
-	if (local->hw.queues < 4)
+	if (local->hw.queues < IEEE80211_NUM_ACS)
 		return;
 
 	if (!wmm_param)
@@ -3312,7 +3312,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	/* Also disable HT if we don't support it or the AP doesn't use WMM */
 	sband = local->hw.wiphy->bands[req->bss->channel->band];
 	if (!sband->ht_cap.ht_supported ||
-	    local->hw.queues < 4 || !bss->wmm_used)
+	    local->hw.queues < IEEE80211_NUM_ACS || !bss->wmm_used)
 		ifmgd->flags |= IEEE80211_STA_DISABLE_11N;
 
 	memcpy(&ifmgd->ht_capa, &req->ht_capa, sizeof(ifmgd->ht_capa));
@@ -3335,7 +3335,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ifmgd->ap_smps = ifmgd->req_smps;
 
 	assoc_data->capability = req->bss->capability;
-	assoc_data->wmm = bss->wmm_used && (local->hw.queues >= 4);
+	assoc_data->wmm = bss->wmm_used &&
+			  (local->hw.queues >= IEEE80211_NUM_ACS);
 	assoc_data->supp_rates = bss->supp_rates;
 	assoc_data->supp_rates_len = bss->supp_rates_len;
 	assoc_data->ht_operation_ie =

@@ -1928,7 +1928,7 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		wme_sta = true;
 
 	/* receiver and we are QoS enabled, use a QoS type frame */
-	if (wme_sta && local->hw.queues >= 4) {
+	if (wme_sta && local->hw.queues >= IEEE80211_NUM_ACS) {
 		fc |= cpu_to_le16(IEEE80211_STYPE_QOS_DATA);
 		hdrlen += 2;
 	}

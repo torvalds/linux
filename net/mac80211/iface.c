@@ -676,7 +676,7 @@ static u16 ieee80211_monitor_select_queue(struct net_device *dev,
 	struct ieee80211_hdr *hdr;
 	struct ieee80211_radiotap_header *rtap = (void *)skb->data;
 
-	if (local->hw.queues < 4)
+	if (local->hw.queues < IEEE80211_NUM_ACS)
 		return 0;
 
 	if (skb->len < 4 ||

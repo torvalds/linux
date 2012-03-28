@@ -167,7 +167,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 						 chan, channel_type);
 	}
 
-	if (local->hw.queues >= 4) {
+	if (local->hw.queues >= IEEE80211_NUM_ACS) {
 		pos = skb_put(skb, 9);
 		*pos++ = WLAN_EID_VENDOR_SPECIFIC;
 		*pos++ = 7; /* len */
