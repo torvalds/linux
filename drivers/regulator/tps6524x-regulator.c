@@ -472,7 +472,7 @@ static int set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 	return write_field(hw, &info->voltage, selector);
 }
 
-static int get_voltage(struct regulator_dev *rdev)
+static int get_voltage_sel(struct regulator_dev *rdev)
 {
 	const struct supply_info *info;
 	struct tps6524x *hw;
@@ -490,7 +490,7 @@ static int get_voltage(struct regulator_dev *rdev)
 	if (WARN_ON(ret >= info->n_voltages))
 		return -EIO;
 
-	return info->voltages[ret];
+	return ret;
 }
 
 static int set_current_limit(struct regulator_dev *rdev, int min_uA,
@@ -575,7 +575,7 @@ static struct regulator_ops regulator_ops = {
 	.is_enabled		= is_supply_enabled,
 	.enable			= enable_supply,
 	.disable		= disable_supply,
-	.get_voltage		= get_voltage,
+	.get_voltage_sel	= get_voltage_sel,
 	.set_voltage_sel	= set_voltage_sel,
 	.list_voltage		= list_voltage,
 	.set_current_limit	= set_current_limit,
