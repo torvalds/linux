@@ -305,8 +305,12 @@ static DECLARE_INTC_DESC(intca_desc, "sh7372-intca",
 			 intca_mask_registers, intca_prio_registers,
 			 NULL);
 
-INTC_IRQ_PINS_32(intca_irq_pins, 0xe6900000,
-		 INTC_VECT, "sh7372-intca-irq-pins");
+INTC_IRQ_PINS_16(intca_irq_pins_lo, 0xe6900000,
+		 INTC_VECT, "sh7372-intca-irq-lo");
+
+INTC_IRQ_PINS_16H(intca_irq_pins_hi, 0xe6900000,
+		 INTC_VECT, "sh7372-intca-irq-hi");
+
 enum {
 	UNUSED_INTCS = 0,
 	ENABLED_INTCS,
@@ -563,7 +567,8 @@ void __init sh7372_init_irq(void)
 	intcs_ffd5 = ioremap_nocache(0xffd50000, PAGE_SIZE);
 
 	register_intc_controller(&intca_desc);
-	register_intc_controller(&intca_irq_pins_desc);
+	register_intc_controller(&intca_irq_pins_lo_desc);
+	register_intc_controller(&intca_irq_pins_hi_desc);
 	register_intc_controller(&intcs_desc);
 
 	/* demux using INTEVTSA */
