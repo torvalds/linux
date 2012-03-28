@@ -1438,12 +1438,22 @@ error:
 
 static void iwl_trans_pcie_stop_hw(struct iwl_trans *trans)
 {
+	bool hw_rfkill;
+
 	iwl_apm_stop(trans);
 
 	iwl_write32(trans, CSR_INT, 0xFFFFFFFF);
 
 	/* Even if we stop the HW, we still want the RF kill interrupt */
 	iwl_enable_rfkill_int(trans);
+
+	/*
+	 * Check again since the RF kill state may have changed while all the
+	 * interrupts were disabled, in this case we couldn't receive the
+	 * RF kill interrupt and update the state in the op_mode.
+	 */
+	hw_rfkill = iwl_is_rfkill_set(trans);
+	iwl_op_mode_hw_rf_kill(trans->op_mode, hw_rfkill);
 }
 
 static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
