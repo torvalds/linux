@@ -1298,14 +1298,14 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	spin_lock_init(&host->lock);
 
 	mmc->ops = &sh_mmcif_ops;
-	mmc->f_max = host->clk;
+	mmc->f_max = host->clk / 2;
 	/* close to 400KHz */
-	if (mmc->f_max < 51200000)
-		mmc->f_min = mmc->f_max / 128;
-	else if (mmc->f_max < 102400000)
-		mmc->f_min = mmc->f_max / 256;
+	if (host->clk < 51200000)
+		mmc->f_min = host->clk / 128;
+	else if (host->clk < 102400000)
+		mmc->f_min = host->clk / 256;
 	else
-		mmc->f_min = mmc->f_max / 512;
+		mmc->f_min = host->clk / 512;
 	if (pd->ocr)
 		mmc->ocr_avail = pd->ocr;
 	mmc->caps = MMC_CAP_MMC_HIGHSPEED;
