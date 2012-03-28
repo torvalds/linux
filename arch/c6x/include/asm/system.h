@@ -4,4 +4,3 @@
 #include <asm/exec.h>
 #include <asm/special_insns.h>
 #include <asm/switch_to.h>
-extern void free_initmem(void);

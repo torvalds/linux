@@ -6,4 +6,3 @@
 #include <asm/exec.h>
 #include <asm/switch_to.h>
 #include <asm/traps.h>
-void free_initmem(void);
