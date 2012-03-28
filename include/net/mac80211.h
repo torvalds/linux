@@ -522,7 +522,7 @@ struct ieee80211_tx_rate {
  *
  * @flags: transmit info flags, defined above
  * @band: the band to transmit on (use for checking for races)
- * @antenna_sel_tx: antenna to use, 0 for automatic diversity
+ * @reserved: reserved for future use
  * @ack_frame_id: internal frame ID for TX status, used internally
  * @control: union for control data
  * @status: union for status data
@@ -538,7 +538,7 @@ struct ieee80211_tx_info {
 	u32 flags;
 	u8 band;
 
-	u8 antenna_sel_tx;
+	u8 reserved;
 
 	u16 ack_frame_id;
 
@@ -564,7 +564,8 @@ struct ieee80211_tx_info {
 			u8 ampdu_ack_len;
 			int ack_signal;
 			u8 ampdu_len;
-			/* 15 bytes free */
+			u8 antenna;
+			/* 14 bytes free */
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
