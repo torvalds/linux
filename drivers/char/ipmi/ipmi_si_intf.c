@@ -932,8 +932,10 @@ static void sender(void                *send_info,
 	spin_unlock_irqrestore(&smi_info->msg_lock, flags);
 
 	spin_lock_irqsave(&smi_info->si_lock, flags);
-	if (smi_info->si_state == SI_NORMAL && smi_info->curr_msg == NULL)
+	if (smi_info->si_state == SI_NORMAL && smi_info->curr_msg == NULL) {
 		start_next_msg(smi_info);
+		smi_event_handler(smi_info, 0);
+	}
 	spin_unlock_irqrestore(&smi_info->si_lock, flags);
 }
 
