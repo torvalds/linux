@@ -66,8 +66,7 @@
 
 #define PREV_CONTRAST			(1 << 17)
 #define PREV_BRIGHTNESS			(1 << 18)
-#define PREV_AVERAGER			(1 << 19)
-#define PREV_FEATURES_END		(1 << 20)
+#define PREV_FEATURES_END		(1 << 19)
 
 enum preview_input_entity {
 	PREVIEW_INPUT_NONE,
