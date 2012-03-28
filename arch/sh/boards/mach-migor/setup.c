@@ -187,7 +187,6 @@ static struct platform_nand_data migor_nand_flash_data = {
 		.partitions = migor_nand_flash_partitions,
 		.nr_partitions = ARRAY_SIZE(migor_nand_flash_partitions),
 		.chip_delay = 20,
-		.part_probe_types = (const char *[]) { "cmdlinepart", NULL },
 	},
 	.ctrl = {
 		.dev_ready = migor_nand_flash_ready,
