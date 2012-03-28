@@ -58,9 +58,6 @@ struct device_node {
 	struct	kref kref;
 	unsigned long _flags;
 	void	*data;
-#if defined(CONFIG_EEH)
-	struct eeh_dev *edev;
-#endif
 #if defined(CONFIG_SPARC)
 	char	*path_component_name;
 	unsigned int unique_id;
@@ -74,13 +71,6 @@ struct of_phandle_args {
 	int args_count;
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
-
-#if defined(CONFIG_EEH)
-static inline struct eeh_dev *of_node_to_eeh_dev(struct device_node *dn)
-{
-	return dn->edev;
-}
-#endif
 
 #ifdef CONFIG_OF_DYNAMIC
 extern struct device_node *of_node_get(struct device_node *node);

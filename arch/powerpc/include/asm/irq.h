@@ -27,12 +27,6 @@ extern atomic_t ppc_n_lost_interrupts;
 /* This number is used when no interrupt has been assigned */
 #define NO_IRQ			(0)
 
-/* This is a special irq number to return from get_irq() to tell that
- * no interrupt happened _and_ ignore it (don't count it as bad). Some
- * platforms like iSeries rely on that.
- */
-#define NO_IRQ_IGNORE		((unsigned int)-1)
-
 /* Total number of virq in the platform */
 #define NR_IRQS		CONFIG_NR_IRQS
 

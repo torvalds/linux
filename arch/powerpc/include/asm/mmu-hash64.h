@@ -267,7 +267,6 @@ extern void demote_segment_4k(struct mm_struct *mm, unsigned long addr);
 
 extern void hpte_init_native(void);
 extern void hpte_init_lpar(void);
-extern void hpte_init_iSeries(void);
 extern void hpte_init_beat(void);
 extern void hpte_init_beat_v3(void);
 
@@ -325,9 +324,6 @@ extern void slb_set_size(u16 size);
  * WARNING - If you change these you must make sure the asm
  * implementations in slb_allocate (slb_low.S), do_stab_bolted
  * (head.S) and ASM_VSID_SCRAMBLE (below) are changed accordingly.
- *
- * You'll also need to change the precomputed VSID values in head.S
- * which are used by the iSeries firmware.
  */
 
 #define VSID_MULTIPLIER_256M	ASM_CONST(200730139)	/* 28-bit prime */
@@ -483,14 +479,6 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 	return vsid_scramble((context << USER_ESID_BITS_1T)
 			     | (ea >> SID_SHIFT_1T), 1T);
 }
-
-/*
- * This is only used on legacy iSeries in lparmap.c,
- * hence the 256MB segment assumption.
- */
-#define VSID_SCRAMBLE(pvsid)	(((pvsid) * VSID_MULTIPLIER_256M) %	\
-				 VSID_MODULUS_256M)
-#define KERNEL_VSID(ea)		VSID_SCRAMBLE(GET_ESID(ea))
 
 #endif /* __ASSEMBLY__ */
 
