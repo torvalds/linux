@@ -1070,8 +1070,9 @@ static int switch_pg_num(struct multipath *m, const char *pgstr)
 	struct priority_group *pg;
 	unsigned pgnum;
 	unsigned long flags;
+	char dummy;
 
-	if (!pgstr || (sscanf(pgstr, "%u", &pgnum) != 1) || !pgnum ||
+	if (!pgstr || (sscanf(pgstr, "%u%c", &pgnum, &dummy) != 1) || !pgnum ||
 	    (pgnum > m->nr_priority_groups)) {
 		DMWARN("invalid PG number supplied to switch_pg_num");
 		return -EINVAL;
@@ -1101,8 +1102,9 @@ static int bypass_pg_num(struct multipath *m, const char *pgstr, int bypassed)
 {
 	struct priority_group *pg;
 	unsigned pgnum;
+	char dummy;
 
-	if (!pgstr || (sscanf(pgstr, "%u", &pgnum) != 1) || !pgnum ||
+	if (!pgstr || (sscanf(pgstr, "%u%c", &pgnum, &dummy) != 1) || !pgnum ||
 	    (pgnum > m->nr_priority_groups)) {
 		DMWARN("invalid PG number supplied to bypass_pg");
 		return -EINVAL;
