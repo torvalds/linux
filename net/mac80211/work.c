@@ -122,9 +122,6 @@ static void ieee80211_work_work(struct work_struct *work)
 	enum work_action rma;
 	bool remain_off_channel = false;
 
-	if (local->scanning)
-		return;
-
 	/*
 	 * ieee80211_queue_work() should have picked up most cases,
 	 * here we'll pick the rest.
@@ -133,6 +130,11 @@ static void ieee80211_work_work(struct work_struct *work)
 		return;
 
 	mutex_lock(&local->mtx);
+
+	if (local->scanning) {
+		mutex_unlock(&local->mtx);
+		return;
+	}
 
 	ieee80211_recalc_idle(local);
 
