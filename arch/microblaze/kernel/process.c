@@ -13,7 +13,6 @@
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/bitops.h>
-#include <asm/system.h>
 #include <asm/pgalloc.h>
 #include <asm/uaccess.h> /* for USER_DS macros */
 #include <asm/cacheflush.h>
