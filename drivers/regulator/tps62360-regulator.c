@@ -56,10 +56,8 @@ enum chips {TPS62360, TPS62361};
 
 /* tps 62360 chip information */
 struct tps62360_chip {
-	const char *name;
 	struct device *dev;
 	struct regulator_desc desc;
-	struct i2c_client *client;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
 	int chip_id;
@@ -297,9 +295,7 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	tps->en_internal_pulldn = pdata->en_internal_pulldn;
 	tps->vsel0_gpio = pdata->vsel0_gpio;
 	tps->vsel1_gpio = pdata->vsel1_gpio;
-	tps->client = client;
 	tps->dev = &client->dev;
-	tps->name = id->name;
 	tps->voltage_base = (id->driver_data == TPS62360) ?
 				TPS62360_BASE_VOLTAGE : TPS62361_BASE_VOLTAGE;
 	tps->voltage_reg_mask = (id->driver_data == TPS62360) ? 0x3F : 0x7F;
