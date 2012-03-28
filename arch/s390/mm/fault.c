@@ -32,10 +32,10 @@
 #include <linux/uaccess.h>
 #include <linux/hugetlb.h>
 #include <asm/asm-offsets.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
+#include <asm/facility.h>
 #include "../kernel/entry.h"
 
 #ifndef CONFIG_64BIT

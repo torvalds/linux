@@ -12,7 +12,6 @@
 #include <linux/kernel.h>
 #include <asm/checksum.h>
 #include <asm/lowcore.h>
-#include <asm/system.h>
 #include <asm/os_info.h>
 
 /*

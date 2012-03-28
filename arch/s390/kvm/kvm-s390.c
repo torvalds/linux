@@ -27,7 +27,7 @@
 #include <asm/lowcore.h>
 #include <asm/pgtable.h>
 #include <asm/nmi.h>
-#include <asm/system.h>
+#include <asm/switch_to.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 

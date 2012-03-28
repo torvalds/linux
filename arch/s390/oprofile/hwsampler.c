@@ -18,6 +18,7 @@
 #include <linux/oom.h>
 #include <linux/oprofile.h>
 
+#include <asm/facility.h>
 #include <asm/lowcore.h>
 #include <asm/irq.h>
 
