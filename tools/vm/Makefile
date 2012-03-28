@@ -3,9 +3,9 @@
 CC = $(CROSS_COMPILE)gcc
 CFLAGS = -Wall -Wextra
 
-all: page-types
+all: page-types slabinfo
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
-	$(RM) page-types
+	$(RM) page-types slabinfo
