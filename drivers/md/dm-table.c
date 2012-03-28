@@ -268,8 +268,7 @@ void dm_table_destroy(struct dm_table *t)
 	vfree(t->highs);
 
 	/* free the device list */
-	if (t->devices.next != &t->devices)
-		free_devices(&t->devices);
+	free_devices(&t->devices);
 
 	dm_free_md_mempools(t->mempools);
 
