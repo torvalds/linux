@@ -1134,7 +1134,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "i2s1_ck", clk_i2s1)
 	_REGISTER_CLOCK("ts-lpc32xx", NULL, clk_tsc)
 	_REGISTER_CLOCK("dev:mmc0", NULL, clk_mmc)
-	_REGISTER_CLOCK("lpc-net.0", NULL, clk_net)
+	_REGISTER_CLOCK("lpc-eth.0", NULL, clk_net)
 	_REGISTER_CLOCK("dev:clcd", NULL, clk_lcd)
 	_REGISTER_CLOCK("lpc32xx_udc", "ck_usbd", clk_usbd)
 	_REGISTER_CLOCK("lpc32xx_rtc", NULL, clk_rtc)
