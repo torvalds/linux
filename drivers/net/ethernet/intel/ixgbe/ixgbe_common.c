@@ -1940,9 +1940,7 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 
 #endif /* CONFIG_DCB */
 	/* Negotiate the fc mode to use */
-	ret_val = ixgbe_fc_autoneg(hw);
-	if (ret_val == IXGBE_ERR_FLOW_CONTROL)
-		goto out;
+	ixgbe_fc_autoneg(hw);
 
 	/* Disable any previous flow control settings */
 	mflcn_reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
@@ -2051,14 +2049,11 @@ out:
  *  Compares our advertised flow control capabilities to those advertised by
  *  our link partner, and determines the proper flow control mode to use.
  **/
-s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
+void ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 {
 	s32 ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
 	ixgbe_link_speed speed;
 	bool link_up;
-
-	if (hw->fc.disable_fc_autoneg)
-		goto out;
 
 	/*
 	 * AN should have completed when the cable was plugged in.
@@ -2069,11 +2064,12 @@ s32 ixgbe_fc_autoneg(struct ixgbe_hw *hw)
 	 * Since we're being called from an LSC, link is already known to be up.
 	 * So use link_up_wait_to_complete=false.
 	 */
-	hw->mac.ops.check_link(hw, &speed, &link_up, false);
-	if (!link_up) {
-		ret_val = IXGBE_ERR_FLOW_CONTROL;
+	if (hw->fc.disable_fc_autoneg)
 		goto out;
-	}
+
+	hw->mac.ops.check_link(hw, &speed, &link_up, false);
+	if (!link_up)
+		goto out;
 
 	switch (hw->phy.media_type) {
 	/* Autoneg flow control on fiber adapters */
@@ -2104,7 +2100,6 @@ out:
 		hw->fc.fc_was_autonegged = false;
 		hw->fc.current_mode = hw->fc.requested_mode;
 	}
-	return ret_val;
 }
 
 /**
@@ -2116,7 +2111,7 @@ out:
 static s32 ixgbe_fc_autoneg_fiber(struct ixgbe_hw *hw)
 {
 	u32 pcs_anadv_reg, pcs_lpab_reg, linkstat;
-	s32 ret_val;
+	s32 ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
 
 	/*
 	 * On multispeed fiber at 1g, bail out if
@@ -2126,10 +2121,8 @@ static s32 ixgbe_fc_autoneg_fiber(struct ixgbe_hw *hw)
 
 	linkstat = IXGBE_READ_REG(hw, IXGBE_PCS1GLSTA);
 	if ((!!(linkstat & IXGBE_PCS1GLSTA_AN_COMPLETE) == 0) ||
-	    (!!(linkstat & IXGBE_PCS1GLSTA_AN_TIMED_OUT) == 1)) {
-		ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
+	    (!!(linkstat & IXGBE_PCS1GLSTA_AN_TIMED_OUT) == 1))
 		goto out;
-	}
 
 	pcs_anadv_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
 	pcs_lpab_reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANLP);
@@ -2153,7 +2146,7 @@ out:
 static s32 ixgbe_fc_autoneg_backplane(struct ixgbe_hw *hw)
 {
 	u32 links2, anlp1_reg, autoc_reg, links;
-	s32 ret_val;
+	s32 ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
 
 	/*
 	 * On backplane, bail out if
@@ -2161,21 +2154,13 @@ static s32 ixgbe_fc_autoneg_backplane(struct ixgbe_hw *hw)
 	 * - we are 82599 and link partner is not AN enabled
 	 */
 	links = IXGBE_READ_REG(hw, IXGBE_LINKS);
-	if ((links & IXGBE_LINKS_KX_AN_COMP) == 0) {
-		hw->fc.fc_was_autonegged = false;
-		hw->fc.current_mode = hw->fc.requested_mode;
-		ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
+	if ((links & IXGBE_LINKS_KX_AN_COMP) == 0)
 		goto out;
-	}
 
 	if (hw->mac.type == ixgbe_mac_82599EB) {
 		links2 = IXGBE_READ_REG(hw, IXGBE_LINKS2);
-		if ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0) {
-			hw->fc.fc_was_autonegged = false;
-			hw->fc.current_mode = hw->fc.requested_mode;
-			ret_val = IXGBE_ERR_FC_NOT_NEGOTIATED;
+		if ((links2 & IXGBE_LINKS2_AN_SUPPORTED) == 0)
 			goto out;
-		}
 	}
 	/*
 	 * Read the 10g AN autoc and LP ability registers and resolve
