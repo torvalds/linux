@@ -212,21 +212,6 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 	if (sta && (!reconfig ||
 		    (disable_40 != !!(sta->sta.ht_cap.cap &
 					IEEE80211_HT_CAP_SUP_WIDTH_20_40)))) {
-		if (reconfig) {
-			/*
-			 * Whenever the AP announces the HT mode changed
-			 * (e.g. 40 MHz intolerant) stop queues to avoid
-			 * sending out frames while the rate control is
-			 * reconfiguring.
-			 */
-			ieee80211_stop_queues_by_reason(&sdata->local->hw,
-				IEEE80211_QUEUE_STOP_REASON_CHTYPE_CHANGE);
-
-			/* flush out all packets */
-			synchronize_net();
-
-			drv_flush(local, false);
-		}
 
 		if (disable_40)
 			sta->sta.ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
@@ -235,10 +220,6 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 
 		rate_control_rate_update(local, sband, sta,
 					 IEEE80211_RC_HT_CHANGED);
-
-		if (reconfig)
-			ieee80211_wake_queues_by_reason(&sdata->local->hw,
-				IEEE80211_QUEUE_STOP_REASON_CHTYPE_CHANGE);
 	}
 	mutex_unlock(&local->sta_mtx);
 
