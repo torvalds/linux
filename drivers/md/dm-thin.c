@@ -33,16 +33,6 @@
 #define DATA_DEV_BLOCK_SIZE_MAX_SECTORS (1024 * 1024 * 1024 >> SECTOR_SHIFT)
 
 /*
- * The metadata device is currently limited in size.  The limitation is
- * checked lower down in dm-space-map-metadata, but we also check it here
- * so we can fail early.
- *
- * We have one block of index, which can hold 255 index entries.  Each
- * index entry contains allocation info about 16k metadata blocks.
- */
-#define METADATA_DEV_MAX_SECTORS (255 * (1 << 14) * (THIN_METADATA_BLOCK_SIZE / (1 << SECTOR_SHIFT)))
-
-/*
  * Device id is restricted to 24 bits.
  */
 #define MAX_DEV_ID ((1 << 24) - 1)
@@ -1736,6 +1726,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	dm_block_t low_water_blocks;
 	struct dm_dev *metadata_dev;
 	sector_t metadata_dev_size;
+	char b[BDEVNAME_SIZE];
 
 	/*
 	 * FIXME Remove validation from scope of lock.
@@ -1757,11 +1748,9 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	}
 
 	metadata_dev_size = i_size_read(metadata_dev->bdev->bd_inode) >> SECTOR_SHIFT;
-	if (metadata_dev_size > METADATA_DEV_MAX_SECTORS) {
-		ti->error = "Metadata device is too large";
-		r = -EINVAL;
-		goto out_metadata;
-	}
+	if (metadata_dev_size > THIN_METADATA_MAX_SECTORS_WARNING)
+		DMWARN("Metadata device %s is larger than %u sectors: excess space will not be used.",
+		       bdevname(metadata_dev->bdev, b), THIN_METADATA_MAX_SECTORS);
 
 	r = dm_get_device(ti, argv[1], FMODE_READ | FMODE_WRITE, &data_dev);
 	if (r) {

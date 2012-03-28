@@ -713,6 +713,9 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 	if (r)
 		goto bad;
 
+	if (bdev_size > THIN_METADATA_MAX_SECTORS)
+		bdev_size = THIN_METADATA_MAX_SECTORS;
+
 	disk_super = dm_block_data(sblock);
 	disk_super->magic = cpu_to_le64(THIN_SUPERBLOCK_MAGIC);
 	disk_super->version = cpu_to_le32(THIN_VERSION);

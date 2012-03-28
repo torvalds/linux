@@ -75,10 +75,12 @@ less sharing than average you'll need a larger-than-average metadata device.
 
 As a guide, we suggest you calculate the number of bytes to use in the
 metadata device as 48 * $data_dev_size / $data_block_size but round it up
-to 2MB if the answer is smaller.  The largest size supported is 16GB.
+to 2MB if the answer is smaller.  If you're creating large numbers of
+snapshots which are recording large amounts of change, you may find you
+need to increase this.
 
-If you're creating large numbers of snapshots which are recording large
-amounts of change, you may need find you need to increase this.
+The largest size supported is 16GB: If the device is larger,
+a warning will be issued and the excess space will not be used.
 
 Reloading a pool table
 ----------------------
