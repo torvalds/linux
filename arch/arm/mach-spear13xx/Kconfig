@@ -7,11 +7,13 @@ if ARCH_SPEAR13XX
 menu "SPEAr13xx Implementations"
 config MACH_SPEAR1310
 	bool "SPEAr1310 Machine support with Device Tree"
+	select PINCTRL_SPEAR1310
 	help
 	  Supports ST SPEAr1310 machine configured via the device-tree
 
 config MACH_SPEAR1340
 	bool "SPEAr1340 Machine support with Device Tree"
+	select PINCTRL_SPEAR1340
 	help
 	  Supports ST SPEAr1340 machine configured via the device-tree
 endmenu
