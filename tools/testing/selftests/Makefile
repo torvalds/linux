@@ -5,7 +5,7 @@ all:
 		make -C $$TARGET; \
 	done;
 
-run_tests:
+run_tests: all
 	for TARGET in $(TARGETS); do \
 		make -C $$TARGET run_tests; \
 	done;
