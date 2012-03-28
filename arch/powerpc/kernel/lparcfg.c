@@ -30,7 +30,6 @@
 #include <asm/hvcall.h>
 #include <asm/firmware.h>
 #include <asm/rtas.h>
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/prom.h>
 #include <asm/vdso_datapage.h>

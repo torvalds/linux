@@ -325,5 +325,7 @@ static inline int page_is_rtas_user_buf(unsigned long pfn)
 static inline int page_is_rtas_user_buf(unsigned long pfn) { return 0;}
 #endif
 
+extern int call_rtas(const char *, int, int, unsigned long *, ...);
+
 #endif /* __KERNEL__ */
 #endif /* _POWERPC_RTAS_H */

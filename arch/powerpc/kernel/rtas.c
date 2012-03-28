@@ -33,7 +33,6 @@
 #include <asm/firmware.h>
 #include <asm/page.h>
 #include <asm/param.h>
-#include <asm/system.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/udbg.h>

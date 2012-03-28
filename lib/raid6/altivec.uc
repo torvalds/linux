@@ -30,6 +30,7 @@
 #ifdef __KERNEL__
 # include <asm/system.h>
 # include <asm/cputable.h>
+# include <asm/switch_to.h>
 #endif
 
 /*

@@ -57,7 +57,6 @@
 #include <linux/of_irq.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
@@ -67,6 +66,7 @@
 #include <asm/machdep.h>
 #include <asm/udbg.h>
 #include <asm/smp.h>
+#include <asm/debug.h>
 
 #ifdef CONFIG_PPC64
 #include <asm/paca.h>
