@@ -19,6 +19,7 @@
 #include <linux/types.h>
 #include <linux/irqflags.h>
 
+#include <asm/barrier.h>
 #include <asm/cmpxchg.h>
 
 struct task_struct;
@@ -33,42 +34,9 @@ extern struct task_struct *__switch_to(struct task_struct *,
 
 #define arch_align_stack(x) (x)
 
-#define nop() asm volatile ("nop")
-
-#endif /* !__ASSEMBLY__ */
-
-/*
- * Force strict CPU ordering.
- * And yes, this is required on UP too when we're talking
- * to devices.
- *
- * This implementation only contains a compiler barrier.
- */
-
-#define mb()	asm volatile ("": : :"memory")
-#define rmb()	mb()
-#define wmb()	asm volatile ("": : :"memory")
-
-#ifdef CONFIG_SMP
-#define smp_mb()	mb()
-#define smp_rmb()	rmb()
-#define smp_wmb()	wmb()
-#else
-#define smp_mb()	barrier()
-#define smp_rmb()	barrier()
-#define smp_wmb()	barrier()
-#endif
-
-#define set_mb(var, value)  do { var = value;  mb(); } while (0)
-#define set_wmb(var, value) do { var = value; wmb(); } while (0)
-
-#define read_barrier_depends()		do {} while (0)
-#define smp_read_barrier_depends()	do {} while (0)
-
 /*
  * we make sure local_irq_enable() doesn't cause priority inversion
  */
-#ifndef __ASSEMBLY__
 
 /* This function doesn't exist, so you'll get a linker error
  *    if something tries to do an invalid xchg().  */
