@@ -2220,6 +2220,7 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 			    enum ath6kl_cfg_suspend_mode mode,
 			    struct cfg80211_wowlan *wow)
 {
+	struct ath6kl_vif *vif;
 	enum ath6kl_state prev_state;
 	int ret;
 
@@ -2288,6 +2289,9 @@ int ath6kl_cfg80211_suspend(struct ath6kl *ar,
 	default:
 		break;
 	}
+
+	list_for_each_entry(vif, &ar->vif_list, list)
+		ath6kl_cfg80211_scan_complete_event(vif, true);
 
 	return 0;
 }
