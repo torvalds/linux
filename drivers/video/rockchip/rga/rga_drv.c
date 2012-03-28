@@ -80,15 +80,8 @@ struct rga_drvdata {
 	void *rga_base;
 	int irq0;
 
-	struct clk *pd_display;
-	struct clk *aclk_lcdc;
-	struct clk *hclk_lcdc;
-	struct clk *aclk_ddr_lcdc;
-	struct clk *hclk_cpu_display;
-	struct clk *aclk_disp_matrix;
-	struct clk *hclk_disp_matrix;
-	struct clk *axi_clk;
-	struct clk *ahb_clk;
+	struct clk *aclk_rga;
+	struct clk *hclk_rga;
 	
 	struct mutex	mutex;	// mutex
 	
@@ -222,16 +215,9 @@ static void rga_power_on(void)
 	cancel_delayed_work_sync(&drvdata->power_off_work);
 	if (drvdata->enable)
 		return;
-    
-	clk_enable(drvdata->pd_display);
-	clk_enable(drvdata->aclk_lcdc);
-	clk_enable(drvdata->hclk_lcdc);
-	clk_enable(drvdata->aclk_ddr_lcdc);
-	clk_enable(drvdata->hclk_cpu_display);
-	clk_enable(drvdata->aclk_disp_matrix);
-	clk_enable(drvdata->hclk_disp_matrix);
-	clk_enable(drvdata->axi_clk);
-	clk_enable(drvdata->ahb_clk);
+   
+	clk_enable(drvdata->aclk_rga);
+	clk_enable(drvdata->hclk_rga);
 
 	drvdata->enable = true;
 }
@@ -253,15 +239,8 @@ static void rga_power_off(struct work_struct *work)
         rga_dump();
 	}
     
-	clk_disable(drvdata->pd_display);
-	clk_disable(drvdata->aclk_lcdc);
-	clk_disable(drvdata->hclk_lcdc);
-	clk_disable(drvdata->aclk_ddr_lcdc);
-	clk_disable(drvdata->hclk_cpu_display);
-	clk_disable(drvdata->aclk_disp_matrix);
-	clk_disable(drvdata->hclk_disp_matrix);
-	clk_disable(drvdata->axi_clk);
-	clk_disable(drvdata->ahb_clk);
+	clk_disable(drvdata->aclk_rga);
+	clk_disable(drvdata->hclk_rga);
 
 	drvdata->enable = false;
 }
@@ -548,8 +527,10 @@ static void rga_try_set_reg(uint32_t num)
             struct rga_reg *reg = list_entry(rga_service.waiting.next, struct rga_reg, status_link);
             if((rga_read(RGA_STATUS) & 0x1)) 
             {            
+                #if RGA_TEST
                 /* RGA is busy */
                 printk("no idel is here \n");
+                #endif
                 
                 if((atomic_read(&rga_service.cmd_num) <= 0xf) && (atomic_read(&rga_service.int_disable) == 0)) 
                 {
@@ -654,6 +635,7 @@ static void rga_try_set_reg(uint32_t num)
 static int rga_blit_async(rga_session *session, struct rga_req *req)
 {
 	int ret = -1;
+    int num = 0; 
     struct rga_reg *reg;
     struct rga_req *req2;
 
@@ -681,14 +663,11 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
             reg = rga_reg_init_2(session, req, req2);
             if(reg == NULL) {
                 break;
-            }
-            
-            atomic_set(&reg->int_enable, 1);
-
-            rga_try_set_reg(2);
-            
+            }            
+            num = 2;
         }
-        else {
+        else 
+        {
             /* check value if legal */
             ret = rga_check_param(req);
         	if(ret == -EINVAL) {
@@ -698,10 +677,15 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
             reg = rga_reg_init(session, req);
             if(reg == NULL) {
                 return -EFAULT;
-            }
-            
-            rga_try_set_reg(1);        
+            }            
+            num = 1;       
         }        
+
+        rga_power_on();
+        atomic_set(&reg->int_enable, 1);        
+        rga_try_set_reg(num);
+
+        return 0; 
     }
     while(0);
 
@@ -709,24 +693,15 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
     {
         kfree(req2);
     }
-   
-	//printk("rga_blit_async done******************\n");
 
-#if 0	
-error_status:
-error_scale:
-	ret = -EINVAL;
-	rga_soft_reset();
-	rga_power_off();
-#endif    
-	return ret;    
-
+    return ret;
 }
 
 static int rga_blit_sync(rga_session *session, struct rga_req *req)
 {
     int ret = 0;
     int ret_timeout = 0;
+    int num = 0;
     struct rga_reg *reg;
     struct rga_req *req2;
 
@@ -737,67 +712,72 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     daw = req->dst.act_w;
     dah = req->dst.act_h;
 
-    printk("req->rotate_mode = %.8x, req->scale_mode = %.8x\n", req->rotate_mode, req->scale_mode);
-
-    if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah))) 
+    do
     {
-        /* generate 2 cmd for pre scale */
-        
-        req2 = kmalloc(sizeof(struct rga_req), GFP_KERNEL);
-        if (NULL == req2) 
+        if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah))) 
         {
-            return -EINVAL;            
-        }
-        memset(req2, 0, sizeof(struct rga_req));
-        
-        RGA_gen_two_pro(req, req2);
-
-        reg = rga_reg_init_2(session, req, req2);
-        if (NULL == reg) 
-        {
-            return -EFAULT;
-        }
-                
-        atomic_set(&reg->int_enable, 1);
-
-        rga_try_set_reg(2);        
-
-    }
-    else 
-    {
-        /* check value if legal */        
-        ret = rga_check_param(req);
-    	if(ret == -EINVAL) 
-        {
-    		return -EFAULT;
-    	}
-      
-        reg = rga_reg_init(session, req);
-        if(reg == NULL) 
-        {            
-            return -EFAULT;
-        }
-        
-        atomic_set(&reg->int_enable, 1);        
-        rga_try_set_reg(1);
-    }    
+            /* generate 2 cmd for pre scale */
             
-    ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
-    if (unlikely(ret_timeout< 0)) 
-    {
-		pr_err("pid %d wait task ret %d\n", session->pid, ret_timeout);
-	} 
-    else if (0 == ret_timeout)
-    {
-		pr_err("pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
-		ret = -ETIMEDOUT;
-	}
+            req2 = kmalloc(sizeof(struct rga_req), GFP_KERNEL);
+            if (NULL == req2) 
+            {
+                return -EINVAL;            
+            }
+            memset(req2, 0, sizeof(struct rga_req));
+            
+            RGA_gen_two_pro(req, req2);
 
-    #if RGA_TEST_TIME
-    rga_end = ktime_get();
-    rga_end = ktime_sub(rga_end, rga_start);
-    printk("one cmd end time %d\n", (int)ktime_to_us(rga_end));
-    #endif
+            reg = rga_reg_init_2(session, req, req2);
+            if (NULL == reg)  
+            {
+                break;
+            }
+            num = 2;        
+        }
+        else 
+        {
+            /* check value if legal */        
+            ret = rga_check_param(req);
+        	if(ret == -EINVAL) 
+            {
+        		return -EFAULT;
+        	}
+          
+            reg = rga_reg_init(session, req);
+            if(reg == NULL) 
+            {            
+                return -EFAULT;
+            }
+            num = 1;        
+        }    
+
+        rga_power_on();
+        atomic_set(&reg->int_enable, 1);        
+        rga_try_set_reg(num);
+
+        ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
+        if (unlikely(ret_timeout< 0)) 
+        {
+    		pr_err("pid %d wait task ret %d\n", session->pid, ret_timeout);
+    	} 
+        else if (0 == ret_timeout)
+        {
+    		pr_err("pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+    		ret = -ETIMEDOUT;
+    	}
+
+        #if RGA_TEST_TIME
+        rga_end = ktime_get();
+        rga_end = ktime_sub(rga_end, rga_start);
+        printk("one cmd end time %d\n", (int)ktime_to_us(rga_end));
+        #endif
+    }
+    while(0);
+            
+    if(NULL != req2)
+    {
+        kfree(req2);
+    }
         
     return ret;   
 }
@@ -810,7 +790,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
     rga_session *session = (rga_session *)file->private_data;
 
     
-
 	if (NULL == session) 
     {
         printk("%s [%d] rga thread session is null\n",__FUNCTION__,__LINE__);
@@ -1099,7 +1078,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 
     
 	
-	data->axi_clk = clk_get(NULL, "aclk_rga");
+	data->aclk_rga = clk_get(NULL, "aclk_rga");
     
 	if (IS_ERR(data->axi_clk))
 	{
@@ -1108,7 +1087,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		goto err_clock;
 	}
 
-	data->ahb_clk = clk_get(&pdev->dev, "hclk_rga");
+	data->hclk_rga = clk_get(NULL, "hclk_rga");
 	if (IS_ERR(data->ahb_clk))
 	{
 		ERR("failed to find rga ahb clock source\n");
