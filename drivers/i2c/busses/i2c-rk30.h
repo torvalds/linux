@@ -44,6 +44,7 @@
 
 #define GRF_I2C_CON_BASE            (RK30_GRF_BASE + GRF_SOC_CON1)
 #define I2C_ADAP_SEL_BIT(nr)        ((nr) + 11)
+#define I2C_ADAP_SEL_MASK(nr)        ((nr) + 27)
 enum rk30_i2c_state {
 	STATE_IDLE,
 	STATE_START,
@@ -68,28 +69,28 @@ struct rk30_i2c {
 	unsigned long		clkrate;
 
 	void __iomem		*regs;
-    void __iomem        *con_base;
+        void __iomem        *con_base;
 	struct clk		    *clk;
 	struct device		*dev;
 	struct resource		*ioarea;
 	struct i2c_adapter	adap;
     
-    unsigned long		scl_rate;
+        unsigned long		scl_rate;
 	unsigned long		i2c_rate;
-    unsigned int        addr;
-    unsigned int        mode;
-    unsigned int        count;
+        unsigned int        addr;
+        unsigned int        mode;
+        unsigned int        count;
 
-    struct wake_lock    idlelock[5];
-    int is_div_from_arm[5];
+        struct wake_lock    idlelock[5];
+        int is_div_from_arm[5];
 
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
 
-    void (*i2c_init_hw)(struct rk30_i2c *, unsigned long scl_rate);
-    void (*i2c_set_clk)(struct rk30_i2c *, unsigned long);
-    irqreturn_t (*i2c_irq)(int, void *);
+        void (*i2c_init_hw)(struct rk30_i2c *, unsigned long scl_rate);
+        void (*i2c_set_clk)(struct rk30_i2c *, unsigned long);
+        irqreturn_t (*i2c_irq)(int, void *);
 };
 void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type);
 int i2c_add_rk29_adapter(struct i2c_adapter *);

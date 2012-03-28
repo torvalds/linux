@@ -17,9 +17,11 @@
 #define TX_SETUP                        1 //unit us
 void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type)
 {
-    unsigned int p = readl(i2c->con_base);
+        unsigned int p = readl(i2c->con_base);
 
-    writel(rk30_set_bit(p, adap_type, I2C_ADAP_SEL_BIT(nr)), i2c->con_base);
+        p = rk30_set_bit(p, adap_type, I2C_ADAP_SEL_BIT(nr));
+        p = rk30_set_bit(p, adap_type, I2C_ADAP_SEL_MASK(nr));
+        writel(p, i2c->con_base);
 }
 
 #ifdef CONFIG_CPU_FREQ
@@ -29,7 +31,7 @@ void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type)
 static int rk30_i2c_cpufreq_transition(struct notifier_block *nb,
 					  unsigned long val, void *data)
 {
-    struct rk30_i2c *i2c = freq_to_i2c(nb);
+        struct rk30_i2c *i2c = freq_to_i2c(nb);
 	unsigned long flags;
 	int delta_f;
 
@@ -84,7 +86,7 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 	struct rk30_i2c *i2c = NULL;
 	struct rk30_i2c_platform_data *pdata = NULL;
 	struct resource *res;
-    char name[5];
+        char name[5];
 	int ret;
 
 	pdata = pdev->dev.platform_data;
@@ -99,10 +101,10 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "no memory for state\n");
 		return -ENOMEM;
 	}
-    i2c->con_base = (void __iomem *)GRF_I2C_CON_BASE;
-    i2c_adap_sel(i2c, pdata->bus_num, pdata->adap_type);
+        i2c->con_base = (void __iomem *)GRF_I2C_CON_BASE;
+        i2c_adap_sel(i2c, pdata->bus_num, pdata->adap_type);
 
-    if(pdata->io_init)
+        if(pdata->io_init)
 		pdata->io_init();
 
 	strlcpy(i2c->adap.name, "rk30_i2c", sizeof(i2c->adap.name));
@@ -110,7 +112,7 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 	i2c->adap.class   = I2C_CLASS_HWMON | I2C_CLASS_SPD;
 	i2c->tx_setup     = TX_SETUP;
 	i2c->adap.retries = 5;
-    i2c->adap.timeout = msecs_to_jiffies(500);
+        i2c->adap.timeout = msecs_to_jiffies(500);
 
 	spin_lock_init(&i2c->lock);
 	init_waitqueue_head(&i2c->wait);
@@ -163,10 +165,10 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &pdev->dev;
 	i2c->adap.nr = pdata->bus_num;
-    if(pdata->adap_type == I2C_RK29_ADAP)
-        ret = i2c_add_rk29_adapter(&i2c->adap);
-    else // I2C_RK30_ADAP
-        ret = i2c_add_rk30_adapter(&i2c->adap);
+        if(pdata->adap_type == I2C_RK29_ADAP)
+                ret = i2c_add_rk29_adapter(&i2c->adap);
+        else // I2C_RK30_ADAP
+                ret = i2c_add_rk30_adapter(&i2c->adap);
 
 	if (ret < 0) {
 		dev_err(&pdev->dev, "failed to add adapter\n");
@@ -199,12 +201,12 @@ static int rk30_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c);
 
-    sprintf(name, "%s%d", "i2c", i2c->adap.nr);
-    i2c->is_div_from_arm[i2c->adap.nr] = pdata->is_div_from_arm;
-    if(i2c->is_div_from_arm[i2c->adap.nr])
-        wake_lock_init(&i2c->idlelock[i2c->adap.nr], WAKE_LOCK_IDLE, name);
+        sprintf(name, "%s%d", "i2c", i2c->adap.nr);
+        i2c->is_div_from_arm[i2c->adap.nr] = pdata->is_div_from_arm;
+        if(i2c->is_div_from_arm[i2c->adap.nr])
+                wake_lock_init(&i2c->idlelock[i2c->adap.nr], WAKE_LOCK_IDLE, name);
 
-    i2c->i2c_init_hw(i2c, 100 * 1000);
+        i2c->i2c_init_hw(i2c, 100 * 1000);
 	dev_info(&pdev->dev, "%s: RK30 I2C adapter\n", dev_name(&i2c->adap.dev));
 	return 0;
 //err_none:
@@ -264,7 +266,7 @@ static int rk30_i2c_resume_noirq(struct device *dev)
 	struct rk30_i2c *i2c = platform_get_drvdata(pdev);
 
 	i2c->suspended = 0;
-    i2c->i2c_init_hw(i2c, i2c->scl_rate);
+        i2c->i2c_init_hw(i2c, i2c->scl_rate);
 
 	return 0;
 }
