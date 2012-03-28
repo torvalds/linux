@@ -22,6 +22,7 @@
 #include "x86.h"
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/kernel.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
@@ -41,6 +42,12 @@
 
 MODULE_AUTHOR("Qumranet");
 MODULE_LICENSE("GPL");
+
+static const struct x86_cpu_id svm_cpu_id[] = {
+	X86_FEATURE_MATCH(X86_FEATURE_SVM),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 
 #define IOPM_ALLOC_ORDER 2
 #define MSRPM_ALLOC_ORDER 1
