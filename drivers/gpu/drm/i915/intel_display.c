@@ -360,6 +360,64 @@ static const intel_limit_t intel_limits_ironlake_display_port = {
 	.find_pll = intel_find_pll_ironlake_dp,
 };
 
+u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
+{
+	unsigned long flags;
+	u32 val = 0;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
+		DRM_ERROR("DPIO idle wait timed out\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(DPIO_REG, reg);
+	I915_WRITE(DPIO_PKT, DPIO_RID | DPIO_OP_READ | DPIO_PORTID |
+		   DPIO_BYTE);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
+		DRM_ERROR("DPIO read wait timed out\n");
+		goto out_unlock;
+	}
+	val = I915_READ(DPIO_DATA);
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+	return val;
+}
+
+static void intel_dpio_write(struct drm_i915_private *dev_priv, int reg,
+			     u32 val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
+		DRM_ERROR("DPIO idle wait timed out\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(DPIO_DATA, val);
+	I915_WRITE(DPIO_REG, reg);
+	I915_WRITE(DPIO_PKT, DPIO_RID | DPIO_OP_WRITE | DPIO_PORTID |
+		   DPIO_BYTE);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100))
+		DRM_ERROR("DPIO write wait timed out\n");
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+}
+
+static void vlv_init_dpio(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Reset the DPIO config */
+	I915_WRITE(DPIO_CTL, 0);
+	POSTING_READ(DPIO_CTL);
+	I915_WRITE(DPIO_CTL, 1);
+	POSTING_READ(DPIO_CTL);
+}
+
 static bool is_dual_link_lvds(struct drm_i915_private *dev_priv,
 			      unsigned int reg)
 {
@@ -9374,6 +9432,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_rc6(dev);
+
+	if (IS_VALLEYVIEW(dev))
+		vlv_init_dpio(dev);
 
 	mutex_unlock(&dev->struct_mutex);
 

@@ -301,6 +301,61 @@
 #define  DEBUG_RESET_RENDER		(1<<8)
 #define  DEBUG_RESET_DISPLAY		(1<<9)
 
+/*
+ * DPIO - a special bus for various display related registers to hide behind:
+ *  0x800c: m1, m2, n, p1, p2, k dividers
+ *  0x8014: REF and SFR select
+ *  0x8014: N divider, VCO select
+ *  0x801c/3c: core clock bits
+ *  0x8048/68: low pass filter coefficients
+ *  0x8100: fast clock controls
+ */
+#define DPIO_PKT			0x2100
+#define  DPIO_RID			(0<<24)
+#define  DPIO_OP_WRITE			(1<<16)
+#define  DPIO_OP_READ			(0<<16)
+#define  DPIO_PORTID			(0x12<<8)
+#define  DPIO_BYTE			(0xf<<4)
+#define  DPIO_BUSY			(1<<0) /* status only */
+#define DPIO_DATA			0x2104
+#define DPIO_REG			0x2108
+#define DPIO_CTL			0x2110
+#define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
+#define  DPIO_MODSEL0			(1<<2) /* if ref clk a == 27 */
+#define  DPIO_SFR_BYPASS		(1<<1)
+#define  DPIO_RESET			(1<<0)
+
+#define _DPIO_DIV_A			0x800c
+#define   DPIO_POST_DIV_SHIFT		(28) /* 3 bits */
+#define   DPIO_K_SHIFT			(24) /* 4 bits */
+#define   DPIO_P1_SHIFT			(21) /* 3 bits */
+#define   DPIO_P2_SHIFT			(16) /* 5 bits */
+#define   DPIO_N_SHIFT			(12) /* 4 bits */
+#define   DPIO_ENABLE_CALIBRATION	(1<<11)
+#define   DPIO_M1DIV_SHIFT		(8) /* 3 bits */
+#define   DPIO_M2DIV_MASK		0xff
+#define _DPIO_DIV_B			0x802c
+#define DPIO_DIV(pipe) _PIPE(pipe, _DPIO_DIV_A, _DPIO_DIV_B)
+
+#define _DPIO_REFSFR_A			0x8014
+#define   DPIO_REFSEL_OVERRIDE		27
+#define   DPIO_PLL_MODESEL_SHIFT	24 /* 3 bits */
+#define   DPIO_BIAS_CURRENT_CTL_SHIFT	21 /* 3 bits, always 0x7 */
+#define   DPIO_PLL_REFCLK_SEL_SHIFT	16 /* 2 bits */
+#define   DPIO_DRIVER_CTL_SHIFT		12 /* always set to 0x8 */
+#define   DPIO_CLK_BIAS_CTL_SHIFT	8 /* always set to 0x5 */
+#define _DPIO_REFSFR_B			0x8034
+#define DPIO_REFSFR(pipe) _PIPE(pipe, _DPIO_REFSFR_A, _DPIO_REFSFR_B)
+
+#define _DPIO_CORE_CLK_A		0x801c
+#define _DPIO_CORE_CLK_B		0x803c
+#define DPIO_CORE_CLK(pipe) _PIPE(pipe, _DPIO_CORE_CLK_A, _DPIO_CORE_CLK_B)
+
+#define _DPIO_LFP_COEFF_A		0x8048
+#define _DPIO_LFP_COEFF_B		0x8068
+#define DPIO_LFP_COEFF(pipe) _PIPE(pipe, _DPIO_LFP_COEFF_A, _DPIO_LFP_COEFF_B)
+
+#define DPIO_FASTCLK_DISABLE		0x8100
 
 /*
  * Fence registers
