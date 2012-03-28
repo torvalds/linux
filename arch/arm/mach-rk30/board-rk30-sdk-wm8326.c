@@ -89,6 +89,8 @@ static int wm831x_pre_init(struct wm831x *parm)
 	wm831x_set_bits(parm,WM831X_DC3_ON_CONFIG ,0x0300,0x0000);
 	wm831x_set_bits(parm,0x4066,0x0300,0x0000);
 
+	wm831x_set_bits(parm,WM831X_LDO10_CONTROL ,0x0040,0x0040);// set ldo10 in switch mode
+
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, LOCK_SECURITY_KEY);	// lock security key
 
 	return 0;
@@ -117,8 +119,8 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 
 	ldo = regulator_get(NULL, "ldo5");	//vcc_25
-	regulator_set_voltage(ldo, 1800000, 1800000);
-	regulator_set_suspend_voltage(ldo, 1800000);
+	regulator_set_voltage(ldo, 2500000, 2500000);
+	regulator_set_suspend_voltage(ldo, 2500000);
 	regulator_enable(ldo);
 //	printk("%s set ldo5 vcc_25=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
