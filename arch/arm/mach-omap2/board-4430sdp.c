@@ -666,6 +666,10 @@ static struct nokia_dsi_panel_data dsi1_panel = {
 		.use_ext_te	= false,
 		.ext_te_gpio	= 101,
 		.esd_interval	= 0,
+		.pin_config = {
+			.num_pins	= 6,
+			.pins		= { 0, 1, 2, 3, 4, 5 },
+		},
 };
 
 static struct omap_dss_device sdp4430_lcd_device = {
@@ -674,13 +678,6 @@ static struct omap_dss_device sdp4430_lcd_device = {
 	.type			= OMAP_DISPLAY_TYPE_DSI,
 	.data			= &dsi1_panel,
 	.phy.dsi		= {
-		.clk_lane	= 1,
-		.clk_pol	= 0,
-		.data1_lane	= 2,
-		.data1_pol	= 0,
-		.data2_lane	= 3,
-		.data2_pol	= 0,
-
 		.module		= 0,
 	},
 
@@ -715,6 +712,10 @@ static struct nokia_dsi_panel_data dsi2_panel = {
 		.use_ext_te	= false,
 		.ext_te_gpio	= 103,
 		.esd_interval	= 0,
+		.pin_config = {
+			.num_pins	= 6,
+			.pins		= { 0, 1, 2, 3, 4, 5 },
+		},
 };
 
 static struct omap_dss_device sdp4430_lcd2_device = {
@@ -723,12 +724,6 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 	.type			= OMAP_DISPLAY_TYPE_DSI,
 	.data			= &dsi2_panel,
 	.phy.dsi		= {
-		.clk_lane	= 1,
-		.clk_pol	= 0,
-		.data1_lane	= 2,
-		.data1_pol	= 0,
-		.data2_lane	= 3,
-		.data2_pol	= 0,
 
 		.module		= 1,
 	},

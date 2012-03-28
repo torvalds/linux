@@ -1137,8 +1137,15 @@ static void __exit taal_remove(struct omap_dss_device *dssdev)
 static int taal_power_on(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
+	struct nokia_dsi_panel_data *panel_data = get_panel_data(dssdev);
 	u8 id1, id2, id3;
 	int r;
+
+	r = omapdss_dsi_configure_pins(dssdev, &panel_data->pin_config);
+	if (r) {
+		dev_err(&dssdev->dev, "failed to configure DSI pins\n");
+		goto err0;
+	};
 
 	r = omapdss_dsi_display_enable(dssdev);
 	if (r) {
