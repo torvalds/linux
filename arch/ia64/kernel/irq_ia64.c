@@ -39,7 +39,6 @@
 #include <asm/hw_irq.h>
 #include <asm/machvec.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/tlbflush.h>
 
 #ifdef CONFIG_PERFMON

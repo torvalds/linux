@@ -29,7 +29,6 @@
 #include <asm/ptrace.h>
 #include <asm/sal.h>
 #include <asm/sections.h>
-#include <asm/system.h>
 
 #include "fsyscall_gtod_data.h"
 
