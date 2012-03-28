@@ -1,8 +1,5 @@
-#ifndef __ASM_SH_SYSTEM_32_H
-#define __ASM_SH_SYSTEM_32_H
-
-#include <linux/types.h>
-#include <asm/mmu.h>
+#ifndef __ASM_SH_SWITCH_TO_32_H
+#define __ASM_SH_SWITCH_TO_32_H
 
 #ifdef CONFIG_SH_DSP
 
@@ -31,7 +28,6 @@ do {									\
 		"ldc.l	@r2+, mod\n\t"					\
 		: : "r" (__ts2));					\
 } while (0)
-
 
 #define __save_dsp(tsk)							\
 do {									\
@@ -63,16 +59,6 @@ do {									\
 #define __save_dsp(tsk)		do { } while (0)
 #define __restore_dsp(tsk)	do { } while (0)
 #endif
-
-#if defined(CONFIG_CPU_SH4A)
-#define __icbi(addr)	__asm__ __volatile__ ( "icbi @%0\n\t" : : "r" (addr))
-#else
-#define __icbi(addr)	mb()
-#endif
-
-#define __ocbp(addr)	__asm__ __volatile__ ( "ocbp @%0\n\t" : : "r" (addr))
-#define __ocbi(addr)	__asm__ __volatile__ ( "ocbi @%0\n\t" : : "r" (addr))
-#define __ocbwb(addr)	__asm__ __volatile__ ( "ocbwb @%0\n\t" : : "r" (addr))
 
 struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next);
@@ -145,92 +131,4 @@ do {								\
 		__restore_dsp(prev);				\
 } while (0)
 
-#ifdef CONFIG_CPU_HAS_SR_RB
-#define lookup_exception_vector()	\
-({					\
-	unsigned long _vec;		\
-					\
-	__asm__ __volatile__ (		\
-		"stc r2_bank, %0\n\t"	\
-		: "=r" (_vec)		\
-	);				\
-					\
-	_vec;				\
-})
-#else
-#define lookup_exception_vector()	\
-({					\
-	unsigned long _vec;		\
-	__asm__ __volatile__ (		\
-		"mov r4, %0\n\t"	\
-		: "=r" (_vec)		\
-	);				\
-					\
-	_vec;				\
-})
-#endif
-
-static inline reg_size_t register_align(void *val)
-{
-	return (unsigned long)(signed long)val;
-}
-
-int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
-			    struct mem_access *ma, int, unsigned long address);
-
-static inline void trigger_address_error(void)
-{
-	__asm__ __volatile__ (
-		"ldc %0, sr\n\t"
-		"mov.l @%1, %0"
-		:
-		: "r" (0x10000000), "r" (0x80000001)
-	);
-}
-
-asmlinkage void do_address_error(struct pt_regs *regs,
-				 unsigned long writeaccess,
-				 unsigned long address);
-asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
-				unsigned long r6, unsigned long r7,
-				struct pt_regs __regs);
-asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
-				unsigned long r6, unsigned long r7,
-				struct pt_regs __regs);
-asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
-				unsigned long r6, unsigned long r7,
-				struct pt_regs __regs);
-asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
-				   unsigned long r6, unsigned long r7,
-				   struct pt_regs __regs);
-
-static inline void set_bl_bit(void)
-{
-	unsigned long __dummy0, __dummy1;
-
-	__asm__ __volatile__ (
-		"stc	sr, %0\n\t"
-		"or	%2, %0\n\t"
-		"and	%3, %0\n\t"
-		"ldc	%0, sr\n\t"
-		: "=&r" (__dummy0), "=r" (__dummy1)
-		: "r" (0x10000000), "r" (0xffffff0f)
-		: "memory"
-	);
-}
-
-static inline void clear_bl_bit(void)
-{
-	unsigned long __dummy0, __dummy1;
-
-	__asm__ __volatile__ (
-		"stc	sr, %0\n\t"
-		"and	%2, %0\n\t"
-		"ldc	%0, sr\n\t"
-		: "=&r" (__dummy0), "=r" (__dummy1)
-		: "1" (~0x10000000)
-		: "memory"
-	);
-}
-
-#endif /* __ASM_SH_SYSTEM_32_H */
+#endif /* __ASM_SH_SWITCH_TO_32_H */
