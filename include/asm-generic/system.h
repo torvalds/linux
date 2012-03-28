@@ -17,7 +17,6 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>
-#include <linux/irqflags.h>
 
 #include <asm/barrier.h>
 #include <asm/cmpxchg.h>
@@ -33,75 +32,6 @@ extern struct task_struct *__switch_to(struct task_struct *,
 	} while (0)
 
 #define arch_align_stack(x) (x)
-
-/*
- * we make sure local_irq_enable() doesn't cause priority inversion
- */
-
-/* This function doesn't exist, so you'll get a linker error
- *    if something tries to do an invalid xchg().  */
-extern void __xchg_called_with_bad_pointer(void);
-
-static inline
-unsigned long __xchg(unsigned long x, volatile void *ptr, int size)
-{
-	unsigned long ret, flags;
-
-	switch (size) {
-	case 1:
-#ifdef __xchg_u8
-		return __xchg_u8(x, ptr);
-#else
-		local_irq_save(flags);
-		ret = *(volatile u8 *)ptr;
-		*(volatile u8 *)ptr = x;
-		local_irq_restore(flags);
-		return ret;
-#endif /* __xchg_u8 */
-
-	case 2:
-#ifdef __xchg_u16
-		return __xchg_u16(x, ptr);
-#else
-		local_irq_save(flags);
-		ret = *(volatile u16 *)ptr;
-		*(volatile u16 *)ptr = x;
-		local_irq_restore(flags);
-		return ret;
-#endif /* __xchg_u16 */
-
-	case 4:
-#ifdef __xchg_u32
-		return __xchg_u32(x, ptr);
-#else
-		local_irq_save(flags);
-		ret = *(volatile u32 *)ptr;
-		*(volatile u32 *)ptr = x;
-		local_irq_restore(flags);
-		return ret;
-#endif /* __xchg_u32 */
-
-#ifdef CONFIG_64BIT
-	case 8:
-#ifdef __xchg_u64
-		return __xchg_u64(x, ptr);
-#else
-		local_irq_save(flags);
-		ret = *(volatile u64 *)ptr;
-		*(volatile u64 *)ptr = x;
-		local_irq_restore(flags);
-		return ret;
-#endif /* __xchg_u64 */
-#endif /* CONFIG_64BIT */
-
-	default:
-		__xchg_called_with_bad_pointer();
-		return x;
-	}
-}
-
-#define xchg(ptr, x) \
-	((__typeof__(*(ptr))) __xchg((unsigned long)(x), (ptr), sizeof(*(ptr))))
 
 #endif /* !__ASSEMBLY__ */
 
