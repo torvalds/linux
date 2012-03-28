@@ -276,6 +276,9 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
+	if (!test_bit(reason, &local->queue_stop_reasons[queue]))
+		return;
+
 	__clear_bit(reason, &local->queue_stop_reasons[queue]);
 
 	if (local->queue_stop_reasons[queue] != 0)
@@ -321,6 +324,9 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 	trace_stop_queue(local, queue, reason);
 
 	if (WARN_ON(queue >= hw->queues))
+		return;
+
+	if (test_bit(reason, &local->queue_stop_reasons[queue]))
 		return;
 
 	__set_bit(reason, &local->queue_stop_reasons[queue]);
