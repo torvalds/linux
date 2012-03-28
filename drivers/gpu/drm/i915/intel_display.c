@@ -9277,6 +9277,8 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.update_wm = valleyview_update_wm;
 		dev_priv->display.init_clock_gating =
 			valleyview_init_clock_gating;
+		dev_priv->display.force_wake_get = vlv_force_wake_get;
+		dev_priv->display.force_wake_put = vlv_force_wake_put;
 	} else if (IS_PINEVIEW(dev)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
 					    dev_priv->is_ddr3,

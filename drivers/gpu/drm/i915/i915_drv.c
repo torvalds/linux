@@ -465,6 +465,31 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	return ret;
 }
 
+void vlv_force_wake_get(struct drm_i915_private *dev_priv)
+{
+	int count;
+
+	count = 0;
+
+	/* Already awake? */
+	if ((I915_READ(0x130094) & 0xa1) == 0xa1)
+		return;
+
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffffffff);
+	POSTING_READ(FORCEWAKE_VLV);
+
+	count = 0;
+	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1) == 0)
+		udelay(10);
+}
+
+void vlv_force_wake_put(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffff0000);
+	/* FIXME: confirm VLV behavior with Punit folks */
+	POSTING_READ(FORCEWAKE_VLV);
+}
+
 static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1007,7 +1032,8 @@ MODULE_LICENSE("GPL and additional rights");
 #define NEEDS_FORCE_WAKE(dev_priv, reg) \
        (((dev_priv)->info->gen >= 6) && \
         ((reg) < 0x40000) &&            \
-        ((reg) != FORCEWAKE))
+        ((reg) != FORCEWAKE)) && \
+       (!IS_VALLEYVIEW((dev_priv)->dev))
 
 #define __i915_read(x, y) \
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \

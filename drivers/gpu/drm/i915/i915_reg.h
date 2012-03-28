@@ -3820,6 +3820,8 @@
 #define  EDP_LINK_TRAIN_VOL_EMP_MASK_IVB	(0x3f<<22)
 
 #define  FORCEWAKE				0xA18C
+#define  FORCEWAKE_VLV				0x1300b0
+#define  FORCEWAKE_ACK_VLV			0x1300b4
 #define  FORCEWAKE_ACK				0x130090
 #define  FORCEWAKE_MT				0xa188 /* multi-threaded */
 #define  FORCEWAKE_MT_ACK			0x130040

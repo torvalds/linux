@@ -1406,6 +1406,9 @@ extern void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv);
 extern void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);
 extern void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv);
 
+extern void vlv_force_wake_get(struct drm_i915_private *dev_priv);
+extern void vlv_force_wake_put(struct drm_i915_private *dev_priv);
+
 /* overlay */
 #ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
