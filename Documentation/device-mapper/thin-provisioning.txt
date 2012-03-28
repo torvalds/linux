@@ -237,16 +237,6 @@ iii) Messages
 
 	Deletes a thin device.  Irreversible.
 
-    trim <dev id> <new size in sectors>
-
-	Delete mappings from the end of a thin device.  Irreversible.
-	You might want to use this if you're reducing the size of
-	your thinly-provisioned device.  In many cases, due to the
-	sharing of blocks between devices, it is not possible to
-	determine in advance how much space 'trim' will release.  (In
-	future a userspace tool might be able to perform this
-	calculation.)
-
     set_transaction_id <current id> <new id>
 
 	Userland volume managers, such as LVM, need a way to

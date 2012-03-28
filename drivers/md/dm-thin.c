@@ -72,7 +72,7 @@
  * missed out if the io covers the block. (schedule_copy).
  *
  * iv) insert the new mapping into the origin's btree
- * (process_prepared_mappings).  This act of inserting breaks some
+ * (process_prepared_mapping).  This act of inserting breaks some
  * sharing of btree nodes between the two devices.  Breaking sharing only
  * effects the btree of that specific device.  Btrees for the other
  * devices that share the block never change.  The btree for the origin
