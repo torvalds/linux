@@ -552,10 +552,9 @@ static int ohci_hcd_at91_drv_probe(struct platform_device *pdev)
 	int			gpio;
 	int			ret;
 
-	i = ohci_at91_of_init(pdev);
-
-	if (i)
-		return i;
+	ret = ohci_at91_of_init(pdev);
+	if (ret)
+		return ret;
 
 	pdata = pdev->dev.platform_data;
 
