@@ -21,6 +21,7 @@
 #include <linux/export.h>
 #include <linux/of.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/vmalloc.h>
 
 #include "core.h"
 #include "cfg80211.h"
@@ -928,13 +929,14 @@ static int ath6kl_fetch_fw_apin(struct ath6kl *ar, const char *name)
 			if (ar->fw != NULL)
 				break;
 
-			ar->fw = kmemdup(data, ie_len, GFP_KERNEL);
+			ar->fw = vmalloc(ie_len);
 
 			if (ar->fw == NULL) {
 				ret = -ENOMEM;
 				goto out;
 			}
 
+			memcpy(ar->fw, data, ie_len);
 			ar->fw_len = ie_len;
 			break;
 		case ATH6KL_FW_IE_PATCH_IMAGE:
