@@ -1869,6 +1869,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			shutdown the other cpus.  Instead use the REBOOT_VECTOR
 			irq.
 
+	nomodule	Disable module load
+
 	nopat		[X86] Disable PAT (page attribute table extension of
 			pagetables) support.
 
