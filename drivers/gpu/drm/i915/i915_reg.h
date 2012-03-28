@@ -2555,6 +2555,22 @@
 #define   DSPFW_HPLL_CURSOR_MASK	(0x3f<<16)
 #define   DSPFW_HPLL_SR_MASK		(0x1ff)
 
+/* drain latency register values*/
+#define DRAIN_LATENCY_PRECISION_32	32
+#define DRAIN_LATENCY_PRECISION_16	16
+#define VLV_DDL1			0x70050
+#define DDL_CURSORA_PRECISION_32	(1<<31)
+#define DDL_CURSORA_PRECISION_16	(0<<31)
+#define DDL_CURSORA_SHIFT		24
+#define DDL_PLANEA_PRECISION_32		(1<<7)
+#define DDL_PLANEA_PRECISION_16		(0<<7)
+#define VLV_DDL2			0x70054
+#define DDL_CURSORB_PRECISION_32	(1<<31)
+#define DDL_CURSORB_PRECISION_16	(0<<31)
+#define DDL_CURSORB_SHIFT		24
+#define DDL_PLANEB_PRECISION_32		(1<<7)
+#define DDL_PLANEB_PRECISION_16		(0<<7)
+
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
 #define I915_FIFO_LINE_SIZE	64

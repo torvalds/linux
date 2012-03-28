@@ -4235,6 +4235,81 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
+static bool vlv_compute_drain_latency(struct drm_device *dev,
+				     int plane,
+				     int *plane_prec_mult,
+				     int *plane_dl,
+				     int *cursor_prec_mult,
+				     int *cursor_dl)
+{
+	struct drm_crtc *crtc;
+	int clock, pixel_size;
+	int entries;
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	if (crtc->fb == NULL || !crtc->enabled)
+		return false;
+
+	clock = crtc->mode.clock;	/* VESA DOT Clock */
+	pixel_size = crtc->fb->bits_per_pixel / 8;	/* BPP */
+
+	entries = (clock / 1000) * pixel_size;
+	*plane_prec_mult = (entries > 256) ?
+		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
+	*plane_dl = (64 * (*plane_prec_mult) * 4) / ((clock / 1000) *
+						     pixel_size);
+
+	entries = (clock / 1000) * 4;	/* BPP is always 4 for cursor */
+	*cursor_prec_mult = (entries > 256) ?
+		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
+	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / ((clock / 1000) * 4);
+
+	return true;
+}
+
+/*
+ * Update drain latency registers of memory arbiter
+ *
+ * Valleyview SoC has a new memory arbiter and needs drain latency registers
+ * to be programmed. Each plane has a drain latency multiplier and a drain
+ * latency value.
+ */
+
+static void vlv_update_drain_latency(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_prec, planea_dl, planeb_prec, planeb_dl;
+	int cursora_prec, cursora_dl, cursorb_prec, cursorb_dl;
+	int plane_prec_mult, cursor_prec_mult; /* Precision multiplier is
+							either 16 or 32 */
+
+	/* For plane A, Cursor A */
+	if (vlv_compute_drain_latency(dev, 0, &plane_prec_mult, &planea_dl,
+				      &cursor_prec_mult, &cursora_dl)) {
+		cursora_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_16;
+		planea_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_16;
+
+		I915_WRITE(VLV_DDL1, cursora_prec |
+				(cursora_dl << DDL_CURSORA_SHIFT) |
+				planea_prec | planea_dl);
+	}
+
+	/* For plane B, Cursor B */
+	if (vlv_compute_drain_latency(dev, 1, &plane_prec_mult, &planeb_dl,
+				      &cursor_prec_mult, &cursorb_dl)) {
+		cursorb_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_16;
+		planeb_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_16;
+
+		I915_WRITE(VLV_DDL2, cursorb_prec |
+				(cursorb_dl << DDL_CURSORB_SHIFT) |
+				planeb_prec | planeb_dl);
+	}
+}
+
 #define single_plane_enabled(mask) is_power_of_2(mask)
 
 static void valleyview_update_wm(struct drm_device *dev)
@@ -4244,6 +4319,8 @@ static void valleyview_update_wm(struct drm_device *dev)
 	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
 	int plane_sr, cursor_sr;
 	unsigned int enabled = 0;
+
+	vlv_update_drain_latency(dev);
 
 	if (g4x_compute_wm0(dev, 0,
 			    &valleyview_wm_info, latency_ns,
