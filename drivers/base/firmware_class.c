@@ -81,6 +81,11 @@ enum {
 
 static int loading_timeout = 60;	/* In seconds */
 
+static inline long firmware_loading_timeout(void)
+{
+	return loading_timeout > 0 ? loading_timeout * HZ : MAX_SCHEDULE_TIMEOUT;
+}
+
 /* fw_lock could be moved to 'struct firmware_priv' but since it is just
  * guarding for corner cases a global lock should be OK */
 static DEFINE_MUTEX(fw_lock);
@@ -541,31 +546,22 @@ static void _request_firmware_cleanup(const struct firmware **firmware_p)
 
 static int _request_firmware(const struct firmware *firmware,
 			     const char *name, struct device *device,
-			     bool uevent, bool nowait)
+			     bool uevent, bool nowait, long timeout)
 {
 	struct firmware_priv *fw_priv;
-	int retval;
-
-	retval = usermodehelper_read_trylock();
-	if (WARN_ON(retval)) {
-		dev_err(device, "firmware: %s will not be loaded\n", name);
-		return retval;
-	}
+	int retval = 0;
 
 	if (uevent)
 		dev_dbg(device, "firmware: requesting %s\n", name);
 
 	fw_priv = fw_create_instance(firmware, name, device, uevent, nowait);
-	if (IS_ERR(fw_priv)) {
-		retval = PTR_ERR(fw_priv);
-		goto out;
-	}
+	if (IS_ERR(fw_priv))
+		return PTR_ERR(fw_priv);
 
 	if (uevent) {
-		if (loading_timeout > 0)
+		if (timeout != MAX_SCHEDULE_TIMEOUT)
 			mod_timer(&fw_priv->timeout,
-				  round_jiffies_up(jiffies +
-						   loading_timeout * HZ));
+				  round_jiffies_up(jiffies + timeout));
 
 		kobject_uevent(&fw_priv->dev.kobj, KOBJ_ADD);
 	}
@@ -582,9 +578,6 @@ static int _request_firmware(const struct firmware *firmware,
 	mutex_unlock(&fw_lock);
 
 	fw_destroy_instance(fw_priv);
-
-out:
-	usermodehelper_read_unlock();
 	return retval;
 }
 
@@ -613,7 +606,14 @@ request_firmware(const struct firmware **firmware_p, const char *name,
 	if (ret <= 0)
 		return ret;
 
-	ret = _request_firmware(*firmware_p, name, device, true, false);
+	ret = usermodehelper_read_trylock();
+	if (WARN_ON(ret)) {
+		dev_err(device, "firmware: %s will not be loaded\n", name);
+	} else {
+		ret = _request_firmware(*firmware_p, name, device, true, false,
+					firmware_loading_timeout());
+		usermodehelper_read_unlock();
+	}
 	if (ret)
 		_request_firmware_cleanup(firmware_p);
 
@@ -648,6 +648,7 @@ static int request_firmware_work_func(void *arg)
 {
 	struct firmware_work *fw_work = arg;
 	const struct firmware *fw;
+	long timeout;
 	int ret;
 
 	if (!arg) {
@@ -659,8 +660,16 @@ static int request_firmware_work_func(void *arg)
 	if (ret <= 0)
 		goto out;
 
-	ret = _request_firmware(fw, fw_work->name, fw_work->device,
-				fw_work->uevent, true);
+	timeout = usermodehelper_read_lock_wait(firmware_loading_timeout());
+	if (timeout) {
+		ret = _request_firmware(fw, fw_work->name, fw_work->device,
+					fw_work->uevent, true, timeout);
+		usermodehelper_read_unlock();
+	} else {
+		dev_dbg(fw_work->device, "firmware: %s loading timed out\n",
+			fw_work->name);
+		ret = -EAGAIN;
+	}
 	if (ret)
 		_request_firmware_cleanup(&fw);
 

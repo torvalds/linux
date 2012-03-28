@@ -334,6 +334,12 @@ static atomic_t running_helpers = ATOMIC_INIT(0);
 static DECLARE_WAIT_QUEUE_HEAD(running_helpers_waitq);
 
 /*
+ * Used by usermodehelper_read_lock_wait() to wait for usermodehelper_disabled
+ * to become 'false'.
+ */
+static DECLARE_WAIT_QUEUE_HEAD(usermodehelper_disabled_waitq);
+
+/*
  * Time to wait for running_helpers to become zero before the setting of
  * usermodehelper_disabled in usermodehelper_disable() fails
  */
@@ -352,11 +358,49 @@ int usermodehelper_read_trylock(void)
 }
 EXPORT_SYMBOL_GPL(usermodehelper_read_trylock);
 
+long usermodehelper_read_lock_wait(long timeout)
+{
+	DEFINE_WAIT(wait);
+
+	if (timeout < 0)
+		return -EINVAL;
+
+	down_read(&umhelper_sem);
+	for (;;) {
+		prepare_to_wait(&usermodehelper_disabled_waitq, &wait,
+				TASK_UNINTERRUPTIBLE);
+		if (!usermodehelper_disabled)
+			break;
+
+		up_read(&umhelper_sem);
+
+		timeout = schedule_timeout(timeout);
+		if (!timeout)
+			break;
+
+		down_read(&umhelper_sem);
+	}
+	finish_wait(&usermodehelper_disabled_waitq, &wait);
+	return timeout;
+}
+EXPORT_SYMBOL_GPL(usermodehelper_read_lock_wait);
+
 void usermodehelper_read_unlock(void)
 {
 	up_read(&umhelper_sem);
 }
 EXPORT_SYMBOL_GPL(usermodehelper_read_unlock);
+
+/**
+ * usermodehelper_enable - allow new helpers to be started again
+ */
+void usermodehelper_enable(void)
+{
+	down_write(&umhelper_sem);
+	usermodehelper_disabled = 0;
+	wake_up(&usermodehelper_disabled_waitq);
+	up_write(&umhelper_sem);
+}
 
 /**
  * usermodehelper_disable - prevent new helpers from being started
@@ -381,20 +425,8 @@ int usermodehelper_disable(void)
 	if (retval)
 		return 0;
 
-	down_write(&umhelper_sem);
-	usermodehelper_disabled = 0;
-	up_write(&umhelper_sem);
+	usermodehelper_enable();
 	return -EAGAIN;
-}
-
-/**
- * usermodehelper_enable - allow new helpers to be started again
- */
-void usermodehelper_enable(void)
-{
-	down_write(&umhelper_sem);
-	usermodehelper_disabled = 0;
-	up_write(&umhelper_sem);
 }
 
 static void helper_lock(void)
