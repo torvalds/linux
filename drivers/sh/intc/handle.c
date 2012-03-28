@@ -172,9 +172,8 @@ intc_get_prio_handle(struct intc_desc *desc, struct intc_desc_int *d,
 	return 0;
 }
 
-static unsigned int __init intc_ack_data(struct intc_desc *desc,
-					  struct intc_desc_int *d,
-					  intc_enum enum_id)
+static unsigned int intc_ack_data(struct intc_desc *desc,
+				  struct intc_desc_int *d, intc_enum enum_id)
 {
 	struct intc_mask_reg *mr = desc->hw.ack_regs;
 	unsigned int i, j, fn, mode;
