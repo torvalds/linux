@@ -746,6 +746,12 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 		}
 		ssi_private->dma_params_tx.dma = dma_events[0];
 		ssi_private->dma_params_rx.dma = dma_events[1];
+
+		ssi_private->dma_params_tx.shared_peripheral =
+				of_device_is_compatible(of_get_parent(np),
+							"fsl,spba-bus");
+		ssi_private->dma_params_rx.shared_peripheral =
+				ssi_private->dma_params_tx.shared_peripheral;
 	}
 
 	/* Initialize the the device_attribute structure */

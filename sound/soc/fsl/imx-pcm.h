@@ -22,6 +22,7 @@ struct imx_pcm_dma_params {
 	int dma;
 	unsigned long dma_addr;
 	int burstsize;
+	bool shared_peripheral;	/* The peripheral is on SPBA bus */
 };
 
 int snd_imx_pcm_mmap(struct snd_pcm_substream *substream,
