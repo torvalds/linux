@@ -2,6 +2,7 @@
 #define __ARCH_H8300_ATOMIC__
 
 #include <linux/types.h>
+#include <asm/cmpxchg.h>
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for
@@ -13,7 +14,6 @@
 #define atomic_read(v)		(*(volatile int *)&(v)->counter)
 #define atomic_set(v, i)	(((v)->counter) = i)
 
-#include <asm/system.h>
 #include <linux/kernel.h>
 
 static __inline__ int atomic_add_return(int i, atomic_t *v)
@@ -101,8 +101,6 @@ static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 	local_irq_restore(flags);
 	return ret;
 }
-
-#define atomic_xchg(v, new) (xchg(&((v)->counter), new))
 
 static inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
