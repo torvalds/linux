@@ -1,8 +1,6 @@
-#ifndef ___ASM_SPARC_SYSTEM_H
-#define ___ASM_SPARC_SYSTEM_H
-#if defined(__sparc__) && defined(__arch64__)
-#include <asm/system_64.h>
-#else
-#include <asm/system_32.h>
-#endif
-#endif
+/* FILE TO BE DELETED. DO NOT ADD STUFF HERE! */
+#include <asm/barrier.h>
+#include <asm/cpu_type.h>
+#include <asm/cmpxchg.h>
+#include <asm/exec.h>
+#include <asm/switch_to.h>
