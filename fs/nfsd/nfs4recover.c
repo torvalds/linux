@@ -602,8 +602,7 @@ cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 
 	/* couldn't find upcall? */
 	if (!cup) {
-		dprintk("%s: couldn't find upcall -- xid=%u\n", __func__,
-			cup->cu_msg.cm_xid);
+		dprintk("%s: couldn't find upcall -- xid=%u\n", __func__, xid);
 		return -EINVAL;
 	}
 
