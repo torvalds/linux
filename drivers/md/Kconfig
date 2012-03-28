@@ -359,8 +359,8 @@ config DM_DELAY
 	If unsure, say N.
 
 config DM_UEVENT
-	bool "DM uevents (EXPERIMENTAL)"
-	depends on BLK_DEV_DM && EXPERIMENTAL
+	bool "DM uevents"
+	depends on BLK_DEV_DM
 	---help---
 	Generate udev events for DM events.
 
