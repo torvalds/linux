@@ -42,6 +42,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
+#include <linux/irq.h>
 #include <linux/io.h>
 
 #include <asm/dma.h>
@@ -53,10 +54,6 @@
 #include <asm/tlbflush.h>
 
 #include "ecard.h"
-
-#ifndef CONFIG_ARCH_RPC
-#define HAVE_EXPMASK
-#endif
 
 struct ecard_request {
 	void		(*fn)(struct ecard_request *);
@@ -77,9 +74,6 @@ struct expcard_blacklist {
 static ecard_t *cards;
 static ecard_t *slot_to_expcard[MAX_ECARDS];
 static unsigned int ectcr;
-#ifdef HAS_EXPMASK
-static unsigned int have_expmask;
-#endif
 
 /* List of descriptions of cards which don't have an extended
  * identification, or chunk directories containing a description.
@@ -391,22 +385,10 @@ int ecard_readchunk(struct in_chunk_dir *cd, ecard_t *ec, int id, int num)
 
 static void ecard_def_irq_enable(ecard_t *ec, int irqnr)
 {
-#ifdef HAS_EXPMASK
-	if (irqnr < 4 && have_expmask) {
-		have_expmask |= 1 << irqnr;
-		__raw_writeb(have_expmask, EXPMASK_ENABLE);
-	}
-#endif
 }
 
 static void ecard_def_irq_disable(ecard_t *ec, int irqnr)
 {
-#ifdef HAS_EXPMASK
-	if (irqnr < 4 && have_expmask) {
-		have_expmask &= ~(1 << irqnr);
-		__raw_writeb(have_expmask, EXPMASK_ENABLE);
-	}
-#endif
 }
 
 static int ecard_def_irq_pending(ecard_t *ec)
@@ -446,7 +428,7 @@ static expansioncard_ops_t ecard_default_ops = {
  */
 static void ecard_irq_unmask(struct irq_data *d)
 {
-	ecard_t *ec = slot_to_ecard(d->irq - 32);
+	ecard_t *ec = irq_data_get_irq_chip_data(d);
 
 	if (ec) {
 		if (!ec->ops)
@@ -462,7 +444,7 @@ static void ecard_irq_unmask(struct irq_data *d)
 
 static void ecard_irq_mask(struct irq_data *d)
 {
-	ecard_t *ec = slot_to_ecard(d->irq - 32);
+	ecard_t *ec = irq_data_get_irq_chip_data(d);
 
 	if (ec) {
 		if (!ec->ops)
@@ -579,7 +561,7 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 	for (ec = cards; ec; ec = ec->next) {
 		int pending;
 
-		if (!ec->claimed || ec->irq == NO_IRQ || ec->slot_no == 8)
+		if (!ec->claimed || !ec->irq || ec->slot_no == 8)
 			continue;
 
 		if (ec->ops && ec->ops->irqpending)
@@ -597,83 +579,6 @@ ecard_irq_handler(unsigned int irq, struct irq_desc *desc)
 	if (called == 0)
 		ecard_check_lockup(desc);
 }
-
-#ifdef HAS_EXPMASK
-static unsigned char priority_masks[] =
-{
-	0xf0, 0xf1, 0xf3, 0xf7, 0xff, 0xff, 0xff, 0xff
-};
-
-static unsigned char first_set[] =
-{
-	0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00,
-	0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x01, 0x00
-};
-
-static void
-ecard_irqexp_handler(unsigned int irq, struct irq_desc *desc)
-{
-	const unsigned int statusmask = 15;
-	unsigned int status;
-
-	status = __raw_readb(EXPMASK_STATUS) & statusmask;
-	if (status) {
-		unsigned int slot = first_set[status];
-		ecard_t *ec = slot_to_ecard(slot);
-
-		if (ec->claimed) {
-			/*
-			 * this ugly code is so that we can operate a
-			 * prioritorising system:
-			 *
-			 * Card 0 	highest priority
-			 * Card 1
-			 * Card 2
-			 * Card 3	lowest priority
-			 *
-			 * Serial cards should go in 0/1, ethernet/scsi in 2/3
-			 * otherwise you will lose serial data at high speeds!
-			 */
-			generic_handle_irq(ec->irq);
-		} else {
-			printk(KERN_WARNING "card%d: interrupt from unclaimed "
-			       "card???\n", slot);
-			have_expmask &= ~(1 << slot);
-			__raw_writeb(have_expmask, EXPMASK_ENABLE);
-		}
-	} else
-		printk(KERN_WARNING "Wild interrupt from backplane (masks)\n");
-}
-
-static int __init ecard_probeirqhw(void)
-{
-	ecard_t *ec;
-	int found;
-
-	__raw_writeb(0x00, EXPMASK_ENABLE);
-	__raw_writeb(0xff, EXPMASK_STATUS);
-	found = (__raw_readb(EXPMASK_STATUS) & 15) == 0;
-	__raw_writeb(0xff, EXPMASK_ENABLE);
-
-	if (found) {
-		printk(KERN_DEBUG "Expansion card interrupt "
-		       "management hardware found\n");
-
-		/* for each card present, set a bit to '1' */
-		have_expmask = 0x80000000;
-
-		for (ec = cards; ec; ec = ec->next)
-			have_expmask |= 1 << ec->slot_no;
-
-		__raw_writeb(have_expmask, EXPMASK_ENABLE);
-	}
-
-	return found;
-}
-#else
-#define ecard_irqexp_handler NULL
-#define ecard_probeirqhw() (0)
-#endif
 
 static void __iomem *__ecard_address(ecard_t *ec, card_type_t type, card_speed_t speed)
 {
@@ -806,8 +711,8 @@ static struct expansion_card *__init ecard_alloc_card(int type, int slot)
 
 	ec->slot_no = slot;
 	ec->easi = type == ECARD_EASI;
-	ec->irq = NO_IRQ;
-	ec->fiq = NO_IRQ;
+	ec->irq = 0;
+	ec->fiq = 0;
 	ec->dma = NO_DMA;
 	ec->ops = &ecard_default_ops;
 
@@ -978,8 +883,7 @@ EXPORT_SYMBOL(ecardm_iomap);
  * If bit 1 of the first byte of the card is set, then the
  * card does not exist.
  */
-static int __init
-ecard_probe(int slot, card_type_t type)
+static int __init ecard_probe(int slot, unsigned irq, card_type_t type)
 {
 	ecard_t **ecp;
 	ecard_t *ec;
@@ -1033,18 +937,18 @@ ecard_probe(int slot, card_type_t type)
 			break;
 		}
 
+	ec->irq = irq;
+
 	/*
 	 * hook the interrupt handlers
 	 */
 	if (slot < 8) {
-		ec->irq = 32 + slot;
 		irq_set_chip_and_handler(ec->irq, &ecard_chip,
 					 handle_level_irq);
+		irq_set_chip_data(ec->irq, ec);
 		set_irq_flags(ec->irq, IRQF_VALID);
 	}
 
-	if (slot == 8)
-		ec->irq = 11;
 #ifdef CONFIG_ARCH_RPC
 	/* On RiscPC, only first two slots have DMA capability */
 	if (slot < 2)
@@ -1074,28 +978,30 @@ ecard_probe(int slot, card_type_t type)
 static int __init ecard_init(void)
 {
 	struct task_struct *task;
-	int slot, irqhw;
+	int slot, irqbase;
+
+	irqbase = irq_alloc_descs(-1, 0, 8, -1);
+	if (irqbase < 0)
+		return irqbase;
 
 	task = kthread_run(ecard_task, NULL, "kecardd");
 	if (IS_ERR(task)) {
 		printk(KERN_ERR "Ecard: unable to create kernel thread: %ld\n",
 		       PTR_ERR(task));
+		irq_free_descs(irqbase, 8);
 		return PTR_ERR(task);
 	}
 
 	printk("Probing expansion cards\n");
 
 	for (slot = 0; slot < 8; slot ++) {
-		if (ecard_probe(slot, ECARD_EASI) == -ENODEV)
-			ecard_probe(slot, ECARD_IOC);
+		if (ecard_probe(slot, irqbase + slot, ECARD_EASI) == -ENODEV)
+			ecard_probe(slot, irqbase + slot, ECARD_IOC);
 	}
 
-	ecard_probe(8, ECARD_IOC);
+	ecard_probe(8, 11, ECARD_IOC);
 
-	irqhw = ecard_probeirqhw();
-
-	irq_set_chained_handler(IRQ_EXPANSIONCARD,
-				irqhw ? ecard_irqexp_handler : ecard_irq_handler);
+	irq_set_chained_handler(IRQ_EXPANSIONCARD, ecard_irq_handler);
 
 	ecard_proc_init();
 

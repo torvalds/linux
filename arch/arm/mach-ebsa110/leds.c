@@ -20,6 +20,8 @@
 #include <asm/system.h>
 #include <asm/mach-types.h>
 
+#include "core.h"
+
 static spinlock_t leds_lock;
 
 static void ebsa110_leds_event(led_event_t ledevt)

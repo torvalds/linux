@@ -848,8 +848,9 @@ config MCP_SA11X0
 
 # Chip drivers
 config MCP_UCB1200
-	tristate "Support for UCB1200 / UCB1300"
-	depends on MCP
+	bool "Support for UCB1200 / UCB1300"
+	depends on MCP_SA11X0
+	select MCP
 
 config MCP_UCB1200_TS
 	tristate "Touchscreen interface support"

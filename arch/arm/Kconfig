@@ -738,7 +738,6 @@ config ARCH_RPC
 	bool "RiscPC"
 	select ARCH_ACORN
 	select FIQ
-	select TIMER_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
@@ -767,6 +766,7 @@ config ARCH_SA1100
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_IDE
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for StrongARM 11x0 based boards.
 
