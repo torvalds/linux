@@ -2389,7 +2389,7 @@ out_unlock:
 static int thin_map(struct dm_target *ti, struct bio *bio,
 		    union map_info *map_context)
 {
-	bio->bi_sector -= ti->begin;
+	bio->bi_sector = dm_target_offset(ti, bio->bi_sector);
 
 	return thin_bio_map(ti, bio, map_context);
 }
