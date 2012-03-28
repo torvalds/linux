@@ -31,18 +31,24 @@ static void __hdmi_changed(struct hdmi *hdmi)
 	
 	mutex_lock(&hdmi->lock);
 	precent = hdmi->ops->hdmi_precent(hdmi);
-
-	if(precent && hdmi->mode == DISP_ON_LCD && hdmi->display_on){
+	if(precent && (hdmi->mode == DISP_ON_LCD) && hdmi->display_on){
 		if(hdmi->ops->insert(hdmi) == 0){
-			hdmi->mode = DISP_ON_HDMI;
+			hdmi->mode = hdmi->display_on;
 			kobject_uevent(&hdmi->dev->kobj, KOBJ_CHANGE);
 		}
 		else
 			hdmi_dbg(hdmi->dev, "insert error\n");
+        hdmi_set_backlight(hdmi->display_on==DISP_ON_HDMI?HDMI_DISABLE: HDMI_ENABLE);
+
 	}
-	else if((!precent || !hdmi->display_on) && hdmi->mode == DISP_ON_HDMI){
+	else if(precent &&(hdmi->mode != hdmi->display_on)&& hdmi->display_on){
+	    hdmi->mode = hdmi->display_on;
+        hdmi_set_backlight(hdmi->display_on==DISP_ON_HDMI?HDMI_DISABLE: HDMI_ENABLE); 
+	}
+	else if((!precent || !hdmi->display_on) && hdmi->mode != DISP_ON_LCD){
 		if(hdmi->ops->remove(hdmi) == 0){
 			hdmi->mode = DISP_ON_LCD;
+			hdmi_set_backlight(HDMI_ENABLE);
 			kobject_uevent(&hdmi->dev->kobj, KOBJ_CHANGE);
 		}
 		else
@@ -61,7 +67,7 @@ void hdmi_suspend(struct hdmi *hdmi)
 {
 	del_timer(&hdmi->timer);
 	flush_delayed_work(&hdmi->work);
-	if(hdmi->mode == DISP_ON_HDMI){
+	if(hdmi->mode != DISP_ON_LCD){
 		hdmi->ops->remove(hdmi);
 		hdmi->mode = DISP_ON_LCD;
 	}
@@ -93,7 +99,7 @@ static void hdmi_detect_timer(unsigned long data)
 	int precent =  hdmi->ops->hdmi_precent(hdmi);
 
 	if((precent && hdmi->mode == DISP_ON_LCD) ||
-			(!precent && hdmi->mode == DISP_ON_HDMI))
+			(!precent && hdmi->mode != DISP_ON_LCD))
 		hdmi_changed(hdmi, 100);
 	mod_timer(&hdmi->timer, jiffies + msecs_to_jiffies(200));
 }
@@ -189,7 +195,7 @@ int hdmi_get_scale(void)
 	struct hdmi* hdmi = get_hdmi_struct(0);
 	if(!hdmi)
 		return 100;
-	else if(hdmi->mode == DISP_ON_HDMI)
+	else if(hdmi->mode != DISP_ON_LCD)
 		return hdmi->scale;
 	else
 	    return 100;

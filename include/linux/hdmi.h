@@ -62,7 +62,7 @@ typedef int 		BOOL;
 #define HDMI_720x480p_60Hz_16x9	7
 
 /* HDMI default resolution */
-#define HDMI_DEFAULT_RESOLUTION HDMI_1920x1080p_50Hz
+#define HDMI_DEFAULT_RESOLUTION  HDMI_1920x1080p_50Hz
 /* I2S Fs */
 #define HDMI_I2S_Fs_44100 0
 #define HDMI_I2S_Fs_48000 2

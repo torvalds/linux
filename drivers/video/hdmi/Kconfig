@@ -14,11 +14,13 @@ config HDMI_SAVE_DATA
 	bool "enable hdmi save data"	
 	help 
 		Enable hdmi save data in rtc register
+		
+config HDMI_DUAL_DISP
+	bool "dual display support"
+	depends on RK610_HDMI
+	help
+		Support output lcd and hdmi at the same time.
 
-#config HDMI_DUAL_DISP
-#	bool "hdmi support dual display"
-#	help
-#	nothing
 #config HDMI_DEBUG
 #	bool "hdmi debug"
 endif

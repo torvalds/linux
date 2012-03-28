@@ -42,6 +42,12 @@ choice
 endchoice
 endif
 
+config SND_RK29_SOC_SPDIF
+	bool "Soc RK29 SPDIF support"
+	depends on SND_RK29_SOC
+	depends on SND_RK29_SOC_I2S
+	help
+		This supports the use of SPDIF interface on rk29 processors
 config SND_RK29_SOC_WM8988
 	tristate "SoC I2S Audio support for rockchip - WM8988"
 	depends on SND_RK29_SOC
@@ -136,8 +142,23 @@ config SND_RK29_SOC_RK1000
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK1000.	 
+config SND_RK29_SOC_HDMI
+	tristate "SoC I2S Audio support for rockchip - HDMI"
+	depends on SND_RK29_SOC && HDMI_ITV
+	select SND_RK29_SOC_I2S
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the HDMI.	 
+config SND_RK29_SOC_RK610
+	tristate "SoC I2S Audio support for rockchip - RK610"
+	depends on SND_RK29_SOC && MFD_RK610 && I2C_RK29
+	select SND_RK29_SOC_I2S
+	select SND_SOC_RK610
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the RK610(JETTA). 
 	   
-if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111
+if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111 || SND_RK29_SOC_HDMI || SND_RK29_SOC_RK610
 choice
   bool "Set i2s type"
   default SND_RK29_CODEC_SOC_SLAVE

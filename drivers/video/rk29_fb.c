@@ -50,6 +50,7 @@
 
 #include <linux/hdmi.h>
 #endif
+ 
 
 #include <mach/iomux.h>
 #include <mach/gpio.h>
@@ -61,6 +62,9 @@
 
 #include "./display/screen/screen.h"
 
+#ifdef CONFIG_MFD_RK610
+#include "./display/lcd/rk610_lcd.h"
+#endif
 #define ANDROID_USE_THREE_BUFS  0       //android use three buffers to accelerate UI display in rgb plane
 #define CURSOR_BUF_SIZE         256     //RK2818 cursor need 256B buf
 int rk29_cursor_buf[CURSOR_BUF_SIZE];
@@ -232,7 +236,18 @@ struct rk29fb_inf {
 #endif
 
 };
-
+#ifdef CONFIG_BACKLIGHT_RK29_BL
+/* drivers/video/backlight/rk29_backlight.c */
+extern void rk29_backlight_set(bool on);
+#else
+void rk29_backlight_set(bool on)
+{
+	/* please add backlight switching-related code here or on your backlight driver
+	   parameter: on=1 ==> open spk 
+	   			  on=0 ==> close spk
+	*/
+}
+#endif
 typedef enum _TRSP_MODE
 {
     TRSP_CLOSE = 0,
@@ -2922,10 +2937,13 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
 
     if(inf->cur_screen->standby)    inf->cur_screen->standby(1);
     // operate the display_on pin to power down the lcd
-   
+#ifdef CONFIG_HDMI_DUAL_DISP
+    inf->panel1_info.sscreen_get(&inf->panel1_info,inf->panel2_info.hdmi_resolution);
+    inf->panel1_info.sscreen_set(&inf->panel1_info,enable);
+#else
     if(enable && mach_info->io_disable)mach_info->io_disable();  //close lcd out
     else if (mach_info->io_enable)mach_info->io_enable();       //open lcd out
-    
+#endif
     load_screen(inf->fb0, 0);
 	mcu_refresh(inf);
 
@@ -2933,6 +2951,7 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
     fb0_set_par(inf->fb0);
     LcdMskReg(inf, DSP_CTRL1, m_BLACK_MODE,  v_BLACK_MODE(0));
     LcdWrReg(inf, REG_CFG_DONE, 0x01);
+
     rk29fb_notify(inf, enable ? RK29FB_EVENT_HDMI_ON : RK29FB_EVENT_HDMI_OFF);
     return 0;
 }
@@ -3204,6 +3223,7 @@ static int __devinit rk29fb_probe (struct platform_device *pdev)
    #else
     set_lcd_info(&inf->panel1_info, mach_info->lcd_info);
    #endif
+
     inf->cur_screen = &inf->panel1_info;
     screen = inf->cur_screen;
     if(SCREEN_NULL==screen->type)
@@ -3486,7 +3506,9 @@ static int __devinit rk29fb_probe (struct platform_device *pdev)
             goto release_irq;
         }
     }
-
+ #ifdef CONFIG_MFD_RK610
+    rk610_lcd_scaler_set_param(&inf->panel1_info,0);
+ #endif
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
     fb0_set_par(inf->fb0);
     if (fb_prepare_logo(inf->fb0, FB_ROTATE_UR)) {

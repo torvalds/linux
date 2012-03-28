@@ -626,8 +626,8 @@ static const struct codec_pll_set codec_pll[] = {
 	//        rate parent band NR  NF NO
 	CODEC_PLL(108000, 24,  LOW, 1, 18, 4),	// for TV
 	CODEC_PLL(648000, 24, HIGH, 1, 27, 1),
-	CODEC_PLL(148500, 27,  LOW, 1, 22, 4),	// for HDMI
-	CODEC_PLL(297000, 27,  LOW, 1, 22, 2),
+	CODEC_PLL(148500, 27,  LOW, 2, 88, 8),	//change for jetta hdmi dclk jitter  20120322// for HDMI
+	CODEC_PLL(297000, 27,  LOW, 2, 88, 4),  //change for jetta hdmi dclk jitter  20120322// for HDMI
 	CODEC_PLL(445500, 27,  LOW, 2, 33, 1),
 	CODEC_PLL(594000, 27, HIGH, 1, 22, 1),
 	CODEC_PLL(891000, 27, HIGH, 1, 33, 1),

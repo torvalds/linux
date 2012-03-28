@@ -4,4 +4,9 @@ config ANX7150
 	bool "anx7150"
 config ANX9030
 	bool "anx9030"
+config RK610_HDMI
+	bool "RK610(Jetta) hdmi support"
+	depends on MFD_RK610
+	help
+		Support Jetta(RK610) to hdmi.
 endchoice

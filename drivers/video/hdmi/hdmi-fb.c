@@ -55,10 +55,10 @@
 #define H_BP3			60
 #define H_VD3			720
 #define H_FP3			16
-#define V_PW3			5
-#define V_BP3			35
+#define V_PW3			6
+#define V_BP3			30
 #define V_VD3			480
-#define V_FP3			5
+#define V_FP3			9
 
 /* 1080p@50Hz Timing */
 #define OUT_CLK5		148500000
@@ -67,9 +67,9 @@
 #define H_VD4			1920
 #define H_FP4			528
 #define V_PW4			5
-#define V_BP4			35
+#define V_BP4			36
 #define V_VD4			1080
-#define V_FP4			5
+#define V_FP4			4
 
 /* 1080p@60Hz Timing */
 #define OUT_CLK4		148500000
@@ -78,9 +78,9 @@
 #define H_VD5			1920
 #define H_FP5			88
 #define V_PW5			5
-#define V_BP5			35
+#define V_BP5			36
 #define V_VD5			1080
-#define V_FP5			5
+#define V_FP5			4
 
 
 extern int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable );
@@ -98,6 +98,7 @@ static int anx7150_standby(u8 enable)
 
 struct rk29fb_screen hdmi_info[] = {
 	{
+	    .hdmi_resolution = HDMI_1280x720p_50Hz,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD0,
@@ -123,6 +124,7 @@ struct rk29fb_screen hdmi_info[] = {
 		.standby = anx7150_standby,	
 	},		//HDMI_1280x720p_50Hz
 	{
+	    .hdmi_resolution = HDMI_1280x720p_60Hz,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD1,
@@ -148,6 +150,7 @@ struct rk29fb_screen hdmi_info[] = {
 		.standby = anx7150_standby,	
 	},		//HDMI_1280x720p_60Hz	
 	{
+	    .hdmi_resolution = HDMI_720x576p_50Hz_4x3,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD2,
@@ -173,6 +176,7 @@ struct rk29fb_screen hdmi_info[] = {
 		.standby = anx7150_standby,	
 	},		//HDMI_720x576p_50Hz_4x3
 	{
+	    .hdmi_resolution = HDMI_720x576p_50Hz_16x9,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD2,
@@ -198,6 +202,7 @@ struct rk29fb_screen hdmi_info[] = {
 		.standby = anx7150_standby,	
 	},		//HDMI_720x576p_50Hz_16x9
 	{
+	    .hdmi_resolution = HDMI_720x480p_60Hz_4x3,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD3,
@@ -223,6 +228,7 @@ struct rk29fb_screen hdmi_info[] = {
 		.standby = anx7150_standby,	
 	},		//HDMI_720x480p_60Hz_4x3
 	{
+	    .hdmi_resolution = HDMI_720x480p_60Hz_16x9,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD3,
@@ -248,6 +254,7 @@ struct rk29fb_screen hdmi_info[] = {
 		.standby = anx7150_standby,	
 	},		//HDMI_720x480p_60Hz_16x9
 	{
+	    .hdmi_resolution = HDMI_1920x1080p_50Hz,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD4,
@@ -260,8 +267,8 @@ struct rk29fb_screen hdmi_info[] = {
 		.upper_margin = V_BP4,
 		.lower_margin = V_FP4,
 		.vsync_len = V_PW4,
-		.pin_hsync = 0,
-		.pin_vsync = 0,
+		.pin_hsync = 1,
+		.pin_vsync = 1,
 		.pin_den = 0,
 		.pin_dclk = DCLK_POL,
 		.swap_rb = SWAP_RB,
@@ -273,6 +280,7 @@ struct rk29fb_screen hdmi_info[] = {
 		.standby = anx7150_standby,	
 	},		//HDMI_1920x1080p_50Hz
 	{
+	    .hdmi_resolution = HDMI_1920x1080p_60Hz,
 		.type = OUT_TYPE,
 		.face = OUT_FACE,
 		.x_res = H_VD5,
@@ -285,8 +293,8 @@ struct rk29fb_screen hdmi_info[] = {
 		.upper_margin = V_BP5,
 		.lower_margin = V_FP5,
 		.vsync_len = V_PW5,
-		.pin_hsync = 0,
-		.pin_vsync = 0,
+		.pin_hsync = 1,
+		.pin_vsync = 1,
 		.pin_den = 0,
 		.pin_dclk = DCLK_POL,
 		.swap_rb = SWAP_RB,

@@ -22,6 +22,8 @@ obj-$(CONFIG_LCD_CPTCLAA038LA31XE) += lcd_CPTclaa038la31xe.o
 
 obj-$(CONFIG_LCD_HX8357) += lcd_hx8357.o
 obj-$(CONFIG_LCD_HSD100PXN) += lcd_hsd100pxn.o
+obj-$(CONFIG_LCD_HDMI_1024x768) += lcd_hdmi_1024x768.o
+obj-$(CONFIG_LCD_HDMI_800x480) += lcd_hdmi_800x480.o
 obj-$(CONFIG_LCD_HSD07PFW1) += lcd_hsd07pfw1.o
 obj-$(CONFIG_LCD_B101AW06) += lcd_B101AW06.o
 obj-$(CONFIG_LCD_NT35510) += lcd_nt35510.o

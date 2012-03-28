@@ -1705,6 +1705,35 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
     	.platform_data = &bu92747guw_pdata,
     },
 #endif
+#ifdef CONFIG_MFD_RK610
+		{
+			.type			= "rk610_ctl",
+			.addr			= 0x40,
+			.flags			= 0,
+		},
+#endif
+#ifdef CONFIG_RK610_TVOUT
+		{
+			.type			= "rk610_tvout",
+			.addr			= 0x42,
+			.flags			= 0,
+		},
+#endif
+#ifdef CONFIG_RK610_HDMI
+		{
+			.type			= "rk610_hdmi",
+			.addr			= 0x46,
+			.flags			= 0,
+			.irq			= RK29_PIN1_PD7,
+		},
+#endif
+#ifdef CONFIG_SND_SOC_RK610
+		{
+			.type			= "rk610_i2c_codec",
+			.addr			= 0x60,
+			.flags			= 0,
+		},
+#endif
 
 };
 #endif

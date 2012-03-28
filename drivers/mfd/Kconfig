@@ -742,6 +742,13 @@ config MFD_TPS65910
 config TPS65911_COMPARATOR
 	tristate
 
+config MFD_RK610
+	bool "RK610(Jetta) Multimedia support"
+	depends on I2C=y && GPIOLIB
+	select MFD_CORE
+	help
+	  if you say yes here you get support for the RK610, with func as
+	  HDMI LCD LVDS TVOUT CODEC.
 endif # MFD_SUPPORT
 
 menu "Multimedia Capabilities Port drivers"
