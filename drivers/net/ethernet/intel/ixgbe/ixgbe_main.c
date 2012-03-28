@@ -4967,9 +4967,6 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 	if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
 		u64 rsc_count = 0;
 		u64 rsc_flush = 0;
-		for (i = 0; i < 16; i++)
-			adapter->hw_rx_no_dma_resources +=
-				IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			rsc_count += adapter->rx_ring[i]->rx_stats.rsc_count;
 			rsc_flush += adapter->rx_ring[i]->rx_stats.rsc_flush;
@@ -5072,6 +5069,9 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 		hwstats->b2ospc += IXGBE_READ_REG(hw, IXGBE_B2OSPC);
 		hwstats->b2ogprc += IXGBE_READ_REG(hw, IXGBE_B2OGPRC);
 	case ixgbe_mac_82599EB:
+		for (i = 0; i < 16; i++)
+			adapter->hw_rx_no_dma_resources +=
+					     IXGBE_READ_REG(hw, IXGBE_QPRDC(i));
 		hwstats->gorc += IXGBE_READ_REG(hw, IXGBE_GORCL);
 		IXGBE_READ_REG(hw, IXGBE_GORCH); /* to clear */
 		hwstats->gotc += IXGBE_READ_REG(hw, IXGBE_GOTCL);
