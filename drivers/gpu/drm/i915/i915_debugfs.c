@@ -468,7 +468,45 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	if (ret)
 		return ret;
 
-	if (!HAS_PCH_SPLIT(dev)) {
+	if (IS_VALLEYVIEW(dev)) {
+		seq_printf(m, "Display IER:\t%08x\n",
+			   I915_READ(VLV_IER));
+		seq_printf(m, "Display IIR:\t%08x\n",
+			   I915_READ(VLV_IIR));
+		seq_printf(m, "Display IIR_RW:\t%08x\n",
+			   I915_READ(VLV_IIR_RW));
+		seq_printf(m, "Display IMR:\t%08x\n",
+			   I915_READ(VLV_IMR));
+		for_each_pipe(pipe)
+			seq_printf(m, "Pipe %c stat:\t%08x\n",
+				   pipe_name(pipe),
+				   I915_READ(PIPESTAT(pipe)));
+
+		seq_printf(m, "Master IER:\t%08x\n",
+			   I915_READ(VLV_MASTER_IER));
+
+		seq_printf(m, "Render IER:\t%08x\n",
+			   I915_READ(GTIER));
+		seq_printf(m, "Render IIR:\t%08x\n",
+			   I915_READ(GTIIR));
+		seq_printf(m, "Render IMR:\t%08x\n",
+			   I915_READ(GTIMR));
+
+		seq_printf(m, "PM IER:\t\t%08x\n",
+			   I915_READ(GEN6_PMIER));
+		seq_printf(m, "PM IIR:\t\t%08x\n",
+			   I915_READ(GEN6_PMIIR));
+		seq_printf(m, "PM IMR:\t\t%08x\n",
+			   I915_READ(GEN6_PMIMR));
+
+		seq_printf(m, "Port hotplug:\t%08x\n",
+			   I915_READ(PORT_HOTPLUG_EN));
+		seq_printf(m, "DPFLIPSTAT:\t%08x\n",
+			   I915_READ(VLV_DPFLIPSTAT));
+		seq_printf(m, "DPINVGTT:\t%08x\n",
+			   I915_READ(DPINVGTT));
+
+	} else if (!HAS_PCH_SPLIT(dev)) {
 		seq_printf(m, "Interrupt enable:    %08x\n",
 			   I915_READ(IER));
 		seq_printf(m, "Interrupt identity:  %08x\n",

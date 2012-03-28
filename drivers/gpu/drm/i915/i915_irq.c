@@ -120,6 +120,10 @@ void intel_enable_asle(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	unsigned long irqflags;
 
+	/* FIXME: opregion/asle for VLV */
+	if (IS_VALLEYVIEW(dev))
+		return;
+
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 
 	if (HAS_PCH_SPLIT(dev))
@@ -424,6 +428,119 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	 * by holding struct_mutex for the duration of the write.
 	 */
 	mutex_unlock(&dev_priv->dev->struct_mutex);
+}
+
+static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
+{
+	struct drm_device *dev = (struct drm_device *) arg;
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 iir, gt_iir, pm_iir;
+	irqreturn_t ret = IRQ_NONE;
+	unsigned long irqflags;
+	int pipe;
+	u32 pipe_stats[I915_MAX_PIPES];
+	u32 vblank_status;
+	int vblank = 0;
+	bool blc_event;
+
+	atomic_inc(&dev_priv->irq_received);
+
+	vblank_status = PIPE_START_VBLANK_INTERRUPT_STATUS |
+		PIPE_VBLANK_INTERRUPT_STATUS;
+
+	while (true) {
+		iir = I915_READ(VLV_IIR);
+		gt_iir = I915_READ(GTIIR);
+		pm_iir = I915_READ(GEN6_PMIIR);
+
+		if (gt_iir == 0 && pm_iir == 0 && iir == 0)
+			goto out;
+
+		ret = IRQ_HANDLED;
+
+		if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
+			notify_ring(dev, &dev_priv->ring[RCS]);
+		if (gt_iir & GT_GEN6_BSD_USER_INTERRUPT)
+			notify_ring(dev, &dev_priv->ring[VCS]);
+		if (gt_iir & GT_BLT_USER_INTERRUPT)
+			notify_ring(dev, &dev_priv->ring[BCS]);
+
+		if (gt_iir & (GT_GEN6_BLT_CS_ERROR_INTERRUPT |
+			      GT_GEN6_BSD_CS_ERROR_INTERRUPT |
+			      GT_RENDER_CS_ERROR_INTERRUPT)) {
+			DRM_ERROR("GT error interrupt 0x%08x\n", gt_iir);
+			i915_handle_error(dev, false);
+		}
+
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		for_each_pipe(pipe) {
+			int reg = PIPESTAT(pipe);
+			pipe_stats[pipe] = I915_READ(reg);
+
+			/*
+			 * Clear the PIPE*STAT regs before the IIR
+			 */
+			if (pipe_stats[pipe] & 0x8000ffff) {
+				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
+					DRM_DEBUG_DRIVER("pipe %c underrun\n",
+							 pipe_name(pipe));
+				I915_WRITE(reg, pipe_stats[pipe]);
+			}
+		}
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+		/* Consume port.  Then clear IIR or we'll miss events */
+		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
+			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
+
+			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
+					 hotplug_status);
+			if (hotplug_status & dev_priv->hotplug_supported_mask)
+				queue_work(dev_priv->wq,
+					   &dev_priv->hotplug_work);
+
+			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
+			I915_READ(PORT_HOTPLUG_STAT);
+		}
+
+
+		if (iir & I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT) {
+			drm_handle_vblank(dev, 0);
+			vblank++;
+			if (!dev_priv->flip_pending_is_done) {
+				intel_finish_page_flip(dev, 0);
+			}
+		}
+
+		if (iir & I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT) {
+			drm_handle_vblank(dev, 1);
+			vblank++;
+			if (!dev_priv->flip_pending_is_done) {
+				intel_finish_page_flip(dev, 0);
+			}
+		}
+
+		if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
+			blc_event = true;
+
+		if (pm_iir & GEN6_PM_DEFERRED_EVENTS) {
+			unsigned long flags;
+			spin_lock_irqsave(&dev_priv->rps_lock, flags);
+			WARN(dev_priv->pm_iir & pm_iir, "Missed a PM interrupt\n");
+			dev_priv->pm_iir |= pm_iir;
+			I915_WRITE(GEN6_PMIMR, dev_priv->pm_iir);
+			POSTING_READ(GEN6_PMIMR);
+			spin_unlock_irqrestore(&dev_priv->rps_lock, flags);
+			queue_work(dev_priv->wq, &dev_priv->rps_work);
+		}
+
+		I915_WRITE(GTIIR, gt_iir);
+		I915_WRITE(GEN6_PMIIR, pm_iir);
+		I915_WRITE(VLV_IIR, iir);
+	}
+
+out:
+	return ret;
 }
 
 static void pch_irq_handler(struct drm_device *dev)
@@ -1567,6 +1684,32 @@ static int ivybridge_enable_vblank(struct drm_device *dev, int pipe)
 	return 0;
 }
 
+static int valleyview_enable_vblank(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
+	u32 dpfl, imr;
+
+	if (!i915_pipe_enabled(dev, pipe))
+		return -EINVAL;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	dpfl = I915_READ(VLV_DPFLIPSTAT);
+	imr = I915_READ(VLV_IMR);
+	if (pipe == 0) {
+		dpfl |= PIPEA_VBLANK_INT_EN;
+		imr &= ~I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT;
+	} else {
+		dpfl |= PIPEA_VBLANK_INT_EN;
+		imr &= ~I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+	}
+	I915_WRITE(VLV_DPFLIPSTAT, dpfl);
+	I915_WRITE(VLV_IMR, imr);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+	return 0;
+}
+
 /* Called from drm generic code, passed 'crtc' which
  * we use as a pipe index
  */
@@ -1607,6 +1750,28 @@ static void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
 				     DE_PIPEA_VBLANK_IVB : DE_PIPEB_VBLANK_IVB);
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
+
+static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	unsigned long irqflags;
+	u32 dpfl, imr;
+
+	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+	dpfl = I915_READ(VLV_DPFLIPSTAT);
+	imr = I915_READ(VLV_IMR);
+	if (pipe == 0) {
+		dpfl &= ~PIPEA_VBLANK_INT_EN;
+		imr |= I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT;
+	} else {
+		dpfl &= ~PIPEB_VBLANK_INT_EN;
+		imr |= I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+	}
+	I915_WRITE(VLV_IMR, imr);
+	I915_WRITE(VLV_DPFLIPSTAT, dpfl);
+	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+}
+
 
 /* Set the vblank monitor pipe
  */
@@ -1817,6 +1982,53 @@ static void ironlake_irq_preinstall(struct drm_device *dev)
 	POSTING_READ(SDEIER);
 }
 
+static void valleyview_irq_preinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int pipe;
+
+	atomic_set(&dev_priv->irq_received, 0);
+
+	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
+	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
+
+	/* VLV magic */
+	I915_WRITE(VLV_IMR, 0);
+	I915_WRITE(RING_IMR(RENDER_RING_BASE), 0);
+	I915_WRITE(RING_IMR(GEN6_BSD_RING_BASE), 0);
+	I915_WRITE(RING_IMR(BLT_RING_BASE), 0);
+
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		/* Workaround stalls observed on Sandy Bridge GPUs by
+		 * making the blitter command streamer generate a
+		 * write to the Hardware Status Page for
+		 * MI_USER_INTERRUPT.  This appears to serialize the
+		 * previous seqno write out before the interrupt
+		 * happens.
+		 */
+		I915_WRITE(GEN6_BLITTER_HWSTAM, ~GEN6_BLITTER_USER_INTERRUPT);
+		I915_WRITE(GEN6_BSD_HWSTAM, ~GEN6_BSD_USER_INTERRUPT);
+	}
+
+	/* and GT */
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	I915_WRITE(GTIMR, 0xffffffff);
+	I915_WRITE(GTIER, 0x0);
+	POSTING_READ(GTIER);
+
+	I915_WRITE(DPINVGTT, 0xff);
+
+	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
+	for_each_pipe(pipe)
+		I915_WRITE(PIPESTAT(pipe), 0xffff);
+	I915_WRITE(VLV_IIR, 0xffffffff);
+	I915_WRITE(VLV_IMR, 0xffffffff);
+	I915_WRITE(VLV_IER, 0x0);
+	POSTING_READ(VLV_IER);
+}
+
 /*
  * Enable digital hotplug on the PCH, and configure the DP short pulse
  * duration to 2ms (which is the minimum in the Display Port spec)
@@ -1963,6 +2175,96 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
+static int valleyview_irq_postinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 render_irqs;
+	u32 enable_mask;
+	u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+	u16 msid;
+
+	enable_mask = I915_DISPLAY_PORT_INTERRUPT;
+	enable_mask |= I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT |
+		I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
+
+	dev_priv->irq_mask = ~enable_mask;
+
+
+	DRM_INIT_WAITQUEUE(&dev_priv->ring[RCS].irq_queue);
+	DRM_INIT_WAITQUEUE(&dev_priv->ring[VCS].irq_queue);
+	DRM_INIT_WAITQUEUE(&dev_priv->ring[BCS].irq_queue);
+
+	dev_priv->pipestat[0] = 0;
+	dev_priv->pipestat[1] = 0;
+
+	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
+
+	/* Hack for broken MSIs on VLV */
+	pci_write_config_dword(dev_priv->dev->pdev, 0x94, 0xfee00000);
+	pci_read_config_word(dev->pdev, 0x98, &msid);
+	msid &= 0xff; /* mask out delivery bits */
+	msid |= (1<<14);
+	pci_write_config_word(dev_priv->dev->pdev, 0x98, msid);
+
+	I915_WRITE(VLV_IMR, dev_priv->irq_mask);
+	I915_WRITE(VLV_IER, enable_mask);
+	I915_WRITE(VLV_IIR, 0xffffffff);
+	I915_WRITE(PIPESTAT(0), 0xffff);
+	I915_WRITE(PIPESTAT(1), 0xffff);
+	POSTING_READ(VLV_IER);
+
+	I915_WRITE(VLV_IIR, 0xffffffff);
+	I915_WRITE(VLV_IIR, 0xffffffff);
+
+	render_irqs = GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT |
+		GT_GEN6_BLT_CS_ERROR_INTERRUPT |
+		GT_BLT_USER_INTERRUPT |
+		GT_GEN6_BSD_USER_INTERRUPT |
+		GT_GEN6_BSD_CS_ERROR_INTERRUPT |
+		GT_GEN7_L3_PARITY_ERROR_INTERRUPT |
+		GT_PIPE_NOTIFY |
+		GT_RENDER_CS_ERROR_INTERRUPT |
+		GT_SYNC_STATUS |
+		GT_USER_INTERRUPT;
+
+	dev_priv->gt_irq_mask = ~render_irqs;
+
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	I915_WRITE(GTIIR, I915_READ(GTIIR));
+	I915_WRITE(GTIMR, 0);
+	I915_WRITE(GTIER, render_irqs);
+	POSTING_READ(GTIER);
+
+	/* ack & enable invalid PTE error interrupts */
+#if 0 /* FIXME: add support to irq handler for checking these bits */
+	I915_WRITE(DPINVGTT, DPINVGTT_STATUS_MASK);
+	I915_WRITE(DPINVGTT, DPINVGTT_EN_MASK);
+#endif
+
+	I915_WRITE(VLV_MASTER_IER, MASTER_INTERRUPT_ENABLE);
+#if 0 /* FIXME: check register definitions; some have moved */
+	/* Note HDMI and DP share bits */
+	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
+		hotplug_en |= HDMIB_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
+		hotplug_en |= HDMIC_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
+		hotplug_en |= HDMID_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
+		hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
+		hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
+		hotplug_en |= CRT_HOTPLUG_INT_EN;
+		hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
+	}
+#endif
+
+	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
+
+	return 0;
+}
+
 static void i915_driver_irq_preinstall(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2066,6 +2368,30 @@ static int i915_driver_irq_postinstall(struct drm_device *dev)
 	return 0;
 }
 
+static void valleyview_irq_uninstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int pipe;
+
+	if (!dev_priv)
+		return;
+
+	dev_priv->vblank_pipe = 0;
+
+	for_each_pipe(pipe)
+		I915_WRITE(PIPESTAT(pipe), 0xffff);
+
+	I915_WRITE(HWSTAM, 0xffffffff);
+	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
+	for_each_pipe(pipe)
+		I915_WRITE(PIPESTAT(pipe), 0xffff);
+	I915_WRITE(VLV_IIR, 0xffffffff);
+	I915_WRITE(VLV_IMR, 0xffffffff);
+	I915_WRITE(VLV_IER, 0x0);
+	POSTING_READ(VLV_IER);
+}
+
 static void ironlake_irq_uninstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -2121,7 +2447,8 @@ void intel_irq_init(struct drm_device *dev)
 {
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev) || IS_IVYBRIDGE(dev)) {
+	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev) || IS_IVYBRIDGE(dev) ||
+	    IS_VALLEYVIEW(dev)) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
@@ -2132,7 +2459,14 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->get_vblank_timestamp = NULL;
 	dev->driver->get_scanout_position = i915_get_crtc_scanoutpos;
 
-	if (IS_IVYBRIDGE(dev)) {
+	if (IS_VALLEYVIEW(dev)) {
+		dev->driver->irq_handler = valleyview_irq_handler;
+		dev->driver->irq_preinstall = valleyview_irq_preinstall;
+		dev->driver->irq_postinstall = valleyview_irq_postinstall;
+		dev->driver->irq_uninstall = valleyview_irq_uninstall;
+		dev->driver->enable_vblank = valleyview_enable_vblank;
+		dev->driver->disable_vblank = valleyview_disable_vblank;
+	} else if (IS_IVYBRIDGE(dev)) {
 		/* Share pre & uninstall handlers with ILK/SNB */
 		dev->driver->irq_handler = ivybridge_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_preinstall;
