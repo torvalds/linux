@@ -328,6 +328,7 @@ static int pm8607_is_enabled(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops pm8607_regulator_ops = {
+	.list_voltage	= pm8607_list_voltage,
 	.set_voltage	= pm8607_set_voltage,
 	.get_voltage	= pm8607_get_voltage,
 	.enable		= pm8607_enable,
