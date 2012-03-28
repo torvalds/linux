@@ -544,12 +544,17 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 
 	retval = ixgbe_read_mbx(hw, msgbuf, mbx_size, vf);
 
-	if (retval)
+	if (retval) {
 		pr_err("Error receiving message from VF\n");
+		return retval;
+	}
 
 	/* this is a message we already processed, do nothing */
 	if (msgbuf[0] & (IXGBE_VT_MSGTYPE_ACK | IXGBE_VT_MSGTYPE_NACK))
 		return retval;
+
+	/* flush the ack before we write any messages back */
+	IXGBE_WRITE_FLUSH(hw);
 
 	/*
 	 * until the vf completes a virtual function reset it should not be
