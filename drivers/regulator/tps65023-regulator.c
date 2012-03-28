@@ -139,7 +139,6 @@ struct tps_info {
 /* PMIC details */
 struct tps_pmic {
 	struct regulator_desc desc[TPS65023_NUM_REGULATOR];
-	struct i2c_client *client;
 	struct regulator_dev *rdev[TPS65023_NUM_REGULATOR];
 	const struct tps_info *info[TPS65023_NUM_REGULATOR];
 	struct regmap *regmap;
@@ -407,7 +406,6 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 	}
 
 	/* common for all regulators */
-	tps->client = client;
 	tps->core_regulator = drv_data->core_regulator;
 
 	for (i = 0; i < TPS65023_NUM_REGULATOR; i++, info++, init_data++) {
