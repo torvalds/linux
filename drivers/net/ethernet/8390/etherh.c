@@ -48,6 +48,7 @@
 #include <asm/system.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
+#include <asm/system_info.h>
 
 #define EI_SHIFT(x)	(ei_local->reg_offset[x])
 

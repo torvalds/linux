@@ -16,6 +16,7 @@
 #include <linux/list.h>
 #include <linux/err.h>
 #include <linux/slab.h>
+#include <asm/system_misc.h>
 
 #include "common.h"
 #include "clockdomain.h"

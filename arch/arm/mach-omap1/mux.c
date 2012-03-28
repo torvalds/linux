@@ -27,7 +27,6 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 
-#include <asm/system.h>
 
 #include <plat/mux.h>
 

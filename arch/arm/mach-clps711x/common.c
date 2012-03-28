@@ -37,6 +37,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/hardware/clps7111.h>
+#include <asm/system_misc.h>
 
 /*
  * This maps the generic CLPS711x registers

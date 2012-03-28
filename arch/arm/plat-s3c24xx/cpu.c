@@ -34,6 +34,7 @@
 #include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/cacheflush.h>
+#include <asm/system_info.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

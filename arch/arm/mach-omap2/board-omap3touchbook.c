@@ -42,6 +42,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
+#include <asm/system_info.h>
 
 #include <plat/board.h>
 #include "common.h"

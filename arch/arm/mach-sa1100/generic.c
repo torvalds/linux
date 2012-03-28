@@ -21,10 +21,10 @@
 
 #include <asm/div64.h>
 #include <mach/hardware.h>
-#include <asm/system.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 #include <asm/irq.h>
+#include <asm/system_misc.h>
 
 #include "generic.h"
 

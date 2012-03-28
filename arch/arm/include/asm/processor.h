@@ -22,7 +22,6 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
-#include <asm/system.h>
 
 #ifdef __KERNEL__
 #define STACK_TOP	((current->personality & ADDR_LIMIT_32BIT) ? \
@@ -89,6 +88,8 @@ unsigned long get_wchan(struct task_struct *p);
 #else
 #define cpu_relax()			barrier()
 #endif
+
+void cpu_idle_wait(void);
 
 /*
  * Create a new kernel thread

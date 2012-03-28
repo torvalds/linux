@@ -33,6 +33,7 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
+#include <asm/system_info.h>
 
 #include <mach/pxa27x.h>
 #include <mach/magician.h>

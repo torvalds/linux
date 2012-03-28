@@ -17,6 +17,8 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/system_info.h>
+#include <asm/system_misc.h>
 
 #include <mach/cpu.h>
 #include <mach/at91cap9.h>

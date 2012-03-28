@@ -1,7 +1,7 @@
 #ifndef __ASM_ARM_CP15_H
 #define __ASM_ARM_CP15_H
 
-#include <asm/system.h>
+#include <asm/barrier.h>
 
 /*
  * CR1 bits (CP#15 CR1)

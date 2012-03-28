@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/mach/time.h>
+#include <asm/system_misc.h>
 #include <mach/addr-map.h>
 #include <mach/cputype.h>
 #include <mach/regs-apbc.h>

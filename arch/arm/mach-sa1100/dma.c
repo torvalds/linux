@@ -16,7 +16,6 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <mach/dma.h>

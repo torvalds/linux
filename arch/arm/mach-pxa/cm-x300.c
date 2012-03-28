@@ -44,6 +44,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/setup.h>
+#include <asm/system_info.h>
 
 #include <mach/pxa300.h>
 #include <mach/pxa27x-udc.h>

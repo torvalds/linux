@@ -32,7 +32,6 @@
 #include <linux/scatterlist.h>
 #include <linux/io.h>
 
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <mach/hardware.h>
 #include <mach/dma-v1.h>

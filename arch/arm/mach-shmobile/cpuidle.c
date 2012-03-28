@@ -13,7 +13,6 @@
 #include <linux/suspend.h>
 #include <linux/module.h>
 #include <linux/err.h>
-#include <asm/system.h>
 #include <asm/io.h>
 
 static void shmobile_enter_wfi(void)
