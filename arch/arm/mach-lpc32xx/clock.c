@@ -87,6 +87,7 @@
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/device.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/clk.h>
 #include <linux/amba/bus.h>
@@ -99,6 +100,8 @@
 #include "common.h"
 
 static DEFINE_SPINLOCK(global_clkregs_lock);
+
+static int usb_pll_enable, usb_pll_valid;
 
 static struct clk clk_armpll;
 static struct clk clk_usbpll;
@@ -384,30 +387,62 @@ static u32 local_clk_usbpll_setup(struct clk_pll_setup *pHCLKPllSetup)
 static int local_usbpll_enable(struct clk *clk, int enable)
 {
 	u32 reg;
-	int ret = -ENODEV;
-	unsigned long timeout = jiffies + msecs_to_jiffies(10);
+	int ret = 0;
+	unsigned long timeout = jiffies + msecs_to_jiffies(20);
 
 	reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
 
-	if (enable == 0) {
-		reg &= ~(LPC32XX_CLKPWR_USBCTRL_CLK_EN1 |
-			LPC32XX_CLKPWR_USBCTRL_CLK_EN2);
-		__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
-	} else if (reg & LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP) {
+	__raw_writel(reg & ~(LPC32XX_CLKPWR_USBCTRL_CLK_EN2 |
+		LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP),
+		LPC32XX_CLKPWR_USB_CTRL);
+	__raw_writel(reg & ~LPC32XX_CLKPWR_USBCTRL_CLK_EN1,
+		LPC32XX_CLKPWR_USB_CTRL);
+
+	if (enable && usb_pll_valid && usb_pll_enable) {
+		ret = -ENODEV;
+		/*
+		 * If the PLL rate has been previously set, then the rate
+		 * in the PLL register is valid and can be enabled here.
+		 * Otherwise, it needs to be enabled as part of setrate.
+		 */
+
+		/*
+		 * Gate clock into PLL
+		 */
 		reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN1;
 		__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
 
-		/* Wait for PLL lock */
+		/*
+		 * Enable PLL
+		 */
+		reg |= LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP;
+		__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
+
+		/*
+		 * Wait for PLL to lock
+		 */
 		while (time_before(jiffies, timeout) && (ret == -ENODEV)) {
 			reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
 			if (reg & LPC32XX_CLKPWR_USBCTRL_PLL_STS)
 				ret = 0;
+			else
+				udelay(10);
 		}
 
+		/*
+		 * Gate clock from PLL if PLL is locked
+		 */
 		if (ret == 0) {
-			reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN2;
-			__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
+			__raw_writel(reg | LPC32XX_CLKPWR_USBCTRL_CLK_EN2,
+				LPC32XX_CLKPWR_USB_CTRL);
+		} else {
+			__raw_writel(reg & ~(LPC32XX_CLKPWR_USBCTRL_CLK_EN1 |
+				LPC32XX_CLKPWR_USBCTRL_PLL_PWRUP),
+				LPC32XX_CLKPWR_USB_CTRL);
 		}
+	} else if ((enable == 0) && usb_pll_valid  && usb_pll_enable) {
+		usb_pll_valid = 0;
+		usb_pll_enable = 0;
 	}
 
 	return ret;
@@ -425,7 +460,7 @@ static unsigned long local_usbpll_round_rate(struct clk *clk,
 	 */
 	rate = rate * 1000;
 
-	clkin = clk->parent->rate;
+	clkin = clk->get_rate(clk);
 	usbdiv = (__raw_readl(LPC32XX_CLKPWR_USBCLK_PDIV) &
 		LPC32XX_CLKPWR_USBPDIV_PLL_MASK) + 1;
 	clkin = clkin / usbdiv;
@@ -439,7 +474,8 @@ static unsigned long local_usbpll_round_rate(struct clk *clk,
 
 static int local_usbpll_set_rate(struct clk *clk, unsigned long rate)
 {
-	u32 clkin, reg, usbdiv;
+	int ret = -ENODEV;
+	u32 clkin, usbdiv;
 	struct clk_pll_setup pllsetup;
 
 	/*
@@ -448,7 +484,7 @@ static int local_usbpll_set_rate(struct clk *clk, unsigned long rate)
 	 */
 	rate = rate * 1000;
 
-	clkin = clk->get_rate(clk);
+	clkin = clk->get_rate(clk->parent);
 	usbdiv = (__raw_readl(LPC32XX_CLKPWR_USBCLK_PDIV) &
 		LPC32XX_CLKPWR_USBPDIV_PLL_MASK) + 1;
 	clkin = clkin / usbdiv;
@@ -457,22 +493,25 @@ static int local_usbpll_set_rate(struct clk *clk, unsigned long rate)
 	if (local_clk_find_pll_cfg(clkin, rate, &pllsetup) == 0)
 		return -EINVAL;
 
+	/*
+	 * Disable PLL clocks during PLL change
+	 */
 	local_usbpll_enable(clk, 0);
-
-	reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
-	reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN1;
-	__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
-
-	pllsetup.analog_on = 1;
+	pllsetup.analog_on = 0;
 	local_clk_usbpll_setup(&pllsetup);
 
-	clk->rate = clk_check_pll_setup(clkin, &pllsetup);
+	/*
+	 * Start USB PLL and check PLL status
+	 */
 
-	reg = __raw_readl(LPC32XX_CLKPWR_USB_CTRL);
-	reg |= LPC32XX_CLKPWR_USBCTRL_CLK_EN2;
-	__raw_writel(reg, LPC32XX_CLKPWR_USB_CTRL);
+	usb_pll_valid = 1;
+	usb_pll_enable = 1;
 
-	return 0;
+	ret = local_usbpll_enable(clk, 1);
+	if (ret >= 0)
+		clk->rate = clk_check_pll_setup(clkin, &pllsetup);
+
+	return ret;
 }
 
 static struct clk clk_usbpll = {

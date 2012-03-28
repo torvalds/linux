@@ -627,7 +627,7 @@ static struct resource dm644x_vpfe_resources[] = {
 	},
 };
 
-static u64 vpfe_capture_dma_mask = DMA_BIT_MASK(32);
+static u64 dm644x_video_dma_mask = DMA_BIT_MASK(32);
 static struct resource dm644x_ccdc_resource[] = {
 	/* CCDC Base address */
 	{
@@ -643,7 +643,7 @@ static struct platform_device dm644x_ccdc_dev = {
 	.num_resources  = ARRAY_SIZE(dm644x_ccdc_resource),
 	.resource       = dm644x_ccdc_resource,
 	.dev = {
-		.dma_mask               = &vpfe_capture_dma_mask,
+		.dma_mask               = &dm644x_video_dma_mask,
 		.coherent_dma_mask      = DMA_BIT_MASK(32),
 	},
 };
@@ -654,7 +654,134 @@ static struct platform_device dm644x_vpfe_dev = {
 	.num_resources	= ARRAY_SIZE(dm644x_vpfe_resources),
 	.resource	= dm644x_vpfe_resources,
 	.dev = {
-		.dma_mask		= &vpfe_capture_dma_mask,
+		.dma_mask		= &dm644x_video_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+#define DM644X_OSD_BASE		0x01c72600
+
+static struct resource dm644x_osd_resources[] = {
+	{
+		.start	= DM644X_OSD_BASE,
+		.end	= DM644X_OSD_BASE + 0x1ff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct osd_platform_data dm644x_osd_data = {
+	.vpbe_type     = VPBE_VERSION_1,
+};
+
+static struct platform_device dm644x_osd_dev = {
+	.name		= VPBE_OSD_SUBDEV_NAME,
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm644x_osd_resources),
+	.resource	= dm644x_osd_resources,
+	.dev		= {
+		.dma_mask		= &dm644x_video_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &dm644x_osd_data,
+	},
+};
+
+#define DM644X_VENC_BASE		0x01c72400
+
+static struct resource dm644x_venc_resources[] = {
+	{
+		.start	= DM644X_VENC_BASE,
+		.end	= DM644X_VENC_BASE + 0x17f,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+#define DM644X_VPSS_MUXSEL_PLL2_MODE          BIT(0)
+#define DM644X_VPSS_MUXSEL_VPBECLK_MODE       BIT(1)
+#define DM644X_VPSS_VENCLKEN                  BIT(3)
+#define DM644X_VPSS_DACCLKEN                  BIT(4)
+
+static int dm644x_venc_setup_clock(enum vpbe_enc_timings_type type,
+				   unsigned int mode)
+{
+	int ret = 0;
+	u32 v = DM644X_VPSS_VENCLKEN;
+
+	switch (type) {
+	case VPBE_ENC_STD:
+		v |= DM644X_VPSS_DACCLKEN;
+		writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
+		break;
+	case VPBE_ENC_DV_PRESET:
+		switch (mode) {
+		case V4L2_DV_480P59_94:
+		case V4L2_DV_576P50:
+			v |= DM644X_VPSS_MUXSEL_PLL2_MODE |
+			     DM644X_VPSS_DACCLKEN;
+			writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
+			break;
+		case V4L2_DV_720P60:
+		case V4L2_DV_1080I60:
+		case V4L2_DV_1080P30:
+			/*
+			 * For HD, use external clock source since
+			 * HD requires higher clock rate
+			 */
+			v |= DM644X_VPSS_MUXSEL_VPBECLK_MODE;
+			writel(v, DAVINCI_SYSMOD_VIRT(SYSMOD_VPSS_CLKCTL));
+			break;
+		default:
+			ret = -EINVAL;
+			break;
+		}
+		break;
+	default:
+		ret  = -EINVAL;
+	}
+
+	return ret;
+}
+
+static struct resource dm644x_v4l2_disp_resources[] = {
+	{
+		.start	= IRQ_VENCINT,
+		.end	= IRQ_VENCINT,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device dm644x_vpbe_display = {
+	.name		= "vpbe-v4l2",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm644x_v4l2_disp_resources),
+	.resource	= dm644x_v4l2_disp_resources,
+	.dev		= {
+		.dma_mask		= &dm644x_video_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+static struct venc_platform_data dm644x_venc_pdata = {
+	.venc_type	= VPBE_VERSION_1,
+	.setup_clock	= dm644x_venc_setup_clock,
+};
+
+static struct platform_device dm644x_venc_dev = {
+	.name		= VPBE_VENC_SUBDEV_NAME,
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(dm644x_venc_resources),
+	.resource	= dm644x_venc_resources,
+	.dev		= {
+		.dma_mask		= &dm644x_video_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &dm644x_venc_pdata,
+	},
+};
+
+static struct platform_device dm644x_vpbe_dev = {
+	.name		= "vpbe_controller",
+	.id		= -1,
+	.dev		= {
+		.dma_mask		= &dm644x_video_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 };
@@ -786,17 +913,30 @@ void __init dm644x_init(void)
 	davinci_map_sysmod();
 }
 
-int __init dm644x_init_video(struct vpfe_config *vpfe_cfg)
+int __init dm644x_init_video(struct vpfe_config *vpfe_cfg,
+				struct vpbe_config *vpbe_cfg)
 {
-	dm644x_vpfe_dev.dev.platform_data = vpfe_cfg;
+	if (vpfe_cfg || vpbe_cfg)
+		platform_device_register(&dm644x_vpss_device);
 
-	/* Add ccdc clock aliases */
-	clk_add_alias("master", dm644x_ccdc_dev.name, "vpss_master", NULL);
-	clk_add_alias("slave", dm644x_ccdc_dev.name, "vpss_slave", NULL);
+	if (vpfe_cfg) {
+		dm644x_vpfe_dev.dev.platform_data = vpfe_cfg;
+		platform_device_register(&dm644x_ccdc_dev);
+		platform_device_register(&dm644x_vpfe_dev);
+		/* Add ccdc clock aliases */
+		clk_add_alias("master", dm644x_ccdc_dev.name,
+			      "vpss_master", NULL);
+		clk_add_alias("slave", dm644x_ccdc_dev.name,
+			      "vpss_slave", NULL);
+	}
 
-	platform_device_register(&dm644x_vpss_device);
-	platform_device_register(&dm644x_ccdc_dev);
-	platform_device_register(&dm644x_vpfe_dev);
+	if (vpbe_cfg) {
+		dm644x_vpbe_dev.dev.platform_data = vpbe_cfg;
+		platform_device_register(&dm644x_osd_dev);
+		platform_device_register(&dm644x_venc_dev);
+		platform_device_register(&dm644x_vpbe_dev);
+		platform_device_register(&dm644x_vpbe_display);
+	}
 
 	return 0;
 }

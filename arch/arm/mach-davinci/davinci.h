@@ -29,9 +29,15 @@
 
 #include <media/davinci/vpfe_capture.h>
 #include <media/davinci/vpif_types.h>
+#include <media/davinci/vpss.h>
+#include <media/davinci/vpbe_types.h>
+#include <media/davinci/vpbe_venc.h>
+#include <media/davinci/vpbe.h>
+#include <media/davinci/vpbe_osd.h>
 
 #define DAVINCI_SYSTEM_MODULE_BASE	0x01c40000
 #define SYSMOD_VIDCLKCTL		0x38
+#define SYSMOD_VPSS_CLKCTL		0x44
 #define SYSMOD_VDD3P3VPWDN		0x48
 #define SYSMOD_VSCLKDIS			0x6c
 #define SYSMOD_PUPDCTL1			0x7c
@@ -83,7 +89,7 @@ void dm365_set_vpfe_config(struct vpfe_config *cfg);
 /* DM644x function declarations */
 void __init dm644x_init(void);
 void __init dm644x_init_asp(struct snd_platform_data *pdata);
-int __init dm644x_init_video(struct vpfe_config *);
+int __init dm644x_init_video(struct vpfe_config *, struct vpbe_config *);
 
 /* DM646x function declarations */
 void __init dm646x_init(void);
