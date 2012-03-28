@@ -108,28 +108,6 @@ static inline unsigned long pud_index(unsigned long address)
 #define pmd_offset(pud, address) \
 	((pmd_t *)pud_page_vaddr(*(pud)) + pmd_index(address))
 
-static inline void __set_pmd(pmd_t *pmdp, pmd_t pmdval)
-{
-	set_pte(pmdp, pmdval);
-}
-
-/* Create a pmd from a PTFN and pgprot. */
-static inline pmd_t ptfn_pmd(unsigned long ptfn, pgprot_t prot)
-{
-	return hv_pte_set_ptfn(prot, ptfn);
-}
-
-/* Return the page-table frame number (ptfn) that a pmd_t points at. */
-static inline unsigned long pmd_ptfn(pmd_t pmd)
-{
-	return hv_pte_get_ptfn(pmd);
-}
-
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	__pte_clear(pmdp);
-}
-
 /* Normalize an address to having the correct high bits set. */
 #define pgd_addr_normalize pgd_addr_normalize
 static inline unsigned long pgd_addr_normalize(unsigned long addr)
@@ -169,6 +147,13 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 {
 	return hv_pte(__insn_exch(&ptep->val, 0UL));
 }
+
+/*
+ * pmds are the same as pgds and ptes, so converting is a no-op.
+ */
+#define pmd_pte(pmd) (pmd)
+#define pmdp_ptep(pmdp) (pmdp)
+#define pte_pmd(pte) (pte)
 
 #endif /* __ASSEMBLY__ */
 

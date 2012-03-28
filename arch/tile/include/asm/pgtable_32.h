@@ -111,24 +111,14 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm,
 	return pte;
 }
 
-static inline void __set_pmd(pmd_t *pmdp, pmd_t pmdval)
-{
-	set_pte(&pmdp->pud.pgd, pmdval.pud.pgd);
-}
-
-/* Create a pmd from a PTFN. */
-static inline pmd_t ptfn_pmd(unsigned long ptfn, pgprot_t prot)
-{
-	return (pmd_t){ { hv_pte_set_ptfn(prot, ptfn) } };
-}
-
-/* Return the page-table frame number (ptfn) that a pmd_t points at. */
-#define pmd_ptfn(pmd) hv_pte_get_ptfn((pmd).pud.pgd)
-
-static inline void pmd_clear(pmd_t *pmdp)
-{
-	__pte_clear(&pmdp->pud.pgd);
-}
+/*
+ * pmds are wrappers around pgds, which are the same as ptes.
+ * It's often convenient to "cast" back and forth and use the pte methods,
+ * which are the methods supplied by the hypervisor.
+ */
+#define pmd_pte(pmd) ((pmd).pud.pgd)
+#define pmdp_ptep(pmdp) (&(pmdp)->pud.pgd)
+#define pte_pmd(pte) ((pmd_t){ { (pte) } })
 
 #endif /* __ASSEMBLY__ */
 

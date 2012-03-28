@@ -1855,8 +1855,7 @@ int hv_flush_remote(HV_PhysAddr cache_pa, unsigned long cache_control,
                                               future use. */
 #define HV_PTE_INDEX_MODE            16  /**< Page mode; see HV_PTE_MODE_xxx */
 #define HV_PTE_MODE_BITS              3  /**< Number of bits in mode */
-                                         /*   Bit 19 is reserved for
-                                              future use. */
+#define HV_PTE_INDEX_CLIENT2         19  /**< Page client state 2 */
 #define HV_PTE_INDEX_LOTAR           20  /**< Page's LOTAR; must be high bits
                                               of word */
 #define HV_PTE_LOTAR_BITS            12  /**< Number of bits in a LOTAR */
@@ -2046,6 +2045,13 @@ int hv_flush_remote(HV_PhysAddr cache_pa, unsigned long cache_control,
  */
 #define HV_PTE_CLIENT1               (__HV_PTE_ONE << HV_PTE_INDEX_CLIENT1)
 
+/** Client-private bit in PTE.
+ *
+ * This bit is guaranteed not to be inspected or modified by the
+ * hypervisor.
+ */
+#define HV_PTE_CLIENT2               (__HV_PTE_ONE << HV_PTE_INDEX_CLIENT2)
+
 /** Non-coherent (NC) bit in PTE.
  *
  * If this bit is set, the mapping that is set up will be non-coherent
@@ -2180,6 +2186,7 @@ _HV_BIT(present,         PRESENT)
 _HV_BIT(page,            PAGE)
 _HV_BIT(client0,         CLIENT0)
 _HV_BIT(client1,         CLIENT1)
+_HV_BIT(client2,         CLIENT2)
 _HV_BIT(migrating,       MIGRATING)
 _HV_BIT(nc,              NC)
 _HV_BIT(readable,        READABLE)

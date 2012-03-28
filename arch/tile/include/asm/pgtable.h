@@ -187,6 +187,7 @@ static inline void __pte_clear(pte_t *ptep)
  * Undefined behaviour if not..
  */
 #define pte_present hv_pte_get_present
+#define pte_mknotpresent hv_pte_clear_present
 #define pte_user hv_pte_get_user
 #define pte_read hv_pte_get_readable
 #define pte_dirty hv_pte_get_dirty
@@ -312,7 +313,7 @@ extern void check_mm_caching(struct mm_struct *prev, struct mm_struct *next);
  */
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 {
-	return pfn_pte(hv_pte_get_pfn(pte), newprot);
+	return pfn_pte(pte_pfn(pte), newprot);
 }
 
 /*
@@ -410,6 +411,46 @@ static inline unsigned long pmd_index(unsigned long address)
 	return (address >> PMD_SHIFT) & (PTRS_PER_PMD - 1);
 }
 
+#define __HAVE_ARCH_PMDP_TEST_AND_CLEAR_YOUNG
+static inline int pmdp_test_and_clear_young(struct vm_area_struct *vma,
+					    unsigned long address,
+					    pmd_t *pmdp)
+{
+	return ptep_test_and_clear_young(vma, address, pmdp_ptep(pmdp));
+}
+
+#define __HAVE_ARCH_PMDP_SET_WRPROTECT
+static inline void pmdp_set_wrprotect(struct mm_struct *mm,
+				      unsigned long address, pmd_t *pmdp)
+{
+	ptep_set_wrprotect(mm, address, pmdp_ptep(pmdp));
+}
+
+
+#define __HAVE_ARCH_PMDP_GET_AND_CLEAR
+static inline pmd_t pmdp_get_and_clear(struct mm_struct *mm,
+				       unsigned long address,
+				       pmd_t *pmdp)
+{
+	return pte_pmd(ptep_get_and_clear(mm, address, pmdp_ptep(pmdp)));
+}
+
+static inline void __set_pmd(pmd_t *pmdp, pmd_t pmdval)
+{
+	set_pte(pmdp_ptep(pmdp), pmd_pte(pmdval));
+}
+
+#define set_pmd_at(mm, addr, pmdp, pmdval) __set_pmd(pmdp, pmdval)
+
+/* Create a pmd from a PTFN. */
+static inline pmd_t ptfn_pmd(unsigned long ptfn, pgprot_t prot)
+{
+	return pte_pmd(hv_pte_set_ptfn(prot, ptfn));
+}
+
+/* Return the page-table frame number (ptfn) that a pmd_t points at. */
+#define pmd_ptfn(pmd) hv_pte_get_ptfn(pmd_pte(pmd))
+
 /*
  * A given kernel pmd_t maps to a specific virtual address (either a
  * kernel huge page or a kernel pte_t table).  Since kernel pte_t
@@ -432,6 +473,47 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  */
 #define pmd_page(pmd) pfn_to_page(HV_PTFN_TO_PFN(pmd_ptfn(pmd)))
 
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	__pte_clear(pmdp_ptep(pmdp));
+}
+
+#define pmd_mknotpresent(pmd)	pte_pmd(pte_mknotpresent(pmd_pte(pmd)))
+#define pmd_young(pmd)		pte_young(pmd_pte(pmd))
+#define pmd_mkyoung(pmd)	pte_pmd(pte_mkyoung(pmd_pte(pmd)))
+#define pmd_mkold(pmd)		pte_pmd(pte_mkold(pmd_pte(pmd)))
+#define pmd_mkwrite(pmd)	pte_pmd(pte_mkwrite(pmd_pte(pmd)))
+#define pmd_write(pmd)		pte_write(pmd_pte(pmd))
+#define pmd_wrprotect(pmd)	pte_pmd(pte_wrprotect(pmd_pte(pmd)))
+#define pmd_mkdirty(pmd)	pte_pmd(pte_mkdirty(pmd_pte(pmd)))
+#define pmd_huge_page(pmd)	pte_huge(pmd_pte(pmd))
+#define pmd_mkhuge(pmd)		pte_pmd(pte_mkhuge(pmd_pte(pmd)))
+#define __HAVE_ARCH_PMD_WRITE
+
+#define pfn_pmd(pfn, pgprot)	pte_pmd(pfn_pte((pfn), (pgprot)))
+#define pmd_pfn(pmd)		pte_pfn(pmd_pte(pmd))
+#define mk_pmd(page, pgprot)	pfn_pmd(page_to_pfn(page), (pgprot))
+
+static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
+{
+	return pfn_pmd(pmd_pfn(pmd), newprot);
+}
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+#define has_transparent_hugepage() 1
+#define pmd_trans_huge pmd_huge_page
+
+static inline pmd_t pmd_mksplitting(pmd_t pmd)
+{
+	return pte_pmd(hv_pte_set_client2(pmd_pte(pmd)));
+}
+
+static inline int pmd_trans_splitting(pmd_t pmd)
+{
+	return hv_pte_get_client2(pmd_pte(pmd));
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+
 /*
  * The pte page can be thought of an array like this: pte_t[PTRS_PER_PTE]
  *
@@ -446,11 +528,6 @@ static inline unsigned long pte_index(unsigned long address)
 static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
 {
        return (pte_t *)pmd_page_vaddr(*pmd) + pte_index(address);
-}
-
-static inline int pmd_huge_page(pmd_t pmd)
-{
-	return pmd_val(pmd) & _PAGE_HUGE_PAGE;
 }
 
 #include <asm-generic/pgtable.h>
