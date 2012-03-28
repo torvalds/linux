@@ -103,6 +103,7 @@ struct svc_export {
 	struct nfsd4_fs_locations ex_fslocs;
 	int			ex_nflavors;
 	struct exp_flavor_info	ex_flavors[MAX_SECINFO_LIST];
+	struct cache_detail	*cd;
 };
 
 /* an "export key" (expkey) maps a filehandlefragement to an

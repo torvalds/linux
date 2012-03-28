@@ -525,6 +525,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		goto out1;
 
 	exp.ex_client = dom;
+	exp.cd = cd;
 
 	/* expiry */
 	err = -EINVAL;
@@ -672,6 +673,7 @@ static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_fslocs.locations = NULL;
 	new->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = 0;
+	new->cd = item->cd;
 }
 
 static void export_update(struct cache_head *cnew, struct cache_head *citem)
@@ -739,8 +741,7 @@ svc_export_lookup(struct svc_export *exp)
 	struct cache_head *ch;
 	int hash = svc_export_hash(exp);
 
-	ch = sunrpc_cache_lookup(&svc_export_cache, &exp->h,
-				 hash);
+	ch = sunrpc_cache_lookup(exp->cd, &exp->h, hash);
 	if (ch)
 		return container_of(ch, struct svc_export, h);
 	else
@@ -753,9 +754,7 @@ svc_export_update(struct svc_export *new, struct svc_export *old)
 	struct cache_head *ch;
 	int hash = svc_export_hash(old);
 
-	ch = sunrpc_cache_update(&svc_export_cache, &new->h,
-				 &old->h,
-				 hash);
+	ch = sunrpc_cache_update(old->cd, &new->h, &old->h, hash);
 	if (ch)
 		return container_of(ch, struct svc_export, h);
 	else
@@ -797,6 +796,7 @@ static svc_export *exp_get_by_name(svc_client *clp, const struct path *path,
 
 	key.ex_client = clp;
 	key.ex_path = *path;
+	key.cd = &svc_export_cache;
 
 	exp = svc_export_lookup(&key);
 	if (exp == NULL)
