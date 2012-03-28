@@ -458,12 +458,10 @@ static int list_voltage(struct regulator_dev *rdev, unsigned selector)
 		info->voltages[selector] : -EINVAL);
 }
 
-static int set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
-		       unsigned *selector)
+static int set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 {
 	const struct supply_info *info;
 	struct tps6524x *hw;
-	unsigned i;
 
 	hw	= rdev_get_drvdata(rdev);
 	info	= &supply_info[rdev_get_id(rdev)];
@@ -471,17 +469,7 @@ static int set_voltage(struct regulator_dev *rdev, int min_uV, int max_uV,
 	if (info->flags & FIXED_VOLTAGE)
 		return -EINVAL;
 
-	for (i = 0; i < info->n_voltages; i++)
-		if (min_uV <= info->voltages[i] &&
-		    max_uV >= info->voltages[i])
-			break;
-
-	if (i >= info->n_voltages)
-		i = info->n_voltages - 1;
-
-	*selector = i;
-
-	return write_field(hw, &info->voltage, i);
+	return write_field(hw, &info->voltage, selector);
 }
 
 static int get_voltage(struct regulator_dev *rdev)
@@ -588,7 +576,7 @@ static struct regulator_ops regulator_ops = {
 	.enable			= enable_supply,
 	.disable		= disable_supply,
 	.get_voltage		= get_voltage,
-	.set_voltage		= set_voltage,
+	.set_voltage_sel	= set_voltage_sel,
 	.list_voltage		= list_voltage,
 	.set_current_limit	= set_current_limit,
 	.get_current_limit	= get_current_limit,
