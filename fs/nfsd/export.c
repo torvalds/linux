@@ -163,7 +163,7 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 	cache_flush();
  out:
 	if (ek)
-		cache_put(&ek->h, &svc_expkey_cache);
+		cache_put(&ek->h, cd);
 	if (dom)
 		auth_domain_put(dom);
 	kfree(buf);
