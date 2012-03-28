@@ -748,6 +748,9 @@ static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 			return -ENOMEM;
 
 		padata_replace(pinst, pd);
+
+		cpumask_clear_cpu(cpu, pd->cpumask.cbcpu);
+		cpumask_clear_cpu(cpu, pd->cpumask.pcpu);
 	}
 
 	return 0;
