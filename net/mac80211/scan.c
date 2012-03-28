@@ -387,6 +387,33 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	return 0;
 }
 
+static bool ieee80211_can_scan(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata)
+{
+	if (!list_empty(&local->work_list))
+		return false;
+
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    sdata->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
+				  IEEE80211_STA_CONNECTION_POLL))
+		return false;
+
+	return true;
+}
+
+void ieee80211_run_deferred_scan(struct ieee80211_local *local)
+{
+	lockdep_assert_held(&local->mtx);
+
+	if (!local->scan_req || local->scanning)
+		return;
+
+	if (!ieee80211_can_scan(local, local->scan_sdata))
+		return;
+
+	ieee80211_queue_delayed_work(&local->hw, &local->scan_work,
+				     round_jiffies_relative(0));
+}
 
 static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_scan_request *req)
@@ -399,7 +426,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->scan_req)
 		return -EBUSY;
 
-	if (!list_empty(&local->work_list)) {
+	if (!ieee80211_can_scan(local, sdata)) {
 		/* wait for the work to finish/time out */
 		local->scan_req = req;
 		local->scan_sdata = sdata;

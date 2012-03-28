@@ -226,13 +226,8 @@ static void ieee80211_work_work(struct work_struct *work)
 		run_again(local, jiffies + HZ/2);
 	}
 
-	if (list_empty(&local->work_list) && local->scan_req &&
-	    !local->scanning)
-		ieee80211_queue_delayed_work(&local->hw,
-					     &local->scan_work,
-					     round_jiffies_relative(0));
-
 	ieee80211_recalc_idle(local);
+	ieee80211_run_deferred_scan(local);
 
 	mutex_unlock(&local->mtx);
 

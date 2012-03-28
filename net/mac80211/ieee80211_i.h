@@ -1260,6 +1260,7 @@ int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_scan_request *req);
 void ieee80211_scan_cancel(struct ieee80211_local *local);
+void ieee80211_run_deferred_scan(struct ieee80211_local *local);
 ieee80211_rx_result
 ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb);
 

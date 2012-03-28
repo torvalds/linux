@@ -1447,19 +1447,24 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_local *local = sdata->local;
 
+	mutex_lock(&local->mtx);
 	if (!(ifmgd->flags & (IEEE80211_STA_BEACON_POLL |
-			      IEEE80211_STA_CONNECTION_POLL)))
-	    return;
+			      IEEE80211_STA_CONNECTION_POLL))) {
+		mutex_unlock(&local->mtx);
+		return;
+	}
 
 	ifmgd->flags &= ~(IEEE80211_STA_CONNECTION_POLL |
 			  IEEE80211_STA_BEACON_POLL);
-	mutex_lock(&sdata->local->iflist_mtx);
-	ieee80211_recalc_ps(sdata->local, -1);
-	mutex_unlock(&sdata->local->iflist_mtx);
+
+	mutex_lock(&local->iflist_mtx);
+	ieee80211_recalc_ps(local, -1);
+	mutex_unlock(&local->iflist_mtx);
 
 	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
-		return;
+		goto out;
 
 	/*
 	 * We've received a probe response, but are not sure whether
@@ -1471,6 +1476,9 @@ static void ieee80211_reset_ap_probe(struct ieee80211_sub_if_data *sdata)
 	mod_timer(&ifmgd->conn_mon_timer,
 		  round_jiffies_up(jiffies +
 				   IEEE80211_CONNECTION_IDLE_TIME));
+out:
+	ieee80211_run_deferred_scan(local);
+	mutex_unlock(&local->mtx);
 }
 
 void ieee80211_sta_tx_notify(struct ieee80211_sub_if_data *sdata,
@@ -1546,16 +1554,17 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	if (!ieee80211_sdata_running(sdata))
 		return;
 
-	if (sdata->local->scanning)
-		return;
-
-	if (sdata->local->tmp_channel)
-		return;
-
 	mutex_lock(&ifmgd->mtx);
 
 	if (!ifmgd->associated)
 		goto out;
+
+	mutex_lock(&sdata->local->mtx);
+
+	if (sdata->local->tmp_channel || sdata->local->scanning) {
+		mutex_unlock(&sdata->local->mtx);
+		goto out;
+	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (beacon && net_ratelimit())
@@ -1582,6 +1591,8 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 		ifmgd->flags |= IEEE80211_STA_BEACON_POLL;
 	else
 		ifmgd->flags |= IEEE80211_STA_CONNECTION_POLL;
+
+	mutex_unlock(&sdata->local->mtx);
 
 	if (already)
 		goto out;
