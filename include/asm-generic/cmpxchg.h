@@ -10,6 +10,8 @@
 #error "Cannot use generic cmpxchg on SMP"
 #endif
 
+#include <asm-generic/cmpxchg-local.h>
+
 /*
  * Atomic compare and exchange.
  *

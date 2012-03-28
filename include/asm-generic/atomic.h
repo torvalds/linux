@@ -15,6 +15,8 @@
 #ifndef __ASM_GENERIC_ATOMIC_H
 #define __ASM_GENERIC_ATOMIC_H
 
+#include <asm/cmpxchg.h>
+
 #ifdef CONFIG_SMP
 /* Force people to define core atomics */
 # if !defined(atomic_add_return) || !defined(atomic_sub_return) || \

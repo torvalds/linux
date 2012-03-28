@@ -19,7 +19,6 @@
 #include <linux/types.h>
 #include <linux/irqflags.h>
 
-#include <asm/cmpxchg-local.h>
 #include <asm/cmpxchg.h>
 
 struct task_struct;
