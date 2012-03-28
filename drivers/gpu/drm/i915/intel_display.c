@@ -5190,6 +5190,177 @@ static void intel_update_lvds(struct drm_crtc *crtc, intel_clock_t *clock,
 	I915_WRITE(LVDS, temp);
 }
 
+static void i9xx_update_pll(struct drm_crtc *crtc,
+			    struct drm_display_mode *mode,
+			    struct drm_display_mode *adjusted_mode,
+			    intel_clock_t *clock, intel_clock_t *reduced_clock,
+			    int num_connectors)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 dpll;
+	bool is_sdvo;
+
+	is_sdvo = intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ||
+		intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI);
+
+	dpll = DPLL_VGA_MODE_DIS;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+		dpll |= DPLLB_MODE_LVDS;
+	else
+		dpll |= DPLLB_MODE_DAC_SERIAL;
+	if (is_sdvo) {
+		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+		if (pixel_multiplier > 1) {
+			if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+				dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+		}
+		dpll |= DPLL_DVO_HIGH_SPEED;
+	}
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
+		dpll |= DPLL_DVO_HIGH_SPEED;
+
+	/* compute bitmask from p1 value */
+	if (IS_PINEVIEW(dev))
+		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
+	else {
+		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+		if (IS_G4X(dev) && reduced_clock)
+			dpll |= (1 << (reduced_clock->p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
+	}
+	switch (clock->p2) {
+	case 5:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
+		break;
+	case 7:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
+		break;
+	case 10:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
+		break;
+	case 14:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
+		break;
+	}
+	if (INTEL_INFO(dev)->gen >= 4)
+		dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
+
+	if (is_sdvo && intel_pipe_has_type(crtc, INTEL_OUTPUT_TVOUT))
+		dpll |= PLL_REF_INPUT_TVCLKINBC;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_TVOUT))
+		/* XXX: just matching BIOS for now */
+		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+		dpll |= 3;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+	else
+		dpll |= PLL_REF_INPUT_DREFCLK;
+
+	dpll |= DPLL_VCO_ENABLE;
+	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+	 * This is an exception to the general rule that mode_set doesn't turn
+	 * things on.
+	 */
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+		intel_update_lvds(crtc, clock, adjusted_mode);
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
+		intel_dp_set_m_n(crtc, mode, adjusted_mode);
+
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		u32 temp = 0;
+		if (is_sdvo) {
+			temp = intel_mode_get_pixel_multiplier(adjusted_mode);
+			if (temp > 1)
+				temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+			else
+				temp = 0;
+		}
+		I915_WRITE(DPLL_MD(pipe), temp);
+	} else {
+		/* The pixel multiplier can only be updated once the
+		 * DPLL is enabled and the clocks are stable.
+		 *
+		 * So write it again.
+		 */
+		I915_WRITE(DPLL(pipe), dpll);
+	}
+}
+
+static void i8xx_update_pll(struct drm_crtc *crtc,
+			    struct drm_display_mode *adjusted_mode,
+			    intel_clock_t *clock,
+			    int num_connectors)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 dpll;
+
+	dpll = DPLL_VGA_MODE_DIS;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	} else {
+		if (clock->p1 == 2)
+			dpll |= PLL_P1_DIVIDE_BY_TWO;
+		else
+			dpll |= (clock->p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+		if (clock->p2 == 4)
+			dpll |= PLL_P2_DIVIDE_BY_4;
+	}
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_TVOUT))
+		/* XXX: just matching BIOS for now */
+		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+		dpll |= 3;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+	else
+		dpll |= PLL_REF_INPUT_DREFCLK;
+
+	dpll |= DPLL_VCO_ENABLE;
+	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+	 * This is an exception to the general rule that mode_set doesn't turn
+	 * things on.
+	 */
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+		intel_update_lvds(crtc, clock, adjusted_mode);
+
+	/* The pixel multiplier can only be updated once the
+	 * DPLL is enabled and the clocks are stable.
+	 *
+	 * So write it again.
+	 */
+	I915_WRITE(DPLL(pipe), dpll);
+}
+
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode,
@@ -5203,14 +5374,13 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, dspcntr, pipeconf, vsyncshift;
-	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
-	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
+	u32 dspcntr, pipeconf, vsyncshift;
+	bool ok, has_reduced_clock = false, is_sdvo = false;
+	bool is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
-	u32 temp;
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
 		if (encoder->base.crtc != crtc)
@@ -5226,14 +5396,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			if (encoder->needs_tv_clock)
 				is_tv = true;
 			break;
-		case INTEL_OUTPUT_DVO:
-			is_dvo = true;
-			break;
 		case INTEL_OUTPUT_TVOUT:
 			is_tv = true;
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			is_crt = true;
 			break;
 		case INTEL_OUTPUT_DISPLAYPORT:
 			is_dp = true;
@@ -5281,71 +5445,12 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	i9xx_update_pll_dividers(crtc, &clock, has_reduced_clock ?
 				 &reduced_clock : NULL);
 
-	dpll = DPLL_VGA_MODE_DIS;
-
-	if (!IS_GEN2(dev)) {
-		if (is_lvds)
-			dpll |= DPLLB_MODE_LVDS;
-		else
-			dpll |= DPLLB_MODE_DAC_SERIAL;
-		if (is_sdvo) {
-			int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-			if (pixel_multiplier > 1) {
-				if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-					dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-			}
-			dpll |= DPLL_DVO_HIGH_SPEED;
-		}
-		if (is_dp)
-			dpll |= DPLL_DVO_HIGH_SPEED;
-
-		/* compute bitmask from p1 value */
-		if (IS_PINEVIEW(dev))
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
-		else {
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-			if (IS_G4X(dev) && has_reduced_clock)
-				dpll |= (1 << (reduced_clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
-		}
-		switch (clock.p2) {
-		case 5:
-			dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
-			break;
-		case 7:
-			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
-			break;
-		case 10:
-			dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
-			break;
-		case 14:
-			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
-			break;
-		}
-		if (INTEL_INFO(dev)->gen >= 4)
-			dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
-	} else {
-		if (is_lvds) {
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-		} else {
-			if (clock.p1 == 2)
-				dpll |= PLL_P1_DIVIDE_BY_TWO;
-			else
-				dpll |= (clock.p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-			if (clock.p2 == 4)
-				dpll |= PLL_P2_DIVIDE_BY_4;
-		}
-	}
-
-	if (is_sdvo && is_tv)
-		dpll |= PLL_REF_INPUT_TVCLKINBC;
-	else if (is_tv)
-		/* XXX: just matching BIOS for now */
-		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
-		dpll |= 3;
-	else if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
-		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+	if (IS_GEN2(dev))
+		i8xx_update_pll(crtc, adjusted_mode, &clock, num_connectors);
 	else
-		dpll |= PLL_REF_INPUT_DREFCLK;
+		i9xx_update_pll(crtc, mode, adjusted_mode, &clock,
+				has_reduced_clock ? &reduced_clock : NULL,
+				num_connectors);
 
 	/* setup pipeconf */
 	pipeconf = I915_READ(PIPECONF(pipe));
@@ -5382,51 +5487,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	dpll |= DPLL_VCO_ENABLE;
-
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
-
-	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
-
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
-	 */
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		intel_update_lvds(crtc, &clock, adjusted_mode);
-
-	if (is_dp) {
-		intel_dp_set_m_n(crtc, mode, adjusted_mode);
-	}
-
-	I915_WRITE(DPLL(pipe), dpll);
-
-	/* Wait for the clocks to stabilize. */
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	if (INTEL_INFO(dev)->gen >= 4) {
-		temp = 0;
-		if (is_sdvo) {
-			temp = intel_mode_get_pixel_multiplier(adjusted_mode);
-			if (temp > 1)
-				temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
-			else
-				temp = 0;
-		}
-		I915_WRITE(DPLL_MD(pipe), temp);
-	} else {
-		/* The pixel multiplier can only be updated once the
-		 * DPLL is enabled and the clocks are stable.
-		 *
-		 * So write it again.
-		 */
-		I915_WRITE(DPLL(pipe), dpll);
-	}
 
 	if (HAS_PIPE_CXSR(dev)) {
 		if (intel_crtc->lowfreq_avail) {
