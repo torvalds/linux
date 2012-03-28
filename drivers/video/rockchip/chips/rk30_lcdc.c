@@ -185,12 +185,9 @@ int rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
 	{
         	printk(KERN_ERR ">>>>>> set lcdc dclk failed\n");
 	}
-    	else
-    	{
-    		lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
-	 	clk_enable(lcdc_dev->dclk);
-    		printk("%s: dclk:%lu ",lcdc_dev->driver.name,clk_get_rate(lcdc_dev->dclk));
-    	}
+    	lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
+	clk_enable(lcdc_dev->dclk);
+    	printk("%s: dclk:%lu ",lcdc_dev->driver.name,clk_get_rate(lcdc_dev->dclk));
     	if(initscreen)
     	{
         	if(screen->lcdc_aclk)
@@ -200,11 +197,9 @@ int rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
 			{
            	 		printk(KERN_ERR ">>>>>> set lcdc aclk  rate failed\n");
         		}
-			else
-			{
-        			clk_enable(lcdc_dev->aclk);
-				printk("aclk:%lu\n",clk_get_rate(lcdc_dev->aclk));
-			}
+			
+        		clk_enable(lcdc_dev->aclk);
+			printk("aclk:%lu\n",clk_get_rate(lcdc_dev->aclk));
         	}
         	
 	}
