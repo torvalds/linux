@@ -385,10 +385,6 @@ void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 	int queue, i;
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
-	for (i = 0; i < hw->queues; i++)
-		__ieee80211_stop_queue(hw, i,
-			IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
-
 	while ((skb = skb_dequeue(skbs))) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
@@ -398,6 +394,10 @@ void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 		}
 
 		queue = skb_get_queue_mapping(skb);
+
+		__ieee80211_stop_queue(hw, queue,
+				IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
+
 		__skb_queue_tail(&local->pending[queue], skb);
 	}
 
