@@ -1357,8 +1357,8 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u32 type,
 		if (rc <= 0)
 			goto out;
 
-		rc = CIFSSMBLock(xid, tcon, netfid, current->tgid, length,
-				 flock->fl_start, 0, 1, type, wait_flag, 0);
+		rc = cifs_mandatory_lock(xid, cfile, flock->fl_start, length,
+					 type, 1, 0, wait_flag);
 		if (rc) {
 			kfree(lock);
 			goto out;
