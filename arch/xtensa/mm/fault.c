@@ -19,7 +19,6 @@
 #include <asm/cacheflush.h>
 #include <asm/hardirq.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/pgalloc.h>
 
 unsigned long asid_cache = ASID_USER_FIRST;
