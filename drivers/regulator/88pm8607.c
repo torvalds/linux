@@ -223,51 +223,16 @@ static int pm8607_list_voltage(struct regulator_dev *rdev, unsigned index)
 	return ret;
 }
 
-static int choose_voltage(struct regulator_dev *rdev, int min_uV, int max_uV)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int i, ret = -ENOENT;
-
-	if (info->slope_double) {
-		min_uV = min_uV >> 1;
-		max_uV = max_uV >> 1;
-	}
-	if (info->vol_table) {
-		for (i = 0; i < rdev->desc->n_voltages; i++) {
-			if (!info->vol_table[i])
-				break;
-			if ((min_uV <= info->vol_table[i])
-				&& (max_uV >= info->vol_table[i])) {
-				ret = i;
-				break;
-			}
-		}
-	}
-	if (ret < 0)
-		pr_err("invalid voltage range (%d %d) uV\n", min_uV, max_uV);
-	return ret;
-}
-
-static int pm8607_set_voltage(struct regulator_dev *rdev,
-			      int min_uV, int max_uV, unsigned *selector)
+static int pm8607_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 {
 	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
 	uint8_t val, mask;
 	int ret;
 
-	if (min_uV > max_uV) {
-		pr_err("invalid voltage range (%d, %d) uV\n", min_uV, max_uV);
-		return -EINVAL;
-	}
-
-	ret = choose_voltage(rdev, min_uV, max_uV);
-	if (ret < 0)
-		return -EINVAL;
-	*selector = ret;
-	val = (uint8_t)(ret << info->vol_shift);
+	val = (uint8_t)(selector << info->vol_shift);
 	mask = (rdev->desc->n_voltages - 1)  << info->vol_shift;
 
-	ret = pm860x_set_bits(info->i2c, info->vol_reg, mask, val);
+	ret = pm860x_set_bits(info->i2c, info->vol_reg, mask, selector);
 	if (ret)
 		return ret;
 	switch (info->desc.id) {
@@ -328,7 +293,7 @@ static int pm8607_is_enabled(struct regulator_dev *rdev)
 
 static struct regulator_ops pm8607_regulator_ops = {
 	.list_voltage	= pm8607_list_voltage,
-	.set_voltage	= pm8607_set_voltage,
+	.set_voltage_sel = pm8607_set_voltage_sel,
 	.get_voltage	= pm8607_get_voltage,
 	.enable		= pm8607_enable,
 	.disable	= pm8607_disable,
