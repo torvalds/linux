@@ -1875,6 +1875,8 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
 		if (HAS_PCH_SPLIT(ring->dev))
 			ier = I915_READ(DEIER) | I915_READ(GTIER);
+		else if (IS_VALLEYVIEW(ring->dev))
+			ier = I915_READ(GTIER) | I915_READ(VLV_IER);
 		else
 			ier = I915_READ(IER);
 		if (!ier) {
