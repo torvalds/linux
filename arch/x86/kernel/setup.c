@@ -1012,7 +1012,7 @@ void __init setup_arch(char **cmdline_p)
 	init_cpu_to_node();
 
 	init_apic_mappings();
-	ioapic_and_gsi_init();
+	x86_io_apic_ops.init();
 
 	kvm_guest_init();
 
