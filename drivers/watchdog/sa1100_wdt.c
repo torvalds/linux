@@ -17,6 +17,9 @@
  *
  *	27/11/2000 Initial release
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -66,7 +69,7 @@ static int sa1100dog_open(struct inode *inode, struct file *file)
  */
 static int sa1100dog_release(struct inode *inode, struct file *file)
 {
-	printk(KERN_CRIT "WATCHDOG: Device closed - timer will not stop\n");
+	pr_crit("Device closed - timer will not stop\n");
 	clear_bit(1, &sa1100wdt_users);
 	return 0;
 }
@@ -169,9 +172,8 @@ static int __init sa1100dog_init(void)
 
 	ret = misc_register(&sa1100dog_miscdev);
 	if (ret == 0)
-		printk(KERN_INFO
-			"SA1100/PXA2xx Watchdog Timer: timer margin %d sec\n",
-						margin);
+		pr_info("SA1100/PXA2xx Watchdog Timer: timer margin %d sec\n",
+			margin);
 	return ret;
 }
 

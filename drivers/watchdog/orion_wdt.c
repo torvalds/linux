@@ -10,6 +10,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -36,7 +38,7 @@
 #define WDT_IN_USE		0
 #define WDT_OK_TO_CLOSE		1
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = -1;		/* module parameter (seconds) */
 static unsigned int wdt_max_duration;	/* (seconds) */
 static unsigned int wdt_tclk;
@@ -210,8 +212,7 @@ static int orion_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
 		orion_wdt_disable();
 	else
-		printk(KERN_CRIT "WATCHDOG: Device closed unexpectedly - "
-					"timer will not stop\n");
+		pr_crit("Device closed unexpectedly - timer will not stop\n");
 	clear_bit(WDT_IN_USE, &wdt_status);
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 
@@ -243,7 +244,7 @@ static int __devinit orion_wdt_probe(struct platform_device *pdev)
 	if (pdata) {
 		wdt_tclk = pdata->tclk;
 	} else {
-		printk(KERN_ERR "Orion Watchdog misses platform data\n");
+		pr_err("misses platform data\n");
 		return -ENODEV;
 	}
 
@@ -263,8 +264,8 @@ static int __devinit orion_wdt_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	printk(KERN_INFO "Orion Watchdog Timer: Initial timeout %d sec%s\n",
-				heartbeat, nowayout ? ", nowayout" : "");
+	pr_info("Initial timeout %d sec%s\n",
+		heartbeat, nowayout ? ", nowayout" : "");
 	return 0;
 }
 
@@ -308,7 +309,7 @@ MODULE_DESCRIPTION("Orion Processor Watchdog");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Initial watchdog heartbeat in seconds");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
