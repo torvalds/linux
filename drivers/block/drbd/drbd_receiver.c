@@ -2837,10 +2837,10 @@ static int receive_SyncParam(struct drbd_conf *mdev, enum drbd_packets cmd, unsi
 
 	if (apv >= 88) {
 		if (apv == 88) {
-			if (data_size > SHARED_SECRET_MAX) {
-				dev_err(DEV, "verify-alg too long, "
-				    "peer wants %u, accepting only %u byte\n",
-						data_size, SHARED_SECRET_MAX);
+			if (data_size > SHARED_SECRET_MAX || data_size == 0) {
+				dev_err(DEV, "verify-alg of wrong size, "
+					"peer wants %u, accepting only up to %u byte\n",
+					data_size, SHARED_SECRET_MAX);
 				return false;
 			}
 
