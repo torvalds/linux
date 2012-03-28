@@ -516,6 +516,7 @@ EXPORT_SYMBOL(rk_get_fb);
 void rk_direct_fb_show(struct fb_info * fbi)
 {
     rk_fb_set_par(fbi);
+    rk_pan_display(&fbi->var, fbi);
 }
 EXPORT_SYMBOL(rk_direct_fb_show);
 
