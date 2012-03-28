@@ -1179,6 +1179,20 @@ static void gen6_write_entry(dma_addr_t addr, unsigned int entry,
 	writel(addr | pte_flags, intel_private.gtt + entry);
 }
 
+static void valleyview_write_entry(dma_addr_t addr, unsigned int entry,
+				   unsigned int flags)
+{
+	u32 pte_flags;
+
+	pte_flags = GEN6_PTE_UNCACHED | I810_PTE_VALID;
+
+	/* gen6 has bit11-4 for physical addr bit39-32 */
+	addr |= (addr >> 28) & 0xff0;
+	writel(addr | pte_flags, intel_private.gtt + entry);
+
+	writel(1, intel_private.registers + GFX_FLSH_CNTL_VLV);
+}
+
 static void gen6_cleanup(void)
 {
 }
@@ -1359,6 +1373,15 @@ static const struct intel_gtt_driver sandybridge_gtt_driver = {
 	.check_flags = gen6_check_flags,
 	.chipset_flush = i9xx_chipset_flush,
 };
+static const struct intel_gtt_driver valleyview_gtt_driver = {
+	.gen = 7,
+	.setup = i9xx_setup,
+	.cleanup = gen6_cleanup,
+	.write_entry = valleyview_write_entry,
+	.dma_mask_size = 40,
+	.check_flags = gen6_check_flags,
+	.chipset_flush = i9xx_chipset_flush,
+};
 
 /* Table to describe Intel GMCH and AGP/PCIE GART drivers.  At least one of
  * driver and gmch_driver must be non-null, and find_gmch will determine
@@ -1463,6 +1486,8 @@ static const struct intel_gtt_driver_description {
 	    "Ivybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT1_IG,
 	    "Ivybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_VALLEYVIEW_IG,
+	    "ValleyView", &valleyview_gtt_driver },
 	{ 0, NULL, NULL }
 };
 

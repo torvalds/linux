@@ -96,6 +96,7 @@
 #define G4x_GMCH_SIZE_VT_2M	(G4x_GMCH_SIZE_2M | G4x_GMCH_SIZE_VT_EN)
 
 #define GFX_FLSH_CNTL		0x2170 /* 915+ */
+#define GFX_FLSH_CNTL_VLV	0x101008
 
 #define I810_DRAM_CTL		0x3000
 #define I810_DRAM_ROW_0		0x00000001
@@ -234,6 +235,8 @@
 #define PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT2_IG		0x0166
 #define PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_HB		0x0158  /* Server */
 #define PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT1_IG		0x015A
+#define PCI_DEVICE_ID_INTEL_VALLEYVIEW_HB		0x0F00 /* VLV1 */
+#define PCI_DEVICE_ID_INTEL_VALLEYVIEW_IG		0x0F30
 
 int intel_gmch_probe(struct pci_dev *pdev,
 			       struct agp_bridge_data *bridge);
