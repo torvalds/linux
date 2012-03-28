@@ -659,6 +659,8 @@
 
 
 /*Register GPIO  (0x80) register.RegisterDescription */
+#define GPIO_SLEEP_MASK                         0x80
+#define GPIO_SLEEP_SHIFT                        7
 #define GPIO_DEB_MASK                           0x10
 #define GPIO_DEB_SHIFT                          4
 #define GPIO_PUEN_MASK                          0x08
@@ -742,6 +744,11 @@
 #define TPS65910_GPIO_STS				BIT(1)
 #define TPS65910_GPIO_SET				BIT(0)
 
+/* Max number of TPS65910/11 GPIOs */
+#define TPS65910_NUM_GPIO				6
+#define TPS65911_NUM_GPIO				9
+#define TPS6591X_MAX_NUM_GPIO				9
+
 /* Regulator Index Definitions */
 #define TPS65910_REG_VRTC				0
 #define TPS65910_REG_VIO				1
@@ -787,6 +794,7 @@ struct tps65910_board {
 	int irq_base;
 	int vmbch_threshold;
 	int vmbch2_threshold;
+	bool en_gpio_sleep[TPS6591X_MAX_NUM_GPIO];
 	unsigned long regulator_ext_sleep_control[TPS65910_NUM_REGS];
 	struct regulator_init_data *tps65910_pmic_init_data[TPS65910_NUM_REGS];
 };
