@@ -1011,7 +1011,6 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->tx_win = L2CAP_DEFAULT_TX_WINDOW;
 		chan->tx_win_max = L2CAP_DEFAULT_TX_WINDOW;
 		chan->sec_level = BT_SECURITY_LOW;
-		chan->flags = 0;
 		set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 	}
 
