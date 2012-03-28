@@ -61,20 +61,20 @@ static void node_shift(struct node *n, int shift)
 	if (shift < 0) {
 		shift = -shift;
 		BUG_ON(shift > nr_entries);
-		BUG_ON((void *) key_ptr(n, shift) >= value_ptr(n, shift, value_size));
+		BUG_ON((void *) key_ptr(n, shift) >= value_ptr(n, shift));
 		memmove(key_ptr(n, 0),
 			key_ptr(n, shift),
 			(nr_entries - shift) * sizeof(__le64));
-		memmove(value_ptr(n, 0, value_size),
-			value_ptr(n, shift, value_size),
+		memmove(value_ptr(n, 0),
+			value_ptr(n, shift),
 			(nr_entries - shift) * value_size);
 	} else {
 		BUG_ON(nr_entries + shift > le32_to_cpu(n->header.max_entries));
 		memmove(key_ptr(n, shift),
 			key_ptr(n, 0),
 			nr_entries * sizeof(__le64));
-		memmove(value_ptr(n, shift, value_size),
-			value_ptr(n, 0, value_size),
+		memmove(value_ptr(n, shift),
+			value_ptr(n, 0),
 			nr_entries * value_size);
 	}
 }
@@ -91,16 +91,16 @@ static void node_copy(struct node *left, struct node *right, int shift)
 		memcpy(key_ptr(left, nr_left),
 		       key_ptr(right, 0),
 		       shift * sizeof(__le64));
-		memcpy(value_ptr(left, nr_left, value_size),
-		       value_ptr(right, 0, value_size),
+		memcpy(value_ptr(left, nr_left),
+		       value_ptr(right, 0),
 		       shift * value_size);
 	} else {
 		BUG_ON(shift > le32_to_cpu(right->header.max_entries));
 		memcpy(key_ptr(right, 0),
 		       key_ptr(left, nr_left - shift),
 		       shift * sizeof(__le64));
-		memcpy(value_ptr(right, 0, value_size),
-		       value_ptr(left, nr_left - shift, value_size),
+		memcpy(value_ptr(right, 0),
+		       value_ptr(left, nr_left - shift),
 		       shift * value_size);
 	}
 }
@@ -120,8 +120,8 @@ static void delete_at(struct node *n, unsigned index)
 			key_ptr(n, index + 1),
 			nr_to_copy * sizeof(__le64));
 
-		memmove(value_ptr(n, index, value_size),
-			value_ptr(n, index + 1, value_size),
+		memmove(value_ptr(n, index),
+			value_ptr(n, index + 1),
 			nr_to_copy * value_size);
 	}
 
@@ -166,7 +166,7 @@ static int init_child(struct dm_btree_info *info, struct node *parent,
 	if (inc)
 		inc_children(info->tm, result->n, &le64_type);
 
-	*((__le64 *) value_ptr(parent, index, sizeof(__le64))) =
+	*((__le64 *) value_ptr(parent, index)) =
 		cpu_to_le64(dm_block_location(result->block));
 
 	return 0;
@@ -520,7 +520,7 @@ static int remove_raw(struct shadow_spine *s, struct dm_btree_info *info,
 		 */
 		if (shadow_has_parent(s)) {
 			__le64 location = cpu_to_le64(dm_block_location(shadow_current(s)));
-			memcpy(value_ptr(dm_block_data(shadow_parent(s)), i, sizeof(__le64)),
+			memcpy(value_ptr(dm_block_data(shadow_parent(s)), i),
 			       &location, sizeof(__le64));
 		}
 
@@ -577,7 +577,7 @@ int dm_btree_remove(struct dm_btree_info *info, dm_block_t root,
 
 		if (info->value_type.dec)
 			info->value_type.dec(info->value_type.context,
-					     value_ptr(n, index, info->value_type.size));
+					     value_ptr(n, index));
 
 		delete_at(n, index);
 	}
