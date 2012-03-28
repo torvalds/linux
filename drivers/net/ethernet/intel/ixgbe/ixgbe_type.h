@@ -2419,7 +2419,7 @@ typedef u32 ixgbe_physical_layer;
  */
 
 /* BitTimes (BT) conversion */
-#define IXGBE_BT2KB(BT) ((BT + 1023) / (8 * 1024))
+#define IXGBE_BT2KB(BT) ((BT + (8 * 1024 - 1)) / (8 * 1024))
 #define IXGBE_B2BT(BT) (BT * 8)
 
 /* Calculate Delay to respond to PFC */
@@ -2450,24 +2450,31 @@ typedef u32 ixgbe_physical_layer;
 #define IXGBE_PCI_DELAY	10000
 
 /* Calculate X540 delay value in bit times */
-#define IXGBE_FILL_RATE (36 / 25)
-
-#define IXGBE_DV_X540(LINK, TC) (IXGBE_FILL_RATE * \
-				 (IXGBE_B2BT(LINK) + IXGBE_PFC_D + \
-				 (2 * IXGBE_CABLE_DC) + \
-				 (2 * IXGBE_ID_X540) + \
-				 IXGBE_HD + IXGBE_B2BT(TC)))
+#define IXGBE_DV_X540(_max_frame_link, _max_frame_tc) \
+			((36 * \
+			  (IXGBE_B2BT(_max_frame_link) + \
+			   IXGBE_PFC_D + \
+			   (2 * IXGBE_CABLE_DC) + \
+			   (2 * IXGBE_ID_X540) + \
+			   IXGBE_HD) / 25 + 1) + \
+			 2 * IXGBE_B2BT(_max_frame_tc))
 
 /* Calculate 82599, 82598 delay value in bit times */
-#define IXGBE_DV(LINK, TC) (IXGBE_FILL_RATE * \
-			    (IXGBE_B2BT(LINK) + IXGBE_PFC_D + \
-			    (2 * IXGBE_CABLE_DC) + (2 * IXGBE_ID) + \
-			    IXGBE_HD + IXGBE_B2BT(TC)))
+#define IXGBE_DV(_max_frame_link, _max_frame_tc) \
+			((36 * \
+			  (IXGBE_B2BT(_max_frame_link) + \
+			   IXGBE_PFC_D + \
+			   (2 * IXGBE_CABLE_DC) + \
+			   (2 * IXGBE_ID) + \
+			   IXGBE_HD) / 25 + 1) + \
+			 2 * IXGBE_B2BT(_max_frame_tc))
 
 /* Calculate low threshold delay values */
-#define IXGBE_LOW_DV_X540(TC) (2 * IXGBE_B2BT(TC) + \
-			       (IXGBE_FILL_RATE * IXGBE_PCI_DELAY))
-#define IXGBE_LOW_DV(TC)      (2 * IXGBE_LOW_DV_X540(TC))
+#define IXGBE_LOW_DV_X540(_max_frame_tc) \
+			(2 * IXGBE_B2BT(_max_frame_tc) + \
+			(36 * IXGBE_PCI_DELAY / 25) + 1)
+#define IXGBE_LOW_DV(_max_frame_tc) \
+			(2 * IXGBE_LOW_DV_X540(_max_frame_tc))
 
 /* Software ATR hash keys */
 #define IXGBE_ATR_BUCKET_HASH_KEY    0x3DAD14E2
