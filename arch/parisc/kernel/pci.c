@@ -16,7 +16,6 @@
 #include <linux/types.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/superio.h>
 
 #define DEBUG_RESOURCES 0
