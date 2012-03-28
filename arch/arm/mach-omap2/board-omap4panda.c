@@ -238,7 +238,7 @@ struct wl12xx_platform_data omap_panda_wlan_data  __initdata = {
 
 static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 {
-	int ret = 0;
+	int irq = 0;
 	struct platform_device *pdev = container_of(dev,
 				struct platform_device, dev);
 	struct omap_mmc_platform_data *pdata = dev->platform_data;
@@ -249,14 +249,15 @@ static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 	}
 	/* Setting MMC1 Card detect Irq */
 	if (pdev->id == 0) {
-		ret = twl6030_mmc_card_detect_config();
-		 if (ret)
+		irq = twl6030_mmc_card_detect_config();
+		if (irq < 0) {
 			dev_err(dev, "%s: Error card detect config(%d)\n",
-				__func__, ret);
-		 else
-			pdata->slots[0].card_detect = twl6030_mmc_card_detect;
+				__func__, irq);
+			return irq;
+		}
+		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
 	}
-	return ret;
+	return 0;
 }
 
 static __init void omap4_twl6030_hsmmc_set_late_init(struct device *dev)

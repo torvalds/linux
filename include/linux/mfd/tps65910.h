@@ -17,6 +17,8 @@
 #ifndef __LINUX_MFD_TPS65910_H
 #define __LINUX_MFD_TPS65910_H
 
+#include <linux/gpio.h>
+
 /* TPS chip id list */
 #define TPS65910			0
 #define TPS65911			1
@@ -796,6 +798,7 @@ struct tps65910_board {
 struct tps65910 {
 	struct device *dev;
 	struct i2c_client *i2c_client;
+	struct regmap *regmap;
 	struct mutex io_mutex;
 	unsigned int id;
 	int (*read)(struct tps65910 *tps65910, u8 reg, int size, void *dest);

@@ -334,10 +334,35 @@ static int __devexit pm860x_remove(struct i2c_client *client)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int pm860x_suspend(struct device *dev)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct pm860x_chip *chip = i2c_get_clientdata(client);
+
+	if (device_may_wakeup(dev) && chip->wakeup_flag)
+		enable_irq_wake(chip->core_irq);
+	return 0;
+}
+
+static int pm860x_resume(struct device *dev)
+{
+	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
+	struct pm860x_chip *chip = i2c_get_clientdata(client);
+
+	if (device_may_wakeup(dev) && chip->wakeup_flag)
+		disable_irq_wake(chip->core_irq);
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(pm860x_pm_ops, pm860x_suspend, pm860x_resume);
+
 static struct i2c_driver pm860x_driver = {
 	.driver	= {
 		.name	= "88PM860x",
 		.owner	= THIS_MODULE,
+		.pm     = &pm860x_pm_ops,
 	},
 	.probe		= pm860x_probe,
 	.remove		= __devexit_p(pm860x_remove),
