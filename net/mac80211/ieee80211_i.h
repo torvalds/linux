@@ -512,8 +512,6 @@ struct ieee80211_if_managed {
 	int rssi_min_thold, rssi_max_thold;
 	int last_ave_beacon_signal;
 
-	enum nl80211_channel_type tx_chantype;
-
 	struct ieee80211_ht_cap ht_capa; /* configured ht-cap over-rides */
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
 };
@@ -1501,9 +1499,6 @@ bool ieee80211_set_channel_type(struct ieee80211_local *local,
 				enum nl80211_channel_type chantype);
 enum nl80211_channel_type
 ieee80211_ht_oper_to_channel_type(struct ieee80211_ht_operation *ht_oper);
-enum nl80211_channel_type ieee80211_get_tx_channel_type(
-					struct ieee80211_local *local,
-					enum nl80211_channel_type channel_type);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

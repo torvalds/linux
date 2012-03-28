@@ -180,21 +180,38 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	u32 changed = 0;
 	u16 ht_opmode;
-	enum nl80211_channel_type channel_type;
+	bool disable_40 = false;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	channel_type = local->hw.conf.channel_type;
 
-	if (WARN_ON_ONCE(channel_type == NL80211_CHAN_NO_HT))
-		return 0;
-
-	channel_type = ieee80211_get_tx_channel_type(local, channel_type);
+	switch (sdata->vif.bss_conf.channel_type) {
+	case NL80211_CHAN_HT40PLUS:
+		if (local->hw.conf.channel->flags & IEEE80211_CHAN_NO_HT40PLUS)
+			disable_40 = true;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		if (local->hw.conf.channel->flags & IEEE80211_CHAN_NO_HT40MINUS)
+			disable_40 = true;
+		break;
+	default:
+		break;
+	}
 
 	/* This can change during the lifetime of the BSS */
 	if (!(ht_oper->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
-		channel_type = NL80211_CHAN_HT20;
+		disable_40 = true;
 
-	if (!reconfig || (sdata->u.mgd.tx_chantype != channel_type)) {
+	mutex_lock(&local->sta_mtx);
+	sta = sta_info_get(sdata, bssid);
+
+	WARN_ON_ONCE(!sta);
+
+	if (sta && !sta->supports_40mhz)
+		disable_40 = true;
+
+	if (sta && (!reconfig ||
+		    (disable_40 != !!(sta->sta.ht_cap.cap &
+					IEEE80211_HT_CAP_SUP_WIDTH_20_40)))) {
 		if (reconfig) {
 			/*
 			 * Whenever the AP announces the HT mode changed
@@ -211,20 +228,19 @@ static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
 			drv_flush(local, false);
 		}
 
-		rcu_read_lock();
-		sta = sta_info_get(sdata, bssid);
-		if (sta)
-			rate_control_rate_update(local, sband, sta,
-						 IEEE80211_RC_HT_CHANGED,
-						 channel_type);
-		rcu_read_unlock();
+		if (disable_40)
+			sta->sta.ht_cap.cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		else
+			sta->sta.ht_cap.cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
-		sdata->u.mgd.tx_chantype = channel_type;
+		rate_control_rate_update(local, sband, sta,
+					 IEEE80211_RC_HT_CHANGED);
 
 		if (reconfig)
 			ieee80211_wake_queues_by_reason(&sdata->local->hw,
 				IEEE80211_QUEUE_STOP_REASON_CHTYPE_CHANGE);
 	}
+	mutex_unlock(&local->sta_mtx);
 
 	ht_opmode = le16_to_cpu(ht_oper->operation_mode);
 
@@ -2005,6 +2021,9 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	if (elems.ht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 				elems.ht_cap_elem, &sta->sta.ht_cap);
+
+	sta->supports_40mhz =
+		sta->sta.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
 	rate_control_rate_init(sta);
 
