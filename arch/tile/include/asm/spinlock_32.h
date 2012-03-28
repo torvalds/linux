@@ -19,7 +19,6 @@
 
 #include <linux/atomic.h>
 #include <asm/page.h>
-#include <asm/system.h>
 #include <linux/compiler.h>
 
 /*
