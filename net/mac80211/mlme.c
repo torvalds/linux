@@ -171,110 +171,57 @@ static int ecw2cw(int ecw)
 	return (1 << ecw) - 1;
 }
 
-/*
- * ieee80211_enable_ht should be called only after the operating band
- * has been determined as ht configuration depends on the hw's
- * HT abilities for a specific band.
- */
-static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
-			       struct ieee80211_ht_operation *ht_oper,
-			       const u8 *bssid, u16 ap_ht_cap_flags,
-			       bool beacon_htcap_ie)
+static u32 ieee80211_config_ht_tx(struct ieee80211_sub_if_data *sdata,
+				  struct ieee80211_ht_operation *ht_oper,
+				  const u8 *bssid, bool reconfig)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	struct sta_info *sta;
 	u32 changed = 0;
-	int ht_cfreq;
 	u16 ht_opmode;
-	bool enable_ht = true;
-	enum nl80211_channel_type prev_chantype;
-	enum nl80211_channel_type rx_channel_type = NL80211_CHAN_NO_HT;
-	enum nl80211_channel_type tx_channel_type;
+	enum nl80211_channel_type channel_type;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	prev_chantype = sdata->vif.bss_conf.channel_type;
+	channel_type = local->hw.conf.channel_type;
 
+	if (WARN_ON_ONCE(channel_type == NL80211_CHAN_NO_HT))
+		return 0;
 
-	ht_cfreq = ieee80211_channel_to_frequency(ht_oper->primary_chan,
-						  sband->band);
-	/* check that channel matches the right operating channel */
-	if (local->hw.conf.channel->center_freq != ht_cfreq) {
-		/* Some APs mess this up, evidently.
-		 * Netgear WNDR3700 sometimes reports 4 higher than
-		 * the actual channel, for instance.
-		 */
-		printk(KERN_DEBUG
-		       "%s: Wrong control channel in association"
-		       " response: configured center-freq: %d"
-		       " ht-cfreq: %d  ht->control_chan: %d"
-		       " band: %d.  Disabling HT.\n",
-		       sdata->name,
-		       local->hw.conf.channel->center_freq,
-		       ht_cfreq, ht_oper->primary_chan,
-		       sband->band);
-		enable_ht = false;
-	}
+	channel_type = ieee80211_get_tx_channel_type(local, channel_type);
 
-	if (enable_ht) {
-		rx_channel_type = NL80211_CHAN_HT20;
+	/* This can change during the lifetime of the BSS */
+	if (!(ht_oper->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
+		channel_type = NL80211_CHAN_HT20;
 
-		if (!(ap_ht_cap_flags & IEEE80211_HT_CAP_40MHZ_INTOLERANT) &&
-		    !ieee80111_cfg_override_disables_ht40(sdata) &&
-		    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) &&
-		    (ht_oper->ht_param & IEEE80211_HT_PARAM_CHAN_WIDTH_ANY)) {
-			switch (ht_oper->ht_param &
-					IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
-			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-				rx_channel_type = NL80211_CHAN_HT40PLUS;
-				break;
-			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-				rx_channel_type = NL80211_CHAN_HT40MINUS;
-				break;
-			}
-		}
-	}
-
-	tx_channel_type = ieee80211_get_tx_channel_type(local, rx_channel_type);
-
-	if (local->tmp_channel)
-		local->tmp_channel_type = rx_channel_type;
-
-	if (!ieee80211_set_channel_type(local, sdata, rx_channel_type)) {
-		/* can only fail due to HT40+/- mismatch */
-		rx_channel_type = NL80211_CHAN_HT20;
-		WARN_ON(!ieee80211_set_channel_type(local, sdata,
-						    rx_channel_type));
-	}
-
-	if (beacon_htcap_ie && (prev_chantype != rx_channel_type)) {
-		/*
-		 * Whenever the AP announces the HT mode change that can be
-		 * 40MHz intolerant or etc., it would be safer to stop tx
-		 * queues before doing hw config to avoid buffer overflow.
-		 */
-		ieee80211_stop_queues_by_reason(&sdata->local->hw,
+	if (!reconfig || (sdata->u.mgd.tx_chantype != channel_type)) {
+		if (reconfig) {
+			/*
+			 * Whenever the AP announces the HT mode changed
+			 * (e.g. 40 MHz intolerant) stop queues to avoid
+			 * sending out frames while the rate control is
+			 * reconfiguring.
+			 */
+			ieee80211_stop_queues_by_reason(&sdata->local->hw,
 				IEEE80211_QUEUE_STOP_REASON_CHTYPE_CHANGE);
 
-		/* flush out all packets */
-		synchronize_net();
+			/* flush out all packets */
+			synchronize_net();
 
-		drv_flush(local, false);
-	}
+			drv_flush(local, false);
+		}
 
-	/* channel_type change automatically detected */
-	ieee80211_hw_config(local, 0);
-
-	if (prev_chantype != tx_channel_type) {
 		rcu_read_lock();
 		sta = sta_info_get(sdata, bssid);
 		if (sta)
 			rate_control_rate_update(local, sband, sta,
 						 IEEE80211_RC_HT_CHANGED,
-						 tx_channel_type);
+						 channel_type);
 		rcu_read_unlock();
 
-		if (beacon_htcap_ie)
+		sdata->u.mgd.tx_chantype = channel_type;
+
+		if (reconfig)
 			ieee80211_wake_queues_by_reason(&sdata->local->hw,
 				IEEE80211_QUEUE_STOP_REASON_CHTYPE_CHANGE);
 	}
@@ -282,12 +229,9 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	ht_opmode = le16_to_cpu(ht_oper->operation_mode);
 
 	/* if bss configuration changed store the new one */
-	if (sdata->ht_opmode_valid != enable_ht ||
-	    sdata->vif.bss_conf.ht_operation_mode != ht_opmode ||
-	    prev_chantype != rx_channel_type) {
+	if (!reconfig || (sdata->vif.bss_conf.ht_operation_mode != ht_opmode)) {
 		changed |= BSS_CHANGED_HT;
 		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
-		sdata->ht_opmode_valid = enable_ht;
 	}
 
 	return changed;
@@ -357,6 +301,16 @@ static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 			cap &= ~IEEE80211_HT_CAP_SGI_40;
 		}
 		break;
+	}
+
+	/*
+	 * If 40 MHz was disabled associate as though we weren't
+	 * capable of 40 MHz -- some broken APs will never fall
+	 * back to trying to transmit in 20 MHz.
+	 */
+	if (sdata->u.mgd.flags & IEEE80211_STA_DISABLE_40MHZ) {
+		cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+		cap &= ~IEEE80211_HT_CAP_SGI_40;
 	}
 
 	/* set SM PS mode properly */
@@ -1436,7 +1390,6 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.assoc = false;
 
 	/* on the next assoc, re-program HT parameters */
-	sdata->ht_opmode_valid = false;
 	memset(&ifmgd->ht_capa, 0, sizeof(ifmgd->ht_capa));
 	memset(&ifmgd->ht_capa_mask, 0, sizeof(ifmgd->ht_capa_mask));
 
@@ -2003,7 +1956,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	u32 changed = 0;
 	int err;
-	u16 ap_ht_cap_flags;
 
 	/* AssocResp and ReassocResp have identical structure */
 
@@ -2054,8 +2006,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 				elems.ht_cap_elem, &sta->sta.ht_cap);
 
-	ap_ht_cap_flags = sta->sta.ht_cap.cap;
-
 	rate_control_rate_init(sta);
 
 	if (ifmgd->flags & IEEE80211_STA_MFP_ENABLED)
@@ -2097,9 +2047,8 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	if (elems.ht_operation && elems.wmm_param &&
 	    !(ifmgd->flags & IEEE80211_STA_DISABLE_11N))
-		changed |= ieee80211_enable_ht(sdata, elems.ht_operation,
-					       cbss->bssid, ap_ht_cap_flags,
-					       false);
+		changed |= ieee80211_config_ht_tx(sdata, elems.ht_operation,
+						  cbss->bssid, false);
 
 	/* set AID and assoc capability,
 	 * ieee80211_set_associated() will tell the driver */
@@ -2511,29 +2460,12 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (elems.ht_cap_elem && elems.ht_operation && elems.wmm_param &&
 	    !(ifmgd->flags & IEEE80211_STA_DISABLE_11N)) {
-		struct sta_info *sta;
 		struct ieee80211_supported_band *sband;
-		u16 ap_ht_cap_flags;
-
-		rcu_read_lock();
-
-		sta = sta_info_get(sdata, bssid);
-		if (WARN_ON(!sta)) {
-			rcu_read_unlock();
-			return;
-		}
 
 		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-				elems.ht_cap_elem, &sta->sta.ht_cap);
-
-		ap_ht_cap_flags = sta->sta.ht_cap.cap;
-
-		rcu_read_unlock();
-
-		changed |= ieee80211_enable_ht(sdata, elems.ht_operation,
-					       bssid, ap_ht_cap_flags, true);
+		changed |= ieee80211_config_ht_tx(sdata, elems.ht_operation,
+						  bssid, true);
 	}
 
 	/* Note: country IE parsing is done for us by cfg80211 */
@@ -3065,6 +2997,11 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	bool have_sta = false;
 	int err;
+	int ht_cfreq;
+	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
+	const u8 *ht_oper_ie;
+	const struct ieee80211_ht_operation *ht_oper = NULL;
+	struct ieee80211_supported_band *sband;
 
 	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data))
 		return -EINVAL;
@@ -3086,16 +3023,75 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&local->mtx);
 
 	/* switch to the right channel */
+	sband = local->hw.wiphy->bands[cbss->channel->band];
+
+	ifmgd->flags &= ~IEEE80211_STA_DISABLE_40MHZ;
+
+	if (sband->ht_cap.ht_supported) {
+		ht_oper_ie = cfg80211_find_ie(WLAN_EID_HT_OPERATION,
+					      cbss->information_elements,
+					      cbss->len_information_elements);
+		if (ht_oper_ie && ht_oper_ie[1] >= sizeof(*ht_oper))
+			ht_oper = (void *)(ht_oper_ie + 2);
+	}
+
+	if (ht_oper) {
+		ht_cfreq = ieee80211_channel_to_frequency(ht_oper->primary_chan,
+							  cbss->channel->band);
+		/* check that channel matches the right operating channel */
+		if (cbss->channel->center_freq != ht_cfreq) {
+			/*
+			 * It's possible that some APs are confused here;
+			 * Netgear WNDR3700 sometimes reports 4 higher than
+			 * the actual channel in association responses, but
+			 * since we look at probe response/beacon data here
+			 * it should be OK.
+			 */
+			printk(KERN_DEBUG
+			       "%s: Wrong control channel: center-freq: %d"
+			       " ht-cfreq: %d ht->primary_chan: %d"
+			       " band: %d. Disabling HT.\n",
+			       sdata->name, cbss->channel->center_freq,
+			       ht_cfreq, ht_oper->primary_chan,
+			       cbss->channel->band);
+			ht_oper = NULL;
+		}
+	}
+
+	if (ht_oper) {
+		channel_type = NL80211_CHAN_HT20;
+
+		if (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40) {
+			switch (ht_oper->ht_param &
+					IEEE80211_HT_PARAM_CHA_SEC_OFFSET) {
+			case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
+				channel_type = NL80211_CHAN_HT40PLUS;
+				break;
+			case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
+				channel_type = NL80211_CHAN_HT40MINUS;
+				break;
+			}
+		}
+	}
+
+	if (!ieee80211_set_channel_type(local, sdata, channel_type)) {
+		/* can only fail due to HT40+/- mismatch */
+		channel_type = NL80211_CHAN_HT20;
+		printk(KERN_DEBUG
+		       "%s: disabling 40 MHz due to multi-vif mismatch\n",
+		       sdata->name);
+		ifmgd->flags |= IEEE80211_STA_DISABLE_40MHZ;
+		WARN_ON(!ieee80211_set_channel_type(local, sdata,
+						    channel_type));
+	}
+
 	local->oper_channel = cbss->channel;
-	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	ieee80211_hw_config(local, 0);
 
 	if (!have_sta) {
-		struct ieee80211_supported_band *sband;
 		u32 rates = 0, basic_rates = 0;
 		bool have_higher_than_11mbit;
 		int min_rate = INT_MAX, min_rate_index = -1;
-
-		sband = sdata->local->hw.wiphy->bands[cbss->channel->band];
 
 		ieee80211_get_rates(sband, bss->supp_rates,
 				    bss->supp_rates_len,

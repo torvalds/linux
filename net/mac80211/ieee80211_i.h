@@ -379,6 +379,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
 	IEEE80211_STA_NULLFUNC_ACKED	= BIT(8),
 	IEEE80211_STA_RESET_SIGNAL_AVE	= BIT(9),
+	IEEE80211_STA_DISABLE_40MHZ	= BIT(10),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -510,6 +511,8 @@ struct ieee80211_if_managed {
 	 */
 	int rssi_min_thold, rssi_max_thold;
 	int last_ave_beacon_signal;
+
+	enum nl80211_channel_type tx_chantype;
 
 	struct ieee80211_ht_cap ht_capa; /* configured ht-cap over-rides */
 	struct ieee80211_ht_cap ht_capa_mask; /* Valid parts of ht_capa */
@@ -666,12 +669,6 @@ struct ieee80211_sub_if_data {
 	int drop_unencrypted;
 
 	char name[IFNAMSIZ];
-
-	/*
-	 * keep track of whether the HT opmode (stored in
-	 * vif.bss_info.ht_operation_mode) is valid.
-	 */
-	bool ht_opmode_valid;
 
 	/* to detect idle changes */
 	bool old_idle;
@@ -1300,7 +1297,6 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 				       struct net_device *dev);
 
 /* HT */
-bool ieee80111_cfg_override_disables_ht40(struct ieee80211_sub_if_data *sdata);
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_sta_ht_cap *ht_cap);
 void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
