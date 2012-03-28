@@ -320,16 +320,8 @@ static int register_xaction_notifier(struct notifier_block *nb)
 static void deliver_recv_msg(struct smi_info *smi_info,
 			     struct ipmi_smi_msg *msg)
 {
-	/* Deliver the message to the upper layer with the lock
-	   released. */
-
-	if (smi_info->run_to_completion) {
-		ipmi_smi_msg_received(smi_info->intf, msg);
-	} else {
-		spin_unlock(&(smi_info->si_lock));
-		ipmi_smi_msg_received(smi_info->intf, msg);
-		spin_lock(&(smi_info->si_lock));
-	}
+	/* Deliver the message to the upper layer. */
+	ipmi_smi_msg_received(smi_info->intf, msg);
 }
 
 static void return_hosed_msg(struct smi_info *smi_info, int cCode)
@@ -481,9 +473,7 @@ static void handle_flags(struct smi_info *smi_info)
 
 		start_clear_flags(smi_info);
 		smi_info->msg_flags &= ~WDT_PRE_TIMEOUT_INT;
-		spin_unlock(&(smi_info->si_lock));
 		ipmi_smi_watchdog_pretimeout(smi_info->intf);
-		spin_lock(&(smi_info->si_lock));
 	} else if (smi_info->msg_flags & RECEIVE_MSG_AVAIL) {
 		/* Messages available. */
 		smi_info->curr_msg = ipmi_alloc_smi_msg();
