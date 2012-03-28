@@ -391,6 +391,7 @@ static ssize_t show_str(struct device *dev,
 		break;
 	default:
 		BUG();
+		val = "";
 	}
 
 	return sprintf(buf, "%s\n", val);
