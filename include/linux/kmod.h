@@ -110,10 +110,27 @@ call_usermodehelper(char *path, char **argv, char **envp, int wait)
 
 extern struct ctl_table usermodehelper_table[];
 
+enum umh_disable_depth {
+	UMH_ENABLED = 0,
+	UMH_FREEZING,
+	UMH_DISABLED,
+};
+
 extern void usermodehelper_init(void);
 
-extern int usermodehelper_disable(void);
-extern void usermodehelper_enable(void);
+extern int __usermodehelper_disable(enum umh_disable_depth depth);
+extern void __usermodehelper_set_disable_depth(enum umh_disable_depth depth);
+
+static inline int usermodehelper_disable(void)
+{
+	return __usermodehelper_disable(UMH_DISABLED);
+}
+
+static inline void usermodehelper_enable(void)
+{
+	__usermodehelper_set_disable_depth(UMH_ENABLED);
+}
+
 extern int usermodehelper_read_trylock(void);
 extern long usermodehelper_read_lock_wait(long timeout);
 extern void usermodehelper_read_unlock(void);
