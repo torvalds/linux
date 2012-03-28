@@ -49,10 +49,10 @@
 #include "rga_mmu_info.h"
 #include "RGA_API.h"
 
-#include "bug_320x240_swap0_ABGR8888.h"
+//#include "bug_320x240_swap0_ABGR8888.h"
 
 
-#define RGA_TEST 0
+#define RGA_TEST 0
 #define RGA_TEST_TIME 0
 
 #define PRE_SCALE_BUF_SIZE  2048*1024*4
@@ -151,7 +151,6 @@ static void rga_soft_reset(void)
 	if(i == RGA_RESET_TIMEOUT)
 		ERR("soft reset timeout.\n");
 }
-
 
 static void rga_dump(void)
 {
@@ -405,13 +404,7 @@ static struct rga_reg * rga_reg_init(rga_session *session, struct rga_req *req)
             return NULL; 
         }
     }
-
-    #if RGA_TEST_TIME
-    rga_end = ktime_get();
-    rga_end = ktime_sub(rga_end, rga_start);
-    printk("one cmd end time %d\n", (int)ktime_to_us(rga_end));
-    #endif
-    
+        
     RGA_gen_reg_info(req, (uint8_t *)reg->cmd_reg);
 
     spin_lock_irqsave(&rga_service.lock, flag);
@@ -465,6 +458,7 @@ static struct rga_reg * rga_reg_init_2(rga_session *session, struct rga_req *req
         
         RGA_gen_reg_info(req0, (uint8_t *)reg0->cmd_reg);
 
+        
         if(req1->mmu_info.mmu_en)
         {
             ret = rga_set_mmu_info(reg1, req1);
@@ -473,17 +467,9 @@ static struct rga_reg * rga_reg_init_2(rga_session *session, struct rga_req *req
                 break;        
             }
         }
-        
+                
         RGA_gen_reg_info(req1, (uint8_t *)reg1->cmd_reg);
-
-        {
-            uint32_t i;
-            for(i=0; i<28; i++)
-            {
-                printk("reg1->cmd_reg[%d] is %.8x\n", i, reg1->cmd_reg[i]);
-            }
-        }
-
+        
         spin_lock_irqsave(&rga_service.lock, flag);
     	list_add_tail(&reg0->status_link, &rga_service.waiting);
         list_add_tail(&reg0->session_link, &session->waiting);
@@ -635,10 +621,16 @@ static void rga_try_set_reg(uint32_t num)
                                                               
                 /* All CMD finish int */
                 rga_write(0x1<<10, RGA_INT);
+
+                
+                #if RGA_TEST_TIME
+                rga_start = ktime_get();
+                #endif
                 
                 /* Start proc */
                 atomic_set(&reg->session->done, 0);
                 rga_write(0x1, RGA_CMD_CTRL);                
+
 
                 #if RGA_TEST
                 {
@@ -702,7 +694,7 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
         	if(ret == -EINVAL) {
                 return -EINVAL;
         	}
-
+           
             reg = rga_reg_init(session, req);
             if(reg == NULL) {
                 return -EFAULT;
@@ -745,6 +737,8 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     daw = req->dst.act_w;
     dah = req->dst.act_h;
 
+    printk("req->rotate_mode = %.8x, req->scale_mode = %.8x\n", req->rotate_mode, req->scale_mode);
+
     if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah))) 
     {
         /* generate 2 cmd for pre scale */
@@ -777,37 +771,35 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
         {
     		return -EFAULT;
     	}
-
-        //printk("rga_reg_int start \n");        
+      
         reg = rga_reg_init(session, req);
         if(reg == NULL) 
         {            
             return -EFAULT;
         }
-        //printk("rga_reg_int end \n");
         
         atomic_set(&reg->int_enable, 1);        
         rga_try_set_reg(1);
     }    
-
-    
-    
+            
     ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
     if (unlikely(ret_timeout< 0)) 
     {
 		pr_err("pid %d wait task ret %d\n", session->pid, ret_timeout);
 	} 
-    else if (0 == ret_timeout) 
+    else if (0 == ret_timeout)
     {
 		pr_err("pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
 		ret = -ETIMEDOUT;
 	}
 
-    
-
-    return ret;
-   
-	//printk("rga_blit_sync done******************\n");
+    #if RGA_TEST_TIME
+    rga_end = ktime_get();
+    rga_end = ktime_sub(rga_end, rga_start);
+    printk("one cmd end time %d\n", (int)ktime_to_us(rga_end));
+    #endif
+        
+    return ret;   
 }
 
 
@@ -817,9 +809,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	int ret = 0;
     rga_session *session = (rga_session *)file->private_data;
 
-    #if RGA_TEST_TIME
-    rga_start = ktime_get();
-    #endif
+    
 
 	if (NULL == session) 
     {
@@ -866,7 +856,6 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
     if(req != NULL) {
         kfree(req);
     }    
-
     
 	return ret;
 }
@@ -1293,6 +1282,14 @@ static int __init rga_init(void)
 			return ret;
 	}
 
+    #if 0
+    {
+        uint32_t i;
+        for(i=0; i<10; i++)
+            rga_test_0();
+    }
+    #endif
+
     //rga_test_0();
     
 	INFO("Module initialized.\n");  
@@ -1319,7 +1316,7 @@ static void __exit rga_exit(void)
 }
 
 
-#if 1
+#if 0
 extern struct fb_info * rk_get_fb(int fb_id);
 EXPORT_SYMBOL(rk_get_fb);
 
@@ -1327,6 +1324,7 @@ extern void rk_direct_fb_show(struct fb_info * fbi);
 EXPORT_SYMBOL(rk_direct_fb_show);
 
 extern uint32_t ABGR8888_320_240_swap0[240][320];
+//unsigned int src_buf[1280*800];
 unsigned int dst_buf[1280*800];
 
 void rga_test_0(void)
@@ -1371,14 +1369,16 @@ void rga_test_0(void)
     req.src.vir_w = 320;
     req.src.vir_h = 240;
     req.src.yrgb_addr = (uint32_t)src;
+    req.src.uv_addr = ((uint32_t)src + 1920*1080);
+    req.src.format = 0;
 
-    req.dst.act_w = 100;
-    req.dst.act_h = 80;
+    req.dst.act_w = 320;
+    req.dst.act_h = 240;
 
     req.dst.vir_w = 1280;
     req.dst.vir_h = 800;
-    req.dst.x_offset = 200;
-    req.dst.y_offset = 200;
+    req.dst.x_offset = 0;
+    req.dst.y_offset = 000;
     req.dst.yrgb_addr = (uint32_t)dst;
 
     req.clip.xmin = 0;
@@ -1386,9 +1386,14 @@ void rga_test_0(void)
     req.clip.ymin = 0;
     req.clip.ymax = 799;
         
-    req.render_mode = 0;
+    req.render_mode = color_fill_mode ;
+    req.color_fill_mode = 0;
+    req.fg_color = 0xa0a0a0a0;
+    
     req.rotate_mode = 1;
     req.scale_mode = 2;
+
+    req.alpha_rop_flag = 0;
 
     req.sina = 0;
     req.cosa = 0x10000;

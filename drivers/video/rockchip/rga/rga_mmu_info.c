@@ -644,7 +644,7 @@ static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);    
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
 
@@ -750,7 +750,7 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
          * change the buf address in req struct 
          */
          
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);    
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
                
         /*record the malloc buf for the cmd end to release*/
@@ -848,7 +848,7 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);    
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
        
         
@@ -979,7 +979,7 @@ static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_r
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);
         
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
         req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
@@ -1144,7 +1144,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
          * for the reason of lie to MMU 
          */
         
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base)>>2;
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);
 
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
         req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
@@ -1247,7 +1247,7 @@ static int rga_mmu_info_update_palette_table_mode(struct rga_reg *reg, struct rg
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);
         
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
         
@@ -1344,7 +1344,7 @@ static int rga_mmu_info_update_patten_buff_mode(struct rga_reg *reg, struct rga_
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);
         
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
         

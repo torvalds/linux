@@ -148,7 +148,7 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
     msg->dst.act_h = dah;
     msg->dst.vir_h = dah;
             
-    //msg->dst.yrgb_addr = (u32)rga_service.pre_scale_buf;
+    msg->dst.yrgb_addr = (u32)rga_service.pre_scale_buf;
     msg->dst.uv_addr = msg->dst.yrgb_addr + stride * dah;
     msg->dst.v_addr = msg->dst.uv_addr + ((stride * dah) >> 1);
 
