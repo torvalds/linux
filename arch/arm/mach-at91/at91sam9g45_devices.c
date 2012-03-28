@@ -133,7 +133,7 @@ void __init at91_add_device_usbh_ohci(struct at91_usbh_data *data)
 
 	/* Enable overcurrent notification */
 	for (i = 0; i < data->ports; i++) {
-		if (data->overcurrent_pin[i])
+		if (gpio_is_valid(data->overcurrent_pin[i]))
 			at91_set_gpio_input(data->overcurrent_pin[i], 1);
 	}
 
@@ -786,6 +786,9 @@ void __init at91_add_device_spi(struct spi_board_info *devices, int nr_devices)
 			cs_pin = spi0_standard_cs[devices[i].chip_select];
 		else
 			cs_pin = spi1_standard_cs[devices[i].chip_select];
+
+		if (!gpio_is_valid(cs_pin))
+			continue;
 
 		if (devices[i].bus_num == 0)
 			enable_spi0 = 1;
