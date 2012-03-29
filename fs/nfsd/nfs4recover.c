@@ -1032,3 +1032,15 @@ rpc_pipefs_event(struct notifier_block *nb, unsigned long event, void *ptr)
 struct notifier_block nfsd4_cld_block = {
 	.notifier_call = rpc_pipefs_event,
 };
+
+int
+register_cld_notifier(void)
+{
+	return rpc_pipefs_notifier_register(&nfsd4_cld_block);
+}
+
+void
+unregister_cld_notifier(void)
+{
+	rpc_pipefs_notifier_unregister(&nfsd4_cld_block);
+}
