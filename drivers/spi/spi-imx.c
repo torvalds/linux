@@ -83,7 +83,7 @@ struct spi_imx_data {
 	struct spi_bitbang bitbang;
 
 	struct completion xfer_done;
-	void *base;
+	void __iomem *base;
 	int irq;
 	struct clk *clk;
 	unsigned long spi_clk;
