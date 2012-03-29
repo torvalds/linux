@@ -4021,4 +4021,17 @@
 #define   AUD_CONFIG_PIXEL_CLOCK_HDMI		(0xf << 16)
 #define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
 
+/* HSW Power Wells */
+#define HSW_PWR_WELL_CTL1		0x45400		/* BIOS */
+#define HSW_PWR_WELL_CTL2		0x45404		/* Driver */
+#define HSW_PWR_WELL_CTL3		0x45408		/* KVMR */
+#define HSW_PWR_WELL_CTL4		0x4540C		/* Debug */
+#define   HSW_PWR_WELL_ENABLE				(1<<31)
+#define   HSW_PWR_WELL_STATE				(1<<30)
+#define HSW_PWR_WELL_CTL5		0x45410
+#define   HSW_PWR_WELL_ENABLE_SINGLE_STEP	(1<<31)
+#define   HSW_PWR_WELL_PWR_GATE_OVERRIDE	(1<<20)
+#define   HSW_PWR_WELL_FORCE_ON				(1<<19)
+#define HSW_PWR_WELL_CTL6		0x45414
+
 #endif /* _I915_REG_H_ */
