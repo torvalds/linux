@@ -347,6 +347,16 @@ static struct device_attribute *dynamic_csrow_ce_count_attr[] = {
 	&dev_attr_legacy_ch5_ce_count.attr
 };
 
+static inline int nr_pages_per_csrow(struct csrow_info *csrow)
+{
+	int chan, nr_pages = 0;
+
+	for (chan = 0; chan < csrow->nr_channels; chan++)
+		nr_pages += csrow->channels[chan].dimm->nr_pages;
+
+	return nr_pages;
+}
+
 /* Create a CSROW object under specifed edac_mc_device */
 static int edac_create_csrow_object(struct mem_ctl_info *mci,
 				    struct csrow_info *csrow, int index)
@@ -371,6 +381,9 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 		return err;
 
 	for (chan = 0; chan < csrow->nr_channels; chan++) {
+		/* Only expose populated DIMMs */
+		if (!csrow->channels[chan].dimm->nr_pages)
+			continue;
 		err = device_create_file(&csrow->dev,
 					 dynamic_csrow_dimm_attr[chan]);
 		if (err < 0)
@@ -405,6 +418,9 @@ static int edac_create_csrow_objects(struct mem_ctl_info *mci)
 	struct csrow_info *csrow;
 
 	for (i = 0; i < mci->nr_csrows; i++) {
+		csrow = &mci->csrows[i];
+		if (!nr_pages_per_csrow(csrow))
+			continue;
 		err = edac_create_csrow_object(mci, &mci->csrows[i], i);
 		if (err < 0)
 			goto error;
@@ -414,7 +430,11 @@ static int edac_create_csrow_objects(struct mem_ctl_info *mci)
 error:
 	for (--i; i >= 0; i--) {
 		csrow = &mci->csrows[i];
+		if (!nr_pages_per_csrow(csrow))
+			continue;
 		for (chan = csrow->nr_channels - 1; chan >= 0; chan--) {
+			if (!csrow->channels[chan].dimm->nr_pages)
+				continue;
 			device_remove_file(&csrow->dev,
 						dynamic_csrow_dimm_attr[chan]);
 			device_remove_file(&csrow->dev,
@@ -433,7 +453,11 @@ static void edac_delete_csrow_objects(struct mem_ctl_info *mci)
 
 	for (i = mci->nr_csrows - 1; i >= 0; i--) {
 		csrow = &mci->csrows[i];
+		if (!nr_pages_per_csrow(csrow))
+			continue;
 		for (chan = csrow->nr_channels - 1; chan >= 0; chan--) {
+			if (!csrow->channels[chan].dimm->nr_pages)
+				continue;
 			debugf1("Removing csrow %d channel %d sysfs nodes\n",
 				i, chan);
 			device_remove_file(&csrow->dev,
