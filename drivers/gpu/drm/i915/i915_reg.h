@@ -4134,4 +4134,12 @@
 #define  PIXCLK_GATE_UNGATE		1<<0
 #define  PIXCLK_GATE_GATE		0<<0
 
+/* SPLL */
+#define SPLL_CTL				0x46020
+#define  SPLL_PLL_ENABLE		(1<<31)
+#define  SPLL_PLL_SCC			(1<<28)
+#define  SPLL_PLL_NON_SCC		(2<<28)
+#define  SPLL_PLL_FREQ_810MHz	(0<<26)
+#define  SPLL_PLL_FREQ_1350MHz	(1<<26)
+
 #endif /* _I915_REG_H_ */
