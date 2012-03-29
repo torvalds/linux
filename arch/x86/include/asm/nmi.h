@@ -27,6 +27,8 @@ void arch_trigger_all_cpu_backtrace(void);
 enum {
 	NMI_LOCAL=0,
 	NMI_UNKNOWN,
+	NMI_SERR,
+	NMI_IO_CHECK,
 	NMI_MAX
 };
 

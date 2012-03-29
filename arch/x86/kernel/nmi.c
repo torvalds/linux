@@ -54,6 +54,14 @@ static struct nmi_desc nmi_desc[NMI_MAX] =
 		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[1].lock),
 		.head = LIST_HEAD_INIT(nmi_desc[1].head),
 	},
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[2].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[2].head),
+	},
+	{
+		.lock = __SPIN_LOCK_UNLOCKED(&nmi_desc[3].lock),
+		.head = LIST_HEAD_INIT(nmi_desc[3].head),
+	},
 
 };
 
@@ -120,6 +128,8 @@ static int __setup_nmi(unsigned int type, struct nmiaction *action)
 	 * to manage expectations
 	 */
 	WARN_ON_ONCE(type == NMI_UNKNOWN && !list_empty(&desc->head));
+	WARN_ON_ONCE(type == NMI_SERR && !list_empty(&desc->head));
+	WARN_ON_ONCE(type == NMI_IO_CHECK && !list_empty(&desc->head));
 
 	/*
 	 * some handlers need to be executed first otherwise a fake
@@ -212,6 +222,10 @@ EXPORT_SYMBOL_GPL(unregister_nmi_handler);
 static notrace __kprobes void
 pci_serr_error(unsigned char reason, struct pt_regs *regs)
 {
+	/* check to see if anyone registered against these types of errors */
+	if (nmi_handle(NMI_SERR, regs, false))
+		return;
+
 	pr_emerg("NMI: PCI system error (SERR) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
 
@@ -240,6 +254,10 @@ static notrace __kprobes void
 io_check_error(unsigned char reason, struct pt_regs *regs)
 {
 	unsigned long i;
+
+	/* check to see if anyone registered against these types of errors */
+	if (nmi_handle(NMI_IO_CHECK, regs, false))
+		return;
 
 	pr_emerg(
 	"NMI: IOCK error (debug interrupt?) for reason %02x on CPU %d.\n",
