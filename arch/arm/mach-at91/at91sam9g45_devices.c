@@ -437,7 +437,6 @@ void __init at91_add_device_mci(short mmc_id, struct mci_platform_data *data)
 
 	/* DMA slave channel configuration */
 	atslave->dma_dev = &at_hdmac_device.dev;
-	atslave->reg_width = AT_DMA_SLAVE_WIDTH_32BIT;
 	atslave->cfg = ATC_FIFOCFG_HALFFIFO
 			| ATC_SRC_H2SEL_HW | ATC_DST_H2SEL_HW;
 	atslave->ctrla = ATC_SCSIZE_16 | ATC_DCSIZE_16;
