@@ -2282,15 +2282,13 @@ static void unset_balance_control(struct btrfs_fs_info *fs_info)
  * Balance filters.  Return 1 if chunk should be filtered out
  * (should not be balanced).
  */
-static int chunk_profiles_filter(u64 chunk_profile,
+static int chunk_profiles_filter(u64 chunk_type,
 				 struct btrfs_balance_args *bargs)
 {
-	chunk_profile &= BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	chunk_type = chunk_to_extended(chunk_type) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
-	if (chunk_profile == 0)
-		chunk_profile = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-
-	if (bargs->profiles & chunk_profile)
+	if (bargs->profiles & chunk_type)
 		return 0;
 
 	return 1;
@@ -2397,18 +2395,16 @@ static int chunk_vrange_filter(struct extent_buffer *leaf,
 	return 1;
 }
 
-static int chunk_soft_convert_filter(u64 chunk_profile,
+static int chunk_soft_convert_filter(u64 chunk_type,
 				     struct btrfs_balance_args *bargs)
 {
 	if (!(bargs->flags & BTRFS_BALANCE_ARGS_CONVERT))
 		return 0;
 
-	chunk_profile &= BTRFS_BLOCK_GROUP_PROFILE_MASK;
+	chunk_type = chunk_to_extended(chunk_type) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
-	if (chunk_profile == 0)
-		chunk_profile = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-
-	if (bargs->target & chunk_profile)
+	if (bargs->target == chunk_type)
 		return 1;
 
 	return 0;
@@ -2634,6 +2630,30 @@ error:
 	return ret;
 }
 
+/**
+ * alloc_profile_is_valid - see if a given profile is valid and reduced
+ * @flags: profile to validate
+ * @extended: if true @flags is treated as an extended profile
+ */
+static int alloc_profile_is_valid(u64 flags, int extended)
+{
+	u64 mask = (extended ? BTRFS_EXTENDED_PROFILE_MASK :
+			       BTRFS_BLOCK_GROUP_PROFILE_MASK);
+
+	flags &= ~BTRFS_BLOCK_GROUP_TYPE_MASK;
+
+	/* 1) check that all other bits are zeroed */
+	if (flags & ~mask)
+		return 0;
+
+	/* 2) see if profile is reduced */
+	if (flags == 0)
+		return !extended; /* "0" is valid for usual profiles */
+
+	/* true if exactly one bit set */
+	return (flags & (flags - 1)) == 0;
+}
+
 static inline int balance_need_close(struct btrfs_fs_info *fs_info)
 {
 	/* cancel requested || normal exit path */
@@ -2662,6 +2682,7 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 {
 	struct btrfs_fs_info *fs_info = bctl->fs_info;
 	u64 allowed;
+	int mixed = 0;
 	int ret;
 
 	if (btrfs_fs_closing(fs_info) ||
@@ -2671,13 +2692,16 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		goto out;
 	}
 
+	allowed = btrfs_super_incompat_flags(fs_info->super_copy);
+	if (allowed & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS)
+		mixed = 1;
+
 	/*
 	 * In case of mixed groups both data and meta should be picked,
 	 * and identical options should be given for both of them.
 	 */
-	allowed = btrfs_super_incompat_flags(fs_info->super_copy);
-	if ((allowed & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
-	    (bctl->flags & (BTRFS_BALANCE_DATA | BTRFS_BALANCE_METADATA))) {
+	allowed = BTRFS_BALANCE_DATA | BTRFS_BALANCE_METADATA;
+	if (mixed && (bctl->flags & allowed)) {
 		if (!(bctl->flags & BTRFS_BALANCE_DATA) ||
 		    !(bctl->flags & BTRFS_BALANCE_METADATA) ||
 		    memcmp(&bctl->data, &bctl->meta, sizeof(bctl->data))) {
@@ -2688,14 +2712,6 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		}
 	}
 
-	/*
-	 * Profile changing sanity checks.  Skip them if a simple
-	 * balance is requested.
-	 */
-	if (!((bctl->data.flags | bctl->sys.flags | bctl->meta.flags) &
-	      BTRFS_BALANCE_ARGS_CONVERT))
-		goto do_balance;
-
 	allowed = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
 	if (fs_info->fs_devices->num_devices == 1)
 		allowed |= BTRFS_BLOCK_GROUP_DUP;
@@ -2705,24 +2721,27 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		allowed |= (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID1 |
 				BTRFS_BLOCK_GROUP_RAID10);
 
-	if (!profile_is_valid(bctl->data.target, 1) ||
-	    bctl->data.target & ~allowed) {
+	if ((bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (!alloc_profile_is_valid(bctl->data.target, 1) ||
+	     (bctl->data.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "data profile %llu\n",
 		       (unsigned long long)bctl->data.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if (!profile_is_valid(bctl->meta.target, 1) ||
-	    bctl->meta.target & ~allowed) {
+	if ((bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (!alloc_profile_is_valid(bctl->meta.target, 1) ||
+	     (bctl->meta.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "metadata profile %llu\n",
 		       (unsigned long long)bctl->meta.target);
 		ret = -EINVAL;
 		goto out;
 	}
-	if (!profile_is_valid(bctl->sys.target, 1) ||
-	    bctl->sys.target & ~allowed) {
+	if ((bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (!alloc_profile_is_valid(bctl->sys.target, 1) ||
+	     (bctl->sys.target & ~allowed))) {
 		printk(KERN_ERR "btrfs: unable to start balance with target "
 		       "system profile %llu\n",
 		       (unsigned long long)bctl->sys.target);
@@ -2730,7 +2749,9 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		goto out;
 	}
 
-	if (bctl->data.target & BTRFS_BLOCK_GROUP_DUP) {
+	/* allow dup'ed data chunks only in mixed mode */
+	if (!mixed && (bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
+	    (bctl->data.target & BTRFS_BLOCK_GROUP_DUP)) {
 		printk(KERN_ERR "btrfs: dup for data is not allowed\n");
 		ret = -EINVAL;
 		goto out;
@@ -2756,7 +2777,6 @@ int btrfs_balance(struct btrfs_balance_control *bctl,
 		}
 	}
 
-do_balance:
 	ret = insert_balance_item(fs_info->tree_root, bctl);
 	if (ret && ret != -EEXIST)
 		goto out;
@@ -2999,7 +3019,7 @@ again:
 	key.offset = (u64)-1;
 	key.type = BTRFS_DEV_EXTENT_KEY;
 
-	while (1) {
+	do {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto done;
@@ -3041,8 +3061,7 @@ again:
 			goto done;
 		if (ret == -ENOSPC)
 			failed++;
-		key.offset -= 1;
-	}
+	} while (key.offset-- > 0);
 
 	if (failed && !retried) {
 		failed = 0;
@@ -3160,11 +3179,7 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	int i;
 	int j;
 
-	if ((type & BTRFS_BLOCK_GROUP_RAID1) &&
-	    (type & BTRFS_BLOCK_GROUP_DUP)) {
-		WARN_ON(1);
-		type &= ~BTRFS_BLOCK_GROUP_DUP;
-	}
+	BUG_ON(!alloc_profile_is_valid(type, 0));
 
 	if (list_empty(&fs_devices->alloc_list))
 		return -ENOSPC;

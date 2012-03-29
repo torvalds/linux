@@ -3138,11 +3138,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 
 static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
-	u64 extra_flags = flags & BTRFS_BLOCK_GROUP_PROFILE_MASK;
-
-	/* chunk -> extended profile */
-	if (extra_flags == 0)
-		extra_flags = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+	u64 extra_flags = chunk_to_extended(flags) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		fs_info->avail_data_alloc_bits |= extra_flags;
@@ -3150,6 +3147,35 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 		fs_info->avail_metadata_alloc_bits |= extra_flags;
 	if (flags & BTRFS_BLOCK_GROUP_SYSTEM)
 		fs_info->avail_system_alloc_bits |= extra_flags;
+}
+
+/*
+ * returns target flags in extended format or 0 if restripe for this
+ * chunk_type is not in progress
+ */
+static u64 get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
+{
+	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
+	u64 target = 0;
+
+	BUG_ON(!mutex_is_locked(&fs_info->volume_mutex) &&
+	       !spin_is_locked(&fs_info->balance_lock));
+
+	if (!bctl)
+		return 0;
+
+	if (flags & BTRFS_BLOCK_GROUP_DATA &&
+	    bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		target = BTRFS_BLOCK_GROUP_DATA | bctl->data.target;
+	} else if (flags & BTRFS_BLOCK_GROUP_SYSTEM &&
+		   bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		target = BTRFS_BLOCK_GROUP_SYSTEM | bctl->sys.target;
+	} else if (flags & BTRFS_BLOCK_GROUP_METADATA &&
+		   bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) {
+		target = BTRFS_BLOCK_GROUP_METADATA | bctl->meta.target;
+	}
+
+	return target;
 }
 
 /*
@@ -3168,31 +3194,19 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 	 */
 	u64 num_devices = root->fs_info->fs_devices->rw_devices +
 		root->fs_info->fs_devices->missing_devices;
+	u64 target;
 
-	/* pick restriper's target profile if it's available */
+	/*
+	 * see if restripe for this chunk_type is in progress, if so
+	 * try to reduce to the target profile
+	 */
 	spin_lock(&root->fs_info->balance_lock);
-	if (root->fs_info->balance_ctl) {
-		struct btrfs_balance_control *bctl = root->fs_info->balance_ctl;
-		u64 tgt = 0;
-
-		if ((flags & BTRFS_BLOCK_GROUP_DATA) &&
-		    (bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-		    (flags & bctl->data.target)) {
-			tgt = BTRFS_BLOCK_GROUP_DATA | bctl->data.target;
-		} else if ((flags & BTRFS_BLOCK_GROUP_SYSTEM) &&
-			   (bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-			   (flags & bctl->sys.target)) {
-			tgt = BTRFS_BLOCK_GROUP_SYSTEM | bctl->sys.target;
-		} else if ((flags & BTRFS_BLOCK_GROUP_METADATA) &&
-			   (bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) &&
-			   (flags & bctl->meta.target)) {
-			tgt = BTRFS_BLOCK_GROUP_METADATA | bctl->meta.target;
-		}
-
-		if (tgt) {
+	target = get_restripe_target(root->fs_info, flags);
+	if (target) {
+		/* pick target profile only if it's already available */
+		if ((flags & target) & BTRFS_EXTENDED_PROFILE_MASK) {
 			spin_unlock(&root->fs_info->balance_lock);
-			flags = tgt;
-			goto out;
+			return extended_to_chunk(target);
 		}
 	}
 	spin_unlock(&root->fs_info->balance_lock);
@@ -3220,10 +3234,7 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags)
 		flags &= ~BTRFS_BLOCK_GROUP_RAID0;
 	}
 
-out:
-	/* extended -> chunk profile */
-	flags &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-	return flags;
+	return extended_to_chunk(flags);
 }
 
 static u64 get_alloc_profile(struct btrfs_root *root, u64 flags)
@@ -3444,8 +3455,6 @@ static int do_chunk_alloc(struct btrfs_trans_handle *trans,
 	struct btrfs_fs_info *fs_info = extent_root->fs_info;
 	int wait_for_alloc = 0;
 	int ret = 0;
-
-	BUG_ON(!profile_is_valid(flags, 0));
 
 	space_info = __find_space_info(extent_root->fs_info, flags);
 	if (!space_info) {
@@ -5300,20 +5309,27 @@ wait_block_group_cache_done(struct btrfs_block_group_cache *cache)
 	return 0;
 }
 
-static int get_block_group_index(struct btrfs_block_group_cache *cache)
+static int __get_block_group_index(u64 flags)
 {
 	int index;
-	if (cache->flags & BTRFS_BLOCK_GROUP_RAID10)
+
+	if (flags & BTRFS_BLOCK_GROUP_RAID10)
 		index = 0;
-	else if (cache->flags & BTRFS_BLOCK_GROUP_RAID1)
+	else if (flags & BTRFS_BLOCK_GROUP_RAID1)
 		index = 1;
-	else if (cache->flags & BTRFS_BLOCK_GROUP_DUP)
+	else if (flags & BTRFS_BLOCK_GROUP_DUP)
 		index = 2;
-	else if (cache->flags & BTRFS_BLOCK_GROUP_RAID0)
+	else if (flags & BTRFS_BLOCK_GROUP_RAID0)
 		index = 3;
 	else
 		index = 4;
+
 	return index;
+}
+
+static int get_block_group_index(struct btrfs_block_group_cache *cache)
+{
+	return __get_block_group_index(cache->flags);
 }
 
 enum btrfs_loop_type {
@@ -7011,31 +7027,15 @@ int btrfs_drop_subtree(struct btrfs_trans_handle *trans,
 static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 {
 	u64 num_devices;
-	u64 stripped = BTRFS_BLOCK_GROUP_RAID0 |
-		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
+	u64 stripped;
 
-	if (root->fs_info->balance_ctl) {
-		struct btrfs_balance_control *bctl = root->fs_info->balance_ctl;
-		u64 tgt = 0;
-
-		/* pick restriper's target profile and return */
-		if (flags & BTRFS_BLOCK_GROUP_DATA &&
-		    bctl->data.flags & BTRFS_BALANCE_ARGS_CONVERT) {
-			tgt = BTRFS_BLOCK_GROUP_DATA | bctl->data.target;
-		} else if (flags & BTRFS_BLOCK_GROUP_SYSTEM &&
-			   bctl->sys.flags & BTRFS_BALANCE_ARGS_CONVERT) {
-			tgt = BTRFS_BLOCK_GROUP_SYSTEM | bctl->sys.target;
-		} else if (flags & BTRFS_BLOCK_GROUP_METADATA &&
-			   bctl->meta.flags & BTRFS_BALANCE_ARGS_CONVERT) {
-			tgt = BTRFS_BLOCK_GROUP_METADATA | bctl->meta.target;
-		}
-
-		if (tgt) {
-			/* extended -> chunk profile */
-			tgt &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-			return tgt;
-		}
-	}
+	/*
+	 * if restripe for this chunk_type is on pick target profile and
+	 * return, otherwise do the usual balance
+	 */
+	stripped = get_restripe_target(root->fs_info, flags);
+	if (stripped)
+		return extended_to_chunk(stripped);
 
 	/*
 	 * we add in the count of missing devices because we want
@@ -7044,6 +7044,9 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 	 */
 	num_devices = root->fs_info->fs_devices->rw_devices +
 		root->fs_info->fs_devices->missing_devices;
+
+	stripped = BTRFS_BLOCK_GROUP_RAID0 |
+		BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_RAID10;
 
 	if (num_devices == 1) {
 		stripped |= BTRFS_BLOCK_GROUP_DUP;
@@ -7057,7 +7060,6 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 		if (flags & (BTRFS_BLOCK_GROUP_RAID1 |
 			     BTRFS_BLOCK_GROUP_RAID10))
 			return stripped | BTRFS_BLOCK_GROUP_DUP;
-		return flags;
 	} else {
 		/* they already had raid on here, just return */
 		if (flags & stripped)
@@ -7070,9 +7072,9 @@ static u64 update_block_group_flags(struct btrfs_root *root, u64 flags)
 		if (flags & BTRFS_BLOCK_GROUP_DUP)
 			return stripped | BTRFS_BLOCK_GROUP_RAID1;
 
-		/* turn single device chunks into raid0 */
-		return stripped | BTRFS_BLOCK_GROUP_RAID0;
+		/* this is drive concat, leave it alone */
 	}
+
 	return flags;
 }
 
@@ -7253,6 +7255,7 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	u64 min_free;
 	u64 dev_min = 1;
 	u64 dev_nr = 0;
+	u64 target;
 	int index;
 	int full = 0;
 	int ret = 0;
@@ -7293,13 +7296,11 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	/*
 	 * ok we don't have enough space, but maybe we have free space on our
 	 * devices to allocate new chunks for relocation, so loop through our
-	 * alloc devices and guess if we have enough space.  However, if we
-	 * were marked as full, then we know there aren't enough chunks, and we
-	 * can just return.
+	 * alloc devices and guess if we have enough space.  if this block
+	 * group is going to be restriped, run checks against the target
+	 * profile instead of the current one.
 	 */
 	ret = -1;
-	if (full)
-		goto out;
 
 	/*
 	 * index:
@@ -7309,7 +7310,20 @@ int btrfs_can_relocate(struct btrfs_root *root, u64 bytenr)
 	 *      3: raid0
 	 *      4: single
 	 */
-	index = get_block_group_index(block_group);
+	target = get_restripe_target(root->fs_info, block_group->flags);
+	if (target) {
+		index = __get_block_group_index(extended_to_chunk(target));
+	} else {
+		/*
+		 * this is just a balance, so if we were marked as full
+		 * we know there is no space for a new chunk
+		 */
+		if (full)
+			goto out;
+
+		index = get_block_group_index(block_group);
+	}
+
 	if (index == 0) {
 		dev_min = 4;
 		/* Divide by 2 */
@@ -7720,11 +7734,8 @@ int btrfs_make_block_group(struct btrfs_trans_handle *trans,
 
 static void clear_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 {
-	u64 extra_flags = flags & BTRFS_BLOCK_GROUP_PROFILE_MASK;
-
-	/* chunk -> extended profile */
-	if (extra_flags == 0)
-		extra_flags = BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+	u64 extra_flags = chunk_to_extended(flags) &
+				BTRFS_EXTENDED_PROFILE_MASK;
 
 	if (flags & BTRFS_BLOCK_GROUP_DATA)
 		fs_info->avail_data_alloc_bits &= ~extra_flags;

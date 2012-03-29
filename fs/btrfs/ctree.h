@@ -851,6 +851,21 @@ struct btrfs_csum_item {
  */
 #define BTRFS_AVAIL_ALLOC_BIT_SINGLE	(1ULL << 48)
 
+#define BTRFS_EXTENDED_PROFILE_MASK	(BTRFS_BLOCK_GROUP_PROFILE_MASK | \
+					 BTRFS_AVAIL_ALLOC_BIT_SINGLE)
+
+static inline u64 chunk_to_extended(u64 flags)
+{
+	if ((flags & BTRFS_BLOCK_GROUP_PROFILE_MASK) == 0)
+		flags |= BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+
+	return flags;
+}
+static inline u64 extended_to_chunk(u64 flags)
+{
+	return flags & ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
+}
+
 struct btrfs_block_group_item {
 	__le64 used;
 	__le64 chunk_objectid;
@@ -2722,24 +2737,6 @@ static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 	kfree(fs_info->super_copy);
 	kfree(fs_info->super_for_commit);
 	kfree(fs_info);
-}
-/**
- * profile_is_valid - tests whether a given profile is valid and reduced
- * @flags: profile to validate
- * @extended: if true @flags is treated as an extended profile
- */
-static inline int profile_is_valid(u64 flags, int extended)
-{
-	u64 mask = ~BTRFS_BLOCK_GROUP_PROFILE_MASK;
-
-	flags &= ~BTRFS_BLOCK_GROUP_TYPE_MASK;
-	if (extended)
-		mask &= ~BTRFS_AVAIL_ALLOC_BIT_SINGLE;
-
-	if (flags & mask)
-		return 0;
-	/* true if zero or exactly one bit set */
-	return (flags & (~flags + 1)) == flags;
 }
 
 /* root-item.c */
