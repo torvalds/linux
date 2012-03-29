@@ -43,6 +43,7 @@
 #include <asm/cacheflush.h>
 #include <linux/slab.h>
 
+#define IPP_VERSION "1.000"
 //#define IPP_TEST
 #ifdef IPP_TEST
 
@@ -962,7 +963,7 @@ int ipp_blit_async(const struct rk29_ipp_req *req)
 	return ret;
 }
 
-int ipp_blit_sync(const struct rk29_ipp_req *req)
+static int ipp_blit_sync_real(const struct rk29_ipp_req *req)
 {
 	int status;
 	int wait_ret;
@@ -1614,7 +1615,6 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 	struct ipp_drvdata *data;
 	int ret = 0;
 
-
 	data = kmalloc(sizeof(struct ipp_drvdata), GFP_KERNEL);
 	if(NULL==data)
 	{
@@ -1832,13 +1832,18 @@ static int __init rk29_ipp_init(void)
 {
 	int ret;
 
+	//set ipp_blit_sync pointer
+	ipp_blit_sync = ipp_blit_sync_real;
+	
 	if ((ret = platform_driver_register(&rk29_ipp_driver)) != 0)
-		{
-			ERR("Platform device register failed (%d).\n", ret);
-			return ret;
-		}
-		INFO("Module initialized.\n");
-		return 0;
+	{
+		ERR("Platform device register failed (%d).\n", ret);
+		return ret;
+	}
+	
+	INFO("Module initialized.\n");
+	printk("IPP init, version %s\n",IPP_VERSION);
+	return 0;
 }
 
 static void __exit rk29_ipp_exit(void)
@@ -1848,7 +1853,7 @@ static void __exit rk29_ipp_exit(void)
 
 
 
-device_initcall_sync(rk29_ipp_init);
+module_init(rk29_ipp_init);
 module_exit(rk29_ipp_exit);
 
 /* Module information */
