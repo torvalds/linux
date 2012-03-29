@@ -804,7 +804,7 @@ static int sh_eth_dev_init(struct net_device *ndev)
 	/* all sh_eth int mask */
 	sh_eth_write(ndev, 0, EESIPR);
 
-#if defined(__LITTLE_ENDIAN__)
+#if defined(__LITTLE_ENDIAN)
 	if (mdp->cd->hw_swap)
 		sh_eth_write(ndev, EDMR_EL, EDMR);
 	else

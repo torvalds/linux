@@ -693,7 +693,7 @@ enum TSU_FWSLC_BIT {
  */
 struct sh_eth_txdesc {
 	u32 status;		/* TD0 */
-#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+#if defined(__LITTLE_ENDIAN)
 	u16 pad0;		/* TD1 */
 	u16 buffer_length;	/* TD1 */
 #else
@@ -710,7 +710,7 @@ struct sh_eth_txdesc {
  */
 struct sh_eth_rxdesc {
 	u32 status;		/* RD0 */
-#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+#if defined(__LITTLE_ENDIAN)
 	u16 frame_length;	/* RD1 */
 	u16 buffer_length;	/* RD1 */
 #else
