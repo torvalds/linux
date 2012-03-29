@@ -4180,4 +4180,11 @@
 #define  PIPE_CLK_SEL_DISABLED	(0x0<<29)
 #define  PIPE_CLK_SEL_PORT(x)	((x+1)<<29)
 
+/* LCPLL Control */
+#define LCPLL_CTL				0x130040
+#define  LCPLL_PLL_DISABLE		(1<<31)
+#define  LCPLL_PLL_LOCK			(1<<30)
+#define  LCPLL_CD_CLOCK_DISABLE	(1<<25)
+#define  LCPLL_CD2X_CLOCK_DISABLE	(1<<23)
+
 #endif /* _I915_REG_H_ */
