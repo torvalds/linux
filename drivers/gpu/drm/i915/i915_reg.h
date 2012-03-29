@@ -4036,4 +4036,30 @@
 #define   HSW_PWR_WELL_FORCE_ON				(1<<19)
 #define HSW_PWR_WELL_CTL6		0x45414
 
+/* Per-pipe DDI Function Control */
+#define PIPE_DDI_FUNC_CTL_A			0x60400
+#define PIPE_DDI_FUNC_CTL_B			0x61400
+#define PIPE_DDI_FUNC_CTL_C			0x62400
+#define PIPE_DDI_FUNC_CTL_EDP		0x6F400
+#define DDI_FUNC_CTL(pipe) _PIPE(pipe, \
+					PIPE_DDI_FUNC_CTL_A, \
+					PIPE_DDI_FUNC_CTL_B)
+#define  PIPE_DDI_FUNC_ENABLE		(1<<31)
+/* Those bits are ignored by pipe EDP since it can only connect to DDI A */
+#define  PIPE_DDI_PORT_MASK				(0xf<<28)
+#define  PIPE_DDI_SELECT_PORT(x)		((x)<<28)
+#define  PIPE_DDI_MODE_SELECT_HDMI		(0<<24)
+#define  PIPE_DDI_MODE_SELECT_DVI		(1<<24)
+#define  PIPE_DDI_MODE_SELECT_DP_SST	(2<<24)
+#define  PIPE_DDI_MODE_SELECT_DP_MST	(3<<24)
+#define  PIPE_DDI_MODE_SELECT_FDI		(4<<24)
+#define  PIPE_DDI_BPC_8					(0<<20)
+#define  PIPE_DDI_BPC_10				(1<<20)
+#define  PIPE_DDI_BPC_6					(2<<20)
+#define  PIPE_DDI_BPC_12				(3<<20)
+#define  PIPE_DDI_BFI_ENABLE			(1<<4)
+#define  PIPE_DDI_PORT_WIDTH_X1			(0<<1)
+#define  PIPE_DDI_PORT_WIDTH_X2			(1<<1)
+#define  PIPE_DDI_PORT_WIDTH_X4			(3<<1)
+
 #endif /* _I915_REG_H_ */
