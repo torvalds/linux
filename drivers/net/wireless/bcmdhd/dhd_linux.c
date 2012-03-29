@@ -3053,7 +3053,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	if ((!op_mode && strstr(fw_path, "_apsta") != NULL) || (op_mode == HOSTAPD_MASK)) {
 			uint band = WLC_BAND_2G;
 
-			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_BAND, (char *)band, sizeof(band),
+			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_BAND, (char *)&band, sizeof(band),
 				TRUE, 0)) < 0) {
 				DHD_ERROR(("%s:set band failed error (%d)\n", __FUNCTION__, ret));
 			}
