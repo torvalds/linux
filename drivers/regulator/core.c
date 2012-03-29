@@ -1169,7 +1169,8 @@ static int _regulator_get_enable_time(struct regulator_dev *rdev)
 }
 
 static struct regulator_dev *regulator_dev_lookup(struct device *dev,
-							 const char *supply)
+						  const char *supply,
+						  int *ret)
 {
 	struct regulator_dev *r;
 	struct device_node *node;
@@ -1177,11 +1178,20 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	/* first do a dt based lookup */
 	if (dev && dev->of_node) {
 		node = of_get_regulator(dev, supply);
-		if (node)
+		if (node) {
 			list_for_each_entry(r, &regulator_list, list)
 				if (r->dev.parent &&
 					node == r->dev.of_node)
 					return r;
+		} else {
+			/*
+			 * If we couldn't even get the node then it's
+			 * not just that the device didn't register
+			 * yet, there's no node and we'll never
+			 * succeed.
+			 */
+			*ret = -ENODEV;
+		}
 	}
 
 	/* if not found, try doing it non-dt way */
@@ -1212,7 +1222,7 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 
 	mutex_lock(&regulator_list_mutex);
 
-	rdev = regulator_dev_lookup(dev, id);
+	rdev = regulator_dev_lookup(dev, id, &ret);
 	if (rdev)
 		goto found;
 
@@ -2926,7 +2936,7 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	if (supply) {
 		struct regulator_dev *r;
 
-		r = regulator_dev_lookup(dev, supply);
+		r = regulator_dev_lookup(dev, supply, &ret);
 
 		if (!r) {
 			dev_err(dev, "Failed to find supply %s\n", supply);
