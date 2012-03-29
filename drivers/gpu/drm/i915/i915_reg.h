@@ -4142,4 +4142,27 @@
 #define  SPLL_PLL_FREQ_810MHz	(0<<26)
 #define  SPLL_PLL_FREQ_1350MHz	(1<<26)
 
+/* Port clock selection */
+#define PORT_CLK_SEL_A			0x46100
+#define PORT_CLK_SEL_B			0x46104
+#define PORT_CLK_SEL(port) _PORT(port, \
+					PORT_CLK_SEL_A, \
+					PORT_CLK_SEL_B)
+#define  PORT_CLK_SEL_LCPLL_2700	(0<<29)
+#define  PORT_CLK_SEL_LCPLL_1350	(1<<29)
+#define  PORT_CLK_SEL_LCPLL_810		(2<<29)
+#define  PORT_CLK_SEL_SPLL			(3<<29)
+#define  PORT_CLK_SEL_WRPLL1		(4<<29)
+#define  PORT_CLK_SEL_WRPLL2		(5<<29)
+
+/* Pipe clock selection */
+#define PIPE_CLK_SEL_A			0x46140
+#define PIPE_CLK_SEL_B			0x46144
+#define PIPE_CLK_SEL(pipe) _PIPE(pipe, \
+					PIPE_CLK_SEL_A, \
+					PIPE_CLK_SEL_B)
+/* For each pipe, we need to select the corresponding port clock */
+#define  PIPE_CLK_SEL_DISABLED	(0x0<<29)
+#define  PIPE_CLK_SEL_PORT(x)	((x+1)<<29)
+
 #endif /* _I915_REG_H_ */
