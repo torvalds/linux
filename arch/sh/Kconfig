@@ -162,6 +162,9 @@ config NO_IOPORT
 config IO_TRAPPED
 	bool
 
+config SWAP_IO_SPACE
+	bool
+
 config DMA_COHERENT
 	bool
 
