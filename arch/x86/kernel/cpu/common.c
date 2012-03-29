@@ -999,7 +999,7 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk(KERN_CONT "\n");
 
-	__print_cpu_msr();
+	print_cpu_msr(c);
 }
 
 void __cpuinit print_cpu_msr(struct cpuinfo_x86 *c)

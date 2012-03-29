@@ -534,7 +534,7 @@ static inline unsigned int read_apic_id(void)
 
 static inline int default_apic_id_valid(int apicid)
 {
-	return x2apic_mode || (apicid < 255);
+	return (apicid < 255);
 }
 
 extern void default_setup_apic_routing(void);
