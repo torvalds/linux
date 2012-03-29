@@ -20,7 +20,7 @@
 #define H_PW			10
 #define H_BP			100
 #define H_VD			1280
-#define H_FP			58
+#define H_FP			18
 
 #define V_PW			2
 #define V_BP			8
