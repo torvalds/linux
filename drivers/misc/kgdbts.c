@@ -884,6 +884,22 @@ static void run_singlestep_break_test(void)
 	kgdbts_break_test();
 }
 
+static void test_debug_rodata(void)
+{
+#ifdef CONFIG_DEBUG_RODATA
+	/* Until there is an api to write to read-only text segments, use
+	 * HW breakpoints for the remainder of any tests, else print a
+	 * failure message if hw breakpoints do not work.
+	 */
+	if (!(arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT && hwbreaks_ok)) {
+		eprintk("kgdbts: HW breakpoints BROKEN, ending tests\n");
+		return;
+	}
+	force_hwbrks = 1;
+	v1printk("kgdbts:Using HW breakpoints for SW breakpoint tests\n");
+#endif /* CONFIG_DEBUG_RODATA */
+}
+
 static void kgdbts_run_tests(void)
 {
 	char *ptr;
@@ -906,6 +922,18 @@ static void kgdbts_run_tests(void)
 	if (ptr)
 		sstep_test = simple_strtol(ptr+1, NULL, 10);
 
+	/* All HW break point tests */
+	if (arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT) {
+		hwbreaks_ok = 1;
+		v1printk("kgdbts:RUN hw breakpoint test\n");
+		run_breakpoint_test(1);
+		v1printk("kgdbts:RUN hw write breakpoint test\n");
+		run_hw_break_test(1);
+		v1printk("kgdbts:RUN access write breakpoint test\n");
+		run_hw_break_test(0);
+	}
+	test_debug_rodata();
+
 	/* required internal KGDB tests */
 	v1printk("kgdbts:RUN plant and detach test\n");
 	run_plant_and_detach_test(0);
@@ -923,34 +951,10 @@ static void kgdbts_run_tests(void)
 
 	/* ===Optional tests=== */
 
-	/* All HW break point tests */
-	if (arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT) {
-		hwbreaks_ok = 1;
-		v1printk("kgdbts:RUN hw breakpoint test\n");
-		run_breakpoint_test(1);
-		v1printk("kgdbts:RUN hw write breakpoint test\n");
-		run_hw_break_test(1);
-		v1printk("kgdbts:RUN access write breakpoint test\n");
-		run_hw_break_test(0);
-	}
-
 	if (nmi_sleep) {
 		v1printk("kgdbts:RUN NMI sleep %i seconds test\n", nmi_sleep);
 		run_nmi_sleep_test(nmi_sleep);
 	}
-
-#ifdef CONFIG_DEBUG_RODATA
-	/* Until there is an api to write to read-only text segments, use
-	 * HW breakpoints for the remainder of any tests, else print a
-	 * failure message if hw breakpoints do not work.
-	 */
-	if (!(arch_kgdb_ops.flags & KGDB_HW_BREAKPOINT && hwbreaks_ok)) {
-		eprintk("kgdbts: HW breakpoints do not work,"
-			"skipping remaining tests\n");
-		return;
-	}
-	force_hwbrks = 1;
-#endif /* CONFIG_DEBUG_RODATA */
 
 	/* If the do_fork test is run it will be the last test that is
 	 * executed because a kernel thread will be spawned at the very
