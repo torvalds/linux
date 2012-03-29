@@ -347,8 +347,9 @@ static noinline int compress_file_range(struct inode *inode,
 	int will_compress;
 	int compress_type = root->fs_info->compress_type;
 
-	/* if this is a small write inside eof, kick off a defragbot */
-	if (end <= BTRFS_I(inode)->disk_i_size && (end - start + 1) < 16 * 1024)
+	/* if this is a small write inside eof, kick off a defrag */
+	if ((end - start + 1) < 16 * 1024 &&
+	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
 		btrfs_add_inode_defrag(NULL, inode);
 
 	actual_end = min_t(u64, isize, end + 1);
@@ -843,7 +844,8 @@ static noinline int cow_file_range(struct inode *inode,
 	ret = 0;
 
 	/* if this is a small write inside eof, kick off defrag */
-	if (end <= BTRFS_I(inode)->disk_i_size && num_bytes < 64 * 1024)
+	if (num_bytes < 64 * 1024 &&
+	    (start > 0 || end + 1 < BTRFS_I(inode)->disk_i_size))
 		btrfs_add_inode_defrag(trans, inode);
 
 	if (start == 0) {
