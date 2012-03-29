@@ -43,7 +43,8 @@ long sys32_fadvise64(int fd, u32 offset_lo, u32 offset_hi,
 		     u32 len, int advice);
 int sys32_fadvise64_64(int fd, u32 offset_lo, u32 offset_hi,
 		       u32 len_lo, u32 len_hi, int advice);
-long sys_flush_cache(void);
+long sys_cacheflush(unsigned long addr, unsigned long len,
+		    unsigned long flags);
 #ifndef __tilegx__  /* No mmap() in the 32-bit kernel. */
 #define sys_mmap sys_mmap
 #endif
