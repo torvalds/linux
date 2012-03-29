@@ -2602,7 +2602,7 @@ struct sk_buff *ieee80211_probereq_get(struct ieee80211_hw *hw,
 	pos = skb_put(skb, ie_ssid_len);
 	*pos++ = WLAN_EID_SSID;
 	*pos++ = ssid_len;
-	if (ssid)
+	if (ssid_len)
 		memcpy(pos, ssid, ssid_len);
 	pos += ssid_len;
 

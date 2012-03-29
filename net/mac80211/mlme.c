@@ -1518,9 +1518,16 @@ static void ieee80211_mgd_probe_ap_send(struct ieee80211_sub_if_data *sdata)
 		ifmgd->nullfunc_failed = false;
 		ieee80211_send_nullfunc(sdata->local, sdata, 0);
 	} else {
+		int ssid_len;
+
 		ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
-		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid[1], NULL, 0,
-					 (u32) -1, true, false);
+		if (WARN_ON_ONCE(ssid == NULL))
+			ssid_len = 0;
+		else
+			ssid_len = ssid[1];
+
+		ieee80211_send_probe_req(sdata, dst, ssid + 2, ssid_len, NULL,
+					 0, (u32) -1, true, false);
 	}
 
 	ifmgd->probe_send_count++;
@@ -1596,6 +1603,7 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct sk_buff *skb;
 	const u8 *ssid;
+	int ssid_len;
 
 	if (WARN_ON(sdata->vif.type != NL80211_IFTYPE_STATION))
 		return NULL;
@@ -1606,8 +1614,13 @@ struct sk_buff *ieee80211_ap_probereq_get(struct ieee80211_hw *hw,
 		return NULL;
 
 	ssid = ieee80211_bss_get_ie(ifmgd->associated, WLAN_EID_SSID);
+	if (WARN_ON_ONCE(ssid == NULL))
+		ssid_len = 0;
+	else
+		ssid_len = ssid[1];
+
 	skb = ieee80211_build_probe_req(sdata, ifmgd->associated->bssid,
-					(u32) -1, ssid + 2, ssid[1],
+					(u32) -1, ssid + 2, ssid_len,
 					NULL, 0, true);
 
 	return skb;
