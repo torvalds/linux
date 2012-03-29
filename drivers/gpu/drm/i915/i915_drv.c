@@ -351,6 +351,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE	0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
+#define INTEL_PCH_LPT_DEVICE_ID_TYPE	0x8c00
 
 void intel_detect_pch(struct drm_device *dev)
 {
@@ -379,6 +380,9 @@ void intel_detect_pch(struct drm_device *dev)
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
+			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_LPT;
+				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 			}
 		}
 		pci_dev_put(pch);
