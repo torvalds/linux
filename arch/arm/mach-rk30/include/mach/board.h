@@ -15,8 +15,8 @@ struct rk30_i2c_platform_data {
 	int bus_num;
 #define I2C_RK29_ADAP   0
 #define I2C_RK30_ADAP   1
-	int adap_type:1;
-	int is_div_from_arm:1;
+	int adap_type;
+	int is_div_from_arm;
 	u32 flags;
 	int (*io_init)(void);
 	int (*io_deinit)(void);

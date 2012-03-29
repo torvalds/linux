@@ -8,17 +8,25 @@ arch/arm/mach-rk29/ddr.c
 arch/arm/mach-rk29/vpu*.c
 arch/arm/mach-rk29/verifyID.c
 
+arch/arm/plat-rk/vpu*.c
+
 drivers/staging/rk29/ipp/rk29-ipp.c
 )
 
 EXCLUDES=(
-arch/arm/mach-rk2818/*.c
-arch/arm/mach-rk2818/*.h
-arch/arm/mach-rk2818/include/mach
-arch/arm/configs/rk28*
+pack-kernel*
+
+arch/arm/mach-rk30/*.c
+arch/arm/mach-rk30/*.h
+arch/arm/mach-rk30/*.S
+arch/arm/mach-rk30/Makefile*
+arch/arm/mach-rk30/include
+arch/arm/configs/rk30*
+sound/*rk30*.c
+drivers/*rk30*.c
+drivers/*rk30*.h
+
 drivers/*rk28*.c
-sound/*rk28*.c
-sound/*rk28*.h
 include/*rk28*
 
 arch/arm/mach-rk29/ddr_reconfig.c

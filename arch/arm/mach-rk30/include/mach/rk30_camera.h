@@ -18,11 +18,12 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
-#ifndef __ASM_ARCH_CAMERA_RK29_H_
+#ifndef __ASM_ARCH_CAMERA_RK30_H_
 
 #define __ASM_ARCH_CAMERA_RK29_H_
-#define RK29_CAM_DRV_NAME "rk-camera-rk29"
+#define RK29_CAM_DRV_NAME "rk-camera-rk30"
 
 #include <plat/rk_camera.h>
 
 #endif
+

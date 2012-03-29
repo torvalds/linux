@@ -446,10 +446,12 @@ typedef volatile struct tagLCDC_REG
 
 #define CalScale(x, y)	             (((u32)x*0x1000)/y)
 struct rk30_lcdc_device{
-	struct rk_lcdc_device_driver *driver;
-	/* LCDC reg base address and backup reg */
-    LCDC_REG *preg;
-    LCDC_REG regbak;
+	int id;
+	struct rk_lcdc_device_driver driver;
+	rk_screen *screen;
+	
+	LCDC_REG *preg;         // LCDC reg base address and backup reg 
+    	LCDC_REG regbak;
 
 	void __iomem *reg_vir_base;  // virtual basic address of lcdc register
 	u32 reg_phy_base;       // physical basic address of lcdc register
@@ -465,7 +467,6 @@ struct rk30_lcdc_device{
 	struct clk		*pd_display;		// display power domain
 	u32	pixclock;
 };
-
 
 struct lcdc_info{
 /*LCD CLK*/

@@ -1029,9 +1029,7 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 #else
         pcd->conn_en = 0;
 #endif
-        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
-        dctl.b.sftdiscon = 0;
-        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+        pcd->conn_status = 0;
     }
     else        //disconnect
     {
@@ -1913,8 +1911,6 @@ int dwc_otg_pcd_init(struct device *dev)
     pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
         mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S
-	DWC_PRINT("%s pass,everest\n", __func__);
-//    	dwc_otg_pcd_start_vbus_timer( pcd );
 	return 0;
 }
 /**

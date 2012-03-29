@@ -13,14 +13,14 @@
 #define OUT_FACE	    OUT_D888_P666
 
 
-#define OUT_CLK	          75000000
-#define LCDC_ACLK        800000000           //29 lcdc axi DMA ÆµÂÊ
+#define OUT_CLK	          71000000
+#define LCDC_ACLK        300000000           //29 lcdc axi DMA ÆµÂÊ
 
 /* Timing */
 #define H_PW			10
 #define H_BP			100
 #define H_VD			1280
-#define H_FP			58
+#define H_FP			18
 
 #define V_PW			2
 #define V_BP			8

@@ -18,7 +18,6 @@
 #include "rga_mmu_info.h"
 
 extern rga_service_info rga_service;
-extern int mmu_buf[1024];
 
 #define KERNEL_SPACE_VALID    0xc0000000
 
@@ -219,6 +218,7 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t i;
     uint32_t status;
     uint32_t Address;
+    uint32_t t_mem;
     status = 0;
 
     do
@@ -241,7 +241,9 @@ static int rga_MapUserMemory(struct page **pages,
 
             for(i=0; i<pageCount; i++)
             {
-                vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
+                t_mem = Memory + i;
+                
+                vma = find_vma(current->mm, (t_mem) << PAGE_SHIFT);
 
                 if (vma && (vma->vm_flags & VM_PFNMAP) )
                 {
@@ -249,16 +251,16 @@ static int rga_MapUserMemory(struct page **pages,
                     {
                         pte_t       * pte;
                         spinlock_t  * ptl;
-                        unsigned long pfn;
+                        unsigned long pfn;                                                                        
 
-                        pgd_t * pgd = pgd_offset(current->mm, ((Memory + i)<< PAGE_SHIFT));
-                        pud_t * pud = pud_offset(pgd, ((Memory + i) << PAGE_SHIFT));
+                        pgd_t * pgd = pgd_offset(current->mm, ((t_mem)<< PAGE_SHIFT));
+                        pud_t * pud = pud_offset(pgd, ((t_mem) << PAGE_SHIFT));
                         if (pud)
                         {
-                            pmd_t * pmd = pmd_offset(pud, ((Memory + i) << PAGE_SHIFT));
+                            pmd_t * pmd = pmd_offset(pud, ((t_mem) << PAGE_SHIFT));
                             if (pmd)
                             {
-                                pte = pte_offset_map_lock(current->mm, pmd, ((Memory + i)<< PAGE_SHIFT), &ptl);
+                                pte = pte_offset_map_lock(current->mm, pmd, ((t_mem)<< PAGE_SHIFT), &ptl);
                                 if (!pte)
                                 {
                                     break;
@@ -274,12 +276,11 @@ static int rga_MapUserMemory(struct page **pages,
                             break;
                         }
 
-                        pfn      = pte_pfn(*pte);
-
-                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((Memory + i) << PAGE_SHIFT)) & ~PAGE_MASK));
-                        
+                        pfn = pte_pfn(*pte);
+                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((t_mem) << PAGE_SHIFT)) & ~PAGE_MASK));                        
                         pte_unmap_unlock(pte, ptl);
-
+                        
+                        #if 0
                         /* Free the page table. */
                         if (pages != NULL)
                         {
@@ -297,6 +298,7 @@ static int rga_MapUserMemory(struct page **pages,
                                 }
                             }
                         }
+                        #endif
                         
                         pageTable[i] = Address;
                     }
@@ -331,7 +333,9 @@ static int rga_MapUserMemory(struct page **pages,
         {
             /* Get the physical address from page struct. */
             pageTable[i] = page_to_phys(pages[i]);
-        }    
+        }
+
+        return 0;
     }
     while(0);
 
@@ -370,6 +374,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     uint32_t *MMU_Base, *MMU_p;
     int ret;
     int status;
+    uint32_t uv_size, v_size;
 
     struct page **pages = NULL;
 
@@ -379,7 +384,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     {               
         /* cal src buf mmu info */                     
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                        req->src.format, req->src.vir_w, req->src.vir_h,
+                                        req->src.format, req->src.vir_w, (req->src.act_h + req->src.y_offset),
                                         &SrcStart);
         if(SrcMemSize == 0) {
             return -EINVAL;                
@@ -488,20 +493,15 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         /* zsq 
          * change the buf address in req struct     
          */
-        #if 0 
-        printk("CMDMemSize is %.8x\n", CMDMemSize);
-        printk("SrcMemSize is %.8x\n", SrcMemSize);
-        printk("DstMemSize is %.8x\n", DstMemSize);
-        printk("CMDStart is %.8x\n", CMDStart);
-        printk("SrcStart is %.8x\n", SrcStart);
-        printk("DstStart is %.8x\n", DstStart);
-        #endif
         
-        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);        
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);
 
+        uv_size = (req->src.uv_addr - (SrcStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+        v_size = (req->src.v_addr - (SrcStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+        
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);        
+        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | ((CMDMemSize + uv_size) << PAGE_SHIFT);
+        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | ((CMDMemSize + v_size) << PAGE_SHIFT);        
 
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
                 
@@ -624,7 +624,7 @@ static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *
             ret = rga_MapUserMemory(&pages[CMDMemSize + SrcMemSize], &MMU_Base[CMDMemSize + SrcMemSize], DstStart, DstMemSize);
             if (ret < 0) 
             {
-                pr_err("rga map dst memory failed");
+                pr_err("rga map dst memory failed\n");
                 status = ret;
                 break;
             }
@@ -644,7 +644,7 @@ static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);    
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
 
@@ -710,14 +710,14 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
                    
         pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
-            pr_err("RGA MMU malloc pages mem failed");
+            pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR; 
             break;
         }
         
         MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
-            pr_err("RGA MMU malloc MMU_Base point failed");
+            pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
             break;                
         }
@@ -730,7 +730,7 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
         {
             ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], DstStart, DstMemSize);
             if (ret < 0) {
-                pr_err("rga map dst memory failed");
+                pr_err("rga map dst memory failed\n");
                 status = ret;
                 break;
             }
@@ -750,7 +750,7 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
          * change the buf address in req struct 
          */
          
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);    
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
                
         /*record the malloc buf for the cmd end to release*/
@@ -809,14 +809,14 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
                    
         pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
-            pr_err("RGA MMU malloc pages mem failed");
+            pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;
         }
         
         MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
-            pr_err("RGA MMU malloc MMU_Base point failed");
+            pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
             break;
         }
@@ -829,7 +829,7 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
         {
             ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], DstStart, DstMemSize);
             if (ret < 0) {
-                pr_err("rga map dst memory failed");
+                pr_err("rga map dst memory failed\n");
                 status = ret;
                 break;
             }
@@ -848,7 +848,7 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);    
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);    
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize) << PAGE_SHIFT);
        
         
@@ -887,6 +887,7 @@ static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_r
     uint32_t AllSize;
     uint32_t *MMU_Base, *MMU_p;
     int ret, status;
+    uint32_t uv_size, v_size;
 
     MMU_Base = NULL;
     
@@ -979,13 +980,22 @@ static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_r
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);
+
+        uv_size = (req->src.uv_addr - (SrcStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+        v_size = (req->src.v_addr - (SrcStart << PAGE_SHIFT)) >> PAGE_SHIFT;
         
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | ((CMDMemSize + uv_size) << PAGE_SHIFT);
+        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | ((CMDMemSize + v_size) << PAGE_SHIFT);
+
+        uv_size = (req->dst.uv_addr - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+        v_size = (req->dst.v_addr - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
 
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
+        req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize + uv_size) << PAGE_SHIFT);
+        req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize + v_size) << PAGE_SHIFT);
+        
         
         /*record the malloc buf for the cmd end to release*/
         reg->MMU_base = MMU_Base;
@@ -1024,6 +1034,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
     uint32_t *MMU_Base, *MMU_p;
     int ret;
     int status;
+    uint32_t uv_size, v_size;
 
     MMU_Base = NULL;
 
@@ -1052,15 +1063,6 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
         }
 
         AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-
-        
-        #if 0
-        printk("AllSize = %d\n", AllSize);
-        printk("SrcSize = %d\n", SrcMemSize);
-        printk("CMDSize = %d\n", CMDMemSize);
-        printk("DstSize = %d\n", DstMemSize);
-        printk("DstStart = %d\n", DstStart);
-        #endif
                    
         pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) 
@@ -1144,13 +1146,21 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
          * for the reason of lie to MMU 
          */
         
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base)>>2;
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base)>>2);
+
+        uv_size = (req->src.uv_addr - (SrcStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+        v_size = (req->src.v_addr - (SrcStart << PAGE_SHIFT)) >> PAGE_SHIFT;
 
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
-        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
+        req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | ((CMDMemSize + uv_size) << PAGE_SHIFT);
+        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | ((CMDMemSize + v_size) << PAGE_SHIFT);
+
+        uv_size = (req->dst.uv_addr - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
+        v_size = (req->dst.v_addr - (DstStart << PAGE_SHIFT)) >> PAGE_SHIFT;
 
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
+        req->dst.uv_addr = (req->dst.uv_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize + uv_size) << PAGE_SHIFT);
+        req->dst.v_addr = (req->dst.v_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize + v_size) << PAGE_SHIFT);
 
         /*record the malloc buf for the cmd end to release*/
         reg->MMU_base = MMU_Base;
@@ -1247,7 +1257,7 @@ static int rga_mmu_info_update_palette_table_mode(struct rga_reg *reg, struct rg
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);
         
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
         
@@ -1278,13 +1288,15 @@ static int rga_mmu_info_update_palette_table_mode(struct rga_reg *reg, struct rg
 
 static int rga_mmu_info_update_patten_buff_mode(struct rga_reg *reg, struct rga_req *req)
 {
-    int SrcMemSize, DstMemSize, CMDMemSize;
+    int SrcMemSize, CMDMemSize;
     uint32_t SrcStart, CMDStart;
     struct page **pages = NULL;
     uint32_t i;
     uint32_t AllSize;
     uint32_t *MMU_Base, *MMU_p;
     int ret, status;
+
+    MMU_Base = MMU_p = 0;
 
     do
     {
@@ -1301,7 +1313,7 @@ static int rga_mmu_info_update_patten_buff_mode(struct rga_reg *reg, struct rga_
             return -EINVAL; 
         }
 
-        AllSize = SrcMemSize + DstMemSize + CMDMemSize;
+        AllSize = SrcMemSize + CMDMemSize;
                    
         pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
@@ -1344,7 +1356,7 @@ static int rga_mmu_info_update_patten_buff_mode(struct rga_reg *reg, struct rga_
          * change the buf address in req struct
          * for the reason of lie to MMU 
          */
-        req->mmu_info.base_addr = virt_to_phys(MMU_Base);
+        req->mmu_info.base_addr = (virt_to_phys(MMU_Base) >> 2);
         
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);    
         

@@ -16,7 +16,7 @@
 #ifndef __RK29_IOMUX_H__
 #define __RK29_IOMUX_H__
 
-#include "io.h"
+#include <linux/init.h>
 
 //GPIO0A
 #define GPIO0A_GPIO0A7				0 

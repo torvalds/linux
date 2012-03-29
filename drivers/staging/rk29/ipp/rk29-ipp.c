@@ -173,6 +173,7 @@ static void ipp_power_on(void)
 	cancel_delayed_work_sync(&drvdata->power_off_work);
 	if (drvdata->enable)
 		return;
+#ifdef CONFIG_ARCH_RK29
 	clk_enable(drvdata->pd_display);
 	clk_enable(drvdata->aclk_lcdc);
 	clk_enable(drvdata->hclk_lcdc);
@@ -180,6 +181,7 @@ static void ipp_power_on(void)
 	clk_enable(drvdata->hclk_cpu_display);
 	clk_enable(drvdata->aclk_disp_matrix);
 	clk_enable(drvdata->hclk_disp_matrix);
+#endif
 	clk_enable(drvdata->axi_clk);
 	clk_enable(drvdata->ahb_clk);
 
@@ -192,6 +194,7 @@ static void ipp_power_off(struct work_struct *work)
 	//printk("ipp_power_off\n");
 	if(!drvdata->enable)
 		return;
+#ifdef CONFIG_ARCH_RK29
 	clk_disable(drvdata->pd_display);
 	clk_disable(drvdata->aclk_lcdc);
 	clk_disable(drvdata->hclk_lcdc);
@@ -199,6 +202,7 @@ static void ipp_power_off(struct work_struct *work)
 	clk_disable(drvdata->hclk_cpu_display);
 	clk_disable(drvdata->aclk_disp_matrix);
 	clk_disable(drvdata->hclk_disp_matrix);
+#endif
 	clk_disable(drvdata->axi_clk);
 	clk_disable(drvdata->ahb_clk);
 
@@ -1619,6 +1623,8 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 	}
 
 	/* get the clock */
+    #ifdef CONFIG_ARCH_RK29
+
 	data->pd_display = clk_get(&pdev->dev, "pd_display");
 	if (IS_ERR(data->pd_display))
 	{
@@ -1674,7 +1680,7 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err_clock;
 	}
-	
+	#endif
 	data->axi_clk = clk_get(&pdev->dev, "aclk_ipp");
 	if (IS_ERR(data->axi_clk))
 	{
@@ -1776,6 +1782,7 @@ static int __devexit ipp_drv_remove(struct platform_device *pdev)
 	if(data->ahb_clk) {
 		clk_put(data->ahb_clk);
 	}
+#ifdef CONFIG_ARCH_RK29
 	if(data->aclk_disp_matrix) {
 		clk_put(data->aclk_disp_matrix);
 	}
@@ -1803,8 +1810,8 @@ static int __devexit ipp_drv_remove(struct platform_device *pdev)
 	if(data->pd_display){
 		clk_put(data->pd_display);
 	}
-
-    kfree(data);
+#endif
+kfree(data);
     return 0;
 }
 

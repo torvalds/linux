@@ -9,7 +9,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-
+#ifdef CONFIG_ARCH_RK29
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -151,8 +151,11 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *v0.x.7 : this driver product resolution by IPP crop and scale, which user request but sensor can't support;
 *         note: this version is only provide yifang client, which is not official version;
 *v0.x.8 : this driver and rk29_camera.c support upto 3 back-sensors and upto 3 front-sensors;
+*v0.x.9 : camera io code is compatible for rk29xx and rk30xx
+*v0.x.a : fix error when calculate crop left-top point coordinate;
+*         note: this version provided as patch camera_patch_v1.1
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 8)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x0a)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -1333,21 +1336,21 @@ static int rk29_camera_set_fmt(struct soc_camera_device *icd,
             int ratio;
             if (usr_w > usr_h) {
                 if (mf.width > usr_w) {
-                    ratio = mf.width*10/usr_w;
+                    ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
                     rect.width = usr_w*ratio/10;
                     rect.height = usr_h*ratio/10;                    
                 } else {
-                    ratio = usr_w*10/mf.width + 1;
+                    ratio = (usr_w*10/mf.width)>(usr_h*10/mf.height)?(usr_w*10/mf.width):(usr_h*10/mf.height);
                     rect.width = usr_w*10/ratio;
                     rect.height = usr_h*10/ratio;
                 }                
             } else {
                 if (mf.height > usr_h) {
-                    ratio = mf.height*10/usr_h;
+                    ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
                     rect.width = usr_w*ratio/10;
-                    rect.height = usr_h*ratio/10;                    
+                    rect.height = usr_h*ratio/10;                     
                 } else {
-                    ratio = usr_h*10/mf.height + 1;
+                    ratio = (usr_w*10/mf.width)>(usr_h*10/mf.height)?(usr_w*10/mf.width):(usr_h*10/mf.height);
                     rect.width = usr_w*10/ratio;
                     rect.height = usr_h*10/ratio;
                 }
@@ -2280,3 +2283,4 @@ module_exit(rk29_camera_exit);
 MODULE_DESCRIPTION("RK29 Soc Camera Host driver");
 MODULE_AUTHOR("ddl <ddl@rock-chips>");
 MODULE_LICENSE("GPL");
+#endif
