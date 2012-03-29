@@ -22,6 +22,7 @@
 #include <asm/irqflags.h>
 #include <asm/asm-offsets.h>
 #include <asm/types.h>
+#include <asm/signal.h>
 #include <hv/hypervisor.h>
 #include <arch/abi.h>
 #include <arch/interrupts.h>
@@ -1039,11 +1040,25 @@ handle_syscall:
 
 	/* Do syscall trace again, if requested. */
 	ld	r30, r31
-	andi    r30, r30, _TIF_SYSCALL_TRACE
-	beqzt	r30, 1f
+	andi    r0, r30, _TIF_SYSCALL_TRACE
+	{
+	 andi    r0, r30, _TIF_SINGLESTEP
+	 beqzt   r0, 1f
+	}
 	jal	do_syscall_trace
 	FEEDBACK_REENTER(handle_syscall)
-1:	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	andi    r0, r30, _TIF_SINGLESTEP
+
+1:	beqzt	r0, 2f
+
+	/* Single stepping -- notify ptrace. */
+	{
+	 movei   r0, SIGTRAP
+	 jal     ptrace_notify
+	}
+	FEEDBACK_REENTER(handle_syscall)
+
+2:	j       .Lresume_userspace   /* jump into middle of interrupt_return */
 
 .Lcompat_syscall:
 	/*
