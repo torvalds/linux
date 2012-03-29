@@ -33,6 +33,7 @@
 #include <linux/pm_domain.h>
 #include <linux/dma-mapping.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/sh7372.h>
 #include <mach/common.h>
 #include <asm/mach/map.h>

@@ -54,6 +54,7 @@
 #include <sound/sh_fsi.h>
 
 #include <mach/common.h>
+#include <mach/irqs.h>
 #include <mach/sh7372.h>
 
 #include <asm/mach/arch.h>
