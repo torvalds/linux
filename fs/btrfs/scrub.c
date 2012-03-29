@@ -400,8 +400,8 @@ static void scrub_print_warning(const char *errstr, struct scrub_block *sblock)
 		} while (ret != 1);
 	} else {
 		swarn.path = path;
-		iterate_extent_inodes(fs_info, path, found_key.objectid,
-					extent_item_pos,
+		iterate_extent_inodes(fs_info, found_key.objectid,
+					extent_item_pos, 1,
 					scrub_print_warning_inode, &swarn);
 	}
 
