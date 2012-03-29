@@ -812,7 +812,8 @@ static int sfq_dump(struct Qdisc *sch, struct sk_buff *skb)
 	memcpy(&opt.stats, &q->stats, sizeof(opt.stats));
 	opt.flags	= q->flags;
 
-	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
+	if (nla_put(skb, TCA_OPTIONS, sizeof(opt), &opt))
+		goto nla_put_failure;
 
 	return skb->len;
 

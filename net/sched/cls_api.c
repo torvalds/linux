@@ -357,7 +357,8 @@ static int tcf_fill_node(struct sk_buff *skb, struct tcf_proto *tp,
 	tcm->tcm_ifindex = qdisc_dev(tp->q)->ifindex;
 	tcm->tcm_parent = tp->classid;
 	tcm->tcm_info = TC_H_MAKE(tp->prio, tp->protocol);
-	NLA_PUT_STRING(skb, TCA_KIND, tp->ops->kind);
+	if (nla_put_string(skb, TCA_KIND, tp->ops->kind))
+		goto nla_put_failure;
 	tcm->tcm_handle = fh;
 	if (RTM_DELTFILTER != event) {
 		tcm->tcm_handle = 0;

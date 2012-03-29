@@ -172,12 +172,14 @@ static int tcf_simp_dump(struct sk_buff *skb, struct tc_action *a,
 	};
 	struct tcf_t t;
 
-	NLA_PUT(skb, TCA_DEF_PARMS, sizeof(opt), &opt);
-	NLA_PUT_STRING(skb, TCA_DEF_DATA, d->tcfd_defdata);
+	if (nla_put(skb, TCA_DEF_PARMS, sizeof(opt), &opt) ||
+	    nla_put_string(skb, TCA_DEF_DATA, d->tcfd_defdata))
+		goto nla_put_failure;
 	t.install = jiffies_to_clock_t(jiffies - d->tcf_tm.install);
 	t.lastuse = jiffies_to_clock_t(jiffies - d->tcf_tm.lastuse);
 	t.expires = jiffies_to_clock_t(d->tcf_tm.expires);
-	NLA_PUT(skb, TCA_DEF_TM, sizeof(t), &t);
+	if (nla_put(skb, TCA_DEF_TM, sizeof(t), &t))
+		goto nla_put_failure;
 	return skb->len;
 
 nla_put_failure:
