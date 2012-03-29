@@ -843,7 +843,7 @@ early_param("additional_cpus", setup_additional_cpus);
  * are onlined, or offlined. The reason is per-cpu data-structures
  * are allocated by some modules at init time, and dont expect to
  * do this dynamically on cpu arrival/departure.
- * cpu_present_map on the other hand can change dynamically.
+ * cpu_present_mask on the other hand can change dynamically.
  * In case when cpu_hotplug is not compiled, then we resort to current
  * behaviour, which is cpu_possible == cpu_present.
  * - Ashok Raj
@@ -921,7 +921,7 @@ static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 
 	acpi_map_cpu2node(handle, cpu, physid);
 
-	cpu_set(cpu, cpu_present_map);
+	set_cpu_present(cpu, true);
 	ia64_cpu_to_sapicid[cpu] = physid;
 
 	acpi_processor_set_pdc(handle);
@@ -940,7 +940,7 @@ EXPORT_SYMBOL(acpi_map_lsapic);
 int acpi_unmap_lsapic(int cpu)
 {
 	ia64_cpu_to_sapicid[cpu] = -1;
-	cpu_clear(cpu, cpu_present_map);
+	set_cpu_present(cpu, false);
 
 #ifdef CONFIG_ACPI_NUMA
 	/* NUMA specific cleanup's */

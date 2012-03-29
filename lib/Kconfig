@@ -88,6 +88,10 @@ choice
 	prompt "CRC32 implementation"
 	depends on CRC32
 	default CRC32_SLICEBY8
+	help
+	  This option allows a kernel builder to override the default choice
+	  of CRC32 algorithm.  Choose the default ("slice by 8") unless you
+	  know that you need one of the others.
 
 config CRC32_SLICEBY8
 	bool "Slice by 8 bytes"

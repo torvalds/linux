@@ -22,7 +22,7 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 
-#define FILE_NAME "/mnt/hugepagefile"
+#define FILE_NAME "huge/hugepagefile"
 #define LENGTH (256UL*1024*1024)
 #define PROTECTION (PROT_READ | PROT_WRITE)
 
@@ -48,7 +48,7 @@ static void write_bytes(char *addr)
 		*(addr + i) = (char)i;
 }
 
-static void read_bytes(char *addr)
+static int read_bytes(char *addr)
 {
 	unsigned long i;
 
@@ -56,14 +56,15 @@ static void read_bytes(char *addr)
 	for (i = 0; i < LENGTH; i++)
 		if (*(addr + i) != (char)i) {
 			printf("Mismatch at %lu\n", i);
-			break;
+			return 1;
 		}
+	return 0;
 }
 
 int main(void)
 {
 	void *addr;
-	int fd;
+	int fd, ret;
 
 	fd = open(FILE_NAME, O_CREAT | O_RDWR, 0755);
 	if (fd < 0) {
@@ -81,11 +82,11 @@ int main(void)
 	printf("Returned address is %p\n", addr);
 	check_bytes(addr);
 	write_bytes(addr);
-	read_bytes(addr);
+	ret = read_bytes(addr);
 
 	munmap(addr, LENGTH);
 	close(fd);
 	unlink(FILE_NAME);
 
-	return 0;
+	return ret;
 }

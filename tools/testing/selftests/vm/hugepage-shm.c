@@ -57,8 +57,8 @@ int main(void)
 	unsigned long i;
 	char *shmaddr;
 
-	if ((shmid = shmget(2, LENGTH,
-			    SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W)) < 0) {
+	shmid = shmget(2, LENGTH, SHM_HUGETLB | IPC_CREAT | SHM_R | SHM_W);
+	if (shmid < 0) {
 		perror("shmget");
 		exit(1);
 	}
@@ -82,14 +82,16 @@ int main(void)
 
 	dprintf("Starting the Check...");
 	for (i = 0; i < LENGTH; i++)
-		if (shmaddr[i] != (char)i)
+		if (shmaddr[i] != (char)i) {
 			printf("\nIndex %lu mismatched\n", i);
+			exit(3);
+		}
 	dprintf("Done.\n");
 
 	if (shmdt((const void *)shmaddr) != 0) {
 		perror("Detach failure");
 		shmctl(shmid, IPC_RMID, NULL);
-		exit(3);
+		exit(4);
 	}
 
 	shmctl(shmid, IPC_RMID, NULL);
