@@ -494,11 +494,16 @@ int hv_confstr(HV_ConfstrQuery query, HV_VirtAddr buf, int len);
 /** Tile coordinate */
 typedef struct
 {
+#ifndef __BIG_ENDIAN__
   /** X coordinate, relative to supervisor's top-left coordinate */
   int x;
 
   /** Y coordinate, relative to supervisor's top-left coordinate */
   int y;
+#else
+  int y;
+  int x;
+#endif
 } HV_Coord;
 
 
@@ -986,8 +991,13 @@ HV_VirtAddrRange hv_inquire_virtual(int idx);
 /** A range of ASID values. */
 typedef struct
 {
+#ifndef __BIG_ENDIAN__
   HV_ASID start;        /**< First ASID in the range. */
   unsigned int size;    /**< Number of ASIDs. Zero for an invalid range. */
+#else
+  unsigned int size;    /**< Number of ASIDs. Zero for an invalid range. */
+  HV_ASID start;        /**< First ASID in the range. */
+#endif
 } HV_ASIDRange;
 
 /** Returns information about a range of ASIDs.
@@ -1308,6 +1318,7 @@ typedef enum
 /** Message recipient. */
 typedef struct
 {
+#ifndef __BIG_ENDIAN__
   /** X coordinate, relative to supervisor's top-left coordinate */
   unsigned int x:11;
 
@@ -1316,6 +1327,11 @@ typedef struct
 
   /** Status of this recipient */
   HV_Recip_State state:10;
+#else //__BIG_ENDIAN__
+  HV_Recip_State state:10;
+  unsigned int y:11;
+  unsigned int x:11;
+#endif
 } HV_Recipient;
 
 /** Send a message to a set of recipients.
