@@ -1100,7 +1100,7 @@ EXPORT_SYMBOL(hash_for_home_map);
 
 /*
  * cpu_cacheable_map lists all the cpus whose caches the hypervisor can
- * flush on our behalf.  It is set to cpu_possible_map OR'ed with
+ * flush on our behalf.  It is set to cpu_possible_mask OR'ed with
  * hash_for_home_map, and it is what should be passed to
  * hv_flush_remote() to flush all caches.  Note that if there are
  * dedicated hypervisor driver tiles that have authorized use of their

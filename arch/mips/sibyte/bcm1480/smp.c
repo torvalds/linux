@@ -138,7 +138,7 @@ static void __cpuinit bcm1480_boot_secondary(int cpu, struct task_struct *idle)
 
 /*
  * Use CFE to find out how many CPUs are available, setting up
- * cpu_possible_map and the logical/physical mappings.
+ * cpu_possible_mask and the logical/physical mappings.
  * XXXKW will the boot CPU ever not be physical 0?
  *
  * Common setup before any secondaries are started

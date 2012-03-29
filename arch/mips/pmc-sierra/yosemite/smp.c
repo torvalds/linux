@@ -146,7 +146,7 @@ static void __cpuinit yos_boot_secondary(int cpu, struct task_struct *idle)
 }
 
 /*
- * Detect available CPUs, populate cpu_possible_map before smp_init
+ * Detect available CPUs, populate cpu_possible_mask before smp_init
  *
  * We don't want to start the secondary CPU yet nor do we have a nice probing
  * feature in PMON so we just assume presence of the secondary core.

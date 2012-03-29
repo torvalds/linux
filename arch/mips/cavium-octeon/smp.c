@@ -78,7 +78,7 @@ static inline void octeon_send_ipi_mask(const struct cpumask *mask,
 }
 
 /**
- * Detect available CPUs, populate cpu_possible_map
+ * Detect available CPUs, populate cpu_possible_mask
  */
 static void octeon_smp_hotplug_setup(void)
 {

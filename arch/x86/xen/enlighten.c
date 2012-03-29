@@ -967,7 +967,7 @@ void xen_setup_shared_info(void)
 	xen_setup_mfn_list_list();
 }
 
-/* This is called once we have the cpu_possible_map */
+/* This is called once we have the cpu_possible_mask */
 void xen_setup_vcpu_info_placement(void)
 {
 	int cpu;
