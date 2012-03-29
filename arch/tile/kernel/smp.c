@@ -103,7 +103,7 @@ static void smp_stop_cpu_interrupt(void)
 	set_cpu_online(smp_processor_id(), 0);
 	arch_local_irq_disable_all();
 	for (;;)
-		asm("nap");
+		asm("nap; nop");
 }
 
 /* This function calls the 'stop' function on all other CPUs in the system. */
