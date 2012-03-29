@@ -218,6 +218,7 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t i;
     uint32_t status;
     uint32_t Address;
+    uint32_t t_mem;
     status = 0;
 
     do
@@ -240,7 +241,9 @@ static int rga_MapUserMemory(struct page **pages,
 
             for(i=0; i<pageCount; i++)
             {
-                vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
+                t_mem = Memory + i;
+                
+                vma = find_vma(current->mm, (t_mem) << PAGE_SHIFT);
 
                 if (vma && (vma->vm_flags & VM_PFNMAP) )
                 {
@@ -248,16 +251,16 @@ static int rga_MapUserMemory(struct page **pages,
                     {
                         pte_t       * pte;
                         spinlock_t  * ptl;
-                        unsigned long pfn;
+                        unsigned long pfn;                                                                        
 
-                        pgd_t * pgd = pgd_offset(current->mm, ((Memory + i)<< PAGE_SHIFT));
-                        pud_t * pud = pud_offset(pgd, ((Memory + i) << PAGE_SHIFT));
+                        pgd_t * pgd = pgd_offset(current->mm, ((t_mem)<< PAGE_SHIFT));
+                        pud_t * pud = pud_offset(pgd, ((t_mem) << PAGE_SHIFT));
                         if (pud)
                         {
-                            pmd_t * pmd = pmd_offset(pud, ((Memory + i) << PAGE_SHIFT));
+                            pmd_t * pmd = pmd_offset(pud, ((t_mem) << PAGE_SHIFT));
                             if (pmd)
                             {
-                                pte = pte_offset_map_lock(current->mm, pmd, ((Memory + i)<< PAGE_SHIFT), &ptl);
+                                pte = pte_offset_map_lock(current->mm, pmd, ((t_mem)<< PAGE_SHIFT), &ptl);
                                 if (!pte)
                                 {
                                     break;
@@ -274,7 +277,7 @@ static int rga_MapUserMemory(struct page **pages,
                         }
 
                         pfn = pte_pfn(*pte);
-                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((Memory + i) << PAGE_SHIFT)) & ~PAGE_MASK));                        
+                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((t_mem) << PAGE_SHIFT)) & ~PAGE_MASK));                        
                         pte_unmap_unlock(pte, ptl);
                         
                         #if 0
@@ -381,7 +384,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     {               
         /* cal src buf mmu info */                     
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                        req->src.format, req->src.vir_w, req->src.vir_h,
+                                        req->src.format, req->src.vir_w, (req->src.act_h + req->src.y_offset),
                                         &SrcStart);
         if(SrcMemSize == 0) {
             return -EINVAL;                

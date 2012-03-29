@@ -49,8 +49,6 @@
 #include "rga_mmu_info.h"
 #include "RGA_API.h"
 
-//#include "bug_320x240_swap0_ABGR8888.h"
-
 
 #define RGA_TEST 0
 #define RGA_TEST_TIME 0
@@ -507,9 +505,8 @@ static void rga_service_session_clear(rga_session *session)
 static void rga_try_set_reg(uint32_t num)
 {
     unsigned long flag;
+    uint32_t offset;
     
-	// first get reg from reg list
-
     if (!num)
     {
         #if RGA_TEST        
@@ -525,6 +522,7 @@ static void rga_try_set_reg(uint32_t num)
         do
         {            
             struct rga_reg *reg = list_entry(rga_service.waiting.next, struct rga_reg, status_link);
+            offset = atomic_read(&rga_service.cmd_num);
             if((rga_read(RGA_STATUS) & 0x1)) 
             {            
                 #if RGA_TEST
@@ -533,10 +531,7 @@ static void rga_try_set_reg(uint32_t num)
                 #endif
                 
                 if((atomic_read(&rga_service.cmd_num) <= 0xf) && (atomic_read(&rga_service.int_disable) == 0)) 
-                {
-                    uint32_t offset;
-
-                    offset = atomic_read(&rga_service.cmd_num);
+                {                                        
                     rga_copy_reg(reg, offset);                
                     rga_reg_from_wait_to_run(reg);
 
@@ -753,14 +748,12 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
         {
             /* check value if legal */        
             ret = rga_check_param(req);
-        	if(ret == -EINVAL) 
-            {
+        	if(ret == -EINVAL)  {
         		return -EFAULT;
         	}
           
             reg = rga_reg_init(session, req);
-            if(reg == NULL) 
-            {            
+            if(reg == NULL)  {            
                 return -EFAULT;
             }
             num = 1;        
@@ -786,6 +779,8 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
         rga_end = ktime_sub(rga_end, rga_start);
         printk("one cmd end time %d\n", (int)ktime_to_us(rga_end));
         #endif
+
+        return 0;
     }
     while(0);
             
