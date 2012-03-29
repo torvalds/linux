@@ -200,11 +200,13 @@ static int trace_stop_etm(struct tracectx *t, int id)
 
 	etm_unlock(t, id);
 
-	etm_writel(t, id, 0x441, ETMR_CTRL);
+	etm_writel(t, id, 0x440, ETMR_CTRL);
 	while (!(etm_readl(t, id, ETMR_CTRL) & ETMCTRL_PROGRAM) && --timeout)
 		;
 	if (!timeout) {
-		dev_dbg(t->dev, "Waiting for progbit to assert timed out\n");
+		dev_err(t->dev,
+			"etm%d: Waiting for progbit to assert timed out\n",
+			id);
 		etm_lock(t, id);
 		return -EFAULT;
 	}
@@ -213,18 +215,36 @@ static int trace_stop_etm(struct tracectx *t, int id)
 	return 0;
 }
 
+static int trace_power_down_etm(struct tracectx *t, int id)
+{
+	unsigned long timeout = TRACER_TIMEOUT;
+	etm_unlock(t, id);
+	while (!(etm_readl(t, id, ETMR_STATUS) & ETMST_PROGBIT) && --timeout)
+		;
+	if (!timeout) {
+		dev_err(t->dev, "etm%d: Waiting for status progbit to assert timed out\n",
+			id);
+		etm_lock(t, id);
+		return -EFAULT;
+	}
+
+	etm_writel(t, id, 0x441, ETMR_CTRL);
+
+	etm_lock(t, id);
+	return 0;
+}
+
 static int trace_stop(struct tracectx *t)
 {
 	int id;
-	int ret;
 	unsigned long timeout = TRACER_TIMEOUT;
 	u32 etb_fc = t->etb_fc;
 
-	for (id = 0; id < t->etm_regs_count; id++) {
-		ret = trace_stop_etm(t, id);
-		if (ret)
-			return ret;
-	}
+	for (id = 0; id < t->etm_regs_count; id++)
+		trace_stop_etm(t, id);
+
+	for (id = 0; id < t->etm_regs_count; id++)
+		trace_power_down_etm(t, id);
 
 	etb_unlock(t);
 	if (etb_fc) {
