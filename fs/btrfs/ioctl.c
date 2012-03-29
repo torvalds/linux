@@ -871,6 +871,7 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	u64 isize = i_size_read(inode);
 	u64 page_start;
 	u64 page_end;
+	u64 page_cnt;
 	int ret;
 	int i;
 	int i_done;
@@ -879,19 +880,21 @@ static int cluster_pages_for_defrag(struct inode *inode,
 	struct extent_io_tree *tree;
 	gfp_t mask = btrfs_alloc_write_mask(inode->i_mapping);
 
-	if (isize == 0)
-		return 0;
 	file_end = (isize - 1) >> PAGE_CACHE_SHIFT;
+	if (!isize || start_index > file_end)
+		return 0;
+
+	page_cnt = min_t(u64, (u64)num_pages, (u64)file_end - start_index + 1);
 
 	ret = btrfs_delalloc_reserve_space(inode,
-					   num_pages << PAGE_CACHE_SHIFT);
+					   page_cnt << PAGE_CACHE_SHIFT);
 	if (ret)
 		return ret;
 	i_done = 0;
 	tree = &BTRFS_I(inode)->io_tree;
 
 	/* step one, lock all the pages */
-	for (i = 0; i < num_pages; i++) {
+	for (i = 0; i < page_cnt; i++) {
 		struct page *page;
 again:
 		page = find_or_create_page(inode->i_mapping,
@@ -913,6 +916,15 @@ again:
 			btrfs_start_ordered_extent(inode, ordered, 1);
 			btrfs_put_ordered_extent(ordered);
 			lock_page(page);
+			/*
+			 * we unlocked the page above, so we need check if
+			 * it was released or not.
+			 */
+			if (page->mapping != inode->i_mapping) {
+				unlock_page(page);
+				page_cache_release(page);
+				goto again;
+			}
 		}
 
 		if (!PageUptodate(page)) {
@@ -924,15 +936,6 @@ again:
 				ret = -EIO;
 				break;
 			}
-		}
-
-		isize = i_size_read(inode);
-		file_end = (isize - 1) >> PAGE_CACHE_SHIFT;
-		if (!isize || page->index > file_end) {
-			/* whoops, we blew past eof, skip this page */
-			unlock_page(page);
-			page_cache_release(page);
-			break;
 		}
 
 		if (page->mapping != inode->i_mapping) {
@@ -967,12 +970,12 @@ again:
 			  EXTENT_DO_ACCOUNTING, 0, 0, &cached_state,
 			  GFP_NOFS);
 
-	if (i_done != num_pages) {
+	if (i_done != page_cnt) {
 		spin_lock(&BTRFS_I(inode)->lock);
 		BTRFS_I(inode)->outstanding_extents++;
 		spin_unlock(&BTRFS_I(inode)->lock);
 		btrfs_delalloc_release_space(inode,
-				     (num_pages - i_done) << PAGE_CACHE_SHIFT);
+				     (page_cnt - i_done) << PAGE_CACHE_SHIFT);
 	}
 
 
@@ -997,7 +1000,7 @@ out:
 		unlock_page(pages[i]);
 		page_cache_release(pages[i]);
 	}
-	btrfs_delalloc_release_space(inode, num_pages << PAGE_CACHE_SHIFT);
+	btrfs_delalloc_release_space(inode, page_cnt << PAGE_CACHE_SHIFT);
 	return ret;
 
 }
