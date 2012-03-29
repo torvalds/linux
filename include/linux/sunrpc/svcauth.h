@@ -16,7 +16,6 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/hash.h>
 
-#define SVC_CRED_NGROUPS	32
 struct svc_cred {
 	uid_t			cr_uid;
 	gid_t			cr_gid;
