@@ -957,10 +957,12 @@ static int __dwc3_gadget_kick_transfer(struct dwc3_ep *dep, u16 cmd_param,
 	}
 
 	dep->flags |= DWC3_EP_BUSY;
-	dep->res_trans_idx = dwc3_gadget_ep_get_transfer_index(dwc,
-			dep->number);
 
-	WARN_ON_ONCE(!dep->res_trans_idx);
+	if (start_new) {
+		dep->res_trans_idx = dwc3_gadget_ep_get_transfer_index(dwc,
+				dep->number);
+		WARN_ON_ONCE(!dep->res_trans_idx);
+	}
 
 	return 0;
 }
@@ -994,28 +996,37 @@ static int __dwc3_gadget_ep_queue(struct dwc3_ep *dep, struct dwc3_request *req)
 
 	list_add_tail(&req->list, &dep->request_list);
 
+	if (usb_endpoint_xfer_isoc(dep->desc) && (dep->flags & DWC3_EP_BUSY))
+		dep->flags |= DWC3_EP_PENDING_REQUEST;
+
 	/*
-	 * There is one special case: XferNotReady with
-	 * empty list of requests. We need to kick the
-	 * transfer here in that situation, otherwise
-	 * we will be NAKing forever.
+	 * There are two special cases:
 	 *
-	 * If we get XferNotReady before gadget driver
-	 * has a chance to queue a request, we will ACK
-	 * the IRQ but won't be able to receive the data
-	 * until the next request is queued. The following
-	 * code is handling exactly that.
+	 * 1. XferNotReady with empty list of requests. We need to kick the
+	 *    transfer here in that situation, otherwise we will be NAKing
+	 *    forever. If we get XferNotReady before gadget driver has a
+	 *    chance to queue a request, we will ACK the IRQ but won't be
+	 *    able to receive the data until the next request is queued.
+	 *    The following code is handling exactly that.
+	 *
+	 * 2. XferInProgress on Isoc EP with an active transfer. We need to
+	 *    kick the transfer here after queuing a request, otherwise the
+	 *    core may not see the modified TRB(s).
 	 */
 	if (dep->flags & DWC3_EP_PENDING_REQUEST) {
-		int ret;
-		int start_trans;
+		int	ret;
+		int	start_trans = 1;
+		u8	trans_idx = dep->res_trans_idx;
 
-		start_trans = 1;
 		if (usb_endpoint_xfer_isoc(dep->desc) &&
-				(dep->flags & DWC3_EP_BUSY))
+				(dep->flags & DWC3_EP_BUSY)) {
 			start_trans = 0;
+			WARN_ON_ONCE(!trans_idx);
+		} else {
+			trans_idx = 0;
+		}
 
-		ret = __dwc3_gadget_kick_transfer(dep, 0, start_trans);
+		ret = __dwc3_gadget_kick_transfer(dep, trans_idx, start_trans);
 		if (ret && ret != -EBUSY) {
 			struct dwc3	*dwc = dep->dwc;
 
