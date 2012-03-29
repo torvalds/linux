@@ -1137,12 +1137,16 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			ra_index += max_cluster;
 		}
 
+		mutex_lock(&inode->i_mutex);
 		ret = cluster_pages_for_defrag(inode, pages, i, cluster);
-		if (ret < 0)
+		if (ret < 0) {
+			mutex_unlock(&inode->i_mutex);
 			goto out_ra;
+		}
 
 		defrag_count += ret;
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping, ret);
+		mutex_unlock(&inode->i_mutex);
 
 		if (newer_than) {
 			if (newer_off == (u64)-1)
