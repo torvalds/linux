@@ -45,6 +45,14 @@ static int imx_sgtl5000_dai_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static const struct snd_soc_dapm_widget imx_sgtl5000_dapm_widgets[] = {
+	SND_SOC_DAPM_MIC("Mic Jack", NULL),
+	SND_SOC_DAPM_LINE("Line In Jack", NULL),
+	SND_SOC_DAPM_HP("Headphone Jack", NULL),
+	SND_SOC_DAPM_SPK("Line Out Jack", NULL),
+	SND_SOC_DAPM_SPK("Ext Spk", NULL),
+};
+
 static int __devinit imx_sgtl5000_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -129,8 +137,13 @@ static int __devinit imx_sgtl5000_probe(struct platform_device *pdev)
 	ret = snd_soc_of_parse_card_name(&data->card, "model");
 	if (ret)
 		return ret;
+	ret = snd_soc_of_parse_audio_routing(&data->card, "audio-routing");
+	if (ret)
+		return ret;
 	data->card.num_links = 1;
 	data->card.dai_link = &data->dai;
+	data->card.dapm_widgets = imx_sgtl5000_dapm_widgets;
+	data->card.num_dapm_widgets = ARRAY_SIZE(imx_sgtl5000_dapm_widgets);
 
 	ret = snd_soc_register_card(&data->card);
 	if (ret) {
