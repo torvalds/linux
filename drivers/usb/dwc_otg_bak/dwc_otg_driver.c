@@ -735,6 +735,8 @@ static int check_parameters(dwc_otg_core_if_t *core_if)
 	DWC_OTG_PARAM_ERR(i2c_enable,0,1,"i2c_enable");
 	DWC_OTG_PARAM_ERR(ulpi_fs_ls,0,1,"ulpi_fs_ls");
 	DWC_OTG_PARAM_ERR(ts_dline,0,1,"ts_dline");
+    
+    DWC_PRINT("%s dev endpoint %d\n", __func__, core_if->core_params->dev_endpoints);
 
 	if (core_params->dma_burst_size != -1) 
 	{
@@ -942,6 +944,8 @@ static int check_parameters(dwc_otg_core_if_t *core_if)
 					"dev_endpoints",
 					(core_params->dev_endpoints <= (core_if->hwcfg2.b.num_dev_ep)),
 					core_if->hwcfg2.b.num_dev_ep);
+    
+    DWC_PRINT("%s dev endpoint %d\n", __func__, core_if->core_params->dev_endpoints);
 
 /*
  * Define the following to disable the FS PHY Hardware checking.  This is for
@@ -1332,6 +1336,8 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 		retval = -ENOMEM;
 		goto fail;
 	}
+    DWC_PRINT("%s otg2.0 reg addr: 0x%x remap:0x%x\n",__func__,
+    		(unsigned)res_base->start, (unsigned)dwc_otg_device->base);
 #if 0
 	dwc_otg_device->base = (void*)(USB_OTG_BASE_ADDR_VA);
 	
@@ -1351,6 +1357,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	snpsid = dwc_read_reg32((uint32_t *)((uint8_t *)dwc_otg_device->base + 0x40));
 	if ((snpsid & 0xFFFFF000) != 0x4F542000) 
 	{
+	                DWC_PRINT("%s::snpsid=0x%x,want 0x%x" , __func__ , snpsid , 0x4F542000 );
 		dev_err(dev, "Bad value for SNPSID: 0x%08x\n", snpsid);
 		retval = -EINVAL;
 		goto fail;
@@ -1376,11 +1383,13 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	/*
 	 * Validate parameter values.
 	 */
+	 DWC_PRINT("%s dev endpoint %d\n", __func__, dwc_otg_device->core_if->core_params->dev_endpoints);
 	if (check_parameters(dwc_otg_device->core_if) != 0) 
 	{
 		retval = -EINVAL;
 		goto fail;
 	}
+	 DWC_PRINT("%s dev endpoint %d\n", __func__, dwc_otg_device->core_if->core_params->dev_endpoints);
 
 	/*
 	 * Create Device Attributes in sysfs

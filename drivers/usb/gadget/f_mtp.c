@@ -411,15 +411,6 @@ static int mtp_create_bulk_endpoints(struct mtp_dev *dev,
 	ep->driver_data = dev;		/* claim the endpoint */
 	dev->ep_out = ep;
 
-	ep = usb_ep_autoconfig(cdev->gadget, out_desc);
-	if (!ep) {
-		DBG(cdev, "usb_ep_autoconfig for ep_out failed\n");
-		return -ENODEV;
-	}
-	DBG(cdev, "usb_ep_autoconfig for mtp ep_out got %s\n", ep->name);
-	ep->driver_data = dev;		/* claim the endpoint */
-	dev->ep_out = ep;
-
 	ep = usb_ep_autoconfig(cdev->gadget, intr_desc);
 	if (!ep) {
 		DBG(cdev, "usb_ep_autoconfig for ep_intr failed\n");
@@ -1176,8 +1167,11 @@ static void mtp_function_disable(struct usb_function *f)
 	DBG(cdev, "mtp_function_disable\n");
 	dev->state = STATE_OFFLINE;
 	usb_ep_disable(dev->ep_in);
+	dev->ep_in->driver_data = NULL;
 	usb_ep_disable(dev->ep_out);
+	dev->ep_out->driver_data = NULL;
 	usb_ep_disable(dev->ep_intr);
+	dev->ep_intr->driver_data = NULL;
 
 	/* readers may be blocked waiting for us to go online */
 	wake_up(&dev->read_wq);

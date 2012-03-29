@@ -106,6 +106,7 @@ void request_done(dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req,
 				  int _status)
 {
 	unsigned stopped = _ep->stopped;
+	unsigned long flags = 0;
 
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, _ep);
 	list_del_init(&_req->queue);
@@ -137,9 +138,13 @@ void request_done(dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req,
 #endif
 	/* don't modify queue heads during completion callback */
 	_ep->stopped = 1;
-	SPIN_UNLOCK(&_ep->pcd->lock);
+//	DWC_PRINT("%s spin lock\n", __func__);
+//	SPIN_UNLOCK(&_ep->pcd->lock);
+//	SPIN_LOCK_IRQSAVE(&_ep->pcd->lock, flags);
 	_req->req.complete(&_ep->ep, &_req->req);
-	SPIN_LOCK(&_ep->pcd->lock);
+//	DWC_PRINT("%s spin unlock\n", __func__);
+//	SPIN_LOCK(&_ep->pcd->lock);
+//	SPIN_UNLOCK_IRQRESTORE(&_ep->pcd->lock, flags);
 
 	if (_ep->pcd->request_pending > 0)
 	{
@@ -188,7 +193,7 @@ void request_nuke( dwc_otg_pcd_ep_t *_ep )
  * This function assigns periodic Tx FIFO to an periodic EP
  * in shared Tx FIFO mode
  */
- #ifdef CONFIG_ARCH_RK30
+ #if 0
 static uint32_t assign_perio_tx_fifo(dwc_otg_core_if_t	*core_if)
 {
 	uint32_t PerTxMsk = 1;
@@ -215,9 +220,9 @@ static void release_perio_tx_fifo(dwc_otg_core_if_t *core_if, uint32_t fifo_num)
 }
 /**
  * This function assigns periodic Tx FIFO to an periodic EP
- * in Dedicated FIFOs mode
+ * in shared Tx FIFO mode
  */
-#ifdef CONFIG_ARCH_RK30
+#if 0
 static uint32_t assign_tx_fifo(dwc_otg_core_if_t *core_if)
 {
 	uint32_t TxMsk = 1;
@@ -237,7 +242,7 @@ static uint32_t assign_tx_fifo(dwc_otg_core_if_t *core_if)
 #endif
 /**
  * This function releases periodic Tx FIFO 
- * in Dedicated FIFOs mode
+ * in shared Tx FIFO mode
  */
 static void release_tx_fifo(dwc_otg_core_if_t	*core_if, uint32_t fifo_num)
 {
@@ -286,6 +291,8 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 		return -ESHUTDOWN;
 	}
 
+	DWC_PRINT("%s spin lock\n", __func__);
+
 	local_irq_save(flags);
 //	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
 		
@@ -304,7 +311,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 
 	if(ep->dwc_ep.is_in)
 	{
-#ifdef CONFIG_ARCH_RK30
+	        #if 0
 		if(!pcd->otg_dev->core_if->en_multiple_tx_fifo)
 		{
 			ep->dwc_ep.tx_fifo_num = 0;
@@ -325,7 +332,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 			 */
 			ep->dwc_ep.tx_fifo_num = assign_tx_fifo(pcd->otg_dev->core_if);
 		}
-#else
+                        #endif 
         /* yk@rk
          * ep0 -- tx fifo 0
          * ep1 -- tx fifo 1
@@ -340,7 +347,6 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
                 ep->dwc_ep.tx_fifo_num = 3;
         else
     	    ep->dwc_ep.tx_fifo_num = (ep->dwc_ep.num>>1)+1 ; /* 1,3,5 */
-#endif
 	}		 
 	/* Set initial data PID. */
 	if ((_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == 
@@ -354,6 +360,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 					ep->dwc_ep.type, ep->dwc_ep.maxpacket, ep->desc );
 		
 	dwc_otg_ep_activate( GET_CORE_IF(pcd), &ep->dwc_ep );
+	DWC_PRINT("%s spin unlock\n", __func__);
 //	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
     local_irq_restore(flags);
 	return 0;
@@ -372,7 +379,6 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
 	dwc_otg_pcd_ep_t *ep;
 	unsigned long flags;
 
-             
 	DWC_DEBUGPL(DBG_PCDV,"%s(%p)\n", __func__, _ep);
 	ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
 	if (!_ep || !ep->desc) 
@@ -381,6 +387,7 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
 			_ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
+	DWC_PRINT("%s spin lock\n", __func__);
 		
 //	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
     local_irq_save(flags);
@@ -396,6 +403,7 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
 		release_tx_fifo(GET_CORE_IF(ep->pcd), ep->dwc_ep.tx_fifo_num);
 	}	
 	
+	DWC_PRINT("%s spin unlock\n", __func__);
 //	SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
     local_irq_restore(flags);
 
@@ -605,7 +613,10 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 		}
 	}
 
+	DWC_PRINT("%s spin lock, %s\n", __func__, ep->ep.name);
+
 	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
+//    local_irq_save(flags);
 
 #if defined(DEBUG) & defined(VERBOSE)
 	dump_msg(_req->buf, _req->length);
@@ -709,7 +720,9 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 		}
 	}
 		
+	DWC_PRINT("%s spin unlock\n", __func__);
 	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
+//    local_irq_restore(flags);
 	return 0;
 }
 
@@ -739,7 +752,10 @@ static int dwc_otg_pcd_ep_dequeue(struct usb_ep *_ep,
 		return -ESHUTDOWN;
 	}
 
+	DWC_PRINT("%s spin lock\n", __func__);
+
 	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
+//    local_irq_save(flags);
 	DWC_DEBUGPL(DBG_PCDV, "%s %s %s %p\n", __func__, _ep->name,
 					ep->dwc_ep.is_in ? "IN" : "OUT",
 					_req);
@@ -755,6 +771,7 @@ static int dwc_otg_pcd_ep_dequeue(struct usb_ep *_ep,
 
 	if (&req->req != _req) 
 	{
+	    DWC_PRINT("%s spin unlock\n", __func__);
 		SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
 		return -EINVAL;
 	}
@@ -768,7 +785,9 @@ static int dwc_otg_pcd_ep_dequeue(struct usb_ep *_ep,
 		req = 0;
 	}
 		
+	DWC_PRINT("%s spin unlock\n", __func__);
 	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
+//    local_irq_restore(flags);
 
 	return req ? 0 : -EOPNOTSUPP;
 }
@@ -807,7 +826,9 @@ static int dwc_otg_pcd_ep_set_halt(struct usb_ep *_ep, int _value)
 		return -EINVAL;
 	}
 		
+	DWC_PRINT("%s spin lock\n", __func__);
 	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
+//    local_irq_save(flags);
 	if (!list_empty(&ep->queue))
 	{
 		DWC_WARN("%s() %s XFer In process\n", __func__, _ep->name);
@@ -838,7 +859,9 @@ static int dwc_otg_pcd_ep_set_halt(struct usb_ep *_ep, int _value)
 		ep->dwc_ep.stall_clear_flag = 1;
 	}
 	
+	DWC_PRINT("%s spin unlock\n", __func__);
 	SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
+//    local_irq_restore(flags);
 	return retval;
 }
 
@@ -978,7 +1001,9 @@ static int dwc_otg_pcd_wakeup(struct usb_gadget *_gadget)
 	{
 		pcd = container_of(_gadget, dwc_otg_pcd_t, gadget);
 	}
+	DWC_PRINT("%s spin lock\n", __func__);
 	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
+//    local_irq_save(flags);
 
 	/*
 	 * This function starts the Protocol if no session is in progress. If
@@ -1002,6 +1027,8 @@ static int dwc_otg_pcd_wakeup(struct usb_gadget *_gadget)
 		dwc_otg_pcd_initiate_srp(pcd);
 	}
 
+	DWC_PRINT("%s spin unlock\n", __func__);
+//    local_irq_restore(flags);
 	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
 	return 0;
 }
@@ -1030,7 +1057,9 @@ static int dwc_otg_pcd_pullup(struct usb_gadget *_gadget, int is_on)
 #else
         pcd->conn_en = 0;
 #endif
-        pcd->conn_status = 0;
+        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+        dctl.b.sftdiscon = 0;
+        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
     }
     else        //disconnect
     {
@@ -1169,9 +1198,9 @@ static int32_t dwc_otg_pcd_resume_cb( void *_p )
 	
 	if (pcd->driver && pcd->driver->resume) 
 	{
-			SPIN_UNLOCK(&pcd->lock);
+//			SPIN_UNLOCK(&pcd->lock);
 			pcd->driver->resume(&pcd->gadget);
-			SPIN_LOCK(&pcd->lock);
+//			SPIN_LOCK(&pcd->lock);
 	}
 	
 	/* Stop the SRP timeout timer. */
@@ -1478,15 +1507,7 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 * here?  Before EP type is set?
 			 */
 			ep->ep.maxpacket = MAX_PACKET_SIZE;
-
-			/**
-			 * @yk@rk 20120329
-			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep8 as OUT EP default
-			 */
-	        #ifdef CONFIG_ARCH_RK30
-	        if(i == 8)
-	            continue;
-	        #endif
+	
 			list_add_tail (&ep->ep.ep_list, &_pcd->gadget.ep_list);
 				
 			INIT_LIST_HEAD (&ep->queue);
@@ -1539,14 +1560,6 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 */
 			ep->ep.maxpacket = MAX_PACKET_SIZE;
 	
-			/**
-			 * @yk@rk 20120329
-			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep9 as IN EP default
-			 */
-	        #ifdef CONFIG_ARCH_RK30
-	        if(i == 9)
-	            continue;
-	        #endif
 			list_add_tail (&ep->ep.ep_list, &_pcd->gadget.ep_list);
 				
 			INIT_LIST_HEAD (&ep->queue);
@@ -1671,12 +1684,12 @@ void dwc_otg_msc_lock(dwc_otg_pcd_t *pcd)
 	local_irq_save(flags);
     wake_lock(&pcd->wake_lock);
     local_irq_restore(flags);
-
 }
 
 void dwc_otg_msc_unlock(dwc_otg_pcd_t *pcd)
 {
 	unsigned long		flags;
+	
 	local_irq_save(flags);
 	wake_unlock(&pcd->wake_lock);
 	local_irq_restore(flags);
@@ -1791,65 +1804,7 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
 }
-#ifdef CONFIG_ARCH_RK29
-/*
- * This function can be only called in charge mode.
- * return value:
- *  -1: ioremap fail;
- *  0: vbus not connected;
- *  1: vbus connected, dp,dm not in both high status;
- *  2: vbus connected and both dp,dm in high level.(standard USB charger)
- */
-int dwc_otg_check_dpdm(void)
-{
-	static uint8_t * reg_base = 0;
-    volatile unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
-    volatile unsigned int * otg_clkgate = (unsigned int*)(USB_CLKGATE_CON);
-    volatile unsigned int * otg_clkreset = (unsigned int*)(RK29_CRU_BASE+0x70);
-    volatile unsigned int * otg_dctl;
-    volatile unsigned int * otg_gotgctl;
-    volatile unsigned int * otg_hprt0;
-    int bus_status = 0;
-    
-    
-    // softreset & clockgate 
-    *otg_clkreset |= (7<<16);
-    udelay(3);
-    *otg_clkreset &= ~(7<<16);
-    *otg_clkgate &= ~((1<<4)|(3<<25));
-	
-    // exit phy suspend 
-    *otg_phy_con1 |= (0x01<<2);
-    *otg_phy_con1 |= (0x01<<3);    // exit suspend.
-    *otg_phy_con1 &= ~(0x01<<2);
-    
-    // soft connect
-    if(reg_base == 0){
-        reg_base = ioremap(RK29_USBOTG0_PHYS,USBOTG_SIZE);
-        if(!reg_base){
-            bus_status = -1;
-            goto out;
-        }
-    }
-    mdelay(105);
-    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x, otg_clkgate %p,0x%x\n",
-        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1, otg_clkgate, *otg_clkgate);
-    otg_dctl = (unsigned int * )(reg_base+0x804);
-    otg_gotgctl = (unsigned int * )(reg_base);
-    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
-    if(*otg_gotgctl &(1<<19)){
-        bus_status = 1;
-        *otg_dctl &= ~2;
-        mdelay(50);    // delay about 10ms
-    // check dp,dm
-        if((*otg_hprt0 & 0xc00)==0xc00)
-            bus_status = 2;
-    }
-out:
-    return bus_status;
-}
-EXPORT_SYMBOL(dwc_otg_check_dpdm);
-#endif
+
 void dwc_otg_pcd_start_vbus_timer( dwc_otg_pcd_t * _pcd )
 {
         struct timer_list *vbus_timer = &_pcd->check_vbus_timer;
@@ -1986,6 +1941,8 @@ int dwc_otg_pcd_init(struct device *dev)
     pcd->phy_suspend  = 0;
     if(dwc_otg_is_device_mode(core_if))
         mod_timer(&pcd->check_vbus_timer, jiffies+(HZ<<4)); // delay 16 S
+	DWC_PRINT("%s pass,everest\n", __func__);
+//    	dwc_otg_pcd_start_vbus_timer( pcd );
 	return 0;
 }
 /**
@@ -2028,7 +1985,7 @@ void dwc_otg_pcd_remove( struct device *dev )
 	
 	kfree( pcd );
 	otg_dev->pcd = 0;
-    s_pcd = 0; 
+            s_pcd = 0; // HSL@RK,20090901
 }
 
 /**
