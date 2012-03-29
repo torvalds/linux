@@ -720,24 +720,6 @@ static void __devexit virtio_pci_remove(struct pci_dev *pci_dev)
 }
 
 #ifdef CONFIG_PM
-static int virtio_pci_suspend(struct device *dev)
-{
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-
-	pci_save_state(pci_dev);
-	pci_set_power_state(pci_dev, PCI_D3hot);
-	return 0;
-}
-
-static int virtio_pci_resume(struct device *dev)
-{
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-
-	pci_restore_state(pci_dev);
-	pci_set_power_state(pci_dev, PCI_D0);
-	return 0;
-}
-
 static int virtio_pci_freeze(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -786,12 +768,12 @@ static int virtio_pci_restore(struct device *dev)
 }
 
 static const struct dev_pm_ops virtio_pci_pm_ops = {
-	.suspend	= virtio_pci_suspend,
-	.resume		= virtio_pci_resume,
+	.suspend	= virtio_pci_freeze,
+	.resume		= virtio_pci_restore,
 	.freeze		= virtio_pci_freeze,
 	.thaw		= virtio_pci_restore,
 	.restore	= virtio_pci_restore,
-	.poweroff	= virtio_pci_suspend,
+	.poweroff	= virtio_pci_freeze,
 };
 #endif
 
