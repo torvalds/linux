@@ -304,15 +304,21 @@ void req_may_be_completed(struct drbd_request *req, struct bio_and_error *m)
 		/* Update disk stats */
 		_drbd_end_io_acct(mdev, req);
 
-		/* if READ failed,
+		/* If READ failed,
 		 * have it be pushed back to the retry work queue,
-		 * so it will re-enter __drbd_make_request,
+		 * so it will re-enter __drbd_make_request(),
 		 * and be re-assigned to a suitable local or remote path,
 		 * or failed if we do not have access to good data anymore.
-		 * READA may fail.
+		 *
+		 * Unless it was failed early by __drbd_make_request(),
+		 * because no path was available, in which case
+		 * it was not even added to the transfer_log.
+		 *
+		 * READA may fail, and will not be retried.
+		 *
 		 * WRITE should have used all available paths already.
 		 */
-		if (!ok && rw == READ)
+		if (!ok && rw == READ && !list_empty(&req->tl_requests))
 			req->rq_state |= RQ_POSTPONED;
 
 		if (!(req->rq_state & RQ_POSTPONED)) {
@@ -725,18 +731,11 @@ static bool drbd_may_do_local_read(struct drbd_conf *mdev, sector_t sector, int 
 	return drbd_bm_count_bits(mdev, sbnr, ebnr) == 0;
 }
 
-static bool remote_due_to_read_balancing(struct drbd_conf *mdev, sector_t sector)
+static bool remote_due_to_read_balancing(struct drbd_conf *mdev, sector_t sector,
+		enum drbd_read_balancing rbm)
 {
-	enum drbd_read_balancing rbm;
 	struct backing_dev_info *bdi;
 	int stripe_shift;
-
-	if (mdev->state.pdsk < D_UP_TO_DATE)
-		return false;
-
-	rcu_read_lock();
-	rbm = rcu_dereference(mdev->ldev->disk_conf)->read_balancing;
-	rcu_read_unlock();
 
 	switch (rbm) {
 	case RB_CONGESTED_REMOTE:
@@ -798,17 +797,160 @@ static void complete_conflicting_writes(struct drbd_request *req)
 	finish_wait(&mdev->misc_wait, &wait);
 }
 
+/* called within req_lock and rcu_read_lock() */
+static bool conn_check_congested(struct drbd_conf *mdev)
+{
+	struct drbd_tconn *tconn = mdev->tconn;
+	struct net_conf *nc;
+	bool congested = false;
+	enum drbd_on_congestion on_congestion;
+
+	nc = rcu_dereference(tconn->net_conf);
+	on_congestion = nc ? nc->on_congestion : OC_BLOCK;
+	if (on_congestion == OC_BLOCK ||
+	    tconn->agreed_pro_version < 96)
+		return false;
+
+	if (nc->cong_fill &&
+	    atomic_read(&mdev->ap_in_flight) >= nc->cong_fill) {
+		dev_info(DEV, "Congestion-fill threshold reached\n");
+		congested = true;
+	}
+
+	if (mdev->act_log->used >= nc->cong_extents) {
+		dev_info(DEV, "Congestion-extents threshold reached\n");
+		congested = true;
+	}
+
+	if (congested) {
+		if (mdev->tconn->current_tle_writes)
+			/* start a new epoch for non-mirrored writes */
+			start_new_tl_epoch(mdev->tconn);
+
+		if (on_congestion == OC_PULL_AHEAD)
+			_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
+		else  /*nc->on_congestion == OC_DISCONNECT */
+			_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
+	}
+
+	return congested;
+}
+
+/* If this returns false, and req->private_bio is still set,
+ * this should be submitted locally.
+ *
+ * If it returns false, but req->private_bio is not set,
+ * we do not have access to good data :(
+ *
+ * Otherwise, this destroys req->private_bio, if any,
+ * and returns true.
+ */
+static bool do_remote_read(struct drbd_request *req)
+{
+	struct drbd_conf *mdev = req->w.mdev;
+	enum drbd_read_balancing rbm;
+
+	if (req->private_bio) {
+		if (!drbd_may_do_local_read(mdev,
+					req->i.sector, req->i.size)) {
+			bio_put(req->private_bio);
+			req->private_bio = NULL;
+			put_ldev(mdev);
+		}
+	}
+
+	if (mdev->state.pdsk != D_UP_TO_DATE)
+		return false;
+
+	/* TODO: improve read balancing decisions, take into account drbd
+	 * protocol, pending requests etc. */
+
+	rcu_read_lock();
+	rbm = rcu_dereference(mdev->ldev->disk_conf)->read_balancing;
+	rcu_read_unlock();
+
+	if (rbm == RB_PREFER_LOCAL && req->private_bio)
+		return false; /* submit locally */
+
+	if (req->private_bio == NULL)
+		return true;
+
+	if (remote_due_to_read_balancing(mdev, req->i.sector, rbm)) {
+		if (req->private_bio) {
+			bio_put(req->private_bio);
+			req->private_bio = NULL;
+			put_ldev(mdev);
+		}
+		return true;
+	}
+
+	return false;
+}
+
+/* returns number of connections (== 1, for drbd 8.4)
+ * expected to actually write this data,
+ * which does NOT include those that we are L_AHEAD for. */
+static int drbd_process_write_request(struct drbd_request *req)
+{
+	struct drbd_conf *mdev = req->w.mdev;
+	int remote, send_oos;
+
+	rcu_read_lock();
+	remote = drbd_should_do_remote(mdev->state);
+	if (remote) {
+		conn_check_congested(mdev);
+		remote = drbd_should_do_remote(mdev->state);
+	}
+	send_oos = drbd_should_send_out_of_sync(mdev->state);
+	rcu_read_unlock();
+
+	if (!remote && !send_oos)
+		return 0;
+
+	D_ASSERT(!(remote && send_oos));
+
+	if (remote) {
+		_req_mod(req, TO_BE_SENT);
+		_req_mod(req, QUEUE_FOR_NET_WRITE);
+	} else if (drbd_set_out_of_sync(mdev, req->i.sector, req->i.size))
+		_req_mod(req, QUEUE_FOR_SEND_OOS);
+
+	return remote;
+}
+
+static void
+drbd_submit_req_private_bio(struct drbd_request *req)
+{
+	struct drbd_conf *mdev = req->w.mdev;
+	struct bio *bio = req->private_bio;
+	const int rw = bio_rw(bio);
+
+	bio->bi_bdev = mdev->ldev->backing_bdev;
+
+	/* State may have changed since we grabbed our reference on the
+	 * ->ldev member. Double check, and short-circuit to endio.
+	 * In case the last activity log transaction failed to get on
+	 * stable storage, and this is a WRITE, we may not even submit
+	 * this bio. */
+	if (get_ldev(mdev)) {
+		if (drbd_insert_fault(mdev,
+				      rw == WRITE ? DRBD_FAULT_DT_WR
+				    : rw == READ  ? DRBD_FAULT_DT_RD
+				    :               DRBD_FAULT_DT_RA))
+			bio_endio(bio, -EIO);
+		else
+			generic_make_request(bio);
+		put_ldev(mdev);
+	} else
+		bio_endio(bio, -EIO);
+}
+
 int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long start_time)
 {
 	const int rw = bio_rw(bio);
-	const int size = bio->bi_size;
-	const sector_t sector = bio->bi_sector;
+	struct bio_and_error m = { NULL, };
 	struct drbd_request *req;
-	struct net_conf *nc;
-	int local, remote, send_oos = 0;
-	int err = 0;
-	int ret = 0;
-	union drbd_dev_state s;
+	bool no_remote = false;
 
 	/* allocate outside of all locks; */
 	req = drbd_req_new(mdev, bio);
@@ -822,43 +964,9 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 	}
 	req->start_time = start_time;
 
-	local = get_ldev(mdev);
-	if (!local) {
-		bio_put(req->private_bio); /* or we get a bio leak */
+	if (!get_ldev(mdev)) {
+		bio_put(req->private_bio);
 		req->private_bio = NULL;
-	}
-	if (rw == WRITE) {
-		remote = 1;
-	} else {
-		/* READ || READA */
-		if (local) {
-			if (!drbd_may_do_local_read(mdev, sector, size) ||
-			    remote_due_to_read_balancing(mdev, sector)) {
-				/* we could kick the syncer to
-				 * sync this extent asap, wait for
-				 * it, then continue locally.
-				 * Or just issue the request remotely.
-				 */
-				local = 0;
-				bio_put(req->private_bio);
-				req->private_bio = NULL;
-				put_ldev(mdev);
-			}
-		}
-		remote = !local && mdev->state.pdsk >= D_UP_TO_DATE;
-	}
-
-	/* If we have a disk, but a READA request is mapped to remote,
-	 * we are R_PRIMARY, D_INCONSISTENT, SyncTarget.
-	 * Just fail that READA request right here.
-	 *
-	 * THINK: maybe fail all READA when not local?
-	 *        or make this configurable...
-	 *        if network is slow, READA won't do any good.
-	 */
-	if (rw == READA && mdev->state.disk >= D_INCONSISTENT && !local) {
-		err = -EWOULDBLOCK;
-		goto fail_and_free_req;
 	}
 
 	/* For WRITES going to the local disk, grab a reference on the target
@@ -866,26 +974,13 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 	 * resync extent to finish, and, if necessary, pulls in the target
 	 * extent into the activity log, which involves further disk io because
 	 * of transactional on-disk meta data updates. */
-	if (rw == WRITE && local && !test_bit(AL_SUSPENDED, &mdev->flags)) {
+	if (rw == WRITE && req->private_bio
+	&& !test_bit(AL_SUSPENDED, &mdev->flags)) {
 		req->rq_state |= RQ_IN_ACT_LOG;
 		drbd_al_begin_io(mdev, &req->i);
 	}
 
-	s = mdev->state;
-	remote = remote && drbd_should_do_remote(s);
-	send_oos = rw == WRITE && drbd_should_send_out_of_sync(s);
-	D_ASSERT(!(remote && send_oos));
-
-	if (!(local || remote) && !drbd_suspended(mdev)) {
-		if (__ratelimit(&drbd_ratelimit_state))
-			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
-		err = -EIO;
-		goto fail_free_complete;
-	}
-
-	/* GOOD, everything prepared, grab the spin_lock */
 	spin_lock_irq(&mdev->tconn->req_lock);
-
 	if (rw == WRITE) {
 		/* This may temporarily give up the req_lock,
 		 * but will re-aquire it before it returns here.
@@ -893,53 +988,28 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 		complete_conflicting_writes(req);
 	}
 
+	/* no more giving up req_lock from now on! */
+
 	if (drbd_suspended(mdev)) {
-		/* If we got suspended, use the retry mechanism in
-		   drbd_make_request() to restart processing of this
-		   bio. In the next call to drbd_make_request
-		   we sleep in inc_ap_bio() */
-		ret = 1;
-		spin_unlock_irq(&mdev->tconn->req_lock);
-		goto fail_free_complete;
-	}
-
-	if (remote || send_oos) {
-		remote = drbd_should_do_remote(mdev->state);
-		send_oos = rw == WRITE && drbd_should_send_out_of_sync(mdev->state);
-		D_ASSERT(!(remote && send_oos));
-
-		if (!(remote || send_oos))
-			dev_warn(DEV, "lost connection while grabbing the req_lock!\n");
-		if (!(local || remote)) {
-			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
-			spin_unlock_irq(&mdev->tconn->req_lock);
-			err = -EIO;
-			goto fail_free_complete;
+		/* push back and retry: */
+		req->rq_state |= RQ_POSTPONED;
+		if (req->private_bio) {
+			bio_put(req->private_bio);
+			req->private_bio = NULL;
 		}
+		goto out;
 	}
 
 	/* Update disk stats */
 	_drbd_start_io_acct(mdev, req, bio);
 
-	/* NOTE
-	 * Actually, 'local' may be wrong here already, since we may have failed
-	 * to write to the meta data, and may become wrong anytime because of
-	 * local io-error for some other request, which would lead to us
-	 * "detaching" the local disk.
-	 *
-	 * 'remote' may become wrong any time because the network could fail.
-	 *
-	 * This is a harmless race condition, though, since it is handled
-	 * correctly at the appropriate places; so it just defers the failure
-	 * of the respective operation.
-	 */
-
-	/* mark them early for readability.
-	 * this just sets some state flags. */
-	if (remote)
-		_req_mod(req, TO_BE_SENT);
-	if (local)
-		_req_mod(req, TO_BE_SUBMITTED);
+	/* We fail READ/READA early, if we can not serve it.
+	 * We must do this before req is registered on any lists.
+	 * Otherwise, req_may_be_completed() will queue failed READ for retry. */
+	if (rw != WRITE) {
+		if (!do_remote_read(req) && !req->private_bio)
+			goto nodata;
+	}
 
 	/* which transfer log epoch does this belong to? */
 	req->epoch = atomic_read(&mdev->tconn->current_tle_nr);
@@ -948,90 +1018,43 @@ int __drbd_make_request(struct drbd_conf *mdev, struct bio *bio, unsigned long s
 
 	list_add_tail(&req->tl_requests, &mdev->tconn->transfer_log);
 
-	/* NOTE remote first: to get the concurrent write detection right,
-	 * we must register the request before start of local IO.  */
-	if (remote) {
-		/* either WRITE and C_CONNECTED,
-		 * or READ, and no local disk,
-		 * or READ, but not in sync.
-		 */
-		_req_mod(req, (rw == WRITE)
-				? QUEUE_FOR_NET_WRITE
-				: QUEUE_FOR_NET_READ);
+	if (rw == WRITE) {
+		if (!drbd_process_write_request(req))
+			no_remote = true;
+	} else {
+		/* We either have a private_bio, or we can read from remote.
+		 * Otherwise we had done the goto nodata above. */
+		if (req->private_bio == NULL) {
+			_req_mod(req, TO_BE_SENT);
+			_req_mod(req, QUEUE_FOR_NET_READ);
+		} else
+			no_remote = true;
 	}
-	if (send_oos && drbd_set_out_of_sync(mdev, sector, size))
-		_req_mod(req, QUEUE_FOR_SEND_OOS);
 
-	rcu_read_lock();
-	nc = rcu_dereference(mdev->tconn->net_conf);
-	if (remote &&
-	    nc->on_congestion != OC_BLOCK && mdev->tconn->agreed_pro_version >= 96) {
-		int congested = 0;
-
-		if (nc->cong_fill &&
-		    atomic_read(&mdev->ap_in_flight) >= nc->cong_fill) {
-			dev_info(DEV, "Congestion-fill threshold reached\n");
-			congested = 1;
-		}
-
-		if (mdev->act_log->used >= nc->cong_extents) {
-			dev_info(DEV, "Congestion-extents threshold reached\n");
-			congested = 1;
-		}
-
-		if (congested) {
-			if (mdev->tconn->current_tle_writes)
-				/* start a new epoch for non-mirrored writes */
-				start_new_tl_epoch(mdev->tconn);
-
-			if (nc->on_congestion == OC_PULL_AHEAD)
-				_drbd_set_state(_NS(mdev, conn, C_AHEAD), 0, NULL);
-			else  /*nc->on_congestion == OC_DISCONNECT */
-				_drbd_set_state(_NS(mdev, conn, C_DISCONNECTING), 0, NULL);
-		}
+	if (req->private_bio) {
+		/* needs to be marked within the same spinlock */
+		_req_mod(req, TO_BE_SUBMITTED);
+		/* but we need to give up the spinlock to submit */
+		spin_unlock_irq(&mdev->tconn->req_lock);
+		drbd_submit_req_private_bio(req);
+		/* once we have submitted, we must no longer look at req,
+		 * it may already be destroyed. */
+		return 0;
+	} else if (no_remote) {
+nodata:
+		if (__ratelimit(&drbd_ratelimit_state))
+			dev_err(DEV, "IO ERROR: neither local nor remote disk\n");
+		/* A write may have been queued for send_oos, however.
+		 * So we can not simply free it, we must go through req_may_be_completed() */
 	}
-	rcu_read_unlock();
 
+out:
+	req_may_be_completed(req, &m);
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
-	if (local) {
-		req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
-
-		/* State may have changed since we grabbed our reference on the
-		 * mdev->ldev member. Double check, and short-circuit to endio.
-		 * In case the last activity log transaction failed to get on
-		 * stable storage, and this is a WRITE, we may not even submit
-		 * this bio. */
-		if (get_ldev(mdev)) {
-			if (drbd_insert_fault(mdev,   rw == WRITE ? DRBD_FAULT_DT_WR
-						    : rw == READ  ? DRBD_FAULT_DT_RD
-						    :               DRBD_FAULT_DT_RA))
-				bio_endio(req->private_bio, -EIO);
-			else
-				generic_make_request(req->private_bio);
-			put_ldev(mdev);
-		} else
-			bio_endio(req->private_bio, -EIO);
-	}
-
+	if (m.bio)
+		complete_master_bio(mdev, &m);
 	return 0;
-
-fail_free_complete:
-	if (req->rq_state & RQ_IN_ACT_LOG)
-		drbd_al_complete_io(mdev, &req->i);
-fail_and_free_req:
-	if (local) {
-		bio_put(req->private_bio);
-		req->private_bio = NULL;
-		put_ldev(mdev);
-	}
-	if (!ret)
-		bio_endio(bio, err);
-
-	drbd_req_free(req);
-	dec_ap_bio(mdev);
-
-	return ret;
 }
 
 int drbd_make_request(struct request_queue *q, struct bio *bio)
