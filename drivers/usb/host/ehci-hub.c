@@ -536,7 +536,8 @@ static int check_reset_complete (
 		if (ehci->has_amcc_usb23)
 			set_ohci_hcfs(ehci, 1);
 	} else {
-		ehci_dbg (ehci, "port %d high speed\n", index + 1);
+		ehci_dbg(ehci, "port %d reset complete, port enabled\n",
+			index + 1);
 		/* ensure 440EPx ohci controller state is suspended */
 		if (ehci->has_amcc_usb23)
 			set_ohci_hcfs(ehci, 0);
