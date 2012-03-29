@@ -913,6 +913,13 @@ void __cpuinit setup_cpu(int boot)
 
 #ifdef CONFIG_BLK_DEV_INITRD
 
+/*
+ * Note that the kernel can potentially support other compression
+ * techniques than gz, though we don't do so by default.  If we ever
+ * decide to do so we can either look for other filename extensions,
+ * or just allow a file with this name to be compressed with an
+ * arbitrary compressor (somewhat counterintuitively).
+ */
 static int __initdata set_initramfs_file;
 static char __initdata initramfs_file[128] = "initramfs.cpio.gz";
 
@@ -928,9 +935,9 @@ static int __init setup_initramfs_file(char *str)
 early_param("initramfs_file", setup_initramfs_file);
 
 /*
- * We look for an additional "initramfs.cpio.gz" file in the hvfs.
+ * We look for an "initramfs.cpio.gz" file in the hvfs.
  * If there is one, we allocate some memory for it and it will be
- * unpacked to the initramfs after any built-in initramfs_data.
+ * unpacked to the initramfs.
  */
 static void __init load_hv_initrd(void)
 {

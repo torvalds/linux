@@ -130,7 +130,7 @@ static inline pmd_t *vmalloc_sync_one(pgd_t *pgd, unsigned long address)
 }
 
 /*
- * Handle a fault on the vmalloc or module mapping area
+ * Handle a fault on the vmalloc area.
  */
 static inline int vmalloc_fault(pgd_t *pgd, unsigned long address)
 {
