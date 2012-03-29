@@ -34,8 +34,10 @@
 
 #include <mach/board.h>
 #include "../../display/screen/screen.h"
-#include "../rk_fb.h"
+#include <linux/rk_fb.h>
 #include "rk30_lcdc.h"
+
+
 
 
 
@@ -87,9 +89,10 @@ static int rk30_lcdc_deinit(struct rk30_lcdc_device *lcdc_dev)
 	return 0;
 }
 
-int rk30_load_screen(struct rk30_lcdc_device*lcdc_dev, bool initscreen)
+static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscreen)
 {
 	int ret = -EINVAL;
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	rk_screen *screen = lcdc_dev->screen;
 	u16 face;
 	u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
@@ -549,8 +552,8 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.set_par       		= rk30_lcdc_set_par,
 	.blank         		= rk30_lcdc_blank,
 	.pan_display            = rk30_lcdc_pan_display,
+	.load_screen		= rk30_load_screen,
 };
-
 static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 {
 	struct rk30_lcdc_device *lcdc_dev=NULL;
@@ -619,7 +622,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 		printk(KERN_ERR "init rk30 lcdc failed!\n");
 		goto err3;
 	}
-	ret = rk30_load_screen(lcdc_dev,1);
+	ret = rk30_load_screen(&(lcdc_dev->driver),1);
 	if(ret < 0)
 	{
 		printk(KERN_ERR "rk30 load screen for lcdc0 failed!\n");

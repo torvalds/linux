@@ -30,9 +30,9 @@
 #include <asm/div64.h>
 #include <asm/uaccess.h>
 #include <mach/board.h>
-
 #include "../display/screen/screen.h"
-#include "rk_fb.h"
+#include<linux/rk_fb.h>
+
 
 #if 0
 	#define fbprintk(msg...)	printk(msg);
@@ -71,7 +71,7 @@ defautl:we alloc three buffer,one for fb0 and fb2 display ui,one for ipp rotate
         pass the phy addr to fix.smem_start by ioctl
 ****************************************************************************/
 
-static int get_fb_layer_id(struct fb_fix_screeninfo *fix)
+int get_fb_layer_id(struct fb_fix_screeninfo *fix)
 {
 	int layer_id;
 	if(!strcmp(fix->id,"fb1")||!strcmp(fix->id,"fb3"))
@@ -89,6 +89,17 @@ static int get_fb_layer_id(struct fb_fix_screeninfo *fix)
 	}
 
 	return layer_id;
+}
+
+/**********************************************************************
+this is for hdmi
+id: lcdc id ,0 for lcdc0 ,1 for lcdc1
+***********************************************************************/
+struct rk_lcdc_device_driver * rk_get_lcdc_drv(int  id)
+{
+	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	return inf->lcdc_dev_drv[id];
+	
 }
 static int rk_fb_open(struct fb_info *info,int user)
 {
@@ -655,6 +666,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
             printk("%s>>fb%d register_framebuffer fail!\n",__func__,fb_inf->num_fb);
             ret = -EINVAL;
         }
+	rkfb_create_sysfs(fbi);
         fb_inf->fb[fb_inf->num_fb] = fbi;
         printk("%s>>>>>%s\n",__func__,fb_inf->fb[fb_inf->num_fb]->fix.id);
         fb_inf->num_fb++;	

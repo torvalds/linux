@@ -189,6 +189,8 @@ struct rk_lcdc_device_driver{
 	int (*blank)(struct rk_lcdc_device_driver *dev_drv,int layer_id,int blank_mode);
 	int (*set_par)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*pan_display)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
+	int (*get_disp_info)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
+	int (*load_screen)(struct rk_lcdc_device_driver *lcdc_dev, bool initscreen);
 	
 };
 
@@ -205,4 +207,6 @@ extern int rk_fb_register(struct rk_lcdc_device_driver *fb_device_driver);
 extern int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver);
 extern int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
 	struct rk_lcdc_device_driver *dev_drv,int id);
+extern int get_fb_layer_id(struct fb_fix_screeninfo *fix);
+extern int rkfb_create_sysfs(struct fb_info *fbi);
 #endif
