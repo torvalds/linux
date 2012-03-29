@@ -134,6 +134,9 @@ static int force_hwbrks;
 static int hwbreaks_ok;
 static int hw_break_val;
 static int hw_break_val2;
+static int cont_instead_of_sstep;
+static unsigned long cont_thread_id;
+static unsigned long sstep_thread_id;
 #if defined(CONFIG_ARM) || defined(CONFIG_MIPS) || defined(CONFIG_SPARC)
 static int arch_needs_sstep_emulation = 1;
 #else
@@ -211,7 +214,7 @@ static unsigned long lookup_addr(char *arg)
 	if (!strcmp(arg, "kgdbts_break_test"))
 		addr = (unsigned long)kgdbts_break_test;
 	else if (!strcmp(arg, "sys_open"))
-		addr = (unsigned long)sys_open;
+		addr = (unsigned long)do_sys_open;
 	else if (!strcmp(arg, "do_fork"))
 		addr = (unsigned long)do_fork;
 	else if (!strcmp(arg, "hw_break_val"))
@@ -283,6 +286,16 @@ static void hw_break_val_write(void)
 	hw_break_val++;
 }
 
+static int get_thread_id_continue(char *put_str, char *arg)
+{
+	char *ptr = &put_str[11];
+
+	if (put_str[1] != 'T' || put_str[2] != '0')
+		return 1;
+	kgdb_hex2long(&ptr, &cont_thread_id);
+	return 0;
+}
+
 static int check_and_rewind_pc(char *put_str, char *arg)
 {
 	unsigned long addr = lookup_addr(arg);
@@ -324,6 +337,18 @@ static int check_single_step(char *put_str, char *arg)
 	gdb_regs_to_pt_regs(kgdbts_gdb_regs, &kgdbts_regs);
 	v2printk("Singlestep stopped at IP: %lx\n",
 		   instruction_pointer(&kgdbts_regs));
+
+	if (sstep_thread_id != cont_thread_id && !arch_needs_sstep_emulation) {
+		/*
+		 * Ensure we stopped in the same thread id as before, else the
+		 * debugger should continue until the original thread that was
+		 * single stepped is scheduled again, emulating gdb's behavior.
+		 */
+		v2printk("ThrID does not match: %lx\n", cont_thread_id);
+		cont_instead_of_sstep = 1;
+		ts.idx -= 4;
+		return 0;
+	}
 	if (instruction_pointer(&kgdbts_regs) == addr) {
 		eprintk("kgdbts: SingleStep failed at %lx\n",
 			   instruction_pointer(&kgdbts_regs));
@@ -368,7 +393,12 @@ static int got_break(char *put_str, char *arg)
 static void emul_sstep_get(char *arg)
 {
 	if (!arch_needs_sstep_emulation) {
-		fill_get_buf(arg);
+		if (cont_instead_of_sstep) {
+			cont_instead_of_sstep = 0;
+			fill_get_buf("c");
+		} else {
+			fill_get_buf(arg);
+		}
 		return;
 	}
 	switch (sstep_state) {
@@ -398,9 +428,11 @@ static void emul_sstep_get(char *arg)
 static int emul_sstep_put(char *put_str, char *arg)
 {
 	if (!arch_needs_sstep_emulation) {
-		if (!strncmp(put_str+1, arg, 2))
-			return 0;
-		return 1;
+		char *ptr = &put_str[11];
+		if (put_str[1] != 'T' || put_str[2] != '0')
+			return 1;
+		kgdb_hex2long(&ptr, &sstep_thread_id);
+		return 0;
 	}
 	switch (sstep_state) {
 	case 1:
@@ -502,10 +534,10 @@ static struct test_struct bad_read_test[] = {
 static struct test_struct singlestep_break_test[] = {
 	{ "?", "S0*" }, /* Clear break points */
 	{ "kgdbts_break_test", "OK", sw_break, }, /* set sw breakpoint */
-	{ "c", "T0*", }, /* Continue */
+	{ "c", "T0*", NULL, get_thread_id_continue }, /* Continue */
+	{ "kgdbts_break_test", "OK", sw_rem_break }, /*remove breakpoint */
 	{ "g", "kgdbts_break_test", NULL, check_and_rewind_pc },
 	{ "write", "OK", write_regs }, /* Write registers */
-	{ "kgdbts_break_test", "OK", sw_rem_break }, /*remove breakpoint */
 	{ "s", "T0*", emul_sstep_get, emul_sstep_put }, /* Single step */
 	{ "g", "kgdbts_break_test", NULL, check_single_step },
 	{ "kgdbts_break_test", "OK", sw_break, }, /* set sw breakpoint */
@@ -523,10 +555,10 @@ static struct test_struct singlestep_break_test[] = {
 static struct test_struct do_fork_test[] = {
 	{ "?", "S0*" }, /* Clear break points */
 	{ "do_fork", "OK", sw_break, }, /* set sw breakpoint */
-	{ "c", "T0*", }, /* Continue */
+	{ "c", "T0*", NULL, get_thread_id_continue }, /* Continue */
+	{ "do_fork", "OK", sw_rem_break }, /*remove breakpoint */
 	{ "g", "do_fork", NULL, check_and_rewind_pc }, /* check location */
 	{ "write", "OK", write_regs }, /* Write registers */
-	{ "do_fork", "OK", sw_rem_break }, /*remove breakpoint */
 	{ "s", "T0*", emul_sstep_get, emul_sstep_put }, /* Single step */
 	{ "g", "do_fork", NULL, check_single_step },
 	{ "do_fork", "OK", sw_break, }, /* set sw breakpoint */
@@ -541,10 +573,10 @@ static struct test_struct do_fork_test[] = {
 static struct test_struct sys_open_test[] = {
 	{ "?", "S0*" }, /* Clear break points */
 	{ "sys_open", "OK", sw_break, }, /* set sw breakpoint */
-	{ "c", "T0*", }, /* Continue */
+	{ "c", "T0*", NULL, get_thread_id_continue }, /* Continue */
+	{ "sys_open", "OK", sw_rem_break }, /*remove breakpoint */
 	{ "g", "sys_open", NULL, check_and_rewind_pc }, /* check location */
 	{ "write", "OK", write_regs }, /* Write registers */
-	{ "sys_open", "OK", sw_rem_break }, /*remove breakpoint */
 	{ "s", "T0*", emul_sstep_get, emul_sstep_put }, /* Single step */
 	{ "g", "sys_open", NULL, check_single_step },
 	{ "sys_open", "OK", sw_break, }, /* set sw breakpoint */
