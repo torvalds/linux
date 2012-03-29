@@ -4195,4 +4195,14 @@
 #define  LCPLL_CD_CLOCK_DISABLE	(1<<25)
 #define  LCPLL_CD2X_CLOCK_DISABLE	(1<<23)
 
+/* Pipe WM_LINETIME - watermark line time */
+#define PIPE_WM_LINETIME_A		0x45270
+#define PIPE_WM_LINETIME_B		0x45274
+#define PIPE_WM_LINETIME(pipe) _PIPE(pipe, \
+					PIPE_WM_LINETIME_A, \
+					PIPE_WM_LINETIME_A)
+#define   PIPE_WM_LINETIME_MASK		(0x1ff)
+#define   PIPE_WM_LINETIME_TIME(x)			((x))
+#define   PIPE_WM_LINETIME_IPS_LINETIME_MASK	(0x1ff<<16)
+#define   PIPE_WM_LINETIME_IPS_LINETIME(x)		((x)<<16)
 #endif /* _I915_REG_H_ */
