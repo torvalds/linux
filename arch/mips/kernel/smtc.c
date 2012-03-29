@@ -291,7 +291,7 @@ static void smtc_configure_tlb(void)
  * possibly leave some TCs/VPEs as "slave" processors.
  *
  * Use c0_MVPConf0 to find out how many TCs are available, setting up
- * cpu_possible_map and the logical/physical mappings.
+ * cpu_possible_mask and the logical/physical mappings.
  */
 
 int __init smtc_build_cpu_map(int start_cpu_slot)

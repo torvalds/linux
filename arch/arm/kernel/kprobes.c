@@ -127,7 +127,7 @@ void __kprobes arch_arm_kprobe(struct kprobe *p)
 		flush_insns(addr, sizeof(u16));
 	} else if (addr & 2) {
 		/* A 32-bit instruction spanning two words needs special care */
-		stop_machine(set_t32_breakpoint, (void *)addr, &cpu_online_map);
+		stop_machine(set_t32_breakpoint, (void *)addr, cpu_online_mask);
 	} else {
 		/* Word aligned 32-bit instruction can be written atomically */
 		u32 bkp = KPROBE_THUMB32_BREAKPOINT_INSTRUCTION;
@@ -190,7 +190,7 @@ int __kprobes __arch_disarm_kprobe(void *p)
 
 void __kprobes arch_disarm_kprobe(struct kprobe *p)
 {
-	stop_machine(__arch_disarm_kprobe, p, &cpu_online_map);
+	stop_machine(__arch_disarm_kprobe, p, cpu_online_mask);
 }
 
 void __kprobes arch_remove_kprobe(struct kprobe *p)

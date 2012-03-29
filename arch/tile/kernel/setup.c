@@ -1186,7 +1186,7 @@ static void __init setup_cpu_maps(void)
 			      sizeof(cpu_lotar_map));
 	if (rc < 0) {
 		pr_err("warning: no HV_INQ_TILES_LOTAR; using AVAIL\n");
-		cpu_lotar_map = cpu_possible_map;
+		cpu_lotar_map = *cpu_possible_mask;
 	}
 
 #if CHIP_HAS_CBOX_HOME_MAP()
@@ -1196,9 +1196,9 @@ static void __init setup_cpu_maps(void)
 			      sizeof(hash_for_home_map));
 	if (rc < 0)
 		early_panic("hv_inquire_tiles(HFH_CACHE) failed: rc %d\n", rc);
-	cpumask_or(&cpu_cacheable_map, &cpu_possible_map, &hash_for_home_map);
+	cpumask_or(&cpu_cacheable_map, cpu_possible_mask, &hash_for_home_map);
 #else
-	cpu_cacheable_map = cpu_possible_map;
+	cpu_cacheable_map = *cpu_possible_mask;
 #endif
 }
 
