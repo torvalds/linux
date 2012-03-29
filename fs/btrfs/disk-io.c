@@ -2120,6 +2120,23 @@ int open_ctree(struct super_block *sb,
 		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
 	}
 
+	nodesize = btrfs_super_nodesize(disk_super);
+	leafsize = btrfs_super_leafsize(disk_super);
+	sectorsize = btrfs_super_sectorsize(disk_super);
+	stripesize = btrfs_super_stripesize(disk_super);
+
+	/*
+	 * mixed block groups end up with duplicate but slightly offset
+	 * extent buffers for the same range.  It leads to corruptions
+	 */
+	if ((features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
+	    (sectorsize != leafsize)) {
+		printk(KERN_WARNING "btrfs: unequal leaf/node/sector sizes "
+				"are not allowed for mixed block groups on %s\n",
+				sb->s_id);
+		goto fail_alloc;
+	}
+
 	btrfs_set_super_incompat_flags(disk_super, features);
 
 	features = btrfs_super_compat_ro_flags(disk_super) &
@@ -2223,10 +2240,6 @@ int open_ctree(struct super_block *sb,
 	fs_info->bdi.ra_pages = max(fs_info->bdi.ra_pages,
 				    4 * 1024 * 1024 / PAGE_CACHE_SIZE);
 
-	nodesize = btrfs_super_nodesize(disk_super);
-	leafsize = btrfs_super_leafsize(disk_super);
-	sectorsize = btrfs_super_sectorsize(disk_super);
-	stripesize = btrfs_super_stripesize(disk_super);
 	tree_root->nodesize = nodesize;
 	tree_root->leafsize = leafsize;
 	tree_root->sectorsize = sectorsize;
@@ -2244,14 +2257,6 @@ int open_ctree(struct super_block *sb,
 	if (sectorsize < PAGE_SIZE) {
 		printk(KERN_WARNING "btrfs: Incompatible sector size "
 		       "found on %s\n", sb->s_id);
-		goto fail_sb_buffer;
-	}
-
-	if ((features & BTRFS_FEATURE_INCOMPAT_MIXED_GROUPS) &&
-			(leafsize != nodesize || sectorsize != nodesize)) {
-		printk(KERN_WARNING "btrfs: unequal leaf/node/sector sizes "
-				"are not allowed for mixed block groups on %s\n",
-				sb->s_id);
 		goto fail_sb_buffer;
 	}
 
