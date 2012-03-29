@@ -198,15 +198,15 @@ static void rk29_sdmmc_set_iomux(int device_id, unsigned int bus_width)
 #endif
 
 
-int rk29sdk_wifi_power_state = 0;
-int rk29sdk_bt_power_state = 0;
+//int rk29sdk_wifi_power_state = 0;
+//int rk29sdk_bt_power_state = 0;
 
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 //#define RK29SDK_WIFI_BT_GPIO_POWER_N       RK30_PIN3_PD0
 //#define RK29SDK_WIFI_GPIO_RESET_N          RK30_PIN3_PD0
 //#define RK29SDK_BT_GPIO_RESET_N            RK30_PIN3_PD1
 #define RK30SDK_WIFI_GPIO_POWER_N       RK30_PIN3_PD0
-#define RK30SDK_BT_GPIO_POWER_N         RK30_PIN3_PD1
+//#define RK30SDK_BT_GPIO_POWER_N         RK30_PIN3_PD1
 
 #define PREALLOC_WLAN_SEC_NUM           4
 #define PREALLOC_WLAN_BUF_NUM           160
@@ -364,7 +364,7 @@ static int rk29sdk_wifi_power(int on)
                 mdelay(100);
                 pr_info("wifi turn on power\n");
         }else{
-                if (!rk29sdk_bt_power_state){
+//                if (!rk29sdk_bt_power_state){
                         gpio_set_value(RK30SDK_WIFI_GPIO_POWER_N, GPIO_LOW);
 
                         #if defined(CONFIG_SDMMC1_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)	
@@ -373,15 +373,15 @@ static int rk29sdk_wifi_power(int on)
                         
                         mdelay(100);
                         pr_info("wifi shut off power\n");
-                }else
-                {
-                        pr_info("wifi shouldn't shut off power, bt is using it!\n");
-                }
+//                }else
+//                {
+//                        pr_info("wifi shouldn't shut off power, bt is using it!\n");
+//                }
                 //gpio_set_value(RK29SDK_WIFI_GPIO_RESET_N, GPIO_LOW);
 
         }
 
-        rk29sdk_wifi_power_state = on;
+//        rk29sdk_wifi_power_state = on;
         return 0;
 }
 

@@ -809,6 +809,13 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 
 };
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
+
+/* bluetooth rfkill device */
+static struct platform_device rk29sdk_rfkill = {
+        .name = "rk29sdk_rfkill",
+        .id = -1,
+};
+
 /**************************************************************************************************
  * the end of setting for SDMMC devices
 **************************************************************************************************/
@@ -834,6 +841,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_WIFI_CONTROL_FUNC
 	&rk29sdk_wifi_device,
+#endif
+#ifdef CONFIG_BT
+    &rk29sdk_rfkill,
 #endif
 };
 
