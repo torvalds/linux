@@ -289,7 +289,10 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		address = regs->pc;
 		break;
 #ifdef __tilegx__
-	case INT_ILL_TRANS:
+	case INT_ILL_TRANS: {
+		/* Avoid a hardware erratum with the return address stack. */
+		fill_ra_stack();
+
 		signo = SIGSEGV;
 		code = SEGV_MAPERR;
 		if (reason & SPR_ILL_TRANS_REASON__I_STREAM_VA_RMASK)
@@ -297,6 +300,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 		else
 			address = 0;  /* FIXME: GX: single-step for address */
 		break;
+	}
 #endif
 	default:
 		panic("Unexpected do_trap interrupt number %d", fault_num);

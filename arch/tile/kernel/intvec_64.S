@@ -1156,6 +1156,18 @@ int_unalign:
 	push_extra_callee_saves r0
 	j       do_trap
 
+/* Fill the return address stack with nonzero entries. */
+STD_ENTRY(fill_ra_stack)
+	{
+	 move	r0, lr
+	 jal	1f
+	}
+1:	jal	2f
+2:	jal	3f
+3:	jal	4f
+4:	jrp	r0
+	STD_ENDPROC(fill_ra_stack)
+
 /* Include .intrpt1 array of interrupt vectors */
 	.section ".intrpt1", "ax"
 
