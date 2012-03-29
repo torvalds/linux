@@ -194,14 +194,13 @@ int try_release_extent_buffer(struct page *page, gfp_t mask);
 int try_release_extent_state(struct extent_map_tree *map,
 			     struct extent_io_tree *tree, struct page *page,
 			     gfp_t mask);
-int lock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
+int lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 int lock_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
-		     int bits, struct extent_state **cached, gfp_t mask);
-int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end, gfp_t mask);
+		     int bits, struct extent_state **cached);
+int unlock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 int unlock_extent_cached(struct extent_io_tree *tree, u64 start, u64 end,
 			 struct extent_state **cached, gfp_t mask);
-int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end,
-		    gfp_t mask);
+int try_lock_extent(struct extent_io_tree *tree, u64 start, u64 end);
 int extent_read_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent, int mirror_num);
 int __init extent_io_init(void);
@@ -222,7 +221,7 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		    int bits, gfp_t mask);
 int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
-		   int bits, int exclusive_bits, u64 *failed_start,
+		   int bits, u64 *failed_start,
 		   struct extent_state **cached_state, gfp_t mask);
 int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 			struct extent_state **cached_state, gfp_t mask);
@@ -301,8 +300,8 @@ void memmove_extent_buffer(struct extent_buffer *dst, unsigned long dst_offset,
 			   unsigned long src_offset, unsigned long len);
 void memset_extent_buffer(struct extent_buffer *eb, char c,
 			  unsigned long start, unsigned long len);
-int wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits);
-int clear_extent_buffer_dirty(struct extent_buffer *eb);
+void wait_extent_bit(struct extent_io_tree *tree, u64 start, u64 end, int bits);
+void clear_extent_buffer_dirty(struct extent_buffer *eb);
 int set_extent_buffer_dirty(struct extent_buffer *eb);
 int set_extent_buffer_uptodate(struct extent_buffer *eb);
 int clear_extent_buffer_uptodate(struct extent_buffer *eb);

@@ -2157,6 +2157,9 @@ static noinline_for_stack int scrub_supers(struct scrub_dev *sdev)
 	struct btrfs_device *device = sdev->dev;
 	struct btrfs_root *root = device->dev_root;
 
+	if (root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR)
+		return -EIO;
+
 	gen = root->fs_info->last_trans_committed;
 
 	for (i = 0; i < BTRFS_SUPER_MIRROR_MAX; i++) {
@@ -2317,7 +2320,7 @@ int btrfs_scrub_dev(struct btrfs_root *root, u64 devid, u64 start, u64 end,
 	return ret;
 }
 
-int btrfs_scrub_pause(struct btrfs_root *root)
+void btrfs_scrub_pause(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
@@ -2332,34 +2335,28 @@ int btrfs_scrub_pause(struct btrfs_root *root)
 		mutex_lock(&fs_info->scrub_lock);
 	}
 	mutex_unlock(&fs_info->scrub_lock);
-
-	return 0;
 }
 
-int btrfs_scrub_continue(struct btrfs_root *root)
+void btrfs_scrub_continue(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	atomic_dec(&fs_info->scrub_pause_req);
 	wake_up(&fs_info->scrub_pause_wait);
-	return 0;
 }
 
-int btrfs_scrub_pause_super(struct btrfs_root *root)
+void btrfs_scrub_pause_super(struct btrfs_root *root)
 {
 	down_write(&root->fs_info->scrub_super_lock);
-	return 0;
 }
 
-int btrfs_scrub_continue_super(struct btrfs_root *root)
+void btrfs_scrub_continue_super(struct btrfs_root *root)
 {
 	up_write(&root->fs_info->scrub_super_lock);
-	return 0;
 }
 
-int btrfs_scrub_cancel(struct btrfs_root *root)
+int __btrfs_scrub_cancel(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	mutex_lock(&fs_info->scrub_lock);
 	if (!atomic_read(&fs_info->scrubs_running)) {
@@ -2378,6 +2375,11 @@ int btrfs_scrub_cancel(struct btrfs_root *root)
 	mutex_unlock(&fs_info->scrub_lock);
 
 	return 0;
+}
+
+int btrfs_scrub_cancel(struct btrfs_root *root)
+{
+	return __btrfs_scrub_cancel(root->fs_info);
 }
 
 int btrfs_scrub_cancel_dev(struct btrfs_root *root, struct btrfs_device *dev)
