@@ -743,7 +743,7 @@ kdb_printit:
 		kdb_input_flush();
 		c = console_drivers;
 
-		if (!dbg_io_ops->is_console) {
+		if (dbg_io_ops && !dbg_io_ops->is_console) {
 			len = strlen(moreprompt);
 			cp = moreprompt;
 			while (len--) {
