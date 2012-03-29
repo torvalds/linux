@@ -200,7 +200,7 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 {
 	siginfo_t info = { 0 };
 	int signo, code;
-	unsigned long address;
+	unsigned long address = 0;
 	bundle_bits instr;
 
 	/* Re-enable interrupts. */
@@ -223,6 +223,10 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	}
 
 	switch (fault_num) {
+	case INT_MEM_ERROR:
+		signo = SIGBUS;
+		code = BUS_OBJERR;
+		break;
 	case INT_ILL:
 		if (copy_from_user(&instr, (void __user *)regs->pc,
 				   sizeof(instr))) {
@@ -312,7 +316,8 @@ void __kprobes do_trap(struct pt_regs *regs, int fault_num,
 	info.si_addr = (void __user *)address;
 	if (signo == SIGILL)
 		info.si_trapno = fault_num;
-	trace_unhandled_signal("trap", regs, address, signo);
+	if (signo != SIGTRAP)
+		trace_unhandled_signal("trap", regs, address, signo);
 	force_sig_info(signo, &info, current);
 }
 

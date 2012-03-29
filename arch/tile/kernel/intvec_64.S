@@ -1178,7 +1178,7 @@ STD_ENTRY(fill_ra_stack)
 #define do_hardwall_trap bad_intr
 #endif
 
-	int_hand     INT_MEM_ERROR, MEM_ERROR, bad_intr
+	int_hand     INT_MEM_ERROR, MEM_ERROR, do_trap
 	int_hand     INT_SINGLE_STEP_3, SINGLE_STEP_3, bad_intr
 #if CONFIG_KERNEL_PL == 2
 	int_hand     INT_SINGLE_STEP_2, SINGLE_STEP_2, gx_singlestep_handle
