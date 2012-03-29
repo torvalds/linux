@@ -4116,4 +4116,16 @@
 					DDI_BUF_TRANS_A, \
 					DDI_BUF_TRANS_B)
 
+/* Sideband Interface (SBI) is programmed indirectly, via
+ * SBI_ADDR, which contains the register offset; and SBI_DATA,
+ * which contains the payload */
+#define SBI_ADDR				0xC6000
+#define SBI_DATA				0xC6004
+#define SBI_CTL_STAT			0xC6008
+#define  SBI_CTL_OP_CRRD		(0x6<<8)
+#define  SBI_CTL_OP_CRWR		(0x7<<8)
+#define  SBI_RESPONSE_FAIL		(0x1<<1)
+#define  SBI_RESPONSE_SUCCESS	(0x0<<1)
+#define  SBI_BUSY				(0x1<<0)
+#define  SBI_READY				(0x0<<0)
 #endif /* _I915_REG_H_ */
