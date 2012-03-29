@@ -1900,24 +1900,20 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 	struct wm8994 *control = wm8994->wm8994;
 	int reg_offset, ret;
 	struct fll_div fll;
-	u16 reg, aif1, aif2;
+	u16 reg, clk1, aif_reg, aif_src;
 	unsigned long timeout;
 	bool was_enabled;
-
-	aif1 = snd_soc_read(codec, WM8994_AIF1_CLOCKING_1)
-		& WM8994_AIF1CLK_ENA;
-
-	aif2 = snd_soc_read(codec, WM8994_AIF2_CLOCKING_1)
-		& WM8994_AIF2CLK_ENA;
 
 	switch (id) {
 	case WM8994_FLL1:
 		reg_offset = 0;
 		id = 0;
+		aif_src = 0x10;
 		break;
 	case WM8994_FLL2:
 		reg_offset = 0x20;
 		id = 1;
+		aif_src = 0x18;
 		break;
 	default:
 		return -EINVAL;
@@ -1959,11 +1955,20 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 	if (ret < 0)
 		return ret;
 
-	/* Gate the AIF clocks while we reclock */
-	snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
-			    WM8994_AIF1CLK_ENA, 0);
-	snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,
-			    WM8994_AIF2CLK_ENA, 0);
+	/* Make sure that we're not providing SYSCLK right now */
+	clk1 = snd_soc_read(codec, WM8994_CLOCKING_1);
+	if (clk1 & WM8994_SYSCLK_SRC)
+		aif_reg = WM8994_AIF2_CLOCKING_1;
+	else
+		aif_reg = WM8994_AIF1_CLOCKING_1;
+	reg = snd_soc_read(codec, aif_reg);
+
+	if ((reg & WM8994_AIF1CLK_ENA) &&
+	    (reg & WM8994_AIF1CLK_SRC_MASK) == aif_src) {
+		dev_err(codec->dev, "FLL%d is currently providing SYSCLK\n",
+			id + 1);
+		return -EBUSY;
+	}
 
 	/* We always need to disable the FLL while reconfiguring */
 	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_1 + reg_offset,
@@ -2048,12 +2053,6 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 	wm8994->fll[id].in = freq_in;
 	wm8994->fll[id].out = freq_out;
 	wm8994->fll[id].src = src;
-
-	/* Enable any gated AIF clocks */
-	snd_soc_update_bits(codec, WM8994_AIF1_CLOCKING_1,
-			    WM8994_AIF1CLK_ENA, aif1);
-	snd_soc_update_bits(codec, WM8994_AIF2_CLOCKING_1,
-			    WM8994_AIF2CLK_ENA, aif2);
 
 	configure_clock(codec);
 
