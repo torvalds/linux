@@ -4086,4 +4086,27 @@
 					DP_TP_STATUS_B)
 #define  DP_TP_STATUS_AUTOTRAIN_DONE	(1<<12)
 
+/* DDI Buffer Control */
+#define DDI_BUF_CTL_A				0x64000
+#define DDI_BUF_CTL_B				0x64100
+#define DDI_BUF_CTL(port) _PORT(port, \
+					DDI_BUF_CTL_A, \
+					DDI_BUF_CTL_B)
+#define  DDI_BUF_CTL_ENABLE				(1<<31)
+#define  DDI_BUF_EMP_400MV_0DB_HSW		(0<<24)   /* Sel0 */
+#define  DDI_BUF_EMP_400MV_3_5DB_HSW	(1<<24)   /* Sel1 */
+#define  DDI_BUF_EMP_400MV_6DB_HSW		(2<<24)   /* Sel2 */
+#define  DDI_BUF_EMP_400MV_9_5DB_HSW	(3<<24)   /* Sel3 */
+#define  DDI_BUF_EMP_600MV_0DB_HSW		(4<<24)   /* Sel4 */
+#define  DDI_BUF_EMP_600MV_3_5DB_HSW	(5<<24)   /* Sel5 */
+#define  DDI_BUF_EMP_600MV_6DB_HSW		(6<<24)   /* Sel6 */
+#define  DDI_BUF_EMP_800MV_0DB_HSW		(7<<24)   /* Sel7 */
+#define  DDI_BUF_EMP_800MV_3_5DB_HSW	(8<<24)   /* Sel8 */
+#define  DDI_BUF_EMP_MASK				(0xf<<24)
+#define  DDI_BUF_IS_IDLE				(1<<7)
+#define  DDI_PORT_WIDTH_X1				(0<<1)
+#define  DDI_PORT_WIDTH_X2				(1<<1)
+#define  DDI_PORT_WIDTH_X4				(3<<1)
+#define  DDI_INIT_DISPLAY_DETECTED		(1<<0)
+
 #endif /* _I915_REG_H_ */
