@@ -4157,6 +4157,14 @@
 #define  SPLL_PLL_FREQ_810MHz	(0<<26)
 #define  SPLL_PLL_FREQ_1350MHz	(1<<26)
 
+/* WRPLL */
+#define WRPLL_CTL1				0x46040
+#define WRPLL_CTL2				0x46060
+#define  WRPLL_PLL_ENABLE				(1<<31)
+#define  WRPLL_PLL_SELECT_SSC			(0x01<<28)
+#define  WRPLL_PLL_SELECT_NON_SCC		(0x02<<28)
+#define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
+
 /* Port clock selection */
 #define PORT_CLK_SEL_A			0x46100
 #define PORT_CLK_SEL_B			0x46104
