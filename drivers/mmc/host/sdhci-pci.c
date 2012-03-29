@@ -561,6 +561,7 @@ static int jmicron_resume(struct sdhci_pci_chip *chip)
 
 static const struct sdhci_pci_fixes sdhci_o2 = {
 	.probe		= o2_probe,
+	.quirks2	= SDHCI_QUIRK2_BROKEN_MSI,
 };
 
 static const struct sdhci_pci_fixes sdhci_jmicron = {
@@ -1418,7 +1419,8 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 
 	slots = chip->num_slots;	/* Quirk may have changed this */
 
-	pci_enable_msi(pdev);
+	if (!(chip->quirks2 & SDHCI_QUIRK2_BROKEN_MSI))
+		pci_enable_msi(pdev);
 
 	for (i = 0; i < slots; i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar, i);
