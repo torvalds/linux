@@ -4129,6 +4129,21 @@
 #define  SBI_BUSY				(0x1<<0)
 #define  SBI_READY				(0x0<<0)
 
+/* SBI offsets */
+#define  SBI_SSCDIVINTPHASE6		0x0600
+#define   SBI_SSCDIVINTPHASE_DIVSEL_MASK	((0x7f)<<1)
+#define   SBI_SSCDIVINTPHASE_DIVSEL(x)		((x)<<1)
+#define   SBI_SSCDIVINTPHASE_INCVAL_MASK	((0x7f)<<8)
+#define   SBI_SSCDIVINTPHASE_INCVAL(x)		((x)<<8)
+#define   SBI_SSCDIVINTPHASE_DIR(x)			((x)<<15)
+#define   SBI_SSCDIVINTPHASE_PROPAGATE		(1<<0)
+#define  SBI_SSCCTL					0x020c
+#define  SBI_SSCCTL6				0x060C
+#define   SBI_SSCCTL_DISABLE		(1<<0)
+#define  SBI_SSCAUXDIV6				0x0610
+#define   SBI_SSCAUXDIV_FINALDIV2SEL(x)		((x)<<4)
+#define  SBI_DBUFF0					0x2a00
+
 /* LPT PIXCLK_GATE */
 #define PIXCLK_GATE				0xC6020
 #define  PIXCLK_GATE_UNGATE		1<<0
