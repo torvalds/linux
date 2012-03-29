@@ -1601,7 +1601,7 @@ static int blkiocg_pre_destroy(struct cgroup_subsys *subsys,
 		} else {
 			spin_unlock_irq(&blkcg->lock);
 			cpu_relax();
-			spin_lock(&blkcg->lock);
+			spin_lock_irq(&blkcg->lock);
 		}
 	}
 
