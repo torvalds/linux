@@ -469,10 +469,18 @@ void __set_pte(pte_t *ptep, pte_t pte)
 
 void set_pte(pte_t *ptep, pte_t pte)
 {
-	struct page *page = pfn_to_page(pte_pfn(pte));
-
-	/* Update the home of a PTE if necessary */
-	pte = pte_set_home(pte, page_home(page));
+	if (pte_present(pte) &&
+	    (!CHIP_HAS_MMIO() || hv_pte_get_mode(pte) != HV_PTE_MODE_MMIO)) {
+		/* The PTE actually references physical memory. */
+		unsigned long pfn = pte_pfn(pte);
+		if (pfn_valid(pfn)) {
+			/* Update the home of the PTE from the struct page. */
+			pte = pte_set_home(pte, page_home(pfn_to_page(pfn)));
+		} else if (hv_pte_get_mode(pte) == 0) {
+			/* remap_pfn_range(), etc, must supply PTE mode. */
+			panic("set_pte(): out-of-range PFN and mode 0\n");
+		}
+	}
 
 	__set_pte(ptep, pte);
 }
