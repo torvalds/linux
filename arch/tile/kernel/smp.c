@@ -113,6 +113,12 @@ void smp_send_stop(void)
 	send_IPI_allbutself(MSG_TAG_STOP_CPU);
 }
 
+/* On panic, just wait; we may get an smp_send_stop() later on. */
+void panic_smp_self_stop(void)
+{
+	while (1)
+		asm("nap; nop");
+}
 
 /*
  * Dispatch code called from hv_message_intr() for HV_MSG_TILE hv messages.
