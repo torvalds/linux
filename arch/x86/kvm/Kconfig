@@ -36,6 +36,7 @@ config KVM
 	select TASKSTATS
 	select TASK_DELAY_ACCT
 	select PERF_EVENTS
+	select HAVE_KVM_MSI
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent

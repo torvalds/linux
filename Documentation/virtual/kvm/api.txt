@@ -1689,6 +1689,27 @@ where the guest will clear the flag: when the soft lockup watchdog timer resets
 itself or when a soft lockup is detected.  This ioctl can be called any time
 after pausing the vcpu, but before it is resumed.
 
+4.71 KVM_SIGNAL_MSI
+
+Capability: KVM_CAP_SIGNAL_MSI
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_msi (in)
+Returns: >0 on delivery, 0 if guest blocked the MSI, and -1 on error
+
+Directly inject a MSI message. Only valid with in-kernel irqchip that handles
+MSI messages.
+
+struct kvm_msi {
+	__u32 address_lo;
+	__u32 address_hi;
+	__u32 data;
+	__u32 flags;
+	__u8  pad[16];
+};
+
+No flags are defined so far. The corresponding field must be 0.
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by

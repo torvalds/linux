@@ -590,6 +590,7 @@ struct kvm_ppc_pvinfo {
 #define KVM_CAP_SYNC_REGS 74
 #define KVM_CAP_PCI_2_3 75
 #define KVM_CAP_KVMCLOCK_CTRL 76
+#define KVM_CAP_SIGNAL_MSI 77
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -715,6 +716,14 @@ struct kvm_one_reg {
 	__u64 addr;
 };
 
+struct kvm_msi {
+	__u32 address_lo;
+	__u32 address_hi;
+	__u32 data;
+	__u32 flags;
+	__u8  pad[16];
+};
+
 /*
  * ioctls for VM fds
  */
@@ -789,6 +798,8 @@ struct kvm_s390_ucas_mapping {
 /* Available with KVM_CAP_PCI_2_3 */
 #define KVM_ASSIGN_SET_INTX_MASK  _IOW(KVMIO,  0xa4, \
 				       struct kvm_assigned_pci_dev)
+/* Available with KVM_CAP_SIGNAL_MSI */
+#define KVM_SIGNAL_MSI            _IOW(KVMIO,  0xa5, struct kvm_msi)
 
 /*
  * ioctls for vcpu fds

@@ -2060,6 +2060,17 @@ static long kvm_vm_ioctl(struct file *filp,
 		mutex_unlock(&kvm->lock);
 		break;
 #endif
+#ifdef CONFIG_HAVE_KVM_MSI
+	case KVM_SIGNAL_MSI: {
+		struct kvm_msi msi;
+
+		r = -EFAULT;
+		if (copy_from_user(&msi, argp, sizeof msi))
+			goto out;
+		r = kvm_send_userspace_msi(kvm, &msi);
+		break;
+	}
+#endif
 	default:
 		r = kvm_arch_vm_ioctl(filp, ioctl, arg);
 		if (r == -ENOTTY)
@@ -2188,6 +2199,9 @@ static long kvm_dev_ioctl_check_extension_generic(long arg)
 	case KVM_CAP_SET_BOOT_CPU_ID:
 #endif
 	case KVM_CAP_INTERNAL_ERROR_DATA:
+#ifdef CONFIG_HAVE_KVM_MSI
+	case KVM_CAP_SIGNAL_MSI:
+#endif
 		return 1;
 #ifdef CONFIG_HAVE_KVM_IRQCHIP
 	case KVM_CAP_IRQ_ROUTING:
