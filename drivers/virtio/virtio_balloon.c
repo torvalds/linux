@@ -405,14 +405,6 @@ static int virtballoon_thaw(struct virtio_device *vdev)
 
 static int virtballoon_restore(struct virtio_device *vdev)
 {
-	struct virtio_balloon *vb = vdev->priv;
-
-	/*
-	 * If a request wasn't complete at the time of freezing, this
-	 * could have been set.
-	 */
-	vb->need_stats_update = 0;
-
 	return restore_common(vdev);
 }
 #endif
