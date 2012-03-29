@@ -288,7 +288,7 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
        .rk_sensor_init_pixelcode = INVALID_VALUE,
        .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_0,
        .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_0,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
+       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
     },{
         .rk_sensor_init_width = INVALID_VALUE,
        .rk_sensor_init_height = INVALID_VALUE,
@@ -296,7 +296,7 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
        .rk_sensor_init_pixelcode = INVALID_VALUE,
        .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
        .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
-       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
     }
 
  };

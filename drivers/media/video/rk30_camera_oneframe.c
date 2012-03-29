@@ -251,6 +251,7 @@ struct rk_camera_zoominfo
 {
     struct semaphore sem;
     struct v4l2_crop a;
+    int vir_width;
     int zoom_rate;
 };
 struct rk_camera_timer{
@@ -569,21 +570,23 @@ static void rk_camera_capture_process(struct work_struct *work)
     ipp_req.flag = IPP_ROT_0; 
     ipp_req.src0.w = pcdev->zoominfo.a.c.width/scale_times;
     ipp_req.src0.h = pcdev->zoominfo.a.c.height/scale_times;
-    ipp_req.src_vir_w = pcdev->zoominfo.a.c.width; 
+    //ipp_req.src_vir_w = pcdev->zoominfo.a.c.width; 
+    ipp_req.src_vir_w = pcdev->zoominfo.vir_width; 
     rk_pixfmt2ippfmt(pcdev->pixfmt, &ipp_req.src0.fmt);
     ipp_req.dst0.w = pcdev->icd->user_width/scale_times;
     ipp_req.dst0.h = pcdev->icd->user_height/scale_times;
     ipp_req.dst_vir_w = pcdev->icd->user_width;        
     rk_pixfmt2ippfmt(pcdev->pixfmt, &ipp_req.dst0.fmt);
     vipdata_base = pcdev->vipmem_phybase + vb->i*pcdev->vipmem_bsize;
-    src_y_size = pcdev->zoominfo.a.c.width*pcdev->zoominfo.a.c.height;
+    //src_y_size = pcdev->zoominfo.a.c.width*pcdev->zoominfo.a.c.height;
+    src_y_size = pcdev->host_width*pcdev->host_height;  //vipmem
     dst_y_size = pcdev->icd->user_width*pcdev->icd->user_height;
     for (h=0; h<scale_times; h++) {
         for (w=0; w<scale_times; w++) {
             
-            src_y_offset = (pcdev->zoominfo.a.c.top + h*pcdev->zoominfo.a.c.height/scale_times)* pcdev->zoominfo.a.c.width 
+            src_y_offset = (pcdev->zoominfo.a.c.top + h*pcdev->zoominfo.a.c.height/scale_times)* pcdev->host_width 
                         + pcdev->zoominfo.a.c.left + w*pcdev->zoominfo.a.c.width/scale_times;
-		    src_uv_offset = (pcdev->zoominfo.a.c.top + h*pcdev->zoominfo.a.c.height/scale_times)* pcdev->zoominfo.a.c.width/2
+		    src_uv_offset = (pcdev->zoominfo.a.c.top + h*pcdev->zoominfo.a.c.height/scale_times)* pcdev->host_width/2
                         + pcdev->zoominfo.a.c.left + w*pcdev->zoominfo.a.c.width/scale_times;
 
             dst_y_offset = pcdev->icd->user_width*pcdev->icd->user_height*h/scale_times + pcdev->icd->user_width*w/scale_times;
@@ -593,8 +596,11 @@ static void rk_camera_capture_process(struct work_struct *work)
     		ipp_req.src0.CbrMst = vipdata_base + src_y_size + src_uv_offset;
     		ipp_req.dst0.YrgbMst = vb->boff + dst_y_offset;
     		ipp_req.dst0.CbrMst = vb->boff + dst_y_size + dst_uv_offset;
-
-    		if (ipp_blit_sync(&ipp_req)) {
+        //    printk("ipp_req.src0.YrgbMst = 0x%x , ipp_req.src0.CbrMst = 0x%x\n",ipp_req.src0.YrgbMst,ipp_req.src0.CbrMst);
+       //     printk("ipp_req.dst0.YrgbMst = 0x%x , ipp_req.dst0.CbrMst = 0x%x\n",ipp_req.dst0.YrgbMst,ipp_req.dst0.CbrMst);
+		//	printk("%dx%d@(%d,%d)->%dx%d\n",pcdev->zoominfo.a.c.width,pcdev->zoominfo.a.c.height,pcdev->zoominfo.a.c.left,pcdev->zoominfo.a.c.top,pcdev->icd->user_width,pcdev->icd->user_height);
+		//	printk("ipp_req.src_vir_w:0x%x ipp_req.dst_vir_w :0x%x\n",ipp_req.src_vir_w ,ipp_req.dst_vir_w);
+            if (ipp_blit_sync(&ipp_req)) {
     			spin_lock_irqsave(&pcdev->lock, flags);
     			vb->state = VIDEOBUF_ERROR;
     			spin_unlock_irqrestore(&pcdev->lock, flags);
@@ -768,7 +774,7 @@ static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_dev
 	ndelay(10);
     write_cif_reg(pcdev->base,CIF_CIF_CTRL,AXI_BURST_16|MODE_ONEFRAME|DISABLE_CAPTURE);   /* ddl@rock-chips.com : vip ahb burst 16 */
     write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01);    //capture complete interrupt enable
-   RKCAMERA_TR("%s..%d.. CIF_CIF_CTRL = 0x%x\n",__FUNCTION__,__LINE__,read_cif_reg(pcdev->base, CIF_CIF_CTRL));
+    RKCAMERA_DG("%s..%d.. CIF_CIF_CTRL = 0x%x\n",__FUNCTION__,__LINE__,read_cif_reg(pcdev->base, CIF_CIF_CTRL));
     return 0;
 RK_CAMERA_ACTIVE_ERR:
     return -ENODEV;
@@ -1298,7 +1304,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 			ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
 			pcdev->host_width = ratio*usr_w/10;
 			pcdev->host_height = ratio*usr_h/10;
-			printk("ratio = %d ,host:%d*%d\n",ratio,pcdev->host_width,pcdev->host_height);
+			RKCAMERA_DG("ratio = %d ,host:%d*%d\n",ratio,pcdev->host_width,pcdev->host_height);
 			}
 		else{ // needn't crop ,just scaled by ipp
 			pcdev->host_width = usr_w;
@@ -1316,25 +1322,23 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 	#endif
     icd->sense = NULL;
     if (!ret) {
-	rect.left = ((mf.width - pcdev->host_width )>>1)&(~0x01);
-	rect.top = ((mf.height - pcdev->host_height )>>1)&(~0x01);
-	pcdev->host_left = rect.left;
-	pcdev->host_top = rect.top;
-      //  rect.left = 0;
-      //  rect.top = 0;
+    	rect.left = ((mf.width - pcdev->host_width )>>1)&(~0x01);
+    	rect.top = ((mf.height - pcdev->host_height )>>1)&(~0x01);
+        
+    	pcdev->host_left = rect.left;
+    	pcdev->host_top = rect.top;
         rect.width = pcdev->host_width;
         rect.height = pcdev->host_height;
-	  RKCAMERA_DG("%s..%d.. host:%d*%d , sensor output:%d*%d,user demand:%d*%d\n",__FUNCTION__,__LINE__,
+        RKCAMERA_DG("%s..%d.. host:%d*%d , sensor output:%d*%d,user demand:%d*%d\n",__FUNCTION__,__LINE__,
 	  	pcdev->host_width,pcdev->host_height,mf.width,mf.height,usr_w,usr_h);
         down(&pcdev->zoominfo.sem);        
         pcdev->zoominfo.a.c.width = rect.width*100/pcdev->zoominfo.zoom_rate;
 		pcdev->zoominfo.a.c.width &= ~0x03;
 		pcdev->zoominfo.a.c.height = rect.height*100/pcdev->zoominfo.zoom_rate;
 		pcdev->zoominfo.a.c.height &= ~0x03;
-		//pcdev->zoominfo.a.c.left = ((rect.width - pcdev->zoominfo.a.c.width)>>1)&(~0x01);
-		//pcdev->zoominfo.a.c.top = ((rect.height - pcdev->zoominfo.a.c.height)>>1)&(~0x01);
 		pcdev->zoominfo.a.c.left = 0;
 		pcdev->zoominfo.a.c.top = 0;
+		pcdev->zoominfo.vir_width = pcdev->zoominfo.a.c.width;
         up(&pcdev->zoominfo.sem);
 
         /* ddl@rock-chips.com: IPP work limit check */
@@ -1883,38 +1887,65 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
 	struct rk_camera_dev *pcdev = ici->priv;
 	unsigned int cif_fs = 0,cif_crop = 0;
-	#if 1
+    int work_index =0,stream_on = 0;
+    
+	#if 0
 /* ddl@rock-chips.com : The largest resolution is 2047x1088, so larger resolution must be operated some times
    (Assume operate times is 4),but resolution which ipp can operate ,it is width and height must be even. */
 	a.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a.c.width = icd->user_width*100/zoom_rate;
+	a.c.width = pcdev->host_width*100/zoom_rate;
 	a.c.width &= ~0x03;    
-	a.c.height = icd->user_height*100/zoom_rate;
+	a.c.height = pcdev->host_height*100/zoom_rate;
 	a.c.height &= ~0x03;
-
+	
 	a.c.left = (((pcdev->host_width - a.c.width)>>1) +pcdev->host_left)&(~0x01);
 	a.c.top = (((pcdev->host_height - a.c.height)>>1) + pcdev->host_top)&(~0x01);
+    stream_on = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
+    if (stream_on & ENABLE_CAPTURE)
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, (stream_on & (~ENABLE_CAPTURE)));
+  //  if (CAM_IPPWORK_IS_EN()){
+   //     for(;work_index < pcdev->camera_work_count;work_index++)
+  //          flush_work(&((pcdev->camera_work + work_index)->work));
+  //      }
+	//printk("host_left = %d , host_top = %d\n",pcdev->host_left,pcdev->host_top);
 
     down(&pcdev->zoominfo.sem);
 	pcdev->zoominfo.a.c.height = a.c.height;
 	pcdev->zoominfo.a.c.width = a.c.width;
 	pcdev->zoominfo.a.c.top = 0;
 	pcdev->zoominfo.a.c.left = 0;
+	pcdev->zoominfo.vir_width = a.c.width;
     up(&pcdev->zoominfo.sem);
 
-	cif_crop = (a.c.left+ (a.c.top<<16));
-	cif_fs	= ((a.c.width ) + (a.c.height<<16));
+	cif_crop = a.c.left+ (a.c.top<<16);
+	cif_fs	= a.c.width + ((a.c.height)<<16);
 //cif do the crop , ipp do the scale
-	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)&(~ENABLE_CAPTURE)));
 	write_cif_reg(pcdev->base,CIF_CIF_CROP, cif_crop);
 	write_cif_reg(pcdev->base,CIF_CIF_SET_SIZE, cif_fs);
 	write_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH, a.c.width);
-	write_cif_reg(pcdev->base,CIF_CIF_CTRL, (read_cif_reg(pcdev->base,CIF_CIF_CTRL)|(ENABLE_CAPTURE)));
-	//MUST bypass scale 
+	write_cif_reg(pcdev->base,CIF_CIF_FRAME_STATUS,  0x00000003);
+	write_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL,0x10);
+    if (stream_on & ENABLE_CAPTURE)
+        write_cif_reg(pcdev->base,CIF_CIF_CTRL, stream_on);
 	#else
 	//change the crop and scale parameters
+    a.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	a.c.width = pcdev->host_width*100/zoom_rate;
+	a.c.width &= ~0x03;    
+	a.c.height = pcdev->host_height*100/zoom_rate;
+	a.c.height &= ~0x03;
+	a.c.left = (pcdev->host_width - a.c.width)>>1;
+	a.c.top = (pcdev->host_height - a.c.height)>>1;
+    down(&pcdev->zoominfo.sem);
+	pcdev->zoominfo.a.c.height = a.c.height;
+	pcdev->zoominfo.a.c.width = a.c.width;
+	pcdev->zoominfo.a.c.top = a.c.top;
+	pcdev->zoominfo.a.c.left = a.c.left;
+	pcdev->zoominfo.vir_width = pcdev->host_width;
+    up(&pcdev->zoominfo.sem);
+
     #endif
-	RKCAMERA_DG("%s..zoom_rate:%d (%dx%d at (%d,%d)-> %dx%d)\n",__FUNCTION__, zoom_rate,a.c.width, a.c.height, a.c.left, a.c.top, pcdev->host_width, pcdev->host_height );
+	RKCAMERA_DG("%s..zoom_rate:%d (%dx%d at (%d,%d)-> %dx%d)\n",__FUNCTION__, zoom_rate,a.c.width, a.c.height, a.c.left, a.c.top, icd->user_width, icd->user_height );
 
 	return 0;
 }
@@ -2106,7 +2137,12 @@ static int rk_camera_probe(struct platform_device *pdev)
         goto exit_reqirq;
     }
    	}
-	pcdev->camera_wq = create_workqueue("rk_camera_workqueue");
+    if(IS_CIF0()){
+    	pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif0");
+        }
+    else{
+    	pcdev->camera_wq = create_workqueue("rk_cam_wkque_cif1");
+    }
 	if (pcdev->camera_wq == NULL)
 		goto exit_free_irq;
 	pcdev->camera_reinit_work.pcdev = pcdev;
