@@ -1,7 +1,7 @@
 /******************************************************************************
 
     AudioScience HPI driver
-    Copyright (C) 1997-2011  AudioScience Inc. <support@audioscience.com>
+    Copyright (C) 1997-2012  AudioScience Inc. <support@audioscience.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of version 2 of the GNU General Public License as
@@ -42,7 +42,7 @@ On error *pLockedMemHandle marked invalid, non-zero returned.
 If this function succeeds, then HpiOs_LockedMem_GetVirtAddr() and
 HpiOs_LockedMem_GetPyhsAddr() will always succed on the returned handle.
 */
-int hpios_locked_mem_alloc(struct consistent_dma_area *p_locked_mem_handle,
+u16 hpios_locked_mem_alloc(struct consistent_dma_area *p_locked_mem_handle,
 							   /**< memory handle */
 	u32 size, /**< Size in bytes to allocate */
 	struct pci_dev *p_os_reference
