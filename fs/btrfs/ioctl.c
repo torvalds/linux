@@ -1186,6 +1186,9 @@ int btrfs_defrag_file(struct inode *inode, struct file *file,
 			if (newer_off == (u64)-1)
 				break;
 
+			if (ret > 0)
+				i += ret;
+
 			newer_off = max(newer_off + 1,
 					(u64)i << PAGE_CACHE_SHIFT);
 
