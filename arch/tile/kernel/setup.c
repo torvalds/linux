@@ -103,13 +103,11 @@ unsigned long __initdata pci_reserve_end_pfn = -1U;
 
 static int __init setup_maxmem(char *str)
 {
-	long maxmem_mb;
-	if (str == NULL || strict_strtol(str, 0, &maxmem_mb) != 0 ||
-	    maxmem_mb == 0)
+	unsigned long long maxmem;
+	if (str == NULL || (maxmem = memparse(str, NULL)) == 0)
 		return -EINVAL;
 
-	maxmem_pfn = (maxmem_mb >> (HPAGE_SHIFT - 20)) <<
-		(HPAGE_SHIFT - PAGE_SHIFT);
+	maxmem_pfn = (maxmem >> HPAGE_SHIFT) << (HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used to no more than %dMB\n",
 	       maxmem_pfn >> (20 - PAGE_SHIFT));
 	return 0;
@@ -119,14 +117,15 @@ early_param("maxmem", setup_maxmem);
 static int __init setup_maxnodemem(char *str)
 {
 	char *endp;
-	long maxnodemem_mb, node;
+	unsigned long long maxnodemem;
+	long node;
 
 	node = str ? simple_strtoul(str, &endp, 0) : INT_MAX;
-	if (node >= MAX_NUMNODES || *endp != ':' ||
-	    strict_strtol(endp+1, 0, &maxnodemem_mb) != 0)
+	if (node >= MAX_NUMNODES || *endp != ':')
 		return -EINVAL;
 
-	maxnodemem_pfn[node] = (maxnodemem_mb >> (HPAGE_SHIFT - 20)) <<
+	maxnodemem = memparse(endp+1, NULL);
+	maxnodemem_pfn[node] = (maxnodemem >> HPAGE_SHIFT) <<
 		(HPAGE_SHIFT - PAGE_SHIFT);
 	pr_info("Forcing RAM used on node %ld to no more than %dMB\n",
 	       node, maxnodemem_pfn[node] >> (20 - PAGE_SHIFT));
