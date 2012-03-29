@@ -640,7 +640,7 @@ struct foo_pmx_func {
 	const unsigned num_groups;
 };
 
-static const char * const spi0_groups[] = { "spi0_1_grp" };
+static const char * const spi0_groups[] = { "spi0_0_grp", "spi0_1_grp" };
 static const char * const i2c0_groups[] = { "i2c0_grp" };
 static const char * const mmc0_groups[] = { "mmc0_1_grp", "mmc0_2_grp",
 					"mmc0_3_grp" };
