@@ -1396,13 +1396,13 @@ void __init setup_per_cpu_areas(void)
 		for (i = 0; i < size; i += PAGE_SIZE, ++pfn, ++pg) {
 
 			/* Update the vmalloc mapping and page home. */
-			pte_t *ptep =
-				virt_to_pte(NULL, (unsigned long)ptr + i);
+			unsigned long addr = (unsigned long)ptr + i;
+			pte_t *ptep = virt_to_pte(NULL, addr);
 			pte_t pte = *ptep;
 			BUG_ON(pfn != pte_pfn(pte));
 			pte = hv_pte_set_mode(pte, HV_PTE_MODE_CACHE_TILE_L3);
 			pte = set_remote_cache_cpu(pte, cpu);
-			set_pte(ptep, pte);
+			set_pte_at(&init_mm, addr, ptep, pte);
 
 			/* Update the lowmem mapping for consistency. */
 			lowmem_va = (unsigned long)pfn_to_kaddr(pfn);
@@ -1415,7 +1415,7 @@ void __init setup_per_cpu_areas(void)
 				BUG_ON(pte_huge(*ptep));
 			}
 			BUG_ON(pfn != pte_pfn(*ptep));
-			set_pte(ptep, pte);
+			set_pte_at(&init_mm, lowmem_va, ptep, pte);
 		}
 	}
 

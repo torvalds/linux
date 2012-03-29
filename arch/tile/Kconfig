@@ -139,6 +139,31 @@ config NR_CPUS
 	  smaller kernel memory footprint results from using a smaller
 	  value on chips with fewer tiles.
 
+if TILEGX
+
+choice
+	prompt "Kernel page size"
+	default PAGE_SIZE_64KB
+	help
+	  This lets you select the page size of the kernel.  For best
+	  performance on memory-intensive applications, a page size of 64KB
+	  is recommended.  For workloads involving many small files, many
+	  connections, etc., it may be better to select 16KB, which uses
+	  memory more efficiently at some cost in TLB performance.
+
+	  Note that this option is TILE-Gx specific; currently
+	  TILEPro page size is set by rebuilding the hypervisor.
+
+config PAGE_SIZE_16KB
+	bool "16KB"
+
+config PAGE_SIZE_64KB
+	bool "64KB"
+
+endchoice
+
+endif
+
 source "kernel/time/Kconfig"
 
 source "kernel/Kconfig.hz"

@@ -27,8 +27,10 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
+#include <linux/pfn.h>
 #include <asm/processor.h>
 #include <asm/fixmap.h>
+#include <asm/page.h>
 
 struct mm_struct;
 struct vm_area_struct;
@@ -162,7 +164,7 @@ extern void set_page_homes(void);
   (pgprot_t) { ((oldprot).val & ~_PAGE_ALL) | (newprot).val }
 
 /* Just setting the PFN to zero suffices. */
-#define pte_pgprot(x) hv_pte_set_pfn((x), 0)
+#define pte_pgprot(x) hv_pte_set_pa((x), 0)
 
 /*
  * For PTEs and PDEs, we must clear the Present bit first when
@@ -262,7 +264,7 @@ static inline int pte_none(pte_t pte)
 
 static inline unsigned long pte_pfn(pte_t pte)
 {
-	return hv_pte_get_pfn(pte);
+	return PFN_DOWN(hv_pte_get_pa(pte));
 }
 
 /* Set or get the remote cache cpu in a pgprot with remote caching. */
@@ -271,7 +273,7 @@ extern int get_remote_cache_cpu(pgprot_t prot);
 
 static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 {
-	return hv_pte_set_pfn(prot, pfn);
+	return hv_pte_set_pa(prot, PFN_PHYS(pfn));
 }
 
 /* Support for priority mappings. */
@@ -471,7 +473,7 @@ static inline unsigned long pmd_page_vaddr(pmd_t pmd)
  * OK for pte_lockptr(), since we just end up with potentially one
  * lock being used for several pte_t arrays.
  */
-#define pmd_page(pmd) pfn_to_page(HV_PTFN_TO_PFN(pmd_ptfn(pmd)))
+#define pmd_page(pmd) pfn_to_page(PFN_DOWN(HV_PTFN_TO_CPA(pmd_ptfn(pmd))))
 
 static inline void pmd_clear(pmd_t *pmdp)
 {

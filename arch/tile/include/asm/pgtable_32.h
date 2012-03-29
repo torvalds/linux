@@ -20,11 +20,12 @@
  * The level-1 index is defined by the huge page size.  A PGD is composed
  * of PTRS_PER_PGD pgd_t's and is the top level of the page table.
  */
-#define PGDIR_SHIFT	HV_LOG2_PAGE_SIZE_LARGE
-#define PGDIR_SIZE	HV_PAGE_SIZE_LARGE
+#define PGDIR_SHIFT	HPAGE_SHIFT
+#define PGDIR_SIZE	HPAGE_SIZE
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
-#define PTRS_PER_PGD	(1 << (32 - PGDIR_SHIFT))
-#define SIZEOF_PGD	(PTRS_PER_PGD * sizeof(pgd_t))
+#define PTRS_PER_PGD	_HV_L1_ENTRIES(HPAGE_SHIFT)
+#define PGD_INDEX(va)	_HV_L1_INDEX(va, HPAGE_SHIFT)
+#define SIZEOF_PGD	_HV_L1_SIZE(HPAGE_SHIFT)
 
 /*
  * The level-2 index is defined by the difference between the huge
@@ -33,8 +34,9 @@
  * Note that the hypervisor docs use PTE for what we call pte_t, so
  * this nomenclature is somewhat confusing.
  */
-#define PTRS_PER_PTE (1 << (HV_LOG2_PAGE_SIZE_LARGE - HV_LOG2_PAGE_SIZE_SMALL))
-#define SIZEOF_PTE	(PTRS_PER_PTE * sizeof(pte_t))
+#define PTRS_PER_PTE	_HV_L2_ENTRIES(HPAGE_SHIFT, PAGE_SHIFT)
+#define PTE_INDEX(va)	_HV_L2_INDEX(va, HPAGE_SHIFT, PAGE_SHIFT)
+#define SIZEOF_PTE	_HV_L2_SIZE(HPAGE_SHIFT, PAGE_SHIFT)
 
 #ifndef __ASSEMBLY__
 

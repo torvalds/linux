@@ -82,7 +82,7 @@ static int num_l2_ptes[MAX_NUMNODES];
 
 static void init_prealloc_ptes(int node, int pages)
 {
-	BUG_ON(pages & (HV_L2_ENTRIES-1));
+	BUG_ON(pages & (PTRS_PER_PTE - 1));
 	if (pages) {
 		num_l2_ptes[node] = pages;
 		l2_ptes[node] = __alloc_bootmem(pages * sizeof(pte_t),
@@ -131,14 +131,9 @@ static void __init assign_pte(pmd_t *pmd, pte_t *page_table)
 
 #ifdef __tilegx__
 
-#if HV_L1_SIZE != HV_L2_SIZE
-# error Rework assumption that L1 and L2 page tables are same size.
-#endif
-
-/* Since pmd_t arrays and pte_t arrays are the same size, just use casts. */
 static inline pmd_t *alloc_pmd(void)
 {
-	return (pmd_t *)alloc_pte();
+	return __alloc_bootmem(L1_KERNEL_PGTABLE_SIZE, HV_PAGE_TABLE_ALIGN, 0);
 }
 
 static inline void assign_pmd(pud_t *pud, pmd_t *pmd)
@@ -811,7 +806,7 @@ void __init paging_init(void)
 	 * changing init_mm once we get up and running, and there's no
 	 * need for e.g. vmalloc_sync_all().
 	 */
-	BUILD_BUG_ON(pgd_index(VMALLOC_START) != pgd_index(VMALLOC_END));
+	BUILD_BUG_ON(pgd_index(VMALLOC_START) != pgd_index(VMALLOC_END - 1));
 	pud = pud_offset(pgd_base + pgd_index(VMALLOC_START), VMALLOC_START);
 	assign_pmd(pud, alloc_pmd());
 #endif

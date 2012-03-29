@@ -21,17 +21,19 @@
 #define PGDIR_SIZE	HV_L1_SPAN
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 #define PTRS_PER_PGD	HV_L0_ENTRIES
-#define SIZEOF_PGD	(PTRS_PER_PGD * sizeof(pgd_t))
+#define PGD_INDEX(va)	HV_L0_INDEX(va)
+#define SIZEOF_PGD	HV_L0_SIZE
 
 /*
  * The level-1 index is defined by the huge page size.  A PMD is composed
  * of PTRS_PER_PMD pgd_t's and is the middle level of the page table.
  */
-#define PMD_SHIFT	HV_LOG2_PAGE_SIZE_LARGE
-#define PMD_SIZE	HV_PAGE_SIZE_LARGE
+#define PMD_SHIFT	HPAGE_SHIFT
+#define PMD_SIZE	HPAGE_SIZE
 #define PMD_MASK	(~(PMD_SIZE-1))
-#define PTRS_PER_PMD	(1 << (PGDIR_SHIFT - PMD_SHIFT))
-#define SIZEOF_PMD	(PTRS_PER_PMD * sizeof(pmd_t))
+#define PTRS_PER_PMD	_HV_L1_ENTRIES(HPAGE_SHIFT)
+#define PMD_INDEX(va)	_HV_L1_INDEX(va, HPAGE_SHIFT)
+#define SIZEOF_PMD	_HV_L1_SIZE(HPAGE_SHIFT)
 
 /*
  * The level-2 index is defined by the difference between the huge
@@ -40,17 +42,19 @@
  * Note that the hypervisor docs use PTE for what we call pte_t, so
  * this nomenclature is somewhat confusing.
  */
-#define PTRS_PER_PTE (1 << (HV_LOG2_PAGE_SIZE_LARGE - HV_LOG2_PAGE_SIZE_SMALL))
-#define SIZEOF_PTE	(PTRS_PER_PTE * sizeof(pte_t))
+#define PTRS_PER_PTE	_HV_L2_ENTRIES(HPAGE_SHIFT, PAGE_SHIFT)
+#define PTE_INDEX(va)	_HV_L2_INDEX(va, HPAGE_SHIFT, PAGE_SHIFT)
+#define SIZEOF_PTE	_HV_L2_SIZE(HPAGE_SHIFT, PAGE_SHIFT)
 
 /*
- * Align the vmalloc area to an L2 page table, and leave a guard page
- * at the beginning and end.  The vmalloc code also puts in an internal
+ * Align the vmalloc area to an L2 page table.  Omit guard pages at
+ * the beginning and end for simplicity (particularly in the per-cpu
+ * memory allocation code).  The vmalloc code puts in an internal
  * guard page between each allocation.
  */
 #define _VMALLOC_END	HUGE_VMAP_BASE
-#define VMALLOC_END	(_VMALLOC_END - PAGE_SIZE)
-#define VMALLOC_START	(_VMALLOC_START + PAGE_SIZE)
+#define VMALLOC_END	_VMALLOC_END
+#define VMALLOC_START	_VMALLOC_START
 
 #define HUGE_VMAP_END	(HUGE_VMAP_BASE + PGDIR_SIZE)
 
@@ -98,7 +102,7 @@ static inline int pud_bad(pud_t pud)
  * A pud_t points to a pmd_t array.  Since we can have multiple per
  * page, we don't have a one-to-one mapping of pud_t's to pages.
  */
-#define pud_page(pud) pfn_to_page(HV_PTFN_TO_PFN(pud_ptfn(pud)))
+#define pud_page(pud) pfn_to_page(PFN_DOWN(HV_PTFN_TO_CPA(pud_ptfn(pud))))
 
 static inline unsigned long pud_index(unsigned long address)
 {

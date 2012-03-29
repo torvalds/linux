@@ -17,8 +17,8 @@
  * The hypervisor's public API.
  */
 
-#ifndef _TILE_HV_H
-#define _TILE_HV_H
+#ifndef _HV_HV_H
+#define _HV_HV_H
 
 #include <arch/chip.h>
 
@@ -42,25 +42,29 @@
  */
 #define HV_L1_SPAN (__HV_SIZE_ONE << HV_LOG2_L1_SPAN)
 
-/** The log2 of the size of small pages, in bytes. This value should
- * be verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_SMALL).
+/** The log2 of the initial size of small pages, in bytes.
+ * See HV_DEFAULT_PAGE_SIZE_SMALL.
  */
-#define HV_LOG2_PAGE_SIZE_SMALL 16
+#define HV_LOG2_DEFAULT_PAGE_SIZE_SMALL 16
 
-/** The size of small pages, in bytes. This value should be verified
+/** The initial size of small pages, in bytes. This value should be verified
  * at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_SMALL).
+ * It may also be modified when installing a new context.
  */
-#define HV_PAGE_SIZE_SMALL (__HV_SIZE_ONE << HV_LOG2_PAGE_SIZE_SMALL)
+#define HV_DEFAULT_PAGE_SIZE_SMALL \
+  (__HV_SIZE_ONE << HV_LOG2_DEFAULT_PAGE_SIZE_SMALL)
 
-/** The log2 of the size of large pages, in bytes. This value should be
- * verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_LARGE).
+/** The log2 of the initial size of large pages, in bytes.
+ * See HV_DEFAULT_PAGE_SIZE_LARGE.
  */
-#define HV_LOG2_PAGE_SIZE_LARGE 24
+#define HV_LOG2_DEFAULT_PAGE_SIZE_LARGE 24
 
-/** The size of large pages, in bytes. This value should be verified
+/** The initial size of large pages, in bytes. This value should be verified
  * at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_LARGE).
+ * It may also be modified when installing a new context.
  */
-#define HV_PAGE_SIZE_LARGE (__HV_SIZE_ONE << HV_LOG2_PAGE_SIZE_LARGE)
+#define HV_DEFAULT_PAGE_SIZE_LARGE \
+  (__HV_SIZE_ONE << HV_LOG2_DEFAULT_PAGE_SIZE_LARGE)
 
 /** The log2 of the granularity at which page tables must be aligned;
  *  in other words, the CPA for a page table must have this many zero
@@ -401,7 +405,13 @@ typedef enum {
    *  that the temperature has hit an upper limit and is no longer being
    *  accurately tracked.
    */
-  HV_SYSCONF_BOARD_TEMP      = 6
+  HV_SYSCONF_BOARD_TEMP      = 6,
+
+  /** Legal page size bitmask for hv_install_context().
+   * For example, if 16KB and 64KB small pages are supported,
+   * it would return "HV_CTX_PG_SM_16K | HV_CTX_PG_SM_64K".
+   */
+  HV_SYSCONF_VALID_PAGE_SIZES = 7,
 
 } HV_SysconfQuery;
 
@@ -654,6 +664,12 @@ void hv_set_rtc(HV_RTCTime time);
  *  new page table does not need to contain any mapping for the
  *  hv_install_context address itself.
  *
+ *  At most one HV_CTX_PG_SM_* flag may be specified in "flags";
+ *  if multiple flags are specified, HV_EINVAL is returned.
+ *  Specifying none of the flags results in using the default page size.
+ *  All cores participating in a given client must request the same
+ *  page size, or the results are undefined.
+ *
  * @param page_table Root of the page table.
  * @param access PTE providing info on how to read the page table.  This
  *   value must be consistent between multiple tiles sharing a page table,
@@ -671,6 +687,11 @@ int hv_install_context(HV_PhysAddr page_table, HV_PTE access, HV_ASID asid,
 
 #define HV_CTX_DIRECTIO     0x1   /**< Direct I/O requests are accepted from
                                        PL0. */
+
+#define HV_CTX_PG_SM_4K     0x10  /**< Use 4K small pages, if available. */
+#define HV_CTX_PG_SM_16K    0x20  /**< Use 16K small pages, if available. */
+#define HV_CTX_PG_SM_64K    0x40  /**< Use 64K small pages, if available. */
+#define HV_CTX_PG_SM_MASK   0xf0  /**< Mask of all possible small pages. */
 
 #ifndef __ASSEMBLER__
 
@@ -1248,11 +1269,14 @@ HV_Errno hv_set_command_line(HV_VirtAddr buf, int length);
  * with the existing priority pages) or "red/black" (if they don't).
  * The bitmask provides information on which parts of the cache
  * have been used for pinned pages so far on this tile; if (1 << N)
- * appears in the bitmask, that indicates that a page has been marked
- * "priority" whose PFN equals N, mod 8.
+ * appears in the bitmask, that indicates that a 4KB region of the
+ * cache starting at (N * 4KB) is in use by a "priority" page.
+ * The portion of cache used by a particular page can be computed
+ * by taking the page's PA, modulo CHIP_L2_CACHE_SIZE(), and setting
+ * all the "4KB" bits corresponding to the actual page size.
  * @param bitmask A bitmap of priority page set values
  */
-void hv_set_caching(unsigned int bitmask);
+void hv_set_caching(unsigned long bitmask);
 
 
 /** Zero out a specified number of pages.
@@ -1884,15 +1908,6 @@ int hv_flush_remote(HV_PhysAddr cache_pa, unsigned long cache_control,
                                               of word */
 #define HV_PTE_PTFN_BITS             29  /**< Number of bits in a PTFN */
 
-/** Position of the PFN field within the PTE (subset of the PTFN). */
-#define HV_PTE_INDEX_PFN (HV_PTE_INDEX_PTFN + (HV_LOG2_PAGE_SIZE_SMALL - \
-                                               HV_LOG2_PAGE_TABLE_ALIGN))
-
-/** Length of the PFN field within the PTE (subset of the PTFN). */
-#define HV_PTE_INDEX_PFN_BITS (HV_PTE_INDEX_PTFN_BITS - \
-                               (HV_LOG2_PAGE_SIZE_SMALL - \
-                                HV_LOG2_PAGE_TABLE_ALIGN))
-
 /*
  * Legal values for the PTE's mode field
  */
@@ -2245,47 +2260,17 @@ hv_pte_set_mode(HV_PTE pte, unsigned int val)
  *
  * This field contains the upper bits of the CPA (client physical
  * address) of the target page; the complete CPA is this field with
- * HV_LOG2_PAGE_SIZE_SMALL zero bits appended to it.
+ * HV_LOG2_PAGE_TABLE_ALIGN zero bits appended to it.
  *
- * For PTEs in a level-1 page table where the Page bit is set, the
- * CPA must be aligned modulo the large page size.
- */
-static __inline unsigned int
-hv_pte_get_pfn(const HV_PTE pte)
-{
-  return pte.val >> HV_PTE_INDEX_PFN;
-}
-
-
-/** Set the page frame number into a PTE.  See hv_pte_get_pfn. */
-static __inline HV_PTE
-hv_pte_set_pfn(HV_PTE pte, unsigned int val)
-{
-  /*
-   * Note that the use of "PTFN" in the next line is intentional; we
-   * don't want any garbage lower bits left in that field.
-   */
-  pte.val &= ~(((1ULL << HV_PTE_PTFN_BITS) - 1) << HV_PTE_INDEX_PTFN);
-  pte.val |= (__hv64) val << HV_PTE_INDEX_PFN;
-  return pte;
-}
-
-/** Get the page table frame number from the PTE.
- *
- * This field contains the upper bits of the CPA (client physical
- * address) of the target page table; the complete CPA is this field with
- * with HV_PAGE_TABLE_ALIGN zero bits appended to it.
- *
- * For PTEs in a level-1 page table when the Page bit is not set, the
- * CPA must be aligned modulo the sticter of HV_PAGE_TABLE_ALIGN and
- * the level-2 page table size.
+ * For all PTEs in the lowest-level page table, and for all PTEs with
+ * the Page bit set in all page tables, the CPA must be aligned modulo
+ * the relevant page size.
  */
 static __inline unsigned long
 hv_pte_get_ptfn(const HV_PTE pte)
 {
   return pte.val >> HV_PTE_INDEX_PTFN;
 }
-
 
 /** Set the page table frame number into a PTE.  See hv_pte_get_ptfn. */
 static __inline HV_PTE
@@ -2294,6 +2279,20 @@ hv_pte_set_ptfn(HV_PTE pte, unsigned long val)
   pte.val &= ~(((1ULL << HV_PTE_PTFN_BITS)-1) << HV_PTE_INDEX_PTFN);
   pte.val |= (__hv64) val << HV_PTE_INDEX_PTFN;
   return pte;
+}
+
+/** Get the client physical address from the PTE.  See hv_pte_set_ptfn. */
+static __inline HV_PhysAddr
+hv_pte_get_pa(const HV_PTE pte)
+{
+  return (__hv64) hv_pte_get_ptfn(pte) << HV_LOG2_PAGE_TABLE_ALIGN;
+}
+
+/** Set the client physical address into a PTE.  See hv_pte_get_ptfn. */
+static __inline HV_PTE
+hv_pte_set_pa(HV_PTE pte, HV_PhysAddr pa)
+{
+  return hv_pte_set_ptfn(pte, pa >> HV_LOG2_PAGE_TABLE_ALIGN);
 }
 
 
@@ -2331,27 +2330,19 @@ hv_pte_set_lotar(HV_PTE pte, unsigned int val)
 
 #endif  /* !__ASSEMBLER__ */
 
-/** Converts a client physical address to a pfn. */
-#define HV_CPA_TO_PFN(p) ((p) >> HV_LOG2_PAGE_SIZE_SMALL)
-
-/** Converts a pfn to a client physical address. */
-#define HV_PFN_TO_CPA(p) (((HV_PhysAddr)(p)) << HV_LOG2_PAGE_SIZE_SMALL)
-
 /** Converts a client physical address to a ptfn. */
 #define HV_CPA_TO_PTFN(p) ((p) >> HV_LOG2_PAGE_TABLE_ALIGN)
 
 /** Converts a ptfn to a client physical address. */
 #define HV_PTFN_TO_CPA(p) (((HV_PhysAddr)(p)) << HV_LOG2_PAGE_TABLE_ALIGN)
 
-/** Converts a ptfn to a pfn. */
-#define HV_PTFN_TO_PFN(p) \
-  ((p) >> (HV_LOG2_PAGE_SIZE_SMALL - HV_LOG2_PAGE_TABLE_ALIGN))
-
-/** Converts a pfn to a ptfn. */
-#define HV_PFN_TO_PTFN(p) \
-  ((p) << (HV_LOG2_PAGE_SIZE_SMALL - HV_LOG2_PAGE_TABLE_ALIGN))
-
 #if CHIP_VA_WIDTH() > 32
+
+/*
+ * Note that we currently do not allow customizing the page size
+ * of the L0 pages, but fix them at 4GB, so we do not use the
+ * "_HV_xxx" nomenclature for the L0 macros.
+ */
 
 /** Log number of HV_PTE entries in L0 page table */
 #define HV_LOG2_L0_ENTRIES (CHIP_VA_WIDTH() - HV_LOG2_L1_SPAN)
@@ -2382,69 +2373,104 @@ hv_pte_set_lotar(HV_PTE pte, unsigned int val)
 #endif /* CHIP_VA_WIDTH() > 32 */
 
 /** Log number of HV_PTE entries in L1 page table */
-#define HV_LOG2_L1_ENTRIES (HV_LOG2_L1_SPAN - HV_LOG2_PAGE_SIZE_LARGE)
+#define _HV_LOG2_L1_ENTRIES(log2_page_size_large) \
+  (HV_LOG2_L1_SPAN - log2_page_size_large)
 
 /** Number of HV_PTE entries in L1 page table */
-#define HV_L1_ENTRIES (1 << HV_LOG2_L1_ENTRIES)
+#define _HV_L1_ENTRIES(log2_page_size_large) \
+  (1 << _HV_LOG2_L1_ENTRIES(log2_page_size_large))
 
 /** Log size of L1 page table in bytes */
-#define HV_LOG2_L1_SIZE (HV_LOG2_PTE_SIZE + HV_LOG2_L1_ENTRIES)
+#define _HV_LOG2_L1_SIZE(log2_page_size_large) \
+  (HV_LOG2_PTE_SIZE + _HV_LOG2_L1_ENTRIES(log2_page_size_large))
 
 /** Size of L1 page table in bytes */
-#define HV_L1_SIZE (1 << HV_LOG2_L1_SIZE)
+#define _HV_L1_SIZE(log2_page_size_large) \
+  (1 << _HV_LOG2_L1_SIZE(log2_page_size_large))
 
 /** Log number of HV_PTE entries in level-2 page table */
-#define HV_LOG2_L2_ENTRIES (HV_LOG2_PAGE_SIZE_LARGE - HV_LOG2_PAGE_SIZE_SMALL)
+#define _HV_LOG2_L2_ENTRIES(log2_page_size_large, log2_page_size_small) \
+  (log2_page_size_large - log2_page_size_small)
 
 /** Number of HV_PTE entries in level-2 page table */
-#define HV_L2_ENTRIES (1 << HV_LOG2_L2_ENTRIES)
+#define _HV_L2_ENTRIES(log2_page_size_large, log2_page_size_small) \
+  (1 << _HV_LOG2_L2_ENTRIES(log2_page_size_large, log2_page_size_small))
 
 /** Log size of level-2 page table in bytes */
-#define HV_LOG2_L2_SIZE (HV_LOG2_PTE_SIZE + HV_LOG2_L2_ENTRIES)
+#define _HV_LOG2_L2_SIZE(log2_page_size_large, log2_page_size_small) \
+  (HV_LOG2_PTE_SIZE + \
+   _HV_LOG2_L2_ENTRIES(log2_page_size_large, log2_page_size_small))
 
 /** Size of level-2 page table in bytes */
-#define HV_L2_SIZE (1 << HV_LOG2_L2_SIZE)
+#define _HV_L2_SIZE(log2_page_size_large, log2_page_size_small) \
+  (1 << _HV_LOG2_L2_SIZE(log2_page_size_large, log2_page_size_small))
 
 #ifdef __ASSEMBLER__
 
 #if CHIP_VA_WIDTH() > 32
 
 /** Index in L1 for a specific VA */
-#define HV_L1_INDEX(va) \
-  (((va) >> HV_LOG2_PAGE_SIZE_LARGE) & (HV_L1_ENTRIES - 1))
+#define _HV_L1_INDEX(va, log2_page_size_large) \
+  (((va) >> log2_page_size_large) & (_HV_L1_ENTRIES(log2_page_size_large) - 1))
 
 #else /* CHIP_VA_WIDTH() > 32 */
 
 /** Index in L1 for a specific VA */
-#define HV_L1_INDEX(va) \
-  (((va) >> HV_LOG2_PAGE_SIZE_LARGE))
+#define _HV_L1_INDEX(va, log2_page_size_large) \
+  (((va) >> log2_page_size_large))
 
 #endif /* CHIP_VA_WIDTH() > 32 */
 
 /** Index in level-2 page table for a specific VA */
-#define HV_L2_INDEX(va) \
-  (((va) >> HV_LOG2_PAGE_SIZE_SMALL) & (HV_L2_ENTRIES - 1))
+#define _HV_L2_INDEX(va, log2_page_size_large, log2_page_size_small) \
+  (((va) >> log2_page_size_small) & \
+   (_HV_L2_ENTRIES(log2_page_size_large, log2_page_size_small) - 1))
 
 #else /* __ASSEMBLER __ */
 
 #if CHIP_VA_WIDTH() > 32
 
 /** Index in L1 for a specific VA */
-#define HV_L1_INDEX(va) \
-  (((HV_VirtAddr)(va) >> HV_LOG2_PAGE_SIZE_LARGE) & (HV_L1_ENTRIES - 1))
+#define _HV_L1_INDEX(va, log2_page_size_large) \
+  (((HV_VirtAddr)(va) >> log2_page_size_large) & \
+   (_HV_L1_ENTRIES(log2_page_size_large) - 1))
 
 #else /* CHIP_VA_WIDTH() > 32 */
 
 /** Index in L1 for a specific VA */
-#define HV_L1_INDEX(va) \
-  (((HV_VirtAddr)(va) >> HV_LOG2_PAGE_SIZE_LARGE))
+#define _HV_L1_INDEX(va, log2_page_size_large) \
+  (((HV_VirtAddr)(va) >> log2_page_size_large))
 
 #endif /* CHIP_VA_WIDTH() > 32 */
 
 /** Index in level-2 page table for a specific VA */
-#define HV_L2_INDEX(va) \
-  (((HV_VirtAddr)(va) >> HV_LOG2_PAGE_SIZE_SMALL) & (HV_L2_ENTRIES - 1))
+#define _HV_L2_INDEX(va, log2_page_size_large, log2_page_size_small) \
+  (((HV_VirtAddr)(va) >> log2_page_size_small) & \
+   (_HV_L2_ENTRIES(log2_page_size_large, log2_page_size_small) - 1))
 
 #endif /* __ASSEMBLER __ */
 
-#endif /* _TILE_HV_H */
+/** Position of the PFN field within the PTE (subset of the PTFN). */
+#define _HV_PTE_INDEX_PFN(log2_page_size) \
+  (HV_PTE_INDEX_PTFN + (log2_page_size - HV_LOG2_PAGE_TABLE_ALIGN))
+
+/** Length of the PFN field within the PTE (subset of the PTFN). */
+#define _HV_PTE_INDEX_PFN_BITS(log2_page_size) \
+  (HV_PTE_INDEX_PTFN_BITS - (log2_page_size - HV_LOG2_PAGE_TABLE_ALIGN))
+
+/** Converts a client physical address to a pfn. */
+#define _HV_CPA_TO_PFN(p, log2_page_size) ((p) >> log2_page_size)
+
+/** Converts a pfn to a client physical address. */
+#define _HV_PFN_TO_CPA(p, log2_page_size) \
+  (((HV_PhysAddr)(p)) << log2_page_size)
+
+/** Converts a ptfn to a pfn. */
+#define _HV_PTFN_TO_PFN(p, log2_page_size) \
+  ((p) >> (log2_page_size - HV_LOG2_PAGE_TABLE_ALIGN))
+
+/** Converts a pfn to a ptfn. */
+#define _HV_PFN_TO_PTFN(p, log2_page_size) \
+  ((p) << (log2_page_size - HV_LOG2_PAGE_TABLE_ALIGN))
+
+#endif /* _HV_HV_H */

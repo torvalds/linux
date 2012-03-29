@@ -251,6 +251,7 @@ static void setup_quasi_va_is_pa(void)
 void machine_kexec(struct kimage *image)
 {
 	void *reboot_code_buffer;
+	pte_t *ptep;
 	void (*rnk)(unsigned long, void *, unsigned long)
 		__noreturn;
 
@@ -266,8 +267,10 @@ void machine_kexec(struct kimage *image)
 	 */
 	homecache_change_page_home(image->control_code_page, 0,
 				   smp_processor_id());
-	reboot_code_buffer = vmap(&image->control_code_page, 1, 0,
-				  __pgprot(_PAGE_KERNEL | _PAGE_EXECUTABLE));
+	reboot_code_buffer = page_address(image->control_code_page);
+	BUG_ON(reboot_code_buffer == NULL);
+	ptep = virt_to_pte(NULL, (unsigned long)reboot_code_buffer);
+	__set_pte(ptep, pte_mkexec(*ptep));
 	memcpy(reboot_code_buffer, relocate_new_kernel,
 	       relocate_new_kernel_size);
 	__flush_icache_range(
