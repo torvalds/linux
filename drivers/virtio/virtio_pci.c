@@ -773,32 +773,6 @@ static int restore_common(struct device *dev)
 	return ret;
 }
 
-static int virtio_pci_thaw(struct device *dev)
-{
-	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct virtio_pci_device *vp_dev = pci_get_drvdata(pci_dev);
-	struct virtio_driver *drv;
-	int ret;
-
-	ret = restore_common(dev);
-	if (ret)
-		return ret;
-
-	drv = container_of(vp_dev->vdev.dev.driver,
-			   struct virtio_driver, driver);
-
-	if (drv && drv->thaw)
-		ret = drv->thaw(&vp_dev->vdev);
-	else if (drv && drv->restore)
-		ret = drv->restore(&vp_dev->vdev);
-
-	/* Finally, tell the device we're all set */
-	if (!ret)
-		vp_set_status(&vp_dev->vdev, vp_dev->saved_status);
-
-	return ret;
-}
-
 static int virtio_pci_restore(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
@@ -824,7 +798,7 @@ static const struct dev_pm_ops virtio_pci_pm_ops = {
 	.suspend	= virtio_pci_suspend,
 	.resume		= virtio_pci_resume,
 	.freeze		= virtio_pci_freeze,
-	.thaw		= virtio_pci_thaw,
+	.thaw		= virtio_pci_restore,
 	.restore	= virtio_pci_restore,
 	.poweroff	= virtio_pci_suspend,
 };
