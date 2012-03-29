@@ -4205,4 +4205,11 @@
 #define   PIPE_WM_LINETIME_TIME(x)			((x))
 #define   PIPE_WM_LINETIME_IPS_LINETIME_MASK	(0x1ff<<16)
 #define   PIPE_WM_LINETIME_IPS_LINETIME(x)		((x)<<16)
+
+/* SFUSE_STRAP */
+#define SFUSE_STRAP				0xc2014
+#define  SFUSE_STRAP_DDIB_DETECTED	(1<<2)
+#define  SFUSE_STRAP_DDIC_DETECTED	(1<<1)
+#define  SFUSE_STRAP_DDID_DETECTED	(1<<0)
+
 #endif /* _I915_REG_H_ */
