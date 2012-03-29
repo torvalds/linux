@@ -1050,16 +1050,15 @@ static int __init omap2_mcspi_master_setup(struct omap2_mcspi *mcspi)
 {
 	struct spi_master	*master = mcspi->master;
 	struct omap2_mcspi_regs	*ctx = &mcspi->ctx;
-	u32			tmp;
 	int			ret = 0;
 
 	ret = omap2_mcspi_enable_clocks(mcspi);
 	if (ret < 0)
 		return ret;
 
-	tmp = OMAP2_MCSPI_WAKEUPENABLE_WKEN;
-	mcspi_write_reg(master, OMAP2_MCSPI_WAKEUPENABLE, tmp);
-	ctx->wakeupenable = tmp;
+	mcspi_write_reg(master, OMAP2_MCSPI_WAKEUPENABLE,
+				OMAP2_MCSPI_WAKEUPENABLE_WKEN);
+	ctx->wakeupenable = OMAP2_MCSPI_WAKEUPENABLE_WKEN;
 
 	omap2_mcspi_set_master_mode(master);
 	omap2_mcspi_disable_clocks(mcspi);
