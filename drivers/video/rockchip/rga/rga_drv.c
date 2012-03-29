@@ -642,6 +642,13 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
     uint32_t saw, sah, daw, dah;
 
     req2 = NULL;
+
+    #if RGA_TEST
+    printk("src.yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x\n", 
+            req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr);
+    printk("dst.yrgb_addr = %.8x, dst.uv_addr = %.8x, dst.v_addr = %.8x\n", 
+            req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr);    
+    #endif
             
     saw = req->src.act_w;
     sah = req->src.act_h;
@@ -681,7 +688,7 @@ static int rga_blit_async(rga_session *session, struct rga_req *req)
             num = 1;       
         }        
 
-        rga_power_on();
+        //rga_power_on();
         atomic_set(&reg->int_enable, 1);        
         rga_try_set_reg(num);
 
@@ -711,6 +718,14 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     sah = req->src.act_h;
     daw = req->dst.act_w;
     dah = req->dst.act_h;
+
+    #if RGA_TEST
+
+    printk("src.yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x\n", 
+            req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr);
+    printk("dst.yrgb_addr = %.8x, dst.uv_addr = %.8x, dst.v_addr = %.8x\n", 
+            req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr);    
+    #endif
 
     do
     {
@@ -751,7 +766,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
             num = 1;        
         }    
 
-        rga_power_on();
+        //rga_power_on();
         atomic_set(&reg->int_enable, 1);        
         rga_try_set_reg(num);
 
@@ -779,7 +794,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
         kfree(req2);
     }
         
-    return ret;   
+    return -EFAULT;   
 }
 
 
@@ -910,7 +925,7 @@ static irqreturn_t rga_irq(int irq,  void *dev_id)
 
     if(((rga_read(RGA_STATUS) & 0x1) != 0))// idle
 	{	
-		printk("RGA is not idle!\n");
+		printk(" INT ERROR RGA is not idle!\n");
 		rga_soft_reset();
 	}
     
@@ -1236,7 +1251,7 @@ static int __init rga_init(void)
     mmu_buf = (uint32_t *)kmalloc(1024*8, GFP_KERNEL);    
     if(mmu_buf == NULL) 
     {
-        ERR("RGA get Pre Scale buff failed. \n");
+        printk(KERN_ERR "RGA get Pre Scale buff failed. \n");
         return -1;
     }
 
@@ -1246,7 +1261,7 @@ static int __init rga_init(void)
         buf_p = (uint32_t *)__get_free_page(GFP_KERNEL);               
         if(buf_p == NULL)
         {
-            printk("RGA init pre scale buf falied\n");
+            printk(KERN_ERR "RGA init pre scale buf falied\n");
             return -ENOMEM;
         }
         
@@ -1257,17 +1272,9 @@ static int __init rga_init(void)
 
 	if ((ret = platform_driver_register(&rga_driver)) != 0)
 	{
-        ERR("Platform device register failed (%d).\n", ret);
+        printk(KERN_ERR "Platform device register failed (%d).\n", ret);
 			return ret;
 	}
-
-    #if 0
-    {
-        uint32_t i;
-        for(i=0; i<10; i++)
-            rga_test_0();
-    }
-    #endif
 
     //rga_test_0();
     
@@ -1296,14 +1303,18 @@ static void __exit rga_exit(void)
 
 
 #if 0
+
+#include "320x240_swap0_Y4200.h"
+#include "320x240_swap0_UV4200.h"
+#include "320x240_swap0_ABGR8888.h"
+
+
 extern struct fb_info * rk_get_fb(int fb_id);
 EXPORT_SYMBOL(rk_get_fb);
 
 extern void rk_direct_fb_show(struct fb_info * fbi);
 EXPORT_SYMBOL(rk_direct_fb_show);
 
-extern uint32_t ABGR8888_320_240_swap0[240][320];
-//unsigned int src_buf[1280*800];
 unsigned int dst_buf[1280*800];
 
 void rga_test_0(void)
@@ -1328,7 +1339,7 @@ void rga_test_0(void)
     fb = rk_get_fb(0);
 
     memset(&req, 0, sizeof(struct rga_req));
-    src = ABGR8888_320_240_swap0;
+    src = Y4200_320_240_swap0;
     dst = dst_buf;
         
     #if 0
@@ -1348,11 +1359,11 @@ void rga_test_0(void)
     req.src.vir_w = 320;
     req.src.vir_h = 240;
     req.src.yrgb_addr = (uint32_t)src;
-    req.src.uv_addr = ((uint32_t)src + 1920*1080);
-    req.src.format = 0;
+    req.src.uv_addr = (uint32_t)UV4200_320_240_swap0;
+    req.src.format = 0xa;
 
-    req.dst.act_w = 320;
-    req.dst.act_h = 240;
+    req.dst.act_w = 100;
+    req.dst.act_h = 80;
 
     req.dst.vir_w = 1280;
     req.dst.vir_h = 800;
@@ -1364,11 +1375,7 @@ void rga_test_0(void)
     req.clip.xmax = 1279;
     req.clip.ymin = 0;
     req.clip.ymax = 799;
-        
-    req.render_mode = color_fill_mode ;
-    req.color_fill_mode = 0;
-    req.fg_color = 0xa0a0a0a0;
-    
+            
     req.rotate_mode = 1;
     req.scale_mode = 2;
 
@@ -1402,6 +1409,9 @@ void rga_test_0(void)
     fb->var.transp.length = 8;
     fb->var.transp.offset = 24;
     fb->var.transp.msb_right = 0;
+
+    fb->var.nonstd &= (~0xff);
+    fb->var.nonstd |= 1;
 
     fb->fix.smem_start = virt_to_phys(dst);
 
