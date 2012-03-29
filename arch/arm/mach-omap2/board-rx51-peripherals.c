@@ -169,7 +169,6 @@ static struct spi_board_info rx51_peripherals_spi_board_info[] __initdata = {
 		.modalias		= "tsc2005",
 		.bus_num		= 1,
 		.chip_select		= 0,
-		.irq			= OMAP_GPIO_IRQ(RX51_TSC2005_IRQ_GPIO),
 		.max_speed_hz		= 6000000,
 		.controller_data	= &tsc2005_mcspi_config,
 		.platform_data		= &tsc2005_pdata,
@@ -1121,6 +1120,8 @@ static void __init rx51_init_tsc2005(void)
 		"tsc2005 reset");
 	if (r >= 0) {
 		tsc2005_pdata.set_reset = rx51_tsc2005_set_reset;
+		rx51_peripherals_spi_board_info[RX51_SPI_TSC2005].irq =
+					gpio_to_irq(RX51_TSC2005_IRQ_GPIO);
 	} else {
 		printk(KERN_ERR "unable to get %s GPIO\n", "tsc2005 reset");
 		tsc2005_pdata.esd_timeout_ms = 0;

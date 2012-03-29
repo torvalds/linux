@@ -323,8 +323,6 @@ static struct platform_device gpio_leds_device = {
 
 static struct resource htcpld_resources[] = {
 	[0] = {
-		.start  = OMAP_GPIO_IRQ(HTCHERALD_GIRQ_BTNS),
-		.end    = OMAP_GPIO_IRQ(HTCHERALD_GIRQ_BTNS),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -453,7 +451,6 @@ static struct spi_board_info __initdata htcherald_spi_board_info[] = {
 	{
 		.modalias		= "ads7846",
 		.platform_data		= &htcherald_ts_platform_data,
-		.irq			= OMAP_GPIO_IRQ(HTCHERALD_GPIO_TS),
 		.max_speed_hz		= 2500000,
 		.bus_num		= 2,
 		.chip_select		= 1,
@@ -581,6 +578,8 @@ static void __init htcherald_init(void)
 	/* Do board initialization before we register all the devices */
 	omap_board_config = htcherald_config;
 	omap_board_config_size = ARRAY_SIZE(htcherald_config);
+	htcpld_resources[0].start = gpio_to_irq(HTCHERALD_GIRQ_BTNS);
+	htcpld_resources[0].end = gpio_to_irq(HTCHERALD_GIRQ_BTNS);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	htcherald_disable_watchdog();
@@ -588,6 +587,7 @@ static void __init htcherald_init(void)
 	htcherald_usb_enable();
 	omap1_usb_init(&htcherald_usb_config);
 
+	htcherald_spi_board_info[0].irq = gpio_to_irq(HTCHERALD_GPIO_TS);
 	spi_register_board_info(htcherald_spi_board_info,
 		ARRAY_SIZE(htcherald_spi_board_info));
 

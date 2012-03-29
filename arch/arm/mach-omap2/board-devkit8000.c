@@ -410,7 +410,6 @@ static struct resource omap_dm9000_resources[] = {
 		.flags		= IORESOURCE_MEM,
 	},
 	[2] = {
-		.start		= OMAP_GPIO_IRQ(OMAP_DM9000_GPIO_IRQ),
 		.flags		= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
 	},
 };
@@ -637,6 +636,7 @@ static void __init devkit8000_init(void)
 	omap_dm9000_init();
 
 	devkit8000_i2c_init();
+	omap_dm9000_resources[2].start = gpio_to_irq(OMAP_DM9000_GPIO_IRQ);
 	platform_add_devices(devkit8000_devices,
 			ARRAY_SIZE(devkit8000_devices));
 
