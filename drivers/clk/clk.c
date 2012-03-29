@@ -1185,34 +1185,41 @@ EXPORT_SYMBOL_GPL(clk_set_parent);
  * very large numbers of clocks that need to be statically initialized.  It is
  * a layering violation to include clk-private.h from any code which implements
  * a clock's .ops; as such any statically initialized clock data MUST be in a
- * separate C file from the logic that implements it's operations.
+ * separate C file from the logic that implements it's operations.  Returns 0
+ * on success, otherwise an error code.
  */
-void __clk_init(struct device *dev, struct clk *clk)
+int __clk_init(struct device *dev, struct clk *clk)
 {
-	int i;
+	int i, ret = 0;
 	struct clk *orphan;
 	struct hlist_node *tmp, *tmp2;
 
 	if (!clk)
-		return;
+		return -EINVAL;
 
 	mutex_lock(&prepare_lock);
 
 	/* check to see if a clock with this name is already registered */
-	if (__clk_lookup(clk->name))
+	if (__clk_lookup(clk->name)) {
+		pr_debug("%s: clk %s already initialized\n",
+				__func__, clk->name);
+		ret = -EEXIST;
 		goto out;
+	}
 
 	/* check that clk_ops are sane.  See Documentation/clk.txt */
 	if (clk->ops->set_rate &&
 			!(clk->ops->round_rate && clk->ops->recalc_rate)) {
 		pr_warning("%s: %s must implement .round_rate & .recalc_rate\n",
 				__func__, clk->name);
+		ret = -EINVAL;
 		goto out;
 	}
 
 	if (clk->ops->set_parent && !clk->ops->get_parent) {
 		pr_warning("%s: %s must implement .get_parent & .set_parent\n",
 				__func__, clk->name);
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -1308,7 +1315,7 @@ void __clk_init(struct device *dev, struct clk *clk)
 out:
 	mutex_unlock(&prepare_lock);
 
-	return;
+	return ret;
 }
 
 /**
@@ -1324,29 +1331,63 @@ out:
  * clk_register is the primary interface for populating the clock tree with new
  * clock nodes.  It returns a pointer to the newly allocated struct clk which
  * cannot be dereferenced by driver code but may be used in conjuction with the
- * rest of the clock API.
+ * rest of the clock API.  In the event of an error clk_register will return an
+ * error code; drivers must test for an error code after calling clk_register.
  */
 struct clk *clk_register(struct device *dev, const char *name,
 		const struct clk_ops *ops, struct clk_hw *hw,
 		const char **parent_names, u8 num_parents, unsigned long flags)
 {
+	int i, ret;
 	struct clk *clk;
 
 	clk = kzalloc(sizeof(*clk), GFP_KERNEL);
-	if (!clk)
-		return NULL;
+	if (!clk) {
+		pr_err("%s: could not allocate clk\n", __func__);
+		ret = -ENOMEM;
+		goto fail_out;
+	}
 
 	clk->name = name;
 	clk->ops = ops;
 	clk->hw = hw;
 	clk->flags = flags;
-	clk->parent_names = parent_names;
 	clk->num_parents = num_parents;
 	hw->clk = clk;
 
-	__clk_init(dev, clk);
+	/* allocate local copy in case parent_names is __initdata */
+	clk->parent_names = kzalloc((sizeof(char*) * num_parents),
+			GFP_KERNEL);
 
-	return clk;
+	if (!clk->parent_names) {
+		pr_err("%s: could not allocate clk->parent_names\n", __func__);
+		ret = -ENOMEM;
+		goto fail_parent_names;
+	}
+
+
+	/* copy each string name in case parent_names is __initdata */
+	for (i = 0; i < num_parents; i++) {
+		clk->parent_names[i] = kstrdup(parent_names[i], GFP_KERNEL);
+		if (!clk->parent_names[i]) {
+			pr_err("%s: could not copy parent_names\n", __func__);
+			ret = -ENOMEM;
+			goto fail_parent_names_copy;
+		}
+	}
+
+	ret = __clk_init(dev, clk);
+	if (!ret)
+		return clk;
+
+fail_parent_names_copy:
+	while (--i >= 0)
+		kfree(clk->parent_names[i]);
+	kfree(clk->parent_names);
+fail_parent_names:
+	kfree(clk);
+fail_out:
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(clk_register);
 

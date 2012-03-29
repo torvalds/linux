@@ -181,8 +181,10 @@ struct clk {
  *
  * It is not necessary to call clk_register if __clk_init is used directly with
  * statically initialized clock data.
+ *
+ * Returns 0 on success, otherwise an error code.
  */
-void __clk_init(struct device *dev, struct clk *clk);
+int __clk_init(struct device *dev, struct clk *clk);
 
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PRIVATE_H */
