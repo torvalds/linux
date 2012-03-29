@@ -25,6 +25,67 @@
 	};
 
 	ahb {
+		pinmux@b3000000 {
+			st,pinmux-mode = <3>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&state_default>;
+
+			state_default: pinmux {
+				i2c0 {
+					st,pins = "i2c0_grp";
+					st,function = "i2c0";
+				};
+				mii0 {
+					st,pins = "mii0_grp";
+					st,function = "mii0";
+				};
+				ssp0 {
+					st,pins = "ssp0_grp";
+					st,function = "ssp0";
+				};
+				uart0 {
+					st,pins = "uart0_grp";
+					st,function = "uart0";
+				};
+				sdhci {
+					st,pins = "sdhci_cd_51_grp";
+					st,function = "sdhci";
+				};
+				i2s {
+					st,pins = "i2s_grp";
+					st,function = "i2s";
+				};
+				uart1 {
+					st,pins = "uart1_grp";
+					st,function = "uart1";
+				};
+				uart2 {
+					st,pins = "uart2_grp";
+					st,function = "uart2";
+				};
+				can0 {
+					st,pins = "can0_grp";
+					st,function = "can0";
+				};
+				can1 {
+					st,pins = "can1_grp";
+					st,function = "can1";
+				};
+				mii2 {
+					st,pins = "mii2_grp";
+					st,function = "mii2";
+				};
+				pwm0_1 {
+					st,pins = "pwm0_1_pin_14_15_grp";
+					st,function = "pwm0_1";
+				};
+				pwm2 {
+					st,pins = "pwm2_pin_13_grp";
+					st,function = "pwm2";
+				};
+			};
+		};
+
 		clcd@90000000 {
 			status = "okay";
 		};

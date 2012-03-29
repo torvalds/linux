@@ -22,6 +22,11 @@
 			  0xb0000000 0xb0000000 0x10000000
 			  0xd0000000 0xd0000000 0x30000000>;
 
+		pinmux@b4000000 {
+			compatible = "st,spear310-pinmux";
+			reg = <0xb4000000 0x1000>;
+		};
+
 		fsmc: flash@44000000 {
 			compatible = "st,spear600-fsmc-nand";
 			#address-cells = <1>;

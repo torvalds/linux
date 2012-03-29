@@ -13,6 +13,7 @@ config ARCH_SPEAR3XX
 	select ARM_VIC
 	select CPU_ARM926T
 	select USE_OF
+	select PINCTRL
 	help
 	  Supports for ARM's SPEAR3XX family
 
