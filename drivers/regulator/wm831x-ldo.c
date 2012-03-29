@@ -105,7 +105,7 @@ static int wm831x_gp_ldo_list_voltage(struct regulator_dev *rdev,
 	/* 0.9-1.6V in 50mV steps */
 	if (selector <= WM831X_GP_LDO_SELECTOR_LOW)
 		return 900000 + (selector * 50000);
-	/* 1.7-3.3V in 50mV steps */
+	/* 1.7-3.3V in 100mV steps */
 	if (selector <= WM831X_GP_LDO_MAX_SELECTOR)
 		return 1600000 + ((selector - WM831X_GP_LDO_SELECTOR_LOW)
 				  * 100000);
@@ -414,7 +414,7 @@ static int wm831x_aldo_list_voltage(struct regulator_dev *rdev,
 	/* 1-1.6V in 50mV steps */
 	if (selector <= WM831X_ALDO_SELECTOR_LOW)
 		return 1000000 + (selector * 50000);
-	/* 1.7-3.5V in 50mV steps */
+	/* 1.7-3.5V in 100mV steps */
 	if (selector <= WM831X_ALDO_MAX_SELECTOR)
 		return 1600000 + ((selector - WM831X_ALDO_SELECTOR_LOW)
 				  * 100000);
