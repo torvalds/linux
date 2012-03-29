@@ -4078,4 +4078,12 @@
 #define  DP_TP_CTL_LINK_TRAIN_PAT2		(1<<8)
 #define  DP_TP_CTL_LINK_TRAIN_NORMAL	(3<<8)
 
+/* DisplayPort Transport Status */
+#define DP_TP_STATUS_A			0x64044
+#define DP_TP_STATUS_B			0x64144
+#define DP_TP_STATUS(port) _PORT(port, \
+					DP_TP_STATUS_A, \
+					DP_TP_STATUS_B)
+#define  DP_TP_STATUS_AUTOTRAIN_DONE	(1<<12)
+
 #endif /* _I915_REG_H_ */
