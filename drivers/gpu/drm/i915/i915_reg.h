@@ -4128,4 +4128,10 @@
 #define  SBI_RESPONSE_SUCCESS	(0x0<<1)
 #define  SBI_BUSY				(0x1<<0)
 #define  SBI_READY				(0x0<<0)
+
+/* LPT PIXCLK_GATE */
+#define PIXCLK_GATE				0xC6020
+#define  PIXCLK_GATE_UNGATE		1<<0
+#define  PIXCLK_GATE_GATE		0<<0
+
 #endif /* _I915_REG_H_ */
