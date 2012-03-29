@@ -4062,4 +4062,20 @@
 #define  PIPE_DDI_PORT_WIDTH_X2			(1<<1)
 #define  PIPE_DDI_PORT_WIDTH_X4			(3<<1)
 
+/* DisplayPort Transport Control */
+#define DP_TP_CTL_A			0x64040
+#define DP_TP_CTL_B			0x64140
+#define DP_TP_CTL(port) _PORT(port, \
+					DP_TP_CTL_A, \
+					DP_TP_CTL_B)
+#define  DP_TP_CTL_ENABLE		(1<<31)
+#define  DP_TP_CTL_MODE_SST	(0<<27)
+#define  DP_TP_CTL_MODE_MST	(1<<27)
+#define  DP_TP_CTL_ENHANCED_FRAME_ENABLE	(1<<18)
+#define  DP_TP_CTL_FDI_AUTOTRAIN	(1<<15)
+#define  DP_TP_CTL_LINK_TRAIN_MASK		(7<<8)
+#define  DP_TP_CTL_LINK_TRAIN_PAT1		(0<<8)
+#define  DP_TP_CTL_LINK_TRAIN_PAT2		(1<<8)
+#define  DP_TP_CTL_LINK_TRAIN_NORMAL	(3<<8)
+
 #endif /* _I915_REG_H_ */
