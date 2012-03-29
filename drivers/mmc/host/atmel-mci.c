@@ -1975,7 +1975,7 @@ static bool atmci_configure_dma(struct atmel_mci *host)
 		return false;
 	} else {
 		dev_info(&host->pdev->dev,
-					"Using %s for DMA transfers\n",
+					"using %s for DMA transfers\n",
 					dma_chan_name(host->dma.chan));
 		return true;
 	}

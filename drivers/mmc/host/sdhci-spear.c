@@ -300,20 +300,15 @@ static int sdhci_resume(struct device *dev)
 
 	return sdhci_resume_host(host);
 }
-
-const struct dev_pm_ops sdhci_pm_ops = {
-	.suspend	= sdhci_suspend,
-	.resume		= sdhci_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(sdhci_pm_ops, sdhci_suspend, sdhci_resume);
 
 static struct platform_driver sdhci_driver = {
 	.driver = {
 		.name	= "sdhci",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &sdhci_pm_ops,
-#endif
 	},
 	.probe		= sdhci_probe,
 	.remove		= __devexit_p(sdhci_remove),
