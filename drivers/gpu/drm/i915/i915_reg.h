@@ -4109,4 +4109,11 @@
 #define  DDI_PORT_WIDTH_X4				(3<<1)
 #define  DDI_INIT_DISPLAY_DETECTED		(1<<0)
 
+/* DDI Buffer Translations */
+#define DDI_BUF_TRANS_A				0x64E00
+#define DDI_BUF_TRANS_B				0x64E60
+#define DDI_BUF_TRANS(port) _PORT(port, \
+					DDI_BUF_TRANS_A, \
+					DDI_BUF_TRANS_B)
+
 #endif /* _I915_REG_H_ */
