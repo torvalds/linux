@@ -1488,6 +1488,20 @@ static const struct intel_gtt_driver_description {
 	    "Ivybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_VALLEYVIEW_IG,
 	    "ValleyView", &valleyview_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT1_IG,
+	    "Haswell", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_D_GT2_IG,
+	    "Haswell", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT1_IG,
+	    "Haswell", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_M_GT2_IG,
+	    "Haswell", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT1_IG,
+	    "Haswell", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_S_GT2_IG,
+	    "Haswell", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_HASWELL_SDV,
+	    "Haswell", &sandybridge_gtt_driver },
 	{ 0, NULL, NULL }
 };
 
