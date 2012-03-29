@@ -109,7 +109,7 @@ void finv_buffer_remote(void *buffer, size_t size, int hfh)
 
 	/* Figure out how far back we need to go. */
 	base = p - (step_size * (load_count - 2));
-	if ((long)base < (long)buffer)
+	if ((unsigned long)base < (unsigned long)buffer)
 		base = buffer;
 
 	/*
