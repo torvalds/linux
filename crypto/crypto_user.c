@@ -457,12 +457,20 @@ static int crypto_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	if ((type == (CRYPTO_MSG_GETALG - CRYPTO_MSG_BASE) &&
 	    (nlh->nlmsg_flags & NLM_F_DUMP))) {
+		struct crypto_alg *alg;
+		u16 dump_alloc = 0;
+
 		if (link->dump == NULL)
 			return -EINVAL;
+
+		list_for_each_entry(alg, &crypto_alg_list, cra_list)
+			dump_alloc += CRYPTO_REPORT_MAXSIZE;
+
 		{
 			struct netlink_dump_control c = {
 				.dump = link->dump,
 				.done = link->done,
+				.min_dump_alloc = dump_alloc,
 			};
 			return netlink_dump_start(crypto_nlsk, skb, nlh, &c);
 		}
