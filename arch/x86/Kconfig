@@ -2177,6 +2177,7 @@ config IA32_AOUT
 config COMPAT
 	def_bool y
 	depends on IA32_EMULATION
+	select ARCH_WANT_OLD_COMPAT_IPC
 
 config COMPAT_FOR_U64_ALIGNMENT
 	def_bool COMPAT
