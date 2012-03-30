@@ -1,0 +1,799 @@
+/*
+ * Afatech AF9035 DVB USB driver
+ *
+ * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
+ * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License along
+ *    with this program; if not, write to the Free Software Foundation, Inc.,
+ *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+#include "af9035.h"
+#include "af9033.h"
+#include "tua9001.h"
+
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+static DEFINE_MUTEX(af9035_usb_mutex);
+static struct config af9035_config;
+static struct dvb_usb_device_properties af9035_properties[1];
+static int af9035_properties_count = ARRAY_SIZE(af9035_properties);
+static struct af9033_config af9035_af9033_config[] = {
+	{
+		.ts_mode = AF9033_TS_MODE_USB,
+	}, {
+		.ts_mode = AF9033_TS_MODE_SERIAL,
+	}
+};
+
+static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
+{
+#define BUF_LEN 63
+#define REQ_HDR_LEN 4 /* send header size */
+#define ACK_HDR_LEN 3 /* rece header size */
+#define CHECKSUM_LEN 2
+#define USB_TIMEOUT 2000
+
+	int ret, i, act_len;
+	u8 buf[BUF_LEN];
+	u32 msg_len;
+	static u8 seq; /* packet sequence number */
+	u16 checksum = 0;
+
+	/* buffer overflow check */
+	if (req->wlen > (BUF_LEN - REQ_HDR_LEN - CHECKSUM_LEN) ||
+		req->rlen > (BUF_LEN - ACK_HDR_LEN - CHECKSUM_LEN)) {
+		pr_debug("%s: too much data wlen=%d rlen=%d\n", __func__,
+				req->wlen, req->rlen);
+		return -EINVAL;
+	}
+
+	if (mutex_lock_interruptible(&af9035_usb_mutex) < 0)
+		return -EAGAIN;
+
+	buf[0] = REQ_HDR_LEN + req->wlen + CHECKSUM_LEN - 1;
+	buf[1] = req->mbox;
+	buf[2] = req->cmd;
+	buf[3] = seq++;
+	if (req->wlen)
+		memcpy(&buf[4], req->wbuf, req->wlen);
+
+	/* calc and add checksum */
+	for (i = 1; i < buf[0]-1; i++) {
+		if (i % 2)
+			checksum += buf[i] << 8;
+		else
+			checksum += buf[i];
+	}
+	checksum = ~checksum;
+
+	buf[buf[0]-1] = (checksum >> 8);
+	buf[buf[0]-0] = (checksum & 0xff);
+
+	msg_len = REQ_HDR_LEN + req->wlen + CHECKSUM_LEN ;
+
+	/* send req */
+	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 0x02), buf, msg_len,
+		&act_len, USB_TIMEOUT);
+	if (ret < 0)
+		err("bulk message failed=%d (%d/%d)", ret, msg_len, act_len);
+	else
+		if (act_len != msg_len)
+			ret = -EIO; /* all data is not send */
+	if (ret < 0)
+		goto err_mutex_unlock;
+
+	/* no ack for those packets */
+	if (req->cmd == CMD_FW_DL)
+		goto exit_mutex_unlock;
+
+	/* receive ack and data if read req */
+	msg_len = ACK_HDR_LEN + req->rlen + CHECKSUM_LEN;
+	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, 0x81), buf, msg_len,
+		&act_len, USB_TIMEOUT);
+	if (ret < 0) {
+		err("recv bulk message failed=%d", ret);
+		ret = -EIO;
+		goto err_mutex_unlock;
+	}
+
+	/* check status */
+	if (buf[2]) {
+		pr_debug("%s: command=%02x failed fw error=%d\n", __func__,
+				req->cmd, buf[2]);
+		ret = -EIO;
+		goto err_mutex_unlock;
+	}
+
+	/* read request, copy returned data to return buf */
+	if (req->rlen)
+		memcpy(req->rbuf, &buf[ACK_HDR_LEN], req->rlen);
+
+err_mutex_unlock:
+exit_mutex_unlock:
+	mutex_unlock(&af9035_usb_mutex);
+
+	return ret;
+}
+
+/* write multiple registers */
+static int af9035_wr_regs(struct dvb_usb_device *d, u32 reg, u8 *val, int len)
+{
+	u8 wbuf[6 + len];
+	u8 mbox = (reg >> 16) & 0xff;
+	struct usb_req req = { CMD_MEM_WR, mbox, sizeof(wbuf), wbuf, 0, NULL };
+
+	wbuf[0] = len;
+	wbuf[1] = 2;
+	wbuf[2] = 0;
+	wbuf[3] = 0;
+	wbuf[4] = (reg >> 8) & 0xff;
+	wbuf[5] = (reg >> 0) & 0xff;
+	memcpy(&wbuf[6], val, len);
+
+	return af9035_ctrl_msg(d->udev, &req);
+}
+
+/* read multiple registers */
+static int af9035_rd_regs(struct dvb_usb_device *d, u32 reg, u8 *val, int len)
+{
+	u8 wbuf[] = { len, 2, 0, 0, (reg >> 8) & 0xff, reg & 0xff };
+	u8 mbox = (reg >> 16) & 0xff;
+	struct usb_req req = { CMD_MEM_RD, mbox, sizeof(wbuf), wbuf, len, val };
+
+	return af9035_ctrl_msg(d->udev, &req);
+}
+
+/* write single register */
+static int af9035_wr_reg(struct dvb_usb_device *d, u32 reg, u8 val)
+{
+	return af9035_wr_regs(d, reg, &val, 1);
+}
+
+/* read single register */
+static int af9035_rd_reg(struct dvb_usb_device *d, u32 reg, u8 *val)
+{
+	return af9035_rd_regs(d, reg, val, 1);
+}
+
+/* write single register with mask */
+static int af9035_wr_reg_mask(struct dvb_usb_device *d, u32 reg, u8 val,
+		u8 mask)
+{
+	int ret;
+	u8 tmp;
+
+	/* no need for read if whole reg is written */
+	if (mask != 0xff) {
+		ret = af9035_rd_regs(d, reg, &tmp, 1);
+		if (ret)
+			return ret;
+
+		val &= mask;
+		tmp &= ~mask;
+		val |= tmp;
+	}
+
+	return af9035_wr_regs(d, reg, &val, 1);
+}
+
+static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
+		struct i2c_msg msg[], int num)
+{
+	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	int ret;
+
+	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
+		return -EAGAIN;
+
+	if (num == 2 && !(msg[0].flags & I2C_M_RD) &&
+			(msg[1].flags & I2C_M_RD)) {
+		if (msg[0].len > 40 || msg[1].len > 40) {
+			/* TODO: correct limits > 40 */
+			ret = -EOPNOTSUPP;
+		} else if (msg[0].addr == af9035_af9033_config[0].i2c_addr) {
+			/* integrated demod */
+			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
+					msg[0].buf[2];
+			ret = af9035_rd_regs(d, reg, &msg[1].buf[0],
+					msg[1].len);
+		} else {
+			/* I2C */
+#if 0
+			/*
+			 * FIXME: Keep that code. It should work but as it is
+			 * not tested I left it disabled and return -EOPNOTSUPP
+			 * for the sure.
+			 */
+			u8 buf[4 + msg[0].len];
+			struct usb_req req = { CMD_I2C_RD, 0, sizeof(buf),
+					buf, msg[1].len, msg[1].buf };
+			buf[0] = msg[0].len;
+			buf[1] = msg[0].addr << 1;
+			buf[2] = 0x01;
+			buf[3] = 0x00;
+			memcpy(&buf[4], msg[0].buf, msg[0].len);
+			ret = af9035_ctrl_msg(d->udev, &req);
+#endif
+			pr_debug("%s: I2C operation not supported\n", __func__);
+			ret = -EOPNOTSUPP;
+		}
+	} else if (num == 1 && !(msg[0].flags & I2C_M_RD)) {
+		if (msg[0].len > 40) {
+			/* TODO: correct limits > 40 */
+			ret = -EOPNOTSUPP;
+		} else if (msg[0].addr == af9035_af9033_config[0].i2c_addr) {
+			/* integrated demod */
+			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
+					msg[0].buf[2];
+			ret = af9035_wr_regs(d, reg, &msg[0].buf[3],
+					msg[0].len - 3);
+		} else {
+			/* I2C */
+			u8 buf[4 + msg[0].len];
+			struct usb_req req = { CMD_I2C_WR, 0, sizeof(buf), buf,
+					0, NULL };
+			buf[0] = msg[0].len;
+			buf[1] = msg[0].addr << 1;
+			buf[2] = 0x01;
+			buf[3] = 0x00;
+			memcpy(&buf[4], msg[0].buf, msg[0].len);
+			ret = af9035_ctrl_msg(d->udev, &req);
+		}
+	} else {
+		/*
+		 * We support only two kind of I2C transactions:
+		 * 1) 1 x read + 1 x write
+		 * 2) 1 x write
+		 */
+		ret = -EOPNOTSUPP;
+	}
+
+	mutex_unlock(&d->i2c_mutex);
+
+	if (ret < 0)
+		return ret;
+	else
+		return num;
+}
+
+static u32 af9035_i2c_functionality(struct i2c_adapter *adapter)
+{
+	return I2C_FUNC_I2C;
+}
+
+static struct i2c_algorithm af9035_i2c_algo = {
+	.master_xfer = af9035_i2c_master_xfer,
+	.functionality = af9035_i2c_functionality,
+};
+
+static int af9035_init(struct dvb_usb_device *d)
+{
+	int ret, i;
+	u16 frame_size = 87 * 188 / 4;
+	u8  packet_size = 512 / 4;
+	struct reg_val_mask tab[] = {
+		{ 0x80f99d, 0x01, 0x01 },
+		{ 0x80f9a4, 0x01, 0x01 },
+		{ 0x00dd11, 0x00, 0x20 },
+		{ 0x00dd11, 0x00, 0x40 },
+		{ 0x00dd13, 0x00, 0x20 },
+		{ 0x00dd13, 0x00, 0x40 },
+		{ 0x00dd11, 0x20, 0x20 },
+		{ 0x00dd88, (frame_size >> 0) & 0xff, 0xff},
+		{ 0x00dd89, (frame_size >> 8) & 0xff, 0xff},
+		{ 0x00dd0c, packet_size, 0xff},
+		{ 0x00dd11, af9035_config.dual_mode << 6, 0x40 },
+		{ 0x00dd8a, (frame_size >> 0) & 0xff, 0xff},
+		{ 0x00dd8b, (frame_size >> 8) & 0xff, 0xff},
+		{ 0x00dd0d, packet_size, 0xff },
+		{ 0x80f9a3, 0x00, 0x01 },
+		{ 0x80f9cd, 0x00, 0x01 },
+		{ 0x80f99d, 0x00, 0x01 },
+		{ 0x80f9a4, 0x00, 0x01 },
+	};
+
+	pr_debug("%s: USB speed=%d frame_size=%04x packet_size=%02x\n",
+		__func__, d->udev->speed, frame_size, packet_size);
+
+	/* init endpoints */
+	for (i = 0; i < ARRAY_SIZE(tab); i++) {
+		ret = af9035_wr_reg_mask(d, tab[i].reg, tab[i].val,
+				tab[i].mask);
+		if (ret < 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+static int af9035_identify_state(struct usb_device *udev,
+		struct dvb_usb_device_properties *props,
+		struct dvb_usb_device_description **desc,
+		int *cold)
+{
+	int ret;
+	u8 wbuf[1] = { 1 };
+	u8 rbuf[4];
+	struct usb_req req = { CMD_FW_QUERYINFO, 0, sizeof(wbuf), wbuf,
+			sizeof(rbuf), rbuf };
+
+	ret = af9035_ctrl_msg(udev, &req);
+	if (ret < 0)
+		goto err;
+
+	pr_debug("%s: reply=%02x %02x %02x %02x\n", __func__,
+		rbuf[0], rbuf[1], rbuf[2], rbuf[3]);
+	if (rbuf[0] || rbuf[1] || rbuf[2] || rbuf[3])
+		*cold = 0;
+	else
+		*cold = 1;
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+static int af9035_download_firmware(struct usb_device *udev,
+		const struct firmware *fw)
+{
+	u8 *fw_data_ptr = (u8 *) fw->data;
+	int i, j, len, packets, remainder, ret;
+	u8 wbuf[1];
+	u8 rbuf[4];
+	struct fw_header fw_hdr;
+	struct usb_req req = { 0, 0, 0, NULL, 0, NULL };
+	struct usb_req req_fw_dl = { CMD_FW_DL, 0, 0, wbuf, 0, NULL };
+	struct usb_req req_fw_ver = { CMD_FW_QUERYINFO, 0, 1, wbuf, 4, rbuf } ;
+
+	/* read firmware segment info from beginning of the firmware file */
+	fw_hdr.segment_count = *fw_data_ptr++;
+	pr_debug("%s: fw segment count=%d\n", __func__, fw_hdr.segment_count);
+	if (fw_hdr.segment_count > SEGMENT_MAX_COUNT) {
+		pr_debug("%s: too big fw segmen count=%d\n", __func__,
+				fw_hdr.segment_count);
+		fw_hdr.segment_count = SEGMENT_MAX_COUNT;
+	}
+	for (i = 0; i < fw_hdr.segment_count; i++) {
+		fw_hdr.segment[i].type = (*fw_data_ptr++);
+		fw_hdr.segment[i].len  = (*fw_data_ptr++) << 24;
+		fw_hdr.segment[i].len += (*fw_data_ptr++) << 16;
+		fw_hdr.segment[i].len += (*fw_data_ptr++) <<  8;
+		fw_hdr.segment[i].len += (*fw_data_ptr++) <<  0;
+		pr_debug("%s: fw segment type=%d len=%d\n", __func__,
+			fw_hdr.segment[i].type, fw_hdr.segment[i].len);
+	}
+
+	#define FW_PACKET_MAX_DATA 57 /* 63-4-2, packet_size-header-checksum */
+
+	/* download all segments */
+	for (i = 0; i < fw_hdr.segment_count; i++) {
+		pr_debug("%s: segment type=%d\n", __func__,
+			fw_hdr.segment[i].type);
+		if (fw_hdr.segment[i].type == SEGMENT_FW_DL) {
+			/* download begin packet */
+			req.cmd = CMD_FW_DL_BEGIN;
+			ret = af9035_ctrl_msg(udev, &req);
+			if (ret < 0) {
+				pr_debug("%s: fw dl failed=%d\n", __func__,
+					ret);
+				goto err;
+			}
+
+			packets = fw_hdr.segment[i].len / FW_PACKET_MAX_DATA;
+			remainder = fw_hdr.segment[i].len % FW_PACKET_MAX_DATA;
+			len = FW_PACKET_MAX_DATA;
+			for (j = 0; j <= packets; j++) {
+				if (j == packets)  /* size of the last packet */
+					len = remainder;
+
+				req_fw_dl.wlen = len;
+				req_fw_dl.wbuf = fw_data_ptr;
+				ret = af9035_ctrl_msg(udev, &req_fw_dl);
+				if (ret < 0) {
+					pr_debug("%s: fw dl failed=%d " \
+							"segment=%d " \
+							"packet=%d\n",
+							__func__, ret, i, j);
+					goto err;
+				}
+				fw_data_ptr += len;
+			}
+			/* download end packet */
+			req.cmd = CMD_FW_DL_END;
+			ret = af9035_ctrl_msg(udev, &req);
+			if (ret < 0) {
+				pr_debug("%s: fw dl failed=%d\n", __func__,
+					ret);
+				goto err;
+			}
+		} else {
+			pr_debug("%s: segment type=%d not implemented\n",
+				__func__, fw_hdr.segment[i].type);
+		}
+	}
+
+	/* firmware loaded, request boot */
+	req.cmd = CMD_FW_BOOT;
+	ret = af9035_ctrl_msg(udev, &req);
+	if (ret < 0)
+		goto err;
+
+	/* ensure firmware starts */
+	wbuf[0] = 1;
+	ret = af9035_ctrl_msg(udev, &req_fw_ver);
+	if (ret < 0)
+		goto err;
+
+	pr_debug("%s: reply=%02x %02x %02x %02x\n", __func__,
+		rbuf[0], rbuf[1], rbuf[2], rbuf[3]);
+
+	if (!(rbuf[0] || rbuf[1] || rbuf[2] || rbuf[3])) {
+		pr_debug("%s: fw did not run\n", __func__);
+		ret = -ENODEV;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+/* abuse that callback as there is no better one for reading eeprom */
+static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
+{
+	int ret, i, eeprom_shift = 0;
+	u8 tmp;
+	u16 tmp16;
+
+	/* check if there is dual tuners */
+	ret = af9035_rd_reg(d, EEPROM_DUAL_MODE, &tmp);
+	if (ret < 0)
+		goto err;
+
+	af9035_config.dual_mode = tmp;
+	pr_debug("%s: dual mode=%d\n", __func__, af9035_config.dual_mode);
+
+	for (i = 0; i < af9035_properties[0].num_adapters; i++) {
+		/* tuner */
+		ret = af9035_rd_reg(d, EEPROM_1_TUNER_ID + eeprom_shift, &tmp);
+		if (ret < 0)
+			goto err;
+
+		af9035_af9033_config[i].tuner = tmp;
+		pr_debug("%s: [%d]tuner=%02x\n", __func__, i, tmp);
+
+		switch (tmp) {
+		case AF9033_TUNER_TUA9001:
+			af9035_af9033_config[i].spec_inv = 1;
+			break;
+		default:
+			warn("tuner ID=%20x not supported, please report!",
+				tmp);
+			ret = -ENODEV;
+			goto err;
+		};
+
+		/* tuner IF frequency */
+		ret = af9035_rd_reg(d, EEPROM_1_IFFREQ_L + eeprom_shift, &tmp);
+		if (ret < 0)
+			goto err;
+
+		tmp16 = tmp;
+
+		ret = af9035_rd_reg(d, EEPROM_1_IFFREQ_H + eeprom_shift, &tmp);
+		if (ret < 0)
+			goto err;
+
+		tmp16 |= tmp << 8;
+
+		pr_debug("%s: [%d]IF=%d\n", __func__, i, tmp16);
+
+		eeprom_shift = 0x10; /* shift for the 2nd tuner params */
+	}
+
+	/* get demod clock */
+	ret = af9035_rd_reg(d, 0x00d800, &tmp);
+	if (ret < 0)
+		goto err;
+
+	tmp = (tmp >> 0) & 0x0f;
+
+	for (i = 0; i < af9035_properties[0].num_adapters; i++)
+		af9035_af9033_config[i].clock = clock_lut[tmp];
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
+{
+	int ret;
+
+	if (adap->id == 0) {
+		ret = af9035_wr_reg(adap->dev, 0x00417f,
+				af9035_af9033_config[1].i2c_addr);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg(adap->dev, 0x00d81a,
+				af9035_config.dual_mode);
+		if (ret < 0)
+			goto err;
+	}
+
+	/* attach demodulator */
+	adap->fe_adap[0].fe = dvb_attach(af9033_attach,
+			&af9035_af9033_config[adap->id], &adap->dev->i2c_adap);
+	if (adap->fe_adap[0].fe == NULL) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+static struct tua9001_config af9035_tua9001_config = {
+	.i2c_addr = 0x60,
+};
+
+static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
+{
+	int ret;
+	struct dvb_frontend *fe;
+
+	switch (af9035_af9033_config[adap->id].tuner) {
+	case AF9033_TUNER_TUA9001:
+		/* AF9035 gpiot3 = TUA9001 RESETN
+		   AF9035 gpiot2 = TUA9001 RXEN */
+
+		/* configure gpiot2 and gpiot2 as output */
+		ret = af9035_wr_reg_mask(adap->dev, 0x00d8ec, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(adap->dev, 0x00d8ed, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(adap->dev, 0x00d8e8, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(adap->dev, 0x00d8e9, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		/* reset tuner */
+		ret = af9035_wr_reg_mask(adap->dev, 0x00d8e7, 0x00, 0x01);
+		if (ret < 0)
+			goto err;
+
+		usleep_range(2000, 20000);
+
+		ret = af9035_wr_reg_mask(adap->dev, 0x00d8e7, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		/* activate tuner RX */
+		/* TODO: use callback for TUA9001 RXEN */
+		ret = af9035_wr_reg_mask(adap->dev, 0x00d8eb, 0x01, 0x01);
+		if (ret < 0)
+			goto err;
+
+		/* attach tuner */
+		fe = dvb_attach(tua9001_attach, adap->fe_adap[0].fe,
+				&adap->dev->i2c_adap, &af9035_tua9001_config);
+		break;
+	default:
+		fe = NULL;
+	}
+
+	if (fe == NULL) {
+		ret = -ENODEV;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+enum af9035_id_entry {
+	AF9035_0CCD_0093,
+};
+
+static struct usb_device_id af9035_id[] = {
+	[AF9035_0CCD_0093] = {
+		USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T_STICK)},
+	{},
+};
+
+MODULE_DEVICE_TABLE(usb, af9035_id);
+
+static struct dvb_usb_device_properties af9035_properties[] = {
+	{
+		.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+		.usb_ctrl = DEVICE_SPECIFIC,
+		.download_firmware = af9035_download_firmware,
+		.firmware = "dvb-usb-af9035-01.fw",
+		.no_reconnect = 1,
+
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.num_frontends = 1,
+				.fe = {
+					{
+						.frontend_attach = af9035_frontend_attach,
+						.tuner_attach = af9035_tuner_attach,
+						.stream = {
+							.type = USB_BULK,
+							.count = 6,
+							.endpoint = 0x84,
+							.u = {
+								.bulk = {
+									.buffersize = (87 * 188),
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+
+		.identify_state = af9035_identify_state,
+		.read_mac_address = af9035_read_mac_address,
+
+		.i2c_algo = &af9035_i2c_algo,
+
+		.num_device_descs = 1,
+		.devices = {
+			{
+				.name = "TerraTec Cinergy T Stick",
+				.cold_ids = {
+					&af9035_id[AF9035_0CCD_0093],
+				},
+			},
+		}
+	},
+};
+
+static int af9035_usb_probe(struct usb_interface *intf,
+			    const struct usb_device_id *id)
+{
+	int ret, i;
+	struct dvb_usb_device *d = NULL;
+	struct usb_device *udev;
+	bool found;
+
+	pr_debug("%s: interface=%d\n", __func__,
+			intf->cur_altsetting->desc.bInterfaceNumber);
+
+	/* interface 0 is used by DVB-T receiver and
+	   interface 1 is for remote controller (HID) */
+	if (intf->cur_altsetting->desc.bInterfaceNumber != 0)
+		return 0;
+
+	/* Dynamic USB ID support. Replaces first device ID with current one. */
+	udev = interface_to_usbdev(intf);
+
+	for (i = 0, found = false; i < ARRAY_SIZE(af9035_id) - 1; i++) {
+		if (af9035_id[i].idVendor ==
+				le16_to_cpu(udev->descriptor.idVendor) &&
+				af9035_id[i].idProduct ==
+				le16_to_cpu(udev->descriptor.idProduct)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found) {
+		pr_debug("%s: using dynamic ID %04x:%04x\n", __func__,
+				le16_to_cpu(udev->descriptor.idVendor),
+				le16_to_cpu(udev->descriptor.idProduct));
+		af9035_properties[0].devices[0].cold_ids[0]->idVendor =
+				le16_to_cpu(udev->descriptor.idVendor);
+		af9035_properties[0].devices[0].cold_ids[0]->idProduct =
+				le16_to_cpu(udev->descriptor.idProduct);
+	}
+
+
+	for (i = 0; i < af9035_properties_count; i++) {
+		ret = dvb_usb_device_init(intf, &af9035_properties[i],
+				THIS_MODULE, &d, adapter_nr);
+
+		if (ret == -ENODEV)
+			continue;
+		else
+			break;
+	}
+
+	if (ret < 0)
+		goto err;
+
+	if (d) {
+		ret = af9035_init(d);
+		if (ret < 0)
+			goto err;
+	}
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+/* usb specific object needed to register this driver with the usb subsystem */
+static struct usb_driver af9035_usb_driver = {
+	.name = "dvb_usb_af9035",
+	.probe = af9035_usb_probe,
+	.disconnect = dvb_usb_device_exit,
+	.id_table = af9035_id,
+};
+
+/* module stuff */
+static int __init af9035_usb_module_init(void)
+{
+	int ret;
+
+	ret = usb_register(&af9035_usb_driver);
+	if (ret < 0)
+		goto err;
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+static void __exit af9035_usb_module_exit(void)
+{
+	/* deregister this driver from the USB subsystem */
+	usb_deregister(&af9035_usb_driver);
+}
+
+module_init(af9035_usb_module_init);
+module_exit(af9035_usb_module_exit);
+
+MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
+MODULE_DESCRIPTION("Afatech AF9035 driver");
+MODULE_LICENSE("GPL");
