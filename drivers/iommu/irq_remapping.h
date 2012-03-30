@@ -19,8 +19,8 @@
  * remapping drivers but with no need to be visible outside of the IOMMU layer.
  */
 
-#ifndef __INTR_REMAPPING_H
-#define __INTR_REMAPPING_H
+#ifndef __IRQ_REMAPPING_H
+#define __IRQ_REMAPPING_H
 
 #ifdef CONFIG_IRQ_REMAP
 
@@ -85,4 +85,4 @@ extern struct irq_remap_ops intel_irq_remap_ops;
 
 #endif /* CONFIG_IRQ_REMAP */
 
-#endif /* __INTR_REMAPPING_H */
+#endif /* __IRQ_REMAPPING_H */

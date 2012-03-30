@@ -2,7 +2,7 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 
-#include "intr_remapping.h"
+#include "irq_remapping.h"
 
 int irq_remapping_enabled;
 

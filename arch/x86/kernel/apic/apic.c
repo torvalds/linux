@@ -35,7 +35,7 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 
-#include <asm/intr_remapping.h>
+#include <asm/irq_remapping.h>
 #include <asm/perf_event.h>
 #include <asm/x86_init.h>
 #include <asm/pgalloc.h>

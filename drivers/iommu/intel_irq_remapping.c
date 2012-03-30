@@ -11,11 +11,11 @@
 #include <asm/cpu.h>
 #include <linux/intel-iommu.h>
 #include <acpi/acpi.h>
-#include <asm/intr_remapping.h>
+#include <asm/irq_remapping.h>
 #include <asm/pci-direct.h>
 #include <asm/msidef.h>
 
-#include "intr_remapping.h"
+#include "irq_remapping.h"
 
 struct ioapic_scope {
 	struct intel_iommu *iommu;

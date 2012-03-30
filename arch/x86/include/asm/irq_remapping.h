@@ -19,8 +19,8 @@
  * the x86 interrupt management code.
  */
 
-#ifndef __X86_INTR_REMAPPING_H
-#define __X86_INTR_REMAPPING_H
+#ifndef __X86_IRQ_REMAPPING_H
+#define __X86_IRQ_REMAPPING_H
 
 #ifdef CONFIG_IRQ_REMAP
 
@@ -100,4 +100,4 @@ static inline int setup_hpet_msi_remapped(unsigned int irq, unsigned int id)
 }
 #endif /* CONFIG_IRQ_REMAP */
 
-#endif /* __X86_INTR_REMAPPING_H */
+#endif /* __X86_IRQ_REMAPPING_H */
