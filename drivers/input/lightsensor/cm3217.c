@@ -286,7 +286,7 @@ static int cm3217_probe(struct i2c_client *client, const struct i2c_device_id *i
 	set_bit(EV_ABS, cm3217->input->evbit);
 	/* light sensor data */
 	input_set_abs_params(cm3217->input, ABS_MISC, 0, 10, 0, 0);
-	cm3217->input->name = "lightsensor";
+	cm3217->input->name = "lightsensor-level";
 
 	err = input_register_device(cm3217->input);
 	if (err < 0) {

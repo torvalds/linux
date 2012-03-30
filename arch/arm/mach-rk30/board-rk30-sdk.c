@@ -1066,7 +1066,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 #if defined (CONFIG_LS_CM3217)
 	{
 		.type          = "lightsensor",
-		.addr          = 0x20,
+		.addr          = 0x10,
 		.flags         = 0,
 		.irq           = CM3217_IRQ_PIN,
 		.platform_data = &cm3217_info,
