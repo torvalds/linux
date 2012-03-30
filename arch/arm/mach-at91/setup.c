@@ -54,6 +54,7 @@ void __init at91_init_interrupts(unsigned int *priority)
 }
 
 void __iomem *at91_ramc_base[2];
+EXPORT_SYMBOL_GPL(at91_ramc_base);
 
 void __init at91_ioremap_ramc(int id, u32 addr, u32 size)
 {
