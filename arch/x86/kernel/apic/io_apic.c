@@ -57,6 +57,7 @@
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
 #include <asm/setup.h>
+#include <asm/intr_remapping.h>
 #include <asm/irq_remapping.h>
 #include <asm/hpet.h>
 #include <asm/hw_irq.h>

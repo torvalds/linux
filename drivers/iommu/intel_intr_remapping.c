@@ -11,7 +11,10 @@
 #include <asm/cpu.h>
 #include <linux/intel-iommu.h>
 #include <acpi/acpi.h>
+#include <asm/intr_remapping.h>
 #include <asm/pci-direct.h>
+
+#include "intr_remapping.h"
 
 struct ioapic_scope {
 	struct intel_iommu *iommu;
@@ -32,42 +35,6 @@ struct hpet_scope {
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static struct hpet_scope ir_hpet[MAX_HPET_TBS];
 static int ir_ioapic_num, ir_hpet_num;
-int intr_remapping_enabled;
-
-static int disable_intremap;
-static int disable_sourceid_checking;
-static int no_x2apic_optout;
-
-static __init int setup_nointremap(char *str)
-{
-	disable_intremap = 1;
-	return 0;
-}
-early_param("nointremap", setup_nointremap);
-
-static __init int setup_intremap(char *str)
-{
-	if (!str)
-		return -EINVAL;
-
-	while (*str) {
-		if (!strncmp(str, "on", 2))
-			disable_intremap = 0;
-		else if (!strncmp(str, "off", 3))
-			disable_intremap = 1;
-		else if (!strncmp(str, "nosid", 5))
-			disable_sourceid_checking = 1;
-		else if (!strncmp(str, "no_x2apic_optout", 16))
-			no_x2apic_optout = 1;
-
-		str += strcspn(str, ",");
-		while (*str == ',')
-			str++;
-	}
-
-	return 0;
-}
-early_param("intremap", setup_intremap);
 
 static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
 
@@ -465,7 +432,7 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 }
 
 
-static int setup_intr_remapping(struct intel_iommu *iommu, int mode)
+static int intel_setup_intr_remapping(struct intel_iommu *iommu, int mode)
 {
 	struct ir_table *ir_table;
 	struct page *pages;
@@ -534,7 +501,7 @@ static int __init dmar_x2apic_optout(void)
 	return dmar->flags & DMAR_X2APIC_OPT_OUT;
 }
 
-int __init intr_remapping_supported(void)
+static int __init intel_intr_remapping_supported(void)
 {
 	struct dmar_drhd_unit *drhd;
 
@@ -554,7 +521,7 @@ int __init intr_remapping_supported(void)
 	return 1;
 }
 
-int __init enable_intr_remapping(void)
+static int __init intel_enable_intr_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
@@ -638,7 +605,7 @@ int __init enable_intr_remapping(void)
 		if (!ecap_ir_support(iommu->ecap))
 			continue;
 
-		if (setup_intr_remapping(iommu, eim))
+		if (intel_setup_intr_remapping(iommu, eim))
 			goto error;
 
 		setup = 1;
@@ -847,3 +814,8 @@ error:
 	return -1;
 }
 
+struct irq_remap_ops intel_irq_remap_ops = {
+	.supported		= intel_intr_remapping_supported,
+	.hardware_init		= dmar_table_init,
+	.hardware_enable	= intel_enable_intr_remapping,
+};

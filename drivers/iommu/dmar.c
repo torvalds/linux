@@ -36,6 +36,7 @@
 #include <linux/tboot.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <asm/intr_remapping.h>
 #include <asm/iommu_table.h>
 
 #define PREFIX "DMAR: "
