@@ -1381,9 +1381,9 @@ static int setup_ioapic_entry(int irq, struct IO_APIC_route_entry *entry,
 			       unsigned int destination, int vector,
 			       struct io_apic_irq_attr *attr)
 {
-	if (intr_remapping_enabled)
-		return intr_setup_ioapic_entry(irq, entry, destination,
-					       vector, attr);
+	if (irq_remapping_enabled)
+		return setup_ioapic_remapped_entry(irq, entry, destination,
+						   vector, attr);
 
 	memset(entry, 0, sizeof(*entry));
 
@@ -1540,7 +1540,7 @@ static void __init setup_timer_IRQ0_pin(unsigned int ioapic_idx,
 {
 	struct IO_APIC_route_entry entry;
 
-	if (intr_remapping_enabled)
+	if (irq_remapping_enabled)
 		return;
 
 	memset(&entry, 0, sizeof(entry));
@@ -1626,7 +1626,7 @@ __apicdebuginit(void) print_IO_APIC(int ioapic_idx)
 
 	printk(KERN_DEBUG ".... IRQ redirection table:\n");
 
-	if (intr_remapping_enabled) {
+	if (irq_remapping_enabled) {
 		printk(KERN_DEBUG " NR Indx Fmt Mask Trig IRR"
 			" Pol Stat Indx2 Zero Vect:\n");
 	} else {
@@ -1635,7 +1635,7 @@ __apicdebuginit(void) print_IO_APIC(int ioapic_idx)
 	}
 
 	for (i = 0; i <= reg_01.bits.entries; i++) {
-		if (intr_remapping_enabled) {
+		if (irq_remapping_enabled) {
 			struct IO_APIC_route_entry entry;
 			struct IR_IO_APIC_route_entry *ir_entry;
 
@@ -2002,7 +2002,7 @@ void disable_IO_APIC(void)
 	 * IOAPIC RTE as well as interrupt-remapping table entry).
 	 * As this gets called during crash dump, keep this simple for now.
 	 */
-	if (ioapic_i8259.pin != -1 && !intr_remapping_enabled) {
+	if (ioapic_i8259.pin != -1 && !irq_remapping_enabled) {
 		struct IO_APIC_route_entry entry;
 
 		memset(&entry, 0, sizeof(entry));
@@ -2026,7 +2026,7 @@ void disable_IO_APIC(void)
 	 * Use virtual wire A mode when interrupt remapping is enabled.
 	 */
 	if (cpu_has_apic || apic_from_smp_config())
-		disconnect_bsp_APIC(!intr_remapping_enabled &&
+		disconnect_bsp_APIC(!irq_remapping_enabled &&
 				ioapic_i8259.pin != -1);
 }
 
@@ -2586,7 +2586,7 @@ static void irq_remap_modify_chip_defaults(struct irq_chip *chip)
 	chip->irq_eoi = ir_ack_apic_level;
 
 #ifdef CONFIG_SMP
-	chip->irq_set_affinity = intr_set_affinity;
+	chip->irq_set_affinity = set_remapped_irq_affinity;
 #endif
 }
 #endif /* CONFIG_IRQ_REMAP */
@@ -2799,7 +2799,7 @@ static inline void __init check_timer(void)
 	 * 8259A.
 	 */
 	if (pin1 == -1) {
-		if (intr_remapping_enabled)
+		if (irq_remapping_enabled)
 			panic("BIOS bug: timer not connected to IO-APIC");
 		pin1 = pin2;
 		apic1 = apic2;
@@ -2832,7 +2832,7 @@ static inline void __init check_timer(void)
 				clear_IO_APIC_pin(0, pin1);
 			goto out;
 		}
-		if (intr_remapping_enabled)
+		if (irq_remapping_enabled)
 			panic("timer doesn't work through Interrupt-remapped IO-APIC");
 		local_irq_disable();
 		clear_IO_APIC_pin(apic1, pin1);
@@ -3056,7 +3056,7 @@ void destroy_irq(unsigned int irq)
 	irq_set_status_flags(irq, IRQ_NOREQUEST|IRQ_NOPROBE);
 
 	if (irq_remapped(cfg))
-		intr_free_irq(irq);
+		free_remapped_irq(irq);
 	raw_spin_lock_irqsave(&vector_lock, flags);
 	__clear_irq_vector(irq, cfg);
 	raw_spin_unlock_irqrestore(&vector_lock, flags);
@@ -3085,7 +3085,7 @@ static int msi_compose_msg(struct pci_dev *pdev, unsigned int irq,
 	dest = apic->cpu_mask_to_apicid_and(cfg->domain, apic->target_cpus());
 
 	if (irq_remapped(cfg)) {
-		intr_compose_msi_msg(pdev, irq, dest, msg, hpet_id);
+		compose_remapped_msi_msg(pdev, irq, dest, msg, hpet_id);
 		return err;
 	}
 
@@ -3198,7 +3198,7 @@ int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 		if (irq == 0)
 			return -1;
 		irq_want = irq + 1;
-		if (!intr_remapping_enabled)
+		if (!irq_remapping_enabled)
 			goto no_ir;
 
 		if (!sub_handle) {
@@ -3206,13 +3206,14 @@ int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 			 * allocate the consecutive block of IRTE's
 			 * for 'nvec'
 			 */
-			index = intr_msi_alloc_irq(dev, irq, nvec);
+			index = msi_alloc_remapped_irq(dev, irq, nvec);
 			if (index < 0) {
 				ret = index;
 				goto error;
 			}
 		} else {
-			ret = intr_msi_setup_irq(dev, irq, index, sub_handle);
+			ret = msi_setup_remapped_irq(dev, irq, index,
+						     sub_handle);
 			if (ret < 0)
 				goto error;
 		}
@@ -3332,8 +3333,8 @@ int arch_setup_hpet_msi(unsigned int irq, unsigned int id)
 	struct msi_msg msg;
 	int ret;
 
-	if (intr_remapping_enabled) {
-		if (!intr_setup_hpet_msi(irq, id))
+	if (irq_remapping_enabled) {
+		if (!setup_hpet_msi_remapped(irq, id))
 			return -1;
 	}
 
@@ -3712,8 +3713,8 @@ void __init setup_ioapic_dest(void)
 		else
 			mask = apic->target_cpus();
 
-		if (intr_remapping_enabled)
-			intr_set_affinity(idata, mask, false);
+		if (irq_remapping_enabled)
+			set_remapped_irq_affinity(idata, mask, false);
 		else
 			ioapic_set_affinity(idata, mask, false);
 	}

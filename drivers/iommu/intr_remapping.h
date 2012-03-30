@@ -31,7 +31,7 @@ struct cpumask;
 struct pci_dev;
 struct msi_msg;
 
-extern int disable_intremap;
+extern int disable_irq_remap;
 extern int disable_sourceid_checking;
 extern int no_x2apic_optout;
 
@@ -40,16 +40,16 @@ struct irq_remap_ops {
 	int (*supported)(void);
 
 	/* Initializes hardware and makes it ready for remapping interrupts */
-	int  (*hardware_init)(void);
+	int  (*prepare)(void);
 
 	/* Enables the remapping hardware */
-	int  (*hardware_enable)(void);
+	int  (*enable)(void);
 
 	/* Disables the remapping hardware */
-	void (*hardware_disable)(void);
+	void (*disable)(void);
 
 	/* Reenables the remapping hardware */
-	int  (*hardware_reenable)(int);
+	int  (*reenable)(int);
 
 	/* Enable fault handling */
 	int  (*enable_faulting)(void);

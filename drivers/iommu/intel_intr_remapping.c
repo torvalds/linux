@@ -394,7 +394,7 @@ static int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	return 0;
 }
 
-static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
+static void iommu_set_irq_remapping(struct intel_iommu *iommu, int mode)
 {
 	u64 addr;
 	u32 sts;
@@ -434,7 +434,7 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 }
 
 
-static int intel_setup_intr_remapping(struct intel_iommu *iommu, int mode)
+static int intel_setup_irq_remapping(struct intel_iommu *iommu, int mode)
 {
 	struct ir_table *ir_table;
 	struct page *pages;
@@ -457,14 +457,14 @@ static int intel_setup_intr_remapping(struct intel_iommu *iommu, int mode)
 
 	ir_table->base = page_address(pages);
 
-	iommu_set_intr_remapping(iommu, mode);
+	iommu_set_irq_remapping(iommu, mode);
 	return 0;
 }
 
 /*
  * Disable Interrupt Remapping.
  */
-static void iommu_disable_intr_remapping(struct intel_iommu *iommu)
+static void iommu_disable_irq_remapping(struct intel_iommu *iommu)
 {
 	unsigned long flags;
 	u32 sts;
@@ -503,11 +503,11 @@ static int __init dmar_x2apic_optout(void)
 	return dmar->flags & DMAR_X2APIC_OPT_OUT;
 }
 
-static int __init intel_intr_remapping_supported(void)
+static int __init intel_irq_remapping_supported(void)
 {
 	struct dmar_drhd_unit *drhd;
 
-	if (disable_intremap)
+	if (disable_irq_remap)
 		return 0;
 
 	if (!dmar_ir_support())
@@ -523,7 +523,7 @@ static int __init intel_intr_remapping_supported(void)
 	return 1;
 }
 
-static int __init intel_enable_intr_remapping(void)
+static int __init intel_enable_irq_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
@@ -561,7 +561,7 @@ static int __init intel_enable_intr_remapping(void)
 		 * Disable intr remapping and queued invalidation, if already
 		 * enabled prior to OS handover.
 		 */
-		iommu_disable_intr_remapping(iommu);
+		iommu_disable_irq_remapping(iommu);
 
 		dmar_disable_qi(iommu);
 	}
@@ -607,7 +607,7 @@ static int __init intel_enable_intr_remapping(void)
 		if (!ecap_ir_support(iommu->ecap))
 			continue;
 
-		if (intel_setup_intr_remapping(iommu, eim))
+		if (intel_setup_irq_remapping(iommu, eim))
 			goto error;
 
 		setup = 1;
@@ -616,7 +616,7 @@ static int __init intel_enable_intr_remapping(void)
 	if (!setup)
 		goto error;
 
-	intr_remapping_enabled = 1;
+	irq_remapping_enabled = 1;
 	pr_info("Enabled IRQ remapping in %s mode\n", eim ? "x2apic" : "xapic");
 
 	return eim ? IRQ_REMAP_X2APIC_MODE : IRQ_REMAP_XAPIC_MODE;
@@ -759,14 +759,14 @@ int __init parse_ioapics_under_ir(void)
 
 int __init ir_dev_scope_init(void)
 {
-	if (!intr_remapping_enabled)
+	if (!irq_remapping_enabled)
 		return 0;
 
 	return dmar_dev_scope_init();
 }
 rootfs_initcall(ir_dev_scope_init);
 
-static void disable_intr_remapping(void)
+static void disable_irq_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu = NULL;
@@ -778,11 +778,11 @@ static void disable_intr_remapping(void)
 		if (!ecap_ir_support(iommu->ecap))
 			continue;
 
-		iommu_disable_intr_remapping(iommu);
+		iommu_disable_irq_remapping(iommu);
 	}
 }
 
-static int reenable_intr_remapping(int eim)
+static int reenable_irq_remapping(int eim)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
@@ -800,7 +800,7 @@ static int reenable_intr_remapping(int eim)
 			continue;
 
 		/* Set up interrupt remapping for iommu.*/
-		iommu_set_intr_remapping(iommu, eim);
+		iommu_set_irq_remapping(iommu, eim);
 		setup = 1;
 	}
 
@@ -1049,11 +1049,11 @@ static int intel_setup_hpet_msi(unsigned int irq, unsigned int id)
 }
 
 struct irq_remap_ops intel_irq_remap_ops = {
-	.supported		= intel_intr_remapping_supported,
-	.hardware_init		= dmar_table_init,
-	.hardware_enable	= intel_enable_intr_remapping,
-	.hardware_disable	= disable_intr_remapping,
-	.hardware_reenable	= reenable_intr_remapping,
+	.supported		= intel_irq_remapping_supported,
+	.prepare		= dmar_table_init,
+	.enable			= intel_enable_irq_remapping,
+	.disable		= disable_irq_remapping,
+	.reenable		= reenable_irq_remapping,
 	.enable_faulting	= enable_drhd_fault_handling,
 	.setup_ioapic_entry	= intel_setup_ioapic_entry,
 	.set_affinity		= intel_ioapic_set_affinity,
