@@ -2978,7 +2978,7 @@ int mgmt_new_ltk(struct hci_dev *hdev, struct smp_ltk *key, u8 persistent)
 
 	ev.store_hint = persistent;
 	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
-	ev.key.addr.type = key->bdaddr_type;
+	ev.key.addr.type = link_to_mgmt(LE_LINK, key->bdaddr_type);
 	ev.key.authenticated = key->authenticated;
 	ev.key.enc_size = key->enc_size;
 	ev.key.ediv = key->ediv;
