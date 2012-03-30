@@ -94,7 +94,7 @@ struct tegra_das {
  * DAS: Digital audio switch (HW module controlled by this driver)
  * DAP: Digital audio port (port/pins on Tegra device)
  * DAC: Digital audio controller (e.g. I2S or AC97 controller elsewhere)
- * 
+ *
  * The Tegra DAS is a mux/cross-bar which can connect each DAP to a specific
  * DAC, or another DAP. When DAPs are connected, one must be the master and
  * one the slave. Each DAC allows selection of a specific DAP for input, to

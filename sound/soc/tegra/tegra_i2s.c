@@ -144,7 +144,7 @@ static int tegra_i2s_set_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	i2s->reg_ctrl &= ~(TEGRA_I2S_CTRL_BIT_FORMAT_MASK | 
+	i2s->reg_ctrl &= ~(TEGRA_I2S_CTRL_BIT_FORMAT_MASK |
 				TEGRA_I2S_CTRL_LRCK_MASK);
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
@@ -178,7 +178,7 @@ static int tegra_i2s_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-        struct device *dev = substream->pcm->card->dev;
+	struct device *dev = substream->pcm->card->dev;
 	struct tegra_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	u32 reg;
 	int ret, sample_size, srate, i2sclock, bitcnt;
@@ -296,7 +296,7 @@ static int tegra_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 
 static int tegra_i2s_probe(struct snd_soc_dai *dai)
 {
-	struct tegra_i2s * i2s = snd_soc_dai_get_drvdata(dai);
+	struct tegra_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	dai->capture_dma_data = &i2s->capture_dma_data;
 	dai->playback_dma_data = &i2s->playback_dma_data;
@@ -330,7 +330,7 @@ static const struct snd_soc_dai_driver tegra_i2s_dai_template = {
 
 static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 {
-	struct tegra_i2s * i2s;
+	struct tegra_i2s *i2s;
 	struct resource *mem, *memregion, *dmareq;
 	u32 of_dma[2];
 	u32 dma_ch;
