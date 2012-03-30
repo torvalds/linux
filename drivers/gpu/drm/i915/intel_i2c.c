@@ -204,8 +204,7 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 }
 
 static int
-gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
-		bool last)
+gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 {
 	int reg_offset = dev_priv->gpio_mmio_base;
 	u16 len = msg->len;
@@ -213,7 +212,6 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 
 	I915_WRITE(GMBUS1 + reg_offset,
 		   GMBUS_CYCLE_WAIT |
-		   (last ? GMBUS_CYCLE_STOP : 0) |
 		   (len << GMBUS_BYTE_COUNT_SHIFT) |
 		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		   GMBUS_SLAVE_READ | GMBUS_SW_RDY);
@@ -239,8 +237,7 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 }
 
 static int
-gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
-		bool last)
+gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 {
 	int reg_offset = dev_priv->gpio_mmio_base;
 	u16 len = msg->len;
@@ -256,7 +253,6 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	I915_WRITE(GMBUS3 + reg_offset, val);
 	I915_WRITE(GMBUS1 + reg_offset,
 		   GMBUS_CYCLE_WAIT |
-		   (last ? GMBUS_CYCLE_STOP : 0) |
 		   (msg->len << GMBUS_BYTE_COUNT_SHIFT) |
 		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		   GMBUS_SLAVE_WRITE | GMBUS_SW_RDY);
@@ -289,7 +285,8 @@ gmbus_xfer(struct i2c_adapter *adapter,
 					       struct intel_gmbus,
 					       adapter);
 	struct drm_i915_private *dev_priv = bus->dev_priv;
-	int i, reg_offset, ret;
+	int i, reg_offset;
+	int ret = 0;
 
 	mutex_lock(&dev_priv->gmbus_mutex);
 
@@ -303,20 +300,17 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
 	for (i = 0; i < num; i++) {
-		bool last = i + 1 == num;
-
 		if (msgs[i].flags & I2C_M_RD)
-			ret = gmbus_xfer_read(dev_priv, &msgs[i], last);
+			ret = gmbus_xfer_read(dev_priv, &msgs[i]);
 		else
-			ret = gmbus_xfer_write(dev_priv, &msgs[i], last);
+			ret = gmbus_xfer_write(dev_priv, &msgs[i]);
 
 		if (ret == -ETIMEDOUT)
 			goto timeout;
 		if (ret == -ENXIO)
 			goto clear_err;
 
-		if (!last &&
-		    wait_for(I915_READ(GMBUS2 + reg_offset) &
+		if (wait_for(I915_READ(GMBUS2 + reg_offset) &
 			     (GMBUS_SATOER | GMBUS_HW_WAIT_PHASE),
 			     50))
 			goto timeout;
@@ -324,15 +318,24 @@ gmbus_xfer(struct i2c_adapter *adapter,
 			goto clear_err;
 	}
 
+	/* Generate a STOP condition on the bus. Note that gmbus can't generata
+	 * a STOP on the very first cycle. To simplify the code we
+	 * unconditionally generate the STOP condition with an additional gmbus
+	 * cycle. */
+	I915_WRITE(GMBUS1 + reg_offset, GMBUS_CYCLE_STOP | GMBUS_SW_RDY);
+
 	/* Mark the GMBUS interface as disabled after waiting for idle.
 	 * We will re-enable it at the start of the next xfer,
 	 * till then let it sleep.
 	 */
-	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0, 10))
+	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
+		     10)) {
 		DRM_INFO("GMBUS [%s] timed out waiting for idle\n",
 			 adapter->name);
+		ret = -ETIMEDOUT;
+	}
 	I915_WRITE(GMBUS0 + reg_offset, 0);
-	ret = i;
+	ret = ret ?: i;
 	goto out;
 
 clear_err:
