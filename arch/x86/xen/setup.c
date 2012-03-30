@@ -114,8 +114,9 @@ static unsigned long __init xen_release_chunk(unsigned long start,
 			len++;
 		}
 	}
-	printk(KERN_INFO "Freeing  %lx-%lx pfn range: %lu pages freed\n",
-	       start, end, len);
+	if (len)
+		printk(KERN_INFO "Freeing  %lx-%lx pfn range: %lu pages freed\n",
+		       start, end, len);
 
 	return len;
 }
@@ -162,8 +163,10 @@ static unsigned long __init xen_set_identity_and_release(
 		}
 	}
 
-	printk(KERN_INFO "Released %lu pages of unused memory\n", released);
-	printk(KERN_INFO "Set %ld page(s) to 1-1 mapping\n", identity);
+	if (released)
+		printk(KERN_INFO "Released %lu pages of unused memory\n", released);
+	if (identity)
+		printk(KERN_INFO "Set %ld page(s) to 1-1 mapping\n", identity);
 
 	return released;
 }
