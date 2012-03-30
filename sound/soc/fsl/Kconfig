@@ -16,10 +16,6 @@ if SND_POWERPC_SOC
 config SND_MPC52xx_DMA
 	tristate
 
-config SND_SOC_FSL_SSI
-	tristate
-	depends on FSL_SOC
-
 config SND_SOC_POWERPC_DMA
 	tristate
 	depends on FSL_SOC
