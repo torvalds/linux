@@ -12,6 +12,8 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/fiq.h>
+#include <mach/pmu.h>
+#include <mach/loader.h>
 
 static void __init rk30_cpu_axi_init(void)
 {
@@ -71,6 +73,26 @@ static void __init rk30_l2_cache_init(void)
 #endif
 }
 
+static int boot_mode;
+static void __init rk30_boot_mode_init(void)
+{
+	u32 boot_flag = readl_relaxed(RK30_PMU_BASE + PMU_SYS_REG0);
+	u32 boot_mode = readl_relaxed(RK30_PMU_BASE + PMU_SYS_REG1);
+
+	if (boot_flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
+		boot_mode = BOOT_MODE_RECOVERY;
+	} else if (strstr(boot_command_line, "(parameter)")) {
+		boot_mode = BOOT_MODE_RECOVERY;
+	}
+	if (boot_mode || boot_flag)
+		printk("Boot mode: %d flag: 0x%08x\n", boot_mode, boot_flag);
+}
+
+int board_boot_mode(void)
+{
+	return boot_mode;
+}
+EXPORT_SYMBOL(board_boot_mode);
 
 void __init rk30_init_irq(void)
 {
@@ -90,6 +112,7 @@ void __init rk30_map_io(void)
 	board_clock_init();
 	rk30_l2_cache_init();
 	rk30_iomux_init();
+	rk30_boot_mode_init();
 }
 
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags,
