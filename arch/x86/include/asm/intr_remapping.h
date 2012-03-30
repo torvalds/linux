@@ -30,6 +30,9 @@ extern void setup_intr_remapping(void);
 extern int intr_remapping_supported(void);
 extern int intr_hardware_init(void);
 extern int intr_hardware_enable(void);
+extern void intr_hardware_disable(void);
+extern int intr_hardware_reenable(int);
+extern int intr_enable_fault_handling(void);
 
 #else  /* CONFIG_IRQ_REMAP */
 
@@ -39,6 +42,9 @@ static inline void setup_intr_remapping(void) { }
 static inline int intr_remapping_supported(void) { return 0; }
 static inline int intr_hardware_init(void) { return -ENODEV; }
 static inline int intr_hardware_enable(void) { return -ENODEV; }
+static inline void intr_hardware_disable(void) { }
+static inline int intr_hardware_reenable(int eim) { return -ENODEV; }
+static inline int intr_enable_fault_handling(void) { return -ENODEV; }
 
 #endif /* CONFIG_IRQ_REMAP */
 

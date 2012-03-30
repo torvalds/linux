@@ -115,9 +115,6 @@ struct irte {
 };
 
 #ifdef CONFIG_IRQ_REMAP
-extern void disable_intr_remapping(void);
-extern int reenable_intr_remapping(int);
-
 extern int get_irte(int irq, struct irte *entry);
 extern int modify_irte(int irq, struct irte *irte_modified);
 extern int alloc_irte(struct intel_iommu *iommu, int irq, u16 count);
@@ -179,21 +176,6 @@ static inline int set_msi_sid(struct irte *irte, struct pci_dev *dev)
 	return 0;
 }
 
-#define intr_remapping_enabled		(0)
-
-static inline int enable_intr_remapping(void)
-{
-	return -1;
-}
-
-static inline void disable_intr_remapping(void)
-{
-}
-
-static inline int reenable_intr_remapping(int eim)
-{
-	return 0;
-}
 #endif
 
 enum {

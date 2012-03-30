@@ -764,7 +764,7 @@ int __init ir_dev_scope_init(void)
 }
 rootfs_initcall(ir_dev_scope_init);
 
-void disable_intr_remapping(void)
+static void disable_intr_remapping(void)
 {
 	struct dmar_drhd_unit *drhd;
 	struct intel_iommu *iommu = NULL;
@@ -780,7 +780,7 @@ void disable_intr_remapping(void)
 	}
 }
 
-int reenable_intr_remapping(int eim)
+static int reenable_intr_remapping(int eim)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
@@ -818,4 +818,7 @@ struct irq_remap_ops intel_irq_remap_ops = {
 	.supported		= intel_intr_remapping_supported,
 	.hardware_init		= dmar_table_init,
 	.hardware_enable	= intel_enable_intr_remapping,
+	.hardware_disable	= disable_intr_remapping,
+	.hardware_reenable	= reenable_intr_remapping,
+	.enable_faulting	= enable_drhd_fault_handling,
 };

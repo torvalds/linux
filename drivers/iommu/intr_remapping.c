@@ -74,3 +74,27 @@ int __init intr_hardware_enable(void)
 
 	return remap_ops->hardware_enable();
 }
+
+void intr_hardware_disable(void)
+{
+	if (!remap_ops || !remap_ops->hardware_disable)
+		return;
+
+	remap_ops->hardware_disable();
+}
+
+int intr_hardware_reenable(int mode)
+{
+	if (!remap_ops || !remap_ops->hardware_reenable)
+		return 0;
+
+	return remap_ops->hardware_reenable(mode);
+}
+
+int __init intr_enable_fault_handling(void)
+{
+	if (!remap_ops || !remap_ops->enable_faulting)
+		return -ENODEV;
+
+	return remap_ops->enable_faulting();
+}

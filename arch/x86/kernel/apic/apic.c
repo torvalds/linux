@@ -1443,7 +1443,7 @@ void __init bsp_end_local_APIC_setup(void)
 	 * handling for interrupt remapping.
 	 */
 	if (intr_remapping_enabled)
-		enable_drhd_fault_handling();
+		intr_enable_fault_handling();
 
 }
 
@@ -2181,7 +2181,7 @@ static int lapic_suspend(void)
 	disable_local_APIC();
 
 	if (intr_remapping_enabled)
-		disable_intr_remapping();
+		intr_hardware_disable();
 
 	local_irq_restore(flags);
 	return 0;
@@ -2250,7 +2250,7 @@ static void lapic_resume(void)
 	apic_read(APIC_ESR);
 
 	if (intr_remapping_enabled)
-		reenable_intr_remapping(x2apic_mode);
+		intr_hardware_reenable(x2apic_mode);
 
 	local_irq_restore(flags);
 }

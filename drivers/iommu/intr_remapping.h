@@ -37,6 +37,15 @@ struct irq_remap_ops {
 
 	/* Enables the remapping hardware */
 	int  (*hardware_enable)(void);
+
+	/* Disables the remapping hardware */
+	void (*hardware_disable)(void);
+
+	/* Reenables the remapping hardware */
+	int  (*hardware_reenable)(int);
+
+	/* Enable fault handling */
+	int  (*enable_faulting)(void);
 };
 
 extern struct irq_remap_ops intel_irq_remap_ops;
