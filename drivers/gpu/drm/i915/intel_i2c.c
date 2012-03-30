@@ -248,9 +248,10 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 	u32 val, loop;
 
 	val = loop = 0;
-	do {
-		val |= *buf++ << (8 * loop);
-	} while (--len && ++loop < 4);
+	while (len && loop < 4) {
+		val |= *buf++ << (8 * loop++);
+		len -= 1;
+	}
 
 	I915_WRITE(GMBUS3 + reg_offset, val);
 	I915_WRITE(GMBUS1 + reg_offset,
