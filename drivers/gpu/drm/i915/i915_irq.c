@@ -1998,18 +1998,6 @@ static void valleyview_irq_preinstall(struct drm_device *dev)
 	I915_WRITE(RING_IMR(GEN6_BSD_RING_BASE), 0);
 	I915_WRITE(RING_IMR(BLT_RING_BASE), 0);
 
-	if (IS_GEN6(dev) || IS_GEN7(dev)) {
-		/* Workaround stalls observed on Sandy Bridge GPUs by
-		 * making the blitter command streamer generate a
-		 * write to the Hardware Status Page for
-		 * MI_USER_INTERRUPT.  This appears to serialize the
-		 * previous seqno write out before the interrupt
-		 * happens.
-		 */
-		I915_WRITE(GEN6_BLITTER_HWSTAM, ~GEN6_BLITTER_USER_INTERRUPT);
-		I915_WRITE(GEN6_BSD_HWSTAM, ~GEN6_BSD_USER_INTERRUPT);
-	}
-
 	/* and GT */
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
