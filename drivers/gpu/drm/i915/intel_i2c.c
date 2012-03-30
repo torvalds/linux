@@ -204,13 +204,15 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 }
 
 static int
-gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
+gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
+		u32 gmbus1_index)
 {
 	int reg_offset = dev_priv->gpio_mmio_base;
 	u16 len = msg->len;
 	u8 *buf = msg->buf;
 
 	I915_WRITE(GMBUS1 + reg_offset,
+		   gmbus1_index |
 		   GMBUS_CYCLE_WAIT |
 		   (len << GMBUS_BYTE_COUNT_SHIFT) |
 		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
@@ -276,6 +278,46 @@ gmbus_xfer_write(struct drm_i915_private *dev_priv, struct i2c_msg *msg)
 	return 0;
 }
 
+/*
+ * The gmbus controller can combine a 1 or 2 byte write with a read that
+ * immediately follows it by using an "INDEX" cycle.
+ */
+static bool
+gmbus_is_index_read(struct i2c_msg *msgs, int i, int num)
+{
+	return (i + 1 < num &&
+		!(msgs[i].flags & I2C_M_RD) && msgs[i].len <= 2 &&
+		(msgs[i + 1].flags & I2C_M_RD));
+}
+
+static int
+gmbus_xfer_index_read(struct drm_i915_private *dev_priv, struct i2c_msg *msgs)
+{
+	int reg_offset = dev_priv->gpio_mmio_base;
+	u32 gmbus1_index = 0;
+	u32 gmbus5 = 0;
+	int ret;
+
+	if (msgs[0].len == 2)
+		gmbus5 = GMBUS_2BYTE_INDEX_EN |
+			 msgs[0].buf[1] | (msgs[0].buf[0] << 8);
+	if (msgs[0].len == 1)
+		gmbus1_index = GMBUS_CYCLE_INDEX |
+			       (msgs[0].buf[0] << GMBUS_SLAVE_INDEX_SHIFT);
+
+	/* GMBUS5 holds 16-bit index */
+	if (gmbus5)
+		I915_WRITE(GMBUS5 + reg_offset, gmbus5);
+
+	ret = gmbus_xfer_read(dev_priv, &msgs[1], gmbus1_index);
+
+	/* Clear GMBUS5 after each index transfer */
+	if (gmbus5)
+		I915_WRITE(GMBUS5 + reg_offset, 0);
+
+	return ret;
+}
+
 static int
 gmbus_xfer(struct i2c_adapter *adapter,
 	   struct i2c_msg *msgs,
@@ -300,10 +342,14 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	I915_WRITE(GMBUS0 + reg_offset, bus->reg0);
 
 	for (i = 0; i < num; i++) {
-		if (msgs[i].flags & I2C_M_RD)
-			ret = gmbus_xfer_read(dev_priv, &msgs[i]);
-		else
+		if (gmbus_is_index_read(msgs, i, num)) {
+			ret = gmbus_xfer_index_read(dev_priv, &msgs[i]);
+			i += 1;  /* set i to the index of the read xfer */
+		} else if (msgs[i].flags & I2C_M_RD) {
+			ret = gmbus_xfer_read(dev_priv, &msgs[i], 0);
+		} else {
 			ret = gmbus_xfer_write(dev_priv, &msgs[i]);
+		}
 
 		if (ret == -ETIMEDOUT)
 			goto timeout;
