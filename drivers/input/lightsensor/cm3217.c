@@ -33,12 +33,12 @@
 #endif
 
 #define CM3217_I2C_RATE		(200*1000)
-#define CM3217_ADDR_COM1	0x20
-#define CM3217_ADDR_COM2	0x22
-#define CM3217_ADDR_DATA_MSB	0x21
-#define CM3217_ADDR_DATA_LSB	0x23
+#define CM3217_ADDR_COM1	0x10
+#define CM3217_ADDR_COM2	0x11
+#define CM3217_ADDR_DATA_MSB	0x10
+#define CM3217_ADDR_DATA_LSB	0x11
 
-#define CM3217_COM1_VALUE	0xA4	// (GAIN1:GAIN0)=10, (IT_T1:IT_TO)=01,WMD=0,SD=0,
+#define CM3217_COM1_VALUE	0xA7	// (GAIN1:GAIN0)=10, (IT_T1:IT_TO)=01,WMD=1,SD=1,
 #define CM3217_COM2_VALUE	0xA0	//100ms
 
 
@@ -74,7 +74,7 @@ static int cm3217_command_set(struct i2c_client *client, char *buf, int num)
 static int cm3217_command_get(struct i2c_client *client, char *buf, int num)
 {
 	int ret = 0;
-	ret = i2c_master_normal_send(client, buf, num, CM3217_I2C_RATE);
+	ret = i2c_master_normal_recv(client, buf, num, CM3217_I2C_RATE);
 	
 	return (ret == num) ? 0 : ret;
 }
@@ -90,7 +90,8 @@ static int cm3217_start(struct cm3217_data *data)
 	//if(cm3217->power_pin != INVALID_GPIO)
 	//gpio_direction_output(cm3217->power_pin,0);//level = 0 Sensor ON
 	
-	buf = CM3217_COM1_VALUE | 0x01 ;	//SD=1
+	buf = CM3217_COM1_VALUE & 0xfe ;	//SD=0
+	cm3217->client->addr = CM3217_ADDR_COM1;
 	cm3217_command_set(cm3217->client, &buf, 1);
 	
 	cm3217->status = SENSOR_ON;
@@ -110,7 +111,8 @@ static int cm3217_stop(struct cm3217_data *data)
 	//if(cm3217->power_pin != INVALID_GPIO)
 	//gpio_direction_output(cm3217->power_pin,1);//level = 1 Sensor OFF
 	
-	buf = CM3217_COM1_VALUE & 0xfe ;	//SD=0
+	buf = CM3217_COM1_VALUE | 0x01 ;	//SD=1
+	cm3217->client->addr = CM3217_ADDR_COM1;
 	cm3217_command_set(cm3217->client, &buf, 1);
 	
 	cm3217->status = SENSOR_OFF;
@@ -270,7 +272,9 @@ static int cm3217_probe(struct i2c_client *client, const struct i2c_device_id *i
 	glight = cm3217;
 
 	//init cm3217
-	cm3217_command_set(client, &com1, 1);
+	client->addr = CM3217_ADDR_COM1;
+	cm3217_command_set(client, &com1, 1);	
+	client->addr = CM3217_ADDR_COM2;
 	cm3217_command_set(client, &com2, 1);	
 	
 	cm3217->input = input_allocate_device();
@@ -281,7 +285,7 @@ static int cm3217_probe(struct i2c_client *client, const struct i2c_device_id *i
 	}
 	set_bit(EV_ABS, cm3217->input->evbit);
 	/* light sensor data */
-	input_set_abs_params(cm3217->input, ABS_MISC, 0, 0x3ff, 0, 0);
+	input_set_abs_params(cm3217->input, ABS_MISC, 0, 10, 0, 0);
 	cm3217->input->name = "lightsensor";
 
 	err = input_register_device(cm3217->input);
@@ -304,7 +308,7 @@ static int cm3217_probe(struct i2c_client *client, const struct i2c_device_id *i
 		goto exit_misc_register_fail;
 	}
 	printk("lightsensor cm3217 driver created !\n");
-	//cm3217_start(light);
+	//cm3217_start(cm3217);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	cm3217_early_suspend.suspend = cm3217_suspend;
 	cm3217_early_suspend.resume = cm3217_resume;
