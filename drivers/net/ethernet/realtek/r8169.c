@@ -3525,15 +3525,45 @@ static void r810x_phy_power_up(struct rtl8169_private *tp)
 
 static void r810x_pll_power_down(struct rtl8169_private *tp)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
+
 	if (rtl_wol_pll_power_down(tp))
 		return;
 
 	r810x_phy_power_down(tp);
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_07:
+	case RTL_GIGA_MAC_VER_08:
+	case RTL_GIGA_MAC_VER_09:
+	case RTL_GIGA_MAC_VER_10:
+	case RTL_GIGA_MAC_VER_13:
+	case RTL_GIGA_MAC_VER_16:
+		break;
+	default:
+		RTL_W8(PMCH, RTL_R8(PMCH) & ~0x80);
+		break;
+	}
 }
 
 static void r810x_pll_power_up(struct rtl8169_private *tp)
 {
+	void __iomem *ioaddr = tp->mmio_addr;
+
 	r810x_phy_power_up(tp);
+
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_07:
+	case RTL_GIGA_MAC_VER_08:
+	case RTL_GIGA_MAC_VER_09:
+	case RTL_GIGA_MAC_VER_10:
+	case RTL_GIGA_MAC_VER_13:
+	case RTL_GIGA_MAC_VER_16:
+		break;
+	default:
+		RTL_W8(PMCH, RTL_R8(PMCH) | 0x80);
+		break;
+	}
 }
 
 static void r8168_phy_power_up(struct rtl8169_private *tp)
@@ -3636,13 +3666,6 @@ static void r8168_pll_power_down(struct rtl8169_private *tp)
 static void r8168_pll_power_up(struct rtl8169_private *tp)
 {
 	void __iomem *ioaddr = tp->mmio_addr;
-
-	if ((tp->mac_version == RTL_GIGA_MAC_VER_27 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_28 ||
-	     tp->mac_version == RTL_GIGA_MAC_VER_31) &&
-	    r8168dp_check_dash(tp)) {
-		return;
-	}
 
 	switch (tp->mac_version) {
 	case RTL_GIGA_MAC_VER_25:
