@@ -7,7 +7,7 @@ config SND_RK29_SOC
 	  to select the audio interfaces to support below.
 
 config SND_RK29_SOC_I2S
-	tristate 
+	tristate
 
 config SND_RK29_SOC_I2S_8CH
         bool "Soc RK29 I2S 8 Channel support(I2S0)"
@@ -15,7 +15,7 @@ config SND_RK29_SOC_I2S_8CH
 	depends on SND_RK29_SOC_I2S
 	help
                 This supports the use of the 8 Channel I2S interface on rk29 processors.
-				
+
 config SND_RK29_SOC_I2S_2CH
         bool "Soc RK29 I2S 2 Channel support(I2S1)"
         default n
@@ -29,7 +29,7 @@ config SND_RK_SOC_I2S2_2CH
 	depends on SND_RK29_SOC_I2S && ARCH_RK30
 	help
 		This supports the use of the 2 Channel I2S2 interface on rk30 processors.
-				
+
 if 	SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH
 choice
   bool "Set i2s on DMA event mode"
@@ -114,7 +114,7 @@ config SND_RK29_SOC_WM8994
 	select SND_SOC_WM8994
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
-	  with the WM8994.  
+	  with the WM8994.
 
 config SND_RK29_SOC_CS42L52
 	tristate "SoC I2S Audio support for rockchip - CS42L52"
@@ -133,7 +133,7 @@ config SND_RK29_SOC_AIC3111
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the AIC3111.
-  
+
 config SND_RK29_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
 	depends on SND_RK29_SOC
@@ -141,23 +141,25 @@ config SND_RK29_SOC_RK1000
 	select SND_SOC_RK1000
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK1000.	 
+	  with the RK1000.
+
 config SND_RK29_SOC_HDMI
 	tristate "SoC I2S Audio support for rockchip - HDMI"
 	depends on SND_RK29_SOC && HDMI_ITV
 	select SND_RK29_SOC_I2S
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
-	  with the HDMI.	 
+	  with the HDMI.
+
 config SND_RK29_SOC_RK610
 	tristate "SoC I2S Audio support for rockchip - RK610"
-	depends on SND_RK29_SOC && MFD_RK610 && I2C_RK29
+	depends on SND_RK29_SOC && MFD_RK610
 	select SND_RK29_SOC_I2S
 	select SND_SOC_RK610
 	help
 	  Say Y if you want to add support for SoC audio on rockchip
-	  with the RK610(JETTA). 
-	   
+	  with the RK610(JETTA).
+
 if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111 || SND_RK29_SOC_HDMI || SND_RK29_SOC_RK610
 choice
   bool "Set i2s type"
@@ -180,5 +182,6 @@ config PHONE_INCALL_IS_SUSPEND
     default n
     help
 		set "y" phone incall status cannot into suspend codec
-		
+
 endif
+

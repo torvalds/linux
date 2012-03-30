@@ -974,7 +974,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &akm8975_info,
 	},
 #endif
-#if defined (CONFIG_GYRO_L3G4200D)
+#if defined (CONFIG_GYRO_L3G4200D1)
 	{
 		.type          = "l3g4200d_gryo",
 		.addr          = 0x69,
@@ -1001,6 +1001,36 @@ static struct i2c_board_info __initdata i2c0_info[] = {
                 .addr                   = 0x1a,
                 .flags                  = 0,
         },
+#endif
+
+#ifdef CONFIG_MFD_RK610
+		{
+			.type			= "rk610_ctl",
+			.addr			= 0x40,
+			.flags			= 0,
+		},
+#ifdef CONFIG_RK610_TVOUT
+		{
+			.type			= "rk610_tvout",
+			.addr			= 0x42,
+			.flags			= 0,
+		},
+#endif
+#ifdef CONFIG_RK610_HDMI
+		{
+			.type			= "rk610_hdmi",
+			.addr			= 0x46,
+			.flags			= 0,
+			.irq			= RK29_PIN5_PA2,
+		},
+#endif
+#ifdef CONFIG_SND_SOC_RK610
+		{//RK610_CODEC addr  from 0x60 to 0x80 (0x60~0x80)
+			.type			= "rk610_i2c_codec",
+			.addr			= 0x60,
+			.flags			= 0,
+		},
+#endif
 #endif
 
 };
@@ -1036,7 +1066,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 #if defined (CONFIG_LS_CM3217)
 	{
 		.type          = "lightsensor",
-		.addr          = 0x10,
+		.addr          = 0x20,
 		.flags         = 0,
 		.irq           = CM3217_IRQ_PIN,
 		.platform_data = &cm3217_info,

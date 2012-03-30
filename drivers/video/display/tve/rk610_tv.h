@@ -4,7 +4,9 @@
 #include <linux/fb.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
+#ifdef CONFIG_ARCH_RK29
 #include <mach/rk29_iomap.h>
+#endif
 #include "../screen/screen.h"
 #include "../../rk29_fb.h"
 #include <linux/mfd/rk610_core.h>
@@ -20,7 +22,7 @@
 	#define TVE_VFCR_PAL_M						1
 	#define TVE_VFCR_PAL_B_N					2
 	#define TVE_VFCR_PAL_NC						3
-	
+
 #define TVE_VINCR		0x01
 	#define TVE_VINCR_PIX_DATA_DELAY(n)			(n << 5)
 	#define TVE_VINCR_H_SYNC_POLARITY_NEGTIVE	0 << 4
@@ -36,7 +38,7 @@ enum {
 	#define TVE_VINCR_INPUT_FORMAT(n)			(n << 1)
 	#define TVE_VINCR_VSYNC_FUNCTION_VSYNC		0
 	#define TVE_VINCR_VSYNC_FUNCTION_FIELD		1
-	
+
 #define TVE_VOUTCR		0x02
 	#define TVE_VOUTCR_OUTPUT_CVBS				0 << 6
 	#define TVE_VOUTCR_OUTPUT_YPBPR				1 << 6
@@ -44,14 +46,14 @@ enum {
 	#define TVE_VOUTCR_OUTPUT_ENABLE_BLACK		1 << 4
 	#define TVE_VOUTCR_DISABLE_CVBS_COLOR		1 << 3
 	#define TVE_VOUTCR_CVBS_Y2C_DELAY(n)				(n << 0)
-	
+
 #define TVE_POWERCR		0x03
 	#define TVE_PIX_CLK_INVERSE_ENABLE			1 << 4
 	#define TVE_DAC_CLK_INVERSE_DISABLE			1 << 3
 	#define TVE_DAC_Y_ENABLE					1 << 2
 	#define TVE_DAC_U_ENABLE					1 << 1
 	#define TVE_DAC_V_ENABLE					1 << 0
-	
+
 #define TVE_HDTVCR		0x05
 	#define TVE_RESET							1 << 7
 	#define TVE_FILTER(n)						(n << 5)
@@ -65,7 +67,7 @@ enum {
 	#define TVE_OUTPUT_MODE_576P				1
 	#define TVE_OUTPUT_MODE_480P				2
 	#define TVE_OUTPUT_MODE_720P				3
-	
+
 #define TVE_YADJCR		0x06
 	#define TVE_OUTPUT_MODE_1080P				1 << 6
 	#define TVE_OUTPUT_MODE_1080I				1 << 5

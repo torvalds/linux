@@ -263,5 +263,6 @@
 extern struct snd_soc_dai rk610_codec_dai;
 extern struct snd_soc_codec_device soc_codec_dev_rk610_codec;
 #endif
-
+extern int rk610_control_init_codec(void);
+extern int rk610_codec_pll_set(unsigned int rate);
 #endif

@@ -9,7 +9,20 @@
 #include <mach/iomux.h>
 #include <linux/err.h>
 
+#ifdef CONFIG_ARCH_RK30
+#define RK610_RESET_PIN   RK30_PIN0_PC6
+#else
 #define RK610_RESET_PIN   RK29_PIN6_PC1
+#endif
+
+/*
+ * Debug
+ */
+#if 0
+#define	DBG(x...)	printk(KERN_INFO x)
+#else
+#define	DBG(x...)
+#endif
 
 static struct i2c_client *rk610_control_client = NULL;
 #ifdef CONFIG_RK610_LCD
@@ -20,16 +33,16 @@ int rk610_lcd_init(struct i2c_client *client){}
 int rk610_control_send_byte(const char reg, const char data)
 {
 	int ret;
-	
-	printk("reg = 0x%02x, val=0x%02x\n", reg ,data);
-	
+
+	DBG("reg = 0x%02x, val=0x%02x\n", reg ,data);
+
 	if(rk610_control_client == NULL)
 		return -1;
 	//i2c_master_reg8_send
 	ret = i2c_master_reg8_send(rk610_control_client, reg, &data, 1, 100*1000);
 	if (ret > 0)
 		ret = 0;
-	
+
 	return ret;
 }
 
@@ -40,13 +53,13 @@ int rk610_codec_pll_set(unsigned int rate)
 	char N, M, NO, DIV;
 	unsigned int F;
 	char data;
-	
+
 	if(current_pll_value == rate)
 		return 0;
-	
+
     // Input clock is 12MHz.
 	if(rate == 11289600) {
-		// For 11.2896MHz, N = 2 M= 75 F = 0.264(0x43958) NO = 8 
+		// For 11.2896MHz, N = 2 M= 75 F = 0.264(0x43958) NO = 8
 		N = 2;
 		NO = 3;
 		M = 75;
@@ -54,7 +67,7 @@ int rk610_codec_pll_set(unsigned int rate)
 		DIV = 5;
 	}
 	else if(rate == 12288000) {
-		// For 12.2888MHz, N = 2 M= 75 F = 0.92(0xEB851) NO = 8 
+		// For 12.2888MHz, N = 2 M= 75 F = 0.92(0xEB851) NO = 8
 		N = 2;
 		NO = 3;
 		M = 75;
@@ -65,12 +78,12 @@ int rk610_codec_pll_set(unsigned int rate)
 		printk(KERN_ERR "[%s] not support such frequency\n", __FUNCTION__);
 		return -1;
 	}
-	
+
 	//Enable codec pll fractional number and power down.
     data = 0x00;
     rk610_control_send_byte(RK610_CONTROL_REG_C_PLL_CON5, data);
 	msleep(10);
-	
+
     data = (N << 4) | NO;
     rk610_control_send_byte(RK610_CONTROL_REG_C_PLL_CON0, data);
     // M
@@ -83,20 +96,20 @@ int rk610_codec_pll_set(unsigned int rate)
     rk610_control_send_byte(RK610_CONTROL_REG_C_PLL_CON3, data);
     data = (F >> 16) & 0xFF;
     rk610_control_send_byte(RK610_CONTROL_REG_C_PLL_CON4, data);
-    
+
     // i2s mclk = codec_pll/5;
     i2c_master_reg8_recv(rk610_control_client, RK610_CONTROL_REG_CLOCK_CON1, &data, 1, 100*1000);
     data &= ~CLOCK_CON1_I2S_DVIDER_MASK;
     data |= (DIV - 1);
     rk610_control_send_byte(RK610_CONTROL_REG_CLOCK_CON1, data);
-    
+
     // Power up codec pll.
     data |= C_PLL_POWER_ON;
     rk610_control_send_byte(RK610_CONTROL_REG_C_PLL_CON5, data);
-    
+
     current_pll_value = rate;
-    printk(KERN_ERR "[%s] rate %u\n", __FUNCTION__, rate);
-    
+    DBG("[%s] rate %u\n", __FUNCTION__, rate);
+
     return 0;
 }
 
@@ -105,20 +118,20 @@ void rk610_control_init_codec(void)
     struct i2c_client *client = rk610_control_client;
     char data = 0;
     int ret;
-    
+
     if(rk610_control_client == NULL)
     	return;
-    printk(KERN_ERR "[%s] start\n", __FUNCTION__);
-    
+	DBG("[%s] start\n", __FUNCTION__);
+
     //gpio_set_value(RK610_RESET_PIN, GPIO_LOW); //reset rk601
    // mdelay(100);
     //gpio_set_value(RK610_RESET_PIN, GPIO_HIGH);
     //mdelay(100);
-    
+
    	// Set i2c glitch timeout.
 	data = 0x22;
 	ret = i2c_master_reg8_send(client, RK610_CONTROL_REG_I2C_CON, &data, 1, 20*1000);
-	
+
 //    rk610_codec_pll_set(11289600);
 
     //use internal codec, enable DAC ADC LRCK output.
@@ -127,18 +140,18 @@ void rk610_control_init_codec(void)
 //	data = CODEC_CON_BIT_ADC_LRCK_OUTPUT_DISABLE;
 	data = 0;
    	rk610_control_send_byte(RK610_CONTROL_REG_CODEC_CON, data);
-    
+
     // Select internal i2s clock from codec_pll.
-    i2c_master_reg8_recv(rk610_control_client, RK610_CONTROL_REG_CLOCK_CON1, &data, 1, 100*1000); 
+    i2c_master_reg8_recv(rk610_control_client, RK610_CONTROL_REG_CLOCK_CON1, &data, 1, 100*1000);
 //    data |= CLOCK_CON1_I2S_CLK_CODEC_PLL;
 	data = 0;
     rk610_control_send_byte(RK610_CONTROL_REG_CLOCK_CON1, data);
-    
+
     i2c_master_reg8_recv(client, RK610_CONTROL_REG_CODEC_CON, &data, 1, 100*1000);
-    printk(KERN_ERR "[%s] RK610_CONTROL_REG_CODEC_CON is %x\n", __FUNCTION__, data);
-    
+    DBG("[%s] RK610_CONTROL_REG_CODEC_CON is %x\n", __FUNCTION__, data);
+
     i2c_master_reg8_recv(client, RK610_CONTROL_REG_CLOCK_CON1, &data, 1, 100*1000);
-    printk(KERN_ERR "[%s] RK610_CONTROL_REG_CLOCK_CON1 is %x\n", __FUNCTION__, data);
+    DBG("[%s] RK610_CONTROL_REG_CLOCK_CON1 is %x\n", __FUNCTION__, data);
 }
 #endif
 #ifdef CONFIG_RK610_DEBUG
@@ -177,12 +190,12 @@ static ssize_t rk610_store_reg_attrs(struct device *dev,
 	struct i2c_client *client=NULL;
 	static char val=0,reg=0;
 	client = rk610_control_client;
-	printk("/**********rk610 reg config******/");
+	DBG("/**********rk610 reg config******/");
 
 	sscanf(buf, "%x%x", &val,&reg);
-	printk("reg=%x val=%x\n",reg,val);
+	DBG("reg=%x val=%x\n",reg,val);
 	rk610_write_p0_reg(client, reg,  &val);
-	printk("val=%x\n",val);
+	DBG("val=%x\n",val);
 	return size;
 }
 
@@ -195,28 +208,34 @@ static int rk610_control_probe(struct i2c_client *client,
 {
     int ret;
     struct clk *iis_clk;
-    
+	
+	DBG("[%s] start\n", __FUNCTION__);
+	
 		iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
 		if (IS_ERR(iis_clk)) {
 			printk("failed to get i2s clk\n");
 			ret = PTR_ERR(iis_clk);
 		}else{
-			printk("got i2s clk ok!\n");
+			DBG("got i2s clk ok!\n");
 			clk_enable(iis_clk);
 			clk_set_rate(iis_clk, 11289600);
+			#ifdef CONFIG_ARCH_RK29
 			rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
+			#else
+			rk30_mux_api_set(GPIO0B0_I2S8CHCLK_NAME, GPIO0B_I2S_8CH_CLK);
+			#endif
 			clk_put(iis_clk);
 		}
-		
+
     rk610_control_client = client;
     msleep(100);
 	if(RK610_RESET_PIN != INVALID_GPIO) {
 	    ret = gpio_request(RK610_RESET_PIN, "rk610 reset");
-	    if (ret){   
+	    if (ret){
 	        printk(KERN_ERR "rk610_control_probe request gpio fail\n");
 	    }
 	    else {
-	    	printk(KERN_ERR "rk610_control_probe request gpio ok\n");
+	    	DBG("rk610_control_probe request gpio ok\n");
 	    	gpio_direction_output(RK610_RESET_PIN, GPIO_HIGH);
 	    	msleep(100);
 		    gpio_direction_output(RK610_RESET_PIN, GPIO_LOW);
@@ -253,6 +272,7 @@ static struct i2c_driver rk610_control_driver = {
 
 static int __init rk610_control_init(void)
 {
+	DBG("[%s] start\n", __FUNCTION__);
 	return i2c_add_driver(&rk610_control_driver);
 }
 
