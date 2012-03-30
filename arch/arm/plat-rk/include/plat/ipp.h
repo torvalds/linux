@@ -128,5 +128,6 @@ typedef enum
 
 
 int ipp_blit_async(const struct rk29_ipp_req *req);
-int ipp_blit_sync(const struct rk29_ipp_req *req);
+//int ipp_blit_sync(const struct rk29_ipp_req *req);
+extern int (*ipp_blit_sync)(const struct rk29_ipp_req *req);
 #endif /*_RK29_IPP_DRIVER_H_*/

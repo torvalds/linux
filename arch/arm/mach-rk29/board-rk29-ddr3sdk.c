@@ -2875,9 +2875,11 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_USB_ANDROID_RNDIS
     &rk29_device_rndis,
 #endif
-#ifdef CONFIG_RK29_IPP
+
+//#ifdef CONFIG_RK29_IPP
 	&rk29_device_ipp,
-#endif
+//#endif
+
 #ifdef CONFIG_VIDEO_RK29XX_VOUT
 	&rk29_v4l2_output_devce,
 #endif

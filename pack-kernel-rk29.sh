@@ -10,7 +10,7 @@ arch/arm/mach-rk29/verifyID.c
 
 arch/arm/plat-rk/vpu*.c
 
-drivers/staging/rk29/ipp/rk29-ipp.c
+#drivers/staging/rk29/ipp/rk29-ipp.c
 )
 
 EXCLUDES=(
@@ -32,6 +32,8 @@ include/*rk28*
 arch/arm/mach-rk29/ddr_reconfig.c
 
 drivers/staging/rk29/vivante
+
+drivers/staging/rk29/ipp/rk29-ipp.c
 
 arch/arm/mach-rk29/board-rk29sdk.c
 arch/arm/configs/rk29_sdk_defconfig

@@ -597,7 +597,8 @@ static struct platform_device rk29_device_pcm = {
 	.id = -1,
 };
 
-#ifdef CONFIG_RK29_IPP
+
+//#ifdef CONFIG_RK29_IPP
 /* rk29 ipp resource */
 static struct resource rk29_ipp_resource[] = {
 	[0] = {
@@ -620,7 +621,8 @@ struct platform_device rk29_device_ipp = {
 	.num_resources	  = ARRAY_SIZE(rk29_ipp_resource),
 	.resource	  = rk29_ipp_resource,
 };
-#endif
+//#endif
+
 
 #ifdef CONFIG_USB20_OTG
 /*DWC_OTG*/

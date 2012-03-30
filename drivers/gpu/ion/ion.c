@@ -831,6 +831,7 @@ static void ion_vma_close(struct vm_area_struct *vma)
 	list_for_each_entry(map, &buffer->map_addr, list)
 		if(map->vaddr == vma->vm_start){
 			list_del(&map->list);
+                        kfree(map);
 			break;
 		}
 }
