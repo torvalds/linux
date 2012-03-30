@@ -685,16 +685,6 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 	return err;
 }
 
-int mlx4_QUERY_PORT(struct mlx4_dev *dev, void *ptr, u8 port)
-{
-	struct mlx4_cmd_mailbox *outbox = ptr;
-
-	return mlx4_cmd_box(dev, 0, outbox->dma, port, 0,
-			    MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
-			    MLX4_CMD_WRAPPED);
-}
-EXPORT_SYMBOL_GPL(mlx4_QUERY_PORT);
-
 int mlx4_map_cmd(struct mlx4_dev *dev, u16 op, struct mlx4_icm *icm, u64 virt)
 {
 	struct mlx4_cmd_mailbox *mailbox;

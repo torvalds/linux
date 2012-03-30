@@ -20,6 +20,8 @@
  *		Patrick McHardy :	LRU queue of frag heads for evictor.
  */
 
+#define pr_fmt(fmt) "IPv4: " fmt
+
 #include <linux/compiler.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -299,7 +301,7 @@ static inline struct ipq *ip_find(struct net *net, struct iphdr *iph, u32 user)
 	return container_of(q, struct ipq, q);
 
 out_nomem:
-	LIMIT_NETDEBUG(KERN_ERR "ip_frag_create: no memory left !\n");
+	LIMIT_NETDEBUG(KERN_ERR pr_fmt("ip_frag_create: no memory left !\n"));
 	return NULL;
 }
 
@@ -637,14 +639,13 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 	return 0;
 
 out_nomem:
-	LIMIT_NETDEBUG(KERN_ERR "IP: queue_glue: no memory for gluing "
-			      "queue %p\n", qp);
+	LIMIT_NETDEBUG(KERN_ERR pr_fmt("queue_glue: no memory for gluing queue %p\n"),
+		       qp);
 	err = -ENOMEM;
 	goto out_fail;
 out_oversize:
 	if (net_ratelimit())
-		printk(KERN_INFO "Oversized IP packet from %pI4.\n",
-			&qp->saddr);
+		pr_info("Oversized IP packet from %pI4\n", &qp->saddr);
 out_fail:
 	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
 	return err;

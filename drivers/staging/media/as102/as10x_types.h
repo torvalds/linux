@@ -181,7 +181,7 @@ struct as10x_register_value {
 		uint8_t  value8;   /* 8 bit value */
 		uint16_t value16;  /* 16 bit value */
 		uint32_t value32;  /* 32 bit value */
-	} u;
+	} __packed u;
 } __packed;
 
 struct as10x_register_addr {

@@ -179,7 +179,7 @@ int drbd_khelper(struct drbd_conf *mdev, char *cmd)
 	dev_info(DEV, "helper command: %s %s %s\n", usermode_helper, cmd, mb);
 
 	drbd_bcast_ev_helper(mdev, cmd);
-	ret = call_usermodehelper(usermode_helper, argv, envp, 1);
+	ret = call_usermodehelper(usermode_helper, argv, envp, UMH_WAIT_PROC);
 	if (ret)
 		dev_warn(DEV, "helper command: %s %s %s exit code %u (0x%x)\n",
 				usermode_helper, cmd, mb,
@@ -2526,10 +2526,10 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 
 	page = e->pages;
 	page_chain_for_each(page) {
-		void *d = kmap_atomic(page, KM_USER0);
+		void *d = kmap_atomic(page);
 		unsigned l = min_t(unsigned, len, PAGE_SIZE);
 		memcpy(tl, d, l);
-		kunmap_atomic(d, KM_USER0);
+		kunmap_atomic(d);
 		tl = (unsigned short*)((char*)tl + l);
 		len -= l;
 		if (len == 0)

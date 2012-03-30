@@ -1012,7 +1012,7 @@ static int xgmac_open(struct net_device *dev)
 	 * address using the following linux command:
 	 *      ifconfig eth0 hw ether xx:xx:xx:xx:xx:xx  */
 	if (!is_valid_ether_addr(dev->dev_addr)) {
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 		netdev_dbg(priv->dev, "generated random MAC address %pM\n",
 			dev->dev_addr);
 	}
@@ -1482,6 +1482,7 @@ static int xgmac_set_mac_address(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
 
 	xgmac_set_mac_addr(ioaddr, dev->dev_addr, 0);

@@ -24,7 +24,6 @@
 #include <asm/etraxgpio.h>
 #include <arch/svinto.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <arch/io_interface_mux.h>
 

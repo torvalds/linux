@@ -643,6 +643,7 @@ int _aac_rx_init(struct aac_dev *dev)
 	if (aac_init_adapter(dev) == NULL)
 		goto error_iounmap;
 	aac_adapter_comm(dev, dev->comm_interface);
+	dev->sync_mode = 0;	/* sync. mode not supported */
 	dev->msi = aac_msi && !pci_enable_msi(dev->pdev);
 	if (request_irq(dev->pdev->irq, dev->a_ops.adapter_intr,
 			IRQF_SHARED|IRQF_DISABLED, "aacraid", dev) < 0) {

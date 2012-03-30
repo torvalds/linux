@@ -29,6 +29,12 @@
 #include "sdhci.h"
 
 /*
+ * PCI device IDs
+ */
+#define PCI_DEVICE_ID_INTEL_PCH_SDIO0	0x8809
+#define PCI_DEVICE_ID_INTEL_PCH_SDIO1	0x880a
+
+/*
  * PCI registers
  */
 
@@ -47,6 +53,7 @@ struct sdhci_pci_slot;
 
 struct sdhci_pci_fixes {
 	unsigned int		quirks;
+	unsigned int		quirks2;
 	bool			allow_runtime_pm;
 
 	int			(*probe) (struct sdhci_pci_chip *);
@@ -73,6 +80,7 @@ struct sdhci_pci_chip {
 	struct pci_dev		*pdev;
 
 	unsigned int		quirks;
+	unsigned int		quirks2;
 	bool			allow_runtime_pm;
 	const struct sdhci_pci_fixes *fixes;
 
@@ -172,6 +180,12 @@ static int mrst_hc_probe(struct sdhci_pci_chip *chip)
 	return 0;
 }
 
+static int pch_hc_probe_slot(struct sdhci_pci_slot *slot)
+{
+	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA;
+	return 0;
+}
+
 #ifdef CONFIG_PM_RUNTIME
 
 static irqreturn_t sdhci_pci_sd_cd(int irq, void *dev_id)
@@ -244,7 +258,8 @@ static inline void sdhci_pci_remove_own_cd(struct sdhci_pci_slot *slot)
 static int mfd_emmc_probe_slot(struct sdhci_pci_slot *slot)
 {
 	slot->host->mmc->caps |= MMC_CAP_8_BIT_DATA | MMC_CAP_NONREMOVABLE;
-	slot->host->mmc->caps2 = MMC_CAP2_BOOTPART_NOACC;
+	slot->host->mmc->caps2 |= MMC_CAP2_BOOTPART_NOACC |
+				  MMC_CAP2_HC_ERASE_SZ;
 	return 0;
 }
 
@@ -271,6 +286,7 @@ static const struct sdhci_pci_fixes sdhci_intel_mfd_sd = {
 
 static const struct sdhci_pci_fixes sdhci_intel_mfd_sdio = {
 	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
+	.quirks2	= SDHCI_QUIRK2_HOST_OFF_CARD_ON,
 	.allow_runtime_pm = true,
 	.probe_slot	= mfd_sdio_probe_slot,
 };
@@ -279,6 +295,11 @@ static const struct sdhci_pci_fixes sdhci_intel_mfd_emmc = {
 	.quirks		= SDHCI_QUIRK_NO_ENDATTR_IN_NOPDESC,
 	.allow_runtime_pm = true,
 	.probe_slot	= mfd_emmc_probe_slot,
+};
+
+static const struct sdhci_pci_fixes sdhci_intel_pch_sdio = {
+	.quirks		= SDHCI_QUIRK_BROKEN_ADMA,
+	.probe_slot	= pch_hc_probe_slot,
 };
 
 /* O2Micro extra registers */
@@ -817,6 +838,22 @@ static const struct pci_device_id pci_ids[] __devinitdata = {
 	},
 
 	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_PCH_SDIO0,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_pch_sdio,
+	},
+
+	{
+		.vendor		= PCI_VENDOR_ID_INTEL,
+		.device		= PCI_DEVICE_ID_INTEL_PCH_SDIO1,
+		.subvendor	= PCI_ANY_ID,
+		.subdevice	= PCI_ANY_ID,
+		.driver_data	= (kernel_ulong_t)&sdhci_intel_pch_sdio,
+	},
+
+	{
 		.vendor		= PCI_VENDOR_ID_O2,
 		.device		= PCI_DEVICE_ID_O2_8120,
 		.subvendor	= PCI_ANY_ID,
@@ -1206,6 +1243,7 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 	host->hw_name = "PCI";
 	host->ops = &sdhci_pci_ops;
 	host->quirks = chip->quirks;
+	host->quirks2 = chip->quirks2;
 
 	host->irq = pdev->irq;
 
@@ -1365,6 +1403,7 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	chip->fixes = (const struct sdhci_pci_fixes *)ent->driver_data;
 	if (chip->fixes) {
 		chip->quirks = chip->fixes->quirks;
+		chip->quirks2 = chip->fixes->quirks2;
 		chip->allow_runtime_pm = chip->fixes->allow_runtime_pm;
 	}
 	chip->num_slots = slots;
@@ -1378,6 +1417,8 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	}
 
 	slots = chip->num_slots;	/* Quirk may have changed this */
+
+	pci_enable_msi(pdev);
 
 	for (i = 0; i < slots; i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar, i);
@@ -1397,6 +1438,8 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 free:
+	pci_disable_msi(pdev);
+
 	pci_set_drvdata(pdev, NULL);
 	kfree(chip);
 
@@ -1418,6 +1461,8 @@ static void __devexit sdhci_pci_remove(struct pci_dev *pdev)
 
 		for (i = 0; i < chip->num_slots; i++)
 			sdhci_pci_remove_slot(chip->slots[i]);
+
+		pci_disable_msi(pdev);
 
 		pci_set_drvdata(pdev, NULL);
 		kfree(chip);

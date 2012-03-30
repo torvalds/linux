@@ -57,7 +57,6 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/bitops.h>
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <asm/irq.h>
@@ -717,7 +716,7 @@ static void ei_receive(struct net_device *dev)
 		} else if ((pkt_stat & 0x0F) == ENRSR_RXOK) {
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len+2);
+			skb = netdev_alloc_skb(dev, pkt_len + 2);
 			if (skb == NULL) {
 				if (ei_debug > 1)
 					netdev_dbg(dev, "Couldn't allocate a sk_buff of size %d\n",

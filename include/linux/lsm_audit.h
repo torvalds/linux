@@ -21,7 +21,6 @@
 #include <linux/path.h>
 #include <linux/key.h>
 #include <linux/skbuff.h>
-#include <asm/system.h>
 
 
 /* Auxiliary data to use in generating the audit record. */

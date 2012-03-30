@@ -1143,11 +1143,8 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	}
 
 	dev = alloc_etherdev_mq(sizeof(*priv), CPMAC_QUEUES);
-
-	if (!dev) {
-		printk(KERN_ERR "cpmac: Unable to allocate net_device\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	platform_set_drvdata(pdev, dev);
 	priv = netdev_priv(dev);

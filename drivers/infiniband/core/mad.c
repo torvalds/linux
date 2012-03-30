@@ -1842,6 +1842,24 @@ static void ib_mad_complete_recv(struct ib_mad_agent_private *mad_agent_priv,
 	}
 }
 
+static bool generate_unmatched_resp(struct ib_mad_private *recv,
+				    struct ib_mad_private *response)
+{
+	if (recv->mad.mad.mad_hdr.method == IB_MGMT_METHOD_GET ||
+	    recv->mad.mad.mad_hdr.method == IB_MGMT_METHOD_SET) {
+		memcpy(response, recv, sizeof *response);
+		response->header.recv_wc.wc = &response->header.wc;
+		response->header.recv_wc.recv_buf.mad = &response->mad.mad;
+		response->header.recv_wc.recv_buf.grh = &response->grh;
+		response->mad.mad.mad_hdr.method = IB_MGMT_METHOD_GET_RESP;
+		response->mad.mad.mad_hdr.status =
+			cpu_to_be16(IB_MGMT_MAD_STATUS_UNSUPPORTED_METHOD_ATTRIB);
+
+		return true;
+	} else {
+		return false;
+	}
+}
 static void ib_mad_recv_done_handler(struct ib_mad_port_private *port_priv,
 				     struct ib_wc *wc)
 {
@@ -1963,6 +1981,9 @@ local:
 		 * or via recv_handler in ib_mad_complete_recv()
 		 */
 		recv = NULL;
+	} else if (generate_unmatched_resp(recv, response)) {
+		agent_send_response(&response->mad.mad, &recv->grh, wc,
+				    port_priv->device, port_num, qp_info->qp->qp_num);
 	}
 
 out:

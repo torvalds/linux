@@ -70,9 +70,9 @@ attributes are read-only.
 
 in[1-12]_label		"vout[1-12]".
 in[1-12]_input		Measured voltage. From READ_VOUT register.
-in[1-12]_min		Minumum Voltage. From VOUT_UV_WARN_LIMIT register.
+in[1-12]_min		Minimum Voltage. From VOUT_UV_WARN_LIMIT register.
 in[1-12]_max		Maximum voltage. From VOUT_OV_WARN_LIMIT register.
-in[1-12]_lcrit		Critical minumum Voltage. VOUT_UV_FAULT_LIMIT register.
+in[1-12]_lcrit		Critical minimum Voltage. VOUT_UV_FAULT_LIMIT register.
 in[1-12]_crit		Critical maximum voltage. From VOUT_OV_FAULT_LIMIT register.
 in[1-12]_min_alarm	Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in[1-12]_max_alarm	Voltage high alarm. From VOLTAGE_OV_WARNING status.
@@ -82,7 +82,7 @@ in[1-12]_crit_alarm	Voltage critical high alarm. From VOLTAGE_OV_FAULT status.
 curr[1-12]_label	"iout[1-12]".
 curr[1-12]_input	Measured current. From READ_IOUT register.
 curr[1-12]_max		Maximum current. From IOUT_OC_WARN_LIMIT register.
-curr[1-12]_lcrit	Critical minumum output current. From IOUT_UC_FAULT_LIMIT
+curr[1-12]_lcrit	Critical minimum output current. From IOUT_UC_FAULT_LIMIT
 			register.
 curr[1-12]_crit		Critical maximum current. From IOUT_OC_FAULT_LIMIT register.
 curr[1-12]_max_alarm	Current high alarm. From IOUT_OC_WARNING status.

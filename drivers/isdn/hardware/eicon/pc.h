@@ -1,26 +1,26 @@
 
 /*
  *
-  Copyright (c) Eicon Networks, 2002.
+ Copyright (c) Eicon Networks, 2002.
  *
-  This source file is supplied for the use with
-  Eicon Networks range of DIVA Server Adapters.
+ This source file is supplied for the use with
+ Eicon Networks range of DIVA Server Adapters.
  *
-  Eicon File Revision :    2.1
+ Eicon File Revision :    2.1
  *
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
  *
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
+ implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ See the GNU General Public License for more details.
  *
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
 #ifndef PC_H_INCLUDED  /* { */
@@ -29,42 +29,42 @@
 /* buffer definition                                                */
 /*------------------------------------------------------------------*/
 typedef struct {
-  word length;          /* length of data/parameter field           */
-  byte P[270];          /* data/parameter field                     */
+	word length;          /* length of data/parameter field           */
+	byte P[270];          /* data/parameter field                     */
 } PBUFFER;
 /*------------------------------------------------------------------*/
 /* dual port ram structure                                          */
 /*------------------------------------------------------------------*/
 struct dual
 {
-  byte Req;             /* request register                         */
-  byte ReqId;           /* request task/entity identification       */
-  byte Rc;              /* return code register                     */
-  byte RcId;            /* return code task/entity identification   */
-  byte Ind;             /* Indication register                      */
-  byte IndId;           /* Indication task/entity identification    */
-  byte IMask;           /* Interrupt Mask Flag                      */
-  byte RNR;             /* Receiver Not Ready (set by PC)           */
-  byte XLock;           /* XBuffer locked Flag                      */
-  byte Int;             /* ISDN-S interrupt                         */
-  byte ReqCh;           /* Channel field for layer-3 Requests       */
-  byte RcCh;            /* Channel field for layer-3 Returncodes    */
-  byte IndCh;           /* Channel field for layer-3 Indications    */
-  byte MInd;            /* more data indication field               */
-  word MLength;         /* more data total packet length            */
-  byte ReadyInt;        /* request field for ready interrupt        */
-  byte SWReg;           /* Software register for special purposes   */
-  byte Reserved[11];    /* reserved space                           */
-  byte InterfaceType;   /* interface type 1=16K interface           */
-  word Signature;       /* ISDN-S adapter Signature (GD)            */
-  PBUFFER XBuffer;      /* Transmit Buffer                          */
-  PBUFFER RBuffer;      /* Receive Buffer                           */
+	byte Req;             /* request register                         */
+	byte ReqId;           /* request task/entity identification       */
+	byte Rc;              /* return code register                     */
+	byte RcId;            /* return code task/entity identification   */
+	byte Ind;             /* Indication register                      */
+	byte IndId;           /* Indication task/entity identification    */
+	byte IMask;           /* Interrupt Mask Flag                      */
+	byte RNR;             /* Receiver Not Ready (set by PC)           */
+	byte XLock;           /* XBuffer locked Flag                      */
+	byte Int;             /* ISDN-S interrupt                         */
+	byte ReqCh;           /* Channel field for layer-3 Requests       */
+	byte RcCh;            /* Channel field for layer-3 Returncodes    */
+	byte IndCh;           /* Channel field for layer-3 Indications    */
+	byte MInd;            /* more data indication field               */
+	word MLength;         /* more data total packet length            */
+	byte ReadyInt;        /* request field for ready interrupt        */
+	byte SWReg;           /* Software register for special purposes   */
+	byte Reserved[11];    /* reserved space                           */
+	byte InterfaceType;   /* interface type 1=16K interface           */
+	word Signature;       /* ISDN-S adapter Signature (GD)            */
+	PBUFFER XBuffer;      /* Transmit Buffer                          */
+	PBUFFER RBuffer;      /* Receive Buffer                           */
 };
 /*------------------------------------------------------------------*/
 /* SWReg Values (0 means no command)                                */
 /*------------------------------------------------------------------*/
 #define SWREG_DIE_WITH_LEDON  0x01
-#define SWREG_HALT_CPU        0x02 /* Push CPU into a while(1) loop */
+#define SWREG_HALT_CPU        0x02 /* Push CPU into a while (1) loop */
 /*------------------------------------------------------------------*/
 /* Id Fields Coding                                                 */
 /*------------------------------------------------------------------*/
@@ -273,7 +273,7 @@ struct dual
 #define MORE 0xa0               /* more data                        */
 #define SDNCMPL 0xa1            /* sending complete                 */
 #define CL 0xb0                 /* congestion level                 */
-        /* codeset 0                                                */
+/* codeset 0                                                */
 #define SMSG 0x00               /* segmented message                */
 #define BC  0x04                /* Bearer Capability                */
 #define CAU 0x08                /* cause                            */
@@ -307,7 +307,7 @@ struct dual
 #define NLC 0x21                /* network layer configuration      */
 #define REDIRECT_IE     0x22    /* redirection request/indication data */
 #define REDIRECT_NET_IE 0x23    /* redirection network override data   */
-        /* codeset 6                                                */
+/* codeset 6                                                */
 #define SIN 0x01                /* service indicator                */
 #define CIF 0x02                /* charging information             */
 #define DATE 0x03               /* date                             */
@@ -387,13 +387,13 @@ struct dual
 #define SMASK_CCNR                 0x00000200
 #define SMASK_CONF                 0x00000400
 /* ----------------------------------------------
-    Types of transfers used to transfer the
-    information in the 'struct RC->Reserved2[8]'
-    The information is transferred as 2 dwords
-    (2 4Byte unsigned values)
-    First of them is the transfer type.
-    2^32-1 possible messages are possible in this way.
-    The context of the second one had no meaning
+   Types of transfers used to transfer the
+   information in the 'struct RC->Reserved2[8]'
+   The information is transferred as 2 dwords
+   (2 4Byte unsigned values)
+   First of them is the transfer type.
+   2^32-1 possible messages are possible in this way.
+   The context of the second one had no meaning
    ---------------------------------------------- */
 #define DIVA_RC_TYPE_NONE              0x00000000
 #define DIVA_RC_TYPE_REMOVE_COMPLETE   0x00000008
@@ -402,14 +402,14 @@ struct dual
 #define DIVA_RC_TYPE_OK_FC             0x0000000b
 #define DIVA_RC_TYPE_RX_DMA            0x0000000c
 /* ------------------------------------------------------
-      IO Control codes for IN BAND SIGNALING
+   IO Control codes for IN BAND SIGNALING
    ------------------------------------------------------ */
 #define CTRL_L1_SET_SIG_ID        5
 #define CTRL_L1_SET_DAD           6
 #define CTRL_L1_RESOURCES         7
 /* ------------------------------------------------------ */
 /* ------------------------------------------------------
-      Layer 2 types
+   Layer 2 types
    ------------------------------------------------------ */
 #define X75T            1       /* x.75 for ttx                     */
 #define TRF             2       /* transparent with hdlc framing    */
@@ -439,31 +439,31 @@ struct dual
 #define PIAFS_UDATA_ABILITY_DCDON 0x01
 #define PIAFS_UDATA_ABILITY_DDI   0x80
 /*
-DLC of PIAFS :
-Byte | 8 7 6 5 4 3 2 1
------+--------------------------------------------------------
-   0 | 0 0 1 0 0 0 0 0  Data Link Configuration
-   1 | X X X X X X X X  Length of IE (at least 15 Bytes)
-   2 | 0 0 0 0 0 0 0 0  max. information field, LOW  byte (not used, fix 73 Bytes)
-   3 | 0 0 0 0 0 0 0 0  max. information field, HIGH byte (not used, fix 73 Bytes)
-   4 | 0 0 0 0 0 0 0 0  address A (not used)
-   5 | 0 0 0 0 0 0 0 0  address B (not used)
-   6 | 0 0 0 0 0 0 0 0  Mode (not used, fix 128)
-   7 | 0 0 0 0 0 0 0 0  Window Size (not used, fix 127)
-   8 | X X X X X X X X  XID Length, Low Byte (at least 7 Bytes)
-   9 | X X X X X X X X  XID Length, High Byte
+  DLC of PIAFS :
+  Byte | 8 7 6 5 4 3 2 1
+  -----+--------------------------------------------------------
+  0 | 0 0 1 0 0 0 0 0  Data Link Configuration
+  1 | X X X X X X X X  Length of IE (at least 15 Bytes)
+  2 | 0 0 0 0 0 0 0 0  max. information field, LOW  byte (not used, fix 73 Bytes)
+  3 | 0 0 0 0 0 0 0 0  max. information field, HIGH byte (not used, fix 73 Bytes)
+  4 | 0 0 0 0 0 0 0 0  address A (not used)
+  5 | 0 0 0 0 0 0 0 0  address B (not used)
+  6 | 0 0 0 0 0 0 0 0  Mode (not used, fix 128)
+  7 | 0 0 0 0 0 0 0 0  Window Size (not used, fix 127)
+  8 | X X X X X X X X  XID Length, Low Byte (at least 7 Bytes)
+  9 | X X X X X X X X  XID Length, High Byte
   10 | 0 0 0 0 0 C V S  PIAFS Protocol Speed configuration -> Note(1)
-     |                  S = 0 -> Protocol Speed is 32K
-     |                  S = 1 -> Protocol Speed is 64K
-     |                  V = 0 -> Protocol Speed is fixed
-     |                  V = 1 -> Protocol Speed is variable
-     |                  C = 0 -> speed setting according to standard
-     |                  C = 1 -> speed setting for chinese implementation
+  |                  S = 0 -> Protocol Speed is 32K
+  |                  S = 1 -> Protocol Speed is 64K
+  |                  V = 0 -> Protocol Speed is fixed
+  |                  V = 1 -> Protocol Speed is variable
+  |                  C = 0 -> speed setting according to standard
+  |                  C = 1 -> speed setting for chinese implementation
   11 | 0 0 0 0 0 0 R T  P0 - V42bis Compression enable/disable, Low Byte
-     |                  T = 0 -> Transmit Direction enable
-     |                  T = 1 -> Transmit Direction disable
-     |                  R = 0 -> Receive  Direction enable
-     |                  R = 1 -> Receive  Direction disable
+  |                  T = 0 -> Transmit Direction enable
+  |                  T = 1 -> Transmit Direction disable
+  |                  R = 0 -> Receive  Direction enable
+  |                  R = 1 -> Receive  Direction disable
   13 | 0 0 0 0 0 0 0 0  P0 - V42bis Compression enable/disable, High Byte
   14 | X X X X X X X X  P1 - V42bis Dictionary Size, Low Byte
   15 | X X X X X X X X  P1 - V42bis Dictionary Size, High Byte
@@ -472,61 +472,61 @@ Byte | 8 7 6 5 4 3 2 1
   18 | X X X X X X X X  PIAFS extension length
   19 | 1 0 0 0 0 0 0 0  PIAFS extension Id (0x80) - UDATA abilities
   20 | U 0 0 0 0 0 0 D  UDATA abilities -> Note (2)
-     |                  up to now the following Bits are defined:
-     |                  D - signal DCD ON
-     |                  U - use extensive UDATA control communication
-     |                      for DDI test application
-+ Note (1): ----------+------+-----------------------------------------+
-| PIAFS Protocol      | Bit  |                                         |
-| Speed configuration |    S | Bit 1 - Protocol Speed                  |
-|                     |      |         0 - 32K                         |
-|                     |      |         1 - 64K (default)               |
-|                     |    V | Bit 2 - Variable Protocol Speed         |
-|                     |      |         0 - Speed is fix                |
-|                     |      |         1 - Speed is variable (default) |
-|                     |      |             OVERWRITES 32k Bit 1        |
-|                     |    C | Bit 3   0 - Speed Settings according to |
-|                     |      |             PIAFS specification         |
-|                     |      |         1 - Speed setting for chinese   |
-|                     |      |             PIAFS implementation        |
-|                     |      | Explanation for chinese speed settings: |
-|                     |      |         if Bit 3 is set the following   |
-|                     |      |         rules apply:                    |
-|                     |      |         Bit1=0 Bit2=0: 32k fix          |
-|                     |      |         Bit1=1 Bit2=0: 64k fix          |
-|                     |      |         Bit1=0 Bit2=1: PIAFS is trying  |
-|                     |      |             to negotiate 32k is that is |
-|                     |      |             not possible it tries to    |
-|                     |      |             negotiate 64k               |
-|                     |      |         Bit1=1 Bit2=1: PIAFS is trying  |
-|                     |      |             to negotiate 64k is that is |
-|                     |      |             not possible it tries to    |
-|                     |      |             negotiate 32k               |
-+ Note (2): ----------+------+-----------------------------------------+
-| PIAFS               | Bit  | this byte defines the usage of UDATA    |
-| Implementation      |      | control communication                   |
-| UDATA usage         |    D | Bit 1 - DCD-ON signalling               |
-|                     |      |         0 - no DCD-ON is signalled      |
-|                     |      |             (default)                   |
-|                     |      |         1 - DCD-ON will be signalled    |
-|                     |    U | Bit 8 - DDI test application UDATA      |
-|                     |      |         control communication           |
-|                     |      |         0 - no UDATA control            |
-|                     |      |             communication (default)     |
-|                     |      |             sets as well the DCD-ON     |
-|                     |      |             signalling                  |
-|                     |      |         1 - UDATA control communication |
-|                     |      |             ATTENTION: Do not use these |
-|                     |      |                        setting if you   |
-|                     |      |                        are not really   |
-|                     |      |                        that you need it |
-|                     |      |                        and you know     |
-|                     |      |                        exactly what you |
-|                     |      |                        are doing.       |
-|                     |      |                        You can easily   |
-|                     |      |                        disable any      |
-|                     |      |                        data transfer.   |
-+---------------------+------+-----------------------------------------+
+  |                  up to now the following Bits are defined:
+  |                  D - signal DCD ON
+  |                  U - use extensive UDATA control communication
+  |                      for DDI test application
+  + Note (1): ----------+------+-----------------------------------------+
+  | PIAFS Protocol      | Bit  |                                         |
+  | Speed configuration |    S | Bit 1 - Protocol Speed                  |
+  |                     |      |         0 - 32K                         |
+  |                     |      |         1 - 64K (default)               |
+  |                     |    V | Bit 2 - Variable Protocol Speed         |
+  |                     |      |         0 - Speed is fix                |
+  |                     |      |         1 - Speed is variable (default) |
+  |                     |      |             OVERWRITES 32k Bit 1        |
+  |                     |    C | Bit 3   0 - Speed Settings according to |
+  |                     |      |             PIAFS specification         |
+  |                     |      |         1 - Speed setting for chinese   |
+  |                     |      |             PIAFS implementation        |
+  |                     |      | Explanation for chinese speed settings: |
+  |                     |      |         if Bit 3 is set the following   |
+  |                     |      |         rules apply:                    |
+  |                     |      |         Bit1=0 Bit2=0: 32k fix          |
+  |                     |      |         Bit1=1 Bit2=0: 64k fix          |
+  |                     |      |         Bit1=0 Bit2=1: PIAFS is trying  |
+  |                     |      |             to negotiate 32k is that is |
+  |                     |      |             not possible it tries to    |
+  |                     |      |             negotiate 64k               |
+  |                     |      |         Bit1=1 Bit2=1: PIAFS is trying  |
+  |                     |      |             to negotiate 64k is that is |
+  |                     |      |             not possible it tries to    |
+  |                     |      |             negotiate 32k               |
+  + Note (2): ----------+------+-----------------------------------------+
+  | PIAFS               | Bit  | this byte defines the usage of UDATA    |
+  | Implementation      |      | control communication                   |
+  | UDATA usage         |    D | Bit 1 - DCD-ON signalling               |
+  |                     |      |         0 - no DCD-ON is signalled      |
+  |                     |      |             (default)                   |
+  |                     |      |         1 - DCD-ON will be signalled    |
+  |                     |    U | Bit 8 - DDI test application UDATA      |
+  |                     |      |         control communication           |
+  |                     |      |         0 - no UDATA control            |
+  |                     |      |             communication (default)     |
+  |                     |      |             sets as well the DCD-ON     |
+  |                     |      |             signalling                  |
+  |                     |      |         1 - UDATA control communication |
+  |                     |      |             ATTENTION: Do not use these |
+  |                     |      |                        setting if you   |
+  |                     |      |                        are not really   |
+  |                     |      |                        that you need it |
+  |                     |      |                        and you know     |
+  |                     |      |                        exactly what you |
+  |                     |      |                        are doing.       |
+  |                     |      |                        You can easily   |
+  |                     |      |                        disable any      |
+  |                     |      |                        data transfer.   |
+  +---------------------+------+-----------------------------------------+
 */
 /* ------------------------------------------------------
    LISTENER DLC DEFINITIONS
@@ -712,11 +712,11 @@ Byte | 8 7 6 5 4 3 2 1
 /*#define RESERVED85                0x85*/
 #define ADVICE_OF_CHARGE          0x86
 /*1111 0001
-to
-1111 1111
-F1H - Reserved for network operator use
-to
-FFH*/
+  to
+  1111 1111
+  F1H - Reserved for network operator use
+  to
+  FFH*/
 /* Parameter Types */
 #define DATE_AND_TIME                                           1
 #define CLI_PARAMETER_TYPE                                      2

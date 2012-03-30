@@ -2526,12 +2526,10 @@ static void cfi_intelext_restore_locks(struct mtd_info *mtd)
 		if (!region->lockmap)
 			continue;
 
-		for (block = 0; block < region->numblocks; block++) {
+		for_each_clear_bit(block, region->lockmap, region->numblocks) {
 			len = region->erasesize;
 			adr = region->offset + block * len;
-
-			if (!test_bit(block, region->lockmap))
-				cfi_intelext_unlock(mtd, adr, len);
+			cfi_intelext_unlock(mtd, adr, len);
 		}
 	}
 }

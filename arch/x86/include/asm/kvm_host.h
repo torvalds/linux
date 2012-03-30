@@ -29,7 +29,7 @@
 #include <asm/msr-index.h>
 
 #define KVM_MAX_VCPUS 254
-#define KVM_SOFT_MAX_VCPUS 64
+#define KVM_SOFT_MAX_VCPUS 160
 #define KVM_MEMORY_SLOTS 32
 /* memory slots that does not exposed to userspace */
 #define KVM_PRIVATE_MEM_SLOTS 4
@@ -179,13 +179,6 @@ enum {
 struct kvm_mmu_memory_cache {
 	int nobjs;
 	void *objects[KVM_NR_MEM_OBJS];
-};
-
-#define NR_PTE_CHAIN_ENTRIES 5
-
-struct kvm_pte_chain {
-	u64 *parent_ptes[NR_PTE_CHAIN_ENTRIES];
-	struct hlist_node link;
 };
 
 /*
@@ -427,12 +420,16 @@ struct kvm_vcpu_arch {
 
 	u64 last_guest_tsc;
 	u64 last_kernel_ns;
-	u64 last_tsc_nsec;
-	u64 last_tsc_write;
-	u32 virtual_tsc_khz;
+	u64 last_host_tsc;
+	u64 tsc_offset_adjustment;
+	u64 this_tsc_nsec;
+	u64 this_tsc_write;
+	u8  this_tsc_generation;
 	bool tsc_catchup;
-	u32  tsc_catchup_mult;
-	s8   tsc_catchup_shift;
+	bool tsc_always_catchup;
+	s8 virtual_tsc_shift;
+	u32 virtual_tsc_mult;
+	u32 virtual_tsc_khz;
 
 	atomic_t nmi_queued;  /* unprocessed asynchronous NMIs */
 	unsigned nmi_pending; /* NMI queued after currently running handler */
@@ -478,6 +475,21 @@ struct kvm_vcpu_arch {
 		u32 id;
 		bool send_user_only;
 	} apf;
+
+	/* OSVW MSRs (AMD only) */
+	struct {
+		u64 length;
+		u64 status;
+	} osvw;
+};
+
+struct kvm_lpage_info {
+	unsigned long rmap_pde;
+	int write_count;
+};
+
+struct kvm_arch_memory_slot {
+	struct kvm_lpage_info *lpage_info[KVM_NR_PAGE_SIZES - 1];
 };
 
 struct kvm_arch {
@@ -511,8 +523,12 @@ struct kvm_arch {
 	s64 kvmclock_offset;
 	raw_spinlock_t tsc_write_lock;
 	u64 last_tsc_nsec;
-	u64 last_tsc_offset;
 	u64 last_tsc_write;
+	u32 last_tsc_khz;
+	u64 cur_tsc_nsec;
+	u64 cur_tsc_write;
+	u64 cur_tsc_offset;
+	u8  cur_tsc_generation;
 
 	struct kvm_xen_hvm_config xen_hvm_config;
 
@@ -644,7 +660,7 @@ struct kvm_x86_ops {
 	u64 (*get_mt_mask)(struct kvm_vcpu *vcpu, gfn_t gfn, bool is_mmio);
 	int (*get_lpage_level)(void);
 	bool (*rdtscp_supported)(void);
-	void (*adjust_tsc_offset)(struct kvm_vcpu *vcpu, s64 adjustment);
+	void (*adjust_tsc_offset)(struct kvm_vcpu *vcpu, s64 adjustment, bool host);
 
 	void (*set_tdp_cr3)(struct kvm_vcpu *vcpu, unsigned long cr3);
 
@@ -652,7 +668,7 @@ struct kvm_x86_ops {
 
 	bool (*has_wbinvd_exit)(void);
 
-	void (*set_tsc_khz)(struct kvm_vcpu *vcpu, u32 user_tsc_khz);
+	void (*set_tsc_khz)(struct kvm_vcpu *vcpu, u32 user_tsc_khz, bool scale);
 	void (*write_tsc_offset)(struct kvm_vcpu *vcpu, u64 offset);
 
 	u64 (*compute_tsc_offset)(struct kvm_vcpu *vcpu, u64 target_tsc);
@@ -673,6 +689,17 @@ struct kvm_arch_async_pf {
 };
 
 extern struct kvm_x86_ops *kvm_x86_ops;
+
+static inline void adjust_tsc_offset_guest(struct kvm_vcpu *vcpu,
+					   s64 adjustment)
+{
+	kvm_x86_ops->adjust_tsc_offset(vcpu, adjustment, false);
+}
+
+static inline void adjust_tsc_offset_host(struct kvm_vcpu *vcpu, s64 adjustment)
+{
+	kvm_x86_ops->adjust_tsc_offset(vcpu, adjustment, true);
+}
 
 int kvm_mmu_module_init(void);
 void kvm_mmu_module_exit(void);
@@ -741,8 +768,8 @@ int kvm_emulate_wbinvd(struct kvm_vcpu *vcpu);
 void kvm_get_segment(struct kvm_vcpu *vcpu, struct kvm_segment *var, int seg);
 int kvm_load_segment_descriptor(struct kvm_vcpu *vcpu, u16 selector, int seg);
 
-int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
-		    bool has_error_code, u32 error_code);
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
+		    int reason, bool has_error_code, u32 error_code);
 
 int kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0);
 int kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3);

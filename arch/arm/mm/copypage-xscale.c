@@ -23,12 +23,6 @@
 
 #include "mm.h"
 
-/*
- * 0xffff8000 to 0xffffffff is reserved for any ARM architecture
- * specific hacks for copying pages efficiently.
- */
-#define COPYPAGE_MINICACHE	0xffff8000
-
 #define minicache_pgprot __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | \
 				  L_PTE_MT_MINICACHE)
 
@@ -93,21 +87,20 @@ mc_copy_user_page(void *from, void *to)
 void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
 	unsigned long vaddr, struct vm_area_struct *vma)
 {
-	void *kto = kmap_atomic(to, KM_USER1);
+	void *kto = kmap_atomic(to);
 
 	if (!test_and_set_bit(PG_dcache_clean, &from->flags))
 		__flush_dcache_page(page_mapping(from), from);
 
 	raw_spin_lock(&minicache_lock);
 
-	set_pte_ext(TOP_PTE(COPYPAGE_MINICACHE), pfn_pte(page_to_pfn(from), minicache_pgprot), 0);
-	flush_tlb_kernel_page(COPYPAGE_MINICACHE);
+	set_top_pte(COPYPAGE_MINICACHE, mk_pte(from, minicache_pgprot));
 
 	mc_copy_user_page((void *)COPYPAGE_MINICACHE, kto);
 
 	raw_spin_unlock(&minicache_lock);
 
-	kunmap_atomic(kto, KM_USER1);
+	kunmap_atomic(kto);
 }
 
 /*
@@ -116,7 +109,7 @@ void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
 void
 xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 {
-	void *ptr, *kaddr = kmap_atomic(page, KM_USER0);
+	void *ptr, *kaddr = kmap_atomic(page);
 	asm volatile(
 	"mov	r1, %2				\n\
 	mov	r2, #0				\n\
@@ -133,7 +126,7 @@ xscale_mc_clear_user_highpage(struct page *page, unsigned long vaddr)
 	: "=r" (ptr)
 	: "0" (kaddr), "I" (PAGE_SIZE / 32)
 	: "r1", "r2", "r3", "ip");
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 }
 
 struct cpu_user_fns xscale_mc_user_fns __initdata = {

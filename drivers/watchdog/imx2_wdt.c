@@ -46,6 +46,9 @@
 #define IMX2_WDT_SEQ1		0x5555		/* -> service sequence 1 */
 #define IMX2_WDT_SEQ2		0xAAAA		/* -> service sequence 2 */
 
+#define IMX2_WDT_WRSR		0x04		/* Reset Status Register */
+#define IMX2_WDT_WRSR_TOUT	(1 << 1)	/* -> Reset due to Timeout */
+
 #define IMX2_WDT_MAX_TIME	128
 #define IMX2_WDT_DEFAULT_TIME	60		/* in seconds */
 
@@ -65,8 +68,8 @@ static struct {
 
 static struct miscdevice imx2_wdt_miscdev;
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -175,6 +178,7 @@ static long imx2_wdt_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	int new_value;
+	u16 val;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
@@ -182,8 +186,12 @@ static long imx2_wdt_ioctl(struct file *file, unsigned int cmd,
 			sizeof(struct watchdog_info)) ? -EFAULT : 0;
 
 	case WDIOC_GETSTATUS:
-	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
+
+	case WDIOC_GETBOOTSTATUS:
+		val = __raw_readw(imx2_wdt.base + IMX2_WDT_WRSR);
+		new_value = val & IMX2_WDT_WRSR_TOUT ? WDIOF_CARDRESET : 0;
+		return put_user(new_value, p);
 
 	case WDIOC_KEEPALIVE:
 		imx2_wdt_ping();

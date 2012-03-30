@@ -43,12 +43,10 @@ const char *const pci_mem_names[] = {
 
 const char pci_hae0_name[] = "HAE0";
 
-/* Indicate whether we respect the PCI setup left by console. */
 /*
- * Make this long-lived  so that we know when shutting down
- * whether we probed only or not.
+ * If PCI_PROBE_ONLY in pci_flags is set, we don't change any PCI resource
+ * assignments.
  */
-int pci_probe_only;
 
 /*
  * The PCI controller list.
@@ -215,7 +213,7 @@ pdev_save_srm_config(struct pci_dev *dev)
 	struct pdev_srm_saved_conf *tmp;
 	static int printed = 0;
 
-	if (!alpha_using_srm || pci_probe_only)
+	if (!alpha_using_srm || pci_has_flag(PCI_PROBE_ONLY))
 		return;
 
 	if (!printed) {
@@ -242,7 +240,7 @@ pci_restore_srm_config(void)
 	struct pdev_srm_saved_conf *tmp;
 
 	/* No need to restore if probed only. */
-	if (pci_probe_only)
+	if (pci_has_flag(PCI_PROBE_ONLY))
 		return;
 
 	/* Restore SRM config. */
@@ -253,46 +251,17 @@ pci_restore_srm_config(void)
 #endif
 
 void __devinit
-pcibios_fixup_resource(struct resource *res, struct resource *root)
-{
-	res->start += root->start;
-	res->end += root->start;
-}
-
-void __devinit
-pcibios_fixup_device_resources(struct pci_dev *dev, struct pci_bus *bus)
-{
-	/* Update device resources.  */
-	struct pci_controller *hose = (struct pci_controller *)bus->sysdata;
-	int i;
-
-	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
-		if (!dev->resource[i].start)
-			continue;
-		if (dev->resource[i].flags & IORESOURCE_IO)
-			pcibios_fixup_resource(&dev->resource[i],
-					       hose->io_space);
-		else if (dev->resource[i].flags & IORESOURCE_MEM)
-			pcibios_fixup_resource(&dev->resource[i],
-					       hose->mem_space);
-	}
-}
-
-void __devinit
 pcibios_fixup_bus(struct pci_bus *bus)
 {
 	struct pci_dev *dev = bus->self;
 
-	if (pci_probe_only && dev &&
+	if (pci_has_flag(PCI_PROBE_ONLY) && dev &&
  		   (dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
  		pci_read_bridge_bases(bus);
- 		pcibios_fixup_device_resources(dev, bus);
 	} 
 
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		pdev_save_srm_config(dev);
-		if ((dev->class >> 8) != PCI_CLASS_BRIDGE_PCI)
-			pcibios_fixup_device_resources(dev, bus);
 	}
 }
 
@@ -301,42 +270,6 @@ pcibios_update_irq(struct pci_dev *dev, int irq)
 {
 	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
-
-void
-pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,
-			 struct resource *res)
-{
-	struct pci_controller *hose = (struct pci_controller *)dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = hose->io_space->start;
-	else if (res->flags & IORESOURCE_MEM)
-		offset = hose->mem_space->start;
-
-	region->start = res->start - offset;
-	region->end = res->end - offset;
-}
-
-void pcibios_bus_to_resource(struct pci_dev *dev, struct resource *res,
-			     struct pci_bus_region *region)
-{
-	struct pci_controller *hose = (struct pci_controller *)dev->sysdata;
-	unsigned long offset = 0;
-
-	if (res->flags & IORESOURCE_IO)
-		offset = hose->io_space->start;
-	else if (res->flags & IORESOURCE_MEM)
-		offset = hose->mem_space->start;
-
-	res->start = region->start + offset;
-	res->end = region->end + offset;
-}
-
-#ifdef CONFIG_HOTPLUG
-EXPORT_SYMBOL(pcibios_resource_to_bus);
-EXPORT_SYMBOL(pcibios_bus_to_resource);
-#endif
 
 int
 pcibios_enable_device(struct pci_dev *dev, int mask)
@@ -374,7 +307,8 @@ pcibios_claim_one_bus(struct pci_bus *b)
 
 			if (r->parent || !r->start || !r->flags)
 				continue;
-			if (pci_probe_only || (r->flags & IORESOURCE_PCI_FIXED))
+			if (pci_has_flag(PCI_PROBE_ONLY) ||
+			    (r->flags & IORESOURCE_PCI_FIXED))
 				pci_claim_resource(dev, i);
 		}
 	}
@@ -416,8 +350,10 @@ common_init_pci(void)
 			hose->mem_space->end = end;
 
 		INIT_LIST_HEAD(&resources);
-		pci_add_resource(&resources, hose->io_space);
-		pci_add_resource(&resources, hose->mem_space);
+		pci_add_resource_offset(&resources, hose->io_space,
+					hose->io_space->start);
+		pci_add_resource_offset(&resources, hose->mem_space,
+					hose->mem_space->start);
 
 		bus = pci_scan_root_bus(NULL, next_busno, alpha_mv.pci_ops,
 					hose, &resources);

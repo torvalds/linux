@@ -34,7 +34,6 @@
 #include <asm/memory.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
 
@@ -441,6 +440,9 @@ static struct platform_device *ixp23xx_devices[] __initdata = {
 
 void __init ixp23xx_sys_init(void)
 {
+	/* by default, the idle code is disabled */
+	disable_hlt();
+
 	*IXP23XX_EXP_UNIT_FUSE |= 0xf;
 	platform_add_devices(ixp23xx_devices, ARRAY_SIZE(ixp23xx_devices));
 }

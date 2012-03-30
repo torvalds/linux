@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include "hw.h"
 #include "ar9003_mac.h"
+#include "ar9003_mci.h"
 
 static void ar9003_hw_rx_enable(struct ath_hw *hw)
 {
@@ -28,11 +29,14 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	struct ar9003_txc *ads = ds;
 	int checksum = 0;
 	u32 val, ctl12, ctl17;
+	u8 desc_len;
+
+	desc_len = (AR_SREV_9462(ah) ? 0x18 : 0x17);
 
 	val = (ATHEROS_VENDOR_ID << AR_DescId_S) |
 	      (1 << AR_TxRxDesc_S) |
 	      (1 << AR_CtrlStat_S) |
-	      (i->qcu << AR_TxQcuNum_S) | 0x17;
+	      (i->qcu << AR_TxQcuNum_S) | desc_len;
 
 	checksum += val;
 	ACCESS_ONCE(ads->info) = val;
@@ -81,6 +85,7 @@ ar9003_set_txdesc(struct ath_hw *ah, void *ds, struct ath_tx_info *i)
 	ads->ctl20 = 0;
 	ads->ctl21 = 0;
 	ads->ctl22 = 0;
+	ads->ctl23 = 0;
 
 	ctl17 = SM(i->keytype, AR_EncrType);
 	if (!i->is_first) {
@@ -176,7 +181,6 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 	u32 mask2 = 0;
 	struct ath9k_hw_capabilities *pCap = &ah->caps;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath9k_hw_mci *mci = &ah->btcoex_hw.mci;
 	u32 sync_cause = 0, async_cause;
 
 	async_cause = REG_READ(ah, AR_INTR_ASYNC_CAUSE);
@@ -298,32 +302,8 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 			ar9003_hw_bb_watchdog_read(ah);
 	}
 
-	if (async_cause & AR_INTR_ASYNC_MASK_MCI) {
-		u32 raw_intr, rx_msg_intr;
-
-		rx_msg_intr = REG_READ(ah, AR_MCI_INTERRUPT_RX_MSG_RAW);
-		raw_intr = REG_READ(ah, AR_MCI_INTERRUPT_RAW);
-
-		if ((raw_intr == 0xdeadbeef) || (rx_msg_intr == 0xdeadbeef))
-			ath_dbg(common, MCI,
-				"MCI gets 0xdeadbeef during MCI int processing new raw_intr=0x%08x, new rx_msg_raw=0x%08x, raw_intr=0x%08x, rx_msg_raw=0x%08x\n",
-				raw_intr, rx_msg_intr, mci->raw_intr,
-				mci->rx_msg_intr);
-		else {
-			mci->rx_msg_intr |= rx_msg_intr;
-			mci->raw_intr |= raw_intr;
-			*masked |= ATH9K_INT_MCI;
-
-			if (rx_msg_intr & AR_MCI_INTERRUPT_RX_MSG_CONT_INFO)
-				mci->cont_status =
-					REG_READ(ah, AR_MCI_CONT_STATUS);
-
-			REG_WRITE(ah, AR_MCI_INTERRUPT_RX_MSG_RAW, rx_msg_intr);
-			REG_WRITE(ah, AR_MCI_INTERRUPT_RAW, raw_intr);
-			ath_dbg(common, MCI, "AR_INTR_SYNC_MCI\n");
-
-		}
-	}
+	if (async_cause & AR_INTR_ASYNC_MASK_MCI)
+		ar9003_mci_get_isr(ah, masked);
 
 	if (sync_cause) {
 		if (sync_cause & AR_INTR_SYNC_RADM_CPL_TIMEOUT) {
@@ -346,7 +326,6 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 				 struct ath_tx_status *ts)
 {
-	struct ar9003_txc *txc = (struct ar9003_txc *) ds;
 	struct ar9003_txs *ads;
 	u32 status;
 
@@ -356,11 +335,7 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	if ((status & AR_TxDone) == 0)
 		return -EINPROGRESS;
 
-	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
-	if (!txc || (MS(txc->info, AR_TxQcuNum) == ts->qid))
-		ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
-	else
-		return -ENOENT;
+	ah->ts_tail = (ah->ts_tail + 1) % ah->ts_size;
 
 	if ((MS(ads->ds_info, AR_DescId) != ATHEROS_VENDOR_ID) ||
 	    (MS(ads->ds_info, AR_TxRxDesc) != 1)) {
@@ -374,6 +349,7 @@ static int ar9003_hw_proc_txdesc(struct ath_hw *ah, void *ds,
 	ts->ts_seqnum = MS(status, AR_SeqNum);
 	ts->tid = MS(status, AR_TxTid);
 
+	ts->qid = MS(ads->ds_info, AR_TxQcuNum);
 	ts->desc_id = MS(ads->status1, AR_TxDescId);
 	ts->ts_tstamp = ads->status4;
 	ts->ts_status = 0;
@@ -460,20 +436,14 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 	struct ar9003_rxs *rxsp = (struct ar9003_rxs *) buf_addr;
 	unsigned int phyerr;
 
-	/* TODO: byte swap on big endian for ar9300_10 */
+	if ((rxsp->status11 & AR_RxDone) == 0)
+		return -EINPROGRESS;
 
-	if (!rxs) {
-		if ((rxsp->status11 & AR_RxDone) == 0)
-			return -EINPROGRESS;
+	if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
+		return -EINVAL;
 
-		if (MS(rxsp->ds_info, AR_DescId) != 0x168c)
-			return -EINVAL;
-
-		if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
-			return -EINPROGRESS;
-
-		return 0;
-	}
+	if ((rxsp->ds_info & (AR_TxRxDesc | AR_CtrlStat)) != 0)
+		return -EINPROGRESS;
 
 	rxs->rs_status = 0;
 	rxs->rs_flags =  0;
@@ -530,7 +500,11 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 		 */
 		if (rxsp->status11 & AR_CRCErr)
 			rxs->rs_status |= ATH9K_RXERR_CRC;
-		else if (rxsp->status11 & AR_PHYErr) {
+		else if (rxsp->status11 & AR_DecryptCRCErr)
+			rxs->rs_status |= ATH9K_RXERR_DECRYPT;
+		else if (rxsp->status11 & AR_MichaelErr)
+			rxs->rs_status |= ATH9K_RXERR_MIC;
+		if (rxsp->status11 & AR_PHYErr) {
 			phyerr = MS(rxsp->status11, AR_PHYErrCode);
 			/*
 			 * If we reach a point here where AR_PostDelimCRCErr is
@@ -552,11 +526,7 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 				rxs->rs_status |= ATH9K_RXERR_PHY;
 				rxs->rs_phyerr = phyerr;
 			}
-
-		} else if (rxsp->status11 & AR_DecryptCRCErr)
-			rxs->rs_status |= ATH9K_RXERR_DECRYPT;
-		else if (rxsp->status11 & AR_MichaelErr)
-			rxs->rs_status |= ATH9K_RXERR_MIC;
+		};
 	}
 
 	if (rxsp->status11 & AR_KeyMiss)

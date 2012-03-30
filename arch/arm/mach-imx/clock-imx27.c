@@ -22,6 +22,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/clkdev.h>
+#include <linux/of.h>
 
 #include <asm/div64.h>
 
@@ -661,7 +662,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "dma", dma_clk)
 	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
 	_REGISTER_CLOCK(NULL, "brom", brom_clk)
-	_REGISTER_CLOCK(NULL, "emma", emma_clk)
+	_REGISTER_CLOCK("m2m-emmaprp.0", NULL, emma_clk)
 	_REGISTER_CLOCK(NULL, "slcdc", slcdc_clk)
 	_REGISTER_CLOCK("imx27-fec.0", NULL, fec_clk)
 	_REGISTER_CLOCK(NULL, "emi", emi_clk)
@@ -764,3 +765,20 @@ int __init mx27_clocks_init(unsigned long fref)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+int __init mx27_clocks_init_dt(void)
+{
+	struct device_node *np;
+	u32 fref = 26000000; /* default */
+
+	for_each_compatible_node(np, NULL, "fixed-clock") {
+		if (!of_device_is_compatible(np, "fsl,imx-osc26m"))
+			continue;
+
+		if (!of_property_read_u32(np, "clock-frequency", &fref))
+			break;
+	}
+
+	return mx27_clocks_init(fref);
+}
+#endif

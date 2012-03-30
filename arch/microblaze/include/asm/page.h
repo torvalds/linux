@@ -138,6 +138,8 @@ extern unsigned long memory_start;
 extern unsigned long memory_size;
 extern unsigned long lowmem_size;
 
+extern unsigned long kernel_tlb;
+
 extern int page_is_ram(unsigned long pfn);
 
 # define phys_to_pfn(phys)	(PFN_DOWN(phys))

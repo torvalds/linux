@@ -62,9 +62,10 @@
  *		2 of the License, or (at your option) any later version.
  */
 
+#define pr_fmt(fmt) "IPv4: " fmt
+
 #include <linux/module.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -959,7 +960,7 @@ void rt_cache_flush_batch(struct net *net)
 static void rt_emergency_hash_rebuild(struct net *net)
 {
 	if (net_ratelimit())
-		printk(KERN_WARNING "Route hash chain too long!\n");
+		pr_warn("Route hash chain too long!\n");
 	rt_cache_invalidate(net);
 }
 
@@ -1083,7 +1084,7 @@ static int rt_garbage_collect(struct dst_ops *ops)
 	if (dst_entries_get_slow(&ipv4_dst_ops) < ip_rt_max_size)
 		goto out;
 	if (net_ratelimit())
-		printk(KERN_WARNING "dst cache overflow\n");
+		pr_warn("dst cache overflow\n");
 	RT_CACHE_STAT_INC(gc_dst_overflow);
 	return 1;
 
@@ -1116,12 +1117,17 @@ static struct neighbour *ipv4_neigh_lookup(const struct dst_entry *dst, const vo
 	static const __be32 inaddr_any = 0;
 	struct net_device *dev = dst->dev;
 	const __be32 *pkey = daddr;
+	const struct rtable *rt;
 	struct neighbour *n;
+
+	rt = (const struct rtable *) dst;
 
 	if (dev->flags & (IFF_LOOPBACK | IFF_POINTOPOINT))
 		pkey = &inaddr_any;
+	else if (rt->rt_gateway)
+		pkey = (const __be32 *) &rt->rt_gateway;
 
-	n = __ipv4_neigh_lookup(&arp_tbl, dev, *(__force u32 *)pkey);
+	n = __ipv4_neigh_lookup(dev, *(__force u32 *)pkey);
 	if (n)
 		return n;
 	return neigh_create(&arp_tbl, pkey, dev);
@@ -1176,8 +1182,7 @@ restart:
 			int err = rt_bind_neighbour(rt);
 			if (err) {
 				if (net_ratelimit())
-					printk(KERN_WARNING
-					    "Neighbour table failure & not caching routes.\n");
+					pr_warn("Neighbour table failure & not caching routes\n");
 				ip_rt_put(rt);
 				return ERR_PTR(err);
 			}
@@ -1253,7 +1258,7 @@ restart:
 			struct net *net = dev_net(rt->dst.dev);
 			int num = ++net->ipv4.current_rt_cache_rebuild_count;
 			if (!rt_caching(net)) {
-				printk(KERN_WARNING "%s: %d rebuilds is over limit, route caching disabled\n",
+				pr_warn("%s: %d rebuilds is over limit, route caching disabled\n",
 					rt->dst.dev->name, num);
 			}
 			rt_emergency_hash_rebuild(net);
@@ -1294,7 +1299,7 @@ restart:
 			}
 
 			if (net_ratelimit())
-				printk(KERN_WARNING "ipv4: Neighbour table overflow.\n");
+				pr_warn("Neighbour table overflow\n");
 			rt_drop(rt);
 			return ERR_PTR(-ENOBUFS);
 		}
@@ -1498,10 +1503,10 @@ void ip_rt_redirect(__be32 old_gw, __be32 daddr, __be32 new_gw,
 reject_redirect:
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 	if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-		printk(KERN_INFO "Redirect from %pI4 on %s about %pI4 ignored.\n"
+		pr_info("Redirect from %pI4 on %s about %pI4 ignored\n"
 			"  Advised path = %pI4 -> %pI4\n",
-		       &old_gw, dev->name, &new_gw,
-		       &saddr, &daddr);
+			&old_gw, dev->name, &new_gw,
+			&saddr, &daddr);
 #endif
 	;
 }
@@ -1613,8 +1618,8 @@ void ip_rt_send_redirect(struct sk_buff *skb)
 		if (log_martians &&
 		    peer->rate_tokens == ip_rt_redirect_number &&
 		    net_ratelimit())
-			printk(KERN_WARNING "host %pI4/if%d ignores redirects for %pI4 to %pI4.\n",
-			       &ip_hdr(skb)->saddr, rt->rt_iif,
+			pr_warn("host %pI4/if%d ignores redirects for %pI4 to %pI4\n",
+				&ip_hdr(skb)->saddr, rt->rt_iif,
 				&rt->rt_dst, &rt->rt_gateway);
 #endif
 	}
@@ -2100,18 +2105,13 @@ static void ip_handle_martian_source(struct net_device *dev,
 		 *	RFC1812 recommendation, if source is martian,
 		 *	the only hint is MAC header.
 		 */
-		printk(KERN_WARNING "martian source %pI4 from %pI4, on dev %s\n",
+		pr_warn("martian source %pI4 from %pI4, on dev %s\n",
 			&daddr, &saddr, dev->name);
 		if (dev->hard_header_len && skb_mac_header_was_set(skb)) {
-			int i;
-			const unsigned char *p = skb_mac_header(skb);
-			printk(KERN_WARNING "ll header: ");
-			for (i = 0; i < dev->hard_header_len; i++, p++) {
-				printk("%02x", *p);
-				if (i < (dev->hard_header_len - 1))
-					printk(":");
-			}
-			printk("\n");
+			print_hex_dump(KERN_WARNING, "ll header: ",
+				       DUMP_PREFIX_OFFSET, 16, 1,
+				       skb_mac_header(skb),
+				       dev->hard_header_len, true);
 		}
 	}
 #endif
@@ -2135,8 +2135,7 @@ static int __mkroute_input(struct sk_buff *skb,
 	out_dev = __in_dev_get_rcu(FIB_RES_DEV(*res));
 	if (out_dev == NULL) {
 		if (net_ratelimit())
-			printk(KERN_CRIT "Bug in ip_route_input" \
-			       "_slow(). Please, report\n");
+			pr_crit("Bug in ip_route_input_slow(). Please report.\n");
 		return -EINVAL;
 	}
 
@@ -2408,7 +2407,7 @@ martian_destination:
 	RT_CACHE_STAT_INC(in_martian_dst);
 #ifdef CONFIG_IP_ROUTE_VERBOSE
 	if (IN_DEV_LOG_MARTIANS(in_dev) && net_ratelimit())
-		printk(KERN_WARNING "martian destination %pI4 from %pI4, dev %s\n",
+		pr_warn("martian destination %pI4 from %pI4, dev %s\n",
 			&daddr, &saddr, dev->name);
 #endif
 
@@ -3485,7 +3484,7 @@ int __init ip_rt_init(void)
 		net_random() % ip_rt_gc_interval + ip_rt_gc_interval);
 
 	if (ip_rt_proc_init())
-		printk(KERN_ERR "Unable to create route proc files\n");
+		pr_err("Unable to create route proc files\n");
 #ifdef CONFIG_XFRM
 	xfrm_init();
 	xfrm4_init(ip_rt_max_size);

@@ -14,11 +14,22 @@
 	compatible = "atmel,at91sam9m10g45ek", "atmel,at91sam9g45", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "mem=64M console=ttyS0,115200 mtdparts=atmel_nand:4M(bootstrap/uboot/kernel)ro,60M(rootfs),-(data) root=/dev/mtdblock1 rw rootfstype=jffs2";
+		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
 	};
 
 	memory@70000000 {
 		reg = <0x70000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <12000000>;
+		};
 	};
 
 	ahb {
@@ -35,6 +46,111 @@
 				phy-mode = "rmii";
 				status = "okay";
 			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			status = "okay";
+
+			boot@0 {
+				label = "bootstrap/uboot/kernel";
+				reg = <0x0 0x400000>;
+			};
+
+			rootfs@400000 {
+				label = "rootfs";
+				reg = <0x400000 0x3C00000>;
+			};
+
+			data@4000000 {
+				label = "data";
+				reg = <0x4000000 0xC000000>;
+			};
+		};
+
+		usb0: ohci@00700000 {
+			status = "okay";
+			num-ports = <2>;
+			atmel,vbus-gpio = <&pioD 1 0
+					   &pioD 3 0>;
+		};
+
+		usb1: ehci@00800000 {
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		d8 {
+			label = "d8";
+			gpios = <&pioD 30 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		d6 {
+			label = "d6";
+			gpios = <&pioD 0 1>;
+			linux,default-trigger = "nand-disk";
+		};
+
+		d7 {
+			label = "d7";
+			gpios = <&pioD 31 1>;
+			linux,default-trigger = "mmc0";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		left_click {
+			label = "left_click";
+			gpios = <&pioB 6 1>;
+			linux,code = <272>;
+			gpio-key,wakeup;
+		};
+
+		right_click {
+			label = "right_click";
+			gpios = <&pioB 7 1>;
+			linux,code = <273>;
+			gpio-key,wakeup;
+		};
+
+		left {
+			label = "Joystick Left";
+			gpios = <&pioB 14 1>;
+			linux,code = <105>;
+		};
+
+		right {
+			label = "Joystick Right";
+			gpios = <&pioB 15 1>;
+			linux,code = <106>;
+		};
+
+		up {
+			label = "Joystick Up";
+			gpios = <&pioB 16 1>;
+			linux,code = <103>;
+		};
+
+		down {
+			label = "Joystick Down";
+			gpios = <&pioB 17 1>;
+			linux,code = <108>;
+		};
+
+		enter {
+			label = "Joystick Press";
+			gpios = <&pioB 18 1>;
+			linux,code = <28>;
 		};
 	};
 };

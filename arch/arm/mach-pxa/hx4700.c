@@ -28,7 +28,8 @@
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
-#include <linux/regulator/bq24022.h>
+#include <linux/regulator/driver.h>
+#include <linux/regulator/gpio-regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/max1586.h>
 #include <linux/spi/ads7846.h>
@@ -97,9 +98,9 @@ static unsigned long hx4700_pin_config[] __initdata = {
 
 	/* BTUART */
 	GPIO42_BTUART_RXD,
-	GPIO43_BTUART_TXD,
+	GPIO43_BTUART_TXD_LPM_LOW,
 	GPIO44_BTUART_CTS,
-	GPIO45_BTUART_RTS,
+	GPIO45_BTUART_RTS_LPM_LOW,
 
 	/* PWM 1 (Backlight) */
 	GPIO17_PWM1_OUT,
@@ -245,6 +246,21 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOD15_nPIOW,
 };
 
+static struct asic3_led asic3_leds[ASIC3_NUM_LEDS] = {
+	[0] = {
+		.name = "hx4700:amber",
+		.default_trigger = "ds2760-battery.0-charging-blink-full-solid",
+	},
+	[1] = {
+		.name = "hx4700:green",
+		.default_trigger = "unused",
+	},
+	[2] = {
+		.name = "hx4700:blue",
+		.default_trigger = "hx4700-radio",
+	},
+};
+
 static struct resource asic3_resources[] = {
 	/* GPIO part */
 	[0] = {
@@ -275,6 +291,7 @@ static struct asic3_platform_data asic3_platform_data = {
 	.gpio_config_num = ARRAY_SIZE(asic3_gpio_config),
 	.irq_base        = IRQ_BOARD_START,
 	.gpio_base       = HX4700_ASIC3_GPIO_BASE,
+	.leds            = asic3_leds,
 };
 
 static struct platform_device asic3 = {
@@ -664,11 +681,9 @@ static struct platform_device power_supply = {
 
 static struct regulator_consumer_supply bq24022_consumers[] = {
 	{
-		.dev = &gpio_vbus.dev,
 		.supply = "vbus_draw",
 	},
 	{
-		.dev = &power_supply.dev,
 		.supply = "ac_draw",
 	},
 };
@@ -682,14 +697,34 @@ static struct regulator_init_data bq24022_init_data = {
 	.consumer_supplies      = bq24022_consumers,
 };
 
-static struct bq24022_mach_info bq24022_info = {
-	.gpio_nce   = GPIO72_HX4700_BQ24022_nCHARGE_EN,
-	.gpio_iset2 = GPIO96_HX4700_BQ24022_ISET2,
-	.init_data  = &bq24022_init_data,
+static struct gpio bq24022_gpios[] = {
+	{ GPIO96_HX4700_BQ24022_ISET2, GPIOF_OUT_INIT_LOW, "bq24022_iset2" },
+};
+
+static struct gpio_regulator_state bq24022_states[] = {
+	{ .value = 100000, .gpios = (0 << 0) },
+	{ .value = 500000, .gpios = (1 << 0) },
+};
+
+static struct gpio_regulator_config bq24022_info = {
+	.supply_name = "bq24022",
+
+	.enable_gpio = GPIO72_HX4700_BQ24022_nCHARGE_EN,
+	.enable_high = 0,
+	.enabled_at_boot = 0,
+
+	.gpios = bq24022_gpios,
+	.nr_gpios = ARRAY_SIZE(bq24022_gpios),
+
+	.states = bq24022_states,
+	.nr_states = ARRAY_SIZE(bq24022_states),
+
+	.type = REGULATOR_CURRENT,
+	.init_data = &bq24022_init_data,
 };
 
 static struct platform_device bq24022 = {
-	.name = "bq24022",
+	.name = "gpio-regulator",
 	.id   = -1,
 	.dev  = {
 		.platform_data = &bq24022_info,
@@ -705,10 +740,9 @@ static void hx4700_set_vpp(struct platform_device *pdev, int vpp)
 	gpio_set_value(GPIO91_HX4700_FLASH_VPEN, vpp);
 }
 
-static struct resource strataflash_resource = {
-	.start = PXA_CS0_PHYS,
-	.end   = PXA_CS0_PHYS + SZ_128M - 1,
-	.flags = IORESOURCE_MEM,
+static struct resource strataflash_resource[] = {
+	[0] = DEFINE_RES_MEM(PXA_CS0_PHYS, SZ_64M),
+	[1] = DEFINE_RES_MEM(PXA_CS0_PHYS + SZ_64M, SZ_64M),
 };
 
 static struct physmap_flash_data strataflash_data = {
@@ -719,8 +753,8 @@ static struct physmap_flash_data strataflash_data = {
 static struct platform_device strataflash = {
 	.name          = "physmap-flash",
 	.id            = -1,
-	.resource      = &strataflash_resource,
-	.num_resources = 1,
+	.resource      = strataflash_resource,
+	.num_resources = ARRAY_SIZE(strataflash_resource),
 	.dev = {
 		.platform_data = &strataflash_data,
 	},
@@ -788,17 +822,6 @@ static struct platform_device audio = {
 
 
 /*
- * PCMCIA
- */
-
-static struct platform_device pcmcia = {
-	.name = "hx4700-pcmcia",
-	.dev  = {
-		.parent = &asic3.dev,
-	},
-};
-
-/*
  * Platform devices
  */
 
@@ -814,7 +837,6 @@ static struct platform_device *devices[] __initdata = {
 	&power_supply,
 	&strataflash,
 	&audio,
-	&pcmcia,
 };
 
 static struct gpio global_gpios[] = {
@@ -830,7 +852,6 @@ static struct gpio global_gpios[] = {
 	{ GPIO32_HX4700_RS232_ON,         GPIOF_OUT_INIT_HIGH, "RS232_ON" },
 	{ GPIO71_HX4700_ASIC3_nRESET,     GPIOF_OUT_INIT_HIGH, "ASIC3_nRESET" },
 	{ GPIO82_HX4700_EUART_RESET,      GPIOF_OUT_INIT_HIGH, "EUART_RESET" },
-	{ GPIO105_HX4700_nIR_ON,          GPIOF_OUT_INIT_HIGH, "nIR_EN" },
 };
 
 static void __init hx4700_init(void)

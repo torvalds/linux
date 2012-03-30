@@ -32,7 +32,6 @@
 #include <linux/bitops.h>
 #include <linux/ftrace.h>
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 #include <asm/current.h>
 #include <asm/delay.h>

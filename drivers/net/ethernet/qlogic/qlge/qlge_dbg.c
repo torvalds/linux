@@ -1824,10 +1824,8 @@ void ql_dump_hw_cb(struct ql_adapter *qdev, int size, u32 bit, u16 q_id)
 	pr_err("%s: Enter\n", __func__);
 
 	ptr = kmalloc(size, GFP_ATOMIC);
-	if (ptr == NULL) {
-		pr_err("%s: Couldn't allocate a buffer\n", __func__);
+	if (ptr == NULL)
 		return;
-	}
 
 	if (ql_write_cfg(qdev, ptr, size, bit, q_id)) {
 		pr_err("%s: Failed to upload control block!\n", __func__);

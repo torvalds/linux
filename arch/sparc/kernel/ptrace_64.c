@@ -29,7 +29,6 @@
 
 #include <asm/asi.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/psrcompat.h>
 #include <asm/visasm.h>

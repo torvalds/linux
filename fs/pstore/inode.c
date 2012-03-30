@@ -278,9 +278,7 @@ fail:
 
 int pstore_fill_super(struct super_block *sb, void *data, int silent)
 {
-	struct inode *inode = NULL;
-	struct dentry *root;
-	int err;
+	struct inode *inode;
 
 	save_mount_options(sb, data);
 
@@ -296,26 +294,17 @@ int pstore_fill_super(struct super_block *sb, void *data, int silent)
 	parse_options(data);
 
 	inode = pstore_get_inode(sb, NULL, S_IFDIR | 0755, 0);
-	if (!inode) {
-		err = -ENOMEM;
-		goto fail;
+	if (inode) {
+		/* override ramfs "dir" options so we catch unlink(2) */
+		inode->i_op = &pstore_dir_inode_operations;
 	}
-	/* override ramfs "dir" options so we catch unlink(2) */
-	inode->i_op = &pstore_dir_inode_operations;
-
-	root = d_alloc_root(inode);
-	sb->s_root = root;
-	if (!root) {
-		err = -ENOMEM;
-		goto fail;
-	}
+	sb->s_root = d_make_root(inode);
+	if (!sb->s_root)
+		return -ENOMEM;
 
 	pstore_get_records(0);
 
 	return 0;
-fail:
-	iput(inode);
-	return err;
 }
 
 static struct dentry *pstore_mount(struct file_system_type *fs_type,

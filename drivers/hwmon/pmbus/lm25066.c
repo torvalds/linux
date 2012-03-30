@@ -176,7 +176,6 @@ static int lm25066_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	int config;
-	int ret;
 	struct lm25066_data *data;
 	struct pmbus_driver_info *info;
 
@@ -184,15 +183,14 @@ static int lm25066_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct lm25066_data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(struct lm25066_data),
+			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	config = i2c_smbus_read_byte_data(client, LM25066_DEVICE_SETUP);
-	if (config < 0) {
-		ret = config;
-		goto err_mem;
-	}
+	if (config < 0)
+		return config;
 
 	data->id = id->driver_data;
 	info = &data->info;
@@ -291,28 +289,10 @@ static int lm25066_probe(struct i2c_client *client,
 		}
 		break;
 	default:
-		ret = -ENODEV;
-		goto err_mem;
+		return -ENODEV;
 	}
 
-	ret = pmbus_do_probe(client, id, info);
-	if (ret)
-		goto err_mem;
-	return 0;
-
-err_mem:
-	kfree(data);
-	return ret;
-}
-
-static int lm25066_remove(struct i2c_client *client)
-{
-	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
-	const struct lm25066_data *data = to_lm25066_data(info);
-
-	pmbus_do_remove(client);
-	kfree(data);
-	return 0;
+	return pmbus_do_probe(client, id, info);
 }
 
 static const struct i2c_device_id lm25066_id[] = {
@@ -330,22 +310,12 @@ static struct i2c_driver lm25066_driver = {
 		   .name = "lm25066",
 		   },
 	.probe = lm25066_probe,
-	.remove = lm25066_remove,
+	.remove = pmbus_do_remove,
 	.id_table = lm25066_id,
 };
 
-static int __init lm25066_init(void)
-{
-	return i2c_add_driver(&lm25066_driver);
-}
-
-static void __exit lm25066_exit(void)
-{
-	i2c_del_driver(&lm25066_driver);
-}
+module_i2c_driver(lm25066_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
 MODULE_DESCRIPTION("PMBus driver for LM25066/LM5064/LM5066");
 MODULE_LICENSE("GPL");
-module_init(lm25066_init);
-module_exit(lm25066_exit);

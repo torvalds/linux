@@ -28,6 +28,7 @@
 #include <linux/fb.h>
 #include <drm/drm_edid.h>
 #include "drmP.h"
+#include "drm_edid.h"
 #include "intel_drv.h"
 #include "i915_drv.h"
 
@@ -42,13 +43,13 @@ bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus)
 	u8 buf[2];
 	struct i2c_msg msgs[] = {
 		{
-			.addr = 0x50,
+			.addr = DDC_ADDR,
 			.flags = 0,
 			.len = 1,
 			.buf = out_buf,
 		},
 		{
-			.addr = 0x50,
+			.addr = DDC_ADDR,
 			.flags = I2C_M_RD,
 			.len = 1,
 			.buf = buf,
@@ -83,10 +84,11 @@ int intel_ddc_get_modes(struct drm_connector *connector,
 	return ret;
 }
 
-static const char *force_audio_names[] = {
-	"off",
-	"auto",
-	"on",
+static const struct drm_prop_enum_list force_audio_names[] = {
+	{ HDMI_AUDIO_OFF_DVI, "force-dvi" },
+	{ HDMI_AUDIO_OFF, "off" },
+	{ HDMI_AUDIO_AUTO, "auto" },
+	{ HDMI_AUDIO_ON, "on" },
 };
 
 void
@@ -95,27 +97,24 @@ intel_attach_force_audio_property(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_property *prop;
-	int i;
 
 	prop = dev_priv->force_audio_property;
 	if (prop == NULL) {
-		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+		prop = drm_property_create_enum(dev, 0,
 					   "audio",
+					   force_audio_names,
 					   ARRAY_SIZE(force_audio_names));
 		if (prop == NULL)
 			return;
-
-		for (i = 0; i < ARRAY_SIZE(force_audio_names); i++)
-			drm_property_add_enum(prop, i, i-1, force_audio_names[i]);
 
 		dev_priv->force_audio_property = prop;
 	}
 	drm_connector_attach_property(connector, prop, 0);
 }
 
-static const char *broadcast_rgb_names[] = {
-	"Full",
-	"Limited 16:235",
+static const struct drm_prop_enum_list broadcast_rgb_names[] = {
+	{ 0, "Full" },
+	{ 1, "Limited 16:235" },
 };
 
 void
@@ -124,18 +123,15 @@ intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_property *prop;
-	int i;
 
 	prop = dev_priv->broadcast_rgb_property;
 	if (prop == NULL) {
-		prop = drm_property_create(dev, DRM_MODE_PROP_ENUM,
+		prop = drm_property_create_enum(dev, DRM_MODE_PROP_ENUM,
 					   "Broadcast RGB",
+					   broadcast_rgb_names,
 					   ARRAY_SIZE(broadcast_rgb_names));
 		if (prop == NULL)
 			return;
-
-		for (i = 0; i < ARRAY_SIZE(broadcast_rgb_names); i++)
-			drm_property_add_enum(prop, i, i, broadcast_rgb_names[i]);
 
 		dev_priv->broadcast_rgb_property = prop;
 	}

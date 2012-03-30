@@ -324,7 +324,7 @@ static struct dma_async_tx_descriptor *mxs_mmc_prep_dma(
 		sg_len = SSP_PIO_NUM;
 	}
 
-	desc = host->dmach->device->device_prep_slave_sg(host->dmach,
+	desc = dmaengine_prep_slave_sg(host->dmach,
 				sgl, sg_len, host->slave_dirn, append);
 	if (desc) {
 		desc->callback = mxs_mmc_dma_irq_callback;

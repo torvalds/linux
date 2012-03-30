@@ -46,7 +46,6 @@
 
 #include <asm/debugreg.h>
 #include <asm/apicdef.h>
-#include <asm/system.h>
 #include <asm/apic.h>
 #include <asm/nmi.h>
 
@@ -67,8 +66,6 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 	{ "ss", 4, offsetof(struct pt_regs, ss) },
 	{ "ds", 4, offsetof(struct pt_regs, ds) },
 	{ "es", 4, offsetof(struct pt_regs, es) },
-	{ "fs", 4, -1 },
-	{ "gs", 4, -1 },
 #else
 	{ "ax", 8, offsetof(struct pt_regs, ax) },
 	{ "bx", 8, offsetof(struct pt_regs, bx) },
@@ -90,7 +87,11 @@ struct dbg_reg_def_t dbg_reg_def[DBG_MAX_REG_NUM] =
 	{ "flags", 4, offsetof(struct pt_regs, flags) },
 	{ "cs", 4, offsetof(struct pt_regs, cs) },
 	{ "ss", 4, offsetof(struct pt_regs, ss) },
+	{ "ds", 4, -1 },
+	{ "es", 4, -1 },
 #endif
+	{ "fs", 4, -1 },
+	{ "gs", 4, -1 },
 };
 
 int dbg_set_reg(int regno, void *mem, struct pt_regs *regs)

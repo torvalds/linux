@@ -81,6 +81,8 @@
 #include <linux/syslog.h>
 #include <linux/user_namespace.h>
 #include <linux/export.h>
+#include <linux/msg.h>
+#include <linux/shm.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -2145,7 +2147,7 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 		fdt = files_fdtable(files);
 		if (i >= fdt->max_fds)
 			break;
-		set = fdt->open_fds->fds_bits[j];
+		set = fdt->open_fds[j];
 		if (!set)
 			continue;
 		spin_unlock(&files->file_lock);

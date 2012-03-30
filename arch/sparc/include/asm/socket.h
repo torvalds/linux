@@ -60,6 +60,11 @@
 
 #define SO_WIFI_STATUS		0x0025
 #define SCM_WIFI_STATUS		SO_WIFI_STATUS
+#define SO_PEEK_OFF		0x0026
+
+/* Instruct lower device to use last 4-bytes of skb data as FCS */
+#define SO_NOFCS		0x0027
+
 
 /* Security levels - as per NRL IPv6 - don't actually do anything */
 #define SO_SECURITY_AUTHENTICATION		0x5001

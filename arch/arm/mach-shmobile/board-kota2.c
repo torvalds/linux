@@ -39,11 +39,11 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/sh73a0.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -409,27 +409,6 @@ static struct platform_device *kota2_devices[] __initdata = {
 	&sdhi1_device,
 };
 
-static struct map_desc kota2_io_desc[] __initdata = {
-	/* create a 1:1 entity map for 0xe6xxxxxx
-	 * used by CPGA, INTC and PFC.
-	 */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 256 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-static void __init kota2_map_io(void)
-{
-	iotable_init(kota2_io_desc, ARRAY_SIZE(kota2_io_desc));
-
-	/* setup early devices and console here as well */
-	sh73a0_add_early_devices();
-	shmobile_setup_console();
-}
-
 static void __init kota2_init(void)
 {
 	sh73a0_pinmux_init();
@@ -529,28 +508,18 @@ static void __init kota2_init(void)
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
-	l2x0_init(__io(0xf0100000), 0x40460000, 0x82000fff);
+	l2x0_init(IOMEM(0xf0100000), 0x40460000, 0x82000fff);
 #endif
 	sh73a0_add_standard_devices();
 	platform_add_devices(kota2_devices, ARRAY_SIZE(kota2_devices));
 }
 
-static void __init kota2_timer_init(void)
-{
-	sh73a0_clock_init();
-	shmobile_timer.init();
-	return;
-}
-
-struct sys_timer kota2_timer = {
-	.init	= kota2_timer_init,
-};
-
 MACHINE_START(KOTA2, "kota2")
-	.map_io		= kota2_map_io,
+	.map_io		= sh73a0_map_io,
+	.init_early	= sh73a0_add_early_devices,
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= sh73a0_init_irq,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= kota2_init,
-	.timer		= &kota2_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END

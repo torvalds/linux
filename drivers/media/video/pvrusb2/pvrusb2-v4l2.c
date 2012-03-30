@@ -96,7 +96,6 @@ static struct v4l2_capability pvr_capability ={
 	.capabilities   = (V4L2_CAP_VIDEO_CAPTURE |
 			   V4L2_CAP_TUNER | V4L2_CAP_AUDIO | V4L2_CAP_RADIO |
 			   V4L2_CAP_READWRITE),
-	.reserved       = {0,0,0,0}
 };
 
 static struct v4l2_fmtdesc pvr_fmtdesc [] = {

@@ -1136,10 +1136,8 @@ ixgb_set_multi(struct net_device *netdev)
 		u8 *mta = kmalloc(IXGB_MAX_NUM_MULTICAST_ADDRESSES *
 			      ETH_ALEN, GFP_ATOMIC);
 		u8 *addr;
-		if (!mta) {
-			pr_err("allocation of multicast memory failed\n");
+		if (!mta)
 			goto alloc_failed;
-		}
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
@@ -2070,8 +2068,8 @@ ixgb_clean_rx_irq(struct ixgb_adapter *adapter, int *work_done, int work_to_do)
 
 			/* All receives must fit into a single buffer */
 
-			IXGB_DBG("Receive packet consumed multiple buffers "
-					 "length<%x>\n", length);
+			pr_debug("Receive packet consumed multiple buffers length<%x>\n",
+				 length);
 
 			dev_kfree_skb_irq(skb);
 			goto rxdesc_done;

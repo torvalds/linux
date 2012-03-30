@@ -21,7 +21,7 @@
 #include <asm/vac-ops.h>
 #include <asm/oplib.h>
 #include <asm/btfixup.h>
-#include <asm/system.h>
+#include <asm/cpu_type.h>
 
 
 struct vm_area_struct;

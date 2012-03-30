@@ -40,6 +40,8 @@
 #include "registers.h"
 #include "hw.h"
 
+#include "../dmaengine.h"
+
 int ioat_pending_level = 4;
 module_param(ioat_pending_level, int, 0644);
 MODULE_PARM_DESC(ioat_pending_level,
@@ -107,6 +109,7 @@ void ioat_init_channel(struct ioatdma_device *device, struct ioat_chan_common *c
 	chan->reg_base = device->reg_base + (0x80 * (idx + 1));
 	spin_lock_init(&chan->cleanup_lock);
 	chan->common.device = dma;
+	dma_cookie_init(&chan->common);
 	list_add_tail(&chan->common.device_node, &dma->channels);
 	device->idx[idx] = chan;
 	init_timer(&chan->timer);
@@ -235,12 +238,7 @@ static dma_cookie_t ioat1_tx_submit(struct dma_async_tx_descriptor *tx)
 
 	spin_lock_bh(&ioat->desc_lock);
 	/* cookie incr and addition to used_list must be atomic */
-	cookie = c->cookie;
-	cookie++;
-	if (cookie < 0)
-		cookie = 1;
-	c->cookie = cookie;
-	tx->cookie = cookie;
+	cookie = dma_cookie_assign(tx);
 	dev_dbg(to_dev(&ioat->base), "%s: cookie: %d\n", __func__, cookie);
 
 	/* write address into NextDescriptor field of last desc in chain */
@@ -603,8 +601,7 @@ static void __cleanup(struct ioat_dma_chan *ioat, unsigned long phys_complete)
 		 */
 		dump_desc_dbg(ioat, desc);
 		if (tx->cookie) {
-			chan->completed_cookie = tx->cookie;
-			tx->cookie = 0;
+			dma_cookie_complete(tx);
 			ioat_dma_unmap(chan, tx->flags, desc->len, desc->hw);
 			ioat->active -= desc->hw->tx_cnt;
 			if (tx->callback) {
@@ -733,13 +730,15 @@ ioat_dma_tx_status(struct dma_chan *c, dma_cookie_t cookie,
 {
 	struct ioat_chan_common *chan = to_chan_common(c);
 	struct ioatdma_device *device = chan->device;
+	enum dma_status ret;
 
-	if (ioat_tx_status(c, cookie, txstate) == DMA_SUCCESS)
-		return DMA_SUCCESS;
+	ret = dma_cookie_status(c, cookie, txstate);
+	if (ret == DMA_SUCCESS)
+		return ret;
 
 	device->cleanup_fn((unsigned long) c);
 
-	return ioat_tx_status(c, cookie, txstate);
+	return dma_cookie_status(c, cookie, txstate);
 }
 
 static void ioat1_dma_start_null_desc(struct ioat_dma_chan *ioat)

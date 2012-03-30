@@ -244,7 +244,7 @@ static void sh4_flush_cache_page(void *args)
 		if (map_coherent)
 			vaddr = kmap_coherent(page, address);
 		else
-			vaddr = kmap_atomic(page, KM_USER0);
+			vaddr = kmap_atomic(page);
 
 		address = (unsigned long)vaddr;
 	}
@@ -259,7 +259,7 @@ static void sh4_flush_cache_page(void *args)
 		if (map_coherent)
 			kunmap_coherent(vaddr);
 		else
-			kunmap_atomic(vaddr, KM_USER0);
+			kunmap_atomic(vaddr);
 	}
 }
 

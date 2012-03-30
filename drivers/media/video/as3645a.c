@@ -881,24 +881,7 @@ static struct i2c_driver as3645a_i2c_driver = {
 	.id_table = as3645a_id_table,
 };
 
-static int __init as3645a_init(void)
-{
-	int rval;
-
-	rval = i2c_add_driver(&as3645a_i2c_driver);
-	if (rval)
-		pr_err("%s: Failed to register the driver\n", AS3645A_NAME);
-
-	return rval;
-}
-
-static void __exit as3645a_exit(void)
-{
-	i2c_del_driver(&as3645a_i2c_driver);
-}
-
-module_init(as3645a_init);
-module_exit(as3645a_exit);
+module_i2c_driver(as3645a_i2c_driver);
 
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");
 MODULE_DESCRIPTION("LED flash driver for AS3645A, LM3555 and their clones");

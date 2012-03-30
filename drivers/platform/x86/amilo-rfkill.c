@@ -97,9 +97,12 @@ static struct rfkill *amilo_rfkill_dev;
 
 static int __devinit amilo_rfkill_probe(struct platform_device *device)
 {
+	int rc;
 	const struct dmi_system_id *system_id =
 		dmi_first_match(amilo_rfkill_id_table);
-	int rc;
+
+	if (!system_id)
+		return -ENXIO;
 
 	amilo_rfkill_dev = rfkill_alloc(KBUILD_MODNAME, &device->dev,
 					RFKILL_TYPE_WLAN,

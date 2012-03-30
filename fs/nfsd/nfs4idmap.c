@@ -41,6 +41,14 @@
 #include "nfsd.h"
 
 /*
+ * Turn off idmapping when using AUTH_SYS.
+ */
+static bool nfs4_disable_idmapping = true;
+module_param(nfs4_disable_idmapping, bool, 0644);
+MODULE_PARM_DESC(nfs4_disable_idmapping,
+		"Turn off server's NFSv4 idmapping when using 'sec=sys'");
+
+/*
  * Cache entry
  */
 
@@ -561,28 +569,65 @@ idmap_id_to_name(struct svc_rqst *rqstp, int type, uid_t id, char *name)
 	return ret;
 }
 
+static bool
+numeric_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen, uid_t *id)
+{
+	int ret;
+	char buf[11];
+
+	if (namelen + 1 > sizeof(buf))
+		/* too long to represent a 32-bit id: */
+		return false;
+	/* Just to make sure it's null-terminated: */
+	memcpy(buf, name, namelen);
+	buf[namelen] = '\0';
+	ret = kstrtouint(name, 10, id);
+	return ret == 0;
+}
+
+static __be32
+do_name_to_id(struct svc_rqst *rqstp, int type, const char *name, u32 namelen, uid_t *id)
+{
+	if (nfs4_disable_idmapping && rqstp->rq_flavor < RPC_AUTH_GSS)
+		if (numeric_name_to_id(rqstp, type, name, namelen, id))
+			return 0;
+		/*
+		 * otherwise, fall through and try idmapping, for
+		 * backwards compatibility with clients sending names:
+		 */
+	return idmap_name_to_id(rqstp, type, name, namelen, id);
+}
+
+static int
+do_id_to_name(struct svc_rqst *rqstp, int type, uid_t id, char *name)
+{
+	if (nfs4_disable_idmapping && rqstp->rq_flavor < RPC_AUTH_GSS)
+		return sprintf(name, "%u", id);
+	return idmap_id_to_name(rqstp, type, id, name);
+}
+
 __be32
 nfsd_map_name_to_uid(struct svc_rqst *rqstp, const char *name, size_t namelen,
 		__u32 *id)
 {
-	return idmap_name_to_id(rqstp, IDMAP_TYPE_USER, name, namelen, id);
+	return do_name_to_id(rqstp, IDMAP_TYPE_USER, name, namelen, id);
 }
 
 __be32
 nfsd_map_name_to_gid(struct svc_rqst *rqstp, const char *name, size_t namelen,
 		__u32 *id)
 {
-	return idmap_name_to_id(rqstp, IDMAP_TYPE_GROUP, name, namelen, id);
+	return do_name_to_id(rqstp, IDMAP_TYPE_GROUP, name, namelen, id);
 }
 
 int
 nfsd_map_uid_to_name(struct svc_rqst *rqstp, __u32 id, char *name)
 {
-	return idmap_id_to_name(rqstp, IDMAP_TYPE_USER, id, name);
+	return do_id_to_name(rqstp, IDMAP_TYPE_USER, id, name);
 }
 
 int
 nfsd_map_gid_to_name(struct svc_rqst *rqstp, __u32 id, char *name)
 {
-	return idmap_id_to_name(rqstp, IDMAP_TYPE_GROUP, id, name);
+	return do_id_to_name(rqstp, IDMAP_TYPE_GROUP, id, name);
 }

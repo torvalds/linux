@@ -149,12 +149,19 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 unsigned long calc_cam_sz(unsigned long ram, unsigned long virt,
 			  phys_addr_t phys)
 {
-	unsigned int camsize = __ilog2(ram) & ~1U;
-	unsigned int align = __ffs(virt | phys) & ~1U;
-	unsigned long max_cam = (mfspr(SPRN_TLB1CFG) >> 16) & 0xf;
+	unsigned int camsize = __ilog2(ram);
+	unsigned int align = __ffs(virt | phys);
+	unsigned long max_cam;
 
-	/* Convert (4^max) kB to (2^max) bytes */
-	max_cam = max_cam * 2 + 10;
+	if ((mfspr(SPRN_MMUCFG) & MMUCFG_MAVN) == MMUCFG_MAVN_V1) {
+		/* Convert (4^max) kB to (2^max) bytes */
+		max_cam = ((mfspr(SPRN_TLB1CFG) >> 16) & 0xf) * 2 + 10;
+		camsize &= ~1U;
+		align &= ~1U;
+	} else {
+		/* Convert (2^max) kB to (2^max) bytes */
+		max_cam = __ilog2(mfspr(SPRN_TLB1PS)) + 10;
+	}
 
 	if (camsize > align)
 		camsize = align;

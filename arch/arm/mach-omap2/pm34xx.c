@@ -31,6 +31,7 @@
 #include <trace/events/power.h>
 
 #include <asm/suspend.h>
+#include <asm/system_misc.h>
 
 #include <plat/sram.h>
 #include "clockdomain.h"
@@ -49,10 +50,6 @@
 #include "pm.h"
 #include "sdrc.h"
 #include "control.h"
-
-#ifdef CONFIG_SUSPEND
-static suspend_state_t suspend_state = PM_SUSPEND_ON;
-#endif
 
 /* pm34xx errata defined in pm.h */
 u16 pm34xx_errata;
@@ -74,16 +71,6 @@ void (*omap3_do_wfi_sram)(void);
 static struct powerdomain *mpu_pwrdm, *neon_pwrdm;
 static struct powerdomain *core_pwrdm, *per_pwrdm;
 static struct powerdomain *cam_pwrdm;
-
-static inline void omap3_per_save_context(void)
-{
-	omap_gpio_save_context();
-}
-
-static inline void omap3_per_restore_context(void)
-{
-	omap_gpio_restore_context();
-}
 
 static void omap3_enable_io_chain(void)
 {
@@ -290,11 +277,6 @@ void omap_sram_idle(void)
 	int core_prev_state, per_prev_state;
 	u32 sdrc_pwr = 0;
 
-	pwrdm_clear_all_prev_pwrst(mpu_pwrdm);
-	pwrdm_clear_all_prev_pwrst(neon_pwrdm);
-	pwrdm_clear_all_prev_pwrst(core_pwrdm);
-	pwrdm_clear_all_prev_pwrst(per_pwrdm);
-
 	mpu_next_state = pwrdm_read_next_pwrst(mpu_pwrdm);
 	switch (mpu_next_state) {
 	case PWRDM_POWER_ON:
@@ -332,8 +314,6 @@ void omap_sram_idle(void)
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_going_off = (per_next_state == PWRDM_POWER_OFF) ? 1 : 0;
 		omap2_gpio_prepare_for_idle(per_going_off);
-		if (per_next_state == PWRDM_POWER_OFF)
-				omap3_per_save_context();
 	}
 
 	/* CORE */
@@ -399,8 +379,6 @@ void omap_sram_idle(void)
 	if (per_next_state < PWRDM_POWER_ON) {
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
 		omap2_gpio_resume_after_idle();
-		if (per_prev_state == PWRDM_POWER_OFF)
-			omap3_per_restore_context();
 	}
 
 	/* Disable IO-PAD and IO-CHAIN wakeup */
@@ -418,10 +396,9 @@ void omap_sram_idle(void)
 
 static void omap3_pm_idle(void)
 {
-	local_irq_disable();
 	local_fiq_disable();
 
-	if (omap_irq_pending() || need_resched())
+	if (omap_irq_pending())
 		goto out;
 
 	trace_power_start(POWER_CSTATE, 1, smp_processor_id());
@@ -434,7 +411,6 @@ static void omap3_pm_idle(void)
 
 out:
 	local_fiq_enable();
-	local_irq_enable();
 }
 
 #ifdef CONFIG_SUSPEND
@@ -479,50 +455,6 @@ restore:
 	return ret;
 }
 
-static int omap3_pm_enter(suspend_state_t unused)
-{
-	int ret = 0;
-
-	switch (suspend_state) {
-	case PM_SUSPEND_STANDBY:
-	case PM_SUSPEND_MEM:
-		ret = omap3_pm_suspend();
-		break;
-	default:
-		ret = -EINVAL;
-	}
-
-	return ret;
-}
-
-/* Hooks to enable / disable UART interrupts during suspend */
-static int omap3_pm_begin(suspend_state_t state)
-{
-	disable_hlt();
-	suspend_state = state;
-	omap_prcm_irq_prepare();
-	return 0;
-}
-
-static void omap3_pm_end(void)
-{
-	suspend_state = PM_SUSPEND_ON;
-	enable_hlt();
-	return;
-}
-
-static void omap3_pm_finish(void)
-{
-	omap_prcm_irq_complete();
-}
-
-static const struct platform_suspend_ops omap_pm_ops = {
-	.begin		= omap3_pm_begin,
-	.end		= omap3_pm_end,
-	.enter		= omap3_pm_enter,
-	.finish		= omap3_pm_finish,
-	.valid		= suspend_valid_only_mem,
-};
 #endif /* CONFIG_SUSPEND */
 
 
@@ -743,21 +675,6 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 }
 
 /*
- * Enable hw supervised mode for all clockdomains if it's
- * supported. Initiate sleep transition for other clockdomains, if
- * they are not used
- */
-static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
-{
-	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
-		clkdm_allow_idle(clkdm);
-	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
-		 atomic_read(&clkdm->usecount) == 0)
-		clkdm_sleep(clkdm);
-	return 0;
-}
-
-/*
  * Push functions to SRAM
  *
  * The minimum set of functions is pushed to SRAM for execution:
@@ -826,7 +743,7 @@ static int __init omap3_pm_init(void)
 		goto err2;
 	}
 
-	(void) clkdm_for_each(clkdms_setup, NULL);
+	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {
@@ -845,10 +762,10 @@ static int __init omap3_pm_init(void)
 	core_clkdm = clkdm_lookup("core_clkdm");
 
 #ifdef CONFIG_SUSPEND
-	suspend_set_ops(&omap_pm_ops);
-#endif /* CONFIG_SUSPEND */
+	omap_pm_suspend = omap3_pm_suspend;
+#endif
 
-	pm_idle = omap3_pm_idle;
+	arm_pm_idle = omap3_pm_idle;
 	omap3_idle_init();
 
 	/*

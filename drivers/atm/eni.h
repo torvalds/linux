@@ -72,6 +72,7 @@ struct eni_dev {
 	u32 events;			/* pending events */
 	/*-------------------------------- base pointers into Midway address
 					   space */
+	void __iomem *ioaddr;
 	void __iomem *phy;		/* PHY interface chip registers */
 	void __iomem *reg;		/* register base */
 	void __iomem *ram;		/* RAM base */
@@ -86,6 +87,10 @@ struct eni_dev {
 	wait_queue_head_t tx_wait;	/* for close */
 	int tx_bw;			/* remaining bandwidth */
 	u32 dma[TX_DMA_BUF*2];		/* DMA request scratch area */
+	struct eni_zero {		/* aligned "magic" zeroes */
+		u32 *addr;
+		dma_addr_t dma;
+	} zero;
 	int tx_mult;			/* buffer size multiplier (percent) */
 	/*-------------------------------- RX part */
 	u32 serv_read;			/* host service read index */

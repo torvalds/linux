@@ -140,23 +140,23 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	if (bcfg->devid >= AR5K_SREV_AR2315_R6) {
 		/* Enable WMAC AHB arbitration */
-		reg = __raw_readl((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		reg = ioread32((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 		reg |= AR5K_AR2315_AHB_ARB_CTL_WLAN;
-		__raw_writel(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		iowrite32(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 
 		/* Enable global WMAC swapping */
-		reg = __raw_readl((void __iomem *) AR5K_AR2315_BYTESWAP);
+		reg = ioread32((void __iomem *) AR5K_AR2315_BYTESWAP);
 		reg |= AR5K_AR2315_BYTESWAP_WMAC;
-		__raw_writel(reg, (void __iomem *) AR5K_AR2315_BYTESWAP);
+		iowrite32(reg, (void __iomem *) AR5K_AR2315_BYTESWAP);
 	} else {
 		/* Enable WMAC DMA access (assuming 5312 or 231x*/
 		/* TODO: check other platforms */
-		reg = __raw_readl((void __iomem *) AR5K_AR5312_ENABLE);
+		reg = ioread32((void __iomem *) AR5K_AR5312_ENABLE);
 		if (to_platform_device(ah->dev)->id == 0)
 			reg |= AR5K_AR5312_ENABLE_WLAN0;
 		else
 			reg |= AR5K_AR5312_ENABLE_WLAN1;
-		__raw_writel(reg, (void __iomem *) AR5K_AR5312_ENABLE);
+		iowrite32(reg, (void __iomem *) AR5K_AR5312_ENABLE);
 
 		/*
 		 * On a dual-band AR5312, the multiband radio is only
@@ -203,17 +203,17 @@ static int ath_ahb_remove(struct platform_device *pdev)
 
 	if (bcfg->devid >= AR5K_SREV_AR2315_R6) {
 		/* Disable WMAC AHB arbitration */
-		reg = __raw_readl((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		reg = ioread32((void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 		reg &= ~AR5K_AR2315_AHB_ARB_CTL_WLAN;
-		__raw_writel(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
+		iowrite32(reg, (void __iomem *) AR5K_AR2315_AHB_ARB_CTL);
 	} else {
 		/*Stop DMA access */
-		reg = __raw_readl((void __iomem *) AR5K_AR5312_ENABLE);
+		reg = ioread32((void __iomem *) AR5K_AR5312_ENABLE);
 		if (to_platform_device(ah->dev)->id == 0)
 			reg &= ~AR5K_AR5312_ENABLE_WLAN0;
 		else
 			reg &= ~AR5K_AR5312_ENABLE_WLAN1;
-		__raw_writel(reg, (void __iomem *) AR5K_AR5312_ENABLE);
+		iowrite32(reg, (void __iomem *) AR5K_AR5312_ENABLE);
 	}
 
 	ath5k_deinit_ah(ah);

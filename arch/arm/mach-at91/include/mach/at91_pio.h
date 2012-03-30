@@ -40,10 +40,35 @@
 #define PIO_PUER	0x64	/* Pull-up Enable Register */
 #define PIO_PUSR	0x68	/* Pull-up Status Register */
 #define PIO_ASR		0x70	/* Peripheral A Select Register */
+#define PIO_ABCDSR1	0x70	/* Peripheral ABCD Select Register 1 [some sam9 only] */
 #define PIO_BSR		0x74	/* Peripheral B Select Register */
+#define PIO_ABCDSR2	0x74	/* Peripheral ABCD Select Register 2 [some sam9 only] */
 #define PIO_ABSR	0x78	/* AB Status Register */
+#define PIO_IFSCDR	0x80	/* Input Filter Slow Clock Disable Register */
+#define PIO_IFSCER	0x84	/* Input Filter Slow Clock Enable Register */
+#define PIO_IFSCSR	0x88	/* Input Filter Slow Clock Status Register */
+#define PIO_SCDR	0x8c	/* Slow Clock Divider Debouncing Register */
+#define		PIO_SCDR_DIV	(0x3fff <<  0)		/* Slow Clock Divider Mask */
+#define PIO_PPDDR	0x90	/* Pad Pull-down Disable Register */
+#define PIO_PPDER	0x94	/* Pad Pull-down Enable Register */
+#define PIO_PPDSR	0x98	/* Pad Pull-down Status Register */
 #define PIO_OWER	0xa0	/* Output Write Enable Register */
 #define PIO_OWDR	0xa4	/* Output Write Disable Register */
 #define PIO_OWSR	0xa8	/* Output Write Status Register */
+#define PIO_AIMER	0xb0	/* Additional Interrupt Modes Enable Register */
+#define PIO_AIMDR	0xb4	/* Additional Interrupt Modes Disable Register */
+#define PIO_AIMMR	0xb8	/* Additional Interrupt Modes Mask Register */
+#define PIO_ESR		0xc0	/* Edge Select Register */
+#define PIO_LSR		0xc4	/* Level Select Register */
+#define PIO_ELSR	0xc8	/* Edge/Level Status Register */
+#define PIO_FELLSR	0xd0	/* Falling Edge/Low Level Select Register */
+#define PIO_REHLSR	0xd4	/* Rising Edge/ High Level Select Register */
+#define PIO_FRLHSR	0xd8	/* Fall/Rise - Low/High Status Register */
+#define PIO_SCHMITT	0x100	/* Schmitt Trigger Register */
+
+#define ABCDSR_PERIPH_A	0x0
+#define ABCDSR_PERIPH_B	0x1
+#define ABCDSR_PERIPH_C	0x2
+#define ABCDSR_PERIPH_D	0x3
 
 #endif

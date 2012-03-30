@@ -26,7 +26,6 @@
 #include <linux/profile.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 

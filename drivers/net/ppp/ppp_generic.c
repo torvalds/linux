@@ -32,7 +32,7 @@
 #include <linux/poll.h>
 #include <linux/ppp_defs.h>
 #include <linux/filter.h>
-#include <linux/if_ppp.h>
+#include <linux/ppp-ioctl.h>
 #include <linux/ppp_channel.h>
 #include <linux/ppp-comp.h>
 #include <linux/skbuff.h>
@@ -1031,7 +1031,7 @@ static void ppp_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &ppp_netdev_ops;
 	dev->hard_header_len = PPP_HDRLEN;
-	dev->mtu = PPP_MTU;
+	dev->mtu = PPP_MRU;
 	dev->addr_len = 0;
 	dev->tx_queue_len = 3;
 	dev->type = ARPHRD_PPP;
@@ -2136,7 +2136,7 @@ ppp_mp_reconstruct(struct ppp *ppp)
 
 				skb->len += p->len;
 				skb->data_len += p->len;
-				skb->truesize += p->len;
+				skb->truesize += p->truesize;
 
 				if (p == tail)
 					break;

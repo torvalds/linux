@@ -86,11 +86,44 @@
 #define   GEN6_MBC_SNPCR_LOW	(2<<21)
 #define   GEN6_MBC_SNPCR_MIN	(3<<21) /* only 1/16th of the cache is shared */
 
+#define GEN6_MBCTL		0x0907c
+#define   GEN6_MBCTL_ENABLE_BOOT_FETCH	(1 << 4)
+#define   GEN6_MBCTL_CTX_FETCH_NEEDED	(1 << 3)
+#define   GEN6_MBCTL_BME_UPDATE_ENABLE	(1 << 2)
+#define   GEN6_MBCTL_MAE_UPDATE_ENABLE	(1 << 1)
+#define   GEN6_MBCTL_BOOT_FETCH_MECH	(1 << 0)
+
 #define GEN6_GDRST	0x941c
 #define  GEN6_GRDOM_FULL		(1 << 0)
 #define  GEN6_GRDOM_RENDER		(1 << 1)
 #define  GEN6_GRDOM_MEDIA		(1 << 2)
 #define  GEN6_GRDOM_BLT			(1 << 3)
+
+/* PPGTT stuff */
+#define GEN6_GTT_ADDR_ENCODE(addr)	((addr) | (((addr) >> 28) & 0xff0))
+
+#define GEN6_PDE_VALID			(1 << 0)
+#define GEN6_PDE_LARGE_PAGE		(2 << 0) /* use 32kb pages */
+/* gen6+ has bit 11-4 for physical addr bit 39-32 */
+#define GEN6_PDE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
+
+#define GEN6_PTE_VALID			(1 << 0)
+#define GEN6_PTE_UNCACHED		(1 << 1)
+#define GEN6_PTE_CACHE_LLC		(2 << 1)
+#define GEN6_PTE_CACHE_LLC_MLC		(3 << 1)
+#define GEN6_PTE_CACHE_BITS		(3 << 1)
+#define GEN6_PTE_GFDT			(1 << 3)
+#define GEN6_PTE_ADDR_ENCODE(addr)	GEN6_GTT_ADDR_ENCODE(addr)
+
+#define RING_PP_DIR_BASE(ring)		((ring)->mmio_base+0x228)
+#define RING_PP_DIR_BASE_READ(ring)	((ring)->mmio_base+0x518)
+#define RING_PP_DIR_DCLV(ring)		((ring)->mmio_base+0x220)
+#define   PP_DIR_DCLV_2G		0xffffffff
+
+#define GAM_ECOCHK			0x4090
+#define   ECOCHK_SNB_BIT		(1<<10)
+#define   ECOCHK_PPGTT_CACHE64B		(0x3<<3)
+#define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
 
 /* VGA stuff */
 
@@ -295,6 +328,12 @@
 #define FENCE_REG_SANDYBRIDGE_0		0x100000
 #define   SANDYBRIDGE_FENCE_PITCH_SHIFT	32
 
+/* control register for cpu gtt access */
+#define TILECTL				0x101000
+#define   TILECTL_SWZCTL			(1 << 0)
+#define   TILECTL_TLB_PREFETCH_DIS	(1 << 2)
+#define   TILECTL_BACKSNOOP_DIS		(1 << 3)
+
 /*
  * Instruction and interrupt control regs
  */
@@ -318,7 +357,14 @@
 #define RING_MAX_IDLE(base)	((base)+0x54)
 #define RING_HWS_PGA(base)	((base)+0x80)
 #define RING_HWS_PGA_GEN6(base)	((base)+0x2080)
+#define ARB_MODE		0x04030
+#define   ARB_MODE_SWIZZLE_SNB	(1<<4)
+#define   ARB_MODE_SWIZZLE_IVB	(1<<5)
+#define   ARB_MODE_ENABLE(x)	GFX_MODE_ENABLE(x)
+#define   ARB_MODE_DISABLE(x)	GFX_MODE_DISABLE(x)
 #define RENDER_HWS_PGA_GEN7	(0x04080)
+#define RING_FAULT_REG(ring)	(0x4094 + 0x100*(ring)->id)
+#define DONE_REG		0x40b0
 #define BSD_HWS_PGA_GEN7	(0x04180)
 #define BLT_HWS_PGA_GEN7	(0x04280)
 #define RING_ACTHD(base)	((base)+0x74)
@@ -352,6 +398,12 @@
 #define IPEIR_I965	0x02064
 #define IPEHR_I965	0x02068
 #define INSTDONE_I965	0x0206c
+#define RING_IPEIR(base)	((base)+0x64)
+#define RING_IPEHR(base)	((base)+0x68)
+#define RING_INSTDONE(base)	((base)+0x6c)
+#define RING_INSTPS(base)	((base)+0x70)
+#define RING_DMA_FADD(base)	((base)+0x78)
+#define RING_INSTPM(base)	((base)+0xc0)
 #define INSTPS		0x02070 /* 965+ only */
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
@@ -365,14 +417,6 @@
 #define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
-#define VCS_INSTDONE	0x1206C
-#define VCS_IPEIR	0x12064
-#define VCS_IPEHR	0x12068
-#define VCS_ACTHD	0x12074
-#define BCS_INSTDONE	0x2206C
-#define BCS_IPEIR	0x22064
-#define BCS_IPEHR	0x22068
-#define BCS_ACTHD	0x22074
 
 #define ERROR_GEN6	0x040a0
 
@@ -391,10 +435,11 @@
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
-# define MI_FLUSH_ENABLE				(1 << 11)
+# define MI_FLUSH_ENABLE				(1 << 12)
 
 #define GFX_MODE	0x02520
 #define GFX_MODE_GEN7	0x0229c
+#define RING_MODE_GEN7(ring)	((ring)->mmio_base+0x29c)
 #define   GFX_RUN_LIST_ENABLE		(1<<15)
 #define   GFX_TLB_INVALIDATE_ALWAYS	(1<<13)
 #define   GFX_SURFACE_FAULT_ENABLE	(1<<12)
@@ -1037,6 +1082,29 @@
 #define C0DRB3			0x10206
 #define C1DRB3			0x10606
 
+/** snb MCH registers for reading the DRAM channel configuration */
+#define MAD_DIMM_C0			(MCHBAR_MIRROR_BASE_SNB + 0x5004)
+#define MAD_DIMM_C1			(MCHBAR_MIRROR_BASE_SNB + 0x5008)
+#define MAD_DIMM_C2			(MCHBAR_MIRROR_BASE_SNB + 0x500C)
+#define   MAD_DIMM_ECC_MASK		(0x3 << 24)
+#define   MAD_DIMM_ECC_OFF		(0x0 << 24)
+#define   MAD_DIMM_ECC_IO_ON_LOGIC_OFF	(0x1 << 24)
+#define   MAD_DIMM_ECC_IO_OFF_LOGIC_ON	(0x2 << 24)
+#define   MAD_DIMM_ECC_ON		(0x3 << 24)
+#define   MAD_DIMM_ENH_INTERLEAVE	(0x1 << 22)
+#define   MAD_DIMM_RANK_INTERLEAVE	(0x1 << 21)
+#define   MAD_DIMM_B_WIDTH_X16		(0x1 << 20) /* X8 chips if unset */
+#define   MAD_DIMM_A_WIDTH_X16		(0x1 << 19) /* X8 chips if unset */
+#define   MAD_DIMM_B_DUAL_RANK		(0x1 << 18)
+#define   MAD_DIMM_A_DUAL_RANK		(0x1 << 17)
+#define   MAD_DIMM_A_SELECT		(0x1 << 16)
+/* DIMM sizes are in multiples of 256mb. */
+#define   MAD_DIMM_B_SIZE_SHIFT		8
+#define   MAD_DIMM_B_SIZE_MASK		(0xff << MAD_DIMM_B_SIZE_SHIFT)
+#define   MAD_DIMM_A_SIZE_SHIFT		0
+#define   MAD_DIMM_A_SIZE_MASK		(0xff << MAD_DIMM_A_SIZE_SHIFT)
+
+
 /* Clocking configuration register */
 #define CLKCFG			0x10c00
 #define CLKCFG_FSB_400					(5 << 0)	/* hrawclk 100 */
@@ -1316,6 +1384,7 @@
 #define _VSYNC_A		0x60014
 #define _PIPEASRC	0x6001c
 #define _BCLRPAT_A	0x60020
+#define _VSYNCSHIFT_A	0x60028
 
 /* Pipe B timing regs */
 #define _HTOTAL_B	0x61000
@@ -1326,6 +1395,8 @@
 #define _VSYNC_B		0x61014
 #define _PIPEBSRC	0x6101c
 #define _BCLRPAT_B	0x61020
+#define _VSYNCSHIFT_B	0x61028
+
 
 #define HTOTAL(pipe) _PIPE(pipe, _HTOTAL_A, _HTOTAL_B)
 #define HBLANK(pipe) _PIPE(pipe, _HBLANK_A, _HBLANK_B)
@@ -1334,6 +1405,7 @@
 #define VBLANK(pipe) _PIPE(pipe, _VBLANK_A, _VBLANK_B)
 #define VSYNC(pipe) _PIPE(pipe, _VSYNC_A, _VSYNC_B)
 #define BCLRPAT(pipe) _PIPE(pipe, _BCLRPAT_A, _BCLRPAT_B)
+#define VSYNCSHIFT(pipe) _PIPE(pipe, _VSYNCSHIFT_A, _VSYNCSHIFT_B)
 
 /* VGA port control */
 #define ADPA			0x61100
@@ -2319,10 +2391,21 @@
 #define   PIPECONF_PALETTE	0
 #define   PIPECONF_GAMMA		(1<<24)
 #define   PIPECONF_FORCE_BORDER	(1<<25)
-#define   PIPECONF_PROGRESSIVE	(0 << 21)
-#define   PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
-#define   PIPECONF_INTERLACE_FIELD_0_ONLY		(7 << 21)
 #define   PIPECONF_INTERLACE_MASK	(7 << 21)
+/* Note that pre-gen3 does not support interlaced display directly. Panel
+ * fitting must be disabled on pre-ilk for interlaced. */
+#define   PIPECONF_PROGRESSIVE			(0 << 21)
+#define   PIPECONF_INTERLACE_W_SYNC_SHIFT_PANEL	(4 << 21) /* gen4 only */
+#define   PIPECONF_INTERLACE_W_SYNC_SHIFT	(5 << 21) /* gen4 only */
+#define   PIPECONF_INTERLACE_W_FIELD_INDICATION	(6 << 21)
+#define   PIPECONF_INTERLACE_FIELD_0_ONLY	(7 << 21) /* gen3 only */
+/* Ironlake and later have a complete new set of values for interlaced. PFIT
+ * means panel fitter required, PF means progressive fetch, DBL means power
+ * saving pixel doubling. */
+#define   PIPECONF_PFIT_PF_INTERLACED_ILK	(1 << 21)
+#define   PIPECONF_INTERLACED_ILK		(3 << 21)
+#define   PIPECONF_INTERLACED_DBL_ILK		(4 << 21) /* ilk/snb only */
+#define   PIPECONF_PFIT_PF_INTERLACED_DBL_ILK	(5 << 21) /* ilk/snb only */
 #define   PIPECONF_CXSR_DOWNCLOCK	(1<<16)
 #define   PIPECONF_BPP_MASK	(0x000000e0)
 #define   PIPECONF_BPP_8	(0<<5)
@@ -3219,6 +3302,7 @@
 #define _TRANS_VSYNC_A           0xe0014
 #define  TRANS_VSYNC_END_SHIFT  16
 #define  TRANS_VSYNC_START_SHIFT 0
+#define _TRANS_VSYNCSHIFT_A	0xe0028
 
 #define _TRANSA_DATA_M1          0xe0030
 #define _TRANSA_DATA_N1          0xe0034
@@ -3249,6 +3333,7 @@
 #define _TRANS_VTOTAL_B          0xe100c
 #define _TRANS_VBLANK_B          0xe1010
 #define _TRANS_VSYNC_B           0xe1014
+#define _TRANS_VSYNCSHIFT_B	 0xe1028
 
 #define TRANS_HTOTAL(pipe) _PIPE(pipe, _TRANS_HTOTAL_A, _TRANS_HTOTAL_B)
 #define TRANS_HBLANK(pipe) _PIPE(pipe, _TRANS_HBLANK_A, _TRANS_HBLANK_B)
@@ -3256,6 +3341,8 @@
 #define TRANS_VTOTAL(pipe) _PIPE(pipe, _TRANS_VTOTAL_A, _TRANS_VTOTAL_B)
 #define TRANS_VBLANK(pipe) _PIPE(pipe, _TRANS_VBLANK_A, _TRANS_VBLANK_B)
 #define TRANS_VSYNC(pipe) _PIPE(pipe, _TRANS_VSYNC_A, _TRANS_VSYNC_B)
+#define TRANS_VSYNCSHIFT(pipe) _PIPE(pipe, _TRANS_VSYNCSHIFT_A, \
+				     _TRANS_VSYNCSHIFT_B)
 
 #define _TRANSB_DATA_M1          0xe1030
 #define _TRANSB_DATA_N1          0xe1034
@@ -3289,7 +3376,10 @@
 #define  TRANS_FSYNC_DELAY_HB4  (3<<27)
 #define  TRANS_DP_AUDIO_ONLY    (1<<26)
 #define  TRANS_DP_VIDEO_AUDIO   (0<<26)
+#define  TRANS_INTERLACE_MASK   (7<<21)
 #define  TRANS_PROGRESSIVE      (0<<21)
+#define  TRANS_INTERLACED       (3<<21)
+#define  TRANS_LEGACY_INTERLACED_ILK (2<<21)
 #define  TRANS_8BPC             (0<<5)
 #define  TRANS_10BPC            (1<<5)
 #define  TRANS_6BPC             (2<<5)
@@ -3628,6 +3718,12 @@
 #define  ECOBUS					0xa180
 #define    FORCEWAKE_MT_ENABLE			(1<<5)
 
+#define  GTFIFODBG				0x120000
+#define    GT_FIFO_CPU_ERROR_MASK		7
+#define    GT_FIFO_OVFERR			(1<<2)
+#define    GT_FIFO_IAWRERR			(1<<1)
+#define    GT_FIFO_IARDERR			(1<<0)
+
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
@@ -3756,5 +3852,17 @@
  * 3DSTATE_SO_BUFFERs that the next streamed vertex output goes to.
  */
 #define GEN7_SO_WRITE_OFFSET(n)		(0x5280 + (n) * 4)
+
+#define IBX_AUD_CONFIG_A			0xe2000
+#define CPT_AUD_CONFIG_A			0xe5000
+#define   AUD_CONFIG_N_VALUE_INDEX		(1 << 29)
+#define   AUD_CONFIG_N_PROG_ENABLE		(1 << 28)
+#define   AUD_CONFIG_UPPER_N_SHIFT		20
+#define   AUD_CONFIG_UPPER_N_VALUE		(0xff << 20)
+#define   AUD_CONFIG_LOWER_N_SHIFT		4
+#define   AUD_CONFIG_LOWER_N_VALUE		(0xfff << 4)
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI_SHIFT	16
+#define   AUD_CONFIG_PIXEL_CLOCK_HDMI		(0xf << 16)
+#define   AUD_CONFIG_DISABLE_NCTS		(1 << 3)
 
 #endif /* _I915_REG_H_ */

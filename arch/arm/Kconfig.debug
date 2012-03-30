@@ -81,46 +81,13 @@ choice
 	prompt "Kernel low-level debugging port"
 	depends on DEBUG_LL
 
-	config DEBUG_LL_UART_NONE
-		bool "No low-level debugging UART"
-		help
-		  Say Y here if your platform doesn't provide a UART option
-		  below. This relies on your platform choosing the right UART
-		  definition internally in order for low-level debugging to
-		  work.
-
-	config DEBUG_ICEDCC
-		bool "Kernel low-level debugging via EmbeddedICE DCC channel"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the EmbeddedICE macrocell's DCC channel using
-		  co-processor 14. This is known to work on the ARM9 style ICE
-		  channel and on the XScale with the PEEDI.
-
-		  Note that the system will appear to hang during boot if there
-		  is nothing connected to read from the DCC.
-
 	config AT91_DEBUG_LL_DBGU0
 		bool "Kernel low-level debugging on rm9200, 9260/9g20, 9261/9g10 and 9rl"
 		depends on HAVE_AT91_DBGU0
 
 	config AT91_DEBUG_LL_DBGU1
-		bool "Kernel low-level debugging on 9263, 9g45 and cap9"
+		bool "Kernel low-level debugging on 9263 and 9g45"
 		depends on HAVE_AT91_DBGU1
-
-	config DEBUG_FOOTBRIDGE_COM1
-		bool "Kernel low-level debugging messages via footbridge 8250 at PCI COM1"
-		depends on FOOTBRIDGE
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the 8250 at PCI COM1.
-
-	config DEBUG_DC21285_PORT
-		bool "Kernel low-level debugging messages via footbridge serial port"
-		depends on FOOTBRIDGE
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the serial port in the DC21285 (Footbridge).
 
 	config DEBUG_CLPS711X_UART1
 		bool "Kernel low-level debugging messages via UART1"
@@ -135,6 +102,20 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
+
+	config DEBUG_DC21285_PORT
+		bool "Kernel low-level debugging messages via footbridge serial port"
+		depends on FOOTBRIDGE
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the serial port in the DC21285 (Footbridge).
+
+	config DEBUG_FOOTBRIDGE_COM1
+		bool "Kernel low-level debugging messages via footbridge 8250 at PCI COM1"
+		depends on FOOTBRIDGE
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the 8250 at PCI COM1.
 
 	config DEBUG_HIGHBANK_UART
 		bool "Kernel low-level debugging messages via Highbank UART"
@@ -199,61 +180,12 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX50 or i.MX53.
 
-	config DEBUG_IMX6Q_UART
-		bool "i.MX6Q Debug UART"
+	config DEBUG_IMX6Q_UART4
+		bool "i.MX6Q Debug UART4"
 		depends on SOC_IMX6Q
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX6Q.
-
-	config DEBUG_S3C_UART0
-		depends on PLAT_SAMSUNG
-		bool "Use S3C UART 0 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 0. The port must have been initialised
-		  by the boot-loader before use.
-
-		  The uncompressor code port configuration is now handled
-		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
-
-	config DEBUG_S3C_UART1
-		depends on PLAT_SAMSUNG
-		bool "Use S3C UART 1 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 1. The port must have been initialised
-		  by the boot-loader before use.
-
-		  The uncompressor code port configuration is now handled
-		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
-
-	config DEBUG_S3C_UART2
-		depends on PLAT_SAMSUNG
-		bool "Use S3C UART 2 for low-level debug"
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to UART 2. The port must have been initialised
-		  by the boot-loader before use.
-
-		  The uncompressor code port configuration is now handled
-		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
-
-	config DEBUG_REALVIEW_STD_PORT
-		bool "RealView Default UART"
-		depends on ARCH_REALVIEW
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the serial port on RealView EB, PB11MP, PBA8
-		  and PBX platforms.
-
-	config DEBUG_REALVIEW_PB1176_PORT
-		bool "RealView PB1176 UART"
-		depends on MACH_REALVIEW_PB1176
-		help
-		  Say Y here if you want the debug print routines to direct
-		  their output to the standard serial port on the RealView
-		  PB1176 platform.
+		  on i.MX6Q UART4.
 
 	config DEBUG_MSM_UART1
 		bool "Kernel low-level debugging messages via MSM UART1"
@@ -291,6 +223,90 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to the serial port on MSM 8960 devices.
+
+	config DEBUG_REALVIEW_STD_PORT
+		bool "RealView Default UART"
+		depends on ARCH_REALVIEW
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the serial port on RealView EB, PB11MP, PBA8
+		  and PBX platforms.
+
+	config DEBUG_REALVIEW_PB1176_PORT
+		bool "RealView PB1176 UART"
+		depends on MACH_REALVIEW_PB1176
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the standard serial port on the RealView
+		  PB1176 platform.
+
+	config DEBUG_S3C_UART0
+		depends on PLAT_SAMSUNG
+		bool "Use S3C UART 0 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 0. The port must have been initialised
+		  by the boot-loader before use.
+
+		  The uncompressor code port configuration is now handled
+		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_S3C_UART1
+		depends on PLAT_SAMSUNG
+		bool "Use S3C UART 1 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 1. The port must have been initialised
+		  by the boot-loader before use.
+
+		  The uncompressor code port configuration is now handled
+		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_S3C_UART2
+		depends on PLAT_SAMSUNG
+		bool "Use S3C UART 2 for low-level debug"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to UART 2. The port must have been initialised
+		  by the boot-loader before use.
+
+		  The uncompressor code port configuration is now handled
+		  by CONFIG_S3C_LOWLEVEL_UART_PORT.
+
+	config DEBUG_LL_UART_NONE
+		bool "No low-level debugging UART"
+		help
+		  Say Y here if your platform doesn't provide a UART option
+		  below. This relies on your platform choosing the right UART
+		  definition internally in order for low-level debugging to
+		  work.
+
+	config DEBUG_ICEDCC
+		bool "Kernel low-level debugging via EmbeddedICE DCC channel"
+		help
+		  Say Y here if you want the debug print routines to direct
+		  their output to the EmbeddedICE macrocell's DCC channel using
+		  co-processor 14. This is known to work on the ARM9 style ICE
+		  channel and on the XScale with the PEEDI.
+
+		  Note that the system will appear to hang during boot if there
+		  is nothing connected to read from the DCC.
+
+	config DEBUG_SEMIHOSTING
+		bool "Kernel low-level debug output via semihosting I"
+		help
+		  Semihosting enables code running on an ARM target to use
+		  the I/O facilities on a host debugger/emulator through a
+		  simple SVC calls. The host debugger or emulator must have
+		  semihosting enabled for the special svc call to be trapped
+		  otherwise the kernel will crash.
+
+		  This is known to work with OpenOCD, as wellas
+		  ARM's Fast Models, or any other controlling environment
+		  that implements semihosting.
+
+		  For more details about semihosting, please see
+		  chapter 8 of DUI0203I_rvct_developer_guide.pdf from ARM Ltd.
 
 endchoice
 

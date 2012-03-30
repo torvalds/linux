@@ -108,9 +108,7 @@
 #define N_DCDC			3
 #define N_LDO			2
 #define N_SWITCH		2
-#define N_REGULATORS		(3 /* DCDC */ + \
-				 2 /* LDO */  + \
-				 2 /* switch */)
+#define N_REGULATORS		(N_DCDC + N_LDO + N_SWITCH)
 
 #define FIXED_ILIMSEL		BIT(0)
 #define FIXED_VOLTAGE		BIT(1)

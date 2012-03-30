@@ -182,138 +182,103 @@ static inline struct isci_request *to_ireq(struct isci_stp_request *stp_req)
 }
 
 /**
- * enum sci_base_request_states - This enumeration depicts all the states for
- *    the common request state machine.
+ * enum sci_base_request_states - request state machine states
  *
+ * @SCI_REQ_INIT: Simply the initial state for the base request state machine.
  *
+ * @SCI_REQ_CONSTRUCTED: This state indicates that the request has been
+ * constructed.  This state is entered from the INITIAL state.
+ *
+ * @SCI_REQ_STARTED: This state indicates that the request has been started.
+ * This state is entered from the CONSTRUCTED state.
+ *
+ * @SCI_REQ_STP_UDMA_WAIT_TC_COMP:
+ * @SCI_REQ_STP_UDMA_WAIT_D2H:
+ * @SCI_REQ_STP_NON_DATA_WAIT_H2D:
+ * @SCI_REQ_STP_NON_DATA_WAIT_D2H:
+ *
+ * @SCI_REQ_STP_PIO_WAIT_H2D: While in this state the IO request object is
+ * waiting for the TC completion notification for the H2D Register FIS
+ *
+ * @SCI_REQ_STP_PIO_WAIT_FRAME: While in this state the IO request object is
+ * waiting for either a PIO Setup FIS or a D2H register FIS.  The type of frame
+ * received is based on the result of the prior frame and line conditions.
+ *
+ * @SCI_REQ_STP_PIO_DATA_IN: While in this state the IO request object is
+ * waiting for a DATA frame from the device.
+ *
+ * @SCI_REQ_STP_PIO_DATA_OUT: While in this state the IO request object is
+ * waiting to transmit the next data frame to the device.
+ *
+ * @SCI_REQ_ATAPI_WAIT_H2D: While in this state the IO request object is
+ * waiting for the TC completion notification for the H2D Register FIS
+ *
+ * @SCI_REQ_ATAPI_WAIT_PIO_SETUP: While in this state the IO request object is
+ * waiting for either a PIO Setup.
+ *
+ * @SCI_REQ_ATAPI_WAIT_D2H: The non-data IO transit to this state in this state
+ * after receiving TC completion. While in this state IO request object is
+ * waiting for D2H status frame as UF.
+ *
+ * @SCI_REQ_ATAPI_WAIT_TC_COMP: When transmitting raw frames hardware reports
+ * task context completion after every frame submission, so in the
+ * non-accelerated case we need to expect the completion for the "cdb" frame.
+ *
+ * @SCI_REQ_TASK_WAIT_TC_COMP: The AWAIT_TC_COMPLETION sub-state indicates that
+ * the started raw task management request is waiting for the transmission of
+ * the initial frame (i.e. command, task, etc.).
+ *
+ * @SCI_REQ_TASK_WAIT_TC_RESP: This sub-state indicates that the started task
+ * management request is waiting for the reception of an unsolicited frame
+ * (i.e.  response IU).
+ *
+ * @SCI_REQ_SMP_WAIT_RESP: This sub-state indicates that the started task
+ * management request is waiting for the reception of an unsolicited frame
+ * (i.e.  response IU).
+ *
+ * @SCI_REQ_SMP_WAIT_TC_COMP: The AWAIT_TC_COMPLETION sub-state indicates that
+ * the started SMP request is waiting for the transmission of the initial frame
+ * (i.e.  command, task, etc.).
+ *
+ * @SCI_REQ_COMPLETED: This state indicates that the request has completed.
+ * This state is entered from the STARTED state. This state is entered from the
+ * ABORTING state.
+ *
+ * @SCI_REQ_ABORTING: This state indicates that the request is in the process
+ * of being terminated/aborted.  This state is entered from the CONSTRUCTED
+ * state.  This state is entered from the STARTED state.
+ *
+ * @SCI_REQ_FINAL: Simply the final state for the base request state machine.
  */
-enum sci_base_request_states {
-	/*
-	 * Simply the initial state for the base request state machine.
-	 */
-	SCI_REQ_INIT,
-
-	/*
-	 * This state indicates that the request has been constructed.
-	 * This state is entered from the INITIAL state.
-	 */
-	SCI_REQ_CONSTRUCTED,
-
-	/*
-	 * This state indicates that the request has been started. This state
-	 * is entered from the CONSTRUCTED state.
-	 */
-	SCI_REQ_STARTED,
-
-	SCI_REQ_STP_UDMA_WAIT_TC_COMP,
-	SCI_REQ_STP_UDMA_WAIT_D2H,
-
-	SCI_REQ_STP_NON_DATA_WAIT_H2D,
-	SCI_REQ_STP_NON_DATA_WAIT_D2H,
-
-	SCI_REQ_STP_SOFT_RESET_WAIT_H2D_ASSERTED,
-	SCI_REQ_STP_SOFT_RESET_WAIT_H2D_DIAG,
-	SCI_REQ_STP_SOFT_RESET_WAIT_D2H,
-
-	/*
-	 * While in this state the IO request object is waiting for the TC
-	 * completion notification for the H2D Register FIS
-	 */
-	SCI_REQ_STP_PIO_WAIT_H2D,
-
-	/*
-	 * While in this state the IO request object is waiting for either a
-	 * PIO Setup FIS or a D2H register FIS.  The type of frame received is
-	 * based on the result of the prior frame and line conditions.
-	 */
-	SCI_REQ_STP_PIO_WAIT_FRAME,
-
-	/*
-	 * While in this state the IO request object is waiting for a DATA
-	 * frame from the device.
-	 */
-	SCI_REQ_STP_PIO_DATA_IN,
-
-	/*
-	 * While in this state the IO request object is waiting to transmit
-	 * the next data frame to the device.
-	 */
-	SCI_REQ_STP_PIO_DATA_OUT,
-
-	/*
-	 * While in this state the IO request object is waiting for the TC
-	 * completion notification for the H2D Register FIS
-	 */
-	SCI_REQ_ATAPI_WAIT_H2D,
-
-	/*
-	 * While in this state the IO request object is waiting for either a
-	 * PIO Setup.
-	 */
-	SCI_REQ_ATAPI_WAIT_PIO_SETUP,
-
-	/*
-	 * The non-data IO transit to this state in this state after receiving
-	 * TC completion. While in this state IO request object is waiting for
-	 * D2H status frame as UF.
-	 */
-	SCI_REQ_ATAPI_WAIT_D2H,
-
-	/*
-	 * When transmitting raw frames hardware reports task context completion
-	 * after every frame submission, so in the non-accelerated case we need
-	 * to expect the completion for the "cdb" frame.
-	 */
-	SCI_REQ_ATAPI_WAIT_TC_COMP,
-
-	/*
-	 * The AWAIT_TC_COMPLETION sub-state indicates that the started raw
-	 * task management request is waiting for the transmission of the
-	 * initial frame (i.e. command, task, etc.).
-	 */
-	SCI_REQ_TASK_WAIT_TC_COMP,
-
-	/*
-	 * This sub-state indicates that the started task management request
-	 * is waiting for the reception of an unsolicited frame
-	 * (i.e. response IU).
-	 */
-	SCI_REQ_TASK_WAIT_TC_RESP,
-
-	/*
-	 * This sub-state indicates that the started task management request
-	 * is waiting for the reception of an unsolicited frame
-	 * (i.e. response IU).
-	 */
-	SCI_REQ_SMP_WAIT_RESP,
-
-	/*
-	 * The AWAIT_TC_COMPLETION sub-state indicates that the started SMP
-	 * request is waiting for the transmission of the initial frame
-	 * (i.e. command, task, etc.).
-	 */
-	SCI_REQ_SMP_WAIT_TC_COMP,
-
-	/*
-	 * This state indicates that the request has completed.
-	 * This state is entered from the STARTED state. This state is entered
-	 * from the ABORTING state.
-	 */
-	SCI_REQ_COMPLETED,
-
-	/*
-	 * This state indicates that the request is in the process of being
-	 * terminated/aborted.
-	 * This state is entered from the CONSTRUCTED state.
-	 * This state is entered from the STARTED state.
-	 */
-	SCI_REQ_ABORTING,
-
-	/*
-	 * Simply the final state for the base request state machine.
-	 */
-	SCI_REQ_FINAL,
-};
+#define REQUEST_STATES {\
+	C(REQ_INIT),\
+	C(REQ_CONSTRUCTED),\
+	C(REQ_STARTED),\
+	C(REQ_STP_UDMA_WAIT_TC_COMP),\
+	C(REQ_STP_UDMA_WAIT_D2H),\
+	C(REQ_STP_NON_DATA_WAIT_H2D),\
+	C(REQ_STP_NON_DATA_WAIT_D2H),\
+	C(REQ_STP_PIO_WAIT_H2D),\
+	C(REQ_STP_PIO_WAIT_FRAME),\
+	C(REQ_STP_PIO_DATA_IN),\
+	C(REQ_STP_PIO_DATA_OUT),\
+	C(REQ_ATAPI_WAIT_H2D),\
+	C(REQ_ATAPI_WAIT_PIO_SETUP),\
+	C(REQ_ATAPI_WAIT_D2H),\
+	C(REQ_ATAPI_WAIT_TC_COMP),\
+	C(REQ_TASK_WAIT_TC_COMP),\
+	C(REQ_TASK_WAIT_TC_RESP),\
+	C(REQ_SMP_WAIT_RESP),\
+	C(REQ_SMP_WAIT_TC_COMP),\
+	C(REQ_COMPLETED),\
+	C(REQ_ABORTING),\
+	C(REQ_FINAL),\
+	}
+#undef C
+#define C(a) SCI_##a
+enum sci_base_request_states REQUEST_STATES;
+#undef C
+const char *req_state_name(enum sci_base_request_states state);
 
 enum sci_status sci_request_start(struct isci_request *ireq);
 enum sci_status sci_io_request_terminate(struct isci_request *ireq);
@@ -446,10 +411,7 @@ sci_task_request_construct(struct isci_host *ihost,
 			    struct isci_remote_device *idev,
 			    u16 io_tag,
 			    struct isci_request *ireq);
-enum sci_status
-sci_task_request_construct_ssp(struct isci_request *ireq);
-enum sci_status
-sci_task_request_construct_sata(struct isci_request *ireq);
+enum sci_status sci_task_request_construct_ssp(struct isci_request *ireq);
 void sci_smp_request_copy_response(struct isci_request *ireq);
 
 static inline int isci_task_is_ncq_recovery(struct sas_task *task)

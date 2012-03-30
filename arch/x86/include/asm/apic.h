@@ -11,7 +11,6 @@
 #include <linux/atomic.h>
 #include <asm/fixmap.h>
 #include <asm/mpspec.h>
-#include <asm/system.h>
 #include <asm/msr.h>
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
@@ -288,6 +287,7 @@ struct apic {
 
 	int (*probe)(void);
 	int (*acpi_madt_oem_check)(char *oem_id, char *oem_table_id);
+	int (*apic_id_valid)(int apicid);
 	int (*apic_id_registered)(void);
 
 	u32 irq_delivery_mode;
@@ -530,6 +530,11 @@ static inline unsigned int read_apic_id(void)
 	reg = apic_read(APIC_ID);
 
 	return apic->get_apic_id(reg);
+}
+
+static inline int default_apic_id_valid(int apicid)
+{
+	return (apicid < 255);
 }
 
 extern void default_setup_apic_routing(void);

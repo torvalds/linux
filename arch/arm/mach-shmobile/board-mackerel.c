@@ -54,11 +54,10 @@
 #include <sound/sh_fsi.h>
 
 #include <mach/common.h>
+#include <mach/irqs.h>
 #include <mach/sh7372.h>
 
 #include <asm/mach/arch.h>
-#include <asm/mach/time.h>
-#include <asm/mach/map.h>
 #include <asm/mach-types.h>
 
 /*
@@ -318,8 +317,14 @@ static struct sh_mobile_meram_info mackerel_meram_info = {
 
 static struct resource meram_resources[] = {
 	[0] = {
-		.name	= "MERAM",
+		.name	= "regs",
 		.start	= 0xe8000000,
+		.end	= 0xe807ffff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= "meram",
+		.start	= 0xe8080000,
 		.end	= 0xe81fffff,
 		.flags	= IORESOURCE_MEM,
 	},
@@ -351,29 +356,23 @@ static struct fb_videomode mackerel_lcdc_modes[] = {
 	},
 };
 
-static int mackerel_set_brightness(void *board_data, int brightness)
+static int mackerel_set_brightness(int brightness)
 {
 	gpio_set_value(GPIO_PORT31, brightness);
 
 	return 0;
 }
 
-static int mackerel_get_brightness(void *board_data)
+static int mackerel_get_brightness(void)
 {
 	return gpio_get_value(GPIO_PORT31);
 }
 
-static struct sh_mobile_meram_cfg lcd_meram_cfg = {
+static const struct sh_mobile_meram_cfg lcd_meram_cfg = {
 	.icb[0] = {
-		.marker_icb     = 28,
-		.cache_icb      = 24,
-		.meram_offset   = 0x0,
 		.meram_size     = 0x40,
 	},
 	.icb[1] = {
-		.marker_icb     = 29,
-		.cache_icb      = 25,
-		.meram_offset   = 0x40,
 		.meram_size     = 0x40,
 	},
 };
@@ -384,20 +383,20 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
 		.fourcc = V4L2_PIX_FMT_RGB565,
-		.lcd_cfg = mackerel_lcdc_modes,
-		.num_cfg = ARRAY_SIZE(mackerel_lcdc_modes),
+		.lcd_modes = mackerel_lcdc_modes,
+		.num_modes = ARRAY_SIZE(mackerel_lcdc_modes),
 		.interface_type		= RGB24,
 		.clock_divider		= 3,
 		.flags			= 0,
-		.lcd_size_cfg.width	= 152,
-		.lcd_size_cfg.height	= 91,
-		.board_cfg = {
-			.set_brightness = mackerel_set_brightness,
-			.get_brightness = mackerel_get_brightness,
+		.panel_cfg = {
+			.width		= 152,
+			.height		= 91,
 		},
 		.bl_info = {
 			.name = "sh_mobile_lcdc_bl",
 			.max_brightness = 1,
+			.set_brightness = mackerel_set_brightness,
+			.get_brightness = mackerel_get_brightness,
 		},
 		.meram_cfg = &lcd_meram_cfg,
 	}
@@ -426,61 +425,8 @@ static struct platform_device lcdc_device = {
 	},
 };
 
-static struct sh_mobile_meram_cfg hdmi_meram_cfg = {
-	.icb[0] = {
-		.marker_icb     = 30,
-		.cache_icb      = 26,
-		.meram_offset   = 0x80,
-		.meram_size     = 0x100,
-	},
-	.icb[1] = {
-		.marker_icb     = 31,
-		.cache_icb      = 27,
-		.meram_offset   = 0x180,
-		.meram_size     = 0x100,
-	},
-};
 /* HDMI */
-static struct sh_mobile_lcdc_info hdmi_lcdc_info = {
-	.meram_dev = &mackerel_meram_info,
-	.clock_source = LCDC_CLK_EXTERNAL,
-	.ch[0] = {
-		.chan = LCDC_CHAN_MAINLCD,
-		.fourcc = V4L2_PIX_FMT_RGB565,
-		.interface_type = RGB24,
-		.clock_divider = 1,
-		.flags = LCDC_FLAGS_DWPOL,
-		.meram_cfg = &hdmi_meram_cfg,
-	}
-};
-
-static struct resource hdmi_lcdc_resources[] = {
-	[0] = {
-		.name	= "LCDC1",
-		.start	= 0xfe944000,
-		.end	= 0xfe947fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= intcs_evt2irq(0x1780),
-		.flags	= IORESOURCE_IRQ,
-	},
-};
-
-static struct platform_device hdmi_lcdc_device = {
-	.name		= "sh_mobile_lcdc_fb",
-	.num_resources	= ARRAY_SIZE(hdmi_lcdc_resources),
-	.resource	= hdmi_lcdc_resources,
-	.id		= 1,
-	.dev	= {
-		.platform_data	= &hdmi_lcdc_info,
-		.coherent_dma_mask = ~0,
-	},
-};
-
 static struct sh_mobile_hdmi_info hdmi_info = {
-	.lcd_chan	= &hdmi_lcdc_info.ch[0],
-	.lcd_dev	= &hdmi_lcdc_device.dev,
 	.flags		= HDMI_SND_SRC_SPDIF,
 };
 
@@ -505,6 +451,53 @@ static struct platform_device hdmi_device = {
 	.id             = -1,
 	.dev	= {
 		.platform_data	= &hdmi_info,
+	},
+};
+
+static const struct sh_mobile_meram_cfg hdmi_meram_cfg = {
+	.icb[0] = {
+		.meram_size     = 0x100,
+	},
+	.icb[1] = {
+		.meram_size     = 0x100,
+	},
+};
+
+static struct sh_mobile_lcdc_info hdmi_lcdc_info = {
+	.meram_dev = &mackerel_meram_info,
+	.clock_source = LCDC_CLK_EXTERNAL,
+	.ch[0] = {
+		.chan = LCDC_CHAN_MAINLCD,
+		.fourcc = V4L2_PIX_FMT_RGB565,
+		.interface_type = RGB24,
+		.clock_divider = 1,
+		.flags = LCDC_FLAGS_DWPOL,
+		.meram_cfg = &hdmi_meram_cfg,
+		.tx_dev = &hdmi_device,
+	}
+};
+
+static struct resource hdmi_lcdc_resources[] = {
+	[0] = {
+		.name	= "LCDC1",
+		.start	= 0xfe944000,
+		.end	= 0xfe947fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x1780),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device hdmi_lcdc_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(hdmi_lcdc_resources),
+	.resource	= hdmi_lcdc_resources,
+	.id		= 1,
+	.dev	= {
+		.platform_data	= &hdmi_lcdc_info,
+		.coherent_dma_mask = ~0,
 	},
 };
 
@@ -860,7 +853,7 @@ static int __fsi_set_round_rate(struct clk *clk, long rate, int enable)
 	return clk_enable(clk);
 }
 
-static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
+static int fsi_b_set_rate(struct device *dev, int rate, int enable)
 {
 	struct clk *fsib_clk;
 	struct clk *fdiv_clk = &sh7372_fsidivb_clk;
@@ -868,10 +861,6 @@ static int fsi_set_rate(struct device *dev, int is_porta, int rate, int enable)
 	long fdiv_rate = 0;
 	int ackmd_bpfmd;
 	int ret;
-
-	/* FSIA is slave mode. nothing to do here */
-	if (is_porta)
-		return 0;
 
 	/* clock start */
 	switch (rate) {
@@ -916,14 +905,16 @@ fsi_set_rate_end:
 }
 
 static struct sh_fsi_platform_info fsi_info = {
-	.porta_flags =	SH_FSI_BRS_INV,
-
-	.portb_flags =	SH_FSI_BRS_INV	|
+	.port_a = {
+		.flags = SH_FSI_BRS_INV,
+	},
+	.port_b = {
+		.flags = SH_FSI_BRS_INV	|
 			SH_FSI_BRM_INV	|
 			SH_FSI_LRS_INV	|
 			SH_FSI_FMT_SPDIF,
-
-	.set_rate = fsi_set_rate,
+		.set_rate = fsi_b_set_rate,
+	}
 };
 
 static struct resource fsi_resources[] = {
@@ -1276,8 +1267,8 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&sh_mmcif_device,
 	&ceu_device,
 	&mackerel_camera,
-	&hdmi_lcdc_device,
 	&hdmi_device,
+	&hdmi_lcdc_device,
 	&meram_device,
 };
 
@@ -1337,31 +1328,6 @@ static struct i2c_board_info i2c1_devices[] = {
 	},
 };
 
-static struct map_desc mackerel_io_desc[] __initdata = {
-	/* create a 1:1 entity map for 0xe6xxxxxx
-	 * used by CPGA, INTC and PFC.
-	 */
-	{
-		.virtual	= 0xe6000000,
-		.pfn		= __phys_to_pfn(0xe6000000),
-		.length		= 256 << 20,
-		.type		= MT_DEVICE_NONSHARED
-	},
-};
-
-static void __init mackerel_map_io(void)
-{
-	iotable_init(mackerel_io_desc, ARRAY_SIZE(mackerel_io_desc));
-	/* DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
-	 * enough to allocate the frame buffer memory.
-	 */
-	init_consistent_dma_size(12 << 20);
-
-	/* setup early devices and console here as well */
-	sh7372_add_early_devices();
-	shmobile_setup_console();
-}
-
 #define GPIO_PORT9CR	0xE6051009
 #define GPIO_PORT10CR	0xE605100A
 #define GPIO_PORT167CR	0xE60520A7
@@ -1373,6 +1339,9 @@ static void __init mackerel_init(void)
 	u32 srcr4;
 	struct clk *clk;
 	int ret;
+
+	/* External clock source */
+	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
 
 	sh7372_pinmux_init();
 
@@ -1577,23 +1546,11 @@ static void __init mackerel_init(void)
 	pm_clk_add(&hdmi_lcdc_device.dev, "hdmi");
 }
 
-static void __init mackerel_timer_init(void)
-{
-	sh7372_clock_init();
-	shmobile_timer.init();
-
-	/* External clock source */
-	clk_set_rate(&sh7372_dv_clki_clk, 27000000);
-}
-
-static struct sys_timer mackerel_timer = {
-	.init		= mackerel_timer_init,
-};
-
 MACHINE_START(MACKEREL, "mackerel")
-	.map_io		= mackerel_map_io,
+	.map_io		= sh7372_map_io,
+	.init_early	= sh7372_add_early_devices,
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= mackerel_init,
-	.timer		= &mackerel_timer,
+	.timer		= &shmobile_timer,
 MACHINE_END

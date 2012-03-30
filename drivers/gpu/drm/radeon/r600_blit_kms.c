@@ -30,20 +30,7 @@
 
 #include "r600d.h"
 #include "r600_blit_shaders.h"
-
-#define DI_PT_RECTLIST        0x11
-#define DI_INDEX_SIZE_16_BIT  0x0
-#define DI_SRC_SEL_AUTO_INDEX 0x2
-
-#define FMT_8                 0x1
-#define FMT_5_6_5             0x8
-#define FMT_8_8_8_8           0x1a
-#define COLOR_8               0x1
-#define COLOR_5_6_5           0x8
-#define COLOR_8_8_8_8         0x1a
-
-#define RECT_UNIT_H           32
-#define RECT_UNIT_W           (RADEON_GPU_PAGE_SIZE / 4 / RECT_UNIT_H)
+#include "radeon_blit_common.h"
 
 /* emits 21 on rv770+, 23 on r600 */
 static void

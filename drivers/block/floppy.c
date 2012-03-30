@@ -202,7 +202,6 @@ static int slow_floppy;
 
 #include <asm/dma.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 static int FLOPPY_IRQ = 6;
 static int FLOPPY_DMA = 2;

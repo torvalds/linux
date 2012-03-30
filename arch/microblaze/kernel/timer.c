@@ -27,7 +27,6 @@
 #include <asm/setup.h>
 #include <asm/prom.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <linux/cnt32_to_63.h>
 
 #ifdef CONFIG_SELFMOD_TIMER

@@ -14,6 +14,12 @@
 #define GPIOF_OUT_INIT_LOW	(GPIOF_DIR_OUT | GPIOF_INIT_LOW)
 #define GPIOF_OUT_INIT_HIGH	(GPIOF_DIR_OUT | GPIOF_INIT_HIGH)
 
+/* Gpio pin is open drain */
+#define GPIOF_OPEN_DRAIN	(1 << 2)
+
+/* Gpio pin is open source */
+#define GPIOF_OPEN_SOURCE	(1 << 3)
+
 /**
  * struct gpio - a structure describing a GPIO with configuration
  * @gpio:	the GPIO number
@@ -34,6 +40,7 @@ struct gpio {
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/bug.h>
 
 struct device;
 struct gpio_chip;

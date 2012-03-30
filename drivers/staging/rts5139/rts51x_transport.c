@@ -883,7 +883,7 @@ int rts51x_transfer_data_partial(struct rts51x_chip *chip, unsigned int pipe,
 	return result;
 }
 
-int rts51x_get_epc_status(struct rts51x_chip *chip, u16 * status)
+int rts51x_get_epc_status(struct rts51x_chip *chip, u16 *status)
 {
 	unsigned int pipe = RCV_INTR_PIPE(chip);
 	struct usb_host_endpoint *ep;

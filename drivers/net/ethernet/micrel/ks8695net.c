@@ -278,7 +278,8 @@ ks8695_refill_rxbuffers(struct ks8695_priv *ksp)
 
 	for (buff_n = 0; buff_n < MAX_RX_DESC; ++buff_n) {
 		if (!ksp->rx_buffers[buff_n].skb) {
-			struct sk_buff *skb = dev_alloc_skb(MAX_RXBUF_SIZE);
+			struct sk_buff *skb =
+				netdev_alloc_skb(ksp->ndev, MAX_RXBUF_SIZE);
 			dma_addr_t mapping;
 
 			ksp->rx_buffers[buff_n].skb = skb;
@@ -299,7 +300,6 @@ ks8695_refill_rxbuffers(struct ks8695_priv *ksp)
 				break;
 			}
 			ksp->rx_buffers[buff_n].dma_ptr = mapping;
-			skb->dev = ksp->ndev;
 			ksp->rx_buffers[buff_n].length = MAX_RXBUF_SIZE;
 
 			/* Record this into the DMA ring */
@@ -1362,10 +1362,8 @@ ks8695_probe(struct platform_device *pdev)
 
 	/* Initialise a net_device */
 	ndev = alloc_etherdev(sizeof(struct ks8695_priv));
-	if (!ndev) {
-		dev_err(&pdev->dev, "could not allocate device.\n");
+	if (!ndev)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 

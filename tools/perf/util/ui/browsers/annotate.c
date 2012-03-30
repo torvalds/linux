@@ -69,14 +69,17 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	if (!self->navkeypressed)
 		width += 1;
 
+	if (!ab->hide_src_code && ol->offset != -1)
+		if (!current_entry || (self->use_navkeypressed &&
+				       !self->navkeypressed))
+			ui_browser__set_color(self, HE_COLORSET_CODE);
+
 	if (!*ol->line)
 		slsmg_write_nstring(" ", width - 18);
 	else
 		slsmg_write_nstring(ol->line, width - 18);
 
-	if (!current_entry)
-		ui_browser__set_color(self, HE_COLORSET_CODE);
-	else
+	if (current_entry)
 		ab->selection = ol;
 }
 
@@ -230,9 +233,9 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	struct rb_node *nd = NULL;
 	struct map_symbol *ms = self->b.priv;
 	struct symbol *sym = ms->sym;
-	const char *help = "<-, ESC: exit, TAB/shift+TAB: cycle hottest lines, "
-			   "H: Hottest, -> Line action, S -> Toggle source "
-			   "code view";
+	const char *help = "<-/ESC: Exit, TAB/shift+TAB: Cycle hot lines, "
+			   "H: Go to hottest line, ->/ENTER: Line action, "
+			   "S: Toggle source code view";
 	int key;
 
 	if (ui_browser__show(&self->b, sym->name, help) < 0)
@@ -284,9 +287,11 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 				nd = self->curr_hot;
 			break;
 		case 'H':
+		case 'h':
 			nd = self->curr_hot;
 			break;
 		case 'S':
+		case 's':
 			if (annotate_browser__toggle_source(self))
 				ui_helpline__puts(help);
 			continue;
@@ -338,6 +343,7 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 				pthread_mutex_unlock(&notes->lock);
 				symbol__tui_annotate(target, ms->map, evidx,
 						     timer, arg, delay_secs);
+				ui_browser__show_title(&self->b, sym->name);
 			}
 			continue;
 		case K_LEFT:

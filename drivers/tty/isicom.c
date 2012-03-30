@@ -133,7 +133,6 @@
 
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include <asm/system.h>
 
 #include <linux/pci.h>
 
@@ -849,8 +848,6 @@ static struct tty_port *isicom_find_port(struct tty_struct *tty)
 	unsigned int board;
 	int line = tty->index;
 
-	if (line < 0 || line > PORT_COUNT-1)
-		return NULL;
 	board = BOARD(line);
 	card = &isi_card[board];
 
@@ -1678,7 +1675,6 @@ static int __init isicom_init(void)
 		goto error;
 	}
 
-	isicom_normal->owner			= THIS_MODULE;
 	isicom_normal->name 			= "ttyM";
 	isicom_normal->major			= ISICOM_NMAJOR;
 	isicom_normal->minor_start		= 0;

@@ -712,6 +712,9 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*vaux1;
 	struct regulator_init_data		*vaux2;
 	struct regulator_init_data		*vaux3;
+	struct regulator_init_data		*vdd1;
+	struct regulator_init_data		*vdd2;
+	struct regulator_init_data		*vdd3;
 	/* TWL4030 LDO regulators */
 	struct regulator_init_data		*vpll1;
 	struct regulator_init_data		*vpll2;
@@ -720,8 +723,6 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*vsim;
 	struct regulator_init_data		*vaux4;
 	struct regulator_init_data		*vio;
-	struct regulator_init_data		*vdd1;
-	struct regulator_init_data		*vdd2;
 	struct regulator_init_data		*vintana1;
 	struct regulator_init_data		*vintana2;
 	struct regulator_init_data		*vintdig;
@@ -733,6 +734,8 @@ struct twl4030_platform_data {
 	struct regulator_init_data              *vcxio;
 	struct regulator_init_data              *vusb;
 	struct regulator_init_data		*clk32kg;
+	struct regulator_init_data              *v1v8;
+	struct regulator_init_data              *v2v1;
 	/* TWL6025 LDO regulators */
 	struct regulator_init_data		*ldo1;
 	struct regulator_init_data		*ldo2;
@@ -749,9 +752,16 @@ struct twl4030_platform_data {
 	struct regulator_init_data		*vio6025;
 };
 
+struct twl_regulator_driver_data {
+	int		(*set_voltage)(void *data, int target_uV);
+	int		(*get_voltage)(void *data);
+	void		*data;
+	unsigned long	features;
+};
+
 /*----------------------------------------------------------------------*/
 
-int twl4030_sih_setup(int module);
+int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 
 /* Offsets to Power Registers */
 #define TWL4030_VDAC_DEV_GRP		0x3B

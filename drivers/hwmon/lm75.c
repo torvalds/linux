@@ -438,23 +438,8 @@ abort:
 	return ret;
 }
 
-/*-----------------------------------------------------------------------*/
-
-/* module glue */
-
-static int __init sensors_lm75_init(void)
-{
-	return i2c_add_driver(&lm75_driver);
-}
-
-static void __exit sensors_lm75_exit(void)
-{
-	i2c_del_driver(&lm75_driver);
-}
+module_i2c_driver(lm75_driver);
 
 MODULE_AUTHOR("Frodo Looijaard <frodol@dds.nl>");
 MODULE_DESCRIPTION("LM75 driver");
 MODULE_LICENSE("GPL");
-
-module_init(sensors_lm75_init);
-module_exit(sensors_lm75_exit);

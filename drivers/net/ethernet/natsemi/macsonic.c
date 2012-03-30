@@ -53,7 +53,6 @@
 #include <linux/slab.h>
 
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/hwtest.h>
@@ -307,7 +306,7 @@ static void __devinit mac_onboard_sonic_ethernet_addr(struct net_device *dev)
 
 	printk(KERN_WARNING "macsonic: MAC address in CAM entry 15 "
 	                    "seems invalid, will use a random MAC\n");
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 }
 
 static int __devinit mac_onboard_sonic_probe(struct net_device *dev)
