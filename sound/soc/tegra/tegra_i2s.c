@@ -79,10 +79,14 @@ static int tegra_i2s_show(struct seq_file *s, void *unused)
 	struct tegra_i2s *i2s = s->private;
 	int i;
 
+	clk_enable(i2s->clk_i2s);
+
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		u32 val = tegra_i2s_read(i2s, regs[i].offset);
 		seq_printf(s, "%s = %08x\n", regs[i].name, val);
 	}
+
+	clk_disable(i2s->clk_i2s);
 
 	return 0;
 }
