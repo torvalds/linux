@@ -58,7 +58,7 @@
 #define RGA_POWER_OFF_DELAY	4*HZ /* 4s */
 #define RGA_TIMEOUT_DELAY	2*HZ /* 2s */
 
-#define RGA_MAJOR		232
+#define RGA_MAJOR		255
 
 #define RK30_RGA_PHYS	0x10114000
 #define RK30_RGA_SIZE	SZ_8K
@@ -71,6 +71,7 @@
 ktime_t rga_start;
 ktime_t rga_end;
 
+dev_t rga_devi;
 
 struct rga_drvdata {
   	struct miscdevice miscdev;
@@ -91,8 +92,6 @@ struct rga_drvdata {
 
 static struct rga_drvdata *drvdata = NULL;
 rga_service_info rga_service;
-
-
 
 static int rga_blit_async(rga_session *session, struct rga_req *req);
 
@@ -1086,11 +1085,10 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		goto err_clock;
 	}
 
-    
+    #endif
 	
-	data->aclk_rga = clk_get(NULL, "aclk_rga");
-    
-	if (IS_ERR(data->axi_clk))
+	data->aclk_rga = clk_get(NULL, "aclk_rga");    
+	if (IS_ERR(data->aclk_rga))
 	{
 		ERR("failed to find rga axi clock source\n");
 		ret = -ENOENT;
@@ -1098,14 +1096,12 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	}
 
 	data->hclk_rga = clk_get(NULL, "hclk_rga");
-	if (IS_ERR(data->ahb_clk))
+	if (IS_ERR(data->hclk_rga))
 	{
 		ERR("failed to find rga ahb clock source\n");
 		ret = -ENOENT;
 		goto err_clock;
-	}
-    #endif
-    
+	}        
     
 	/* map the memory */
     if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io")) 
@@ -1146,7 +1142,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	
 	platform_set_drvdata(pdev, data);
 	drvdata = data;
-
+    
 	ret = misc_register(&rga_dev);
 	if(ret)
 	{
@@ -1194,13 +1190,7 @@ static int rga_drv_remove(struct platform_device *pdev)
 		clk_put(data->hclk_disp_matrix);
 	}
 	
-	if(data->aclk_ddr_lcdc) {
-		clk_put(data->aclk_ddr_lcdc);
-	}
 	
-	if(data->hclk_lcdc) {
-		clk_put(data->hclk_lcdc);
-	}
 
 	if(data->aclk_lcdc) {
 		clk_put(data->aclk_lcdc);
@@ -1213,7 +1203,15 @@ static int rga_drv_remove(struct platform_device *pdev)
 	if(data->pd_display){
 		clk_put(data->pd_display);
 	}
-    #endif    
+    #endif
+
+    if(data->aclk_rga) {
+		clk_put(data->aclk_rga);
+	}
+	
+	if(data->hclk_rga) {
+		clk_put(data->hclk_rga);
+	}
 
     kfree(data);
     return 0;
