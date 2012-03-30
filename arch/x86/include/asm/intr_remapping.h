@@ -24,6 +24,9 @@
 
 #ifdef CONFIG_IRQ_REMAP
 
+struct IO_APIC_route_entry;
+struct io_apic_irq_attr;
+
 extern int intr_remapping_enabled;
 
 extern void setup_intr_remapping(void);
@@ -33,6 +36,10 @@ extern int intr_hardware_enable(void);
 extern void intr_hardware_disable(void);
 extern int intr_hardware_reenable(int);
 extern int intr_enable_fault_handling(void);
+extern int intr_setup_ioapic_entry(int irq,
+				   struct IO_APIC_route_entry *entry,
+				   unsigned int destination, int vector,
+				   struct io_apic_irq_attr *attr);
 
 #else  /* CONFIG_IRQ_REMAP */
 
@@ -45,7 +52,13 @@ static inline int intr_hardware_enable(void) { return -ENODEV; }
 static inline void intr_hardware_disable(void) { }
 static inline int intr_hardware_reenable(int eim) { return -ENODEV; }
 static inline int intr_enable_fault_handling(void) { return -ENODEV; }
-
+static inline int intr_setup_ioapic_entry(int irq,
+					  struct IO_APIC_route_entry *entry,
+					  unsigned int destination, int vector,
+					  struct io_apic_irq_attr *attr)
+{
+	return -ENODEV;
+}
 #endif /* CONFIG_IRQ_REMAP */
 
 #endif /* __X86_INTR_REMAPPING_H */

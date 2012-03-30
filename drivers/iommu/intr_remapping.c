@@ -98,3 +98,15 @@ int __init intr_enable_fault_handling(void)
 
 	return remap_ops->enable_faulting();
 }
+
+int intr_setup_ioapic_entry(int irq,
+			    struct IO_APIC_route_entry *entry,
+			    unsigned int destination, int vector,
+			    struct io_apic_irq_attr *attr)
+{
+	if (!remap_ops || !remap_ops->setup_ioapic_entry)
+		return -ENODEV;
+
+	return remap_ops->setup_ioapic_entry(irq, entry, destination,
+					     vector, attr);
+}

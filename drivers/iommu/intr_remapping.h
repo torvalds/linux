@@ -24,6 +24,9 @@
 
 #ifdef CONFIG_IRQ_REMAP
 
+struct IO_APIC_route_entry;
+struct io_apic_irq_attr;
+
 extern int disable_intremap;
 extern int disable_sourceid_checking;
 extern int no_x2apic_optout;
@@ -46,6 +49,11 @@ struct irq_remap_ops {
 
 	/* Enable fault handling */
 	int  (*enable_faulting)(void);
+
+	/* IO-APIC setup routine */
+	int (*setup_ioapic_entry)(int irq, struct IO_APIC_route_entry *,
+				  unsigned int, int,
+				  struct io_apic_irq_attr *);
 };
 
 extern struct irq_remap_ops intel_irq_remap_ops;
