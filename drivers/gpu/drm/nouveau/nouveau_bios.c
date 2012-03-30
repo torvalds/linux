@@ -30,6 +30,7 @@
 #include "nouveau_gpio.h"
 
 #include <linux/io-mapping.h>
+#include <linux/firmware.h>
 
 /* these defines are made up */
 #define NV_CIO_CRE_44_HEADA 0x0
@@ -249,8 +250,12 @@ bios_shadow(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
 	struct methods *mthd, *best;
+	const struct firmware *fw;
+	char fname[32];
+	int ret;
 
 	if (nouveau_vbios) {
+		/* try to match one of the built-in methods */
 		mthd = shadow_methods;
 		do {
 			if (strcasecmp(nouveau_vbios, mthd->desc))
@@ -262,6 +267,22 @@ bios_shadow(struct drm_device *dev)
 			if (mthd->score)
 				return true;
 		} while ((++mthd)->shadow);
+
+		/* attempt to load firmware image */
+		snprintf(fname, sizeof(fname), "nouveau/%s", nouveau_vbios);
+		ret = request_firmware(&fw, fname, &dev->pdev->dev);
+		if (ret == 0) {
+			bios->length = fw->size;
+			bios->data   = kmemdup(fw->data, fw->size, GFP_KERNEL);
+			release_firmware(fw);
+
+			NV_INFO(dev, "VBIOS image: %s\n", nouveau_vbios);
+			if (score_vbios(bios, 1))
+				return true;
+
+			kfree(bios->data);
+			bios->data = NULL;
+		}
 
 		NV_ERROR(dev, "VBIOS source \'%s\' invalid\n", nouveau_vbios);
 	}
