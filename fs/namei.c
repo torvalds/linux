@@ -1176,35 +1176,28 @@ retry:
 		dentry = d_lookup(parent, name);
 		if (dentry && d_need_lookup(dentry)) {
 			dentry = d_inode_lookup(parent, dentry, nd);
-			if (IS_ERR(dentry)) {
-				mutex_unlock(&dir->i_mutex);
-				return PTR_ERR(dentry);
-			}
-		} else if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
+			goto l;
+		}
+		if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
 			status = d_revalidate(dentry, nd);
 			if (unlikely(status <= 0)) {
 				if (status < 0) {
-					mutex_unlock(&dir->i_mutex);
 					dput(dentry);
-					return status;
+					dentry = ERR_PTR(status);
+					goto l;
 				}
 				if (!d_invalidate(dentry)) {
 					dput(dentry);
 					dentry = d_alloc_and_lookup(parent, name, nd);
-					if (IS_ERR(dentry)) {
-						mutex_unlock(&dir->i_mutex);
-						return PTR_ERR(dentry);
-					}
 				}
 			}
 		} else if (!dentry) {
 			dentry = d_alloc_and_lookup(parent, name, nd);
-			if (IS_ERR(dentry)) {
-				mutex_unlock(&dir->i_mutex);
-				return PTR_ERR(dentry);
-			}
 		}
+	l:
 		mutex_unlock(&dir->i_mutex);
+		if (IS_ERR(dentry))
+			return PTR_ERR(dentry);
 		goto done;
 	}
 	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE) && need_reval)
