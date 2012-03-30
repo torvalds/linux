@@ -713,6 +713,11 @@ config DVB_M88RS2000
 	  A DVB-S tuner module.
 	  Say Y when you want to support this frontend.
 
+config DVB_AF9033
+	tristate "Afatech AF9033 DVB-T demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+
 comment "Tools to develop new frontends"
 
 config DVB_DUMMY_FE

@@ -98,4 +98,5 @@ obj-$(CONFIG_DVB_A8293) += a8293.o
 obj-$(CONFIG_DVB_TDA10071) += tda10071.o
 obj-$(CONFIG_DVB_RTL2830) += rtl2830.o
 obj-$(CONFIG_DVB_M88RS2000) += m88rs2000.o
+obj-$(CONFIG_DVB_AF9033) += af9033.o
 
