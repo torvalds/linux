@@ -786,7 +786,7 @@ and spi on the second function mapping:
 
 #include <linux/pinctrl/machine.h>
 
-static const struct pinctrl_map __initdata mapping[] = {
+static const struct pinctrl_map mapping[] __initconst = {
 	{
 		.dev_name = "foo-spi.0",
 		.name = PINCTRL_STATE_DEFAULT,
