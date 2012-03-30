@@ -1,1 +1,1 @@
-/* Future home of xchg() and cmpxchg() */
+#include <asm/intrinsics.h>
