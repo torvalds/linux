@@ -430,6 +430,27 @@ static void gen6_pm_rps_work(struct work_struct *work)
 	mutex_unlock(&dev_priv->dev->struct_mutex);
 }
 
+static void snb_gt_irq_handler(struct drm_device *dev,
+			       struct drm_i915_private *dev_priv,
+			       u32 gt_iir)
+{
+
+	if (gt_iir & (GEN6_RENDER_USER_INTERRUPT |
+		      GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT))
+		notify_ring(dev, &dev_priv->ring[RCS]);
+	if (gt_iir & GEN6_BSD_USER_INTERRUPT)
+		notify_ring(dev, &dev_priv->ring[VCS]);
+	if (gt_iir & GEN6_BLITTER_USER_INTERRUPT)
+		notify_ring(dev, &dev_priv->ring[BCS]);
+
+	if (gt_iir & (GT_GEN6_BLT_CS_ERROR_INTERRUPT |
+		      GT_GEN6_BSD_CS_ERROR_INTERRUPT |
+		      GT_RENDER_CS_ERROR_INTERRUPT)) {
+		DRM_ERROR("GT error interrupt 0x%08x\n", gt_iir);
+		i915_handle_error(dev, false);
+	}
+}
+
 static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -458,19 +479,7 @@ static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 
 		ret = IRQ_HANDLED;
 
-		if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
-			notify_ring(dev, &dev_priv->ring[RCS]);
-		if (gt_iir & GT_GEN6_BSD_USER_INTERRUPT)
-			notify_ring(dev, &dev_priv->ring[VCS]);
-		if (gt_iir & GT_GEN6_BLT_USER_INTERRUPT)
-			notify_ring(dev, &dev_priv->ring[BCS]);
-
-		if (gt_iir & (GT_GEN6_BLT_CS_ERROR_INTERRUPT |
-			      GT_GEN6_BSD_CS_ERROR_INTERRUPT |
-			      GT_RENDER_CS_ERROR_INTERRUPT)) {
-			DRM_ERROR("GT error interrupt 0x%08x\n", gt_iir);
-			i915_handle_error(dev, false);
-		}
+		snb_gt_irq_handler(dev, dev_priv, gt_iir);
 
 		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
 		for_each_pipe(pipe) {
@@ -618,12 +627,7 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 				READ_BREADCRUMB(dev_priv);
 	}
 
-	if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
-		notify_ring(dev, &dev_priv->ring[RCS]);
-	if (gt_iir & GEN6_BSD_USER_INTERRUPT)
-		notify_ring(dev, &dev_priv->ring[VCS]);
-	if (gt_iir & GEN6_BLITTER_USER_INTERRUPT)
-		notify_ring(dev, &dev_priv->ring[BCS]);
+	snb_gt_irq_handler(dev, dev_priv, gt_iir);
 
 	if (de_iir & DE_GSE_IVB)
 		intel_opregion_gse_intr(dev);
@@ -675,6 +679,16 @@ done:
 	return ret;
 }
 
+static void ilk_gt_irq_handler(struct drm_device *dev,
+			       struct drm_i915_private *dev_priv,
+			       u32 gt_iir)
+{
+	if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
+		notify_ring(dev, &dev_priv->ring[RCS]);
+	if (gt_iir & GT_BSD_USER_INTERRUPT)
+		notify_ring(dev, &dev_priv->ring[VCS]);
+}
+
 static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -683,12 +697,8 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
 	u32 hotplug_mask;
 	struct drm_i915_master_private *master_priv;
-	u32 bsd_usr_interrupt = GT_BSD_USER_INTERRUPT;
 
 	atomic_inc(&dev_priv->irq_received);
-
-	if (IS_GEN6(dev))
-		bsd_usr_interrupt = GEN6_BSD_USER_INTERRUPT;
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
@@ -718,12 +728,10 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 				READ_BREADCRUMB(dev_priv);
 	}
 
-	if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
-		notify_ring(dev, &dev_priv->ring[RCS]);
-	if (gt_iir & bsd_usr_interrupt)
-		notify_ring(dev, &dev_priv->ring[VCS]);
-	if (gt_iir & GEN6_BLITTER_USER_INTERRUPT)
-		notify_ring(dev, &dev_priv->ring[BCS]);
+	if (IS_GEN5(dev))
+		ilk_gt_irq_handler(dev, dev_priv, gt_iir);
+	else
+		snb_gt_irq_handler(dev, dev_priv, gt_iir);
 
 	if (de_iir & DE_GSE)
 		intel_opregion_gse_intr(dev);
