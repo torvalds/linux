@@ -1442,7 +1442,7 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 							 *fw, void *context)
 {
 	struct usbduxfastsub_s *usbduxfastsub_tmp = context;
-	struct usb_device *usbdev = usbduxfastsub_tmp->usbdev;
+	struct usb_interface *uinterf = usbduxfastsub_tmp->interface;
 	int ret;
 
 	if (fw == NULL)
@@ -1455,12 +1455,12 @@ static void usbduxfast_firmware_request_complete_handler(const struct firmware
 	ret = firmwareUpload(usbduxfastsub_tmp, fw->data, fw->size);
 
 	if (ret) {
-		dev_err(&usbdev->dev,
+		dev_err(&uinterf->dev,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
 
-	comedi_usb_auto_config(usbdev, &driver_usbduxfast);
+	comedi_usb_auto_config(uinterf, &driver_usbduxfast);
  out:
 	release_firmware(fw);
 }
@@ -1608,7 +1608,7 @@ static void usbduxfastsub_disconnect(struct usb_interface *intf)
 		return;
 	}
 
-	comedi_usb_auto_unconfig(udev);
+	comedi_usb_auto_unconfig(intf);
 
 	down(&start_stop_sem);
 	down(&udfs->sem);

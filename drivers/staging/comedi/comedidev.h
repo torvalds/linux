@@ -460,10 +460,10 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s);
 int comedi_pci_auto_config(struct pci_dev *pcidev,
 			   struct comedi_driver *driver);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
-struct usb_device;		/* forward declaration */
-int comedi_usb_auto_config(struct usb_device *usbdev,
+struct usb_interface;		/* forward declaration */
+int comedi_usb_auto_config(struct usb_interface *intf,
 			   struct comedi_driver *driver);
-void comedi_usb_auto_unconfig(struct usb_device *usbdev);
+void comedi_usb_auto_unconfig(struct usb_interface *intf);
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 #define CONFIG_COMEDI_PCI

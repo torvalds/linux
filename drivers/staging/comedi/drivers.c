@@ -880,17 +880,17 @@ void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 
-int comedi_usb_auto_config(struct usb_device *usbdev,
+int comedi_usb_auto_config(struct usb_interface *intf,
 			   struct comedi_driver *driver)
 {
-	BUG_ON(usbdev == NULL);
-	return comedi_auto_config(&usbdev->dev, driver->driver_name, NULL, 0);
+	BUG_ON(intf == NULL);
+	return comedi_auto_config(&intf->dev, driver->driver_name, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
 
-void comedi_usb_auto_unconfig(struct usb_device *usbdev)
+void comedi_usb_auto_unconfig(struct usb_interface *intf)
 {
-	BUG_ON(usbdev == NULL);
-	comedi_auto_unconfig(&usbdev->dev);
+	BUG_ON(intf == NULL);
+	comedi_auto_unconfig(&intf->dev);
 }
 EXPORT_SYMBOL_GPL(comedi_usb_auto_unconfig);

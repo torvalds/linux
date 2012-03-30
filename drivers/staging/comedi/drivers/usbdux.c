@@ -2306,11 +2306,11 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 						     void *context)
 {
 	struct usbduxsub *usbduxsub_tmp = context;
-	struct usb_device *usbdev = usbduxsub_tmp->usbdev;
+	struct usb_interface *uinterf = usbduxsub_tmp->interface;
 	int ret;
 
 	if (fw == NULL) {
-		dev_err(&usbdev->dev,
+		dev_err(&uinterf->dev,
 			"Firmware complete handler without firmware!\n");
 		return;
 	}
@@ -2322,11 +2322,11 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 	ret = firmwareUpload(usbduxsub_tmp, fw->data, fw->size);
 
 	if (ret) {
-		dev_err(&usbdev->dev,
+		dev_err(&uinterf->dev,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(usbdev, &driver_usbdux);
+	comedi_usb_auto_config(uinterf, &driver_usbdux);
  out:
 	release_firmware(fw);
 }
@@ -2608,7 +2608,7 @@ static void usbduxsub_disconnect(struct usb_interface *intf)
 		dev_err(&intf->dev, "comedi_: BUG! called with wrong ptr!!!\n");
 		return;
 	}
-	comedi_usb_auto_unconfig(udev);
+	comedi_usb_auto_unconfig(intf);
 	down(&start_stop_sem);
 	down(&usbduxsub_tmp->sem);
 	tidy_up(usbduxsub_tmp);
