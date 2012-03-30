@@ -1332,8 +1332,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 		retval = -ENOMEM;
 		goto fail;
 	}
-    DWC_PRINT("%s otg2.0 reg addr: 0x%x remap:0x%x\n",__func__,
-    		(unsigned)res_base->start, (unsigned)dwc_otg_device->base);
 #if 0
 	dwc_otg_device->base = (void*)(USB_OTG_BASE_ADDR_VA);
 	
@@ -1353,7 +1351,6 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	snpsid = dwc_read_reg32((uint32_t *)((uint8_t *)dwc_otg_device->base + 0x40));
 	if ((snpsid & 0xFFFFF000) != 0x4F542000) 
 	{
-	                DWC_PRINT("%s::snpsid=0x%x,want 0x%x" , __func__ , snpsid , 0x4F542000 );
 		dev_err(dev, "Bad value for SNPSID: 0x%08x\n", snpsid);
 		retval = -EINVAL;
 		goto fail;

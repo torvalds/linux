@@ -188,7 +188,7 @@ void request_nuke( dwc_otg_pcd_ep_t *_ep )
  * This function assigns periodic Tx FIFO to an periodic EP
  * in shared Tx FIFO mode
  */
- #if 0
+ #ifdef CONFIG_ARCH_RK30
 static uint32_t assign_perio_tx_fifo(dwc_otg_core_if_t	*core_if)
 {
 	uint32_t PerTxMsk = 1;
@@ -215,9 +215,9 @@ static void release_perio_tx_fifo(dwc_otg_core_if_t *core_if, uint32_t fifo_num)
 }
 /**
  * This function assigns periodic Tx FIFO to an periodic EP
- * in shared Tx FIFO mode
+ * in Dedicated FIFOs mode
  */
-#if 0
+#ifdef CONFIG_ARCH_RK30
 static uint32_t assign_tx_fifo(dwc_otg_core_if_t *core_if)
 {
 	uint32_t TxMsk = 1;
@@ -237,7 +237,7 @@ static uint32_t assign_tx_fifo(dwc_otg_core_if_t *core_if)
 #endif
 /**
  * This function releases periodic Tx FIFO 
- * in shared Tx FIFO mode
+ * in Dedicated FIFOs mode
  */
 static void release_tx_fifo(dwc_otg_core_if_t	*core_if, uint32_t fifo_num)
 {
@@ -304,7 +304,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 
 	if(ep->dwc_ep.is_in)
 	{
-	        #if 0
+#ifdef CONFIG_ARCH_RK30
 		if(!pcd->otg_dev->core_if->en_multiple_tx_fifo)
 		{
 			ep->dwc_ep.tx_fifo_num = 0;
@@ -325,7 +325,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 			 */
 			ep->dwc_ep.tx_fifo_num = assign_tx_fifo(pcd->otg_dev->core_if);
 		}
-                        #endif 
+#else
         /* yk@rk
          * ep0 -- tx fifo 0
          * ep1 -- tx fifo 1
@@ -340,6 +340,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
                 ep->dwc_ep.tx_fifo_num = 3;
         else
     	    ep->dwc_ep.tx_fifo_num = (ep->dwc_ep.num>>1)+1 ; /* 1,3,5 */
+#endif
 	}		 
 	/* Set initial data PID. */
 	if ((_desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) == 
@@ -1477,7 +1478,15 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 * here?  Before EP type is set?
 			 */
 			ep->ep.maxpacket = MAX_PACKET_SIZE;
-	
+
+			/**
+			 * @yk@rk 20120329
+			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep8 as OUT EP default
+			 */
+	        #ifdef CONFIG_ARCH_RK30
+	        if(i == 8)
+	            continue;
+	        #endif
 			list_add_tail (&ep->ep.ep_list, &_pcd->gadget.ep_list);
 				
 			INIT_LIST_HEAD (&ep->queue);
@@ -1530,6 +1539,14 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 */
 			ep->ep.maxpacket = MAX_PACKET_SIZE;
 	
+			/**
+			 * @yk@rk 20120329
+			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep9 as IN EP default
+			 */
+	        #ifdef CONFIG_ARCH_RK30
+	        if(i == 9)
+	            continue;
+	        #endif
 			list_add_tail (&ep->ep.ep_list, &_pcd->gadget.ep_list);
 				
 			INIT_LIST_HEAD (&ep->queue);
@@ -1774,7 +1791,65 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
 }
-
+#ifdef CONFIG_ARCH_RK29
+/*
+ * This function can be only called in charge mode.
+ * return value:
+ *  -1: ioremap fail;
+ *  0: vbus not connected;
+ *  1: vbus connected, dp,dm not in both high status;
+ *  2: vbus connected and both dp,dm in high level.(standard USB charger)
+ */
+int dwc_otg_check_dpdm(void)
+{
+	static uint8_t * reg_base = 0;
+    volatile unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
+    volatile unsigned int * otg_clkgate = (unsigned int*)(USB_CLKGATE_CON);
+    volatile unsigned int * otg_clkreset = (unsigned int*)(RK29_CRU_BASE+0x70);
+    volatile unsigned int * otg_dctl;
+    volatile unsigned int * otg_gotgctl;
+    volatile unsigned int * otg_hprt0;
+    int bus_status = 0;
+    
+    
+    // softreset & clockgate 
+    *otg_clkreset |= (7<<16);
+    udelay(3);
+    *otg_clkreset &= ~(7<<16);
+    *otg_clkgate &= ~((1<<4)|(3<<25));
+	
+    // exit phy suspend 
+    *otg_phy_con1 |= (0x01<<2);
+    *otg_phy_con1 |= (0x01<<3);    // exit suspend.
+    *otg_phy_con1 &= ~(0x01<<2);
+    
+    // soft connect
+    if(reg_base == 0){
+        reg_base = ioremap(RK29_USBOTG0_PHYS,USBOTG_SIZE);
+        if(!reg_base){
+            bus_status = -1;
+            goto out;
+        }
+    }
+    mdelay(105);
+    printk("regbase %p 0x%x, otg_phy_con%p, 0x%x, otg_clkgate %p,0x%x\n",
+        reg_base, *(reg_base), otg_phy_con1, *otg_phy_con1, otg_clkgate, *otg_clkgate);
+    otg_dctl = (unsigned int * )(reg_base+0x804);
+    otg_gotgctl = (unsigned int * )(reg_base);
+    otg_hprt0 = (unsigned int * )(reg_base + DWC_OTG_HOST_PORT_REGS_OFFSET);
+    if(*otg_gotgctl &(1<<19)){
+        bus_status = 1;
+        *otg_dctl &= ~2;
+        mdelay(50);    // delay about 10ms
+    // check dp,dm
+        if((*otg_hprt0 & 0xc00)==0xc00)
+            bus_status = 2;
+    }
+out:
+    return bus_status;
+}
+EXPORT_SYMBOL(dwc_otg_check_dpdm);
+#endif
 void dwc_otg_pcd_start_vbus_timer( dwc_otg_pcd_t * _pcd )
 {
         struct timer_list *vbus_timer = &_pcd->check_vbus_timer;
@@ -1953,7 +2028,7 @@ void dwc_otg_pcd_remove( struct device *dev )
 	
 	kfree( pcd );
 	otg_dev->pcd = 0;
-            s_pcd = 0; // HSL@RK,20090901
+    s_pcd = 0; 
 }
 
 /**

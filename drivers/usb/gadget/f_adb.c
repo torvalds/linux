@@ -538,7 +538,9 @@ static void adb_function_disable(struct usb_function *f)
 	dev->online = 0;
 	dev->error = 1;
 	usb_ep_disable(dev->ep_in);
+	dev->ep_in->driver_data = NULL;
 	usb_ep_disable(dev->ep_out);
+	dev->ep_out->driver_data = NULL;
 
 	/* readers may be blocked waiting for us to go online */
 	wake_up(&dev->read_wq);
@@ -549,8 +551,6 @@ static void adb_function_disable(struct usb_function *f)
 static int adb_bind_config(struct usb_configuration *c)
 {
 	struct adb_dev *dev = _adb_dev;
-
-	printk(KERN_INFO "adb_bind_config\n");
 
 	dev->cdev = c->cdev;
 	dev->function.name = "adb";

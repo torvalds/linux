@@ -716,7 +716,9 @@ static void acc_function_disable(struct usb_function *f)
 	DBG(cdev, "acc_function_disable\n");
 	acc_set_disconnected(dev);
 	usb_ep_disable(dev->ep_in);
+	dev->ep_in->driver_data = NULL;
 	usb_ep_disable(dev->ep_out);
+	dev->ep_out->driver_data = NULL;
 
 	/* readers may be blocked waiting for us to go online */
 	wake_up(&dev->read_wq);

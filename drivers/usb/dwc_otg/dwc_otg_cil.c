@@ -376,14 +376,14 @@ static uint32_t calc_num_in_eps(dwc_otg_core_if_t *_core_if)
 {
 	uint32_t num_in_eps = 0;
 	uint32_t num_eps = _core_if->hwcfg2.b.num_dev_ep;
-	uint32_t hwcfg1 = _core_if->hwcfg1.d32 >> 2; //fix bug yk@rk 20100512
+	uint32_t hwcfg1 = _core_if->hwcfg1.d32 >> 3;
 	uint32_t num_tx_fifos = _core_if->hwcfg4.b.num_in_eps;
 	int i;
 	
 	
 	for(i = 0; i < num_eps; ++i)
 	{
-		if((hwcfg1 & 0x3) == 0x01)
+		if(!(hwcfg1 & 0x1))
 			num_in_eps++;
 		
 		hwcfg1 >>= 2;
@@ -413,14 +413,13 @@ static uint32_t calc_num_out_eps(dwc_otg_core_if_t *_core_if)
 	
 	for(i = 0; i < num_eps; ++i)
 	{
-		if((hwcfg1 & 0x3) == 0x02)
+		if(!(hwcfg1 & 0x1))
 			num_out_eps++;
 		
 		hwcfg1 >>= 2;
 	}
 	return num_out_eps;
 }
-
 /**
  * This function initializes the DWC_otg controller registers and
  * prepares the core for device mode or host mode operation.
@@ -715,14 +714,24 @@ void dwc_otg_core_dev_init(dwc_otg_core_if_t *_core_if)
     dctl.d32 = dwc_read_reg32( &_core_if->dev_if->dev_global_regs->dctl );
     dctl.b.sftdiscon = 1;
     dwc_write_reg32( &_core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
-	
-	/* Configure data FIFO sizes */
+#ifdef CONFIG_ARCH_RK29
+	/* Configure data FIFO sizes, RK29 otg has 0x3c0 dwords total */
     dwc_write_reg32( &global_regs->grxfsiz, 0x00000210 );
     dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100210 );				//ep0 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000220 );	//ep1 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00100320 );	//ep3 tx fifo
     dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep5 tx fifo
-    
+#endif
+#ifdef CONFIG_ARCH_RK30
+	/* Configure data FIFO sizes, RK30 otg has 0x3cc dwords total */
+    dwc_write_reg32( &global_regs->grxfsiz, 0x00000120 );
+    dwc_write_reg32( &global_regs->gnptxfsiz, 0x00100120 );				//ep0 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[0], 0x01000130 );	//ep1 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[1], 0x00800230 );	//ep3 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x008002b0 );	//ep5 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x00800330 );	//ep7 tx fifo
+    dwc_write_reg32( &global_regs->dptxfsiz_dieptxf[2], 0x001003b0 );	//ep9 tx fifo
+#endif
 	if(_core_if->en_multiple_tx_fifo && _core_if->dma_enable)
 	{
 		dev_if->non_iso_tx_thr_en = _core_if->core_params->thr_ctl & 0x1;
