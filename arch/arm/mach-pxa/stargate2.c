@@ -152,7 +152,7 @@ static struct platform_device sht15 = {
 
 static struct regulator_consumer_supply stargate2_sensor_3_con[] = {
 	{
-		.dev = &sht15.dev,
+		.dev_name = "sht15",
 		.supply = "vcc",
 	},
 };
