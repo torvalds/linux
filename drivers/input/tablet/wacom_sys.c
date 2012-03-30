@@ -1002,6 +1002,8 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		return -EINVAL;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
+	if (!wacom)
+		return -ENOMEM;
 
 	wacom_wac = &wacom->wacom_wac;
 	wacom_wac->features = *((struct wacom_features *)id->driver_info);
