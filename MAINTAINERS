@@ -228,7 +228,7 @@ M:	Len Brown <lenb@kernel.org>
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 Q:	http://patchwork.kernel.org/project/linux-acpi/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux
 S:	Supported
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
