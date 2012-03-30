@@ -502,6 +502,8 @@ static bool alloc_p2m(unsigned long pfn)
 static bool __init early_alloc_p2m_middle(unsigned long pfn, bool check_boundary)
 {
 	unsigned topidx, mididx, idx;
+	unsigned long *p2m;
+	unsigned long *mid_mfn_p;
 
 	topidx = p2m_top_index(pfn);
 	mididx = p2m_mid_index(pfn);
@@ -522,24 +524,21 @@ static bool __init early_alloc_p2m_middle(unsigned long pfn, bool check_boundary
 		return false;
 
 	/* Boundary cross-over for the edges: */
-	if (idx) {
-		unsigned long *p2m = extend_brk(PAGE_SIZE, PAGE_SIZE);
-		unsigned long *mid_mfn_p;
+	p2m = extend_brk(PAGE_SIZE, PAGE_SIZE);
 
-		p2m_init(p2m);
+	p2m_init(p2m);
 
-		p2m_top[topidx][mididx] = p2m;
+	p2m_top[topidx][mididx] = p2m;
 
-		/* For save/restore we need to MFN of the P2M saved */
+	/* For save/restore we need to MFN of the P2M saved */
 
-		mid_mfn_p = p2m_top_mfn_p[topidx];
-		WARN(mid_mfn_p[mididx] != virt_to_mfn(p2m_missing),
-			"P2M_TOP_P[%d][%d] != MFN of p2m_missing!\n",
-			topidx, mididx);
-		mid_mfn_p[mididx] = virt_to_mfn(p2m);
+	mid_mfn_p = p2m_top_mfn_p[topidx];
+	WARN(mid_mfn_p[mididx] != virt_to_mfn(p2m_missing),
+		"P2M_TOP_P[%d][%d] != MFN of p2m_missing!\n",
+		topidx, mididx);
+	mid_mfn_p[mididx] = virt_to_mfn(p2m);
 
-	}
-	return idx != 0;
+	return true;
 }
 
 static bool __init early_alloc_p2m(unsigned long pfn)
