@@ -1174,6 +1174,8 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 {
 	struct regulator_dev *r;
 	struct device_node *node;
+	struct regulator_map *map;
+	const char *devname = NULL;
 
 	/* first do a dt based lookup */
 	if (dev && dev->of_node) {
@@ -1195,9 +1197,23 @@ static struct regulator_dev *regulator_dev_lookup(struct device *dev,
 	}
 
 	/* if not found, try doing it non-dt way */
+	if (dev)
+		devname = dev_name(dev);
+
 	list_for_each_entry(r, &regulator_list, list)
 		if (strcmp(rdev_get_name(r), supply) == 0)
 			return r;
+
+	list_for_each_entry(map, &regulator_map_list, list) {
+		/* If the mapping has a device set up it must match */
+		if (map->dev_name &&
+		    (!devname || strcmp(map->dev_name, devname)))
+			continue;
+
+		if (strcmp(map->supply, supply) == 0)
+			return map->regulator;
+	}
+
 
 	return NULL;
 }
@@ -1207,7 +1223,6 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 					int exclusive)
 {
 	struct regulator_dev *rdev;
-	struct regulator_map *map;
 	struct regulator *regulator = ERR_PTR(-EPROBE_DEFER);
 	const char *devname = NULL;
 	int ret;
@@ -1225,18 +1240,6 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 	rdev = regulator_dev_lookup(dev, id, &ret);
 	if (rdev)
 		goto found;
-
-	list_for_each_entry(map, &regulator_map_list, list) {
-		/* If the mapping has a device set up it must match */
-		if (map->dev_name &&
-		    (!devname || strcmp(map->dev_name, devname)))
-			continue;
-
-		if (strcmp(map->supply, id) == 0) {
-			rdev = map->regulator;
-			goto found;
-		}
-	}
 
 	if (board_wants_dummy_regulator) {
 		rdev = dummy_regulator_rdev;
