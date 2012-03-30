@@ -133,7 +133,7 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	I915_WRITE(SPRSIZE(pipe), (crtc_h << 16) | crtc_w);
 	I915_WRITE(SPRSCALE(pipe), sprscale);
 	I915_WRITE(SPRCTL(pipe), sprctl);
-	I915_WRITE(SPRSURF(pipe), obj->gtt_offset);
+	I915_MODIFY_DISPBASE(SPRSURF(pipe), obj->gtt_offset);
 	POSTING_READ(SPRSURF(pipe));
 }
 
@@ -149,7 +149,7 @@ ivb_disable_plane(struct drm_plane *plane)
 	/* Can't leave the scaler enabled... */
 	I915_WRITE(SPRSCALE(pipe), 0);
 	/* Activate double buffered register update */
-	I915_WRITE(SPRSURF(pipe), 0);
+	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
 }
 
@@ -291,7 +291,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	I915_WRITE(DVSSIZE(pipe), (crtc_h << 16) | crtc_w);
 	I915_WRITE(DVSSCALE(pipe), dvsscale);
 	I915_WRITE(DVSCNTR(pipe), dvscntr);
-	I915_WRITE(DVSSURF(pipe), obj->gtt_offset);
+	I915_MODIFY_DISPBASE(DVSSURF(pipe), obj->gtt_offset);
 	POSTING_READ(DVSSURF(pipe));
 }
 
@@ -307,7 +307,7 @@ ilk_disable_plane(struct drm_plane *plane)
 	/* Disable the scaler */
 	I915_WRITE(DVSSCALE(pipe), 0);
 	/* Flush double buffered register updates */
-	I915_WRITE(DVSSURF(pipe), 0);
+	I915_MODIFY_DISPBASE(DVSSURF(pipe), 0);
 	POSTING_READ(DVSSURF(pipe));
 }
 

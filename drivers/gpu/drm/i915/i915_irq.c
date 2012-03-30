@@ -1368,7 +1368,8 @@ static void i915_pageflip_stall_check(struct drm_device *dev, int pipe)
 	obj = work->pending_flip_obj;
 	if (INTEL_INFO(dev)->gen >= 4) {
 		int dspsurf = DSPSURF(intel_crtc->plane);
-		stall_detected = I915_READ(dspsurf) == obj->gtt_offset;
+		stall_detected = I915_HI_DISPBASE(I915_READ(dspsurf)) ==
+					obj->gtt_offset;
 	} else {
 		int dspaddr = DSPADDR(intel_crtc->plane);
 		stall_detected = I915_READ(dspaddr) == (obj->gtt_offset +

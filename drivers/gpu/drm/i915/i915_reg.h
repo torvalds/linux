@@ -2869,6 +2869,13 @@
 #define DSPSURF(plane) _PIPE(plane, _DSPASURF, _DSPBSURF)
 #define DSPTILEOFF(plane) _PIPE(plane, _DSPATILEOFF, _DSPBTILEOFF)
 
+/* Display/Sprite base address macros */
+#define DISP_BASEADDR_MASK	(0xfffff000)
+#define I915_LO_DISPBASE(val)	(val & ~DISP_BASEADDR_MASK)
+#define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
+#define I915_MODIFY_DISPBASE(reg, gfx_addr) \
+		(I915_WRITE(reg, gfx_addr | I915_LO_DISPBASE(I915_READ(reg))))
+
 /* VBIOS flags */
 #define SWF00			0x71410
 #define SWF01			0x71414

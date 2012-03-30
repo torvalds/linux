@@ -2236,7 +2236,7 @@ static int i9xx_update_plane(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		      Start, Offset, x, y, fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
 	if (INTEL_INFO(dev)->gen >= 4) {
-		I915_WRITE(DSPSURF(plane), Start);
+		I915_MODIFY_DISPBASE(DSPSURF(plane), Start);
 		I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 		I915_WRITE(DSPADDR(plane), Offset);
 	} else
@@ -2316,7 +2316,7 @@ static int ironlake_update_plane(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Writing base %08lX %08lX %d %d %d\n",
 		      Start, Offset, x, y, fb->pitches[0]);
 	I915_WRITE(DSPSTRIDE(plane), fb->pitches[0]);
-	I915_WRITE(DSPSURF(plane), Start);
+	I915_MODIFY_DISPBASE(DSPSURF(plane), Start);
 	I915_WRITE(DSPTILEOFF(plane), (y << 16) | x);
 	I915_WRITE(DSPADDR(plane), Offset);
 	POSTING_READ(reg);
