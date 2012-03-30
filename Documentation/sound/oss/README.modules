@@ -36,7 +36,7 @@ options adlib_card io=0x388     # FM synthesizer
  Alternatively, if you have compiled in kernel level ISAPnP support:
 
 alias char-major-14 sb
-post-install sb /sbin/modprobe "-k" "adlib_card"
+softdep sb post: adlib_card
 options adlib_card io=0x388
 
   The effect of this is that the sound driver and all necessary bits and

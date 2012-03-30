@@ -1822,8 +1822,7 @@ modules.conf manual page.
 In this case, the following can be added to config files in
 /etc/modprobe.d/ as:
 
-install bonding /sbin/modprobe tg3; /sbin/modprobe e1000;
-	/sbin/modprobe --ignore-install bonding
+softdep bonding pre: tg3 e1000
 
 	This will load tg3 and e1000 modules before loading the bonding one.
 Full documentation on this can be found in the modprobe.d and modprobe

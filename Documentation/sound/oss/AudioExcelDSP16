@@ -54,8 +54,8 @@ Loading MSS and OPL3 needs to pre load the aedsp16 module to set up correctly
 the sound card. Installation dependencies must be written in configuration
 files under /etc/modprobe.d/ directory:
 
-install ad1848 /sbin/modprobe aedsp16 && /sbin/modprobe -i ad1848
-install opl3 /sbin/modprobe aedsp16 && /sbin/modprobe -i opl3
+softdep ad1848 pre: aedsp16
+softdep opl3 pre: aedsp16
 
 Then you must load the sound modules stack in this order:
 sound -> aedsp16 -> [ ad1848, opl3 ]
