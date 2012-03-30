@@ -5539,7 +5539,8 @@ void ironlake_init_pch_refclk(struct drm_device *dev)
 		if (intel_panel_use_ssc(dev_priv) && can_ssc) {
 			DRM_DEBUG_KMS("Using SSC on panel\n");
 			temp |= DREF_SSC1_ENABLE;
-		}
+		} else
+			temp &= ~DREF_SSC1_ENABLE;
 
 		/* Get SSC going before enabling the outputs */
 		I915_WRITE(PCH_DREF_CONTROL, temp);
