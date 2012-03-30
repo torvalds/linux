@@ -1257,7 +1257,7 @@ STD_ENTRY(fill_ra_stack)
 	int_hand     INT_UNALIGN_DATA, UNALIGN_DATA, int_unalign
 	int_hand     INT_DTLB_MISS, DTLB_MISS, do_page_fault
 	int_hand     INT_DTLB_ACCESS, DTLB_ACCESS, do_page_fault
-	int_hand     INT_IDN_FIREWALL, IDN_FIREWALL, bad_intr
+	int_hand     INT_IDN_FIREWALL, IDN_FIREWALL, do_hardwall_trap
 	int_hand     INT_UDN_FIREWALL, UDN_FIREWALL, do_hardwall_trap
 	int_hand     INT_TILE_TIMER, TILE_TIMER, do_timer_interrupt
 	int_hand     INT_IDN_TIMER, IDN_TIMER, bad_intr
