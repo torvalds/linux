@@ -653,7 +653,7 @@ config SBUS
 config FSL_SOC
 	bool
 	select HAVE_CAN_FLEXCAN if NET && CAN
-	select PPC_CLOCK if CAN_FLEXCAN
+	select PPC_CLOCK
 
 config FSL_PCI
  	bool
