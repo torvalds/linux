@@ -1,6 +1,8 @@
 #ifndef __MMU_H
 #define __MMU_H
 
+#include <linux/errno.h>
+
 typedef struct {
 	atomic_t attach_count;
 	unsigned int flush_mm;

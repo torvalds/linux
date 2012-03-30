@@ -32,6 +32,8 @@
 #include <linux/slab.h>
 #include <linux/crash_dump.h>
 #include <asm/asm-offsets.h>
+#include <asm/switch_to.h>
+#include <asm/facility.h>
 #include <asm/ipl.h>
 #include <asm/setup.h>
 #include <asm/irq.h>

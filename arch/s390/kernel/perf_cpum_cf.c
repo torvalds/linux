@@ -18,7 +18,7 @@
 #include <linux/notifier.h>
 #include <linux/init.h>
 #include <linux/export.h>
-#include <asm/system.h>
+#include <asm/ctl_reg.h>
 #include <asm/irq.h>
 #include <asm/cpu_mf.h>
 
