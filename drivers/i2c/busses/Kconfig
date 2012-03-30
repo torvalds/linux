@@ -942,6 +942,7 @@ if I2C_RK29
 				config RK29_I2C0_CONTROLLER
 					bool "With i2c controller"
 				config RK29_I2C0_GPIO
+					select I2C_GPIO
 					bool "Simulation with GPIO"
 			endchoice
 		endif
@@ -957,6 +958,7 @@ if I2C_RK29
 				config RK29_I2C1_CONTROLLER
 					bool "With i2c controller"
 				config RK29_I2C1_GPIO
+					select I2C_GPIO
 					bool "Simulation with GPIO"
 			endchoice
 		endif
@@ -973,6 +975,7 @@ if I2C_RK29
 				config RK29_I2C2_CONTROLLER
 					bool "With i2c controller"
 				config RK29_I2C2_GPIO
+					select I2C_GPIO
 					bool "Simulation with GPIO"
 			endchoice
 		endif
@@ -989,6 +992,7 @@ if I2C_RK29
 				config RK29_I2C3_CONTROLLER
 					bool "With i2c controller"
 				config RK29_I2C3_GPIO
+					select I2C_GPIO
 					bool "Simulation with GPIO"
 			endchoice
 		endif
