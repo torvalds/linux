@@ -1268,7 +1268,7 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 	int dest_cpu;
 
 	/* Look for allowed, online CPU in same node. */
-	for_each_cpu_mask(dest_cpu, *nodemask) {
+	for_each_cpu(dest_cpu, nodemask) {
 		if (!cpu_online(dest_cpu))
 			continue;
 		if (!cpu_active(dest_cpu))
@@ -1279,7 +1279,7 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 
 	for (;;) {
 		/* Any allowed, online CPU? */
-		for_each_cpu_mask(dest_cpu, *tsk_cpus_allowed(p)) {
+		for_each_cpu(dest_cpu, tsk_cpus_allowed(p)) {
 			if (!cpu_online(dest_cpu))
 				continue;
 			if (!cpu_active(dest_cpu))
