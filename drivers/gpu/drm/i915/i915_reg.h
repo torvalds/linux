@@ -643,7 +643,9 @@
 #define CACHE_MODE_1		0x7004 /* IVB+ */
 #define   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE (1<<6)
 
-/* GEN6 interrupt control */
+/* GEN6 interrupt control
+ * Note that the per-ring interrupt bits do alias with the global interrupt bits
+ * in GTIMR. */
 #define GEN6_RENDER_HWSTAM	0x2098
 #define GEN6_RENDER_IMR		0x20a8
 #define   GEN6_RENDER_CONTEXT_SWITCH_INTERRUPT		(1 << 8)
@@ -3203,13 +3205,15 @@
 #define DEIIR   0x44008
 #define DEIER   0x4400c
 
-/* GT interrupt */
+/* GT interrupt.
+ * Note that for gen6+ the ring-specific interrupt bits do alias with the
+ * corresponding bits in the per-ring interrupt control registers. */
 #define GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT	(1 << 26)
 #define GT_GEN6_BLT_CS_ERROR_INTERRUPT		(1 << 25)
-#define GT_BLT_USER_INTERRUPT			(1 << 22)
+#define GT_GEN6_BLT_USER_INTERRUPT		(1 << 22)
 #define GT_GEN6_BSD_CS_ERROR_INTERRUPT		(1 << 15)
 #define GT_GEN6_BSD_USER_INTERRUPT		(1 << 12)
-#define GT_BSD_USER_INTERRUPT			(1 << 5)
+#define GT_BSD_USER_INTERRUPT			(1 << 5) /* ilk only */
 #define GT_GEN7_L3_PARITY_ERROR_INTERRUPT	(1 << 5)
 #define GT_PIPE_NOTIFY				(1 << 4)
 #define GT_RENDER_CS_ERROR_INTERRUPT		(1 << 3)

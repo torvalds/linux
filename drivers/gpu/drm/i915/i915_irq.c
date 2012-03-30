@@ -462,7 +462,7 @@ static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 			notify_ring(dev, &dev_priv->ring[RCS]);
 		if (gt_iir & GT_GEN6_BSD_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[VCS]);
-		if (gt_iir & GT_BLT_USER_INTERRUPT)
+		if (gt_iir & GT_GEN6_BLT_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[BCS]);
 
 		if (gt_iir & (GT_GEN6_BLT_CS_ERROR_INTERRUPT |
@@ -620,9 +620,9 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 
 	if (gt_iir & (GT_USER_INTERRUPT | GT_PIPE_NOTIFY))
 		notify_ring(dev, &dev_priv->ring[RCS]);
-	if (gt_iir & GT_GEN6_BSD_USER_INTERRUPT)
+	if (gt_iir & GEN6_BSD_USER_INTERRUPT)
 		notify_ring(dev, &dev_priv->ring[VCS]);
-	if (gt_iir & GT_BLT_USER_INTERRUPT)
+	if (gt_iir & GEN6_BLITTER_USER_INTERRUPT)
 		notify_ring(dev, &dev_priv->ring[BCS]);
 
 	if (de_iir & DE_GSE_IVB)
@@ -688,7 +688,7 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	atomic_inc(&dev_priv->irq_received);
 
 	if (IS_GEN6(dev))
-		bsd_usr_interrupt = GT_GEN6_BSD_USER_INTERRUPT;
+		bsd_usr_interrupt = GEN6_BSD_USER_INTERRUPT;
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
@@ -722,7 +722,7 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		notify_ring(dev, &dev_priv->ring[RCS]);
 	if (gt_iir & bsd_usr_interrupt)
 		notify_ring(dev, &dev_priv->ring[VCS]);
-	if (gt_iir & GT_BLT_USER_INTERRUPT)
+	if (gt_iir & GEN6_BLITTER_USER_INTERRUPT)
 		notify_ring(dev, &dev_priv->ring[BCS]);
 
 	if (de_iir & DE_GSE)
@@ -2081,8 +2081,8 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	if (IS_GEN6(dev))
 		render_irqs =
 			GT_USER_INTERRUPT |
-			GT_GEN6_BSD_USER_INTERRUPT |
-			GT_BLT_USER_INTERRUPT;
+			GEN6_BSD_USER_INTERRUPT |
+			GEN6_BLITTER_USER_INTERRUPT;
 	else
 		render_irqs =
 			GT_USER_INTERRUPT |
@@ -2154,8 +2154,8 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
 	I915_WRITE(GTIMR, dev_priv->gt_irq_mask);
 
-	render_irqs = GT_USER_INTERRUPT | GT_GEN6_BSD_USER_INTERRUPT |
-		GT_BLT_USER_INTERRUPT;
+	render_irqs = GT_USER_INTERRUPT | GEN6_BSD_USER_INTERRUPT |
+		GEN6_BLITTER_USER_INTERRUPT;
 	I915_WRITE(GTIER, render_irqs);
 	POSTING_READ(GTIER);
 
@@ -2218,7 +2218,7 @@ static int valleyview_irq_postinstall(struct drm_device *dev)
 
 	render_irqs = GT_GEN6_BLT_FLUSHDW_NOTIFY_INTERRUPT |
 		GT_GEN6_BLT_CS_ERROR_INTERRUPT |
-		GT_BLT_USER_INTERRUPT |
+		GT_GEN6_BLT_USER_INTERRUPT |
 		GT_GEN6_BSD_USER_INTERRUPT |
 		GT_GEN6_BSD_CS_ERROR_INTERRUPT |
 		GT_GEN7_L3_PARITY_ERROR_INTERRUPT |

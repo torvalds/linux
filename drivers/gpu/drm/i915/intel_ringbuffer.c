@@ -788,7 +788,7 @@ ring_add_request(struct intel_ring_buffer *ring,
 }
 
 static bool
-gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
+gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 mask)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -803,9 +803,9 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 
 	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0) {
-		ring->irq_mask &= ~rflag;
+		ring->irq_mask &= ~mask;
 		I915_WRITE_IMR(ring, ring->irq_mask);
-		ironlake_enable_irq(dev_priv, gflag);
+		ironlake_enable_irq(dev_priv, mask);
 	}
 	spin_unlock(&ring->irq_lock);
 
@@ -813,16 +813,16 @@ gen6_ring_get_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
 }
 
 static void
-gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 gflag, u32 rflag)
+gen6_ring_put_irq(struct intel_ring_buffer *ring, u32 mask)
 {
 	struct drm_device *dev = ring->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	spin_lock(&ring->irq_lock);
 	if (--ring->irq_refcount == 0) {
-		ring->irq_mask |= rflag;
+		ring->irq_mask |= mask;
 		I915_WRITE_IMR(ring, ring->irq_mask);
-		ironlake_disable_irq(dev_priv, gflag);
+		ironlake_disable_irq(dev_priv, mask);
 	}
 	spin_unlock(&ring->irq_lock);
 
@@ -1376,33 +1376,25 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 static bool
 gen6_render_ring_get_irq(struct intel_ring_buffer *ring)
 {
-	return gen6_ring_get_irq(ring,
-				 GT_USER_INTERRUPT,
-				 GEN6_RENDER_USER_INTERRUPT);
+	return gen6_ring_get_irq(ring, GT_USER_INTERRUPT);
 }
 
 static void
 gen6_render_ring_put_irq(struct intel_ring_buffer *ring)
 {
-	return gen6_ring_put_irq(ring,
-				 GT_USER_INTERRUPT,
-				 GEN6_RENDER_USER_INTERRUPT);
+	return gen6_ring_put_irq(ring, GT_USER_INTERRUPT);
 }
 
 static bool
 gen6_bsd_ring_get_irq(struct intel_ring_buffer *ring)
 {
-	return gen6_ring_get_irq(ring,
-				 GT_GEN6_BSD_USER_INTERRUPT,
-				 GEN6_BSD_USER_INTERRUPT);
+	return gen6_ring_get_irq(ring, GEN6_BSD_USER_INTERRUPT);
 }
 
 static void
 gen6_bsd_ring_put_irq(struct intel_ring_buffer *ring)
 {
-	return gen6_ring_put_irq(ring,
-				 GT_GEN6_BSD_USER_INTERRUPT,
-				 GEN6_BSD_USER_INTERRUPT);
+	return gen6_ring_put_irq(ring, GEN6_BSD_USER_INTERRUPT);
 }
 
 /* ring buffer for Video Codec for Gen6+ */
@@ -1431,17 +1423,13 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 static bool
 blt_ring_get_irq(struct intel_ring_buffer *ring)
 {
-	return gen6_ring_get_irq(ring,
-				 GT_BLT_USER_INTERRUPT,
-				 GEN6_BLITTER_USER_INTERRUPT);
+	return gen6_ring_get_irq(ring, GEN6_BLITTER_USER_INTERRUPT);
 }
 
 static void
 blt_ring_put_irq(struct intel_ring_buffer *ring)
 {
-	gen6_ring_put_irq(ring,
-			  GT_BLT_USER_INTERRUPT,
-			  GEN6_BLITTER_USER_INTERRUPT);
+	gen6_ring_put_irq(ring, GEN6_BLITTER_USER_INTERRUPT);
 }
 
 static int blt_ring_flush(struct intel_ring_buffer *ring,
