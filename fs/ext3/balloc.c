@@ -11,17 +11,9 @@
  *        David S. Miller (davem@caip.rutgers.edu), 1995
  */
 
-#include <linux/time.h>
-#include <linux/capability.h>
-#include <linux/fs.h>
-#include <linux/slab.h>
-#include <linux/jbd.h>
-#include <linux/ext3_fs.h>
-#include <linux/ext3_jbd.h>
 #include <linux/quotaops.h>
-#include <linux/buffer_head.h>
 #include <linux/blkdev.h>
-#include <trace/events/ext3.h>
+#include "ext3.h"
 
 /*
  * balloc.c contains the blocks allocation and deallocation routines
