@@ -230,10 +230,8 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
 		priv->dbgfs_sram_offset = 0x800000;
-		if (!priv->ucode_loaded) {
-			IWL_ERR(priv, "No uCode has been loadded.\n");
+		if (!priv->ucode_loaded)
 			return -EINVAL;
-		}
 		img = &priv->fw->img[priv->cur_ucode];
 		priv->dbgfs_sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	}
@@ -411,23 +409,18 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	size_t eeprom_len = priv->cfg->base_params->eeprom_size;
 	buf_size = 4 * eeprom_len + 256;
 
-	if (eeprom_len % 16) {
-		IWL_ERR(priv, "NVM size is not multiple of 16.\n");
+	if (eeprom_len % 16)
 		return -ENODATA;
-	}
 
 	ptr = priv->eeprom;
-	if (!ptr) {
-		IWL_ERR(priv, "Invalid EEPROM/OTP memory\n");
+	if (!ptr)
 		return -ENOMEM;
-	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
+
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
 	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s, "
 			"version: 0x%x\n",
@@ -461,10 +454,8 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
 	if (supp_band) {
@@ -566,10 +557,8 @@ static ssize_t iwl_dbgfs_rx_handlers_read(struct file *file,
 	ssize_t ret;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	for (cnt = 0; cnt < REPLY_MAX; cnt++) {
 		if (priv->rx_handlers_stats[cnt] > 0)
@@ -683,11 +672,8 @@ static ssize_t iwl_dbgfs_disable_ht40_write(struct file *file,
 		return -EFAULT;
 	if (!iwl_is_any_associated(priv))
 		priv->disable_ht40 = ht40 ? true : false;
-	else {
-		IWL_ERR(priv, "Sta associated with AP - "
-			"Change to 40MHz channel support is not allowed\n");
+	else
 		return -EINVAL;
-	}
 
 	return count;
 }
@@ -834,10 +820,8 @@ static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
 	ssize_t ret;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 	if (priv->tx_traffic && iwl_have_debug_level(IWL_DL_TX)) {
 		ptr = priv->tx_traffic;
 		pos += scnprintf(buf + pos, bufsz - pos,
@@ -950,10 +934,8 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/*
 	 * the statistic information display here is based on
@@ -1379,10 +1361,8 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/* the statistic information display here is based on
 	 * the last statistics notification from uCode
@@ -1581,10 +1561,8 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/* the statistic information display here is based on
 	 * the last statistics notification from uCode
@@ -1707,16 +1685,11 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
 	mutex_unlock(&priv->mutex);
 
-	if (ret) {
-		IWL_ERR(priv,
-			"Error sending statistics request: %zd\n", ret);
+	if (ret)
 		return -EAGAIN;
-	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/*
 	 * the statistic information display here is based on
@@ -1793,10 +1766,8 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Statistics_TX_Error:\n");
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t\t%u\n",
@@ -1936,10 +1907,8 @@ static ssize_t iwl_dbgfs_sensitivity_read(struct file *file,
 
 	data = &priv->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "auto_corr_ofdm:\t\t\t %u\n",
 			data->auto_corr_ofdm);
@@ -2017,10 +1986,8 @@ static ssize_t iwl_dbgfs_chain_noise_read(struct file *file,
 
 	data = &priv->chain_noise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "active_chains:\t\t\t %u\n",
 			data->active_chains);
