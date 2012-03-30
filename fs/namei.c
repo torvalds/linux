@@ -1188,12 +1188,12 @@ retry:
 				}
 				if (!d_invalidate(dentry)) {
 					dput(dentry);
-					dentry = d_alloc_and_lookup(parent, name, nd);
+					dentry = NULL;
 				}
 			}
-		} else if (!dentry) {
-			dentry = d_alloc_and_lookup(parent, name, nd);
 		}
+		if (!dentry)
+			dentry = d_alloc_and_lookup(parent, name, nd);
 	l:
 		mutex_unlock(&dir->i_mutex);
 		if (IS_ERR(dentry))
