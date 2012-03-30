@@ -3,12 +3,6 @@
 
 struct target_core_fabric_ops {
 	struct configfs_subsystem *tf_subsys;
-	/*
-	 * Optional to signal struct se_task->task_sg[] padding entries
-	 * for scatterlist chaining using transport_do_task_sg_link(),
-	 * disabled by default
-	 */
-	bool task_sg_chaining;
 	char *(*get_fabric_name)(void);
 	u8 (*get_fabric_proto_ident)(struct se_portal_group *);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
@@ -124,7 +118,6 @@ int	transport_generic_handle_cdb_map(struct se_cmd *);
 int	transport_generic_handle_data(struct se_cmd *);
 int	transport_generic_map_mem_to_cmd(struct se_cmd *cmd,
 		struct scatterlist *, u32, struct scatterlist *, u32);
-void	transport_do_task_sg_chain(struct se_cmd *);
 int	transport_generic_new_cmd(struct se_cmd *);
 
 void	transport_generic_process_write(struct se_cmd *);

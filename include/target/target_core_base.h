@@ -572,7 +572,6 @@ struct se_cmd {
 	unsigned char		*t_task_cdb;
 	unsigned char		__t_task_cdb[TCM_MAX_COMMAND_SIZE];
 	unsigned long long	t_task_lba;
-	u32			t_tasks_sg_chained_no;
 	atomic_t		t_fe_count;
 	atomic_t		t_se_count;
 	atomic_t		t_task_cdbs_left;
@@ -593,7 +592,6 @@ struct se_cmd {
 	struct completion	t_transport_stop_comp;
 	struct completion	transport_lun_fe_stop_comp;
 	struct completion	transport_lun_stop_comp;
-	struct scatterlist	*t_tasks_sg_chained;
 
 	struct work_struct	work;
 
