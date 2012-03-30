@@ -1025,8 +1025,6 @@ static int ov5642_probe(struct i2c_client *client,
 	priv->crop_rect.height	= OV5642_DEFAULT_HEIGHT;
 	priv->crop_rect.left	= (OV5642_MAX_WIDTH - OV5642_DEFAULT_WIDTH) / 2;
 	priv->crop_rect.top	= (OV5642_MAX_HEIGHT - OV5642_DEFAULT_HEIGHT) / 2;
-	priv->crop_rect.width	= OV5642_DEFAULT_WIDTH;
-	priv->crop_rect.height	= OV5642_DEFAULT_HEIGHT;
 	priv->total_width = OV5642_DEFAULT_WIDTH + BLANKING_EXTRA_WIDTH;
 	priv->total_height = BLANKING_MIN_HEIGHT;
 
