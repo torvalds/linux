@@ -499,7 +499,7 @@ static bool alloc_p2m(unsigned long pfn)
 	return true;
 }
 
-static bool __init early_alloc_p2m_middle(unsigned long pfn)
+static bool __init early_alloc_p2m_middle(unsigned long pfn, bool check_boundary)
 {
 	unsigned topidx, mididx, idx;
 
@@ -508,7 +508,7 @@ static bool __init early_alloc_p2m_middle(unsigned long pfn)
 	idx = p2m_index(pfn);
 
 	/* Pfff.. No boundary cross-over, lets get out. */
-	if (!idx)
+	if (!idx && check_boundary)
 		return false;
 
 	WARN(p2m_top[topidx][mididx] == p2m_identity,
@@ -531,7 +531,7 @@ static bool __init early_alloc_p2m_middle(unsigned long pfn)
 		p2m_top[topidx][mididx] = p2m;
 
 		/* For save/restore we need to MFN of the P2M saved */
-		
+
 		mid_mfn_p = p2m_top_mfn_p[topidx];
 		WARN(mid_mfn_p[mididx] != virt_to_mfn(p2m_missing),
 			"P2M_TOP_P[%d][%d] != MFN of p2m_missing!\n",
@@ -592,8 +592,8 @@ unsigned long __init set_phys_range_identity(unsigned long pfn_s,
 		WARN_ON(!early_alloc_p2m(pfn));
 	}
 
-	early_alloc_p2m_middle(pfn_s);
-	early_alloc_p2m_middle(pfn_e);
+	early_alloc_p2m_middle(pfn_s, true);
+	early_alloc_p2m_middle(pfn_e, true);
 
 	for (pfn = pfn_s; pfn < pfn_e; pfn++)
 		if (!__set_phys_to_machine(pfn, IDENTITY_FRAME(pfn)))
