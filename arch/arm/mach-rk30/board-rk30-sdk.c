@@ -1066,12 +1066,23 @@ static void __init rk30_i2c_register_board_info(void)
 //end of i2c
 
 #define POWER_ON_PIN RK30_PIN6_PB0   //power_hold
+static void rk30_pm_power_off(void)
+{
+	printk(KERN_ERR "rk30_pm_power_off start...\n");
+	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
+#if defined(CONFIG_MFD_WM831X)
+	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
+#endif
+	while (1);
+}
 
 static void __init machine_rk30_board_init(void)
 {
 	gpio_request(POWER_ON_PIN, "poweronpin");
 	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
-
+	
+	pm_power_off = rk30_pm_power_off;
+	
 	rk30_i2c_register_board_info();
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	platform_add_devices(devices, ARRAY_SIZE(devices));

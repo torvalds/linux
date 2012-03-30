@@ -67,13 +67,17 @@ static struct rk29_gpio_expander_info wm831x_gpio_settinginfo[] = {
 
 #define UNLOCK_SECURITY_KEY     ~(0x1<<5)
 #define LOCK_SECURITY_KEY       0x00
+#define PMU_POWER_SLEEP RK30_PIN6_PB1
+static struct wm831x *Wm831x;
 
 static int wm831x_pre_init(struct wm831x *parm)
 {
 	int ret;
-
+	Wm831x = parm;
 //	printk("%s\n", __func__);
-	//ILIM = 900ma
+	gpio_request(PMU_POWER_SLEEP, "NULL");
+	gpio_direction_output(PMU_POWER_SLEEP, GPIO_HIGH);
+	
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret & 0xfff8) | 0x04);
 
@@ -90,6 +94,9 @@ static int wm831x_pre_init(struct wm831x *parm)
 	wm831x_set_bits(parm,0x4066,0x0300,0x0000);
 
 	wm831x_set_bits(parm,WM831X_LDO10_CONTROL ,0x0040,0x0040);// set ldo10 in switch mode
+
+	wm831x_set_bits(parm,WM831X_STATUS_LED_1 ,0xc300,0xc100);// set led1 on(in manual mode)
+	wm831x_set_bits(parm,WM831X_STATUS_LED_2 ,0xc300,0xc000);//set led2 off(in manual mode)
 
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, LOCK_SECURITY_KEY);	// lock security key
 
@@ -135,7 +142,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 
 	dcdc = regulator_get(NULL, "vdd_cpu");	// vdd_arm
 	regulator_set_voltage(dcdc, 1100000, 1100000);
-	regulator_set_suspend_voltage(dcdc, 1000000);
+	regulator_set_suspend_voltage(dcdc, 1100000);
 	regulator_enable(dcdc);
 	printk("%s set dcdc2 vdd_cpu(vdd_arm)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
@@ -610,7 +617,7 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 			wm831x_set_bits(wm831x,
 					(WM831X_GPIO1_CONTROL + i),
 					WM831X_GPN_PULL_MASK, 1 << WM831X_GPN_PULL_SHIFT);	//pull down
-			if (i == 0) {
+			if (i == 0 ) {
 				wm831x_set_bits(wm831x,
 						WM831X_GPIO1_CONTROL + i,
 						WM831X_GPN_PWR_DOM_MASK,
@@ -622,6 +629,7 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 						WM831X_GPN_PWR_DOM_MASK,
 						~WM831X_GPN_PWR_DOM);
 			}
+					
 		} else {
 			wm831x_set_bits(wm831x,
 					WM831X_GPIO1_CONTROL + i,
