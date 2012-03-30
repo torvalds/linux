@@ -73,6 +73,9 @@ static int init_rk30_lcdc(struct rk30_lcdc_device *lcdc_dev)
    	}
 	clk_enable(lcdc_dev->hclk);  //enable aclk for register config
 	LcdSetBit(lcdc_dev,DSP_CTRL0, m_LCDC_AXICLK_AUTO_ENABLE);//eanble axi-clk auto gating for low power
+	LcdMskReg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR | m_BUS_ERR_INT_CLEAR | m_LINE_FLAG_INT_EN |
+              m_FRM_START_INT_EN | m_HOR_START_INT_EN,v_FRM_START_INT_CLEAR(1) | v_BUS_ERR_INT_CLEAR(0) |
+              v_LINE_FLAG_INT_EN(0) | v_FRM_START_INT_EN(1) | v_HOR_START_INT_EN(0));
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);  // write any value to  REG_CFG_DONE let config become effective
 	return 0;
 }
@@ -384,7 +387,10 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u32 ScaleYrgbX,ScaleYrgbY, ScaleCbrX, ScaleCbrY;
+	u32 ScaleYrgbX = 0x1000;
+	u32 ScaleYrgbY = 0x1000;
+	u32 ScaleCbrX = 0x1000;
+	u32 ScaleCbrY = 0x1000;
 	
 	xact = par->xact;			
 	yact = par->yact;
@@ -482,7 +488,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		printk(KERN_ERR "screen is null!\n");
 		return -ENOENT;	
 	}
-	
+	wait_for_completion(&dev_drv->frame_done);
 	if(layer_id==0)
 	{
 		par = &(dev_drv->layer_par[0]);
@@ -493,6 +499,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		par = &(dev_drv->layer_par[1]);
         	win1_display(lcdc_dev,par);
 	}
+	INIT_COMPLETION(dev_drv->frame_done);
 	
     return 0;
 }
@@ -529,6 +536,15 @@ int rk30_lcdc_resume(struct layer_par *layer_par)
     return 0;
 }
 
+static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
+{
+	struct rk30_lcdc_device *lcdc_dev = (struct rk30_lcdc_device *)dev_id;
+	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_START_INT_CLEAR, v_FRM_START_INT_CLEAR(1));
+	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
+	complete_all(&(lcdc_dev->driver.frame_done));
+	return IRQ_HANDLED;
+}
+
 static struct layer_par lcdc_layer[] = {
 	[0] = {
        	.name  		= "win0",
@@ -560,7 +576,6 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	rk_screen *screen;
 	struct resource *res = NULL;
 	struct resource *mem;
-	
 	int ret = 0;
 	
 	/*************Malloc rk30lcdc_inf and set it to pdev for drvdata**********/
@@ -607,8 +622,23 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err2;
 	}
+	
     	lcdc_dev->preg = (LCDC_REG*)lcdc_dev->reg_vir_base;
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
+	lcdc_dev->irq = platform_get_irq(pdev, 0);
+	if(lcdc_dev->irq < 0)
+	{
+		dev_err(&pdev->dev, "cannot find IRQ\n");
+		goto err3;
+	}
+	ret = request_irq(lcdc_dev->irq, rk30_lcdc_isr, IRQF_DISABLED,dev_name(&pdev->dev),lcdc_dev);
+	if (ret)
+	{
+	       dev_err(&pdev->dev, "cannot requeset irq %d - err %d\n", lcdc_dev->irq, ret);
+	       ret = -EBUSY;
+	       goto err3;
+	}
+	
 	init_lcdc_device_driver(&lcdc_driver,&(lcdc_dev->driver),lcdc_dev->id);
 	lcdc_dev->driver.dev=&pdev->dev;
 	
@@ -620,7 +650,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	if(ret < 0)
 	{
 		printk(KERN_ERR "init rk30 lcdc failed!\n");
-		goto err3;
+		goto err4;
 	}
 	ret = rk30_load_screen(&(lcdc_dev->driver),1);
 	if(ret < 0)
@@ -633,12 +663,14 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	if(ret < 0)
 	{
 		printk(KERN_ERR "registe fb for lcdc0 failed!\n");
-		goto err3;
+		goto err4;
 	}
 	printk("rk30 lcdc%d probe ok!\n",lcdc_dev->id);
 
 	return 0;
 
+err4:
+	free_irq(lcdc_dev->irq, pdev);
 err3:	
 	iounmap(lcdc_dev->reg_vir_base);
 err2:

@@ -40,7 +40,7 @@ typedef volatile struct tagLCDC_REG
     unsigned int WIN0_SCL_OFFSET;         //0x50 Win0 Cbr scaling start point offset
     unsigned int WIN1_YRGB_MST;           //0x54 Win1 active YRGB memory start address
     unsigned int WIN1_CBR_MST;            //0x58 Win1 active Cbr memory start address
-	unsigned int WIN1_VIR;                //0x5c WIN1 virtual display width/height
+    unsigned int WIN1_VIR;                //0x5c WIN1 virtual display width/height
     unsigned int WIN1_ACT_INFO;           //0x60 Win1 active window width/height
     unsigned int WIN1_DSP_INFO;           //0x64 Win1 display width/height on panel
     unsigned int WIN1_DSP_ST;             //0x68 Win1 display start point on panel
@@ -228,26 +228,29 @@ typedef volatile struct tagLCDC_REG
 
 
 //LCDC_INT_STATUS
-#define m_HOR_START         (1<<0)
-#define m_FRM_START         (1<<1)
-#define m_SCANNING_FLAG     (1<<2)
-#define m_HOR_STARTMASK     (1<<3)
-#define m_FRM_STARTMASK     (1<<4)
-#define m_SCANNING_MASK     (1<<5)
-#define m_HOR_STARTCLEAR    (1<<6)
-#define m_FRM_STARTCLEAR    (1<<7)
-#define m_SCANNING_CLEAR    (1<<8)
-#define m_SCAN_LINE_NUM     (0x7ff<<9)
-#define v_HOR_START(x)         (((x)&1)<<0)
-#define v_FRM_START(x)         (((x)&1)<<1)
-#define v_SCANNING_FLAG(x)     (((x)&1)<<2)
-#define v_HOR_STARTMASK(x)     (((x)&1)<<3)
-#define v_FRM_STARTMASK(x)     (((x)&1)<<4)
-#define v_SCANNING_MASK(x)     (((x)&1)<<5)
-#define v_HOR_STARTCLEAR(x)    (((x)&1)<<6)
-#define v_FRM_STARTCLEAR(x)    (((x)&1)<<7)
-#define v_SCANNING_CLEAR(x)    (((x)&1)<<8)
-#define v_SCAN_LINE_NUM(x)     (((x)&0x7ff)<<9)
+#define v_HOR_START_INT_STA        (1<<0)  //status
+#define v_FRM_START_INT_STA        (1<<1)
+#define v_LINE_FLAG_INT_STA        (1<<2)
+#define v_BUS_ERR_INT_STA	   (1<<3)
+#define m_HOR_START_INT_EN     	   (1<<4)  //enable
+#define m_FRM_START_INT_EN          (1<<5)
+#define m_LINE_FLAG_INT_EN         (1<<6)
+#define m_BUS_ERR_INT_EN	   (1<<7)
+#define m_HOR_START_INT_CLEAR      (1<<8) //auto clear
+#define m_FRM_START_INT_CLEAR      (1<<9)
+#define m_LINE_FLAG_INT_CLEAR      (1<<10)
+#define m_BUS_ERR_INT_CLEAR        (1<<11)
+#define m_LINE_FLAG_NUM		   (0xfff<<12)
+#define v_HOR_START_INT_EN(x)      (((x)&1)<<4)
+#define v_FRM_START_INT_EN(x)      (((x)&1)<<5)
+#define v_LINE_FLAG_INT_EN(x)      (((x)&1)<<6)
+#define v_BUS_ERR_INT_EN(x)	   (((x)&1)<<7)
+#define v_HOR_START_INT_CLEAR(x)      (((x)&1)<<8)
+#define v_FRM_START_INT_CLEAR(x)     (((x)&1)<<9)
+#define v_LINE_FLAG_INT_CLEAR(x)     (((x)&1)<<10)
+#define v_BUS_ERR_INT_CLEAR(x)        (((x)&1)<<11)
+#define v_LINE_FLAG_NUM(x)	   (((x)&0xfff)<<12)
+
 
 
 //LCDC_MCU_TIMING_CTRL
@@ -456,6 +459,8 @@ struct rk30_lcdc_device{
 	void __iomem *reg_vir_base;  // virtual basic address of lcdc register
 	u32 reg_phy_base;       // physical basic address of lcdc register
 	u32 len;               // physical map length of lcdc register
+
+	unsigned int		irq;
 	
 	struct clk		*hclk;				//lcdc AHP clk
 	struct clk		*dclk;				//lcdc dclk

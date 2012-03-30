@@ -24,7 +24,6 @@
 #include <linux/device.h>
 #include <linux/fb.h>
 #include <linux/init.h>
-#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
@@ -733,7 +732,8 @@ int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
 	dev_drv->pan_display = def_drv->pan_display;
 	dev_drv->suspend = def_drv->suspend;
 	dev_drv->resume = def_drv->resume;
-	dev_drv->load_screen = dev_drv->load_screen;
+	dev_drv->load_screen = def_drv->load_screen;
+	init_completion(&dev_drv->frame_done);
 	
 	return 0;
 }

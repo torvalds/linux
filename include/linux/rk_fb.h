@@ -1,4 +1,4 @@
-/* drivers/video/rk30_fb.h
+/* drivers/video/rk_fb.h
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *
@@ -15,6 +15,9 @@
 
 #ifndef __ARCH_ARM_MACH_RK30_FB_H
 #define __ARCH_ARM_MACH_RK30_FB_H
+
+
+#include<linux/completion.h>
 
 #define RK30_MAX_LCDC_SUPPORT	4
 #define RK30_MAX_LAYER_SUPPORT	4
@@ -183,6 +186,9 @@ struct rk_lcdc_device_driver{
 	int fb_index_base;                     //the first fb index of the lcdc device
 	rk_screen *screen;
 	u32 pixclock;
+
+	struct completion  frame_done;
+	
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);
 	int (*suspend)(struct layer_par *layer_par);
 	int (*resume)(struct layer_par *layer_par);
