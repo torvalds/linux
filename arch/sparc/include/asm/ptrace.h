@@ -165,6 +165,7 @@ struct sparc_stackf {
 #ifdef __KERNEL__
 
 #include <linux/threads.h>
+#include <asm/switch_to.h>
 
 static inline int pt_regs_trap_type(struct pt_regs *regs)
 {
