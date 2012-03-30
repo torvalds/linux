@@ -10,9 +10,24 @@
 #include <asm/smp.h>
 #include <asm/cpu.h>
 #include <linux/intel-iommu.h>
-#include "intr_remapping.h"
 #include <acpi/acpi.h>
 #include <asm/pci-direct.h>
+
+struct ioapic_scope {
+	struct intel_iommu *iommu;
+	unsigned int id;
+	unsigned int bus;	/* PCI bus number */
+	unsigned int devfn;	/* PCI devfn number */
+};
+
+struct hpet_scope {
+	struct intel_iommu *iommu;
+	u8 id;
+	unsigned int bus;
+	unsigned int devfn;
+};
+
+#define IR_X2APIC_MODE(mode) (mode ? (1 << 11) : 0)
 
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static struct hpet_scope ir_hpet[MAX_HPET_TBS];
