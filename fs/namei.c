@@ -1194,6 +1194,21 @@ retry:
 			status = 1;
 		}
 		mutex_unlock(&dir->i_mutex);
+		if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE) && need_reval)
+			status = d_revalidate(dentry, nd);
+		if (unlikely(status <= 0)) {
+			if (status < 0) {
+				dput(dentry);
+				return status;
+			}
+			if (!d_invalidate(dentry)) {
+				dput(dentry);
+				dentry = NULL;
+				need_reval = 1;
+				goto retry;
+			}
+		}
+		goto done;
 	}
 	if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE) && need_reval)
 		status = d_revalidate(dentry, nd);
@@ -1209,7 +1224,7 @@ retry:
 			goto retry;
 		}
 	}
-
+done:
 	path->mnt = mnt;
 	path->dentry = dentry;
 	err = follow_managed(path, nd->flags);
