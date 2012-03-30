@@ -1174,39 +1174,34 @@ retry:
 
 		mutex_lock(&dir->i_mutex);
 		dentry = d_lookup(parent, name);
-		if (likely(!dentry)) {
-			dentry = d_alloc_and_lookup(parent, name, nd);
-			if (IS_ERR(dentry)) {
-				mutex_unlock(&dir->i_mutex);
-				return PTR_ERR(dentry);
-			}
-			/* known good */
-			status = 1;
-		} else if (unlikely(d_need_lookup(dentry))) {
+		if (dentry && d_need_lookup(dentry)) {
 			dentry = d_inode_lookup(parent, dentry, nd);
 			if (IS_ERR(dentry)) {
 				mutex_unlock(&dir->i_mutex);
 				return PTR_ERR(dentry);
 			}
-			/* known good */
-			status = 1;
-		} else if (unlikely(dentry->d_flags & DCACHE_OP_REVALIDATE))
+		} else if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
 			status = d_revalidate(dentry, nd);
-		if (unlikely(status <= 0)) {
-			if (status < 0) {
-				mutex_unlock(&dir->i_mutex);
-				dput(dentry);
-				return status;
-			}
-			if (!d_invalidate(dentry)) {
-				dput(dentry);
-				dentry = d_alloc_and_lookup(parent, name, nd);
-				if (IS_ERR(dentry)) {
+			if (unlikely(status <= 0)) {
+				if (status < 0) {
 					mutex_unlock(&dir->i_mutex);
-					return PTR_ERR(dentry);
+					dput(dentry);
+					return status;
 				}
-				/* known good */
-				status = 1;
+				if (!d_invalidate(dentry)) {
+					dput(dentry);
+					dentry = d_alloc_and_lookup(parent, name, nd);
+					if (IS_ERR(dentry)) {
+						mutex_unlock(&dir->i_mutex);
+						return PTR_ERR(dentry);
+					}
+				}
+			}
+		} else if (!dentry) {
+			dentry = d_alloc_and_lookup(parent, name, nd);
+			if (IS_ERR(dentry)) {
+				mutex_unlock(&dir->i_mutex);
+				return PTR_ERR(dentry);
 			}
 		}
 		mutex_unlock(&dir->i_mutex);
