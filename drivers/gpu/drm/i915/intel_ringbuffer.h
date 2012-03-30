@@ -59,6 +59,7 @@ struct  intel_ring_buffer {
 	spinlock_t	irq_lock;
 	u32		irq_refcount;
 	u32		irq_mask;
+	u32		irq_enable;		/* IRQs enabled for this ring */
 	u32		irq_seqno;		/* last seq seem at irq time */
 	u32		trace_irq_seqno;
 	u32		waiting_seqno;
