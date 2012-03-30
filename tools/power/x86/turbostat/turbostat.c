@@ -19,6 +19,7 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -32,6 +33,7 @@
 #include <dirent.h>
 #include <string.h>
 #include <ctype.h>
+#include <sched.h>
 
 #define MSR_TSC	0x10
 #define MSR_NEHALEM_PLATFORM_INFO	0xCE
@@ -72,6 +74,8 @@ char *progname;
 int need_reinitialize;
 
 int num_cpus;
+cpu_set_t *cpu_mask;
+size_t cpu_mask_size;
 
 struct counters {
 	unsigned long long tsc;		/* per thread */
@@ -99,6 +103,40 @@ struct counters *cnt_average;
 struct timeval tv_even;
 struct timeval tv_odd;
 struct timeval tv_delta;
+
+/*
+ * cpu_mask_init(ncpus)
+ *
+ * allocate and clear cpu_mask
+ * set cpu_mask_size
+ */
+void cpu_mask_init(int ncpus)
+{
+	cpu_mask = CPU_ALLOC(ncpus);
+	if (cpu_mask == NULL) {
+		perror("CPU_ALLOC");
+		exit(3);
+	}
+	cpu_mask_size = CPU_ALLOC_SIZE(ncpus);
+	CPU_ZERO_S(cpu_mask_size, cpu_mask);
+}
+
+void cpu_mask_uninit()
+{
+	CPU_FREE(cpu_mask);
+	cpu_mask = NULL;
+	cpu_mask_size = 0;
+}
+
+int cpu_migrate(int cpu)
+{
+	CPU_ZERO_S(cpu_mask_size, cpu_mask);
+	CPU_SET_S(cpu, cpu_mask_size, cpu_mask);
+	if (sched_setaffinity(0, cpu_mask_size, cpu_mask) == -1)
+		return -1;
+	else
+		return 0;
+}
 
 unsigned long long get_msr(int cpu, off_t offset)
 {
@@ -471,6 +509,11 @@ void compute_average(struct counters *delta, struct counters *avg)
 void get_counters(struct counters *cnt)
 {
 	for ( ; cnt; cnt = cnt->next) {
+		if (cpu_migrate(cnt->cpu)) {
+			need_reinitialize = 1;
+			return;
+		}
+
 		cnt->tsc = get_msr(cnt->cpu, MSR_TSC);
 		if (do_nhm_cstates)
 			cnt->c3 = get_msr(cnt->cpu, MSR_CORE_C3_RESIDENCY);
@@ -752,6 +795,8 @@ void re_initialize(void)
 	free_all_counters();
 	num_cpus = for_all_cpus(alloc_new_counters);
 	need_reinitialize = 0;
+	cpu_mask_uninit();
+	cpu_mask_init(num_cpus);
 	printf("num_cpus is now %d\n", num_cpus);
 }
 
@@ -984,6 +1029,7 @@ void turbostat_init()
 	check_super_user();
 
 	num_cpus = for_all_cpus(alloc_new_counters);
+	cpu_mask_init(num_cpus);
 
 	if (verbose)
 		print_nehalem_info();
