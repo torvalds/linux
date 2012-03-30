@@ -43,6 +43,11 @@ static struct platform_device *devices[] __initdata = {
 
 extern struct sys_timer msm_timer;
 
+static void __init trout_init_early(void)
+{
+	arch_ioremap_caller = __msm_ioremap_caller;
+}
+
 static void __init trout_init_irq(void)
 {
 	msm_init_irq();
@@ -96,6 +101,7 @@ MACHINE_START(TROUT, "HTC Dream")
 	.atag_offset	= 0x100,
 	.fixup		= trout_fixup,
 	.map_io		= trout_map_io,
+	.init_early	= trout_init_early,
 	.init_irq	= trout_init_irq,
 	.init_machine	= trout_init,
 	.timer		= &msm_timer,

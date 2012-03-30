@@ -33,6 +33,7 @@
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <linux/bitops.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <mach/irqs.h>

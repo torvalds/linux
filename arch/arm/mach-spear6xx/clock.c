@@ -12,6 +12,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <plat/clock.h>
 #include <mach/misc_regs.h>

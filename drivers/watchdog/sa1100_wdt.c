@@ -28,6 +28,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
 #include <linux/timex.h>
