@@ -13,6 +13,7 @@
 #include <acpi/acpi.h>
 #include <asm/intr_remapping.h>
 #include <asm/pci-direct.h>
+#include <asm/msidef.h>
 
 #include "intr_remapping.h"
 
@@ -955,6 +956,98 @@ intel_ioapic_set_affinity(struct irq_data *data, const struct cpumask *mask,
 	return 0;
 }
 
+static void intel_compose_msi_msg(struct pci_dev *pdev,
+				  unsigned int irq, unsigned int dest,
+				  struct msi_msg *msg, u8 hpet_id)
+{
+	struct irq_cfg *cfg;
+	struct irte irte;
+	u16 sub_handle;
+	int ir_index;
+
+	cfg = irq_get_chip_data(irq);
+
+	ir_index = map_irq_to_irte_handle(irq, &sub_handle);
+	BUG_ON(ir_index == -1);
+
+	prepare_irte(&irte, cfg->vector, dest);
+
+	/* Set source-id of interrupt request */
+	if (pdev)
+		set_msi_sid(&irte, pdev);
+	else
+		set_hpet_sid(&irte, hpet_id);
+
+	modify_irte(irq, &irte);
+
+	msg->address_hi = MSI_ADDR_BASE_HI;
+	msg->data = sub_handle;
+	msg->address_lo = MSI_ADDR_BASE_LO | MSI_ADDR_IR_EXT_INT |
+			  MSI_ADDR_IR_SHV |
+			  MSI_ADDR_IR_INDEX1(ir_index) |
+			  MSI_ADDR_IR_INDEX2(ir_index);
+}
+
+/*
+ * Map the PCI dev to the corresponding remapping hardware unit
+ * and allocate 'nvec' consecutive interrupt-remapping table entries
+ * in it.
+ */
+static int intel_msi_alloc_irq(struct pci_dev *dev, int irq, int nvec)
+{
+	struct intel_iommu *iommu;
+	int index;
+
+	iommu = map_dev_to_ir(dev);
+	if (!iommu) {
+		printk(KERN_ERR
+		       "Unable to map PCI %s to iommu\n", pci_name(dev));
+		return -ENOENT;
+	}
+
+	index = alloc_irte(iommu, irq, nvec);
+	if (index < 0) {
+		printk(KERN_ERR
+		       "Unable to allocate %d IRTE for PCI %s\n", nvec,
+		       pci_name(dev));
+		return -ENOSPC;
+	}
+	return index;
+}
+
+static int intel_msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
+			       int index, int sub_handle)
+{
+	struct intel_iommu *iommu;
+
+	iommu = map_dev_to_ir(pdev);
+	if (!iommu)
+		return -ENOENT;
+	/*
+	 * setup the mapping between the irq and the IRTE
+	 * base index, the sub_handle pointing to the
+	 * appropriate interrupt remap table entry.
+	 */
+	set_irte_irq(irq, iommu, index, sub_handle);
+
+	return 0;
+}
+
+static int intel_setup_hpet_msi(unsigned int irq, unsigned int id)
+{
+	struct intel_iommu *iommu = map_hpet_to_ir(id);
+	int index;
+
+	if (!iommu)
+		return -1;
+
+	index = alloc_irte(iommu, irq, 1);
+	if (index < 0)
+		return -1;
+
+	return 0;
+}
+
 struct irq_remap_ops intel_irq_remap_ops = {
 	.supported		= intel_intr_remapping_supported,
 	.hardware_init		= dmar_table_init,
@@ -965,4 +1058,8 @@ struct irq_remap_ops intel_irq_remap_ops = {
 	.setup_ioapic_entry	= intel_setup_ioapic_entry,
 	.set_affinity		= intel_ioapic_set_affinity,
 	.free_irq		= free_irte,
+	.compose_msi_msg	= intel_compose_msi_msg,
+	.msi_alloc_irq		= intel_msi_alloc_irq,
+	.msi_setup_irq		= intel_msi_setup_irq,
+	.setup_hpet_msi		= intel_setup_hpet_msi,
 };

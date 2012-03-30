@@ -28,6 +28,8 @@ struct IO_APIC_route_entry;
 struct io_apic_irq_attr;
 struct irq_data;
 struct cpumask;
+struct pci_dev;
+struct msi_msg;
 
 extern int disable_intremap;
 extern int disable_sourceid_checking;
@@ -63,6 +65,20 @@ struct irq_remap_ops {
 
 	/* Free an IRQ */
 	int (*free_irq)(int);
+
+	/* Create MSI msg to use for interrupt remapping */
+	void (*compose_msi_msg)(struct pci_dev *,
+				unsigned int, unsigned int,
+				struct msi_msg *, u8);
+
+	/* Allocate remapping resources for MSI */
+	int (*msi_alloc_irq)(struct pci_dev *, int, int);
+
+	/* Setup the remapped MSI irq */
+	int (*msi_setup_irq)(struct pci_dev *, unsigned int, int, int);
+
+	/* Setup interrupt remapping for an HPET MSI */
+	int (*setup_hpet_msi)(unsigned int, unsigned int);
 };
 
 extern struct irq_remap_ops intel_irq_remap_ops;

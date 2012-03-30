@@ -127,3 +127,38 @@ void intr_free_irq(int irq)
 
 	remap_ops->free_irq(irq);
 }
+
+void intr_compose_msi_msg(struct pci_dev *pdev,
+			  unsigned int irq, unsigned int dest,
+			  struct msi_msg *msg, u8 hpet_id)
+{
+	if (!remap_ops || !remap_ops->compose_msi_msg)
+		return;
+
+	remap_ops->compose_msi_msg(pdev, irq, dest, msg, hpet_id);
+}
+
+int intr_msi_alloc_irq(struct pci_dev *pdev, int irq, int nvec)
+{
+	if (!remap_ops || !remap_ops->msi_alloc_irq)
+		return -ENODEV;
+
+	return remap_ops->msi_alloc_irq(pdev, irq, nvec);
+}
+
+int intr_msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
+		       int index, int sub_handle)
+{
+	if (!remap_ops || !remap_ops->msi_setup_irq)
+		return -ENODEV;
+
+	return remap_ops->msi_setup_irq(pdev, irq, index, sub_handle);
+}
+
+int intr_setup_hpet_msi(unsigned int irq, unsigned int id)
+{
+	if (!remap_ops || !remap_ops->setup_hpet_msi)
+		return -ENODEV;
+
+	return remap_ops->setup_hpet_msi(irq, id);
+}

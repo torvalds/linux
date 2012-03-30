@@ -26,6 +26,7 @@
 
 struct IO_APIC_route_entry;
 struct io_apic_irq_attr;
+struct pci_dev;
 
 extern int intr_remapping_enabled;
 
@@ -44,6 +45,13 @@ extern int intr_set_affinity(struct irq_data *data,
 			     const struct cpumask *mask,
 			     bool force);
 extern void intr_free_irq(int irq);
+extern void intr_compose_msi_msg(struct pci_dev *pdev,
+				 unsigned int irq, unsigned int dest,
+				 struct msi_msg *msg, u8 hpet_id);
+extern int intr_msi_alloc_irq(struct pci_dev *pdev, int irq, int nvec);
+extern int intr_msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
+			      int index, int sub_handle);
+extern int intr_setup_hpet_msi(unsigned int irq, unsigned int id);
 
 #else  /* CONFIG_IRQ_REMAP */
 
@@ -70,6 +78,24 @@ static inline int intr_set_affinity(struct irq_data *data,
 	return 0;
 }
 static inline void intr_free_irq(int irq) { }
+static inline void intr_compose_msi_msg(struct pci_dev *pdev,
+					unsigned int irq, unsigned int dest,
+					struct msi_msg *msg, u8 hpet_id)
+{
+}
+static inline int intr_msi_alloc_irq(struct pci_dev *pdev, int irq, int nvec)
+{
+	return -ENODEV;
+}
+static inline int intr_msi_setup_irq(struct pci_dev *pdev, unsigned int irq,
+				     int index, int sub_handle)
+{
+	return -ENODEV;
+}
+static inline int intr_setup_hpet_msi(unsigned int irq, unsigned int id)
+{
+	return -ENODEV;
+}
 #endif /* CONFIG_IRQ_REMAP */
 
 #endif /* __X86_INTR_REMAPPING_H */
