@@ -248,7 +248,7 @@ struct i7core_dev {
 };
 
 struct i7core_pvt {
-	struct device addrmatch_dev, chancounts_dev;
+	struct device *addrmatch_dev, *chancounts_dev;
 
 	struct pci_dev	*pci_noncore;
 	struct pci_dev	*pci_mcr[MAX_MCR_FUNC + 1];
@@ -1105,6 +1105,7 @@ static const struct attribute_group *addrmatch_groups[] = {
 static void addrmatch_release(struct device *device)
 {
 	debugf1("Releasing device %s\n", dev_name(device));
+	kfree(device);
 }
 
 static struct device_type addrmatch_type = {
@@ -1135,6 +1136,7 @@ static const struct attribute_group *all_channel_counts_groups[] = {
 static void all_channel_counts_release(struct device *device)
 {
 	debugf1("Releasing device %s\n", dev_name(device));
+	kfree(device);
 }
 
 static struct device_type all_channel_counts_type = {
@@ -1177,32 +1179,44 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 	if (rc < 0)
 		return rc;
 
-	pvt->addrmatch_dev.type = &addrmatch_type;
-	pvt->addrmatch_dev.bus = mci->dev.bus;
-	device_initialize(&pvt->addrmatch_dev);
-	pvt->addrmatch_dev.parent = &mci->dev;
-	dev_set_name(&pvt->addrmatch_dev, "inject_addrmatch");
-	dev_set_drvdata(&pvt->addrmatch_dev, mci);
+	pvt->addrmatch_dev = kzalloc(sizeof(*pvt->addrmatch_dev), GFP_KERNEL);
+	if (!pvt->addrmatch_dev)
+		return rc;
+
+	pvt->addrmatch_dev->type = &addrmatch_type;
+	pvt->addrmatch_dev->bus = mci->dev.bus;
+	device_initialize(pvt->addrmatch_dev);
+	pvt->addrmatch_dev->parent = &mci->dev;
+	dev_set_name(pvt->addrmatch_dev, "inject_addrmatch");
+	dev_set_drvdata(pvt->addrmatch_dev, mci);
 
 	debugf1("%s(): creating %s\n", __func__,
-		dev_name(&pvt->addrmatch_dev));
+		dev_name(pvt->addrmatch_dev));
 
-	rc = device_add(&pvt->addrmatch_dev);
+	rc = device_add(pvt->addrmatch_dev);
 	if (rc < 0)
 		return rc;
 
 	if (!pvt->is_registered) {
-		pvt->chancounts_dev.type = &all_channel_counts_type;
-		pvt->chancounts_dev.bus = mci->dev.bus;
-		device_initialize(&pvt->chancounts_dev);
-		pvt->chancounts_dev.parent = &mci->dev;
-		dev_set_name(&pvt->chancounts_dev, "all_channel_counts");
-		dev_set_drvdata(&pvt->chancounts_dev, mci);
+		pvt->chancounts_dev = kzalloc(sizeof(*pvt->chancounts_dev),
+					      GFP_KERNEL);
+		if (!pvt->chancounts_dev) {
+			put_device(pvt->addrmatch_dev);
+			device_del(pvt->addrmatch_dev);
+			return rc;
+		}
+
+		pvt->chancounts_dev->type = &all_channel_counts_type;
+		pvt->chancounts_dev->bus = mci->dev.bus;
+		device_initialize(pvt->chancounts_dev);
+		pvt->chancounts_dev->parent = &mci->dev;
+		dev_set_name(pvt->chancounts_dev, "all_channel_counts");
+		dev_set_drvdata(pvt->chancounts_dev, mci);
 
 		debugf1("%s(): creating %s\n", __func__,
-			dev_name(&pvt->chancounts_dev));
+			dev_name(pvt->chancounts_dev));
 
-		rc = device_add(&pvt->chancounts_dev);
+		rc = device_add(pvt->chancounts_dev);
 		if (rc < 0)
 			return rc;
 	}
@@ -1221,11 +1235,11 @@ static void i7core_delete_sysfs_devices(struct mem_ctl_info *mci)
 	device_remove_file(&mci->dev, &dev_attr_inject_enable);
 
 	if (!pvt->is_registered) {
-		put_device(&pvt->chancounts_dev);
-		device_del(&pvt->chancounts_dev);
+		put_device(pvt->chancounts_dev);
+		device_del(pvt->chancounts_dev);
 	}
-	put_device(&pvt->addrmatch_dev);
-	device_del(&pvt->addrmatch_dev);
+	put_device(pvt->addrmatch_dev);
+	device_del(pvt->addrmatch_dev);
 }
 
 /****************************************************************************
