@@ -508,7 +508,19 @@ typedef enum {
   HV_CONFSTR_SWITCH_CONTROL  = 14,
 
   /** Chip revision level. */
-  HV_CONFSTR_CHIP_REV        = 15
+  HV_CONFSTR_CHIP_REV        = 15,
+
+  /** CPU module part number. */
+  HV_CONFSTR_CPUMOD_PART_NUM = 16,
+
+  /** CPU module serial number. */
+  HV_CONFSTR_CPUMOD_SERIAL_NUM = 17,
+
+  /** CPU module revision level. */
+  HV_CONFSTR_CPUMOD_REV      = 18,
+
+  /** Human-readable CPU module description. */
+  HV_CONFSTR_CPUMOD_DESC     = 19
 
 } HV_ConfstrQuery;
 
