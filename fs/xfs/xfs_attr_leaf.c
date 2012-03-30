@@ -626,7 +626,7 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
 	xfs_attr_sf_entry_t *sfe;
 	int i;
 
-	ASSERT(args->dp->i_d.di_aformat == XFS_IFINLINE);
+	ASSERT(args->dp->i_afp->if_flags == XFS_IFINLINE);
 	sf = (xfs_attr_shortform_t *)args->dp->i_afp->if_u1.if_data;
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count;
