@@ -196,18 +196,14 @@ static int tegra_spdif_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (!spdif->clk_refs)
-			clk_enable(spdif->clk_spdif_out);
-		spdif->clk_refs++;
+		clk_enable(spdif->clk_spdif_out);
 		tegra_spdif_start_playback(spdif);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		tegra_spdif_stop_playback(spdif);
-		spdif->clk_refs--;
-		if (!spdif->clk_refs)
-			clk_disable(spdif->clk_spdif_out);
+		clk_disable(spdif->clk_spdif_out);
 		break;
 	default:
 		return -EINVAL;

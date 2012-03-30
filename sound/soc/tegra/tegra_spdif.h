@@ -462,7 +462,6 @@
 
 struct tegra_spdif {
 	struct clk *clk_spdif_out;
-	int clk_refs;
 	struct tegra_pcm_dma_params capture_dma_data;
 	struct tegra_pcm_dma_params playback_dma_data;
 	void __iomem *regs;
