@@ -421,6 +421,9 @@ static int dup_mmap(struct mm_struct *mm, struct mm_struct *oldmm)
 
 		if (retval)
 			goto out;
+
+		if (file && uprobe_mmap(tmp))
+			goto out;
 	}
 	/* a new mm has just been created */
 	arch_dup_mmap(oldmm, mm);
