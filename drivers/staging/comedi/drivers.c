@@ -811,6 +811,51 @@ void comedi_reset_async_buf(struct comedi_async *async)
 	async->events = 0;
 }
 
+static int
+comedi_auto_config_helper(struct device *hardware_device,
+			  struct comedi_driver *driver,
+			  int (*attach_wrapper) (struct comedi_device *,
+						 void *), void *context)
+{
+	int minor;
+	struct comedi_device_file_info *dev_file_info;
+	struct comedi_device *comedi_dev;
+	int ret;
+
+	if (!comedi_autoconfig)
+		return 0;
+
+	minor = comedi_alloc_board_minor(hardware_device);
+	if (minor < 0)
+		return minor;
+
+	dev_file_info = comedi_get_device_file_info(minor);
+	comedi_dev = dev_file_info->device;
+
+	mutex_lock(&comedi_dev->mutex);
+	if (comedi_dev->attached)
+		ret = -EBUSY;
+	else if (!try_module_get(driver->module)) {
+		printk(KERN_INFO "comedi: failed to increment module count\n");
+		ret = -EIO;
+	} else {
+		/* set comedi_dev->driver here for attach wrapper */
+		comedi_dev->driver = driver;
+		ret = (*attach_wrapper)(comedi_dev, context);
+		if (ret < 0) {
+			module_put(driver->module);
+			__comedi_device_detach(comedi_dev);
+		} else {
+			ret = comedi_device_postconfig(comedi_dev);
+		}
+	}
+	mutex_unlock(&comedi_dev->mutex);
+
+	if (ret < 0)
+		comedi_free_board_minor(minor);
+	return ret;
+}
+
 static int comedi_auto_config(struct device *hardware_device,
 			      const char *board_name, const int *options,
 			      unsigned num_options)
@@ -857,7 +902,8 @@ static void comedi_auto_unconfig(struct device *hardware_device)
 	comedi_free_board_minor(minor);
 }
 
-int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
+static int comedi_old_pci_auto_config(struct pci_dev *pcidev,
+				      struct comedi_driver *driver)
 {
 	int options[2];
 
@@ -869,6 +915,27 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
 	return comedi_auto_config(&pcidev->dev, driver->driver_name,
 				  options, ARRAY_SIZE(options));
 }
+
+static int comedi_pci_attach_wrapper(struct comedi_device *dev, void *pcidev)
+{
+	return dev->driver->attach_pci(dev, pcidev);
+}
+
+static int comedi_new_pci_auto_config(struct pci_dev *pcidev,
+				      struct comedi_driver *driver)
+{
+	return comedi_auto_config_helper(&pcidev->dev, driver,
+					 comedi_pci_attach_wrapper, pcidev);
+}
+
+int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
+{
+
+	if (driver->attach_pci)
+		return comedi_new_pci_auto_config(pcidev, driver);
+	else
+		return comedi_old_pci_auto_config(pcidev, driver);
+}
 EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
 
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
@@ -877,11 +944,32 @@ void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 
+static int comedi_old_usb_auto_config(struct usb_interface *intf,
+				      struct comedi_driver *driver)
+{
+	return comedi_auto_config(&intf->dev, driver->driver_name, NULL, 0);
+}
+
+static int comedi_usb_attach_wrapper(struct comedi_device *dev, void *intf)
+{
+	return dev->driver->attach_usb(dev, intf);
+}
+
+static int comedi_new_usb_auto_config(struct usb_interface *intf,
+				      struct comedi_driver *driver)
+{
+	return comedi_auto_config_helper(&intf->dev, driver,
+					 comedi_usb_attach_wrapper, intf);
+}
+
 int comedi_usb_auto_config(struct usb_interface *intf,
 			   struct comedi_driver *driver)
 {
 	BUG_ON(intf == NULL);
-	return comedi_auto_config(&intf->dev, driver->driver_name, NULL, 0);
+	if (driver->attach_usb)
+		return comedi_new_usb_auto_config(intf, driver);
+	else
+		return comedi_old_usb_auto_config(intf, driver);
 }
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
 
