@@ -1108,6 +1108,51 @@ static struct dentry *d_inode_lookup(struct dentry *parent, struct dentry *dentr
 	return dentry;
 }
 
+static struct dentry *__lookup_hash(struct qstr *name,
+		struct dentry *base, struct nameidata *nd)
+{
+	struct dentry *dentry;
+
+	/*
+	 * Don't bother with __d_lookup: callers are for creat as
+	 * well as unlink, so a lot of the time it would cost
+	 * a double lookup.
+	 */
+	dentry = d_lookup(base, name);
+
+	if (dentry && d_need_lookup(dentry)) {
+		/*
+		 * __lookup_hash is called with the parent dir's i_mutex already
+		 * held, so we are good to go here.
+		 */
+		return d_inode_lookup(base, dentry, nd);
+	}
+
+	if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
+		int status = d_revalidate(dentry, nd);
+		if (unlikely(status <= 0)) {
+			/*
+			 * The dentry failed validation.
+			 * If d_revalidate returned 0 attempt to invalidate
+			 * the dentry otherwise d_revalidate is asking us
+			 * to return a fail status.
+			 */
+			if (status < 0) {
+				dput(dentry);
+				return ERR_PTR(status);
+			} else if (!d_invalidate(dentry)) {
+				dput(dentry);
+				dentry = NULL;
+			}
+		}
+	}
+
+	if (!dentry)
+		dentry = d_alloc_and_lookup(base, name, nd);
+
+	return dentry;
+}
+
 /*
  *  It's more convoluted than I'd like it to be, but... it's still fairly
  *  small and for now I'd prefer to have fast path as straight as possible.
@@ -1173,28 +1218,7 @@ retry:
 		BUG_ON(nd->inode != dir);
 
 		mutex_lock(&dir->i_mutex);
-		dentry = d_lookup(parent, name);
-		if (dentry && d_need_lookup(dentry)) {
-			dentry = d_inode_lookup(parent, dentry, nd);
-			goto l;
-		}
-		if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
-			status = d_revalidate(dentry, nd);
-			if (unlikely(status <= 0)) {
-				if (status < 0) {
-					dput(dentry);
-					dentry = ERR_PTR(status);
-					goto l;
-				}
-				if (!d_invalidate(dentry)) {
-					dput(dentry);
-					dentry = NULL;
-				}
-			}
-		}
-		if (!dentry)
-			dentry = d_alloc_and_lookup(parent, name, nd);
-	l:
+		dentry = __lookup_hash(name, parent, nd);
 		mutex_unlock(&dir->i_mutex);
 		if (IS_ERR(dentry))
 			return PTR_ERR(dentry);
@@ -1848,51 +1872,6 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	if (!err)
 		*path = nd.path;
 	return err;
-}
-
-static struct dentry *__lookup_hash(struct qstr *name,
-		struct dentry *base, struct nameidata *nd)
-{
-	struct dentry *dentry;
-
-	/*
-	 * Don't bother with __d_lookup: callers are for creat as
-	 * well as unlink, so a lot of the time it would cost
-	 * a double lookup.
-	 */
-	dentry = d_lookup(base, name);
-
-	if (dentry && d_need_lookup(dentry)) {
-		/*
-		 * __lookup_hash is called with the parent dir's i_mutex already
-		 * held, so we are good to go here.
-		 */
-		return d_inode_lookup(base, dentry, nd);
-	}
-
-	if (dentry && (dentry->d_flags & DCACHE_OP_REVALIDATE)) {
-		int status = d_revalidate(dentry, nd);
-		if (unlikely(status <= 0)) {
-			/*
-			 * The dentry failed validation.
-			 * If d_revalidate returned 0 attempt to invalidate
-			 * the dentry otherwise d_revalidate is asking us
-			 * to return a fail status.
-			 */
-			if (status < 0) {
-				dput(dentry);
-				return ERR_PTR(status);
-			} else if (!d_invalidate(dentry)) {
-				dput(dentry);
-				dentry = NULL;
-			}
-		}
-	}
-
-	if (!dentry)
-		dentry = d_alloc_and_lookup(base, name, nd);
-
-	return dentry;
 }
 
 /*
