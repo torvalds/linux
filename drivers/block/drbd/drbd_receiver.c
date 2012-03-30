@@ -1229,7 +1229,7 @@ void drbd_bump_write_ordering(struct drbd_tconn *tconn, enum write_ordering_e wo
 	wo = min(pwo, wo);
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
-		if (!get_ldev(mdev))
+		if (!get_ldev_if_state(mdev, D_ATTACHING))
 			continue;
 		dc = rcu_dereference(mdev->ldev->disk_conf);
 

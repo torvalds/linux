@@ -1229,6 +1229,9 @@ int drbd_adm_disk_opts(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	mutex_unlock(&mdev->tconn->conf_update);
+
+	drbd_bump_write_ordering(mdev->tconn, WO_bdev_flush);
+
 	drbd_md_sync(mdev);
 
 	if (mdev->state.conn >= C_CONNECTED)
