@@ -2,6 +2,7 @@
 #define __ASM_BARRIER_H
 
 #ifndef __ASSEMBLY__
+#include <asm/outercache.h>
 
 #define nop() __asm__ __volatile__("mov\tr0,r0\t@ nop\n\t");
 
@@ -39,7 +40,6 @@
 #ifdef CONFIG_ARCH_HAS_BARRIERS
 #include <mach/barriers.h>
 #elif defined(CONFIG_ARM_DMA_MEM_BUFFERABLE) || defined(CONFIG_SMP)
-#include <asm/outercache.h>
 #define mb()		do { dsb(); outer_sync(); } while (0)
 #define rmb()		dsb()
 #define wmb()		mb()
