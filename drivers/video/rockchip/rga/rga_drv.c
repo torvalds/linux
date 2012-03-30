@@ -71,8 +71,6 @@
 ktime_t rga_start;
 ktime_t rga_end;
 
-dev_t rga_devi;
-
 struct rga_drvdata {
   	struct miscdevice miscdev;
   	struct device dev;
@@ -596,7 +594,6 @@ static void rga_try_set_reg(uint32_t num)
                                                               
                 /* All CMD finish int */
                 rga_write(0x1<<10, RGA_INT);
-
                 
                 #if RGA_TEST_TIME
                 rga_start = ktime_get();
@@ -712,7 +709,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     sah = req->src.act_h;
     daw = req->dst.act_w;
     dah = req->dst.act_h;
-
+   
     #if RGA_TEST
 
     printk("src.yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x\n", 
@@ -761,8 +758,10 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
         //rga_power_on();
         atomic_set(&reg->int_enable, 1);        
         rga_try_set_reg(num);
-
+        
         ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
+
+        rga_soft_reset();
         if (unlikely(ret_timeout< 0)) 
         {
     		pr_err("pid %d wait task ret %d\n", session->pid, ret_timeout);
@@ -922,6 +921,8 @@ static irqreturn_t rga_irq(int irq,  void *dev_id)
 		printk(" INT ERROR RGA is not idle!\n");
 		rga_soft_reset();
 	}
+
+    rga_soft_reset();
     
     spin_lock(&rga_service.lock);
     do

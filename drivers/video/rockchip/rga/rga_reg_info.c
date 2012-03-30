@@ -1421,8 +1421,8 @@ RGA_set_mmu_ctrl_reg_info(u8 *base, const struct rga_req *msg)
     reg = *RGA_MMU_CTRL_ADDR;    
     reg = ((reg & (~m_RGA_MMU_CTRL_PAGE_TABLE_SIZE)) | s_RGA_MMU_CTRL_PAGE_TABLE_SIZE(TLB_size));
     reg = ((reg & (~m_RGA_MMU_CTRL_MMU_ENABLE)) | s_RGA_MMU_CTRL_MMU_ENABLE(mmu_enable));
-    reg = ((reg & (~m_RGA_MMU_CTRL_SRC_FLUSH)) | s_RGA_MMU_CTRL_SRC_FLUSH(src_flag));
-    reg = ((reg & (~m_RGA_MMU_CTRL_DST_FLUSH)) | s_RGA_MMU_CTRL_DST_FLUSH(dst_flag));
+    reg = ((reg & (~m_RGA_MMU_CTRL_SRC_FLUSH)) | s_RGA_MMU_CTRL_SRC_FLUSH(1));
+    reg = ((reg & (~m_RGA_MMU_CTRL_DST_FLUSH)) | s_RGA_MMU_CTRL_DST_FLUSH(1));
     reg = ((reg & (~m_RGA_MMU_CTRL_CMD_CHAN_FLUSH)) | s_RGA_MMU_CTRL_CMD_CHAN_FLUSH(CMD_flag));
     *RGA_MMU_CTRL_ADDR = reg;
 

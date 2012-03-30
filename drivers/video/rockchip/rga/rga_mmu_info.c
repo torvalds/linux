@@ -18,6 +18,7 @@
 #include "rga_mmu_info.h"
 
 extern rga_service_info rga_service;
+extern int mmu_buff_temp[1024];
 
 #define KERNEL_SPACE_VALID    0xc0000000
 
@@ -416,7 +417,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             break;                
         }
         
-        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);      
         if(MMU_Base == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -428,15 +429,13 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         }
 
         if(req->src.yrgb_addr < KERNEL_SPACE_VALID)
-        {
-            
+        {            
             ret = rga_MapUserMemory(&pages[CMDMemSize], &MMU_Base[CMDMemSize], SrcStart, SrcMemSize);
             if (ret < 0) {
                 pr_err("rga map src memory failed\n");
                 status = ret;
                 break;
-            }
-            
+            }            
         }
         else
         {
