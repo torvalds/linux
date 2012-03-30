@@ -402,37 +402,37 @@ static const struct snd_kcontrol_new ear_amp_ctl =
 
 static const struct snd_kcontrol_new cs42l73_snd_controls[] = {
 	SOC_DOUBLE_R_SX_TLV("Headphone Analog Playback Volume",
-			CS42L73_HPAAVOL, CS42L73_HPBAVOL, 7,
-			0xffffffC1, 0x0C, hpaloa_tlv),
+			CS42L73_HPAAVOL, CS42L73_HPBAVOL, 0,
+			0x41, 0x4B, hpaloa_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("LineOut Analog Playback Volume", CS42L73_LOAAVOL,
-			CS42L73_LOBAVOL, 7, 0xffffffC1, 0x0C, hpaloa_tlv),
+			CS42L73_LOBAVOL, 0, 0x41, 0x4B, hpaloa_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("Input PGA Analog Volume", CS42L73_MICAPREPGAAVOL,
-			CS42L73_MICBPREPGABVOL, 5, 0xffffff35,
-			0x34, micpga_tlv),
+			CS42L73_MICBPREPGABVOL, 5, 0x34,
+			0x24, micpga_tlv),
 
 	SOC_DOUBLE_R("MIC Preamp Switch", CS42L73_MICAPREPGAAVOL,
 			CS42L73_MICBPREPGABVOL, 6, 1, 1),
 
 	SOC_DOUBLE_R_SX_TLV("Input Path Digital Volume", CS42L73_IPADVOL,
-			CS42L73_IPBDVOL, 7, 0xffffffA0, 0xA0, ipd_tlv),
+			CS42L73_IPBDVOL, 0, 0xA0, 0x6C, ipd_tlv),
 
 	SOC_DOUBLE_R_SX_TLV("HL Digital Playback Volume",
-			CS42L73_HLADVOL, CS42L73_HLBDVOL, 7, 0xffffffE5,
-			0xE4, hl_tlv),
+			CS42L73_HLADVOL, CS42L73_HLBDVOL,
+			0, 0x34, 0xE4, hl_tlv),
 
 	SOC_SINGLE_TLV("ADC A Boost Volume",
 			CS42L73_ADCIPC, 2, 0x01, 1, adc_boost_tlv),
 
 	SOC_SINGLE_TLV("ADC B Boost Volume",
-			CS42L73_ADCIPC, 6, 0x01, 1, adc_boost_tlv),
+		       CS42L73_ADCIPC, 6, 0x01, 1, adc_boost_tlv),
 
-	SOC_SINGLE_TLV("Speakerphone Digital Playback Volume",
-			CS42L73_SPKDVOL, 0, 0xE4, 1, hl_tlv),
+	SOC_SINGLE_SX_TLV("Speakerphone Digital Volume",
+			    CS42L73_SPKDVOL, 0, 0x34, 0xE4, hl_tlv),
 
-	SOC_SINGLE_TLV("Ear Speaker Digital Playback Volume",
-			CS42L73_ESLDVOL, 0, 0xE4, 1, hl_tlv),
+	SOC_SINGLE_SX_TLV("Ear Speaker Digital Volume",
+			    CS42L73_ESLDVOL, 0, 0x34, 0xE4, hl_tlv),
 
 	SOC_DOUBLE_R("Headphone Analog Playback Switch", CS42L73_HPAAVOL,
 			CS42L73_HPBAVOL, 7, 1, 1),
