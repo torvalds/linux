@@ -43,6 +43,7 @@ extern int intr_setup_ioapic_entry(int irq,
 extern int intr_set_affinity(struct irq_data *data,
 			     const struct cpumask *mask,
 			     bool force);
+extern void intr_free_irq(int irq);
 
 #else  /* CONFIG_IRQ_REMAP */
 
@@ -68,6 +69,7 @@ static inline int intr_set_affinity(struct irq_data *data,
 {
 	return 0;
 }
+static inline void intr_free_irq(int irq) { }
 #endif /* CONFIG_IRQ_REMAP */
 
 #endif /* __X86_INTR_REMAPPING_H */

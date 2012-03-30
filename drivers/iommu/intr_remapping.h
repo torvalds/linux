@@ -60,6 +60,9 @@ struct irq_remap_ops {
 	/* Set the CPU affinity of a remapped interrupt */
 	int (*set_affinity)(struct irq_data *data, const struct cpumask *mask,
 			    bool force);
+
+	/* Free an IRQ */
+	int (*free_irq)(int);
 };
 
 extern struct irq_remap_ops intel_irq_remap_ops;

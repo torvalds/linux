@@ -121,7 +121,6 @@ extern int alloc_irte(struct intel_iommu *iommu, int irq, u16 count);
 extern int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index,
    			u16 sub_handle);
 extern int map_irq_to_irte_handle(int irq, u16 *sub_handle);
-extern int free_irte(int irq);
 
 extern struct intel_iommu *map_dev_to_ir(struct pci_dev *dev);
 extern struct intel_iommu *map_ioapic_to_ir(int apic);
@@ -135,10 +134,6 @@ static inline int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	return -1;
 }
 static inline int modify_irte(int irq, struct irte *irte_modified)
-{
-	return -1;
-}
-static inline int free_irte(int irq)
 {
 	return -1;
 }

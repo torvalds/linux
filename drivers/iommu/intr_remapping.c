@@ -119,3 +119,11 @@ int intr_set_affinity(struct irq_data *data, const struct cpumask *mask,
 
 	return remap_ops->set_affinity(data, mask, force);
 }
+
+void intr_free_irq(int irq)
+{
+	if (!remap_ops || !remap_ops->free_irq)
+		return;
+
+	remap_ops->free_irq(irq);
+}
