@@ -714,7 +714,6 @@ struct da9030_battery_info cm_x300_battery_info = {
 
 static struct regulator_consumer_supply buck2_consumers[] = {
 	{
-		.dev = NULL,
 		.supply = "vcc_core",
 	},
 };
