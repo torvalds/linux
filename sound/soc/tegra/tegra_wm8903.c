@@ -46,9 +46,6 @@
 
 #include "../codecs/wm8903.h"
 
-#include "tegra_das.h"
-#include "tegra_i2s.h"
-#include "tegra_pcm.h"
 #include "tegra_asoc_utils.h"
 
 #define DRV_NAME "tegra-snd-wm8903"
