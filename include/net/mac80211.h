@@ -1780,6 +1780,18 @@ enum ieee80211_frame_release_type {
 };
 
 /**
+ * enum ieee80211_rate_control_changed - flags to indicate what changed
+ *
+ * @IEEE80211_RC_BW_CHANGED: The bandwidth that can be used to transmit
+ *	to this station changed.
+ * @IEEE80211_RC_SMPS_CHANGED: The SMPS state of the station changed.
+ */
+enum ieee80211_rate_control_changed {
+	IEEE80211_RC_BW_CHANGED		= BIT(0),
+	IEEE80211_RC_SMPS_CHANGED	= BIT(1),
+};
+
+/**
  * struct ieee80211_ops - callbacks from mac80211 to the driver
  *
  * This structure contains various callbacks that the driver may
@@ -1979,6 +1991,14 @@ enum ieee80211_frame_release_type {
  *	It must not fail for down transitions but may fail for transitions
  *	up the list of states.
  *	The callback can sleep.
+ *
+ * @sta_rc_update: Notifies the driver of changes to the bitrates that can be
+ *	used to transmit to the station. The changes are advertised with bits
+ *	from &enum ieee80211_rate_control_changed and the values are reflected
+ *	in the station data. This callback should only be used when the driver
+ *	uses hardware rate control (%IEEE80211_HW_HAS_RATE_CONTROL) since
+ *	otherwise the rate control algorithm is notified directly.
+ *	Must be atomic.
  *
  * @conf_tx: Configure TX queue parameters (EDCF (aifs, cw_min, cw_max),
  *	bursting) for a hardware TX queue.
@@ -2196,6 +2216,10 @@ struct ieee80211_ops {
 			 struct ieee80211_sta *sta,
 			 enum ieee80211_sta_state old_state,
 			 enum ieee80211_sta_state new_state);
+	void (*sta_rc_update)(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      u32 changed);
 	int (*conf_tx)(struct ieee80211_hw *hw,
 		       struct ieee80211_vif *vif, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
@@ -3510,19 +3534,6 @@ void ieee80211_stop_rx_ba_session(struct ieee80211_vif *vif, u16 ba_rx_bitmap,
 void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
 
 /* Rate control API */
-
-/**
- * enum rate_control_changed - flags to indicate which parameter changed
- *
- * @IEEE80211_RC_HT_CHANGED: The HT parameters of the operating channel have
- *	changed, rate control algorithm can update its internal state if needed.
- * @IEEE80211_RC_SMPS_CHANGED: The SMPS state of the station changed, the rate
- *	control algorithm needs to adjust accordingly.
- */
-enum rate_control_changed {
-	IEEE80211_RC_HT_CHANGED		= BIT(0),
-	IEEE80211_RC_SMPS_CHANGED	= BIT(1),
-};
 
 /**
  * struct ieee80211_tx_rate_control - rate control information for/from RC algo

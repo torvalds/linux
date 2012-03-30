@@ -476,6 +476,21 @@ int drv_sta_state(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline void drv_sta_rc_update(struct ieee80211_local *local,
+				     struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_sta *sta, u32 changed)
+{
+	sdata = get_bss_sdata(sdata);
+	check_sdata_in_driver(sdata);
+
+	trace_drv_sta_rc_update(local, sdata, sta, changed);
+	if (local->ops->sta_rc_update)
+		local->ops->sta_rc_update(&local->hw, &sdata->vif,
+					  sta, changed);
+
+	trace_drv_return_void(local);
+}
+
 static inline int drv_conf_tx(struct ieee80211_local *local,
 			      struct ieee80211_sub_if_data *sdata, u16 queue,
 			      const struct ieee80211_tx_queue_params *params)

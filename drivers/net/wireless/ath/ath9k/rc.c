@@ -1447,7 +1447,7 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 
 	/* FIXME: Handle AP mode later when we support CWM */
 
-	if (changed & IEEE80211_RC_HT_CHANGED) {
+	if (changed & IEEE80211_RC_BW_CHANGED) {
 		if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 			return;
 

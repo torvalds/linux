@@ -17,6 +17,7 @@
 #include <net/mac80211.h>
 #include "ieee80211_i.h"
 #include "sta_info.h"
+#include "driver-ops.h"
 
 struct rate_control_ref {
 	struct ieee80211_local *local;
@@ -72,6 +73,7 @@ static inline void rate_control_rate_update(struct ieee80211_local *local,
 	if (ref && ref->ops->rate_update)
 		ref->ops->rate_update(ref->priv, sband, ista,
 				      priv_sta, changed);
+	drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
 }
 
 static inline void *rate_control_alloc_sta(struct rate_control_ref *ref,
