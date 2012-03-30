@@ -1478,6 +1478,8 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 * here?  Before EP type is set?
 			 */
 			ep->ep.maxpacket = MAX_PACKET_SIZE;
+			
+			INIT_LIST_HEAD (&ep->queue);
 
 			/**
 			 * @yk@rk 20120329
@@ -1489,7 +1491,6 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 	        #endif
 			list_add_tail (&ep->ep.ep_list, &_pcd->gadget.ep_list);
 				
-			INIT_LIST_HEAD (&ep->queue);
 		}
 		hwcfg1 >>= 2;
 	}
@@ -1539,6 +1540,8 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 			 */
 			ep->ep.maxpacket = MAX_PACKET_SIZE;
 	
+			INIT_LIST_HEAD (&ep->queue);
+			
 			/**
 			 * @yk@rk 20120329
 			 * EP8&EP9 of rk30 are IN&OUT ep, we use ep9 as IN EP default
@@ -1549,7 +1552,6 @@ void dwc_otg_pcd_reinit(dwc_otg_pcd_t *_pcd)
 	        #endif
 			list_add_tail (&ep->ep.ep_list, &_pcd->gadget.ep_list);
 				
-			INIT_LIST_HEAD (&ep->queue);
 		}
 		hwcfg1 >>= 2;
 	}
