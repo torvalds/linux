@@ -254,11 +254,6 @@ static pgprot_t __init init_pgprot(ulong address)
 		return construct_pgprot(PAGE_KERNEL_RO, PAGE_HOME_IMMUTABLE);
 	}
 
-	/* As a performance optimization, keep the boot init stack here. */
-	if (address >= (ulong)&init_thread_union &&
-	    address < (ulong)&init_thread_union + THREAD_SIZE)
-		return construct_pgprot(PAGE_KERNEL, smp_processor_id());
-
 #ifndef __tilegx__
 #if !ATOMIC_LOCKS_FOUND_VIA_TABLE()
 	/* Force the atomic_locks[] array page to be hash-for-home. */
