@@ -57,6 +57,7 @@
 #define ACPI_SUCCESS(a)                 (!(a))
 #define ACPI_FAILURE(a)                 (a)
 
+#define ACPI_SKIP(a)                    (a == AE_CTRL_SKIP)
 #define AE_OK                           (acpi_status) 0x0000
 
 /*

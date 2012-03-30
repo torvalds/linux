@@ -77,6 +77,9 @@ EXPORT_SYMBOL(acpi_in_debugger);
 extern char line_buf[80];
 #endif				/*ENABLE_DEBUGGER */
 
+static int (*__acpi_os_prepare_sleep)(u8 sleep_state, u32 pm1a_ctrl,
+				      u32 pm1b_ctrl);
+
 static acpi_osd_handler acpi_irq_handler;
 static void *acpi_irq_context;
 static struct workqueue_struct *kacpid_wq;
@@ -1568,4 +1571,25 @@ acpi_status acpi_os_terminate(void)
 	destroy_workqueue(kacpi_hotplug_wq);
 
 	return AE_OK;
+}
+
+acpi_status acpi_os_prepare_sleep(u8 sleep_state, u32 pm1a_control,
+				  u32 pm1b_control)
+{
+	int rc = 0;
+	if (__acpi_os_prepare_sleep)
+		rc = __acpi_os_prepare_sleep(sleep_state,
+					     pm1a_control, pm1b_control);
+	if (rc < 0)
+		return AE_ERROR;
+	else if (rc > 0)
+		return AE_CTRL_SKIP;
+
+	return AE_OK;
+}
+
+void acpi_os_set_prepare_sleep(int (*func)(u8 sleep_state,
+			       u32 pm1a_ctrl, u32 pm1b_ctrl))
+{
+	__acpi_os_prepare_sleep = func;
 }
