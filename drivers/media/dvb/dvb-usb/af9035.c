@@ -489,10 +489,9 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 			af9035_af9033_config[i].spec_inv = 1;
 			break;
 		default:
-			warn("tuner ID=%20x not supported, please report!",
+			af9035_config.hw_not_supported = true;
+			warn("tuner ID=%02x not supported, please report!",
 				tmp);
-			ret = -ENODEV;
-			goto err;
 		};
 
 		/* tuner IF frequency */
@@ -534,6 +533,11 @@ err:
 static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
+
+	if (af9035_config.hw_not_supported) {
+		ret = -ENODEV;
+		goto err;
+	}
 
 	if (adap->id == 0) {
 		ret = af9035_wr_reg(adap->dev, 0x00417f,

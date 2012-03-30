@@ -22,6 +22,9 @@
 #ifndef AF9035_H
 #define AF9035_H
 
+/* prefix for dvb-usb log writings */
+#define DVB_USB_LOG_PREFIX "af9035"
+
 #include "dvb-usb.h"
 
 struct reg_val {
@@ -46,6 +49,7 @@ struct usb_req {
 
 struct config {
 	bool dual_mode;
+	bool hw_not_supported;
 };
 
 struct fw_segment {
