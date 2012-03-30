@@ -196,7 +196,7 @@ static int __devinit driver_adl_pci7230_pci_probe(struct pci_dev *dev,
 						  const struct pci_device_id
 						  *ent)
 {
-	return comedi_pci_auto_config(dev, driver_adl_pci7230.driver_name);
+	return comedi_pci_auto_config(dev, &driver_adl_pci7230);
 }
 
 static void __devexit driver_adl_pci7230_pci_remove(struct pci_dev *dev)

@@ -201,7 +201,7 @@ static int __devinit cb_pcimdda_driver_pci_probe(struct pci_dev *dev,
 						 const struct pci_device_id
 						 *ent)
 {
-	return comedi_pci_auto_config(dev, cb_pcimdda_driver.driver_name);
+	return comedi_pci_auto_config(dev, &cb_pcimdda_driver);
 }
 
 static void __devexit cb_pcimdda_driver_pci_remove(struct pci_dev *dev)

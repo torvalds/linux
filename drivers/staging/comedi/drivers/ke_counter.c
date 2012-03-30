@@ -97,7 +97,7 @@ static struct comedi_driver cnt_driver = {
 static int __devinit cnt_driver_pci_probe(struct pci_dev *dev,
 					  const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, cnt_driver.driver_name);
+	return comedi_pci_auto_config(dev, &cnt_driver);
 }
 
 static void __devexit cnt_driver_pci_remove(struct pci_dev *dev)

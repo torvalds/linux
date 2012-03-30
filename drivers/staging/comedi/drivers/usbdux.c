@@ -317,6 +317,8 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
+static struct comedi_driver driver_usbdux;	/* see below for initializer */
+
 /*
  * Stops the data acquision
  * It should be safe to call this function from any context
@@ -2324,7 +2326,7 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(usbdev, BOARDNAME);
+	comedi_usb_auto_config(usbdev, &driver_usbdux);
  out:
 	release_firmware(fw);
 }

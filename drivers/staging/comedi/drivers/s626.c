@@ -227,7 +227,7 @@ static struct dio_private *dio_private_word[]={
 static int __devinit driver_s626_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_s626.driver_name);
+	return comedi_pci_auto_config(dev, &driver_s626);
 }
 
 static void __devexit driver_s626_pci_remove(struct pci_dev *dev)

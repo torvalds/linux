@@ -874,7 +874,7 @@ static void comedi_auto_unconfig(struct device *hardware_device)
 	kfree(minor);
 }
 
-int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
+int comedi_pci_auto_config(struct pci_dev *pcidev, struct comedi_driver *driver)
 {
 	int options[2];
 
@@ -883,7 +883,7 @@ int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name)
 	/*  pci slot */
 	options[1] = PCI_SLOT(pcidev->devfn);
 
-	return comedi_auto_config(&pcidev->dev, board_name,
+	return comedi_auto_config(&pcidev->dev, driver->driver_name,
 				  options, ARRAY_SIZE(options));
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_config);
@@ -894,10 +894,11 @@ void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 
-int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name)
+int comedi_usb_auto_config(struct usb_device *usbdev,
+			   struct comedi_driver *driver)
 {
 	BUG_ON(usbdev == NULL);
-	return comedi_auto_config(&usbdev->dev, board_name, NULL, 0);
+	return comedi_auto_config(&usbdev->dev, driver->driver_name, NULL, 0);
 }
 EXPORT_SYMBOL_GPL(comedi_usb_auto_config);
 

@@ -2355,7 +2355,7 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 static int __devinit rtd520Driver_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, rtd520Driver.driver_name);
+	return comedi_pci_auto_config(dev, &rtd520Driver);
 }
 
 static void __devexit rtd520Driver_pci_remove(struct pci_dev *dev)

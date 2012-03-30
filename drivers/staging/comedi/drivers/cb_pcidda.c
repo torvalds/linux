@@ -850,7 +850,7 @@ static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
 static int __devinit driver_cb_pcidda_pci_probe(struct pci_dev *dev,
 						const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_cb_pcidda.driver_name);
+	return comedi_pci_auto_config(dev, &driver_cb_pcidda);
 }
 
 static void __devexit driver_cb_pcidda_pci_remove(struct pci_dev *dev)
