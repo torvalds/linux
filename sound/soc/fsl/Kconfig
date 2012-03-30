@@ -18,7 +18,6 @@ config SND_MPC52xx_DMA
 
 config SND_SOC_POWERPC_DMA
 	tristate
-	depends on FSL_SOC
 
 config SND_SOC_MPC8610_HPCD
 	tristate "ALSA SoC support for the Freescale MPC8610 HPCD board"
