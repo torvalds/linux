@@ -16,6 +16,7 @@
 #include <linux/sched.h>
 #include <linux/err.h>
 #include <asm/asm-offsets.h>	/* For NR_syscalls */
+#include <asm/unistd.h>
 
 extern const unsigned long sys_call_table[];
 
@@ -26,13 +27,13 @@ extern const unsigned long sys_call_table[];
  */
 static inline int syscall_get_nr(struct task_struct *task, struct pt_regs *regs)
 {
-	return regs->orig_ax;
+	return regs->orig_ax & __SYSCALL_MASK;
 }
 
 static inline void syscall_rollback(struct task_struct *task,
 				    struct pt_regs *regs)
 {
-	regs->ax = regs->orig_ax;
+	regs->ax = regs->orig_ax & __SYSCALL_MASK;
 }
 
 static inline long syscall_get_error(struct task_struct *task,
