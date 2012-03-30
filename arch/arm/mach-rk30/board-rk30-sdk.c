@@ -974,7 +974,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.platform_data = &akm8975_info,
 	},
 #endif
-#if defined (CONFIG_GYRO_L3G4200D1)
+#if defined (CONFIG_GYRO_L3G4200D)
 	{
 		.type          = "l3g4200d_gryo",
 		.addr          = 0x69,
