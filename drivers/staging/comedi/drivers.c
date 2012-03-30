@@ -856,37 +856,40 @@ comedi_auto_config_helper(struct device *hardware_device,
 	return ret;
 }
 
+static int comedi_auto_config_wrapper(struct comedi_device *dev, void *context)
+{
+	struct comedi_devconfig *it = context;
+	struct comedi_driver *driv = dev->driver;
+
+	if (driv->num_names) {
+		/* look for generic board entry matching driver name, which
+		 * has already been copied to it->board_name */
+		dev->board_ptr = comedi_recognize(driv, it->board_name);
+		if (dev->board_ptr == NULL) {
+			printk(KERN_WARNING
+			       "comedi: auto config failed to find board entry"
+			       " '%s' for driver '%s'\n", it->board_name,
+			       driv->driver_name);
+			comedi_report_boards(driv);
+			return -EINVAL;
+		}
+	}
+	return driv->attach(dev, it);
+}
+
 static int comedi_auto_config(struct device *hardware_device,
 			      struct comedi_driver *driver, const int *options,
 			      unsigned num_options)
 {
 	struct comedi_devconfig it;
-	int minor;
-	struct comedi_device_file_info *dev_file_info;
-	int retval;
-
-	if (!comedi_autoconfig)
-		return 0;
-
-	minor = comedi_alloc_board_minor(hardware_device);
-	if (minor < 0)
-		return minor;
-
-	dev_file_info = comedi_get_device_file_info(minor);
 
 	memset(&it, 0, sizeof(it));
 	strncpy(it.board_name, driver->driver_name, COMEDI_NAMELEN);
 	it.board_name[COMEDI_NAMELEN - 1] = '\0';
 	BUG_ON(num_options > COMEDI_NDEVCONFOPTS);
 	memcpy(it.options, options, num_options * sizeof(int));
-
-	mutex_lock(&dev_file_info->device->mutex);
-	retval = comedi_device_attach(dev_file_info->device, &it);
-	mutex_unlock(&dev_file_info->device->mutex);
-
-	if (retval < 0)
-		comedi_free_board_minor(minor);
-	return retval;
+	return comedi_auto_config_helper(hardware_device, driver,
+					 comedi_auto_config_wrapper, &it);
 }
 
 static void comedi_auto_unconfig(struct device *hardware_device)
