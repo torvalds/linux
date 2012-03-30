@@ -1658,15 +1658,16 @@ static int acpi_video_bus_add(struct acpi_device *device)
 	error = acpi_video_bus_get_devices(video, device);
 	if (error)
 		goto err_free_video;
-	error = acpi_video_bus_start_devices(video);
-	if (error)
-		goto err_put_video;
 
 	video->input = input = input_allocate_device();
 	if (!input) {
 		error = -ENOMEM;
-		goto err_stop_video;
+		goto err_put_video;
 	}
+
+	error = acpi_video_bus_start_devices(video);
+	if (error)
+		goto err_free_input_dev;
 
 	snprintf(video->phys, sizeof(video->phys),
 		"%s/video/input0", acpi_device_hid(video->device));
@@ -1688,7 +1689,7 @@ static int acpi_video_bus_add(struct acpi_device *device)
 
 	error = input_register_device(input);
 	if (error)
-		goto err_free_input_dev;
+		goto err_stop_video;
 
 	printk(KERN_INFO PREFIX "%s [%s] (multi-head: %s  rom: %s  post: %s)\n",
 	       ACPI_VIDEO_DEVICE_NAME, acpi_device_bid(device),
@@ -1706,10 +1707,10 @@ static int acpi_video_bus_add(struct acpi_device *device)
 
  err_unregister_input_dev:
 	input_unregister_device(input);
- err_free_input_dev:
-	input_free_device(input);
  err_stop_video:
 	acpi_video_bus_stop_devices(video);
+ err_free_input_dev:
+	input_free_device(input);
  err_put_video:
 	acpi_video_bus_put_devices(video);
 	kfree(video->attached_array);
