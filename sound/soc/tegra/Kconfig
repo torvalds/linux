@@ -4,9 +4,18 @@ config SND_SOC_TEGRA
 	help
 	  Say Y or M here if you want support for SoC audio on Tegra.
 
+config SND_SOC_TEGRA_DAS
+	tristate "Tegra Digital Audio Switch driver"
+	depends on SND_SOC_TEGRA
+	help
+	  Say Y or M if you want to add support for the Tegra DAS module.
+	  You will also need to select the individual machine drivers to
+	  support below.
+
 config SND_SOC_TEGRA_I2S
 	tristate
 	depends on SND_SOC_TEGRA
+	select SND_SOC_TEGRA_DAS
 	help
 	  Say Y or M if you want to add support for codecs attached to the
 	  Tegra I2S interface. You will also need to select the individual
