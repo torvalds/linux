@@ -29,8 +29,6 @@
 #include "radeon_asic.h"
 #include "atom.h"
 
-#define AUDIO_TIMER_INTERVALL 100 /* 1/10 sekund should be enough */
-
 /*
  * check if the chipset is supported
  */
@@ -106,20 +104,12 @@ uint8_t r600_audio_category_code(struct radeon_device *rdev)
 }
 
 /*
- * schedule next audio update event
- */
-void r600_audio_schedule_polling(struct radeon_device *rdev)
-{
-	mod_timer(&rdev->audio_timer,
-		jiffies + msecs_to_jiffies(AUDIO_TIMER_INTERVALL));
-}
-
-/*
  * update all hdmi interfaces with current audio parameters
  */
-static void r600_audio_update_hdmi(unsigned long param)
+void r600_audio_update_hdmi(struct work_struct *work)
 {
-	struct radeon_device *rdev = (struct radeon_device *)param;
+	struct radeon_device *rdev = container_of(work, struct radeon_device,
+						  audio_work);
 	struct drm_device *dev = rdev->ddev;
 
 	int channels = r600_audio_channels(rdev);
@@ -127,9 +117,8 @@ static void r600_audio_update_hdmi(unsigned long param)
 	int bps = r600_audio_bits_per_sample(rdev);
 	uint8_t status_bits = r600_audio_status_bits(rdev);
 	uint8_t category_code = r600_audio_category_code(rdev);
-
 	struct drm_encoder *encoder;
-	int changes = 0, still_going = 0;
+	int changes = 0;
 
 	changes |= channels != rdev->audio_channels;
 	changes |= rate != rdev->audio_rate;
@@ -146,14 +135,9 @@ static void r600_audio_update_hdmi(unsigned long param)
 	}
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-		still_going |= radeon_encoder->audio_polling_active;
 		if (changes || r600_hdmi_buffer_status_changed(encoder))
 			r600_hdmi_update_audio_settings(encoder);
 	}
-
-	if (still_going)
-		r600_audio_schedule_polling(rdev);
 }
 
 /*
@@ -177,7 +161,7 @@ static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
 }
 
 /*
- * initialize the audio vars and register the update timer
+ * initialize the audio vars
  */
 int r600_audio_init(struct radeon_device *rdev)
 {
@@ -192,42 +176,7 @@ int r600_audio_init(struct radeon_device *rdev)
 	rdev->audio_status_bits = 0;
 	rdev->audio_category_code = 0;
 
-	setup_timer(
-		&rdev->audio_timer,
-		r600_audio_update_hdmi,
-		(unsigned long)rdev);
-
 	return 0;
-}
-
-/*
- * enable the polling timer, to check for status changes
- */
-void r600_audio_enable_polling(struct drm_encoder *encoder)
-{
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-
-	DRM_DEBUG("r600_audio_enable_polling: %d\n",
-		radeon_encoder->audio_polling_active);
-	if (radeon_encoder->audio_polling_active)
-		return;
-
-	radeon_encoder->audio_polling_active = 1;
-	if (rdev->audio_enabled)
-		mod_timer(&rdev->audio_timer, jiffies + 1);
-}
-
-/*
- * disable the polling timer, so we get no more status updates
- */
-void r600_audio_disable_polling(struct drm_encoder *encoder)
-{
-	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	DRM_DEBUG("r600_audio_disable_polling: %d\n",
-		radeon_encoder->audio_polling_active);
-	radeon_encoder->audio_polling_active = 0;
 }
 
 /*
@@ -296,8 +245,6 @@ void r600_audio_fini(struct radeon_device *rdev)
 {
 	if (!rdev->audio_enabled)
 		return;
-
-	del_timer(&rdev->audio_timer);
 
 	r600_audio_engine_enable(rdev, false);
 }

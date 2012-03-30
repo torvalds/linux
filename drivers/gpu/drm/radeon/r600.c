@@ -2968,6 +2968,15 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 			WREG32(DC_HPD5_INT_CONTROL, tmp);
 			tmp = RREG32(DC_HPD6_INT_CONTROL) & DC_HPDx_INT_POLARITY;
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET0) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET0, tmp);
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET1) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET1, tmp);
+		} else {
+			tmp = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(HDMI0_AUDIO_PACKET_CONTROL, tmp);
+			tmp = RREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			WREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL, tmp);
 		}
 	} else {
 		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
@@ -2978,6 +2987,10 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, tmp);
 		tmp = RREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
 		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, tmp);
+		tmp = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+		WREG32(HDMI0_AUDIO_PACKET_CONTROL, tmp);
+		tmp = RREG32(HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+		WREG32(HDMI1_AUDIO_PACKET_CONTROL, tmp);
 	}
 }
 
@@ -3074,7 +3087,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 mode_int = 0;
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 	u32 grbm_int_cntl = 0;
-	u32 hdmi1, hdmi2;
+	u32 hdmi0, hdmi1;
 	u32 d1grph = 0, d2grph = 0;
 
 	if (!rdev->irq.installed) {
@@ -3089,9 +3102,7 @@ int r600_irq_set(struct radeon_device *rdev)
 		return 0;
 	}
 
-	hdmi1 = RREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 	if (ASIC_IS_DCE3(rdev)) {
-		hdmi2 = RREG32(R600_HDMI_BLOCK3 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 		hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd2 = RREG32(DC_HPD2_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd3 = RREG32(DC_HPD3_INT_CONTROL) & ~DC_HPDx_INT_EN;
@@ -3099,12 +3110,18 @@ int r600_irq_set(struct radeon_device *rdev)
 		if (ASIC_IS_DCE32(rdev)) {
 			hpd5 = RREG32(DC_HPD5_INT_CONTROL) & ~DC_HPDx_INT_EN;
 			hpd6 = RREG32(DC_HPD6_INT_CONTROL) & ~DC_HPDx_INT_EN;
+			hdmi0 = RREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET0) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+			hdmi1 = RREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET1) & ~AFMT_AZ_FORMAT_WTRIG_MASK;
+		} else {
+			hdmi0 = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+			hdmi1 = RREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 		}
 	} else {
-		hdmi2 = RREG32(R600_HDMI_BLOCK2 + R600_HDMI_CNTL) & ~R600_HDMI_INT_EN;
 		hpd1 = RREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd2 = RREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL) & ~DC_HPDx_INT_EN;
 		hpd3 = RREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL) & ~DC_HPDx_INT_EN;
+		hdmi0 = RREG32(HDMI0_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
+		hdmi1 = RREG32(HDMI1_AUDIO_PACKET_CONTROL) & ~HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
 
 	if (rdev->irq.sw_int[RADEON_RING_TYPE_GFX_INDEX]) {
@@ -3146,13 +3163,13 @@ int r600_irq_set(struct radeon_device *rdev)
 		DRM_DEBUG("r600_irq_set: hpd 6\n");
 		hpd6 |= DC_HPDx_INT_EN;
 	}
-	if (rdev->irq.hdmi[0]) {
-		DRM_DEBUG("r600_irq_set: hdmi 1\n");
-		hdmi1 |= R600_HDMI_INT_EN;
+	if (rdev->irq.afmt[0]) {
+		DRM_DEBUG("r600_irq_set: hdmi 0\n");
+		hdmi0 |= HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
-	if (rdev->irq.hdmi[1]) {
-		DRM_DEBUG("r600_irq_set: hdmi 2\n");
-		hdmi2 |= R600_HDMI_INT_EN;
+	if (rdev->irq.afmt[1]) {
+		DRM_DEBUG("r600_irq_set: hdmi 0\n");
+		hdmi1 |= HDMI0_AZ_FORMAT_WTRIG_MASK;
 	}
 	if (rdev->irq.gui_idle) {
 		DRM_DEBUG("gui idle\n");
@@ -3164,9 +3181,7 @@ int r600_irq_set(struct radeon_device *rdev)
 	WREG32(D1GRPH_INTERRUPT_CONTROL, d1grph);
 	WREG32(D2GRPH_INTERRUPT_CONTROL, d2grph);
 	WREG32(GRBM_INT_CNTL, grbm_int_cntl);
-	WREG32(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, hdmi1);
 	if (ASIC_IS_DCE3(rdev)) {
-		WREG32(R600_HDMI_BLOCK3 + R600_HDMI_CNTL, hdmi2);
 		WREG32(DC_HPD1_INT_CONTROL, hpd1);
 		WREG32(DC_HPD2_INT_CONTROL, hpd2);
 		WREG32(DC_HPD3_INT_CONTROL, hpd3);
@@ -3174,12 +3189,18 @@ int r600_irq_set(struct radeon_device *rdev)
 		if (ASIC_IS_DCE32(rdev)) {
 			WREG32(DC_HPD5_INT_CONTROL, hpd5);
 			WREG32(DC_HPD6_INT_CONTROL, hpd6);
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET0, hdmi0);
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET1, hdmi1);
+		} else {
+			WREG32(HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
+			WREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL, hdmi1);
 		}
 	} else {
-		WREG32(R600_HDMI_BLOCK2 + R600_HDMI_CNTL, hdmi2);
 		WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, hpd1);
 		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, hpd2);
 		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, hpd3);
+		WREG32(HDMI0_AUDIO_PACKET_CONTROL, hdmi0);
+		WREG32(HDMI1_AUDIO_PACKET_CONTROL, hdmi1);
 	}
 
 	return 0;
@@ -3193,10 +3214,19 @@ static void r600_irq_ack(struct radeon_device *rdev)
 		rdev->irq.stat_regs.r600.disp_int = RREG32(DCE3_DISP_INTERRUPT_STATUS);
 		rdev->irq.stat_regs.r600.disp_int_cont = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE);
 		rdev->irq.stat_regs.r600.disp_int_cont2 = RREG32(DCE3_DISP_INTERRUPT_STATUS_CONTINUE2);
+		if (ASIC_IS_DCE32(rdev)) {
+			rdev->irq.stat_regs.r600.hdmi0_status = RREG32(AFMT_STATUS + HDMI_OFFSET0);
+			rdev->irq.stat_regs.r600.hdmi1_status = RREG32(AFMT_STATUS + HDMI_OFFSET1);
+		} else {
+			rdev->irq.stat_regs.r600.hdmi0_status = RREG32(HDMI0_STATUS);
+			rdev->irq.stat_regs.r600.hdmi1_status = RREG32(DCE3_HDMI1_STATUS);
+		}
 	} else {
 		rdev->irq.stat_regs.r600.disp_int = RREG32(DISP_INTERRUPT_STATUS);
 		rdev->irq.stat_regs.r600.disp_int_cont = RREG32(DISP_INTERRUPT_STATUS_CONTINUE);
 		rdev->irq.stat_regs.r600.disp_int_cont2 = 0;
+		rdev->irq.stat_regs.r600.hdmi0_status = RREG32(HDMI0_STATUS);
+		rdev->irq.stat_regs.r600.hdmi1_status = RREG32(HDMI1_STATUS);
 	}
 	rdev->irq.stat_regs.r600.d1grph_int = RREG32(D1GRPH_INTERRUPT_STATUS);
 	rdev->irq.stat_regs.r600.d2grph_int = RREG32(D2GRPH_INTERRUPT_STATUS);
@@ -3262,17 +3292,32 @@ static void r600_irq_ack(struct radeon_device *rdev)
 			tmp |= DC_HPDx_INT_ACK;
 			WREG32(DC_HPD6_INT_CONTROL, tmp);
 		}
-	}
-	if (RREG32(R600_HDMI_BLOCK1 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
-		WREG32_P(R600_HDMI_BLOCK1 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
-	}
-	if (ASIC_IS_DCE3(rdev)) {
-		if (RREG32(R600_HDMI_BLOCK3 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
-			WREG32_P(R600_HDMI_BLOCK3 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
+		if (rdev->irq.stat_regs.r600.hdmi0_status & AFMT_AZ_FORMAT_WTRIG) {
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET0);
+			tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET0, tmp);
+		}
+		if (rdev->irq.stat_regs.r600.hdmi1_status & AFMT_AZ_FORMAT_WTRIG) {
+			tmp = RREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET1);
+			tmp |= AFMT_AZ_FORMAT_WTRIG_ACK;
+			WREG32(AFMT_AUDIO_PACKET_CONTROL + HDMI_OFFSET1, tmp);
 		}
 	} else {
-		if (RREG32(R600_HDMI_BLOCK2 + R600_HDMI_STATUS) & R600_HDMI_INT_PENDING) {
-			WREG32_P(R600_HDMI_BLOCK2 + R600_HDMI_CNTL, R600_HDMI_INT_ACK, ~R600_HDMI_INT_ACK);
+		if (rdev->irq.stat_regs.r600.hdmi0_status & HDMI0_AZ_FORMAT_WTRIG) {
+			tmp = RREG32(HDMI0_AUDIO_PACKET_CONTROL);
+			tmp |= HDMI0_AZ_FORMAT_WTRIG_ACK;
+			WREG32(HDMI0_AUDIO_PACKET_CONTROL, tmp);
+		}
+		if (rdev->irq.stat_regs.r600.hdmi1_status & HDMI0_AZ_FORMAT_WTRIG) {
+			if (ASIC_IS_DCE3(rdev)) {
+				tmp = RREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL);
+				tmp |= HDMI0_AZ_FORMAT_WTRIG_ACK;
+				WREG32(DCE3_HDMI1_AUDIO_PACKET_CONTROL, tmp);
+			} else {
+				tmp = RREG32(HDMI1_AUDIO_PACKET_CONTROL);
+				tmp |= HDMI0_AZ_FORMAT_WTRIG_ACK;
+				WREG32(HDMI1_AUDIO_PACKET_CONTROL, tmp);
+			}
 		}
 	}
 }
@@ -3348,6 +3393,7 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 ring_index;
 	unsigned long flags;
 	bool queue_hotplug = false;
+	bool queue_hdmi = false;
 
 	if (!rdev->ih.enabled || rdev->shutdown)
 		return IRQ_NONE;
@@ -3483,9 +3529,26 @@ restart_ih:
 				break;
 			}
 			break;
-		case 21: /* HDMI */
-			DRM_DEBUG("IH: HDMI: 0x%x\n", src_data);
-			r600_audio_schedule_polling(rdev);
+		case 21: /* hdmi */
+			switch (src_data) {
+			case 4:
+				if (rdev->irq.stat_regs.r600.hdmi0_status & HDMI0_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.r600.hdmi0_status &= ~HDMI0_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI0\n");
+				}
+				break;
+			case 5:
+				if (rdev->irq.stat_regs.r600.hdmi1_status & HDMI0_AZ_FORMAT_WTRIG) {
+					rdev->irq.stat_regs.r600.hdmi1_status &= ~HDMI0_AZ_FORMAT_WTRIG;
+					queue_hdmi = true;
+					DRM_DEBUG("IH: HDMI1\n");
+				}
+				break;
+			default:
+				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				break;
+			}
 			break;
 		case 176: /* CP_INT in ring buffer */
 		case 177: /* CP_INT in IB1 */
@@ -3517,6 +3580,8 @@ restart_ih:
 		goto restart_ih;
 	if (queue_hotplug)
 		schedule_work(&rdev->hotplug_work);
+	if (queue_hdmi)
+		schedule_work(&rdev->audio_work);
 	rdev->ih.rptr = rptr;
 	WREG32(IH_RB_RPTR, rdev->ih.rptr);
 	spin_unlock_irqrestore(&rdev->ih.lock, flags);

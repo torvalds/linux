@@ -560,6 +560,7 @@ struct radeon_unpin_work {
 
 struct r500_irq_stat_regs {
 	u32 disp_int;
+	u32 hdmi0_status;
 };
 
 struct r600_irq_stat_regs {
@@ -568,6 +569,8 @@ struct r600_irq_stat_regs {
 	u32 disp_int_cont2;
 	u32 d1grph_int;
 	u32 d2grph_int;
+	u32 hdmi0_status;
+	u32 hdmi1_status;
 };
 
 struct evergreen_irq_stat_regs {
@@ -583,6 +586,12 @@ struct evergreen_irq_stat_regs {
 	u32 d4grph_int;
 	u32 d5grph_int;
 	u32 d6grph_int;
+	u32 afmt_status1;
+	u32 afmt_status2;
+	u32 afmt_status3;
+	u32 afmt_status4;
+	u32 afmt_status5;
+	u32 afmt_status6;
 };
 
 union radeon_irq_stat_regs {
@@ -593,7 +602,7 @@ union radeon_irq_stat_regs {
 
 #define RADEON_MAX_HPD_PINS 6
 #define RADEON_MAX_CRTCS 6
-#define RADEON_MAX_HDMI_BLOCKS 2
+#define RADEON_MAX_AFMT_BLOCKS 6
 
 struct radeon_irq {
 	bool		installed;
@@ -605,7 +614,7 @@ struct radeon_irq {
 	bool            gui_idle;
 	bool            gui_idle_acked;
 	wait_queue_head_t	idle_queue;
-	bool		hdmi[RADEON_MAX_HDMI_BLOCKS];
+	bool		afmt[RADEON_MAX_AFMT_BLOCKS];
 	spinlock_t sw_lock;
 	int sw_refcount[RADEON_NUM_RINGS];
 	union radeon_irq_stat_regs stat_regs;
@@ -1546,13 +1555,13 @@ struct radeon_device {
 	struct r600_ih ih; /* r6/700 interrupt ring */
 	struct si_rlc rlc;
 	struct work_struct hotplug_work;
+	struct work_struct audio_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
 	struct mutex vram_mutex;
 
 	/* audio stuff */
 	bool			audio_enabled;
-	struct timer_list	audio_timer;
 	int			audio_channels;
 	int			audio_rate;
 	int			audio_bits_per_sample;
@@ -1828,6 +1837,8 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 		     struct radeon_vm *vm,
 		     struct radeon_bo *bo);
 
+/* audio */
+void r600_audio_update_hdmi(struct work_struct *work);
 
 /*
  * R600 vram scratch functions

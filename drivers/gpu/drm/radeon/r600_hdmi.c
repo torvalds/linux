@@ -548,19 +548,10 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 		}
 	}
 
-	if (rdev->irq.installed
-	    && rdev->family != CHIP_RS600
-	    && rdev->family != CHIP_RS690
-	    && rdev->family != CHIP_RS740
-	    && !ASIC_IS_DCE4(rdev)) {
+	if (rdev->irq.installed) {
 		/* if irq is available use it */
-		rdev->irq.hdmi[offset == R600_HDMI_BLOCK1 ? 0 : 1] = true;
+		rdev->irq.afmt[offset == R600_HDMI_BLOCK1 ? 0 : 1] = true;
 		radeon_irq_set(rdev);
-
-		r600_audio_disable_polling(encoder);
-	} else {
-		/* if not fallback to polling */
-		r600_audio_enable_polling(encoder);
 	}
 
 	DRM_DEBUG("Enabling HDMI interface @ 0x%04X for encoder 0x%x\n",
@@ -590,11 +581,9 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 		offset, radeon_encoder->encoder_id);
 
 	/* disable irq */
-	rdev->irq.hdmi[offset == R600_HDMI_BLOCK1 ? 0 : 1] = false;
+	rdev->irq.afmt[offset == R600_HDMI_BLOCK1 ? 0 : 1] = false;
 	radeon_irq_set(rdev);
 
-	/* disable polling */
-	r600_audio_disable_polling(encoder);
 
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
