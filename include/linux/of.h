@@ -58,9 +58,6 @@ struct device_node {
 	struct	kref kref;
 	unsigned long _flags;
 	void	*data;
-#if defined(CONFIG_EEH)
-	struct eeh_dev *edev;
-#endif
 #if defined(CONFIG_SPARC)
 	char	*path_component_name;
 	unsigned int unique_id;
@@ -74,13 +71,6 @@ struct of_phandle_args {
 	int args_count;
 	uint32_t args[MAX_PHANDLE_ARGS];
 };
-
-#if defined(CONFIG_EEH)
-static inline struct eeh_dev *of_node_to_eeh_dev(struct device_node *dn)
-{
-	return dn->edev;
-}
-#endif
 
 #ifdef CONFIG_OF_DYNAMIC
 extern struct device_node *of_node_get(struct device_node *node);
@@ -360,6 +350,22 @@ static inline int of_machine_is_compatible(const char *compat)
 #define of_match_ptr(_ptr)	NULL
 #define of_match_node(_matches, _node)	NULL
 #endif /* CONFIG_OF */
+
+/**
+ * of_property_read_bool - Findfrom a property
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ *
+ * Search for a property in a device node.
+ * Returns true if the property exist false otherwise.
+ */
+static inline bool of_property_read_bool(const struct device_node *np,
+					 const char *propname)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	return prop ? true : false;
+}
 
 static inline int of_property_read_u32(const struct device_node *np,
 				       const char *propname,

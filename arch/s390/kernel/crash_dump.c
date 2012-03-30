@@ -14,6 +14,7 @@
 #include <linux/bootmem.h>
 #include <linux/elf.h>
 #include <asm/ipl.h>
+#include <asm/os_info.h>
 
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))
@@ -51,7 +52,7 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 /*
  * Copy memory from old kernel
  */
-static int copy_from_oldmem(void *dest, void *src, size_t count)
+int copy_from_oldmem(void *dest, void *src, size_t count)
 {
 	unsigned long copied = 0;
 	int rc;
@@ -224,28 +225,44 @@ static void *nt_prpsinfo(void *ptr)
 }
 
 /*
- * Initialize vmcoreinfo note (new kernel)
+ * Get vmcoreinfo using lowcore->vmcore_info (new kernel)
  */
-static void *nt_vmcoreinfo(void *ptr)
+static void *get_vmcoreinfo_old(unsigned long *size)
 {
 	char nt_name[11], *vmcoreinfo;
 	Elf64_Nhdr note;
 	void *addr;
 
 	if (copy_from_oldmem(&addr, &S390_lowcore.vmcore_info, sizeof(addr)))
-		return ptr;
+		return NULL;
 	memset(nt_name, 0, sizeof(nt_name));
 	if (copy_from_oldmem(&note, addr, sizeof(note)))
-		return ptr;
+		return NULL;
 	if (copy_from_oldmem(nt_name, addr + sizeof(note), sizeof(nt_name) - 1))
-		return ptr;
+		return NULL;
 	if (strcmp(nt_name, "VMCOREINFO") != 0)
-		return ptr;
-	vmcoreinfo = kzalloc_panic(note.n_descsz + 1);
+		return NULL;
+	vmcoreinfo = kzalloc_panic(note.n_descsz);
 	if (copy_from_oldmem(vmcoreinfo, addr + 24, note.n_descsz))
+		return NULL;
+	*size = note.n_descsz;
+	return vmcoreinfo;
+}
+
+/*
+ * Initialize vmcoreinfo note (new kernel)
+ */
+static void *nt_vmcoreinfo(void *ptr)
+{
+	unsigned long size;
+	void *vmcoreinfo;
+
+	vmcoreinfo = os_info_old_entry(OS_INFO_VMCOREINFO, &size);
+	if (!vmcoreinfo)
+		vmcoreinfo = get_vmcoreinfo_old(&size);
+	if (!vmcoreinfo)
 		return ptr;
-	vmcoreinfo[note.n_descsz + 1] = 0;
-	return nt_init(ptr, 0, vmcoreinfo, note.n_descsz, "VMCOREINFO");
+	return nt_init(ptr, 0, vmcoreinfo, size, "VMCOREINFO");
 }
 
 /*

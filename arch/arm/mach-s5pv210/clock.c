@@ -340,6 +340,11 @@ static struct clk init_clocks_off[] = {
 		.enable		= s5pv210_clk_ip0_ctrl,
 		.ctrlbit	= (1 << 26),
 	}, {
+		.name		= "jpeg",
+		.parent		= &clk_hclk_dsys.clk,
+		.enable		= s5pv210_clk_ip0_ctrl,
+		.ctrlbit	= (1 << 28),
+	}, {
 		.name		= "mfc",
 		.devname	= "s5p-mfc",
 		.parent		= &clk_pclk_psys.clk,

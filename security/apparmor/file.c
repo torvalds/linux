@@ -215,6 +215,8 @@ static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
 	/* change_profile wasn't determined by ownership in old mapping */
 	if (ACCEPT_TABLE(dfa)[state] & 0x80000000)
 		perms.allow |= AA_MAY_CHANGE_PROFILE;
+	if (ACCEPT_TABLE(dfa)[state] & 0x40000000)
+		perms.allow |= AA_MAY_ONEXEC;
 
 	return perms;
 }

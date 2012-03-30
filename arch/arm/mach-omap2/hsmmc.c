@@ -293,8 +293,8 @@ static inline void omap_hsmmc_mux(struct omap_mmc_platform_data *mmc_controller,
 	}
 }
 
-static int omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
-				 struct omap_mmc_platform_data *mmc)
+static int __init omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
+					struct omap_mmc_platform_data *mmc)
 {
 	char *hc_name;
 
@@ -316,6 +316,7 @@ static int omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 	mmc->slots[0].pm_caps = c->pm_caps;
 	mmc->slots[0].internal_clock = !c->ext_clock;
 	mmc->dma_mask = 0xffffffff;
+	mmc->max_freq = c->max_freq;
 	if (cpu_is_omap44xx())
 		mmc->reg_offset = OMAP4_MMC_REG_OFFSET;
 	else
@@ -429,66 +430,131 @@ static int omap_hsmmc_pdata_init(struct omap2_hsmmc_info *c,
 }
 
 static int omap_hsmmc_done;
+
+void omap_hsmmc_late_init(struct omap2_hsmmc_info *c)
+{
+	struct platform_device *pdev;
+	struct omap_mmc_platform_data *mmc_pdata;
+	int res;
+
+	if (omap_hsmmc_done != 1)
+		return;
+
+	omap_hsmmc_done++;
+
+	for (; c->mmc; c++) {
+		if (!c->deferred)
+			continue;
+
+		pdev = c->pdev;
+		if (!pdev)
+			continue;
+
+		mmc_pdata = pdev->dev.platform_data;
+		if (!mmc_pdata)
+			continue;
+
+		mmc_pdata->slots[0].switch_pin = c->gpio_cd;
+		mmc_pdata->slots[0].gpio_wp = c->gpio_wp;
+
+		res = omap_device_register(pdev);
+		if (res)
+			pr_err("Could not late init MMC %s\n",
+			       c->name);
+	}
+}
+
 #define MAX_OMAP_MMC_HWMOD_NAME_LEN		16
 
-void omap_init_hsmmc(struct omap2_hsmmc_info *hsmmcinfo, int ctrl_nr)
+static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
+					int ctrl_nr)
 {
 	struct omap_hwmod *oh;
+	struct omap_hwmod *ohs[1];
+	struct omap_device *od;
 	struct platform_device *pdev;
 	char oh_name[MAX_OMAP_MMC_HWMOD_NAME_LEN];
 	struct omap_mmc_platform_data *mmc_data;
 	struct omap_mmc_dev_attr *mmc_dev_attr;
 	char *name;
-	int l;
+	int res;
 
 	mmc_data = kzalloc(sizeof(struct omap_mmc_platform_data), GFP_KERNEL);
 	if (!mmc_data) {
 		pr_err("Cannot allocate memory for mmc device!\n");
-		goto done;
+		return;
 	}
 
-	if (omap_hsmmc_pdata_init(hsmmcinfo, mmc_data) < 0) {
-		pr_err("%s fails!\n", __func__);
-		goto done;
-	}
+	res = omap_hsmmc_pdata_init(hsmmcinfo, mmc_data);
+	if (res < 0)
+		goto free_mmc;
+
 	omap_hsmmc_mux(mmc_data, (ctrl_nr - 1));
 
 	name = "omap_hsmmc";
-
-	l = snprintf(oh_name, MAX_OMAP_MMC_HWMOD_NAME_LEN,
+	res = snprintf(oh_name, MAX_OMAP_MMC_HWMOD_NAME_LEN,
 		     "mmc%d", ctrl_nr);
-	WARN(l >= MAX_OMAP_MMC_HWMOD_NAME_LEN,
+	WARN(res >= MAX_OMAP_MMC_HWMOD_NAME_LEN,
 	     "String buffer overflow in MMC%d device setup\n", ctrl_nr);
+
 	oh = omap_hwmod_lookup(oh_name);
 	if (!oh) {
 		pr_err("Could not look up %s\n", oh_name);
-		kfree(mmc_data->slots[0].name);
-		goto done;
+		goto free_name;
 	}
-
+	ohs[0] = oh;
 	if (oh->dev_attr != NULL) {
 		mmc_dev_attr = oh->dev_attr;
 		mmc_data->controller_flags = mmc_dev_attr->flags;
 	}
 
-	pdev = omap_device_build(name, ctrl_nr - 1, oh, mmc_data,
-		sizeof(struct omap_mmc_platform_data), NULL, 0, false);
-	if (IS_ERR(pdev)) {
-		WARN(1, "Can't build omap_device for %s:%s.\n", name, oh->name);
-		kfree(mmc_data->slots[0].name);
-		goto done;
+	pdev = platform_device_alloc(name, ctrl_nr - 1);
+	if (!pdev) {
+		pr_err("Could not allocate pdev for %s\n", name);
+		goto free_name;
 	}
-	/*
-	 * return device handle to board setup code
-	 * required to populate for regulator framework structure
-	 */
-	hsmmcinfo->dev = &pdev->dev;
+	dev_set_name(&pdev->dev, "%s.%d", pdev->name, pdev->id);
 
-done:
+	od = omap_device_alloc(pdev, ohs, 1, NULL, 0);
+	if (!od) {
+		pr_err("Could not allocate od for %s\n", name);
+		goto put_pdev;
+	}
+
+	res = platform_device_add_data(pdev, mmc_data,
+			      sizeof(struct omap_mmc_platform_data));
+	if (res) {
+		pr_err("Could not add pdata for %s\n", name);
+		goto put_pdev;
+	}
+
+	hsmmcinfo->pdev = pdev;
+
+	if (hsmmcinfo->deferred)
+		goto free_mmc;
+
+	res = omap_device_register(pdev);
+	if (res) {
+		pr_err("Could not register od for %s\n", name);
+		goto free_od;
+	}
+
+	goto free_mmc;
+
+free_od:
+	omap_device_delete(od);
+
+put_pdev:
+	platform_device_put(pdev);
+
+free_name:
+	kfree(mmc_data->slots[0].name);
+
+free_mmc:
 	kfree(mmc_data);
 }
 
-void omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
+void __init omap_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
 	u32 reg;
 
@@ -521,7 +587,7 @@ void omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 	}
 
 	for (; controllers->mmc; controllers++)
-		omap_init_hsmmc(controllers, controllers->mmc);
+		omap_hsmmc_init_one(controllers, controllers->mmc);
 
 }
 

@@ -18,7 +18,6 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>

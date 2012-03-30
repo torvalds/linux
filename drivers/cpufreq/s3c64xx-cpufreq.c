@@ -217,13 +217,6 @@ static int s3c64xx_cpufreq_driver_init(struct cpufreq_policy *policy)
 	} else {
 		s3c64xx_cpufreq_config_regulator();
 	}
-
-	vddint = regulator_get(NULL, "vddint");
-	if (IS_ERR(vddint)) {
-		ret = PTR_ERR(vddint);
-		pr_err("Failed to obtain VDDINT: %d\n", ret);
-		vddint = NULL;
-	}
 #endif
 
 	freq = s3c64xx_freq_table;

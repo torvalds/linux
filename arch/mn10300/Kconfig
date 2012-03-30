@@ -5,6 +5,7 @@ config MN10300
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_ARCH_KGDB
+	select HAVE_NMI_WATCHDOG if MN10300_WD_TIMER
 
 config AM33_2
 	def_bool n

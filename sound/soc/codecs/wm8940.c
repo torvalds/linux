@@ -717,7 +717,7 @@ static int wm8940_probe(struct snd_soc_codec *codec)
 			return ret;
 	}
 
-	ret = snd_soc_add_controls(codec, wm8940_snd_controls,
+	ret = snd_soc_add_codec_controls(codec, wm8940_snd_controls,
 			     ARRAY_SIZE(wm8940_snd_controls));
 	if (ret)
 		return ret;
@@ -743,14 +743,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8940 = {
 	.volatile_register = wm8940_volatile_register,
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8940_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8940_priv *wm8940;
 	int ret;
 
-	wm8940 = kzalloc(sizeof(struct wm8940_priv), GFP_KERNEL);
+	wm8940 = devm_kzalloc(&i2c->dev, sizeof(struct wm8940_priv),
+			      GFP_KERNEL);
 	if (wm8940 == NULL)
 		return -ENOMEM;
 
@@ -759,15 +759,14 @@ static __devinit int wm8940_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8940, &wm8940_dai, 1);
-	if (ret < 0)
-		kfree(wm8940);
+
 	return ret;
 }
 
 static __devexit int wm8940_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
@@ -786,27 +785,22 @@ static struct i2c_driver wm8940_i2c_driver = {
 	.remove =   __devexit_p(wm8940_i2c_remove),
 	.id_table = wm8940_i2c_id,
 };
-#endif
 
 static int __init wm8940_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8940_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register wm8940 I2C driver: %d\n",
 		       ret);
 	}
-#endif
 	return ret;
 }
 module_init(wm8940_modinit);
 
 static void __exit wm8940_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8940_i2c_driver);
-#endif
 }
 module_exit(wm8940_exit);
 

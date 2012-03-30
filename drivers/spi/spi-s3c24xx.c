@@ -24,10 +24,10 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
+#include <linux/spi/s3c24xx.h>
 #include <linux/module.h>
 
 #include <plat/regs-spi.h>
-#include <mach/spi.h>
 
 #include <plat/fiq.h>
 #include <asm/fiq.h>

@@ -28,6 +28,8 @@
 #include <linux/module.h>
 #include <linux/notifier.h>
 #include <linux/mfd/intel_msic.h>
+#include <linux/gpio.h>
+#include <linux/i2c/tc35876x.h>
 
 #include <asm/setup.h>
 #include <asm/mpspec_def.h>
@@ -675,6 +677,19 @@ static void *msic_thermal_platform_data(void *info)
 	return msic_generic_platform_data(info, INTEL_MSIC_BLOCK_THERMAL);
 }
 
+/* tc35876x DSI-LVDS bridge chip and panel platform data */
+static void *tc35876x_platform_data(void *data)
+{
+       static struct tc35876x_platform_data pdata;
+
+       /* gpio pins set to -1 will not be used by the driver */
+       pdata.gpio_bridge_reset = get_gpio_by_name("LCMB_RXEN");
+       pdata.gpio_panel_bl_en = get_gpio_by_name("6S6P_BL_EN");
+       pdata.gpio_panel_vadd = get_gpio_by_name("EN_VREG_LCD_V3P3");
+
+       return &pdata;
+}
+
 static const struct devs_id __initconst device_ids[] = {
 	{"bma023", SFI_DEV_TYPE_I2C, 1, &no_platform_data},
 	{"pmic_gpio", SFI_DEV_TYPE_SPI, 1, &pmic_gpio_platform_data},
@@ -687,6 +702,7 @@ static const struct devs_id __initconst device_ids[] = {
 	{"i2c_accel", SFI_DEV_TYPE_I2C, 0, &lis331dl_platform_data},
 	{"pmic_audio", SFI_DEV_TYPE_IPC, 1, &no_platform_data},
 	{"mpu3050", SFI_DEV_TYPE_I2C, 1, &mpu3050_platform_data},
+	{"i2c_disp_brig", SFI_DEV_TYPE_I2C, 0, &tc35876x_platform_data},
 
 	/* MSIC subdevices */
 	{"msic_battery", SFI_DEV_TYPE_IPC, 1, &msic_battery_platform_data},

@@ -142,4 +142,24 @@ config OMAP_IOMMU_DEBUG
 
          Say N unless you know you need this.
 
+config TEGRA_IOMMU_GART
+	bool "Tegra GART IOMMU Support"
+	depends on ARCH_TEGRA_2x_SOC
+	select IOMMU_API
+	help
+	  Enables support for remapping discontiguous physical memory
+	  shared with the operating system into contiguous I/O virtual
+	  space through the GART (Graphics Address Relocation Table)
+	  hardware included on Tegra SoCs.
+
+config TEGRA_IOMMU_SMMU
+	bool "Tegra SMMU IOMMU Support"
+	depends on ARCH_TEGRA_3x_SOC
+	select IOMMU_API
+	help
+	  Enables support for remapping discontiguous physical memory
+	  shared with the operating system into contiguous I/O virtual
+	  space through the SMMU (System Memory Management Unit)
+	  hardware included on Tegra SoCs.
+
 endif # IOMMU_SUPPORT

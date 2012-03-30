@@ -91,4 +91,8 @@ config OF_PCI_IRQ
 	help
 	  OpenFirmware PCI IRQ routing helpers
 
+config OF_MTD
+	depends on MTD
+	def_bool y
+
 endmenu # OF

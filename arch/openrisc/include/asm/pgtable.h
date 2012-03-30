@@ -455,7 +455,6 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
  * No page table caches to initialise
  */
 #define pgtable_cache_init()		do { } while (0)
-#define io_remap_page_range		remap_page_range
 
 typedef pte_t *pte_addr_t;
 

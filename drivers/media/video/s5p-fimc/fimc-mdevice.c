@@ -750,7 +750,7 @@ static int __devinit fimc_md_probe(struct platform_device *pdev)
 	struct fimc_md *fmd;
 	int ret;
 
-	fmd = kzalloc(sizeof(struct fimc_md), GFP_KERNEL);
+	fmd = devm_kzalloc(&pdev->dev, sizeof(*fmd), GFP_KERNEL);
 	if (!fmd)
 		return -ENOMEM;
 
@@ -771,7 +771,7 @@ static int __devinit fimc_md_probe(struct platform_device *pdev)
 	ret = v4l2_device_register(&pdev->dev, &fmd->v4l2_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register v4l2_device: %d\n", ret);
-		goto err1;
+		return ret;
 	}
 	ret = media_device_register(&fmd->media_dev);
 	if (ret < 0) {
@@ -813,8 +813,6 @@ err3:
 	fimc_md_unregister_entities(fmd);
 err2:
 	v4l2_device_unregister(&fmd->v4l2_dev);
-err1:
-	kfree(fmd);
 	return ret;
 }
 
@@ -828,7 +826,6 @@ static int __devexit fimc_md_remove(struct platform_device *pdev)
 	fimc_md_unregister_entities(fmd);
 	media_device_unregister(&fmd->media_dev);
 	fimc_md_put_clocks(fmd);
-	kfree(fmd);
 	return 0;
 }
 

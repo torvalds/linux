@@ -308,7 +308,7 @@ int mvs_scan_finished(struct Scsi_Host *shost, unsigned long time)
 	if (mvs_prv->scan_finished == 0)
 		return 0;
 
-	scsi_flush_work(shost);
+	sas_drain_work(sha);
 	return 1;
 }
 
@@ -893,9 +893,6 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 
 	mvi = ((struct mvs_device *)task->dev->lldd_dev)->mvi_info;
 
-	if ((dev->dev_type == SATA_DEV) && (dev->sata_dev.ap != NULL))
-		spin_unlock_irq(dev->sata_dev.ap->lock);
-
 	spin_lock_irqsave(&mvi->lock, flags);
 	rc = mvs_task_prep(task, mvi, is_tmf, tmf, &pass);
 	if (rc)
@@ -905,9 +902,6 @@ static int mvs_task_exec(struct sas_task *task, const int num, gfp_t gfp_flags,
 			MVS_CHIP_DISP->start_delivery(mvi, (mvi->tx_prod - 1) &
 				(MVS_CHIP_SLOT_SZ - 1));
 	spin_unlock_irqrestore(&mvi->lock, flags);
-
-	if ((dev->dev_type == SATA_DEV) && (dev->sata_dev.ap != NULL))
-		spin_lock_irq(dev->sata_dev.ap->lock);
 
 	return rc;
 }
@@ -1480,10 +1474,11 @@ static int mvs_debug_issue_ssp_tmf(struct domain_device *dev,
 static int mvs_debug_I_T_nexus_reset(struct domain_device *dev)
 {
 	int rc;
-	struct sas_phy *phy = sas_find_local_phy(dev);
+	struct sas_phy *phy = sas_get_local_phy(dev);
 	int reset_type = (dev->dev_type == SATA_DEV ||
 			(dev->tproto & SAS_PROTOCOL_STP)) ? 0 : 1;
 	rc = sas_phy_reset(phy, reset_type);
+	sas_put_local_phy(phy);
 	msleep(2000);
 	return rc;
 }

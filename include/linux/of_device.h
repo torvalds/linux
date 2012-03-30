@@ -5,9 +5,10 @@
 #include <linux/of_platform.h> /* temporary until merge */
 
 #ifdef CONFIG_OF_DEVICE
-#include <linux/device.h>
 #include <linux/of.h>
 #include <linux/mod_devicetable.h>
+
+struct device;
 
 extern const struct of_device_id *of_match_device(
 	const struct of_device_id *matches, const struct device *dev);

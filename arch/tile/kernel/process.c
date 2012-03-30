@@ -27,16 +27,17 @@
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/signal.h>
-#include <asm/system.h>
 #include <asm/stack.h>
 #include <asm/homecache.h>
 #include <asm/syscalls.h>
 #include <asm/traps.h>
+#include <asm/setup.h>
 #ifdef CONFIG_HARDWALL
 #include <asm/hardwall.h>
 #endif
 #include <arch/chip.h>
 #include <arch/abi.h>
+#include <arch/sim_def.h>
 
 
 /*

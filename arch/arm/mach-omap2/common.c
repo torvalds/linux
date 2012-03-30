@@ -17,12 +17,13 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include "common.h"
+#include <plat/hardware.h>
 #include <plat/board.h>
 #include <plat/mux.h>
-
 #include <plat/clock.h>
 
+#include "iomap.h"
+#include "common.h"
 #include "sdrc.h"
 #include "control.h"
 

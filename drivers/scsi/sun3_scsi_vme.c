@@ -25,7 +25,6 @@
 #include <linux/blkdev.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <asm/sun3ints.h>
 #include <asm/dvma.h>

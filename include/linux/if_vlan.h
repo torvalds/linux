@@ -17,6 +17,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
+#include <linux/bug.h>
 
 #define VLAN_HLEN	4		/* The additional bytes required by VLAN
 					 * (in addition to the Ethernet header)

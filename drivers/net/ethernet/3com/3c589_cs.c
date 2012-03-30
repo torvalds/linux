@@ -50,7 +50,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 /* To minimize the size of the driver source I only define operating
    constants if they are used several times.  You'll need the manual

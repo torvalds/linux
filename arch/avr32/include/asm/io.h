@@ -1,6 +1,7 @@
 #ifndef __ASM_AVR32_IO_H
 #define __ASM_AVR32_IO_H
 
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>

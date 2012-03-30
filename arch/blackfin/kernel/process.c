@@ -19,6 +19,7 @@
 #include <asm/blackfin.h>
 #include <asm/fixed_code.h>
 #include <asm/mem_map.h>
+#include <asm/irq.h>
 
 asmlinkage void ret_from_fork(void);
 

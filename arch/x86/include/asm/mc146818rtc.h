@@ -5,7 +5,6 @@
 #define _ASM_X86_MC146818RTC_H
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <linux/mc146818rtc.h>
 

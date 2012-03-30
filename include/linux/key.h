@@ -277,6 +277,8 @@ static inline key_serial_t key_serial(const struct key *key)
 	return key ? key->serial : 0;
 }
 
+extern void key_set_timeout(struct key *, unsigned);
+
 /**
  * key_is_instantiated - Determine if a key has been positively instantiated
  * @key: The key to check.

@@ -95,7 +95,6 @@ static char lancestr[] = "LANCE";
 #include <linux/of_device.h>
 #include <linux/gfp.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/pgtable.h>

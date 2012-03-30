@@ -45,7 +45,7 @@
  *   - incremented when a device id maps a data server already in the cache.
  *   - decremented when deviceid is removed from the cache.
  */
-DEFINE_SPINLOCK(nfs4_ds_cache_lock);
+static DEFINE_SPINLOCK(nfs4_ds_cache_lock);
 static LIST_HEAD(nfs4_data_server_cache);
 
 /* Debug routines */
@@ -108,58 +108,40 @@ same_sockaddr(struct sockaddr *addr1, struct sockaddr *addr2)
 	return false;
 }
 
-/*
- * Lookup DS by addresses.  The first matching address returns true.
- * nfs4_ds_cache_lock is held
- */
-static struct nfs4_pnfs_ds *
-_data_server_lookup_locked(struct list_head *dsaddrs)
+static bool
+_same_data_server_addrs_locked(const struct list_head *dsaddrs1,
+			       const struct list_head *dsaddrs2)
 {
-	struct nfs4_pnfs_ds *ds;
 	struct nfs4_pnfs_ds_addr *da1, *da2;
 
-	list_for_each_entry(da1, dsaddrs, da_node) {
-		list_for_each_entry(ds, &nfs4_data_server_cache, ds_node) {
-			list_for_each_entry(da2, &ds->ds_addrs, da_node) {
-				if (same_sockaddr(
-					(struct sockaddr *)&da1->da_addr,
-					(struct sockaddr *)&da2->da_addr))
-					return ds;
-			}
-		}
+	/* step through both lists, comparing as we go */
+	for (da1 = list_first_entry(dsaddrs1, typeof(*da1), da_node),
+	     da2 = list_first_entry(dsaddrs2, typeof(*da2), da_node);
+	     da1 != NULL && da2 != NULL;
+	     da1 = list_entry(da1->da_node.next, typeof(*da1), da_node),
+	     da2 = list_entry(da2->da_node.next, typeof(*da2), da_node)) {
+		if (!same_sockaddr((struct sockaddr *)&da1->da_addr,
+				   (struct sockaddr *)&da2->da_addr))
+			return false;
 	}
-	return NULL;
+	if (da1 == NULL && da2 == NULL)
+		return true;
+
+	return false;
 }
 
 /*
- * Compare two lists of addresses.
+ * Lookup DS by addresses.  nfs4_ds_cache_lock is held
  */
-static bool
-_data_server_match_all_addrs_locked(struct list_head *dsaddrs1,
-				    struct list_head *dsaddrs2)
+static struct nfs4_pnfs_ds *
+_data_server_lookup_locked(const struct list_head *dsaddrs)
 {
-	struct nfs4_pnfs_ds_addr *da1, *da2;
-	size_t count1 = 0,
-	       count2 = 0;
+	struct nfs4_pnfs_ds *ds;
 
-	list_for_each_entry(da1, dsaddrs1, da_node)
-		count1++;
-
-	list_for_each_entry(da2, dsaddrs2, da_node) {
-		bool found = false;
-		count2++;
-		list_for_each_entry(da1, dsaddrs1, da_node) {
-			if (same_sockaddr((struct sockaddr *)&da1->da_addr,
-				(struct sockaddr *)&da2->da_addr)) {
-				found = true;
-				break;
-			}
-		}
-		if (!found)
-			return false;
-	}
-
-	return (count1 == count2);
+	list_for_each_entry(ds, &nfs4_data_server_cache, ds_node)
+		if (_same_data_server_addrs_locked(&ds->ds_addrs, dsaddrs))
+			return ds;
+	return NULL;
 }
 
 /*
@@ -356,11 +338,6 @@ nfs4_pnfs_ds_add(struct list_head *dsaddrs, gfp_t gfp_flags)
 		dprintk("%s add new data server %s\n", __func__,
 			ds->ds_remotestr);
 	} else {
-		if (!_data_server_match_all_addrs_locked(&tmp_ds->ds_addrs,
-							 dsaddrs)) {
-			dprintk("%s:  multipath address mismatch: %s != %s",
-				__func__, tmp_ds->ds_remotestr, remotestr);
-		}
 		kfree(remotestr);
 		kfree(ds);
 		atomic_inc(&tmp_ds->ds_count);
@@ -378,7 +355,7 @@ out:
  * Currently only supports ipv4, ipv6 and one multi-path address.
  */
 static struct nfs4_pnfs_ds_addr *
-decode_ds_addr(struct xdr_stream *streamp, gfp_t gfp_flags)
+decode_ds_addr(struct net *net, struct xdr_stream *streamp, gfp_t gfp_flags)
 {
 	struct nfs4_pnfs_ds_addr *da = NULL;
 	char *buf, *portstr;
@@ -457,7 +434,7 @@ decode_ds_addr(struct xdr_stream *streamp, gfp_t gfp_flags)
 
 	INIT_LIST_HEAD(&da->da_node);
 
-	if (!rpc_pton(buf, portstr-buf, (struct sockaddr *)&da->da_addr,
+	if (!rpc_pton(net, buf, portstr-buf, (struct sockaddr *)&da->da_addr,
 		      sizeof(da->da_addr))) {
 		dprintk("%s: error parsing address %s\n", __func__, buf);
 		goto out_free_da;
@@ -554,7 +531,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	cnt = be32_to_cpup(p);
 	dprintk("%s stripe count  %d\n", __func__, cnt);
 	if (cnt > NFS4_PNFS_MAX_STRIPE_CNT) {
-		printk(KERN_WARNING "%s: stripe count %d greater than "
+		printk(KERN_WARNING "NFS: %s: stripe count %d greater than "
 		       "supported maximum %d\n", __func__,
 			cnt, NFS4_PNFS_MAX_STRIPE_CNT);
 		goto out_err_free_scratch;
@@ -585,7 +562,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 	num = be32_to_cpup(p);
 	dprintk("%s ds_num %u\n", __func__, num);
 	if (num > NFS4_PNFS_MAX_MULTI_CNT) {
-		printk(KERN_WARNING "%s: multipath count %d greater than "
+		printk(KERN_WARNING "NFS: %s: multipath count %d greater than "
 			"supported maximum %d\n", __func__,
 			num, NFS4_PNFS_MAX_MULTI_CNT);
 		goto out_err_free_stripe_indices;
@@ -593,7 +570,7 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 	/* validate stripe indices are all < num */
 	if (max_stripe_index >= num) {
-		printk(KERN_WARNING "%s: stripe index %u >= num ds %u\n",
+		printk(KERN_WARNING "NFS: %s: stripe index %u >= num ds %u\n",
 			__func__, max_stripe_index, num);
 		goto out_err_free_stripe_indices;
 	}
@@ -625,7 +602,8 @@ decode_device(struct inode *ino, struct pnfs_device *pdev, gfp_t gfp_flags)
 
 		mp_count = be32_to_cpup(p); /* multipath count */
 		for (j = 0; j < mp_count; j++) {
-			da = decode_ds_addr(&stream, gfp_flags);
+			da = decode_ds_addr(NFS_SERVER(ino)->nfs_client->net,
+					    &stream, gfp_flags);
 			if (da)
 				list_add_tail(&da->da_node, &dsaddrs);
 		}
@@ -686,7 +664,7 @@ decode_and_add_device(struct inode *inode, struct pnfs_device *dev, gfp_t gfp_fl
 
 	new = decode_device(inode, dev, gfp_flags);
 	if (!new) {
-		printk(KERN_WARNING "%s: Could not decode or add device\n",
+		printk(KERN_WARNING "NFS: %s: Could not decode or add device\n",
 			__func__);
 		return NULL;
 	}
@@ -835,7 +813,7 @@ nfs4_fl_prepare_ds(struct pnfs_layout_segment *lseg, u32 ds_idx)
 	struct nfs4_pnfs_ds *ds = dsaddr->ds_list[ds_idx];
 
 	if (ds == NULL) {
-		printk(KERN_ERR "%s: No data server for offset index %d\n",
+		printk(KERN_ERR "NFS: %s: No data server for offset index %d\n",
 			__func__, ds_idx);
 		return NULL;
 	}

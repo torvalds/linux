@@ -32,7 +32,6 @@
 #include <linux/nmi.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>

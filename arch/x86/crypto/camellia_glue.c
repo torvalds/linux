@@ -1925,7 +1925,7 @@ static int force;
 module_param(force, int, 0);
 MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
 
-int __init init(void)
+static int __init init(void)
 {
 	if (!force && is_blacklisted_cpu()) {
 		printk(KERN_INFO
@@ -1938,7 +1938,7 @@ int __init init(void)
 	return crypto_register_algs(camellia_algs, ARRAY_SIZE(camellia_algs));
 }
 
-void __exit fini(void)
+static void __exit fini(void)
 {
 	crypto_unregister_algs(camellia_algs, ARRAY_SIZE(camellia_algs));
 }

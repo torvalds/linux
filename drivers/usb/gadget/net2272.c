@@ -42,7 +42,6 @@
 #include <linux/usb/gadget.h>
 
 #include <asm/byteorder.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include "net2272.h"

@@ -14,7 +14,6 @@
  */
 #include <linux/errno.h>
 #include <asm/cache.h>
-#include <asm/system.h>
 #include <asm/addrspace.h>
 #include <asm/machvec.h>
 #include <asm/pgtable.h>

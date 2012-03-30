@@ -43,6 +43,15 @@ struct ucontext_ia32 {
 	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
 };
 
+struct ucontext_x32 {
+	unsigned int	  uc_flags;
+	unsigned int 	  uc_link;
+	stack_ia32_t	  uc_stack;
+	unsigned int	  uc__pad0;     /* needed for alignment */
+	struct sigcontext uc_mcontext;  /* the 64-bit sigcontext type */
+	compat_sigset_t	  uc_sigmask;	/* mask last for extensibility */
+};
+
 /* This matches struct stat64 in glibc2.2, hence the absolutely
  * insane amounts of padding around dev_t's.
  */
@@ -115,6 +124,15 @@ typedef struct compat_siginfo {
 			compat_clock_t _utime;
 			compat_clock_t _stime;
 		} _sigchld;
+
+		/* SIGCHLD (x32 version) */
+		struct {
+			unsigned int _pid;	/* which child */
+			unsigned int _uid;	/* sender's uid */
+			int _status;		/* exit code */
+			compat_s64 _utime;
+			compat_s64 _stime;
+		} _sigchld_x32;
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
 		struct {

@@ -13,6 +13,7 @@
 #include <linux/fs.h>
 #include <linux/log2.h>
 #include <linux/mount.h>
+#include <linux/magic.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/uio.h>
 #include <linux/highmem.h>

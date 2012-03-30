@@ -37,7 +37,6 @@
 #include <linux/interrupt.h>
 #include <net/sock.h>
 
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
 

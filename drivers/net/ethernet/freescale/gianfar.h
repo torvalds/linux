@@ -517,7 +517,7 @@ extern const char gfar_driver_version[];
 #define RXFCB_PERR_MASK		0x000c
 #define RXFCB_PERR_BADL3	0x0008
 
-#define GFAR_INT_NAME_MAX	IFNAMSIZ + 4
+#define GFAR_INT_NAME_MAX	(IFNAMSIZ + 6)	/* '_g#_xx' */
 
 struct txbd8
 {

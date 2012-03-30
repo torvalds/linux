@@ -856,18 +856,7 @@ static struct spi_driver ld9040_driver = {
 	.resume		= ld9040_resume,
 };
 
-static int __init ld9040_init(void)
-{
-	return spi_register_driver(&ld9040_driver);
-}
-
-static void __exit ld9040_exit(void)
-{
-	spi_unregister_driver(&ld9040_driver);
-}
-
-module_init(ld9040_init);
-module_exit(ld9040_exit);
+module_spi_driver(ld9040_driver);
 
 MODULE_AUTHOR("Donghwa Lee <dh09.lee@samsung.com>");
 MODULE_DESCRIPTION("ld9040 LCD Driver");

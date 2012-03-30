@@ -129,4 +129,13 @@ extern unsigned long get_wchan(struct task_struct *p);
 
 extern const struct seq_operations cpuinfo_op;
 
+/* Reset the board */
+#define HARD_RESET_NOW()
+
+extern unsigned int c6x_core_freq;
+
+
+extern void (*c6x_restart)(void);
+extern void (*c6x_halt)(void);
+
 #endif /* ASM_C6X_PROCESSOR_H */

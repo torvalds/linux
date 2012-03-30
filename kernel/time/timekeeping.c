@@ -184,18 +184,6 @@ static void timekeeping_update(bool clearntp)
 }
 
 
-void timekeeping_leap_insert(int leapsecond)
-{
-	unsigned long flags;
-
-	write_seqlock_irqsave(&timekeeper.lock, flags);
-	timekeeper.xtime.tv_sec += leapsecond;
-	timekeeper.wall_to_monotonic.tv_sec -= leapsecond;
-	timekeeping_update(false);
-	write_sequnlock_irqrestore(&timekeeper.lock, flags);
-
-}
-
 /**
  * timekeeping_forward_now - update clock to the current time
  *
@@ -448,8 +436,11 @@ EXPORT_SYMBOL(timekeeping_inject_offset);
 static int change_clocksource(void *data)
 {
 	struct clocksource *new, *old;
+	unsigned long flags;
 
 	new = (struct clocksource *) data;
+
+	write_seqlock_irqsave(&timekeeper.lock, flags);
 
 	timekeeping_forward_now();
 	if (!new->enable || new->enable(new) == 0) {
@@ -458,6 +449,10 @@ static int change_clocksource(void *data)
 		if (old->disable)
 			old->disable(old);
 	}
+	timekeeping_update(true);
+
+	write_sequnlock_irqrestore(&timekeeper.lock, flags);
+
 	return 0;
 }
 
@@ -827,7 +822,7 @@ static void timekeeping_adjust(s64 offset)
 	int adj;
 
 	/*
-	 * The point of this is to check if the error is greater then half
+	 * The point of this is to check if the error is greater than half
 	 * an interval.
 	 *
 	 * First we shift it down from NTP_SHIFT to clocksource->shifted nsecs.
@@ -835,7 +830,7 @@ static void timekeeping_adjust(s64 offset)
 	 * Note we subtract one in the shift, so that error is really error*2.
 	 * This "saves" dividing(shifting) interval twice, but keeps the
 	 * (error > interval) comparison as still measuring if error is
-	 * larger then half an interval.
+	 * larger than half an interval.
 	 *
 	 * Note: It does not "save" on aggravation when reading the code.
 	 */
@@ -843,7 +838,7 @@ static void timekeeping_adjust(s64 offset)
 	if (error > interval) {
 		/*
 		 * We now divide error by 4(via shift), which checks if
-		 * the error is greater then twice the interval.
+		 * the error is greater than twice the interval.
 		 * If it is greater, we need a bigadjust, if its smaller,
 		 * we can adjust by 1.
 		 */
@@ -874,13 +869,15 @@ static void timekeeping_adjust(s64 offset)
 	} else /* No adjustment needed */
 		return;
 
-	WARN_ONCE(timekeeper.clock->maxadj &&
-			(timekeeper.mult + adj > timekeeper.clock->mult +
-						timekeeper.clock->maxadj),
-			"Adjusting %s more then 11%% (%ld vs %ld)\n",
+	if (unlikely(timekeeper.clock->maxadj &&
+			(timekeeper.mult + adj >
+			timekeeper.clock->mult + timekeeper.clock->maxadj))) {
+		printk_once(KERN_WARNING
+			"Adjusting %s more than 11%% (%ld vs %ld)\n",
 			timekeeper.clock->name, (long)timekeeper.mult + adj,
 			(long)timekeeper.clock->mult +
 				timekeeper.clock->maxadj);
+	}
 	/*
 	 * So the following can be confusing.
 	 *
@@ -952,7 +949,7 @@ static cycle_t logarithmic_accumulation(cycle_t offset, int shift)
 	u64 nsecps = (u64)NSEC_PER_SEC << timekeeper.shift;
 	u64 raw_nsecs;
 
-	/* If the offset is smaller then a shifted interval, do nothing */
+	/* If the offset is smaller than a shifted interval, do nothing */
 	if (offset < timekeeper.cycle_interval<<shift)
 		return offset;
 
@@ -962,9 +959,11 @@ static cycle_t logarithmic_accumulation(cycle_t offset, int shift)
 
 	timekeeper.xtime_nsec += timekeeper.xtime_interval << shift;
 	while (timekeeper.xtime_nsec >= nsecps) {
+		int leap;
 		timekeeper.xtime_nsec -= nsecps;
 		timekeeper.xtime.tv_sec++;
-		second_overflow();
+		leap = second_overflow(timekeeper.xtime.tv_sec);
+		timekeeper.xtime.tv_sec += leap;
 	}
 
 	/* Accumulate raw time */
@@ -1018,13 +1017,13 @@ static void update_wall_time(void)
 	 * With NO_HZ we may have to accumulate many cycle_intervals
 	 * (think "ticks") worth of time at once. To do this efficiently,
 	 * we calculate the largest doubling multiple of cycle_intervals
-	 * that is smaller then the offset. We then accumulate that
+	 * that is smaller than the offset.  We then accumulate that
 	 * chunk in one go, and then try to consume the next smaller
 	 * doubled multiple.
 	 */
 	shift = ilog2(offset) - ilog2(timekeeper.cycle_interval);
 	shift = max(0, shift);
-	/* Bound shift to one less then what overflows tick_length */
+	/* Bound shift to one less than what overflows tick_length */
 	maxshift = (64 - (ilog2(ntp_tick_length())+1)) - 1;
 	shift = min(shift, maxshift);
 	while (offset >= timekeeper.cycle_interval) {
@@ -1072,12 +1071,14 @@ static void update_wall_time(void)
 
 	/*
 	 * Finally, make sure that after the rounding
-	 * xtime.tv_nsec isn't larger then NSEC_PER_SEC
+	 * xtime.tv_nsec isn't larger than NSEC_PER_SEC
 	 */
 	if (unlikely(timekeeper.xtime.tv_nsec >= NSEC_PER_SEC)) {
+		int leap;
 		timekeeper.xtime.tv_nsec -= NSEC_PER_SEC;
 		timekeeper.xtime.tv_sec++;
-		second_overflow();
+		leap = second_overflow(timekeeper.xtime.tv_sec);
+		timekeeper.xtime.tv_sec += leap;
 	}
 
 	timekeeping_update(false);
@@ -1260,6 +1261,8 @@ ktime_t ktime_get_monotonic_offset(void)
 
 	return timespec_to_ktime(wtom);
 }
+EXPORT_SYMBOL_GPL(ktime_get_monotonic_offset);
+
 
 /**
  * xtime_update() - advances the timekeeping infrastructure

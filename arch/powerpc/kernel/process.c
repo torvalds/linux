@@ -41,14 +41,16 @@
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
+#include <asm/runlatch.h>
 #include <asm/syscalls.h>
+#include <asm/switch_to.h>
+#include <asm/debug.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #endif

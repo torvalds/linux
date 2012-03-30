@@ -15,7 +15,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
@@ -161,7 +161,7 @@ static char *getname_flags(const char __user *filename, int flags, int *empty)
 
 char *getname(const char __user * filename)
 {
-	return getname_flags(filename, 0, 0);
+	return getname_flags(filename, 0, NULL);
 }
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -1408,7 +1408,7 @@ static inline int can_lookup(struct inode *inode)
  */
 static inline long count_masked_bytes(unsigned long mask)
 {
-	return mask*0x0001020304050608 >> 56;
+	return mask*0x0001020304050608ul >> 56;
 }
 
 static inline unsigned int fold_hash(unsigned long hash)
@@ -1439,10 +1439,10 @@ unsigned int full_name_hash(const unsigned char *name, unsigned int len)
 
 	for (;;) {
 		a = *(unsigned long *)name;
-		hash *= 9;
 		if (len < sizeof(unsigned long))
 			break;
 		hash += a;
+		hash *= 9;
 		name += sizeof(unsigned long);
 		len -= sizeof(unsigned long);
 		if (!len)
@@ -1455,15 +1455,10 @@ done:
 }
 EXPORT_SYMBOL(full_name_hash);
 
-#ifdef CONFIG_64BIT
-#define ONEBYTES	0x0101010101010101ul
-#define SLASHBYTES	0x2f2f2f2f2f2f2f2ful
-#define HIGHBITS	0x8080808080808080ul
-#else
-#define ONEBYTES	0x01010101ul
-#define SLASHBYTES	0x2f2f2f2ful
-#define HIGHBITS	0x80808080ul
-#endif
+#define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
+#define ONEBYTES	REPEAT_BYTE(0x01)
+#define SLASHBYTES	REPEAT_BYTE('/')
+#define HIGHBITS	REPEAT_BYTE(0x80)
 
 /* Return the high bit set in the first byte that is a zero */
 static inline unsigned long has_zero(unsigned long a)
@@ -1977,7 +1972,7 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 int user_path_at(int dfd, const char __user *name, unsigned flags,
 		 struct path *path)
 {
-	return user_path_at_empty(dfd, name, flags, path, 0);
+	return user_path_at_empty(dfd, name, flags, path, NULL);
 }
 
 static int user_path_parent(int dfd, const char __user *path,

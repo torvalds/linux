@@ -9,6 +9,7 @@ config ARM
 	select SYS_SUPPORTS_APM_EMULATION
 	select GENERIC_ATOMIC64 if (CPU_V6 || !CPU_32v6K || !AEABI)
 	select HAVE_OPROFILE if (HAVE_PERF_EVENTS)
+	select HAVE_ARCH_JUMP_LABEL if !XIP_KERNEL
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if !XIP_KERNEL
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
@@ -21,6 +22,7 @@ config ARM
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_XZ
 	select HAVE_IRQ_WORK
 	select HAVE_PERF_EVENTS
 	select PERF_USE_VMALLOC
@@ -28,10 +30,10 @@ config ARM
 	select HAVE_HW_BREAKPOINT if (PERF_EVENTS && (CPU_V6 || CPU_V6K || CPU_V7))
 	select HAVE_C_RECORDMCOUNT
 	select HAVE_GENERIC_HARDIRQS
-	select HAVE_SPARSE_IRQ
 	select GENERIC_IRQ_SHOW
 	select CPU_PM if (SUSPEND || CPU_IDLE)
 	select GENERIC_PCI_IOMAP
+	select HAVE_BPF_JIT if NET
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -50,9 +52,6 @@ config MIGHT_HAVE_PCI
 	bool
 
 config SYS_SUPPORTS_APM_EMULATION
-	bool
-
-config HAVE_SCHED_CLOCK
 	bool
 
 config GENERIC_GPIO
@@ -180,10 +179,16 @@ config ZONE_DMA
 config NEED_DMA_MAP_STATE
        def_bool y
 
+config ARCH_HAS_DMA_SET_COHERENT_MASK
+	bool
+
 config GENERIC_ISA_DMA
 	bool
 
 config FIQ
+	bool
+
+config NEED_RET_TO_USER
 	bool
 
 config ARCH_MTD_XIP
@@ -213,6 +218,13 @@ config ARM_PATCH_PHYS_VIRT
 	  Only disable this option if you know that you do not require
 	  this feature (eg, building a kernel for a single machine) and
 	  you need to shrink the kernel to the minimal size.
+
+config NEED_MACH_IO_H
+	bool
+	help
+	  Select this when mach/io.h is required to provide special
+	  definitions for this platform.  The need for mach/io.h should
+	  be avoided when possible.
 
 config NEED_MACH_MEMORY_H
 	bool
@@ -265,7 +277,9 @@ config ARCH_INTEGRATOR
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_FPGA_IRQ
+	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for ARM's Integrator platform.
 
@@ -312,6 +326,7 @@ config ARCH_VEXPRESS
 	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
 	select ICST
+	select NO_IOPORT
 	select PLAT_VERSATILE
 	select PLAT_VERSATILE_CLCD
 	help
@@ -322,9 +337,10 @@ config ARCH_AT91
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
+	select IRQ_DOMAIN
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
-	  AT91SAM9 and AT91CAP9 processors.
+	  AT91SAM9 processors.
 
 config ARCH_BCMRING
 	bool "Broadcom BCMRING"
@@ -350,6 +366,7 @@ config ARCH_HIGHBANK
 	select GENERIC_CLOCKEVENTS
 	select HAVE_ARM_SCU
 	select HAVE_SMP
+	select SPARSE_IRQ
 	select USE_OF
 	help
 	  Support for the Calxeda Highbank SoC based boards.
@@ -400,6 +417,7 @@ config ARCH_EBSA110
 	select ISA
 	select NO_IOPORT
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	help
 	  This is an evaluation board for the StrongARM processor available
@@ -426,6 +444,7 @@ config ARCH_FOOTBRIDGE
 	select FOOTBRIDGE
 	select GENERIC_CLOCKEVENTS
 	select HAVE_IDE
+	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for systems based on the DC21285 companion chip
@@ -438,7 +457,6 @@ config ARCH_MXC
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
-	select HAVE_SCHED_CLOCK
 	select MULTI_IRQ_HANDLER
 	help
 	  Support for Freescale MXC/iMX-based family of processors
@@ -478,7 +496,9 @@ config ARCH_IOP13XX
 	select PCI
 	select ARCH_SUPPORTS_MSI
 	select VMSPLIT_1G
+	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
+	select NEED_RET_TO_USER
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -486,6 +506,8 @@ config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
 	select CPU_XSCALE
+	select NEED_MACH_IO_H
+	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
@@ -497,6 +519,8 @@ config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
 	select CPU_XSCALE
+	select NEED_MACH_IO_H
+	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
@@ -509,6 +533,7 @@ config ARCH_IXP23XX
 	select CPU_XSC3
  	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP23xx (XScale) family of processors.
@@ -519,6 +544,7 @@ config ARCH_IXP2000
 	select CPU_XSCALE
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
+	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	help
 	  Support for Intel's IXP2400/2800 (XScale) family of processors.
@@ -526,12 +552,13 @@ config ARCH_IXP2000
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
+	select ARCH_HAS_DMA_SET_COHERENT_MASK
 	select CLKSRC_MMIO
 	select CPU_XSCALE
 	select GENERIC_GPIO
 	select GENERIC_CLOCKEVENTS
-	select HAVE_SCHED_CLOCK
 	select MIGHT_HAVE_PCI
+	select NEED_MACH_IO_H
 	select DMABOUNCE if PCI
 	help
 	  Support for Intel's IXP4XX (XScale) family of processors.
@@ -542,6 +569,7 @@ config ARCH_DOVE
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the Marvell Dove SoC 88AP510
@@ -552,6 +580,7 @@ config ARCH_KIRKWOOD
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the following Marvell Kirkwood series SoCs:
@@ -576,6 +605,7 @@ config ARCH_MV78XX0
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
+	select NEED_MACH_IO_H
 	select PLAT_ORION
 	help
 	  Support for the following Marvell MV78xx0 series SoCs:
@@ -601,7 +631,6 @@ config ARCH_MMP
 	select CLKDEV_LOOKUP
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
-	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
@@ -642,9 +671,9 @@ config ARCH_TEGRA
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select HAVE_CLK
-	select HAVE_SCHED_CLOCK
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
+	select NEED_MACH_IO_H if PCI
 	select ARCH_HAS_CPUFREQ
 	help
 	  This enables support for NVIDIA Tegra based systems (Tegra APX,
@@ -659,7 +688,6 @@ config ARCH_PICOXCELL
 	select DW_APB_TIMER
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
-	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
 	select NO_IOPORT
 	select SPARSE_IRQ
@@ -687,7 +715,6 @@ config ARCH_PXA
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_CLOCKEVENTS
 	select GPIO_PXA
-	select HAVE_SCHED_CLOCK
 	select TICK_ONESHOT
 	select PLAT_PXA
 	select SPARSE_IRQ
@@ -731,7 +758,6 @@ config ARCH_RPC
 	bool "RiscPC"
 	select ARCH_ACORN
 	select FIQ
-	select TIMER_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select HAVE_PATA_PLATFORM
 	select ISA_DMA_API
@@ -739,6 +765,7 @@ config ARCH_RPC
 	select ARCH_SPARSEMEM_ENABLE
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_IDE
+	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	help
 	  On the Acorn Risc-PC, Linux can support the internal IDE disk and
@@ -754,31 +781,31 @@ config ARCH_SA1100
 	select ARCH_HAS_CPUFREQ
 	select CPU_FREQ
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
-	select HAVE_SCHED_CLOCK
+	select CLKDEV_LOOKUP
 	select TICK_ONESHOT
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_IDE
 	select NEED_MACH_MEMORY_H
+	select SPARSE_IRQ
 	help
 	  Support for StrongARM 11x0 based boards.
 
-config ARCH_S3C2410
-	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443, S3C2450"
+config ARCH_S3C24XX
+	bool "Samsung S3C24XX SoCs"
 	select GENERIC_GPIO
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select ARCH_USES_GETTIMEOFFSET
 	select HAVE_S3C2410_I2C if I2C
+	select HAVE_S3C_RTC if RTC_CLASS
+	select HAVE_S3C2410_WATCHDOG if WATCHDOG
+	select NEED_MACH_IO_H
 	help
-	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
-	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
-	  the Samsung SMDK2410 development board (and derivatives).
-
-	  Note, the S3C2416 and the S3C2450 are so close that they even share
-	  the same SoC ID code. This means that there is no separate machine
-	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
+	  Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443
+	  and S3C2450 SoCs based systems, such as the Simtec Electronics BAST
+	  (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or the
+	  Samsung SMDK2410 development board (and derivatives).
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
@@ -812,7 +839,6 @@ config ARCH_S5P64X0
 	select CLKSRC_MMIO
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
 	select GENERIC_CLOCKEVENTS
-	select HAVE_SCHED_CLOCK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	help
@@ -843,7 +869,6 @@ config ARCH_S5PV210
 	select CLKSRC_MMIO
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_CLOCKEVENTS
-	select HAVE_SCHED_CLOCK
 	select HAVE_S3C2410_I2C if I2C
 	select HAVE_S3C_RTC if RTC_CLASS
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
@@ -877,6 +902,7 @@ config ARCH_SHARK
 	select PCI
 	select ARCH_USES_GETTIMEOFFSET
 	select NEED_MACH_MEMORY_H
+	select NEED_MACH_IO_H
 	help
 	  Support for the StrongARM based Digital DNARD machine, also known
 	  as "Shark" (<http://www.shark-linux.de/shark.html>).
@@ -886,7 +912,6 @@ config ARCH_U300
 	depends on MMU
 	select CLKSRC_MMIO
 	select CPU_ARM926T
-	select HAVE_SCHED_CLOCK
 	select HAVE_TCM
 	select ARM_AMBA
 	select ARM_PATCH_PHYS_VIRT
@@ -901,6 +926,7 @@ config ARCH_U300
 
 config ARCH_U8500
 	bool "ST-Ericsson U8500 Series"
+	depends on MMU
 	select CPU_V7
 	select ARM_AMBA
 	select GENERIC_CLOCKEVENTS
@@ -944,7 +970,6 @@ config ARCH_OMAP
 	select ARCH_HAS_CPUFREQ
 	select CLKSRC_MMIO
 	select GENERIC_CLOCKEVENTS
-	select HAVE_SCHED_CLOCK
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Support for TI's OMAP platform (OMAP1/2/3/4).
@@ -1066,12 +1091,10 @@ source "arch/arm/plat-s5p/Kconfig"
 
 source "arch/arm/plat-spear/Kconfig"
 
-if ARCH_S3C2410
-source "arch/arm/mach-s3c2410/Kconfig"
+source "arch/arm/mach-s3c24xx/Kconfig"
+if ARCH_S3C24XX
 source "arch/arm/mach-s3c2412/Kconfig"
-source "arch/arm/mach-s3c2416/Kconfig"
 source "arch/arm/mach-s3c2440/Kconfig"
-source "arch/arm/mach-s3c2443/Kconfig"
 endif
 
 if ARCH_S3C64XX
@@ -1110,13 +1133,11 @@ config ARCH_ACORN
 config PLAT_IOP
 	bool
 	select GENERIC_CLOCKEVENTS
-	select HAVE_SCHED_CLOCK
 
 config PLAT_ORION
 	bool
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
-	select HAVE_SCHED_CLOCK
 
 config PLAT_PXA
 	bool
@@ -1127,6 +1148,7 @@ config PLAT_VERSATILE
 config ARM_TIMER_SP804
 	bool
 	select CLKSRC_MMIO
+	select HAVE_SCHED_CLOCK
 
 source arch/arm/mm/Kconfig
 
@@ -1577,7 +1599,8 @@ config LOCAL_TIMERS
 config ARCH_NR_GPIO
 	int
 	default 1024 if ARCH_SHMOBILE || ARCH_TEGRA
-	default 350 if ARCH_U8500
+	default 355 if ARCH_U8500
+	default 264 if MACH_H4700
 	default 0
 	help
 	  Maximum number of GPIOs in the system.
@@ -1588,7 +1611,7 @@ source kernel/Kconfig.preempt
 
 config HZ
 	int
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P64X0 || \
+	default 200 if ARCH_EBSA110 || ARCH_S3C24XX || ARCH_S5P64X0 || \
 		ARCH_S5PV210 || ARCH_EXYNOS4
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
@@ -2114,7 +2137,7 @@ config CPU_FREQ_S3C
 
 config CPU_FREQ_S3C24XX
 	bool "CPUfreq driver for Samsung S3C24XX series CPUs (EXPERIMENTAL)"
-	depends on ARCH_S3C2410 && CPU_FREQ && EXPERIMENTAL
+	depends on ARCH_S3C24XX && CPU_FREQ && EXPERIMENTAL
 	select CPU_FREQ_S3C
 	help
 	  This enables the CPUfreq driver for the Samsung S3C24XX family

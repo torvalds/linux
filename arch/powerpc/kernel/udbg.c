@@ -46,9 +46,6 @@ void __init udbg_early_init(void)
 #elif defined(CONFIG_PPC_EARLY_DEBUG_MAPLE)
 	/* Maple real mode debug */
 	udbg_init_maple_realmode();
-#elif defined(CONFIG_PPC_EARLY_DEBUG_ISERIES)
-	/* For iSeries - hit Ctrl-x Ctrl-x to see the output */
-	udbg_init_iseries();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_BEAT)
 	udbg_init_debug_beat();
 #elif defined(CONFIG_PPC_EARLY_DEBUG_PAS_REALMODE)

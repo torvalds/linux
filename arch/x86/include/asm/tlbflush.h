@@ -5,7 +5,7 @@
 #include <linux/sched.h>
 
 #include <asm/processor.h>
-#include <asm/system.h>
+#include <asm/special_insns.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>

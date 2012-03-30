@@ -148,44 +148,7 @@ static const unsigned short normal_i2c[] = { 0x18, 0x4c, 0x4e, I2C_CLIENT_END };
 #define UPDATE_INTERVAL(max, rate) \
 			((1000 << (LM63_MAX_CONVRATE - (rate))) / (max))
 
-/*
- * Functions declaration
- */
-
-static int lm63_probe(struct i2c_client *client,
-		      const struct i2c_device_id *id);
-static int lm63_remove(struct i2c_client *client);
-
-static struct lm63_data *lm63_update_device(struct device *dev);
-
-static int lm63_detect(struct i2c_client *client, struct i2c_board_info *info);
-static void lm63_init_client(struct i2c_client *client);
-
 enum chips { lm63, lm64, lm96163 };
-
-/*
- * Driver data (common to all clients)
- */
-
-static const struct i2c_device_id lm63_id[] = {
-	{ "lm63", lm63 },
-	{ "lm64", lm64 },
-	{ "lm96163", lm96163 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, lm63_id);
-
-static struct i2c_driver lm63_driver = {
-	.class		= I2C_CLASS_HWMON,
-	.driver = {
-		.name	= "lm63",
-	},
-	.probe		= lm63_probe,
-	.remove		= lm63_remove,
-	.id_table	= lm63_id,
-	.detect		= lm63_detect,
-	.address_list	= normal_i2c,
-};
 
 /*
  * Client data (each client gets its own)
@@ -242,6 +205,145 @@ static inline int lut_temp_from_reg(struct lm63_data *data, int nr)
 	return data->temp8[nr] * (data->lut_temp_highres ? 500 : 1000);
 }
 
+static inline int lut_temp_to_reg(struct lm63_data *data, long val)
+{
+	val -= data->temp2_offset;
+	if (data->lut_temp_highres)
+		return DIV_ROUND_CLOSEST(SENSORS_LIMIT(val, 0, 127500), 500);
+	else
+		return DIV_ROUND_CLOSEST(SENSORS_LIMIT(val, 0, 127000), 1000);
+}
+
+/*
+ * Update the lookup table register cache.
+ * client->update_lock must be held when calling this function.
+ */
+static void lm63_update_lut(struct i2c_client *client)
+{
+	struct lm63_data *data = i2c_get_clientdata(client);
+	int i;
+
+	if (time_after(jiffies, data->lut_last_updated + 5 * HZ) ||
+	    !data->lut_valid) {
+		for (i = 0; i < data->lut_size; i++) {
+			data->pwm1[1 + i] = i2c_smbus_read_byte_data(client,
+					    LM63_REG_LUT_PWM(i));
+			data->temp8[3 + i] = i2c_smbus_read_byte_data(client,
+					     LM63_REG_LUT_TEMP(i));
+		}
+		data->lut_temp_hyst = i2c_smbus_read_byte_data(client,
+				      LM63_REG_LUT_TEMP_HYST);
+
+		data->lut_last_updated = jiffies;
+		data->lut_valid = 1;
+	}
+}
+
+static struct lm63_data *lm63_update_device(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm63_data *data = i2c_get_clientdata(client);
+	unsigned long next_update;
+
+	mutex_lock(&data->update_lock);
+
+	next_update = data->last_updated
+	  + msecs_to_jiffies(data->update_interval) + 1;
+
+	if (time_after(jiffies, next_update) || !data->valid) {
+		if (data->config & 0x04) { /* tachometer enabled  */
+			/* order matters for fan1_input */
+			data->fan[0] = i2c_smbus_read_byte_data(client,
+				       LM63_REG_TACH_COUNT_LSB) & 0xFC;
+			data->fan[0] |= i2c_smbus_read_byte_data(client,
+					LM63_REG_TACH_COUNT_MSB) << 8;
+			data->fan[1] = (i2c_smbus_read_byte_data(client,
+					LM63_REG_TACH_LIMIT_LSB) & 0xFC)
+				     | (i2c_smbus_read_byte_data(client,
+					LM63_REG_TACH_LIMIT_MSB) << 8);
+		}
+
+		data->pwm1_freq = i2c_smbus_read_byte_data(client,
+				  LM63_REG_PWM_FREQ);
+		if (data->pwm1_freq == 0)
+			data->pwm1_freq = 1;
+		data->pwm1[0] = i2c_smbus_read_byte_data(client,
+				LM63_REG_PWM_VALUE);
+
+		data->temp8[0] = i2c_smbus_read_byte_data(client,
+				 LM63_REG_LOCAL_TEMP);
+		data->temp8[1] = i2c_smbus_read_byte_data(client,
+				 LM63_REG_LOCAL_HIGH);
+
+		/* order matters for temp2_input */
+		data->temp11[0] = i2c_smbus_read_byte_data(client,
+				  LM63_REG_REMOTE_TEMP_MSB) << 8;
+		data->temp11[0] |= i2c_smbus_read_byte_data(client,
+				   LM63_REG_REMOTE_TEMP_LSB);
+		data->temp11[1] = (i2c_smbus_read_byte_data(client,
+				  LM63_REG_REMOTE_LOW_MSB) << 8)
+				| i2c_smbus_read_byte_data(client,
+				  LM63_REG_REMOTE_LOW_LSB);
+		data->temp11[2] = (i2c_smbus_read_byte_data(client,
+				  LM63_REG_REMOTE_HIGH_MSB) << 8)
+				| i2c_smbus_read_byte_data(client,
+				  LM63_REG_REMOTE_HIGH_LSB);
+		data->temp11[3] = (i2c_smbus_read_byte_data(client,
+				  LM63_REG_REMOTE_OFFSET_MSB) << 8)
+				| i2c_smbus_read_byte_data(client,
+				  LM63_REG_REMOTE_OFFSET_LSB);
+
+		if (data->kind == lm96163)
+			data->temp11u = (i2c_smbus_read_byte_data(client,
+					LM96163_REG_REMOTE_TEMP_U_MSB) << 8)
+				      | i2c_smbus_read_byte_data(client,
+					LM96163_REG_REMOTE_TEMP_U_LSB);
+
+		data->temp8[2] = i2c_smbus_read_byte_data(client,
+				 LM63_REG_REMOTE_TCRIT);
+		data->temp2_crit_hyst = i2c_smbus_read_byte_data(client,
+					LM63_REG_REMOTE_TCRIT_HYST);
+
+		data->alarms = i2c_smbus_read_byte_data(client,
+			       LM63_REG_ALERT_STATUS) & 0x7F;
+
+		data->last_updated = jiffies;
+		data->valid = 1;
+	}
+
+	lm63_update_lut(client);
+
+	mutex_unlock(&data->update_lock);
+
+	return data;
+}
+
+/*
+ * Trip points in the lookup table should be in ascending order for both
+ * temperatures and PWM output values.
+ */
+static int lm63_lut_looks_bad(struct i2c_client *client)
+{
+	struct lm63_data *data = i2c_get_clientdata(client);
+	int i;
+
+	mutex_lock(&data->update_lock);
+	lm63_update_lut(client);
+
+	for (i = 1; i < data->lut_size; i++) {
+		if (data->pwm1[1 + i - 1] > data->pwm1[1 + i]
+		 || data->temp8[3 + i - 1] > data->temp8[3 + i]) {
+			dev_warn(&client->dev,
+				 "Lookup table doesn't look sane (check entries %d and %d)\n",
+				 i, i + 1);
+			break;
+		}
+	}
+	mutex_unlock(&data->update_lock);
+
+	return i == data->lut_size ? 0 : 1;
+}
+
 /*
  * Sysfs callback functions and files
  */
@@ -294,13 +396,16 @@ static ssize_t show_pwm1(struct device *dev, struct device_attribute *devattr,
 	return sprintf(buf, "%d\n", pwm);
 }
 
-static ssize_t set_pwm1(struct device *dev, struct device_attribute *dummy,
+static ssize_t set_pwm1(struct device *dev, struct device_attribute *devattr,
 			const char *buf, size_t count)
 {
+	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm63_data *data = i2c_get_clientdata(client);
+	int nr = attr->index;
 	unsigned long val;
 	int err;
+	u8 reg;
 
 	if (!(data->config_fan & 0x20)) /* register is read-only */
 		return -EPERM;
@@ -309,11 +414,13 @@ static ssize_t set_pwm1(struct device *dev, struct device_attribute *dummy,
 	if (err)
 		return err;
 
+	reg = nr ? LM63_REG_LUT_PWM(nr - 1) : LM63_REG_PWM_VALUE;
 	val = SENSORS_LIMIT(val, 0, 255);
+
 	mutex_lock(&data->update_lock);
-	data->pwm1[0] = data->pwm_highres ? val :
+	data->pwm1[nr] = data->pwm_highres ? val :
 			(val * data->pwm1_freq * 2 + 127) / 255;
-	i2c_smbus_write_byte_data(client, LM63_REG_PWM_VALUE, data->pwm1[0]);
+	i2c_smbus_write_byte_data(client, reg, data->pwm1[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
 }
@@ -323,6 +430,41 @@ static ssize_t show_pwm1_enable(struct device *dev,
 {
 	struct lm63_data *data = lm63_update_device(dev);
 	return sprintf(buf, "%d\n", data->config_fan & 0x20 ? 1 : 2);
+}
+
+static ssize_t set_pwm1_enable(struct device *dev,
+			       struct device_attribute *dummy,
+			       const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct lm63_data *data = i2c_get_clientdata(client);
+	unsigned long val;
+	int err;
+
+	err = kstrtoul(buf, 10, &val);
+	if (err)
+		return err;
+	if (val < 1 || val > 2)
+		return -EINVAL;
+
+	/*
+	 * Only let the user switch to automatic mode if the lookup table
+	 * looks sane.
+	 */
+	if (val == 2 && lm63_lut_looks_bad(client))
+		return -EPERM;
+
+	mutex_lock(&data->update_lock);
+	data->config_fan = i2c_smbus_read_byte_data(client,
+						    LM63_REG_CONFIG_FAN);
+	if (val == 1)
+		data->config_fan |= 0x20;
+	else
+		data->config_fan &= ~0x20;
+	i2c_smbus_write_byte_data(client, LM63_REG_CONFIG_FAN,
+	data->config_fan);
+	mutex_unlock(&data->update_lock);
+	return count;
 }
 
 /*
@@ -367,23 +509,31 @@ static ssize_t set_temp8(struct device *dev, struct device_attribute *devattr,
 	struct i2c_client *client = to_i2c_client(dev);
 	struct lm63_data *data = i2c_get_clientdata(client);
 	int nr = attr->index;
-	int reg = nr == 2 ? LM63_REG_REMOTE_TCRIT : LM63_REG_LOCAL_HIGH;
 	long val;
 	int err;
 	int temp;
+	u8 reg;
 
 	err = kstrtol(buf, 10, &val);
 	if (err)
 		return err;
 
 	mutex_lock(&data->update_lock);
-	if (nr == 2) {
+	switch (nr) {
+	case 2:
+		reg = LM63_REG_REMOTE_TCRIT;
 		if (data->remote_unsigned)
 			temp = TEMP8U_TO_REG(val - data->temp2_offset);
 		else
 			temp = TEMP8_TO_REG(val - data->temp2_offset);
-	} else {
+		break;
+	case 1:
+		reg = LM63_REG_LOCAL_HIGH;
 		temp = TEMP8_TO_REG(val);
+		break;
+	default:	/* lookup table */
+		reg = LM63_REG_LUT_TEMP(nr - 3);
+		temp = lut_temp_to_reg(data, val);
 	}
 	data->temp8[nr] = temp;
 	i2c_smbus_write_byte_data(client, reg, temp);
@@ -613,65 +763,78 @@ static SENSOR_DEVICE_ATTR(fan1_min, S_IWUSR | S_IRUGO, show_fan,
 	set_fan, 1);
 
 static SENSOR_DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm1, set_pwm1, 0);
-static DEVICE_ATTR(pwm1_enable, S_IRUGO, show_pwm1_enable, NULL);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point1_pwm, S_IRUGO, show_pwm1, NULL, 1);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point1_temp, S_IRUGO,
-	show_lut_temp, NULL, 3);
+static DEVICE_ATTR(pwm1_enable, S_IWUSR | S_IRUGO,
+	show_pwm1_enable, set_pwm1_enable);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point1_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 1);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point1_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 3);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point1_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 3);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point2_pwm, S_IRUGO, show_pwm1, NULL, 2);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point2_temp, S_IRUGO,
-	show_lut_temp, NULL, 4);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point2_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 2);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point2_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 4);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point2_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 4);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point3_pwm, S_IRUGO, show_pwm1, NULL, 3);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point3_temp, S_IRUGO,
-	show_lut_temp, NULL, 5);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point3_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 3);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point3_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 5);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point3_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 5);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point4_pwm, S_IRUGO, show_pwm1, NULL, 4);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point4_temp, S_IRUGO,
-	show_lut_temp, NULL, 6);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point4_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 4);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point4_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 6);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point4_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 6);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point5_pwm, S_IRUGO, show_pwm1, NULL, 5);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point5_temp, S_IRUGO,
-	show_lut_temp, NULL, 7);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point5_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 5);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point5_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 7);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point5_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 7);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point6_pwm, S_IRUGO, show_pwm1, NULL, 6);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point6_temp, S_IRUGO,
-	show_lut_temp, NULL, 8);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point6_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 6);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point6_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 8);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point6_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 8);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point7_pwm, S_IRUGO, show_pwm1, NULL, 7);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point7_temp, S_IRUGO,
-	show_lut_temp, NULL, 9);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point7_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 7);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point7_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 9);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point7_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 9);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point8_pwm, S_IRUGO, show_pwm1, NULL, 8);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point8_temp, S_IRUGO,
-	show_lut_temp, NULL, 10);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point8_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 8);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point8_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 10);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point8_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 10);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point9_pwm, S_IRUGO, show_pwm1, NULL, 9);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point9_temp, S_IRUGO,
-	show_lut_temp, NULL, 11);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point9_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 9);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point9_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 11);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point9_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 11);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point10_pwm, S_IRUGO, show_pwm1, NULL, 10);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point10_temp, S_IRUGO,
-	show_lut_temp, NULL, 12);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point10_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 10);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point10_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 12);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point10_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 12);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point11_pwm, S_IRUGO, show_pwm1, NULL, 11);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point11_temp, S_IRUGO,
-	show_lut_temp, NULL, 13);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point11_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 11);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point11_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 13);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point11_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 13);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point12_pwm, S_IRUGO, show_pwm1, NULL, 12);
-static SENSOR_DEVICE_ATTR(pwm1_auto_point12_temp, S_IRUGO,
-	show_lut_temp, NULL, 14);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point12_pwm, S_IWUSR | S_IRUGO,
+	show_pwm1, set_pwm1, 12);
+static SENSOR_DEVICE_ATTR(pwm1_auto_point12_temp, S_IWUSR | S_IRUGO,
+	show_lut_temp, set_temp8, 14);
 static SENSOR_DEVICE_ATTR(pwm1_auto_point12_temp_hyst, S_IRUGO,
 	show_lut_temp_hyst, NULL, 14);
 
@@ -817,28 +980,25 @@ static const struct attribute_group lm63_group_fan1 = {
  */
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm63_detect(struct i2c_client *new_client,
+static int lm63_detect(struct i2c_client *client,
 		       struct i2c_board_info *info)
 {
-	struct i2c_adapter *adapter = new_client->adapter;
+	struct i2c_adapter *adapter = client->adapter;
 	u8 man_id, chip_id, reg_config1, reg_config2;
 	u8 reg_alert_status, reg_alert_mask;
-	int address = new_client->addr;
+	int address = client->addr;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
-	man_id = i2c_smbus_read_byte_data(new_client, LM63_REG_MAN_ID);
-	chip_id = i2c_smbus_read_byte_data(new_client, LM63_REG_CHIP_ID);
+	man_id = i2c_smbus_read_byte_data(client, LM63_REG_MAN_ID);
+	chip_id = i2c_smbus_read_byte_data(client, LM63_REG_CHIP_ID);
 
-	reg_config1 = i2c_smbus_read_byte_data(new_client,
-		      LM63_REG_CONFIG1);
-	reg_config2 = i2c_smbus_read_byte_data(new_client,
-		      LM63_REG_CONFIG2);
-	reg_alert_status = i2c_smbus_read_byte_data(new_client,
+	reg_config1 = i2c_smbus_read_byte_data(client, LM63_REG_CONFIG1);
+	reg_config2 = i2c_smbus_read_byte_data(client, LM63_REG_CONFIG2);
+	reg_alert_status = i2c_smbus_read_byte_data(client,
 			   LM63_REG_ALERT_STATUS);
-	reg_alert_mask = i2c_smbus_read_byte_data(new_client,
-			 LM63_REG_ALERT_MASK);
+	reg_alert_mask = i2c_smbus_read_byte_data(client, LM63_REG_ALERT_MASK);
 
 	if (man_id != 0x01 /* National Semiconductor */
 	 || (reg_config1 & 0x18) != 0x00
@@ -861,74 +1021,6 @@ static int lm63_detect(struct i2c_client *new_client,
 		return -ENODEV;
 
 	return 0;
-}
-
-static int lm63_probe(struct i2c_client *new_client,
-		      const struct i2c_device_id *id)
-{
-	struct lm63_data *data;
-	int err;
-
-	data = kzalloc(sizeof(struct lm63_data), GFP_KERNEL);
-	if (!data) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	i2c_set_clientdata(new_client, data);
-	data->valid = 0;
-	mutex_init(&data->update_lock);
-
-	/* Set the device type */
-	data->kind = id->driver_data;
-	if (data->kind == lm64)
-		data->temp2_offset = 16000;
-
-	/* Initialize chip */
-	lm63_init_client(new_client);
-
-	/* Register sysfs hooks */
-	err = sysfs_create_group(&new_client->dev.kobj, &lm63_group);
-	if (err)
-		goto exit_free;
-	if (data->config & 0x04) { /* tachometer enabled */
-		err = sysfs_create_group(&new_client->dev.kobj,
-					 &lm63_group_fan1);
-		if (err)
-			goto exit_remove_files;
-	}
-	if (data->kind == lm96163) {
-		err = device_create_file(&new_client->dev,
-					 &dev_attr_temp2_type);
-		if (err)
-			goto exit_remove_files;
-
-		err = sysfs_create_group(&new_client->dev.kobj,
-					 &lm63_group_extra_lut);
-		if (err)
-			goto exit_remove_files;
-	}
-
-	data->hwmon_dev = hwmon_device_register(&new_client->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		err = PTR_ERR(data->hwmon_dev);
-		goto exit_remove_files;
-	}
-
-	return 0;
-
-exit_remove_files:
-	sysfs_remove_group(&new_client->dev.kobj, &lm63_group);
-	sysfs_remove_group(&new_client->dev.kobj, &lm63_group_fan1);
-	if (data->kind == lm96163) {
-		device_remove_file(&new_client->dev, &dev_attr_temp2_type);
-		sysfs_remove_group(&new_client->dev.kobj,
-				   &lm63_group_extra_lut);
-	}
-exit_free:
-	kfree(data);
-exit:
-	return err;
 }
 
 /*
@@ -1010,6 +1102,71 @@ static void lm63_init_client(struct i2c_client *client)
 		(data->config_fan & 0x20) ? "manual" : "auto");
 }
 
+static int lm63_probe(struct i2c_client *client,
+		      const struct i2c_device_id *id)
+{
+	struct lm63_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct lm63_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
+	}
+
+	i2c_set_clientdata(client, data);
+	data->valid = 0;
+	mutex_init(&data->update_lock);
+
+	/* Set the device type */
+	data->kind = id->driver_data;
+	if (data->kind == lm64)
+		data->temp2_offset = 16000;
+
+	/* Initialize chip */
+	lm63_init_client(client);
+
+	/* Register sysfs hooks */
+	err = sysfs_create_group(&client->dev.kobj, &lm63_group);
+	if (err)
+		goto exit_free;
+	if (data->config & 0x04) { /* tachometer enabled */
+		err = sysfs_create_group(&client->dev.kobj, &lm63_group_fan1);
+		if (err)
+			goto exit_remove_files;
+	}
+	if (data->kind == lm96163) {
+		err = device_create_file(&client->dev, &dev_attr_temp2_type);
+		if (err)
+			goto exit_remove_files;
+
+		err = sysfs_create_group(&client->dev.kobj,
+					 &lm63_group_extra_lut);
+		if (err)
+			goto exit_remove_files;
+	}
+
+	data->hwmon_dev = hwmon_device_register(&client->dev);
+	if (IS_ERR(data->hwmon_dev)) {
+		err = PTR_ERR(data->hwmon_dev);
+		goto exit_remove_files;
+	}
+
+	return 0;
+
+exit_remove_files:
+	sysfs_remove_group(&client->dev.kobj, &lm63_group);
+	sysfs_remove_group(&client->dev.kobj, &lm63_group_fan1);
+	if (data->kind == lm96163) {
+		device_remove_file(&client->dev, &dev_attr_temp2_type);
+		sysfs_remove_group(&client->dev.kobj, &lm63_group_extra_lut);
+	}
+exit_free:
+	kfree(data);
+exit:
+	return err;
+}
+
 static int lm63_remove(struct i2c_client *client)
 {
 	struct lm63_data *data = i2c_get_clientdata(client);
@@ -1026,98 +1183,29 @@ static int lm63_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct lm63_data *lm63_update_device(struct device *dev)
-{
-	struct i2c_client *client = to_i2c_client(dev);
-	struct lm63_data *data = i2c_get_clientdata(client);
-	unsigned long next_update;
-	int i;
+/*
+ * Driver data (common to all clients)
+ */
 
-	mutex_lock(&data->update_lock);
+static const struct i2c_device_id lm63_id[] = {
+	{ "lm63", lm63 },
+	{ "lm64", lm64 },
+	{ "lm96163", lm96163 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, lm63_id);
 
-	next_update = data->last_updated
-	  + msecs_to_jiffies(data->update_interval) + 1;
-
-	if (time_after(jiffies, next_update) || !data->valid) {
-		if (data->config & 0x04) { /* tachometer enabled  */
-			/* order matters for fan1_input */
-			data->fan[0] = i2c_smbus_read_byte_data(client,
-				       LM63_REG_TACH_COUNT_LSB) & 0xFC;
-			data->fan[0] |= i2c_smbus_read_byte_data(client,
-					LM63_REG_TACH_COUNT_MSB) << 8;
-			data->fan[1] = (i2c_smbus_read_byte_data(client,
-					LM63_REG_TACH_LIMIT_LSB) & 0xFC)
-				     | (i2c_smbus_read_byte_data(client,
-					LM63_REG_TACH_LIMIT_MSB) << 8);
-		}
-
-		data->pwm1_freq = i2c_smbus_read_byte_data(client,
-				  LM63_REG_PWM_FREQ);
-		if (data->pwm1_freq == 0)
-			data->pwm1_freq = 1;
-		data->pwm1[0] = i2c_smbus_read_byte_data(client,
-				LM63_REG_PWM_VALUE);
-
-		data->temp8[0] = i2c_smbus_read_byte_data(client,
-				 LM63_REG_LOCAL_TEMP);
-		data->temp8[1] = i2c_smbus_read_byte_data(client,
-				 LM63_REG_LOCAL_HIGH);
-
-		/* order matters for temp2_input */
-		data->temp11[0] = i2c_smbus_read_byte_data(client,
-				  LM63_REG_REMOTE_TEMP_MSB) << 8;
-		data->temp11[0] |= i2c_smbus_read_byte_data(client,
-				   LM63_REG_REMOTE_TEMP_LSB);
-		data->temp11[1] = (i2c_smbus_read_byte_data(client,
-				  LM63_REG_REMOTE_LOW_MSB) << 8)
-				| i2c_smbus_read_byte_data(client,
-				  LM63_REG_REMOTE_LOW_LSB);
-		data->temp11[2] = (i2c_smbus_read_byte_data(client,
-				  LM63_REG_REMOTE_HIGH_MSB) << 8)
-				| i2c_smbus_read_byte_data(client,
-				  LM63_REG_REMOTE_HIGH_LSB);
-		data->temp11[3] = (i2c_smbus_read_byte_data(client,
-				  LM63_REG_REMOTE_OFFSET_MSB) << 8)
-				| i2c_smbus_read_byte_data(client,
-				  LM63_REG_REMOTE_OFFSET_LSB);
-
-		if (data->kind == lm96163)
-			data->temp11u = (i2c_smbus_read_byte_data(client,
-					LM96163_REG_REMOTE_TEMP_U_MSB) << 8)
-				      | i2c_smbus_read_byte_data(client,
-					LM96163_REG_REMOTE_TEMP_U_LSB);
-
-		data->temp8[2] = i2c_smbus_read_byte_data(client,
-				 LM63_REG_REMOTE_TCRIT);
-		data->temp2_crit_hyst = i2c_smbus_read_byte_data(client,
-					LM63_REG_REMOTE_TCRIT_HYST);
-
-		data->alarms = i2c_smbus_read_byte_data(client,
-			       LM63_REG_ALERT_STATUS) & 0x7F;
-
-		data->last_updated = jiffies;
-		data->valid = 1;
-	}
-
-	if (time_after(jiffies, data->lut_last_updated + 5 * HZ) ||
-	    !data->lut_valid) {
-		for (i = 0; i < data->lut_size; i++) {
-			data->pwm1[1 + i] = i2c_smbus_read_byte_data(client,
-					    LM63_REG_LUT_PWM(i));
-			data->temp8[3 + i] = i2c_smbus_read_byte_data(client,
-					     LM63_REG_LUT_TEMP(i));
-		}
-		data->lut_temp_hyst = i2c_smbus_read_byte_data(client,
-				      LM63_REG_LUT_TEMP_HYST);
-
-		data->lut_last_updated = jiffies;
-		data->lut_valid = 1;
-	}
-
-	mutex_unlock(&data->update_lock);
-
-	return data;
-}
+static struct i2c_driver lm63_driver = {
+	.class		= I2C_CLASS_HWMON,
+	.driver = {
+		.name	= "lm63",
+	},
+	.probe		= lm63_probe,
+	.remove		= lm63_remove,
+	.id_table	= lm63_id,
+	.detect		= lm63_detect,
+	.address_list	= normal_i2c,
+};
 
 module_i2c_driver(lm63_driver);
 

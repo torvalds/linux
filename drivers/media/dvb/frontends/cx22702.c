@@ -502,10 +502,26 @@ static int cx22702_read_signal_strength(struct dvb_frontend *fe,
 	u16 *signal_strength)
 {
 	struct cx22702_state *state = fe->demodulator_priv;
+	u8 reg23;
 
-	u16 rs_ber;
-	rs_ber = cx22702_readreg(state, 0x23);
-	*signal_strength = (rs_ber << 8) | rs_ber;
+	/*
+	 * Experience suggests that the strength signal register works as
+	 * follows:
+	 * - In the absence of signal, value is 0xff.
+	 * - In the presence of a weak signal, bit 7 is set, not sure what
+	 *   the lower 7 bits mean.
+	 * - In the presence of a strong signal, the register holds a 7-bit
+	 *   value (bit 7 is cleared), with greater values standing for
+	 *   weaker signals.
+	 */
+	reg23 = cx22702_readreg(state, 0x23);
+	if (reg23 & 0x80) {
+		*signal_strength = 0;
+	} else {
+		reg23 = ~reg23 & 0x7f;
+		/* Scale to 16 bit */
+		*signal_strength = (reg23 << 9) | (reg23 << 2) | (reg23 >> 5);
+	}
 
 	return 0;
 }

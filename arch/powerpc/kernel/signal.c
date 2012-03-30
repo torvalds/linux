@@ -15,6 +15,7 @@
 #include <asm/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
+#include <asm/debug.h>
 
 #include "signal.h"
 

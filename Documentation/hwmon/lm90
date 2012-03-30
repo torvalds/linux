@@ -118,6 +118,10 @@ Supported chips:
     Addresses scanned: I2C 0x48 through 0x4F
     Datasheet: Publicly available at NXP website
                http://ics.nxp.com/products/interface/datasheet/sa56004x.pdf
+  * GMT G781
+    Prefix: 'g781'
+    Addresses scanned: I2C 0x4c, 0x4d
+    Datasheet: Not publicly available from GMT
 
 Author: Jean Delvare <khali@linux-fr.org>
 

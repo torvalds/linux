@@ -1159,17 +1159,21 @@ static int vio_bus_remove(struct device *dev)
  * vio_register_driver: - Register a new vio driver
  * @drv:	The vio_driver structure to be registered.
  */
-int vio_register_driver(struct vio_driver *viodrv)
+int __vio_register_driver(struct vio_driver *viodrv, struct module *owner,
+			  const char *mod_name)
 {
-	printk(KERN_DEBUG "%s: driver %s registering\n", __func__,
-		viodrv->driver.name);
+	pr_debug("%s: driver %s registering\n", __func__, viodrv->name);
 
 	/* fill in 'struct driver' fields */
+	viodrv->driver.name = viodrv->name;
+	viodrv->driver.pm = viodrv->pm;
 	viodrv->driver.bus = &vio_bus_type;
+	viodrv->driver.owner = owner;
+	viodrv->driver.mod_name = mod_name;
 
 	return driver_register(&viodrv->driver);
 }
-EXPORT_SYMBOL(vio_register_driver);
+EXPORT_SYMBOL(__vio_register_driver);
 
 /**
  * vio_unregister_driver - Remove registration of vio driver.

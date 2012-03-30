@@ -38,7 +38,6 @@
 #include <linux/uaccess.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>

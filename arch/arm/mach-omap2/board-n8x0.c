@@ -36,10 +36,6 @@
 
 #include "mux.h"
 
-static int slot1_cover_open;
-static int slot2_cover_open;
-static struct device *mmc_device;
-
 #define TUSB6010_ASYNC_CS	1
 #define TUSB6010_SYNC_CS	4
 #define TUSB6010_GPIO_INT	58
@@ -137,7 +133,6 @@ static void __init n8x0_usb_init(void) {}
 
 static struct omap2_mcspi_device_config p54spi_mcspi_config = {
 	.turbo_mode	= 0,
-	.single_channel = 1,
 };
 
 static struct spi_board_info n800_spi_board_info[] __initdata = {
@@ -210,6 +205,10 @@ static struct omap_onenand_platform_data board_onenand_data[] = {
 #define N8X0_SLOT_SWITCH_GPIO	96
 #define N810_EMMC_VSD_GPIO	23
 #define N810_EMMC_VIO_GPIO	9
+
+static int slot1_cover_open;
+static int slot2_cover_open;
+static struct device *mmc_device;
 
 static int n8x0_mmc_switch_slot(struct device *dev, int slot)
 {

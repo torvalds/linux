@@ -310,11 +310,8 @@ static int __devexit hvc_vio_remove(struct vio_dev *vdev)
 static struct vio_driver hvc_vio_driver = {
 	.id_table	= hvc_driver_table,
 	.probe		= hvc_vio_probe,
-	.remove		= __devexit_p(hvc_vio_remove),
-	.driver		= {
-		.name	= hvc_driver_name,
-		.owner	= THIS_MODULE,
-	}
+	.remove		= hvc_vio_remove,
+	.name		= hvc_driver_name,
 };
 
 static int __init hvc_vio_init(void)

@@ -15,14 +15,16 @@
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/serial_core.h>
+#include <linux/mfd/ucb1x00.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 
+#include <video/sa1100fb.h>
+
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/pgtable-hwdef.h>
@@ -36,17 +38,18 @@
 #include <asm/mach/serial_sa1100.h>
 #include <mach/assabet.h>
 #include <mach/mcp.h>
+#include <mach/irqs.h>
 
 #include "generic.h"
 
 #define ASSABET_BCR_DB1110 \
-	(ASSABET_BCR_SPK_OFF    | ASSABET_BCR_QMUTE     | \
+	(ASSABET_BCR_SPK_OFF    | \
 	 ASSABET_BCR_LED_GREEN  | ASSABET_BCR_LED_RED   | \
 	 ASSABET_BCR_RS232EN    | ASSABET_BCR_LCD_12RGB | \
 	 ASSABET_BCR_IRDA_MD0)
 
 #define ASSABET_BCR_DB1111 \
-	(ASSABET_BCR_SPK_OFF    | ASSABET_BCR_QMUTE     | \
+	(ASSABET_BCR_SPK_OFF    | \
 	 ASSABET_BCR_LED_GREEN  | ASSABET_BCR_LED_RED   | \
 	 ASSABET_BCR_RS232EN    | ASSABET_BCR_LCD_12RGB | \
 	 ASSABET_BCR_CF_BUS_OFF | ASSABET_BCR_STEREO_LB | \
@@ -69,31 +72,10 @@ void ASSABET_BCR_frob(unsigned int mask, unsigned int val)
 
 EXPORT_SYMBOL(ASSABET_BCR_frob);
 
-static void assabet_backlight_power(int on)
+static void assabet_ucb1x00_reset(enum ucb1x00_reset state)
 {
-#ifndef ASSABET_PAL_VIDEO
-	if (on)
-		ASSABET_BCR_set(ASSABET_BCR_LIGHT_ON);
-	else
-#endif
-		ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
-}
-
-/*
- * Turn on/off the backlight.  When turning the backlight on,
- * we wait 500us after turning it on so we don't cause the
- * supplies to droop when we enable the LCD controller (and
- * cause a hard reset.)
- */
-static void assabet_lcd_power(int on)
-{
-#ifndef ASSABET_PAL_VIDEO
-	if (on) {
-		ASSABET_BCR_set(ASSABET_BCR_LCD_ON);
-		udelay(500);
-	} else
-#endif
-		ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
+	if (state == UCB_RST_PROBE)
+		ASSABET_BCR_set(ASSABET_BCR_CODEC_RST);
 }
 
 
@@ -152,15 +134,8 @@ static struct flash_platform_data assabet_flash_data = {
 };
 
 static struct resource assabet_flash_resources[] = {
-	{
-		.start	= SA1100_CS0_PHYS,
-		.end	= SA1100_CS0_PHYS + SZ_32M - 1,
-		.flags	= IORESOURCE_MEM,
-	}, {
-		.start	= SA1100_CS1_PHYS,
-		.end	= SA1100_CS1_PHYS + SZ_32M - 1,
-		.flags	= IORESOURCE_MEM,
-	}
+	DEFINE_RES_MEM(SA1100_CS0_PHYS, SZ_32M),
+	DEFINE_RES_MEM(SA1100_CS1_PHYS, SZ_32M),
 };
 
 
@@ -199,18 +174,126 @@ static struct irda_platform_data assabet_irda_data = {
 	.set_speed	= assabet_irda_set_speed,
 };
 
+static struct ucb1x00_plat_data assabet_ucb1x00_data = {
+	.reset		= assabet_ucb1x00_reset,
+	.gpio_base	= -1,
+};
+
 static struct mcp_plat_data assabet_mcp_data = {
 	.mccr0		= MCCR0_ADM,
 	.sclk_rate	= 11981000,
+	.codec_pdata	= &assabet_ucb1x00_data,
 };
+
+static void assabet_lcd_set_visual(u32 visual)
+{
+	u_int is_true_color = visual == FB_VISUAL_TRUECOLOR;
+
+	if (machine_is_assabet()) {
+#if 1		// phase 4 or newer Assabet's
+		if (is_true_color)
+			ASSABET_BCR_set(ASSABET_BCR_LCD_12RGB);
+		else
+			ASSABET_BCR_clear(ASSABET_BCR_LCD_12RGB);
+#else
+		// older Assabet's
+		if (is_true_color)
+			ASSABET_BCR_clear(ASSABET_BCR_LCD_12RGB);
+		else
+			ASSABET_BCR_set(ASSABET_BCR_LCD_12RGB);
+#endif
+	}
+}
+
+#ifndef ASSABET_PAL_VIDEO
+static void assabet_lcd_backlight_power(int on)
+{
+	if (on)
+		ASSABET_BCR_set(ASSABET_BCR_LIGHT_ON);
+	else
+		ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
+}
+
+/*
+ * Turn on/off the backlight.  When turning the backlight on, we wait
+ * 500us after turning it on so we don't cause the supplies to droop
+ * when we enable the LCD controller (and cause a hard reset.)
+ */
+static void assabet_lcd_power(int on)
+{
+	if (on) {
+		ASSABET_BCR_set(ASSABET_BCR_LCD_ON);
+		udelay(500);
+	} else
+		ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
+}
+
+/*
+ * The assabet uses a sharp LQ039Q2DS54 LCD module.  It is actually
+ * takes an RGB666 signal, but we provide it with an RGB565 signal
+ * instead (def_rgb_16).
+ */
+static struct sa1100fb_mach_info lq039q2ds54_info = {
+	.pixclock	= 171521,	.bpp		= 16,
+	.xres		= 320,		.yres		= 240,
+
+	.hsync_len	= 5,		.vsync_len	= 1,
+	.left_margin	= 61,		.upper_margin	= 3,
+	.right_margin	= 9,		.lower_margin	= 0,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+
+	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+
+	.backlight_power = assabet_lcd_backlight_power,
+	.lcd_power = assabet_lcd_power,
+	.set_visual = assabet_lcd_set_visual,
+};
+#else
+static void assabet_pal_backlight_power(int on)
+{
+	ASSABET_BCR_clear(ASSABET_BCR_LIGHT_ON);
+}
+
+static void assabet_pal_power(int on)
+{
+	ASSABET_BCR_clear(ASSABET_BCR_LCD_ON);
+}
+
+static struct sa1100fb_mach_info pal_info = {
+	.pixclock	= 67797,	.bpp		= 16,
+	.xres		= 640,		.yres		= 512,
+
+	.hsync_len	= 64,		.vsync_len	= 6,
+	.left_margin	= 125,		.upper_margin	= 70,
+	.right_margin	= 115,		.lower_margin	= 36,
+
+	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(512),
+
+	.backlight_power = assabet_pal_backlight_power,
+	.lcd_power = assabet_pal_power,
+	.set_visual = assabet_lcd_set_visual,
+};
+#endif
+
+#ifdef CONFIG_ASSABET_NEPONSET
+static struct resource neponset_resources[] = {
+	DEFINE_RES_MEM(0x10000000, 0x08000000),
+	DEFINE_RES_MEM(0x18000000, 0x04000000),
+	DEFINE_RES_MEM(0x40000000, SZ_8K),
+	DEFINE_RES_IRQ(IRQ_GPIO25),
+};
+#endif
 
 static void __init assabet_init(void)
 {
 	/*
 	 * Ensure that the power supply is in "high power" mode.
 	 */
-	GPDR |= GPIO_GPIO16;
 	GPSR = GPIO_GPIO16;
+	GPDR |= GPIO_GPIO16;
 
 	/*
 	 * Ensure that these pins are set as outputs and are driving
@@ -218,8 +301,16 @@ static void __init assabet_init(void)
 	 * the WS latch in the CPLD, and we don't float causing
 	 * excessive power drain.  --rmk
 	 */
-	GPDR |= GPIO_SSP_TXD | GPIO_SSP_SCLK | GPIO_SSP_SFRM;
 	GPCR = GPIO_SSP_TXD | GPIO_SSP_SCLK | GPIO_SSP_SFRM;
+	GPDR |= GPIO_SSP_TXD | GPIO_SSP_SCLK | GPIO_SSP_SFRM;
+
+	/*
+	 * Also set GPIO27 as an output; this is used to clock UART3
+	 * via the FPGA and as otherwise has no pullups or pulldowns,
+	 * so stop it floating.
+	 */
+	GPCR = GPIO_GPIO27;
+	GPDR |= GPIO_GPIO27;
 
 	/*
 	 * Set up registers for sleep mode.
@@ -231,8 +322,7 @@ static void __init assabet_init(void)
 	PPDR |= PPC_TXD3 | PPC_TXD1;
 	PPSR |= PPC_TXD3 | PPC_TXD1;
 
-	sa1100fb_lcd_power = assabet_lcd_power;
-	sa1100fb_backlight_power = assabet_backlight_power;
+	sa11x0_ppc_configure_mcp();
 
 	if (machine_has_neponset()) {
 		/*
@@ -246,9 +336,17 @@ static void __init assabet_init(void)
 #ifndef CONFIG_ASSABET_NEPONSET
 		printk( "Warning: Neponset detected but full support "
 			"hasn't been configured in the kernel\n" );
+#else
+		platform_device_register_simple("neponset", 0,
+			neponset_resources, ARRAY_SIZE(neponset_resources));
 #endif
 	}
 
+#ifndef ASSABET_PAL_VIDEO
+	sa11x0_register_lcd(&lq039q2ds54_info);
+#else
+	sa11x0_register_lcd(&pal_video);
+#endif
 	sa11x0_register_mtd(&assabet_flash_data, assabet_flash_resources,
 			    ARRAY_SIZE(assabet_flash_resources));
 	sa11x0_register_irda(&assabet_irda_data);
@@ -412,21 +510,8 @@ static void __init assabet_map_io(void)
 	 */
 	Ser1SDCR0 |= SDCR0_SUS;
 
-	if (machine_has_neponset()) {
-#ifdef CONFIG_ASSABET_NEPONSET
-		extern void neponset_map_io(void);
-
-		/*
-		 * We map Neponset registers even if it isn't present since
-		 * many drivers will try to probe their stuff (and fail).
-		 * This is still more friendly than a kernel paging request
-		 * crash.
-		 */
-		neponset_map_io();
-#endif
-	} else {
+	if (!machine_has_neponset())
 		sa1100_register_uart_fns(&assabet_port_fns);
-	}
 
 	/*
 	 * When Neponset is attached, the first UART should be
@@ -449,6 +534,7 @@ MACHINE_START(ASSABET, "Intel-Assabet")
 	.atag_offset	= 0x100,
 	.fixup		= fixup_assabet,
 	.map_io		= assabet_map_io,
+	.nr_irqs	= SA1100_NR_IRQS,
 	.init_irq	= sa1100_init_irq,
 	.timer		= &sa1100_timer,
 	.init_machine	= assabet_init,

@@ -332,6 +332,7 @@ struct drxk_state {
 
 	u16	UIO_mask;	/* Bits used by UIO */
 
+	bool	enable_merr_cfg;
 	bool	single_master;
 	bool	no_i2c_bridge;
 	bool	antenna_dvbt;

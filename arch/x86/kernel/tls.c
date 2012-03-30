@@ -6,7 +6,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/desc.h>
-#include <asm/system.h>
 #include <asm/ldt.h>
 #include <asm/processor.h>
 #include <asm/proto.h>

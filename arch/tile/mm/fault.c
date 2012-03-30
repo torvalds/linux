@@ -35,7 +35,6 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 
-#include <asm/system.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
 #include <asm/traps.h>

@@ -43,7 +43,6 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 
-#include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>

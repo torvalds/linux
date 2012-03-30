@@ -15,8 +15,8 @@
 #include <linux/module.h>
 
 #include <asm/mmu_context.h>
-#include <asm/system.h>
 #include <asm/time.h>
+#include <asm/setup.h>
 
 #include <asm/octeon/octeon.h>
 
