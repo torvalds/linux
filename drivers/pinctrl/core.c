@@ -319,9 +319,10 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 			       const char *pin_group)
 {
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	unsigned ngroups = pctlops->get_groups_count(pctldev);
 	unsigned group_selector = 0;
 
-	while (pctlops->list_groups(pctldev, group_selector) >= 0) {
+	while (group_selector < ngroups) {
 		const char *gname = pctlops->get_group_name(pctldev,
 							    group_selector);
 		if (!strcmp(gname, pin_group)) {
@@ -941,12 +942,13 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
-	unsigned selector = 0;
+	unsigned ngroups, selector = 0;
 
+	ngroups = ops->get_groups_count(pctldev);
 	mutex_lock(&pinctrl_mutex);
 
 	seq_puts(s, "registered pin groups:\n");
-	while (ops->list_groups(pctldev, selector) >= 0) {
+	while (selector < ngroups) {
 		const unsigned *pins;
 		unsigned num_pins;
 		const char *gname = ops->get_group_name(pctldev, selector);
@@ -1261,7 +1263,7 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
 
 	if (!ops ||
-	    !ops->list_groups ||
+	    !ops->get_groups_count ||
 	    !ops->get_group_name ||
 	    !ops->get_group_pins)
 		return -EINVAL;

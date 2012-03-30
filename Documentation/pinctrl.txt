@@ -152,11 +152,9 @@ static const struct foo_group foo_groups[] = {
 };
 
 
-static int foo_list_groups(struct pinctrl_dev *pctldev, unsigned selector)
+static int foo_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	if (selector >= ARRAY_SIZE(foo_groups))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(foo_groups);
 }
 
 static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
@@ -175,7 +173,7 @@ static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 }
 
 static struct pinctrl_ops foo_pctrl_ops = {
-	.list_groups = foo_list_groups,
+	.get_groups_count = foo_get_groups_count,
 	.get_group_name = foo_get_group_name,
 	.get_group_pins = foo_get_group_pins,
 };
@@ -186,13 +184,12 @@ static struct pinctrl_desc foo_desc = {
        .pctlops = &foo_pctrl_ops,
 };
 
-The pin control subsystem will call the .list_groups() function repeatedly
-beginning on 0 until it returns non-zero to determine legal selectors, then
-it will call the other functions to retrieve the name and pins of the group.
-Maintaining the data structure of the groups is up to the driver, this is
-just a simple example - in practice you may need more entries in your group
-structure, for example specific register ranges associated with each group
-and so on.
+The pin control subsystem will call the .get_groups_count() function to
+determine total number of legal selectors, then it will call the other functions
+to retrieve the name and pins of the group. Maintaining the data structure of
+the groups is up to the driver, this is just a simple example - in practice you
+may need more entries in your group structure, for example specific register
+ranges associated with each group and so on.
 
 
 Pin configuration
@@ -606,11 +603,9 @@ static const struct foo_group foo_groups[] = {
 };
 
 
-static int foo_list_groups(struct pinctrl_dev *pctldev, unsigned selector)
+static int foo_get_groups_count(struct pinctrl_dev *pctldev)
 {
-	if (selector >= ARRAY_SIZE(foo_groups))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(foo_groups);
 }
 
 static const char *foo_get_group_name(struct pinctrl_dev *pctldev,
@@ -629,7 +624,7 @@ static int foo_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 }
 
 static struct pinctrl_ops foo_pctrl_ops = {
-	.list_groups = foo_list_groups,
+	.get_groups_count = foo_get_groups_count,
 	.get_group_name = foo_get_group_name,
 	.get_group_pins = foo_get_group_pins,
 };
@@ -663,11 +658,9 @@ static const struct foo_pmx_func foo_functions[] = {
 	},
 };
 
-int foo_list_funcs(struct pinctrl_dev *pctldev, unsigned selector)
+int foo_get_functions_count(struct pinctrl_dev *pctldev)
 {
-	if (selector >= ARRAY_SIZE(foo_functions))
-		return -EINVAL;
-	return 0;
+	return ARRAY_SIZE(foo_functions);
 }
 
 const char *foo_get_fname(struct pinctrl_dev *pctldev, unsigned selector)
@@ -703,7 +696,7 @@ void foo_disable(struct pinctrl_dev *pctldev, unsigned selector,
 }
 
 struct pinmux_ops foo_pmxops = {
-	.list_functions = foo_list_funcs,
+	.get_functions_count = foo_get_functions_count,
 	.get_function_name = foo_get_fname,
 	.get_function_groups = foo_get_groups,
 	.enable = foo_enable,
