@@ -58,7 +58,6 @@
 #include <asm/hypertransport.h>
 #include <asm/setup.h>
 #include <asm/intr_remapping.h>
-#include <asm/irq_remapping.h>
 #include <asm/hpet.h>
 #include <asm/hw_irq.h>
 
@@ -86,6 +85,22 @@ void __init set_io_apic_ops(const struct io_apic_ops *ops)
 {
 	io_apic_ops = *ops;
 }
+
+#ifdef CONFIG_IRQ_REMAP
+static void irq_remap_modify_chip_defaults(struct irq_chip *chip);
+static inline bool irq_remapped(struct irq_cfg *cfg)
+{
+	return cfg->irq_2_iommu.iommu != NULL;
+}
+#else
+static inline bool irq_remapped(struct irq_cfg *cfg)
+{
+	return false;
+}
+static inline void irq_remap_modify_chip_defaults(struct irq_chip *chip)
+{
+}
+#endif
 
 /*
  *      Is the SiS APIC rmw bug present ?
