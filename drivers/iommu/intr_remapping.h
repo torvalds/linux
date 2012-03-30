@@ -26,6 +26,8 @@
 
 struct IO_APIC_route_entry;
 struct io_apic_irq_attr;
+struct irq_data;
+struct cpumask;
 
 extern int disable_intremap;
 extern int disable_sourceid_checking;
@@ -54,6 +56,10 @@ struct irq_remap_ops {
 	int (*setup_ioapic_entry)(int irq, struct IO_APIC_route_entry *,
 				  unsigned int, int,
 				  struct io_apic_irq_attr *);
+
+	/* Set the CPU affinity of a remapped interrupt */
+	int (*set_affinity)(struct irq_data *data, const struct cpumask *mask,
+			    bool force);
 };
 
 extern struct irq_remap_ops intel_irq_remap_ops;

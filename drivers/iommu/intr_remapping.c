@@ -110,3 +110,12 @@ int intr_setup_ioapic_entry(int irq,
 	return remap_ops->setup_ioapic_entry(irq, entry, destination,
 					     vector, attr);
 }
+
+int intr_set_affinity(struct irq_data *data, const struct cpumask *mask,
+		      bool force)
+{
+	if (!remap_ops || !remap_ops->set_affinity)
+		return 0;
+
+	return remap_ops->set_affinity(data, mask, force);
+}

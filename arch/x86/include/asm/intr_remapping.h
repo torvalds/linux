@@ -40,6 +40,9 @@ extern int intr_setup_ioapic_entry(int irq,
 				   struct IO_APIC_route_entry *entry,
 				   unsigned int destination, int vector,
 				   struct io_apic_irq_attr *attr);
+extern int intr_set_affinity(struct irq_data *data,
+			     const struct cpumask *mask,
+			     bool force);
 
 #else  /* CONFIG_IRQ_REMAP */
 
@@ -58,6 +61,12 @@ static inline int intr_setup_ioapic_entry(int irq,
 					  struct io_apic_irq_attr *attr)
 {
 	return -ENODEV;
+}
+static inline int intr_set_affinity(struct irq_data *data,
+				    const struct cpumask *mask,
+				    bool force)
+{
+	return 0;
 }
 #endif /* CONFIG_IRQ_REMAP */
 
