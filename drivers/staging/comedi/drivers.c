@@ -106,6 +106,26 @@ void comedi_device_detach(struct comedi_device *dev)
 	__comedi_device_detach(dev);
 }
 
+/* do a little post-config cleanup */
+/* called with module refcount incremented, decrements it */
+static int comedi_device_postconfig(struct comedi_device *dev)
+{
+	int ret = postconfig(dev);
+	module_put(dev->driver->module);
+	if (ret < 0) {
+		__comedi_device_detach(dev);
+		return ret;
+	}
+	if (!dev->board_name) {
+		printk(KERN_WARNING "BUG: dev->board_name=<%p>\n",
+		       dev->board_name);
+		dev->board_name = "BUG";
+	}
+	smp_wmb();
+	dev->attached = 1;
+	return 0;
+}
+
 int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_driver *driv;
@@ -121,59 +141,36 @@ int comedi_device_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 		if (driv->num_names) {
 			dev->board_ptr = comedi_recognize(driv, it->board_name);
-			if (dev->board_ptr == NULL) {
-				module_put(driv->module);
-				continue;
-			}
-		} else {
-			if (strcmp(driv->driver_name, it->board_name)) {
-				module_put(driv->module);
-				continue;
-			}
-		}
-		/* initialize dev->driver here so
-		 * comedi_error() can be called from attach */
-		dev->driver = driv;
-		ret = driv->attach(dev, it);
-		if (ret < 0) {
-			module_put(dev->driver->module);
-			__comedi_device_detach(dev);
-			return ret;
-		}
-		goto attached;
-	}
-
-	/*  recognize has failed if we get here */
-	/*  report valid board names before returning error */
-	for (driv = comedi_drivers; driv; driv = driv->next) {
-		if (!try_module_get(driv->module)) {
-			printk(KERN_INFO
-			       "comedi: failed to increment module count\n");
-			continue;
-		}
-		comedi_report_boards(driv);
+			if (dev->board_ptr)
+				break;
+		} else if (strcmp(driv->driver_name, it->board_name))
+			break;
 		module_put(driv->module);
 	}
-	return -EIO;
-
-attached:
-	/* do a little post-config cleanup */
-	ret = postconfig(dev);
-	module_put(dev->driver->module);
+	if (driv == NULL) {
+		/*  recognize has failed if we get here */
+		/*  report valid board names before returning error */
+		for (driv = comedi_drivers; driv; driv = driv->next) {
+			if (!try_module_get(driv->module)) {
+				printk(KERN_INFO
+				       "comedi: failed to increment module count\n");
+				continue;
+			}
+			comedi_report_boards(driv);
+			module_put(driv->module);
+		}
+		return -EIO;
+	}
+	/* initialize dev->driver here so
+	 * comedi_error() can be called from attach */
+	dev->driver = driv;
+	ret = driv->attach(dev, it);
 	if (ret < 0) {
+		module_put(dev->driver->module);
 		__comedi_device_detach(dev);
 		return ret;
 	}
-
-	if (!dev->board_name) {
-		printk(KERN_WARNING "BUG: dev->board_name=<%p>\n",
-		       dev->board_name);
-		dev->board_name = "BUG";
-	}
-	smp_wmb();
-	dev->attached = 1;
-
-	return 0;
+	return comedi_device_postconfig(dev);
 }
 
 int comedi_driver_register(struct comedi_driver *driver)
