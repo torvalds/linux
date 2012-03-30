@@ -2617,46 +2617,22 @@ static void usbduxsub_disconnect(struct usb_interface *intf)
 	dev_dbg(&intf->dev, "comedi_: disconnected from the usb\n");
 }
 
-/* is called when comedi-config is called */
-static int usbdux_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+/* common part of attach and attach_usb */
+static int usbdux_attach_common(struct comedi_device *dev,
+				struct usbduxsub *udev,
+				void *aux_data, int aux_len)
 {
 	int ret;
-	int index;
-	int i;
-	struct usbduxsub *udev;
-
+	int index = (int)(udev - usbduxsub);
 	struct comedi_subdevice *s = NULL;
-	dev->private = NULL;
 
-	down(&start_stop_sem);
-	/* find a valid device which has been detected by the probe function of
-	 * the usb */
-	index = -1;
-	for (i = 0; i < NUMUSBDUX; i++) {
-		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
-			index = i;
-			break;
-		}
-	}
-
-	if (index < 0) {
-		printk(KERN_ERR "comedi%d: usbdux: error: attach failed, no "
-		       "usbdux devs connected to the usb bus.\n", dev->minor);
-		up(&start_stop_sem);
-		return -ENODEV;
-	}
-
-	udev = &usbduxsub[index];
 	down(&udev->sem);
 	/* pointer back to the corresponding comedi device */
 	udev->comedidev = dev;
 
 	/* trying to upload the firmware into the chip */
-	if (comedi_aux_data(it->options, 0) &&
-	    it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]) {
-		firmwareUpload(udev, comedi_aux_data(it->options, 0),
-			       it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH]);
-	}
+	if (aux_data)
+		firmwareUpload(udev, aux_data, aux_len);
 
 	dev->board_name = BOARDNAME;
 
@@ -2675,7 +2651,6 @@ static int usbdux_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		dev_err(&udev->interface->dev,
 			"comedi%d: error alloc space for subdev\n", dev->minor);
 		up(&udev->sem);
-		up(&start_stop_sem);
 		return ret;
 	}
 
@@ -2778,12 +2753,78 @@ static int usbdux_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	up(&udev->sem);
 
-	up(&start_stop_sem);
-
 	dev_info(&udev->interface->dev, "comedi%d: attached to usbdux.\n",
 		 dev->minor);
 
 	return 0;
+}
+
+/* is called when comedi-config is called */
+static int usbdux_attach(struct comedi_device *dev, struct comedi_devconfig *it)
+{
+	int ret;
+	int index;
+	int i;
+	void *aux_data;
+	int aux_len;
+
+	dev->private = NULL;
+
+	aux_data = comedi_aux_data(it->options, 0);
+	aux_len = it->options[COMEDI_DEVCONF_AUX_DATA_LENGTH];
+	if (aux_data == NULL)
+		aux_len = 0;
+	else if (aux_len == 0)
+		aux_data = NULL;
+
+	down(&start_stop_sem);
+	/* find a valid device which has been detected by the probe function of
+	 * the usb */
+	index = -1;
+	for (i = 0; i < NUMUSBDUX; i++) {
+		if ((usbduxsub[i].probed) && (!usbduxsub[i].attached)) {
+			index = i;
+			break;
+		}
+	}
+
+	if (index < 0) {
+		printk(KERN_ERR
+		       "comedi%d: usbdux: error: attach failed, no usbdux devs connected to the usb bus.\n",
+		       dev->minor);
+		ret = -ENODEV;
+	} else
+		ret = usbdux_attach_common(dev, &usbduxsub[index],
+					   aux_data, aux_len);
+	up(&start_stop_sem);
+	return ret;
+}
+
+/* is called from comedi_usb_auto_config() */
+static int usbdux_attach_usb(struct comedi_device *dev,
+			     struct usb_interface *uinterf)
+{
+	int ret;
+	struct usbduxsub *this_usbduxsub;
+
+	dev->private = NULL;
+
+	down(&start_stop_sem);
+	this_usbduxsub = usb_get_intfdata(uinterf);
+	if (!this_usbduxsub || !this_usbduxsub->probed) {
+		printk(KERN_ERR
+		       "comedi%d: usbdux: error: attach_usb failed, not connected\n",
+		       dev->minor);
+		ret = -ENODEV;
+	} else if (this_usbduxsub->attached) {
+		printk(KERN_ERR
+		       "comedi%d: usbdux: error: attach_usb failed, already attached\n",
+		       dev->minor);
+		ret = -ENODEV;
+	} else
+		ret = usbdux_attach_common(dev, this_usbduxsub, NULL, 0);
+	up(&start_stop_sem);
+	return ret;
 }
 
 static int usbdux_detach(struct comedi_device *dev)
@@ -2824,6 +2865,7 @@ static struct comedi_driver driver_usbdux = {
 	.module = THIS_MODULE,
 	.attach = usbdux_attach,
 	.detach = usbdux_detach,
+	.attach_usb = usbdux_attach_usb,
 };
 
 /* Table with the USB-devices: just now only testing IDs */
