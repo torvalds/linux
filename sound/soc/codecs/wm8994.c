@@ -2623,33 +2623,6 @@ static int wm8994_aif3_hw_params(struct snd_pcm_substream *substream,
 	return snd_soc_update_bits(codec, aif1_reg, WM8994_AIF1_WL_MASK, aif1);
 }
 
-static void wm8994_aif_shutdown(struct snd_pcm_substream *substream,
-				struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	int rate_reg = 0;
-
-	switch (dai->id) {
-	case 1:
-		rate_reg = WM8994_AIF1_RATE;
-		break;
-	case 2:
-		rate_reg = WM8994_AIF2_RATE;
-		break;
-	default:
-		break;
-	}
-
-	/* If the DAI is idle then configure the divider tree for the
-	 * lowest output rate to save a little power if the clock is
-	 * still active (eg, because it is system clock).
-	 */
-	if (rate_reg && !dai->playback_active && !dai->capture_active)
-		snd_soc_update_bits(codec, rate_reg,
-				    WM8994_AIF1_SR_MASK |
-				    WM8994_AIF1CLK_RATE_MASK, 0x9);
-}
-
 static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
@@ -2731,7 +2704,6 @@ static const struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
-	.shutdown	= wm8994_aif_shutdown,
 	.digital_mute	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
@@ -2741,7 +2713,6 @@ static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 	.set_sysclk	= wm8994_set_dai_sysclk,
 	.set_fmt	= wm8994_set_dai_fmt,
 	.hw_params	= wm8994_hw_params,
-	.shutdown	= wm8994_aif_shutdown,
 	.digital_mute   = wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
 	.set_tristate	= wm8994_set_tristate,
