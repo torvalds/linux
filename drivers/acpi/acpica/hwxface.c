@@ -74,8 +74,7 @@ acpi_status acpi_reset(void)
 
 	/* Check if the reset register is supported */
 
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_RESET_REGISTER) ||
-	    !reset_reg->address) {
+	if (!reset_reg->address) {
 		return_ACPI_STATUS(AE_NOT_EXIST);
 	}
 
