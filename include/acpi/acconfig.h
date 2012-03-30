@@ -85,6 +85,23 @@
  */
 #define ACPI_CHECKSUM_ABORT             FALSE
 
+/*
+ * Generate a version of ACPICA that only supports "reduced hardware"
+ * platforms (as defined in ACPI 5.0). Set to TRUE to generate a specialized
+ * version of ACPICA that ONLY supports the ACPI 5.0 "reduced hardware"
+ * model. In other words, no ACPI hardware is supported.
+ *
+ * If TRUE, this means no support for the following:
+ *      PM Event and Control registers
+ *      SCI interrupt (and handler)
+ *      Fixed Events
+ *      General Purpose Events (GPEs)
+ *      Global Lock
+ *      ACPI PM timer
+ *      FACS table (Waking vectors and Global Lock)
+ */
+#define ACPI_REDUCED_HARDWARE           FALSE
+
 /******************************************************************************
  *
  * Subsystem Constants
@@ -93,7 +110,7 @@
 
 /* Version of ACPI supported */
 
-#define ACPI_CA_SUPPORT_LEVEL           3
+#define ACPI_CA_SUPPORT_LEVEL           5
 
 /* Maximum count for a semaphore object */
 
