@@ -687,7 +687,7 @@ render_ring_get_irq(struct intel_ring_buffer *ring)
 
 	spin_lock(&ring->irq_lock);
 	if (ring->irq_refcount++ == 0) {
-		if (HAS_PCH_SPLIT(dev) || IS_VALLEYVIEW(dev))
+		if (INTEL_INFO(dev)->gen >= 5)
 			ironlake_enable_irq(dev_priv,
 					    GT_PIPE_NOTIFY | GT_USER_INTERRUPT);
 		else
@@ -706,7 +706,7 @@ render_ring_put_irq(struct intel_ring_buffer *ring)
 
 	spin_lock(&ring->irq_lock);
 	if (--ring->irq_refcount == 0) {
-		if (HAS_PCH_SPLIT(dev) || IS_VALLEYVIEW(dev))
+		if (INTEL_INFO(dev)->gen >= 5)
 			ironlake_disable_irq(dev_priv,
 					     GT_USER_INTERRUPT |
 					     GT_PIPE_NOTIFY);
