@@ -521,6 +521,7 @@ struct station_parameters {
  * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
  * @STATION_INFO_STA_FLAGS: @sta_flags filled
  * @STATION_INFO_BEACON_LOSS_COUNT: @beacon_loss_count filled
+ * @STATION_INFO_T_OFFSET: @t_offset filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -542,7 +543,8 @@ enum station_info_flags {
 	STATION_INFO_CONNECTED_TIME	= 1<<16,
 	STATION_INFO_ASSOC_REQ_IES	= 1<<17,
 	STATION_INFO_STA_FLAGS		= 1<<18,
-	STATION_INFO_BEACON_LOSS_COUNT	= 1<<19
+	STATION_INFO_BEACON_LOSS_COUNT	= 1<<19,
+	STATION_INFO_T_OFFSET		= 1<<20,
 };
 
 /**
@@ -643,6 +645,7 @@ struct sta_bss_parameters {
  * @assoc_req_ies_len: Length of assoc_req_ies buffer in octets.
  * @sta_flags: station flags mask & values
  * @beacon_loss_count: Number of times beacon loss event has triggered.
+ * @t_offset: Time offset of the station relative to this host.
  */
 struct station_info {
 	u32 filled;
@@ -671,6 +674,7 @@ struct station_info {
 	size_t assoc_req_ies_len;
 
 	u32 beacon_loss_count;
+	s64 t_offset;
 
 	/*
 	 * Note: Add a new enum station_info_flags value for each new field and
@@ -798,6 +802,8 @@ struct mesh_config {
 	/* ttl used in path selection information elements */
 	u8  element_ttl;
 	bool auto_open_plinks;
+	/* neighbor offset synchronization */
+	u32 dot11MeshNbrOffsetMaxNeighbor;
 	/* HWMP parameters */
 	u8  dot11MeshHWMPmaxPREQretries;
 	u32 path_refresh_time;
@@ -821,6 +827,7 @@ struct mesh_config {
  * struct mesh_setup - 802.11s mesh setup configuration
  * @mesh_id: the mesh ID
  * @mesh_id_len: length of the mesh ID, at least 1 and at most 32 bytes
+ * @sync_method: which synchronization method to use
  * @path_sel_proto: which path selection protocol to use
  * @path_metric: which metric to use
  * @ie: vendor information elements (optional)
@@ -834,8 +841,9 @@ struct mesh_config {
 struct mesh_setup {
 	const u8 *mesh_id;
 	u8 mesh_id_len;
-	u8  path_sel_proto;
-	u8  path_metric;
+	u8 sync_method;
+	u8 path_sel_proto;
+	u8 path_metric;
 	const u8 *ie;
 	u8 ie_len;
 	bool is_authenticated;
