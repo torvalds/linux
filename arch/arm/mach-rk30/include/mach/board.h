@@ -9,6 +9,7 @@
 #include <linux/notifier.h>
 #include <asm/setup.h>
 #include <plat/board.h>
+#include <mach/sram.h>
 
 struct rk30_i2c_platform_data {
 	char *name;
@@ -42,6 +43,10 @@ struct machine_desc;
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi);
 void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned long max_i2s_rate);
 void __init board_clock_init(void);
+void board_gpio_suspend(void);
+void board_gpio_resume(void);
+void __sramfunc board_pmu_suspend(void);
+void __sramfunc board_pmu_resume(void);
 
 extern struct sys_timer rk30_timer;
 

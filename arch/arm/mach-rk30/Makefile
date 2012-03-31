@@ -1,8 +1,9 @@
 obj-y += clock.o
 obj-y += clock_data.o
-obj-y += dvfs.o
 obj-y += common.o
+obj-y += ddr.o
 obj-y += devices.o
+obj-y += dvfs.o
 obj-y += io.o
 obj-y += iomux.o
 obj-y += pmu.o
