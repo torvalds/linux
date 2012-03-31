@@ -61,6 +61,7 @@
 #include <mach/iomux.h>
 #define GRF_REG_BASE	RK30_GRF_BASE	
 #define USBOTG_SIZE	RK30_USBOTG20_SIZE
+#define USBGRF_SOC_STATUS0	(GRF_REG_BASE+0x15c)
 #define USBGRF_UOC0_CON2	(GRF_REG_BASE+0x184)
 #define USBGRF_UOC1_CON2	(GRF_REG_BASE+0x190)
 #define USB_IOMUX_INIT(a,b) rk30_mux_api_set(a,b)
