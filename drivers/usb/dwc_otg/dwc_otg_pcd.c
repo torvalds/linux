@@ -118,22 +118,21 @@ void request_done(dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req,
 	{	
 		_status = _req->req.status;
 	}
-#if 0
-
-		if (_req->mapped) {
-			dma_unmap_single(_ep->pcd->gadget.dev.parent,
-				_req->req.dma, _req->req.length,
-				_ep->dwc_ep.is_in
-					? DMA_TO_DEVICE
-					: DMA_FROM_DEVICE);
-			_req->req.dma = DMA_ADDR_INVALID;
-			_req->mapped = 0;
-		} else
-			dma_sync_single_for_cpu(_ep->pcd->gadget.dev.parent,
-				_req->req.dma, _req->req.length,
-				_ep->dwc_ep.is_in
-					? DMA_TO_DEVICE
-					: DMA_FROM_DEVICE);
+#if 1
+	if (_req->mapped) {
+		dma_unmap_single(_ep->pcd->gadget.dev.parent,
+			_req->req.dma, _req->req.length,
+			_ep->dwc_ep.is_in
+				? DMA_TO_DEVICE
+				: DMA_FROM_DEVICE);
+		_req->req.dma = DMA_ADDR_INVALID;
+		_req->mapped = 0;
+	} else
+		dma_sync_single_for_cpu(_ep->pcd->gadget.dev.parent,
+			_req->req.dma, _req->req.length,
+			_ep->dwc_ep.is_in
+				? DMA_TO_DEVICE
+				: DMA_FROM_DEVICE);
 #endif
 	/* don't modify queue heads during completion callback */
 	_ep->stopped = 1;
@@ -1149,9 +1148,9 @@ static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 //#endif		
 	if (pcd->driver && pcd->driver->resume) 
 	{
-//		SPIN_UNLOCK(&pcd->lock);
+		SPIN_UNLOCK(&pcd->lock);
 		pcd->driver->suspend(&pcd->gadget);
-//		SPIN_LOCK(&pcd->lock);
+		SPIN_LOCK(&pcd->lock);
 	}
 	return 1;
 }
@@ -1706,7 +1705,7 @@ static void dwc_phy_reconnect(struct work_struct *work)
         DWC_PRINT("********soft connect!!!*****************************************\n");
     } 
 }
-
+#ifdef CONFIG_ARCH_RK29
 static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
 {
     dwc_otg_pcd_t * _pcd = (dwc_otg_pcd_t *)pdata;
@@ -1793,6 +1792,85 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     add_timer(&_pcd->check_vbus_timer); 
 	local_irq_restore(flags);
 }
+#endif
+#ifdef CONFIG_ARCH_RK30
+static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
+{
+    dwc_otg_pcd_t * _pcd = (dwc_otg_pcd_t *)pdata;
+    dwc_otg_core_if_t *core_if = GET_CORE_IF(_pcd);
+    gotgctl_data_t    gctrl;
+    dctl_data_t dctl = {.d32=0};
+    //dsts_data_t           gsts;
+	unsigned long flags;
+#ifdef CONFIG_ARCH_RK30
+    unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
+#endif
+    _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
+	if(usbgrf_status &0x20000){  // bvalid
+        /* if usb not connect before ,then start connect */
+         if( _pcd->vbus_status == 0 ) {
+            dwc_otg_msc_lock(_pcd);
+            DWC_PRINT("********vbus detect*********************************************\n");
+    	    _pcd->vbus_status = 1;
+            if(_pcd->conn_en)
+    	    {
+        	    if( _pcd->phy_suspend  == 1 ) { 
+//                     rk28_usb_suspend( 1 );
+                }
+        	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+    		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+    	    }
+
+        } else if((_pcd->conn_status>0)&&(_pcd->conn_status <3)) {
+            //dwc_otg_msc_unlock(_pcd);
+            DWC_PRINT("********soft reconnect******************************************\n");
+            //_pcd->vbus_status =0;
+            
+            /* soft disconnect */
+	        dctl.d32 = dwc_read_reg32( &core_if->dev_if->dev_global_regs->dctl );
+	        dctl.b.sftdiscon = 1;
+	        dwc_write_reg32( &core_if->dev_if->dev_global_regs->dctl, dctl.d32 );
+            /* Clear any pending interrupts */
+            dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF); 
+            if(_pcd->conn_en)
+    	    {
+        	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+    		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+    	    }
+        }
+        else if((_pcd->conn_en)&&(_pcd->conn_status == 0))
+        {
+            DWC_PRINT("********vbus detect ccccc*********************************************\n");
+    	
+    	    schedule_delayed_work( &_pcd->reconnect , 8 ); /* delay 1 jiffies */
+		     _pcd->check_vbus_timer.expires = jiffies + (HZ<<1); /* 1 s */
+        }
+        else if(_pcd->conn_status ==3)
+        {
+			//*连接不上时释放锁，允许系统进入二级睡眠，yk@rk,20100331*//
+            dwc_otg_msc_unlock(_pcd);
+            _pcd->conn_status++;
+            if((dwc_read_reg32((uint32_t*)((uint8_t *)_pcd->otg_dev->base + DWC_OTG_HOST_PORT_REGS_OFFSET))&0xc00) == 0xc00)
+                _pcd->vbus_status = 2;
+        }
+	}else {
+        //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
+       DWC_PRINT("********vbus 0******************************************\n");
+        _pcd->vbus_status = 0;
+        if(_pcd->conn_status)
+        {
+             _pcd->conn_status = 0;
+             dwc_otg_msc_unlock(_pcd);
+        }
+        /* every 500 ms open usb phy power and start 1 jiffies timer to get vbus */
+        if( _pcd->phy_suspend == 0 ) 
+                /* no vbus detect here , close usb phy  */
+             rk28_usb_suspend( 0 );
+    }
+    add_timer(&_pcd->check_vbus_timer); 
+}
+
+#endif
 #ifdef CONFIG_ARCH_RK29
 /*
  * This function can be only called in charge mode.

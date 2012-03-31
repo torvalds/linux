@@ -606,9 +606,9 @@ void dwc_otg_pcd_stop(dwc_otg_pcd_t *_pcd)
 	/* report disconnect; the driver is already quiesced */
 	if (_pcd->driver && _pcd->driver->disconnect) 
 	{
-//		SPIN_UNLOCK(&_pcd->lock);
+		SPIN_UNLOCK(&_pcd->lock);
 		_pcd->driver->disconnect(&_pcd->gadget);
-//		SPIN_LOCK(&_pcd->lock);
+		SPIN_LOCK(&_pcd->lock);
 	}
 }
 
@@ -947,6 +947,7 @@ int32_t dwc_otg_pcd_handle_enum_done_intr(dwc_otg_pcd_t *_pcd)
     dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[2]->doepctl, depctl.d32 );
     dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[4]->doepctl, depctl.d32 );
     dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[6]->doepctl, depctl.d32 );
+    dwc_write_reg32( &GET_CORE_IF(_pcd)->dev_if->out_ep_regs[8]->doepctl, depctl.d32 );
 	return 1;
 }
 
