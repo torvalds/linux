@@ -604,8 +604,22 @@ static int rk_fb_io_init(void)
 	}
 	return 0;
 }
-static struct rk29lcd_info rk_fb_info = {
+static int rk_fb_io_disable(void)
+{
+	gpio_set_value(LCD_EN_PIN, ~LCD_EN_VALUE);
+	return 0;
+}
+static int rk_fb_io_enable(void)
+{
+	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE);
+	return 0;
+}
+
+
+static struct rk29fb_info rk_fb_info = {
 	.io_init   = rk_fb_io_init,
+	.io_disable = rk_fb_io_disable,
+	.io_enable = rk_fb_io_enable,
 };
 
 static struct resource resource_fb[] = {

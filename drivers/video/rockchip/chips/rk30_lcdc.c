@@ -31,9 +31,6 @@
 #include <linux/fb.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
-
-#include <mach/board.h>
-#include "../../display/screen/screen.h"
 #include <linux/rk_fb.h>
 #include "rk30_lcdc.h"
 
@@ -75,7 +72,7 @@ static int init_rk30_lcdc(struct rk30_lcdc_device *lcdc_dev)
 	LcdSetBit(lcdc_dev,DSP_CTRL0, m_LCDC_AXICLK_AUTO_ENABLE);//eanble axi-clk auto gating for low power
 	LcdMskReg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR | m_BUS_ERR_INT_CLEAR | m_LINE_FLAG_INT_EN |
               m_FRM_START_INT_EN | m_HOR_START_INT_EN,v_FRM_START_INT_CLEAR(1) | v_BUS_ERR_INT_CLEAR(0) |
-              v_LINE_FLAG_INT_EN(0) | v_FRM_START_INT_EN(1) | v_HOR_START_INT_EN(0));
+              v_LINE_FLAG_INT_EN(0) | v_FRM_START_INT_EN(1) | v_HOR_START_INT_EN(0));  //enable frame start interrupt for sync
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);  // write any value to  REG_CFG_DONE let config become effective
 	return 0;
 }
@@ -318,7 +315,10 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	struct layer_par *par )
 {
     u32 xact, yact, xvir, yvir, xpos, ypos;
-    u32 ScaleYrgbX,ScaleYrgbY, ScaleCbrX, ScaleCbrY;
+    u32 ScaleYrgbX = 0x1000;
+    u32 ScaleYrgbY = 0x1000;
+    u32 ScaleCbrX = 0x1000;
+    u32 ScaleCbrY = 0x1000;
     
     xact = par->xact;			    //active (origin) picture window width/height		
     yact = par->yact;
@@ -488,7 +488,6 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		printk(KERN_ERR "screen is null!\n");
 		return -ENOENT;	
 	}
-	wait_for_completion(&dev_drv->frame_done);
 	if(layer_id==0)
 	{
 		par = &(dev_drv->layer_par[0]);
@@ -499,7 +498,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		par = &(dev_drv->layer_par[1]);
         	win1_display(lcdc_dev,par);
 	}
-	INIT_COMPLETION(dev_drv->frame_done);
+	wait_for_completion(&dev_drv->frame_done);
 	
     return 0;
 }
@@ -524,16 +523,19 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
    return 0;
 }
 
-int rk30_lcdc_suspend(struct layer_par *layer_par)
+int rk30_lcdc_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
-    return 0;
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	LcdMskReg(lcdc_dev, SYS_CTRL0,m_LCDC_STANDBY,v_LCDC_STANDBY(1));
+	return 0;
 }
 
 
-int rk30_lcdc_resume(struct layer_par *layer_par)
+int rk30_lcdc_resume(struct rk_lcdc_device_driver *dev_drv)
 {  
-    
-    return 0;
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	LcdMskReg(lcdc_dev, SYS_CTRL0,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
+    	return 0;
 }
 
 static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
@@ -541,7 +543,7 @@ static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
 	struct rk30_lcdc_device *lcdc_dev = (struct rk30_lcdc_device *)dev_id;
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_START_INT_CLEAR, v_FRM_START_INT_CLEAR(1));
 	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
-	complete_all(&(lcdc_dev->driver.frame_done));
+	complete(&(lcdc_dev->driver.frame_done));
 	return IRQ_HANDLED;
 }
 

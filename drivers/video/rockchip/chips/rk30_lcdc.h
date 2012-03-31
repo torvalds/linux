@@ -76,19 +76,39 @@ typedef volatile struct tagLCDC_REG
 
 #define m_LCDC_DMA_STOP              (1<<0)
 #define m_LCDC_STANDBY               (1<<1)
-#define m_HWC_RELOAD_EN         	 (1<<2)
-#define m_W0_AXI_OUTSTANDING_DISABLE (1<<3)
+#define m_HWC_RELOAD_EN               (1<<2)
+#define m_W0_AXI_OUTSTANDING_DISABLE (1<<3) 
 #define m_W1_AXI_OUTSTANDING_DISABLE (1<<4)
 #define m_W2_AXI_OUTSTANDING_DISABLE (1<<5)
-#define m_DMA_BURST_LENGTH			 (3<<6)
+#define m_DMA_BURST_LENGTH	      (3<<6)
+#define m_WIN0_YRGB_CHANNEL0_ID	      ((0x07)<<8)
+#define m_WIN0_CBR_CHANNEL0_ID	      ((0x07)<<11)
+#define m_WIN0_YRGB_CHANNEL1_ID	      ((0x07)<<14)
+#define m_WIN0_CBR_CHANNEL1_ID	      ((0x07)<<17)
+#define m_WIN1_YRGB_CHANNEL_ID	      ((0x07)<<20)
+#define m_WIN1_CBR_CHANNEL_ID	      ((0x07)<<23)
+#define m_WIN2_CHANNEL_ID	      ((0x07)<<26)
+#define m_HWC_CHANNEL_ID	      ((0x07)<<29)
+
+
+
+
 
 #define v_LCDC_DMA_STOP(x)              (((x)&1)<<0)
 #define v_LCDC_STANDBY(x)              (((x)&1)<<1)
-#define v_HWC_RELOAD_EN(x)         	    (((x)&1)<<2)
+#define v_HWC_RELOAD_EN(x)             (((x)&1)<<2)
 #define v_W0_AXI_OUTSTANDING_DISABLE(x) (((x)&1)<<3)
 #define v_W1_AXI_OUTSTANDING_DISABLE(x) (((x)&1)<<4)
 #define v_W2_AXI_OUTSTANDING_DISABLE(x) (((x)&1)<<5)
-#define v_DMA_BURST_LENGTH(x)			 (((x)&3)<<6)
+#define v_DMA_BURST_LENGTH(x)		(((x)&3)<<6)
+#define v_WIN0_YRGB_CHANNEL0_ID(x)	(((x)&7)<<8)
+#define v_WIN0_CBR_CHANNEL0_ID(x)	(((x)&7)<<11)
+#define v_WIN0_YRGB_CHANNEL1_ID(x)      (((x)&7)<<14)
+#define v_WIN0_CBR_CHANNEL1_ID(x)	(((x)&7)<<17)
+#define v_WIN1_YRGB_CHANNEL_ID(x)	(((x)&7)<<20)
+#define v_WIN1_CBR_CHANNEL_ID(x)	(((x)&7)<<23)
+#define v_WIN2_CHANNEL_ID(x)	        (((x)&7)<<26)
+#define v_HWC_CHANNEL_ID(x)	        (((x)&7)<<29)
 
 
 

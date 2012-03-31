@@ -28,8 +28,6 @@
 #include <linux/earlysuspend.h>
 #include <asm/div64.h>
 #include <asm/uaccess.h>
-#include <mach/board.h>
-#include "../display/screen/screen.h"
 #include<linux/rk_fb.h>
 
 
@@ -737,13 +735,49 @@ int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
 	
 	return 0;
 }
+
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+struct suspend_info {
+	struct early_suspend early_suspend;
+	struct rk_fb_inf *inf;
+};
+
+static void rkfb_early_suspend(struct early_suspend *h)
+{
+	struct suspend_info *info = container_of(h, struct suspend_info,
+						early_suspend);
+	struct rk_fb_inf *inf = info->inf;
+   	inf->lcd_info->io_disable();
+	inf->lcdc_dev_drv[0]->suspend(inf->lcdc_dev_drv[0]);
+	inf->lcdc_dev_drv[1]->suspend(inf->lcdc_dev_drv[1]);
+}
+static void rkfb_early_resume(struct early_suspend *h)
+{
+	struct suspend_info *info = container_of(h, struct suspend_info,
+						early_suspend);
+	struct rk_fb_inf *inf = info->inf;
+   	inf->lcd_info->io_enable();
+	inf->lcdc_dev_drv[0]->resume(inf->lcdc_dev_drv[0]);
+	inf->lcdc_dev_drv[1]->resume(inf->lcdc_dev_drv[1]);
+
+}
+
+
+
+static struct suspend_info suspend_info = {
+	.early_suspend.suspend = rkfb_early_suspend,
+	.early_suspend.resume = rkfb_early_resume,
+	.early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB,
+};
+#endif
+
 static int __devinit rk_fb_probe (struct platform_device *pdev)
 {
 	struct rk_fb_inf *fb_inf = NULL;
-	struct rk29lcd_info *lcd_info = NULL;
+	struct rk29fb_info * lcd_info = NULL;
 	int ret = 0;
 	g_fb_pdev=pdev;
-	lcd_info =  pdev->dev.platform_data;
     	/* Malloc rk_fb_inf and set it to pdev for drvdata */
 	fb_inf = kzalloc(sizeof(struct rk_fb_inf), GFP_KERNEL);
 	if(!fb_inf)
@@ -752,8 +786,14 @@ static int __devinit rk_fb_probe (struct platform_device *pdev)
         	ret = -ENOMEM;
     	}
 	platform_set_drvdata(pdev,fb_inf);
+	lcd_info =  pdev->dev.platform_data;
+	fb_inf->lcd_info = lcd_info;
 	if(lcd_info->io_init)
-		lcd_info->io_init();
+		lcd_info->io_init(NULL);
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	suspend_info.inf = fb_inf;
+	register_early_suspend(&suspend_info.early_suspend);
+#endif
 	printk("rk fb probe ok!\n");
     return 0;
 }

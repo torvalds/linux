@@ -16,8 +16,10 @@
 #ifndef __ARCH_ARM_MACH_RK30_FB_H
 #define __ARCH_ARM_MACH_RK30_FB_H
 
-
 #include<linux/completion.h>
+#include <mach/board.h>
+#include<linux/rk_screen.h>
+
 
 #define RK30_MAX_LCDC_SUPPORT	4
 #define RK30_MAX_LAYER_SUPPORT	4
@@ -190,8 +192,8 @@ struct rk_lcdc_device_driver{
 	struct completion  frame_done;
 	
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);
-	int (*suspend)(struct layer_par *layer_par);
-	int (*resume)(struct layer_par *layer_par);
+	int (*suspend)(struct rk_lcdc_device_driver *dev_drv);
+	int (*resume)(struct rk_lcdc_device_driver *dev_drv);
 	int (*blank)(struct rk_lcdc_device_driver *dev_drv,int layer_id,int blank_mode);
 	int (*set_par)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*pan_display)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
@@ -201,6 +203,7 @@ struct rk_lcdc_device_driver{
 };
 
 struct rk_fb_inf {
+    struct rk29fb_info * lcd_info;     //lcd io control info
     struct fb_info *fb[RK_MAX_FB_SUPPORT];
     int num_fb;
     
