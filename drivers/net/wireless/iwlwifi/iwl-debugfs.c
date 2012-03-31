@@ -2499,6 +2499,27 @@ static ssize_t iwl_dbgfs_calib_disabled_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
+static ssize_t iwl_dbgfs_calib_disabled_write(struct file *file,
+					      const char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	u32 calib_disabled;
+	int buf_size;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%x", &calib_disabled) != 1)
+		return -EFAULT;
+
+	priv->calib_disabled = calib_disabled;
+
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -2523,7 +2544,7 @@ DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
 DEBUGFS_READ_FILE_OPS(reply_tx_error);
 DEBUGFS_WRITE_FILE_OPS(echo_test);
 DEBUGFS_READ_WRITE_FILE_OPS(log_event);
-DEBUGFS_READ_FILE_OPS(calib_disabled);
+DEBUGFS_READ_WRITE_FILE_OPS(calib_disabled);
 
 /*
  * Create the debugfs files and directories
@@ -2592,7 +2613,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
 
 	/* Calibrations disabled/enabled status*/
-	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IRUSR);
+	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IWUSR | S_IRUSR);
 
 	if (iwl_trans_dbgfs_register(priv->trans, dir_debug))
 		goto err;
