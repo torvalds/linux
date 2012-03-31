@@ -580,6 +580,8 @@ int perf_event__parse_sample(const union perf_event *event, u64 type,
 			return -EFAULT;
 
 		data->raw_data = (void *) pdata;
+
+		array = (void *)array + data->raw_size + sizeof(u32);
 	}
 
 	if (type & PERF_SAMPLE_BRANCH_STACK) {

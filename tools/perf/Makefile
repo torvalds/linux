@@ -61,8 +61,6 @@ ARCH ?= $(shell echo $(uname_M) | sed -e s/i.86/i386/ -e s/sun4u/sparc64/ \
 
 CC = $(CROSS_COMPILE)gcc
 AR = $(CROSS_COMPILE)ar
-FLEX = $(CROSS_COMPILE)flex
-BISON= $(CROSS_COMPILE)bison
 
 # Additional ARCH settings for x86
 ifeq ($(ARCH),i386)
@@ -184,7 +182,7 @@ endif
 
 ### --- END CONFIGURATION SECTION ---
 
-BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
+BASIC_CFLAGS = -Iutil/include -Iarch/$(ARCH)/include -I$(OUTPUT)/util -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 BASIC_LDFLAGS =
 
 # Guard against environment variables
@@ -235,6 +233,25 @@ ifndef PERL_PATH
 endif
 
 export PERL_PATH
+
+FLEX = $(CROSS_COMPILE)flex
+BISON= $(CROSS_COMPILE)bison
+
+event-parser:
+	$(QUIET_BISON)$(BISON) -v util/parse-events.y -d -o $(OUTPUT)util/parse-events-bison.c
+	$(QUIET_FLEX)$(FLEX) --header-file=$(OUTPUT)util/parse-events-flex.h -t util/parse-events.l > $(OUTPUT)util/parse-events-flex.c
+
+$(OUTPUT)util/parse-events-flex.c: event-parser
+$(OUTPUT)util/parse-events-bison.c: event-parser
+
+pmu-parser:
+	$(QUIET_BISON)$(BISON) -v util/pmu.y -d -o $(OUTPUT)util/pmu-bison.c
+	$(QUIET_FLEX)$(FLEX) --header-file=$(OUTPUT)util/pmu-flex.h -t util/pmu.l > $(OUTPUT)util/pmu-flex.c
+
+$(OUTPUT)util/pmu-flex.c: pmu-parser
+$(OUTPUT)util/pmu-bison.c: pmu-parser
+
+$(OUTPUT)util/parse-events.o: event-parser pmu-parser
 
 LIB_FILE=$(OUTPUT)libperf.a
 
@@ -754,6 +771,15 @@ $(OUTPUT)perf.o perf.spec \
 .SUFFIXES:
 .SUFFIXES: .o .c .S .s
 
+# These two need to be here so that when O= is not used they take precedence
+# over the general rule for .o
+
+$(OUTPUT)util/%-flex.o: $(OUTPUT)util/%-flex.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -Iutil/ -Wno-redundant-decls -Wno-switch-default -Wno-unused-function $<
+
+$(OUTPUT)util/%-bison.o: $(OUTPUT)util/%-bison.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DYYENABLE_NLS=0 -DYYLTYPE_IS_TRIVIAL=0 -Iutil/ -Wno-redundant-decls -Wno-switch-default -Wno-unused-function $<
+
 $(OUTPUT)%.o: %.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $<
 $(OUTPUT)%.i: %.c $(OUTPUT)PERF-CFLAGS
@@ -789,12 +815,6 @@ $(OUTPUT)util/ui/browsers/map.o: util/ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
 
 $(OUTPUT)util/rbtree.o: ../../lib/rbtree.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
-
-$(OUTPUT)util/parse-events-flex.o: util/parse-events-flex.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -Wno-redundant-decls -Wno-switch-default -Wno-unused-function $<
-
-$(OUTPUT)util/pmu-flex.o: util/pmu-flex.c $(OUTPUT)PERF-CFLAGS
-	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -Wno-redundant-decls -Wno-switch-default -Wno-unused-function $<
 
 $(OUTPUT)util/scripting-engines/trace-event-perl.o: util/scripting-engines/trace-event-perl.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) $(PERL_EMBED_CCOPTS) -Wno-redundant-decls -Wno-strict-prototypes -Wno-unused-parameter -Wno-shadow $<
@@ -883,14 +903,6 @@ cscope:
 	$(RM) cscope*
 	$(FIND) . -name '*.[hcS]' -print | xargs cscope -b
 
-event-parser:
-	$(QUIET_BISON)$(BISON) -v util/parse-events.y -d -o util/parse-events-bison.c
-	$(QUIET_FLEX)$(FLEX) --header-file=util/parse-events-flex.h -t util/parse-events.l > util/parse-events-flex.c
-
-pmu-parser:
-	$(QUIET_BISON)$(BISON) -v util/pmu.y -d -o util/pmu-bison.c
-	$(QUIET_FLEX)$(FLEX) --header-file=util/pmu-flex.h -t util/pmu.l > util/pmu-flex.c
-
 ### Detect prefix changes
 TRACK_CFLAGS = $(subst ','\'',$(ALL_CFLAGS)):\
              $(bindir_SQ):$(perfexecdir_SQ):$(template_dir_SQ):$(prefix_SQ)
@@ -978,6 +990,7 @@ clean:
 	$(RM) *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope*
 	$(MAKE) -C Documentation/ clean
 	$(RM) $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)PERF-CFLAGS
+	$(RM) $(OUTPUT)util/*-{bison,flex}*
 	$(python-clean)
 
 .PHONY: all install clean strip
