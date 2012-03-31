@@ -1854,8 +1854,6 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
                 _pcd->vbus_status = 2;
         }
 	}else {
-        //DWC_PRINT("new vbus=%d,old vbus=%d\n" , gctrl.b.bsesvld , _pcd->vbus_status );
-       DWC_PRINT("********vbus 0******************************************\n");
         _pcd->vbus_status = 0;
         if(_pcd->conn_status)
         {
