@@ -916,12 +916,15 @@ void dwc_otg_core_host_init(dwc_otg_core_if_t *_core_if)
 	
 	/* Initialize Host Configuration Register */
 	init_fslspclksel(_core_if);
+	/* we don't need full speed mode */
+	#if 0
 	if (_core_if->core_params->speed == DWC_SPEED_PARAM_FULL) 
 	{
 		hcfg.d32 = dwc_read_reg32(&host_if->host_global_regs->hcfg);
 		hcfg.b.fslssupp = 1;
 		dwc_write_reg32(&host_if->host_global_regs->hcfg, hcfg.d32);
 	}
+	#endif
 
 	/* Configure data FIFO sizes */
 	if (_core_if->hwcfg2.b.dynamic_fifo && params->enable_dynamic_fifo) 
@@ -2429,7 +2432,9 @@ void dwc_otg_ep0_start_transfer(dwc_otg_core_if_t *_core_if, dwc_ep_t *_ep)
 		{	
 			dwc_write_reg32 (&(in_regs->diepdma), 
 				(uint32_t)_ep->dma_addr);
-		    _ep->dma_addr += _ep->xfer_len;
+			/* EP0 transfer size may more than one packet, dma address has to update
+			 * kever@rk 20111120 */
+			_ep->dma_addr += _ep->xfer_len;
 		}
 	
 		/* EP enable, IN data in FIFO */

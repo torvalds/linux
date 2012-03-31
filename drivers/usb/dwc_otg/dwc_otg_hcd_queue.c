@@ -151,11 +151,6 @@ void dwc_otg_hcd_qh_init(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, struct urb *_ur
 	 * NOT virtual root hub */
 	_qh->do_split = 0;
 
-	/* yk@rk 20100625
-	 * _urb->dev->tt->hub may be null
-	 */
-	if((_urb->dev->tt)&&(!_urb->dev->tt->hub))
-		DWC_PRINT("%s tt->hub null!\n",__func__);
 	if (((_urb->dev->speed == USB_SPEED_LOW) || 
 	     (_urb->dev->speed == USB_SPEED_FULL)) &&
 	    (_urb->dev->tt) && (_urb->dev->tt->hub)&&
@@ -380,6 +375,7 @@ static int schedule_periodic(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh)
 
 	/* Always start in the inactive schedule. */
 	list_add_tail(&_qh->qh_list_entry, &_hcd->periodic_sched_inactive);
+	_qh->qh_state = QH_INACTIVE;
 
 	/* Reserve the periodic channel. */
 	_hcd->periodic_channels++;
@@ -565,11 +561,13 @@ void dwc_otg_hcd_qh_deactivate(dwc_otg_hcd_t *_hcd, dwc_otg_qh_t *_qh, int sched
 			 * appropriate queue.
 			 */
 			if (_qh->sched_frame == frame_number) {
-				list_move_tail(&_qh->qh_list_entry,
-					  &_hcd->periodic_sched_ready);
+				//list_move_tail(&_qh->qh_list_entry,
+				//	  &_hcd->periodic_sched_ready);
+	            _qh->qh_state = QH_READY;
 			} else {
-				list_move_tail(&_qh->qh_list_entry,
-					  &_hcd->periodic_sched_inactive);
+				//list_move_tail(&_qh->qh_list_entry,
+				//	  &_hcd->periodic_sched_inactive);
+	            _qh->qh_state = QH_INACTIVE;
 			}
 		}
 	}

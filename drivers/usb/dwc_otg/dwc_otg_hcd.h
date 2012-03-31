@@ -76,6 +76,15 @@ typedef enum dwc_otg_transaction_type {
 	DWC_OTG_TRANSACTION_ALL
 } dwc_otg_transaction_type_e;
 
+/** Transaction types. */
+typedef enum qh_status_type {
+	QH_INACTIVE,
+	QH_ACTIVE,
+	QH_READY,
+	QH_ASSIGNED,
+	QH_QUEUED
+} qh_status_type_e;
+
 /**
  * A Queue Transfer Descriptor (QTD) holds the state of a bulk, control,
  * interrupt, or isochronous transfer. A single QTD is created for each URB
@@ -169,7 +178,11 @@ typedef struct dwc_otg_qh {
 
 	/** Ping state if 1. */
 	uint8_t 		ping_state;
-
+	
+	/**
+	 * 
+	****/
+    uint16_t        qh_state;
 	/**
 	 * List of QTDs for this QH.
 	 */
@@ -276,7 +289,7 @@ typedef struct dwc_otg_hcd {
 	 * Items move from this list to periodic_sched_assigned as host
 	 * channels become available during the current frame.
 	 */
-	struct list_head	periodic_sched_ready;
+	//struct list_head	periodic_sched_ready;
 
 	/**
 	 * List of periodic QHs to be executed in the next frame that are
@@ -285,7 +298,7 @@ typedef struct dwc_otg_hcd {
 	 * Items move from this list to periodic_sched_queued as the
 	 * transactions for the QH are queued to the DWC_otg controller.
 	 */
-	struct list_head	periodic_sched_assigned;
+	//struct list_head	periodic_sched_assigned;
 
 	/**
 	 * List of periodic QHs that have been queued for execution.
@@ -296,7 +309,7 @@ typedef struct dwc_otg_hcd {
 	 * periodic_sched_ready because it must be rescheduled for the next
 	 * frame. Otherwise, the item moves to periodic_sched_inactive.
 	 */
-	struct list_head	periodic_sched_queued;
+	//struct list_head	periodic_sched_queued;
 
 	/**
 	 * Total bandwidth claimed so far for periodic transfers. This value

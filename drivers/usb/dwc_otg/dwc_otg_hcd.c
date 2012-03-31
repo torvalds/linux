@@ -434,9 +434,9 @@ static void kill_all_urbs(dwc_otg_hcd_t *_hcd)
 	kill_urbs_in_qh_list(_hcd, &_hcd->non_periodic_sched_inactive);
 	kill_urbs_in_qh_list(_hcd, &_hcd->non_periodic_sched_active);
 	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_inactive);
-	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_ready);
-	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_assigned);
-	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_queued);
+//	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_ready);
+//	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_assigned);
+//	kill_urbs_in_qh_list(_hcd, &_hcd->periodic_sched_queued);
 }
 
 /**
@@ -713,9 +713,9 @@ int __devinit dwc_otg_hcd_init(struct device *dev)
 
 	/* Initialize the periodic schedule. */
 	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_inactive);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
 
 	/*
 	 * Create a host channel descriptor for each host channel implemented
@@ -896,9 +896,9 @@ int __devinit host11_hcd_init(struct device *dev)
 
 	/* Initialize the periodic schedule. */
 	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_inactive);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
 
 	/*
 	 * Create a host channel descriptor for each host channel implemented
@@ -1089,9 +1089,9 @@ int __devinit host20_hcd_init(struct device *dev)
 
 	/* Initialize the periodic schedule. */
 	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_inactive);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
-	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_ready);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_assigned);
+//	INIT_LIST_HEAD(&dwc_otg_hcd->periodic_sched_queued);
 
 	/*
 	 * Create a host channel descriptor for each host channel implemented
@@ -1369,9 +1369,9 @@ void dwc_otg_hcd_free(struct usb_hcd *_hcd)
 	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->non_periodic_sched_inactive);
 	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->non_periodic_sched_active);
 	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_inactive);
-	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_ready);
-	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_assigned);
-	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_queued);
+//	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_ready);
+//	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_assigned);
+//	qh_list_free(dwc_otg_hcd, &dwc_otg_hcd->periodic_sched_queued);
 
 	/* Free memory for the host channels. */
 	for (i = 0; i < MAX_EPS_CHANNELS; i++) {
@@ -2832,11 +2832,14 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 #endif
 
 	/* Process entries in the periodic ready list. */
-	qh_ptr = _hcd->periodic_sched_ready.next;
-	while (qh_ptr != &_hcd->periodic_sched_ready &&
-	       !list_empty(&_hcd->free_hc_list)) {
-
+	qh_ptr = _hcd->periodic_sched_inactive.next;
+	while (qh_ptr != &_hcd->periodic_sched_inactive) {
 		qh = list_entry(qh_ptr, dwc_otg_qh_t, qh_list_entry);
+		if(qh->qh_state != QH_READY){
+    		qh_ptr = qh_ptr->next;
+    		continue;
+		}
+
 		assign_and_init_hc(_hcd, qh);
 
 		/*
@@ -2844,7 +2847,8 @@ dwc_otg_transaction_type_e dwc_otg_hcd_select_transactions(dwc_otg_hcd_t *_hcd)
 		 * periodic assigned schedule.
 		 */
 		qh_ptr = qh_ptr->next;
-		list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_assigned);
+		//list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_assigned);
+		qh->qh_state = QH_ASSIGNED;
 
 		ret_val = DWC_OTG_TRANSACTION_PERIODIC;
 	}
@@ -3076,8 +3080,8 @@ static void process_periodic_channels(dwc_otg_hcd_t *_hcd)
 		    tx_status.b.ptxfspcavail);
 #endif
 
-	qh_ptr = _hcd->periodic_sched_assigned.next;
-	while (qh_ptr != &_hcd->periodic_sched_assigned) {
+	qh_ptr = _hcd->periodic_sched_inactive.next;
+	while (qh_ptr != &_hcd->periodic_sched_inactive) {
 		tx_status.d32 = dwc_read_reg32(&host_regs->hptxsts);
 		if (tx_status.b.ptxqspcavail == 0) {
 			no_queue_space = 1;
@@ -3085,6 +3089,10 @@ static void process_periodic_channels(dwc_otg_hcd_t *_hcd)
 		}
 
 		qh = list_entry(qh_ptr, dwc_otg_qh_t, qh_list_entry);
+		if(qh->qh_state != QH_ASSIGNED){
+    		qh_ptr = qh_ptr->next;
+    		continue;
+		}
 
 		/*
 		 * Set a flag if we're queuing high-bandwidth in slave mode.
@@ -3118,7 +3126,8 @@ static void process_periodic_channels(dwc_otg_hcd_t *_hcd)
 			 * Move the QH from the periodic assigned schedule to
 			 * the periodic queued schedule.
 			 */
-			list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_queued);
+			//list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_queued);
+			qh->qh_state = QH_QUEUED;
 
 			/* done queuing high bandwidth */
 			_hcd->core_if->queuing_high_bandwidth = 0;
@@ -3138,7 +3147,7 @@ static void process_periodic_channels(dwc_otg_hcd_t *_hcd)
 		DWC_DEBUGPL(DBG_HCDV, "  P Tx FIFO Space Avail (after queue): %d\n",
 			    tx_status.b.ptxfspcavail);
 #endif
-		if (!(list_empty(&_hcd->periodic_sched_assigned)) ||
+		if (//!(list_empty(&_hcd->periodic_sched_assigned)) ||
 		    no_queue_space || no_fifo_space) {
 			/*
 			 * May need to queue more transactions as the request
@@ -3178,8 +3187,9 @@ void dwc_otg_hcd_queue_transactions(dwc_otg_hcd_t *_hcd,
 #endif
 	/* Process host channels associated with periodic transfers. */
 	if ((_tr_type == DWC_OTG_TRANSACTION_PERIODIC ||
-	     _tr_type == DWC_OTG_TRANSACTION_ALL) &&
-	    !list_empty(&_hcd->periodic_sched_assigned)) {
+	     _tr_type == DWC_OTG_TRANSACTION_ALL) //&&
+	    //!list_empty(&_hcd->periodic_sched_assigned)
+	    ) {
 
 		process_periodic_channels(_hcd);
 	}

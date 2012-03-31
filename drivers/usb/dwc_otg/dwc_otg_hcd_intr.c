@@ -35,7 +35,7 @@
 #include "dwc_otg_driver.h"
 #include "dwc_otg_hcd.h"
 #include "dwc_otg_regs.h"
-
+int csplit_nak = 0;
 /** @file 
  * This file contains the implementation of the HCD Interrupt handlers. 
  */
@@ -190,6 +190,10 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 	qh_entry = _hcd->periodic_sched_inactive.next;
 	while (qh_entry != &_hcd->periodic_sched_inactive) {
 		qh = list_entry(qh_entry, dwc_otg_qh_t, qh_list_entry);
+		if(qh->qh_state != QH_INACTIVE){
+    		qh_entry = qh_entry->next;
+    		continue;
+		}
 		qh_entry = qh_entry->next;
 		if (dwc_frame_num_le(qh->sched_frame, _hcd->frame_number)) {
 		    #if 1
@@ -220,7 +224,8 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 				 * Move QH to the ready list to be executed next
 				 * (micro)frame.
 				 */
-				list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_ready);
+				//list_move_tail(&qh->qh_list_entry, &_hcd->periodic_sched_ready);
+	            qh->qh_state = QH_READY;
 			}
 		}
 	}
@@ -229,10 +234,11 @@ int32_t dwc_otg_hcd_handle_sof_intr (dwc_otg_hcd_t *_hcd)
 	if (tr_type != DWC_OTG_TRANSACTION_NONE) {
 		dwc_otg_hcd_queue_transactions(_hcd, tr_type);
 #if 1
-	} else if (list_empty(&_hcd->periodic_sched_inactive) &&
-		   list_empty(&_hcd->periodic_sched_ready) &&
-		   list_empty(&_hcd->periodic_sched_assigned) &&
-		   list_empty(&_hcd->periodic_sched_queued)) {
+	} else if (list_empty(&_hcd->periodic_sched_inactive) //&&
+//		   list_empty(&_hcd->periodic_sched_ready) &&
+//		   list_empty(&_hcd->periodic_sched_assigned) &&
+//		   list_empty(&_hcd->periodic_sched_queued)
+            ) {
 		/*
 		 * We don't have USB data to send. Unfortunately the
 		 * Synopsis block continues to generate interrupts at
@@ -499,11 +505,12 @@ int32_t dwc_otg_hcd_handle_hc_intr (dwc_otg_hcd_t *_dwc_otg_hcd)
 	 * in the same relative order as the corresponding start-split transactions 
 	 * were issued.
 	 */
-	
-	qh_entry = _dwc_otg_hcd->periodic_sched_queued.next;
-	while (qh_entry != &_dwc_otg_hcd->periodic_sched_queued) {
+	qh_entry = _dwc_otg_hcd->periodic_sched_inactive.next;
+	while (qh_entry != &_dwc_otg_hcd->periodic_sched_inactive) {
 		qh = list_entry(qh_entry, dwc_otg_qh_t, qh_list_entry);
 		qh_entry = qh_entry->next;
+		if(qh->qh_state != QH_QUEUED)
+		continue;
 		hcnum = qh->channel->hc_num;
 		if (haint.b2.chint & (1 << hcnum)) {
 			retval |= dwc_otg_hcd_handle_hc_n_intr (_dwc_otg_hcd, hcnum);
@@ -805,6 +812,8 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 {
 	dwc_otg_transaction_type_e tr_type;
 	int free_qtd;
+	int continue_trans = 1;
+
     if((!_qtd)|(_qtd->urb == NULL))
     {
         goto cleanup;
@@ -845,6 +854,11 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 		free_qtd = 0;
 		break;
 	}
+	if(csplit_nak)
+	{
+		continue_trans = 0;
+		csplit_nak = 0;
+	}
 
 
 	deactivate_qh(_hcd, _hc->qh, free_qtd);
@@ -872,11 +886,13 @@ static void release_channel(dwc_otg_hcd_t *_hcd,
 		 */
 		break;
 	}
-
-	/* Try to queue more transfers now that there's a free channel. */
-	tr_type = dwc_otg_hcd_select_transactions(_hcd);
-	if (tr_type != DWC_OTG_TRANSACTION_NONE) {
-		dwc_otg_hcd_queue_transactions(_hcd, tr_type);
+	if(continue_trans)
+	{
+		/* Try to queue more transfers now that there's a free channel. */
+		tr_type = dwc_otg_hcd_select_transactions(_hcd);
+		if (tr_type != DWC_OTG_TRANSACTION_NONE) {
+			dwc_otg_hcd_queue_transactions(_hcd, tr_type);
+		}
 	}
 	/*
 	 * Make sure the start of frame interrupt is enabled now that
@@ -933,8 +949,8 @@ static void halt_channel(dwc_otg_hcd_t *_hcd,
 			 * halt to be queued when the periodic schedule is
 			 * processed.
 			 */
-			list_move_tail(&_hc->qh->qh_list_entry,
-				  &_hcd->periodic_sched_assigned);
+			//list_move_tail(&_hc->qh->qh_list_entry,
+			//	  &_hcd->periodic_sched_assigned);
 
 			/*
 			 * Make sure the Periodic Tx FIFO Empty interrupt is
@@ -1216,6 +1232,7 @@ static int32_t handle_hc_nak_intr(dwc_otg_hcd_t *_hcd,
 		if (_hc->complete_split) {
 			_qtd->error_count = 0;
 		}
+		csplit_nak = 1;
 		_qtd->complete_split = 0;
 		halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_NAK);
 		goto handle_nak_done;
@@ -1782,6 +1799,8 @@ static void handle_hc_chhltd_intr_dma(dwc_otg_hcd_t *_hcd,
 		handle_hc_ack_intr(_hcd, _hc, _hc_regs, _qtd);
 	} else if(hcint.b.datatglerr){
 	     DWC_PRINT("%s, DATA toggle error, Channel %d\n",__func__, _hc->hc_num);
+             save_data_toggle(_hc, _hc_regs, _qtd);    //hzb,设备的第一个USB数据包的data toggle不符合USB协议
+             halt_channel(_hcd, _hc, _qtd, DWC_OTG_HC_XFER_NO_HALT_STATUS);
 				clear_hc_int(_hc_regs,chhltd);
 	} else {
 		if (_hc->ep_type == DWC_OTG_EP_TYPE_INTR ||
