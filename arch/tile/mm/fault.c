@@ -273,10 +273,14 @@ static int handle_page_fault(struct pt_regs *regs,
 	int si_code;
 	int is_kernel_mode;
 	pgd_t *pgd;
+	unsigned int flags;
 
 	/* on TILE, protection faults are always writes */
 	if (!is_page_fault)
 		write = 1;
+
+	flags = (FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
+		 (write ? FAULT_FLAG_WRITE : 0));
 
 	is_kernel_mode = (EX1_PL(regs->ex1) != USER_PL);
 
@@ -382,6 +386,8 @@ static int handle_page_fault(struct pt_regs *regs,
 			vma = NULL;  /* happy compiler */
 			goto bad_area_nosemaphore;
 		}
+
+retry:
 		down_read(&mm->mmap_sem);
 	}
 
@@ -429,7 +435,11 @@ good_area:
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, write);
+	fault = handle_mm_fault(mm, vma, address, flags);
+
+	if ((fault & VM_FAULT_RETRY) && fatal_signal_pending(current))
+		return 0;
+
 	if (unlikely(fault & VM_FAULT_ERROR)) {
 		if (fault & VM_FAULT_OOM)
 			goto out_of_memory;
@@ -437,10 +447,22 @@ good_area:
 			goto do_sigbus;
 		BUG();
 	}
-	if (fault & VM_FAULT_MAJOR)
-		tsk->maj_flt++;
-	else
-		tsk->min_flt++;
+	if (flags & FAULT_FLAG_ALLOW_RETRY) {
+		if (fault & VM_FAULT_MAJOR)
+			tsk->maj_flt++;
+		else
+			tsk->min_flt++;
+		if (fault & VM_FAULT_RETRY) {
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+
+			 /*
+			  * No need to up_read(&mm->mmap_sem) as we would
+			  * have already released it in __lock_page_or_retry
+			  * in mm/filemap.c.
+			  */
+			goto retry;
+		}
+	}
 
 #if CHIP_HAS_TILE_DMA() || CHIP_HAS_SN_PROC()
 	/*
