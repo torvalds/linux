@@ -181,8 +181,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.4 : this driver support digital zoom;
 *v0.x.5 : this driver support test framerate and query framerate from board file configuration;
 *v0.x.6 : this driver improve test framerate method;
+*v0.x.7 : digital zoom use the ipp to do scale and crop , otherwise ipp just do the scale. Something wrong with digital zoom if
+          we do crop with cif and do scale with ipp , we will fix this  next version.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 6)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 7)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -353,7 +355,6 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	//*size = PAGE_ALIGN(bytes_per_line*icd->user_height);       /* Y pages UV pages, yuv422*/
 	*size = PAGE_ALIGN(bytes_per_line*icd->user_height);	   /* Y pages UV pages, yuv422*/
 	pcdev->vipmem_bsize = PAGE_ALIGN(bytes_per_line_host * pcdev->host_height);
-
 
 	if (CAM_WORKQUEUE_IS_EN()) {
         #ifdef CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_OFF
@@ -569,7 +570,7 @@ static void rk_camera_capture_process(struct work_struct *work)
 
     ipp_req.timeout = 100;
     ipp_req.flag = IPP_ROT_0; 
-    //ipp_req.store_clip_mode =1;
+   // ipp_req.store_clip_mode =1;
     ipp_req.src0.w = pcdev->zoominfo.a.c.width/scale_times;
     ipp_req.src0.h = pcdev->zoominfo.a.c.height/scale_times;
     //ipp_req.src_vir_w = pcdev->zoominfo.a.c.width; 
@@ -1325,23 +1326,30 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 	#endif
     icd->sense = NULL;
     if (!ret) {
-    	rect.left = ((mf.width - pcdev->host_width )>>1)&(~0x01);
-    	rect.top = ((mf.height - pcdev->host_height )>>1)&(~0x01);
-        
-    	pcdev->host_left = rect.left;
-    	pcdev->host_top = rect.top;
-        rect.width = pcdev->host_width;
-        rect.height = pcdev->host_height;
         RKCAMERA_DG("%s..%d.. host:%d*%d , sensor output:%d*%d,user demand:%d*%d\n",__FUNCTION__,__LINE__,
 	  	pcdev->host_width,pcdev->host_height,mf.width,mf.height,usr_w,usr_h);
+        rect.width = pcdev->host_width;
+        rect.height = pcdev->host_height;
+    	rect.left = ((mf.width-pcdev->host_width )>>1)&(~0x01);
+    	rect.top = ((mf.height-pcdev->host_height)>>1)&(~0x01);
+    	pcdev->host_left = rect.left;
+    	pcdev->host_top = rect.top;
+        
         down(&pcdev->zoominfo.sem);        
-        pcdev->zoominfo.a.c.width = rect.width*100/pcdev->zoominfo.zoom_rate;
+        pcdev->zoominfo.a.c.width = pcdev->host_width*100/pcdev->zoominfo.zoom_rate;
 		pcdev->zoominfo.a.c.width &= ~0x03;
-		pcdev->zoominfo.a.c.height = rect.height*100/pcdev->zoominfo.zoom_rate;
+		pcdev->zoominfo.a.c.height = pcdev->host_height*100/pcdev->zoominfo.zoom_rate;
 		pcdev->zoominfo.a.c.height &= ~0x03;
-		pcdev->zoominfo.a.c.left = 0;
-		pcdev->zoominfo.a.c.top = 0;
-		pcdev->zoominfo.vir_width = pcdev->zoominfo.a.c.width;
+        //now digital zoom use ipp to do crop and scale
+        if(pcdev->zoominfo.zoom_rate != 100){
+            pcdev->zoominfo.a.c.left = ((pcdev->host_width - pcdev->zoominfo.a.c.width)>>1)&(~0x01);
+    		pcdev->zoominfo.a.c.top = ((pcdev->host_height - pcdev->zoominfo.a.c.height)>>1)&(~0x01);
+            }
+        else{
+            pcdev->zoominfo.a.c.left = 0;
+    		pcdev->zoominfo.a.c.top = 0;
+            }
+		pcdev->zoominfo.vir_width = pcdev->host_width;
         up(&pcdev->zoominfo.sem);
 
         /* ddl@rock-chips.com: IPP work limit check */
