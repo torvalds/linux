@@ -26,8 +26,9 @@
 #include <mach/dvfs.h>
 #include <linux/delay.h>
 
-#define CLOCK_PRINTK_DBG(fmt, args...) printk(fmt, ## args);
-#define CLOCK_PRINTK_ERR(fmt, args...) printk(fmt, ## args);
+#define CLOCK_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args);
+#define CLOCK_PRINTK_ERR(fmt, args...) pr_err(fmt, ## args);
+#define CLOCK_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args);
 
 /* Clock flags */
 /* bit 0 is free */
@@ -256,7 +257,7 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 	if (!clk->set_rate)
 		return -EINVAL;
 	
-	//CLOCK_PRINTK_DBG("**will set %s rate %lu\n", clk->name, rate);
+	//CLOCK_PRINTK_LOG("**will set %s rate %lu\n", clk->name, rate);
 
 	old_rate = clk->rate;
 	if (clk->notifier_count)
@@ -266,7 +267,7 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 
 	if (ret == 0) {
 		__clk_recalc(clk);
-		//CLOCK_PRINTK_DBG("**set %s rate recalc=%lu\n",clk->name,clk->rate);
+		//CLOCK_PRINTK_LOG("**set %s rate recalc=%lu\n",clk->name,clk->rate);
 		__propagate_rate(clk);
 	}
 
@@ -321,7 +322,7 @@ struct clk_node *clk_get_dvfs_info(struct clk *clk)
 int clk_set_rate_locked(struct clk * clk,unsigned long rate)
 {
 	int ret;
-	CLOCK_PRINTK_DBG("%s dvfs clk_set_locked\n",clk->name);
+	//CLOCK_PRINTK_DBG("%s dvfs clk_set_locked\n",clk->name);
 	LOCK();
     ret=clk_set_rate_nolock(clk, rate);;
     UNLOCK();
@@ -390,6 +391,8 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (clk == NULL || IS_ERR(clk)){
 		return ret;
 	}
+	if (rate == clk->rate)
+		return 0;
 	if (clk->dvfs_info!=NULL&&is_support_dvfs(clk->dvfs_info))
 		return dvfs_set_rate(clk, rate);
 

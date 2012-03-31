@@ -115,6 +115,9 @@ enum rk_plls_id {
 
 /*******************CLKSEL1 BITS***************************/
 //aclk div
+
+#define GET_CORE_ACLK_VAL(reg) ((reg)>=4 ?8:((reg)+1))
+
 #define CORE_ACLK_W_MSK		(7 << 16)
 #define CORE_ACLK_MSK		(7 << 0)
 #define CORE_ACLK_11		(0 << 0)
@@ -122,6 +125,7 @@ enum rk_plls_id {
 #define CORE_ACLK_31		(2 << 0)
 #define CORE_ACLK_41		(3 << 0)
 #define CORE_ACLK_81		(4 << 0)
+
 //hclk div
 #define ACLK_HCLK_W_MSK		(3 << 24)
 #define ACLK_HCLK_MSK		(3 << 8)
