@@ -430,16 +430,10 @@ extern int __must_check hex2bin(u8 *dst, const char *src, size_t count);
  * Most likely, you want to use tracing_on/tracing_off.
  */
 #ifdef CONFIG_RING_BUFFER
-void tracing_on(void);
-void tracing_off(void);
 /* trace_off_permanent stops recording with no way to bring it back */
 void tracing_off_permanent(void);
-int tracing_is_on(void);
 #else
-static inline void tracing_on(void) { }
-static inline void tracing_off(void) { }
 static inline void tracing_off_permanent(void) { }
-static inline int tracing_is_on(void) { return 0; }
 #endif
 
 enum ftrace_dump_mode {
@@ -449,6 +443,10 @@ enum ftrace_dump_mode {
 };
 
 #ifdef CONFIG_TRACING
+void tracing_on(void);
+void tracing_off(void);
+int tracing_is_on(void);
+
 extern void tracing_start(void);
 extern void tracing_stop(void);
 extern void ftrace_off_permanent(void);
@@ -533,6 +531,11 @@ static inline void tracing_start(void) { }
 static inline void tracing_stop(void) { }
 static inline void ftrace_off_permanent(void) { }
 static inline void trace_dump_stack(void) { }
+
+static inline void tracing_on(void) { }
+static inline void tracing_off(void) { }
+static inline int tracing_is_on(void) { return 0; }
+
 static inline int
 trace_printk(const char *fmt, ...)
 {
