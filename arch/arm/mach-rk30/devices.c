@@ -804,7 +804,7 @@ static struct platform_device device_rga = {
 };
 #endif
 
-#ifdef CONFIG_RK29_IPP
+//#ifdef CONFIG_RK29_IPP
 static struct resource resource_ipp[] = {
 	[0] = {
 		.start = RK30_IPP_PHYS,
@@ -824,7 +824,7 @@ static struct platform_device device_ipp = {
 	.num_resources	= ARRAY_SIZE(resource_ipp),
 	.resource	= resource_ipp,
 };
-#endif
+//#endif
 
 #ifdef CONFIG_SND_RK29_SOC_I2S
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
@@ -1080,9 +1080,9 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_RGA_RK30
 	platform_device_register(&device_rga);
 #endif
-#ifdef CONFIG_RK29_IPP
+//#ifdef CONFIG_RK29_IPP
 	platform_device_register(&device_ipp);
-#endif
+//#endif
 #ifdef CONFIG_LCDC0_RK30
 	platform_device_register(&device_lcdc0);
 #endif
