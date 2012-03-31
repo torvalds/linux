@@ -27,4 +27,5 @@ config LCDC1_RK30
         help
            Support rk30 lcdc1 if you say y here
 
+source "drivers/video/rockchip/hdmi/Kconfig"
 source "drivers/video/rockchip/rga/Kconfig"

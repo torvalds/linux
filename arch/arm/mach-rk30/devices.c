@@ -782,6 +782,28 @@ static struct platform_device device_lcdc1 = {
 };
 #endif
 
+#ifdef CONFIG_HDMI_RK30
+static struct resource resource_hdmi[] = {
+	[0] = {
+		.start = RK30_HDMI_PHYS,
+		.end   = RK30_HDMI_PHYS + RK30_HDMI_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_HDMI,
+		.end   = IRQ_HDMI,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device device_hdmi = {
+	.name				= "rk30-hdmi",
+	.id					= -1,
+	.num_resources		= ARRAY_SIZE(resource_hdmi),
+	.resource			= resource_hdmi,
+};
+#endif
+
 #ifdef CONFIG_RGA_RK30
 static struct resource resource_rga[] = {
 	[0] = {
@@ -1088,6 +1110,9 @@ static int __init rk30_init_devices(void)
 #endif
 #ifdef CONFIG_LCDC1_RK30
 	platform_device_register(&device_lcdc1);
+#endif
+#ifdef CONFIG_HDMI_RK30
+	platform_device_register(&device_hdmi);
 #endif
 #ifdef CONFIG_ADC_RK30
 	platform_device_register(&device_adc);
