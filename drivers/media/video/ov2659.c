@@ -74,10 +74,6 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_NOSCHED   0
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
-#define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|\
-                          SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
-                          SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ)
-
 #define COLOR_TEMPERATURE_CLOUDY_DN  6500
 #define COLOR_TEMPERATURE_CLOUDY_UP    8000
 #define COLOR_TEMPERATURE_CLEARDAY_DN  5000
@@ -1504,7 +1500,7 @@ sensor_power_end:
 }
 static s32 sensor_init_width = 800;
 static s32 sensor_init_height = 600;
-static unsigned long sensor_init_busparam = (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ);
+static unsigned long sensor_init_busparam = (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH| SOCAM_VSYNC_ACTIVE_LOW|SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ);
 static enum v4l2_mbus_pixelcode sensor_init_pixelcode = V4L2_MBUS_FMT_YUYV8_2X8;
 static struct reginfo* sensor_init_data_p = sensor_init_data;
 static struct reginfo* sensor_init_winseq_p = sensor_svga;

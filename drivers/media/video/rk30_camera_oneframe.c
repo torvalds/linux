@@ -39,7 +39,7 @@
 #include <plat/ipp.h>
 #include <mach/rk30_camera.h>
 
-static int debug;
+static int debug ;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
@@ -306,6 +306,7 @@ struct rk_camera_dev
 	int icd_init;
 	rk29_camera_sensor_cb_s icd_cb;
 	struct rk_camera_frmivalinfo icd_frmival[2];
+ //   atomic_t to_process_frames;
 };
 
 static const struct v4l2_queryctrl rk_camera_controls[] =
@@ -568,6 +569,7 @@ static void rk_camera_capture_process(struct work_struct *work)
 
     ipp_req.timeout = 100;
     ipp_req.flag = IPP_ROT_0; 
+    //ipp_req.store_clip_mode =1;
     ipp_req.src0.w = pcdev->zoominfo.a.c.width/scale_times;
     ipp_req.src0.h = pcdev->zoominfo.a.c.height/scale_times;
     //ipp_req.src_vir_w = pcdev->zoominfo.a.c.width; 
@@ -767,7 +769,6 @@ static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_dev
 
     //if (icd->ops->query_bus_param)                                                  /* ddl@rock-chips.com : Query Sensor's xclk */
         //sensor_bus_flags = icd->ops->query_bus_param(icd);
-
 	clk_enable(pcdev->cif_clk_out);
     clk_set_rate(pcdev->cif_clk_out,RK_SENSOR_24MHZ);
 
@@ -958,26 +959,26 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
     cif_ctrl_val = read_cif_reg(pcdev->base,CIF_CIF_FOR);
 	RKCAMERA_DG("%s..%d..cif_ctrl_val = 0x%x\n",__FUNCTION__,__LINE__,cif_ctrl_val);
     if (common_flags & SOCAM_PCLK_SAMPLE_FALLING) {
-   	if(IS_CIF0())
-   		{
-		RKCAMERA_DG("%s..%d.. before set CRU_PCLK_REG30 = 0X%x\n",__FUNCTION__,__LINE__,read_cru_reg(CRU_PCLK_REG30));
-		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
-		RKCAMERA_DG("%s..%d..  after set CRU_PCLK_REG30 = 0X%x\n",__FUNCTION__,__LINE__,read_cru_reg(CRU_PCLK_REG30));
-   		}
-	else
-		{
-		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF1);
-		}
+       	if(IS_CIF0())
+       		{
+    		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF0);
+            RKCAMERA_DG("enable cif0 pclk invert\n");
+       		}
+    	else
+    		{
+    		write_cru_reg(CRU_PCLK_REG30, read_cru_reg(CRU_PCLK_REG30) | ENANABLE_INVERT_PCLK_CIF1);
+            RKCAMERA_DG("enable cif1 pclk invert\n");
+    		}
     } else {
 		if(IS_CIF0())
 			{
-			RKCAMERA_DG("%s..%d.. before set CRU_PCLK_REG30 = 0X%x\n",__FUNCTION__,__LINE__,read_cru_reg(CRU_PCLK_REG30));
 			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF ) | DISABLE_INVERT_PCLK_CIF0);
-			RKCAMERA_DG("%s..%d..  after set CRU_PCLK_REG30 = 0X%x\n",__FUNCTION__,__LINE__,read_cru_reg(CRU_PCLK_REG30));
+            RKCAMERA_DG("diable cif0 pclk invert\n");
 			}
 		else
 			{
 			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF) | DISABLE_INVERT_PCLK_CIF1);
+            RKCAMERA_DG("diable cif1 pclk invert\n");
 			}
     }
     if (common_flags & SOCAM_HSYNC_ACTIVE_LOW) {
@@ -1307,8 +1308,10 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 			RKCAMERA_DG("ratio = %d ,host:%d*%d\n",ratio,pcdev->host_width,pcdev->host_height);
 			}
 		else{ // needn't crop ,just scaled by ipp
-			pcdev->host_width = usr_w;
-			pcdev->host_height = usr_h;
+	//		pcdev->host_width = usr_w;
+	//		pcdev->host_height = usr_h;
+			pcdev->host_width = mf.width;
+			pcdev->host_height = mf.height;
 			}
 	}
 	else{
@@ -1357,7 +1360,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
                 }
             }
         }
-        RKCAMERA_DG("%s..%s icd width:%d  host width:%d (zoom: %dx%d@(%d,%d)->%dx%d)\n",__FUNCTION__,xlate->host_fmt->name,
+        RKCAMERA_DG("%s..%s icd width:%d  user width:%d (zoom: %dx%d@(%d,%d)->%dx%d)\n",__FUNCTION__,xlate->host_fmt->name,
 			           rect.width, pix->width, pcdev->zoominfo.a.c.width,pcdev->zoominfo.a.c.height, pcdev->zoominfo.a.c.left,pcdev->zoominfo.a.c.top,
 			           pix->width, pix->height);
         rk_camera_setup_format(icd, pix->pixelformat, mf.code, &rect); 
@@ -1903,10 +1906,10 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
     stream_on = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
     if (stream_on & ENABLE_CAPTURE)
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, (stream_on & (~ENABLE_CAPTURE)));
-  //  if (CAM_IPPWORK_IS_EN()){
-   //     for(;work_index < pcdev->camera_work_count;work_index++)
-  //          flush_work(&((pcdev->camera_work + work_index)->work));
-  //      }
+    if (CAM_IPPWORK_IS_EN() && (stream_on & ENABLE_CAPTURE)){
+        for(;work_index < pcdev->camera_work_count;work_index++)
+            flush_work(&((pcdev->camera_work + work_index)->work));
+        }
 	//printk("host_left = %d , host_top = %d\n",pcdev->host_left,pcdev->host_top);
 
     down(&pcdev->zoominfo.sem);
@@ -2028,6 +2031,37 @@ static struct soc_camera_host_ops rk_soc_camera_host_ops =
     .num_controls = ARRAY_SIZE(rk_camera_controls)
     
 };
+static void rk_camera_cif_iomux(int cif_index)
+{
+    switch(cif_index){
+        case 0:
+            rk30_mux_api_set(GPIO1B3_CIF0CLKOUT_NAME, GPIO1B_CIF0_CLKOUT);
+            break;
+        case 1:
+            rk30_mux_api_set(GPIO1C0_CIF1DATA2_RMIICLKOUT_RMIICLKIN_NAME,GPIO1C_CIF1_DATA2);
+            rk30_mux_api_set(GPIO1C1_CIFDATA3_RMIITXEN_NAME,GPIO1C_CIF_DATA3);
+            rk30_mux_api_set(GPIO1C2_CIF1DATA4_RMIITXD1_NAME,GPIO1C_CIF1_DATA4);
+            rk30_mux_api_set(GPIO1C3_CIFDATA5_RMIITXD0_NAME,GPIO1C_CIF_DATA5);
+            rk30_mux_api_set(GPIO1C4_CIFDATA6_RMIIRXERR_NAME,GPIO1C_CIF_DATA6);
+            rk30_mux_api_set(GPIO1C5_CIFDATA7_RMIICRSDVALID_NAME,GPIO1C_CIF_DATA7);
+            rk30_mux_api_set(GPIO1C6_CIFDATA8_RMIIRXD1_NAME,GPIO1C_CIF_DATA8);
+            rk30_mux_api_set(GPIO1C7_CIFDATA9_RMIIRXD0_NAME,GPIO1C_CIF_DATA9);
+            
+            rk30_mux_api_set(GPIO1D0_CIF1VSYNC_MIIMD_NAME,GPIO1D_CIF1_VSYNC);
+            rk30_mux_api_set(GPIO1D1_CIF1HREF_MIIMDCLK_NAME,GPIO1D_CIF1_HREF);
+            rk30_mux_api_set(GPIO1D2_CIF1CLKIN_NAME,GPIO1D_CIF1_CLKIN);
+            rk30_mux_api_set(GPIO1D3_CIF1DATA0_NAME,GPIO1D_CIF1_DATA0);
+            rk30_mux_api_set(GPIO1D4_CIF1DATA1_NAME,GPIO1D_CIF1_DATA1);
+            rk30_mux_api_set(GPIO1D5_CIF1DATA10_NAME,GPIO1D_CIF1_DATA10);
+            rk30_mux_api_set(GPIO1D6_CIF1DATA11_NAME,GPIO1D_CIF1_DATA11);
+            rk30_mux_api_set(GPIO1D7_CIF1CLKOUT_NAME,GPIO1D_CIF1_CLKOUT);
+            break;
+        default:
+            printk("cif index is erro!!!\n");
+        }
+                
+            
+}
 static int rk_camera_probe(struct platform_device *pdev)
 {
     struct rk_camera_dev *pcdev;
@@ -2059,20 +2093,16 @@ static int rk_camera_probe(struct platform_device *pdev)
         pcdev->hclk_cif = clk_get(NULL, "hclk_cif0");
         pcdev->cif_clk_in = clk_get(NULL, "cif0_in");
         pcdev->cif_clk_out = clk_get(NULL, "cif0_out");
-        rk30_mux_api_set(GPIO1B3_CIF0CLKOUT_NAME, GPIO1B_CIF0_CLKOUT);
-        }
+        rk_camera_cif_iomux(0);
+    }
     else{
     //    printk("it is cif 1!!!!!!!1\n");
         pcdev->aclk_cif = clk_get(NULL, "aclk_cif1");
         pcdev->hclk_cif = clk_get(NULL, "hclk_cif1");
         pcdev->cif_clk_in = clk_get(NULL, "cif1_in");
         pcdev->cif_clk_out = clk_get(NULL, "cif1_out");
-        rk30_mux_api_set(GPIO1D7_CIF1CLKOUT_NAME,GPIO1D_CIF1_CLKOUT);
-        rk30_mux_api_set(GPIO1D2_CIF1CLKIN_NAME,GPIO1D_CIF1_CLKIN);
-        rk30_mux_api_set(GPIO1D1_CIF1HREF_MIIMDCLK_NAME,GPIO1D_CIF1_HREF);
-        rk30_mux_api_set(GPIO1D0_CIF1VSYNC_MIIMD_NAME,GPIO1D_CIF1_VSYNC);
-        rk30_mux_api_set(GPIO1C0_CIF1DATA2_RMIICLKOUT_RMIICLKIN_NAME,GPIO1C_CIF1_DATA2);
-        rk30_mux_api_set(GPIO1C2_CIF1DATA4_RMIITXD1_NAME,GPIO1C_CIF1_DATA4);
+        
+        rk_camera_cif_iomux(1);
         }
     if(!pcdev->aclk_cif || !pcdev->hclk_cif || !pcdev->cif_clk_in || !pcdev->cif_clk_out){
         RKCAMERA_TR(KERN_ERR "failed to get cif clock source\n");
