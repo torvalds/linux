@@ -1,0 +1,382 @@
+/*
+ * Copyright 2012 Freescale Semiconductor, Inc.
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	interrupt-parent = <&icoll>;
+
+	cpus {
+		cpu@0 {
+			compatible = "arm,arm926ejs";
+		};
+	};
+
+	apb@80000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x80000000 0x80000>;
+		ranges;
+
+		apbh@80000000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x80000000 0x3c900>;
+			ranges;
+
+			icoll: interrupt-controller@80000000 {
+				compatible = "fsl,imx28-icoll", "fsl,mxs-icoll";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				reg = <0x80000000 0x2000>;
+			};
+
+			hsadc@80002000 {
+				reg = <0x80002000 2000>;
+				interrupts = <13 87>;
+				status = "disabled";
+			};
+
+			dma-apbh@80004000 {
+				reg = <0x80004000 2000>;
+				status = "disabled";
+			};
+
+			perfmon@80006000 {
+				reg = <0x80006000 800>;
+				interrupts = <27>;
+				status = "disabled";
+			};
+
+			bch@8000a000 {
+				reg = <0x8000a000 2000>;
+				interrupts = <41>;
+				status = "disabled";
+			};
+
+			gpmi@8000c000 {
+				reg = <0x8000c000 2000>;
+				interrupts = <42 88>;
+				status = "disabled";
+			};
+
+			ssp0: ssp@80010000 {
+				reg = <0x80010000 2000>;
+				interrupts = <96 82>;
+				status = "disabled";
+			};
+
+			ssp1: ssp@80012000 {
+				reg = <0x80012000 2000>;
+				interrupts = <97 83>;
+				status = "disabled";
+			};
+
+			ssp2: ssp@80014000 {
+				reg = <0x80014000 2000>;
+				interrupts = <98 84>;
+				status = "disabled";
+			};
+
+			ssp3: ssp@80016000 {
+				reg = <0x80016000 2000>;
+				interrupts = <99 85>;
+				status = "disabled";
+			};
+
+			pinctrl@80018000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-pinctrl";
+				reg = <0x80018000 2000>;
+
+				duart_pins_a: duart@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x3102 0x3112>;
+					fsl,drive-strength = <0>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>;
+				};
+
+				mac0_pins_a: mac0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x4000 0x4010 0x4020
+						0x4030 0x4040 0x4060 0x4070
+						0x4080 0x4100>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				mac1_pins_a: mac1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x40f1 0x4091 0x40a1
+						0x40e1 0x40b1 0x40c1>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+			};
+
+			digctl@8001c000 {
+				reg = <0x8001c000 2000>;
+				interrupts = <89>;
+				status = "disabled";
+			};
+
+			etm@80022000 {
+				reg = <0x80022000 2000>;
+				status = "disabled";
+			};
+
+			dma-apbx@80024000 {
+				reg = <0x80024000 2000>;
+				status = "disabled";
+			};
+
+			dcp@80028000 {
+				reg = <0x80028000 2000>;
+				interrupts = <52 53 54>;
+				status = "disabled";
+			};
+
+			pxp@8002a000 {
+				reg = <0x8002a000 2000>;
+				interrupts = <39>;
+				status = "disabled";
+			};
+
+			ocotp@8002c000 {
+				reg = <0x8002c000 2000>;
+				status = "disabled";
+			};
+
+			axi-ahb@8002e000 {
+				reg = <0x8002e000 2000>;
+				status = "disabled";
+			};
+
+			lcdif@80030000 {
+				reg = <0x80030000 2000>;
+				interrupts = <38 86>;
+				status = "disabled";
+			};
+
+			can0: can@80032000 {
+				reg = <0x80032000 2000>;
+				interrupts = <8>;
+				status = "disabled";
+			};
+
+			can1: can@80034000 {
+				reg = <0x80034000 2000>;
+				interrupts = <9>;
+				status = "disabled";
+			};
+
+			simdbg@8003c000 {
+				reg = <0x8003c000 200>;
+				status = "disabled";
+			};
+
+			simgpmisel@8003c200 {
+				reg = <0x8003c200 100>;
+				status = "disabled";
+			};
+
+			simsspsel@8003c300 {
+				reg = <0x8003c300 100>;
+				status = "disabled";
+			};
+
+			simmemsel@8003c400 {
+				reg = <0x8003c400 100>;
+				status = "disabled";
+			};
+
+			gpiomon@8003c500 {
+				reg = <0x8003c500 100>;
+				status = "disabled";
+			};
+
+			simenet@8003c700 {
+				reg = <0x8003c700 100>;
+				status = "disabled";
+			};
+
+			armjtag@8003c800 {
+				reg = <0x8003c800 100>;
+				status = "disabled";
+			};
+                };
+
+		apbx@80040000 {
+			compatible = "simple-bus";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			reg = <0x80040000 0x40000>;
+			ranges;
+
+			clkctl@80040000 {
+				reg = <0x80040000 2000>;
+				status = "disabled";
+			};
+
+			saif0: saif@80042000 {
+				reg = <0x80042000 2000>;
+				interrupts = <59 80>;
+				status = "disabled";
+			};
+
+			power@80044000 {
+				reg = <0x80044000 2000>;
+				status = "disabled";
+			};
+
+			saif1: saif@80046000 {
+				reg = <0x80046000 2000>;
+				interrupts = <58 81>;
+				status = "disabled";
+			};
+
+			lradc@80050000 {
+				reg = <0x80050000 2000>;
+				status = "disabled";
+			};
+
+			spdif@80054000 {
+				reg = <0x80054000 2000>;
+				interrupts = <45 66>;
+				status = "disabled";
+			};
+
+			rtc@80056000 {
+				reg = <0x80056000 2000>;
+				interrupts = <28 29>;
+				status = "disabled";
+			};
+
+			i2c0: i2c@80058000 {
+				reg = <0x80058000 2000>;
+				interrupts = <111 68>;
+				status = "disabled";
+			};
+
+			i2c1: i2c@8005a000 {
+				reg = <0x8005a000 2000>;
+				interrupts = <110 69>;
+				status = "disabled";
+			};
+
+			pwm@80064000 {
+				reg = <0x80064000 2000>;
+				status = "disabled";
+			};
+
+			timrot@80068000 {
+				reg = <0x80068000 2000>;
+				status = "disabled";
+			};
+
+			auart0: serial@8006a000 {
+				reg = <0x8006a000 0x2000>;
+				interrupts = <112 70 71>;
+				status = "disabled";
+			};
+
+			auart1: serial@8006c000 {
+				reg = <0x8006c000 0x2000>;
+				interrupts = <113 72 73>;
+				status = "disabled";
+			};
+
+			auart2: serial@8006e000 {
+				reg = <0x8006e000 0x2000>;
+				interrupts = <114 74 75>;
+				status = "disabled";
+			};
+
+			auart3: serial@80070000 {
+				reg = <0x80070000 0x2000>;
+				interrupts = <115 76 77>;
+				status = "disabled";
+			};
+
+			auart4: serial@80072000 {
+				reg = <0x80072000 0x2000>;
+				interrupts = <116 78 79>;
+				status = "disabled";
+			};
+
+			duart: serial@80074000 {
+				compatible = "arm,pl011", "arm,primecell";
+				reg = <0x80074000 0x1000>;
+				interrupts = <47>;
+				status = "disabled";
+			};
+
+			usbphy0: usbphy@8007c000 {
+				reg = <0x8007c000 0x2000>;
+				status = "disabled";
+			};
+
+			usbphy1: usbphy@8007e000 {
+				reg = <0x8007e000 0x2000>;
+				status = "disabled";
+			};
+		};
+	};
+
+	ahb@80080000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0x80080000 0x80000>;
+		ranges;
+
+		usbctrl0: usbctrl@80080000 {
+			reg = <0x80080000 0x10000>;
+			status = "disabled";
+		};
+
+		usbctrl1: usbctrl@80090000 {
+			reg = <0x80090000 0x10000>;
+			status = "disabled";
+		};
+
+		dflpt@800c0000 {
+			reg = <0x800c0000 0x10000>;
+			status = "disabled";
+		};
+
+		mac0: ethernet@800f0000 {
+			compatible = "fsl,imx28-fec";
+			reg = <0x800f0000 0x4000>;
+			interrupts = <101>;
+			status = "disabled";
+		};
+
+		mac1: ethernet@800f4000 {
+			compatible = "fsl,imx28-fec";
+			reg = <0x800f4000 0x4000>;
+			interrupts = <102>;
+			status = "disabled";
+		};
+
+		switch@800f8000 {
+			reg = <0x800f8000 0x8000>;
+			status = "disabled";
+		};
+
+	};
+};

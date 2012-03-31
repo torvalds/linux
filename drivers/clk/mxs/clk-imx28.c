@@ -142,6 +142,7 @@ static struct clk_lookup hbus_lookups[] __initdata = {
 
 static struct clk_lookup xbus_lookups[] __initdata = {
 	{ .dev_id = "duart", .con_id = "apb_pclk"},
+	{ .dev_id = "80074000.serial", .con_id = "apb_pclk"},
 	{ .dev_id = "mxs-dma-apbx", },
 	{ .dev_id = "80024000.dma-apbx", },
 };
