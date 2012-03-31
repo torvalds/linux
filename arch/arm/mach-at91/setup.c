@@ -11,6 +11,7 @@
 #include <linux/pm.h>
 #include <linux/of_address.h>
 
+#include <asm/system_misc.h>
 #include <asm/mach/map.h>
 
 #include <mach/hardware.h>

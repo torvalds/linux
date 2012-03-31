@@ -43,6 +43,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
+#include <asm/system_info.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 

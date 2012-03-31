@@ -36,6 +36,7 @@
 #include <asm/irq.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
