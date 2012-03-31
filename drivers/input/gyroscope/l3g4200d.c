@@ -391,9 +391,9 @@ static void l3g4200d_report_value(struct i2c_client *client, struct l3g4200d_axi
 	//struct l3g4200d_axis *axis = (struct l3g4200d_axis *)rbuf;
 
 	/* Report acceleration sensor information */
-	input_report_abs(l3g4200d->input_dev, ABS_RX, axis->x);
-	input_report_abs(l3g4200d->input_dev, ABS_RY, axis->y);
-	input_report_abs(l3g4200d->input_dev, ABS_RZ, axis->z);
+	input_report_rel(l3g4200d->input_dev, ABS_RX, axis->x);
+	input_report_rel(l3g4200d->input_dev, ABS_RY, axis->y);
+	input_report_rel(l3g4200d->input_dev, ABS_RZ, axis->z);
 	input_sync(l3g4200d->input_dev);
 	mmaprintk("%s:x==%d  y==%d z==%d\n",__func__,axis->x,axis->y,axis->z);
 }
@@ -480,7 +480,10 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 		mmaprintk("%s :L3G4200D_IOCTL_GET_ENABLE\n",__FUNCTION__);	
 		ret=!l3g4200d->status;
 		if (copy_to_user(argp, &ret, sizeof(ret)))
-			return 0;
+		{
+            printk("%s:failed to copy status to user space.\n",__FUNCTION__);
+			return -EFAULT;
+		}
 		break;
 	//case ECS_IOCTL_START:
 	case L3G4200D_IOCTL_SET_ENABLE:			
@@ -488,6 +491,12 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 		ret = l3g4200d_start(client, ODR100_BW12_5);
 		if (ret < 0)
 			return ret;
+		ret=l3g4200d->status;
+		if (copy_to_user(argp, &ret, sizeof(ret)))
+		{
+            printk("%s:failed to copy sense data to user space.\n",__FUNCTION__);
+			return -EFAULT;
+		}
 		break;
 	case ECS_IOCTL_CLOSE:		
 		mmaprintk("%s :ECS_IOCTL_CLOSE\n",__FUNCTION__);
@@ -762,16 +771,19 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 		goto exit_input_allocate_device_failed;
 	}
 
-	set_bit(EV_ABS, l3g4200d->input_dev->evbit);
+	//set_bit(EV_ABS, l3g4200d->input_dev->evbit);
 
 	/* x-axis acceleration */
-	input_set_abs_params(l3g4200d->input_dev, ABS_RX, -28571, 28571, 0, 0); //2g full scale range
-	/* y-axis acceleration */
-	input_set_abs_params(l3g4200d->input_dev, ABS_RY, -28571, 28571, 0, 0); //2g full scale range
+	input_set_capability(l3g4200d->input_dev, EV_REL, REL_RX);
+	input_set_abs_params(l3g4200d->input_dev, ABS_RX, -32768, 32768, 0, 0); //2g full scale range
+	/* y-axis acceleration */	
+	input_set_capability(l3g4200d->input_dev, EV_REL, REL_RY);
+	input_set_abs_params(l3g4200d->input_dev, ABS_RY, -32768, 32768, 0, 0); //2g full scale range
 	/* z-axis acceleration */
-	input_set_abs_params(l3g4200d->input_dev, ABS_RZ, -28571, 28571, 0, 0); //2g full scale range
+	input_set_capability(l3g4200d->input_dev, EV_REL, REL_RZ);
+	input_set_abs_params(l3g4200d->input_dev, ABS_RZ, -32768, 32768, 0, 0); //2g full scale range
 
-	l3g4200d->input_dev->name = "gyrosensor";
+	l3g4200d->input_dev->name = "gyro";
 	l3g4200d->input_dev->dev.parent = &client->dev;
 
 	err = input_register_device(l3g4200d->input_dev);
