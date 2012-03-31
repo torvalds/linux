@@ -315,6 +315,9 @@ load_b:
 		case BPF_S_ANC_CPU:
 			A = raw_smp_processor_id();
 			continue;
+		case BPF_S_ANC_ALU_XOR_X:
+			A ^= X;
+			continue;
 		case BPF_S_ANC_NLATTR: {
 			struct nlattr *nla;
 
@@ -559,6 +562,7 @@ int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 			ANCILLARY(HATYPE);
 			ANCILLARY(RXHASH);
 			ANCILLARY(CPU);
+			ANCILLARY(ALU_XOR_X);
 			}
 		}
 		ftest->code = code;
