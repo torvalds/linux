@@ -586,7 +586,7 @@ static struct cm3217_platform_data cm3217_info = {
 #define LCD_EN_PIN         RK30_PIN4_PC7
 #define LCD_EN_VALUE       GPIO_HIGH
 
-static int rk_fb_io_init(void)
+static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 {
 	int ret = 0;
 	rk30_mux_api_set(LCD_EN_MUX_NAME, GPIO4C_GPIO4C7);
