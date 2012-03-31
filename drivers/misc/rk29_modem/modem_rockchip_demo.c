@@ -25,7 +25,7 @@
 #include "rk29_modem.h"
 
 static struct rk29_io_t demo_io_power = {
-    .io_addr    = RK29_PIN6_PB1,
+    .io_addr    = RK30_PIN4_PD1, //RK29_PIN6_PB1, 
     .enable     = GPIO_HIGH,
     .disable    = GPIO_LOW,
 };
@@ -56,6 +56,8 @@ static int __init demo_init(void)
 {
     printk("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
 
+    rk29_mux_api_set(GPIO4D1_SMCDATA9_TRACEDATA9_NAME, GPIO4D_GPIO4D1);
+    
     return rk29_modem_init(&demo_driver);
 }
 
