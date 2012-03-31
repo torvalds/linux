@@ -39,6 +39,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/sh_flctl.h>
 #include <linux/pm_clock.h>
 #include <linux/smsc911x.h>
 #include <linux/sh_intc.h>
@@ -956,6 +957,50 @@ static struct platform_device fsi_ak4643_device = {
 	},
 };
 
+/* FLCTL */
+static struct mtd_partition nand_partition_info[] = {
+	{
+		.name	= "system",
+		.offset	= 0,
+		.size	= 128 * 1024 * 1024,
+	},
+	{
+		.name	= "userdata",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 256 * 1024 * 1024,
+	},
+	{
+		.name	= "cache",
+		.offset	= MTDPART_OFS_APPEND,
+		.size	= 128 * 1024 * 1024,
+	},
+};
+
+static struct resource nand_flash_resources[] = {
+	[0] = {
+		.start	= 0xe6a30000,
+		.end	= 0xe6a3009b,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct sh_flctl_platform_data nand_flash_data = {
+	.parts		= nand_partition_info,
+	.nr_parts	= ARRAY_SIZE(nand_partition_info),
+	.flcmncr_val	= CLK_16B_12L_4H | TYPESEL_SET
+			| SHBUSSEL | SEL_16BIT | SNAND_E,
+	.use_holden	= 1,
+};
+
+static struct platform_device nand_flash_device = {
+	.name		= "sh_flctl",
+	.resource	= nand_flash_resources,
+	.num_resources	= ARRAY_SIZE(nand_flash_resources),
+	.dev		= {
+		.platform_data = &nand_flash_data,
+	},
+};
+
 /*
  * The card detect pin of the top SD/MMC slot (CN7) is active low and is
  * connected to GPIO A22 of SH7372 (GPIO_PORT41).
@@ -1259,6 +1304,7 @@ static struct platform_device *mackerel_devices[] __initdata = {
 	&fsi_device,
 	&fsi_ak4643_device,
 	&fsi_hdmi_device,
+	&nand_flash_device,
 	&sdhi0_device,
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)
 	&sdhi1_device,
@@ -1488,6 +1534,30 @@ static void __init mackerel_init(void)
 	gpio_request(GPIO_FN_MMCCMD0, NULL);
 	gpio_request(GPIO_FN_MMCCLK0, NULL);
 
+	/* FLCTL */
+	gpio_request(GPIO_FN_D0_NAF0, NULL);
+	gpio_request(GPIO_FN_D1_NAF1, NULL);
+	gpio_request(GPIO_FN_D2_NAF2, NULL);
+	gpio_request(GPIO_FN_D3_NAF3, NULL);
+	gpio_request(GPIO_FN_D4_NAF4, NULL);
+	gpio_request(GPIO_FN_D5_NAF5, NULL);
+	gpio_request(GPIO_FN_D6_NAF6, NULL);
+	gpio_request(GPIO_FN_D7_NAF7, NULL);
+	gpio_request(GPIO_FN_D8_NAF8, NULL);
+	gpio_request(GPIO_FN_D9_NAF9, NULL);
+	gpio_request(GPIO_FN_D10_NAF10, NULL);
+	gpio_request(GPIO_FN_D11_NAF11, NULL);
+	gpio_request(GPIO_FN_D12_NAF12, NULL);
+	gpio_request(GPIO_FN_D13_NAF13, NULL);
+	gpio_request(GPIO_FN_D14_NAF14, NULL);
+	gpio_request(GPIO_FN_D15_NAF15, NULL);
+	gpio_request(GPIO_FN_FCE0, NULL);
+	gpio_request(GPIO_FN_WE0_FWE, NULL);
+	gpio_request(GPIO_FN_FRB, NULL);
+	gpio_request(GPIO_FN_A4_FOE, NULL);
+	gpio_request(GPIO_FN_A5_FCDE, NULL);
+	gpio_request(GPIO_FN_RD_FSC, NULL);
+
 	/* enable GPS module (GT-720F) */
 	gpio_request(GPIO_FN_SCIFA2_TXD1, NULL);
 	gpio_request(GPIO_FN_SCIFA2_RXD1, NULL);
@@ -1532,6 +1602,7 @@ static void __init mackerel_init(void)
 	sh7372_add_device_to_domain(&sh7372_a4mp, &fsi_device);
 	sh7372_add_device_to_domain(&sh7372_a3sp, &usbhs0_device);
 	sh7372_add_device_to_domain(&sh7372_a3sp, &usbhs1_device);
+	sh7372_add_device_to_domain(&sh7372_a3sp, &nand_flash_device);
 	sh7372_add_device_to_domain(&sh7372_a3sp, &sh_mmcif_device);
 	sh7372_add_device_to_domain(&sh7372_a3sp, &sdhi0_device);
 #if !defined(CONFIG_MMC_SH_MMCIF) && !defined(CONFIG_MMC_SH_MMCIF_MODULE)

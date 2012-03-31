@@ -36,10 +36,22 @@ struct sa_info {
 	struct sa_subdev_info	subdev[0];
 };
 
+static DEFINE_SPINLOCK(sa1100_vpp_lock);
+static int sa1100_vpp_refcnt;
 static void sa1100_set_vpp(struct map_info *map, int on)
 {
 	struct sa_subdev_info *subdev = container_of(map, struct sa_subdev_info, map);
-	subdev->plat->set_vpp(on);
+	unsigned long flags;
+
+	spin_lock_irqsave(&sa1100_vpp_lock, flags);
+	if (on) {
+		if (++sa1100_vpp_refcnt == 1)   /* first nested 'on' */
+			subdev->plat->set_vpp(1);
+	} else {
+		if (--sa1100_vpp_refcnt == 0)   /* last nested 'off' */
+			subdev->plat->set_vpp(0);
+	}
+	spin_unlock_irqrestore(&sa1100_vpp_lock, flags);
 }
 
 static void sa1100_destroy_subdev(struct sa_subdev_info *subdev)
@@ -252,8 +264,8 @@ static int __devinit sa1100_mtd_probe(struct platform_device *pdev)
 	/*
 	 * Partition selection stuff.
 	 */
-	mtd_device_parse_register(info->mtd, part_probes, 0,
-			plat->parts, plat->nr_parts);
+	mtd_device_parse_register(info->mtd, part_probes, NULL, plat->parts,
+				  plat->nr_parts);
 
 	platform_set_drvdata(pdev, info);
 	err = 0;

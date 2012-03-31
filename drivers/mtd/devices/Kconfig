@@ -103,6 +103,13 @@ config M25PXX_USE_FAST_READ
 	help
 	  This option enables FAST_READ access supported by ST M25Pxx.
 
+config MTD_SPEAR_SMI
+	tristate "SPEAR MTD NOR Support through SMI controller"
+	depends on PLAT_SPEAR
+	default y
+	help
+	  This enable SNOR support on SPEAR platforms using SMI controller
+
 config MTD_SST25L
 	tristate "Support SST25L (non JEDEC) SPI Flash chips"
 	depends on SPI_MASTER

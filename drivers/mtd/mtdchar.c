@@ -405,7 +405,7 @@ static int mtdchar_writeoob(struct file *file, struct mtd_info *mtd,
 	if (length > 4096)
 		return -EINVAL;
 
-	if (!mtd->write_oob)
+	if (!mtd->_write_oob)
 		ret = -EOPNOTSUPP;
 	else
 		ret = access_ok(VERIFY_READ, ptr, length) ? 0 : -EFAULT;
@@ -576,7 +576,7 @@ static int mtdchar_write_ioctl(struct mtd_info *mtd,
 			!access_ok(VERIFY_READ, req.usr_data, req.len) ||
 			!access_ok(VERIFY_READ, req.usr_oob, req.ooblen))
 		return -EFAULT;
-	if (!mtd->write_oob)
+	if (!mtd->_write_oob)
 		return -EOPNOTSUPP;
 
 	ops.mode = req.mode;
