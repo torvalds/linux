@@ -84,7 +84,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.3.04 The last modify date is 2012-03-29,modifyed by XBW."
+#define RK29_SDMMC_VERSION "Ver.3.05 The last modify date is 2012-03-31,modifyed by XBW."
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -161,7 +161,6 @@ typedef struct TagSDC_INT_INFO
 
 struct rk29_sdmmc {
 	spinlock_t		lock;
-	spinlock_t		irqlock;
 	void __iomem	*regs;
 	struct clk 		*clk;
 
@@ -1093,7 +1092,6 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 
 static int rk29_sdmmc_prepare_write_data(struct rk29_sdmmc *host, struct mmc_data *data)
 {
-    //uint32 value;
     int     output;
     u32    i = 0;
     u32     dataLen;
@@ -1785,24 +1783,7 @@ static void rk29_sdmmc_dealwith_timeout(struct rk29_sdmmc *host)
     switch(host->state)
     {
         case STATE_IDLE:
-        {
-            #if 1
-            break;
-            #else
-            if(!host->cmd)
-                break;
-                
-            host->cmd->error = -EIO;
-            
-            if(host->cmd->data)
-            {
-                host->cmd->data->error = -EILSEQ;
-            }
-            host->state = STATE_SENDING_CMD;
-            /* fall through */
-            #endif    			    
-    	}
-    	    
+            break;    	    
     	case STATE_SENDING_CMD:
     	    host->cmd_status |= SDMMC_INT_RTO;
     	    host->cmd->error = -ETIME;
@@ -1833,6 +1814,10 @@ static void rk29_sdmmc_dealwith_timeout(struct rk29_sdmmc *host)
     	    rk29_sdmmc_set_pending(host, EVENT_CMD_COMPLETE);
     	    tasklet_schedule(&host->tasklet);
     	    break;
+        case STATE_DATA_END:
+            break;
+        default:
+            break; 
     }
 }
 
@@ -1840,7 +1825,6 @@ static void rk29_sdmmc_dealwith_timeout(struct rk29_sdmmc *host)
 static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 {
 	struct rk29_sdmmc *host = (struct rk29_sdmmc *) host_data;
-	unsigned long iflags;
 
 	spin_lock(&host->lock);
 	
@@ -1862,11 +1846,14 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 static void rk29_sdmmc_INT_DTO_timeout(unsigned long host_data)
 {
 	struct rk29_sdmmc *host = (struct rk29_sdmmc *) host_data;
-	unsigned long iflags;
 
 	spin_lock(&host->lock);
 
-	if( (host->cmdr & SDMMC_CMD_DAT_EXP) && (STATE_DATA_BUSY == host->state))
+#if SDMMC_USE_INT_UNBUSY
+    if( (host->cmdr & SDMMC_CMD_DAT_EXP) &&((STATE_DATA_BUSY == host->state)||(STATE_DATA_UNBUSY == host->state) ))
+#else
+    if( (host->cmdr & SDMMC_CMD_DAT_EXP) && (STATE_DATA_BUSY == host->state))
+#endif	
 	{
 	    if(0==host->cmd->retries)
 	    {
@@ -1892,7 +1879,6 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
 	u32		cmdr, ret;
 	unsigned long iflags;
 
-	//spin_lock(&host->lock);//
 	spin_lock_irqsave(&host->lock, iflags);
 	
 	mrq = host->new_mrq;
@@ -1991,7 +1977,6 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
         __FUNCTION__, __LINE__, host->cmd->opcode,ret, \
         host->state,host->cmd_status, host->pending_events,host->completed_events,host->dma_name);
 
-    //spin_unlock(&host->lock);//
     spin_unlock_irqrestore(&host->lock, iflags);
     
 	return SDM_SUCCESS;
@@ -2010,16 +1995,13 @@ start_request_Err:
     if(host->mrq && host->mmc->doneflag)
     {
         host->mmc->doneflag = 0;
-        //spin_unlock(&host->lock);//
         spin_unlock_irqrestore(&host->lock, iflags);
         
         mmc_request_done(host->mmc, host->mrq);
     }
     else
     {
-        //spin_unlock(&host->lock);//
-        spin_unlock_irqrestore(&host->lock, iflags);
-        
+        spin_unlock_irqrestore(&host->lock, iflags);        
     }
     
     return ret; 
@@ -2170,10 +2152,9 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
     int timeout = 250;
     unsigned int value;
-    unsigned long iflags;
 	struct rk29_sdmmc *host = mmc_priv(mmc);
 
-    spin_lock(&host->lock);//spin_lock_irqsave(&host->lock, iflags);
+    spin_lock(&host->lock);
 
     if(test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags) || (RK29_CTRL_SDMMC_ID == host->pdev->id))
     {
@@ -2281,7 +2262,7 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	}
 out:	
 
-    spin_unlock(&host->lock);//spin_unlock_irqrestore(&host->lock, iflags);
+    spin_unlock(&host->lock);
     
 }
 
@@ -2695,23 +2676,7 @@ static void rk29_sdmmc_start_error(struct rk29_sdmmc *host)
 
     rk29_sdmmc_command_complete(host, host->mrq->cmd);    
     rk29_sdmmc_request_end(host, host->mrq->cmd);
-
 }
-static void rk29_sdmmc_enable_irq(struct rk29_sdmmc *host, bool enable)
-{
-    unsigned long iflags;
-    spin_lock_irqsave(&host->irqlock, iflags); 
-    if(enable)
-    {
-        enable_irq(host->irq);
-    }
-    else
-    {
-        disable_irq(host->irq);
-    }
-    spin_unlock_irqrestore(&host->irqlock, iflags); 
-}
-
 
 static void rk29_sdmmc_tasklet_func(unsigned long priv)
 {
@@ -2720,10 +2685,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 	enum rk29_sdmmc_state	state = host->state;
 	int pending_flag, stopflag;
 	unsigned long iflags;
-
-    //rk29_sdmmc_enable_irq(host, 0);
-    //disable_irq(host->irq);
-	//spin_lock(&host->lock);//
+	
 	spin_lock_irqsave(&host->lock, iflags); 
 	
 	state = host->state;
@@ -2802,22 +2764,38 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                 	break;	
                 host->errorstep = 0xf8;
                 rk29_sdmmc_set_completed(host, EVENT_DATA_COMPLETE);
-                del_timer_sync(&host->DTO_timer); //delete the timer for INT_DTO
 
-                #if SDMMC_USE_INT_UNBUSY
+             #if SDMMC_USE_INT_UNBUSY
+                if((24==host->cmd->opcode)||(25==host->cmd->opcode))
+                {
+                    /*
+                    ** use DTO_timer for waiting for INT_UNBUSY.
+                    ** max 250ms in specification, but adapt 500 for the compatibility of all kinds of sick sdcard. 
+                    */                    
+                    mod_timer(&host->DTO_timer, jiffies + msecs_to_jiffies(250));
+                }
+                else
+                {
+                    del_timer_sync(&host->DTO_timer); //delete the timer for INT_DTO
+                }
+  
                 state = STATE_DATA_UNBUSY;
-                #endif
+
+             #else
+                del_timer_sync(&host->DTO_timer); //delete the timer for INT_DTO
+             #endif
              }
 
              case STATE_DATA_UNBUSY:
              {
              #if SDMMC_USE_INT_UNBUSY
                 if((24==host->cmd->opcode)||(25==host->cmd->opcode))
-                { //  printk("%d: ******************1111111111, hoststate=%x*******************\n", __LINE__, state);
+                {
                     if (!rk29_sdmmc_test_and_clear_pending(host, EVENT_DATA_UNBUSY))
-                    	break;	
+                    	break;
+
+                    del_timer_sync(&host->DTO_timer);
                 }
-              //	printk("%d: ******************222222222*******************\n", __LINE__);
                 rk29_sdmmc_set_completed(host, EVENT_DATA_UNBUSY);
                 state = STATE_DATA_END;
              #endif 
@@ -2864,12 +2842,16 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                 host->complete_done = 3;
                 break;
             }
-        	
+            
+            case STATE_DATA_END:
+                break;
+            default:
+                break;     	
         }
 
         pending_flag = (host->complete_done > 0) && (host->retryfunc<50) \
                        && (rk29_sdmmc_test_pending(host, EVENT_CMD_COMPLETE)|| rk29_sdmmc_test_pending(host, EVENT_DATA_COMPLETE) );
-// pending_flag=0;
+
         if(pending_flag)
         {
             xbwprintk(7, "%s..%d...  cmd=%d(arg=0x%x),completedone=%d, retrycount=%d, doneflag=%d, \n \
@@ -2886,7 +2868,6 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
         }
                         
 	} while(pending_flag && ++host->retryfunc); //while(0);
-  //  printk("%d: ******************333333333*******************\n", __LINE__);
 
 	 if(0!=stopflag)
     {
@@ -2904,11 +2885,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
     {
         host->errorstep = 0xf2;
         
-      //  printk("%d: ******************44444444444, hoststat=%x*******************\n", __LINE__, host->state);
         spin_unlock_irqrestore(&host->lock, iflags);
-        
-
-        //enable_irq(host->irq);
         return;
     }
     host->errorstep = 0xf3; 
@@ -2917,22 +2894,12 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 	 if(host->mrq && host->mmc->doneflag)
 	 {
 	    host->mmc->doneflag = 0;
-
-	    //rk29_sdmmc_enable_irq(host, 1);
-	    //enable_irq(host->irq);
-	    //spin_unlock(&host->lock);//
-	    spin_unlock_irqrestore(&host->lock, iflags);
-	    
+	    spin_unlock_irqrestore(&host->lock, iflags);	    
 	    mmc_request_done(host->mmc, host->mrq);
 	 }
 	 else
 	 {
-	    
-	    //rk29_sdmmc_enable_irq(host, 1);
-	    //enable_irq(host->irq);
-	    //spin_unlock(&host->lock);
-	    spin_unlock_irqrestore(&host->lock, iflags);
-	    
+	    spin_unlock_irqrestore(&host->lock, iflags);	    
 	 }
 }
 
@@ -2965,9 +2932,8 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 	bool present;
 	bool present_old;
 	int sdio_irq=0;
-	//unsigned long iflags;
 
-	spin_lock(&host->lock);//spin_lock_irqsave(&host->lock, iflags);
+	spin_lock(&host->lock);
 
     status = rk29_sdmmc_read(host->regs, SDMMC_RINTSTS);
     pending = rk29_sdmmc_read(host->regs, SDMMC_MINTSTS);// read only mask reg
@@ -3064,9 +3030,8 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
         if(!(pending & SDMMC_INT_CMD_DONE))
         {
-            //disable_irq_nosync(host->irq);
             tasklet_schedule(&host->tasklet);
-            }
+        }
 
         goto Exit_INT;
     }
@@ -3109,27 +3074,6 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
         goto Exit_INT;
     }
 
-#if SDMMC_USE_INT_UNBUSY
-    if(pending & SDMMC_INT_UNBUSY) 
-    {
-        xbwprintk(1, "%d..%s: INT=0x%x ,RINTSTS=0x%x, CMD%d(arg=0x%x, retries=%d),host->state=0x%x ==xbw[%s]==\n *********\n", \
-				__LINE__,__FUNCTION__, pending,status, host->cmd->opcode, host->cmd->arg, host->cmd->retries, host->state,host->dma_name);
-
-        rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_UNBUSY); 
-
-        if(!((pending & SDMMC_INT_TXDR)||(pending & SDMMC_INT_RXDR)) )
-        {
-            host->data_status = status;
-            smp_wmb();
-          // printk("%d: ******************000000000000*******************\n", __LINE__);
-            rk29_sdmmc_set_pending(host, EVENT_DATA_UNBUSY);
-            tasklet_schedule(&host->tasklet);
-        }
-       
-        goto Exit_INT;
-    }
-#endif
-
     if (pending & SDMMC_INT_RXDR) 
     {	
         xbwprintk(6, "%s..%d..  SDMMC_INT_RXDR  INT=0x%x   ====xbw[%s]====\n", \
@@ -3143,15 +3087,32 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
     {
         xbwprintk(6, "%s..%d..  SDMMC_INT_TXDR  INT=0x%x   ====xbw[%s]====\n", \
 				__FUNCTION__, __LINE__, pending, host->dma_name);
-
-        rk29_sdmmc_do_pio_write(host);       
-
+				
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_TXDR);  //  clear interrupt
+        rk29_sdmmc_do_pio_write(host); 
     }
+
+#if SDMMC_USE_INT_UNBUSY
+        if(pending & SDMMC_INT_UNBUSY) 
+        {
+            xbwprintk(1, "%d..%s: INT=0x%x ,RINTSTS=0x%x, CMD%d(arg=0x%x, retries=%d),host->state=0x%x ==xbw[%s]==\n", \
+                    __LINE__,__FUNCTION__, pending,status, host->cmd->opcode, host->cmd->arg, host->cmd->retries, \
+                    host->state,host->dma_name);
+    
+            rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_UNBUSY); 
+            
+            host->data_status = status;
+            smp_wmb();
+            rk29_sdmmc_set_pending(host, EVENT_DATA_UNBUSY);
+            tasklet_schedule(&host->tasklet);  
+            
+            goto Exit_INT;
+        }
+#endif
 
 Exit_INT:
 
-	spin_unlock(&host->lock);//spin_unlock_irqrestore(&host->lock, iflags);
+	spin_unlock(&host->lock);
 
     if(1 == sdio_irq)
     {
@@ -3279,7 +3240,6 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 		pdata->io_init();
 		
 	spin_lock_init(&host->lock);
-    spin_lock_init(&host->irqlock);
     
 #ifdef RK29_SDMMC_LIST_QUEUE	
 	INIT_LIST_HEAD(&host->queue);
