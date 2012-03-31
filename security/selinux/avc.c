@@ -741,6 +741,41 @@ int avc_ss_reset(u32 seqno)
 	return rc;
 }
 
+/*
+ * Slow-path helper function for avc_has_perm_noaudit,
+ * when the avc_node lookup fails. We get called with
+ * the RCU read lock held, and need to return with it
+ * still held, but drop if for the security compute.
+ *
+ * Don't inline this, since it's the slow-path and just
+ * results in a bigger stack frame.
+ */
+static noinline struct avc_node *avc_compute_av(u32 ssid, u32 tsid,
+			 u16 tclass, struct av_decision *avd)
+{
+	rcu_read_unlock();
+	security_compute_av(ssid, tsid, tclass, avd);
+	rcu_read_lock();
+	return avc_insert(ssid, tsid, tclass, avd);
+}
+
+static noinline int avc_denied(u32 ssid, u32 tsid,
+			 u16 tclass, u32 requested,
+			 unsigned flags,
+			 struct av_decision *avd)
+{
+	if (flags & AVC_STRICT)
+		return -EACCES;
+
+	if (selinux_enforcing && !(avd->flags & AVD_FLAGS_PERMISSIVE))
+		return -EACCES;
+
+	avc_update_node(AVC_CALLBACK_GRANT, requested, ssid,
+				tsid, tclass, avd->seqno);
+	return 0;
+}
+
+
 /**
  * avc_has_perm_noaudit - Check permissions but perform no auditing.
  * @ssid: source security identifier
@@ -776,26 +811,15 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 
 	node = avc_lookup(ssid, tsid, tclass);
 	if (unlikely(!node)) {
-		rcu_read_unlock();
-		security_compute_av(ssid, tsid, tclass, avd);
-		rcu_read_lock();
-		node = avc_insert(ssid, tsid, tclass, avd);
+		node = avc_compute_av(ssid, tsid, tclass, avd);
 	} else {
 		memcpy(avd, &node->ae.avd, sizeof(*avd));
 		avd = &node->ae.avd;
 	}
 
 	denied = requested & ~(avd->allowed);
-
-	if (denied) {
-		if (flags & AVC_STRICT)
-			rc = -EACCES;
-		else if (!selinux_enforcing || (avd->flags & AVD_FLAGS_PERMISSIVE))
-			avc_update_node(AVC_CALLBACK_GRANT, requested, ssid,
-					tsid, tclass, avd->seqno);
-		else
-			rc = -EACCES;
-	}
+	if (unlikely(denied))
+		rc = avc_denied(ssid, tsid, tclass, requested, flags, avd);
 
 	rcu_read_unlock();
 	return rc;
