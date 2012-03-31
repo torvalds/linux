@@ -169,37 +169,6 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	gLcd_info = lcd_info;
 }
 
-#define PIN_BL_SET          RK29_PIN6_PD2
-void set_backlight(int brightness)
-{
-#if 0
- 	if(gLcd_info)
-        gLcd_info->io_init();
-
-	printk("lcd_ili9803:set_backlight = %d\r\n", brightness);
-	if (brightness < 0)
-	{
-		brightness = 0;
-	}
-	if (brightness > 4)
-	{
-		brightness = 4;
-	}
-	spi_screenreg_cmd(0x51);
-	spi_screenreg_param(brightness<<5);
-		
-  	 if(gLcd_info)
-        gLcd_info->io_deinit();
-
-#endif
-
-	gpio_request(PIN_BL_SET, NULL);
-	if(brightness > 0)
-        gpio_direction_output(PIN_BL_SET,GPIO_HIGH);
-	else
-	gpio_direction_output(PIN_BL_SET,GPIO_LOW);	
-	printk("%s:brightness=%d\n",__FUNCTION__,brightness);
-}
 
 void WriteCommand( int  Command)
 {
@@ -1597,16 +1566,7 @@ static void lcd_resume(struct work_struct *work)
 	rk29_lcd_spim_spin_lock();
 	if(gLcd_info)
 		gLcd_info->io_init();
-
-	gpio_request(RK29_PIN6_PC6, NULL);
-	gpio_direction_output(RK29_PIN6_PC6, 1);
-	gpio_direction_output(RK29_PIN6_PC6, 0);
-	usleep_range(5*1000, 5*1000);
-	gpio_set_value(RK29_PIN6_PC6, 1);
-	usleep_range(50*1000, 50*1000);
-	gpio_free(RK29_PIN6_PC6);
 	init_nt35510();
-	//set_backlight(255);
 	//resume_nt35510();//may be fail to wake up LCD some time,so change to init lcd again
 	printk(KERN_DEBUG "%s\n",__FUNCTION__);
 
@@ -1634,23 +1594,12 @@ int init(void)
 { 
 	volatile u32 data;
 	printk("lcd init...\n");
-	/* reset lcd to start init lcd */
-	gpio_request(RK29_PIN6_PC6, NULL);
-	gpio_direction_output(RK29_PIN6_PC6, 1);
-	gpio_direction_output(RK29_PIN6_PC6, 0);
-	msleep(5);
-	gpio_set_value(RK29_PIN6_PC6, 1);
-	msleep(50);
-	gpio_free(RK29_PIN6_PC6);
-
 	if(gLcd_info)
 	gLcd_info->io_init();
 	init_nt35510();
 
 	if(gLcd_info)
 	gLcd_info->io_deinit();
-
-	//set_backlight(255);
 
 	lcd_resume_wq = create_singlethread_workqueue("lcd");
 	register_early_suspend(&lcd_early_suspend_desc);
@@ -1666,7 +1615,6 @@ int standby(u8 enable)	//***enable =1 means suspend, 0 means resume
 			gLcd_info->io_init();
 
 		WriteCommand(0X2800); 
-		//set_backlight(0);
 		WriteCommand(0X1100); 
 		msleep(5);
 		WriteCommand(0X4f00); 

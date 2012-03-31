@@ -17,3 +17,4 @@ obj-$(CONFIG_PM) += pm.o
 obj-$(CONFIG_CPU_IDLE) += cpuidle.o
 
 obj-$(CONFIG_MACH_RK30_SDK) += board-rk30-sdk.o board-rk30-sdk-key.o board-rk30-sdk-rfkill.o
+obj-$(CONFIG_MACH_RK30_PHONE) += board-rk30-phone.o board-rk30-phone-key.o board-rk30-phone-rfkill.o

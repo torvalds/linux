@@ -179,6 +179,9 @@ static int aw9364_backlight_probe(struct platform_device *pdev)
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
+	
+	if(pdata && pdata->io_init)
+	pdata->io_init();
 
 	data->current_brightness = 0;
 	data->pin_en = pdata->pin_en;

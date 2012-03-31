@@ -318,7 +318,7 @@ config FIH_TOUCHKEY_LED
 
 config BACKLIGHT_AW9364
         bool "aw9364 backlight driver"
-	depends on BACKLIGHT_CLASS_DEVICE && ARCH_RK29
+	depends on BACKLIGHT_CLASS_DEVICE
 	help
 	  aw9364 backlight support.	 
 

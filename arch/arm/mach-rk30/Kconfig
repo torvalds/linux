@@ -7,6 +7,9 @@ choice
 config MACH_RK30_SDK
 	bool "RK30 SDK board"
 
+config MACH_RK30_PHONE
+	bool "RK30 smart phone board"
+
 endchoice
 
 endif

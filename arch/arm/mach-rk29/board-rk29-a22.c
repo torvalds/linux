@@ -241,6 +241,15 @@ static int rk29_lcd_io_init(void)
 	rk29_mux_api_set(GPIO1A4_EMMCWRITEPRT_SPI0CS1_NAME,GPIO1L_GPIO1A4);
 	rk29_mux_api_set(GPIO2C0_SPI0CLK_NAME,GPIO2H_GPIO2C0);
 
+
+	gpio_request(RK29_PIN6_PC6, NULL);
+	gpio_direction_output(RK29_PIN6_PC6, 1);
+	gpio_direction_output(RK29_PIN6_PC6, 0);
+	usleep_range(5*1000, 5*1000);
+	gpio_set_value(RK29_PIN6_PC6, 1);
+	usleep_range(50*1000, 50*1000);
+	gpio_free(RK29_PIN6_PC6);
+
 	return ret;
 }
 
