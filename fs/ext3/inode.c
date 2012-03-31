@@ -22,22 +22,12 @@
  *  Assorted race fixes, rewrite of ext3_get_block() by Al Viro, 2000
  */
 
-#include <linux/fs.h>
-#include <linux/time.h>
-#include <linux/ext3_jbd.h>
-#include <linux/jbd.h>
 #include <linux/highuid.h>
-#include <linux/pagemap.h>
 #include <linux/quotaops.h>
-#include <linux/string.h>
-#include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/mpage.h>
-#include <linux/uio.h>
-#include <linux/bio.h>
-#include <linux/fiemap.h>
 #include <linux/namei.h>
-#include <trace/events/ext3.h>
+#include "ext3.h"
 #include "xattr.h"
 #include "acl.h"
 

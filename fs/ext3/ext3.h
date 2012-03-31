@@ -1,5 +1,11 @@
 /*
- *  linux/include/linux/ext3_fs.h
+ * Written by Stephen C. Tweedie <sct@redhat.com>, 1999
+ *
+ * Copyright 1998--1999 Red Hat corp --- All Rights Reserved
+ *
+ * This file is part of the Linux kernel and is made available under
+ * the terms of the GNU General Public License, version 2, or at your
+ * option, any later version, incorporated herein by reference.
  *
  * Copyright (C) 1992, 1993, 1994, 1995
  * Remy Card (card@masi.ibp.fr)
@@ -13,12 +19,11 @@
  *  Copyright (C) 1991, 1992  Linus Torvalds
  */
 
-#ifndef _LINUX_EXT3_FS_H
-#define _LINUX_EXT3_FS_H
-
-#include <linux/types.h>
+#include <linux/fs.h>
+#include <linux/jbd.h>
 #include <linux/magic.h>
 #include <linux/bug.h>
+#include <linux/blockgroup_lock.h>
 
 /*
  * The second extended filesystem constants/structures
@@ -75,29 +80,12 @@
 #define EXT3_MIN_BLOCK_SIZE		1024
 #define	EXT3_MAX_BLOCK_SIZE		65536
 #define EXT3_MIN_BLOCK_LOG_SIZE		10
-#ifdef __KERNEL__
-# define EXT3_BLOCK_SIZE(s)		((s)->s_blocksize)
-#else
-# define EXT3_BLOCK_SIZE(s)		(EXT3_MIN_BLOCK_SIZE << (s)->s_log_block_size)
-#endif
+#define EXT3_BLOCK_SIZE(s)		((s)->s_blocksize)
 #define	EXT3_ADDR_PER_BLOCK(s)		(EXT3_BLOCK_SIZE(s) / sizeof (__u32))
-#ifdef __KERNEL__
-# define EXT3_BLOCK_SIZE_BITS(s)	((s)->s_blocksize_bits)
-#else
-# define EXT3_BLOCK_SIZE_BITS(s)	((s)->s_log_block_size + 10)
-#endif
-#ifdef __KERNEL__
+#define EXT3_BLOCK_SIZE_BITS(s)	((s)->s_blocksize_bits)
 #define	EXT3_ADDR_PER_BLOCK_BITS(s)	(EXT3_SB(s)->s_addr_per_block_bits)
 #define EXT3_INODE_SIZE(s)		(EXT3_SB(s)->s_inode_size)
 #define EXT3_FIRST_INO(s)		(EXT3_SB(s)->s_first_ino)
-#else
-#define EXT3_INODE_SIZE(s)	(((s)->s_rev_level == EXT3_GOOD_OLD_REV) ? \
-				 EXT3_GOOD_OLD_INODE_SIZE : \
-				 (s)->s_inode_size)
-#define EXT3_FIRST_INO(s)	(((s)->s_rev_level == EXT3_GOOD_OLD_REV) ? \
-				 EXT3_GOOD_OLD_FIRST_INO : \
-				 (s)->s_first_ino)
-#endif
 
 /*
  * Macro-instructions used to manage fragments
@@ -105,13 +93,8 @@
 #define EXT3_MIN_FRAG_SIZE		1024
 #define	EXT3_MAX_FRAG_SIZE		4096
 #define EXT3_MIN_FRAG_LOG_SIZE		  10
-#ifdef __KERNEL__
-# define EXT3_FRAG_SIZE(s)		(EXT3_SB(s)->s_frag_size)
-# define EXT3_FRAGS_PER_BLOCK(s)	(EXT3_SB(s)->s_frags_per_block)
-#else
-# define EXT3_FRAG_SIZE(s)		(EXT3_MIN_FRAG_SIZE << (s)->s_log_frag_size)
-# define EXT3_FRAGS_PER_BLOCK(s)	(EXT3_BLOCK_SIZE(s) / EXT3_FRAG_SIZE(s))
-#endif
+#define EXT3_FRAG_SIZE(s)		(EXT3_SB(s)->s_frag_size)
+#define EXT3_FRAGS_PER_BLOCK(s)		(EXT3_SB(s)->s_frags_per_block)
 
 /*
  * Structure of a blocks group descriptor
@@ -131,16 +114,10 @@ struct ext3_group_desc
 /*
  * Macro-instructions used to manage group descriptors
  */
-#ifdef __KERNEL__
-# define EXT3_BLOCKS_PER_GROUP(s)	(EXT3_SB(s)->s_blocks_per_group)
-# define EXT3_DESC_PER_BLOCK(s)		(EXT3_SB(s)->s_desc_per_block)
-# define EXT3_INODES_PER_GROUP(s)	(EXT3_SB(s)->s_inodes_per_group)
-# define EXT3_DESC_PER_BLOCK_BITS(s)	(EXT3_SB(s)->s_desc_per_block_bits)
-#else
-# define EXT3_BLOCKS_PER_GROUP(s)	((s)->s_blocks_per_group)
-# define EXT3_DESC_PER_BLOCK(s)		(EXT3_BLOCK_SIZE(s) / sizeof (struct ext3_group_desc))
-# define EXT3_INODES_PER_GROUP(s)	((s)->s_inodes_per_group)
-#endif
+#define EXT3_BLOCKS_PER_GROUP(s)	(EXT3_SB(s)->s_blocks_per_group)
+#define EXT3_DESC_PER_BLOCK(s)		(EXT3_SB(s)->s_desc_per_block)
+#define EXT3_INODES_PER_GROUP(s)	(EXT3_SB(s)->s_inodes_per_group)
+#define EXT3_DESC_PER_BLOCK_BITS(s)	(EXT3_SB(s)->s_desc_per_block_bits)
 
 /*
  * Constants relative to the data blocks
@@ -336,7 +313,6 @@ struct ext3_inode {
 
 #define i_size_high	i_dir_acl
 
-#if defined(__KERNEL__) || defined(__linux__)
 #define i_reserved1	osd1.linux1.l_i_reserved1
 #define i_frag		osd2.linux2.l_i_frag
 #define i_fsize		osd2.linux2.l_i_fsize
@@ -345,24 +321,6 @@ struct ext3_inode {
 #define i_uid_high	osd2.linux2.l_i_uid_high
 #define i_gid_high	osd2.linux2.l_i_gid_high
 #define i_reserved2	osd2.linux2.l_i_reserved2
-
-#elif defined(__GNU__)
-
-#define i_translator	osd1.hurd1.h_i_translator
-#define i_frag		osd2.hurd2.h_i_frag;
-#define i_fsize		osd2.hurd2.h_i_fsize;
-#define i_uid_high	osd2.hurd2.h_i_uid_high
-#define i_gid_high	osd2.hurd2.h_i_gid_high
-#define i_author	osd2.hurd2.h_i_author
-
-#elif defined(__masix__)
-
-#define i_reserved1	osd1.masix1.m_i_reserved1
-#define i_frag		osd2.masix2.m_i_frag
-#define i_fsize		osd2.masix2.m_i_fsize
-#define i_reserved2	osd2.masix2.m_i_reserved2
-
-#endif /* defined(__KERNEL__) || defined(__linux__) */
 
 /*
  * File system states
@@ -531,9 +489,197 @@ struct ext3_super_block {
 	__u32   s_reserved[162];        /* Padding to the end of the block */
 };
 
-#ifdef __KERNEL__
-#include <linux/ext3_fs_i.h>
-#include <linux/ext3_fs_sb.h>
+/* data type for block offset of block group */
+typedef int ext3_grpblk_t;
+
+/* data type for filesystem-wide blocks number */
+typedef unsigned long ext3_fsblk_t;
+
+#define E3FSBLK "%lu"
+
+struct ext3_reserve_window {
+	ext3_fsblk_t	_rsv_start;	/* First byte reserved */
+	ext3_fsblk_t	_rsv_end;	/* Last byte reserved or 0 */
+};
+
+struct ext3_reserve_window_node {
+	struct rb_node		rsv_node;
+	__u32			rsv_goal_size;
+	__u32			rsv_alloc_hit;
+	struct ext3_reserve_window	rsv_window;
+};
+
+struct ext3_block_alloc_info {
+	/* information about reservation window */
+	struct ext3_reserve_window_node	rsv_window_node;
+	/*
+	 * was i_next_alloc_block in ext3_inode_info
+	 * is the logical (file-relative) number of the
+	 * most-recently-allocated block in this file.
+	 * We use this for detecting linearly ascending allocation requests.
+	 */
+	__u32                   last_alloc_logical_block;
+	/*
+	 * Was i_next_alloc_goal in ext3_inode_info
+	 * is the *physical* companion to i_next_alloc_block.
+	 * it the physical block number of the block which was most-recentl
+	 * allocated to this file.  This give us the goal (target) for the next
+	 * allocation when we detect linearly ascending requests.
+	 */
+	ext3_fsblk_t		last_alloc_physical_block;
+};
+
+#define rsv_start rsv_window._rsv_start
+#define rsv_end rsv_window._rsv_end
+
+/*
+ * third extended file system inode data in memory
+ */
+struct ext3_inode_info {
+	__le32	i_data[15];	/* unconverted */
+	__u32	i_flags;
+#ifdef EXT3_FRAGMENTS
+	__u32	i_faddr;
+	__u8	i_frag_no;
+	__u8	i_frag_size;
+#endif
+	ext3_fsblk_t	i_file_acl;
+	__u32	i_dir_acl;
+	__u32	i_dtime;
+
+	/*
+	 * i_block_group is the number of the block group which contains
+	 * this file's inode.  Constant across the lifetime of the inode,
+	 * it is ued for making block allocation decisions - we try to
+	 * place a file's data blocks near its inode block, and new inodes
+	 * near to their parent directory's inode.
+	 */
+	__u32	i_block_group;
+	unsigned long	i_state_flags;	/* Dynamic state flags for ext3 */
+
+	/* block reservation info */
+	struct ext3_block_alloc_info *i_block_alloc_info;
+
+	__u32	i_dir_start_lookup;
+#ifdef CONFIG_EXT3_FS_XATTR
+	/*
+	 * Extended attributes can be read independently of the main file
+	 * data. Taking i_mutex even when reading would cause contention
+	 * between readers of EAs and writers of regular file data, so
+	 * instead we synchronize on xattr_sem when reading or changing
+	 * EAs.
+	 */
+	struct rw_semaphore xattr_sem;
+#endif
+
+	struct list_head i_orphan;	/* unlinked but open inodes */
+
+	/*
+	 * i_disksize keeps track of what the inode size is ON DISK, not
+	 * in memory.  During truncate, i_size is set to the new size by
+	 * the VFS prior to calling ext3_truncate(), but the filesystem won't
+	 * set i_disksize to 0 until the truncate is actually under way.
+	 *
+	 * The intent is that i_disksize always represents the blocks which
+	 * are used by this file.  This allows recovery to restart truncate
+	 * on orphans if we crash during truncate.  We actually write i_disksize
+	 * into the on-disk inode when writing inodes out, instead of i_size.
+	 *
+	 * The only time when i_disksize and i_size may be different is when
+	 * a truncate is in progress.  The only things which change i_disksize
+	 * are ext3_get_block (growth) and ext3_truncate (shrinkth).
+	 */
+	loff_t	i_disksize;
+
+	/* on-disk additional length */
+	__u16 i_extra_isize;
+
+	/*
+	 * truncate_mutex is for serialising ext3_truncate() against
+	 * ext3_getblock().  In the 2.4 ext2 design, great chunks of inode's
+	 * data tree are chopped off during truncate. We can't do that in
+	 * ext3 because whenever we perform intermediate commits during
+	 * truncate, the inode and all the metadata blocks *must* be in a
+	 * consistent state which allows truncation of the orphans to restart
+	 * during recovery.  Hence we must fix the get_block-vs-truncate race
+	 * by other means, so we have truncate_mutex.
+	 */
+	struct mutex truncate_mutex;
+
+	/*
+	 * Transactions that contain inode's metadata needed to complete
+	 * fsync and fdatasync, respectively.
+	 */
+	atomic_t i_sync_tid;
+	atomic_t i_datasync_tid;
+
+	struct inode vfs_inode;
+};
+
+/*
+ * third extended-fs super-block data in memory
+ */
+struct ext3_sb_info {
+	unsigned long s_frag_size;	/* Size of a fragment in bytes */
+	unsigned long s_frags_per_block;/* Number of fragments per block */
+	unsigned long s_inodes_per_block;/* Number of inodes per block */
+	unsigned long s_frags_per_group;/* Number of fragments in a group */
+	unsigned long s_blocks_per_group;/* Number of blocks in a group */
+	unsigned long s_inodes_per_group;/* Number of inodes in a group */
+	unsigned long s_itb_per_group;	/* Number of inode table blocks per group */
+	unsigned long s_gdb_count;	/* Number of group descriptor blocks */
+	unsigned long s_desc_per_block;	/* Number of group descriptors per block */
+	unsigned long s_groups_count;	/* Number of groups in the fs */
+	unsigned long s_overhead_last;  /* Last calculated overhead */
+	unsigned long s_blocks_last;    /* Last seen block count */
+	struct buffer_head * s_sbh;	/* Buffer containing the super block */
+	struct ext3_super_block * s_es;	/* Pointer to the super block in the buffer */
+	struct buffer_head ** s_group_desc;
+	unsigned long  s_mount_opt;
+	ext3_fsblk_t s_sb_block;
+	uid_t s_resuid;
+	gid_t s_resgid;
+	unsigned short s_mount_state;
+	unsigned short s_pad;
+	int s_addr_per_block_bits;
+	int s_desc_per_block_bits;
+	int s_inode_size;
+	int s_first_ino;
+	spinlock_t s_next_gen_lock;
+	u32 s_next_generation;
+	u32 s_hash_seed[4];
+	int s_def_hash_version;
+	int s_hash_unsigned;	/* 3 if hash should be signed, 0 if not */
+	struct percpu_counter s_freeblocks_counter;
+	struct percpu_counter s_freeinodes_counter;
+	struct percpu_counter s_dirs_counter;
+	struct blockgroup_lock *s_blockgroup_lock;
+
+	/* root of the per fs reservation window tree */
+	spinlock_t s_rsv_window_lock;
+	struct rb_root s_rsv_window_root;
+	struct ext3_reserve_window_node s_rsv_window_head;
+
+	/* Journaling */
+	struct inode * s_journal_inode;
+	struct journal_s * s_journal;
+	struct list_head s_orphan;
+	struct mutex s_orphan_lock;
+	struct mutex s_resize_lock;
+	unsigned long s_commit_interval;
+	struct block_device *journal_bdev;
+#ifdef CONFIG_QUOTA
+	char *s_qf_names[MAXQUOTAS];		/* Names of quota files with journalled quota */
+	int s_jquota_fmt;			/* Format of quota to use */
+#endif
+};
+
+static inline spinlock_t *
+sb_bgl_lock(struct ext3_sb_info *sbi, unsigned int block_group)
+{
+	return bgl_lock_ptr(sbi->s_blockgroup_lock, block_group);
+}
+
 static inline struct ext3_sb_info * EXT3_SB(struct super_block *sb)
 {
 	return sb->s_fs_info;
@@ -576,12 +722,6 @@ static inline void ext3_clear_inode_state(struct inode *inode, int bit)
 {
 	clear_bit(bit, &EXT3_I(inode)->i_state_flags);
 }
-#else
-/* Assume that user mode programs are passing in an ext3fs superblock, not
- * a kernel struct super_block.  This will allow us to call the feature-test
- * macros from user land. */
-#define EXT3_SB(sb)	(sb)
-#endif
 
 #define NEXT_ORPHAN(inode) EXT3_I(inode)->i_dtime
 
@@ -770,8 +910,6 @@ static inline __le16 ext3_rec_len_to_disk(unsigned len)
 #define DX_HASH_LEGACY_UNSIGNED	3
 #define DX_HASH_HALF_MD4_UNSIGNED	4
 #define DX_HASH_TEA_UNSIGNED		5
-
-#ifdef __KERNEL__
 
 /* hash info structure used by the directory hash */
 struct dx_hash_info
@@ -974,7 +1112,211 @@ extern const struct inode_operations ext3_special_inode_operations;
 extern const struct inode_operations ext3_symlink_inode_operations;
 extern const struct inode_operations ext3_fast_symlink_inode_operations;
 
+#define EXT3_JOURNAL(inode)	(EXT3_SB((inode)->i_sb)->s_journal)
 
-#endif	/* __KERNEL__ */
+/* Define the number of blocks we need to account to a transaction to
+ * modify one block of data.
+ *
+ * We may have to touch one inode, one bitmap buffer, up to three
+ * indirection blocks, the group and superblock summaries, and the data
+ * block to complete the transaction.  */
 
-#endif	/* _LINUX_EXT3_FS_H */
+#define EXT3_SINGLEDATA_TRANS_BLOCKS	8U
+
+/* Extended attribute operations touch at most two data buffers,
+ * two bitmap buffers, and two group summaries, in addition to the inode
+ * and the superblock, which are already accounted for. */
+
+#define EXT3_XATTR_TRANS_BLOCKS		6U
+
+/* Define the minimum size for a transaction which modifies data.  This
+ * needs to take into account the fact that we may end up modifying two
+ * quota files too (one for the group, one for the user quota).  The
+ * superblock only gets updated once, of course, so don't bother
+ * counting that again for the quota updates. */
+
+#define EXT3_DATA_TRANS_BLOCKS(sb)	(EXT3_SINGLEDATA_TRANS_BLOCKS + \
+					 EXT3_XATTR_TRANS_BLOCKS - 2 + \
+					 EXT3_MAXQUOTAS_TRANS_BLOCKS(sb))
+
+/* Delete operations potentially hit one directory's namespace plus an
+ * entire inode, plus arbitrary amounts of bitmap/indirection data.  Be
+ * generous.  We can grow the delete transaction later if necessary. */
+
+#define EXT3_DELETE_TRANS_BLOCKS(sb)   (EXT3_MAXQUOTAS_TRANS_BLOCKS(sb) + 64)
+
+/* Define an arbitrary limit for the amount of data we will anticipate
+ * writing to any given transaction.  For unbounded transactions such as
+ * write(2) and truncate(2) we can write more than this, but we always
+ * start off at the maximum transaction size and grow the transaction
+ * optimistically as we go. */
+
+#define EXT3_MAX_TRANS_DATA		64U
+
+/* We break up a large truncate or write transaction once the handle's
+ * buffer credits gets this low, we need either to extend the
+ * transaction or to start a new one.  Reserve enough space here for
+ * inode, bitmap, superblock, group and indirection updates for at least
+ * one block, plus two quota updates.  Quota allocations are not
+ * needed. */
+
+#define EXT3_RESERVE_TRANS_BLOCKS	12U
+
+#define EXT3_INDEX_EXTRA_TRANS_BLOCKS	8
+
+#ifdef CONFIG_QUOTA
+/* Amount of blocks needed for quota update - we know that the structure was
+ * allocated so we need to update only inode+data */
+#define EXT3_QUOTA_TRANS_BLOCKS(sb) (test_opt(sb, QUOTA) ? 2 : 0)
+/* Amount of blocks needed for quota insert/delete - we do some block writes
+ * but inode, sb and group updates are done only once */
+#define EXT3_QUOTA_INIT_BLOCKS(sb) (test_opt(sb, QUOTA) ? (DQUOT_INIT_ALLOC*\
+		(EXT3_SINGLEDATA_TRANS_BLOCKS-3)+3+DQUOT_INIT_REWRITE) : 0)
+#define EXT3_QUOTA_DEL_BLOCKS(sb) (test_opt(sb, QUOTA) ? (DQUOT_DEL_ALLOC*\
+		(EXT3_SINGLEDATA_TRANS_BLOCKS-3)+3+DQUOT_DEL_REWRITE) : 0)
+#else
+#define EXT3_QUOTA_TRANS_BLOCKS(sb) 0
+#define EXT3_QUOTA_INIT_BLOCKS(sb) 0
+#define EXT3_QUOTA_DEL_BLOCKS(sb) 0
+#endif
+#define EXT3_MAXQUOTAS_TRANS_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_TRANS_BLOCKS(sb))
+#define EXT3_MAXQUOTAS_INIT_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_INIT_BLOCKS(sb))
+#define EXT3_MAXQUOTAS_DEL_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_DEL_BLOCKS(sb))
+
+int
+ext3_mark_iloc_dirty(handle_t *handle,
+		     struct inode *inode,
+		     struct ext3_iloc *iloc);
+
+/*
+ * On success, We end up with an outstanding reference count against
+ * iloc->bh.  This _must_ be cleaned up later.
+ */
+
+int ext3_reserve_inode_write(handle_t *handle, struct inode *inode,
+			struct ext3_iloc *iloc);
+
+int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode);
+
+/*
+ * Wrapper functions with which ext3 calls into JBD.  The intent here is
+ * to allow these to be turned into appropriate stubs so ext3 can control
+ * ext2 filesystems, so ext2+ext3 systems only nee one fs.  This work hasn't
+ * been done yet.
+ */
+
+static inline void ext3_journal_release_buffer(handle_t *handle,
+						struct buffer_head *bh)
+{
+	journal_release_buffer(handle, bh);
+}
+
+void ext3_journal_abort_handle(const char *caller, const char *err_fn,
+		struct buffer_head *bh, handle_t *handle, int err);
+
+int __ext3_journal_get_undo_access(const char *where, handle_t *handle,
+				struct buffer_head *bh);
+
+int __ext3_journal_get_write_access(const char *where, handle_t *handle,
+				struct buffer_head *bh);
+
+int __ext3_journal_forget(const char *where, handle_t *handle,
+				struct buffer_head *bh);
+
+int __ext3_journal_revoke(const char *where, handle_t *handle,
+				unsigned long blocknr, struct buffer_head *bh);
+
+int __ext3_journal_get_create_access(const char *where,
+				handle_t *handle, struct buffer_head *bh);
+
+int __ext3_journal_dirty_metadata(const char *where,
+				handle_t *handle, struct buffer_head *bh);
+
+#define ext3_journal_get_undo_access(handle, bh) \
+	__ext3_journal_get_undo_access(__func__, (handle), (bh))
+#define ext3_journal_get_write_access(handle, bh) \
+	__ext3_journal_get_write_access(__func__, (handle), (bh))
+#define ext3_journal_revoke(handle, blocknr, bh) \
+	__ext3_journal_revoke(__func__, (handle), (blocknr), (bh))
+#define ext3_journal_get_create_access(handle, bh) \
+	__ext3_journal_get_create_access(__func__, (handle), (bh))
+#define ext3_journal_dirty_metadata(handle, bh) \
+	__ext3_journal_dirty_metadata(__func__, (handle), (bh))
+#define ext3_journal_forget(handle, bh) \
+	__ext3_journal_forget(__func__, (handle), (bh))
+
+int ext3_journal_dirty_data(handle_t *handle, struct buffer_head *bh);
+
+handle_t *ext3_journal_start_sb(struct super_block *sb, int nblocks);
+int __ext3_journal_stop(const char *where, handle_t *handle);
+
+static inline handle_t *ext3_journal_start(struct inode *inode, int nblocks)
+{
+	return ext3_journal_start_sb(inode->i_sb, nblocks);
+}
+
+#define ext3_journal_stop(handle) \
+	__ext3_journal_stop(__func__, (handle))
+
+static inline handle_t *ext3_journal_current_handle(void)
+{
+	return journal_current_handle();
+}
+
+static inline int ext3_journal_extend(handle_t *handle, int nblocks)
+{
+	return journal_extend(handle, nblocks);
+}
+
+static inline int ext3_journal_restart(handle_t *handle, int nblocks)
+{
+	return journal_restart(handle, nblocks);
+}
+
+static inline int ext3_journal_blocks_per_page(struct inode *inode)
+{
+	return journal_blocks_per_page(inode);
+}
+
+static inline int ext3_journal_force_commit(journal_t *journal)
+{
+	return journal_force_commit(journal);
+}
+
+/* super.c */
+int ext3_force_commit(struct super_block *sb);
+
+static inline int ext3_should_journal_data(struct inode *inode)
+{
+	if (!S_ISREG(inode->i_mode))
+		return 1;
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT3_MOUNT_JOURNAL_DATA)
+		return 1;
+	if (EXT3_I(inode)->i_flags & EXT3_JOURNAL_DATA_FL)
+		return 1;
+	return 0;
+}
+
+static inline int ext3_should_order_data(struct inode *inode)
+{
+	if (!S_ISREG(inode->i_mode))
+		return 0;
+	if (EXT3_I(inode)->i_flags & EXT3_JOURNAL_DATA_FL)
+		return 0;
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT3_MOUNT_ORDERED_DATA)
+		return 1;
+	return 0;
+}
+
+static inline int ext3_should_writeback_data(struct inode *inode)
+{
+	if (!S_ISREG(inode->i_mode))
+		return 0;
+	if (EXT3_I(inode)->i_flags & EXT3_JOURNAL_DATA_FL)
+		return 0;
+	if (test_opt(inode->i_sb, DATA_FLAGS) == EXT3_MOUNT_WRITEBACK_DATA)
+		return 1;
+	return 0;
+}
+
+#include <trace/events/ext3.h>
