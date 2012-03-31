@@ -554,6 +554,24 @@ struct ieee80211_if_ibss {
 	} state;
 };
 
+/**
+ * struct ieee80211_mesh_sync_ops - Extensible synchronization framework interface
+ *
+ * these declarations define the interface, which enables
+ * vendor-specific mesh synchronization
+ *
+ */
+struct ieee802_11_elems;
+struct ieee80211_mesh_sync_ops {
+	void (*rx_bcn_presp)(struct ieee80211_sub_if_data *sdata,
+			     u16 stype,
+			     struct ieee80211_mgmt *mgmt,
+			     struct ieee802_11_elems *elems,
+			     struct ieee80211_rx_status *rx_status);
+	void (*adjust_tbtt)(struct ieee80211_sub_if_data *sdata);
+	/* add other framework functions here */
+};
+
 struct ieee80211_if_mesh {
 	struct timer_list housekeeping_timer;
 	struct timer_list mesh_path_timer;
@@ -602,6 +620,11 @@ struct ieee80211_if_mesh {
 		IEEE80211_MESH_SEC_AUTHED = 0x1,
 		IEEE80211_MESH_SEC_SECURED = 0x2,
 	} security;
+	/* Extensible Synchronization Framework */
+	struct ieee80211_mesh_sync_ops *sync_ops;
+	s64 sync_offset_clockdrift_max;
+	spinlock_t sync_offset_lock;
+	bool adjusting_tbtt;
 };
 
 #ifdef CONFIG_MAC80211_MESH

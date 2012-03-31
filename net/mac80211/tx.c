@@ -2373,6 +2373,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 						 IEEE80211_STYPE_BEACON);
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
+		struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 		u8 *pos;
 		int hdr_len = offsetof(struct ieee80211_mgmt, u.beacon) +
 			      sizeof(mgmt->u.beacon);
@@ -2381,6 +2382,10 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		if (!sdata->u.mesh.mesh_id_len)
 			goto out;
 #endif
+
+		if (ifmsh->sync_ops)
+			ifmsh->sync_ops->adjust_tbtt(
+						sdata);
 
 		skb = dev_alloc_skb(local->tx_headroom +
 				    hdr_len +
