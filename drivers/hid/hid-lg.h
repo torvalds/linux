@@ -1,8 +1,6 @@
 #ifndef __HID_LG_H
 #define __HID_LG_H
 
-#include <linux/spinlock.h>
-
 struct lg_drv_data {
 	unsigned long quirks;
 	void *device_props;	/* Device specific properties */

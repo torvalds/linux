@@ -466,6 +466,9 @@ int lg4ff_deinit(struct hid_device *hid)
 	bool found = 0;
 	struct lg4ff_device_entry *entry;
 	struct list_head *h, *g;
+	
+	device_remove_file(&hid->dev, &dev_attr_range);
+
 	list_for_each_safe(h, g, &device_list.list) {
 		entry = list_entry(h, struct lg4ff_device_entry, list);
 		if (strcmp(entry->device_id, (&hid->dev)->kobj.name) == 0) {
@@ -478,11 +481,10 @@ int lg4ff_deinit(struct hid_device *hid)
 	}
 
 	if (!found) {
-		dbg_hid("Device entry not found!\n");
+		hid_err(hid, "Device entry not found!\n");
 		return -1;
 	}
 
-	device_remove_file(&hid->dev, &dev_attr_range);
 	dbg_hid("Device successfully unregistered\n");
 	return 0;
 }
