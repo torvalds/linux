@@ -424,6 +424,7 @@ static ssize_t ieee80211_if_parse_tsf(
 	struct ieee80211_local *local = sdata->local;
 	unsigned long long tsf;
 	int ret;
+	int tsf_is_delta = 0;
 
 	if (strncmp(buf, "reset", 5) == 0) {
 		if (local->ops->reset_tsf) {
@@ -431,9 +432,20 @@ static ssize_t ieee80211_if_parse_tsf(
 			wiphy_info(local->hw.wiphy, "debugfs reset TSF\n");
 		}
 	} else {
+		if (buflen > 10 && buf[1] == '=') {
+			if (buf[0] == '+')
+				tsf_is_delta = 1;
+			else if (buf[0] == '-')
+				tsf_is_delta = -1;
+			else
+				return -EINVAL;
+			buf += 2;
+		}
 		ret = kstrtoull(buf, 10, &tsf);
 		if (ret < 0)
 			return -EINVAL;
+		if (tsf_is_delta)
+			tsf = drv_get_tsf(local, sdata) + tsf_is_delta * tsf;
 		if (local->ops->set_tsf) {
 			drv_set_tsf(local, sdata, tsf);
 			wiphy_info(local->hw.wiphy,
