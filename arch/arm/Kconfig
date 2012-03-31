@@ -527,28 +527,6 @@ config ARCH_IOP33X
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
 
-config ARCH_IXP23XX
- 	bool "IXP23XX-based"
-	depends on MMU
-	select CPU_XSC3
- 	select PCI
-	select ARCH_USES_GETTIMEOFFSET
-	select NEED_MACH_IO_H
-	select NEED_MACH_MEMORY_H
-	help
-	  Support for Intel's IXP23xx (XScale) family of processors.
-
-config ARCH_IXP2000
-	bool "IXP2400/2800-based"
-	depends on MMU
-	select CPU_XSCALE
-	select PCI
-	select ARCH_USES_GETTIMEOFFSET
-	select NEED_MACH_IO_H
-	select NEED_MACH_MEMORY_H
-	help
-	  Support for Intel's IXP2400/2800 (XScale) family of processors.
-
 config ARCH_IXP4XX
 	bool "IXP4xx-based"
 	depends on MMU
@@ -1044,10 +1022,6 @@ source "arch/arm/mach-iop33x/Kconfig"
 source "arch/arm/mach-iop13xx/Kconfig"
 
 source "arch/arm/mach-ixp4xx/Kconfig"
-
-source "arch/arm/mach-ixp2000/Kconfig"
-
-source "arch/arm/mach-ixp23xx/Kconfig"
 
 source "arch/arm/mach-kirkwood/Kconfig"
 
