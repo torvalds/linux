@@ -1633,7 +1633,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		goto out_free_traffic_mem;
 	}
 	/* Reset chip to save power until we load uCode during "up". */
-	iwl_trans_stop_hw(priv->trans);
+	iwl_trans_stop_hw(priv->trans, false);
 
 	if (iwl_eeprom_check_version(priv))
 		goto out_free_eeprom;
@@ -1786,6 +1786,7 @@ void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	dev_kfree_skb(priv->beacon_skb);
 
+	iwl_trans_stop_hw(priv->trans, true);
 	ieee80211_free_hw(priv->hw);
 }
 

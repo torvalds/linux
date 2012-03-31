@@ -335,7 +335,8 @@ struct iwl_trans;
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
  *	May sleep
  * @stop_hw: stops the HW- from that point on, the HW will be in low power but
- *	will still issue interrupt if the HW RF kill is triggered.
+ *	will still issue interrupt if the HW RF kill is triggered unless
+ *	op_mode_leaving is true.
  *	May sleep
  * @start_fw: allocates and inits all the resources for the transport
  *	layer. Also kick a fw image.
@@ -379,7 +380,7 @@ struct iwl_trans;
 struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
-	void (*stop_hw)(struct iwl_trans *iwl_trans);
+	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw);
 	void (*fw_alive)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
@@ -478,11 +479,12 @@ static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 	return trans->ops->start_hw(trans);
 }
 
-static inline void iwl_trans_stop_hw(struct iwl_trans *trans)
+static inline void iwl_trans_stop_hw(struct iwl_trans *trans,
+				     bool op_mode_leaving)
 {
 	might_sleep();
 
-	trans->ops->stop_hw(trans);
+	trans->ops->stop_hw(trans, op_mode_leaving);
 
 	trans->state = IWL_TRANS_NO_FW;
 }

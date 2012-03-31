@@ -355,7 +355,7 @@ void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	 * even if interface is down, trans->down will leave the RF
 	 * kill interrupt enabled
 	 */
-	iwl_trans_stop_hw(priv->trans);
+	iwl_trans_stop_hw(priv->trans, false);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
