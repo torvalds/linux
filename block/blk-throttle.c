@@ -924,20 +924,6 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 	}
 }
 
-/*
- * Can not take queue lock in update functions as queue lock under
- * blkcg_lock is not allowed. Under other paths we take blkcg_lock under
- * queue_lock.
- */
-static void throtl_update_blkio_group_common(struct throtl_data *td,
-				struct throtl_grp *tg)
-{
-	xchg(&tg->limits_changed, true);
-	xchg(&td->limits_changed, true);
-	/* Schedule a work now to process the limit change */
-	throtl_schedule_delayed_work(td, 0);
-}
-
 static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
 				struct blkg_policy_data *pd, int off)
 {
@@ -968,68 +954,48 @@ static int tg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 
-static u64 blkg_prfill_conf_u64(struct seq_file *sf,
-				struct blkg_policy_data *pd, int off)
+static u64 tg_prfill_conf_u64(struct seq_file *sf, struct blkg_policy_data *pd,
+			      int off)
 {
-	u64 v = *(u64 *)((void *)&pd->conf + off);
+	u64 v = *(u64 *)((void *)pd->pdata + off);
 
-	if (!v)
+	if (v == -1)
 		return 0;
 	return __blkg_prfill_u64(sf, pd, v);
 }
 
-static int blkcg_print_conf_u64(struct cgroup *cgrp, struct cftype *cft,
-				struct seq_file *sf)
+static u64 tg_prfill_conf_uint(struct seq_file *sf, struct blkg_policy_data *pd,
+			       int off)
 {
-	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp),
-			  blkg_prfill_conf_u64, BLKIO_POLICY_THROTL,
-			  cft->private, false);
+	unsigned int v = *(unsigned int *)((void *)pd->pdata + off);
+
+	if (v == -1)
+		return 0;
+	return __blkg_prfill_u64(sf, pd, v);
+}
+
+static int tg_print_conf_u64(struct cgroup *cgrp, struct cftype *cft,
+			     struct seq_file *sf)
+{
+	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp), tg_prfill_conf_u64,
+			  BLKIO_POLICY_THROTL, cft->private, false);
 	return 0;
 }
 
-static void throtl_update_blkio_group_read_bps(struct blkio_group *blkg,
-					       u64 read_bps)
+static int tg_print_conf_uint(struct cgroup *cgrp, struct cftype *cft,
+			      struct seq_file *sf)
 {
-	struct throtl_grp *tg = blkg_to_tg(blkg);
-
-	tg->bps[READ] = read_bps;
-	throtl_update_blkio_group_common(blkg->q->td, tg);
+	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp), tg_prfill_conf_uint,
+			  BLKIO_POLICY_THROTL, cft->private, false);
+	return 0;
 }
 
-static void throtl_update_blkio_group_write_bps(struct blkio_group *blkg,
-						u64 write_bps)
-{
-	struct throtl_grp *tg = blkg_to_tg(blkg);
-
-	tg->bps[WRITE] = write_bps;
-	throtl_update_blkio_group_common(blkg->q->td, tg);
-}
-
-static void throtl_update_blkio_group_read_iops(struct blkio_group *blkg,
-						u64 read_iops)
-{
-	struct throtl_grp *tg = blkg_to_tg(blkg);
-
-	tg->iops[READ] = read_iops;
-	throtl_update_blkio_group_common(blkg->q->td, tg);
-}
-
-static void throtl_update_blkio_group_write_iops(struct blkio_group *blkg,
-						 u64 write_iops)
-{
-	struct throtl_grp *tg = blkg_to_tg(blkg);
-
-	tg->iops[WRITE] = write_iops;
-	throtl_update_blkio_group_common(blkg->q->td, tg);
-}
-
-static int blkcg_set_conf_u64(struct cgroup *cgrp, struct cftype *cft,
-			      const char *buf,
-			      void (*update)(struct blkio_group *, u64))
+static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
+		       bool is_u64)
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
-	struct blkg_policy_data *pd;
 	struct blkg_conf_ctx ctx;
+	struct throtl_grp *tg;
 	int ret;
 
 	ret = blkg_conf_prep(blkcg, buf, &ctx);
@@ -1037,10 +1003,23 @@ static int blkcg_set_conf_u64(struct cgroup *cgrp, struct cftype *cft,
 		return ret;
 
 	ret = -EINVAL;
-	pd = ctx.blkg->pd[BLKIO_POLICY_THROTL];
-	if (pd) {
-		*(u64 *)((void *)&pd->conf + cft->private) = ctx.v;
-		update(ctx.blkg, ctx.v ?: -1);
+	tg = blkg_to_tg(ctx.blkg);
+	if (tg) {
+		struct throtl_data *td = ctx.blkg->q->td;
+
+		if (!ctx.v)
+			ctx.v = -1;
+
+		if (is_u64)
+			*(u64 *)((void *)tg + cft->private) = ctx.v;
+		else
+			*(unsigned int *)((void *)tg + cft->private) = ctx.v;
+
+		/* XXX: we don't need the following deferred processing */
+		xchg(&tg->limits_changed, true);
+		xchg(&td->limits_changed, true);
+		throtl_schedule_delayed_work(td, 0);
+
 		ret = 0;
 	}
 
@@ -1048,61 +1027,45 @@ static int blkcg_set_conf_u64(struct cgroup *cgrp, struct cftype *cft,
 	return ret;
 }
 
-static int blkcg_set_conf_bps_r(struct cgroup *cgrp, struct cftype *cft,
-				const char *buf)
+static int tg_set_conf_u64(struct cgroup *cgrp, struct cftype *cft,
+			   const char *buf)
 {
-	return blkcg_set_conf_u64(cgrp, cft, buf,
-				  throtl_update_blkio_group_read_bps);
+	return tg_set_conf(cgrp, cft, buf, true);
 }
 
-static int blkcg_set_conf_bps_w(struct cgroup *cgrp, struct cftype *cft,
-				const char *buf)
+static int tg_set_conf_uint(struct cgroup *cgrp, struct cftype *cft,
+			    const char *buf)
 {
-	return blkcg_set_conf_u64(cgrp, cft, buf,
-				  throtl_update_blkio_group_write_bps);
-}
-
-static int blkcg_set_conf_iops_r(struct cgroup *cgrp, struct cftype *cft,
-				 const char *buf)
-{
-	return blkcg_set_conf_u64(cgrp, cft, buf,
-				  throtl_update_blkio_group_read_iops);
-}
-
-static int blkcg_set_conf_iops_w(struct cgroup *cgrp, struct cftype *cft,
-				 const char *buf)
-{
-	return blkcg_set_conf_u64(cgrp, cft, buf,
-				  throtl_update_blkio_group_write_iops);
+	return tg_set_conf(cgrp, cft, buf, false);
 }
 
 static struct cftype throtl_files[] = {
 	{
 		.name = "throttle.read_bps_device",
-		.private = offsetof(struct blkio_group_conf, bps[READ]),
-		.read_seq_string = blkcg_print_conf_u64,
-		.write_string = blkcg_set_conf_bps_r,
+		.private = offsetof(struct throtl_grp, bps[READ]),
+		.read_seq_string = tg_print_conf_u64,
+		.write_string = tg_set_conf_u64,
 		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_bps_device",
-		.private = offsetof(struct blkio_group_conf, bps[WRITE]),
-		.read_seq_string = blkcg_print_conf_u64,
-		.write_string = blkcg_set_conf_bps_w,
+		.private = offsetof(struct throtl_grp, bps[WRITE]),
+		.read_seq_string = tg_print_conf_u64,
+		.write_string = tg_set_conf_u64,
 		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.read_iops_device",
-		.private = offsetof(struct blkio_group_conf, iops[READ]),
-		.read_seq_string = blkcg_print_conf_u64,
-		.write_string = blkcg_set_conf_iops_r,
+		.private = offsetof(struct throtl_grp, iops[READ]),
+		.read_seq_string = tg_print_conf_uint,
+		.write_string = tg_set_conf_uint,
 		.max_write_len = 256,
 	},
 	{
 		.name = "throttle.write_iops_device",
-		.private = offsetof(struct blkio_group_conf, iops[WRITE]),
-		.read_seq_string = blkcg_print_conf_u64,
-		.write_string = blkcg_set_conf_iops_w,
+		.private = offsetof(struct throtl_grp, iops[WRITE]),
+		.read_seq_string = tg_print_conf_uint,
+		.write_string = tg_set_conf_uint,
 		.max_write_len = 256,
 	},
 	{

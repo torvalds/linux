@@ -71,18 +71,10 @@ struct blkg_rwstat {
 	uint64_t			cnt[BLKG_RWSTAT_NR];
 };
 
-struct blkio_group_conf {
-	u64 iops[2];
-	u64 bps[2];
-};
-
 /* per-blkg per-policy data */
 struct blkg_policy_data {
 	/* the blkg this per-policy data belongs to */
 	struct blkio_group *blkg;
-
-	/* Configuration */
-	struct blkio_group_conf conf;
 
 	/* pol->pdata_size bytes of private data used by policy impl */
 	char pdata[] __aligned(__alignof__(unsigned long long));
