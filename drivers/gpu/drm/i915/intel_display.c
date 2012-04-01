@@ -24,6 +24,7 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/dmi.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/input.h>
@@ -418,6 +419,24 @@ static void vlv_init_dpio(struct drm_device *dev)
 	POSTING_READ(DPIO_CTL);
 }
 
+static int intel_dual_link_lvds_callback(const struct dmi_system_id *id)
+{
+	DRM_INFO("Forcing lvds to dual link mode on %s\n", id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id intel_dual_link_lvds[] = {
+	{
+		.callback = intel_dual_link_lvds_callback,
+		.ident = "Apple MacBook Pro (Core i5/i7 Series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro8,2"),
+		},
+	},
+	{ }	/* terminating entry */
+};
+
 static bool is_dual_link_lvds(struct drm_i915_private *dev_priv,
 			      unsigned int reg)
 {
@@ -426,6 +445,9 @@ static bool is_dual_link_lvds(struct drm_i915_private *dev_priv,
 	/* use the module option value if specified */
 	if (i915_lvds_channel_mode > 0)
 		return i915_lvds_channel_mode == 2;
+
+	if (dmi_check_system(intel_dual_link_lvds))
+		return true;
 
 	if (dev_priv->lvds_val)
 		val = dev_priv->lvds_val;
