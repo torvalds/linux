@@ -21,6 +21,7 @@ int ipv6_ext_hdr(u8 nexthdr)
 		 (nexthdr == NEXTHDR_NONE)	||
 		 (nexthdr == NEXTHDR_DEST);
 }
+EXPORT_SYMBOL(ipv6_ext_hdr);
 
 /*
  * Skip any extension headers. This is used by the ICMP module.
@@ -109,6 +110,4 @@ int ipv6_skip_exthdr(const struct sk_buff *skb, int start, u8 *nexthdrp,
 	*nexthdrp = nexthdr;
 	return start;
 }
-
-EXPORT_SYMBOL(ipv6_ext_hdr);
 EXPORT_SYMBOL(ipv6_skip_exthdr);
