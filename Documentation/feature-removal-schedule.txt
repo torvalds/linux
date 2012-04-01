@@ -539,3 +539,12 @@ Why:	There appear to be no production users of the get_robust_list syscall,
 	of ASLR. It was only ever intended for debugging, so it should be
 	removed.
 Who:	Kees Cook <keescook@chromium.org>
+
+----------------------------
+
+What:	cgroup option updates via remount
+When:	March 2013
+Why:	Remount currently allows changing bound subsystems and
+	release_agent.  Rebinding is hardly useful as it only works
+	when the hierarchy is empty and release_agent itself should be
+	replaced with conventional fsnotify.
