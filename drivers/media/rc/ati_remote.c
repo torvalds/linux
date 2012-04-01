@@ -151,13 +151,23 @@ MODULE_PARM_DESC(mouse, "Enable mouse device, default = yes");
 #undef err
 #define err(format, arg...) printk(KERN_ERR format , ## arg)
 
+struct ati_receiver_type {
+	/* either default_keymap or get_default_keymap should be set */
+	const char *default_keymap;
+	const char *(*get_default_keymap)(struct usb_interface *interface);
+};
+
+static const struct ati_receiver_type type_ati		= { .default_keymap = RC_MAP_ATI_X10 };
+static const struct ati_receiver_type type_medion	= { .default_keymap = RC_MAP_MEDION_X10 };
+static const struct ati_receiver_type type_firefly	= { .default_keymap = RC_MAP_SNAPSTREAM_FIREFLY };
+
 static struct usb_device_id ati_remote_table[] = {
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA2_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_ATI_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_MEDION_X10 },
-	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, FIREFLY_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)RC_MAP_SNAPSTREAM_FIREFLY },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, LOLA2_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, ATI_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, NVIDIA_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_ati },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, MEDION_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_medion },
+	{ USB_DEVICE(ATI_REMOTE_VENDOR_ID, FIREFLY_REMOTE_PRODUCT_ID),	.driver_info = (unsigned long)&type_firefly },
 	{}	/* Terminating entry */
 };
 
@@ -766,6 +776,7 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct usb_host_interface *iface_host = interface->cur_altsetting;
 	struct usb_endpoint_descriptor *endpoint_in, *endpoint_out;
+	struct ati_receiver_type *type = (struct ati_receiver_type *)id->driver_info;
 	struct ati_remote *ati_remote;
 	struct input_dev *input_dev;
 	struct rc_dev *rc_dev;
@@ -827,10 +838,15 @@ static int ati_remote_probe(struct usb_interface *interface, const struct usb_de
 	snprintf(ati_remote->mouse_name, sizeof(ati_remote->mouse_name),
 		 "%s mouse", ati_remote->rc_name);
 
-	if (id->driver_info)
-		rc_dev->map_name = (const char *)id->driver_info;
-	else
-		rc_dev->map_name = RC_MAP_ATI_X10;
+	rc_dev->map_name = RC_MAP_ATI_X10; /* default map */
+
+	/* set default keymap according to receiver model */
+	if (type) {
+		if (type->default_keymap)
+			rc_dev->map_name = type->default_keymap;
+		else if (type->get_default_keymap)
+			rc_dev->map_name = type->get_default_keymap(interface);
+	}
 
 	ati_remote_rc_init(ati_remote);
 	mutex_init(&ati_remote->open_mutex);
