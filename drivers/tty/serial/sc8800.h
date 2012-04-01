@@ -17,6 +17,8 @@ struct plat_sc8800 {
 	int master_rts_pin;
 	int master_rdy_pin;
 	int poll_time;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
 };
 
 #endif

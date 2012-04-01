@@ -49,6 +49,15 @@
 #if defined(CONFIG_BACKLIGHT_AW9364)
 #include "../../../drivers/video/backlight/aw9364_bl.h"
 #endif
+#if defined(CONFIG_RK29_SC8800)
+#include "../../../drivers/tty/serial/sc8800.h"
+#endif
+#if defined(CONFIG_TDSC8800)
+#include <linux/mtk23d.h>
+#endif
+#if defined(CONFIG_SMS_SPI_ROCKCHIP)
+#include "../../../drivers/cmmb/siano/smsspiphy.h"
+#endif
 
 
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
@@ -379,7 +388,148 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
+#if defined(CONFIG_RK29_SC8800)
+static int sc8800_io_init(void)
+{
+	rk30_mux_api_set(GPIO2B5_LCDC1DATA13_SMCADDR17_HSADCDATA8_NAME, GPIO2B_GPIO2B5);
+	rk30_mux_api_set(GPIO2A2_LCDCDATA2_SMCADDR6_NAME, GPIO2A_GPIO2A2);
+	return 0;
+}
+
+static int sc8800_io_deinit(void)
+{
+
+	return 0;
+}
+
+
+static struct plat_sc8800 sc8800_plat_data = {
+	.slav_rts_pin = RK30_PIN6_PA0,
+	.slav_rdy_pin = RK30_PIN2_PB5,
+	.master_rts_pin = RK30_PIN6_PA1,
+	.master_rdy_pin = RK30_PIN2_PA2,
+	//.poll_time = 100,
+	.io_init = sc8800_io_init,
+    .io_deinit = sc8800_io_deinit,
+};
+
+static struct rk29xx_spi_chip sc8800_spi_chip = {
+	//.poll_mode = 1,
+	.enable_dma = 1,
+};
+
+#endif
+#if defined(CONFIG_SMS_SPI_ROCKCHIP)
+#define CMMB_1186_SPIIRQ RK30_PIN4_PB7
+#define CMMB_1186_RESET RK30_PIN0_PD5
+
+void cmmb_io_init_mux(void)
+{
+//	rk30_mux_api_set(GPIO1A4_UART1SIN_SPI0CSN0_NAME,GPIO1A_GPIO1A4);
+
+}
+void cmmb_io_set_for_pm(void)
+{
+	printk("entering cmmb_io_set_for_pm\n");
+	rk30_mux_api_set(GPIO0D5_I2S22CHSDO_SMCADDR1_NAME,GPIO0D_GPIO0D5);
+	gpio_request(CMMB_1186_RESET, NULL);//cmmb reset pin
+	gpio_direction_output(CMMB_1186_RESET,0);
+	rk30_mux_api_set(GPIO1A4_UART1SIN_SPI0CSN0_NAME,GPIO1A_GPIO1A4);
+	gpio_request(RK30_PIN1_PA4, NULL);//cmmb cs pin
+	gpio_direction_input(RK30_PIN1_PA4);
+	gpio_pull_updown(RK30_PIN1_PA4, 0);
+}
+
+void cmmb_power_on_by_wm831x(void)
+{
+	struct regulator *ldo;
+#if 0
+	printk("entering cmmb_power_on_by_wm831x\n");
+
+	rk29_mux_api_set(GPIO1A3_EMMCDETECTN_SPI1CS1_NAME,GPIO1L_SPI0_CSN1);
+	gpio_request(RK29_PIN6_PD2, NULL);
+	gpio_direction_output(RK29_PIN6_PD2,0);
+	mdelay(200);
+
+	ldo = regulator_get(NULL, "ldo8");		//cmmb
+	regulator_set_voltage(ldo,1200000,1200000);
+	regulator_set_suspend_voltage(ldo,1200000);
+	regulator_enable(ldo);
+	printk("%s set ldo8=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo9");		//cmmb
+	regulator_set_voltage(ldo,3000000,3000000);
+	regulator_set_suspend_voltage(ldo,3000000);
+	regulator_enable(ldo);
+	printk("%s set ldo9=%dmV end\n", __FUNCTION__, regulator_get_voltage(ldo));
+	regulator_put(ldo);
+
+	mdelay(200);
+	gpio_direction_output(RK29_PIN6_PD2,1);
+#endif
+}
+
+void cmmb_power_down_by_wm831x(void)
+{
+	struct regulator* ldo;
+#if 0
+	printk("entering cmmb_power_down_by_wm831x\n");
+
+	ldo = regulator_get(NULL, "ldo8");
+	regulator_set_voltage(ldo,0,0);
+	regulator_disable(ldo);
+	regulator_put(ldo);
+
+	ldo = regulator_get(NULL, "ldo9");
+	regulator_set_voltage(ldo,0,0);
+	regulator_disable(ldo);
+	regulator_put(ldo);
+#endif
+}
+
+static struct cmmb_io_def_s cmmb_io = {
+	.cmmb_pw_en = INVALID_GPIO,
+	.cmmb_pw_dwn = INVALID_GPIO,
+	.cmmb_pw_rst = CMMB_1186_RESET,
+	.cmmb_irq = CMMB_1186_SPIIRQ,
+	.io_init_mux = cmmb_io_init_mux,
+	.cmmb_io_pm = cmmb_io_set_for_pm,
+	.cmmb_power_on = cmmb_power_on_by_wm831x,
+	.cmmb_power_down = cmmb_power_down_by_wm831x
+};
+
+static struct rk29xx_spi_chip cmb_spi_chip = {
+	//.poll_mode = 1,
+	.enable_dma = 1,
+};
+
+#endif
+
 static struct spi_board_info board_spi_devices[] = {
+#if defined(CONFIG_RK29_SC8800)
+		{
+			.modalias  = "sc8800",
+			.bus_num = 1,
+			.platform_data = &sc8800_plat_data,
+			.max_speed_hz  = 12*1000*1000,
+			.chip_select   = 0,		
+			.controller_data = &sc8800_spi_chip,
+		},
+#endif
+	
+#if defined(CONFIG_SMS_SPI_ROCKCHIP)
+		{
+			.modalias	= "siano1186",
+			.chip_select	= 0,
+			.max_speed_hz	= 12*1000*1000,
+			.bus_num	= 0,
+			.irq		=CMMB_1186_SPIIRQ,
+			.platform_data = &cmmb_io,	
+			.controller_data = &cmb_spi_chip,
+		},
+#endif
+
 };
 
 /***********************************************************
@@ -1121,6 +1271,39 @@ static struct platform_device rk29sdk_rfkill = {
  * the end of setting for SDMMC devices
 **************************************************************************************************/
 
+/*************td modem sc8800 power control*************/
+
+#if defined(CONFIG_TDSC8800)
+#define BP_VOL_PIN			RK30_PIN6_PB2
+
+static int tdsc8800_io_init(void)
+{
+	
+	return 0;
+}
+
+static int tdsc8800_io_deinit(void)
+{
+
+	return 0;
+}
+
+struct rk2818_23d_data rk29_tdsc8800_info = {
+	.io_init = tdsc8800_io_init,
+    .io_deinit = tdsc8800_io_deinit,
+	.bp_power = BP_VOL_PIN,
+	.bp_power_active_low = 1,
+};
+struct platform_device rk29_device_tdsc8800 = {
+    .name = "tdsc8800",
+	.id = -1,
+	.dev		= {
+		.platform_data = &rk29_tdsc8800_info,
+	}
+    };
+#endif
+
+
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
@@ -1149,6 +1332,10 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BT
     &rk29sdk_rfkill,
 #endif
+#ifdef CONFIG_TDSC8800
+	&rk29_device_tdsc8800
+#endif
+
 };
 
 // i2c

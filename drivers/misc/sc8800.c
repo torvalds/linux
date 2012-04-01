@@ -41,6 +41,8 @@ struct plat_sc8800 {
 	int master_rts_pin;
 	int master_rdy_pin;
 	int poll_time;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
 };
 struct bp_head{
 	u16 tag;        //0x7e7f
@@ -571,14 +573,15 @@ static int __devinit sc8800_probe(struct spi_device *spi)
 		dev_err(sc8800->dev, "ERR: fail to setup spi\n");
 		goto err_spi_setup;
 	}
+
+	if(pdata && pdata->io_init)
+		pdata->io_init();
+	
 	sc8800->irq = gpio_to_irq(pdata->slav_rts_pin);
 	sc8800->slav_rts = pdata->slav_rts_pin;
 	sc8800->slav_rdy = pdata->slav_rdy_pin;
 	sc8800->master_rts = pdata->master_rts_pin;
 	sc8800->master_rdy = pdata->master_rdy_pin;
-
-        rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1);
-        rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_GPIO1C0);
 
 	ret = gpio_request(sc8800->slav_rts, "salv_rts");
 	if(ret < 0){
