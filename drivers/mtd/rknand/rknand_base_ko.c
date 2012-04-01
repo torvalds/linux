@@ -27,7 +27,7 @@
 
 #define DRIVER_NAME	"rk29xxnand"
 
-const char rknand_base_version[] = "rknand_base.c version: 4.32 20120103";
+const char rknand_base_version[] = "rknand_base.c version: 4.34 20120401";
 #define NAND_DEBUG_LEVEL0 0
 #define NAND_DEBUG_LEVEL1 1
 #define NAND_DEBUG_LEVEL2 2
@@ -316,13 +316,13 @@ static int rknand_nand_timing_cfg(void)
 {
 	unsigned long newclk;
 	newclk = clk_get_rate(nandc_clk);
-	printk("rknand_nand_timing_cfg %d",newclk);
+	//printk("rknand_nand_timing_cfg %d",newclk);
 	if (newclk != nandc_clk_rate) 
 	{
         if(gpNandInfo->nand_timing_config)
         {
             nandc_clk_rate = newclk;
-            //gpNandInfo->nand_timing_config( nandc_clk_rate / 1000); // KHz
+            gpNandInfo->nand_timing_config( nandc_clk_rate / 1000); // KHz
         }
 	}
 	return 0;
