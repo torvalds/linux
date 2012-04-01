@@ -374,7 +374,6 @@ typedef struct rga_service_info {
     atomic_t            cmd_num;
     atomic_t            src_format_swt;
     int                 last_prc_src_format;
-    bool			    enabled;
 } rga_service_info;
 
 

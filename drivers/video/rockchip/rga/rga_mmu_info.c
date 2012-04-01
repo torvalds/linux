@@ -243,9 +243,9 @@ static int rga_MapUserMemory(struct page **pages,
 
             for(i=0; i<pageCount; i++)
             {
-                t_mem = Memory + i;
+                t_mem = (Memory + i) << PAGE_SHIFT;
                 
-                vma = find_vma(current->mm, (t_mem) << PAGE_SHIFT);
+                vma = find_vma(current->mm, t_mem);
 
                 if (vma && (vma->vm_flags & VM_PFNMAP) )
                 {
@@ -255,14 +255,14 @@ static int rga_MapUserMemory(struct page **pages,
                         spinlock_t  * ptl;
                         unsigned long pfn;                                                                        
 
-                        pgd_t * pgd = pgd_offset(current->mm, ((t_mem)<< PAGE_SHIFT));
-                        pud_t * pud = pud_offset(pgd, ((t_mem) << PAGE_SHIFT));
+                        pgd_t * pgd = pgd_offset(current->mm, t_mem);
+                        pud_t * pud = pud_offset(pgd, t_mem);
                         if (pud)
                         {
-                            pmd_t * pmd = pmd_offset(pud, ((t_mem) << PAGE_SHIFT));
+                            pmd_t * pmd = pmd_offset(pud, t_mem);
                             if (pmd)
                             {
-                                pte = pte_offset_map_lock(current->mm, pmd, ((t_mem)<< PAGE_SHIFT), &ptl);
+                                pte = pte_offset_map_lock(current->mm, pmd, t_mem, &ptl);
                                 if (!pte)
                                 {
                                     break;
@@ -279,7 +279,7 @@ static int rga_MapUserMemory(struct page **pages,
                         }
 
                         pfn = pte_pfn(*pte);
-                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((t_mem) << PAGE_SHIFT)) & ~PAGE_MASK));                        
+                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)t_mem) & ~PAGE_MASK));                        
                         pte_unmap_unlock(pte, ptl);
                         
                         #if 0
@@ -381,17 +381,12 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     struct page **pages = NULL;
 
     MMU_Base = NULL;
-
-    if(req->src.act_w == 360 && req->src.act_h == 64)
-        mmu_flag = 1;
-    else
-        mmu_flag = 0;
-
+    
     do
     {               
         /* cal src buf mmu info */                     
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                        req->src.format, req->src.vir_w, req->src.vir_h,
+                                        req->src.format, req->src.vir_w, (req->src.act_h + req->src.y_offset),
                                         &SrcStart);
         if(SrcMemSize == 0) {
             return -EINVAL;                
@@ -400,11 +395,13 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
 
         /* cal dst buf mmu info */    
         DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        req->dst.format, req->dst.vir_w, (req->dst.act_h + req->dst.y_offset),
                                         &DstStart);        
         if(DstMemSize == 0) {
             return -EINVAL; 
         }
+
+        //DstMemSize += 1;
 
         /* cal cmd buf mmu info */
         CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
@@ -414,15 +411,15 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         
         /* Cal out the needed mem size */
         AllSize = SrcMemSize + DstMemSize + CMDMemSize;
-                   
-        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+                           
+        pages = (struct page **)kmalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;                
         }
         
-        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);      
+        MMU_Base = (uint32_t *)kmalloc((AllSize + 1)* sizeof(uint32_t), GFP_KERNEL);      
         if(MMU_Base == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -457,16 +454,16 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
                 }                
             }
             else
-            {                           
+            {                      
                 for(i=0; i<SrcMemSize; i++)
                 {
                     MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((SrcStart + i) << PAGE_SHIFT));
-                }
+                }                
             }            
         }
         
         if (req->dst.yrgb_addr < KERNEL_SPACE_VALID)
-        {
+        {     
             #if 0
             ktime_t start, end;
             start = ktime_get();
@@ -491,7 +488,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             for(i=0; i<DstMemSize; i++)
             {
                 MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
-            }       
+            }                   
         }
 
         /* zsq 
@@ -511,13 +508,13 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
                 
         /*record the malloc buf for the cmd end to release*/
         reg->MMU_base = MMU_Base;
-
+        
         /* flush data to DDR */
         dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
         outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
-        
-        status = 0;
 
+        status = 0;
+               
         /* Free the page table */        
         if (pages != NULL) {
             kfree(pages);
@@ -1068,7 +1065,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
 
         AllSize = SrcMemSize + DstMemSize + CMDMemSize;
                    
-        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        pages = (struct page **)kmalloc((AllSize)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) 
         {
             pr_err("RGA MMU malloc pages mem failed\n");
@@ -1080,7 +1077,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
          * Allocate MMU Index mem
          * This mem release in run_to_done fun 
          */
-        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = (uint32_t *)kmalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;            
@@ -1228,7 +1225,7 @@ static int rga_mmu_info_update_palette_table_mode(struct rga_reg *reg, struct rg
             break;    
         }
         
-        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = (uint32_t *)kmalloc((AllSize + 1)* sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
