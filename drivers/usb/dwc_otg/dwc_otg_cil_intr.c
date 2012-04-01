@@ -340,7 +340,7 @@ int32_t dwc_otg_handle_otg_intr(dwc_otg_core_if_t *_core_if)
 #ifdef DWC_BOTH_HOST_SLAVE
 extern void dwc_otg_force_device(dwc_otg_core_if_t *core_if);
 extern void dwc_otg_force_host(dwc_otg_core_if_t *core_if);
-extern int rk28_usb_suspend( int exitsuspend );
+extern int dwc_otg20phy_suspend( int exitsuspend );
 #endif
 
 int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t *_core_if)
@@ -353,7 +353,7 @@ int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t *_core_if)
     gotgctl_data_t gotgctl = { .d32 = 0 }; 
 	if(pcd &&(pcd->phy_suspend == 1))
 	{
-		rk28_usb_suspend( 1 );
+		dwc_otg20phy_suspend( 1 );
 	}
 	
     /*

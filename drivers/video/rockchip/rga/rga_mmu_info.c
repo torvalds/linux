@@ -22,6 +22,8 @@ extern int mmu_buff_temp[1024];
 
 #define KERNEL_SPACE_VALID    0xc0000000
 
+int mmu_flag = 0;
+
 static int rga_mem_size_cal(uint32_t Mem, uint32_t MemSize, uint32_t *StartAddr) 
 {
     uint32_t start, end;
@@ -72,7 +74,6 @@ static int rga_buf_size_cal(uint32_t yrgb_addr, uint32_t uv_addr, uint32_t v_add
             end = (yrgb_addr + (size_yrgb + PAGE_SIZE - 1)) >> PAGE_SHIFT;
             start = yrgb_addr >> PAGE_SHIFT;
             pageCount = end - start;
-            *StartAddr = start;
             break;
         case RK_FORMAT_RGB_565 :
             stride = (w*2 + 3) & (~3);            
@@ -381,11 +382,16 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
 
     MMU_Base = NULL;
 
+    if(req->src.act_w == 360 && req->src.act_h == 64)
+        mmu_flag = 1;
+    else
+        mmu_flag = 0;
+
     do
     {               
         /* cal src buf mmu info */                     
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                        req->src.format, req->src.vir_w, (req->src.act_h + req->src.y_offset),
+                                        req->src.format, req->src.vir_w, req->src.vir_h,
                                         &SrcStart);
         if(SrcMemSize == 0) {
             return -EINVAL;                
@@ -394,8 +400,8 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
 
         /* cal dst buf mmu info */    
         DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                        req->dst.format, req->dst.vir_w, (req->dst.act_h + req->dst.y_offset),
-                                        &DstStart);
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        &DstStart);        
         if(DstMemSize == 0) {
             return -EINVAL; 
         }
@@ -405,7 +411,6 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         if(CMDMemSize == 0) {
             return -EINVAL; 
         }
-
         
         /* Cal out the needed mem size */
         AllSize = SrcMemSize + DstMemSize + CMDMemSize;
@@ -500,7 +505,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         
         req->src.yrgb_addr = (req->src.yrgb_addr & (~PAGE_MASK)) | (CMDMemSize << PAGE_SHIFT);
         req->src.uv_addr = (req->src.uv_addr & (~PAGE_MASK)) | ((CMDMemSize + uv_size) << PAGE_SHIFT);
-        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | ((CMDMemSize + v_size) << PAGE_SHIFT);        
+        req->src.v_addr = (req->src.v_addr & (~PAGE_MASK)) | ((CMDMemSize + v_size) << PAGE_SHIFT);
 
         req->dst.yrgb_addr = (req->dst.yrgb_addr & (~PAGE_MASK)) | ((CMDMemSize + SrcMemSize) << PAGE_SHIFT);
                 
