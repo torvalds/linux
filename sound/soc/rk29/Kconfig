@@ -109,7 +109,7 @@ endchoice
 
 config SND_RK29_SOC_WM8994
 	tristate "SoC I2S Audio support for rockchip - WM8994"
-	depends on SND_RK29_SOC
+	depends on SND_RK29_SOC && MFD_WM8994
 	select SND_RK29_SOC_I2S
 	select SND_SOC_WM8994
 	help

@@ -20,7 +20,6 @@
 #include <sound/soc-dapm.h>
 #include <asm/io.h>
 #include <mach/hardware.h>
-#include <mach/rk29_iomap.h>
 #include "../codecs/wm8994.h"
 #include "rk29_pcm.h"
 #include "rk29_i2s.h"
@@ -93,6 +92,7 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 	}
 
 //	DBG("Enter:%s, %d, rate=%d,pll_out = %d\n",__FUNCTION__,__LINE__,params_rate(params),pll_out);	
+#ifdef CONFIG_ARCH_RK29
 	general_pll=clk_get(NULL, "general_pll");
 	if(clk_get_rate(general_pll)>260000000)
 	{
@@ -110,6 +110,10 @@ static int rk29_aif1_hw_params(struct snd_pcm_substream *substream,
 		div_bclk=(pll_out)/params_rate(params)-1;
 		div_mclk=0;
 	}
+#else
+	div_bclk=(pll_out/4)/params_rate(params)-1;
+	div_mclk=3;
+#endif
 
 	DBG("func is%s,gpll=%ld,pll_out=%d,div_mclk=%d\n",__FUNCTION__,clk_get_rate(general_pll),pll_out,div_mclk);
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);

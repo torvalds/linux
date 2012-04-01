@@ -3804,9 +3804,9 @@ static ssize_t wm8994_proc_write(struct file *file, const char __user *buffer,
 		}
 		break;
 	case 'p'://enable pa
-		gpio_request(RK29_PIN6_PD3, NULL);			 	
-		gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 			
-		gpio_free(RK29_PIN6_PD3);
+	//	gpio_request(RK29_PIN6_PD3, NULL);			 	
+	//	gpio_direction_output(RK29_PIN6_PD3,GPIO_HIGH); 			
+	//	gpio_free(RK29_PIN6_PD3);
 		break;
 
 	case 'a':
