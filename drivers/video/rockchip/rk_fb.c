@@ -732,6 +732,8 @@ int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
 	dev_drv->resume = def_drv->resume;
 	dev_drv->load_screen = def_drv->load_screen;
 	init_completion(&dev_drv->frame_done);
+	spin_lock_init(&dev_drv->cpl_lock);
+	dev_drv->first_frame = 1;
 	
 	return 0;
 }

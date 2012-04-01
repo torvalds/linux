@@ -189,7 +189,9 @@ struct rk_lcdc_device_driver{
 	rk_screen *screen;
 	u32 pixclock;
 
-	struct completion  frame_done;
+	struct completion  frame_done;		  //sync for pan_display,whe we set a new frame address to lcdc register,we must make sure the frame begain to display
+	spinlock_t  cpl_lock; 			 //lock for completion  frame done
+	int first_frame ;
 	
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);
 	int (*suspend)(struct rk_lcdc_device_driver *dev_drv);
