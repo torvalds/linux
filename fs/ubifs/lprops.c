@@ -447,7 +447,7 @@ static void change_category(struct ubifs_info *c, struct ubifs_lprops *lprops)
 	int new_cat = ubifs_categorize_lprops(c, lprops);
 
 	if (old_cat == new_cat) {
-		struct ubifs_lpt_heap *heap = &c->lpt_heap[new_cat - 1];
+		struct ubifs_lpt_heap *heap;
 
 		/* lprops on a heap now must be moved up or down */
 		if (new_cat < 1 || new_cat > LPROPS_HEAP_CNT)
