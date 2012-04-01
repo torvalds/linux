@@ -25,6 +25,7 @@
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #include <asm/ucontext.h>
+#include <asm/switch_to.h>
 #include <asm/sigframe.h>
 #include <asm/stack.h>
 #include <arch/abi.h>

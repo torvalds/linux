@@ -28,6 +28,7 @@
 #include <linux/tracehook.h>
 #include <linux/signal.h>
 #include <asm/stack.h>
+#include <asm/switch_to.h>
 #include <asm/homecache.h>
 #include <asm/syscalls.h>
 #include <asm/traps.h>
