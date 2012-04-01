@@ -46,9 +46,6 @@
 #include <asm/hvcall.h>
 #include <asm/xics.h>
 #endif
-#ifdef CONFIG_PPC_ISERIES
-#include <asm/iseries/alpaca.h>
-#endif
 #ifdef CONFIG_PPC_POWERNV
 #include <asm/opal.h>
 #endif
@@ -147,7 +144,7 @@ int main(void)
 	DEFINE(PACAKBASE, offsetof(struct paca_struct, kernelbase));
 	DEFINE(PACAKMSR, offsetof(struct paca_struct, kernel_msr));
 	DEFINE(PACASOFTIRQEN, offsetof(struct paca_struct, soft_enabled));
-	DEFINE(PACAHARDIRQEN, offsetof(struct paca_struct, hard_enabled));
+	DEFINE(PACAIRQHAPPENED, offsetof(struct paca_struct, irq_happened));
 	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, context.id));
 #ifdef CONFIG_PPC_MM_SLICES
 	DEFINE(PACALOWSLICESPSIZE, offsetof(struct paca_struct,
@@ -384,17 +381,6 @@ int main(void)
 	DEFINE(BUG_ENTRY_SIZE, sizeof(struct bug_entry));
 #endif
 
-#ifdef CONFIG_PPC_ISERIES
-	/* the assembler miscalculates the VSID values */
-	DEFINE(PAGE_OFFSET_ESID, GET_ESID(PAGE_OFFSET));
-	DEFINE(PAGE_OFFSET_VSID, KERNEL_VSID(PAGE_OFFSET));
-	DEFINE(VMALLOC_START_ESID, GET_ESID(VMALLOC_START));
-	DEFINE(VMALLOC_START_VSID, KERNEL_VSID(VMALLOC_START));
-
-	/* alpaca */
-	DEFINE(ALPACA_SIZE, sizeof(struct alpaca));
-#endif
-
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);
 	DEFINE(PTE_SIZE, sizeof(pte_t));
 
@@ -426,15 +412,22 @@ int main(void)
 	DEFINE(VCPU_SPRG2, offsetof(struct kvm_vcpu, arch.shregs.sprg2));
 	DEFINE(VCPU_SPRG3, offsetof(struct kvm_vcpu, arch.shregs.sprg3));
 #endif
-	DEFINE(VCPU_SPRG4, offsetof(struct kvm_vcpu, arch.sprg4));
-	DEFINE(VCPU_SPRG5, offsetof(struct kvm_vcpu, arch.sprg5));
-	DEFINE(VCPU_SPRG6, offsetof(struct kvm_vcpu, arch.sprg6));
-	DEFINE(VCPU_SPRG7, offsetof(struct kvm_vcpu, arch.sprg7));
+	DEFINE(VCPU_SHARED_SPRG4, offsetof(struct kvm_vcpu_arch_shared, sprg4));
+	DEFINE(VCPU_SHARED_SPRG5, offsetof(struct kvm_vcpu_arch_shared, sprg5));
+	DEFINE(VCPU_SHARED_SPRG6, offsetof(struct kvm_vcpu_arch_shared, sprg6));
+	DEFINE(VCPU_SHARED_SPRG7, offsetof(struct kvm_vcpu_arch_shared, sprg7));
 	DEFINE(VCPU_SHADOW_PID, offsetof(struct kvm_vcpu, arch.shadow_pid));
 	DEFINE(VCPU_SHADOW_PID1, offsetof(struct kvm_vcpu, arch.shadow_pid1));
 	DEFINE(VCPU_SHARED, offsetof(struct kvm_vcpu, arch.shared));
 	DEFINE(VCPU_SHARED_MSR, offsetof(struct kvm_vcpu_arch_shared, msr));
 	DEFINE(VCPU_SHADOW_MSR, offsetof(struct kvm_vcpu, arch.shadow_msr));
+
+	DEFINE(VCPU_SHARED_MAS0, offsetof(struct kvm_vcpu_arch_shared, mas0));
+	DEFINE(VCPU_SHARED_MAS1, offsetof(struct kvm_vcpu_arch_shared, mas1));
+	DEFINE(VCPU_SHARED_MAS2, offsetof(struct kvm_vcpu_arch_shared, mas2));
+	DEFINE(VCPU_SHARED_MAS7_3, offsetof(struct kvm_vcpu_arch_shared, mas7_3));
+	DEFINE(VCPU_SHARED_MAS4, offsetof(struct kvm_vcpu_arch_shared, mas4));
+	DEFINE(VCPU_SHARED_MAS6, offsetof(struct kvm_vcpu_arch_shared, mas6));
 
 	/* book3s */
 #ifdef CONFIG_KVM_BOOK3S_64_HV
@@ -448,6 +441,7 @@ int main(void)
 	DEFINE(KVM_LAST_VCPU, offsetof(struct kvm, arch.last_vcpu));
 	DEFINE(KVM_LPCR, offsetof(struct kvm, arch.lpcr));
 	DEFINE(KVM_RMOR, offsetof(struct kvm, arch.rmor));
+	DEFINE(KVM_VRMA_SLB_V, offsetof(struct kvm, arch.vrma_slb_v));
 	DEFINE(VCPU_DSISR, offsetof(struct kvm_vcpu, arch.shregs.dsisr));
 	DEFINE(VCPU_DAR, offsetof(struct kvm_vcpu, arch.shregs.dar));
 #endif

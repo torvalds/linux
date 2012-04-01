@@ -9,6 +9,7 @@ config UML
 	select HAVE_GENERIC_HARDIRQS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
+	select GENERIC_IO
 
 config MMU
 	bool

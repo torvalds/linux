@@ -863,6 +863,7 @@ void ata_port_wait_eh(struct ata_port *ap)
 		goto retry;
 	}
 }
+EXPORT_SYMBOL_GPL(ata_port_wait_eh);
 
 static int ata_eh_nr_in_flight(struct ata_port *ap)
 {

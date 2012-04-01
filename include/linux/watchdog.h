@@ -66,6 +66,7 @@ struct watchdog_device;
  * @ping:	The routine that sends a keepalive ping to the watchdog device.
  * @status:	The routine that shows the status of the watchdog device.
  * @set_timeout:The routine for setting the watchdog devices timeout value.
+ * @get_timeleft:The routine that get's the time that's left before a reset.
  * @ioctl:	The routines that handles extra ioctl calls.
  *
  * The watchdog_ops structure contains a list of low-level operations
@@ -82,6 +83,7 @@ struct watchdog_ops {
 	int (*ping)(struct watchdog_device *);
 	unsigned int (*status)(struct watchdog_device *);
 	int (*set_timeout)(struct watchdog_device *, unsigned int);
+	unsigned int (*get_timeleft)(struct watchdog_device *);
 	long (*ioctl)(struct watchdog_device *, unsigned int, unsigned long);
 };
 
@@ -127,7 +129,7 @@ struct watchdog_device {
 #endif
 
 /* Use the following function to set the nowayout feature */
-static inline void watchdog_set_nowayout(struct watchdog_device *wdd, int nowayout)
+static inline void watchdog_set_nowayout(struct watchdog_device *wdd, bool nowayout)
 {
 	if (nowayout)
 		set_bit(WDOG_NO_WAY_OUT, &wdd->status);

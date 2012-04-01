@@ -1,6 +1,6 @@
 What:		devfs
 Date:		July 2005 (scheduled), finally removed in kernel v2.6.18
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 	devfs has been unmaintained for a number of years, has unfixable
 	races, contains a naming policy within the kernel that is

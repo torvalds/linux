@@ -99,6 +99,8 @@ struct rpc_authops {
 
 	struct rpc_cred *	(*lookup_cred)(struct rpc_auth *, struct auth_cred *, int);
 	struct rpc_cred *	(*crcreate)(struct rpc_auth*, struct auth_cred *, int);
+	int			(*pipes_create)(struct rpc_auth *);
+	void			(*pipes_destroy)(struct rpc_auth *);
 };
 
 struct rpc_credops {

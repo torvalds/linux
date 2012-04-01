@@ -28,7 +28,6 @@
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
 #include <linux/errno.h>
-#include <linux/ext2_fs.h>
 #include <linux/sched.h>
 #include <linux/security.h>
 #include <linux/xattr.h>
@@ -81,6 +80,8 @@
 #include <linux/syslog.h>
 #include <linux/user_namespace.h>
 #include <linux/export.h>
+#include <linux/msg.h>
+#include <linux/shm.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -2145,7 +2146,7 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 		fdt = files_fdtable(files);
 		if (i >= fdt->max_fds)
 			break;
-		set = fdt->open_fds->fds_bits[j];
+		set = fdt->open_fds[j];
 		if (!set)
 			continue;
 		spin_unlock(&files->file_lock);
@@ -2969,15 +2970,15 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	/* fall through */
 	case FIGETBSZ:
 	/* fall through */
-	case EXT2_IOC_GETFLAGS:
+	case FS_IOC_GETFLAGS:
 	/* fall through */
-	case EXT2_IOC_GETVERSION:
+	case FS_IOC_GETVERSION:
 		error = file_has_perm(cred, file, FILE__GETATTR);
 		break;
 
-	case EXT2_IOC_SETFLAGS:
+	case FS_IOC_SETFLAGS:
 	/* fall through */
-	case EXT2_IOC_SETVERSION:
+	case FS_IOC_SETVERSION:
 		error = file_has_perm(cred, file, FILE__SETATTR);
 		break;
 

@@ -43,31 +43,11 @@ EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
 static struct blkio_policy_type *blkio_policy[BLKIO_NR_POLICIES];
 
-static struct cgroup_subsys_state *blkiocg_create(struct cgroup_subsys *,
-						  struct cgroup *);
-static int blkiocg_can_attach(struct cgroup_subsys *, struct cgroup *,
-			      struct cgroup_taskset *);
-static int blkiocg_pre_destroy(struct cgroup_subsys *, struct cgroup *);
-static void blkiocg_destroy(struct cgroup_subsys *, struct cgroup *);
-static int blkiocg_populate(struct cgroup_subsys *, struct cgroup *);
-
 /* for encoding cft->private value on file */
 #define BLKIOFILE_PRIVATE(x, val)	(((x) << 16) | (val))
 /* What policy owns the file, proportional or throttle */
 #define BLKIOFILE_POLICY(val)		(((val) >> 16) & 0xffff)
 #define BLKIOFILE_ATTR(val)		((val) & 0xffff)
-
-struct cgroup_subsys blkio_subsys = {
-	.name = "blkio",
-	.create = blkiocg_create,
-	.can_attach = blkiocg_can_attach,
-	.pre_destroy = blkiocg_pre_destroy,
-	.destroy = blkiocg_destroy,
-	.populate = blkiocg_populate,
-	.subsys_id = blkio_subsys_id,
-	.module = THIS_MODULE,
-};
-EXPORT_SYMBOL_GPL(blkio_subsys);
 
 struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 {
@@ -1563,17 +1543,11 @@ struct cftype blkio_files[] = {
 		.read_map = blkiocg_file_read_map,
 	},
 #endif
+	{ }	/* terminate */
 };
-
-static int blkiocg_populate(struct cgroup_subsys *subsys, struct cgroup *cgroup)
-{
-	return cgroup_add_files(cgroup, subsys, blkio_files,
-				ARRAY_SIZE(blkio_files));
-}
 
 /**
  * blkiocg_pre_destroy - cgroup pre_destroy callback
- * @subsys: cgroup subsys
  * @cgroup: cgroup of interest
  *
  * This function is called when @cgroup is about to go away and responsible
@@ -1583,8 +1557,7 @@ static int blkiocg_populate(struct cgroup_subsys *subsys, struct cgroup *cgroup)
  *
  * This is the blkcg counterpart of ioc_release_fn().
  */
-static int blkiocg_pre_destroy(struct cgroup_subsys *subsys,
-			       struct cgroup *cgroup)
+static int blkiocg_pre_destroy(struct cgroup *cgroup)
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 
@@ -1609,7 +1582,7 @@ static int blkiocg_pre_destroy(struct cgroup_subsys *subsys,
 	return 0;
 }
 
-static void blkiocg_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
+static void blkiocg_destroy(struct cgroup *cgroup)
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 
@@ -1617,8 +1590,7 @@ static void blkiocg_destroy(struct cgroup_subsys *subsys, struct cgroup *cgroup)
 		kfree(blkcg);
 }
 
-static struct cgroup_subsys_state *
-blkiocg_create(struct cgroup_subsys *subsys, struct cgroup *cgroup)
+static struct cgroup_subsys_state *blkiocg_create(struct cgroup *cgroup)
 {
 	static atomic64_t id_seq = ATOMIC64_INIT(0);
 	struct blkio_cgroup *blkcg;
@@ -1706,8 +1678,7 @@ void blkcg_exit_queue(struct request_queue *q)
  * of the main cic data structures.  For now we allow a task to change
  * its cgroup only if it's the only owner of its ioc.
  */
-static int blkiocg_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-			      struct cgroup_taskset *tset)
+static int blkiocg_can_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 	struct io_context *ioc;
@@ -1749,6 +1720,18 @@ static void blkcg_bypass_end(void)
 
 	mutex_unlock(&all_q_mutex);
 }
+
+struct cgroup_subsys blkio_subsys = {
+	.name = "blkio",
+	.create = blkiocg_create,
+	.can_attach = blkiocg_can_attach,
+	.pre_destroy = blkiocg_pre_destroy,
+	.destroy = blkiocg_destroy,
+	.subsys_id = blkio_subsys_id,
+	.base_cftypes = blkio_files,
+	.module = THIS_MODULE,
+};
+EXPORT_SYMBOL_GPL(blkio_subsys);
 
 void blkio_policy_register(struct blkio_policy_type *blkiop)
 {

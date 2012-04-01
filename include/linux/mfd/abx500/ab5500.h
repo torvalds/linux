@@ -6,7 +6,7 @@
 #ifndef MFD_AB5500_H
 #define MFD_AB5500_H
 
-#include <linux/device.h>
+struct device;
 
 enum ab5500_devid {
 	AB5500_DEVID_ADC,

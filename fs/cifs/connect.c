@@ -40,6 +40,8 @@
 #include <linux/module.h>
 #include <keys/user-type.h>
 #include <net/ipv6.h>
+#include <linux/parser.h>
+
 #include "cifspdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
@@ -62,6 +64,193 @@ extern mempool_t *cifs_req_poolp;
 /* FIXME: should these be tunable? */
 #define TLINK_ERROR_EXPIRE	(1 * HZ)
 #define TLINK_IDLE_EXPIRE	(600 * HZ)
+
+enum {
+
+	/* Mount options that take no arguments */
+	Opt_user_xattr, Opt_nouser_xattr,
+	Opt_forceuid, Opt_noforceuid,
+	Opt_noblocksend, Opt_noautotune,
+	Opt_hard, Opt_soft, Opt_perm, Opt_noperm,
+	Opt_mapchars, Opt_nomapchars, Opt_sfu,
+	Opt_nosfu, Opt_nodfs, Opt_posixpaths,
+	Opt_noposixpaths, Opt_nounix,
+	Opt_nocase,
+	Opt_brl, Opt_nobrl,
+	Opt_forcemandatorylock, Opt_setuids,
+	Opt_nosetuids, Opt_dynperm, Opt_nodynperm,
+	Opt_nohard, Opt_nosoft,
+	Opt_nointr, Opt_intr,
+	Opt_nostrictsync, Opt_strictsync,
+	Opt_serverino, Opt_noserverino,
+	Opt_rwpidforward, Opt_cifsacl, Opt_nocifsacl,
+	Opt_acl, Opt_noacl, Opt_locallease,
+	Opt_sign, Opt_seal, Opt_direct,
+	Opt_strictcache, Opt_noac,
+	Opt_fsc, Opt_mfsymlinks,
+	Opt_multiuser, Opt_sloppy,
+
+	/* Mount options which take numeric value */
+	Opt_backupuid, Opt_backupgid, Opt_uid,
+	Opt_cruid, Opt_gid, Opt_file_mode,
+	Opt_dirmode, Opt_port,
+	Opt_rsize, Opt_wsize, Opt_actimeo,
+
+	/* Mount options which take string value */
+	Opt_user, Opt_pass, Opt_ip,
+	Opt_unc, Opt_domain,
+	Opt_srcaddr, Opt_prefixpath,
+	Opt_iocharset, Opt_sockopt,
+	Opt_netbiosname, Opt_servern,
+	Opt_ver, Opt_sec,
+
+	/* Mount options to be ignored */
+	Opt_ignore,
+
+	/* Options which could be blank */
+	Opt_blank_pass,
+
+	Opt_err
+};
+
+static const match_table_t cifs_mount_option_tokens = {
+
+	{ Opt_user_xattr, "user_xattr" },
+	{ Opt_nouser_xattr, "nouser_xattr" },
+	{ Opt_forceuid, "forceuid" },
+	{ Opt_noforceuid, "noforceuid" },
+	{ Opt_noblocksend, "noblocksend" },
+	{ Opt_noautotune, "noautotune" },
+	{ Opt_hard, "hard" },
+	{ Opt_soft, "soft" },
+	{ Opt_perm, "perm" },
+	{ Opt_noperm, "noperm" },
+	{ Opt_mapchars, "mapchars" },
+	{ Opt_nomapchars, "nomapchars" },
+	{ Opt_sfu, "sfu" },
+	{ Opt_nosfu, "nosfu" },
+	{ Opt_nodfs, "nodfs" },
+	{ Opt_posixpaths, "posixpaths" },
+	{ Opt_noposixpaths, "noposixpaths" },
+	{ Opt_nounix, "nounix" },
+	{ Opt_nounix, "nolinux" },
+	{ Opt_nocase, "nocase" },
+	{ Opt_nocase, "ignorecase" },
+	{ Opt_brl, "brl" },
+	{ Opt_nobrl, "nobrl" },
+	{ Opt_nobrl, "nolock" },
+	{ Opt_forcemandatorylock, "forcemandatorylock" },
+	{ Opt_forcemandatorylock, "forcemand" },
+	{ Opt_setuids, "setuids" },
+	{ Opt_nosetuids, "nosetuids" },
+	{ Opt_dynperm, "dynperm" },
+	{ Opt_nodynperm, "nodynperm" },
+	{ Opt_nohard, "nohard" },
+	{ Opt_nosoft, "nosoft" },
+	{ Opt_nointr, "nointr" },
+	{ Opt_intr, "intr" },
+	{ Opt_nostrictsync, "nostrictsync" },
+	{ Opt_strictsync, "strictsync" },
+	{ Opt_serverino, "serverino" },
+	{ Opt_noserverino, "noserverino" },
+	{ Opt_rwpidforward, "rwpidforward" },
+	{ Opt_cifsacl, "cifsacl" },
+	{ Opt_nocifsacl, "nocifsacl" },
+	{ Opt_acl, "acl" },
+	{ Opt_noacl, "noacl" },
+	{ Opt_locallease, "locallease" },
+	{ Opt_sign, "sign" },
+	{ Opt_seal, "seal" },
+	{ Opt_direct, "direct" },
+	{ Opt_direct, "forceddirectio" },
+	{ Opt_strictcache, "strictcache" },
+	{ Opt_noac, "noac" },
+	{ Opt_fsc, "fsc" },
+	{ Opt_mfsymlinks, "mfsymlinks" },
+	{ Opt_multiuser, "multiuser" },
+	{ Opt_sloppy, "sloppy" },
+
+	{ Opt_backupuid, "backupuid=%s" },
+	{ Opt_backupgid, "backupgid=%s" },
+	{ Opt_uid, "uid=%s" },
+	{ Opt_cruid, "cruid=%s" },
+	{ Opt_gid, "gid=%s" },
+	{ Opt_file_mode, "file_mode=%s" },
+	{ Opt_dirmode, "dirmode=%s" },
+	{ Opt_dirmode, "dir_mode=%s" },
+	{ Opt_port, "port=%s" },
+	{ Opt_rsize, "rsize=%s" },
+	{ Opt_wsize, "wsize=%s" },
+	{ Opt_actimeo, "actimeo=%s" },
+
+	{ Opt_user, "user=%s" },
+	{ Opt_user, "username=%s" },
+	{ Opt_blank_pass, "pass=" },
+	{ Opt_pass, "pass=%s" },
+	{ Opt_pass, "password=%s" },
+	{ Opt_ip, "ip=%s" },
+	{ Opt_ip, "addr=%s" },
+	{ Opt_unc, "unc=%s" },
+	{ Opt_unc, "target=%s" },
+	{ Opt_unc, "path=%s" },
+	{ Opt_domain, "dom=%s" },
+	{ Opt_domain, "domain=%s" },
+	{ Opt_domain, "workgroup=%s" },
+	{ Opt_srcaddr, "srcaddr=%s" },
+	{ Opt_prefixpath, "prefixpath=%s" },
+	{ Opt_iocharset, "iocharset=%s" },
+	{ Opt_sockopt, "sockopt=%s" },
+	{ Opt_netbiosname, "netbiosname=%s" },
+	{ Opt_servern, "servern=%s" },
+	{ Opt_ver, "ver=%s" },
+	{ Opt_ver, "vers=%s" },
+	{ Opt_ver, "version=%s" },
+	{ Opt_sec, "sec=%s" },
+
+	{ Opt_ignore, "cred" },
+	{ Opt_ignore, "credentials" },
+	{ Opt_ignore, "guest" },
+	{ Opt_ignore, "rw" },
+	{ Opt_ignore, "ro" },
+	{ Opt_ignore, "suid" },
+	{ Opt_ignore, "nosuid" },
+	{ Opt_ignore, "exec" },
+	{ Opt_ignore, "noexec" },
+	{ Opt_ignore, "nodev" },
+	{ Opt_ignore, "noauto" },
+	{ Opt_ignore, "dev" },
+	{ Opt_ignore, "mand" },
+	{ Opt_ignore, "nomand" },
+	{ Opt_ignore, "_netdev" },
+
+	{ Opt_err, NULL }
+};
+
+enum {
+	Opt_sec_krb5, Opt_sec_krb5i, Opt_sec_krb5p,
+	Opt_sec_ntlmsspi, Opt_sec_ntlmssp,
+	Opt_ntlm, Opt_sec_ntlmi, Opt_sec_ntlmv2i,
+	Opt_sec_nontlm, Opt_sec_lanman,
+	Opt_sec_none,
+
+	Opt_sec_err
+};
+
+static const match_table_t cifs_secflavor_tokens = {
+	{ Opt_sec_krb5, "krb5" },
+	{ Opt_sec_krb5i, "krb5i" },
+	{ Opt_sec_krb5p, "krb5p" },
+	{ Opt_sec_ntlmsspi, "ntlmsspi" },
+	{ Opt_sec_ntlmssp, "ntlmssp" },
+	{ Opt_ntlm, "ntlm" },
+	{ Opt_sec_ntlmi, "ntlmi" },
+	{ Opt_sec_ntlmv2i, "ntlmv2i" },
+	{ Opt_sec_nontlm, "nontlm" },
+	{ Opt_sec_lanman, "lanman" },
+	{ Opt_sec_none, "none" },
+
+	{ Opt_sec_err, NULL }
+};
 
 static int ip_connect(struct TCP_Server_Info *server);
 static int generic_ip_connect(struct TCP_Server_Info *server);
@@ -143,8 +332,8 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 		mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-		if (mid_entry->midState == MID_REQUEST_SUBMITTED)
-			mid_entry->midState = MID_RETRY_NEEDED;
+		if (mid_entry->mid_state == MID_REQUEST_SUBMITTED)
+			mid_entry->mid_state = MID_RETRY_NEEDED;
 		list_move(&mid_entry->qhead, &retry_list);
 	}
 	spin_unlock(&GlobalMid_Lock);
@@ -183,8 +372,9 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		-EINVAL = invalid transact2
 
  */
-static int check2ndT2(struct smb_hdr *pSMB)
+static int check2ndT2(char *buf)
 {
+	struct smb_hdr *pSMB = (struct smb_hdr *)buf;
 	struct smb_t2_rsp *pSMBt;
 	int remaining;
 	__u16 total_data_size, data_in_this_rsp;
@@ -224,10 +414,10 @@ static int check2ndT2(struct smb_hdr *pSMB)
 	return remaining;
 }
 
-static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
+static int coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 {
-	struct smb_t2_rsp *pSMBs = (struct smb_t2_rsp *)psecond;
-	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)pTargetSMB;
+	struct smb_t2_rsp *pSMBs = (struct smb_t2_rsp *)second_buf;
+	struct smb_t2_rsp *pSMBt  = (struct smb_t2_rsp *)target_hdr;
 	char *data_area_of_tgt;
 	char *data_area_of_src;
 	int remaining;
@@ -280,23 +470,23 @@ static int coalesce_t2(struct smb_hdr *psecond, struct smb_hdr *pTargetSMB)
 	put_unaligned_le16(total_in_tgt, &pSMBt->t2_rsp.DataCount);
 
 	/* fix up the BCC */
-	byte_count = get_bcc(pTargetSMB);
+	byte_count = get_bcc(target_hdr);
 	byte_count += total_in_src;
 	/* is the result too big for the field? */
 	if (byte_count > USHRT_MAX) {
 		cFYI(1, "coalesced BCC too large (%u)", byte_count);
 		return -EPROTO;
 	}
-	put_bcc(byte_count, pTargetSMB);
+	put_bcc(byte_count, target_hdr);
 
-	byte_count = be32_to_cpu(pTargetSMB->smb_buf_length);
+	byte_count = be32_to_cpu(target_hdr->smb_buf_length);
 	byte_count += total_in_src;
 	/* don't allow buffer to overflow */
 	if (byte_count > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
 		cFYI(1, "coalesced BCC exceeds buffer size (%u)", byte_count);
 		return -ENOBUFS;
 	}
-	pTargetSMB->smb_buf_length = cpu_to_be32(byte_count);
+	target_hdr->smb_buf_length = cpu_to_be32(byte_count);
 
 	/* copy second buffer into end of first buffer */
 	memcpy(data_area_of_tgt, data_area_of_src, total_in_src);
@@ -334,7 +524,7 @@ cifs_echo_request(struct work_struct *work)
 			server->hostname);
 
 requeue_echo:
-	queue_delayed_work(system_nrt_wq, &server->echo, SMB_ECHO_INTERVAL);
+	queue_delayed_work(cifsiod_wq, &server->echo, SMB_ECHO_INTERVAL);
 }
 
 static bool
@@ -350,7 +540,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		}
 	} else if (server->large_buf) {
 		/* we are reusing a dirty large buf, clear its start */
-		memset(server->bigbuf, 0, sizeof(struct smb_hdr));
+		memset(server->bigbuf, 0, header_size());
 	}
 
 	if (!server->smallbuf) {
@@ -364,7 +554,7 @@ allocate_buffers(struct TCP_Server_Info *server)
 		/* beginning of smb buffer is cleared in our buf_get */
 	} else {
 		/* if existing small buf clear beginning */
-		memset(server->smallbuf, 0, sizeof(struct smb_hdr));
+		memset(server->smallbuf, 0, header_size());
 	}
 
 	return true;
@@ -373,12 +563,22 @@ allocate_buffers(struct TCP_Server_Info *server)
 static bool
 server_unresponsive(struct TCP_Server_Info *server)
 {
-	if (echo_retries > 0 && server->tcpStatus == CifsGood &&
-	    time_after(jiffies, server->lstrp +
-				(echo_retries * SMB_ECHO_INTERVAL))) {
+	/*
+	 * We need to wait 2 echo intervals to make sure we handle such
+	 * situations right:
+	 * 1s  client sends a normal SMB request
+	 * 2s  client gets a response
+	 * 30s echo workqueue job pops, and decides we got a response recently
+	 *     and don't need to send another
+	 * ...
+	 * 65s kernel_recvmsg times out, and we see that we haven't gotten
+	 *     a response in >60s.
+	 */
+	if (server->tcpStatus == CifsGood &&
+	    time_after(jiffies, server->lstrp + 2 * SMB_ECHO_INTERVAL)) {
 		cERROR(1, "Server %s has not responded in %d seconds. "
 			  "Reconnecting...", server->hostname,
-			  (echo_retries * SMB_ECHO_INTERVAL / HZ));
+			  (2 * SMB_ECHO_INTERVAL) / HZ);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
 		return true;
@@ -556,15 +756,16 @@ is_smb_response(struct TCP_Server_Info *server, unsigned char type)
 }
 
 static struct mid_q_entry *
-find_mid(struct TCP_Server_Info *server, struct smb_hdr *buf)
+find_mid(struct TCP_Server_Info *server, char *buffer)
 {
+	struct smb_hdr *buf = (struct smb_hdr *)buffer;
 	struct mid_q_entry *mid;
 
 	spin_lock(&GlobalMid_Lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if (mid->mid == buf->Mid &&
-		    mid->midState == MID_REQUEST_SUBMITTED &&
-		    mid->command == buf->Command) {
+		    mid->mid_state == MID_REQUEST_SUBMITTED &&
+		    le16_to_cpu(mid->command) == buf->Command) {
 			spin_unlock(&GlobalMid_Lock);
 			return mid;
 		}
@@ -581,16 +782,16 @@ dequeue_mid(struct mid_q_entry *mid, bool malformed)
 #endif
 	spin_lock(&GlobalMid_Lock);
 	if (!malformed)
-		mid->midState = MID_RESPONSE_RECEIVED;
+		mid->mid_state = MID_RESPONSE_RECEIVED;
 	else
-		mid->midState = MID_RESPONSE_MALFORMED;
+		mid->mid_state = MID_RESPONSE_MALFORMED;
 	list_del_init(&mid->qhead);
 	spin_unlock(&GlobalMid_Lock);
 }
 
 static void
 handle_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server,
-	   struct smb_hdr *buf, int malformed)
+	   char *buf, int malformed)
 {
 	if (malformed == 0 && check2ndT2(buf) > 0) {
 		mid->multiRsp = true;
@@ -610,13 +811,13 @@ handle_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 		} else {
 			/* Have first buffer */
 			mid->resp_buf = buf;
-			mid->largeBuf = true;
+			mid->large_buf = true;
 			server->bigbuf = NULL;
 		}
 		return;
 	}
 	mid->resp_buf = buf;
-	mid->largeBuf = server->large_buf;
+	mid->large_buf = server->large_buf;
 	/* Was previous buf put in mpx struct for multi-rsp? */
 	if (!mid->multiRsp) {
 		/* smb buffer will be freed by user thread */
@@ -642,19 +843,11 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	wake_up_all(&server->response_q);
 
-	/*
-	 * Check if we have blocked requests that need to free. Note that
-	 * cifs_max_pending is normally 50, but can be set at module install
-	 * time to as little as two.
-	 */
-	spin_lock(&GlobalMid_Lock);
-	if (atomic_read(&server->inFlight) >= cifs_max_pending)
-		atomic_set(&server->inFlight, cifs_max_pending - 1);
-	/*
-	 * We do not want to set the max_pending too low or we could end up
-	 * with the counter going negative.
-	 */
-	spin_unlock(&GlobalMid_Lock);
+	/* check if we have blocked requests that need to free */
+	spin_lock(&server->req_lock);
+	if (server->credits <= 0)
+		server->credits = 1;
+	spin_unlock(&server->req_lock);
 	/*
 	 * Although there should not be any requests blocked on this queue it
 	 * can not hurt to be paranoid and try to wake up requests that may
@@ -680,8 +873,8 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 		spin_lock(&GlobalMid_Lock);
 		list_for_each_safe(tmp, tmp2, &server->pending_mid_q) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			cFYI(1, "Clearing mid 0x%x", mid_entry->mid);
-			mid_entry->midState = MID_SHUTDOWN;
+			cFYI(1, "Clearing mid 0x%llx", mid_entry->mid);
+			mid_entry->mid_state = MID_SHUTDOWN;
 			list_move(&mid_entry->qhead, &dispose_list);
 		}
 		spin_unlock(&GlobalMid_Lock);
@@ -689,7 +882,7 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 		/* now walk dispose list and issue callbacks */
 		list_for_each_safe(tmp, tmp2, &dispose_list) {
 			mid_entry = list_entry(tmp, struct mid_q_entry, qhead);
-			cFYI(1, "Callback mid 0x%x", mid_entry->mid);
+			cFYI(1, "Callback mid 0x%llx", mid_entry->mid);
 			list_del_init(&mid_entry->qhead);
 			mid_entry->callback(mid_entry);
 		}
@@ -729,11 +922,10 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 {
 	int length;
 	char *buf = server->smallbuf;
-	struct smb_hdr *smb_buffer = (struct smb_hdr *)buf;
-	unsigned int pdu_length = be32_to_cpu(smb_buffer->smb_buf_length);
+	unsigned int pdu_length = get_rfc1002_length(buf);
 
 	/* make sure this will fit in a large buffer */
-	if (pdu_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
+	if (pdu_length > CIFSMaxBufSize + max_header_size() - 4) {
 		cERROR(1, "SMB response too long (%u bytes)",
 			pdu_length);
 		cifs_reconnect(server);
@@ -744,20 +936,18 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	/* switch to large buffer if too big for a small one */
 	if (pdu_length > MAX_CIFS_SMALL_BUFFER_SIZE - 4) {
 		server->large_buf = true;
-		memcpy(server->bigbuf, server->smallbuf, server->total_read);
+		memcpy(server->bigbuf, buf, server->total_read);
 		buf = server->bigbuf;
-		smb_buffer = (struct smb_hdr *)buf;
 	}
 
 	/* now read the rest */
-	length = cifs_read_from_socket(server,
-			  buf + sizeof(struct smb_hdr) - 1,
-			  pdu_length - sizeof(struct smb_hdr) + 1 + 4);
+	length = cifs_read_from_socket(server, buf + header_size() - 1,
+				       pdu_length - header_size() + 1 + 4);
 	if (length < 0)
 		return length;
 	server->total_read += length;
 
-	dump_smb(smb_buffer, server->total_read);
+	dump_smb(buf, server->total_read);
 
 	/*
 	 * We know that we received enough to get to the MID as we
@@ -768,7 +958,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	 * 48 bytes is enough to display the header and a little bit
 	 * into the payload for debugging purposes.
 	 */
-	length = checkSMB(smb_buffer, smb_buffer->Mid, server->total_read);
+	length = checkSMB(buf, server->total_read);
 	if (length != 0)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
@@ -776,7 +966,7 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 	if (!mid)
 		return length;
 
-	handle_mid(mid, server, smb_buffer, length);
+	handle_mid(mid, server, buf, length);
 	return 0;
 }
 
@@ -787,7 +977,6 @@ cifs_demultiplex_thread(void *p)
 	struct TCP_Server_Info *server = p;
 	unsigned int pdu_length;
 	char *buf = NULL;
-	struct smb_hdr *smb_buffer = NULL;
 	struct task_struct *task_to_wake = NULL;
 	struct mid_q_entry *mid_entry;
 
@@ -808,7 +997,6 @@ cifs_demultiplex_thread(void *p)
 			continue;
 
 		server->large_buf = false;
-		smb_buffer = (struct smb_hdr *)server->smallbuf;
 		buf = server->smallbuf;
 		pdu_length = 4; /* enough to get RFC1001 header */
 
@@ -821,14 +1009,14 @@ cifs_demultiplex_thread(void *p)
 		 * The right amount was read from socket - 4 bytes,
 		 * so we can now interpret the length field.
 		 */
-		pdu_length = be32_to_cpu(smb_buffer->smb_buf_length);
+		pdu_length = get_rfc1002_length(buf);
 
 		cFYI(1, "RFC1002 header 0x%x", pdu_length);
 		if (!is_smb_response(server, buf[0]))
 			continue;
 
 		/* make sure we have enough to get to the MID */
-		if (pdu_length < sizeof(struct smb_hdr) - 1 - 4) {
+		if (pdu_length < header_size() - 1 - 4) {
 			cERROR(1, "SMB response too short (%u bytes)",
 				pdu_length);
 			cifs_reconnect(server);
@@ -838,12 +1026,12 @@ cifs_demultiplex_thread(void *p)
 
 		/* read down to the MID */
 		length = cifs_read_from_socket(server, buf + 4,
-					sizeof(struct smb_hdr) - 1 - 4);
+					       header_size() - 1 - 4);
 		if (length < 0)
 			continue;
 		server->total_read += length;
 
-		mid_entry = find_mid(server, smb_buffer);
+		mid_entry = find_mid(server, buf);
 
 		if (!mid_entry || !mid_entry->receive)
 			length = standard_receive3(server, mid_entry);
@@ -853,22 +1041,19 @@ cifs_demultiplex_thread(void *p)
 		if (length < 0)
 			continue;
 
-		if (server->large_buf) {
+		if (server->large_buf)
 			buf = server->bigbuf;
-			smb_buffer = (struct smb_hdr *)buf;
-		}
 
 		server->lstrp = jiffies;
 		if (mid_entry != NULL) {
 			if (!mid_entry->multiRsp || mid_entry->multiEnd)
 				mid_entry->callback(mid_entry);
-		} else if (!is_valid_oplock_break(smb_buffer, server)) {
+		} else if (!is_valid_oplock_break(buf, server)) {
 			cERROR(1, "No task to wake, unknown frame received! "
 				   "NumMids %d", atomic_read(&midCount));
-			cifs_dump_mem("Received Data is: ", buf,
-				      sizeof(struct smb_hdr));
+			cifs_dump_mem("Received Data is: ", buf, header_size());
 #ifdef CONFIG_CIFS_DEBUG2
-			cifs_dump_detail(smb_buffer);
+			cifs_dump_detail(buf);
 			cifs_dump_mids(server);
 #endif /* CIFS_DEBUG2 */
 
@@ -924,23 +1109,95 @@ extract_hostname(const char *unc)
 	return dst;
 }
 
+static int get_option_ul(substring_t args[], unsigned long *option)
+{
+	int rc;
+	char *string;
+
+	string = match_strdup(args);
+	if (string == NULL)
+		return -ENOMEM;
+	rc = kstrtoul(string, 10, option);
+	kfree(string);
+
+	return rc;
+}
+
+
+static int cifs_parse_security_flavors(char *value,
+				       struct smb_vol *vol)
+{
+
+	substring_t args[MAX_OPT_ARGS];
+
+	switch (match_token(value, cifs_secflavor_tokens, args)) {
+	case Opt_sec_krb5:
+		vol->secFlg |= CIFSSEC_MAY_KRB5;
+		break;
+	case Opt_sec_krb5i:
+		vol->secFlg |= CIFSSEC_MAY_KRB5 | CIFSSEC_MUST_SIGN;
+		break;
+	case Opt_sec_krb5p:
+		/* vol->secFlg |= CIFSSEC_MUST_SEAL | CIFSSEC_MAY_KRB5; */
+		cERROR(1, "Krb5 cifs privacy not supported");
+		break;
+	case Opt_sec_ntlmssp:
+		vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
+		break;
+	case Opt_sec_ntlmsspi:
+		vol->secFlg |= CIFSSEC_MAY_NTLMSSP | CIFSSEC_MUST_SIGN;
+		break;
+	case Opt_ntlm:
+		/* ntlm is default so can be turned off too */
+		vol->secFlg |= CIFSSEC_MAY_NTLM;
+		break;
+	case Opt_sec_ntlmi:
+		vol->secFlg |= CIFSSEC_MAY_NTLM | CIFSSEC_MUST_SIGN;
+		break;
+	case Opt_sec_nontlm:
+		vol->secFlg |= CIFSSEC_MAY_NTLMV2;
+		break;
+	case Opt_sec_ntlmv2i:
+		vol->secFlg |= CIFSSEC_MAY_NTLMV2 | CIFSSEC_MUST_SIGN;
+		break;
+#ifdef CONFIG_CIFS_WEAK_PW_HASH
+	case Opt_sec_lanman:
+		vol->secFlg |= CIFSSEC_MAY_LANMAN;
+		break;
+#endif
+	case Opt_sec_none:
+		vol->nullauth = 1;
+		break;
+	default:
+		cERROR(1, "bad security option: %s", value);
+		return 1;
+	}
+
+	return 0;
+}
+
 static int
 cifs_parse_mount_options(const char *mountdata, const char *devname,
 			 struct smb_vol *vol)
 {
-	char *value, *data, *end;
+	char *data, *end;
 	char *mountdata_copy = NULL, *options;
-	int err;
 	unsigned int  temp_len, i, j;
 	char separator[2];
 	short int override_uid = -1;
 	short int override_gid = -1;
 	bool uid_specified = false;
 	bool gid_specified = false;
+	bool sloppy = false;
+	char *invalid = NULL;
 	char *nodename = utsname()->nodename;
+	char *string = NULL;
+	char *tmp_end, *value;
+	char delim;
 
 	separator[0] = ',';
 	separator[1] = 0;
+	delim = separator[0];
 
 	/*
 	 * does not have to be perfect mapping since field is
@@ -979,6 +1236,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 	options = mountdata_copy;
 	end = options + strlen(options);
+
 	if (strncmp(options, "sep=", 4) == 0) {
 		if (options[4] != 0) {
 			separator[0] = options[4];
@@ -991,609 +1249,652 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	vol->backupgid_specified = false; /* no backup intent for a group */
 
 	while ((data = strsep(&options, separator)) != NULL) {
+		substring_t args[MAX_OPT_ARGS];
+		unsigned long option;
+		int token;
+
 		if (!*data)
 			continue;
-		if ((value = strchr(data, '=')) != NULL)
-			*value++ = '\0';
 
-		/* Have to parse this before we parse for "user" */
-		if (strnicmp(data, "user_xattr", 10) == 0) {
+		token = match_token(data, cifs_mount_option_tokens, args);
+
+		switch (token) {
+
+		/* Ingnore the following */
+		case Opt_ignore:
+			break;
+
+		/* Boolean values */
+		case Opt_user_xattr:
 			vol->no_xattr = 0;
-		} else if (strnicmp(data, "nouser_xattr", 12) == 0) {
+			break;
+		case Opt_nouser_xattr:
 			vol->no_xattr = 1;
-		} else if (strnicmp(data, "user", 4) == 0) {
-			if (!value) {
-				printk(KERN_WARNING
-				       "CIFS: invalid or missing username\n");
-				goto cifs_parse_mount_err;
-			} else if (!*value) {
-				/* null user, ie anonymous, authentication */
-				vol->nullauth = 1;
-			}
-			if (strnlen(value, MAX_USERNAME_SIZE) <
-						MAX_USERNAME_SIZE) {
-				vol->username = kstrdup(value, GFP_KERNEL);
-				if (!vol->username) {
-					printk(KERN_WARNING "CIFS: no memory "
-							    "for username\n");
-					goto cifs_parse_mount_err;
-				}
-			} else {
-				printk(KERN_WARNING "CIFS: username too long\n");
-				goto cifs_parse_mount_err;
-			}
-		} else if (strnicmp(data, "pass", 4) == 0) {
-			if (!value) {
-				vol->password = NULL;
-				continue;
-			} else if (value[0] == 0) {
-				/* check if string begins with double comma
-				   since that would mean the password really
-				   does start with a comma, and would not
-				   indicate an empty string */
-				if (value[1] != separator[0]) {
-					vol->password = NULL;
-					continue;
-				}
-			}
-			temp_len = strlen(value);
-			/* removed password length check, NTLM passwords
-				can be arbitrarily long */
-
-			/* if comma in password, the string will be
-			prematurely null terminated.  Commas in password are
-			specified across the cifs mount interface by a double
-			comma ie ,, and a comma used as in other cases ie ','
-			as a parameter delimiter/separator is single and due
-			to the strsep above is temporarily zeroed. */
-
-			/* NB: password legally can have multiple commas and
-			the only illegal character in a password is null */
-
-			if ((value[temp_len] == 0) &&
-			    (value + temp_len < end) &&
-			    (value[temp_len+1] == separator[0])) {
-				/* reinsert comma */
-				value[temp_len] = separator[0];
-				temp_len += 2;  /* move after second comma */
-				while (value[temp_len] != 0)  {
-					if (value[temp_len] == separator[0]) {
-						if (value[temp_len+1] ==
-						     separator[0]) {
-						/* skip second comma */
-							temp_len++;
-						} else {
-						/* single comma indicating start
-							 of next parm */
-							break;
-						}
-					}
-					temp_len++;
-				}
-				if (value[temp_len] == 0) {
-					options = NULL;
-				} else {
-					value[temp_len] = 0;
-					/* point option to start of next parm */
-					options = value + temp_len + 1;
-				}
-				/* go from value to value + temp_len condensing
-				double commas to singles. Note that this ends up
-				allocating a few bytes too many, which is ok */
-				vol->password = kzalloc(temp_len, GFP_KERNEL);
-				if (vol->password == NULL) {
-					printk(KERN_WARNING "CIFS: no memory "
-							    "for password\n");
-					goto cifs_parse_mount_err;
-				}
-				for (i = 0, j = 0; i < temp_len; i++, j++) {
-					vol->password[j] = value[i];
-					if (value[i] == separator[0]
-						&& value[i+1] == separator[0]) {
-						/* skip second comma */
-						i++;
-					}
-				}
-				vol->password[j] = 0;
-			} else {
-				vol->password = kzalloc(temp_len+1, GFP_KERNEL);
-				if (vol->password == NULL) {
-					printk(KERN_WARNING "CIFS: no memory "
-							    "for password\n");
-					goto cifs_parse_mount_err;
-				}
-				strcpy(vol->password, value);
-			}
-		} else if (!strnicmp(data, "ip", 2) ||
-			   !strnicmp(data, "addr", 4)) {
-			if (!value || !*value) {
-				vol->UNCip = NULL;
-			} else if (strnlen(value, INET6_ADDRSTRLEN) <
-							INET6_ADDRSTRLEN) {
-				vol->UNCip = kstrdup(value, GFP_KERNEL);
-				if (!vol->UNCip) {
-					printk(KERN_WARNING "CIFS: no memory "
-							    "for UNC IP\n");
-					goto cifs_parse_mount_err;
-				}
-			} else {
-				printk(KERN_WARNING "CIFS: ip address "
-						    "too long\n");
-				goto cifs_parse_mount_err;
-			}
-		} else if (strnicmp(data, "sec", 3) == 0) {
-			if (!value || !*value) {
-				cERROR(1, "no security value specified");
-				continue;
-			} else if (strnicmp(value, "krb5i", 5) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_KRB5 |
-					CIFSSEC_MUST_SIGN;
-			} else if (strnicmp(value, "krb5p", 5) == 0) {
-				/* vol->secFlg |= CIFSSEC_MUST_SEAL |
-					CIFSSEC_MAY_KRB5; */
-				cERROR(1, "Krb5 cifs privacy not supported");
-				goto cifs_parse_mount_err;
-			} else if (strnicmp(value, "krb5", 4) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_KRB5;
-			} else if (strnicmp(value, "ntlmsspi", 8) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_NTLMSSP |
-					CIFSSEC_MUST_SIGN;
-			} else if (strnicmp(value, "ntlmssp", 7) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_NTLMSSP;
-			} else if (strnicmp(value, "ntlmv2i", 7) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_NTLMV2 |
-					CIFSSEC_MUST_SIGN;
-			} else if (strnicmp(value, "ntlmv2", 6) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_NTLMV2;
-			} else if (strnicmp(value, "ntlmi", 5) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_NTLM |
-					CIFSSEC_MUST_SIGN;
-			} else if (strnicmp(value, "ntlm", 4) == 0) {
-				/* ntlm is default so can be turned off too */
-				vol->secFlg |= CIFSSEC_MAY_NTLM;
-			} else if (strnicmp(value, "nontlm", 6) == 0) {
-				/* BB is there a better way to do this? */
-				vol->secFlg |= CIFSSEC_MAY_NTLMV2;
-#ifdef CONFIG_CIFS_WEAK_PW_HASH
-			} else if (strnicmp(value, "lanman", 6) == 0) {
-				vol->secFlg |= CIFSSEC_MAY_LANMAN;
-#endif
-			} else if (strnicmp(value, "none", 4) == 0) {
-				vol->nullauth = 1;
-			} else {
-				cERROR(1, "bad security option: %s", value);
-				goto cifs_parse_mount_err;
-			}
-		} else if (strnicmp(data, "vers", 3) == 0) {
-			if (!value || !*value) {
-				cERROR(1, "no protocol version specified"
-					  " after vers= mount option");
-			} else if ((strnicmp(value, "cifs", 4) == 0) ||
-				   (strnicmp(value, "1", 1) == 0)) {
-				/* this is the default */
-				continue;
-			}
-		} else if ((strnicmp(data, "unc", 3) == 0)
-			   || (strnicmp(data, "target", 6) == 0)
-			   || (strnicmp(data, "path", 4) == 0)) {
-			if (!value || !*value) {
-				printk(KERN_WARNING "CIFS: invalid path to "
-						    "network resource\n");
-				goto cifs_parse_mount_err;
-			}
-			if ((temp_len = strnlen(value, 300)) < 300) {
-				vol->UNC = kmalloc(temp_len+1, GFP_KERNEL);
-				if (vol->UNC == NULL)
-					goto cifs_parse_mount_err;
-				strcpy(vol->UNC, value);
-				if (strncmp(vol->UNC, "//", 2) == 0) {
-					vol->UNC[0] = '\\';
-					vol->UNC[1] = '\\';
-				} else if (strncmp(vol->UNC, "\\\\", 2) != 0) {
-					printk(KERN_WARNING
-					       "CIFS: UNC Path does not begin "
-					       "with // or \\\\ \n");
-					goto cifs_parse_mount_err;
-				}
-			} else {
-				printk(KERN_WARNING "CIFS: UNC name too long\n");
-				goto cifs_parse_mount_err;
-			}
-		} else if ((strnicmp(data, "domain", 3) == 0)
-			   || (strnicmp(data, "workgroup", 5) == 0)) {
-			if (!value || !*value) {
-				printk(KERN_WARNING "CIFS: invalid domain name\n");
-				goto cifs_parse_mount_err;
-			}
-			/* BB are there cases in which a comma can be valid in
-			a domain name and need special handling? */
-			if (strnlen(value, 256) < 256) {
-				vol->domainname = kstrdup(value, GFP_KERNEL);
-				if (!vol->domainname) {
-					printk(KERN_WARNING "CIFS: no memory "
-							    "for domainname\n");
-					goto cifs_parse_mount_err;
-				}
-				cFYI(1, "Domain name set");
-			} else {
-				printk(KERN_WARNING "CIFS: domain name too "
-						    "long\n");
-				goto cifs_parse_mount_err;
-			}
-		} else if (strnicmp(data, "srcaddr", 7) == 0) {
-			vol->srcaddr.ss_family = AF_UNSPEC;
-
-			if (!value || !*value) {
-				printk(KERN_WARNING "CIFS: srcaddr value"
-				       " not specified.\n");
-				goto cifs_parse_mount_err;
-			}
-			i = cifs_convert_address((struct sockaddr *)&vol->srcaddr,
-						 value, strlen(value));
-			if (i == 0) {
-				printk(KERN_WARNING "CIFS:  Could not parse"
-				       " srcaddr: %s\n",
-				       value);
-				goto cifs_parse_mount_err;
-			}
-		} else if (strnicmp(data, "prefixpath", 10) == 0) {
-			if (!value || !*value) {
-				printk(KERN_WARNING
-					"CIFS: invalid path prefix\n");
-				goto cifs_parse_mount_err;
-			}
-			if ((temp_len = strnlen(value, 1024)) < 1024) {
-				if (value[0] != '/')
-					temp_len++;  /* missing leading slash */
-				vol->prepath = kmalloc(temp_len+1, GFP_KERNEL);
-				if (vol->prepath == NULL)
-					goto cifs_parse_mount_err;
-				if (value[0] != '/') {
-					vol->prepath[0] = '/';
-					strcpy(vol->prepath+1, value);
-				} else
-					strcpy(vol->prepath, value);
-				cFYI(1, "prefix path %s", vol->prepath);
-			} else {
-				printk(KERN_WARNING "CIFS: prefix too long\n");
-				goto cifs_parse_mount_err;
-			}
-		} else if (strnicmp(data, "iocharset", 9) == 0) {
-			if (!value || !*value) {
-				printk(KERN_WARNING "CIFS: invalid iocharset "
-						    "specified\n");
-				goto cifs_parse_mount_err;
-			}
-			if (strnlen(value, 65) < 65) {
-				if (strnicmp(value, "default", 7)) {
-					vol->iocharset = kstrdup(value,
-								 GFP_KERNEL);
-
-					if (!vol->iocharset) {
-						printk(KERN_WARNING "CIFS: no "
-								   "memory for"
-								   "charset\n");
-						goto cifs_parse_mount_err;
-					}
-				}
-				/* if iocharset not set then load_nls_default
-				   is used by caller */
-				cFYI(1, "iocharset set to %s", value);
-			} else {
-				printk(KERN_WARNING "CIFS: iocharset name "
-						    "too long.\n");
-				goto cifs_parse_mount_err;
-			}
-		} else if (!strnicmp(data, "uid", 3) && value && *value) {
-			vol->linux_uid = simple_strtoul(value, &value, 0);
-			uid_specified = true;
-		} else if (!strnicmp(data, "cruid", 5) && value && *value) {
-			vol->cred_uid = simple_strtoul(value, &value, 0);
-		} else if (!strnicmp(data, "forceuid", 8)) {
+			break;
+		case Opt_forceuid:
 			override_uid = 1;
-		} else if (!strnicmp(data, "noforceuid", 10)) {
+			break;
+		case Opt_noforceuid:
 			override_uid = 0;
-		} else if (!strnicmp(data, "gid", 3) && value && *value) {
-			vol->linux_gid = simple_strtoul(value, &value, 0);
-			gid_specified = true;
-		} else if (!strnicmp(data, "forcegid", 8)) {
-			override_gid = 1;
-		} else if (!strnicmp(data, "noforcegid", 10)) {
-			override_gid = 0;
-		} else if (strnicmp(data, "file_mode", 4) == 0) {
-			if (value && *value) {
-				vol->file_mode =
-					simple_strtoul(value, &value, 0);
-			}
-		} else if (strnicmp(data, "dir_mode", 4) == 0) {
-			if (value && *value) {
-				vol->dir_mode =
-					simple_strtoul(value, &value, 0);
-			}
-		} else if (strnicmp(data, "dirmode", 4) == 0) {
-			if (value && *value) {
-				vol->dir_mode =
-					simple_strtoul(value, &value, 0);
-			}
-		} else if (strnicmp(data, "port", 4) == 0) {
-			if (value && *value) {
-				vol->port =
-					simple_strtoul(value, &value, 0);
-			}
-		} else if (strnicmp(data, "rsize", 5) == 0) {
-			if (value && *value) {
-				vol->rsize =
-					simple_strtoul(value, &value, 0);
-			}
-		} else if (strnicmp(data, "wsize", 5) == 0) {
-			if (value && *value) {
-				vol->wsize =
-					simple_strtoul(value, &value, 0);
-			}
-		} else if (strnicmp(data, "sockopt", 5) == 0) {
-			if (!value || !*value) {
-				cERROR(1, "no socket option specified");
-				continue;
-			} else if (strnicmp(value, "TCP_NODELAY", 11) == 0) {
-				vol->sockopt_tcp_nodelay = 1;
-			}
-		} else if (strnicmp(data, "netbiosname", 4) == 0) {
-			if (!value || !*value || (*value == ' ')) {
-				cFYI(1, "invalid (empty) netbiosname");
-			} else {
-				memset(vol->source_rfc1001_name, 0x20,
-					RFC1001_NAME_LEN);
-				/*
-				 * FIXME: are there cases in which a comma can
-				 * be valid in workstation netbios name (and
-				 * need special handling)?
-				 */
-				for (i = 0; i < RFC1001_NAME_LEN; i++) {
-					/* don't ucase netbiosname for user */
-					if (value[i] == 0)
-						break;
-					vol->source_rfc1001_name[i] = value[i];
-				}
-				/* The string has 16th byte zero still from
-				set at top of the function  */
-				if (i == RFC1001_NAME_LEN && value[i] != 0)
-					printk(KERN_WARNING "CIFS: netbiosname"
-						" longer than 15 truncated.\n");
-			}
-		} else if (strnicmp(data, "servern", 7) == 0) {
-			/* servernetbiosname specified override *SMBSERVER */
-			if (!value || !*value || (*value == ' ')) {
-				cFYI(1, "empty server netbiosname specified");
-			} else {
-				/* last byte, type, is 0x20 for servr type */
-				memset(vol->target_rfc1001_name, 0x20,
-					RFC1001_NAME_LEN_WITH_NULL);
-
-				for (i = 0; i < 15; i++) {
-				/* BB are there cases in which a comma can be
-				   valid in this workstation netbios name
-				   (and need special handling)? */
-
-				/* user or mount helper must uppercase
-				   the netbiosname */
-					if (value[i] == 0)
-						break;
-					else
-						vol->target_rfc1001_name[i] =
-								value[i];
-				}
-				/* The string has 16th byte zero still from
-				   set at top of the function  */
-				if (i == RFC1001_NAME_LEN && value[i] != 0)
-					printk(KERN_WARNING "CIFS: server net"
-					"biosname longer than 15 truncated.\n");
-			}
-		} else if (strnicmp(data, "actimeo", 7) == 0) {
-			if (value && *value) {
-				vol->actimeo = HZ * simple_strtoul(value,
-								   &value, 0);
-				if (vol->actimeo > CIFS_MAX_ACTIMEO) {
-					cERROR(1, "CIFS: attribute cache"
-							"timeout too large");
-					goto cifs_parse_mount_err;
-				}
-			}
-		} else if (strnicmp(data, "credentials", 4) == 0) {
-			/* ignore */
-		} else if (strnicmp(data, "version", 3) == 0) {
-			/* ignore */
-		} else if (strnicmp(data, "guest", 5) == 0) {
-			/* ignore */
-		} else if (strnicmp(data, "rw", 2) == 0 && strlen(data) == 2) {
-			/* ignore */
-		} else if (strnicmp(data, "ro", 2) == 0) {
-			/* ignore */
-		} else if (strnicmp(data, "noblocksend", 11) == 0) {
+			break;
+		case Opt_noblocksend:
 			vol->noblocksnd = 1;
-		} else if (strnicmp(data, "noautotune", 10) == 0) {
+			break;
+		case Opt_noautotune:
 			vol->noautotune = 1;
-		} else if ((strnicmp(data, "suid", 4) == 0) ||
-				   (strnicmp(data, "nosuid", 6) == 0) ||
-				   (strnicmp(data, "exec", 4) == 0) ||
-				   (strnicmp(data, "noexec", 6) == 0) ||
-				   (strnicmp(data, "nodev", 5) == 0) ||
-				   (strnicmp(data, "noauto", 6) == 0) ||
-				   (strnicmp(data, "dev", 3) == 0)) {
-			/*  The mount tool or mount.cifs helper (if present)
-			    uses these opts to set flags, and the flags are read
-			    by the kernel vfs layer before we get here (ie
-			    before read super) so there is no point trying to
-			    parse these options again and set anything and it
-			    is ok to just ignore them */
-			continue;
-		} else if (strnicmp(data, "hard", 4) == 0) {
+			break;
+		case Opt_hard:
 			vol->retry = 1;
-		} else if (strnicmp(data, "soft", 4) == 0) {
+			break;
+		case Opt_soft:
 			vol->retry = 0;
-		} else if (strnicmp(data, "perm", 4) == 0) {
+			break;
+		case Opt_perm:
 			vol->noperm = 0;
-		} else if (strnicmp(data, "noperm", 6) == 0) {
+			break;
+		case Opt_noperm:
 			vol->noperm = 1;
-		} else if (strnicmp(data, "mapchars", 8) == 0) {
+			break;
+		case Opt_mapchars:
 			vol->remap = 1;
-		} else if (strnicmp(data, "nomapchars", 10) == 0) {
+			break;
+		case Opt_nomapchars:
 			vol->remap = 0;
-		} else if (strnicmp(data, "sfu", 3) == 0) {
+			break;
+		case Opt_sfu:
 			vol->sfu_emul = 1;
-		} else if (strnicmp(data, "nosfu", 5) == 0) {
+			break;
+		case Opt_nosfu:
 			vol->sfu_emul = 0;
-		} else if (strnicmp(data, "nodfs", 5) == 0) {
+			break;
+		case Opt_nodfs:
 			vol->nodfs = 1;
-		} else if (strnicmp(data, "posixpaths", 10) == 0) {
+			break;
+		case Opt_posixpaths:
 			vol->posix_paths = 1;
-		} else if (strnicmp(data, "noposixpaths", 12) == 0) {
+			break;
+		case Opt_noposixpaths:
 			vol->posix_paths = 0;
-		} else if (strnicmp(data, "nounix", 6) == 0) {
+			break;
+		case Opt_nounix:
 			vol->no_linux_ext = 1;
-		} else if (strnicmp(data, "nolinux", 7) == 0) {
-			vol->no_linux_ext = 1;
-		} else if ((strnicmp(data, "nocase", 6) == 0) ||
-			   (strnicmp(data, "ignorecase", 10)  == 0)) {
+			break;
+		case Opt_nocase:
 			vol->nocase = 1;
-		} else if (strnicmp(data, "mand", 4) == 0) {
-			/* ignore */
-		} else if (strnicmp(data, "nomand", 6) == 0) {
-			/* ignore */
-		} else if (strnicmp(data, "_netdev", 7) == 0) {
-			/* ignore */
-		} else if (strnicmp(data, "brl", 3) == 0) {
+			break;
+		case Opt_brl:
 			vol->nobrl =  0;
-		} else if ((strnicmp(data, "nobrl", 5) == 0) ||
-			   (strnicmp(data, "nolock", 6) == 0)) {
+			break;
+		case Opt_nobrl:
 			vol->nobrl =  1;
-			/* turn off mandatory locking in mode
-			if remote locking is turned off since the
-			local vfs will do advisory */
+			/*
+			 * turn off mandatory locking in mode
+			 * if remote locking is turned off since the
+			 * local vfs will do advisory
+			 */
 			if (vol->file_mode ==
 				(S_IALLUGO & ~(S_ISUID | S_IXGRP)))
 				vol->file_mode = S_IALLUGO;
-		} else if (strnicmp(data, "forcemandatorylock", 9) == 0) {
-			/* will take the shorter form "forcemand" as well */
-			/* This mount option will force use of mandatory
-			  (DOS/Windows style) byte range locks, instead of
-			  using posix advisory byte range locks, even if the
-			  Unix extensions are available and posix locks would
-			  be supported otherwise. If Unix extensions are not
-			  negotiated this has no effect since mandatory locks
-			  would be used (mandatory locks is all that those
-			  those servers support) */
+			break;
+		case Opt_forcemandatorylock:
 			vol->mand_lock = 1;
-		} else if (strnicmp(data, "setuids", 7) == 0) {
+			break;
+		case Opt_setuids:
 			vol->setuids = 1;
-		} else if (strnicmp(data, "nosetuids", 9) == 0) {
+			break;
+		case Opt_nosetuids:
 			vol->setuids = 0;
-		} else if (strnicmp(data, "dynperm", 7) == 0) {
+			break;
+		case Opt_dynperm:
 			vol->dynperm = true;
-		} else if (strnicmp(data, "nodynperm", 9) == 0) {
+			break;
+		case Opt_nodynperm:
 			vol->dynperm = false;
-		} else if (strnicmp(data, "nohard", 6) == 0) {
+			break;
+		case Opt_nohard:
 			vol->retry = 0;
-		} else if (strnicmp(data, "nosoft", 6) == 0) {
+			break;
+		case Opt_nosoft:
 			vol->retry = 1;
-		} else if (strnicmp(data, "nointr", 6) == 0) {
+			break;
+		case Opt_nointr:
 			vol->intr = 0;
-		} else if (strnicmp(data, "intr", 4) == 0) {
+			break;
+		case Opt_intr:
 			vol->intr = 1;
-		} else if (strnicmp(data, "nostrictsync", 12) == 0) {
+			break;
+		case Opt_nostrictsync:
 			vol->nostrictsync = 1;
-		} else if (strnicmp(data, "strictsync", 10) == 0) {
+			break;
+		case Opt_strictsync:
 			vol->nostrictsync = 0;
-		} else if (strnicmp(data, "serverino", 7) == 0) {
+			break;
+		case Opt_serverino:
 			vol->server_ino = 1;
-		} else if (strnicmp(data, "noserverino", 9) == 0) {
+			break;
+		case Opt_noserverino:
 			vol->server_ino = 0;
-		} else if (strnicmp(data, "rwpidforward", 12) == 0) {
+			break;
+		case Opt_rwpidforward:
 			vol->rwpidforward = 1;
-		} else if (strnicmp(data, "cifsacl", 7) == 0) {
+			break;
+		case Opt_cifsacl:
 			vol->cifs_acl = 1;
-		} else if (strnicmp(data, "nocifsacl", 9) == 0) {
+			break;
+		case Opt_nocifsacl:
 			vol->cifs_acl = 0;
-		} else if (strnicmp(data, "acl", 3) == 0) {
+			break;
+		case Opt_acl:
 			vol->no_psx_acl = 0;
-		} else if (strnicmp(data, "noacl", 5) == 0) {
+			break;
+		case Opt_noacl:
 			vol->no_psx_acl = 1;
-		} else if (strnicmp(data, "locallease", 6) == 0) {
+			break;
+		case Opt_locallease:
 			vol->local_lease = 1;
-		} else if (strnicmp(data, "sign", 4) == 0) {
+			break;
+		case Opt_sign:
 			vol->secFlg |= CIFSSEC_MUST_SIGN;
-		} else if (strnicmp(data, "seal", 4) == 0) {
+			break;
+		case Opt_seal:
 			/* we do not do the following in secFlags because seal
-			   is a per tree connection (mount) not a per socket
-			   or per-smb connection option in the protocol */
-			/* vol->secFlg |= CIFSSEC_MUST_SEAL; */
+			 * is a per tree connection (mount) not a per socket
+			 * or per-smb connection option in the protocol
+			 * vol->secFlg |= CIFSSEC_MUST_SEAL;
+			 */
 			vol->seal = 1;
-		} else if (strnicmp(data, "direct", 6) == 0) {
+			break;
+		case Opt_direct:
 			vol->direct_io = 1;
-		} else if (strnicmp(data, "forcedirectio", 13) == 0) {
-			vol->direct_io = 1;
-		} else if (strnicmp(data, "strictcache", 11) == 0) {
+			break;
+		case Opt_strictcache:
 			vol->strict_io = 1;
-		} else if (strnicmp(data, "noac", 4) == 0) {
+			break;
+		case Opt_noac:
 			printk(KERN_WARNING "CIFS: Mount option noac not "
 				"supported. Instead set "
 				"/proc/fs/cifs/LookupCacheEnabled to 0\n");
-		} else if (strnicmp(data, "fsc", 3) == 0) {
+			break;
+		case Opt_fsc:
 #ifndef CONFIG_CIFS_FSCACHE
 			cERROR(1, "FS-Cache support needs CONFIG_CIFS_FSCACHE "
 				  "kernel config option set");
 			goto cifs_parse_mount_err;
 #endif
 			vol->fsc = true;
-		} else if (strnicmp(data, "mfsymlinks", 10) == 0) {
+			break;
+		case Opt_mfsymlinks:
 			vol->mfsymlinks = true;
-		} else if (strnicmp(data, "multiuser", 8) == 0) {
+			break;
+		case Opt_multiuser:
 			vol->multiuser = true;
-		} else if (!strnicmp(data, "backupuid", 9) && value && *value) {
-			err = kstrtouint(value, 0, &vol->backupuid);
-			if (err < 0) {
+			break;
+		case Opt_sloppy:
+			sloppy = true;
+			break;
+
+		/* Numeric Values */
+		case Opt_backupuid:
+			if (get_option_ul(args, &option)) {
 				cERROR(1, "%s: Invalid backupuid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
+			vol->backupuid = option;
 			vol->backupuid_specified = true;
-		} else if (!strnicmp(data, "backupgid", 9) && value && *value) {
-			err = kstrtouint(value, 0, &vol->backupgid);
-			if (err < 0) {
+			break;
+		case Opt_backupgid:
+			if (get_option_ul(args, &option)) {
 				cERROR(1, "%s: Invalid backupgid value",
 					__func__);
 				goto cifs_parse_mount_err;
 			}
+			vol->backupgid = option;
 			vol->backupgid_specified = true;
-		} else
-			printk(KERN_WARNING "CIFS: Unknown mount option %s\n",
-						data);
-	}
-	if (vol->UNC == NULL) {
-		if (devname == NULL) {
-			printk(KERN_WARNING "CIFS: Missing UNC name for mount "
-						"target\n");
-			goto cifs_parse_mount_err;
-		}
-		if ((temp_len = strnlen(devname, 300)) < 300) {
-			vol->UNC = kmalloc(temp_len+1, GFP_KERNEL);
-			if (vol->UNC == NULL)
-				goto cifs_parse_mount_err;
-			strcpy(vol->UNC, devname);
-			if (strncmp(vol->UNC, "//", 2) == 0) {
-				vol->UNC[0] = '\\';
-				vol->UNC[1] = '\\';
-			} else if (strncmp(vol->UNC, "\\\\", 2) != 0) {
-				printk(KERN_WARNING "CIFS: UNC Path does not "
-						    "begin with // or \\\\ \n");
+			break;
+		case Opt_uid:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid uid value",
+					__func__);
 				goto cifs_parse_mount_err;
 			}
-			value = strpbrk(vol->UNC+2, "/\\");
-			if (value)
-				*value = '\\';
-		} else {
-			printk(KERN_WARNING "CIFS: UNC name too long\n");
+			vol->linux_uid = option;
+			uid_specified = true;
+			break;
+		case Opt_cruid:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid cruid value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->cred_uid = option;
+			break;
+		case Opt_gid:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid gid value",
+						__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->linux_gid = option;
+			gid_specified = true;
+			break;
+		case Opt_file_mode:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid file_mode value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->file_mode = option;
+			break;
+		case Opt_dirmode:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid dir_mode value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->dir_mode = option;
+			break;
+		case Opt_port:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid port value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->port = option;
+			break;
+		case Opt_rsize:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid rsize value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->rsize = option;
+			break;
+		case Opt_wsize:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid wsize value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->wsize = option;
+			break;
+		case Opt_actimeo:
+			if (get_option_ul(args, &option)) {
+				cERROR(1, "%s: Invalid actimeo value",
+					__func__);
+				goto cifs_parse_mount_err;
+			}
+			vol->actimeo = HZ * option;
+			if (vol->actimeo > CIFS_MAX_ACTIMEO) {
+				cERROR(1, "CIFS: attribute cache"
+					  "timeout too large");
+				goto cifs_parse_mount_err;
+			}
+			break;
+
+		/* String Arguments */
+
+		case Opt_user:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				/* null user, ie. anonymous authentication */
+				vol->nullauth = 1;
+			} else if (strnlen(string, MAX_USERNAME_SIZE) >
+							MAX_USERNAME_SIZE) {
+				printk(KERN_WARNING "CIFS: username too long\n");
+				goto cifs_parse_mount_err;
+			}
+			vol->username = kstrdup(string, GFP_KERNEL);
+			if (!vol->username) {
+				printk(KERN_WARNING "CIFS: no memory "
+						    "for username\n");
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_blank_pass:
+			vol->password = NULL;
+			break;
+		case Opt_pass:
+			/* passwords have to be handled differently
+			 * to allow the character used for deliminator
+			 * to be passed within them
+			 */
+
+			/* Obtain the value string */
+			value = strchr(data, '=');
+			if (value != NULL)
+				*value++ = '\0';
+
+			/* Set tmp_end to end of the string */
+			tmp_end = (char *) value + strlen(value);
+
+			/* Check if following character is the deliminator
+			 * If yes, we have encountered a double deliminator
+			 * reset the NULL character to the deliminator
+			 */
+			if (tmp_end < end && tmp_end[1] == delim)
+				tmp_end[0] = delim;
+
+			/* Keep iterating until we get to a single deliminator
+			 * OR the end
+			 */
+			while ((tmp_end = strchr(tmp_end, delim)) != NULL &&
+			       (tmp_end[1] == delim)) {
+				tmp_end = (char *) &tmp_end[2];
+			}
+
+			/* Reset var options to point to next element */
+			if (tmp_end) {
+				tmp_end[0] = '\0';
+				options = (char *) &tmp_end[1];
+			} else
+				/* Reached the end of the mount option string */
+				options = end;
+
+			/* Now build new password string */
+			temp_len = strlen(value);
+			vol->password = kzalloc(temp_len+1, GFP_KERNEL);
+			if (vol->password == NULL) {
+				printk(KERN_WARNING "CIFS: no memory "
+						    "for password\n");
+				goto cifs_parse_mount_err;
+			}
+
+			for (i = 0, j = 0; i < temp_len; i++, j++) {
+				vol->password[j] = value[i];
+				if ((value[i] == delim) &&
+				     value[i+1] == delim)
+					/* skip the second deliminator */
+					i++;
+			}
+			vol->password[j] = '\0';
+			break;
+		case Opt_ip:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				vol->UNCip = NULL;
+			} else if (strnlen(string, INET6_ADDRSTRLEN) >
+						INET6_ADDRSTRLEN) {
+				printk(KERN_WARNING "CIFS: ip address "
+						    "too long\n");
+				goto cifs_parse_mount_err;
+			}
+			vol->UNCip = kstrdup(string, GFP_KERNEL);
+			if (!vol->UNCip) {
+				printk(KERN_WARNING "CIFS: no memory "
+						    "for UNC IP\n");
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_unc:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: invalid path to "
+						    "network resource\n");
+				goto cifs_parse_mount_err;
+			}
+
+			temp_len = strnlen(string, 300);
+			if (temp_len  == 300) {
+				printk(KERN_WARNING "CIFS: UNC name too long\n");
+				goto cifs_parse_mount_err;
+			}
+
+			if (strncmp(string, "//", 2) == 0) {
+				vol->UNC[0] = '\\';
+				vol->UNC[1] = '\\';
+			} else if (strncmp(string, "\\\\", 2) != 0) {
+				printk(KERN_WARNING "CIFS: UNC Path does not "
+						    "begin with // or \\\\\n");
+				goto cifs_parse_mount_err;
+			}
+
+			vol->UNC = kmalloc(temp_len+1, GFP_KERNEL);
+			if (vol->UNC == NULL) {
+				printk(KERN_WARNING "CIFS: no memory "
+						    "for UNC\n");
+				goto cifs_parse_mount_err;
+			}
+			strcpy(vol->UNC, string);
+			break;
+		case Opt_domain:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: invalid domain"
+						    " name\n");
+				goto cifs_parse_mount_err;
+			} else if (strnlen(string, 256) == 256) {
+				printk(KERN_WARNING "CIFS: domain name too"
+						    " long\n");
+				goto cifs_parse_mount_err;
+			}
+
+			vol->domainname = kstrdup(string, GFP_KERNEL);
+			if (!vol->domainname) {
+				printk(KERN_WARNING "CIFS: no memory "
+						    "for domainname\n");
+				goto cifs_parse_mount_err;
+			}
+			cFYI(1, "Domain name set");
+			break;
+		case Opt_srcaddr:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: srcaddr value not"
+						    " specified\n");
+				goto cifs_parse_mount_err;
+			} else if (!cifs_convert_address(
+					(struct sockaddr *)&vol->srcaddr,
+					string, strlen(string))) {
+				printk(KERN_WARNING "CIFS:  Could not parse"
+						    " srcaddr: %s\n", string);
+				goto cifs_parse_mount_err;
+			}
+			break;
+		case Opt_prefixpath:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: Invalid path"
+						    " prefix\n");
+				goto cifs_parse_mount_err;
+			}
+			temp_len = strnlen(string, 1024);
+			if (string[0] != '/')
+				temp_len++; /* missing leading slash */
+			if (temp_len > 1024) {
+				printk(KERN_WARNING "CIFS: prefix too long\n");
+				goto cifs_parse_mount_err;
+			}
+
+			vol->prepath = kmalloc(temp_len+1, GFP_KERNEL);
+			if (vol->prepath == NULL) {
+				printk(KERN_WARNING "CIFS: no memory "
+						    "for path prefix\n");
+				goto cifs_parse_mount_err;
+			}
+
+			if (string[0] != '/') {
+				vol->prepath[0] = '/';
+				strcpy(vol->prepath+1, string);
+			} else
+				strcpy(vol->prepath, string);
+
+			break;
+		case Opt_iocharset:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: Invalid iocharset"
+						    " specified\n");
+				goto cifs_parse_mount_err;
+			} else if (strnlen(string, 1024) >= 65) {
+				printk(KERN_WARNING "CIFS: iocharset name "
+						    "too long.\n");
+				goto cifs_parse_mount_err;
+			}
+
+			 if (strnicmp(string, "default", 7) != 0) {
+				vol->iocharset = kstrdup(string,
+							 GFP_KERNEL);
+				if (!vol->iocharset) {
+					printk(KERN_WARNING "CIFS: no memory"
+							    "for charset\n");
+					goto cifs_parse_mount_err;
+				}
+			}
+			/* if iocharset not set then load_nls_default
+			 * is used by caller
+			 */
+			cFYI(1, "iocharset set to %s", string);
+			break;
+		case Opt_sockopt:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: No socket option"
+						    " specified\n");
+				goto cifs_parse_mount_err;
+			}
+			if (strnicmp(string, "TCP_NODELAY", 11) == 0)
+				vol->sockopt_tcp_nodelay = 1;
+			break;
+		case Opt_netbiosname:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: Invalid (empty)"
+						    " netbiosname\n");
+				break;
+			}
+
+			memset(vol->source_rfc1001_name, 0x20,
+				RFC1001_NAME_LEN);
+			/*
+			 * FIXME: are there cases in which a comma can
+			 * be valid in workstation netbios name (and
+			 * need special handling)?
+			 */
+			for (i = 0; i < RFC1001_NAME_LEN; i++) {
+				/* don't ucase netbiosname for user */
+				if (string[i] == 0)
+					break;
+				vol->source_rfc1001_name[i] = string[i];
+			}
+			/* The string has 16th byte zero still from
+			 * set at top of the function
+			 */
+			if (i == RFC1001_NAME_LEN && string[i] != 0)
+				printk(KERN_WARNING "CIFS: netbiosname"
+				       " longer than 15 truncated.\n");
+
+			break;
+		case Opt_servern:
+			/* servernetbiosname specified override *SMBSERVER */
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: Empty server"
+					" netbiosname specified\n");
+				break;
+			}
+			/* last byte, type, is 0x20 for servr type */
+			memset(vol->target_rfc1001_name, 0x20,
+				RFC1001_NAME_LEN_WITH_NULL);
+
+			/* BB are there cases in which a comma can be
+			   valid in this workstation netbios name
+			   (and need special handling)? */
+
+			/* user or mount helper must uppercase the
+			   netbios name */
+			for (i = 0; i < 15; i++) {
+				if (string[i] == 0)
+					break;
+				vol->target_rfc1001_name[i] = string[i];
+			}
+			/* The string has 16th byte zero still from
+			   set at top of the function  */
+			if (i == RFC1001_NAME_LEN && string[i] != 0)
+				printk(KERN_WARNING "CIFS: server net"
+				       "biosname longer than 15 truncated.\n");
+			break;
+		case Opt_ver:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				cERROR(1, "no protocol version specified"
+					  " after vers= mount option");
+				goto cifs_parse_mount_err;
+			}
+
+			if (strnicmp(string, "cifs", 4) == 0 ||
+			    strnicmp(string, "1", 1) == 0) {
+				/* This is the default */
+				break;
+			}
+			/* For all other value, error */
+			printk(KERN_WARNING "CIFS: Invalid version"
+					    " specified\n");
 			goto cifs_parse_mount_err;
+		case Opt_sec:
+			string = match_strdup(args);
+			if (string == NULL)
+				goto out_nomem;
+
+			if (!*string) {
+				printk(KERN_WARNING "CIFS: no security flavor"
+						    " specified\n");
+				break;
+			}
+
+			if (cifs_parse_security_flavors(string, vol) != 0)
+				goto cifs_parse_mount_err;
+			break;
+		default:
+			/*
+			 * An option we don't recognize. Save it off for later
+			 * if we haven't already found one
+			 */
+			if (!invalid)
+				invalid = data;
+			break;
 		}
+		/* Free up any allocated string */
+		kfree(string);
+		string = NULL;
+	}
+
+	if (!sloppy && invalid) {
+		printk(KERN_ERR "CIFS: Unknown mount option \"%s\"\n", invalid);
+		goto cifs_parse_mount_err;
 	}
 
 #ifndef CONFIG_KEYS
@@ -1623,7 +1924,10 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 	kfree(mountdata_copy);
 	return 0;
 
+out_nomem:
+	printk(KERN_WARNING "Could not allocate temporary buffer\n");
 cifs_parse_mount_err:
+	kfree(string);
 	kfree(mountdata_copy);
 	return 1;
 }
@@ -1909,7 +2213,8 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->noblocksnd = volume_info->noblocksnd;
 	tcp_ses->noautotune = volume_info->noautotune;
 	tcp_ses->tcp_nodelay = volume_info->sockopt_tcp_nodelay;
-	atomic_set(&tcp_ses->inFlight, 0);
+	tcp_ses->in_flight = 0;
+	tcp_ses->credits = 1;
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
 	INIT_LIST_HEAD(&tcp_ses->pending_mid_q);
@@ -1974,7 +2279,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	cifs_fscache_get_client_cookie(tcp_ses);
 
 	/* queue echo request delayed work */
-	queue_delayed_work(system_nrt_wq, &tcp_ses->echo, SMB_ECHO_INTERVAL);
+	queue_delayed_work(cifsiod_wq, &tcp_ses->echo, SMB_ECHO_INTERVAL);
 
 	return tcp_ses;
 
@@ -3371,7 +3676,7 @@ cifs_ra_pages(struct cifs_sb_info *cifs_sb)
 int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
-	int rc = 0;
+	int rc;
 	int xid;
 	struct cifs_ses *pSesInfo;
 	struct cifs_tcon *tcon;
@@ -3398,6 +3703,7 @@ try_mount_again:
 		FreeXid(xid);
 	}
 #endif
+	rc = 0;
 	tcon = NULL;
 	pSesInfo = NULL;
 	srvTcp = NULL;
@@ -3539,7 +3845,7 @@ remote_path_check:
 	tlink_rb_insert(&cifs_sb->tlink_tree, tlink);
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
-	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
+	queue_delayed_work(cifsiod_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
 
 mount_fail_check:
@@ -3759,9 +4065,11 @@ int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
 	if (server->maxBuf != 0)
 		return 0;
 
+	cifs_set_credits(server, 1);
 	rc = CIFSSMBNegotiate(xid, ses);
 	if (rc == -EAGAIN) {
 		/* retry only once on 1st time connection */
+		cifs_set_credits(server, 1);
 		rc = CIFSSMBNegotiate(xid, ses);
 		if (rc == -EAGAIN)
 			rc = -EHOSTDOWN;
@@ -4091,6 +4399,6 @@ cifs_prune_tlinks(struct work_struct *work)
 	}
 	spin_unlock(&cifs_sb->tlink_tree_lock);
 
-	queue_delayed_work(system_nrt_wq, &cifs_sb->prune_tlinks,
+	queue_delayed_work(cifsiod_wq, &cifs_sb->prune_tlinks,
 				TLINK_IDLE_EXPIRE);
 }

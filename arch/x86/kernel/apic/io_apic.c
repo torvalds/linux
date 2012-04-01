@@ -64,8 +64,27 @@
 #include <asm/apic.h>
 
 #define __apicdebuginit(type) static type __init
+
 #define for_each_irq_pin(entry, head) \
 	for (entry = head; entry; entry = entry->next)
+
+static void		__init __ioapic_init_mappings(void);
+
+static unsigned int	__io_apic_read  (unsigned int apic, unsigned int reg);
+static void		__io_apic_write (unsigned int apic, unsigned int reg, unsigned int val);
+static void		__io_apic_modify(unsigned int apic, unsigned int reg, unsigned int val);
+
+static struct io_apic_ops io_apic_ops = {
+	.init	= __ioapic_init_mappings,
+	.read	= __io_apic_read,
+	.write	= __io_apic_write,
+	.modify = __io_apic_modify,
+};
+
+void __init set_io_apic_ops(const struct io_apic_ops *ops)
+{
+	io_apic_ops = *ops;
+}
 
 /*
  *      Is the SiS APIC rmw bug present ?
@@ -294,6 +313,22 @@ static void free_irq_at(unsigned int at, struct irq_cfg *cfg)
 	irq_free_desc(at);
 }
 
+static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
+{
+	return io_apic_ops.read(apic, reg);
+}
+
+static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
+{
+	io_apic_ops.write(apic, reg, value);
+}
+
+static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
+{
+	io_apic_ops.modify(apic, reg, value);
+}
+
+
 struct io_apic {
 	unsigned int index;
 	unsigned int unused[3];
@@ -314,16 +349,17 @@ static inline void io_apic_eoi(unsigned int apic, unsigned int vector)
 	writel(vector, &io_apic->eoi);
 }
 
-static inline unsigned int io_apic_read(unsigned int apic, unsigned int reg)
+static unsigned int __io_apic_read(unsigned int apic, unsigned int reg)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
 	writel(reg, &io_apic->index);
 	return readl(&io_apic->data);
 }
 
-static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
+static void __io_apic_write(unsigned int apic, unsigned int reg, unsigned int value)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
+
 	writel(reg, &io_apic->index);
 	writel(value, &io_apic->data);
 }
@@ -334,7 +370,7 @@ static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned i
  *
  * Older SiS APIC requires we rewrite the index register
  */
-static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
+static void __io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
 
@@ -377,6 +413,7 @@ static struct IO_APIC_route_entry __ioapic_read_entry(int apic, int pin)
 
 	eu.w1 = io_apic_read(apic, 0x10 + 2 * pin);
 	eu.w2 = io_apic_read(apic, 0x11 + 2 * pin);
+
 	return eu.entry;
 }
 
@@ -384,9 +421,11 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
 {
 	union entry_union eu;
 	unsigned long flags;
+
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	eu.entry = __ioapic_read_entry(apic, pin);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
+
 	return eu.entry;
 }
 
@@ -396,8 +435,7 @@ static struct IO_APIC_route_entry ioapic_read_entry(int apic, int pin)
  * the interrupt, and we need to make sure the entry is fully populated
  * before that happens.
  */
-static void
-__ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
+static void __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	union entry_union eu = {{0, 0}};
 
@@ -409,6 +447,7 @@ __ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 static void ioapic_write_entry(int apic, int pin, struct IO_APIC_route_entry e)
 {
 	unsigned long flags;
+
 	raw_spin_lock_irqsave(&ioapic_lock, flags);
 	__ioapic_write_entry(apic, pin, e);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
@@ -435,8 +474,7 @@ static void ioapic_mask_entry(int apic, int pin)
  * shared ISA-space IRQs, so we have to support them. We are super
  * fast in the common case, and fast for shared ISA-space IRQs.
  */
-static int
-__add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
+static int __add_pin_to_irq_node(struct irq_cfg *cfg, int node, int apic, int pin)
 {
 	struct irq_pin_list **last, *entry;
 
@@ -521,6 +559,7 @@ static void io_apic_sync(struct irq_pin_list *entry)
 	 * a dummy read from the IO-APIC
 	 */
 	struct io_apic __iomem *io_apic;
+
 	io_apic = io_apic_base(entry->apic);
 	readl(&io_apic->data);
 }
@@ -2512,20 +2551,72 @@ static void ack_apic_edge(struct irq_data *data)
 
 atomic_t irq_mis_count;
 
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+static inline bool ioapic_irqd_mask(struct irq_data *data, struct irq_cfg *cfg)
+{
+	/* If we are moving the irq we need to mask it */
+	if (unlikely(irqd_is_setaffinity_pending(data))) {
+		mask_ioapic(cfg);
+		return true;
+	}
+	return false;
+}
+
+static inline void ioapic_irqd_unmask(struct irq_data *data,
+				      struct irq_cfg *cfg, bool masked)
+{
+	if (unlikely(masked)) {
+		/* Only migrate the irq if the ack has been received.
+		 *
+		 * On rare occasions the broadcast level triggered ack gets
+		 * delayed going to ioapics, and if we reprogram the
+		 * vector while Remote IRR is still set the irq will never
+		 * fire again.
+		 *
+		 * To prevent this scenario we read the Remote IRR bit
+		 * of the ioapic.  This has two effects.
+		 * - On any sane system the read of the ioapic will
+		 *   flush writes (and acks) going to the ioapic from
+		 *   this cpu.
+		 * - We get to see if the ACK has actually been delivered.
+		 *
+		 * Based on failed experiments of reprogramming the
+		 * ioapic entry from outside of irq context starting
+		 * with masking the ioapic entry and then polling until
+		 * Remote IRR was clear before reprogramming the
+		 * ioapic I don't trust the Remote IRR bit to be
+		 * completey accurate.
+		 *
+		 * However there appears to be no other way to plug
+		 * this race, so if the Remote IRR bit is not
+		 * accurate and is causing problems then it is a hardware bug
+		 * and you can go talk to the chipset vendor about it.
+		 */
+		if (!io_apic_level_ack_pending(cfg))
+			irq_move_masked_irq(data);
+		unmask_ioapic(cfg);
+	}
+}
+#else
+static inline bool ioapic_irqd_mask(struct irq_data *data, struct irq_cfg *cfg)
+{
+	return false;
+}
+static inline void ioapic_irqd_unmask(struct irq_data *data,
+				      struct irq_cfg *cfg, bool masked)
+{
+}
+#endif
+
 static void ack_apic_level(struct irq_data *data)
 {
 	struct irq_cfg *cfg = data->chip_data;
-	int i, do_unmask_irq = 0, irq = data->irq;
+	int i, irq = data->irq;
 	unsigned long v;
+	bool masked;
 
 	irq_complete_move(cfg);
-#ifdef CONFIG_GENERIC_PENDING_IRQ
-	/* If we are moving the irq we need to mask it */
-	if (unlikely(irqd_is_setaffinity_pending(data))) {
-		do_unmask_irq = 1;
-		mask_ioapic(cfg);
-	}
-#endif
+	masked = ioapic_irqd_mask(data, cfg);
 
 	/*
 	 * It appears there is an erratum which affects at least version 0x11
@@ -2581,38 +2672,7 @@ static void ack_apic_level(struct irq_data *data)
 		eoi_ioapic_irq(irq, cfg);
 	}
 
-	/* Now we can move and renable the irq */
-	if (unlikely(do_unmask_irq)) {
-		/* Only migrate the irq if the ack has been received.
-		 *
-		 * On rare occasions the broadcast level triggered ack gets
-		 * delayed going to ioapics, and if we reprogram the
-		 * vector while Remote IRR is still set the irq will never
-		 * fire again.
-		 *
-		 * To prevent this scenario we read the Remote IRR bit
-		 * of the ioapic.  This has two effects.
-		 * - On any sane system the read of the ioapic will
-		 *   flush writes (and acks) going to the ioapic from
-		 *   this cpu.
-		 * - We get to see if the ACK has actually been delivered.
-		 *
-		 * Based on failed experiments of reprogramming the
-		 * ioapic entry from outside of irq context starting
-		 * with masking the ioapic entry and then polling until
-		 * Remote IRR was clear before reprogramming the
-		 * ioapic I don't trust the Remote IRR bit to be
-		 * completey accurate.
-		 *
-		 * However there appears to be no other way to plug
-		 * this race, so if the Remote IRR bit is not
-		 * accurate and is causing problems then it is a hardware bug
-		 * and you can go talk to the chipset vendor about it.
-		 */
-		if (!io_apic_level_ack_pending(cfg))
-			irq_move_masked_irq(data);
-		unmask_ioapic(cfg);
-	}
+	ioapic_irqd_unmask(data, cfg, masked);
 }
 
 #ifdef CONFIG_IRQ_REMAP
@@ -3873,6 +3933,11 @@ static struct resource * __init ioapic_setup_resources(int nr_ioapics)
 
 void __init ioapic_and_gsi_init(void)
 {
+	io_apic_ops.init();
+}
+
+static void __init __ioapic_init_mappings(void)
+{
 	unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
 	struct resource *ioapic_res;
 	int i;
@@ -3967,15 +4032,33 @@ int mp_find_ioapic_pin(int ioapic, u32 gsi)
 static __init int bad_ioapic(unsigned long address)
 {
 	if (nr_ioapics >= MAX_IO_APICS) {
-		printk(KERN_WARNING "WARNING: Max # of I/O APICs (%d) exceeded "
-		       "(found %d), skipping\n", MAX_IO_APICS, nr_ioapics);
+		pr_warn("WARNING: Max # of I/O APICs (%d) exceeded (found %d), skipping\n",
+			MAX_IO_APICS, nr_ioapics);
 		return 1;
 	}
 	if (!address) {
-		printk(KERN_WARNING "WARNING: Bogus (zero) I/O APIC address"
-		       " found in table, skipping!\n");
+		pr_warn("WARNING: Bogus (zero) I/O APIC address found in table, skipping!\n");
 		return 1;
 	}
+	return 0;
+}
+
+static __init int bad_ioapic_register(int idx)
+{
+	union IO_APIC_reg_00 reg_00;
+	union IO_APIC_reg_01 reg_01;
+	union IO_APIC_reg_02 reg_02;
+
+	reg_00.raw = io_apic_read(idx, 0);
+	reg_01.raw = io_apic_read(idx, 1);
+	reg_02.raw = io_apic_read(idx, 2);
+
+	if (reg_00.raw == -1 && reg_01.raw == -1 && reg_02.raw == -1) {
+		pr_warn("I/O APIC 0x%x registers return all ones, skipping!\n",
+			mpc_ioapic_addr(idx));
+		return 1;
+	}
+
 	return 0;
 }
 
@@ -3995,6 +4078,12 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 	ioapics[idx].mp_config.apicaddr = address;
 
 	set_fixmap_nocache(FIX_IO_APIC_BASE_0 + idx, address);
+
+	if (bad_ioapic_register(idx)) {
+		clear_fixmap(FIX_IO_APIC_BASE_0 + idx);
+		return;
+	}
+
 	ioapics[idx].mp_config.apicid = io_apic_unique_id(id);
 	ioapics[idx].mp_config.apicver = io_apic_get_version(idx);
 
@@ -4015,10 +4104,10 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 	if (gsi_cfg->gsi_end >= gsi_top)
 		gsi_top = gsi_cfg->gsi_end + 1;
 
-	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
-	       "GSI %d-%d\n", idx, mpc_ioapic_id(idx),
-	       mpc_ioapic_ver(idx), mpc_ioapic_addr(idx),
-	       gsi_cfg->gsi_base, gsi_cfg->gsi_end);
+	pr_info("IOAPIC[%d]: apic_id %d, version %d, address 0x%x, GSI %d-%d\n",
+		idx, mpc_ioapic_id(idx),
+		mpc_ioapic_ver(idx), mpc_ioapic_addr(idx),
+		gsi_cfg->gsi_base, gsi_cfg->gsi_end);
 
 	nr_ioapics++;
 }

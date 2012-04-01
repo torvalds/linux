@@ -97,7 +97,7 @@ config VORTEX
 	  available from <http://www.tldp.org/docs.html#howto>. More
 	  specific information is in
 	  <file:Documentation/networking/vortex.txt> and in the comments at
-	  the beginning of <file:drivers/net/3c59x.c>.
+	  the beginning of <file:drivers/net/ethernet/3com/3c59x.c>.
 
 	  To compile this support as a module, choose M here.
 

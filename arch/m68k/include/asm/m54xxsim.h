@@ -31,16 +31,20 @@
 /*
  *	UART module.
  */
-#define MCFUART_BASE1		0x8600		/* Base address of UART1 */
-#define MCFUART_BASE2		0x8700		/* Base address of UART2 */
-#define MCFUART_BASE3		0x8800		/* Base address of UART3 */
-#define MCFUART_BASE4		0x8900		/* Base address of UART4 */
+#define MCFUART_BASE0		(MCF_MBAR + 0x8600)	/* Base address UART0 */
+#define MCFUART_BASE1		(MCF_MBAR + 0x8700)	/* Base address UART1 */
+#define MCFUART_BASE2		(MCF_MBAR + 0x8800)	/* Base address UART2 */
+#define MCFUART_BASE3		(MCF_MBAR + 0x8900)	/* Base address UART3 */
 
 /*
  *	Define system peripheral IRQ usage.
  */
-#define MCF_IRQ_TIMER		(64 + 54)	/* Slice Timer 0 */
-#define MCF_IRQ_PROFILER	(64 + 53)	/* Slice Timer 1 */
+#define MCF_IRQ_TIMER		(MCFINT_VECBASE + 54)	/* Slice Timer 0 */
+#define MCF_IRQ_PROFILER	(MCFINT_VECBASE + 53)	/* Slice Timer 1 */
+#define MCF_IRQ_UART0		(MCFINT_VECBASE + 35)
+#define MCF_IRQ_UART1		(MCFINT_VECBASE + 34)
+#define MCF_IRQ_UART2		(MCFINT_VECBASE + 33)
+#define MCF_IRQ_UART3		(MCFINT_VECBASE + 32)
 
 /*
  *	Generic GPIO support

@@ -45,7 +45,6 @@
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include "uhci-hcd.h"
 
@@ -565,6 +564,9 @@ static int uhci_start(struct usb_hcd *hcd)
 	struct dentry __maybe_unused *dentry;
 
 	hcd->uses_new_polling = 1;
+	/* Accept arbitrarily long scatter-gather lists */
+	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
+		hcd->self.sg_tablesize = ~0;
 
 	spin_lock_init(&uhci->lock);
 	setup_timer(&uhci->fsbr_timer, uhci_fsbr_timeout,

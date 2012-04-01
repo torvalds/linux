@@ -380,7 +380,7 @@ struct wl1251 {
 	struct wl1251_stats stats;
 	struct wl1251_debugfs debugfs;
 
-	u32 buffer_32;
+	__le32 buffer_32;
 	u32 buffer_cmd;
 	u8 buffer_busyword[WL1251_BUSY_WORD_LEN];
 	struct wl1251_rx_descriptor *rx_descriptor;

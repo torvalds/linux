@@ -343,10 +343,10 @@ static int igbvf_get_coalesce(struct net_device *netdev,
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->itr_setting <= 3)
-		ec->rx_coalesce_usecs = adapter->itr_setting;
+	if (adapter->requested_itr <= 3)
+		ec->rx_coalesce_usecs = adapter->requested_itr;
 	else
-		ec->rx_coalesce_usecs = adapter->itr_setting >> 2;
+		ec->rx_coalesce_usecs = adapter->current_itr >> 2;
 
 	return 0;
 }
@@ -365,15 +365,16 @@ static int igbvf_set_coalesce(struct net_device *netdev,
 
 	/* convert to rate of irq's per second */
 	if (ec->rx_coalesce_usecs && ec->rx_coalesce_usecs <= 3) {
-		adapter->itr = IGBVF_START_ITR;
-		adapter->itr_setting = ec->rx_coalesce_usecs;
+		adapter->current_itr = IGBVF_START_ITR;
+		adapter->requested_itr = ec->rx_coalesce_usecs;
 	} else {
-		adapter->itr = ec->rx_coalesce_usecs << 2;
-		adapter->itr_setting = adapter->itr;
+		adapter->current_itr = ec->rx_coalesce_usecs << 2;
+		adapter->requested_itr = 1000000000 /
+					(adapter->current_itr * 256);
 	}
 
-	writel(adapter->itr,
-	       hw->hw_addr + adapter->rx_ring[0].itr_register);
+	writel(adapter->current_itr,
+	       hw->hw_addr + adapter->rx_ring->itr_register);
 
 	return 0;
 }

@@ -71,7 +71,7 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter)
 
 	/* Wait for completion */
 	wait_event_interruptible(adapter->cmd_wait_q.wait,
-					*(cmd_queued->condition));
+				 *(cmd_queued->condition));
 	if (!*(cmd_queued->condition))
 		cancel_flag = true;
 
@@ -192,7 +192,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
  * first.
  */
 int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
-		      struct mwifiex_802_11_ssid *req_ssid)
+		      struct cfg80211_ssid *req_ssid)
 {
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
@@ -249,15 +249,25 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		 * application retrieval */
 		priv->assoc_rsp_size = 0;
 		ret = mwifiex_associate(priv, bss_desc);
+
+		/* If auth type is auto and association fails using open mode,
+		 * try to connect using shared mode */
+		if (ret == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG &&
+		    priv->sec_info.is_authtype_auto &&
+		    priv->sec_info.wep_enabled) {
+			priv->sec_info.authentication_mode =
+						NL80211_AUTHTYPE_SHARED_KEY;
+			ret = mwifiex_associate(priv, bss_desc);
+		}
+
 		if (bss)
 			cfg80211_put_bss(bss);
 	} else {
 		/* Adhoc mode */
 		/* If the requested SSID matches current SSID, return */
 		if (bss_desc && bss_desc->ssid.ssid_len &&
-		    (!mwifiex_ssid_cmp
-		     (&priv->curr_bss_params.bss_descriptor.ssid,
-		      &bss_desc->ssid))) {
+		    (!mwifiex_ssid_cmp(&priv->curr_bss_params.bss_descriptor.
+				       ssid, &bss_desc->ssid))) {
 			kfree(bss_desc);
 			kfree(beacon_ie);
 			return 0;
@@ -339,9 +349,8 @@ static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 				adapter->hs_cfg.gpio = (u8)hs_cfg->gpio;
 				if (hs_cfg->gap)
 					adapter->hs_cfg.gap = (u8)hs_cfg->gap;
-			} else if (adapter->hs_cfg.conditions ==
-						cpu_to_le32(
-						HOST_SLEEP_CFG_CANCEL)) {
+			} else if (adapter->hs_cfg.conditions
+				   == cpu_to_le32(HOST_SLEEP_CFG_CANCEL)) {
 				/* Return failure if no parameters for HS
 				   enable */
 				status = -1;
@@ -363,7 +372,7 @@ static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 						cpu_to_le32(prev_cond);
 		} else {
 			adapter->hs_cfg.conditions =
-				cpu_to_le32(hs_cfg->conditions);
+						cpu_to_le32(hs_cfg->conditions);
 			adapter->hs_cfg.gpio = (u8)hs_cfg->gpio;
 			adapter->hs_cfg.gap = (u8)hs_cfg->gap;
 		}
@@ -416,11 +425,11 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 
 	adapter->hs_activate_wait_q_woken = false;
 
-	memset(&hscfg, 0, sizeof(struct mwifiex_hs_config_param));
+	memset(&hscfg, 0, sizeof(struct mwifiex_ds_hs_cfg));
 	hscfg.is_invoke_hostcmd = true;
 
 	if (mwifiex_set_hs_params(mwifiex_get_priv(adapter,
-						       MWIFIEX_BSS_ROLE_STA),
+						   MWIFIEX_BSS_ROLE_STA),
 				  HostCmd_ACT_GEN_SET, MWIFIEX_SYNC_CMD,
 				  &hscfg)) {
 		dev_err(adapter->dev, "IOCTL request HS enable failed\n");
@@ -428,7 +437,7 @@ int mwifiex_enable_hs(struct mwifiex_adapter *adapter)
 	}
 
 	wait_event_interruptible(adapter->hs_activate_wait_q,
-			adapter->hs_activate_wait_q_woken);
+				 adapter->hs_activate_wait_q_woken);
 
 	return true;
 }
@@ -453,8 +462,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bss_mode = priv->bss_mode;
 
-	memcpy(&info->ssid, &bss_desc->ssid,
-	       sizeof(struct mwifiex_802_11_ssid));
+	memcpy(&info->ssid, &bss_desc->ssid, sizeof(struct cfg80211_ssid));
 
 	memcpy(&info->bssid, &bss_desc->mac_address, ETH_ALEN);
 
@@ -471,7 +479,7 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bcn_nf_last = priv->bcn_nf_last;
 
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		info->wep_status = true;
 	else
 		info->wep_status = false;
@@ -519,30 +527,27 @@ int mwifiex_bss_set_channel(struct mwifiex_private *priv,
 		adapter->adhoc_start_band = BAND_G | BAND_B;
 	if (chan->channel) {
 		if (chan->channel <= MAX_CHANNEL_BAND_BG)
-			cfp = mwifiex_get_cfp_by_band_and_channel_from_cfg80211
-					(priv, 0, (u16) chan->channel);
+			cfp = mwifiex_get_cfp(priv, 0, (u16) chan->channel, 0);
 		if (!cfp) {
-			cfp = mwifiex_get_cfp_by_band_and_channel_from_cfg80211
-					(priv, BAND_A, (u16) chan->channel);
+			cfp = mwifiex_get_cfp(priv, BAND_A,
+					      (u16) chan->channel, 0);
 			if (cfp) {
 				if (adapter->adhoc_11n_enabled)
 					adapter->adhoc_start_band = BAND_A
-						| BAND_AN;
+								    | BAND_AN;
 				else
 					adapter->adhoc_start_band = BAND_A;
 			}
 		}
 	} else {
 		if (chan->freq <= MAX_FREQUENCY_BAND_BG)
-			cfp = mwifiex_get_cfp_by_band_and_freq_from_cfg80211(
-							priv, 0, chan->freq);
+			cfp = mwifiex_get_cfp(priv, 0, 0, chan->freq);
 		if (!cfp) {
-			cfp = mwifiex_get_cfp_by_band_and_freq_from_cfg80211
-						  (priv, BAND_A, chan->freq);
+			cfp = mwifiex_get_cfp(priv, BAND_A, 0, chan->freq);
 			if (cfp) {
 				if (adapter->adhoc_11n_enabled)
 					adapter->adhoc_start_band = BAND_A
-						| BAND_AN;
+								    | BAND_AN;
 				else
 					adapter->adhoc_start_band = BAND_A;
 			}
@@ -578,7 +583,7 @@ static int mwifiex_bss_ioctl_ibss_channel(struct mwifiex_private *priv,
 	}
 
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_RF_CHANNEL,
-				    action, 0, channel);
+				     action, 0, channel);
 }
 
 /*
@@ -599,7 +604,7 @@ static int mwifiex_bss_ioctl_ibss_channel(struct mwifiex_private *priv,
  *          - Start/Join the IBSS
  */
 int
-mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
+mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, u16 channel)
 {
 	int ret;
 	struct mwifiex_bss_info bss_info;
@@ -624,7 +629,7 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 		goto done;
 	}
 	dev_dbg(priv->adapter->dev, "cmd: updating channel from %d to %d\n",
-			curr_chan, channel);
+		curr_chan, channel);
 
 	if (!bss_info.media_connected) {
 		ret = 0;
@@ -636,7 +641,7 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 	ret = mwifiex_deauthenticate(priv, ssid_bssid.bssid);
 
 	ret = mwifiex_bss_ioctl_ibss_channel(priv, HostCmd_ACT_GEN_SET,
-					     (u16 *) &channel);
+					     &channel);
 
 	/* Do specific SSID scanning */
 	if (mwifiex_request_scan(priv, &bss_info.ssid)) {
@@ -646,7 +651,8 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 
 	band = mwifiex_band_to_radio_type(priv->curr_bss_params.band);
 	chan = __ieee80211_get_channel(priv->wdev->wiphy,
-			ieee80211_channel_to_frequency(channel, band));
+				       ieee80211_channel_to_frequency(channel,
+								      band));
 
 	/* Find the BSS we want using available scan results */
 	bss = cfg80211_get_bss(priv->wdev->wiphy, chan, bss_info.bssid,
@@ -654,7 +660,7 @@ mwifiex_drv_change_adhoc_chan(struct mwifiex_private *priv, int channel)
 			       WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
 	if (!bss)
 		wiphy_warn(priv->wdev->wiphy, "assoc: bss %pM not in scan results\n",
-			  bss_info.bssid);
+			   bss_info.bssid);
 
 	ret = mwifiex_bss_start(priv, bss, &bss_info.ssid);
 done:
@@ -783,7 +789,9 @@ int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 	if (!ret) {
 		if (rate->is_rate_auto)
 			rate->rate = mwifiex_index_to_data_rate(priv,
-					priv->tx_rate, priv->tx_htinfo);
+								priv->tx_rate,
+								priv->tx_htinfo
+								);
 		else
 			rate->rate = priv->data_rate;
 	} else {
@@ -820,16 +828,16 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 		if ((dbm < priv->min_tx_power_level) ||
 		    (dbm > priv->max_tx_power_level)) {
 			dev_err(priv->adapter->dev, "txpower value %d dBm"
-					" is out of range (%d dBm-%d dBm)\n",
-					dbm, priv->min_tx_power_level,
-					priv->max_tx_power_level);
+				" is out of range (%d dBm-%d dBm)\n",
+				dbm, priv->min_tx_power_level,
+				priv->max_tx_power_level);
 			return -1;
 		}
 	}
 	buf = kzalloc(MWIFIEX_SIZE_OF_CMD_BUFFER, GFP_KERNEL);
 	if (!buf) {
 		dev_err(priv->adapter->dev, "%s: failed to alloc cmd buffer\n",
-				__func__);
+			__func__);
 		return -ENOMEM;
 	}
 
@@ -837,13 +845,13 @@ int mwifiex_set_tx_power(struct mwifiex_private *priv,
 	txp_cfg->action = cpu_to_le16(HostCmd_ACT_GEN_SET);
 	if (!power_cfg->is_power_auto) {
 		txp_cfg->mode = cpu_to_le32(1);
-		pg_tlv = (struct mwifiex_types_power_group *) (buf +
-				sizeof(struct host_cmd_ds_txpwr_cfg));
+		pg_tlv = (struct mwifiex_types_power_group *)
+			 (buf + sizeof(struct host_cmd_ds_txpwr_cfg));
 		pg_tlv->type = TLV_TYPE_POWER_GROUP;
 		pg_tlv->length = 4 * sizeof(struct mwifiex_power_group);
-		pg = (struct mwifiex_power_group *) (buf +
-				sizeof(struct host_cmd_ds_txpwr_cfg) +
-				sizeof(struct mwifiex_types_power_group));
+		pg = (struct mwifiex_power_group *)
+		     (buf + sizeof(struct host_cmd_ds_txpwr_cfg)
+		      + sizeof(struct mwifiex_types_power_group));
 		/* Power group for modulation class HR/DSSS */
 		pg->first_rate_code = 0x00;
 		pg->last_rate_code = 0x03;
@@ -906,8 +914,8 @@ int mwifiex_drv_set_power(struct mwifiex_private *priv, u32 *ps_mode)
 				    sub_cmd, BITMAP_STA_PS, NULL);
 	if ((!ret) && (sub_cmd == DIS_AUTO_PS))
 		ret = mwifiex_send_cmd_async(priv,
-				HostCmd_CMD_802_11_PS_MODE_ENH, GET_PS,
-				0, NULL);
+					     HostCmd_CMD_802_11_PS_MODE_ENH,
+					     GET_PS, 0, NULL);
 
 	return ret;
 }
@@ -931,7 +939,7 @@ static int mwifiex_set_wpa_ie_helper(struct mwifiex_private *priv,
 		memcpy(priv->wpa_ie, ie_data_ptr, ie_len);
 		priv->wpa_ie_len = (u8) ie_len;
 		dev_dbg(priv->adapter->dev, "cmd: Set Wpa_ie_len=%d IE=%#x\n",
-				priv->wpa_ie_len, priv->wpa_ie[0]);
+			priv->wpa_ie_len, priv->wpa_ie[0]);
 
 		if (priv->wpa_ie[0] == WLAN_EID_WPA) {
 			priv->sec_info.wpa_enabled = true;
@@ -972,7 +980,7 @@ static int mwifiex_set_wapi_ie(struct mwifiex_private *priv,
 		memcpy(priv->wapi_ie, ie_data_ptr, ie_len);
 		priv->wapi_ie_len = ie_len;
 		dev_dbg(priv->adapter->dev, "cmd: Set wapi_ie_len=%d IE=%#x\n",
-				priv->wapi_ie_len, priv->wapi_ie[0]);
+			priv->wapi_ie_len, priv->wapi_ie[0]);
 
 		if (priv->wapi_ie[0] == WLAN_EID_BSS_AC_ACCESS_DELAY)
 			priv->sec_info.wapi_enabled = true;
@@ -998,8 +1006,8 @@ static int mwifiex_sec_ioctl_set_wapi_key(struct mwifiex_private *priv,
 {
 
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_KEY_MATERIAL,
-				    HostCmd_ACT_GEN_SET, KEY_INFO_ENABLED,
-				    encrypt_key);
+				     HostCmd_ACT_GEN_SET, KEY_INFO_ENABLED,
+				     encrypt_key);
 }
 
 /*
@@ -1020,7 +1028,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 	wep_key = &priv->wep_key[priv->wep_key_curr_index];
 	index = encrypt_key->key_index;
 	if (encrypt_key->key_disable) {
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_DISABLED;
+		priv->sec_info.wep_enabled = 0;
 	} else if (!encrypt_key->key_len) {
 		/* Copy the required key as the current key */
 		wep_key = &priv->wep_key[index];
@@ -1030,7 +1038,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 			return -1;
 		}
 		priv->wep_key_curr_index = (u16) index;
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_ENABLED;
+		priv->sec_info.wep_enabled = 1;
 	} else {
 		wep_key = &priv->wep_key[index];
 		memset(wep_key, 0, sizeof(struct mwifiex_wep_key));
@@ -1040,7 +1048,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		       encrypt_key->key_len);
 		wep_key->key_index = index;
 		wep_key->key_length = encrypt_key->key_len;
-		priv->sec_info.wep_status = MWIFIEX_802_11_WEP_ENABLED;
+		priv->sec_info.wep_enabled = 1;
 	}
 	if (wep_key->key_length) {
 		/* Send request to firmware */
@@ -1050,7 +1058,7 @@ static int mwifiex_sec_ioctl_set_wep_key(struct mwifiex_private *priv,
 		if (ret)
 			return ret;
 	}
-	if (priv->sec_info.wep_status == MWIFIEX_802_11_WEP_ENABLED)
+	if (priv->sec_info.wep_enabled)
 		priv->curr_pkt_filter |= HostCmd_ACT_MAC_WEP_ENABLE;
 	else
 		priv->curr_pkt_filter &= ~HostCmd_ACT_MAC_WEP_ENABLE;
@@ -1093,9 +1101,9 @@ static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_private *priv,
 		/* Send the key as PTK to firmware */
 		encrypt_key->key_index = MWIFIEX_KEY_INDEX_UNICAST;
 		ret = mwifiex_send_cmd_async(priv,
-					HostCmd_CMD_802_11_KEY_MATERIAL,
-					HostCmd_ACT_GEN_SET, KEY_INFO_ENABLED,
-					encrypt_key);
+					     HostCmd_CMD_802_11_KEY_MATERIAL,
+					     HostCmd_ACT_GEN_SET,
+					     KEY_INFO_ENABLED, encrypt_key);
 		if (ret)
 			return ret;
 
@@ -1120,14 +1128,14 @@ static int mwifiex_sec_ioctl_set_wpa_key(struct mwifiex_private *priv,
 
 	if (remove_key)
 		ret = mwifiex_send_cmd_sync(priv,
-				       HostCmd_CMD_802_11_KEY_MATERIAL,
-				       HostCmd_ACT_GEN_SET, !(KEY_INFO_ENABLED),
-				       encrypt_key);
+					    HostCmd_CMD_802_11_KEY_MATERIAL,
+					    HostCmd_ACT_GEN_SET,
+					    !KEY_INFO_ENABLED, encrypt_key);
 	else
 		ret = mwifiex_send_cmd_sync(priv,
-					HostCmd_CMD_802_11_KEY_MATERIAL,
-					HostCmd_ACT_GEN_SET, KEY_INFO_ENABLED,
-					encrypt_key);
+					    HostCmd_CMD_802_11_KEY_MATERIAL,
+					    HostCmd_ACT_GEN_SET,
+					    KEY_INFO_ENABLED, encrypt_key);
 
 	return ret;
 }
@@ -1246,7 +1254,7 @@ mwifiex_get_ver_ext(struct mwifiex_private *priv)
 
 	memset(&ver_ext, 0, sizeof(struct host_cmd_ds_version_ext));
 	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_VERSION_EXT,
-				    HostCmd_ACT_GEN_GET, 0, &ver_ext))
+				  HostCmd_ACT_GEN_GET, 0, &ver_ext))
 		return -1;
 
 	return 0;
@@ -1263,7 +1271,7 @@ mwifiex_get_stats_info(struct mwifiex_private *priv,
 		       struct mwifiex_ds_get_stats *log)
 {
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_GET_LOG,
-				    HostCmd_ACT_GEN_GET, 0, log);
+				     HostCmd_ACT_GEN_GET, 0, log);
 }
 
 /*
@@ -1403,9 +1411,9 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 	}
 	pvendor_ie = (struct ieee_types_vendor_header *) ie_data_ptr;
 	/* Test to see if it is a WPA IE, if not, then it is a gen IE */
-	if (((pvendor_ie->element_id == WLAN_EID_WPA)
-	     && (!memcmp(pvendor_ie->oui, wpa_oui, sizeof(wpa_oui))))
-			|| (pvendor_ie->element_id == WLAN_EID_RSN)) {
+	if (((pvendor_ie->element_id == WLAN_EID_WPA) &&
+	     (!memcmp(pvendor_ie->oui, wpa_oui, sizeof(wpa_oui)))) ||
+	    (pvendor_ie->element_id == WLAN_EID_RSN)) {
 
 		/* IE is a WPA/WPA2 IE so call set_wpa function */
 		ret = mwifiex_set_wpa_ie_helper(priv, ie_data_ptr, ie_len);
@@ -1428,9 +1436,8 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 		 * wps session flag
 		 */
 		pvendor_ie = (struct ieee_types_vendor_header *) ie_data_ptr;
-		if ((pvendor_ie->element_id == WLAN_EID_VENDOR_SPECIFIC)
-				&& (!memcmp(pvendor_ie->oui, wps_oui,
-						sizeof(wps_oui)))) {
+		if ((pvendor_ie->element_id == WLAN_EID_VENDOR_SPECIFIC) &&
+		    (!memcmp(pvendor_ie->oui, wps_oui, sizeof(wps_oui)))) {
 			priv->wps.session_enable = true;
 			dev_dbg(priv->adapter->dev,
 				"info: WPS Session Enabled.\n");
@@ -1439,7 +1446,7 @@ mwifiex_set_gen_ie_helper(struct mwifiex_private *priv, u8 *ie_data_ptr,
 		/* Append the passed data to the end of the
 		   genIeBuffer */
 		memcpy(priv->gen_ie_buf + priv->gen_ie_buf_len, ie_data_ptr,
-									ie_len);
+		       ie_len);
 		/* Increment the stored buffer length by the
 		   size passed */
 		priv->gen_ie_buf_len += ie_len;
@@ -1483,7 +1490,7 @@ static int mwifiex_misc_ioctl_gen_ie(struct mwifiex_private *priv,
 			return -1;
 		} else {
 			memcpy(adapter->arp_filter, gen_ie->ie_data,
-								gen_ie->len);
+			       gen_ie->len);
 			adapter->arp_filter_size = gen_ie->len;
 		}
 		break;

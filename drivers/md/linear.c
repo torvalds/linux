@@ -68,10 +68,19 @@ static int linear_mergeable_bvec(struct request_queue *q,
 	struct dev_info *dev0;
 	unsigned long maxsectors, bio_sectors = bvm->bi_size >> 9;
 	sector_t sector = bvm->bi_sector + get_start_sect(bvm->bi_bdev);
+	int maxbytes = biovec->bv_len;
+	struct request_queue *subq;
 
 	rcu_read_lock();
 	dev0 = which_dev(mddev, sector);
 	maxsectors = dev0->end_sector - sector;
+	subq = bdev_get_queue(dev0->rdev->bdev);
+	if (subq->merge_bvec_fn) {
+		bvm->bi_bdev = dev0->rdev->bdev;
+		bvm->bi_sector -= dev0->end_sector - dev0->rdev->sectors;
+		maxbytes = min(maxbytes, subq->merge_bvec_fn(subq, bvm,
+							     biovec));
+	}
 	rcu_read_unlock();
 
 	if (maxsectors < bio_sectors)
@@ -80,12 +89,12 @@ static int linear_mergeable_bvec(struct request_queue *q,
 		maxsectors -= bio_sectors;
 
 	if (maxsectors <= (PAGE_SIZE >> 9 ) && bio_sectors == 0)
-		return biovec->bv_len;
-	/* The bytes available at this offset could be really big,
-	 * so we cap at 2^31 to avoid overflow */
-	if (maxsectors > (1 << (31-9)))
-		return 1<<31;
-	return maxsectors << 9;
+		return maxbytes;
+
+	if (maxsectors > (maxbytes >> 9))
+		return maxbytes;
+	else
+		return maxsectors << 9;
 }
 
 static int linear_congested(void *data, int bits)
@@ -138,7 +147,7 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 	cnt = 0;
 	conf->array_sectors = 0;
 
-	list_for_each_entry(rdev, &mddev->disks, same_set) {
+	rdev_for_each(rdev, mddev) {
 		int j = rdev->raid_disk;
 		struct dev_info *disk = conf->disks + j;
 		sector_t sectors;
@@ -158,15 +167,6 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 
 		disk_stack_limits(mddev->gendisk, rdev->bdev,
 				  rdev->data_offset << 9);
-		/* as we don't honour merge_bvec_fn, we must never risk
-		 * violating it, so limit max_segments to 1 lying within
-		 * a single page.
-		 */
-		if (rdev->bdev->bd_disk->queue->merge_bvec_fn) {
-			blk_queue_max_segments(mddev->queue, 1);
-			blk_queue_segment_boundary(mddev->queue,
-						   PAGE_CACHE_SIZE - 1);
-		}
 
 		conf->array_sectors += rdev->sectors;
 		cnt++;

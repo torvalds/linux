@@ -125,13 +125,15 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr, int al
 
 	err = l2cap_chan_connect(chan, la.l2_psm, la.l2_cid, &la.l2_bdaddr);
 	if (err)
-		goto done;
+		return err;
+
+	lock_sock(sk);
 
 	err = bt_sock_wait_state(sk, BT_CONNECTED,
 			sock_sndtimeo(sk, flags & O_NONBLOCK));
-done:
-	if (sock_owned_by_user(sk))
-		release_sock(sk);
+
+	release_sock(sk);
+
 	return err;
 }
 
@@ -783,7 +785,7 @@ static void l2cap_sock_kill(struct sock *sk)
 	if (!sock_flag(sk, SOCK_ZAPPED) || sk->sk_socket)
 		return;
 
-	BT_DBG("sk %p state %d", sk, sk->sk_state);
+	BT_DBG("sk %p state %s", sk, state_to_string(sk->sk_state));
 
 	/* Kill poor orphan */
 
@@ -795,7 +797,8 @@ static void l2cap_sock_kill(struct sock *sk)
 static int l2cap_sock_shutdown(struct socket *sock, int how)
 {
 	struct sock *sk = sock->sk;
-	struct l2cap_chan *chan = l2cap_pi(sk)->chan;
+	struct l2cap_chan *chan;
+	struct l2cap_conn *conn;
 	int err = 0;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
@@ -803,13 +806,24 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 	if (!sk)
 		return 0;
 
+	chan = l2cap_pi(sk)->chan;
+	conn = chan->conn;
+
+	if (conn)
+		mutex_lock(&conn->chan_lock);
+
+	l2cap_chan_lock(chan);
 	lock_sock(sk);
+
 	if (!sk->sk_shutdown) {
 		if (chan->mode == L2CAP_MODE_ERTM)
 			err = __l2cap_wait_ack(sk);
 
 		sk->sk_shutdown = SHUTDOWN_MASK;
+
+		release_sock(sk);
 		l2cap_chan_close(chan, 0);
+		lock_sock(sk);
 
 		if (sock_flag(sk, SOCK_LINGER) && sk->sk_lingertime)
 			err = bt_sock_wait_state(sk, BT_CLOSED,
@@ -820,6 +834,11 @@ static int l2cap_sock_shutdown(struct socket *sock, int how)
 		err = -sk->sk_err;
 
 	release_sock(sk);
+	l2cap_chan_unlock(chan);
+
+	if (conn)
+		mutex_unlock(&conn->chan_lock);
+
 	return err;
 }
 
@@ -849,6 +868,8 @@ static struct l2cap_chan *l2cap_sock_new_connection_cb(void *data)
 	if (!sk)
 		return NULL;
 
+	bt_sock_reclassify_lock(sk, BTPROTO_L2CAP);
+
 	l2cap_sock_init(sk, parent);
 
 	return l2cap_pi(sk)->chan;
@@ -860,8 +881,12 @@ static int l2cap_sock_recv_cb(void *data, struct sk_buff *skb)
 	struct sock *sk = data;
 	struct l2cap_pinfo *pi = l2cap_pi(sk);
 
-	if (pi->rx_busy_skb)
-		return -ENOMEM;
+	lock_sock(sk);
+
+	if (pi->rx_busy_skb) {
+		err = -ENOMEM;
+		goto done;
+	}
 
 	err = sock_queue_rcv_skb(sk, skb);
 
@@ -880,6 +905,9 @@ static int l2cap_sock_recv_cb(void *data, struct sk_buff *skb)
 		err = 0;
 	}
 
+done:
+	release_sock(sk);
+
 	return err;
 }
 
@@ -897,12 +925,22 @@ static void l2cap_sock_state_change_cb(void *data, int state)
 	sk->sk_state = state;
 }
 
+static struct sk_buff *l2cap_sock_alloc_skb_cb(struct l2cap_chan *chan,
+					       unsigned long len, int nb,
+					       int *err)
+{
+	struct sock *sk = chan->sk;
+
+	return bt_skb_send_alloc(sk, len, nb, err);
+}
+
 static struct l2cap_ops l2cap_chan_ops = {
 	.name		= "L2CAP Socket Interface",
 	.new_connection	= l2cap_sock_new_connection_cb,
 	.recv		= l2cap_sock_recv_cb,
 	.close		= l2cap_sock_close_cb,
 	.state_change	= l2cap_sock_state_change_cb,
+	.alloc_skb	= l2cap_sock_alloc_skb_cb,
 };
 
 static void l2cap_sock_destruct(struct sock *sk)

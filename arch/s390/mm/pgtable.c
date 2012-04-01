@@ -18,7 +18,6 @@
 #include <linux/rcupdate.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
@@ -574,7 +573,7 @@ static inline void page_table_free_pgste(unsigned long *table)
 	page = pfn_to_page(__pa(table) >> PAGE_SHIFT);
 	mp = (struct gmap_pgtable *) page->index;
 	BUG_ON(!list_empty(&mp->mapper));
-	pgtable_page_ctor(page);
+	pgtable_page_dtor(page);
 	atomic_set(&page->_mapcount, -1);
 	kfree(mp);
 	__free_page(page);

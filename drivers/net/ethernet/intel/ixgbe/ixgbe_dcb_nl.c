@@ -111,7 +111,7 @@ static u8 ixgbe_dcbnl_get_state(struct net_device *netdev)
 
 static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 {
-	u8 err = 0;
+	int err = 0;
 	u8 prio_tc[MAX_USER_PRIORITY] = {0};
 	int i;
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
@@ -122,7 +122,7 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 
 	/* verify there is something to do, if not then exit */
 	if (!!state != !(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
-		return err;
+		goto out;
 
 	if (state > 0) {
 		err = ixgbe_setup_tc(netdev, adapter->dcb_cfg.num_tcs.pg_tcs);
@@ -131,10 +131,14 @@ static u8 ixgbe_dcbnl_set_state(struct net_device *netdev, u8 state)
 		err = ixgbe_setup_tc(netdev, 0);
 	}
 
+	if (err)
+		goto out;
+
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 		netdev_set_prio_tc_map(netdev, i, prio_tc[i]);
 
-	return err;
+out:
+	return err ? 1 : 0;
 }
 
 static void ixgbe_dcbnl_get_perm_hw_addr(struct net_device *netdev,
@@ -486,7 +490,7 @@ static u8 ixgbe_dcbnl_getcap(struct net_device *netdev, int capid, u8 *cap)
 	return 0;
 }
 
-static u8 ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
+static int ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	u8 rval = 0;
@@ -510,7 +514,7 @@ static u8 ixgbe_dcbnl_getnumtcs(struct net_device *netdev, int tcid, u8 *num)
 	return rval;
 }
 
-static u8 ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)
+static int ixgbe_dcbnl_setnumtcs(struct net_device *netdev, int tcid, u8 num)
 {
 	return -EINVAL;
 }
@@ -581,7 +585,7 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int max_frame = dev->mtu + ETH_HLEN + ETH_FCS_LEN;
-	int i;
+	int i, err = 0;
 	__u8 max_tc = 0;
 
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE))
@@ -608,12 +612,17 @@ static int ixgbe_dcbnl_ieee_setets(struct net_device *dev,
 		return -EINVAL;
 
 	if (max_tc != netdev_get_num_tc(dev))
-		ixgbe_setup_tc(dev, max_tc);
+		err = ixgbe_setup_tc(dev, max_tc);
+
+	if (err)
+		goto err_out;
 
 	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
 		netdev_set_prio_tc_map(dev, i, ets->prio_tc[i]);
 
-	return ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
+	err = ixgbe_dcb_hw_ets(&adapter->hw, ets, max_frame);
+err_out:
+	return err;
 }
 
 static int ixgbe_dcbnl_ieee_getpfc(struct net_device *dev,
@@ -726,6 +735,7 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	struct ieee_ets ets = {0};
 	struct ieee_pfc pfc = {0};
+	int err = 0;
 
 	/* no support for LLD_MANAGED modes or CEE+IEEE */
 	if ((mode & DCB_CAP_DCBX_LLD_MANAGED) ||
@@ -756,10 +766,10 @@ static u8 ixgbe_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 		 */
 		ixgbe_dcbnl_ieee_setets(dev, &ets);
 		ixgbe_dcbnl_ieee_setpfc(dev, &pfc);
-		ixgbe_setup_tc(dev, 0);
+		err = ixgbe_setup_tc(dev, 0);
 	}
 
-	return 0;
+	return err ? 1 : 0;
 }
 
 const struct dcbnl_rtnl_ops dcbnl_ops = {

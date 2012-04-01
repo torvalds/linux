@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
@@ -315,8 +314,14 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	current->mm->free_area_cache = TASK_UNMAPPED_BASE;
 	current->mm->cached_hole_size = 0;
 
+	retval = setup_arg_pages(bprm, IA32_STACK_TOP, EXSTACK_DEFAULT);
+	if (retval < 0) {
+		/* Someone check-me: is this error path enough? */
+		send_sig(SIGKILL, current, 0);
+		return retval;
+	}
+
 	install_exec_creds(bprm);
-	current->flags &= ~PF_FORKNOEXEC;
 
 	if (N_MAGIC(ex) == OMAGIC) {
 		unsigned long text_addr, map_size;
@@ -409,13 +414,6 @@ beyond_if:
 	set_binfmt(&aout_format);
 
 	set_brk(current->mm->start_brk, current->mm->brk);
-
-	retval = setup_arg_pages(bprm, IA32_STACK_TOP, EXSTACK_DEFAULT);
-	if (retval < 0) {
-		/* Someone check-me: is this error path enough? */
-		send_sig(SIGKILL, current, 0);
-		return retval;
-	}
 
 	current->mm->start_stack =
 		(unsigned long)create_aout_tables((char __user *)bprm->p, bprm);
@@ -519,7 +517,8 @@ out:
 
 static int __init init_aout_binfmt(void)
 {
-	return register_binfmt(&aout_format);
+	register_binfmt(&aout_format);
+	return 0;
 }
 
 static void __exit exit_aout_binfmt(void)

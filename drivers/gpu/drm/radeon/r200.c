@@ -215,7 +215,17 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 			r100_cs_dump_packet(p, pkt);
 			return r;
 		}
-		ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= R200_TXO_MACRO_TILE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= R200_TXO_MICRO_TILE;
+
+			tmp = idx_value & ~(0x7 << 2);
+			tmp |= tile_flags;
+			ib[idx] = tmp + ((u32)reloc->lobj.gpu_offset);
+		} else
+			ib[idx] = idx_value + ((u32)reloc->lobj.gpu_offset);
 		track->textures[i].robj = reloc->robj;
 		track->tex_dirty = true;
 		break;
@@ -277,14 +287,17 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 			return r;
 		}
 
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
-			tile_flags |= RADEON_COLOR_TILE_ENABLE;
-		if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
-			tile_flags |= RADEON_COLOR_MICROTILE_ENABLE;
+		if (!(p->cs_flags & RADEON_CS_KEEP_TILING_FLAGS)) {
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MACRO)
+				tile_flags |= RADEON_COLOR_TILE_ENABLE;
+			if (reloc->lobj.tiling_flags & RADEON_TILING_MICRO)
+				tile_flags |= RADEON_COLOR_MICROTILE_ENABLE;
 
-		tmp = idx_value & ~(0x7 << 16);
-		tmp |= tile_flags;
-		ib[idx] = tmp;
+			tmp = idx_value & ~(0x7 << 16);
+			tmp |= tile_flags;
+			ib[idx] = tmp;
+		} else
+			ib[idx] = idx_value;
 
 		track->cb[0].pitch = idx_value & RADEON_COLORPITCH_MASK;
 		track->cb_dirty = true;

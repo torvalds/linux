@@ -441,6 +441,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	sb->s_fs_info = sbi;
+	sb->s_max_links = JFS_LINK_MAX;
 	sbi->sb = sb;
 	sbi->uid = sbi->gid = sbi->umask = -1;
 
@@ -521,7 +522,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 		ret = PTR_ERR(inode);
 		goto out_no_rw;
 	}
-	sb->s_root = d_alloc_root(inode);
+	sb->s_root = d_make_root(inode);
 	if (!sb->s_root)
 		goto out_no_root;
 
@@ -539,7 +540,6 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 
 out_no_root:
 	jfs_err("jfs_read_super: get root dentry failed");
-	iput(inode);
 
 out_no_rw:
 	rc = jfs_umount(sb);
@@ -860,8 +860,14 @@ static int __init init_jfs_fs(void)
 	jfs_proc_init();
 #endif
 
-	return register_filesystem(&jfs_fs_type);
+	rc = register_filesystem(&jfs_fs_type);
+	if (!rc)
+		return 0;
 
+#ifdef PROC_FS_JFS
+	jfs_proc_clean();
+#endif
+	kthread_stop(jfsSyncThread);
 kill_committask:
 	for (i = 0; i < commit_threads; i++)
 		kthread_stop(jfsCommitThread[i]);

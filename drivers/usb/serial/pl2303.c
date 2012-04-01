@@ -104,7 +104,6 @@ static struct usb_driver pl2303_driver = {
 	.id_table =	id_table,
 	.suspend =      usb_serial_suspend,
 	.resume =       usb_serial_resume,
-	.no_dynamic_id = 	1,
 	.supports_autosuspend =	1,
 };
 
@@ -834,7 +833,6 @@ static struct usb_serial_driver pl2303_device = {
 		.name =		"pl2303",
 	},
 	.id_table =		id_table,
-	.usb_driver = 		&pl2303_driver,
 	.num_ports =		1,
 	.bulk_in_size =		256,
 	.bulk_out_size =	256,
@@ -853,32 +851,11 @@ static struct usb_serial_driver pl2303_device = {
 	.release =		pl2303_release,
 };
 
-static int __init pl2303_init(void)
-{
-	int retval;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&pl2303_device, NULL
+};
 
-	retval = usb_serial_register(&pl2303_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&pl2303_driver);
-	if (retval)
-		goto failed_usb_register;
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&pl2303_device);
-failed_usb_serial_register:
-	return retval;
-}
-
-static void __exit pl2303_exit(void)
-{
-	usb_deregister(&pl2303_driver);
-	usb_serial_deregister(&pl2303_device);
-}
-
-module_init(pl2303_init);
-module_exit(pl2303_exit);
+module_usb_serial_driver(pl2303_driver, serial_drivers);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

@@ -337,6 +337,13 @@ static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 			schedule_delayed_work(&disc->disc_work, delay);
 		} else
 			fc_disc_done(disc, DISC_EV_FAILED);
+	} else if (PTR_ERR(fp) == -FC_EX_CLOSED) {
+		/*
+		 * if discovery fails due to lport reset, clear
+		 * pending flag so that subsequent discovery can
+		 * continue
+		 */
+		disc->pending = 0;
 	}
 }
 

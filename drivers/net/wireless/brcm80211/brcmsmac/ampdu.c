@@ -915,7 +915,7 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(p);
 	struct wiphy *wiphy = wlc->wiphy;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	u8 hole[AMPDU_MAX_MPDU];
 	memset(hole, 0, sizeof(hole));
 #endif
@@ -959,14 +959,13 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		if (supr_status) {
 			update_rate = false;
 			if (supr_status == TX_STATUS_SUPR_BADCH) {
-				wiphy_err(wiphy, "%s: Pkt tx suppressed, "
-					  "illegal channel possibly %d\n",
+				wiphy_err(wiphy,
+					  "%s: Pkt tx suppressed, illegal channel possibly %d\n",
 					  __func__, CHSPEC_CHANNEL(
 					  wlc->default_bss->chanspec));
 			} else {
 				if (supr_status != TX_STATUS_SUPR_FRAG)
-					wiphy_err(wiphy, "%s:"
-						  "supr_status 0x%x\n",
+					wiphy_err(wiphy, "%s: supr_status 0x%x\n",
 						  __func__, supr_status);
 			}
 			/* no need to retry for badch; will fail again */
@@ -988,9 +987,8 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 			}
 		} else if (txs->phyerr) {
 			update_rate = false;
-			wiphy_err(wiphy, "wl%d: ampdu tx phy "
-				  "error (0x%x)\n", wlc->pub->unit,
-				  txs->phyerr);
+			wiphy_err(wiphy, "%s: ampdu tx phy error (0x%x)\n",
+				  __func__, txs->phyerr);
 
 			if (brcm_msg_level & LOG_ERROR_VAL) {
 				brcmu_prpkt("txpkt (AMPDU)", p);
@@ -1018,10 +1016,10 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		ack_recd = false;
 		if (ba_recd) {
 			bindex = MODSUB_POW2(seq, start_seq, SEQNUM_MAX);
-			BCMMSG(wlc->wiphy, "tid %d seq %d,"
-				" start_seq %d, bindex %d set %d, index %d\n",
-				tid, seq, start_seq, bindex,
-				isset(bitmap, bindex), index);
+			BCMMSG(wiphy,
+			       "tid %d seq %d, start_seq %d, bindex %d set %d, index %d\n",
+			       tid, seq, start_seq, bindex,
+			       isset(bitmap, bindex), index);
 			/* if acked then clear bit and free packet */
 			if ((bindex < AMPDU_TX_BA_MAX_WSIZE)
 			    && isset(bitmap, bindex)) {
@@ -1051,17 +1049,13 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 		}
 		/* either retransmit or send bar if ack not recd */
 		if (!ack_recd) {
-			struct ieee80211_tx_rate *txrate =
-			    tx_info->status.rates;
-			if (retry && (txrate[0].count < (int)retry_limit)) {
+			if (retry && (ini->txretry[index] < (int)retry_limit)) {
 				ini->txretry[index]++;
 				ini->tx_in_transit--;
 				/*
 				 * Use high prededence for retransmit to
 				 * give some punch
 				 */
-				/* brcms_c_txq_enq(wlc, scb, p,
-				 * BRCMS_PRIO_TO_PREC(tid)); */
 				brcms_c_txq_enq(wlc, scb, p,
 						BRCMS_PRIO_TO_HI_PREC(tid));
 			} else {
@@ -1074,9 +1068,9 @@ brcms_c_ampdu_dotxstatus_complete(struct ampdu_info *ampdu, struct scb *scb,
 				    IEEE80211_TX_STAT_AMPDU_NO_BACK;
 				skb_pull(p, D11_PHY_HDR_LEN);
 				skb_pull(p, D11_TXH_LEN);
-				wiphy_err(wiphy, "%s: BA Timeout, seq %d, in_"
-					"transit %d\n", "AMPDU status", seq,
-					ini->tx_in_transit);
+				BCMMSG(wiphy,
+				       "BA Timeout, seq %d, in_transit %d\n",
+				       seq, ini->tx_in_transit);
 				ieee80211_tx_status_irqsafe(wlc->pub->ieee_hw,
 							    p);
 			}

@@ -125,6 +125,9 @@ static struct us_unusual_dev us_unusual_dev_list[] = {
 	{ }		/* Terminating entry */
 };
 
+static struct us_unusual_dev for_dynamic_ids =
+		USUAL_DEV(USB_SC_SCSI, USB_PR_BULK, 0);
+
 #undef UNUSUAL_DEV
 #undef COMPLIANT_DEV
 #undef USUAL_DEV
@@ -788,15 +791,19 @@ static void quiesce_and_remove_host(struct us_data *us)
 	struct Scsi_Host *host = us_to_host(us);
 
 	/* If the device is really gone, cut short reset delays */
-	if (us->pusb_dev->state == USB_STATE_NOTATTACHED)
+	if (us->pusb_dev->state == USB_STATE_NOTATTACHED) {
 		set_bit(US_FLIDX_DISCONNECTING, &us->dflags);
+		wake_up(&us->delay_wait);
+	}
 
-	/* Prevent SCSI-scanning (if it hasn't started yet)
-	 * and wait for the SCSI-scanning thread to stop.
+	/* Prevent SCSI scanning (if it hasn't started yet)
+	 * or wait for the SCSI-scanning routine to stop.
 	 */
-	set_bit(US_FLIDX_DONT_SCAN, &us->dflags);
-	wake_up(&us->delay_wait);
-	wait_for_completion(&us->scanning_done);
+	cancel_delayed_work_sync(&us->scan_dwork);
+
+	/* Balance autopm calls if scanning was cancelled */
+	if (test_bit(US_FLIDX_SCAN_PENDING, &us->dflags))
+		usb_autopm_put_interface_no_suspend(us->pusb_intf);
 
 	/* Removing the host will perform an orderly shutdown: caches
 	 * synchronized, disks spun down, etc.
@@ -823,53 +830,28 @@ static void release_everything(struct us_data *us)
 	scsi_host_put(us_to_host(us));
 }
 
-/* Thread to carry out delayed SCSI-device scanning */
-static int usb_stor_scan_thread(void * __us)
+/* Delayed-work routine to carry out SCSI-device scanning */
+static void usb_stor_scan_dwork(struct work_struct *work)
 {
-	struct us_data *us = (struct us_data *)__us;
+	struct us_data *us = container_of(work, struct us_data,
+			scan_dwork.work);
 	struct device *dev = &us->pusb_intf->dev;
 
-	dev_dbg(dev, "device found\n");
+	dev_dbg(dev, "starting scan\n");
 
-	set_freezable();
-
-	/*
-	 * Wait for the timeout to expire or for a disconnect
-	 *
-	 * We can't freeze in this thread or we risk causing khubd to
-	 * fail to freeze, but we can't be non-freezable either. Nor can
-	 * khubd freeze while waiting for scanning to complete as it may
-	 * hold the device lock, causing a hang when suspending devices.
-	 * So instead of using wait_event_freezable(), explicitly test
-	 * for (DONT_SCAN || freezing) in interruptible wait and proceed
-	 * if any of DONT_SCAN, freezing or timeout has happened.
-	 */
-	if (delay_use > 0) {
-		dev_dbg(dev, "waiting for device to settle "
-				"before scanning\n");
-		wait_event_interruptible_timeout(us->delay_wait,
-				test_bit(US_FLIDX_DONT_SCAN, &us->dflags) ||
-				freezing(current), delay_use * HZ);
+	/* For bulk-only devices, determine the max LUN value */
+	if (us->protocol == USB_PR_BULK && !(us->fflags & US_FL_SINGLE_LUN)) {
+		mutex_lock(&us->dev_mutex);
+		us->max_lun = usb_stor_Bulk_max_lun(us);
+		mutex_unlock(&us->dev_mutex);
 	}
+	scsi_scan_host(us_to_host(us));
+	dev_dbg(dev, "scan complete\n");
 
-	/* If the device is still connected, perform the scanning */
-	if (!test_bit(US_FLIDX_DONT_SCAN, &us->dflags)) {
-
-		/* For bulk-only devices, determine the max LUN value */
-		if (us->protocol == USB_PR_BULK &&
-				!(us->fflags & US_FL_SINGLE_LUN)) {
-			mutex_lock(&us->dev_mutex);
-			us->max_lun = usb_stor_Bulk_max_lun(us);
-			mutex_unlock(&us->dev_mutex);
-		}
-		scsi_scan_host(us_to_host(us));
-		dev_dbg(dev, "scan complete\n");
-
-		/* Should we unbind if no devices were detected? */
-	}
+	/* Should we unbind if no devices were detected? */
 
 	usb_autopm_put_interface(us->pusb_intf);
-	complete_and_exit(&us->scanning_done, 0);
+	clear_bit(US_FLIDX_SCAN_PENDING, &us->dflags);
 }
 
 static unsigned int usb_stor_sg_tablesize(struct usb_interface *intf)
@@ -916,7 +898,7 @@ int usb_stor_probe1(struct us_data **pus,
 	init_completion(&us->cmnd_ready);
 	init_completion(&(us->notify));
 	init_waitqueue_head(&us->delay_wait);
-	init_completion(&us->scanning_done);
+	INIT_DELAYED_WORK(&us->scan_dwork, usb_stor_scan_dwork);
 
 	/* Associate the us_data structure with the USB device */
 	result = associate_dev(us, intf);
@@ -947,7 +929,6 @@ EXPORT_SYMBOL_GPL(usb_stor_probe1);
 /* Second part of general USB mass-storage probing */
 int usb_stor_probe2(struct us_data *us)
 {
-	struct task_struct *th;
 	int result;
 	struct device *dev = &us->pusb_intf->dev;
 
@@ -988,20 +969,14 @@ int usb_stor_probe2(struct us_data *us)
 		goto BadDevice;
 	}
 
-	/* Start up the thread for delayed SCSI-device scanning */
-	th = kthread_create(usb_stor_scan_thread, us, "usb-stor-scan");
-	if (IS_ERR(th)) {
-		dev_warn(dev,
-				"Unable to start the device-scanning thread\n");
-		complete(&us->scanning_done);
-		quiesce_and_remove_host(us);
-		result = PTR_ERR(th);
-		goto BadDevice;
-	}
-
+	/* Submit the delayed_work for SCSI-device scanning */
 	usb_autopm_get_interface_no_resume(us->pusb_intf);
-	wake_up_process(th);
+	set_bit(US_FLIDX_SCAN_PENDING, &us->dflags);
 
+	if (delay_use > 0)
+		dev_dbg(dev, "waiting for device to settle before scanning\n");
+	queue_delayed_work(system_freezable_wq, &us->scan_dwork,
+			delay_use * HZ);
 	return 0;
 
 	/* We come here if there are any problems */
@@ -1027,8 +1002,10 @@ EXPORT_SYMBOL_GPL(usb_stor_disconnect);
 static int storage_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id)
 {
+	struct us_unusual_dev *unusual_dev;
 	struct us_data *us;
 	int result;
+	int size;
 
 	/*
 	 * If libusual is configured, let it decide whether a standard
@@ -1047,8 +1024,19 @@ static int storage_probe(struct usb_interface *intf,
 	 * table, so we use the index of the id entry to find the
 	 * corresponding unusual_devs entry.
 	 */
-	result = usb_stor_probe1(&us, intf, id,
-			(id - usb_storage_usb_ids) + us_unusual_dev_list);
+
+	size = ARRAY_SIZE(us_unusual_dev_list);
+	if (id >= usb_storage_usb_ids && id < usb_storage_usb_ids + size) {
+		unusual_dev = (id - usb_storage_usb_ids) + us_unusual_dev_list;
+	} else {
+		unusual_dev = &for_dynamic_ids;
+
+		US_DEBUGP("%s %s 0x%04x 0x%04x\n", "Use Bulk-Only transport",
+			"with the Transparent SCSI protocol for dynamic id:",
+			id->idVendor, id->idProduct);
+	}
+
+	result = usb_stor_probe1(&us, intf, id, unusual_dev);
 	if (result)
 		return result;
 
@@ -1074,7 +1062,6 @@ static struct usb_driver usb_storage_driver = {
 	.id_table =	usb_storage_usb_ids,
 	.supports_autosuspend = 1,
 	.soft_unbind =	1,
-	.no_dynamic_id = 1,
 };
 
 static int __init usb_stor_init(void)

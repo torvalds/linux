@@ -50,6 +50,7 @@
 #define ROW_MASK	0xF0
 #define COLUMN_MASK	0x0F
 #define ROW_SHIFT	4
+#define KEY_MATRIX_SHIFT	6
 
 struct spear_kbd {
 	struct input_dev *input;
@@ -57,6 +58,7 @@ struct spear_kbd {
 	void __iomem *io_base;
 	struct clk *clk;
 	unsigned int irq;
+	unsigned int mode;
 	unsigned short last_key;
 	unsigned short keycodes[256];
 };
@@ -106,7 +108,8 @@ static int spear_kbd_open(struct input_dev *dev)
 		return error;
 
 	/* program keyboard */
-	val = SCAN_RATE_80 | MODE_KEYBOARD | PCLK_FREQ_MSK;
+	val = SCAN_RATE_80 | MODE_KEYBOARD | PCLK_FREQ_MSK |
+		(kbd->mode << KEY_MATRIX_SHIFT);
 	writew(val, kbd->io_base + MODE_REG);
 	writeb(1, kbd->io_base + STATUS_REG);
 
@@ -176,6 +179,8 @@ static int __devinit spear_kbd_probe(struct platform_device *pdev)
 
 	kbd->input = input_dev;
 	kbd->irq = irq;
+	kbd->mode = pdata->mode;
+
 	kbd->res = request_mem_region(res->start, resource_size(res),
 				      pdev->name);
 	if (!kbd->res) {
@@ -308,12 +313,9 @@ static int spear_kbd_resume(struct device *dev)
 
 	return 0;
 }
-
-static const struct dev_pm_ops spear_kbd_pm_ops = {
-	.suspend	= spear_kbd_suspend,
-	.resume		= spear_kbd_resume,
-};
 #endif
+
+static SIMPLE_DEV_PM_OPS(spear_kbd_pm_ops, spear_kbd_suspend, spear_kbd_resume);
 
 static struct platform_driver spear_kbd_driver = {
 	.probe		= spear_kbd_probe,
@@ -321,9 +323,7 @@ static struct platform_driver spear_kbd_driver = {
 	.driver		= {
 		.name	= "keyboard",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &spear_kbd_pm_ops,
-#endif
 	},
 };
 module_platform_driver(spear_kbd_driver);

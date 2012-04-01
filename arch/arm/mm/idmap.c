@@ -5,6 +5,7 @@
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
 #include <asm/sections.h>
+#include <asm/system_info.h>
 
 pgd_t *idmap_pgd;
 

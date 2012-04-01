@@ -22,6 +22,7 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/anon_inodes.h>
+#include <linux/debugfs.h>
 #include "iio.h"
 #include "iio_core.h"
 #include "iio_core_trigger.h"
@@ -38,6 +39,8 @@ struct bus_type iio_bus_type = {
 	.name = "iio",
 };
 EXPORT_SYMBOL(iio_bus_type);
+
+static struct dentry *iio_debugfs_dentry;
 
 static const char * const iio_data_type_name[] = {
 	[IIO_RAW] = "raw",
@@ -100,71 +103,6 @@ const struct iio_chan_spec
 	return NULL;
 }
 
-/**
- * struct iio_detected_event_list - list element for events that have occurred
- * @list:		linked list header
- * @ev:			the event itself
- */
-struct iio_detected_event_list {
-	struct list_head		list;
-	struct iio_event_data		ev;
-};
-
-/**
- * struct iio_event_interface - chrdev interface for an event line
- * @dev:		device assocated with event interface
- * @wait:		wait queue to allow blocking reads of events
- * @event_list_lock:	mutex to protect the list of detected events
- * @det_events:		list of detected events
- * @max_events:		maximum number of events before new ones are dropped
- * @current_events:	number of events in detected list
- * @flags:		file operations related flags including busy flag.
- */
-struct iio_event_interface {
-	wait_queue_head_t			wait;
-	struct mutex				event_list_lock;
-	struct list_head			det_events;
-	int					max_events;
-	int					current_events;
-	struct list_head dev_attr_list;
-	unsigned long flags;
-	struct attribute_group			group;
-};
-
-int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp)
-{
-	struct iio_event_interface *ev_int = indio_dev->event_interface;
-	struct iio_detected_event_list *ev;
-	int ret = 0;
-
-	/* Does anyone care? */
-	mutex_lock(&ev_int->event_list_lock);
-	if (test_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
-		if (ev_int->current_events == ev_int->max_events) {
-			mutex_unlock(&ev_int->event_list_lock);
-			return 0;
-		}
-		ev = kmalloc(sizeof(*ev), GFP_KERNEL);
-		if (ev == NULL) {
-			ret = -ENOMEM;
-			mutex_unlock(&ev_int->event_list_lock);
-			goto error_ret;
-		}
-		ev->ev.id = ev_code;
-		ev->ev.timestamp = timestamp;
-
-		list_add_tail(&ev->list, &ev_int->det_events);
-		ev_int->current_events++;
-		mutex_unlock(&ev_int->event_list_lock);
-		wake_up_interruptible(&ev_int->wait);
-	} else
-		mutex_unlock(&ev_int->event_list_lock);
-
-error_ret:
-	return ret;
-}
-EXPORT_SYMBOL(iio_push_event);
-
 /* This turns up an awful lot */
 ssize_t iio_read_const_attr(struct device *dev,
 			    struct device_attribute *attr,
@@ -173,110 +111,6 @@ ssize_t iio_read_const_attr(struct device *dev,
 	return sprintf(buf, "%s\n", to_iio_const_attr(attr)->string);
 }
 EXPORT_SYMBOL(iio_read_const_attr);
-
-static ssize_t iio_event_chrdev_read(struct file *filep,
-				     char __user *buf,
-				     size_t count,
-				     loff_t *f_ps)
-{
-	struct iio_event_interface *ev_int = filep->private_data;
-	struct iio_detected_event_list *el;
-	size_t len = sizeof(el->ev);
-	int ret;
-
-	if (count < len)
-		return -EINVAL;
-
-	mutex_lock(&ev_int->event_list_lock);
-	if (list_empty(&ev_int->det_events)) {
-		if (filep->f_flags & O_NONBLOCK) {
-			ret = -EAGAIN;
-			goto error_mutex_unlock;
-		}
-		mutex_unlock(&ev_int->event_list_lock);
-		/* Blocking on device; waiting for something to be there */
-		ret = wait_event_interruptible(ev_int->wait,
-					       !list_empty(&ev_int
-							   ->det_events));
-		if (ret)
-			goto error_ret;
-		/* Single access device so no one else can get the data */
-		mutex_lock(&ev_int->event_list_lock);
-	}
-
-	el = list_first_entry(&ev_int->det_events,
-			      struct iio_detected_event_list,
-			      list);
-	if (copy_to_user(buf, &(el->ev), len)) {
-		ret = -EFAULT;
-		goto error_mutex_unlock;
-	}
-	list_del(&el->list);
-	ev_int->current_events--;
-	mutex_unlock(&ev_int->event_list_lock);
-	kfree(el);
-
-	return len;
-
-error_mutex_unlock:
-	mutex_unlock(&ev_int->event_list_lock);
-error_ret:
-
-	return ret;
-}
-
-static int iio_event_chrdev_release(struct inode *inode, struct file *filep)
-{
-	struct iio_event_interface *ev_int = filep->private_data;
-	struct iio_detected_event_list *el, *t;
-
-	mutex_lock(&ev_int->event_list_lock);
-	clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
-	/*
-	 * In order to maintain a clean state for reopening,
-	 * clear out any awaiting events. The mask will prevent
-	 * any new __iio_push_event calls running.
-	 */
-	list_for_each_entry_safe(el, t, &ev_int->det_events, list) {
-		list_del(&el->list);
-		kfree(el);
-	}
-	ev_int->current_events = 0;
-	mutex_unlock(&ev_int->event_list_lock);
-
-	return 0;
-}
-
-static const struct file_operations iio_event_chrdev_fileops = {
-	.read =  iio_event_chrdev_read,
-	.release = iio_event_chrdev_release,
-	.owner = THIS_MODULE,
-	.llseek = noop_llseek,
-};
-
-static int iio_event_getfd(struct iio_dev *indio_dev)
-{
-	struct iio_event_interface *ev_int = indio_dev->event_interface;
-	int fd;
-
-	if (ev_int == NULL)
-		return -ENODEV;
-
-	mutex_lock(&ev_int->event_list_lock);
-	if (test_and_set_bit(IIO_BUSY_BIT_POS, &ev_int->flags)) {
-		mutex_unlock(&ev_int->event_list_lock);
-		return -EBUSY;
-	}
-	mutex_unlock(&ev_int->event_list_lock);
-	fd = anon_inode_getfd("iio:event",
-				&iio_event_chrdev_fileops, ev_int, O_RDONLY);
-	if (fd < 0) {
-		mutex_lock(&ev_int->event_list_lock);
-		clear_bit(IIO_BUSY_BIT_POS, &ev_int->flags);
-		mutex_unlock(&ev_int->event_list_lock);
-	}
-	return fd;
-}
 
 static int __init iio_init(void)
 {
@@ -298,6 +132,8 @@ static int __init iio_init(void)
 		goto error_unregister_bus_type;
 	}
 
+	iio_debugfs_dentry = debugfs_create_dir("iio", NULL);
+
 	return 0;
 
 error_unregister_bus_type:
@@ -311,6 +147,154 @@ static void __exit iio_exit(void)
 	if (iio_devt)
 		unregister_chrdev_region(iio_devt, IIO_DEV_MAX);
 	bus_unregister(&iio_bus_type);
+	debugfs_remove(iio_debugfs_dentry);
+}
+
+#if defined(CONFIG_DEBUG_FS)
+static int iio_debugfs_open(struct inode *inode, struct file *file)
+{
+	if (inode->i_private)
+		file->private_data = inode->i_private;
+
+	return 0;
+}
+
+static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
+			      size_t count, loff_t *ppos)
+{
+	struct iio_dev *indio_dev = file->private_data;
+	char buf[20];
+	unsigned val = 0;
+	ssize_t len;
+	int ret;
+
+	ret = indio_dev->info->debugfs_reg_access(indio_dev,
+						  indio_dev->cached_reg_addr,
+						  0, &val);
+	if (ret)
+		dev_err(indio_dev->dev.parent, "%s: read failed\n", __func__);
+
+	len = snprintf(buf, sizeof(buf), "0x%X\n", val);
+
+	return simple_read_from_buffer(userbuf, count, ppos, buf, len);
+}
+
+static ssize_t iio_debugfs_write_reg(struct file *file,
+		     const char __user *userbuf, size_t count, loff_t *ppos)
+{
+	struct iio_dev *indio_dev = file->private_data;
+	unsigned reg, val;
+	char buf[80];
+	int ret;
+
+	count = min_t(size_t, count, (sizeof(buf)-1));
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	buf[count] = 0;
+
+	ret = sscanf(buf, "%i %i", &reg, &val);
+
+	switch (ret) {
+	case 1:
+		indio_dev->cached_reg_addr = reg;
+		break;
+	case 2:
+		indio_dev->cached_reg_addr = reg;
+		ret = indio_dev->info->debugfs_reg_access(indio_dev, reg,
+							  val, NULL);
+		if (ret) {
+			dev_err(indio_dev->dev.parent, "%s: write failed\n",
+				__func__);
+			return ret;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return count;
+}
+
+static const struct file_operations iio_debugfs_reg_fops = {
+	.open = iio_debugfs_open,
+	.read = iio_debugfs_read_reg,
+	.write = iio_debugfs_write_reg,
+};
+
+static void iio_device_unregister_debugfs(struct iio_dev *indio_dev)
+{
+	debugfs_remove_recursive(indio_dev->debugfs_dentry);
+}
+
+static int iio_device_register_debugfs(struct iio_dev *indio_dev)
+{
+	struct dentry *d;
+
+	if (indio_dev->info->debugfs_reg_access == NULL)
+		return 0;
+
+	if (IS_ERR(iio_debugfs_dentry))
+		return 0;
+
+	indio_dev->debugfs_dentry =
+		debugfs_create_dir(dev_name(&indio_dev->dev),
+				   iio_debugfs_dentry);
+	if (IS_ERR(indio_dev->debugfs_dentry))
+		return PTR_ERR(indio_dev->debugfs_dentry);
+
+	if (indio_dev->debugfs_dentry == NULL) {
+		dev_warn(indio_dev->dev.parent,
+			 "Failed to create debugfs directory\n");
+		return -EFAULT;
+	}
+
+	d = debugfs_create_file("direct_reg_access", 0644,
+				indio_dev->debugfs_dentry,
+				indio_dev, &iio_debugfs_reg_fops);
+	if (!d) {
+		iio_device_unregister_debugfs(indio_dev);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+#else
+static int iio_device_register_debugfs(struct iio_dev *indio_dev)
+{
+	return 0;
+}
+
+static void iio_device_unregister_debugfs(struct iio_dev *indio_dev)
+{
+}
+#endif /* CONFIG_DEBUG_FS */
+
+static ssize_t iio_read_channel_ext_info(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	const struct iio_chan_spec_ext_info *ext_info;
+
+	ext_info = &this_attr->c->ext_info[this_attr->address];
+
+	return ext_info->read(indio_dev, this_attr->c, buf);
+}
+
+static ssize_t iio_write_channel_ext_info(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf,
+					 size_t len)
+{
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
+	const struct iio_chan_spec_ext_info *ext_info;
+
+	ext_info = &this_attr->c->ext_info[this_attr->address];
+
+	return ext_info->write(indio_dev, this_attr->c, buf, len);
 }
 
 static ssize_t iio_read_channel_info(struct device *dev,
@@ -455,7 +439,7 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 		goto error_ret;
 	}
 
-	if (chan->differential) { /* Differential  can not have modifier */
+	if (chan->differential) { /* Differential can not have modifier */
 		if (generic)
 			name_format
 				= kasprintf(GFP_KERNEL, "%s_%s-%s_%s",
@@ -592,6 +576,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					struct iio_chan_spec const *chan)
 {
 	int ret, i, attrcount = 0;
+	const struct iio_chan_spec_ext_info *ext_info;
 
 	if (chan->channel < 0)
 		return 0;
@@ -626,6 +611,31 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 			goto error_ret;
 		attrcount++;
 	}
+
+	if (chan->ext_info) {
+		unsigned int i = 0;
+		for (ext_info = chan->ext_info; ext_info->name; ext_info++) {
+			ret = __iio_add_chan_devattr(ext_info->name,
+					chan,
+					ext_info->read ?
+					    &iio_read_channel_ext_info : NULL,
+					ext_info->write ?
+					    &iio_write_channel_ext_info : NULL,
+					i,
+					ext_info->shared,
+					&indio_dev->dev,
+					&indio_dev->channel_attr_list);
+			i++;
+			if (ret == -EBUSY && ext_info->shared)
+				continue;
+
+			if (ret)
+				goto error_ret;
+
+			attrcount++;
+		}
+	}
+
 	ret = attrcount;
 error_ret:
 	return ret;
@@ -663,7 +673,7 @@ static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 	attrcount = attrcount_orig;
 	/*
 	 * New channel registration method - relies on the fact a group does
-	 *  not need to be initialized if it is name is NULL.
+	 * not need to be initialized if it is name is NULL.
 	 */
 	INIT_LIST_HEAD(&indio_dev->channel_attr_list);
 	if (indio_dev->channels)
@@ -726,295 +736,6 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 	kfree(indio_dev->chan_attr_group.attrs);
 }
 
-static const char * const iio_ev_type_text[] = {
-	[IIO_EV_TYPE_THRESH] = "thresh",
-	[IIO_EV_TYPE_MAG] = "mag",
-	[IIO_EV_TYPE_ROC] = "roc",
-	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
-	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
-};
-
-static const char * const iio_ev_dir_text[] = {
-	[IIO_EV_DIR_EITHER] = "either",
-	[IIO_EV_DIR_RISING] = "rising",
-	[IIO_EV_DIR_FALLING] = "falling"
-};
-
-static ssize_t iio_ev_state_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf,
-				  size_t len)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int ret;
-	bool val;
-
-	ret = strtobool(buf, &val);
-	if (ret < 0)
-		return ret;
-
-	ret = indio_dev->info->write_event_config(indio_dev,
-						  this_attr->address,
-						  val);
-	return (ret < 0) ? ret : len;
-}
-
-static ssize_t iio_ev_state_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int val = indio_dev->info->read_event_config(indio_dev,
-						     this_attr->address);
-
-	if (val < 0)
-		return val;
-	else
-		return sprintf(buf, "%d\n", val);
-}
-
-static ssize_t iio_ev_value_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	int val, ret;
-
-	ret = indio_dev->info->read_event_value(indio_dev,
-						this_attr->address, &val);
-	if (ret < 0)
-		return ret;
-
-	return sprintf(buf, "%d\n", val);
-}
-
-static ssize_t iio_ev_value_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf,
-				  size_t len)
-{
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
-	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	unsigned long val;
-	int ret;
-
-	if (!indio_dev->info->write_event_value)
-		return -EINVAL;
-
-	ret = strict_strtoul(buf, 10, &val);
-	if (ret)
-		return ret;
-
-	ret = indio_dev->info->write_event_value(indio_dev, this_attr->address,
-						 val);
-	if (ret < 0)
-		return ret;
-
-	return len;
-}
-
-static int iio_device_add_event_sysfs(struct iio_dev *indio_dev,
-				      struct iio_chan_spec const *chan)
-{
-	int ret = 0, i, attrcount = 0;
-	u64 mask = 0;
-	char *postfix;
-	if (!chan->event_mask)
-		return 0;
-
-	for_each_set_bit(i, &chan->event_mask, sizeof(chan->event_mask)*8) {
-		postfix = kasprintf(GFP_KERNEL, "%s_%s_en",
-				    iio_ev_type_text[i/IIO_EV_DIR_MAX],
-				    iio_ev_dir_text[i%IIO_EV_DIR_MAX]);
-		if (postfix == NULL) {
-			ret = -ENOMEM;
-			goto error_ret;
-		}
-		if (chan->modified)
-			mask = IIO_MOD_EVENT_CODE(chan->type, 0, chan->channel,
-						  i/IIO_EV_DIR_MAX,
-						  i%IIO_EV_DIR_MAX);
-		else if (chan->differential)
-			mask = IIO_EVENT_CODE(chan->type,
-					      0, 0,
-					      i%IIO_EV_DIR_MAX,
-					      i/IIO_EV_DIR_MAX,
-					      0,
-					      chan->channel,
-					      chan->channel2);
-		else
-			mask = IIO_UNMOD_EVENT_CODE(chan->type,
-						    chan->channel,
-						    i/IIO_EV_DIR_MAX,
-						    i%IIO_EV_DIR_MAX);
-
-		ret = __iio_add_chan_devattr(postfix,
-					     chan,
-					     &iio_ev_state_show,
-					     iio_ev_state_store,
-					     mask,
-					     0,
-					     &indio_dev->dev,
-					     &indio_dev->event_interface->
-					     dev_attr_list);
-		kfree(postfix);
-		if (ret)
-			goto error_ret;
-		attrcount++;
-		postfix = kasprintf(GFP_KERNEL, "%s_%s_value",
-				    iio_ev_type_text[i/IIO_EV_DIR_MAX],
-				    iio_ev_dir_text[i%IIO_EV_DIR_MAX]);
-		if (postfix == NULL) {
-			ret = -ENOMEM;
-			goto error_ret;
-		}
-		ret = __iio_add_chan_devattr(postfix, chan,
-					     iio_ev_value_show,
-					     iio_ev_value_store,
-					     mask,
-					     0,
-					     &indio_dev->dev,
-					     &indio_dev->event_interface->
-					     dev_attr_list);
-		kfree(postfix);
-		if (ret)
-			goto error_ret;
-		attrcount++;
-	}
-	ret = attrcount;
-error_ret:
-	return ret;
-}
-
-static inline void __iio_remove_event_config_attrs(struct iio_dev *indio_dev)
-{
-	struct iio_dev_attr *p, *n;
-	list_for_each_entry_safe(p, n,
-				 &indio_dev->event_interface->
-				 dev_attr_list, l) {
-		kfree(p->dev_attr.attr.name);
-		kfree(p);
-	}
-}
-
-static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
-{
-	int j, ret, attrcount = 0;
-
-	INIT_LIST_HEAD(&indio_dev->event_interface->dev_attr_list);
-	/* Dynically created from the channels array */
-	for (j = 0; j < indio_dev->num_channels; j++) {
-		ret = iio_device_add_event_sysfs(indio_dev,
-						 &indio_dev->channels[j]);
-		if (ret < 0)
-			goto error_clear_attrs;
-		attrcount += ret;
-	}
-	return attrcount;
-
-error_clear_attrs:
-	__iio_remove_event_config_attrs(indio_dev);
-
-	return ret;
-}
-
-static bool iio_check_for_dynamic_events(struct iio_dev *indio_dev)
-{
-	int j;
-
-	for (j = 0; j < indio_dev->num_channels; j++)
-		if (indio_dev->channels[j].event_mask != 0)
-			return true;
-	return false;
-}
-
-static void iio_setup_ev_int(struct iio_event_interface *ev_int)
-{
-	mutex_init(&ev_int->event_list_lock);
-	/* discussion point - make this variable? */
-	ev_int->max_events = 10;
-	ev_int->current_events = 0;
-	INIT_LIST_HEAD(&ev_int->det_events);
-	init_waitqueue_head(&ev_int->wait);
-}
-
-static const char *iio_event_group_name = "events";
-static int iio_device_register_eventset(struct iio_dev *indio_dev)
-{
-	struct iio_dev_attr *p;
-	int ret = 0, attrcount_orig = 0, attrcount, attrn;
-	struct attribute **attr;
-
-	if (!(indio_dev->info->event_attrs ||
-	      iio_check_for_dynamic_events(indio_dev)))
-		return 0;
-
-	indio_dev->event_interface =
-		kzalloc(sizeof(struct iio_event_interface), GFP_KERNEL);
-	if (indio_dev->event_interface == NULL) {
-		ret = -ENOMEM;
-		goto error_ret;
-	}
-
-	iio_setup_ev_int(indio_dev->event_interface);
-	if (indio_dev->info->event_attrs != NULL) {
-		attr = indio_dev->info->event_attrs->attrs;
-		while (*attr++ != NULL)
-			attrcount_orig++;
-	}
-	attrcount = attrcount_orig;
-	if (indio_dev->channels) {
-		ret = __iio_add_event_config_attrs(indio_dev);
-		if (ret < 0)
-			goto error_free_setup_event_lines;
-		attrcount += ret;
-	}
-
-	indio_dev->event_interface->group.name = iio_event_group_name;
-	indio_dev->event_interface->group.attrs = kcalloc(attrcount + 1,
-							  sizeof(indio_dev->event_interface->group.attrs[0]),
-							  GFP_KERNEL);
-	if (indio_dev->event_interface->group.attrs == NULL) {
-		ret = -ENOMEM;
-		goto error_free_setup_event_lines;
-	}
-	if (indio_dev->info->event_attrs)
-		memcpy(indio_dev->event_interface->group.attrs,
-		       indio_dev->info->event_attrs->attrs,
-		       sizeof(indio_dev->event_interface->group.attrs[0])
-		       *attrcount_orig);
-	attrn = attrcount_orig;
-	/* Add all elements from the list. */
-	list_for_each_entry(p,
-			    &indio_dev->event_interface->dev_attr_list,
-			    l)
-		indio_dev->event_interface->group.attrs[attrn++] =
-			&p->dev_attr.attr;
-	indio_dev->groups[indio_dev->groupcounter++] =
-		&indio_dev->event_interface->group;
-
-	return 0;
-
-error_free_setup_event_lines:
-	__iio_remove_event_config_attrs(indio_dev);
-	kfree(indio_dev->event_interface);
-error_ret:
-
-	return ret;
-}
-
-static void iio_device_unregister_eventset(struct iio_dev *indio_dev)
-{
-	if (indio_dev->event_interface == NULL)
-		return;
-	__iio_remove_event_config_attrs(indio_dev);
-	kfree(indio_dev->event_interface->group.attrs);
-	kfree(indio_dev->event_interface);
-}
-
 static void iio_dev_release(struct device *device)
 {
 	struct iio_dev *indio_dev = container_of(device, struct iio_dev, dev);
@@ -1023,6 +744,7 @@ static void iio_dev_release(struct device *device)
 		iio_device_unregister_trigger_consumer(indio_dev);
 	iio_device_unregister_eventset(indio_dev);
 	iio_device_unregister_sysfs(indio_dev);
+	iio_device_unregister_debugfs(indio_dev);
 }
 
 static struct device_type iio_dev_type = {
@@ -1052,6 +774,7 @@ struct iio_dev *iio_allocate_device(int sizeof_priv)
 		device_initialize(&dev->dev);
 		dev_set_drvdata(&dev->dev, (void *)dev);
 		mutex_init(&dev->mlock);
+		mutex_init(&dev->info_exist_lock);
 
 		dev->id = ida_simple_get(&iio_ida, 0, 0, GFP_KERNEL);
 		if (dev->id < 0) {
@@ -1131,6 +854,8 @@ static const struct file_operations iio_buffer_fileops = {
 	.compat_ioctl = iio_ioctl,
 };
 
+static const struct iio_buffer_setup_ops noop_ring_setup_ops;
+
 int iio_device_register(struct iio_dev *indio_dev)
 {
 	int ret;
@@ -1138,11 +863,17 @@ int iio_device_register(struct iio_dev *indio_dev)
 	/* configure elements for the chrdev */
 	indio_dev->dev.devt = MKDEV(MAJOR(iio_devt), indio_dev->id);
 
+	ret = iio_device_register_debugfs(indio_dev);
+	if (ret) {
+		dev_err(indio_dev->dev.parent,
+			"Failed to register debugfs interfaces\n");
+		goto error_ret;
+	}
 	ret = iio_device_register_sysfs(indio_dev);
 	if (ret) {
 		dev_err(indio_dev->dev.parent,
 			"Failed to register sysfs interfaces\n");
-		goto error_ret;
+		goto error_unreg_debugfs;
 	}
 	ret = iio_device_register_eventset(indio_dev);
 	if (ret) {
@@ -1152,6 +883,10 @@ int iio_device_register(struct iio_dev *indio_dev)
 	}
 	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
 		iio_device_register_trigger_consumer(indio_dev);
+
+	if ((indio_dev->modes & INDIO_ALL_BUFFER_MODES) &&
+		indio_dev->setup_ops == NULL)
+		indio_dev->setup_ops = &noop_ring_setup_ops;
 
 	ret = device_add(&indio_dev->dev);
 	if (ret < 0)
@@ -1169,6 +904,8 @@ error_unreg_eventset:
 	iio_device_unregister_eventset(indio_dev);
 error_free_sysfs:
 	iio_device_unregister_sysfs(indio_dev);
+error_unreg_debugfs:
+	iio_device_unregister_debugfs(indio_dev);
 error_ret:
 	return ret;
 }
@@ -1176,6 +913,9 @@ EXPORT_SYMBOL(iio_device_register);
 
 void iio_device_unregister(struct iio_dev *indio_dev)
 {
+	mutex_lock(&indio_dev->info_exist_lock);
+	indio_dev->info = NULL;
+	mutex_unlock(&indio_dev->info_exist_lock);
 	device_unregister(&indio_dev->dev);
 }
 EXPORT_SYMBOL(iio_device_unregister);

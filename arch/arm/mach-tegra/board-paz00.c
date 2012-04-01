@@ -60,9 +60,9 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.uartclk	= 216000000,
 	}, {
 		/* serial port on mini-pcie */
-		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
-		.mapbase	= TEGRA_UARTD_BASE,
-		.irq		= INT_UARTD,
+		.membase	= IO_ADDRESS(TEGRA_UARTC_BASE),
+		.mapbase	= TEGRA_UARTC_BASE,
+		.irq		= INT_UARTC,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
 		.type		= PORT_TEGRA,
 		.iotype		= UPIO_MEM,
@@ -174,7 +174,7 @@ static void __init tegra_paz00_fixup(struct tag *tags, char **cmdline,
 static __initdata struct tegra_clk_init_table paz00_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uarta",	"pll_p",	216000000,	true },
-	{ "uartd",	"pll_p",	216000000,	true },
+	{ "uartc",	"pll_p",	216000000,	true },
 
 	{ "pll_p_out4",	"pll_p",	24000000,	true },
 	{ "usbd",	"clk_m",	12000000,	false },

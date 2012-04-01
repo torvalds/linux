@@ -57,6 +57,7 @@
 #define OpDS              23ull  /* DS */
 #define OpFS              24ull  /* FS */
 #define OpGS              25ull  /* GS */
+#define OpMem8            26ull  /* 8-bit zero extended memory operand */
 
 #define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
@@ -101,6 +102,7 @@
 #define SrcAcc      (OpAcc << SrcShift)
 #define SrcImmU16   (OpImmU16 << SrcShift)
 #define SrcDX       (OpDX << SrcShift)
+#define SrcMem8     (OpMem8 << SrcShift)
 #define SrcMask     (OpMask << SrcShift)
 #define BitOp       (1<<11)
 #define MemAbs      (1<<12)      /* Memory operand is absolute displacement */
@@ -858,8 +860,7 @@ static void write_sse_reg(struct x86_emulate_ctxt *ctxt, sse128_t *data,
 }
 
 static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
-				    struct operand *op,
-				    int inhibit_bytereg)
+				    struct operand *op)
 {
 	unsigned reg = ctxt->modrm_reg;
 	int highbyte_regs = ctxt->rex_prefix == 0;
@@ -876,7 +877,7 @@ static void decode_register_operand(struct x86_emulate_ctxt *ctxt,
 	}
 
 	op->type = OP_REG;
-	if ((ctxt->d & ByteOp) && !inhibit_bytereg) {
+	if (ctxt->d & ByteOp) {
 		op->addr.reg = decode_register(reg, ctxt->regs, highbyte_regs);
 		op->bytes = 1;
 	} else {
@@ -1151,6 +1152,22 @@ static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
 	return 1;
 }
 
+static int read_interrupt_descriptor(struct x86_emulate_ctxt *ctxt,
+				     u16 index, struct desc_struct *desc)
+{
+	struct desc_ptr dt;
+	ulong addr;
+
+	ctxt->ops->get_idt(ctxt, &dt);
+
+	if (dt.size < index * 8 + 7)
+		return emulate_gp(ctxt, index << 3 | 0x2);
+
+	addr = dt.address + index * 8;
+	return ctxt->ops->read_std(ctxt, addr, desc, sizeof *desc,
+				   &ctxt->exception);
+}
+
 static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
 				     u16 selector, struct desc_ptr *dt)
 {
@@ -1227,6 +1244,8 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 		seg_desc.type = 3;
 		seg_desc.p = 1;
 		seg_desc.s = 1;
+		if (ctxt->mode == X86EMUL_MODE_VM86)
+			seg_desc.dpl = 3;
 		goto load;
 	}
 
@@ -1891,6 +1910,17 @@ setup_syscalls_segments(struct x86_emulate_ctxt *ctxt,
 	ss->p = 1;
 }
 
+static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
+{
+	u32 eax, ebx, ecx, edx;
+
+	eax = ecx = 0;
+	return ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx)
+		&& ebx == X86EMUL_CPUID_VENDOR_GenuineIntel_ebx
+		&& ecx == X86EMUL_CPUID_VENDOR_GenuineIntel_ecx
+		&& edx == X86EMUL_CPUID_VENDOR_GenuineIntel_edx;
+}
+
 static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
 {
 	struct x86_emulate_ops *ops = ctxt->ops;
@@ -2006,6 +2036,14 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 	/* inject #GP if in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL)
 		return emulate_gp(ctxt, 0);
+
+	/*
+	 * Not recognized on AMD in compat mode (but is recognized in legacy
+	 * mode).
+	 */
+	if ((ctxt->mode == X86EMUL_MODE_PROT32) && (efer & EFER_LMA)
+	    && !vendor_intel(ctxt))
+		return emulate_ud(ctxt);
 
 	/* XXX sysenter/sysexit have not been tested in 64bit mode.
 	* Therefore, we inject an #UD.
@@ -2306,6 +2344,8 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 		return emulate_gp(ctxt, 0);
 	ctxt->_eip = tss->eip;
 	ctxt->eflags = tss->eflags | 2;
+
+	/* General purpose registers */
 	ctxt->regs[VCPU_REGS_RAX] = tss->eax;
 	ctxt->regs[VCPU_REGS_RCX] = tss->ecx;
 	ctxt->regs[VCPU_REGS_RDX] = tss->edx;
@@ -2326,6 +2366,24 @@ static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
 	set_segment_selector(ctxt, tss->ds, VCPU_SREG_DS);
 	set_segment_selector(ctxt, tss->fs, VCPU_SREG_FS);
 	set_segment_selector(ctxt, tss->gs, VCPU_SREG_GS);
+
+	/*
+	 * If we're switching between Protected Mode and VM86, we need to make
+	 * sure to update the mode before loading the segment descriptors so
+	 * that the selectors are interpreted correctly.
+	 *
+	 * Need to get rflags to the vcpu struct immediately because it
+	 * influences the CPL which is checked at least when loading the segment
+	 * descriptors and when pushing an error code to the new kernel stack.
+	 *
+	 * TODO Introduce a separate ctxt->ops->set_cpl callback
+	 */
+	if (ctxt->eflags & X86_EFLAGS_VM)
+		ctxt->mode = X86EMUL_MODE_VM86;
+	else
+		ctxt->mode = X86EMUL_MODE_PROT32;
+
+	ctxt->ops->set_rflags(ctxt, ctxt->eflags);
 
 	/*
 	 * Now load segment descriptors. If fault happenes at this stage
@@ -2401,7 +2459,7 @@ static int task_switch_32(struct x86_emulate_ctxt *ctxt,
 }
 
 static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
-				   u16 tss_selector, int reason,
+				   u16 tss_selector, int idt_index, int reason,
 				   bool has_error_code, u32 error_code)
 {
 	struct x86_emulate_ops *ops = ctxt->ops;
@@ -2423,11 +2481,34 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 
 	/* FIXME: check that next_tss_desc is tss */
 
-	if (reason != TASK_SWITCH_IRET) {
-		if ((tss_selector & 3) > next_tss_desc.dpl ||
-		    ops->cpl(ctxt) > next_tss_desc.dpl)
-			return emulate_gp(ctxt, 0);
+	/*
+	 * Check privileges. The three cases are task switch caused by...
+	 *
+	 * 1. jmp/call/int to task gate: Check against DPL of the task gate
+	 * 2. Exception/IRQ/iret: No check is performed
+	 * 3. jmp/call to TSS: Check agains DPL of the TSS
+	 */
+	if (reason == TASK_SWITCH_GATE) {
+		if (idt_index != -1) {
+			/* Software interrupts */
+			struct desc_struct task_gate_desc;
+			int dpl;
+
+			ret = read_interrupt_descriptor(ctxt, idt_index,
+							&task_gate_desc);
+			if (ret != X86EMUL_CONTINUE)
+				return ret;
+
+			dpl = task_gate_desc.dpl;
+			if ((tss_selector & 3) > dpl || ops->cpl(ctxt) > dpl)
+				return emulate_gp(ctxt, (idt_index << 3) | 0x2);
+		}
+	} else if (reason != TASK_SWITCH_IRET) {
+		int dpl = next_tss_desc.dpl;
+		if ((tss_selector & 3) > dpl || ops->cpl(ctxt) > dpl)
+			return emulate_gp(ctxt, tss_selector);
 	}
+
 
 	desc_limit = desc_limit_scaled(&next_tss_desc);
 	if (!next_tss_desc.p ||
@@ -2481,7 +2562,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 }
 
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
-			 u16 tss_selector, int reason,
+			 u16 tss_selector, int idt_index, int reason,
 			 bool has_error_code, u32 error_code)
 {
 	int rc;
@@ -2489,7 +2570,7 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 	ctxt->_eip = ctxt->eip;
 	ctxt->dst.type = OP_NONE;
 
-	rc = emulator_do_task_switch(ctxt, tss_selector, reason,
+	rc = emulator_do_task_switch(ctxt, tss_selector, idt_index, reason,
 				     has_error_code, error_code);
 
 	if (rc == X86EMUL_CONTINUE)
@@ -3514,13 +3595,13 @@ static struct opcode twobyte_table[256] = {
 	I(DstMem | SrcReg | ModRM | BitOp | Lock, em_btr),
 	I(DstReg | SrcMemFAddr | ModRM | Src2FS, em_lseg),
 	I(DstReg | SrcMemFAddr | ModRM | Src2GS, em_lseg),
-	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
+	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xB8 - 0xBF */
 	N, N,
 	G(BitOp, group8),
 	I(DstMem | SrcReg | ModRM | BitOp | Lock | PageTable, em_btc),
 	I(DstReg | SrcMem | ModRM, em_bsf), I(DstReg | SrcMem | ModRM, em_bsr),
-	D(ByteOp | DstReg | SrcMem | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
+	D(DstReg | SrcMem8 | ModRM | Mov), D(DstReg | SrcMem16 | ModRM | Mov),
 	/* 0xC0 - 0xCF */
 	D2bv(DstMem | SrcReg | ModRM | Lock),
 	N, D(DstMem | SrcReg | ModRM | Mov),
@@ -3602,9 +3683,7 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 
 	switch (d) {
 	case OpReg:
-		decode_register_operand(ctxt, op,
-			 op == &ctxt->dst &&
-			 ctxt->twobyte && (ctxt->b == 0xb6 || ctxt->b == 0xb7));
+		decode_register_operand(ctxt, op);
 		break;
 	case OpImmUByte:
 		rc = decode_imm(ctxt, op, 1, false);
@@ -3656,6 +3735,9 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 	case OpImm:
 		rc = decode_imm(ctxt, op, imm_size(ctxt), true);
 		break;
+	case OpMem8:
+		ctxt->memop.bytes = 1;
+		goto mem_common;
 	case OpMem16:
 		ctxt->memop.bytes = 2;
 		goto mem_common;

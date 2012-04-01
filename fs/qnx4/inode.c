@@ -52,38 +52,6 @@ static int qnx4_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
-				       int create)
-{
-	struct buffer_head *result = NULL;
-
-	if ( nr >= 0 )
-		nr = qnx4_block_map( inode, nr );
-	if (nr) {
-		result = sb_getblk(inode->i_sb, nr);
-		return result;
-	}
-	return NULL;
-}
-
-struct buffer_head *qnx4_bread(struct inode *inode, int block, int create)
-{
-	struct buffer_head *bh;
-
-	bh = qnx4_getblk(inode, block, create);
-	if (!bh || buffer_uptodate(bh)) {
-		return bh;
-	}
-	ll_rw_block(READ, 1, &bh);
-	wait_on_buffer(bh);
-	if (buffer_uptodate(bh)) {
-		return bh;
-	}
-	brelse(bh);
-
-	return NULL;
-}
-
 static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_head *bh, int create )
 {
 	unsigned long phys;
@@ -98,23 +66,31 @@ static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_h
 	return 0;
 }
 
+static inline u32 try_extent(qnx4_xtnt_t *extent, u32 *offset)
+{
+	u32 size = le32_to_cpu(extent->xtnt_size);
+	if (*offset < size)
+		return le32_to_cpu(extent->xtnt_blk) + *offset - 1;
+	*offset -= size;
+	return 0;
+}
+
 unsigned long qnx4_block_map( struct inode *inode, long iblock )
 {
 	int ix;
-	long offset, i_xblk;
-	unsigned long block = 0;
+	long i_xblk;
 	struct buffer_head *bh = NULL;
 	struct qnx4_xblk *xblk = NULL;
 	struct qnx4_inode_entry *qnx4_inode = qnx4_raw_inode(inode);
 	u16 nxtnt = le16_to_cpu(qnx4_inode->di_num_xtnts);
+	u32 offset = iblock;
+	u32 block = try_extent(&qnx4_inode->di_first_xtnt, &offset);
 
-	if ( iblock < le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_size) ) {
+	if (block) {
 		// iblock is in the first extent. This is easy.
-		block = le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_blk) + iblock - 1;
 	} else {
 		// iblock is beyond first extent. We have to follow the extent chain.
 		i_xblk = le32_to_cpu(qnx4_inode->di_xblk);
-		offset = iblock - le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_size);
 		ix = 0;
 		while ( --nxtnt > 0 ) {
 			if ( ix == 0 ) {
@@ -130,12 +106,11 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 					return -EIO;
 				}
 			}
-			if ( offset < le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_size) ) {
+			block = try_extent(&xblk->xblk_xtnts[ix], &offset);
+			if (block) {
 				// got it!
-				block = le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_blk) + offset - 1;
 				break;
 			}
-			offset -= le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_size);
 			if ( ++ix >= xblk->xblk_num_xtnts ) {
 				i_xblk = le32_to_cpu(xblk->xblk_next_xblk);
 				ix = 0;
@@ -260,15 +235,13 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
  	}
 
 	ret = -ENOMEM;
- 	s->s_root = d_alloc_root(root);
+ 	s->s_root = d_make_root(root);
  	if (s->s_root == NULL)
- 		goto outi;
+ 		goto outb;
 
 	brelse(bh);
 	return 0;
 
-      outi:
-	iput(root);
       outb:
 	kfree(qs->BitMap);
       out:
@@ -288,44 +261,17 @@ static void qnx4_put_super(struct super_block *sb)
 	return;
 }
 
-static int qnx4_writepage(struct page *page, struct writeback_control *wbc)
-{
-	return block_write_full_page(page,qnx4_get_block, wbc);
-}
-
 static int qnx4_readpage(struct file *file, struct page *page)
 {
 	return block_read_full_page(page,qnx4_get_block);
 }
 
-static int qnx4_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
-{
-	struct qnx4_inode_info *qnx4_inode = qnx4_i(mapping->host);
-	int ret;
-
-	*pagep = NULL;
-	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				qnx4_get_block,
-				&qnx4_inode->mmu_private);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
-
-	return ret;
-}
 static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,qnx4_get_block);
 }
 static const struct address_space_operations qnx4_aops = {
 	.readpage	= qnx4_readpage,
-	.writepage	= qnx4_writepage,
-	.write_begin	= qnx4_write_begin,
-	.write_end	= generic_write_end,
 	.bmap		= qnx4_bmap
 };
 

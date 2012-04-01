@@ -257,8 +257,8 @@ int ext4_multi_mount_protect(struct super_block *sb,
 	 * If check_interval in MMP block is larger, use that instead of
 	 * update_interval from the superblock.
 	 */
-	if (mmp->mmp_check_interval > mmp_check_interval)
-		mmp_check_interval = mmp->mmp_check_interval;
+	if (le16_to_cpu(mmp->mmp_check_interval) > mmp_check_interval)
+		mmp_check_interval = le16_to_cpu(mmp->mmp_check_interval);
 
 	seq = le32_to_cpu(mmp->mmp_seq);
 	if (seq == EXT4_MMP_SEQ_CLEAN)

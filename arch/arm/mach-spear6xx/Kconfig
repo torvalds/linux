@@ -5,11 +5,12 @@
 if ARCH_SPEAR6XX
 
 menu "SPEAr6xx Implementations"
-config BOARD_SPEAR600_EVB
-	bool "SPEAr600 Evaluation Board"
+config BOARD_SPEAR600_DT
+	bool "SPEAr600 generic board configured via device-tree"
 	select MACH_SPEAR600
+	select USE_OF
 	help
-	  Supports ST SPEAr600 Evaluation Board
+	  Supports ST SPEAr600 boards configured via the device-tree
 
 endmenu
 

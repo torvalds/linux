@@ -43,7 +43,6 @@
 #include <linux/slab.h>
 #include <net/sock.h>
 
-#include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 #include <asm/io.h>
@@ -1600,12 +1599,8 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		}
 
 		image = kmalloc(EEPROM_WORDS * sizeof(u32), GFP_KERNEL);
-		if (!image){
-			printk(KERN_ERR "%s: Unable to allocate memory "
-			       "for EEPROM image\n", dev->name);
+		if (!image)
 			return -ENOMEM;
-		}
-
 
 		if (rrpriv->fw_running){
 			printk("%s: Firmware already running\n", dev->name);
@@ -1637,8 +1632,6 @@ static int rr_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		image = kmalloc(EEPROM_WORDS * sizeof(u32), GFP_KERNEL);
 		oldimage = kmalloc(EEPROM_WORDS * sizeof(u32), GFP_KERNEL);
 		if (!image || !oldimage) {
-			printk(KERN_ERR "%s: Unable to allocate memory "
-			       "for EEPROM image\n", dev->name);
 			error = -ENOMEM;
 			goto wf_out;
 		}

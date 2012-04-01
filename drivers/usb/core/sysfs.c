@@ -230,6 +230,28 @@ show_urbnum(struct device *dev, struct device_attribute *attr, char *buf)
 }
 static DEVICE_ATTR(urbnum, S_IRUGO, show_urbnum, NULL);
 
+static ssize_t
+show_removable(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct usb_device *udev;
+	char *state;
+
+	udev = to_usb_device(dev);
+
+	switch (udev->removable) {
+	case USB_DEVICE_REMOVABLE:
+		state = "removable";
+		break;
+	case USB_DEVICE_FIXED:
+		state = "fixed";
+		break;
+	default:
+		state = "unknown";
+	}
+
+	return sprintf(buf, "%s\n", state);
+}
+static DEVICE_ATTR(removable, S_IRUGO, show_removable, NULL);
 
 #ifdef	CONFIG_PM
 
@@ -626,6 +648,7 @@ static struct attribute *dev_attrs[] = {
 	&dev_attr_avoid_reset_quirk.attr,
 	&dev_attr_authorized.attr,
 	&dev_attr_remove.attr,
+	&dev_attr_removable.attr,
 	NULL,
 };
 static struct attribute_group dev_attr_grp = {

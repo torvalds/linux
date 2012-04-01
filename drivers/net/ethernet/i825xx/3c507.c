@@ -63,7 +63,6 @@ static const char version[] =
 
 #include <asm/dma.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 /* use 0 for production, 1 for verification, 2..7 for debug */
@@ -851,7 +850,7 @@ static void el16_rx(struct net_device *dev)
 			struct sk_buff *skb;
 
 			pkt_len &= 0x3fff;
-			skb = dev_alloc_skb(pkt_len+2);
+			skb = netdev_alloc_skb(dev, pkt_len + 2);
 			if (skb == NULL) {
 				pr_err("%s: Memory squeeze, dropping packet.\n",
 				       dev->name);

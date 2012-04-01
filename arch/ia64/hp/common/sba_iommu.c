@@ -43,7 +43,6 @@
 #include <asm/io.h>
 #include <asm/page.h>		/* PAGE_OFFSET */
 #include <asm/dma.h>
-#include <asm/system.h>		/* wmb() */
 
 #include <asm/acpi-ext.h>
 

@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include "cache.h"
 #include "color.h"
 
@@ -182,12 +183,12 @@ static int __color_vsnprintf(char *bf, size_t size, const char *color,
 	}
 
 	if (perf_use_color_default && *color)
-		r += snprintf(bf, size, "%s", color);
-	r += vsnprintf(bf + r, size - r, fmt, args);
+		r += scnprintf(bf, size, "%s", color);
+	r += vscnprintf(bf + r, size - r, fmt, args);
 	if (perf_use_color_default && *color)
-		r += snprintf(bf + r, size - r, "%s", PERF_COLOR_RESET);
+		r += scnprintf(bf + r, size - r, "%s", PERF_COLOR_RESET);
 	if (trail)
-		r += snprintf(bf + r, size - r, "%s", trail);
+		r += scnprintf(bf + r, size - r, "%s", trail);
 	return r;
 }
 

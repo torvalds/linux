@@ -275,11 +275,10 @@ static int __init ppchameleonevb_init(void)
 	ppchameleon_mtd->name = "ppchameleon-nand";
 
 	/* Register the partitions */
-	mtd_device_parse_register(ppchameleon_mtd, NULL, 0,
-			ppchameleon_mtd->size == NAND_SMALL_SIZE ?
-				partition_info_me :
-				partition_info_hi,
-			NUM_PARTITIONS);
+	mtd_device_parse_register(ppchameleon_mtd, NULL, NULL,
+				  ppchameleon_mtd->size == NAND_SMALL_SIZE ?
+					partition_info_me : partition_info_hi,
+				  NUM_PARTITIONS);
 
  nand_evb_init:
 	/****************************
@@ -365,11 +364,10 @@ static int __init ppchameleonevb_init(void)
 	ppchameleonevb_mtd->name = NAND_EVB_MTD_NAME;
 
 	/* Register the partitions */
-	mtd_device_parse_register(ppchameleonevb_mtd, NULL, 0,
-			ppchameleon_mtd->size == NAND_SMALL_SIZE ?
-				partition_info_me :
-				partition_info_hi,
-			NUM_PARTITIONS);
+	mtd_device_parse_register(ppchameleonevb_mtd, NULL, NULL,
+				  ppchameleon_mtd->size == NAND_SMALL_SIZE ?
+				  partition_info_me : partition_info_hi,
+				  NUM_PARTITIONS);
 
 	/* Return happy */
 	return 0;

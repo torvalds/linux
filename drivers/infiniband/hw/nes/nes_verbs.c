@@ -597,7 +597,7 @@ static int nes_query_port(struct ib_device *ibdev, u8 port, struct ib_port_attr 
 	props->pkey_tbl_len = 1;
 	props->qkey_viol_cntr = 0;
 	props->active_width = IB_WIDTH_4X;
-	props->active_speed = 1;
+	props->active_speed = IB_SPEED_SDR;
 	props->max_msg_sz = 0x80000000;
 
 	return 0;

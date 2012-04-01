@@ -45,7 +45,6 @@
 #include <asm/btext.h>
 #include <asm/tlb.h>
 #include <asm/sections.h>
-#include <asm/system.h>
 #include <asm/hugetlb.h>
 
 #include "mmu_decl.h"

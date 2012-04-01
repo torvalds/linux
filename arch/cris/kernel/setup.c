@@ -20,6 +20,7 @@
 #include <linux/pfn.h>
 #include <linux/cpu.h>
 #include <asm/setup.h>
+#include <arch/system.h>
 
 /*
  * Setup options

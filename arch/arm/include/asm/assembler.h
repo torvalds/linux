@@ -23,6 +23,8 @@
 #include <asm/ptrace.h>
 #include <asm/domain.h>
 
+#define IOMEM(x)	(x)
+
 /*
  * Endian independent macros for shifting bytes within registers.
  */
@@ -135,6 +137,11 @@
 	.macro	save_and_disable_irqs, oldcpsr
 	mrs	\oldcpsr, cpsr
 	disable_irq
+	.endm
+
+	.macro	save_and_disable_irqs_notrace, oldcpsr
+	mrs	\oldcpsr, cpsr
+	disable_irq_notrace
 	.endm
 
 /*

@@ -1403,7 +1403,7 @@ segmentation, if both guests are amenable.
 
 Packets are transmitted by placing them in the transmitq, and
 buffers for incoming packets are placed in the receiveq. In each
-case, the packet itself is preceeded by a header:
+case, the packet itself is preceded by a header:
 
 struct virtio_net_hdr {
 
@@ -1642,7 +1642,7 @@ struct virtio_net_ctrl_mac {
 
 The device can filter incoming packets by any number of
 destination MAC addresses.[footnote:
-Since there are no guarentees, it can use a hash filter
+Since there are no guarantees, it can use a hash filter
 orsilently switch to allmulti or promiscuous mode if it is given
 too many addresses.
 ] This table is set using the class VIRTIO_NET_CTRL_MAC and the
@@ -1805,7 +1805,7 @@ the FLUSH and FLUSH_OUT types are equivalent, the device does not
 distinguish between them
 ]). If the device has VIRTIO_BLK_F_BARRIER feature the high bit
 (VIRTIO_BLK_T_BARRIER) indicates that this request acts as a
-barrier and that all preceeding requests must be complete before
+barrier and that all preceding requests must be complete before
 this one, and all following requests must not be started until
 this is complete. Note that a barrier does not flush caches in
 the underlying backend device in host, and thus does not serve as
@@ -2118,7 +2118,7 @@ This is historical, and independent of the guest page size
 
   Otherwise, the guest may begin to re-use pages previously given
     to the balloon before the device has acknowledged their
-    withdrawl. [footnote:
+    withdrawal. [footnote:
 In this case, deflation advice is merely a courtesy
 ]
 

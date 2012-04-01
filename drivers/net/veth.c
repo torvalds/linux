@@ -346,7 +346,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	}
 
 	if (tbp[IFLA_ADDRESS] == NULL)
-		random_ether_addr(peer->dev_addr);
+		eth_hw_addr_random(peer);
 
 	err = register_netdevice(peer);
 	put_net(net);
@@ -368,7 +368,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	 */
 
 	if (tb[IFLA_ADDRESS] == NULL)
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 
 	if (tb[IFLA_IFNAME])
 		nla_strlcpy(dev->name, tb[IFLA_IFNAME], IFNAMSIZ);
@@ -422,7 +422,9 @@ static void veth_dellink(struct net_device *dev, struct list_head *head)
 	unregister_netdevice_queue(peer, head);
 }
 
-static const struct nla_policy veth_policy[VETH_INFO_MAX + 1];
+static const struct nla_policy veth_policy[VETH_INFO_MAX + 1] = {
+	[VETH_INFO_PEER]	= { .len = sizeof(struct ifinfomsg) },
+};
 
 static struct rtnl_link_ops veth_link_ops = {
 	.kind		= DRV_NAME,

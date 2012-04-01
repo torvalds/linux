@@ -21,6 +21,7 @@
 #include <plat/orion_wdt.h>
 #include <plat/mv_xor.h>
 #include <plat/ehci-orion.h>
+#include <mach/bridge-regs.h>
 
 /* Fill in the resources structure and link it into the platform
    device structure. There is always a memory region, and nearly
@@ -568,13 +569,17 @@ void __init orion_spi_1_init(unsigned long mapbase,
  ****************************************************************************/
 static struct orion_wdt_platform_data orion_wdt_data;
 
+static struct resource orion_wdt_resource =
+		DEFINE_RES_MEM(TIMER_VIRT_BASE, 0x28);
+
 static struct platform_device orion_wdt_device = {
 	.name		= "orion_wdt",
 	.id		= -1,
 	.dev		= {
 		.platform_data	= &orion_wdt_data,
 	},
-	.num_resources	= 0,
+	.resource	= &orion_wdt_resource,
+	.num_resources	= 1,
 };
 
 void __init orion_wdt_init(unsigned long tclk)
@@ -789,10 +794,7 @@ void __init orion_xor1_init(unsigned long mapbase_low,
 /*****************************************************************************
  * EHCI
  ****************************************************************************/
-static struct orion_ehci_data orion_ehci_data = {
-	.phy_version	= EHCI_PHY_NA,
-};
-
+static struct orion_ehci_data orion_ehci_data;
 static u64 ehci_dmamask = DMA_BIT_MASK(32);
 
 
@@ -812,8 +814,10 @@ static struct platform_device orion_ehci = {
 };
 
 void __init orion_ehci_init(unsigned long mapbase,
-			    unsigned long irq)
+			    unsigned long irq,
+			    enum orion_ehci_phy_ver phy_version)
 {
+	orion_ehci_data.phy_version = phy_version;
 	fill_resources(&orion_ehci, orion_ehci_resources, mapbase, SZ_4K - 1,
 		       irq);
 

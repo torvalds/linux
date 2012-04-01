@@ -13,7 +13,6 @@
 
 #include <asm/setup.h>
 #include <asm/traps.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 

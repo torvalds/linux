@@ -837,19 +837,8 @@ static struct platform_driver kim_platform_driver = {
 	},
 };
 
-static int __init st_kim_init(void)
-{
-	return platform_driver_register(&kim_platform_driver);
-}
+module_platform_driver(kim_platform_driver);
 
-static void __exit st_kim_deinit(void)
-{
-	platform_driver_unregister(&kim_platform_driver);
-}
-
-
-module_init(st_kim_init);
-module_exit(st_kim_deinit);
 MODULE_AUTHOR("Pavan Savoy <pavan_savoy@ti.com>");
 MODULE_DESCRIPTION("Shared Transport Driver for TI BT/FM/GPS combo chips ");
 MODULE_LICENSE("GPL");

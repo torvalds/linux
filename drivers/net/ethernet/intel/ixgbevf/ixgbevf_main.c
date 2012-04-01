@@ -2199,13 +2199,17 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	if (err) {
 		dev_info(&pdev->dev,
 		         "PF still in reset state, assigning new address\n");
-		dev_hw_addr_random(adapter->netdev, hw->mac.addr);
+		eth_hw_addr_random(adapter->netdev);
+		memcpy(adapter->hw.mac.addr, adapter->netdev->dev_addr,
+			adapter->netdev->addr_len);
 	} else {
 		err = hw->mac.ops.init_hw(hw);
 		if (err) {
 			pr_err("init_shared_code failed: %d\n", err);
 			goto out;
 		}
+		memcpy(adapter->netdev->dev_addr, adapter->hw.mac.addr,
+			adapter->netdev->addr_len);
 	}
 
 	/* Enable dynamic interrupt throttling rates */
@@ -2224,6 +2228,7 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
 
 	set_bit(__IXGBEVF_DOWN, &adapter->state);
+	return 0;
 
 out:
 	return err;
@@ -2521,12 +2526,8 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 
 	size = sizeof(struct ixgbevf_rx_buffer) * rx_ring->count;
 	rx_ring->rx_buffer_info = vzalloc(size);
-	if (!rx_ring->rx_buffer_info) {
-		hw_dbg(&adapter->hw,
-		       "Unable to vmalloc buffer memory for "
-		       "the receive descriptor ring\n");
+	if (!rx_ring->rx_buffer_info)
 		goto alloc_failed;
-	}
 
 	/* Round up to nearest 4K */
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
@@ -3398,6 +3399,17 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 
 	/* setup the private structure */
 	err = ixgbevf_sw_init(adapter);
+	if (err)
+		goto err_sw_init;
+
+	/* The HW MAC address was set and/or determined in sw_init */
+	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
+
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		pr_err("invalid MAC address\n");
+		err = -EIO;
+		goto err_sw_init;
+	}
 
 	netdev->hw_features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
@@ -3421,16 +3433,6 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 		netdev->features |= NETIF_F_HIGHDMA;
 
 	netdev->priv_flags |= IFF_UNICAST_FLT;
-
-	/* The HW MAC address was set and/or determined in sw_init */
-	memcpy(netdev->dev_addr, adapter->hw.mac.addr, netdev->addr_len);
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
-
-	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		pr_err("invalid MAC address\n");
-		err = -EIO;
-		goto err_sw_init;
-	}
 
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = ixgbevf_watchdog;
@@ -3460,13 +3462,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	ixgbevf_init_last_counter_stats(adapter);
 
 	/* print the MAC address */
-	hw_dbg(hw, "%2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
-	       netdev->dev_addr[0],
-	       netdev->dev_addr[1],
-	       netdev->dev_addr[2],
-	       netdev->dev_addr[3],
-	       netdev->dev_addr[4],
-	       netdev->dev_addr[5]);
+	hw_dbg(hw, "%pM\n", netdev->dev_addr);
 
 	hw_dbg(hw, "MAC: %d\n", hw->mac.type);
 

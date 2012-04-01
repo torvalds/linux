@@ -254,6 +254,7 @@ struct e1000_adapter {
 	atomic_t tx_fifo_stall;
 	bool pcix_82544;
 	bool detect_tx_hung;
+	bool dump_buffers;
 
 	/* RX */
 	bool (*clean_rx)(struct e1000_adapter *adapter,

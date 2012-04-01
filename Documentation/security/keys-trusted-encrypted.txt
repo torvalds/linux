@@ -1,7 +1,7 @@
 			Trusted and Encrypted Keys
 
 Trusted and Encrypted Keys are two new key types added to the existing kernel
-key ring service.  Both of these new types are variable length symmetic keys,
+key ring service.  Both of these new types are variable length symmetric keys,
 and in both cases all keys are created in the kernel, and user space sees,
 stores, and loads only encrypted blobs.  Trusted Keys require the availability
 of a Trusted Platform Module (TPM) chip for greater security, while Encrypted

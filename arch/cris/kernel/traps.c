@@ -17,6 +17,7 @@
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
+#include <arch/system.h>
 
 extern void arch_enable_nmi(void);
 extern void stop_watchdog(void);

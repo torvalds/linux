@@ -19,7 +19,6 @@
 #include <asm/types.h>
 #include <asm/spitfire.h>
 #include <asm/asi.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/processor.h>
 

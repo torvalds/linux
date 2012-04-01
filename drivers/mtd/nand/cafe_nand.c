@@ -783,6 +783,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.ecc.mode = NAND_ECC_HW_SYNDROME;
 	cafe->nand.ecc.size = mtd->writesize;
 	cafe->nand.ecc.bytes = 14;
+	cafe->nand.ecc.strength = 4;
 	cafe->nand.ecc.hwctl  = (void *)cafe_nand_bug;
 	cafe->nand.ecc.calculate = (void *)cafe_nand_bug;
 	cafe->nand.ecc.correct  = (void *)cafe_nand_bug;
@@ -799,7 +800,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, mtd);
 
 	mtd->name = "cafe_nand";
-	mtd_device_parse_register(mtd, part_probes, 0, NULL, 0);
+	mtd_device_parse_register(mtd, part_probes, NULL, NULL, 0);
 
 	goto out;
 
