@@ -6,8 +6,6 @@
 #include <linux/memcontrol.h>
 #include <linux/module.h>
 
-static struct cftype tcp_files[4];	/* XXX: will be removed soon */
-
 static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
 {
 	return container_of(cg_proto, struct tcp_memcontrol, cg_proto);
@@ -36,7 +34,7 @@ int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 
 	cg_proto = tcp_prot.proto_cgroup(memcg);
 	if (!cg_proto)
-		goto create_files;
+		return 0;
 
 	tcp = tcp_from_cgproto(cg_proto);
 
@@ -59,9 +57,7 @@ int tcp_init_cgroup(struct cgroup *cgrp, struct cgroup_subsys *ss)
 	cg_proto->sockets_allocated = &tcp->tcp_sockets_allocated;
 	cg_proto->memcg = memcg;
 
-create_files:
-	return cgroup_add_files(cgrp, ss, tcp_files,
-				ARRAY_SIZE(tcp_files));
+	return 0;
 }
 EXPORT_SYMBOL(tcp_init_cgroup);
 
@@ -266,4 +262,12 @@ static struct cftype tcp_files[] = {
 		.trigger = tcp_cgroup_reset,
 		.read_u64 = tcp_cgroup_read,
 	},
+	{ }	/* terminate */
 };
+
+static int __init tcp_memcontrol_init(void)
+{
+	WARN_ON(cgroup_add_cftypes(&mem_cgroup_subsys, tcp_files));
+	return 0;
+}
+__initcall(tcp_memcontrol_init);
