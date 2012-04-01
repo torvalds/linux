@@ -23,21 +23,6 @@
 #include <net/sock.h>
 #include <net/netprio_cgroup.h>
 
-static struct cgroup_subsys_state *cgrp_create(struct cgroup *cgrp);
-static void cgrp_destroy(struct cgroup *cgrp);
-static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp);
-
-struct cgroup_subsys net_prio_subsys = {
-	.name		= "net_prio",
-	.create		= cgrp_create,
-	.destroy	= cgrp_destroy,
-	.populate	= cgrp_populate,
-#ifdef CONFIG_NETPRIO_CGROUP
-	.subsys_id	= net_prio_subsys_id,
-#endif
-	.module		= THIS_MODULE
-};
-
 #define PRIOIDX_SZ 128
 
 static unsigned long prioidx_map[PRIOIDX_SZ];
@@ -263,6 +248,17 @@ static int cgrp_populate(struct cgroup_subsys *ss, struct cgroup *cgrp)
 {
 	return cgroup_add_files(cgrp, ss, ss_files, ARRAY_SIZE(ss_files));
 }
+
+struct cgroup_subsys net_prio_subsys = {
+	.name		= "net_prio",
+	.create		= cgrp_create,
+	.destroy	= cgrp_destroy,
+	.populate	= cgrp_populate,
+#ifdef CONFIG_NETPRIO_CGROUP
+	.subsys_id	= net_prio_subsys_id,
+#endif
+	.module		= THIS_MODULE
+};
 
 static int netprio_device_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)

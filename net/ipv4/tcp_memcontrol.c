@@ -6,36 +6,7 @@
 #include <linux/memcontrol.h>
 #include <linux/module.h>
 
-static u64 tcp_cgroup_read(struct cgroup *cont, struct cftype *cft);
-static int tcp_cgroup_write(struct cgroup *cont, struct cftype *cft,
-			    const char *buffer);
-static int tcp_cgroup_reset(struct cgroup *cont, unsigned int event);
-
-static struct cftype tcp_files[] = {
-	{
-		.name = "kmem.tcp.limit_in_bytes",
-		.write_string = tcp_cgroup_write,
-		.read_u64 = tcp_cgroup_read,
-		.private = RES_LIMIT,
-	},
-	{
-		.name = "kmem.tcp.usage_in_bytes",
-		.read_u64 = tcp_cgroup_read,
-		.private = RES_USAGE,
-	},
-	{
-		.name = "kmem.tcp.failcnt",
-		.private = RES_FAILCNT,
-		.trigger = tcp_cgroup_reset,
-		.read_u64 = tcp_cgroup_read,
-	},
-	{
-		.name = "kmem.tcp.max_usage_in_bytes",
-		.private = RES_MAX_USAGE,
-		.trigger = tcp_cgroup_reset,
-		.read_u64 = tcp_cgroup_read,
-	},
-};
+static struct cftype tcp_files[4];	/* XXX: will be removed soon */
 
 static inline struct tcp_memcontrol *tcp_from_cgproto(struct cg_proto *cg_proto)
 {
@@ -270,3 +241,29 @@ void tcp_prot_mem(struct mem_cgroup *memcg, long val, int idx)
 
 	tcp->tcp_prot_mem[idx] = val;
 }
+
+static struct cftype tcp_files[] = {
+	{
+		.name = "kmem.tcp.limit_in_bytes",
+		.write_string = tcp_cgroup_write,
+		.read_u64 = tcp_cgroup_read,
+		.private = RES_LIMIT,
+	},
+	{
+		.name = "kmem.tcp.usage_in_bytes",
+		.read_u64 = tcp_cgroup_read,
+		.private = RES_USAGE,
+	},
+	{
+		.name = "kmem.tcp.failcnt",
+		.private = RES_FAILCNT,
+		.trigger = tcp_cgroup_reset,
+		.read_u64 = tcp_cgroup_read,
+	},
+	{
+		.name = "kmem.tcp.max_usage_in_bytes",
+		.private = RES_MAX_USAGE,
+		.trigger = tcp_cgroup_reset,
+		.read_u64 = tcp_cgroup_read,
+	},
+};
