@@ -671,21 +671,6 @@ cifs_del_lock_waiters(struct cifsLockInfo *lock)
 	}
 }
 
-/*
- * Copied from fs/locks.c with small changes.
- * Remove waiter from blocker's block list.
- * When blocker ends up pointing to itself then the list is empty.
- */
-static void
-cifs_locks_delete_block(struct file_lock *waiter)
-{
-	lock_flocks();
-	list_del_init(&waiter->fl_block);
-	list_del_init(&waiter->fl_link);
-	waiter->fl_next = NULL;
-	unlock_flocks();
-}
-
 static bool
 __cifs_find_lock_conflict(struct cifsInodeInfo *cinode, __u64 offset,
 			__u64 length, __u8 type, __u16 netfid,
@@ -835,39 +820,6 @@ cifs_posix_lock_test(struct file *file, struct file_lock *flock)
 	return rc;
 }
 
-/* Called with locked lock_mutex, return with unlocked. */
-static int
-cifs_posix_lock_file_wait_locked(struct file *file, struct file_lock *flock)
-{
-	struct cifsInodeInfo *cinode = CIFS_I(file->f_path.dentry->d_inode);
-	int rc;
-
-	while (true) {
-		rc = posix_lock_file(file, flock, NULL);
-		mutex_unlock(&cinode->lock_mutex);
-		if (rc != FILE_LOCK_DEFERRED)
-			break;
-		rc = wait_event_interruptible(flock->fl_wait, !flock->fl_next);
-		if (!rc) {
-			mutex_lock(&cinode->lock_mutex);
-			continue;
-		}
-		cifs_locks_delete_block(flock);
-		break;
-	}
-	return rc;
-}
-
-static int
-cifs_posix_lock_file_wait(struct file *file, struct file_lock *flock)
-{
-	struct cifsInodeInfo *cinode = CIFS_I(file->f_path.dentry->d_inode);
-
-	mutex_lock(&cinode->lock_mutex);
-	/* lock_mutex will be released by the function below */
-	return cifs_posix_lock_file_wait_locked(file, flock);
-}
-
 /*
  * Set the byte-range lock (posix style). Returns:
  * 1) 0, if we set the lock and don't need to request to the server;
@@ -888,9 +840,9 @@ cifs_posix_lock_set(struct file *file, struct file_lock *flock)
 		mutex_unlock(&cinode->lock_mutex);
 		return rc;
 	}
-
-	/* lock_mutex will be released by the function below */
-	return cifs_posix_lock_file_wait_locked(file, flock);
+	rc = posix_lock_file_wait(file, flock);
+	mutex_unlock(&cinode->lock_mutex);
+	return rc;
 }
 
 static int
@@ -1386,7 +1338,7 @@ cifs_setlk(struct file *file,  struct file_lock *flock, __u8 type,
 
 out:
 	if (flock->fl_flags & FL_POSIX)
-		cifs_posix_lock_file_wait(file, flock);
+		posix_lock_file_wait(file, flock);
 	return rc;
 }
 
