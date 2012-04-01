@@ -7449,6 +7449,7 @@ wl_iw_process_private_ascii_cmd(
 }
 #endif 
 
+#ifdef BCM_SUSPEND_LOCK
 #define BCM4329_WAKELOCK_NAME "bcm4329_wifi_wakelock"
 
 static struct wake_lock bcm4329_suspend_lock;
@@ -7472,6 +7473,14 @@ void bcm4329_power_save_exit(void)
 		wake_unlock(&bcm4329_suspend_lock);
 	wake_lock_destroy(&bcm4329_suspend_lock);
 }
+#else
+void bcm4329_power_save_init(void)
+{
+}
+void bcm4329_power_save_exit(void)
+{
+}
+#endif
 
 static int
 wl_iw_set_priv(
@@ -7501,11 +7510,13 @@ wl_iw_set_priv(
 
 	if (dwrq->length && extra) {
 		if (strnicmp(extra, "START", strlen("START")) == 0) {
+#ifdef BCM_SUSPEND_LOCK
 			if (bcm4329_wakelock_init == 1)
 			{
 				wake_lock(&bcm4329_suspend_lock);
 				bcm4329_wakelock_init = 2;
 			}
+#endif
 			wl_iw_control_wl_on(dev, info);
 			WL_TRACE(("%s, Received regular START command\n", __FUNCTION__));
 		}
@@ -7540,11 +7551,13 @@ wl_iw_set_priv(
 			ret = wl_iw_set_country(dev, info, (union iwreq_data *)dwrq, extra);
 		else if (strnicmp(extra, "STOP", strlen("STOP")) == 0){
 			ret = wl_iw_control_wl_off(dev, info);
+#ifdef BCM_SUSPEND_LOCK
 			if (bcm4329_wakelock_init == 2)
 			{
 				wake_unlock(&bcm4329_suspend_lock);
 				bcm4329_wakelock_init = 1;
 			}
+#endif
 		}
 		else if (strnicmp(extra, BAND_GET_CMD, strlen(BAND_GET_CMD)) == 0)
 			ret = wl_iw_get_band(dev, info, (union iwreq_data *)dwrq, extra);
