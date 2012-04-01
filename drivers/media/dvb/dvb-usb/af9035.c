@@ -36,6 +36,22 @@ static struct af9033_config af9035_af9033_config[] = {
 	}
 };
 
+static u16 af9035_checksum(const u8 *buf, size_t len)
+{
+	size_t i;
+	u16 checksum = 0;
+
+	for (i = 1; i < len; i++) {
+		if (i % 2)
+			checksum += buf[i] << 8;
+		else
+			checksum += buf[i];
+	}
+	checksum = ~checksum;
+
+	return checksum;
+}
+
 static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
 {
 #define BUF_LEN 63
@@ -44,11 +60,11 @@ static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
 #define CHECKSUM_LEN 2
 #define USB_TIMEOUT 2000
 
-	int ret, i, act_len;
+	int ret, act_len;
 	u8 buf[BUF_LEN];
 	u32 msg_len;
 	static u8 seq; /* packet sequence number */
-	u16 checksum = 0;
+	u16 checksum, tmpsum;
 
 	/* buffer overflow check */
 	if (req->wlen > (BUF_LEN - REQ_HDR_LEN - CHECKSUM_LEN) ||
@@ -69,14 +85,7 @@ static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
 		memcpy(&buf[4], req->wbuf, req->wlen);
 
 	/* calc and add checksum */
-	for (i = 1; i < buf[0]-1; i++) {
-		if (i % 2)
-			checksum += buf[i] << 8;
-		else
-			checksum += buf[i];
-	}
-	checksum = ~checksum;
-
+	checksum = af9035_checksum(buf, buf[0] - 1);
 	buf[buf[0]-1] = (checksum >> 8);
 	buf[buf[0]-0] = (checksum & 0xff);
 
@@ -106,7 +115,23 @@ static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
 		ret = -EIO;
 		goto err_mutex_unlock;
 	}
+	if (act_len != msg_len) {
+		err("recv bulk message truncated (%d != %u)\n",
+		    act_len, (unsigned int)msg_len);
+		ret = -EIO;
+		goto err_mutex_unlock;
+	}
 
+	/* verify checksum */
+	checksum = af9035_checksum(buf, act_len - 2);
+	tmpsum = (buf[act_len - 2] << 8) | buf[act_len - 1];
+	if (tmpsum != checksum) {
+		err("%s: command=%02X checksum mismatch (%04X != %04X)\n",
+		    __func__, req->cmd,
+		    (unsigned int)tmpsum, (unsigned int)checksum);
+		ret = -EIO;
+		goto err_mutex_unlock;
+	}
 	/* check status */
 	if (buf[2]) {
 		pr_debug("%s: command=%02x failed fw error=%d\n", __func__,
