@@ -115,16 +115,12 @@ static inline bool css_is_removed(struct cgroup_subsys_state *css)
  * the css has been destroyed.
  */
 
+extern bool __css_tryget(struct cgroup_subsys_state *css);
 static inline bool css_tryget(struct cgroup_subsys_state *css)
 {
 	if (test_bit(CSS_ROOT, &css->flags))
 		return true;
-	while (!atomic_inc_not_zero(&css->refcnt)) {
-		if (test_bit(CSS_REMOVED, &css->flags))
-			return false;
-		cpu_relax();
-	}
-	return true;
+	return __css_tryget(css);
 }
 
 /*
@@ -132,11 +128,11 @@ static inline bool css_tryget(struct cgroup_subsys_state *css)
  * css_get() or css_tryget()
  */
 
-extern void __css_put(struct cgroup_subsys_state *css, int count);
+extern void __css_put(struct cgroup_subsys_state *css);
 static inline void css_put(struct cgroup_subsys_state *css)
 {
 	if (!test_bit(CSS_ROOT, &css->flags))
-		__css_put(css, 1);
+		__css_put(css);
 }
 
 /* bits in struct cgroup flags field */
