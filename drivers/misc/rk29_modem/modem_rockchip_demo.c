@@ -65,8 +65,6 @@ static int __init demo_init(void)
 {
     printk("%s[%d]: %s\n", __FILE__, __LINE__, __FUNCTION__);
 
-    rk29_mux_api_set(GPIO4D1_SMCDATA9_TRACEDATA9_NAME, GPIO4D_GPIO4D1);
-    
     return rk29_modem_init(&demo_driver);
 }
 
