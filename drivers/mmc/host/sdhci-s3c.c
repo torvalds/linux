@@ -562,6 +562,14 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	if (pdata->cd_type == S3C_SDHCI_CD_PERMANENT)
 		host->mmc->caps = MMC_CAP_NONREMOVABLE;
 
+	switch (pdata->max_width) {
+	case 8:
+		host->mmc->caps |= MMC_CAP_8_BIT_DATA;
+	case 4:
+		host->mmc->caps |= MMC_CAP_4_BIT_DATA;
+		break;
+	}
+
 	if (pdata->pm_caps)
 		host->mmc->pm_caps |= pdata->pm_caps;
 
