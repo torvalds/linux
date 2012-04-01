@@ -40,6 +40,14 @@ struct throtl_rb_root {
 
 #define rb_entry_tg(node)	rb_entry((node), struct throtl_grp, rb_node)
 
+/* Per-cpu group stats */
+struct tg_stats_cpu {
+	/* total bytes transferred */
+	struct blkg_rwstat		service_bytes;
+	/* total IOs serviced, post merge */
+	struct blkg_rwstat		serviced;
+};
+
 struct throtl_grp {
 	/* active throtl group service_tree member */
 	struct rb_node rb_node;
@@ -76,6 +84,12 @@ struct throtl_grp {
 
 	/* Some throttle limits got updated for the group */
 	int limits_changed;
+
+	/* Per cpu stats pointer */
+	struct tg_stats_cpu __percpu *stats_cpu;
+
+	/* List of tgs waiting for per cpu stats memory to be allocated */
+	struct list_head stats_alloc_node;
 };
 
 struct throtl_data
@@ -99,6 +113,13 @@ struct throtl_data
 
 	int limits_changed;
 };
+
+/* list and work item to allocate percpu group stats */
+static DEFINE_SPINLOCK(tg_stats_alloc_lock);
+static LIST_HEAD(tg_stats_alloc_list);
+
+static void tg_stats_alloc_fn(struct work_struct *);
+static DECLARE_DELAYED_WORK(tg_stats_alloc_work, tg_stats_alloc_fn);
 
 static inline struct throtl_grp *blkg_to_tg(struct blkio_group *blkg)
 {
@@ -142,6 +163,44 @@ static inline unsigned int total_nr_queued(struct throtl_data *td)
 	return td->nr_queued[0] + td->nr_queued[1];
 }
 
+/*
+ * Worker for allocating per cpu stat for tgs. This is scheduled on the
+ * system_nrt_wq once there are some groups on the alloc_list waiting for
+ * allocation.
+ */
+static void tg_stats_alloc_fn(struct work_struct *work)
+{
+	static struct tg_stats_cpu *stats_cpu;	/* this fn is non-reentrant */
+	struct delayed_work *dwork = to_delayed_work(work);
+	bool empty = false;
+
+alloc_stats:
+	if (!stats_cpu) {
+		stats_cpu = alloc_percpu(struct tg_stats_cpu);
+		if (!stats_cpu) {
+			/* allocation failed, try again after some time */
+			queue_delayed_work(system_nrt_wq, dwork,
+					   msecs_to_jiffies(10));
+			return;
+		}
+	}
+
+	spin_lock_irq(&tg_stats_alloc_lock);
+
+	if (!list_empty(&tg_stats_alloc_list)) {
+		struct throtl_grp *tg = list_first_entry(&tg_stats_alloc_list,
+							 struct throtl_grp,
+							 stats_alloc_node);
+		swap(tg->stats_cpu, stats_cpu);
+		list_del_init(&tg->stats_alloc_node);
+	}
+
+	empty = list_empty(&tg_stats_alloc_list);
+	spin_unlock_irq(&tg_stats_alloc_lock);
+	if (!empty)
+		goto alloc_stats;
+}
+
 static void throtl_init_blkio_group(struct blkio_group *blkg)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
@@ -155,6 +214,43 @@ static void throtl_init_blkio_group(struct blkio_group *blkg)
 	tg->bps[WRITE] = -1;
 	tg->iops[READ] = -1;
 	tg->iops[WRITE] = -1;
+
+	/*
+	 * Ugh... We need to perform per-cpu allocation for tg->stats_cpu
+	 * but percpu allocator can't be called from IO path.  Queue tg on
+	 * tg_stats_alloc_list and allocate from work item.
+	 */
+	spin_lock(&tg_stats_alloc_lock);
+	list_add(&tg->stats_alloc_node, &tg_stats_alloc_list);
+	queue_delayed_work(system_nrt_wq, &tg_stats_alloc_work, 0);
+	spin_unlock(&tg_stats_alloc_lock);
+}
+
+static void throtl_exit_blkio_group(struct blkio_group *blkg)
+{
+	struct throtl_grp *tg = blkg_to_tg(blkg);
+
+	spin_lock(&tg_stats_alloc_lock);
+	list_del_init(&tg->stats_alloc_node);
+	spin_unlock(&tg_stats_alloc_lock);
+
+	free_percpu(tg->stats_cpu);
+}
+
+static void throtl_reset_group_stats(struct blkio_group *blkg)
+{
+	struct throtl_grp *tg = blkg_to_tg(blkg);
+	int cpu;
+
+	if (tg->stats_cpu == NULL)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct tg_stats_cpu *sc = per_cpu_ptr(tg->stats_cpu, cpu);
+
+		blkg_rwstat_reset(&sc->service_bytes);
+		blkg_rwstat_reset(&sc->serviced);
+	}
 }
 
 static struct
@@ -565,12 +661,12 @@ static bool tg_may_dispatch(struct throtl_data *td, struct throtl_grp *tg,
 static void throtl_update_dispatch_stats(struct blkio_group *blkg, u64 bytes,
 					 int rw)
 {
-	struct blkg_policy_data *pd = blkg->pd[BLKIO_POLICY_THROTL];
-	struct blkio_group_stats_cpu *stats_cpu;
+	struct throtl_grp *tg = blkg_to_tg(blkg);
+	struct tg_stats_cpu *stats_cpu;
 	unsigned long flags;
 
 	/* If per cpu stats are not allocated yet, don't do any accounting. */
-	if (pd->stats_cpu == NULL)
+	if (tg->stats_cpu == NULL)
 		return;
 
 	/*
@@ -580,7 +676,7 @@ static void throtl_update_dispatch_stats(struct blkio_group *blkg, u64 bytes,
 	 */
 	local_irq_save(flags);
 
-	stats_cpu = this_cpu_ptr(pd->stats_cpu);
+	stats_cpu = this_cpu_ptr(tg->stats_cpu);
 
 	blkg_rwstat_add(&stats_cpu->serviced, rw, 1);
 	blkg_rwstat_add(&stats_cpu->service_bytes, rw, bytes);
@@ -842,15 +938,15 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 	throtl_schedule_delayed_work(td, 0);
 }
 
-static u64 blkg_prfill_cpu_rwstat(struct seq_file *sf,
-				  struct blkg_policy_data *pd, int off)
+static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
+				struct blkg_policy_data *pd, int off)
 {
+	struct throtl_grp *tg = (void *)pd->pdata;
 	struct blkg_rwstat rwstat = { }, tmp;
 	int i, cpu;
 
 	for_each_possible_cpu(cpu) {
-		struct blkio_group_stats_cpu *sc =
-			per_cpu_ptr(pd->stats_cpu, cpu);
+		struct tg_stats_cpu *sc = per_cpu_ptr(tg->stats_cpu, cpu);
 
 		tmp = blkg_rwstat_read((void *)sc + off);
 		for (i = 0; i < BLKG_RWSTAT_NR; i++)
@@ -861,12 +957,12 @@ static u64 blkg_prfill_cpu_rwstat(struct seq_file *sf,
 }
 
 /* print per-cpu blkg_rwstat specified by BLKCG_STAT_PRIV() */
-static int blkcg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
-				  struct seq_file *sf)
+static int tg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
+			       struct seq_file *sf)
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
 
-	blkcg_print_blkgs(sf, blkcg, blkg_prfill_cpu_rwstat,
+	blkcg_print_blkgs(sf, blkcg, tg_prfill_cpu_rwstat,
 			  BLKCG_STAT_POL(cft->private),
 			  BLKCG_STAT_OFF(cft->private), true);
 	return 0;
@@ -1012,14 +1108,14 @@ static struct cftype throtl_files[] = {
 	{
 		.name = "throttle.io_service_bytes",
 		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_THROTL,
-				offsetof(struct blkio_group_stats_cpu, service_bytes)),
-		.read_seq_string = blkcg_print_cpu_rwstat,
+				offsetof(struct tg_stats_cpu, service_bytes)),
+		.read_seq_string = tg_print_cpu_rwstat,
 	},
 	{
 		.name = "throttle.io_serviced",
 		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_THROTL,
-				offsetof(struct blkio_group_stats_cpu, serviced)),
-		.read_seq_string = blkcg_print_cpu_rwstat,
+				offsetof(struct tg_stats_cpu, serviced)),
+		.read_seq_string = tg_print_cpu_rwstat,
 	},
 	{ }	/* terminate */
 };
@@ -1034,6 +1130,8 @@ static void throtl_shutdown_wq(struct request_queue *q)
 static struct blkio_policy_type blkio_policy_throtl = {
 	.ops = {
 		.blkio_init_group_fn = throtl_init_blkio_group,
+		.blkio_exit_group_fn = throtl_exit_blkio_group,
+		.blkio_reset_group_stats_fn = throtl_reset_group_stats,
 	},
 	.plid = BLKIO_POLICY_THROTL,
 	.pdata_size = sizeof(struct throtl_grp),

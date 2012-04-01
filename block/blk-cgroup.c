@@ -30,13 +30,6 @@ static LIST_HEAD(blkio_list);
 static DEFINE_MUTEX(all_q_mutex);
 static LIST_HEAD(all_q_list);
 
-/* List of groups pending per cpu stats allocation */
-static DEFINE_SPINLOCK(alloc_list_lock);
-static LIST_HEAD(alloc_list);
-
-static void blkio_stat_alloc_fn(struct work_struct *);
-static DECLARE_DELAYED_WORK(blkio_stat_alloc_work, blkio_stat_alloc_fn);
-
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
@@ -63,60 +56,6 @@ struct blkio_cgroup *bio_blkio_cgroup(struct bio *bio)
 }
 EXPORT_SYMBOL_GPL(bio_blkio_cgroup);
 
-/*
- * Worker for allocating per cpu stat for blk groups. This is scheduled on
- * the system_nrt_wq once there are some groups on the alloc_list waiting
- * for allocation.
- */
-static void blkio_stat_alloc_fn(struct work_struct *work)
-{
-	static void *pcpu_stats[BLKIO_NR_POLICIES];
-	struct delayed_work *dwork = to_delayed_work(work);
-	struct blkio_group *blkg;
-	int i;
-	bool empty = false;
-
-alloc_stats:
-	for (i = 0; i < BLKIO_NR_POLICIES; i++) {
-		if (pcpu_stats[i] != NULL)
-			continue;
-
-		pcpu_stats[i] = alloc_percpu(struct blkio_group_stats_cpu);
-
-		/* Allocation failed. Try again after some time. */
-		if (pcpu_stats[i] == NULL) {
-			queue_delayed_work(system_nrt_wq, dwork,
-						msecs_to_jiffies(10));
-			return;
-		}
-	}
-
-	spin_lock_irq(&blkio_list_lock);
-	spin_lock(&alloc_list_lock);
-
-	/* cgroup got deleted or queue exited. */
-	if (!list_empty(&alloc_list)) {
-		blkg = list_first_entry(&alloc_list, struct blkio_group,
-						alloc_node);
-		for (i = 0; i < BLKIO_NR_POLICIES; i++) {
-			struct blkg_policy_data *pd = blkg->pd[i];
-
-			if (blkio_policy[i] && pd && !pd->stats_cpu)
-				swap(pd->stats_cpu, pcpu_stats[i]);
-		}
-
-		list_del_init(&blkg->alloc_node);
-	}
-
-	empty = list_empty(&alloc_list);
-
-	spin_unlock(&alloc_list_lock);
-	spin_unlock_irq(&blkio_list_lock);
-
-	if (!empty)
-		goto alloc_stats;
-}
-
 /**
  * blkg_free - free a blkg
  * @blkg: blkg to free
@@ -140,7 +79,6 @@ static void blkg_free(struct blkio_group *blkg)
 		if (pol && pol->ops.blkio_exit_group_fn)
 			pol->ops.blkio_exit_group_fn(blkg);
 
-		free_percpu(pd->stats_cpu);
 		kfree(pd);
 	}
 
@@ -167,7 +105,6 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 
 	blkg->q = q;
 	INIT_LIST_HEAD(&blkg->q_node);
-	INIT_LIST_HEAD(&blkg->alloc_node);
 	blkg->blkcg = blkcg;
 	blkg->refcnt = 1;
 	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
@@ -245,12 +182,6 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
 	list_add(&blkg->q_node, &q->blkg_list);
 	spin_unlock(&blkcg->lock);
-
-	spin_lock(&alloc_list_lock);
-	list_add(&blkg->alloc_node, &alloc_list);
-	/* Queue per cpu stat allocation from worker thread. */
-	queue_delayed_work(system_nrt_wq, &blkio_stat_alloc_work, 0);
-	spin_unlock(&alloc_list_lock);
 out:
 	return blkg;
 }
@@ -284,10 +215,6 @@ static void blkg_destroy(struct blkio_group *blkg)
 	list_del_init(&blkg->q_node);
 	hlist_del_init_rcu(&blkg->blkcg_node);
 
-	spin_lock(&alloc_list_lock);
-	list_del_init(&blkg->alloc_node);
-	spin_unlock(&alloc_list_lock);
-
 	/*
 	 * Put the reference taken at the time of creation so that when all
 	 * queues are gone, group can be destroyed.
@@ -318,9 +245,6 @@ void update_root_blkg_pd(struct request_queue *q, enum blkio_policy_id plid)
 
 	pd = kzalloc(sizeof(*pd) + pol->pdata_size, GFP_KERNEL);
 	WARN_ON_ONCE(!pd);
-
-	pd->stats_cpu = alloc_percpu(struct blkio_group_stats_cpu);
-	WARN_ON_ONCE(!pd->stats_cpu);
 
 	blkg->pd[plid] = pd;
 	pd->blkg = blkg;
@@ -381,23 +305,6 @@ void __blkg_release(struct blkio_group *blkg)
 }
 EXPORT_SYMBOL_GPL(__blkg_release);
 
-static void blkio_reset_stats_cpu(struct blkio_group *blkg, int plid)
-{
-	struct blkg_policy_data *pd = blkg->pd[plid];
-	int cpu;
-
-	if (pd->stats_cpu == NULL)
-		return;
-
-	for_each_possible_cpu(cpu) {
-		struct blkio_group_stats_cpu *sc =
-			per_cpu_ptr(pd->stats_cpu, cpu);
-
-		blkg_rwstat_reset(&sc->service_bytes);
-		blkg_rwstat_reset(&sc->serviced);
-	}
-}
-
 static int
 blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 {
@@ -416,12 +323,9 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
 		struct blkio_policy_type *pol;
 
-		list_for_each_entry(pol, &blkio_list, list) {
-			blkio_reset_stats_cpu(blkg, pol->plid);
-
+		list_for_each_entry(pol, &blkio_list, list)
 			if (pol->ops.blkio_reset_group_stats_fn)
 				pol->ops.blkio_reset_group_stats_fn(blkg);
-		}
 	}
 
 	spin_unlock_irq(&blkcg->lock);

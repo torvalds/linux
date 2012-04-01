@@ -64,14 +64,6 @@ struct blkg_rwstat {
 	uint64_t			cnt[BLKG_RWSTAT_NR];
 };
 
-/* Per cpu blkio group stats */
-struct blkio_group_stats_cpu {
-	/* total bytes transferred */
-	struct blkg_rwstat		service_bytes;
-	/* total IOs serviced, post merge */
-	struct blkg_rwstat		serviced;
-};
-
 struct blkio_group_conf {
 	unsigned int weight;
 	u64 iops[2];
@@ -85,9 +77,6 @@ struct blkg_policy_data {
 
 	/* Configuration */
 	struct blkio_group_conf conf;
-
-	/* Per cpu stats pointer */
-	struct blkio_group_stats_cpu __percpu *stats_cpu;
 
 	/* pol->pdata_size bytes of private data used by policy impl */
 	char pdata[] __aligned(__alignof__(unsigned long long));
@@ -106,8 +95,6 @@ struct blkio_group {
 
 	struct blkg_policy_data *pd[BLKIO_NR_POLICIES];
 
-	/* List of blkg waiting for per cpu stats memory to be allocated */
-	struct list_head alloc_node;
 	struct rcu_head rcu_head;
 };
 
