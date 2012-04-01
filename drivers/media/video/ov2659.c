@@ -1515,52 +1515,52 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     char value;
     int ret,pid = 0,i = 0,j=0;
 	//if val ==1,mean that sensor need to be reinit
-    struct rk29camera_platform_data* tmp_plat_data =(struct rk29camera_platform_data*)val;
+    struct rk29camera_platform_data* tmp_plat_data =sensor->sensor_io_request;
+    
     sensor_init_data_p = sensor_init_data;
 	sensor_init_winseq_p = sensor_svga;
 	sensor_init_width = 800;
 	sensor_init_height = 600;
-   // return 0;
-	if (tmp_plat_data != NULL && (u32)tmp_plat_data != 1) { 
+
+	if (tmp_plat_data != NULL) { 
 		for(i = 0;i < RK_CAM_NUM;i++){
 			if ((tmp_plat_data->sensor_init_data[i])&& tmp_plat_data->info[i].dev_name &&
-				(strcmp(tmp_plat_data->info[i].dev_name, dev_name(icd->pdev)) == 0))
-					break;
+				(strcmp(tmp_plat_data->info[i].dev_name, dev_name(icd->pdev)) == 0)) {
+				break;
 			}
+                
 		}
-	if(tmp_plat_data  && ((u32)tmp_plat_data != 1) &&(i < RK_CAM_NUM) && tmp_plat_data->sensor_init_data[i]){
+	}
+	if(tmp_plat_data &&(i < RK_CAM_NUM) && tmp_plat_data->sensor_init_data[i]){
 	//user has defined the init data
 		//init reg
 		if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
-			for(j = 0;j< sizeof(sensor_init_data)/sizeof(struct reginfo);j++){
+			for(j = 0;j< sizeof(sensor_init_data)/sizeof(struct reginfo);j++) {
 				sensor_init_data[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].reg;
 				sensor_init_data[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].val;
-				}
+			}
 			sensor_init_data_p = sensor_init_data;
-			}
-		else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data){
+		} else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data) {
 			sensor_init_data_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data);
-			}
+		}
 		//init winseq
 		if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
 			int tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
-			if(sensor_init_winseq_board)
-				{
+			if(sensor_init_winseq_board) {
 				vfree(sensor_init_winseq_board);
 				sensor_init_winseq_board = NULL;
-				}
+			}
 			sensor_init_winseq_board = (struct reginfo*)vmalloc(tmp_winseq_size);
 			if(!sensor_init_winseq_board)
 				SENSOR_TR("%s :vmalloc erro !",__FUNCTION__);
 			for(j = 0;j< tmp_winseq_size;j++){
 				sensor_init_winseq_board[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].reg;
 				sensor_init_winseq_board[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].val;
-				}
+			}
 			sensor_init_winseq_p = sensor_init_winseq_board;
-			}
-		else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq){
+        } else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq){
 			sensor_init_winseq_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq);
-			}
+		}
 		//init width,height,bus,pixelcode
 		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width != INVALID_VALUE)
 			sensor_init_width = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width;

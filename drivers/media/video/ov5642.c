@@ -3922,11 +3922,12 @@ static void sensor_af_workqueue(struct work_struct *work)
     SENSOR_DG("%s %s Enter, cmd:0x%x \n",SENSOR_NAME_STRING(), __FUNCTION__,sensor_work->cmd);
     
     mutex_lock(&sensor->wq_lock);
-    if((sensor_work->cmd != WqCmd_af_init) && (sensor->info_priv.auto_focus != SENSOR_AF_MODE_AUTO))
-        {
+    
+    if((sensor_work->cmd != WqCmd_af_init) && (sensor->info_priv.auto_focus != SENSOR_AF_MODE_AUTO)) {
         SENSOR_TR("auto focus status is wrong ,do nothing !");
         goto set_end;
-        }
+    }
+    
     switch (sensor_work->cmd) 
     {
         case WqCmd_af_init:
@@ -4262,7 +4263,8 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     const struct sensor_datafmt *fmt;
     char value;
     int ret,pid = 0,i = 0,j=0;
-    struct rk29camera_platform_data* tmp_plat_data =(struct rk29camera_platform_data*)val;
+    struct rk29camera_platform_data* tmp_plat_data =sensor->sensor_io_request;
+    
     sensor_init_data_p = sensor_init_data;
 	sensor_init_winseq_p = sensor_svga;
 	sensor_init_width = 800;
@@ -4270,52 +4272,50 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	if (tmp_plat_data != NULL) { 
 		for(i = 0;i < RK_CAM_NUM;i++){
 			if ((tmp_plat_data->sensor_init_data[i])&& tmp_plat_data->info[i].dev_name &&
-				(strcmp(tmp_plat_data->info[i].dev_name, dev_name(icd->pdev)) == 0))
-					break;
+				(strcmp(tmp_plat_data->info[i].dev_name, dev_name(icd->pdev)) == 0)) {
+				break;
 			}
 		}
-	if(tmp_plat_data  && (i < RK_CAM_NUM) && tmp_plat_data->sensor_init_data[i]){
-	//user has defined the init data
-		//init reg
-		if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
-			for(j = 0;j< sizeof(sensor_init_data)/sizeof(struct reginfo);j++){
-				sensor_init_data[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].reg;
-				sensor_init_data[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].val;
-				}
-			sensor_init_data_p = sensor_init_data;
-			}
-		else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data){
-			sensor_init_data_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data);
-			}
-		//init winseq
-		if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
-			int tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
-			if(sensor_init_winseq_board)
-				{
-				vfree(sensor_init_winseq_board);
-				sensor_init_winseq_board = NULL;
-				}
-			sensor_init_winseq_board = (struct reginfo*)vmalloc(tmp_winseq_size);
-			if(!sensor_init_winseq_board)
-				SENSOR_TR("%s :vmalloc erro !",__FUNCTION__);
-			for(j = 0;j< tmp_winseq_size;j++){
-				sensor_init_winseq_board[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].reg;
-				sensor_init_winseq_board[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].val;
-				}
-			sensor_init_winseq_p = sensor_init_winseq_board;
-			}
-		else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq){
-			sensor_init_winseq_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq);
-			}
-		//init width,height,bus,pixelcode
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width != INVALID_VALUE)
-			sensor_init_width = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width;
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_height != INVALID_VALUE)
-			sensor_init_height = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_height;
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_bus_param != INVALID_VALUE)
-			sensor_init_busparam = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_bus_param;
-		if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_pixelcode != INVALID_VALUE)
-			sensor_init_pixelcode = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_pixelcode;
+	}
+	if(tmp_plat_data  && (i < RK_CAM_NUM) && tmp_plat_data->sensor_init_data[i]) {
+        //user has defined the init data
+        //init reg
+        if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
+        	for(j = 0;j< sizeof(sensor_init_data)/sizeof(struct reginfo);j++){
+        		sensor_init_data[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].reg;
+        		sensor_init_data[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data[j].val;
+        	}
+        	sensor_init_data_p = sensor_init_data;
+        } else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data) {
+        	sensor_init_data_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_data);
+        }
+        //init winseq
+        if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq && (sizeof(struct reginfo) != sizeof(struct reginfo_t))){
+        	int tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
+        	if(sensor_init_winseq_board) {
+        		vfree(sensor_init_winseq_board);
+        		sensor_init_winseq_board = NULL;
+        	}
+        	sensor_init_winseq_board = (struct reginfo*)vmalloc(tmp_winseq_size);
+        	if(!sensor_init_winseq_board)
+        		SENSOR_TR("%s :vmalloc erro !",__FUNCTION__);
+        	for(j = 0;j< tmp_winseq_size;j++) {
+        		sensor_init_winseq_board[j].reg = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].reg;
+        		sensor_init_winseq_board[j].val = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq[j].val;
+        	}
+        	sensor_init_winseq_p = sensor_init_winseq_board;
+        } else if(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq) {
+        	sensor_init_winseq_p = (struct reginfo*)(tmp_plat_data->sensor_init_data[i]->rk_sensor_init_winseq);
+        }
+        //init width,height,bus,pixelcode
+        if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width != INVALID_VALUE)
+        	sensor_init_width = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_width;
+        if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_height != INVALID_VALUE)
+        	sensor_init_height = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_height;
+        if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_bus_param != INVALID_VALUE)
+        	sensor_init_busparam = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_bus_param;
+        if(tmp_plat_data->sensor_init_data[i] && tmp_plat_data->sensor_init_data[i]->rk_sensor_init_pixelcode != INVALID_VALUE)
+        	sensor_init_pixelcode = tmp_plat_data->sensor_init_data[i]->rk_sensor_init_pixelcode;
 	}
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 
@@ -5752,11 +5752,11 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 			}
 		}
 		#endif
-	} else if (enable == 0) {
-		#if CONFIG_SENSOR_Focus	
+	} else if (enable == 0) {	
+        sensor->info_priv.enable = 0;
+        #if CONFIG_SENSOR_Focus	
         flush_workqueue(sensor->sensor_wq);
 		#endif
-		sensor->info_priv.enable = 0;
 	}
 	return 0;
 }
@@ -5844,11 +5844,11 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
             if (sensor->sensor_io_request != NULL) { 
 			int j = 0;
 			for(j = 0;j < RK_CAM_NUM;j++){
-					if (sensor->sensor_io_request->gpio_res[j].dev_name && 
-						(strcmp(sensor->sensor_io_request->gpio_res[j].dev_name, dev_name(icd->pdev)) == 0)) {
-						sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[j];
-						break;
-					  } 
+				if (sensor->sensor_io_request->gpio_res[j].dev_name && 
+					(strcmp(sensor->sensor_io_request->gpio_res[j].dev_name, dev_name(icd->pdev)) == 0)) {
+					sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[j];
+					break;
+				  } 
 			}
 			if(j == RK_CAM_NUM){
 				SENSOR_TR("%s %s RK_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
