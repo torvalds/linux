@@ -185,10 +185,11 @@ udplite_timeout_obj_to_nlattr(struct sk_buff *skb, const void *data)
 {
 	const unsigned int *timeouts = data;
 
-	NLA_PUT_BE32(skb, CTA_TIMEOUT_UDPLITE_UNREPLIED,
-			htonl(timeouts[UDPLITE_CT_UNREPLIED] / HZ));
-	NLA_PUT_BE32(skb, CTA_TIMEOUT_UDPLITE_REPLIED,
-			htonl(timeouts[UDPLITE_CT_REPLIED] / HZ));
+	if (nla_put_be32(skb, CTA_TIMEOUT_UDPLITE_UNREPLIED,
+			 htonl(timeouts[UDPLITE_CT_UNREPLIED] / HZ)) ||
+	    nla_put_be32(skb, CTA_TIMEOUT_UDPLITE_REPLIED,
+			 htonl(timeouts[UDPLITE_CT_REPLIED] / HZ)))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
