@@ -374,7 +374,7 @@ static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg)
 
 static inline struct blkio_group *cfqg_to_blkg(struct cfq_group *cfqg)
 {
-	return pdata_to_blkg(cfqg, &blkio_policy_cfq);
+	return pdata_to_blkg(cfqg);
 }
 
 static inline void cfqg_get(struct cfq_group *cfqg)
@@ -1092,7 +1092,7 @@ static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
 	} else {
 		struct blkio_group *blkg;
 
-		blkg = blkg_lookup_create(blkcg, q, BLKIO_POLICY_PROP, false);
+		blkg = blkg_lookup_create(blkcg, q, false);
 		if (!IS_ERR(blkg))
 			cfqg = blkg_to_cfqg(blkg);
 	}
@@ -3523,8 +3523,7 @@ static int cfq_init_queue(struct request_queue *q)
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
 
-	blkg = blkg_lookup_create(&blkio_root_cgroup, q, BLKIO_POLICY_PROP,
-				  true);
+	blkg = blkg_lookup_create(&blkio_root_cgroup, q, true);
 	if (!IS_ERR(blkg))
 		cfqd->root_group = blkg_to_cfqg(blkg);
 

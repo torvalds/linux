@@ -266,13 +266,10 @@ static inline void *blkg_to_pdata(struct blkio_group *blkg,
 /**
  * pdata_to_blkg - get blkg associated with policy private data
  * @pdata: policy private data of interest
- * @pol: policy @pdata is for
  *
- * @pdata is policy private data for @pol.  Determine the blkg it's
- * associated with.
+ * @pdata is policy private data.  Determine the blkg it's associated with.
  */
-static inline struct blkio_group *pdata_to_blkg(void *pdata,
-						struct blkio_policy_type *pol)
+static inline struct blkio_group *pdata_to_blkg(void *pdata)
 {
 	if (pdata) {
 		struct blkg_policy_data *pd =
@@ -402,7 +399,6 @@ extern struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
 				       struct request_queue *q);
 struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 				       struct request_queue *q,
-				       enum blkio_policy_id plid,
 				       bool for_root);
 void blkiocg_update_timeslice_used(struct blkio_group *blkg,
 				   struct blkio_policy_type *pol,

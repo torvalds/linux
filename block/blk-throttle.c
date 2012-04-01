@@ -107,7 +107,7 @@ static inline struct throtl_grp *blkg_to_tg(struct blkio_group *blkg)
 
 static inline struct blkio_group *tg_to_blkg(struct throtl_grp *tg)
 {
-	return pdata_to_blkg(tg, &blkio_policy_throtl);
+	return pdata_to_blkg(tg);
 }
 
 enum tg_state_flags {
@@ -185,7 +185,7 @@ static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
 	} else {
 		struct blkio_group *blkg;
 
-		blkg = blkg_lookup_create(blkcg, q, BLKIO_POLICY_THROTL, false);
+		blkg = blkg_lookup_create(blkcg, q, false);
 
 		/* if %NULL and @q is alive, fall back to root_tg */
 		if (!IS_ERR(blkg))
@@ -1033,8 +1033,7 @@ int blk_throtl_init(struct request_queue *q)
 	rcu_read_lock();
 	spin_lock_irq(q->queue_lock);
 
-	blkg = blkg_lookup_create(&blkio_root_cgroup, q, BLKIO_POLICY_THROTL,
-				  true);
+	blkg = blkg_lookup_create(&blkio_root_cgroup, q, true);
 	if (!IS_ERR(blkg))
 		td->root_tg = blkg_to_tg(blkg);
 
