@@ -667,6 +667,13 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 	state->i2c = i2c;
 	memcpy(&state->cfg, config, sizeof(struct af9033_config));
 
+	if (state->cfg.clock != 12000000) {
+		printk(KERN_INFO "af9033: unsupported clock=%d, only " \
+				"12000000 Hz is supported currently\n",
+				state->cfg.clock);
+		goto err;
+	}
+
 	/* firmware version */
 	ret = af9033_rd_regs(state, 0x0083e9, &buf[0], 4);
 	if (ret < 0)
