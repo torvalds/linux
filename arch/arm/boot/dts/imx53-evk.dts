@@ -17,10 +17,6 @@
 	model = "Freescale i.MX53 Evaluation Kit";
 	compatible = "fsl,imx53-evk", "fsl,imx53";
 
-	chosen {
-		bootargs = "console=ttymxc0,115200 root=/dev/mmcblk0p3 rootwait";
-	};
-
 	memory {
 		reg = <0x70000000 0x80000000>;
 	};
