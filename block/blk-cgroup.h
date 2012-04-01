@@ -69,12 +69,14 @@ enum stat_type_cpu {
 
 #define BLKIO_STAT_CPU_ARR_NR	(BLKIO_STAT_CPU_SERVICED + 1)
 
-enum stat_sub_type {
-	BLKIO_STAT_READ = 0,
-	BLKIO_STAT_WRITE,
-	BLKIO_STAT_SYNC,
-	BLKIO_STAT_ASYNC,
-	BLKIO_STAT_TOTAL
+enum blkg_rwstat_type {
+	BLKG_RWSTAT_READ,
+	BLKG_RWSTAT_WRITE,
+	BLKG_RWSTAT_SYNC,
+	BLKG_RWSTAT_ASYNC,
+
+	BLKG_RWSTAT_NR,
+	BLKG_RWSTAT_TOTAL = BLKG_RWSTAT_NR,
 };
 
 /* blkg state flags */
@@ -124,54 +126,58 @@ struct blkio_cgroup {
 	uint64_t id;
 };
 
+struct blkg_stat {
+	struct u64_stats_sync		syncp;
+	uint64_t			cnt;
+};
+
+struct blkg_rwstat {
+	struct u64_stats_sync		syncp;
+	uint64_t			cnt[BLKG_RWSTAT_NR];
+};
+
 struct blkio_group_stats {
-	struct u64_stats_sync syncp;
+	/* number of ios merged */
+	struct blkg_rwstat		merged;
+	/* total time spent on device in ns, may not be accurate w/ queueing */
+	struct blkg_rwstat		service_time;
+	/* total time spent waiting in scheduler queue in ns */
+	struct blkg_rwstat		wait_time;
+	/* number of IOs queued up */
+	struct blkg_rwstat		queued;
 	/* total disk time and nr sectors dispatched by this group */
-	uint64_t time;
-	uint64_t stat_arr[BLKIO_STAT_ARR_NR][BLKIO_STAT_TOTAL];
+	struct blkg_stat		time;
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-	/* Time not charged to this cgroup */
-	uint64_t unaccounted_time;
-
-	/* Sum of number of IOs queued across all samples */
-	uint64_t avg_queue_size_sum;
-	/* Count of samples taken for average */
-	uint64_t avg_queue_size_samples;
-	/* How many times this group has been removed from service tree */
-	unsigned long dequeue;
-
-	/* Total time spent waiting for it to be assigned a timeslice. */
-	uint64_t group_wait_time;
-
-	/* Time spent idling for this blkio_group */
-	uint64_t idle_time;
-	/*
-	 * Total time when we have requests queued and do not contain the
-	 * current active queue.
-	 */
-	uint64_t empty_time;
-
+	/* time not charged to this cgroup */
+	struct blkg_stat		unaccounted_time;
+	/* sum of number of ios queued across all samples */
+	struct blkg_stat		avg_queue_size_sum;
+	/* count of samples taken for average */
+	struct blkg_stat		avg_queue_size_samples;
+	/* how many times this group has been removed from service tree */
+	struct blkg_stat		dequeue;
+	/* total time spent waiting for it to be assigned a timeslice. */
+	struct blkg_stat		group_wait_time;
+	/* time spent idling for this blkio_group */
+	struct blkg_stat		idle_time;
+	/* total time with empty current active q with other requests queued */
+	struct blkg_stat		empty_time;
 	/* fields after this shouldn't be cleared on stat reset */
-	uint64_t start_group_wait_time;
-	uint64_t start_idle_time;
-	uint64_t start_empty_time;
-	uint16_t flags;
+	uint64_t			start_group_wait_time;
+	uint64_t			start_idle_time;
+	uint64_t			start_empty_time;
+	uint16_t			flags;
 #endif
 };
 
-#ifdef CONFIG_DEBUG_BLK_CGROUP
-#define BLKG_STATS_DEBUG_CLEAR_START	\
-	offsetof(struct blkio_group_stats, unaccounted_time)
-#define BLKG_STATS_DEBUG_CLEAR_SIZE	\
-	(offsetof(struct blkio_group_stats, start_group_wait_time) - \
-	 BLKG_STATS_DEBUG_CLEAR_START)
-#endif
-
 /* Per cpu blkio group stats */
 struct blkio_group_stats_cpu {
-	uint64_t sectors;
-	uint64_t stat_arr_cpu[BLKIO_STAT_CPU_ARR_NR][BLKIO_STAT_TOTAL];
-	struct u64_stats_sync syncp;
+	/* total bytes transferred */
+	struct blkg_rwstat		service_bytes;
+	/* total IOs serviced, post merge */
+	struct blkg_rwstat		serviced;
+	/* total sectors transferred */
+	struct blkg_stat		sectors;
 };
 
 struct blkio_group_conf {
@@ -314,6 +320,121 @@ static inline void blkg_put(struct blkio_group *blkg)
 	WARN_ON_ONCE(blkg->refcnt <= 0);
 	if (!--blkg->refcnt)
 		__blkg_release(blkg);
+}
+
+/**
+ * blkg_stat_add - add a value to a blkg_stat
+ * @stat: target blkg_stat
+ * @val: value to add
+ *
+ * Add @val to @stat.  The caller is responsible for synchronizing calls to
+ * this function.
+ */
+static inline void blkg_stat_add(struct blkg_stat *stat, uint64_t val)
+{
+	u64_stats_update_begin(&stat->syncp);
+	stat->cnt += val;
+	u64_stats_update_end(&stat->syncp);
+}
+
+/**
+ * blkg_stat_read - read the current value of a blkg_stat
+ * @stat: blkg_stat to read
+ *
+ * Read the current value of @stat.  This function can be called without
+ * synchroniztion and takes care of u64 atomicity.
+ */
+static inline uint64_t blkg_stat_read(struct blkg_stat *stat)
+{
+	unsigned int start;
+	uint64_t v;
+
+	do {
+		start = u64_stats_fetch_begin(&stat->syncp);
+		v = stat->cnt;
+	} while (u64_stats_fetch_retry(&stat->syncp, start));
+
+	return v;
+}
+
+/**
+ * blkg_stat_reset - reset a blkg_stat
+ * @stat: blkg_stat to reset
+ */
+static inline void blkg_stat_reset(struct blkg_stat *stat)
+{
+	stat->cnt = 0;
+}
+
+/**
+ * blkg_rwstat_add - add a value to a blkg_rwstat
+ * @rwstat: target blkg_rwstat
+ * @rw: mask of REQ_{WRITE|SYNC}
+ * @val: value to add
+ *
+ * Add @val to @rwstat.  The counters are chosen according to @rw.  The
+ * caller is responsible for synchronizing calls to this function.
+ */
+static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
+				   int rw, uint64_t val)
+{
+	u64_stats_update_begin(&rwstat->syncp);
+
+	if (rw & REQ_WRITE)
+		rwstat->cnt[BLKG_RWSTAT_WRITE] += val;
+	else
+		rwstat->cnt[BLKG_RWSTAT_READ] += val;
+	if (rw & REQ_SYNC)
+		rwstat->cnt[BLKG_RWSTAT_SYNC] += val;
+	else
+		rwstat->cnt[BLKG_RWSTAT_ASYNC] += val;
+
+	u64_stats_update_end(&rwstat->syncp);
+}
+
+/**
+ * blkg_rwstat_read - read the current values of a blkg_rwstat
+ * @rwstat: blkg_rwstat to read
+ *
+ * Read the current snapshot of @rwstat and return it as the return value.
+ * This function can be called without synchronization and takes care of
+ * u64 atomicity.
+ */
+static struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
+{
+	unsigned int start;
+	struct blkg_rwstat tmp;
+
+	do {
+		start = u64_stats_fetch_begin(&rwstat->syncp);
+		tmp = *rwstat;
+	} while (u64_stats_fetch_retry(&rwstat->syncp, start));
+
+	return tmp;
+}
+
+/**
+ * blkg_rwstat_sum - read the total count of a blkg_rwstat
+ * @rwstat: blkg_rwstat to read
+ *
+ * Return the total count of @rwstat regardless of the IO direction.  This
+ * function can be called without synchronization and takes care of u64
+ * atomicity.
+ */
+static inline uint64_t blkg_rwstat_sum(struct blkg_rwstat *rwstat)
+{
+	struct blkg_rwstat tmp = blkg_rwstat_read(rwstat);
+
+	return tmp.cnt[BLKG_RWSTAT_READ] + tmp.cnt[BLKG_RWSTAT_WRITE];
+}
+
+/**
+ * blkg_rwstat_reset - reset a blkg_rwstat
+ * @rwstat: blkg_rwstat to reset
+ */
+static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
+{
+	memset(rwstat->cnt, 0, sizeof(rwstat->cnt));
 }
 
 #else
