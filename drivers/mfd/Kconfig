@@ -597,7 +597,7 @@ config MFD_MC13783
 
 config MFD_MC13XXX
 	tristate "Support Freescale MC13783 and MC13892"
-	depends on SPI_MASTER
+	depends on SPI_MASTER || I2C
 	select MFD_CORE
 	select MFD_MC13783
 	help
@@ -614,6 +614,13 @@ config MFD_MC13XXX_SPI
 	select REGMAP_SPI
 	help
 	  Select this if your MC13xxx is connected via an SPI bus.
+
+config MFD_MC13XXX_I2C
+	tristate "MC13xxx I2C interface" if I2C
+	default I2C
+	select REGMAP_I2C
+	help
+	  Select this if your MC13xxx is connected via an I2C bus.
 
 endif
 
