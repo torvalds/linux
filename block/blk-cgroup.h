@@ -181,6 +181,7 @@ struct blkio_policy_type {
 	struct blkio_policy_ops ops;
 	enum blkio_policy_id plid;
 	size_t pdata_size;		/* policy specific private data size */
+	struct cftype *cftypes;		/* cgroup files for the policy */
 };
 
 extern int blkcg_init_queue(struct request_queue *q);

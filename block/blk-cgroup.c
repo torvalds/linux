@@ -1538,12 +1538,18 @@ void blkio_policy_register(struct blkio_policy_type *blkiop)
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		update_root_blkg_pd(q, blkiop->plid);
 	blkcg_bypass_end();
+
+	if (blkiop->cftypes)
+		WARN_ON(cgroup_add_cftypes(&blkio_subsys, blkiop->cftypes));
 }
 EXPORT_SYMBOL_GPL(blkio_policy_register);
 
 void blkio_policy_unregister(struct blkio_policy_type *blkiop)
 {
 	struct request_queue *q;
+
+	if (blkiop->cftypes)
+		cgroup_rm_cftypes(&blkio_subsys, blkiop->cftypes);
 
 	blkcg_bypass_start();
 	spin_lock(&blkio_list_lock);
