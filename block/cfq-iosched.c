@@ -1058,8 +1058,7 @@ static void cfq_init_cfqg_base(struct cfq_group *cfqg)
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static void cfq_update_blkio_group_weight(struct request_queue *q,
-					  struct blkio_group *blkg,
+static void cfq_update_blkio_group_weight(struct blkio_group *blkg,
 					  unsigned int weight)
 {
 	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
@@ -1111,6 +1110,203 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 	cfqg_get(cfqg);
 }
 
+static u64 blkg_prfill_weight_device(struct seq_file *sf,
+				     struct blkg_policy_data *pd, int off)
+{
+	if (!pd->conf.weight)
+		return 0;
+	return __blkg_prfill_u64(sf, pd, pd->conf.weight);
+}
+
+static int blkcg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
+				     struct seq_file *sf)
+{
+	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp),
+			  blkg_prfill_weight_device, BLKIO_POLICY_PROP, 0,
+			  false);
+	return 0;
+}
+
+static int blkcg_print_weight(struct cgroup *cgrp, struct cftype *cft,
+			      struct seq_file *sf)
+{
+	seq_printf(sf, "%u\n", cgroup_to_blkio_cgroup(cgrp)->weight);
+	return 0;
+}
+
+static int blkcg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
+				   const char *buf)
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+	struct blkg_policy_data *pd;
+	struct blkg_conf_ctx ctx;
+	int ret;
+
+	ret = blkg_conf_prep(blkcg, buf, &ctx);
+	if (ret)
+		return ret;
+
+	ret = -EINVAL;
+	pd = ctx.blkg->pd[BLKIO_POLICY_PROP];
+	if (pd && (!ctx.v || (ctx.v >= BLKIO_WEIGHT_MIN &&
+			      ctx.v <= BLKIO_WEIGHT_MAX))) {
+		pd->conf.weight = ctx.v;
+		cfq_update_blkio_group_weight(ctx.blkg, ctx.v ?: blkcg->weight);
+		ret = 0;
+	}
+
+	blkg_conf_finish(&ctx);
+	return ret;
+}
+
+static int blkcg_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+	struct blkio_group *blkg;
+	struct hlist_node *n;
+
+	if (val < BLKIO_WEIGHT_MIN || val > BLKIO_WEIGHT_MAX)
+		return -EINVAL;
+
+	spin_lock_irq(&blkcg->lock);
+	blkcg->weight = (unsigned int)val;
+
+	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
+		struct blkg_policy_data *pd = blkg->pd[BLKIO_POLICY_PROP];
+
+		if (pd && !pd->conf.weight)
+			cfq_update_blkio_group_weight(blkg, blkcg->weight);
+	}
+
+	spin_unlock_irq(&blkcg->lock);
+	return 0;
+}
+
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+static u64 blkg_prfill_avg_queue_size(struct seq_file *sf,
+				      struct blkg_policy_data *pd, int off)
+{
+	u64 samples = blkg_stat_read(&pd->stats.avg_queue_size_samples);
+	u64 v = 0;
+
+	if (samples) {
+		v = blkg_stat_read(&pd->stats.avg_queue_size_sum);
+		do_div(v, samples);
+	}
+	__blkg_prfill_u64(sf, pd, v);
+	return 0;
+}
+
+/* print avg_queue_size */
+static int blkcg_print_avg_queue_size(struct cgroup *cgrp, struct cftype *cft,
+				      struct seq_file *sf)
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+
+	blkcg_print_blkgs(sf, blkcg, blkg_prfill_avg_queue_size,
+			  BLKIO_POLICY_PROP, 0, false);
+	return 0;
+}
+#endif	/* CONFIG_DEBUG_BLK_CGROUP */
+
+static struct cftype cfq_blkcg_files[] = {
+	{
+		.name = "weight_device",
+		.read_seq_string = blkcg_print_weight_device,
+		.write_string = blkcg_set_weight_device,
+		.max_write_len = 256,
+	},
+	{
+		.name = "weight",
+		.read_seq_string = blkcg_print_weight,
+		.write_u64 = blkcg_set_weight,
+	},
+	{
+		.name = "time",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, time)),
+		.read_seq_string = blkcg_print_stat,
+	},
+	{
+		.name = "sectors",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats_cpu, sectors)),
+		.read_seq_string = blkcg_print_cpu_stat,
+	},
+	{
+		.name = "io_service_bytes",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats_cpu, service_bytes)),
+		.read_seq_string = blkcg_print_cpu_rwstat,
+	},
+	{
+		.name = "io_serviced",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats_cpu, serviced)),
+		.read_seq_string = blkcg_print_cpu_rwstat,
+	},
+	{
+		.name = "io_service_time",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, service_time)),
+		.read_seq_string = blkcg_print_rwstat,
+	},
+	{
+		.name = "io_wait_time",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, wait_time)),
+		.read_seq_string = blkcg_print_rwstat,
+	},
+	{
+		.name = "io_merged",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, merged)),
+		.read_seq_string = blkcg_print_rwstat,
+	},
+	{
+		.name = "io_queued",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, queued)),
+		.read_seq_string = blkcg_print_rwstat,
+	},
+#ifdef CONFIG_DEBUG_BLK_CGROUP
+	{
+		.name = "avg_queue_size",
+		.read_seq_string = blkcg_print_avg_queue_size,
+	},
+	{
+		.name = "group_wait_time",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, group_wait_time)),
+		.read_seq_string = blkcg_print_stat,
+	},
+	{
+		.name = "idle_time",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, idle_time)),
+		.read_seq_string = blkcg_print_stat,
+	},
+	{
+		.name = "empty_time",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, empty_time)),
+		.read_seq_string = blkcg_print_stat,
+	},
+	{
+		.name = "dequeue",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, dequeue)),
+		.read_seq_string = blkcg_print_stat,
+	},
+	{
+		.name = "unaccounted_time",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
+				offsetof(struct blkio_group_stats, unaccounted_time)),
+		.read_seq_string = blkcg_print_stat,
+	},
+#endif	/* CONFIG_DEBUG_BLK_CGROUP */
+	{ }	/* terminate */
+};
 #else /* GROUP_IOSCHED */
 static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
 						struct blkio_cgroup *blkcg)
@@ -3715,10 +3911,10 @@ static struct elevator_type iosched_cfq = {
 static struct blkio_policy_type blkio_policy_cfq = {
 	.ops = {
 		.blkio_init_group_fn =		cfq_init_blkio_group,
-		.blkio_update_group_weight_fn =	cfq_update_blkio_group_weight,
 	},
 	.plid = BLKIO_POLICY_PROP,
 	.pdata_size = sizeof(struct cfq_group),
+	.cftypes = cfq_blkcg_files,
 };
 #endif
 

@@ -804,6 +804,11 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 	}
 }
 
+/*
+ * Can not take queue lock in update functions as queue lock under
+ * blkcg_lock is not allowed. Under other paths we take blkcg_lock under
+ * queue_lock.
+ */
 static void throtl_update_blkio_group_common(struct throtl_data *td,
 				struct throtl_grp *tg)
 {
@@ -813,50 +818,157 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 	throtl_schedule_delayed_work(td, 0);
 }
 
-/*
- * For all update functions, @q should be a valid pointer because these
- * update functions are called under blkcg_lock, that means, blkg is
- * valid and in turn @q is valid. queue exit path can not race because
- * of blkcg_lock
- *
- * Can not take queue lock in update functions as queue lock under blkcg_lock
- * is not allowed. Under other paths we take blkcg_lock under queue_lock.
- */
-static void throtl_update_blkio_group_read_bps(struct request_queue *q,
-				struct blkio_group *blkg, u64 read_bps)
+static u64 blkg_prfill_conf_u64(struct seq_file *sf,
+				struct blkg_policy_data *pd, int off)
+{
+	u64 v = *(u64 *)((void *)&pd->conf + off);
+
+	if (!v)
+		return 0;
+	return __blkg_prfill_u64(sf, pd, v);
+}
+
+static int blkcg_print_conf_u64(struct cgroup *cgrp, struct cftype *cft,
+				struct seq_file *sf)
+{
+	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp),
+			  blkg_prfill_conf_u64, BLKIO_POLICY_THROTL,
+			  cft->private, false);
+	return 0;
+}
+
+static void throtl_update_blkio_group_read_bps(struct blkio_group *blkg,
+					       u64 read_bps)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->bps[READ] = read_bps;
-	throtl_update_blkio_group_common(q->td, tg);
+	throtl_update_blkio_group_common(blkg->q->td, tg);
 }
 
-static void throtl_update_blkio_group_write_bps(struct request_queue *q,
-				struct blkio_group *blkg, u64 write_bps)
+static void throtl_update_blkio_group_write_bps(struct blkio_group *blkg,
+						u64 write_bps)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->bps[WRITE] = write_bps;
-	throtl_update_blkio_group_common(q->td, tg);
+	throtl_update_blkio_group_common(blkg->q->td, tg);
 }
 
-static void throtl_update_blkio_group_read_iops(struct request_queue *q,
-			struct blkio_group *blkg, unsigned int read_iops)
+static void throtl_update_blkio_group_read_iops(struct blkio_group *blkg,
+						u64 read_iops)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->iops[READ] = read_iops;
-	throtl_update_blkio_group_common(q->td, tg);
+	throtl_update_blkio_group_common(blkg->q->td, tg);
 }
 
-static void throtl_update_blkio_group_write_iops(struct request_queue *q,
-			struct blkio_group *blkg, unsigned int write_iops)
+static void throtl_update_blkio_group_write_iops(struct blkio_group *blkg,
+						 u64 write_iops)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
 
 	tg->iops[WRITE] = write_iops;
-	throtl_update_blkio_group_common(q->td, tg);
+	throtl_update_blkio_group_common(blkg->q->td, tg);
 }
+
+static int blkcg_set_conf_u64(struct cgroup *cgrp, struct cftype *cft,
+			      const char *buf,
+			      void (*update)(struct blkio_group *, u64))
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+	struct blkg_policy_data *pd;
+	struct blkg_conf_ctx ctx;
+	int ret;
+
+	ret = blkg_conf_prep(blkcg, buf, &ctx);
+	if (ret)
+		return ret;
+
+	ret = -EINVAL;
+	pd = ctx.blkg->pd[BLKIO_POLICY_THROTL];
+	if (pd) {
+		*(u64 *)((void *)&pd->conf + cft->private) = ctx.v;
+		update(ctx.blkg, ctx.v ?: -1);
+		ret = 0;
+	}
+
+	blkg_conf_finish(&ctx);
+	return ret;
+}
+
+static int blkcg_set_conf_bps_r(struct cgroup *cgrp, struct cftype *cft,
+				const char *buf)
+{
+	return blkcg_set_conf_u64(cgrp, cft, buf,
+				  throtl_update_blkio_group_read_bps);
+}
+
+static int blkcg_set_conf_bps_w(struct cgroup *cgrp, struct cftype *cft,
+				const char *buf)
+{
+	return blkcg_set_conf_u64(cgrp, cft, buf,
+				  throtl_update_blkio_group_write_bps);
+}
+
+static int blkcg_set_conf_iops_r(struct cgroup *cgrp, struct cftype *cft,
+				 const char *buf)
+{
+	return blkcg_set_conf_u64(cgrp, cft, buf,
+				  throtl_update_blkio_group_read_iops);
+}
+
+static int blkcg_set_conf_iops_w(struct cgroup *cgrp, struct cftype *cft,
+				 const char *buf)
+{
+	return blkcg_set_conf_u64(cgrp, cft, buf,
+				  throtl_update_blkio_group_write_iops);
+}
+
+static struct cftype throtl_files[] = {
+	{
+		.name = "throttle.read_bps_device",
+		.private = offsetof(struct blkio_group_conf, bps[READ]),
+		.read_seq_string = blkcg_print_conf_u64,
+		.write_string = blkcg_set_conf_bps_r,
+		.max_write_len = 256,
+	},
+	{
+		.name = "throttle.write_bps_device",
+		.private = offsetof(struct blkio_group_conf, bps[WRITE]),
+		.read_seq_string = blkcg_print_conf_u64,
+		.write_string = blkcg_set_conf_bps_w,
+		.max_write_len = 256,
+	},
+	{
+		.name = "throttle.read_iops_device",
+		.private = offsetof(struct blkio_group_conf, iops[READ]),
+		.read_seq_string = blkcg_print_conf_u64,
+		.write_string = blkcg_set_conf_iops_r,
+		.max_write_len = 256,
+	},
+	{
+		.name = "throttle.write_iops_device",
+		.private = offsetof(struct blkio_group_conf, iops[WRITE]),
+		.read_seq_string = blkcg_print_conf_u64,
+		.write_string = blkcg_set_conf_iops_w,
+		.max_write_len = 256,
+	},
+	{
+		.name = "throttle.io_service_bytes",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_THROTL,
+				offsetof(struct blkio_group_stats_cpu, service_bytes)),
+		.read_seq_string = blkcg_print_cpu_rwstat,
+	},
+	{
+		.name = "throttle.io_serviced",
+		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_THROTL,
+				offsetof(struct blkio_group_stats_cpu, serviced)),
+		.read_seq_string = blkcg_print_cpu_rwstat,
+	},
+	{ }	/* terminate */
+};
 
 static void throtl_shutdown_wq(struct request_queue *q)
 {
@@ -868,17 +980,10 @@ static void throtl_shutdown_wq(struct request_queue *q)
 static struct blkio_policy_type blkio_policy_throtl = {
 	.ops = {
 		.blkio_init_group_fn = throtl_init_blkio_group,
-		.blkio_update_group_read_bps_fn =
-					throtl_update_blkio_group_read_bps,
-		.blkio_update_group_write_bps_fn =
-					throtl_update_blkio_group_write_bps,
-		.blkio_update_group_read_iops_fn =
-					throtl_update_blkio_group_read_iops,
-		.blkio_update_group_write_iops_fn =
-					throtl_update_blkio_group_write_iops,
 	},
 	.plid = BLKIO_POLICY_THROTL,
 	.pdata_size = sizeof(struct throtl_grp),
+	.cftypes = throtl_files,
 };
 
 bool blk_throtl_bio(struct request_queue *q, struct bio *bio)

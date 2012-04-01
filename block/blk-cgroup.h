@@ -156,24 +156,9 @@ struct blkio_group {
 };
 
 typedef void (blkio_init_group_fn)(struct blkio_group *blkg);
-typedef void (blkio_update_group_weight_fn)(struct request_queue *q,
-			struct blkio_group *blkg, unsigned int weight);
-typedef void (blkio_update_group_read_bps_fn)(struct request_queue *q,
-			struct blkio_group *blkg, u64 read_bps);
-typedef void (blkio_update_group_write_bps_fn)(struct request_queue *q,
-			struct blkio_group *blkg, u64 write_bps);
-typedef void (blkio_update_group_read_iops_fn)(struct request_queue *q,
-			struct blkio_group *blkg, unsigned int read_iops);
-typedef void (blkio_update_group_write_iops_fn)(struct request_queue *q,
-			struct blkio_group *blkg, unsigned int write_iops);
 
 struct blkio_policy_ops {
 	blkio_init_group_fn *blkio_init_group_fn;
-	blkio_update_group_weight_fn *blkio_update_group_weight_fn;
-	blkio_update_group_read_bps_fn *blkio_update_group_read_bps_fn;
-	blkio_update_group_write_bps_fn *blkio_update_group_write_bps_fn;
-	blkio_update_group_read_iops_fn *blkio_update_group_read_iops_fn;
-	blkio_update_group_write_iops_fn *blkio_update_group_write_iops_fn;
 };
 
 struct blkio_policy_type {
