@@ -88,6 +88,19 @@ config PS3_SYS_MANAGER
 	  This support is required for system control.  In
 	  general, all users will say Y or M.
 
+config PS3_REPOSITORY_WRITE
+	bool "PS3 Repository write support" if PS3_ADVANCED
+	depends on PPC_PS3
+	default n
+	help
+	  Enables support for writing to the PS3 System Repository.
+
+	  This support is intended for bootloaders that need to store data
+	  in the repository for later boot stages.
+
+	  If in doubt, say N here and reduce the size of the kernel by a
+	  small amount.
+
 config PS3_STORAGE
 	depends on PPC_PS3
 	tristate

@@ -1002,6 +1002,64 @@ int ps3_repository_read_lpm_privileges(unsigned int be_index, u64 *lpar,
 			    lpar, rights);
 }
 
+#if defined(CONFIG_PS3_REPOSITORY_WRITE)
+
+static int create_node(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
+{
+	int result;
+
+	dump_node(0, n1, n2, n3, n4, v1, v2);
+
+	result = lv1_create_repository_node(n1, n2, n3, n4, v1, v2);
+
+	if (result) {
+		pr_devel("%s:%d: lv1_create_repository_node failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+static int delete_node(u64 n1, u64 n2, u64 n3, u64 n4)
+{
+	int result;
+
+	dump_node(0, n1, n2, n3, n4, 0, 0);
+
+	result = lv1_delete_repository_node(n1, n2, n3, n4);
+
+	if (result) {
+		pr_devel("%s:%d: lv1_delete_repository_node failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+static int write_node(u64 n1, u64 n2, u64 n3, u64 n4, u64 v1, u64 v2)
+{
+	int result;
+
+	result = create_node(n1, n2, n3, n4, v1, v2);
+
+	if (!result)
+		return 0;
+
+	result = lv1_write_repository_node(n1, n2, n3, n4, v1, v2);
+
+	if (result) {
+		pr_devel("%s:%d: lv1_write_repository_node failed: %s\n",
+			__func__, __LINE__, ps3_result(result));
+		return -ENOENT;
+	}
+
+	return 0;
+}
+
+#endif /* defined(CONFIG_PS3_WRITE_REPOSITORY) */
+
 #if defined(DEBUG)
 
 int ps3_repository_dump_resource_info(const struct ps3_repository_device *repo)
