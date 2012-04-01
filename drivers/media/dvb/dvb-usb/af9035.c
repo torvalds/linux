@@ -400,6 +400,8 @@ static int af9035_download_firmware(struct usb_device *udev,
 		/* download begin packet */
 		req.cmd = CMD_FW_DL_BEGIN;
 		ret = af9035_ctrl_msg(udev, &req);
+		if (ret < 0)
+			goto err;
 
 		/* download firmware packet(s) */
 		for (j = HDR_SIZE + hdr_data_len; j > 0; j -= MAX_DATA) {
