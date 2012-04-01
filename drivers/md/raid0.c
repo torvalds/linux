@@ -407,6 +407,8 @@ static sector_t raid0_size(struct mddev *mddev, sector_t sectors, int raid_disks
 	return array_sectors;
 }
 
+static int raid0_stop(struct mddev *mddev);
+
 static int raid0_run(struct mddev *mddev)
 {
 	struct r0conf *conf;
@@ -454,7 +456,12 @@ static int raid0_run(struct mddev *mddev)
 
 	blk_queue_merge_bvec(mddev->queue, raid0_mergeable_bvec);
 	dump_zones(mddev);
-	return md_integrity_register(mddev);
+
+	ret = md_integrity_register(mddev);
+	if (ret)
+		raid0_stop(mddev);
+
+	return ret;
 }
 
 static int raid0_stop(struct mddev *mddev)
