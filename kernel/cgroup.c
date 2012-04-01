@@ -2623,8 +2623,14 @@ int cgroup_add_file(struct cgroup *cgrp,
 	struct dentry *dentry;
 	int error;
 	umode_t mode;
-
 	char name[MAX_CGROUP_TYPE_NAMELEN + MAX_CFTYPE_NAME + 2] = { 0 };
+
+	/* does @cft->flags tell us to skip creation on @cgrp? */
+	if ((cft->flags & CFTYPE_NOT_ON_ROOT) && !cgrp->parent)
+		return 0;
+	if ((cft->flags & CFTYPE_ONLY_ON_ROOT) && cgrp->parent)
+		return 0;
+
 	if (subsys && !test_bit(ROOT_NOPREFIX, &cgrp->root->flags)) {
 		strcpy(name, subsys->name);
 		strcat(name, ".");
@@ -2659,6 +2665,95 @@ int cgroup_add_files(struct cgroup *cgrp,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cgroup_add_files);
+
+static DEFINE_MUTEX(cgroup_cft_mutex);
+
+static void cgroup_cfts_prepare(void)
+	__acquires(&cgroup_cft_mutex) __acquires(&cgroup_mutex)
+{
+	/*
+	 * Thanks to the entanglement with vfs inode locking, we can't walk
+	 * the existing cgroups under cgroup_mutex and create files.
+	 * Instead, we increment reference on all cgroups and build list of
+	 * them using @cgrp->cft_q_node.  Grab cgroup_cft_mutex to ensure
+	 * exclusive access to the field.
+	 */
+	mutex_lock(&cgroup_cft_mutex);
+	mutex_lock(&cgroup_mutex);
+}
+
+static void cgroup_cfts_commit(struct cgroup_subsys *ss,
+			       const struct cftype *cfts)
+	__releases(&cgroup_mutex) __releases(&cgroup_cft_mutex)
+{
+	LIST_HEAD(pending);
+	struct cgroup *cgrp, *n;
+	int count = 0;
+
+	while (cfts[count].name[0] != '\0')
+		count++;
+
+	/* %NULL @cfts indicates abort and don't bother if @ss isn't attached */
+	if (cfts && ss->root != &rootnode) {
+		list_for_each_entry(cgrp, &ss->root->allcg_list, allcg_node) {
+			dget(cgrp->dentry);
+			list_add_tail(&cgrp->cft_q_node, &pending);
+		}
+	}
+
+	mutex_unlock(&cgroup_mutex);
+
+	/*
+	 * All new cgroups will see @cfts update on @ss->cftsets.  Add/rm
+	 * files for all cgroups which were created before.
+	 */
+	list_for_each_entry_safe(cgrp, n, &pending, cft_q_node) {
+		struct inode *inode = cgrp->dentry->d_inode;
+
+		mutex_lock(&inode->i_mutex);
+		mutex_lock(&cgroup_mutex);
+		if (!cgroup_is_removed(cgrp))
+			cgroup_add_files(cgrp, ss, cfts, count);
+		mutex_unlock(&cgroup_mutex);
+		mutex_unlock(&inode->i_mutex);
+
+		list_del_init(&cgrp->cft_q_node);
+		dput(cgrp->dentry);
+	}
+
+	mutex_unlock(&cgroup_cft_mutex);
+}
+
+/**
+ * cgroup_add_cftypes - add an array of cftypes to a subsystem
+ * @ss: target cgroup subsystem
+ * @cfts: zero-length name terminated array of cftypes
+ *
+ * Register @cfts to @ss.  Files described by @cfts are created for all
+ * existing cgroups to which @ss is attached and all future cgroups will
+ * have them too.  This function can be called anytime whether @ss is
+ * attached or not.
+ *
+ * Returns 0 on successful registration, -errno on failure.  Note that this
+ * function currently returns 0 as long as @cfts registration is successful
+ * even if some file creation attempts on existing cgroups fail.
+ */
+int cgroup_add_cftypes(struct cgroup_subsys *ss, const struct cftype *cfts)
+{
+	struct cftype_set *set;
+
+	set = kzalloc(sizeof(*set), GFP_KERNEL);
+	if (!set)
+		return -ENOMEM;
+
+	cgroup_cfts_prepare();
+	set->cfts = cfts;
+	list_add_tail(&set->node, &ss->cftsets);
+	cgroup_cfts_commit(ss, cfts);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cgroup_add_cftypes);
 
 /**
  * cgroup_task_count - count the number of tasks in a cgroup.
@@ -3660,10 +3755,25 @@ static int cgroup_populate_dir(struct cgroup *cgrp)
 			return err;
 	}
 
+	/* process cftsets of each subsystem */
 	for_each_subsys(cgrp->root, ss) {
+		struct cftype_set *set;
+
 		if (ss->populate && (err = ss->populate(ss, cgrp)) < 0)
 			return err;
+
+		list_for_each_entry(set, &ss->cftsets, node) {
+			const struct cftype *cft;
+
+			for (cft = set->cfts; cft->name[0] != '\0'; cft++) {
+				err = cgroup_add_file(cgrp, ss, cft);
+				if (err)
+					pr_warning("cgroup_populate_dir: failed to create %s, err=%d\n",
+						   cft->name, err);
+			}
+		}
 	}
+
 	/* This cgroup is ready now */
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
@@ -4034,11 +4144,28 @@ again:
 	return 0;
 }
 
+static void __init_or_module cgroup_init_cftsets(struct cgroup_subsys *ss)
+{
+	INIT_LIST_HEAD(&ss->cftsets);
+
+	/*
+	 * base_cftset is embedded in subsys itself, no need to worry about
+	 * deregistration.
+	 */
+	if (ss->base_cftypes) {
+		ss->base_cftset.cfts = ss->base_cftypes;
+		list_add_tail(&ss->base_cftset.node, &ss->cftsets);
+	}
+}
+
 static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
 {
 	struct cgroup_subsys_state *css;
 
 	printk(KERN_INFO "Initializing cgroup subsys %s\n", ss->name);
+
+	/* init base cftset */
+	cgroup_init_cftsets(ss);
 
 	/* Create the top cgroup state for this subsystem */
 	list_add(&ss->sibling, &rootnode.subsys_list);
@@ -4108,6 +4235,9 @@ int __init_or_module cgroup_load_subsys(struct cgroup_subsys *ss)
 		BUG_ON(subsys[ss->subsys_id] != ss);
 		return 0;
 	}
+
+	/* init base cftset */
+	cgroup_init_cftsets(ss);
 
 	/*
 	 * need to register a subsys id before anything else - for example,
