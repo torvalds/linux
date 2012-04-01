@@ -131,12 +131,17 @@ static void blkg_free(struct blkio_group *blkg)
 		return;
 
 	for (i = 0; i < BLKIO_NR_POLICIES; i++) {
+		struct blkio_policy_type *pol = blkio_policy[i];
 		struct blkg_policy_data *pd = blkg->pd[i];
 
-		if (pd) {
-			free_percpu(pd->stats_cpu);
-			kfree(pd);
-		}
+		if (!pd)
+			continue;
+
+		if (pol && pol->ops.blkio_exit_group_fn)
+			pol->ops.blkio_exit_group_fn(blkg);
+
+		free_percpu(pd->stats_cpu);
+		kfree(pd);
 	}
 
 	kfree(blkg);
@@ -432,6 +437,9 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 			blkg_stat_reset(&stats->empty_time);
 #endif
 			blkio_reset_stats_cpu(blkg, pol->plid);
+
+			if (pol->ops.blkio_reset_group_stats_fn)
+				pol->ops.blkio_reset_group_stats_fn(blkg);
 		}
 	}
 

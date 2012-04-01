@@ -153,9 +153,13 @@ struct blkio_group {
 };
 
 typedef void (blkio_init_group_fn)(struct blkio_group *blkg);
+typedef void (blkio_exit_group_fn)(struct blkio_group *blkg);
+typedef void (blkio_reset_group_stats_fn)(struct blkio_group *blkg);
 
 struct blkio_policy_ops {
 	blkio_init_group_fn *blkio_init_group_fn;
+	blkio_exit_group_fn *blkio_exit_group_fn;
+	blkio_reset_group_stats_fn *blkio_reset_group_stats_fn;
 };
 
 struct blkio_policy_type {
