@@ -624,29 +624,12 @@ static inline void cfq_blkiocg_update_dispatch_stats(struct blkio_group *blkg,
 			struct blkio_policy_type *pol, uint64_t bytes,
 			bool direction, bool sync)
 {
+	struct blkio_group_stats *stats = &blkg->pd[pol->plid]->stats;
 	int rw = (direction ? REQ_WRITE : 0) | (sync ? REQ_SYNC : 0);
-	struct blkg_policy_data *pd = blkg->pd[pol->plid];
-	struct blkio_group_stats_cpu *stats_cpu;
-	unsigned long flags;
 
-	/* If per cpu stats are not allocated yet, don't do any accounting. */
-	if (pd->stats_cpu == NULL)
-		return;
-
-	/*
-	 * Disabling interrupts to provide mutual exclusion between two
-	 * writes on same cpu. It probably is not needed for 64bit. Not
-	 * optimizing that case yet.
-	 */
-	local_irq_save(flags);
-
-	stats_cpu = this_cpu_ptr(pd->stats_cpu);
-
-	blkg_stat_add(&stats_cpu->sectors, bytes >> 9);
-	blkg_rwstat_add(&stats_cpu->serviced, rw, 1);
-	blkg_rwstat_add(&stats_cpu->service_bytes, rw, bytes);
-
-	local_irq_restore(flags);
+	blkg_stat_add(&stats->sectors, bytes >> 9);
+	blkg_rwstat_add(&stats->serviced, rw, 1);
+	blkg_rwstat_add(&stats->service_bytes, rw, bytes);
 }
 
 static inline void cfq_blkiocg_update_completion_stats(struct blkio_group *blkg,
@@ -1520,20 +1503,20 @@ static struct cftype cfq_blkcg_files[] = {
 	{
 		.name = "sectors",
 		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct blkio_group_stats_cpu, sectors)),
-		.read_seq_string = blkcg_print_cpu_stat,
+				offsetof(struct blkio_group_stats, sectors)),
+		.read_seq_string = blkcg_print_stat,
 	},
 	{
 		.name = "io_service_bytes",
 		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct blkio_group_stats_cpu, service_bytes)),
-		.read_seq_string = blkcg_print_cpu_rwstat,
+				offsetof(struct blkio_group_stats, service_bytes)),
+		.read_seq_string = blkcg_print_rwstat,
 	},
 	{
 		.name = "io_serviced",
 		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct blkio_group_stats_cpu, serviced)),
-		.read_seq_string = blkcg_print_cpu_rwstat,
+				offsetof(struct blkio_group_stats, serviced)),
+		.read_seq_string = blkcg_print_rwstat,
 	},
 	{
 		.name = "io_service_time",

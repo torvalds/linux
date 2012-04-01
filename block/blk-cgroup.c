@@ -390,7 +390,6 @@ static void blkio_reset_stats_cpu(struct blkio_group *blkg, int plid)
 
 		blkg_rwstat_reset(&sc->service_bytes);
 		blkg_rwstat_reset(&sc->serviced);
-		blkg_stat_reset(&sc->sectors);
 	}
 }
 
@@ -417,6 +416,8 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 			struct blkio_group_stats *stats = &pd->stats;
 
 			/* queued stats shouldn't be cleared */
+			blkg_rwstat_reset(&stats->service_bytes);
+			blkg_rwstat_reset(&stats->serviced);
 			blkg_rwstat_reset(&stats->merged);
 			blkg_rwstat_reset(&stats->service_time);
 			blkg_rwstat_reset(&stats->wait_time);
@@ -576,66 +577,6 @@ int blkcg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(blkcg_print_rwstat);
-
-static u64 blkg_prfill_cpu_stat(struct seq_file *sf,
-				struct blkg_policy_data *pd, int off)
-{
-	u64 v = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct blkio_group_stats_cpu *sc =
-			per_cpu_ptr(pd->stats_cpu, cpu);
-
-		v += blkg_stat_read((void *)sc + off);
-	}
-
-	return __blkg_prfill_u64(sf, pd, v);
-}
-
-static u64 blkg_prfill_cpu_rwstat(struct seq_file *sf,
-				  struct blkg_policy_data *pd, int off)
-{
-	struct blkg_rwstat rwstat = { }, tmp;
-	int i, cpu;
-
-	for_each_possible_cpu(cpu) {
-		struct blkio_group_stats_cpu *sc =
-			per_cpu_ptr(pd->stats_cpu, cpu);
-
-		tmp = blkg_rwstat_read((void *)sc + off);
-		for (i = 0; i < BLKG_RWSTAT_NR; i++)
-			rwstat.cnt[i] += tmp.cnt[i];
-	}
-
-	return __blkg_prfill_rwstat(sf, pd, &rwstat);
-}
-
-/* print per-cpu blkg_stat specified by BLKCG_STAT_PRIV() */
-int blkcg_print_cpu_stat(struct cgroup *cgrp, struct cftype *cft,
-			 struct seq_file *sf)
-{
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
-
-	blkcg_print_blkgs(sf, blkcg, blkg_prfill_cpu_stat,
-			  BLKCG_STAT_POL(cft->private),
-			  BLKCG_STAT_OFF(cft->private), false);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkcg_print_cpu_stat);
-
-/* print per-cpu blkg_rwstat specified by BLKCG_STAT_PRIV() */
-int blkcg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
-			   struct seq_file *sf)
-{
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
-
-	blkcg_print_blkgs(sf, blkcg, blkg_prfill_cpu_rwstat,
-			  BLKCG_STAT_POL(cft->private),
-			  BLKCG_STAT_OFF(cft->private), true);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkcg_print_cpu_rwstat);
 
 /**
  * blkg_conf_prep - parse and prepare for per-blkg config update

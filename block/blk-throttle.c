@@ -582,7 +582,6 @@ static void throtl_update_dispatch_stats(struct blkio_group *blkg, u64 bytes,
 
 	stats_cpu = this_cpu_ptr(pd->stats_cpu);
 
-	blkg_stat_add(&stats_cpu->sectors, bytes >> 9);
 	blkg_rwstat_add(&stats_cpu->serviced, rw, 1);
 	blkg_rwstat_add(&stats_cpu->service_bytes, rw, bytes);
 
@@ -841,6 +840,36 @@ static void throtl_update_blkio_group_common(struct throtl_data *td,
 	xchg(&td->limits_changed, true);
 	/* Schedule a work now to process the limit change */
 	throtl_schedule_delayed_work(td, 0);
+}
+
+static u64 blkg_prfill_cpu_rwstat(struct seq_file *sf,
+				  struct blkg_policy_data *pd, int off)
+{
+	struct blkg_rwstat rwstat = { }, tmp;
+	int i, cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct blkio_group_stats_cpu *sc =
+			per_cpu_ptr(pd->stats_cpu, cpu);
+
+		tmp = blkg_rwstat_read((void *)sc + off);
+		for (i = 0; i < BLKG_RWSTAT_NR; i++)
+			rwstat.cnt[i] += tmp.cnt[i];
+	}
+
+	return __blkg_prfill_rwstat(sf, pd, &rwstat);
+}
+
+/* print per-cpu blkg_rwstat specified by BLKCG_STAT_PRIV() */
+static int blkcg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
+				  struct seq_file *sf)
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+
+	blkcg_print_blkgs(sf, blkcg, blkg_prfill_cpu_rwstat,
+			  BLKCG_STAT_POL(cft->private),
+			  BLKCG_STAT_OFF(cft->private), true);
+	return 0;
 }
 
 static u64 blkg_prfill_conf_u64(struct seq_file *sf,

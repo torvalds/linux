@@ -65,6 +65,10 @@ struct blkg_rwstat {
 };
 
 struct blkio_group_stats {
+	/* total bytes transferred */
+	struct blkg_rwstat		service_bytes;
+	/* total IOs serviced, post merge */
+	struct blkg_rwstat		serviced;
 	/* number of ios merged */
 	struct blkg_rwstat		merged;
 	/* total time spent on device in ns, may not be accurate w/ queueing */
@@ -73,6 +77,8 @@ struct blkio_group_stats {
 	struct blkg_rwstat		wait_time;
 	/* number of IOs queued up */
 	struct blkg_rwstat		queued;
+	/* total sectors transferred */
+	struct blkg_stat		sectors;
 	/* total disk time and nr sectors dispatched by this group */
 	struct blkg_stat		time;
 #ifdef CONFIG_DEBUG_BLK_CGROUP
@@ -104,8 +110,6 @@ struct blkio_group_stats_cpu {
 	struct blkg_rwstat		service_bytes;
 	/* total IOs serviced, post merge */
 	struct blkg_rwstat		serviced;
-	/* total sectors transferred */
-	struct blkg_stat		sectors;
 };
 
 struct blkio_group_conf {
@@ -183,10 +187,6 @@ int blkcg_print_stat(struct cgroup *cgrp, struct cftype *cft,
 		     struct seq_file *sf);
 int blkcg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
 		       struct seq_file *sf);
-int blkcg_print_cpu_stat(struct cgroup *cgrp, struct cftype *cft,
-			 struct seq_file *sf);
-int blkcg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
-			   struct seq_file *sf);
 
 struct blkg_conf_ctx {
 	struct gendisk		*disk;
