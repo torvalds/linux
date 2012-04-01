@@ -113,6 +113,7 @@ void rc_map_init(void);
 #define RC_MAP_LME2510                   "rc-lme2510"
 #define RC_MAP_MANLI                     "rc-manli"
 #define RC_MAP_MEDION_X10                "rc-medion-x10"
+#define RC_MAP_MEDION_X10_DIGITAINER     "rc-medion-x10-digitainer"
 #define RC_MAP_MSI_DIGIVOX_II            "rc-msi-digivox-ii"
 #define RC_MAP_MSI_DIGIVOX_III           "rc-msi-digivox-iii"
 #define RC_MAP_MSI_TVANYWHERE_PLUS       "rc-msi-tvanywhere-plus"
