@@ -3596,12 +3596,27 @@ static struct xpt2046_platform_data xpt2046_info = {
 #endif
 
 #if defined(CONFIG_RK29_SC8800)
+static int sc8800_io_init(void)
+{
+	rk29_mux_api_set(GPIO1C1_UART0RTSN_SDMMC1WRITEPRT_NAME, GPIO1H_GPIO1C1);
+	rk29_mux_api_set(GPIO1C0_UART0CTSN_SDMMC1DETECTN_NAME, GPIO1H_GPIO1C0);
+	return 0;
+}
+
+static int sc8800_io_deinit(void)
+{
+
+	return 0;
+}
+
 static struct plat_sc8800 sc8800_plat_data = {
 	.slav_rts_pin = RK29_PIN1_PC1,
 	.slav_rdy_pin = RK29_PIN0_PA3,
 	.master_rts_pin = RK29_PIN1_PC0,
 	.master_rdy_pin = RK29_PIN0_PA2,
 	//.poll_time = 100,
+	.io_init = sc8800_io_init,
+    .io_deinit = sc8800_io_deinit,
 };
 #endif
 /*
