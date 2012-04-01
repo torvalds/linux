@@ -94,10 +94,11 @@ static bool
 hash_ipportip4_data_list(struct sk_buff *skb,
 		       const struct hash_ipportip4_elem *data)
 {
-	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, data->ip);
-	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP2, data->ip2);
-	NLA_PUT_NET16(skb, IPSET_ATTR_PORT, data->port);
-	NLA_PUT_U8(skb, IPSET_ATTR_PROTO, data->proto);
+	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, data->ip) ||
+	    nla_put_ipaddr4(skb, IPSET_ATTR_IP2, data->ip2) ||
+	    nla_put_net16(skb, IPSET_ATTR_PORT, data->port) ||
+	    nla_put_u8(skb, IPSET_ATTR_PROTO, data->proto))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -111,13 +112,13 @@ hash_ipportip4_data_tlist(struct sk_buff *skb,
 	const struct hash_ipportip4_telem *tdata =
 		(const struct hash_ipportip4_telem *)data;
 
-	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP, tdata->ip);
-	NLA_PUT_IPADDR4(skb, IPSET_ATTR_IP2, tdata->ip2);
-	NLA_PUT_NET16(skb, IPSET_ATTR_PORT, tdata->port);
-	NLA_PUT_U8(skb, IPSET_ATTR_PROTO, data->proto);
-	NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT,
-		      htonl(ip_set_timeout_get(tdata->timeout)));
-
+	if (nla_put_ipaddr4(skb, IPSET_ATTR_IP, tdata->ip) ||
+	    nla_put_ipaddr4(skb, IPSET_ATTR_IP2, tdata->ip2) ||
+	    nla_put_net16(skb, IPSET_ATTR_PORT, tdata->port) ||
+	    nla_put_u8(skb, IPSET_ATTR_PROTO, data->proto) ||
+	    nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
+			  htonl(ip_set_timeout_get(tdata->timeout))))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -319,10 +320,11 @@ static bool
 hash_ipportip6_data_list(struct sk_buff *skb,
 			 const struct hash_ipportip6_elem *data)
 {
-	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP, &data->ip);
-	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP2, &data->ip2);
-	NLA_PUT_NET16(skb, IPSET_ATTR_PORT, data->port);
-	NLA_PUT_U8(skb, IPSET_ATTR_PROTO, data->proto);
+	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &data->ip.in6) ||
+	    nla_put_ipaddr6(skb, IPSET_ATTR_IP2, &data->ip2.in6) ||
+	    nla_put_net16(skb, IPSET_ATTR_PORT, data->port) ||
+	    nla_put_u8(skb, IPSET_ATTR_PROTO, data->proto))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
@@ -336,12 +338,13 @@ hash_ipportip6_data_tlist(struct sk_buff *skb,
 	const struct hash_ipportip6_telem *e =
 		(const struct hash_ipportip6_telem *)data;
 
-	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP, &e->ip);
-	NLA_PUT_IPADDR6(skb, IPSET_ATTR_IP2, &data->ip2);
-	NLA_PUT_NET16(skb, IPSET_ATTR_PORT, data->port);
-	NLA_PUT_U8(skb, IPSET_ATTR_PROTO, data->proto);
-	NLA_PUT_NET32(skb, IPSET_ATTR_TIMEOUT,
-		      htonl(ip_set_timeout_get(e->timeout)));
+	if (nla_put_ipaddr6(skb, IPSET_ATTR_IP, &e->ip.in6) ||
+	    nla_put_ipaddr6(skb, IPSET_ATTR_IP2, &data->ip2.in6) ||
+	    nla_put_net16(skb, IPSET_ATTR_PORT, data->port) ||
+	    nla_put_u8(skb, IPSET_ATTR_PROTO, data->proto) ||
+	    nla_put_net32(skb, IPSET_ATTR_TIMEOUT,
+			  htonl(ip_set_timeout_get(e->timeout))))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
