@@ -248,7 +248,7 @@ enum {
 
 
 #define HDMIRdReg(addr)						__raw_readl(hdmi->regbase + addr)
-#define HDMIWrReg(addr, val)        		__raw_writel(val, hdmi->regbase + addr);
+#define HDMIWrReg(addr, val)        		__raw_writel((val), hdmi->regbase + addr);
 #define HDMIMskReg(temp, addr, msk, val)	\
 	temp = __raw_readl(hdmi->regbase + addr) & (0xFF - (msk)) ; \
 	__raw_writel(temp | ( (val) & (msk) ),  hdmi->regbase + addr); 

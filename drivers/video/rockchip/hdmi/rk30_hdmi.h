@@ -2,6 +2,7 @@
 #define __RK30_HDMI_H__
 
 #include <linux/fb.h>
+#include <linux/spinlock.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/display-sys.h>
@@ -17,13 +18,13 @@
 // HDMI video source
 enum {
 	HDMI_SOURCE_LCDC0 = 0,
-	HDMI_SOURCE_LCDC1
+	HDMI_SOURCE_LCDC1 = 1
 };
 
 #define HDMI_SOURCE_DEFAULT		HDMI_SOURCE_LCDC1
 
 /* default HDMI output video mode */
-#define HDMI_VIDEO_DEFAULT_MODE			HDMI_1280x720p_60Hz//HDMI_1920x1080p_60Hz
+#define HDMI_VIDEO_DEFAULT_MODE			HDMI_1920x1080p_60Hz//HDMI_1280x720p_60Hz
 #define HDMI_AUDIO_DEFAULT_CHANNEL		2
 #define HDMI_AUDIO_DEFAULT_RATE			HDMI_AUDIO_FS_44100
 #define HDMI_AUDIO_DEFAULT_WORD_LENGTH	HDMI_AUDIO_WORD_LENGTH_16bit
@@ -37,6 +38,8 @@ struct hdmi {
 	
 	struct workqueue_struct *workqueue;
 	struct delayed_work delay_work;
+	
+	spinlock_t	irq_lock;
 	
 	int wait;
 	struct completion	complete;

@@ -1,6 +1,7 @@
 config HDMI_RK30
         bool "hdmi support"
         depends on LCDC_RK30
+        select FB_MODE_HELPERS
 #        default y
         help
            Support rk30 hdmi if you say y here

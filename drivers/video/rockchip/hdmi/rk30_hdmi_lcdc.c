@@ -491,7 +491,7 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 //		hdmi->config_set.resolution = HDMI_DEFAULT_RESOLUTION;
 		
 	if(hdmi->lcdc == NULL || hdmi->lcdc->screen == NULL) {
-		printk("***************\n");
+		dev_err(hdmi->dev, "lcdc %d not exist\n", HDMI_SOURCE_DEFAULT);
 		return -1;
 	}
 

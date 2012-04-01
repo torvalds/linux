@@ -8,6 +8,40 @@
 
 static char *envp[] = {"INTERFACE=HDMI", NULL};
 
+static void hdmi_sys_show_state(int state)
+{
+	switch(state)
+	{
+		case HDMI_INITIAL:
+			dev_printk(KERN_INFO, hdmi->dev, "HDMI_INITIAL\n");
+			break;
+		case WAIT_HOTPLUG:
+			dev_printk(KERN_INFO, hdmi->dev, "WAIT_HOTPLUG\n");
+			break;
+		case READ_PARSE_EDID:
+			dev_printk(KERN_INFO, hdmi->dev, "READ_PARSE_EDID\n");
+			break;
+		case WAIT_HDMI_ENABLE:
+			dev_printk(KERN_INFO, hdmi->dev, "WAIT_HDMI_ENABLE\n");
+			break;
+		case SYSTEM_CONFIG:
+			dev_printk(KERN_INFO, hdmi->dev, "SYSTEM_CONFIG\n");
+			break;
+		case CONFIG_VIDEO:
+			dev_printk(KERN_INFO, hdmi->dev, "CONFIG_VIDEO\n");
+			break;
+		case CONFIG_AUDIO:
+			dev_printk(KERN_INFO, hdmi->dev, "CONFIG_AUDIO\n");
+			break;
+		case PLAY_BACK:
+			dev_printk(KERN_INFO, hdmi->dev, "PLAY_BACK\n");
+			break;
+		default:
+			dev_printk(KERN_INFO, hdmi->dev, "Unkown State\n");
+			break;
+	}
+}
+
 int hdmi_sys_init(void)
 {
 	hdmi->pwr_mode			= PWR_SAVE_MODE_A;
@@ -171,6 +205,8 @@ void hdmi_work(struct work_struct *work)
 		}
 		if(state != state_last)
 			trytimes = 0;
+		
+		hdmi_sys_show_state(state);
 	}while((state != state_last || (rc != HDMI_ERROR_SUCESS) ) && trytimes < HDMI_MAX_TRY_TIMES);
 	
 	if(trytimes == HDMI_MAX_TRY_TIMES)
@@ -178,4 +214,5 @@ void hdmi_work(struct work_struct *work)
 		if(hdmi->hotplug)
 			hdmi_sys_remove();
 	}
+	hdmi->state = state;
 }

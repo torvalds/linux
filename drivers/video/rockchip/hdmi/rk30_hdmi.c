@@ -24,20 +24,31 @@ struct hdmi *hdmi = NULL;
 extern irqreturn_t hdmi_irq(int irq, void *priv);
 extern void hdmi_work(struct work_struct *work);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(int  id);
+extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void hdmi_early_suspend(struct early_suspend *h)
 {
 	hdmi_dbg(hdmi->dev, "hdmi enter early suspend\n");
 	disable_irq(hdmi->irq);
-	if(hdmi->hotplug)
-		hdmi_sys_remove();
+	hdmi->enable = 0;
+	hdmi->command = HDMI_CONFIG_ENABLE;
+	/* wait for hdmi configuration finish */
+	while(hdmi->wait)
+		msleep(10);
+	init_completion(&hdmi->complete);
+	hdmi->wait = 1;
+	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
+	wait_for_completion_interruptible_timeout(&hdmi->complete,
+							msecs_to_jiffies(5000));
+	flush_delayed_work(&hdmi->delay_work);
 	return;
 }
 
 static void hdmi_early_resume(struct early_suspend *h)
 {
 	hdmi_dbg(hdmi->dev, "hdmi exit early resume\n");
+	hdmi->enable = 1;
 	enable_irq(hdmi->irq);
 	return;
 }
@@ -62,8 +73,6 @@ static inline void hdmi_io_remap(void)
 	
 	// internal hclk = hdmi_hclk/32
 	HDMIWrReg(0x800, 19);
-	
-	hdmi->lcdc = rk_get_lcdc_drv(HDMI_SOURCE_DEFAULT);
 }
 
 static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
@@ -81,6 +90,14 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	memset(hdmi, 0, sizeof(struct hdmi));
 	hdmi->dev = &pdev->dev;
 	platform_set_drvdata(pdev, hdmi);
+
+	hdmi->lcdc = rk_get_lcdc_drv(HDMI_SOURCE_DEFAULT);
+	if(hdmi->lcdc == NULL)
+	{
+		dev_err(hdmi->dev, "can not connect to video source lcdc\n");
+		ret = -ENXIO;
+		goto err0;
+	}
 
 	hdmi->hclk = clk_get(NULL,"hclk_hdmi");
 	if(IS_ERR(hdmi->hclk))
@@ -115,7 +132,6 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	}
 	
 	hdmi_io_remap();
-	
 	hdmi_sys_init();
 	
 	hdmi->workqueue = create_singlethread_workqueue("hdmi");
@@ -124,9 +140,14 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	#ifdef CONFIG_HAS_EARLYSUSPEND
 	hdmi->early_suspend.suspend = hdmi_early_suspend;
 	hdmi->early_suspend.resume = hdmi_early_resume;
-	hdmi->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;
+	hdmi->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 10;
 	register_early_suspend(&hdmi->early_suspend);
 	#endif
+	
+	
+	hdmi_register_display_sysfs(hdmi, hdmi->dev);
+	
+	spin_lock_init(&hdmi->irq_lock);
 
 	/* get the IRQ */
 	hdmi->irq = platform_get_irq(pdev, 0);
@@ -135,7 +156,7 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err2;
 	}
-	hdmi_dbg(hdmi->dev, "[%s] hdmi irq is 0x%x\n", __FUNCTION__, hdmi->irq);
+
 	/* request the IRQ */
 	ret = request_irq(hdmi->irq, hdmi_irq, 0, dev_name(&pdev->dev), hdmi);
 	if (ret)
@@ -155,13 +176,23 @@ err1:
 	release_mem_region(res->start,(res->end - res->start) + 1);
 	clk_disable(hdmi->hclk);
 err0:
-	kfree(hdmi);
 	hdmi_dbg(hdmi->dev, "rk30 hdmi probe error.\n");
+	kfree(hdmi);
 	return ret;
 }
 
 static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 {
+	flush_scheduled_work();
+	destroy_workqueue(hdmi->workqueue);
+	#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&hdmi->early_suspend);
+	#endif
+	iounmap((void*)hdmi->regbase);
+//	release_mem_region(res->start,(res->end - res->start) + 1);
+	clk_disable(hdmi->hclk);
+	kfree(hdmi);
+	hdmi_dbg(hdmi->dev, "rk30 hdmi unregistered.\n");
 	return 0;
 }
 
@@ -191,6 +222,6 @@ static void __exit rk30_hdmi_exit(void)
 }
 
 
-fs_initcall(rk30_hdmi_init);
-//module_init(rk30_hdmi_init);
+//fs_initcall(rk30_hdmi_init);
+module_init(rk30_hdmi_init);
 module_exit(rk30_hdmi_exit);
