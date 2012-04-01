@@ -1515,13 +1515,8 @@ struct cftype blkio_files[] = {
 		.read_map = blkiocg_file_read_map,
 	},
 #endif
+	{ }	/* terminate */
 };
-
-static int blkiocg_populate(struct cgroup_subsys *subsys, struct cgroup *cgroup)
-{
-	return cgroup_add_files(cgroup, subsys, blkio_files,
-				ARRAY_SIZE(blkio_files));
-}
 
 static void blkiocg_destroy(struct cgroup *cgroup)
 {
@@ -1642,11 +1637,11 @@ struct cgroup_subsys blkio_subsys = {
 	.can_attach = blkiocg_can_attach,
 	.attach = blkiocg_attach,
 	.destroy = blkiocg_destroy,
-	.populate = blkiocg_populate,
 #ifdef CONFIG_BLK_CGROUP
 	/* note: blkio_subsys_id is otherwise defined in blk-cgroup.h */
 	.subsys_id = blkio_subsys_id,
 #endif
+	.base_cftypes = blkio_files,
 	.use_id = 1,
 	.module = THIS_MODULE,
 };

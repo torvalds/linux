@@ -5349,19 +5349,15 @@ static struct cftype debug_files[] =  {
 		.name = "releasable",
 		.read_u64 = releasable_read,
 	},
-};
 
-static int debug_populate(struct cgroup_subsys *ss, struct cgroup *cont)
-{
-	return cgroup_add_files(cont, ss, debug_files,
-				ARRAY_SIZE(debug_files));
-}
+	{ }	/* terminate */
+};
 
 struct cgroup_subsys debug_subsys = {
 	.name = "debug",
 	.create = debug_create,
 	.destroy = debug_destroy,
-	.populate = debug_populate,
 	.subsys_id = debug_subsys_id,
+	.base_cftypes = debug_files,
 };
 #endif /* CONFIG_CGROUP_DEBUG */
