@@ -282,6 +282,16 @@ list_for_each_entry(_ss, &_root->subsys_list, sibling)
 #define for_each_active_root(_root) \
 list_for_each_entry(_root, &roots, root_list)
 
+static inline struct cgroup *__d_cgrp(struct dentry *dentry)
+{
+	return dentry->d_fsdata;
+}
+
+static inline struct cftype *__d_cft(struct dentry *dentry)
+{
+	return dentry->d_fsdata;
+}
+
 /* the list of cgroups eligible for automatic release. Protected by
  * release_list_lock */
 static LIST_HEAD(release_list);
@@ -1703,16 +1713,6 @@ static struct file_system_type cgroup_fs_type = {
 };
 
 static struct kobject *cgroup_kobj;
-
-static inline struct cgroup *__d_cgrp(struct dentry *dentry)
-{
-	return dentry->d_fsdata;
-}
-
-static inline struct cftype *__d_cft(struct dentry *dentry)
-{
-	return dentry->d_fsdata;
-}
 
 /**
  * cgroup_path - generate the path of a cgroup
