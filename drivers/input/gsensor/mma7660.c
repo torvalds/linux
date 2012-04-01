@@ -319,8 +319,7 @@ static int mma7660_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int mma7660_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-	   unsigned long arg)
+static long mma7660_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 
 	void __user *argp = (void __user *)arg;
@@ -414,12 +413,12 @@ static struct file_operations mma7660_fops = {
 	.owner = THIS_MODULE,
 	.open = mma7660_open,
 	.release = mma7660_release,
-	.ioctl = mma7660_ioctl,
+	.unlocked_ioctl = mma7660_ioctl,
 };
 
 static struct miscdevice mma7660_device = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "gsensor",//"mma7660_daemon",
+	.name = "mma8452_daemon",//"mma7660_daemon",
 	.fops = &mma7660_fops,
 };
 
@@ -562,11 +561,11 @@ static int  mma7660_probe(struct i2c_client *client, const struct i2c_device_id 
 	set_bit(EV_ABS, mma7660->input_dev->evbit);
 
 	/* x-axis acceleration */
-	input_set_abs_params(mma7660->input_dev, ABS_X, -1500, 1500, 0, 0);
+	input_set_abs_params(mma7660->input_dev, ABS_X, -MMA7660_RANGE, MMA7660_RANGE, 0, 0);
 	/* y-axis acceleration */
-	input_set_abs_params(mma7660->input_dev, ABS_Y, -1500, 1500, 0, 0);
+	input_set_abs_params(mma7660->input_dev, ABS_Y, -MMA7660_RANGE, MMA7660_RANGE, 0, 0);
 	/* z-axis acceleration */
-	input_set_abs_params(mma7660->input_dev, ABS_Z, -1500, 1500, 0, 0);
+	input_set_abs_params(mma7660->input_dev, ABS_Z, -MMA7660_RANGE, MMA7660_RANGE, 0, 0);
 
 	mma7660->input_dev->name = "compass";
 	mma7660->input_dev->dev.parent = &client->dev;

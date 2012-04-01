@@ -85,23 +85,46 @@
 #define MMA8452_ASLP_RATE_1P56        3
 #define MMA8452_ASLP_RATE_SHIFT		  6
 
-#define ACTIVE_MASK				1
-#define FREAD_MASK				2
+/*Auto-adapt mma845x series*/
+/*Modified by Yick @ROCKCHIP 
+  xieyi@rockchips.com*/
+/*
+  Range: unit(ug 1g=1 000 000 ug)
+  		 option(2g,4g,8g)
+		 G would be defined on android HAL
+  Precision: bit wide of valid data
+  Boundary: Max positive count
+  Gravity_step: gravity value indicated by per count
+ */
+#define FREAD_MASK				0 /* enabled(1<<1) only if reading MSB 8bits*/
+#define MMA845X_RANGE			2000000
+/* mma8451 */
+#define MMA8451_PRECISION       14
+#define MMA8451_BOUNDARY        (0x1 << (MMA8451_PRECISION - 1))
+#define MMA8451_GRAVITY_STEP    MMA845X_RANGE / MMA8451_BOUNDARY
 
+/* mma8452 */
+#define MMA8452_PRECISION       12
+#define MMA8452_BOUNDARY        (0x1 << (MMA8452_PRECISION - 1))
+#define MMA8452_GRAVITY_STEP    MMA845X_RANGE / MMA8452_BOUNDARY
+
+/* mma8453 */
+#define MMA8453_PRECISION       10
+#define MMA8453_BOUNDARY        (0x1 << (MMA8453_PRECISION - 1))
+#define MMA8453_GRAVITY_STEP    MMA845X_RANGE / MMA8453_BOUNDARY
+
+/*End of precision adaption*/
+
+#define MMA8452_TOTAL_TIME      10
+
+#define ACTIVE_MASK				1
 
 /*status*/
 #define MMA8452_SUSPEND           2
 #define MMA8452_OPEN           1
 #define MMA8452_CLOSE          0
 
-
-
-//#define MMA8452_IIC_ADDR 	    0x98  
 #define MMA8452_REG_LEN         11
-#define MMA8452_GRAVITY_STEP    156 //2g full scale range
-#define MMA8452_PRECISION       8 //8bit data
-#define MMA8452_BOUNDARY        (0x1 << (MMA8452_PRECISION - 1))
-#define MMA8452_TOTAL_TIME      10
 
 
 /*

@@ -186,6 +186,11 @@
 #define BMA150_RANGE_4G			1
 #define BMA150_RANGE_8G			2
 
+#define BMA150_RANGE			2000000
+#define BMA150_PRECISION		10
+#define BMA150_BOUNDARY			(0x1 << (BMA150_PRECISION - 1))
+#define BMA150_GRAVITY_STEP		BMA150_RANGE / BMA150_BOUNDARY
+
 #define BMA150_BW_25HZ		0
 #define BMA150_BW_50HZ		1
 #define BMA150_BW_100HZ		2
@@ -201,7 +206,7 @@
 #define BMA150_MODE_WAKE_UP     3
 
 struct bma150acc{
-	s16	x,
+	s64	x,
 		y,
 		z;
 } ;
@@ -413,28 +418,49 @@ static int bma150_read_accel_xyz(struct i2c_client *client,
 
 		acc->x = BMA150_GET_BITSLICE(data[0], BMA150_ACC_X_LSB) |
 			(BMA150_GET_BITSLICE(data[1], BMA150_ACC_X_MSB)<<
-							BMA150_ACC_X_LSB__LEN);
+							BMA150_ACC_X_LSB__LEN);	
+		if (acc->x < BMA150_BOUNDARY)
+       			acc->x = acc->x * BMA150_GRAVITY_STEP;
+    		else
+       			acc->x = ~( ((~acc->x & (0x7fff>>(16-BMA150_PRECISION)) ) + 1) 
+			   			* BMA150_GRAVITY_STEP) + 1;
+#if 0
 		acc->x = acc->x << (sizeof(short)*8-(BMA150_ACC_X_LSB__LEN+
 							BMA150_ACC_X_MSB__LEN));
 		acc->x = acc->x >> (sizeof(short)*8-(BMA150_ACC_X_LSB__LEN+
 							BMA150_ACC_X_MSB__LEN));
+#endif
 
 		acc->y = BMA150_GET_BITSLICE(data[2], BMA150_ACC_Y_LSB) |
 			(BMA150_GET_BITSLICE(data[3], BMA150_ACC_Y_MSB)<<
 							BMA150_ACC_Y_LSB__LEN);
+		if (acc->y < BMA150_BOUNDARY)
+       			acc->y = acc->y * BMA150_GRAVITY_STEP;
+    		else
+       			acc->y = ~( ((~acc->y & (0x7fff>>(16-BMA150_PRECISION)) ) + 1) 
+			   			* BMA150_GRAVITY_STEP) + 1;
+#if 0
 		acc->y = acc->y << (sizeof(short)*8-(BMA150_ACC_Y_LSB__LEN +
 							BMA150_ACC_Y_MSB__LEN));
 		acc->y = acc->y >> (sizeof(short)*8-(BMA150_ACC_Y_LSB__LEN +
 							BMA150_ACC_Y_MSB__LEN));
+#endif
 
 
 		acc->z = BMA150_GET_BITSLICE(data[4], BMA150_ACC_Z_LSB);
 		acc->z |= (BMA150_GET_BITSLICE(data[5], BMA150_ACC_Z_MSB)<<
 							BMA150_ACC_Z_LSB__LEN);
+		if (acc->z < BMA150_BOUNDARY)
+       			acc->z = acc->z * BMA150_GRAVITY_STEP;
+    		else
+       			acc->z = ~( ((~acc->z & (0x7fff>>(16-BMA150_PRECISION)) ) + 1) 
+			   			* BMA150_GRAVITY_STEP) + 1;
+#if 0
 		acc->z = acc->z << (sizeof(short)*8-(BMA150_ACC_Z_LSB__LEN+
 							BMA150_ACC_Z_MSB__LEN));
 		acc->z = acc->z >> (sizeof(short)*8-(BMA150_ACC_Z_LSB__LEN+
 							BMA150_ACC_Z_MSB__LEN));
+#endif
 
 	}
 
@@ -446,7 +472,7 @@ static void bma150_work_func(struct work_struct *work)
 	struct bma150_data *bma150 = container_of((struct delayed_work *)work,
 			struct bma150_data, work);
 	static struct bma150acc acc;
-	s16	x,y,z;
+	s32	x,y,z;
 	unsigned long delay = msecs_to_jiffies(atomic_read(&bma150->delay));
 	struct bma023_platform_data *pdata = pdata = (bma150->bma150_client)->dev.platform_data;
 
@@ -461,9 +487,9 @@ static void bma150_work_func(struct work_struct *work)
 		y = acc.y;
 		z = acc.z;
 	}
-	input_report_abs(bma150->input, ABS_X, x<<2);
-	input_report_abs(bma150->input, ABS_Y, y<<2);
-	input_report_abs(bma150->input, ABS_Z, z<<2);
+	input_report_abs(bma150->input, ABS_X, x);
+	input_report_abs(bma150->input, ABS_Y, y);
+	input_report_abs(bma150->input, ABS_Z, z);
 	input_sync(bma150->input);
 	mutex_lock(&bma150->value_mutex);
 	bma150->value.x = x;
@@ -582,7 +608,7 @@ static ssize_t bma150_value_show(struct device *dev,
 	acc_value = bma150->value;
 	mutex_unlock(&bma150->value_mutex);
 
-	return sprintf(buf, "%d %d %d\n", acc_value.x, acc_value.y,
+	return sprintf(buf, "%ll %ll %ll\n", acc_value.x, acc_value.y,
 			acc_value.z);
 }
 
@@ -812,12 +838,12 @@ static long bma023_ioctl( struct file *file, unsigned int cmd, unsigned long arg
 		
 	case BMA_IOCTL_GETDATA:
 		mutex_lock(&bma150->value_mutex);
-		if(abs(sense_data.x-bma150->value.x)>10)//·À¶¶¶¯
-			sense_data.x=bma150->value.x<<2;
-		if(abs(sense_data.y-(bma150->value.y))>10)//·À¶¶¶¯
-			sense_data.y=bma150->value.y<<2;
-		if(abs(sense_data.z-(bma150->value.z))>10)//·À¶¶¶¯
-			sense_data.z=bma150->value.z<<2;
+		if(abs(sense_data.x-bma150->value.x)>40000)//·À¶¶¶¯
+			sense_data.x=bma150->value.x;
+		if(abs(sense_data.y-(bma150->value.y))>40000)//·À¶¶¶¯
+			sense_data.y=bma150->value.y;
+		if(abs(sense_data.z-(bma150->value.z))>40000)//·À¶¶¶¯
+			sense_data.z=bma150->value.z;
 	       //bma150->value = acc;
 		mutex_unlock(&bma150->value_mutex);
 

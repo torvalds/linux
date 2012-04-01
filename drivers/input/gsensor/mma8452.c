@@ -56,6 +56,7 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 #define MMA8452_SPEED		200 * 1000
 #define MMA8451_DEVID		0x1a
 #define MMA8452_DEVID		0x2a
+#define MMA8453_DEVID		0x3a
 /* Addresses to scan -- protected by sense_data_mutex */
 //static char sense_data[RBUFF_SIZE + 1];
 static struct i2c_client *this_client;
@@ -66,8 +67,9 @@ static DECLARE_WAIT_QUEUE_HEAD(data_ready_wq);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend mma8452_early_suspend;
 #endif
-//static int revision = -1;
+static int revision = -1;
 static const char* vendor = "Freescale Semiconductor";
+static char devid;
 
 
 typedef char status_t;
@@ -197,7 +199,6 @@ static int mma845x_active(struct i2c_client *client,int enable)
 	return ret;
 }
 
-#if 0
 static int mma8452_start_test(struct i2c_client *client)
 {
 	int ret = 0;
@@ -242,7 +243,6 @@ static int mma8452_start_test(struct i2c_client *client)
 
 	return ret;
 }
-#endif
 
 static int mma8452_start_dev(struct i2c_client *client, char rate)
 {
@@ -328,17 +328,56 @@ static int mma8452_reset_rate(struct i2c_client *client, char rate)
 	return ret ;
 }
 
-static inline int mma8452_convert_to_int(char value)
+static inline int mma8452_convert_to_int(const char high_byte, const char low_byte)
 {
-    int result;
-
-    if (value < MMA8452_BOUNDARY) {
-       result = value * MMA8452_GRAVITY_STEP / 10;
+    s64 result;
+/* enabled only if FREAD MODE */
+/*
+    if (high_byte < MMA8452_BOUNDARY) {
+       result = high_byte * MMA8452_GRAVITY_STEP;
     } else {
-       result = ~(((~value & 0x7f) + 1)* MMA8452_GRAVITY_STEP / 10) + 1;
+       result = ~(((~high_byte&0x7f) + 1) * MMA8452_GRAVITY_STEP) + 1;
+    }
+*/
+	switch (devid) {
+
+		case MMA8451_DEVID:
+			result = ((int)high_byte << (MMA8451_PRECISION-8)) 
+					| ((int)low_byte >> (16-MMA8451_PRECISION));
+			if (result < MMA8451_BOUNDARY)
+       			result = result* MMA8451_GRAVITY_STEP;
+    		else
+       			result = ~( ((~result & (0x7fff>>(16-MMA8451_PRECISION)) ) + 1) 
+			   			* MMA8451_GRAVITY_STEP) + 1;
+			break;
+
+		case MMA8452_DEVID:
+			result = ((int)high_byte << (MMA8452_PRECISION-8)) 
+					| ((int)low_byte >> (16-MMA8452_PRECISION));
+			if (result < MMA8452_BOUNDARY)
+       			result = result* MMA8452_GRAVITY_STEP;
+    		else
+       			result = ~( ((~result & (0x7fff>>(16-MMA8452_PRECISION)) ) + 1) 
+			   			* MMA8452_GRAVITY_STEP) + 1;
+			break;
+			
+		case MMA8453_DEVID:
+			result = ((int)high_byte << (MMA8453_PRECISION-8)) 
+					| ((int)low_byte >> (16-MMA8453_PRECISION));
+			if (result < MMA8453_BOUNDARY)
+       			result = result* MMA8453_GRAVITY_STEP;
+    		else
+       			result = ~( ((~result & (0x7fff>>(16-MMA8453_PRECISION)) ) + 1) 
+			   			* MMA8453_GRAVITY_STEP) + 1;
+			break;
+
+		default:
+			mmaprintk(KERN_ERR
+		       "mma8452_convert_to_int: devid wasn't set correctly\n");
+			return -EFAULT;
     }
 
-    return result;
+    return (int)result;
 }
 
 static void mma8452_report_value(struct i2c_client *client, struct mma8452_axis *axis)
@@ -358,26 +397,38 @@ static void mma8452_report_value(struct i2c_client *client, struct mma8452_axis 
 static int mma8452_get_data(struct i2c_client *client)
 {
     struct mma8452_data* mma8452 = i2c_get_clientdata(client);
-	char buffer[6];
 	int ret;
 	int x,y,z;
     struct mma8452_axis axis;
     struct mma8452_platform_data *pdata = pdata = client->dev.platform_data;
 
+/* enabled only if FREAD MODE */
+/*
+	char buffer[3];
     do {
         memset(buffer, 0, 3);
         buffer[0] = MMA8452_REG_X_OUT_MSB;
-		//ret = mma8452_tx_data(client, &buffer[0], 1);
         ret = mma8452_rx_data(client, &buffer[0], 3);
         if (ret < 0)
             return ret;
     } while (0);
 
-	mmaprintkd("0x%02x 0x%02x 0x%02x \n",buffer[0],buffer[1],buffer[2]);
-	
-	x = mma8452_convert_to_int(buffer[0]);
-	y = mma8452_convert_to_int(buffer[1]);
-	z = mma8452_convert_to_int(buffer[2]);
+	x = mma8452_convert_to_int(buffer[0],0);
+	y = mma8452_convert_to_int(buffer[1],0);
+	z = mma8452_convert_to_int(buffer[2],0);
+*/
+	char buffer[6];
+    do {
+        memset(buffer, 0, 6);
+        buffer[0] = MMA8452_REG_X_OUT_MSB;
+        ret = mma8452_rx_data(client, &buffer[0], 6);
+        if (ret < 0)
+            return ret;
+    } while (0);
+
+	x = mma8452_convert_to_int(buffer[0],buffer[1]);
+	y = mma8452_convert_to_int(buffer[2],buffer[3]);
+	z = mma8452_convert_to_int(buffer[4],buffer[5]);
 
 	if (pdata->swap_xyz) {
 		axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
@@ -629,9 +680,9 @@ static void mma8452_resume(struct early_suspend *h)
 #else
 static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 {
-	int ret = 0;
-	//struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
+	int ret;
 	mmaprintkd("Gsensor mma7760 enter 2 level  suspend mma8452->status %d\n",mma8452->status);
+	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 //	if(mma8452->status == MMA8452_OPEN)
 //	{
 	//	mma8452->status = MMA8452_SUSPEND;
@@ -641,8 +692,8 @@ static int mma8452_suspend(struct i2c_client *client, pm_message_t mesg)
 }
 static int mma8452_resume(struct i2c_client *client)
 {
-	int ret = 0;
-	//struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
+	int ret;
+	struct mma8452_data *mma8452 = (struct mma8452_data *)i2c_get_clientdata(client);
 	mmaprintkd("Gsensor mma7760 2 level resume!! mma8452->status %d\n",mma8452->status);
 //	if((mma8452->status == MMA8452_SUSPEND) && (mma8452->status != MMA8452_OPEN))
 //if (mma8452->status == MMA8452_OPEN)
@@ -712,7 +763,6 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	struct mma8452_data *mma8452;
 	struct mma8452_platform_data *pdata = pdata = client->dev.platform_data;
 	int err;
-	char devid;
 
 	mmaprintkf("%s enter\n",__FUNCTION__);
 
@@ -743,7 +793,9 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	this_client = client;
 
 	devid = mma8452_get_devid(this_client);
-	if ((MMA8452_DEVID != devid) && (MMA8451_DEVID != devid)) {
+	if ((MMA8452_DEVID != devid) 
+		&& (MMA8451_DEVID != devid)
+		&& (MMA8453_DEVID != devid)) {
 		pr_info("mma8452: invalid devid\n");
 		goto exit_invalid_devid;
 	}
@@ -766,11 +818,11 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	set_bit(EV_ABS, mma8452->input_dev->evbit);
 
 	/* x-axis acceleration */
-	input_set_abs_params(mma8452->input_dev, ABS_X, -2000, 2000, 0, 0); //2g full scale range
+	input_set_abs_params(mma8452->input_dev, ABS_X, -MMA845X_RANGE, MMA845X_RANGE, 0, 0); //2g full scale range
 	/* y-axis acceleration */
-	input_set_abs_params(mma8452->input_dev, ABS_Y, -2000, 2000, 0, 0); //2g full scale range
+	input_set_abs_params(mma8452->input_dev, ABS_Y, -MMA845X_RANGE, MMA845X_RANGE, 0, 0); //2g full scale range
 	/* z-axis acceleration */
-	input_set_abs_params(mma8452->input_dev, ABS_Z, -2000, 2000, 0, 0); //2g full scale range
+	input_set_abs_params(mma8452->input_dev, ABS_Z, -MMA845X_RANGE, MMA845X_RANGE, 0, 0); //2g full scale range
 
 	// mma8452->input_dev->name = "compass";
 	mma8452->input_dev->name = "gsensor";
@@ -784,7 +836,7 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 		goto exit_input_register_device_failed;
 	}
 
-    	mma8452_device.parent = &client->dev;
+    mma8452_device.parent = &client->dev;
 	err = misc_register(&mma8452_device);
 	if (err < 0) {
 		mmaprintk(KERN_ERR
@@ -800,10 +852,10 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	}
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	mma8452_early_suspend.suspend = mma8452_suspend;
-	mma8452_early_suspend.resume = mma8452_resume;
-	mma8452_early_suspend.level = 0x2;
-	register_early_suspend(&mma8452_early_suspend);
+    mma8452_early_suspend.suspend = mma8452_suspend;
+    mma8452_early_suspend.resume = mma8452_resume;
+    mma8452_early_suspend.level = 0x2;
+    register_early_suspend(&mma8452_early_suspend);
 #endif
 
 	printk(KERN_INFO "mma8452 probe ok\n");
@@ -814,9 +866,9 @@ static int  mma8452_probe(struct i2c_client *client, const struct i2c_device_id 
 	return 0;
 
 exit_gsensor_sysfs_init_failed:
-	misc_deregister(&mma8452_device);
+    misc_deregister(&mma8452_device);
 exit_misc_device_register_mma8452_device_failed:
-	input_unregister_device(mma8452->input_dev);
+    input_unregister_device(mma8452->input_dev);
 exit_input_register_device_failed:
 	input_free_device(mma8452->input_dev);
 exit_input_allocate_device_failed:
