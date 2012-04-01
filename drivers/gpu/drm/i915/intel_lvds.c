@@ -474,7 +474,7 @@ static int intel_lvds_get_modes(struct drm_connector *connector)
 
 static int intel_no_modeset_on_lid_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG_KMS("Skipping forced modeset for %s\n", id->ident);
+	DRM_INFO("Skipping forced modeset for %s\n", id->ident);
 	return 1;
 }
 
@@ -622,7 +622,7 @@ static const struct drm_encoder_funcs intel_lvds_enc_funcs = {
 
 static int __init intel_no_lvds_dmi_callback(const struct dmi_system_id *id)
 {
-	DRM_DEBUG_KMS("Skipping LVDS initialization for %s\n", id->ident);
+	DRM_INFO("Skipping LVDS initialization for %s\n", id->ident);
 	return 1;
 }
 

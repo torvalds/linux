@@ -9362,7 +9362,7 @@ static void quirk_pipea_force(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
-	DRM_DEBUG_DRIVER("applying pipe a force quirk\n");
+	DRM_INFO("applying pipe a force quirk\n");
 }
 
 /*
@@ -9372,6 +9372,7 @@ static void quirk_ssc_force_disable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	dev_priv->quirks |= QUIRK_LVDS_SSC_DISABLE;
+	DRM_INFO("applying lvds SSC disable quirk\n");
 }
 
 /*
@@ -9382,6 +9383,7 @@ static void quirk_invert_brightness(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	dev_priv->quirks |= QUIRK_INVERT_BRIGHTNESS;
+	DRM_INFO("applying inverted panel brightness quirk\n");
 }
 
 struct intel_quirk {
