@@ -52,7 +52,6 @@ enum blkg_state_flags {
 
 /* cgroup files owned by proportional weight policy */
 enum blkcg_file_name_prop {
-	BLKIO_PROP_weight = 1,
 	BLKIO_PROP_weight_device,
 };
 
@@ -130,7 +129,7 @@ struct blkio_group_stats_cpu {
 
 struct blkio_group_conf {
 	unsigned int weight;
-	unsigned int iops[2];
+	u64 iops[2];
 	u64 bps[2];
 };
 
