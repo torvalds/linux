@@ -58,13 +58,16 @@ enum stat_type {
 
 /* Per cpu stats */
 enum stat_type_cpu {
-	BLKIO_STAT_CPU_SECTORS,
 	/* Total bytes transferred */
 	BLKIO_STAT_CPU_SERVICE_BYTES,
 	/* Total IOs serviced, post merge */
 	BLKIO_STAT_CPU_SERVICED,
-	BLKIO_STAT_CPU_NR
+
+	/* All the single valued stats go below this */
+	BLKIO_STAT_CPU_SECTORS,
 };
+
+#define BLKIO_STAT_CPU_ARR_NR	(BLKIO_STAT_CPU_SERVICED + 1)
 
 enum stat_sub_type {
 	BLKIO_STAT_READ = 0,
@@ -167,7 +170,7 @@ struct blkio_group_stats {
 /* Per cpu blkio group stats */
 struct blkio_group_stats_cpu {
 	uint64_t sectors;
-	uint64_t stat_arr_cpu[BLKIO_STAT_CPU_NR][BLKIO_STAT_TOTAL];
+	uint64_t stat_arr_cpu[BLKIO_STAT_CPU_ARR_NR][BLKIO_STAT_TOTAL];
 	struct u64_stats_sync syncp;
 };
 
