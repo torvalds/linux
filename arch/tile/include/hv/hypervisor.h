@@ -66,6 +66,22 @@
 #define HV_DEFAULT_PAGE_SIZE_LARGE \
   (__HV_SIZE_ONE << HV_LOG2_DEFAULT_PAGE_SIZE_LARGE)
 
+#if CHIP_VA_WIDTH() > 32
+
+/** The log2 of the initial size of jumbo pages, in bytes.
+ * See HV_DEFAULT_PAGE_SIZE_JUMBO.
+ */
+#define HV_LOG2_DEFAULT_PAGE_SIZE_JUMBO 32
+
+/** The initial size of jumbo pages, in bytes. This value should
+ * be verified at runtime by calling hv_sysconf(HV_SYSCONF_PAGE_SIZE_JUMBO).
+ * It may also be modified when installing a new context.
+ */
+#define HV_DEFAULT_PAGE_SIZE_JUMBO \
+  (__HV_SIZE_ONE << HV_LOG2_DEFAULT_PAGE_SIZE_JUMBO)
+
+#endif
+
 /** The log2 of the granularity at which page tables must be aligned;
  *  in other words, the CPA for a page table must have this many zero
  *  bits at the bottom of the address.
@@ -284,8 +300,11 @@
 #define HV_DISPATCH_GET_IPI_PTE                   56
 #endif
 
+/** hv_set_pte_super_shift */
+#define HV_DISPATCH_SET_PTE_SUPER_SHIFT           57
+
 /** One more than the largest dispatch value */
-#define _HV_DISPATCH_END                          57
+#define _HV_DISPATCH_END                          58
 
 
 #ifndef __ASSEMBLER__
@@ -412,6 +431,11 @@ typedef enum {
    * it would return "HV_CTX_PG_SM_16K | HV_CTX_PG_SM_64K".
    */
   HV_SYSCONF_VALID_PAGE_SIZES = 7,
+
+  /** The size of jumbo pages, in bytes.
+   * If no jumbo pages are available, zero will be returned.
+   */
+  HV_SYSCONF_PAGE_SIZE_JUMBO = 8,
 
 } HV_SysconfQuery;
 
@@ -694,6 +718,29 @@ int hv_install_context(HV_PhysAddr page_table, HV_PTE access, HV_ASID asid,
 #define HV_CTX_PG_SM_MASK   0xf0  /**< Mask of all possible small pages. */
 
 #ifndef __ASSEMBLER__
+
+
+/** Set the number of pages ganged together by HV_PTE_SUPER at a
+ * particular level of the page table.
+ *
+ * The current TILE-Gx hardware only supports powers of four
+ * (i.e. log2_count must be a multiple of two), and the requested
+ * "super" page size must be less than the span of the next level in
+ * the page table.  The largest size that can be requested is 64GB.
+ *
+ * The shift value is initially "0" for all page table levels,
+ * indicating that the HV_PTE_SUPER bit is effectively ignored.
+ *
+ * If you change the count from one non-zero value to another, the
+ * hypervisor will flush the entire TLB and TSB to avoid confusion.
+ *
+ * @param level Page table level (0, 1, or 2)
+ * @param log2_count Base-2 log of the number of pages to gang together,
+ * i.e. how much to shift left the base page size for the super page size.
+ * @return Zero on success, or a hypervisor error code on failure.
+ */
+int hv_set_pte_super_shift(int level, int log2_count);
+
 
 /** Value returned from hv_inquire_context(). */
 typedef struct
@@ -1891,8 +1938,9 @@ int hv_flush_remote(HV_PhysAddr cache_pa, unsigned long cache_control,
 #define HV_PTE_INDEX_USER            10  /**< Page is user-accessible */
 #define HV_PTE_INDEX_ACCESSED        11  /**< Page has been accessed */
 #define HV_PTE_INDEX_DIRTY           12  /**< Page has been written */
-                                         /*   Bits 13-15 are reserved for
+                                         /*   Bits 13-14 are reserved for
                                               future use. */
+#define HV_PTE_INDEX_SUPER           15  /**< Pages ganged together for TLB */
 #define HV_PTE_INDEX_MODE            16  /**< Page mode; see HV_PTE_MODE_xxx */
 #define HV_PTE_MODE_BITS              3  /**< Number of bits in mode */
 #define HV_PTE_INDEX_CLIENT2         19  /**< Page client state 2 */
@@ -1987,7 +2035,10 @@ int hv_flush_remote(HV_PhysAddr cache_pa, unsigned long cache_control,
 
 /** Does this PTE map a page?
  *
- * If this bit is set in the level-1 page table, the entry should be
+ * If this bit is set in a level-0 page table, the entry should be
+ * interpreted as a level-2 page table entry mapping a jumbo page.
+ *
+ * If this bit is set in a level-1 page table, the entry should be
  * interpreted as a level-2 page table entry mapping a large page.
  *
  * This bit should not be modified by the client while PRESENT is set, as
@@ -1996,6 +2047,18 @@ int hv_flush_remote(HV_PhysAddr cache_pa, unsigned long cache_control,
  * In a level-2 page table, this bit is ignored and must be zero.
  */
 #define HV_PTE_PAGE                  (__HV_PTE_ONE << HV_PTE_INDEX_PAGE)
+
+/** Does this PTE implicitly reference multiple pages?
+ *
+ * If this bit is set in the page table (either in the level-2 page table,
+ * or in a higher level page table in conjunction with the PAGE bit)
+ * then the PTE specifies a range of contiguous pages, not a single page.
+ * The hv_set_pte_super_shift() allows you to specify the count for
+ * each level of the page table.
+ *
+ * Note: this bit is not supported on TILEPro systems.
+ */
+#define HV_PTE_SUPER                 (__HV_PTE_ONE << HV_PTE_INDEX_SUPER)
 
 /** Is this a global (non-ASID) mapping?
  *
@@ -2215,6 +2278,7 @@ hv_pte_clear_##name(HV_PTE pte)                                 \
  */
 _HV_BIT(present,         PRESENT)
 _HV_BIT(page,            PAGE)
+_HV_BIT(super,           SUPER)
 _HV_BIT(client0,         CLIENT0)
 _HV_BIT(client1,         CLIENT1)
 _HV_BIT(client2,         CLIENT2)

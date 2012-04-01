@@ -187,7 +187,7 @@ static pgd_t *get_current_pgd(void)
 	HV_Context ctx = hv_inquire_context();
 	unsigned long pgd_pfn = ctx.page_table >> PAGE_SHIFT;
 	struct page *pgd_page = pfn_to_page(pgd_pfn);
-	BUG_ON(PageHighMem(pgd_page));   /* oops, HIGHPTE? */
+	BUG_ON(PageHighMem(pgd_page));
 	return (pgd_t *) __va(ctx.page_table);
 }
 

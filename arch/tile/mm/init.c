@@ -698,6 +698,7 @@ static void __init permanent_kmaps_init(pgd_t *pgd_base)
 #endif /* CONFIG_HIGHMEM */
 
 
+#ifndef CONFIG_64BIT
 static void __init init_free_pfn_range(unsigned long start, unsigned long end)
 {
 	unsigned long pfn;
@@ -770,6 +771,7 @@ static void __init set_non_bootmem_pages_init(void)
 		init_free_pfn_range(start, end);
 	}
 }
+#endif
 
 /*
  * paging_init() sets up the page tables - note that all of lowmem is
@@ -858,8 +860,10 @@ void __init mem_init(void)
 	/* this will put all bootmem onto the freelists */
 	totalram_pages += free_all_bootmem();
 
+#ifndef CONFIG_64BIT
 	/* count all remaining LOWMEM and give all HIGHMEM to page allocator */
 	set_non_bootmem_pages_init();
+#endif
 
 	codesize =  (unsigned long)&_etext - (unsigned long)&_text;
 	datasize =  (unsigned long)&_end - (unsigned long)&_sdata;

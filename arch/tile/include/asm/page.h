@@ -87,8 +87,7 @@ typedef HV_PTE pgprot_t;
 /*
  * User L2 page tables are managed as one L2 page table per page,
  * because we use the page allocator for them.  This keeps the allocation
- * simple and makes it potentially useful to implement HIGHPTE at some point.
- * However, it's also inefficient, since L2 page tables are much smaller
+ * simple, but it's also inefficient, since L2 page tables are much smaller
  * than pages (currently 2KB vs 64KB).  So we should revisit this.
  */
 typedef struct page *pgtable_t;
@@ -137,7 +136,7 @@ static inline __attribute_const__ int get_order(unsigned long size)
 
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
-#define HUGE_MAX_HSTATE		2
+#define HUGE_MAX_HSTATE		6
 
 #ifdef CONFIG_HUGETLB_PAGE
 #define HAVE_ARCH_HUGETLB_UNMAPPED_AREA

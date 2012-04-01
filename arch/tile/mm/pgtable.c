@@ -132,15 +132,6 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t flags)
 	set_pte_pfn(address, phys >> PAGE_SHIFT, flags);
 }
 
-#if defined(CONFIG_HIGHPTE)
-pte_t *_pte_offset_map(pmd_t *dir, unsigned long address)
-{
-	pte_t *pte = kmap_atomic(pmd_page(*dir)) +
-		(pmd_ptfn(*dir) << HV_LOG2_PAGE_TABLE_ALIGN) & ~PAGE_MASK;
-	return &pte[pte_index(address)];
-}
-#endif
-
 /**
  * shatter_huge_page() - ensure a given address is mapped by a small page.
  *
@@ -295,10 +286,6 @@ struct page *pgtable_alloc_one(struct mm_struct *mm, unsigned long address,
 	gfp_t flags = GFP_KERNEL|__GFP_REPEAT|__GFP_ZERO;
 	struct page *p;
 	int i;
-
-#ifdef CONFIG_HIGHPTE
-	flags |= __GFP_HIGHMEM;
-#endif
 
 	p = alloc_pages(flags, L2_USER_PGTABLE_ORDER);
 	if (p == NULL)

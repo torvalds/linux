@@ -47,6 +47,14 @@ config NEED_PER_CPU_PAGE_FIRST_CHUNK
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y
 
+# Support for additional huge page sizes besides HPAGE_SIZE.
+# The software support is currently only present in the TILE-Gx
+# hypervisor. TILEPro in any case does not support page sizes
+# larger than the default HPAGE_SIZE.
+config HUGETLB_SUPER_PAGES
+	depends on HUGETLB_PAGE && TILEGX
+	def_bool y
+
 config GENERIC_CLOCKEVENTS
 	def_bool y
 

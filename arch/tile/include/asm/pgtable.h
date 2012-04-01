@@ -71,6 +71,7 @@ extern void set_page_homes(void);
 
 #define _PAGE_PRESENT           HV_PTE_PRESENT
 #define _PAGE_HUGE_PAGE         HV_PTE_PAGE
+#define _PAGE_SUPER_PAGE        HV_PTE_SUPER
 #define _PAGE_READABLE          HV_PTE_READABLE
 #define _PAGE_WRITABLE          HV_PTE_WRITABLE
 #define _PAGE_EXECUTABLE        HV_PTE_EXECUTABLE
@@ -87,6 +88,7 @@ extern void set_page_homes(void);
 #define _PAGE_ALL (\
   _PAGE_PRESENT | \
   _PAGE_HUGE_PAGE | \
+  _PAGE_SUPER_PAGE | \
   _PAGE_READABLE | \
   _PAGE_WRITABLE | \
   _PAGE_EXECUTABLE | \
@@ -197,6 +199,7 @@ static inline void __pte_clear(pte_t *ptep)
 #define pte_write hv_pte_get_writable
 #define pte_exec hv_pte_get_executable
 #define pte_huge hv_pte_get_page
+#define pte_super hv_pte_get_super
 #define pte_rdprotect hv_pte_clear_readable
 #define pte_exprotect hv_pte_clear_executable
 #define pte_mkclean hv_pte_clear_dirty
@@ -209,6 +212,7 @@ static inline void __pte_clear(pte_t *ptep)
 #define pte_mkyoung hv_pte_set_accessed
 #define pte_mkwrite hv_pte_set_writable
 #define pte_mkhuge hv_pte_set_page
+#define pte_mksuper hv_pte_set_super
 
 #define pte_special(pte) 0
 #define pte_mkspecial(pte) (pte)
@@ -338,13 +342,8 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
  */
 #define pgd_offset_k(address) pgd_offset(&init_mm, address)
 
-#if defined(CONFIG_HIGHPTE)
-extern pte_t *pte_offset_map(pmd_t *, unsigned long address);
-#define pte_unmap(pte) kunmap_atomic(pte)
-#else
 #define pte_offset_map(dir, address) pte_offset_kernel(dir, address)
 #define pte_unmap(pte) do { } while (0)
-#endif
 
 /* Clear a non-executable kernel PTE and flush it from the TLB. */
 #define kpte_clear_flush(ptep, vaddr)		\
@@ -537,7 +536,8 @@ static inline pte_t *pte_offset_kernel(pmd_t *pmd, unsigned long address)
 /* Support /proc/NN/pgtable API. */
 struct seq_file;
 int arch_proc_pgtable_show(struct seq_file *m, struct mm_struct *mm,
-			   unsigned long vaddr, pte_t *ptep, void **datap);
+			   unsigned long vaddr, unsigned long pagesize,
+			   pte_t *ptep, void **datap);
 
 #endif /* !__ASSEMBLY__ */
 
