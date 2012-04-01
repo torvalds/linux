@@ -68,7 +68,7 @@ INSTALLING the kernel source:
 		bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
 
 
-   Replace "XX" with the version number of the latest kernel.
+   Replace "X" with the version number of the latest kernel.
 
    Do NOT use the /usr/src/linux area! This area has a (usually
    incomplete) set of kernel headers that are used by the library header
@@ -78,18 +78,18 @@ INSTALLING the kernel source:
  - You can also upgrade between 3.x releases by patching.  Patches are
    distributed in the traditional gzip and the newer bzip2 format.  To
    install by patching, get all the newer patch files, enter the
-   top level directory of the kernel source (linux-3.x) and execute:
+   top level directory of the kernel source (linux-3.X) and execute:
 
 		gzip -cd ../patch-3.x.gz | patch -p1
 
    or
 		bzip2 -dc ../patch-3.x.bz2 | patch -p1
 
-   (repeat xx for all versions bigger than the version of your current
-   source tree, _in_order_) and you should be ok.  You may want to remove
-   the backup files (xxx~ or xxx.orig), and make sure that there are no
-   failed patches (xxx# or xxx.rej). If there are, either you or me has
-   made a mistake.
+   Replace "x" for all versions bigger than the version "X" of your current
+   source tree, _in_order_, and you should be ok.  You may want to remove
+   the backup files (some-file-name~ or some-file-name.orig), and make sure
+   that there are no failed patches (some-file-name# or some-file-name.rej).
+   If there are, either you or me has made a mistake.
 
    Unlike patches for the 3.x kernels, patches for the 3.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
@@ -142,11 +142,11 @@ BUILD directory for the kernel:
    Using the option "make O=output/dir" allow you to specify an alternate
    place for the output files (including .config).
    Example:
-     kernel source code:	/usr/src/linux-3.N
+     kernel source code:	/usr/src/linux-3.X
      build directory:		/home/name/build/kernel
 
    To configure and build the kernel use:
-   cd /usr/src/linux-3.N
+   cd /usr/src/linux-3.X
    make O=/home/name/build/kernel menuconfig
    make O=/home/name/build/kernel
    sudo make O=/home/name/build/kernel modules_install install
