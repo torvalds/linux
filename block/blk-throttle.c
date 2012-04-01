@@ -562,17 +562,42 @@ static bool tg_may_dispatch(struct throtl_data *td, struct throtl_grp *tg,
 	return 0;
 }
 
+static void throtl_update_dispatch_stats(struct blkio_group *blkg, u64 bytes,
+					 int rw)
+{
+	struct blkg_policy_data *pd = blkg->pd[BLKIO_POLICY_THROTL];
+	struct blkio_group_stats_cpu *stats_cpu;
+	unsigned long flags;
+
+	/* If per cpu stats are not allocated yet, don't do any accounting. */
+	if (pd->stats_cpu == NULL)
+		return;
+
+	/*
+	 * Disabling interrupts to provide mutual exclusion between two
+	 * writes on same cpu. It probably is not needed for 64bit. Not
+	 * optimizing that case yet.
+	 */
+	local_irq_save(flags);
+
+	stats_cpu = this_cpu_ptr(pd->stats_cpu);
+
+	blkg_stat_add(&stats_cpu->sectors, bytes >> 9);
+	blkg_rwstat_add(&stats_cpu->serviced, rw, 1);
+	blkg_rwstat_add(&stats_cpu->service_bytes, rw, bytes);
+
+	local_irq_restore(flags);
+}
+
 static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 {
 	bool rw = bio_data_dir(bio);
-	bool sync = rw_is_sync(bio->bi_rw);
 
 	/* Charge the bio to the group */
 	tg->bytes_disp[rw] += bio->bi_size;
 	tg->io_disp[rw]++;
 
-	blkiocg_update_dispatch_stats(tg_to_blkg(tg), &blkio_policy_throtl,
-				      bio->bi_size, rw, sync);
+	throtl_update_dispatch_stats(tg_to_blkg(tg), bio->bi_size, bio->bi_rw);
 }
 
 static void throtl_add_bio_tg(struct throtl_data *td, struct throtl_grp *tg,
@@ -1012,10 +1037,8 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	tg = throtl_lookup_tg(td, blkcg);
 	if (tg) {
 		if (tg_no_rule_group(tg, rw)) {
-			blkiocg_update_dispatch_stats(tg_to_blkg(tg),
-						      &blkio_policy_throtl,
-						      bio->bi_size, rw,
-						      rw_is_sync(bio->bi_rw));
+			throtl_update_dispatch_stats(tg_to_blkg(tg),
+						     bio->bi_size, bio->bi_rw);
 			goto out_unlock_rcu;
 		}
 	}
