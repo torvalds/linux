@@ -600,6 +600,7 @@ config MFD_MC13XXX
 	depends on SPI_MASTER
 	select MFD_CORE
 	select MFD_MC13783
+	select REGMAP_SPI
 	help
 	  Support for the Freescale (Atlas) PMIC and audio CODECs
 	  MC13783 and MC13892.
