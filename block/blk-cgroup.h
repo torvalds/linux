@@ -50,19 +50,6 @@ enum blkg_state_flags {
 	BLKG_empty,
 };
 
-/* cgroup files owned by proportional weight policy */
-enum blkcg_file_name_prop {
-	BLKIO_PROP_weight_device,
-};
-
-/* cgroup files owned by throttle policy */
-enum blkcg_file_name_throtl {
-	BLKIO_THROTL_read_bps_device,
-	BLKIO_THROTL_write_bps_device,
-	BLKIO_THROTL_read_iops_device,
-	BLKIO_THROTL_write_iops_device,
-};
-
 struct blkio_cgroup {
 	struct cgroup_subsys_state css;
 	unsigned int weight;
