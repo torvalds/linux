@@ -15,7 +15,6 @@
 #include <linux/ioprio.h>
 #include <linux/blktrace_api.h>
 #include "blk.h"
-#include "cfq.h"
 
 static struct blkio_policy_type blkio_policy_cfq;
 
@@ -367,6 +366,9 @@ CFQ_CFQQ_FNS(wait_busy);
 #undef CFQ_CFQQ_FNS
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
+
+#include "blk-cgroup.h"
+
 static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg)
 {
 	return blkg_to_pdata(blkg, &blkio_policy_cfq);
@@ -396,6 +398,82 @@ static inline void cfqg_put(struct cfq_group *cfqg)
 	blk_add_trace_msg((cfqd)->queue, "%s " fmt,			\
 			blkg_path(cfqg_to_blkg((cfqg))), ##args)	\
 
+static inline void cfq_blkiocg_update_io_add_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol,
+			struct blkio_group *curr_blkg,
+			bool direction, bool sync)
+{
+	blkiocg_update_io_add_stats(blkg, pol, curr_blkg, direction, sync);
+}
+
+static inline void cfq_blkiocg_update_dequeue_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, unsigned long dequeue)
+{
+	blkiocg_update_dequeue_stats(blkg, pol, dequeue);
+}
+
+static inline void cfq_blkiocg_update_timeslice_used(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, unsigned long time,
+			unsigned long unaccounted_time)
+{
+	blkiocg_update_timeslice_used(blkg, pol, time, unaccounted_time);
+}
+
+static inline void cfq_blkiocg_set_start_empty_time(struct blkio_group *blkg,
+			struct blkio_policy_type *pol)
+{
+	blkiocg_set_start_empty_time(blkg, pol);
+}
+
+static inline void cfq_blkiocg_update_io_remove_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, bool direction,
+			bool sync)
+{
+	blkiocg_update_io_remove_stats(blkg, pol, direction, sync);
+}
+
+static inline void cfq_blkiocg_update_io_merged_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, bool direction,
+			bool sync)
+{
+	blkiocg_update_io_merged_stats(blkg, pol, direction, sync);
+}
+
+static inline void cfq_blkiocg_update_idle_time_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol)
+{
+	blkiocg_update_idle_time_stats(blkg, pol);
+}
+
+static inline void
+cfq_blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol)
+{
+	blkiocg_update_avg_queue_size_stats(blkg, pol);
+}
+
+static inline void
+cfq_blkiocg_update_set_idle_time_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol)
+{
+	blkiocg_update_set_idle_time_stats(blkg, pol);
+}
+
+static inline void cfq_blkiocg_update_dispatch_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, uint64_t bytes,
+			bool direction, bool sync)
+{
+	blkiocg_update_dispatch_stats(blkg, pol, bytes, direction, sync);
+}
+
+static inline void cfq_blkiocg_update_completion_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, uint64_t start_time,
+			uint64_t io_start_time, bool direction, bool sync)
+{
+	blkiocg_update_completion_stats(blkg, pol, start_time, io_start_time,
+					direction, sync);
+}
+
 #else	/* CONFIG_CFQ_GROUP_IOSCHED */
 
 static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg) { return NULL; }
@@ -406,6 +484,40 @@ static inline void cfqg_put(struct cfq_group *cfqg) { }
 #define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
 	blk_add_trace_msg((cfqd)->queue, "cfq%d " fmt, (cfqq)->pid, ##args)
 #define cfq_log_cfqg(cfqd, cfqg, fmt, args...)		do {} while (0)
+
+static inline void cfq_blkiocg_update_io_add_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol,
+			struct blkio_group *curr_blkg, bool direction,
+			bool sync) { }
+static inline void cfq_blkiocg_update_dequeue_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, unsigned long dequeue) { }
+static inline void cfq_blkiocg_update_timeslice_used(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, unsigned long time,
+			unsigned long unaccounted_time) { }
+static inline void cfq_blkiocg_set_start_empty_time(struct blkio_group *blkg,
+			struct blkio_policy_type *pol) { }
+static inline void cfq_blkiocg_update_io_remove_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, bool direction,
+			bool sync) { }
+static inline void cfq_blkiocg_update_io_merged_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, bool direction,
+			bool sync) { }
+static inline void cfq_blkiocg_update_idle_time_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol) { }
+static inline void
+cfq_blkiocg_update_avg_queue_size_stats(struct blkio_group *blkg,
+					struct blkio_policy_type *pol) { }
+
+static inline void
+cfq_blkiocg_update_set_idle_time_stats(struct blkio_group *blkg,
+				       struct blkio_policy_type *pol) { }
+
+static inline void cfq_blkiocg_update_dispatch_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, uint64_t bytes,
+			bool direction, bool sync) { }
+static inline void cfq_blkiocg_update_completion_stats(struct blkio_group *blkg,
+			struct blkio_policy_type *pol, uint64_t start_time,
+			uint64_t io_start_time, bool direction, bool sync) { }
 
 #endif	/* CONFIG_CFQ_GROUP_IOSCHED */
 
