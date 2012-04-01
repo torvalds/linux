@@ -355,80 +355,74 @@ err:
 static int af9035_download_firmware(struct usb_device *udev,
 		const struct firmware *fw)
 {
-	u8 *fw_data_ptr = (u8 *) fw->data;
-	int i, j, len, packets, remainder, ret;
+	int ret, i, j, len;
 	u8 wbuf[1];
 	u8 rbuf[4];
-	struct fw_header fw_hdr;
 	struct usb_req req = { 0, 0, 0, NULL, 0, NULL };
 	struct usb_req req_fw_dl = { CMD_FW_DL, 0, 0, wbuf, 0, NULL };
 	struct usb_req req_fw_ver = { CMD_FW_QUERYINFO, 0, 1, wbuf, 4, rbuf } ;
+	u8 hdr_core;
+	u16 hdr_addr, hdr_data_len, hdr_checksum;
+	#define MAX_DATA 57
+	#define HDR_SIZE 7
 
-	/* read firmware segment info from beginning of the firmware file */
-	fw_hdr.segment_count = *fw_data_ptr++;
-	pr_debug("%s: fw segment count=%d\n", __func__, fw_hdr.segment_count);
-	if (fw_hdr.segment_count > SEGMENT_MAX_COUNT) {
-		pr_debug("%s: too big fw segmen count=%d\n", __func__,
-				fw_hdr.segment_count);
-		fw_hdr.segment_count = SEGMENT_MAX_COUNT;
-	}
-	for (i = 0; i < fw_hdr.segment_count; i++) {
-		fw_hdr.segment[i].type = (*fw_data_ptr++);
-		fw_hdr.segment[i].len  = (*fw_data_ptr++) << 24;
-		fw_hdr.segment[i].len += (*fw_data_ptr++) << 16;
-		fw_hdr.segment[i].len += (*fw_data_ptr++) <<  8;
-		fw_hdr.segment[i].len += (*fw_data_ptr++) <<  0;
-		pr_debug("%s: fw segment type=%d len=%d\n", __func__,
-			fw_hdr.segment[i].type, fw_hdr.segment[i].len);
-	}
+	/*
+	 * Thanks to Daniel Glöckner <daniel-gl@gmx.net> about that info!
+	 *
+	 * byte 0: MCS 51 core
+	 *  There are two inside the AF9035 (1=Link and 2=OFDM) with separate
+	 *  address spaces
+	 * byte 1-2: Big endian destination address
+	 * byte 3-4: Big endian number of data bytes following the header
+	 * byte 5-6: Big endian header checksum, apparently ignored by the chip
+	 *  Calculated as ~(h[0]*256+h[1]+h[2]*256+h[3]+h[4]*256)
+	 */
 
-	#define FW_PACKET_MAX_DATA 57 /* 63-4-2, packet_size-header-checksum */
+	for (i = fw->size; i > HDR_SIZE;) {
+		hdr_core = fw->data[fw->size - i + 0];
+		hdr_addr = fw->data[fw->size - i + 1] << 8;
+		hdr_addr |= fw->data[fw->size - i + 2] << 0;
+		hdr_data_len = fw->data[fw->size - i + 3] << 8;
+		hdr_data_len |= fw->data[fw->size - i + 4] << 0;
+		hdr_checksum = fw->data[fw->size - i + 5] << 8;
+		hdr_checksum |= fw->data[fw->size - i + 6] << 0;
 
-	/* download all segments */
-	for (i = 0; i < fw_hdr.segment_count; i++) {
-		pr_debug("%s: segment type=%d\n", __func__,
-			fw_hdr.segment[i].type);
-		if (fw_hdr.segment[i].type == SEGMENT_FW_DL) {
-			/* download begin packet */
-			req.cmd = CMD_FW_DL_BEGIN;
-			ret = af9035_ctrl_msg(udev, &req);
-			if (ret < 0) {
-				pr_debug("%s: fw dl failed=%d\n", __func__,
-					ret);
-				goto err;
-			}
+		pr_debug("%s: core=%d addr=%04x data_len=%d checksum=%04x\n",
+				__func__, hdr_core, hdr_addr, hdr_data_len,
+				hdr_checksum);
 
-			packets = fw_hdr.segment[i].len / FW_PACKET_MAX_DATA;
-			remainder = fw_hdr.segment[i].len % FW_PACKET_MAX_DATA;
-			len = FW_PACKET_MAX_DATA;
-			for (j = 0; j <= packets; j++) {
-				if (j == packets)  /* size of the last packet */
-					len = remainder;
-
-				req_fw_dl.wlen = len;
-				req_fw_dl.wbuf = fw_data_ptr;
-				ret = af9035_ctrl_msg(udev, &req_fw_dl);
-				if (ret < 0) {
-					pr_debug("%s: fw dl failed=%d " \
-							"segment=%d " \
-							"packet=%d\n",
-							__func__, ret, i, j);
-					goto err;
-				}
-				fw_data_ptr += len;
-			}
-			/* download end packet */
-			req.cmd = CMD_FW_DL_END;
-			ret = af9035_ctrl_msg(udev, &req);
-			if (ret < 0) {
-				pr_debug("%s: fw dl failed=%d\n", __func__,
-					ret);
-				goto err;
-			}
-		} else {
-			pr_debug("%s: segment type=%d not implemented\n",
-				__func__, fw_hdr.segment[i].type);
+		if (((hdr_core != 1) && (hdr_core != 2)) ||
+				(hdr_data_len > i)) {
+			pr_debug("%s: bad firmware\n", __func__);
+			break;
 		}
+
+		/* download begin packet */
+		req.cmd = CMD_FW_DL_BEGIN;
+		ret = af9035_ctrl_msg(udev, &req);
+
+		/* download firmware packet(s) */
+		for (j = HDR_SIZE + hdr_data_len; j > 0; j -= MAX_DATA) {
+			len = j;
+			if (len > MAX_DATA)
+				len = MAX_DATA;
+			req_fw_dl.wlen = len;
+			req_fw_dl.wbuf = (u8 *) &fw->data[fw->size - i +
+					HDR_SIZE + hdr_data_len - j];
+			ret = af9035_ctrl_msg(udev, &req_fw_dl);
+			if (ret < 0)
+				goto err;
+		}
+
+		/* download end packet */
+		req.cmd = CMD_FW_DL_END;
+		ret = af9035_ctrl_msg(udev, &req);
+		if (ret < 0)
+			goto err;
+
+		i -= hdr_data_len + HDR_SIZE;
+
+		pr_debug("%s: data uploaded=%lu\n", __func__, fw->size - i);
 	}
 
 	/* firmware loaded, request boot */
@@ -443,14 +437,14 @@ static int af9035_download_firmware(struct usb_device *udev,
 	if (ret < 0)
 		goto err;
 
-	pr_debug("%s: reply=%02x %02x %02x %02x\n", __func__,
-		rbuf[0], rbuf[1], rbuf[2], rbuf[3]);
-
 	if (!(rbuf[0] || rbuf[1] || rbuf[2] || rbuf[3])) {
-		pr_debug("%s: fw did not run\n", __func__);
+		info("firmware did not run");
 		ret = -ENODEV;
 		goto err;
 	}
+
+	info("firmware version=%d.%d.%d.%d", rbuf[0], rbuf[1], rbuf[2],
+			rbuf[3]);
 
 	return 0;
 
@@ -654,7 +648,7 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 
 		.usb_ctrl = DEVICE_SPECIFIC,
 		.download_firmware = af9035_download_firmware,
-		.firmware = "dvb-usb-af9035-01.fw",
+		.firmware = "dvb-usb-af9035-02.fw",
 		.no_reconnect = 1,
 
 		.num_adapters = 1,
