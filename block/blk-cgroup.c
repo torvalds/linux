@@ -30,7 +30,7 @@ static LIST_HEAD(blkio_list);
 static DEFINE_MUTEX(all_q_mutex);
 static LIST_HEAD(all_q_list);
 
-struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
+struct blkio_cgroup blkio_root_cgroup = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
 static struct blkio_policy_type *blkio_policy[BLKIO_NR_POLICIES];
@@ -611,7 +611,7 @@ static struct cgroup_subsys_state *blkiocg_create(struct cgroup *cgroup)
 	if (!blkcg)
 		return ERR_PTR(-ENOMEM);
 
-	blkcg->weight = BLKIO_WEIGHT_DEFAULT;
+	blkcg->cfq_weight = CFQ_WEIGHT_DEFAULT;
 	blkcg->id = atomic64_inc_return(&id_seq); /* root is 0, start from 1 */
 done:
 	spin_lock_init(&blkcg->lock);

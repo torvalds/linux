@@ -224,7 +224,7 @@ struct cfq_group {
 	u64 vdisktime;
 	unsigned int weight;
 	unsigned int new_weight;
-	bool needs_update;
+	unsigned int dev_weight;
 
 	/* number of cfqq currently on this group */
 	int nr_cfqq;
@@ -838,7 +838,7 @@ static inline u64 cfq_scale_slice(unsigned long delta, struct cfq_group *cfqg)
 {
 	u64 d = delta << CFQ_SERVICE_SHIFT;
 
-	d = d * BLKIO_WEIGHT_DEFAULT;
+	d = d * CFQ_WEIGHT_DEFAULT;
 	do_div(d, cfqg->weight);
 	return d;
 }
@@ -1165,9 +1165,9 @@ static void
 cfq_update_group_weight(struct cfq_group *cfqg)
 {
 	BUG_ON(!RB_EMPTY_NODE(&cfqg->rb_node));
-	if (cfqg->needs_update) {
+	if (cfqg->new_weight) {
 		cfqg->weight = cfqg->new_weight;
-		cfqg->needs_update = false;
+		cfqg->new_weight = 0;
 	}
 }
 
@@ -1325,21 +1325,12 @@ static void cfq_init_cfqg_base(struct cfq_group *cfqg)
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static void cfq_update_blkio_group_weight(struct blkio_group *blkg,
-					  unsigned int weight)
-{
-	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
-
-	cfqg->new_weight = weight;
-	cfqg->needs_update = true;
-}
-
 static void cfq_init_blkio_group(struct blkio_group *blkg)
 {
 	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 
 	cfq_init_cfqg_base(cfqg);
-	cfqg->weight = blkg->blkcg->weight;
+	cfqg->weight = blkg->blkcg->cfq_weight;
 }
 
 /*
@@ -1377,36 +1368,38 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 	cfqg_get(cfqg);
 }
 
-static u64 blkg_prfill_weight_device(struct seq_file *sf,
+static u64 cfqg_prfill_weight_device(struct seq_file *sf,
 				     struct blkg_policy_data *pd, int off)
 {
-	if (!pd->conf.weight)
+	struct cfq_group *cfqg = (void *)pd->pdata;
+
+	if (!cfqg->dev_weight)
 		return 0;
-	return __blkg_prfill_u64(sf, pd, pd->conf.weight);
+	return __blkg_prfill_u64(sf, pd, cfqg->dev_weight);
 }
 
-static int blkcg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
-				     struct seq_file *sf)
+static int cfqg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
+				    struct seq_file *sf)
 {
 	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp),
-			  blkg_prfill_weight_device, BLKIO_POLICY_PROP, 0,
+			  cfqg_prfill_weight_device, BLKIO_POLICY_PROP, 0,
 			  false);
 	return 0;
 }
 
-static int blkcg_print_weight(struct cgroup *cgrp, struct cftype *cft,
-			      struct seq_file *sf)
+static int cfq_print_weight(struct cgroup *cgrp, struct cftype *cft,
+			    struct seq_file *sf)
 {
-	seq_printf(sf, "%u\n", cgroup_to_blkio_cgroup(cgrp)->weight);
+	seq_printf(sf, "%u\n", cgroup_to_blkio_cgroup(cgrp)->cfq_weight);
 	return 0;
 }
 
-static int blkcg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
-				   const char *buf)
+static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
+				  const char *buf)
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
-	struct blkg_policy_data *pd;
 	struct blkg_conf_ctx ctx;
+	struct cfq_group *cfqg;
 	int ret;
 
 	ret = blkg_conf_prep(blkcg, buf, &ctx);
@@ -1414,11 +1407,11 @@ static int blkcg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 		return ret;
 
 	ret = -EINVAL;
-	pd = ctx.blkg->pd[BLKIO_POLICY_PROP];
-	if (pd && (!ctx.v || (ctx.v >= BLKIO_WEIGHT_MIN &&
-			      ctx.v <= BLKIO_WEIGHT_MAX))) {
-		pd->conf.weight = ctx.v;
-		cfq_update_blkio_group_weight(ctx.blkg, ctx.v ?: blkcg->weight);
+	cfqg = blkg_to_cfqg(ctx.blkg);
+	if (cfqg && (!ctx.v || (ctx.v >= CFQ_WEIGHT_MIN &&
+				ctx.v <= CFQ_WEIGHT_MAX))) {
+		cfqg->dev_weight = ctx.v;
+		cfqg->new_weight = cfqg->dev_weight ?: blkcg->cfq_weight;
 		ret = 0;
 	}
 
@@ -1426,23 +1419,23 @@ static int blkcg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 	return ret;
 }
 
-static int blkcg_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
+static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
 	struct blkio_group *blkg;
 	struct hlist_node *n;
 
-	if (val < BLKIO_WEIGHT_MIN || val > BLKIO_WEIGHT_MAX)
+	if (val < CFQ_WEIGHT_MIN || val > CFQ_WEIGHT_MAX)
 		return -EINVAL;
 
 	spin_lock_irq(&blkcg->lock);
-	blkcg->weight = (unsigned int)val;
+	blkcg->cfq_weight = (unsigned int)val;
 
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
-		struct blkg_policy_data *pd = blkg->pd[BLKIO_POLICY_PROP];
+		struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 
-		if (pd && !pd->conf.weight)
-			cfq_update_blkio_group_weight(blkg, blkcg->weight);
+		if (cfqg && !cfqg->dev_weight)
+			cfqg->new_weight = blkcg->cfq_weight;
 	}
 
 	spin_unlock_irq(&blkcg->lock);
@@ -1480,14 +1473,14 @@ static int cfqg_print_avg_queue_size(struct cgroup *cgrp, struct cftype *cft,
 static struct cftype cfq_blkcg_files[] = {
 	{
 		.name = "weight_device",
-		.read_seq_string = blkcg_print_weight_device,
-		.write_string = blkcg_set_weight_device,
+		.read_seq_string = cfqg_print_weight_device,
+		.write_string = cfqg_set_weight_device,
 		.max_write_len = 256,
 	},
 	{
 		.name = "weight",
-		.read_seq_string = blkcg_print_weight,
-		.write_u64 = blkcg_set_weight,
+		.read_seq_string = cfq_print_weight,
+		.write_u64 = cfq_set_weight,
 	},
 	{
 		.name = "time",
@@ -3983,7 +3976,7 @@ static int cfq_init_queue(struct request_queue *q)
 		return -ENOMEM;
 	}
 
-	cfqd->root_group->weight = 2*BLKIO_WEIGHT_DEFAULT;
+	cfqd->root_group->weight = 2 * CFQ_WEIGHT_DEFAULT;
 
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we
