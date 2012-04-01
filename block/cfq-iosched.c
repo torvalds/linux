@@ -1368,14 +1368,13 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 	cfqg_get(cfqg);
 }
 
-static u64 cfqg_prfill_weight_device(struct seq_file *sf,
-				     struct blkg_policy_data *pd, int off)
+static u64 cfqg_prfill_weight_device(struct seq_file *sf, void *pdata, int off)
 {
-	struct cfq_group *cfqg = (void *)pd->pdata;
+	struct cfq_group *cfqg = pdata;
 
 	if (!cfqg->dev_weight)
 		return 0;
-	return __blkg_prfill_u64(sf, pd, cfqg->dev_weight);
+	return __blkg_prfill_u64(sf, pdata, cfqg->dev_weight);
 }
 
 static int cfqg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
@@ -1443,10 +1442,9 @@ static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
 }
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf,
-				      struct blkg_policy_data *pd, int off)
+static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf, void *pdata, int off)
 {
-	struct cfq_group *cfqg = (void *)pd->pdata;
+	struct cfq_group *cfqg = pdata;
 	u64 samples = blkg_stat_read(&cfqg->stats.avg_queue_size_samples);
 	u64 v = 0;
 
@@ -1454,7 +1452,7 @@ static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf,
 		v = blkg_stat_read(&cfqg->stats.avg_queue_size_sum);
 		do_div(v, samples);
 	}
-	__blkg_prfill_u64(sf, pd, v);
+	__blkg_prfill_u64(sf, pdata, v);
 	return 0;
 }
 

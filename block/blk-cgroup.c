@@ -359,7 +359,7 @@ static const char *blkg_dev_name(struct blkio_group *blkg)
  * cftype->read_seq_string method.
  */
 void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
-		       u64 (*prfill)(struct seq_file *, struct blkg_policy_data *, int),
+		       u64 (*prfill)(struct seq_file *, void *, int),
 		       int pol, int data, bool show_total)
 {
 	struct blkio_group *blkg;
@@ -369,7 +369,7 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
 	spin_lock_irq(&blkcg->lock);
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node)
 		if (blkg->pd[pol])
-			total += prfill(sf, blkg->pd[pol], data);
+			total += prfill(sf, blkg->pd[pol]->pdata, data);
 	spin_unlock_irq(&blkcg->lock);
 
 	if (show_total)
@@ -380,14 +380,14 @@ EXPORT_SYMBOL_GPL(blkcg_print_blkgs);
 /**
  * __blkg_prfill_u64 - prfill helper for a single u64 value
  * @sf: seq_file to print to
- * @pd: policy data of interest
+ * @pdata: policy private data of interest
  * @v: value to print
  *
- * Print @v to @sf for the device assocaited with @pd.
+ * Print @v to @sf for the device assocaited with @pdata.
  */
-u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v)
+u64 __blkg_prfill_u64(struct seq_file *sf, void *pdata, u64 v)
 {
-	const char *dname = blkg_dev_name(pd->blkg);
+	const char *dname = blkg_dev_name(pdata_to_blkg(pdata));
 
 	if (!dname)
 		return 0;
@@ -400,12 +400,12 @@ EXPORT_SYMBOL_GPL(__blkg_prfill_u64);
 /**
  * __blkg_prfill_rwstat - prfill helper for a blkg_rwstat
  * @sf: seq_file to print to
- * @pd: policy data of interest
+ * @pdata: policy private data of interest
  * @rwstat: rwstat to print
  *
- * Print @rwstat to @sf for the device assocaited with @pd.
+ * Print @rwstat to @sf for the device assocaited with @pdata.
  */
-u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
+u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
 			 const struct blkg_rwstat *rwstat)
 {
 	static const char *rwstr[] = {
@@ -414,7 +414,7 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 		[BLKG_RWSTAT_SYNC]	= "Sync",
 		[BLKG_RWSTAT_ASYNC]	= "Async",
 	};
-	const char *dname = blkg_dev_name(pd->blkg);
+	const char *dname = blkg_dev_name(pdata_to_blkg(pdata));
 	u64 v;
 	int i;
 
@@ -430,19 +430,16 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 	return v;
 }
 
-static u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd,
-			    int off)
+static u64 blkg_prfill_stat(struct seq_file *sf, void *pdata, int off)
 {
-	return __blkg_prfill_u64(sf, pd,
-				 blkg_stat_read((void *)pd->pdata + off));
+	return __blkg_prfill_u64(sf, pdata, blkg_stat_read(pdata + off));
 }
 
-static u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
-			      int off)
+static u64 blkg_prfill_rwstat(struct seq_file *sf, void *pdata, int off)
 {
-	struct blkg_rwstat rwstat = blkg_rwstat_read((void *)pd->pdata + off);
+	struct blkg_rwstat rwstat = blkg_rwstat_read(pdata + off);
 
-	return __blkg_prfill_rwstat(sf, pd, &rwstat);
+	return __blkg_prfill_rwstat(sf, pdata, &rwstat);
 }
 
 /* print blkg_stat specified by BLKCG_STAT_PRIV() */

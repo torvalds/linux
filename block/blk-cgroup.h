@@ -126,10 +126,10 @@ extern void update_root_blkg_pd(struct request_queue *q,
 				enum blkio_policy_id plid);
 
 void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
-		       u64 (*prfill)(struct seq_file *, struct blkg_policy_data *, int),
+		       u64 (*prfill)(struct seq_file *, void *, int),
 		       int pol, int data, bool show_total);
-u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v);
-u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
+u64 __blkg_prfill_u64(struct seq_file *sf, void *pdata, u64 v);
+u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
 			 const struct blkg_rwstat *rwstat);
 int blkcg_print_stat(struct cgroup *cgrp, struct cftype *cft,
 		     struct seq_file *sf);

@@ -924,10 +924,9 @@ throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
 	}
 }
 
-static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
-				struct blkg_policy_data *pd, int off)
+static u64 tg_prfill_cpu_rwstat(struct seq_file *sf, void *pdata, int off)
 {
-	struct throtl_grp *tg = (void *)pd->pdata;
+	struct throtl_grp *tg = pdata;
 	struct blkg_rwstat rwstat = { }, tmp;
 	int i, cpu;
 
@@ -939,7 +938,7 @@ static u64 tg_prfill_cpu_rwstat(struct seq_file *sf,
 			rwstat.cnt[i] += tmp.cnt[i];
 	}
 
-	return __blkg_prfill_rwstat(sf, pd, &rwstat);
+	return __blkg_prfill_rwstat(sf, pdata, &rwstat);
 }
 
 /* print per-cpu blkg_rwstat specified by BLKCG_STAT_PRIV() */
@@ -954,24 +953,22 @@ static int tg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
 	return 0;
 }
 
-static u64 tg_prfill_conf_u64(struct seq_file *sf, struct blkg_policy_data *pd,
-			      int off)
+static u64 tg_prfill_conf_u64(struct seq_file *sf, void *pdata, int off)
 {
-	u64 v = *(u64 *)((void *)pd->pdata + off);
+	u64 v = *(u64 *)(pdata + off);
 
 	if (v == -1)
 		return 0;
-	return __blkg_prfill_u64(sf, pd, v);
+	return __blkg_prfill_u64(sf, pdata, v);
 }
 
-static u64 tg_prfill_conf_uint(struct seq_file *sf, struct blkg_policy_data *pd,
-			       int off)
+static u64 tg_prfill_conf_uint(struct seq_file *sf, void *pdata, int off)
 {
-	unsigned int v = *(unsigned int *)((void *)pd->pdata + off);
+	unsigned int v = *(unsigned int *)(pdata + off);
 
 	if (v == -1)
 		return 0;
-	return __blkg_prfill_u64(sf, pd, v);
+	return __blkg_prfill_u64(sf, pdata, v);
 }
 
 static int tg_print_conf_u64(struct cgroup *cgrp, struct cftype *cft,
