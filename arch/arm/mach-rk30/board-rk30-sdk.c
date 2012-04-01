@@ -449,6 +449,35 @@ static struct platform_device rk29_device_backlight = {
 
 #endif
 
+#ifdef CONFIG_RK29_SUPPORT_MODEM
+
+#define RK30_MODEM_POWER        RK30_PIN4_PD1
+#define RK30_MODEM_POWER_IOMUX  rk29_mux_api_set(GPIO4D1_SMCDATA9_TRACEDATA9_NAME, GPIO4D_GPIO4D1)
+
+static int rk30_modem_io_init(void)
+{
+    printk("%s\n", __FUNCTION__);
+    RK30_MODEM_POWER_IOMUX;
+
+	return 0;
+}
+
+static struct rk29_io_t rk30_modem_io = {
+    .io_addr    = RK30_MODEM_POWER,
+    .enable     = GPIO_HIGH,
+    .disable    = GPIO_LOW,
+    .io_init    = rk30_modem_io_init,
+};
+
+static struct platform_device rk30_device_modem = {
+	.name	= "rk30_modem",
+	.id 	= -1,
+	.dev	= {
+		.platform_data  = &rk30_modem_io,
+	}
+};
+#endif
+
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
 #define MMA8452_INT_PIN   RK30_PIN4_PC0
@@ -964,6 +993,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_BT
     &rk29sdk_rfkill,
+#endif
+#ifdef CONFIG_RK29_SUPPORT_MODEM
+    &rk30_device_modem,
 #endif
 };
 

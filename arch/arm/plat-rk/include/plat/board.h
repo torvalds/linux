@@ -32,6 +32,13 @@ struct rk29_bl_info {
 	unsigned int delay_ms;	/* in milliseconds */
 };
 
+struct rk29_io_t {
+    unsigned long io_addr;
+    unsigned long enable;
+    unsigned long disable;
+    int (*io_init)(void);
+};
+
 struct rk29lcd_info {
 	u32 lcd_id;
 	u32 txd_pin;

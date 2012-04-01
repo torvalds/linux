@@ -1,4 +1,5 @@
 #include <linux/platform_device.h>
+#include <mach/board.h>
 
 /* Modem states */
 #define MODEM_DISABLE       0
@@ -6,12 +7,6 @@
 #define MODEM_SLEEP         2
 #define MODEM_WAKEUP        3
 #define MODEM_MAX_STATUS    4
-
-struct rk29_io_t {
-    unsigned long io_addr;
-    unsigned long enable;
-    unsigned long disable;
-};
 
 struct rk29_irq_t {
     unsigned long irq_addr;

@@ -24,21 +24,18 @@
 
 #include "rk29_modem.h"
 
-static struct rk29_io_t demo_io_power = {
-    .io_addr    = RK30_PIN4_PD1, //RK29_PIN6_PB1, 
-    .enable     = GPIO_HIGH,
-    .disable    = GPIO_LOW,
-};
+static int rk30_modem_probe(struct platform_device *pdev);
 
 static struct platform_driver demo_platform_driver = {
-	.driver		= {
-		.name		= "rk29_demo",
-	},
+    .probe  = rk30_modem_probe,
+    .driver = {
+        .name   = "rk30_modem",
+    },
 };
 
 static struct rk29_modem_t demo_driver = {
     .driver         = &demo_platform_driver,
-    .modem_power    = &demo_io_power,
+    .modem_power    = NULL,//&demo_io_power,
     .ap_ready       = NULL,
     .bp_wakeup_ap   = NULL,
     .status         = MODEM_ENABLE,
@@ -51,6 +48,18 @@ static struct rk29_modem_t demo_driver = {
     .sleep          = NULL,
     .wakeup         = NULL,
 };
+
+static int rk30_modem_probe(struct platform_device *pdev)
+{
+    int ret = 0;
+    struct rk29_io_t *rk29_io_info = pdev->dev.platform_data;
+
+    printk("%s\n", __FUNCTION__);
+    demo_driver.modem_power = rk29_io_info;
+    demo_driver.modem_power->io_init();
+
+    return 0;
+}
 
 static int __init demo_init(void)
 {
@@ -70,7 +79,7 @@ static void __exit demo_exit(void)
 module_init(demo_init);
 module_exit(demo_exit);
 
-MODULE_AUTHOR("lintao lintao@rock-chips.com");
+MODULE_AUTHOR("lintao lintao@rock-chips.com, cmy@rock-chips.com");
 MODULE_DESCRIPTION("ROCKCHIP modem driver");
 MODULE_LICENSE("GPL");
 
