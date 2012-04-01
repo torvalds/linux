@@ -189,6 +189,15 @@ int ps3_repository_read_region_total(u64 *region_total);
 int ps3_repository_read_mm_info(u64 *rm_base, u64 *rm_size,
 	u64 *region_total);
 
+int ps3_repository_write_highmem_region_count(unsigned int region_count);
+int ps3_repository_write_highmem_base(unsigned int region_index,
+	u64 highmem_base);
+int ps3_repository_write_highmem_size(unsigned int region_index,
+	u64 highmem_size);
+int ps3_repository_write_highmem_info(unsigned int region_index,
+	u64 highmem_base, u64 highmem_size);
+int ps3_repository_delete_highmem_info(unsigned int region_index);
+
 /* repository pme info */
 
 int ps3_repository_read_num_be(unsigned int *num_be);
