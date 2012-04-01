@@ -632,6 +632,7 @@ static void *raid0_takeover_raid10(struct mddev *mddev)
 static void *raid0_takeover_raid1(struct mddev *mddev)
 {
 	struct r0conf *priv_conf;
+	int chunksect;
 
 	/* Check layout:
 	 *  - (N - 1) mirror drives must be already faulty
@@ -642,10 +643,25 @@ static void *raid0_takeover_raid1(struct mddev *mddev)
 		return ERR_PTR(-EINVAL);
 	}
 
+	/*
+	 * a raid1 doesn't have the notion of chunk size, so
+	 * figure out the largest suitable size we can use.
+	 */
+	chunksect = 64 * 2; /* 64K by default */
+
+	/* The array must be an exact multiple of chunksize */
+	while (chunksect && (mddev->array_sectors & (chunksect - 1)))
+		chunksect >>= 1;
+
+	if ((chunksect << 9) < PAGE_SIZE)
+		/* array size does not allow a suitable chunk size */
+		return ERR_PTR(-EINVAL);
+
 	/* Set new parameters */
 	mddev->new_level = 0;
 	mddev->new_layout = 0;
-	mddev->new_chunk_sectors = 128; /* by default set chunk size to 64k */
+	mddev->new_chunk_sectors = chunksect;
+	mddev->chunk_sectors = chunksect;
 	mddev->delta_disks = 1 - mddev->raid_disks;
 	mddev->raid_disks = 1;
 	/* make sure it will be not marked as dirty */
