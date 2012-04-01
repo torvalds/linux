@@ -987,57 +987,16 @@ static int blkg_conf_prep(struct blkio_cgroup *blkcg, const char *input,
 {
 	struct gendisk *disk;
 	struct blkio_group *blkg;
-	char *buf, *s[4], *p, *major_s, *minor_s;
-	unsigned long major, minor;
-	int i = 0, ret = -EINVAL;
-	int part;
-	dev_t dev;
-	u64 temp;
+	unsigned int major, minor;
+	unsigned long long v;
+	int part, ret;
 
-	buf = kstrdup(input, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
+	if (sscanf(input, "%u:%u %llu", &major, &minor, &v) != 3)
+		return -EINVAL;
 
-	memset(s, 0, sizeof(s));
-
-	while ((p = strsep(&buf, " ")) != NULL) {
-		if (!*p)
-			continue;
-
-		s[i++] = p;
-
-		/* Prevent from inputing too many things */
-		if (i == 3)
-			break;
-	}
-
-	if (i != 2)
-		goto out;
-
-	p = strsep(&s[0], ":");
-	if (p != NULL)
-		major_s = p;
-	else
-		goto out;
-
-	minor_s = s[0];
-	if (!minor_s)
-		goto out;
-
-	if (strict_strtoul(major_s, 10, &major))
-		goto out;
-
-	if (strict_strtoul(minor_s, 10, &minor))
-		goto out;
-
-	dev = MKDEV(major, minor);
-
-	if (strict_strtoull(s[1], 10, &temp))
-		goto out;
-
-	disk = get_gendisk(dev, &part);
+	disk = get_gendisk(MKDEV(major, minor), &part);
 	if (!disk || part)
-		goto out;
+		return -EINVAL;
 
 	rcu_read_lock();
 
@@ -1059,16 +1018,13 @@ static int blkg_conf_prep(struct blkio_cgroup *blkcg, const char *input,
 			msleep(10);
 			ret = restart_syscall();
 		}
-		goto out;
+		return ret;
 	}
 
 	ctx->disk = disk;
 	ctx->blkg = blkg;
-	ctx->v = temp;
-	ret = 0;
-out:
-	kfree(buf);
-	return ret;
+	ctx->v = v;
+	return 0;
 }
 
 /**
