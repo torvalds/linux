@@ -722,7 +722,6 @@ void ipv6_push_nfrag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt,
 	if (opt->hopopt)
 		ipv6_push_exthdr(skb, proto, NEXTHDR_HOP, opt->hopopt);
 }
-
 EXPORT_SYMBOL(ipv6_push_nfrag_opts);
 
 void ipv6_push_frag_opts(struct sk_buff *skb, struct ipv6_txoptions *opt, u8 *proto)
@@ -738,20 +737,19 @@ ipv6_dup_options(struct sock *sk, struct ipv6_txoptions *opt)
 
 	opt2 = sock_kmalloc(sk, opt->tot_len, GFP_ATOMIC);
 	if (opt2) {
-		long dif = (char*)opt2 - (char*)opt;
+		long dif = (char *)opt2 - (char *)opt;
 		memcpy(opt2, opt, opt->tot_len);
 		if (opt2->hopopt)
-			*((char**)&opt2->hopopt) += dif;
+			*((char **)&opt2->hopopt) += dif;
 		if (opt2->dst0opt)
-			*((char**)&opt2->dst0opt) += dif;
+			*((char **)&opt2->dst0opt) += dif;
 		if (opt2->dst1opt)
-			*((char**)&opt2->dst1opt) += dif;
+			*((char **)&opt2->dst1opt) += dif;
 		if (opt2->srcrt)
-			*((char**)&opt2->srcrt) += dif;
+			*((char **)&opt2->srcrt) += dif;
 	}
 	return opt2;
 }
-
 EXPORT_SYMBOL_GPL(ipv6_dup_options);
 
 static int ipv6_renew_option(void *ohdr,
@@ -892,5 +890,4 @@ struct in6_addr *fl6_update_dst(struct flowi6 *fl6,
 	fl6->daddr = *((struct rt0_hdr *)opt->srcrt)->addr;
 	return orig;
 }
-
 EXPORT_SYMBOL_GPL(fl6_update_dst);
