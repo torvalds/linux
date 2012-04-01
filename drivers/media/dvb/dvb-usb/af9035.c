@@ -209,24 +209,15 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 					msg[1].len);
 		} else {
 			/* I2C */
-#if 0
-			/*
-			 * FIXME: Keep that code. It should work but as it is
-			 * not tested I left it disabled and return -EOPNOTSUPP
-			 * for the sure.
-			 */
 			u8 buf[4 + msg[0].len];
 			struct usb_req req = { CMD_I2C_RD, 0, sizeof(buf),
 					buf, msg[1].len, msg[1].buf };
-			buf[0] = msg[0].len;
+			buf[0] = msg[1].len;
 			buf[1] = msg[0].addr << 1;
 			buf[2] = 0x01;
 			buf[3] = 0x00;
 			memcpy(&buf[4], msg[0].buf, msg[0].len);
 			ret = af9035_ctrl_msg(d->udev, &req);
-#endif
-			pr_debug("%s: I2C operation not supported\n", __func__);
-			ret = -EOPNOTSUPP;
 		}
 	} else if (num == 1 && !(msg[0].flags & I2C_M_RD)) {
 		if (msg[0].len > 40) {
