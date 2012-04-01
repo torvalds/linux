@@ -854,12 +854,17 @@ static int cgroup_call_pre_destroy(struct cgroup *cgrp)
 	struct cgroup_subsys *ss;
 	int ret = 0;
 
-	for_each_subsys(cgrp->root, ss)
-		if (ss->pre_destroy) {
-			ret = ss->pre_destroy(cgrp);
-			if (ret)
-				break;
+	for_each_subsys(cgrp->root, ss) {
+		if (!ss->pre_destroy)
+			continue;
+
+		ret = ss->pre_destroy(cgrp);
+		if (ret) {
+			/* ->pre_destroy() failure is being deprecated */
+			WARN_ON_ONCE(!ss->__DEPRECATED_clear_css_refs);
+			break;
 		}
+	}
 
 	return ret;
 }
@@ -3859,6 +3864,14 @@ static int cgroup_populate_dir(struct cgroup *cgrp)
 	return 0;
 }
 
+static void css_dput_fn(struct work_struct *work)
+{
+	struct cgroup_subsys_state *css =
+		container_of(work, struct cgroup_subsys_state, dput_work);
+
+	dput(css->cgroup->dentry);
+}
+
 static void init_cgroup_css(struct cgroup_subsys_state *css,
 			       struct cgroup_subsys *ss,
 			       struct cgroup *cgrp)
@@ -3871,6 +3884,16 @@ static void init_cgroup_css(struct cgroup_subsys_state *css,
 		set_bit(CSS_ROOT, &css->flags);
 	BUG_ON(cgrp->subsys[ss->subsys_id]);
 	cgrp->subsys[ss->subsys_id] = css;
+
+	/*
+	 * If !clear_css_refs, css holds an extra ref to @cgrp->dentry
+	 * which is put on the last css_put().  dput() requires process
+	 * context, which css_put() may be called without.  @css->dput_work
+	 * will be used to invoke dput() asynchronously from css_put().
+	 */
+	INIT_WORK(&css->dput_work, css_dput_fn);
+	if (ss->__DEPRECATED_clear_css_refs)
+		set_bit(CSS_CLEAR_CSS_REFS, &css->flags);
 }
 
 static void cgroup_lock_hierarchy(struct cgroupfs_root *root)
@@ -3973,6 +3996,11 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (err < 0)
 		goto err_remove;
 
+	/* If !clear_css_refs, each css holds a ref to the cgroup's dentry */
+	for_each_subsys(root, ss)
+		if (!ss->__DEPRECATED_clear_css_refs)
+			dget(dentry);
+
 	/* The cgroup directory was pre-locked for us */
 	BUG_ON(!mutex_is_locked(&cgrp->dentry->d_inode->i_mutex));
 
@@ -4062,8 +4090,24 @@ static int cgroup_has_css_refs(struct cgroup *cgrp)
  * Atomically mark all (or else none) of the cgroup's CSS objects as
  * CSS_REMOVED. Return true on success, or false if the cgroup has
  * busy subsystems. Call with cgroup_mutex held
+ *
+ * Depending on whether a subsys has __DEPRECATED_clear_css_refs set or
+ * not, cgroup removal behaves differently.
+ *
+ * If clear is set, css refcnt for the subsystem should be zero before
+ * cgroup removal can be committed.  This is implemented by
+ * CGRP_WAIT_ON_RMDIR and retry logic around ->pre_destroy(), which may be
+ * called multiple times until all css refcnts reach zero and is allowed to
+ * veto removal on any invocation.  This behavior is deprecated and will be
+ * removed as soon as the existing user (memcg) is updated.
+ *
+ * If clear is not set, each css holds an extra reference to the cgroup's
+ * dentry and cgroup removal proceeds regardless of css refs.
+ * ->pre_destroy() will be called at least once and is not allowed to fail.
+ * On the last put of each css, whenever that may be, the extra dentry ref
+ * is put so that dentry destruction happens only after all css's are
+ * released.
  */
-
 static int cgroup_clear_css_refs(struct cgroup *cgrp)
 {
 	struct cgroup_subsys *ss;
@@ -4074,14 +4118,17 @@ static int cgroup_clear_css_refs(struct cgroup *cgrp)
 
 	/*
 	 * Block new css_tryget() by deactivating refcnt.  If all refcnts
-	 * were 1 at the moment of deactivation, we succeeded.
+	 * for subsystems w/ clear_css_refs set were 1 at the moment of
+	 * deactivation, we succeeded.
 	 */
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];
 
 		WARN_ON(atomic_read(&css->refcnt) < 0);
 		atomic_add(CSS_DEACT_BIAS, &css->refcnt);
-		failed |= css_refcnt(css) != 1;
+
+		if (ss->__DEPRECATED_clear_css_refs)
+			failed |= css_refcnt(css) != 1;
 	}
 
 	/*
@@ -4917,12 +4964,18 @@ void __css_put(struct cgroup_subsys_state *css)
 
 	rcu_read_lock();
 	atomic_dec(&css->refcnt);
-	if (css_refcnt(css) == 1) {
+	switch (css_refcnt(css)) {
+	case 1:
 		if (notify_on_release(cgrp)) {
 			set_bit(CGRP_RELEASABLE, &cgrp->flags);
 			check_for_release(cgrp);
 		}
 		cgroup_wakeup_rmdir_waiter(cgrp);
+		break;
+	case 0:
+		if (!test_bit(CSS_CLEAR_CSS_REFS, &css->flags))
+			schedule_work(&css->dput_work);
+		break;
 	}
 	rcu_read_unlock();
 }
