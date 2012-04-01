@@ -570,7 +570,8 @@ static void rk_camera_capture_process(struct work_struct *work)
 
     ipp_req.timeout = 100;
     ipp_req.flag = IPP_ROT_0; 
-   // ipp_req.store_clip_mode =1;
+ //   if(pcdev->icd->user_width != pcdev->zoominfo.vir_width)
+ //       ipp_req.store_clip_mode =1;
     ipp_req.src0.w = pcdev->zoominfo.a.c.width/scale_times;
     ipp_req.src0.h = pcdev->zoominfo.a.c.height/scale_times;
     //ipp_req.src_vir_w = pcdev->zoominfo.a.c.width; 
@@ -1272,7 +1273,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     
     /* ddl@rock-chips.com: sensor init code transmit in here after open */
     if (pcdev->icd_init == 0) {
-        v4l2_subdev_call(sd,core, init, (u32)pcdev->pdata);        
+        v4l2_subdev_call(sd,core, init, 0);        
         pcdev->icd_init = 1;
     }
     stream_on = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
@@ -1917,6 +1918,7 @@ static int rk_camera_set_digit_zoom(struct soc_camera_device *icd,
     if (CAM_IPPWORK_IS_EN() && (stream_on & ENABLE_CAPTURE)){
         for(;work_index < pcdev->camera_work_count;work_index++)
             flush_work(&((pcdev->camera_work + work_index)->work));
+    		pcdev->frame_inval = RK_CAM_FRAME_INVAL_DC;
         }
 	//printk("host_left = %d , host_top = %d\n",pcdev->host_left,pcdev->host_top);
 
