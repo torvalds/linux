@@ -68,9 +68,7 @@
 #include "dwc_otg_cil.h"
 #include "dwc_otg_pcd.h"
 #include "dwc_otg_hcd.h"
-#ifdef CONFIG_ARCH_RK29
 #include <mach/cru.h>
-#endif
 //#define DWC_DRIVER_VERSION	"2.60a 22-NOV-2006"
 //#define DWC_DRIVER_VERSION	"2.70 2009-12-31"
 #define DWC_DRIVER_VERSION	"3.00 2010-12-12 rockchip"
@@ -338,7 +336,7 @@ extern struct usb_hub *g_root_hub20;
 #ifdef DWC_BOTH_HOST_SLAVE
 extern void hcd_start( dwc_otg_core_if_t *_core_if );
 
-extern int rk28_usb_suspend( int exitsuspend );
+extern int dwc_otg20phy_suspend( int exitsuspend );
 extern void hub_disconnect_device(struct usb_hub *hub);
 
 static ssize_t force_usb_mode_show(struct device_driver *_drv, char *_buf)
@@ -376,7 +374,7 @@ void dwc_otg_force_host(dwc_otg_core_if_t *core_if)
     }
 	if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
 	{
-		rk28_usb_suspend( 1 );
+		dwc_otg20phy_suspend( 1 );
 	}
     del_timer(&otg_dev->pcd->check_vbus_timer);
     // force disconnect 
@@ -503,7 +501,7 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
 				core_if->usb_mode = new_mode;
 				if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
 				{
-					rk28_usb_suspend( 1 );
+					dwc_otg20phy_suspend( 1 );
 				}
 				del_timer(&otg_dev->pcd->check_vbus_timer);
 				dwc_otg_set_gusbcfg(core_if, new_mode);
@@ -525,7 +523,7 @@ static ssize_t force_usb_mode_store(struct device_driver *_drv, const char *_buf
 			{
 				if((otg_dev->pcd)&&(otg_dev->pcd->phy_suspend == 1))
 				{
-					rk28_usb_suspend( 1 );
+					dwc_otg20phy_suspend( 1 );
 				}
 				core_if->usb_mode = new_mode;
 				dwc_otg_set_gusbcfg(core_if, new_mode);
@@ -1152,8 +1150,10 @@ static int dwc_otg_driver_remove(struct platform_device *pdev)
 	clk_disable(otg_dev->phyclk);
 	clk_put(otg_dev->ahbclk);
 	clk_disable(otg_dev->ahbclk);
+#ifdef CONFIG_ARCH_RK29	
 	clk_put(otg_dev->busclk);
 	clk_disable(otg_dev->busclk);
+#endif
 	kfree(otg_dev);
 
 	/*
@@ -1195,11 +1195,11 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
     unsigned int * otg_phy_con1 = (unsigned int*)(USB_GRF_CON);
 #endif
 #ifdef CONFIG_ARCH_RK30
-    unsigned int * otg_phy_con1 = (unsigned int*)(USBGRF_UOC0_CON2);
+    unsigned int * otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON2);
 #endif
     
-    regval = * otg_phy_con1;
-#ifdef CONFIG_ARCH_RK29    
+#ifdef CONFIG_ARCH_RK29   
+    regval = * otg_phy_con1; 
 #ifndef CONFIG_USB11_HOST
 	/*
 	 * disable usb host 1.1 controller if not support
@@ -1258,6 +1258,34 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 #endif
 #endif
 
+#ifdef CONFIG_ARCH_RK30
+#ifndef CONFIG_USB20_HOST
+    otg_phy_con = (unsigned int*)(USBGRF_UOC1_CON2);
+    /*
+     * disable usb host 2.0 phy if not support
+     */
+    phyclk = clk_get(NULL, "otgphy1");
+    if (IS_ERR(phyclk)) {
+            retval = PTR_ERR(phyclk);
+            DWC_ERROR("can't get USBPHY1 clock\n");
+           goto fail;
+    }
+    clk_enable(phyclk);
+    
+    ahbclk = clk_get(NULL, "hclk_otg1");
+    if (IS_ERR(ahbclk)) {
+            retval = PTR_ERR(ahbclk);
+            DWC_ERROR("can't get USBOTG1 ahb bus clock\n");
+           goto fail;
+    }
+    clk_enable(ahbclk);
+    
+    *otg_phy_con = ((0x01<<2)|(0x00<<3)|(0x05<<6))|(((0x01<<2)|(0x01<<3)|(0x07<<6))<<16);   // enter suspend.
+    udelay(3);
+    clk_disable(phyclk);
+    clk_disable(ahbclk);
+#endif
+#endif
 	dwc_otg_device = kmalloc(sizeof(dwc_otg_device_t), GFP_KERNEL);
 	
 	if (dwc_otg_device == 0) 
@@ -1315,7 +1343,42 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	dwc_otg_device->phyclk = phyclk;
 	dwc_otg_device->ahbclk = ahbclk;
 	dwc_otg_device->busclk = busclk;
-#endif	
+#endif
+#ifdef CONFIG_ARCH_RK30
+    otg_phy_con = (unsigned int*)(USBGRF_UOC0_CON2);
+    cru_set_soft_reset(SOFT_RST_USBPHY0, true);
+	cru_set_soft_reset(SOFT_RST_OTGC0, true);
+	cru_set_soft_reset(SOFT_RST_USBOTG0, true);
+    udelay(1);
+	
+	cru_set_soft_reset(SOFT_RST_USBOTG0, false);
+	cru_set_soft_reset(SOFT_RST_OTGC0, false);
+	cru_set_soft_reset(SOFT_RST_USBPHY0, false);
+
+    phyclk = clk_get(NULL, "otgphy0");
+    if (IS_ERR(phyclk)) {
+            retval = PTR_ERR(phyclk);
+            DWC_ERROR("can't get USBPHY0 clock\n");
+           goto fail;
+    }
+    clk_enable(phyclk);
+    
+    ahbclk = clk_get(NULL, "hclk_otg0");
+    if (IS_ERR(ahbclk)) {
+            retval = PTR_ERR(ahbclk);
+            DWC_ERROR("can't get USB otg0 ahb bus clock\n");
+           goto fail;
+    }
+    clk_enable(ahbclk);
+    
+	/*
+	 * Enable usb phy 0
+	 */
+    *otg_phy_con = ((0x01<<2)<<16);
+    
+	dwc_otg_device->phyclk = phyclk;
+	dwc_otg_device->ahbclk = ahbclk;
+#endif
 	/*
 	 * Map the DWC_otg Core memory into virtual address space.
 	 */
@@ -1324,8 +1387,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 	if (!res_base)
 		goto fail;
 
-	dwc_otg_device->base =
-		ioremap(res_base->start,USBOTG_SIZE);
+	dwc_otg_device->base =  ioremap(res_base->start,USBOTG_SIZE);
 	if (dwc_otg_device->base == NULL)
 	{
 		dev_err(dev, "ioremap() failed\n");
@@ -1498,7 +1560,7 @@ static __devinit int dwc_otg_driver_probe(struct platform_device *pdev)
 }
 
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
-extern int rk28_usb_suspend( int exitsuspend );
+extern int dwc_otg20phy_suspend( int exitsuspend );
 static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t state )
 {
 	struct device *dev = &_dev->dev;
@@ -1512,7 +1574,7 @@ static int dwc_otg_driver_suspend(struct platform_device *_dev , pm_message_t st
     /* Clear any pending interrupts */
     dwc_write_reg32( &core_if->core_global_regs->gintsts, 0xFFFFFFFF);
     dwc_otg_disable_global_interrupts(core_if);
-    rk28_usb_suspend(0);
+    dwc_otg20phy_suspend(0);
     del_timer(&otg_dev->pcd->check_vbus_timer); 
 	
     return 0;
@@ -1540,7 +1602,7 @@ static int dwc_otg_driver_resume(struct platform_device *_dev )
     }
 #ifndef CONFIG_DWC_OTG_HOST_ONLY
 
-    rk28_usb_suspend(1);
+    dwc_otg20phy_suspend(1);
 
     /* soft disconnect */
     /* 20100226,HSL@RK,if not disconnect,when usb cable in,will auto reconnect 
