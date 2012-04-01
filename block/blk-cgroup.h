@@ -28,46 +28,10 @@ enum blkio_policy_id {
 
 #ifdef CONFIG_BLK_CGROUP
 
-enum stat_type {
-	/* Number of IOs merged */
-	BLKIO_STAT_MERGED,
-	/* Total time spent (in ns) between request dispatch to the driver and
-	 * request completion for IOs doen by this cgroup. This may not be
-	 * accurate when NCQ is turned on. */
-	BLKIO_STAT_SERVICE_TIME,
-	/* Total time spent waiting in scheduler queue in ns */
-	BLKIO_STAT_WAIT_TIME,
-	/* Number of IOs queued up */
-	BLKIO_STAT_QUEUED,
-
-	/* All the single valued stats go below this */
-	BLKIO_STAT_TIME,
-#ifdef CONFIG_DEBUG_BLK_CGROUP
-	/* Time not charged to this cgroup */
-	BLKIO_STAT_UNACCOUNTED_TIME,
-	BLKIO_STAT_AVG_QUEUE_SIZE,
-	BLKIO_STAT_IDLE_TIME,
-	BLKIO_STAT_EMPTY_TIME,
-	BLKIO_STAT_GROUP_WAIT_TIME,
-	BLKIO_STAT_DEQUEUE
-#endif
-};
-
-/* Types lower than this live in stat_arr and have subtypes */
-#define BLKIO_STAT_ARR_NR	(BLKIO_STAT_QUEUED + 1)
-
-/* Per cpu stats */
-enum stat_type_cpu {
-	/* Total bytes transferred */
-	BLKIO_STAT_CPU_SERVICE_BYTES,
-	/* Total IOs serviced, post merge */
-	BLKIO_STAT_CPU_SERVICED,
-
-	/* All the single valued stats go below this */
-	BLKIO_STAT_CPU_SECTORS,
-};
-
-#define BLKIO_STAT_CPU_ARR_NR	(BLKIO_STAT_CPU_SERVICED + 1)
+/* cft->private [un]packing for stat printing */
+#define BLKCG_STAT_PRIV(pol, off)	(((unsigned)(pol) << 16) | (off))
+#define BLKCG_STAT_POL(prv)		((unsigned)(prv) >> 16)
+#define BLKCG_STAT_OFF(prv)		((unsigned)(prv) & 0xffff)
 
 enum blkg_rwstat_type {
 	BLKG_RWSTAT_READ,
@@ -90,20 +54,6 @@ enum blkg_state_flags {
 enum blkcg_file_name_prop {
 	BLKIO_PROP_weight = 1,
 	BLKIO_PROP_weight_device,
-	BLKIO_PROP_io_service_bytes,
-	BLKIO_PROP_io_serviced,
-	BLKIO_PROP_time,
-	BLKIO_PROP_sectors,
-	BLKIO_PROP_unaccounted_time,
-	BLKIO_PROP_io_service_time,
-	BLKIO_PROP_io_wait_time,
-	BLKIO_PROP_io_merged,
-	BLKIO_PROP_io_queued,
-	BLKIO_PROP_avg_queue_size,
-	BLKIO_PROP_group_wait_time,
-	BLKIO_PROP_idle_time,
-	BLKIO_PROP_empty_time,
-	BLKIO_PROP_dequeue,
 };
 
 /* cgroup files owned by throttle policy */
@@ -112,8 +62,6 @@ enum blkcg_file_name_throtl {
 	BLKIO_THROTL_write_bps_device,
 	BLKIO_THROTL_read_iops_device,
 	BLKIO_THROTL_write_iops_device,
-	BLKIO_THROTL_io_service_bytes,
-	BLKIO_THROTL_io_serviced,
 };
 
 struct blkio_cgroup {
