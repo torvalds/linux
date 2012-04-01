@@ -540,9 +540,56 @@ err:
 
 static int af9033_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	*snr = 0;
+	struct af9033_state *state = fe->demodulator_priv;
+	int ret, i, len;
+	u8 buf[3], tmp;
+	u32 snr_val;
+	const struct val_snr *uninitialized_var(snr_lut);
+
+	/* read value */
+	ret = af9033_rd_regs(state, 0x80002c, buf, 3);
+	if (ret < 0)
+		goto err;
+
+	snr_val = (buf[2] << 16) | (buf[1] << 8) | buf[0];
+
+	/* read current modulation */
+	ret = af9033_rd_reg(state, 0x80f903, &tmp);
+	if (ret < 0)
+		goto err;
+
+	switch ((tmp >> 0) & 3) {
+	case 0:
+		len = ARRAY_SIZE(qpsk_snr_lut);
+		snr_lut = qpsk_snr_lut;
+		break;
+	case 1:
+		len = ARRAY_SIZE(qam16_snr_lut);
+		snr_lut = qam16_snr_lut;
+		break;
+	case 2:
+		len = ARRAY_SIZE(qam64_snr_lut);
+		snr_lut = qam64_snr_lut;
+		break;
+	default:
+		goto err;
+	}
+
+	for (i = 0; i < len; i++) {
+		tmp = snr_lut[i].snr;
+
+		if (snr_val < snr_lut[i].val)
+			break;
+	}
+
+	*snr = tmp * 10; /* dB/10 */
 
 	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
 }
 
 static int af9033_read_signal_strength(struct dvb_frontend *fe, u16 *strength)
