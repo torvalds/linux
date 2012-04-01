@@ -43,22 +43,22 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 		return ret;
 
 	if (rect->rop != ROP_COPY) {
-		BEGIN_RING(chan, NvSub2D, 0x02ac, 1);
+		BEGIN_NV04(chan, NvSub2D, 0x02ac, 1);
 		OUT_RING(chan, 1);
 	}
-	BEGIN_RING(chan, NvSub2D, 0x0588, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x0588, 1);
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    info->fix.visual == FB_VISUAL_DIRECTCOLOR)
 		OUT_RING(chan, ((uint32_t *)info->pseudo_palette)[rect->color]);
 	else
 		OUT_RING(chan, rect->color);
-	BEGIN_RING(chan, NvSub2D, 0x0600, 4);
+	BEGIN_NV04(chan, NvSub2D, 0x0600, 4);
 	OUT_RING(chan, rect->dx);
 	OUT_RING(chan, rect->dy);
 	OUT_RING(chan, rect->dx + rect->width);
 	OUT_RING(chan, rect->dy + rect->height);
 	if (rect->rop != ROP_COPY) {
-		BEGIN_RING(chan, NvSub2D, 0x02ac, 1);
+		BEGIN_NV04(chan, NvSub2D, 0x02ac, 1);
 		OUT_RING(chan, 3);
 	}
 	FIRE_RING(chan);
@@ -78,14 +78,14 @@ nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	if (ret)
 		return ret;
 
-	BEGIN_RING(chan, NvSub2D, 0x0110, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x0110, 1);
 	OUT_RING(chan, 0);
-	BEGIN_RING(chan, NvSub2D, 0x08b0, 4);
+	BEGIN_NV04(chan, NvSub2D, 0x08b0, 4);
 	OUT_RING(chan, region->dx);
 	OUT_RING(chan, region->dy);
 	OUT_RING(chan, region->width);
 	OUT_RING(chan, region->height);
-	BEGIN_RING(chan, NvSub2D, 0x08d0, 4);
+	BEGIN_NV04(chan, NvSub2D, 0x08d0, 4);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, region->sx);
 	OUT_RING(chan, 0);
@@ -116,7 +116,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 	width = ALIGN(image->width, 32);
 	dwords = (width * image->height) >> 5;
 
-	BEGIN_RING(chan, NvSub2D, 0x0814, 2);
+	BEGIN_NV04(chan, NvSub2D, 0x0814, 2);
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||
 	    info->fix.visual == FB_VISUAL_DIRECTCOLOR) {
 		OUT_RING(chan, palette[image->bg_color] | mask);
@@ -125,10 +125,10 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		OUT_RING(chan, image->bg_color);
 		OUT_RING(chan, image->fg_color);
 	}
-	BEGIN_RING(chan, NvSub2D, 0x0838, 2);
+	BEGIN_NV04(chan, NvSub2D, 0x0838, 2);
 	OUT_RING(chan, image->width);
 	OUT_RING(chan, image->height);
-	BEGIN_RING(chan, NvSub2D, 0x0850, 4);
+	BEGIN_NV04(chan, NvSub2D, 0x0850, 4);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, image->dx);
 	OUT_RING(chan, 0);
@@ -143,7 +143,7 @@ nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 
 		dwords -= push;
 
-		BEGIN_RING(chan, NvSub2D, 0x40000860, push);
+		BEGIN_NI04(chan, NvSub2D, 0x0860, push);
 		OUT_RINGp(chan, data, push);
 		data += push;
 	}
@@ -199,60 +199,60 @@ nv50_fbcon_accel_init(struct fb_info *info)
 		return ret;
 	}
 
-	BEGIN_RING(chan, NvSub2D, 0x0000, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x0000, 1);
 	OUT_RING(chan, Nv2D);
-	BEGIN_RING(chan, NvSub2D, 0x0180, 4);
+	BEGIN_NV04(chan, NvSub2D, 0x0180, 4);
 	OUT_RING(chan, NvNotify0);
 	OUT_RING(chan, chan->vram_handle);
 	OUT_RING(chan, chan->vram_handle);
 	OUT_RING(chan, chan->vram_handle);
-	BEGIN_RING(chan, NvSub2D, 0x0290, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x0290, 1);
 	OUT_RING(chan, 0);
-	BEGIN_RING(chan, NvSub2D, 0x0888, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x0888, 1);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x02ac, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x02ac, 1);
 	OUT_RING(chan, 3);
-	BEGIN_RING(chan, NvSub2D, 0x02a0, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x02a0, 1);
 	OUT_RING(chan, 0x55);
-	BEGIN_RING(chan, NvSub2D, 0x08c0, 4);
+	BEGIN_NV04(chan, NvSub2D, 0x08c0, 4);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, 1);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x0580, 2);
+	BEGIN_NV04(chan, NvSub2D, 0x0580, 2);
 	OUT_RING(chan, 4);
 	OUT_RING(chan, format);
-	BEGIN_RING(chan, NvSub2D, 0x02e8, 2);
+	BEGIN_NV04(chan, NvSub2D, 0x02e8, 2);
 	OUT_RING(chan, 2);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x0804, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x0804, 1);
 	OUT_RING(chan, format);
-	BEGIN_RING(chan, NvSub2D, 0x0800, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x0800, 1);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x0808, 3);
+	BEGIN_NV04(chan, NvSub2D, 0x0808, 3);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x081c, 1);
+	BEGIN_NV04(chan, NvSub2D, 0x081c, 1);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x0840, 4);
+	BEGIN_NV04(chan, NvSub2D, 0x0840, 4);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, 1);
 	OUT_RING(chan, 0);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x0200, 2);
+	BEGIN_NV04(chan, NvSub2D, 0x0200, 2);
 	OUT_RING(chan, format);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x0214, 5);
+	BEGIN_NV04(chan, NvSub2D, 0x0214, 5);
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);
 	OUT_RING(chan, upper_32_bits(fb->vma.offset));
 	OUT_RING(chan, lower_32_bits(fb->vma.offset));
-	BEGIN_RING(chan, NvSub2D, 0x0230, 2);
+	BEGIN_NV04(chan, NvSub2D, 0x0230, 2);
 	OUT_RING(chan, format);
 	OUT_RING(chan, 1);
-	BEGIN_RING(chan, NvSub2D, 0x0244, 5);
+	BEGIN_NV04(chan, NvSub2D, 0x0244, 5);
 	OUT_RING(chan, info->fix.line_length);
 	OUT_RING(chan, info->var.xres_virtual);
 	OUT_RING(chan, info->var.yres_virtual);

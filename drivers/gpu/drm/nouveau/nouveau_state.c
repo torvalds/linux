@@ -639,9 +639,9 @@ nouveau_card_channel_init(struct drm_device *dev)
 		if (ret)
 			goto error;
 
-		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NAME, 1);
+		BEGIN_NV04(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NAME, 1);
 		OUT_RING  (chan, NvM2MF);
-		BEGIN_RING(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 3);
+		BEGIN_NV04(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 3);
 		OUT_RING  (chan, NvNotify0);
 		OUT_RING  (chan, chan->vram_handle);
 		OUT_RING  (chan, chan->gart_handle);
@@ -655,7 +655,7 @@ nouveau_card_channel_init(struct drm_device *dev)
 		if (ret)
 			goto error;
 
-		BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0000, 1);
+		BEGIN_NVC0(chan, NvSubM2MF, 0x0000, 1);
 		OUT_RING  (chan, 0x00009039);
 	} else
 	if (dev_priv->card_type <= NV_E0) {
@@ -669,7 +669,7 @@ nouveau_card_channel_init(struct drm_device *dev)
 		if (ret)
 			goto error;
 
-		BEGIN_NVC0(chan, 2, NvSubCopy, 0x0000, 1);
+		BEGIN_NVC0(chan, NvSubCopy, 0x0000, 1);
 		OUT_RING  (chan, 0x0000a0b5);
 	}
 

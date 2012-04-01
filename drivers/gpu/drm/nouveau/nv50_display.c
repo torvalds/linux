@@ -140,11 +140,11 @@ nv50_display_sync(struct drm_device *dev)
 
 	ret = RING_SPACE(evo, 6);
 	if (ret == 0) {
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x80000000);
-		BEGIN_RING(evo, 0, 0x0080, 1);
+		BEGIN_NV04(evo, 0, 0x0080, 1);
 		OUT_RING  (evo, 0);
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x00000000);
 
 		nv_wo32(disp->ntfy, 0x000, 0x00000000);
@@ -267,7 +267,7 @@ nv50_display_init(struct drm_device *dev)
 	ret = RING_SPACE(evo, 3);
 	if (ret)
 		return ret;
-	BEGIN_RING(evo, 0, NV50_EVO_UNK84, 2);
+	BEGIN_NV04(evo, 0, NV50_EVO_UNK84, 2);
 	OUT_RING  (evo, NV50_EVO_UNK84_NOTIFY_DISABLED);
 	OUT_RING  (evo, NvEvoSync);
 
@@ -292,7 +292,7 @@ nv50_display_fini(struct drm_device *dev)
 
 	ret = RING_SPACE(evo, 2);
 	if (ret == 0) {
-		BEGIN_RING(evo, 0, NV50_EVO_UPDATE, 1);
+		BEGIN_NV04(evo, 0, NV50_EVO_UPDATE, 1);
 		OUT_RING(evo, 0);
 	}
 	FIRE_RING(evo);
@@ -438,13 +438,13 @@ nv50_display_flip_stop(struct drm_crtc *crtc)
 		return;
 	}
 
-	BEGIN_RING(evo, 0, 0x0084, 1);
+	BEGIN_NV04(evo, 0, 0x0084, 1);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x0094, 1);
+	BEGIN_NV04(evo, 0, 0x0094, 1);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x00c0, 1);
+	BEGIN_NV04(evo, 0, 0x00c0, 1);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x0080, 1);
+	BEGIN_NV04(evo, 0, 0x0080, 1);
 	OUT_RING  (evo, 0x00000000);
 	FIRE_RING (evo);
 }
@@ -474,15 +474,15 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		}
 
 		if (dev_priv->chipset < 0xc0) {
-			BEGIN_RING(chan, 0, 0x0060, 2);
+			BEGIN_NV04(chan, 0, 0x0060, 2);
 			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
 			OUT_RING  (chan, dispc->sem.offset);
-			BEGIN_RING(chan, 0, 0x006c, 1);
+			BEGIN_NV04(chan, 0, 0x006c, 1);
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
-			BEGIN_RING(chan, 0, 0x0064, 2);
+			BEGIN_NV04(chan, 0, 0x0064, 2);
 			OUT_RING  (chan, dispc->sem.offset ^ 0x10);
 			OUT_RING  (chan, 0x74b1e000);
-			BEGIN_RING(chan, 0, 0x0060, 1);
+			BEGIN_NV04(chan, 0, 0x0060, 1);
 			if (dev_priv->chipset < 0x84)
 				OUT_RING  (chan, NvSema);
 			else
@@ -490,12 +490,12 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		} else {
 			u64 offset = chan->dispc_vma[nv_crtc->index].offset;
 			offset += dispc->sem.offset;
-			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
+			BEGIN_NVC0(chan, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset));
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
 			OUT_RING  (chan, 0x1002);
-			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
+			BEGIN_NVC0(chan, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
 			OUT_RING  (chan, 0x74b1e000);
@@ -508,40 +508,40 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	}
 
 	/* queue the flip on the crtc's "display sync" channel */
-	BEGIN_RING(evo, 0, 0x0100, 1);
+	BEGIN_NV04(evo, 0, 0x0100, 1);
 	OUT_RING  (evo, 0xfffe0000);
 	if (chan) {
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x00000100);
 	} else {
-		BEGIN_RING(evo, 0, 0x0084, 1);
+		BEGIN_NV04(evo, 0, 0x0084, 1);
 		OUT_RING  (evo, 0x00000010);
 		/* allows gamma somehow, PDISP will bitch at you if
 		 * you don't wait for vblank before changing this..
 		 */
-		BEGIN_RING(evo, 0, 0x00e0, 1);
+		BEGIN_NV04(evo, 0, 0x00e0, 1);
 		OUT_RING  (evo, 0x40000000);
 	}
-	BEGIN_RING(evo, 0, 0x0088, 4);
+	BEGIN_NV04(evo, 0, 0x0088, 4);
 	OUT_RING  (evo, dispc->sem.offset);
 	OUT_RING  (evo, 0xf00d0000 | dispc->sem.value);
 	OUT_RING  (evo, 0x74b1e000);
 	OUT_RING  (evo, NvEvoSync);
-	BEGIN_RING(evo, 0, 0x00a0, 2);
+	BEGIN_NV04(evo, 0, 0x00a0, 2);
 	OUT_RING  (evo, 0x00000000);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x00c0, 1);
+	BEGIN_NV04(evo, 0, 0x00c0, 1);
 	OUT_RING  (evo, nv_fb->r_dma);
-	BEGIN_RING(evo, 0, 0x0110, 2);
+	BEGIN_NV04(evo, 0, 0x0110, 2);
 	OUT_RING  (evo, 0x00000000);
 	OUT_RING  (evo, 0x00000000);
-	BEGIN_RING(evo, 0, 0x0800, 5);
+	BEGIN_NV04(evo, 0, 0x0800, 5);
 	OUT_RING  (evo, nv_fb->nvbo->bo.offset >> 8);
 	OUT_RING  (evo, 0);
 	OUT_RING  (evo, (fb->height << 16) | fb->width);
 	OUT_RING  (evo, nv_fb->r_pitch);
 	OUT_RING  (evo, nv_fb->r_format);
-	BEGIN_RING(evo, 0, 0x0080, 1);
+	BEGIN_NV04(evo, 0, 0x0080, 1);
 	OUT_RING  (evo, 0x00000000);
 	FIRE_RING (evo);
 

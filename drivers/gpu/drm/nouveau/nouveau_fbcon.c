@@ -171,14 +171,14 @@ nouveau_fbcon_sync(struct fb_info *info)
 	}
 
 	if (dev_priv->card_type >= NV_C0) {
-		BEGIN_NVC0(chan, 2, NvSub2D, 0x010c, 1);
+		BEGIN_NVC0(chan, NvSub2D, 0x010c, 1);
 		OUT_RING  (chan, 0);
-		BEGIN_NVC0(chan, 2, NvSub2D, 0x0100, 1);
+		BEGIN_NVC0(chan, NvSub2D, 0x0100, 1);
 		OUT_RING  (chan, 0);
 	} else {
-		BEGIN_RING(chan, 0, 0x0104, 1);
+		BEGIN_NV04(chan, 0, 0x0104, 1);
 		OUT_RING  (chan, 0);
-		BEGIN_RING(chan, 0, 0x0100, 1);
+		BEGIN_NV04(chan, 0, 0x0100, 1);
 		OUT_RING  (chan, 0);
 	}
 
