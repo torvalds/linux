@@ -43,7 +43,14 @@
 #include <asm/cacheflush.h>
 #include <linux/slab.h>
 
-#define IPP_VERSION "1.000"
+#ifdef CONFIG_ARCH_RK29
+#define IPP_VERSION "rk29-ipp 1.001"
+#endif
+
+#ifdef CONFIG_ARCH_RK30
+#define IPP_VERSION "rk30-ipp 1.001"
+#endif
+
 //#define IPP_TEST
 #ifdef IPP_TEST
 
@@ -70,7 +77,7 @@ struct ipp_drvdata {
 	void *ipp_base;
 	int irq0;
 
-	struct clk *pd_display;
+	struct clk *pd_ipp;
 	struct clk *aclk_lcdc;
 	struct clk *hclk_lcdc;
 	struct clk *aclk_ddr_lcdc;
@@ -174,8 +181,8 @@ static void ipp_power_on(void)
 	cancel_delayed_work_sync(&drvdata->power_off_work);
 	if (drvdata->enable)
 		return;
+	clk_enable(drvdata->pd_ipp);
 #ifdef CONFIG_ARCH_RK29
-	clk_enable(drvdata->pd_display);
 	clk_enable(drvdata->aclk_lcdc);
 	clk_enable(drvdata->hclk_lcdc);
 	clk_enable(drvdata->aclk_ddr_lcdc);
@@ -195,8 +202,8 @@ static void ipp_power_off(struct work_struct *work)
 	//printk("ipp_power_off\n");
 	if(!drvdata->enable)
 		return;
+	
 #ifdef CONFIG_ARCH_RK29
-	clk_disable(drvdata->pd_display);
 	clk_disable(drvdata->aclk_lcdc);
 	clk_disable(drvdata->hclk_lcdc);
 	clk_disable(drvdata->aclk_ddr_lcdc);
@@ -206,7 +213,8 @@ static void ipp_power_off(struct work_struct *work)
 #endif
 	clk_disable(drvdata->axi_clk);
 	clk_disable(drvdata->ahb_clk);
-
+	clk_disable(drvdata->pd_ipp);
+	
 	drvdata->enable = false;
 }
 
@@ -1623,10 +1631,9 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 	}
 
 	/* get the clock */
-    #ifdef CONFIG_ARCH_RK29
-
-	data->pd_display = clk_get(&pdev->dev, "pd_display");
-	if (IS_ERR(data->pd_display))
+#ifdef CONFIG_ARCH_RK29
+	data->pd_ipp = clk_get(&pdev->dev, "pd_display");
+	if (IS_ERR(data->pd_ipp))
 	{
 		ERR("failed to find ipp pd_display source\n");
 		ret = -ENOENT;
@@ -1680,7 +1687,18 @@ static int __devinit ipp_drv_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err_clock;
 	}
-	#endif
+#endif
+
+#ifdef CONFIG_ARCH_RK30
+	data->pd_ipp = clk_get(&pdev->dev, "pd_ipp");
+	if (IS_ERR(data->pd_ipp))
+	{
+		ERR("failed to find ipp pd_ipp source\n");
+		ret = -ENOENT;
+		goto err_clock;
+	}
+#endif
+
 	data->axi_clk = clk_get(&pdev->dev, "aclk_ipp");
 	if (IS_ERR(data->axi_clk))
 	{
@@ -1806,11 +1824,11 @@ static int __devexit ipp_drv_remove(struct platform_device *pdev)
 	if(data->hclk_cpu_display) {
 		clk_put(data->hclk_cpu_display);
 	}
-
-	if(data->pd_display){
-		clk_put(data->pd_display);
-	}
 #endif
+	if(data->pd_ipp){
+		clk_put(data->pd_ipp);
+	}
+
 kfree(data);
     return 0;
 }
