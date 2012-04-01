@@ -23,6 +23,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/pm.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mmc/host.h>
 
@@ -593,9 +594,16 @@ static int __devinit sdhci_s3c_probe(struct platform_device *pdev)
 	if (pdata->host_caps2)
 		host->mmc->caps2 |= pdata->host_caps2;
 
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+	pm_runtime_use_autosuspend(&pdev->dev);
+	pm_suspend_ignore_children(&pdev->dev, 1);
+
 	ret = sdhci_add_host(host);
 	if (ret) {
 		dev_err(dev, "sdhci_add_host() failed\n");
+		pm_runtime_forbid(&pdev->dev);
+		pm_runtime_get_noresume(&pdev->dev);
 		goto err_req_regs;
 	}
 
@@ -646,6 +654,8 @@ static int __devexit sdhci_s3c_remove(struct platform_device *pdev)
 
 	sdhci_remove_host(host, 1);
 
+	pm_runtime_disable(&pdev->dev);
+
 	for (ptr = 0; ptr < 3; ptr++) {
 		if (sc->clk_bus[ptr]) {
 			clk_disable(sc->clk_bus[ptr]);
@@ -677,9 +687,27 @@ static int sdhci_s3c_resume(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+static int sdhci_s3c_runtime_suspend(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+
+	return sdhci_runtime_suspend_host(host);
+}
+
+static int sdhci_s3c_runtime_resume(struct device *dev)
+{
+	struct sdhci_host *host = dev_get_drvdata(dev);
+
+	return sdhci_runtime_resume_host(host);
+}
+#endif
+
 #ifdef CONFIG_PM
 static const struct dev_pm_ops sdhci_s3c_pmops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sdhci_s3c_suspend, sdhci_s3c_resume)
+	SET_RUNTIME_PM_OPS(sdhci_s3c_runtime_suspend, sdhci_s3c_runtime_resume,
+			   NULL)
 };
 
 #define SDHCI_S3C_PMOPS (&sdhci_s3c_pmops)
