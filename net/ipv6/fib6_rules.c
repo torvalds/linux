@@ -22,8 +22,7 @@
 #include <net/ip6_route.h>
 #include <net/netlink.h>
 
-struct fib6_rule
-{
+struct fib6_rule {
 	struct fib_rule		common;
 	struct rt6key		src;
 	struct rt6key		dst;
