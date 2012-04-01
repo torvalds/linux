@@ -783,6 +783,17 @@ static inline int nla_put_be16(struct sk_buff *skb, int attrtype, __be16 value)
 }
 
 /**
+ * nla_put_net16 - Add 16-bit network byte order netlink attribute to a socket buffer
+ * @skb: socket buffer to add attribute to
+ * @attrtype: attribute type
+ * @value: numeric value
+ */
+static inline int nla_put_net16(struct sk_buff *skb, int attrtype, __be16 value)
+{
+	return nla_put_be16(skb, attrtype | NLA_F_NET_BYTEORDER, value);
+}
+
+/**
  * nla_put_u32 - Add a u32 netlink attribute to a socket buffer
  * @skb: socket buffer to add attribute to
  * @attrtype: attribute type
@@ -805,6 +816,17 @@ static inline int nla_put_be32(struct sk_buff *skb, int attrtype, __be32 value)
 }
 
 /**
+ * nla_put_net32 - Add 32-bit network byte order netlink attribute to a socket buffer
+ * @skb: socket buffer to add attribute to
+ * @attrtype: attribute type
+ * @value: numeric value
+ */
+static inline int nla_put_net32(struct sk_buff *skb, int attrtype, __be32 value)
+{
+	return nla_put_be32(skb, attrtype | NLA_F_NET_BYTEORDER, value);
+}
+
+/**
  * nla_put_u64 - Add a u64 netlink attribute to a socket buffer
  * @skb: socket buffer to add attribute to
  * @attrtype: attribute type
@@ -824,6 +846,17 @@ static inline int nla_put_u64(struct sk_buff *skb, int attrtype, u64 value)
 static inline int nla_put_be64(struct sk_buff *skb, int attrtype, __be64 value)
 {
 	return nla_put(skb, attrtype, sizeof(__be64), &value);
+}
+
+/**
+ * nla_put_net64 - Add 64-bit network byte order netlink attribute to a socket buffer
+ * @skb: socket buffer to add attribute to
+ * @attrtype: attribute type
+ * @value: numeric value
+ */
+static inline int nla_put_net64(struct sk_buff *skb, int attrtype, __be64 value)
+{
+	return nla_put_be64(skb, attrtype | NLA_F_NET_BYTEORDER, value);
 }
 
 /**
