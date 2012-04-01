@@ -15,6 +15,7 @@
 
 #include <linux/cgroup.h>
 #include <linux/u64_stats_sync.h>
+#include <linux/seq_file.h>
 
 enum blkio_policy_id {
 	BLKIO_POLICY_PROP = 0,		/* Proportional Bandwidth division */
@@ -192,6 +193,32 @@ extern void blkio_policy_unregister(struct blkio_policy_type *);
 extern void blkg_destroy_all(struct request_queue *q, bool destroy_root);
 extern void update_root_blkg_pd(struct request_queue *q,
 				enum blkio_policy_id plid);
+
+void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
+		       u64 (*prfill)(struct seq_file *, struct blkg_policy_data *, int),
+		       int pol, int data, bool show_total);
+u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v);
+u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
+			 const struct blkg_rwstat *rwstat);
+int blkcg_print_stat(struct cgroup *cgrp, struct cftype *cft,
+		     struct seq_file *sf);
+int blkcg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
+		       struct seq_file *sf);
+int blkcg_print_cpu_stat(struct cgroup *cgrp, struct cftype *cft,
+			 struct seq_file *sf);
+int blkcg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
+			   struct seq_file *sf);
+
+struct blkg_conf_ctx {
+	struct gendisk		*disk;
+	struct blkio_group	*blkg;
+	u64			v;
+};
+
+int blkg_conf_prep(struct blkio_cgroup *blkcg, const char *input,
+		   struct blkg_conf_ctx *ctx);
+void blkg_conf_finish(struct blkg_conf_ctx *ctx);
+
 
 /**
  * blkg_to_pdata - get policy private data
