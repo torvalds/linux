@@ -2615,9 +2615,8 @@ static umode_t cgroup_file_mode(const struct cftype *cft)
 	return mode;
 }
 
-int cgroup_add_file(struct cgroup *cgrp,
-		       struct cgroup_subsys *subsys,
-		       const struct cftype *cft)
+static int cgroup_add_file(struct cgroup *cgrp, struct cgroup_subsys *subsys,
+			   const struct cftype *cft)
 {
 	struct dentry *dir = cgrp->dentry;
 	struct dentry *dentry;
@@ -2649,22 +2648,23 @@ int cgroup_add_file(struct cgroup *cgrp,
 		error = PTR_ERR(dentry);
 	return error;
 }
-EXPORT_SYMBOL_GPL(cgroup_add_file);
 
-int cgroup_add_files(struct cgroup *cgrp,
-			struct cgroup_subsys *subsys,
-			const struct cftype cft[],
-			int count)
+static int cgroup_add_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
+			    const struct cftype cfts[])
 {
-	int i, err;
-	for (i = 0; i < count; i++) {
-		err = cgroup_add_file(cgrp, subsys, &cft[i]);
-		if (err)
-			return err;
+	const struct cftype *cft;
+	int err, ret = 0;
+
+	for (cft = cfts; cft->name[0] != '\0'; cft++) {
+		err = cgroup_add_file(cgrp, subsys, cft);
+		if (err) {
+			pr_warning("cgroup_add_files: failed to create %s, err=%d\n",
+				   cft->name, err);
+			ret = err;
+		}
 	}
-	return 0;
+	return ret;
 }
-EXPORT_SYMBOL_GPL(cgroup_add_files);
 
 static DEFINE_MUTEX(cgroup_cft_mutex);
 
@@ -2688,10 +2688,6 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 {
 	LIST_HEAD(pending);
 	struct cgroup *cgrp, *n;
-	int count = 0;
-
-	while (cfts[count].name[0] != '\0')
-		count++;
 
 	/* %NULL @cfts indicates abort and don't bother if @ss isn't attached */
 	if (cfts && ss->root != &rootnode) {
@@ -2713,7 +2709,7 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 		mutex_lock(&inode->i_mutex);
 		mutex_lock(&cgroup_mutex);
 		if (!cgroup_is_removed(cgrp))
-			cgroup_add_files(cgrp, ss, cfts, count);
+			cgroup_add_files(cgrp, ss, cfts);
 		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
 
@@ -3739,6 +3735,7 @@ static struct cftype files[] = {
 		.write_string = cgroup_release_agent_write,
 		.max_write_len = PATH_MAX,
 	},
+	{ }	/* terminate */
 };
 
 static int cgroup_populate_dir(struct cgroup *cgrp)
@@ -3746,7 +3743,7 @@ static int cgroup_populate_dir(struct cgroup *cgrp)
 	int err;
 	struct cgroup_subsys *ss;
 
-	err = cgroup_add_files(cgrp, NULL, files, ARRAY_SIZE(files));
+	err = cgroup_add_files(cgrp, NULL, files);
 	if (err < 0)
 		return err;
 
@@ -3757,16 +3754,8 @@ static int cgroup_populate_dir(struct cgroup *cgrp)
 		if (ss->populate && (err = ss->populate(ss, cgrp)) < 0)
 			return err;
 
-		list_for_each_entry(set, &ss->cftsets, node) {
-			const struct cftype *cft;
-
-			for (cft = set->cfts; cft->name[0] != '\0'; cft++) {
-				err = cgroup_add_file(cgrp, ss, cft);
-				if (err)
-					pr_warning("cgroup_populate_dir: failed to create %s, err=%d\n",
-						   cft->name, err);
-			}
-		}
+		list_for_each_entry(set, &ss->cftsets, node)
+			cgroup_add_files(cgrp, ss, set->cfts);
 	}
 
 	/* This cgroup is ready now */
