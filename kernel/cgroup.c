@@ -2690,17 +2690,20 @@ out:
 	return error;
 }
 
-static int cgroup_add_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
-			    const struct cftype cfts[])
+static int cgroup_addrm_files(struct cgroup *cgrp, struct cgroup_subsys *subsys,
+			      const struct cftype cfts[], bool is_add)
 {
 	const struct cftype *cft;
 	int err, ret = 0;
 
 	for (cft = cfts; cft->name[0] != '\0'; cft++) {
-		err = cgroup_add_file(cgrp, subsys, cft);
+		if (is_add)
+			err = cgroup_add_file(cgrp, subsys, cft);
+		else
+			err = cgroup_rm_file(cgrp, cft);
 		if (err) {
-			pr_warning("cgroup_add_files: failed to create %s, err=%d\n",
-				   cft->name, err);
+			pr_warning("cgroup_addrm_files: failed to %s %s, err=%d\n",
+				   is_add ? "add" : "remove", cft->name, err);
 			ret = err;
 		}
 	}
@@ -2724,7 +2727,7 @@ static void cgroup_cfts_prepare(void)
 }
 
 static void cgroup_cfts_commit(struct cgroup_subsys *ss,
-			       const struct cftype *cfts)
+			       const struct cftype *cfts, bool is_add)
 	__releases(&cgroup_mutex) __releases(&cgroup_cft_mutex)
 {
 	LIST_HEAD(pending);
@@ -2750,7 +2753,7 @@ static void cgroup_cfts_commit(struct cgroup_subsys *ss,
 		mutex_lock(&inode->i_mutex);
 		mutex_lock(&cgroup_mutex);
 		if (!cgroup_is_removed(cgrp))
-			cgroup_add_files(cgrp, ss, cfts);
+			cgroup_addrm_files(cgrp, ss, cfts, is_add);
 		mutex_unlock(&cgroup_mutex);
 		mutex_unlock(&inode->i_mutex);
 
@@ -2786,11 +2789,42 @@ int cgroup_add_cftypes(struct cgroup_subsys *ss, const struct cftype *cfts)
 	cgroup_cfts_prepare();
 	set->cfts = cfts;
 	list_add_tail(&set->node, &ss->cftsets);
-	cgroup_cfts_commit(ss, cfts);
+	cgroup_cfts_commit(ss, cfts, true);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cgroup_add_cftypes);
+
+/**
+ * cgroup_rm_cftypes - remove an array of cftypes from a subsystem
+ * @ss: target cgroup subsystem
+ * @cfts: zero-length name terminated array of cftypes
+ *
+ * Unregister @cfts from @ss.  Files described by @cfts are removed from
+ * all existing cgroups to which @ss is attached and all future cgroups
+ * won't have them either.  This function can be called anytime whether @ss
+ * is attached or not.
+ *
+ * Returns 0 on successful unregistration, -ENOENT if @cfts is not
+ * registered with @ss.
+ */
+int cgroup_rm_cftypes(struct cgroup_subsys *ss, const struct cftype *cfts)
+{
+	struct cftype_set *set;
+
+	cgroup_cfts_prepare();
+
+	list_for_each_entry(set, &ss->cftsets, node) {
+		if (set->cfts == cfts) {
+			list_del_init(&set->node);
+			cgroup_cfts_commit(ss, cfts, false);
+			return 0;
+		}
+	}
+
+	cgroup_cfts_commit(ss, NULL, false);
+	return -ENOENT;
+}
 
 /**
  * cgroup_task_count - count the number of tasks in a cgroup.
@@ -3784,7 +3818,7 @@ static int cgroup_populate_dir(struct cgroup *cgrp)
 	int err;
 	struct cgroup_subsys *ss;
 
-	err = cgroup_add_files(cgrp, NULL, files);
+	err = cgroup_addrm_files(cgrp, NULL, files, true);
 	if (err < 0)
 		return err;
 
@@ -3796,7 +3830,7 @@ static int cgroup_populate_dir(struct cgroup *cgrp)
 			return err;
 
 		list_for_each_entry(set, &ss->cftsets, node)
-			cgroup_add_files(cgrp, ss, set->cfts);
+			cgroup_addrm_files(cgrp, ss, set->cfts, true);
 	}
 
 	/* This cgroup is ready now */

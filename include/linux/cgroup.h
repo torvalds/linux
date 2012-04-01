@@ -406,6 +406,7 @@ struct cgroup_scanner {
 };
 
 int cgroup_add_cftypes(struct cgroup_subsys *ss, const struct cftype *cfts);
+int cgroup_rm_cftypes(struct cgroup_subsys *ss, const struct cftype *cfts);
 
 int cgroup_is_removed(const struct cgroup *cgrp);
 
