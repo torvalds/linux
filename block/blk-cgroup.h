@@ -64,46 +64,6 @@ struct blkg_rwstat {
 	uint64_t			cnt[BLKG_RWSTAT_NR];
 };
 
-struct blkio_group_stats {
-	/* total bytes transferred */
-	struct blkg_rwstat		service_bytes;
-	/* total IOs serviced, post merge */
-	struct blkg_rwstat		serviced;
-	/* number of ios merged */
-	struct blkg_rwstat		merged;
-	/* total time spent on device in ns, may not be accurate w/ queueing */
-	struct blkg_rwstat		service_time;
-	/* total time spent waiting in scheduler queue in ns */
-	struct blkg_rwstat		wait_time;
-	/* number of IOs queued up */
-	struct blkg_rwstat		queued;
-	/* total sectors transferred */
-	struct blkg_stat		sectors;
-	/* total disk time and nr sectors dispatched by this group */
-	struct blkg_stat		time;
-#ifdef CONFIG_DEBUG_BLK_CGROUP
-	/* time not charged to this cgroup */
-	struct blkg_stat		unaccounted_time;
-	/* sum of number of ios queued across all samples */
-	struct blkg_stat		avg_queue_size_sum;
-	/* count of samples taken for average */
-	struct blkg_stat		avg_queue_size_samples;
-	/* how many times this group has been removed from service tree */
-	struct blkg_stat		dequeue;
-	/* total time spent waiting for it to be assigned a timeslice. */
-	struct blkg_stat		group_wait_time;
-	/* time spent idling for this blkio_group */
-	struct blkg_stat		idle_time;
-	/* total time with empty current active q with other requests queued */
-	struct blkg_stat		empty_time;
-	/* fields after this shouldn't be cleared on stat reset */
-	uint64_t			start_group_wait_time;
-	uint64_t			start_idle_time;
-	uint64_t			start_empty_time;
-	uint16_t			flags;
-#endif
-};
-
 /* Per cpu blkio group stats */
 struct blkio_group_stats_cpu {
 	/* total bytes transferred */
@@ -126,7 +86,6 @@ struct blkg_policy_data {
 	/* Configuration */
 	struct blkio_group_conf conf;
 
-	struct blkio_group_stats stats;
 	/* Per cpu stats pointer */
 	struct blkio_group_stats_cpu __percpu *stats_cpu;
 

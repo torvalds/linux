@@ -417,25 +417,6 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 		struct blkio_policy_type *pol;
 
 		list_for_each_entry(pol, &blkio_list, list) {
-			struct blkg_policy_data *pd = blkg->pd[pol->plid];
-			struct blkio_group_stats *stats = &pd->stats;
-
-			/* queued stats shouldn't be cleared */
-			blkg_rwstat_reset(&stats->service_bytes);
-			blkg_rwstat_reset(&stats->serviced);
-			blkg_rwstat_reset(&stats->merged);
-			blkg_rwstat_reset(&stats->service_time);
-			blkg_rwstat_reset(&stats->wait_time);
-			blkg_stat_reset(&stats->time);
-#ifdef CONFIG_DEBUG_BLK_CGROUP
-			blkg_stat_reset(&stats->unaccounted_time);
-			blkg_stat_reset(&stats->avg_queue_size_sum);
-			blkg_stat_reset(&stats->avg_queue_size_samples);
-			blkg_stat_reset(&stats->dequeue);
-			blkg_stat_reset(&stats->group_wait_time);
-			blkg_stat_reset(&stats->idle_time);
-			blkg_stat_reset(&stats->empty_time);
-#endif
 			blkio_reset_stats_cpu(blkg, pol->plid);
 
 			if (pol->ops.blkio_reset_group_stats_fn)
@@ -549,13 +530,13 @@ static u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd,
 			    int off)
 {
 	return __blkg_prfill_u64(sf, pd,
-				 blkg_stat_read((void *)&pd->stats + off));
+				 blkg_stat_read((void *)pd->pdata + off));
 }
 
 static u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 			      int off)
 {
-	struct blkg_rwstat rwstat = blkg_rwstat_read((void *)&pd->stats + off);
+	struct blkg_rwstat rwstat = blkg_rwstat_read((void *)pd->pdata + off);
 
 	return __blkg_prfill_rwstat(sf, pd, &rwstat);
 }
