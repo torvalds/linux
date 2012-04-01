@@ -191,6 +191,8 @@ struct cgroup {
 	 */
 	struct list_head css_sets;
 
+	struct list_head allcg_node;	/* cgroupfs_root->allcg_list */
+
 	/*
 	 * Linked list running through all cgroups that can
 	 * potentially be reaped by the release agent. Protected by

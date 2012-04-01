@@ -127,6 +127,9 @@ struct cgroupfs_root {
 	/* A list running through the active hierarchies */
 	struct list_head root_list;
 
+	/* All cgroups on this root, cgroup_mutex protected */
+	struct list_head allcg_list;
+
 	/* Hierarchy-specific flags */
 	unsigned long flags;
 
@@ -1350,11 +1353,14 @@ static void init_cgroup_housekeeping(struct cgroup *cgrp)
 static void init_cgroup_root(struct cgroupfs_root *root)
 {
 	struct cgroup *cgrp = &root->top_cgroup;
+
 	INIT_LIST_HEAD(&root->subsys_list);
 	INIT_LIST_HEAD(&root->root_list);
+	INIT_LIST_HEAD(&root->allcg_list);
 	root->number_of_cgroups = 1;
 	cgrp->root = root;
 	cgrp->top_cgroup = cgrp;
+	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
 	init_cgroup_housekeeping(cgrp);
 }
 
@@ -3790,6 +3796,8 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	/* The cgroup directory was pre-locked for us */
 	BUG_ON(!mutex_is_locked(&cgrp->dentry->d_inode->i_mutex));
 
+	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
+
 	err = cgroup_populate_dir(cgrp);
 	/* If err < 0, we have a half-filled directory - oh well ;) */
 
@@ -3997,6 +4005,8 @@ again:
 	/* delete this cgroup from parent->children */
 	list_del_init(&cgrp->sibling);
 	cgroup_unlock_hierarchy(cgrp->root);
+
+	list_del_init(&cgrp->allcg_node);
 
 	d = dget(cgrp->dentry);
 
