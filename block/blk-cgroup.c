@@ -430,43 +430,35 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
 	return v;
 }
 
-static u64 blkg_prfill_stat(struct seq_file *sf, void *pdata, int off)
+/**
+ * blkg_prfill_stat - prfill callback for blkg_stat
+ * @sf: seq_file to print to
+ * @pdata: policy private data of interest
+ * @off: offset to the blkg_stat in @pdata
+ *
+ * prfill callback for printing a blkg_stat.
+ */
+u64 blkg_prfill_stat(struct seq_file *sf, void *pdata, int off)
 {
 	return __blkg_prfill_u64(sf, pdata, blkg_stat_read(pdata + off));
 }
+EXPORT_SYMBOL_GPL(blkg_prfill_stat);
 
-static u64 blkg_prfill_rwstat(struct seq_file *sf, void *pdata, int off)
+/**
+ * blkg_prfill_rwstat - prfill callback for blkg_rwstat
+ * @sf: seq_file to print to
+ * @pdata: policy private data of interest
+ * @off: offset to the blkg_rwstat in @pdata
+ *
+ * prfill callback for printing a blkg_rwstat.
+ */
+u64 blkg_prfill_rwstat(struct seq_file *sf, void *pdata, int off)
 {
 	struct blkg_rwstat rwstat = blkg_rwstat_read(pdata + off);
 
 	return __blkg_prfill_rwstat(sf, pdata, &rwstat);
 }
-
-/* print blkg_stat specified by BLKCG_STAT_PRIV() */
-int blkcg_print_stat(struct cgroup *cgrp, struct cftype *cft,
-		     struct seq_file *sf)
-{
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
-
-	blkcg_print_blkgs(sf, blkcg, blkg_prfill_stat,
-			  BLKCG_STAT_POL(cft->private),
-			  BLKCG_STAT_OFF(cft->private), false);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkcg_print_stat);
-
-/* print blkg_rwstat specified by BLKCG_STAT_PRIV() */
-int blkcg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
-		       struct seq_file *sf)
-{
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
-
-	blkcg_print_blkgs(sf, blkcg, blkg_prfill_rwstat,
-			  BLKCG_STAT_POL(cft->private),
-			  BLKCG_STAT_OFF(cft->private), true);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(blkcg_print_rwstat);
+EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
 
 /**
  * blkg_conf_prep - parse and prepare for per-blkg config update

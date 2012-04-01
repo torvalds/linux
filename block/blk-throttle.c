@@ -941,15 +941,13 @@ static u64 tg_prfill_cpu_rwstat(struct seq_file *sf, void *pdata, int off)
 	return __blkg_prfill_rwstat(sf, pdata, &rwstat);
 }
 
-/* print per-cpu blkg_rwstat specified by BLKCG_STAT_PRIV() */
 static int tg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
 			       struct seq_file *sf)
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
 
-	blkcg_print_blkgs(sf, blkcg, tg_prfill_cpu_rwstat,
-			  BLKCG_STAT_POL(cft->private),
-			  BLKCG_STAT_OFF(cft->private), true);
+	blkcg_print_blkgs(sf, blkcg, tg_prfill_cpu_rwstat, BLKIO_POLICY_THROTL,
+			  cft->private, true);
 	return 0;
 }
 
@@ -1067,14 +1065,12 @@ static struct cftype throtl_files[] = {
 	},
 	{
 		.name = "throttle.io_service_bytes",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_THROTL,
-				offsetof(struct tg_stats_cpu, service_bytes)),
+		.private = offsetof(struct tg_stats_cpu, service_bytes),
 		.read_seq_string = tg_print_cpu_rwstat,
 	},
 	{
 		.name = "throttle.io_serviced",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_THROTL,
-				offsetof(struct tg_stats_cpu, serviced)),
+		.private = offsetof(struct tg_stats_cpu, serviced),
 		.read_seq_string = tg_print_cpu_rwstat,
 	},
 	{ }	/* terminate */

@@ -1441,6 +1441,26 @@ static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
 	return 0;
 }
 
+static int cfqg_print_stat(struct cgroup *cgrp, struct cftype *cft,
+			   struct seq_file *sf)
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+
+	blkcg_print_blkgs(sf, blkcg, blkg_prfill_stat, BLKIO_POLICY_PROP,
+			  cft->private, false);
+	return 0;
+}
+
+static int cfqg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
+			     struct seq_file *sf)
+{
+	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+
+	blkcg_print_blkgs(sf, blkcg, blkg_prfill_rwstat, BLKIO_POLICY_PROP,
+			  cft->private, true);
+	return 0;
+}
+
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf, void *pdata, int off)
 {
@@ -1482,51 +1502,43 @@ static struct cftype cfq_blkcg_files[] = {
 	},
 	{
 		.name = "time",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.time)),
-		.read_seq_string = blkcg_print_stat,
+		.private = offsetof(struct cfq_group, stats.time),
+		.read_seq_string = cfqg_print_stat,
 	},
 	{
 		.name = "sectors",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.sectors)),
-		.read_seq_string = blkcg_print_stat,
+		.private = offsetof(struct cfq_group, stats.sectors),
+		.read_seq_string = cfqg_print_stat,
 	},
 	{
 		.name = "io_service_bytes",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.service_bytes)),
-		.read_seq_string = blkcg_print_rwstat,
+		.private = offsetof(struct cfq_group, stats.service_bytes),
+		.read_seq_string = cfqg_print_rwstat,
 	},
 	{
 		.name = "io_serviced",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.serviced)),
-		.read_seq_string = blkcg_print_rwstat,
+		.private = offsetof(struct cfq_group, stats.serviced),
+		.read_seq_string = cfqg_print_rwstat,
 	},
 	{
 		.name = "io_service_time",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.service_time)),
-		.read_seq_string = blkcg_print_rwstat,
+		.private = offsetof(struct cfq_group, stats.service_time),
+		.read_seq_string = cfqg_print_rwstat,
 	},
 	{
 		.name = "io_wait_time",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.wait_time)),
-		.read_seq_string = blkcg_print_rwstat,
+		.private = offsetof(struct cfq_group, stats.wait_time),
+		.read_seq_string = cfqg_print_rwstat,
 	},
 	{
 		.name = "io_merged",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.merged)),
-		.read_seq_string = blkcg_print_rwstat,
+		.private = offsetof(struct cfq_group, stats.merged),
+		.read_seq_string = cfqg_print_rwstat,
 	},
 	{
 		.name = "io_queued",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.queued)),
-		.read_seq_string = blkcg_print_rwstat,
+		.private = offsetof(struct cfq_group, stats.queued),
+		.read_seq_string = cfqg_print_rwstat,
 	},
 #ifdef CONFIG_DEBUG_BLK_CGROUP
 	{
@@ -1535,33 +1547,28 @@ static struct cftype cfq_blkcg_files[] = {
 	},
 	{
 		.name = "group_wait_time",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.group_wait_time)),
-		.read_seq_string = blkcg_print_stat,
+		.private = offsetof(struct cfq_group, stats.group_wait_time),
+		.read_seq_string = cfqg_print_stat,
 	},
 	{
 		.name = "idle_time",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.idle_time)),
-		.read_seq_string = blkcg_print_stat,
+		.private = offsetof(struct cfq_group, stats.idle_time),
+		.read_seq_string = cfqg_print_stat,
 	},
 	{
 		.name = "empty_time",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.empty_time)),
-		.read_seq_string = blkcg_print_stat,
+		.private = offsetof(struct cfq_group, stats.empty_time),
+		.read_seq_string = cfqg_print_stat,
 	},
 	{
 		.name = "dequeue",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.dequeue)),
-		.read_seq_string = blkcg_print_stat,
+		.private = offsetof(struct cfq_group, stats.dequeue),
+		.read_seq_string = cfqg_print_stat,
 	},
 	{
 		.name = "unaccounted_time",
-		.private = BLKCG_STAT_PRIV(BLKIO_POLICY_PROP,
-				offsetof(struct cfq_group, stats.unaccounted_time)),
-		.read_seq_string = blkcg_print_stat,
+		.private = offsetof(struct cfq_group, stats.unaccounted_time),
+		.read_seq_string = cfqg_print_stat,
 	},
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
 	{ }	/* terminate */
