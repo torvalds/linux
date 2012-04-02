@@ -435,7 +435,6 @@ typedef struct atemu {
 /* Private data (similar to async_struct in <linux/serial.h>) */
 typedef struct modem_info {
   int			magic;
-  struct module		*owner;
   int			flags;		 /* defined in tty.h               */
   int			x_char;		 /* xon/xoff character             */
   int			mcr;		 /* Modem control register         */

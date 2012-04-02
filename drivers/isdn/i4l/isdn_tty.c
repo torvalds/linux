@@ -1584,10 +1584,6 @@ isdn_tty_open(struct tty_struct *tty, struct file *filp)
 	info = &dev->mdm.info[tty->index];
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_open"))
 		return -ENODEV;
-	if (!try_module_get(info->owner)) {
-		printk(KERN_WARNING "%s: cannot reserve module\n", __func__);
-		return -ENODEV;
-	}
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_open %s, count = %d\n", tty->name,
 	       info->count);
@@ -1603,7 +1599,6 @@ isdn_tty_open(struct tty_struct *tty, struct file *filp)
 #ifdef ISDN_DEBUG_MODEM_OPEN
 		printk(KERN_DEBUG "isdn_tty_open return after startup\n");
 #endif
-		module_put(info->owner);
 		return retval;
 	}
 	retval = isdn_tty_block_til_ready(tty, filp, info);
@@ -1611,7 +1606,6 @@ isdn_tty_open(struct tty_struct *tty, struct file *filp)
 #ifdef ISDN_DEBUG_MODEM_OPEN
 		printk(KERN_DEBUG "isdn_tty_open return after isdn_tty_block_til_ready \n");
 #endif
-		module_put(info->owner);
 		return retval;
 	}
 #ifdef ISDN_DEBUG_MODEM_OPEN
@@ -1659,7 +1653,6 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 #ifdef ISDN_DEBUG_MODEM_OPEN
 		printk(KERN_DEBUG "isdn_tty_close after info->count != 0\n");
 #endif
-		module_put(info->owner);
 		return;
 	}
 	info->flags |= ASYNC_CLOSING;
@@ -1692,7 +1685,6 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	info->tty = NULL;
 	info->ncarrier = 0;
 	tty->closing = 0;
-	module_put(info->owner);
 	if (info->blocked_open) {
 		msleep_interruptible(500);
 		wake_up_interruptible(&info->open_wait);
@@ -1879,9 +1871,6 @@ isdn_tty_modem_init(void)
 			retval = -ENOMEM;
 			goto err_unregister;
 		}
-#endif
-#ifdef MODULE
-		info->owner = THIS_MODULE;
 #endif
 		spin_lock_init(&info->readlock);
 		sprintf(info->last_cause, "0000");
