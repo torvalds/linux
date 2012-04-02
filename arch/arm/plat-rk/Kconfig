@@ -95,6 +95,11 @@ config DDR_TEST
 	select CRC32
 	default y
 
+config DVFS
+	bool "Enable dvfs"
+	depends on REGULATOR&&CPU_FREQ
+	default y
+
 config WIFI_CONTROL_FUNC
         bool "Enable WiFi control function abstraction"
         help

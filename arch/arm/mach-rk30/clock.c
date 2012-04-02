@@ -162,7 +162,7 @@ static void __clk_reparent(struct clk *child, struct clk *parent)
 {
 	if (child->parent == parent)
 		return;
-	CLOCK_PRINTK_DBG("%s reparent to %s (was %s)\n", child->name, parent->name, ((child->parent) ? child->parent->name : "NULL"));
+	//CLOCK_PRINTK_DBG("%s reparent to %s (was %s)\n", child->name, parent->name, ((child->parent) ? child->parent->name : "NULL"));
 
 	list_del_init(&child->sibling);
 	if (parent)
@@ -267,7 +267,7 @@ int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 
 	if (ret == 0) {
 		__clk_recalc(clk);
-		//CLOCK_PRINTK_LOG("**set %s rate recalc=%lu\n",clk->name,clk->rate);
+		CLOCK_PRINTK_LOG("**set %s rate recalc=%lu\n",clk->name,clk->rate);
 		__propagate_rate(clk);
 	}
 

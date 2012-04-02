@@ -79,9 +79,10 @@ struct pds_list {
 
 struct clk_node {
 	char	*name;
-	int		cur_freq;
-	int		cur_volt;
+	int		set_freq;//khz
+	int		set_volt;
 	int		enable_dvfs;
+	struct clk *ck;
 	struct pds_list		*pds;
 	struct vd_node		*vd;
 	struct cpufreq_frequency_table	*dvfs_table;
@@ -90,13 +91,33 @@ struct clk_node {
 	clk_dvfs_target_callback clk_dvfs_target;
 };
 
+#ifdef CONFIG_DVFS
 int rk30_dvfs_init(void);
 int is_support_dvfs(struct clk_node *dvfs_info);
 int dvfs_set_rate(struct clk *clk, unsigned long rate);
-void clk_set_dvfs_target_rate_callback(struct clk *ck, clk_dvfs_target_callback clk_dvfs_target);
 int clk_enable_dvfs(struct clk *clk);
 int clk_disable_dvfs(struct clk *clk);
 int cpufreq_dvfs_init(struct clk *ck, struct cpufreq_frequency_table **table, clk_dvfs_target_callback clk_dvfs_target);
-int clk_dvfs_set_dvfs_table(struct clk *clk,struct cpufreq_frequency_table *table);
+void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target);
+struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk);
+int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table);
+int rk30_dvfs_init(void);
+#else
+int rk30_dvfs_init(void){};
+int is_support_dvfs(struct clk_node *dvfs_info){};
+int dvfs_set_rate(struct clk *clk, unsigned long rate){};
+int clk_enable_dvfs(struct clk *clk){};
+int clk_disable_dvfs(struct clk *clk){};
+int cpufreq_dvfs_init(struct clk *ck, struct cpufreq_frequency_table **table, clk_dvfs_target_callback clk_dvfs_target){};
+void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target){};
+struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk){};
+int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table);
+int rk30_dvfs_init(void){};
+
+
+
+
+#endif
+
 
 #endif
