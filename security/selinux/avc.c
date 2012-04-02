@@ -492,9 +492,7 @@ static noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 	slad.denied = denied;
 
 	a->selinux_audit_data->slad = &slad;
-	a->lsm_pre_audit = avc_audit_pre_callback;
-	a->lsm_post_audit = avc_audit_post_callback;
-	common_lsm_audit(a);
+	common_lsm_audit(a, avc_audit_pre_callback, avc_audit_post_callback);
 	return 0;
 }
 

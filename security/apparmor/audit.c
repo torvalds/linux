@@ -160,9 +160,7 @@ void aa_audit_msg(int type, struct common_audit_data *sa,
 		  void (*cb) (struct audit_buffer *, void *))
 {
 	sa->aad->type = type;
-	sa->lsm_pre_audit = audit_pre;
-	sa->lsm_post_audit = cb;
-	common_lsm_audit(sa);
+	common_lsm_audit(sa, audit_pre, cb);
 }
 
 /**

@@ -378,11 +378,15 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 /**
  * common_lsm_audit - generic LSM auditing function
  * @a:  auxiliary audit data
+ * @pre_audit: lsm-specific pre-audit callback
+ * @post_audit: lsm-specific post-audit callback
  *
  * setup the audit buffer for common security information
  * uses callback to print LSM specific information
  */
-void common_lsm_audit(struct common_audit_data *a)
+void common_lsm_audit(struct common_audit_data *a,
+	void (*pre_audit)(struct audit_buffer *, void *),
+	void (*post_audit)(struct audit_buffer *, void *))
 {
 	struct audit_buffer *ab;
 
@@ -394,13 +398,13 @@ void common_lsm_audit(struct common_audit_data *a)
 	if (ab == NULL)
 		return;
 
-	if (a->lsm_pre_audit)
-		a->lsm_pre_audit(ab, a);
+	if (pre_audit)
+		pre_audit(ab, a);
 
 	dump_common_audit_data(ab, a);
 
-	if (a->lsm_post_audit)
-		a->lsm_post_audit(ab, a);
+	if (post_audit)
+		post_audit(ab, a);
 
 	audit_log_end(ab);
 }

@@ -321,9 +321,8 @@ void smack_log(char *subject_label, char *object_label, int request,
 	sad->object  = object_label;
 	sad->request = request_buffer;
 	sad->result  = result;
-	a->lsm_pre_audit = smack_log_callback;
 
-	common_lsm_audit(a);
+	common_lsm_audit(a, smack_log_callback, NULL);
 }
 #else /* #ifdef CONFIG_AUDIT */
 void smack_log(char *subject_label, char *object_label, int request,

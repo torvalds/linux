@@ -82,9 +82,6 @@ struct common_audit_data {
 		struct apparmor_audit_data *apparmor_audit_data;
 #endif
 	}; /* per LSM data pointer union */
-	/* these callback will be implemented by a specific LSM */
-	void (*lsm_pre_audit)(struct audit_buffer *, void *);
-	void (*lsm_post_audit)(struct audit_buffer *, void *);
 };
 
 #define v4info fam.v4
@@ -101,6 +98,8 @@ int ipv6_skb_to_auditdata(struct sk_buff *skb,
 	{ memset((_d), 0, sizeof(struct common_audit_data)); \
 	 (_d)->type = LSM_AUDIT_DATA_##_t; }
 
-void common_lsm_audit(struct common_audit_data *a);
+void common_lsm_audit(struct common_audit_data *a,
+	void (*pre_audit)(struct audit_buffer *, void *),
+	void (*post_audit)(struct audit_buffer *, void *));
 
 #endif
