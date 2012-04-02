@@ -160,6 +160,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned long long tmpll;
 	struct dm_arg_set as;
 	const char *devname;
+	char dummy;
 
 	as.argc = argc;
 	as.argv = argv;
@@ -178,7 +179,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	devname = dm_shift_arg(&as);
 
-	if (sscanf(dm_shift_arg(&as), "%llu", &tmpll) != 1) {
+	if (sscanf(dm_shift_arg(&as), "%llu%c", &tmpll, &dummy) != 1) {
 		ti->error = "Invalid device sector";
 		goto bad;
 	}

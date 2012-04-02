@@ -3318,11 +3318,6 @@ static void _omap_dispc_initial_config(void)
 	if (dss_has_feature(FEAT_FUNCGATED))
 		REG_FLD_MOD(DISPC_CONFIG, 1, 9, 9);
 
-	/* L3 firewall setting: enable access to OCM RAM */
-	/* XXX this should be somewhere in plat-omap */
-	if (cpu_is_omap24xx())
-		__raw_writel(0x402000b0, OMAP2_L3_IO_ADDRESS(0x680050a0));
-
 	_dispc_setup_color_conv_coef();
 
 	dispc_set_loadmode(OMAP_DSS_LOAD_FRAME_ONLY);

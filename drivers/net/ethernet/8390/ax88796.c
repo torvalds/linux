@@ -31,7 +31,6 @@
 
 #include <net/ax88796.h>
 
-#include <asm/system.h>
 
 /* Rename the lib8390.c functions to show that they are in this driver */
 #define __ei_open ax_ei_open

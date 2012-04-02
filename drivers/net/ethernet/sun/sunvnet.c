@@ -1259,10 +1259,7 @@ static struct vio_driver vnet_port_driver = {
 	.id_table	= vnet_port_match,
 	.probe		= vnet_port_probe,
 	.remove		= vnet_port_remove,
-	.driver		= {
-		.name	= "vnet_port",
-		.owner	= THIS_MODULE,
-	}
+	.name		= "vnet_port",
 };
 
 static int __init vnet_init(void)

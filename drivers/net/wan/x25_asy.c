@@ -18,7 +18,6 @@
 
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/string.h>

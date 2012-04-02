@@ -201,7 +201,6 @@ config PL330_DMA
 	tristate "DMA API Driver for PL330"
 	select DMA_ENGINE
 	depends on ARM_AMBA
-	select PL330
 	help
 	  Select if your platform has one or more PL330 DMACs.
 	  You need to provide platform specific settings via
@@ -231,7 +230,7 @@ config IMX_SDMA
 
 config IMX_DMA
 	tristate "i.MX DMA support"
-	depends on IMX_HAVE_DMA_V1
+	depends on ARCH_MXC
 	select DMA_ENGINE
 	help
 	  Support the i.MX DMA engine. This engine is integrated into
@@ -251,6 +250,15 @@ config EP93XX_DMA
 	select DMA_ENGINE
 	help
 	  Enable support for the Cirrus Logic EP93xx M2P/M2M DMA controller.
+
+config DMA_SA11X0
+	tristate "SA-11x0 DMA support"
+	depends on ARCH_SA1100
+	select DMA_ENGINE
+	help
+	  Support the DMA engine found on Intel StrongARM SA-1100 and
+	  SA-1110 SoCs.  This DMA engine can only be used with on-chip
+	  devices.
 
 config DMA_ENGINE
 	bool

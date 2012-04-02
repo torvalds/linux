@@ -41,7 +41,6 @@
 #include <linux/freezer.h>
 #include <linux/crc32.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include "nfs4_fs.h"

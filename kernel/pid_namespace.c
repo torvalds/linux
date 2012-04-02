@@ -15,6 +15,7 @@
 #include <linux/acct.h>
 #include <linux/slab.h>
 #include <linux/proc_fs.h>
+#include <linux/reboot.h>
 
 #define BITS_PER_PAGE		(PAGE_SIZE*8)
 
@@ -183,6 +184,9 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 		rc = sys_wait4(-1, NULL, __WALL, NULL);
 	} while (rc != -ECHILD);
 
+	if (pid_ns->reboot)
+		current->signal->group_exit_code = pid_ns->reboot;
+
 	acct_exit_ns(pid_ns);
 	return;
 }
@@ -216,6 +220,35 @@ static struct ctl_table pid_ns_ctl_table[] = {
 };
 
 static struct ctl_path kern_path[] = { { .procname = "kernel", }, { } };
+
+int reboot_pid_ns(struct pid_namespace *pid_ns, int cmd)
+{
+	if (pid_ns == &init_pid_ns)
+		return 0;
+
+	switch (cmd) {
+	case LINUX_REBOOT_CMD_RESTART2:
+	case LINUX_REBOOT_CMD_RESTART:
+		pid_ns->reboot = SIGHUP;
+		break;
+
+	case LINUX_REBOOT_CMD_POWER_OFF:
+	case LINUX_REBOOT_CMD_HALT:
+		pid_ns->reboot = SIGINT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	read_lock(&tasklist_lock);
+	force_sig(SIGKILL, pid_ns->child_reaper);
+	read_unlock(&tasklist_lock);
+
+	do_exit(0);
+
+	/* Not reached */
+	return 0;
+}
 
 static __init int pid_namespaces_init(void)
 {

@@ -809,9 +809,12 @@ static void kvm_build_io_pmt(struct kvm *kvm)
 #define GUEST_PHYSICAL_RR4	0x2739
 #define VMM_INIT_RR		0x1660
 
-int kvm_arch_init_vm(struct kvm *kvm)
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	BUG_ON(!kvm);
+
+	if (type)
+		return -EINVAL;
 
 	kvm->arch.is_sn2 = ia64_platform_is("sn2");
 
@@ -1168,6 +1171,11 @@ out:
 }
 
 #define PALE_RESET_ENTRY    0x80000000ffffffb0UL
+
+bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu)
+{
+	return irqchip_in_kernel(vcpu->kcm) == (vcpu->arch.apic != NULL);
+}
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
@@ -1561,6 +1569,21 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 out:
 	kfree(stack);
 	return r;
+}
+
+int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
+{
+	return VM_FAULT_SIGBUS;
+}
+
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont)
+{
+}
+
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+{
+	return 0;
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,

@@ -34,7 +34,6 @@ static const char version[] =
 #include <linux/init.h>
 #include <linux/interrupt.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 

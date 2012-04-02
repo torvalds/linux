@@ -86,7 +86,7 @@ choice
 		depends on HAVE_AT91_DBGU0
 
 	config AT91_DEBUG_LL_DBGU1
-		bool "Kernel low-level debugging on 9263, 9g45 and cap9"
+		bool "Kernel low-level debugging on 9263 and 9g45"
 		depends on HAVE_AT91_DBGU1
 
 	config DEBUG_CLPS711X_UART1
@@ -180,12 +180,12 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on i.MX50 or i.MX53.
 
-	config DEBUG_IMX6Q_UART
-		bool "i.MX6Q Debug UART"
+	config DEBUG_IMX6Q_UART4
+		bool "i.MX6Q Debug UART4"
 		depends on SOC_IMX6Q
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX6Q.
+		  on i.MX6Q UART4.
 
 	config DEBUG_MSM_UART1
 		bool "Kernel low-level debugging messages via MSM UART1"
@@ -291,6 +291,22 @@ choice
 
 		  Note that the system will appear to hang during boot if there
 		  is nothing connected to read from the DCC.
+
+	config DEBUG_SEMIHOSTING
+		bool "Kernel low-level debug output via semihosting I"
+		help
+		  Semihosting enables code running on an ARM target to use
+		  the I/O facilities on a host debugger/emulator through a
+		  simple SVC calls. The host debugger or emulator must have
+		  semihosting enabled for the special svc call to be trapped
+		  otherwise the kernel will crash.
+
+		  This is known to work with OpenOCD, as wellas
+		  ARM's Fast Models, or any other controlling environment
+		  that implements semihosting.
+
+		  For more details about semihosting, please see
+		  chapter 8 of DUI0203I_rvct_developer_guide.pdf from ARM Ltd.
 
 endchoice
 

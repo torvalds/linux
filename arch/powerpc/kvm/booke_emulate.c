@@ -13,6 +13,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2008
+ * Copyright 2011 Freescale Semiconductor, Inc.
  *
  * Authors: Hollis Blanchard <hollisb@us.ibm.com>
  */
@@ -107,7 +108,7 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_DEAR:
 		vcpu->arch.shared->dar = spr_val; break;
 	case SPRN_ESR:
-		vcpu->arch.esr = spr_val; break;
+		vcpu->arch.shared->esr = spr_val; break;
 	case SPRN_DBCR0:
 		vcpu->arch.dbcr0 = spr_val; break;
 	case SPRN_DBCR1:
@@ -115,23 +116,23 @@ int kvmppc_booke_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 	case SPRN_DBSR:
 		vcpu->arch.dbsr &= ~spr_val; break;
 	case SPRN_TSR:
-		vcpu->arch.tsr &= ~spr_val; break;
+		kvmppc_clr_tsr_bits(vcpu, spr_val);
+		break;
 	case SPRN_TCR:
-		vcpu->arch.tcr = spr_val;
-		kvmppc_emulate_dec(vcpu);
+		kvmppc_set_tcr(vcpu, spr_val);
 		break;
 
 	/* Note: SPRG4-7 are user-readable. These values are
 	 * loaded into the real SPRGs when resuming the
 	 * guest. */
 	case SPRN_SPRG4:
-		vcpu->arch.sprg4 = spr_val; break;
+		vcpu->arch.shared->sprg4 = spr_val; break;
 	case SPRN_SPRG5:
-		vcpu->arch.sprg5 = spr_val; break;
+		vcpu->arch.shared->sprg5 = spr_val; break;
 	case SPRN_SPRG6:
-		vcpu->arch.sprg6 = spr_val; break;
+		vcpu->arch.shared->sprg6 = spr_val; break;
 	case SPRN_SPRG7:
-		vcpu->arch.sprg7 = spr_val; break;
+		vcpu->arch.shared->sprg7 = spr_val; break;
 
 	case SPRN_IVPR:
 		vcpu->arch.ivpr = spr_val;
@@ -202,13 +203,17 @@ int kvmppc_booke_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_DEAR:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->dar); break;
 	case SPRN_ESR:
-		kvmppc_set_gpr(vcpu, rt, vcpu->arch.esr); break;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->esr); break;
 	case SPRN_DBCR0:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.dbcr0); break;
 	case SPRN_DBCR1:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.dbcr1); break;
 	case SPRN_DBSR:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.dbsr); break;
+	case SPRN_TSR:
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.tsr); break;
+	case SPRN_TCR:
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.tcr); break;
 
 	case SPRN_IVOR0:
 		kvmppc_set_gpr(vcpu, rt, vcpu->arch.ivor[BOOKE_IRQPRIO_CRITICAL]);

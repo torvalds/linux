@@ -813,6 +813,12 @@ static int fsl_elbc_chip_init(struct fsl_elbc_mtd *priv)
 				&fsl_elbc_oob_sp_eccm1 : &fsl_elbc_oob_sp_eccm0;
 		chip->ecc.size = 512;
 		chip->ecc.bytes = 3;
+		chip->ecc.strength = 1;
+		/*
+		 * FIXME: can hardware ecc correct 4 bitflips if page size is
+		 * 2k?  Then does hardware report number of corrections for this
+		 * case?  If so, ecc_stats reporting needs to be fixed as well.
+		 */
 	} else {
 		/* otherwise fall back to default software ECC */
 		chip->ecc.mode = NAND_ECC_SOFT;

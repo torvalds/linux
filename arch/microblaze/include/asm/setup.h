@@ -20,6 +20,8 @@ extern unsigned int boot_cpuid; /* move to smp.h */
 
 extern char cmd_line[COMMAND_LINE_SIZE];
 
+extern char *klimit;
+
 void early_printk(const char *fmt, ...);
 
 int setup_early_printk(char *opt);
@@ -39,12 +41,17 @@ extern void of_platform_reset_gpio_probe(void);
 void time_init(void);
 void init_IRQ(void);
 void machine_early_init(const char *cmdline, unsigned int ram,
-			unsigned int fdt, unsigned int msr);
+		unsigned int fdt, unsigned int msr, unsigned int tlb0,
+		unsigned int tlb1);
 
 void machine_restart(char *cmd);
 void machine_shutdown(void);
 void machine_halt(void);
 void machine_power_off(void);
+
+void free_init_pages(char *what, unsigned long begin, unsigned long end);
+extern void *alloc_maybe_bootmem(size_t size, gfp_t mask);
+extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
 #  endif/* __KERNEL__ */
 # endif /* __ASSEMBLY__ */

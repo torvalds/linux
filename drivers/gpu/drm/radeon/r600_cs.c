@@ -78,6 +78,9 @@ struct r600_cs_track {
 	bool			cb_dirty;
 	bool			db_dirty;
 	bool			streamout_dirty;
+	struct radeon_bo	*htile_bo;
+	u64			htile_offset;
+	u32			htile_surface;
 };
 
 #define FMT_8_BIT(fmt, vc)   [fmt] = { 1, 1, 1, vc, CHIP_R600 }
@@ -321,6 +324,9 @@ static void r600_cs_track_init(struct r600_cs_track *track)
 	track->db_depth_size_idx = 0;
 	track->db_depth_control = 0xFFFFFFFF;
 	track->db_dirty = true;
+	track->htile_bo = NULL;
+	track->htile_offset = 0xFFFFFFFF;
+	track->htile_surface = 0;
 
 	for (i = 0; i < 4; i++) {
 		track->vgt_strmout_size[i] = 0;
@@ -455,12 +461,256 @@ static int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
 	return 0;
 }
 
+static int r600_cs_track_validate_db(struct radeon_cs_parser *p)
+{
+	struct r600_cs_track *track = p->track;
+	u32 nviews, bpe, ntiles, size, slice_tile_max, tmp;
+	u32 height_align, pitch_align, depth_align;
+	u32 pitch = 8192;
+	u32 height = 8192;
+	u64 base_offset, base_align;
+	struct array_mode_checker array_check;
+	int array_mode;
+	volatile u32 *ib = p->ib->ptr;
+
+
+	if (track->db_bo == NULL) {
+		dev_warn(p->dev, "z/stencil with no depth buffer\n");
+		return -EINVAL;
+	}
+	switch (G_028010_FORMAT(track->db_depth_info)) {
+	case V_028010_DEPTH_16:
+		bpe = 2;
+		break;
+	case V_028010_DEPTH_X8_24:
+	case V_028010_DEPTH_8_24:
+	case V_028010_DEPTH_X8_24_FLOAT:
+	case V_028010_DEPTH_8_24_FLOAT:
+	case V_028010_DEPTH_32_FLOAT:
+		bpe = 4;
+		break;
+	case V_028010_DEPTH_X24_8_32_FLOAT:
+		bpe = 8;
+		break;
+	default:
+		dev_warn(p->dev, "z/stencil with invalid format %d\n", G_028010_FORMAT(track->db_depth_info));
+		return -EINVAL;
+	}
+	if ((track->db_depth_size & 0xFFFFFC00) == 0xFFFFFC00) {
+		if (!track->db_depth_size_idx) {
+			dev_warn(p->dev, "z/stencil buffer size not set\n");
+			return -EINVAL;
+		}
+		tmp = radeon_bo_size(track->db_bo) - track->db_offset;
+		tmp = (tmp / bpe) >> 6;
+		if (!tmp) {
+			dev_warn(p->dev, "z/stencil buffer too small (0x%08X %d %d %ld)\n",
+					track->db_depth_size, bpe, track->db_offset,
+					radeon_bo_size(track->db_bo));
+			return -EINVAL;
+		}
+		ib[track->db_depth_size_idx] = S_028000_SLICE_TILE_MAX(tmp - 1) | (track->db_depth_size & 0x3FF);
+	} else {
+		size = radeon_bo_size(track->db_bo);
+		/* pitch in pixels */
+		pitch = (G_028000_PITCH_TILE_MAX(track->db_depth_size) + 1) * 8;
+		slice_tile_max = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
+		slice_tile_max *= 64;
+		height = slice_tile_max / pitch;
+		if (height > 8192)
+			height = 8192;
+		base_offset = track->db_bo_mc + track->db_offset;
+		array_mode = G_028010_ARRAY_MODE(track->db_depth_info);
+		array_check.array_mode = array_mode;
+		array_check.group_size = track->group_size;
+		array_check.nbanks = track->nbanks;
+		array_check.npipes = track->npipes;
+		array_check.nsamples = track->nsamples;
+		array_check.blocksize = bpe;
+		if (r600_get_array_mode_alignment(&array_check,
+					&pitch_align, &height_align, &depth_align, &base_align)) {
+			dev_warn(p->dev, "%s invalid tiling %d (0x%08X)\n", __func__,
+					G_028010_ARRAY_MODE(track->db_depth_info),
+					track->db_depth_info);
+			return -EINVAL;
+		}
+		switch (array_mode) {
+		case V_028010_ARRAY_1D_TILED_THIN1:
+			/* don't break userspace */
+			height &= ~0x7;
+			break;
+		case V_028010_ARRAY_2D_TILED_THIN1:
+			break;
+		default:
+			dev_warn(p->dev, "%s invalid tiling %d (0x%08X)\n", __func__,
+					G_028010_ARRAY_MODE(track->db_depth_info),
+					track->db_depth_info);
+			return -EINVAL;
+		}
+
+		if (!IS_ALIGNED(pitch, pitch_align)) {
+			dev_warn(p->dev, "%s:%d db pitch (%d, 0x%x, %d) invalid\n",
+					__func__, __LINE__, pitch, pitch_align, array_mode);
+			return -EINVAL;
+		}
+		if (!IS_ALIGNED(height, height_align)) {
+			dev_warn(p->dev, "%s:%d db height (%d, 0x%x, %d) invalid\n",
+					__func__, __LINE__, height, height_align, array_mode);
+			return -EINVAL;
+		}
+		if (!IS_ALIGNED(base_offset, base_align)) {
+			dev_warn(p->dev, "%s offset 0x%llx, 0x%llx, %d not aligned\n", __func__,
+					base_offset, base_align, array_mode);
+			return -EINVAL;
+		}
+
+		ntiles = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
+		nviews = G_028004_SLICE_MAX(track->db_depth_view) + 1;
+		tmp = ntiles * bpe * 64 * nviews;
+		if ((tmp + track->db_offset) > radeon_bo_size(track->db_bo)) {
+			dev_warn(p->dev, "z/stencil buffer (%d) too small (0x%08X %d %d %d -> %u have %lu)\n",
+					array_mode,
+					track->db_depth_size, ntiles, nviews, bpe, tmp + track->db_offset,
+					radeon_bo_size(track->db_bo));
+			return -EINVAL;
+		}
+	}
+
+	/* hyperz */
+	if (G_028010_TILE_SURFACE_ENABLE(track->db_depth_info)) {
+		unsigned long size;
+		unsigned nbx, nby;
+
+		if (track->htile_bo == NULL) {
+			dev_warn(p->dev, "%s:%d htile enabled without htile surface 0x%08x\n",
+				 __func__, __LINE__, track->db_depth_info);
+			return -EINVAL;
+		}
+		if ((track->db_depth_size & 0xFFFFFC00) == 0xFFFFFC00) {
+			dev_warn(p->dev, "%s:%d htile can't be enabled with bogus db_depth_size 0x%08x\n",
+				 __func__, __LINE__, track->db_depth_size);
+			return -EINVAL;
+		}
+
+		nbx = pitch;
+		nby = height;
+		if (G_028D24_LINEAR(track->htile_surface)) {
+			/* nbx must be 16 htiles aligned == 16 * 8 pixel aligned */
+			nbx = round_up(nbx, 16 * 8);
+			/* nby is npipes htiles aligned == npipes * 8 pixel aligned */
+			nby = round_up(nby, track->npipes * 8);
+		} else {
+			/* htile widht & nby (8 or 4) make 2 bits number */
+			tmp = track->htile_surface & 3;
+			/* align is htile align * 8, htile align vary according to
+			 * number of pipe and tile width and nby
+			 */
+			switch (track->npipes) {
+			case 8:
+				switch (tmp) {
+				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+					nbx = round_up(nbx, 64 * 8);
+					nby = round_up(nby, 64 * 8);
+					break;
+				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
+				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 64 * 8);
+					nby = round_up(nby, 32 * 8);
+					break;
+				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 32 * 8);
+					nby = round_up(nby, 32 * 8);
+					break;
+				default:
+					return -EINVAL;
+				}
+				break;
+			case 4:
+				switch (tmp) {
+				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+					nbx = round_up(nbx, 64 * 8);
+					nby = round_up(nby, 32 * 8);
+					break;
+				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
+				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 32 * 8);
+					nby = round_up(nby, 32 * 8);
+					break;
+				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 32 * 8);
+					nby = round_up(nby, 16 * 8);
+					break;
+				default:
+					return -EINVAL;
+				}
+				break;
+			case 2:
+				switch (tmp) {
+				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+					nbx = round_up(nbx, 32 * 8);
+					nby = round_up(nby, 32 * 8);
+					break;
+				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
+				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 32 * 8);
+					nby = round_up(nby, 16 * 8);
+					break;
+				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 16 * 8);
+					nby = round_up(nby, 16 * 8);
+					break;
+				default:
+					return -EINVAL;
+				}
+				break;
+			case 1:
+				switch (tmp) {
+				case 3:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 8*/
+					nbx = round_up(nbx, 32 * 8);
+					nby = round_up(nby, 16 * 8);
+					break;
+				case 2:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 8*/
+				case 1:	/* HTILE_WIDTH = 8 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 16 * 8);
+					nby = round_up(nby, 16 * 8);
+					break;
+				case 0:	/* HTILE_WIDTH = 4 & HTILE_HEIGHT = 4*/
+					nbx = round_up(nbx, 16 * 8);
+					nby = round_up(nby, 8 * 8);
+					break;
+				default:
+					return -EINVAL;
+				}
+				break;
+			default:
+				dev_warn(p->dev, "%s:%d invalid num pipes %d\n",
+					 __func__, __LINE__, track->npipes);
+				return -EINVAL;
+			}
+		}
+		/* compute number of htile */
+		nbx = G_028D24_HTILE_WIDTH(track->htile_surface) ? nbx / 8 : nbx / 4;
+		nby = G_028D24_HTILE_HEIGHT(track->htile_surface) ? nby / 8 : nby / 4;
+		size = nbx * nby * 4;
+		size += track->htile_offset;
+
+		if (size > radeon_bo_size(track->htile_bo)) {
+			dev_warn(p->dev, "%s:%d htile surface too small %ld for %ld (%d %d)\n",
+				 __func__, __LINE__, radeon_bo_size(track->htile_bo),
+				 size, nbx, nby);
+			return -EINVAL;
+		}
+	}
+
+	track->db_dirty = false;
+	return 0;
+}
+
 static int r600_cs_track_check(struct radeon_cs_parser *p)
 {
 	struct r600_cs_track *track = p->track;
 	u32 tmp;
 	int r, i;
-	volatile u32 *ib = p->ib->ptr;
 
 	/* on legacy kernel we don't perform advanced check */
 	if (p->rdev == NULL)
@@ -513,124 +763,14 @@ static int r600_cs_track_check(struct radeon_cs_parser *p)
 		track->cb_dirty = false;
 	}
 
-	if (track->db_dirty) {
-		/* Check depth buffer */
-		if (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
-			G_028800_Z_ENABLE(track->db_depth_control)) {
-			u32 nviews, bpe, ntiles, size, slice_tile_max;
-			u32 height, height_align, pitch, pitch_align, depth_align;
-			u64 base_offset, base_align;
-			struct array_mode_checker array_check;
-			int array_mode;
-
-			if (track->db_bo == NULL) {
-				dev_warn(p->dev, "z/stencil with no depth buffer\n");
-				return -EINVAL;
-			}
-			if (G_028010_TILE_SURFACE_ENABLE(track->db_depth_info)) {
-				dev_warn(p->dev, "this kernel doesn't support z/stencil htile\n");
-				return -EINVAL;
-			}
-			switch (G_028010_FORMAT(track->db_depth_info)) {
-			case V_028010_DEPTH_16:
-				bpe = 2;
-				break;
-			case V_028010_DEPTH_X8_24:
-			case V_028010_DEPTH_8_24:
-			case V_028010_DEPTH_X8_24_FLOAT:
-			case V_028010_DEPTH_8_24_FLOAT:
-			case V_028010_DEPTH_32_FLOAT:
-				bpe = 4;
-				break;
-			case V_028010_DEPTH_X24_8_32_FLOAT:
-				bpe = 8;
-				break;
-			default:
-				dev_warn(p->dev, "z/stencil with invalid format %d\n", G_028010_FORMAT(track->db_depth_info));
-				return -EINVAL;
-			}
-			if ((track->db_depth_size & 0xFFFFFC00) == 0xFFFFFC00) {
-				if (!track->db_depth_size_idx) {
-					dev_warn(p->dev, "z/stencil buffer size not set\n");
-					return -EINVAL;
-				}
-				tmp = radeon_bo_size(track->db_bo) - track->db_offset;
-				tmp = (tmp / bpe) >> 6;
-				if (!tmp) {
-					dev_warn(p->dev, "z/stencil buffer too small (0x%08X %d %d %ld)\n",
-							track->db_depth_size, bpe, track->db_offset,
-							radeon_bo_size(track->db_bo));
-					return -EINVAL;
-				}
-				ib[track->db_depth_size_idx] = S_028000_SLICE_TILE_MAX(tmp - 1) | (track->db_depth_size & 0x3FF);
-			} else {
-				size = radeon_bo_size(track->db_bo);
-				/* pitch in pixels */
-				pitch = (G_028000_PITCH_TILE_MAX(track->db_depth_size) + 1) * 8;
-				slice_tile_max = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
-				slice_tile_max *= 64;
-				height = slice_tile_max / pitch;
-				if (height > 8192)
-					height = 8192;
-				base_offset = track->db_bo_mc + track->db_offset;
-				array_mode = G_028010_ARRAY_MODE(track->db_depth_info);
-				array_check.array_mode = array_mode;
-				array_check.group_size = track->group_size;
-				array_check.nbanks = track->nbanks;
-				array_check.npipes = track->npipes;
-				array_check.nsamples = track->nsamples;
-				array_check.blocksize = bpe;
-				if (r600_get_array_mode_alignment(&array_check,
-								  &pitch_align, &height_align, &depth_align, &base_align)) {
-					dev_warn(p->dev, "%s invalid tiling %d (0x%08X)\n", __func__,
-						 G_028010_ARRAY_MODE(track->db_depth_info),
-						 track->db_depth_info);
-					return -EINVAL;
-				}
-				switch (array_mode) {
-				case V_028010_ARRAY_1D_TILED_THIN1:
-					/* don't break userspace */
-					height &= ~0x7;
-					break;
-				case V_028010_ARRAY_2D_TILED_THIN1:
-					break;
-				default:
-					dev_warn(p->dev, "%s invalid tiling %d (0x%08X)\n", __func__,
-						 G_028010_ARRAY_MODE(track->db_depth_info),
-						 track->db_depth_info);
-					return -EINVAL;
-				}
-
-				if (!IS_ALIGNED(pitch, pitch_align)) {
-					dev_warn(p->dev, "%s:%d db pitch (%d, 0x%x, %d) invalid\n",
-						 __func__, __LINE__, pitch, pitch_align, array_mode);
-					return -EINVAL;
-				}
-				if (!IS_ALIGNED(height, height_align)) {
-					dev_warn(p->dev, "%s:%d db height (%d, 0x%x, %d) invalid\n",
-						 __func__, __LINE__, height, height_align, array_mode);
-					return -EINVAL;
-				}
-				if (!IS_ALIGNED(base_offset, base_align)) {
-					dev_warn(p->dev, "%s offset[%d] 0x%llx, 0x%llx, %d not aligned\n", __func__, i,
-						 base_offset, base_align, array_mode);
-					return -EINVAL;
-				}
-
-				ntiles = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
-				nviews = G_028004_SLICE_MAX(track->db_depth_view) + 1;
-				tmp = ntiles * bpe * 64 * nviews;
-				if ((tmp + track->db_offset) > radeon_bo_size(track->db_bo)) {
-					dev_warn(p->dev, "z/stencil buffer (%d) too small (0x%08X %d %d %d -> %u have %lu)\n",
-						 array_mode,
-						 track->db_depth_size, ntiles, nviews, bpe, tmp + track->db_offset,
-						 radeon_bo_size(track->db_bo));
-					return -EINVAL;
-				}
-			}
-		}
-		track->db_dirty = false;
+	/* Check depth buffer */
+	if (track->db_dirty && (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
+		G_028800_Z_ENABLE(track->db_depth_control))) {
+		r = r600_cs_track_validate_db(p);
+		if (r)
+			return r;
 	}
+
 	return 0;
 }
 
@@ -1244,6 +1384,21 @@ static int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
 		track->db_dirty = true;
 		break;
 	case DB_HTILE_DATA_BASE:
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		track->htile_offset = radeon_get_ib_value(p, idx) << 8;
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		track->htile_bo = reloc->robj;
+		track->db_dirty = true;
+		break;
+	case DB_HTILE_SURFACE:
+		track->htile_surface = radeon_get_ib_value(p, idx);
+		track->db_dirty = true;
+		break;
 	case SQ_PGM_START_FS:
 	case SQ_PGM_START_ES:
 	case SQ_PGM_START_VS:

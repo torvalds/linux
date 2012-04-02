@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -2843,7 +2843,14 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_vport *vport = mboxq->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
-	if (mboxq->u.mb.mbxStatus) {
+	/*
+	 * VFI not supported for interface type 0, so ignore any mailbox
+	 * error (except VFI in use) and continue with the discovery.
+	 */
+	if (mboxq->u.mb.mbxStatus &&
+	    (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+			LPFC_SLI_INTF_IF_TYPE_0) &&
+	    mboxq->u.mb.mbxStatus != MBX_VFI_IN_USE) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
 			 "2018 REG_VFI mbxStatus error x%x "
 			 "HBA state x%x\n",
@@ -5673,14 +5680,13 @@ lpfc_fcf_inuse(struct lpfc_hba *phba)
 				ret = 1;
 				spin_unlock_irq(shost->host_lock);
 				goto out;
-			} else {
+			} else if (ndlp->nlp_flag & NLP_RPI_REGISTERED) {
+				ret = 1;
 				lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-					"2624 RPI %x DID %x flg %x still "
-					"logged in\n",
-					ndlp->nlp_rpi, ndlp->nlp_DID,
-					ndlp->nlp_flag);
-				if (ndlp->nlp_flag & NLP_RPI_REGISTERED)
-					ret = 1;
+						"2624 RPI %x DID %x flag %x "
+						"still logged in\n",
+						ndlp->nlp_rpi, ndlp->nlp_DID,
+						ndlp->nlp_flag);
 			}
 		}
 		spin_unlock_irq(shost->host_lock);

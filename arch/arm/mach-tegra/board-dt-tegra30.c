@@ -34,20 +34,42 @@
 #include <asm/hardware/gic.h>
 
 #include "board.h"
+#include "clock.h"
 
 static struct of_device_id tegra_dt_match_table[] __initdata = {
 	{ .compatible = "simple-bus", },
 	{}
 };
 
+struct of_dev_auxdata tegra30_auxdata_lookup[] __initdata = {
+	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", 0x78000000, "sdhci-tegra.0", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", 0x78000200, "sdhci-tegra.1", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", 0x78000400, "sdhci-tegra.2", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-sdhci", 0x78000600, "sdhci-tegra.3", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-i2c", 0x7000C000, "tegra-i2c.0", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-i2c", 0x7000C400, "tegra-i2c.1", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-i2c", 0x7000C500, "tegra-i2c.2", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-i2c", 0x7000C700, "tegra-i2c.3", NULL),
+	OF_DEV_AUXDATA("nvidia,tegra20-i2c", 0x7000D000, "tegra-i2c.4", NULL),
+	{}
+};
+
+static __initdata struct tegra_clk_init_table tegra_dt_clk_init_table[] = {
+	/* name		parent		rate		enabled */
+	{ "uarta",	"pll_p",	408000000,	true },
+	{ NULL,		NULL,		0,		0},
+};
+
 static void __init tegra30_dt_init(void)
 {
+	tegra_clk_init_from_table(tegra_dt_clk_init_table);
+
 	of_platform_populate(NULL, tegra_dt_match_table,
-				NULL, NULL);
+				tegra30_auxdata_lookup, NULL);
 }
 
 static const char *tegra30_dt_board_compat[] = {
-	"nvidia,cardhu",
+	"nvidia,tegra30",
 	NULL
 };
 

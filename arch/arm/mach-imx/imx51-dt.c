@@ -104,6 +104,7 @@ static struct sys_timer imx51_timer = {
 
 static const char *imx51_dt_board_compat[] __initdata = {
 	"fsl,imx51-babbage",
+	"fsl,imx51",
 	NULL
 };
 

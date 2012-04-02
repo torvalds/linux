@@ -170,7 +170,7 @@ struct usbhs_hcd_omap {
 /*-------------------------------------------------------------------------*/
 
 const char usbhs_driver_name[] = USBHS_DRIVER_NAME;
-static u64 usbhs_dmamask = ~(u32)0;
+static u64 usbhs_dmamask = DMA_BIT_MASK(32);
 
 /*-------------------------------------------------------------------------*/
 
@@ -223,7 +223,7 @@ static struct platform_device *omap_usbhs_alloc_child(const char *name,
 	}
 
 	child->dev.dma_mask		= &usbhs_dmamask;
-	child->dev.coherent_dma_mask	= 0xffffffff;
+	dma_set_coherent_mask(&child->dev, DMA_BIT_MASK(32));
 	child->dev.parent		= dev;
 
 	ret = platform_device_add(child);
@@ -799,13 +799,12 @@ static int __devinit usbhs_omap_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, omap);
 
+	omap_usbhs_init(dev);
 	ret = omap_usbhs_alloc_children(pdev);
 	if (ret) {
 		dev_err(dev, "omap_usbhs_alloc_children failed\n");
 		goto err_alloc;
 	}
-
-	omap_usbhs_init(dev);
 
 	goto end_probe;
 

@@ -480,6 +480,7 @@ fail0:
 
 	dev_err(&pdev->dev, "failed to register isp1704 with error %d\n", ret);
 
+	isp1704_charger_set_power(isp, 0);
 	return ret;
 }
 

@@ -35,7 +35,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/smp.h>
-#include <asm/system.h>
 #include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/pci.h>
@@ -447,7 +446,7 @@ static void __init __attribute__((noreturn)) prom_panic(const char *reason)
 	if (RELOC(of_platform) == PLATFORM_POWERMAC)
 		asm("trap\n");
 
-	/* ToDo: should put up an SRC here on p/iSeries */
+	/* ToDo: should put up an SRC here on pSeries */
 	call_prom("exit", 0, 0);
 
 	for (;;)			/* should never get here */

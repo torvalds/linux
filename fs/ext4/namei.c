@@ -468,7 +468,7 @@ fail2:
 fail:
 	if (*err == ERR_BAD_DX_DIR)
 		ext4_warning(dir->i_sb,
-			     "Corrupt dir inode %ld, running e2fsck is "
+			     "Corrupt dir inode %lu, running e2fsck is "
 			     "recommended.", dir->i_ino);
 	return NULL;
 }

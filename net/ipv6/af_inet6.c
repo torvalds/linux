@@ -60,7 +60,6 @@
 #endif
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/mroute6.h>
 
 MODULE_AUTHOR("Cast of dozens");

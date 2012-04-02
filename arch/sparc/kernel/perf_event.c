@@ -25,6 +25,8 @@
 #include <linux/atomic.h>
 #include <asm/nmi.h>
 #include <asm/pcr.h>
+#include <asm/perfctr.h>
+#include <asm/cacheflush.h>
 
 #include "kernel.h"
 #include "kstack.h"

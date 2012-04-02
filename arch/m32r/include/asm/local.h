@@ -12,7 +12,6 @@
 
 #include <linux/percpu.h>
 #include <asm/assembler.h>
-#include <asm/system.h>
 #include <asm/local.h>
 
 /*

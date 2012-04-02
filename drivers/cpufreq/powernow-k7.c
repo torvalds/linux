@@ -27,7 +27,6 @@
 
 #include <asm/timer.h>		/* Needed for recalibrate_cpu_khz() */
 #include <asm/msr.h>
-#include <asm/system.h>
 #include <asm/cpu_device_id.h>
 
 #ifdef CONFIG_X86_POWERNOW_K7_ACPI

@@ -44,7 +44,6 @@
 #include <asm/byteorder.h>
 #include <linux/io.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #define DRIVER_DESC	"USB Host+Gadget Emulator"

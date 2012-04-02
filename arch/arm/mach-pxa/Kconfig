@@ -108,6 +108,7 @@ config CSB726_CSB701
 
 config MACH_ARMCORE
 	bool "CompuLab CM-X255/CM-X270 modules"
+	select ARCH_HAS_DMA_SET_COHERENT_MASK if PCI
 	select PXA27x
 	select IWMMXT
 	select PXA25x

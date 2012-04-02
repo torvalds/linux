@@ -22,7 +22,6 @@
 #include <linux/slab.h>
 #include <linux/mount.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include "internal.h"
