@@ -4462,6 +4462,7 @@ static int __init rs_init(void)
 				info->enabled = 0;
 			}
 		}
+		tty_port_init(&info->port);
 		info->uses_dma_in = 0;
 		info->uses_dma_out = 0;
 		info->line = i;
