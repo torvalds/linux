@@ -738,11 +738,17 @@ err:
 
 enum af9035_id_entry {
 	AF9035_0CCD_0093,
+	AF9035_15A4_9035,
+	AF9035_15A4_1001,
 };
 
 static struct usb_device_id af9035_id[] = {
 	[AF9035_0CCD_0093] = {
 		USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_T_STICK)},
+	[AF9035_15A4_9035] = {
+		USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9035)},
+	[AF9035_15A4_1001] = {
+		USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9035_2)},
 	{},
 };
 
@@ -785,14 +791,20 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 
 		.i2c_algo = &af9035_i2c_algo,
 
-		.num_device_descs = 1,
+		.num_device_descs = 2,
 		.devices = {
 			{
 				.name = "TerraTec Cinergy T Stick",
 				.cold_ids = {
 					&af9035_id[AF9035_0CCD_0093],
 				},
-			},
+			}, {
+				.name = "Afatech Technologies DVB-T stick",
+				.cold_ids = {
+					&af9035_id[AF9035_15A4_9035],
+					&af9035_id[AF9035_15A4_1001],
+				},
+			}
 		}
 	},
 };
