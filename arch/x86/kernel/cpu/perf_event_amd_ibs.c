@@ -9,6 +9,7 @@
 #include <linux/perf_event.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/ptrace.h>
 
 #include <asm/apic.h>
 
@@ -382,7 +383,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	struct perf_raw_record raw;
 	struct pt_regs regs;
 	struct perf_ibs_data ibs_data;
-	int offset, size, overflow, reenable;
+	int offset, size, check_rip, offset_max, throttle = 0;
 	unsigned int msr;
 	u64 *buf, config;
 
@@ -413,28 +414,41 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 
 	perf_ibs_event_update(perf_ibs, event, config);
 	perf_sample_data_init(&data, 0, hwc->last_period);
+	if (!perf_ibs_set_period(perf_ibs, hwc, &config))
+		goto out;	/* no sw counter overflow */
+
+	ibs_data.caps = ibs_caps;
+	size = 1;
+	offset = 1;
+	check_rip = (perf_ibs == &perf_ibs_op && (ibs_caps & IBS_CAPS_RIPINVALIDCHK));
+	if (event->attr.sample_type & PERF_SAMPLE_RAW)
+		offset_max = perf_ibs->offset_max;
+	else if (check_rip)
+		offset_max = 2;
+	else
+		offset_max = 1;
+	do {
+		rdmsrl(msr + offset, *buf++);
+		size++;
+		offset = find_next_bit(perf_ibs->offset_mask,
+				       perf_ibs->offset_max,
+				       offset + 1);
+	} while (offset < offset_max);
+	ibs_data.size = sizeof(u64) * size;
+
+	regs = *iregs;
+	if (!check_rip || !(ibs_data.regs[2] & IBS_RIP_INVALID))
+		instruction_pointer_set(&regs, ibs_data.regs[1]);
 
 	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
-		ibs_data.caps = ibs_caps;
-		size = 1;
-		offset = 1;
-		do {
-		    rdmsrl(msr + offset, *buf++);
-		    size++;
-		    offset = find_next_bit(perf_ibs->offset_mask,
-					   perf_ibs->offset_max,
-					   offset + 1);
-		} while (offset < perf_ibs->offset_max);
-		raw.size = sizeof(u32) + sizeof(u64) * size;
+		raw.size = sizeof(u32) + ibs_data.size;
 		raw.data = ibs_data.data;
 		data.raw = &raw;
 	}
 
-	regs = *iregs; /* XXX: update ip from ibs sample */
-
-	overflow = perf_ibs_set_period(perf_ibs, hwc, &config);
-	reenable = !(overflow && perf_event_overflow(event, &data, &regs));
-	config = (config >> 4) | (reenable ? perf_ibs->enable_mask : 0);
+	throttle = perf_event_overflow(event, &data, &regs);
+out:
+	config = (config >> 4) | (throttle ? 0 : perf_ibs->enable_mask);
 	perf_ibs_enable_event(hwc, config);
 
 	perf_event_update_userpage(event);
