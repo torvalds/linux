@@ -248,7 +248,7 @@ static void hvsi_recv_control(struct hvsi_struct *hp, uint8_t *packet,
 				pr_debug("hvsi%i: CD dropped\n", hp->index);
 				hp->mctrl &= TIOCM_CD;
 				/* If userland hasn't done an open(2) yet, hp->tty is NULL. */
-				if (hp->tty && !(hp->tty->flags & CLOCAL))
+				if (hp->tty && !C_CLOCAL(hp->tty))
 					*to_hangup = hp->tty;
 			}
 			break;
