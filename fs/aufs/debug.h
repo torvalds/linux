@@ -25,7 +25,6 @@
 
 #ifdef __KERNEL__
 
-#include <asm/system.h>
 #include <linux/module.h>
 #include <linux/kallsyms.h>
 #include <linux/sysrq.h>
