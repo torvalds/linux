@@ -17,7 +17,6 @@
 
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
-#include <asm/system.h>
 
 #include <asm/mach-powertv/asic_regs.h>
 

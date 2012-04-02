@@ -34,9 +34,9 @@
 #include <asm/memory.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
+#include <asm/system_misc.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>

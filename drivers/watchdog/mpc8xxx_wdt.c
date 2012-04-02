@@ -17,6 +17,8 @@
  * option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -60,8 +62,8 @@ module_param(reset, bool, 0);
 MODULE_PARM_DESC(reset,
 	"Watchdog Interrupt/Reset Mode. 0 = interrupt, 1 = reset");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -96,7 +98,7 @@ static void mpc8xxx_wdt_timer_ping(unsigned long arg)
 
 static void mpc8xxx_wdt_pr_warn(const char *msg)
 {
-	pr_crit("mpc8xxx_wdt: %s, expect the %s soon!\n", msg,
+	pr_crit("%s, expect the %s soon!\n", msg,
 		reset ? "reset" : "machine check exception");
 }
 
@@ -209,7 +211,7 @@ static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev)
 
 	enabled = in_be32(&wd_base->swcrr) & SWCRR_SWEN;
 	if (!enabled && wdt_type->hw_enabled) {
-		pr_info("mpc8xxx_wdt: could not be enabled in software\n");
+		pr_info("could not be enabled in software\n");
 		ret = -ENOSYS;
 		goto err_unmap;
 	}
@@ -226,9 +228,8 @@ static int __devinit mpc8xxx_wdt_probe(struct platform_device *ofdev)
 		goto err_unmap;
 #endif
 
-	pr_info("WDT driver for MPC8xxx initialized. mode:%s timeout=%d "
-		"(%d seconds)\n", reset ? "reset" : "interrupt", timeout,
-		timeout_sec);
+	pr_info("WDT driver for MPC8xxx initialized. mode:%s timeout=%d (%d seconds)\n",
+		reset ? "reset" : "interrupt", timeout, timeout_sec);
 
 	/*
 	 * If the watchdog was previously enabled or we're running on
@@ -303,7 +304,7 @@ static int mpc8xxx_wdt_init_late(void)
 	ret = misc_register(&mpc8xxx_wdt_miscdev);
 	if (ret) {
 		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, ret);
+		       WATCHDOG_MINOR, ret);
 		return ret;
 	}
 	return 0;

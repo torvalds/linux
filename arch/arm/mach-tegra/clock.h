@@ -24,6 +24,8 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
+#include <mach/clk.h>
+
 #define DIV_BUS			(1 << 0)
 #define DIV_U71			(1 << 1)
 #define DIV_U71_FIXED		(1 << 2)
@@ -39,7 +41,16 @@
 #define PERIPH_MANUAL_RESET	(1 << 12)
 #define PLL_ALT_MISC_REG	(1 << 13)
 #define PLLU			(1 << 14)
+#define PLLX                    (1 << 15)
+#define MUX_PWM                 (1 << 16)
+#define MUX8                    (1 << 17)
+#define DIV_U71_UART            (1 << 18)
+#define MUX_CLK_OUT             (1 << 19)
+#define PLLM                    (1 << 20)
+#define DIV_U71_INT             (1 << 21)
+#define DIV_U71_IDLE            (1 << 22)
 #define ENABLE_ON_INIT		(1 << 28)
+#define PERIPH_ON_APB           (1 << 29)
 
 struct clk;
 
@@ -65,6 +76,8 @@ struct clk_ops {
 	int		(*set_rate)(struct clk *, unsigned long);
 	long		(*round_rate)(struct clk *, unsigned long);
 	void		(*reset)(struct clk *, bool);
+	int		(*clk_cfg_ex)(struct clk *,
+				enum tegra_clk_ex_param, u32);
 };
 
 enum clk_state {
@@ -114,6 +127,7 @@ struct clk {
 			unsigned long			vco_max;
 			const struct clk_pll_freq_table	*freq_table;
 			int				lock_delay;
+			unsigned long			fixed_rate;
 		} pll;
 		struct {
 			u32				sel;
@@ -146,6 +160,7 @@ struct tegra_clk_init_table {
 };
 
 void tegra2_init_clocks(void);
+void tegra30_init_clocks(void);
 void clk_init(struct clk *clk);
 struct clk *tegra_get_clock_by_name(const char *name);
 int clk_reparent(struct clk *c, struct clk *parent);

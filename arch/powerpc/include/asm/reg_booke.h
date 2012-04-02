@@ -15,6 +15,11 @@
 #ifndef __ASM_POWERPC_REG_BOOKE_H__
 #define __ASM_POWERPC_REG_BOOKE_H__
 
+#ifdef CONFIG_BOOKE_WDT
+extern u32 booke_wdt_enabled;
+extern u32 booke_wdt_period;
+#endif /* CONFIG_BOOKE_WDT */
+
 /* Machine State Register (MSR) Fields */
 #define MSR_GS		(1<<28) /* Guest state */
 #define MSR_UCLE	(1<<26)	/* User-mode cache lock enable */

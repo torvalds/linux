@@ -33,7 +33,6 @@
 #include <linux/pagemap.h>
 #include <linux/memblock.h>
 
-#include <asm/system.h>
 #include <asm/segment.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>

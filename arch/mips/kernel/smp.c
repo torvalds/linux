@@ -38,9 +38,9 @@
 #include <asm/cpu.h>
 #include <asm/processor.h>
 #include <asm/r4k-timer.h>
-#include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/time.h>
+#include <asm/setup.h>
 
 #ifdef CONFIG_MIPS_MT_SMTC
 #include <asm/mipsmtregs.h>

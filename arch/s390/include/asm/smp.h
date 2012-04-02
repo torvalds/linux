@@ -9,7 +9,7 @@
 
 #ifdef CONFIG_SMP
 
-#include <asm/system.h>
+#include <asm/lowcore.h>
 
 #define raw_smp_processor_id()	(S390_lowcore.cpu_nr)
 

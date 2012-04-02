@@ -85,6 +85,8 @@ extern mempool_t *cifs_sm_req_poolp;
 extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
+struct workqueue_struct	*cifsiod_wq;
+
 static int
 cifs_read_super(struct super_block *sb)
 {
@@ -1111,9 +1113,15 @@ init_cifs(void)
 		cFYI(1, "cifs_max_pending set to max of %u", CIFS_MAX_REQ);
 	}
 
+	cifsiod_wq = alloc_workqueue("cifsiod", WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!cifsiod_wq) {
+		rc = -ENOMEM;
+		goto out_clean_proc;
+	}
+
 	rc = cifs_fscache_register();
 	if (rc)
-		goto out_clean_proc;
+		goto out_destroy_wq;
 
 	rc = cifs_init_inodecache();
 	if (rc)
@@ -1161,6 +1169,8 @@ out_destroy_inodecache:
 	cifs_destroy_inodecache();
 out_unreg_fscache:
 	cifs_fscache_unregister();
+out_destroy_wq:
+	destroy_workqueue(cifsiod_wq);
 out_clean_proc:
 	cifs_proc_clean();
 	return rc;
@@ -1183,6 +1193,7 @@ exit_cifs(void)
 	cifs_destroy_mids();
 	cifs_destroy_inodecache();
 	cifs_fscache_unregister();
+	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }
 

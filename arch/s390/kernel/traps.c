@@ -33,7 +33,6 @@
 #include <linux/kprobes.h>
 #include <linux/bug.h>
 #include <linux/utsname.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/atomic.h>

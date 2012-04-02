@@ -160,6 +160,16 @@ module_param(rw_threshold, uint, S_IRUGO);
 MODULE_PARM_DESC(rw_threshold,
 		"Read/Write threshold. Default = 32");
 
+static unsigned poll_threshold = 128;
+module_param(poll_threshold, uint, S_IRUGO);
+MODULE_PARM_DESC(poll_threshold,
+		 "Polling transaction size threshold. Default = 128");
+
+static unsigned poll_loopcount = 32;
+module_param(poll_loopcount, uint, S_IRUGO);
+MODULE_PARM_DESC(poll_loopcount,
+		 "Maximum polling loop count. Default = 32");
+
 static unsigned __initdata use_dma = 1;
 module_param(use_dma, uint, 0);
 MODULE_PARM_DESC(use_dma, "Whether to use DMA or not. Default = 1");
@@ -193,6 +203,7 @@ struct mmc_davinci_host {
 	bool use_dma;
 	bool do_dma;
 	bool sdio_int;
+	bool active_request;
 
 	/* Scatterlist DMA uses one or more parameter RAM entries:
 	 * the main one (associated with rxdma or txdma) plus zero or
@@ -219,6 +230,7 @@ struct mmc_davinci_host {
 #endif
 };
 
+static irqreturn_t mmc_davinci_irq(int irq, void *dev_id);
 
 /* PIO only */
 static void mmc_davinci_sg_to_buf(struct mmc_davinci_host *host)
@@ -376,7 +388,20 @@ static void mmc_davinci_start_command(struct mmc_davinci_host *host,
 
 	writel(cmd->arg, host->base + DAVINCI_MMCARGHL);
 	writel(cmd_reg,  host->base + DAVINCI_MMCCMD);
-	writel(im_val, host->base + DAVINCI_MMCIM);
+
+	host->active_request = true;
+
+	if (!host->do_dma && host->bytes_left <= poll_threshold) {
+		u32 count = poll_loopcount;
+
+		while (host->active_request && count--) {
+			mmc_davinci_irq(0, host);
+			cpu_relax();
+		}
+	}
+
+	if (host->active_request)
+		writel(im_val, host->base + DAVINCI_MMCIM);
 }
 
 /*----------------------------------------------------------------------*/
@@ -915,6 +940,7 @@ mmc_davinci_xfer_done(struct mmc_davinci_host *host, struct mmc_data *data)
 	if (!data->stop || (host->cmd && host->cmd->error)) {
 		mmc_request_done(host->mmc, data->mrq);
 		writel(0, host->base + DAVINCI_MMCIM);
+		host->active_request = false;
 	} else
 		mmc_davinci_start_command(host, data->stop);
 }
@@ -942,6 +968,7 @@ static void mmc_davinci_cmd_done(struct mmc_davinci_host *host,
 			cmd->mrq->cmd->retries = 0;
 		mmc_request_done(host->mmc, cmd->mrq);
 		writel(0, host->base + DAVINCI_MMCIM);
+		host->active_request = false;
 	}
 }
 
@@ -1009,12 +1036,33 @@ static irqreturn_t mmc_davinci_irq(int irq, void *dev_id)
 	 * by read. So, it is not unbouned loop even in the case of
 	 * non-dma.
 	 */
-	while (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
-		davinci_fifo_data_trans(host, rw_threshold);
-		status = readl(host->base + DAVINCI_MMCST0);
-		if (!status)
-			break;
-		qstatus |= status;
+	if (host->bytes_left && (status & (MMCST0_DXRDY | MMCST0_DRRDY))) {
+		unsigned long im_val;
+
+		/*
+		 * If interrupts fire during the following loop, they will be
+		 * handled by the handler, but the PIC will still buffer these.
+		 * As a result, the handler will be called again to serve these
+		 * needlessly. In order to avoid these spurious interrupts,
+		 * keep interrupts masked during the loop.
+		 */
+		im_val = readl(host->base + DAVINCI_MMCIM);
+		writel(0, host->base + DAVINCI_MMCIM);
+
+		do {
+			davinci_fifo_data_trans(host, rw_threshold);
+			status = readl(host->base + DAVINCI_MMCST0);
+			qstatus |= status;
+		} while (host->bytes_left &&
+			 (status & (MMCST0_DXRDY | MMCST0_DRRDY)));
+
+		/*
+		 * If an interrupt is pending, it is assumed it will fire when
+		 * it is unmasked. This assumption is also taken when the MMCIM
+		 * is first set. Otherwise, writing to MMCIM after reading the
+		 * status is race-prone.
+		 */
+		writel(im_val, host->base + DAVINCI_MMCIM);
 	}
 
 	if (qstatus & MMCST0_DATDNE) {
@@ -1418,17 +1466,14 @@ static int davinci_mmcsd_suspend(struct device *dev)
 	struct mmc_davinci_host *host = platform_get_drvdata(pdev);
 	int ret;
 
-	mmc_host_enable(host->mmc);
 	ret = mmc_suspend_host(host->mmc);
 	if (!ret) {
 		writel(0, host->base + DAVINCI_MMCIM);
 		mmc_davinci_reset_ctrl(host, 1);
-		mmc_host_disable(host->mmc);
 		clk_disable(host->clk);
 		host->suspended = 1;
 	} else {
 		host->suspended = 0;
-		mmc_host_disable(host->mmc);
 	}
 
 	return ret;
@@ -1444,7 +1489,6 @@ static int davinci_mmcsd_resume(struct device *dev)
 		return 0;
 
 	clk_enable(host->clk);
-	mmc_host_enable(host->mmc);
 
 	mmc_davinci_reset_ctrl(host, 0);
 	ret = mmc_resume_host(host->mmc);

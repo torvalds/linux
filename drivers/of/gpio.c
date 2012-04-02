@@ -78,8 +78,9 @@ err0:
 EXPORT_SYMBOL(of_get_named_gpio_flags);
 
 /**
- * of_gpio_count - Count GPIOs for a device
+ * of_gpio_named_count - Count GPIOs for a device
  * @np:		device node to count GPIOs for
+ * @propname:	property name containing gpio specifier(s)
  *
  * The function returns the count of GPIOs specified for a node.
  *
@@ -93,14 +94,14 @@ EXPORT_SYMBOL(of_get_named_gpio_flags);
  * defines four GPIOs (so this function will return 4), two of which
  * are not specified.
  */
-unsigned int of_gpio_count(struct device_node *np)
+unsigned int of_gpio_named_count(struct device_node *np, const char* propname)
 {
 	unsigned int cnt = 0;
 
 	do {
 		int ret;
 
-		ret = of_parse_phandle_with_args(np, "gpios", "#gpio-cells",
+		ret = of_parse_phandle_with_args(np, propname, "#gpio-cells",
 						 cnt, NULL);
 		/* A hole in the gpios = <> counts anyway. */
 		if (ret < 0 && ret != -EEXIST)
@@ -109,7 +110,7 @@ unsigned int of_gpio_count(struct device_node *np)
 
 	return cnt;
 }
-EXPORT_SYMBOL(of_gpio_count);
+EXPORT_SYMBOL(of_gpio_named_count);
 
 /**
  * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
@@ -228,7 +229,7 @@ void of_gpiochip_remove(struct gpio_chip *chip)
 }
 
 /* Private function for resolving node pointer to gpio_chip */
-static int of_gpiochip_is_match(struct gpio_chip *chip, void *data)
+static int of_gpiochip_is_match(struct gpio_chip *chip, const void *data)
 {
 	return chip->of_node == data;
 }

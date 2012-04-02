@@ -28,7 +28,6 @@
 #include <asm/auxio.h>
 #include <asm/oplib.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -38,6 +37,7 @@
 #include <asm/elf.h>
 #include <asm/prom.h>
 #include <asm/unistd.h>
+#include <asm/setup.h>
 
 /* 
  * Power management idle function 

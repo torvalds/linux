@@ -19,7 +19,6 @@
 
 #include <linux/atomic.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 
 /*
  * These correspond to the IORESOURCE_IRQ_* defines in

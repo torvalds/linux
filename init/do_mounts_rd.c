@@ -54,20 +54,19 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 {
 	const int size = 512;
 	struct minix_super_block *minixsb;
-	struct ext2_super_block *ext2sb;
 	struct romfs_super_block *romfsb;
 	struct cramfs_super *cramfsb;
 	struct squashfs_super_block *squashfsb;
 	int nblocks = -1;
 	unsigned char *buf;
 	const char *compress_name;
+	unsigned long n;
 
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	minixsb = (struct minix_super_block *) buf;
-	ext2sb = (struct ext2_super_block *) buf;
 	romfsb = (struct romfs_super_block *) buf;
 	cramfsb = (struct cramfs_super *) buf;
 	squashfsb = (struct squashfs_super_block *) buf;
@@ -150,12 +149,12 @@ identify_ramdisk_image(int fd, int start_block, decompress_fn *decompressor)
 	}
 
 	/* Try ext2 */
-	if (ext2sb->s_magic == cpu_to_le16(EXT2_SUPER_MAGIC)) {
+	n = ext2_image_size(buf);
+	if (n) {
 		printk(KERN_NOTICE
 		       "RAMDISK: ext2 filesystem found at block %d\n",
 		       start_block);
-		nblocks = le32_to_cpu(ext2sb->s_blocks_count) <<
-			le32_to_cpu(ext2sb->s_log_block_size);
+		nblocks = n;
 		goto done;
 	}
 

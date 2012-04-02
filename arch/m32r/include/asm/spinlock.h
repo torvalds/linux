@@ -11,6 +11,7 @@
 
 #include <linux/compiler.h>
 #include <linux/atomic.h>
+#include <asm/dcache_clear.h>
 #include <asm/page.h>
 
 /*

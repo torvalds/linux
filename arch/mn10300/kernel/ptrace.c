@@ -21,7 +21,6 @@
 #include <linux/tracehook.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/cacheflush.h>
 #include <asm/fpu.h>

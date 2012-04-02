@@ -17,7 +17,6 @@
  *  Copyright (C) 1995,1996 Olaf Kirch <okir@monad.swb.de>
  */
 
-#include <asm/system.h>
 
 #include <linux/module.h>
 #include <linux/types.h>

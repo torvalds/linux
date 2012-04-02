@@ -231,7 +231,6 @@
 #include <linux/syscore_ops.h>
 #include <linux/i8253.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/desc.h>
 #include <asm/olpc.h>

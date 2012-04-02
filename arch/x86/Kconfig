@@ -69,7 +69,6 @@ config X86
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_TEXT_POKE_SMP
 	select HAVE_GENERIC_HARDIRQS
-	select HAVE_SPARSE_IRQ
 	select SPARSE_IRQ
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IRQ_PROBE
@@ -2125,6 +2124,13 @@ config NET5501
 	---help---
 	  This option enables system support for the Soekris Engineering net5501.
 
+config GEOS
+	bool "Traverse Technologies GEOS System Support (LEDS, GPIO, etc)"
+	select GPIOLIB
+	depends on DMI
+	---help---
+	  This option enables system support for the Traverse Technologies GEOS.
+
 endif # X86_32
 
 config AMD_NB
@@ -2157,9 +2163,9 @@ config IA32_EMULATION
 	depends on X86_64
 	select COMPAT_BINFMT_ELF
 	---help---
-	  Include code to run 32-bit programs under a 64-bit kernel. You should
-	  likely turn this on, unless you're 100% sure that you don't have any
-	  32-bit programs left.
+	  Include code to run legacy 32-bit programs under a
+	  64-bit kernel. You should likely turn this on, unless you're
+	  100% sure that you don't have any 32-bit programs left.
 
 config IA32_AOUT
 	tristate "IA32 a.out support"
@@ -2167,9 +2173,23 @@ config IA32_AOUT
 	---help---
 	  Support old a.out binaries in the 32bit emulation.
 
+config X86_X32
+	bool "x32 ABI for 64-bit mode (EXPERIMENTAL)"
+	depends on X86_64 && IA32_EMULATION && EXPERIMENTAL
+	---help---
+	  Include code to run binaries for the x32 native 32-bit ABI
+	  for 64-bit processors.  An x32 process gets access to the
+	  full 64-bit register file and wide data path while leaving
+	  pointers at 32 bits for smaller memory footprint.
+
+	  You will need a recent binutils (2.22 or later) with
+	  elf32_x86_64 support enabled to compile a kernel with this
+	  option set.
+
 config COMPAT
 	def_bool y
-	depends on IA32_EMULATION
+	depends on IA32_EMULATION || X86_X32
+	select ARCH_WANT_OLD_COMPAT_IPC
 
 config COMPAT_FOR_U64_ALIGNMENT
 	def_bool COMPAT

@@ -127,7 +127,6 @@
 #include <net/checksum.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include "lanstreamer.h"
 

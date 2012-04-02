@@ -734,7 +734,7 @@ void rpcb_getport_async(struct rpc_task *task)
 	map->r_vers = clnt->cl_vers;
 	map->r_prot = xprt->prot;
 	map->r_port = 0;
-	map->r_xprt = xprt_get(xprt);
+	map->r_xprt = xprt;
 	map->r_status = -EIO;
 
 	switch (bind_version) {

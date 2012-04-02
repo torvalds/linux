@@ -41,7 +41,6 @@
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include "soc_common.h"
 #include "sa11xx_base.h"

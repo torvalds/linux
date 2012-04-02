@@ -549,6 +549,7 @@ static int mid_thermal_remove(struct platform_device *pdev)
 
 static const struct platform_device_id therm_id_table[] = {
 	{ DRIVER_NAME, 1 },
+	{ "msic_thermal", 1 },
 	{ }
 };
 
@@ -564,18 +565,7 @@ static struct platform_driver mid_thermal_driver = {
 	.id_table = therm_id_table,
 };
 
-static int __init mid_thermal_module_init(void)
-{
-	return platform_driver_register(&mid_thermal_driver);
-}
-
-static void __exit mid_thermal_module_exit(void)
-{
-	platform_driver_unregister(&mid_thermal_driver);
-}
-
-module_init(mid_thermal_module_init);
-module_exit(mid_thermal_module_exit);
+module_platform_driver(mid_thermal_driver);
 
 MODULE_AUTHOR("Durgadoss R <durgadoss.r@intel.com>");
 MODULE_DESCRIPTION("Intel Medfield Platform Thermal Driver");

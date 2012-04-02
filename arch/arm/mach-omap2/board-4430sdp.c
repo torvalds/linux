@@ -324,7 +324,10 @@ static struct spi_board_info sdp4430_spi_board_info[] __initdata = {
 		.bus_num                = 1,
 		.chip_select            = 0,
 		.max_speed_hz           = 24000000,
-		.irq                    = ETH_KS8851_IRQ,
+		/*
+		 * .irq is set to gpio_to_irq(ETH_KS8851_IRQ)
+		 * in omap_4430sdp_init
+		 */
 	},
 };
 
@@ -487,21 +490,22 @@ static struct platform_device omap_vwlan_device = {
 
 static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 {
-	int ret = 0;
+	int irq = 0;
 	struct platform_device *pdev = container_of(dev,
 				struct platform_device, dev);
 	struct omap_mmc_platform_data *pdata = dev->platform_data;
 
 	/* Setting MMC1 Card detect Irq */
 	if (pdev->id == 0) {
-		ret = twl6030_mmc_card_detect_config();
-		if (ret)
+		irq = twl6030_mmc_card_detect_config();
+		if (irq < 0) {
 			pr_err("Failed configuring MMC1 card detect\n");
-		pdata->slots[0].card_detect_irq = TWL6030_IRQ_BASE +
-						MMCDETECT_INTR_OFFSET;
+			return irq;
+		}
+		pdata->slots[0].card_detect_irq = irq;
 		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
 	}
-	return ret;
+	return 0;
 }
 
 static __init void omap4_twl6030_hsmmc_set_late_init(struct device *dev)
@@ -521,9 +525,9 @@ static int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
 	struct omap2_hsmmc_info *c;
 
-	omap2_hsmmc_init(controllers);
+	omap_hsmmc_init(controllers);
 	for (c = controllers; c->mmc; c++)
-		omap4_twl6030_hsmmc_set_late_init(c->dev);
+		omap4_twl6030_hsmmc_set_late_init(&c->pdev->dev);
 
 	return 0;
 }
@@ -903,7 +907,6 @@ static void __init omap4_sdp4430_wifi_mux_init(void)
 }
 
 static struct wl12xx_platform_data omap4_sdp4430_wlan_data __initdata = {
-	.irq = OMAP_GPIO_IRQ(GPIO_WIFI_IRQ),
 	.board_ref_clock = WL12XX_REFCLOCK_26,
 	.board_tcxo_clock = WL12XX_TCXOCLOCK_26,
 };
@@ -913,6 +916,7 @@ static void __init omap4_sdp4430_wifi_init(void)
 	int ret;
 
 	omap4_sdp4430_wifi_mux_init();
+	omap4_sdp4430_wlan_data.irq = gpio_to_irq(GPIO_WIFI_IRQ);
 	ret = wl12xx_set_platform_data(&omap4_sdp4430_wlan_data);
 	if (ret)
 		pr_err("Error setting wl12xx data: %d\n", ret);

@@ -68,7 +68,6 @@
 #include <net/checksum.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include "3c359.h"
 

@@ -1508,12 +1508,8 @@ static int __init edma_probe(struct platform_device *pdev)
 			goto fail;
 		}
 
-		/* Everything lives on transfer controller 1 until otherwise
-		 * specified. This way, long transfers on the low priority queue
-		 * started by the codec engine will not cause audio defects.
-		 */
 		for (i = 0; i < edma_cc[j]->num_channels; i++)
-			map_dmach_queue(j, i, EVENTQ_1);
+			map_dmach_queue(j, i, info[j]->default_queue);
 
 		queue_tc_mapping = info[j]->queue_tc_mapping;
 		queue_priority_mapping = info[j]->queue_priority_mapping;

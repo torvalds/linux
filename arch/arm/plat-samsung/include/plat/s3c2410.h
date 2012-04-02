@@ -29,5 +29,3 @@ extern void s3c2410_init_clocks(int xtal);
 #define s3c2410_init NULL
 #define s3c2410a_init NULL
 #endif
-
-extern int s3c2410_baseclk_add(void);

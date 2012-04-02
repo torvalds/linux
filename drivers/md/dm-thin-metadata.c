@@ -614,7 +614,7 @@ static int __commit_transaction(struct dm_pool_metadata *pmd)
 	if (r < 0)
 		goto out;
 
-	r = dm_sm_root_size(pmd->metadata_sm, &data_len);
+	r = dm_sm_root_size(pmd->data_sm, &data_len);
 	if (r < 0)
 		goto out;
 
@@ -712,6 +712,9 @@ struct dm_pool_metadata *dm_pool_metadata_open(struct block_device *bdev,
 			     &sb_validator, &sblock);
 	if (r)
 		goto bad;
+
+	if (bdev_size > THIN_METADATA_MAX_SECTORS)
+		bdev_size = THIN_METADATA_MAX_SECTORS;
 
 	disk_super = dm_block_data(sblock);
 	disk_super->magic = cpu_to_le64(THIN_SUPERBLOCK_MAGIC);

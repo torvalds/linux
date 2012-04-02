@@ -1,8 +1,0 @@
-#!/bin/bash
-
-TARGETS=breakpoints
-
-for TARGET in $TARGETS
-do
-	$TARGET/run_test
-done

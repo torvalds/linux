@@ -34,9 +34,9 @@ static char *serial_version = "$Revision: 1.25 $";
 
 #include <asm/irq.h>
 #include <asm/dma.h>
-#include <asm/system.h>
 
 #include <arch/svinto.h>
+#include <arch/system.h>
 
 /* non-arch dependent serial structures are in linux/serial.h */
 #include <linux/serial.h>

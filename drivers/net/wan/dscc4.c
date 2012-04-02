@@ -93,7 +93,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>

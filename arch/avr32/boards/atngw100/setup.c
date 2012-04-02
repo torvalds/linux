@@ -97,6 +97,7 @@ static struct atmel_nand_data atngw100mkii_nand_data __initdata = {
 	.rdy_pin	= GPIO_PIN_PB(28),
 	.enable_pin	= GPIO_PIN_PE(23),
 	.bus_width_16	= true,
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= nand_partitions,
 	.num_parts	= ARRAY_SIZE(nand_partitions),
 };

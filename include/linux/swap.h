@@ -21,6 +21,9 @@ struct bio;
 #define SWAP_FLAG_PRIO_SHIFT	0
 #define SWAP_FLAG_DISCARD	0x10000 /* discard swap cluster after use */
 
+#define SWAP_FLAGS_VALID	(SWAP_FLAG_PRIO_MASK | SWAP_FLAG_PREFER | \
+				 SWAP_FLAG_DISCARD)
+
 static inline int current_is_kswapd(void)
 {
 	return current->flags & PF_KSWAPD;

@@ -27,9 +27,10 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
+#include <plat/dma.h>
+
 #include <mach/hardware.h>
 #include <mach/lcdc.h>
-#include <plat/dma.h>
 
 int omap_lcd_dma_running(void)
 {

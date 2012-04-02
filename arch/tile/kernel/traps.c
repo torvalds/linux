@@ -21,6 +21,7 @@
 #include <linux/ptrace.h>
 #include <asm/stack.h>
 #include <asm/traps.h>
+#include <asm/setup.h>
 
 #include <arch/interrupts.h>
 #include <arch/spr_def.h>

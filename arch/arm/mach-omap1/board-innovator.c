@@ -27,7 +27,6 @@
 #include <linux/smc91x.h>
 #include <linux/omapfb.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -38,8 +37,12 @@
 #include <plat/tc.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
-#include "common.h"
 #include <plat/mmc.h>
+
+#include <mach/hardware.h>
+
+#include "iomap.h"
+#include "common.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
 #define INNOVATOR1610_ETHR_START	0x04000300
@@ -245,8 +248,6 @@ static struct resource innovator1610_smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= OMAP_GPIO_IRQ(0),
-		.end	= OMAP_GPIO_IRQ(0),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
@@ -406,6 +407,8 @@ static void __init innovator_init(void)
 #endif
 #ifdef CONFIG_ARCH_OMAP16XX
 	if (!cpu_is_omap1510()) {
+		innovator1610_smc91x_resources[1].start = gpio_to_irq(0);
+		innovator1610_smc91x_resources[1].end = gpio_to_irq(0);
 		platform_add_devices(innovator1610_devices, ARRAY_SIZE(innovator1610_devices));
 	}
 #endif

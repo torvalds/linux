@@ -15,6 +15,7 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/system_misc.h>
 #include <mach/at91rm9200.h>
 #include <mach/at91_pmc.h>
 #include <mach/at91_st.h>
@@ -295,7 +296,7 @@ static void at91rm9200_idle(void)
 	 * Disable the processor clock.  The processor will be automatically
 	 * re-enabled by an interrupt or by a reset.
 	 */
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
+	at91_pmc_write(AT91_PMC_SCDR, AT91_PMC_PCK);
 }
 
 static void at91rm9200_restart(char mode, const char *cmd)
@@ -303,8 +304,8 @@ static void at91rm9200_restart(char mode, const char *cmd)
 	/*
 	 * Perform a hardware reset with the use of the Watchdog timer.
 	 */
-	at91_sys_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
-	at91_sys_write(AT91_ST_CR, AT91_ST_WDRST);
+	at91_st_write(AT91_ST_WDMR, AT91_ST_RSTEN | AT91_ST_EXTEN | 1);
+	at91_st_write(AT91_ST_CR, AT91_ST_WDRST);
 }
 
 /* --------------------------------------------------------------------
@@ -319,6 +320,8 @@ static void __init at91rm9200_map_io(void)
 
 static void __init at91rm9200_ioremap_registers(void)
 {
+	at91rm9200_ioremap_st(AT91RM9200_BASE_ST);
+	at91_ioremap_ramc(0, AT91RM9200_BASE_MC, 256);
 }
 
 static void __init at91rm9200_initialize(void)

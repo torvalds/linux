@@ -26,7 +26,6 @@
 #include <linux/audit.h>
 
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/traps.h>
 
 #define REG_PC	15
