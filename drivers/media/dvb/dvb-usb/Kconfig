@@ -428,6 +428,7 @@ config DVB_USB_AF9035
 	depends on DVB_USB
 	select DVB_AF9033
 	select MEDIA_TUNER_TUA9001 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_FC0011 if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Afatech AF9035 based DVB USB receiver.
 

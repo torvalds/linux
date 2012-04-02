@@ -22,6 +22,7 @@
 #include "af9035.h"
 #include "af9033.h"
 #include "tua9001.h"
+#include "fc0011.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static DEFINE_MUTEX(af9035_usb_mutex);
@@ -498,6 +499,7 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 
 		switch (tmp) {
 		case AF9033_TUNER_TUA9001:
+		case AF9033_TUNER_FC0011:
 			af9035_af9033_config[i].spec_inv = 1;
 			break;
 		default:
@@ -542,6 +544,83 @@ err:
 	return ret;
 }
 
+static int af9035_fc0011_tuner_callback(struct dvb_usb_device *d,
+					int cmd, int arg)
+{
+	int err;
+
+	switch (cmd) {
+	case FC0011_FE_CALLBACK_POWER:
+		/* Tuner enable */
+		err = af9035_wr_reg_mask(d, 0xd8eb, 1, 1);
+		if (err)
+			return err;
+		err = af9035_wr_reg_mask(d, 0xd8ec, 1, 1);
+		if (err)
+			return err;
+		err = af9035_wr_reg_mask(d, 0xd8ed, 1, 1);
+		if (err)
+			return err;
+		/* LED */
+		err = af9035_wr_reg_mask(d, 0xd8d0, 1, 1);
+		if (err)
+			return err;
+		err = af9035_wr_reg_mask(d, 0xd8d1, 1, 1);
+		if (err)
+			return err;
+		msleep(10);
+		break;
+	case FC0011_FE_CALLBACK_RESET:
+		err = af9035_wr_reg(d, 0xd8e9, 1);
+		if (err)
+			return err;
+		err = af9035_wr_reg(d, 0xd8e8, 1);
+		if (err)
+			return err;
+		err = af9035_wr_reg(d, 0xd8e7, 1);
+		if (err)
+			return err;
+		msleep(10);
+		err = af9035_wr_reg(d, 0xd8e7, 0);
+		if (err)
+			return err;
+		msleep(10);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int af9035_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
+{
+	switch (af9035_af9033_config[0].tuner) {
+	case AF9033_TUNER_FC0011:
+		return af9035_fc0011_tuner_callback(d, cmd, arg);
+	default:
+		break;
+	}
+
+	return -ENODEV;
+}
+
+static int af9035_frontend_callback(void *adapter_priv, int component,
+				    int cmd, int arg)
+{
+	struct i2c_adapter *adap = adapter_priv;
+	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+
+	switch (component) {
+	case DVB_FRONTEND_COMPONENT_TUNER:
+		return af9035_tuner_callback(d, cmd, arg);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
 static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
@@ -570,6 +649,7 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 		ret = -ENODEV;
 		goto err;
 	}
+	adap->fe_adap[0].fe->callback = af9035_frontend_callback;
 
 	return 0;
 
@@ -581,6 +661,10 @@ err:
 
 static struct tua9001_config af9035_tua9001_config = {
 	.i2c_addr = 0x60,
+};
+
+static const struct fc0011_config af9035_fc0011_config = {
+	.i2c_address = 0x60,
 };
 
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
@@ -630,6 +714,10 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		/* attach tuner */
 		fe = dvb_attach(tua9001_attach, adap->fe_adap[0].fe,
 				&adap->dev->i2c_adap, &af9035_tua9001_config);
+		break;
+	case AF9033_TUNER_FC0011:
+		fe = dvb_attach(fc0011_attach, adap->fe_adap[0].fe,
+				&adap->dev->i2c_adap, &af9035_fc0011_config);
 		break;
 	default:
 		fe = NULL;
