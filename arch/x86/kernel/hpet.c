@@ -94,13 +94,18 @@ static int hpet_verbose;
 
 static int __init hpet_setup(char *str)
 {
-	if (str) {
+	while (str) {
+		char *next = strchr(str, ',');
+
+		if (next)
+			*next++ = 0;
 		if (!strncmp("disable", str, 7))
 			boot_hpet_disable = 1;
 		if (!strncmp("force", str, 5))
 			hpet_force_user = 1;
 		if (!strncmp("verbose", str, 7))
 			hpet_verbose = 1;
+		str = next;
 	}
 	return 1;
 }
