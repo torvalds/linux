@@ -61,7 +61,7 @@ struct tty3270_line {
  */
 struct tty3270 {
 	struct raw3270_view view;
-	struct tty_struct *tty;		/* Pointer to tty structure */
+	struct tty_port port;
 	void **freemem_pages;		/* Array of pages used for freemem. */
 	struct list_head freemem;	/* List of free memory for strings. */
 
@@ -449,10 +449,9 @@ tty3270_rcl_add(struct tty3270 *tp, char *input, int len)
 static void
 tty3270_rcl_backward(struct kbd_data *kbd)
 {
-	struct tty3270 *tp;
+	struct tty3270 *tp = container_of(kbd->port, struct tty3270, port);
 	struct string *s;
 
-	tp = kbd->tty->driver_data;
 	spin_lock_bh(&tp->view.lock);
 	if (tp->inattr == TF_INPUT) {
 		if (tp->rcl_walk && tp->rcl_walk->prev != &tp->rcl_lines)
@@ -477,9 +476,8 @@ tty3270_rcl_backward(struct kbd_data *kbd)
 static void
 tty3270_exit_tty(struct kbd_data *kbd)
 {
-	struct tty3270 *tp;
+	struct tty3270 *tp = container_of(kbd->port, struct tty3270, port);
 
-	tp = kbd->tty->driver_data;
 	raw3270_deactivate_view(&tp->view);
 }
 
@@ -489,10 +487,9 @@ tty3270_exit_tty(struct kbd_data *kbd)
 static void
 tty3270_scroll_forward(struct kbd_data *kbd)
 {
-	struct tty3270 *tp;
+	struct tty3270 *tp = container_of(kbd->port, struct tty3270, port);
 	int nr_up;
 
-	tp = kbd->tty->driver_data;
 	spin_lock_bh(&tp->view.lock);
 	nr_up = tp->nr_up - tp->view.rows + 2;
 	if (nr_up < 0)
@@ -512,10 +509,9 @@ tty3270_scroll_forward(struct kbd_data *kbd)
 static void
 tty3270_scroll_backward(struct kbd_data *kbd)
 {
-	struct tty3270 *tp;
+	struct tty3270 *tp = container_of(kbd->port, struct tty3270, port);
 	int nr_up;
 
-	tp = kbd->tty->driver_data;
 	spin_lock_bh(&tp->view.lock);
 	nr_up = tp->nr_up + tp->view.rows - 2;
 	if (nr_up + tp->view.rows - 2 > tp->nr_lines)
@@ -575,13 +571,10 @@ tty3270_read_tasklet(struct raw3270_request *rrq)
 	raw3270_request_add_data(tp->kreset, &kreset_data, 1);
 	raw3270_start(&tp->view, tp->kreset);
 
-	/* Emit input string. */
-	if (tp->tty) {
-		while (len-- > 0)
-			kbd_keycode(tp->kbd, *input++);
-		/* Emit keycode for AID byte. */
-		kbd_keycode(tp->kbd, 256 + tp->input->string[0]);
-	}
+	while (len-- > 0)
+		kbd_keycode(tp->kbd, *input++);
+	/* Emit keycode for AID byte. */
+	kbd_keycode(tp->kbd, 256 + tp->input->string[0]);
 
 	raw3270_request_reset(rrq);
 	xchg(&tp->read, rrq);
@@ -691,6 +684,7 @@ tty3270_alloc_view(void)
 	INIT_LIST_HEAD(&tp->update);
 	INIT_LIST_HEAD(&tp->rcl_lines);
 	tp->rcl_max = 20;
+	tty_port_init(&tp->port);
 	setup_timer(&tp->timer, (void (*)(unsigned long)) tty3270_update,
 		    (unsigned long) tp);
 	tasklet_init(&tp->readlet,
@@ -802,14 +796,14 @@ static void
 tty3270_release(struct raw3270_view *view)
 {
 	struct tty3270 *tp = container_of(view, struct tty3270, view);
-	struct tty_struct *tty;
+	struct tty_struct *tty = tty_port_tty_get(&tp->port);
 
-	tty = tp->tty;
 	if (tty) {
 		tty->driver_data = NULL;
-		tp->tty = tp->kbd->tty = NULL;
+		tty_port_tty_set(&tp->port, NULL);
 		tty_hangup(tty);
 		raw3270_put_view(&tp->view);
+		tty_kref_put(tty);
 	}
 }
 
@@ -869,8 +863,8 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 		tty->winsize.ws_row = tp->view.rows - 2;
 		tty->winsize.ws_col = tp->view.cols;
 		tty->low_latency = 0;
-		tp->tty = tty;
-		tp->kbd->tty = tty;
+		/* why to reassign? */
+		tty_port_tty_set(&tp->port, tty);
 		tp->inattr = TF_INPUT;
 		return 0;
 	}
@@ -900,7 +894,7 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 		return rc;
 	}
 
-	tp->tty = tty;
+	tty_port_tty_set(&tp->port, tty);
 	tty->low_latency = 0;
 	tty->driver_data = tp;
 	tty->winsize.ws_row = tp->view.rows - 2;
@@ -914,7 +908,7 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 	for (i = 0; i < tp->view.rows - 2; i++)
 		tty3270_blank_line(tp);
 
-	tp->kbd->tty = tty;
+	tp->kbd->port = &tp->port;
 	tp->kbd->fn_handler[KVAL(K_INCRCONSOLE)] = tty3270_exit_tty;
 	tp->kbd->fn_handler[KVAL(K_SCROLLBACK)] = tty3270_scroll_backward;
 	tp->kbd->fn_handler[KVAL(K_SCROLLFORW)] = tty3270_scroll_forward;
@@ -938,7 +932,7 @@ tty3270_close(struct tty_struct *tty, struct file * filp)
 		return;
 	if (tp) {
 		tty->driver_data = NULL;
-		tp->tty = tp->kbd->tty = NULL;
+		tty_port_tty_set(&tp->port, NULL);
 		raw3270_put_view(&tp->view);
 	}
 }
@@ -1387,7 +1381,7 @@ tty3270_escape_sequence(struct tty3270 *tp, char ch)
 			tty3270_lf(tp);
 			break;
 		case 'Z':		/* Respond ID. */
-			kbd_puts_queue(tp->tty, "\033[?6c");
+			kbd_puts_queue(&tp->port, "\033[?6c");
 			break;
 		case '7':		/* Save cursor position. */
 			tp->saved_cx = tp->cx;
@@ -1433,11 +1427,11 @@ tty3270_escape_sequence(struct tty3270 *tp, char ch)
 	tp->esc_state = ESnormal;
 	if (ch == 'n' && !tp->esc_ques) {
 		if (tp->esc_par[0] == 5)		/* Status report. */
-			kbd_puts_queue(tp->tty, "\033[0n");
+			kbd_puts_queue(&tp->port, "\033[0n");
 		else if (tp->esc_par[0] == 6) {	/* Cursor report. */
 			char buf[40];
 			sprintf(buf, "\033[%d;%dR", tp->cy + 1, tp->cx + 1);
-			kbd_puts_queue(tp->tty, buf);
+			kbd_puts_queue(&tp->port, buf);
 		}
 		return;
 	}
