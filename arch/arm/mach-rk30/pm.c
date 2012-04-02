@@ -396,6 +396,7 @@ static int rk30_pm_enter(suspend_state_t state)
 	rk30_pm_set_power_domain(pmu_pwrdn_st, false);
 
 	sram_printch('1');
+	local_fiq_disable();
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
@@ -482,16 +483,12 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	board_gpio_suspend();
 
-	local_fiq_disable();
-
 	flush_tlb_all();
 	interface_ctr_reg_pread();
 
 	sram_printch('4');
 	rk30_suspend();
 	sram_printch('4');
-
-	local_fiq_enable();
 
 	board_gpio_resume();
 
@@ -522,6 +519,7 @@ static int rk30_pm_enter(suspend_state_t state)
 		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
 	}
 
+	local_fiq_enable();
 	sram_printch('1');
 
 	rk30_pm_set_power_domain(pmu_pwrdn_st, true);
