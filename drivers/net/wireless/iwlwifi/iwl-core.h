@@ -72,8 +72,6 @@
 struct iwl_host_cmd;
 struct iwl_cmd;
 
-#define TIME_UNIT		1024
-
 /***************************
  *   L i b                 *
  ***************************/

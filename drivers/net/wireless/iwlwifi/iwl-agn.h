@@ -82,6 +82,7 @@ extern struct iwl_lib_ops iwl6000_lib;
 extern struct iwl_lib_ops iwl6030_lib;
 
 
+#define TIME_UNIT		1024
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS
