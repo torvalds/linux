@@ -2383,6 +2383,23 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	return count;
 }
 
+static int iwl_cmd_echo_test(struct iwl_priv *priv)
+{
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_ECHO,
+		.len = { 0 },
+		.flags = CMD_SYNC,
+	};
+
+	ret = iwl_dvm_send_cmd(priv, &cmd);
+	if (ret)
+		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
+	else
+		IWL_DEBUG_INFO(priv, "echo testing pass\n");
+	return ret;
+}
+
 static ssize_t iwl_dbgfs_echo_test_write(struct file *file,
 					const char __user *user_buf,
 					size_t count, loff_t *ppos)

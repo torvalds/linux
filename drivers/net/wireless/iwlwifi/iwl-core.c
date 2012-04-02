@@ -275,20 +275,3 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 	}
 }
 #endif
-
-int iwl_cmd_echo_test(struct iwl_priv *priv)
-{
-	int ret;
-	struct iwl_host_cmd cmd = {
-		.id = REPLY_ECHO,
-		.len = { 0 },
-		.flags = CMD_SYNC,
-	};
-
-	ret = iwl_dvm_send_cmd(priv, &cmd);
-	if (ret)
-		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
-	else
-		IWL_DEBUG_INFO(priv, "echo testing pass\n");
-	return ret;
-}
