@@ -325,6 +325,14 @@ static inline void smk_ad_init(struct smk_audit_info *a, const char *func,
 	a->a.smack_audit_data->function = func;
 }
 
+static inline void smk_ad_init_net(struct smk_audit_info *a, const char *func,
+				   char type, struct lsm_network_audit *net)
+{
+	smk_ad_init(a, func, type);
+	memset(net, 0, sizeof(*net));
+	a->a.u.net = net;
+}
+
 static inline void smk_ad_setfield_u_tsk(struct smk_audit_info *a,
 					 struct task_struct *t)
 {
@@ -348,7 +356,7 @@ static inline void smk_ad_setfield_u_fs_path(struct smk_audit_info *a,
 static inline void smk_ad_setfield_u_net_sk(struct smk_audit_info *a,
 					    struct sock *sk)
 {
-	a->a.u.net.sk = sk;
+	a->a.u.net->sk = sk;
 }
 
 #else /* no AUDIT */

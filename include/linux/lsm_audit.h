@@ -22,6 +22,23 @@
 #include <linux/key.h>
 #include <linux/skbuff.h>
 
+struct lsm_network_audit {
+	int netif;
+	struct sock *sk;
+	u16 family;
+	__be16 dport;
+	__be16 sport;
+	union {
+		struct {
+			__be32 daddr;
+			__be32 saddr;
+		} v4;
+		struct {
+			struct in6_addr daddr;
+			struct in6_addr saddr;
+		} v6;
+	} fam;
+};
 
 /* Auxiliary data to use in generating the audit record. */
 struct common_audit_data {
@@ -41,23 +58,7 @@ struct common_audit_data {
 		struct path path;
 		struct dentry *dentry;
 		struct inode *inode;
-		struct {
-			int netif;
-			struct sock *sk;
-			u16 family;
-			__be16 dport;
-			__be16 sport;
-			union {
-				struct {
-					__be32 daddr;
-					__be32 saddr;
-				} v4;
-				struct {
-					struct in6_addr daddr;
-					struct in6_addr saddr;
-				} v6;
-			} fam;
-		} net;
+		struct lsm_network_audit *net;
 		int cap;
 		int ipc_id;
 		struct task_struct *tsk;
