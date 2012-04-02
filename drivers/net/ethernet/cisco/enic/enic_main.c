@@ -1193,18 +1193,16 @@ static int enic_get_vf_port(struct net_device *netdev, int vf,
 	if (err)
 		return err;
 
-	NLA_PUT_U16(skb, IFLA_PORT_REQUEST, pp->request);
-	NLA_PUT_U16(skb, IFLA_PORT_RESPONSE, response);
-	if (pp->set & ENIC_SET_NAME)
-		NLA_PUT(skb, IFLA_PORT_PROFILE, PORT_PROFILE_MAX,
-			pp->name);
-	if (pp->set & ENIC_SET_INSTANCE)
-		NLA_PUT(skb, IFLA_PORT_INSTANCE_UUID, PORT_UUID_MAX,
-			pp->instance_uuid);
-	if (pp->set & ENIC_SET_HOST)
-		NLA_PUT(skb, IFLA_PORT_HOST_UUID, PORT_UUID_MAX,
-			pp->host_uuid);
-
+	if (nla_put_u16(skb, IFLA_PORT_REQUEST, pp->request) ||
+	    nla_put_u16(skb, IFLA_PORT_RESPONSE, response) ||
+	    ((pp->set & ENIC_SET_NAME) &&
+	     nla_put(skb, IFLA_PORT_PROFILE, PORT_PROFILE_MAX, pp->name)) ||
+	    ((pp->set & ENIC_SET_INSTANCE) &&
+	     nla_put(skb, IFLA_PORT_INSTANCE_UUID, PORT_UUID_MAX,
+		     pp->instance_uuid)) ||
+	    ((pp->set & ENIC_SET_HOST) &&
+	     nla_put(skb, IFLA_PORT_HOST_UUID, PORT_UUID_MAX, pp->host_uuid)))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:
