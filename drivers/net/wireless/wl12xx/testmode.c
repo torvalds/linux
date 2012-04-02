@@ -116,7 +116,8 @@ static int wl1271_tm_cmd_test(struct wl1271 *wl, struct nlattr *tb[])
 			goto out_sleep;
 		}
 
-		NLA_PUT(skb, WL1271_TM_ATTR_DATA, buf_len, buf);
+		if (nla_put(skb, WL1271_TM_ATTR_DATA, buf_len, buf))
+			goto nla_put_failure;
 		ret = cfg80211_testmode_reply(skb);
 		if (ret < 0)
 			goto out_sleep;
@@ -178,7 +179,8 @@ static int wl1271_tm_cmd_interrogate(struct wl1271 *wl, struct nlattr *tb[])
 		goto out_free;
 	}
 
-	NLA_PUT(skb, WL1271_TM_ATTR_DATA, sizeof(*cmd), cmd);
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, sizeof(*cmd), cmd))
+		goto nla_put_failure;
 	ret = cfg80211_testmode_reply(skb);
 	if (ret < 0)
 		goto out_free;
@@ -297,7 +299,8 @@ static int wl12xx_tm_cmd_get_mac(struct wl1271 *wl, struct nlattr *tb[])
 		goto out;
 	}
 
-	NLA_PUT(skb, WL1271_TM_ATTR_DATA, ETH_ALEN, mac_addr);
+	if (nla_put(skb, WL1271_TM_ATTR_DATA, ETH_ALEN, mac_addr))
+		goto nla_put_failure;
 	ret = cfg80211_testmode_reply(skb);
 	if (ret < 0)
 		goto out;
