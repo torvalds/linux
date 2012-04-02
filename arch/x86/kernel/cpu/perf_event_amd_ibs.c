@@ -473,11 +473,13 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	u64 *buf, *config, period;
 
 	if (!test_bit(IBS_STARTED, pcpu->state)) {
-		/* Catch spurious interrupts after stopping IBS: */
-		if (!test_and_clear_bit(IBS_STOPPING, pcpu->state))
-			return 0;
-		rdmsrl(perf_ibs->msr, *ibs_data.regs);
-		return (*ibs_data.regs & perf_ibs->valid_mask) ? 1 : 0;
+		/*
+		 * Catch spurious interrupts after stopping IBS: After
+		 * disabling IBS there could be still incomming NMIs
+		 * with samples that even have the valid bit cleared.
+		 * Mark all this NMIs as handled.
+		 */
+		return test_and_clear_bit(IBS_STOPPING, pcpu->state) ? 1 : 0;
 	}
 
 	msr = hwc->config_base;
