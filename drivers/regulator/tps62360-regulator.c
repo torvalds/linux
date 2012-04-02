@@ -1,7 +1,7 @@
 /*
  * tps62360.c -- TI tps62360
  *
- * Driver for processor core supply tps62360 and tps62361B
+ * Driver for processor core supply tps62360, tps62361B, tps62362 and tps62363.
  *
  * Copyright (c) 2012, NVIDIA Corporation.
  *
@@ -46,7 +46,7 @@
 #define REG_RAMPCTRL		6
 #define REG_CHIPID		8
 
-enum chips {TPS62360, TPS62361};
+enum chips {TPS62360, TPS62361, TPS62362, TPS62363};
 
 #define TPS62360_BASE_VOLTAGE	770
 #define TPS62360_N_VOLTAGES	64
@@ -296,14 +296,26 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	tps->vsel0_gpio = pdata->vsel0_gpio;
 	tps->vsel1_gpio = pdata->vsel1_gpio;
 	tps->dev = &client->dev;
-	tps->voltage_base = (id->driver_data == TPS62360) ?
-				TPS62360_BASE_VOLTAGE : TPS62361_BASE_VOLTAGE;
-	tps->voltage_reg_mask = (id->driver_data == TPS62360) ? 0x3F : 0x7F;
+
+	switch (id->driver_data) {
+	case TPS62360:
+	case TPS62362:
+		tps->voltage_base = TPS62360_BASE_VOLTAGE;
+		tps->voltage_reg_mask = 0x3F;
+		tps->desc.n_voltages = TPS62360_N_VOLTAGES;
+		break;
+	case TPS62361:
+	case TPS62363:
+		tps->voltage_base = TPS62361_BASE_VOLTAGE;
+		tps->voltage_reg_mask = 0x7F;
+		tps->desc.n_voltages = TPS62361_N_VOLTAGES;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	tps->desc.name = id->name;
 	tps->desc.id = 0;
-	tps->desc.n_voltages = (id->driver_data == TPS62360) ?
-				TPS62360_N_VOLTAGES : TPS62361_N_VOLTAGES;
 	tps->desc.ops = &tps62360_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;
 	tps->desc.owner = THIS_MODULE;
@@ -435,6 +447,8 @@ static void tps62360_shutdown(struct i2c_client *client)
 static const struct i2c_device_id tps62360_id[] = {
 	{.name = "tps62360", .driver_data = TPS62360},
 	{.name = "tps62361", .driver_data = TPS62361},
+	{.name = "tps62362", .driver_data = TPS62362},
+	{.name = "tps62363", .driver_data = TPS62363},
 	{},
 };
 
@@ -464,5 +478,5 @@ static void __exit tps62360_cleanup(void)
 module_exit(tps62360_cleanup);
 
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("TPS62360 voltage regulator driver");
+MODULE_DESCRIPTION("TPS6236x voltage regulator driver");
 MODULE_LICENSE("GPL v2");

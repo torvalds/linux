@@ -268,11 +268,11 @@ config REGULATOR_TPS6105X
 	  audio amplifiers.
 
 config REGULATOR_TPS62360
-	tristate "TI TPS62360 Power Regulator"
+	tristate "TI TPS6236x Power Regulator"
 	depends on I2C
 	select REGMAP_I2C
 	help
-	  This driver supports TPS62360 voltage regulator chip. This
+	  This driver supports TPS6236x voltage regulator chip. This
 	  regulator is meant for processor core supply. This chip is
 	  high-frequency synchronous step down dc-dc converter optimized
 	  for battery-powered portable applications.
