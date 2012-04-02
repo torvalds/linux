@@ -162,7 +162,8 @@ static void rs_stop(struct tty_struct *tty)
 
 static int rs_put_char(char ch)
 {
-        int flags, loops = 0;
+	unsigned long flags;
+	int loops = 0;
 
         local_irq_save(flags);
 
@@ -1182,7 +1183,8 @@ static const struct tty_operations rs_ops = {
 static int __init
 rs68328_init(void)
 {
-	int flags, i;
+	unsigned long flags;
+	int i;
 	struct m68k_serial *info;
 
 	serial_driver = alloc_tty_driver(NR_PORTS);
