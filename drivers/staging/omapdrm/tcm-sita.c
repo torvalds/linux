@@ -200,7 +200,7 @@ static s32 sita_reserve_1d(struct tcm *tcm, u32 num_slots,
  *
  * @param w	width
  * @param h	height
- * @param area	pointer to the area that will be populated with the reesrved
+ * @param area	pointer to the area that will be populated with the reserved
  *		area
  *
  * @return 0 on success, non-0 error value on failure.
