@@ -1657,6 +1657,63 @@ static void calc_dma_rotation_offset(u8 rotation, bool mirror,
 	}
 }
 
+/*
+ * This function is used to avoid synclosts in OMAP3, because of some
+ * undocumented horizontal position and timing related limitations.
+ */
+static int check_horiz_timing_omap3(enum omap_channel channel, u16 pos_x,
+		u16 width, u16 height, u16 out_width, u16 out_height)
+{
+	int DS = DIV_ROUND_UP(height, out_height);
+	struct omap_dss_device *dssdev = dispc_mgr_get_device(channel);
+	struct omap_video_timings t = dssdev->panel.timings;
+	unsigned long nonactive, lclk, pclk;
+	static const u8 limits[3] = { 8, 10, 20 };
+	u64 val, blank;
+	int i;
+
+	nonactive = t.x_res + t.hfp + t.hsw + t.hbp - out_width;
+	pclk = dispc_mgr_pclk_rate(channel);
+	if (dispc_mgr_is_lcd(channel))
+		lclk = dispc_mgr_lclk_rate(channel);
+	else
+		lclk = dispc_fclk_rate();
+
+	i = 0;
+	if (out_height < height)
+		i++;
+	if (out_width < width)
+		i++;
+	blank = div_u64((u64)(t.hbp + t.hsw + t.hfp) * lclk, pclk);
+	DSSDBG("blanking period + ppl = %llu (limit = %u)\n", blank, limits[i]);
+	if (blank <= limits[i])
+		return -EINVAL;
+
+	/*
+	 * Pixel data should be prepared before visible display point starts.
+	 * So, atleast DS-2 lines must have already been fetched by DISPC
+	 * during nonactive - pos_x period.
+	 */
+	val = div_u64((u64)(nonactive - pos_x) * lclk, pclk);
+	DSSDBG("(nonactive - pos_x) * pcd = %llu max(0, DS - 2) * width = %d\n",
+		val, max(0, DS - 2) * width);
+	if (val < max(0, DS - 2) * width)
+		return -EINVAL;
+
+	/*
+	 * All lines need to be refilled during the nonactive period of which
+	 * only one line can be loaded during the active period. So, atleast
+	 * DS - 1 lines should be loaded during nonactive period.
+	 */
+	val =  div_u64((u64)nonactive * lclk, pclk);
+	DSSDBG("nonactive * pcd  = %llu, max(0, DS - 1) * width = %d\n",
+		val, max(0, DS - 1) * width);
+	if (val < max(0, DS - 1) * width)
+		return -EINVAL;
+
+	return 0;
+}
+
 static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 		u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode)
@@ -1741,7 +1798,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 		enum omap_channel channel, u16 width, u16 height,
 		u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode, bool *five_taps,
-		int *x_predecim, int *y_predecim)
+		int *x_predecim, int *y_predecim, u16 pos_x)
 {
 	struct omap_overlay *ovl = omap_dss_get_overlay(plane);
 	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
@@ -1817,6 +1874,9 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 			fclk = calc_fclk_five_taps(channel, in_width, in_height,
 				out_width, out_height, color_mode);
 
+			error = check_horiz_timing_omap3(channel, pos_x,
+				in_width, in_height, out_width, out_height);
+
 			if (in_width > maxsinglelinewidth)
 				if (in_height > out_height &&
 					in_height < out_height * 2)
@@ -1824,7 +1884,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 			if (!*five_taps)
 				fclk = calc_fclk(channel, in_width, in_height,
 					out_width, out_height);
-			error = (in_width > maxsinglelinewidth * 2 ||
+			error = (error || in_width > maxsinglelinewidth * 2 ||
 				(in_width > maxsinglelinewidth && *five_taps) ||
 				!fclk || fclk > dispc_fclk_rate());
 			if (error) {
@@ -1839,6 +1899,12 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 			}
 		} while (decim_x <= *x_predecim && decim_y <= *y_predecim
 			&& error);
+
+		if (check_horiz_timing_omap3(channel, pos_x, width, height,
+			out_width, out_height)){
+				DSSERR("horizontal timing too tight\n");
+				return -EINVAL;
+		}
 
 		if (in_width > (maxsinglelinewidth * 2)) {
 			DSSERR("Cannot setup scaling");
@@ -1944,7 +2010,7 @@ int dispc_ovl_setup(enum omap_plane plane, struct omap_overlay_info *oi,
 
 	r = dispc_ovl_calc_scaling(plane, channel, in_width, in_height,
 			out_width, out_height, oi->color_mode, &five_taps,
-			&x_predecim, &y_predecim);
+			&x_predecim, &y_predecim, oi->pos_x);
 	if (r)
 		return r;
 
