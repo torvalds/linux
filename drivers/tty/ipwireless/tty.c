@@ -565,11 +565,11 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 			ttyj->closing = 1;
 			if (ttyj->linux_tty != NULL) {
 				mutex_unlock(&ttyj->ipw_tty_mutex);
-				tty_hangup(ttyj->linux_tty);
-				/* Wait till the tty_hangup has completed */
-				flush_work_sync(&ttyj->linux_tty->hangup_work);
+				tty_vhangup(ttyj->linux_tty);
 				/* FIXME: Exactly how is the tty object locked here
 				   against a parallel ioctl etc */
+				/* FIXME2: hangup does not mean all processes
+				 * are gone */
 				mutex_lock(&ttyj->ipw_tty_mutex);
 			}
 			while (ttyj->open_count)
