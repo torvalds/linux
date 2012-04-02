@@ -224,6 +224,22 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
 		return -EAGAIN;
 
+	/*
+	 * I2C sub header is 5 bytes long. Meaning of those bytes are:
+	 * 0: data len
+	 * 1: I2C addr << 1
+	 * 2: reg addr len
+	 *    byte 3 and 4 can be used as reg addr
+	 * 3: reg addr MSB
+	 *    used when reg addr len is set to 2
+	 * 4: reg addr LSB
+	 *    used when reg addr len is set to 1 or 2
+	 *
+	 * For the simplify we do not use register addr at all.
+	 * NOTE: As a firmware knows tuner type there is very small possibility
+	 * there could be some tuner I2C hacks done by firmware and this may
+	 * lead problems if firmware expects those bytes are used.
+	 */
 	if (num == 2 && !(msg[0].flags & I2C_M_RD) &&
 			(msg[1].flags & I2C_M_RD)) {
 		if (msg[0].len > 40 || msg[1].len > 40) {
@@ -237,14 +253,15 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 					msg[1].len);
 		} else {
 			/* I2C */
-			u8 buf[4 + msg[0].len];
+			u8 buf[5 + msg[0].len];
 			struct usb_req req = { CMD_I2C_RD, 0, sizeof(buf),
 					buf, msg[1].len, msg[1].buf };
 			buf[0] = msg[1].len;
 			buf[1] = msg[0].addr << 1;
-			buf[2] = 0x01;
-			buf[3] = 0x00;
-			memcpy(&buf[4], msg[0].buf, msg[0].len);
+			buf[2] = 0x00; /* reg addr len */
+			buf[3] = 0x00; /* reg addr MSB */
+			buf[4] = 0x00; /* reg addr LSB */
+			memcpy(&buf[5], msg[0].buf, msg[0].len);
 			ret = af9035_ctrl_msg(d->udev, &req);
 		}
 	} else if (num == 1 && !(msg[0].flags & I2C_M_RD)) {
@@ -259,14 +276,15 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 					msg[0].len - 3);
 		} else {
 			/* I2C */
-			u8 buf[4 + msg[0].len];
+			u8 buf[5 + msg[0].len];
 			struct usb_req req = { CMD_I2C_WR, 0, sizeof(buf), buf,
 					0, NULL };
 			buf[0] = msg[0].len;
 			buf[1] = msg[0].addr << 1;
-			buf[2] = 0x01;
-			buf[3] = 0x00;
-			memcpy(&buf[4], msg[0].buf, msg[0].len);
+			buf[2] = 0x00; /* reg addr len */
+			buf[3] = 0x00; /* reg addr MSB */
+			buf[4] = 0x00; /* reg addr LSB */
+			memcpy(&buf[5], msg[0].buf, msg[0].len);
 			ret = af9035_ctrl_msg(d->udev, &req);
 		}
 	} else {
