@@ -23,7 +23,7 @@
 
 	soc {
 		aips-bus@02100000 { /* AIPS2 */
-			enet@02188000 {
+			ethernet@02188000 {
 				phy-mode = "rgmii";
 				phy-reset-gpios = <&gpio3 23 0>;
 				status = "okay";
@@ -43,7 +43,7 @@
 				status = "okay";
 			};
 
-			uart2: uart@021e8000 {
+			uart2: serial@021e8000 {
 				status = "okay";
 			};
 

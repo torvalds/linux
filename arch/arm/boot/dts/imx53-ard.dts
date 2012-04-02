@@ -40,7 +40,7 @@
 				reg = <0x53fa8000 0x4000>;
 			};
 
-			uart1: uart@53fbc000 {
+			uart1: serial@53fbc000 {
 				status = "okay";
 			};
 		};

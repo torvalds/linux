@@ -36,7 +36,7 @@
 					status = "okay";
 				};
 
-				uart3: uart@7000c000 {
+				uart3: serial@7000c000 {
 					fsl,uart-has-rtscts;
 					status = "okay";
 				};
@@ -173,12 +173,12 @@
 				reg = <0x73fa8000 0x4000>;
 			};
 
-			uart1: uart@73fbc000 {
+			uart1: serial@73fbc000 {
 				fsl,uart-has-rtscts;
 				status = "okay";
 			};
 
-			uart2: uart@73fc0000 {
+			uart2: serial@73fc0000 {
 				status = "okay";
 			};
 		};
@@ -197,7 +197,7 @@
 				};
 			};
 
-			fec@83fec000 {
+			ethernet@83fec000 {
 				phy-mode = "mii";
 				status = "okay";
 			};
