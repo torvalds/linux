@@ -37,10 +37,10 @@
 	#define fbprintk(msg...)
 #endif
 
-#if 0
-#define CHK_SUSPEND(inf)	\
-	if(inf->in_suspend)	{	\
-		fbprintk(">>>>>> fb is in suspend! return! \n");	\
+#if 1
+#define CHK_SUSPEND(drv)	\
+	if(atomic_dec_and_test(&drv->in_suspend))	{	\
+		printk(">>>>>> fb is in suspend! return! \n");	\
 		return -EPERM;	\
 	}
 #else
@@ -100,17 +100,8 @@ struct rk_lcdc_device_driver * rk_get_lcdc_drv(int  id)
 }
 static int rk_fb_open(struct fb_info *info,int user)
 {
-    struct rk_fb_inf *inf = dev_get_drvdata(info->device);
-    struct rk_lcdc_device_driver *dev_drv = NULL;
-    struct fb_fix_screeninfo *fix = &info->fix;
-    int layer_id;
-    if(!strcmp(fix->id,"fb1")){
-        dev_drv = inf->lcdc_dev_drv[0];
-        layer_id = 0;
-        dev_drv->blank(dev_drv,1,FB_BLANK_NORMAL);  //when open fb1,defautl close fb0 layer win1
-        dev_drv->blank(dev_drv,layer_id,FB_BLANK_UNBLANK); //open fb1 layer win0
-        inf->video_mode = 1;
-    }
+    struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+    CHK_SUSPEND(dev_drv);
     
 
     return 0;
@@ -139,6 +130,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	u32 xvir = var->xres_virtual;
 	u8 data_format = var->nonstd&0xff;
 	layer_id = get_fb_layer_id(fix);
+	CHK_SUSPEND(dev_drv);
 	if(layer_id < 0)
 	{
 		return  -ENODEV;
@@ -187,8 +179,8 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 	u32 yuv_phy[2];
 	void __user *argp = (void __user *)arg;
 	fbprintk(">>>>>> %s : cmd:0x%x \n",__FUNCTION__,cmd);
-	CHK_SUSPEND(inf);
 	
+	CHK_SUSPEND(dev_drv);
 	switch(cmd)
 	{
  		case FBIOPUT_FBPHYADD:
@@ -229,6 +221,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
     	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int layer_id;
+	CHK_SUSPEND(dev_drv);
 	layer_id = get_fb_layer_id(fix);
 	if(layer_id < 0)
 	{
@@ -242,7 +235,8 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 
 static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	CHK_SUSPEND(inf);
+	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	CHK_SUSPEND(dev_drv);
  
 	 if( 0==var->xres_virtual || 0==var->yres_virtual ||
 		 0==var->xres || 0==var->yres || var->xres<16 ||
@@ -336,7 +330,7 @@ static int rk_fb_set_par(struct fb_info *info)
     u32 xvir = var->xres_virtual;
     u32 yvir = var->yres_virtual;
     u8 data_format = var->nonstd&0xff;
-
+    CHK_SUSPEND(dev_drv);
     layer_id = get_fb_layer_id(fix);
     if(layer_id < 0)
     {
@@ -356,7 +350,6 @@ static int rk_fb_set_par(struct fb_info *info)
         xsize = (var->grayscale>>8) & 0xfff;  //visiable size in panel ,for vide0
         ysize = (var->grayscale>>20) & 0xfff;
     }
-   	CHK_SUSPEND(inf);
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
 #if 1
     switch (data_format)
@@ -750,18 +743,26 @@ static void rkfb_early_suspend(struct early_suspend *h)
 	struct suspend_info *info = container_of(h, struct suspend_info,
 						early_suspend);
 	struct rk_fb_inf *inf = info->inf;
-   	inf->lcd_info->io_disable();
-	inf->lcdc_dev_drv[0]->suspend(inf->lcdc_dev_drv[0]);
-	inf->lcdc_dev_drv[1]->suspend(inf->lcdc_dev_drv[1]);
+	int i;
+	inf->lcd_info->io_disable();
+	for(i = 0; i < inf->num_lcdc; i++)
+	{
+		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,1);
+		inf->lcdc_dev_drv[i]->suspend(inf->lcdc_dev_drv[i]);
+	}
 }
 static void rkfb_early_resume(struct early_suspend *h)
 {
 	struct suspend_info *info = container_of(h, struct suspend_info,
 						early_suspend);
 	struct rk_fb_inf *inf = info->inf;
+	int i;
    	inf->lcd_info->io_enable();
-	inf->lcdc_dev_drv[0]->resume(inf->lcdc_dev_drv[0]);
-	inf->lcdc_dev_drv[1]->resume(inf->lcdc_dev_drv[1]);
+	for(i = 0; i < inf->num_lcdc; i++)
+	{
+		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);
+		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,0);
+	}
 
 }
 

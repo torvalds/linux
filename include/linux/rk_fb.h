@@ -17,6 +17,7 @@
 #define __ARCH_ARM_MACH_RK30_FB_H
 
 #include<linux/completion.h>
+#include<asm/atomic.h>
 #include <mach/board.h>
 #include<linux/rk_screen.h>
 
@@ -192,6 +193,8 @@ struct rk_lcdc_device_driver{
 	struct completion  frame_done;		  //sync for pan_display,whe we set a new frame address to lcdc register,we must make sure the frame begain to display
 	spinlock_t  cpl_lock; 			 //lock for completion  frame done
 	int first_frame ;
+
+	atomic_t in_suspend;		        //when enter suspend write or read lcdc register are forbidden
 	
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);
 	int (*suspend)(struct rk_lcdc_device_driver *dev_drv);
