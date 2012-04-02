@@ -40,6 +40,7 @@ struct af9033_config {
 	 */
 #define AF9033_TUNER_TUA9001     0x27 /* Infineon TUA 9001 */
 #define AF9033_TUNER_FC0011      0x28 /* Fitipower FC0011 */
+#define AF9033_TUNER_MXL5007T    0xa0 /* MaxLinear MxL5007T */
 	u8 tuner;
 
 	/*

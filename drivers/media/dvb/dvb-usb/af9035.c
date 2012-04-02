@@ -23,6 +23,7 @@
 #include "af9033.h"
 #include "tua9001.h"
 #include "fc0011.h"
+#include "mxl5007t.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static DEFINE_MUTEX(af9035_usb_mutex);
@@ -500,6 +501,7 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		switch (tmp) {
 		case AF9033_TUNER_TUA9001:
 		case AF9033_TUNER_FC0011:
+		case AF9033_TUNER_MXL5007T:
 			af9035_af9033_config[i].spec_inv = 1;
 			break;
 		default:
@@ -667,6 +669,15 @@ static const struct fc0011_config af9035_fc0011_config = {
 	.i2c_address = 0x60,
 };
 
+static struct mxl5007t_config af9035_mxl5007t_config = {
+	.xtal_freq_hz = MxL_XTAL_24_MHZ,
+	.if_freq_hz = MxL_IF_4_57_MHZ,
+	.invert_if = 0,
+	.loop_thru_enable = 0,
+	.clk_out_enable = 0,
+	.clk_out_amp = MxL_CLKOUT_AMP_0_94V,
+};
+
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
@@ -719,6 +730,48 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		fe = dvb_attach(fc0011_attach, adap->fe_adap[0].fe,
 				&adap->dev->i2c_adap, &af9035_fc0011_config);
 		break;
+	case AF9033_TUNER_MXL5007T:
+		ret = af9035_wr_reg(adap->dev, 0x00d8e0, 1);
+		if (ret < 0)
+			goto err;
+		ret = af9035_wr_reg(adap->dev, 0x00d8e1, 1);
+		if (ret < 0)
+			goto err;
+		ret = af9035_wr_reg(adap->dev, 0x00d8df, 0);
+		if (ret < 0)
+			goto err;
+
+		msleep(30);
+
+		ret = af9035_wr_reg(adap->dev, 0x00d8df, 1);
+		if (ret < 0)
+			goto err;
+
+		msleep(300);
+
+		ret = af9035_wr_reg(adap->dev, 0x00d8c0, 1);
+		if (ret < 0)
+			goto err;
+		ret = af9035_wr_reg(adap->dev, 0x00d8c1, 1);
+		if (ret < 0)
+			goto err;
+		ret = af9035_wr_reg(adap->dev, 0x00d8bf, 0);
+		if (ret < 0)
+			goto err;
+		ret = af9035_wr_reg(adap->dev, 0x00d8b4, 1);
+		if (ret < 0)
+			goto err;
+		ret = af9035_wr_reg(adap->dev, 0x00d8b5, 1);
+		if (ret < 0)
+			goto err;
+		ret = af9035_wr_reg(adap->dev, 0x00d8b3, 1);
+		if (ret < 0)
+			goto err;
+
+		/* attach tuner */
+		fe = dvb_attach(mxl5007t_attach, adap->fe_adap[0].fe,
+				&adap->dev->i2c_adap, 0x60, &af9035_mxl5007t_config);
+		break;
 	default:
 		fe = NULL;
 	}
@@ -740,6 +793,7 @@ enum af9035_id_entry {
 	AF9035_0CCD_0093,
 	AF9035_15A4_9035,
 	AF9035_15A4_1001,
+	AF9035_07CA_1867,
 };
 
 static struct usb_device_id af9035_id[] = {
@@ -749,6 +803,8 @@ static struct usb_device_id af9035_id[] = {
 		USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9035)},
 	[AF9035_15A4_1001] = {
 		USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9035_2)},
+	[AF9035_07CA_1867] = {
+		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_1867)},
 	{},
 };
 
@@ -791,7 +847,7 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 
 		.i2c_algo = &af9035_i2c_algo,
 
-		.num_device_descs = 2,
+		.num_device_descs = 3,
 		.devices = {
 			{
 				.name = "TerraTec Cinergy T Stick",
@@ -804,7 +860,12 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 					&af9035_id[AF9035_15A4_9035],
 					&af9035_id[AF9035_15A4_1001],
 				},
-			}
+			}, {
+				.name = "AVerMedia HD Volar",
+				.cold_ids = {
+					&af9035_id[AF9035_07CA_1867],
+				},
+			},
 		}
 	},
 };

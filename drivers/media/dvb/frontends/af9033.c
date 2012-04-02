@@ -301,6 +301,10 @@ static int af9033_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(tuner_init_fc0011);
 		init = tuner_init_fc0011;
 		break;
+	case AF9033_TUNER_MXL5007T:
+		len = ARRAY_SIZE(tuner_init_mxl5007t);
+		init = tuner_init_mxl5007t;
+		break;
 	default:
 		pr_debug("%s: unsupported tuner ID=%d\n", __func__,
 				state->cfg.tuner);
@@ -391,9 +395,9 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 {
 	struct af9033_state *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i;
+	int ret, i, spec_inv;
 	u8 tmp, buf[3], bandwidth_reg_val;
-	u32 if_frequency, freq_cw;
+	u32 if_frequency, freq_cw, adc_freq;
 
 	pr_debug("%s: frequency=%d bandwidth_hz=%d\n", __func__, c->frequency,
 			c->bandwidth_hz);
@@ -433,22 +437,41 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 
 	/* program frequency control */
 	if (c->bandwidth_hz != state->bandwidth_hz) {
+		spec_inv = state->cfg.spec_inv ? -1 : 1;
+
+		for (i = 0; i < ARRAY_SIZE(clock_adc_lut); i++) {
+			if (clock_adc_lut[i].clock == state->cfg.clock)
+				break;
+		}
+		adc_freq = clock_adc_lut[i].adc;
+
 		/* get used IF frequency */
 		if (fe->ops.tuner_ops.get_if_frequency)
 			fe->ops.tuner_ops.get_if_frequency(fe, &if_frequency);
 		else
 			if_frequency = 0;
 
-		/* FIXME: we support only Zero-IF currently */
-		if (if_frequency != 0) {
-			pr_debug("%s: only Zero-IF supported currently\n",
-				__func__);
+		while (if_frequency > (adc_freq / 2))
+			if_frequency -= adc_freq;
 
-			ret = -ENODEV;
+		if (if_frequency >= 0)
+			spec_inv *= -1;
+		else
+			if_frequency *= -1;
+
+		freq_cw = af9033_div(if_frequency, adc_freq, 23ul);
+
+		if (spec_inv == -1)
+			freq_cw *= -1;
+
+		/* get adc multiplies */
+		ret = af9033_rd_reg(state, 0x800045, &tmp);
+		if (ret < 0)
 			goto err;
-		}
 
-		freq_cw = 0;
+		if (tmp == 1)
+			freq_cw /= 2;
+
 		buf[0] = (freq_cw >>  0) & 0xff;
 		buf[1] = (freq_cw >>  8) & 0xff;
 		buf[2] = (freq_cw >> 16) & 0x7f;
