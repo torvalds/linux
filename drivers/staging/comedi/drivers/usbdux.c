@@ -2623,7 +2623,6 @@ static int usbdux_attach_common(struct comedi_device *dev,
 				void *aux_data, int aux_len)
 {
 	int ret;
-	int index = (int)(udev - usbduxsub);
 	struct comedi_subdevice *s = NULL;
 
 	down(&udev->sem);
@@ -2654,9 +2653,6 @@ static int usbdux_attach_common(struct comedi_device *dev,
 		return ret;
 	}
 
-	dev_info(&udev->interface->dev,
-		 "comedi%d: usb-device %d is attached to comedi.\n",
-		 dev->minor, index);
 	/* private structure is also simply the usb-structure */
 	dev->private = udev;
 
