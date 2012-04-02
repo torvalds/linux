@@ -68,10 +68,6 @@
 #include <linux/gfp.h>
 #include <net/mac80211.h>
 
-#include "iwl-commands.h"
-#include "iwl-fw.h"
-#include "iwl-config.h"
-
 #define DRV_NAME        "iwlwifi"
 #define IWLWIFI_VERSION "in-tree:"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2012 Intel Corporation"

@@ -67,6 +67,8 @@
 #include <linux/mm.h> /* for page_address */
 
 #include "iwl-debug.h"
+#include "iwl-config.h"
+#include "iwl-fw.h"
 
 /**
  * DOC: Transport layer - what is it ?
@@ -102,13 +104,6 @@
  *
  *	6) Eventually, the free function will be called.
  */
-
-struct iwl_priv;
-struct iwl_shared;
-struct iwl_op_mode;
-struct fw_img;
-struct sk_buff;
-struct dentry;
 
 /**
  * DOC: Host command section

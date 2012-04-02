@@ -68,7 +68,6 @@
 
 #include <net/mac80211.h>
 
-#include "iwl-commands.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-debug.h"

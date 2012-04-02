@@ -69,6 +69,8 @@
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
+#include "iwl-fw.h"
+#include "iwl-config.h"
 
 /* private includes */
 #include "iwl-fw-file.h"

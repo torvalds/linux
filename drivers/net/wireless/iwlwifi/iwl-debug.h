@@ -30,7 +30,6 @@
 #define __iwl_debug_h__
 
 #include "iwl-shared.h"
-#include "iwl-devtrace.h"
 
 
 static inline bool iwl_have_debug_level(u32 level)

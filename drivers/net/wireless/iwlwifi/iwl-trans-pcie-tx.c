@@ -37,6 +37,8 @@
 #include "iwl-agn-hw.h"
 #include "iwl-op-mode.h"
 #include "iwl-trans-pcie-int.h"
+/* FIXME: need to abstract out TX command (once we know what it looks like) */
+#include "iwl-commands.h"
 
 #define IWL_TX_CRC_SIZE 4
 #define IWL_TX_DELIMITER_SIZE 4

@@ -69,11 +69,14 @@
 #include <linux/gfp.h>
 
 #include "iwl-trans.h"
+#include "iwl-shared.h"
 #include "iwl-trans-pcie-int.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"
 #include "iwl-eeprom.h"
 #include "iwl-agn-hw.h"
+/* FIXME: need to abstract out TX command (once we know what it looks like) */
+#include "iwl-commands.h"
 
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 
