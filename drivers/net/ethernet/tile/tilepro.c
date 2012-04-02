@@ -448,7 +448,7 @@ static bool tile_net_provide_needed_buffer(struct tile_net_cpu *info,
 	struct sk_buff **skb_ptr;
 
 	/* Request 96 extra bytes for alignment purposes. */
-	skb = netdev_alloc_skb(info->napi->dev, len + padding);
+	skb = netdev_alloc_skb(info->napi.dev, len + padding);
 	if (skb == NULL)
 		return false;
 
