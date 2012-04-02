@@ -65,49 +65,54 @@ isdn_tty_try_read(modem_info *info, struct sk_buff *skb)
 	struct tty_struct *tty;
 	char last;
 
-	if (info->online) {
-		if ((tty = info->tty)) {
-			if (info->mcr & UART_MCR_RTS) {
-				len = skb->len
-#ifdef CONFIG_ISDN_AUDIO
-					+ ISDN_AUDIO_SKB_DLECOUNT(skb)
-#endif
-					;
+	if (!info->online)
+		return 0;
 
-				c = tty_buffer_request_room(tty, len);
-				if (c >= len) {
+	tty = info->tty;
+	if (!tty)
+		return 0;
+
+	if (!(info->mcr & UART_MCR_RTS))
+		return 0;
+
+	len = skb->len
 #ifdef CONFIG_ISDN_AUDIO
-					if (ISDN_AUDIO_SKB_DLECOUNT(skb)) {
-						int l = skb->len;
-						unsigned char *dp = skb->data;
-						while (--l) {
-							if (*dp == DLE)
-								tty_insert_flip_char(tty, DLE, 0);
-							tty_insert_flip_char(tty, *dp++, 0);
-						}
-						if (*dp == DLE)
-							tty_insert_flip_char(tty, DLE, 0);
-						last = *dp;
-					} else {
+		+ ISDN_AUDIO_SKB_DLECOUNT(skb)
 #endif
-						if (len > 1)
-							tty_insert_flip_string(tty, skb->data, len - 1);
-						last = skb->data[len - 1];
+		;
+
+	c = tty_buffer_request_room(tty, len);
+	if (c < len)
+		return 0;
+
 #ifdef CONFIG_ISDN_AUDIO
-					}
-#endif
-					if (info->emu.mdmreg[REG_CPPP] & BIT_CPPP)
-						tty_insert_flip_char(tty, last, 0xFF);
-					else
-						tty_insert_flip_char(tty, last, TTY_NORMAL);
-					tty_flip_buffer_push(tty);
-					kfree_skb(skb);
-					return 1;
-				}
-			}
+	if (ISDN_AUDIO_SKB_DLECOUNT(skb)) {
+		int l = skb->len;
+		unsigned char *dp = skb->data;
+		while (--l) {
+			if (*dp == DLE)
+				tty_insert_flip_char(tty, DLE, 0);
+			tty_insert_flip_char(tty, *dp++, 0);
 		}
+		if (*dp == DLE)
+			tty_insert_flip_char(tty, DLE, 0);
+		last = *dp;
+	} else {
+#endif
+		if (len > 1)
+			tty_insert_flip_string(tty, skb->data, len - 1);
+		last = skb->data[len - 1];
+#ifdef CONFIG_ISDN_AUDIO
 	}
-	return 0;
+#endif
+	if (info->emu.mdmreg[REG_CPPP] & BIT_CPPP)
+		tty_insert_flip_char(tty, last, 0xFF);
+	else
+		tty_insert_flip_char(tty, last, TTY_NORMAL);
+	tty_flip_buffer_push(tty);
+	kfree_skb(skb);
+
+	return 1;
 }
 
 /* isdn_tty_readmodem() is called periodically from within timer-interrupt.
@@ -125,35 +130,39 @@ isdn_tty_readmodem(void)
 	modem_info *info;
 
 	for (i = 0; i < ISDN_MAX_CHANNELS; i++) {
-		if ((midx = dev->m_idx[i]) >= 0) {
-			info = &dev->mdm.info[midx];
-			if (info->online) {
-				r = 0;
+		midx = dev->m_idx[i];
+		if (midx < 0)
+			continue;
+
+		info = &dev->mdm.info[midx];
+		if (!info->online)
+			continue;
+
+		r = 0;
 #ifdef CONFIG_ISDN_AUDIO
-				isdn_audio_eval_dtmf(info);
-				if ((info->vonline & 1) && (info->emu.vpar[1]))
-					isdn_audio_eval_silence(info);
+		isdn_audio_eval_dtmf(info);
+		if ((info->vonline & 1) && (info->emu.vpar[1]))
+			isdn_audio_eval_silence(info);
 #endif
-				if ((tty = info->tty)) {
-					if (info->mcr & UART_MCR_RTS) {
-						/* CISCO AsyncPPP Hack */
-						if (!(info->emu.mdmreg[REG_CPPP] & BIT_CPPP))
-							r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 0);
-						else
-							r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 1);
-						if (r)
-							tty_flip_buffer_push(tty);
-					} else
-						r = 1;
-				} else
-					r = 1;
-				if (r) {
-					info->rcvsched = 0;
-					resched = 1;
-				} else
-					info->rcvsched = 1;
-			}
-		}
+		tty = info->tty;
+		if (tty) {
+			if (info->mcr & UART_MCR_RTS) {
+				/* CISCO AsyncPPP Hack */
+				if (!(info->emu.mdmreg[REG_CPPP] & BIT_CPPP))
+					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 0);
+				else
+					r = isdn_readbchan_tty(info->isdn_driver, info->isdn_channel, tty, 1);
+				if (r)
+					tty_flip_buffer_push(tty);
+			} else
+				r = 1;
+		} else
+			r = 1;
+		if (r) {
+			info->rcvsched = 0;
+			resched = 1;
+		} else
+			info->rcvsched = 1;
 	}
 	if (!resched)
 		isdn_timer_ctrl(ISDN_TIMER_MODEMREAD, 0);
@@ -3769,19 +3778,19 @@ isdn_tty_modem_escape(void)
 	int midx;
 
 	for (i = 0; i < ISDN_MAX_CHANNELS; i++)
-		if (USG_MODEM(dev->usage[i]))
-			if ((midx = dev->m_idx[i]) >= 0) {
-				modem_info *info = &dev->mdm.info[midx];
-				if (info->online) {
-					ton = 1;
-					if ((info->emu.pluscount == 3) &&
-					    time_after(jiffies , info->emu.lastplus + PLUSWAIT2)) {
-						info->emu.pluscount = 0;
-						info->online = 0;
-						isdn_tty_modem_result(RESULT_OK, info);
-					}
+		if (USG_MODEM(dev->usage[i]) && (midx = dev->m_idx[i]) >= 0) {
+			modem_info *info = &dev->mdm.info[midx];
+			if (info->online) {
+				ton = 1;
+				if ((info->emu.pluscount == 3) &&
+				    time_after(jiffies,
+					    info->emu.lastplus + PLUSWAIT2)) {
+					info->emu.pluscount = 0;
+					info->online = 0;
+					isdn_tty_modem_result(RESULT_OK, info);
 				}
 			}
+		}
 	isdn_timer_ctrl(ISDN_TIMER_MODEMPLUS, ton);
 }
 
@@ -3839,15 +3848,14 @@ isdn_tty_carrier_timeout(void)
 
 	for (i = 0; i < ISDN_MAX_CHANNELS; i++) {
 		modem_info *info = &dev->mdm.info[i];
-		if (info->dialing) {
-			if (info->emu.carrierwait++ > info->emu.mdmreg[REG_WAITC]) {
-				info->dialing = 0;
-				isdn_tty_modem_result(RESULT_NO_CARRIER, info);
-				isdn_tty_modem_hup(info, 1);
-			}
-			else
-				ton = 1;
-		}
+		if (!info->dialing)
+			continue;
+		if (info->emu.carrierwait++ > info->emu.mdmreg[REG_WAITC]) {
+			info->dialing = 0;
+			isdn_tty_modem_result(RESULT_NO_CARRIER, info);
+			isdn_tty_modem_hup(info, 1);
+		} else
+			ton = 1;
 	}
 	isdn_timer_ctrl(ISDN_TIMER_CARRIER, ton);
 }
