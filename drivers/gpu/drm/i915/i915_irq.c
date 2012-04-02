@@ -1029,7 +1029,6 @@ static void i915_record_ring_state(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
 		error->fault_reg[ring->id] = I915_READ(RING_FAULT_REG(ring));
 		error->semaphore_mboxes[ring->id][0]
 			= I915_READ(RING_SYNC_0(ring->mmio_base));
@@ -1038,6 +1037,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 	}
 
 	if (INTEL_INFO(dev)->gen >= 4) {
+		error->faddr[ring->id] = I915_READ(RING_DMA_FADD(ring->mmio_base));
 		error->ipeir[ring->id] = I915_READ(RING_IPEIR(ring->mmio_base));
 		error->ipehr[ring->id] = I915_READ(RING_IPEHR(ring->mmio_base));
 		error->instdone[ring->id] = I915_READ(RING_INSTDONE(ring->mmio_base));
@@ -1047,6 +1047,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 			error->bbaddr = I915_READ64(BB_ADDR);
 		}
 	} else {
+		error->faddr[ring->id] = I915_READ(DMA_FADD_I8XX);
 		error->ipeir[ring->id] = I915_READ(IPEIR);
 		error->ipehr[ring->id] = I915_READ(IPEHR);
 		error->instdone[ring->id] = I915_READ(INSTDONE);

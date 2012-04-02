@@ -474,6 +474,7 @@
 #define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
+#define DMA_FADD_I8XX	0x020d0
 
 #define ERROR_GEN6	0x040a0
 
