@@ -286,7 +286,15 @@ static u64 get_ibs_fetch_count(u64 config)
 
 static u64 get_ibs_op_count(u64 config)
 {
-	return (config & IBS_OP_CUR_CNT) >> 32;
+	u64 count = 0;
+
+	if (config & IBS_OP_VAL)
+		count += (config & IBS_OP_MAX_CNT) << 4; /* cnt rolled over */
+
+	if (ibs_caps & IBS_CAPS_RDWROPCNT)
+		count += (config & IBS_OP_CUR_CNT) >> 32;
+
+	return count;
 }
 
 static void
@@ -295,7 +303,12 @@ perf_ibs_event_update(struct perf_ibs *perf_ibs, struct perf_event *event,
 {
 	u64 count = perf_ibs->get_count(*config);
 
-	while (!perf_event_try_update(event, count, 20)) {
+	/*
+	 * Set width to 64 since we do not overflow on max width but
+	 * instead on max count. In perf_ibs_set_period() we clear
+	 * prev count manually on overflow.
+	 */
+	while (!perf_event_try_update(event, count, 64)) {
 		rdmsrl(event->hw.config_base, *config);
 		count = perf_ibs->get_count(*config);
 	}
@@ -373,6 +386,12 @@ static void perf_ibs_stop(struct perf_event *event, int flags)
 
 	if (hwc->state & PERF_HES_UPTODATE)
 		return;
+
+	/*
+	 * Clear valid bit to not count rollovers on update, rollovers
+	 * are only updated in the irq handler.
+	 */
+	config &= ~perf_ibs->valid_mask;
 
 	perf_ibs_event_update(perf_ibs, event, &config);
 	hwc->state |= PERF_HES_UPTODATE;
@@ -488,17 +507,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	if (!(*buf++ & perf_ibs->valid_mask))
 		return 0;
 
-	/*
-	 * Emulate IbsOpCurCnt in MSRC001_1033 (IbsOpCtl), not
-	 * supported in all cpus. As this triggered an interrupt, we
-	 * set the current count to the max count.
-	 */
 	config = &ibs_data.regs[0];
-	if (perf_ibs == &perf_ibs_op && !(ibs_caps & IBS_CAPS_RDWROPCNT)) {
-		*config &= ~IBS_OP_CUR_CNT;
-		*config |= (*config & IBS_OP_MAX_CNT) << 36;
-	}
-
 	perf_ibs_event_update(perf_ibs, event, config);
 	perf_sample_data_init(&data, 0, hwc->last_period);
 	if (!perf_ibs_set_period(perf_ibs, hwc, &period))
