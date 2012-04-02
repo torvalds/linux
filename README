@@ -65,8 +65,8 @@ INSTALLING the kernel source:
 		gzip -cd linux-3.X.tar.gz | tar xvf -
 
    or
-		bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
 
+		bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
 
    Replace "X" with the version number of the latest kernel.
 
@@ -83,6 +83,7 @@ INSTALLING the kernel source:
 		gzip -cd ../patch-3.x.gz | patch -p1
 
    or
+
 		bzip2 -dc ../patch-3.x.bz2 | patch -p1
 
    Replace "x" for all versions bigger than the version "X" of your current
@@ -142,14 +143,16 @@ BUILD directory for the kernel:
    Using the option "make O=output/dir" allow you to specify an alternate
    place for the output files (including .config).
    Example:
+
      kernel source code:	/usr/src/linux-3.X
      build directory:		/home/name/build/kernel
 
    To configure and build the kernel, use:
-   cd /usr/src/linux-3.X
-   make O=/home/name/build/kernel menuconfig
-   make O=/home/name/build/kernel
-   sudo make O=/home/name/build/kernel modules_install install
+
+     cd /usr/src/linux-3.X
+     make O=/home/name/build/kernel menuconfig
+     make O=/home/name/build/kernel
+     sudo make O=/home/name/build/kernel modules_install install
 
    Please note: If the 'O=output/dir' option is used, then it must be
    used for all invocations of make.
@@ -164,36 +167,49 @@ CONFIGURING the kernel:
    only ask you for the answers to new questions.
 
  - Alternative configuration commands are:
+
 	"make config"      Plain text interface.
+
 	"make menuconfig"  Text based color menus, radiolists & dialogs.
+
 	"make nconfig"     Enhanced text based color menus.
+
 	"make xconfig"     X windows (Qt) based configuration tool.
+
 	"make gconfig"     X windows (Gtk) based configuration tool.
+
 	"make oldconfig"   Default all questions based on the contents of
 			   your existing ./.config file and asking about
 			   new config symbols.
+
 	"make silentoldconfig"
 			   Like above, but avoids cluttering the screen
 			   with questions already answered.
 			   Additionally updates the dependencies.
+
 	"make defconfig"   Create a ./.config file by using the default
 			   symbol values from either arch/$ARCH/defconfig
 			   or arch/$ARCH/configs/${PLATFORM}_defconfig,
 			   depending on the architecture.
+
 	"make ${PLATFORM}_defconfig"
-			  Create a ./.config file by using the default
-			  symbol values from
-			  arch/$ARCH/configs/${PLATFORM}_defconfig.
-			  Use "make help" to get a list of all available
-			  platforms of your architecture.
+			   Create a ./.config file by using the default
+			   symbol values from
+			   arch/$ARCH/configs/${PLATFORM}_defconfig.
+			   Use "make help" to get a list of all available
+			   platforms of your architecture.
+
 	"make allyesconfig"
 			   Create a ./.config file by setting symbol
 			   values to 'y' as much as possible.
+
 	"make allmodconfig"
 			   Create a ./.config file by setting symbol
 			   values to 'm' as much as possible.
+
 	"make allnoconfig" Create a ./.config file by setting symbol
 			   values to 'n' as much as possible.
+
 	"make randconfig"  Create a ./.config file by setting symbol
 			   values to random values.
 
@@ -201,17 +217,21 @@ CONFIGURING the kernel:
    in Documentation/kbuild/kconfig.txt.
 
 	NOTES on "make config":
+
 	- having unnecessary drivers will make the kernel bigger, and can
 	  under some circumstances lead to problems: probing for a
 	  nonexistent controller card may confuse your other controllers
+
 	- compiling the kernel with "Processor type" set higher than 386
 	  will result in a kernel that does NOT work on a 386.  The
 	  kernel will detect this on bootup, and give up.
+
 	- A kernel with math-emulation compiled in will still use the
 	  coprocessor if one is present: the math emulation will just
 	  never get used in that case.  The kernel will be slightly larger,
 	  but will work on different machines regardless of whether they
 	  have a math coprocessor or not. 
+
 	- the "kernel hacking" configuration details usually result in a
 	  bigger or slower kernel (or both), and can even make the kernel
 	  less stable by configuring some routines to actively try to
@@ -256,6 +276,7 @@ COMPILING the kernel:
    are installing a new kernel with the same version number as your
    working kernel, make a backup of your modules directory before you
    do a "make modules_install".
+
    Alternatively, before compiling, use the kernel config option
    "LOCALVERSION" to append a unique suffix to the regular kernel version.
    LOCALVERSION can be set in the "General Setup" menu.
