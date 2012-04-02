@@ -11,6 +11,7 @@
 #undef ISDN_TTY_STAT_DEBUG
 
 #include <linux/isdn.h>
+#include <linux/serial.h> /* ASYNC_* flags */
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/mutex.h>
@@ -1036,20 +1037,20 @@ isdn_tty_change_speed(modem_info *info)
 
 	/* CTS flow control flag and modem status interrupts */
 	if (cflag & CRTSCTS) {
-		info->flags |= ISDN_ASYNC_CTS_FLOW;
+		info->flags |= ASYNC_CTS_FLOW;
 	} else
-		info->flags &= ~ISDN_ASYNC_CTS_FLOW;
+		info->flags &= ~ASYNC_CTS_FLOW;
 	if (cflag & CLOCAL)
-		info->flags &= ~ISDN_ASYNC_CHECK_CD;
+		info->flags &= ~ASYNC_CHECK_CD;
 	else {
-		info->flags |= ISDN_ASYNC_CHECK_CD;
+		info->flags |= ASYNC_CHECK_CD;
 	}
 }
 
 static int
 isdn_tty_startup(modem_info *info)
 {
-	if (info->flags & ISDN_ASYNC_INITIALIZED)
+	if (info->flags & ASYNC_INITIALIZED)
 		return 0;
 	isdn_lock_drivers();
 #ifdef ISDN_DEBUG_MODEM_OPEN
@@ -1066,7 +1067,7 @@ isdn_tty_startup(modem_info *info)
 	 */
 	isdn_tty_change_speed(info);
 
-	info->flags |= ISDN_ASYNC_INITIALIZED;
+	info->flags |= ASYNC_INITIALIZED;
 	info->msr |= (UART_MSR_DSR | UART_MSR_CTS);
 	info->send_outstanding = 0;
 	return 0;
@@ -1079,7 +1080,7 @@ isdn_tty_startup(modem_info *info)
 static void
 isdn_tty_shutdown(modem_info *info)
 {
-	if (!(info->flags & ISDN_ASYNC_INITIALIZED))
+	if (!(info->flags & ASYNC_INITIALIZED))
 		return;
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "Shutting down isdnmodem port %d ....\n", info->line);
@@ -1099,7 +1100,7 @@ isdn_tty_shutdown(modem_info *info)
 	if (info->tty)
 		set_bit(TTY_IO_ERROR, &info->tty->flags);
 
-	info->flags &= ~ISDN_ASYNC_INITIALIZED;
+	info->flags &= ~ASYNC_INITIALIZED;
 }
 
 /* isdn_tty_write() is the main send-routine. It is called from the upper
@@ -1486,11 +1487,11 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 	 * until it's done, and then try again.
 	 */
 	if (tty_hung_up_p(filp) ||
-	    (info->flags & ISDN_ASYNC_CLOSING)) {
-		if (info->flags & ISDN_ASYNC_CLOSING)
+	    (info->flags & ASYNC_CLOSING)) {
+		if (info->flags & ASYNC_CLOSING)
 			interruptible_sleep_on(&info->close_wait);
 #ifdef MODEM_DO_RESTART
-		if (info->flags & ISDN_ASYNC_HUP_NOTIFY)
+		if (info->flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
 		else
 			return -ERESTARTSYS;
@@ -1504,7 +1505,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		info->flags |= ISDN_ASYNC_NORMAL_ACTIVE;
+		info->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 	if (tty->termios->c_cflag & CLOCAL)
@@ -1528,9 +1529,9 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
-		    !(info->flags & ISDN_ASYNC_INITIALIZED)) {
+		    !(info->flags & ASYNC_INITIALIZED)) {
 #ifdef MODEM_DO_RESTART
-			if (info->flags & ISDN_ASYNC_HUP_NOTIFY)
+			if (info->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;
@@ -1539,7 +1540,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 #endif
 			break;
 		}
-		if (!(info->flags & ISDN_ASYNC_CLOSING) &&
+		if (!(info->flags & ASYNC_CLOSING) &&
 		    (do_clocal || (info->msr & UART_MSR_DCD))) {
 			break;
 		}
@@ -1564,7 +1565,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 #endif
 	if (retval)
 		return retval;
-	info->flags |= ISDN_ASYNC_NORMAL_ACTIVE;
+	info->flags |= ASYNC_NORMAL_ACTIVE;
 	return 0;
 }
 
@@ -1661,7 +1662,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 		module_put(info->owner);
 		return;
 	}
-	info->flags |= ISDN_ASYNC_CLOSING;
+	info->flags |= ASYNC_CLOSING;
 
 	tty->closing = 1;
 	/*
@@ -1670,7 +1671,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	 * interrupt driver to stop checking the data ready bit in the
 	 * line status register.
 	 */
-	if (info->flags & ISDN_ASYNC_INITIALIZED) {
+	if (info->flags & ASYNC_INITIALIZED) {
 		tty_wait_until_sent_from_close(tty, 3000);	/* 30 seconds timeout */
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
@@ -1696,7 +1697,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 		msleep_interruptible(500);
 		wake_up_interruptible(&info->open_wait);
 	}
-	info->flags &= ~(ISDN_ASYNC_NORMAL_ACTIVE | ISDN_ASYNC_CLOSING);
+	info->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
 	wake_up_interruptible(&info->close_wait);
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_close normal exit\n");
@@ -1715,7 +1716,7 @@ isdn_tty_hangup(struct tty_struct *tty)
 		return;
 	isdn_tty_shutdown(info);
 	info->count = 0;
-	info->flags &= ~ISDN_ASYNC_NORMAL_ACTIVE;
+	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
@@ -2061,7 +2062,7 @@ isdn_tty_find_icall(int di, int ch, setup_parm *setup)
 #endif
 			if (
 #ifndef FIX_FILE_TRANSFER
-				(info->flags & ISDN_ASYNC_NORMAL_ACTIVE) &&
+				(info->flags & ASYNC_NORMAL_ACTIVE) &&
 #endif
 				(info->isdn_driver == -1) &&
 				(info->isdn_channel == -1) &&
@@ -2100,7 +2101,7 @@ isdn_tty_find_icall(int di, int ch, setup_parm *setup)
 	return (wret == 2) ? 3 : 0;
 }
 
-#define TTY_IS_ACTIVE(info)	(info->flags & ISDN_ASYNC_NORMAL_ACTIVE)
+#define TTY_IS_ACTIVE(info)	(info->flags & ASYNC_NORMAL_ACTIVE)
 
 int
 isdn_tty_stat_callback(int i, isdn_ctrl *c)
@@ -2319,7 +2320,7 @@ isdn_tty_at_cout(char *msg, modem_info *info)
 
 	spin_lock_irqsave(&info->readlock, flags);
 	tty = info->tty;
-	if ((info->flags & ISDN_ASYNC_CLOSING) || (!tty)) {
+	if ((info->flags & ASYNC_CLOSING) || (!tty)) {
 		spin_unlock_irqrestore(&info->readlock, flags);
 		return;
 	}
@@ -2469,15 +2470,15 @@ isdn_tty_modem_result(int code, modem_info *info)
 	case RESULT_NO_CARRIER:
 #ifdef ISDN_DEBUG_MODEM_HUP
 		printk(KERN_DEBUG "modem_result: NO CARRIER %d %d\n",
-		       (info->flags & ISDN_ASYNC_CLOSING),
+		       (info->flags & ASYNC_CLOSING),
 		       (!info->tty));
 #endif
 		m->mdmreg[REG_RINGCNT] = 0;
 		del_timer(&info->nc_timer);
 		info->ncarrier = 0;
-		if ((info->flags & ISDN_ASYNC_CLOSING) || (!info->tty)) {
+		if ((info->flags & ASYNC_CLOSING) || (!info->tty))
 			return;
-		}
+
 #ifdef CONFIG_ISDN_AUDIO
 		if (info->vonline & 1) {
 #ifdef ISDN_DEBUG_MODEM_VOICE
@@ -2608,10 +2609,10 @@ isdn_tty_modem_result(int code, modem_info *info)
 		}
 	}
 	if (code == RESULT_NO_CARRIER) {
-		if ((info->flags & ISDN_ASYNC_CLOSING) || (!info->tty)) {
+		if ((info->flags & ASYNC_CLOSING) || (!info->tty))
 			return;
-		}
-		if (info->flags & ISDN_ASYNC_CHECK_CD)
+
+		if (info->flags & ASYNC_CHECK_CD)
 			tty_hangup(info->tty);
 	}
 }

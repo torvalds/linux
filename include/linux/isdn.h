@@ -392,20 +392,8 @@ typedef struct isdn_net_dev_s {
 /*======================= Start of ISDN-tty stuff ===========================*/
 
 #define ISDN_ASYNC_MAGIC          0x49344C01 /* for paranoia-checking        */
-#define ISDN_ASYNC_INITIALIZED	  0x80000000 /* port was initialized         */
-#define ISDN_ASYNC_NORMAL_ACTIVE  0x20000000 /* Normal device active         */
-#define ISDN_ASYNC_CLOSING	  0x08000000 /* Serial port is closing       */
-#define ISDN_ASYNC_CTS_FLOW	  0x04000000 /* Do CTS flow control          */
-#define ISDN_ASYNC_CHECK_CD	  0x02000000 /* i.e., CLOCAL                 */
-#define ISDN_ASYNC_HUP_NOTIFY         0x0001 /* Notify tty on hangups/closes */
-#define ISDN_ASYNC_SESSION_LOCKOUT    0x0100 /* Lock cua opens on session    */
-#define ISDN_ASYNC_PGRP_LOCKOUT       0x0200 /* Lock cua opens on pgrp       */
-#define ISDN_ASYNC_CALLOUT_NOHUP      0x0400 /* No hangup for cui            */
-#define ISDN_ASYNC_SPLIT_TERMIOS      0x0008 /* Sep. termios for dialin/out  */
 #define ISDN_SERIAL_XMIT_SIZE           1024 /* Default bufsize for write    */
 #define ISDN_SERIAL_XMIT_MAX            4000 /* Maximum bufsize for write    */
-#define ISDN_SERIAL_TYPE_NORMAL            1
-#define ISDN_SERIAL_TYPE_CALLOUT           2
 
 #ifdef CONFIG_ISDN_AUDIO
 /* For using sk_buffs with audio we need some private variables
