@@ -78,15 +78,12 @@ perf_event_set_period(struct hw_perf_event *hwc, u64 min, u64 max, u64 *hw_perio
 		overflow = 1;
 	}
 
-	if (unlikely(left <= 0)) {
+	if (unlikely(left < (s64)min)) {
 		left += period;
 		local64_set(&hwc->period_left, left);
 		hwc->last_period = period;
 		overflow = 1;
 	}
-
-	if (unlikely(left < min))
-		left = min;
 
 	if (left > max)
 		left = max;
