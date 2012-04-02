@@ -16,6 +16,7 @@ struct annotate_browser {
 	struct rb_root	  entries;
 	struct rb_node	  *curr_hot;
 	struct objdump_line *selection;
+	u64		    start;
 	int		    nr_asm_entries;
 	int		    nr_entries;
 	bool		    hide_src_code;
@@ -51,6 +52,9 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	struct annotate_browser *ab = container_of(self, struct annotate_browser, b);
 	struct objdump_line *ol = list_entry(entry, struct objdump_line, node);
 	bool current_entry = ui_browser__is_current_entry(self, row);
+	bool change_color = (!ab->hide_src_code &&
+			     (!current_entry || (self->use_navkeypressed &&
+					         !self->navkeypressed)));
 	int width = self->width;
 
 	if (ol->offset != -1) {
@@ -69,15 +73,26 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	if (!self->navkeypressed)
 		width += 1;
 
-	if (!ab->hide_src_code && ol->offset != -1)
-		if (!current_entry || (self->use_navkeypressed &&
-				       !self->navkeypressed))
-			ui_browser__set_color(self, HE_COLORSET_CODE);
+	if (ol->offset != -1 && change_color)
+		ui_browser__set_color(self, HE_COLORSET_CODE);
 
 	if (!*ol->line)
 		slsmg_write_nstring(" ", width - 18);
-	else
+	else if (ol->offset == -1)
 		slsmg_write_nstring(ol->line, width - 18);
+	else {
+		char bf[64];
+		u64 addr = ab->start + ol->offset;
+		int printed = scnprintf(bf, sizeof(bf), " %" PRIx64 ":", addr);
+		int color = -1;
+
+		if (change_color)
+			color = ui_browser__set_color(self, HE_COLORSET_ADDR);
+		slsmg_write_nstring(bf, printed);
+		if (change_color)
+			ui_browser__set_color(self, color);
+		slsmg_write_nstring(ol->line, width - 18 - printed);
+	}
 
 	if (current_entry)
 		ab->selection = ol;
@@ -406,6 +421,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	ui_helpline__push("Press <- or ESC to exit");
 
 	notes = symbol__annotation(sym);
+	browser.start = map__rip_2objdump(map, sym->start);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
 		struct objdump_line_rb_node *rbpos;

@@ -506,6 +506,12 @@ static struct ui_browser__colorset {
 		.bg	  = "default",
 	},
 	{
+		.colorset = HE_COLORSET_ADDR,
+		.name	  = "addr",
+		.fg	  = "magenta",
+		.bg	  = "default",
+	},
+	{
 		.name = NULL,
 	}
 };
