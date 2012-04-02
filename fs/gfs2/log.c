@@ -32,8 +32,6 @@
 #include "dir.h"
 #include "trace_gfs2.h"
 
-#define PULL 1
-
 /**
  * gfs2_struct2blk - compute stuff
  * @sdp: the filesystem
@@ -580,7 +578,7 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
  * Returns: the initialized log buffer descriptor
  */
 
-static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
+static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 {
 	u64 blkno = gfs2_log_bmap(sdp, sdp->sd_log_flush_head);
 	struct buffer_head *bh;
@@ -628,8 +626,6 @@ static void log_write_header(struct gfs2_sbd *sdp, u32 flags, int pull)
 
 	if (sdp->sd_log_tail != tail)
 		log_pull_tail(sdp, tail);
-	else
-		gfs2_assert_withdraw(sdp, !pull);
 
 	sdp->sd_log_idle = (tail == sdp->sd_log_flush_head);
 	gfs2_log_incr_head(sdp);
@@ -680,13 +676,13 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	lops_before_commit(sdp);
 
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
-		log_write_header(sdp, 0, 0);
+		log_write_header(sdp, 0);
 	} else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle){
 		gfs2_log_lock(sdp);
 		atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
 		trace_gfs2_log_blocks(sdp, -1);
 		gfs2_log_unlock(sdp);
-		log_write_header(sdp, 0, PULL);
+		log_write_header(sdp, 0);
 	}
 	lops_after_commit(sdp, ai);
 
@@ -798,8 +794,7 @@ void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	sdp->sd_log_flush_head = sdp->sd_log_head;
 	sdp->sd_log_flush_wrapped = 0;
 
-	log_write_header(sdp, GFS2_LOG_HEAD_UNMOUNT,
-			 (sdp->sd_log_tail == current_tail(sdp)) ? 0 : PULL);
+	log_write_header(sdp, GFS2_LOG_HEAD_UNMOUNT);
 
 	gfs2_assert_warn(sdp, atomic_read(&sdp->sd_log_blks_free) == sdp->sd_jdesc->jd_blocks);
 	gfs2_assert_warn(sdp, sdp->sd_log_head == sdp->sd_log_tail);
