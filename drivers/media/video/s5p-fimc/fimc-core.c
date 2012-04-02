@@ -463,11 +463,53 @@ void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 	    f->fmt->color, f->dma_offset.y_h, f->dma_offset.y_v);
 }
 
+int fimc_set_color_effect(struct fimc_ctx *ctx, enum v4l2_colorfx colorfx)
+{
+	struct fimc_effect *effect = &ctx->effect;
+
+	switch (colorfx) {
+	case V4L2_COLORFX_NONE:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_BYPASS;
+		break;
+	case V4L2_COLORFX_BW:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_ARBITRARY;
+		effect->pat_cb = 128;
+		effect->pat_cr = 128;
+		break;
+	case V4L2_COLORFX_SEPIA:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_ARBITRARY;
+		effect->pat_cb = 115;
+		effect->pat_cr = 145;
+		break;
+	case V4L2_COLORFX_NEGATIVE:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_NEGATIVE;
+		break;
+	case V4L2_COLORFX_EMBOSS:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_EMBOSSING;
+		break;
+	case V4L2_COLORFX_ART_FREEZE:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_ARTFREEZE;
+		break;
+	case V4L2_COLORFX_SILHOUETTE:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_SILHOUETTE;
+		break;
+	case V4L2_COLORFX_SET_CBCR:
+		effect->type = FIMC_REG_CIIMGEFF_FIN_ARBITRARY;
+		effect->pat_cb = ctx->ctrls.colorfx_cbcr->val >> 8;
+		effect->pat_cr = ctx->ctrls.colorfx_cbcr->val & 0xff;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * V4L2 controls handling
  */
 #define ctrl_to_ctx(__ctrl) \
-	container_of((__ctrl)->handler, struct fimc_ctx, ctrl_handler)
+	container_of((__ctrl)->handler, struct fimc_ctx, ctrls.handler)
 
 static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 {
@@ -507,7 +549,14 @@ static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 	case V4L2_CID_ALPHA_COMPONENT:
 		ctx->d_frame.alpha = ctrl->val;
 		break;
+
+	case V4L2_CID_COLORFX:
+		ret = fimc_set_color_effect(ctx, ctrl->val);
+		if (ret)
+			return ret;
+		break;
 	}
+
 	ctx->state |= FIMC_PARAMS;
 	set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	return 0;
@@ -534,69 +583,91 @@ int fimc_ctrls_create(struct fimc_ctx *ctx)
 {
 	struct fimc_variant *variant = ctx->fimc_dev->variant;
 	unsigned int max_alpha = fimc_get_alpha_mask(ctx->d_frame.fmt);
+	struct fimc_ctrls *ctrls = &ctx->ctrls;
+	struct v4l2_ctrl_handler *handler = &ctrls->handler;
 
-	if (ctx->ctrls_rdy)
+	if (ctx->ctrls.ready)
 		return 0;
-	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 4);
 
-	ctx->ctrl_rotate = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
+	v4l2_ctrl_handler_init(handler, 6);
+
+	ctrls->rotate = v4l2_ctrl_new_std(handler, &fimc_ctrl_ops,
 					V4L2_CID_ROTATE, 0, 270, 90, 0);
-	ctx->ctrl_hflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
+	ctrls->hflip = v4l2_ctrl_new_std(handler, &fimc_ctrl_ops,
 					V4L2_CID_HFLIP, 0, 1, 1, 0);
-	ctx->ctrl_vflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &fimc_ctrl_ops,
+	ctrls->vflip = v4l2_ctrl_new_std(handler, &fimc_ctrl_ops,
 					V4L2_CID_VFLIP, 0, 1, 1, 0);
+
 	if (variant->has_alpha)
-		ctx->ctrl_alpha = v4l2_ctrl_new_std(&ctx->ctrl_handler,
-				    &fimc_ctrl_ops, V4L2_CID_ALPHA_COMPONENT,
-				    0, max_alpha, 1, 0);
+		ctrls->alpha = v4l2_ctrl_new_std(handler, &fimc_ctrl_ops,
+					V4L2_CID_ALPHA_COMPONENT,
+					0, max_alpha, 1, 0);
 	else
-		ctx->ctrl_alpha = NULL;
+		ctrls->alpha = NULL;
 
-	ctx->ctrls_rdy = ctx->ctrl_handler.error == 0;
+	ctrls->colorfx = v4l2_ctrl_new_std_menu(handler, &fimc_ctrl_ops,
+				V4L2_CID_COLORFX, V4L2_COLORFX_SET_CBCR,
+				~0x983f, V4L2_COLORFX_NONE);
 
-	return ctx->ctrl_handler.error;
+	ctrls->colorfx_cbcr = v4l2_ctrl_new_std(handler, &fimc_ctrl_ops,
+				V4L2_CID_COLORFX_CBCR, 0, 0xffff, 1, 0);
+
+	ctx->effect.type = FIMC_REG_CIIMGEFF_FIN_BYPASS;
+
+	if (!handler->error) {
+		v4l2_ctrl_cluster(3, &ctrls->colorfx);
+		ctrls->ready = true;
+	}
+
+	return handler->error;
 }
 
 void fimc_ctrls_delete(struct fimc_ctx *ctx)
 {
-	if (ctx->ctrls_rdy) {
-		v4l2_ctrl_handler_free(&ctx->ctrl_handler);
-		ctx->ctrls_rdy = false;
-		ctx->ctrl_alpha = NULL;
+	struct fimc_ctrls *ctrls = &ctx->ctrls;
+
+	if (ctrls->ready) {
+		v4l2_ctrl_handler_free(&ctrls->handler);
+		ctrls->ready = false;
+		ctrls->alpha = NULL;
 	}
 }
 
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active)
 {
 	unsigned int has_alpha = ctx->d_frame.fmt->flags & FMT_HAS_ALPHA;
+	struct fimc_ctrls *ctrls = &ctx->ctrls;
 
-	if (!ctx->ctrls_rdy)
+	if (!ctrls->ready)
 		return;
 
-	mutex_lock(&ctx->ctrl_handler.lock);
-	v4l2_ctrl_activate(ctx->ctrl_rotate, active);
-	v4l2_ctrl_activate(ctx->ctrl_hflip, active);
-	v4l2_ctrl_activate(ctx->ctrl_vflip, active);
-	if (ctx->ctrl_alpha)
-		v4l2_ctrl_activate(ctx->ctrl_alpha, active && has_alpha);
+	mutex_lock(&ctrls->handler.lock);
+	v4l2_ctrl_activate(ctrls->rotate, active);
+	v4l2_ctrl_activate(ctrls->hflip, active);
+	v4l2_ctrl_activate(ctrls->vflip, active);
+	v4l2_ctrl_activate(ctrls->colorfx, active);
+	if (ctrls->alpha)
+		v4l2_ctrl_activate(ctrls->alpha, active && has_alpha);
 
 	if (active) {
-		ctx->rotation = ctx->ctrl_rotate->val;
-		ctx->hflip    = ctx->ctrl_hflip->val;
-		ctx->vflip    = ctx->ctrl_vflip->val;
+		fimc_set_color_effect(ctx, ctrls->colorfx->cur.val);
+		ctx->rotation = ctrls->rotate->val;
+		ctx->hflip    = ctrls->hflip->val;
+		ctx->vflip    = ctrls->vflip->val;
 	} else {
+		ctx->effect.type = FIMC_REG_CIIMGEFF_FIN_BYPASS;
 		ctx->rotation = 0;
 		ctx->hflip    = 0;
 		ctx->vflip    = 0;
 	}
-	mutex_unlock(&ctx->ctrl_handler.lock);
+	mutex_unlock(&ctrls->handler.lock);
 }
 
 /* Update maximum value of the alpha color control */
 void fimc_alpha_ctrl_update(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct v4l2_ctrl *ctrl = ctx->ctrl_alpha;
+	struct v4l2_ctrl *ctrl = ctx->ctrls.alpha;
 
 	if (ctrl == NULL || !fimc->variant->has_alpha)
 		return;

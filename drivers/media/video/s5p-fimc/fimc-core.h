@@ -446,6 +446,30 @@ struct fimc_dev {
 };
 
 /**
+ * struct fimc_ctrls - v4l2 controls structure
+ * @handler: the control handler
+ * @colorfx: image effect control
+ * @colorfx_cbcr: Cb/Cr coefficients control
+ * @rotate: image rotation control
+ * @hflip: horizontal flip control
+ * @vflip: vertical flip control
+ * @alpha: RGB alpha control
+ * @ready: true if @handler is initialized
+ */
+struct fimc_ctrls {
+	struct v4l2_ctrl_handler handler;
+	struct {
+		struct v4l2_ctrl *colorfx;
+		struct v4l2_ctrl *colorfx_cbcr;
+	};
+	struct v4l2_ctrl *rotate;
+	struct v4l2_ctrl *hflip;
+	struct v4l2_ctrl *vflip;
+	struct v4l2_ctrl *alpha;
+	bool ready;
+};
+
+/**
  * fimc_ctx - the device context data
  * @s_frame:		source frame properties
  * @d_frame:		destination frame properties
@@ -465,12 +489,7 @@ struct fimc_dev {
  * @fimc_dev:		the FIMC device this context applies to
  * @m2m_ctx:		memory-to-memory device context
  * @fh:			v4l2 file handle
- * @ctrl_handler:	v4l2 controls handler
- * @ctrl_rotate		image rotation control
- * @ctrl_hflip		horizontal flip control
- * @ctrl_vflip		vertical flip control
- * @ctrl_alpha		RGB alpha control
- * @ctrls_rdy:		true if the control handler is initialized
+ * @ctrls:		v4l2 controls structure
  */
 struct fimc_ctx {
 	struct fimc_frame	s_frame;
@@ -491,12 +510,7 @@ struct fimc_ctx {
 	struct fimc_dev		*fimc_dev;
 	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct v4l2_fh		fh;
-	struct v4l2_ctrl_handler ctrl_handler;
-	struct v4l2_ctrl	*ctrl_rotate;
-	struct v4l2_ctrl	*ctrl_hflip;
-	struct v4l2_ctrl	*ctrl_vflip;
-	struct v4l2_ctrl	*ctrl_alpha;
-	bool			ctrls_rdy;
+	struct fimc_ctrls	ctrls;
 };
 
 #define fh_to_ctx(__fh) container_of(__fh, struct fimc_ctx, fh)

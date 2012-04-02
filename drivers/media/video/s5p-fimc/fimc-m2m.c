@@ -150,7 +150,7 @@ static void fimc_device_run(void *priv)
 		fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
-		fimc_hw_set_effect(ctx, false);
+		fimc_hw_set_effect(ctx);
 		fimc_hw_set_out_dma(ctx);
 		if (fimc->variant->has_alpha)
 			fimc_hw_set_rgb_alpha(ctx);
@@ -669,7 +669,7 @@ static int fimc_m2m_open(struct file *file)
 		goto error_fh;
 
 	/* Use separate control handler per file handle */
-	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
+	ctx->fh.ctrl_handler = &ctx->ctrls.handler;
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
 

@@ -62,7 +62,7 @@ static int fimc_capture_hw_init(struct fimc_dev *fimc)
 		fimc_hw_set_mainscaler(ctx);
 		fimc_hw_set_target_format(ctx);
 		fimc_hw_set_rotation(ctx);
-		fimc_hw_set_effect(ctx, false);
+		fimc_hw_set_effect(ctx);
 		fimc_hw_set_output_path(ctx);
 		fimc_hw_set_out_dma(ctx);
 		if (fimc->variant->has_alpha)
@@ -164,6 +164,7 @@ static int fimc_capture_config_update(struct fimc_ctx *ctx)
 	fimc_hw_set_mainscaler(ctx);
 	fimc_hw_set_target_format(ctx);
 	fimc_hw_set_rotation(ctx);
+	fimc_hw_set_effect(ctx);
 	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 	fimc_hw_set_out_dma(ctx);
 	if (fimc->variant->has_alpha)
@@ -462,14 +463,14 @@ int fimc_capture_ctrls_create(struct fimc_dev *fimc)
 
 	if (WARN_ON(vid_cap->ctx == NULL))
 		return -ENXIO;
-	if (vid_cap->ctx->ctrls_rdy)
+	if (vid_cap->ctx->ctrls.ready)
 		return 0;
 
 	ret = fimc_ctrls_create(vid_cap->ctx);
-	if (ret || vid_cap->user_subdev_api)
+	if (ret || vid_cap->user_subdev_api || !vid_cap->ctx->ctrls.ready)
 		return ret;
 
-	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrl_handler,
+	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrls.handler,
 		    fimc->pipeline.subdevs[IDX_SENSOR]->ctrl_handler);
 }
 
@@ -1588,7 +1589,7 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
 		  vfd->name, video_device_node_name(vfd));
 
-	vfd->ctrl_handler = &ctx->ctrl_handler;
+	vfd->ctrl_handler = &ctx->ctrls.handler;
 	return 0;
 
 err_vd:
