@@ -1222,8 +1222,10 @@ static int i915_load_gem_init(struct drm_device *dev)
 		i915_gem_do_init(dev, 0, mappable_size, gtt_size);
 
 		ret = i915_gem_init_aliasing_ppgtt(dev);
-		if (ret)
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
 			return ret;
+		}
 	} else {
 		/* Let GEM Manage all of the aperture.
 		 *
