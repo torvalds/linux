@@ -121,7 +121,7 @@ nouveau_bo_new(struct drm_device *dev, int size, int align,
 
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
 			  ttm_bo_type_device, &nvbo->placement,
-			  align >> PAGE_SHIFT, 0, false, NULL, acc_size,
+			  align >> PAGE_SHIFT, 0, false, NULL, acc_size, NULL,
 			  nouveau_bo_del_ttm);
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */

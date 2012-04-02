@@ -155,7 +155,7 @@ retry:
 	mutex_lock(&rdev->vram_mutex);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, 0, !kernel, NULL,
-			acc_size, &radeon_ttm_bo_destroy);
+			acc_size, NULL, &radeon_ttm_bo_destroy);
 	mutex_unlock(&rdev->vram_mutex);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
