@@ -690,6 +690,16 @@ tty3270_alloc_view(void)
 	if (!tp->freemem_pages)
 		goto out_tp;
 	INIT_LIST_HEAD(&tp->freemem);
+	INIT_LIST_HEAD(&tp->lines);
+	INIT_LIST_HEAD(&tp->update);
+	INIT_LIST_HEAD(&tp->rcl_lines);
+	tp->rcl_max = 20;
+	setup_timer(&tp->timer, (void (*)(unsigned long)) tty3270_update,
+		    (unsigned long) tp);
+	tasklet_init(&tp->readlet,
+		     (void (*)(unsigned long)) tty3270_read_tasklet,
+		     (unsigned long) tp->read);
+
 	for (pages = 0; pages < TTY3270_STRING_PAGES; pages++) {
 		tp->freemem_pages[pages] = (void *)
 			__get_free_pages(GFP_KERNEL|GFP_DMA, 0);
@@ -878,16 +888,6 @@ tty3270_open(struct tty_struct *tty, struct file * filp)
 	tp = tty3270_alloc_view();
 	if (IS_ERR(tp))
 		return PTR_ERR(tp);
-
-	INIT_LIST_HEAD(&tp->lines);
-	INIT_LIST_HEAD(&tp->update);
-	INIT_LIST_HEAD(&tp->rcl_lines);
-	tp->rcl_max = 20;
-	setup_timer(&tp->timer, (void (*)(unsigned long)) tty3270_update,
-		    (unsigned long) tp);
-	tasklet_init(&tp->readlet, 
-		     (void (*)(unsigned long)) tty3270_read_tasklet,
-		     (unsigned long) tp->read);
 
 	rc = raw3270_add_view(&tp->view, &tty3270_fn,
 			      tty->index + RAW3270_FIRSTMINOR);
