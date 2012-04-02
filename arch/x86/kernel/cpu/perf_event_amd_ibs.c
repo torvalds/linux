@@ -62,7 +62,7 @@ struct perf_ibs_data {
 };
 
 static int
-perf_event_set_period(struct hw_perf_event *hwc, u64 min, u64 max, u64 *count)
+perf_event_set_period(struct hw_perf_event *hwc, u64 min, u64 max, u64 *hw_period)
 {
 	s64 left = local64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
@@ -91,7 +91,7 @@ perf_event_set_period(struct hw_perf_event *hwc, u64 min, u64 max, u64 *count)
 	if (left > max)
 		left = max;
 
-	*count = (u64)left;
+	*hw_period = (u64)left;
 
 	return overflow;
 }
@@ -262,13 +262,13 @@ static int perf_ibs_init(struct perf_event *event)
 static int perf_ibs_set_period(struct perf_ibs *perf_ibs,
 			       struct hw_perf_event *hwc, u64 *period)
 {
-	int ret;
+	int overflow;
 
 	/* ignore lower 4 bits in min count: */
-	ret = perf_event_set_period(hwc, 1<<4, perf_ibs->max_period, period);
+	overflow = perf_event_set_period(hwc, 1<<4, perf_ibs->max_period, period);
 	local64_set(&hwc->prev_count, 0);
 
-	return ret;
+	return overflow;
 }
 
 static u64 get_ibs_fetch_count(u64 config)
