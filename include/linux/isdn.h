@@ -479,7 +479,6 @@ typedef struct modem_info {
   struct T30_s		*fax;		 /* T30 Fax Group 3 data/interface */
   int			faxonline;	 /* Fax-channel status             */
 #endif
-  struct tty_struct 	*tty;            /* Pointer to corresponding tty   */
   atemu                 emu;             /* AT-emulator data               */
   spinlock_t	        readlock;
 } modem_info;
