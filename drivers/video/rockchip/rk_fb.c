@@ -90,12 +90,18 @@ int get_fb_layer_id(struct fb_fix_screeninfo *fix)
 
 /**********************************************************************
 this is for hdmi
-id: lcdc id ,0 for lcdc0 ,1 for lcdc1
+name: lcdc device name ,lcdc0 , lcdc1
 ***********************************************************************/
-struct rk_lcdc_device_driver * rk_get_lcdc_drv(int  id)
+struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name)
 {
 	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
-	return inf->lcdc_dev_drv[id];
+	int i = 0;
+	for( i = 0; i < inf->num_lcdc; i++)
+	{
+		if(!strcmp(inf->lcdc_dev_drv[i]->name,name))
+			break;
+	}
+	return inf->lcdc_dev_drv[i];
 	
 }
 static int rk_fb_open(struct fb_info *info,int user)

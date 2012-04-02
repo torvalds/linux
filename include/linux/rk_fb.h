@@ -222,5 +222,6 @@ extern int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver);
 extern int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
 	struct rk_lcdc_device_driver *dev_drv,int id);
 extern int get_fb_layer_id(struct fb_fix_screeninfo *fix);
+extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern int rkfb_create_sysfs(struct fb_info *fbi);
 #endif
