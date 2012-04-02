@@ -24,6 +24,9 @@
 #include <linux/spi/spi.h>
 #include <linux/mmc/host.h>
 #include <linux/ion.h>
+#include <linux/cpufreq.h>
+#include <linux/clk.h>
+#include <mach/dvfs.h>
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
@@ -1198,9 +1201,24 @@ static void __init rk30_reserve(void)
 	board_mem_reserved();
 }
 
+static struct cpufreq_frequency_table cpu_dvfs_table[] = {
+	//{.frequency	= 126*1000, .index	= 980*1000},
+	{.frequency	= 252*1000, .index	= 980*1000},
+	{.frequency	= 504*1000, .index	= 980*1000},
+	{.frequency = 816*1000, .index	= 1000*1000},
+	{.frequency = 1008*1000,.index	= 1050*1000},
+	{.frequency = 1200*1000,.index	= 1150*1000},
+	{.frequency = 1416*1000,.index	= 1280*1000},
+	{.frequency = 1512*1000,.index	= 1320*1000},
+	//{.frequency = 1560*1000,.index	= 1350*1000},
+	//{.frequency = 1608*1000,.index	= 1350*1000},
+	{.frequency	= CPUFREQ_TABLE_END},
+};
+
 void __init board_clock_init(void)
 {
 	rk30_clock_data_init(periph_pll_297mhz, codec_pll_360mhz, max_i2s_12288khz);
+	dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), cpu_dvfs_table);
 }
 
 MACHINE_START(RK30, "RK30board")
