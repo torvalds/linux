@@ -125,9 +125,4 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 #define IWL_TRAFFIC_ENTRIES	(256)
 #define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
-/*****************************************************
- *   S e n d i n g     H o s t     C o m m a n d s   *
- *****************************************************/
-extern bool bt_siso_mode;
-
 #endif /* __iwl_core_h__ */
