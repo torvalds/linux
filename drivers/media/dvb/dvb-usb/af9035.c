@@ -973,31 +973,7 @@ static struct usb_driver af9035_usb_driver = {
 	.id_table = af9035_id,
 };
 
-/* module stuff */
-static int __init af9035_usb_module_init(void)
-{
-	int ret;
-
-	ret = usb_register(&af9035_usb_driver);
-	if (ret < 0)
-		goto err;
-
-	return 0;
-
-err:
-	pr_debug("%s: failed=%d\n", __func__, ret);
-
-	return ret;
-}
-
-static void __exit af9035_usb_module_exit(void)
-{
-	/* deregister this driver from the USB subsystem */
-	usb_deregister(&af9035_usb_driver);
-}
-
-module_init(af9035_usb_module_init);
-module_exit(af9035_usb_module_exit);
+module_usb_driver(af9035_usb_driver);
 
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_DESCRIPTION("Afatech AF9035 driver");
