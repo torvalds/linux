@@ -1699,13 +1699,8 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_ldisc_flush(tty);
 	port->tty = NULL;
 	info->ncarrier = 0;
-	tty->closing = 0;
-	if (port->blocked_open) {
-		msleep_interruptible(500);
-		wake_up_interruptible(&port->open_wait);
-	}
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
-	wake_up_interruptible(&port->close_wait);
+
+	tty_port_close_end(port, tty);
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_close normal exit\n");
 #endif
