@@ -17,6 +17,7 @@
 #include <asm/dbg.h>
 #include <linux/module.h>
 #include <linux/errno.h>
+#include <linux/serial.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/timer.h>
@@ -78,18 +79,6 @@ struct m68k_serial *m68k_consinfo = 0;
 #define M68K_CLOCK (16667000) /* FIXME: 16MHz is likely wrong */
 
 struct tty_driver *serial_driver;
-
-/* number of characters left in xmit buffer before we ask for more */
-#define WAKEUP_CHARS 256
-
-/* Debugging... DEBUG_INTR is bad to use when one of the zs
- * lines is your console ;(
- */
-#undef SERIAL_DEBUG_INTR
-#undef SERIAL_DEBUG_OPEN
-#undef SERIAL_DEBUG_FLOW
-
-#define RS_ISR_PASS_LIMIT 256
 
 static void change_speed(struct m68k_serial *info);
 
@@ -363,7 +352,7 @@ static int startup(struct m68k_serial * info)
 	m68328_uart *uart = &uart_addr[info->line];
 	unsigned long flags;
 	
-	if (info->flags & S_INITIALIZED)
+	if (info->flags & ASYNC_INITIALIZED)
 		return 0;
 
 	if (!info->xmit_buf) {
@@ -404,7 +393,7 @@ static int startup(struct m68k_serial * info)
 
 	change_speed(info);
 
-	info->flags |= S_INITIALIZED;
+	info->flags |= ASYNC_INITIALIZED;
 	local_irq_restore(flags);
 	return 0;
 }
@@ -419,7 +408,7 @@ static void shutdown(struct m68k_serial * info)
 	unsigned long	flags;
 
 	uart->ustcnt = 0; /* All off! */
-	if (!(info->flags & S_INITIALIZED))
+	if (!(info->flags & ASYNC_INITIALIZED))
 		return;
 
 	local_irq_save(flags);
@@ -432,7 +421,7 @@ static void shutdown(struct m68k_serial * info)
 	if (info->tty)
 		set_bit(TTY_IO_ERROR, &info->tty->flags);
 	
-	info->flags &= ~S_INITIALIZED;
+	info->flags &= ~ASYNC_INITIALIZED;
 	local_irq_restore(flags);
 }
 
@@ -835,11 +824,11 @@ static int set_serial_info(struct m68k_serial * info,
 		if ((new_serial.baud_base != info->baud_base) ||
 		    (new_serial.type != info->type) ||
 		    (new_serial.close_delay != info->close_delay) ||
-		    ((new_serial.flags & ~S_USR_MASK) !=
-		     (info->flags & ~S_USR_MASK)))
+		    ((new_serial.flags & ~ASYNC_USR_MASK) !=
+		     (info->flags & ~ASYNC_USR_MASK)))
 			return -EPERM;
-		info->flags = ((info->flags & ~S_USR_MASK) |
-			       (new_serial.flags & S_USR_MASK));
+		info->flags = ((info->flags & ~ASYNC_USR_MASK) |
+			       (new_serial.flags & ASYNC_USR_MASK));
 		info->custom_divisor = new_serial.custom_divisor;
 		goto check_and_exit;
 	}
@@ -853,8 +842,8 @@ static int set_serial_info(struct m68k_serial * info,
 	 */
 
 	info->baud_base = new_serial.baud_base;
-	info->flags = ((info->flags & ~S_FLAGS) |
-			(new_serial.flags & S_FLAGS));
+	info->flags = ((info->flags & ~ASYNC_FLAGS) |
+			(new_serial.flags & ASYNC_FLAGS));
 	info->type = new_serial.type;
 	info->close_delay = new_serial.close_delay;
 	info->closing_wait = new_serial.closing_wait;
@@ -1022,13 +1011,13 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		local_irq_restore(flags);
 		return;
 	}
-	info->flags |= S_CLOSING;
+	info->flags |= ASYNC_CLOSING;
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify 
 	 * the line discipline to only process XON/XOFF characters.
 	 */
 	tty->closing = 1;
-	if (info->closing_wait != S_CLOSING_WAIT_NONE)
+	if (info->closing_wait != ASYNC_CLOSING_WAIT_NONE)
 		tty_wait_until_sent(tty, info->closing_wait);
 	/*
 	 * At this point we stop accepting input.  To do this, we
@@ -1064,7 +1053,7 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		}
 		wake_up_interruptible(&info->open_wait);
 	}
-	info->flags &= ~(S_NORMAL_ACTIVE|S_CLOSING);
+	info->flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	wake_up_interruptible(&info->close_wait);
 	local_irq_restore(flags);
 }
@@ -1083,7 +1072,7 @@ void rs_hangup(struct tty_struct *tty)
 	shutdown(info);
 	info->event = 0;
 	info->count = 0;
-	info->flags &= ~S_NORMAL_ACTIVE;
+	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
@@ -1104,10 +1093,10 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	 * If the device is in the middle of being closed, then block
 	 * until it's done, and then try again.
 	 */
-	if (info->flags & S_CLOSING) {
+	if (info->flags & ASYNC_CLOSING) {
 		interruptible_sleep_on(&info->close_wait);
 #ifdef SERIAL_DO_RESTART
-		if (info->flags & S_HUP_NOTIFY)
+		if (info->flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
 		else
 			return -ERESTARTSYS;
@@ -1122,7 +1111,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		info->flags |= S_NORMAL_ACTIVE;
+		info->flags |= ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
 
@@ -1147,9 +1136,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 		local_irq_enable();
 		current->state = TASK_INTERRUPTIBLE;
 		if (tty_hung_up_p(filp) ||
-		    !(info->flags & S_INITIALIZED)) {
+		    !(info->flags & ASYNC_INITIALIZED)) {
 #ifdef SERIAL_DO_RESTART
-			if (info->flags & S_HUP_NOTIFY)
+			if (info->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
 				retval = -ERESTARTSYS;	
@@ -1158,7 +1147,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 #endif
 			break;
 		}
-		if (!(info->flags & S_CLOSING) && do_clocal)
+		if (!(info->flags & ASYNC_CLOSING) && do_clocal)
 			break;
                 if (signal_pending(current)) {
 			retval = -ERESTARTSYS;
@@ -1176,7 +1165,7 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 
 	if (retval)
 		return retval;
-	info->flags |= S_NORMAL_ACTIVE;
+	info->flags |= ASYNC_NORMAL_ACTIVE;
 	return 0;
 }	
 
