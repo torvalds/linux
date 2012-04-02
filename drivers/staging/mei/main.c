@@ -41,15 +41,7 @@
 #include "mei.h"
 #include "interface.h"
 
-
-#define MEI_DRIVER_NAME	"mei"
-#define MEI_DEV_NAME "mei"
-
-/*
- *  mei driver strings
- */
-static char mei_driver_name[] = MEI_DRIVER_NAME;
-static const char mei_driver_string[] = "Intel(R) Management Engine Interface";
+static const char mei_driver_name[] = "mei";
 
 /* The device pointer */
 /* Currently this driver works as long as there is only a single AMT device. */
@@ -932,7 +924,7 @@ static const struct file_operations mei_fops = {
  * Misc Device Struct
  */
 static struct miscdevice  mei_misc_device = {
-		.name = MEI_DRIVER_NAME,
+		.name = "mei",
 		.fops = &mei_fops,
 		.minor = MISC_DYNAMIC_MINOR,
 };
