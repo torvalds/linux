@@ -204,11 +204,11 @@ static int dn_fib_rule_fill(struct fib_rule *rule, struct sk_buff *skb,
 	frh->src_len = r->src_len;
 	frh->tos = 0;
 
-	if (r->dst_len)
-		NLA_PUT_LE16(skb, FRA_DST, r->dst);
-	if (r->src_len)
-		NLA_PUT_LE16(skb, FRA_SRC, r->src);
-
+	if ((r->dst_len &&
+	     nla_put_le16(skb, FRA_DST, r->dst)) ||
+	    (r->src_len &&
+	     nla_put_le16(skb, FRA_SRC, r->src)))
+		goto nla_put_failure;
 	return 0;
 
 nla_put_failure:

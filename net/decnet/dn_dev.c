@@ -695,13 +695,13 @@ static int dn_nl_fill_ifaddr(struct sk_buff *skb, struct dn_ifaddr *ifa,
 	ifm->ifa_scope = ifa->ifa_scope;
 	ifm->ifa_index = ifa->ifa_dev->dev->ifindex;
 
-	if (ifa->ifa_address)
-		NLA_PUT_LE16(skb, IFA_ADDRESS, ifa->ifa_address);
-	if (ifa->ifa_local)
-		NLA_PUT_LE16(skb, IFA_LOCAL, ifa->ifa_local);
-	if (ifa->ifa_label[0])
-		NLA_PUT_STRING(skb, IFA_LABEL, ifa->ifa_label);
-
+	if ((ifa->ifa_address &&
+	     nla_put_le16(skb, IFA_ADDRESS, ifa->ifa_address)) ||
+	    (ifa->ifa_local &&
+	     nla_put_le16(skb, IFA_LOCAL, ifa->ifa_local)) ||
+	    (ifa->ifa_label[0] &&
+	     nla_put_string(skb, IFA_LABEL, ifa->ifa_label)))
+		goto nla_put_failure;
 	return nlmsg_end(skb, nlh);
 
 nla_put_failure:
