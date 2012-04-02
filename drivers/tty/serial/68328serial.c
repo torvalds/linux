@@ -213,25 +213,6 @@ static void rs_start(struct tty_struct *tty)
 	local_irq_restore(flags);
 }
 
-/* Drop into either the boot monitor or kadb upon receiving a break
- * from keyboard/console input.
- */
-static void batten_down_hatches(void)
-{
-	/* Drop into the debugger */
-}
-
-static void status_handle(struct m68k_serial *info, unsigned short status)
-{
-	/* If this is console input and this is a
-	 * 'break asserted' status change interrupt
-	 * see if we can drop into the debugger
-	 */
-	if((status & URX_BREAK) && info->break_abort)
-		batten_down_hatches();
-	return;
-}
-
 static void receive_chars(struct m68k_serial *info, unsigned short rx)
 {
 	struct tty_struct *tty = info->tty;
@@ -248,7 +229,6 @@ static void receive_chars(struct m68k_serial *info, unsigned short rx)
 	
 		if(info->is_cons) {
 			if(URX_BREAK & rx) { /* whee, break received */
-				status_handle(info, rx);
 				return;
 #ifdef CONFIG_MAGIC_SYSRQ
 			} else if (ch == 0x10) { /* ^P */
@@ -269,16 +249,13 @@ static void receive_chars(struct m68k_serial *info, unsigned short rx)
 		
 		flag = TTY_NORMAL;
 
-		if(rx & URX_PARITY_ERROR) {
+		if (rx & URX_PARITY_ERROR)
 			flag = TTY_PARITY;
-			status_handle(info, rx);
-		} else if(rx & URX_OVRUN) {
+		else if (rx & URX_OVRUN)
 			flag = TTY_OVERRUN;
-			status_handle(info, rx);
-		} else if(rx & URX_FRAME_ERROR) {
+		else if (rx & URX_FRAME_ERROR)
 			flag = TTY_FRAME;
-			status_handle(info, rx);
-		}
+
 		tty_insert_flip_char(tty, ch, flag);
 #ifndef CONFIG_XCOPILOT_BUGS
 	} while((rx = uart->urx.w) & URX_DATA_READY);
@@ -369,7 +346,6 @@ static int startup(struct m68k_serial * info)
 	 */
 
 	uart->ustcnt = USTCNT_UEN;
-	info->xmit_fifo_size = 1;
 	uart->ustcnt = USTCNT_UEN | USTCNT_RXEN | USTCNT_TXEN;
 	(void)uart->urx.w;
 
@@ -499,7 +475,6 @@ static void change_speed(struct m68k_serial *info)
                 i = (i & ~CBAUDEX) + B38400;
         }
 
-	info->baud = baud_table[i];
 	uart->ubaud = PUT_FIELD(UBAUD_DIVIDE,    hw_baud_table[i].divisor) | 
 		PUT_FIELD(UBAUD_PRESCALER, hw_baud_table[i].prescale);
 
@@ -1034,7 +1009,6 @@ static void rs_close(struct tty_struct *tty, struct file * filp)
 		
 	tty_ldisc_flush(tty);
 	tty->closing = 0;
-	info->event = 0;
 	info->tty = NULL;
 #warning "This is not and has never been valid so fix it"	
 #if 0
@@ -1070,7 +1044,6 @@ void rs_hangup(struct tty_struct *tty)
 	
 	rs_flush_buffer(tty);
 	shutdown(info);
-	info->event = 0;
 	info->count = 0;
 	info->flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
@@ -1270,7 +1243,6 @@ rs68328_init(void)
 	    info->close_delay = 50;
 	    info->closing_wait = 3000;
 	    info->x_char = 0;
-	    info->event = 0;
 	    info->count = 0;
 	    info->blocked_open = 0;
 	    init_waitqueue_head(&info->open_wait);

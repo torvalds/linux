@@ -60,16 +60,7 @@
  */
 
 struct m68k_serial {
-	char soft_carrier;  /* Use soft carrier on this channel */
-	char break_abort;   /* Is serial console in, so process brk/abrt */
 	char is_cons;       /* Is this our console. */
-
-	/* We need to know the current clock divisor
-	 * to read the bps rate the chip has currently
-	 * loaded.
-	 */
-	unsigned char clk_divisor;  /* May be 1, 16, 32, or 64 */
-	int baud;
 	int			magic;
 	int			baud_base;
 	int			port;
@@ -77,17 +68,10 @@ struct m68k_serial {
 	int			flags; 		/* defined in tty.h */
 	int			type; 		/* UART type */
 	struct tty_struct 	*tty;
-	int			read_status_mask;
-	int			ignore_status_mask;
-	int			timeout;
-	int			xmit_fifo_size;
 	int			custom_divisor;
 	int			x_char;	/* xon/xoff character */
 	int			close_delay;
 	unsigned short		closing_wait;
-	unsigned short		closing_wait2;
-	unsigned long		event;
-	unsigned long		last_active;
 	int			line;
 	int			count;	    /* # of fd on device */
 	int			blocked_open; /* # of blocked opens */
