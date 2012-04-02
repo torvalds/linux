@@ -73,11 +73,6 @@ static unsigned int uart_irqs[NR_PORTS] = UART_IRQ_DEFNS;
 /* multiple ports are contiguous in memory */
 m68328_uart *uart_addr = (m68328_uart *)USTCNT_ADDR;
 
-struct tty_struct m68k_ttys;
-struct m68k_serial *m68k_consinfo = 0;
-
-#define M68K_CLOCK (16667000) /* FIXME: 16MHz is likely wrong */
-
 struct tty_driver *serial_driver;
 
 static void change_speed(struct m68k_serial *info);
@@ -131,17 +126,6 @@ static inline int serial_paranoia_check(struct m68k_serial *info,
 static int baud_table[] = {
 	0, 50, 75, 110, 134, 150, 200, 300, 600, 1200, 1800, 2400, 4800,
 	9600, 19200, 38400, 57600, 115200, 0 };
-
-/* Sets or clears DTR/RTS on the requested line */
-static inline void m68k_rtsdtr(struct m68k_serial *ss, int set)
-{
-	if (set) {
-		/* set the RTS/CTS line */
-	} else {
-		/* clear it */
-	}
-	return;
-}
 
 /* Utility routines */
 static inline int get_baud(struct m68k_serial *ss)
@@ -1104,9 +1088,6 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 	info->count--;
 	info->blocked_open++;
 	while (1) {
-		local_irq_disable();
-		m68k_rtsdtr(info, 1);
-		local_irq_enable();
 		current->state = TASK_INTERRUPTIBLE;
 		if (tty_hung_up_p(filp) ||
 		    !(info->flags & ASYNC_INITIALIZED)) {
