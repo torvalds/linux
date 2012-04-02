@@ -85,8 +85,19 @@ perf_event_set_period(struct hw_perf_event *hwc, u64 min, u64 max, u64 *hw_perio
 		overflow = 1;
 	}
 
-	if (left > max)
-		left = max;
+	/*
+	 * If the hw period that triggers the sw overflow is too short
+	 * we might hit the irq handler. This biases the results.
+	 * Thus we shorten the next-to-last period and set the last
+	 * period to the max period.
+	 */
+	if (left > max) {
+		left -= max;
+		if (left > max)
+			left = max;
+		else if (left < min)
+			left = min;
+	}
 
 	*hw_period = (u64)left;
 
