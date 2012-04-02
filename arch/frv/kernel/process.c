@@ -28,7 +28,6 @@
 
 #include <asm/asm-offsets.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>

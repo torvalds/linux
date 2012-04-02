@@ -26,10 +26,10 @@
 #include <linux/interrupt.h>
 #include <linux/init.h>
 
-#include <asm/irq.h>
-#include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/mach-types.h>
+
+#include <mach/irqs.h>
 
 /* 
  * A small note about bridges and interrupts.  The DECchip 21050 (and

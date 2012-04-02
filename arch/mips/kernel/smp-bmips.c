@@ -28,7 +28,6 @@
 #include <asm/time.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/bootinfo.h>
 #include <asm/pmon.h>
 #include <asm/cacheflush.h>

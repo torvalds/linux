@@ -20,7 +20,6 @@
 
 #include <asm/uaccess.h>
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/q40_master.h>
 #include <linux/fb.h>
 #include <linux/module.h>

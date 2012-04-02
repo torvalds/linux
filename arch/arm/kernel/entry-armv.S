@@ -15,6 +15,7 @@
  *  that causes it to save wrong values...  Be aware!
  */
 
+#include <asm/assembler.h>
 #include <asm/memory.h>
 #include <asm/glue-df.h>
 #include <asm/glue-pf.h>
@@ -26,7 +27,7 @@
 #include <asm/unwind.h>
 #include <asm/unistd.h>
 #include <asm/tls.h>
-#include <asm/system.h>
+#include <asm/system_info.h>
 
 #include "entry-header.S"
 #include <asm/entry-macro-multi.S>

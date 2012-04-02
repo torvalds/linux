@@ -252,7 +252,7 @@ extern void ntp_clear(void);
 /* Returns how long ticks are at present, in ns / 2^NTP_SCALE_SHIFT. */
 extern u64 ntp_tick_length(void);
 
-extern void second_overflow(void);
+extern int second_overflow(unsigned long secs);
 extern int do_adjtimex(struct timex *);
 extern void hardpps(const struct timespec *, const struct timespec *);
 

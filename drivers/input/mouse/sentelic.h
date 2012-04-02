@@ -2,7 +2,7 @@
  * Finger Sensing Pad PS/2 mouse driver.
  *
  * Copyright (C) 2005-2007 Asia Vital Components Co., Ltd.
- * Copyright (C) 2005-2011 Tai-hwa Liang, Sentelic Corporation.
+ * Copyright (C) 2005-2012 Tai-hwa Liang, Sentelic Corporation.
  *
  *   This program is free software; you can redistribute it and/or
  *   modify it under the terms of the GNU General Public License
@@ -55,6 +55,16 @@
 #define	FSP_BIT_FIX_HSCR	BIT(5)
 #define	FSP_BIT_DRAG_LOCK	BIT(6)
 
+#define	FSP_REG_SWC1		(0x90)
+#define	FSP_BIT_SWC1_EN_ABS_1F	BIT(0)
+#define	FSP_BIT_SWC1_EN_GID	BIT(1)
+#define	FSP_BIT_SWC1_EN_ABS_2F	BIT(2)
+#define	FSP_BIT_SWC1_EN_FUP_OUT	BIT(3)
+#define	FSP_BIT_SWC1_EN_ABS_CON	BIT(4)
+#define	FSP_BIT_SWC1_GST_GRP0	BIT(5)
+#define	FSP_BIT_SWC1_GST_GRP1	BIT(6)
+#define	FSP_BIT_SWC1_BX_COMPAT	BIT(7)
+
 /* Finger-sensing Pad packet formating related definitions */
 
 /* absolute packet type */
@@ -64,12 +74,32 @@
 #define	FSP_PKT_TYPE_NORMAL_OPC	(0x03)
 #define	FSP_PKT_TYPE_SHIFT	(6)
 
+/* bit definitions for the first byte of report packet */
+#define	FSP_PB0_LBTN		BIT(0)
+#define	FSP_PB0_RBTN		BIT(1)
+#define	FSP_PB0_MBTN		BIT(2)
+#define	FSP_PB0_MFMC_FGR2	FSP_PB0_MBTN
+#define	FSP_PB0_MUST_SET	BIT(3)
+#define	FSP_PB0_PHY_BTN		BIT(4)
+#define	FSP_PB0_MFMC		BIT(5)
+
+/* hardware revisions */
+#define	FSP_VER_STL3888_A4	(0xC1)
+#define	FSP_VER_STL3888_B0	(0xD0)
+#define	FSP_VER_STL3888_B1	(0xD1)
+#define	FSP_VER_STL3888_B2	(0xD2)
+#define	FSP_VER_STL3888_C0	(0xE0)
+#define	FSP_VER_STL3888_C1	(0xE1)
+#define	FSP_VER_STL3888_D0	(0xE2)
+#define	FSP_VER_STL3888_D1	(0xE3)
+#define	FSP_VER_STL3888_E0	(0xE4)
+
 #ifdef __KERNEL__
 
 struct fsp_data {
 	unsigned char	ver;		/* hardware version */
 	unsigned char	rev;		/* hardware revison */
-	unsigned char	buttons;	/* Number of buttons */
+	unsigned int	buttons;	/* Number of buttons */
 	unsigned int	flags;
 #define	FSPDRV_FLAG_EN_OPC	(0x001)	/* enable on-pad clicking */
 
@@ -78,6 +108,7 @@ struct fsp_data {
 
 	unsigned char	last_reg;	/* Last register we requested read from */
 	unsigned char	last_val;
+	unsigned int	last_mt_fgr;	/* Last seen finger(multitouch) */
 };
 
 #ifdef CONFIG_MOUSE_PS2_SENTELIC

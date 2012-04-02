@@ -18,7 +18,6 @@
 #include <linux/irq.h>
 
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/m68360.h>

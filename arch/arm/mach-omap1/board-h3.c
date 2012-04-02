@@ -34,21 +34,21 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <mach/hardware.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/irqs.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
 #include <plat/dma.h>
-#include "common.h"
 #include <plat/flash.h>
 
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+
+#include "common.h"
 #include "board-h3.h"
 
 /* In OMAP1710 H3 the Ethernet is directly connected to CS1 */
@@ -247,8 +247,6 @@ static struct resource smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= OMAP_GPIO_IRQ(40),
-		.end	= OMAP_GPIO_IRQ(40),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
 	},
 };
@@ -338,7 +336,6 @@ static struct spi_board_info h3_spi_board_info[] __initdata = {
 		.modalias	= "tsc2101",
 		.bus_num	= 2,
 		.chip_select	= 0,
-		.irq		= OMAP_GPIO_IRQ(H3_TS_GPIO),
 		.max_speed_hz	= 16000000,
 		/* .platform_data	= &tsc_platform_data, */
 	},
@@ -374,11 +371,9 @@ static struct omap_lcd_config h3_lcd_config __initdata = {
 static struct i2c_board_info __initdata h3_i2c_board_info[] = {
        {
 		I2C_BOARD_INFO("tps65013", 0x48),
-               /* .irq         = OMAP_GPIO_IRQ(??), */
        },
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
-		.irq		= OMAP_GPIO_IRQ(14),
 	},
 };
 
@@ -420,10 +415,14 @@ static void __init h3_init(void)
 	omap_cfg_reg(E19_1610_KBR4);
 	omap_cfg_reg(N19_1610_KBR5);
 
+	smc91x_resources[1].start = gpio_to_irq(40);
+	smc91x_resources[1].end = gpio_to_irq(40);
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	h3_spi_board_info[0].irq = gpio_to_irq(H3_TS_GPIO);
 	spi_register_board_info(h3_spi_board_info,
 				ARRAY_SIZE(h3_spi_board_info));
 	omap_serial_init();
+	h3_i2c_board_info[1].irq = gpio_to_irq(14);
 	omap_register_i2c_bus(1, 100, h3_i2c_board_info,
 			      ARRAY_SIZE(h3_i2c_board_info));
 	omap1_usb_init(&h3_usb_config);

@@ -14,7 +14,6 @@
 
 #include <linux/sched.h>
 #include <linux/hardirq.h>
-#include <asm/system.h>
 
 struct pt_regs;
 struct user_i387_struct;

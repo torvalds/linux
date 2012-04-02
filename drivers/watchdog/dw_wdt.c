@@ -16,7 +16,8 @@
  * If we receive an expected close for the watchdog then we keep the timer
  * running, otherwise the timer is stopped and the watchdog will expire.
  */
-#define pr_fmt(fmt) "dw_wdt: " fmt
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -45,8 +46,8 @@
 /* The maximum TOP (timeout period) value that can be set in the watchdog. */
 #define DW_WDT_MAX_TOP		15
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 		 "(default=" __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 

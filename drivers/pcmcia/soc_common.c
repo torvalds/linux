@@ -46,7 +46,6 @@
 #include <linux/timer.h>
 
 #include <mach/hardware.h>
-#include <asm/system.h>
 
 #include "soc_common.h"
 

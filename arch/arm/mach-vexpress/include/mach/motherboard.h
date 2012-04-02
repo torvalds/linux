@@ -39,33 +39,30 @@
 #define V2M_CF			(V2M_PA_CS7 + 0x0001a000)
 #define V2M_CLCD		(V2M_PA_CS7 + 0x0001f000)
 
-#define V2M_SYS_ID		(V2M_SYSREGS + 0x000)
-#define V2M_SYS_SW		(V2M_SYSREGS + 0x004)
-#define V2M_SYS_LED		(V2M_SYSREGS + 0x008)
-#define V2M_SYS_100HZ		(V2M_SYSREGS + 0x024)
-#define V2M_SYS_FLAGS		(V2M_SYSREGS + 0x030)
-#define V2M_SYS_FLAGSSET	(V2M_SYSREGS + 0x030)
-#define V2M_SYS_FLAGSCLR	(V2M_SYSREGS + 0x034)
-#define V2M_SYS_NVFLAGS		(V2M_SYSREGS + 0x038)
-#define V2M_SYS_NVFLAGSSET	(V2M_SYSREGS + 0x038)
-#define V2M_SYS_NVFLAGSCLR	(V2M_SYSREGS + 0x03c)
-#define V2M_SYS_MCI		(V2M_SYSREGS + 0x048)
-#define V2M_SYS_FLASH		(V2M_SYSREGS + 0x03c)
-#define V2M_SYS_CFGSW		(V2M_SYSREGS + 0x058)
-#define V2M_SYS_24MHZ		(V2M_SYSREGS + 0x05c)
-#define V2M_SYS_MISC		(V2M_SYSREGS + 0x060)
-#define V2M_SYS_DMA		(V2M_SYSREGS + 0x064)
-#define V2M_SYS_PROCID0		(V2M_SYSREGS + 0x084)
-#define V2M_SYS_PROCID1		(V2M_SYSREGS + 0x088)
-#define V2M_SYS_CFGDATA		(V2M_SYSREGS + 0x0a0)
-#define V2M_SYS_CFGCTRL		(V2M_SYSREGS + 0x0a4)
-#define V2M_SYS_CFGSTAT		(V2M_SYSREGS + 0x0a8)
-
-#define V2M_TIMER0		(V2M_TIMER01 + 0x000)
-#define V2M_TIMER1		(V2M_TIMER01 + 0x020)
-
-#define V2M_TIMER2		(V2M_TIMER23 + 0x000)
-#define V2M_TIMER3		(V2M_TIMER23 + 0x020)
+/*
+ * Offsets from SYSREGS base
+ */
+#define V2M_SYS_ID		0x000
+#define V2M_SYS_SW		0x004
+#define V2M_SYS_LED		0x008
+#define V2M_SYS_100HZ		0x024
+#define V2M_SYS_FLAGS		0x030
+#define V2M_SYS_FLAGSSET	0x030
+#define V2M_SYS_FLAGSCLR	0x034
+#define V2M_SYS_NVFLAGS		0x038
+#define V2M_SYS_NVFLAGSSET	0x038
+#define V2M_SYS_NVFLAGSCLR	0x03c
+#define V2M_SYS_MCI		0x048
+#define V2M_SYS_FLASH		0x03c
+#define V2M_SYS_CFGSW		0x058
+#define V2M_SYS_24MHZ		0x05c
+#define V2M_SYS_MISC		0x060
+#define V2M_SYS_DMA		0x064
+#define V2M_SYS_PROCID0		0x084
+#define V2M_SYS_PROCID1		0x088
+#define V2M_SYS_CFGDATA		0x0a0
+#define V2M_SYS_CFGCTRL		0x0a4
+#define V2M_SYS_CFGSTAT		0x0a8
 
 
 /*
@@ -117,6 +114,13 @@
 
 int v2m_cfg_write(u32 devfn, u32 data);
 int v2m_cfg_read(u32 devfn, u32 *data);
+void v2m_flags_set(u32 data);
+
+/*
+ * Miscellaneous
+ */
+#define SYS_MISC_MASTERSITE	(1 << 14)
+#define SYS_PROCIDx_HBI_MASK	0xfff
 
 /*
  * Core tile IDs

@@ -66,7 +66,6 @@
 #include <net/xfrm.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <trace/events/skb.h>
 
 #include "kmap_skb.h"
@@ -321,12 +320,12 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 EXPORT_SYMBOL(__netdev_alloc_skb);
 
 void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
-		int size)
+		     int size, unsigned int truesize)
 {
 	skb_fill_page_desc(skb, i, page, off, size);
 	skb->len += size;
 	skb->data_len += size;
-	skb->truesize += size;
+	skb->truesize += truesize;
 }
 EXPORT_SYMBOL(skb_add_rx_frag);
 

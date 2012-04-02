@@ -31,7 +31,6 @@
 #include <linux/kthread.h>
 #include <linux/delay.h>
 
-#include <asm/system.h>
 
 /*
  * The apm_bios device is one of the misc char devices.

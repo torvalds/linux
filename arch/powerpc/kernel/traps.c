@@ -39,7 +39,6 @@
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
@@ -58,6 +57,8 @@
 #include <asm/ppc-opcode.h>
 #include <asm/rio.h>
 #include <asm/fadump.h>
+#include <asm/switch_to.h>
+#include <asm/debug.h>
 
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
 int (*__debugger)(struct pt_regs *regs) __read_mostly;

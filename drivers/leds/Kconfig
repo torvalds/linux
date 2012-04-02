@@ -69,17 +69,10 @@ config LEDS_MIKROTIK_RB532
 config LEDS_S3C24XX
 	tristate "LED Support for Samsung S3C24XX GPIO LEDs"
 	depends on LEDS_CLASS
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C24XX
 	help
 	  This option enables support for LEDs connected to GPIO lines
 	  on Samsung S3C24XX series CPUs, such as the S3C2410 and S3C2440.
-
-config LEDS_AMS_DELTA
-	tristate "LED Support for the Amstrad Delta (E3)"
-	depends on LEDS_CLASS
-	depends on MACH_AMS_DELTA
-	help
-	  This option enables support for the LEDs on Amstrad Delta (E3).
 
 config LEDS_NET48XX
 	tristate "LED Support for Soekris net48xx series Error LED"

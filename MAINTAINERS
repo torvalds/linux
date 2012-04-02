@@ -786,7 +786,6 @@ M:	Sascha Hauer <kernel@pengutronix.de>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.pengutronix.de/git/imx/linux-2.6.git
-F:	arch/arm/mach-mx*/
 F:	arch/arm/mach-imx/
 F:	arch/arm/plat-mxc/
 
@@ -816,9 +815,12 @@ S:	Maintained
 
 ARM/H4700 (HP IPAQ HX4700) MACHINE SUPPORT
 M:	Philipp Zabel <philipp.zabel@gmail.com>
+M:	Paul Parsons <lost.distance@yahoo.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 F:	arch/arm/mach-pxa/hx4700.c
 F:	arch/arm/mach-pxa/include/mach/hx4700.h
+F:	sound/soc/pxa/hx4700.c
 
 ARM/HP JORNADA 7XX MACHINE SUPPORT
 M:	Kristoffer Ericson <kristoffer.ericson@gmail.com>
@@ -1938,7 +1940,7 @@ F:	drivers/connector/
 
 CONTROL GROUPS (CGROUPS)
 M:	Tejun Heo <tj@kernel.org>
-M:	Li Zefan <lizf@cn.fujitsu.com>
+M:	Li Zefan <lizefan@huawei.com>
 L:	containers@lists.linux-foundation.org
 L:	cgroups@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
@@ -2223,13 +2225,16 @@ W:	http://lanana.org/docs/device-list/index.html
 S:	Maintained
 
 DEVICE-MAPPER  (LVM)
-P:	Alasdair Kergon
+M:	Alasdair Kergon <agk@redhat.com>
+M:	dm-devel@redhat.com
 L:	dm-devel@redhat.com
 W:	http://sources.redhat.com/dm
 Q:	http://patchwork.kernel.org/project/dm-devel/list/
+T:	quilt http://people.redhat.com/agk/patches/linux/editing/
 S:	Maintained
 F:	Documentation/device-mapper/
 F:	drivers/md/dm*
+F:	drivers/md/persistent-data/
 F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 
@@ -5180,7 +5185,7 @@ F:	kernel/delayacct.c
 PERFORMANCE EVENTS SUBSYSTEM
 M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 M:	Paul Mackerras <paulus@samba.org>
-M:	Ingo Molnar <mingo@elte.hu>
+M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git perf/core
 S:	Supported
@@ -5420,7 +5425,7 @@ F:	drivers/media/video/pvrusb2/
 PXA2xx/PXA3xx SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
 M:	Russell King <linux@arm.linux.org.uk>
-M:	Haojian Zhuang <haojian.zhuang@marvell.com>
+M:	Haojian Zhuang <haojian.zhuang@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/hzhuang1/linux.git
 T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
@@ -5435,7 +5440,7 @@ F:	sound/soc/pxa
 
 MMP SUPPORT
 M:	Eric Miao <eric.y.miao@gmail.com>
-M:	Haojian Zhuang <haojian.zhuang@marvell.com>
+M:	Haojian Zhuang <haojian.zhuang@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://github.com/hzhuang1/linux.git
 T:	git git://git.linaro.org/people/ycmiao/pxa-linux.git
@@ -5632,6 +5637,13 @@ S:	Supported
 F:	drivers/base/regmap/
 F:	include/linux/regmap.h
 
+REMOTE PROCESSOR (REMOTEPROC) SUBSYSTEM
+M:	Ohad Ben-Cohen <ohad@wizery.com>
+S:	Maintained
+F:	drivers/remoteproc/
+F:	Documentation/remoteproc.txt
+F:	include/linux/remoteproc.txt
+
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
@@ -5764,6 +5776,12 @@ F:	drivers/media/common/saa7146*
 F:	drivers/media/video/*7146*
 F:	include/media/*7146*
 
+SAMSUNG LAPTOP DRIVER
+M:	Corentin Chary <corentincj@iksaif.net>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/samsung-laptop.c
+
 SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Sangbeom Kim <sbkim73@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
@@ -5815,7 +5833,7 @@ S:	Maintained
 F:	drivers/watchdog/sc1200wdt.c
 
 SCHEDULER
-M:	Ingo Molnar <mingo@elte.hu>
+M:	Ingo Molnar <mingo@redhat.com>
 M:	Peter Zijlstra <peterz@infradead.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git sched/core
 S:	Maintained
@@ -6062,7 +6080,8 @@ F:	arch/arm/mach-s3c2410/bast-irq.c
 TI DAVINCI MACHINE SUPPORT
 M:	Sekhar Nori <nsekhar@ti.com>
 M:	Kevin Hilman <khilman@ti.com>
-L:	davinci-linux-open-source@linux.davincidsp.com (subscribers-only)
+L:	davinci-linux-open-source@linux.davincidsp.com (moderated for non-subscribers)
+T:	git git://gitorious.org/linux-davinci/linux-davinci.git
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
 F:	arch/arm/mach-davinci
@@ -6605,9 +6624,10 @@ F:	include/linux/if_team.h
 TEGRA SUPPORT
 M:	Colin Cross <ccross@android.com>
 M:	Olof Johansson <olof@lixom.net>
-M:	Stephen Warren <swarren@nvidia.com>
+M:	Stephen Warren <swarren@wwwdotorg.org>
 L:	linux-tegra@vger.kernel.org
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/olof/tegra.git
+Q:	http://patchwork.ozlabs.org/project/linux-tegra/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/swarren/linux-tegra.git
 S:	Supported
 F:	arch/arm/mach-tegra
 

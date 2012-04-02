@@ -11,8 +11,6 @@
 # Copyright (C) 2001~2010 GUAN Xue-tao
 #
 
-MKIMAGE := $(srctree)/scripts/mkuboot.sh
-
 targets := Image zImage uImage
 
 $(obj)/Image: vmlinux FORCE
@@ -26,14 +24,8 @@ $(obj)/zImage: $(obj)/compressed/vmlinux FORCE
 	$(call if_changed,objcopy)
 	@echo '  Kernel: $@ is ready'
 
-quiet_cmd_uimage = UIMAGE  $@
-      cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A unicore -O linux -T kernel \
-		   -C none -a $(LOADADDR) -e $(STARTADDR) \
-		   -n 'Linux-$(KERNELRELEASE)' -d $< $@
-
-$(obj)/uImage: LOADADDR=0x0
-
-$(obj)/uImage: STARTADDR=$(LOADADDR)
+UIMAGE_ARCH = unicore
+UIMAGE_LOADADDR = 0x0
 
 $(obj)/uImage: $(obj)/zImage FORCE
 	$(call if_changed,uimage)

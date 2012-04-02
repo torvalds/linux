@@ -43,7 +43,6 @@ static inline void __init zoom_init_smsc911x(void)
 static struct plat_serial8250_port serial_platform_data[] = {
 	{
 		.mapbase	= ZOOM_UART_BASE,
-		.irq		= OMAP_GPIO_IRQ(102),
 		.flags		= UPF_BOOT_AUTOCONF|UPF_IOREMAP|UPF_SHARE_IRQ,
 		.irqflags	= IRQF_SHARED | IRQF_TRIGGER_RISING,
 		.iotype		= UPIO_MEM,
@@ -89,6 +88,8 @@ static inline void __init zoom_init_quaduart(void)
 	if (gpio_request_one(quart_gpio, GPIOF_IN, "TL16CP754C GPIO") < 0)
 		printk(KERN_ERR "Failed to request GPIO%d for TL16CP754C\n",
 								quart_gpio);
+
+	serial_platform_data[0].irq = gpio_to_irq(102);
 }
 
 static inline int omap_zoom_debugboard_detect(void)

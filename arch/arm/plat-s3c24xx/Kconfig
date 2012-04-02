@@ -4,7 +4,7 @@
 
 config PLAT_S3C24XX
 	bool
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C24XX
 	default y
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
@@ -44,12 +44,6 @@ config S3C2410_CLOCK
 	  Clock code for the S3C2410, and similar processors which
 	  is currently includes the S3C2410, S3C2440, S3C2442.
 
-config S3C2443_CLOCK
-	bool
-	help
-	  Clock code for the S3C2443 and similar processors, which includes
-	  the S3C2416 and S3C2450.
-
 config S3C24XX_DCLK
 	bool
 	help
@@ -76,15 +70,9 @@ config S3C24XX_GPIO_EXTRA128
 	  Add an extra 128 gpio numbers to the available GPIO pool. This is
 	  available for boards that need extra gpios for external devices.
 
-config PM_SIMTEC
-	bool
-	help
-	  Common power management code for systems that are
-	  compatible with the Simtec style of power management
-
-config S3C2410_DMA
+config S3C24XX_DMA
 	bool "S3C2410 DMA support"
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C24XX
 	select S3C_DMA
 	help
 	  S3C2410 DMA support. This is needed for drivers like sound which
@@ -93,30 +81,10 @@ config S3C2410_DMA
 
 config S3C2410_DMA_DEBUG
 	bool "S3C2410 DMA support debug"
-	depends on ARCH_S3C2410 && S3C2410_DMA
+	depends on ARCH_S3C24XX && S3C2410_DMA
 	help
 	  Enable debugging output for the DMA code. This option sends info
 	  to the kernel log, at priority KERN_DEBUG.
-
-# SPI default pin configuration code
-
-config S3C24XX_SPI_BUS0_GPE11_GPE12_GPE13
-	bool
-	help
-	  SPI GPIO configuration code for BUS0 when connected to
-	  GPE11, GPE12 and GPE13.
-
-config S3C24XX_SPI_BUS1_GPG5_GPG6_GPG7
-	bool
-	help
-	  SPI GPIO configuration code for BUS 1 when connected to
-	  GPG5, GPG6 and GPG7.
-
-config S3C24XX_SPI_BUS1_GPD8_GPD9_GPD10
-	bool
-	help
-	  SPI GPIO configuration code for BUS 1 when connected to
-	  GPD8, GPD9 and GPD10.
 
 # common code for s3c24xx based machines, such as the SMDKs.
 
@@ -144,22 +112,5 @@ config S3C2412_IOTIMING
 	help
 	  Intel node to select io timing code that is common to the s3c2412
 	  and the s3c2443.
-
-config MACH_SMDK
-	bool
-	help
-	  Common machine code for SMDK2410 and SMDK2440
-
-config S3C24XX_SIMTEC_AUDIO
-	bool
-	depends on (ARCH_BAST || MACH_VR1000 || MACH_OSIRIS || MACH_ANUBIS)
-	default y
-	help
-	  Add audio devices for common Simtec S3C24XX boards
-
-config S3C2410_SETUP_TS
-	bool
-	help
-	  Compile in platform device definition for Samsung TouchScreen.
 
 endif

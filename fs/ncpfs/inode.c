@@ -11,7 +11,6 @@
 
 #include <linux/module.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>
 

@@ -18,6 +18,8 @@
 #define GET_DIV(clk, field) ((((clk) & field##_MASK) >> field##_SHIFT) + 1)
 
 #define clk_fin_apll clk_ext_xtal_mux
+#define clk_fin_bpll clk_ext_xtal_mux
+#define clk_fin_cpll clk_ext_xtal_mux
 #define clk_fin_mpll clk_ext_xtal_mux
 #define clk_fin_epll clk_ext_xtal_mux
 #define clk_fin_dpll clk_ext_xtal_mux
@@ -29,6 +31,8 @@ extern struct clk clk_xusbxti;
 extern struct clk clk_48m;
 extern struct clk s5p_clk_27m;
 extern struct clk clk_fout_apll;
+extern struct clk clk_fout_bpll;
+extern struct clk clk_fout_cpll;
 extern struct clk clk_fout_mpll;
 extern struct clk clk_fout_epll;
 extern struct clk clk_fout_dpll;
@@ -37,6 +41,8 @@ extern struct clk clk_arm;
 extern struct clk clk_vpll;
 
 extern struct clksrc_sources clk_src_apll;
+extern struct clksrc_sources clk_src_bpll;
+extern struct clksrc_sources clk_src_cpll;
 extern struct clksrc_sources clk_src_mpll;
 extern struct clksrc_sources clk_src_epll;
 extern struct clksrc_sources clk_src_dpll;

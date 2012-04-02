@@ -271,8 +271,7 @@ static int wm8400_init(struct wm8400 *wm8400,
 		return -EIO;
 	}
 	if (i != reg_data[WM8400_RESET_ID].default_val) {
-		dev_err(wm8400->dev, "Device is not a WM8400, ID is %x\n",
-			reg);
+		dev_err(wm8400->dev, "Device is not a WM8400, ID is %x\n", i);
 		return -ENODEV;
 	}
 

@@ -14,7 +14,6 @@
  */
 #include <linux/errno.h>
 #include <asm/cache.h>
-#include <asm/system.h>
 #include <asm/addrspace.h>
 #include <asm/machvec.h>
 #include <asm/pgtable.h>
@@ -24,6 +23,7 @@
 #define __IO_PREFIX     generic
 #include <asm/io_generic.h>
 #include <asm/io_trapped.h>
+#include <mach/mangle-port.h>
 
 #define __raw_writeb(v,a)	(__chk_io_ptr(a), *(volatile u8  __force *)(a) = (v))
 #define __raw_writew(v,a)	(__chk_io_ptr(a), *(volatile u16 __force *)(a) = (v))
@@ -35,21 +35,15 @@
 #define __raw_readl(a)		(__chk_io_ptr(a), *(volatile u32 __force *)(a))
 #define __raw_readq(a)		(__chk_io_ptr(a), *(volatile u64 __force *)(a))
 
-#define readb_relaxed(c)	({ u8  __v = __raw_readb(c); __v; })
-#define readw_relaxed(c)	({ u16 __v = le16_to_cpu((__force __le16) \
-					__raw_readw(c)); __v; })
-#define readl_relaxed(c)	({ u32 __v = le32_to_cpu((__force __le32) \
-					__raw_readl(c)); __v; })
-#define readq_relaxed(c)	({ u64 __v = le64_to_cpu((__force __le64) \
-					__raw_readq(c)); __v; })
+#define readb_relaxed(c)	({ u8  __v = ioswabb(__raw_readb(c)); __v; })
+#define readw_relaxed(c)	({ u16 __v = ioswabw(__raw_readw(c)); __v; })
+#define readl_relaxed(c)	({ u32 __v = ioswabl(__raw_readl(c)); __v; })
+#define readq_relaxed(c)	({ u64 __v = ioswabq(__raw_readq(c)); __v; })
 
-#define writeb_relaxed(v,c)	((void)__raw_writeb(v,c))
-#define writew_relaxed(v,c)	((void)__raw_writew((__force u16) \
-					cpu_to_le16(v),c))
-#define writel_relaxed(v,c)	((void)__raw_writel((__force u32) \
-					cpu_to_le32(v),c))
-#define writeq_relaxed(v,c)	((void)__raw_writeq((__force u64) \
-					cpu_to_le64(v),c))
+#define writeb_relaxed(v,c)	((void)__raw_writeb((__force  u8)ioswabb(v),c))
+#define writew_relaxed(v,c)	((void)__raw_writew((__force u16)ioswabw(v),c))
+#define writel_relaxed(v,c)	((void)__raw_writel((__force u32)ioswabl(v),c))
+#define writeq_relaxed(v,c)	((void)__raw_writeq((__force u64)ioswabq(v),c))
 
 #define readb(a)		({ u8  r_ = readb_relaxed(a); rmb(); r_; })
 #define readw(a)		({ u16 r_ = readw_relaxed(a); rmb(); r_; })

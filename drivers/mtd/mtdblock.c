@@ -321,8 +321,12 @@ static int mtdblock_release(struct mtd_blktrans_dev *mbd)
 	mutex_unlock(&mtdblk->cache_mutex);
 
 	if (!--mtdblk->count) {
-		/* It was the last usage. Free the cache */
-		mtd_sync(mbd->mtd);
+		/*
+		 * It was the last usage. Free the cache, but only sync if
+		 * opened for writing.
+		 */
+		if (mbd->file_mode & FMODE_WRITE)
+			mtd_sync(mbd->mtd);
 		vfree(mtdblk->cache_data);
 	}
 

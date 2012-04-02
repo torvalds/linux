@@ -34,7 +34,6 @@
 #include <asm/ptrace.h>
 #include <asm/reg.h>
 #include <asm/rtas.h>
-#include <asm/system.h>
 #include <asm/cell-regs.h>
 
 #include "../platforms/cell/interrupt.h"

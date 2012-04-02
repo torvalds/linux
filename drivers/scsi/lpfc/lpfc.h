@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -840,6 +840,8 @@ struct lpfc_hba {
 	struct dentry *debug_dumpData;   /* BlockGuard BPL */
 	struct dentry *debug_dumpDif;    /* BlockGuard BPL */
 	struct dentry *debug_InjErrLBA;  /* LBA to inject errors at */
+	struct dentry *debug_InjErrNPortID;  /* NPortID to inject errors at */
+	struct dentry *debug_InjErrWWPN;  /* WWPN to inject errors at */
 	struct dentry *debug_writeGuard; /* inject write guard_tag errors */
 	struct dentry *debug_writeApp;   /* inject write app_tag errors */
 	struct dentry *debug_writeRef;   /* inject write ref_tag errors */
@@ -854,6 +856,8 @@ struct lpfc_hba {
 	uint32_t lpfc_injerr_rgrd_cnt;
 	uint32_t lpfc_injerr_rapp_cnt;
 	uint32_t lpfc_injerr_rref_cnt;
+	uint32_t lpfc_injerr_nportid;
+	struct lpfc_name lpfc_injerr_wwpn;
 	sector_t lpfc_injerr_lba;
 #define LPFC_INJERR_LBA_OFF	(sector_t)(-1)
 
@@ -908,6 +912,8 @@ struct lpfc_hba {
 	atomic_t fast_event_count;
 	uint32_t fcoe_eventtag;
 	uint32_t fcoe_eventtag_at_fcf_scan;
+	uint32_t fcoe_cvl_eventtag;
+	uint32_t fcoe_cvl_eventtag_attn;
 	struct lpfc_fcf fcf;
 	uint8_t fc_map[3];
 	uint8_t valid_vlan;

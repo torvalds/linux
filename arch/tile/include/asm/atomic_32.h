@@ -17,6 +17,7 @@
 #ifndef _ASM_TILE_ATOMIC_32_H
 #define _ASM_TILE_ATOMIC_32_H
 
+#include <asm/barrier.h>
 #include <arch/chip.h>
 
 #ifndef __ASSEMBLY__

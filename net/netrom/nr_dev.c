@@ -21,7 +21,6 @@
 #include <linux/if_ether.h>	/* For the statistics structure. */
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 

@@ -31,7 +31,6 @@
 #include <linux/fs_enet_pd.h>
 #include <linux/fs_uart_pd.h>
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/irq.h>

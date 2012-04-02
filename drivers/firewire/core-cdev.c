@@ -44,7 +44,6 @@
 #include <linux/wait.h>
 #include <linux/workqueue.h>
 
-#include <asm/system.h>
 
 #include "core.h"
 

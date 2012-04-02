@@ -28,11 +28,11 @@
 #include <asm/smp_twd.h>
 #include <asm/hardware/gic.h>
 
-#define WUPCR		0xe6151010
-#define SRESCR		0xe6151018
-#define PSTR		0xe6151040
-#define SBAR            0xe6180020
-#define APARMBAREA      0xe6f10020
+#define WUPCR		IOMEM(0xe6151010)
+#define SRESCR		IOMEM(0xe6151018)
+#define PSTR		IOMEM(0xe6151040)
+#define SBAR		IOMEM(0xe6180020)
+#define APARMBAREA	IOMEM(0xe6f10020)
 
 static void __iomem *scu_base_addr(void)
 {
@@ -41,6 +41,8 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(scu_lock);
 static unsigned long tmp;
+
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, 0xf0000600, 29);
 
 static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
 {
@@ -60,11 +62,7 @@ unsigned int __init sh73a0_get_core_count(void)
 {
 	void __iomem *scu_base = scu_base_addr();
 
-#ifdef CONFIG_HAVE_ARM_TWD
-	/* twd_base needs to be initialized before percpu_timer_setup() */
-	twd_base = (void __iomem *)0xf0000600;
-#endif
-
+	shmobile_twd_init(&twd_local_timer);
 	return scu_get_core_count(scu_base);
 }
 
@@ -80,10 +78,10 @@ int __cpuinit sh73a0_boot_secondary(unsigned int cpu)
 	/* enable cache coherency */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));
 
-	if (((__raw_readl(__io(PSTR)) >> (4 * cpu)) & 3) == 3)
-		__raw_writel(1 << cpu, __io(WUPCR));	/* wake up */
+	if (((__raw_readl(PSTR) >> (4 * cpu)) & 3) == 3)
+		__raw_writel(1 << cpu, WUPCR);	/* wake up */
 	else
-		__raw_writel(1 << cpu, __io(SRESCR));	/* reset */
+		__raw_writel(1 << cpu, SRESCR);	/* reset */
 
 	return 0;
 }
@@ -95,8 +93,8 @@ void __init sh73a0_smp_prepare_cpus(void)
 	scu_enable(scu_base_addr());
 
 	/* Map the reset vector (in headsmp.S) */
-	__raw_writel(0, __io(APARMBAREA));      /* 4k */
-	__raw_writel(__pa(shmobile_secondary_vector), __io(SBAR));
+	__raw_writel(0, APARMBAREA);      /* 4k */
+	__raw_writel(__pa(shmobile_secondary_vector), SBAR);
 
 	/* enable cache coherency on CPU0 */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));
