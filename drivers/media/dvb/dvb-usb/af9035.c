@@ -24,6 +24,7 @@
 #include "tua9001.h"
 #include "fc0011.h"
 #include "mxl5007t.h"
+#include "tda18218.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static DEFINE_MUTEX(af9035_usb_mutex);
@@ -502,6 +503,7 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		case AF9033_TUNER_TUA9001:
 		case AF9033_TUNER_FC0011:
 		case AF9033_TUNER_MXL5007T:
+		case AF9033_TUNER_TDA18218:
 			af9035_af9033_config[i].spec_inv = 1;
 			break;
 		default:
@@ -678,6 +680,11 @@ static struct mxl5007t_config af9035_mxl5007t_config = {
 	.clk_out_amp = MxL_CLKOUT_AMP_0_94V,
 };
 
+static struct tda18218_config af9035_tda18218_config = {
+	.i2c_address = 0x60,
+	.i2c_wr_max = 21,
+};
+
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	int ret;
@@ -772,6 +779,11 @@ static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 		fe = dvb_attach(mxl5007t_attach, adap->fe_adap[0].fe,
 				&adap->dev->i2c_adap, 0x60, &af9035_mxl5007t_config);
 		break;
+	case AF9033_TUNER_TDA18218:
+		/* attach tuner */
+		fe = dvb_attach(tda18218_attach, adap->fe_adap[0].fe,
+				&adap->dev->i2c_adap, &af9035_tda18218_config);
+		break;
 	default:
 		fe = NULL;
 	}
@@ -793,6 +805,8 @@ enum af9035_id_entry {
 	AF9035_0CCD_0093,
 	AF9035_15A4_9035,
 	AF9035_15A4_1001,
+	AF9035_07CA_A835,
+	AF9035_07CA_B835,
 	AF9035_07CA_1867,
 	AF9035_07CA_A867,
 };
@@ -804,6 +818,10 @@ static struct usb_device_id af9035_id[] = {
 		USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9035)},
 	[AF9035_15A4_1001] = {
 		USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9035_2)},
+	[AF9035_07CA_A835] = {
+		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A835)},
+	[AF9035_07CA_B835] = {
+		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_B835)},
 	[AF9035_07CA_1867] = {
 		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_1867)},
 	[AF9035_07CA_A867] = {
@@ -850,7 +868,7 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 
 		.i2c_algo = &af9035_i2c_algo,
 
-		.num_device_descs = 3,
+		.num_device_descs = 4,
 		.devices = {
 			{
 				.name = "TerraTec Cinergy T Stick",
@@ -862,6 +880,12 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 				.cold_ids = {
 					&af9035_id[AF9035_15A4_9035],
 					&af9035_id[AF9035_15A4_1001],
+				},
+			}, {
+				.name = "AVerMedia AVerTV Volar HD/PRO (A835)",
+				.cold_ids = {
+					&af9035_id[AF9035_07CA_A835],
+					&af9035_id[AF9035_07CA_B835],
 				},
 			}, {
 				.name = "AVerMedia HD Volar (A867)",

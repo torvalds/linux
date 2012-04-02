@@ -305,6 +305,10 @@ static int af9033_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(tuner_init_mxl5007t);
 		init = tuner_init_mxl5007t;
 		break;
+	case AF9033_TUNER_TDA18218:
+		len = ARRAY_SIZE(tuner_init_tda18218);
+		init = tuner_init_tda18218;
+		break;
 	default:
 		pr_debug("%s: unsupported tuner ID=%d\n", __func__,
 				state->cfg.tuner);
