@@ -51,7 +51,6 @@ struct ipw_tty {
 	unsigned int secondary_channel_idx;
 	int tty_type;
 	struct ipw_network *network;
-	struct tty_struct *linux_tty;
 	unsigned int control_lines;
 	struct mutex ipw_tty_mutex;
 	int tx_bytes_queued;
@@ -105,7 +104,7 @@ static int ipw_open(struct tty_struct *linux_tty, struct file *filp)
 
 	tty->port.count++;
 
-	tty->linux_tty = linux_tty;
+	tty->port.tty = linux_tty;
 	linux_tty->driver_data = tty;
 	linux_tty->low_latency = 1;
 
@@ -122,10 +121,10 @@ static void do_ipw_close(struct ipw_tty *tty)
 	tty->port.count--;
 
 	if (tty->port.count == 0) {
-		struct tty_struct *linux_tty = tty->linux_tty;
+		struct tty_struct *linux_tty = tty->port.tty;
 
 		if (linux_tty != NULL) {
-			tty->linux_tty = NULL;
+			tty->port.tty = NULL;
 			linux_tty->driver_data = NULL;
 
 			if (tty->tty_type == TTYTYPE_MODEM)
@@ -165,7 +164,7 @@ void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 	int work = 0;
 
 	mutex_lock(&tty->ipw_tty_mutex);
-	linux_tty = tty->linux_tty;
+	linux_tty = tty->port.tty;
 	if (linux_tty == NULL) {
 		mutex_unlock(&tty->ipw_tty_mutex);
 		return;
@@ -553,9 +552,9 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 				       ": deregistering %s device ttyIPWp%d\n",
 				       tty_type_name(ttyj->tty_type), j);
 			ttyj->closing = 1;
-			if (ttyj->linux_tty != NULL) {
+			if (ttyj->port.tty != NULL) {
 				mutex_unlock(&ttyj->ipw_tty_mutex);
-				tty_vhangup(ttyj->linux_tty);
+				tty_vhangup(ttyj->port.tty);
 				/* FIXME: Exactly how is the tty object locked here
 				   against a parallel ioctl etc */
 				/* FIXME2: hangup does not mean all processes
@@ -651,8 +650,8 @@ ipwireless_tty_notify_control_line_change(struct ipw_tty *tty,
 	 */
 	if ((old_control_lines & IPW_CONTROL_LINE_DCD)
 			&& !(tty->control_lines & IPW_CONTROL_LINE_DCD)
-			&& tty->linux_tty) {
-		tty_hangup(tty->linux_tty);
+			&& tty->port.tty) {
+		tty_hangup(tty->port.tty);
 	}
 }
 
