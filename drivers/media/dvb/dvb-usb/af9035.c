@@ -794,6 +794,7 @@ enum af9035_id_entry {
 	AF9035_15A4_9035,
 	AF9035_15A4_1001,
 	AF9035_07CA_1867,
+	AF9035_07CA_A867,
 };
 
 static struct usb_device_id af9035_id[] = {
@@ -805,6 +806,8 @@ static struct usb_device_id af9035_id[] = {
 		USB_DEVICE(USB_VID_AFATECH, USB_PID_AFATECH_AF9035_2)},
 	[AF9035_07CA_1867] = {
 		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_1867)},
+	[AF9035_07CA_A867] = {
+		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A867)},
 	{},
 };
 
@@ -861,9 +864,10 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 					&af9035_id[AF9035_15A4_1001],
 				},
 			}, {
-				.name = "AVerMedia HD Volar",
+				.name = "AVerMedia HD Volar (A867)",
 				.cold_ids = {
 					&af9035_id[AF9035_07CA_1867],
+					&af9035_id[AF9035_07CA_A867],
 				},
 			},
 		}
