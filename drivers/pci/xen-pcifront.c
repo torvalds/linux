@@ -290,6 +290,7 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 		} else {
 			printk(KERN_DEBUG "enable msix get value %x\n",
 				op.value);
+			err = op.value;
 		}
 	} else {
 		dev_err(&dev->dev, "enable msix get err %x\n", err);
