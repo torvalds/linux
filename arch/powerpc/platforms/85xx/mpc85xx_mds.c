@@ -270,7 +270,7 @@ static void __init mpc85xx_mds_qe_init(void)
 
 	if (machine_is(p1021_mds)) {
 
-		struct ccsr_guts_85xx __iomem *guts;
+		struct ccsr_guts __iomem *guts;
 
 		np = of_find_node_by_name(NULL, "global-utilities");
 		if (np) {

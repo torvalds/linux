@@ -127,7 +127,7 @@ static void __init mpc85xx_rdb_setup_arch(void)
 #if defined(CONFIG_UCC_GETH) || defined(CONFIG_SERIAL_QE)
 	if (machine_is(p1025_rdb)) {
 
-		struct ccsr_guts_85xx __iomem *guts;
+		struct ccsr_guts __iomem *guts;
 
 		np = of_find_node_by_name(NULL, "global-utilities");
 		if (np) {
