@@ -329,6 +329,7 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq,struct cpufreq_p
 
 int cpufreq_scale_rate_for_dvfs(struct clk * clk,unsigned long rate,dvfs_set_rate_callback set_rate)
 {
+	unsigned int i;
 	int ret=-EINVAL;
 	struct cpufreq_freqs freqs;
 	
@@ -341,15 +342,14 @@ int cpufreq_scale_rate_for_dvfs(struct clk * clk,unsigned long rate,dvfs_set_rat
 	FREQ_PRINTK_DBG("cpufreq_scale_rate_for_dvfs(%lu)\n",rate);
 	ret = set_rate(clk,rate);
 
-#if 0//CONFIG_SMP
+#if CONFIG_SMP
 	/*
-	* Note that loops_per_jiffy is not updated on SMP systems in
-	* cpufreq driver. So, update the per-CPU loops_per_jiffy value
-	* on frequency transition. We need to update all dependent CPUs.
-	*/
+	 * Note that loops_per_jiffy is not updated on SMP systems in
+	 * cpufreq driver. So, update the per-CPU loops_per_jiffy value
+	 * on frequency transition. We need to update all dependent CPUs.
+	 */
 	for_each_possible_cpu(i) {
-	per_cpu(cpu_data, i).loops_per_jiffy =
-	cpufreq_scale(lpj->ref, lpj->freq, freqs.new);
+		per_cpu(cpu_data, i).loops_per_jiffy = loops_per_jiffy;
 	}
 #endif
 
