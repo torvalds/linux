@@ -95,6 +95,7 @@ static int au_rdu_do(struct file *h_file, struct au_rdu_arg *arg)
 	loff_t offset;
 	struct au_rdu_cookie *cookie = &arg->rdu->cookie;
 
+	/* we don't have to care (FMODE_32BITHASH | FMODE_64BITHASH) for ext4 */
 	offset = vfsub_llseek(h_file, cookie->h_pos, SEEK_SET);
 	err = offset;
 	if (unlikely(offset != cookie->h_pos))
