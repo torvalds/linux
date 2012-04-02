@@ -163,6 +163,7 @@ static int max8925_set_dvm_disable(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops max8925_regulator_sdv_ops = {
+	.list_voltage		= max8925_list_voltage,
 	.set_voltage		= max8925_set_voltage,
 	.get_voltage		= max8925_get_voltage,
 	.enable			= max8925_enable,
@@ -174,6 +175,7 @@ static struct regulator_ops max8925_regulator_sdv_ops = {
 };
 
 static struct regulator_ops max8925_regulator_ldo_ops = {
+	.list_voltage		= max8925_list_voltage,
 	.set_voltage		= max8925_set_voltage,
 	.get_voltage		= max8925_get_voltage,
 	.enable			= max8925_enable,
