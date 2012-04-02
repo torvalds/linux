@@ -37,6 +37,15 @@ static struct cpufreq_frequency_table default_freq_table[] = {
 static struct cpufreq_frequency_table *freq_table = default_freq_table;
 
 /*********************************************************/
+
+/* additional symantics for "relation" in cpufreq with pm */
+#define DISABLE_FURTHER_CPUFREQ         0x10
+#define ENABLE_FURTHER_CPUFREQ          0x20
+#define MASK_FURTHER_CPUFREQ            0x30
+/* With 0x00(NOCHANGE), it depends on the previous "further" status */
+static int no_cpufreq_access;
+static unsigned int suspend_freq = 1008 * 1000;
+
 #define NUM_CPUS	2
 static struct workqueue_struct *freq_wq;
 static struct clk *cpu_clk;
@@ -204,41 +213,31 @@ static void calc_lpj_ref_get(int kmz)
 
 static int rk30_cpu_init(struct cpufreq_policy *policy)
 {
-	//printk("rk30_cpu_init\n");
-	cpu_clk =clk_get(NULL, "cpu");
-	if (IS_ERR(cpu_clk))
-		return PTR_ERR(cpu_clk);
+	if (policy->cpu == 0) {
+		cpu_clk =clk_get(NULL, "cpu");
+		if (IS_ERR(cpu_clk))
+			return PTR_ERR(cpu_clk);
 
-	#if 0
-		gpu_clk=clk_get(NULL, "gpu");
-		if (IS_ERR(gpu_clk))
-		return PTR_ERR(gpu_clk);
-		ddr_clk=clk_get(NULL, "ddr");
-		if (IS_ERR(ddr_clk))
-		return PTR_ERR(ddr_clk);
-		regulator_set_voltage(regulator_get(NULL,"vdd_core"),1125*1000,1125*1000);
-		//	clk_enable_dvfs(ddr_clk);
-		//clk_enable_dvfs(gpu_clk);
-	#endif
-	dvfs_clk_register_set_rate_callback(cpu_clk,cpufreq_scale_rate_for_dvfs);
-	freq_table=dvfs_get_freq_volt_table(cpu_clk);
-	if(freq_table==NULL)
-	{
-		freq_table=default_freq_table;
-	}
-	clk_enable_dvfs(cpu_clk);
+		dvfs_clk_register_set_rate_callback(cpu_clk,cpufreq_scale_rate_for_dvfs);
+		freq_table=dvfs_get_freq_volt_table(cpu_clk);
+		if(freq_table==NULL)
+		{
+			freq_table=default_freq_table;
+		}
+		clk_enable_dvfs(cpu_clk);
 
-	freq_wq = create_singlethread_workqueue("rk29_cpufreqd");
-	#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
-	if (rk30_cpufreq_is_ondemand_policy(policy)) 
-	{
-		queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, msecs_to_jiffies(TEMP_NOR_DELAY));
-	}
-	cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
-	#endif
-	#ifdef CPU_FREQ_DVFS_TST
+		freq_wq = create_singlethread_workqueue("rk30_cpufreqd");
+#ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
+		if (rk30_cpufreq_is_ondemand_policy(policy)) 
+		{
+			queue_delayed_work(freq_wq, &rk30_cpufreq_temp_limit_work, msecs_to_jiffies(TEMP_NOR_DELAY));
+		}
+		cpufreq_register_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
+#endif
+#ifdef CPU_FREQ_DVFS_TST
 		queue_delayed_work(freq_wq, &rk30_cpufreq_dvsf_tst_work, msecs_to_jiffies(20*1000));
-	#endif
+#endif
+	}
 
 	//set freq min max
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
@@ -374,6 +373,18 @@ static int rk30_target(struct cpufreq_policy *policy,
 		return -EINVAL;
 	}
 	
+	if (relation & ENABLE_FURTHER_CPUFREQ)
+		no_cpufreq_access--;
+	if (no_cpufreq_access) {
+#ifdef CONFIG_PM_VERBOSE
+		pr_err("denied access to %s as it is disabled temporarily\n", __func__);
+#endif
+		return -EINVAL;
+	}
+	if (relation & DISABLE_FURTHER_CPUFREQ)
+		no_cpufreq_access++;
+	relation &= ~MASK_FURTHER_CPUFREQ;
+
 	mutex_lock(&cpufreq_mutex);
 	
 	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
@@ -381,7 +392,7 @@ static int rk30_target(struct cpufreq_policy *policy,
 	
 	if (ret) {
 		FREQ_PRINTK_ERR("no freq match for %d(ret=%d)\n",target_freq, ret);
-		return ret;
+		goto out;
 	}
 	//FREQ_PRINTK_DBG("%s,tlb rate%u(req %u)*****\n",__func__,freq_table[i].frequency,target_freq);
 	//new_rate=freq_table[i].frequency;
@@ -397,6 +408,59 @@ out:
 	return ret;
 }
 
+static int rk30_cpufreq_pm_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	int ret = NOTIFY_DONE;
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+
+	if (!policy)
+		return ret;
+
+	if (!rk30_cpufreq_is_ondemand_policy(policy))
+		goto out;
+
+	switch (event) {
+		case PM_SUSPEND_PREPARE:
+			ret = cpufreq_driver_target(policy, suspend_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
+			if (ret < 0) {
+				ret = NOTIFY_BAD;
+				goto out;
+			}
+			ret = NOTIFY_OK;
+			break;
+		case PM_POST_RESTORE:
+		case PM_POST_SUSPEND:
+			cpufreq_driver_target(policy, suspend_freq, ENABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
+			ret = NOTIFY_OK;
+			break;
+	}
+out:
+	cpufreq_cpu_put(policy);
+	return ret;
+}
+
+static struct notifier_block rk30_cpufreq_pm_notifier = {
+	.notifier_call = rk30_cpufreq_pm_notifier_event,
+};
+
+static int rk30_cpufreq_reboot_notifier_event(struct notifier_block *this,
+		unsigned long event, void *ptr)
+{
+	struct cpufreq_policy *policy = cpufreq_cpu_get(0);
+
+	if (policy) {
+		cpufreq_driver_target(policy, suspend_freq, DISABLE_FURTHER_CPUFREQ | CPUFREQ_RELATION_H);
+		cpufreq_cpu_put(policy);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block rk30_cpufreq_reboot_notifier = {
+	.notifier_call = rk30_cpufreq_reboot_notifier_event,
+};
+
 static struct cpufreq_driver rk30_cpufreq_driver = {
 	.verify		= rk30_verify_speed,
 	.target		= rk30_target,
@@ -409,6 +473,9 @@ static struct cpufreq_driver rk30_cpufreq_driver = {
 
 static int __init rk30_cpufreq_init(void)
 {
+	register_pm_notifier(&rk30_cpufreq_pm_notifier);
+	register_reboot_notifier(&rk30_cpufreq_reboot_notifier);
+
 	return cpufreq_register_driver(&rk30_cpufreq_driver);
 }
 
@@ -418,8 +485,7 @@ static void __exit rk30_cpufreq_exit(void)
 }
 
 
-MODULE_AUTHOR("Colin Cross <ccross@android.com>");
 MODULE_DESCRIPTION("cpufreq driver for rock chip rk30");
 MODULE_LICENSE("GPL");
-module_init(rk30_cpufreq_init);
+device_initcall(rk30_cpufreq_init);
 module_exit(rk30_cpufreq_exit);
