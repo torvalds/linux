@@ -234,6 +234,72 @@ static inline bool pm_pmu_power_domain_is_on(enum pmu_power_domain pd, u32 pmu_p
 	return !(pmu_pwrdn_st & (1 << pd));
 }
 
+static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
+{
+	if (pm_pmu_power_domain_is_on(PD_DBG, pmu_pwrdn_st))
+		pmu_set_power_domain(PD_DBG, state);
+
+	if (pm_pmu_power_domain_is_on(PD_GPU, pmu_pwrdn_st)) {
+		u32 gate[2];
+		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
+		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_GPU_SRC), CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
+		pmu_set_power_domain(PD_GPU, state);
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_GPU_SRC) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_GPU_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_GPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_GPU));
+	}
+
+	if (pm_pmu_power_domain_is_on(PD_VIDEO, pmu_pwrdn_st)) {
+		u32 gate[3];
+		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
+		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+		gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+		pmu_set_power_domain(PD_VIDEO, state);
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VEPU) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VEPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VDPU) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VDPU));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VCODEC) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VCODEC));
+	}
+
+	if (pm_pmu_power_domain_is_on(PD_VIO, pmu_pwrdn_st)) {
+		u32 gate[10];
+		gate[0] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0_SRC));
+		gate[1] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1_SRC));
+		gate[2] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));
+		gate[3] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1));
+		gate[4] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF0));
+		gate[5] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
+		gate[6] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO0));
+		gate[7] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO1));
+		gate[8] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_IPP));
+		gate[9] = cru_readl(CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_RGA));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0_SRC), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC1_SRC), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF0), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF0));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO0), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO0));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO1), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO1));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_IPP), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_IPP));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_RGA), CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_RGA));
+		pmu_set_power_domain(PD_VIO, state);
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0_SRC) | gate[0], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC1_SRC) | gate[1], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1_SRC));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC0) | gate[2], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC0));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_LCDC1) | gate[3], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_LCDC1));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF0) | gate[4], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF0));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_CIF1) | gate[5], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_CIF1));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO0) | gate[6], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO0));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_VIO1) | gate[7], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_VIO1));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_IPP) | gate[8], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_IPP));
+		cru_writel(CLK_GATE_W_MSK(CLK_GATE_ACLK_RGA) | gate[9], CLK_GATE_CLKID_CONS(CLK_GATE_ACLK_RGA));
+	}
+}
+
 __weak void board_gpio_suspend(void) {}
 __weak void board_gpio_resume(void) {}
 __weak void __sramfunc board_pmu_suspend(void) {}
@@ -330,17 +396,9 @@ static int rk30_pm_enter(suspend_state_t state)
 	sram_printch('0');
 
 	pmu_pwrdn_st = pmu_readl(PMU_PWRDN_ST);
-	if (pm_pmu_power_domain_is_on(PD_DBG, pmu_pwrdn_st))
-		pmu_set_power_domain(PD_DBG, false);
-	if (pm_pmu_power_domain_is_on(PD_GPU, pmu_pwrdn_st))
-		pmu_set_power_domain(PD_GPU, false);
-	if (pm_pmu_power_domain_is_on(PD_VIDEO, pmu_pwrdn_st))
-		pmu_set_power_domain(PD_VIDEO, false);
-//	if (pm_pmu_power_domain_is_on(PD_VIO, pmu_pwrdn_st))
-//		pmu_set_power_domain(PD_VIO, false);
+	rk30_pm_set_power_domain(pmu_pwrdn_st, false);
 
 	sram_printch('1');
-	local_fiq_disable();
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		clkgt_regs[i] = cru_readl(CRU_CLKGATES_CON(i));
@@ -422,9 +480,12 @@ static int rk30_pm_enter(suspend_state_t state)
 		   | AHB2APB_W_MSK | AHB2APB_11
 		   , CRU_CLKSELS_CON(1));
 	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_DN, PLL_CONS(APLL_ID, 3));
+
 	sram_printch('3');
 
 	board_gpio_suspend();
+
+	local_fiq_disable();
 
 	flush_tlb_all();
 	interface_ctr_reg_pread();
@@ -433,7 +494,10 @@ static int rk30_pm_enter(suspend_state_t state)
 	rk30_suspend();
 	sram_printch('4');
 
+	local_fiq_enable();
+
 	board_gpio_resume();
+
 	sram_printch('3');
 
 	//apll
@@ -454,23 +518,16 @@ static int rk30_pm_enter(suspend_state_t state)
 		power_on_pll(CPLL_ID);
 	}
 	cru_writel((PLL_MODE_MSK(CPLL_ID) << 16) | (PLL_MODE_MSK(CPLL_ID) & cru_mode_con), CRU_MODE_CON);
+
 	sram_printch('2');
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
 		cru_writel(clkgt_regs[i] | 0xffff0000, CRU_CLKGATES_CON(i));
 	}
+
 	sram_printch('1');
 
-	local_fiq_enable();
-
-	if (pm_pmu_power_domain_is_on(PD_DBG, pmu_pwrdn_st))
-		pmu_set_power_domain(PD_DBG, true);
-	if (pm_pmu_power_domain_is_on(PD_GPU, pmu_pwrdn_st))
-		pmu_set_power_domain(PD_GPU, true);
-	if (pm_pmu_power_domain_is_on(PD_VIDEO, pmu_pwrdn_st))
-		pmu_set_power_domain(PD_VIDEO, true);
-//	if (pm_pmu_power_domain_is_on(PD_VIO, pmu_pwrdn_st))
-//		pmu_set_power_domain(PD_VIO, true);
+	rk30_pm_set_power_domain(pmu_pwrdn_st, true);
 
 	sram_printascii("0\n");
 
