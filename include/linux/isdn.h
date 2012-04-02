@@ -461,7 +461,6 @@ typedef struct modem_info {
   int                   send_outstanding;/* # of outstanding send-requests */
   int                   xmit_size;       /* max. # of chars in xmit_buf    */
   int                   xmit_count;      /* # of chars in xmit_buf         */
-  unsigned char         *xmit_buf;       /* transmit buffer                */
   struct sk_buff_head   xmit_queue;      /* transmit queue                 */
   atomic_t              xmit_lock;       /* Semaphore for isdn_tty_write   */
 #ifdef CONFIG_ISDN_AUDIO

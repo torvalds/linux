@@ -333,7 +333,7 @@ isdn_tty_countDLE(unsigned char *buf, int len)
 static int
 isdn_tty_handleDLEdown(modem_info *info, atemu *m, int len)
 {
-	unsigned char *p = &info->xmit_buf[info->xmit_count];
+	unsigned char *p = &info->port.xmit_buf[info->xmit_count];
 	int count = 0;
 
 	while (len > 0) {
@@ -477,7 +477,7 @@ isdn_tty_senddown(modem_info *info)
 		return;
 	}
 	skb_reserve(skb, skb_res);
-	memcpy(skb_put(skb, buflen), info->xmit_buf, buflen);
+	memcpy(skb_put(skb, buflen), info->port.xmit_buf, buflen);
 	info->xmit_count = 0;
 #ifdef CONFIG_ISDN_AUDIO
 	if (info->vonline & 2) {
@@ -1152,7 +1152,7 @@ isdn_tty_write(struct tty_struct *tty, const u_char *buf, int count)
 				isdn_tty_check_esc(buf, m->mdmreg[REG_ESC], c,
 						   &(m->pluscount),
 						   &(m->lastplus));
-			memcpy(&(info->xmit_buf[info->xmit_count]), buf, c);
+			memcpy(&info->port.xmit_buf[info->xmit_count], buf, c);
 #ifdef CONFIG_ISDN_AUDIO
 			if (info->vonline) {
 				int cc = isdn_tty_handleDLEdown(info, m, c);
@@ -1906,13 +1906,15 @@ isdn_tty_modem_init(void)
 #ifdef CONFIG_ISDN_AUDIO
 		skb_queue_head_init(&info->dtmf_queue);
 #endif
-		if (!(info->xmit_buf = kmalloc(ISDN_SERIAL_XMIT_MAX + 5, GFP_KERNEL))) {
+		info->port.xmit_buf = kmalloc(ISDN_SERIAL_XMIT_MAX + 5,
+				GFP_KERNEL);
+		if (!info->port.xmit_buf) {
 			printk(KERN_ERR "Could not allocate modem xmit-buffer\n");
 			retval = -ENOMEM;
 			goto err_unregister;
 		}
 		/* Make room for T.70 header */
-		info->xmit_buf += 4;
+		info->port.xmit_buf += 4;
 	}
 	return 0;
 err_unregister:
@@ -1921,7 +1923,7 @@ err_unregister:
 #ifdef CONFIG_ISDN_TTY_FAX
 		kfree(info->fax);
 #endif
-		kfree(info->xmit_buf - 4);
+		kfree(info->port.xmit_buf - 4);
 	}
 	tty_unregister_driver(m->tty_modem);
 err:
@@ -1942,7 +1944,7 @@ isdn_tty_exit(void)
 #ifdef CONFIG_ISDN_TTY_FAX
 		kfree(info->fax);
 #endif
-		kfree(info->xmit_buf - 4);
+		kfree(info->port.xmit_buf - 4);
 	}
 	tty_unregister_driver(dev->mdm.tty_modem);
 	put_tty_driver(dev->mdm.tty_modem);
