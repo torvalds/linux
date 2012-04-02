@@ -98,7 +98,6 @@ struct gs_port {
 	spinlock_t		port_lock;	/* guard port_* access */
 
 	struct gserial		*port_usb;
-	struct tty_struct	*port_tty;
 
 	bool			openclose;	/* open/close in progress */
 	u8			port_num;
@@ -412,8 +411,8 @@ __acquires(&port->port_lock)
 			break;
 	}
 
-	if (do_tty_wake && port->port_tty)
-		tty_wakeup(port->port_tty);
+	if (do_tty_wake && port->port.tty)
+		tty_wakeup(port->port.tty);
 	return status;
 }
 
@@ -435,7 +434,7 @@ __acquires(&port->port_lock)
 		struct tty_struct	*tty;
 
 		/* no more rx if closed */
-		tty = port->port_tty;
+		tty = port->port.tty;
 		if (!tty)
 			break;
 
@@ -488,7 +487,7 @@ static void gs_rx_push(unsigned long _port)
 
 	/* hand any queued data to the tty */
 	spin_lock_irq(&port->port_lock);
-	tty = port->port_tty;
+	tty = port->port.tty;
 	while (!list_empty(queue)) {
 		struct usb_request	*req;
 
@@ -699,7 +698,7 @@ static int gs_start_io(struct gs_port *port)
 
 	/* unblock any pending writes into our circular buffer */
 	if (started) {
-		tty_wakeup(port->port_tty);
+		tty_wakeup(port->port.tty);
 	} else {
 		gs_free_requests(ep, head, &port->read_allocated);
 		gs_free_requests(port->port_usb->in, &port->write_pool,
@@ -793,7 +792,7 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 	/* REVISIT maybe wait for "carrier detect" */
 
 	tty->driver_data = port;
-	port->port_tty = tty;
+	port->port.tty = tty;
 
 	port->port.count = 1;
 	port->openclose = false;
@@ -879,7 +878,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 		gs_buf_clear(&port->port_write_buf);
 
 	tty->driver_data = NULL;
-	port->port_tty = NULL;
+	port->port.tty = NULL;
 
 	port->openclose = false;
 
@@ -1318,8 +1317,8 @@ void gserial_disconnect(struct gserial *gser)
 	gser->ioport = NULL;
 	if (port->port.count > 0 || port->openclose) {
 		wake_up_interruptible(&port->drain_wait);
-		if (port->port_tty)
-			tty_hangup(port->port_tty);
+		if (port->port.tty)
+			tty_hangup(port->port.tty);
 	}
 	spin_unlock_irqrestore(&port->port_lock, flags);
 
