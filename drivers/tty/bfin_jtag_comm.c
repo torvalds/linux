@@ -63,8 +63,8 @@ static inline uint32_t bfin_write_emudat_chars(char a, char b, char c, char d)
 static struct tty_driver *bfin_jc_driver;
 static struct task_struct *bfin_jc_kthread;
 static struct tty_struct * volatile bfin_jc_tty;
-static unsigned long bfin_jc_count;
 static DEFINE_MUTEX(bfin_jc_tty_mutex);
+static struct tty_port port;
 static volatile struct circ_buf bfin_jc_write_buf;
 
 static int
@@ -150,8 +150,7 @@ static int
 bfin_jc_open(struct tty_struct *tty, struct file *filp)
 {
 	mutex_lock(&bfin_jc_tty_mutex);
-	pr_debug("open %lu\n", bfin_jc_count);
-	++bfin_jc_count;
+	port.count++;
 	bfin_jc_tty = tty;
 	wake_up_process(bfin_jc_kthread);
 	mutex_unlock(&bfin_jc_tty_mutex);
@@ -162,8 +161,7 @@ static void
 bfin_jc_close(struct tty_struct *tty, struct file *filp)
 {
 	mutex_lock(&bfin_jc_tty_mutex);
-	pr_debug("close %lu\n", bfin_jc_count);
-	if (--bfin_jc_count == 0)
+	if (--port.count == 0)
 		bfin_jc_tty = NULL;
 	wake_up_process(bfin_jc_kthread);
 	mutex_unlock(&bfin_jc_tty_mutex);
@@ -241,6 +239,8 @@ static const struct tty_operations bfin_jc_ops = {
 static int __init bfin_jc_init(void)
 {
 	int ret;
+
+	tty_port_init(&port);
 
 	bfin_jc_kthread = kthread_create(bfin_jc_emudat_manager, NULL, DRV_NAME);
 	if (IS_ERR(bfin_jc_kthread))
