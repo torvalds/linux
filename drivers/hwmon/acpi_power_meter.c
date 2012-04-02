@@ -697,21 +697,20 @@ static int setup_attrs(struct acpi_power_meter_resource *resource)
 			goto skip_unsafe_cap;
 		}
 
-		if (resource->caps.configurable_cap) {
+		if (resource->caps.configurable_cap)
 			res = register_attrs(resource, rw_cap_attrs);
-			if (res)
-				goto error;
-		} else {
+		else
 			res = register_attrs(resource, ro_cap_attrs);
-			if (res)
-				goto error;
-		}
+
+		if (res)
+			goto error;
+
 		res = register_attrs(resource, misc_cap_attrs);
 		if (res)
 			goto error;
 	}
-skip_unsafe_cap:
 
+skip_unsafe_cap:
 	if (resource->caps.flags & POWER_METER_CAN_TRIP) {
 		res = register_attrs(resource, trip_attrs);
 		if (res)
