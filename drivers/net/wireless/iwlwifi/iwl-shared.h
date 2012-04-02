@@ -121,9 +121,4 @@ struct iwl_mod_params {
 	bool auto_agg;
 };
 
-static inline bool iwl_have_debug_level(u32 level)
-{
-	return iwlagn_mod_params.debug_level & level;
-}
-
 #endif /* #__iwl_shared_h__ */

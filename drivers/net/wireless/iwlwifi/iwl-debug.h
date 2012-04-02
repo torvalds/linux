@@ -32,6 +32,12 @@
 #include "iwl-shared.h"
 #include "iwl-devtrace.h"
 
+
+static inline bool iwl_have_debug_level(u32 level)
+{
+	return iwlagn_mod_params.debug_level & level;
+}
+
 void __iwl_err(struct device *dev, bool rfkill_prefix, bool only_trace,
 		const char *fmt, ...);
 void __iwl_warn(struct device *dev, const char *fmt, ...);
