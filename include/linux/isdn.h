@@ -442,8 +442,6 @@ typedef struct modem_info {
   int                   msr;             /* Modem status register          */
   int                   lsr;             /* Line status register           */
   int			line;
-  int			count;		 /* # of fd on device              */
-  int			blocked_open;	 /* # of blocked opens             */
   int                   online;          /* 1 = B-Channel is up, drop data */
 					 /* 2 = B-Channel is up, deliver d.*/
   int                   dialing;         /* Dial in progress or ATA        */

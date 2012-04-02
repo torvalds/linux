@@ -1533,8 +1533,8 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 	       info->line, info->count);
 #endif
 	if (!(tty_hung_up_p(filp)))
-		info->count--;
-	info->blocked_open++;
+		info->port.count--;
+	info->port.blocked_open++;
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (tty_hung_up_p(filp) ||
@@ -1559,18 +1559,18 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 		}
 #ifdef ISDN_DEBUG_MODEM_OPEN
 		printk(KERN_DEBUG "isdn_tty_block_til_ready blocking: ttyi%d, count = %d\n",
-		       info->line, info->count);
+		       info->line, info->port.count);
 #endif
 		schedule();
 	}
 	current->state = TASK_RUNNING;
 	remove_wait_queue(&info->port.open_wait, &wait);
 	if (!tty_hung_up_p(filp))
-		info->count++;
-	info->blocked_open--;
+		info->port.count++;
+	info->port.blocked_open--;
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_block_til_ready after blocking: ttyi%d, count = %d\n",
-	       info->line, info->count);
+	       info->line, info->port.count);
 #endif
 	if (retval)
 		return retval;
@@ -1595,9 +1595,9 @@ isdn_tty_open(struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_open %s, count = %d\n", tty->name,
-	       info->count);
+	       info->port.count);
 #endif
-	info->count++;
+	info->port.count++;
 	tty->driver_data = info;
 	info->tty = tty;
 	tty->port = &info->port;
@@ -1642,7 +1642,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 #endif
 		return;
 	}
-	if ((tty->count == 1) && (info->count != 1)) {
+	if ((tty->count == 1) && (info->port.count != 1)) {
 		/*
 		 * Uh, oh.  tty->count is 1, which means that the tty
 		 * structure will be freed.  Info->count should always
@@ -1651,15 +1651,15 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 		 * serial port won't be shutdown.
 		 */
 		printk(KERN_ERR "isdn_tty_close: bad port count; tty->count is 1, "
-		       "info->count is %d\n", info->count);
-		info->count = 1;
+		       "info->count is %d\n", info->port.count);
+		info->port.count = 1;
 	}
-	if (--info->count < 0) {
+	if (--info->port.count < 0) {
 		printk(KERN_ERR "isdn_tty_close: bad port count for ttyi%d: %d\n",
-		       info->line, info->count);
-		info->count = 0;
+		       info->line, info->port.count);
+		info->port.count = 0;
 	}
-	if (info->count) {
+	if (info->port.count) {
 #ifdef ISDN_DEBUG_MODEM_OPEN
 		printk(KERN_DEBUG "isdn_tty_close after info->count != 0\n");
 #endif
@@ -1695,7 +1695,7 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	info->tty = NULL;
 	info->ncarrier = 0;
 	tty->closing = 0;
-	if (info->blocked_open) {
+	if (info->port.blocked_open) {
 		msleep_interruptible(500);
 		wake_up_interruptible(&info->port.open_wait);
 	}
@@ -1717,7 +1717,7 @@ isdn_tty_hangup(struct tty_struct *tty)
 	if (isdn_tty_paranoia_check(info, tty->name, "isdn_tty_hangup"))
 		return;
 	isdn_tty_shutdown(info);
-	info->count = 0;
+	info->port.count = 0;
 	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
 	wake_up_interruptible(&info->port.open_wait);
@@ -1896,8 +1896,6 @@ isdn_tty_modem_init(void)
 		info->line = i;
 		info->tty = NULL;
 		info->x_char = 0;
-		info->count = 0;
-		info->blocked_open = 0;
 		info->isdn_driver = -1;
 		info->isdn_channel = -1;
 		info->drv_index = -1;
@@ -2047,7 +2045,7 @@ isdn_tty_find_icall(int di, int ch, setup_parm *setup)
 	for (i = 0; i < ISDN_MAX_CHANNELS; i++) {
 		modem_info *info = &dev->mdm.info[i];
 
-		if (info->count == 0)
+		if (info->port.count == 0)
 			continue;
 		if ((info->emu.mdmreg[REG_SI1] & si2bit[si1]) &&  /* SI1 is matching */
 		    (info->emu.mdmreg[REG_SI2] == si2))	{         /* SI2 is matching */
@@ -2190,7 +2188,7 @@ isdn_tty_stat_callback(int i, isdn_ctrl *c)
 			 * for incoming call of this device when
 			 * DCD follow the state of incoming carrier
 			 */
-			if (info->blocked_open &&
+			if (info->port.blocked_open &&
 			    (info->emu.mdmreg[REG_DCD] & BIT_DCD)) {
 				wake_up_interruptible(&info->port.open_wait);
 			}
@@ -2200,7 +2198,8 @@ isdn_tty_stat_callback(int i, isdn_ctrl *c)
 			 * set DCD-bit of its modem-status.
 			 */
 			if (TTY_IS_ACTIVE(info) ||
-			    (info->blocked_open && (info->emu.mdmreg[REG_DCD] & BIT_DCD))) {
+			    (info->port.blocked_open &&
+			     (info->emu.mdmreg[REG_DCD] & BIT_DCD))) {
 				info->msr |= UART_MSR_DCD;
 				info->emu.charge = 0;
 				if (info->dialing & 0xf)
