@@ -398,8 +398,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	}
 
 	perf_ibs_event_update(perf_ibs, event, config);
-	perf_sample_data_init(&data, 0);
-	data.period = event->hw.last_period;
+	perf_sample_data_init(&data, 0, hwc->last_period);
 
 	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
 		ibs_data.caps = ibs_caps;

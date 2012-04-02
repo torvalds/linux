@@ -248,8 +248,6 @@ xscale1pmu_handle_irq(int irq_num, void *dev)
 
 	regs = get_irq_regs();
 
-	perf_sample_data_init(&data, 0);
-
 	cpuc = &__get_cpu_var(cpu_hw_events);
 	for (idx = 0; idx < cpu_pmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
@@ -263,7 +261,7 @@ xscale1pmu_handle_irq(int irq_num, void *dev)
 
 		hwc = &event->hw;
 		armpmu_event_update(event, hwc, idx);
-		data.period = event->hw.last_period;
+		perf_sample_data_init(&data, 0, hwc->last_period);
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
 
@@ -588,8 +586,6 @@ xscale2pmu_handle_irq(int irq_num, void *dev)
 
 	regs = get_irq_regs();
 
-	perf_sample_data_init(&data, 0);
-
 	cpuc = &__get_cpu_var(cpu_hw_events);
 	for (idx = 0; idx < cpu_pmu->num_events; ++idx) {
 		struct perf_event *event = cpuc->events[idx];
@@ -603,7 +599,7 @@ xscale2pmu_handle_irq(int irq_num, void *dev)
 
 		hwc = &event->hw;
 		armpmu_event_update(event, hwc, idx);
-		data.period = event->hw.last_period;
+		perf_sample_data_init(&data, 0, hwc->last_period);
 		if (!armpmu_event_set_period(event, hwc, idx))
 			continue;
 
