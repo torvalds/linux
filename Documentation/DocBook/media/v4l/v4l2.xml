@@ -141,9 +141,10 @@ applications. -->
       <revision>
 	<revnumber>3.5</revnumber>
 	<date>2012-04-02</date>
-	<authorinitials>sa</authorinitials>
+	<authorinitials>sa, sn</authorinitials>
 	<revremark>Added V4L2_CTRL_TYPE_INTEGER_MENU and V4L2 subdev
-	    selections API.
+	    selections API. Improved the description of V4L2_CID_COLORFX
+	    control, added V4L2_CID_COLORFX_CBCR control.
 	</revremark>
       </revision>
 

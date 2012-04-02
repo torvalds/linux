@@ -2422,6 +2422,19 @@ details.</para>
 	  &VIDIOC-SUBDEV-G-SELECTION; and
 	  &VIDIOC-SUBDEV-S-SELECTION;.</para>
         </listitem>
+        <listitem>
+	  <para> Added <constant>V4L2_COLORFX_ANTIQUE</constant>,
+	  <constant>V4L2_COLORFX_ART_FREEZE</constant>,
+	  <constant>V4L2_COLORFX_AQUA</constant>,
+	  <constant>V4L2_COLORFX_SILHOUETTE</constant>,
+	  <constant>V4L2_COLORFX_SOLARIZATION</constant>,
+	  <constant>V4L2_COLORFX_VIVID</constant> and
+	  <constant>V4L2_COLORFX_ARBITRARY_CBCR</constant> menu items
+	  to the <constant>V4L2_CID_COLORFX</constant> control.</para>
+        </listitem>
+        <listitem>
+	  <para> Added <constant>V4L2_CID_COLORFX_CBCR</constant> control.</para>
+        </listitem>
       </orderedlist>
     </section>
 
