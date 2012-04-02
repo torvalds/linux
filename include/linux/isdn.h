@@ -393,7 +393,6 @@ typedef struct isdn_net_dev_s {
 
 #define ISDN_ASYNC_MAGIC          0x49344C01 /* for paranoia-checking        */
 #define ISDN_ASYNC_INITIALIZED	  0x80000000 /* port was initialized         */
-#define ISDN_ASYNC_CALLOUT_ACTIVE 0x40000000 /* Call out device active       */
 #define ISDN_ASYNC_NORMAL_ACTIVE  0x20000000 /* Normal device active         */
 #define ISDN_ASYNC_CLOSING	  0x08000000 /* Serial port is closing       */
 #define ISDN_ASYNC_CTS_FLOW	  0x04000000 /* Do CTS flow control          */
@@ -498,8 +497,6 @@ typedef struct modem_info {
 #endif
   struct tty_struct 	*tty;            /* Pointer to corresponding tty   */
   atemu                 emu;             /* AT-emulator data               */
-  struct ktermios	normal_termios;  /* For saving termios structs     */
-  struct ktermios	callout_termios;
   wait_queue_head_t	open_wait, close_wait;
   spinlock_t	        readlock;
 } modem_info;

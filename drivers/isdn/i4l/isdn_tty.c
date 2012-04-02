@@ -1504,18 +1504,11 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 	 */
 	if ((filp->f_flags & O_NONBLOCK) ||
 	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		if (info->flags & ISDN_ASYNC_CALLOUT_ACTIVE)
-			return -EBUSY;
 		info->flags |= ISDN_ASYNC_NORMAL_ACTIVE;
 		return 0;
 	}
-	if (info->flags & ISDN_ASYNC_CALLOUT_ACTIVE) {
-		if (info->normal_termios.c_cflag & CLOCAL)
-			do_clocal = 1;
-	} else {
-		if (tty->termios->c_cflag & CLOCAL)
-			do_clocal = 1;
-	}
+	if (tty->termios->c_cflag & CLOCAL)
+		do_clocal = 1;
 	/*
 	 * Block waiting for the carrier detect and the line to become
 	 * free (i.e., not in use by the callout).  While we are in
@@ -1546,8 +1539,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 #endif
 			break;
 		}
-		if (!(info->flags & ISDN_ASYNC_CALLOUT_ACTIVE) &&
-		    !(info->flags & ISDN_ASYNC_CLOSING) &&
+		if (!(info->flags & ISDN_ASYNC_CLOSING) &&
 		    (do_clocal || (info->msr & UART_MSR_DCD))) {
 			break;
 		}
@@ -1670,14 +1662,6 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 		return;
 	}
 	info->flags |= ISDN_ASYNC_CLOSING;
-	/*
-	 * Save the termios structure, since this port may have
-	 * separate termios for callout and dialin.
-	 */
-	if (info->flags & ISDN_ASYNC_NORMAL_ACTIVE)
-		info->normal_termios = *tty->termios;
-	if (info->flags & ISDN_ASYNC_CALLOUT_ACTIVE)
-		info->callout_termios = *tty->termios;
 
 	tty->closing = 1;
 	/*
@@ -1731,7 +1715,7 @@ isdn_tty_hangup(struct tty_struct *tty)
 		return;
 	isdn_tty_shutdown(info);
 	info->count = 0;
-	info->flags &= ~(ISDN_ASYNC_NORMAL_ACTIVE | ISDN_ASYNC_CALLOUT_ACTIVE);
+	info->flags &= ~ISDN_ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
 	wake_up_interruptible(&info->open_wait);
 }
@@ -2116,8 +2100,7 @@ isdn_tty_find_icall(int di, int ch, setup_parm *setup)
 	return (wret == 2) ? 3 : 0;
 }
 
-#define TTY_IS_ACTIVE(info)						\
-	(info->flags & (ISDN_ASYNC_NORMAL_ACTIVE | ISDN_ASYNC_CALLOUT_ACTIVE))
+#define TTY_IS_ACTIVE(info)	(info->flags & ISDN_ASYNC_NORMAL_ACTIVE)
 
 int
 isdn_tty_stat_callback(int i, isdn_ctrl *c)
@@ -2628,11 +2611,8 @@ isdn_tty_modem_result(int code, modem_info *info)
 		if ((info->flags & ISDN_ASYNC_CLOSING) || (!info->tty)) {
 			return;
 		}
-		if ((info->flags & ISDN_ASYNC_CHECK_CD) &&
-		    (!((info->flags & ISDN_ASYNC_CALLOUT_ACTIVE) &&
-		       (info->flags & ISDN_ASYNC_CALLOUT_NOHUP)))) {
+		if (info->flags & ISDN_ASYNC_CHECK_CD)
 			tty_hangup(info->tty);
-		}
 	}
 }
 
