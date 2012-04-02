@@ -3332,7 +3332,7 @@ static int __init hso_init(void)
 	if (result) {
 		printk(KERN_ERR "%s - tty_register_driver failed(%d)\n",
 			__func__, result);
-		return result;
+		goto err_free_tty;
 	}
 
 	/* register this module as an usb driver */
@@ -3340,13 +3340,16 @@ static int __init hso_init(void)
 	if (result) {
 		printk(KERN_ERR "Could not register hso driver? error: %d\n",
 			result);
-		/* cleanup serial interface */
-		tty_unregister_driver(tty_drv);
-		return result;
+		goto err_unreg_tty;
 	}
 
 	/* done */
 	return 0;
+err_unreg_tty:
+	tty_unregister_driver(tty_drv);
+err_free_tty:
+	put_tty_driver(tty_drv);
+	return result;
 }
 
 static void __exit hso_exit(void)
@@ -3354,6 +3357,7 @@ static void __exit hso_exit(void)
 	printk(KERN_INFO "hso: unloaded\n");
 
 	tty_unregister_driver(tty_drv);
+	put_tty_driver(tty_drv);
 	/* deregister the usb driver */
 	usb_deregister(&hso_driver);
 }
