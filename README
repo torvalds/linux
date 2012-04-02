@@ -1,4 +1,4 @@
-	Linux kernel release 3.x <http://kernel.org/>
+        Linux kernel release 3.x <http://kernel.org/>
 
 These are the release notes for Linux version 3.  Read them carefully,
 as they tell you what this is all about, explain how to install the
@@ -62,11 +62,11 @@ INSTALLING the kernel source:
    directory where you have permissions (eg. your home directory) and
    unpack it:
 
-		gzip -cd linux-3.X.tar.gz | tar xvf -
+     gzip -cd linux-3.X.tar.gz | tar xvf -
 
    or
 
-		bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
+     bzip2 -dc linux-3.X.tar.bz2 | tar xvf -
 
    Replace "X" with the version number of the latest kernel.
 
@@ -80,11 +80,11 @@ INSTALLING the kernel source:
    install by patching, get all the newer patch files, enter the
    top level directory of the kernel source (linux-3.X) and execute:
 
-		gzip -cd ../patch-3.x.gz | patch -p1
+     gzip -cd ../patch-3.x.gz | patch -p1
 
    or
 
-		bzip2 -dc ../patch-3.x.bz2 | patch -p1
+     bzip2 -dc ../patch-3.x.bz2 | patch -p1
 
    Replace "x" for all versions bigger than the version "X" of your current
    source tree, _in_order_, and you should be ok.  You may want to remove
@@ -105,7 +105,7 @@ INSTALLING the kernel source:
    process.  It determines the current kernel version and applies any
    patches found.
 
-		linux/scripts/patch-kernel linux
+     linux/scripts/patch-kernel linux
 
    The first argument in the command above is the location of the
    kernel source.  Patches are applied from the current directory, but
@@ -113,8 +113,8 @@ INSTALLING the kernel source:
 
  - Make sure you have no stale .o files and dependencies lying around:
 
-		cd linux
-		make mrproper
+     cd linux
+     make mrproper
 
    You should now have the sources correctly installed.
 
@@ -137,8 +137,8 @@ BUILD directory for the kernel:
    place for the output files (including .config).
    Example:
 
-     kernel source code:	/usr/src/linux-3.X
-     build directory:		/home/name/build/kernel
+     kernel source code: /usr/src/linux-3.X
+     build directory:    /home/name/build/kernel
 
    To configure and build the kernel, use:
 
@@ -161,76 +161,76 @@ CONFIGURING the kernel:
 
  - Alternative configuration commands are:
 
-	"make config"      Plain text interface.
+     "make config"      Plain text interface.
 
-	"make menuconfig"  Text based color menus, radiolists & dialogs.
+     "make menuconfig"  Text based color menus, radiolists & dialogs.
 
-	"make nconfig"     Enhanced text based color menus.
+     "make nconfig"     Enhanced text based color menus.
 
-	"make xconfig"     X windows (Qt) based configuration tool.
+     "make xconfig"     X windows (Qt) based configuration tool.
 
-	"make gconfig"     X windows (Gtk) based configuration tool.
+     "make gconfig"     X windows (Gtk) based configuration tool.
 
-	"make oldconfig"   Default all questions based on the contents of
-			   your existing ./.config file and asking about
-			   new config symbols.
+     "make oldconfig"   Default all questions based on the contents of
+                        your existing ./.config file and asking about
+                        new config symbols.
 
-	"make silentoldconfig"
-			   Like above, but avoids cluttering the screen
-			   with questions already answered.
-			   Additionally updates the dependencies.
+     "make silentoldconfig"
+                        Like above, but avoids cluttering the screen
+                        with questions already answered.
+                        Additionally updates the dependencies.
 
-	"make defconfig"   Create a ./.config file by using the default
-			   symbol values from either arch/$ARCH/defconfig
-			   or arch/$ARCH/configs/${PLATFORM}_defconfig,
-			   depending on the architecture.
+     "make defconfig"   Create a ./.config file by using the default
+                        symbol values from either arch/$ARCH/defconfig
+                        or arch/$ARCH/configs/${PLATFORM}_defconfig,
+                        depending on the architecture.
 
-	"make ${PLATFORM}_defconfig"
-			   Create a ./.config file by using the default
-			   symbol values from
-			   arch/$ARCH/configs/${PLATFORM}_defconfig.
-			   Use "make help" to get a list of all available
-			   platforms of your architecture.
+     "make ${PLATFORM}_defconfig"
+                        Create a ./.config file by using the default
+                        symbol values from
+                        arch/$ARCH/configs/${PLATFORM}_defconfig.
+                        Use "make help" to get a list of all available
+                        platforms of your architecture.
 
-	"make allyesconfig"
-			   Create a ./.config file by setting symbol
-			   values to 'y' as much as possible.
+     "make allyesconfig"
+                        Create a ./.config file by setting symbol
+                        values to 'y' as much as possible.
 
-	"make allmodconfig"
-			   Create a ./.config file by setting symbol
-			   values to 'm' as much as possible.
+     "make allmodconfig"
+                        Create a ./.config file by setting symbol
+                        values to 'm' as much as possible.
 
-	"make allnoconfig" Create a ./.config file by setting symbol
-			   values to 'n' as much as possible.
+     "make allnoconfig" Create a ./.config file by setting symbol
+                        values to 'n' as much as possible.
 
-	"make randconfig"  Create a ./.config file by setting symbol
-			   values to random values.
+     "make randconfig"  Create a ./.config file by setting symbol
+                        values to random values.
 
    You can find more information on using the Linux kernel config tools
    in Documentation/kbuild/kconfig.txt.
 
-	NOTES on "make config":
+ - NOTES on "make config":
 
-	- Having unnecessary drivers will make the kernel bigger, and can
-	  under some circumstances lead to problems: probing for a
-	  nonexistent controller card may confuse your other controllers
+    - Having unnecessary drivers will make the kernel bigger, and can
+      under some circumstances lead to problems: probing for a
+      nonexistent controller card may confuse your other controllers
 
-	- Compiling the kernel with "Processor type" set higher than 386
-	  will result in a kernel that does NOT work on a 386.  The
-	  kernel will detect this on bootup, and give up.
+    - Compiling the kernel with "Processor type" set higher than 386
+      will result in a kernel that does NOT work on a 386.  The
+      kernel will detect this on bootup, and give up.
 
-	- A kernel with math-emulation compiled in will still use the
-	  coprocessor if one is present: the math emulation will just
-	  never get used in that case.  The kernel will be slightly larger,
-	  but will work on different machines regardless of whether they
-	  have a math coprocessor or not. 
+    - A kernel with math-emulation compiled in will still use the
+      coprocessor if one is present: the math emulation will just
+      never get used in that case.  The kernel will be slightly larger,
+      but will work on different machines regardless of whether they
+      have a math coprocessor or not.
 
-	- The "kernel hacking" configuration details usually result in a
-	  bigger or slower kernel (or both), and can even make the kernel
-	  less stable by configuring some routines to actively try to
-	  break bad code to find kernel problems (kmalloc()).  Thus you
-	  should probably answer 'n' to the questions for
-          "development", "experimental", or "debugging" features.
+    - The "kernel hacking" configuration details usually result in a
+      bigger or slower kernel (or both), and can even make the kernel
+      less stable by configuring some routines to actively try to
+      break bad code to find kernel problems (kmalloc()).  Thus you
+      should probably answer 'n' to the questions for "development",
+      "experimental", or "debugging" features.
 
 COMPILING the kernel:
 
@@ -257,7 +257,7 @@ COMPILING the kernel:
    For this, use "verbose" build mode.  This is done by inserting
    "V=1" in the "make" command.  E.g.:
 
-	make V=1 all
+     make V=1 all
 
    To have the build system also tell the reason for the rebuild of each
    target, use "V=2".  The default is "V=0".
@@ -320,14 +320,14 @@ IF SOMETHING GOES WRONG:
 
  - If the bug results in a message like
 
-	unable to handle kernel paging request at address C0000010
-	Oops: 0002
-	EIP:   0010:XXXXXXXX
-	eax: xxxxxxxx   ebx: xxxxxxxx   ecx: xxxxxxxx   edx: xxxxxxxx
-	esi: xxxxxxxx   edi: xxxxxxxx   ebp: xxxxxxxx
-	ds: xxxx  es: xxxx  fs: xxxx  gs: xxxx
-	Pid: xx, process nr: xx
-	xx xx xx xx xx xx xx xx xx xx
+     unable to handle kernel paging request at address C0000010
+     Oops: 0002
+     EIP:   0010:XXXXXXXX
+     eax: xxxxxxxx   ebx: xxxxxxxx   ecx: xxxxxxxx   edx: xxxxxxxx
+     esi: xxxxxxxx   edi: xxxxxxxx   ebp: xxxxxxxx
+     ds: xxxx  es: xxxx  fs: xxxx  gs: xxxx
+     Pid: xx, process nr: xx
+     xx xx xx xx xx xx xx xx xx xx
 
    or similar kernel debugging information on your screen or in your
    system log, please duplicate it *exactly*.  The dump may look
@@ -356,7 +356,7 @@ IF SOMETHING GOES WRONG:
    the file 'linux/vmlinux'.  To extract the namelist and match it against
    the EIP from the kernel crash, do:
 
-		nm vmlinux | sort | less
+     nm vmlinux | sort | less
 
    This will give you a list of kernel addresses sorted in ascending
    order, from which it is simple to find the function that contains the
