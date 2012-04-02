@@ -32,8 +32,6 @@
 #include "iwl-shared.h"
 #include "iwl-devtrace.h"
 
-struct iwl_priv;
-
 void __iwl_err(struct device *dev, bool rfkill_prefix, bool only_trace,
 		const char *fmt, ...);
 void __iwl_warn(struct device *dev, const char *fmt, ...);
@@ -79,19 +77,6 @@ do {                                            			\
 #else
 #define iwl_print_hex_dump(m, level, p, len)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
-
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
-void iwl_dbgfs_unregister(struct iwl_priv *priv);
-#else
-static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
-{
-	return 0;
-}
-static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
-{
-}
-#endif				/* CONFIG_IWLWIFI_DEBUGFS */
 
 /*
  * To use the debug system:
