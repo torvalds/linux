@@ -149,7 +149,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 
 	dcdc = regulator_get(NULL, "vdd_core");	// vdd_log
-	regulator_set_voltage(dcdc, 1100000, 1100000);
+	regulator_set_voltage(dcdc, 1150000, 1150000);
 	regulator_set_suspend_voltage(dcdc, 1100000);
 	regulator_enable(dcdc);
 	printk("%s set dcdc1 vdd_core(vdd_log)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
