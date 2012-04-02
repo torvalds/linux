@@ -2226,8 +2226,8 @@ int max98095_jack_detect_enable(struct snd_soc_codec *codec)
 	if (max98095->pdata->jack_detect_pin5en)
 		detect_enable |= M98095_PIN5EN;
 
-	if (max98095->jack_detect_delay)
-		slew = max98095->jack_detect_delay;
+	if (max98095->pdata->jack_detect_delay)
+		slew = max98095->pdata->jack_detect_delay;
 
 	ret = snd_soc_write(codec, M98095_08E_JACK_DC_SLEW, slew);
 	if (ret < 0) {
