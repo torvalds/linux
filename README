@@ -94,8 +94,12 @@ INSTALLING the kernel source:
 
    Unlike patches for the 3.x kernels, patches for the 3.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
-   directly to the base 3.x kernel.  Please read
-   Documentation/applying-patches.txt for more information.
+   directly to the base 3.x kernel.  For example, if your base kernel is 3.0
+   and you want to apply the 3.0.3 patch, you must not first apply the 3.0.1
+   and 3.0.2 patches. Similarly, if you are running kernel version 3.0.2 and
+   want to jump to 3.0.3, you must first reverse the 3.0.2 patch (that is,
+   patch -R) _before_ applying the 3.0.3 patch. You can read more on this in
+   Documentation/applying-patches.txt
 
    Alternatively, the script patch-kernel can be used to automate this
    process.  It determines the current kernel version and applies any
@@ -106,17 +110,6 @@ INSTALLING the kernel source:
    The first argument in the command above is the location of the
    kernel source.  Patches are applied from the current directory, but
    an alternative directory can be specified as the second argument.
-
- - If you are upgrading between releases using the stable series patches
-   (for example, patch-3.x.y), note that these "dot-releases" are
-   not incremental and must be applied to the 3.x base tree. For
-   example, if your base kernel is 3.0 and you want to apply the
-   3.0.3 patch, you do not and indeed must not first apply the
-   3.0.1 and 3.0.2 patches. Similarly, if you are running kernel
-   version 3.0.2 and want to jump to 3.0.3, you must first
-   reverse the 3.0.2 patch (that is, patch -R) _before_ applying
-   the 3.0.3 patch.
-   You can read more on this in Documentation/applying-patches.txt
 
  - Make sure you have no stale .o files and dependencies lying around:
 
