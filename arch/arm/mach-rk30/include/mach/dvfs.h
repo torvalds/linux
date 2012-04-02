@@ -103,21 +103,15 @@ struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk);
 int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table);
 int rk30_dvfs_init(void);
 #else
-int rk30_dvfs_init(void){};
-int is_support_dvfs(struct clk_node *dvfs_info){};
-int dvfs_set_rate(struct clk *clk, unsigned long rate){};
-int clk_enable_dvfs(struct clk *clk){};
-int clk_disable_dvfs(struct clk *clk){};
-int cpufreq_dvfs_init(struct clk *ck, struct cpufreq_frequency_table **table, clk_dvfs_target_callback clk_dvfs_target){};
-void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target){};
-struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk){};
-int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table);
-int rk30_dvfs_init(void){};
-
-
-
-
+static inline int rk30_dvfs_init(void) { return 0; }
+static inline int is_support_dvfs(struct clk_node *dvfs_info) { return 0; }
+static inline int dvfs_set_rate(struct clk *clk, unsigned long rate) { return 0; }
+static inline int clk_enable_dvfs(struct clk *clk) { return 0; }
+static inline int clk_disable_dvfs(struct clk *clk) { return 0; }
+static inline int cpufreq_dvfs_init(struct clk *ck, struct cpufreq_frequency_table **table, clk_dvfs_target_callback clk_dvfs_target) { return 0; }
+static inline void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callback clk_dvfs_target) {}
+static inline struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk) { return NULL; }
+static inline int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table) { return 0; }
 #endif
-
 
 #endif
