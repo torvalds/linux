@@ -34,7 +34,6 @@
 #define SCLP_VT220_DEVICE_NAME		"ttysclp"
 #define SCLP_VT220_CONSOLE_NAME		"ttyS"
 #define SCLP_VT220_CONSOLE_INDEX	1	/* console=ttyS1 */
-#define SCLP_VT220_BUF_SIZE		80
 
 /* Representation of a single write request */
 struct sclp_vt220_request {
@@ -496,9 +495,6 @@ sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 {
 	if (tty->count == 1) {
 		tty_port_tty_set(&sclp_vt220_port, tty);
-		tty->driver_data = kmalloc(SCLP_VT220_BUF_SIZE, GFP_KERNEL);
-		if (tty->driver_data == NULL)
-			return -ENOMEM;
 		tty->low_latency = 0;
 		if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 			tty->winsize.ws_row = 24;
@@ -514,11 +510,8 @@ sclp_vt220_open(struct tty_struct *tty, struct file *filp)
 static void
 sclp_vt220_close(struct tty_struct *tty, struct file *filp)
 {
-	if (tty->count == 1) {
+	if (tty->count == 1)
 		tty_port_tty_set(&sclp_vt220_port, NULL);
-		kfree(tty->driver_data);
-		tty->driver_data = NULL;
-	}
 }
 
 /*
