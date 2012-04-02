@@ -345,7 +345,7 @@ static const struct watchdog_info wd_info = {
 		.options = WDIOF_KEEPALIVEPING,
 };
 
-struct watchdog_device amt_wd_dev = {
+static struct watchdog_device amt_wd_dev = {
 		.info = &wd_info,
 		.ops = &wd_ops,
 		.timeout = AMT_WD_DEFAULT_TIMEOUT,
