@@ -15,6 +15,7 @@
 #define __ISDN_H__
 
 #include <linux/ioctl.h>
+#include <linux/tty.h>
 
 #define ISDN_MAX_DRIVERS    32
 #define ISDN_MAX_CHANNELS   64
@@ -435,7 +436,7 @@ typedef struct atemu {
 /* Private data (similar to async_struct in <linux/serial.h>) */
 typedef struct modem_info {
   int			magic;
-  int			flags;		 /* defined in tty.h               */
+  struct tty_port	port;
   int			x_char;		 /* xon/xoff character             */
   int			mcr;		 /* Modem control register         */
   int                   msr;             /* Modem status register          */
