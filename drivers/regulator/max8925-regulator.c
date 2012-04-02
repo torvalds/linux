@@ -42,8 +42,6 @@ struct max8925_regulator_info {
 	int	max_uV;
 	int	step_uV;
 	int	vol_reg;
-	int	vol_shift;
-	int	vol_nbits;
 	int	enable_reg;
 };
 
@@ -75,8 +73,7 @@ static int max8925_set_voltage(struct regulator_dev *rdev,
 	}
 	data = DIV_ROUND_UP(min_uV - info->min_uV, info->step_uV);
 	*selector = data;
-	data <<= info->vol_shift;
-	mask = ((1 << info->vol_nbits) - 1) << info->vol_shift;
+	mask = rdev->desc->n_voltages - 1;
 
 	return max8925_set_bits(info->i2c, info->vol_reg, mask, data);
 }
@@ -90,8 +87,8 @@ static int max8925_get_voltage(struct regulator_dev *rdev)
 	ret = max8925_reg_read(info->i2c, info->vol_reg);
 	if (ret < 0)
 		return ret;
-	mask = ((1 << info->vol_nbits) - 1) << info->vol_shift;
-	data = (ret & mask) >> info->vol_shift;
+	mask = rdev->desc->n_voltages - 1;
+	data = ret & mask;
 
 	return max8925_list_voltage(rdev, data);
 }
@@ -191,13 +188,12 @@ static struct regulator_ops max8925_regulator_ldo_ops = {
 		.type	= REGULATOR_VOLTAGE,			\
 		.id	= MAX8925_ID_SD##_id,			\
 		.owner	= THIS_MODULE,				\
+		.n_voltages = 64,				\
 	},							\
 	.min_uV		= min * 1000,				\
 	.max_uV		= max * 1000,				\
 	.step_uV	= step * 1000,				\
 	.vol_reg	= MAX8925_SDV##_id,			\
-	.vol_shift	= 0,					\
-	.vol_nbits	= 6,					\
 	.enable_reg	= MAX8925_SDCTL##_id,			\
 }
 
@@ -209,13 +205,12 @@ static struct regulator_ops max8925_regulator_ldo_ops = {
 		.type	= REGULATOR_VOLTAGE,			\
 		.id	= MAX8925_ID_LDO##_id,			\
 		.owner	= THIS_MODULE,				\
+		.n_voltages = 64,				\
 	},							\
 	.min_uV		= min * 1000,				\
 	.max_uV		= max * 1000,				\
 	.step_uV	= step * 1000,				\
 	.vol_reg	= MAX8925_LDOVOUT##_id,			\
-	.vol_shift	= 0,					\
-	.vol_nbits	= 6,					\
 	.enable_reg	= MAX8925_LDOCTL##_id,			\
 }
 
