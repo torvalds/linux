@@ -1,5 +1,4 @@
-/* $Id: isdn_tty.c,v 1.1.2.3 2004/02/10 01:07:13 keil Exp $
- *
+/*
  * Linux ISDN subsystem, tty functions and AT-command emulator (linklevel).
  *
  * Copyright 1994-1999  by Fritz Elfert (fritz@isdn4linux.de)
@@ -47,9 +46,6 @@ static int bit2si[8] =
 {1, 5, 7, 7, 7, 7, 7, 7};
 static int si2bit[8] =
 {4, 1, 4, 4, 4, 4, 4, 4};
-
-char *isdn_tty_revision = "$Revision: 1.1.2.3 $";
-
 
 /* isdn_tty_try_read() is called from within isdn_tty_rcv_skb()
  * to stuff incoming data directly into a tty's flip-buffer. This
