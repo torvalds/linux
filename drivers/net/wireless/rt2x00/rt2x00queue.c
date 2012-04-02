@@ -213,8 +213,19 @@ static void rt2x00queue_create_tx_descriptor_seq(struct rt2x00_dev *rt2x00dev,
 
 	__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 
-	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags))
-		return;
+	if (!test_bit(REQUIRE_SW_SEQNO, &rt2x00dev->cap_flags)) {
+		/*
+		 * rt2800 has a H/W (or F/W) bug, device incorrectly increase
+		 * seqno on retransmited data (non-QOS) frames. To workaround
+		 * the problem let's generate seqno in software if QOS is
+		 * disabled.
+		 */
+		if (test_bit(CONFIG_QOS_DISABLED, &rt2x00dev->flags))
+			__clear_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
+		else
+			/* H/W will generate sequence number */
+			return;
+	}
 
 	/*
 	 * The hardware is not able to insert a sequence number. Assign a
