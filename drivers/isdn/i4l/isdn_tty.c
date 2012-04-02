@@ -1498,7 +1498,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 	if (tty_hung_up_p(filp) ||
 	    (info->port.flags & ASYNC_CLOSING)) {
 		if (info->port.flags & ASYNC_CLOSING)
-			interruptible_sleep_on(&info->close_wait);
+			interruptible_sleep_on(&info->port.close_wait);
 #ifdef MODEM_DO_RESTART
 		if (info->port.flags & ASYNC_HUP_NOTIFY)
 			return -EAGAIN;
@@ -1527,7 +1527,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 	 * exit, either normal or abnormal.
 	 */
 	retval = 0;
-	add_wait_queue(&info->open_wait, &wait);
+	add_wait_queue(&info->port.open_wait, &wait);
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_block_til_ready before block: ttyi%d, count = %d\n",
 	       info->line, info->count);
@@ -1564,7 +1564,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 		schedule();
 	}
 	current->state = TASK_RUNNING;
-	remove_wait_queue(&info->open_wait, &wait);
+	remove_wait_queue(&info->port.open_wait, &wait);
 	if (!tty_hung_up_p(filp))
 		info->count++;
 	info->blocked_open--;
@@ -1697,10 +1697,10 @@ isdn_tty_close(struct tty_struct *tty, struct file *filp)
 	tty->closing = 0;
 	if (info->blocked_open) {
 		msleep_interruptible(500);
-		wake_up_interruptible(&info->open_wait);
+		wake_up_interruptible(&info->port.open_wait);
 	}
 	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
-	wake_up_interruptible(&info->close_wait);
+	wake_up_interruptible(&info->port.close_wait);
 #ifdef ISDN_DEBUG_MODEM_OPEN
 	printk(KERN_DEBUG "isdn_tty_close normal exit\n");
 #endif
@@ -1720,7 +1720,7 @@ isdn_tty_hangup(struct tty_struct *tty)
 	info->count = 0;
 	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
 	info->tty = NULL;
-	wake_up_interruptible(&info->open_wait);
+	wake_up_interruptible(&info->port.open_wait);
 }
 
 /* This routine initializes all emulator-data.
@@ -1898,8 +1898,6 @@ isdn_tty_modem_init(void)
 		info->x_char = 0;
 		info->count = 0;
 		info->blocked_open = 0;
-		init_waitqueue_head(&info->open_wait);
-		init_waitqueue_head(&info->close_wait);
 		info->isdn_driver = -1;
 		info->isdn_channel = -1;
 		info->drv_index = -1;
@@ -2194,7 +2192,7 @@ isdn_tty_stat_callback(int i, isdn_ctrl *c)
 			 */
 			if (info->blocked_open &&
 			    (info->emu.mdmreg[REG_DCD] & BIT_DCD)) {
-				wake_up_interruptible(&info->open_wait);
+				wake_up_interruptible(&info->port.open_wait);
 			}
 
 			/* Schedule CONNECT-Message to any tty

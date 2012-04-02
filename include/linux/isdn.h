@@ -483,7 +483,6 @@ typedef struct modem_info {
 #endif
   struct tty_struct 	*tty;            /* Pointer to corresponding tty   */
   atemu                 emu;             /* AT-emulator data               */
-  wait_queue_head_t	open_wait, close_wait;
   spinlock_t	        readlock;
 } modem_info;
 
