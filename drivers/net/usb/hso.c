@@ -3312,7 +3312,6 @@ static int __init hso_init(void)
 		return -ENOMEM;
 
 	/* fill in all needed values */
-	tty_drv->magic = TTY_DRIVER_MAGIC;
 	tty_drv->driver_name = driver_name;
 	tty_drv->name = tty_filename;
 
