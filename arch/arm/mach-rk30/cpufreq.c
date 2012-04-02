@@ -28,7 +28,7 @@
 
 #define FREQ_PRINTK_DBG(fmt, args...) {while(0);}//pr_debug(fmt, ## args)
 #define FREQ_PRINTK_ERR(fmt, args...) pr_err(fmt, ## args)
-#define FREQ_PRINTK_LOG(fmt, args...) printk(fmt, ## args)
+#define FREQ_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args)
 /* Frequency table index must be sequential starting at 0 */
 static struct cpufreq_frequency_table default_freq_table[] = {
 	{.frequency = 816*1000, .index	= 1080*1000},
