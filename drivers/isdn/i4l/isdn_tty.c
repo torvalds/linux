@@ -1485,6 +1485,7 @@ isdn_tty_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
  * isdn_tty_open() and friends
  * ------------------------------------------------------------
  */
+
 static int
 isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *info)
 {
@@ -1552,7 +1553,7 @@ isdn_tty_block_til_ready(struct tty_struct *tty, struct file *filp, modem_info *
 			break;
 		}
 		if (!(port->flags & ASYNC_CLOSING) &&
-		    (do_clocal || (info->msr & UART_MSR_DCD))) {
+		    (do_clocal || tty_port_carrier_raised(port))) {
 			break;
 		}
 		if (signal_pending(current)) {
@@ -1848,6 +1849,16 @@ static const struct tty_operations modem_ops = {
 	.tiocmset = isdn_tty_tiocmset,
 };
 
+static int isdn_tty_carrier_raised(struct tty_port *port)
+{
+	modem_info *info = container_of(port, modem_info, port);
+	return info->msr & UART_MSR_DCD;
+}
+
+static const struct tty_port_operations isdn_tty_port_ops = {
+	.carrier_raised = isdn_tty_carrier_raised,
+};
+
 int
 isdn_tty_modem_init(void)
 {
@@ -1884,6 +1895,7 @@ isdn_tty_modem_init(void)
 		}
 #endif
 		tty_port_init(&info->port);
+		info->port.ops = &isdn_tty_port_ops;
 		spin_lock_init(&info->readlock);
 		sprintf(info->last_cause, "0000");
 		sprintf(info->last_num, "none");
