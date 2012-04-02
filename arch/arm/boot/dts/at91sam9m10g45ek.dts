@@ -17,7 +17,7 @@
 		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
 	};
 
-	memory@70000000 {
+	memory {
 		reg = <0x70000000 0x4000000>;
 	};
 
