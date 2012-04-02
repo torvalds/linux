@@ -1509,12 +1509,13 @@ tty3270_escape_sequence(struct tty3270 *tp, char ch)
  * String write routine for 3270 ttys
  */
 static void
-tty3270_do_write(struct tty3270 *tp, const unsigned char *buf, int count)
+tty3270_do_write(struct tty3270 *tp, struct tty_struct *tty,
+		const unsigned char *buf, int count)
 {
 	int i_msg, i;
 
 	spin_lock_bh(&tp->view.lock);
-	for (i_msg = 0; !tp->tty->stopped && i_msg < count; i_msg++) {
+	for (i_msg = 0; !tty->stopped && i_msg < count; i_msg++) {
 		if (tp->esc_state != 0) {
 			/* Continue escape sequence. */
 			tty3270_escape_sequence(tp, buf[i_msg]);
@@ -1591,10 +1592,10 @@ tty3270_write(struct tty_struct * tty,
 	if (!tp)
 		return 0;
 	if (tp->char_count > 0) {
-		tty3270_do_write(tp, tp->char_buf, tp->char_count);
+		tty3270_do_write(tp, tty, tp->char_buf, tp->char_count);
 		tp->char_count = 0;
 	}
-	tty3270_do_write(tp, buf, count);
+	tty3270_do_write(tp, tty, buf, count);
 	return count;
 }
 
@@ -1625,7 +1626,7 @@ tty3270_flush_chars(struct tty_struct *tty)
 	if (!tp)
 		return;
 	if (tp->char_count > 0) {
-		tty3270_do_write(tp, tp->char_buf, tp->char_count);
+		tty3270_do_write(tp, tty, tp->char_buf, tp->char_count);
 		tp->char_count = 0;
 	}
 }
