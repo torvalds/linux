@@ -2611,8 +2611,8 @@ struct dentry *reiserfs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 				     int fh_len, int fh_type);
 struct dentry *reiserfs_fh_to_parent(struct super_block *sb, struct fid *fid,
 				     int fh_len, int fh_type);
-int reiserfs_encode_fh(struct dentry *dentry, __u32 * data, int *lenp,
-		       int connectable);
+int reiserfs_encode_fh(struct inode *inode, __u32 * data, int *lenp,
+		       struct inode *parent);
 
 int reiserfs_truncate_file(struct inode *, int update_timestamps);
 void make_cpu_key(struct cpu_key *cpu_key, struct inode *inode, loff_t offset,
