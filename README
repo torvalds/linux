@@ -163,7 +163,7 @@ CONFIGURING the kernel:
    new version with minimal work, use "make oldconfig", which will
    only ask you for the answers to new questions.
 
- - Alternate configuration commands are:
+ - Alternative configuration commands are:
 	"make config"      Plain text interface.
 	"make menuconfig"  Text based color menus, radiolists & dialogs.
 	"make nconfig"     Enhanced text based color menus.
@@ -328,7 +328,7 @@ IF SOMETHING GOES WRONG:
    sense of the dump (but compiling with CONFIG_KALLSYMS is usually preferred).
    This utility can be downloaded from
    ftp://ftp.<country>.kernel.org/pub/linux/utils/kernel/ksymoops/ .
-   Alternately, you can do the dump lookup by hand:
+   Alternatively, you can do the dump lookup by hand:
 
  - In debugging dumps like the above, it helps enormously if you can
    look up what the EIP value means.  The hex value as such doesn't help
@@ -361,7 +361,7 @@ IF SOMETHING GOES WRONG:
    kernel image or similar), telling me as much about your setup as
    possible will help.  Please read the REPORTING-BUGS document for details.
 
- - Alternately, you can use gdb on a running kernel. (read-only; i.e. you
+ - Alternatively, you can use gdb on a running kernel. (read-only; i.e. you
    cannot change values or set break points.) To do this, first compile the
    kernel with -g; edit arch/i386/Makefile appropriately, then do a "make
    clean". You'll also need to enable CONFIG_PROC_FS (via "make config").
