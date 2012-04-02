@@ -102,8 +102,6 @@ struct gs_port {
 	bool			openclose;	/* open/close in progress */
 	u8			port_num;
 
-	wait_queue_head_t	close_wait;	/* wait for last close */
-
 	struct list_head	read_pool;
 	int read_started;
 	int read_allocated;
@@ -885,7 +883,7 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	pr_debug("gs_close: ttyGS%d (%p,%p) done!\n",
 			port->port_num, tty, file);
 
-	wake_up_interruptible(&port->close_wait);
+	wake_up_interruptible(&port->port.close_wait);
 exit:
 	spin_unlock_irq(&port->port_lock);
 }
@@ -1035,7 +1033,6 @@ gs_port_alloc(unsigned port_num, struct usb_cdc_line_coding *coding)
 
 	tty_port_init(&port->port);
 	spin_lock_init(&port->port_lock);
-	init_waitqueue_head(&port->close_wait);
 	init_waitqueue_head(&port->drain_wait);
 
 	tasklet_init(&port->push, gs_rx_push, (unsigned long) port);
@@ -1194,7 +1191,7 @@ void gserial_cleanup(void)
 		tasklet_kill(&port->push);
 
 		/* wait for old opens to finish */
-		wait_event(port->close_wait, gs_closed(port));
+		wait_event(port->port.close_wait, gs_closed(port));
 
 		WARN_ON(port->port_usb != NULL);
 
