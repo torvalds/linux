@@ -440,7 +440,7 @@ static int af9035_download_firmware(struct usb_device *udev,
 
 		i -= hdr_data_len + HDR_SIZE;
 
-		pr_debug("%s: data uploaded=%lu\n", __func__, fw->size - i);
+		pr_debug("%s: data uploaded=%zu\n", __func__, fw->size - i);
 	}
 
 	/* firmware loaded, request boot */
