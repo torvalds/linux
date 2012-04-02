@@ -162,9 +162,16 @@ static int perf_ibs_init(struct perf_event *event)
 		if (config & perf_ibs->cnt_mask)
 			/* raw max_cnt may not be set */
 			return -EINVAL;
-		if (hwc->sample_period & 0x0f)
-			/* lower 4 bits can not be set in ibs max cnt */
+		if (!event->attr.sample_freq && hwc->sample_period & 0x0f)
+			/*
+			 * lower 4 bits can not be set in ibs max cnt,
+			 * but allowing it in case we adjust the
+			 * sample period to set a frequency.
+			 */
 			return -EINVAL;
+		hwc->sample_period &= ~0x0FULL;
+		if (!hwc->sample_period)
+			hwc->sample_period = 0x10;
 	} else {
 		max_cnt = config & perf_ibs->cnt_mask;
 		config &= ~perf_ibs->cnt_mask;
@@ -174,6 +181,13 @@ static int perf_ibs_init(struct perf_event *event)
 
 	if (!hwc->sample_period)
 		return -EINVAL;
+
+	/*
+	 * If we modify hwc->sample_period, we also need to update
+	 * hwc->last_period and hwc->period_left.
+	 */
+	hwc->last_period = hwc->sample_period;
+	local64_set(&hwc->period_left, hwc->sample_period);
 
 	hwc->config_base = perf_ibs->msr;
 	hwc->config = config;
