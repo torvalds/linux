@@ -245,6 +245,50 @@ static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 	return true;
 }
 
+static bool annotate_browser__callq(struct annotate_browser *browser,
+				    int evidx, void (*timer)(void *arg),
+				    void *arg, int delay_secs)
+{
+	struct map_symbol *ms = browser->b.priv;
+	struct symbol *sym = ms->sym;
+	struct annotation *notes;
+	struct symbol *target;
+	char *s = strstr(browser->selection->line, "callq ");
+	u64 ip;
+
+	if (s == NULL)
+		return false;
+
+	s = strchr(s, ' ');
+	if (s++ == NULL) {
+		ui_helpline__puts("Invallid callq instruction.");
+		return true;
+	}
+
+	ip = strtoull(s, NULL, 16);
+	ip = ms->map->map_ip(ms->map, ip);
+	target = map__find_symbol(ms->map, ip, NULL);
+	if (target == NULL) {
+		ui_helpline__puts("The called function was not found.");
+		return true;
+	}
+
+	notes = symbol__annotation(target);
+	pthread_mutex_lock(&notes->lock);
+
+	if (notes->src == NULL && symbol__alloc_hist(target) < 0) {
+		pthread_mutex_unlock(&notes->lock);
+		ui__warning("Not enough memory for annotating '%s' symbol!\n",
+			    target->name);
+		return true;
+	}
+
+	pthread_mutex_unlock(&notes->lock);
+	symbol__tui_annotate(target, ms->map, evidx, timer, arg, delay_secs);
+	ui_browser__show_title(&browser->b, sym->name);
+	return true;
+}
+
 static int annotate_browser__run(struct annotate_browser *self, int evidx,
 				 void(*timer)(void *arg),
 				 void *arg, int delay_secs)
@@ -321,54 +365,12 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
-			if (self->selection == NULL) {
+			if (self->selection == NULL)
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
-				continue;
-			}
-
-			if (self->selection->offset == -1) {
+			else if (self->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-				continue;
-			} else {
-				char *s = strstr(self->selection->line, "callq ");
-				struct annotation *notes;
-				struct symbol *target;
-				u64 ip;
-
-				if (s == NULL) {
-					ui_helpline__puts("Actions are only available for the 'callq' instruction.");
-					continue;
-				}
-
-				s = strchr(s, ' ');
-				if (s++ == NULL) {
-					ui_helpline__puts("Invallid callq instruction.");
-					continue;
-				}
-
-				ip = strtoull(s, NULL, 16);
-				ip = ms->map->map_ip(ms->map, ip);
-				target = map__find_symbol(ms->map, ip, NULL);
-				if (target == NULL) {
-					ui_helpline__puts("The called function was not found.");
-					continue;
-				}
-
-				notes = symbol__annotation(target);
-				pthread_mutex_lock(&notes->lock);
-
-				if (notes->src == NULL && symbol__alloc_hist(target) < 0) {
-					pthread_mutex_unlock(&notes->lock);
-					ui__warning("Not enough memory for annotating '%s' symbol!\n",
-						    target->name);
-					continue;
-				}
-
-				pthread_mutex_unlock(&notes->lock);
-				symbol__tui_annotate(target, ms->map, evidx,
-						     timer, arg, delay_secs);
-				ui_browser__show_title(&self->b, sym->name);
-			}
+			else if (!annotate_browser__callq(self, evidx, timer, arg, delay_secs))
+				ui_helpline__puts("Actions are only available for the 'callq' instruction.");
 			continue;
 		case K_LEFT:
 		case K_ESC:
