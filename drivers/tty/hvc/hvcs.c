@@ -270,8 +270,6 @@ struct hvcs_struct {
 	 */
 	unsigned int index;
 
-	struct tty_struct *tty;
-
 	/*
 	 * Used to tell the driver kernel_thread what operations need to take
 	 * place upon this hvcs_struct instance.
@@ -560,7 +558,7 @@ static irqreturn_t hvcs_handle_interrupt(int irq, void *dev_instance)
 static void hvcs_try_write(struct hvcs_struct *hvcsd)
 {
 	uint32_t unit_address = hvcsd->vdev->unit_address;
-	struct tty_struct *tty = hvcsd->tty;
+	struct tty_struct *tty = hvcsd->port.tty;
 	int sent;
 
 	if (hvcsd->todo_mask & HVCS_TRY_WRITE) {
@@ -598,7 +596,7 @@ static int hvcs_io(struct hvcs_struct *hvcsd)
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
 	unit_address = hvcsd->vdev->unit_address;
-	tty = hvcsd->tty;
+	tty = hvcsd->port.tty;
 
 	hvcs_try_write(hvcsd);
 
@@ -850,7 +848,7 @@ static int __devexit hvcs_remove(struct vio_dev *dev)
 
 	spin_lock_irqsave(&hvcsd->lock, flags);
 
-	tty = hvcsd->tty;
+	tty = hvcsd->port.tty;
 
 	spin_unlock_irqrestore(&hvcsd->lock, flags);
 
@@ -1137,7 +1135,7 @@ static int hvcs_open(struct tty_struct *tty, struct file *filp)
 			goto error_release;
 
 	hvcsd->port.count = 1;
-	hvcsd->tty = tty;
+	hvcsd->port.tty = tty;
 	tty->driver_data = hvcsd;
 
 	memset(&hvcsd->buffer[0], 0x00, HVCS_BUFF_LEN);
@@ -1223,7 +1221,7 @@ static void hvcs_close(struct tty_struct *tty, struct file *filp)
 		 * execute any operations on the TTY even though it is obligated
 		 * to deliver any pending I/O to the hypervisor.
 		 */
-		hvcsd->tty = NULL;
+		hvcsd->port.tty = NULL;
 
 		irq = hvcsd->vdev->irq;
 		spin_unlock_irqrestore(&hvcsd->lock, flags);
@@ -1271,8 +1269,8 @@ static void hvcs_hangup(struct tty_struct * tty)
 	hvcsd->todo_mask = 0;
 
 	/* I don't think the tty needs the hvcs_struct pointer after a hangup */
-	hvcsd->tty->driver_data = NULL;
-	hvcsd->tty = NULL;
+	tty->driver_data = NULL;
+	hvcsd->port.tty = NULL;
 
 	hvcsd->port.count = 0;
 
