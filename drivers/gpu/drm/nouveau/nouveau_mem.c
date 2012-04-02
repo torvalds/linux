@@ -416,7 +416,7 @@ nouveau_mem_vram_init(struct drm_device *dev)
 
 	if (dev_priv->card_type < NV_50) {
 		ret = nouveau_bo_new(dev, 256*1024, 0, TTM_PL_FLAG_VRAM,
-				     0, 0, &dev_priv->vga_ram);
+				     0, 0, NULL, &dev_priv->vga_ram);
 		if (ret == 0)
 			ret = nouveau_bo_pin(dev_priv->vga_ram,
 					     TTM_PL_FLAG_VRAM);

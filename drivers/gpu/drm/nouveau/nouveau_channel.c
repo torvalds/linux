@@ -38,7 +38,7 @@ nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
 	int ret;
 
 	/* allocate buffer object */
-	ret = nouveau_bo_new(dev, 65536, 0, mem, 0, 0, &chan->pushbuf_bo);
+	ret = nouveau_bo_new(dev, 65536, 0, mem, 0, 0, NULL, &chan->pushbuf_bo);
 	if (ret)
 		goto out;
 

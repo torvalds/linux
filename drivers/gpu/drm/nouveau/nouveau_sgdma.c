@@ -290,7 +290,10 @@ nv50_sgdma_bind(struct ttm_tt *ttm, struct ttm_mem_reg *mem)
 	struct nouveau_mem *node = mem->mm_node;
 
 	/* noop: bound in move_notify() */
-	node->pages = nvbe->ttm.dma_address;
+	if (ttm->sg) {
+		node->sg = ttm->sg;
+	} else
+		node->pages = nvbe->ttm.dma_address;
 	return 0;
 }
 

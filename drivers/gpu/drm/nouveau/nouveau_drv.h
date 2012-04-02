@@ -86,6 +86,7 @@ struct nouveau_mem {
 	u32 memtype;
 	u64 offset;
 	u64 size;
+	struct sg_table *sg;
 };
 
 struct nouveau_tile_reg {
@@ -1416,7 +1417,9 @@ extern int nv04_crtc_create(struct drm_device *, int index);
 extern struct ttm_bo_driver nouveau_bo_driver;
 extern int nouveau_bo_new(struct drm_device *, int size, int align,
 			  uint32_t flags, uint32_t tile_mode,
-			  uint32_t tile_flags, struct nouveau_bo **);
+			  uint32_t tile_flags,
+			  struct sg_table *sg,
+			  struct nouveau_bo **);
 extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
 extern int nouveau_bo_unpin(struct nouveau_bo *);
 extern int nouveau_bo_map(struct nouveau_bo *);
@@ -1500,6 +1503,11 @@ extern int nouveau_gem_ioctl_cpu_fini(struct drm_device *, void *,
 				      struct drm_file *);
 extern int nouveau_gem_ioctl_info(struct drm_device *, void *,
 				  struct drm_file *);
+
+extern struct dma_buf *nouveau_gem_prime_export(struct drm_device *dev,
+				struct drm_gem_object *obj, int flags);
+extern struct drm_gem_object *nouveau_gem_prime_import(struct drm_device *dev,
+				struct dma_buf *dma_buf);
 
 /* nouveau_display.c */
 int nouveau_display_create(struct drm_device *dev);
