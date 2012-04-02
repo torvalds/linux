@@ -53,18 +53,18 @@ static int ieee802154_nl_fill_phy(struct sk_buff *msg, u32 pid,
 		goto out;
 
 	mutex_lock(&phy->pib_lock);
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-
-	NLA_PUT_U8(msg, IEEE802154_ATTR_PAGE, phy->current_page);
-	NLA_PUT_U8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel);
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_PAGE, phy->current_page) ||
+	    nla_put_u8(msg, IEEE802154_ATTR_CHANNEL, phy->current_channel))
+		goto nla_put_failure;
 	for (i = 0; i < 32; i++) {
 		if (phy->channels_supported[i])
 			buf[pages++] = phy->channels_supported[i] | (i << 27);
 	}
-	if (pages)
-		NLA_PUT(msg, IEEE802154_ATTR_CHANNEL_PAGE_LIST,
-				pages * sizeof(uint32_t), buf);
-
+	if (pages &&
+	    nla_put(msg, IEEE802154_ATTR_CHANNEL_PAGE_LIST,
+		    pages * sizeof(uint32_t), buf))
+		goto nla_put_failure;
 	mutex_unlock(&phy->pib_lock);
 	kfree(buf);
 	return genlmsg_end(msg, hdr);
@@ -245,9 +245,9 @@ static int ieee802154_add_iface(struct sk_buff *skb,
 			goto dev_unregister;
 	}
 
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, dev->name);
-
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, dev->name))
+		goto nla_put_failure;
 	dev_put(dev);
 
 	wpan_phy_put(phy);
@@ -333,10 +333,9 @@ static int ieee802154_del_iface(struct sk_buff *skb,
 
 	rtnl_unlock();
 
-
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy));
-	NLA_PUT_STRING(msg, IEEE802154_ATTR_DEV_NAME, name);
-
+	if (nla_put_string(msg, IEEE802154_ATTR_PHY_NAME, wpan_phy_name(phy)) ||
+	    nla_put_string(msg, IEEE802154_ATTR_DEV_NAME, name))
+		goto nla_put_failure;
 	wpan_phy_put(phy);
 
 	return ieee802154_nl_reply(msg, info);
