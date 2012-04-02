@@ -106,13 +106,6 @@
 
 #define MAX_RX_URBS			2
 
-static inline struct hso_serial *get_serial_by_tty(struct tty_struct *tty)
-{
-	if (tty)
-		return tty->driver_data;
-	return NULL;
-}
-
 /*****************************************************************************/
 /* Debugging functions                                                       */
 /*****************************************************************************/
@@ -1114,7 +1107,7 @@ static void hso_init_termios(struct ktermios *termios)
 static void _hso_serial_set_termios(struct tty_struct *tty,
 				    struct ktermios *old)
 {
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	struct ktermios *termios;
 
 	if (!serial) {
@@ -1268,7 +1261,7 @@ static void hso_unthrottle_tasklet(struct hso_serial *serial)
 
 static	void hso_unthrottle(struct tty_struct *tty)
 {
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 
 	tasklet_hi_schedule(&serial->unthrottle_tasklet);
 }
@@ -1390,7 +1383,7 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 static int hso_serial_write(struct tty_struct *tty, const unsigned char *buf,
 			    int count)
 {
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	int space, tx_bytes;
 	unsigned long flags;
 
@@ -1422,7 +1415,7 @@ out:
 /* how much room is there for writing */
 static int hso_serial_write_room(struct tty_struct *tty)
 {
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	int room;
 	unsigned long flags;
 
@@ -1437,7 +1430,7 @@ static int hso_serial_write_room(struct tty_struct *tty)
 /* setup the term */
 static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 {
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	unsigned long flags;
 
 	if (old)
@@ -1458,7 +1451,7 @@ static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 /* how many characters in the buffer */
 static int hso_serial_chars_in_buffer(struct tty_struct *tty)
 {
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	int chars;
 	unsigned long flags;
 
@@ -1629,7 +1622,7 @@ static int hso_get_count(struct tty_struct *tty,
 		  struct serial_icounter_struct *icount)
 {
 	struct uart_icount cnow;
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	struct hso_tiocmget  *tiocmget = serial->tiocmget;
 
 	memset(icount, 0, sizeof(struct serial_icounter_struct));
@@ -1659,7 +1652,7 @@ static int hso_get_count(struct tty_struct *tty,
 static int hso_serial_tiocmget(struct tty_struct *tty)
 {
 	int retval;
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	struct hso_tiocmget  *tiocmget;
 	u16 UART_state_bitmap;
 
@@ -1693,7 +1686,7 @@ static int hso_serial_tiocmset(struct tty_struct *tty,
 	int val = 0;
 	unsigned long flags;
 	int if_num;
-	struct hso_serial *serial = get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 
 	/* sanity check */
 	if (!serial) {
@@ -1733,7 +1726,7 @@ static int hso_serial_tiocmset(struct tty_struct *tty,
 static int hso_serial_ioctl(struct tty_struct *tty,
 			    unsigned int cmd, unsigned long arg)
 {
-	struct hso_serial *serial =  get_serial_by_tty(tty);
+	struct hso_serial *serial = tty->driver_data;
 	int ret = 0;
 	D4("IOCTL cmd: %d, arg: %ld", cmd, arg);
 
