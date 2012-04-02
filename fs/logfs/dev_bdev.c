@@ -26,6 +26,7 @@ static int sync_request(struct page *page, struct block_device *bdev, int rw)
 	struct completion complete;
 
 	bio_init(&bio);
+	bio.bi_max_vecs = 1;
 	bio.bi_io_vec = &bio_vec;
 	bio_vec.bv_page = page;
 	bio_vec.bv_len = PAGE_SIZE;
