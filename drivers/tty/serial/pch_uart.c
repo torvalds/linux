@@ -1655,6 +1655,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	}
 
 	pci_enable_msi(pdev);
+	pci_set_master(pdev);
 
 	iobase = pci_resource_start(pdev, 0);
 	mapbase = pci_resource_start(pdev, 1);
