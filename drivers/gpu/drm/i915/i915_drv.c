@@ -107,8 +107,8 @@ MODULE_PARM_DESC(enable_hangcheck,
 		"WARNING: Disabling this can cause system wide hangs. "
 		"(default: true)");
 
-bool i915_enable_ppgtt __read_mostly = 1;
-module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, bool, 0600);
+int i915_enable_ppgtt __read_mostly = -1;
+module_param_named(i915_enable_ppgtt, i915_enable_ppgtt, int, 0600);
 MODULE_PARM_DESC(i915_enable_ppgtt,
 		"Enable PPGTT (default: true)");
 
