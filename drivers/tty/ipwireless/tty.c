@@ -73,23 +73,6 @@ static char *tty_type_name(int tty_type)
 	return channel_names[tty_type];
 }
 
-static void report_registering(struct ipw_tty *tty)
-{
-	char *iftype = tty_type_name(tty->tty_type);
-
-	printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-	       ": registering %s device ttyIPWp%d\n", iftype, tty->index);
-}
-
-static void report_deregistering(struct ipw_tty *tty)
-{
-	char *iftype = tty_type_name(tty->tty_type);
-
-	printk(KERN_INFO IPWIRELESS_PCCARD_NAME
-	       ": deregistering %s device ttyIPWp%d\n", iftype,
-	       tty->index);
-}
-
 static struct ipw_tty *get_tty(int index)
 {
 	/*
@@ -500,8 +483,12 @@ static int add_tty(int j,
 		ipwireless_associate_network_tty(network,
 						 secondary_channel_idx,
 						 ttys[j]);
-	if (get_tty(j) == ttys[j])
-		report_registering(ttys[j]);
+	/* check if we provide raw device (if loopback is enabled) */
+	if (get_tty(j))
+		printk(KERN_INFO IPWIRELESS_PCCARD_NAME
+		       ": registering %s device ttyIPWp%d\n",
+		       tty_type_name(tty_type), j);
+
 	return 0;
 }
 
@@ -560,8 +547,10 @@ void ipwireless_tty_free(struct ipw_tty *tty)
 
 		if (ttyj) {
 			mutex_lock(&ttyj->ipw_tty_mutex);
-			if (get_tty(j) == ttyj)
-				report_deregistering(ttyj);
+			if (get_tty(j))
+				printk(KERN_INFO IPWIRELESS_PCCARD_NAME
+				       ": deregistering %s device ttyIPWp%d\n",
+				       tty_type_name(ttyj->tty_type), j);
 			ttyj->closing = 1;
 			if (ttyj->linux_tty != NULL) {
 				mutex_unlock(&ttyj->ipw_tty_mutex);
