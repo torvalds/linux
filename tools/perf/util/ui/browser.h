@@ -15,6 +15,7 @@ struct ui_browser {
 	u64	      index, top_idx;
 	void	      *top, *entries;
 	u16	      y, x, width, height;
+	int	      current_color;
 	void	      *priv;
 	const char    *title;
 	char	      *helpline;
@@ -27,7 +28,7 @@ struct ui_browser {
 	bool	      use_navkeypressed;
 };
 
-void ui_browser__set_color(struct ui_browser *self, int color);
+int  ui_browser__set_color(struct ui_browser *browser, int color);
 void ui_browser__set_percent_color(struct ui_browser *self,
 				   double percent, bool current);
 bool ui_browser__is_current_entry(struct ui_browser *self, unsigned row);
