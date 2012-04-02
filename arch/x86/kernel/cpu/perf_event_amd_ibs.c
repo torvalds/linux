@@ -386,7 +386,21 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	if (!(*buf++ & perf_ibs->valid_mask))
 		return 0;
 
+	/*
+	 * Emulate IbsOpCurCnt in MSRC001_1033 (IbsOpCtl), not
+	 * supported in all cpus. As this triggered an interrupt, we
+	 * set the current count to the max count.
+	 */
+	config = ibs_data.regs[0];
+	if (perf_ibs == &perf_ibs_op && !(ibs_caps & IBS_CAPS_RDWROPCNT)) {
+		config &= ~IBS_OP_CUR_CNT;
+		config |= (config & IBS_OP_MAX_CNT) << 36;
+	}
+
+	perf_ibs_event_update(perf_ibs, event, config);
 	perf_sample_data_init(&data, 0);
+	data.period = event->hw.last_period;
+
 	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
 		ibs_data.caps = ibs_caps;
 		size = 1;
@@ -404,19 +418,6 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	}
 
 	regs = *iregs; /* XXX: update ip from ibs sample */
-
-	/*
-	 * Emulate IbsOpCurCnt in MSRC001_1033 (IbsOpCtl), not
-	 * supported in all cpus. As this triggered an interrupt, we
-	 * set the current count to the max count.
-	 */
-	config = ibs_data.regs[0];
-	if (perf_ibs == &perf_ibs_op && !(ibs_caps & IBS_CAPS_RDWROPCNT)) {
-		config &= ~IBS_OP_CUR_CNT;
-		config |= (config & IBS_OP_MAX_CNT) << 36;
-	}
-
-	perf_ibs_event_update(perf_ibs, event, config);
 
 	overflow = perf_ibs_set_period(perf_ibs, hwc, &config);
 	reenable = !(overflow && perf_event_overflow(event, &data, &regs));
