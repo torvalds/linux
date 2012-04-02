@@ -273,6 +273,7 @@ bios_shadow(struct drm_device *dev)
 		mthd->score = score_vbios(bios, mthd->rw);
 		mthd->size = bios->length;
 		mthd->data = bios->data;
+		bios->data = NULL;
 	} while (mthd->score != 3 && (++mthd)->shadow);
 
 	mthd = shadow_methods;
@@ -281,7 +282,8 @@ bios_shadow(struct drm_device *dev)
 		if (mthd->score > best->score) {
 			kfree(best->data);
 			best = mthd;
-		}
+		} else
+			kfree(mthd->data);
 	} while ((++mthd)->shadow);
 
 	if (best->score) {
