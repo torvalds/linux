@@ -36,10 +36,7 @@
 void __sramfunc sram_printch(char byte)
 {
 #ifdef DEBUG_UART_BASE
-
-	int clk_gate2, clk_gate4, clk_gate8;
-
-	clk_gate2 = cru_readl(CRU_CLKGATES_CON(2));
+	u32 clk_gate2, clk_gate4, clk_gate8;
 
 	gate_save_soc_clk(0
 			  | (1 << CLK_GATE_ACLK_PEIRPH % 16)
@@ -63,9 +60,9 @@ void __sramfunc sram_printch(char byte)
 	while (!(readl_relaxed(DEBUG_UART_BASE + 0x14) & 0x40))
 		barrier();
 
-	cru_writel(0xffff0000 | clk_gate2, CRU_CLKSELS_CON(2));
-	cru_writel(0xffff0000 | clk_gate4, CRU_CLKSELS_CON(4));
-	cru_writel(0xffff0000 | clk_gate8, CRU_CLKSELS_CON(8));
+	cru_writel(0xffff0000 | clk_gate2, CRU_CLKGATES_CON(2));
+	cru_writel(0xffff0000 | clk_gate4, CRU_CLKGATES_CON(4));
+	cru_writel(0xffff0000 | clk_gate8, CRU_CLKGATES_CON(8));
 
 	if (byte == '\n')
 		sram_printch('\r');
