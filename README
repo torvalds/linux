@@ -218,11 +218,11 @@ CONFIGURING the kernel:
 
 	NOTES on "make config":
 
-	- having unnecessary drivers will make the kernel bigger, and can
+	- Having unnecessary drivers will make the kernel bigger, and can
 	  under some circumstances lead to problems: probing for a
 	  nonexistent controller card may confuse your other controllers
 
-	- compiling the kernel with "Processor type" set higher than 386
+	- Compiling the kernel with "Processor type" set higher than 386
 	  will result in a kernel that does NOT work on a 386.  The
 	  kernel will detect this on bootup, and give up.
 
@@ -232,7 +232,7 @@ CONFIGURING the kernel:
 	  but will work on different machines regardless of whether they
 	  have a math coprocessor or not. 
 
-	- the "kernel hacking" configuration details usually result in a
+	- The "kernel hacking" configuration details usually result in a
 	  bigger or slower kernel (or both), and can even make the kernel
 	  less stable by configuring some routines to actively try to
 	  break bad code to find kernel problems (kmalloc()).  Thus you
