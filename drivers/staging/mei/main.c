@@ -42,7 +42,6 @@
 #include "interface.h"
 
 
-#define MEI_READ_TIMEOUT 45
 #define MEI_DRIVER_NAME	"mei"
 #define MEI_DEV_NAME "mei"
 
