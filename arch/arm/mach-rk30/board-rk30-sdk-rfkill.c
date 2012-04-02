@@ -43,10 +43,15 @@ struct bt_ctrl
 #endif
 };
 
-//#define BT_GPIO_POWER           RK30_PIN3_PC7
-//#define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO3C7_SDMMC1WRITEPRT_NAME, GPIO3C_GPIO3C7);
-#define BT_GPIO_POWER          	RK30_PIN3_PD1
+#ifdef CONFIG_RK903
+#define BT_GPIO_POWER           RK30_PIN3_PC7
+#define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO3C7_SDMMC1WRITEPRT_NAME, GPIO3C_GPIO3C7);
+#define BT_GPIO_RESET           RK30_PIN3_PD1
+#define IOMUX_BT_GPIO_RESET     rk29_mux_api_set(GPIO3D1_SDMMC1BACKENDPWR_NAME, GPIO3D_GPIO3D1);
+#else
+#define BT_GPIO_POWER                 RK30_PIN3_PD1
 #define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO3D1_SDMMC1BACKENDPWR_NAME, GPIO3D_GPIO3D1);
+#endif
 
 #ifdef CONFIG_BT_HCIBCM4325
 #define BT_GPIO_WAKE_UP         RK30_PIN3_PC6
@@ -141,14 +146,17 @@ static int bcm4329_set_block(void *data, bool blocked)
     	DBG("%s---blocked :%d\n", __FUNCTION__, blocked);
 
         IOMUX_BT_GPIO_POWER;
-//        IOMUX_BT_GPIO_RESET;
+#ifdef CONFIG_RK903
+        IOMUX_BT_GPIO_RESET;
+#endif
 
     	if (false == blocked) {
        		gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power on */
-            
-//            gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
-//            mdelay(20);
-//    		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
+#ifdef CONFIG_RK903            
+            gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
+            mdelay(20);
+    		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
+#endif
     		mdelay(20);
         
 #if BT_WAKE_HOST_SUPPORT     
@@ -167,9 +175,10 @@ static int bcm4329_set_block(void *data, bool blocked)
 //    		}else {
 //    			pr_info("bt shouldn't shut off power, wifi is using it!\n");
 //    		}
-
-//    		gpio_set_value(BT_GPIO_RESET, GPIO_LOW);  /* bt reset active*/
-//    		mdelay(20);
+#ifdef CONFIG_RK903
+    		gpio_set_value(BT_GPIO_RESET, GPIO_LOW);  /* bt reset active*/
+    		mdelay(20);
+#endif
     	}
 
 //    	rk29sdk_bt_power_state = !blocked;
@@ -213,7 +222,9 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	}
 	
 	gpio_request(BT_GPIO_POWER, NULL);
-//	gpio_request(BT_GPIO_RESET, NULL);
+#ifdef CONFIG_RK903
+	gpio_request(BT_GPIO_RESET, NULL);
+#endif
 #ifdef CONFIG_BT_HCIBCM4325
 	gpio_request(BT_GPIO_WAKE_UP, NULL);
 #endif
