@@ -323,10 +323,9 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	} /* else count == 0 */
 
 	tty->driver_data = hp;
-
-	hp->tty = tty_kref_get(tty);
-
 	spin_unlock_irqrestore(&hp->lock, flags);
+
+	tty_port_tty_set(&hp->port, tty);
 
 	if (hp->ops->notifier_add)
 		rc = hp->ops->notifier_add(hp, hp->data);
@@ -338,9 +337,7 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	 * tty fields and return the kref reference.
 	 */
 	if (rc) {
-		spin_lock_irqsave(&hp->lock, flags);
-		hp->tty = NULL;
-		spin_unlock_irqrestore(&hp->lock, flags);
+		tty_port_tty_set(&hp->port, NULL);
 		tty_kref_put(tty);
 		tty->driver_data = NULL;
 		tty_port_put(&hp->port);
@@ -373,9 +370,9 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 	spin_lock_irqsave(&hp->lock, flags);
 
 	if (--hp->count == 0) {
-		/* We are done with the tty pointer now. */
-		hp->tty = NULL;
 		spin_unlock_irqrestore(&hp->lock, flags);
+		/* We are done with the tty pointer now. */
+		tty_port_tty_set(&hp->port, NULL);
 
 		if (hp->ops->notifier_del)
 			hp->ops->notifier_del(hp, hp->data);
@@ -427,9 +424,8 @@ static void hvc_hangup(struct tty_struct *tty)
 	temp_open_count = hp->count;
 	hp->count = 0;
 	hp->n_outbuf = 0;
-	hp->tty = NULL;
-
 	spin_unlock_irqrestore(&hp->lock, flags);
+	tty_port_tty_set(&hp->port, NULL);
 
 	if (hp->ops->notifier_hangup)
 		hp->ops->notifier_hangup(hp, hp->data);
@@ -526,13 +522,12 @@ static void hvc_set_winsz(struct work_struct *work)
 
 	hp = container_of(work, struct hvc_struct, tty_resize);
 
-	spin_lock_irqsave(&hp->lock, hvc_flags);
-	if (!hp->tty) {
-		spin_unlock_irqrestore(&hp->lock, hvc_flags);
+	tty = tty_port_tty_get(&hp->port);
+	if (!tty)
 		return;
-	}
-	ws  = hp->ws;
-	tty = tty_kref_get(hp->tty);
+
+	spin_lock_irqsave(&hp->lock, hvc_flags);
+	ws = hp->ws;
 	spin_unlock_irqrestore(&hp->lock, hvc_flags);
 
 	tty_do_resize(tty, &ws);
@@ -601,7 +596,7 @@ int hvc_poll(struct hvc_struct *hp)
 	}
 
 	/* No tty attached, just skip */
-	tty = tty_kref_get(hp->tty);
+	tty = tty_port_tty_get(&hp->port);
 	if (tty == NULL)
 		goto bail;
 
@@ -681,8 +676,7 @@ int hvc_poll(struct hvc_struct *hp)
 
 		tty_flip_buffer_push(tty);
 	}
-	if (tty)
-		tty_kref_put(tty);
+	tty_kref_put(tty);
 
 	return poll_mask;
 }
@@ -880,9 +874,9 @@ int hvc_remove(struct hvc_struct *hp)
 	unsigned long flags;
 	struct tty_struct *tty;
 
-	spin_lock_irqsave(&hp->lock, flags);
-	tty = tty_kref_get(hp->tty);
+	tty = tty_port_tty_get(&hp->port);
 
+	spin_lock_irqsave(&hp->lock, flags);
 	if (hp->index < MAX_NR_HVC_CONSOLES)
 		vtermnos[hp->index] = -1;
 
