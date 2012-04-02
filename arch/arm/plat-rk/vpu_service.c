@@ -70,6 +70,7 @@ static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270 };
 #elif defined(CONFIG_ARCH_RK30)
 static const u16 enc_hw_ids[] = { 0x6280, 0x7280, 0x8270, 0x8290, 0x4831 };
 #define DEC_PHY_OFFSET 				0x400
+#define RK29_VCODEC_PHYS			RK30_VCODEC_PHYS
 #endif
 
 #define VPU_REG_EN_ENC				14
@@ -149,6 +150,7 @@ typedef struct vpu_request
 	unsigned long   size;
 } vpu_request;
 
+static struct clk *pd_video;
 static struct clk *clk_vpu; /* for power on notify */
 static struct clk *aclk_vepu;
 static struct clk *hclk_vepu;
@@ -163,6 +165,7 @@ static vpu_device 	enc_dev;
 
 static void vpu_get_clk(void)
 {
+	pd_video	= clk_get(NULL, "pd_video");
 	clk_vpu		= clk_get(NULL, "vpu");
 	aclk_vepu 	= clk_get(NULL, "aclk_vepu");
 	hclk_vepu 	= clk_get(NULL, "hclk_vepu");
@@ -172,6 +175,7 @@ static void vpu_get_clk(void)
 
 static void vpu_put_clk(void)
 {
+	clk_put(pd_video);
 	clk_put(clk_vpu);
 	clk_put(aclk_vepu);
 	clk_put(hclk_vepu);
@@ -272,7 +276,11 @@ static void vpu_service_power_off(void)
 	}
 
 	printk("vpu: power off...");
+#ifdef CONFIG_ARCH_RK29
 	pmu_set_power_domain(PD_VCODEC, false);
+#else
+	clk_disable(pd_video);
+#endif
 	udelay(10);
 	clk_disable(hclk_cpu_vcodec);
 	clk_disable(aclk_ddr_vepu);
@@ -311,7 +319,11 @@ static void vpu_service_power_on(void)
 		clk_enable(hclk_vepu);
 		clk_enable(hclk_cpu_vcodec);
 		udelay(10);
+#ifdef CONFIG_ARCH_RK29
 		pmu_set_power_domain(PD_VCODEC, true);
+#else
+		clk_enable(pd_video);
+#endif
 		udelay(10);
 		clk_enable(aclk_ddr_vepu);
 		init_timer(&service.timer);
@@ -1105,10 +1117,6 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 static int __init vpu_service_init(void)
 {
 	int ret;
-
-#if defined(CONFIG_ARCH_RK30)
-#define RK29_VCODEC_PHYS	RK30_VCODEC_PHYS
-#endif
 
 	pr_debug("baseaddr = 0x%08x vdpu irq = %d vepu irq = %d\n", RK29_VCODEC_PHYS, IRQ_VDPU, IRQ_VEPU);
 
