@@ -137,7 +137,7 @@ SOFTWARE REQUIREMENTS
 
 BUILD directory for the kernel:
 
-   When compiling the kernel all output files will per default be
+   When compiling the kernel, all output files will per default be
    stored together with the kernel source code.
    Using the option "make O=output/dir" allow you to specify an alternate
    place for the output files (including .config).
@@ -145,13 +145,13 @@ BUILD directory for the kernel:
      kernel source code:	/usr/src/linux-3.X
      build directory:		/home/name/build/kernel
 
-   To configure and build the kernel use:
+   To configure and build the kernel, use:
    cd /usr/src/linux-3.X
    make O=/home/name/build/kernel menuconfig
    make O=/home/name/build/kernel
    sudo make O=/home/name/build/kernel modules_install install
 
-   Please note: If the 'O=output/dir' option is used then it must be
+   Please note: If the 'O=output/dir' option is used, then it must be
    used for all invocations of make.
 
 CONFIGURING the kernel:
@@ -230,7 +230,7 @@ COMPILING the kernel:
    possible to do "make install" if you have lilo installed to suit the
    kernel makefiles, but you may want to check your particular lilo setup first.
 
-   To do the actual install you have to be root, but none of the normal
+   To do the actual install, you have to be root, but none of the normal
    build should require that. Don't take the name of root in vain.
 
  - If you configured any of the parts of the kernel as `modules', you
@@ -238,7 +238,7 @@ COMPILING the kernel:
 
  - Verbose kernel compile/build output:
 
-   Normally the kernel build system runs in a fairly quiet mode (but not
+   Normally, the kernel build system runs in a fairly quiet mode (but not
    totally silent).  However, sometimes you or other kernel developers need
    to see compile, link, or other commands exactly as they are executed.
    For this, use "verbose" build mode.  This is done by inserting
@@ -267,7 +267,7 @@ COMPILING the kernel:
  - Booting a kernel directly from a floppy without the assistance of a
    bootloader such as LILO, is no longer supported.
 
-   If you boot Linux from the hard drive, chances are you use LILO which
+   If you boot Linux from the hard drive, chances are you use LILO, which
    uses the kernel image as specified in the file /etc/lilo.conf.  The
    kernel image file is usually /vmlinuz, /boot/vmlinuz, /bzImage or
    /boot/bzImage.  To use the new kernel, save a copy of the old image
@@ -320,7 +320,7 @@ IF SOMETHING GOES WRONG:
    incomprehensible to you, but it does contain information that may
    help debugging the problem.  The text above the dump is also
    important: it tells something about why the kernel dumped code (in
-   the above example it's due to a bad kernel pointer). More information
+   the above example, it's due to a bad kernel pointer). More information
    on making sense of the dump is in Documentation/oops-tracing.txt
 
  - If you compiled the kernel with CONFIG_KALLSYMS you can send the dump
@@ -328,7 +328,7 @@ IF SOMETHING GOES WRONG:
    sense of the dump (but compiling with CONFIG_KALLSYMS is usually preferred).
    This utility can be downloaded from
    ftp://ftp.<country>.kernel.org/pub/linux/utils/kernel/ksymoops/ .
-   Alternately you can do the dump lookup by hand:
+   Alternately, you can do the dump lookup by hand:
 
  - In debugging dumps like the above, it helps enormously if you can
    look up what the EIP value means.  The hex value as such doesn't help
