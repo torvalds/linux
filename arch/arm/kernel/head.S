@@ -251,10 +251,6 @@ __create_page_tables:
 	add	r0, r4,  #(KERNEL_START & 0xff000000) >> (SECTION_SHIFT - PMD_ORDER)
 	str	r3, [r0, #((KERNEL_START & 0x00f00000) >> SECTION_SHIFT) << PMD_ORDER]!
 
-	add     r0, r4,  #((0x3000000 + KERNEL_START) & 0xff000000) >> 18
-	add     r6, r3, #48 << 20
-	str     r6, [r0, #((0x3000000 + KERNEL_START) & 0x00f00000) >> 18]
-
 	ldr	r6, =(KERNEL_END - 1)
 	add	r0, r0, #1 << PMD_ORDER
 	add	r6, r4, r6, lsr #(SECTION_SHIFT - PMD_ORDER)
@@ -279,6 +275,11 @@ __create_page_tables:
 	strls	r3, [r0], #4
 	bls	1b
 #endif
+
+	/* Add a map for script.bin */
+	add     r0, r4,  #((0x3000000 + KERNEL_START) & 0xff000000) >> 18
+	add     r6, r3, #48 << 20
+	str     r6, [r0, #((0x3000000 + KERNEL_START) & 0x00f00000) >> 18]
 
 	/*
 	 * Then map boot params address in r2 or the first 1MB (2MB with LPAE)
