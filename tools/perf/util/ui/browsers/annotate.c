@@ -20,6 +20,7 @@ struct annotate_browser {
 	int		    nr_asm_entries;
 	int		    nr_entries;
 	bool		    hide_src_code;
+	bool		    use_offset;
 };
 
 struct objdump_line_rb_node {
@@ -82,10 +83,13 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		slsmg_write_nstring(ol->line, width - 18);
 	else {
 		char bf[64];
-		u64 addr = ab->start + ol->offset;
-		int printed = scnprintf(bf, sizeof(bf), " %" PRIx64 ":", addr);
-		int color = -1;
+		u64 addr = ol->offset;
+		int printed, color = -1;
 
+		if (!ab->use_offset)
+			addr += ab->start;
+
+		printed = scnprintf(bf, sizeof(bf), " %" PRIx64 ":", addr);
 		if (change_color)
 			color = ui_browser__set_color(self, HE_COLORSET_ADDR);
 		slsmg_write_nstring(bf, printed);
@@ -250,6 +254,7 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	struct symbol *sym = ms->sym;
 	const char *help = "<-/ESC: Exit, TAB/shift+TAB: Cycle hot lines, "
 			   "H: Go to hottest line, ->/ENTER: Line action, "
+			   "O: Toggle offset view, "
 			   "S: Toggle source code view";
 	int key;
 
@@ -309,6 +314,10 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		case 's':
 			if (annotate_browser__toggle_source(self))
 				ui_helpline__puts(help);
+			continue;
+		case 'O':
+		case 'o':
+			self->use_offset = !self->use_offset;
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
