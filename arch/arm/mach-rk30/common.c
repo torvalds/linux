@@ -34,15 +34,28 @@ static void __init rk30_cpu_axi_init(void)
 	dsb();
 }
 
+
+#define L2_LY_SP_OFF (0)
+#define L2_LY_SP_MSK (0x7)
+
+#define L2_LY_RD_OFF (4)
+#define L2_LY_RD_MSK (0x7)
+
+#define L2_LY_WR_OFF (8)
+#define L2_LY_WR_MSK (0x7)
+#define L2_LY_SET(ly,off) (((ly)-1)<<(off))
+
 static void __init rk30_l2_cache_init(void)
 {
 #ifdef CONFIG_CACHE_L2X0
 	u32 aux_ctrl, aux_ctrl_mask;
 
-	// Tag Ram Latency All 1-cycle
-	writel_relaxed(0x0, RK30_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
-	// Data Ram Latency [10:8] 1-cycle [6:4] 4-cycles [2:0] 2 cycles
-	writel_relaxed(0x031, RK30_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
+	writel_relaxed(L2_LY_SET(1,L2_LY_SP_OFF)
+				|L2_LY_SET(1,L2_LY_RD_OFF)
+				|L2_LY_SET(1,L2_LY_WR_OFF), RK30_L2C_BASE + L2X0_TAG_LATENCY_CTRL);
+	writel_relaxed(L2_LY_SET(4,L2_LY_SP_OFF)
+				|L2_LY_SET(6,L2_LY_RD_OFF)
+				|L2_LY_SET(1,L2_LY_WR_OFF), RK30_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
 
 	/* L2X0 Power Control */
 	writel_relaxed(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN, RK30_L2C_BASE + L2X0_POWER_CTRL);
