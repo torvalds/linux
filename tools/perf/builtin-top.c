@@ -615,6 +615,7 @@ process_hotkey:
 
 /* Tag samples to be skipped. */
 static const char *skip_symbols[] = {
+	"intel_idle",
 	"default_idle",
 	"native_safe_halt",
 	"cpu_idle",
