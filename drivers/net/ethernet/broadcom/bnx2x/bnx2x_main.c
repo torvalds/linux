@@ -39,7 +39,6 @@
 #include <linux/time.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#include <linux/if.h>
 #include <linux/if_vlan.h>
 #include <net/ip.h>
 #include <net/ipv6.h>
