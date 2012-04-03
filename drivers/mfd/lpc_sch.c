@@ -167,18 +167,7 @@ static struct pci_driver lpc_sch_driver = {
 	.remove		= __devexit_p(lpc_sch_remove),
 };
 
-static int __init lpc_sch_init(void)
-{
-	return pci_register_driver(&lpc_sch_driver);
-}
-
-static void __exit lpc_sch_exit(void)
-{
-	pci_unregister_driver(&lpc_sch_driver);
-}
-
-module_init(lpc_sch_init);
-module_exit(lpc_sch_exit);
+module_pci_driver(lpc_sch_driver);
 
 MODULE_AUTHOR("Denis Turischev <denis@compulab.co.il>");
 MODULE_DESCRIPTION("LPC interface for Intel Poulsbo SCH");
