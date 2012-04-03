@@ -47,7 +47,7 @@ const uuid_le mei_wd_guid = UUID_LE(0x05B79A6F, 0x4628, 0x4D7F, 0x89,
 
 static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
 {
-	dev_dbg(&dev->pdev->dev, "timeout=%d.\n", timeout);
+	dev_dbg(&dev->pdev->dev, "wd: set timeout=%d.\n", timeout);
 	memcpy(dev->wd_data, mei_start_wd_params, MEI_WD_PARAMS_SIZE);
 	memcpy(dev->wd_data + MEI_WD_PARAMS_SIZE, &timeout, sizeof(u16));
 }
@@ -154,7 +154,7 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 			if (ret)
 				goto out;
 		} else {
-			dev_dbg(&dev->pdev->dev, "send stop WD failed\n");
+			dev_err(&dev->pdev->dev, "wd: send stop failed\n");
 		}
 
 		dev->wd_pending = false;
@@ -168,13 +168,13 @@ int mei_wd_stop(struct mei_device *dev, bool preserve)
 					dev->wd_stopped, 10 * HZ);
 	mutex_lock(&dev->device_lock);
 	if (dev->wd_stopped) {
-		dev_dbg(&dev->pdev->dev, "stop wd complete ret=%d.\n", ret);
+		dev_dbg(&dev->pdev->dev, "wd: stop completed ret=%d.\n", ret);
 		ret = 0;
 	} else {
 		if (!ret)
 			ret = -ETIMEDOUT;
 		dev_warn(&dev->pdev->dev,
-			"stop wd failed to complete ret=%d.\n", ret);
+			"wd: stop failed to complete ret=%d.\n", ret);
 	}
 
 	if (preserve)
@@ -203,13 +203,15 @@ static int mei_wd_ops_start(struct watchdog_device *wd_dev)
 	mutex_lock(&dev->device_lock);
 
 	if (dev->mei_state != MEI_ENABLED) {
-		dev_dbg(&dev->pdev->dev, "mei_state != MEI_ENABLED  mei_state= %d\n",
-		    dev->mei_state);
+		dev_dbg(&dev->pdev->dev,
+			"wd: mei_state != MEI_ENABLED  mei_state = %d\n",
+			dev->mei_state);
 		goto end_unlock;
 	}
 
 	if (dev->wd_cl.state != MEI_FILE_CONNECTED)	{
-		dev_dbg(&dev->pdev->dev, "MEI Driver is not connected to Watchdog Client\n");
+		dev_dbg(&dev->pdev->dev,
+			"MEI Driver is not connected to Watchdog Client\n");
 		goto end_unlock;
 	}
 
@@ -262,7 +264,7 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 	mutex_lock(&dev->device_lock);
 
 	if (dev->wd_cl.state != MEI_FILE_CONNECTED) {
-		dev_dbg(&dev->pdev->dev, "wd is not connected.\n");
+		dev_err(&dev->pdev->dev, "wd: not connected.\n");
 		ret = -ENODEV;
 		goto end;
 	}
@@ -272,16 +274,17 @@ static int mei_wd_ops_ping(struct watchdog_device *wd_dev)
 		mei_flow_ctrl_creds(dev, &dev->wd_cl) > 0) {
 
 		dev->mei_host_buffer_is_empty = false;
-		dev_dbg(&dev->pdev->dev, "sending watchdog ping\n");
+		dev_dbg(&dev->pdev->dev, "wd: sending ping\n");
 
 		if (mei_wd_send(dev)) {
-			dev_dbg(&dev->pdev->dev, "wd send failed.\n");
+			dev_err(&dev->pdev->dev, "wd: send failed.\n");
 			ret = -EIO;
 			goto end;
 		}
 
 		if (mei_flow_ctrl_reduce(dev, &dev->wd_cl)) {
-			dev_dbg(&dev->pdev->dev, "mei_flow_ctrl_reduce() failed.\n");
+			dev_err(&dev->pdev->dev,
+				"wd: mei_flow_ctrl_reduce() failed.\n");
 			ret = -EIO;
 			goto end;
 		}
@@ -357,10 +360,12 @@ void  mei_watchdog_register(struct mei_device *dev)
 	dev->wd_due_counter = !!dev->wd_timeout;
 
 	if (watchdog_register_device(&amt_wd_dev)) {
-		dev_err(&dev->pdev->dev, "unable to register watchdog device.\n");
+		dev_err(&dev->pdev->dev,
+			"wd: unable to register watchdog device.\n");
 		dev->wd_interface_reg = false;
 	} else {
-		dev_dbg(&dev->pdev->dev, "successfully register watchdog interface.\n");
+		dev_dbg(&dev->pdev->dev,
+			"wd: successfully register watchdog interface.\n");
 		dev->wd_interface_reg = true;
 	}
 }
