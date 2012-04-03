@@ -89,7 +89,7 @@ INSTALLING the kernel source:
    source tree, _in_order_, and you should be ok.  You may want to remove
    the backup files (some-file-name~ or some-file-name.orig), and make sure
    that there are no failed patches (some-file-name# or some-file-name.rej).
-   If there are, either you or me has made a mistake.
+   If there are, either you or I have made a mistake.
 
    Unlike patches for the 3.x kernels, patches for the 3.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
