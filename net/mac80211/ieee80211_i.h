@@ -1100,6 +1100,9 @@ struct ieee80211_local {
 	struct net_device napi_dev;
 
 	struct napi_struct napi;
+
+	/* virtual monitor interface */
+	struct ieee80211_sub_if_data __rcu *monitor_sdata;
 };
 
 static inline struct ieee80211_sub_if_data *

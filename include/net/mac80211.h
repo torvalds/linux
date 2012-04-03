@@ -1175,6 +1175,10 @@ enum sta_notify_cmd {
  * @IEEE80211_HW_SCAN_WHILE_IDLE: The device can do hw scan while
  *	being idle (i.e. mac80211 doesn't have to go idle-off during the
  *	the scan).
+ *
+ * @IEEE80211_HW_WANT_MONITOR_VIF: The driver would like to be informed of
+ *	a virtual monitor interface when monitor interfaces are the only
+ *	active interfaces.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1191,7 +1195,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_PS_NULLFUNC_STACK			= 1<<11,
 	IEEE80211_HW_SUPPORTS_DYNAMIC_PS		= 1<<12,
 	IEEE80211_HW_MFP_CAPABLE			= 1<<13,
-	/* reuse bit 14 */
+	IEEE80211_HW_WANT_MONITOR_VIF			= 1<<14,
 	IEEE80211_HW_SUPPORTS_STATIC_SMPS		= 1<<15,
 	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,

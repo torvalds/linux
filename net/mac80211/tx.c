@@ -1283,8 +1283,11 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MONITOR:
-		sdata = NULL;
-		vif = NULL;
+		sdata = rcu_dereference(local->monitor_sdata);
+		if (sdata)
+			vif = &sdata->vif;
+		else
+			vif = NULL;
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
 		sdata = container_of(sdata->bss,

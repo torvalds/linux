@@ -1223,6 +1223,16 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				   IEEE80211_TPT_LEDTRIG_FL_RADIO, 0);
 
 	/* add interfaces */
+	sdata = rtnl_dereference(local->monitor_sdata);
+	if (sdata) {
+		res = drv_add_interface(local, sdata);
+		if (WARN_ON(res)) {
+			rcu_assign_pointer(local->monitor_sdata, NULL);
+			synchronize_net();
+			kfree(sdata);
+		}
+	}
+
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_MONITOR &&

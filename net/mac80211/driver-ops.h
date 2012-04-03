@@ -101,7 +101,8 @@ static inline int drv_add_interface(struct ieee80211_local *local,
 	might_sleep();
 
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-		    sdata->vif.type == NL80211_IFTYPE_MONITOR))
+		    (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
+		     !(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))))
 		return -EINVAL;
 
 	trace_drv_add_interface(local, sdata);

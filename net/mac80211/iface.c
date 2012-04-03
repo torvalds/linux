@@ -169,6 +169,59 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 #undef ADJUST
 }
 
+static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+	int ret;
+
+	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
+		return 0;
+
+	if (local->monitor_sdata)
+		return 0;
+
+	sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size, GFP_KERNEL);
+	if (!sdata)
+		return -ENOMEM;
+
+	/* set up data */
+	sdata->local = local;
+	sdata->vif.type = NL80211_IFTYPE_MONITOR;
+	snprintf(sdata->name, IFNAMSIZ, "%s-monitor",
+		 wiphy_name(local->hw.wiphy));
+
+	ret = drv_add_interface(local, sdata);
+	if (WARN_ON(ret)) {
+		/* ok .. stupid driver, it asked for this! */
+		kfree(sdata);
+		return ret;
+	}
+
+	rcu_assign_pointer(local->monitor_sdata, sdata);
+
+	return 0;
+}
+
+static void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
+		return;
+
+	sdata = rtnl_dereference(local->monitor_sdata);
+
+	if (!sdata)
+		return;
+
+	rcu_assign_pointer(local->monitor_sdata, NULL);
+	synchronize_net();
+
+	drv_remove_interface(local, sdata);
+
+	kfree(sdata);
+}
+
 /*
  * NOTE: Be very careful when changing this function, it must NOT return
  * an error on interface type changes that have been pre-checked, so most
@@ -266,6 +319,12 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			break;
 		}
 
+		if (local->monitors == 0 && local->open_count == 0) {
+			res = ieee80211_add_virtual_monitor(local);
+			if (res)
+				goto err_stop;
+		}
+
 		/* must be before the call to ieee80211_configure_filter */
 		local->monitors++;
 		if (local->monitors == 1) {
@@ -280,6 +339,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		break;
 	default:
 		if (coming_up) {
+			ieee80211_del_virtual_monitor(local);
+
 			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;
@@ -511,6 +572,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		if (local->monitors == 0) {
 			local->hw.conf.flags &= ~IEEE80211_CONF_MONITOR;
 			hw_reconf_flags |= IEEE80211_CONF_CHANGE_MONITOR;
+			ieee80211_del_virtual_monitor(local);
 		}
 
 		ieee80211_adjust_monitor_flags(sdata, -1);
@@ -584,6 +646,9 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+
+	if (local->monitors == local->open_count && local->monitors > 0)
+		ieee80211_add_virtual_monitor(local);
 }
 
 static int ieee80211_stop(struct net_device *dev)
