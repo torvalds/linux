@@ -36,7 +36,8 @@
 #define ACPI_FUJITSU_CLASS "fujitsu"
 
 #define INVERT_TABLET_MODE_BIT      0x01
-#define FORCE_TABLET_MODE_IF_UNDOCK 0x02
+#define INVERT_DOCK_STATE_BIT       0x02
+#define FORCE_TABLET_MODE_IF_UNDOCK 0x04
 
 #define KEYMAP_LEN 16
 
@@ -163,6 +164,8 @@ static void fujitsu_send_state(void)
 	state = fujitsu_read_register(0xdd);
 
 	dock = state & 0x02;
+	if (fujitsu.config.quirks & INVERT_DOCK_STATE_BIT)
+		dock = !dock;
 
 	if ((fujitsu.config.quirks & FORCE_TABLET_MODE_IF_UNDOCK) && (!dock)) {
 		tablet_mode = 1;
@@ -274,25 +277,31 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
+static void __devinit fujitsu_dmi_common(const struct dmi_system_id *dmi)
 {
 	pr_info("%s\n", dmi->ident);
 	memcpy(fujitsu.config.keymap, dmi->driver_data,
 			sizeof(fujitsu.config.keymap));
+}
+
+static int __devinit fujitsu_dmi_lifebook(const struct dmi_system_id *dmi)
+{
+	fujitsu_dmi_common(dmi);
+	fujitsu.config.quirks |= INVERT_TABLET_MODE_BIT;
 	return 1;
 }
 
 static int __devinit fujitsu_dmi_stylistic(const struct dmi_system_id *dmi)
 {
-	fujitsu_dmi_default(dmi);
+	fujitsu_dmi_common(dmi);
 	fujitsu.config.quirks |= FORCE_TABLET_MODE_IF_UNDOCK;
-	fujitsu.config.quirks |= INVERT_TABLET_MODE_BIT;
+	fujitsu.config.quirks |= INVERT_DOCK_STATE_BIT;
 	return 1;
 }
 
 static struct dmi_system_id dmi_ids[] __initconst = {
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu Siemens P/T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -301,7 +310,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Lifebook_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu Lifebook T Series",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -319,7 +328,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Stylistic_Tseries
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Fujitsu LifeBook U810",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
@@ -346,7 +355,7 @@ static struct dmi_system_id dmi_ids[] __initconst = {
 		.driver_data = keymap_Stylistic_ST5xxx
 	},
 	{
-		.callback = fujitsu_dmi_default,
+		.callback = fujitsu_dmi_lifebook,
 		.ident = "Unknown (using defaults)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, ""),
@@ -472,6 +481,6 @@ module_exit(fujitsu_module_exit);
 MODULE_AUTHOR("Robert Gerlach <khnz@gmx.de>");
 MODULE_DESCRIPTION("Fujitsu tablet pc extras driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION("2.4");
+MODULE_VERSION("2.5");
 
 MODULE_DEVICE_TABLE(acpi, fujitsu_ids);
