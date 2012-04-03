@@ -18,7 +18,6 @@ extern int iscsit_logout_closesession(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_logout_closeconnection(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_logout_removeconnforrecovery(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_send_async_msg(struct iscsi_conn *, u16, u8, u8);
-extern int iscsit_send_r2t(struct iscsi_cmd *, struct iscsi_conn *);
 extern int iscsit_build_r2ts_for_cmd(struct iscsi_cmd *, struct iscsi_conn *, int);
 extern void iscsit_thread_get_cpumask(struct iscsi_conn *);
 extern int iscsi_target_tx_thread(void *);
