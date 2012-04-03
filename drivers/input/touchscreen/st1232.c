@@ -255,6 +255,14 @@ static const struct i2c_device_id st1232_ts_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, st1232_ts_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id st1232_ts_dt_ids[] __devinitconst = {
+	{ .compatible = "sitronix,st1232", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, st1232_ts_dt_ids);
+#endif
+
 static struct i2c_driver st1232_ts_driver = {
 	.probe		= st1232_ts_probe,
 	.remove		= __devexit_p(st1232_ts_remove),
@@ -262,6 +270,7 @@ static struct i2c_driver st1232_ts_driver = {
 	.driver = {
 		.name	= ST1232_TS_NAME,
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(st1232_ts_dt_ids),
 #ifdef CONFIG_PM
 		.pm	= &st1232_ts_pm_ops,
 #endif
