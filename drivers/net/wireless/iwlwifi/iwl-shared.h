@@ -68,11 +68,6 @@
 #include <linux/gfp.h>
 #include <net/mac80211.h>
 
-#define DRV_NAME        "iwlwifi"
-#define IWLWIFI_VERSION "in-tree:"
-#define DRV_COPYRIGHT	"Copyright(c) 2003-2012 Intel Corporation"
-#define DRV_AUTHOR     "<ilw@linux.intel.com>"
-
 extern struct iwl_mod_params iwlagn_mod_params;
 
 #define IWL_DISABLE_HT_ALL	BIT(0)

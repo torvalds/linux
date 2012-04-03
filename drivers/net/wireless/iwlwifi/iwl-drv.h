@@ -63,6 +63,13 @@
 #ifndef __iwl_drv_h__
 #define __iwl_drv_h__
 
+/* for all modules */
+#define DRV_NAME        "iwlwifi"
+#define IWLWIFI_VERSION "in-tree:"
+#define DRV_COPYRIGHT	"Copyright(c) 2003-2012 Intel Corporation"
+#define DRV_AUTHOR     "<ilw@linux.intel.com>"
+
+
 /**
  * DOC: Driver system flows - drv component
  *

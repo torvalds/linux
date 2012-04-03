@@ -51,6 +51,7 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
+#include "iwl-drv.h"
 
 /******************************************************************************
  *
