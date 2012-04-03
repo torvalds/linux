@@ -306,7 +306,6 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 		goto out;
 	}
 
-	dev_info(info->dev, "Max8649 regulator device is detected.\n");
 	return 0;
 out:
 	regmap_exit(info->regmap);
