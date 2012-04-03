@@ -28,7 +28,8 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-cfg.h"
-#include "iwl-dev.h" /* still needed */
+#include "iwl-agn-hw.h"
+#include "iwl-csr.h"
 
 /* Highest firmware API version supported */
 #define IWL5000_UCODE_API_MAX 5

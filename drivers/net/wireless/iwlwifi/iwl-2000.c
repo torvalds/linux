@@ -28,7 +28,8 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-cfg.h"
-#include "iwl-dev.h" /* still needed */
+#include "iwl-agn-hw.h"
+#include "iwl-commands.h" /* needed for BT for now */
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 6
