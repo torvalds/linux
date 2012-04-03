@@ -116,6 +116,9 @@ static int trace_start_etm(struct tracectx *t, int id)
 	if (t->flags & TRACER_TRACE_DATA)
 		v |= ETMCTRL_DATA_DO_ADDR;
 
+	if (t->flags & TRACER_TIMESTAMP)
+		v |= ETMCTRL_TIMESTAMP_EN;
+
 	etm_unlock(t, id);
 
 	etm_writel(t, id, v, ETMR_CTRL);
@@ -644,6 +647,36 @@ static ssize_t trace_mode_store(struct kobject *kobj,
 static struct kobj_attribute trace_mode_attr =
 	__ATTR(trace_mode, 0644, trace_mode_show, trace_mode_store);
 
+static ssize_t trace_timestamp_show(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  char *buf)
+{
+	return sprintf(buf, "%d\n", !!(tracer.flags & TRACER_TIMESTAMP));
+}
+
+static ssize_t trace_timestamp_store(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t n)
+{
+	unsigned int timestamp;
+
+	if (sscanf(buf, "%u", &timestamp) != 1)
+		return -EINVAL;
+
+	mutex_lock(&tracer.mutex);
+	if (timestamp)
+		tracer.flags |= TRACER_TIMESTAMP;
+	else
+		tracer.flags &= ~TRACER_TIMESTAMP;
+	mutex_unlock(&tracer.mutex);
+
+	return n;
+}
+
+static struct kobj_attribute trace_timestamp_attr =
+	__ATTR(trace_timestamp, 0644,
+		trace_timestamp_show, trace_timestamp_store);
+
 static ssize_t trace_range_show(struct kobject *kobj,
 				  struct kobj_attribute *attr,
 				  char *buf)
@@ -723,6 +756,7 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 	int new_count;
 	u32 etmccr;
 	u32 etmidr;
+	u32 etmccer = 0;
 	u8 etm_version = 0;
 
 	mutex_lock(&t->mutex);
@@ -763,6 +797,8 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 	if (etmccr & ETMCCR_ETMIDR_PRESENT) {
 		etmidr = etm_readl(t, t->etm_regs_count, ETMR_ID);
 		etm_version = ETMIDR_VERSION(etmidr);
+		if (etm_version >= ETMIDR_VERSION_3_1)
+			etmccer = etm_readl(t, t->etm_regs_count, ETMR_CCE);
 	}
 	etm_writel(t, t->etm_regs_count, 0x441, ETMR_CTRL);
 	etm_writel(t, t->etm_regs_count, new_count, ETMR_TRACEIDR);
@@ -781,6 +817,14 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 	ret = sysfs_create_file(&dev->dev.kobj, &trace_mode_attr.attr);
 	if (ret)
 		dev_dbg(&dev->dev, "Failed to create trace_mode in sysfs\n");
+
+	if (etmccer & ETMCCER_TIMESTAMPING_IMPLEMENTED) {
+		ret = sysfs_create_file(&dev->dev.kobj,
+					&trace_timestamp_attr.attr);
+		if (ret)
+			dev_dbg(&dev->dev,
+				"Failed to create trace_timestamp in sysfs\n");
+	}
 
 	ret = sysfs_create_file(&dev->dev.kobj, &trace_range_attr.attr);
 	if (ret)
