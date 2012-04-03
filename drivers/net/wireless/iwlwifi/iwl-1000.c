@@ -42,6 +42,10 @@
 #define IWL1000_UCODE_API_MIN 1
 #define IWL100_UCODE_API_MIN 5
 
+/* EEPROM version */
+#define EEPROM_1000_TX_POWER_VERSION	(4)
+#define EEPROM_1000_EEPROM_VERSION	(0x15C)
+
 #define IWL1000_FW_PRE "iwlwifi-1000-"
 #define IWL1000_MODULE_FIRMWARE(api) IWL1000_FW_PRE __stringify(api) ".ucode"
 

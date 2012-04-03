@@ -206,48 +206,6 @@ struct iwl_eeprom_calib_hdr {
 /* 6000 regulatory - indirect access */
 #define EEPROM_6000_REG_BAND_24_HT40_CHANNELS  ((0x80)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
-
-/* 5000 Specific */
-#define EEPROM_5000_TX_POWER_VERSION    (4)
-#define EEPROM_5000_EEPROM_VERSION	(0x11A)
-
-/* 5050 Specific */
-#define EEPROM_5050_TX_POWER_VERSION    (4)
-#define EEPROM_5050_EEPROM_VERSION	(0x21E)
-
-/* 1000 Specific */
-#define EEPROM_1000_TX_POWER_VERSION    (4)
-#define EEPROM_1000_EEPROM_VERSION	(0x15C)
-
-/* 6x00 Specific */
-#define EEPROM_6000_TX_POWER_VERSION    (4)
-#define EEPROM_6000_EEPROM_VERSION	(0x423)
-
-/* 6x50 Specific */
-#define EEPROM_6050_TX_POWER_VERSION    (4)
-#define EEPROM_6050_EEPROM_VERSION	(0x532)
-
-/* 6150 Specific */
-#define EEPROM_6150_TX_POWER_VERSION    (6)
-#define EEPROM_6150_EEPROM_VERSION	(0x553)
-
-/* 6x05 Specific */
-#define EEPROM_6005_TX_POWER_VERSION    (6)
-#define EEPROM_6005_EEPROM_VERSION	(0x709)
-
-/* 6x30 Specific */
-#define EEPROM_6030_TX_POWER_VERSION    (6)
-#define EEPROM_6030_EEPROM_VERSION	(0x709)
-
-/* 2x00 Specific */
-#define EEPROM_2000_TX_POWER_VERSION    (6)
-#define EEPROM_2000_EEPROM_VERSION	(0x805)
-
-/* 6x35 Specific */
-#define EEPROM_6035_TX_POWER_VERSION    (6)
-#define EEPROM_6035_EEPROM_VERSION	(0x753)
-
-
 /* OTP */
 /* lower blocks contain EEPROM image and calibration data */
 #define OTP_LOW_IMAGE_SIZE		(2 * 512 * sizeof(u16)) /* 2 KB */
