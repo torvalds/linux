@@ -484,7 +484,8 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	int idx = 0, result;
 
 	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_INTUOSREAD
-		&& data[0] != WACOM_REPORT_INTUOSWRITE && data[0] != WACOM_REPORT_INTUOSPAD) {
+		&& data[0] != WACOM_REPORT_INTUOSWRITE && data[0] != WACOM_REPORT_INTUOSPAD
+		&& data[0] != WACOM_REPORT_INTUOS5PAD) {
 		dbg("wacom_intuos_irq: received unknown report #%d", data[0]);
                 return 0;
 	}
@@ -494,7 +495,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 		idx = data[1] & 0x01;
 
 	/* pad packets. Works as a second tool and is always in prox */
-	if (data[0] == WACOM_REPORT_INTUOSPAD) {
+	if (data[0] == WACOM_REPORT_INTUOSPAD || data[0] == WACOM_REPORT_INTUOS5PAD) {
 		if (features->type >= INTUOS4S && features->type <= INTUOS4L) {
 			input_report_key(input, BTN_0, (data[2] & 0x01));
 			input_report_key(input, BTN_1, (data[3] & 0x01));
@@ -564,6 +565,34 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 			}
 
 			if (data[1] | data[2] | (data[3] & 0x1f) | data[4] | data[6] | data[8]) {
+				input_report_key(input, wacom->tool[1], 1);
+				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
+			} else {
+				input_report_key(input, wacom->tool[1], 0);
+				input_report_abs(input, ABS_MISC, 0);
+			}
+		} else if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
+			int i;
+
+			/* Touch ring mode switch has no capacitive sensor */
+			input_report_key(input, BTN_0, (data[3] & 0x01));
+
+			/*
+			 * ExpressKeys on Intuos5 have a capacitive sensor in
+			 * addition to the mechanical switch. Switch data is
+			 * stored in data[4], capacitive data in data[5].
+			 */
+			for (i = 0; i < 8; i++)
+				input_report_key(input, BTN_1 + i, data[4] & (1 << i));
+
+			if (data[2] & 0x80) {
+				input_report_abs(input, ABS_WHEEL, (data[2] & 0x7f));
+			} else {
+				/* Out of proximity, clear wheel value. */
+				input_report_abs(input, ABS_WHEEL, 0);
+			}
+
+			if (data[2] | (data[3] & 0x01) | data[4]) {
 				input_report_key(input, wacom->tool[1], 1);
 				input_report_abs(input, ABS_MISC, PAD_DEVICE_ID);
 			} else {
