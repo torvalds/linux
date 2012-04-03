@@ -349,9 +349,8 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 		memcpy(dev->perm_addr, dev->dev_addr, ETH_ALEN);
 
 		if (!is_valid_ether_addr(dev->dev_addr)) {
-			if (!local->open_count)
-				drv_stop(local);
-			return -EADDRNOTAVAIL;
+			res = -EADDRNOTAVAIL;
+			goto err_stop;
 		}
 	}
 
@@ -485,6 +484,7 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 	sdata->bss = NULL;
 	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		list_del(&sdata->u.vlan.list);
+	/* might already be clear but that doesn't matter */
 	clear_bit(SDATA_STATE_RUNNING, &sdata->state);
 	return res;
 }
