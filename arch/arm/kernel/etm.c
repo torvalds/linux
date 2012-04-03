@@ -115,6 +115,9 @@ static int trace_start_etm(struct tracectx *t, int id)
 	if (t->flags & TRACER_CYCLE_ACC)
 		v |= ETMCTRL_CYCLEACCURATE;
 
+	if (t->flags & TRACER_BRANCHOUTPUT)
+		v |= ETMCTRL_BRANCH_OUTPUT;
+
 	if (t->flags & TRACER_TRACE_DATA)
 		v |= ETMCTRL_DATA_DO_ADDR;
 
@@ -680,6 +683,36 @@ static struct kobj_attribute trace_contextid_size_attr =
 	__ATTR(trace_contextid_size, 0644,
 		trace_contextid_size_show, trace_contextid_size_store);
 
+static ssize_t trace_branch_output_show(struct kobject *kobj,
+					struct kobj_attribute *attr,
+					char *buf)
+{
+	return sprintf(buf, "%d\n", !!(tracer.flags & TRACER_BRANCHOUTPUT));
+}
+
+static ssize_t trace_branch_output_store(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 const char *buf, size_t n)
+{
+	unsigned int branch_output;
+
+	if (sscanf(buf, "%u", &branch_output) != 1)
+		return -EINVAL;
+
+	mutex_lock(&tracer.mutex);
+	if (branch_output)
+		tracer.flags |= TRACER_BRANCHOUTPUT;
+	else
+		tracer.flags &= ~TRACER_BRANCHOUTPUT;
+	mutex_unlock(&tracer.mutex);
+
+	return n;
+}
+
+static struct kobj_attribute trace_branch_output_attr =
+	__ATTR(trace_branch_output, 0644,
+		trace_branch_output_show, trace_branch_output_store);
+
 static ssize_t trace_timestamp_show(struct kobject *kobj,
 				  struct kobj_attribute *attr,
 				  char *buf)
@@ -817,7 +850,7 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 
 	amba_set_drvdata(dev, t->etm_regs[t->etm_regs_count]);
 
-	t->flags = TRACER_CYCLE_ACC | TRACER_TRACE_DATA;
+	t->flags = TRACER_CYCLE_ACC | TRACER_TRACE_DATA | TRACER_BRANCHOUTPUT;
 	t->etm_portsz = 1;
 	t->etm_contextid_size = 3;
 
@@ -857,6 +890,12 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 	if (ret)
 		dev_dbg(&dev->dev,
 			"Failed to create trace_contextid_size in sysfs\n");
+
+	ret = sysfs_create_file(&dev->dev.kobj,
+				&trace_branch_output_attr.attr);
+	if (ret)
+		dev_dbg(&dev->dev,
+			"Failed to create trace_branch_output in sysfs\n");
 
 	if (etmccer & ETMCCER_TIMESTAMPING_IMPLEMENTED) {
 		ret = sysfs_create_file(&dev->dev.kobj,
