@@ -426,6 +426,8 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000002);
 	}
 
+	rt2800_disable_wpdma(rt2x00dev);
+
 	/*
 	 * Write firmware to the device.
 	 */
