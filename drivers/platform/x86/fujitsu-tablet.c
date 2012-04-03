@@ -16,6 +16,8 @@
  * 59 Temple Place Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -274,7 +276,7 @@ static irqreturn_t fujitsu_interrupt(int irq, void *dev_id)
 
 static int __devinit fujitsu_dmi_default(const struct dmi_system_id *dmi)
 {
-	printk(KERN_INFO MODULENAME ": %s\n", dmi->ident);
+	pr_info("%s\n", dmi->ident);
 	memcpy(fujitsu.config.keymap, dmi->driver_data,
 			sizeof(fujitsu.config.keymap));
 	return 1;
