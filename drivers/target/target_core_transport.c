@@ -3766,9 +3766,9 @@ transport_allocate_control_task(struct se_cmd *cmd)
 }
 
 /*
- * Allocate any required ressources to execute the command, and either place
- * it on the execution queue if possible.  For writes we might not have the
- * payload yet, thus notify the fabric via a call to ->write_pending instead.
+ * Allocate any required resources to execute the command.  For writes we
+ * might not have the payload yet, so notify the fabric via a call to
+ * ->write_pending instead. Otherwise place it on the execution queue.
  */
 int transport_generic_new_cmd(struct se_cmd *cmd)
 {
