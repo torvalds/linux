@@ -1483,6 +1483,11 @@
    starts at 0x0 for the A0 tape-out and increments by one for each
    all-layer tape-out. */
 #define MISC_REG_CHIP_REV					 0xa40c
+/* [R 14] otp_misc_do[100:0] spare bits collection: 13:11-
+ * otp_misc_do[100:98]; 10:7 - otp_misc_do[87:84]; 6:3 - otp_misc_do[75:72];
+ * 2:1 - otp_misc_do[51:50]; 0 - otp_misc_do[1]. */
+#define MISC_REG_CHIP_TYPE					 0xac60
+#define MISC_REG_CHIP_TYPE_57811_MASK				 (1<<1)
 /* [RW 32] The following driver registers(1...16) represent 16 drivers and
    32 clients. Each client can be controlled by one driver only. One in each
    bit represent that this driver control the appropriate client (Ex: bit 5

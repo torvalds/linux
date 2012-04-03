@@ -815,6 +815,8 @@ struct bnx2x_common {
 #define CHIP_NUM_57800_MF		0x16a5
 #define CHIP_NUM_57810			0x168e
 #define CHIP_NUM_57810_MF		0x16ae
+#define CHIP_NUM_57811			0x163d
+#define CHIP_NUM_57811_MF		0x163e
 #define CHIP_NUM_57840			0x168d
 #define CHIP_NUM_57840_MF		0x16ab
 #define CHIP_IS_E1(bp)			(CHIP_NUM(bp) == CHIP_NUM_57710)
@@ -826,6 +828,8 @@ struct bnx2x_common {
 #define CHIP_IS_57800_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57800_MF)
 #define CHIP_IS_57810(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810)
 #define CHIP_IS_57810_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57810_MF)
+#define CHIP_IS_57811(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811)
+#define CHIP_IS_57811_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57811_MF)
 #define CHIP_IS_57840(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840)
 #define CHIP_IS_57840_MF(bp)		(CHIP_NUM(bp) == CHIP_NUM_57840_MF)
 #define CHIP_IS_E1H(bp)			(CHIP_IS_57711(bp) || \
@@ -836,6 +840,8 @@ struct bnx2x_common {
 					 CHIP_IS_57800_MF(bp) || \
 					 CHIP_IS_57810(bp) || \
 					 CHIP_IS_57810_MF(bp) || \
+					 CHIP_IS_57811(bp) || \
+					 CHIP_IS_57811_MF(bp) || \
 					 CHIP_IS_57840(bp) || \
 					 CHIP_IS_57840_MF(bp))
 #define CHIP_IS_E1x(bp)			(CHIP_IS_E1((bp)) || CHIP_IS_E1H((bp)))

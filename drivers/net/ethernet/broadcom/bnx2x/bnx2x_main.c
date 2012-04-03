@@ -140,7 +140,9 @@ enum bnx2x_board_type {
 	BCM57810,
 	BCM57810_MF,
 	BCM57840,
-	BCM57840_MF
+	BCM57840_MF,
+	BCM57811,
+	BCM57811_MF
 };
 
 /* indexed by board_type, above */
@@ -157,8 +159,9 @@ static struct {
 	{ "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet" },
 	{ "Broadcom NetXtreme II BCM57810 10 Gigabit Ethernet Multi Function" },
 	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet" },
-	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit "
-						"Ethernet Multi Function"}
+	{ "Broadcom NetXtreme II BCM57840 10/20 Gigabit Ethernet Multi Function"},
+	{ "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet"},
+	{ "Broadcom NetXtreme II BCM57811 10 Gigabit Ethernet Multi Function"},
 };
 
 #ifndef PCI_DEVICE_ID_NX2_57710
@@ -194,6 +197,12 @@ static struct {
 #ifndef PCI_DEVICE_ID_NX2_57840_MF
 #define PCI_DEVICE_ID_NX2_57840_MF	CHIP_NUM_57840_MF
 #endif
+#ifndef PCI_DEVICE_ID_NX2_57811
+#define PCI_DEVICE_ID_NX2_57811		CHIP_NUM_57811
+#endif
+#ifndef PCI_DEVICE_ID_NX2_57811_MF
+#define PCI_DEVICE_ID_NX2_57811_MF	CHIP_NUM_57811_MF
+#endif
 static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), BCM57710 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), BCM57711 },
@@ -206,6 +215,8 @@ static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57810_MF), BCM57810_MF },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840), BCM57840 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57840_MF), BCM57840_MF },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811), BCM57811 },
+	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57811_MF), BCM57811_MF },
 	{ 0 }
 };
 
@@ -9126,6 +9137,17 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	id |= (val & 0xf);
 	bp->common.chip_id = id;
 
+	/* force 57811 according to MISC register */
+	if (REG_RD(bp, MISC_REG_CHIP_TYPE) & MISC_REG_CHIP_TYPE_57811_MASK) {
+		if (CHIP_IS_57810(bp))
+			bp->common.chip_id = (CHIP_NUM_57811 << 16) |
+				(bp->common.chip_id & 0x0000FFFF);
+		else if (CHIP_IS_57810_MF(bp))
+			bp->common.chip_id = (CHIP_NUM_57811_MF << 16) |
+				(bp->common.chip_id & 0x0000FFFF);
+		bp->common.chip_id |= 0x1;
+	}
+
 	/* Set doorbell size */
 	bp->db_size = (1 << BNX2X_DB_SHIFT);
 
@@ -11250,6 +11272,8 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	case BCM57810_MF:
 	case BCM57840:
 	case BCM57840_MF:
+	case BCM57811:
+	case BCM57811_MF:
 		max_cos_est = BNX2X_MULTI_TX_COS_E3B0;
 		break;
 
