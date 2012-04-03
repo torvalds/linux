@@ -1593,7 +1593,8 @@ void ath6kl_rx(struct htc_target *target, struct htc_packet *packet)
 			/* aggregation code will handle the skb */
 			return;
 		}
-	}
+	} else if (!is_broadcast_ether_addr(datap->h_dest))
+		vif->net_stats.multicast++;
 
 	ath6kl_deliver_frames_to_nw_stack(vif->ndev, skb);
 }
