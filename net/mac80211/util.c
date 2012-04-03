@@ -1109,7 +1109,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 
 u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
-			    enum ieee80211_band band)
+			    enum ieee80211_band band, u32 *basic_rates)
 {
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_rate *bitrates;
@@ -1130,15 +1130,25 @@ u32 ieee80211_sta_get_rates(struct ieee80211_local *local,
 		     elems->ext_supp_rates_len; i++) {
 		u8 rate = 0;
 		int own_rate;
+		bool is_basic;
 		if (i < elems->supp_rates_len)
 			rate = elems->supp_rates[i];
 		else if (elems->ext_supp_rates)
 			rate = elems->ext_supp_rates
 				[i - elems->supp_rates_len];
 		own_rate = 5 * (rate & 0x7f);
-		for (j = 0; j < num_rates; j++)
-			if (bitrates[j].bitrate == own_rate)
+		is_basic = !!(rate & 0x80);
+
+		if (is_basic && (rate & 0x7f) == BSS_MEMBERSHIP_SELECTOR_HT_PHY)
+			continue;
+
+		for (j = 0; j < num_rates; j++) {
+			if (bitrates[j].bitrate == own_rate) {
 				supp_rates |= BIT(j);
+				if (basic_rates && is_basic)
+					*basic_rates |= BIT(j);
+			}
+		}
 	}
 	return supp_rates;
 }

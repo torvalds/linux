@@ -465,6 +465,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	bool deactivated, matches_local = true;
 	u8 ie_len;
 	u8 *baseaddr;
+	u32 rates, basic_rates = 0;
 	__le16 plid, llid, reason;
 #ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
 	static const char *mplstates[] = {
@@ -559,6 +560,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 
 	/* Now we will figure out the appropriate event... */
 	event = PLINK_UNDEFINED;
+	rates = ieee80211_sta_get_rates(local, &elems,
+					rx_status->band, &basic_rates);
+
 	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
 	    (!mesh_matches_local(&elems, sdata))) {
 		matches_local = false;
@@ -583,7 +587,6 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		return;
 	} else if (!sta) {
 		/* ftype == WLAN_SP_MESH_PEERING_OPEN */
-		u32 rates;
 
 		rcu_read_unlock();
 
@@ -591,8 +594,6 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 			mpl_dbg("Mesh plink error: no more free plinks\n");
 			return;
 		}
-
-		rates = ieee80211_sta_get_rates(local, &elems, rx_status->band);
 		sta = mesh_plink_alloc(sdata, mgmt->sa, rates, &elems);
 		if (!sta) {
 			mpl_dbg("Mesh plink error: plink table full\n");
