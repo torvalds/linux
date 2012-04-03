@@ -661,17 +661,7 @@ static struct spi_driver pmic_driver = {
 	},
 };
 
-static int __init pmic_driver_init(void)
-{
-	return spi_register_driver(&pmic_driver);
-}
-module_init(pmic_driver_init);
-
-static void __exit pmic_driver_exit(void)
-{
-	spi_unregister_driver(&pmic_driver);
-}
-module_exit(pmic_driver_exit);
+module_spi_driver(pmic_driver);
 
 MODULE_DESCRIPTION("TPS6524X PMIC Driver");
 MODULE_AUTHOR("Cyril Chemparathy");
