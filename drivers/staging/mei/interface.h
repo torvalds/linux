@@ -51,7 +51,7 @@ int mei_flow_ctrl_creds(struct mei_device *dev, struct mei_cl *cl);
 
 int mei_wd_send(struct mei_device *dev);
 int mei_wd_stop(struct mei_device *dev, bool preserve);
-bool mei_wd_host_init(struct mei_device *dev);
+int mei_wd_host_init(struct mei_device *dev);
 /*
  * mei_watchdog_register  - Registering watchdog interface
  *   once we got connection to the WD Client

@@ -56,11 +56,11 @@ static void mei_wd_set_start_timeout(struct mei_device *dev, u16 timeout)
  * host_init_wd - mei initialization wd.
  *
  * @dev: the device structure
+ * returns -ENENT if wd client cannot be found
+ *         -EIO if write has failed
  */
-bool mei_wd_host_init(struct mei_device *dev)
+int mei_wd_host_init(struct mei_device *dev)
 {
-	bool ret = false;
-
 	mei_cl_init(&dev->wd_cl, dev);
 
 	/* look for WD client and connect to it */
@@ -71,25 +71,21 @@ bool mei_wd_host_init(struct mei_device *dev)
 	mei_find_me_client_update_filext(dev, &dev->wd_cl,
 				&mei_wd_guid, MEI_WD_HOST_CLIENT_ID);
 
-	dev_dbg(&dev->pdev->dev, "check wd_cl\n");
-	if (MEI_FILE_CONNECTING == dev->wd_cl.state) {
-		if (mei_connect(dev, &dev->wd_cl)) {
-			dev_dbg(&dev->pdev->dev, "Failed to connect to WD client\n");
-			dev->wd_cl.state = MEI_FILE_DISCONNECTED;
-			dev->wd_cl.host_client_id = 0;
-			ret = false;
-			goto end;
-		} else {
-			dev->wd_cl.timer_count = CONNECT_TIMEOUT;
-		}
-	} else {
-		dev_dbg(&dev->pdev->dev, "Failed to find WD client\n");
-		ret = false;
-		goto end;
+	dev_dbg(&dev->pdev->dev, "wd: check client\n");
+	if (MEI_FILE_CONNECTING != dev->wd_cl.state) {
+		dev_info(&dev->pdev->dev, "wd: failed to find the client\n");
+		return -ENOENT;
 	}
 
-end:
-	return ret;
+	if (mei_connect(dev, &dev->wd_cl)) {
+		dev_err(&dev->pdev->dev, "wd: failed to connect to the client\n");
+		dev->wd_cl.state = MEI_FILE_DISCONNECTED;
+		dev->wd_cl.host_client_id = 0;
+		return -EIO;
+	}
+	dev->wd_cl.timer_count = CONNECT_TIMEOUT;
+
+	return 0;
 }
 
 /**
