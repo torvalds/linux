@@ -174,7 +174,8 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	struct gpio_regulator_data *drvdata;
 	int ptr, ret, state;
 
-	drvdata = kzalloc(sizeof(struct gpio_regulator_data), GFP_KERNEL);
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
+			       GFP_KERNEL);
 	if (drvdata == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate device data\n");
 		return -ENOMEM;
@@ -307,7 +308,6 @@ err_memgpio:
 err_name:
 	kfree(drvdata->desc.name);
 err:
-	kfree(drvdata);
 	return ret;
 }
 
@@ -326,7 +326,6 @@ static int __devexit gpio_regulator_remove(struct platform_device *pdev)
 		gpio_free(drvdata->enable_gpio);
 
 	kfree(drvdata->desc.name);
-	kfree(drvdata);
 
 	return 0;
 }
