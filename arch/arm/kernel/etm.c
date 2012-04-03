@@ -724,6 +724,9 @@ static int __devinit etm_probe(struct amba_device *dev, const struct amba_id *id
 	int ret = 0;
 	void __iomem **new_regs;
 	int new_count;
+	u32 etmccr;
+	u32 etmidr;
+	u8 etm_version = 0;
 
 	mutex_lock(&t->mutex);
 	new_count = t->etm_regs_count + 1;
@@ -758,7 +761,12 @@ static int __devinit etm_probe(struct amba_device *dev, const struct amba_id *id
 	/* dummy first read */
 	(void)etm_readl(&tracer, t->etm_regs_count, ETMMR_OSSRR);
 
-	t->ncmppairs = etm_readl(t, t->etm_regs_count, ETMR_CONFCODE) & 0xf;
+	etmccr = etm_readl(t, t->etm_regs_count, ETMR_CONFCODE);
+	t->ncmppairs = etmccr & 0xf;
+	if (etmccr & ETMCCR_ETMIDR_PRESENT) {
+		etmidr = etm_readl(t, t->etm_regs_count, ETMR_ID);
+		etm_version = ETMIDR_VERSION(etmidr);
+	}
 	etm_writel(t, t->etm_regs_count, 0x441, ETMR_CTRL);
 	etm_writel(t, t->etm_regs_count, new_count, ETMR_TRACEIDR);
 	etm_lock(t, t->etm_regs_count);
@@ -781,10 +789,15 @@ static int __devinit etm_probe(struct amba_device *dev, const struct amba_id *id
 	if (ret)
 		dev_dbg(&dev->dev, "Failed to create trace_range in sysfs\n");
 
-	ret = sysfs_create_file(&dev->dev.kobj, &trace_data_range_attr.attr);
-	if (ret)
-		dev_dbg(&dev->dev,
-			"Failed to create trace_data_range in sysfs\n");
+	if (etm_version < ETMIDR_VERSION_PFT_1_0) {
+		ret = sysfs_create_file(&dev->dev.kobj,
+					&trace_data_range_attr.attr);
+		if (ret)
+			dev_dbg(&dev->dev,
+				"Failed to create trace_data_range in sysfs\n");
+	} else {
+		tracer.flags &= ~TRACER_TRACE_DATA;
+	}
 
 	dev_dbg(&dev->dev, "ETM AMBA driver initialized.\n");
 
