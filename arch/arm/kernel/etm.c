@@ -43,6 +43,7 @@ struct tracectx {
 	unsigned long	flags;
 	int		ncmppairs;
 	int		etm_portsz;
+	int		etm_contextid_size;
 	u32		etb_fc;
 	unsigned long	range_start;
 	unsigned long	range_end;
@@ -109,6 +110,7 @@ static int trace_start_etm(struct tracectx *t, int id)
 	unsigned long timeout = TRACER_TIMEOUT;
 
 	v = ETMCTRL_OPTS | ETMCTRL_PROGRAM | ETMCTRL_PORTSIZE(t->etm_portsz);
+	v |= ETMCTRL_CONTEXTIDSIZE(t->etm_contextid_size);
 
 	if (t->flags & TRACER_CYCLE_ACC)
 		v |= ETMCTRL_CYCLEACCURATE;
@@ -647,6 +649,37 @@ static ssize_t trace_mode_store(struct kobject *kobj,
 static struct kobj_attribute trace_mode_attr =
 	__ATTR(trace_mode, 0644, trace_mode_show, trace_mode_store);
 
+static ssize_t trace_contextid_size_show(struct kobject *kobj,
+					 struct kobj_attribute *attr,
+					 char *buf)
+{
+	/* 0: No context id tracing, 1: One byte, 2: Two bytes, 3: Four bytes */
+	return sprintf(buf, "%d\n", (1 << tracer.etm_contextid_size) >> 1);
+}
+
+static ssize_t trace_contextid_size_store(struct kobject *kobj,
+					  struct kobj_attribute *attr,
+					  const char *buf, size_t n)
+{
+	unsigned int contextid_size;
+
+	if (sscanf(buf, "%u", &contextid_size) != 1)
+		return -EINVAL;
+
+	if (contextid_size == 3 || contextid_size > 4)
+		return -EINVAL;
+
+	mutex_lock(&tracer.mutex);
+	tracer.etm_contextid_size = fls(contextid_size);
+	mutex_unlock(&tracer.mutex);
+
+	return n;
+}
+
+static struct kobj_attribute trace_contextid_size_attr =
+	__ATTR(trace_contextid_size, 0644,
+		trace_contextid_size_show, trace_contextid_size_store);
+
 static ssize_t trace_timestamp_show(struct kobject *kobj,
 				  struct kobj_attribute *attr,
 				  char *buf)
@@ -786,6 +819,7 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 
 	t->flags = TRACER_CYCLE_ACC | TRACER_TRACE_DATA;
 	t->etm_portsz = 1;
+	t->etm_contextid_size = 3;
 
 	etm_unlock(t, t->etm_regs_count);
 	(void)etm_readl(t, t->etm_regs_count, ETMMR_PDSR);
@@ -817,6 +851,12 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 	ret = sysfs_create_file(&dev->dev.kobj, &trace_mode_attr.attr);
 	if (ret)
 		dev_dbg(&dev->dev, "Failed to create trace_mode in sysfs\n");
+
+	ret = sysfs_create_file(&dev->dev.kobj,
+				&trace_contextid_size_attr.attr);
+	if (ret)
+		dev_dbg(&dev->dev,
+			"Failed to create trace_contextid_size in sysfs\n");
 
 	if (etmccer & ETMCCER_TIMESTAMPING_IMPLEMENTED) {
 		ret = sysfs_create_file(&dev->dev.kobj,
