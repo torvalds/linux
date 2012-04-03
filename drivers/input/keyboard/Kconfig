@@ -309,6 +309,16 @@ config KEYBOARD_LM8323
 	  To compile this driver as a module, choose M here: the
 	  module will be called lm8323.
 
+config KEYBOARD_LM8333
+	tristate "LM8333 keypad chip"
+	depends on I2C
+	help
+	  If you say yes here you get support for the National Semiconductor
+	  LM8333 keypad controller.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called lm8333.
+
 config KEYBOARD_LOCOMO
 	tristate "LoCoMo Keyboard Support"
 	depends on SHARP_LOCOMO
