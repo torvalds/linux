@@ -564,7 +564,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 					rx_status->band, &basic_rates);
 
 	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
-	    (!mesh_matches_local(&elems, sdata))) {
+	    (!mesh_matches_local(&elems, sdata, basic_rates))) {
 		matches_local = false;
 		switch (ftype) {
 		case WLAN_SP_MESH_PEERING_OPEN:

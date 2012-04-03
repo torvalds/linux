@@ -223,7 +223,7 @@ int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 int mesh_rmc_check(u8 *addr, struct ieee80211s_hdr *mesh_hdr,
 		struct ieee80211_sub_if_data *sdata);
 bool mesh_matches_local(struct ieee802_11_elems *ie,
-		struct ieee80211_sub_if_data *sdata);
+			struct ieee80211_sub_if_data *sdata, u32 basic_rates);
 void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
 void mesh_mgmt_ies_add(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);

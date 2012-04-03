@@ -66,11 +66,13 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
  *
  * @ie: information elements of a management frame from the mesh peer
  * @sdata: local mesh subif
+ * @basic_rates: BSSBasicRateSet of the peer candidate
  *
  * This function checks if the mesh configuration of a mesh point matches the
  * local mesh configuration, i.e. if both nodes belong to the same mesh network.
  */
-bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_data *sdata)
+bool mesh_matches_local(struct ieee802_11_elems *ie,
+			struct ieee80211_sub_if_data *sdata, u32 basic_rates)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
@@ -92,6 +94,9 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
 	     (ifmsh->mesh_cc_id == ie->mesh_config->meshconf_congest) &&
 	     (ifmsh->mesh_sp_id == ie->mesh_config->meshconf_synch) &&
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
+		goto mismatch;
+
+	if (sdata->vif.bss_conf.basic_rates != basic_rates)
 		goto mismatch;
 
 	/* disallow peering with mismatched channel types for now */
@@ -656,12 +661,12 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
+	supp_rates = ieee80211_sta_get_rates(local, &elems,
+					     band, &basic_rates);
+
 	if (elems.mesh_id && elems.mesh_config &&
-	    mesh_matches_local(&elems, sdata)) {
-		supp_rates = ieee80211_sta_get_rates(local, &elems,
-						     band, &basic_rates);
+	    mesh_matches_local(&elems, sdata, basic_rates))
 		mesh_neighbour_update(mgmt->sa, supp_rates, sdata, &elems);
-	}
 
 	if (ifmsh->sync_ops)
 		ifmsh->sync_ops->rx_bcn_presp(sdata,
