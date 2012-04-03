@@ -468,9 +468,6 @@ struct iscsi_cmd {
 #define ISCSI_SENSE_BUFFER_LEN          (TRANSPORT_SENSE_BUFFER + 2)
 	unsigned char		sense_buffer[ISCSI_SENSE_BUFFER_LEN];
 
-	struct scatterlist	*t_mem_sg;
-	u32			t_mem_sg_nents;
-
 	u32			padding;
 	u8			pad_bytes[4];
 

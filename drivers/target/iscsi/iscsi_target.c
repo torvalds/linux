@@ -687,9 +687,7 @@ int iscsit_add_reject_from_cmd(
 
 /*
  * Map some portion of the allocated scatterlist to an iovec, suitable for
- * kernel sockets to copy data in/out. This handles both pages and slab-allocated
- * buffers, since we have been tricky and mapped t_mem_sg to the buffer in
- * either case (see iscsit_alloc_buffs)
+ * kernel sockets to copy data in/out.
  */
 static int iscsit_map_iovec(
 	struct iscsi_cmd *cmd,
@@ -702,10 +700,9 @@ static int iscsit_map_iovec(
 	unsigned int page_off;
 
 	/*
-	 * We have a private mapping of the allocated pages in t_mem_sg.
-	 * At this point, we also know each contains a page.
+	 * We know each entry in t_data_sg contains a page.
 	 */
-	sg = &cmd->t_mem_sg[data_offset / PAGE_SIZE];
+	sg = &cmd->se_cmd.t_data_sg[data_offset / PAGE_SIZE];
 	page_off = (data_offset % PAGE_SIZE);
 
 	cmd->first_data_sg = sg;
@@ -763,8 +760,7 @@ static void iscsit_ack_from_expstatsn(struct iscsi_conn *conn, u32 exp_statsn)
 
 static int iscsit_allocate_iovecs(struct iscsi_cmd *cmd)
 {
-	u32 iov_count = (cmd->se_cmd.t_data_nents == 0) ? 1 :
-				cmd->se_cmd.t_data_nents;
+	u32 iov_count = min(1UL, DIV_ROUND_UP(cmd->se_cmd.data_length, PAGE_SIZE));
 
 	iov_count += ISCSI_IOV_DATA_BUFFER;
 
@@ -776,64 +772,6 @@ static int iscsit_allocate_iovecs(struct iscsi_cmd *cmd)
 
 	cmd->orig_iov_data_count = iov_count;
 	return 0;
-}
-
-static int iscsit_alloc_buffs(struct iscsi_cmd *cmd)
-{
-	struct scatterlist *sgl;
-	u32 length = cmd->se_cmd.data_length;
-	int nents = DIV_ROUND_UP(length, PAGE_SIZE);
-	int i = 0, j = 0, ret;
-	/*
-	 * If no SCSI payload is present, allocate the default iovecs used for
-	 * iSCSI PDU Header
-	 */
-	if (!length)
-		return iscsit_allocate_iovecs(cmd);
-
-	sgl = kzalloc(sizeof(*sgl) * nents, GFP_KERNEL);
-	if (!sgl)
-		return -ENOMEM;
-
-	sg_init_table(sgl, nents);
-
-	while (length) {
-		int buf_size = min_t(int, length, PAGE_SIZE);
-		struct page *page;
-
-		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-		if (!page)
-			goto page_alloc_failed;
-
-		sg_set_page(&sgl[i], page, buf_size, 0);
-
-		length -= buf_size;
-		i++;
-	}
-
-	cmd->t_mem_sg = sgl;
-	cmd->t_mem_sg_nents = nents;
-
-	/* BIDI ops not supported */
-
-	/* Tell the core about our preallocated memory */
-	transport_generic_map_mem_to_cmd(&cmd->se_cmd, sgl, nents, NULL, 0);
-	/*
-	 * Allocate iovecs for SCSI payload after transport_generic_map_mem_to_cmd
-	 * so that cmd->se_cmd.t_tasks_se_num has been set.
-	 */
-        ret = iscsit_allocate_iovecs(cmd);
-        if (ret < 0)
-		return -ENOMEM;
-
-	return 0;
-
-page_alloc_failed:
-	while (j < i)
-		__free_page(sg_page(&sgl[j++]));
-
-	kfree(sgl);
-	return -ENOMEM;
 }
 
 static int iscsit_handle_scsi_cmd(
@@ -1075,11 +1013,8 @@ attach_cmd:
 	 * Active/NonOptimized primary access state..
 	 */
 	core_alua_check_nonop_delay(&cmd->se_cmd);
-	/*
-	 * Allocate and setup SGL used with transport_generic_map_mem_to_cmd().
-	 * also call iscsit_allocate_iovecs()
-	 */
-	ret = iscsit_alloc_buffs(cmd);
+
+	ret = iscsit_allocate_iovecs(cmd);
 	if (ret < 0)
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
