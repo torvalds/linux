@@ -2358,8 +2358,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_req.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(&sdata->vif, skb);
-		ieee80211_add_ext_srates_ie(&sdata->vif, skb);
+		ieee80211_add_srates_ie(&sdata->vif, skb, false);
+		ieee80211_add_ext_srates_ie(&sdata->vif, skb, false);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
@@ -2372,8 +2372,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(&sdata->vif, skb);
-		ieee80211_add_ext_srates_ie(&sdata->vif, skb);
+		ieee80211_add_srates_ie(&sdata->vif, skb, false);
+		ieee80211_add_ext_srates_ie(&sdata->vif, skb, false);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
@@ -2433,8 +2433,8 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 		mgmt->u.action.u.tdls_discover_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(&sdata->vif, skb);
-		ieee80211_add_ext_srates_ie(&sdata->vif, skb);
+		ieee80211_add_srates_ie(&sdata->vif, skb, false);
+		ieee80211_add_ext_srates_ie(&sdata->vif, skb, false);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	default:
