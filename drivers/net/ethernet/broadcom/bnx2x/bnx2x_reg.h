@@ -987,6 +987,7 @@
  * clear; 1 = set. Data valid only in addresses 0-4. all the rest are zero. */
 #define IGU_REG_WRITE_DONE_PENDING				 0x130480
 #define MCP_A_REG_MCPR_SCRATCH					 0x3a0000
+#define MCP_REG_MCPR_ACCESS_LOCK				 0x8009c
 #define MCP_REG_MCPR_CPU_PROGRAM_COUNTER			 0x8501c
 #define MCP_REG_MCPR_GP_INPUTS					 0x800c0
 #define MCP_REG_MCPR_GP_OENABLE					 0x800c8
@@ -1686,6 +1687,7 @@
    [10] rst_dbg; [11] rst_misc_core; [12] rst_dbue (UART); [13]
    Pci_resetmdio_n; [14] rst_emac0_hard_core; [15] rst_emac1_hard_core; 16]
    rst_pxp_rq_rd_wr; 31:17] reserved */
+#define MISC_REG_RESET_REG_1					 0xa580
 #define MISC_REG_RESET_REG_2					 0xa590
 /* [RW 20] 20 bit GRC address where the scratch-pad of the MCP that is
    shared with the driver resides */
@@ -5606,6 +5608,7 @@
 /* [RC 32] Parity register #0 read clear */
 #define XSEM_REG_XSEM_PRTY_STS_CLR_0				 0x280128
 #define XSEM_REG_XSEM_PRTY_STS_CLR_1				 0x280138
+#define MCPR_ACCESS_LOCK_LOCK					 (1L<<31)
 #define MCPR_NVM_ACCESS_ENABLE_EN				 (1L<<0)
 #define MCPR_NVM_ACCESS_ENABLE_WR_EN				 (1L<<1)
 #define MCPR_NVM_ADDR_NVM_ADDR_VALUE				 (0xffffffL<<0)
@@ -5732,6 +5735,7 @@
 #define MISC_REGISTERS_GPIO_PORT_SHIFT				 4
 #define MISC_REGISTERS_GPIO_SET_POS				 8
 #define MISC_REGISTERS_RESET_REG_1_CLEAR			 0x588
+#define MISC_REGISTERS_RESET_REG_1_RST_BRB1			 (0x1<<0)
 #define MISC_REGISTERS_RESET_REG_1_RST_DORQ			 (0x1<<19)
 #define MISC_REGISTERS_RESET_REG_1_RST_HC			 (0x1<<29)
 #define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
