@@ -261,7 +261,7 @@ static int xt_ct_tg_check_v1(const struct xt_tgchk_param *par)
 				goto err4;
 			}
 			timeout_ext = nf_ct_timeout_ext_add(ct, timeout,
-							    GFP_KERNEL);
+							    GFP_ATOMIC);
 			if (timeout_ext == NULL) {
 				ret = -ENOMEM;
 				goto err4;
