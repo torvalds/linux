@@ -163,7 +163,7 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 	}
 
 	cmd->conn	= conn;
-	INIT_LIST_HEAD(&cmd->i_list);
+	INIT_LIST_HEAD(&cmd->i_conn_node);
 	INIT_LIST_HEAD(&cmd->datain_list);
 	INIT_LIST_HEAD(&cmd->cmd_r2t_list);
 	init_completion(&cmd->reject_comp);
@@ -524,7 +524,7 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt(
 	struct iscsi_cmd *cmd;
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry(cmd, &conn->conn_cmd_list, i_list) {
+	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
 		if (cmd->init_task_tag == init_task_tag) {
 			spin_unlock_bh(&conn->cmd_lock);
 			return cmd;
@@ -545,7 +545,7 @@ struct iscsi_cmd *iscsit_find_cmd_from_itt_or_dump(
 	struct iscsi_cmd *cmd;
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry(cmd, &conn->conn_cmd_list, i_list) {
+	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
 		if (cmd->init_task_tag == init_task_tag) {
 			spin_unlock_bh(&conn->cmd_lock);
 			return cmd;
@@ -568,7 +568,7 @@ struct iscsi_cmd *iscsit_find_cmd_from_ttt(
 	struct iscsi_cmd *cmd = NULL;
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_for_each_entry(cmd, &conn->conn_cmd_list, i_list) {
+	list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
 		if (cmd->targ_xfer_tag == targ_xfer_tag) {
 			spin_unlock_bh(&conn->cmd_lock);
 			return cmd;
@@ -596,7 +596,7 @@ int iscsit_find_cmd_for_recovery(
 	spin_lock(&sess->cr_i_lock);
 	list_for_each_entry(cr, &sess->cr_inactive_list, cr_list) {
 		spin_lock(&cr->conn_recovery_cmd_lock);
-		list_for_each_entry(cmd, &cr->conn_recovery_cmd_list, i_list) {
+		list_for_each_entry(cmd, &cr->conn_recovery_cmd_list, i_conn_node) {
 			if (cmd->init_task_tag == init_task_tag) {
 				spin_unlock(&cr->conn_recovery_cmd_lock);
 				spin_unlock(&sess->cr_i_lock);
@@ -616,7 +616,7 @@ int iscsit_find_cmd_for_recovery(
 	spin_lock(&sess->cr_a_lock);
 	list_for_each_entry(cr, &sess->cr_active_list, cr_list) {
 		spin_lock(&cr->conn_recovery_cmd_lock);
-		list_for_each_entry(cmd, &cr->conn_recovery_cmd_list, i_list) {
+		list_for_each_entry(cmd, &cr->conn_recovery_cmd_list, i_conn_node) {
 			if (cmd->init_task_tag == init_task_tag) {
 				spin_unlock(&cr->conn_recovery_cmd_lock);
 				spin_unlock(&sess->cr_a_lock);
@@ -1038,7 +1038,7 @@ static int iscsit_add_nopin(struct iscsi_conn *conn, int want_response)
 	spin_unlock_bh(&conn->sess->ttt_lock);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
+	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
 	spin_unlock_bh(&conn->cmd_lock);
 
 	if (want_response)

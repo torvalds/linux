@@ -216,7 +216,7 @@ static int iscsit_task_reassign_complete_nop_out(
 	iscsit_task_reassign_remove_cmd(cmd, cr, conn->sess);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
+	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
 	spin_unlock_bh(&conn->cmd_lock);
 
 	cmd->i_state = ISTATE_SEND_NOPIN;
@@ -385,7 +385,7 @@ static int iscsit_task_reassign_complete_scsi_cmnd(
 	iscsit_task_reassign_remove_cmd(cmd, cr, conn->sess);
 
 	spin_lock_bh(&conn->cmd_lock);
-	list_add_tail(&cmd->i_list, &conn->conn_cmd_list);
+	list_add_tail(&cmd->i_conn_node, &conn->conn_cmd_list);
 	spin_unlock_bh(&conn->cmd_lock);
 
 	if (se_cmd->se_cmd_flags & SCF_SENT_CHECK_CONDITION) {

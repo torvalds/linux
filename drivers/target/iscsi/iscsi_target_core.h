@@ -464,7 +464,7 @@ struct iscsi_cmd {
 	/* Session the command is part of,  used for connection recovery */
 	struct iscsi_session	*sess;
 	/* list_head for connection list */
-	struct list_head	i_list;
+	struct list_head	i_conn_node;
 	/* The TCM I/O descriptor that is accessed via container_of() */
 	struct se_cmd		se_cmd;
 	/* Sense buffer that will be mapped into outgoing status */

@@ -526,7 +526,7 @@ int iscsit_handle_status_snack(
 		found_cmd = 0;
 
 		spin_lock_bh(&conn->cmd_lock);
-		list_for_each_entry(cmd, &conn->conn_cmd_list, i_list) {
+		list_for_each_entry(cmd, &conn->conn_cmd_list, i_conn_node) {
 			if (cmd->stat_sn == begrun) {
 				found_cmd = 1;
 				break;
