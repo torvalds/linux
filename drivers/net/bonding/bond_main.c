@@ -2034,6 +2034,9 @@ int bond_release(struct net_device *bond_dev, struct net_device *slave_dev)
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
 
+	if (bond->slave_cnt == 0)
+		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
+
 	bond_compute_features(bond);
 	if (!(bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
 	    (old_features & NETIF_F_VLAN_CHALLENGED))
