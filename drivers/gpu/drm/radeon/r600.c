@@ -3047,6 +3047,9 @@ int r600_irq_init(struct radeon_device *rdev)
 	else
 		r600_disable_interrupt_state(rdev);
 
+	/* at this point everything should be setup correctly to enable master */
+	pci_set_master(rdev->pdev);
+
 	/* enable irqs */
 	r600_enable_interrupts(rdev);
 

@@ -3217,6 +3217,8 @@ static int si_irq_init(struct radeon_device *rdev)
 	/* force the active interrupt state to all disabled */
 	si_disable_interrupt_state(rdev);
 
+	pci_set_master(rdev->pdev);
+
 	/* enable irqs */
 	si_enable_interrupts(rdev);
 

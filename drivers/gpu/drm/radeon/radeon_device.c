@@ -955,7 +955,6 @@ int radeon_resume_kms(struct drm_device *dev)
 		console_unlock();
 		return -1;
 	}
-	pci_set_master(dev->pdev);
 	/* resume AGP if in use */
 	radeon_agp_resume(rdev);
 	radeon_resume(rdev);
