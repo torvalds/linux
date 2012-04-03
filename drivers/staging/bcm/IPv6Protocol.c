@@ -149,9 +149,8 @@ static UCHAR GetIpv6ProtocolPorts(UCHAR *pucPayload, USHORT *pusSrcPort,
 	UCHAR *pucNextHeader = NULL;
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
-	if (!pucPayload || (usPayloadLength == 0)) {
+	if (!pucPayload || (usPayloadLength == 0))
 		return 0;
-	}
 
 	*pusSrcPort = *pusDestPort = 0;
 	ucHeaderType = ucNextHeader;
@@ -280,9 +279,8 @@ USHORT	IpVersion6(PMINI_ADAPTER Adapter, PVOID pcIpHeader,
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES) {
 			bClassificationSucceed = FALSE;
 		} else {
-			if (Adapter->PackInfo[iMatchedSFQueueIndex].bActive == FALSE) {
+			if (Adapter->PackInfo[iMatchedSFQueueIndex].bActive == FALSE)
 				bClassificationSucceed = FALSE;
-			}
 		}
 	}
 
@@ -310,9 +308,8 @@ static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
 
 
 	/* First Convert the Ip Address in the packet to Host Endian order */
-	for (uiIpv6AddIndex = 0; uiIpv6AddIndex < uiIpv6AddrNoLongWords; uiIpv6AddIndex++) {
+	for (uiIpv6AddIndex = 0; uiIpv6AddIndex < uiIpv6AddrNoLongWords; uiIpv6AddIndex++)
 		aulSrcIP[uiIpv6AddIndex] = ntohl(pstIpv6Header->ulSrcIpAddress[uiIpv6AddIndex]);
-	}
 
 	for (uiLoopIndex = 0; uiLoopIndex < uiCountIPSrcAddresses; uiLoopIndex += uiIpv6AddrNoLongWords) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
@@ -368,9 +365,8 @@ static BOOLEAN MatchDestIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule,
 
 
 	/* First Convert the Ip Address in the packet to Host Endian order */
-	for (uiIpv6AddIndex = 0; uiIpv6AddIndex < uiIpv6AddrNoLongWords; uiIpv6AddIndex++) {
+	for (uiIpv6AddIndex = 0; uiIpv6AddIndex < uiIpv6AddrNoLongWords; uiIpv6AddIndex++)
 		aulDestIP[uiIpv6AddIndex] = ntohl(pstIpv6Header->ulDestIpAddress[uiIpv6AddIndex]);
-	}
 
 	for (uiLoopIndex = 0; uiLoopIndex < uiCountIPDestinationAddresses; uiLoopIndex += uiIpv6AddrNoLongWords) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_TX, IPV6_DBG, DBG_LVL_ALL,
