@@ -147,11 +147,6 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	if (!init_data) {
-		dev_err(&i2c->dev, "no platform data supplied\n");
-		return -EIO;
-	}
-
 	pmic = kzalloc(sizeof(struct isl_pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
