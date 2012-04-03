@@ -461,7 +461,6 @@ static int __devinit max8660_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, max8660);
-	dev_info(&client->dev, "Maxim 8660/8661 regulator driver loaded\n");
 	return 0;
 
 err_unregister:
