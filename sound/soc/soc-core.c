@@ -2586,7 +2586,7 @@ int snd_soc_put_volsw_sx(struct snd_kcontrol *kcontrol,
 	int max = mc->max;
 	int min = mc->min;
 	int mask = (1 << (fls(min + max) - 1)) - 1;
-	int err;
+	int err = 0;
 	unsigned short val, val_mask, val2 = 0;
 
 	val_mask = mask << shift;
