@@ -1213,6 +1213,7 @@ static const struct ethtool_ops macb_ethtool_ops = {
 	.set_settings		= macb_set_settings,
 	.get_drvinfo		= macb_get_drvinfo,
 	.get_link		= ethtool_op_get_link,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static int macb_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
