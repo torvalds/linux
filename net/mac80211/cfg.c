@@ -2106,6 +2106,10 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 
 	IEEE80211_SKB_CB(skb)->flags = flags;
 
+	if (flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		IEEE80211_SKB_CB(skb)->hw_queue =
+			local->hw.offchannel_tx_hw_queue;
+
 	skb->dev = sdata->dev;
 
 	*cookie = (unsigned long) skb;
@@ -2147,6 +2151,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 		/* modify cookie to prevent API mismatches */
 		*cookie ^= 2;
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_TX_OFFCHAN;
+		IEEE80211_SKB_CB(skb)->hw_queue =
+			local->hw.offchannel_tx_hw_queue;
 		local->hw_roc_skb = skb;
 		local->hw_roc_skb_for_status = skb;
 		mutex_unlock(&local->mtx);

@@ -400,6 +400,8 @@ ieee80211_tx_h_multicast_ps_buf(struct ieee80211_tx_data *tx)
 		return TX_CONTINUE;
 
 	info->flags |= IEEE80211_TX_CTL_SEND_AFTER_DTIM;
+	if (tx->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
+		info->hw_queue = tx->sdata->vif.cab_queue;
 
 	/* device releases frame after DTIM beacon */
 	if (!(tx->local->hw.flags & IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING))
@@ -1214,11 +1216,19 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 			       bool txpending)
 {
 	struct sk_buff *skb, *tmp;
-	struct ieee80211_tx_info *info;
 	unsigned long flags;
 
 	skb_queue_walk_safe(skbs, skb, tmp) {
-		int q = skb_get_queue_mapping(skb);
+		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+		int q = info->hw_queue;
+
+#ifdef CONFIG_MAC80211_VERBOSE_DEBUG
+		if (WARN_ON_ONCE(q >= local->hw.queues)) {
+			__skb_unlink(skb, skbs);
+			dev_kfree_skb(skb);
+			continue;
+		}
+#endif
 
 		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 		if (local->queue_stop_reasons[q] ||
@@ -1240,7 +1250,6 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		}
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
-		info = IEEE80211_SKB_CB(skb);
 		info->control.vif = vif;
 		info->control.sta = sta;
 
@@ -1284,9 +1293,14 @@ static bool __ieee80211_tx(struct ieee80211_local *local,
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_MONITOR:
 		sdata = rcu_dereference(local->monitor_sdata);
-		if (sdata)
+		if (sdata) {
 			vif = &sdata->vif;
-		else
+			info->hw_queue =
+				vif->hw_queue[skb_get_queue_mapping(skb)];
+		} else if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL) {
+			dev_kfree_skb(skb);
+			return true;
+		} else
 			vif = NULL;
 		break;
 	case NL80211_IFTYPE_AP_VLAN:
@@ -1401,6 +1415,12 @@ static bool ieee80211_tx(struct ieee80211_sub_if_data *sdata,
 
 	tx.channel = local->hw.conf.channel;
 	info->band = tx.channel->band;
+
+	/* set up hw_queue value early */
+	if (!(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN) ||
+	    !(local->hw.flags & IEEE80211_HW_QUEUE_CONTROL))
+		info->hw_queue =
+			sdata->vif.hw_queue[skb_get_queue_mapping(skb)];
 
 	if (!invoke_tx_handlers(&tx))
 		result = __ieee80211_tx(local, &tx.skbs, led_len,
@@ -2172,7 +2192,6 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 void ieee80211_tx_pending(unsigned long data)
 {
 	struct ieee80211_local *local = (struct ieee80211_local *)data;
-	struct ieee80211_sub_if_data *sdata;
 	unsigned long flags;
 	int i;
 	bool txok;
@@ -2209,8 +2228,7 @@ void ieee80211_tx_pending(unsigned long data)
 		}
 
 		if (skb_queue_empty(&local->pending[i]))
-			list_for_each_entry_rcu(sdata, &local->interfaces, list)
-				netif_wake_subqueue(sdata->dev, i);
+			ieee80211_propagate_queue_wake(local, i);
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
@@ -2717,11 +2735,13 @@ EXPORT_SYMBOL(ieee80211_get_buffered_bc);
 void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 			  struct sk_buff *skb, int tid)
 {
+	int ac = ieee802_1d_to_ac[tid];
+
 	skb_set_mac_header(skb, 0);
 	skb_set_network_header(skb, 0);
 	skb_set_transport_header(skb, 0);
 
-	skb_set_queue_mapping(skb, ieee802_1d_to_ac[tid]);
+	skb_set_queue_mapping(skb, ac);
 	skb->priority = tid;
 
 	/*

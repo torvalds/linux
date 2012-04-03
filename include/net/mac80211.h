@@ -95,8 +95,10 @@ struct device;
  * @IEEE80211_MAX_QUEUES: Maximum number of regular device queues.
  */
 enum ieee80211_max_queues {
-	IEEE80211_MAX_QUEUES =		4,
+	IEEE80211_MAX_QUEUES =		16,
 };
+
+#define IEEE80211_INVAL_HW_QUEUE	0xff
 
 /**
  * enum ieee80211_ac_numbers - AC numbers as used in mac80211
@@ -522,7 +524,7 @@ struct ieee80211_tx_rate {
  *
  * @flags: transmit info flags, defined above
  * @band: the band to transmit on (use for checking for races)
- * @reserved: reserved for future use
+ * @hw_queue: HW queue to put the frame on, skb_get_queue_mapping() gives the AC
  * @ack_frame_id: internal frame ID for TX status, used internally
  * @control: union for control data
  * @status: union for status data
@@ -538,7 +540,7 @@ struct ieee80211_tx_info {
 	u32 flags;
 	u8 band;
 
-	u8 reserved;
+	u8 hw_queue;
 
 	u16 ack_frame_id;
 
@@ -889,6 +891,8 @@ enum ieee80211_vif_flags {
  *	these need to be set (or cleared) when the interface is added
  *	or, if supported by the driver, the interface type is changed
  *	at runtime, mac80211 will never touch this field
+ * @hw_queue: hardware queue for each AC
+ * @cab_queue: content-after-beacon (DTIM beacon really) queue, AP mode only
  * @drv_priv: data area for driver use, will always be aligned to
  *	sizeof(void *).
  */
@@ -897,7 +901,12 @@ struct ieee80211_vif {
 	struct ieee80211_bss_conf bss_conf;
 	u8 addr[ETH_ALEN];
 	bool p2p;
+
+	u8 cab_queue;
+	u8 hw_queue[IEEE80211_NUM_ACS];
+
 	u32 driver_flags;
+
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
@@ -1179,6 +1188,11 @@ enum sta_notify_cmd {
  * @IEEE80211_HW_WANT_MONITOR_VIF: The driver would like to be informed of
  *	a virtual monitor interface when monitor interfaces are the only
  *	active interfaces.
+ *
+ * @IEEE80211_HW_QUEUE_CONTROL: The driver wants to control per-interface
+ *	queue mapping in order to use different queues (not just one per AC)
+ *	for different virtual interfaces. See the doc section on HW queue
+ *	control for more details.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -1201,7 +1215,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
-	/* reuse bit 20 */
+	IEEE80211_HW_QUEUE_CONTROL			= 1<<20,
 	IEEE80211_HW_SUPPORTS_PER_STA_GTK		= 1<<21,
 	IEEE80211_HW_AP_LINK_PS				= 1<<22,
 	IEEE80211_HW_TX_AMPDU_SETUP_IN_HW		= 1<<23,
@@ -1271,6 +1285,9 @@ enum ieee80211_hw_flags {
  * @max_tx_aggregation_subframes: maximum number of subframes in an
  *	aggregate an HT driver will transmit, used by the peer as a
  *	hint to size its reorder buffer.
+ *
+ * @offchannel_tx_hw_queue: HW queue ID to use for offchannel TX
+ *	(if %IEEE80211_HW_QUEUE_CONTROL is set)
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -1291,6 +1308,7 @@ struct ieee80211_hw {
 	u8 max_rate_tries;
 	u8 max_rx_aggregation_subframes;
 	u8 max_tx_aggregation_subframes;
+	u8 offchannel_tx_hw_queue;
 };
 
 /**
@@ -1696,6 +1714,61 @@ void ieee80211_free_txskb(struct ieee80211_hw *hw, struct sk_buff *skb);
  * appropriately (only the last frame may have %IEEE80211_TX_STATUS_EOSP)
  * and also take care of the EOSP and MORE_DATA bits in the frame.
  * The driver may also use ieee80211_sta_eosp_irqsafe() in this case.
+ */
+
+/**
+ * DOC: HW queue control
+ *
+ * Before HW queue control was introduced, mac80211 only had a single static
+ * assignment of per-interface AC software queues to hardware queues. This
+ * was problematic for a few reasons:
+ * 1) off-channel transmissions might get stuck behind other frames
+ * 2) multiple virtual interfaces couldn't be handled correctly
+ * 3) after-DTIM frames could get stuck behind other frames
+ *
+ * To solve this, hardware typically uses multiple different queues for all
+ * the different usages, and this needs to be propagated into mac80211 so it
+ * won't have the same problem with the software queues.
+ *
+ * Therefore, mac80211 now offers the %IEEE80211_HW_QUEUE_CONTROL capability
+ * flag that tells it that the driver implements its own queue control. To do
+ * so, the driver will set up the various queues in each &struct ieee80211_vif
+ * and the offchannel queue in &struct ieee80211_hw. In response, mac80211 will
+ * use those queue IDs in the hw_queue field of &struct ieee80211_tx_info and
+ * if necessary will queue the frame on the right software queue that mirrors
+ * the hardware queue.
+ * Additionally, the driver has to then use these HW queue IDs for the queue
+ * management functions (ieee80211_stop_queue() et al.)
+ *
+ * The driver is free to set up the queue mappings as needed, multiple virtual
+ * interfaces may map to the same hardware queues if needed. The setup has to
+ * happen during add_interface or change_interface callbacks. For example, a
+ * driver supporting station+station and station+AP modes might decide to have
+ * 10 hardware queues to handle different scenarios:
+ *
+ * 4 AC HW queues for 1st vif: 0, 1, 2, 3
+ * 4 AC HW queues for 2nd vif: 4, 5, 6, 7
+ * after-DTIM queue for AP:   8
+ * off-channel queue:         9
+ *
+ * It would then set up the hardware like this:
+ *   hw.offchannel_tx_hw_queue = 9
+ *
+ * and the first virtual interface that is added as follows:
+ *   vif.hw_queue[IEEE80211_AC_VO] = 0
+ *   vif.hw_queue[IEEE80211_AC_VI] = 1
+ *   vif.hw_queue[IEEE80211_AC_BE] = 2
+ *   vif.hw_queue[IEEE80211_AC_BK] = 3
+ *   vif.cab_queue = 8 // if AP mode, otherwise %IEEE80211_INVAL_HW_QUEUE
+ * and the second virtual interface with 4-7.
+ *
+ * If queue 6 gets full, for example, mac80211 would only stop the second
+ * virtual interface's BE queue since virtual interface queues are per AC.
+ *
+ * Note that the vif.cab_queue value should be set to %IEEE80211_INVAL_HW_QUEUE
+ * whenever the queue is not used (i.e. the interface is not in AP mode) if the
+ * queue could potentially be shared since mac80211 will look at cab_queue when
+ * a queue is stopped/woken even if the interface is not in AP mode.
  */
 
 /**

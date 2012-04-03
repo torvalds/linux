@@ -149,6 +149,34 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
+static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
+{
+	int n_queues = sdata->local->hw.queues;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		if (WARN_ON_ONCE(sdata->vif.hw_queue[i] ==
+				 IEEE80211_INVAL_HW_QUEUE))
+			return -EINVAL;
+		if (WARN_ON_ONCE(sdata->vif.hw_queue[i] >=
+				 n_queues))
+			return -EINVAL;
+	}
+
+	if (sdata->vif.type != NL80211_IFTYPE_AP) {
+		sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
+		return 0;
+	}
+
+	if (WARN_ON_ONCE(sdata->vif.cab_queue == IEEE80211_INVAL_HW_QUEUE))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(sdata->vif.cab_queue >= n_queues))
+		return -EINVAL;
+
+	return 0;
+}
+
 void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 				    const int offset)
 {
@@ -167,6 +195,20 @@ void ieee80211_adjust_monitor_flags(struct ieee80211_sub_if_data *sdata,
 	ADJUST(OTHER_BSS, other_bss);
 
 #undef ADJUST
+}
+
+static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	int i;
+
+	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
+		if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
+			sdata->vif.hw_queue[i] = IEEE80211_INVAL_HW_QUEUE;
+		else
+			sdata->vif.hw_queue[i] = i;
+	}
+	sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 }
 
 static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
@@ -190,9 +232,17 @@ static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	snprintf(sdata->name, IFNAMSIZ, "%s-monitor",
 		 wiphy_name(local->hw.wiphy));
 
+	ieee80211_set_default_queues(sdata);
+
 	ret = drv_add_interface(local, sdata);
 	if (WARN_ON(ret)) {
 		/* ok .. stupid driver, it asked for this! */
+		kfree(sdata);
+		return ret;
+	}
+
+	ret = ieee80211_check_queues(sdata);
+	if (ret) {
 		kfree(sdata);
 		return ret;
 	}
@@ -344,6 +394,9 @@ static int ieee80211_do_open(struct net_device *dev, bool coming_up)
 			res = drv_add_interface(local, sdata);
 			if (res)
 				goto err_stop;
+			res = ieee80211_check_queues(sdata);
+			if (res)
+				goto err_del_interface;
 		}
 
 		if (sdata->vif.type == NL80211_IFTYPE_AP) {
@@ -1040,6 +1093,13 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	if (ret)
 		type = sdata->vif.type;
 
+	/*
+	 * Ignore return value here, there's not much we can do since
+	 * the driver changed the interface type internally already.
+	 * The warnings will hopefully make driver authors fix it :-)
+	 */
+	ieee80211_check_queues(sdata);
+
 	ieee80211_setup_sdata(sdata, type);
 
 	err = ieee80211_do_open(sdata->dev, false);
@@ -1265,6 +1325,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			memset(sdata->rc_rateidx_mcs_mask[i], 0,
 			       sizeof(sdata->rc_rateidx_mcs_mask[i]));
 	}
+
+	ieee80211_set_default_queues(sdata);
 
 	/* setup type-dependent data */
 	ieee80211_setup_sdata(sdata, type);

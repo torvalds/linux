@@ -265,11 +265,36 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_ctstoself_duration);
 
+void ieee80211_propagate_queue_wake(struct ieee80211_local *local, int queue)
+{
+	struct ieee80211_sub_if_data *sdata;
+
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		int ac;
+
+		if (test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))
+			continue;
+
+		if (sdata->vif.cab_queue != IEEE80211_INVAL_HW_QUEUE &&
+		    local->queue_stop_reasons[sdata->vif.cab_queue] != 0)
+			continue;
+
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+			int ac_queue = sdata->vif.hw_queue[ac];
+
+			if (ac_queue == queue ||
+			    (sdata->vif.cab_queue == queue &&
+			     local->queue_stop_reasons[ac_queue] == 0 &&
+			     skb_queue_empty(&local->pending[ac_queue])))
+				netif_wake_subqueue(sdata->dev, ac);
+		}
+	}
+}
+
 static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 				   enum queue_stop_reason reason)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata;
 
 	trace_wake_queue(local, queue, reason);
 
@@ -287,11 +312,7 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 
 	if (skb_queue_empty(&local->pending[queue])) {
 		rcu_read_lock();
-		list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-			if (test_bit(SDATA_STATE_OFFCHANNEL, &sdata->state))
-				continue;
-			netif_wake_subqueue(sdata->dev, queue);
-		}
+		ieee80211_propagate_queue_wake(local, queue);
 		rcu_read_unlock();
 	} else
 		tasklet_schedule(&local->tx_pending_tasklet);
@@ -332,8 +353,15 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 	__set_bit(reason, &local->queue_stop_reasons[queue]);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		netif_stop_subqueue(sdata->dev, queue);
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		int ac;
+
+		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
+			if (sdata->vif.hw_queue[ac] == queue ||
+			    sdata->vif.cab_queue == queue)
+				netif_stop_subqueue(sdata->dev, ac);
+		}
+	}
 	rcu_read_unlock();
 }
 
@@ -360,8 +388,8 @@ void ieee80211_add_pending_skb(struct ieee80211_local *local,
 {
 	struct ieee80211_hw *hw = &local->hw;
 	unsigned long flags;
-	int queue = skb_get_queue_mapping(skb);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	int queue = info->hw_queue;
 
 	if (WARN_ON(!info->control.vif)) {
 		kfree_skb(skb);
@@ -393,7 +421,7 @@ void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 			continue;
 		}
 
-		queue = skb_get_queue_mapping(skb);
+		queue = info->hw_queue;
 
 		__ieee80211_stop_queue(hw, queue,
 				IEEE80211_QUEUE_STOP_REASON_SKB_ADD);
