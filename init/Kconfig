@@ -964,7 +964,6 @@ config UIDGID_CONVERTED
 	depends on CODA_FS = n
 	depends on CONFIGFS_FS = n
 	depends on CRAMFS = n
-	depends on DEBUG_FS = n
 	depends on ECRYPT_FS = n
 	depends on EFS_FS = n
 	depends on EXOFS_FS = n
