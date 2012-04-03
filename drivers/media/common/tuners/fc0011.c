@@ -314,7 +314,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	if (err)
 		return err;
 	vco_retries = 0;
-	while (!(vco_cal & FC11_VCOCAL_OK) && vco_retries < 6) {
+	while (!(vco_cal & FC11_VCOCAL_OK) && vco_retries < 3) {
 		/* Reset the tuner and try again */
 		err = fe->callback(priv->i2c, DVB_FRONTEND_COMPONENT_TUNER,
 				   FC0011_FE_CALLBACK_RESET, priv->addr);
