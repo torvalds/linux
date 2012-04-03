@@ -2254,9 +2254,9 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
-	if (sectorsize < PAGE_SIZE) {
-		printk(KERN_WARNING "btrfs: Incompatible sector size "
-		       "found on %s\n", sb->s_id);
+	if (sectorsize != PAGE_SIZE) {
+		printk(KERN_WARNING "btrfs: Incompatible sector size(%lu) "
+		       "found on %s\n", (unsigned long)sectorsize, sb->s_id);
 		goto fail_sb_buffer;
 	}
 
