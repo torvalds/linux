@@ -421,7 +421,7 @@ struct vxge_tx_priv {
 		timer.function = handle; \
 		timer.data = (unsigned long) arg; \
 		mod_timer(&timer, (jiffies + exp)); \
-	} while (0);
+	} while (0)
 
 void vxge_initialize_ethtool_ops(struct net_device *ndev);
 enum vxge_hw_status vxge_reset_all_vpaths(struct vxgedev *vdev);
