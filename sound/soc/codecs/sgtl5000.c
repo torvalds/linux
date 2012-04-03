@@ -84,8 +84,8 @@ static struct regulator_consumer_supply ldo_consumer[] = {
 
 static struct regulator_init_data ldo_init_data = {
 	.constraints = {
-		.min_uV                 = 850000,
-		.max_uV                 = 1600000,
+		.min_uV                 = 1200000,
+		.max_uV                 = 1200000,
 		.valid_modes_mask       = REGULATOR_MODE_NORMAL,
 		.valid_ops_mask         = REGULATOR_CHANGE_STATUS,
 	},
