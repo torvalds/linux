@@ -517,23 +517,7 @@ static struct i2c_driver lp3971_i2c_driver = {
 	.id_table = lp3971_i2c_id,
 };
 
-static int __init lp3971_module_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&lp3971_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(lp3971_module_init);
-
-static void __exit lp3971_module_exit(void)
-{
-	i2c_del_driver(&lp3971_i2c_driver);
-}
-module_exit(lp3971_module_exit);
+module_i2c_driver(lp3971_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Marek Szyprowski <m.szyprowski@samsung.com>");
