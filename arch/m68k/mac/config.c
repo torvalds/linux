@@ -980,6 +980,9 @@ int __init mac_platform_init(void)
 {
 	u8 *swim_base;
 
+	if (!MACH_IS_MAC)
+		return -ENODEV;
+
 	/*
 	 * Serial devices
 	 */
