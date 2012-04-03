@@ -1060,7 +1060,7 @@ done:
 		 */
 		send_check_condition = 1;
 	} else {
-		if (iscsit_decide_list_to_build(cmd, payload_length) < 0)
+		if (iscsit_build_pdu_and_seq_lists(cmd, payload_length) < 0)
 			return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
 				1, 1, buf, cmd);

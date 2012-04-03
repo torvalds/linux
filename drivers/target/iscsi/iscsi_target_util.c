@@ -176,51 +176,6 @@ struct iscsi_cmd *iscsit_allocate_cmd(struct iscsi_conn *conn, gfp_t gfp_mask)
 	return cmd;
 }
 
-int iscsit_decide_list_to_build(
-	struct iscsi_cmd *cmd,
-	u32 immediate_data_length)
-{
-	struct iscsi_build_list bl;
-	struct iscsi_conn *conn = cmd->conn;
-	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na;
-
-	if (sess->sess_ops->DataSequenceInOrder &&
-	    sess->sess_ops->DataPDUInOrder)
-		return 0;
-
-	if (cmd->data_direction == DMA_NONE)
-		return 0;
-
-	na = iscsit_tpg_get_node_attrib(sess);
-	memset(&bl, 0, sizeof(struct iscsi_build_list));
-
-	if (cmd->data_direction == DMA_FROM_DEVICE) {
-		bl.data_direction = ISCSI_PDU_READ;
-		bl.type = PDULIST_NORMAL;
-		if (na->random_datain_pdu_offsets)
-			bl.randomize |= RANDOM_DATAIN_PDU_OFFSETS;
-		if (na->random_datain_seq_offsets)
-			bl.randomize |= RANDOM_DATAIN_SEQ_OFFSETS;
-	} else {
-		bl.data_direction = ISCSI_PDU_WRITE;
-		bl.immediate_data_length = immediate_data_length;
-		if (na->random_r2t_offsets)
-			bl.randomize |= RANDOM_R2T_OFFSETS;
-
-		if (!cmd->immediate_data && !cmd->unsolicited_data)
-			bl.type = PDULIST_NORMAL;
-		else if (cmd->immediate_data && !cmd->unsolicited_data)
-			bl.type = PDULIST_IMMEDIATE;
-		else if (!cmd->immediate_data && cmd->unsolicited_data)
-			bl.type = PDULIST_UNSOLICITED;
-		else if (cmd->immediate_data && cmd->unsolicited_data)
-			bl.type = PDULIST_IMMEDIATE_AND_UNSOLICITED;
-	}
-
-	return iscsit_do_build_list(cmd, &bl);
-}
-
 struct iscsi_seq *iscsit_get_seq_holder_for_datain(
 	struct iscsi_cmd *cmd,
 	u32 seq_send_order)
