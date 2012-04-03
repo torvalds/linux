@@ -177,14 +177,15 @@ bios_shadow_pci(struct nvbios *bios)
 
 	if (!pci_enable_rom(pdev)) {
 		void __iomem *rom = pci_map_rom(pdev, &length);
-		if (rom) {
+		if (rom && length) {
 			bios->data = kmalloc(length, GFP_KERNEL);
 			if (bios->data) {
 				memcpy_fromio(bios->data, rom, length);
 				bios->length = length;
 			}
-			pci_unmap_rom(pdev, rom);
 		}
+		if (rom)
+			pci_unmap_rom(pdev, rom);
 
 		pci_disable_rom(pdev);
 	}
@@ -272,6 +273,7 @@ bios_shadow(struct drm_device *dev)
 		mthd->score = score_vbios(bios, mthd->rw);
 		mthd->size = bios->length;
 		mthd->data = bios->data;
+		bios->data = NULL;
 	} while (mthd->score != 3 && (++mthd)->shadow);
 
 	mthd = shadow_methods;
@@ -280,7 +282,8 @@ bios_shadow(struct drm_device *dev)
 		if (mthd->score > best->score) {
 			kfree(best->data);
 			best = mthd;
-		}
+		} else
+			kfree(mthd->data);
 	} while ((++mthd)->shadow);
 
 	if (best->score) {
