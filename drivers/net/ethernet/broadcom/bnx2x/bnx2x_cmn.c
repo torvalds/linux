@@ -1211,16 +1211,15 @@ static void bnx2x_free_msix_irqs(struct bnx2x *bp, int nvecs)
 
 void bnx2x_free_irq(struct bnx2x *bp)
 {
-	if (bp->flags & USING_MSIX_FLAG)
+	if (bp->flags & USING_MSIX_FLAG &&
+	    !(bp->flags & USING_SINGLE_MSIX_FLAG))
 		bnx2x_free_msix_irqs(bp, BNX2X_NUM_ETH_QUEUES(bp) +
 				     CNIC_PRESENT + 1);
-	else if (bp->flags & USING_MSI_FLAG)
-		free_irq(bp->pdev->irq, bp->dev);
 	else
-		free_irq(bp->pdev->irq, bp->dev);
+		free_irq(bp->dev->irq, bp->dev);
 }
 
-int bnx2x_enable_msix(struct bnx2x *bp)
+int __devinit bnx2x_enable_msix(struct bnx2x *bp)
 {
 	int msix_vec = 0, i, rc, req_cnt;
 
@@ -1260,8 +1259,8 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], rc);
 
 		if (rc) {
-			BNX2X_DEV_INFO("MSI-X is not attainable  rc %d\n", rc);
-			return rc;
+			BNX2X_DEV_INFO("MSI-X is not attainable rc %d\n", rc);
+			goto no_msix;
 		}
 		/*
 		 * decrease number of queues by number of unallocated entries
@@ -1269,18 +1268,34 @@ int bnx2x_enable_msix(struct bnx2x *bp)
 		bp->num_queues -= diff;
 
 		BNX2X_DEV_INFO("New queue configuration set: %d\n",
-				  bp->num_queues);
-	} else if (rc) {
-		/* fall to INTx if not enough memory */
-		if (rc == -ENOMEM)
-			bp->flags |= DISABLE_MSI_FLAG;
+			       bp->num_queues);
+	} else if (rc > 0) {
+		/* Get by with single vector */
+		rc = pci_enable_msix(bp->pdev, &bp->msix_table[0], 1);
+		if (rc) {
+			BNX2X_DEV_INFO("Single MSI-X is not attainable rc %d\n",
+				       rc);
+			goto no_msix;
+		}
+
+		BNX2X_DEV_INFO("Using single MSI-X vector\n");
+		bp->flags |= USING_SINGLE_MSIX_FLAG;
+
+	} else if (rc < 0) {
 		BNX2X_DEV_INFO("MSI-X is not attainable  rc %d\n", rc);
-		return rc;
+		goto no_msix;
 	}
 
 	bp->flags |= USING_MSIX_FLAG;
 
 	return 0;
+
+no_msix:
+	/* fall to INTx if not enough memory */
+	if (rc == -ENOMEM)
+		bp->flags |= DISABLE_MSI_FLAG;
+
+	return rc;
 }
 
 static int bnx2x_req_msix_irqs(struct bnx2x *bp)
@@ -1342,22 +1357,26 @@ int bnx2x_enable_msi(struct bnx2x *bp)
 static int bnx2x_req_irq(struct bnx2x *bp)
 {
 	unsigned long flags;
-	int rc;
+	unsigned int irq;
 
-	if (bp->flags & USING_MSI_FLAG)
+	if (bp->flags & (USING_MSI_FLAG | USING_MSIX_FLAG))
 		flags = 0;
 	else
 		flags = IRQF_SHARED;
 
-	rc = request_irq(bp->pdev->irq, bnx2x_interrupt, flags,
-			 bp->dev->name, bp->dev);
-	return rc;
+	if (bp->flags & USING_MSIX_FLAG)
+		irq = bp->msix_table[0].vector;
+	else
+		irq = bp->pdev->irq;
+
+	return request_irq(irq, bnx2x_interrupt, flags, bp->dev->name, bp->dev);
 }
 
 static inline int bnx2x_setup_irqs(struct bnx2x *bp)
 {
 	int rc = 0;
-	if (bp->flags & USING_MSIX_FLAG) {
+	if (bp->flags & USING_MSIX_FLAG &&
+	    !(bp->flags & USING_SINGLE_MSIX_FLAG)) {
 		rc = bnx2x_req_msix_irqs(bp);
 		if (rc)
 			return rc;
@@ -1370,8 +1389,13 @@ static inline int bnx2x_setup_irqs(struct bnx2x *bp)
 		}
 		if (bp->flags & USING_MSI_FLAG) {
 			bp->dev->irq = bp->pdev->irq;
-			netdev_info(bp->dev, "using MSI  IRQ %d\n",
-			       bp->pdev->irq);
+			netdev_info(bp->dev, "using MSI IRQ %d\n",
+				    bp->dev->irq);
+		}
+		if (bp->flags & USING_MSIX_FLAG) {
+			bp->dev->irq = bp->msix_table[0].vector;
+			netdev_info(bp->dev, "using MSIX IRQ %d\n",
+				    bp->dev->irq);
 		}
 	}
 

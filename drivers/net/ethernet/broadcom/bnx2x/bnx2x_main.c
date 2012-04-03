@@ -1338,8 +1338,9 @@ static void bnx2x_hc_int_enable(struct bnx2x *bp)
 static void bnx2x_igu_int_enable(struct bnx2x *bp)
 {
 	u32 val;
-	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
-	int msi = (bp->flags & USING_MSI_FLAG) ? 1 : 0;
+	bool msix = (bp->flags & USING_MSIX_FLAG) ? true : false;
+	bool single_msix = (bp->flags & USING_SINGLE_MSIX_FLAG) ? true : false;
+	bool msi = (bp->flags & USING_MSI_FLAG) ? true : false;
 
 	val = REG_RD(bp, IGU_REG_PF_CONFIGURATION);
 
@@ -1349,6 +1350,9 @@ static void bnx2x_igu_int_enable(struct bnx2x *bp)
 		val |= (IGU_PF_CONF_FUNC_EN |
 			IGU_PF_CONF_MSI_MSIX_EN |
 			IGU_PF_CONF_ATTN_BIT_EN);
+
+		if (single_msix)
+			val |= IGU_PF_CONF_SINGLE_ISR_EN;
 	} else if (msi) {
 		val &= ~IGU_PF_CONF_INT_LINE_EN;
 		val |= (IGU_PF_CONF_FUNC_EN |
@@ -7149,7 +7153,7 @@ static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 		BNX2X_DEV_INFO("set number of queues to 1\n");
 		break;
 	default:
-		/* Set number of queues according to bp->multi_mode value */
+		/* Set number of queues for MSI-X mode */
 		bnx2x_set_num_queues(bp);
 
 		BNX2X_DEV_INFO("set number of queues to %d\n", bp->num_queues);
@@ -7158,15 +7162,17 @@ static void __devinit bnx2x_set_int_mode(struct bnx2x *bp)
 		 * so try to enable MSI-X with the requested number of fp's
 		 * and fallback to MSI or legacy INTx with one fp
 		 */
-		if (bnx2x_enable_msix(bp)) {
-			/* failed to enable MSI-X */
-			BNX2X_DEV_INFO("Failed to enable MSI-X (%d), set number of queues to %d\n",
+		if (bnx2x_enable_msix(bp) ||
+		    bp->flags & USING_SINGLE_MSIX_FLAG) {
+			/* failed to enable multiple MSI-X */
+			BNX2X_DEV_INFO("Failed to enable multiple MSI-X (%d), set number of queues to %d\n",
 				       bp->num_queues, 1 + NON_ETH_CONTEXT_USE);
 
 			bp->num_queues = 1 + NON_ETH_CONTEXT_USE;
 
 			/* Try to enable MSI */
-			if (!(bp->flags & DISABLE_MSI_FLAG))
+			if (!(bp->flags & USING_SINGLE_MSIX_FLAG) &&
+			    !(bp->flags & DISABLE_MSI_FLAG))
 				bnx2x_enable_msi(bp);
 		}
 		break;
