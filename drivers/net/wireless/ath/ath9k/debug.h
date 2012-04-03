@@ -113,6 +113,7 @@ struct ath_interrupt_stats {
  * @puttxbuf: Number of times hardware was given txbuf to write.
  * @txstart:  Number of times hardware was told to start tx.
  * @txprocdesc:  Number of times tx descriptor was processed
+ * @txfailed:  Out-of-memory or other errors in xmit path.
  */
 struct ath_tx_stats {
 	u32 tx_pkts_all;
@@ -135,6 +136,7 @@ struct ath_tx_stats {
 	u32 puttxbuf;
 	u32 txstart;
 	u32 txprocdesc;
+	u32 txfailed;
 };
 
 /**
