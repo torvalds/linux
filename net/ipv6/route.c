@@ -2606,6 +2606,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb) {
+		dst_release(&rt->dst);
 		err = -ENOBUFS;
 		goto errout;
 	}
