@@ -469,6 +469,7 @@ static const struct ethtool_ops smsc9420_ethtool_ops = {
 	.set_eeprom = smsc9420_ethtool_set_eeprom,
 	.get_regs_len = smsc9420_ethtool_getregslen,
 	.get_regs = smsc9420_ethtool_getregs,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 /* Sets the device MAC address to dev_addr */
