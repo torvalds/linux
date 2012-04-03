@@ -150,26 +150,6 @@ static ssize_t iwl_dbgfs_tx_statistics_read(struct file *file,
 	return ret;
 }
 
-static ssize_t iwl_dbgfs_clear_traffic_statistics_write(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	u32 clear_flag;
-	char buf[8];
-	int buf_size;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%x", &clear_flag) != 1)
-		return -EFAULT;
-	iwl_clear_traffic_stats(priv);
-
-	return count;
-}
-
 static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
 						char __user *user_buf,
 						size_t count, loff_t *ppos) {
@@ -804,85 +784,6 @@ DEBUGFS_READ_WRITE_FILE_OPS(disable_ht40);
 DEBUGFS_READ_FILE_OPS(temperature);
 DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
 DEBUGFS_READ_FILE_OPS(current_sleep_command);
-
-static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
-					 char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	int pos = 0, ofs = 0;
-	int cnt = 0, entry;
-
-	char *buf;
-	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(priv->cfg->base_params->num_of_queues * 32 * 8) + 400;
-	const u8 *ptr;
-	ssize_t ret;
-
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	if (priv->tx_traffic && iwl_have_debug_level(IWL_DL_TX)) {
-		ptr = priv->tx_traffic;
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"Tx Traffic idx: %u\n", priv->tx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++,  ofs += 16) {
-				pos += scnprintf(buf + pos, bufsz - pos,
-						"0x%.4x ", ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	if (priv->rx_traffic && iwl_have_debug_level(IWL_DL_RX)) {
-		ptr = priv->rx_traffic;
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"Rx Traffic idx: %u\n", priv->rx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++,  ofs += 16) {
-				pos += scnprintf(buf + pos, bufsz - pos,
-						"0x%.4x ", ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	char buf[8];
-	int buf_size;
-	int traffic_log;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &traffic_log) != 1)
-		return -EFAULT;
-	if (traffic_log == 0)
-		iwl_reset_traffic_log(priv);
-
-	return count;
-}
 
 static const char *fmt_value = "  %-30s %10u\n";
 static const char *fmt_hex   = "  %-30s       0x%02X\n";
@@ -2506,7 +2407,6 @@ static ssize_t iwl_dbgfs_calib_disabled_write(struct file *file,
 
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
-DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
 DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
@@ -2514,7 +2414,6 @@ DEBUGFS_READ_FILE_OPS(sensitivity);
 DEBUGFS_READ_FILE_OPS(chain_noise);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
-DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
 DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
@@ -2571,10 +2470,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 
 	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(tx_statistics, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(traffic_log, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(clear_traffic_statistics, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rf_reset, dir_debug, S_IWUSR | S_IRUSR);

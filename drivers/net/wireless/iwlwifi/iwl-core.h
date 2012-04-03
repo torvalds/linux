@@ -77,49 +77,14 @@ struct iwl_cmd;
  ***************************/
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_alloc_traffic_mem(struct iwl_priv *priv);
-void iwl_free_traffic_mem(struct iwl_priv *priv);
-void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
-				u16 length, struct ieee80211_hdr *header);
-void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
-				u16 length, struct ieee80211_hdr *header);
 const char *get_mgmt_string(int cmd);
 const char *get_ctrl_string(int cmd);
-void iwl_clear_traffic_stats(struct iwl_priv *priv);
-void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
-		      u16 len);
-void iwl_reset_traffic_log(struct iwl_priv *priv);
-
+void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len);
 #else
-static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
-{
-	return 0;
-}
-static inline void iwl_free_traffic_mem(struct iwl_priv *priv)
-{
-}
-static inline void iwl_reset_traffic_log(struct iwl_priv *priv)
-{
-}
-static inline void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
-		      u16 length, struct ieee80211_hdr *header)
-{
-}
-static inline void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
-		      u16 length, struct ieee80211_hdr *header)
-{
-}
 static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 				    __le16 fc, u16 len)
 {
 }
 #endif
-
-/*******************************************************************************
- * Scanning
- ******************************************************************************/
-/* traffic log definitions */
-#define IWL_TRAFFIC_ENTRIES	(256)
-#define IWL_TRAFFIC_ENTRY_SIZE  (64)
 
 #endif /* __iwl_core_h__ */

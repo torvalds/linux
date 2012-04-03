@@ -1545,7 +1545,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	}
 
 	if (WARN_ON(!priv->lib))
-		goto out_free_traffic_mem;
+		goto out_free_hw;
 
 	/*
 	 * Populate the state variables that the transport layer needs
@@ -1609,9 +1609,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	IWL_DEBUG_INFO(priv, "BT channel inhibition is %s\n",
 		       (priv->bt_ch_announce) ? "On" : "Off");
 
-	if (iwl_alloc_traffic_mem(priv))
-		IWL_ERR(priv, "Not enough memory to generate traffic log\n");
-
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
 	 */
@@ -1625,12 +1622,12 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		priv->cfg->name, priv->trans->hw_rev);
 
 	if (iwl_trans_start_hw(priv->trans))
-		goto out_free_traffic_mem;
+		goto out_free_hw;
 
 	/* Read the EEPROM */
 	if (iwl_eeprom_init(priv, priv->trans->hw_rev)) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
-		goto out_free_traffic_mem;
+		goto out_free_hw;
 	}
 	/* Reset chip to save power until we load uCode during "up". */
 	iwl_trans_stop_hw(priv->trans, false);
@@ -1745,8 +1742,7 @@ out_destroy_workqueue:
 	iwl_uninit_drv(priv);
 out_free_eeprom:
 	iwl_eeprom_free(priv);
-out_free_traffic_mem:
-	iwl_free_traffic_mem(priv);
+out_free_hw:
 	ieee80211_free_hw(priv->hw);
 out:
 	op_mode = NULL;
@@ -1780,7 +1776,6 @@ void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	 * until now... */
 	destroy_workqueue(priv->workqueue);
 	priv->workqueue = NULL;
-	iwl_free_traffic_mem(priv);
 
 	iwl_uninit_drv(priv);
 

@@ -42,99 +42,6 @@
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 
-#define IWL_TRAFFIC_DUMP_SIZE	(IWL_TRAFFIC_ENTRY_SIZE * IWL_TRAFFIC_ENTRIES)
-
-void iwl_reset_traffic_log(struct iwl_priv *priv)
-{
-	priv->tx_traffic_idx = 0;
-	priv->rx_traffic_idx = 0;
-	if (priv->tx_traffic)
-		memset(priv->tx_traffic, 0, IWL_TRAFFIC_DUMP_SIZE);
-	if (priv->rx_traffic)
-		memset(priv->rx_traffic, 0, IWL_TRAFFIC_DUMP_SIZE);
-}
-
-int iwl_alloc_traffic_mem(struct iwl_priv *priv)
-{
-	u32 traffic_size = IWL_TRAFFIC_DUMP_SIZE;
-
-	if (iwl_have_debug_level(IWL_DL_TX)) {
-		if (!priv->tx_traffic) {
-			priv->tx_traffic =
-				kzalloc(traffic_size, GFP_KERNEL);
-			if (!priv->tx_traffic)
-				return -ENOMEM;
-		}
-	}
-	if (iwl_have_debug_level(IWL_DL_RX)) {
-		if (!priv->rx_traffic) {
-			priv->rx_traffic =
-				kzalloc(traffic_size, GFP_KERNEL);
-			if (!priv->rx_traffic)
-				return -ENOMEM;
-		}
-	}
-	iwl_reset_traffic_log(priv);
-	return 0;
-}
-
-void iwl_free_traffic_mem(struct iwl_priv *priv)
-{
-	kfree(priv->tx_traffic);
-	priv->tx_traffic = NULL;
-
-	kfree(priv->rx_traffic);
-	priv->rx_traffic = NULL;
-}
-
-void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
-		      u16 length, struct ieee80211_hdr *header)
-{
-	__le16 fc;
-	u16 len;
-
-	if (likely(!iwl_have_debug_level(IWL_DL_TX)))
-		return;
-
-	if (!priv->tx_traffic)
-		return;
-
-	fc = header->frame_control;
-	if (ieee80211_is_data(fc)) {
-		len = (length > IWL_TRAFFIC_ENTRY_SIZE)
-		       ? IWL_TRAFFIC_ENTRY_SIZE : length;
-		memcpy((priv->tx_traffic +
-		       (priv->tx_traffic_idx * IWL_TRAFFIC_ENTRY_SIZE)),
-		       header, len);
-		priv->tx_traffic_idx =
-			(priv->tx_traffic_idx + 1) % IWL_TRAFFIC_ENTRIES;
-	}
-}
-
-void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
-		      u16 length, struct ieee80211_hdr *header)
-{
-	__le16 fc;
-	u16 len;
-
-	if (likely(!iwl_have_debug_level(IWL_DL_RX)))
-		return;
-
-	if (!priv->rx_traffic)
-		return;
-
-	fc = header->frame_control;
-	if (ieee80211_is_data(fc)) {
-		len = (length > IWL_TRAFFIC_ENTRY_SIZE)
-		       ? IWL_TRAFFIC_ENTRY_SIZE : length;
-		memcpy((priv->rx_traffic +
-		       (priv->rx_traffic_idx * IWL_TRAFFIC_ENTRY_SIZE)),
-		       header, len);
-		priv->rx_traffic_idx =
-			(priv->rx_traffic_idx + 1) % IWL_TRAFFIC_ENTRIES;
-	}
-}
-
 const char *get_mgmt_string(int cmd)
 {
 #define IWL_CMD(x) case x: return #x
@@ -175,12 +82,6 @@ const char *get_ctrl_string(int cmd)
 
 	}
 #undef IWL_CMD
-}
-
-void iwl_clear_traffic_stats(struct iwl_priv *priv)
-{
-	memset(&priv->tx_stats, 0, sizeof(struct traffic_stats));
-	memset(&priv->rx_stats, 0, sizeof(struct traffic_stats));
 }
 
 /*
