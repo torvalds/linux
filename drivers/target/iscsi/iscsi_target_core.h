@@ -380,8 +380,6 @@ struct iscsi_cmd {
 	u32			buf_ptr_size;
 	/* Used to store DataDigest */
 	u32			data_crc;
-	/* Total size in bytes associated with command */
-	u32			data_length;
 	/* Counter for MaxOutstandingR2T */
 	u32			outstanding_r2ts;
 	/* Next R2T Offset when DataSequenceInOrder=Yes */

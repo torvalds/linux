@@ -968,7 +968,6 @@ done:
 					 buf, conn);
 
 	cmd->data_direction = data_direction;
-	cmd->data_length = hdr->data_length;
 	iscsi_task_attr = hdr->flags & ISCSI_FLAG_CMD_ATTR_MASK;
 	/*
 	 * Figure out the SAM Task Attribute for the incoming SCSI CDB
@@ -1026,7 +1025,7 @@ done:
 	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
 	 */
 	transport_init_se_cmd(&cmd->se_cmd, &lio_target_fabric_configfs->tf_ops,
-			conn->sess->se_sess, cmd->data_length, cmd->data_direction,
+			conn->sess->se_sess, hdr->data_length, cmd->data_direction,
 			sam_task_attr, &cmd->sense_buffer[0]);
 
 	pr_debug("Got SCSI Command, ITT: 0x%08x, CmdSN: 0x%08x,"
@@ -1061,8 +1060,6 @@ done:
 		 */
 		send_check_condition = 1;
 	} else {
-		cmd->data_length = cmd->se_cmd.data_length;
-
 		if (iscsit_decide_list_to_build(cmd, payload_length) < 0)
 			return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
@@ -1329,10 +1326,10 @@ static int iscsit_handle_data_out(struct iscsi_conn *conn, unsigned char *buf)
 	se_cmd = &cmd->se_cmd;
 	iscsit_mod_dataout_timer(cmd);
 
-	if ((hdr->offset + payload_length) > cmd->data_length) {
+	if ((hdr->offset + payload_length) > cmd->se_cmd.data_length) {
 		pr_err("DataOut Offset: %u, Length %u greater than"
 			" iSCSI Command EDTL %u, protocol error.\n",
-			hdr->offset, payload_length, cmd->data_length);
+			hdr->offset, payload_length, cmd->se_cmd.data_length);
 		return iscsit_add_reject_from_cmd(ISCSI_REASON_BOOKMARK_INVALID,
 				1, 0, buf, cmd);
 	}
@@ -2427,7 +2424,7 @@ static int iscsit_handle_immediate_data(
 
 	cmd->write_data_done += length;
 
-	if (cmd->write_data_done == cmd->data_length) {
+	if (cmd->write_data_done == cmd->se_cmd.data_length) {
 		spin_lock_bh(&cmd->istate_lock);
 		cmd->cmd_flags |= ICF_GOT_LAST_DATAOUT;
 		cmd->i_state = ISTATE_RECEIVED_LAST_DATAOUT;
@@ -2559,11 +2556,11 @@ static int iscsit_send_data_in(
 	/*
 	 * Be paranoid and double check the logic for now.
 	 */
-	if ((datain.offset + datain.length) > cmd->data_length) {
+	if ((datain.offset + datain.length) > cmd->se_cmd.data_length) {
 		pr_err("Command ITT: 0x%08x, datain.offset: %u and"
 			" datain.length: %u exceeds cmd->data_length: %u\n",
 			cmd->init_task_tag, datain.offset, datain.length,
-				cmd->data_length);
+				cmd->se_cmd.data_length);
 		return -1;
 	}
 
@@ -3071,8 +3068,8 @@ int iscsit_build_r2ts_for_cmd(
 					conn->sess->sess_ops->MaxBurstLength -
 					cmd->next_burst_len;
 
-				if (new_data_end > cmd->data_length)
-					xfer_len = cmd->data_length - offset;
+				if (new_data_end > cmd->se_cmd.data_length)
+					xfer_len = cmd->se_cmd.data_length - offset;
 				else
 					xfer_len =
 						conn->sess->sess_ops->MaxBurstLength -
@@ -3081,14 +3078,14 @@ int iscsit_build_r2ts_for_cmd(
 				int new_data_end = offset +
 					conn->sess->sess_ops->MaxBurstLength;
 
-				if (new_data_end > cmd->data_length)
-					xfer_len = cmd->data_length - offset;
+				if (new_data_end > cmd->se_cmd.data_length)
+					xfer_len = cmd->se_cmd.data_length - offset;
 				else
 					xfer_len = conn->sess->sess_ops->MaxBurstLength;
 			}
 			cmd->r2t_offset += xfer_len;
 
-			if (cmd->r2t_offset == cmd->data_length)
+			if (cmd->r2t_offset == cmd->se_cmd.data_length)
 				cmd->cmd_flags |= ICF_SENT_LAST_R2T;
 		} else {
 			struct iscsi_seq *seq;

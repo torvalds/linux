@@ -379,14 +379,14 @@ int iscsit_check_unsolicited_dataout(struct iscsi_cmd *cmd, unsigned char *buf)
 	if (!(hdr->flags & ISCSI_FLAG_CMD_FINAL))
 		return 0;
 
-	if (((cmd->first_burst_len + payload_length) != cmd->data_length) &&
+	if (((cmd->first_burst_len + payload_length) != cmd->se_cmd.data_length) &&
 	    ((cmd->first_burst_len + payload_length) !=
 	      conn->sess->sess_ops->FirstBurstLength)) {
 		pr_err("Unsolicited non-immediate data received %u"
 			" does not equal FirstBurstLength: %u, and does"
 			" not equal ExpXferLen %u.\n",
 			(cmd->first_burst_len + payload_length),
-			conn->sess->sess_ops->FirstBurstLength, cmd->data_length);
+			conn->sess->sess_ops->FirstBurstLength, cmd->se_cmd.data_length);
 		transport_send_check_condition_and_sense(se_cmd,
 				TCM_INCORRECT_AMOUNT_OF_DATA, 0);
 		return -1;

@@ -226,11 +226,10 @@ static void iscsit_determine_counts_for_list(
 
 	if ((bl->type == PDULIST_UNSOLICITED) ||
 	    (bl->type == PDULIST_IMMEDIATE_AND_UNSOLICITED))
-		unsolicited_data_length = (cmd->data_length >
-			conn->sess->sess_ops->FirstBurstLength) ?
-			conn->sess->sess_ops->FirstBurstLength : cmd->data_length;
+		unsolicited_data_length = min(cmd->se_cmd.data_length,
+			conn->sess->sess_ops->FirstBurstLength);
 
-	while (offset < cmd->data_length) {
+	while (offset < cmd->se_cmd.data_length) {
 		*pdu_count += 1;
 
 		if (check_immediate) {
@@ -244,10 +243,10 @@ static void iscsit_determine_counts_for_list(
 		}
 		if (unsolicited_data_length > 0) {
 			if ((offset + conn->conn_ops->MaxRecvDataSegmentLength)
-					>= cmd->data_length) {
+					>= cmd->se_cmd.data_length) {
 				unsolicited_data_length -=
-					(cmd->data_length - offset);
-				offset += (cmd->data_length - offset);
+					(cmd->se_cmd.data_length - offset);
+				offset += (cmd->se_cmd.data_length - offset);
 				continue;
 			}
 			if ((offset + conn->conn_ops->MaxRecvDataSegmentLength)
@@ -268,8 +267,8 @@ static void iscsit_determine_counts_for_list(
 			continue;
 		}
 		if ((offset + conn->conn_ops->MaxRecvDataSegmentLength) >=
-		     cmd->data_length) {
-			offset += (cmd->data_length - offset);
+		     cmd->se_cmd.data_length) {
+			offset += (cmd->se_cmd.data_length - offset);
 			continue;
 		}
 		if ((burstlength + conn->conn_ops->MaxRecvDataSegmentLength) >=
@@ -311,11 +310,10 @@ static int iscsit_build_pdu_and_seq_list(
 
 	if ((bl->type == PDULIST_UNSOLICITED) ||
 	    (bl->type == PDULIST_IMMEDIATE_AND_UNSOLICITED))
-		unsolicited_data_length = (cmd->data_length >
-			conn->sess->sess_ops->FirstBurstLength) ?
-			conn->sess->sess_ops->FirstBurstLength : cmd->data_length;
+		unsolicited_data_length = min(cmd->se_cmd.data_length,
+			conn->sess->sess_ops->FirstBurstLength);
 
-	while (offset < cmd->data_length) {
+	while (offset < cmd->se_cmd.data_length) {
 		pdu_count++;
 		if (!datapduinorder) {
 			pdu[i].offset = offset;
@@ -351,21 +349,21 @@ static int iscsit_build_pdu_and_seq_list(
 		if (unsolicited_data_length > 0) {
 			if ((offset +
 			     conn->conn_ops->MaxRecvDataSegmentLength) >=
-			     cmd->data_length) {
+			     cmd->se_cmd.data_length) {
 				if (!datapduinorder) {
 					pdu[i].type = PDUTYPE_UNSOLICITED;
 					pdu[i].length =
-						(cmd->data_length - offset);
+						(cmd->se_cmd.data_length - offset);
 				}
 				if (!datasequenceinorder) {
 					seq[seq_no].type = SEQTYPE_UNSOLICITED;
 					seq[seq_no].pdu_count = pdu_count;
 					seq[seq_no].xfer_len = (burstlength +
-						(cmd->data_length - offset));
+						(cmd->se_cmd.data_length - offset));
 				}
 				unsolicited_data_length -=
-						(cmd->data_length - offset);
-				offset += (cmd->data_length - offset);
+						(cmd->se_cmd.data_length - offset);
+				offset += (cmd->se_cmd.data_length - offset);
 				continue;
 			}
 			if ((offset +
@@ -407,18 +405,18 @@ static int iscsit_build_pdu_and_seq_list(
 			continue;
 		}
 		if ((offset + conn->conn_ops->MaxRecvDataSegmentLength) >=
-		     cmd->data_length) {
+		     cmd->se_cmd.data_length) {
 			if (!datapduinorder) {
 				pdu[i].type = PDUTYPE_NORMAL;
-				pdu[i].length = (cmd->data_length - offset);
+				pdu[i].length = (cmd->se_cmd.data_length - offset);
 			}
 			if (!datasequenceinorder) {
 				seq[seq_no].type = SEQTYPE_NORMAL;
 				seq[seq_no].pdu_count = pdu_count;
 				seq[seq_no].xfer_len = (burstlength +
-					(cmd->data_length - offset));
+					(cmd->se_cmd.data_length - offset));
 			}
-			offset += (cmd->data_length - offset);
+			offset += (cmd->se_cmd.data_length - offset);
 			continue;
 		}
 		if ((burstlength + conn->conn_ops->MaxRecvDataSegmentLength) >=
