@@ -321,6 +321,9 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Enter report */
 	if ((data[1] & 0xfc) == 0xc0) {
+		if (features->type >= INTUOS5S && features->type <= INTUOS5L)
+			wacom->shared->stylus_in_proximity = true;
+
 		/* serial number of the tool */
 		wacom->serial[idx] = ((data[3] & 0x0f) << 28) +
 			(data[4] << 20) + (data[5] << 12) +
@@ -406,6 +409,9 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 
 	/* Exit report */
 	if ((data[1] & 0xfe) == 0x80) {
+		if (features->type >= INTUOS5S && features->type <= INTUOS5L)
+			wacom->shared->stylus_in_proximity = false;
+
 		/*
 		 * Reset all states otherwise we lose the initial states
 		 * when in-prox next time
@@ -1140,14 +1146,20 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 	case INTUOS4S:
 	case INTUOS4:
 	case INTUOS4L:
-	case INTUOS5S:
-	case INTUOS5:
-	case INTUOS5L:
 	case CINTIQ:
 	case WACOM_BEE:
 	case WACOM_21UX2:
 	case WACOM_24HD:
 		sync = wacom_intuos_irq(wacom_wac);
+		break;
+
+	case INTUOS5S:
+	case INTUOS5:
+	case INTUOS5L:
+		if (len == WACOM_PKGLEN_BBTOUCH3)
+			sync = wacom_bpt3_touch(wacom_wac);
+		else
+			sync = wacom_intuos_irq(wacom_wac);
 		break;
 
 	case TABLETPC:
@@ -1224,7 +1236,8 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 
 	/* these device have multiple inputs */
 	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
-	    features->type == BAMBOO_PT || features->type == WIRELESS)
+	    features->type == BAMBOO_PT || features->type == WIRELESS ||
+	    (features->type >= INTUOS5S && features->type <= INTUOS5L))
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 
 	/* quirk for bamboo touch with 2 low res touches */
@@ -1393,13 +1406,54 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 
 	case INTUOS5:
 	case INTUOS5L:
+		if (features->device_type == BTN_TOOL_PEN) {
+			__set_bit(BTN_7, input_dev->keybit);
+			__set_bit(BTN_8, input_dev->keybit);
+		}
+		/* fall through */
+
+	case INTUOS5S:
+		__set_bit(INPUT_PROP_POINTER, input_dev->propbit);
+
+		if (features->device_type == BTN_TOOL_PEN) {
+			for (i = 0; i < 7; i++)
+				__set_bit(BTN_0 + i, input_dev->keybit);
+
+			input_set_abs_params(input_dev, ABS_DISTANCE, 0,
+					      features->distance_max,
+					      0, 0);
+
+			input_set_abs_params(input_dev, ABS_Z, -900, 899, 0, 0);
+
+			wacom_setup_intuos(wacom_wac);
+		} else if (features->device_type == BTN_TOOL_FINGER) {
+			__clear_bit(ABS_MISC, input_dev->absbit);
+
+			__set_bit(BTN_TOOL_FINGER, input_dev->keybit);
+			__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
+			__set_bit(BTN_TOOL_TRIPLETAP, input_dev->keybit);
+			__set_bit(BTN_TOOL_QUADTAP, input_dev->keybit);
+
+			input_mt_init_slots(input_dev, 16);
+
+			input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR,
+			                     0, 255, 0, 0);
+
+			input_set_abs_params(input_dev, ABS_MT_POSITION_X,
+					     0, features->x_max,
+					     features->x_fuzz, 0);
+			input_set_abs_params(input_dev, ABS_MT_POSITION_Y,
+					     0, features->y_max,
+					     features->y_fuzz, 0);
+		}
+		break;
+
 	case INTUOS4:
 	case INTUOS4L:
 		__set_bit(BTN_7, input_dev->keybit);
 		__set_bit(BTN_8, input_dev->keybit);
 		/* fall through */
 
-	case INTUOS5S:
 	case INTUOS4S:
 		for (i = 0; i < 7; i++)
 			__set_bit(BTN_0 + i, input_dev->keybit);

@@ -233,6 +233,9 @@ static int wacom_parse_logical_collection(unsigned char *report,
  * 3rd gen Bamboo Touch no longer define a Digitizer-Finger Pysical
  * Collection. Instead they define a Logical Collection with a single
  * Logical Maximum for both X and Y.
+ *
+ * Intuos5 touch interface does not contain useful data. We deal with
+ * this after returning from this function.
  */
 static int wacom_parse_hid(struct usb_interface *intf,
 			   struct hid_descriptor *hid_desc,
@@ -1084,6 +1087,28 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	error = wacom_retrieve_hid_descriptor(intf, features);
 	if (error)
 		goto fail3;
+
+	/*
+	 * Intuos5 has no useful data about its touch interface in its
+	 * HID descriptor. If this is the touch interface (wMaxPacketSize
+	 * of WACOM_PKGLEN_BBTOUCH3), override the table values.
+	 */
+	if (features->type >= INTUOS5S && features->type <= INTUOS5L) {
+		if (endpoint->wMaxPacketSize == WACOM_PKGLEN_BBTOUCH3) {
+			features->device_type = BTN_TOOL_FINGER;
+			features->pktlen = WACOM_PKGLEN_BBTOUCH3;
+
+			features->x_phy =
+				(features->x_max * 100) / features->x_resolution;
+			features->y_phy =
+				(features->y_max * 100) / features->y_resolution;
+
+			features->x_max = 4096;
+			features->y_max = 4096;
+		} else {
+			features->device_type = BTN_TOOL_PEN;
+		}
+	}
 
 	wacom_setup_device_quirks(features);
 
