@@ -436,9 +436,9 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	audit_log_format(ab, "avc:  %s ",
-			 ad->selinux_audit_data.denied ? "denied" : "granted");
-	avc_dump_av(ab, ad->selinux_audit_data.tclass,
-			ad->selinux_audit_data.audited);
+			 ad->selinux_audit_data->denied ? "denied" : "granted");
+	avc_dump_av(ab, ad->selinux_audit_data->tclass,
+			ad->selinux_audit_data->audited);
 	audit_log_format(ab, " for ");
 }
 
@@ -452,9 +452,9 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	audit_log_format(ab, " ");
-	avc_dump_query(ab, ad->selinux_audit_data.ssid,
-			   ad->selinux_audit_data.tsid,
-			   ad->selinux_audit_data.tclass);
+	avc_dump_query(ab, ad->selinux_audit_data->ssid,
+			   ad->selinux_audit_data->tsid,
+			   ad->selinux_audit_data->tclass);
 }
 
 /* This is the slow part of avc audit with big stack footprint */
@@ -464,10 +464,12 @@ static noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 		unsigned flags)
 {
 	struct common_audit_data stack_data;
+	struct selinux_audit_data sad = {0,};
 
 	if (!a) {
 		a = &stack_data;
 		COMMON_AUDIT_DATA_INIT(a, NONE);
+		a->selinux_audit_data = &sad;
 	}
 
 	/*
@@ -481,12 +483,12 @@ static noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 	    (flags & MAY_NOT_BLOCK))
 		return -ECHILD;
 
-	a->selinux_audit_data.tclass = tclass;
-	a->selinux_audit_data.requested = requested;
-	a->selinux_audit_data.ssid = ssid;
-	a->selinux_audit_data.tsid = tsid;
-	a->selinux_audit_data.audited = audited;
-	a->selinux_audit_data.denied = denied;
+	a->selinux_audit_data->tclass = tclass;
+	a->selinux_audit_data->requested = requested;
+	a->selinux_audit_data->ssid = ssid;
+	a->selinux_audit_data->tsid = tsid;
+	a->selinux_audit_data->audited = audited;
+	a->selinux_audit_data->denied = denied;
 	a->lsm_pre_audit = avc_audit_pre_callback;
 	a->lsm_post_audit = avc_audit_post_callback;
 	common_lsm_audit(a);
@@ -523,7 +525,7 @@ inline int avc_audit(u32 ssid, u32 tsid,
 	if (unlikely(denied)) {
 		audited = denied & avd->auditdeny;
 		/*
-		 * a->selinux_audit_data.auditdeny is TRICKY!  Setting a bit in
+		 * a->selinux_audit_data->auditdeny is TRICKY!  Setting a bit in
 		 * this field means that ANY denials should NOT be audited if
 		 * the policy contains an explicit dontaudit rule for that
 		 * permission.  Take notice that this is unrelated to the
@@ -532,15 +534,15 @@ inline int avc_audit(u32 ssid, u32 tsid,
 		 *
 		 * denied == READ
 		 * avd.auditdeny & ACCESS == 0 (not set means explicit rule)
-		 * selinux_audit_data.auditdeny & ACCESS == 1
+		 * selinux_audit_data->auditdeny & ACCESS == 1
 		 *
 		 * We will NOT audit the denial even though the denied
 		 * permission was READ and the auditdeny checks were for
 		 * ACCESS
 		 */
 		if (a &&
-		    a->selinux_audit_data.auditdeny &&
-		    !(a->selinux_audit_data.auditdeny & avd->auditdeny))
+		    a->selinux_audit_data->auditdeny &&
+		    !(a->selinux_audit_data->auditdeny & avd->auditdeny))
 			audited = 0;
 	} else if (result)
 		audited = denied = requested;

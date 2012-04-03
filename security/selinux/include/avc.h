@@ -46,6 +46,22 @@ struct avc_cache_stats {
 	unsigned int frees;
 };
 
+struct selinux_audit_data {
+	u32 ssid;
+	u32 tsid;
+	u16 tclass;
+	u32 requested;
+	u32 audited;
+	u32 denied;
+	/*
+	 * auditdeny is a bit tricky and unintuitive.  See the
+	 * comments in avc.c for it's meaning and usage.
+	 */
+	u32 auditdeny;
+	struct av_decision *avd;
+	int result;
+};
+
 /*
  * AVC operations
  */
