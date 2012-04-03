@@ -1733,6 +1733,13 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 		transport_generic_request_failure(se_cmd);
 		return;
 	}
+
+	/*
+	 * Check if we need to delay processing because of ALUA
+	 * Active/NonOptimized primary access state..
+	 */
+	core_alua_check_nonop_delay(se_cmd);
+
 	/*
 	 * Dispatch se_cmd descriptor to se_lun->lun_se_dev backend
 	 * for immediate execution of READs, otherwise wait for
