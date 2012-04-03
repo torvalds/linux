@@ -1019,7 +1019,6 @@ struct iwl_priv {
 }; /*iwl_priv */
 
 extern struct kmem_cache *iwl_tx_cmd_pool;
-extern struct iwl_mod_params iwlagn_mod_params;
 
 static inline struct iwl_rxon_context *
 iwl_rxon_ctx_from_vif(struct ieee80211_vif *vif)
