@@ -167,7 +167,7 @@ static int fc0011_vcocal_read(struct fc0011_priv *priv, u8 *value)
 	err = fc0011_writereg(priv, FC11_REG_VCOCAL, FC11_VCOCAL_RUN);
 	if (err)
 		return err;
-	msleep(10);
+	usleep_range(10000, 20000);
 	err = fc0011_readreg(priv, FC11_REG_VCOCAL, value);
 	if (err)
 		return err;
@@ -423,7 +423,7 @@ static int fc0011_set_params(struct dvb_frontend *fe)
 	err = fc0011_vcocal_read(priv, NULL);
 	if (err)
 		return err;
-	msleep(10);
+	usleep_range(10000, 50000);
 
 	err = fc0011_readreg(priv, FC11_REG_RCCAL, &regs[FC11_REG_RCCAL]);
 	if (err)
