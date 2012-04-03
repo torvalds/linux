@@ -27,8 +27,10 @@
 #include <asm/unaligned.h>
 #include <scsi/scsi_device.h>
 #include <scsi/iscsi_proto.h>
+#include <scsi/scsi_tcq.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
+#include <target/target_core_configfs.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -842,6 +844,8 @@ static int iscsit_handle_scsi_cmd(
 	int	dump_immediate_data = 0, send_check_condition = 0, payload_length;
 	struct iscsi_cmd	*cmd = NULL;
 	struct iscsi_scsi_req *hdr;
+	int iscsi_task_attr;
+	int sam_task_attr;
 
 	spin_lock_bh(&conn->sess->session_stats_lock);
 	conn->sess->cmd_pdus++;
@@ -958,11 +962,38 @@ done:
 			 (hdr->flags & ISCSI_FLAG_CMD_READ) ? DMA_FROM_DEVICE :
 			  DMA_NONE;
 
-	cmd = iscsit_allocate_se_cmd(conn, hdr->data_length, data_direction,
-				(hdr->flags & ISCSI_FLAG_CMD_ATTR_MASK));
+	cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
 	if (!cmd)
 		return iscsit_add_reject(ISCSI_REASON_BOOKMARK_NO_RESOURCES, 1,
-					buf, conn);
+					 buf, conn);
+
+	cmd->data_direction = data_direction;
+	cmd->data_length = hdr->data_length;
+	iscsi_task_attr = hdr->flags & ISCSI_FLAG_CMD_ATTR_MASK;
+	/*
+	 * Figure out the SAM Task Attribute for the incoming SCSI CDB
+	 */
+	if ((iscsi_task_attr == ISCSI_ATTR_UNTAGGED) ||
+	    (iscsi_task_attr == ISCSI_ATTR_SIMPLE))
+		sam_task_attr = MSG_SIMPLE_TAG;
+	else if (iscsi_task_attr == ISCSI_ATTR_ORDERED)
+		sam_task_attr = MSG_ORDERED_TAG;
+	else if (iscsi_task_attr == ISCSI_ATTR_HEAD_OF_QUEUE)
+		sam_task_attr = MSG_HEAD_TAG;
+	else if (iscsi_task_attr == ISCSI_ATTR_ACA)
+		sam_task_attr = MSG_ACA_TAG;
+	else {
+		pr_debug("Unknown iSCSI Task Attribute: 0x%02x, using"
+			" MSG_SIMPLE_TAG\n", iscsi_task_attr);
+		sam_task_attr = MSG_SIMPLE_TAG;
+	}
+
+	/*
+	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
+	 */
+	transport_init_se_cmd(&cmd->se_cmd, &lio_target_fabric_configfs->tf_ops,
+			conn->sess->se_sess, cmd->data_length, cmd->data_direction,
+			sam_task_attr, &cmd->sense_buffer[0]);
 
 	pr_debug("Got SCSI Command, ITT: 0x%08x, CmdSN: 0x%08x,"
 		" ExpXferLen: %u, Length: %u, CID: %hu\n", hdr->itt,
@@ -1718,10 +1749,75 @@ static int iscsit_handle_task_mgt_cmd(
 	    (hdr->refcmdsn != ISCSI_RESERVED_TAG))
 		hdr->refcmdsn = ISCSI_RESERVED_TAG;
 
-	cmd = iscsit_allocate_se_cmd_for_tmr(conn, function);
+	cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
 	if (!cmd)
 		return iscsit_add_reject(ISCSI_REASON_BOOKMARK_NO_RESOURCES,
-					1, buf, conn);
+					 1, buf, conn);
+
+	cmd->data_direction = DMA_NONE;
+
+	cmd->tmr_req = kzalloc(sizeof(struct iscsi_tmr_req), GFP_KERNEL);
+	if (!cmd->tmr_req) {
+		pr_err("Unable to allocate memory for"
+			" Task Management command!\n");
+		return iscsit_add_reject_from_cmd(
+			ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+			1, 1, buf, cmd);
+	}
+
+	/*
+	 * TASK_REASSIGN for ERL=2 / connection stays inside of
+	 * LIO-Target $FABRIC_MOD
+	 */
+	if (function != ISCSI_TM_FUNC_TASK_REASSIGN) {
+
+		u8 tcm_function;
+		int ret;
+
+		transport_init_se_cmd(&cmd->se_cmd,
+				      &lio_target_fabric_configfs->tf_ops,
+				      conn->sess->se_sess, 0, DMA_NONE,
+				      MSG_SIMPLE_TAG, &cmd->sense_buffer[0]);
+
+		switch (function) {
+		case ISCSI_TM_FUNC_ABORT_TASK:
+			tcm_function = TMR_ABORT_TASK;
+			break;
+		case ISCSI_TM_FUNC_ABORT_TASK_SET:
+			tcm_function = TMR_ABORT_TASK_SET;
+			break;
+		case ISCSI_TM_FUNC_CLEAR_ACA:
+			tcm_function = TMR_CLEAR_ACA;
+			break;
+		case ISCSI_TM_FUNC_CLEAR_TASK_SET:
+			tcm_function = TMR_CLEAR_TASK_SET;
+			break;
+		case ISCSI_TM_FUNC_LOGICAL_UNIT_RESET:
+			tcm_function = TMR_LUN_RESET;
+			break;
+		case ISCSI_TM_FUNC_TARGET_WARM_RESET:
+			tcm_function = TMR_TARGET_WARM_RESET;
+			break;
+		case ISCSI_TM_FUNC_TARGET_COLD_RESET:
+			tcm_function = TMR_TARGET_COLD_RESET;
+			break;
+		default:
+			pr_err("Unknown iSCSI TMR Function:"
+			       " 0x%02x\n", function);
+			return iscsit_add_reject_from_cmd(
+				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+				1, 1, buf, cmd);
+		}
+
+		ret = core_tmr_alloc_req(&cmd->se_cmd, cmd->tmr_req,
+					 tcm_function, GFP_KERNEL);
+		if (ret < 0)
+			return iscsit_add_reject_from_cmd(
+				ISCSI_REASON_BOOKMARK_NO_RESOURCES,
+				1, 1, buf, cmd);
+
+		cmd->tmr_req->se_tmr_req = cmd->se_cmd.se_tmr_req;
+	}
 
 	cmd->iscsi_opcode	= ISCSI_OP_SCSI_TMFUNC;
 	cmd->i_state		= ISTATE_SEND_TASKMGTRSP;
