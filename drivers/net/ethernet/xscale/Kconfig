@@ -5,8 +5,8 @@
 config NET_VENDOR_XSCALE
 	bool "Intel XScale IXP devices"
 	default y
-	depends on NET_VENDOR_INTEL && ((ARM && ARCH_IXP4XX && \
-		   IXP4XX_NPE && IXP4XX_QMGR) || ARCH_ENP2611)
+	depends on NET_VENDOR_INTEL && (ARM && ARCH_IXP4XX && \
+		   IXP4XX_NPE && IXP4XX_QMGR)
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y
 	  and read the Ethernet-HOWTO, available from
@@ -26,7 +26,5 @@ config IXP4XX_ETH
 	---help---
 	  Say Y here if you want to use built-in Ethernet ports
 	  on IXP4xx processor.
-
-source "drivers/net/ethernet/xscale/ixp2000/Kconfig"
 
 endif # NET_VENDOR_XSCALE
