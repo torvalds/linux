@@ -102,6 +102,18 @@ enum iwl_led_mode {
 };
 
 /*
+ * This is the threshold value of plcp error rate per 100mSecs.  It is
+ * used to set and check for the validity of plcp_delta.
+ */
+#define IWL_MAX_PLCP_ERR_THRESHOLD_MIN		1
+#define IWL_MAX_PLCP_ERR_THRESHOLD_DEF		50
+#define IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF	100
+#define IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF	200
+#define IWL_MAX_PLCP_ERR_THRESHOLD_MAX		255
+#define IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE	0
+
+
+/*
  * @max_ll_items: max number of OTP blocks
  * @shadow_ram_support: shadow support for OTP memory
  * @led_compensation: compensate on the led on/off time per HW according
