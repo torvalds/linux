@@ -1450,17 +1450,7 @@ static struct i2c_driver sgtl5000_i2c_driver = {
 	.id_table = sgtl5000_id,
 };
 
-static int __init sgtl5000_modinit(void)
-{
-	return i2c_add_driver(&sgtl5000_i2c_driver);
-}
-module_init(sgtl5000_modinit);
-
-static void __exit sgtl5000_exit(void)
-{
-	i2c_del_driver(&sgtl5000_i2c_driver);
-}
-module_exit(sgtl5000_exit);
+module_i2c_driver(sgtl5000_i2c_driver);
 
 MODULE_DESCRIPTION("Freescale SGTL5000 ALSA SoC Codec Driver");
 MODULE_AUTHOR("Zeng Zhaoming <zengzm.kernel@gmail.com>");
