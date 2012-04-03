@@ -208,15 +208,13 @@ static void gfs2_fake_write_endio(struct buffer_head *bh, int uptodate)
 }
 
 /**
- * gfs2_log_fake_buf - Build a fake buffer head to write metadata buffer to log
+ * gfs2_log_write_buf - write metadata buffer to log
  * @sdp: the filesystem
- * @data: the data the buffer_head should point to
+ * @real: the in-place buffer head
  *
- * Returns: the log buffer descriptor
  */
 
-static struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
-				      struct buffer_head *real)
+static void gfs2_log_write_buf(struct gfs2_sbd *sdp, struct buffer_head *real)
 {
 	u64 blkno = gfs2_log_bmap(sdp, sdp->sd_log_flush_head);
 	struct buffer_head *bh;
@@ -234,7 +232,7 @@ static struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
 	gfs2_log_incr_head(sdp);
 	atomic_inc(&sdp->sd_log_in_flight);
 
-	return bh;
+	submit_bh(WRITE, bh);
 }
 
 static struct buffer_head *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type)
@@ -321,7 +319,7 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 		}
 
 		gfs2_log_unlock(sdp);
-		submit_bh(WRITE_SYNC, bh);
+		submit_bh(WRITE, bh);
 		gfs2_log_lock(sdp);
 
 		n = 0;
@@ -330,8 +328,7 @@ static void buf_lo_before_commit(struct gfs2_sbd *sdp)
 			get_bh(bd2->bd_bh);
 			gfs2_log_unlock(sdp);
 			lock_buffer(bd2->bd_bh);
-			bh = gfs2_log_fake_buf(sdp, bd2->bd_bh);
-			submit_bh(WRITE_SYNC, bh);
+			gfs2_log_write_buf(sdp, bd2->bd_bh);
 			gfs2_log_lock(sdp);
 			if (++n >= num)
 				break;
@@ -475,7 +472,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 		sdp->sd_log_num_revoke--;
 
 		if (offset + sizeof(u64) > sdp->sd_sb.sb_bsize) {
-			submit_bh(WRITE_SYNC, bh);
+			submit_bh(WRITE, bh);
 
 			bh = gfs2_log_get_buf(sdp);
 			mh = (struct gfs2_meta_header *)bh->b_data;
@@ -490,7 +487,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	}
 	gfs2_assert_withdraw(sdp, !sdp->sd_log_num_revoke);
 
-	submit_bh(WRITE_SYNC, bh);
+	submit_bh(WRITE, bh);
 }
 
 static void revoke_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
@@ -672,7 +669,7 @@ static void gfs2_write_blocks(struct gfs2_sbd *sdp, struct buffer_head *bh,
 	ptr = bh_log_ptr(bh);
 	
 	get_bh(bh);
-	submit_bh(WRITE_SYNC, bh);
+	submit_bh(WRITE, bh);
 	gfs2_log_lock(sdp);
 	while(!list_empty(list)) {
 		bd = list_entry(list->next, struct gfs2_bufdata, bd_le.le_list);
@@ -695,10 +692,10 @@ static void gfs2_write_blocks(struct gfs2_sbd *sdp, struct buffer_head *bh,
 			clear_buffer_escaped(bd->bd_bh);
 			unlock_buffer(bd->bd_bh);
 			brelse(bd->bd_bh);
+			submit_bh(WRITE, bh1);
 		} else {
-			bh1 = gfs2_log_fake_buf(sdp, bd->bd_bh);
+			gfs2_log_write_buf(sdp, bd->bd_bh);
 		}
-		submit_bh(WRITE_SYNC, bh1);
 		gfs2_log_lock(sdp);
 		ptr += 2;
 	}
