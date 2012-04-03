@@ -27,6 +27,14 @@ static struct pci_host_bridge *find_pci_host_bridge(struct pci_dev *dev)
 	return to_pci_host_bridge(bus->bridge);
 }
 
+void pci_set_host_bridge_release(struct pci_host_bridge *bridge,
+				 void (*release_fn)(struct pci_host_bridge *),
+				 void *release_data)
+{
+	bridge->release_fn = release_fn;
+	bridge->release_data = release_data;
+}
+
 static bool resource_contains(struct resource *res1, struct resource *res2)
 {
 	return res1->start <= res2->start && res1->end >= res2->end;

@@ -1137,7 +1137,8 @@ static void pci_release_bus_bridge_dev(struct device *dev)
 {
 	struct pci_host_bridge *bridge = to_pci_host_bridge(dev);
 
-	/* TODO: need to free window->res */
+	if (bridge->release_fn)
+		bridge->release_fn(bridge);
 
 	pci_free_resource_list(&bridge->windows);
 
