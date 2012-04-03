@@ -157,17 +157,13 @@ static void objdump__insert_line(struct rb_root *self,
 }
 
 static void annotate_browser__set_top(struct annotate_browser *self,
-				      struct rb_node *nd)
+				      struct objdump_line *pos, u32 idx)
 {
-	struct objdump_line_rb_node *rbpos;
-	struct objdump_line *pos;
 	unsigned back;
 
 	ui_browser__refresh_dimensions(&self->b);
 	back = self->b.height / 2;
-	rbpos = rb_entry(nd, struct objdump_line_rb_node, rb_node);
-	pos = ((struct objdump_line *)rbpos) - 1;
-	self->b.top_idx = self->b.index = rbpos->idx;
+	self->b.top_idx = self->b.index = idx;
 
 	while (self->b.top_idx != 0 && back != 0) {
 		pos = list_entry(pos->node.prev, struct objdump_line, node);
@@ -177,7 +173,18 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 	}
 
 	self->b.top = pos;
-	self->curr_hot = nd;
+}
+
+static void annotate_browser__set_rb_top(struct annotate_browser *browser,
+					 struct rb_node *nd)
+{
+	struct objdump_line_rb_node *rbpos;
+	struct objdump_line *pos;
+
+	rbpos = rb_entry(nd, struct objdump_line_rb_node, rb_node);
+	pos = ((struct objdump_line *)rbpos) - 1;
+	annotate_browser__set_top(browser, pos, rbpos->idx);
+	browser->curr_hot = nd;
 }
 
 static void annotate_browser__calc_percent(struct annotate_browser *browser,
@@ -308,7 +315,7 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	annotate_browser__calc_percent(self, evidx);
 
 	if (self->curr_hot)
-		annotate_browser__set_top(self, self->curr_hot);
+		annotate_browser__set_rb_top(self, self->curr_hot);
 
 	nd = self->curr_hot;
 
@@ -382,7 +389,7 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		}
 
 		if (nd != NULL)
-			annotate_browser__set_top(self, nd);
+			annotate_browser__set_rb_top(self, nd);
 	}
 out:
 	ui_browser__hide(&self->b);
