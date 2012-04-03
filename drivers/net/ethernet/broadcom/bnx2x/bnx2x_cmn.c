@@ -1460,20 +1460,11 @@ u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb)
 	return __skb_tx_hash(dev, skb, BNX2X_NUM_ETH_QUEUES(bp));
 }
 
+
 void bnx2x_set_num_queues(struct bnx2x *bp)
 {
-	switch (bp->multi_mode) {
-	case ETH_RSS_MODE_DISABLED:
-		bp->num_queues = 1;
-		break;
-	case ETH_RSS_MODE_REGULAR:
-		bp->num_queues = bnx2x_calc_num_queues(bp);
-		break;
-
-	default:
-		bp->num_queues = 1;
-		break;
-	}
+	/* RSS queues */
+	bp->num_queues = bnx2x_calc_num_queues(bp);
 
 #ifdef BCM_CNIC
 	/* override in STORAGE SD mode */
@@ -1572,16 +1563,13 @@ static inline int bnx2x_init_rss_pf(struct bnx2x *bp)
 	u8 ind_table[T_ETH_INDIRECTION_TABLE_SIZE] = {0};
 	u8 num_eth_queues = BNX2X_NUM_ETH_QUEUES(bp);
 
-	/*
-	 * Prepare the inital contents fo the indirection table if RSS is
+	/* Prepare the initial contents fo the indirection table if RSS is
 	 * enabled
 	 */
-	if (bp->multi_mode != ETH_RSS_MODE_DISABLED) {
-		for (i = 0; i < sizeof(ind_table); i++)
-			ind_table[i] =
-				bp->fp->cl_id +
-				ethtool_rxfh_indir_default(i, num_eth_queues);
-	}
+	for (i = 0; i < sizeof(ind_table); i++)
+		ind_table[i] =
+			bp->fp->cl_id +
+			ethtool_rxfh_indir_default(i, num_eth_queues);
 
 	/*
 	 * For 57710 and 57711 SEARCHER configuration (rss_keys) is
@@ -1591,11 +1579,12 @@ static inline int bnx2x_init_rss_pf(struct bnx2x *bp)
 	 * For 57712 and newer on the other hand it's a per-function
 	 * configuration.
 	 */
-	return bnx2x_config_rss_pf(bp, ind_table,
-				   bp->port.pmf || !CHIP_IS_E1x(bp));
+	return bnx2x_config_rss_eth(bp, ind_table,
+				    bp->port.pmf || !CHIP_IS_E1x(bp));
 }
 
-int bnx2x_config_rss_pf(struct bnx2x *bp, u8 *ind_table, bool config_hash)
+int bnx2x_config_rss_pf(struct bnx2x *bp, struct bnx2x_rss_config_obj *rss_obj,
+			u8 *ind_table, bool config_hash)
 {
 	struct bnx2x_config_rss_params params = {NULL};
 	int i;
@@ -1607,52 +1596,29 @@ int bnx2x_config_rss_pf(struct bnx2x *bp, u8 *ind_table, bool config_hash)
 	 *      bp->multi_mode = ETH_RSS_MODE_DISABLED;
 	 */
 
-	params.rss_obj = &bp->rss_conf_obj;
+	params.rss_obj = rss_obj;
 
 	__set_bit(RAMROD_COMP_WAIT, &params.ramrod_flags);
 
-	/* RSS mode */
-	switch (bp->multi_mode) {
-	case ETH_RSS_MODE_DISABLED:
-		__set_bit(BNX2X_RSS_MODE_DISABLED, &params.rss_flags);
-		break;
-	case ETH_RSS_MODE_REGULAR:
-		__set_bit(BNX2X_RSS_MODE_REGULAR, &params.rss_flags);
-		break;
-	case ETH_RSS_MODE_VLAN_PRI:
-		__set_bit(BNX2X_RSS_MODE_VLAN_PRI, &params.rss_flags);
-		break;
-	case ETH_RSS_MODE_E1HOV_PRI:
-		__set_bit(BNX2X_RSS_MODE_E1HOV_PRI, &params.rss_flags);
-		break;
-	case ETH_RSS_MODE_IP_DSCP:
-		__set_bit(BNX2X_RSS_MODE_IP_DSCP, &params.rss_flags);
-		break;
-	default:
-		BNX2X_ERR("Unknown multi_mode: %d\n", bp->multi_mode);
-		return -EINVAL;
-	}
+	__set_bit(BNX2X_RSS_MODE_REGULAR, &params.rss_flags);
 
-	/* If RSS is enabled */
-	if (bp->multi_mode != ETH_RSS_MODE_DISABLED) {
-		/* RSS configuration */
-		__set_bit(BNX2X_RSS_IPV4, &params.rss_flags);
-		__set_bit(BNX2X_RSS_IPV4_TCP, &params.rss_flags);
-		__set_bit(BNX2X_RSS_IPV6, &params.rss_flags);
-		__set_bit(BNX2X_RSS_IPV6_TCP, &params.rss_flags);
+	/* RSS configuration */
+	__set_bit(BNX2X_RSS_IPV4, &params.rss_flags);
+	__set_bit(BNX2X_RSS_IPV4_TCP, &params.rss_flags);
+	__set_bit(BNX2X_RSS_IPV6, &params.rss_flags);
+	__set_bit(BNX2X_RSS_IPV6_TCP, &params.rss_flags);
 
-		/* Hash bits */
-		params.rss_result_mask = MULTI_MASK;
+	/* Hash bits */
+	params.rss_result_mask = MULTI_MASK;
 
-		memcpy(params.ind_table, ind_table, sizeof(params.ind_table));
+	memcpy(params.ind_table, ind_table, sizeof(params.ind_table));
 
-		if (config_hash) {
-			/* RSS keys */
-			for (i = 0; i < sizeof(params.rss_key) / 4; i++)
-				params.rss_key[i] = random32();
+	if (config_hash) {
+		/* RSS keys */
+		for (i = 0; i < sizeof(params.rss_key) / 4; i++)
+			params.rss_key[i] = random32();
 
-			__set_bit(BNX2X_RSS_SET_SRCH, &params.rss_flags);
-		}
+		__set_bit(BNX2X_RSS_SET_SRCH, &params.rss_flags);
 	}
 
 	return bnx2x_config_rss(bp, &params);

@@ -1382,7 +1382,6 @@ struct bnx2x {
 #define BNX2X_STATE_DIAG		0xe000
 #define BNX2X_STATE_ERROR		0xf000
 
-	int			multi_mode;
 #define BNX2X_MAX_PRIORITY		8
 #define BNX2X_MAX_ENTRIES_PER_PRI	16
 #define BNX2X_MAX_COS			3

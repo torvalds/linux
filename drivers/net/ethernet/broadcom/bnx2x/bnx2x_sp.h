@@ -685,9 +685,6 @@ enum {
 	/* RSS_MODE bits are mutually exclusive */
 	BNX2X_RSS_MODE_DISABLED,
 	BNX2X_RSS_MODE_REGULAR,
-	BNX2X_RSS_MODE_VLAN_PRI,
-	BNX2X_RSS_MODE_E1HOV_PRI,
-	BNX2X_RSS_MODE_IP_DSCP,
 
 	BNX2X_RSS_SET_SRCH, /* Setup searcher, E1x specific flag */
 

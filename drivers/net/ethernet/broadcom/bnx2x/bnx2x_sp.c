@@ -4090,12 +4090,6 @@ static int bnx2x_setup_rss(struct bnx2x *bp,
 		rss_mode = ETH_RSS_MODE_DISABLED;
 	else if (test_bit(BNX2X_RSS_MODE_REGULAR, &p->rss_flags))
 		rss_mode = ETH_RSS_MODE_REGULAR;
-	else if (test_bit(BNX2X_RSS_MODE_VLAN_PRI, &p->rss_flags))
-		rss_mode = ETH_RSS_MODE_VLAN_PRI;
-	else if (test_bit(BNX2X_RSS_MODE_E1HOV_PRI, &p->rss_flags))
-		rss_mode = ETH_RSS_MODE_E1HOV_PRI;
-	else if (test_bit(BNX2X_RSS_MODE_IP_DSCP, &p->rss_flags))
-		rss_mode = ETH_RSS_MODE_IP_DSCP;
 
 	data->rss_mode = rss_mode;
 
