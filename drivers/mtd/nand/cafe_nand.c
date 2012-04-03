@@ -888,17 +888,7 @@ static struct pci_driver cafe_nand_pci_driver = {
 	.resume = cafe_nand_resume,
 };
 
-static int __init cafe_nand_init(void)
-{
-	return pci_register_driver(&cafe_nand_pci_driver);
-}
-
-static void __exit cafe_nand_exit(void)
-{
-	pci_unregister_driver(&cafe_nand_pci_driver);
-}
-module_init(cafe_nand_init);
-module_exit(cafe_nand_exit);
+module_pci_driver(cafe_nand_pci_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");

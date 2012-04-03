@@ -1702,17 +1702,4 @@ static struct pci_driver denali_pci_driver = {
 	.remove = denali_pci_remove,
 };
 
-static int __devinit denali_init(void)
-{
-	printk(KERN_INFO "Spectra MTD driver\n");
-	return pci_register_driver(&denali_pci_driver);
-}
-
-/* Free memory */
-static void __devexit denali_exit(void)
-{
-	pci_unregister_driver(&denali_pci_driver);
-}
-
-module_init(denali_init);
-module_exit(denali_exit);
+module_pci_driver(denali_pci_driver);
