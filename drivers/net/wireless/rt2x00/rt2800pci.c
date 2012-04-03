@@ -393,6 +393,16 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 	rt2x00pci_register_write(rt2x00dev, TX_CTX_IDX3, 0);
 	rt2x00pci_register_write(rt2x00dev, TX_DTX_IDX3, 0);
 
+	rt2x00pci_register_write(rt2x00dev, TX_BASE_PTR4, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_MAX_CNT4, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_CTX_IDX4, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_DTX_IDX4, 0);
+
+	rt2x00pci_register_write(rt2x00dev, TX_BASE_PTR5, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_MAX_CNT5, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_CTX_IDX5, 0);
+	rt2x00pci_register_write(rt2x00dev, TX_DTX_IDX5, 0);
+
 	entry_priv = rt2x00dev->rx->entries[0].priv_data;
 	rt2x00pci_register_write(rt2x00dev, RX_BASE_PTR, entry_priv->desc_dma);
 	rt2x00pci_register_write(rt2x00dev, RX_MAX_CNT,
