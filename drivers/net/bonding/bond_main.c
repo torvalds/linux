@@ -3704,17 +3704,52 @@ static void bond_set_multicast_list(struct net_device *bond_dev)
 	read_unlock(&bond->lock);
 }
 
-static int bond_neigh_setup(struct net_device *dev, struct neigh_parms *parms)
+static int bond_neigh_init(struct neighbour *n)
 {
-	struct bonding *bond = netdev_priv(dev);
+	struct bonding *bond = netdev_priv(n->dev);
 	struct slave *slave = bond->first_slave;
+	const struct net_device_ops *slave_ops;
+	struct neigh_parms parms;
+	int ret;
 
-	if (slave) {
-		const struct net_device_ops *slave_ops
-			= slave->dev->netdev_ops;
-		if (slave_ops->ndo_neigh_setup)
-			return slave_ops->ndo_neigh_setup(slave->dev, parms);
-	}
+	if (!slave)
+		return 0;
+
+	slave_ops = slave->dev->netdev_ops;
+
+	if (!slave_ops->ndo_neigh_setup)
+		return 0;
+
+	parms.neigh_setup = NULL;
+	parms.neigh_cleanup = NULL;
+	ret = slave_ops->ndo_neigh_setup(slave->dev, &parms);
+	if (ret)
+		return ret;
+
+	/*
+	 * Assign slave's neigh_cleanup to neighbour in case cleanup is called
+	 * after the last slave has been detached.  Assumes that all slaves
+	 * utilize the same neigh_cleanup (true at this writing as only user
+	 * is ipoib).
+	 */
+	n->parms->neigh_cleanup = parms.neigh_cleanup;
+
+	if (!parms.neigh_setup)
+		return 0;
+
+	return parms.neigh_setup(n);
+}
+
+/*
+ * The bonding ndo_neigh_setup is called at init time beofre any
+ * slave exists. So we must declare proxy setup function which will
+ * be used at run time to resolve the actual slave neigh param setup.
+ */
+static int bond_neigh_setup(struct net_device *dev,
+			    struct neigh_parms *parms)
+{
+	parms->neigh_setup   = bond_neigh_init;
+
 	return 0;
 }
 
