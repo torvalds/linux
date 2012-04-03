@@ -590,7 +590,7 @@ static int af9035_fc0011_tuner_callback(struct dvb_usb_device *d,
 		err = af9035_wr_reg_mask(d, 0xd8d1, 1, 1);
 		if (err)
 			return err;
-		msleep(10);
+		usleep_range(10000, 50000);
 		break;
 	case FC0011_FE_CALLBACK_RESET:
 		err = af9035_wr_reg(d, 0xd8e9, 1);
@@ -602,11 +602,11 @@ static int af9035_fc0011_tuner_callback(struct dvb_usb_device *d,
 		err = af9035_wr_reg(d, 0xd8e7, 1);
 		if (err)
 			return err;
-		msleep(10);
+		usleep_range(10000, 20000);
 		err = af9035_wr_reg(d, 0xd8e7, 0);
 		if (err)
 			return err;
-		msleep(10);
+		usleep_range(10000, 20000);
 		break;
 	default:
 		return -EINVAL;
