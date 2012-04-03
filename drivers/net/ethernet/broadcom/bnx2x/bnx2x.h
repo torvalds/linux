@@ -30,6 +30,10 @@
 #if defined(CONFIG_DCB)
 #define BCM_DCBNL
 #endif
+
+
+#include "bnx2x_hsi.h"
+
 #if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
 #define BCM_CNIC 1
 #include "../cnic_if.h"
@@ -1336,8 +1340,8 @@ struct bnx2x {
 	struct bnx2x_common	common;
 	struct bnx2x_port	port;
 
-	struct cmng_struct_per_port cmng;
-	u32			vn_weight_sum;
+	struct cmng_init	cmng;
+
 	u32			mf_config[E1HVN_MAX];
 	u32			mf2_config[E2_FUNC_MAX];
 	u32			path_has_ovlan; /* E3 */

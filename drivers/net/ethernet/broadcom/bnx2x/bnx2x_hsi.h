@@ -4448,6 +4448,65 @@ struct cmng_struct_per_port {
 	struct cmng_flags_per_port flags;
 };
 
+/*
+ * a single rate shaping counter. can be used as protocol or vnic counter
+ */
+struct rate_shaping_counter {
+	u32 quota;
+#if defined(__BIG_ENDIAN)
+	u16 __reserved0;
+	u16 rate;
+#elif defined(__LITTLE_ENDIAN)
+	u16 rate;
+	u16 __reserved0;
+#endif
+};
+
+/*
+ * per-vnic rate shaping variables
+ */
+struct rate_shaping_vars_per_vn {
+	struct rate_shaping_counter vn_counter;
+};
+
+/*
+ * per-vnic fairness variables
+ */
+struct fairness_vars_per_vn {
+	u32 cos_credit_delta[MAX_COS_NUMBER];
+	u32 vn_credit_delta;
+	u32 __reserved0;
+};
+
+/*
+ * cmng port init state
+ */
+struct cmng_vnic {
+	struct rate_shaping_vars_per_vn vnic_max_rate[4];
+	struct fairness_vars_per_vn vnic_min_rate[4];
+};
+
+/*
+ * cmng port init state
+ */
+struct cmng_init {
+	struct cmng_struct_per_port port;
+	struct cmng_vnic vnic;
+};
+
+
+/*
+ * driver parameters for congestion management init, all rates are in Mbps
+ */
+struct cmng_init_input {
+	u32 port_rate;
+	u16 vnic_min_rate[4];
+	u16 vnic_max_rate[4];
+	u16 cos_min_rate[MAX_COS_NUMBER];
+	u16 cos_to_pause_mask[MAX_COS_NUMBER];
+	struct cmng_flags_per_port flags;
+};
+
 
 /*
  * Protocol-common command ID for slow path elements
@@ -4759,16 +4818,6 @@ enum fairness_mode {
 	FAIRNESS_COS_WRR_MODE,
 	FAIRNESS_COS_ETS_MODE,
 	MAX_FAIRNESS_MODE
-};
-
-
-/*
- * per-vnic fairness variables
- */
-struct fairness_vars_per_vn {
-	u32 cos_credit_delta[MAX_COS_NUMBER];
-	u32 vn_credit_delta;
-	u32 __reserved0;
 };
 
 
@@ -5136,29 +5185,6 @@ union protocol_common_specific_data {
 struct protocol_common_spe {
 	struct spe_hdr hdr;
 	union protocol_common_specific_data data;
-};
-
-
-/*
- * a single rate shaping counter. can be used as protocol or vnic counter
- */
-struct rate_shaping_counter {
-	u32 quota;
-#if defined(__BIG_ENDIAN)
-	u16 __reserved0;
-	u16 rate;
-#elif defined(__LITTLE_ENDIAN)
-	u16 rate;
-	u16 __reserved0;
-#endif
-};
-
-
-/*
- * per-vnic rate shaping variables
- */
-struct rate_shaping_vars_per_vn {
-	struct rate_shaping_counter vn_counter;
 };
 
 

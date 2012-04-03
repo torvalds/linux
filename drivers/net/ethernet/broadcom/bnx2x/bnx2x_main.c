@@ -2160,40 +2160,6 @@ u8 bnx2x_link_test(struct bnx2x *bp, u8 is_serdes)
 	return rc;
 }
 
-static void bnx2x_init_port_minmax(struct bnx2x *bp)
-{
-	u32 r_param = bp->link_vars.line_speed / 8;
-	u32 fair_periodic_timeout_usec;
-	u32 t_fair;
-
-	memset(&(bp->cmng.rs_vars), 0,
-	       sizeof(struct rate_shaping_vars_per_port));
-	memset(&(bp->cmng.fair_vars), 0, sizeof(struct fairness_vars_per_port));
-
-	/* 100 usec in SDM ticks = 25 since each tick is 4 usec */
-	bp->cmng.rs_vars.rs_periodic_timeout = RS_PERIODIC_TIMEOUT_USEC / 4;
-
-	/* this is the threshold below which no timer arming will occur
-	   1.25 coefficient is for the threshold to be a little bigger
-	   than the real time, to compensate for timer in-accuracy */
-	bp->cmng.rs_vars.rs_threshold =
-				(RS_PERIODIC_TIMEOUT_USEC * r_param * 5) / 4;
-
-	/* resolution of fairness timer */
-	fair_periodic_timeout_usec = QM_ARB_BYTES / r_param;
-	/* for 10G it is 1000usec. for 1G it is 10000usec. */
-	t_fair = T_FAIR_COEF / bp->link_vars.line_speed;
-
-	/* this is the threshold below which we won't arm the timer anymore */
-	bp->cmng.fair_vars.fair_threshold = QM_ARB_BYTES;
-
-	/* we multiply by 1e3/8 to get bytes/msec.
-	   We don't want the credits to pass a credit
-	   of the t_fair*FAIR_MEM (algorithm resolution) */
-	bp->cmng.fair_vars.upper_bound = r_param * t_fair * FAIR_MEM;
-	/* since each tick is 4 usec */
-	bp->cmng.fair_vars.fairness_timeout = fair_periodic_timeout_usec / 4;
-}
 
 /* Calculates the sum of vn_min_rates.
    It's needed for further normalizing of the min_rates.
@@ -2204,12 +2170,12 @@ static void bnx2x_init_port_minmax(struct bnx2x *bp)
      In the later case fainess algorithm should be deactivated.
      If not all min_rates are zero then those that are zeroes will be set to 1.
  */
-static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
+static void bnx2x_calc_vn_min(struct bnx2x *bp,
+				      struct cmng_init_input *input)
 {
 	int all_zero = 1;
 	int vn;
 
-	bp->vn_weight_sum = 0;
 	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
 		u32 vn_cfg = bp->mf_config[vn];
 		u32 vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
@@ -2217,105 +2183,55 @@ static void bnx2x_calc_vn_weight_sum(struct bnx2x *bp)
 
 		/* Skip hidden vns */
 		if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE)
-			continue;
-
+			vn_min_rate = 0;
 		/* If min rate is zero - set it to 1 */
-		if (!vn_min_rate)
+		else if (!vn_min_rate)
 			vn_min_rate = DEF_MIN_RATE;
 		else
 			all_zero = 0;
 
-		bp->vn_weight_sum += vn_min_rate;
+		input->vnic_min_rate[vn] = vn_min_rate;
 	}
 
 	/* if ETS or all min rates are zeros - disable fairness */
 	if (BNX2X_IS_ETS_ENABLED(bp)) {
-		bp->cmng.flags.cmng_enables &=
+		input->flags.cmng_enables &=
 					~CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 		DP(NETIF_MSG_IFUP, "Fairness will be disabled due to ETS\n");
 	} else if (all_zero) {
-		bp->cmng.flags.cmng_enables &=
+		input->flags.cmng_enables &=
 					~CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
-		DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
-		   "  fairness will be disabled\n");
+		DP(NETIF_MSG_IFUP,
+		   "All MIN values are zeroes fairness will be disabled\n");
 	} else
-		bp->cmng.flags.cmng_enables |=
+		input->flags.cmng_enables |=
 					CMNG_FLAGS_PER_PORT_FAIRNESS_VN;
 }
 
-static void bnx2x_init_vn_minmax(struct bnx2x *bp, int vn)
+static void bnx2x_calc_vn_max(struct bnx2x *bp, int vn,
+				    struct cmng_init_input *input)
 {
-	struct rate_shaping_vars_per_vn m_rs_vn;
-	struct fairness_vars_per_vn m_fair_vn;
+	u16 vn_max_rate;
 	u32 vn_cfg = bp->mf_config[vn];
-	int func = func_by_vn(bp, vn);
-	u16 vn_min_rate, vn_max_rate;
-	int i;
 
-	/* If function is hidden - set min and max to zeroes */
-	if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE) {
-		vn_min_rate = 0;
+	if (vn_cfg & FUNC_MF_CFG_FUNC_HIDE)
 		vn_max_rate = 0;
-
-	} else {
+	else {
 		u32 maxCfg = bnx2x_extract_max_cfg(bp, vn_cfg);
 
-		vn_min_rate = ((vn_cfg & FUNC_MF_CFG_MIN_BW_MASK) >>
-				FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
-		/* If fairness is enabled (not all min rates are zeroes) and
-		   if current min rate is zero - set it to 1.
-		   This is a requirement of the algorithm. */
-		if (bp->vn_weight_sum && (vn_min_rate == 0))
-			vn_min_rate = DEF_MIN_RATE;
-
-		if (IS_MF_SI(bp))
+		if (IS_MF_SI(bp)) {
 			/* maxCfg in percents of linkspeed */
 			vn_max_rate = (bp->link_vars.line_speed * maxCfg) / 100;
-		else
+		} else /* SD modes */
 			/* maxCfg is absolute in 100Mb units */
 			vn_max_rate = maxCfg * 100;
 	}
 
-	DP(NETIF_MSG_IFUP,
-	   "func %d: vn_min_rate %d  vn_max_rate %d  vn_weight_sum %d\n",
-	   func, vn_min_rate, vn_max_rate, bp->vn_weight_sum);
+	DP(NETIF_MSG_IFUP, "vn %d: vn_max_rate %d\n", vn, vn_max_rate);
 
-	memset(&m_rs_vn, 0, sizeof(struct rate_shaping_vars_per_vn));
-	memset(&m_fair_vn, 0, sizeof(struct fairness_vars_per_vn));
-
-	/* global vn counter - maximal Mbps for this vn */
-	m_rs_vn.vn_counter.rate = vn_max_rate;
-
-	/* quota - number of bytes transmitted in this period */
-	m_rs_vn.vn_counter.quota =
-				(vn_max_rate * RS_PERIODIC_TIMEOUT_USEC) / 8;
-
-	if (bp->vn_weight_sum) {
-		/* credit for each period of the fairness algorithm:
-		   number of bytes in T_FAIR (the vn share the port rate).
-		   vn_weight_sum should not be larger than 10000, thus
-		   T_FAIR_COEF / (8 * vn_weight_sum) will always be greater
-		   than zero */
-		m_fair_vn.vn_credit_delta =
-			max_t(u32, (vn_min_rate * (T_FAIR_COEF /
-						   (8 * bp->vn_weight_sum))),
-			      (bp->cmng.fair_vars.fair_threshold +
-							MIN_ABOVE_THRESH));
-		DP(NETIF_MSG_IFUP, "m_fair_vn.vn_credit_delta %d\n",
-		   m_fair_vn.vn_credit_delta);
-	}
-
-	/* Store it to internal memory */
-	for (i = 0; i < sizeof(struct rate_shaping_vars_per_vn)/4; i++)
-		REG_WR(bp, BAR_XSTRORM_INTMEM +
-		       XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(func) + i * 4,
-		       ((u32 *)(&m_rs_vn))[i]);
-
-	for (i = 0; i < sizeof(struct fairness_vars_per_vn)/4; i++)
-		REG_WR(bp, BAR_XSTRORM_INTMEM +
-		       XSTORM_FAIRNESS_PER_VN_VARS_OFFSET(func) + i * 4,
-		       ((u32 *)(&m_fair_vn))[i]);
+	input->vnic_max_rate[vn] = vn_max_rate;
 }
+
 
 static int bnx2x_get_cmng_fns_mode(struct bnx2x *bp)
 {
@@ -2358,34 +2274,31 @@ void bnx2x_read_mf_cfg(struct bnx2x *bp)
 
 static void bnx2x_cmng_fns_init(struct bnx2x *bp, u8 read_cfg, u8 cmng_type)
 {
+	struct cmng_init_input input;
+	memset(&input, 0, sizeof(struct cmng_init_input));
+
+	input.port_rate = bp->link_vars.line_speed;
 
 	if (cmng_type == CMNG_FNS_MINMAX) {
 		int vn;
-
-		/* clear cmng_enables */
-		bp->cmng.flags.cmng_enables = 0;
 
 		/* read mf conf from shmem */
 		if (read_cfg)
 			bnx2x_read_mf_cfg(bp);
 
-		/* Init rate shaping and fairness contexts */
-		bnx2x_init_port_minmax(bp);
-
 		/* vn_weight_sum and enable fairness if not 0 */
-		bnx2x_calc_vn_weight_sum(bp);
+		bnx2x_calc_vn_min(bp, &input);
 
 		/* calculate and set min-max rate for each vn */
 		if (bp->port.pmf)
 			for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++)
-				bnx2x_init_vn_minmax(bp, vn);
+				bnx2x_calc_vn_max(bp, vn, &input);
 
 		/* always enable rate shaping and fairness */
-		bp->cmng.flags.cmng_enables |=
+		input.flags.cmng_enables |=
 					CMNG_FLAGS_PER_PORT_RATE_SHAPING_VN;
-		if (!bp->vn_weight_sum)
-			DP(NETIF_MSG_IFUP, "All MIN values are zeroes"
-				   "  fairness will be disabled\n");
+
+		bnx2x_init_cmng(&input, &bp->cmng);
 		return;
 	}
 

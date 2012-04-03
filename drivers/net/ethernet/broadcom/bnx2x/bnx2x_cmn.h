@@ -964,6 +964,12 @@ static inline void bnx2x_reuse_rx_data(struct bnx2x_fastpath *fp,
 
 /************************* Init ******************************************/
 
+/* returns func by VN for current port */
+static inline int func_by_vn(struct bnx2x *bp, int vn)
+{
+	return 2 * vn + BP_PORT(bp);
+}
+
 /**
  * bnx2x_func_start - init function
  *
@@ -1419,15 +1425,32 @@ static inline void storm_memset_func_cfg(struct bnx2x *bp,
 }
 
 static inline void storm_memset_cmng(struct bnx2x *bp,
-				struct cmng_struct_per_port *cmng,
+				struct cmng_init *cmng,
 				u8 port)
 {
+	int vn;
 	size_t size = sizeof(struct cmng_struct_per_port);
 
 	u32 addr = BAR_XSTRORM_INTMEM +
 			XSTORM_CMNG_PER_PORT_VARS_OFFSET(port);
 
-	__storm_memset_struct(bp, addr, size, (u32 *)cmng);
+	__storm_memset_struct(bp, addr, size, (u32 *)&cmng->port);
+
+	for (vn = VN_0; vn < BP_MAX_VN_NUM(bp); vn++) {
+		int func = func_by_vn(bp, vn);
+
+		addr = BAR_XSTRORM_INTMEM +
+		       XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(func);
+		size = sizeof(struct rate_shaping_vars_per_vn);
+		__storm_memset_struct(bp, addr, size,
+				      (u32 *)&cmng->vnic.vnic_max_rate[vn]);
+
+		addr = BAR_XSTRORM_INTMEM +
+		       XSTORM_FAIRNESS_PER_VN_VARS_OFFSET(func);
+		size = sizeof(struct fairness_vars_per_vn);
+		__storm_memset_struct(bp, addr, size,
+				      (u32 *)&cmng->vnic.vnic_min_rate[vn]);
+	}
 }
 
 /**
@@ -1608,11 +1631,6 @@ static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
  */
 void bnx2x_get_iscsi_info(struct bnx2x *bp);
 #endif
-/* returns func by VN for current port */
-static inline int func_by_vn(struct bnx2x *bp, int vn)
-{
-	return 2 * vn + BP_PORT(bp);
-}
 
 /**
  * bnx2x_link_sync_notify - send notification to other functions.
