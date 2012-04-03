@@ -302,7 +302,6 @@ static const struct super_operations ext2_sops = {
 	.write_inode	= ext2_write_inode,
 	.evict_inode	= ext2_evict_inode,
 	.put_super	= ext2_put_super,
-	.write_super	= ext2_write_super,
 	.sync_fs	= ext2_sync_fs,
 	.statfs		= ext2_statfs,
 	.remount_fs	= ext2_remount,
