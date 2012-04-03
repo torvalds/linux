@@ -3789,6 +3789,8 @@ static struct pci_driver fw_ohci_pci_driver = {
 #endif
 };
 
+module_pci_driver(fw_ohci_pci_driver);
+
 MODULE_AUTHOR("Kristian Hoegsberg <krh@bitplanet.net>");
 MODULE_DESCRIPTION("Driver for PCI OHCI IEEE1394 controllers");
 MODULE_LICENSE("GPL");
@@ -3797,16 +3799,3 @@ MODULE_LICENSE("GPL");
 #ifndef CONFIG_IEEE1394_OHCI1394_MODULE
 MODULE_ALIAS("ohci1394");
 #endif
-
-static int __init fw_ohci_init(void)
-{
-	return pci_register_driver(&fw_ohci_pci_driver);
-}
-
-static void __exit fw_ohci_cleanup(void)
-{
-	pci_unregister_driver(&fw_ohci_pci_driver);
-}
-
-module_init(fw_ohci_init);
-module_exit(fw_ohci_cleanup);
