@@ -28,6 +28,7 @@
 #include <linux/input.h>
 #include <linux/wait.h>
 #include <linux/workqueue.h>
+#include <linux/string.h>
 
 #include <linux/usb.h>
 
@@ -1364,7 +1365,34 @@ static int hid_post_reset(struct usb_interface *intf)
 	struct usb_device *dev = interface_to_usbdev (intf);
 	struct hid_device *hid = usb_get_intfdata(intf);
 	struct usbhid_device *usbhid = hid->driver_data;
+	struct usb_host_interface *interface = intf->cur_altsetting;
 	int status;
+	char *rdesc;
+
+	/* Fetch and examine the HID report descriptor. If this
+	 * has changed, then rebind. Since usbcore's check of the
+	 * configuration descriptors passed, we already know that
+	 * the size of the HID report descriptor has not changed.
+	 */
+	rdesc = kmalloc(hid->rsize, GFP_KERNEL);
+	if (!rdesc) {
+		dbg_hid("couldn't allocate rdesc memory (post_reset)\n");
+		return 1;
+	}
+	status = hid_get_class_descriptor(dev,
+				interface->desc.bInterfaceNumber,
+				HID_DT_REPORT, rdesc, hid->rsize);
+	if (status < 0) {
+		dbg_hid("reading report descriptor failed (post_reset)\n");
+		kfree(rdesc);
+		return 1;
+	}
+	status = memcmp(rdesc, hid->rdesc, hid->rsize);
+	kfree(rdesc);
+	if (status != 0) {
+		dbg_hid("report descriptor changed\n");
+		return 1;
+	}
 
 	spin_lock_irq(&usbhid->lock);
 	clear_bit(HID_RESET_PENDING, &usbhid->iofl);
