@@ -1854,6 +1854,7 @@ static const struct ethtool_ops rtl8169_ethtool_ops = {
 	.get_strings		= rtl8169_get_strings,
 	.get_sset_count		= rtl8169_get_sset_count,
 	.get_ethtool_stats	= rtl8169_get_ethtool_stats,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static void rtl8169_get_mac_version(struct rtl8169_private *tp,
