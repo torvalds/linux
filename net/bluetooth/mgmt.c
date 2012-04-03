@@ -1640,15 +1640,15 @@ static u8 link_to_mgmt(u8 link_type, u8 addr_type)
 		switch (addr_type) {
 		case ADDR_LE_DEV_PUBLIC:
 			return MGMT_ADDR_LE_PUBLIC;
-		case ADDR_LE_DEV_RANDOM:
-			return MGMT_ADDR_LE_RANDOM;
+
 		default:
-			return MGMT_ADDR_INVALID;
+			/* Fallback to LE Random address type */
+			return MGMT_ADDR_LE_RANDOM;
 		}
-	case ACL_LINK:
-		return MGMT_ADDR_BREDR;
+
 	default:
-		return MGMT_ADDR_INVALID;
+		/* Fallback to BR/EDR type */
+		return MGMT_ADDR_BREDR;
 	}
 }
 
@@ -1690,7 +1690,7 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 			continue;
 		bacpy(&rp->addr[i].bdaddr, &c->dst);
 		rp->addr[i].type = link_to_mgmt(c->type, c->dst_type);
-		if (rp->addr[i].type == MGMT_ADDR_INVALID)
+		if (c->type == SCO_LINK || c->type == ESCO_LINK)
 			continue;
 		i++;
 	}

@@ -968,7 +968,6 @@ void hci_sock_dev_event(struct hci_dev *hdev, int event);
 #define MGMT_ADDR_BREDR			0x00
 #define MGMT_ADDR_LE_PUBLIC		0x01
 #define MGMT_ADDR_LE_RANDOM		0x02
-#define MGMT_ADDR_INVALID		0xff
 
 #define DISCOV_TYPE_BREDR		(BIT(MGMT_ADDR_BREDR))
 #define DISCOV_TYPE_LE			(BIT(MGMT_ADDR_LE_PUBLIC) | \
