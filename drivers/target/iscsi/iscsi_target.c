@@ -2178,7 +2178,7 @@ static int iscsit_handle_logout_cmd(
 	 * Immediate commands are executed, well, immediately.
 	 * Non-Immediate Logout Commands are executed in CmdSN order.
 	 */
-	if (hdr->opcode & ISCSI_OP_IMMEDIATE) {
+	if (cmd->immediate_cmd) {
 		int ret = iscsit_execute_cmd(cmd, 0);
 
 		if (ret < 0)
@@ -2923,8 +2923,7 @@ int iscsit_build_r2ts_for_cmd(
 	}
 
 	if (conn->sess->sess_ops->DataSequenceInOrder && (type != 2))
-		if (cmd->r2t_offset < cmd->write_data_done)
-			cmd->r2t_offset = cmd->write_data_done;
+		cmd->r2t_offset = max(cmd->r2t_offset, cmd->write_data_done);
 
 	while (cmd->outstanding_r2ts < conn->sess->sess_ops->MaxOutstandingR2T) {
 		if (conn->sess->sess_ops->DataSequenceInOrder) {
@@ -3418,8 +3417,6 @@ static void iscsit_tx_thread_wait_for_tcp(struct iscsi_conn *conn)
 	}
 }
 
-#ifdef CONFIG_SMP
-
 void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
 {
 	struct iscsi_thread_set *ts = conn->thread_set;
@@ -3433,10 +3430,6 @@ void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
 	 * execute upon.
 	 */
 	ord = ts->thread_id % cpumask_weight(cpu_online_mask);
-#if 0
-	pr_debug(">>>>>>>>>>>>>>>>>>>> Generated ord: %d from"
-			" thread_id: %d\n", ord, ts->thread_id);
-#endif
 	for_each_online_cpu(cpu) {
 		if (ord-- == 0) {
 			cpumask_set_cpu(cpu, conn->conn_cpumask);
@@ -3476,22 +3469,8 @@ static inline void iscsit_thread_check_cpumask(
 	 */
 	memset(buf, 0, 128);
 	cpumask_scnprintf(buf, 128, conn->conn_cpumask);
-#if 0
-	pr_debug(">>>>>>>>>>>>>> Calling set_cpus_allowed_ptr():"
-			" %s for %s\n", buf, p->comm);
-#endif
 	set_cpus_allowed_ptr(p, conn->conn_cpumask);
 }
-
-#else
-
-void iscsit_thread_get_cpumask(struct iscsi_conn *conn)
-{
-	return;
-}
-
-#define iscsit_thread_check_cpumask(X, Y, Z) ({})
-#endif /* CONFIG_SMP */
 
 int iscsi_target_tx_thread(void *arg)
 {
@@ -3531,9 +3510,7 @@ restart:
 		     signal_pending(current))
 			goto transport_err;
 
-get_immediate:
-		qr = iscsit_get_cmd_from_immediate_queue(conn);
-		if (qr) {
+		while ((qr = iscsit_get_cmd_from_immediate_queue(conn))) {
 			atomic_set(&conn->check_immediate_queue, 0);
 			cmd = qr->cmd;
 			state = qr->state;
@@ -3556,7 +3533,7 @@ get_immediate:
 				spin_unlock_bh(&conn->cmd_lock);
 
 				iscsit_free_cmd(cmd);
-				goto get_immediate;
+				continue;
 			case ISTATE_SEND_NOPIN_WANT_RESPONSE:
 				spin_unlock_bh(&cmd->istate_lock);
 				iscsit_mod_nopin_response_timer(conn);
@@ -3576,13 +3553,10 @@ get_immediate:
 				spin_unlock_bh(&cmd->istate_lock);
 				goto transport_err;
 			}
-			if (ret < 0) {
-				conn->tx_immediate_queue = 0;
+			if (ret < 0)
 				goto transport_err;
-			}
 
 			if (iscsit_send_tx_data(cmd, conn, 1) < 0) {
-				conn->tx_immediate_queue = 0;
 				iscsit_tx_thread_wait_for_tcp(conn);
 				goto transport_err;
 			}
@@ -3611,13 +3585,9 @@ get_immediate:
 				spin_unlock_bh(&cmd->istate_lock);
 				goto transport_err;
 			}
-			goto get_immediate;
-		} else
-			conn->tx_immediate_queue = 0;
+		}
 
-get_response:
-		qr = iscsit_get_cmd_from_response_queue(conn);
-		if (qr) {
+		while ((qr = iscsit_get_cmd_from_response_queue(conn))) {
 			cmd = qr->cmd;
 			state = qr->state;
 			kmem_cache_free(lio_qr_cache, qr);
@@ -3681,21 +3651,17 @@ check_rsp_state:
 				spin_unlock_bh(&cmd->istate_lock);
 				goto transport_err;
 			}
-			if (ret < 0) {
-				conn->tx_response_queue = 0;
+			if (ret < 0)
 				goto transport_err;
-			}
 
 			if (map_sg && !conn->conn_ops->IFMarker) {
 				if (iscsit_fe_sendpage_sg(cmd, conn) < 0) {
-					conn->tx_response_queue = 0;
 					iscsit_tx_thread_wait_for_tcp(conn);
 					iscsit_unmap_iovec(cmd);
 					goto transport_err;
 				}
 			} else {
 				if (iscsit_send_tx_data(cmd, conn, use_misc) < 0) {
-					conn->tx_response_queue = 0;
 					iscsit_tx_thread_wait_for_tcp(conn);
 					iscsit_unmap_iovec(cmd);
 					goto transport_err;
@@ -3771,11 +3737,8 @@ check_rsp_state:
 			spin_unlock_bh(&cmd->istate_lock);
 
 			if (atomic_read(&conn->check_immediate_queue))
-				goto get_immediate;
-
-			goto get_response;
-		} else
-			conn->tx_response_queue = 0;
+				break;
+		}
 	}
 
 transport_err:

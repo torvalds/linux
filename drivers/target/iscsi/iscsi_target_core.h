@@ -500,8 +500,6 @@ struct iscsi_conn {
 	u8			network_transport;
 	enum iscsi_timer_flags_table nopin_timer_flags;
 	enum iscsi_timer_flags_table nopin_response_timer_flags;
-	u8			tx_immediate_queue;
-	u8			tx_response_queue;
 	/* Used to know what thread encountered a transport failure */
 	u8			which_thread;
 	/* connection id assigned by the Initiator */

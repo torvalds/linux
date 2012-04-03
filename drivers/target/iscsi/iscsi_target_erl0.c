@@ -640,9 +640,12 @@ static int iscsit_dataout_post_crc_passed(
 
 	cmd->write_data_done += payload_length;
 
-	return (cmd->write_data_done == cmd->data_length) ?
-		DATAOUT_SEND_TO_TRANSPORT : (send_r2t) ?
-		DATAOUT_SEND_R2T : DATAOUT_NORMAL;
+	if (cmd->write_data_done == cmd->data_length)
+		return DATAOUT_SEND_TO_TRANSPORT;
+	else if (send_r2t)
+		return DATAOUT_SEND_R2T;
+	else
+		return DATAOUT_NORMAL;
 }
 
 static int iscsit_dataout_post_crc_failed(
