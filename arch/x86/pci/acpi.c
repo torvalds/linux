@@ -12,7 +12,6 @@ struct pci_root_info {
 	char *name;
 	unsigned int res_num;
 	struct resource *res;
-	struct list_head *resources;
 	int busnum;
 };
 
@@ -287,7 +286,8 @@ static void coalesce_windows(struct pci_root_info *info, unsigned long type)
 	}
 }
 
-static void add_resources(struct pci_root_info *info)
+static void add_resources(struct pci_root_info *info,
+			  struct list_head *resources)
 {
 	int i;
 	struct resource *res, *root, *conflict;
@@ -311,7 +311,7 @@ static void add_resources(struct pci_root_info *info)
 				 "ignoring host bridge window %pR (conflicts with %s %pR)\n",
 				 res, conflict->name, conflict);
 		else
-			pci_add_resource(info->resources, res);
+			pci_add_resource(resources, res);
 	}
 }
 
@@ -323,41 +323,30 @@ static void free_pci_root_info(struct pci_root_info *info)
 }
 
 static void
-get_current_resources(struct pci_root_info *info,
-		      struct acpi_device *device, int busnum,
-		      int domain, struct list_head *resources)
+probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
+		    int busnum, int domain)
 {
 	size_t size;
 
 	info->bridge = device;
 	info->res_num = 0;
-	info->resources = resources;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_resource,
 				info);
 	if (!info->res_num)
 		return;
 
 	size = sizeof(*info->res) * info->res_num;
+	info->res_num = 0;
 	info->res = kmalloc(size, GFP_KERNEL);
 	if (!info->res)
 		return;
 
 	info->name = kasprintf(GFP_KERNEL, "PCI Bus %04x:%02x", domain, busnum);
 	if (!info->name)
-		goto name_alloc_fail;
+		return;
 
-	info->res_num = 0;
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				info);
-
-	if (pci_use_crs) {
-		add_resources(info);
-
-		return;
-	}
-
-name_alloc_fail:
-	free_pci_root_info(info);
 }
 
 struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
@@ -422,15 +411,18 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 		memcpy(bus->sysdata, sd, sizeof(*sd));
 		kfree(sd);
 	} else {
-		get_current_resources(&info, device, busnum, domain,
-					&resources);
+		probe_pci_root_info(&info, device, busnum, domain);
 
 		/*
 		 * _CRS with no apertures is normal, so only fall back to
 		 * defaults or native bridge info if we're ignoring _CRS.
 		 */
-		if (!pci_use_crs)
+		if (pci_use_crs)
+			add_resources(&info, &resources);
+		else {
+			free_pci_root_info(&info);
 			x86_pci_root_bus_resources(busnum, &resources);
+		}
 		bus = pci_create_root_bus(NULL, busnum, &pci_root_ops, sd,
 					  &resources);
 		if (bus)
