@@ -9,13 +9,6 @@
 
 #include "pci.h"
 
-static LIST_HEAD(pci_host_bridges);
-
-void add_to_pci_host_bridges(struct pci_host_bridge *bridge)
-{
-	list_add_tail(&bridge->list, &pci_host_bridges);
-}
-
 static struct pci_bus *find_pci_root_bus(struct pci_dev *dev)
 {
 	struct pci_bus *bus;
@@ -30,14 +23,8 @@ static struct pci_bus *find_pci_root_bus(struct pci_dev *dev)
 static struct pci_host_bridge *find_pci_host_bridge(struct pci_dev *dev)
 {
 	struct pci_bus *bus = find_pci_root_bus(dev);
-	struct pci_host_bridge *bridge;
 
-	list_for_each_entry(bridge, &pci_host_bridges, list) {
-		if (bridge->bus == bus)
-			return bridge;
-	}
-
-	return NULL;
+	return to_pci_host_bridge(bus->bridge);
 }
 
 static bool resource_contains(struct resource *res1, struct resource *res2)
