@@ -1550,11 +1550,11 @@ static int transport_check_alloc_task_attr(struct se_cmd *cmd)
 	return 0;
 }
 
-/*	transport_generic_allocate_tasks():
+/*	target_setup_cmd_from_cdb():
  *
  *	Called from fabric RX Thread.
  */
-int transport_generic_allocate_tasks(
+int target_setup_cmd_from_cdb(
 	struct se_cmd *cmd,
 	unsigned char *cdb)
 {
@@ -1620,7 +1620,7 @@ int transport_generic_allocate_tasks(
 	spin_unlock(&cmd->se_lun->lun_sep_lock);
 	return 0;
 }
-EXPORT_SYMBOL(transport_generic_allocate_tasks);
+EXPORT_SYMBOL(target_setup_cmd_from_cdb);
 
 /*
  * Used by fabric module frontends to queue tasks directly.
@@ -1728,7 +1728,7 @@ void target_submit_cmd(struct se_cmd *se_cmd, struct se_session *se_sess,
 	 * Sanitize CDBs via transport_generic_cmd_sequencer() and
 	 * allocate the necessary tasks to complete the received CDB+data
 	 */
-	rc = transport_generic_allocate_tasks(se_cmd, cdb);
+	rc = target_setup_cmd_from_cdb(se_cmd, cdb);
 	if (rc != 0) {
 		transport_generic_request_failure(se_cmd);
 		return;
@@ -2583,7 +2583,7 @@ static int target_check_write_same_discard(unsigned char *flags, struct se_devic
  *	Generic Command Sequencer that should work for most DAS transport
  *	drivers.
  *
- *	Called from transport_generic_allocate_tasks() in the $FABRIC_MOD
+ *	Called from target_setup_cmd_from_cdb() in the $FABRIC_MOD
  *	RX Thread.
  *
  *	FIXME: Need to support other SCSI OPCODES where as well.

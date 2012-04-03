@@ -1016,13 +1016,8 @@ done:
 		send_check_condition = 1;
 		goto attach_cmd;
 	}
-	/*
-	 * The Initiator Node has access to the LUN (the addressing method
-	 * is handled inside of iscsit_get_lun_for_cmd()).  Now it's time to
-	 * allocate 1->N transport tasks (depending on sector count and
-	 * maximum request size the physical HBA(s) can handle.
-	 */
-	transport_ret = transport_generic_allocate_tasks(&cmd->se_cmd, hdr->cdb);
+
+	transport_ret = target_setup_cmd_from_cdb(&cmd->se_cmd, hdr->cdb);
 	if (transport_ret == -ENOMEM) {
 		return iscsit_add_reject_from_cmd(
 				ISCSI_REASON_BOOKMARK_NO_RESOURCES,

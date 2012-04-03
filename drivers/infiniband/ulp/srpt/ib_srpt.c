@@ -1768,7 +1768,7 @@ static int srpt_handle_cmd(struct srpt_rdma_ch *ch,
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		goto send_sense;
 	}
-	ret = transport_generic_allocate_tasks(cmd, srp_cmd->cdb);
+	ret = target_setup_cmd_from_cdb(cmd, srp_cmd->cdb);
 	if (ret < 0) {
 		kref_put(&send_ioctx->kref, srpt_put_send_ioctx_kref);
 		if (cmd->se_cmd_flags & SCF_SCSI_RESERVATION_CONFLICT) {
