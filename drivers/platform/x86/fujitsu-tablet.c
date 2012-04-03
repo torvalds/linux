@@ -221,9 +221,6 @@ static int __devinit input_fujitsu_setup(struct device *parent,
 	input_set_capability(idev, EV_SW, SW_DOCK);
 	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
 
-	input_set_capability(idev, EV_SW, SW_DOCK);
-	input_set_capability(idev, EV_SW, SW_TABLET_MODE);
-
 	error = input_register_device(idev);
 	if (error) {
 		input_free_device(idev);
