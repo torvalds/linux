@@ -1501,6 +1501,19 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 		    rdev->devlist_generation ^
 			(cfg80211_rdev_list_generation << 2));
 
+	if (rdev->ops->get_channel) {
+		struct ieee80211_channel *chan;
+		enum nl80211_channel_type channel_type;
+
+		chan = rdev->ops->get_channel(&rdev->wiphy, &channel_type);
+		if (chan) {
+			NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_FREQ,
+				    chan->center_freq);
+			NLA_PUT_U32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE,
+				    channel_type);
+		}
+	}
+
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
