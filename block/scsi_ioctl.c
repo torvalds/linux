@@ -29,6 +29,9 @@
 #include <linux/times.h>
 #include <linux/uio.h>
 #include <linux/uaccess.h>
+#include <linux/fd.h>
+#include <linux/raid/md_u.h>
+#include <linux/mtio.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_ioctl.h>
@@ -706,8 +709,17 @@ int scsi_verify_blk_ioctl(struct block_device *bd, unsigned int cmd)
 	case SG_GET_RESERVED_SIZE:
 	case SG_SET_RESERVED_SIZE:
 	case SG_EMULATED_HOST:
+	case BLKFLSBUF:
+	case BLKROSET:
 		return 0;
 	case CDROM_GET_CAPABILITY:
+	case CDROM_DRIVE_STATUS:
+	case FDGETPRM:
+	case RAID_VERSION:
+	case MTIOCGET:
+#ifdef CONFIG_COMPAT
+	case 0x801c6d02:        /* MTIOCGET32 */
+#endif
 		/* Keep this until we remove the printk below.  udev sends it
 		 * and we do not want to spam dmesg about it.   CD-ROMs do
 		 * not have partitions, so we get here only for disks.
