@@ -118,6 +118,16 @@ enum iwl_led_mode {
 #define IWL_LONG_WD_TIMEOUT	10000
 #define IWL_MAX_WD_TIMEOUT	120000
 
+/* Antenna presence definitions */
+#define	ANT_NONE	0x0
+#define	ANT_A		BIT(0)
+#define	ANT_B		BIT(1)
+#define ANT_C		BIT(2)
+#define	ANT_AB		(ANT_A | ANT_B)
+#define	ANT_AC		(ANT_A | ANT_C)
+#define ANT_BC		(ANT_B | ANT_C)
+#define ANT_ABC		(ANT_A | ANT_B | ANT_C)
+
 
 /*
  * @max_ll_items: max number of OTP blocks

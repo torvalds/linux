@@ -30,6 +30,7 @@
 #include <net/mac80211.h>
 
 #include "iwl-commands.h"
+#include "iwl-config.h"
 
 struct iwl_rate_info {
 	u8 plcp;	/* uCode API:  IWL_RATE_6M_PLCP, etc. */
@@ -279,15 +280,6 @@ enum iwl_table_type {
 #define is_Ht(tbl) (is_siso(tbl) || is_mimo(tbl))
 #define is_a_band(tbl) ((tbl) == LQ_A)
 #define is_g_and(tbl) ((tbl) == LQ_G)
-
-#define	ANT_NONE	0x0
-#define	ANT_A		BIT(0)
-#define	ANT_B		BIT(1)
-#define	ANT_AB		(ANT_A | ANT_B)
-#define ANT_C		BIT(2)
-#define	ANT_AC		(ANT_A | ANT_C)
-#define ANT_BC		(ANT_B | ANT_C)
-#define ANT_ABC		(ANT_AB | ANT_C)
 
 #define IWL_MAX_MCS_DISPLAY_SIZE	12
 
