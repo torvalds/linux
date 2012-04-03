@@ -17,6 +17,8 @@
 #include <linux/errno.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
+#include <linux/net_tstamp.h>
+#include <linux/phy.h>
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
 #include <linux/vmalloc.h>
@@ -1278,6 +1280,40 @@ out:
 	return ret;
 }
 
+static int ethtool_get_ts_info(struct net_device *dev, void __user *useraddr)
+{
+	int err = 0;
+	struct ethtool_ts_info info;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	struct phy_device *phydev = dev->phydev;
+
+	memset(&info, 0, sizeof(info));
+	info.cmd = ETHTOOL_GET_TS_INFO;
+
+	if (phydev && phydev->drv && phydev->drv->ts_info) {
+
+		err = phydev->drv->ts_info(phydev, &info);
+
+	} else if (dev->ethtool_ops && dev->ethtool_ops->get_ts_info) {
+
+		err = ops->get_ts_info(dev, &info);
+
+	} else {
+		info.so_timestamping =
+			SOF_TIMESTAMPING_RX_SOFTWARE |
+			SOF_TIMESTAMPING_SOFTWARE;
+		info.phc_index = -1;
+	}
+
+	if (err)
+		return err;
+
+	if (copy_to_user(useraddr, &info, sizeof(info)))
+		err = -EFAULT;
+
+	return err;
+}
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -1295,11 +1331,13 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		return -EFAULT;
 
 	if (!dev->ethtool_ops) {
-		/* ETHTOOL_GDRVINFO does not require any driver support.
-		 * It is also unprivileged and does not change anything,
-		 * so we can take a shortcut to it. */
+		/* A few commands do not require any driver support,
+		 * are unprivileged, and do not change anything, so we
+		 * can take a shortcut to them. */
 		if (ethcmd == ETHTOOL_GDRVINFO)
 			return ethtool_get_drvinfo(dev, useraddr);
+		else if (ethcmd == ETHTOOL_GET_TS_INFO)
+			return ethtool_get_ts_info(dev, useraddr);
 		else
 			return -EOPNOTSUPP;
 	}
@@ -1330,6 +1368,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GRXCLSRULE:
 	case ETHTOOL_GRXCLSRLALL:
 	case ETHTOOL_GFEATURES:
+	case ETHTOOL_GET_TS_INFO:
 		break;
 	default:
 		if (!capable(CAP_NET_ADMIN))
@@ -1495,6 +1534,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GET_DUMP_DATA:
 		rc = ethtool_get_dump_data(dev, useraddr);
+		break;
+	case ETHTOOL_GET_TS_INFO:
+		rc = ethtool_get_ts_info(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
