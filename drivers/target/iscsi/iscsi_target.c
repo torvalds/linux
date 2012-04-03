@@ -988,17 +988,6 @@ done:
 		sam_task_attr = MSG_SIMPLE_TAG;
 	}
 
-	/*
-	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
-	 */
-	transport_init_se_cmd(&cmd->se_cmd, &lio_target_fabric_configfs->tf_ops,
-			conn->sess->se_sess, cmd->data_length, cmd->data_direction,
-			sam_task_attr, &cmd->sense_buffer[0]);
-
-	pr_debug("Got SCSI Command, ITT: 0x%08x, CmdSN: 0x%08x,"
-		" ExpXferLen: %u, Length: %u, CID: %hu\n", hdr->itt,
-		hdr->cmdsn, hdr->data_length, payload_length, conn->cid);
-
 	cmd->iscsi_opcode	= ISCSI_OP_SCSI_CMD;
 	cmd->i_state		= ISTATE_NEW_CMD;
 	cmd->immediate_cmd	= ((hdr->opcode & ISCSI_OP_IMMEDIATE) ? 1 : 0);
@@ -1032,6 +1021,17 @@ done:
 
 		iscsit_attach_datain_req(cmd, dr);
 	}
+
+	/*
+	 * Initialize struct se_cmd descriptor from target_core_mod infrastructure
+	 */
+	transport_init_se_cmd(&cmd->se_cmd, &lio_target_fabric_configfs->tf_ops,
+			conn->sess->se_sess, cmd->data_length, cmd->data_direction,
+			sam_task_attr, &cmd->sense_buffer[0]);
+
+	pr_debug("Got SCSI Command, ITT: 0x%08x, CmdSN: 0x%08x,"
+		" ExpXferLen: %u, Length: %u, CID: %hu\n", hdr->itt,
+		hdr->cmdsn, hdr->data_length, payload_length, conn->cid);
 
 	/*
 	 * The CDB is going to an se_device_t.
