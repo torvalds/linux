@@ -535,12 +535,6 @@ struct iwl_event_log {
 
 #define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 
-/* TX queue watchdog timeouts in mSecs */
-#define IWL_WATCHHDOG_DISABLED	(0)
-#define IWL_DEF_WD_TIMEOUT	(2000)
-#define IWL_LONG_WD_TIMEOUT	(10000)
-#define IWL_MAX_WD_TIMEOUT	(120000)
-
 /* BT Antenna Coupling Threshold (dB) */
 #define IWL_BT_ANTENNA_COUPLING_THRESHOLD	(35)
 

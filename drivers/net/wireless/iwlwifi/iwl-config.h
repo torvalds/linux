@@ -112,6 +112,12 @@ enum iwl_led_mode {
 #define IWL_MAX_PLCP_ERR_THRESHOLD_MAX		255
 #define IWL_MAX_PLCP_ERR_THRESHOLD_DISABLE	0
 
+/* TX queue watchdog timeouts in mSecs */
+#define IWL_WATCHHDOG_DISABLED	0
+#define IWL_DEF_WD_TIMEOUT	2000
+#define IWL_LONG_WD_TIMEOUT	10000
+#define IWL_MAX_WD_TIMEOUT	120000
+
 
 /*
  * @max_ll_items: max number of OTP blocks
