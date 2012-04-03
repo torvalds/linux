@@ -26,6 +26,7 @@
 #include "debug.h"
 #include "common.h"
 #include "mci.h"
+#include "dfs.h"
 
 /*
  * Header for the ath9k.ko driver core *only* -- hw code nor any other driver
@@ -683,6 +684,7 @@ struct ath_softc {
 
 	struct ath_ant_comb ant_comb;
 	u8 ant_tx, ant_rx;
+	struct dfs_pattern_detector *dfs_detector;
 };
 
 void ath9k_tasklet(unsigned long data);

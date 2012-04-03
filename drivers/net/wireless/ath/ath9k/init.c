@@ -521,6 +521,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
 
+	sc->dfs_detector = dfs_pattern_detector_init(NL80211_DFS_UNSET);
+
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
 		sc->sc_ah->led_pin = -1;
@@ -825,6 +827,8 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	ath9k_hw_deinit(sc->sc_ah);
+	if (sc->dfs_detector != NULL)
+		sc->dfs_detector->exit(sc->dfs_detector);
 
 	kfree(sc->sc_ah);
 	sc->sc_ah = NULL;
