@@ -811,6 +811,7 @@ static const struct ethtool_ops mpc52xx_fec_ethtool_ops = {
 	.get_link = ethtool_op_get_link,
 	.get_msglevel = mpc52xx_fec_get_msglevel,
 	.set_msglevel = mpc52xx_fec_set_msglevel,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 
