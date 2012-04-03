@@ -75,6 +75,7 @@ config SOC_IMX35
 	bool
 	select CPU_V6
 	select ARCH_MXC_IOMUX_V3
+	select COMMON_CLK
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
