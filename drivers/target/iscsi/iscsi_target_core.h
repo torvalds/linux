@@ -296,12 +296,11 @@ struct iscsi_datain_req {
 	u32			runlength;
 	u32			data_length;
 	u32			data_offset;
-	u32			data_offset_end;
 	u32			data_sn;
 	u32			next_burst_len;
 	u32			read_data_done;
 	u32			seq_send_order;
-	struct list_head	dr_list;
+	struct list_head	cmd_datain_node;
 } ____cacheline_aligned;
 
 struct iscsi_ooo_cmdsn {

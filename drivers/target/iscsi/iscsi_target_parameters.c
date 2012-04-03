@@ -803,14 +803,6 @@ static int iscsi_check_numerical_value(struct iscsi_param *param, char *value_pt
 
 	value = simple_strtoul(value_ptr, &tmpptr, 0);
 
-/* #warning FIXME: Fix this */
-#if 0
-	if (strspn(endptr, WHITE_SPACE) != strlen(endptr)) {
-		pr_err("Illegal value \"%s\" for \"%s\".\n",
-			value, param->name);
-		return -1;
-	}
-#endif
 	if (IS_TYPERANGE_0_TO_2(param)) {
 		if ((value < 0) || (value > 2)) {
 			pr_err("Illegal value for \"%s\", must be"

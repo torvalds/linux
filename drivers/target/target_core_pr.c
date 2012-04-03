@@ -500,11 +500,10 @@ static int core_scsi3_pr_seq_non_holder(
 	 * statement.
 	 */
 	if (!ret && !other_cdb) {
-#if 0
 		pr_debug("Allowing explict CDB: 0x%02x for %s"
 			" reservation holder\n", cdb[0],
 			core_scsi3_pr_dump_type(pr_reg_type));
-#endif
+
 		return ret;
 	}
 	/*
@@ -532,14 +531,14 @@ static int core_scsi3_pr_seq_non_holder(
 			 * as we expect registered non-reservation holding
 			 * nexuses to issue CDBs.
 			 */
-#if 0
+
 			if (!registered_nexus) {
 				pr_debug("Allowing implict CDB: 0x%02x"
 					" for %s reservation on unregistered"
 					" nexus\n", cdb[0],
 					core_scsi3_pr_dump_type(pr_reg_type));
 			}
-#endif
+
 			return 0;
 		}
 	} else if ((reg_only) || (all_reg)) {
@@ -548,11 +547,11 @@ static int core_scsi3_pr_seq_non_holder(
 			 * For PR_*_REG_ONLY and PR_*_ALL_REG reservations,
 			 * allow commands from registered nexuses.
 			 */
-#if 0
+
 			pr_debug("Allowing implict CDB: 0x%02x for %s"
 				" reservation\n", cdb[0],
 				core_scsi3_pr_dump_type(pr_reg_type));
-#endif
+
 			return 0;
 		}
 	}
@@ -1666,12 +1665,12 @@ static int core_scsi3_decode_spec_i_port(
 			ret = -EINVAL;
 			goto out;
 		}
-#if 0
+
 		pr_debug("SPC-3 PR SPEC_I_PT: Got %s data_length: %u tpdl: %u"
 			" tid_len: %d for %s + %s\n",
 			dest_tpg->se_tpg_tfo->get_fabric_name(), cmd->data_length,
 			tpdl, tid_len, i_str, iport_ptr);
-#endif
+
 		if (tid_len > tpdl) {
 			pr_err("SPC-3 PR SPEC_I_PT: Illegal tid_len:"
 				" %u for Transport ID: %s\n", tid_len, ptr);
@@ -1714,12 +1713,12 @@ static int core_scsi3_decode_spec_i_port(
 			ret = -EINVAL;
 			goto out;
 		}
-#if 0
+
 		pr_debug("SPC-3 PR SPEC_I_PT: Located %s Node: %s"
 			" dest_se_deve mapped_lun: %u\n",
 			dest_tpg->se_tpg_tfo->get_fabric_name(),
 			dest_node_acl->initiatorname, dest_se_deve->mapped_lun);
-#endif
+
 		/*
 		 * Skip any TransportIDs that already have a registration for
 		 * this target port.
@@ -3473,10 +3472,10 @@ static int core_scsi3_emulate_pro_register_and_move(
 
 	buf = transport_kmap_data_sg(cmd);
 	proto_ident = (buf[24] & 0x0f);
-#if 0
+
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Extracted Protocol Identifier:"
 			" 0x%02x\n", proto_ident);
-#endif
+
 	if (proto_ident != dest_tf_ops->get_fabric_proto_ident(dest_se_tpg)) {
 		pr_err("SPC-3 PR REGISTER_AND_MOVE: Received"
 			" proto_ident: 0x%02x does not match ident: 0x%02x"
@@ -3575,11 +3574,11 @@ after_iport_check:
 		ret = -EINVAL;
 		goto out;
 	}
-#if 0
+
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Found %s dest_node_acl:"
 		" %s from TransportID\n", dest_tf_ops->get_fabric_name(),
 		dest_node_acl->initiatorname);
-#endif
+
 	/*
 	 * Locate the struct se_dev_entry pointer for the matching RELATIVE TARGET
 	 * PORT IDENTIFIER.
@@ -3603,12 +3602,12 @@ after_iport_check:
 		ret = -EINVAL;
 		goto out;
 	}
-#if 0
+
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Located %s node %s LUN"
 		" ACL for dest_se_deve->mapped_lun: %u\n",
 		dest_tf_ops->get_fabric_name(), dest_node_acl->initiatorname,
 		dest_se_deve->mapped_lun);
-#endif
+
 	/*
 	 * A persistent reservation needs to already existing in order to
 	 * successfully complete the REGISTER_AND_MOVE service action..

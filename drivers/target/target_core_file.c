@@ -133,15 +133,10 @@ static struct se_device *fd_create_virtdevice(
 		ret = PTR_ERR(dev_p);
 		goto fail;
 	}
-#if 0
-	if (di->no_create_file)
-		flags = O_RDWR | O_LARGEFILE;
-	else
-		flags = O_RDWR | O_CREAT | O_LARGEFILE;
-#else
+
+	/* O_DIRECT too? */
 	flags = O_RDWR | O_CREAT | O_LARGEFILE;
-#endif
-/*	flags |= O_DIRECT; */
+
 	/*
 	 * If fd_buffered_io=1 has not been set explicitly (the default),
 	 * use O_SYNC to force FILEIO writes to disk.

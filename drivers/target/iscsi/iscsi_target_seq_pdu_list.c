@@ -28,7 +28,8 @@
 
 #define OFFLOAD_BUF_SIZE	32768
 
-void iscsit_dump_seq_list(struct iscsi_cmd *cmd)
+#ifdef DEBUG
+static void iscsit_dump_seq_list(struct iscsi_cmd *cmd)
 {
 	int i;
 	struct iscsi_seq *seq;
@@ -46,7 +47,7 @@ void iscsit_dump_seq_list(struct iscsi_cmd *cmd)
 	}
 }
 
-void iscsit_dump_pdu_list(struct iscsi_cmd *cmd)
+static void iscsit_dump_pdu_list(struct iscsi_cmd *cmd)
 {
 	int i;
 	struct iscsi_pdu *pdu;
@@ -61,6 +62,10 @@ void iscsit_dump_pdu_list(struct iscsi_cmd *cmd)
 			pdu->length, pdu->pdu_send_order, pdu->seq_no);
 	}
 }
+#else
+static void iscsit_dump_seq_list(struct iscsi_cmd *cmd) {}
+static void iscsit_dump_pdu_list(struct iscsi_cmd *cmd) {}
+#endif
 
 static void iscsit_ordered_seq_lists(
 	struct iscsi_cmd *cmd,
@@ -464,9 +469,8 @@ static int iscsit_build_pdu_and_seq_list(
 			} else
 				iscsit_ordered_seq_lists(cmd, bl->type);
 		}
-#if 0
+
 		iscsit_dump_seq_list(cmd);
-#endif
 	}
 	if (!datapduinorder) {
 		if (bl->data_direction & ISCSI_PDU_WRITE) {
@@ -484,9 +488,8 @@ static int iscsit_build_pdu_and_seq_list(
 			} else
 				iscsit_ordered_pdu_lists(cmd, bl->type);
 		}
-#if 0
+
 		iscsit_dump_pdu_list(cmd);
-#endif
 	}
 
 	return 0;
@@ -572,13 +575,12 @@ redo:
 		pdu = &cmd->pdu_list[cmd->pdu_start];
 
 		for (i = 0; pdu[i].seq_no != cmd->seq_no; i++) {
-#if 0
 			pr_debug("pdu[i].seq_no: %d, pdu[i].pdu"
 				"_send_order: %d, pdu[i].offset: %d,"
 				" pdu[i].length: %d\n", pdu[i].seq_no,
 				pdu[i].pdu_send_order, pdu[i].offset,
 				pdu[i].length);
-#endif
+
 			if (pdu[i].pdu_send_order == cmd->pdu_send_order) {
 				cmd->pdu_send_order++;
 				return &pdu[i];
@@ -601,11 +603,11 @@ redo:
 			pr_err("struct iscsi_seq is NULL!\n");
 			return NULL;
 		}
-#if 0
+
 		pr_debug("seq->pdu_start: %d, seq->pdu_count: %d,"
 			" seq->seq_no: %d\n", seq->pdu_start, seq->pdu_count,
 			seq->seq_no);
-#endif
+
 		pdu = &cmd->pdu_list[seq->pdu_start];
 
 		if (seq->pdu_send_order == seq->pdu_count) {
@@ -645,12 +647,11 @@ struct iscsi_seq *iscsit_get_seq_holder(
 	}
 
 	for (i = 0; i < cmd->seq_count; i++) {
-#if 0
 		pr_debug("seq_list[i].orig_offset: %d, seq_list[i]."
 			"xfer_len: %d, seq_list[i].seq_no %u\n",
 			cmd->seq_list[i].orig_offset, cmd->seq_list[i].xfer_len,
 			cmd->seq_list[i].seq_no);
-#endif
+
 		if ((cmd->seq_list[i].orig_offset +
 				cmd->seq_list[i].xfer_len) >=
 				(offset + length))

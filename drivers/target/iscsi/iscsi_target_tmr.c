@@ -78,10 +78,7 @@ int iscsit_tmr_task_warm_reset(
 {
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
-#if 0
-	struct iscsi_init_task_mgt_cmnd *hdr =
-		(struct iscsi_init_task_mgt_cmnd *) buf;
-#endif
+
 	if (!na->tmr_warm_reset) {
 		pr_err("TMR Opcode TARGET_WARM_RESET authorization"
 			" failed for Initiator Node: %s\n",
@@ -292,7 +289,7 @@ static int iscsit_task_reassign_complete_write(
 	/*
 	 * iscsit_build_r2ts_for_cmd() can handle the rest from here.
 	 */
-	return iscsit_build_r2ts_for_cmd(cmd, conn, 2);
+	return iscsit_build_r2ts_for_cmd(cmd, conn, true);
 }
 
 static int iscsit_task_reassign_complete_read(

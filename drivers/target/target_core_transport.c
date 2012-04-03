@@ -2394,12 +2394,12 @@ static inline u32 transport_get_size(
 		} else /* bytes */
 			return sectors;
 	}
-#if 0
+
 	pr_debug("Returning block_size: %u, sectors: %u == %u for"
-			" %s object\n", dev->se_sub_dev->se_dev_attrib.block_size, sectors,
-			dev->se_sub_dev->se_dev_attrib.block_size * sectors,
-			dev->transport->name);
-#endif
+		" %s object\n", dev->se_sub_dev->se_dev_attrib.block_size,
+		sectors, dev->se_sub_dev->se_dev_attrib.block_size * sectors,
+		dev->transport->name);
+
 	return dev->se_sub_dev->se_dev_attrib.block_size * sectors;
 }
 
@@ -2617,11 +2617,10 @@ static int transport_generic_cmd_sequencer(
 		 * by the ALUA primary or secondary access state..
 		 */
 		if (ret > 0) {
-#if 0
 			pr_debug("[%s]: ALUA TG Port not available,"
 				" SenseKey: NOT_READY, ASC/ASCQ: 0x04/0x%02x\n",
 				cmd->se_tfo->get_fabric_name(), alua_ascq);
-#endif
+
 			transport_set_sense_codes(cmd, 0x04, alua_ascq);
 			cmd->se_cmd_flags |= SCF_SCSI_CDB_EXCEPTION;
 			cmd->scsi_sense_reason = TCM_CHECK_CONDITION_NOT_READY;
@@ -4564,12 +4563,12 @@ int transport_check_aborted_status(struct se_cmd *cmd, int send_status)
 		if (!send_status ||
 		     (cmd->se_cmd_flags & SCF_SENT_DELAYED_TAS))
 			return 1;
-#if 0
+
 		pr_debug("Sending delayed SAM_STAT_TASK_ABORTED"
 			" status for CDB: 0x%02x ITT: 0x%08x\n",
 			cmd->t_task_cdb[0],
 			cmd->se_tfo->get_task_tag(cmd));
-#endif
+
 		cmd->se_cmd_flags |= SCF_SENT_DELAYED_TAS;
 		cmd->se_tfo->queue_status(cmd);
 		ret = 1;
@@ -4602,11 +4601,11 @@ void transport_send_task_abort(struct se_cmd *cmd)
 		}
 	}
 	cmd->scsi_status = SAM_STAT_TASK_ABORTED;
-#if 0
+
 	pr_debug("Setting SAM_STAT_TASK_ABORTED status for CDB: 0x%02x,"
 		" ITT: 0x%08x\n", cmd->t_task_cdb[0],
 		cmd->se_tfo->get_task_tag(cmd));
-#endif
+
 	cmd->se_tfo->queue_status(cmd);
 }
 

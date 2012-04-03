@@ -37,7 +37,7 @@ struct iscsi_datain_req *iscsit_allocate_datain_req(void)
 				" struct iscsi_datain_req\n");
 		return NULL;
 	}
-	INIT_LIST_HEAD(&dr->dr_list);
+	INIT_LIST_HEAD(&dr->cmd_datain_node);
 
 	return dr;
 }
@@ -45,14 +45,14 @@ struct iscsi_datain_req *iscsit_allocate_datain_req(void)
 void iscsit_attach_datain_req(struct iscsi_cmd *cmd, struct iscsi_datain_req *dr)
 {
 	spin_lock(&cmd->datain_lock);
-	list_add_tail(&dr->dr_list, &cmd->datain_list);
+	list_add_tail(&dr->cmd_datain_node, &cmd->datain_list);
 	spin_unlock(&cmd->datain_lock);
 }
 
 void iscsit_free_datain_req(struct iscsi_cmd *cmd, struct iscsi_datain_req *dr)
 {
 	spin_lock(&cmd->datain_lock);
-	list_del(&dr->dr_list);
+	list_del(&dr->cmd_datain_node);
 	spin_unlock(&cmd->datain_lock);
 
 	kmem_cache_free(lio_dr_cache, dr);
@@ -63,8 +63,8 @@ void iscsit_free_all_datain_reqs(struct iscsi_cmd *cmd)
 	struct iscsi_datain_req *dr, *dr_tmp;
 
 	spin_lock(&cmd->datain_lock);
-	list_for_each_entry_safe(dr, dr_tmp, &cmd->datain_list, dr_list) {
-		list_del(&dr->dr_list);
+	list_for_each_entry_safe(dr, dr_tmp, &cmd->datain_list, cmd_datain_node) {
+		list_del(&dr->cmd_datain_node);
 		kmem_cache_free(lio_dr_cache, dr);
 	}
 	spin_unlock(&cmd->datain_lock);
@@ -72,17 +72,14 @@ void iscsit_free_all_datain_reqs(struct iscsi_cmd *cmd)
 
 struct iscsi_datain_req *iscsit_get_datain_req(struct iscsi_cmd *cmd)
 {
-	struct iscsi_datain_req *dr;
-
 	if (list_empty(&cmd->datain_list)) {
 		pr_err("cmd->datain_list is empty for ITT:"
 			" 0x%08x\n", cmd->init_task_tag);
 		return NULL;
 	}
-	list_for_each_entry(dr, &cmd->datain_list, dr_list)
-		break;
 
-	return dr;
+	return list_first_entry(&cmd->datain_list, struct iscsi_datain_req,
+				cmd_datain_node);
 }
 
 /*
