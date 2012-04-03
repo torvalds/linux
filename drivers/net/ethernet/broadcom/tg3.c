@@ -12233,6 +12233,7 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_rxfh_indir_size    = tg3_get_rxfh_indir_size,
 	.get_rxfh_indir		= tg3_get_rxfh_indir,
 	.set_rxfh_indir		= tg3_set_rxfh_indir,
+	.get_ts_info		= ethtool_op_get_ts_info,
 };
 
 static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
