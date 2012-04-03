@@ -1442,6 +1442,7 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	long timeo;
 	struct scm_cookie tmp_scm;
 	int max_level;
+	int data_len = 0;
 
 	if (NULL == siocb->scm)
 		siocb->scm = &tmp_scm;
@@ -1475,7 +1476,13 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	if (len > sk->sk_sndbuf - 32)
 		goto out;
 
-	skb = sock_alloc_send_skb(sk, len, msg->msg_flags&MSG_DONTWAIT, &err);
+	if (len > SKB_MAX_ALLOC)
+		data_len = min_t(size_t,
+				 len - SKB_MAX_ALLOC,
+				 MAX_SKB_FRAGS * PAGE_SIZE);
+
+	skb = sock_alloc_send_pskb(sk, len - data_len, data_len,
+				   msg->msg_flags & MSG_DONTWAIT, &err);
 	if (skb == NULL)
 		goto out;
 
@@ -1485,8 +1492,10 @@ static int unix_dgram_sendmsg(struct kiocb *kiocb, struct socket *sock,
 	max_level = err + 1;
 	unix_get_secdata(siocb->scm, skb);
 
-	skb_reset_transport_header(skb);
-	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+	skb_put(skb, len - data_len);
+	skb->data_len = data_len;
+	skb->len = len;
+	err = skb_copy_datagram_from_iovec(skb, 0, msg->msg_iov, 0, len);
 	if (err)
 		goto out_free;
 
