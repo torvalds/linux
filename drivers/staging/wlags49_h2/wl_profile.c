@@ -401,7 +401,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_BRSC) || (value_convert <= PARM_MAX_BRSC))
 			lp->brsc[0] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_BRSC_2GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_BRSC_2GHZ);
 	} else if (strcmp(key, PARM_NAME_BRSC_5GHZ) == 0) {
 		DBG_TRACE(DbgInfo, "%s, value: %s\n", PARM_NAME_BRSC_5GHZ, value);
 
@@ -409,7 +409,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_BRSC) || (value_convert <= PARM_MAX_BRSC))
 			lp->brsc[1] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_BRSC_5GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_BRSC_5GHZ);
 	} else if ((strcmp(key, PARM_NAME_DESIRED_SSID) == 0) || (strcmp(key, PARM_NAME_OWN_SSID) == 0)) {
 		DBG_TRACE(DbgInfo, "SSID, value: %s\n", value);
 
@@ -556,7 +556,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_SRSC) || (value_convert <= PARM_MAX_SRSC))
 			lp->srsc[0] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_SRSC_2GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_SRSC_2GHZ);
 	} else if (strcmp(key, PARM_NAME_SRSC_5GHZ) == 0) {
 		DBG_TRACE(DbgInfo, "%s, value: %s\n", PARM_NAME_SRSC_5GHZ, value);
 
@@ -564,7 +564,7 @@ void translate_option(char *buffer, struct wl_private *lp)
 		if ((value_convert >= PARM_MIN_SRSC) || (value_convert <= PARM_MAX_SRSC))
 			lp->srsc[1] = value_convert;
 		else
-			DBG_WARNING(DbgInfo, "%s invaid; will be ignored\n", PARM_NAME_SRSC_5GHZ);
+			DBG_WARNING(DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_SRSC_5GHZ);
 	} else if (strcmp(key, PARM_NAME_SYSTEM_SCALE) == 0) {
 		DBG_TRACE(DbgInfo, "%s, value: %s\n", PARM_NAME_SYSTEM_SCALE, value);
 

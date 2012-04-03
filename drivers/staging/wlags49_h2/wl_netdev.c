@@ -1063,7 +1063,7 @@ void wl_multicast( struct net_device *dev )
 #if DBG
     if( DBG_FLAGS( DbgInfo ) & DBG_PARAM_ON ) {
         DBG_PRINT("  flags: %s%s%s\n",
-            ( dev->flags & IFF_PROMISC ) ? "Promiscous " : "",
+            ( dev->flags & IFF_PROMISC ) ? "Promiscuous " : "",
             ( dev->flags & IFF_MULTICAST ) ? "Multicast " : "",
             ( dev->flags & IFF_ALLMULTI ) ? "All-Multicast" : "" );
 
