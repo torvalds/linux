@@ -315,11 +315,40 @@ static void add_resources(struct pci_root_info *info,
 	}
 }
 
-static void free_pci_root_info(struct pci_root_info *info)
+static void free_pci_root_info_res(struct pci_root_info *info)
 {
 	kfree(info->name);
 	kfree(info->res);
-	memset(info, 0, sizeof(struct pci_root_info));
+	info->res = NULL;
+	info->res_num = 0;
+}
+
+static void __release_pci_root_info(struct pci_root_info *info)
+{
+	int i;
+	struct resource *res;
+
+	for (i = 0; i < info->res_num; i++) {
+		res = &info->res[i];
+
+		if (!res->parent)
+			continue;
+
+		if (!(res->flags & (IORESOURCE_MEM | IORESOURCE_IO)))
+			continue;
+
+		release_resource(res);
+	}
+
+	free_pci_root_info_res(info);
+
+	kfree(info);
+}
+static void release_pci_root_info(struct pci_host_bridge *bridge)
+{
+	struct pci_root_info *info = bridge->release_data;
+
+	__release_pci_root_info(info);
 }
 
 static void
@@ -352,7 +381,7 @@ probe_pci_root_info(struct pci_root_info *info, struct acpi_device *device,
 struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 {
 	struct acpi_device *device = root->device;
-	struct pci_root_info info;
+	struct pci_root_info *info = NULL;
 	int domain = root->segment;
 	int busnum = root->secondary.start;
 	LIST_HEAD(resources);
@@ -397,7 +426,13 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 
 	sd->domain = domain;
 	sd->node = node;
-	memset(&info, 0, sizeof(struct pci_root_info));
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		kfree(sd);
+		printk(KERN_WARNING "pci_bus %04x:%02x: "
+		       "ignored (out of memory)\n", domain, busnum);
+		return NULL;
+	}
 	/*
 	 * Maybe the desired pci bus has been already scanned. In such case
 	 * it is unnecessary to scan the pci bus with the given domain,busnum.
@@ -409,29 +444,33 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 		 * be replaced by sd.
 		 */
 		memcpy(bus->sysdata, sd, sizeof(*sd));
+		kfree(info);
 		kfree(sd);
 	} else {
-		probe_pci_root_info(&info, device, busnum, domain);
+		probe_pci_root_info(info, device, busnum, domain);
 
 		/*
 		 * _CRS with no apertures is normal, so only fall back to
 		 * defaults or native bridge info if we're ignoring _CRS.
 		 */
 		if (pci_use_crs)
-			add_resources(&info, &resources);
+			add_resources(info, &resources);
 		else {
-			free_pci_root_info(&info);
+			free_pci_root_info_res(info);
 			x86_pci_root_bus_resources(busnum, &resources);
 		}
+
 		bus = pci_create_root_bus(NULL, busnum, &pci_root_ops, sd,
 					  &resources);
-		if (bus)
+		if (bus) {
 			bus->subordinate = pci_scan_child_bus(bus);
-		else
+			pci_set_host_bridge_release(
+				to_pci_host_bridge(bus->bridge),
+				release_pci_root_info, info);
+		} else {
 			pci_free_resource_list(&resources);
-
-		if (!bus && pci_use_crs)
-			free_pci_root_info(&info);
+			__release_pci_root_info(info);
+		}
 	}
 
 	/* After the PCI-E bus has been walked and all devices discovered,
