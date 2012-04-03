@@ -1368,6 +1368,9 @@ static void bnx2x_igu_int_enable(struct bnx2x *bp)
 
 	REG_WR(bp, IGU_REG_PF_CONFIGURATION, val);
 
+	if (val & IGU_PF_CONF_INT_LINE_EN)
+		pci_intx(bp->pdev, true);
+
 	barrier();
 
 	/* init leading/trailing edge */
