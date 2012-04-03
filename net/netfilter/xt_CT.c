@@ -281,8 +281,10 @@ out:
 	info->ct = ct;
 	return 0;
 
+#ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 err4:
 	rcu_read_unlock();
+#endif
 err3:
 	nf_conntrack_free(ct);
 err2:
