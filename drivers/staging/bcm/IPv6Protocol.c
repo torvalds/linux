@@ -11,7 +11,7 @@ static UCHAR *GetNextIPV6ChainedHeader(UCHAR **ppucPayload, UCHAR *pucNextHeader
 	USHORT  usNextHeaderOffset = 0 ;
 	PMINI_ADAPTER Adapter = GET_BCM_ADAPTER(gblpnetdev);
 
-	if ((NULL == ppucPayload) || (*pusPayloadLength == 0) ||
+	if ((ppucPayload == NULL) || (*pusPayloadLength == 0) ||
 		(*bParseDone)) {
 		*bParseDone = TRUE;
 		return NULL;
@@ -184,7 +184,7 @@ USHORT	IpVersion6(PMINI_ADAPTER Adapter, PVOID pcIpHeader,
 							pstIpv6Header->ucNextHeader);
 
 	do {
-		if (0 == pstClassifierRule->ucDirection) {
+		if (pstClassifierRule->ucDirection == 0) {
 			/*
 			 * cannot be processed for classification.
 			 * it is a down link connection
@@ -237,13 +237,13 @@ USHORT	IpVersion6(PMINI_ADAPTER Adapter, PVOID pcIpHeader,
 		}
 	} while (0);
 
-	if (TRUE == bClassificationSucceed) {
+	if (bClassificationSucceed == TRUE) {
 		INT iMatchedSFQueueIndex = 0;
 		iMatchedSFQueueIndex = SearchSfid(Adapter, pstClassifierRule->ulSFID);
 		if (iMatchedSFQueueIndex >= NO_OF_QUEUES) {
 			bClassificationSucceed = FALSE;
 		} else {
-			if (FALSE == Adapter->PackInfo[iMatchedSFQueueIndex].bActive) {
+			if (Adapter->PackInfo[iMatchedSFQueueIndex].bActive == FALSE) {
 				bClassificationSucceed = FALSE;
 			}
 		}
@@ -267,7 +267,7 @@ static BOOLEAN MatchSrcIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule, IPV6Hea
 	UINT  uiCountIPSrcAddresses = (UINT)pstClassifierRule->ucIPSourceAddressLength;
 
 
-	if (0 == uiCountIPSrcAddresses)
+	if (uiCountIPSrcAddresses == 0)
 		return TRUE;
 
 
@@ -319,7 +319,7 @@ static BOOLEAN MatchDestIpv6Address(S_CLASSIFIER_RULE *pstClassifierRule, IPV6He
 	UINT  uiCountIPDestinationAddresses = (UINT)pstClassifierRule->ucIPDestinationAddressLength;
 
 
-	if (0 == uiCountIPDestinationAddresses)
+	if (uiCountIPDestinationAddresses == 0)
 		return TRUE;
 
 
