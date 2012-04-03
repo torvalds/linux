@@ -209,7 +209,7 @@ static struct regulator_ops wm8994_ldo2_ops = {
 	.set_voltage = wm8994_ldo2_set_voltage,
 };
 
-static struct regulator_desc wm8994_ldo_desc[] = {
+static const struct regulator_desc wm8994_ldo_desc[] = {
 	{
 		.name = "LDO1",
 		.id = 1,
