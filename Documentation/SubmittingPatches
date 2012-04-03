@@ -150,7 +150,8 @@ be able to justify all violations that remain in your patch.
 
 Look through the MAINTAINERS file and the source code, and determine
 if your change applies to a specific subsystem of the kernel, with
-an assigned maintainer.  If so, e-mail that person.
+an assigned maintainer.  If so, e-mail that person.  The script
+scripts/get_maintainer.pl can be very useful at this step.
 
 If no maintainer is listed, or the maintainer does not respond, send
 your patch to the primary Linux kernel developer's mailing list,
