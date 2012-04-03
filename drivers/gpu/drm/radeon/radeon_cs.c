@@ -278,11 +278,16 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 				  p->chunks[p->chunk_ib_idx].length_dw);
 			return -EINVAL;
 		}
-		p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
-		if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
-		    p->chunks[p->chunk_ib_idx].kpage[1] == NULL)
-			return -ENOMEM;
+		if ((p->rdev->flags & RADEON_IS_AGP)) {
+			p->chunks[p->chunk_ib_idx].kpage[0] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+			p->chunks[p->chunk_ib_idx].kpage[1] = kmalloc(PAGE_SIZE, GFP_KERNEL);
+			if (p->chunks[p->chunk_ib_idx].kpage[0] == NULL ||
+			    p->chunks[p->chunk_ib_idx].kpage[1] == NULL) {
+				kfree(p->chunks[i].kpage[0]);
+				kfree(p->chunks[i].kpage[1]);
+				return -ENOMEM;
+			}
+		}
 		p->chunks[p->chunk_ib_idx].kpage_idx[0] = -1;
 		p->chunks[p->chunk_ib_idx].kpage_idx[1] = -1;
 		p->chunks[p->chunk_ib_idx].last_copied_page = -1;
@@ -323,8 +328,10 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	kfree(parser->relocs_ptr);
 	for (i = 0; i < parser->nchunks; i++) {
 		kfree(parser->chunks[i].kdata);
-		kfree(parser->chunks[i].kpage[0]);
-		kfree(parser->chunks[i].kpage[1]);
+		if ((parser->rdev->flags & RADEON_IS_AGP)) {
+			kfree(parser->chunks[i].kpage[0]);
+			kfree(parser->chunks[i].kpage[1]);
+		}
 	}
 	kfree(parser->chunks);
 	kfree(parser->chunks_array);
@@ -573,6 +580,7 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 	struct radeon_cs_chunk *ibc = &p->chunks[p->chunk_ib_idx];
 	int i;
 	int size = PAGE_SIZE;
+	bool copy1 = (p->rdev->flags & RADEON_IS_AGP) ? false : true;
 
 	for (i = ibc->last_copied_page + 1; i < pg_idx; i++) {
 		if (DRM_COPY_FROM_USER(p->ib->ptr + (i * (PAGE_SIZE/4)),
@@ -583,13 +591,15 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 		}
 	}
 
-	new_page = ibc->kpage_idx[0] < ibc->kpage_idx[1] ? 0 : 1;
-
 	if (pg_idx == ibc->last_page_index) {
 		size = (ibc->length_dw * 4) % PAGE_SIZE;
-			if (size == 0)
-				size = PAGE_SIZE;
+		if (size == 0)
+			size = PAGE_SIZE;
 	}
+
+	new_page = ibc->kpage_idx[0] < ibc->kpage_idx[1] ? 0 : 1;
+	if (copy1)
+		ibc->kpage[new_page] = p->ib->ptr + (pg_idx * (PAGE_SIZE / 4));
 
 	if (DRM_COPY_FROM_USER(ibc->kpage[new_page],
 			       ibc->user_ptr + (pg_idx * PAGE_SIZE),
@@ -598,8 +608,9 @@ int radeon_cs_update_pages(struct radeon_cs_parser *p, int pg_idx)
 		return 0;
 	}
 
-	/* copy to IB here */
-	memcpy((void *)(p->ib->ptr+(pg_idx*(PAGE_SIZE/4))), ibc->kpage[new_page], size);
+	/* copy to IB for non single case */
+	if (!copy1)
+		memcpy((void *)(p->ib->ptr+(pg_idx*(PAGE_SIZE/4))), ibc->kpage[new_page], size);
 
 	ibc->last_copied_page = pg_idx;
 	ibc->kpage_idx[new_page] = pg_idx;
