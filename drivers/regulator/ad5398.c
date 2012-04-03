@@ -212,6 +212,7 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
 	struct regulator_init_data *init_data = client->dev.platform_data;
+	struct regulator_config config = { };
 	struct ad5398_chip_info *chip;
 	const struct ad5398_current_data_format *df =
 			(struct ad5398_current_data_format *)id->driver_data;
@@ -224,6 +225,10 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	if (!chip)
 		return -ENOMEM;
 
+	config.dev = &client->dev;
+	config.init_data = init_data;
+	config.driver_data = chip;
+
 	chip->client = client;
 
 	chip->min_uA = df->min_uA;
@@ -232,8 +237,7 @@ static int __devinit ad5398_probe(struct i2c_client *client,
 	chip->current_offset = df->current_offset;
 	chip->current_mask = (chip->current_level - 1) << chip->current_offset;
 
-	chip->rdev = regulator_register(&ad5398_reg, &client->dev,
-					init_data, chip, NULL);
+	chip->rdev = regulator_register(&ad5398_reg, &config);
 	if (IS_ERR(chip->rdev)) {
 		ret = PTR_ERR(chip->rdev);
 		dev_err(&client->dev, "failed to register %s %s\n",

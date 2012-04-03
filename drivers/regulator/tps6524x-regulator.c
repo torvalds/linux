@@ -605,6 +605,7 @@ static int __devinit pmic_probe(struct spi_device *spi)
 	struct device *dev = &spi->dev;
 	const struct supply_info *info = supply_info;
 	struct regulator_init_data *init_data;
+	struct regulator_config config = { };
 	int ret = 0, i;
 
 	init_data = dev->platform_data;
@@ -636,8 +637,11 @@ static int __devinit pmic_probe(struct spi_device *spi)
 		if (info->flags & FIXED_VOLTAGE)
 			hw->desc[i].n_voltages = 1;
 
-		hw->rdev[i] = regulator_register(&hw->desc[i], dev,
-						 init_data, hw, NULL);
+		config.dev = dev;
+		config.init_data = init_data;
+		config.driver_data = hw;
+
+		hw->rdev[i] = regulator_register(&hw->desc[i], &config);
 		if (IS_ERR(hw->rdev[i])) {
 			ret = PTR_ERR(hw->rdev[i]);
 			hw->rdev[i] = NULL;

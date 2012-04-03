@@ -167,6 +167,7 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 {
 	struct fixed_voltage_config *config;
 	struct fixed_voltage_data *drvdata;
+	struct regulator_config cfg = { };
 	int ret;
 
 	if (pdev->dev.of_node)
@@ -247,9 +248,12 @@ static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 		drvdata->desc.ops = &fixed_voltage_ops;
 	}
 
-	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
-					  config->init_data, drvdata,
-					  pdev->dev.of_node);
+	cfg.dev = &pdev->dev;
+	cfg.init_data = config->init_data;
+	cfg.driver_data = drvdata;
+	cfg.of_node = pdev->dev.of_node;
+
+	drvdata->dev = regulator_register(&drvdata->desc, &cfg);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);

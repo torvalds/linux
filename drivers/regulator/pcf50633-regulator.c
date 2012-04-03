@@ -296,12 +296,16 @@ static int __devinit pcf50633_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev;
 	struct pcf50633 *pcf;
+	struct regulator_config config = { };
 
 	/* Already set by core driver */
 	pcf = dev_to_pcf50633(pdev->dev.parent);
 
-	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data, pcf, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdev->dev.platform_data;
+	config.driver_data = pcf;
+
+	rdev = regulator_register(&regulators[pdev->id], &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 

@@ -685,6 +685,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 {
 	struct max8998_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct max8998_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct regulator_config config = { };
 	struct regulator_dev **rdev;
 	struct max8998_data *max8998;
 	struct i2c_client *i2c;
@@ -840,8 +841,12 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 			int count = (desc->max - desc->min) / desc->step + 1;
 			regulators[index].n_voltages = count;
 		}
-		rdev[i] = regulator_register(&regulators[index], max8998->dev,
-				pdata->regulators[i].initdata, max8998, NULL);
+
+		config.dev = max8998->dev;
+		config.init_data = pdata->regulators[i].initdata;
+		config.driver_data = max8998;
+
+		rdev[i] = regulator_register(&regulators[index], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(max8998->dev, "regulator init failed\n");

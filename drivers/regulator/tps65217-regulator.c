@@ -327,13 +327,17 @@ static int __devinit tps65217_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps65217 *tps;
 	struct tps_info *info = &tps65217_pmic_regs[pdev->id];
+	struct regulator_config config = { };
 
 	/* Already set by core driver */
 	tps = dev_to_tps65217(pdev->dev.parent);
 	tps->info[pdev->id] = info;
 
-	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data, tps, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdev->dev.platform_data;
+	config.driver_data = tps;
+
+	rdev = regulator_register(&regulators[pdev->id], &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 

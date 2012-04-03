@@ -233,6 +233,7 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 	struct wm8994 *wm8994 = dev_get_drvdata(pdev->dev.parent);
 	struct wm8994_pdata *pdata = wm8994->dev->platform_data;
 	int id = pdev->id % ARRAY_SIZE(pdata->ldo);
+	struct regulator_config config = { };
 	struct wm8994_ldo *ldo;
 	int ret;
 
@@ -268,8 +269,11 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 	} else
 		ldo->is_enabled = true;
 
-	ldo->regulator = regulator_register(&wm8994_ldo_desc[id], &pdev->dev,
-					     pdata->ldo[id].init_data, ldo, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdata->ldo[id].init_data;
+	config.driver_data = ldo;
+
+	ldo->regulator = regulator_register(&wm8994_ldo_desc[id], &config);
 	if (IS_ERR(ldo->regulator)) {
 		ret = PTR_ERR(ldo->regulator);
 		dev_err(wm8994->dev, "Failed to register LDO%d: %d\n",

@@ -173,6 +173,7 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct max8952_platform_data *pdata = client->dev.platform_data;
+	struct regulator_config config = { };
 	struct max8952_data *max8952;
 
 	int ret = 0, err = 0;
@@ -193,8 +194,11 @@ static int __devinit max8952_pmic_probe(struct i2c_client *client,
 	max8952->dev = &client->dev;
 	max8952->pdata = pdata;
 
-	max8952->rdev = regulator_register(&regulator, max8952->dev,
-			&pdata->reg_data, max8952, NULL);
+	config.dev = max8952->dev;
+	config.init_data = &pdata->reg_data;
+	config.driver_data = max8952;
+
+	max8952->rdev = regulator_register(&regulator, &config);
 
 	if (IS_ERR(max8952->rdev)) {
 		ret = PTR_ERR(max8952->rdev);

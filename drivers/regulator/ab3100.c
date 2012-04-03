@@ -574,6 +574,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
 {
 	struct ab3100_platform_data *plfdata = pdev->dev.platform_data;
+	struct regulator_config config = { };
 	int err = 0;
 	u8 data;
 	int i;
@@ -619,15 +620,15 @@ static int __devinit ab3100_regulators_probe(struct platform_device *pdev)
 		reg->dev = &pdev->dev;
 		reg->plfdata = plfdata;
 
+		config.dev = &pdev->dev;
+		config.driver_data = reg;
+		config.init_data = &plfdata->reg_constraints[i];
+
 		/*
 		 * Register the regulator, pass around
 		 * the ab3100_regulator struct
 		 */
-		rdev = regulator_register(&ab3100_regulator_desc[i],
-					  &pdev->dev,
-					  &plfdata->reg_constraints[i],
-					  reg, NULL);
-
+		rdev = regulator_register(&ab3100_regulator_desc[i], &config);
 		if (IS_ERR(rdev)) {
 			err = PTR_ERR(rdev);
 			dev_err(&pdev->dev,

@@ -258,6 +258,7 @@ static int __devinit max8925_regulator_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_platform_data *pdata = chip->dev->platform_data;
+	struct regulator_config config = { };
 	struct max8925_regulator_info *ri;
 	struct regulator_dev *rdev;
 
@@ -269,8 +270,11 @@ static int __devinit max8925_regulator_probe(struct platform_device *pdev)
 	ri->i2c = chip->i2c;
 	ri->chip = chip;
 
-	rdev = regulator_register(&ri->desc, &pdev->dev,
-				  pdata->regulator[pdev->id], ri, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdata->regulator[pdev->id];
+	config.driver_data = ri;
+
+	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);

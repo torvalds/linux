@@ -2820,27 +2820,24 @@ static void rdev_init_debugfs(struct regulator_dev *rdev)
 /**
  * regulator_register - register regulator
  * @regulator_desc: regulator to register
- * @dev: struct device for the regulator
- * @init_data: platform provided init data, passed through by driver
- * @driver_data: private regulator data
- * @of_node: OpenFirmware node to parse for device tree bindings (may be
- *           NULL).
+ * @config: runtime configuration for regulator
  *
  * Called by regulator drivers to register a regulator.
  * Returns 0 on success.
  */
 struct regulator_dev *
 regulator_register(const struct regulator_desc *regulator_desc,
-	struct device *dev, const struct regulator_init_data *init_data,
-	void *driver_data, struct device_node *of_node)
+		   const struct regulator_config *config)
 {
 	const struct regulation_constraints *constraints = NULL;
+	const struct regulator_init_data *init_data;
 	static atomic_t regulator_no = ATOMIC_INIT(0);
 	struct regulator_dev *rdev;
+	struct device *dev = config->dev;
 	int ret, i;
 	const char *supply = NULL;
 
-	if (regulator_desc == NULL)
+	if (regulator_desc == NULL || config == NULL)
 		return ERR_PTR(-EINVAL);
 
 	if (regulator_desc->name == NULL || regulator_desc->ops == NULL)
@@ -2866,6 +2863,8 @@ regulator_register(const struct regulator_desc *regulator_desc,
 		return ERR_PTR(-EINVAL);
 	}
 
+	init_data = config->init_data;
+
 	rdev = kzalloc(sizeof(struct regulator_dev), GFP_KERNEL);
 	if (rdev == NULL)
 		return ERR_PTR(-ENOMEM);
@@ -2873,7 +2872,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	mutex_lock(&regulator_list_mutex);
 
 	mutex_init(&rdev->mutex);
-	rdev->reg_data = driver_data;
+	rdev->reg_data = config->driver_data;
 	rdev->owner = regulator_desc->owner;
 	rdev->desc = regulator_desc;
 	INIT_LIST_HEAD(&rdev->consumer_list);
@@ -2890,7 +2889,7 @@ regulator_register(const struct regulator_desc *regulator_desc,
 
 	/* register with sysfs */
 	rdev->dev.class = &regulator_class;
-	rdev->dev.of_node = of_node;
+	rdev->dev.of_node = config->of_node;
 	rdev->dev.parent = dev;
 	dev_set_name(&rdev->dev, "regulator.%d",
 		     atomic_inc_return(&regulator_no) - 1);

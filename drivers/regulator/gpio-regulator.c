@@ -172,6 +172,7 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 {
 	struct gpio_regulator_config *config = pdev->dev.platform_data;
 	struct gpio_regulator_data *drvdata;
+	struct regulator_config cfg = { };
 	int ptr, ret, state;
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct gpio_regulator_data),
@@ -284,8 +285,11 @@ static int __devinit gpio_regulator_probe(struct platform_device *pdev)
 	}
 	drvdata->state = state;
 
-	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
-					  config->init_data, drvdata, NULL);
+	cfg.dev = &pdev->dev;
+	cfg.init_data = config->init_data;
+	cfg.driver_data = &drvdata;
+
+	drvdata->dev = regulator_register(&drvdata->desc, &cfg);
 	if (IS_ERR(drvdata->dev)) {
 		ret = PTR_ERR(drvdata->dev);
 		dev_err(&pdev->dev, "Failed to register regulator: %d\n", ret);

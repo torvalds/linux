@@ -1175,6 +1175,7 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 	struct regulator_dev		*rdev;
 	struct twl_regulator_driver_data	*drvdata;
 	const struct of_device_id	*match;
+	struct regulator_config		config = { };
 
 	match = of_match_device(twl_of_match, &pdev->dev);
 	if (match) {
@@ -1254,8 +1255,12 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 		break;
 	}
 
-	rdev = regulator_register(&info->desc, &pdev->dev, initdata, info,
-							pdev->dev.of_node);
+	config.dev = &pdev->dev;
+	config.init_data = initdata;
+	config.driver_data = info;
+	config.of_node = pdev->dev.of_node;
+
+	rdev = regulator_register(&info->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "can't register %s, %ld\n",
 				info->desc.name, PTR_ERR(rdev));

@@ -376,6 +376,7 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 {
 	const struct tps_driver_data *drv_data = (void *)id->driver_data;
 	const struct tps_info *info = drv_data->info;
+	struct regulator_config config = { };
 	struct regulator_init_data *init_data;
 	struct regulator_dev *rdev;
 	struct tps_pmic *tps;
@@ -420,9 +421,12 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 		tps->desc[i].type = REGULATOR_VOLTAGE;
 		tps->desc[i].owner = THIS_MODULE;
 
+		config.dev = &client->dev;
+		config.init_data = init_data;
+		config.driver_data = tps;
+
 		/* Register the regulators */
-		rdev = regulator_register(&tps->desc[i], &client->dev,
-					  init_data, tps, NULL);
+		rdev = regulator_register(&tps->desc[i], &config);
 		if (IS_ERR(rdev)) {
 			dev_err(&client->dev, "failed to register %s\n",
 				id->name);

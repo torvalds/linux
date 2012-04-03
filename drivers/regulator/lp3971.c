@@ -421,10 +421,15 @@ static int __devinit setup_regulators(struct lp3971 *lp3971,
 
 	/* Instantiate the regulators */
 	for (i = 0; i < pdata->num_regulators; i++) {
+		struct regulator_config config = { };
 		struct lp3971_regulator_subdev *reg = &pdata->regulators[i];
-		lp3971->rdev[i] = regulator_register(&regulators[reg->id],
-				lp3971->dev, reg->initdata, lp3971, NULL);
 
+		config.dev = lp3971->dev;
+		config.init_data = reg->initdata;
+		config.driver_data = lp3971;
+
+		lp3971->rdev[i] = regulator_register(&regulators[reg->id],
+						     &config);
 		if (IS_ERR(lp3971->rdev[i])) {
 			err = PTR_ERR(lp3971->rdev[i]);
 			dev_err(lp3971->dev, "regulator init failed: %d\n",

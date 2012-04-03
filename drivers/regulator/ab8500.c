@@ -712,6 +712,7 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_platform_data *pdata;
+	struct regulator_config config = { };
 	int i, err;
 
 	if (!ab8500) {
@@ -779,6 +780,10 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 		info = &ab8500_regulator_info[i];
 		info->dev = &pdev->dev;
 
+		config->dev = &pdev->dev;
+		config->init_data = &pdata->regulator[i];
+		config->driver_data = info;
+
 		/* fix for hardware before ab8500v2.0 */
 		if (abx500_get_chip_id(info->dev) < 0x20) {
 			if (info->desc.id == AB8500_LDO_AUX3) {
@@ -792,8 +797,7 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 		}
 
 		/* register regulator with framework */
-		info->regulator = regulator_register(&info->desc, &pdev->dev,
-				&pdata->regulator[i], info, NULL);
+		info->regulator = regulator_register(&info->desc, &config);
 		if (IS_ERR(info->regulator)) {
 			err = PTR_ERR(info->regulator);
 			dev_err(&pdev->dev, "failed to register regulator %s\n",

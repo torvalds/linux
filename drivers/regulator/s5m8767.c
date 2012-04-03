@@ -579,6 +579,7 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 {
 	struct s5m87xx_dev *iodev = dev_get_drvdata(pdev->dev.parent);
 	struct s5m_platform_data *pdata = dev_get_platdata(iodev->dev);
+	struct regulator_config config = { };
 	struct regulator_dev **rdev;
 	struct s5m8767_info *s5m8767;
 	int i, ret, size;
@@ -774,8 +775,11 @@ static __devinit int s5m8767_pmic_probe(struct platform_device *pdev)
 			regulators[id].n_voltages =
 				(desc->max - desc->min) / desc->step + 1;
 
-		rdev[i] = regulator_register(&regulators[id], s5m8767->dev,
-				pdata->regulators[i].initdata, s5m8767, NULL);
+		config.dev = s5m8767->dev;
+		config.init_data = pdata->regulators[i].initdata;
+		config.driver_data = s5m8767;
+
+		rdev[i] = regulator_register(&regulators[id], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(s5m8767->dev, "regulator init failed for %d\n",

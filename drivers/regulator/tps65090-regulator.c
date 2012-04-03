@@ -137,6 +137,7 @@ static inline struct tps65090_regulator *find_regulator_info(int id)
 static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 {
 	struct tps65090_regulator *ri = NULL;
+	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	struct tps65090_regulator_platform_data *tps_pdata;
 	int id = pdev->id;
@@ -151,8 +152,11 @@ static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 	tps_pdata = pdev->dev.platform_data;
 	ri->dev = &pdev->dev;
 
-	rdev = regulator_register(&ri->desc, &pdev->dev,
-				&tps_pdata->regulator, ri, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = &tps_pdata->regulator;
+	config.driver_data = ri;
+
+	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);

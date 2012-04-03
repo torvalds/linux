@@ -808,6 +808,7 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 {
 	struct ldo_regulator *ldo;
 	struct sgtl5000_priv *sgtl5000 = snd_soc_codec_get_drvdata(codec);
+	struct regulator_config config = { };
 
 	ldo = kzalloc(sizeof(struct ldo_regulator), GFP_KERNEL);
 
@@ -831,8 +832,11 @@ static int ldo_regulator_register(struct snd_soc_codec *codec,
 	ldo->codec_data = codec;
 	ldo->voltage = voltage;
 
-	ldo->dev = regulator_register(&ldo->desc, codec->dev,
-					  init_data, ldo, NULL);
+	config.dev = codec->dev;
+	config.driver_data = ldo;
+	config.init_data = init_data;
+
+	ldo->dev = regulator_register(&ldo->desc, &config);
 	if (IS_ERR(ldo->dev)) {
 		int ret = PTR_ERR(ldo->dev);
 

@@ -495,6 +495,7 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	struct regulator_config config = { };
 	int id;
 	struct wm831x_dcdc *dcdc;
 	struct resource *res;
@@ -553,8 +554,11 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 	if (pdata->dcdc[id])
 		wm831x_buckv_dvs_init(dcdc, pdata->dcdc[id]->driver_data);
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
-					     pdata->dcdc[id], dcdc, NULL);
+	config.dev = pdev->dev.parent;
+	config.init_data = pdata->dcdc[id];
+	config.driver_data = dcdc;
+
+	dcdc->regulator = regulator_register(&dcdc->desc, &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
@@ -705,6 +709,7 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	struct regulator_config config = { };
 	int id;
 	struct wm831x_dcdc *dcdc;
 	struct resource *res;
@@ -746,8 +751,11 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 	dcdc->desc.ops = &wm831x_buckp_ops;
 	dcdc->desc.owner = THIS_MODULE;
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
-					     pdata->dcdc[id], dcdc, NULL);
+	config.dev = pdev->dev.parent;
+	config.init_data = pdata->dcdc[id];
+	config.driver_data = dcdc;
+
+	dcdc->regulator = regulator_register(&dcdc->desc, &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
@@ -838,6 +846,7 @@ static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	struct regulator_config config = { };
 	int id = pdev->id % ARRAY_SIZE(pdata->dcdc);
 	struct wm831x_dcdc *dcdc;
 	struct resource *res;
@@ -871,8 +880,11 @@ static __devinit int wm831x_boostp_probe(struct platform_device *pdev)
 	dcdc->desc.ops = &wm831x_boostp_ops;
 	dcdc->desc.owner = THIS_MODULE;
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
-					     pdata->dcdc[id], dcdc, NULL);
+	config.dev = pdev->dev.parent;
+	config.init_data = pdata->dcdc[id];
+	config.driver_data = dcdc;
+
+	dcdc->regulator = regulator_register(&dcdc->desc, &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register DCDC%d: %d\n",
@@ -941,6 +953,7 @@ static __devinit int wm831x_epe_probe(struct platform_device *pdev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(pdev->dev.parent);
 	struct wm831x_pdata *pdata = wm831x->dev->platform_data;
+	struct regulator_config config = { };
 	int id = pdev->id % ARRAY_SIZE(pdata->epe);
 	struct wm831x_dcdc *dcdc;
 	int ret;
@@ -968,8 +981,11 @@ static __devinit int wm831x_epe_probe(struct platform_device *pdev)
 	dcdc->desc.type = REGULATOR_VOLTAGE;
 	dcdc->desc.owner = THIS_MODULE;
 
-	dcdc->regulator = regulator_register(&dcdc->desc, &pdev->dev,
-					     pdata->epe[id], dcdc, NULL);
+	config.dev = pdev->dev.parent;
+	config.init_data = pdata->epe[id];
+	config.driver_data = dcdc;
+
+	dcdc->regulator = regulator_register(&dcdc->desc, &config);
 	if (IS_ERR(dcdc->regulator)) {
 		ret = PTR_ERR(dcdc->regulator);
 		dev_err(wm831x->dev, "Failed to register EPE%d: %d\n",

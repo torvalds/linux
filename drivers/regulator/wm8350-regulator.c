@@ -1398,6 +1398,7 @@ static irqreturn_t pmic_uv_handler(int irq, void *data)
 static int wm8350_regulator_probe(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = dev_get_drvdata(&pdev->dev);
+	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 	int ret;
 	u16 val;
@@ -1425,10 +1426,12 @@ static int wm8350_regulator_probe(struct platform_device *pdev)
 		break;
 	}
 
+	config.dev = &pdev->dev;
+	config.init_data = pdev->dev.platform_data;
+	config.driver_data = dev_get_drvdata(&pdev->dev);
+
 	/* register regulator */
-	rdev = regulator_register(&wm8350_reg[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data,
-				  dev_get_drvdata(&pdev->dev), NULL);
+	rdev = regulator_register(&wm8350_reg[pdev->id], &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register %s\n",
 			wm8350_reg[pdev->id].name);

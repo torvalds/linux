@@ -225,6 +225,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 {
 	struct max8649_platform_data *pdata = client->dev.platform_data;
 	struct max8649_regulator_info *info = NULL;
+	struct regulator_config config = { };
 	unsigned int val;
 	unsigned char data;
 	int ret;
@@ -297,8 +298,11 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 				   MAX8649_RAMP_DOWN);
 	}
 
-	info->regulator = regulator_register(&dcdc_desc, &client->dev,
-					     pdata->regulator, info, NULL);
+	config.dev = &client->dev;
+	config.init_data = pdata->regulator;
+	config.driver_data = info;
+
+	info->regulator = regulator_register(&dcdc_desc, &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(info->dev, "failed to register regulator %s\n",
 			dcdc_desc.name);

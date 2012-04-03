@@ -1097,6 +1097,7 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 static __devinit int tps65910_probe(struct platform_device *pdev)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(pdev->dev.parent);
+	struct regulator_config config = { };
 	struct tps_info *info;
 	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
@@ -1206,8 +1207,11 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		pmic->desc[i].type = REGULATOR_VOLTAGE;
 		pmic->desc[i].owner = THIS_MODULE;
 
-		rdev = regulator_register(&pmic->desc[i],
-				tps65910->dev, reg_data, pmic, NULL);
+		config.dev = tps65910->dev;
+		config.init_data = reg_data;
+		config.driver_data = pmic;
+
+		rdev = regulator_register(&pmic->desc[i], &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65910->dev,
 				"failed to register %s regulator\n",

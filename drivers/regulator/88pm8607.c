@@ -365,6 +365,7 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm8607_regulator_info *info = NULL;
 	struct regulator_init_data *pdata = pdev->dev.platform_data;
+	struct regulator_config config = { };
 	struct resource *res;
 	int i;
 
@@ -390,9 +391,12 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 	if ((i == PM8607_ID_BUCK3) && info->chip->buck3_double)
 		info->slope_double = 1;
 
+	config.dev = &pdev->dev;
+	config.init_data = pdata;
+	config.driver_data = info;
+
 	/* replace driver_data with info */
-	info->regulator = regulator_register(&info->desc, &pdev->dev,
-					     pdata, info, NULL);
+	info->regulator = regulator_register(&info->desc, &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			info->desc.name);

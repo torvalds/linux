@@ -403,6 +403,7 @@ static inline struct da9052_regulator_info *find_regulator_info(u8 chip_id,
 
 static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 {
+	struct regulator_config config = { };
 	struct da9052_regulator *regulator;
 	struct da9052 *da9052;
 	struct da9052_pdata *pdata;
@@ -422,10 +423,13 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "invalid regulator ID specified\n");
 		return -EINVAL;
 	}
+
+	config.dev = &pdev->dev;
+	config.init_data = pdata->regulators[pdev->id];
+	config.driver_data = regulator;
+
 	regulator->rdev = regulator_register(&regulator->info->reg_desc,
-					     &pdev->dev,
-					     pdata->regulators[pdev->id],
-					     regulator, NULL);
+					     &config);
 	if (IS_ERR(regulator->rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			regulator->info->reg_desc.name);
