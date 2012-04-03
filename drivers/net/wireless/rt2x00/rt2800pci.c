@@ -361,7 +361,6 @@ static void rt2800pci_clear_entry(struct queue_entry *entry)
 static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 {
 	struct queue_entry_priv_pci *entry_priv;
-	u32 reg;
 
 	/*
 	 * Initialize registers.
@@ -402,14 +401,7 @@ static int rt2800pci_init_queues(struct rt2x00_dev *rt2x00dev)
 				 rt2x00dev->rx[0].limit - 1);
 	rt2x00pci_register_write(rt2x00dev, RX_DRX_IDX, 0);
 
-	/*
-	 * Enable global DMA configuration
-	 */
-	rt2x00pci_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2x00pci_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	rt2x00pci_register_write(rt2x00dev, DELAY_INT_CFG, 0);
 
