@@ -860,7 +860,7 @@ wait_for_memory:
 	}
 
 out:
-	if (copied)
+	if (copied && !(flags & MSG_MORE))
 		tcp_push(sk, flags, mss_now, tp->nonagle);
 	return copied;
 
