@@ -31,6 +31,8 @@ extern const struct seq_operations cpuinfo_op;
 /* Do necessary setup to start up a newly executed thread. */
 void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long usp);
 
+extern void ret_from_fork(void);
+
 # endif /* __ASSEMBLY__ */
 
 # ifndef CONFIG_MMU
@@ -142,8 +144,6 @@ static inline void exit_thread(void)
 	((tsk)->thread.regs ? (tsk)->thread.regs->r15 : 0)
 
 unsigned long get_wchan(struct task_struct *p);
-
-extern void ret_from_fork(void);
 
 /* The size allocated for kernel stacks. This _must_ be a power of two! */
 # define KERNEL_STACK_SIZE	0x2000
