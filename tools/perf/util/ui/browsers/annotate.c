@@ -168,6 +168,9 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 	while (self->b.top_idx != 0 && back != 0) {
 		pos = list_entry(pos->node.prev, struct objdump_line, node);
 
+		if (objdump_line__filter(&self->b, &pos->node))
+			continue;
+
 		--self->b.top_idx;
 		--back;
 	}
@@ -296,6 +299,61 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	return true;
 }
 
+static struct objdump_line *
+	annotate_browser__find_offset(struct annotate_browser *browser,
+				      s64 offset, s64 *idx)
+{
+	struct map_symbol *ms = browser->b.priv;
+	struct symbol *sym = ms->sym;
+	struct annotation *notes = symbol__annotation(sym);
+	struct objdump_line *pos;
+
+	*idx = 0;
+	list_for_each_entry(pos, &notes->src->source, node) {
+		if (pos->offset == offset)
+			return pos;
+		if (!objdump_line__filter(&browser->b, &pos->node))
+			++*idx;
+	}
+
+	return NULL;
+}
+
+static bool annotate_browser__jump(struct annotate_browser *browser)
+{
+	const char *jumps[] = { "je ", "jne ", "ja ", "jmpq ", "js ", "jmp ", NULL };
+	struct objdump_line *line;
+	s64 idx, offset;
+	char *s = NULL;
+	int i = 0;
+
+	while (jumps[i]) {
+		s = strstr(browser->selection->line, jumps[i++]);
+		if (s)
+			break;
+	}
+
+	if (s == NULL)
+		return false;
+
+	s = strchr(s, '+');
+	if (s++ == NULL) {
+		ui_helpline__puts("Invallid jump instruction.");
+		return true;
+	}
+
+	offset = strtoll(s, NULL, 16);
+	line = annotate_browser__find_offset(browser, offset, &idx);
+	if (line == NULL) {
+		ui_helpline__puts("Invallid jump offset");
+		return true;
+	}
+
+	annotate_browser__set_top(browser, line, idx);
+	
+	return true;
+}
+
 static int annotate_browser__run(struct annotate_browser *self, int evidx,
 				 void(*timer)(void *arg),
 				 void *arg, int delay_secs)
@@ -376,8 +434,9 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 			else if (self->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!annotate_browser__callq(self, evidx, timer, arg, delay_secs))
-				ui_helpline__puts("Actions are only available for the 'callq' instruction.");
+			else if (!(annotate_browser__jump(self) ||
+				   annotate_browser__callq(self, evidx, timer, arg, delay_secs)))
+				ui_helpline__puts("Actions are only available for the 'callq' and jump instructions.");
 			continue;
 		case K_LEFT:
 		case K_ESC:
