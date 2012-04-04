@@ -221,7 +221,7 @@ int beiscsi_ep_get_param(struct iscsi_endpoint *ep,
 	struct beiscsi_endpoint *beiscsi_ep = ep->dd_data;
 	int len = 0;
 
-	SE_DEBUG(DBG_LVL_8, "In beiscsi_conn_get_param, param= %d\n", param);
+	SE_DEBUG(DBG_LVL_8, "In beiscsi_ep_get_param, param= %d\n", param);
 
 	switch (param) {
 	case ISCSI_PARAM_CONN_PORT:
