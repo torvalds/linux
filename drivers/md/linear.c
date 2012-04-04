@@ -198,6 +198,7 @@ out:
 static int linear_run (struct mddev *mddev)
 {
 	struct linear_conf *conf;
+	int ret;
 
 	if (md_check_no_bitmap(mddev))
 		return -EINVAL;
@@ -211,7 +212,13 @@ static int linear_run (struct mddev *mddev)
 	blk_queue_merge_bvec(mddev->queue, linear_mergeable_bvec);
 	mddev->queue->backing_dev_info.congested_fn = linear_congested;
 	mddev->queue->backing_dev_info.congested_data = mddev;
-	return md_integrity_register(mddev);
+
+	ret =  md_integrity_register(mddev);
+	if (ret) {
+		kfree(conf);
+		mddev->private = NULL;
+	}
+	return ret;
 }
 
 static int linear_add(struct mddev *mddev, struct md_rdev *rdev)
