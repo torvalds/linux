@@ -1145,10 +1145,7 @@ team_nl_option_policy[TEAM_ATTR_OPTION_MAX + 1] = {
 	},
 	[TEAM_ATTR_OPTION_CHANGED]		= { .type = NLA_FLAG },
 	[TEAM_ATTR_OPTION_TYPE]			= { .type = NLA_U8 },
-	[TEAM_ATTR_OPTION_DATA] = {
-		.type = NLA_BINARY,
-		.len = TEAM_STRING_MAX_LEN,
-	},
+	[TEAM_ATTR_OPTION_DATA]			= { .type = NLA_BINARY },
 };
 
 static int team_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
@@ -1257,6 +1254,7 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 	list_for_each_entry(option, &team->option_list, list) {
 		struct nlattr *option_item;
 		long arg;
+		struct team_option_binary tbinary;
 
 		/* Include only changed options if fill all mode is not on */
 		if (!fillall && !option->changed)
@@ -1288,6 +1286,15 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 			team_option_get(team, option, &arg);
 			if (nla_put_string(skb, TEAM_ATTR_OPTION_DATA,
 					   (char *) arg))
+				goto nla_put_failure;
+			break;
+		case TEAM_OPTION_TYPE_BINARY:
+			if (nla_put_u8(skb, TEAM_ATTR_OPTION_TYPE, NLA_BINARY))
+				goto nla_put_failure;
+			arg = (long) &tbinary;
+			team_option_get(team, option, &arg);
+			if (nla_put(skb, TEAM_ATTR_OPTION_DATA,
+				    tbinary.data_len, tbinary.data))
 				goto nla_put_failure;
 			break;
 		default:
@@ -1374,6 +1381,9 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		case NLA_STRING:
 			opt_type = TEAM_OPTION_TYPE_STRING;
 			break;
+		case NLA_BINARY:
+			opt_type = TEAM_OPTION_TYPE_BINARY;
+			break;
 		default:
 			goto team_put;
 		}
@@ -1382,18 +1392,30 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		list_for_each_entry(option, &team->option_list, list) {
 			long arg;
 			struct nlattr *opt_data_attr;
+			struct team_option_binary tbinary;
+			int data_len;
 
 			if (option->type != opt_type ||
 			    strcmp(option->name, opt_name))
 				continue;
 			opt_found = true;
 			opt_data_attr = mode_attrs[TEAM_ATTR_OPTION_DATA];
+			data_len = nla_len(opt_data_attr);
 			switch (opt_type) {
 			case TEAM_OPTION_TYPE_U32:
 				arg = nla_get_u32(opt_data_attr);
 				break;
 			case TEAM_OPTION_TYPE_STRING:
+				if (data_len > TEAM_STRING_MAX_LEN) {
+					err = -EINVAL;
+					goto team_put;
+				}
 				arg = (long) nla_data(opt_data_attr);
+				break;
+			case TEAM_OPTION_TYPE_BINARY:
+				tbinary.data_len = data_len;
+				tbinary.data = nla_data(opt_data_attr);
+				arg = (long) &tbinary;
 				break;
 			default:
 				BUG();

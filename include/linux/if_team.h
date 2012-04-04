@@ -68,6 +68,7 @@ struct team_mode_ops {
 enum team_option_type {
 	TEAM_OPTION_TYPE_U32,
 	TEAM_OPTION_TYPE_STRING,
+	TEAM_OPTION_TYPE_BINARY,
 };
 
 struct team_option {
@@ -81,6 +82,13 @@ struct team_option {
 	bool changed;
 	bool removed;
 };
+
+struct team_option_binary {
+	u32 data_len;
+	void *data;
+};
+
+#define team_optarg_tbinary(arg) (*((struct team_option_binary **) arg))
 
 struct team_mode {
 	struct list_head list;
