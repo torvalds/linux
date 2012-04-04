@@ -99,14 +99,14 @@ void ion_carveout_heap_unmap_dma(struct ion_heap *heap,
 void *ion_carveout_heap_map_kernel(struct ion_heap *heap,
 				   struct ion_buffer *buffer)
 {
-	return __arch_ioremap(buffer->priv_phys, buffer->size,
+	return __arm_ioremap(buffer->priv_phys, buffer->size,
 			      MT_MEMORY_NONCACHED);
 }
 
 void ion_carveout_heap_unmap_kernel(struct ion_heap *heap,
 				    struct ion_buffer *buffer)
 {
-	__arch_iounmap(buffer->vaddr);
+	__arm_iounmap(buffer->vaddr);
 	buffer->vaddr = NULL;
 	return;
 }
