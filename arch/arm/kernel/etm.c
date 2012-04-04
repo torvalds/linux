@@ -124,6 +124,9 @@ static int trace_start_etm(struct tracectx *t, int id)
 	if (t->flags & TRACER_TIMESTAMP)
 		v |= ETMCTRL_TIMESTAMP_EN;
 
+	if (t->flags & TRACER_RETURN_STACK)
+		v |= ETMCTRL_RETURN_STACK_EN;
+
 	etm_unlock(t, id);
 
 	etm_writel(t, id, v, ETMR_CTRL);
@@ -700,10 +703,13 @@ static ssize_t trace_branch_output_store(struct kobject *kobj,
 		return -EINVAL;
 
 	mutex_lock(&tracer.mutex);
-	if (branch_output)
+	if (branch_output) {
 		tracer.flags |= TRACER_BRANCHOUTPUT;
-	else
+		/* Branch broadcasting is incompatible with the return stack */
+		tracer.flags &= ~TRACER_RETURN_STACK;
+	} else {
 		tracer.flags &= ~TRACER_BRANCHOUTPUT;
+	}
 	mutex_unlock(&tracer.mutex);
 
 	return n;
@@ -712,6 +718,39 @@ static ssize_t trace_branch_output_store(struct kobject *kobj,
 static struct kobj_attribute trace_branch_output_attr =
 	__ATTR(trace_branch_output, 0644,
 		trace_branch_output_show, trace_branch_output_store);
+
+static ssize_t trace_return_stack_show(struct kobject *kobj,
+				  struct kobj_attribute *attr,
+				  char *buf)
+{
+	return sprintf(buf, "%d\n", !!(tracer.flags & TRACER_RETURN_STACK));
+}
+
+static ssize_t trace_return_stack_store(struct kobject *kobj,
+				   struct kobj_attribute *attr,
+				   const char *buf, size_t n)
+{
+	unsigned int return_stack;
+
+	if (sscanf(buf, "%u", &return_stack) != 1)
+		return -EINVAL;
+
+	mutex_lock(&tracer.mutex);
+	if (return_stack) {
+		tracer.flags |= TRACER_RETURN_STACK;
+		/* Return stack is incompatible with branch broadcasting */
+		tracer.flags &= ~TRACER_BRANCHOUTPUT;
+	} else {
+		tracer.flags &= ~TRACER_RETURN_STACK;
+	}
+	mutex_unlock(&tracer.mutex);
+
+	return n;
+}
+
+static struct kobj_attribute trace_return_stack_attr =
+	__ATTR(trace_return_stack, 0644,
+		trace_return_stack_show, trace_return_stack_store);
 
 static ssize_t trace_timestamp_show(struct kobject *kobj,
 				  struct kobj_attribute *attr,
@@ -896,6 +935,14 @@ static int etm_probe(struct amba_device *dev, const struct amba_id *id)
 	if (ret)
 		dev_dbg(&dev->dev,
 			"Failed to create trace_branch_output in sysfs\n");
+
+	if (etmccer & ETMCCER_RETURN_STACK_IMPLEMENTED) {
+		ret = sysfs_create_file(&dev->dev.kobj,
+					&trace_return_stack_attr.attr);
+		if (ret)
+			dev_dbg(&dev->dev,
+			      "Failed to create trace_return_stack in sysfs\n");
+	}
 
 	if (etmccer & ETMCCER_TIMESTAMPING_IMPLEMENTED) {
 		ret = sysfs_create_file(&dev->dev.kobj,
