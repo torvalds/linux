@@ -2469,6 +2469,17 @@ static int sky2_change_mtu(struct net_device *dev, int new_mtu)
 	return err;
 }
 
+static inline bool needs_copy(const struct rx_ring_info *re,
+			      unsigned length)
+{
+#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+	/* Some architectures need the IP header to be aligned */
+	if (!IS_ALIGNED(re->data_addr + ETH_HLEN, sizeof(u32)))
+		return true;
+#endif
+	return length < copybreak;
+}
+
 /* For small just reuse existing skb for next receive */
 static struct sk_buff *receive_copy(struct sky2_port *sky2,
 				    const struct rx_ring_info *re,
@@ -2599,7 +2610,7 @@ static struct sk_buff *sky2_receive(struct net_device *dev,
 		goto error;
 
 okay:
-	if (length < copybreak)
+	if (needs_copy(re, length))
 		skb = receive_copy(sky2, re, length);
 	else
 		skb = receive_new(sky2, re, length);
