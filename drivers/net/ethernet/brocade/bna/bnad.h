@@ -320,7 +320,6 @@ struct bnad {
 	/* Burnt in MAC address */
 	mac_t			perm_addr;
 
-	struct tasklet_struct	tx_free_tasklet;
 	struct workqueue_struct *work_q;
 
 	/* Statistics */
