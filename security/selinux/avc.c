@@ -436,9 +436,9 @@ static void avc_audit_pre_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	audit_log_format(ab, "avc:  %s ",
-			 ad->selinux_audit_data->slad->denied ? "denied" : "granted");
-	avc_dump_av(ab, ad->selinux_audit_data->slad->tclass,
-			ad->selinux_audit_data->slad->audited);
+			 ad->selinux_audit_data->denied ? "denied" : "granted");
+	avc_dump_av(ab, ad->selinux_audit_data->tclass,
+			ad->selinux_audit_data->audited);
 	audit_log_format(ab, " for ");
 }
 
@@ -452,9 +452,9 @@ static void avc_audit_post_callback(struct audit_buffer *ab, void *a)
 {
 	struct common_audit_data *ad = a;
 	audit_log_format(ab, " ");
-	avc_dump_query(ab, ad->selinux_audit_data->slad->ssid,
-			   ad->selinux_audit_data->slad->tsid,
-			   ad->selinux_audit_data->slad->tclass);
+	avc_dump_query(ab, ad->selinux_audit_data->ssid,
+			   ad->selinux_audit_data->tsid,
+			   ad->selinux_audit_data->tclass);
 }
 
 /* This is the slow part of avc audit with big stack footprint */
@@ -464,13 +464,11 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 		unsigned flags)
 {
 	struct common_audit_data stack_data;
-	struct selinux_audit_data sad = {0,};
-	struct selinux_late_audit_data slad;
+	struct selinux_audit_data sad;
 
 	if (!a) {
 		a = &stack_data;
 		a->type = LSM_AUDIT_DATA_NONE;
-		a->selinux_audit_data = &sad;
 	}
 
 	/*
@@ -484,14 +482,15 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 	    (flags & MAY_NOT_BLOCK))
 		return -ECHILD;
 
-	slad.tclass = tclass;
-	slad.requested = requested;
-	slad.ssid = ssid;
-	slad.tsid = tsid;
-	slad.audited = audited;
-	slad.denied = denied;
+	sad.tclass = tclass;
+	sad.requested = requested;
+	sad.ssid = ssid;
+	sad.tsid = tsid;
+	sad.audited = audited;
+	sad.denied = denied;
 
-	a->selinux_audit_data->slad = &slad;
+	a->selinux_audit_data = &sad;
+
 	common_lsm_audit(a, avc_audit_pre_callback, avc_audit_post_callback);
 	return 0;
 }
