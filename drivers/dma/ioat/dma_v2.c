@@ -575,9 +575,9 @@ bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
 	 */
 	struct ioat_chan_common *chan = &ioat->base;
 	struct dma_chan *c = &chan->common;
-	const u16 curr_size = ioat2_ring_size(ioat);
+	const u32 curr_size = ioat2_ring_size(ioat);
 	const u16 active = ioat2_ring_active(ioat);
-	const u16 new_size = 1 << order;
+	const u32 new_size = 1 << order;
 	struct ioat_ring_ent **ring;
 	u16 i;
 
