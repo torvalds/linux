@@ -36,6 +36,9 @@ static inline struct clk *imx_clk_gate2(const char *name, const char *parent,
 			shift, 0, &imx_ccm_lock);
 }
 
+struct clk *imx_clk_pfd(const char *name, const char *parent_name,
+		void __iomem *reg, u8 idx);
+
 static inline struct clk *imx_clk_fixed(const char *name, int rate)
 {
 	return clk_register_fixed_rate(NULL, name, NULL, CLK_IS_ROOT, rate);
