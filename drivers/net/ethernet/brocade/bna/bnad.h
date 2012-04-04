@@ -373,8 +373,8 @@ extern void bnad_rx_coalescing_timeo_set(struct bnad *bnad);
 
 extern int bnad_setup_rx(struct bnad *bnad, u32 rx_id);
 extern int bnad_setup_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_cleanup_tx(struct bnad *bnad, u32 tx_id);
-extern void bnad_cleanup_rx(struct bnad *bnad, u32 rx_id);
+extern void bnad_destroy_tx(struct bnad *bnad, u32 tx_id);
+extern void bnad_destroy_rx(struct bnad *bnad, u32 rx_id);
 
 /* Timer start/stop protos */
 extern void bnad_dim_timer_start(struct bnad *bnad);

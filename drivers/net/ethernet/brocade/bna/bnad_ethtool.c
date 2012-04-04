@@ -464,7 +464,7 @@ bnad_set_ringparam(struct net_device *netdev,
 		for (i = 0; i < bnad->num_rx; i++) {
 			if (!bnad->rx_info[i].rx)
 				continue;
-			bnad_cleanup_rx(bnad, i);
+			bnad_destroy_rx(bnad, i);
 			current_err = bnad_setup_rx(bnad, i);
 			if (current_err && !err)
 				err = current_err;
@@ -492,7 +492,7 @@ bnad_set_ringparam(struct net_device *netdev,
 		for (i = 0; i < bnad->num_tx; i++) {
 			if (!bnad->tx_info[i].tx)
 				continue;
-			bnad_cleanup_tx(bnad, i);
+			bnad_destroy_tx(bnad, i);
 			current_err = bnad_setup_tx(bnad, i);
 			if (current_err && !err)
 				err = current_err;
@@ -539,7 +539,7 @@ bnad_set_pauseparam(struct net_device *netdev,
 }
 
 static void
-bnad_get_strings(struct net_device *netdev, u32 stringset, u8 * string)
+bnad_get_strings(struct net_device *netdev, u32 stringset, u8 *string)
 {
 	struct bnad *bnad = netdev_priv(netdev);
 	int i, j, q_num;
