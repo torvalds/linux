@@ -1659,8 +1659,7 @@ hwi_fwd_async_msg(struct beiscsi_conn *beiscsi_conn,
 					    phdr, hdr_len, pfirst_buffer,
 					    offset);
 
-	if (status == 0)
-		hwi_free_async_msg(phba, cri);
+	hwi_free_async_msg(phba, cri);
 	return 0;
 }
 
