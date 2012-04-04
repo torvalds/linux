@@ -843,6 +843,7 @@ config SOC_IMX6Q
 	bool "i.MX6 Quad support"
 	select ARM_CPU_SUSPEND if PM
 	select ARM_GIC
+	select COMMON_CLK
 	select CPU_V7
 	select HAVE_ARM_SCU
 	select HAVE_IMX_GPC
