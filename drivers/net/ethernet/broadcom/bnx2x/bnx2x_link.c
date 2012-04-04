@@ -1371,7 +1371,14 @@ static void bnx2x_update_pfc_xmac(struct link_params *params,
 		pfc1_val |= XMAC_PFC_CTRL_HI_REG_PFC_REFRESH_EN |
 			XMAC_PFC_CTRL_HI_REG_PFC_STATS_EN |
 			XMAC_PFC_CTRL_HI_REG_RX_PFC_EN |
-			XMAC_PFC_CTRL_HI_REG_TX_PFC_EN;
+			XMAC_PFC_CTRL_HI_REG_TX_PFC_EN |
+			XMAC_PFC_CTRL_HI_REG_FORCE_PFC_XON;
+		/* Write pause and PFC registers */
+		REG_WR(bp, xmac_base + XMAC_REG_PAUSE_CTRL, pause_val);
+		REG_WR(bp, xmac_base + XMAC_REG_PFC_CTRL, pfc0_val);
+		REG_WR(bp, xmac_base + XMAC_REG_PFC_CTRL_HI, pfc1_val);
+		pfc1_val &= ~XMAC_PFC_CTRL_HI_REG_FORCE_PFC_XON;
+
 	}
 
 	/* Write pause and PFC registers */
@@ -6843,6 +6850,12 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 			  SINGLE_MEDIA_DIRECT(params)) &&
 			 (phy_vars[active_external_phy].fault_detected == 0));
 
+	/* Update the PFC configuration in case it was changed */
+	if (params->feature_config_flags & FEATURE_CONFIG_PFC_ENABLED)
+		vars->link_status |= LINK_STATUS_PFC_ENABLED;
+	else
+		vars->link_status &= ~LINK_STATUS_PFC_ENABLED;
+
 	if (vars->link_up)
 		rc = bnx2x_update_link_up(params, vars, link_10g_plus);
 	else
@@ -12048,6 +12061,9 @@ int bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 			NIG_MASK_MI_INT));
 
 	bnx2x_emac_init(params, vars);
+
+	if (params->feature_config_flags & FEATURE_CONFIG_PFC_ENABLED)
+		vars->link_status |= LINK_STATUS_PFC_ENABLED;
 
 	if (params->num_phys == 0) {
 		DP(NETIF_MSG_LINK, "No phy found for initialization !!\n");
