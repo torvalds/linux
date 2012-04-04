@@ -761,6 +761,8 @@ struct snd_soc_dai_link {
 	const struct device_node *cpu_dai_of_node;
 	const char *codec_dai_name;
 
+	const struct snd_soc_pcm_stream *params;
+
 	unsigned int dai_fmt;           /* format to set on init */
 
 	/* Keep DAI active over suspend */
