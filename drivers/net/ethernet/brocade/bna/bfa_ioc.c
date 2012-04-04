@@ -1207,27 +1207,62 @@ bfa_nw_ioc_sem_release(void __iomem *sem_reg)
 	writel(1, sem_reg);
 }
 
+/* Clear fwver hdr */
+static void
+bfa_ioc_fwver_clear(struct bfa_ioc *ioc)
+{
+	u32 pgnum, pgoff, loff = 0;
+	int i;
+
+	pgnum = PSS_SMEM_PGNUM(ioc->ioc_regs.smem_pg0, loff);
+	pgoff = PSS_SMEM_PGOFF(loff);
+	writel(pgnum, ioc->ioc_regs.host_page_num_fn);
+
+	for (i = 0; i < (sizeof(struct bfi_ioc_image_hdr) / sizeof(u32)); i++) {
+		writel(0, ioc->ioc_regs.smem_page_start + loff);
+		loff += sizeof(u32);
+	}
+}
+
+
 static void
 bfa_ioc_hw_sem_init(struct bfa_ioc *ioc)
 {
 	struct bfi_ioc_image_hdr fwhdr;
-	u32 fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+	u32 fwstate, r32;
 
-	if (fwstate == BFI_IOC_UNINIT)
+	/* Spin on init semaphore to serialize. */
+	r32 = readl(ioc->ioc_regs.ioc_init_sem_reg);
+	while (r32 & 0x1) {
+		udelay(20);
+		r32 = readl(ioc->ioc_regs.ioc_init_sem_reg);
+	}
+
+	fwstate = readl(ioc->ioc_regs.ioc_fwstate);
+	if (fwstate == BFI_IOC_UNINIT) {
+		writel(1, ioc->ioc_regs.ioc_init_sem_reg);
 		return;
+	}
 
 	bfa_nw_ioc_fwver_get(ioc, &fwhdr);
 
-	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_NORMAL)
+	if (swab32(fwhdr.exec) == BFI_FWBOOT_TYPE_NORMAL) {
+		writel(1, ioc->ioc_regs.ioc_init_sem_reg);
 		return;
+	}
 
+	bfa_ioc_fwver_clear(ioc);
 	writel(BFI_IOC_UNINIT, ioc->ioc_regs.ioc_fwstate);
+	writel(BFI_IOC_UNINIT, ioc->ioc_regs.alt_ioc_fwstate);
 
 	/*
 	 * Try to lock and then unlock the semaphore.
 	 */
 	readl(ioc->ioc_regs.ioc_sem_reg);
 	writel(1, ioc->ioc_regs.ioc_sem_reg);
+
+	/* Unlock init semaphore */
+	writel(1, ioc->ioc_regs.ioc_init_sem_reg);
 }
 
 static void
@@ -1585,11 +1620,6 @@ bfa_ioc_download_fw(struct bfa_ioc *ioc, u32 boot_type,
 	u32 i;
 	u32 asicmode;
 
-	/**
-	 * Initialize LMEM first before code download
-	 */
-	bfa_ioc_lmem_init(ioc);
-
 	fwimg = bfa_cb_image_get_chunk(bfa_ioc_asic_gen(ioc), chunkno);
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
@@ -1914,6 +1944,10 @@ bfa_ioc_pll_init(struct bfa_ioc *ioc)
 	bfa_ioc_pll_init_asic(ioc);
 
 	ioc->pllinit = true;
+
+	/* Initialize LMEM */
+	bfa_ioc_lmem_init(ioc);
+
 	/*
 	 *  release semaphore.
 	 */
