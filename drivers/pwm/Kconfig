@@ -27,6 +27,15 @@ config PWM_IMX
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-imx.
 
+config PWM_MXS
+	tristate "Freescale MXS PWM support"
+	depends on ARCH_MXS && OF
+	help
+	  Generic PWM framework driver for Freescale MXS.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-mxs.
+
 config PWM_PXA
 	tristate "PXA PWM support"
 	depends on ARCH_PXA
