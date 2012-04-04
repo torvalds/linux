@@ -1471,14 +1471,13 @@ hwi_update_async_writables(struct hwi_async_pdu_context *pasync_ctx,
 	return 0;
 }
 
-static unsigned int hwi_free_async_msg(struct beiscsi_hba *phba,
+static void hwi_free_async_msg(struct beiscsi_hba *phba,
 				       unsigned int cri)
 {
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_async_pdu_context *pasync_ctx;
 	struct async_pdu_handle *pasync_handle, *tmp_handle;
 	struct list_head *plist;
-	unsigned int i = 0;
 
 	phwi_ctrlr = phba->phwi_ctrlr;
 	pasync_ctx = HWI_GET_ASYNC_PDU_CTX(phwi_ctrlr);
@@ -1488,23 +1487,20 @@ static unsigned int hwi_free_async_msg(struct beiscsi_hba *phba,
 	list_for_each_entry_safe(pasync_handle, tmp_handle, plist, link) {
 		list_del(&pasync_handle->link);
 
-		if (i == 0) {
+		if (pasync_handle->is_header) {
 			list_add_tail(&pasync_handle->link,
 				      &pasync_ctx->async_header.free_list);
 			pasync_ctx->async_header.free_entries++;
-			i++;
 		} else {
 			list_add_tail(&pasync_handle->link,
 				      &pasync_ctx->async_data.free_list);
 			pasync_ctx->async_data.free_entries++;
-			i++;
 		}
 	}
 
 	INIT_LIST_HEAD(&pasync_ctx->async_entry[cri].wait_queue.list);
 	pasync_ctx->async_entry[cri].wait_queue.hdr_received = 0;
 	pasync_ctx->async_entry[cri].wait_queue.bytes_received = 0;
-	return 0;
 }
 
 static struct phys_addr *
