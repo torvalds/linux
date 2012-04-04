@@ -97,14 +97,15 @@ struct regmap_config {
 	u8 write_flag_mask;
 };
 
-typedef int (*regmap_hw_write)(struct device *dev, const void *data,
+typedef int (*regmap_hw_write)(void *context, const void *data,
 			       size_t count);
-typedef int (*regmap_hw_gather_write)(struct device *dev,
+typedef int (*regmap_hw_gather_write)(void *context,
 				      const void *reg, size_t reg_len,
 				      const void *val, size_t val_len);
-typedef int (*regmap_hw_read)(struct device *dev,
+typedef int (*regmap_hw_read)(void *context,
 			      const void *reg_buf, size_t reg_size,
 			      void *val_buf, size_t val_size);
+typedef void (*regmap_hw_free_context)(void *context);
 
 /**
  * Description of a hardware bus for the register map infrastructure.
@@ -121,11 +122,13 @@ struct regmap_bus {
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_read read;
+	regmap_hw_free_context free_context;
 	u8 read_flag_mask;
 };
 
 struct regmap *regmap_init(struct device *dev,
 			   const struct regmap_bus *bus,
+			   void *bus_context,
 			   const struct regmap_config *config);
 struct regmap *regmap_init_i2c(struct i2c_client *i2c,
 			       const struct regmap_config *config);
@@ -134,6 +137,7 @@ struct regmap *regmap_init_spi(struct spi_device *dev,
 
 struct regmap *devm_regmap_init(struct device *dev,
 				const struct regmap_bus *bus,
+				void *bus_context,
 				const struct regmap_config *config);
 struct regmap *devm_regmap_init_i2c(struct i2c_client *i2c,
 				    const struct regmap_config *config);
