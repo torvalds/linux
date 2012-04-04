@@ -6014,6 +6014,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_wowlan new_triggers = {};
 	struct wiphy_wowlan_support *wowlan = &rdev->wiphy.wowlan;
 	int err, i;
+	bool prev_enabled = rdev->wowlan;
 
 	if (!rdev->wiphy.wowlan.flags && !rdev->wiphy.wowlan.n_patterns)
 		return -EOPNOTSUPP;
@@ -6145,6 +6146,9 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		cfg80211_rdev_free_wowlan(rdev);
 		rdev->wowlan = NULL;
 	}
+
+	if (rdev->ops->set_wakeup && prev_enabled != !!rdev->wowlan)
+		rdev->ops->set_wakeup(&rdev->wiphy, rdev->wowlan);
 
 	return 0;
  error:

@@ -2233,6 +2233,7 @@ struct ieee80211_ops {
 #ifdef CONFIG_PM
 	int (*suspend)(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
 	int (*resume)(struct ieee80211_hw *hw);
+	void (*set_wakeup)(struct ieee80211_hw *hw, bool enabled);
 #endif
 	int (*add_interface)(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif);

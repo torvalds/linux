@@ -91,6 +91,19 @@ static inline int drv_resume(struct ieee80211_local *local)
 	trace_drv_return_int(local, ret);
 	return ret;
 }
+
+static inline void drv_set_wakeup(struct ieee80211_local *local,
+				  bool enabled)
+{
+	might_sleep();
+
+	if (!local->ops->set_wakeup)
+		return;
+
+	trace_drv_set_wakeup(local, enabled);
+	local->ops->set_wakeup(&local->hw, enabled);
+	trace_drv_return_void(local);
+}
 #endif
 
 static inline int drv_add_interface(struct ieee80211_local *local,
