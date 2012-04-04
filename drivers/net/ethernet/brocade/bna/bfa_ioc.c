@@ -70,7 +70,6 @@ static void bfa_ioc_reset(struct bfa_ioc *ioc, bool force);
 static void bfa_ioc_mbox_poll(struct bfa_ioc *ioc);
 static void bfa_ioc_mbox_flush(struct bfa_ioc *ioc);
 static void bfa_ioc_recover(struct bfa_ioc *ioc);
-static void bfa_ioc_check_attr_wwns(struct bfa_ioc *ioc);
 static void bfa_ioc_event_notify(struct bfa_ioc *, enum bfa_ioc_event);
 static void bfa_ioc_disable_comp(struct bfa_ioc *ioc);
 static void bfa_ioc_lpu_stop(struct bfa_ioc *ioc);
@@ -346,8 +345,6 @@ bfa_ioc_sm_getattr(struct bfa_ioc *ioc, enum ioc_event event)
 	switch (event) {
 	case IOC_E_FWRSP_GETATTR:
 		del_timer(&ioc->ioc_timer);
-		bfa_ioc_check_attr_wwns(ioc);
-		bfa_ioc_hb_monitor(ioc);
 		bfa_fsm_set_state(ioc, bfa_ioc_sm_op);
 		break;
 
@@ -380,6 +377,7 @@ bfa_ioc_sm_op_entry(struct bfa_ioc *ioc)
 {
 	ioc->cbfn->enable_cbfn(ioc->bfa, BFA_STATUS_OK);
 	bfa_ioc_event_notify(ioc, BFA_IOC_E_ENABLED);
+	bfa_ioc_hb_monitor(ioc);
 }
 
 static void
@@ -2545,13 +2543,6 @@ bfa_ioc_recover(struct bfa_ioc *ioc)
 	bfa_ioc_stats(ioc, ioc_hbfails);
 	bfa_ioc_stats_hb_count(ioc, ioc->hb_count);
 	bfa_fsm_send_event(ioc, IOC_E_HBFAIL);
-}
-
-static void
-bfa_ioc_check_attr_wwns(struct bfa_ioc *ioc)
-{
-	if (bfa_ioc_get_type(ioc) == BFA_IOC_TYPE_LL)
-		return;
 }
 
 /**
