@@ -577,7 +577,7 @@ u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 		return MLX4_EN_NUM_TX_RINGS + (vlan_tag >> 13);
 	}
 
-	return __skb_tx_hash(dev, skb, MLX4_EN_NUM_TX_RINGS);
+	return skb_tx_hash(dev, skb);
 }
 
 static void mlx4_bf_copy(void __iomem *dst, unsigned long *src, unsigned bytecnt)

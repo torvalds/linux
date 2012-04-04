@@ -45,6 +45,14 @@
 #include "mlx4_en.h"
 #include "en_port.h"
 
+static int mlx4_en_setup_tc(struct net_device *dev, u8 up)
+{
+	if (up != MLX4_EN_NUM_UP)
+		return -EINVAL;
+
+	return 0;
+}
+
 static int mlx4_en_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
@@ -1038,6 +1046,7 @@ static const struct net_device_ops mlx4_netdev_ops = {
 	.ndo_poll_controller	= mlx4_en_netpoll,
 #endif
 	.ndo_set_features	= mlx4_en_set_features,
+	.ndo_setup_tc		= mlx4_en_setup_tc,
 };
 
 int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
@@ -1118,6 +1127,15 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->watchdog_timeo = MLX4_EN_WATCHDOG_TIMEOUT;
 	netif_set_real_num_tx_queues(dev, priv->tx_ring_num);
 	netif_set_real_num_rx_queues(dev, priv->rx_ring_num);
+
+	netdev_set_num_tc(dev, MLX4_EN_NUM_UP);
+
+	/* First 9 rings are for UP 0 */
+	netdev_set_tc_queue(dev, 0, MLX4_EN_NUM_TX_RINGS + 1, 0);
+
+	/* Partition Tx queues evenly amongst UP's 1-7 */
+	for (i = 1; i < MLX4_EN_NUM_UP; i++)
+		netdev_set_tc_queue(dev, i, 1, MLX4_EN_NUM_TX_RINGS + i);
 
 	SET_ETHTOOL_OPS(dev, &mlx4_en_ethtool_ops);
 
