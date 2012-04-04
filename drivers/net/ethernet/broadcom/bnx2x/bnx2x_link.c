@@ -6216,12 +6216,14 @@ int bnx2x_set_led(struct link_params *params,
 
 		tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
 		if (params->phy[EXT_PHY1].type ==
-			  PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE)
-			EMAC_WR(bp, EMAC_REG_EMAC_LED, tmp & 0xfff1);
-		else {
-			EMAC_WR(bp, EMAC_REG_EMAC_LED,
-				(tmp | EMAC_LED_OVERRIDE));
-		}
+			PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE)
+			tmp &= ~(EMAC_LED_1000MB_OVERRIDE |
+				EMAC_LED_100MB_OVERRIDE |
+				EMAC_LED_10MB_OVERRIDE);
+		else
+			tmp |= EMAC_LED_OVERRIDE;
+
+		EMAC_WR(bp, EMAC_REG_EMAC_LED, tmp);
 		break;
 
 	case LED_MODE_OPER:
@@ -6276,10 +6278,15 @@ int bnx2x_set_led(struct link_params *params,
 				       hw_led_mode);
 		} else if ((params->phy[EXT_PHY1].type ==
 			    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE) &&
-			   (mode != LED_MODE_OPER)) {
+			   (mode == LED_MODE_ON)) {
 			REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4, 0);
 			tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
-			EMAC_WR(bp, EMAC_REG_EMAC_LED, tmp | 0x3);
+			EMAC_WR(bp, EMAC_REG_EMAC_LED, tmp |
+				EMAC_LED_OVERRIDE | EMAC_LED_1000MB_OVERRIDE);
+			/* Break here; otherwise, it'll disable the
+			 * intended override.
+			 */
+			break;
 		} else
 			REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4,
 			       hw_led_mode);
@@ -6294,13 +6301,9 @@ int bnx2x_set_led(struct link_params *params,
 			       LED_BLINK_RATE_VAL_E1X_E2);
 		REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_ENA_P0 +
 		       port*4, 1);
-		if ((params->phy[EXT_PHY1].type !=
-		     PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM54618SE) &&
-		    (mode != LED_MODE_OPER)) {
-			tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
-			EMAC_WR(bp, EMAC_REG_EMAC_LED,
-				(tmp & (~EMAC_LED_OVERRIDE)));
-		}
+		tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
+		EMAC_WR(bp, EMAC_REG_EMAC_LED,
+			(tmp & (~EMAC_LED_OVERRIDE)));
 
 		if (CHIP_IS_E1(bp) &&
 		    ((speed == SPEED_2500) ||
