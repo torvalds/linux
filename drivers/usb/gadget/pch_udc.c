@@ -3282,7 +3282,6 @@ static DEFINE_PCI_DEVICE_TABLE(pch_udc_pcidev_id) = {
 
 MODULE_DEVICE_TABLE(pci, pch_udc_pcidev_id);
 
-
 static struct pci_driver pch_udc_driver = {
 	.name =	KBUILD_MODNAME,
 	.id_table =	pch_udc_pcidev_id,
@@ -3293,17 +3292,7 @@ static struct pci_driver pch_udc_driver = {
 	.shutdown =	pch_udc_shutdown,
 };
 
-static int __init pch_udc_pci_init(void)
-{
-	return pci_register_driver(&pch_udc_driver);
-}
-module_init(pch_udc_pci_init);
-
-static void __exit pch_udc_pci_exit(void)
-{
-	pci_unregister_driver(&pch_udc_driver);
-}
-module_exit(pch_udc_pci_exit);
+module_pci_driver(pch_udc_driver);
 
 MODULE_DESCRIPTION("Intel EG20T USB Device Controller");
 MODULE_AUTHOR("LAPIS Semiconductor, <tomoya-linux@dsn.lapis-semi.com>");

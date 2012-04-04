@@ -3412,23 +3412,9 @@ static struct pci_driver langwell_pci_driver = {
 	.shutdown =	langwell_udc_shutdown,
 };
 
-
-static int __init init(void)
-{
-	return pci_register_driver(&langwell_pci_driver);
-}
-module_init(init);
-
-
-static void __exit cleanup(void)
-{
-	pci_unregister_driver(&langwell_pci_driver);
-}
-module_exit(cleanup);
-
+module_pci_driver(langwell_pci_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Xiaochen Shen <xiaochen.shen@intel.com>");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-

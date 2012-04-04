@@ -1895,14 +1895,4 @@ static struct pci_driver goku_pci_driver = {
 	/* FIXME add power management support */
 };
 
-static int __init init (void)
-{
-	return pci_register_driver (&goku_pci_driver);
-}
-module_init (init);
-
-static void __exit cleanup (void)
-{
-	pci_unregister_driver (&goku_pci_driver);
-}
-module_exit (cleanup);
+module_pci_driver(goku_pci_driver);

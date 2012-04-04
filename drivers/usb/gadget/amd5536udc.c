@@ -3402,19 +3402,7 @@ static struct pci_driver udc_pci_driver = {
 	.remove =	udc_pci_remove,
 };
 
-/* Inits driver */
-static int __init init(void)
-{
-	return pci_register_driver(&udc_pci_driver);
-}
-module_init(init);
-
-/* Cleans driver */
-static void __exit cleanup(void)
-{
-	pci_unregister_driver(&udc_pci_driver);
-}
-module_exit(cleanup);
+module_pci_driver(udc_pci_driver);
 
 MODULE_DESCRIPTION(UDC_MOD_DESCRIPTION);
 MODULE_AUTHOR("Thomas Dahlmann");
