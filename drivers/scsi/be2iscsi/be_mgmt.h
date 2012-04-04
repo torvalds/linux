@@ -219,9 +219,9 @@ struct be_mgmt_controller_attributes_resp {
 				/* the CMD_RESPONSE_HEADER  */
 
 #define ISCSI_GET_PDU_TEMPLATE_ADDRESS(pc, pa) {\
-    pa->lo = phba->init_mem[ISCSI_MEM_GLOBAL_HEADER].mem_array[0].\
+	pa->lo = phba->init_mem[ISCSI_MEM_GLOBAL_HEADER].mem_array[0].\
 					bus_address.u.a32.address_lo;  \
-    pa->hi = phba->init_mem[ISCSI_MEM_GLOBAL_HEADER].mem_array[0].\
+	pa->hi = phba->init_mem[ISCSI_MEM_GLOBAL_HEADER].mem_array[0].\
 					bus_address.u.a32.address_hi;  \
 }
 

@@ -2211,7 +2211,7 @@ static int beiscsi_alloc_mem(struct beiscsi_hba *phba)
 	struct mem_array *mem_arr, *mem_arr_orig;
 	unsigned int i, j, alloc_size, curr_alloc_size;
 
-	phba->phwi_ctrlr = kmalloc(phba->params.hwi_ws_sz, GFP_KERNEL);
+	phba->phwi_ctrlr = kzalloc(phba->params.hwi_ws_sz, GFP_KERNEL);
 	if (!phba->phwi_ctrlr)
 		return -ENOMEM;
 
@@ -2331,27 +2331,21 @@ static void iscsi_init_global_templates(struct beiscsi_hba *phba)
 	AMAP_SET_BITS(struct amap_pdu_nop_out, i_bit, pnop_out, 0);
 }
 
-static void beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
+static int beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 {
 	struct be_mem_descriptor *mem_descr_wrbh, *mem_descr_wrb;
-	struct wrb_handle *pwrb_handle;
+	struct wrb_handle *pwrb_handle = NULL;
 	struct hwi_controller *phwi_ctrlr;
 	struct hwi_wrb_context *pwrb_context;
-	struct iscsi_wrb *pwrb;
-	unsigned int num_cxn_wrbh;
-	unsigned int num_cxn_wrb, j, idx, index;
+	struct iscsi_wrb *pwrb = NULL;
+	unsigned int num_cxn_wrbh = 0;
+	unsigned int num_cxn_wrb = 0, j, idx = 0, index;
 
 	mem_descr_wrbh = phba->init_mem;
 	mem_descr_wrbh += HWI_MEM_WRBH;
 
 	mem_descr_wrb = phba->init_mem;
 	mem_descr_wrb += HWI_MEM_WRB;
-
-	idx = 0;
-	pwrb_handle = mem_descr_wrbh->mem_array[idx].virtual_address;
-	num_cxn_wrbh = ((mem_descr_wrbh->mem_array[idx].size) /
-			((sizeof(struct wrb_handle)) *
-			 phba->params.wrbs_per_cxn));
 	phwi_ctrlr = phba->phwi_ctrlr;
 
 	for (index = 0; index < phba->params.cxns_per_ctrl * 2; index += 2) {
@@ -2359,12 +2353,32 @@ static void beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 		pwrb_context->pwrb_handle_base =
 				kzalloc(sizeof(struct wrb_handle *) *
 					phba->params.wrbs_per_cxn, GFP_KERNEL);
+		if (!pwrb_context->pwrb_handle_base) {
+			shost_printk(KERN_ERR, phba->shost,
+					"Mem Alloc Failed. Failing to load\n");
+			goto init_wrb_hndl_failed;
+		}
 		pwrb_context->pwrb_handle_basestd =
 				kzalloc(sizeof(struct wrb_handle *) *
 					phba->params.wrbs_per_cxn, GFP_KERNEL);
+		if (!pwrb_context->pwrb_handle_basestd) {
+			shost_printk(KERN_ERR, phba->shost,
+					"Mem Alloc Failed. Failing to load\n");
+			goto init_wrb_hndl_failed;
+		}
+		if (!num_cxn_wrbh) {
+			pwrb_handle =
+				mem_descr_wrbh->mem_array[idx].virtual_address;
+			num_cxn_wrbh = ((mem_descr_wrbh->mem_array[idx].size) /
+					((sizeof(struct wrb_handle)) *
+					 phba->params.wrbs_per_cxn));
+			idx++;
+		}
+		pwrb_context->alloc_index = 0;
+		pwrb_context->wrb_handles_available = 0;
+		pwrb_context->free_index = 0;
+
 		if (num_cxn_wrbh) {
-			pwrb_context->alloc_index = 0;
-			pwrb_context->wrb_handles_available = 0;
 			for (j = 0; j < phba->params.wrbs_per_cxn; j++) {
 				pwrb_context->pwrb_handle_base[j] = pwrb_handle;
 				pwrb_context->pwrb_handle_basestd[j] =
@@ -2373,36 +2387,20 @@ static void beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 				pwrb_handle->wrb_index = j;
 				pwrb_handle++;
 			}
-			pwrb_context->free_index = 0;
-			num_cxn_wrbh--;
-		} else {
-			idx++;
-			pwrb_handle =
-			    mem_descr_wrbh->mem_array[idx].virtual_address;
-			num_cxn_wrbh =
-			    ((mem_descr_wrbh->mem_array[idx].size) /
-			     ((sizeof(struct wrb_handle)) *
-			      phba->params.wrbs_per_cxn));
-			pwrb_context->alloc_index = 0;
-			for (j = 0; j < phba->params.wrbs_per_cxn; j++) {
-				pwrb_context->pwrb_handle_base[j] = pwrb_handle;
-				pwrb_context->pwrb_handle_basestd[j] =
-				    pwrb_handle;
-				pwrb_context->wrb_handles_available++;
-				pwrb_handle->wrb_index = j;
-				pwrb_handle++;
-			}
-			pwrb_context->free_index = 0;
 			num_cxn_wrbh--;
 		}
 	}
 	idx = 0;
-	pwrb = mem_descr_wrb->mem_array[idx].virtual_address;
-	num_cxn_wrb = (mem_descr_wrb->mem_array[idx].size) /
-		      ((sizeof(struct iscsi_wrb) *
-			phba->params.wrbs_per_cxn));
 	for (index = 0; index < phba->params.cxns_per_ctrl * 2; index += 2) {
 		pwrb_context = &phwi_ctrlr->wrb_context[index];
+		if (!num_cxn_wrb) {
+			pwrb = mem_descr_wrb->mem_array[idx].virtual_address;
+			num_cxn_wrb = (mem_descr_wrb->mem_array[idx].size) /
+				((sizeof(struct iscsi_wrb) *
+				  phba->params.wrbs_per_cxn));
+			idx++;
+		}
+
 		if (num_cxn_wrb) {
 			for (j = 0; j < phba->params.wrbs_per_cxn; j++) {
 				pwrb_handle = pwrb_context->pwrb_handle_base[j];
@@ -2410,20 +2408,16 @@ static void beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 				pwrb++;
 			}
 			num_cxn_wrb--;
-		} else {
-			idx++;
-			pwrb = mem_descr_wrb->mem_array[idx].virtual_address;
-			num_cxn_wrb = (mem_descr_wrb->mem_array[idx].size) /
-				      ((sizeof(struct iscsi_wrb) *
-					phba->params.wrbs_per_cxn));
-			for (j = 0; j < phba->params.wrbs_per_cxn; j++) {
-				pwrb_handle = pwrb_context->pwrb_handle_base[j];
-				pwrb_handle->pwrb = pwrb;
-				pwrb++;
-			}
-			num_cxn_wrb--;
 		}
 	}
+	return 0;
+init_wrb_hndl_failed:
+	for (j = index; j > 0; j--) {
+		pwrb_context = &phwi_ctrlr->wrb_context[j];
+		kfree(pwrb_context->pwrb_handle_base);
+		kfree(pwrb_context->pwrb_handle_basestd);
+	}
+	return -ENOMEM;
 }
 
 static void hwi_init_async_pdu_ctx(struct beiscsi_hba *phba)
@@ -3237,7 +3231,9 @@ static int hwi_init_controller(struct beiscsi_hba *phba)
 	}
 
 	iscsi_init_global_templates(phba);
-	beiscsi_init_wrb_handle(phba);
+	if (beiscsi_init_wrb_handle(phba))
+		return -ENOMEM;
+
 	hwi_init_async_pdu_ctx(phba);
 	if (hwi_init_port(phba) != 0) {
 		shost_printk(KERN_ERR, phba->shost,
@@ -3824,7 +3820,7 @@ static int beiscsi_alloc_pdu(struct iscsi_task *task, uint8_t opcode)
 	task->hdr = (struct iscsi_hdr *)&io_task->cmd_bhs->iscsi_hdr;
 	task->hdr_max = sizeof(struct be_cmd_bhs);
 	io_task->psgl_handle = NULL;
-	io_task->psgl_handle = NULL;
+	io_task->pwrb_handle = NULL;
 
 	if (task->sc) {
 		spin_lock(&phba->io_sgl_lock);
