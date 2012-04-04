@@ -1488,20 +1488,6 @@ static int inode_has_perm(const struct cred *cred,
 	return avc_has_perm_flags(sid, isec->sid, isec->sclass, perms, adp, flags);
 }
 
-static int inode_has_perm_noadp(const struct cred *cred,
-				struct inode *inode,
-				u32 perms,
-				unsigned flags)
-{
-	struct common_audit_data ad;
-	struct selinux_audit_data sad = {0,};
-
-	COMMON_AUDIT_DATA_INIT(&ad, INODE);
-	ad.u.inode = inode;
-	ad.selinux_audit_data = &sad;
-	return inode_has_perm(cred, inode, perms, &ad, flags);
-}
-
 /* Same as inode_has_perm, but pass explicit audit data containing
    the dentry to help the auditing code to more easily generate the
    pathname if needed. */
@@ -2128,21 +2114,17 @@ static inline void flush_unauthorized_files(const struct cred *cred,
 		spin_lock(&tty_files_lock);
 		if (!list_empty(&tty->tty_files)) {
 			struct tty_file_private *file_priv;
-			struct inode *inode;
 
 			/* Revalidate access to controlling tty.
-			   Use inode_has_perm on the tty inode directly rather
+			   Use path_has_perm on the tty path directly rather
 			   than using file_has_perm, as this particular open
 			   file may belong to another process and we are only
 			   interested in the inode-based check here. */
 			file_priv = list_first_entry(&tty->tty_files,
 						struct tty_file_private, list);
 			file = file_priv->file;
-			inode = file->f_path.dentry->d_inode;
-			if (inode_has_perm_noadp(cred, inode,
-					   FILE__READ | FILE__WRITE, 0)) {
+			if (path_has_perm(cred, &file->f_path, FILE__READ | FILE__WRITE))
 				drop_tty = 1;
-			}
 		}
 		spin_unlock(&tty_files_lock);
 		tty_kref_put(tty);
@@ -3276,12 +3258,10 @@ static int selinux_file_receive(struct file *file)
 static int selinux_file_open(struct file *file, const struct cred *cred)
 {
 	struct file_security_struct *fsec;
-	struct inode *inode;
 	struct inode_security_struct *isec;
 
-	inode = file->f_path.dentry->d_inode;
 	fsec = file->f_security;
-	isec = inode->i_security;
+	isec = file->f_path.dentry->d_inode->i_security;
 	/*
 	 * Save inode label and policy sequence number
 	 * at open-time so that selinux_file_permission
@@ -3299,7 +3279,7 @@ static int selinux_file_open(struct file *file, const struct cred *cred)
 	 * new inode label or new policy.
 	 * This check is not redundant - do not remove.
 	 */
-	return inode_has_perm_noadp(cred, inode, open_file_to_av(file), 0);
+	return path_has_perm(cred, &file->f_path, open_file_to_av(file));
 }
 
 /* task security operations */
