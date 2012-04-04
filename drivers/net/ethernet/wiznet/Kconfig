@@ -17,6 +17,18 @@ config NET_VENDOR_WIZNET
 
 if NET_VENDOR_WIZNET
 
+config WIZNET_W5100
+	tristate "WIZnet W5100 Ethernet support"
+	---help---
+	  Support for WIZnet W5100 chips.
+
+	  W5100 is a single chip with integrated 10/100 Ethernet MAC,
+	  PHY and hardware TCP/IP stack, but this driver is limited to
+	  the MAC and PHY functions only, onchip TCP/IP is unused.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called w5100.
+
 config WIZNET_W5300
 	tristate "WIZnet W5300 Ethernet support"
 	---help---
