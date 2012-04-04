@@ -332,6 +332,20 @@ struct dma_chan *dma_find_channel(enum dma_transaction_type tx_type)
 }
 EXPORT_SYMBOL(dma_find_channel);
 
+/*
+ * net_dma_find_channel - find a channel for net_dma
+ * net_dma has alignment requirements
+ */
+struct dma_chan *net_dma_find_channel(void)
+{
+	struct dma_chan *chan = dma_find_channel(DMA_MEMCPY);
+	if (chan && !is_dma_copy_aligned(chan->device, 1, 1, 1))
+		return NULL;
+
+	return chan;
+}
+EXPORT_SYMBOL(net_dma_find_channel);
+
 /**
  * dma_issue_pending_all - flush all pending operations across all channels
  */

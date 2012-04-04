@@ -5190,7 +5190,7 @@ static int tcp_dma_try_early_copy(struct sock *sk, struct sk_buff *skb,
 		return 0;
 
 	if (!tp->ucopy.dma_chan && tp->ucopy.pinned_list)
-		tp->ucopy.dma_chan = dma_find_channel(DMA_MEMCPY);
+		tp->ucopy.dma_chan = net_dma_find_channel();
 
 	if (tp->ucopy.dma_chan && skb_csum_unnecessary(skb)) {
 
