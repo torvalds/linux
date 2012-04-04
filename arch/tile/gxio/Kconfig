@@ -1,0 +1,5 @@
+# Support direct access to TILE-Gx hardware from user space, via the
+# gxio library, or from kernel space, via kernel IORPC support.
+config TILE_GXIO
+	bool
+	depends on TILEGX

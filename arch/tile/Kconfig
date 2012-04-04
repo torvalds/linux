@@ -345,6 +345,8 @@ config KERNEL_PL
 	  kernel will be built to run at.  Generally you should use
 	  the default value here.
 
+source "arch/tile/gxio/Kconfig"
+
 endmenu  # Tilera-specific configuration
 
 menu "Bus options"

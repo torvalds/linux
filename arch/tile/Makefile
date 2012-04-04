@@ -59,6 +59,8 @@ libs-y		+= $(LIBGCC_PATH)
 # See arch/tile/Kbuild for content of core part of the kernel
 core-y		+= arch/tile/
 
+core-$(CONFIG_TILE_GXIO) += arch/tile/gxio/
+
 ifdef TILERA_ROOT
 INSTALL_PATH ?= $(TILERA_ROOT)/tile/boot
 endif
