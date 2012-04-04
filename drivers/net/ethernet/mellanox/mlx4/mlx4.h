@@ -53,6 +53,26 @@
 #define DRV_VERSION	"1.1"
 #define DRV_RELDATE	"Dec, 2011"
 
+#define MLX4_NUM_UP		8
+#define MLX4_NUM_TC		8
+#define MLX4_RATELIMIT_UNITS 3 /* 100 Mbps */
+#define MLX4_RATELIMIT_DEFAULT 0xffff
+
+struct mlx4_set_port_prio2tc_context {
+	u8 prio2tc[4];
+};
+
+struct mlx4_port_scheduler_tc_cfg_be {
+	__be16 pg;
+	__be16 bw_precentage;
+	__be16 max_bw_units; /* 3-100Mbps, 4-1Gbps, other values - reserved */
+	__be16 max_bw_value;
+};
+
+struct mlx4_set_port_scheduler_context {
+	struct mlx4_port_scheduler_tc_cfg_be tc[MLX4_NUM_TC];
+};
+
 enum {
 	MLX4_HCR_BASE		= 0x80680,
 	MLX4_HCR_SIZE		= 0x0001c,
