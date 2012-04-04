@@ -320,14 +320,6 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		txdesc->u.ht.wcid = sta_priv->wcid;
 	}
 
-	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
-
-	/*
-	 * Only one STBC stream is supported for now.
-	 */
-	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
-		txdesc->u.ht.stbc = 1;
-
 	/*
 	 * If IEEE80211_TX_RC_MCS is set txrate->idx just contains the
 	 * mcs rate to be used
@@ -350,6 +342,24 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 			txdesc->u.ht.mcs |= 0x08;
 	}
+
+	if (test_bit(CONFIG_HT_DISABLED, &rt2x00dev->flags)) {
+		if (!(tx_info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT))
+			txdesc->u.ht.txop = TXOP_SIFS;
+		else
+			txdesc->u.ht.txop = TXOP_BACKOFF;
+
+		/* Left zero on all other settings. */
+		return;
+	}
+
+	txdesc->u.ht.ba_size = 7;	/* FIXME: What value is needed? */
+
+	/*
+	 * Only one STBC stream is supported for now.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_STBC)
+		txdesc->u.ht.stbc = 1;
 
 	/*
 	 * This frame is eligible for an AMPDU, however, don't aggregate
