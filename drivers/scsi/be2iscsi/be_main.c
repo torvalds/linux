@@ -4282,8 +4282,11 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 	phba->num_cpus = num_cpus;
 	SE_DEBUG(DBG_LVL_8, "num_cpus = %d\n", phba->num_cpus);
 
-	if (enable_msix)
+	if (enable_msix) {
 		beiscsi_msix_enable(phba);
+		if (!phba->msix_enabled)
+			phba->num_cpus = 1;
+	}
 	ret = be_ctrl_init(phba, pcidev);
 	if (ret) {
 		shost_printk(KERN_ERR, phba->shost, "beiscsi_dev_probe-"
