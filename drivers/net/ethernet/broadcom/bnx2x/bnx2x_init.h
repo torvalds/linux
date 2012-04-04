@@ -409,7 +409,7 @@ static inline void bnx2x_init_min(const struct cmng_init_input *input_data,
 			 */
 			vdata->vnic_min_rate[vnic].vn_credit_delta =
 				(u32)input_data->vnic_min_rate[vnic] * 100 *
-				T_FAIR_COEF / (8 * 100 * vnicWeightSum);
+				(T_FAIR_COEF / (8 * 100 * vnicWeightSum));
 			if (vdata->vnic_min_rate[vnic].vn_credit_delta <
 			    pdata->fair_vars.fair_threshold +
 			    MIN_ABOVE_THRESH) {
@@ -446,7 +446,7 @@ static inline void bnx2x_init_fw_wrr(const struct cmng_init_input *input_data,
 				 */
 				ccd[cos] =
 				    (u32)input_data->cos_min_rate[cos] * 100 *
-				    T_FAIR_COEF / (8 * 100 * cosWeightSum);
+				    (T_FAIR_COEF / (8 * 100 * cosWeightSum));
 				 if (ccd[cos] < pdata->fair_vars.fair_threshold
 						+ MIN_ABOVE_THRESH) {
 					ccd[cos] =
