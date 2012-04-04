@@ -312,7 +312,7 @@ static int __devinit rc5t583_regulator_probe(struct platform_device *pdev)
 skip_ext_pwr_config:
 		rdev = regulator_register(&ri->desc, &pdev->dev,
 					reg_data, reg, NULL);
-		if (IS_ERR_OR_NULL(rdev)) {
+		if (IS_ERR(rdev)) {
 			dev_err(&pdev->dev, "Failed to register regulator %s\n",
 						ri->desc.name);
 			ret = PTR_ERR(rdev);
@@ -324,7 +324,7 @@ skip_ext_pwr_config:
 	return 0;
 
 clean_exit:
-	while (--id > 0)
+	while (--id >= 0)
 		regulator_unregister(regs[id].rdev);
 
 	return ret;
