@@ -42,16 +42,16 @@ extern struct sun4m_irq_percpu __iomem *sun4m_irq_percpu[SUN4M_NCPUS];
 extern struct sun4m_irq_global __iomem *sun4m_irq_global;
 
 /*
- * Platform specific irq configuration
+ * Platform specific configuration
  * The individual platforms assign their platform
  * specifics in their init functions.
  */
-struct sparc_irq_config {
+struct sparc_config {
 	void (*init_timers)(irq_handler_t);
 	unsigned int (*build_device_irq)(struct platform_device *op,
 	                                 unsigned int real_irq);
 };
-extern struct sparc_irq_config sparc_irq_config;
+extern struct sparc_config sparc_config;
 
 unsigned int irq_alloc(unsigned int real_irq, unsigned int pil);
 void irq_link(unsigned int irq);

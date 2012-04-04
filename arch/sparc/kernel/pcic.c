@@ -875,7 +875,7 @@ static void pcic_load_profile_irq(int cpu, unsigned int limit)
 
 void __init sun4m_pci_init_IRQ(void)
 {
-	sparc_irq_config.build_device_irq = pcic_build_device_irq;
+	sparc_config.build_device_irq = pcic_build_device_irq;
 
 	BTFIXUPSET_CALL(clear_clock_irq, pcic_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, pcic_load_profile_irq, BTFIXUPCALL_NORM);

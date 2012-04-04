@@ -222,7 +222,7 @@ static void __init sbus_time_init(void)
 
 	btfixup();
 
-	sparc_irq_config.init_timers(timer_interrupt);
+	sparc_config.init_timers(timer_interrupt);
 }
 
 void __init time_init(void)

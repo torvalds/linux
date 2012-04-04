@@ -494,8 +494,8 @@ void leon_enable_irq_cpu(unsigned int irq_nr, unsigned int cpu)
 
 void __init leon_init_IRQ(void)
 {
-	sparc_irq_config.init_timers      = leon_init_timers;
-	sparc_irq_config.build_device_irq = _leon_build_device_irq;
+	sparc_config.init_timers      = leon_init_timers;
+	sparc_config.build_device_irq = _leon_build_device_irq;
 
 	BTFIXUPSET_CALL(clear_clock_irq, leon_clear_clock_irq,
 			BTFIXUPCALL_NORM);

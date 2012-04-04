@@ -478,8 +478,8 @@ void __init sun4m_init_IRQ(void)
 	BTFIXUPSET_CALL(clear_clock_irq, sun4m_clear_clock_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, sun4m_load_profile_irq, BTFIXUPCALL_NORM);
 
-	sparc_irq_config.init_timers = sun4m_init_timers;
-	sparc_irq_config.build_device_irq = sun4m_build_device_irq;
+	sparc_config.init_timers = sun4m_init_timers;
+	sparc_config.build_device_irq = sun4m_build_device_irq;
 
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, sun4m_send_ipi, BTFIXUPCALL_NORM);

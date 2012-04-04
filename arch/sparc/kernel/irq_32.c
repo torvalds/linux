@@ -32,7 +32,7 @@
 #endif /* SMP */
 
 /* platform specific irq setup */
-struct sparc_irq_config sparc_irq_config;
+struct sparc_config sparc_config;
 
 unsigned long arch_local_irq_save(void)
 {
