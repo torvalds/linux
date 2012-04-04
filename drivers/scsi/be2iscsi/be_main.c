@@ -28,8 +28,11 @@
 #include <linux/semaphore.h>
 #include <linux/iscsi_boot_sysfs.h>
 #include <linux/module.h>
+#include <linux/bsg-lib.h>
 
 #include <scsi/libiscsi.h>
+#include <scsi/scsi_bsg_iscsi.h>
+#include <scsi/scsi_netlink.h>
 #include <scsi/scsi_transport_iscsi.h>
 #include <scsi/scsi_transport.h>
 #include <scsi/scsi_cmnd.h>
@@ -407,6 +410,8 @@ static struct scsi_host_template beiscsi_sht = {
 	.max_sectors = BEISCSI_MAX_SECTORS,
 	.cmd_per_lun = BEISCSI_CMD_PER_LUN,
 	.use_clustering = ENABLE_CLUSTERING,
+	.vendor_id = SCSI_NL_VID_TYPE_PCI | BE_VENDOR_ID,
+
 };
 
 static struct scsi_transport_template *beiscsi_scsi_transport;
@@ -4135,6 +4140,76 @@ static int beiscsi_task_xmit(struct iscsi_task *task)
 	return beiscsi_iotask(task, sg, num_sg, xferlen, writedir);
 }
 
+/**
+ * beiscsi_bsg_request - handle bsg request from ISCSI transport
+ * @job: job to handle
+ */
+static int beiscsi_bsg_request(struct bsg_job *job)
+{
+	struct Scsi_Host *shost;
+	struct beiscsi_hba *phba;
+	struct iscsi_bsg_request *bsg_req = job->request;
+	int rc = -EINVAL;
+	unsigned int tag;
+	struct be_dma_mem nonemb_cmd;
+	struct be_cmd_resp_hdr *resp;
+	struct iscsi_bsg_reply *bsg_reply = job->reply;
+	unsigned short status, extd_status;
+
+	shost = iscsi_job_to_shost(job);
+	phba = iscsi_host_priv(shost);
+
+	switch (bsg_req->msgcode) {
+	case ISCSI_BSG_HST_VENDOR:
+		nonemb_cmd.va = pci_alloc_consistent(phba->ctrl.pdev,
+					job->request_payload.payload_len,
+					&nonemb_cmd.dma);
+		if (nonemb_cmd.va == NULL) {
+			SE_DEBUG(DBG_LVL_1, "Failed to allocate memory for "
+				 "beiscsi_bsg_request\n");
+			return -EIO;
+		}
+		tag = mgmt_vendor_specific_fw_cmd(&phba->ctrl, phba, job,
+						  &nonemb_cmd);
+		if (!tag) {
+			SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed\n");
+			pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+					    nonemb_cmd.va, nonemb_cmd.dma);
+			return -EAGAIN;
+		} else
+			wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+						 phba->ctrl.mcc_numtag[tag]);
+		extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+		status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+		free_mcc_tag(&phba->ctrl, tag);
+		resp = (struct be_cmd_resp_hdr *)nonemb_cmd.va;
+		sg_copy_from_buffer(job->reply_payload.sg_list,
+				    job->reply_payload.sg_cnt,
+				    nonemb_cmd.va, (resp->response_length
+				    + sizeof(*resp)));
+		bsg_reply->reply_payload_rcv_len = resp->response_length;
+		bsg_reply->result = status;
+		bsg_job_done(job, bsg_reply->result,
+			     bsg_reply->reply_payload_rcv_len);
+		pci_free_consistent(phba->ctrl.pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+		if (status || extd_status) {
+			SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed"
+				 " status = %d extd_status = %d\n",
+				 status, extd_status);
+			return -EIO;
+		}
+		break;
+
+	default:
+		SE_DEBUG(DBG_LVL_1, "Unsupported bsg command: 0x%x\n",
+			 bsg_req->msgcode);
+		break;
+	}
+
+	return rc;
+}
+
 static void beiscsi_quiesce(struct beiscsi_hba *phba)
 {
 	struct hwi_controller *phwi_ctrlr;
@@ -4447,6 +4522,7 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.ep_poll = beiscsi_ep_poll,
 	.ep_disconnect = beiscsi_ep_disconnect,
 	.session_recovery_timedout = iscsi_session_recovery_timedout,
+	.bsg_request = beiscsi_bsg_request,
 };
 
 static struct pci_driver beiscsi_pci_driver = {

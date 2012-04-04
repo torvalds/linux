@@ -22,6 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <scsi/scsi_bsg_iscsi.h>
 #include "be_iscsi.h"
 #include "be_main.h"
 
@@ -98,6 +99,10 @@ unsigned int mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				struct invalidate_command_table *inv_tbl,
 				unsigned int num_invalidate, unsigned int cid,
 				struct be_dma_mem *nonemb_cmd);
+unsigned int mgmt_vendor_specific_fw_cmd(struct be_ctrl_info *ctrl,
+					 struct beiscsi_hba *phba,
+					 struct bsg_job *job,
+					 struct be_dma_mem *nonemb_cmd);
 
 struct iscsi_invalidate_connection_params_in {
 	struct be_cmd_req_hdr hdr;
@@ -204,6 +209,13 @@ struct be_mgmt_controller_attributes_resp {
 	struct mgmt_controller_attributes params;
 } __packed;
 
+struct be_bsg_vendor_cmd {
+	struct be_cmd_req_hdr hdr;
+	unsigned short region;
+	unsigned short offset;
+	unsigned short sector;
+} __packed;
+
 /* configuration management */
 
 #define GET_MGMT_CONTROLLER_WS(phba)    (phba->pmgmt_ws)
@@ -224,6 +236,9 @@ struct be_mgmt_controller_attributes_resp {
 	pa->hi = phba->init_mem[ISCSI_MEM_GLOBAL_HEADER].mem_array[0].\
 					bus_address.u.a32.address_hi;  \
 }
+
+#define BEISCSI_WRITE_FLASH 0
+#define BEISCSI_READ_FLASH 1
 
 struct beiscsi_endpoint {
 	struct beiscsi_hba *phba;
