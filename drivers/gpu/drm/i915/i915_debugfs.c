@@ -742,7 +742,7 @@ static void i915_ring_error_state(struct seq_file *m,
 				  struct drm_i915_error_state *error,
 				  unsigned ring)
 {
-	BUG_ON(ring > VCS); /* shut up confused gcc */
+	BUG_ON(ring >= I915_NUM_RINGS); /* shut up confused gcc */
 	seq_printf(m, "%s command stream:\n", ring_str(ring));
 	seq_printf(m, "  HEAD: 0x%08x\n", error->head[ring]);
 	seq_printf(m, "  TAIL: 0x%08x\n", error->tail[ring]);
