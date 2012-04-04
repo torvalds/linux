@@ -83,6 +83,7 @@ system_call_common:
 	std	r11,GPR11(r1)
 	std	r11,GPR12(r1)
 	std	r11,_XER(r1)
+	std	r11,_CTR(r1)
 	std	r9,GPR13(r1)
 	mfcr	r9
 	mflr	r10
@@ -90,8 +91,6 @@ system_call_common:
 	std	r9,_CCR(r1)
 	std	r10,_LINK(r1)
 	std	r11,_TRAP(r1)
-	mfctr	r10
-	std	r10,_CTR(r1)
 	std	r3,ORIG_GPR3(r1)
 	ld	r2,PACATOC(r13)
 	addi	r9,r1,STACK_FRAME_OVERHEAD
