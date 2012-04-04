@@ -525,8 +525,6 @@ struct hwi_async_pdu_context {
 
 		unsigned int free_entries;
 		unsigned int busy_entries;
-		unsigned int buffer_size;
-		unsigned int num_entries;
 
 		struct list_head free_list;
 	} async_header;
@@ -543,10 +541,11 @@ struct hwi_async_pdu_context {
 
 		unsigned int free_entries;
 		unsigned int busy_entries;
-		unsigned int buffer_size;
 		struct list_head free_list;
-		unsigned int num_entries;
 	} async_data;
+
+	unsigned int buffer_size;
+	unsigned int num_entries;
 
 	/**
 	 * This is a varying size list! Do not add anything
