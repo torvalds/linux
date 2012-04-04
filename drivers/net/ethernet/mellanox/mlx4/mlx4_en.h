@@ -499,6 +499,7 @@ struct mlx4_en_priv {
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
+	u16 maxrate[IEEE_8021QAZ_MAX_TCS];
 #endif
 };
 

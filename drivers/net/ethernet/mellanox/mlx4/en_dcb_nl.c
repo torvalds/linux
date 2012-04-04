@@ -100,6 +100,7 @@ static int mlx4_en_config_port_scheduler(struct mlx4_en_priv *priv,
 	__u8 pg[IEEE_8021QAZ_MAX_TCS] = { 0 };
 
 	ets = ets ?: &priv->ets;
+	ratelimit = ratelimit ?: priv->maxrate;
 
 	/* higher TC means higher priority => lower pg */
 	for (i = IEEE_8021QAZ_MAX_TCS - 1; i >= 0; i--) {
@@ -198,9 +199,53 @@ static u8 mlx4_en_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 	return 0;
 }
 
+#define MLX4_RATELIMIT_UNITS_IN_KB 100000 /* rate-limit HW unit in Kbps */
+static int mlx4_en_dcbnl_ieee_getmaxrate(struct net_device *dev,
+				   struct ieee_maxrate *maxrate)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	int i;
+
+	if (!priv->maxrate)
+		return -EINVAL;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++)
+		maxrate->tc_maxrate[i] =
+			priv->maxrate[i] * MLX4_RATELIMIT_UNITS_IN_KB;
+
+	return 0;
+}
+
+static int mlx4_en_dcbnl_ieee_setmaxrate(struct net_device *dev,
+		struct ieee_maxrate *maxrate)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	u16 tmp[IEEE_8021QAZ_MAX_TCS];
+	int i, err;
+
+	for (i = 0; i < IEEE_8021QAZ_MAX_TCS; i++) {
+		/* Convert from Kbps into HW units, rounding result up.
+		 * Setting to 0, means unlimited BW.
+		 */
+		tmp[i] =
+			(maxrate->tc_maxrate[i] + MLX4_RATELIMIT_UNITS_IN_KB -
+			 1) / MLX4_RATELIMIT_UNITS_IN_KB;
+	}
+
+	err = mlx4_en_config_port_scheduler(priv, NULL, tmp);
+	if (err)
+		return err;
+
+	memcpy(priv->maxrate, tmp, sizeof(*priv->maxrate));
+
+	return 0;
+}
+
 const struct dcbnl_rtnl_ops mlx4_en_dcbnl_ops = {
 	.ieee_getets	= mlx4_en_dcbnl_ieee_getets,
 	.ieee_setets	= mlx4_en_dcbnl_ieee_setets,
+	.ieee_getmaxrate = mlx4_en_dcbnl_ieee_getmaxrate,
+	.ieee_setmaxrate = mlx4_en_dcbnl_ieee_setmaxrate,
 	.ieee_getpfc	= mlx4_en_dcbnl_ieee_getpfc,
 	.ieee_setpfc	= mlx4_en_dcbnl_ieee_setpfc,
 
