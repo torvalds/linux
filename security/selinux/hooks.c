@@ -2684,6 +2684,11 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	u32 perms;
 	bool from_access;
 	unsigned flags = mask & MAY_NOT_BLOCK;
+	struct inode_security_struct *isec;
+	u32 sid;
+	struct av_decision avd;
+	int rc, rc2;
+	u32 audited, denied;
 
 	from_access = mask & MAY_ACCESS;
 	mask &= (MAY_READ|MAY_WRITE|MAY_EXEC|MAY_APPEND);
@@ -2692,6 +2697,23 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	if (!mask)
 		return 0;
 
+	validate_creds(cred);
+
+	if (unlikely(IS_PRIVATE(inode)))
+		return 0;
+
+	perms = file_mask_to_av(inode->i_mode, mask);
+
+	sid = cred_sid(cred);
+	isec = inode->i_security;
+
+	rc = avc_has_perm_noaudit(sid, isec->sid, isec->sclass, perms, 0, &avd);
+	audited = avc_audit_required(perms, &avd, rc,
+				     from_access ? FILE__AUDIT_ACCESS : 0,
+				     &denied);
+	if (likely(!audited))
+		return rc;
+
 	COMMON_AUDIT_DATA_INIT(&ad, INODE);
 	ad.selinux_audit_data = &sad;
 	ad.u.inode = inode;
@@ -2699,9 +2721,11 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	if (from_access)
 		ad.selinux_audit_data->auditdeny |= FILE__AUDIT_ACCESS;
 
-	perms = file_mask_to_av(inode->i_mode, mask);
-
-	return inode_has_perm(cred, inode, perms, &ad, flags);
+	rc2 = slow_avc_audit(sid, isec->sid, isec->sclass, perms,
+			     audited, denied, &ad, flags);
+	if (rc2)
+		return rc2;
+	return rc;
 }
 
 static int selinux_inode_setattr(struct dentry *dentry, struct iattr *iattr)
