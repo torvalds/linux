@@ -1557,6 +1557,8 @@ static int s3c_fb_suspend(struct device *dev)
 	struct s3c_fb_win *win;
 	int win_no;
 
+	pm_runtime_get_sync(sfb->dev);
+
 	for (win_no = S3C_FB_MAX_WIN - 1; win_no >= 0; win_no--) {
 		win = sfb->windows[win_no];
 		if (!win)
@@ -1570,6 +1572,9 @@ static int s3c_fb_suspend(struct device *dev)
 		clk_disable(sfb->lcd_clk);
 
 	clk_disable(sfb->bus_clk);
+
+	pm_runtime_put_sync(sfb->dev);
+
 	return 0;
 }
 
@@ -1581,6 +1586,8 @@ static int s3c_fb_resume(struct device *dev)
 	struct s3c_fb_win *win;
 	int win_no;
 	u32 reg;
+
+	pm_runtime_get_sync(sfb->dev);
 
 	clk_enable(sfb->bus_clk);
 
@@ -1627,6 +1634,8 @@ static int s3c_fb_resume(struct device *dev)
 		dev_dbg(&pdev->dev, "resuming window %d\n", win_no);
 		s3c_fb_set_par(win->fbinfo);
 	}
+
+	pm_runtime_put_sync(sfb->dev);
 
 	return 0;
 }
