@@ -48,6 +48,7 @@ struct regmap {
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;
+	const char *debugfs_name;
 #endif
 
 	unsigned int max_register;
@@ -111,7 +112,7 @@ int _regmap_write(struct regmap *map, unsigned int reg,
 
 #ifdef CONFIG_DEBUG_FS
 extern void regmap_debugfs_initcall(void);
-extern void regmap_debugfs_init(struct regmap *map);
+extern void regmap_debugfs_init(struct regmap *map, const char *name);
 extern void regmap_debugfs_exit(struct regmap *map);
 #else
 static inline void regmap_debugfs_initcall(void) { }

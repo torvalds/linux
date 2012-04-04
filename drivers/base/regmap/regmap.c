@@ -346,7 +346,7 @@ struct regmap *regmap_init(struct device *dev,
 		goto err_map;
 	}
 
-	regmap_debugfs_init(map);
+	regmap_debugfs_init(map, config->name);
 
 	ret = regcache_init(map, config);
 	if (ret < 0)
@@ -431,7 +431,7 @@ int regmap_reinit_cache(struct regmap *map, const struct regmap_config *config)
 	map->precious_reg = config->precious_reg;
 	map->cache_type = config->cache_type;
 
-	regmap_debugfs_init(map);
+	regmap_debugfs_init(map, config->name);
 
 	map->cache_bypass = false;
 	map->cache_only = false;

@@ -46,6 +46,9 @@ struct reg_default {
 /**
  * Configuration for the register map of a device.
  *
+ * @name: Optional name of the regmap. Useful when a device has multiple
+ *        register regions.
+ *
  * @reg_bits: Number of bits in a register address, mandatory.
  * @pad_bits: Number of bits of padding between register and value.
  * @val_bits: Number of bits in a register value, mandatory.
@@ -77,6 +80,8 @@ struct reg_default {
  * @num_reg_defaults_raw: Number of elements in reg_defaults_raw.
  */
 struct regmap_config {
+	const char *name;
+
 	int reg_bits;
 	int pad_bits;
 	int val_bits;
