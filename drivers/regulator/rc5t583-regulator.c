@@ -131,7 +131,7 @@ static int rc5t583_set_voltage_sel(struct regulator_dev *rdev,
 	struct rc5t583_regulator *reg = rdev_get_drvdata(rdev);
 	struct rc5t583_regulator_info *ri = reg->reg_info;
 	int ret;
-	if (selector > ri->nsteps) {
+	if (selector >= ri->nsteps) {
 		dev_err(&rdev->dev, "Invalid selector 0x%02x\n", selector);
 		return -EINVAL;
 	}
