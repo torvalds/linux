@@ -168,7 +168,7 @@ static int exynos4_clk_ip_tv_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_TV, clk, enable);
 }
 
-static int exynos4_clk_ip_image_ctrl(struct clk *clk, int enable)
+int exynos4_clk_ip_image_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_IMAGE, clk, enable);
 }
@@ -196,6 +196,11 @@ static int exynos4_clk_ip_peril_ctrl(struct clk *clk, int enable)
 static int exynos4_clk_ip_perir_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_PERIR, clk, enable);
+}
+
+int exynos4_clk_ip_dmc_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_DMC, clk, enable);
 }
 
 static int exynos4_clk_hdmiphy_ctrl(struct clk *clk, int enable)
@@ -678,61 +683,55 @@ static struct clk exynos4_init_clocks_off[] = {
 		.enable		= exynos4_clk_ip_peril_ctrl,
 		.ctrlbit	= (1 << 14),
 	}, {
-		.name		= "SYSMMU_MDMA",
-		.enable		= exynos4_clk_ip_image_ctrl,
-		.ctrlbit	= (1 << 5),
-	}, {
-		.name		= "SYSMMU_FIMC0",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 7),
-	}, {
-		.name		= "SYSMMU_FIMC1",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 8),
-	}, {
-		.name		= "SYSMMU_FIMC2",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 9),
-	}, {
-		.name		= "SYSMMU_FIMC3",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 10),
-	}, {
-		.name		= "SYSMMU_JPEG",
-		.enable		= exynos4_clk_ip_cam_ctrl,
-		.ctrlbit	= (1 << 11),
-	}, {
-		.name		= "SYSMMU_FIMD0",
-		.enable		= exynos4_clk_ip_lcd0_ctrl,
-		.ctrlbit	= (1 << 4),
-	}, {
-		.name		= "SYSMMU_FIMD1",
-		.enable		= exynos4_clk_ip_lcd1_ctrl,
-		.ctrlbit	= (1 << 4),
-	}, {
-		.name		= "SYSMMU_PCIe",
-		.enable		= exynos4_clk_ip_fsys_ctrl,
-		.ctrlbit	= (1 << 18),
-	}, {
-		.name		= "SYSMMU_G2D",
-		.enable		= exynos4_clk_ip_image_ctrl,
-		.ctrlbit	= (1 << 3),
-	}, {
-		.name		= "SYSMMU_ROTATOR",
-		.enable		= exynos4_clk_ip_image_ctrl,
-		.ctrlbit	= (1 << 4),
-	}, {
-		.name		= "SYSMMU_TV",
-		.enable		= exynos4_clk_ip_tv_ctrl,
-		.ctrlbit	= (1 << 4),
-	}, {
-		.name		= "SYSMMU_MFC_L",
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(mfc_l, 0),
 		.enable		= exynos4_clk_ip_mfc_ctrl,
 		.ctrlbit	= (1 << 1),
 	}, {
-		.name		= "SYSMMU_MFC_R",
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(mfc_r, 1),
 		.enable		= exynos4_clk_ip_mfc_ctrl,
 		.ctrlbit	= (1 << 2),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(tv, 2),
+		.enable		= exynos4_clk_ip_tv_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(jpeg, 3),
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 11),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(rot, 4),
+		.enable		= exynos4_clk_ip_image_ctrl,
+		.ctrlbit	= (1 << 4),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(fimc0, 5),
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 7),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(fimc1, 6),
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 8),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(fimc2, 7),
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 9),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(fimc3, 8),
+		.enable		= exynos4_clk_ip_cam_ctrl,
+		.ctrlbit	= (1 << 10),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(fimd0, 10),
+		.enable		= exynos4_clk_ip_lcd0_ctrl,
+		.ctrlbit	= (1 << 4),
 	}
 };
 

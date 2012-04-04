@@ -26,6 +26,7 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#include <mach/sysmmu.h>
 
 #include "common.h"
 #include "clock-exynos4.h"
@@ -38,6 +39,16 @@ static struct sleep_save exynos4212_clock_save[] = {
 	SAVE_ITEM(EXYNOS4212_CLKGATE_IP_PERIR),
 };
 #endif
+
+static int exynos4212_clk_ip_isp0_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_ISP0, clk, enable);
+}
+
+static int exynos4212_clk_ip_isp1_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(EXYNOS4_CLKGATE_IP_ISP1, clk, enable);
+}
 
 static struct clk *clk_src_mpll_user_list[] = {
 	[0] = &clk_fin_mpll,
@@ -66,7 +77,22 @@ static struct clksrc_clk clksrcs[] = {
 };
 
 static struct clk init_clocks_off[] = {
-	/* nothing here yet */
+	{
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(2d, 14),
+		.enable		= exynos4_clk_ip_dmc_ctrl,
+		.ctrlbit	= (1 << 24),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME,
+		.devname	= SYSMMU_CLOCK_DEVNAME(isp, 9),
+		.enable		= exynos4212_clk_ip_isp0_ctrl,
+		.ctrlbit	= (7 << 8),
+	}, {
+		.name		= SYSMMU_CLOCK_NAME2,
+		.devname	= SYSMMU_CLOCK_DEVNAME(isp, 9),
+		.enable		= exynos4212_clk_ip_isp1_ctrl,
+		.ctrlbit	= (1 << 4),
+	}
 };
 
 #ifdef CONFIG_PM_SLEEP
