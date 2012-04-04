@@ -618,6 +618,79 @@ static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
 }
 
 /**
+ * beiscsi_get_port_state - Get the Port State
+ * @shost : pointer to scsi_host structure
+ *
+ * returns number of bytes
+ */
+static void beiscsi_get_port_state(struct Scsi_Host *shost)
+{
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	struct iscsi_cls_host *ihost = shost->shost_data;
+
+	ihost->port_state = (phba->state == BE_ADAPTER_UP) ?
+		ISCSI_PORT_STATE_UP : ISCSI_PORT_STATE_DOWN;
+}
+
+/**
+ * beiscsi_get_port_speed  - Get the Port Speed from Adapter
+ * @shost : pointer to scsi_host structure
+ *
+ * returns Success/Failure
+ */
+static int beiscsi_get_port_speed(struct Scsi_Host *shost)
+{
+	unsigned int tag, wrb_num;
+	unsigned short status, extd_status;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_ntwk_link_status_resp *resp;
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	struct iscsi_cls_host *ihost = shost->shost_data;
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+
+	tag = be_cmd_get_port_speed(phba);
+	if (!tag) {
+		SE_DEBUG(DBG_LVL_1, "Getting Port Speed Failed\n");
+		 return -EBUSY;
+	 } else
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+				phba->ctrl.mcc_numtag[tag]);
+
+	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+
+	if (status || extd_status) {
+		SE_DEBUG(DBG_LVL_1, "MailBox Command Failed with "
+				"status = %d extd_status = %d\n",
+				status, extd_status);
+		free_mcc_tag(&phba->ctrl, tag);
+		return -EAGAIN;
+	}
+	wrb = queue_get_wrb(mccq, wrb_num);
+	free_mcc_tag(&phba->ctrl, tag);
+	resp = embedded_payload(wrb);
+
+	switch (resp->mac_speed) {
+	case BE2ISCSI_LINK_SPEED_10MBPS:
+		ihost->port_speed = ISCSI_PORT_SPEED_10MBPS;
+		break;
+	case BE2ISCSI_LINK_SPEED_100MBPS:
+		ihost->port_speed = BE2ISCSI_LINK_SPEED_100MBPS;
+		break;
+	case BE2ISCSI_LINK_SPEED_1GBPS:
+		ihost->port_speed = ISCSI_PORT_SPEED_1GBPS;
+		break;
+	case BE2ISCSI_LINK_SPEED_10GBPS:
+		ihost->port_speed = ISCSI_PORT_SPEED_10GBPS;
+		break;
+	default:
+		ihost->port_speed = ISCSI_PORT_SPEED_UNKNOWN;
+	}
+	return 0;
+}
+
+/**
  * beiscsi_get_host_param - get the iscsi parameter
  * @shost: pointer to scsi_host structure
  * @param: parameter type identifier
@@ -647,6 +720,19 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 					"Retreiving Initiator Name Failed\n");
 			return status;
 		}
+		break;
+	case ISCSI_HOST_PARAM_PORT_STATE:
+		beiscsi_get_port_state(shost);
+		status = sprintf(buf, "%s\n", iscsi_get_port_state_name(shost));
+		break;
+	case ISCSI_HOST_PARAM_PORT_SPEED:
+		status = beiscsi_get_port_speed(shost);
+		if (status) {
+			SE_DEBUG(DBG_LVL_1,
+					"Retreiving Port Speed Failed\n");
+			return status;
+		}
+		status = sprintf(buf, "%s\n", iscsi_get_port_speed_name(shost));
 		break;
 	default:
 		return iscsi_host_get_param(shost, param, buf);
@@ -1073,6 +1159,9 @@ umode_t be2iscsi_attr_is_visible(int param_type, int param)
 	case ISCSI_HOST_PARAM:
 		switch (param) {
 		case ISCSI_HOST_PARAM_HWADDRESS:
+		case ISCSI_HOST_PARAM_INITIATOR_NAME:
+		case ISCSI_HOST_PARAM_PORT_STATE:
+		case ISCSI_HOST_PARAM_PORT_SPEED:
 			return S_IRUGO;
 		default:
 			return 0;

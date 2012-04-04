@@ -596,6 +596,28 @@ struct be_cmd_hba_name {
 	u8 initiator_alias[BEISCSI_ALIAS_LEN];
 } __packed;
 
+struct be_cmd_ntwk_link_status_req {
+	struct be_cmd_req_hdr hdr;
+	u32 rsvd0;
+} __packed;
+
+/*** Port Speed Values ***/
+#define BE2ISCSI_LINK_SPEED_ZERO	0x00
+#define BE2ISCSI_LINK_SPEED_10MBPS	0x01
+#define BE2ISCSI_LINK_SPEED_100MBPS	0x02
+#define BE2ISCSI_LINK_SPEED_1GBPS	0x03
+#define BE2ISCSI_LINK_SPEED_10GBPS	0x04
+struct be_cmd_ntwk_link_status_resp {
+	struct be_cmd_resp_hdr hdr;
+	u8 phys_port;
+	u8 mac_duplex;
+	u8 mac_speed;
+	u8 mac_fault;
+	u8 mgmt_mac_duplex;
+	u8 mgmt_mac_speed;
+	u16 qos_link_speed;
+	u32 logical_link_speed;
+} __packed;
 
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *eq, int eq_delay);
@@ -615,6 +637,7 @@ int be_poll_mcc(struct be_ctrl_info *ctrl);
 int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
 unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
+unsigned int be_cmd_get_port_speed(struct beiscsi_hba *phba);
 
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 /*ISCSI Functuions */
@@ -879,6 +902,7 @@ struct be_cmd_get_all_if_id_req {
 } __packed;
 
 #define ISCSI_OPCODE_SCSI_DATA_OUT		5
+#define OPCODE_COMMON_NTWK_LINK_STATUS_QUERY 5
 #define OPCODE_COMMON_MODIFY_EQ_DELAY		41
 #define OPCODE_COMMON_ISCSI_CLEANUP		59
 #define	OPCODE_COMMON_TCP_UPLOAD		56
