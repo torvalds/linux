@@ -42,6 +42,7 @@
 #include <linux/inetdevice.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <net/route.h>
 
 #include <net/tcp.h>
 #include <net/ipv6.h>
@@ -1826,7 +1827,10 @@ static int cma_resolve_iboe_route(struct rdma_id_private *id_priv)
 	route->path_rec->reversible = 1;
 	route->path_rec->pkey = cpu_to_be16(0xffff);
 	route->path_rec->mtu_selector = IB_SA_EQ;
-	route->path_rec->sl = id_priv->tos >> 5;
+	route->path_rec->sl = netdev_get_prio_tc_map(
+			ndev->priv_flags & IFF_802_1Q_VLAN ?
+				vlan_dev_real_dev(ndev) : ndev,
+			rt_tos2priority(id_priv->tos));
 
 	route->path_rec->mtu = iboe_get_mtu(ndev->mtu);
 	route->path_rec->rate_selector = IB_SA_EQ;
