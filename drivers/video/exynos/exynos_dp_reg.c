@@ -271,6 +271,7 @@ void exynos_dp_set_analog_power_down(struct exynos_dp_device *dp,
 void exynos_dp_init_analog_func(struct exynos_dp_device *dp)
 {
 	u32 reg;
+	int timeout_loop = 0;
 
 	exynos_dp_set_analog_power_down(dp, POWER_ALL, 0);
 
@@ -282,8 +283,18 @@ void exynos_dp_init_analog_func(struct exynos_dp_device *dp)
 	writel(reg, dp->reg_base + EXYNOS_DP_DEBUG_CTL);
 
 	/* Power up PLL */
-	if (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED)
+	if (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
 		exynos_dp_set_pll_power_down(dp, 0);
+
+		while (exynos_dp_get_pll_lock_status(dp) == PLL_UNLOCKED) {
+			timeout_loop++;
+			if (DP_TIMEOUT_LOOP_COUNT < timeout_loop) {
+				dev_err(dp->dev, "failed to get pll lock status\n");
+				return;
+			}
+			usleep_range(10, 20);
+		}
+	}
 
 	/* Enable Serdes FIFO function and Link symbol clock domain module */
 	reg = readl(dp->reg_base + EXYNOS_DP_FUNC_EN_2);
