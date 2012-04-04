@@ -965,7 +965,7 @@ static int audit_policy(int op, gfp_t gfp, const char *name, const char *info,
 {
 	struct common_audit_data sa;
 	struct apparmor_audit_data aad = {0,};
-	COMMON_AUDIT_DATA_INIT(&sa, LSM_AUDIT_DATA_NONE);
+	sa.type = LSM_AUDIT_DATA_NONE;
 	sa.aad = &aad;
 	aad.op = op;
 	aad.name = name;

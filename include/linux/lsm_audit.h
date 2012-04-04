@@ -92,11 +92,6 @@ int ipv4_skb_to_auditdata(struct sk_buff *skb,
 int ipv6_skb_to_auditdata(struct sk_buff *skb,
 		struct common_audit_data *ad, u8 *proto);
 
-/* Initialize an LSM audit data structure. */
-#define COMMON_AUDIT_DATA_INIT(_d, _t) \
-	{ memset((_d), 0, sizeof(struct common_audit_data)); \
-	 (_d)->type = _t; }
-
 void common_lsm_audit(struct common_audit_data *a,
 	void (*pre_audit)(struct audit_buffer *, void *),
 	void (*post_audit)(struct audit_buffer *, void *));

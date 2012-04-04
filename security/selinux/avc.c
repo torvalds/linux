@@ -469,7 +469,7 @@ noinline int slow_avc_audit(u32 ssid, u32 tsid, u16 tclass,
 
 	if (!a) {
 		a = &stack_data;
-		COMMON_AUDIT_DATA_INIT(a, LSM_AUDIT_DATA_NONE);
+		a->type = LSM_AUDIT_DATA_NONE;
 		a->selinux_audit_data = &sad;
 	}
 
