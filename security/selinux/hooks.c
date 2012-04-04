@@ -2658,11 +2658,29 @@ static int selinux_inode_follow_link(struct dentry *dentry, struct nameidata *na
 	return dentry_has_perm(cred, dentry, FILE__READ);
 }
 
+static noinline int audit_inode_permission(struct inode *inode,
+					   u32 perms, u32 audited, u32 denied,
+					   unsigned flags)
+{
+	struct common_audit_data ad;
+	struct selinux_audit_data sad = {0,};
+	struct inode_security_struct *isec = inode->i_security;
+	int rc;
+
+	COMMON_AUDIT_DATA_INIT(&ad, INODE);
+	ad.selinux_audit_data = &sad;
+	ad.u.inode = inode;
+
+	rc = slow_avc_audit(current_sid(), isec->sid, isec->sclass, perms,
+			    audited, denied, &ad, flags);
+	if (rc)
+		return rc;
+	return 0;
+}
+
 static int selinux_inode_permission(struct inode *inode, int mask)
 {
 	const struct cred *cred = current_cred();
-	struct common_audit_data ad;
-	struct selinux_audit_data sad = {0,};
 	u32 perms;
 	bool from_access;
 	unsigned flags = mask & MAY_NOT_BLOCK;
@@ -2696,15 +2714,7 @@ static int selinux_inode_permission(struct inode *inode, int mask)
 	if (likely(!audited))
 		return rc;
 
-	COMMON_AUDIT_DATA_INIT(&ad, INODE);
-	ad.selinux_audit_data = &sad;
-	ad.u.inode = inode;
-
-	if (from_access)
-		ad.selinux_audit_data->auditdeny |= FILE__AUDIT_ACCESS;
-
-	rc2 = slow_avc_audit(sid, isec->sid, isec->sclass, perms,
-			     audited, denied, &ad, flags);
+	rc2 = audit_inode_permission(inode, perms, audited, denied, flags);
 	if (rc2)
 		return rc2;
 	return rc;
