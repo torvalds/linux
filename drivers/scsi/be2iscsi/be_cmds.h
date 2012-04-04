@@ -23,7 +23,7 @@
  * firmware in the BE. These requests are communicated to the processor
  * using Work Request Blocks (WRBs) submitted to the MCC-WRB ring or via one
  * WRB inside a MAILBOX.
- * The commands are serviced by the ARM processor in the BladeEngine's MPU.
+ * The commands are serviced by the ARM processor in the OneConnect's MPU.
  */
 struct be_sge {
 	u32 pa_lo;
