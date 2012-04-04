@@ -878,7 +878,6 @@ int sysfs_rename(struct sysfs_dirent *sd,
 
 		dup_name = sd->s_name;
 		sd->s_name = new_name;
-		sd->s_hash = sysfs_name_hash(sd->s_ns, sd->s_name);
 	}
 
 	/* Move to the appropriate place in the appropriate directories rbtree. */
@@ -886,6 +885,7 @@ int sysfs_rename(struct sysfs_dirent *sd,
 	sysfs_get(new_parent_sd);
 	sysfs_put(sd->s_parent);
 	sd->s_ns = new_ns;
+	sd->s_hash = sysfs_name_hash(sd->s_ns, sd->s_name);
 	sd->s_parent = new_parent_sd;
 	sysfs_link_sibling(sd);
 
