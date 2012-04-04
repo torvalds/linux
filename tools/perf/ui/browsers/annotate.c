@@ -1,13 +1,13 @@
-#include "../../util.h"
+#include "../../util/util.h"
 #include "../browser.h"
 #include "../helpline.h"
 #include "../libslang.h"
 #include "../ui.h"
 #include "../util.h"
-#include "../../annotate.h"
-#include "../../hist.h"
-#include "../../sort.h"
-#include "../../symbol.h"
+#include "../../util/annotate.h"
+#include "../../util/hist.h"
+#include "../../util/sort.h"
+#include "../../util/symbol.h"
 #include <pthread.h>
 #include <newt.h>
 

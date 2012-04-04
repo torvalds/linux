@@ -473,22 +473,22 @@ else
 		# Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
 		BASIC_CFLAGS += -I/usr/include/slang
 		EXTLIBS += -lnewt -lslang
-		LIB_OBJS += $(OUTPUT)util/ui/setup.o
-		LIB_OBJS += $(OUTPUT)util/ui/browser.o
-		LIB_OBJS += $(OUTPUT)util/ui/browsers/annotate.o
-		LIB_OBJS += $(OUTPUT)util/ui/browsers/hists.o
-		LIB_OBJS += $(OUTPUT)util/ui/browsers/map.o
-		LIB_OBJS += $(OUTPUT)util/ui/helpline.o
-		LIB_OBJS += $(OUTPUT)util/ui/progress.o
-		LIB_OBJS += $(OUTPUT)util/ui/util.o
-		LIB_H += util/ui/browser.h
-		LIB_H += util/ui/browsers/map.h
-		LIB_H += util/ui/helpline.h
-		LIB_H += util/ui/keysyms.h
-		LIB_H += util/ui/libslang.h
-		LIB_H += util/ui/progress.h
-		LIB_H += util/ui/util.h
-		LIB_H += util/ui/ui.h
+		LIB_OBJS += $(OUTPUT)ui/setup.o
+		LIB_OBJS += $(OUTPUT)ui/browser.o
+		LIB_OBJS += $(OUTPUT)ui/browsers/annotate.o
+		LIB_OBJS += $(OUTPUT)ui/browsers/hists.o
+		LIB_OBJS += $(OUTPUT)ui/browsers/map.o
+		LIB_OBJS += $(OUTPUT)ui/helpline.o
+		LIB_OBJS += $(OUTPUT)ui/progress.o
+		LIB_OBJS += $(OUTPUT)ui/util.o
+		LIB_H += ui/browser.h
+		LIB_H += ui/browsers/map.h
+		LIB_H += ui/helpline.h
+		LIB_H += ui/keysyms.h
+		LIB_H += ui/libslang.h
+		LIB_H += ui/progress.h
+		LIB_H += ui/util.h
+		LIB_H += ui/ui.h
 	endif
 endif
 
@@ -755,16 +755,16 @@ $(OUTPUT)util/exec_cmd.o: util/exec_cmd.c $(OUTPUT)PERF-CFLAGS
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
 
-$(OUTPUT)util/ui/browser.o: util/ui/browser.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browser.o: ui/browser.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
-$(OUTPUT)util/ui/browsers/annotate.o: util/ui/browsers/annotate.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browsers/annotate.o: ui/browsers/annotate.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
-$(OUTPUT)util/ui/browsers/hists.o: util/ui/browsers/hists.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browsers/hists.o: ui/browsers/hists.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
-$(OUTPUT)util/ui/browsers/map.o: util/ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
+$(OUTPUT)ui/browsers/map.o: ui/browsers/map.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
 $(OUTPUT)util/rbtree.o: ../../lib/rbtree.c $(OUTPUT)PERF-CFLAGS

@@ -5,12 +5,12 @@
 #include <newt.h>
 #include <linux/rbtree.h>
 
-#include "../../evsel.h"
-#include "../../evlist.h"
-#include "../../hist.h"
-#include "../../pstack.h"
-#include "../../sort.h"
-#include "../../util.h"
+#include "../../util/evsel.h"
+#include "../../util/evlist.h"
+#include "../../util/hist.h"
+#include "../../util/pstack.h"
+#include "../../util/sort.h"
+#include "../../util/util.h"
 
 #include "../browser.h"
 #include "../helpline.h"
