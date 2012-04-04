@@ -28,6 +28,10 @@
 
 #include <linux/platform_device.h>
 
+#define STMMAC_RX_COE_NONE	0
+#define STMMAC_RX_COE_TYPE1	1
+#define STMMAC_RX_COE_TYPE2	2
+
 /* Platfrom data for platform device structure's platform_data field */
 
 struct stmmac_mdio_bus_data {
@@ -49,6 +53,7 @@ struct plat_stmmacenet_data {
 	int has_gmac;
 	int enh_desc;
 	int tx_coe;
+	int rx_coe;
 	int bugged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;

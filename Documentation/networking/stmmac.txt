@@ -116,6 +116,7 @@ and detailed below as well:
 	int has_gmac;
 	int enh_desc;
 	int tx_coe;
+	int rx_coe;
 	int bugged_jumbo;
 	int pmt;
 	int force_sf_dma_mode;
@@ -140,6 +141,8 @@ Where:
  o has_gmac: uses the GMAC core.
  o enh_desc: if sets the MAC will use the enhanced descriptor structure.
  o tx_coe: core is able to perform the tx csum in HW.
+ o rx_coe: the supports three check sum offloading engine types:
+	   type_1, type_2 (full csum) and no RX coe.
  o bugged_jumbo: some HWs are not able to perform the csum in HW for
 		over-sized frames due to limited buffer sizes.
 		Setting this flag the csum will be done in SW on
