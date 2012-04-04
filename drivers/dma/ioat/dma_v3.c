@@ -1147,6 +1147,44 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	return ioat2_reset_sync(chan, msecs_to_jiffies(200));
 }
 
+static bool is_jf_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF0:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF1:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF2:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF3:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF4:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF5:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF6:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF7:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF8:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF9:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_snb_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB0:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB1:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB2:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB3:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB4:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB5:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB6:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB7:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB8:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB9:
+		return true;
+	default:
+		return false;
+	}
+}
+
 int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
@@ -1166,6 +1204,9 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_issue_pending = ioat2_issue_pending;
 	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat2_free_chan_resources;
+
+	if (is_jf_ioat(pdev) || is_snb_ioat(pdev))
+		dma->copy_align = 6;
 
 	dma_cap_set(DMA_INTERRUPT, dma->cap_mask);
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;
