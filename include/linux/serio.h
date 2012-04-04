@@ -96,6 +96,19 @@ int __must_check __serio_register_driver(struct serio_driver *drv,
 
 void serio_unregister_driver(struct serio_driver *drv);
 
+/**
+ * module_serio_driver() - Helper macro for registering a serio driver
+ * @__serio_driver: serio_driver struct
+ *
+ * Helper macro for serio drivers which do not do anything special in
+ * module init/exit. This eliminates a lot of boilerplate. Each module
+ * may only use this macro once, and calling it replaces module_init()
+ * and module_exit().
+ */
+#define module_serio_driver(__serio_driver) \
+	module_driver(__serio_driver, serio_register_driver, \
+		       serio_unregister_driver)
+
 static inline int serio_write(struct serio *serio, unsigned char data)
 {
 	if (serio->write)
