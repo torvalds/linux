@@ -944,7 +944,9 @@ static int stmmac_open(struct net_device *dev)
 	init_dma_desc_rings(dev);
 
 	/* DMA initialization and SW reset */
-	ret = priv->hw->dma->init(priv->ioaddr, priv->plat->pbl,
+	ret = priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg->pbl,
+				  priv->plat->dma_cfg->fixed_burst,
+				  priv->plat->dma_cfg->burst_len,
 				  priv->dma_tx_phy, priv->dma_rx_phy);
 	if (ret < 0) {
 		pr_err("%s: DMA initialization failed\n", __func__);

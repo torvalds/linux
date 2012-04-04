@@ -60,6 +60,18 @@
  * 1110 clk_csr_i/16
  * 1111 clk_csr_i/18 */
 
+/* AXI DMA Burst length suported */
+#define DMA_AXI_BLEN_4		(1 << 1)
+#define DMA_AXI_BLEN_8		(1 << 2)
+#define DMA_AXI_BLEN_16		(1 << 3)
+#define DMA_AXI_BLEN_32		(1 << 4)
+#define DMA_AXI_BLEN_64		(1 << 5)
+#define DMA_AXI_BLEN_128	(1 << 6)
+#define DMA_AXI_BLEN_256	(1 << 7)
+#define DMA_AXI_BLEN_ALL (DMA_AXI_BLEN_4 | DMA_AXI_BLEN_8 | DMA_AXI_BLEN_16 \
+			| DMA_AXI_BLEN_32 | DMA_AXI_BLEN_64 \
+			| DMA_AXI_BLEN_128 | DMA_AXI_BLEN_256)
+
 /* Platfrom data for platform device structure's platform_data field */
 
 struct stmmac_mdio_bus_data {
@@ -70,13 +82,19 @@ struct stmmac_mdio_bus_data {
 	int probed_phy_irq;
 };
 
+struct stmmac_dma_cfg {
+	int pbl;
+	int fixed_burst;
+	int burst_len;
+};
+
 struct plat_stmmacenet_data {
 	char *phy_bus_name;
 	int bus_id;
 	int phy_addr;
 	int interface;
 	struct stmmac_mdio_bus_data *mdio_bus_data;
-	int pbl;
+	struct stmmac_dma_cfg *dma_cfg;
 	int clk_csr;
 	int has_gmac;
 	int enh_desc;

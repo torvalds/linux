@@ -142,7 +142,7 @@ enum rx_tx_priority_ratio {
 #define DMA_BUS_MODE_RPBL_MASK	0x003e0000	/* Rx-Programmable Burst Len */
 #define DMA_BUS_MODE_RPBL_SHIFT	17
 #define DMA_BUS_MODE_USP	0x00800000
-#define DMA_BUS_MODE_4PBL	0x01000000
+#define DMA_BUS_MODE_PBL	0x01000000
 #define DMA_BUS_MODE_AAL	0x02000000
 
 /* DMA CRS Control and Status Register Mapping */

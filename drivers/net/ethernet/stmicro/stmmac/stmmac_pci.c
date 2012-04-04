@@ -35,7 +35,8 @@ static void stmmac_default_data(void)
 	plat_dat.bus_id = 1;
 	plat_dat.phy_addr = 0;
 	plat_dat.interface = PHY_INTERFACE_MODE_GMII;
-	plat_dat.pbl = 32;
+	plat_dat.dma_cfg->pbl = 32;
+	plat_dat.dma_cfg->burst_len = DMA_AXI_BLEN_256;
 	plat_dat.clk_csr = 2;	/* clk_csr_i = 20-35MHz & MDC = clk_csr_i/16 */
 	plat_dat.has_gmac = 1;
 	plat_dat.force_sf_dma_mode = 1;
