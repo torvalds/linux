@@ -1429,7 +1429,6 @@ static int cred_has_capability(const struct cred *cred,
 
 	COMMON_AUDIT_DATA_INIT(&ad, LSM_AUDIT_DATA_CAP);
 	ad.selinux_audit_data = &sad;
-	ad.tsk = current;
 	ad.u.cap = cap;
 
 	switch (CAP_TO_INDEX(cap)) {

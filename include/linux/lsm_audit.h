@@ -53,7 +53,6 @@ struct common_audit_data {
 #define LSM_AUDIT_DATA_KMOD	8
 #define LSM_AUDIT_DATA_INODE	9
 #define LSM_AUDIT_DATA_DENTRY	10
-	struct task_struct *tsk;
 	union 	{
 		struct path path;
 		struct dentry *dentry;

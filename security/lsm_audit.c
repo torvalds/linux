@@ -213,12 +213,8 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 {
 	struct task_struct *tsk = current;
 
-	if (a->tsk)
-		tsk = a->tsk;
-	if (tsk && tsk->pid) {
-		audit_log_format(ab, " pid=%d comm=", tsk->pid);
-		audit_log_untrustedstring(ab, tsk->comm);
-	}
+	audit_log_format(ab, " pid=%d comm=", tsk->pid);
+	audit_log_untrustedstring(ab, tsk->comm);
 
 	switch (a->type) {
 	case LSM_AUDIT_DATA_NONE:
