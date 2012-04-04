@@ -279,6 +279,48 @@ int beiscsi_set_param(struct iscsi_cls_conn *cls_conn,
 }
 
 /**
+ * beiscsi_get_initname - Read Initiator Name from flash
+ * @buf: buffer bointer
+ * @phba: The device priv structure instance
+ *
+ * returns number of bytes
+ */
+static int beiscsi_get_initname(char *buf, struct beiscsi_hba *phba)
+{
+	int rc;
+	unsigned int tag, wrb_num;
+	unsigned short status, extd_status;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_hba_name *resp;
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+
+	tag = be_cmd_get_initname(phba);
+	if (!tag) {
+		SE_DEBUG(DBG_LVL_1, "Getting Initiator Name Failed\n");
+		return -EBUSY;
+	} else
+		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
+				phba->ctrl.mcc_numtag[tag]);
+
+	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
+	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
+	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
+
+	if (status || extd_status) {
+		SE_DEBUG(DBG_LVL_1, "MailBox Command Failed with "
+				"status = %d extd_status = %d\n",
+				status, extd_status);
+		free_mcc_tag(&phba->ctrl, tag);
+		return -EAGAIN;
+	}
+	wrb = queue_get_wrb(mccq, wrb_num);
+	free_mcc_tag(&phba->ctrl, tag);
+	resp = embedded_payload(wrb);
+	rc = sprintf(buf, "%s\n", resp->initiator_name);
+	return rc;
+}
+
+/**
  * beiscsi_get_host_param - get the iscsi parameter
  * @shost: pointer to scsi_host structure
  * @param: parameter type identifier
@@ -298,6 +340,14 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 		status = beiscsi_get_macaddr(buf, phba);
 		if (status < 0) {
 			SE_DEBUG(DBG_LVL_1, "beiscsi_get_macaddr Failed\n");
+			return status;
+		}
+		break;
+	case ISCSI_HOST_PARAM_INITIATOR_NAME:
+		status = beiscsi_get_initname(buf, phba);
+		if (status < 0) {
+			SE_DEBUG(DBG_LVL_1,
+					"Retreiving Initiator Name Failed\n");
 			return status;
 		}
 		break;

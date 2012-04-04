@@ -513,6 +513,17 @@ struct be_cmd_resp_get_mac_addr {
 	u32 rsvd[23];
 };
 
+#define BEISCSI_ALIAS_LEN 32
+
+struct be_cmd_hba_name {
+	struct be_cmd_req_hdr hdr;
+	u16 flags;
+	u16 rsvd0;
+	u8 initiator_name[ISCSI_NAME_LEN];
+	u8 initiator_alias[BEISCSI_ALIAS_LEN];
+} __packed;
+
+
 int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 			  struct be_queue_info *eq, int eq_delay);
 
@@ -531,6 +542,7 @@ int be_poll_mcc(struct be_ctrl_info *ctrl);
 int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
 unsigned int be_cmd_get_mac_addr(struct beiscsi_hba *phba);
+unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
 unsigned int beiscsi_get_boot_target(struct beiscsi_hba *phba);
 unsigned int beiscsi_get_session_info(struct beiscsi_hba *phba,
 				  u32 boot_session_handle,

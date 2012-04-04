@@ -15,6 +15,8 @@
  * Costa Mesa, CA 92626
  */
 
+#include <scsi/iscsi_proto.h>
+
 #include "be.h"
 #include "be_mgmt.h"
 #include "be_main.h"
