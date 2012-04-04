@@ -40,6 +40,9 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#ifdef CONFIG_MLX4_EN_DCB
+#include <linux/dcbnl.h>
+#endif
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/qp.h>
@@ -110,6 +113,7 @@ enum {
 #define MLX4_EN_NUM_TX_RINGS		8
 #define MLX4_EN_NUM_PPP_RINGS		8
 #define MAX_TX_RINGS			(MLX4_EN_NUM_TX_RINGS + MLX4_EN_NUM_PPP_RINGS)
+#define MLX4_EN_NUM_UP			8
 #define MLX4_EN_DEF_TX_RING_SIZE	512
 #define MLX4_EN_DEF_RX_RING_SIZE  	1024
 
@@ -410,6 +414,15 @@ struct mlx4_en_frag_info {
 
 };
 
+#ifdef CONFIG_MLX4_EN_DCB
+/* Minimal TC BW - setting to 0 will block traffic */
+#define MLX4_EN_BW_MIN 1
+#define MLX4_EN_BW_MAX 100 /* Utilize 100% of the line */
+
+#define MLX4_EN_TC_ETS 7
+
+#endif
+
 struct mlx4_en_priv {
 	struct mlx4_en_dev *mdev;
 	struct mlx4_en_port_profile *prof;
@@ -483,6 +496,10 @@ struct mlx4_en_priv {
 	int vids[128];
 	bool wol;
 	struct device *ddev;
+
+#ifdef CONFIG_MLX4_EN_DCB
+	struct ieee_ets ets;
+#endif
 };
 
 enum mlx4_en_wol {
@@ -556,6 +573,10 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv);
 
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset);
 int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port);
+
+#ifdef CONFIG_MLX4_EN_DCB
+extern const struct dcbnl_rtnl_ops mlx4_en_dcbnl_ops;
+#endif
 
 #define MLX4_EN_NUM_SELF_TEST	5
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
