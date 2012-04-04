@@ -32,6 +32,34 @@
 #define STMMAC_RX_COE_TYPE1	1
 #define STMMAC_RX_COE_TYPE2	2
 
+/* Define the macros for CSR clock range parameters to be passed by
+ * platform code.
+ * This could also be configured at run time using CPU freq framework. */
+
+/* MDC Clock Selection define*/
+#define	STMMAC_CSR_60_100M	0	/* MDC = clk_scr_i/42 */
+#define	STMMAC_CSR_100_150M	1	/* MDC = clk_scr_i/62 */
+#define	STMMAC_CSR_20_35M	2	/* MDC = clk_scr_i/16 */
+#define	STMMAC_CSR_35_60M	3	/* MDC = clk_scr_i/26 */
+#define	STMMAC_CSR_150_250M	4	/* MDC = clk_scr_i/102 */
+#define	STMMAC_CSR_250_300M	5	/* MDC = clk_scr_i/122 */
+
+/* FIXME: The MDC clock could be set higher than the IEEE 802.3
+ * specified frequency limit 0f 2.5 MHz, by programming a clock divider
+ * of value different than the above defined values. The resultant MDIO
+ * clock frequency of 12.5 MHz is applicable for the interfacing chips
+ * supporting higher MDC clocks.
+ * The MDC clock selection macros need to be defined for MDC clock rate
+ * of 12.5 MHz, corresponding to the following selection.
+ * 1000 clk_csr_i/4
+ * 1001 clk_csr_i/6
+ * 1010 clk_csr_i/8
+ * 1011 clk_csr_i/10
+ * 1100 clk_csr_i/12
+ * 1101 clk_csr_i/14
+ * 1110 clk_csr_i/16
+ * 1111 clk_csr_i/18 */
+
 /* Platfrom data for platform device structure's platform_data field */
 
 struct stmmac_mdio_bus_data {
