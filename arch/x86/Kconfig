@@ -12,6 +12,7 @@ config X86_32
 
 config X86_64
 	def_bool 64BIT
+	select X86_DEV_DMA_OPS
 
 ### Arch settings
 config X86
@@ -2214,6 +2215,10 @@ config HAVE_ATOMIC_IOMAP
 config HAVE_TEXT_POKE_SMP
 	bool
 	select STOP_MACHINE if SMP
+
+config X86_DEV_DMA_OPS
+	bool
+	depends on X86_64
 
 source "net/Kconfig"
 
