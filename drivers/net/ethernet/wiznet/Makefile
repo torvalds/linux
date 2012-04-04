@@ -1,0 +1,1 @@
+obj-$(CONFIG_WIZNET_W5300) += w5300.o
