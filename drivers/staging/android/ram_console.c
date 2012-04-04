@@ -16,12 +16,12 @@
 #include <linux/console.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/persistent_ram.h>
 #include <linux/platform_device.h>
 #include <linux/proc_fs.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-#include "persistent_ram.h"
 #include "ram_console.h"
 
 static struct persistent_ram_zone *ram_console_zone;

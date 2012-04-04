@@ -20,10 +20,10 @@
 #include <linux/io.h>
 #include <linux/list.h>
 #include <linux/memblock.h>
+#include <linux/persistent_ram.h>
 #include <linux/rslib.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include "persistent_ram.h"
 
 struct persistent_ram_buffer {
 	uint32_t    sig;
