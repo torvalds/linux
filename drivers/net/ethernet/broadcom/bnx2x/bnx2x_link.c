@@ -9435,8 +9435,7 @@ static void bnx2x_save_848xx_spirom_version(struct bnx2x_phy *phy,
 
 	if (phy->type == PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833) {
 		bnx2x_cl45_read(bp, phy, MDIO_CTL_DEVAD, 0x400f, &fw_ver1);
-		bnx2x_save_spirom_version(bp, port,
-				((fw_ver1 & 0xf000)>>5) | (fw_ver1 & 0x7f),
+		bnx2x_save_spirom_version(bp, port, fw_ver1 & 0xfff,
 				phy->ver_addr);
 	} else {
 		/* For 32-bit registers in 848xx, access via MDIO2ARM i/f. */
