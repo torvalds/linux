@@ -3732,7 +3732,23 @@ static void bnx2x_warpcore_enable_AN_KR(struct bnx2x_phy *phy,
 	u16 val16 = 0, lane, bam37 = 0;
 	struct bnx2x *bp = params->bp;
 	DP(NETIF_MSG_LINK, "Enable Auto Negotiation for KR\n");
-
+	/* Set to default registers that may be overriden by 10G force */
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_SERDESDIGITAL_CONTROL1000X2, 0x7);
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+			 MDIO_WC_REG_PAR_DET_10G_CTRL, 0);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_CL72_USERB0_CL72_MISC1_CONTROL, 0);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_XGXSBLK1_LANECTRL0, 0xff);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			MDIO_WC_REG_XGXSBLK1_LANECTRL1, 0x5555);
+	bnx2x_cl45_write(bp, phy, MDIO_PMA_DEVAD,
+			 MDIO_WC_REG_IEEE0BLK_AUTONEGNP, 0x0);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_RX66_CONTROL, 0x7415);
+	bnx2x_cl45_write(bp, phy, MDIO_WC_DEVAD,
+			 MDIO_WC_REG_SERDESDIGITAL_MISC2, 0x6190);
 	/* Disable Autoneg: re-enable it after adv is done. */
 	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
 			 MDIO_WC_REG_IEEE0BLK_MIICNTL, 0);
@@ -4402,7 +4418,7 @@ static void bnx2x_warpcore_config_init(struct bnx2x_phy *phy,
 		switch (serdes_net_if) {
 		case PORT_HW_CFG_NET_SERDES_IF_KR:
 			/* Enable KR Auto Neg */
-			if (params->loopback_mode == LOOPBACK_NONE)
+			if (params->loopback_mode != LOOPBACK_EXT)
 				bnx2x_warpcore_enable_AN_KR(phy, params, vars);
 			else {
 				DP(NETIF_MSG_LINK, "Setting KR 10G-Force\n");
