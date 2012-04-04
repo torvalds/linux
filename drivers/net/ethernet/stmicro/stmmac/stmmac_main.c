@@ -904,6 +904,8 @@ static int stmmac_open(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
 
+	stmmac_clk_enable(priv);
+
 	stmmac_check_ether_addr(priv);
 
 	/* MDIO bus Registration */
@@ -911,13 +913,15 @@ static int stmmac_open(struct net_device *dev)
 	if (ret < 0) {
 		pr_debug("%s: MDIO bus (id: %d) registration failed",
 			 __func__, priv->plat->bus_id);
-		return ret;
+		goto open_clk_dis;
 	}
 
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
-	if (unlikely(priv->tm == NULL))
-		return -ENOMEM;
+	if (unlikely(priv->tm == NULL)) {
+		ret = -ENOMEM;
+		goto open_clk_dis;
+	}
 
 	priv->tm->freq = tmrate;
 
@@ -1034,6 +1038,8 @@ open_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
+open_clk_dis:
+	stmmac_clk_disable(priv);
 	return ret;
 }
 
@@ -1086,6 +1092,7 @@ static int stmmac_release(struct net_device *dev)
 	stmmac_exit_fs();
 #endif
 	stmmac_mdio_unregister(dev);
+	stmmac_clk_disable(priv);
 
 	return 0;
 }
@@ -1880,6 +1887,9 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 		goto error;
 	}
 
+	if (stmmac_clk_get(priv))
+		goto error;
+
 	return priv;
 
 error:
@@ -1949,9 +1959,11 @@ int stmmac_suspend(struct net_device *ndev)
 	/* Enable Power down mode by programming the PMT regs */
 	if (device_may_wakeup(priv->device))
 		priv->hw->mac->pmt(priv->ioaddr, priv->wolopts);
-	else
+	else {
 		stmmac_set_mac(priv->ioaddr, false);
-
+		/* Disable clock in case of PWM is off */
+		stmmac_clk_disable(priv);
+	}
 	spin_unlock(&priv->lock);
 	return 0;
 }
@@ -1972,6 +1984,9 @@ int stmmac_resume(struct net_device *ndev)
 	 * from another devices (e.g. serial console). */
 	if (device_may_wakeup(priv->device))
 		priv->hw->mac->pmt(priv->ioaddr, 0);
+	else
+		/* enable the clk prevously disabled */
+		stmmac_clk_enable(priv);
 
 	netif_device_attach(ndev);
 
