@@ -73,17 +73,12 @@ config BITS
 	default 32 if SPARC32
 	default 64 if SPARC64
 
-config ARCH_USES_GETTIMEOFFSET
-	bool
-	default y if SPARC32
-
 config GENERIC_CMOS_UPDATE
 	bool
 	default y
 
 config GENERIC_CLOCKEVENTS
-	bool
-	default y if SPARC64
+	def_bool y
 
 config IOMMU_HELPER
 	bool

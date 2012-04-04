@@ -174,7 +174,7 @@ static void sun4c_load_profile_irq(int cpu, unsigned int limit)
 	/* Errm.. not sure how to do this.. */
 }
 
-static void __init sun4c_init_timers(irq_handler_t counter_fn)
+static void __init sun4c_init_timers(void)
 {
 	const struct linux_prom_irqs *prom_irqs;
 	struct device_node *dp;
@@ -207,12 +207,16 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 	 * level 14 timer limit since we are letting the prom handle
 	 * them until we have a real console driver so L1-A works.
 	 */
-	sbus_writel((((1000000/HZ) + 1) << 10), &sun4c_timers->l10_limit);
+	sparc_config.cs_period = SBUS_CLOCK_RATE / HZ;
+	sparc_config.features |=
+	    FEAT_L10_CLOCKSOURCE | FEAT_L10_CLOCKEVENT;
+	sbus_writel(timer_value(sparc_config.cs_period),
+	            &sun4c_timers->l10_limit);
 
 	master_l10_counter = &sun4c_timers->l10_count;
 
 	irq = sun4c_build_device_irq(NULL, prom_irqs[0].pri);
-	err = request_irq(irq, counter_fn, IRQF_TIMER, "timer", NULL);
+	err = request_irq(irq, timer_interrupt, IRQF_TIMER, "timer", NULL);
 	if (err) {
 		prom_printf("sun4c_init_timers: request_irq() fails with %d\n", err);
 		prom_halt();
@@ -253,6 +257,7 @@ void __init sun4c_init_IRQ(void)
 
 	sparc_config.init_timers      = sun4c_init_timers;
 	sparc_config.build_device_irq = sun4c_build_device_irq;
+	sparc_config.clock_rate       = SBUS_CLOCK_RATE;
 
 #ifdef CONFIG_SMP
 	BTFIXUPSET_CALL(set_cpu_int, sun4c_nop, BTFIXUPCALL_NOP);

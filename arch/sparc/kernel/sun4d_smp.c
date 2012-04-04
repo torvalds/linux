@@ -6,16 +6,18 @@
  * Copyright (C) 1996 David S. Miller (davem@caip.rutgers.edu)
  */
 
+#include <linux/clockchips.h>
 #include <linux/interrupt.h>
 #include <linux/profile.h>
 #include <linux/delay.h>
 #include <linux/cpu.h>
 
+#include <asm/cacheflush.h>
+#include <asm/switch_to.h>
+#include <asm/tlbflush.h>
+#include <asm/timer.h>
 #include <asm/sbi.h>
 #include <asm/mmu.h>
-#include <asm/tlbflush.h>
-#include <asm/switch_to.h>
-#include <asm/cacheflush.h>
 
 #include "kernel.h"
 #include "irq.h"
@@ -34,7 +36,6 @@ static inline unsigned long sun4d_swap(volatile unsigned long *ptr, unsigned lon
 }
 
 static void smp4d_ipi_init(void);
-static void smp_setup_percpu_timer(void);
 
 static unsigned char cpu_leds[32];
 
@@ -70,7 +71,7 @@ void __cpuinit smp4d_callin(void)
 	 * to call the scheduler code.
 	 */
 	/* Get our local ticker going. */
-	smp_setup_percpu_timer();
+	register_percpu_ce(cpuid);
 
 	calibrate_delay();
 	smp_store_cpu_info(cpuid);
@@ -123,7 +124,6 @@ void __init smp4d_boot_cpus(void)
 	smp4d_ipi_init();
 	if (boot_cpu_id)
 		current_set[0] = NULL;
-	smp_setup_percpu_timer();
 	local_flush_cache_all();
 }
 
@@ -364,6 +364,7 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	int cpu = hard_smp4d_processor_id();
+	struct clock_event_device *ce;
 	static int cpu_tick[NR_CPUS];
 	static char led_mask[] = { 0xe, 0xd, 0xb, 0x7, 0xb, 0xd };
 
@@ -379,26 +380,13 @@ void smp4d_percpu_timer_interrupt(struct pt_regs *regs)
 		show_leds(cpu);
 	}
 
-	profile_tick(CPU_PROFILING);
+	ce = &per_cpu(sparc32_clockevent, cpu);
 
-	if (!--prof_counter(cpu)) {
-		int user = user_mode(regs);
+	irq_enter();
+	ce->event_handler(ce);
+	irq_exit();
 
-		irq_enter();
-		update_process_times(user);
-		irq_exit();
-
-		prof_counter(cpu) = prof_multiplier(cpu);
-	}
 	set_irq_regs(old_regs);
-}
-
-static void __cpuinit smp_setup_percpu_timer(void)
-{
-	int cpu = hard_smp4d_processor_id();
-
-	prof_counter(cpu) = prof_multiplier(cpu) = 1;
-	load_profile_irq(cpu, lvl14_resolution);
 }
 
 void __init smp4d_blackbox_id(unsigned *addr)

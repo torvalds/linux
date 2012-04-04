@@ -23,6 +23,8 @@
 #include <linux/pm.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
+#include <linux/cpu.h>
+#include <linux/clockchips.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -42,6 +44,7 @@
 #include <asm/asi.h>
 #include <asm/leon.h>
 #include <asm/leon_amba.h>
+#include <asm/timer.h>
 
 #include "kernel.h"
 
@@ -68,8 +71,6 @@ static inline unsigned long do_swap(volatile unsigned long *ptr,
 	return val;
 }
 
-static void smp_setup_percpu_timer(void);
-
 void __cpuinit leon_callin(void)
 {
 	int cpuid = hard_smpleon_processor_id();
@@ -79,7 +80,7 @@ void __cpuinit leon_callin(void)
 	leon_configure_cache_smp();
 
 	/* Get our local ticker going. */
-	smp_setup_percpu_timer();
+	register_percpu_ce(cpuid);
 
 	calibrate_delay();
 	smp_store_cpu_info(cpuid);
@@ -196,7 +197,6 @@ void __init leon_boot_cpus(void)
 	leon_smp_setbroadcast(1 << LEON3_IRQ_TICKER);
 
 	leon_configure_cache_smp();
-	smp_setup_percpu_timer();
 	local_flush_cache_all();
 
 }
@@ -487,32 +487,6 @@ void leon_cross_call_irq(void)
 	ccall_info.func(ccall_info.arg1, ccall_info.arg2, ccall_info.arg3,
 			ccall_info.arg4, ccall_info.arg5);
 	ccall_info.processors_out[i] = 1;
-}
-
-irqreturn_t leon_percpu_timer_interrupt(int irq, void *unused)
-{
-	int cpu = smp_processor_id();
-
-	leon_clear_profile_irq(cpu);
-
-	profile_tick(CPU_PROFILING);
-
-	if (!--prof_counter(cpu)) {
-		int user = user_mode(get_irq_regs());
-
-		update_process_times(user);
-
-		prof_counter(cpu) = prof_multiplier(cpu);
-	}
-
-	return IRQ_HANDLED;
-}
-
-static void __init smp_setup_percpu_timer(void)
-{
-	int cpu = smp_processor_id();
-
-	prof_counter(cpu) = prof_multiplier(cpu) = 1;
 }
 
 void __init leon_blackbox_id(unsigned *addr)

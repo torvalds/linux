@@ -47,8 +47,6 @@ extern void init_IRQ(void);
 extern void sun4c_init_IRQ(void);
 
 /* sun4m_irq.c */
-extern unsigned int lvl14_resolution;
-
 extern void sun4m_init_IRQ(void);
 extern void sun4m_unmask_profile_irq(void);
 extern void sun4m_clear_profile_irq(int cpu);

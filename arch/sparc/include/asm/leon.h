@@ -323,7 +323,7 @@ extern void leon_update_virq_handling(unsigned int virq,
 			      const char *name, int do_ack);
 extern void leon_clear_clock_irq(void);
 extern void leon_load_profile_irq(int cpu, unsigned int limit);
-extern void leon_init_timers(irq_handler_t counter_fn);
+extern void leon_init_timers(void);
 extern void leon_clear_clock_irq(void);
 extern void leon_load_profile_irq(int cpu, unsigned int limit);
 extern void leon_trans_init(struct device_node *dp);
