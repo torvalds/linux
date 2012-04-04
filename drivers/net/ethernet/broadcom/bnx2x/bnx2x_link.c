@@ -9858,6 +9858,15 @@ static int bnx2x_84833_hw_reset_phy(struct bnx2x_phy *phy,
 				other_shmem_base_addr));
 
 	u32 shmem_base_path[2];
+
+	/* Work around for 84833 LED failure inside RESET status */
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+		MDIO_AN_REG_8481_LEGACY_MII_CTRL,
+		MDIO_AN_REG_8481_MII_CTRL_FORCE_1G);
+	bnx2x_cl45_write(bp, phy, MDIO_AN_DEVAD,
+		MDIO_AN_REG_8481_1G_100T_EXT_CTRL,
+		MIDO_AN_REG_8481_EXT_CTRL_FORCE_LEDS_OFF);
+
 	shmem_base_path[0] = params->shmem_base;
 	shmem_base_path[1] = other_shmem_base_addr;
 
