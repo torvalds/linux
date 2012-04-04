@@ -110,6 +110,8 @@ typedef void (*regmap_hw_free_context)(void *context);
 /**
  * Description of a hardware bus for the register map infrastructure.
  *
+ * @fast_io: Register IO is fast. Use a spinlock instead of a mutex
+ *           to perform locking.
  * @write: Write operation.
  * @gather_write: Write operation with split register/value, return -ENOTSUPP
  *                if not implemented  on a given device.
@@ -119,6 +121,7 @@ typedef void (*regmap_hw_free_context)(void *context);
  *                  a read.
  */
 struct regmap_bus {
+	bool fast_io;
 	regmap_hw_write write;
 	regmap_hw_gather_write gather_write;
 	regmap_hw_read read;
