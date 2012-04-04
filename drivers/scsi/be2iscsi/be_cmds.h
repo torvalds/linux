@@ -163,7 +163,8 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_ISCSI_CFG_REMOVE_SGL_PAGES        3
 #define OPCODE_COMMON_ISCSI_NTWK_GET_NIC_CONFIG		7
 #define OPCODE_COMMON_ISCSI_NTWK_SET_VLAN		14
-#define OPCODE_COMMON_ISCSI_NTWK_CONFIGURE_STATELESS_IP_ADDR	17
+#define OPCODE_COMMON_ISCSI_NTWK_CONFIG_STATELESS_IP_ADDR	17
+#define OPCODE_COMMON_ISCSI_NTWK_REL_STATELESS_IP_ADDR	18
 #define OPCODE_COMMON_ISCSI_NTWK_MODIFY_IP_ADDR		21
 #define OPCODE_COMMON_ISCSI_NTWK_GET_DEFAULT_GATEWAY	22
 #define OPCODE_COMMON_ISCSI_NTWK_MODIFY_DEFAULT_GATEWAY 23
@@ -274,15 +275,15 @@ struct mgmt_conn_login_options {
 	struct	mgmt_auth_method_format auth_data;
 } __packed;
 
-struct ip_address_format {
+struct ip_addr_format {
 	u16 size_of_structure;
 	u8 reserved;
 	u8 ip_type;
-	u8 ip_address[16];
+	u8 addr[16];
 	u32 rsvd0;
 } __packed;
 
-struct	mgmt_conn_info {
+struct mgmt_conn_info {
 	u32	connection_handle;
 	u32	connection_status;
 	u16	src_port;
@@ -290,9 +291,9 @@ struct	mgmt_conn_info {
 	u16	dest_port_redirected;
 	u16	cid;
 	u32	estimated_throughput;
-	struct	ip_address_format	src_ipaddr;
-	struct	ip_address_format	dest_ipaddr;
-	struct	ip_address_format	dest_ipaddr_redirected;
+	struct	ip_addr_format	src_ipaddr;
+	struct	ip_addr_format	dest_ipaddr;
+	struct	ip_addr_format	dest_ipaddr_redirected;
 	struct	mgmt_conn_login_options	negotiated_login_options;
 } __packed;
 
@@ -322,42 +323,114 @@ struct mgmt_session_info {
 	struct	mgmt_conn_info	conn_list[1];
 } __packed;
 
-struct  be_cmd_req_get_session {
+struct be_cmd_get_session_req {
 	struct be_cmd_req_hdr hdr;
 	u32 session_handle;
 } __packed;
 
-struct  be_cmd_resp_get_session {
+struct be_cmd_get_session_resp {
 	struct be_cmd_resp_hdr hdr;
 	struct mgmt_session_info session_info;
 } __packed;
 
 struct mac_addr {
-	u16 size_of_struct;
+	u16 size_of_structure;
 	u8 addr[ETH_ALEN];
 } __packed;
 
-struct be_cmd_req_get_boot_target {
+struct be_cmd_get_boot_target_req {
 	struct be_cmd_req_hdr hdr;
 } __packed;
 
-struct be_cmd_resp_get_boot_target {
+struct be_cmd_get_boot_target_resp {
 	struct be_cmd_resp_hdr hdr;
 	u32  boot_session_count;
 	int  boot_session_handle;
 };
 
-struct be_cmd_req_mac_query {
+struct be_cmd_mac_query_req {
 	struct be_cmd_req_hdr hdr;
 	u8 type;
 	u8 permanent;
 	u16 if_id;
 } __packed;
 
-struct be_cmd_resp_mac_query {
+struct be_cmd_get_mac_resp {
 	struct be_cmd_resp_hdr hdr;
 	struct mac_addr mac;
 };
+
+struct be_ip_addr_subnet_format {
+	u16 size_of_structure;
+	u8 ip_type;
+	u8 ipv6_prefix_length;
+	u8 addr[16];
+	u8 subnet_mask[16];
+	u32 rsvd0;
+} __packed;
+
+struct be_cmd_get_if_info_req {
+	struct be_cmd_req_hdr hdr;
+	u32 interface_hndl;
+	u32 ip_type;
+} __packed;
+
+struct be_cmd_get_if_info_resp {
+	struct be_cmd_req_hdr hdr;
+	u32 interface_hndl;
+	u32 vlan_priority;
+	u32 ip_addr_count;
+	u32 dhcp_state;
+	struct be_ip_addr_subnet_format ip_addr;
+} __packed;
+
+struct be_ip_addr_record {
+	u32 action;
+	u32 interface_hndl;
+	struct be_ip_addr_subnet_format ip_addr;
+	u32 status;
+} __packed;
+
+struct be_ip_addr_record_params {
+	u32 record_entry_count;
+	struct be_ip_addr_record ip_record;
+} __packed;
+
+struct be_cmd_set_ip_addr_req {
+	struct be_cmd_req_hdr hdr;
+	struct be_ip_addr_record_params ip_params;
+} __packed;
+
+
+struct be_cmd_set_dhcp_req {
+	struct be_cmd_req_hdr hdr;
+	u32 interface_hndl;
+	u32 ip_type;
+	u32 flags;
+	u32 retry_count;
+} __packed;
+
+struct be_cmd_rel_dhcp_req {
+	struct be_cmd_req_hdr hdr;
+	u32 interface_hndl;
+	u32 ip_type;
+} __packed;
+
+struct be_cmd_set_def_gateway_req {
+	struct be_cmd_req_hdr hdr;
+	u32 action;
+	struct ip_addr_format ip_addr;
+} __packed;
+
+struct be_cmd_get_def_gateway_req {
+	struct be_cmd_req_hdr hdr;
+	u32 ip_type;
+} __packed;
+
+struct be_cmd_get_def_gateway_resp {
+	struct be_cmd_req_hdr hdr;
+	struct ip_addr_format ip_addr;
+} __packed;
 
 /******************** Create CQ ***************************/
 /**
@@ -489,7 +562,7 @@ struct be_cmd_req_modify_eq_delay {
 
 #define ETH_ALEN	6
 
-struct be_cmd_req_get_mac_addr {
+struct be_cmd_get_nic_conf_req {
 	struct be_cmd_req_hdr hdr;
 	u32 nic_port_count;
 	u32 speed;
@@ -501,7 +574,7 @@ struct be_cmd_req_get_mac_addr {
 	u32 rsvd[23];
 };
 
-struct be_cmd_resp_get_mac_addr {
+struct be_cmd_get_nic_conf_resp {
 	struct be_cmd_resp_hdr hdr;
 	u32 nic_port_count;
 	u32 speed;
@@ -541,12 +614,7 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 int be_poll_mcc(struct be_ctrl_info *ctrl);
 int mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
-unsigned int be_cmd_get_mac_addr(struct beiscsi_hba *phba);
 unsigned int be_cmd_get_initname(struct beiscsi_hba *phba);
-unsigned int beiscsi_get_boot_target(struct beiscsi_hba *phba);
-unsigned int beiscsi_get_session_info(struct beiscsi_hba *phba,
-				  u32 boot_session_handle,
-				  struct be_dma_mem *nonemb_cmd);
 
 void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 /*ISCSI Functuions */
@@ -727,7 +795,7 @@ struct be_eq_delay_params_in {
 
 struct tcp_connect_and_offload_in {
 	struct be_cmd_req_hdr hdr;
-	struct ip_address_format ip_address;
+	struct ip_addr_format ip_address;
 	u16 tcp_port;
 	u16 cid;
 	u16 cq_id;
@@ -804,7 +872,7 @@ struct be_fw_cfg {
 	u32 function_caps;
 } __packed;
 
-struct be_all_if_id {
+struct be_cmd_get_all_if_id_req {
 	struct be_cmd_req_hdr hdr;
 	u32 if_count;
 	u32 if_hndl_list[1];

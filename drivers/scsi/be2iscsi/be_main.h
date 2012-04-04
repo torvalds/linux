@@ -316,6 +316,8 @@ struct beiscsi_hba {
 	struct iscsi_endpoint **ep_array;
 	struct iscsi_boot_kset *boot_kset;
 	struct Scsi_Host *shost;
+	struct iscsi_iface *ipv4_iface;
+	struct iscsi_iface *ipv6_iface;
 	struct {
 		/**
 		 * group together since they are used most frequently
@@ -345,7 +347,7 @@ struct beiscsi_hba {
 	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
-	unsigned int read_mac_address;
+	unsigned int interface_handle;
 	struct mgmt_session_info boot_sess;
 	struct invalidate_command_table inv_tbl[128];
 

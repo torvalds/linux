@@ -231,10 +231,10 @@ static ssize_t beiscsi_show_boot_tgt_info(void *data, int type, char *buf)
 	case ISCSI_BOOT_TGT_IP_ADDR:
 		if (boot_conn->dest_ipaddr.ip_type == 0x1)
 			rc = sprintf(buf, "%pI4\n",
-				(char *)&boot_conn->dest_ipaddr.ip_address);
+				(char *)&boot_conn->dest_ipaddr.addr);
 		else
 			rc = sprintf(str, "%pI6\n",
-				(char *)&boot_conn->dest_ipaddr.ip_address);
+				(char *)&boot_conn->dest_ipaddr.addr);
 		break;
 	case ISCSI_BOOT_TGT_PORT:
 		rc = sprintf(str, "%d\n", boot_conn->dest_port);
@@ -312,12 +312,8 @@ static ssize_t beiscsi_show_boot_eth_info(void *data, int type, char *buf)
 		rc = sprintf(str, "0\n");
 		break;
 	case ISCSI_BOOT_ETH_MAC:
-		rc  = beiscsi_get_macaddr(buf, phba);
-		if (rc < 0) {
-			SE_DEBUG(DBG_LVL_1, "beiscsi_get_macaddr Failed\n");
-			return rc;
-		}
-	break;
+		rc  = beiscsi_get_macaddr(str, phba);
+		break;
 	default:
 		rc = -ENOSYS;
 		break;
@@ -438,6 +434,7 @@ static struct beiscsi_hba *beiscsi_hba_alloc(struct pci_dev *pcidev)
 	phba->shost = shost;
 	phba->pcidev = pci_dev_get(pcidev);
 	pci_set_drvdata(pcidev, phba);
+	phba->interface_handle = 0xFFFFFFFF;
 
 	if (iscsi_host_add(shost, &phba->pcidev->dev))
 		goto free_devices;
@@ -3471,8 +3468,8 @@ static void hwi_disable_intr(struct beiscsi_hba *phba)
 
 static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 {
-	struct be_cmd_resp_get_boot_target *boot_resp;
-	struct be_cmd_resp_get_session *session_resp;
+	struct be_cmd_get_boot_target_resp *boot_resp;
+	struct be_cmd_get_session_resp *session_resp;
 	struct be_mcc_wrb *wrb;
 	struct be_dma_mem nonemb_cmd;
 	unsigned int tag, wrb_num;
@@ -3480,9 +3477,9 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 	int ret = -ENOMEM;
 
-	tag = beiscsi_get_boot_target(phba);
+	tag = mgmt_get_boot_target(phba);
 	if (!tag) {
-		SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed\n");
+		SE_DEBUG(DBG_LVL_1, "beiscsi_get_boot_info Failed\n");
 		return -EAGAIN;
 	} else
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
@@ -3492,7 +3489,7 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
 	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
 	if (status || extd_status) {
-		SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed"
+		SE_DEBUG(DBG_LVL_1, "beiscsi_get_boot_info Failed"
 				    " status = %d extd_status = %d\n",
 				    status, extd_status);
 		free_mcc_tag(&phba->ctrl, tag);
@@ -3518,8 +3515,8 @@ static int beiscsi_get_boot_info(struct beiscsi_hba *phba)
 	}
 
 	memset(nonemb_cmd.va, 0, sizeof(*session_resp));
-	tag = beiscsi_get_session_info(phba,
-		boot_resp->boot_session_handle, &nonemb_cmd);
+	tag = mgmt_get_session_info(phba, boot_resp->boot_session_handle,
+				    &nonemb_cmd);
 	if (!tag) {
 		SE_DEBUG(DBG_LVL_1, "beiscsi_get_session_info"
 			" Failed\n");
@@ -4267,6 +4264,7 @@ static void beiscsi_remove(struct pci_dev *pcidev)
 		return;
 	}
 
+	beiscsi_destroy_def_ifaces(phba);
 	beiscsi_quiesce(phba);
 	iscsi_boot_destroy_kset(phba->boot_kset);
 	iscsi_host_remove(phba->shost);
@@ -4453,8 +4451,9 @@ static int __devinit beiscsi_dev_probe(struct pci_dev *pcidev,
 		 * iscsi boot.
 		 */
 		shost_printk(KERN_ERR, phba->shost, "Could not set up "
-			     "iSCSI boot info.");
+			     "iSCSI boot info.\n");
 
+	beiscsi_create_def_ifaces(phba);
 	SE_DEBUG(DBG_LVL_8, "\n\n\n SUCCESS - DRIVER LOADED\n\n\n");
 	return 0;
 
@@ -4505,6 +4504,8 @@ struct iscsi_transport beiscsi_iscsi_transport = {
 	.bind_conn = beiscsi_conn_bind,
 	.destroy_conn = iscsi_conn_teardown,
 	.attr_is_visible = be2iscsi_attr_is_visible,
+	.set_iface_param = be2iscsi_iface_set_param,
+	.get_iface_param = be2iscsi_iface_get_param,
 	.set_param = beiscsi_set_param,
 	.get_conn_param = iscsi_conn_get_param,
 	.get_session_param = iscsi_session_get_param,

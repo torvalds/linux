@@ -23,6 +23,8 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_netlink.h>
+#include <net/netlink.h>
 #include <scsi/scsi.h>
 
 #include "be_iscsi.h"
@@ -207,6 +209,301 @@ int beiscsi_conn_bind(struct iscsi_cls_session *cls_session,
 	return beiscsi_bindconn_cid(phba, beiscsi_conn, beiscsi_ep->ep_cid);
 }
 
+static int beiscsi_create_ipv4_iface(struct beiscsi_hba *phba)
+{
+	if (phba->ipv4_iface)
+		return 0;
+
+	phba->ipv4_iface = iscsi_create_iface(phba->shost,
+					      &beiscsi_iscsi_transport,
+					      ISCSI_IFACE_TYPE_IPV4,
+					      0, 0);
+	if (!phba->ipv4_iface) {
+		shost_printk(KERN_ERR, phba->shost, "Could not "
+			     "create default IPv4 address.\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+static int beiscsi_create_ipv6_iface(struct beiscsi_hba *phba)
+{
+	if (phba->ipv6_iface)
+		return 0;
+
+	phba->ipv6_iface = iscsi_create_iface(phba->shost,
+					      &beiscsi_iscsi_transport,
+					      ISCSI_IFACE_TYPE_IPV6,
+					      0, 0);
+	if (!phba->ipv6_iface) {
+		shost_printk(KERN_ERR, phba->shost, "Could not "
+			     "create default IPv6 address.\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+void beiscsi_create_def_ifaces(struct beiscsi_hba *phba)
+{
+	struct be_cmd_get_if_info_resp if_info;
+
+	if (!mgmt_get_if_info(phba, BE2_IPV4, &if_info))
+		beiscsi_create_ipv4_iface(phba);
+
+	if (!mgmt_get_if_info(phba, BE2_IPV6, &if_info))
+		beiscsi_create_ipv6_iface(phba);
+}
+
+void beiscsi_destroy_def_ifaces(struct beiscsi_hba *phba)
+{
+	if (phba->ipv6_iface)
+		iscsi_destroy_iface(phba->ipv6_iface);
+	if (phba->ipv4_iface)
+		iscsi_destroy_iface(phba->ipv4_iface);
+}
+
+static int
+beiscsi_set_static_ip(struct Scsi_Host *shost,
+		struct iscsi_iface_param_info *iface_param,
+		void *data, uint32_t dt_len)
+{
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	struct iscsi_iface_param_info *iface_ip = NULL;
+	struct iscsi_iface_param_info *iface_subnet = NULL;
+	struct nlattr *nla;
+	int ret;
+
+
+	switch (iface_param->param) {
+	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
+		if (nla)
+			iface_ip = nla_data(nla);
+
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
+		if (nla)
+			iface_subnet = nla_data(nla);
+		break;
+	case ISCSI_NET_PARAM_IPV4_ADDR:
+		iface_ip = iface_param;
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_SUBNET);
+		if (nla)
+			iface_subnet = nla_data(nla);
+		break;
+	case ISCSI_NET_PARAM_IPV4_SUBNET:
+		iface_subnet = iface_param;
+		nla = nla_find(data, dt_len, ISCSI_NET_PARAM_IPV4_ADDR);
+		if (nla)
+			iface_ip = nla_data(nla);
+		break;
+	default:
+		shost_printk(KERN_ERR, shost, "Unsupported param %d\n",
+			     iface_param->param);
+	}
+
+	if (!iface_ip || !iface_subnet) {
+		shost_printk(KERN_ERR, shost, "IP and Subnet Mask required\n");
+		return -EINVAL;
+	}
+
+	ret = mgmt_set_ip(phba, iface_ip, iface_subnet,
+			ISCSI_BOOTPROTO_STATIC);
+
+	return ret;
+}
+
+static int
+beiscsi_set_ipv4(struct Scsi_Host *shost,
+		struct iscsi_iface_param_info *iface_param,
+		void *data, uint32_t dt_len)
+{
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	int ret = 0;
+
+	/* Check the param */
+	switch (iface_param->param) {
+	case ISCSI_NET_PARAM_IPV4_GW:
+		ret = mgmt_set_gateway(phba, iface_param);
+		break;
+	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
+		if (iface_param->value[0] == ISCSI_BOOTPROTO_DHCP)
+			ret = mgmt_set_ip(phba, iface_param,
+					NULL, ISCSI_BOOTPROTO_DHCP);
+		else if (iface_param->value[0] == ISCSI_BOOTPROTO_STATIC)
+			ret = beiscsi_set_static_ip(shost, iface_param,
+						    data, dt_len);
+		else
+			shost_printk(KERN_ERR, shost, "Invalid BOOTPROTO: %d\n",
+					iface_param->value[0]);
+		break;
+	case ISCSI_NET_PARAM_IFACE_ENABLE:
+		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
+			ret = beiscsi_create_ipv4_iface(phba);
+		else
+			iscsi_destroy_iface(phba->ipv4_iface);
+		break;
+	case ISCSI_NET_PARAM_IPV4_SUBNET:
+	case ISCSI_NET_PARAM_IPV4_ADDR:
+		ret = beiscsi_set_static_ip(shost, iface_param,
+					    data, dt_len);
+		break;
+	default:
+		shost_printk(KERN_ERR, shost, "Param %d not supported\n",
+			     iface_param->param);
+	}
+
+	return ret;
+}
+
+static int
+beiscsi_set_ipv6(struct Scsi_Host *shost,
+		struct iscsi_iface_param_info *iface_param,
+		void *data, uint32_t dt_len)
+{
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	int ret = 0;
+
+	switch (iface_param->param) {
+	case ISCSI_NET_PARAM_IFACE_ENABLE:
+		if (iface_param->value[0] == ISCSI_IFACE_ENABLE)
+			ret = beiscsi_create_ipv6_iface(phba);
+		else {
+			iscsi_destroy_iface(phba->ipv6_iface);
+			ret = 0;
+		}
+		break;
+	case ISCSI_NET_PARAM_IPV6_ADDR:
+		ret = mgmt_set_ip(phba, iface_param, NULL,
+				  ISCSI_BOOTPROTO_STATIC);
+		break;
+	default:
+		shost_printk(KERN_ERR, shost, "Param %d not supported\n",
+			     iface_param->param);
+	}
+
+	return ret;
+}
+
+int be2iscsi_iface_set_param(struct Scsi_Host *shost,
+		void *data, uint32_t dt_len)
+{
+	struct iscsi_iface_param_info *iface_param = NULL;
+	struct nlattr *attrib;
+	uint32_t rm_len = dt_len;
+	int ret = 0 ;
+
+	nla_for_each_attr(attrib, data, dt_len, rm_len) {
+		iface_param = nla_data(attrib);
+
+		if (iface_param->param_type != ISCSI_NET_PARAM)
+			continue;
+
+		/*
+		 * BE2ISCSI only supports 1 interface
+		 */
+		if (iface_param->iface_num) {
+			shost_printk(KERN_ERR, shost, "Invalid iface_num %d."
+				     "Only iface_num 0 is supported.\n",
+				     iface_param->iface_num);
+			return -EINVAL;
+		}
+
+		switch (iface_param->iface_type) {
+		case ISCSI_IFACE_TYPE_IPV4:
+			ret = beiscsi_set_ipv4(shost, iface_param,
+					       data, dt_len);
+			break;
+		case ISCSI_IFACE_TYPE_IPV6:
+			ret = beiscsi_set_ipv6(shost, iface_param,
+					       data, dt_len);
+			break;
+		default:
+			shost_printk(KERN_ERR, shost,
+				     "Invalid iface type :%d passed\n",
+				     iface_param->iface_type);
+			break;
+		}
+
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
+static int be2iscsi_get_if_param(struct beiscsi_hba *phba,
+		struct iscsi_iface *iface, int param,
+		char *buf)
+{
+	struct be_cmd_get_if_info_resp if_info;
+	int len, ip_type = BE2_IPV4;
+
+	memset(&if_info, 0, sizeof(if_info));
+
+	if (iface->iface_type == ISCSI_IFACE_TYPE_IPV6)
+		ip_type = BE2_IPV6;
+
+	len = mgmt_get_if_info(phba, ip_type, &if_info);
+	if (len)
+		return len;
+
+	switch (param) {
+	case ISCSI_NET_PARAM_IPV4_ADDR:
+		len = sprintf(buf, "%pI4\n", &if_info.ip_addr.addr);
+		break;
+	case ISCSI_NET_PARAM_IPV6_ADDR:
+		len = sprintf(buf, "%pI6\n", &if_info.ip_addr.addr);
+		break;
+	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
+		if (!if_info.dhcp_state)
+			len = sprintf(buf, "static");
+		else
+			len = sprintf(buf, "dhcp");
+		break;
+	case ISCSI_NET_PARAM_IPV4_SUBNET:
+		len = sprintf(buf, "%pI4\n", &if_info.ip_addr.subnet_mask);
+		break;
+	default:
+		WARN_ON(1);
+	}
+
+	return len;
+}
+
+int be2iscsi_iface_get_param(struct iscsi_iface *iface,
+		enum iscsi_param_type param_type,
+		int param, char *buf)
+{
+	struct Scsi_Host *shost = iscsi_iface_to_shost(iface);
+	struct beiscsi_hba *phba = iscsi_host_priv(shost);
+	struct be_cmd_get_def_gateway_resp gateway;
+	int len = -ENOSYS;
+
+	switch (param) {
+	case ISCSI_NET_PARAM_IPV4_ADDR:
+	case ISCSI_NET_PARAM_IPV4_SUBNET:
+	case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
+	case ISCSI_NET_PARAM_IPV6_ADDR:
+		len = be2iscsi_get_if_param(phba, iface, param, buf);
+		break;
+	case ISCSI_NET_PARAM_IFACE_ENABLE:
+		len = sprintf(buf, "enabled");
+		break;
+	case ISCSI_NET_PARAM_IPV4_GW:
+		memset(&gateway, 0, sizeof(gateway));
+		len = mgmt_get_gateway(phba, BE2_IPV4, &gateway);
+		if (!len)
+			len = sprintf(buf, "%pI4\n", &gateway.ip_addr.addr);
+		break;
+	default:
+		len = -ENOSYS;
+	}
+
+	return len;
+}
+
 /**
  * beiscsi_ep_get_param - get the iscsi parameter
  * @ep: pointer to iscsi ep
@@ -359,45 +656,20 @@ int beiscsi_get_host_param(struct Scsi_Host *shost,
 
 int beiscsi_get_macaddr(char *buf, struct beiscsi_hba *phba)
 {
-	struct be_cmd_resp_get_mac_addr *resp;
-	struct be_mcc_wrb *wrb;
-	unsigned int tag, wrb_num;
-	unsigned short status, extd_status;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	struct be_cmd_get_nic_conf_resp resp;
 	int rc;
 
-	if (phba->read_mac_address)
-		return sysfs_format_mac(buf, phba->mac_address,
-					ETH_ALEN);
+	if (strlen(phba->mac_address))
+		return strlcpy(buf, phba->mac_address, PAGE_SIZE);
 
-	tag = be_cmd_get_mac_addr(phba);
-	if (!tag) {
-		SE_DEBUG(DBG_LVL_1, "be_cmd_get_mac_addr Failed\n");
-		return -EBUSY;
-	} else
-		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
-					 phba->ctrl.mcc_numtag[tag]);
+	memset(&resp, 0, sizeof(resp));
+	rc = mgmt_get_nic_conf(phba, &resp);
+	if (rc)
+		return rc;
 
-	wrb_num = (phba->ctrl.mcc_numtag[tag] & 0x00FF0000) >> 16;
-	extd_status = (phba->ctrl.mcc_numtag[tag] & 0x0000FF00) >> 8;
-	status = phba->ctrl.mcc_numtag[tag] & 0x000000FF;
-	if (status || extd_status) {
-		SE_DEBUG(DBG_LVL_1, "Failed to get be_cmd_get_mac_addr"
-				    " status = %d extd_status = %d\n",
-				    status, extd_status);
-		free_mcc_tag(&phba->ctrl, tag);
-		return -EAGAIN;
-	}
-	wrb = queue_get_wrb(mccq, wrb_num);
-	free_mcc_tag(&phba->ctrl, tag);
-	resp = embedded_payload(wrb);
-	memcpy(phba->mac_address, resp->mac_address, ETH_ALEN);
-	rc = sysfs_format_mac(buf, phba->mac_address,
-			       ETH_ALEN);
-	phba->read_mac_address = 1;
-	return rc;
+	memcpy(phba->mac_address, resp.mac_address, ETH_ALEN);
+	return sysfs_format_mac(buf, phba->mac_address, ETH_ALEN);
 }
-
 
 /**
  * beiscsi_conn_get_stats - get the iscsi stats
@@ -786,11 +1058,21 @@ void beiscsi_ep_disconnect(struct iscsi_endpoint *ep)
 umode_t be2iscsi_attr_is_visible(int param_type, int param)
 {
 	switch (param_type) {
+	case ISCSI_NET_PARAM:
+		switch (param) {
+		case ISCSI_NET_PARAM_IFACE_ENABLE:
+		case ISCSI_NET_PARAM_IPV4_ADDR:
+		case ISCSI_NET_PARAM_IPV4_SUBNET:
+		case ISCSI_NET_PARAM_IPV4_BOOTPROTO:
+		case ISCSI_NET_PARAM_IPV4_GW:
+		case ISCSI_NET_PARAM_IPV6_ADDR:
+			return S_IRUGO;
+		default:
+			return 0;
+		}
 	case ISCSI_HOST_PARAM:
 		switch (param) {
 		case ISCSI_HOST_PARAM_HWADDRESS:
-		case ISCSI_HOST_PARAM_IPADDRESS:
-		case ISCSI_HOST_PARAM_INITIATOR_NAME:
 			return S_IRUGO;
 		default:
 			return 0;
