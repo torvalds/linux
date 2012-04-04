@@ -156,7 +156,7 @@ void mlx4_en_destroy_tx_ring(struct mlx4_en_priv *priv,
 
 int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 			     struct mlx4_en_tx_ring *ring,
-			     int cq)
+			     int cq, int user_prio)
 {
 	struct mlx4_en_dev *mdev = priv->mdev;
 	int err;
@@ -174,7 +174,7 @@ int mlx4_en_activate_tx_ring(struct mlx4_en_priv *priv,
 	ring->doorbell_qpn = ring->qp.qpn << 8;
 
 	mlx4_en_fill_qp_context(priv, ring->size, ring->stride, 1, 0, ring->qpn,
-				ring->cqn, &ring->context);
+				ring->cqn, user_prio, &ring->context);
 	if (ring->bf_enabled)
 		ring->context.usr_page = cpu_to_be32(ring->bf.uar->index);
 
@@ -570,18 +570,14 @@ static void build_inline_wqe(struct mlx4_en_tx_desc *tx_desc, struct sk_buff *sk
 
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
 	u16 vlan_tag = 0;
 
-	/* If we support per priority flow control and the packet contains
-	 * a vlan tag, send the packet to the TX ring assigned to that priority
-	 */
-	if (priv->prof->rx_ppp && vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb)) {
 		vlan_tag = vlan_tx_tag_get(skb);
 		return MLX4_EN_NUM_TX_RINGS + (vlan_tag >> 13);
 	}
 
-	return skb_tx_hash(dev, skb);
+	return __skb_tx_hash(dev, skb, MLX4_EN_NUM_TX_RINGS);
 }
 
 static void mlx4_bf_copy(void __iomem *dst, unsigned long *src, unsigned bytecnt)
