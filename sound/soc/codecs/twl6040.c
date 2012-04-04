@@ -1340,8 +1340,7 @@ static int twl6040_set_bias_level(struct snd_soc_codec *codec,
 static int twl6040_startup(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 
 	snd_pcm_hw_constraint_list(substream->runtime, 0,
@@ -1355,8 +1354,7 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 			struct snd_pcm_hw_params *params,
 			struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int rate;
 
@@ -1392,8 +1390,7 @@ static int twl6040_hw_params(struct snd_pcm_substream *substream,
 static int twl6040_prepare(struct snd_pcm_substream *substream,
 			struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct twl6040 *twl6040 = codec->control_data;
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
 	int ret;

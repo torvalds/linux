@@ -293,8 +293,7 @@ static const struct snd_kcontrol_new wl1273_controls[] = {
 static int wl1273_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_codec *codec = dai->codec;
 	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
 
 	switch (wl1273->mode) {
@@ -329,8 +328,7 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(rtd->codec);
+	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(dai->codec);
 	struct wl1273_core *core = wl1273->core;
 	unsigned int rate, width, r;
 
