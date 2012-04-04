@@ -137,7 +137,7 @@ Where:
  o pbl: the Programmable Burst Length is maximum number of beats to
        be transferred in one DMA transaction.
        GMAC also enables the 4xPBL by default.
- o clk_csr: CSR Clock range selection.
+ o clk_csr: fixed CSR Clock range selection.
  o has_gmac: uses the GMAC core.
  o enh_desc: if sets the MAC will use the enhanced descriptor structure.
  o tx_coe: core is able to perform the tx csum in HW.

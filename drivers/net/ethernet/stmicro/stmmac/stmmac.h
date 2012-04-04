@@ -84,6 +84,7 @@ struct stmmac_priv {
 #ifdef CONFIG_HAVE_CLK
 	struct clk *stmmac_clk;
 #endif
+	int clk_csr;
 };
 
 extern int phyaddr;

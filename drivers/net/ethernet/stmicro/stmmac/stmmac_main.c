@@ -163,6 +163,35 @@ static void stmmac_verify_args(void)
 		pause = PAUSE_TIME;
 }
 
+static void stmmac_clk_csr_set(struct stmmac_priv *priv)
+{
+#ifdef CONFIG_HAVE_CLK
+	u32 clk_rate;
+
+	clk_rate = clk_get_rate(priv->stmmac_clk);
+
+	/* Platform provided default clk_csr would be assumed valid
+	 * for all other cases except for the below mentioned ones. */
+	if (!(priv->clk_csr & MAC_CSR_H_FRQ_MASK)) {
+		if (clk_rate < CSR_F_35M)
+			priv->clk_csr = STMMAC_CSR_20_35M;
+		else if ((clk_rate >= CSR_F_35M) && (clk_rate < CSR_F_60M))
+			priv->clk_csr = STMMAC_CSR_35_60M;
+		else if ((clk_rate >= CSR_F_60M) && (clk_rate < CSR_F_100M))
+			priv->clk_csr = STMMAC_CSR_60_100M;
+		else if ((clk_rate >= CSR_F_100M) && (clk_rate < CSR_F_150M))
+			priv->clk_csr = STMMAC_CSR_100_150M;
+		else if ((clk_rate >= CSR_F_150M) && (clk_rate < CSR_F_250M))
+			priv->clk_csr = STMMAC_CSR_150_250M;
+		else if ((clk_rate >= CSR_F_250M) && (clk_rate < CSR_F_300M))
+			priv->clk_csr = STMMAC_CSR_250_300M;
+	} /* For values higher than the IEEE 802.3 specified frequency
+	   * we can not estimate the proper divider as it is not known
+	   * the frequency of clk_csr_i. So we do not change the default
+	   * divider. */
+#endif
+}
+
 #if defined(STMMAC_XMIT_DEBUG) || defined(STMMAC_RX_DEBUG)
 static void print_pkt(unsigned char *buf, int len)
 {
@@ -1889,6 +1918,17 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 
 	if (stmmac_clk_get(priv))
 		goto error;
+
+	/* If a specific clk_csr value is passed from the platform
+	 * this means that the CSR Clock Range selection cannot be
+	 * changed at run-time and it is fixed. Viceversa the driver'll try to
+	 * set the MDC clock dynamically according to the csr actual
+	 * clock input.
+	 */
+	if (!priv->plat->clk_csr)
+		stmmac_clk_csr_set(priv);
+	else
+		priv->clk_csr = priv->plat->clk_csr;
 
 	return priv;
 

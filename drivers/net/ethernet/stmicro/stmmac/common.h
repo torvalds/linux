@@ -97,6 +97,16 @@ struct stmmac_extra_stats {
 	unsigned long normal_irq_n;
 };
 
+/* CSR Frequency Access Defines*/
+#define CSR_F_35M	35000000
+#define CSR_F_60M	60000000
+#define CSR_F_100M	100000000
+#define CSR_F_150M	150000000
+#define CSR_F_250M	250000000
+#define CSR_F_300M	300000000
+
+#define	MAC_CSR_H_FRQ_MASK	0x20
+
 #define HASH_TABLE_SIZE 64
 #define PAUSE_TIME 0x200
 
