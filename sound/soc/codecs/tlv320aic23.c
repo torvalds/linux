@@ -34,8 +34,6 @@
 
 #include "tlv320aic23.h"
 
-#define AIC23_VERSION "0.1"
-
 /*
  * AIC23 register cache
  */
@@ -547,8 +545,6 @@ static int tlv320aic23_probe(struct snd_soc_codec *codec)
 {
 	struct aic23 *aic23 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-
-	printk(KERN_INFO "AIC23 Audio Codec %s\n", AIC23_VERSION);
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, aic23->control_type);
 	if (ret < 0) {
