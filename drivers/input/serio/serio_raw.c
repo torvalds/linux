@@ -432,15 +432,4 @@ static struct serio_driver serio_raw_drv = {
 	.manual_bind	= true,
 };
 
-static int __init serio_raw_init(void)
-{
-	return serio_register_driver(&serio_raw_drv);
-}
-
-static void __exit serio_raw_exit(void)
-{
-	serio_unregister_driver(&serio_raw_drv);
-}
-
-module_init(serio_raw_init);
-module_exit(serio_raw_exit);
+module_serio_driver(serio_raw_drv);

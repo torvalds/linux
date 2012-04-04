@@ -317,19 +317,4 @@ static struct serio_driver pm_drv = {
 	.disconnect	= pm_disconnect,
 };
 
-/*
- * The functions for inserting/removing us as a module.
- */
-
-static int __init pm_init(void)
-{
-	return serio_register_driver(&pm_drv);
-}
-
-static void __exit pm_exit(void)
-{
-	serio_unregister_driver(&pm_drv);
-}
-
-module_init(pm_init);
-module_exit(pm_exit);
+module_serio_driver(pm_drv);

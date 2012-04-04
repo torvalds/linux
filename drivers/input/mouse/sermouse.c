@@ -355,15 +355,4 @@ static struct serio_driver sermouse_drv = {
 	.disconnect	= sermouse_disconnect,
 };
 
-static int __init sermouse_init(void)
-{
-	return serio_register_driver(&sermouse_drv);
-}
-
-static void __exit sermouse_exit(void)
-{
-	serio_unregister_driver(&sermouse_drv);
-}
-
-module_init(sermouse_init);
-module_exit(sermouse_exit);
+module_serio_driver(sermouse_drv);

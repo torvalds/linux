@@ -731,19 +731,4 @@ static struct serio_driver lkkbd_drv = {
 	.interrupt	= lkkbd_interrupt,
 };
 
-/*
- * The functions for insering/removing us as a module.
- */
-static int __init lkkbd_init(void)
-{
-	return serio_register_driver(&lkkbd_drv);
-}
-
-static void __exit lkkbd_exit(void)
-{
-	serio_unregister_driver(&lkkbd_drv);
-}
-
-module_init(lkkbd_init);
-module_exit(lkkbd_exit);
-
+module_serio_driver(lkkbd_drv);
