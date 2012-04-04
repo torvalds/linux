@@ -10177,7 +10177,7 @@ static void bnx2x_848x3_link_reset(struct bnx2x_phy *phy,
 	u8 port;
 	u16 val16;
 
-	if (!(CHIP_IS_E1(bp)))
+	if (!(CHIP_IS_E1x(bp)))
 		port = BP_PATH(bp);
 	else
 		port = params->port;
@@ -10204,7 +10204,7 @@ static void bnx2x_848xx_set_link_led(struct bnx2x_phy *phy,
 	u16 val;
 	u8 port;
 
-	if (!(CHIP_IS_E1(bp)))
+	if (!(CHIP_IS_E1x(bp)))
 		port = BP_PATH(bp);
 	else
 		port = params->port;
