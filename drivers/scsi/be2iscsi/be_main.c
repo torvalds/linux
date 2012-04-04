@@ -2908,9 +2908,11 @@ beiscsi_post_pages(struct beiscsi_hba *phba)
 static void be_queue_free(struct beiscsi_hba *phba, struct be_queue_info *q)
 {
 	struct be_dma_mem *mem = &q->dma_mem;
-	if (mem->va)
+	if (mem->va) {
 		pci_free_consistent(phba->pcidev, mem->size,
 			mem->va, mem->dma);
+		mem->va = NULL;
+	}
 }
 
 static int be_queue_alloc(struct beiscsi_hba *phba, struct be_queue_info *q,
