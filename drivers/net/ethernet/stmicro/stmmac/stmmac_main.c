@@ -1282,7 +1282,8 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 			struct sk_buff *skb;
 			int frame_len;
 
-			frame_len = priv->hw->desc->get_rx_frame_len(p);
+			frame_len = priv->hw->desc->get_rx_frame_len(p,
+					priv->plat->rx_coe);
 			/* ACS is set; GMAC core strips PAD/FCS for IEEE 802.3
 			 * Type frames (LLC/LLC-SNAP) */
 			if (unlikely(status != llc_snap))
@@ -1318,7 +1319,7 @@ static int stmmac_rx(struct stmmac_priv *priv, int limit)
 #endif
 			skb->protocol = eth_type_trans(skb, priv->dev);
 
-			if (unlikely(!priv->rx_coe)) {
+			if (unlikely(!priv->plat->rx_coe)) {
 				/* No RX COE for old mac10/100 devices */
 				skb_checksum_none_assert(skb);
 				netif_receive_skb(skb);
@@ -1465,8 +1466,10 @@ static netdev_features_t stmmac_fix_features(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 
-	if (!priv->rx_coe)
+	if (priv->plat->rx_coe == STMMAC_RX_COE_NONE)
 		features &= ~NETIF_F_RXCSUM;
+	else if (priv->plat->rx_coe == STMMAC_RX_COE_TYPE1)
+		features &= ~NETIF_F_IPV6_CSUM;
 	if (!priv->plat->tx_coe)
 		features &= ~NETIF_F_ALL_CSUM;
 
@@ -1769,17 +1772,32 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 		 * register (if supported).
 		 */
 		priv->plat->enh_desc = priv->dma_cap.enh_desc;
-		priv->plat->tx_coe = priv->dma_cap.tx_coe;
 		priv->plat->pmt = priv->dma_cap.pmt_remote_wake_up;
+
+		priv->plat->tx_coe = priv->dma_cap.tx_coe;
+
+		if (priv->dma_cap.rx_coe_type2)
+			priv->plat->rx_coe = STMMAC_RX_COE_TYPE2;
+		else if (priv->dma_cap.rx_coe_type1)
+			priv->plat->rx_coe = STMMAC_RX_COE_TYPE1;
+
 	} else
 		pr_info(" No HW DMA feature register supported");
 
 	/* Select the enhnaced/normal descriptor structures */
 	stmmac_selec_desc_mode(priv);
 
-	priv->rx_coe = priv->hw->mac->rx_coe(priv->ioaddr);
-	if (priv->rx_coe)
-		pr_info(" RX Checksum Offload Engine supported\n");
+	/* Enable the IPC (Checksum Offload) and check if the feature has been
+	 * enabled during the core configuration. */
+	ret = priv->hw->mac->rx_ipc(priv->ioaddr);
+	if (!ret) {
+		pr_warning(" RX IPC Checksum Offload not configured.\n");
+		priv->plat->rx_coe = STMMAC_RX_COE_NONE;
+	}
+
+	if (priv->plat->rx_coe)
+		pr_info(" RX Checksum Offload Engine supported (type %d)\n",
+			priv->plat->rx_coe);
 	if (priv->plat->tx_coe)
 		pr_info(" TX Checksum insertion supported\n");
 

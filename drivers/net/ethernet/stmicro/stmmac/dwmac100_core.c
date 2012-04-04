@@ -43,11 +43,6 @@ static void dwmac100_core_init(void __iomem *ioaddr)
 #endif
 }
 
-static int dwmac100_rx_coe_supported(void __iomem *ioaddr)
-{
-	return 0;
-}
-
 static void dwmac100_dump_mac_regs(void __iomem *ioaddr)
 {
 	pr_info("\t----------------------------------------------\n"
@@ -70,6 +65,11 @@ static void dwmac100_dump_mac_regs(void __iomem *ioaddr)
 		readl(ioaddr + MAC_VLAN1));
 	pr_info("\tVLAN2 tag (offset 0x%x): 0x%08x\n", MAC_VLAN2,
 		readl(ioaddr + MAC_VLAN2));
+}
+
+static int dwmac100_rx_ipc_enable(void __iomem *ioaddr)
+{
+	return 0;
 }
 
 static void dwmac100_irq_status(void __iomem *ioaddr)
@@ -160,7 +160,7 @@ static void dwmac100_pmt(void __iomem *ioaddr, unsigned long mode)
 
 static const struct stmmac_ops dwmac100_ops = {
 	.core_init = dwmac100_core_init,
-	.rx_coe = dwmac100_rx_coe_supported,
+	.rx_ipc = dwmac100_rx_ipc_enable,
 	.dump_regs = dwmac100_dump_mac_regs,
 	.host_irq_status = dwmac100_irq_status,
 	.set_filter = dwmac100_set_filter,

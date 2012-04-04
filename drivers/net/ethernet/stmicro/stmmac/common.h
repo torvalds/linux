@@ -228,7 +228,7 @@ struct stmmac_desc_ops {
 	int (*get_rx_owner) (struct dma_desc *p);
 	void (*set_rx_owner) (struct dma_desc *p);
 	/* Get the receive frame size */
-	int (*get_rx_frame_len) (struct dma_desc *p);
+	int (*get_rx_frame_len) (struct dma_desc *p, int rx_coe_type);
 	/* Return the reception status looking at the RDES1 */
 	int (*rx_status) (void *data, struct stmmac_extra_stats *x,
 			  struct dma_desc *p);
@@ -261,8 +261,8 @@ struct stmmac_dma_ops {
 struct stmmac_ops {
 	/* MAC core initialization */
 	void (*core_init) (void __iomem *ioaddr) ____cacheline_aligned;
-	/* Support checksum offload engine */
-	int  (*rx_coe) (void __iomem *ioaddr);
+	/* Enable and verify that the IPC module is supported */
+	int (*rx_ipc) (void __iomem *ioaddr);
 	/* Dump MAC registers */
 	void (*dump_regs) (void __iomem *ioaddr);
 	/* Handle extra events on specific interrupts hw dependent */

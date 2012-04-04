@@ -56,8 +56,6 @@ struct stmmac_priv {
 
 	struct stmmac_extra_stats xstats;
 	struct napi_struct napi;
-
-	int rx_coe;
 	int no_csum_insertion;
 
 	struct phy_device *phydev;
