@@ -223,6 +223,16 @@ config REGULATOR_PCF50633
 	 Say Y here to support the voltage regulators and convertors
 	 on PCF50633
 
+config REGULATOR_RC5T583
+	tristate "RICOH RC5T583 Power regulators"
+	depends on MFD_RC5T583
+	help
+	  Select this option to enable the power regulator of RICOH
+	  PMIC RC5T583.
+	  This driver supports the control of different power rails of device
+	  through regulator interface. The device supports multiple DCDC/LDO
+	  outputs which can be controlled by i2c communication.
+
 config REGULATOR_S5M8767
 	tristate "Samsung S5M8767A voltage regulator"
 	depends on MFD_S5M_CORE
