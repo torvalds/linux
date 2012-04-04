@@ -140,12 +140,17 @@ static int hsi_remove_port(struct device *dev, void *data __maybe_unused)
 	return 0;
 }
 
-static void hsi_controller_release(struct device *dev __maybe_unused)
+static void hsi_controller_release(struct device *dev)
 {
+	struct hsi_controller *hsi = to_hsi_controller(dev);
+
+	kfree(hsi->port);
+	kfree(hsi);
 }
 
-static void hsi_port_release(struct device *dev __maybe_unused)
+static void hsi_port_release(struct device *dev)
 {
+	kfree(to_hsi_port(dev));
 }
 
 /**
@@ -172,18 +177,14 @@ int hsi_register_controller(struct hsi_controller *hsi)
 
 	hsi->device.type = &hsi_ctrl;
 	hsi->device.bus = &hsi_bus_type;
-	hsi->device.release = hsi_controller_release;
-	err = device_register(&hsi->device);
+	err = device_add(&hsi->device);
 	if (err < 0)
 		return err;
 	for (i = 0; i < hsi->num_ports; i++) {
-		hsi->port[i].device.parent = &hsi->device;
-		hsi->port[i].device.bus = &hsi_bus_type;
-		hsi->port[i].device.release = hsi_port_release;
-		hsi->port[i].device.type = &hsi_port;
-		INIT_LIST_HEAD(&hsi->port[i].clients);
-		spin_lock_init(&hsi->port[i].clock);
-		err = device_register(&hsi->port[i].device);
+		hsi->port[i]->device.parent = &hsi->device;
+		hsi->port[i]->device.bus = &hsi_bus_type;
+		hsi->port[i]->device.type = &hsi_port;
+		err = device_add(&hsi->port[i]->device);
 		if (err < 0)
 			goto out;
 	}
@@ -192,7 +193,9 @@ int hsi_register_controller(struct hsi_controller *hsi)
 
 	return 0;
 out:
-	hsi_unregister_controller(hsi);
+	while (i-- > 0)
+		device_del(&hsi->port[i]->device);
+	device_del(&hsi->device);
 
 	return err;
 }
@@ -223,6 +226,29 @@ static inline int hsi_dummy_cl(struct hsi_client *cl __maybe_unused)
 }
 
 /**
+ * hsi_put_controller - Free an HSI controller
+ *
+ * @hsi: Pointer to the HSI controller to freed
+ *
+ * HSI controller drivers should only use this function if they need
+ * to free their allocated hsi_controller structures before a successful
+ * call to hsi_register_controller. Other use is not allowed.
+ */
+void hsi_put_controller(struct hsi_controller *hsi)
+{
+	unsigned int i;
+
+	if (!hsi)
+		return;
+
+	for (i = 0; i < hsi->num_ports; i++)
+		if (hsi->port && hsi->port[i])
+			put_device(&hsi->port[i]->device);
+	put_device(&hsi->device);
+}
+EXPORT_SYMBOL_GPL(hsi_put_controller);
+
+/**
  * hsi_alloc_controller - Allocate an HSI controller and its ports
  * @n_ports: Number of ports on the HSI controller
  * @flags: Kernel allocation flags
@@ -232,53 +258,51 @@ static inline int hsi_dummy_cl(struct hsi_client *cl __maybe_unused)
 struct hsi_controller *hsi_alloc_controller(unsigned int n_ports, gfp_t flags)
 {
 	struct hsi_controller	*hsi;
-	struct hsi_port		*port;
+	struct hsi_port		**port;
 	unsigned int		i;
 
 	if (!n_ports)
 		return NULL;
 
-	port = kzalloc(sizeof(*port)*n_ports, flags);
-	if (!port)
-		return NULL;
 	hsi = kzalloc(sizeof(*hsi), flags);
 	if (!hsi)
-		goto out;
-	for (i = 0; i < n_ports; i++) {
-		dev_set_name(&port[i].device, "port%d", i);
-		port[i].num = i;
-		port[i].async = hsi_dummy_msg;
-		port[i].setup = hsi_dummy_cl;
-		port[i].flush = hsi_dummy_cl;
-		port[i].start_tx = hsi_dummy_cl;
-		port[i].stop_tx = hsi_dummy_cl;
-		port[i].release = hsi_dummy_cl;
-		mutex_init(&port[i].lock);
+		return NULL;
+	port = kzalloc(sizeof(*port)*n_ports, flags);
+	if (!port) {
+		kfree(hsi);
+		return NULL;
 	}
 	hsi->num_ports = n_ports;
 	hsi->port = port;
+	hsi->device.release = hsi_controller_release;
+	device_initialize(&hsi->device);
+
+	for (i = 0; i < n_ports; i++) {
+		port[i] = kzalloc(sizeof(**port), flags);
+		if (port[i] == NULL)
+			goto out;
+		port[i]->num = i;
+		port[i]->async = hsi_dummy_msg;
+		port[i]->setup = hsi_dummy_cl;
+		port[i]->flush = hsi_dummy_cl;
+		port[i]->start_tx = hsi_dummy_cl;
+		port[i]->stop_tx = hsi_dummy_cl;
+		port[i]->release = hsi_dummy_cl;
+		mutex_init(&port[i]->lock);
+		INIT_LIST_HEAD(&hsi->port[i]->clients);
+		spin_lock_init(&hsi->port[i]->clock);
+		dev_set_name(&port[i]->device, "port%d", i);
+		hsi->port[i]->device.release = hsi_port_release;
+		device_initialize(&hsi->port[i]->device);
+	}
 
 	return hsi;
 out:
-	kfree(port);
+	hsi_put_controller(hsi);
 
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(hsi_alloc_controller);
-
-/**
- * hsi_free_controller - Free an HSI controller
- * @hsi: Pointer to HSI controller
- */
-void hsi_free_controller(struct hsi_controller *hsi)
-{
-	if (!hsi)
-		return;
-
-	kfree(hsi->port);
-	kfree(hsi);
-}
-EXPORT_SYMBOL_GPL(hsi_free_controller);
 
 /**
  * hsi_free_msg - Free an HSI message

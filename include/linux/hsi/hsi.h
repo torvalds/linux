@@ -270,13 +270,13 @@ struct hsi_controller {
 	struct module		*owner;
 	unsigned int		id;
 	unsigned int		num_ports;
-	struct hsi_port		*port;
+	struct hsi_port		**port;
 };
 
 #define to_hsi_controller(dev) container_of(dev, struct hsi_controller, device)
 
 struct hsi_controller *hsi_alloc_controller(unsigned int n_ports, gfp_t flags);
-void hsi_free_controller(struct hsi_controller *hsi);
+void hsi_put_controller(struct hsi_controller *hsi);
 int hsi_register_controller(struct hsi_controller *hsi);
 void hsi_unregister_controller(struct hsi_controller *hsi);
 
@@ -294,7 +294,7 @@ static inline void *hsi_controller_drvdata(struct hsi_controller *hsi)
 static inline struct hsi_port *hsi_find_port_num(struct hsi_controller *hsi,
 							unsigned int num)
 {
-	return (num < hsi->num_ports) ? &hsi->port[num] : NULL;
+	return (num < hsi->num_ports) ? hsi->port[num] : NULL;
 }
 
 /*
