@@ -23,7 +23,7 @@ struct hdmi *hdmi = NULL;
 
 extern irqreturn_t hdmi_irq(int irq, void *priv);
 extern void hdmi_work(struct work_struct *work);
-extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(int  id);
+extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -91,7 +91,10 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	hdmi->dev = &pdev->dev;
 	platform_set_drvdata(pdev, hdmi);
 
-	hdmi->lcdc = rk_get_lcdc_drv(HDMI_SOURCE_DEFAULT);
+	if(HDMI_SOURCE_DEFAULT == HDMI_SOURCE_LCDC0)
+		hdmi->lcdc = rk_get_lcdc_drv("lcdc0");
+	else
+		hdmi->lcdc = rk_get_lcdc_drv("lcdc1");
 	if(hdmi->lcdc == NULL)
 	{
 		dev_err(hdmi->dev, "can not connect to video source lcdc\n");
