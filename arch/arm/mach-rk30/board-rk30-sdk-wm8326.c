@@ -3,12 +3,33 @@
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/gpio.h>
 
+#include <mach/sram.h>
+
+#define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
+#define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
+
+#define grf_readl(offset)	readl_relaxed(RK30_GRF_BASE + offset)
+#define grf_writel(v, offset)	do { writel_relaxed(v, RK30_GRF_BASE + offset); dsb(); } while (0)
+
+#define CRU_CLKGATE5_CON_ADDR 0x00e4
+#define GRF_GPIO6L_DIR_ADDR 0x0030
+#define GRF_GPIO6L_DO_ADDR 0x0068
+#define GRF_GPIO6L_EN_ADDR 0x00a0
+#define CRU_CLKGATE5_GRFCLK_ON 0x00100000
+#define CRU_CLKGATE5_GRFCLK_OFF 0x00100010
+#define GPIO6_PB1_DIR_OUT  0x02000200
+#define GPIO6_PB1_DO_LOW  0x02000000
+#define GPIO6_PB1_DO_HIGH  0x02000200
+#define GPIO6_PB1_EN_MASK  0x02000200
+#define GPIO6_PB1_UNEN_MASK  0x02000000
+
 /* wm8326 pmu*/
 #if defined(CONFIG_GPIO_WM831X)
 static struct rk29_gpio_expander_info wm831x_gpio_settinginfo[] = {
 	{
 		.gpio_num = WM831X_P01,	// tp3
-		.pin_type = GPIO_IN,
+		.pin_type = GPIO_OUT,
+		.pin_value = GPIO_LOW,
 	},
 	{
 		.gpio_num = WM831X_P02,	//tp4
@@ -98,6 +119,8 @@ static int wm831x_pre_init(struct wm831x *parm)
 	wm831x_set_bits(parm,WM831X_STATUS_LED_1 ,0xc300,0xc100);// set led1 on(in manual mode)
 	wm831x_set_bits(parm,WM831X_STATUS_LED_2 ,0xc300,0xc000);//set led2 off(in manual mode)
 
+	wm831x_set_bits(parm,WM831X_LDO5_SLEEP_CONTROL ,0xe000,0x2000);// set ldo5 is disable in sleep mode 
+	
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, LOCK_SECURITY_KEY);	// lock security key
 
 	return 0;
@@ -119,7 +142,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	
 	ldo = regulator_get(NULL, "ldo4");	// vdd_11
 	regulator_set_voltage(ldo, 1100000, 1100000);
-	regulator_set_suspend_voltage(ldo, 1100000);
+	regulator_set_suspend_voltage(ldo, 1000000);
 	regulator_enable(ldo);
 //	printk("%s set ldo4 vdd_11=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
@@ -142,15 +165,20 @@ int wm831x_post_init(struct wm831x *Wm831x)
 
 	dcdc = regulator_get(NULL, "vdd_cpu");	// vdd_arm
 	regulator_set_voltage(dcdc, 1100000, 1100000);
-	regulator_set_suspend_voltage(dcdc, 1100000);
+	regulator_set_suspend_voltage(dcdc, 1000000);
 	regulator_enable(dcdc);
 	printk("%s set dcdc2 vdd_cpu(vdd_arm)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
 	udelay(100);
 
 	dcdc = regulator_get(NULL, "vdd_core");	// vdd_log
+<<<<<<< Updated upstream
 	regulator_set_voltage(dcdc, 1150000, 1150000);
 	regulator_set_suspend_voltage(dcdc, 1100000);
+=======
+	regulator_set_voltage(dcdc, 1100000, 1100000);
+	regulator_set_suspend_voltage(dcdc, 1000000);
+>>>>>>> Stashed changes
 	regulator_enable(dcdc);
 	printk("%s set dcdc1 vdd_core(vdd_log)=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
@@ -246,11 +274,11 @@ static int wm831x_last_deinit(struct wm831x *Wm831x)
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo5");
-	regulator_disable(ldo);
+//	regulator_disable(ldo);
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo6");
-	regulator_disable(ldo);
+//	regulator_disable(ldo);
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo7");
@@ -258,7 +286,7 @@ static int wm831x_last_deinit(struct wm831x *Wm831x)
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo8");
-	//regulator_disable(ldo);
+	regulator_disable(ldo);
 	regulator_put(ldo);
 
 	ldo = regulator_get(NULL, "ldo9");
@@ -613,22 +641,16 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 					WM831X_GPIO1_CONTROL + i,
 					WM831X_GPN_DIR_MASK | WM831X_GPN_TRI_MASK,
 					1 << WM831X_GPN_DIR_SHIFT | 1 << WM831X_GPN_TRI_SHIFT);
-
-			wm831x_set_bits(wm831x,
-					(WM831X_GPIO1_CONTROL + i),
-					WM831X_GPN_PULL_MASK, 1 << WM831X_GPN_PULL_SHIFT);	//pull down
-			if (i == 0 ) {
+		if (i == 1) {
 				wm831x_set_bits(wm831x,
 						WM831X_GPIO1_CONTROL + i,
-						WM831X_GPN_PWR_DOM_MASK,
-						WM831X_GPN_PWR_DOM);
-			}	// set gpiox power domain
-			else {
+						WM831X_GPN_POL_MASK,
+						0x0000);
 				wm831x_set_bits(wm831x,
 						WM831X_GPIO1_CONTROL + i,
-						WM831X_GPN_PWR_DOM_MASK,
-						~WM831X_GPN_PWR_DOM);
-			}
+						WM831X_GPN_FN_MASK,
+						0x0004);				
+			}	// set gpio2 sleep/wakeup
 					
 		} else {
 			wm831x_set_bits(wm831x,
@@ -672,6 +694,20 @@ out:
 	return 0;
 }
 
+void __sramfunc board_pmu_suspend(void)
+{	
+	cru_writel(CRU_CLKGATE5_GRFCLK_ON,CRU_CLKGATE5_CON_ADDR); //open grf clk
+	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
+	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
+	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
+}
+void __sramfunc board_pmu_resume(void)
+{
+	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
+	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);     //set gpio6_b1 output high
+	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
+
+}
 static struct wm831x_pdata wm831x_platdata = {
 
 	/** Called before subdevices are set up */
