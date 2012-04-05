@@ -458,7 +458,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
     if(179 == MAJOR(bdev->bd_dev))
     {
-	    printk("\n%s..%d... ==== Begin to parse sdcard-partition.  ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
+	    printk(KERN_INFO "\n%s..%d... ==== Begin to parse sdcard-partition.  [mmc0]\n",__FUNCTION__, __LINE__);
 	}
 #endif
 
@@ -474,7 +474,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
 		    if(179 == MAJOR(bdev->bd_dev))
 		    {
-			    printk("%s..%d... ==== The sdcard has not MBR.  ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
+			    printk(KERN_INFO "%s..%d... ==== The sdcard has not MBR.  [mmc0]\n",__FUNCTION__, __LINE__);
 			}
 #endif
 			/*
@@ -490,7 +490,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
 				if(179 == MAJOR(bdev->bd_dev))
 				{
-				    printk("%s..%d... ==== The DBR(slot=%d) is valid. ====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
+				    printk(KERN_INFO "%s..%d... ==== The DBR(slot=%d) is valid. [mmc0]\n",__FUNCTION__, __LINE__, slot);
 				}
 #endif
 				return 1;
@@ -499,7 +499,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
 				if(179 == MAJOR(bdev->bd_dev))
 				{
-				    printk("%s..%d... ==== The DBR is invalid. ====xbw[mmc0]===\n",__FUNCTION__, __LINE__);
+				    printk(KERN_INFO "%s..%d... ==== The DBR is invalid. [mmc0]\n",__FUNCTION__, __LINE__);
 				}
 #endif
 				return 0;
@@ -527,7 +527,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
     if(179 == MAJOR(bdev->bd_dev))
     {
-        printk("%s..%d... ==== The sdcard has MBR. ====xbw[mmc0]===\n", __FUNCTION__, __LINE__);
+        printk(KERN_INFO "%s..%d... ==== The sdcard has MBR. [mmc0]\n", __FUNCTION__, __LINE__);
     }
 #endif    
 	state->next = 5;
@@ -539,7 +539,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
 	    if(179 == MAJOR(bdev->bd_dev))
 	    {
-		    printk("%s..%d... ==== partition-%d, size=%luKB  ====xbw[mmc0]===\n",\
+		    printk(KERN_INFO "%s..%d... ==== partition-%d, size=%luKB  [mmc0]\n",\
 		        __FUNCTION__, __LINE__, slot, size/2);
 		}
 #endif	
@@ -555,7 +555,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 			
             if(179 == MAJOR(bdev->bd_dev))
             {
-			    printk("%s...%d... ==== extend partition-%d....====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
+			    printk(KERN_INFO "%s...%d... ==== extend partition-%d....[mmc0]\n",__FUNCTION__, __LINE__, slot);
 			}
 #endif			
 			put_partition(state, slot, start, n);
@@ -568,7 +568,7 @@ int msdos_partition(struct parsed_partitions *state)
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
 		if(179 == MAJOR(bdev->bd_dev))
 		{
-		    printk("%s..%d... ==== main partition-%d....====xbw[mmc0]===\n",__FUNCTION__, __LINE__, slot);
+		    printk(KERN_INFO "%s..%d... ==== main partition-%d....[mmc0]\n",__FUNCTION__, __LINE__, slot);
 		}
 #endif		
 		put_partition(state, slot, start, size);

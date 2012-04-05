@@ -260,7 +260,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
     {
         host->doneflag = 0;
         mrq->cmd->error = -EIO;
-        printk("%s..%d.. !!!!! wait for CMD%d timeout ===xbw[%s]===\n",\
+        printk(KERN_ERR "%s..%d.. !!!!! wait for CMD%d timeout [%s]\n",\
             __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
     }
 #else
@@ -1670,7 +1670,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 
     	if (!(init_ret=mmc_attach_sdio(host)))
     	{
-    	    printk("%s..%d..  ===== Initialize SDIO successfully. ===xbw[%s]===\n",\
+    	    printk(KERN_INFO "%s..%d..  ===== Initialize SDIO successfully. [%s]\n",\
     	        __FUNCTION__,  __LINE__, mmc_hostname(host));
     		return 0;
     	}
@@ -1678,7 +1678,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
     	{
     	    if(0xFF!=init_ret)
     	    {
-    	         printk("\n=====\n %s..%d..  ===== Initialize SDIO-card unsuccessfully!!! ===xbw[%s]===\n=====\n",\
+    	         printk(KERN_WARNING "\n=====\n %s..%d..  ===== Initialize SDIO-card unsuccessfully!!! [%s]\n=====\n",\
     		        __FUNCTION__,  __LINE__, mmc_hostname(host));
 
     		     goto freq_out;   
@@ -1695,7 +1695,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 
 	if (!(init_ret=mmc_attach_sdio(host)))
 	{
-	    printk("%s..%d..  ===== Initialize SDIO successfully. ===xbw[%s]===\n",\
+	    printk(KERN_INFO "%s..%d..  ===== Initialize SDIO successfully. [%s]\n",\
 	        __FUNCTION__,  __LINE__, mmc_hostname(host));
 		return 0;
 	}
@@ -1703,7 +1703,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	{
 	    if(0xFF!=init_ret)
 	    {
-	         printk("\n=====\n %s..%d..  ===== Initialize SDIO-card unsuccessfully!!! ===xbw[%s]===\n=====\n",\
+	         printk(KERN_WARNING "\n=====\n %s..%d..  ===== Initialize SDIO-card unsuccessfully!!! [%s]\n=====\n",\
 		        __FUNCTION__,  __LINE__, mmc_hostname(host));
 
 		     goto freq_out;   
@@ -1713,7 +1713,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 
     if (!(init_ret=mmc_attach_sd(host)))
     {
-        printk("%s..%d..  ===== Initialize SD-card successfully. ===xbw[%s]===\n",\
+        printk(KERN_INFO "%s..%d..  ===== Initialize SD-card successfully. [%s]\n",\
             __FUNCTION__,  __LINE__, mmc_hostname(host));
             
 	    return 0;
@@ -1722,7 +1722,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	{
 	    if(0xFF!=init_ret)
 	    {
-	          printk("\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully!!! ===xbw[%s]===\n====\n",\
+	          printk(KERN_ERR "\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully! [%s]\n====\n",\
 	                __FUNCTION__,  __LINE__, mmc_hostname(host));
 
 		     goto freq_out;   
@@ -1732,7 +1732,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 
 	if (!(init_ret=mmc_attach_mmc(host)))
 	{
-	    printk("%s...%d..  ===== Initialize MMC-card successfully. ===xbw[%s]===\n",\
+	    printk(KERN_INFO "%s...%d..  ===== Initialize MMC-card successfully. [%s]\n",\
 	        __FUNCTION__,  __LINE__, mmc_hostname(host));
 
 	    return 0;
@@ -1741,7 +1741,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	{
 	    if(0xFF!=init_ret)
 	    {
-	         printk("\n =====\n%s..%d..  ===== Initialize MMC-card unsuccessfully!!! ===xbw[%s]===\n======\n",\
+	         printk(KERN_WARNING "\n =====\n%s..%d..  ===== Initialize MMC-card unsuccessfully!!! [%s]\n======\n",\
 	            __FUNCTION__,  __LINE__, mmc_hostname(host));
 	            
 		     goto freq_out;   
@@ -1820,13 +1820,13 @@ void mmc_rescan(struct work_struct *work)
 	mmc_bus_put(host);
 
 #if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
-    printk("\n%s...%d..  ===== mmc_rescan Begin....======xbw[%s]=====\n",__FILE__, __LINE__, mmc_hostname(host));
+    printk(KERN_INFO "\n%s...%d..  ===== mmc_rescan Begin....[%s]\n",__FILE__, __LINE__, mmc_hostname(host));
 #endif
 
 	if (host->ops->get_cd && host->ops->get_cd(host) == 0)
 	{
 #if defined(CONFIG_SDMMC_RK29) || !defined(CONFIG_SDMMC_RK29_OLD)   //Modifyed by xbw at 2011-11-17
-    	 printk("\n=================\n%s..%d..  ====find no SDMMC host.====xbw[%s]=====\n", \
+    	 printk(KERN_WARNING "\n=================\n%s..%d..  ====find no SDMMC host. [%s]\n", \
     	        __FUNCTION__, __LINE__, mmc_hostname(host));
 #endif
 

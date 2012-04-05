@@ -84,7 +84,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.3.05 The last modify date is 2012-03-31,modifyed by XBW."
+#define RK29_SDMMC_VERSION "Ver.3.06 The last modify date is 2012-04-05"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -290,6 +290,15 @@ static int rk29_sdmmc_regs_printk(struct rk29_sdmmc *host)
 	printk("SDMMC_TCBCNT: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_TCBCNT));
 	printk("SDMMC_TBBCNT: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_TBBCNT));
 	printk("SDMMC_DEBNCE: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_DEBNCE));
+    printk("SDMMC_USRID: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_USRID));
+
+#if !defined(CONFIG_ARCH_RK29)		
+    printk("SDMMC_VERID: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_VERID));
+	printk("SDMMC_UHS_REG:\t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_UHS_REG));
+	printk("SDMMC_RST_n: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_RST_n));
+	printk("SDMMC_CARDTHRCTL: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_CARDTHRCTL));
+	printk("SDMMC_BACK_END_POWER: \t0x%08x\n", rk29_sdmmc_read(host->regs, SDMMC_BACK_END_POWER));
+#endif	
 	printk("=======printk %s-register end =========\n", host->dma_name);
 	return 0;
 }
@@ -305,7 +314,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     
     if( !strncmp(buf,"version" , strlen("version")))
     {
-        printk("\n The driver SDMMC named 'rk29_sdmmc.c' is %s. ==xbw==\n", RK29_SDMMC_VERSION);
+        printk(KERN_INFO "\n The driver SDMMC named 'rk29_sdmmc.c' is %s.\n", RK29_SDMMC_VERSION);
         return count;
     }
     
@@ -315,7 +324,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         host = (struct rk29_sdmmc	*)globalSDhost[0];
         if(!host)
         {
-            printk("%s..%d.. fail to call progress_store because the host is null. ==xbw==\n",__FUNCTION__,__LINE__);
+            printk(KERN_ERR "%s..%d.. fail to call progress_store because the host is null. \n",__FUNCTION__,__LINE__);
             return count;
         }
     }    
@@ -324,7 +333,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         host = (struct rk29_sdmmc	*)globalSDhost[RK29_CTRL_SDIO1_ID];
         if(!host)
         {
-            printk("%s..%d.. fail to call progress_store because the host-sdio1 is null. ==xbw==\n",__FUNCTION__,__LINE__);
+            printk(KERN_ERR "%s..%d.. fail to call progress_store because the host-sdio1 is null.\n",__FUNCTION__,__LINE__);
             return count;
         }
     }
@@ -333,20 +342,20 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         host = (struct rk29_sdmmc	*)globalSDhost[RK29_CTRL_SDIO2_ID];
         if(!host)
         {
-            printk("%s..%d.. fail to call progress_store because the host-sdio2 is null. ==xbw==\n",__FUNCTION__,__LINE__);
+            printk(KERN_ERR "%s..%d.. fail to call progress_store because the host-sdio2 is null.\n",__FUNCTION__,__LINE__);
             return count;
         }
     }
     else
     {
-        printk("%s..%d.. You want to use sysfs for SDMMC but input-parameter is wrong.====xbw====\n",__FUNCTION__,__LINE__);
+        printk(KERN_ERR "%s..%d.. You want to use sysfs for SDMMC but input-parameter is wrong.\n",__FUNCTION__,__LINE__);
         return count;
     }
 
     spin_lock(&host->lock);
     if(strncmp(buf,oldbuf , strlen(buf)))
     {
-	    printk(".%d.. MMC0 receive the message %s from VOLD.====xbw[%s]====\n", __LINE__, buf, host->dma_name);
+	    printk(KERN_INFO ".%d.. MMC0 receive the message %s from VOLD.[%s]\n", __LINE__, buf, host->dma_name);
 	    strcpy(oldbuf, buf);
 	}
 
@@ -358,12 +367,11 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)
     if(RK29_CTRL_SDMMC_ID == host->pdev->id)
     {
-#if 1 //to wirte log in log-file-system during the stage of umount. Modifyed by xbw at 2011-12-26
         if(!strncmp(buf, "sd-Unmounting", strlen("sd-Unmounting")))
         {
             if(unmounting_times++%10 == 0)
             {
-                printk(".%d.. MMC0 receive the message Unmounting(waitTimes=%d) from VOLD.====xbw[%s]====\n", \
+                printk(KERN_INFO ".%d.. MMC0 receive the message Unmounting(waitTimes=%d) from VOLD.[%s]\n", \
                     __LINE__, unmounting_times, host->dma_name);
             }
 
@@ -375,21 +383,9 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
             if(0 == host->mmc->re_initialized_flags)
                 mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
         }
-#else
-        if(!strncmp(buf, "sd-Unmounting", strlen("sd-Unmounting")))
-        {
-            if(unmounting_times++%10 == 0)
-            {
-                printk(".%d.. MMC0 receive the message Unmounting(waitTimes=%d) from VOLD.====xbw[%s]====\n", \
-                    __LINE__, unmounting_times, host->dma_name);
-            }
-            host->mmc->re_initialized_flags = 0;
-            mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(RK29_SDMMC_REMOVAL_DELAY*2));
-        } 
-#endif
         else if( !strncmp(buf, "sd-No-Media", strlen("sd-No-Media")))
         {
-            printk(".%d.. MMC0 receive the message No-Media from VOLD. waitTimes=%d ====xbw[%s]====\n" ,\
+            printk(KERN_INFO ".%d.. MMC0 receive the message No-Media from VOLD. waitTimes=%d [%s]\n" ,\
                 __LINE__,unmounting_times, host->dma_name);
                 
             del_timer_sync(&host->detect_timer);
@@ -403,7 +399,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         }
         else if( !strncmp(buf, "sd-Ready", strlen("sd-Ready")))
         {
-            printk(".%d.. MMC0 receive the message Ready(ReInitFlag=%d) from VOLD. waitTimes=%d====xbw[%s]====\n" ,\
+            printk(KERN_INFO ".%d.. MMC0 receive the message Ready(ReInitFlag=%d) from VOLD. waitTimes=%d [%s]\n" ,\
                 __LINE__, host->mmc->re_initialized_flags, unmounting_times, host->dma_name);
 								
             unmounting_times = 0;
@@ -411,13 +407,13 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         }
         else if( !strncmp(buf,"sd-reset" , strlen("sd-reset")) ) 
         {
-            printk(".%d.. Now manual reset for SDMMC0. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            printk(KERN_INFO ".%d.. Now manual reset for SDMMC0. [%s]\n",__LINE__, host->dma_name);
             rk29_sdmmc_hw_init(host);
             mmc_detect_change(host->mmc, 0);           
         }
         else if( !strncmp(buf, "sd-regs", strlen("sd-regs")))
         {
-            printk(".%d.. Now printk the register of SDMMC0. ====xbw[%s]====\n",__LINE__, host->dma_name); 
+            printk(KERN_INFO ".%d.. Now printk the register of SDMMC0. [%s]\n",__LINE__, host->dma_name); 
             rk29_sdmmc_regs_printk(host);
         }
 
@@ -427,13 +423,13 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     {
         if( !strncmp(buf,"sd-reset" , strlen("sd-reset")) ) 
         {
-            printk(".%d.. Now manual reset for SDMMC0. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            printk(KERN_INFO ".%d.. Now manual reset for SDMMC0. [%s]\n",__LINE__, host->dma_name);
             rk29_sdmmc_hw_init(host);
             mmc_detect_change(host->mmc, 0);           
         }
         else if( !strncmp(buf, "sd-regs", strlen("sd-regs")))
         {
-            printk(".%d.. Now printk the register of SDMMC0. ====xbw[%s]====\n",__LINE__, host->dma_name); 
+            printk(KERN_INFO ".%d.. Now printk the register of SDMMC0. [%s]\n",__LINE__, host->dma_name); 
             rk29_sdmmc_regs_printk(host);
         }
     }
@@ -442,12 +438,12 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     {
         if( !strncmp(buf, "sdio1-regs", strlen("sdio1-regs")))
         {
-            printk(".%d.. Now printk the register of SDMMC1. ====xbw[%s]====\n",__LINE__, host->dma_name); 
+            printk(KERN_INFO ".%d.. Now printk the register of SDMMC1. [%s]\n",__LINE__, host->dma_name); 
             rk29_sdmmc_regs_printk(host);
         }
         else if( !strncmp(buf,"sdio1-reset" , strlen("sdio1-reset")) ) 
         {
-            printk(".%d.. Now manual reset for SDMMC1. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            printk(KERN_INFO ".%d.. Now manual reset for SDMMC1. [%s]\n",__LINE__, host->dma_name);
             rk29_sdmmc_hw_init(host);
             mmc_detect_change(host->mmc, 0);           
         }
@@ -456,12 +452,12 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
     {
         if( !strncmp(buf, "sdio2-regs", strlen("sdio2-regs")))
         {
-            printk(".%d.. Now printk the register of SDMMC2. ====xbw[%s]====\n",__LINE__, host->dma_name); 
+            printk(KERN_INFO ".%d.. Now printk the register of SDMMC2. [%s]\n",__LINE__, host->dma_name); 
             rk29_sdmmc_regs_printk(host);
         }
         else if( !strncmp(buf,"sdio2-reset" , strlen("sdio2-reset")) ) 
         {
-            printk(".%d.. Now manual reset for SDMMC2. ====xbw[%s]====\n",__LINE__, host->dma_name);
+            printk(KERN_INFO ".%d.. Now manual reset for SDMMC2. [%s]\n",__LINE__, host->dma_name);
             rk29_sdmmc_hw_init(host);
             mmc_detect_change(host->mmc, 0);           
         }
@@ -755,7 +751,7 @@ void  rk29_sdmmc_set_frq(struct rk29_sdmmc *host)
 	    }	    
     }
 
-    xbwprintk(7, "%s..%d...  call mmc_set_clock() set clk=%d ===xbw[%s]===\n", \
+    xbwprintk(7, "%s..%d...  call mmc_set_clock() set clk=%d [%s]\n", \
 			__FUNCTION__, __LINE__, max_dtr, host->dma_name);
 
   
@@ -792,7 +788,7 @@ static int rk29_sdmmc_start_command(struct rk29_sdmmc *host, struct mmc_command 
 	rk29_sdmmc_write(host->regs, SDMMC_CMD, cmd_flags | SDMMC_CMD_START); // write to SDMMC_CMD register
 
 
-    xbwprintk(1,"\n%s..%d..************.start cmd=%d, arg=0x%x ********=====xbw[%s]=======\n", \
+    xbwprintk(1,"\n%s..%d..************.start cmd=%d, arg=0x%x ********  [%s]\n", \
 			__FUNCTION__, __LINE__, cmd->opcode, cmd->arg, host->dma_name);
 
 	host->mmc->doneflag = 1;	
@@ -807,7 +803,7 @@ static int rk29_sdmmc_start_command(struct rk29_sdmmc *host, struct mmc_command 
 	{
 	    if(0==cmd->retries)
 	    {
-    		printk("%s..%d..  CMD_START timeout! CMD%d(arg=0x%x, retries=%d) ======xbw[%s]======\n",\
+    		printk(KERN_ERR "%s..%d..  CMD_START timeout! CMD%d(arg=0x%x, retries=%d) [%s]\n",\
     				__FUNCTION__,__LINE__, cmd->opcode, cmd->arg, cmd->retries,host->dma_name);
 		}
 
@@ -900,7 +896,7 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 		ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_STOP);
 		if(ret < 0)
 		{
-            printk("%s..%d...rk29_dma_ctrl STOP error!===xbw[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+            printk(KERN_ERR "%s..%d...rk29_dma_ctrl STOP error! [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
             host->errorstep = 0x95;
             return;
 		}
@@ -908,7 +904,7 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 		ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_FLUSH);
 		if(ret < 0)
 		{
-            printk("%s..%d...rk29_dma_ctrl FLUSH error!===xbw[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+            printk(KERN_ERR "%s..%d...rk29_dma_ctrl FLUSH error! [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
             host->errorstep = 0x96;
             return;
 		}
@@ -955,7 +951,7 @@ static void send_stop_cmd(struct rk29_sdmmc *host)
         ret= rk29_sdmmc_clear_fifo(host);
         if(SDM_SUCCESS != ret)
         {
-            xbwprintk(3, "%s..%d..  clear fifo error before call CMD_STOP ====xbw[%s]====\n", \
+            xbwprintk(3, "%s..%d..  clear fifo error before call CMD_STOP [%s]\n", \
 							__FUNCTION__, __LINE__, host->dma_name);
         }
     }
@@ -1006,14 +1002,14 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	
 	if(host->use_dma == 0)
 	{
-	    printk("%s..%d...setup DMA fail!!!!!!. host->use_dma=0 ===xbw=[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+	    printk(KERN_ERR "%s..%d...setup DMA fail!!!!!!. host->use_dma=0 [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 	    host->errorstep = 0x4;
 		return -ENOSYS;
 	}
 	/* If we don't have a channel, we can't do DMA */
 	if (host->dma_info.chn < 0)
 	{
-	    printk("%s..%d...setup DMA fail!!!!!!!. dma_info.chn < 0  ===xbw[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+	    printk(KERN_ERR "%s..%d...setup DMA fail!!!!!!!. dma_info.chn < 0  [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 	    host->errorstep = 0x5;
 		return -ENODEV;
 	}
@@ -1024,7 +1020,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	{
 		if (sg->offset & 3 || sg->length & 3)
 		{
-		    printk("%s..%d...call for_each_sg() fail !!===xbw[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+		    printk(KERN_ERR "%s..%d...call for_each_sg() fail !![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 		    host->errorstep = 0x7;
 			return -EINVAL;
 		}
@@ -1043,7 +1039,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_STOP);
 	if(ret < 0)
 	{
-	    printk("%s..%d...rk29_dma_ctrl stop error!===xbw[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+	    printk(KERN_ERR "%s..%d...rk29_dma_ctrl stop error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 	    host->errorstep = 0x91;
 		return -ENOSYS;
 	}
@@ -1051,7 +1047,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_FLUSH);	
 	if(ret < 0)
 	{
-        printk("%s..%d...rk29_dma_ctrl flush error!===xbw[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+        printk(KERN_ERR "%s..%d...rk29_dma_ctrl flush error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
         host->errorstep = 0x91;
         return -ENOSYS;
 	}
@@ -1060,7 +1056,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
     ret = rk29_dma_devconfig(host->dma_info.chn, direction, (unsigned long )(host->dma_addr));
     if(0 != ret)
     {
-        printk("%s..%d...call rk29_dma_devconfig() fail !!!!===xbw=[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+        printk(KERN_ERR "%s..%d...call rk29_dma_devconfig() fail ![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
         host->errorstep = 0x8;
         return -ENOSYS;
     }
@@ -1071,7 +1067,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
     	ret = rk29_dma_enqueue(host->dma_info.chn, host, sg_dma_address(&data->sg[i]),sg_dma_len(&data->sg[i]));
     	if(ret < 0)
     	{
-            printk("%s..%d...call rk29_dma_devconfig() fail !!!!===xbw=[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+            printk(KERN_ERR "%s..%d...call rk29_dma_devconfig() fail ![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
             host->errorstep = 0x93;
             return -ENOSYS;
     	}
@@ -1081,7 +1077,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	ret = rk29_dma_ctrl(host->dma_info.chn, RK29_DMAOP_START);
 	if(ret < 0)
 	{
-        printk("%s..%d...rk29_dma_ctrl start error!===xbw[%s]====\n", __FUNCTION__, __LINE__, host->dma_name);
+        printk(KERN_ERR "%s..%d...rk29_dma_ctrl start error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
         host->errorstep = 0x94;
         return -ENOSYS;
 	}
@@ -1125,13 +1121,13 @@ static int rk29_sdmmc_prepare_write_data(struct rk29_sdmmc *host, struct mmc_dat
         } 
         else 
         {
-            xbwprintk(7, "%s..%d...   trace data,   ======xbw=[%s]====\n", __FUNCTION__, __LINE__,  host->dma_name);
+            xbwprintk(7, "%s..%d...   trace data,   [%s]\n", __FUNCTION__, __LINE__,  host->dma_name);
             output = rk29_sdmmc_submit_data_dma(host, data);
             if(output)
             {
         		host->dodma = 0;
         			
-        	    printk("%s..%d... CMD%d setupDMA failure!!!!! pre_cmd=%d  ==xbw[%s]==\n", \
+        	    printk(KERN_ERR "%s..%d... CMD%d setupDMA failure!!!!! pre_cmd=%d  [%s]\n", \
 						__FUNCTION__, __LINE__, host->cmd->opcode,host->old_cmd, host->dma_name);
         	    
 				host->errorstep = 0x81;
@@ -1184,7 +1180,7 @@ static int rk29_sdmmc_prepare_read_data(struct rk29_sdmmc *host, struct mmc_data
             {
         		host->dodma = 0;
         			
-        	    printk("%s..%d... CMD%d setupDMA  failure!!!  ==xbw[%s]==\n", \
+        	    printk(KERN_ERR "%s..%d... CMD%d setupDMA  failure!!!  [%s]\n", \
 						__FUNCTION__, __LINE__, host->cmd->opcode, host->dma_name);
 
         	    host->errorstep = 0x82;
@@ -1328,13 +1324,13 @@ static void rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *dat
 		rk29_sdmmc_write(host->regs, SDMMC_BYTCNT,data->blksz*data->blocks);
 		rk29_sdmmc_write(host->regs, SDMMC_BLKSIZ,data->blksz);
 
-        xbwprintk(1, "%s..%d..CMD%d(arg=0x%x), data->blksz=%d, data->blocks=%d   ==xbw=[%s]==\n", \
+        xbwprintk(1, "%s..%d..CMD%d(arg=0x%x), data->blksz=%d, data->blocks=%d   [%s]\n", \
             __FUNCTION__, __LINE__, host->cmd->opcode,host->cmd->arg,data->blksz, data->blocks,  host->dma_name);
             
 		if (data->flags & MMC_DATA_WRITE)
 		{
 		    host->cmdr |= (SDMMC_CMD_DAT_WRITE | SDMMC_CMD_DAT_EXP);
-            xbwprintk(7, "%s..%d...   write data, len=%d     ======xbw=[%s]====\n", \
+            xbwprintk(7, "%s..%d...   write data, len=%d     [%s]\n", \
 					__FUNCTION__, __LINE__, data->blksz*data->blocks, host->dma_name);
 		    
 			ret = rk29_sdmmc_prepare_write_data(host, data);
@@ -1342,7 +1338,7 @@ static void rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *dat
 	    else
 	    {
 	        host->cmdr |= (SDMMC_CMD_DAT_READ | SDMMC_CMD_DAT_EXP);
-            xbwprintk(7, "%s..%d...   read data  len=%d   ======xbw=[%s]====\n", \
+            xbwprintk(7, "%s..%d...   read data  len=%d   [%s]\n", \
 					__FUNCTION__, __LINE__, data->blksz*data->blocks, host->dma_name);
 	        
 			ret = rk29_sdmmc_prepare_read_data(host, data);
@@ -1369,7 +1365,7 @@ static int sdmmc_send_cmd_start(struct rk29_sdmmc *host, unsigned int cmd)
 	
 	if(!tmo) 
 	{
-		printk("%s.. %d   set cmd(value=0x%x) register timeout error !   ====xbw[%s]====\n",\
+		printk(KERN_ERR "%s.. %d   set cmd(value=0x%x) register timeout error !   [%s]\n",\
 				__FUNCTION__,__LINE__, cmd, host->dma_name);
 
 		host->errorstep = 0x9;
@@ -1459,7 +1455,7 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
 
     if (timeOut == 0)
     {
-        printk("%s..%s..%d..  reset controller fail!!! =====xbw[%s]=====\n",\
+        printk(KERN_ERR "%s..%s..%d..  reset controller fail! [%s]=\n",\
 				__FILE__, __FUNCTION__,__LINE__, host->dma_name);
 
         host->errorstep = 0x0A;
@@ -1475,7 +1471,7 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
     host->bus_hz = clk_get_rate(host->clk);
     if((host->bus_hz > 52000000) || (host->bus_hz <= 0))
     {
-        printk("%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits ====xbw[%s]===\n",\
+        printk(KERN_ERR "%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits. [%s]\n",\
             __FILE__, __FUNCTION__,__LINE__,host->bus_hz, host->dma_name);
         
 		host->errorstep = 0x0B;            
@@ -1629,7 +1625,7 @@ static int rk29_sdmmc_control_clock(struct rk29_sdmmc *host, bool enable)
     return SDM_SUCCESS;
 
 Error_exit:
-    printk("\n%s....%d..  control clock fail!!! Enable=%d, ret=0x%x ===xbw[%s]====\n",\
+    printk(KERN_ERR "\n%s....%d..  control clock fail!!! Enable=%d, ret=0x%x [%s]\n",\
 			__FILE__,__LINE__,enable,ret, host->dma_name);
 
     return ret;
@@ -1660,7 +1656,7 @@ int rk29_sdmmc_change_clk_div(struct rk29_sdmmc *host, u32 freqHz)
     host->bus_hz = clk_get_rate(host->clk);
     if((host->bus_hz > 52000000) || (host->bus_hz <= 0))
     {
-        printk("%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits ====xbw[%s]===\n",\
+        printk(KERN_ERR "%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits [%s]\n",\
             __FILE__, __FUNCTION__,__LINE__,host->bus_hz, host->dma_name);
             
         host->errorstep = 0x0D;    
@@ -1712,7 +1708,7 @@ int rk29_sdmmc_change_clk_div(struct rk29_sdmmc *host, u32 freqHz)
     
     if(host->old_div != div)
     {
-        printk("%s..%d..  newDiv=%u, newCLK=%uKhz====xbw[%s]=====\n", \
+        printk(KERN_INFO "%s..%d..  newDiv=%u, newCLK=%uKhz [%s]\n", \
             __FUNCTION__, __LINE__,div, host->clock/1000, host->dma_name);
     }
 
@@ -1727,7 +1723,7 @@ int rk29_sdmmc_change_clk_div(struct rk29_sdmmc *host, u32 freqHz)
     
 SetFreq_error:
 
-    printk("%s..%d..  change division fail, errorStep=0x%x,ret=%d  !!! ====xbw[%s]====\n",\
+    printk(KERN_ERR "%s..%d..  change division fail, errorStep=0x%x,ret=%d  [%s]\n",\
         __FILE__, __LINE__,host->errorstep,ret, host->dma_name);
         
     return ret;
@@ -1832,7 +1828,7 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 	{
 	    if(0==host->cmd->retries)
 	    {
-    	    printk("%s..%d... cmd=%d, INT_CMD_DONE timeout, errorStep=0x%x, host->state=%x ===xbw[%s]===\n",\
+    	    printk(KERN_ERR "%s..%d... cmd=%d, INT_CMD_DONE timeout, errorStep=0x%x, host->state=%x [%s]\n",\
                 __FUNCTION__, __LINE__,host->cmd->opcode, host->errorstep,host->state,host->dma_name);
         }
             
@@ -1857,7 +1853,7 @@ static void rk29_sdmmc_INT_DTO_timeout(unsigned long host_data)
 	{
 	    if(0==host->cmd->retries)
 	    {
-    	   printk("%s..%d...cmd=%d DTO_timeout,cmdr=0x%x, errorStep=0x%x, Hoststate=%x===xbw[%s]===\n", \
+    	   printk(KERN_ERR "%s..%d...cmd=%d DTO_timeout,cmdr=0x%x, errorStep=0x%x, Hoststate=%x [%s]\n", \
     	        __FUNCTION__, __LINE__,host->cmd->opcode,host->cmdr ,host->errorstep,host->state,host->dma_name);
 	    }
 
@@ -1914,7 +1910,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
             host->errorstep = 0x10;
             if(0 == cmd->retries)
             {
-                printk("%s..Error happen in CMD_PRV_DAT_WAIT. STATUS-reg=0x%x ===xbw[%s]===\n", \
+                printk(KERN_ERR "%s..Error happen in CMD_PRV_DAT_WAIT. STATUS-reg=0x%x [%s]\n", \
                     __FUNCTION__, rk29_sdmmc_read(host->regs, SDMMC_STATUS),host->dma_name);
             }
             rk29_sdmmc_clear_fifo(host);
@@ -1943,7 +1939,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
 	rk29_sdmmc_submit_data(host, mrq->data);
     host->errorstep = 0xff;
 
-	xbwprintk(7, "%s..%d...    CMD%d  begin to call rk29_sdmmc_start_command() ===xbw[%s]===\n", \
+	xbwprintk(7, "%s..%d...    CMD%d  begin to call rk29_sdmmc_start_command(). [%s]\n", \
 			__FUNCTION__, __LINE__ , cmd->opcode,host->dma_name);
 
 	if(RK29_CTRL_SDMMC_ID == host->pdev->id)
@@ -1962,7 +1958,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
         cmd->error = -ETIMEDOUT;
         if(0==cmd->retries)
         {
-            printk("%s..%d...   start_command(CMD%d, arg=%x, retries=%d)  fail! ret=%d  =========xbw=[%s]===\n",\
+            printk(KERN_ERR "%s..%d...   start_command(CMD%d, arg=%x, retries=%d)  fail! ret=%d . [%s]\n",\
                 __FUNCTION__, __LINE__ , cmd->opcode,cmd->arg, cmd->retries,ret, host->dma_name);
         }
         host->errorstep = 0x11; 
@@ -1973,7 +1969,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
 	host->errorstep = 0xfd;
 
     xbwprintk(7, "%s..%d...  CMD=%d, wait for INT_CMD_DONE, ret=%d , \n  \
-        host->state=0x%x, cmdINT=0x%x \n    host->pendingEvent=0x%lu, host->completeEvents=0x%lu =========xbw=[%s]=====\n\n",\
+        host->state=0x%x, cmdINT=0x%x \n    host->pendingEvent=0x%lu, host->completeEvents=0x%lu [%s]\n\n",\
         __FUNCTION__, __LINE__, host->cmd->opcode,ret, \
         host->state,host->cmd_status, host->pending_events,host->completed_events,host->dma_name);
 
@@ -1986,7 +1982,7 @@ start_request_Err:
 
     if(0 == cmd->retries) 
     {
-        printk("%s: CMD%d(arg=%x)  fail to start request.  err=%d, Errorstep=0x%x ===xbw[%s]==\n\n",\
+        printk(KERN_ERR "%s: CMD%d(arg=%x)  fail to start request.  err=%d, Errorstep=0x%x [%s]\n",\
             __FUNCTION__,  cmd->opcode, cmd->arg,ret,host->errorstep,host->dma_name);
     }
 
@@ -2021,7 +2017,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if(RK29_CTRL_SDIO1_ID==host->pdev->id)//if(RK29_CTRL_SDMMC_ID==host->pdev->id)//
 	{
 	    mrq->cmd->error = -ENOMEDIUM;
-	    printk("%s..%d..  ==== The %s had been closed by myself for the experiment. ====xbw[%s]===\n",\
+	    printk(KERN_ERR "%s..%d..  ==== The %s had been closed by myself for the experiment. [%s]\n",\
 				__FUNCTION__, __LINE__, host->dma_name, host->dma_name);
 
         host->state = STATE_IDLE;
@@ -2032,7 +2028,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 	#endif
 
-    xbwprintk(6, "\n%s..%d..New cmd=%2d(arg=0x%8x)=== cardPresent=0x%lu, state=0x%x ==xbw[%s]==\n", \
+    xbwprintk(6, "\n%s..%d..New cmd=%2d(arg=0x%8x)=== cardPresent=0x%lu, state=0x%x [%s]\n", \
         __FUNCTION__, __LINE__,mrq->cmd->opcode, mrq->cmd->arg,host->flags,host->state, host->dma_name);
 
     if(RK29_CTRL_SDMMC_ID == host->pdev->id)
@@ -2051,7 +2047,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
     	    	        host->old_cmd = mrq->cmd->opcode;
     	    	        if(host->error_times++ %RK29_ERROR_PRINTK_INTERVAL ==0)
             	        {
-                    		printk("%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  1==xbw[%s]==\n", \
+                    		printk(KERN_INFO "%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  1==[%s]==\n", \
                     		    __FUNCTION__, mrq->cmd->opcode, mrq->cmd->arg, host->dma_name);
                 		}
     	    	    }
@@ -2059,7 +2055,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
     	    	    {
             	        host->old_cmd = mrq->cmd->opcode;
             	        host->error_times = 0;
-            	        printk("%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  2==xbw[%s]==\n", \
+            	        printk(KERN_INFO "%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  2==[%s]==\n", \
                     		    __FUNCTION__, mrq->cmd->opcode, mrq->cmd->arg, host->dma_name); 
                 	}
         	    }
@@ -2067,7 +2063,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
         	    {
         	        if(host->error_times++ % (RK29_ERROR_PRINTK_INTERVAL*3) ==0)
         	        {
-                		printk("%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  3==xbw[%s]==\n", \
+                		printk(KERN_INFO "%s: Refuse to run CMD%2d(arg=0x%8x) due to the removal of card.  3==[%s]==\n", \
                     		    __FUNCTION__, mrq->cmd->opcode, mrq->cmd->arg, host->dma_name);
             		}
             		host->old_cmd = mrq->cmd->opcode;
@@ -2124,13 +2120,13 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	{
         #ifdef RK29_SDMMC_LIST_QUEUE	
         
-        printk("%s..%d...Danger! Danger! New request was added to queue. ===xbw[%s]===\n", \
+        printk(KERN_INFO "%s..%d...Danger! Danger! New request was added to queue. [%s]\n", \
 				__FUNCTION__, __LINE__,host->dma_name);
         list_add_tail(&host->queue_node, &host->queue);
         
         #else
 
-        printk("%s..%d..state Error! ,old_state=%d, OldCMD=%d ,NewCMD%2d,arg=0x%x ===xbw[%s]===\n", \
+        printk(KERN_ERR "%s..%d..state Error! ,old_state=%d, OldCMD=%d ,NewCMD%2d,arg=0x%x [%s]\n", \
 				__FUNCTION__, __LINE__, host->state, host->cmd->opcode,mrq->cmd->opcode,mrq->cmd->arg, host->dma_name);
 				
 		mrq->cmd->error = -ENOMEDIUM;
@@ -2173,7 +2169,7 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     	}
     	if (timeout <= 0)
     	{
-    		printk("%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.==xbw[%s]===\n", \
+    		printk(KERN_ERR "%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.[%s]\n", \
     				__FUNCTION__, __LINE__, host->pdev->id, host->dma_name);
 
     		goto out;
@@ -2190,7 +2186,7 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
             	//reset the controller if it is SDMMC0
             	if(RK29_CTRL_SDMMC_ID == host->pdev->id)
             	{
-            	    xbwprintk(7, "%s..%d..POWER_UP, call reset_controller, initialized_flags=%d ====xbw[%s]=====\n",\
+            	    xbwprintk(7, "%s..%d..POWER_UP, call reset_controller, initialized_flags=%d [%s]\n",\
             	        __FUNCTION__, __LINE__, host->mmc->re_initialized_flags,host->dma_name);
             	        
             	    mdelay(5);
@@ -2209,7 +2205,7 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
                 	if(5 == host->bus_mode)
                 	{
                         mdelay(5);
-                        xbwprintk(7, "%s..%d..Fisrt powerOFF, call reset_controller ======xbw[%s]====\n", \
+                        xbwprintk(7, "%s..%d..Fisrt powerOFF, call reset_controller [%s]\n", \
                             __FUNCTION__, __LINE__,host->dma_name);
                             
                         rk29_sdmmc_reset_controller(host);
@@ -2281,7 +2277,7 @@ static int rk29_sdmmc_get_ro(struct mmc_host *mmc)
         	else
                 ret = gpio_get_value(host->write_protect)?1:0;
            
-            xbwprintk(7,"%s..%d.. write_prt_pin=%d, get_ro=%d ===xbw[%s]===\n",\
+            xbwprintk(7,"%s..%d.. write_prt_pin=%d, get_ro=%d. [%s]\n",\
                 __FUNCTION__, __LINE__,host->write_protect, ret, host->dma_name);
                             
             #else
@@ -2402,7 +2398,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
 	u32 status = host->data_status;
 	int output=SDM_SUCCESS;
 
-	xbwprintk(7, "%s..%d...  cmd=%d, host->state=0x%x,\n   pendingEvent=0x%lu, completeEvents=0x%lu ====xbw=[%s]====\n\n",\
+	xbwprintk(7, "%s..%d...  cmd=%d, host->state=0x%x,\n   pendingEvent=0x%lu, completeEvents=0x%lu [%s]\n",\
         __FUNCTION__, __LINE__,cmd->opcode,host->state, host->pending_events,host->completed_events,host->dma_name);
 
     del_timer_sync(&host->DTO_timer);
@@ -2491,7 +2487,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
             output = rk29_sdmmc_wait_unbusy(host);
             if((SDM_SUCCESS != output) && (!host->mrq->cmd->error))
             {
-                printk("%s..%d...   CMD12 wait busy timeout!!!!! errorStep=0x%x     ====xbw=[%s]====\n", \
+                printk(KERN_ERR "%s..%d...   CMD12 wait busy timeout!!!!! errorStep=0x%x   [%s]\n", \
 						__FUNCTION__, __LINE__, host->errorstep, host->dma_name);
                 rk29_sdmmc_clear_fifo(host);
                 cmd->error = -ETIMEDOUT;
@@ -2507,8 +2503,8 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
     { 
         if( (!cmd->error) && (0==cmd->retries))
         {         
-            printk("%s..%d......CMD=%d error!!!(arg=0x%x,cmdretry=%d,blksize=%d, blocks=%d), \n \
-                statusReg=0x%x, ctrlReg=0x%x, nerrorTimes=%d, errorStep=0x%x ====xbw[%s]====\n",\
+            printk(KERN_ERR "%s..%d......CMD=%d error!!!(arg=0x%x,cmdretry=%d,blksize=%d, blocks=%d), \n \
+                statusReg=0x%x, ctrlReg=0x%x, nerrorTimes=%d, errorStep=0x%x. [%s]\n",\
                 __FUNCTION__, __LINE__, cmd->opcode, cmd->arg, cmd->retries,cmd->data->blksz, cmd->data->blocks,
                 rk29_sdmmc_read(host->regs, SDMMC_STATUS),
                 rk29_sdmmc_read(host->regs, SDMMC_CTRL),
@@ -2523,7 +2519,7 @@ exit:
 #ifdef RK29_SDMMC_LIST_QUEUE
 	if (!list_empty(&host->queue)) 
 	{
-		printk("%s..%d..  Danger!Danger!. continue the next request in the queue.  ====xbw[%s]====\n",\
+		printk(KERN_ERR "%s..%d..  Danger!Danger!. continue the next request in the queue.  [%s]\n",\
 		        __FUNCTION__, __LINE__, host->dma_name);
 
 		host = list_entry(host->queue.next,
@@ -2550,7 +2546,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
 	u32	 value, status = host->cmd_status;
 	int  timeout, output= SDM_SUCCESS;
 
-    xbwprintk(7, "%s..%d.  cmd=%d, host->state=0x%x, cmdINT=0x%x\n,pendingEvent=0x%lu,completeEvents=0x%lu ===xbw[%s]===\n\n",\
+    xbwprintk(7, "%s..%d.  cmd=%d, host->state=0x%x, cmdINT=0x%x\n,pendingEvent=0x%lu,completeEvents=0x%lu. [%s]\n",\
         __FUNCTION__, __LINE__,cmd->opcode,host->state,status, host->pending_events,host->completed_events,host->dma_name);
 
 
@@ -2563,7 +2559,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
         output = rk29_sdmmc_reset_fifo(host);
         if (SDM_SUCCESS != output)
         {
-            printk("%s..%d......reset fifo fail! CMD%d(arg=0x%x, Retries=%d) =======xbw[%s]=====\n",__FUNCTION__, __LINE__, \
+            printk(KERN_ERR "%s..%d......reset fifo fail! CMD%d(arg=0x%x, Retries=%d) [%s]\n",__FUNCTION__, __LINE__, \
                 cmd->opcode, cmd->arg, cmd->retries,host->dma_name);
                 
             cmd->error = -ETIMEDOUT;
@@ -2606,7 +2602,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
             {   
                 output = SDM_FALSE;
                 host->errorstep = 0x1D;
-                printk("%s..%d......reset CTRL fail! CMD%d(arg=0x%x, Retries=%d) ===xbw[%s]===\n",\
+                printk(KERN_ERR "%s..%d......reset CTRL fail! CMD%d(arg=0x%x, Retries=%d).[%s]\n",\
                     __FUNCTION__, __LINE__, cmd->opcode, cmd->arg, cmd->retries,host->dma_name);
                 
                goto CMD_Errror;
@@ -2640,7 +2636,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
 	        if( ((RK29_CTRL_SDMMC_ID==host->pdev->id)&&(MMC_SLEEP_AWAKE!=cmd->opcode)) || 
 	             ((RK29_CTRL_SDMMC_ID!=host->pdev->id)&&(MMC_SEND_EXT_CSD!=cmd->opcode))  )
 	        {
-	            printk("%s..%d...CMD%d(arg=0x%x), hoststate=%d, errorTimes=%d, errorStep=0x%x ! ===xbw[%s]===\n",\
+	            printk(KERN_ERR "%s..%d...CMD%d(arg=0x%x), hoststate=%d, errorTimes=%d, errorStep=0x%x ! [%s]\n",\
                     __FUNCTION__, __LINE__, cmd->opcode, cmd->arg, host->state,host->error_times,host->errorstep, host->dma_name);
 	        }
 	    }
@@ -2657,7 +2653,7 @@ CMD_Errror:
 
 	if((0==cmd->retries) && (host->error_times++%RK29_ERROR_PRINTK_INTERVAL == 0))
     {
-        printk("%s..%d....command_complete(CMD=%d, arg=%x) error=%d =======xbw[%s]=====\n",\
+        printk(KERN_ERR "%s..%d....command_complete(CMD=%d, arg=%x) error=%d. [%s]\n",\
             __FUNCTION__, __LINE__, host->cmd->opcode,host->cmd->arg, output, host->dma_name);
     }
         
@@ -2698,14 +2694,14 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
         {
             case STATE_IDLE:
             {
-                xbwprintk(7, "%s..%d..   prev_state=  STATE_IDLE  ====xbw[%s]====\n", \
+                xbwprintk(7, "%s..%d..   prev_state=  STATE_IDLE  [%s]\n", \
 						__FUNCTION__, __LINE__, host->dma_name);
             	break;
             }
 
             case STATE_SENDING_CMD:
             {
-                xbwprintk(7, "%s..%d..   prev_state=  STATE_SENDING_CMD, pendingEvernt=0x%lu  ====xbw[%s]====\n",\
+                xbwprintk(7, "%s..%d..   prev_state=  STATE_SENDING_CMD, pendingEvernt=0x%lu  [%s]\n",\
                     __FUNCTION__, __LINE__,host->completed_events, host->dma_name);
 
                 if (!rk29_sdmmc_test_and_clear_pending(host, EVENT_CMD_COMPLETE))
@@ -2722,7 +2718,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                 {
                     rk29_sdmmc_request_end(host, host->cmd);
 
-                    xbwprintk(7, "%s..%d..  CMD%d call mmc_request_done()====xbw[%s]====\n", \
+                    xbwprintk(7, "%s..%d..  CMD%d call mmc_request_done() . [%s]\n", \
 							__FUNCTION__, __LINE__,host->cmd->opcode,host->dma_name);
                     
                     host->complete_done = 1;
@@ -2735,7 +2731,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                     
                     if(data->stop)
                     {
-                        xbwprintk(7, "%s..%d..  cmderr, so call send_stop_cmd() ====xbw[%s]====\n", \
+                        xbwprintk(7, "%s..%d..  cmderr, so call send_stop_cmd() [%s]\n", \
 								__FUNCTION__, __LINE__, host->dma_name);
 
                         #if 0
@@ -2757,7 +2753,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 
             case STATE_DATA_BUSY:
             {
-                xbwprintk(7, "%s..%d..   prev_state= STATE_DATA_BUSY, pendingEvernt=0x%lu ====xbw[%s]====\n", \
+                xbwprintk(7, "%s..%d..   prev_state= STATE_DATA_BUSY, pendingEvernt=0x%lu [%s]\n", \
 						__FUNCTION__, __LINE__,host->pending_events, host->dma_name);
 
                 if (!rk29_sdmmc_test_and_clear_pending(host, EVENT_DATA_COMPLETE))
@@ -2772,7 +2768,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
                     ** use DTO_timer for waiting for INT_UNBUSY.
                     ** max 250ms in specification, but adapt 500 for the compatibility of all kinds of sick sdcard. 
                     */                    
-                    mod_timer(&host->DTO_timer, jiffies + msecs_to_jiffies(250));
+                    mod_timer(&host->DTO_timer, jiffies + msecs_to_jiffies(500));
                 }
                 else
                 {
@@ -2803,7 +2799,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 
                 if (data && !data->stop) 
                 {
-                    xbwprintk(7, "%s..%d..  CMD%d call mmc_request_done()====xbw[%s]====\n", \
+                    xbwprintk(7, "%s..%d..  CMD%d call mmc_request_done(). [%s]\n", \
 							__FUNCTION__, __LINE__,host->cmd->opcode,host->dma_name);
 
                     if(!( (MMC_READ_SINGLE_BLOCK == host->cmd->opcode)&&( -EIO == data->error))) //deal with START_BIT_ERROR
@@ -2814,7 +2810,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 
                 }
                 host->errorstep = 0xf4;
-                xbwprintk(7, "%s..%d..  after DATA_COMPLETE, so call send_stop_cmd() ====xbw[%s]====\n", \
+                xbwprintk(7, "%s..%d..  after DATA_COMPLETE, so call send_stop_cmd() [%s]\n", \
 						__FUNCTION__, __LINE__, host->dma_name);
 
                 #if 0
@@ -2829,7 +2825,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 
             case STATE_SENDING_STOP:
             {
-                xbwprintk(7, "%s..%d..   prev_state=  STATE_SENDING_STOP, pendingEvernt=0x%lu  ====xbw[%s]====\n", \
+                xbwprintk(7, "%s..%d..   prev_state=  STATE_SENDING_STOP, pendingEvernt=0x%lu  [%s]\n", \
 						__FUNCTION__, __LINE__, host->pending_events, host->dma_name);
 
                 if (!rk29_sdmmc_test_and_clear_pending(host, EVENT_CMD_COMPLETE))
@@ -2857,7 +2853,7 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
             xbwprintk(7, "%s..%d...  cmd=%d(arg=0x%x),completedone=%d, retrycount=%d, doneflag=%d, \n \
                 host->state=0x%x, switchstate=%x, \n \
                 pendingEvent=0x%lu, completeEvents=0x%lu, \n \
-                mrqCMD=%d, arg=0x%x \n ====xbw[%s]====\n",\
+                mrqCMD=%d, arg=0x%x [%s]\n",\
                 
                 __FUNCTION__, __LINE__,host->cmd->opcode, host->cmd->arg, host->complete_done,\
                 host->retryfunc, host->mmc->doneflag,host->state, state, \
@@ -2952,7 +2948,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
   	
     	if(present != present_old)
     	{    	    
-        	printk("\n******************\n%s:INT_CD=0x%x,INT-En=%d,hostState=%d,  present Old=%d ==> New=%d ==xbw[%s]==\n",\
+        	printk(KERN_INFO "\n******************\n%s:INT_CD=0x%x,INT-En=%d,hostState=%d,  present Old=%d ==> New=%d . [%s]\n",\
                     __FUNCTION__, pending, host->mmc->re_initialized_flags, host->state, present_old, present,  host->dma_name);
 
     	    rk28_send_wakeup_key(); //wake up backlight
@@ -2991,12 +2987,12 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     }
     
-    xbwprintk(1,"\n*******test***********\n%s:INT_CD=0x%x,INT-En=%d,hostState=%d, cmd=%d,present Old=%d ==> New=%d ==xbw[%s]==\n",\
+    xbwprintk(1,"\n*******test***********\n%s:INT_CD=0x%x,INT-En=%d,hostState=%d, cmd=%d,present Old=%d ==> New=%d [%s]\n",\
             __FUNCTION__, pending, host->mmc->re_initialized_flags, host->state, host->cmd->opcode,present_old, present,  host->dma_name);
 
     if (pending & SDMMC_INT_CMD_DONE) {
 
-        xbwprintk(6, "%s..%d..  CMD%d INT_CMD_DONE  INT=0x%x   ====xbw[%s]====\n", \
+        xbwprintk(6, "%s..%d..  CMD%d INT_CMD_DONE  INT=0x%x   [%s]\n", \
 				__FUNCTION__, __LINE__, host->cmd->opcode,pending, host->dma_name);
 
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_CMD_DONE);  //  clear interrupt
@@ -3007,7 +3003,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if(pending & SDMMC_INT_SDIO) 
     {	
-        xbwprintk(7, "%s..%d..  INT_SDIO  INT=0x%x   ====xbw[%s]====\n", \
+        xbwprintk(7, "%s..%d..  INT_SDIO  INT=0x%x   [%s]\n", \
 				__FUNCTION__, __LINE__, pending, host->dma_name);
 
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_SDIO);
@@ -3019,7 +3015,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if(pending & SDMMC_INT_RTO) 
     {
-    	xbwprintk(7, "%s..%d..  CMD%d CMD_ERROR_FLAGS  INT=0x%x   ====xbw[%s]====\n", \
+    	xbwprintk(7, "%s..%d..  CMD%d CMD_ERROR_FLAGS  INT=0x%x   [%s]\n", \
 				__FUNCTION__, __LINE__, host->cmd->opcode,pending, host->dma_name);
 
         //rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_RTO);
@@ -3039,7 +3035,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if(pending & SDMMC_INT_HLE)
     {
-        printk("%s: Error due to hardware locked. Please check your hardware. INT=0x%x, CMD%d(arg=0x%x, retries=%d)==xbw[%s]==\n",\
+        printk(KERN_ERR "%s: Error due to hardware locked. Please check your hardware. INT=0x%x, CMD%d(arg=0x%x, retries=%d). [%s]\n",\
 				__FUNCTION__, pending,host->cmd->opcode, host->cmd->arg, host->cmd->retries, host->dma_name);  	      
     
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_HLE); 
@@ -3049,7 +3045,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if(pending & SDMMC_INT_DTO) 
     {	
-        xbwprintk(1,"%d..%s: INT=0x%x ,RINTSTS=0x%x, CMD%d(arg=0x%x, retries=%d),host->state=0x%x ==xbw[%s]==\n", \
+        xbwprintk(1,"%d..%s: INT=0x%x ,RINTSTS=0x%x, CMD%d(arg=0x%x, retries=%d),host->state=0x%x.  [%s]\n", \
 				__LINE__,__FUNCTION__, pending,status, host->cmd->opcode, host->cmd->arg, host->cmd->retries, host->state,host->dma_name);
 
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_DTO); 
@@ -3067,7 +3063,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if (pending & SDMMC_INT_FRUN) 
     { 
-    	printk("%s: INT=0x%x Oh!My God,let me see!What happened?Why?Where? CMD%d(arg=0x%x, retries=%d) ==xbw[%s]==\n", \
+    	printk(KERN_ERR "%s: INT=0x%x Oh!My God,let me see!What happened?Why?Where? CMD%d(arg=0x%x, retries=%d). [%s]\n", \
 				__FUNCTION__, pending, host->cmd->opcode, host->cmd->arg, host->cmd->retries,host->dma_name);
     	
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_FRUN); 
@@ -3076,7 +3072,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if (pending & SDMMC_INT_RXDR) 
     {	
-        xbwprintk(6, "%s..%d..  SDMMC_INT_RXDR  INT=0x%x   ====xbw[%s]====\n", \
+        xbwprintk(6, "%s..%d..  SDMMC_INT_RXDR  INT=0x%x   [%s]\n", \
 				__FUNCTION__, __LINE__, pending, host->dma_name);
 
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_RXDR);  //  clear interrupt
@@ -3085,7 +3081,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if (pending & SDMMC_INT_TXDR) 
     {
-        xbwprintk(6, "%s..%d..  SDMMC_INT_TXDR  INT=0x%x   ====xbw[%s]====\n", \
+        xbwprintk(6, "%s..%d..  SDMMC_INT_TXDR  INT=0x%x   [%s]\n", \
 				__FUNCTION__, __LINE__, pending, host->dma_name);
 				
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_TXDR);  //  clear interrupt
@@ -3095,7 +3091,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 #if SDMMC_USE_INT_UNBUSY
         if(pending & SDMMC_INT_UNBUSY) 
         {
-            xbwprintk(1, "%d..%s: INT=0x%x ,RINTSTS=0x%x, CMD%d(arg=0x%x, retries=%d),host->state=0x%x ==xbw[%s]==\n", \
+            xbwprintk(1, "%d..%s: INT=0x%x ,RINTSTS=0x%x, CMD%d(arg=0x%x, retries=%d),host->state=0x%x. [%s]\n", \
                     __LINE__,__FUNCTION__, pending,status, host->cmd->opcode, host->cmd->arg, host->cmd->retries, \
                     host->state,host->dma_name);
     
@@ -3176,7 +3172,7 @@ static void rk29_sdmmc1_check_status(unsigned long data)
 static void rk29_sdmmc1_status_notify_cb(int card_present, void *dev_id)
 {
         struct rk29_sdmmc *host = dev_id;
-        //printk(KERN_INFO "%s, card_present %d\n", mmc_hostname(host->mmc), card_present);
+
         rk29_sdmmc1_check_status((unsigned long)host);
 }
 
@@ -3345,7 +3341,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
     memcpy(host->dma_name, pdata->dma_name, 8);    
 	host->use_dma = pdata->use_dma;
 
-    xbwprintk(7,"%s..%s..%d..***********  Bus clock= %d Khz  ====xbw[%s]===\n",\
+    xbwprintk(7,"%s..%s..%d..***********  Bus clock= %d Khz  **** [%s]\n",\
         __FILE__, __FUNCTION__,__LINE__,clk_get_rate(host->clk)/1000, host->dma_name);
 
 	/*DMA init*/
@@ -3355,7 +3351,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
         ret = rk29_dma_request(host->dma_info.chn, &(host->dma_info.client), NULL); 
         if (ret < 0)
         {
-        	printk("%s..%d...rk29_dma_request error=%d.===xbw[%s]====\n", \
+        	printk(KERN_ERR "%s..%d...rk29_dma_request error=%d. [%s]\n", \
 					__FUNCTION__, __LINE__,ret, host->dma_name);
         	host->errorstep = 0x97;
             goto err_freemap; 
@@ -3375,7 +3371,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 #endif
         if(ret < 0)
 		{
-            printk("%s..%d..  rk29_dma_config error=%d ====xbw[%s]====\n", \
+            printk(KERN_ERR "%s..%d..  rk29_dma_config error=%d. [%s]\n", \
 					__FUNCTION__, __LINE__, ret, host->dma_name);
             host->errorstep = 0x98;
             goto err_dmaunmap;
@@ -3384,7 +3380,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
         ret = rk29_dma_set_buffdone_fn(host->dma_info.chn, rk29_sdmmc_dma_complete);	
 		if(ret < 0)
 		{
-            printk("%s..%d..  dma_set_buffdone_fn error=%d ====xbw[%s]====\n", \
+            printk(KERN_ERR "%s..%d..  dma_set_buffdone_fn error=%d. [%s]\n", \
 					__FUNCTION__, __LINE__, ret, host->dma_name);
             host->errorstep = 0x99;
             goto err_dmaunmap;
@@ -3403,7 +3399,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	if (ret)
 	{	
 
-	    printk("%s..%d..  request_irq error=%d ====xbw[%s]====\n", \
+	    printk(KERN_ERR "%s..%d..  request_irq error=%d. [%s]\n", \
 				__FUNCTION__, __LINE__, ret, host->dma_name);
 	    host->errorstep = 0x8C;
 	    goto err_dmaunmap;
@@ -3471,7 +3467,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	rk29_sdmmc_init_debugfs(host);
 #endif
 
-    printk(".Line%d..The End of SDMMC-probe %s ===xbw[%s]===\n\n", __LINE__, RK29_SDMMC_VERSION,host->dma_name);
+    printk(KERN_INFO ".Line%d..The End of SDMMC-probe %s.  [%s]\n", __LINE__, RK29_SDMMC_VERSION,host->dma_name);
 	return 0;
 
 

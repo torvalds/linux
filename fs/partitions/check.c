@@ -567,7 +567,7 @@ rescan:
 	#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
 	    if(179 == MAJOR(bdev->bd_dev))
 	    {
-	        printk("%s..%d.. The sdcard partition have been using.So device busy! ====xbw===\n",__FUNCTION__, __LINE__);
+	        printk(KERN_INFO "%s..%d.. The sdcard partition have been using.So device busy! \n",__FUNCTION__, __LINE__);
 	    }
 	#endif    
 	    
@@ -591,7 +591,7 @@ rescan:
 	#if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD) 
 	    if(179 == MAJOR(bdev->bd_dev))
 	    {
-	        printk("%s..%d... ==== check partition fail. partitionAddr=%x ====xbw===\n",__FUNCTION__, __LINE__, state);
+	        printk(KERN_INFO "%s..%d... ==== check partition fail. partitionAddr=%x.\n",__FUNCTION__, __LINE__, state);
 	    }
 	 #endif   	    
 		return 0;

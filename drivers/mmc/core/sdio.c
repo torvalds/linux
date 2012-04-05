@@ -353,7 +353,7 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		err = mmc_send_io_op_cond(host, host->ocr, &ocr);
 		if (err) {
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-	    printk("%s..%d..  ====*Identify the card as SDIO , but OCR error, so fail to initialize.===xbw[%s]===\n", \
+	    printk(KERN_ERR "%s..%d..  ====*Identify the card as SDIO , but OCR error, so fail to initialize. [%s]\n", \
 	        __FUNCTION__, __LINE__, mmc_hostname(host));
 #endif
 			goto err;
@@ -796,7 +796,7 @@ int mmc_attach_sdio(struct mmc_host *host)
 	if (err)
 		return 0xFF;//return err; //Modifyed by xbw at 2011-11-17
 		
-    printk("\n%s..%d..  ===== Begin to identify card as SDIO-card===xbw[%s]===\n",\
+    printk(KERN_INFO "\n%s..%d..  ===== Begin to identify card as SDIO-card. [%s]\n",\
         __FUNCTION__, __LINE__, mmc_hostname(host));
 #else
     if (err)
