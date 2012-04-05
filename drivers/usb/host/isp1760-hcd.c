@@ -2176,7 +2176,7 @@ static const struct hc_driver isp1760_hc_driver = {
 
 int __init init_kmem_once(void)
 {
-	urb_listitem_cachep = kmem_cache_create("isp1760 urb_listitem",
+	urb_listitem_cachep = kmem_cache_create("isp1760_urb_listitem",
 			sizeof(struct urb_listitem), 0, SLAB_TEMPORARY |
 			SLAB_MEM_SPREAD, NULL);
 
