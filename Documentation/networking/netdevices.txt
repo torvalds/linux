@@ -65,7 +65,7 @@ dev->get_stats:
 	Context: nominally process, but don't sleep inside an rwlock
 
 dev->hard_start_xmit:
-	Synchronization: netif_tx_lock spinlock.
+	Synchronization: __netif_tx_lock spinlock.
 
 	When the driver sets NETIF_F_LLTX in dev->features this will be
 	called without holding netif_tx_lock. In this case the driver
@@ -87,12 +87,12 @@ dev->hard_start_xmit:
 	  Only valid when NETIF_F_LLTX is set.
 
 dev->tx_timeout:
-	Synchronization: netif_tx_lock spinlock.
+	Synchronization: netif_tx_lock spinlock; all TX queues frozen.
 	Context: BHs disabled
 	Notes: netif_queue_stopped() is guaranteed true
 
 dev->set_rx_mode:
-	Synchronization: netif_tx_lock spinlock.
+	Synchronization: netif_addr_lock spinlock.
 	Context: BHs disabled
 
 struct napi_struct synchronization rules
