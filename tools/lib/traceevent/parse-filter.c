@@ -359,7 +359,7 @@ create_arg_item(struct event_format *event,
 			if (strcmp(token, COMM) != 0) {
 				/* not a field, Make it false */
 				arg->type = FILTER_ARG_BOOLEAN;
-				arg->bool.value = FILTER_FALSE;
+				arg->boolean.value = FILTER_FALSE;
 				break;
 			}
 			/* If token is 'COMM' then it is special */
@@ -487,7 +487,7 @@ static int add_right(struct filter_arg *op, struct filter_arg *arg,
 				free_arg(left);
 				free_arg(arg);
 				op->type = FILTER_ARG_BOOLEAN;
-				op->bool.value = FILTER_FALSE;
+				op->boolean.value = FILTER_FALSE;
 				break;
 			}
 
@@ -772,7 +772,7 @@ enum filter_vals test_arg(struct filter_arg *parent, struct filter_arg *arg)
 
 		/* bad case */
 	case FILTER_ARG_BOOLEAN:
-		return FILTER_VAL_FALSE + arg->bool.value;
+		return FILTER_VAL_FALSE + arg->boolean.value;
 
 		/* good cases: */
 	case FILTER_ARG_STR:
@@ -871,7 +871,7 @@ static struct filter_arg *collapse_tree(struct filter_arg *arg)
 		free_arg(arg);
 		arg = allocate_arg();
 		arg->type = FILTER_ARG_BOOLEAN;
-		arg->bool.value = ret == FILTER_VAL_TRUE;
+		arg->boolean.value = ret == FILTER_VAL_TRUE;
 	}
 
 	return arg;
@@ -1116,7 +1116,7 @@ process_event(struct event_format *event, const char *filter_str,
 	if (!*parg) {
 		*parg = allocate_arg();
 		(*parg)->type = FILTER_ARG_BOOLEAN;
-		(*parg)->bool.value = FILTER_FALSE;
+		(*parg)->boolean.value = FILTER_FALSE;
 	}
 
 	return 0;
@@ -1139,7 +1139,7 @@ static int filter_event(struct event_filter *filter,
 		/* just add a TRUE arg */
 		arg = allocate_arg();
 		arg->type = FILTER_ARG_BOOLEAN;
-		arg->bool.value = FILTER_TRUE;
+		arg->boolean.value = FILTER_TRUE;
 	}
 
 	filter_type = add_filter_type(filter, event->id);
@@ -1369,9 +1369,9 @@ static int copy_filter_type(struct event_filter *filter,
 		arg = allocate_arg();
 		arg->type = FILTER_ARG_BOOLEAN;
 		if (strcmp(str, "TRUE") == 0)
-			arg->bool.value = 1;
+			arg->boolean.value = 1;
 		else
-			arg->bool.value = 0;
+			arg->boolean.value = 0;
 
 		filter_type = add_filter_type(filter, event->id);
 		filter_type->filter = arg;
@@ -1442,8 +1442,8 @@ int pevent_update_trivial(struct event_filter *dest, struct event_filter *source
 		arg = filter_type->filter;
 		if (arg->type != FILTER_ARG_BOOLEAN)
 			continue;
-		if ((arg->bool.value && type == FILTER_TRIVIAL_FALSE) ||
-		    (!arg->bool.value && type == FILTER_TRIVIAL_TRUE))
+		if ((arg->boolean.value && type == FILTER_TRIVIAL_FALSE) ||
+		    (!arg->boolean.value && type == FILTER_TRIVIAL_TRUE))
 			continue;
 
 		event = filter_type->event;
@@ -1497,10 +1497,10 @@ void pevent_filter_clear_trivial(struct event_filter *filter,
 			continue;
 		switch (type) {
 		case FILTER_TRIVIAL_FALSE:
-			if (filter_type->filter->bool.value)
+			if (filter_type->filter->boolean.value)
 				continue;
 		case FILTER_TRIVIAL_TRUE:
-			if (!filter_type->filter->bool.value)
+			if (!filter_type->filter->boolean.value)
 				continue;
 		default:
 			break;
@@ -1551,10 +1551,10 @@ int pevent_filter_event_has_trivial(struct event_filter *filter,
 
 	switch (type) {
 	case FILTER_TRIVIAL_FALSE:
-		return !filter_type->filter->bool.value;
+		return !filter_type->filter->boolean.value;
 
 	case FILTER_TRIVIAL_TRUE:
-		return filter_type->filter->bool.value;
+		return filter_type->filter->boolean.value;
 	default:
 		return 1;
 	}
@@ -1783,7 +1783,7 @@ static int test_filter(struct event_format *event,
 	switch (arg->type) {
 	case FILTER_ARG_BOOLEAN:
 		/* easy case */
-		return arg->bool.value;
+		return arg->boolean.value;
 
 	case FILTER_ARG_OP:
 		return test_op(event, arg, record);
@@ -2147,7 +2147,7 @@ static char *arg_to_str(struct event_filter *filter, struct filter_arg *arg)
 	switch (arg->type) {
 	case FILTER_ARG_BOOLEAN:
 		str = malloc_or_die(6);
-		if (arg->bool.value)
+		if (arg->boolean.value)
 			strcpy(str, "TRUE");
 		else
 			strcpy(str, "FALSE");

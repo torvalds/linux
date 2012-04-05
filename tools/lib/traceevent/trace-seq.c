@@ -24,6 +24,7 @@
 #include <stdarg.h>
 
 #include "event-parse.h"
+#include "event-utils.h"
 
 /*
  * The TRACE_SEQ_POISON is to catch the use of using

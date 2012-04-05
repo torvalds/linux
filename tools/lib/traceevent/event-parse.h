@@ -167,6 +167,8 @@ enum format_flags {
 	FIELD_IS_STRING		= 8,
 	FIELD_IS_DYNAMIC	= 16,
 	FIELD_IS_LONG		= 32,
+	FIELD_IS_FLAG		= 64,
+	FIELD_IS_SYMBOLIC	= 128,
 };
 
 struct format_field {
@@ -405,22 +407,6 @@ struct pevent {
 	/* cache */
 	struct event_format *last_event;
 };
-
-/* Can be overridden */
-void die(const char *fmt, ...);
-void *malloc_or_die(unsigned int size);
-void warning(const char *fmt, ...);
-void pr_stat(const char *fmt, ...);
-void vpr_stat(const char *fmt, va_list ap);
-
-/* Always available */
-void __die(const char *fmt, ...);
-void __warning(const char *fmt, ...);
-void __pr_stat(const char *fmt, ...);
-
-void __vdie(const char *fmt, ...);
-void __vwarning(const char *fmt, ...);
-void __vpr_stat(const char *fmt, ...);
 
 static inline unsigned short
 __data2host2(struct pevent *pevent, unsigned short data)
@@ -734,7 +720,7 @@ struct filter_arg_str {
 struct filter_arg {
 	enum filter_arg_type	type;
 	union {
-		struct filter_arg_boolean	bool;
+		struct filter_arg_boolean	boolean;
 		struct filter_arg_field		field;
 		struct filter_arg_value		value;
 		struct filter_arg_op		op;
