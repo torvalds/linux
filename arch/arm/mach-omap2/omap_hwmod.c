@@ -1395,7 +1395,7 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
  */
 static int _ocp_softreset(struct omap_hwmod *oh)
 {
-	u32 v;
+	u32 v, softrst_mask;
 	int c = 0;
 	int ret = 0;
 
@@ -1427,11 +1427,13 @@ static int _ocp_softreset(struct omap_hwmod *oh)
 						    oh->class->sysc->syss_offs)
 				   & SYSS_RESETDONE_MASK),
 				  MAX_MODULE_SOFTRESET_WAIT, c);
-	else if (oh->class->sysc->sysc_flags & SYSC_HAS_RESET_STATUS)
+	else if (oh->class->sysc->sysc_flags & SYSC_HAS_RESET_STATUS) {
+		softrst_mask = (0x1 << oh->class->sysc->sysc_fields->srst_shift);
 		omap_test_timeout(!(omap_hwmod_read(oh,
 						     oh->class->sysc->sysc_offs)
-				   & SYSC_TYPE2_SOFTRESET_MASK),
+				   & softrst_mask),
 				  MAX_MODULE_SOFTRESET_WAIT, c);
+	}
 
 	if (c == MAX_MODULE_SOFTRESET_WAIT)
 		pr_warning("omap_hwmod: %s: softreset failed (waited %d usec)\n",
