@@ -496,7 +496,7 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 	if (size) {
 		if (size > XATTR_LIST_MAX)
 			size = XATTR_LIST_MAX;
-		klist = kmalloc(size, GFP_KERNEL);
+		klist = kmalloc(size, __GFP_NOWARN | GFP_KERNEL);
 		if (!klist)
 			return -ENOMEM;
 	}
