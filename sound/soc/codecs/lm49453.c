@@ -1177,27 +1177,24 @@ static int lm49453_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 
-	int aif_val = 0;
+	u16 aif_val;
 	int mode = 0;
 	int clk_phase = 0;
 	int clk_shift = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
-		aif_val = ~LM49453_AUDIO_PORT1_BASIC_CLK_MS |
-			~LM49453_AUDIO_PORT1_BASIC_SYNC_MS;
+		aif_val = 0;
 		break;
 	case SND_SOC_DAIFMT_CBS_CFM:
-		aif_val = ~LM49453_AUDIO_PORT1_BASIC_CLK_MS |
-			LM49453_AUDIO_PORT1_BASIC_SYNC_MS;
+		aif_val = LM49453_AUDIO_PORT1_BASIC_SYNC_MS;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFS:
-		aif_val = LM49453_AUDIO_PORT1_BASIC_CLK_MS |
-			~LM49453_AUDIO_PORT1_BASIC_SYNC_MS;
+		aif_val = LM49453_AUDIO_PORT1_BASIC_CLK_MS;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		aif_val = LM49453_AUDIO_PORT1_BASIC_CLK_MS |
-			LM49453_AUDIO_PORT1_BASIC_SYNC_MS;
+			  LM49453_AUDIO_PORT1_BASIC_SYNC_MS;
 		break;
 	default:
 		return -EINVAL;
