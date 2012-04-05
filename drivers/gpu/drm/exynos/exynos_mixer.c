@@ -75,13 +75,10 @@ struct mixer_resources {
 };
 
 struct mixer_context {
-	struct fb_videomode	*default_timing;
 	unsigned int		default_win;
-	unsigned int		default_bpp;
 	unsigned int		irq;
 	int			pipe;
 	bool			interlace;
-	bool			vp_enabled;
 
 	struct mixer_resources	mixer_res;
 	struct hdmi_win_data	win_data[HDMI_OVERLAY_NUMBER];
