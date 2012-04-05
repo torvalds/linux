@@ -173,7 +173,7 @@ static struct perf_event_attr very_very_detailed_attrs[] = {
 
 
 
-struct perf_evlist		*evsel_list;
+static struct perf_evlist	*evsel_list;
 
 static bool			system_wide			=  false;
 static int			run_idx				=  0;
@@ -265,18 +265,18 @@ static double stddev_stats(struct stats *stats)
 	return sqrt(variance_mean);
 }
 
-struct stats			runtime_nsecs_stats[MAX_NR_CPUS];
-struct stats			runtime_cycles_stats[MAX_NR_CPUS];
-struct stats			runtime_stalled_cycles_front_stats[MAX_NR_CPUS];
-struct stats			runtime_stalled_cycles_back_stats[MAX_NR_CPUS];
-struct stats			runtime_branches_stats[MAX_NR_CPUS];
-struct stats			runtime_cacherefs_stats[MAX_NR_CPUS];
-struct stats			runtime_l1_dcache_stats[MAX_NR_CPUS];
-struct stats			runtime_l1_icache_stats[MAX_NR_CPUS];
-struct stats			runtime_ll_cache_stats[MAX_NR_CPUS];
-struct stats			runtime_itlb_cache_stats[MAX_NR_CPUS];
-struct stats			runtime_dtlb_cache_stats[MAX_NR_CPUS];
-struct stats			walltime_nsecs_stats;
+static struct stats runtime_nsecs_stats[MAX_NR_CPUS];
+static struct stats runtime_cycles_stats[MAX_NR_CPUS];
+static struct stats runtime_stalled_cycles_front_stats[MAX_NR_CPUS];
+static struct stats runtime_stalled_cycles_back_stats[MAX_NR_CPUS];
+static struct stats runtime_branches_stats[MAX_NR_CPUS];
+static struct stats runtime_cacherefs_stats[MAX_NR_CPUS];
+static struct stats runtime_l1_dcache_stats[MAX_NR_CPUS];
+static struct stats runtime_l1_icache_stats[MAX_NR_CPUS];
+static struct stats runtime_ll_cache_stats[MAX_NR_CPUS];
+static struct stats runtime_itlb_cache_stats[MAX_NR_CPUS];
+static struct stats runtime_dtlb_cache_stats[MAX_NR_CPUS];
+static struct stats walltime_nsecs_stats;
 
 static int create_perf_stat_counter(struct perf_evsel *evsel,
 				    struct perf_evsel *first)
