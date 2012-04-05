@@ -306,6 +306,7 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 	u32 irq_base;
 	u32 gpio_base;
 	int retval = 0;
+	int ngpio = id->driver_data;
 
 	retval = pci_enable_device(pdev);
 	if (retval)
@@ -344,8 +345,15 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 		retval = -ENOMEM;
 		goto err3;
 	}
+
+	retval = irq_alloc_descs(-1, irq_base, ngpio, 0);
+	if (retval < 0) {
+		dev_err(&pdev->dev, "can't allocate IRQ descs\n");
+		goto err3;
+	}
+	lnw->irq_base = retval;
+
 	lnw->reg_base = base;
-	lnw->irq_base = irq_base;
 	lnw->chip.label = dev_name(&pdev->dev);
 	lnw->chip.request = lnw_gpio_request;
 	lnw->chip.direction_input = lnw_gpio_direction_input;
@@ -354,14 +362,14 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 	lnw->chip.set = lnw_gpio_set;
 	lnw->chip.to_irq = lnw_gpio_to_irq;
 	lnw->chip.base = gpio_base;
-	lnw->chip.ngpio = id->driver_data;
+	lnw->chip.ngpio = ngpio;
 	lnw->chip.can_sleep = 0;
 	lnw->pdev = pdev;
 	pci_set_drvdata(pdev, lnw);
 	retval = gpiochip_add(&lnw->chip);
 	if (retval) {
 		dev_err(&pdev->dev, "langwell gpiochip_add error %d\n", retval);
-		goto err3;
+		goto err4;
 	}
 	irq_set_handler_data(pdev->irq, lnw);
 	irq_set_chained_handler(pdev->irq, lnw_irq_handler);
@@ -378,6 +386,8 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 
 	return 0;
 
+err4:
+	irq_free_descs(lnw->irq_base, ngpio);
 err3:
 	pci_release_regions(pdev);
 err2:
