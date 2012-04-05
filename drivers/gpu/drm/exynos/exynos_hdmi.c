@@ -1311,13 +1311,6 @@ static int hdmi_display_power_on(void *ctx, int mode)
 	return 0;
 }
 
-static struct exynos_hdmi_display_ops display_ops = {
-	.is_connected	= hdmi_is_connected,
-	.get_edid	= hdmi_get_edid,
-	.check_timing	= hdmi_check_timing,
-	.power_on	= hdmi_display_power_on,
-};
-
 static void hdmi_set_acr(u32 freq, u8 *acr)
 {
 	u32 n, cts;
@@ -1995,7 +1988,14 @@ static void hdmi_disable(void *ctx)
 	}
 }
 
-static struct exynos_hdmi_manager_ops manager_ops = {
+static struct exynos_hdmi_ops hdmi_ops = {
+	/* display */
+	.is_connected	= hdmi_is_connected,
+	.get_edid	= hdmi_get_edid,
+	.check_timing	= hdmi_check_timing,
+	.power_on	= hdmi_display_power_on,
+
+	/* manager */
 	.mode_fixup	= hdmi_mode_fixup,
 	.mode_set	= hdmi_mode_set,
 	.get_max_resol	= hdmi_get_max_resol,
@@ -2321,8 +2321,7 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	hdata->irq = res->start;
 
 	/* register specific callbacks to common hdmi. */
-	exynos_drm_display_ops_register(&display_ops);
-	exynos_drm_manager_ops_register(&manager_ops);
+	exynos_hdmi_ops_register(&hdmi_ops);
 
 	hdmi_resource_poweron(hdata);
 

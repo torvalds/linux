@@ -719,9 +719,12 @@ static void mixer_win_disable(void *ctx, int zpos)
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }
 
-static struct exynos_hdmi_overlay_ops overlay_ops = {
+static struct exynos_mixer_ops mixer_ops = {
+	/* manager */
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
+
+	/* overlay */
 	.win_mode_set		= mixer_win_mode_set,
 	.win_commit		= mixer_win_commit,
 	.win_disable		= mixer_win_disable,
@@ -1071,7 +1074,7 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 		goto fail;
 
 	/* register specific callback point to common hdmi. */
-	exynos_drm_overlay_ops_register(&overlay_ops);
+	exynos_mixer_ops_register(&mixer_ops);
 
 	mixer_resource_poweron(ctx);
 
