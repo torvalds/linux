@@ -1977,6 +1977,14 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_1 + reg_offset,
 			    WM8994_FLL1_ENA, 0);
 
+	if (wm8994->fll_byp && src == WM8994_FLL_SRC_BCLK &&
+	    freq_in == freq_out) {
+		dev_dbg(codec->dev, "Bypassing FLL%d\n", id + 1);
+		snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_5 + reg_offset,
+				    WM8958_FLL1_BYP, WM8958_FLL1_BYP);
+		goto out;
+	}
+
 	reg = (fll.outdiv << WM8994_FLL1_OUTDIV_SHIFT) |
 		(fll.fll_fratio << WM8994_FLL1_FRATIO_SHIFT);
 	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_2 + reg_offset,
@@ -1991,6 +1999,7 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 				    fll.n << WM8994_FLL1_N_SHIFT);
 
 	snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_5 + reg_offset,
+			    WM8958_FLL1_BYP |
 			    WM8994_FLL1_REFCLK_DIV_MASK |
 			    WM8994_FLL1_REFCLK_SRC_MASK,
 			    (fll.clk_ref_div << WM8994_FLL1_REFCLK_DIV_SHIFT) |
@@ -2053,6 +2062,7 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 		}
 	}
 
+out:
 	wm8994->fll[id].in = freq_in;
 	wm8994->fll[id].out = freq_out;
 	wm8994->fll[id].src = src;
@@ -3579,6 +3589,14 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	case WM8958:
 		wm8994->hubs.dcs_readback_mode = 1;
 		wm8994->hubs.hp_startup_mode = 1;
+
+		switch (wm8994->revision) {
+		case 0:
+			break;
+		default:
+			wm8994->fll_byp = true;
+			break;
+		}
 		break;
 
 	case WM1811:
@@ -3586,6 +3604,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		wm8994->hubs.no_series_update = 1;
 		wm8994->hubs.hp_startup_mode = 1;
 		wm8994->hubs.no_cache_class_w = true;
+		wm8994->fll_byp = true;
 
 		switch (wm8994->revision) {
 		case 0:
