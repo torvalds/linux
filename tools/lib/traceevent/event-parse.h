@@ -39,7 +39,7 @@
 #define DEBUG_RECORD 0
 #endif
 
-struct record {
+struct pevent_record {
 	unsigned long long	ts;
 	unsigned long long	offset;
 	long long		missed_events;	/* buffer dropped events before */
@@ -51,8 +51,8 @@ struct record {
 	int			locked;		/* Do not free, even if ref_count is zero */
 	void			*private;
 #if DEBUG_RECORD
-	struct record		*prev;
-	struct record		*next;
+	struct pevent_record	*prev;
+	struct pevent_record	*next;
 	long			alloc_addr;
 #endif
 };
@@ -91,7 +91,7 @@ struct pevent;
 struct event_format;
 
 typedef int (*pevent_event_handler_func)(struct trace_seq *s,
-					 struct record *record,
+					 struct pevent_record *record,
 					 struct event_format *event,
 					 void *context);
 
@@ -497,7 +497,7 @@ int pevent_register_print_string(struct pevent *pevent, char *fmt,
 int pevent_pid_is_registered(struct pevent *pevent, int pid);
 
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
-			struct record *record);
+			struct pevent_record *record);
 
 int pevent_parse_header_page(struct pevent *pevent, char *buf, unsigned long size,
 			     int long_size);
@@ -506,22 +506,22 @@ int pevent_parse_event(struct pevent *pevent, const char *buf,
 		       unsigned long size, const char *sys);
 
 void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
-			   const char *name, struct record *record,
+			   const char *name, struct pevent_record *record,
 			   int *len, int err);
 
 int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
-			 const char *name, struct record *record,
+			 const char *name, struct pevent_record *record,
 			 unsigned long long *val, int err);
 int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
-				const char *name, struct record *record,
+				const char *name, struct pevent_record *record,
 				unsigned long long *val, int err);
 int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
-			     const char *name, struct record *record,
+			     const char *name, struct pevent_record *record,
 			     unsigned long long *val, int err);
 
 int pevent_print_num_field(struct trace_seq *s, const char *fmt,
 			   struct event_format *event, const char *name,
-			   struct record *record, int err);
+			   struct pevent_record *record, int err);
 
 int pevent_register_event_handler(struct pevent *pevent, int id, char *sys_name, char *event_name,
 				  pevent_event_handler_func func, void *context);
@@ -547,13 +547,13 @@ struct event_format *
 pevent_find_event_by_name(struct pevent *pevent, const char *sys, const char *name);
 
 void pevent_data_lat_fmt(struct pevent *pevent,
-			 struct trace_seq *s, struct record *record);
-int pevent_data_type(struct pevent *pevent, struct record *rec);
+			 struct trace_seq *s, struct pevent_record *record);
+int pevent_data_type(struct pevent *pevent, struct pevent_record *rec);
 struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type);
-int pevent_data_pid(struct pevent *pevent, struct record *rec);
+int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
-		       struct record *record);
+		       struct pevent_record *record);
 
 struct event_format **pevent_list_events(struct pevent *pevent, enum event_sort_type);
 struct format_field **pevent_event_common_fields(struct event_format *event);
@@ -773,7 +773,7 @@ int pevent_filter_add_filter_str(struct event_filter *filter,
 
 
 int pevent_filter_match(struct event_filter *filter,
-			struct record *record);
+			struct pevent_record *record);
 
 int pevent_event_filtered(struct event_filter *filter,
 			  int event_id);

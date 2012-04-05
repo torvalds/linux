@@ -292,7 +292,7 @@ struct cpu_data {
 	unsigned long long	offset;
 	unsigned long long	size;
 	unsigned long long	timestamp;
-	struct record		*next;
+	struct pevent_record	*next;
 	char			*page;
 	int			cpu;
 	int			index;
@@ -377,9 +377,9 @@ static int calc_index(void *ptr, int cpu)
 	return (unsigned long)ptr - (unsigned long)cpu_data[cpu].page;
 }
 
-struct record *trace_peek_data(int cpu)
+struct pevent_record *trace_peek_data(int cpu)
 {
-	struct record *data;
+	struct pevent_record *data;
 	void *page = cpu_data[cpu].page;
 	int idx = cpu_data[cpu].index;
 	void *ptr = page + idx;
@@ -477,9 +477,9 @@ read_again:
 	return data;
 }
 
-struct record *trace_read_data(int cpu)
+struct pevent_record *trace_read_data(int cpu)
 {
-	struct record *data;
+	struct pevent_record *data;
 
 	data = trace_peek_data(cpu);
 	cpu_data[cpu].next = NULL;

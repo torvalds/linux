@@ -38,7 +38,7 @@ void print_event(int cpu, void *data, int size, unsigned long long nsecs,
 int parse_ftrace_file(char *buf, unsigned long size);
 int parse_event_file(char *buf, unsigned long size, char *sys);
 
-struct record *trace_peek_data(int cpu);
+struct pevent_record *trace_peek_data(int cpu);
 struct event_format *trace_find_event(int type);
 
 unsigned long long
@@ -57,7 +57,7 @@ struct event_format *trace_find_next_event(struct event_format *event);
 unsigned long long read_size(void *ptr, int size);
 unsigned long long eval_flag(const char *flag);
 
-struct record *trace_read_data(int cpu);
+struct pevent_record *trace_read_data(int cpu);
 int read_tracing_data(int fd, struct list_head *pattrs);
 
 struct tracing_data {

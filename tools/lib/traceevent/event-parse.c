@@ -3872,7 +3872,7 @@ static void pretty_print(struct trace_seq *s, void *data, int size, struct event
  * and lock depth) and places it into the trace_seq.
  */
 void pevent_data_lat_fmt(struct pevent *pevent,
-			 struct trace_seq *s, struct record *record)
+			 struct trace_seq *s, struct pevent_record *record)
 {
 	static int check_lock_depth = 1;
 	static int lock_depth_exists;
@@ -3933,7 +3933,7 @@ void pevent_data_lat_fmt(struct pevent *pevent,
  *
  * This returns the event id from the @rec.
  */
-int pevent_data_type(struct pevent *pevent, struct record *rec)
+int pevent_data_type(struct pevent *pevent, struct pevent_record *rec)
 {
 	return trace_parse_common_type(pevent, rec->data);
 }
@@ -3957,7 +3957,7 @@ struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type
  *
  * This returns the PID from a raw data.
  */
-int pevent_data_pid(struct pevent *pevent, struct record *rec)
+int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec)
 {
 	return parse_common_pid(pevent, rec->data);
 }
@@ -3991,7 +3991,7 @@ const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid)
  * writes the print format into the trace_seq.
  */
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
-		       struct record *record)
+		       struct pevent_record *record)
 {
 	int print_pretty = 1;
 
@@ -4011,7 +4011,7 @@ void pevent_event_info(struct trace_seq *s, struct event_format *event,
 }
 
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
-			struct record *record)
+			struct pevent_record *record)
 {
 	static char *spaces = "                    "; /* 20 spaces */
 	struct event_format *event;
@@ -4587,7 +4587,7 @@ int pevent_parse_event(struct pevent *pevent,
 }
 
 int get_field_val(struct trace_seq *s, struct format_field *field,
-		  const char *name, struct record *record,
+		  const char *name, struct pevent_record *record,
 		  unsigned long long *val, int err)
 {
 	if (!field) {
@@ -4620,7 +4620,7 @@ int get_field_val(struct trace_seq *s, struct format_field *field,
  * On failure, it returns NULL.
  */
 void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
-			   const char *name, struct record *record,
+			   const char *name, struct pevent_record *record,
 			   int *len, int err)
 {
 	struct format_field *field;
@@ -4667,7 +4667,7 @@ void *pevent_get_field_raw(struct trace_seq *s, struct event_format *event,
  * Returns 0 on success -1 on field not found.
  */
 int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
-			 const char *name, struct record *record,
+			 const char *name, struct pevent_record *record,
 			 unsigned long long *val, int err)
 {
 	struct format_field *field;
@@ -4692,7 +4692,7 @@ int pevent_get_field_val(struct trace_seq *s, struct event_format *event,
  * Returns 0 on success -1 on field not found.
  */
 int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
-				const char *name, struct record *record,
+				const char *name, struct pevent_record *record,
 				unsigned long long *val, int err)
 {
 	struct format_field *field;
@@ -4717,7 +4717,7 @@ int pevent_get_common_field_val(struct trace_seq *s, struct event_format *event,
  * Returns 0 on success -1 on field not found.
  */
 int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
-			     const char *name, struct record *record,
+			     const char *name, struct pevent_record *record,
 			     unsigned long long *val, int err)
 {
 	struct format_field *field;
@@ -4743,7 +4743,7 @@ int pevent_get_any_field_val(struct trace_seq *s, struct event_format *event,
  */
 int pevent_print_num_field(struct trace_seq *s, const char *fmt,
 			   struct event_format *event, const char *name,
-			   struct record *record, int err)
+			   struct pevent_record *record, int err)
 {
 	struct format_field *field = pevent_find_field(event, name);
 	unsigned long long val;
