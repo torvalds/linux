@@ -58,9 +58,6 @@ static void __init yl9200_init_early(void)
 
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* Setup the LEDs D2=PB17 (timer), D3=PB16 (cpu) */
-	at91_init_leds(AT91_PIN_PB16, AT91_PIN_PB17);
 }
 
 /*
@@ -543,6 +540,9 @@ void __init yl9200_add_device_video(void) {}
 
 static void __init yl9200_board_init(void)
 {
+	/* Setup the LEDs D2=PB17 (timer), D3=PB16 (cpu) */
+	at91_init_leds(AT91_PIN_PB16, AT91_PIN_PB17);
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);

@@ -48,9 +48,6 @@ static void __init ek_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PA9, AT91_PIN_PA6);
 }
 
 /*
@@ -170,6 +167,9 @@ static struct at91_mmc_data __initdata ek_mmc_data = {
 
 static void __init ek_board_init(void)
 {
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PA9, AT91_PIN_PA6);
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);

@@ -50,9 +50,6 @@ static void __init dk_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
 }
 
 static struct macb_platform_data __initdata dk_eth_data = {
@@ -179,6 +176,9 @@ static struct gpio_led dk_leds[] = {
 
 static void __init dk_board_init(void)
 {
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PB2, AT91_PIN_PB2);
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);

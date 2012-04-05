@@ -35,9 +35,6 @@ static void __init rsi_ews_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* Setup the LEDs */
-	at91_init_leds(AT91_PIN_PB6, AT91_PIN_PB9);
 }
 
 /*
@@ -187,6 +184,9 @@ static struct platform_device rsiews_nor_flash = {
  */
 static void __init rsi_ews_board_init(void)
 {
+	/* Setup the LEDs */
+	at91_init_leds(AT91_PIN_PB6, AT91_PIN_PB9);
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	/* This one is for debugging */

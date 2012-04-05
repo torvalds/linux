@@ -50,9 +50,6 @@ static void __init kb9202_init_early(void)
 
 	/* Initialize processor: 10 MHz crystal */
 	at91_initialize(10000000);
-
-	/* Set up the LEDs */
-	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
 }
 
 static struct macb_platform_data __initdata kb9202_eth_data = {
@@ -100,6 +97,9 @@ static struct atmel_nand_data __initdata kb9202_nand_data = {
 
 static void __init kb9202_board_init(void)
 {
+	/* Set up the LEDs */
+	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
+
 	/* Serial */
 	/* DBGU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
