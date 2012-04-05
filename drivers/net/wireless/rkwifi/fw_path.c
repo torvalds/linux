@@ -2,9 +2,7 @@
 // fw_path.c
 //
 
-#include <typedefs.h>
-#include <linuxver.h>
-#include <osl.h>
+#include <linux/string.h>
 
 extern char fw_path[];
 extern char nv_path[];
