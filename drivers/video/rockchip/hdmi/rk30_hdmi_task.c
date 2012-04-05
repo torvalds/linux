@@ -124,16 +124,17 @@ static int hdmi_process_command(void)
 				break;
 		}
 	}
-	
+	else if(state == HDMI_SLEEP)
+		state = WAIT_HOTPLUG;
 	return state;
 }
 
 void hdmi_work(struct work_struct *work)
 {
-	int hotplug, state_last, state;
+	int hotplug, state_last;
 	int rc = HDMI_ERROR_SUCESS, trytimes = 0;
 	/* Process hdmi command */
-	state = hdmi_process_command();
+	hdmi->state = hdmi_process_command();
 	
 	if(!hdmi->enable)
 		return;
@@ -144,7 +145,7 @@ void hdmi_work(struct work_struct *work)
 	{
 		hdmi->hotplug  = hotplug;
 		if(hdmi->hotplug  == HDMI_HPD_INSERT)
-			state = READ_PARSE_EDID;
+			hdmi->state = READ_PARSE_EDID;
 		else {
 			hdmi_sys_remove();
 			kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
@@ -152,14 +153,14 @@ void hdmi_work(struct work_struct *work)
 		}			
 	}
 	do {
-		state_last = state;
-		switch(state)
+		state_last = hdmi->state;
+		switch(hdmi->state)
 		{
 			case READ_PARSE_EDID:
 				rc = hdmi_sys_parse_edid(hdmi);
 				if(rc == HDMI_ERROR_SUCESS)
 				{
-					state = SYSTEM_CONFIG;	
+					hdmi->state = SYSTEM_CONFIG;	
 					kobject_uevent_env(&hdmi->dev->kobj, KOBJ_ADD, envp);
 				}
 				break;
@@ -170,23 +171,23 @@ void hdmi_work(struct work_struct *work)
 					hdmi->vic = hdmi_find_best_mode(hdmi, hdmi->vic);
 				rc = hdmi_switch_fb(hdmi, hdmi->vic);
 				if(rc == HDMI_ERROR_SUCESS)
-					state = CONFIG_VIDEO;
+					hdmi->state = CONFIG_VIDEO;
 				break;
 			case CONFIG_VIDEO:					
 				rc = rk30_hdmi_config_video(hdmi->vic, VIDEO_OUTPUT_RGB444, hdmi->edid.sink_hdmi);			
 				if(rc == HDMI_ERROR_SUCESS)
 				{
 					if(hdmi->edid.sink_hdmi)
-						state = CONFIG_AUDIO;
+						hdmi->state = CONFIG_AUDIO;
 					else
-						state = PLAY_BACK;
+						hdmi->state = PLAY_BACK;
 				}
 				break;
 			case CONFIG_AUDIO:
 				rc = rk30_hdmi_config_audio(&(hdmi->audio));
 							
 				if(rc == HDMI_ERROR_SUCESS)
-					state = PLAY_BACK;
+					hdmi->state = PLAY_BACK;
 				break;
 			case PLAY_BACK:
 				rk30_hdmi_control_output(1);
@@ -203,16 +204,15 @@ void hdmi_work(struct work_struct *work)
 			trytimes++;
 			msleep(10);
 		}
-		if(state != state_last)
+		if(hdmi->state != state_last) 
 			trytimes = 0;
 		
-		hdmi_sys_show_state(state);
-	}while((state != state_last || (rc != HDMI_ERROR_SUCESS) ) && trytimes < HDMI_MAX_TRY_TIMES);
+		hdmi_sys_show_state(hdmi->state);
+	}while((hdmi->state != state_last || (rc != HDMI_ERROR_SUCESS) ) && trytimes < HDMI_MAX_TRY_TIMES);
 	
 	if(trytimes == HDMI_MAX_TRY_TIMES)
 	{
 		if(hdmi->hotplug)
 			hdmi_sys_remove();
 	}
-	hdmi->state = state;
 }

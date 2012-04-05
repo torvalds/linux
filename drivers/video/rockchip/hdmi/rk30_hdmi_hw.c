@@ -4,7 +4,7 @@
 #include "rk30_hdmi.h"
 #include "rk30_hdmi_hw.h"
 
-static char interrupt1 = 0, interrupt2 = 0, interrupt3 = 0, interrupt4 = 0;
+static char edid_result = 0;
 
 static inline void delay100us(void)
 {
@@ -61,13 +61,15 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 	char interrupt = 0, trytime = 2;
 	
 	hdmi_dbg(hdmi->dev, "[%s] block %d\n", __FUNCTION__, block);
-
-	//Before Phy parameter was set, DDC_CLK is equal to PLLA freq which is 30MHz.
+//	disable_irq(hdmi->irq);
+	spin_lock(&hdmi->irq_lock);
+	edid_result = 0;
+	spin_unlock(&hdmi->irq_lock);
+	//Before Phy parameter was set, DDC_CLK is equal to PLLA freq which is 24MHz.
 	//Set DDC I2C CLK which devided from DDC_CLK to 100KHz.
-	ddc_bus_freq = (30000000/HDMI_EDID_DDC_CLK)/4;
+	ddc_bus_freq = (24000000/HDMI_EDID_DDC_CLK)/4;
 	HDMIWrReg(DDC_BUS_FREQ_L, ddc_bus_freq & 0xFF);
-	HDMIWrReg(DDC_BUS_FREQ_L, (ddc_bus_freq >> 8) & 0xFF);
-	msleep(10);
+	HDMIWrReg(DDC_BUS_FREQ_H, (ddc_bus_freq >> 8) & 0xFF);
 	
 	// Enable edid interrupt
 	HDMIMskReg(value, INTR_MASK1, (m_INT_EDID_ERR | m_INT_EDID_READY), (m_INT_EDID_ERR | m_INT_EDID_READY));
@@ -81,14 +83,12 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 		while(value--)
 		{
 			spin_lock(&hdmi->irq_lock);
-			interrupt = interrupt1;
+			interrupt = edid_result;
+//			interrupt = HDMIRdReg(INTR_STATUS1);
 			spin_unlock(&hdmi->irq_lock);
 //			hdmi_dbg(hdmi->dev, "[%s] interrupt %02x value %d\n", __FUNCTION__, interrupt, value);
 			if(interrupt & (m_INT_EDID_ERR | m_INT_EDID_READY))
-			{
-				interrupt1 &= ~(m_INT_EDID_ERR | m_INT_EDID_READY);
 				break;
-			}
 			msleep(10);
 		}
 		hdmi_dbg(hdmi->dev, "[%s] edid read value %d\n", __FUNCTION__, value);
@@ -114,7 +114,8 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 	}
 	// Disable edid interrupt
 	HDMIMskReg(value, INTR_MASK1, (m_INT_EDID_ERR|m_INT_EDID_READY), 0);
-
+	msleep(100);
+//	enable_irq(hdmi->irq);
 	return ret;
 }
 
@@ -426,10 +427,11 @@ int rk30_hdmi_removed(void)
 }
 
 
-
-
 irqreturn_t hdmi_irq(int irq, void *priv)
 {		
+	char interrupt1 = 0, interrupt2 = 0, interrupt3 = 0, interrupt4 = 0;
+	
+	spin_lock(&hdmi->irq_lock);
 	if(hdmi->pwr_mode == PWR_SAVE_MODE_A)
 	{
 		hdmi_dbg(hdmi->dev, "hdmi irq wake up\n");
@@ -438,15 +440,12 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 		
 		// HDMI was inserted when system is sleeping, irq was triggered only once
 		// when wake up. So we need to check hotplug status.
-		if((rk30_hdmi_detect_hotplug() == HDMI_HPD_INSERT)) {
-			if(hdmi->state == HDMI_SLEEP)
-				hdmi->state = WAIT_HOTPLUG;			
+		if((rk30_hdmi_detect_hotplug() == HDMI_HPD_INSERT)) {			
 			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));
 		}
 	}
 	else
 	{
-		spin_lock(&hdmi->irq_lock);
 		interrupt1 = HDMIRdReg(INTR_STATUS1);
 		interrupt2 = HDMIRdReg(INTR_STATUS2);
 		interrupt3 = HDMIRdReg(INTR_STATUS3);
@@ -455,7 +454,7 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 		HDMIWrReg(INTR_STATUS2, interrupt2);
 		HDMIWrReg(INTR_STATUS3, interrupt3);
 		HDMIWrReg(INTR_STATUS4, interrupt4);
-#if 1
+#if 0
 		hdmi_dbg(hdmi->dev, "[%s] interrupt1 %02x interrupt2 %02x interrupt3 %02x interrupt4 %02x\n",\
 			 __FUNCTION__, interrupt1, interrupt2, interrupt3, interrupt4);
 #endif
@@ -466,13 +465,15 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 			interrupt1 &= ~(m_INT_HOTPLUG | m_INT_MSENS);
 			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 		}
+		else if(interrupt1 & (m_INT_EDID_READY | m_INT_EDID_ERR))
+			edid_result = interrupt1;
 		else if(hdmi->state == HDMI_SLEEP) {
 			hdmi_dbg(hdmi->dev, "hdmi return to sleep mode\n");
 			HDMIWrReg(SYS_CTRL, 0x10);
 			hdmi->pwr_mode = PWR_SAVE_MODE_A;
 		}
-		spin_unlock(&hdmi->irq_lock);
 	}
+	spin_unlock(&hdmi->irq_lock);
 	return IRQ_HANDLED;
 }
 
