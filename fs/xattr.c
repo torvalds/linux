@@ -19,8 +19,9 @@
 #include <linux/export.h>
 #include <linux/fsnotify.h>
 #include <linux/audit.h>
-#include <asm/uaccess.h>
+#include <linux/vmalloc.h>
 
+#include <asm/uaccess.h>
 
 /*
  * Check permissions for extended attribute access.  This is a bit complicated
@@ -492,13 +493,18 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 {
 	ssize_t error;
 	char *klist = NULL;
+	char *vlist = NULL;	/* If non-NULL, we used vmalloc() */
 
 	if (size) {
 		if (size > XATTR_LIST_MAX)
 			size = XATTR_LIST_MAX;
 		klist = kmalloc(size, __GFP_NOWARN | GFP_KERNEL);
-		if (!klist)
-			return -ENOMEM;
+		if (!klist) {
+			vlist = vmalloc(size);
+			if (!vlist)
+				return -ENOMEM;
+			klist = vlist;
+		}
 	}
 
 	error = vfs_listxattr(d, klist, size);
@@ -510,7 +516,10 @@ listxattr(struct dentry *d, char __user *list, size_t size)
 		   than XATTR_LIST_MAX bytes. Not possible. */
 		error = -E2BIG;
 	}
-	kfree(klist);
+	if (vlist)
+		vfree(vlist);
+	else
+		kfree(klist);
 	return error;
 }
 
