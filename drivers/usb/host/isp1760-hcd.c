@@ -1562,11 +1562,14 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 
 	if (!test_bit(HCD_FLAG_HW_ACCESSIBLE, &hcd->flags)) {
 		retval = -ESHUTDOWN;
+		qtd_list_free(&new_qtds);
 		goto out;
 	}
 	retval = usb_hcd_link_urb_to_ep(hcd, urb);
-	if (retval)
+	if (retval) {
+		qtd_list_free(&new_qtds);
 		goto out;
+	}
 
 	qh = urb->ep->hcpriv;
 	if (qh) {
@@ -1584,6 +1587,7 @@ static int isp1760_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		if (!qh) {
 			retval = -ENOMEM;
 			usb_hcd_unlink_urb_from_ep(hcd, urb);
+			qtd_list_free(&new_qtds);
 			goto out;
 		}
 		list_add_tail(&qh->qh_list, ep_queue);
