@@ -1953,6 +1953,48 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
+int
+i915_gem_object_sync(struct drm_i915_gem_object *obj,
+		     struct intel_ring_buffer *to)
+{
+	struct intel_ring_buffer *from = obj->ring;
+	u32 seqno;
+	int ret, idx;
+
+	if (from == NULL || to == from)
+		return 0;
+
+	if (!i915_semaphore_is_enabled(obj->base.dev))
+		return i915_gem_object_wait_rendering(obj);
+
+	idx = intel_ring_sync_index(from, to);
+
+	seqno = obj->last_rendering_seqno;
+	if (seqno <= from->sync_seqno[idx])
+		return 0;
+
+	if (seqno == from->outstanding_lazy_request) {
+		struct drm_i915_gem_request *request;
+
+		request = kzalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+
+		ret = i915_add_request(from, NULL, request);
+		if (ret) {
+			kfree(request);
+			return ret;
+		}
+
+		seqno = request->seqno;
+	}
+
+	from->sync_seqno[idx] = seqno;
+
+	return to->sync_to(to, from, seqno - 1);
+
+}
+
 static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
 {
 	u32 old_write_domain, old_read_domains;
@@ -2926,11 +2968,6 @@ int i915_gem_object_set_cache_level(struct drm_i915_gem_object *obj,
  * Prepare buffer for display plane (scanout, cursors, etc).
  * Can be called from an uninterruptible phase (modesetting) and allows
  * any flushes to be pipelined (for pageflips).
- *
- * For the display plane, we want to be in the GTT but out of any write
- * domains. So in many ways this looks like set_to_gtt_domain() apart from the
- * ability to pipeline the waits, pinning and any additional subtleties
- * that may differentiate the display plane from ordinary buffers.
  */
 int
 i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
@@ -2945,8 +2982,8 @@ i915_gem_object_pin_to_display_plane(struct drm_i915_gem_object *obj,
 		return ret;
 
 	if (pipelined != obj->ring) {
-		ret = i915_gem_object_wait_rendering(obj);
-		if (ret == -ERESTARTSYS)
+		ret = i915_gem_object_sync(obj, pipelined);
+		if (ret)
 			return ret;
 	}
 

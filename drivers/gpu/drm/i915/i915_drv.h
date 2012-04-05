@@ -38,6 +38,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <drm/intel-gtt.h>
 #include <linux/backlight.h>
+#include <linux/intel-iommu.h>
 
 /* General customization:
  */
@@ -1230,6 +1231,8 @@ void i915_gem_lastclose(struct drm_device *dev);
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
+int i915_gem_object_sync(struct drm_i915_gem_object *obj,
+			 struct intel_ring_buffer *to);
 void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 				    struct intel_ring_buffer *ring,
 				    u32 seqno);
@@ -1439,6 +1442,7 @@ extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
 
+extern bool i915_semaphore_is_enabled(struct drm_device *dev);
 extern void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
 extern void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv);
 extern void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);

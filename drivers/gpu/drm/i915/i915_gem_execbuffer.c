@@ -835,64 +835,6 @@ i915_gem_execbuffer_flush(struct drm_device *dev,
 	return 0;
 }
 
-static bool
-intel_enable_semaphores(struct drm_device *dev)
-{
-	if (INTEL_INFO(dev)->gen < 6)
-		return 0;
-
-	if (i915_semaphores >= 0)
-		return i915_semaphores;
-
-	/* Disable semaphores on SNB */
-	if (INTEL_INFO(dev)->gen == 6)
-		return 0;
-
-	return 1;
-}
-
-static int
-i915_gem_execbuffer_sync_rings(struct drm_i915_gem_object *obj,
-			       struct intel_ring_buffer *to)
-{
-	struct intel_ring_buffer *from = obj->ring;
-	u32 seqno;
-	int ret, idx;
-
-	if (from == NULL || to == from)
-		return 0;
-
-	/* XXX gpu semaphores are implicated in various hard hangs on SNB */
-	if (!intel_enable_semaphores(obj->base.dev))
-		return i915_gem_object_wait_rendering(obj);
-
-	idx = intel_ring_sync_index(from, to);
-
-	seqno = obj->last_rendering_seqno;
-	if (seqno <= from->sync_seqno[idx])
-		return 0;
-
-	if (seqno == from->outstanding_lazy_request) {
-		struct drm_i915_gem_request *request;
-
-		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-
-		ret = i915_add_request(from, NULL, request);
-		if (ret) {
-			kfree(request);
-			return ret;
-		}
-
-		seqno = request->seqno;
-	}
-
-	from->sync_seqno[idx] = seqno;
-
-	return to->sync_to(to, from, seqno - 1);
-}
-
 static int
 i915_gem_execbuffer_wait_for_flips(struct intel_ring_buffer *ring, u32 flips)
 {
@@ -954,7 +896,7 @@ i915_gem_execbuffer_move_to_gpu(struct intel_ring_buffer *ring,
 	}
 
 	list_for_each_entry(obj, objects, exec_list) {
-		ret = i915_gem_execbuffer_sync_rings(obj, ring);
+		ret = i915_gem_object_sync(obj, ring);
 		if (ret)
 			return ret;
 	}

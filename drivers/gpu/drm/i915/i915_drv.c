@@ -394,6 +394,21 @@ void intel_detect_pch(struct drm_device *dev)
 	}
 }
 
+bool i915_semaphore_is_enabled(struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen < 6)
+		return 0;
+
+	if (i915_semaphores >= 0)
+		return i915_semaphores;
+
+	/* Enable semaphores on SNB when IO remapping is off */
+	if (INTEL_INFO(dev)->gen == 6)
+		return !intel_iommu_enabled;
+
+	return 1;
+}
+
 void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
 {
 	int count;
