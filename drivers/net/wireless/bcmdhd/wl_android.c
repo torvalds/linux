@@ -619,7 +619,7 @@ int wl_android_init(void)
 {
 	int ret = 0;
 
-	dhd_msg_level = DHD_ERROR_VAL;
+	dhd_msg_level |= DHD_ERROR_VAL;
 #ifdef ENABLE_INSMOD_NO_FW_LOAD
 	dhd_download_fw_on_driverload = FALSE;
 #endif /* ENABLE_INSMOD_NO_FW_LOAD */
@@ -690,7 +690,7 @@ void wl_android_wifictrl_func_del(void)
 	}
 }
 
-void *wl_android_prealloc(int section, unsigned long size)
+void* wl_android_prealloc(int section, unsigned long size)
 {
 	void *alloc_ptr = NULL;
 	if (wifi_control_data && wifi_control_data->mem_prealloc) {

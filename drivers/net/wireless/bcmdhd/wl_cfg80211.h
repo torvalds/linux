@@ -131,7 +131,9 @@ do {									\
 #define IFACE_MAX_CNT 		2
 
 #define WL_SCAN_TIMER_INTERVAL_MS	8000 /* Scan timeout */
-#define WL_CHANNEL_SYNC_RETRY 	5
+#define WL_CHANNEL_SYNC_RETRY 	1
+#define WL_ACT_FRAME_RETRY 5
+
 #define WL_INVALID 		-1
 
 /* driver status */

@@ -3352,6 +3352,7 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 	wifi_p2p_action_frame_t *p2p_act_frm = NULL;
 	wifi_p2psd_gas_pub_act_frame_t *sd_act_frm = NULL;
 	s8 eabuf[ETHER_ADDR_STR_LEN];
+	int retry_cnt = 0;
 
 	WL_DBG(("Enter \n"));
 
@@ -3496,9 +3497,9 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 
 	}
 	wl_cfgp2p_print_actframe(true, action_frame->data, action_frame->len);
-		/*
-		 * To make sure to send successfully action frame, we have to turn off mpc
-		 */
+	/*
+	 * To make sure to send successfully action frame, we have to turn off mpc
+	 */
 
 	if (act_frm && ((act_frm->subtype == P2P_PAF_GON_REQ) ||
 	  (act_frm->subtype == P2P_PAF_GON_RSP) ||
@@ -3506,6 +3507,9 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 	  (act_frm->subtype == P2P_PAF_PROVDIS_REQ))) {
 		wldev_iovar_setint(dev, "mpc", 0);
 	}
+	if (act_frm->subtype == P2P_PAF_GON_RSP)
+		retry_cnt = 1;
+	else retry_cnt = WL_ACT_FRAME_RETRY;
 
 	if (act_frm && act_frm->subtype == P2P_PAF_DEVDIS_REQ) {
 		af_params->dwell_time = WL_LONG_DWELL_TIME;
@@ -3530,23 +3534,12 @@ wl_cfg80211_mgmt_tx(struct wiphy *wiphy, struct net_device *ndev,
 	} else {
 		ack = (wl_cfgp2p_tx_action_frame(wl, dev, af_params, bssidx)) ? false : true;
 		if (!ack) {
-			if (wl_to_p2p_bss_saved_ie(wl, P2PAPI_BSSCFG_DEVICE).p2p_probe_req_ie_len) {
-				/* if the NO ACK occurs, the peer device will be on
-				* listen channel of the peer
-				* So, we have to find the peer and send action frame on
-				* that channel.
-				*/
-				ack = wl_cfg80211_send_at_common_channel(wl, dev, af_params);
-			} else {
-				for (retry = 0; retry < WL_CHANNEL_SYNC_RETRY; retry++) {
+				for (retry = 1; retry < WL_CHANNEL_SYNC_RETRY; retry++) {
 					ack = (wl_cfgp2p_tx_action_frame(wl, dev,
 						af_params, bssidx)) ? false : true;
 					if (ack)
 						break;
 				}
-
-			}
-
 		}
 
 	}
@@ -3619,7 +3612,7 @@ wl_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			__FUNCTION__, channel));
 		wl->hostapd_chan = channel;
 		if (channel == 14)
-			return err;
+			return err; /* hostapd requested ch auto-select, will be done later */
 	}
 
 	WL_DBG(("netdev_ifidx(%d), chan_type(%d) target channel(%d) \n",
@@ -4251,6 +4244,7 @@ int wl_cfg80211_sched_scan_start(struct wiphy *wiphy,
 		request->n_ssids, pno_time, pno_repeat, pno_freq_expo_max));
 
 #if defined(WL_ENABLE_P2P_IF)
+	/* While GO is operational, PNO is not supported */
 	if (dhd_cfg80211_get_opmode(wl) & P2P_GO_ENABLED) {
 		WL_DBG(("PNO not enabled! op_mode: P2P GO"));
 		return -1;
@@ -6673,7 +6667,7 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 	err = wldev_ioctl(wl_to_prmry_ndev(wl), WLC_GET_BANDLIST, bandlist,
 		sizeof(bandlist), false);
 	if (unlikely(err)) {
-		WL_ERR(("error (%d)\n", err));
+		WL_ERR(("error read bandlist (%d)\n", err));
 		return err;
 	}
 	wiphy = wl_to_wiphy(wl);
@@ -6683,12 +6677,14 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 
 	err = wldev_iovar_getint(wl_to_prmry_ndev(wl), "nmode", &nmode);
 	if (unlikely(err)) {
-		WL_ERR(("error (%d)\n", err));
+		WL_ERR(("error reading nmode (%d)\n", err));
 	}
-
-	err = wldev_iovar_getint(wl_to_prmry_ndev(wl), "mimo_bw_cap", &bw_40);
-	if (unlikely(err)) {
-		WL_ERR(("error (%d)\n", err));
+	else {
+		/* For nmodeonly  check bw cap */
+		err = wldev_iovar_getint(wl_to_prmry_ndev(wl), "mimo_bw_cap", &bw_40);
+		if (unlikely(err)) {
+			WL_ERR(("error get mimo_bw_cap (%d)\n", err));
+		}
 	}
 
 	for (i = 1; i <= nband && i < sizeof(bandlist); i++) {
@@ -6702,7 +6698,7 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 				&__wl_band_2ghz;
 				index = IEEE80211_BAND_2GHZ;
 		}
-
+#if defined WL_ENABLE_P2P_IF
 		if ((index >= 0) && nmode) {
 			wiphy->bands[index]->ht_cap.cap =
 			IEEE80211_HT_CAP_DSSSCCK40
@@ -6711,6 +6707,7 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 			wiphy->bands[index]->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K;
 			wiphy->bands[index]->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16;
 		}
+#endif
 	}
 
 	wiphy_apply_custom_regulatory(wiphy, &brcm_regdom);
@@ -6752,6 +6749,7 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	struct net_device *ndev = wl_to_prmry_ndev(wl);
 #ifdef WL_ENABLE_P2P_IF
 	struct wiphy *wiphy = wl_to_prmry_ndev(wl)->ieee80211_ptr->wiphy;
+	struct net_device *p2p_net = wl->p2p_net;
 #endif
 
 	WL_DBG(("In\n"));
@@ -6783,7 +6781,11 @@ static s32 __wl_cfg80211_down(struct wl_priv *wl)
 	wiphy->interface_modes = (wiphy->interface_modes)
 					& (~(BIT(NL80211_IFTYPE_P2P_CLIENT)|
 					BIT(NL80211_IFTYPE_P2P_GO)));
-#endif
+	if ((p2p_net) && (p2p_net->flags & IFF_UP)) {
+		/* p2p0 interface is still UP. Bring it down */
+		p2p_net->flags &= ~IFF_UP;
+	}
+#endif /* WL_ENABLE_P2P_IF */
 	spin_unlock_irqrestore(&wl->cfgdrv_lock, flags);
 
 	DNGL_FUNC(dhd_cfg80211_down, (wl));
@@ -7032,8 +7034,7 @@ static void wl_init_eq_lock(struct wl_priv *wl)
 
 static void wl_delay(u32 ms)
 {
-	if (ms < 1000 / HZ) {
-		cond_resched();
+	if (in_atomic() || ms < 1000 / HZ) {
 		mdelay(ms);
 	} else {
 		msleep(ms);

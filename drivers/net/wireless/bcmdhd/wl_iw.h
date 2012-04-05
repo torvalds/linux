@@ -209,7 +209,6 @@ extern int  net_os_wake_lock_ctrl_timeout_enable(struct net_device *dev, int val
 extern int net_os_set_suspend_disable(struct net_device *dev, int val);
 extern int net_os_set_suspend(struct net_device *dev, int val, int force);
 extern int net_os_set_dtim_skip(struct net_device *dev, int val);
-extern int net_os_send_hang_message(struct net_device *dev);
 extern void get_customized_country_code(char *country_iso_code, wl_country_t *cspec);
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)

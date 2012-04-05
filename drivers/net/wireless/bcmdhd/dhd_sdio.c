@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 324417 2012-03-29 03:15:15Z $
+ * $Id: dhd_sdio.c 325395 2012-04-03 03:57:43Z $
  */
 
 #include <typedefs.h>
@@ -754,8 +754,7 @@ dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 	uint oldstate = bus->clkstate;
 #endif /* DHD_DEBUG */
 
-	DHD_TRACE(("%s: Enter bus->clkstate %u target %u\n", __FUNCTION__,
-		bus->clkstate, target));
+	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	/* Early exit if we're already there */
 	if (bus->clkstate == target) {
@@ -1482,8 +1481,9 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 		dhd_os_sdunlock(bus->dhd);
 #endif /* DHD_DEBUG */
 	} else if (pending == TRUE) {
-		DHD_CTL(("%s: canceled\n", __FUNCTION__));
-		return -ERESTARTSYS;
+		/* possibly fw hangs so never responsed back */
+		DHD_ERROR(("%s: pending or timeout \n", __FUNCTION__));
+		return -ETIMEDOUT;
 	} else {
 		DHD_CTL(("%s: resumed for unknown reason?\n", __FUNCTION__));
 #ifdef DHD_DEBUG
@@ -4596,13 +4596,29 @@ clkwait:
 		bcmsdh_intr_enable(sdh);
 	}
 
+#if defined(OOB_INTR_ONLY) && !defined(HW_OOB)
+	/* In case of SW-OOB(using edge trigger),
+	 * Check interrupt status in the dongle again after enable irq on the host.
+	 * and rechedule dpc if interrupt is pended in the dongle.
+	 * There is a chance to miss OOB interrupt while irq is disabled on the host.
+	 * No need to do this with HW-OOB(level trigger)
+	 */
+	R_SDREG(newstatus, &regs->intstatus, retries);
+	if (bcmsdh_regfail(bus->sdh))
+		newstatus = 0;
+	if (newstatus & bus->hostintmask) {
+		bus->ipend = TRUE;
+		resched = TRUE;
+	}
+#endif /* defined(OOB_INTR_ONLY) && !defined(HW_OOB) */
+
 	if (TXCTLOK(bus) && bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL))  {
 		int ret, i;
 		uint8* frame_seq = bus->ctrl_frame_buf + SDPCM_FRAMETAG_LEN;
 
 		if (((bus->sih->chip == BCM4329_CHIP_ID) ||   /* limit to 4329 & 4330 for now  */
 			 (bus->sih->chip == BCM4330_CHIP_ID)) && (*frame_seq != bus->tx_seq)) {
-			DHD_ERROR(("%s IOCTL frame seq lag detected!"
+			DHD_INFO(("%s IOCTL frame seq lag detected!"
 				" frm_seq:%d != bus->tx_seq:%d, corrected\n",
 				__FUNCTION__, *frame_seq, bus->tx_seq));
 			*frame_seq = bus->tx_seq;
@@ -6175,6 +6191,7 @@ dhd_bcmsdh_send_buf(dhd_bus_t *bus, uint32 addr, uint fn, uint flags, uint8 *buf
 uint
 dhd_bus_chip(struct dhd_bus *bus)
 {
+	ASSERT(bus);
 	ASSERT(bus->sih != NULL);
 	return bus->sih->chip;
 }
@@ -6182,6 +6199,7 @@ dhd_bus_chip(struct dhd_bus *bus)
 void *
 dhd_bus_pub(struct dhd_bus *bus)
 {
+	ASSERT(bus);
 	return bus->dhd;
 }
 
@@ -6228,7 +6246,6 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 			bus->dhd->dongle_reset = TRUE;
 			bus->dhd->up = FALSE;
 			dhd_os_sdunlock(dhdp);
-
 			DHD_TRACE(("%s:  WLAN OFF DONE\n", __FUNCTION__));
 			/* App can now remove power from device */
 		} else

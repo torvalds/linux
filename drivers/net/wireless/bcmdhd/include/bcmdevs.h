@@ -63,6 +63,7 @@
 #define BCM_DNGL_BL_PID_43239   0xbd1b
 #define BCM_DNGL_BDC_PID	0x0bdc
 #define BCM_DNGL_JTAG_PID	0x4a44
+#define BCM_DNGL_BL_PID_4324   0xbd1c
 
 
 #define BCM_HWUSB_PID_43239     43239

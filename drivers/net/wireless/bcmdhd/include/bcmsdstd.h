@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdstd.h 281604 2011-09-02 18:58:49Z $
+ * $Id: bcmsdstd.h 324819 2012-03-30 12:15:19Z $
  */
 #ifndef	_BCM_SD_STD_H
 #define	_BCM_SD_STD_H
@@ -180,6 +180,9 @@ struct sdioh_info {
 
 #define DATA_TRANSFER_IDLE 		0
 #define DATA_TRANSFER_ONGOING	1
+#define CHECK_TUNING_PRE_DATA   1
+#define CHECK_TUNING_POST_DATA  2
+
 
 /************************************************************
  * Internal interfaces: per-port references into bcmsdstd.c
@@ -227,10 +230,12 @@ extern int sdstd_waitbits(sdioh_info_t *sd, uint16 norm, uint16 err, bool yield,
 extern void sdstd_3_enable_retuning_int(sdioh_info_t *sd);
 extern void sdstd_3_disable_retuning_int(sdioh_info_t *sd);
 extern bool sdstd_3_is_retuning_int_set(sdioh_info_t *sd);
+extern void sdstd_3_check_and_do_tuning(sdioh_info_t *sd, int tuning_param);
 extern bool sdstd_3_check_and_set_retuning(sdioh_info_t *sd);
 extern int sdstd_3_get_tune_state(sdioh_info_t *sd);
 extern int sdstd_3_get_data_state(sdioh_info_t *sd);
 extern void sdstd_3_set_tune_state(sdioh_info_t *sd, int state);
+extern void sdstd_3_set_data_state(sdioh_info_t *sd, int state);
 extern uint8 sdstd_3_get_tuning_exp(sdioh_info_t *sd);
 extern uint32 sdstd_3_get_uhsi_clkmode(sdioh_info_t *sd);
 extern int sdstd_3_clk_tuning(sdioh_info_t *sd, uint32 sd3ClkMode);

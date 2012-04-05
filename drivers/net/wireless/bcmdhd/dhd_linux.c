@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_linux.c 319136 2012-03-07 03:10:36Z $
+ * $Id: dhd_linux.c 325862 2012-04-04 22:59:48Z $
  */
 
 #include <typedefs.h>
@@ -129,9 +129,9 @@ DECLARE_WAIT_QUEUE_HEAD(dhd_dpc_wait);
 #if defined(OOB_INTR_ONLY)
 extern void dhd_enable_oob_intr(struct dhd_bus *bus, bool enable);
 #endif /* defined(OOB_INTR_ONLY) */
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 static void dhd_hang_process(struct work_struct *work);
-
+#endif 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 0))
 MODULE_LICENSE("GPL v2");
 #endif /* LinuxVer */
@@ -250,7 +250,9 @@ typedef struct dhd_info {
 	bool dhd_tasklet_create;
 #endif /* DHDTHREAD */
 	tsk_ctl_t	thr_sysioc_ctl;
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	struct work_struct work_hang;
+#endif 
 
 	/* Wakelocks */
 #if defined(CONFIG_HAS_WAKELOCK) && (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
@@ -2753,9 +2755,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		dhd->thr_sysioc_ctl.thr_pid = -1;
 	}
 	dhd_state |= DHD_ATTACH_STATE_THREADS_CREATED;
-
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	INIT_WORK(&dhd->work_hang, dhd_hang_process);
-
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))  */
 	/*
 	 * Save the dhd_info into the priv
 	 */
@@ -3035,7 +3037,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	}
 #endif /* SET_RANDOM_MAC_SOFTAP */
 
-	DHD_ERROR(("Firmware = %s\n", fw_path));
+	DHD_TRACE(("Firmware = %s\n", fw_path));
 #if !defined(AP)  && defined(WLP2P)
 	/* Check if firmware with WFD support used */
 	if ((!op_mode && strstr(fw_path, "_p2p") != NULL)
@@ -3057,13 +3059,14 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if !defined(AP) && defined(WL_CFG80211)
 	/* Check if firmware with HostAPD support used */
 	if ((!op_mode && strstr(fw_path, "_apsta") != NULL) || (op_mode == HOSTAPD_MASK)) {
+			/* Disable A-band for HostAPD  */
 			uint band = WLC_BAND_2G;
-
 			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_SET_BAND, (char *)&band, sizeof(band),
 				TRUE, 0)) < 0) {
 				DHD_ERROR(("%s:set band failed error (%d)\n", __FUNCTION__, ret));
 			}
 
+			/* Turn off wme if we are having only g ONLY firmware */
 			bcm_mkiovar("nmode", 0, 0, buf, sizeof(buf));
 			if ((ret = dhd_wl_ioctl_cmd(dhd, WLC_GET_VAR, buf, sizeof(buf),
 				FALSE, 0)) < 0) {
@@ -3130,7 +3133,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	bcm_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
 
-	/* disable glom option per default */
+	/* disable glom option for some chips */
 	chipID = (uint16)dhd_bus_chip_id(dhd);
 	if  ((chipID == BCM4330_CHIP_ID) || (chipID == BCM4329_CHIP_ID)) {
 		DHD_INFO(("%s disable glom for chipID=0x%X\n", __FUNCTION__, chipID));
@@ -3283,8 +3286,15 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 		bcmstrtok(&ptr, "\n", 0);
 		/* Print fw version info */
 		DHD_ERROR(("Firmware version = %s\n", buf));
+
 		DHD_BLOG(buf, strlen(buf) + 1);
 		DHD_BLOG(dhd_version, strlen(dhd_version) + 1);
+
+		/* Check and adjust IOCTL response timeout for Manufactring firmware */
+		if (strstr(buf, MANUFACTRING_FW) != NULL) {
+			dhd_os_set_ioctl_resp_timeout(IOCTL_RESP_TIMEOUT * 10);
+			DHD_ERROR(("%s : adjust IOCTL response time for Manufactring Firmware\n", __FUNCTION__));
+		}
 	}
 
 done:
@@ -3638,7 +3648,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 	}
 #endif /* defined(CONFIG_HAS_EARLYSUSPEND) */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	cancel_work_sync(&dhd->work_hang);
+#endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))  */
 
 #if defined(WL_WIRELESS_EXT)
 	if (dhd->dhd_state & DHD_ATTACH_STATE_WL_ATTACH) {
@@ -4451,6 +4463,7 @@ dhd_dev_get_pno_status(struct net_device *dev)
 
 #endif /* PNO_SUPPORT */
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 static void dhd_hang_process(struct work_struct *work)
 {
 	dhd_info_t *dhd;
@@ -4472,7 +4485,6 @@ static void dhd_hang_process(struct work_struct *work)
 	}
 }
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 int net_os_send_hang_message(struct net_device *dev)
 {
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(dev);
