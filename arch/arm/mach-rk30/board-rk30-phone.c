@@ -1605,7 +1605,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
-#include "board-rk30-wm831x.c"
+#include "board-rk30-phone-wm831x.c"
 
 static struct i2c_board_info __initdata i2c1_info[] = {
 #if defined (CONFIG_MFD_WM831X_I2C)
