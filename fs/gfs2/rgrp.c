@@ -332,9 +332,6 @@ struct gfs2_rgrpd *gfs2_blk2rgrpd(struct gfs2_sbd *sdp, u64 blk, bool exact)
 	struct rb_node *n, *next;
 	struct gfs2_rgrpd *cur;
 
-	if (gfs2_rindex_update(sdp))
-		return NULL;
-
 	spin_lock(&sdp->sd_rindex_spin);
 	n = sdp->sd_rindex_tree.rb_node;
 	while (n) {
@@ -927,6 +924,10 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 		r.minlen = 0;
 	} else if (copy_from_user(&r, argp, sizeof(r)))
 		return -EFAULT;
+
+	ret = gfs2_rindex_update(sdp);
+	if (ret)
+		return ret;
 
 	rgd = gfs2_blk2rgrpd(sdp, r.start, 0);
 	rgd_end = gfs2_blk2rgrpd(sdp, r.start + r.len, 0);
