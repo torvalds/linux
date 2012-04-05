@@ -263,6 +263,24 @@ static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 	chip->irq_eoi(data);
 }
 
+static void lnw_irq_init_hw(struct lnw_gpio *lnw)
+{
+	void __iomem *reg;
+	unsigned base;
+
+	for (base = 0; base < lnw->chip.ngpio; base += 32) {
+		/* Clear the rising-edge detect register */
+		reg = gpio_reg(&lnw->chip, base, GRER);
+		writel(0, reg);
+		/* Clear the falling-edge detect register */
+		reg = gpio_reg(&lnw->chip, base, GFER);
+		writel(0, reg);
+		/* Clear the edge detect status register */
+		reg = gpio_reg(&lnw->chip, base, GEDR);
+		writel(~0, reg);
+	}
+}
+
 #ifdef CONFIG_PM
 static int lnw_gpio_runtime_resume(struct device *dev)
 {
@@ -371,6 +389,9 @@ static int __devinit lnw_gpio_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "langwell gpiochip_add error %d\n", retval);
 		goto err4;
 	}
+
+	lnw_irq_init_hw(lnw);
+
 	irq_set_handler_data(pdev->irq, lnw);
 	irq_set_chained_handler(pdev->irq, lnw_irq_handler);
 	for (i = 0; i < lnw->chip.ngpio; i++) {
