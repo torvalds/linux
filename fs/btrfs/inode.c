@@ -2510,7 +2510,7 @@ static void btrfs_read_locked_inode(struct inode *inode)
 
 	inode_set_bytes(inode, btrfs_inode_nbytes(leaf, inode_item));
 	BTRFS_I(inode)->generation = btrfs_inode_generation(leaf, inode_item);
-	BTRFS_I(inode)->sequence = btrfs_inode_sequence(leaf, inode_item);
+	inode->i_version = btrfs_inode_sequence(leaf, inode_item);
 	inode->i_generation = BTRFS_I(inode)->generation;
 	inode->i_rdev = 0;
 	rdev = btrfs_inode_rdev(leaf, inode_item);
@@ -2594,7 +2594,7 @@ static void fill_inode_item(struct btrfs_trans_handle *trans,
 
 	btrfs_set_inode_nbytes(leaf, item, inode_get_bytes(inode));
 	btrfs_set_inode_generation(leaf, item, BTRFS_I(inode)->generation);
-	btrfs_set_inode_sequence(leaf, item, BTRFS_I(inode)->sequence);
+	btrfs_set_inode_sequence(leaf, item, inode->i_version);
 	btrfs_set_inode_transid(leaf, item, trans->transid);
 	btrfs_set_inode_rdev(leaf, item, inode->i_rdev);
 	btrfs_set_inode_flags(leaf, item, BTRFS_I(inode)->flags);
@@ -2752,6 +2752,8 @@ err:
 		goto out;
 
 	btrfs_i_size_write(dir, dir->i_size - name_len * 2);
+	inode_inc_iversion(inode);
+	inode_inc_iversion(dir);
 	inode->i_ctime = dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	btrfs_update_inode(trans, root, dir);
 out:
@@ -3089,6 +3091,7 @@ int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_i_size_write(dir, dir->i_size - name_len * 2);
+	inode_inc_iversion(dir);
 	dir->i_mtime = dir->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, dir);
 	if (ret)
@@ -3638,6 +3641,7 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if (attr->ia_valid) {
 		setattr_copy(inode, attr);
+		inode_inc_iversion(inode);
 		err = btrfs_dirty_inode(inode);
 
 		if (!err && attr->ia_valid & ATTR_MODE)
@@ -4730,6 +4734,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 
 	btrfs_i_size_write(parent_inode, parent_inode->i_size +
 			   name_len * 2);
+	inode_inc_iversion(parent_inode);
 	parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
 	ret = btrfs_update_inode(trans, root, parent_inode);
 	if (ret)
@@ -4937,6 +4942,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	btrfs_inc_nlink(inode);
+	inode_inc_iversion(inode);
 	inode->i_ctime = CURRENT_TIME;
 	ihold(inode);
 
@@ -6894,7 +6900,6 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->root = NULL;
 	ei->space_info = NULL;
 	ei->generation = 0;
-	ei->sequence = 0;
 	ei->last_trans = 0;
 	ei->last_sub_trans = 0;
 	ei->logged_trans = 0;
@@ -7193,6 +7198,9 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (new_inode && new_inode->i_size && S_ISREG(old_inode->i_mode))
 		btrfs_add_ordered_operation(trans, root, old_inode);
 
+	inode_inc_iversion(old_dir);
+	inode_inc_iversion(new_dir);
+	inode_inc_iversion(old_inode);
 	old_dir->i_ctime = old_dir->i_mtime = ctime;
 	new_dir->i_ctime = new_dir->i_mtime = ctime;
 	old_inode->i_ctime = ctime;
@@ -7219,6 +7227,7 @@ static int btrfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	}
 
 	if (new_inode) {
+		inode_inc_iversion(new_inode);
 		new_inode->i_ctime = CURRENT_TIME;
 		if (unlikely(btrfs_ino(new_inode) ==
 			     BTRFS_EMPTY_SUBVOL_DIR_OBJECTID)) {
@@ -7490,6 +7499,7 @@ static int __btrfs_prealloc_file_range(struct inode *inode, int mode,
 		cur_offset += ins.offset;
 		*alloc_hint = ins.objectid + ins.offset;
 
+		inode_inc_iversion(inode);
 		inode->i_ctime = CURRENT_TIME;
 		BTRFS_I(inode)->flags |= BTRFS_INODE_PREALLOC;
 		if (!(mode & FALLOC_FL_KEEP_SIZE) &&

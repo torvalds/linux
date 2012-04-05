@@ -1409,7 +1409,6 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		mutex_unlock(&inode->i_mutex);
 		goto out;
 	}
-	BTRFS_I(inode)->sequence++;
 
 	start_pos = round_down(pos, root->sectorsize);
 	if (start_pos > i_size_read(inode)) {

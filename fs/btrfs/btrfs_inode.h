@@ -83,9 +83,6 @@ struct btrfs_inode {
 	 */
 	u64 generation;
 
-	/* sequence number for NFS changes */
-	u64 sequence;
-
 	/*
 	 * transid of the trans_handle that last modified this inode
 	 */
