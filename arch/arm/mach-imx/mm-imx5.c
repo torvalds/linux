@@ -32,6 +32,7 @@ static void imx5_idle(void)
 		gpc_dvfs_clk = clk_get(NULL, "gpc_dvfs");
 		if (IS_ERR(gpc_dvfs_clk))
 			return;
+		clk_prepare(gpc_dvfs_clk);
 	}
 	clk_enable(gpc_dvfs_clk);
 	mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
