@@ -406,7 +406,6 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 	struct da9052_regulator *regulator;
 	struct da9052 *da9052;
 	struct da9052_pdata *pdata;
-	int ret;
 
 	regulator = devm_kzalloc(&pdev->dev, sizeof(struct da9052_regulator),
 				 GFP_KERNEL);
@@ -421,8 +420,7 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 					      pdev->id);
 	if (regulator->info == NULL) {
 		dev_err(&pdev->dev, "invalid regulator ID specified\n");
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 	regulator->rdev = regulator_register(&regulator->info->reg_desc,
 					     &pdev->dev,
@@ -431,16 +429,12 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 	if (IS_ERR(regulator->rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 			regulator->info->reg_desc.name);
-		ret = PTR_ERR(regulator->rdev);
-		goto err;
+		return PTR_ERR(regulator->rdev);
 	}
 
 	platform_set_drvdata(pdev, regulator);
 
 	return 0;
-err:
-	devm_kfree(&pdev->dev, regulator);
-	return ret;
 }
 
 static int __devexit da9052_regulator_remove(struct platform_device *pdev)
@@ -448,8 +442,6 @@ static int __devexit da9052_regulator_remove(struct platform_device *pdev)
 	struct da9052_regulator *regulator = platform_get_drvdata(pdev);
 
 	regulator_unregister(regulator->rdev);
-	devm_kfree(&pdev->dev, regulator);
-
 	return 0;
 }
 
