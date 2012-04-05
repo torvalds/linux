@@ -1915,90 +1915,120 @@ eval_type(unsigned long long val, struct print_arg *arg, int pointer)
 	return eval_type_str(val, arg->typecast.type, pointer);
 }
 
-static long long arg_num_eval(struct print_arg *arg)
+static int arg_num_eval(struct print_arg *arg, long long *val)
 {
 	long long left, right;
-	long long val = 0;
+	int ret = 1;
 
 	switch (arg->type) {
 	case PRINT_ATOM:
-		val = strtoll(arg->atom.atom, NULL, 0);
+		*val = strtoll(arg->atom.atom, NULL, 0);
 		break;
 	case PRINT_TYPE:
-		val = arg_num_eval(arg->typecast.item);
-		val = eval_type(val, arg, 0);
+		ret = arg_num_eval(arg->typecast.item, val);
+		if (!ret)
+			break;
+		*val = eval_type(*val, arg, 0);
 		break;
 	case PRINT_OP:
 		switch (arg->op.op[0]) {
 		case '|':
-			left = arg_num_eval(arg->op.left);
-			right = arg_num_eval(arg->op.right);
+			ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
 			if (arg->op.op[1])
-				val = left || right;
+				*val = left || right;
 			else
-				val = left | right;
+				*val = left | right;
 			break;
 		case '&':
-			left = arg_num_eval(arg->op.left);
-			right = arg_num_eval(arg->op.right);
+			ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
 			if (arg->op.op[1])
-				val = left && right;
+				*val = left && right;
 			else
-				val = left & right;
+				*val = left & right;
 			break;
 		case '<':
-			left = arg_num_eval(arg->op.left);
-			right = arg_num_eval(arg->op.right);
+			ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
 			switch (arg->op.op[1]) {
 			case 0:
-				val = left < right;
+				*val = left < right;
 				break;
 			case '<':
-				val = left << right;
+				*val = left << right;
 				break;
 			case '=':
-				val = left <= right;
+				*val = left <= right;
 				break;
 			default:
-				die("unknown op '%s'", arg->op.op);
+				do_warning("unknown op '%s'", arg->op.op);
+				ret = 0;
 			}
 			break;
 		case '>':
-			left = arg_num_eval(arg->op.left);
-			right = arg_num_eval(arg->op.right);
+			ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
 			switch (arg->op.op[1]) {
 			case 0:
-				val = left > right;
+				*val = left > right;
 				break;
 			case '>':
-				val = left >> right;
+				*val = left >> right;
 				break;
 			case '=':
-				val = left >= right;
+				*val = left >= right;
 				break;
 			default:
-				die("unknown op '%s'", arg->op.op);
+				do_warning("unknown op '%s'", arg->op.op);
+				ret = 0;
 			}
 			break;
 		case '=':
-			left = arg_num_eval(arg->op.left);
-			right = arg_num_eval(arg->op.right);
+			ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
 
-			if (arg->op.op[1] != '=')
-				die("unknown op '%s'", arg->op.op);
-
-			val = left == right;
+			if (arg->op.op[1] != '=') {
+				do_warning("unknown op '%s'", arg->op.op);
+				ret = 0;
+			} else
+				*val = left == right;
 			break;
 		case '!':
-			left = arg_num_eval(arg->op.left);
-			right = arg_num_eval(arg->op.right);
+			ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
 
 			switch (arg->op.op[1]) {
 			case '=':
-				val = left != right;
+				*val = left != right;
 				break;
 			default:
-				die("unknown op '%s'", arg->op.op);
+				do_warning("unknown op '%s'", arg->op.op);
+				ret = 0;
 			}
 			break;
 		case '-':
@@ -2006,12 +2036,17 @@ static long long arg_num_eval(struct print_arg *arg)
 			if (arg->op.left->type == PRINT_NULL)
 				left = 0;
 			else
-				left = arg_num_eval(arg->op.left);
-			right = arg_num_eval(arg->op.right);
-			val = left - right;
+				ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
+			*val = left - right;
 			break;
 		default:
-			die("unknown op '%s'", arg->op.op);
+			do_warning("unknown op '%s'", arg->op.op);
+			ret = 0;
 		}
 		break;
 
@@ -2020,10 +2055,11 @@ static long long arg_num_eval(struct print_arg *arg)
 	case PRINT_STRING:
 	case PRINT_BSTRING:
 	default:
-		die("invalid eval type %d", arg->type);
+		do_warning("invalid eval type %d", arg->type);
+		ret = 0;
 
 	}
-	return val;
+	return ret;
 }
 
 static char *arg_eval (struct print_arg *arg)
@@ -2037,7 +2073,8 @@ static char *arg_eval (struct print_arg *arg)
 	case PRINT_TYPE:
 		return arg_eval(arg->typecast.item);
 	case PRINT_OP:
-		val = arg_num_eval(arg);
+		if (!arg_num_eval(arg, &val))
+			break;
 		sprintf(buf, "%lld", val);
 		return buf;
 
@@ -2079,6 +2116,8 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 		memset(field, 0, sizeof(*field));
 
 		value = arg_eval(arg);
+		if (value == NULL)
+			goto out_free;
 		field->value = strdup(value);
 
 		free_arg(arg);
@@ -2090,6 +2129,8 @@ process_fields(struct event_format *event, struct print_flag_sym **list, char **
 			goto out_free;
 
 		value = arg_eval(arg);
+		if (value == NULL)
+			goto out_free;
 		field->str = strdup(value);
 		free_arg(arg);
 		arg = NULL;
