@@ -3130,6 +3130,12 @@ eval_num_arg(void *data, int size, struct event_format *event, struct print_arg 
 		case '+':
 			val = left + right;
 			break;
+		case '/':
+			val = left / right;
+			break;
+		case '*':
+			val = left * right;
+			break;
 		default:
 			die("unknown op '%s'", arg->op.op);
 		}
