@@ -1477,16 +1477,6 @@ static int btrfs_unfreeze(struct super_block *sb)
 	return 0;
 }
 
-static void btrfs_fs_dirty_inode(struct inode *inode, int flags)
-{
-	int ret;
-
-	ret = btrfs_dirty_inode(inode);
-	if (ret)
-		printk_ratelimited(KERN_ERR "btrfs: fail to dirty inode %Lu "
-				   "error %d\n", btrfs_ino(inode), ret);
-}
-
 static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(root->d_sb);
@@ -1526,7 +1516,6 @@ static const struct super_operations btrfs_super_ops = {
 	.show_options	= btrfs_show_options,
 	.show_devname	= btrfs_show_devname,
 	.write_inode	= btrfs_write_inode,
-	.dirty_inode	= btrfs_fs_dirty_inode,
 	.alloc_inode	= btrfs_alloc_inode,
 	.destroy_inode	= btrfs_destroy_inode,
 	.statfs		= btrfs_statfs,
