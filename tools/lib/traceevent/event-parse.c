@@ -3940,15 +3940,16 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	struct event_format *event;
 	unsigned long secs;
 	unsigned long usecs;
+	unsigned long nsecs;
 	const char *comm;
 	void *data = record->data;
 	int type;
 	int pid;
 	int len;
+	int p;
 
 	secs = record->ts / NSECS_PER_SEC;
-	usecs = record->ts - secs * NSECS_PER_SEC;
-	usecs = (usecs + 500) / NSECS_PER_USEC;
+	nsecs = record->ts - secs * NSECS_PER_SEC;
 
 	if (record->size < 0) {
 		do_warning("ug! negative record size %d", record->size);
@@ -3973,7 +3974,15 @@ void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 	} else
 		trace_seq_printf(s, "%16s-%-5d [%03d]", comm, pid, record->cpu);
 
-	trace_seq_printf(s, " %5lu.%06lu: %s: ", secs, usecs, event->name);
+	if (pevent->flags & PEVENT_NSEC_OUTPUT) {
+		usecs = nsecs;
+		p = 9;
+	} else {
+		usecs = (nsecs + 500) / NSECS_PER_USEC;
+		p = 6;
+	}
+
+	trace_seq_printf(s, " %5lu.%0*lu: %s: ", secs, p, usecs, event->name);
 
 	/* Space out the event names evenly. */
 	len = strlen(event->name);

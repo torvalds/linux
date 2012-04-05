@@ -45,6 +45,7 @@ int read_trace_init(int file_bigendian, int host_bigendian)
 	perf_pevent = pevent_alloc();
 	pevent = perf_pevent;
 
+	pevent_set_flag(pevent, PEVENT_NSEC_OUTPUT);
 	pevent_set_file_bigendian(pevent, file_bigendian);
 	pevent_set_host_bigendian(pevent, host_bigendian);
 
