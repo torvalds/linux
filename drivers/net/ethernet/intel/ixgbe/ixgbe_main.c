@@ -4893,6 +4893,16 @@ static int __ixgbe_shutdown(struct pci_dev *pdev, bool *enable_wake)
 	if (wufc) {
 		ixgbe_set_rx_mode(netdev);
 
+		/*
+		 * enable the optics for both mult-speed fiber and
+		 * 82599 SFP+ fiber as we can WoL.
+		 */
+		if (hw->mac.ops.enable_tx_laser &&
+		    (hw->phy.multispeed_fiber ||
+		    (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_fiber &&
+		     hw->mac.type == ixgbe_mac_82599EB)))
+			hw->mac.ops.enable_tx_laser(hw);
+
 		/* turn on all-multi mode if wake on multicast is enabled */
 		if (wufc & IXGBE_WUFC_MC) {
 			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
