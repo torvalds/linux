@@ -2,7 +2,7 @@ Document about softnet driver issues
 
 Transmit path guidelines:
 
-1) The hard_start_xmit method must never return '1' under any
+1) The ndo_start_xmit method must never return '1' under any
    normal circumstances.  It is considered a hard error unless
    there is no way your device can tell ahead of time when it's
    transmit function will become busy.
@@ -61,10 +61,10 @@ Transmit path guidelines:
 2) Do not forget to update netdev->trans_start to jiffies after
    each new tx packet is given to the hardware.
 
-3) A hard_start_xmit method must not modify the shared parts of a
+3) An ndo_start_xmit method must not modify the shared parts of a
    cloned SKB.
 
-4) Do not forget that once you return 0 from your hard_start_xmit
+4) Do not forget that once you return 0 from your ndo_start_xmit
    method, it is your driver's responsibility to free up the SKB
    and in some finite amount of time.
 
@@ -74,7 +74,7 @@ Transmit path guidelines:
    This error can deadlock sockets waiting for send buffer room
    to be freed up.
 
-   If you return 1 from the hard_start_xmit method, you must not keep
+   If you return 1 from the ndo_start_xmit method, you must not keep
    any reference to that SKB and you must not attempt to free it up.
 
 Probing guidelines:
@@ -85,10 +85,10 @@ Probing guidelines:
 
 Close/stop guidelines:
 
-1) After the dev->stop routine has been called, the hardware must
+1) After the ndo_stop routine has been called, the hardware must
    not receive or transmit any data.  All in flight packets must
    be aborted. If necessary, poll or wait for completion of 
    any reset commands.
 
-2) The dev->stop routine will be called by unregister_netdevice
+2) The ndo_stop routine will be called by unregister_netdevice
    if device is still UP.
