@@ -72,9 +72,9 @@ static int pm860x_rtc_alarm_irq_enable(struct device *dev, unsigned int enabled)
 	struct pm860x_rtc_info *info = dev_get_drvdata(dev);
 
 	if (enabled)
-		pm860x_set_bits(info->i2c, PM8607_RTC1, ALARM, ALARM);
+		pm860x_set_bits(info->i2c, PM8607_RTC1, ALARM_EN, ALARM_EN);
 	else
-		pm860x_set_bits(info->i2c, PM8607_RTC1, ALARM, 0);
+		pm860x_set_bits(info->i2c, PM8607_RTC1, ALARM_EN, 0);
 	return 0;
 }
 
