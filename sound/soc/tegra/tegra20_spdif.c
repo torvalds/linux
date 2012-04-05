@@ -1,5 +1,5 @@
 /*
- * tegra_spdif.c - Tegra SPDIF driver
+ * tegra20_spdif.c - Tegra20 SPDIF driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
  * Copyright (C) 2011-2012 - NVIDIA, Inc.
@@ -34,7 +34,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include "tegra_spdif.h"
+#include "tegra20_spdif.h"
 
 #define DRV_NAME "tegra-spdif"
 

@@ -1,5 +1,5 @@
 /*
- * tegra_i2s.h - Definitions for Tegra I2S driver
+ * tegra20_i2s.h - Definitions for Tegra20 I2S driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
  * Copyright (C) 2010 - NVIDIA, Inc.

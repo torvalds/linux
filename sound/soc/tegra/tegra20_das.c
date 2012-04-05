@@ -1,5 +1,5 @@
 /*
- * tegra_das.c - Tegra DAS driver
+ * tegra20_das.c - Tegra20 DAS driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
  * Copyright (C) 2010 - NVIDIA, Inc.
@@ -29,7 +29,7 @@
 #include <linux/io.h>
 #include <mach/iomap.h>
 #include <sound/soc.h>
-#include "tegra_das.h"
+#include "tegra20_das.h"
 
 #define DRV_NAME "tegra-das"
 

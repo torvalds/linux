@@ -1,5 +1,5 @@
 /*
- * tegra_spdif.h - Definitions for Tegra SPDIF driver
+ * tegra20_spdif.h - Definitions for Tegra20 SPDIF driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
  * Copyright (C) 2011 - NVIDIA, Inc.

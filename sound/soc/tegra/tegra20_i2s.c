@@ -1,5 +1,5 @@
 /*
- * tegra_i2s.c - Tegra I2S driver
+ * tegra20_i2s.c - Tegra20 I2S driver
  *
  * Author: Stephen Warren <swarren@nvidia.com>
  * Copyright (C) 2010,2012 - NVIDIA, Inc.
@@ -43,7 +43,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 
-#include "tegra_i2s.h"
+#include "tegra20_i2s.h"
 
 #define DRV_NAME "tegra-i2s"
 
