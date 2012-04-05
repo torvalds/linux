@@ -184,7 +184,7 @@ static struct regulator_ops ad5398_ops = {
 	.is_enabled = ad5398_is_enabled,
 };
 
-static struct regulator_desc ad5398_reg = {
+static const struct regulator_desc ad5398_reg = {
 	.name = "isink",
 	.id = 0,
 	.ops = &ad5398_ops,
