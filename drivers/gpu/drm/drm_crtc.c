@@ -2185,6 +2185,47 @@ static int format_check(struct drm_mode_fb_cmd2 *r)
 	}
 }
 
+static int framebuffer_check(struct drm_mode_fb_cmd2 *r)
+{
+	int ret, hsub, vsub, num_planes, i;
+
+	ret = format_check(r);
+	if (ret) {
+		DRM_ERROR("bad framebuffer format 0x%08x\n", r->pixel_format);
+		return ret;
+	}
+
+	hsub = drm_format_horz_chroma_subsampling(r->pixel_format);
+	vsub = drm_format_vert_chroma_subsampling(r->pixel_format);
+	num_planes = drm_format_num_planes(r->pixel_format);
+
+	if (r->width == 0 || r->width % hsub) {
+		DRM_ERROR("bad framebuffer width %u\n", r->height);
+		return -EINVAL;
+	}
+
+	if (r->height == 0 || r->height % vsub) {
+		DRM_ERROR("bad framebuffer height %u\n", r->height);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < num_planes; i++) {
+		unsigned int width = r->width / (i != 0 ? hsub : 1);
+
+		if (!r->handles[i]) {
+			DRM_ERROR("no buffer object handle for plane %d\n", i);
+			return -EINVAL;
+		}
+
+		if (r->pitches[i] < drm_format_plane_cpp(r->pixel_format, i) * width) {
+			DRM_ERROR("bad pitch %u for plane %d\n", r->pitches[i], i);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * drm_mode_addfb2 - add an FB to the graphics configuration
  * @inode: inode from the ioctl
@@ -2224,11 +2265,9 @@ int drm_mode_addfb2(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	ret = format_check(r);
-	if (ret) {
-		DRM_ERROR("bad framebuffer format 0x%08x\n", r->pixel_format);
+	ret = framebuffer_check(r);
+	if (ret)
 		return ret;
-	}
 
 	mutex_lock(&dev->mode_config.mutex);
 
