@@ -173,8 +173,13 @@ int wm831x_post_init(struct wm831x *Wm831x)
 
 	dcdc = regulator_get(NULL, "vdd_core");	// vdd_log
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 	regulator_set_voltage(dcdc, 1150000, 1150000);
 	regulator_set_suspend_voltage(dcdc, 1100000);
+=======
+	regulator_set_voltage(dcdc, 1100000, 1100000);
+	regulator_set_suspend_voltage(dcdc, 1000000);
+>>>>>>> Stashed changes
 =======
 	regulator_set_voltage(dcdc, 1100000, 1100000);
 	regulator_set_suspend_voltage(dcdc, 1000000);
