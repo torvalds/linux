@@ -720,7 +720,7 @@ try_again:
 	err = mmc_send_app_op_cond(host, ocr, rocr);
 	if (err) {
 #if defined(CONFIG_SDMMC_RK29) && !defined(CONFIG_SDMMC_RK29_OLD)
-	    printk(KERN_ERR "%s..%d..  ====*Identify the card as SD , but OCR error, so fail to initialize.[%s]\n", \
+	    printk(KERN_WARNING "%s..%d..  ====*Identify the card as SD , but OCR error, so fail to initialize.[%s]\n", \
 	        __FUNCTION__, __LINE__, mmc_hostname(host));
 #endif
 		return err;
@@ -1307,7 +1307,7 @@ Retry_add:
 	    //retry add the card; Added by xbw
         if((--retry_times >= 0))
         {        
-            printk(KERN_ERR "\n%s..%s..%d   ****error in add partition, so retry.  [%s]\n",__FUNCTION__,__FILE__,__LINE__, mmc_hostname(host));   
+            printk(KERN_WARNING "\n%s..%s..%d   ****error in add partition, so retry.  [%s]\n",__FUNCTION__,__FILE__,__LINE__, mmc_hostname(host));   
             /* sleep some time */
             set_current_state(TASK_INTERRUPTIBLE);
             schedule_timeout(HZ/2);

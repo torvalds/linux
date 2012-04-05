@@ -324,7 +324,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         host = (struct rk29_sdmmc	*)globalSDhost[0];
         if(!host)
         {
-            printk(KERN_ERR "%s..%d.. fail to call progress_store because the host is null. \n",__FUNCTION__,__LINE__);
+            printk(KERN_WARNING "%s..%d.. fail to call progress_store because the host is null. \n",__FUNCTION__,__LINE__);
             return count;
         }
     }    
@@ -333,7 +333,7 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         host = (struct rk29_sdmmc	*)globalSDhost[RK29_CTRL_SDIO1_ID];
         if(!host)
         {
-            printk(KERN_ERR "%s..%d.. fail to call progress_store because the host-sdio1 is null.\n",__FUNCTION__,__LINE__);
+            printk(KERN_WARNING "%s..%d.. fail to call progress_store because the host-sdio1 is null.\n",__FUNCTION__,__LINE__);
             return count;
         }
     }
@@ -342,13 +342,13 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         host = (struct rk29_sdmmc	*)globalSDhost[RK29_CTRL_SDIO2_ID];
         if(!host)
         {
-            printk(KERN_ERR "%s..%d.. fail to call progress_store because the host-sdio2 is null.\n",__FUNCTION__,__LINE__);
+            printk(KERN_WARNING "%s..%d.. fail to call progress_store because the host-sdio2 is null.\n",__FUNCTION__,__LINE__);
             return count;
         }
     }
     else
     {
-        printk(KERN_ERR "%s..%d.. You want to use sysfs for SDMMC but input-parameter is wrong.\n",__FUNCTION__,__LINE__);
+        printk(KERN_WARNING "%s..%d.. You want to use sysfs for SDMMC but input-parameter is wrong.\n",__FUNCTION__,__LINE__);
         return count;
     }
 
@@ -803,7 +803,7 @@ static int rk29_sdmmc_start_command(struct rk29_sdmmc *host, struct mmc_command 
 	{
 	    if(0==cmd->retries)
 	    {
-    		printk(KERN_ERR "%s..%d..  CMD_START timeout! CMD%d(arg=0x%x, retries=%d) [%s]\n",\
+    		printk(KERN_WARNING "%s..%d..  CMD_START timeout! CMD%d(arg=0x%x, retries=%d) [%s]\n",\
     				__FUNCTION__,__LINE__, cmd->opcode, cmd->arg, cmd->retries,host->dma_name);
 		}
 
@@ -896,7 +896,7 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 		ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_STOP);
 		if(ret < 0)
 		{
-            printk(KERN_ERR "%s..%d...rk29_dma_ctrl STOP error! [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+            printk(KERN_WARNING "%s..%d...rk29_dma_ctrl STOP error! [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
             host->errorstep = 0x95;
             return;
 		}
@@ -904,7 +904,7 @@ static void rk29_sdmmc_stop_dma(struct rk29_sdmmc *host)
 		ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_FLUSH);
 		if(ret < 0)
 		{
-            printk(KERN_ERR "%s..%d...rk29_dma_ctrl FLUSH error! [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+            printk(KERN_WARNING "%s..%d...rk29_dma_ctrl FLUSH error! [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
             host->errorstep = 0x96;
             return;
 		}
@@ -1002,14 +1002,14 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	
 	if(host->use_dma == 0)
 	{
-	    printk(KERN_ERR "%s..%d...setup DMA fail!!!!!!. host->use_dma=0 [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+	    printk(KERN_WARNING "%s..%d...setup DMA fail!!!!!!. host->use_dma=0 [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 	    host->errorstep = 0x4;
 		return -ENOSYS;
 	}
 	/* If we don't have a channel, we can't do DMA */
 	if (host->dma_info.chn < 0)
 	{
-	    printk(KERN_ERR "%s..%d...setup DMA fail!!!!!!!. dma_info.chn < 0  [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+	    printk(KERN_WARNING "%s..%d...setup DMA fail!!!!!!!. dma_info.chn < 0  [%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 	    host->errorstep = 0x5;
 		return -ENODEV;
 	}
@@ -1020,7 +1020,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	{
 		if (sg->offset & 3 || sg->length & 3)
 		{
-		    printk(KERN_ERR "%s..%d...call for_each_sg() fail !![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+		    printk(KERN_WARNING "%s..%d...call for_each_sg() fail !![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 		    host->errorstep = 0x7;
 			return -EINVAL;
 		}
@@ -1039,7 +1039,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_STOP);
 	if(ret < 0)
 	{
-	    printk(KERN_ERR "%s..%d...rk29_dma_ctrl stop error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+	    printk(KERN_WARNING "%s..%d...rk29_dma_ctrl stop error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
 	    host->errorstep = 0x91;
 		return -ENOSYS;
 	}
@@ -1047,7 +1047,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	ret = rk29_dma_ctrl(host->dma_info.chn,RK29_DMAOP_FLUSH);	
 	if(ret < 0)
 	{
-        printk(KERN_ERR "%s..%d...rk29_dma_ctrl flush error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+        printk(KERN_WARNING "%s..%d...rk29_dma_ctrl flush error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
         host->errorstep = 0x91;
         return -ENOSYS;
 	}
@@ -1056,7 +1056,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
     ret = rk29_dma_devconfig(host->dma_info.chn, direction, (unsigned long )(host->dma_addr));
     if(0 != ret)
     {
-        printk(KERN_ERR "%s..%d...call rk29_dma_devconfig() fail ![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+        printk(KERN_WARNING "%s..%d...call rk29_dma_devconfig() fail ![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
         host->errorstep = 0x8;
         return -ENOSYS;
     }
@@ -1067,7 +1067,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
     	ret = rk29_dma_enqueue(host->dma_info.chn, host, sg_dma_address(&data->sg[i]),sg_dma_len(&data->sg[i]));
     	if(ret < 0)
     	{
-            printk(KERN_ERR "%s..%d...call rk29_dma_devconfig() fail ![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+            printk(KERN_WARNING "%s..%d...call rk29_dma_devconfig() fail ![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
             host->errorstep = 0x93;
             return -ENOSYS;
     	}
@@ -1077,7 +1077,7 @@ static int rk29_sdmmc_submit_data_dma(struct rk29_sdmmc *host, struct mmc_data *
 	ret = rk29_dma_ctrl(host->dma_info.chn, RK29_DMAOP_START);
 	if(ret < 0)
 	{
-        printk(KERN_ERR "%s..%d...rk29_dma_ctrl start error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
+        printk(KERN_WARNING "%s..%d...rk29_dma_ctrl start error![%s]\n", __FUNCTION__, __LINE__, host->dma_name);
         host->errorstep = 0x94;
         return -ENOSYS;
 	}
@@ -1127,7 +1127,7 @@ static int rk29_sdmmc_prepare_write_data(struct rk29_sdmmc *host, struct mmc_dat
             {
         		host->dodma = 0;
         			
-        	    printk(KERN_ERR "%s..%d... CMD%d setupDMA failure!!!!! pre_cmd=%d  [%s]\n", \
+        	    printk(KERN_WARNING "%s..%d... CMD%d setupDMA failure!!!!! pre_cmd=%d  [%s]\n", \
 						__FUNCTION__, __LINE__, host->cmd->opcode,host->old_cmd, host->dma_name);
         	    
 				host->errorstep = 0x81;
@@ -1180,7 +1180,7 @@ static int rk29_sdmmc_prepare_read_data(struct rk29_sdmmc *host, struct mmc_data
             {
         		host->dodma = 0;
         			
-        	    printk(KERN_ERR "%s..%d... CMD%d setupDMA  failure!!!  [%s]\n", \
+        	    printk(KERN_WARNING "%s..%d... CMD%d setupDMA  failure!!!  [%s]\n", \
 						__FUNCTION__, __LINE__, host->cmd->opcode, host->dma_name);
 
         	    host->errorstep = 0x82;
@@ -1365,7 +1365,7 @@ static int sdmmc_send_cmd_start(struct rk29_sdmmc *host, unsigned int cmd)
 	
 	if(!tmo) 
 	{
-		printk(KERN_ERR "%s.. %d   set cmd(value=0x%x) register timeout error !   [%s]\n",\
+		printk(KERN_WARNING "%s.. %d   set cmd(value=0x%x) register timeout error !   [%s]\n",\
 				__FUNCTION__,__LINE__, cmd, host->dma_name);
 
 		host->errorstep = 0x9;
@@ -1455,7 +1455,7 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
 
     if (timeOut == 0)
     {
-        printk(KERN_ERR "%s..%s..%d..  reset controller fail! [%s]=\n",\
+        printk(KERN_WARNING "%s..%s..%d..  reset controller fail! [%s]=\n",\
 				__FILE__, __FUNCTION__,__LINE__, host->dma_name);
 
         host->errorstep = 0x0A;
@@ -1471,7 +1471,7 @@ int rk29_sdmmc_reset_controller(struct rk29_sdmmc *host)
     host->bus_hz = clk_get_rate(host->clk);
     if((host->bus_hz > 52000000) || (host->bus_hz <= 0))
     {
-        printk(KERN_ERR "%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits. [%s]\n",\
+        printk(KERN_WARNING "%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits. [%s]\n",\
             __FILE__, __FUNCTION__,__LINE__,host->bus_hz, host->dma_name);
         
 		host->errorstep = 0x0B;            
@@ -1625,7 +1625,7 @@ static int rk29_sdmmc_control_clock(struct rk29_sdmmc *host, bool enable)
     return SDM_SUCCESS;
 
 Error_exit:
-    printk(KERN_ERR "\n%s....%d..  control clock fail!!! Enable=%d, ret=0x%x [%s]\n",\
+    printk(KERN_WARNING "\n%s....%d..  control clock fail!!! Enable=%d, ret=0x%x [%s]\n",\
 			__FILE__,__LINE__,enable,ret, host->dma_name);
 
     return ret;
@@ -1656,7 +1656,7 @@ int rk29_sdmmc_change_clk_div(struct rk29_sdmmc *host, u32 freqHz)
     host->bus_hz = clk_get_rate(host->clk);
     if((host->bus_hz > 52000000) || (host->bus_hz <= 0))
     {
-        printk(KERN_ERR "%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits [%s]\n",\
+        printk(KERN_WARNING "%s..%s..%d..****Error!!!!!!  Bus clock %d hz is beyond the prescribed limits [%s]\n",\
             __FILE__, __FUNCTION__,__LINE__,host->bus_hz, host->dma_name);
             
         host->errorstep = 0x0D;    
@@ -1723,7 +1723,7 @@ int rk29_sdmmc_change_clk_div(struct rk29_sdmmc *host, u32 freqHz)
     
 SetFreq_error:
 
-    printk(KERN_ERR "%s..%d..  change division fail, errorStep=0x%x,ret=%d  [%s]\n",\
+    printk(KERN_WARNING "%s..%d..  change division fail, errorStep=0x%x,ret=%d  [%s]\n",\
         __FILE__, __LINE__,host->errorstep,ret, host->dma_name);
         
     return ret;
@@ -1828,7 +1828,7 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 	{
 	    if(0==host->cmd->retries)
 	    {
-    	    printk(KERN_ERR "%s..%d... cmd=%d, INT_CMD_DONE timeout, errorStep=0x%x, host->state=%x [%s]\n",\
+    	    printk(KERN_WARNING "%s..%d... cmd=%d, INT_CMD_DONE timeout, errorStep=0x%x, host->state=%x [%s]\n",\
                 __FUNCTION__, __LINE__,host->cmd->opcode, host->errorstep,host->state,host->dma_name);
         }
             
@@ -1853,7 +1853,7 @@ static void rk29_sdmmc_INT_DTO_timeout(unsigned long host_data)
 	{
 	    if(0==host->cmd->retries)
 	    {
-    	   printk(KERN_ERR "%s..%d...cmd=%d DTO_timeout,cmdr=0x%x, errorStep=0x%x, Hoststate=%x [%s]\n", \
+    	   printk(KERN_WARNING "%s..%d...cmd=%d DTO_timeout,cmdr=0x%x, errorStep=0x%x, Hoststate=%x [%s]\n", \
     	        __FUNCTION__, __LINE__,host->cmd->opcode,host->cmdr ,host->errorstep,host->state,host->dma_name);
 	    }
 
@@ -1910,7 +1910,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
             host->errorstep = 0x10;
             if(0 == cmd->retries)
             {
-                printk(KERN_ERR "%s..Error happen in CMD_PRV_DAT_WAIT. STATUS-reg=0x%x [%s]\n", \
+                printk(KERN_WARNING "%s..Error happen in CMD_PRV_DAT_WAIT. STATUS-reg=0x%x [%s]\n", \
                     __FUNCTION__, rk29_sdmmc_read(host->regs, SDMMC_STATUS),host->dma_name);
             }
             rk29_sdmmc_clear_fifo(host);
@@ -1958,7 +1958,7 @@ static int rk29_sdmmc_start_request(struct mmc_host *mmc )
         cmd->error = -ETIMEDOUT;
         if(0==cmd->retries)
         {
-            printk(KERN_ERR "%s..%d...   start_command(CMD%d, arg=%x, retries=%d)  fail! ret=%d . [%s]\n",\
+            printk(KERN_WARNING "%s..%d...   start_command(CMD%d, arg=%x, retries=%d)  fail! ret=%d . [%s]\n",\
                 __FUNCTION__, __LINE__ , cmd->opcode,cmd->arg, cmd->retries,ret, host->dma_name);
         }
         host->errorstep = 0x11; 
@@ -1982,7 +1982,7 @@ start_request_Err:
 
     if(0 == cmd->retries) 
     {
-        printk(KERN_ERR "%s: CMD%d(arg=%x)  fail to start request.  err=%d, Errorstep=0x%x [%s]\n",\
+        printk(KERN_WARNING "%s: CMD%d(arg=%x)  fail to start request.  err=%d, Errorstep=0x%x [%s]\n",\
             __FUNCTION__,  cmd->opcode, cmd->arg,ret,host->errorstep,host->dma_name);
     }
 
@@ -2017,7 +2017,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	if(RK29_CTRL_SDIO1_ID==host->pdev->id)//if(RK29_CTRL_SDMMC_ID==host->pdev->id)//
 	{
 	    mrq->cmd->error = -ENOMEDIUM;
-	    printk(KERN_ERR "%s..%d..  ==== The %s had been closed by myself for the experiment. [%s]\n",\
+	    printk(KERN_WARNING "%s..%d..  ==== The %s had been closed by myself for the experiment. [%s]\n",\
 				__FUNCTION__, __LINE__, host->dma_name, host->dma_name);
 
         host->state = STATE_IDLE;
@@ -2126,7 +2126,7 @@ static void rk29_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
         
         #else
 
-        printk(KERN_ERR "%s..%d..state Error! ,old_state=%d, OldCMD=%d ,NewCMD%2d,arg=0x%x [%s]\n", \
+        printk(KERN_WARNING "%s..%d..state Error! ,old_state=%d, OldCMD=%d ,NewCMD%2d,arg=0x%x [%s]\n", \
 				__FUNCTION__, __LINE__, host->state, host->cmd->opcode,mrq->cmd->opcode,mrq->cmd->arg, host->dma_name);
 				
 		mrq->cmd->error = -ENOMEDIUM;
@@ -2169,7 +2169,7 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     	}
     	if (timeout <= 0)
     	{
-    		printk(KERN_ERR "%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.[%s]\n", \
+    		printk(KERN_WARNING "%s..%d...Waiting for SDMMC%d controller to be IDLE timeout.[%s]\n", \
     				__FUNCTION__, __LINE__, host->pdev->id, host->dma_name);
 
     		goto out;
@@ -2487,7 +2487,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
             output = rk29_sdmmc_wait_unbusy(host);
             if((SDM_SUCCESS != output) && (!host->mrq->cmd->error))
             {
-                printk(KERN_ERR "%s..%d...   CMD12 wait busy timeout!!!!! errorStep=0x%x   [%s]\n", \
+                printk(KERN_WARNING "%s..%d...   CMD12 wait busy timeout!!!!! errorStep=0x%x   [%s]\n", \
 						__FUNCTION__, __LINE__, host->errorstep, host->dma_name);
                 rk29_sdmmc_clear_fifo(host);
                 cmd->error = -ETIMEDOUT;
@@ -2503,7 +2503,7 @@ static void rk29_sdmmc_request_end(struct rk29_sdmmc *host, struct mmc_command *
     { 
         if( (!cmd->error) && (0==cmd->retries))
         {         
-            printk(KERN_ERR "%s..%d......CMD=%d error!!!(arg=0x%x,cmdretry=%d,blksize=%d, blocks=%d), \n \
+            printk(KERN_WARNING "%s..%d......CMD=%d error!!!(arg=0x%x,cmdretry=%d,blksize=%d, blocks=%d), \n \
                 statusReg=0x%x, ctrlReg=0x%x, nerrorTimes=%d, errorStep=0x%x. [%s]\n",\
                 __FUNCTION__, __LINE__, cmd->opcode, cmd->arg, cmd->retries,cmd->data->blksz, cmd->data->blocks,
                 rk29_sdmmc_read(host->regs, SDMMC_STATUS),
@@ -2519,7 +2519,7 @@ exit:
 #ifdef RK29_SDMMC_LIST_QUEUE
 	if (!list_empty(&host->queue)) 
 	{
-		printk(KERN_ERR "%s..%d..  Danger!Danger!. continue the next request in the queue.  [%s]\n",\
+		printk(KERN_WARNING "%s..%d..  Danger!Danger!. continue the next request in the queue.  [%s]\n",\
 		        __FUNCTION__, __LINE__, host->dma_name);
 
 		host = list_entry(host->queue.next,
@@ -2559,7 +2559,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
         output = rk29_sdmmc_reset_fifo(host);
         if (SDM_SUCCESS != output)
         {
-            printk(KERN_ERR "%s..%d......reset fifo fail! CMD%d(arg=0x%x, Retries=%d) [%s]\n",__FUNCTION__, __LINE__, \
+            printk(KERN_WARNING "%s..%d......reset fifo fail! CMD%d(arg=0x%x, Retries=%d) [%s]\n",__FUNCTION__, __LINE__, \
                 cmd->opcode, cmd->arg, cmd->retries,host->dma_name);
                 
             cmd->error = -ETIMEDOUT;
@@ -2602,7 +2602,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
             {   
                 output = SDM_FALSE;
                 host->errorstep = 0x1D;
-                printk(KERN_ERR "%s..%d......reset CTRL fail! CMD%d(arg=0x%x, Retries=%d).[%s]\n",\
+                printk(KERN_WARNING "%s..%d......reset CTRL fail! CMD%d(arg=0x%x, Retries=%d).[%s]\n",\
                     __FUNCTION__, __LINE__, cmd->opcode, cmd->arg, cmd->retries,host->dma_name);
                 
                goto CMD_Errror;
@@ -2636,7 +2636,7 @@ static int rk29_sdmmc_command_complete(struct rk29_sdmmc *host,
 	        if( ((RK29_CTRL_SDMMC_ID==host->pdev->id)&&(MMC_SLEEP_AWAKE!=cmd->opcode)) || 
 	             ((RK29_CTRL_SDMMC_ID!=host->pdev->id)&&(MMC_SEND_EXT_CSD!=cmd->opcode))  )
 	        {
-	            printk(KERN_ERR "%s..%d...CMD%d(arg=0x%x), hoststate=%d, errorTimes=%d, errorStep=0x%x ! [%s]\n",\
+	            printk(KERN_WARNING "%s..%d...CMD%d(arg=0x%x), hoststate=%d, errorTimes=%d, errorStep=0x%x ! [%s]\n",\
                     __FUNCTION__, __LINE__, cmd->opcode, cmd->arg, host->state,host->error_times,host->errorstep, host->dma_name);
 	        }
 	    }
@@ -2653,7 +2653,7 @@ CMD_Errror:
 
 	if((0==cmd->retries) && (host->error_times++%RK29_ERROR_PRINTK_INTERVAL == 0))
     {
-        printk(KERN_ERR "%s..%d....command_complete(CMD=%d, arg=%x) error=%d. [%s]\n",\
+        printk(KERN_WARNING "%s..%d....command_complete(CMD=%d, arg=%x) error=%d. [%s]\n",\
             __FUNCTION__, __LINE__, host->cmd->opcode,host->cmd->arg, output, host->dma_name);
     }
         
@@ -3035,7 +3035,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if(pending & SDMMC_INT_HLE)
     {
-        printk(KERN_ERR "%s: Error due to hardware locked. Please check your hardware. INT=0x%x, CMD%d(arg=0x%x, retries=%d). [%s]\n",\
+        printk(KERN_WARNING "%s: Error due to hardware locked. Please check your hardware. INT=0x%x, CMD%d(arg=0x%x, retries=%d). [%s]\n",\
 				__FUNCTION__, pending,host->cmd->opcode, host->cmd->arg, host->cmd->retries, host->dma_name);  	      
     
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_HLE); 
@@ -3063,7 +3063,7 @@ static irqreturn_t rk29_sdmmc_interrupt(int irq, void *dev_id)
 
     if (pending & SDMMC_INT_FRUN) 
     { 
-    	printk(KERN_ERR "%s: INT=0x%x Oh!My God,let me see!What happened?Why?Where? CMD%d(arg=0x%x, retries=%d). [%s]\n", \
+    	printk(KERN_WARNING "%s: INT=0x%x Oh!My God,let me see!What happened?Why?Where? CMD%d(arg=0x%x, retries=%d). [%s]\n", \
 				__FUNCTION__, pending, host->cmd->opcode, host->cmd->arg, host->cmd->retries,host->dma_name);
     	
         rk29_sdmmc_write(host->regs, SDMMC_RINTSTS,SDMMC_INT_FRUN); 
@@ -3351,7 +3351,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
         ret = rk29_dma_request(host->dma_info.chn, &(host->dma_info.client), NULL); 
         if (ret < 0)
         {
-        	printk(KERN_ERR "%s..%d...rk29_dma_request error=%d. [%s]\n", \
+        	printk(KERN_WARNING "%s..%d...rk29_dma_request error=%d. [%s]\n", \
 					__FUNCTION__, __LINE__,ret, host->dma_name);
         	host->errorstep = 0x97;
             goto err_freemap; 
@@ -3371,7 +3371,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 #endif
         if(ret < 0)
 		{
-            printk(KERN_ERR "%s..%d..  rk29_dma_config error=%d. [%s]\n", \
+            printk(KERN_WARNING "%s..%d..  rk29_dma_config error=%d. [%s]\n", \
 					__FUNCTION__, __LINE__, ret, host->dma_name);
             host->errorstep = 0x98;
             goto err_dmaunmap;
@@ -3380,7 +3380,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
         ret = rk29_dma_set_buffdone_fn(host->dma_info.chn, rk29_sdmmc_dma_complete);	
 		if(ret < 0)
 		{
-            printk(KERN_ERR "%s..%d..  dma_set_buffdone_fn error=%d. [%s]\n", \
+            printk(KERN_WARNING "%s..%d..  dma_set_buffdone_fn error=%d. [%s]\n", \
 					__FUNCTION__, __LINE__, ret, host->dma_name);
             host->errorstep = 0x99;
             goto err_dmaunmap;
@@ -3399,7 +3399,7 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	if (ret)
 	{	
 
-	    printk(KERN_ERR "%s..%d..  request_irq error=%d. [%s]\n", \
+	    printk(KERN_WARNING "%s..%d..  request_irq error=%d. [%s]\n", \
 				__FUNCTION__, __LINE__, ret, host->dma_name);
 	    host->errorstep = 0x8C;
 	    goto err_dmaunmap;

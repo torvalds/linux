@@ -260,7 +260,7 @@ void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
     {
         host->doneflag = 0;
         mrq->cmd->error = -EIO;
-        printk(KERN_ERR "%s..%d.. !!!!! wait for CMD%d timeout [%s]\n",\
+        printk(KERN_WARNING "%s..%d.. !!!!! wait for CMD%d timeout [%s]\n",\
             __FUNCTION__, __LINE__, mrq->cmd->opcode, mmc_hostname(host));
     }
 #else
@@ -1722,7 +1722,7 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	{
 	    if(0xFF!=init_ret)
 	    {
-	          printk(KERN_ERR "\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully! [%s]\n====\n",\
+	          printk(KERN_WARNING "\n=====\n%s..%d..  ===== Initialize SD-card unsuccessfully! [%s]\n====\n",\
 	                __FUNCTION__,  __LINE__, mmc_hostname(host));
 
 		     goto freq_out;   
