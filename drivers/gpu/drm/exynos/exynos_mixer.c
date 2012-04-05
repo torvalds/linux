@@ -771,8 +771,7 @@ static void mixer_finish_pageflip(struct drm_device *drm_dev, int crtc)
 static irqreturn_t mixer_irq_handler(int irq, void *arg)
 {
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = arg;
-	struct mixer_context *ctx =
-			(struct mixer_context *)drm_hdmi_ctx->ctx;
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val, val_base;
 
@@ -902,7 +901,7 @@ static int mixer_runtime_resume(struct device *dev)
 
 	DRM_DEBUG_KMS("resume - start\n");
 
-	mixer_resource_poweron((struct mixer_context *)ctx->ctx);
+	mixer_resource_poweron(ctx->ctx);
 
 	return 0;
 }
@@ -913,7 +912,7 @@ static int mixer_runtime_suspend(struct device *dev)
 
 	DRM_DEBUG_KMS("suspend - start\n");
 
-	mixer_resource_poweroff((struct mixer_context *)ctx->ctx);
+	mixer_resource_poweroff(ctx->ctx);
 
 	return 0;
 }
@@ -926,8 +925,7 @@ static const struct dev_pm_ops mixer_pm_ops = {
 static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 				 struct platform_device *pdev)
 {
-	struct mixer_context *mixer_ctx =
-			(struct mixer_context *)ctx->ctx;
+	struct mixer_context *mixer_ctx = ctx->ctx;
 	struct device *dev = &pdev->dev;
 	struct mixer_resources *mixer_res = &mixer_ctx->mixer_res;
 	struct resource *res;
@@ -1093,7 +1091,7 @@ static int mixer_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx =
 					platform_get_drvdata(pdev);
-	struct mixer_context *ctx = (struct mixer_context *)drm_hdmi_ctx->ctx;
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 
 	dev_info(dev, "remove successful\n");
 
