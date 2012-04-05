@@ -723,70 +723,71 @@ preview_config_yc_range(struct isp_prev_device *prev, const void *yclimit)
 
 /* preview parameters update structure */
 struct preview_update {
-	int feature_bit;
 	void (*config)(struct isp_prev_device *, const void *);
 	void (*enable)(struct isp_prev_device *, u8);
 	bool skip;
 };
 
+/* Keep the array indexed by the OMAP3ISP_PREV_* bit number. */
 static struct preview_update update_attrs[] = {
-	{OMAP3ISP_PREV_LUMAENH,
+	/* OMAP3ISP_PREV_LUMAENH */ {
 		preview_config_luma_enhancement,
-		preview_enable_luma_enhancement},
-	{OMAP3ISP_PREV_INVALAW,
+		preview_enable_luma_enhancement,
+	}, /* OMAP3ISP_PREV_INVALAW */ {
 		NULL,
-		preview_enable_invalaw},
-	{OMAP3ISP_PREV_HRZ_MED,
+		preview_enable_invalaw,
+	}, /* OMAP3ISP_PREV_HRZ_MED */ {
 		preview_config_hmed,
-		preview_enable_hmed},
-	{OMAP3ISP_PREV_CFA,
+		preview_enable_hmed,
+	}, /* OMAP3ISP_PREV_CFA */ {
 		preview_config_cfa,
-		preview_enable_cfa},
-	{OMAP3ISP_PREV_CHROMA_SUPP,
+		preview_enable_cfa,
+	}, /* OMAP3ISP_PREV_CHROMA_SUPP */ {
 		preview_config_chroma_suppression,
-		preview_enable_chroma_suppression},
-	{OMAP3ISP_PREV_WB,
+		preview_enable_chroma_suppression,
+	}, /* OMAP3ISP_PREV_WB */ {
 		preview_config_whitebalance,
-		NULL},
-	{OMAP3ISP_PREV_BLKADJ,
+		NULL,
+	}, /* OMAP3ISP_PREV_BLKADJ */ {
 		preview_config_blkadj,
-		NULL},
-	{OMAP3ISP_PREV_RGB2RGB,
+		NULL,
+	}, /* OMAP3ISP_PREV_RGB2RGB */ {
 		preview_config_rgb_blending,
-		NULL},
-	{OMAP3ISP_PREV_COLOR_CONV,
+		NULL,
+	}, /* OMAP3ISP_PREV_COLOR_CONV */ {
 		preview_config_rgb_to_ycbcr,
-		NULL},
-	{OMAP3ISP_PREV_YC_LIMIT,
+		NULL,
+	}, /* OMAP3ISP_PREV_YC_LIMIT */ {
 		preview_config_yc_range,
-		NULL},
-	{OMAP3ISP_PREV_DEFECT_COR,
+		NULL,
+	}, /* OMAP3ISP_PREV_DEFECT_COR */ {
 		preview_config_dcor,
-		preview_enable_dcor},
-	{OMAP3ISP_PREV_GAMMABYPASS,
+		preview_enable_dcor,
+	}, /* OMAP3ISP_PREV_GAMMABYPASS */ {
 		NULL,
-		preview_enable_gammabypass},
-	{OMAP3ISP_PREV_DRK_FRM_CAPTURE,
+		preview_enable_gammabypass,
+	}, /* OMAP3ISP_PREV_DRK_FRM_CAPTURE */ {
 		NULL,
-		preview_enable_drkframe_capture},
-	{OMAP3ISP_PREV_DRK_FRM_SUBTRACT,
+		preview_enable_drkframe_capture,
+	}, /* OMAP3ISP_PREV_DRK_FRM_SUBTRACT */ {
 		NULL,
-		preview_enable_drkframe},
-	{OMAP3ISP_PREV_LENS_SHADING,
+		preview_enable_drkframe,
+	}, /* OMAP3ISP_PREV_LENS_SHADING */ {
 		preview_config_drkf_shadcomp,
-		preview_enable_drkframe},
-	{OMAP3ISP_PREV_NF,
+		preview_enable_drkframe,
+	}, /* OMAP3ISP_PREV_NF */ {
 		preview_config_noisefilter,
-		preview_enable_noisefilter},
-	{OMAP3ISP_PREV_GAMMA,
+		preview_enable_noisefilter,
+	}, /* OMAP3ISP_PREV_GAMMA */ {
 		preview_config_gammacorrn,
-		NULL},
-	{OMAP3ISP_PREV_CONTRAST,
+		NULL,
+	}, /* OMAP3ISP_PREV_CONTRAST */ {
 		preview_config_contrast,
-		NULL, true},
-	{OMAP3ISP_PREV_BRIGHTNESS,
+		NULL, true,
+	}, /* OMAP3ISP_PREV_BRIGHTNESS */ {
 		preview_config_brightness,
-		NULL, true},
+		NULL, true,
+	},
 };
 
 /*
@@ -904,30 +905,28 @@ static int preview_config(struct isp_prev_device *prev,
 
 	for (i = 0; i < ARRAY_SIZE(update_attrs); i++) {
 		attr = &update_attrs[i];
-		bit = 0;
+		bit = 1 << i;
 
-		if (attr->skip || !(cfg->update & attr->feature_bit))
+		if (attr->skip || !(cfg->update & bit))
 			continue;
 
-		bit = cfg->flag & attr->feature_bit;
-		if (bit) {
+		if (cfg->flag & bit) {
 			void *to = NULL, __user *from = NULL;
 			unsigned long sz = 0;
 
-			sz = __preview_get_ptrs(params, &to, cfg, &from,
-						   bit);
+			sz = __preview_get_ptrs(params, &to, cfg, &from, bit);
 			if (to && from && sz) {
 				if (copy_from_user(to, from, sz)) {
 					rval = -EFAULT;
 					break;
 				}
 			}
-			params->features |= attr->feature_bit;
+			params->features |= bit;
 		} else {
-			params->features &= ~attr->feature_bit;
+			params->features &= ~bit;
 		}
 
-		prev->update |= attr->feature_bit;
+		prev->update |= bit;
 	}
 
 	prev->shadow_update = 0;
@@ -944,7 +943,8 @@ static void preview_setup_hw(struct isp_prev_device *prev)
 {
 	struct prev_params *params = &prev->params;
 	struct preview_update *attr;
-	int i, bit;
+	unsigned int bit;
+	unsigned int i;
 	void *param_ptr;
 
 	if (prev->update == 0)
@@ -952,11 +952,12 @@ static void preview_setup_hw(struct isp_prev_device *prev)
 
 	for (i = 0; i < ARRAY_SIZE(update_attrs); i++) {
 		attr = &update_attrs[i];
+		bit = 1 << i;
 
-		if (!(prev->update & attr->feature_bit))
+		if (!(prev->update & bit))
 			continue;
-		bit = params->features & attr->feature_bit;
-		if (bit) {
+
+		if (params->features & bit) {
 			if (attr->config) {
 				__preview_get_ptrs(params, &param_ptr, NULL,
 						      NULL, bit);
@@ -968,7 +969,7 @@ static void preview_setup_hw(struct isp_prev_device *prev)
 			if (attr->enable)
 				attr->enable(prev, 0);
 
-		prev->update &= ~attr->feature_bit;
+		prev->update &= ~bit;
 	}
 }
 
