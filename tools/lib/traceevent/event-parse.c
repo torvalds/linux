@@ -39,6 +39,9 @@ static const char *input_buf;
 static unsigned long long input_buf_ptr;
 static unsigned long long input_buf_siz;
 
+static int is_flag_field;
+static int is_symbolic_field;
+
 static int show_warning = 1;
 
 #define do_warning(fmt, ...)				\
@@ -1789,6 +1792,16 @@ process_entry(struct event_format *event __unused, struct print_arg *arg,
 	arg->type = PRINT_FIELD;
 	arg->field.name = field;
 
+	if (is_flag_field) {
+		arg->field.field = pevent_find_any_field(event, arg->field.name);
+		arg->field.field->flags |= FIELD_IS_FLAG;
+		is_flag_field = 0;
+	} else if (is_symbolic_field) {
+		arg->field.field = pevent_find_any_field(event, arg->field.name);
+		arg->field.field->flags |= FIELD_IS_SYMBOLIC;
+		is_symbolic_field = 0;
+	}
+
 	type = read_token(&token);
 	*tok = token;
 
@@ -2398,10 +2411,12 @@ process_function(struct event_format *event, struct print_arg *arg,
 
 	if (strcmp(token, "__print_flags") == 0) {
 		free_token(token);
+		is_flag_field = 1;
 		return process_flags(event, arg, tok);
 	}
 	if (strcmp(token, "__print_symbolic") == 0) {
 		free_token(token);
+		is_symbolic_field = 1;
 		return process_symbols(event, arg, tok);
 	}
 	if (strcmp(token, "__get_str") == 0) {
