@@ -6283,6 +6283,15 @@ F:	drivers/tty/serial/sunsu.c
 F:	drivers/tty/serial/sunzilog.c
 F:	drivers/tty/serial/sunzilog.h
 
+SPARSE CHECKER
+M:	"Christopher Li" <sparse@chrisli.org>
+L:	linux-sparse@vger.kernel.org
+W:	https://sparse.wiki.kernel.org/
+T:	git git://git.kernel.org/pub/scm/devel/sparse/sparse.git
+T:	git git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
+S:	Maintained
+F:	include/linux/compiler.h
+
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>
 L:	spear-devel@list.st.com
