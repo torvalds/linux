@@ -1648,6 +1648,8 @@ static void hci_cs_le_create_conn(struct hci_dev *hdev, __u8 status)
 	if (status) {
 		if (conn && conn->state == BT_CONNECT) {
 			conn->state = BT_CLOSED;
+			mgmt_connect_failed(hdev, &cp->peer_addr, conn->type,
+					    conn->dst_type, status);
 			hci_proto_connect_cfm(conn, status);
 			hci_conn_del(conn);
 		}
