@@ -4,7 +4,9 @@
  * Parse symbolic events/counts passed in as options:
  */
 
+#include <stdbool.h>
 #include "../../../include/linux/perf_event.h"
+#include "types.h"
 
 struct list_head;
 struct perf_evsel;
