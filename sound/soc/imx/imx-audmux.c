@@ -158,7 +158,7 @@ static void __init audmux_debugfs_init(void)
 		return;
 	}
 
-	for (i = 1; i < 8; i++) {
+	for (i = 0; i < MX31_AUDMUX_PORT6_SSI_PINS_6 + 1; i++) {
 		snprintf(buf, sizeof(buf), "ssi%d", i);
 		if (!debugfs_create_file(buf, 0444, audmux_debugfs_root,
 					 (void *)i, &audmux_debugfs_fops))
