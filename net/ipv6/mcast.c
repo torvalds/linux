@@ -1061,7 +1061,7 @@ static int mld_xmarksources(struct ifmcaddr6 *pmc, int nsrcs,
 			if (psf->sf_count[MCAST_INCLUDE] ||
 			    pmc->mca_sfcount[MCAST_EXCLUDE] !=
 			    psf->sf_count[MCAST_EXCLUDE])
-				continue;
+				break;
 			if (ipv6_addr_equal(&srcs[i], &psf->sf_addr)) {
 				scount++;
 				break;
