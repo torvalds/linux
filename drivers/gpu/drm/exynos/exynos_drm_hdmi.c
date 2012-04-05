@@ -117,7 +117,7 @@ static int drm_hdmi_enable_vblank(struct device *subdrv_dev)
 {
 	struct drm_hdmi_context *ctx = to_context(subdrv_dev);
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct exynos_drm_manager *manager = &subdrv->manager;
+	struct exynos_drm_manager *manager = subdrv->manager;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -251,6 +251,12 @@ static struct exynos_drm_overlay_ops drm_hdmi_overlay_ops = {
 	.disable = drm_mixer_disable,
 };
 
+static struct exynos_drm_manager hdmi_manager = {
+	.pipe		= -1,
+	.ops		= &drm_hdmi_manager_ops,
+	.overlay_ops	= &drm_hdmi_overlay_ops,
+	.display_ops	= &drm_hdmi_display_ops,
+};
 
 static int hdmi_subdrv_probe(struct drm_device *drm_dev,
 		struct device *dev)
@@ -318,12 +324,9 @@ static int __devinit exynos_drm_hdmi_probe(struct platform_device *pdev)
 
 	subdrv = &ctx->subdrv;
 
+	subdrv->dev = dev;
+	subdrv->manager = &hdmi_manager;
 	subdrv->probe = hdmi_subdrv_probe;
-	subdrv->manager.pipe = -1;
-	subdrv->manager.ops = &drm_hdmi_manager_ops;
-	subdrv->manager.overlay_ops = &drm_hdmi_overlay_ops;
-	subdrv->manager.display_ops = &drm_hdmi_display_ops;
-	subdrv->manager.dev = dev;
 
 	platform_set_drvdata(pdev, subdrv);
 
