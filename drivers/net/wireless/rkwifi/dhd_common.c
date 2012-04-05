@@ -169,6 +169,7 @@ const bcm_iovar_t dhd_iovars[] = {
 	{NULL, 0, 0, 0, 0 }
 };
 
+extern void set_firmware_path(void);
 struct dhd_cmn *
 dhd_common_init(osl_t *osh)
 {
@@ -203,6 +204,9 @@ dhd_common_init(osl_t *osh)
 #ifdef SOFTAP
 	fw_path2[0] = '\0';
 #endif
+
+        set_firmware_path();
+
 	return cmn;
 }
 

@@ -4,7 +4,7 @@
 /*
  * Broadcom BCM4330 driver version.
  */
-#define BCMDHD_DRV_VERSION "4.00"
+#define BCMDHD_DRV_VERSION "4.01"
 
 /* Set INIT_COUNTRY_CODE 
  * "US" ---> 11 channels, this is default setting. 
