@@ -2047,6 +2047,18 @@ static int arg_num_eval(struct print_arg *arg, long long *val)
 				break;
 			*val = left - right;
 			break;
+		case '+':
+			if (arg->op.left->type == PRINT_NULL)
+				left = 0;
+			else
+				ret = arg_num_eval(arg->op.left, &left);
+			if (!ret)
+				break;
+			ret = arg_num_eval(arg->op.right, &right);
+			if (!ret)
+				break;
+			*val = left + right;
+			break;
 		default:
 			do_warning("unknown op '%s'", arg->op.op);
 			ret = 0;
