@@ -112,7 +112,7 @@ static struct regulator_ops isl_fixed_ops = {
 	.list_voltage	= isl6271a_list_fixed_voltage,
 };
 
-static struct regulator_desc isl_rd[] = {
+static const struct regulator_desc isl_rd[] = {
 	{
 		.name		= "Core Buck",
 		.id		= 0,
