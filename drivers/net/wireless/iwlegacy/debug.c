@@ -160,18 +160,12 @@ static ssize_t il_dbgfs_##name##_write(struct file *file,              \
 					const char __user *user_buf,    \
 					size_t count, loff_t *ppos);
 
-static int
-il_dbgfs_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 #define DEBUGFS_READ_FILE_OPS(name)				\
 	DEBUGFS_READ_FUNC(name);				\
 static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.read = il_dbgfs_##name##_read,				\
-	.open = il_dbgfs_open_file_generic,			\
+	.open = simple_open,					\
 	.llseek = generic_file_llseek,				\
 };
 
@@ -179,7 +173,7 @@ static const struct file_operations il_dbgfs_##name##_ops = {	\
 	DEBUGFS_WRITE_FUNC(name);				\
 static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.write = il_dbgfs_##name##_write,			\
-	.open = il_dbgfs_open_file_generic,			\
+	.open = simple_open,					\
 	.llseek = generic_file_llseek,				\
 };
 
@@ -189,7 +183,7 @@ static const struct file_operations il_dbgfs_##name##_ops = {	\
 static const struct file_operations il_dbgfs_##name##_ops = {	\
 	.write = il_dbgfs_##name##_write,			\
 	.read = il_dbgfs_##name##_read,				\
-	.open = il_dbgfs_open_file_generic,			\
+	.open = simple_open,					\
 	.llseek = generic_file_llseek,				\
 };
 
