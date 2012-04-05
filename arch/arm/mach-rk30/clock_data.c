@@ -2484,11 +2484,11 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "pclk_periph", &pclk_periph),
 	CLK(NULL, "hclk_periph", &hclk_periph),
 
-	CLK("rk30xx_spim.0", "spi", &clk_spi0),
-	CLK("rk30xx_spim.0", "pclk_spi", &clk_pclk_spi0),
+	CLK("rk29xx_spim.0", "spi", &clk_spi0),
+	CLK("rk29xx_spim.0", "pclk_spi", &clk_pclk_spi0),
 	
-	CLK("rk30xx_spim.1", "spi", &clk_spi1),
-	CLK("rk30xx_spim.1", "pclk_spi", &clk_pclk_spi1),
+	CLK("rk29xx_spim.1", "spi", &clk_spi1),
+	CLK("rk29xx_spim.1", "pclk_spi", &clk_pclk_spi1),
 	
 	CLK1(saradc),
 	CLK1(pclk_saradc),
