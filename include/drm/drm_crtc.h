@@ -1026,4 +1026,6 @@ extern int drm_mode_destroy_dumb_ioctl(struct drm_device *dev,
 
 extern void drm_fb_get_bpp_depth(uint32_t format, unsigned int *depth,
 				 int *bpp);
+extern int drm_format_num_planes(uint32_t format);
+
 #endif /* __DRM_CRTC_H__ */
