@@ -1654,7 +1654,7 @@ static int rk29xx_spi_setup(struct spi_device *spi)
 			return -ENOMEM;
 
 		chip->cs_control = spi_cs_control;
-		chip->enable_dma = 1;  //0;
+		chip->enable_dma = 0;  //0;
 	}
 
 	/*
