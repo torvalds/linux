@@ -54,8 +54,7 @@ dev->open:
 dev->stop:
 	Synchronization: rtnl_lock() semaphore.
 	Context: process
-	Note1: netif_running() is guaranteed false
-	Note2: dev->poll() is guaranteed to be stopped
+	Note: netif_running() is guaranteed false
 
 dev->do_ioctl:
 	Synchronization: rtnl_lock() semaphore.
