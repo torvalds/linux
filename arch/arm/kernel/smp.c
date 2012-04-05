@@ -304,7 +304,9 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 
 	notify_cpu_starting(cpu);
 
+#ifndef CONFIG_PLAT_RK
 	calibrate_delay();
+#endif
 
 	smp_store_cpu_info(cpu);
 
