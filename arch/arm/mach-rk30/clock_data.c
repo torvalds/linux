@@ -29,8 +29,8 @@
 
 #define MHZ			(1000*1000)
 #define KHZ			(1000)
-#define CLK_LOOPS_JIFFY_REF 10035200ULL
-#define CLK_LOOPS_RARE_REF (1008) //Mhz
+#define CLK_LOOPS_JIFFY_REF 11996091ULL
+#define CLK_LOOPS_RARE_REF (1200) //Mhz
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RARE_REF)
  
 struct apll_clk_set {
@@ -2937,7 +2937,7 @@ void __init _rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned
 	 */
 	//clk_disable_unused();
 	rk30_clock_common_init(gpll,cpll,max_i2s_rate);
-	//preset_lpj = loops_per_jiffy;
+	preset_lpj = loops_per_jiffy;
 	
 	//gpio6_b7
 	//regfile_writel(0xc0004000,0x10c);
