@@ -837,9 +837,9 @@ __preview_get_ptrs(struct prev_params *params, void **param,
 		CHKARG(configs, config, dcor)
 		return sizeof(params->dcor);
 	case OMAP3ISP_PREV_BLKADJ:
-		*param = &params->blk_adj;
+		*param = &params->blkadj;
 		CHKARG(configs, config, blkadj)
-		return sizeof(params->blk_adj);
+		return sizeof(params->blkadj);
 	case OMAP3ISP_PREV_YC_LIMIT:
 		*param = &params->yclimit;
 		CHKARG(configs, config, yclimit)
@@ -849,9 +849,9 @@ __preview_get_ptrs(struct prev_params *params, void **param,
 		CHKARG(configs, config, rgb2rgb)
 		return sizeof(params->rgb2rgb);
 	case OMAP3ISP_PREV_COLOR_CONV:
-		*param = &params->rgb2ycbcr;
+		*param = &params->csc;
 		CHKARG(configs, config, csc)
-		return sizeof(params->rgb2ycbcr);
+		return sizeof(params->csc);
 	case OMAP3ISP_PREV_WB:
 		*param = &params->wbal;
 		CHKARG(configs, config, wbal)
@@ -1285,11 +1285,11 @@ static void preview_init_params(struct isp_prev_device *prev)
 	params->wbal.coef1 = FLR_WBAL_COEF;
 	params->wbal.coef2 = FLR_WBAL_COEF;
 	params->wbal.coef3 = FLR_WBAL_COEF;
-	params->blk_adj.red = FLR_BLKADJ_RED;
-	params->blk_adj.green = FLR_BLKADJ_GREEN;
-	params->blk_adj.blue = FLR_BLKADJ_BLUE;
+	params->blkadj.red = FLR_BLKADJ_RED;
+	params->blkadj.green = FLR_BLKADJ_GREEN;
+	params->blkadj.blue = FLR_BLKADJ_BLUE;
 	params->rgb2rgb = flr_rgb2rgb;
-	params->rgb2ycbcr = flr_prev_csc;
+	params->csc = flr_prev_csc;
 	params->yclimit.minC = ISPPRV_YC_MIN;
 	params->yclimit.maxC = ISPPRV_YC_MAX;
 	params->yclimit.minY = ISPPRV_YC_MIN;

@@ -77,9 +77,9 @@ enum preview_ycpos_mode {
  * @dcor: Noise filter coefficients.
  * @gamma: Gamma coefficients.
  * @wbal: White Balance parameters.
- * @blk_adj: Black adjustment parameters.
+ * @blkadj: Black adjustment parameters.
  * @rgb2rgb: RGB blending parameters.
- * @rgb2ycbcr: RGB to ycbcr parameters.
+ * @csc: Color space conversion (RGB to YCbCr) parameters.
  * @hmed: Horizontal median filter.
  * @yclimit: YC limits parameters.
  * @contrast: Contrast.
@@ -94,9 +94,9 @@ struct prev_params {
 	struct omap3isp_prev_dcor dcor;
 	struct omap3isp_prev_gtables gamma;
 	struct omap3isp_prev_wbal wbal;
-	struct omap3isp_prev_blkadj blk_adj;
+	struct omap3isp_prev_blkadj blkadj;
 	struct omap3isp_prev_rgbtorgb rgb2rgb;
-	struct omap3isp_prev_csc rgb2ycbcr;
+	struct omap3isp_prev_csc csc;
 	struct omap3isp_prev_hmed hmed;
 	struct omap3isp_prev_yclimit yclimit;
 	u8 contrast;
