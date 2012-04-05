@@ -4960,12 +4960,19 @@ static void free_event(struct event_format *event)
  */
 void pevent_free(struct pevent *pevent)
 {
-	struct cmdline_list *cmdlist = pevent->cmdlist, *cmdnext;
-	struct func_list *funclist = pevent->funclist, *funcnext;
-	struct printk_list *printklist = pevent->printklist, *printknext;
+	struct cmdline_list *cmdlist, *cmdnext;
+	struct func_list *funclist, *funcnext;
+	struct printk_list *printklist, *printknext;
 	struct pevent_function_handler *func_handler;
 	struct event_handler *handle;
 	int i;
+
+	if (!pevent)
+		return;
+
+	cmdlist = pevent->cmdlist;
+	funclist = pevent->funclist;
+	printklist = pevent->printklist;
 
 	pevent->ref_count--;
 	if (pevent->ref_count)
