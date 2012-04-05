@@ -795,7 +795,7 @@ struct arm_clks_div_set arm_clk_div_tlb[]={
 	_arm_clks_div_set(100 , 4, 11, 21, 21, 11),//25,100,50,50,50
 	_arm_clks_div_set(150 , 4, 11, 21, 21, 11),//37,150,75,75,75
 	_arm_clks_div_set(200 , 8, 21, 21, 21, 11),//25,100,50,50,50
-	_arm_clks_div_set(300 , 8, 21, 21, 11, 11),//37,150,75,75,75
+	_arm_clks_div_set(300 , 8, 21, 21, 21, 11),//37,150,75,75,75
 	_arm_clks_div_set(400 , 8, 21, 21, 41, 21),//50,200,100,50,50
 	_arm_clks_div_set(0 ,   2, 11, 11, 11, 11),//25,50,50,50,50
 };
@@ -936,10 +936,10 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 
 static const struct apll_clk_set apll_clks[] = {
 	//rate, nr ,nf ,no,core_div,peri,axi,hclk,pclk,_ahb2apb
-	//_APLL_SET_CLKS(1800, 1, 75, 1, 8, 31, 41, 81),
-	//_APLL_SET_CLKS(1752, 1, 73, 1, 8, 31, 41, 81),
-	//_APLL_SET_CLKS(1704, 1, 71, 1, 8, 31, 41, 81),
-	//_APLL_SET_CLKS(1656, 1, 69, 1, 8, 31, 41, 81),
+	//_APLL_SET_CLKS(1800, 1, 75, 1, 8, 41,  41,  81,21),
+	//_APLL_SET_CLKS(1752, 1, 73, 1, 8, 41,  41,  81,21),
+	//_APLL_SET_CLKS(1704, 1, 71, 1, 8, 41,  41,  81,21),
+	//_APLL_SET_CLKS(1656, 1, 69, 1, 8, 41,  41,  81,21),
 	_APLL_SET_CLKS(1608, 1, 67, 1, 8, 41, 21, 41, 21),
 	_APLL_SET_CLKS(1560, 1, 65, 1, 8, 41, 21, 41, 21),
 	_APLL_SET_CLKS(1512, 1, 63, 1, 8, 41, 21, 41, 21),
@@ -957,9 +957,9 @@ static const struct apll_clk_set apll_clks[] = {
 	_APLL_SET_CLKS(600 , 1, 25, 1, 4, 31, 21, 41, 21),
 	_APLL_SET_CLKS(504 , 1, 21, 1, 4, 21, 21, 41, 21),
 	_APLL_SET_CLKS(408 , 1, 17, 1, 4, 21, 21, 41, 21),
-	_APLL_SET_CLKS(312 , 1, 13, 1, 2, 21, 21, 21, 21),
-	_APLL_SET_CLKS(252 , 1, 21, 2, 2, 21, 21, 21, 21),
-	_APLL_SET_CLKS(216 , 1, 18, 2, 2, 21, 21, 21, 21),
+	_APLL_SET_CLKS(312 , 1, 13, 1, 2, 21, 21, 21, 11),
+	_APLL_SET_CLKS(252 , 1, 21, 2, 2, 21, 21, 21, 11),
+	_APLL_SET_CLKS(216 , 1, 18, 2, 2, 21, 21, 21, 11),
 	_APLL_SET_CLKS(126 , 1, 21, 4, 2, 21, 11, 11, 11),
 	_APLL_SET_CLKS(48  , 1, 16, 8, 2, 11, 11, 11, 11),
 	_APLL_SET_CLKS(0   , 1, 21, 4, 2, 21, 21, 41, 21),
@@ -2379,7 +2379,7 @@ GATE_CLK(aclk_peri_axi_matrix, aclk_periph, ACLK_PERI_AXI_MATRIX);
 GATE_CLK(hclk_peri_axi_matrix, hclk_periph, HCLK_PERI_AXI_MATRIX);
 GATE_CLK(hclk_peri_ahb_arbi, hclk_periph, HCLK_PERI_AHB_ARBI);
 GATE_CLK(hclk_emem_peri, hclk_periph, HCLK_EMEM_PERI);
-GATE_CLK(hclk_emac, hclk_periph, HCLK_EMAC);
+GATE_CLK(hclk_mac, hclk_periph, HCLK_EMAC);
 GATE_CLK(nandc, hclk_periph, HCLK_NANDC);
 GATE_CLK(hclk_usb_peri, hclk_periph, HCLK_USB_PERI);
 GATE_CLK(hclk_otg0, clk_hclk_usb_peri, HCLK_OTG0);
@@ -2654,7 +2654,7 @@ static struct clk_lookup clks[] = {
 	CLK1(hclk_peri_axi_matrix),
 	CLK1(hclk_peri_ahb_arbi),
 	CLK1(hclk_emem_peri),
-	CLK1(hclk_emac),
+	CLK1(hclk_mac),
 	CLK1(nandc),
 	//CLK1(hclk_usb_peri),
 	//CLK1(hclk_usbotg0),
