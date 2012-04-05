@@ -125,13 +125,16 @@ static int cm3217_stop(struct cm3217_data *data)
 static void cm3217_suspend(struct early_suspend *h)
 {
 	struct cm3217_data *cm3217 = glight;
+	int status = cm3217->status;
 	cm3217_stop(cm3217);
+	cm3217->status = status;
 	DBG("Light Sensor cm3217 enter suspend cm3217->status %d\n",cm3217->status);
 }
 
 static void cm3217_resume(struct early_suspend *h)
 {
 	struct cm3217_data *cm3217 = glight;
+	if(cm3217->status == SENSOR_ON)
 	cm3217_start(cm3217);
 	DBG("Light Sensor cm3217 enter resume cm3217->status %d\n",cm3217->status);
 }
@@ -222,7 +225,7 @@ static void adc_timer_work(struct work_struct *work)
 	DBG("%s:result=%d\n",__func__,result);
 	
 	if(cm3217->status){
-		cm3217->timer.expires  = jiffies + 3*HZ;
+		cm3217->timer.expires  = jiffies + 1*HZ;
 		add_timer(&cm3217->timer);
 	}
 }
