@@ -1,5 +1,6 @@
 ifeq ("$(origin O)", "command line")
 	OUTPUT := $(O)/
+	COMMAND_O := O=$(O)
 endif
 
 ifneq ($(OUTPUT),)
