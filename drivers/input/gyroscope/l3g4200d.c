@@ -33,9 +33,9 @@
 #endif
 
 #if 0
-#define mmaprintk(x...) printk(x)
+#define DBG(x...) printk(x)
 #else
-#define mmaprintk(x...)  
+#define DBG(x...)  
 #endif
 static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id *id);
 
@@ -263,10 +263,10 @@ static char l3g4200d_get_devid(struct i2c_client *client)
 	int tempvalue;
 	 tempvalue=l3g4200d_read_reg(client, WHO_AM_I);
 	if ((tempvalue & 0x00FF) == 0x00D3) {
-		mmaprintk(KERN_INFO "I2C driver registered!\n");
+		DBG(KERN_INFO "I2C driver registered!\n");
 		return 1;
 	} else {		
-		mmaprintk(KERN_INFO "I2C driver %d!\n",tempvalue);	
+		DBG(KERN_INFO "I2C driver %d!\n",tempvalue);	
 		return 0;
 	}	
 }
@@ -281,7 +281,7 @@ static int l3g4200d_active(struct i2c_client *client,int enable)
 		tmp |=ACTIVE_MASK;
 	else
 		tmp &=~ACTIVE_MASK;
-	mmaprintk("l3g4200d_active %s (0x%x)\n",enable?"active":"standby",tmp);	
+	DBG("l3g4200d_active %s (0x%x)\n",enable?"active":"standby",tmp);	
 	ret = l3g4200d_write_reg(client,CTRL_REG1,tmp);
 	return ret;
 }
@@ -336,7 +336,7 @@ static int l3g4200d_start(struct i2c_client *client, char rate)
 { 
     struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
     
-    mmaprintk("%s::enter\n",__FUNCTION__); 
+    DBG("%s::enter\n",__FUNCTION__); 
     if (l3g4200d->status == L3G4200D_OPEN) {
         return 0;      
     }
@@ -346,7 +346,7 @@ static int l3g4200d_start(struct i2c_client *client, char rate)
 
 static int l3g4200d_close_dev(struct i2c_client *client)
 {    	
-	mmaprintk("%s :enter\n",__FUNCTION__);	
+	DBG("%s :enter\n",__FUNCTION__);	
 	disable_irq_nosync(client->irq);
 	return l3g4200d_active(client,0);
 }
@@ -354,7 +354,7 @@ static int l3g4200d_close_dev(struct i2c_client *client)
 static int l3g4200d_close(struct i2c_client *client)
 {
 	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
-	mmaprintk("%s::enter\n",__FUNCTION__); 
+	DBG("%s::enter\n",__FUNCTION__); 
 	l3g4200d->status = L3G4200D_CLOSE;
 
 	return l3g4200d_close_dev(client);
@@ -364,9 +364,9 @@ static int l3g4200d_reset_rate(struct i2c_client *client, char rate)
 {
 	int ret = 0;
 	
-	mmaprintk("%s\n",__func__);
+	DBG("%s\n",__func__);
 	
-    ret = l3g4200d_close_dev(client);
+ //   ret = l3g4200d_close_dev(client);
     ret = l3g4200d_start_dev(client, rate);
   
 	return ret ;
@@ -395,7 +395,7 @@ static void l3g4200d_report_value(struct i2c_client *client, struct l3g4200d_axi
 	input_report_rel(l3g4200d->input_dev, ABS_RY, axis->y);
 	input_report_rel(l3g4200d->input_dev, ABS_RZ, axis->z);
 	input_sync(l3g4200d->input_dev);
-	mmaprintk("%s:x==%d  y==%d z==%d\n",__func__,axis->x,axis->y,axis->z);
+	DBG("%s:x==%d  y==%d z==%d\n",__func__,axis->x,axis->y,axis->z);
 }
 
 
@@ -422,7 +422,7 @@ static int l3g4200d_get_data(struct i2c_client *client)
 	hw_d[1] = (short) (((gyro_data[3]) << 8) | gyro_data[2]);
 	hw_d[2] = (short) (((gyro_data[5]) << 8) | gyro_data[4]);
 
-	mmaprintk("%s: x==%d  y==%d z==%d x==%d  y==%d z==%d\n",__func__, gyro_data[0],gyro_data[1],gyro_data[2],gyro_data[3],gyro_data[4],gyro_data[5]);
+	DBG("%s: x==%d  y==%d z==%d x==%d  y==%d z==%d\n",__func__, gyro_data[0],gyro_data[1],gyro_data[2],gyro_data[3],gyro_data[4],gyro_data[5]);
 
 
 	axis.x = ((this_data->pdata->negate_x) ? (-hw_d[this_data->pdata->axis_map_x])
@@ -454,13 +454,13 @@ static int l3g4200d_trans_buff(char *rbuf, int size)
 
 static int l3g4200d_open(struct inode *inode, struct file *file)
 {
-	mmaprintk("%s :enter\n",__FUNCTION__);	
+	DBG("%s :enter\n",__FUNCTION__);	
 	return 0;//nonseekable_open(inode, file);
 }
 
 static int l3g4200d_release(struct inode *inode, struct file *file)
 {
-	mmaprintk("%s :enter\n",__FUNCTION__);	
+	DBG("%s :enter\n",__FUNCTION__);	
 	return 0;
 }
 #define RBUFF_SIZE		12	/* Rx buffer size */
@@ -477,7 +477,7 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 	
 	switch (cmd) {
 	case L3G4200D_IOCTL_GET_ENABLE:	
-		mmaprintk("%s :L3G4200D_IOCTL_GET_ENABLE\n",__FUNCTION__);	
+		DBG("%s :L3G4200D_IOCTL_GET_ENABLE\n",__FUNCTION__);	
 		ret=!l3g4200d->status;
 		if (copy_to_user(argp, &ret, sizeof(ret)))
 		{
@@ -485,12 +485,20 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 			return -EFAULT;
 		}
 		break;
-	//case ECS_IOCTL_START:
 	case L3G4200D_IOCTL_SET_ENABLE:			
-		mmaprintk("%s :L3G4200D_IOCTL_SET_ENABLE\n",__FUNCTION__);	
-		ret = l3g4200d_start(client, ODR100_BW12_5);
-		if (ret < 0)
+		DBG("%s :L3G4200D_IOCTL_SET_ENABLE,flag=%d\n",__FUNCTION__,*(unsigned int *)argp);
+		if(*(unsigned int *)argp)
+		{
+			ret = l3g4200d_start(client, ODR100_BW12_5);
+			if (ret < 0)
 			return ret;
+		}
+		else
+		{
+			ret = l3g4200d_close(client);
+			if (ret < 0)
+			return ret;
+		}
 		ret=l3g4200d->status;
 		if (copy_to_user(argp, &ret, sizeof(ret)))
 		{
@@ -498,14 +506,8 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 			return -EFAULT;
 		}
 		break;
-	case ECS_IOCTL_CLOSE:		
-		mmaprintk("%s :ECS_IOCTL_CLOSE\n",__FUNCTION__);
-		ret = l3g4200d_close(client);
-		if (ret < 0)
-			return ret;
-		break;
 	case L3G4200D_IOCTL_SET_DELAY:		
-		mmaprintk("%s :L3G4200D_IOCTL_SET_DELAY,rate=%d\n",__FUNCTION__,rate);
+		DBG("%s :L3G4200D_IOCTL_SET_DELAY,rate=%d\n",__FUNCTION__,rate);
 		if (copy_from_user(&rate, argp, sizeof(rate)))
 		return -EFAULT;
 		ret = l3g4200d_reset_rate(client, 0x00);//rate<<4);//0x20		
@@ -526,7 +528,7 @@ static long l3g4200d_ioctl( struct file *file, unsigned int cmd,unsigned long ar
 		return -ENOTTY;
 	}
 	
-	mmaprintk("%s:line=%d,cmd=0x%x\n",__func__,__LINE__,cmd);
+	DBG("%s:line=%d,cmd=0x%x\n",__func__,__LINE__,cmd);
 	return 0;
 }
 
@@ -536,7 +538,7 @@ static void l3g4200d_work_func(struct work_struct *work)
 	struct i2c_client *client = l3g4200d->client;
 	
 	if (l3g4200d_get_data(client) < 0) 
-		mmaprintk(KERN_ERR "L3G4200D mma_work_func: Get data failed\n");
+		DBG(KERN_ERR "L3G4200D mma_work_func: Get data failed\n");
 		
 	enable_irq(client->irq);		
 }
@@ -548,7 +550,7 @@ static void  l3g4200d_delaywork_func(struct work_struct *work)
 	struct i2c_client *client = l3g4200d->client;
 
 	if (l3g4200d_get_data(client) < 0) 
-		mmaprintk(KERN_ERR "L3G4200D mma_work_func: Get data failed\n");
+		DBG(KERN_ERR "L3G4200D mma_work_func: Get data failed\n");
 	enable_irq(client->irq);		
 }
 
@@ -558,7 +560,7 @@ static irqreturn_t l3g4200d_interrupt(int irq, void *dev_id)
 	
 	disable_irq_nosync(irq);
 	schedule_delayed_work(&l3g4200d->delaywork, msecs_to_jiffies(200));
-	mmaprintk("%s :enter\n",__FUNCTION__);	
+	DBG("%s :enter\n",__FUNCTION__);	
 	return IRQ_HANDLED;
 }
 
@@ -594,29 +596,30 @@ static int l3g4200d_remove(struct i2c_client *client)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void l3g4200d_suspend(struct early_suspend *h)
 {
-	//struct i2c_client *client = container_of(l3g4200d_device.parent, struct i2c_client, dev);
-	//struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
-//	if(l3g4200d->status == L3G4200D_OPEN)
-//	{
-		//l3g4200d->status = L3G4200D_SUSPEND;
-//		l3g4200d_close_dev(client);
-//	}
+	struct i2c_client *client = container_of(l3g4200d_device.parent, struct i2c_client, dev);
+	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
+	if(l3g4200d->status == L3G4200D_OPEN)
+	{
+		l3g4200d_close_dev(client);
+	}
+	
+	DBG("%s:%d\n",__func__,l3g4200d->status);
 }
 
 static void l3g4200d_resume(struct early_suspend *h)
 {
-	//struct i2c_client *client = container_of(l3g4200d_device.parent, struct i2c_client, dev);
-   // struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
-	//mmaprintk("Gsensor mma7760 resume!! l3g4200d->status %d\n",l3g4200d->status);
-	//if((l3g4200d->status == L3G4200D_SUSPEND) && (l3g4200d->status != L3G4200D_OPEN))
-//	if (l3g4200d->status == L3G4200D_OPEN)
-//		l3g4200d_start_dev(client,l3g4200d->curr_tate);
+	struct i2c_client *client = container_of(l3g4200d_device.parent, struct i2c_client, dev);
+	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
+	if (l3g4200d->status == L3G4200D_OPEN)
+		l3g4200d_start_dev(client,l3g4200d->curr_tate);
+	
+	DBG("%s:%d\n",__func__,l3g4200d->status);
 }
 #else
 static int l3g4200d_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	int ret=0;
-	//mmaprintk("Gsensor mma7760 enter 2 level  suspend l3g4200d->status %d\n",l3g4200d->status);
+	//DBG("Gsensor mma7760 enter 2 level  suspend l3g4200d->status %d\n",l3g4200d->status);
 	//struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
 	//if(l3g4200d->status == L3G4200D_OPEN)
 	//{
@@ -629,7 +632,7 @@ static int l3g4200d_resume(struct i2c_client *client)
 {
 	int ret=0;
 	//struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
-	//mmaprintk("Gsensor mma7760 2 level resume!! l3g4200d->status %d\n",l3g4200d->status);
+	//DBG("Gsensor mma7760 2 level resume!! l3g4200d->status %d\n",l3g4200d->status);
 	//if((l3g4200d->status == L3G4200D_SUSPEND) && (l3g4200d->status != L3G4200D_OPEN))
 	//if (l3g4200d->status == L3G4200D_OPEN)
 	//ret = l3g4200d_start_dev(client, l3g4200d->curr_tate);
@@ -661,27 +664,27 @@ static int l3g4200d_init_client(struct i2c_client *client)
 	struct l3g4200d_data *l3g4200d;
 	int ret;
 	l3g4200d = i2c_get_clientdata(client);
-	mmaprintk("gpio_to_irq(%d) is %d\n",client->irq,gpio_to_irq(client->irq));
+	DBG("gpio_to_irq(%d) is %d\n",client->irq,gpio_to_irq(client->irq));
 	if ( !gpio_is_valid(client->irq)) {
-		mmaprintk("+++++++++++gpio_is_invalid\n");
+		DBG("+++++++++++gpio_is_invalid\n");
 		return -EINVAL;
 	}
 	ret = gpio_request(client->irq, "l3g4200d_int");
 	if (ret) {
-		mmaprintk( "failed to request mma7990_trig GPIO%d\n",gpio_to_irq(client->irq));
+		DBG( "failed to request mma7990_trig GPIO%d\n",gpio_to_irq(client->irq));
 		return ret;
 	}
 	ret = gpio_direction_input(client->irq);
 	if (ret) {
-	mmaprintk("failed to set mma7990_trig GPIO gpio input\n");
+	DBG("failed to set mma7990_trig GPIO gpio input\n");
 		return ret;
 	}
 	gpio_pull_updown(client->irq, GPIOPullUp);
 	client->irq = gpio_to_irq(client->irq);
 	ret = request_irq(client->irq, l3g4200d_interrupt, IRQF_TRIGGER_LOW, client->dev.driver->name, l3g4200d);
-	mmaprintk("request irq is %d,ret is  0x%x\n",client->irq,ret);
+	DBG("request irq is %d,ret is  0x%x\n",client->irq,ret);
 	if (ret ) {
-		mmaprintk(KERN_ERR "l3g4200d_init_client: request irq failed,ret is %d\n",ret);
+		DBG(KERN_ERR "l3g4200d_init_client: request irq failed,ret is %d\n",ret);
         return ret;
 	}
 	disable_irq(client->irq);
@@ -728,7 +731,7 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 
 	l3g4200d = kzalloc(sizeof(struct l3g4200d_data), GFP_KERNEL);
 	if (!l3g4200d) {
-		mmaprintk("[l3g4200d]:alloc data failed.\n");
+		DBG("[l3g4200d]:alloc data failed.\n");
 		err = -ENOMEM;
 		goto exit_alloc_data_failed;
 	}
@@ -743,7 +746,7 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 
 	err = l3g4200d_init_client(client);
 	if (err < 0) {
-		mmaprintk(KERN_ERR
+		DBG(KERN_ERR
 		       "l3g4200d_probe: l3g4200d_init_client failed\n");
 		goto exit_request_gpio_irq_failed;
 	}
@@ -766,7 +769,7 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 	l3g4200d->input_dev = input_allocate_device();
 	if (!l3g4200d->input_dev) {
 		err = -ENOMEM;
-		mmaprintk(KERN_ERR
+		DBG(KERN_ERR
 		       "l3g4200d_probe: Failed to allocate input device\n");
 		goto exit_input_allocate_device_failed;
 	}
@@ -788,7 +791,7 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 
 	err = input_register_device(l3g4200d->input_dev);
 	if (err < 0) {
-		mmaprintk(KERN_ERR
+		DBG(KERN_ERR
 		       "l3g4200d_probe: Unable to register input device: %s\n",
 		       l3g4200d->input_dev->name);
 		goto exit_input_register_device_failed;
@@ -797,14 +800,14 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 	l3g4200d_device.parent = &client->dev;
 	err = misc_register(&l3g4200d_device);
 	if (err < 0) {
-		mmaprintk(KERN_ERR
+		DBG(KERN_ERR
 		       "l3g4200d_probe: mmad_device register failed\n");
 		goto exit_misc_device_register_l3g4200d_device_failed;
 	}
 
 	err = gsensor_sysfs_init();
 	if (err < 0) {
-		mmaprintk(KERN_ERR
+		DBG(KERN_ERR
             "l3g4200d_probe: gsensor sysfs init failed\n");
 		goto exit_gsensor_sysfs_init_failed;
 	}
@@ -843,7 +846,7 @@ exit_kfree:
 exit_request_gpio_irq_failed:
 	kfree(l3g4200d);	
 exit_alloc_data_failed:
-	mmaprintk("%s error\n",__FUNCTION__);
+	DBG("%s error\n",__FUNCTION__);
 	return err;
 }
 
