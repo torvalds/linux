@@ -121,26 +121,6 @@ struct prev_params {
 	u8 brightness;
 };
 
-/*
- * struct isptables_update - Structure for Table Configuration.
- * @update: Specifies which tables should be updated.
- * @flag: Specifies which tables should be enabled.
- * @nf: Pointer to structure for Noise Filter
- * @lsc: Pointer to LSC gain table. (currently not used)
- * @gamma: Pointer to gamma correction tables.
- * @cfa: Pointer to color filter array configuration.
- * @wbal: Pointer to colour and digital gain configuration.
- */
-struct isptables_update {
-	u32 update;
-	u32 flag;
-	struct omap3isp_prev_nf *nf;
-	u32 *lsc;
-	struct omap3isp_prev_gtables *gamma;
-	struct omap3isp_prev_cfa *cfa;
-	struct omap3isp_prev_wbal *wbal;
-};
-
 /* Sink and source previewer pads */
 #define PREV_PAD_SINK			0
 #define PREV_PAD_SOURCE			1
