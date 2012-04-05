@@ -61,20 +61,6 @@ static void __init yl9200_init_early(void)
 
 	/* Setup the LEDs D2=PB17 (timer), D3=PB16 (cpu) */
 	at91_init_leds(AT91_PIN_PB16, AT91_PIN_PB17);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
-	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
-			| ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
-			| ATMEL_UART_RI);
-
-	/* USART0 on ttyS2. (Rx & Tx only to JP3) */
-	at91_register_uart(AT91RM9200_ID_US0, 2, 0);
-
-	/* USART3 on ttyS3. (Rx, Tx, RTS - RS485 interface) */
-	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_RTS);
 }
 
 /*
@@ -558,6 +544,19 @@ void __init yl9200_add_device_video(void) {}
 static void __init yl9200_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART1 on ttyS1. (Rx, Tx, CTS, RTS, DTR, DSR, DCD, RI) */
+	at91_register_uart(AT91RM9200_ID_US1, 1, ATMEL_UART_CTS | ATMEL_UART_RTS
+			| ATMEL_UART_DTR | ATMEL_UART_DSR | ATMEL_UART_DCD
+			| ATMEL_UART_RI);
+
+	/* USART0 on ttyS2. (Rx & Tx only to JP3) */
+	at91_register_uart(AT91RM9200_ID_US0, 2, 0);
+
+	/* USART3 on ttyS3. (Rx, Tx, RTS - RS485 interface) */
+	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_RTS);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&yl9200_eth_data);

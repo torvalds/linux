@@ -41,9 +41,6 @@ static void __init flexibity_init_early(void)
 {
 	/* Initialize processor: 18.432 MHz crystal */
 	at91_initialize(18432000);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
 }
 
 /* USB Host port */
@@ -140,6 +137,8 @@ static struct gpio_led flexibity_leds[] = {
 static void __init flexibity_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* USB Host */
 	at91_add_device_usbh(&flexibity_usbh_data);

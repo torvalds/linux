@@ -50,9 +50,6 @@ static void __init csb337_init_early(void)
 
 	/* Setup the LEDs */
 	at91_init_leds(AT91_PIN_PB0, AT91_PIN_PB1);
-
-	/* DBGU on ttyS0 */
-	at91_register_uart(0, 0, 0);
 }
 
 static struct macb_platform_data __initdata csb337_eth_data = {
@@ -226,6 +223,8 @@ static struct gpio_led csb_leds[] = {
 static void __init csb337_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0 */
+	at91_register_uart(0, 0, 0);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&csb337_eth_data);

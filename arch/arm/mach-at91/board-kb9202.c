@@ -53,18 +53,6 @@ static void __init kb9202_init_early(void)
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PC19, AT91_PIN_PC18);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1 (Rx & Tx only) */
-	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
-
-	/* USART1 on ttyS2 (Rx & Tx only) - IRDA (optional) */
-	at91_register_uart(AT91RM9200_ID_US1, 2, 0);
-
-	/* USART3 on ttyS3 (Rx, Tx, CTS, RTS) - RS485 (optional) */
-	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
 }
 
 static struct macb_platform_data __initdata kb9202_eth_data = {
@@ -113,6 +101,17 @@ static struct atmel_nand_data __initdata kb9202_nand_data = {
 static void __init kb9202_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1 (Rx & Tx only) */
+	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
+
+	/* USART1 on ttyS2 (Rx & Tx only) - IRDA (optional) */
+	at91_register_uart(AT91RM9200_ID_US1, 2, 0);
+
+	/* USART3 on ttyS3 (Rx, Tx, CTS, RTS) - RS485 (optional) */
+	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&kb9202_eth_data);

@@ -50,12 +50,6 @@ static void __init kafa_init_early(void)
 
 	/* Set up the LEDs */
 	at91_init_leds(AT91_PIN_PB4, AT91_PIN_PB4);
-
-	/* DBGU on ttyS0. (Rx & Tx only) */
-	at91_register_uart(0, 0, 0);
-
-	/* USART0 on ttyS1 (Rx, Tx, CTS, RTS) */
-	at91_register_uart(AT91RM9200_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
 }
 
 static struct macb_platform_data __initdata kafa_eth_data = {
@@ -77,6 +71,11 @@ static struct at91_udc_data __initdata kafa_udc_data = {
 static void __init kafa_board_init(void)
 {
 	/* Serial */
+	/* DBGU on ttyS0. (Rx & Tx only) */
+	at91_register_uart(0, 0, 0);
+
+	/* USART0 on ttyS1 (Rx, Tx, CTS, RTS) */
+	at91_register_uart(AT91RM9200_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
 	at91_add_device_serial();
 	/* Ethernet */
 	at91_add_device_eth(&kafa_eth_data);
