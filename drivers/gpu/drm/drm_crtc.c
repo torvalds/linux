@@ -3543,3 +3543,63 @@ int drm_format_plane_cpp(uint32_t format, int plane)
 	}
 }
 EXPORT_SYMBOL(drm_format_plane_cpp);
+
+/**
+ * drm_format_horz_chroma_subsampling - get the horizontal chroma subsampling factor
+ * @format: pixel format (DRM_FORMAT_*)
+ *
+ * RETURNS:
+ * The horizontal chroma subsampling factor for the
+ * specified pixel format.
+ */
+int drm_format_horz_chroma_subsampling(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_YUV411:
+	case DRM_FORMAT_YVU411:
+	case DRM_FORMAT_YUV410:
+	case DRM_FORMAT_YVU410:
+		return 4;
+	case DRM_FORMAT_YUYV:
+	case DRM_FORMAT_YVYU:
+	case DRM_FORMAT_UYVY:
+	case DRM_FORMAT_VYUY:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+	case DRM_FORMAT_NV16:
+	case DRM_FORMAT_NV61:
+	case DRM_FORMAT_YUV422:
+	case DRM_FORMAT_YVU422:
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+		return 2;
+	default:
+		return 1;
+	}
+}
+EXPORT_SYMBOL(drm_format_horz_chroma_subsampling);
+
+/**
+ * drm_format_vert_chroma_subsampling - get the vertical chroma subsampling factor
+ * @format: pixel format (DRM_FORMAT_*)
+ *
+ * RETURNS:
+ * The vertical chroma subsampling factor for the
+ * specified pixel format.
+ */
+int drm_format_vert_chroma_subsampling(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_YUV410:
+	case DRM_FORMAT_YVU410:
+		return 4;
+	case DRM_FORMAT_YUV420:
+	case DRM_FORMAT_YVU420:
+	case DRM_FORMAT_NV12:
+	case DRM_FORMAT_NV21:
+		return 2;
+	default:
+		return 1;
+	}
+}
+EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
