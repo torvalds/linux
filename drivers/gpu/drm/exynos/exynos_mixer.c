@@ -38,6 +38,7 @@
 #include "exynos_drm_hdmi.h"
 
 #define MIXER_WIN_NR		3
+#define MIXER_DEFAULT_WIN	0
 
 #define get_mixer_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
@@ -75,7 +76,6 @@ struct mixer_resources {
 };
 
 struct mixer_context {
-	unsigned int		default_win;
 	unsigned int		irq;
 	int			pipe;
 	bool			interlace;
@@ -640,7 +640,7 @@ static void mixer_win_mode_set(void *ctx,
 
 	win = overlay->zpos;
 	if (win == DEFAULT_ZPOS)
-		win = mixer_ctx->default_win;
+		win = MIXER_DEFAULT_WIN;
 
 	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
@@ -680,7 +680,7 @@ static void mixer_win_commit(void *ctx, int zpos)
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
 
 	if (win == DEFAULT_ZPOS)
-		win = mixer_ctx->default_win;
+		win = MIXER_DEFAULT_WIN;
 
 	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
@@ -703,7 +703,7 @@ static void mixer_win_disable(void *ctx, int zpos)
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
 
 	if (win == DEFAULT_ZPOS)
-		win = mixer_ctx->default_win;
+		win = MIXER_DEFAULT_WIN;
 
 	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
