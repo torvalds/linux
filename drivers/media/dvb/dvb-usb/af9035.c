@@ -29,7 +29,7 @@
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static DEFINE_MUTEX(af9035_usb_mutex);
 static struct config af9035_config;
-static struct dvb_usb_device_properties af9035_properties[1];
+static struct dvb_usb_device_properties af9035_properties[2];
 static int af9035_properties_count = ARRAY_SIZE(af9035_properties);
 static struct af9033_config af9035_af9033_config[] = {
 	{
@@ -493,6 +493,76 @@ err:
 	return ret;
 }
 
+static int af9035_download_firmware_it9135(struct usb_device *udev,
+		const struct firmware *fw)
+{
+	int ret, i, i_prev;
+	u8 wbuf[1];
+	u8 rbuf[4];
+	struct usb_req req = { 0, 0, 0, NULL, 0, NULL };
+	struct usb_req req_fw_dl = { CMD_FW_SCATTER_WR, 0, 0, NULL, 0, NULL };
+	struct usb_req req_fw_ver = { CMD_FW_QUERYINFO, 0, 1, wbuf, 4, rbuf } ;
+	#define HDR_SIZE 7
+
+	/*
+	 * There seems to be following firmware header. Meaning of bytes 0-3
+	 * is unknown.
+	 *
+	 * 0: 3
+	 * 1: 0, 1
+	 * 2: 0
+	 * 3: 1, 2, 3
+	 * 4: addr MSB
+	 * 5: addr LSB
+	 * 6: count of data bytes ?
+	 */
+
+	for (i = HDR_SIZE, i_prev = 0; i <= fw->size; i++) {
+		if (i == fw->size ||
+				(fw->data[i + 0] == 0x03 &&
+				(fw->data[i + 1] == 0x00 ||
+				fw->data[i + 1] == 0x01) &&
+				fw->data[i + 2] == 0x00)) {
+			req_fw_dl.wlen = i - i_prev;
+			req_fw_dl.wbuf = (u8 *) &fw->data[i_prev];
+			i_prev = i;
+			ret = af9035_ctrl_msg(udev, &req_fw_dl);
+			if (ret < 0)
+				goto err;
+
+			pr_debug("%s: data uploaded=%d\n", __func__, i);
+		}
+	}
+
+	/* firmware loaded, request boot */
+	req.cmd = CMD_FW_BOOT;
+	ret = af9035_ctrl_msg(udev, &req);
+	if (ret < 0)
+		goto err;
+
+	/* ensure firmware starts */
+	wbuf[0] = 1;
+	ret = af9035_ctrl_msg(udev, &req_fw_ver);
+	if (ret < 0)
+		goto err;
+
+	if (!(rbuf[0] || rbuf[1] || rbuf[2] || rbuf[3])) {
+		info("firmware did not run");
+		ret = -ENODEV;
+		goto err;
+	}
+
+	info("firmware version=%d.%d.%d.%d", rbuf[0], rbuf[1], rbuf[2],
+			rbuf[3]);
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
 /* abuse that callback as there is no better one for reading eeprom */
 static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 {
@@ -557,6 +627,32 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 
 	for (i = 0; i < af9035_properties[0].num_adapters; i++)
 		af9035_af9033_config[i].clock = clock_lut[tmp];
+
+	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
+/* abuse that callback as there is no better one for reading eeprom */
+static int af9035_read_mac_address_it9135(struct dvb_usb_device *d, u8 mac[6])
+{
+	int ret, i;
+	u8 tmp;
+
+	af9035_config.dual_mode = 0;
+
+	/* get demod clock */
+	ret = af9035_rd_reg(d, 0x00d800, &tmp);
+	if (ret < 0)
+		goto err;
+
+	tmp = (tmp >> 0) & 0x0f;
+
+	for (i = 0; i < af9035_properties[0].num_adapters; i++)
+		af9035_af9033_config[i].clock = clock_lut_it9135[tmp];
 
 	return 0;
 
@@ -911,6 +1007,49 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 					&af9035_id[AF9035_07CA_1867],
 					&af9035_id[AF9035_07CA_A867],
 				},
+			},
+		}
+	},
+	{
+		.caps = DVB_USB_IS_AN_I2C_ADAPTER,
+
+		.usb_ctrl = DEVICE_SPECIFIC,
+		.download_firmware = af9035_download_firmware_it9135,
+		.firmware = "dvb-usb-it9135-01.fw",
+		.no_reconnect = 1,
+
+		.num_adapters = 1,
+		.adapter = {
+			{
+				.num_frontends = 1,
+				.fe = {
+					{
+						.frontend_attach = af9035_frontend_attach,
+						.tuner_attach = af9035_tuner_attach,
+						.stream = {
+							.type = USB_BULK,
+							.count = 6,
+							.endpoint = 0x84,
+							.u = {
+								.bulk = {
+									.buffersize = (87 * 188),
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+
+		.identify_state = af9035_identify_state,
+		.read_mac_address = af9035_read_mac_address_it9135,
+
+		.i2c_algo = &af9035_i2c_algo,
+
+		.num_device_descs = 0, /* disabled as no support for IT9135 */
+		.devices = {
+			{
+				.name = "ITE Tech. IT9135 reference design",
 			},
 		}
 	},

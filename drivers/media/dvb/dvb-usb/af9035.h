@@ -81,6 +81,19 @@ u32 clock_lut[] = {
 	12000000, /* 12.00 MHz */
 };
 
+u32 clock_lut_it9135[] = {
+	12000000, /* 12.00 MHz */
+	20480000, /* 20.48 MHz */
+	36000000, /* 36.00 MHz */
+	30000000, /* 30.00 MHz */
+	26000000, /* 26.00 MHz */
+	28000000, /* 28.00 MHz */
+	32000000, /* 32.00 MHz */
+	34000000, /* 34.00 MHz */
+	24000000, /* 24.00 MHz */
+	22000000, /* 22.00 MHz */
+};
+
 /* EEPROM locations */
 #define EEPROM_IR_MODE            0x430d
 #define EEPROM_DUAL_MODE          0x4326
@@ -102,5 +115,6 @@ u32 clock_lut[] = {
 #define CMD_FW_BOOT                 0x23
 #define CMD_FW_DL_BEGIN             0x24
 #define CMD_FW_DL_END               0x25
+#define CMD_FW_SCATTER_WR           0x29
 
 #endif
