@@ -3605,18 +3605,25 @@ MODULE_DEVICE_TABLE(pci, mtip_pci_tbl);
  */
 static int __init mtip_init(void)
 {
+	int error;
+
 	printk(KERN_INFO MTIP_DRV_NAME " Version " MTIP_DRV_VERSION "\n");
 
 	/* Allocate a major block device number to use with this driver. */
-	mtip_major = register_blkdev(0, MTIP_DRV_NAME);
-	if (mtip_major < 0) {
+	error = register_blkdev(0, MTIP_DRV_NAME);
+	if (error <= 0) {
 		printk(KERN_ERR "Unable to register block device (%d)\n",
-		mtip_major);
+		error);
 		return -EBUSY;
 	}
+	mtip_major = error;
 
 	/* Register our PCI operations. */
-	return pci_register_driver(&mtip_pci_driver);
+	error = pci_register_driver(&mtip_pci_driver);
+	if (error)
+		unregister_blkdev(mtip_major, MTIP_DRV_NAME);
+
+	return error;
 }
 
 /*
