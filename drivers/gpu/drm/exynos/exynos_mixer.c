@@ -37,7 +37,7 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_hdmi.h"
 
-#define HDMI_OVERLAY_NUMBER	3
+#define MIXER_WIN_NR		3
 
 #define get_mixer_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
@@ -81,7 +81,7 @@ struct mixer_context {
 	bool			interlace;
 
 	struct mixer_resources	mixer_res;
-	struct hdmi_win_data	win_data[HDMI_OVERLAY_NUMBER];
+	struct hdmi_win_data	win_data[MIXER_WIN_NR];
 };
 
 static const u8 filter_y_horiz_tap8[] = {
@@ -642,7 +642,7 @@ static void mixer_win_mode_set(void *ctx,
 	if (win == DEFAULT_ZPOS)
 		win = mixer_ctx->default_win;
 
-	if (win < 0 || win > HDMI_OVERLAY_NUMBER) {
+	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
 		return;
 	}
@@ -682,7 +682,7 @@ static void mixer_win_commit(void *ctx, int zpos)
 	if (win == DEFAULT_ZPOS)
 		win = mixer_ctx->default_win;
 
-	if (win < 0 || win > HDMI_OVERLAY_NUMBER) {
+	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
 		return;
 	}
@@ -705,7 +705,7 @@ static void mixer_win_disable(void *ctx, int zpos)
 	if (win == DEFAULT_ZPOS)
 		win = mixer_ctx->default_win;
 
-	if (win < 0 || win > HDMI_OVERLAY_NUMBER) {
+	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
 		return;
 	}
