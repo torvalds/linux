@@ -53,9 +53,6 @@ static void __init csb337_init_early(void)
 
 	/* DBGU on ttyS0 */
 	at91_register_uart(0, 0, 0);
-
-	/* make console=ttyS0 the default */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata csb337_eth_data = {

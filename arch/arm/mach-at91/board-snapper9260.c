@@ -46,7 +46,6 @@ static void __init snapper9260_init_early(void)
 
 	/* Debug on ttyS0 */
 	at91_register_uart(0, 0, 0);
-	at91_set_serial_console(0);
 
 	at91_register_uart(AT91SAM9260_ID_US0, 1,
 			   ATMEL_UART_CTS | ATMEL_UART_RTS);

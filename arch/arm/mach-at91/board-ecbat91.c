@@ -59,9 +59,6 @@ static void __init ecb_at91init_early(void)
 
 	/* USART0 on ttyS1. (Rx & Tx only) */
 	at91_register_uart(AT91RM9200_ID_US0, 1, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata ecb_at91eth_data = {

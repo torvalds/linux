@@ -65,9 +65,6 @@ static void __init kb9202_init_early(void)
 
 	/* USART3 on ttyS3 (Rx, Tx, CTS, RTS) - RS485 (optional) */
 	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata kb9202_eth_data = {

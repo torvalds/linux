@@ -268,18 +268,6 @@ static void __init at91sam9260_register_clocks(void)
 	clk_register(&pck1);
 }
 
-static struct clk_lookup console_clock_lookup;
-
-void __init at91sam9260_set_console_clock(int id)
-{
-	if (id >= ARRAY_SIZE(usart_clocks_lookups))
-		return;
-
-	console_clock_lookup.con_id = "usart";
-	console_clock_lookup.clk = usart_clocks_lookups[id].clk;
-	clkdev_add(&console_clock_lookup);
-}
-
 /* --------------------------------------------------------------------
  *  GPIO
  * -------------------------------------------------------------------- */

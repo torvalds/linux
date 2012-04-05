@@ -61,9 +61,6 @@ static void __init neocore926_init_early(void)
 
 	/* USART0 on ttyS1. (Rx, Tx, RTS, CTS) */
 	at91_register_uart(AT91SAM9263_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*

@@ -66,10 +66,6 @@ static void __init ek_init_early(void)
 
 	/* USART2 on ttyS3. (Rx, Tx, CTS, RTS) */
 	at91_register_uart(AT91SAM9260_ID_US2, 3, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS1 (ie, USART0) */
-	at91_set_serial_console(1);
-
 }
 
 /*

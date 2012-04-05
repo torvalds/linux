@@ -48,9 +48,6 @@ static void __init ek_init_early(void)
 
 	/* USART0 on ttyS1. (Rx, Tx, CTS, RTS) */
 	at91_register_uart(AT91SAM9RL_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*

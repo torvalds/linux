@@ -75,9 +75,6 @@ static void __init yl9200_init_early(void)
 
 	/* USART3 on ttyS3. (Rx, Tx, RTS - RS485 interface) */
 	at91_register_uart(AT91RM9200_ID_US3, 3, ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*

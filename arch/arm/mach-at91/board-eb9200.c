@@ -55,9 +55,6 @@ static void __init eb9200_init_early(void)
 
 	/* USART2 on ttyS2. (Rx, Tx) - IRDA */
 	at91_register_uart(AT91RM9200_ID_US2, 2, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata eb9200_eth_data = {

@@ -39,9 +39,6 @@ void __init stamp9g20_init_early(void)
 
 	/* DGBU on ttyS0. (Rx & Tx only) */
 	at91_register_uart(0, 0, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static void __init stamp9g20evb_init_early(void)

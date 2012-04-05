@@ -93,9 +93,6 @@ static void __init foxg20_init_early(void)
 	/* USART5 on ttyS6. (Rx & Tx only) */
 	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
 
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
-
 	/* Set the internal pull-up resistor on DRXD */
 	at91_set_A_periph(AT91_PIN_PB14, 1);
 

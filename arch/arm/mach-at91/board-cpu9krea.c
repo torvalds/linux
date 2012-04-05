@@ -77,9 +77,6 @@ static void __init cpu9krea_init_early(void)
 
 	/* USART5 on ttyS6. (Rx, Tx) */
 	at91_register_uart(AT91SAM9260_ID_US5, 6, 0);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*

@@ -56,9 +56,6 @@ static void __init kafa_init_early(void)
 
 	/* USART0 on ttyS1 (Rx, Tx, CTS, RTS) */
 	at91_register_uart(AT91RM9200_ID_US0, 1, ATMEL_UART_CTS | ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 static struct macb_platform_data __initdata kafa_eth_data = {

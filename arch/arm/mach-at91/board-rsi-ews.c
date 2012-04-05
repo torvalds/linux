@@ -52,9 +52,6 @@ static void __init rsi_ews_init_early(void)
 	/* USART3 on ttyS4. (Rx, Tx, RTS) */
 	/* RS485 communication */
 	at91_register_uart(AT91RM9200_ID_US3, 4, ATMEL_UART_RTS);
-
-	/* set serial console to ttyS0 (ie, DBGU) */
-	at91_set_serial_console(0);
 }
 
 /*
