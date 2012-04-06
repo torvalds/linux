@@ -857,13 +857,6 @@ static void XGI_UpdateXG21CRTC(unsigned short ModeNo,
 	}
 }
 
-static unsigned short XGI_GetResInfo(unsigned short ModeNo,
-		unsigned short ModeIdIndex, struct vb_device_info *pVBInfo)
-{
-	/* si+Ext_ResInfo */
-	return pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
-}
-
 static void XGI_SetCRT1DE(struct xgi_hw_device_info *HwDeviceExtension,
 		unsigned short ModeNo, unsigned short ModeIdIndex,
 		unsigned short RefreshRateTableIndex,
@@ -873,7 +866,7 @@ static void XGI_SetCRT1DE(struct xgi_hw_device_info *HwDeviceExtension,
 
 	unsigned char data;
 
-	resindex = XGI_GetResInfo(ModeNo, ModeIdIndex, pVBInfo);
+	resindex = pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
 
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 	tempax = pVBInfo->ModeResInfo[resindex].HTotal;
@@ -1271,7 +1264,7 @@ static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
 		data2 |= 0x20;
 
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x06, ~0x3F, data2);
-	resindex = XGI_GetResInfo(ModeNo, ModeIdIndex, pVBInfo);
+	resindex = pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
 	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
 
 	data = 0x0000;
@@ -3365,7 +3358,7 @@ static void XGI_GetCRT2ResInfo(unsigned short ModeNo,
 {
 	unsigned short xres, yres, modeflag, resindex;
 
-	resindex = XGI_GetResInfo(ModeNo, ModeIdIndex, pVBInfo);
+	resindex = pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
 	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
 	yres = pVBInfo->ModeResInfo[resindex].VTotal; /* yres->bx */
 	/* si+St_ModeFlag */
@@ -5259,7 +5252,7 @@ static unsigned char XGI_XG21CheckLVDSMode(struct xgifb_video_info *xgifb_info,
 {
 	unsigned short xres, yres, colordepth, modeflag, resindex;
 
-	resindex = XGI_GetResInfo(ModeNo, ModeIdIndex, pVBInfo);
+	resindex = pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
 	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
 	yres = pVBInfo->ModeResInfo[resindex].VTotal; /* yres->bx */
 	/* si+St_ModeFlag */
@@ -5321,7 +5314,7 @@ static void xgifb_set_lvds(struct xgifb_video_info *xgifb_info,
 	else
 		XGI_SetXG21FPBits(pVBInfo);
 
-	resindex = XGI_GetResInfo(ModeNo, ModeIdIndex, pVBInfo);
+	resindex = pVBInfo->EModeIDTable[ModeIdIndex].Ext_RESINFO;
 	xres = pVBInfo->ModeResInfo[resindex].HTotal; /* xres->ax */
 	yres = pVBInfo->ModeResInfo[resindex].VTotal; /* yres->bx */
 	/* si+St_ModeFlag */
