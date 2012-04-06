@@ -156,25 +156,12 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	unsigned short ModeNo = modeno;
 	unsigned short ModeIdIndex = 0, ClockIndex = 0;
 	unsigned short RefreshRateTableIndex = 0;
-
-	/* unsigned long  temp = 0; */
 	int Clock;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
 
-	/*
-	temp = XGI_SearchModeID(ModeNo , &ModeIdIndex,  XGI_Pr) ;
-	if (!temp) {
-		printk(KERN_ERR "Could not find mode %x\n", ModeNo);
-		return 65000;
-	}
-
-	RefreshRateTableIndex = XGI_Pr->EModeIDTable[ModeIdIndex].REFindex;
-	RefreshRateTableIndex += (rateindex - 1);
-
-	*/
 	ClockIndex = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRTVCLK;
 
 	Clock = XGI_Pr->VCLKData[ClockIndex].CLOCK * 1000;
