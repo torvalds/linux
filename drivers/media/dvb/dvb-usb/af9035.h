@@ -52,20 +52,6 @@ struct config {
 	bool hw_not_supported;
 };
 
-struct fw_segment {
-#define SEGMENT_FW_DL       0
-#define SEGMENT_ROM_COPY    1
-#define SEGMENT_DIRECT_CMD  2
-	u8 type;
-	u32 len;
-};
-
-struct fw_header {
-#define SEGMENT_MAX_COUNT 6
-	u8 segment_count;
-	struct fw_segment segment[SEGMENT_MAX_COUNT];
-};
-
 u32 clock_lut[] = {
 	20480000, /*      FPGA */
 	16384000, /* 16.38 MHz */
