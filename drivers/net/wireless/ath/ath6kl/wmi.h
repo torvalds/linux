@@ -1151,6 +1151,7 @@ enum wmi_phy_mode {
 	WMI_11AG_MODE = 0x3,
 	WMI_11B_MODE = 0x4,
 	WMI_11GONLY_MODE = 0x5,
+	WMI_11G_HT20	= 0x6,
 };
 
 #define WMI_MAX_CHANNELS        32
@@ -1466,6 +1467,17 @@ enum wmi_disconnect_reason {
 	PROFILE_MISMATCH = 0x0c,
 	CONNECTION_EVICTED = 0x0d,
 	IBSS_MERGE = 0xe,
+};
+
+/* AP mode disconnect proto_reasons */
+enum ap_disconnect_reason {
+	WMI_AP_REASON_STA_LEFT		= 101,
+	WMI_AP_REASON_FROM_HOST		= 102,
+	WMI_AP_REASON_COMM_TIMEOUT	= 103,
+	WMI_AP_REASON_MAX_STA		= 104,
+	WMI_AP_REASON_ACL		= 105,
+	WMI_AP_REASON_STA_ROAM		= 106,
+	WMI_AP_REASON_DFS_CHANNEL	= 107,
 };
 
 #define ATH6KL_COUNTRY_RD_SHIFT        16

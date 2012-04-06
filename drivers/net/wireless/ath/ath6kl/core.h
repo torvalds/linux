@@ -552,6 +552,7 @@ struct ath6kl_vif {
 	u8 assoc_bss_dtim_period;
 	struct net_device_stats net_stats;
 	struct target_stats target_stats;
+	struct wmi_connect_cmd profile;
 
 	struct list_head mc_filter;
 };
@@ -640,6 +641,7 @@ struct ath6kl {
 	u8 sta_list_index;
 	struct ath6kl_req_key ap_mode_bkey;
 	struct sk_buff_head mcastpsq;
+	u32 want_ch_switch;
 
 	/*
 	 * FIXME: protects access to mcastpsq but is actually useless as

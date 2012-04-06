@@ -436,6 +436,13 @@ void ath6kl_connect_ap_mode_bss(struct ath6kl_vif *vif, u16 channel)
 		break;
 	}
 
+	if (ar->want_ch_switch & (1 << vif->fw_vif_idx)) {
+		ar->want_ch_switch &= ~(1 << vif->fw_vif_idx);
+		/* we actually don't know the phymode, default to HT20 */
+		ath6kl_cfg80211_ch_switch_notify(vif, channel,
+						 WMI_11G_HT20);
+	}
+
 	ath6kl_wmi_bssfilter_cmd(ar->wmi, vif->fw_vif_idx, NONE_BSS_FILTER, 0);
 	set_bit(CONNECTED, &vif->flags);
 	netif_carrier_on(vif->ndev);
@@ -584,6 +591,45 @@ void ath6kl_scan_complete_evt(struct ath6kl_vif *vif, int status)
 	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "scan complete: %d\n", status);
 }
 
+static int ath6kl_commit_ch_switch(struct ath6kl_vif *vif, u16 channel)
+{
+
+	struct ath6kl *ar = vif->ar;
+
+	vif->next_chan = channel;
+	vif->profile.ch = cpu_to_le16(channel);
+
+	switch (vif->nw_type) {
+	case AP_NETWORK:
+		return ath6kl_wmi_ap_profile_commit(ar->wmi, vif->fw_vif_idx,
+						    &vif->profile);
+	default:
+		ath6kl_err("won't switch channels nw_type=%d\n", vif->nw_type);
+		return -ENOTSUPP;
+	}
+}
+
+static void ath6kl_check_ch_switch(struct ath6kl *ar, u16 channel)
+{
+
+	struct ath6kl_vif *vif;
+	int res = 0;
+
+	if (!ar->want_ch_switch)
+		return;
+
+	spin_lock_bh(&ar->list_lock);
+	list_for_each_entry(vif, &ar->vif_list, list) {
+		if (ar->want_ch_switch & (1 << vif->fw_vif_idx))
+			res = ath6kl_commit_ch_switch(vif, channel);
+
+		if (res)
+			ath6kl_err("channel switch failed nw_type %d res %d\n",
+				   vif->nw_type, res);
+	}
+	spin_unlock_bh(&ar->list_lock);
+}
+
 void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 			  u16 listen_int, u16 beacon_int,
 			  enum network_type net_type, u8 beacon_ie_len,
@@ -601,9 +647,11 @@ void ath6kl_connect_event(struct ath6kl_vif *vif, u16 channel, u8 *bssid,
 	memcpy(vif->bssid, bssid, sizeof(vif->bssid));
 	vif->bss_ch = channel;
 
-	if ((vif->nw_type == INFRA_NETWORK))
+	if ((vif->nw_type == INFRA_NETWORK)) {
 		ath6kl_wmi_listeninterval_cmd(ar->wmi, vif->fw_vif_idx,
 					      vif->listen_intvl_t, 0);
+		ath6kl_check_ch_switch(ar, channel);
+	}
 
 	netif_wake_queue(vif->ndev);
 
@@ -926,6 +974,11 @@ void ath6kl_disconnect_event(struct ath6kl_vif *vif, u8 reason, u8 *bssid,
 	struct ath6kl *ar = vif->ar;
 
 	if (vif->nw_type == AP_NETWORK) {
+		/* disconnect due to other STA vif switching channels */
+		if (reason == BSS_DISCONNECTED &&
+		    prot_reason_status == WMI_AP_REASON_STA_ROAM)
+			ar->want_ch_switch |= 1 << vif->fw_vif_idx;
+
 		if (!ath6kl_remove_sta(ar, bssid, prot_reason_status))
 			return;
 
