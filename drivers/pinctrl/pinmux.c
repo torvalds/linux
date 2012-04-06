@@ -33,11 +33,12 @@
 int pinmux_check_ops(struct pinctrl_dev *pctldev)
 {
 	const struct pinmux_ops *ops = pctldev->desc->pmxops;
-	unsigned nfuncs = ops->get_functions_count(pctldev);
+	unsigned nfuncs;
 	unsigned selector = 0;
 
 	/* Check that we implement required operations */
-	if (!ops->get_functions_count ||
+	if (!ops ||
+	    !ops->get_functions_count ||
 	    !ops->get_function_name ||
 	    !ops->get_function_groups ||
 	    !ops->enable ||
@@ -45,11 +46,12 @@ int pinmux_check_ops(struct pinctrl_dev *pctldev)
 		return -EINVAL;
 
 	/* Check that all functions registered have names */
+	nfuncs = ops->get_functions_count(pctldev);
 	while (selector < nfuncs) {
 		const char *fname = ops->get_function_name(pctldev,
 							   selector);
 		if (!fname) {
-			pr_err("pinmux ops has no name for function%u\n",
+			dev_err(pctldev->dev, "pinmux ops has no name for function%u\n",
 				selector);
 			return -EINVAL;
 		}
