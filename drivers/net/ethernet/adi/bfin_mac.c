@@ -549,7 +549,7 @@ static int bfin_mac_ethtool_setwol(struct net_device *dev,
 }
 
 static int bfin_mac_ethtool_get_ts_info(struct net_device *dev,
-	struct ethtool_ts_info *info);
+	struct ethtool_ts_info *info)
 {
 	info->so_timestamping =
 		SOF_TIMESTAMPING_TX_HARDWARE |
