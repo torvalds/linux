@@ -116,7 +116,7 @@ static void tegra_i2s_debug_remove(struct tegra_i2s *i2s)
 		debugfs_remove(i2s->debug);
 }
 #else
-static inline void tegra_i2s_debug_add(struct tegra_i2s *i2s, int id)
+static inline void tegra_i2s_debug_add(struct tegra_i2s *i2s)
 {
 }
 
