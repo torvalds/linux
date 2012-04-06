@@ -9522,7 +9522,7 @@ static void i915_disable_vga(struct drm_device *dev)
 		vga_reg = VGACNTRL;
 
 	vga_get_uninterruptible(dev->pdev, VGA_RSRC_LEGACY_IO);
-	outb(1, VGA_SR_INDEX);
+	outb(SR01, VGA_SR_INDEX);
 	sr1 = inb(VGA_SR_DATA);
 	outb(sr1 | 1<<5, VGA_SR_DATA);
 	vga_put(dev->pdev, VGA_RSRC_LEGACY_IO);
