@@ -132,7 +132,7 @@ static struct hdmi_ops rk610_hdmi_ops = {
 	.remove = rk610_hdmi_remove,
 	.init = rk610_hdmi_init,
 };
-#ifdef CONFIG_RK610_DEBUG
+#ifdef RK610_DEBUG
 static int rk610_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	return i2c_master_reg8_recv(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
@@ -166,14 +166,14 @@ static ssize_t rk610_store_reg_attrs(struct device *dev,
 			 			const char *buf, size_t size)
 {
 	struct i2c_client *client=NULL;
-	char val,reg,addr;
+	static char val=0,reg=0;
 	client = rk610_g_hdmi_client;
-	printk("/**********rk610 reg config******/");
+	RK610_DBG(&client->dev,"/**********rk610 reg config******/");
 
-	sscanf(buf, "%x%x%x", &val,&reg,&addr);
-	printk("addr=%x ,reg=%x val=%x\n",addr,reg,val);
+	sscanf(buf, "%x%x", &val,&reg);
+	RK610_DBG(&client->dev,"reg=%x val=%x\n",reg,val);
 	rk610_write_p0_reg(client, reg,  &val);
-	printk("val=%x\n",val);
+	RK610_DBG(&client->dev,"val=%x\n",val);
 	return size;
 }
 
@@ -246,7 +246,7 @@ static int 	rk610_hdmi_i2c_probe(struct i2c_client *client,const struct i2c_devi
 	rk610_hdmi->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;
 	register_early_suspend(&rk610_hdmi->early_suspend);
 #endif
-#ifdef CONFIG_RK610_DEBUG
+#ifdef RK610_DEBUG
 	device_create_file(&(client->dev), &rk610_attrs[0]);
 #endif
 	rk610_hdmi_init(rk610_hdmi->hdmi);

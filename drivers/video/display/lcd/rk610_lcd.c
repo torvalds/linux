@@ -165,6 +165,7 @@ static int rk610_scaler_fator_config(struct i2c_client *client ,struct rk29fb_sc
         return -1;
         break;
     }
+    return 0;
 }
 static int rk610_scaler_output_timing_config(struct i2c_client *client,struct rk29fb_screen *screen)
 {

@@ -154,7 +154,7 @@ void rk610_control_init_codec(void)
     DBG("[%s] RK610_CONTROL_REG_CLOCK_CON1 is %x\n", __FUNCTION__, data);
 }
 #endif
-#ifdef CONFIG_RK610_DEBUG
+#ifdef RK610_DEBUG
 static int rk610_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	return i2c_master_reg8_recv(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
@@ -177,7 +177,7 @@ static ssize_t rk610_show_reg_attrs(struct device *dev,
 	{
 		rk610_read_p0_reg(client, i,  &val);
 		if(i%16==0)
-			size += sprintf(buf+size,"\n>>>rk610_hdmi %x:",i);
+			size += sprintf(buf+size,"\n>>>rk610_ctl %x:",i);
 		size += sprintf(buf+size," %2x",val);
 	}
 
@@ -244,7 +244,7 @@ static int rk610_control_probe(struct i2c_client *client,
 		}
 	}
 	rk610_lcd_init(client);
-	#ifdef CONFIG_RK610_DEBUG
+	#ifdef RK610_DEBUG
 	device_create_file(&(client->dev), &rk610_attrs[0]);
     #endif
     return 0;
@@ -281,7 +281,7 @@ static void __exit rk610_control_exit(void)
 	i2c_del_driver(&rk610_control_driver);
 }
 
-fs_initcall(rk610_control_init);
+subsys_initcall_sync(rk610_control_init);
 //module_init(rk610_control_init);
 module_exit(rk610_control_exit);
 
