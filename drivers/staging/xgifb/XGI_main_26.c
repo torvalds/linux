@@ -1138,8 +1138,7 @@ static int XGIfb_do_set_var(struct fb_var_screeninfo *var, int isactive,
 
 	if (XGIfb_search_refresh_rate(xgifb_info,
 				      xgifb_info->refresh_rate) == 0) {
-		xgifb_info->rate_idx =
-			XGIbios_mode[xgifb_info->mode_idx].rate_idx;
+		xgifb_info->rate_idx = 1;
 		xgifb_info->refresh_rate = 60;
 	}
 
@@ -2134,8 +2133,7 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 		xgifb_info->refresh_rate = 60;
 	if (XGIfb_search_refresh_rate(xgifb_info,
 			xgifb_info->refresh_rate) == 0) {
-		xgifb_info->rate_idx =
-			XGIbios_mode[xgifb_info->mode_idx].rate_idx;
+		xgifb_info->rate_idx = 1;
 		xgifb_info->refresh_rate = 60;
 	}
 
