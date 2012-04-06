@@ -60,7 +60,7 @@ static const unsigned short XGINew_VGA_DAC[] = {
 
 void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
-	pVBInfo->StandTable = (struct SiS_StandTable_S *) XGI330_StandTable;
+	pVBInfo->StandTable = (struct SiS_StandTable_S *) &XGI330_StandTable;
 	pVBInfo->EModeIDTable = (struct XGI_ExtStruct *) XGI330_EModeIDTable;
 	pVBInfo->RefIndex = (struct XGI_Ext2Struct *) XGI330_RefIndex;
 	pVBInfo->XGINEWUB_CRT1Table
@@ -174,13 +174,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 
 }
 
-static unsigned char XGI_GetModePtr(unsigned short ModeNo,
-				    unsigned short ModeIdIndex,
-				    struct vb_device_info *pVBInfo)
-{
-	return 0x0F;
-}
-
 static void XGI_SetSeqRegs(unsigned short ModeNo,
 			   unsigned short StandTableIndex,
 			   unsigned short ModeIdIndex,
@@ -192,7 +185,7 @@ static void XGI_SetSeqRegs(unsigned short ModeNo,
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
 	xgifb_reg_set(pVBInfo->P3c4, 0x00, 0x03); /* Set SR0 */
-	tempah = pVBInfo->StandTable[StandTableIndex].SR[0];
+	tempah = pVBInfo->StandTable->SR[0];
 
 	i = XGI_SetCRT2ToLCDA;
 	if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
@@ -209,7 +202,7 @@ static void XGI_SetSeqRegs(unsigned short ModeNo,
 
 	for (i = 02; i <= 04; i++) {
 		/* Get SR2,3,4 from file */
-		SRdata = pVBInfo->StandTable[StandTableIndex].SR[i - 1];
+		SRdata = pVBInfo->StandTable->SR[i - 1];
 		xgifb_reg_set(pVBInfo->P3c4, i, SRdata); /* Set SR2 3 4 */
 	}
 }
@@ -227,7 +220,7 @@ static void XGI_SetCRTCRegs(struct xgi_hw_device_info *HwDeviceExtension,
 
 	for (i = 0; i <= 0x18; i++) {
 		/* Get CRTC from file */
-		CRTCdata = pVBInfo->StandTable[StandTableIndex].CRTC[i];
+		CRTCdata = pVBInfo->StandTable->CRTC[i];
 		xgifb_reg_set(pVBInfo->P3d4, i, CRTCdata); /* Set CRTC(3d4) */
 	}
 }
@@ -243,7 +236,7 @@ static void XGI_SetATTRegs(unsigned short ModeNo,
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
 
 	for (i = 0; i <= 0x13; i++) {
-		ARdata = pVBInfo->StandTable[StandTableIndex].ATTR[i];
+		ARdata = pVBInfo->StandTable->ATTR[i];
 		if (modeflag & Charx8Dot) { /* ifndef Dot9 */
 			if (i == 0x13) {
 				if (pVBInfo->VBInfo & XGI_SetCRT2ToLCDA) {
@@ -279,7 +272,7 @@ static void XGI_SetGRCRegs(unsigned short StandTableIndex,
 
 	for (i = 0; i <= 0x08; i++) {
 		/* Get GR from file */
-		GRdata = pVBInfo->StandTable[StandTableIndex].GRC[i];
+		GRdata = pVBInfo->StandTable->GRC[i];
 		xgifb_reg_set(pVBInfo->P3ce, i, GRdata); /* Set GR(3ce) */
 	}
 
@@ -6754,9 +6747,8 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 {
 	unsigned short StandTableIndex, RefreshRateTableIndex, temp;
 
-	StandTableIndex = XGI_GetModePtr(ModeNo, ModeIdIndex, pVBInfo);
 	XGI_SetSeqRegs(ModeNo, StandTableIndex, ModeIdIndex, pVBInfo);
-	outb(pVBInfo->StandTable[StandTableIndex].MISC, pVBInfo->P3c2);
+	outb(pVBInfo->StandTable->MISC, pVBInfo->P3c2);
 	XGI_SetCRTCRegs(HwDeviceExtension, StandTableIndex, pVBInfo);
 	XGI_SetATTRegs(ModeNo, StandTableIndex, ModeIdIndex, pVBInfo);
 	XGI_SetGRCRegs(StandTableIndex, pVBInfo);
