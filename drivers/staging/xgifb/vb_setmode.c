@@ -178,13 +178,7 @@ static unsigned char XGI_GetModePtr(unsigned short ModeNo,
 				    unsigned short ModeIdIndex,
 				    struct vb_device_info *pVBInfo)
 {
-	unsigned char index;
-
-	if (pVBInfo->ModeType <= 0x02)
-		index = 0x1B; /* 02 -> ModeEGA */
-	else
-		index = 0x0F;
-	return index; /* Get pVBInfo->StandTable index */
+	return 0x0F;
 }
 
 static void XGI_SetSeqRegs(unsigned short ModeNo,
@@ -1308,14 +1302,10 @@ static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
 
 	data = infoflag;
 	data2 = 0;
-
-	if (pVBInfo->ModeType > 0x02) {
-		data2 |= 0x02;
-		data3 = pVBInfo->ModeType - ModeVGA;
-		data3 = data3 << 2;
-		data2 |= data3;
-	}
-
+	data2 |= 0x02;
+	data3 = pVBInfo->ModeType - ModeVGA;
+	data3 = data3 << 2;
+	data2 |= data3;
 	data &= InterlaceMode;
 
 	if (data)
@@ -1346,16 +1336,10 @@ static void XGI_SetCRT1ModeRegs(struct xgi_hw_device_info *HwDeviceExtension,
 	if (modeflag & LineCompareOff)
 		data2 |= 0x08;
 
-	if (pVBInfo->ModeType == ModeEGA)
-		data2 |= 0x40;
-
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x0F, ~0x48, data2);
 	data = 0x60;
-	if (pVBInfo->ModeType != ModeText) {
-		data = data ^ 0x60;
-		if (pVBInfo->ModeType != ModeEGA)
-			data = data ^ 0xA0;
-	}
+	data = data ^ 0x60;
+	data = data ^ 0xA0;
 	xgifb_reg_and_or(pVBInfo->P3c4, 0x21, 0x1F, data);
 
 	XGI_SetVCLKState(HwDeviceExtension, ModeNo, RefreshRateTableIndex,
@@ -4127,14 +4111,6 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 			if (pVBInfo->LCDResInfo != Panel_1280x960 &&
 			    pVBInfo->VGAHDE >= 800) {
 				temp -= 7;
-				if (pVBInfo->ModeType == ModeEGA &&
-				    pVBInfo->VGAVDE == 1024) {
-					temp += 15;
-					if (pVBInfo->LCDResInfo !=
-						Panel_1280x1024)
-						temp += 7;
-				}
-
 				if (pVBInfo->VGAHDE >= 1280 &&
 				    pVBInfo->LCDResInfo != Panel_1280x960 &&
 				    (pVBInfo->LCDInfo & LCDNonExpanding))
@@ -4821,16 +4797,6 @@ static void XGI_SetLCDRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	temp = temp << 4;
 	xgifb_reg_and_or(pVBInfo->Part2Port, 0x2B, 0x0F, temp);
 	temp = 0x01;
-
-	if (pVBInfo->LCDResInfo == Panel_1280x1024) {
-		if (pVBInfo->ModeType == ModeEGA) {
-			if (pVBInfo->VGAHDE >= 1024) {
-				temp = 0x02;
-				if (pVBInfo->LCDInfo & XGI_LCDVESATiming)
-					temp = 0x01;
-			}
-		}
-	}
 
 	xgifb_reg_set(pVBInfo->Part2Port, 0x0B, temp);
 	tempbx = pVBInfo->VDE; /* RTVACTEO=(VDE-1)&0xFF */
