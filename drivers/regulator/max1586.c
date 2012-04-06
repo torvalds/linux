@@ -161,7 +161,7 @@ static struct regulator_ops max1586_v6_ops = {
 	.list_voltage = max1586_v6_list,
 };
 
-static struct regulator_desc max1586_reg[] = {
+static const struct regulator_desc max1586_reg[] = {
 	{
 		.name = "Output_V3",
 		.id = MAX1586_V3,
