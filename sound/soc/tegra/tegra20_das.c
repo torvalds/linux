@@ -20,14 +20,13 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
+#include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/io.h>
-#include <mach/iomap.h>
 #include <sound/soc.h>
 #include "tegra20_das.h"
 
