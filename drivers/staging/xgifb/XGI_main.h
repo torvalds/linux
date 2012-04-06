@@ -12,9 +12,6 @@
 
 #define XGIFAIL(x) do { printk(x "\n"); return -EINVAL; } while (0)
 
-#ifndef PCI_DEVICE_ID_XGI_41
-#define PCI_DEVICE_ID_XGI_41      0x041
-#endif
 #ifndef PCI_DEVICE_ID_XGI_42
 #define PCI_DEVICE_ID_XGI_42      0x042
 #endif

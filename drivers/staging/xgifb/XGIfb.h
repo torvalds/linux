@@ -23,7 +23,6 @@ enum xgifb_display_type {
 
 enum XGI_CHIP_TYPE {
 	XG40 = 32,
-	XG41,
 	XG42,
 	XG45,
 	XG20 = 48,

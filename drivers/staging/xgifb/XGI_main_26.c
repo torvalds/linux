@@ -1924,9 +1924,6 @@ static int __devinit xgifb_probe(struct pci_dev *pdev,
 	case PCI_DEVICE_ID_XGI_40:
 		xgifb_info->chip = XG40;
 		break;
-	case PCI_DEVICE_ID_XGI_41:
-		xgifb_info->chip = XG41;
-		break;
 	case PCI_DEVICE_ID_XGI_42:
 		xgifb_info->chip = XG42;
 		break;
