@@ -1656,17 +1656,6 @@ static int XGIfb_get_dram_size(struct xgifb_video_info *xgifb_info)
 			ChannelNum = 1;
 		break;
 
-	case XG45:
-		if (tmp == 1)
-			ChannelNum = 2;
-		else if (tmp == 2)
-			ChannelNum = 3;
-		else if (tmp == 3)
-			ChannelNum = 4;
-		else
-			ChannelNum = 1;
-		break;
-
 	case XG40:
 	default:
 		if (tmp == 2)
