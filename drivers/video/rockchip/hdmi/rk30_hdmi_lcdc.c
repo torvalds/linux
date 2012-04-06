@@ -486,20 +486,30 @@ const char *hdmi_get_video_mode_name(unsigned char vic)
 int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 {
 	int rc = 0;
+	struct layer_par *par = NULL;
+	struct rk_lcdc_device_driver * dev_drv;
+	struct rk29fb_screen *screen; 
 
-//	if(hdmi->config_set.resolution == 0)
-//		hdmi->config_set.resolution = HDMI_DEFAULT_RESOLUTION;
+	if(hdmi->vic == 0)
+		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
 		
 	if(hdmi->lcdc == NULL || hdmi->lcdc->screen == NULL) {
 		dev_err(hdmi->dev, "lcdc %d not exist\n", HDMI_SOURCE_DEFAULT);
 		return -1;
 	}
 
+	dev_drv = hdmi->lcdc;
+	screen = dev_drv->screen;
 	rc = hdmi_set_info(hdmi->lcdc->screen, vic);
 
 	if(rc == 0 &&  hdmi->lcdc->load_screen) {
 		
-		rc = hdmi->lcdc->load_screen(hdmi->lcdc, 0);
+		hdmi->lcdc->load_screen(hdmi->lcdc, 0);
+		par = &dev_drv->layer_par[1];
+   		par->xsize = screen->x_res;
+    	par->ysize = screen->y_res;
+		hdmi->lcdc->set_par(hdmi->lcdc, 1);
+		hdmi->lcdc->pan_display(hdmi->lcdc, 1);
 	}
 	return rc;
 }
