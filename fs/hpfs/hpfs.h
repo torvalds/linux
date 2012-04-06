@@ -528,38 +528,39 @@ struct anode
    run, or in multiple runs.  Flags in the fnode tell whether the EA list
    is immediate, in a single run, or in multiple runs. */
 
+enum {EA_indirect = 1, EA_anode = 2, EA_needea = 128 };
 struct extended_attribute
 {
-#ifdef __LITTLE_ENDIAN
-  u8 indirect: 1;			/* 1 -> value gives sector number
+  u8 flags;				/* bit 0 set -> value gives sector number
 					   where real value starts */
-  u8 anode: 1;				/* 1 -> sector is an anode
+					/* bit 1 set -> sector is an anode
 					   that points to fragmented value */
-  u8 flag23456: 5;
-  u8 needea: 1;				/* required ea */
-#else
-  u8 needea: 1;				/* required ea */
-  u8 flag23456: 5;
-  u8 anode: 1;				/* 1 -> sector is an anode
-					   that points to fragmented value */
-  u8 indirect: 1;			/* 1 -> value gives sector number
-					   where real value starts */
-#endif
+					/* bit 7 set -> required ea */
   u8 namelen;				/* length of name, bytes */
   u8 valuelen_lo;			/* length of value, bytes */
   u8 valuelen_hi;			/* length of value, bytes */
-  u8 name[0];
+  u8 name[];
   /*
     u8 name[namelen];			ascii attrib name
     u8 nul;				terminating '\0', not counted
     u8 value[valuelen];			value, arbitrary
-      if this.indirect, valuelen is 8 and the value is
+      if this.flags & 1, valuelen is 8 and the value is
         u32 length;			real length of value, bytes
         secno secno;			sector address where it starts
       if this.anode, the above sector number is the root of an anode tree
         which points to the value.
   */
 };
+
+static inline bool ea_indirect(struct extended_attribute *ea)
+{
+	return ea->flags & EA_indirect;
+}
+
+static inline bool ea_in_anode(struct extended_attribute *ea)
+{
+	return ea->flags & EA_anode;
+}
 
 /*
    Local Variables:

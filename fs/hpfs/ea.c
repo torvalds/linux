@@ -23,15 +23,15 @@ void hpfs_ea_ext_remove(struct super_block *s, secno a, int ano, unsigned len)
 			return;
 		}
 		if (hpfs_ea_read(s, a, ano, pos, 4, ex)) return;
-		if (ea->indirect) {
+		if (ea_indirect(ea)) {
 			if (ea_valuelen(ea) != 8) {
-				hpfs_error(s, "ea->indirect set while ea->valuelen!=8, %s %08x, pos %08x",
+				hpfs_error(s, "ea_indirect(ea) set while ea->valuelen!=8, %s %08x, pos %08x",
 					ano ? "anode" : "sectors", a, pos);
 				return;
 			}
 			if (hpfs_ea_read(s, a, ano, pos + 4, ea->namelen + 9, ex+4))
 				return;
-			hpfs_ea_remove(s, ea_sec(ea), ea->anode, ea_len(ea));
+			hpfs_ea_remove(s, ea_sec(ea), ea_in_anode(ea), ea_len(ea));
 		}
 		pos += ea->namelen + ea_valuelen(ea) + 5;
 	}
@@ -81,7 +81,7 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 	struct extended_attribute *ea_end = fnode_end_ea(fnode);
 	for (ea = fnode_ea(fnode); ea < ea_end; ea = next_ea(ea))
 		if (!strcmp(ea->name, key)) {
-			if (ea->indirect)
+			if (ea_indirect(ea))
 				goto indirect;
 			if (ea_valuelen(ea) >= size)
 				return -EINVAL;
@@ -101,10 +101,10 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 			return -EIO;
 		}
 		if (hpfs_ea_read(s, a, ano, pos, 4, ex)) return -EIO;
-		if (hpfs_ea_read(s, a, ano, pos + 4, ea->namelen + 1 + (ea->indirect ? 8 : 0), ex + 4))
+		if (hpfs_ea_read(s, a, ano, pos + 4, ea->namelen + 1 + (ea_indirect(ea) ? 8 : 0), ex + 4))
 			return -EIO;
 		if (!strcmp(ea->name, key)) {
-			if (ea->indirect)
+			if (ea_indirect(ea))
 				goto indirect;
 			if (ea_valuelen(ea) >= size)
 				return -EINVAL;
@@ -119,7 +119,7 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 indirect:
 	if (ea_len(ea) >= size)
 		return -EINVAL;
-	if (hpfs_ea_read(s, ea_sec(ea), ea->anode, 0, ea_len(ea), buf))
+	if (hpfs_ea_read(s, ea_sec(ea), ea_in_anode(ea), 0, ea_len(ea), buf))
 		return -EIO;
 	buf[ea_len(ea)] = 0;
 	return 0;
@@ -136,8 +136,8 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 	struct extended_attribute *ea_end = fnode_end_ea(fnode);
 	for (ea = fnode_ea(fnode); ea < ea_end; ea = next_ea(ea))
 		if (!strcmp(ea->name, key)) {
-			if (ea->indirect)
-				return get_indirect_ea(s, ea->anode, ea_sec(ea), *size = ea_len(ea));
+			if (ea_indirect(ea))
+				return get_indirect_ea(s, ea_in_anode(ea), ea_sec(ea), *size = ea_len(ea));
 			if (!(ret = kmalloc((*size = ea_valuelen(ea)) + 1, GFP_NOFS))) {
 				printk("HPFS: out of memory for EA\n");
 				return NULL;
@@ -159,11 +159,11 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 			return NULL;
 		}
 		if (hpfs_ea_read(s, a, ano, pos, 4, ex)) return NULL;
-		if (hpfs_ea_read(s, a, ano, pos + 4, ea->namelen + 1 + (ea->indirect ? 8 : 0), ex + 4))
+		if (hpfs_ea_read(s, a, ano, pos + 4, ea->namelen + 1 + (ea_indirect(ea) ? 8 : 0), ex + 4))
 			return NULL;
 		if (!strcmp(ea->name, key)) {
-			if (ea->indirect)
-				return get_indirect_ea(s, ea->anode, ea_sec(ea), *size = ea_len(ea));
+			if (ea_indirect(ea))
+				return get_indirect_ea(s, ea_in_anode(ea), ea_sec(ea), *size = ea_len(ea));
 			if (!(ret = kmalloc((*size = ea_valuelen(ea)) + 1, GFP_NOFS))) {
 				printk("HPFS: out of memory for EA\n");
 				return NULL;
@@ -199,9 +199,9 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 	struct extended_attribute *ea_end = fnode_end_ea(fnode);
 	for (ea = fnode_ea(fnode); ea < ea_end; ea = next_ea(ea))
 		if (!strcmp(ea->name, key)) {
-			if (ea->indirect) {
+			if (ea_indirect(ea)) {
 				if (ea_len(ea) == size)
-					set_indirect_ea(s, ea->anode, ea_sec(ea), data, size);
+					set_indirect_ea(s, ea_in_anode(ea), ea_sec(ea), data, size);
 			} else if (ea_valuelen(ea) == size) {
 				memcpy(ea_data(ea), data, size);
 			}
@@ -220,12 +220,12 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 			return;
 		}
 		if (hpfs_ea_read(s, a, ano, pos, 4, ex)) return;
-		if (hpfs_ea_read(s, a, ano, pos + 4, ea->namelen + 1 + (ea->indirect ? 8 : 0), ex + 4))
+		if (hpfs_ea_read(s, a, ano, pos + 4, ea->namelen + 1 + (ea_indirect(ea) ? 8 : 0), ex + 4))
 			return;
 		if (!strcmp(ea->name, key)) {
-			if (ea->indirect) {
+			if (ea_indirect(ea)) {
 				if (ea_len(ea) == size)
-					set_indirect_ea(s, ea->anode, ea_sec(ea), data, size);
+					set_indirect_ea(s, ea_in_anode(ea), ea_sec(ea), data, size);
 			}
 			else {
 				if (ea_valuelen(ea) == size)
