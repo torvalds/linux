@@ -73,6 +73,9 @@ s32  igb_copper_link_setup_82580(struct e1000_hw *hw);
 s32  igb_get_phy_info_82580(struct e1000_hw *hw);
 s32  igb_phy_force_speed_duplex_82580(struct e1000_hw *hw);
 s32  igb_get_cable_length_82580(struct e1000_hw *hw);
+s32  igb_read_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 *data);
+s32  igb_write_phy_reg_gs40g(struct e1000_hw *hw, u32 offset, u16 data);
+s32  igb_check_polarity_m88(struct e1000_hw *hw);
 
 /* IGP01E1000 Specific Registers */
 #define IGP01E1000_PHY_PORT_CONFIG        0x10 /* Port Config */
@@ -139,5 +142,17 @@ s32  igb_get_cable_length_82580(struct e1000_hw *hw);
 #define IGP02E1000_AGC_RANGE              15
 
 #define E1000_CABLE_LENGTH_UNDEFINED      0xFF
+
+/* GS40G - I210 PHY defines */
+#define GS40G_PAGE_SELECT		0x16
+#define GS40G_PAGE_SHIFT		16
+#define GS40G_OFFSET_MASK		0xFFFF
+#define GS40G_PAGE_2			0x20000
+#define GS40G_MAC_REG2			0x15
+#define GS40G_MAC_LB			0x4140
+#define GS40G_MAC_SPEED_1G		0X0006
+#define GS40G_COPPER_SPEC		0x0010
+#define GS40G_CS_POWER_DOWN		0x0002
+#define GS40G_LINE_LB			0x4000
 
 #endif

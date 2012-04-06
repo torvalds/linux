@@ -552,10 +552,13 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[548] = rd32(E1000_TDFT);
 	regs_buff[549] = rd32(E1000_TDFHS);
 	regs_buff[550] = rd32(E1000_TDFPC);
-	regs_buff[551] = adapter->stats.o2bgptc;
-	regs_buff[552] = adapter->stats.b2ospc;
-	regs_buff[553] = adapter->stats.o2bspc;
-	regs_buff[554] = adapter->stats.b2ogprc;
+
+	if (hw->mac.type > e1000_82580) {
+		regs_buff[551] = adapter->stats.o2bgptc;
+		regs_buff[552] = adapter->stats.b2ospc;
+		regs_buff[553] = adapter->stats.o2bspc;
+		regs_buff[554] = adapter->stats.b2ogprc;
+	}
 
 	if (hw->mac.type != e1000_82576)
 		return;
@@ -658,6 +661,9 @@ static int igb_set_eeprom(struct net_device *netdev,
 	u16 i;
 
 	if (eeprom->len == 0)
+		return -EOPNOTSUPP;
+
+	if (hw->mac.type == e1000_i211)
 		return -EOPNOTSUPP;
 
 	if (eeprom->magic != (hw->vendor_id | (hw->device_id << 16)))
@@ -887,6 +893,36 @@ struct igb_reg_test {
 #define TABLE64_TEST_LO	5
 #define TABLE64_TEST_HI	6
 
+/* i210 reg test */
+static struct igb_reg_test reg_test_i210[] = {
+	{ E1000_FCAL,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_FCAH,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_FCT,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0xFFFFFFFF },
+	{ E1000_RDBAL(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_RDBAH(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RDLEN(0),  0x100, 4,  PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	/* RDH is read-only for i210, only test RDT. */
+	{ E1000_RDT(0),	   0x100, 4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_FCRTH,	   0x100, 1,  PATTERN_TEST, 0x0000FFF0, 0x0000FFF0 },
+	{ E1000_FCTTV,	   0x100, 1,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_TIPG,	   0x100, 1,  PATTERN_TEST, 0x3FFFFFFF, 0x3FFFFFFF },
+	{ E1000_TDBAL(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFF80, 0xFFFFFFFF },
+	{ E1000_TDBAH(0),  0x100, 4,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_TDLEN(0),  0x100, 4,  PATTERN_TEST, 0x000FFF80, 0x000FFFFF },
+	{ E1000_TDT(0),	   0x100, 4,  PATTERN_TEST, 0x0000FFFF, 0x0000FFFF },
+	{ E1000_RCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RCTL,	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0x003FFFFB },
+	{ E1000_RCTL,	   0x100, 1,  SET_READ_TEST, 0x04CFB0FE, 0xFFFFFFFF },
+	{ E1000_TCTL,	   0x100, 1,  SET_READ_TEST, 0xFFFFFFFF, 0x00000000 },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_LO,
+						0xFFFFFFFF, 0xFFFFFFFF },
+	{ E1000_RA,	   0, 16, TABLE64_TEST_HI,
+						0x900FFFFF, 0xFFFFFFFF },
+	{ E1000_MTA,	   0, 128, TABLE32_TEST,
+						0xFFFFFFFF, 0xFFFFFFFF },
+	{ 0, 0, 0, 0, 0 }
+};
+
 /* i350 reg test */
 static struct igb_reg_test reg_test_i350[] = {
 	{ E1000_FCAL,	   0x100, 1,  PATTERN_TEST, 0xFFFFFFFF, 0xFFFFFFFF },
@@ -1109,6 +1145,11 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 		test = reg_test_i350;
 		toggle = 0x7FEFF3FF;
 		break;
+	case e1000_i210:
+	case e1000_i211:
+		test = reg_test_i210;
+		toggle = 0x7FEFF3FF;
+		break;
 	case e1000_82580:
 		test = reg_test_82580;
 		toggle = 0x7FEFF3FF;
@@ -1190,23 +1231,13 @@ static int igb_reg_test(struct igb_adapter *adapter, u64 *data)
 
 static int igb_eeprom_test(struct igb_adapter *adapter, u64 *data)
 {
-	u16 temp;
-	u16 checksum = 0;
-	u16 i;
-
 	*data = 0;
-	/* Read and add up the contents of the EEPROM */
-	for (i = 0; i < (NVM_CHECKSUM_REG + 1); i++) {
-		if ((adapter->hw.nvm.ops.read(&adapter->hw, i, 1, &temp)) < 0) {
-			*data = 1;
-			break;
-		}
-		checksum += temp;
-	}
 
-	/* If Checksum is not Correct return error else test passed */
-	if ((checksum != (u16) NVM_SUM) && !(*data))
-		*data = 2;
+	/* Validate eeprom on all parts but i211 */
+	if (adapter->hw.mac.type != e1000_i211) {
+		if (adapter->hw.nvm.ops.validate(&adapter->hw) < 0)
+			*data = 2;
+	}
 
 	return *data;
 }
@@ -1272,6 +1303,8 @@ static int igb_intr_test(struct igb_adapter *adapter, u64 *data)
 		ics_mask = 0x77DCFED5;
 		break;
 	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 		ics_mask = 0x77DCFED5;
 		break;
 	default:
@@ -1438,22 +1471,34 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	u32 ctrl_reg = 0;
+	u16 phy_reg = 0;
 
 	hw->mac.autoneg = false;
 
-	if (hw->phy.type == e1000_phy_m88) {
+	switch (hw->phy.type) {
+	case e1000_phy_m88:
 		/* Auto-MDI/MDIX Off */
 		igb_write_phy_reg(hw, M88E1000_PHY_SPEC_CTRL, 0x0808);
 		/* reset to update Auto-MDI/MDIX */
 		igb_write_phy_reg(hw, PHY_CONTROL, 0x9140);
 		/* autoneg off */
 		igb_write_phy_reg(hw, PHY_CONTROL, 0x8140);
-	} else if (hw->phy.type == e1000_phy_82580) {
+		break;
+	case e1000_phy_82580:
 		/* enable MII loopback */
 		igb_write_phy_reg(hw, I82580_PHY_LBK_CTRL, 0x8041);
+		break;
+	case e1000_phy_i210:
+		/* set loopback speed in PHY */
+		igb_read_phy_reg(hw, (GS40G_PAGE_SELECT & GS40G_PAGE_2),
+					&phy_reg);
+		phy_reg |= GS40G_MAC_SPEED_1G;
+		igb_write_phy_reg(hw, (GS40G_PAGE_SELECT & GS40G_PAGE_2),
+					phy_reg);
+		ctrl_reg = rd32(E1000_CTRL_EXT);
+	default:
+		break;
 	}
-
-	ctrl_reg = rd32(E1000_CTRL);
 
 	/* force 1000, set loopback */
 	igb_write_phy_reg(hw, PHY_CONTROL, 0x4140);
@@ -1467,7 +1512,7 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 		     E1000_CTRL_FD |	 /* Force Duplex to FULL */
 		     E1000_CTRL_SLU);	 /* Set link up enable bit */
 
-	if (hw->phy.type == e1000_phy_m88)
+	if ((hw->phy.type == e1000_phy_m88) || (hw->phy.type == e1000_phy_i210))
 		ctrl_reg |= E1000_CTRL_ILOS; /* Invert Loss of Signal */
 
 	wr32(E1000_CTRL, ctrl_reg);
@@ -1475,7 +1520,7 @@ static int igb_integrated_phy_loopback(struct igb_adapter *adapter)
 	/* Disable the receiver on the PHY so when a cable is plugged in, the
 	 * PHY does not begin to autoneg when a cable is reconnected to the NIC.
 	 */
-	if (hw->phy.type == e1000_phy_m88)
+	if ((hw->phy.type == e1000_phy_m88) || (hw->phy.type == e1000_phy_i210))
 		igb_phy_disable_receiver(adapter);
 
 	udelay(500);
@@ -1737,6 +1782,14 @@ static int igb_loopback_test(struct igb_adapter *adapter, u64 *data)
 		dev_err(&adapter->pdev->dev,
 			"Cannot do PHY loopback test "
 			"when SoL/IDER is active.\n");
+		*data = 0;
+		goto out;
+	}
+	if ((adapter->hw.mac.type == e1000_i210)
+		|| (adapter->hw.mac.type == e1000_i210)) {
+		dev_err(&adapter->pdev->dev,
+			"Loopback test not supported "
+			"on this part at this time.\n");
 		*data = 0;
 		goto out;
 	}

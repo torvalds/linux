@@ -262,6 +262,8 @@ void igb_ptp_init(struct igb_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 
 	switch (hw->mac.type) {
+	case e1000_i210:
+	case e1000_i211:
 	case e1000_i350:
 	case e1000_82580:
 		adapter->caps.owner	= THIS_MODULE;
@@ -362,6 +364,8 @@ void igb_systim_to_hwtstamp(struct igb_adapter *adapter,
 	unsigned long flags;
 
 	switch (adapter->hw.mac.type) {
+	case e1000_i210:
+	case e1000_i211:
 	case e1000_i350:
 	case e1000_82580:
 	case e1000_82576:
