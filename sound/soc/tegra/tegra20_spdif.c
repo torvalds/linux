@@ -245,11 +245,12 @@ static __devinit int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	struct resource *mem, *memregion, *dmareq;
 	int ret;
 
-	spdif = kzalloc(sizeof(struct tegra20_spdif), GFP_KERNEL);
+	spdif = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_spdif),
+			     GFP_KERNEL);
 	if (!spdif) {
 		dev_err(&pdev->dev, "Can't allocate tegra20_spdif\n");
 		ret = -ENOMEM;
-		goto exit;
+		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, spdif);
 
@@ -257,7 +258,7 @@ static __devinit int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	if (IS_ERR(spdif->clk_spdif_out)) {
 		pr_err("Can't retrieve spdif clock\n");
 		ret = PTR_ERR(spdif->clk_spdif_out);
-		goto err_free;
+		goto err;
 	}
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -274,19 +275,19 @@ static __devinit int tegra20_spdif_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
-	memregion = request_mem_region(mem->start, resource_size(mem),
-					DRV_NAME);
+	memregion = devm_request_mem_region(&pdev->dev, mem->start,
+					    resource_size(mem), DRV_NAME);
 	if (!memregion) {
 		dev_err(&pdev->dev, "Memory region already claimed\n");
 		ret = -EBUSY;
 		goto err_clk_put;
 	}
 
-	spdif->regs = ioremap(mem->start, resource_size(mem));
+	spdif->regs = devm_ioremap(&pdev->dev, mem->start, resource_size(mem));
 	if (!spdif->regs) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -ENOMEM;
-		goto err_release;
+		goto err_clk_put;
 	}
 
 	spdif->playback_dma_data.addr = mem->start + TEGRA20_SPDIF_DATA_OUT;
@@ -298,7 +299,7 @@ static __devinit int tegra20_spdif_platform_probe(struct platform_device *pdev)
 	if (ret) {
 		dev_err(&pdev->dev, "Could not register DAI: %d\n", ret);
 		ret = -ENOMEM;
-		goto err_unmap;
+		goto err_clk_put;
 	}
 
 	ret = tegra_pcm_platform_register(&pdev->dev);
@@ -313,36 +314,22 @@ static __devinit int tegra20_spdif_platform_probe(struct platform_device *pdev)
 
 err_unregister_dai:
 	snd_soc_unregister_dai(&pdev->dev);
-err_unmap:
-	iounmap(spdif->regs);
-err_release:
-	release_mem_region(mem->start, resource_size(mem));
 err_clk_put:
 	clk_put(spdif->clk_spdif_out);
-err_free:
-	kfree(spdif);
-exit:
+err:
 	return ret;
 }
 
 static int __devexit tegra20_spdif_platform_remove(struct platform_device *pdev)
 {
 	struct tegra20_spdif *spdif = dev_get_drvdata(&pdev->dev);
-	struct resource *res;
 
 	tegra_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
 	tegra20_spdif_debug_remove(spdif);
 
-	iounmap(spdif->regs);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
 	clk_put(spdif->clk_spdif_out);
-
-	kfree(spdif);
 
 	return 0;
 }
