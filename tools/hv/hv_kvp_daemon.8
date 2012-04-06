@@ -1,0 +1,26 @@
+.\"  This page Copyright (C) 2012 Andy Whitcroft <apw@canonical.com>
+.\"  Distributed under the GPL v2 or later.
+.TH HV_KVP_DAEMON 8
+.SH NAME
+hv_kvp_daemon \- Hyper-V Key Value Pair daemon
+.SH SYNOPSIS
+.ft B
+.B hv_kvp_daemon
+.br
+.SH DESCRIPTION
+\fBhv_kvp_daemon\fP
+is the userspace component of the Hyper-V key value pair functionality,
+communicating via a netlink socket with the kernel HV-KVP driver.
+This pairing allows the Hyper-V host to pass configuration information
+(such as IP addresses) to the guest and allows the host to obtain guest
+version information.
+
+.SH FILES
+.ta
+.nf
+/var/opt/hyperv/.kvp_pool_*
+.fi
+
+.SH AUTHORS
+.nf
+Written by K. Y. Srinivasan <ksrinivasan@novell.com>
