@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/net_tstamp.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
