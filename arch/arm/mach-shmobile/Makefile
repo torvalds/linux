@@ -49,6 +49,7 @@ obj-$(CONFIG_MACH_MACKEREL)	+= board-mackerel.o
 obj-$(CONFIG_MACH_KOTA2)	+= board-kota2.o
 obj-$(CONFIG_MACH_BONITO)	+= board-bonito.o
 obj-$(CONFIG_MACH_MARZEN)	+= board-marzen.o
+obj-$(CONFIG_MACH_ARMADILLO800EVA)	+= board-armadillo800eva.o
 
 # Framework support
 obj-$(CONFIG_SMP)		+= $(smp-y)
