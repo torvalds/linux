@@ -175,7 +175,6 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 }
 
 static void XGI_SetSeqRegs(unsigned short ModeNo,
-			   unsigned short StandTableIndex,
 			   unsigned short ModeIdIndex,
 			   struct vb_device_info *pVBInfo)
 {
@@ -208,7 +207,6 @@ static void XGI_SetSeqRegs(unsigned short ModeNo,
 }
 
 static void XGI_SetCRTCRegs(struct xgi_hw_device_info *HwDeviceExtension,
-			    unsigned short StandTableIndex,
 			    struct vb_device_info *pVBInfo)
 {
 	unsigned char CRTCdata;
@@ -226,7 +224,6 @@ static void XGI_SetCRTCRegs(struct xgi_hw_device_info *HwDeviceExtension,
 }
 
 static void XGI_SetATTRegs(unsigned short ModeNo,
-			   unsigned short StandTableIndex,
 			   unsigned short ModeIdIndex,
 			   struct vb_device_info *pVBInfo)
 {
@@ -264,8 +261,7 @@ static void XGI_SetATTRegs(unsigned short ModeNo,
 	outb(0x20, pVBInfo->P3c0);
 }
 
-static void XGI_SetGRCRegs(unsigned short StandTableIndex,
-			   struct vb_device_info *pVBInfo)
+static void XGI_SetGRCRegs(struct vb_device_info *pVBInfo)
 {
 	unsigned char GRdata;
 	unsigned short i;
@@ -6745,13 +6741,13 @@ static void XGI_SetCRT1Group(struct xgifb_video_info *xgifb_info,
 		unsigned short ModeNo, unsigned short ModeIdIndex,
 		struct vb_device_info *pVBInfo)
 {
-	unsigned short StandTableIndex, RefreshRateTableIndex, temp;
+	unsigned short RefreshRateTableIndex, temp;
 
-	XGI_SetSeqRegs(ModeNo, StandTableIndex, ModeIdIndex, pVBInfo);
+	XGI_SetSeqRegs(ModeNo, ModeIdIndex, pVBInfo);
 	outb(pVBInfo->StandTable->MISC, pVBInfo->P3c2);
-	XGI_SetCRTCRegs(HwDeviceExtension, StandTableIndex, pVBInfo);
-	XGI_SetATTRegs(ModeNo, StandTableIndex, ModeIdIndex, pVBInfo);
-	XGI_SetGRCRegs(StandTableIndex, pVBInfo);
+	XGI_SetCRTCRegs(HwDeviceExtension, pVBInfo);
+	XGI_SetATTRegs(ModeNo, ModeIdIndex, pVBInfo);
+	XGI_SetGRCRegs(pVBInfo);
 	XGI_ClearExt1Regs(pVBInfo);
 
 	if (HwDeviceExtension->jChipType == XG27) {
