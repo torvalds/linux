@@ -1,5 +1,5 @@
 config RKWIFI
-	tristate "RK901/RK903/BCM4329/BCM4330 wireless cards support"
+	tristate "RK901/RK903/BCM4330 wireless cards support"
 	depends on MMC && WLAN_80211
 	select WIRELESS_EXT
 	select WEXT_PRIV
