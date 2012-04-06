@@ -60,7 +60,6 @@ static const unsigned short XGINew_VGA_DAC[] = {
 
 void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 {
-	pVBInfo->SModeIDTable = (struct XGI_StStruct *) XGI330_SModeIDTable;
 	pVBInfo->StandTable = (struct SiS_StandTable_S *) XGI330_StandTable;
 	pVBInfo->EModeIDTable = (struct XGI_ExtStruct *) XGI330_EModeIDTable;
 	pVBInfo->RefIndex = (struct XGI_Ext2Struct *) XGI330_RefIndex;
