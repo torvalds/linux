@@ -548,6 +548,11 @@
  * @NL80211_CMD_SET_NOACK_MAP: sets a bitmap for the individual TIDs whether
  *      No Acknowledgement Policy should be applied.
  *
+ * @NL80211_CMD_CH_SWITCH_NOTIFY: An AP or GO may decide to switch channels
+ *	independently of the userspace SME, send this event indicating
+ *	%NL80211_ATTR_IFINDEX is now on %NL80211_ATTR_WIPHY_FREQ with
+ *	%NL80211_ATTR_WIPHY_CHANNEL_TYPE.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -688,6 +693,8 @@ enum nl80211_commands {
 	NL80211_CMD_UNEXPECTED_4ADDR_FRAME,
 
 	NL80211_CMD_SET_NOACK_MAP,
+
+	NL80211_CMD_CH_SWITCH_NOTIFY,
 
 	/* add new commands above here */
 
