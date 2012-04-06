@@ -207,6 +207,14 @@ static struct platform_device gpio_keys_device = {
 	},
 };
 
+/* I2C */
+static struct i2c_board_info i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("st1232-ts", 0x55),
+		.irq = evt2irq(0x0340),
+	},
+};
+
 /*
  * board devices
  */
@@ -265,6 +273,11 @@ static void __init eva_init(void)
 	gpio_request(GPIO_PORT202, NULL); /* LCD0_LED_CONT */
 	gpio_direction_output(GPIO_PORT202, 0);
 
+	/* Touchscreen */
+	gpio_request(GPIO_FN_IRQ10,	NULL); /* TP_INT */
+	gpio_request(GPIO_PORT166,	NULL); /* TP_RST_B */
+	gpio_direction_output(GPIO_PORT166, 1);
+
 	/* GETHER */
 	gpio_request(GPIO_FN_ET_CRS,		NULL);
 	gpio_request(GPIO_FN_ET_MDC,		NULL);
@@ -302,6 +315,8 @@ static void __init eva_init(void)
 	/* Early BRESP enable, Shared attribute override enable, 32K*8way */
 	l2x0_init(__io(0xf0002000), 0x40440000, 0x82000fff);
 #endif
+
+	i2c_register_board_info(0, i2c0_devices, ARRAY_SIZE(i2c0_devices));
 
 	r8a7740_add_standard_devices();
 
