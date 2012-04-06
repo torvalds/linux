@@ -313,7 +313,7 @@ static struct regulator_ops max8660_ldo67_ops = {
 	.set_voltage = max8660_ldo67_set,
 };
 
-static struct regulator_desc max8660_reg[] = {
+static const struct regulator_desc max8660_reg[] = {
 	{
 		.name = "V3(DCDC)",
 		.id = MAX8660_V3,
