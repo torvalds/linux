@@ -172,7 +172,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 		else
 			new_freq = pcpu->policy->max * cpu_load / 100;
 	} else {
-		new_freq = pcpu->policy->cur * cpu_load / 100;
+		new_freq = pcpu->policy->max * cpu_load / 100;
 	}
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
