@@ -848,6 +848,7 @@ static int conn_connect(struct drbd_tconn *tconn)
 	struct net_conf *nc;
 	int vnr, timeout, try, h, ok;
 	bool discard_my_data;
+	enum drbd_state_rv rv;
 
 	if (conn_request_state(tconn, NS(conn, C_WF_CONNECTION), CS_VERBOSE) < SS_SUCCESS)
 		return -2;
@@ -1008,6 +1009,8 @@ retry:
 	if (drbd_send_protocol(tconn) == -EOPNOTSUPP)
 		return -1;
 
+	set_bit(STATE_SENT, &tconn->flags);
+
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
 		kref_get(&mdev->kref);
@@ -1024,8 +1027,11 @@ retry:
 	}
 	rcu_read_unlock();
 
-	if (conn_request_state(tconn, NS(conn, C_WF_REPORT_PARAMS), CS_VERBOSE) < SS_SUCCESS)
+	rv = conn_request_state(tconn, NS(conn, C_WF_REPORT_PARAMS), CS_VERBOSE);
+	if (rv < SS_SUCCESS) {
+		clear_bit(STATE_SENT, &tconn->flags);
 		return 0;
+	}
 
 	drbd_thread_start(&tconn->asender);
 

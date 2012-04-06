@@ -502,7 +502,7 @@ bool conn_try_outdate_peer(struct drbd_tconn *tconn)
 	   here, because we might were able to re-establish the connection in the
 	   meantime. */
 	spin_lock_irq(&tconn->req_lock);
-	if (tconn->cstate < C_WF_REPORT_PARAMS)
+	if (tconn->cstate < C_WF_REPORT_PARAMS && !test_bit(STATE_SENT, &tconn->flags))
 		_conn_request_state(tconn, mask, val, CS_VERBOSE);
 	spin_unlock_irq(&tconn->req_lock);
 

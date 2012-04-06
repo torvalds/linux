@@ -53,7 +53,7 @@ static int w_after_state_ch(struct drbd_work *w, int unused);
 static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 			   union drbd_state ns, enum chg_state_flags flags);
 static enum drbd_state_rv is_valid_state(struct drbd_conf *, union drbd_state);
-static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state);
+static enum drbd_state_rv is_valid_soft_transition(union drbd_state, union drbd_state, struct drbd_tconn *);
 static enum drbd_state_rv is_valid_transition(union drbd_state os, union drbd_state ns);
 static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state ns,
 				       enum sanitize_state_warnings *warn);
@@ -267,7 +267,7 @@ _req_st_cond(struct drbd_conf *mdev, union drbd_state mask,
 	if (rv == SS_UNKNOWN_ERROR) {
 		rv = is_valid_state(mdev, ns);
 		if (rv == SS_SUCCESS) {
-			rv = is_valid_soft_transition(os, ns);
+			rv = is_valid_soft_transition(os, ns, mdev->tconn);
 			if (rv == SS_SUCCESS)
 				rv = SS_UNKNOWN_ERROR; /* cont waiting, otherwise fail. */
 		}
@@ -313,7 +313,7 @@ drbd_req_state(struct drbd_conf *mdev, union drbd_state mask,
 	if (cl_wide_st_chg(mdev, os, ns)) {
 		rv = is_valid_state(mdev, ns);
 		if (rv == SS_SUCCESS)
-			rv = is_valid_soft_transition(os, ns);
+			rv = is_valid_soft_transition(os, ns, mdev->tconn);
 		spin_unlock_irqrestore(&mdev->tconn->req_lock, flags);
 
 		if (rv < SS_SUCCESS) {
@@ -569,7 +569,7 @@ is_valid_state(struct drbd_conf *mdev, union drbd_state ns)
  * @os:		old state.
  */
 static enum drbd_state_rv
-is_valid_soft_transition(union drbd_state os, union drbd_state ns)
+is_valid_soft_transition(union drbd_state os, union drbd_state ns, struct drbd_tconn *tconn)
 {
 	enum drbd_state_rv rv = SS_SUCCESS;
 
@@ -594,6 +594,13 @@ is_valid_soft_transition(union drbd_state os, union drbd_state ns)
 
 	/* if (ns.conn == os.conn && ns.conn == C_WF_REPORT_PARAMS)
 	   rv = SS_IN_TRANSIENT_STATE; */
+
+	/* While establishing a connection only allow cstate to change.
+	   Delay/refuse role changes, detach attach etc... */
+	if (test_bit(STATE_SENT, &tconn->flags) &&
+	    !(os.conn == C_WF_REPORT_PARAMS ||
+	      (ns.conn == C_WF_REPORT_PARAMS && os.conn == C_WF_CONNECTION)))
+		rv = SS_IN_TRANSIENT_STATE;
 
 	if ((ns.conn == C_VERIFY_S || ns.conn == C_VERIFY_T) && os.conn < C_CONNECTED)
 		rv = SS_NEED_CONNECTION;
@@ -927,9 +934,9 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 			   this happen...*/
 
 			if (is_valid_state(mdev, os) == rv)
-				rv = is_valid_soft_transition(os, ns);
+				rv = is_valid_soft_transition(os, ns, mdev->tconn);
 		} else
-			rv = is_valid_soft_transition(os, ns);
+			rv = is_valid_soft_transition(os, ns, mdev->tconn);
 	}
 
 	if (rv < SS_SUCCESS) {
@@ -1393,6 +1400,12 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	if (os.disk < D_UP_TO_DATE && os.conn >= C_SYNC_SOURCE && ns.conn == C_CONNECTED)
 		drbd_send_state(mdev, ns);
 
+	/* Wake up role changes, that were delayed because of connection establishing */
+	if (os.conn == C_WF_REPORT_PARAMS && ns.conn != C_WF_REPORT_PARAMS) {
+		if (test_and_clear_bit(STATE_SENT, &mdev->tconn->flags))
+			wake_up(&mdev->state_wait);
+	}
+
 	/* This triggers bitmap writeout of potentially still unwritten pages
 	 * if the resync finished cleanly, or aborted because of peer disk
 	 * failure, or because of connection loss.
@@ -1565,9 +1578,9 @@ conn_is_valid_transition(struct drbd_tconn *tconn, union drbd_state mask, union 
 			rv = is_valid_state(mdev, ns);
 			if (rv < SS_SUCCESS) {
 				if (is_valid_state(mdev, os) == rv)
-					rv = is_valid_soft_transition(os, ns);
+					rv = is_valid_soft_transition(os, ns, tconn);
 			} else
-				rv = is_valid_soft_transition(os, ns);
+				rv = is_valid_soft_transition(os, ns, tconn);
 		}
 		if (rv < SS_SUCCESS)
 			break;

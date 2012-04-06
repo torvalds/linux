@@ -808,6 +808,7 @@ enum {
 	CONN_WD_ST_CHG_FAIL,
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
 	CREATE_BARRIER,		/* next P_DATA is preceded by a P_BARRIER */
+	STATE_SENT,		/* Do not change state/UUIDs while this is set */
 };
 
 struct drbd_tconn {			/* is a resource from the config file */
