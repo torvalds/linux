@@ -2178,7 +2178,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 {
 	unsigned short tempbx, tempax, tempcx, tempdx, push1, push2, modeflag;
 	unsigned long temp, temp1, temp2, temp3, push3;
-	struct XGI330_LCDDataDesStruct *LCDPtr = NULL;
+	struct XGI_LCDDesStruct *LCDPtr = NULL;
 	struct XGI330_LCDDataDesStruct2 *LCDPtr1 = NULL;
 
 	modeflag = pVBInfo->EModeIDTable[ModeIdIndex].Ext_ModeFlag;
@@ -2194,7 +2194,7 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 					  pVBInfo);
 	else
 		LCDPtr =
-		    (struct XGI330_LCDDataDesStruct *)
+		    (struct XGI_LCDDesStruct *)
 				XGI_GetLcdPtr(
 					  tempbx,
 					  ModeNo,

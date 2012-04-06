@@ -51,14 +51,6 @@ struct XGI_LCDDataTablStruct {
 	unsigned short DATAPTR;
 };
 
-struct XGI330_LCDDataDesStruct {
-	unsigned short LCDHDES;
-	unsigned short LCDHRS;
-	unsigned short LCDVDES;
-	unsigned short LCDVRS;
-};
-
-
 struct XGI330_LVDSDataStruct {
 	unsigned short VGAHT;
 	unsigned short VGAVT;
