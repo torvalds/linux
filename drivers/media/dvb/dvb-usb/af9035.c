@@ -663,52 +663,68 @@ err:
 }
 
 static int af9035_fc0011_tuner_callback(struct dvb_usb_device *d,
-					int cmd, int arg)
+		int cmd, int arg)
 {
-	int err;
+	int ret;
 
 	switch (cmd) {
 	case FC0011_FE_CALLBACK_POWER:
 		/* Tuner enable */
-		err = af9035_wr_reg_mask(d, 0xd8eb, 1, 1);
-		if (err)
-			return err;
-		err = af9035_wr_reg_mask(d, 0xd8ec, 1, 1);
-		if (err)
-			return err;
-		err = af9035_wr_reg_mask(d, 0xd8ed, 1, 1);
-		if (err)
-			return err;
+		ret = af9035_wr_reg_mask(d, 0xd8eb, 1, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(d, 0xd8ec, 1, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(d, 0xd8ed, 1, 1);
+		if (ret < 0)
+			goto err;
+
 		/* LED */
-		err = af9035_wr_reg_mask(d, 0xd8d0, 1, 1);
-		if (err)
-			return err;
-		err = af9035_wr_reg_mask(d, 0xd8d1, 1, 1);
-		if (err)
-			return err;
+		ret = af9035_wr_reg_mask(d, 0xd8d0, 1, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg_mask(d, 0xd8d1, 1, 1);
+		if (ret < 0)
+			goto err;
+
 		usleep_range(10000, 50000);
 		break;
 	case FC0011_FE_CALLBACK_RESET:
-		err = af9035_wr_reg(d, 0xd8e9, 1);
-		if (err)
-			return err;
-		err = af9035_wr_reg(d, 0xd8e8, 1);
-		if (err)
-			return err;
-		err = af9035_wr_reg(d, 0xd8e7, 1);
-		if (err)
-			return err;
+		ret = af9035_wr_reg(d, 0xd8e9, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg(d, 0xd8e8, 1);
+		if (ret < 0)
+			goto err;
+
+		ret = af9035_wr_reg(d, 0xd8e7, 1);
+		if (ret < 0)
+			goto err;
+
 		usleep_range(10000, 20000);
-		err = af9035_wr_reg(d, 0xd8e7, 0);
-		if (err)
-			return err;
+
+		ret = af9035_wr_reg(d, 0xd8e7, 0);
+		if (ret < 0)
+			goto err;
+
 		usleep_range(10000, 20000);
 		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	return 0;
+
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+
+	return ret;
 }
 
 static int af9035_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
