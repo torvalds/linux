@@ -346,7 +346,7 @@ static void jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
 
 	/* Playback */
 	dma_config = &i2s->pcm_config_playback.dma_config;
-	dma_config->src_width = JZ4740_DMA_WIDTH_32BIT,
+	dma_config->src_width = JZ4740_DMA_WIDTH_32BIT;
 	dma_config->transfer_size = JZ4740_DMA_TRANSFER_SIZE_16BYTE;
 	dma_config->request_type = JZ4740_DMA_TYPE_AIC_TRANSMIT;
 	dma_config->flags = JZ4740_DMA_SRC_AUTOINC;
@@ -355,7 +355,7 @@ static void jz4740_i2c_init_pcm_config(struct jz4740_i2s *i2s)
 
 	/* Capture */
 	dma_config = &i2s->pcm_config_capture.dma_config;
-	dma_config->dst_width = JZ4740_DMA_WIDTH_32BIT,
+	dma_config->dst_width = JZ4740_DMA_WIDTH_32BIT;
 	dma_config->transfer_size = JZ4740_DMA_TRANSFER_SIZE_16BYTE;
 	dma_config->request_type = JZ4740_DMA_TYPE_AIC_RECEIVE;
 	dma_config->flags = JZ4740_DMA_DST_AUTOINC;
