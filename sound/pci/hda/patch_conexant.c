@@ -686,27 +686,27 @@ static const struct hda_channel_mode cxt5045_modes[1] = {
 static const struct hda_input_mux cxt5045_capture_source = {
 	.num_items = 2,
 	.items = {
-		{ "IntMic", 0x1 },
-		{ "ExtMic", 0x2 },
+		{ "Internal Mic", 0x1 },
+		{ "Mic",          0x2 },
 	}
 };
 
 static const struct hda_input_mux cxt5045_capture_source_benq = {
 	.num_items = 5,
 	.items = {
-		{ "IntMic", 0x1 },
-		{ "ExtMic", 0x2 },
-		{ "LineIn", 0x3 },
-		{ "CD",     0x4 },
-		{ "Mixer",  0x0 },
+		{ "CD",           0x4 },
+		{ "Internal Mic", 0x1 },
+		{ "Mic",          0x2 },
+		{ "Line",         0x3 },
+		{ "Mixer",        0x0 },
 	}
 };
 
 static const struct hda_input_mux cxt5045_capture_source_hp530 = {
 	.num_items = 2,
 	.items = {
-		{ "ExtMic", 0x1 },
-		{ "IntMic", 0x2 },
+		{ "Mic",          0x1 },
+		{ "Internal Mic", 0x2 },
 	}
 };
 
@@ -826,10 +826,10 @@ static const struct snd_kcontrol_new cxt5045_benq_mixers[] = {
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x17, 0x4, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x17, 0x4, HDA_INPUT),
 
-	HDA_CODEC_VOLUME("Line In Capture Volume", 0x1a, 0x03, HDA_INPUT),
-	HDA_CODEC_MUTE("Line In Capture Switch", 0x1a, 0x03, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line In Playback Volume", 0x17, 0x3, HDA_INPUT),
-	HDA_CODEC_MUTE("Line In Playback Switch", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Capture Volume", 0x1a, 0x03, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Capture Switch", 0x1a, 0x03, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x17, 0x3, HDA_INPUT),
 
 	HDA_CODEC_VOLUME("Mixer Capture Volume", 0x1a, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Mixer Capture Switch", 0x1a, 0x0, HDA_INPUT),
