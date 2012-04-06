@@ -14,9 +14,6 @@ struct XGI_ExtStruct {
 	unsigned char Ext_ModeID;
 	unsigned short Ext_ModeFlag;
 	unsigned short Ext_ModeInfo;
-	unsigned short Ext_Point;
-	unsigned short Ext_VESAID;
-	unsigned char Ext_VESAMEMSize;
 	unsigned char Ext_RESINFO;
 	unsigned char VB_ExtTVFlickerIndex;
 	unsigned char VB_ExtTVEdgeIndex;
