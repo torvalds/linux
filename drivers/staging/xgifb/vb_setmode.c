@@ -5944,7 +5944,7 @@ static void XGI_SetAntiFlicker(unsigned short ModeNo,
 			       unsigned short ModeIdIndex,
 			       struct vb_device_info *pVBInfo)
 {
-	unsigned short tempbx, index;
+	unsigned short tempbx;
 
 	unsigned char tempah;
 
@@ -5953,8 +5953,6 @@ static void XGI_SetAntiFlicker(unsigned short ModeNo,
 
 	tempbx = XGI_GetTVPtrIndex(pVBInfo);
 	tempbx &= 0xFE;
-	index = pVBInfo->EModeIDTable[ModeIdIndex].VB_ExtTVFlickerIndex;
-	tempbx += index;
 	tempah = TVAntiFlickList[tempbx];
 	tempah = tempah << 4;
 
