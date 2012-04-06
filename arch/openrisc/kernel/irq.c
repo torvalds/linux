@@ -14,15 +14,11 @@
  *      2 of the License, or (at your option) any later version.
  */
 
-#include <linux/ptrace.h>
-#include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/ftrace.h>
 #include <linux/irq.h>
-#include <linux/seq_file.h>
-#include <linux/kernel_stat.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
 #include <linux/irqflags.h>
