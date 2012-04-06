@@ -83,8 +83,8 @@ static void __init xen_add_extra_mem(u64 start, u64 size)
 		__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
 }
 
-static unsigned long __init xen_release_chunk(unsigned long start,
-					      unsigned long end)
+static unsigned long __init xen_do_chunk(unsigned long start,
+					 unsigned long end, bool release)
 {
 	struct xen_memory_reservation reservation = {
 		.address_bits = 0,
@@ -95,60 +95,36 @@ static unsigned long __init xen_release_chunk(unsigned long start,
 	unsigned long pfn;
 	int ret;
 
-	for(pfn = start; pfn < end; pfn++) {
-		unsigned long mfn = pfn_to_mfn(pfn);
-
-		/* Make sure pfn exists to start with */
-		if (mfn == INVALID_P2M_ENTRY || mfn_to_pfn(mfn) != pfn)
-			continue;
-
-		set_xen_guest_handle(reservation.extent_start, &mfn);
-		reservation.nr_extents = 1;
-
-		ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
-					   &reservation);
-		WARN(ret != 1, "Failed to release pfn %lx err=%d\n", pfn, ret);
-		if (ret == 1) {
-			__set_phys_to_machine(pfn, INVALID_P2M_ENTRY);
-			len++;
-		}
-	}
-	if (len)
-		printk(KERN_INFO "Freeing  %lx-%lx pfn range: %lu pages freed\n",
-		       start, end, len);
-
-	return len;
-}
-static unsigned long __init xen_populate_physmap(unsigned long start,
-						 unsigned long end)
-{
-	struct xen_memory_reservation reservation = {
-		.address_bits = 0,
-		.extent_order = 0,
-		.domid        = DOMID_SELF
-	};
-	unsigned long len = 0;
-	int ret;
-
 	for (pfn = start; pfn < end; pfn++) {
 		unsigned long frame;
+		unsigned long mfn = pfn_to_mfn(pfn);
 
-		/* Make sure pfn does not exists to start with */
-		if (pfn_to_mfn(pfn) != INVALID_P2M_ENTRY)
-			continue;
-
-		frame = pfn;
+		if (release) {
+			/* Make sure pfn exists to start with */
+			if (mfn == INVALID_P2M_ENTRY || mfn_to_pfn(mfn) != pfn)
+				continue;
+			frame = mfn;
+		} else {
+			if (mfn != INVALID_P2M_ENTRY)
+				continue;
+			frame = pfn;
+		}
 		set_xen_guest_handle(reservation.extent_start, &frame);
 		reservation.nr_extents = 1;
 
-		ret = HYPERVISOR_memory_op(XENMEM_populate_physmap, &reservation);
-		WARN(ret != 1, "Failed to populate pfn %lx err=%d\n", pfn, ret);
+		ret = HYPERVISOR_memory_op(release ? XENMEM_decrease_reservation : XENMEM_populate_physmap,
+					   &reservation);
+		WARN(ret != 1, "Failed to %s pfn %lx err=%d\n",
+		     release ? "release" : "populate", pfn, ret);
+
 		if (ret == 1) {
-			if (!early_set_phys_to_machine(pfn, frame)) {
+			if (!early_set_phys_to_machine(pfn, release ? INVALID_P2M_ENTRY : frame)) {
+				if (release)
+					break;
 				set_xen_guest_handle(reservation.extent_start, &frame);
 				reservation.nr_extents = 1;
 				ret = HYPERVISOR_memory_op(XENMEM_decrease_reservation,
-							&reservation);
+							   &reservation);
 				break;
 			}
 			len++;
@@ -156,8 +132,11 @@ static unsigned long __init xen_populate_physmap(unsigned long start,
 			break;
 	}
 	if (len)
-		printk(KERN_INFO "Populated %lx-%lx pfn range: %lu pages added\n",
-		       start, end, len);
+		printk(KERN_INFO "%s %lx-%lx pfn range: %lu pages %s\n",
+		       release ? "Freeing" : "Populating",
+		       start, end, len,
+		       release ? "freed" : "added");
+
 	return len;
 }
 static unsigned long __init xen_populate_chunk(
@@ -211,7 +190,7 @@ static unsigned long __init xen_populate_chunk(
 		if (credits > capacity)
 			credits = capacity;
 
-		pfns = xen_populate_physmap(dest_pfn, dest_pfn + credits);
+		pfns = xen_do_chunk(dest_pfn, dest_pfn + credits, false);
 		done += pfns;
 		credits_left -= pfns;
 		*last_pfn = (dest_pfn + pfns);
@@ -249,8 +228,8 @@ static unsigned long __init xen_set_identity_and_release(
 
 			if (start_pfn < end_pfn) {
 				if (start_pfn < nr_pages)
-					released += xen_release_chunk(
-						start_pfn, min(end_pfn, nr_pages));
+					released += xen_do_chunk(
+						start_pfn, min(end_pfn, nr_pages), true);
 
 				identity += set_phys_range_identity(
 					start_pfn, end_pfn);
