@@ -50,7 +50,7 @@
 #include "RGA_API.h"
 
 
-#define RGA_TEST 1
+#define RGA_TEST 0
 #define RGA_TEST_TIME 0
 #define RGA_TEST_FLUSH_TIME 0
 
@@ -564,6 +564,16 @@ static void rga_try_set_reg(uint32_t num)
                                                               
                 /* All CMD finish int */
                 rga_write(0x1<<10, RGA_INT);
+
+                #if 0
+                {
+                    uint32_t i;
+                    for(i=0; i<28; i++)
+                    {
+                        rga_write(rga_service.cmd_buff[i], 0x100 + i*4);
+                    }
+                }
+                #endif
                                                 
                 /* Start proc */
                 atomic_set(&reg->session->done, 0);
@@ -1195,8 +1205,8 @@ EXPORT_SYMBOL(rk_get_fb);
 extern void rk_direct_fb_show(struct fb_info * fbi);
 EXPORT_SYMBOL(rk_direct_fb_show);
 
-unsigned int src_buf[1024*1000];
-unsigned int dst_buf[1280*1280];
+unsigned int src_buf[1024*1024];
+unsigned int dst_buf[1024*1024];
 
 void rga_test_0(void)
 {
@@ -1223,10 +1233,10 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    memset(src_buf, 0x80, 1024*1000*4);
+    memset(src_buf, 0x80, 1024*1024*4);
 
-    dmac_flush_range(&src_buf[0], &src_buf[1024*1000]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1000]));
+    dmac_flush_range(&src_buf[0], &src_buf[1024*1024]);
+    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
         
     #if 0
     memset(src_buf, 0x80, 800*480*4);
@@ -1236,44 +1246,44 @@ void rga_test_0(void)
     outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
     #endif
     
-    req.src.act_w = 320;
-    req.src.act_h = 240;
+    req.src.act_w = 1024;
+    req.src.act_h = 1024;
 
-    req.src.vir_w = 320;
-    req.src.vir_h = 240;
-    //req.src.yrgb_addr = (uint32_t)virt_to_phys(src_buf);
+    req.src.vir_w = 1024;
+    req.src.vir_h = 1024;
+    req.src.yrgb_addr = (uint32_t)virt_to_phys(src_buf);
     //req.src.uv_addr = (uint32_t)U4200_320_240_swap0;
     //req.src.v_addr = (uint32_t)V4200_320_240_swap0;
     req.src.format = RK_FORMAT_RGBA_8888;
 
-    req.dst.act_w = 320;
-    req.dst.act_h = 240;
+    req.dst.act_w = 1024;
+    req.dst.act_h = 1024;
 
-    req.dst.vir_w = 1280;
-    req.dst.vir_h = 800;
+    req.dst.vir_w = 1024;
+    req.dst.vir_h = 1024;
     req.dst.x_offset = 0;
     req.dst.y_offset = 000;
-    req.dst.yrgb_addr = (uint32_t)dst;
+    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
 
     req.clip.xmin = 0;
-    req.clip.xmax = 1279;
+    req.clip.xmax = 1023;
     req.clip.ymin = 0;
-    req.clip.ymax = 799;
+    req.clip.ymax = 1023;
 
-    req.render_mode = color_fill_mode;
+    //req.render_mode = color_fill_mode;
     req.fg_color = 0x80808080;
             
-    req.rotate_mode = 1;
+    req.rotate_mode = 0;
     req.scale_mode = 0;
 
-    req.alpha_rop_flag = 1;
+    req.alpha_rop_flag = 0;
     req.alpha_global_value = 0x80;
 
     req.sina = 0x00000;
     req.cosa = 0x10000;
 
-    req.mmu_info.mmu_flag = 0x21;
-    req.mmu_info.mmu_en = 1;
+    req.mmu_info.mmu_flag = 0;
+    req.mmu_info.mmu_en = 0;
 
     rga_blit_sync(&session, &req);
 
