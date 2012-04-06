@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/gpio_keys.h>
+#include <linux/sh_eth.h>
 #include <linux/videodev2.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
@@ -95,6 +96,38 @@
  *        11 | JTAG          | Boundary Scan
  *-----------+---------------+----------------------------
  */
+
+/* Ether */
+static struct sh_eth_plat_data sh_eth_platdata = {
+	.phy			= 0x00, /* LAN8710A */
+	.edmac_endian		= EDMAC_LITTLE_ENDIAN,
+	.register_type		= SH_ETH_REG_GIGABIT,
+	.phy_interface		= PHY_INTERFACE_MODE_MII,
+};
+
+static struct resource sh_eth_resources[] = {
+	{
+		.start	= 0xe9a00000,
+		.end	= 0xe9a00800 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= 0xe9a01800,
+		.end	= 0xe9a02000 - 1,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= evt2irq(0x0500),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sh_eth_device = {
+	.name = "sh-eth",
+	.dev = {
+		.platform_data = &sh_eth_platdata,
+	},
+	.resource = sh_eth_resources,
+	.num_resources = ARRAY_SIZE(sh_eth_resources),
+};
 
 /* LCDC */
 static struct fb_videomode lcdc0_mode = {
@@ -180,6 +213,7 @@ static struct platform_device gpio_keys_device = {
 static struct platform_device *eva_devices[] __initdata = {
 	&lcdc0_device,
 	&gpio_keys_device,
+	&sh_eth_device,
 };
 
 /*
@@ -230,6 +264,30 @@ static void __init eva_init(void)
 
 	gpio_request(GPIO_PORT202, NULL); /* LCD0_LED_CONT */
 	gpio_direction_output(GPIO_PORT202, 0);
+
+	/* GETHER */
+	gpio_request(GPIO_FN_ET_CRS,		NULL);
+	gpio_request(GPIO_FN_ET_MDC,		NULL);
+	gpio_request(GPIO_FN_ET_MDIO,		NULL);
+	gpio_request(GPIO_FN_ET_TX_ER,		NULL);
+	gpio_request(GPIO_FN_ET_RX_ER,		NULL);
+	gpio_request(GPIO_FN_ET_ERXD0,		NULL);
+	gpio_request(GPIO_FN_ET_ERXD1,		NULL);
+	gpio_request(GPIO_FN_ET_ERXD2,		NULL);
+	gpio_request(GPIO_FN_ET_ERXD3,		NULL);
+	gpio_request(GPIO_FN_ET_TX_CLK,		NULL);
+	gpio_request(GPIO_FN_ET_TX_EN,		NULL);
+	gpio_request(GPIO_FN_ET_ETXD0,		NULL);
+	gpio_request(GPIO_FN_ET_ETXD1,		NULL);
+	gpio_request(GPIO_FN_ET_ETXD2,		NULL);
+	gpio_request(GPIO_FN_ET_ETXD3,		NULL);
+	gpio_request(GPIO_FN_ET_PHY_INT,	NULL);
+	gpio_request(GPIO_FN_ET_COL,		NULL);
+	gpio_request(GPIO_FN_ET_RX_DV,		NULL);
+	gpio_request(GPIO_FN_ET_RX_CLK,		NULL);
+
+	gpio_request(GPIO_PORT18, NULL); /* PHY_RST */
+	gpio_direction_output(GPIO_PORT18, 1);
 
 	/*
 	 * CAUTION
