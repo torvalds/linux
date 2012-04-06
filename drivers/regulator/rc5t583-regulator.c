@@ -347,4 +347,4 @@ module_exit(rc5t583_regulator_exit);
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
 MODULE_DESCRIPTION("RC5T583 regulator driver");
 MODULE_ALIAS("platform:rc5t583-regulator");
-MODULE_LICENSE("GPL V2");
+MODULE_LICENSE("GPL v2");
