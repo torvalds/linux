@@ -24,6 +24,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/videodev2.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <asm/page.h>
@@ -33,6 +34,7 @@
 #include <asm/mach/time.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/r8a7740.h>
+#include <video/sh_mobile_lcdc.h>
 
 /*
  * CON1		Camera Module
@@ -92,10 +94,66 @@
  *-----------+---------------+----------------------------
  */
 
+/* LCDC */
+static struct fb_videomode lcdc0_mode = {
+	.name		= "AMPIER/AM-800480",
+	.xres		= 800,
+	.yres		= 480,
+	.left_margin	= 88,
+	.right_margin	= 40,
+	.hsync_len	= 128,
+	.upper_margin	= 20,
+	.lower_margin	= 5,
+	.vsync_len	= 5,
+	.sync		= 0,
+};
+
+static struct sh_mobile_lcdc_info lcdc0_info = {
+	.clock_source	= LCDC_CLK_BUS,
+	.ch[0] = {
+		.chan		= LCDC_CHAN_MAINLCD,
+		.fourcc		= V4L2_PIX_FMT_RGB565,
+		.interface_type	= RGB24,
+		.clock_divider	= 5,
+		.flags		= 0,
+		.lcd_modes	= &lcdc0_mode,
+		.num_modes	= 1,
+		.panel_cfg = {
+			.width	= 111,
+			.height = 68,
+		},
+	},
+};
+
+static struct resource lcdc0_resources[] = {
+	[0] = {
+		.name	= "LCD0",
+		.start	= 0xfe940000,
+		.end	= 0xfe943fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= intcs_evt2irq(0x580),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device lcdc0_device = {
+	.name		= "sh_mobile_lcdc_fb",
+	.num_resources	= ARRAY_SIZE(lcdc0_resources),
+	.resource	= lcdc0_resources,
+	.id		= 0,
+	.dev	= {
+		.platform_data	= &lcdc0_info,
+		.coherent_dma_mask = ~0,
+	},
+};
+
 /*
  * board devices
  */
 static struct platform_device *eva_devices[] __initdata = {
+	&lcdc0_device,
 };
 
 /*
@@ -108,6 +166,53 @@ static void __init eva_init(void)
 	/* SCIFA1 */
 	gpio_request(GPIO_FN_SCIFA1_RXD, NULL);
 	gpio_request(GPIO_FN_SCIFA1_TXD, NULL);
+
+	/* LCDC0 */
+	gpio_request(GPIO_FN_LCDC0_SELECT,	NULL);
+	gpio_request(GPIO_FN_LCD0_D0,		NULL);
+	gpio_request(GPIO_FN_LCD0_D1,		NULL);
+	gpio_request(GPIO_FN_LCD0_D2,		NULL);
+	gpio_request(GPIO_FN_LCD0_D3,		NULL);
+	gpio_request(GPIO_FN_LCD0_D4,		NULL);
+	gpio_request(GPIO_FN_LCD0_D5,		NULL);
+	gpio_request(GPIO_FN_LCD0_D6,		NULL);
+	gpio_request(GPIO_FN_LCD0_D7,		NULL);
+	gpio_request(GPIO_FN_LCD0_D8,		NULL);
+	gpio_request(GPIO_FN_LCD0_D9,		NULL);
+	gpio_request(GPIO_FN_LCD0_D10,		NULL);
+	gpio_request(GPIO_FN_LCD0_D11,		NULL);
+	gpio_request(GPIO_FN_LCD0_D12,		NULL);
+	gpio_request(GPIO_FN_LCD0_D13,		NULL);
+	gpio_request(GPIO_FN_LCD0_D14,		NULL);
+	gpio_request(GPIO_FN_LCD0_D15,		NULL);
+	gpio_request(GPIO_FN_LCD0_D16,		NULL);
+	gpio_request(GPIO_FN_LCD0_D17,		NULL);
+	gpio_request(GPIO_FN_LCD0_D18_PORT40,	NULL);
+	gpio_request(GPIO_FN_LCD0_D19_PORT4,	NULL);
+	gpio_request(GPIO_FN_LCD0_D20_PORT3,	NULL);
+	gpio_request(GPIO_FN_LCD0_D21_PORT2,	NULL);
+	gpio_request(GPIO_FN_LCD0_D22_PORT0,	NULL);
+	gpio_request(GPIO_FN_LCD0_D23_PORT1,	NULL);
+	gpio_request(GPIO_FN_LCD0_DCK,		NULL);
+	gpio_request(GPIO_FN_LCD0_VSYN,		NULL);
+	gpio_request(GPIO_FN_LCD0_HSYN,		NULL);
+	gpio_request(GPIO_FN_LCD0_DISP,		NULL);
+	gpio_request(GPIO_FN_LCD0_LCLK_PORT165,	NULL);
+
+	gpio_request(GPIO_PORT61, NULL); /* LCDDON */
+	gpio_direction_output(GPIO_PORT61, 1);
+
+	gpio_request(GPIO_PORT202, NULL); /* LCD0_LED_CONT */
+	gpio_direction_output(GPIO_PORT202, 0);
+
+	/*
+	 * CAUTION
+	 *
+	 * DBGMD/LCDC0/FSIA MUX
+	 * DBGMD_SELECT_B should be set after setting PFC Function.
+	 */
+	gpio_request(GPIO_PORT176, NULL);
+	gpio_direction_output(GPIO_PORT176, 1);
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 32K*8way */
