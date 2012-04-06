@@ -190,7 +190,7 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 		u32 *vmode)
 {
 	unsigned short ModeNo = modeno;
-	unsigned short ModeIdIndex = 0, index = 0;
+	unsigned short ModeIdIndex, index = 0;
 	unsigned short RefreshRateTableIndex = 0;
 
 	unsigned short VRE, VBE, VRS, VBS, VDE, VT;
@@ -199,6 +199,8 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	unsigned long cr_data3;
 	int A, B, C, D, E, F, temp, j;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
+	if (!XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr))
+		return 0;
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
 	index = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
