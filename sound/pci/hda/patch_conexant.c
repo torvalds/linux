@@ -141,7 +141,6 @@ struct conexant_spec {
 	unsigned int hp_laptop:1;
 	unsigned int asus:1;
 	unsigned int pin_eapd_ctrls:1;
-	unsigned int single_adc_amp:1;
 
 	unsigned int adc_switching:1;
 
@@ -1111,6 +1110,7 @@ static int patch_cxt5045(struct hda_codec *codec)
 		return -ENOMEM;
 	codec->spec = spec;
 	codec->pin_amp_workaround = 1;
+	codec->single_adc_amp = 1;
 
 	spec->multiout.max_channels = 2;
 	spec->multiout.num_dacs = ARRAY_SIZE(cxt5045_dac_nids);
@@ -4220,7 +4220,7 @@ static int cx_auto_add_capture_volume(struct hda_codec *codec, hda_nid_t nid,
 		int idx = get_input_connection(codec, adc_nid, nid);
 		if (idx < 0)
 			continue;
-		if (spec->single_adc_amp)
+		if (codec->single_adc_amp)
 			idx = 0;
 		return cx_auto_add_volume_idx(codec, label, pfx,
 					      cidx, adc_nid, HDA_INPUT, idx);
@@ -4275,7 +4275,7 @@ static int cx_auto_build_input_controls(struct hda_codec *codec)
 		if (cidx < 0)
 			continue;
 		input_conn[i] = spec->imux_info[i].adc;
-		if (!spec->single_adc_amp)
+		if (!codec->single_adc_amp)
 			input_conn[i] |= cidx << 8;
 		if (i > 0 && input_conn[i] != input_conn[0])
 			multi_connection = 1;
@@ -4470,7 +4470,7 @@ static int patch_conexant_auto(struct hda_codec *codec)
 
 	switch (codec->vendor_id) {
 	case 0x14f15045:
-		spec->single_adc_amp = 1;
+		codec->single_adc_amp = 1;
 		break;
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
