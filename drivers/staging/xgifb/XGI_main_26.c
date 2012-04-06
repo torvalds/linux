@@ -159,6 +159,8 @@ static int XGIfb_mode_rate_to_dclock(struct vb_device_info *XGI_Pr,
 	int Clock;
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 
+	XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr);
+
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
 
