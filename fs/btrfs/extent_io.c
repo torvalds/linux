@@ -1293,7 +1293,7 @@ out:
  * returned if we find something, and *start_ret and *end_ret are
  * set to reflect the state struct that was found.
  *
- * If nothing was found, 1 is returned, < 0 on error
+ * If nothing was found, 1 is returned. If found something, return 0.
  */
 int find_first_extent_bit(struct extent_io_tree *tree, u64 start,
 			  u64 *start_ret, u64 *end_ret, int bits)
