@@ -519,7 +519,7 @@ struct l2cap_ops {
 	void			(*close) (void *data);
 	void			(*state_change) (void *data, int state);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
-					unsigned long len, int nb, int *err);
+					       unsigned long len, int nb);
 
 };
 

@@ -1563,7 +1563,7 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 {
 	struct l2cap_conn *conn = chan->conn;
 	struct sk_buff **frag;
-	int err, sent = 0;
+	int sent = 0;
 
 	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count))
 		return -EFAULT;
@@ -1577,11 +1577,10 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 		count = min_t(unsigned int, conn->mtu, len);
 
 		*frag = chan->ops->alloc_skb(chan, count,
-					     msg->msg_flags & MSG_DONTWAIT,
-					     &err);
+					     msg->msg_flags & MSG_DONTWAIT);
 
-		if (!*frag)
-			return err;
+		if (IS_ERR(*frag))
+			return PTR_ERR(*frag);
 		if (memcpy_fromiovec(skb_put(*frag, count), msg->msg_iov, count))
 			return -EFAULT;
 
@@ -1610,10 +1609,9 @@ static struct sk_buff *l2cap_create_connless_pdu(struct l2cap_chan *chan,
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
 	skb = chan->ops->alloc_skb(chan, count + hlen,
-				   msg->msg_flags & MSG_DONTWAIT, &err);
-
-	if (!skb)
-		return ERR_PTR(err);
+				   msg->msg_flags & MSG_DONTWAIT);
+	if (IS_ERR(skb))
+		return skb;
 
 	skb->priority = priority;
 
@@ -1645,10 +1643,9 @@ static struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan,
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
 	skb = chan->ops->alloc_skb(chan, count + hlen,
-				   msg->msg_flags & MSG_DONTWAIT, &err);
-
-	if (!skb)
-		return ERR_PTR(err);
+				   msg->msg_flags & MSG_DONTWAIT);
+	if (IS_ERR(skb))
+		return skb;
 
 	skb->priority = priority;
 
@@ -1693,10 +1690,9 @@ static struct sk_buff *l2cap_create_iframe_pdu(struct l2cap_chan *chan,
 	count = min_t(unsigned int, (conn->mtu - hlen), len);
 
 	skb = chan->ops->alloc_skb(chan, count + hlen,
-					msg->msg_flags & MSG_DONTWAIT, &err);
-
-	if (!skb)
-		return ERR_PTR(err);
+				   msg->msg_flags & MSG_DONTWAIT);
+	if (IS_ERR(skb))
+		return skb;
 
 	/* Create L2CAP header */
 	lh = (struct l2cap_hdr *) skb_put(skb, L2CAP_HDR_SIZE);
