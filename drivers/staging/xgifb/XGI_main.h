@@ -243,13 +243,6 @@ static const struct _XGIbios_mode {
 	{"\0", 0x00, 0, 0, 0, 0, 0, 0, 0}
 };
 
-/* TW: CR36 evaluation */
-static const unsigned short XGI300paneltype[] = {
-	 LCD_UNKNOWN,  LCD_800x600, LCD_1024x768, LCD_1280x1024,
-	LCD_1280x960,  LCD_640x480, LCD_1024x600, LCD_1152x768,
-	LCD_1024x768, LCD_1024x768, LCD_1024x768,
-	LCD_1024x768, LCD_1024x768, LCD_1024x768, LCD_1024x768};
-
 static const unsigned short XGI310paneltype[] = {
 	 LCD_UNKNOWN,   LCD_800x600, LCD_1024x768, LCD_1280x1024,
 	 LCD_640x480,  LCD_1024x600, LCD_1152x864, LCD_1280x960,
