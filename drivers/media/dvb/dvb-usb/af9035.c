@@ -57,17 +57,16 @@ static u16 af9035_checksum(const u8 *buf, size_t len)
 
 static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
 {
-#define BUF_LEN 63
+#define BUF_LEN 64
 #define REQ_HDR_LEN 4 /* send header size */
 #define ACK_HDR_LEN 3 /* rece header size */
 #define CHECKSUM_LEN 2
 #define USB_TIMEOUT 2000
 
-	int ret, act_len;
+	int ret, msg_len, act_len;
 	u8 buf[BUF_LEN];
-	u32 msg_len;
 	static u8 seq; /* packet sequence number */
-	u16 checksum, tmpsum;
+	u16 checksum, tmp_checksum;
 
 	/* buffer overflow check */
 	if (req->wlen > (BUF_LEN - REQ_HDR_LEN - CHECKSUM_LEN) ||
@@ -89,14 +88,14 @@ static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
 
 	/* calc and add checksum */
 	checksum = af9035_checksum(buf, buf[0] - 1);
-	buf[buf[0]-1] = (checksum >> 8);
-	buf[buf[0]-0] = (checksum & 0xff);
+	buf[buf[0] - 1] = (checksum >> 8);
+	buf[buf[0] - 0] = (checksum & 0xff);
 
 	msg_len = REQ_HDR_LEN + req->wlen + CHECKSUM_LEN ;
 
 	/* send req */
 	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, 0x02), buf, msg_len,
-		&act_len, USB_TIMEOUT);
+			&act_len, USB_TIMEOUT);
 	if (ret < 0)
 		err("bulk message failed=%d (%d/%d)", ret, msg_len, act_len);
 	else
@@ -112,29 +111,29 @@ static int af9035_ctrl_msg(struct usb_device *udev, struct usb_req *req)
 	/* receive ack and data if read req */
 	msg_len = ACK_HDR_LEN + req->rlen + CHECKSUM_LEN;
 	ret = usb_bulk_msg(udev, usb_rcvbulkpipe(udev, 0x81), buf, msg_len,
-		&act_len, USB_TIMEOUT);
+			&act_len, USB_TIMEOUT);
 	if (ret < 0) {
 		err("recv bulk message failed=%d", ret);
 		ret = -EIO;
 		goto err_mutex_unlock;
 	}
+
 	if (act_len != msg_len) {
-		err("recv bulk message truncated (%d != %u)\n",
-		    act_len, (unsigned int)msg_len);
+		err("recv bulk message truncated (%d != %d)", act_len, msg_len);
 		ret = -EIO;
 		goto err_mutex_unlock;
 	}
 
 	/* verify checksum */
 	checksum = af9035_checksum(buf, act_len - 2);
-	tmpsum = (buf[act_len - 2] << 8) | buf[act_len - 1];
-	if (tmpsum != checksum) {
-		err("%s: command=%02X checksum mismatch (%04X != %04X)\n",
-		    __func__, req->cmd,
-		    (unsigned int)tmpsum, (unsigned int)checksum);
+	tmp_checksum = (buf[act_len - 2] << 8) | buf[act_len - 1];
+	if (tmp_checksum != checksum) {
+		err("%s: command=%02x checksum mismatch (%04x != %04x)",
+		    __func__, req->cmd, tmp_checksum, checksum);
 		ret = -EIO;
 		goto err_mutex_unlock;
 	}
+
 	/* check status */
 	if (buf[2]) {
 		pr_debug("%s: command=%02x failed fw error=%d\n", __func__,
@@ -400,7 +399,7 @@ static int af9035_download_firmware(struct usb_device *udev,
 	struct usb_req req_fw_ver = { CMD_FW_QUERYINFO, 0, 1, wbuf, 4, rbuf } ;
 	u8 hdr_core;
 	u16 hdr_addr, hdr_data_len, hdr_checksum;
-	#define MAX_DATA 57
+	#define MAX_DATA 58
 	#define HDR_SIZE 7
 
 	/*
