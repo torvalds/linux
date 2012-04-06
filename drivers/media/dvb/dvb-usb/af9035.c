@@ -783,6 +783,9 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 		ret = -ENODEV;
 		goto err;
 	}
+
+	/* disable I2C-gate */
+	adap->fe_adap[0].fe->ops.i2c_gate_ctrl = NULL;
 	adap->fe_adap[0].fe->callback = af9035_frontend_callback;
 
 	return 0;
