@@ -1086,7 +1086,6 @@ static int patch_cxt5045(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	codec->pin_amp_workaround = 1;
 	codec->single_adc_amp = 1;
 
 	spec->multiout.max_channels = 2;
@@ -4443,7 +4442,6 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	codec->pin_amp_workaround = 1;
 
 	switch (codec->vendor_id) {
 	case 0x14f15045:
@@ -4451,7 +4449,10 @@ static int patch_conexant_auto(struct hda_codec *codec)
 		break;
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
+		codec->pin_amp_workaround = 1;
 		break;
+	default:
+		codec->pin_amp_workaround = 1;
 	}
 
 	apply_pin_fixup(codec, cxt_fixups, cxt_pincfg_tbl);
