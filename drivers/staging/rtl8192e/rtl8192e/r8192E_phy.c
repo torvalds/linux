@@ -689,7 +689,7 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	case RF_8258:
 		break;
 	default:
-		RT_TRACE(COMP_ERR, "unknown rf chip in funtion %s()\n",
+		RT_TRACE(COMP_ERR, "unknown rf chip in function %s()\n",
 			 __func__);
 		break;
 	}

@@ -353,7 +353,7 @@ struct rtdPrivate {
 
 	unsigned long intCount;	/* interrupt count */
 	long aiCount;		/* total transfer size (samples) */
-	int transCount;		/* # to tranfer data. 0->1/2FIFO */
+	int transCount;		/* # to transfer data. 0->1/2FIFO */
 	int flags;		/* flag event modes */
 
 	/* PCI device info */
@@ -1989,7 +1989,7 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			    (TRANS_TARGET_PERIOD * cmd->chanlist_len) /
 			    cmd->scan_begin_arg;
 			if (devpriv->transCount < cmd->chanlist_len) {
-				/* tranfer after each scan (and avoid 0) */
+				/* transfer after each scan (and avoid 0) */
 				devpriv->transCount = cmd->chanlist_len;
 			} else {	/* make a multiple of scan length */
 				devpriv->transCount =
@@ -2005,12 +2005,12 @@ static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 			devpriv->transCount = 0;
 			devpriv->flags &= ~SEND_EOS;
 		} else {
-			/* interrupt for each tranfer */
+			/* interrupt for each transfer */
 			RtdAboutCounter(dev, devpriv->transCount - 1);
 		}
 
 		DPRINTK
-		    ("rtd520: scanLen=%d tranferCount=%d fifoLen=%d\n  scanTime(ns)=%d flags=0x%x\n",
+		    ("rtd520: scanLen=%d transferCount=%d fifoLen=%d\n  scanTime(ns)=%d flags=0x%x\n",
 		     cmd->chanlist_len, devpriv->transCount, devpriv->fifoLen,
 		     cmd->scan_begin_arg, devpriv->flags);
 	} else {		/* unknown timing, just use 1/2 FIFO */

@@ -1905,7 +1905,7 @@ associate_complete:
 							}
 						}else{
 							ieee->softmac_stats.rx_auth_rs_err++;
-							IEEE80211_DEBUG_MGMT("Authentication respose status code 0x%x",errcode);
+							IEEE80211_DEBUG_MGMT("Authentication response status code 0x%x",errcode);
 							ieee80211_associate_abort(ieee);
 						}
 

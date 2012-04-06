@@ -715,7 +715,7 @@ static int dt9812_probe(struct usb_interface *interface,
 	iface_desc = interface->cur_altsetting;
 
 	if (iface_desc->desc.bNumEndpoints != 5) {
-		err("Wrong number of endpints.");
+		err("Wrong number of endpoints.");
 		retval = -ENODEV;
 		goto error;
 	}

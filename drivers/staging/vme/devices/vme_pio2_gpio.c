@@ -79,7 +79,7 @@ static void pio2_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	if ((card->bank[PIO2_CHANNEL_BANK[offset]].config == INPUT) |
 		(card->bank[PIO2_CHANNEL_BANK[offset]].config == NOFIT)) {
 
-		dev_err(&card->vdev->dev, "Channel not availabe as output\n");
+		dev_err(&card->vdev->dev, "Channel not available as output\n");
 		return;
 	}
 
