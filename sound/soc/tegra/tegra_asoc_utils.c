@@ -133,8 +133,14 @@ int tegra_asoc_utils_init(struct tegra_asoc_utils_data *data,
 		goto err_put_pll_a_out0;
 	}
 
+	ret = tegra_asoc_utils_set_rate(data, 44100, 256 * 44100);
+	if (ret)
+		goto err_put_cdev1;
+
 	return 0;
 
+err_put_cdev1:
+	clk_put(data->clk_cdev1);
 err_put_pll_a_out0:
 	clk_put(data->clk_pll_a_out0);
 err_put_pll_a:
