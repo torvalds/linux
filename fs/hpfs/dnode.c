@@ -1015,7 +1015,7 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *s, fnode_secno fno,
 		kfree(name2);
 		return NULL;
 	}	
-	if (!upf->dirflag) {
+	if (!fnode_is_dir(upf)) {
 		brelse(bh);
 		hpfs_error(s, "fnode %08x has non-directory parent %08x", fno, le32_to_cpu(f->up));
 		kfree(name2);

@@ -130,7 +130,7 @@ struct fnode *hpfs_map_fnode(struct super_block *s, ino_t ino, struct buffer_hea
 					(unsigned long)ino);
 				goto bail;
 			}
-			if (!fnode->dirflag) {
+			if (!fnode_is_dir(fnode)) {
 				if ((unsigned)fnode->btree.n_used_nodes + (unsigned)fnode->btree.n_free_nodes !=
 				    (fnode->btree.internal ? 12 : 8)) {
 					hpfs_error(s,

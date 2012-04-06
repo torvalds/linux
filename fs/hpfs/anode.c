@@ -479,13 +479,13 @@ void hpfs_remove_fnode(struct super_block *s, fnode_secno fno)
 	struct extended_attribute *ea;
 	struct extended_attribute *ea_end;
 	if (!(fnode = hpfs_map_fnode(s, fno, &bh))) return;
-	if (!fnode->dirflag) hpfs_remove_btree(s, &fnode->btree);
+	if (!fnode_is_dir(fnode)) hpfs_remove_btree(s, &fnode->btree);
 	else hpfs_remove_dtree(s, le32_to_cpu(fnode->u.external[0].disk_secno));
 	ea_end = fnode_end_ea(fnode);
 	for (ea = fnode_ea(fnode); ea < ea_end; ea = next_ea(ea))
 		if (ea_indirect(ea))
 			hpfs_ea_remove(s, ea_sec(ea), ea_in_anode(ea), ea_len(ea));
-	hpfs_ea_ext_remove(s, le32_to_cpu(fnode->ea_secno), fnode->ea_anode, le32_to_cpu(fnode->ea_size_l));
+	hpfs_ea_ext_remove(s, le32_to_cpu(fnode->ea_secno), fnode_in_anode(fnode), le32_to_cpu(fnode->ea_size_l));
 	brelse(bh);
 	hpfs_free_sectors(s, fno, 1);
 }

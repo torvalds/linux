@@ -436,6 +436,7 @@ struct bplus_header
 
 #define FNODE_MAGIC 0xf7e40aae
 
+enum {FNODE_anode = cpu_to_le16(2), FNODE_dir = cpu_to_le16(256)};
 struct fnode
 {
   u32 magic;				/* f7e4 0aae */
@@ -451,26 +452,9 @@ struct fnode
   secno ea_secno;			/* first sector of disk-resident ea's*/
   u16 ea_size_s;			/* length of fnode-resident ea's */
 
-#ifdef __LITTLE_ENDIAN
-  u8 flag0: 1;
-  u8 ea_anode: 1;			/* 1 -> ea_secno is an anode */
-  u8 flag234567: 6;
-#else
-  u8 flag234567: 6;
-  u8 ea_anode: 1;			/* 1 -> ea_secno is an anode */
-  u8 flag0: 1;
-#endif
-
-#ifdef __LITTLE_ENDIAN
-  u8 dirflag: 1;			/* 1 -> directory.  first & only extent
+  __le16 flags;				/* bit 1 set -> ea_secno is an anode */
+					/* bit 8 set -> directory.  first & only extent
 					   points to dnode. */
-  u8 flag9012345: 7;
-#else
-  u8 flag9012345: 7;
-  u8 dirflag: 1;			/* 1 -> directory.  first & only extent
-					   points to dnode. */
-#endif
-
   struct bplus_header btree;		/* b+ tree, 8 extents or 12 subtrees */
   union {
     struct bplus_leaf_node external[8];
@@ -491,6 +475,16 @@ struct fnode
 					   (Do not use this name, get here
 					   via fnode + ea_offs. I think.) */
 };
+
+static inline bool fnode_in_anode(struct fnode *p)
+{
+	return (p->flags & FNODE_anode) != 0;
+}
+
+static inline bool fnode_is_dir(struct fnode *p)
+{
+	return (p->flags & FNODE_dir) != 0;
+}
 
 
 /* anode: 99.44% pure allocation tree */

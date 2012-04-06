@@ -91,7 +91,7 @@ int hpfs_read_ea(struct super_block *s, struct fnode *fnode, char *key,
 		}
 	a = le32_to_cpu(fnode->ea_secno);
 	len = le32_to_cpu(fnode->ea_size_l);
-	ano = fnode->ea_anode;
+	ano = fnode_in_anode(fnode);
 	pos = 0;
 	while (pos < len) {
 		ea = (struct extended_attribute *)ex;
@@ -148,7 +148,7 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
 		}
 	a = le32_to_cpu(fnode->ea_secno);
 	len = le32_to_cpu(fnode->ea_size_l);
-	ano = fnode->ea_anode;
+	ano = fnode_in_anode(fnode);
 	pos = 0;
 	while (pos < len) {
 		char ex[4 + 255 + 1 + 8];
@@ -209,7 +209,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 		}
 	a = le32_to_cpu(fnode->ea_secno);
 	len = le32_to_cpu(fnode->ea_size_l);
-	ano = fnode->ea_anode;
+	ano = fnode_in_anode(fnode);
 	pos = 0;
 	while (pos < len) {
 		char ex[4 + 255 + 1 + 8];
@@ -276,7 +276,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 		fnode->ea_size_l = cpu_to_le32(le16_to_cpu(fnode->ea_size_s));
 		fnode->ea_size_s = cpu_to_le16(0);
 		fnode->ea_secno = cpu_to_le32(n);
-		fnode->ea_anode = cpu_to_le32(0);
+		fnode->flags &= ~FNODE_anode;
 		mark_buffer_dirty(bh);
 		brelse(bh);
 	}
@@ -288,9 +288,9 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 			secno q = hpfs_alloc_sector(s, fno, 1, 0);
 			if (!q) goto bail;
 			fnode->ea_secno = cpu_to_le32(q);
-			fnode->ea_anode = 0;
+			fnode->flags &= ~FNODE_anode;
 			len++;
-		} else if (!fnode->ea_anode) {
+		} else if (!fnode_in_anode(fnode)) {
 			if (hpfs_alloc_if_possible(s, le32_to_cpu(fnode->ea_secno) + len)) {
 				len++;
 			} else {
@@ -310,7 +310,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 				anode->u.external[0].length = cpu_to_le32(len);
 				mark_buffer_dirty(bh);
 				brelse(bh);
-				fnode->ea_anode = 1;
+				fnode->flags |= FNODE_anode;
 				fnode->ea_secno = cpu_to_le32(a_s);*/
 				secno new_sec;
 				int i;
@@ -338,7 +338,7 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 				len = (pos + 511) >> 9;
 			}
 		}
-		if (fnode->ea_anode) {
+		if (fnode_in_anode(fnode)) {
 			if (hpfs_add_sector_to_btree(s, le32_to_cpu(fnode->ea_secno),
 						     0, len) != -1) {
 				len++;
@@ -351,16 +351,16 @@ void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
 	h[1] = strlen(key);
 	h[2] = size & 0xff;
 	h[3] = size >> 8;
-	if (hpfs_ea_write(s, le32_to_cpu(fnode->ea_secno), fnode->ea_anode, le32_to_cpu(fnode->ea_size_l), 4, h)) goto bail;
-	if (hpfs_ea_write(s, le32_to_cpu(fnode->ea_secno), fnode->ea_anode, le32_to_cpu(fnode->ea_size_l) + 4, h[1] + 1, key)) goto bail;
-	if (hpfs_ea_write(s, le32_to_cpu(fnode->ea_secno), fnode->ea_anode, le32_to_cpu(fnode->ea_size_l) + 5 + h[1], size, data)) goto bail;
+	if (hpfs_ea_write(s, le32_to_cpu(fnode->ea_secno), fnode_in_anode(fnode), le32_to_cpu(fnode->ea_size_l), 4, h)) goto bail;
+	if (hpfs_ea_write(s, le32_to_cpu(fnode->ea_secno), fnode_in_anode(fnode), le32_to_cpu(fnode->ea_size_l) + 4, h[1] + 1, key)) goto bail;
+	if (hpfs_ea_write(s, le32_to_cpu(fnode->ea_secno), fnode_in_anode(fnode), le32_to_cpu(fnode->ea_size_l) + 5 + h[1], size, data)) goto bail;
 	fnode->ea_size_l = cpu_to_le32(pos);
 	ret:
 	hpfs_i(inode)->i_ea_size += 5 + strlen(key) + size;
 	return;
 	bail:
 	if (le32_to_cpu(fnode->ea_secno))
-		if (fnode->ea_anode) hpfs_truncate_btree(s, le32_to_cpu(fnode->ea_secno), 1, (le32_to_cpu(fnode->ea_size_l) + 511) >> 9);
+		if (fnode_in_anode(fnode)) hpfs_truncate_btree(s, le32_to_cpu(fnode->ea_secno), 1, (le32_to_cpu(fnode->ea_size_l) + 511) >> 9);
 		else hpfs_free_sectors(s, le32_to_cpu(fnode->ea_secno) + ((le32_to_cpu(fnode->ea_size_l) + 511) >> 9), len - ((le32_to_cpu(fnode->ea_size_l) + 511) >> 9));
 	else fnode->ea_secno = fnode->ea_size_l = cpu_to_le32(0);
 }
