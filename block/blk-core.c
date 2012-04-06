@@ -1277,7 +1277,8 @@ static bool attempt_plug_merge(struct request_queue *q, struct bio *bio,
 	list_for_each_entry_reverse(rq, &plug->list, queuelist) {
 		int el_ret;
 
-		(*request_count)++;
+		if (rq->q == q)
+			(*request_count)++;
 
 		if (rq->q != q || !blk_rq_merge_ok(rq, bio))
 			continue;
