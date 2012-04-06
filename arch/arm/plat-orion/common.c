@@ -19,11 +19,31 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/mv643xx_i2c.h>
 #include <net/dsa.h>
-#include <linux/spi/orion_spi.h>
 #include <plat/orion_wdt.h>
 #include <plat/mv_xor.h>
 #include <plat/ehci-orion.h>
 #include <mach/bridge-regs.h>
+
+/* Create a clkdev entry for a given device/clk */
+void __init orion_clkdev_add(const char *con_id, const char *dev_id,
+			     struct clk *clk)
+{
+	struct clk_lookup *cl;
+
+	cl = clkdev_alloc(clk, con_id, dev_id);
+	if (cl)
+		clkdev_add(cl);
+}
+
+/* Create clkdev entries for all orion platforms except kirkwood.
+   Kirkwood has gated clocks for some of its peripherals, so creates
+   its own clkdev entries. For all the other orion devices, create
+   clkdev entries to the tclk. */
+void __init orion_clkdev_init(struct clk *tclk)
+{
+	orion_clkdev_add(NULL, "orion_spi.0", tclk);
+	orion_clkdev_add(NULL, "orion_spi.1", tclk);
+}
 
 /* Fill in the resources structure and link it into the platform
    device structure. There is always a memory region, and nearly
@@ -523,44 +543,32 @@ void __init orion_i2c_1_init(unsigned long mapbase,
 /*****************************************************************************
  * SPI
  ****************************************************************************/
-static struct orion_spi_info orion_spi_plat_data;
 static struct resource orion_spi_resources;
 
 static struct platform_device orion_spi = {
 	.name		= "orion_spi",
 	.id		= 0,
-	.dev		= {
-		.platform_data	= &orion_spi_plat_data,
-	},
 };
 
-static struct orion_spi_info orion_spi_1_plat_data;
 static struct resource orion_spi_1_resources;
 
 static struct platform_device orion_spi_1 = {
 	.name		= "orion_spi",
 	.id		= 1,
-	.dev		= {
-		.platform_data	= &orion_spi_1_plat_data,
-	},
 };
 
 /* Note: The SPI silicon core does have interrupts. However the
  * current Linux software driver does not use interrupts. */
 
-void __init orion_spi_init(unsigned long mapbase,
-			   unsigned long tclk)
+void __init orion_spi_init(unsigned long mapbase)
 {
-	orion_spi_plat_data.tclk = tclk;
 	fill_resources(&orion_spi, &orion_spi_resources,
 		       mapbase, SZ_512 - 1, NO_IRQ);
 	platform_device_register(&orion_spi);
 }
 
-void __init orion_spi_1_init(unsigned long mapbase,
-			     unsigned long tclk)
+void __init orion_spi_1_init(unsigned long mapbase)
 {
-	orion_spi_1_plat_data.tclk = tclk;
 	fill_resources(&orion_spi_1, &orion_spi_1_resources,
 		       mapbase, SZ_512 - 1, NO_IRQ);
 	platform_device_register(&orion_spi_1);

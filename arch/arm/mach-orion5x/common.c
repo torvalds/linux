@@ -79,6 +79,8 @@ static void __init clk_init(void)
 {
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
 				       orion5x_tclk);
+
+	orion_clkdev_init(tclk);
 }
 
 /*****************************************************************************
@@ -144,7 +146,7 @@ void __init orion5x_sata_init(struct mv_sata_platform_data *sata_data)
  ****************************************************************************/
 void __init orion5x_spi_init()
 {
-	orion_spi_init(SPI_PHYS_BASE, orion5x_tclk);
+	orion_spi_init(SPI_PHYS_BASE);
 }
 
 

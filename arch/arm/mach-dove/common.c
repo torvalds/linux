@@ -76,6 +76,8 @@ static void __init clk_init(void)
 {
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL, CLK_IS_ROOT,
 				       get_tclk());
+
+	orion_clkdev_init(tclk);
 }
 
 /*****************************************************************************
@@ -162,12 +164,12 @@ void __init dove_uart3_init(void)
  ****************************************************************************/
 void __init dove_spi0_init(void)
 {
-	orion_spi_init(DOVE_SPI0_PHYS_BASE, get_tclk());
+	orion_spi_init(DOVE_SPI0_PHYS_BASE);
 }
 
 void __init dove_spi1_init(void)
 {
-	orion_spi_1_init(DOVE_SPI1_PHYS_BASE, get_tclk());
+	orion_spi_1_init(DOVE_SPI1_PHYS_BASE);
 }
 
 /*****************************************************************************

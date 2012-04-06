@@ -86,10 +86,12 @@ static struct clk __init *kirkwood_register_gate(const char *name, u8 bit_idx)
 
 void __init kirkwood_clk_init(void)
 {
+	struct clk *runit;
+
 	tclk = clk_register_fixed_rate(NULL, "tclk", NULL,
 				       CLK_IS_ROOT, kirkwood_tclk);
 
-	kirkwood_register_gate("runit",  CGC_BIT_RUNIT);
+	runit = kirkwood_register_gate("runit",  CGC_BIT_RUNIT);
 	kirkwood_register_gate("ge0",    CGC_BIT_GE0);
 	kirkwood_register_gate("ge1",    CGC_BIT_GE1);
 	kirkwood_register_gate("sata0",  CGC_BIT_SATA0);
@@ -104,6 +106,10 @@ void __init kirkwood_clk_init(void)
 	kirkwood_register_gate("audio",  CGC_BIT_AUDIO);
 	kirkwood_register_gate("tdm",    CGC_BIT_TDM);
 	kirkwood_register_gate("tsu",    CGC_BIT_TSU);
+
+	/* clkdev entries, mapping clks to devices */
+	orion_clkdev_add(NULL, "orion_spi.0", runit);
+	orion_clkdev_add(NULL, "orion_spi.1", runit);
 }
 
 /*****************************************************************************
@@ -270,7 +276,7 @@ void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
 void __init kirkwood_spi_init()
 {
 	kirkwood_clk_ctrl |= CGC_RUNIT;
-	orion_spi_init(SPI_PHYS_BASE, kirkwood_tclk);
+	orion_spi_init(SPI_PHYS_BASE);
 }
 
 

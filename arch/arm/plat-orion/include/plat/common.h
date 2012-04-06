@@ -70,11 +70,9 @@ void __init orion_i2c_1_init(unsigned long mapbase,
 			     unsigned long irq,
 			     unsigned long freq_m);
 
-void __init orion_spi_init(unsigned long mapbase,
-			   unsigned long tclk);
+void __init orion_spi_init(unsigned long mapbase);
 
-void __init orion_spi_1_init(unsigned long mapbase,
-			     unsigned long tclk);
+void __init orion_spi_1_init(unsigned long mapbase);
 
 void __init orion_wdt_init(unsigned long tclk);
 
@@ -106,4 +104,9 @@ void __init orion_crypto_init(unsigned long mapbase,
 			      unsigned long srambase,
 			      unsigned long sram_size,
 			      unsigned long irq);
+
+void __init orion_clkdev_add(const char *con_id, const char *dev_id,
+			     struct clk *clk);
+
+void __init orion_clkdev_init(struct clk *tclk);
 #endif
