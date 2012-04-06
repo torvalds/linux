@@ -840,10 +840,14 @@ static int hists__browser_title(struct hists *self, char *bf, size_t size,
 	int printed;
 	const struct dso *dso = self->dso_filter;
 	const struct thread *thread = self->thread_filter;
-	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	unsigned long nr_samples = self->stats.nr_events[PERF_RECORD_SAMPLE];
+	u64 nr_events = self->stats.total_period;
 
-	nr_events = convert_unit(nr_events, &unit);
-	printed = scnprintf(bf, size, "Events: %lu%c %s", nr_events, unit, ev_name);
+	nr_samples = convert_unit(nr_samples, &unit);
+	printed = scnprintf(bf, size,
+			   "Samples: %lu%c of event '%s', Event count (approx.): %lu",
+			   nr_samples, unit, ev_name, nr_events);
+
 
 	if (self->uid_filter_str)
 		printed += snprintf(bf + printed, size - printed,
