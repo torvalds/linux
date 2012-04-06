@@ -547,8 +547,8 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 I2C_BOARD_INFO(SENSOR_NAME_01, CONFIG_SENSOR_IIC_ADDR_01>>1)
             },
             .link_info = {
-            	#ifdef SENSOR_CIF_BUSID_1
-            	.bus_id= SENSOR_CIF_BUSID_1,
+            	#ifdef SENSOR_CIF_BUSID_01
+            	.bus_id= SENSOR_CIF_BUSID_01,
             	#else
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
@@ -580,8 +580,8 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 I2C_BOARD_INFO(SENSOR_NAME_02, CONFIG_SENSOR_IIC_ADDR_02>>1)
             },
             .link_info = {
-            	#ifdef SENSOR_CIF_BUSID_1
-            	.bus_id= SENSOR_CIF_BUSID_1,
+            	#ifdef SENSOR_CIF_BUSID_02
+            	.bus_id= SENSOR_CIF_BUSID_02,
             	#else
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
@@ -613,8 +613,8 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 I2C_BOARD_INFO(SENSOR_NAME_11, CONFIG_SENSOR_IIC_ADDR_11>>1)
             },
             .link_info = {
-            	#ifdef SENSOR_CIF_BUSID_1
-            	.bus_id= SENSOR_CIF_BUSID_1,
+            	#ifdef SENSOR_CIF_BUSID_11
+            	.bus_id= SENSOR_CIF_BUSID_11,
             	#else
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
@@ -646,8 +646,8 @@ static struct rk29camera_platform_data rk_camera_platform_data = {
                 I2C_BOARD_INFO(SENSOR_NAME_12, CONFIG_SENSOR_IIC_ADDR_12>>1)
             },
             .link_info = {
-            	#ifdef SENSOR_CIF_BUSID_1
-            	.bus_id= SENSOR_CIF_BUSID_1,
+            	#ifdef SENSOR_CIF_BUSID_12
+            	.bus_id= SENSOR_CIF_BUSID_12,
             	#else
                 .bus_id= RK29_CAM_PLATFORM_DEV_ID,
                 #endif
