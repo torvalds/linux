@@ -26,7 +26,6 @@ struct af9033_state {
 	struct dvb_frontend fe;
 	struct af9033_config cfg;
 
-	u32 frequency;
 	u32 bandwidth_hz;
 	bool ts_mode_parallel;
 	bool ts_mode_serial;
@@ -407,8 +406,6 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 	pr_debug("%s: frequency=%d bandwidth_hz=%d\n", __func__, c->frequency,
 			c->bandwidth_hz);
 
-	state->frequency = c->frequency;
-
 	/* check bandwidth */
 	switch (c->bandwidth_hz) {
 	case 6000000:
@@ -528,8 +525,8 @@ err:
 
 static int af9033_get_frontend(struct dvb_frontend *fe)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct af9033_state *state = fe->demodulator_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	int ret;
 	u8 buf[8];
 
@@ -537,120 +534,118 @@ static int af9033_get_frontend(struct dvb_frontend *fe)
 
 	/* read all needed registers */
 	ret = af9033_rd_regs(state, 0x80f900, buf, sizeof(buf));
-	if (ret)
-		goto error;
+	if (ret < 0)
+		goto err;
 
 	switch ((buf[0] >> 0) & 3) {
 	case 0:
-		p->transmission_mode = TRANSMISSION_MODE_2K;
+		c->transmission_mode = TRANSMISSION_MODE_2K;
 		break;
 	case 1:
-		p->transmission_mode = TRANSMISSION_MODE_8K;
+		c->transmission_mode = TRANSMISSION_MODE_8K;
 		break;
 	}
 
 	switch ((buf[1] >> 0) & 3) {
 	case 0:
-		p->guard_interval = GUARD_INTERVAL_1_32;
+		c->guard_interval = GUARD_INTERVAL_1_32;
 		break;
 	case 1:
-		p->guard_interval = GUARD_INTERVAL_1_16;
+		c->guard_interval = GUARD_INTERVAL_1_16;
 		break;
 	case 2:
-		p->guard_interval = GUARD_INTERVAL_1_8;
+		c->guard_interval = GUARD_INTERVAL_1_8;
 		break;
 	case 3:
-		p->guard_interval = GUARD_INTERVAL_1_4;
+		c->guard_interval = GUARD_INTERVAL_1_4;
 		break;
 	}
 
 	switch ((buf[2] >> 0) & 7) {
 	case 0:
-		p->hierarchy = HIERARCHY_NONE;
+		c->hierarchy = HIERARCHY_NONE;
 		break;
 	case 1:
-		p->hierarchy = HIERARCHY_1;
+		c->hierarchy = HIERARCHY_1;
 		break;
 	case 2:
-		p->hierarchy = HIERARCHY_2;
+		c->hierarchy = HIERARCHY_2;
 		break;
 	case 3:
-		p->hierarchy = HIERARCHY_4;
+		c->hierarchy = HIERARCHY_4;
 		break;
 	}
 
 	switch ((buf[3] >> 0) & 3) {
 	case 0:
-		p->modulation = QPSK;
+		c->modulation = QPSK;
 		break;
 	case 1:
-		p->modulation = QAM_16;
+		c->modulation = QAM_16;
 		break;
 	case 2:
-		p->modulation = QAM_64;
+		c->modulation = QAM_64;
 		break;
 	}
 
 	switch ((buf[4] >> 0) & 3) {
 	case 0:
-		p->bandwidth_hz = 6000000;
+		c->bandwidth_hz = 6000000;
 		break;
 	case 1:
-		p->bandwidth_hz = 7000000;
+		c->bandwidth_hz = 7000000;
 		break;
 	case 2:
-		p->bandwidth_hz = 8000000;
+		c->bandwidth_hz = 8000000;
 		break;
 	}
 
 	switch ((buf[6] >> 0) & 7) {
 	case 0:
-		p->code_rate_HP = FEC_1_2;
+		c->code_rate_HP = FEC_1_2;
 		break;
 	case 1:
-		p->code_rate_HP = FEC_2_3;
+		c->code_rate_HP = FEC_2_3;
 		break;
 	case 2:
-		p->code_rate_HP = FEC_3_4;
+		c->code_rate_HP = FEC_3_4;
 		break;
 	case 3:
-		p->code_rate_HP = FEC_5_6;
+		c->code_rate_HP = FEC_5_6;
 		break;
 	case 4:
-		p->code_rate_HP = FEC_7_8;
+		c->code_rate_HP = FEC_7_8;
 		break;
 	case 5:
-		p->code_rate_HP = FEC_NONE;
+		c->code_rate_HP = FEC_NONE;
 		break;
 	}
 
 	switch ((buf[7] >> 0) & 7) {
 	case 0:
-		p->code_rate_LP = FEC_1_2;
+		c->code_rate_LP = FEC_1_2;
 		break;
 	case 1:
-		p->code_rate_LP = FEC_2_3;
+		c->code_rate_LP = FEC_2_3;
 		break;
 	case 2:
-		p->code_rate_LP = FEC_3_4;
+		c->code_rate_LP = FEC_3_4;
 		break;
 	case 3:
-		p->code_rate_LP = FEC_5_6;
+		c->code_rate_LP = FEC_5_6;
 		break;
 	case 4:
-		p->code_rate_LP = FEC_7_8;
+		c->code_rate_LP = FEC_7_8;
 		break;
 	case 5:
-		p->code_rate_LP = FEC_NONE;
+		c->code_rate_LP = FEC_NONE;
 		break;
 	}
 
-	p->inversion = INVERSION_AUTO;
-	p->frequency = state->frequency;
+	return 0;
 
-error:
-	if (ret)
-		pr_debug("%s: failed:%d\n", __func__, ret);
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
 
 	return ret;
 }
