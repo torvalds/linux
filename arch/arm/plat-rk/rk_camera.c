@@ -251,14 +251,8 @@
 
 
 #ifdef CONFIG_VIDEO_RK29_CAMMEM_ION
-    #ifdef CONFIG_ARCH_RK29
     #undef PMEM_CAM_NECESSARY
     #define PMEM_CAM_NECESSARY 0x00000000
-    #endif
-#else
-    #ifdef CONFIG_ARCH_RK30
-//    #error "Camera driver memory configuration is alloc from pmem, but ARCH_RK30 isn't support"
-    #endif    
 #endif
 
 
