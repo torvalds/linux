@@ -5963,14 +5963,12 @@ static void XGI_SetEdgeEnhance(unsigned short ModeNo,
 			       unsigned short ModeIdIndex,
 			       struct vb_device_info *pVBInfo)
 {
-	unsigned short tempbx, index;
+	unsigned short tempbx;
 
 	unsigned char tempah;
 
 	tempbx = XGI_GetTVPtrIndex(pVBInfo);
 	tempbx &= 0xFE;
-	index = pVBInfo->EModeIDTable[ModeIdIndex].VB_ExtTVEdgeIndex;
-	tempbx += index;
 	tempah = TVEdgeList[tempbx];
 	tempah = tempah << 5;
 
