@@ -207,7 +207,7 @@ static struct regulator_ops max8649_dcdc_ops = {
 
 };
 
-static struct regulator_desc dcdc_desc = {
+static const struct regulator_desc dcdc_desc = {
 	.name		= "max8649",
 	.ops		= &max8649_dcdc_ops,
 	.type		= REGULATOR_VOLTAGE,
