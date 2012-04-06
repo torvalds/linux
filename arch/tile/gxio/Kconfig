@@ -9,3 +9,9 @@ config TILE_GXIO
 config TILE_GXIO_DMA
 	bool
 	select TILE_GXIO
+
+# Support direct access to the TILE-Gx mPIPE hardware from kernel space.
+config TILE_GXIO_MPIPE
+	bool
+	select TILE_GXIO
+	select TILE_GXIO_DMA
