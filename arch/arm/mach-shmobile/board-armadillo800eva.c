@@ -22,8 +22,10 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/kernel.h>
+#include <linux/input.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/gpio_keys.h>
 #include <linux/videodev2.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
@@ -149,11 +151,35 @@ static struct platform_device lcdc0_device = {
 	},
 };
 
+/* GPIO KEY */
+#define GPIO_KEY(c, g, d) { .code = c, .gpio = g, .desc = d, .active_low = 1 }
+
+static struct gpio_keys_button gpio_buttons[] = {
+	GPIO_KEY(KEY_POWER,	GPIO_PORT99,	"SW1"),
+	GPIO_KEY(KEY_BACK,	GPIO_PORT100,	"SW2"),
+	GPIO_KEY(KEY_MENU,	GPIO_PORT97,	"SW3"),
+	GPIO_KEY(KEY_HOME,	GPIO_PORT98,	"SW4"),
+};
+
+static struct gpio_keys_platform_data gpio_key_info = {
+	.buttons	= gpio_buttons,
+	.nbuttons	= ARRAY_SIZE(gpio_buttons),
+};
+
+static struct platform_device gpio_keys_device = {
+	.name   = "gpio-keys",
+	.id     = -1,
+	.dev    = {
+		.platform_data  = &gpio_key_info,
+	},
+};
+
 /*
  * board devices
  */
 static struct platform_device *eva_devices[] __initdata = {
 	&lcdc0_device,
+	&gpio_keys_device,
 };
 
 /*
