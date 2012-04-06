@@ -4309,6 +4309,13 @@ W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
 S:	Maintained
 
+MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
+M:	Mirko Lindner <mlindner@marvell.com>
+M:	Stephen Hemminger <shemminger@vyatta.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/marvell/sk*
+
 MARVELL LIBERTAS WIRELESS DRIVER
 M:	Dan Williams <dcbw@redhat.com>
 L:	libertas-dev@lists.infradead.org
@@ -4338,12 +4345,6 @@ MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
 F:	drivers/mmc/host/mvsdio.*
-
-MARVELL YUKON / SYSKONNECT DRIVER
-M:	Mirko Lindner <mlindner@syskonnect.de>
-M:	Ralph Roesler <rroesler@syskonnect.de>
-W:	http://www.syskonnect.com
-S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
@@ -6115,12 +6116,6 @@ M:	Thomas Winischhofer <thomas@winischhofer.net>
 W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 S:	Maintained
 F:	drivers/usb/misc/sisusbvga/
-
-SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
-M:	Stephen Hemminger <shemminger@vyatta.com>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/marvell/sk*
 
 SLAB ALLOCATOR
 M:	Christoph Lameter <cl@linux-foundation.org>

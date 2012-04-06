@@ -1874,7 +1874,6 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		 * bnx2x_periodic_task().
 		 */
 		smp_mb();
-		queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
 	} else
 		bp->port.pmf = 0;
 
