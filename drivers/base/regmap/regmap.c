@@ -595,6 +595,9 @@ int regmap_raw_write(struct regmap *map, unsigned int reg,
 {
 	int ret;
 
+	if (val_len % map->format.val_bytes)
+		return -EINVAL;
+
 	map->lock(map);
 
 	ret = _regmap_raw_write(map, reg, val, val_len);
@@ -752,6 +755,9 @@ int regmap_raw_read(struct regmap *map, unsigned int reg, void *val,
 	size_t val_count = val_len / val_bytes;
 	unsigned int v;
 	int ret, i;
+
+	if (val_len % map->format.val_bytes)
+		return -EINVAL;
 
 	map->lock(map);
 
