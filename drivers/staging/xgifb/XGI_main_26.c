@@ -201,14 +201,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	InitTo330Pointer(HwDeviceExtension->jChipType, XGI_Pr);
 	RefreshRateTableIndex = XGI_GetRatePtrCRT2(HwDeviceExtension, ModeNo,
 			ModeIdIndex, XGI_Pr);
-	/*
-	temp = XGI_SearchModeID(ModeNo, &ModeIdIndex, XGI_Pr);
-	if (!temp)
-		return 0;
-
-	RefreshRateTableIndex = XGI_Pr->EModeIDTable[ModeIdIndex].REFindex;
-	RefreshRateTableIndex += (rateindex - 1);
-	*/
 	index = XGI_Pr->RefIndex[RefreshRateTableIndex].Ext_CRT1CRTC;
 
 	sr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[5];
@@ -219,12 +211,6 @@ static int XGIfb_mode_rate_to_ddata(struct vb_device_info *XGI_Pr,
 	HT = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x03) << 8);
 	A = HT + 5;
 
-	/*
-	cr_data = XGI_Pr->XGINEWUB_CRT1Table[index].CR[1];
-
-	Horizontal display enable end
-	HDE = (cr_data & 0xff) | ((unsigned short) (sr_data & 0x0C) << 6);
-	*/
 	HDE = (XGI_Pr->RefIndex[RefreshRateTableIndex].XRes >> 3) - 1;
 	E = HDE + 1;
 
