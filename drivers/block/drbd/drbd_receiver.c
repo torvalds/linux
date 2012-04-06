@@ -1891,7 +1891,7 @@ static inline int overlaps(sector_t s1, int l1, sector_t s2, int l2)
 }
 
 /* maybe change sync_ee into interval trees as well? */
-static bool overlaping_resync_write(struct drbd_conf *mdev, struct drbd_peer_request *peer_req)
+static bool overlapping_resync_write(struct drbd_conf *mdev, struct drbd_peer_request *peer_req)
 {
 	struct drbd_peer_request *rs_req;
 	bool rv = 0;
@@ -1905,9 +1905,6 @@ static bool overlaping_resync_write(struct drbd_conf *mdev, struct drbd_peer_req
 		}
 	}
 	spin_unlock_irq(&mdev->tconn->req_lock);
-
-	if (rv)
-		dev_warn(DEV, "WARN: Avoiding concurrent data/resync write to single sector.\n");
 
 	return rv;
 }
@@ -2194,7 +2191,7 @@ static int receive_Data(struct drbd_tconn *tconn, struct packet_info *pi)
 	spin_unlock_irq(&mdev->tconn->req_lock);
 
 	if (mdev->state.conn == C_SYNC_TARGET)
-		wait_event(mdev->ee_wait, !overlaping_resync_write(mdev, peer_req));
+		wait_event(mdev->ee_wait, !overlapping_resync_write(mdev, peer_req));
 
 	if (mdev->tconn->agreed_pro_version < 100) {
 		rcu_read_lock();
