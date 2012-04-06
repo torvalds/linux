@@ -178,7 +178,7 @@ void rk30_clkdev_add(struct clk_lookup *cl);
 
 
 #define PLLS_IN_NORM(pll_id) (((cru_readl(CRU_MODE_CON)&PLL_MODE_MSK(pll_id))==(PLL_MODE_NORM(pll_id)&PLL_MODE_MSK(pll_id)))\
-	&&!(PLL_CONS(pll_id,3)&PLL_BYPASS))
+	&&!(cru_readl(PLL_CONS(pll_id,3))&PLL_BYPASS))
 
 
 
@@ -294,7 +294,7 @@ struct clk *get_freediv_parents_div(struct clk *clk,unsigned long rate,u32 *div_
 	u32 i;
 	
 	if(clk->rate==rate)
-		return 0;
+		return clk->parent;
 	for(i=0;i<2;i++)
 	{
 		div[i]=clk_get_freediv(rate,clk->parents[i]->rate,clk->div_max);
@@ -316,16 +316,24 @@ struct clk *get_freediv_parents_div(struct clk *clk,unsigned long rate,u32 *div_
 static int clkset_rate_freediv_autosel_parents(struct clk *clk, unsigned long rate)
 {
 	struct clk *p_clk;
-	u32 div;
+	u32 div,old_div;
 	int ret=0;
+	if(clk->rate==rate)
+		return 0;
 	p_clk=get_freediv_parents_div(clk,rate,&div);
 	
-	CRU_PRINTK_ERR("%s %lu,form %s\n",clk->name,rate,p_clk->name);
 	if(!p_clk)
 		return -ENOENT;
 	
+	CRU_PRINTK_ERR("%s %lu,form %s\n",clk->name,rate,p_clk->name);
 	if (clk->parent != p_clk)
 	{
+		old_div=CRU_GET_REG_BIYS_VAL(cru_readl(clk->clksel_con),clk->div_shift,clk->div_mask)+1;
+
+		if(div>old_div)
+		{
+			set_cru_bits_w_msk(div-1,clk->div_mask,clk->div_shift,clk->clksel_con);
+		}
 		ret=clk_set_parent_nolock(clk,p_clk);
 		if(ret)
 		{
@@ -342,7 +350,8 @@ static int clkset_rate_freediv_autosel_parents(struct clk *clk, unsigned long ra
 static int clk_freediv_autosel_parents_set_fixed_rate(struct clk *clk, unsigned long rate)
 {
 	struct clk *p_clk;
-	u32 div;
+	u32 div,old_div;
+	int ret;
 	p_clk=get_freediv_parents_div(clk,rate,&div);
 
 	if(!p_clk)
@@ -352,7 +361,20 @@ static int clk_freediv_autosel_parents_set_fixed_rate(struct clk *clk, unsigned 
 	return -ENOENT;
 	
 	if (clk->parent != p_clk)
-	return clk_set_parent_nolock(clk,p_clk);
+	{
+		old_div=CRU_GET_REG_BIYS_VAL(cru_readl(clk->clksel_con),
+									clk->div_shift,clk->div_mask)+1;
+		if(div>old_div)
+		{
+			set_cru_bits_w_msk(div-1,clk->div_mask,clk->div_shift,clk->clksel_con);
+		}
+		ret=clk_set_parent_nolock(clk,p_clk);
+		if (ret)
+		{
+			CRU_PRINTK_DBG("%s can't get rate%lu,reparent err\n",clk->name,rate);
+			return ret;
+		}
+	}
 	//set div
 	set_cru_bits_w_msk(div-1,clk->div_mask,clk->div_shift,clk->clksel_con);
 	return 0;	
@@ -1279,6 +1301,16 @@ static int i2s_set_rate(struct clk *clk, unsigned long rate)
 	CRU_PRINTK_DBG(" %s set rate=%lu parent %s(old %s)\n",
 		clk->name,rate,parent->name,clk->parent->name);
 
+	if(parent!=clk->parents[I2S_SRC_12M])
+	{
+		ret = clk_set_rate_nolock(parent,rate);//div 1:1
+		if (ret)
+		{
+			CRU_PRINTK_DBG("%s set rate%lu err\n",clk->name,rate);
+			return ret;
+		}
+	}
+
 	if (clk->parent != parent)
 	{
 		ret = clk_set_parent_nolock(clk, parent);
@@ -1288,11 +1320,7 @@ static int i2s_set_rate(struct clk *clk, unsigned long rate)
 			return ret;
 		}
 	}
-	if(parent!=clk->parents[I2S_SRC_12M])
-	{
-		ret = clk_set_rate_nolock(parent,rate);//div 1:1
-	}
-	
+
 	return ret;
 };
 
@@ -1599,6 +1627,16 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 		clk->name,rate,parent->name,clk->parent->name);
 
 	
+	if(parent!=clk->parents[UART_SRC_24M])
+	{
+		ret = clk_set_rate_nolock(parent,rate);	
+		if (ret)
+		{
+			CRU_PRINTK_DBG("%s set rate%lu err\n",clk->name,rate);
+			return ret;
+		}
+	}
+	
 	if (clk->parent != parent)
 	{
 		ret = clk_set_parent_nolock(clk, parent);
@@ -1609,10 +1647,6 @@ static int clk_uart_set_rate(struct clk *clk, unsigned long rate)
 		}
 	}
 	
-	if(parent!=clk->parents[UART_SRC_24M])
-	{
-		ret = clk_set_rate_nolock(parent,rate);	
-	}
 
 	return ret;
 }
@@ -1832,7 +1866,13 @@ static int clk_hsadc_set_rate(struct clk *clk, unsigned long rate)
 
 	CRU_PRINTK_DBG(" %s set rate=%lu parent %s(old %s)\n",
 		clk->name,rate,parent->name,clk->parent->name);
-	
+
+	ret = clk_set_rate_nolock(parent,rate);
+	if (ret)
+	{
+		CRU_PRINTK_ERR("%s set rate%lu err\n",clk->name,rate);
+		return ret;
+	}
 	if (clk->parent != parent)
 	{
 		ret = clk_set_parent_nolock(clk, parent);
@@ -1842,7 +1882,6 @@ static int clk_hsadc_set_rate(struct clk *clk, unsigned long rate)
 			return ret;
 		}
 	}
-	ret = clk_set_rate_nolock(parent,rate);
 	return ret;
 }
 
@@ -1908,6 +1947,15 @@ static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
 	CRU_PRINTK_DBG(" %s set rate=%lu parent %s(old %s)\n",
 			clk->name,rate,parent->name,clk->parent->name);
 
+	if(parent!=clk->parents[1])
+	{
+		ret = clk_set_rate_nolock(parent,rate);//div 1:1
+		if (ret)
+		{
+			CRU_PRINTK_DBG("%s set rate=%lu err\n",clk->name,rate);
+			return ret;
+		}
+	}
 	if (clk->parent != parent)
 	{
 		ret = clk_set_parent_nolock(clk, parent);
@@ -1916,10 +1964,6 @@ static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
 			CRU_PRINTK_DBG("%s can't get rate%lu,reparent err\n",clk->name,rate);
 			return ret;
 		}
-	}
-	if(parent!=clk->parents[1])
-	{
-		ret = clk_set_rate_nolock(parent,rate);//div 1:1
 	}
 	return ret;
 }

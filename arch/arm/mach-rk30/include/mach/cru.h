@@ -33,7 +33,7 @@ enum rk_plls_id {
 #define CRU_GLB_CNT_TH		(0x140)
 
 /********************************************************************/
-
+#define CRU_GET_REG_BIYS_VAL(reg,bits_shift, msk)	(((reg) >> (bits_shift))&(msk))
 #define CRU_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
 #define CRU_SET_BITS(val,bits_shift, msk)	(((val)&(msk)) << (bits_shift))
 
