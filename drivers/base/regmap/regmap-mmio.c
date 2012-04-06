@@ -37,9 +37,6 @@ static int regmap_mmio_gather_write(void *context,
 
 	BUG_ON(reg_size != 4);
 
-	if (val_size % ctx->val_bytes)
-		return -EIO;
-
 	offset = be32_to_cpup(reg);
 
 	while (val_size) {
@@ -85,9 +82,6 @@ static int regmap_mmio_read(void *context,
 	u32 offset;
 
 	BUG_ON(reg_size != 4);
-
-	if (val_size % ctx->val_bytes)
-		return -EIO;
 
 	offset = be32_to_cpup(reg);
 
