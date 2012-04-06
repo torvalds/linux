@@ -923,6 +923,7 @@ enum af9035_id_entry {
 	AF9035_07CA_B835,
 	AF9035_07CA_1867,
 	AF9035_07CA_A867,
+	AF9035_07CA_0825,
 };
 
 static struct usb_device_id af9035_id[] = {
@@ -940,6 +941,8 @@ static struct usb_device_id af9035_id[] = {
 		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_1867)},
 	[AF9035_07CA_A867] = {
 		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A867)},
+	[AF9035_07CA_0825] = {
+		USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_TWINSTAR)},
 	{},
 };
 
@@ -982,7 +985,7 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 
 		.i2c_algo = &af9035_i2c_algo,
 
-		.num_device_descs = 4,
+		.num_device_descs = 5,
 		.devices = {
 			{
 				.name = "TerraTec Cinergy T Stick",
@@ -1006,6 +1009,11 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 				.cold_ids = {
 					&af9035_id[AF9035_07CA_1867],
 					&af9035_id[AF9035_07CA_A867],
+				},
+			}, {
+				.name = "AVerMedia Twinstar (A825)",
+				.cold_ids = {
+					&af9035_id[AF9035_07CA_0825],
 				},
 			},
 		}
