@@ -692,9 +692,8 @@ static const struct hda_input_mux cxt5045_capture_source = {
 };
 
 static const struct hda_input_mux cxt5045_capture_source_benq = {
-	.num_items = 5,
+	.num_items = 4,
 	.items = {
-		{ "CD",           0x4 },
 		{ "Internal Mic", 0x1 },
 		{ "Mic",          0x2 },
 		{ "Line",         0x3 },
@@ -819,9 +818,6 @@ static const struct snd_kcontrol_new cxt5045_mixers[] = {
 };
 
 static const struct snd_kcontrol_new cxt5045_benq_mixers[] = {
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x17, 0x4, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x17, 0x4, HDA_INPUT),
-
 	HDA_CODEC_VOLUME("Line Playback Volume", 0x17, 0x3, HDA_INPUT),
 	HDA_CODEC_MUTE("Line Playback Switch", 0x17, 0x3, HDA_INPUT),
 
