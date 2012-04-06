@@ -402,7 +402,8 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         }
 
         //DstMemSize += 1;
-
+        
+        CMDMemSize = 0;
         /* cal cmd buf mmu info */
         CMDMemSize = rga_mem_size_cal((uint32_t)rga_service.cmd_buff, RGA_CMD_BUF_SIZE, &CMDStart);
         if(CMDMemSize == 0) {

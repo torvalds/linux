@@ -142,8 +142,6 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
             msg->src.act_h = (dah - 1) << 3;                                                    
         }
     }
-
-    printk("test_2\n");
     
     msg->dst.act_h = dah;
     msg->dst.vir_h = dah;

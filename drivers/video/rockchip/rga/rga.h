@@ -1,6 +1,7 @@
 #ifndef _RGA_DRIVER_H_
 #define _RGA_DRIVER_H_
 
+#include <linux/mutex.h>
 
 #define RGA_BLIT_SYNC	0x5017
 #define RGA_BLIT_ASYNC  0x5018
@@ -374,6 +375,8 @@ typedef struct rga_service_info {
     atomic_t            cmd_num;
     atomic_t            src_format_swt;
     int                 last_prc_src_format;
+
+    struct mutex	mutex;	// mutex
 } rga_service_info;
 
 

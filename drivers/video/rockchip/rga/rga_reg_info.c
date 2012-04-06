@@ -1290,9 +1290,6 @@ RGA_set_pre_scale_reg_info(u8 *base, const struct rga_req *msg)
    dst_width = msg->dst.act_w;
    dst_height = msg->dst.act_h;
 
-   printk("src_act_w = %.8x, src_act_h =%.8x dst_act_w = %.8x, dst_act_h = %.8x\n", 
-    msg->src.act_w, msg->src.act_h, msg->dst.act_w, msg->dst.act_h);
-
    h_ratio = (src_width <<16) / dst_width;
    v_ratio = (src_height<<16) / dst_height;
 
