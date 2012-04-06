@@ -45,86 +45,86 @@
 
 #include "tegra20_i2s.h"
 
-#define DRV_NAME "tegra-i2s"
+#define DRV_NAME "tegra20-i2s"
 
-static inline void tegra_i2s_write(struct tegra_i2s *i2s, u32 reg, u32 val)
+static inline void tegra20_i2s_write(struct tegra20_i2s *i2s, u32 reg, u32 val)
 {
 	__raw_writel(val, i2s->regs + reg);
 }
 
-static inline u32 tegra_i2s_read(struct tegra_i2s *i2s, u32 reg)
+static inline u32 tegra20_i2s_read(struct tegra20_i2s *i2s, u32 reg)
 {
 	return __raw_readl(i2s->regs + reg);
 }
 
 #ifdef CONFIG_DEBUG_FS
-static int tegra_i2s_show(struct seq_file *s, void *unused)
+static int tegra20_i2s_show(struct seq_file *s, void *unused)
 {
 #define REG(r) { r, #r }
 	static const struct {
 		int offset;
 		const char *name;
 	} regs[] = {
-		REG(TEGRA_I2S_CTRL),
-		REG(TEGRA_I2S_STATUS),
-		REG(TEGRA_I2S_TIMING),
-		REG(TEGRA_I2S_FIFO_SCR),
-		REG(TEGRA_I2S_PCM_CTRL),
-		REG(TEGRA_I2S_NW_CTRL),
-		REG(TEGRA_I2S_TDM_CTRL),
-		REG(TEGRA_I2S_TDM_TX_RX_CTRL),
+		REG(TEGRA20_I2S_CTRL),
+		REG(TEGRA20_I2S_STATUS),
+		REG(TEGRA20_I2S_TIMING),
+		REG(TEGRA20_I2S_FIFO_SCR),
+		REG(TEGRA20_I2S_PCM_CTRL),
+		REG(TEGRA20_I2S_NW_CTRL),
+		REG(TEGRA20_I2S_TDM_CTRL),
+		REG(TEGRA20_I2S_TDM_TX_RX_CTRL),
 	};
 #undef REG
 
-	struct tegra_i2s *i2s = s->private;
+	struct tegra20_i2s *i2s = s->private;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
-		u32 val = tegra_i2s_read(i2s, regs[i].offset);
+		u32 val = tegra20_i2s_read(i2s, regs[i].offset);
 		seq_printf(s, "%s = %08x\n", regs[i].name, val);
 	}
 
 	return 0;
 }
 
-static int tegra_i2s_debug_open(struct inode *inode, struct file *file)
+static int tegra20_i2s_debug_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, tegra_i2s_show, inode->i_private);
+	return single_open(file, tegra20_i2s_show, inode->i_private);
 }
 
-static const struct file_operations tegra_i2s_debug_fops = {
-	.open    = tegra_i2s_debug_open,
+static const struct file_operations tegra20_i2s_debug_fops = {
+	.open    = tegra20_i2s_debug_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
 
-static void tegra_i2s_debug_add(struct tegra_i2s *i2s)
+static void tegra20_i2s_debug_add(struct tegra20_i2s *i2s)
 {
 	i2s->debug = debugfs_create_file(i2s->dai.name, S_IRUGO,
 					 snd_soc_debugfs_root, i2s,
-					 &tegra_i2s_debug_fops);
+					 &tegra20_i2s_debug_fops);
 }
 
-static void tegra_i2s_debug_remove(struct tegra_i2s *i2s)
+static void tegra20_i2s_debug_remove(struct tegra20_i2s *i2s)
 {
 	if (i2s->debug)
 		debugfs_remove(i2s->debug);
 }
 #else
-static inline void tegra_i2s_debug_add(struct tegra_i2s *i2s, int id)
+static inline void tegra20_i2s_debug_add(struct tegra20_i2s *i2s, int id)
 {
 }
 
-static inline void tegra_i2s_debug_remove(struct tegra_i2s *i2s)
+static inline void tegra20_i2s_debug_remove(struct tegra20_i2s *i2s)
 {
 }
 #endif
 
-static int tegra_i2s_set_fmt(struct snd_soc_dai *dai,
+static int tegra20_i2s_set_fmt(struct snd_soc_dai *dai,
 				unsigned int fmt)
 {
-	struct tegra_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct tegra20_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	switch (fmt & SND_SOC_DAIFMT_INV_MASK) {
 	case SND_SOC_DAIFMT_NB_NF:
@@ -133,10 +133,10 @@ static int tegra_i2s_set_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	i2s->reg_ctrl &= ~TEGRA_I2S_CTRL_MASTER_ENABLE;
+	i2s->reg_ctrl &= ~TEGRA20_I2S_CTRL_MASTER_ENABLE;
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_MASTER_ENABLE;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_MASTER_ENABLE;
 		break;
 	case SND_SOC_DAIFMT_CBM_CFM:
 		break;
@@ -144,28 +144,28 @@ static int tegra_i2s_set_fmt(struct snd_soc_dai *dai,
 		return -EINVAL;
 	}
 
-	i2s->reg_ctrl &= ~(TEGRA_I2S_CTRL_BIT_FORMAT_MASK |
-				TEGRA_I2S_CTRL_LRCK_MASK);
+	i2s->reg_ctrl &= ~(TEGRA20_I2S_CTRL_BIT_FORMAT_MASK |
+			   TEGRA20_I2S_CTRL_LRCK_MASK);
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_A:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_FORMAT_DSP;
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_LRCK_L_LOW;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_FORMAT_DSP;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_LRCK_L_LOW;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_FORMAT_DSP;
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_LRCK_R_LOW;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_FORMAT_DSP;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_LRCK_R_LOW;
 		break;
 	case SND_SOC_DAIFMT_I2S:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_FORMAT_I2S;
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_LRCK_L_LOW;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_FORMAT_I2S;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_LRCK_L_LOW;
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_FORMAT_RJM;
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_LRCK_L_LOW;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_FORMAT_RJM;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_LRCK_L_LOW;
 		break;
 	case SND_SOC_DAIFMT_LEFT_J:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_FORMAT_LJM;
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_LRCK_L_LOW;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_FORMAT_LJM;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_LRCK_L_LOW;
 		break;
 	default:
 		return -EINVAL;
@@ -174,27 +174,27 @@ static int tegra_i2s_set_fmt(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int tegra_i2s_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params,
-				struct snd_soc_dai *dai)
+static int tegra20_i2s_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *dai)
 {
 	struct device *dev = substream->pcm->card->dev;
-	struct tegra_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct tegra20_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	u32 reg;
 	int ret, sample_size, srate, i2sclock, bitcnt;
 
-	i2s->reg_ctrl &= ~TEGRA_I2S_CTRL_BIT_SIZE_MASK;
+	i2s->reg_ctrl &= ~TEGRA20_I2S_CTRL_BIT_SIZE_MASK;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_SIZE_16;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_SIZE_16;
 		sample_size = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_SIZE_24;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_SIZE_24;
 		sample_size = 24;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		i2s->reg_ctrl |= TEGRA_I2S_CTRL_BIT_SIZE_32;
+		i2s->reg_ctrl |= TEGRA20_I2S_CTRL_BIT_SIZE_32;
 		sample_size = 32;
 		break;
 	default:
@@ -213,54 +213,54 @@ static int tegra_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	bitcnt = (i2sclock / (2 * srate)) - 1;
-	if (bitcnt < 0 || bitcnt > TEGRA_I2S_TIMING_CHANNEL_BIT_COUNT_MASK_US)
+	if (bitcnt < 0 || bitcnt > TEGRA20_I2S_TIMING_CHANNEL_BIT_COUNT_MASK_US)
 		return -EINVAL;
-	reg = bitcnt << TEGRA_I2S_TIMING_CHANNEL_BIT_COUNT_SHIFT;
+	reg = bitcnt << TEGRA20_I2S_TIMING_CHANNEL_BIT_COUNT_SHIFT;
 
 	if (i2sclock % (2 * srate))
-		reg |= TEGRA_I2S_TIMING_NON_SYM_ENABLE;
+		reg |= TEGRA20_I2S_TIMING_NON_SYM_ENABLE;
 
 	clk_enable(i2s->clk_i2s);
 
-	tegra_i2s_write(i2s, TEGRA_I2S_TIMING, reg);
+	tegra20_i2s_write(i2s, TEGRA20_I2S_TIMING, reg);
 
-	tegra_i2s_write(i2s, TEGRA_I2S_FIFO_SCR,
-		TEGRA_I2S_FIFO_SCR_FIFO2_ATN_LVL_FOUR_SLOTS |
-		TEGRA_I2S_FIFO_SCR_FIFO1_ATN_LVL_FOUR_SLOTS);
+	tegra20_i2s_write(i2s, TEGRA20_I2S_FIFO_SCR,
+		TEGRA20_I2S_FIFO_SCR_FIFO2_ATN_LVL_FOUR_SLOTS |
+		TEGRA20_I2S_FIFO_SCR_FIFO1_ATN_LVL_FOUR_SLOTS);
 
 	clk_disable(i2s->clk_i2s);
 
 	return 0;
 }
 
-static void tegra_i2s_start_playback(struct tegra_i2s *i2s)
+static void tegra20_i2s_start_playback(struct tegra20_i2s *i2s)
 {
-	i2s->reg_ctrl |= TEGRA_I2S_CTRL_FIFO1_ENABLE;
-	tegra_i2s_write(i2s, TEGRA_I2S_CTRL, i2s->reg_ctrl);
+	i2s->reg_ctrl |= TEGRA20_I2S_CTRL_FIFO1_ENABLE;
+	tegra20_i2s_write(i2s, TEGRA20_I2S_CTRL, i2s->reg_ctrl);
 }
 
-static void tegra_i2s_stop_playback(struct tegra_i2s *i2s)
+static void tegra20_i2s_stop_playback(struct tegra20_i2s *i2s)
 {
-	i2s->reg_ctrl &= ~TEGRA_I2S_CTRL_FIFO1_ENABLE;
-	tegra_i2s_write(i2s, TEGRA_I2S_CTRL, i2s->reg_ctrl);
+	i2s->reg_ctrl &= ~TEGRA20_I2S_CTRL_FIFO1_ENABLE;
+	tegra20_i2s_write(i2s, TEGRA20_I2S_CTRL, i2s->reg_ctrl);
 }
 
-static void tegra_i2s_start_capture(struct tegra_i2s *i2s)
+static void tegra20_i2s_start_capture(struct tegra20_i2s *i2s)
 {
-	i2s->reg_ctrl |= TEGRA_I2S_CTRL_FIFO2_ENABLE;
-	tegra_i2s_write(i2s, TEGRA_I2S_CTRL, i2s->reg_ctrl);
+	i2s->reg_ctrl |= TEGRA20_I2S_CTRL_FIFO2_ENABLE;
+	tegra20_i2s_write(i2s, TEGRA20_I2S_CTRL, i2s->reg_ctrl);
 }
 
-static void tegra_i2s_stop_capture(struct tegra_i2s *i2s)
+static void tegra20_i2s_stop_capture(struct tegra20_i2s *i2s)
 {
-	i2s->reg_ctrl &= ~TEGRA_I2S_CTRL_FIFO2_ENABLE;
-	tegra_i2s_write(i2s, TEGRA_I2S_CTRL, i2s->reg_ctrl);
+	i2s->reg_ctrl &= ~TEGRA20_I2S_CTRL_FIFO2_ENABLE;
+	tegra20_i2s_write(i2s, TEGRA20_I2S_CTRL, i2s->reg_ctrl);
 }
 
-static int tegra_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
-				struct snd_soc_dai *dai)
+static int tegra20_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
+			       struct snd_soc_dai *dai)
 {
-	struct tegra_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct tegra20_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
@@ -268,17 +268,17 @@ static int tegra_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 		clk_enable(i2s->clk_i2s);
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			tegra_i2s_start_playback(i2s);
+			tegra20_i2s_start_playback(i2s);
 		else
-			tegra_i2s_start_capture(i2s);
+			tegra20_i2s_start_capture(i2s);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			tegra_i2s_stop_playback(i2s);
+			tegra20_i2s_stop_playback(i2s);
 		else
-			tegra_i2s_stop_capture(i2s);
+			tegra20_i2s_stop_capture(i2s);
 		clk_disable(i2s->clk_i2s);
 		break;
 	default:
@@ -288,9 +288,9 @@ static int tegra_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
 	return 0;
 }
 
-static int tegra_i2s_probe(struct snd_soc_dai *dai)
+static int tegra20_i2s_probe(struct snd_soc_dai *dai)
 {
-	struct tegra_i2s *i2s = snd_soc_dai_get_drvdata(dai);
+	struct tegra20_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
 	dai->capture_dma_data = &i2s->capture_dma_data;
 	dai->playback_dma_data = &i2s->playback_dma_data;
@@ -298,14 +298,14 @@ static int tegra_i2s_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static const struct snd_soc_dai_ops tegra_i2s_dai_ops = {
-	.set_fmt	= tegra_i2s_set_fmt,
-	.hw_params	= tegra_i2s_hw_params,
-	.trigger	= tegra_i2s_trigger,
+static const struct snd_soc_dai_ops tegra20_i2s_dai_ops = {
+	.set_fmt	= tegra20_i2s_set_fmt,
+	.hw_params	= tegra20_i2s_hw_params,
+	.trigger	= tegra20_i2s_trigger,
 };
 
-static const struct snd_soc_dai_driver tegra_i2s_dai_template = {
-	.probe = tegra_i2s_probe,
+static const struct snd_soc_dai_driver tegra20_i2s_dai_template = {
+	.probe = tegra20_i2s_probe,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,
@@ -318,27 +318,27 @@ static const struct snd_soc_dai_driver tegra_i2s_dai_template = {
 		.rates = SNDRV_PCM_RATE_8000_96000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	},
-	.ops = &tegra_i2s_dai_ops,
+	.ops = &tegra20_i2s_dai_ops,
 	.symmetric_rates = 1,
 };
 
-static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
+static __devinit int tegra20_i2s_platform_probe(struct platform_device *pdev)
 {
-	struct tegra_i2s *i2s;
+	struct tegra20_i2s *i2s;
 	struct resource *mem, *memregion, *dmareq;
 	u32 of_dma[2];
 	u32 dma_ch;
 	int ret;
 
-	i2s = devm_kzalloc(&pdev->dev, sizeof(struct tegra_i2s), GFP_KERNEL);
+	i2s = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_i2s), GFP_KERNEL);
 	if (!i2s) {
-		dev_err(&pdev->dev, "Can't allocate tegra_i2s\n");
+		dev_err(&pdev->dev, "Can't allocate tegra20_i2s\n");
 		ret = -ENOMEM;
 		goto err;
 	}
 	dev_set_drvdata(&pdev->dev, i2s);
 
-	i2s->dai = tegra_i2s_dai_template;
+	i2s->dai = tegra20_i2s_dai_template;
 	i2s->dai.name = dev_name(&pdev->dev);
 
 	i2s->clk_i2s = clk_get(&pdev->dev, NULL);
@@ -384,17 +384,17 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 		goto err_clk_put;
 	}
 
-	i2s->capture_dma_data.addr = mem->start + TEGRA_I2S_FIFO2;
+	i2s->capture_dma_data.addr = mem->start + TEGRA20_I2S_FIFO2;
 	i2s->capture_dma_data.wrap = 4;
 	i2s->capture_dma_data.width = 32;
 	i2s->capture_dma_data.req_sel = dma_ch;
 
-	i2s->playback_dma_data.addr = mem->start + TEGRA_I2S_FIFO1;
+	i2s->playback_dma_data.addr = mem->start + TEGRA20_I2S_FIFO1;
 	i2s->playback_dma_data.wrap = 4;
 	i2s->playback_dma_data.width = 32;
 	i2s->playback_dma_data.req_sel = dma_ch;
 
-	i2s->reg_ctrl = TEGRA_I2S_CTRL_FIFO_FORMAT_PACKED;
+	i2s->reg_ctrl = TEGRA20_I2S_CTRL_FIFO_FORMAT_PACKED;
 
 	ret = snd_soc_register_dai(&pdev->dev, &i2s->dai);
 	if (ret) {
@@ -409,7 +409,7 @@ static __devinit int tegra_i2s_platform_probe(struct platform_device *pdev)
 		goto err_unregister_dai;
 	}
 
-	tegra_i2s_debug_add(i2s);
+	tegra20_i2s_debug_add(i2s);
 
 	return 0;
 
@@ -421,38 +421,38 @@ err:
 	return ret;
 }
 
-static int __devexit tegra_i2s_platform_remove(struct platform_device *pdev)
+static int __devexit tegra20_i2s_platform_remove(struct platform_device *pdev)
 {
-	struct tegra_i2s *i2s = dev_get_drvdata(&pdev->dev);
+	struct tegra20_i2s *i2s = dev_get_drvdata(&pdev->dev);
 
 	tegra_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 
-	tegra_i2s_debug_remove(i2s);
+	tegra20_i2s_debug_remove(i2s);
 
 	clk_put(i2s->clk_i2s);
 
 	return 0;
 }
 
-static const struct of_device_id tegra_i2s_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_i2s_of_match[] __devinitconst = {
 	{ .compatible = "nvidia,tegra20-i2s", },
 	{},
 };
 
-static struct platform_driver tegra_i2s_driver = {
+static struct platform_driver tegra20_i2s_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
-		.of_match_table = tegra_i2s_of_match,
+		.of_match_table = tegra20_i2s_of_match,
 	},
-	.probe = tegra_i2s_platform_probe,
-	.remove = __devexit_p(tegra_i2s_platform_remove),
+	.probe = tegra20_i2s_platform_probe,
+	.remove = __devexit_p(tegra20_i2s_platform_remove),
 };
-module_platform_driver(tegra_i2s_driver);
+module_platform_driver(tegra20_i2s_driver);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
-MODULE_DESCRIPTION("Tegra I2S ASoC driver");
+MODULE_DESCRIPTION("Tegra20 I2S ASoC driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_DEVICE_TABLE(of, tegra_i2s_of_match);
+MODULE_DEVICE_TABLE(of, tegra20_i2s_of_match);

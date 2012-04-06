@@ -7,9 +7,9 @@ snd-soc-tegra20-spdif-objs := tegra20_spdif.o
 
 obj-$(CONFIG_SND_SOC_TEGRA) += snd-soc-tegra-pcm.o
 obj-$(CONFIG_SND_SOC_TEGRA) += snd-soc-tegra-utils.o
-obj-$(CONFIG_SND_SOC_TEGRA_DAS) += snd-soc-tegra20-das.o
-obj-$(CONFIG_SND_SOC_TEGRA_I2S) += snd-soc-tegra20-i2s.o
-obj-$(CONFIG_SND_SOC_TEGRA_SPDIF) += snd-soc-tegra20-spdif.o
+obj-$(CONFIG_SND_SOC_TEGRA20_DAS) += snd-soc-tegra20-das.o
+obj-$(CONFIG_SND_SOC_TEGRA20_I2S) += snd-soc-tegra20-i2s.o
+obj-$(CONFIG_SND_SOC_TEGRA20_SPDIF) += snd-soc-tegra20-spdif.o
 
 # Tegra machine Support
 snd-soc-tegra-wm8903-objs := tegra_wm8903.o

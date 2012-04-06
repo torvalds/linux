@@ -31,21 +31,21 @@
 #include <sound/soc.h>
 #include "tegra20_das.h"
 
-#define DRV_NAME "tegra-das"
+#define DRV_NAME "tegra20-das"
 
-static struct tegra_das *das;
+static struct tegra20_das *das;
 
-static inline void tegra_das_write(u32 reg, u32 val)
+static inline void tegra20_das_write(u32 reg, u32 val)
 {
 	__raw_writel(val, das->regs + reg);
 }
 
-static inline u32 tegra_das_read(u32 reg)
+static inline u32 tegra20_das_read(u32 reg)
 {
 	return __raw_readl(das->regs + reg);
 }
 
-int tegra_das_connect_dap_to_dac(int dap, int dac)
+int tegra20_das_connect_dap_to_dac(int dap, int dac)
 {
 	u32 addr;
 	u32 reg;
@@ -53,18 +53,18 @@ int tegra_das_connect_dap_to_dac(int dap, int dac)
 	if (!das)
 		return -ENODEV;
 
-	addr = TEGRA_DAS_DAP_CTRL_SEL +
-		(dap * TEGRA_DAS_DAP_CTRL_SEL_STRIDE);
-	reg = dac << TEGRA_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P;
+	addr = TEGRA20_DAS_DAP_CTRL_SEL +
+		(dap * TEGRA20_DAS_DAP_CTRL_SEL_STRIDE);
+	reg = dac << TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P;
 
-	tegra_das_write(addr, reg);
+	tegra20_das_write(addr, reg);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tegra_das_connect_dap_to_dac);
+EXPORT_SYMBOL_GPL(tegra20_das_connect_dap_to_dac);
 
-int tegra_das_connect_dap_to_dap(int dap, int otherdap, int master,
-					int sdata1rx, int sdata2rx)
+int tegra20_das_connect_dap_to_dap(int dap, int otherdap, int master,
+				   int sdata1rx, int sdata2rx)
 {
 	u32 addr;
 	u32 reg;
@@ -72,20 +72,20 @@ int tegra_das_connect_dap_to_dap(int dap, int otherdap, int master,
 	if (!das)
 		return -ENODEV;
 
-	addr = TEGRA_DAS_DAP_CTRL_SEL +
-		(dap * TEGRA_DAS_DAP_CTRL_SEL_STRIDE);
-	reg = otherdap << TEGRA_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P |
-		!!sdata2rx << TEGRA_DAS_DAP_CTRL_SEL_DAP_SDATA2_TX_RX_P |
-		!!sdata1rx << TEGRA_DAS_DAP_CTRL_SEL_DAP_SDATA1_TX_RX_P |
-		!!master << TEGRA_DAS_DAP_CTRL_SEL_DAP_MS_SEL_P;
+	addr = TEGRA20_DAS_DAP_CTRL_SEL +
+		(dap * TEGRA20_DAS_DAP_CTRL_SEL_STRIDE);
+	reg = otherdap << TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P |
+		!!sdata2rx << TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA2_TX_RX_P |
+		!!sdata1rx << TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA1_TX_RX_P |
+		!!master << TEGRA20_DAS_DAP_CTRL_SEL_DAP_MS_SEL_P;
 
-	tegra_das_write(addr, reg);
+	tegra20_das_write(addr, reg);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tegra_das_connect_dap_to_dap);
+EXPORT_SYMBOL_GPL(tegra20_das_connect_dap_to_dap);
 
-int tegra_das_connect_dac_to_dap(int dac, int dap)
+int tegra20_das_connect_dac_to_dap(int dac, int dap)
 {
 	u32 addr;
 	u32 reg;
@@ -93,78 +93,78 @@ int tegra_das_connect_dac_to_dap(int dac, int dap)
 	if (!das)
 		return -ENODEV;
 
-	addr = TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL +
-		(dac * TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL_STRIDE);
-	reg = dap << TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_CLK_SEL_P |
-		dap << TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA1_SEL_P |
-		dap << TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA2_SEL_P;
+	addr = TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL +
+		(dac * TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_STRIDE);
+	reg = dap << TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_CLK_SEL_P |
+		dap << TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA1_SEL_P |
+		dap << TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA2_SEL_P;
 
-	tegra_das_write(addr, reg);
+	tegra20_das_write(addr, reg);
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tegra_das_connect_dac_to_dap);
+EXPORT_SYMBOL_GPL(tegra20_das_connect_dac_to_dap);
 
 #ifdef CONFIG_DEBUG_FS
-static int tegra_das_show(struct seq_file *s, void *unused)
+static int tegra20_das_show(struct seq_file *s, void *unused)
 {
 	int i;
 	u32 addr;
 	u32 reg;
 
-	for (i = 0; i < TEGRA_DAS_DAP_CTRL_SEL_COUNT; i++) {
-		addr = TEGRA_DAS_DAP_CTRL_SEL +
-			(i * TEGRA_DAS_DAP_CTRL_SEL_STRIDE);
-		reg = tegra_das_read(addr);
-		seq_printf(s, "TEGRA_DAS_DAP_CTRL_SEL[%d] = %08x\n", i, reg);
+	for (i = 0; i < TEGRA20_DAS_DAP_CTRL_SEL_COUNT; i++) {
+		addr = TEGRA20_DAS_DAP_CTRL_SEL +
+			(i * TEGRA20_DAS_DAP_CTRL_SEL_STRIDE);
+		reg = tegra20_das_read(addr);
+		seq_printf(s, "TEGRA20_DAS_DAP_CTRL_SEL[%d] = %08x\n", i, reg);
 	}
 
-	for (i = 0; i < TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL_COUNT; i++) {
-		addr = TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL +
-			(i * TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL_STRIDE);
-		reg = tegra_das_read(addr);
-		seq_printf(s, "TEGRA_DAS_DAC_INPUT_DATA_CLK_SEL[%d] = %08x\n",
-				 i, reg);
+	for (i = 0; i < TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_COUNT; i++) {
+		addr = TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL +
+			(i * TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_STRIDE);
+		reg = tegra20_das_read(addr);
+		seq_printf(s, "TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL[%d] = %08x\n",
+			   i, reg);
 	}
 
 	return 0;
 }
 
-static int tegra_das_debug_open(struct inode *inode, struct file *file)
+static int tegra20_das_debug_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, tegra_das_show, inode->i_private);
+	return single_open(file, tegra20_das_show, inode->i_private);
 }
 
-static const struct file_operations tegra_das_debug_fops = {
-	.open    = tegra_das_debug_open,
+static const struct file_operations tegra20_das_debug_fops = {
+	.open    = tegra20_das_debug_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
 	.release = single_release,
 };
 
-static void tegra_das_debug_add(struct tegra_das *das)
+static void tegra20_das_debug_add(struct tegra20_das *das)
 {
 	das->debug = debugfs_create_file(DRV_NAME, S_IRUGO,
 					 snd_soc_debugfs_root, das,
-					 &tegra_das_debug_fops);
+					 &tegra20_das_debug_fops);
 }
 
-static void tegra_das_debug_remove(struct tegra_das *das)
+static void tegra20_das_debug_remove(struct tegra20_das *das)
 {
 	if (das->debug)
 		debugfs_remove(das->debug);
 }
 #else
-static inline void tegra_das_debug_add(struct tegra_das *das)
+static inline void tegra20_das_debug_add(struct tegra20_das *das)
 {
 }
 
-static inline void tegra_das_debug_remove(struct tegra_das *das)
+static inline void tegra20_das_debug_remove(struct tegra20_das *das)
 {
 }
 #endif
 
-static int __devinit tegra_das_probe(struct platform_device *pdev)
+static int __devinit tegra20_das_probe(struct platform_device *pdev)
 {
 	struct resource *res, *region;
 	int ret = 0;
@@ -172,9 +172,9 @@ static int __devinit tegra_das_probe(struct platform_device *pdev)
 	if (das)
 		return -ENODEV;
 
-	das = devm_kzalloc(&pdev->dev, sizeof(struct tegra_das), GFP_KERNEL);
+	das = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_das), GFP_KERNEL);
 	if (!das) {
-		dev_err(&pdev->dev, "Can't allocate tegra_das\n");
+		dev_err(&pdev->dev, "Can't allocate tegra20_das\n");
 		ret = -ENOMEM;
 		goto err;
 	}
@@ -202,20 +202,20 @@ static int __devinit tegra_das_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = tegra_das_connect_dap_to_dac(TEGRA_DAS_DAP_ID_1,
-					   TEGRA_DAS_DAP_SEL_DAC1);
+	ret = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_1,
+					     TEGRA20_DAS_DAP_SEL_DAC1);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't set up DAS DAP connection\n");
 		goto err;
 	}
-	ret = tegra_das_connect_dac_to_dap(TEGRA_DAS_DAC_ID_1,
-					   TEGRA_DAS_DAC_SEL_DAP1);
+	ret = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAC_ID_1,
+					     TEGRA20_DAS_DAC_SEL_DAP1);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't set up DAS DAC connection\n");
 		goto err;
 	}
 
-	tegra_das_debug_add(das);
+	tegra20_das_debug_add(das);
 
 	platform_set_drvdata(pdev, das);
 
@@ -226,36 +226,36 @@ err:
 	return ret;
 }
 
-static int __devexit tegra_das_remove(struct platform_device *pdev)
+static int __devexit tegra20_das_remove(struct platform_device *pdev)
 {
 	if (!das)
 		return -ENODEV;
 
-	tegra_das_debug_remove(das);
+	tegra20_das_debug_remove(das);
 
 	das = NULL;
 
 	return 0;
 }
 
-static const struct of_device_id tegra_das_of_match[] __devinitconst = {
+static const struct of_device_id tegra20_das_of_match[] __devinitconst = {
 	{ .compatible = "nvidia,tegra20-das", },
 	{},
 };
 
-static struct platform_driver tegra_das_driver = {
-	.probe = tegra_das_probe,
-	.remove = __devexit_p(tegra_das_remove),
+static struct platform_driver tegra20_das_driver = {
+	.probe = tegra20_das_probe,
+	.remove = __devexit_p(tegra20_das_remove),
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
-		.of_match_table = tegra_das_of_match,
+		.of_match_table = tegra20_das_of_match,
 	},
 };
-module_platform_driver(tegra_das_driver);
+module_platform_driver(tegra20_das_driver);
 
 MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
-MODULE_DESCRIPTION("Tegra DAS driver");
+MODULE_DESCRIPTION("Tegra20 DAS driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
-MODULE_DEVICE_TABLE(of, tegra_das_of_match);
+MODULE_DEVICE_TABLE(of, tegra20_das_of_match);

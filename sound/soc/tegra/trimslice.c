@@ -116,8 +116,8 @@ static struct snd_soc_dai_link trimslice_tlv320aic23_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
 	.codec_name = "tlv320aic23-codec.2-001a",
-	.platform_name = "tegra-i2s.0",
-	.cpu_dai_name = "tegra-i2s.0",
+	.platform_name = "tegra20-i2s.0",
+	.cpu_dai_name = "tegra20-i2s.0",
 	.codec_dai_name = "tlv320aic23-hifi",
 	.ops = &trimslice_asoc_ops,
 };
