@@ -16,7 +16,10 @@
 #define _ASM_TILE_PCI_H
 
 #include <linux/pci.h>
+#include <linux/numa.h>
 #include <asm-generic/pci_iomap.h>
+
+#ifndef __tilegx__
 
 /*
  * Structure of a PCI controller (host bridge)
@@ -41,6 +44,91 @@ struct pci_controller {
 };
 
 /*
+ * This flag tells if the platform is TILEmpower that needs
+ * special configuration for the PLX switch chip.
+ */
+extern int tile_plx_gen1;
+
+static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
+
+#define	TILE_NUM_PCIE	2
+
+#else
+
+#include <asm/page.h>
+#include <gxio/trio.h>
+
+/**
+ * We reserve the hugepage-size address range at the top of the 64-bit address
+ * space to serve as the PCI window, emulating the BAR0 space of an endpoint
+ * device. This window is used by the chip-to-chip applications running on
+ * the RC node. The reason for carving out this window is that Mem-Maps that
+ * back up this window will not overlap with those that map the real physical
+ * memory.
+ */
+#define PCIE_HOST_BAR0_SIZE		HPAGE_SIZE
+#define PCIE_HOST_BAR0_START		HPAGE_MASK
+
+/**
+ * The first PAGE_SIZE of the above "BAR" window is mapped to the
+ * gxpci_host_regs structure.
+ */
+#define PCIE_HOST_REGS_SIZE		PAGE_SIZE
+
+/*
+ * This is the PCI address where the Mem-Map interrupt regions start.
+ * We use the 2nd to the last huge page of the 64-bit address space.
+ * The last huge page is used for the rootcomplex "bar", for C2C purpose.
+ */
+#define	MEM_MAP_INTR_REGIONS_BASE	(HPAGE_MASK - HPAGE_SIZE)
+
+/*
+ * Each Mem-Map interrupt region occupies 4KB.
+ */
+#define	MEM_MAP_INTR_REGION_SIZE	(1<< TRIO_MAP_MEM_LIM__ADDR_SHIFT)
+
+/*
+ * Structure of a PCI controller (host bridge) on Gx.
+ */
+struct pci_controller {
+
+	/* Pointer back to the TRIO that this PCIe port is connected to. */
+	gxio_trio_context_t *trio;
+	int mac;		/* PCIe mac index on the TRIO shim */
+	int trio_index;		/* Index of TRIO shim that contains the MAC. */
+
+	int pio_mem_index;	/* PIO region index for memory access */
+
+	/*
+	 * Mem-Map regions for all the memory controllers so that Linux can
+	 * map all of its physical memory space to the PCI bus.
+	 */
+	int mem_maps[MAX_NUMNODES];
+
+	int index;		/* PCI domain number */
+	struct pci_bus *root_bus;
+
+	int last_busno;
+
+	struct pci_ops *ops;
+
+	/* Table that maps the INTx numbers to Linux irq numbers. */
+	int irq_intx_table[4];
+
+	struct resource mem_space;
+
+	/* Address ranges that are routed to this controller/bridge. */
+	struct resource mem_resources[3];
+};
+
+extern struct pci_controller pci_controllers[TILEGX_NUM_TRIO * TILEGX_TRIO_PCIES];
+extern gxio_trio_context_t trio_contexts[TILEGX_NUM_TRIO];
+
+extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
+
+#endif /* __tilegx__ */
+
+/*
  * The hypervisor maps the entirety of CPA-space as bus addresses, so
  * bus addresses are physical addresses.  The networking and block
  * device layers use this boolean for bounce buffer decisions.
@@ -50,11 +138,7 @@ struct pci_controller {
 int __init tile_pci_init(void);
 int __init pcibios_init(void);
 
-static inline void pci_iounmap(struct pci_dev *dev, void __iomem *addr) {}
-
 void __devinit pcibios_fixup_bus(struct pci_bus *bus);
-
-#define	TILE_NUM_PCIE	2
 
 #define pci_domain_nr(bus) (((struct pci_controller *)(bus)->sysdata)->index)
 
@@ -78,12 +162,6 @@ static inline int pcibios_assign_all_busses(void)
 
 #define PCIBIOS_MIN_MEM		0
 #define PCIBIOS_MIN_IO		0
-
-/*
- * This flag tells if the platform is TILEmpower that needs
- * special configuration for the PLX switch chip.
- */
-extern int tile_plx_gen1;
 
 /* Use any cpu for PCI. */
 #define cpumask_of_pcibus(bus) cpu_online_mask

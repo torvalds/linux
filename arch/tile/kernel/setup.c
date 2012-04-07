@@ -1344,6 +1344,7 @@ void __init setup_arch(char **cmdline_p)
 
 
 #ifdef CONFIG_PCI
+#if !defined (__tilegx__)
 	/*
 	 * Initialize the PCI structures.  This is done before memory
 	 * setup so that we know whether or not a pci_reserve region
@@ -1351,6 +1352,7 @@ void __init setup_arch(char **cmdline_p)
 	 */
 	if (tile_pci_init() == 0)
 		pci_reserve_mb = 0;
+#endif
 
 	/* PCI systems reserve a region just below 4GB for mapping iomem. */
 	pci_reserve_end_pfn  = (1 << (32 - PAGE_SHIFT));
@@ -1379,6 +1381,10 @@ void __init setup_arch(char **cmdline_p)
 	setup_cpu(1);
 	setup_clock();
 	load_hv_initrd();
+
+#if defined(CONFIG_PCI) && defined (__tilegx__)
+	tile_pci_init();
+#endif
 }
 
 
