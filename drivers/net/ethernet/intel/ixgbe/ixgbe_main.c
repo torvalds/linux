@@ -3154,14 +3154,6 @@ static void ixgbe_set_rx_buffer_len(struct ixgbe_adapter *adapter)
 			set_ring_rsc_enabled(rx_ring);
 		else
 			clear_ring_rsc_enabled(rx_ring);
-#ifdef IXGBE_FCOE
-		if (netdev->features & NETIF_F_FCOE_MTU) {
-			struct ixgbe_ring_feature *f;
-			f = &adapter->ring_feature[RING_F_FCOE];
-			if ((i >= f->mask) && (i < f->mask + f->indices))
-				set_bit(__IXGBE_RX_FCOE_BUFSZ, &rx_ring->state);
-		}
-#endif /* IXGBE_FCOE */
 	}
 }
 
