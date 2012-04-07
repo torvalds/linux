@@ -540,7 +540,7 @@ int cleanup_journal_tail(journal_t *journal)
 	journal->j_tail = blocknr;
 	spin_unlock(&journal->j_state_lock);
 	if (!(journal->j_flags & JFS_ABORT))
-		journal_update_superblock(journal, 1);
+		journal_update_sb_log_tail(journal);
 	return 0;
 }
 
