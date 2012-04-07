@@ -293,6 +293,7 @@ void __init at91_ioremap_rstc(u32 base_addr)
 }
 
 void __iomem *at91_matrix_base;
+EXPORT_SYMBOL_GPL(at91_matrix_base);
 
 void __init at91_ioremap_matrix(u32 base_addr)
 {
