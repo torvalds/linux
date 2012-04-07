@@ -936,8 +936,11 @@ static int journal_reset(journal_t *journal)
 			journal->j_errno);
 		journal->j_flags |= JFS_FLUSHED;
 	} else {
+		/* Lock here to make assertions happy... */
+		mutex_lock(&journal->j_checkpoint_mutex);
 		/* Add the dynamic fields and write it to disk. */
 		journal_update_sb_log_tail(journal);
+		mutex_unlock(&journal->j_checkpoint_mutex);
 	}
 	return journal_start_thread(journal);
 }
@@ -1061,6 +1064,7 @@ void journal_update_sb_log_tail(journal_t *journal)
 {
 	journal_superblock_t *sb = journal->j_superblock;
 
+	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 	spin_lock(&journal->j_state_lock);
 	jbd_debug(1,"JBD: updating superblock (start %u, seq %d, errno %d)\n",
 		  journal->j_tail, journal->j_tail_sequence, journal->j_errno);
@@ -1089,6 +1093,7 @@ static void mark_journal_empty(journal_t *journal)
 {
 	journal_superblock_t *sb = journal->j_superblock;
 
+	BUG_ON(!mutex_is_locked(&journal->j_checkpoint_mutex));
 	spin_lock(&journal->j_state_lock);
 	jbd_debug(1, "JBD: Marking journal as empty (seq %d)\n",
         	  journal->j_tail_sequence);
@@ -1293,6 +1298,8 @@ int journal_destroy(journal_t *journal)
 
 	/* Force any old transactions to disk */
 
+	/* We cannot race with anybody but must keep assertions happy */
+	mutex_lock(&journal->j_checkpoint_mutex);
 	/* Totally anal locking here... */
 	spin_lock(&journal->j_list_lock);
 	while (journal->j_checkpoint_transactions != NULL) {
@@ -1315,6 +1322,7 @@ int journal_destroy(journal_t *journal)
 			err = -EIO;
 		brelse(journal->j_sb_buffer);
 	}
+	mutex_unlock(&journal->j_checkpoint_mutex);
 
 	if (journal->j_inode)
 		iput(journal->j_inode);
@@ -1528,6 +1536,7 @@ int journal_flush(journal_t *journal)
 	if (is_journal_aborted(journal))
 		return -EIO;
 
+	mutex_lock(&journal->j_checkpoint_mutex);
 	cleanup_journal_tail(journal);
 
 	/* Finally, mark the journal as really needing no recovery.
@@ -1536,6 +1545,7 @@ int journal_flush(journal_t *journal)
 	 * commits of data to the journal will restore the current
 	 * s_start value. */
 	mark_journal_empty(journal);
+	mutex_unlock(&journal->j_checkpoint_mutex);
 	spin_lock(&journal->j_state_lock);
 	J_ASSERT(!journal->j_running_transaction);
 	J_ASSERT(!journal->j_committing_transaction);
@@ -1576,8 +1586,12 @@ int journal_wipe(journal_t *journal, int write)
 		write ? "Clearing" : "Ignoring");
 
 	err = journal_skip_recovery(journal);
-	if (write)
+	if (write) {
+		/* Lock to make assertions happy... */
+		mutex_lock(&journal->j_checkpoint_mutex);
 		mark_journal_empty(journal);
+		mutex_unlock(&journal->j_checkpoint_mutex);
+	}
 
  no_recovery:
 	return err;
