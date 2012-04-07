@@ -42,8 +42,8 @@ struct cpufreq_interactive_cpuinfo {
 	u64 idle_exit_time;
 	u64 timer_run_time;
 	int idling;
-	u64 freq_change_time;
-	u64 freq_change_time_in_idle;
+	u64 target_set_time;
+	u64 target_set_time_in_idle;
 	struct cpufreq_policy *policy;
 	struct cpufreq_frequency_table *freq_table;
 	unsigned int target_freq;
@@ -148,9 +148,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 		cpu_load = 100 * (delta_time - delta_idle) / delta_time;
 
 	delta_idle = (unsigned int) cputime64_sub(now_idle,
-						pcpu->freq_change_time_in_idle);
+						pcpu->target_set_time_in_idle);
 	delta_time = (unsigned int) cputime64_sub(pcpu->timer_run_time,
-						  pcpu->freq_change_time);
+						  pcpu->target_set_time);
 
 	if ((delta_time == 0) || (delta_idle > delta_time))
 		load_since_change = 0;
@@ -189,24 +189,26 @@ static void cpufreq_interactive_timer(unsigned long data)
 
 	new_freq = pcpu->freq_table[index].frequency;
 
-	if (pcpu->target_freq == new_freq)
-	{
-		trace_cpufreq_interactive_already(data, cpu_load,
-						  pcpu->target_freq, new_freq);
-		goto rearm_if_notmax;
-	}
-
 	/*
 	 * Do not scale down unless we have been at this frequency for the
 	 * minimum sample time.
 	 */
 	if (new_freq < pcpu->target_freq) {
-		if (cputime64_sub(pcpu->timer_run_time, pcpu->freq_change_time)
+		if (cputime64_sub(pcpu->timer_run_time, pcpu->target_set_time)
 		    < min_sample_time) {
 			trace_cpufreq_interactive_notyet(data, cpu_load,
 					 pcpu->target_freq, new_freq);
 			goto rearm;
 		}
+	}
+
+	pcpu->target_set_time_in_idle = now_idle;
+	pcpu->target_set_time = pcpu->timer_run_time;
+
+	if (pcpu->target_freq == new_freq) {
+		trace_cpufreq_interactive_already(data, cpu_load,
+						  pcpu->target_freq, new_freq);
+		goto rearm_if_notmax;
 	}
 
 	trace_cpufreq_interactive_target(data, cpu_load, pcpu->target_freq,
@@ -395,10 +397,6 @@ static int cpufreq_interactive_up_task(void *data)
 							max_freq,
 							CPUFREQ_RELATION_H);
 			mutex_unlock(&set_speed_lock);
-
-			pcpu->freq_change_time_in_idle =
-				get_cpu_idle_time_us(cpu,
-						     &pcpu->freq_change_time);
 			trace_cpufreq_interactive_up(cpu, pcpu->target_freq,
 						     pcpu->policy->cur);
 		}
@@ -444,9 +442,6 @@ static void cpufreq_interactive_freq_down(struct work_struct *work)
 						CPUFREQ_RELATION_H);
 
 		mutex_unlock(&set_speed_lock);
-		pcpu->freq_change_time_in_idle =
-			get_cpu_idle_time_us(cpu,
-					     &pcpu->freq_change_time);
 		trace_cpufreq_interactive_down(cpu, pcpu->target_freq,
 					       pcpu->policy->cur);
 	}
@@ -576,9 +571,9 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 			pcpu->policy = policy;
 			pcpu->target_freq = policy->cur;
 			pcpu->freq_table = freq_table;
-			pcpu->freq_change_time_in_idle =
+			pcpu->target_set_time_in_idle =
 				get_cpu_idle_time_us(j,
-					     &pcpu->freq_change_time);
+					     &pcpu->target_set_time);
 			pcpu->governor_enabled = 1;
 			smp_wmb();
 		}
