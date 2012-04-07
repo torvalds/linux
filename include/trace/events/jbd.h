@@ -170,19 +170,22 @@ TRACE_EVENT(jbd_cleanup_journal_tail,
 );
 
 TRACE_EVENT(journal_write_superblock,
-	TP_PROTO(journal_t *journal),
+	TP_PROTO(journal_t *journal, int write_op),
 
-	TP_ARGS(journal),
+	TP_ARGS(journal, write_op),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
+		__field(	int,	write_op		)
 	),
 
 	TP_fast_assign(
 		__entry->dev		= journal->j_fs_dev->bd_dev;
+		__entry->write_op	= write_op;
 	),
 
-	TP_printk("dev %d,%d", MAJOR(__entry->dev), MINOR(__entry->dev))
+	TP_printk("dev %d,%d write_op %x", MAJOR(__entry->dev),
+		  MINOR(__entry->dev), __entry->write_op)
 );
 
 #endif /* _TRACE_JBD_H */

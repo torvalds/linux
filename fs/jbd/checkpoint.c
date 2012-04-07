@@ -508,20 +508,19 @@ int cleanup_journal_tail(journal_t *journal)
 	/*
 	 * We need to make sure that any blocks that were recently written out
 	 * --- perhaps by log_do_checkpoint() --- are flushed out before we
-	 * drop the transactions from the journal. It's unlikely this will be
-	 * necessary, especially with an appropriately sized journal, but we
-	 * need this to guarantee correctness.  Fortunately
-	 * cleanup_journal_tail() doesn't get called all that often.
+	 * drop the transactions from the journal. Similarly we need to be sure
+	 * superblock makes it to disk before next transaction starts reusing
+	 * freed space (otherwise we could replay some blocks of the new
+	 * transaction thinking they belong to the old one). So we use
+	 * WRITE_FLUSH_FUA. It's unlikely this will be necessary, especially
+	 * with an appropriately sized journal, but we need this to guarantee
+	 * correctness.  Fortunately cleanup_journal_tail() doesn't get called
+	 * all that often.
 	 */
-	if (journal->j_flags & JFS_BARRIER)
-		blkdev_issue_flush(journal->j_fs_dev, GFP_KERNEL, NULL);
+	journal_update_sb_log_tail(journal, first_tid, blocknr,
+				   WRITE_FLUSH_FUA);
 
 	spin_lock(&journal->j_state_lock);
-	if (!tid_gt(first_tid, journal->j_tail_sequence)) {
-		spin_unlock(&journal->j_state_lock);
-		/* Someone else cleaned up journal so return 0 */
-		return 0;
-	}
 	/* OK, update the superblock to recover the freed space.
 	 * Physical blocks come first: have we wrapped beyond the end of
 	 * the log?  */
@@ -539,8 +538,6 @@ int cleanup_journal_tail(journal_t *journal)
 	journal->j_tail_sequence = first_tid;
 	journal->j_tail = blocknr;
 	spin_unlock(&journal->j_state_lock);
-	if (!(journal->j_flags & JFS_ABORT))
-		journal_update_sb_log_tail(journal);
 	return 0;
 }
 
