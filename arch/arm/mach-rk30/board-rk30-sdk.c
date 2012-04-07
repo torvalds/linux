@@ -152,7 +152,7 @@
 #define CONFIG_SENSOR_ORIENTATION_11       270
 #define CONFIG_SENSOR_POWER_PIN_11         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_11         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_11       RK30_PIN1_PB7
+#define CONFIG_SENSOR_POWERDN_PIN_11       INVALID_GPIO//RK30_PIN1_PB7
 #define CONFIG_SENSOR_FALSH_PIN_11         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_11 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_11 RK29_CAM_RESETACTIVE_L
@@ -168,14 +168,14 @@
 #define CONFIG_SENSOR_SVGA_FPS_FIXED_11      15000
 #define CONFIG_SENSOR_720P_FPS_FIXED_11      30000
 
-#define CONFIG_SENSOR_12 RK29_CAM_SENSOR_OV2655                      /* front camera sensor 2 */
-#define CONFIG_SENSOR_IIC_ADDR_12 	    0x00
+#define CONFIG_SENSOR_12 RK29_CAM_SENSOR_OV2659//RK29_CAM_SENSOR_OV2655                      /* front camera sensor 2 */
+#define CONFIG_SENSOR_IIC_ADDR_12 	   0x00
 #define CONFIG_SENSOR_IIC_ADAPTER_ID_12    3
 #define CONFIG_SENSOR_CIF_INDEX_12				  0
 #define CONFIG_SENSOR_ORIENTATION_12       270
 #define CONFIG_SENSOR_POWER_PIN_12         INVALID_GPIO
 #define CONFIG_SENSOR_RESET_PIN_12         INVALID_GPIO
-#define CONFIG_SENSOR_POWERDN_PIN_12       RK30_PIN1_PB7
+#define CONFIG_SENSOR_POWERDN_PIN_12       INVALID_GPIO//RK30_PIN1_PB7
 #define CONFIG_SENSOR_FALSH_PIN_12         INVALID_GPIO
 #define CONFIG_SENSOR_POWERACTIVE_LEVEL_12 RK29_CAM_POWERACTIVE_L
 #define CONFIG_SENSOR_RESETACTIVE_LEVEL_12 RK29_CAM_RESETACTIVE_L
@@ -300,7 +300,39 @@ static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] =
        .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
        .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
        .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
-    }
+    },{
+        .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
+       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
+       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+    },{
+        .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
+       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
+       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+    },{
+        .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
+       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
+       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+    },{
+        .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
+       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
+       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+    },
 
  };
 #include "../../../drivers/media/video/rk30_camera.c"
