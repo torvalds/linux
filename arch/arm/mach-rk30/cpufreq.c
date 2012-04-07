@@ -311,7 +311,6 @@ static unsigned int cpufreq_scale_limt(unsigned int target_freq,struct cpufreq_p
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 	if(rk30_cpufreq_is_ondemand_policy(policy)&&temp_limt_freq)
 	{
-		printk("temp_limt_freq=%u\n",temp_limt_freq);
 		target_freq=min(target_freq,temp_limt_freq);
 	}
 #endif
