@@ -153,6 +153,25 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 	if (((unsigned long)addr % size) == 0)
 		return bundle;
 
+	/*
+	 * Return SIGBUS with the unaligned address, if requested.
+	 * Note that we return SIGBUS even for completely invalid addresses
+	 * as long as they are in fact unaligned; this matches what the
+	 * tilepro hardware would be doing, if it could provide us with the
+	 * actual bad address in an SPR, which it doesn't.
+	 */
+	if (unaligned_fixup == 0) {
+		siginfo_t info = {
+			.si_signo = SIGBUS,
+			.si_code = BUS_ADRALN,
+			.si_addr = addr
+		};
+		trace_unhandled_signal("unaligned trap", regs,
+				       (unsigned long)addr, SIGBUS);
+		force_sig_info(info.si_signo, &info, current);
+		return (tilepro_bundle_bits) 0;
+	}
+
 #ifndef __LITTLE_ENDIAN
 # error We assume little-endian representation with copy_xx_user size 2 here
 #endif
@@ -188,18 +207,6 @@ static tile_bundle_bits rewrite_load_store_unaligned(
 		};
 		trace_unhandled_signal("segfault", regs,
 				       (unsigned long)addr, SIGSEGV);
-		force_sig_info(info.si_signo, &info, current);
-		return (tile_bundle_bits) 0;
-	}
-
-	if (unaligned_fixup == 0) {
-		siginfo_t info = {
-			.si_signo = SIGBUS,
-			.si_code = BUS_ADRALN,
-			.si_addr = addr
-		};
-		trace_unhandled_signal("unaligned trap", regs,
-				       (unsigned long)addr, SIGBUS);
 		force_sig_info(info.si_signo, &info, current);
 		return (tile_bundle_bits) 0;
 	}
