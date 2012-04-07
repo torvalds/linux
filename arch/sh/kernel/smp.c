@@ -27,6 +27,7 @@
 #include <asm/smp.h>
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 
 int __cpu_number_map[NR_CPUS];		/* Map physical to logical */
 int __cpu_logical_map[NR_CPUS];		/* Map logical to physical */
