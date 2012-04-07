@@ -513,14 +513,29 @@ Who:	Bjorn Helgaas <bhelgaas@google.com>
 
 ----------------------------
 
-What:	The CAP9 SoC family will be removed
-When:	3.4
-Files:	arch/arm/mach-at91/at91cap9.c
-	arch/arm/mach-at91/at91cap9_devices.c
-	arch/arm/mach-at91/include/mach/at91cap9.h
-	arch/arm/mach-at91/include/mach/at91cap9_matrix.h
-	arch/arm/mach-at91/include/mach/at91cap9_ddrsdr.h
-	arch/arm/mach-at91/board-cap9adk.c
-Why:	The code is not actively maintained and platforms are now hard to find.
-Who:	Nicolas Ferre <nicolas.ferre@atmel.com>
-	Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+What:	Low Performance USB Block driver ("CONFIG_BLK_DEV_UB")
+When:	3.6
+Why:	This driver provides support for USB storage devices like "USB
+	sticks". As of now, it is deactivated in Debian, Fedora and
+        Ubuntu. All current users can switch over to usb-storage
+        (CONFIG_USB_STORAGE) which only drawback is the additional SCSI
+        stack.
+Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+
+----------------------------
+
+What:	kmap_atomic(page, km_type)
+When:	3.5
+Why:	The old kmap_atomic() with two arguments is deprecated, we only
+	keep it for backward compatibility for few cycles and then drop it.
+Who:	Cong Wang <amwang@redhat.com>
+
+----------------------------
+
+What:	get_robust_list syscall
+When:	2013
+Why:	There appear to be no production users of the get_robust_list syscall,
+	and it runs the risk of leaking address locations, allowing the bypass
+	of ASLR. It was only ever intended for debugging, so it should be
+	removed.
+Who:	Kees Cook <keescook@chromium.org>

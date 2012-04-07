@@ -59,4 +59,10 @@ extern void free_cop_pid(int free_pid);
 
 extern int acop_handle_fault(struct pt_regs *regs, unsigned long address,
 			     unsigned long error_code);
+
+static inline u64 acop_copro_type_bit(unsigned int type)
+{
+	return 1ULL << (63 - type);
+}
+
 #endif /* !_ARCH_POWERPC_MM_ICSWX_H_ */

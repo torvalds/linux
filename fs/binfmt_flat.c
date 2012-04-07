@@ -15,7 +15,7 @@
  *	JAN/99 -- coded full program relocation (gerg@snapgear.com)
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -37,7 +37,6 @@
 #include <linux/syscalls.h>
 
 #include <asm/byteorder.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <asm/cacheflush.h>
@@ -902,7 +901,6 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 						libinfo.lib_list[j].start_data:UNLOADED_LIB;
 
 	install_exec_creds(bprm);
- 	current->flags &= ~PF_FORKNOEXEC;
 
 	set_binfmt(&flat_format);
 
@@ -950,7 +948,8 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 
 static int __init init_flat_binfmt(void)
 {
-	return register_binfmt(&flat_format);
+	register_binfmt(&flat_format);
+	return 0;
 }
 
 /****************************************************************************/

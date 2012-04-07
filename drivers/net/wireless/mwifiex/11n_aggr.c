@@ -84,7 +84,7 @@ mwifiex_11n_form_amsdu_pkt(struct sk_buff *skb_aggr,
 	/* Add payload */
 	skb_put(skb_aggr, skb_src->len);
 	memcpy(skb_aggr->data + sizeof(*tx_header), skb_src->data,
-							skb_src->len);
+	       skb_src->len);
 	*pad = (((skb_src->len + LLC_SNAP_LEN) & 3)) ? (4 - (((skb_src->len +
 						      LLC_SNAP_LEN)) & 3)) : 0;
 	skb_put(skb_aggr, *pad);
@@ -119,14 +119,14 @@ mwifiex_11n_form_amsdu_txpd(struct mwifiex_private *priv,
 	local_tx_pd->tx_pkt_offset = cpu_to_le16(sizeof(struct txpd));
 	local_tx_pd->tx_pkt_type = cpu_to_le16(PKT_TYPE_AMSDU);
 	local_tx_pd->tx_pkt_length = cpu_to_le16(skb->len -
-			sizeof(*local_tx_pd));
+						 sizeof(*local_tx_pd));
 
 	if (local_tx_pd->tx_control == 0)
 		/* TxCtrl set by user or default */
 		local_tx_pd->tx_control = cpu_to_le32(priv->pkt_tx_ctrl);
 
-	if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
-		(priv->adapter->pps_uapsd_mode)) {
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA &&
+	    priv->adapter->pps_uapsd_mode) {
 		if (true == mwifiex_check_last_packet_indication(priv)) {
 			priv->adapter->tx_lock_flag = true;
 			local_tx_pd->flags =
@@ -182,7 +182,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	skb_reserve(skb_aggr, headroom + sizeof(struct txpd));
 	tx_info_aggr =  MWIFIEX_SKB_TXCB(skb_aggr);
 
-	tx_info_aggr->bss_index = tx_info_src->bss_index;
+	tx_info_aggr->bss_type = tx_info_src->bss_type;
+	tx_info_aggr->bss_num = tx_info_src->bss_num;
 	skb_aggr->priority = skb_src->priority;
 
 	do {
@@ -256,9 +257,8 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 			mwifiex_write_data_complete(adapter, skb_aggr, -1);
 			return -1;
 		}
-		if ((GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA) &&
-			(adapter->pps_uapsd_mode) &&
-			(adapter->tx_lock_flag)) {
+		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA &&
+		    adapter->pps_uapsd_mode && adapter->tx_lock_flag) {
 				priv->adapter->tx_lock_flag = false;
 				if (ptx_pd)
 					ptx_pd->flags = 0;
@@ -278,7 +278,7 @@ mwifiex_11n_aggregate_pkt(struct mwifiex_private *priv,
 	case -1:
 		adapter->data_sent = false;
 		dev_err(adapter->dev, "%s: host_to_card failed: %#x\n",
-						__func__, ret);
+			__func__, ret);
 		adapter->dbg.num_tx_host_to_card_failure++;
 		mwifiex_write_data_complete(adapter, skb_aggr, ret);
 		return 0;

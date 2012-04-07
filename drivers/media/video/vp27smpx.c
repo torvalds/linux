@@ -208,15 +208,4 @@ static struct i2c_driver vp27smpx_driver = {
 	.id_table	= vp27smpx_id,
 };
 
-static __init int init_vp27smpx(void)
-{
-	return i2c_add_driver(&vp27smpx_driver);
-}
-
-static __exit void exit_vp27smpx(void)
-{
-	i2c_del_driver(&vp27smpx_driver);
-}
-
-module_init(init_vp27smpx);
-module_exit(exit_vp27smpx);
+module_i2c_driver(vp27smpx_driver);

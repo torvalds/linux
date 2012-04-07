@@ -177,16 +177,10 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev);
 void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev);
 
-extern const u32 b43_ntab_tx_gain_rev0_1_2[];
-extern const u32 b43_ntab_tx_gain_rev3plus_2ghz[];
-extern const u32 b43_ntab_tx_gain_rev3_5ghz[];
-extern const u32 b43_ntab_tx_gain_rev4_5ghz[];
-extern const u32 b43_ntab_tx_gain_rev5plus_5ghz[];
+const u32 *b43_nphy_get_tx_gain_table(struct b43_wldev *dev);
 
-extern const u32 txpwrctrl_tx_gain_ipa[];
-extern const u32 txpwrctrl_tx_gain_ipa_rev5[];
-extern const u32 txpwrctrl_tx_gain_ipa_rev6[];
-extern const u32 txpwrctrl_tx_gain_ipa_5g[];
+extern const s8 b43_ntab_papd_pga_gain_delta_ipa_2g[];
+
 extern const u16 tbl_iqcal_gainparams[2][9][8];
 extern const struct nphy_txiqcal_ladder ladder_lo[];
 extern const struct nphy_txiqcal_ladder ladder_iq[];

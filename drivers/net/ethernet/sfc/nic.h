@@ -35,10 +35,6 @@ static inline int efx_nic_rev(struct efx_nic *efx)
 
 extern u32 efx_nic_fpga_ver(struct efx_nic *efx);
 
-static inline bool efx_nic_has_mc(struct efx_nic *efx)
-{
-	return efx_nic_rev(efx) >= EFX_REV_SIENA_A0;
-}
 /* NIC has two interlinked PCI functions for the same port. */
 static inline bool efx_nic_is_dual_func(struct efx_nic *efx)
 {
@@ -65,11 +61,14 @@ enum {
 #define FALCON_GMAC_LOOPBACKS			\
 	(1 << LOOPBACK_GMAC)
 
+/* Alignment of PCIe DMA boundaries (4KB) */
+#define EFX_PAGE_SIZE	4096
+/* Size and alignment of buffer table entries (same) */
+#define EFX_BUF_SIZE	EFX_PAGE_SIZE
+
 /**
  * struct falcon_board_type - board operations and type information
  * @id: Board type id, as found in NVRAM
- * @ref_model: Model number of Solarflare reference design
- * @gen_type: Generic board type description
  * @init: Allocate resources and initialise peripheral hardware
  * @init_phy: Do board-specific PHY initialisation
  * @fini: Shut down hardware and free resources
@@ -78,8 +77,6 @@ enum {
  */
 struct falcon_board_type {
 	u8 id;
-	const char *ref_model;
-	const char *gen_type;
 	int (*init) (struct efx_nic *nic);
 	void (*init_phy) (struct efx_nic *efx);
 	void (*fini) (struct efx_nic *nic);
@@ -144,11 +141,114 @@ static inline struct falcon_board *falcon_board(struct efx_nic *efx)
  * struct siena_nic_data - Siena NIC state
  * @mcdi: Management-Controller-to-Driver Interface
  * @wol_filter_id: Wake-on-LAN packet filter id
+ * @hwmon: Hardware monitor state
  */
 struct siena_nic_data {
 	struct efx_mcdi_iface mcdi;
 	int wol_filter_id;
+#ifdef CONFIG_SFC_MCDI_MON
+	struct efx_mcdi_mon hwmon;
+#endif
 };
+
+#ifdef CONFIG_SFC_MCDI_MON
+static inline struct efx_mcdi_mon *efx_mcdi_mon(struct efx_nic *efx)
+{
+	struct siena_nic_data *nic_data;
+	EFX_BUG_ON_PARANOID(efx_nic_rev(efx) < EFX_REV_SIENA_A0);
+	nic_data = efx->nic_data;
+	return &nic_data->hwmon;
+}
+#endif
+
+/*
+ * On the SFC9000 family each port is associated with 1 PCI physical
+ * function (PF) handled by sfc and a configurable number of virtual
+ * functions (VFs) that may be handled by some other driver, often in
+ * a VM guest.  The queue pointer registers are mapped in both PF and
+ * VF BARs such that an 8K region provides access to a single RX, TX
+ * and event queue (collectively a Virtual Interface, VI or VNIC).
+ *
+ * The PF has access to all 1024 VIs while VFs are mapped to VIs
+ * according to VI_BASE and VI_SCALE: VF i has access to VIs numbered
+ * in range [VI_BASE + i << VI_SCALE, VI_BASE + i + 1 << VI_SCALE).
+ * The number of VIs and the VI_SCALE value are configurable but must
+ * be established at boot time by firmware.
+ */
+
+/* Maximum VI_SCALE parameter supported by Siena */
+#define EFX_VI_SCALE_MAX 6
+/* Base VI to use for SR-IOV. Must be aligned to (1 << EFX_VI_SCALE_MAX),
+ * so this is the smallest allowed value. */
+#define EFX_VI_BASE 128U
+/* Maximum number of VFs allowed */
+#define EFX_VF_COUNT_MAX 127
+/* Limit EVQs on VFs to be only 8k to reduce buffer table reservation */
+#define EFX_MAX_VF_EVQ_SIZE 8192UL
+/* The number of buffer table entries reserved for each VI on a VF */
+#define EFX_VF_BUFTBL_PER_VI					\
+	((EFX_MAX_VF_EVQ_SIZE + 2 * EFX_MAX_DMAQ_SIZE) *	\
+	 sizeof(efx_qword_t) / EFX_BUF_SIZE)
+
+#ifdef CONFIG_SFC_SRIOV
+
+static inline bool efx_sriov_wanted(struct efx_nic *efx)
+{
+	return efx->vf_count != 0;
+}
+static inline bool efx_sriov_enabled(struct efx_nic *efx)
+{
+	return efx->vf_init_count != 0;
+}
+static inline unsigned int efx_vf_size(struct efx_nic *efx)
+{
+	return 1 << efx->vi_scale;
+}
+
+extern int efx_init_sriov(void);
+extern void efx_sriov_probe(struct efx_nic *efx);
+extern int efx_sriov_init(struct efx_nic *efx);
+extern void efx_sriov_mac_address_changed(struct efx_nic *efx);
+extern void efx_sriov_tx_flush_done(struct efx_nic *efx, efx_qword_t *event);
+extern void efx_sriov_rx_flush_done(struct efx_nic *efx, efx_qword_t *event);
+extern void efx_sriov_event(struct efx_channel *channel, efx_qword_t *event);
+extern void efx_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq);
+extern void efx_sriov_flr(struct efx_nic *efx, unsigned flr);
+extern void efx_sriov_reset(struct efx_nic *efx);
+extern void efx_sriov_fini(struct efx_nic *efx);
+extern void efx_fini_sriov(void);
+
+#else
+
+static inline bool efx_sriov_wanted(struct efx_nic *efx) { return false; }
+static inline bool efx_sriov_enabled(struct efx_nic *efx) { return false; }
+static inline unsigned int efx_vf_size(struct efx_nic *efx) { return 0; }
+
+static inline int efx_init_sriov(void) { return 0; }
+static inline void efx_sriov_probe(struct efx_nic *efx) {}
+static inline int efx_sriov_init(struct efx_nic *efx) { return -EOPNOTSUPP; }
+static inline void efx_sriov_mac_address_changed(struct efx_nic *efx) {}
+static inline void efx_sriov_tx_flush_done(struct efx_nic *efx,
+					   efx_qword_t *event) {}
+static inline void efx_sriov_rx_flush_done(struct efx_nic *efx,
+					   efx_qword_t *event) {}
+static inline void efx_sriov_event(struct efx_channel *channel,
+				   efx_qword_t *event) {}
+static inline void efx_sriov_desc_fetch_err(struct efx_nic *efx, unsigned dmaq) {}
+static inline void efx_sriov_flr(struct efx_nic *efx, unsigned flr) {}
+static inline void efx_sriov_reset(struct efx_nic *efx) {}
+static inline void efx_sriov_fini(struct efx_nic *efx) {}
+static inline void efx_fini_sriov(void) {}
+
+#endif
+
+extern int efx_sriov_set_vf_mac(struct net_device *dev, int vf, u8 *mac);
+extern int efx_sriov_set_vf_vlan(struct net_device *dev, int vf,
+				 u16 vlan, u8 qos);
+extern int efx_sriov_get_vf_config(struct net_device *dev, int vf,
+				   struct ifla_vf_info *ivf);
+extern int efx_sriov_set_vf_spoofchk(struct net_device *net_dev, int vf,
+				     bool spoofchk);
 
 extern const struct efx_nic_type falcon_a1_nic_type;
 extern const struct efx_nic_type falcon_b0_nic_type;
@@ -176,6 +276,7 @@ extern void efx_nic_init_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_fini_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_remove_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue);
+extern void efx_nic_generate_fill_event(struct efx_rx_queue *rx_queue);
 
 /* Event data path */
 extern int efx_nic_probe_eventq(struct efx_channel *channel);
@@ -189,21 +290,29 @@ extern bool efx_nic_event_present(struct efx_channel *channel);
 /* MAC/PHY */
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);
 extern void falcon_reconfigure_mac_wrapper(struct efx_nic *efx);
+extern bool falcon_xmac_check_fault(struct efx_nic *efx);
+extern int falcon_reconfigure_xmac(struct efx_nic *efx);
+extern void falcon_update_stats_xmac(struct efx_nic *efx);
 
 /* Interrupts and test events */
 extern int efx_nic_init_interrupt(struct efx_nic *efx);
 extern void efx_nic_enable_interrupts(struct efx_nic *efx);
-extern void efx_nic_generate_test_event(struct efx_channel *channel);
-extern void efx_nic_generate_fill_event(struct efx_channel *channel);
-extern void efx_nic_generate_interrupt(struct efx_nic *efx);
+extern void efx_nic_event_test_start(struct efx_channel *channel);
+extern void efx_nic_irq_test_start(struct efx_nic *efx);
 extern void efx_nic_disable_interrupts(struct efx_nic *efx);
 extern void efx_nic_fini_interrupt(struct efx_nic *efx);
 extern irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx);
 extern irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id);
 extern void falcon_irq_ack_a1(struct efx_nic *efx);
 
-#define EFX_IRQ_MOD_RESOLUTION	5
-#define EFX_IRQ_MOD_MAX		0x1000
+static inline int efx_nic_event_test_irq_cpu(struct efx_channel *channel)
+{
+	return ACCESS_ONCE(channel->event_test_cpu);
+}
+static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
+{
+	return ACCESS_ONCE(efx->last_irq_cpu);
+}
 
 /* Global Resources */
 extern int efx_nic_flush_queues(struct efx_nic *efx);
@@ -211,6 +320,8 @@ extern void falcon_start_nic_stats(struct efx_nic *efx);
 extern void falcon_stop_nic_stats(struct efx_nic *efx);
 extern void falcon_setup_xaui(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
+extern void
+efx_nic_dimension_resources(struct efx_nic *efx, unsigned sram_lim_qw);
 extern void efx_nic_init_common(struct efx_nic *efx);
 extern void efx_nic_push_rx_indir_table(struct efx_nic *efx);
 
@@ -264,8 +375,8 @@ extern void efx_nic_get_regs(struct efx_nic *efx, void *buf);
 #define MAC_DATA_LBN 0
 #define MAC_DATA_WIDTH 32
 
-extern void efx_nic_generate_event(struct efx_channel *channel,
-				   efx_qword_t *event);
+extern void efx_generate_event(struct efx_nic *efx, unsigned int evq,
+			       efx_qword_t *event);
 
 extern void falcon_poll_xmac(struct efx_nic *efx);
 

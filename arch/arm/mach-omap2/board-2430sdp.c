@@ -230,12 +230,12 @@ static struct i2c_board_info __initdata sdp2430_i2c1_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2D),
 		.flags = I2C_CLIENT_WAKE,
-		.irq = OMAP_GPIO_IRQ(78),
 	},
 };
 
 static int __init omap2430_i2c_init(void)
 {
+	sdp2430_i2c1_boardinfo[0].irq = gpio_to_irq(78);
 	omap_register_i2c_bus(1, 100, sdp2430_i2c1_boardinfo,
 			ARRAY_SIZE(sdp2430_i2c1_boardinfo));
 	omap_pmic_init(2, 100, "twl4030", INT_24XX_SYS_NIRQ,
@@ -279,7 +279,7 @@ static void __init omap_2430sdp_init(void)
 	platform_add_devices(sdp2430_devices, ARRAY_SIZE(sdp2430_devices));
 	omap_serial_init();
 	omap_sdrc_init(NULL, NULL);
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_init(mmc);
 	omap2_usbfs_init(&sdp2430_usb_config);
 
 	omap_mux_init_signal("usb0hs_stp", OMAP_PULL_ENA | OMAP_PULL_UP);

@@ -39,6 +39,7 @@
 #include <linux/moduleparam.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
+#include <asm/cpu_device_id.h>
 
 #define DRVNAME	"coretemp"
 
@@ -57,8 +58,8 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 #define TOTAL_ATTRS		(MAX_CORE_ATTRS + 1)
 #define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_NO)
 
-#define TO_PHYS_ID(cpu)		cpu_data(cpu).phys_proc_id
-#define TO_CORE_ID(cpu)		cpu_data(cpu).cpu_core_id
+#define TO_PHYS_ID(cpu)		(cpu_data(cpu).phys_proc_id)
+#define TO_CORE_ID(cpu)		(cpu_data(cpu).cpu_core_id)
 #define TO_ATTR_NO(cpu)		(TO_CORE_ID(cpu) + BASE_SYSFS_ATTR_NO)
 
 #ifdef CONFIG_SMP
@@ -759,13 +760,23 @@ static struct notifier_block coretemp_cpu_notifier __refdata = {
 	.notifier_call = coretemp_cpu_callback,
 };
 
+static const struct x86_cpu_id coretemp_ids[] = {
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_DTS },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, coretemp_ids);
+
 static int __init coretemp_init(void)
 {
 	int i, err = -ENODEV;
 
-	/* quick check if we run Intel */
-	if (cpu_data(0).x86_vendor != X86_VENDOR_INTEL)
-		goto exit;
+	/*
+	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
+	 * sensors. We check this bit only, all the early CPUs
+	 * without thermal sensors will be filtered out.
+	 */
+	if (!x86_match_cpu(coretemp_ids))
+		return -ENODEV;
 
 	err = platform_driver_register(&coretemp_driver);
 	if (err)

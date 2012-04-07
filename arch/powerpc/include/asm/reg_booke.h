@@ -15,6 +15,11 @@
 #ifndef __ASM_POWERPC_REG_BOOKE_H__
 #define __ASM_POWERPC_REG_BOOKE_H__
 
+#ifdef CONFIG_BOOKE_WDT
+extern u32 booke_wdt_enabled;
+extern u32 booke_wdt_period;
+#endif /* CONFIG_BOOKE_WDT */
+
 /* Machine State Register (MSR) Fields */
 #define MSR_GS		(1<<28) /* Guest state */
 #define MSR_UCLE	(1<<26)	/* User-mode cache lock enable */
@@ -62,6 +67,7 @@
 #define SPRN_DVC2	0x13F	/* Data Value Compare Register 2 */
 #define SPRN_MAS8	0x155	/* MMU Assist Register 8 */
 #define SPRN_TLB0PS	0x158	/* TLB 0 Page Size Register */
+#define SPRN_TLB1PS	0x159	/* TLB 1 Page Size Register */
 #define SPRN_MAS5_MAS6	0x15c	/* MMU Assist Register 5 || 6 */
 #define SPRN_MAS8_MAS1	0x15d	/* MMU Assist Register 8 || 1 */
 #define SPRN_EPTCFG	0x15e	/* Embedded Page Table Config */

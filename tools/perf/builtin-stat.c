@@ -182,8 +182,8 @@ static int			run_count			=  1;
 static bool			no_inherit			= false;
 static bool			scale				=  true;
 static bool			no_aggr				= false;
-static pid_t			target_pid			= -1;
-static pid_t			target_tid			= -1;
+static const char		*target_pid;
+static const char		*target_tid;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
 static int			detailed_run			=  0;
@@ -296,7 +296,7 @@ static int create_perf_stat_counter(struct perf_evsel *evsel,
 	if (system_wide)
 		return perf_evsel__open_per_cpu(evsel, evsel_list->cpus,
 						group, group_fd);
-	if (target_pid == -1 && target_tid == -1) {
+	if (!target_pid && !target_tid && (!group || evsel == first)) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
@@ -446,7 +446,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 			exit(-1);
 		}
 
-		if (target_tid == -1 && target_pid == -1 && !system_wide)
+		if (!target_tid && !target_pid && !system_wide)
 			evsel_list->threads->map[0] = child_pid;
 
 		/*
@@ -576,6 +576,8 @@ static void nsec_printout(int cpu, struct perf_evsel *evsel, double avg)
 	if (perf_evsel__match(evsel, SOFTWARE, SW_TASK_CLOCK))
 		fprintf(output, " # %8.3f CPUs utilized          ",
 			avg / avg_stats(&walltime_nsecs_stats));
+	else
+		fprintf(output, "                                   ");
 }
 
 /* used for get_ratio_color() */
@@ -844,12 +846,18 @@ static void abs_printout(int cpu, struct perf_evsel *evsel, double avg)
 
 		fprintf(output, " # %8.3f GHz                    ", ratio);
 	} else if (runtime_nsecs_stats[cpu].n != 0) {
+		char unit = 'M';
+
 		total = avg_stats(&runtime_nsecs_stats[cpu]);
 
 		if (total)
 			ratio = 1000.0 * avg / total;
+		if (ratio < 0.001) {
+			ratio *= 1000;
+			unit = 'K';
+		}
 
-		fprintf(output, " # %8.3f M/sec                  ", ratio);
+		fprintf(output, " # %8.3f %c/sec                  ", ratio, unit);
 	} else {
 		fprintf(output, "                                   ");
 	}
@@ -960,14 +968,14 @@ static void print_stat(int argc, const char **argv)
 	if (!csv_output) {
 		fprintf(output, "\n");
 		fprintf(output, " Performance counter stats for ");
-		if(target_pid == -1 && target_tid == -1) {
+		if (!target_pid && !target_tid) {
 			fprintf(output, "\'%s", argv[0]);
 			for (i = 1; i < argc; i++)
 				fprintf(output, " %s", argv[i]);
-		} else if (target_pid != -1)
-			fprintf(output, "process id \'%d", target_pid);
+		} else if (target_pid)
+			fprintf(output, "process id \'%s", target_pid);
 		else
-			fprintf(output, "thread id \'%d", target_tid);
+			fprintf(output, "thread id \'%s", target_tid);
 
 		fprintf(output, "\'");
 		if (run_count > 1)
@@ -1041,10 +1049,10 @@ static const struct option options[] = {
 		     "event filter", parse_filter),
 	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
 		    "child tasks do not inherit counters"),
-	OPT_INTEGER('p', "pid", &target_pid,
-		    "stat events on existing process id"),
-	OPT_INTEGER('t', "tid", &target_tid,
-		    "stat events on existing thread id"),
+	OPT_STRING('p', "pid", &target_pid, "pid",
+		   "stat events on existing process id"),
+	OPT_STRING('t', "tid", &target_tid, "tid",
+		   "stat events on existing thread id"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 		    "system-wide collection from all CPUs"),
 	OPT_BOOLEAN('g', "group", &group,
@@ -1182,7 +1190,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	} else if (big_num_opt == 0) /* User passed --no-big-num */
 		big_num = false;
 
-	if (!argc && target_pid == -1 && target_tid == -1)
+	if (!argc && !target_pid && !target_tid)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0)
 		usage_with_options(stat_usage, options);
@@ -1198,10 +1206,11 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (add_default_attributes())
 		goto out;
 
-	if (target_pid != -1)
+	if (target_pid)
 		target_tid = target_pid;
 
-	evsel_list->threads = thread_map__new(target_pid, target_tid);
+	evsel_list->threads = thread_map__new_str(target_pid,
+						  target_tid, UINT_MAX);
 	if (evsel_list->threads == NULL) {
 		pr_err("Problems finding threads of monitor\n");
 		usage_with_options(stat_usage, options);

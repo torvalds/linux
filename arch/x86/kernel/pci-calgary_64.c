@@ -42,7 +42,6 @@
 #include <asm/calgary.h>
 #include <asm/tce.h>
 #include <asm/pci-direct.h>
-#include <asm/system.h>
 #include <asm/dma.h>
 #include <asm/rio.h>
 #include <asm/bios_ebda.h>

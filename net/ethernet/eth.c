@@ -59,7 +59,6 @@
 #include <net/ip.h>
 #include <net/dsa.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 __setup("ether=", netdev_boot_setup);
 
@@ -288,6 +287,8 @@ int eth_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
+	/* if device marked as NET_ADDR_RANDOM, reset it */
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	return 0;
 }
 EXPORT_SYMBOL(eth_mac_addr);

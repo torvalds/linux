@@ -163,7 +163,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->max_mcast_qp_attach = dev->dev->caps.num_qp_per_mgm;
 	props->max_total_mcast_qp_attach = props->max_mcast_qp_attach *
 					   props->max_mcast_grp;
-	props->max_map_per_fmr = (1 << (32 - ilog2(dev->dev->caps.num_mpts))) - 1;
+	props->max_map_per_fmr = dev->dev->caps.max_fmr_maps;
 
 out:
 	kfree(in_mad);
@@ -182,12 +182,27 @@ mlx4_ib_port_link_layer(struct ib_device *device, u8 port_num)
 }
 
 static int ib_link_query_port(struct ib_device *ibdev, u8 port,
-			      struct ib_port_attr *props,
-			      struct ib_smp *in_mad,
-			      struct ib_smp *out_mad)
+			      struct ib_port_attr *props)
 {
+	struct ib_smp *in_mad  = NULL;
+	struct ib_smp *out_mad = NULL;
 	int ext_active_speed;
-	int err;
+	int err = -ENOMEM;
+
+	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
+	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
+	if (!in_mad || !out_mad)
+		goto out;
+
+	init_query_mad(in_mad);
+	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
+	in_mad->attr_mod = cpu_to_be32(port);
+
+	err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port, NULL, NULL,
+				in_mad, out_mad);
+	if (err)
+		goto out;
+
 
 	props->lid		= be16_to_cpup((__be16 *) (out_mad->data + 16));
 	props->lmc		= out_mad->data[34] & 0x7;
@@ -215,34 +230,33 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 
 		switch (ext_active_speed) {
 		case 1:
-			props->active_speed = 16; /* FDR */
+			props->active_speed = IB_SPEED_FDR;
 			break;
 		case 2:
-			props->active_speed = 32; /* EDR */
+			props->active_speed = IB_SPEED_EDR;
 			break;
 		}
 	}
 
 	/* If reported active speed is QDR, check if is FDR-10 */
-	if (props->active_speed == 4) {
-		if (to_mdev(ibdev)->dev->caps.ext_port_cap[port] &
-		    MLX_EXT_PORT_CAP_FLAG_EXTENDED_PORT_INFO) {
-			init_query_mad(in_mad);
-			in_mad->attr_id = MLX4_ATTR_EXTENDED_PORT_INFO;
-			in_mad->attr_mod = cpu_to_be32(port);
+	if (props->active_speed == IB_SPEED_QDR) {
+		init_query_mad(in_mad);
+		in_mad->attr_id = MLX4_ATTR_EXTENDED_PORT_INFO;
+		in_mad->attr_mod = cpu_to_be32(port);
 
-			err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
-					   NULL, NULL, in_mad, out_mad);
-			if (err)
-				return err;
+		err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
+				   NULL, NULL, in_mad, out_mad);
+		if (err)
+			return err;
 
-			/* Checking LinkSpeedActive for FDR-10 */
-			if (out_mad->data[15] & 0x1)
-				props->active_speed = 8;
-		}
+		/* Checking LinkSpeedActive for FDR-10 */
+		if (out_mad->data[15] & 0x1)
+			props->active_speed = IB_SPEED_FDR10;
 	}
-
-	return 0;
+out:
+	kfree(in_mad);
+	kfree(out_mad);
+	return err;
 }
 
 static u8 state_to_phys_state(enum ib_port_state state)
@@ -251,32 +265,42 @@ static u8 state_to_phys_state(enum ib_port_state state)
 }
 
 static int eth_link_query_port(struct ib_device *ibdev, u8 port,
-			       struct ib_port_attr *props,
-			       struct ib_smp *out_mad)
+			       struct ib_port_attr *props)
 {
-	struct mlx4_ib_iboe *iboe = &to_mdev(ibdev)->iboe;
+
+	struct mlx4_ib_dev *mdev = to_mdev(ibdev);
+	struct mlx4_ib_iboe *iboe = &mdev->iboe;
 	struct net_device *ndev;
 	enum ib_mtu tmp;
+	struct mlx4_cmd_mailbox *mailbox;
+	int err = 0;
 
-	props->active_width	= IB_WIDTH_1X;
-	props->active_speed	= 4;
+	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, port, 0,
+			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
+			   MLX4_CMD_WRAPPED);
+	if (err)
+		goto out;
+
+	props->active_width	=  (((u8 *)mailbox->buf)[5] == 0x40) ?
+						IB_WIDTH_4X : IB_WIDTH_1X;
+	props->active_speed	= IB_SPEED_QDR;
 	props->port_cap_flags	= IB_PORT_CM_SUP;
-	props->gid_tbl_len	= to_mdev(ibdev)->dev->caps.gid_table_len[port];
-	props->max_msg_sz	= to_mdev(ibdev)->dev->caps.max_msg_sz;
+	props->gid_tbl_len	= mdev->dev->caps.gid_table_len[port];
+	props->max_msg_sz	= mdev->dev->caps.max_msg_sz;
 	props->pkey_tbl_len	= 1;
-	props->bad_pkey_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 46));
-	props->qkey_viol_cntr	= be16_to_cpup((__be16 *) (out_mad->data + 48));
 	props->max_mtu		= IB_MTU_4096;
-	props->subnet_timeout	= 0;
-	props->max_vl_num	= out_mad->data[37] >> 4;
-	props->init_type_reply	= 0;
+	props->max_vl_num	= 2;
 	props->state		= IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
 	props->active_mtu	= IB_MTU_256;
 	spin_lock(&iboe->lock);
 	ndev = iboe->netdevs[port - 1];
 	if (!ndev)
-		goto out;
+		goto out_unlock;
 
 	tmp = iboe_get_mtu(ndev->mtu);
 	props->active_mtu = tmp ? min(props->max_mtu, tmp) : IB_MTU_256;
@@ -284,41 +308,23 @@ static int eth_link_query_port(struct ib_device *ibdev, u8 port,
 	props->state		= (netif_running(ndev) && netif_carrier_ok(ndev)) ?
 					IB_PORT_ACTIVE : IB_PORT_DOWN;
 	props->phys_state	= state_to_phys_state(props->state);
-
-out:
+out_unlock:
 	spin_unlock(&iboe->lock);
-	return 0;
+out:
+	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
+	return err;
 }
 
 static int mlx4_ib_query_port(struct ib_device *ibdev, u8 port,
 			      struct ib_port_attr *props)
 {
-	struct ib_smp *in_mad  = NULL;
-	struct ib_smp *out_mad = NULL;
-	int err = -ENOMEM;
-
-	in_mad  = kzalloc(sizeof *in_mad, GFP_KERNEL);
-	out_mad = kmalloc(sizeof *out_mad, GFP_KERNEL);
-	if (!in_mad || !out_mad)
-		goto out;
+	int err;
 
 	memset(props, 0, sizeof *props);
 
-	init_query_mad(in_mad);
-	in_mad->attr_id  = IB_SMP_ATTR_PORT_INFO;
-	in_mad->attr_mod = cpu_to_be32(port);
-
-	err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port, NULL, NULL, in_mad, out_mad);
-	if (err)
-		goto out;
-
 	err = mlx4_ib_port_link_layer(ibdev, port) == IB_LINK_LAYER_INFINIBAND ?
-		ib_link_query_port(ibdev, port, props, in_mad, out_mad) :
-		eth_link_query_port(ibdev, port, props, out_mad);
-
-out:
-	kfree(in_mad);
-	kfree(out_mad);
+		ib_link_query_port(ibdev, port, props) :
+				eth_link_query_port(ibdev, port, props);
 
 	return err;
 }

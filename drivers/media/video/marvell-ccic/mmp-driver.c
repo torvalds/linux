@@ -106,6 +106,13 @@ static struct mmp_camera *mmpcam_find_device(struct platform_device *pdev)
 /*
  * Power control.
  */
+static void mmpcam_power_up_ctlr(struct mmp_camera *cam)
+{
+	iowrite32(0x3f, cam->power_regs + REG_CCIC_DCGCR);
+	iowrite32(0x3805b, cam->power_regs + REG_CCIC_CRCR);
+	mdelay(1);
+}
+
 static void mmpcam_power_up(struct mcam_camera *mcam)
 {
 	struct mmp_camera *cam = mcam_to_cam(mcam);
@@ -113,9 +120,7 @@ static void mmpcam_power_up(struct mcam_camera *mcam)
 /*
  * Turn on power and clocks to the controller.
  */
-	iowrite32(0x3f, cam->power_regs + REG_CCIC_DCGCR);
-	iowrite32(0x3805b, cam->power_regs + REG_CCIC_CRCR);
-	mdelay(1);
+	mmpcam_power_up_ctlr(cam);
 /*
  * Provide power to the sensor.
  */
@@ -335,7 +340,7 @@ static int mmpcam_resume(struct platform_device *pdev)
 	 * touch a register even if nothing was active before; trust
 	 * me, it's better this way.
 	 */
-	mmpcam_power_up(&cam->mcam);
+	mmpcam_power_up_ctlr(cam);
 	return mccic_resume(&cam->mcam);
 }
 

@@ -25,6 +25,7 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <asm/cacheflush.h>
+#include <asm/unaligned.h>
 #include <arch/abi.h>
 #include <arch/opcode.h>
 

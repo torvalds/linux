@@ -154,9 +154,9 @@
 #define __debug__h__
 
 #include <linux/types.h>
-#include <linux/device.h>
 #include <linux/slab.h>
 
+struct device;
 
 /* Backend stuff */
 

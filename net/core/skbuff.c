@@ -66,7 +66,6 @@
 #include <net/xfrm.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <trace/events/skb.h>
 
 #include "kmap_skb.h"
@@ -321,12 +320,12 @@ struct sk_buff *__netdev_alloc_skb(struct net_device *dev,
 EXPORT_SYMBOL(__netdev_alloc_skb);
 
 void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page, int off,
-		int size)
+		     int size, unsigned int truesize)
 {
 	skb_fill_page_desc(skb, i, page, off, size);
 	skb->len += size;
 	skb->data_len += size;
-	skb->truesize += size;
+	skb->truesize += truesize;
 }
 EXPORT_SYMBOL(skb_add_rx_frag);
 
@@ -592,6 +591,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->rxhash		= old->rxhash;
 	new->ooo_okay		= old->ooo_okay;
 	new->l4_rxhash		= old->l4_rxhash;
+	new->no_fcs		= old->no_fcs;
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
 #endif
@@ -2906,7 +2906,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	nskb->prev = p;
 
 	nskb->data_len += p->len;
-	nskb->truesize += p->len;
+	nskb->truesize += p->truesize;
 	nskb->len += p->len;
 
 	*head = nskb;
@@ -2916,6 +2916,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	p = nskb;
 
 merge:
+	p->truesize += skb->truesize - len;
 	if (offset > headlen) {
 		unsigned int eat = offset - headlen;
 

@@ -749,7 +749,7 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 	int ret;
 
 	/* XXX too lazy? */
-	ic = kzalloc(sizeof(struct rds_ib_connection), GFP_KERNEL);
+	ic = kzalloc(sizeof(struct rds_ib_connection), gfp);
 	if (!ic)
 		return -ENOMEM;
 

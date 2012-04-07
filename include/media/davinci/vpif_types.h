@@ -17,6 +17,8 @@
 #ifndef _VPIF_TYPES_H
 #define _VPIF_TYPES_H
 
+#include <linux/i2c.h>
+
 #define VPIF_CAPTURE_MAX_CHANNELS	2
 
 enum vpif_if_type {

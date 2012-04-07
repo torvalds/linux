@@ -24,7 +24,6 @@
 
 #include <linux/compiler.h>
 #include <asm/byteorder.h>
-#include <asm/system.h>
 #include <asm/atomic.h>
 
 #ifdef __KERNEL__

@@ -19,7 +19,7 @@ the card number and the minor unit number.  Usually you don't have to
 define these aliases by yourself.
 
 Only necessary step for auto-loading of OSS modules is to define the
-card alias in /etc/modprobe.conf, such as
+card alias in /etc/modprobe.d/alsa.conf, such as
 
 	alias sound-slot-0 snd-emu10k1
 

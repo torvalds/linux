@@ -196,7 +196,7 @@ static int __init init_dc21285(void)
 
 	dc21285_mtd->owner = THIS_MODULE;
 
-	mtd_device_parse_register(dc21285_mtd, probes, 0, NULL, 0);
+	mtd_device_parse_register(dc21285_mtd, probes, NULL, NULL, 0);
 
 	if(machine_is_ebsa285()) {
 		/*

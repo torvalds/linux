@@ -44,7 +44,7 @@ ip6table_filter_hook(unsigned int hook, struct sk_buff *skb,
 static struct nf_hook_ops *filter_ops __read_mostly;
 
 /* Default to forward because I got too much mail already. */
-static bool forward = NF_ACCEPT;
+static bool forward = true;
 module_param(forward, bool, 0000);
 
 static int __net_init ip6table_filter_net_init(struct net *net)
@@ -56,7 +56,7 @@ static int __net_init ip6table_filter_net_init(struct net *net)
 		return -ENOMEM;
 	/* Entry 1 is the FORWARD hook */
 	((struct ip6t_standard *)repl->entries)[1].target.verdict =
-		-forward - 1;
+		forward ? -NF_ACCEPT - 1 : -NF_DROP - 1;
 
 	net->ipv6.ip6table_filter =
 		ip6t_register_table(net, &packet_filter, repl);
@@ -79,11 +79,6 @@ static struct pernet_operations ip6table_filter_net_ops = {
 static int __init ip6table_filter_init(void)
 {
 	int ret;
-
-	if (forward < 0 || forward > NF_MAX_VERDICT) {
-		pr_err("iptables forward must be 0 or 1\n");
-		return -EINVAL;
-	}
 
 	ret = register_pernet_subsys(&ip6table_filter_net_ops);
 	if (ret < 0)

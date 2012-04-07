@@ -43,7 +43,9 @@
 		serial0 = &serial0;
 		serial1 = &serial1;
 		ethernet0 = &enet0;
-		ethernet1 = &enet2;
+		ethernet1 = &enet1;
+		ethernet2 = &enet2;
+		ethernet3 = &enet3;
 		pci0 = &pci0;
 		pci1 = &pci1;
 		pci2 = &pci2;

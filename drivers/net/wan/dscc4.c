@@ -93,7 +93,6 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/cache.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>
@@ -903,10 +902,8 @@ static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 	int i, ret = -ENOMEM;
 
 	root = kcalloc(dev_per_card, sizeof(*root), GFP_KERNEL);
-	if (!root) {
-		pr_err("can't allocate data\n");
+	if (!root)
 		goto err_out;
-	}
 
 	for (i = 0; i < dev_per_card; i++) {
 		root[i].dev = alloc_hdlcdev(root + i);
@@ -915,10 +912,8 @@ static int dscc4_found1(struct pci_dev *pdev, void __iomem *ioaddr)
 	}
 
 	ppriv = kzalloc(sizeof(*ppriv), GFP_KERNEL);
-	if (!ppriv) {
-		pr_err("can't allocate private data\n");
+	if (!ppriv)
 		goto err_free_dev;
-	}
 
 	ppriv->root = root;
 	spin_lock_init(&ppriv->lock);

@@ -453,7 +453,7 @@ static struct sk_buff *alloc_rxbuf_skb(struct net_device *dev,
 				       dma_addr_t *dma_handle)
 {
 	struct sk_buff *skb;
-	skb = dev_alloc_skb(RX_BUF_SIZE);
+	skb = netdev_alloc_skb(dev, RX_BUF_SIZE);
 	if (!skb)
 		return NULL;
 	*dma_handle = pci_map_single(hwdev, skb->data, RX_BUF_SIZE,
@@ -808,10 +808,9 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 
 	/* dev zeroed in alloc_etherdev */
 	dev = alloc_etherdev(sizeof(*lp));
-	if (dev == NULL) {
-		dev_err(&pdev->dev, "unable to alloc new ethernet\n");
+	if (dev == NULL)
 		return -ENOMEM;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = netdev_priv(dev);
 	lp->dev = dev;
@@ -850,7 +849,7 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 	/* Retrieve the ethernet address. */
 	if (tc35815_init_dev_addr(dev)) {
 		dev_warn(&pdev->dev, "not valid ether addr\n");
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 	}
 
 	rc = register_netdev(dev);

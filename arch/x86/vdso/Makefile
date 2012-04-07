@@ -3,21 +3,29 @@
 #
 
 VDSO64-$(CONFIG_X86_64)		:= y
+VDSOX32-$(CONFIG_X86_X32_ABI)	:= y
 VDSO32-$(CONFIG_X86_32)		:= y
 VDSO32-$(CONFIG_COMPAT)		:= y
 
 vdso-install-$(VDSO64-y)	+= vdso.so
+vdso-install-$(VDSOX32-y)	+= vdsox32.so
 vdso-install-$(VDSO32-y)	+= $(vdso32-images)
 
 
 # files to link into the vdso
 vobjs-y := vdso-note.o vclock_gettime.o vgetcpu.o
 
+vobjs-$(VDSOX32-y) += $(vobjx32s-compat)
+
+# Filter out x32 objects.
+vobj64s := $(filter-out $(vobjx32s-compat),$(vobjs-y))
+
 # files to link into kernel
 obj-$(VDSO64-y)			+= vma.o vdso.o
+obj-$(VDSOX32-y)		+= vdsox32.o
 obj-$(VDSO32-y)			+= vdso32.o vdso32-setup.o
 
-vobjs := $(foreach F,$(vobjs-y),$(obj)/$F)
+vobjs := $(foreach F,$(vobj64s),$(obj)/$F)
 
 $(obj)/vdso.o: $(obj)/vdso.so
 
@@ -71,6 +79,42 @@ endef
 
 $(obj)/%-syms.lds: $(obj)/%.so.dbg FORCE
 	$(call if_changed,vdsosym)
+
+#
+# X32 processes use x32 vDSO to access 64bit kernel data.
+#
+# Build x32 vDSO image:
+# 1. Compile x32 vDSO as 64bit.
+# 2. Convert object files to x32.
+# 3. Build x32 VDSO image with x32 objects, which contains 64bit codes
+# so that it can reach 64bit address space with 64bit pointers.
+#
+
+targets += vdsox32-syms.lds
+obj-$(VDSOX32-y)		+= vdsox32-syms.lds
+
+CPPFLAGS_vdsox32.lds = $(CPPFLAGS_vdso.lds)
+VDSO_LDFLAGS_vdsox32.lds = -Wl,-m,elf32_x86_64 \
+			   -Wl,-soname=linux-vdso.so.1 \
+			   -Wl,-z,max-page-size=4096 \
+			   -Wl,-z,common-page-size=4096
+
+vobjx32s-y := $(vobj64s:.o=-x32.o)
+vobjx32s := $(foreach F,$(vobjx32s-y),$(obj)/$F)
+
+# Convert 64bit object file to x32 for x32 vDSO.
+quiet_cmd_x32 = X32     $@
+      cmd_x32 = $(OBJCOPY) -O elf32-x86-64 $< $@
+
+$(obj)/%-x32.o: $(obj)/%.o FORCE
+	$(call if_changed,x32)
+
+targets += vdsox32.so vdsox32.so.dbg vdsox32.lds $(vobjx32s-y)
+
+$(obj)/vdsox32.o: $(src)/vdsox32.S $(obj)/vdsox32.so
+
+$(obj)/vdsox32.so.dbg: $(src)/vdsox32.lds $(vobjx32s) FORCE
+	$(call if_changed,vdso)
 
 #
 # Build multiple 32-bit vDSO images to choose from at boot time.

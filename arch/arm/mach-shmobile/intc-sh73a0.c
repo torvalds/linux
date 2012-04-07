@@ -19,10 +19,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sh_intc.h>
 #include <mach/intc.h>
+#include <mach/irqs.h>
 #include <mach/sh73a0.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach-types.h>
@@ -419,8 +421,8 @@ static irqreturn_t sh73a0_pint1_demux(int irq, void *dev_id)
 
 void __init sh73a0_init_irq(void)
 {
-	void __iomem *gic_dist_base = __io(0xf0001000);
-	void __iomem *gic_cpu_base = __io(0xf0000100);
+	void __iomem *gic_dist_base = IOMEM(0xf0001000);
+	void __iomem *gic_cpu_base = IOMEM(0xf0000100);
 	void __iomem *intevtsa = ioremap_nocache(0xffd20100, PAGE_SIZE);
 	int k, n;
 
@@ -445,6 +447,7 @@ void __init sh73a0_init_irq(void)
 		setup_irq(gic_spi(1 + k), &sh73a0_irq_pin_cascade[k]);
 
 		n = intcs_evt2irq(to_intc_vect(gic_spi(1 + k)));
+		WARN_ON(irq_alloc_desc_at(n, numa_node_id()) != n);
 		irq_set_chip_and_handler_name(n, &intca_gic_irq_chip,
 					      handle_level_irq, "level");
 		set_irq_flags(n, IRQF_VALID); /* yuck */

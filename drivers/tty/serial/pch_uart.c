@@ -29,6 +29,7 @@
 #include <linux/nmi.h>
 #include <linux/delay.h>
 
+#include <linux/debugfs.h>
 #include <linux/dmaengine.h>
 #include <linux/pch_dma.h>
 
@@ -144,6 +145,8 @@ enum {
 #define PCH_UART_DLL		0x00
 #define PCH_UART_DLM		0x01
 
+#define PCH_UART_BRCSR		0x0E
+
 #define PCH_UART_IID_RLS	(PCH_UART_IIR_REI)
 #define PCH_UART_IID_RDR	(PCH_UART_IIR_RRI)
 #define PCH_UART_IID_RDR_TO	(PCH_UART_IIR_RRI | PCH_UART_IIR_TOI)
@@ -203,7 +206,10 @@ enum {
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-#define DEFAULT_BAUD_RATE 1843200 /* 1.8432MHz */
+#define DEFAULT_UARTCLK   1843200 /*   1.8432 MHz */
+#define CMITC_UARTCLK   192000000 /* 192.0000 MHz */
+#define FRI2_64_UARTCLK  64000000 /*  64.0000 MHz */
+#define FRI2_48_UARTCLK  48000000 /*  48.0000 MHz */
 
 struct pch_uart_buffer {
 	unsigned char *buf;
@@ -218,7 +224,7 @@ struct eg20t_port {
 	unsigned int iobase;
 	struct pci_dev *pdev;
 	int fifo_size;
-	int base_baud;
+	int uartclk;
 	int start_tx;
 	int start_rx;
 	int tx_empty;
@@ -243,6 +249,8 @@ struct eg20t_port {
 	int				tx_dma_use;
 	void				*rx_buf_virt;
 	dma_addr_t			rx_buf_dma;
+
+	struct dentry	*debugfs;
 };
 
 /**
@@ -287,26 +295,100 @@ static struct pch_uart_driver_data drv_dat[] = {
 static struct eg20t_port *pch_uart_ports[PCH_UART_NR];
 #endif
 static unsigned int default_baud = 9600;
+static unsigned int user_uartclk = 0;
 static const int trigger_level_256[4] = { 1, 64, 128, 224 };
 static const int trigger_level_64[4] = { 1, 16, 32, 56 };
 static const int trigger_level_16[4] = { 1, 4, 8, 14 };
 static const int trigger_level_1[4] = { 1, 1, 1, 1 };
 
-static void pch_uart_hal_request(struct pci_dev *pdev, int fifosize,
-				 int base_baud)
-{
-	struct eg20t_port *priv = pci_get_drvdata(pdev);
+#ifdef CONFIG_DEBUG_FS
 
-	priv->trigger_level = 1;
-	priv->fcr = 0;
+#define PCH_REGS_BUFSIZE	1024
+static int pch_show_regs_open(struct inode *inode, struct file *file)
+{
+	file->private_data = inode->i_private;
+	return 0;
 }
 
-static unsigned int get_msr(struct eg20t_port *priv, void __iomem *base)
+static ssize_t port_show_regs(struct file *file, char __user *user_buf,
+				size_t count, loff_t *ppos)
 {
-	unsigned int msr = ioread8(base + UART_MSR);
-	priv->dmsr |= msr & PCH_UART_MSR_DELTA;
+	struct eg20t_port *priv = file->private_data;
+	char *buf;
+	u32 len = 0;
+	ssize_t ret;
+	unsigned char lcr;
 
-	return msr;
+	buf = kzalloc(PCH_REGS_BUFSIZE, GFP_KERNEL);
+	if (!buf)
+		return 0;
+
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"PCH EG20T port[%d] regs:\n", priv->port.line);
+
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"=================================\n");
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"IER: \t0x%02x\n", ioread8(priv->membase + UART_IER));
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"IIR: \t0x%02x\n", ioread8(priv->membase + UART_IIR));
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"LCR: \t0x%02x\n", ioread8(priv->membase + UART_LCR));
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"MCR: \t0x%02x\n", ioread8(priv->membase + UART_MCR));
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"LSR: \t0x%02x\n", ioread8(priv->membase + UART_LSR));
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"MSR: \t0x%02x\n", ioread8(priv->membase + UART_MSR));
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"BRCSR: \t0x%02x\n",
+			ioread8(priv->membase + PCH_UART_BRCSR));
+
+	lcr = ioread8(priv->membase + UART_LCR);
+	iowrite8(PCH_UART_LCR_DLAB, priv->membase + UART_LCR);
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"DLL: \t0x%02x\n", ioread8(priv->membase + UART_DLL));
+	len += snprintf(buf + len, PCH_REGS_BUFSIZE - len,
+			"DLM: \t0x%02x\n", ioread8(priv->membase + UART_DLM));
+	iowrite8(lcr, priv->membase + UART_LCR);
+
+	if (len > PCH_REGS_BUFSIZE)
+		len = PCH_REGS_BUFSIZE;
+
+	ret =  simple_read_from_buffer(user_buf, count, ppos, buf, len);
+	kfree(buf);
+	return ret;
+}
+
+static const struct file_operations port_regs_ops = {
+	.owner		= THIS_MODULE,
+	.open		= pch_show_regs_open,
+	.read		= port_show_regs,
+	.llseek		= default_llseek,
+};
+#endif	/* CONFIG_DEBUG_FS */
+
+/* Return UART clock, checking for board specific clocks. */
+static int pch_uart_get_uartclk(void)
+{
+	const char *cmp;
+
+	if (user_uartclk)
+		return user_uartclk;
+
+	cmp = dmi_get_system_info(DMI_BOARD_NAME);
+	if (cmp && strstr(cmp, "CM-iTC"))
+		return CMITC_UARTCLK;
+
+	cmp = dmi_get_system_info(DMI_BIOS_VERSION);
+	if (cmp && strnstr(cmp, "FRI2", 4))
+		return FRI2_64_UARTCLK;
+
+	cmp = dmi_get_system_info(DMI_PRODUCT_NAME);
+	if (cmp && strstr(cmp, "Fish River Island II"))
+		return FRI2_48_UARTCLK;
+
+	return DEFAULT_UARTCLK;
 }
 
 static void pch_uart_hal_enable_interrupt(struct eg20t_port *priv,
@@ -332,7 +414,7 @@ static int pch_uart_hal_set_line(struct eg20t_port *priv, int baud,
 	unsigned int dll, dlm, lcr;
 	int div;
 
-	div = DIV_ROUND_CLOSEST(priv->base_baud / 16, baud);
+	div = DIV_ROUND_CLOSEST(priv->uartclk / 16, baud);
 	if (div < 0 || USHRT_MAX <= div) {
 		dev_err(priv->port.dev, "Invalid Baud(div=0x%x)\n", div);
 		return -EINVAL;
@@ -442,8 +524,9 @@ static int pch_uart_hal_set_fifo(struct eg20t_port *priv,
 
 static u8 pch_uart_hal_get_modem(struct eg20t_port *priv)
 {
-	priv->dmsr = 0;
-	return get_msr(priv, priv->membase);
+	unsigned int msr = ioread8(priv->membase + UART_MSR);
+	priv->dmsr = msr & PCH_UART_MSR_DELTA;
+	return (u8)msr;
 }
 
 static void pch_uart_hal_write(struct eg20t_port *priv,
@@ -524,7 +607,7 @@ static int push_rx(struct eg20t_port *priv, const unsigned char *buf,
 
 static int pop_tx_x(struct eg20t_port *priv, unsigned char *buf)
 {
-	int ret;
+	int ret = 0;
 	struct uart_port *port = &priv->port;
 
 	if (port->x_char) {
@@ -533,8 +616,6 @@ static int pop_tx_x(struct eg20t_port *priv, unsigned char *buf)
 		buf[0] = port->x_char;
 		port->x_char = 0;
 		ret = 1;
-	} else {
-		ret = 0;
 	}
 
 	return ret;
@@ -763,7 +844,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 
 	sg_dma_address(sg) = priv->rx_buf_dma;
 
-	desc = priv->chan_rx->device->device_prep_slave_sg(priv->chan_rx,
+	desc = dmaengine_prep_slave_sg(priv->chan_rx,
 			sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
@@ -922,7 +1003,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 			sg_dma_len(sg) = size;
 	}
 
-	desc = priv->chan_tx->device->device_prep_slave_sg(priv->chan_tx,
+	desc = dmaengine_prep_slave_sg(priv->chan_tx,
 					priv->sg_tx_p, nent, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
@@ -1032,14 +1113,12 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 static unsigned int pch_uart_tx_empty(struct uart_port *port)
 {
 	struct eg20t_port *priv;
-	int ret;
+
 	priv = container_of(port, struct eg20t_port, port);
 	if (priv->tx_empty)
-		ret = TIOCSER_TEMT;
+		return TIOCSER_TEMT;
 	else
-		ret = 0;
-
-	return ret;
+		return 0;
 }
 
 /* Returns the current state of modem control inputs. */
@@ -1153,9 +1232,9 @@ static int pch_uart_startup(struct uart_port *port)
 	priv->tx_empty = 1;
 
 	if (port->uartclk)
-		priv->base_baud = port->uartclk;
+		priv->uartclk = port->uartclk;
 	else
-		port->uartclk = priv->base_baud;
+		port->uartclk = priv->uartclk;
 
 	pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_ALL_INT);
 	ret = pch_uart_hal_set_line(priv, default_baud,
@@ -1273,9 +1352,8 @@ static void pch_uart_set_termios(struct uart_port *port,
 		else
 			parity = PCH_UART_HAL_PARITY_EVEN;
 
-	} else {
+	} else
 		parity = PCH_UART_HAL_PARITY_NONE;
-	}
 
 	/* Only UART0 has auto hardware flow function */
 	if ((termios->c_cflag & CRTSCTS) && (priv->fifo_size == 256))
@@ -1447,7 +1525,6 @@ static void
 pch_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct eg20t_port *priv;
-
 	unsigned long flags;
 	u8 ier;
 	int locked = 1;
@@ -1489,7 +1566,7 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 static int __init pch_console_setup(struct console *co, char *options)
 {
 	struct uart_port *port;
-	int baud = 9600;
+	int baud = default_baud;
 	int bits = 8;
 	int parity = 'n';
 	int flow = 'n';
@@ -1506,8 +1583,7 @@ static int __init pch_console_setup(struct console *co, char *options)
 	if (!port || (!port->iobase && !port->membase))
 		return -ENODEV;
 
-	/* setup uartclock */
-	port->uartclk = DEFAULT_BAUD_RATE;
+	port->uartclk = pch_uart_get_uartclk();
 
 	if (options)
 		uart_parse_options(options, &baud, &parity, &bits, &flow);
@@ -1550,10 +1626,10 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	unsigned int iobase;
 	unsigned int mapbase;
 	unsigned char *rxbuf;
-	int fifosize, base_baud;
+	int fifosize;
 	int port_type;
 	struct pch_uart_driver_data *board;
-	const char *board_name;
+	char name[32];	/* for debugfs file name */
 
 	board = &drv_dat[id->driver_data];
 	port_type = board->port_type;
@@ -1565,13 +1641,6 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	rxbuf = (unsigned char *)__get_free_page(GFP_KERNEL);
 	if (!rxbuf)
 		goto init_port_free_txbuf;
-
-	base_baud = DEFAULT_BAUD_RATE;
-
-	/* quirk for CM-iTC board */
-	board_name = dmi_get_system_info(DMI_BOARD_NAME);
-	if (board_name && strstr(board_name, "CM-iTC"))
-		base_baud = 192000000; /* 192.0MHz */
 
 	switch (port_type) {
 	case PORT_UNKNOWN:
@@ -1597,7 +1666,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	priv->rxbuf.size = PAGE_SIZE;
 
 	priv->fifo_size = fifosize;
-	priv->base_baud = base_baud;
+	priv->uartclk = pch_uart_get_uartclk();
 	priv->port_type = PORT_MAX_8250 + port_type + 1;
 	priv->port.dev = &pdev->dev;
 	priv->port.iobase = iobase;
@@ -1614,7 +1683,8 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	spin_lock_init(&priv->port.lock);
 
 	pci_set_drvdata(pdev, priv);
-	pch_uart_hal_request(pdev, fifosize, base_baud);
+	priv->trigger_level = 1;
+	priv->fcr = 0;
 
 #ifdef CONFIG_SERIAL_PCH_UART_CONSOLE
 	pch_uart_ports[board->line_no] = priv;
@@ -1622,6 +1692,12 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	ret = uart_add_one_port(&pch_uart_driver, &priv->port);
 	if (ret < 0)
 		goto init_port_hal_free;
+
+#ifdef CONFIG_DEBUG_FS
+	snprintf(name, sizeof(name), "uart%d_regs", board->line_no);
+	priv->debugfs = debugfs_create_file(name, S_IFREG | S_IRUGO,
+				NULL, priv, &port_regs_ops);
+#endif
 
 	return priv;
 
@@ -1639,6 +1715,11 @@ init_port_alloc_err:
 
 static void pch_uart_exit_port(struct eg20t_port *priv)
 {
+
+#ifdef CONFIG_DEBUG_FS
+	if (priv->debugfs)
+		debugfs_remove(priv->debugfs);
+#endif
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
 	pci_set_drvdata(priv->pdev, NULL);
 	free_page((unsigned long)priv->rxbuf.buf);
@@ -1646,9 +1727,7 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 
 static void pch_uart_pci_remove(struct pci_dev *pdev)
 {
-	struct eg20t_port *priv;
-
-	priv = (struct eg20t_port *)pci_get_drvdata(pdev);
+	struct eg20t_port *priv = pci_get_drvdata(pdev);
 
 	pci_disable_msi(pdev);
 
@@ -1785,3 +1864,8 @@ module_exit(pch_uart_module_exit);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel EG20T PCH UART PCI Driver");
 module_param(default_baud, uint, S_IRUGO);
+MODULE_PARM_DESC(default_baud,
+                 "Default BAUD for initial driver state and console (default 9600)");
+module_param(user_uartclk, uint, S_IRUGO);
+MODULE_PARM_DESC(user_uartclk,
+                 "Override UART default or board specific UART clock");

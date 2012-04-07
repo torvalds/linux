@@ -79,14 +79,17 @@ static ssize_t audmux_read_file(struct file *file, char __user *user_buf,
 	if (!buf)
 		return -ENOMEM;
 
+	if (!audmux_base)
+		return -ENOSYS;
+
 	if (audmux_clk)
-		clk_enable(audmux_clk);
+		clk_prepare_enable(audmux_clk);
 
 	ptcr = readl(audmux_base + IMX_AUDMUX_V2_PTCR(port));
 	pdcr = readl(audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
 	if (audmux_clk)
-		clk_disable(audmux_clk);
+		clk_disable_unprepare(audmux_clk);
 
 	ret = snprintf(buf, PAGE_SIZE, "PDCR: %08x\nPTCR: %08x\n",
 		       pdcr, ptcr);
@@ -158,7 +161,7 @@ static void __init audmux_debugfs_init(void)
 		return;
 	}
 
-	for (i = 1; i < 8; i++) {
+	for (i = 0; i < MX31_AUDMUX_PORT6_SSI_PINS_6 + 1; i++) {
 		snprintf(buf, sizeof(buf), "ssi%d", i);
 		if (!debugfs_create_file(buf, 0444, audmux_debugfs_root,
 					 (void *)i, &audmux_debugfs_fops))
@@ -237,13 +240,13 @@ int imx_audmux_v2_configure_port(unsigned int port, unsigned int ptcr,
 		return -ENOSYS;
 
 	if (audmux_clk)
-		clk_enable(audmux_clk);
+		clk_prepare_enable(audmux_clk);
 
 	writel(ptcr, audmux_base + IMX_AUDMUX_V2_PTCR(port));
 	writel(pdcr, audmux_base + IMX_AUDMUX_V2_PDCR(port));
 
 	if (audmux_clk)
-		clk_disable(audmux_clk);
+		clk_disable_unprepare(audmux_clk);
 
 	return 0;
 }

@@ -36,10 +36,56 @@
 
 #include "exynos_drm_drv.h"
 #include "exynos_drm_hdmi.h"
-#include "exynos_hdmi.h"
-#include "exynos_mixer.h"
+
+#define HDMI_OVERLAY_NUMBER	3
 
 #define get_mixer_context(dev)	platform_get_drvdata(to_platform_device(dev))
+
+struct hdmi_win_data {
+	dma_addr_t		dma_addr;
+	void __iomem		*vaddr;
+	dma_addr_t		chroma_dma_addr;
+	void __iomem		*chroma_vaddr;
+	uint32_t		pixel_format;
+	unsigned int		bpp;
+	unsigned int		crtc_x;
+	unsigned int		crtc_y;
+	unsigned int		crtc_width;
+	unsigned int		crtc_height;
+	unsigned int		fb_x;
+	unsigned int		fb_y;
+	unsigned int		fb_width;
+	unsigned int		fb_height;
+	unsigned int		mode_width;
+	unsigned int		mode_height;
+	unsigned int		scan_flags;
+};
+
+struct mixer_resources {
+	struct device		*dev;
+	int			irq;
+	void __iomem		*mixer_regs;
+	void __iomem		*vp_regs;
+	spinlock_t		reg_slock;
+	struct clk		*mixer;
+	struct clk		*vp;
+	struct clk		*sclk_mixer;
+	struct clk		*sclk_hdmi;
+	struct clk		*sclk_dac;
+};
+
+struct mixer_context {
+	struct fb_videomode	*default_timing;
+	unsigned int		default_win;
+	unsigned int		default_bpp;
+	unsigned int		irq;
+	int			pipe;
+	bool			interlace;
+	bool			vp_enabled;
+
+	struct mixer_resources	mixer_res;
+	struct hdmi_win_data	win_data[HDMI_OVERLAY_NUMBER];
+};
 
 static const u8 filter_y_horiz_tap8[] = {
 	0,	-1,	-1,	-1,	-1,	-1,	-1,	-1,
@@ -712,7 +758,12 @@ static void mixer_finish_pageflip(struct drm_device *drm_dev, int crtc)
 	}
 
 	if (is_checked)
-		drm_vblank_put(drm_dev, crtc);
+		/*
+		 * call drm_vblank_put only in case that drm_vblank_get was
+		 * called.
+		 */
+		if (atomic_read(&drm_dev->vblank_refcount[crtc]) > 0)
+			drm_vblank_put(drm_dev, crtc);
 
 	spin_unlock_irqrestore(&drm_dev->event_lock, flags);
 }
@@ -779,15 +830,15 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	mixer_reg_writemask(res, MXR_STATUS, MXR_STATUS_16_BURST,
 		MXR_STATUS_BURST_MASK);
 
-	/* setting default layer priority: layer1 > video > layer0
+	/* setting default layer priority: layer1 > layer0 > video
 	 * because typical usage scenario would be
+	 * layer1 - OSD
 	 * layer0 - framebuffer
 	 * video - video overlay
-	 * layer1 - OSD
 	 */
-	val  = MXR_LAYER_CFG_GRP0_VAL(1);
-	val |= MXR_LAYER_CFG_VP_VAL(2);
-	val |= MXR_LAYER_CFG_GRP1_VAL(3);
+	val = MXR_LAYER_CFG_GRP1_VAL(3);
+	val |= MXR_LAYER_CFG_GRP0_VAL(2);
+	val |= MXR_LAYER_CFG_VP_VAL(1);
 	mixer_reg_write(res, MXR_LAYER_CFG, val);
 
 	/* setting background color */
@@ -1044,7 +1095,7 @@ static int mixer_remove(struct platform_device *pdev)
 					platform_get_drvdata(pdev);
 	struct mixer_context *ctx = (struct mixer_context *)drm_hdmi_ctx->ctx;
 
-	dev_info(dev, "remove sucessful\n");
+	dev_info(dev, "remove successful\n");
 
 	mixer_resource_poweroff(ctx);
 	mixer_resources_cleanup(ctx);
@@ -1061,10 +1112,3 @@ struct platform_driver mixer_driver = {
 	.probe = mixer_probe,
 	.remove = __devexit_p(mixer_remove),
 };
-EXPORT_SYMBOL(mixer_driver);
-
-MODULE_AUTHOR("Seung-Woo Kim, <sw0312.kim@samsung.com>");
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_DESCRIPTION("Samsung DRM HDMI mixer Driver");
-MODULE_LICENSE("GPL");

@@ -1244,7 +1244,7 @@ ENTRY(_software_trace_buff)
 	.endr
 #endif /* CONFIG_DEBUG_BFIN_HWTRACE_EXPAND */
 
-#if CONFIG_EARLY_PRINTK
+#ifdef CONFIG_EARLY_PRINTK
 __INIT
 ENTRY(_early_trap)
 	SAVE_ALL_SYS
@@ -1755,6 +1755,8 @@ ENTRY(_sys_call_table)
 	.long _sys_syncfs
 	.long _sys_setns
 	.long _sys_sendmmsg		/* 380 */
+	.long _sys_process_vm_readv
+	.long _sys_process_vm_writev
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall

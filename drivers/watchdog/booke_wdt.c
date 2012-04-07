@@ -12,6 +12,8 @@
  * option) any later version.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/smp.h>
@@ -21,7 +23,6 @@
 #include <linux/uaccess.h>
 
 #include <asm/reg_booke.h>
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/div64.h>
 
@@ -198,9 +199,13 @@ static long booke_wdt_ioctl(struct file *file,
 		booke_wdt_period = tmp;
 #endif
 		booke_wdt_set();
-		return 0;
+		/* Fall */
 	case WDIOC_GETTIMEOUT:
+#ifdef	CONFIG_FSL_BOOKE
+		return put_user(period_to_sec(booke_wdt_period), p);
+#else
 		return put_user(booke_wdt_period, p);
+#endif
 	default:
 		return -ENOTTY;
 	}
@@ -221,8 +226,8 @@ static int booke_wdt_open(struct inode *inode, struct file *file)
 	if (booke_wdt_enabled == 0) {
 		booke_wdt_enabled = 1;
 		on_each_cpu(__booke_wdt_enable, NULL, 0);
-		pr_debug("booke_wdt: watchdog enabled (timeout = %llu sec)\n",
-			period_to_sec(booke_wdt_period));
+		pr_debug("watchdog enabled (timeout = %llu sec)\n",
+			 period_to_sec(booke_wdt_period));
 	}
 	spin_unlock(&booke_wdt_lock);
 
@@ -239,7 +244,7 @@ static int booke_wdt_release(struct inode *inode, struct file *file)
 	 */
 	on_each_cpu(__booke_wdt_disable, NULL, 0);
 	booke_wdt_enabled = 0;
-	pr_debug("booke_wdt: watchdog disabled\n");
+	pr_debug("watchdog disabled\n");
 #endif
 
 	clear_bit(0, &wdt_is_active);
@@ -271,19 +276,19 @@ static int __init booke_wdt_init(void)
 {
 	int ret = 0;
 
-	pr_info("booke_wdt: powerpc book-e watchdog driver loaded\n");
+	pr_info("powerpc book-e watchdog driver loaded\n");
 	ident.firmware_version = cur_cpu_spec->pvr_value;
 
 	ret = misc_register(&booke_wdt_miscdev);
 	if (ret) {
-		pr_err("booke_wdt: cannot register device (minor=%u, ret=%i)\n",
+		pr_err("cannot register device (minor=%u, ret=%i)\n",
 		       WATCHDOG_MINOR, ret);
 		return ret;
 	}
 
 	spin_lock(&booke_wdt_lock);
 	if (booke_wdt_enabled == 1) {
-		pr_info("booke_wdt: watchdog enabled (timeout = %llu sec)\n",
+		pr_info("watchdog enabled (timeout = %llu sec)\n",
 			period_to_sec(booke_wdt_period));
 		on_each_cpu(__booke_wdt_enable, NULL, 0);
 	}

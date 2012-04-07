@@ -22,22 +22,22 @@
  **************************************************************************
  */
 
-/* Software-defined structure to the shared-memory */
-#define CMD_NOTIFY_PORT0 0
-#define CMD_NOTIFY_PORT1 4
-#define CMD_PDU_PORT0    0x008
-#define CMD_PDU_PORT1    0x108
-#define REBOOT_FLAG_PORT0 0x3f8
-#define REBOOT_FLAG_PORT1 0x3fc
-
 #define MCDI_RPC_TIMEOUT       10 /*seconds */
 
 #define MCDI_PDU(efx)							\
-	(efx_port_num(efx) ? CMD_PDU_PORT1 : CMD_PDU_PORT0)
+	(efx_port_num(efx) ? MC_SMEM_P1_PDU_OFST : MC_SMEM_P0_PDU_OFST)
 #define MCDI_DOORBELL(efx)						\
-	(efx_port_num(efx) ? CMD_NOTIFY_PORT1 : CMD_NOTIFY_PORT0)
-#define MCDI_REBOOT_FLAG(efx)						\
-	(efx_port_num(efx) ? REBOOT_FLAG_PORT1 : REBOOT_FLAG_PORT0)
+	(efx_port_num(efx) ? MC_SMEM_P1_DOORBELL_OFST : MC_SMEM_P0_DOORBELL_OFST)
+#define MCDI_STATUS(efx)						\
+	(efx_port_num(efx) ? MC_SMEM_P1_STATUS_OFST : MC_SMEM_P0_STATUS_OFST)
+
+/* A reboot/assertion causes the MCDI status word to be set after the
+ * command word is set or a REBOOT event is sent. If we notice a reboot
+ * via these mechanisms then wait 10ms for the status word to be set. */
+#define MCDI_STATUS_DELAY_US		100
+#define MCDI_STATUS_DELAY_COUNT		100
+#define MCDI_STATUS_SLEEP_MS						\
+	(MCDI_STATUS_DELAY_US * MCDI_STATUS_DELAY_COUNT / 1000)
 
 #define SEQ_MASK							\
 	EFX_MASK32(EFX_WIDTH(MCDI_HEADER_SEQ))
@@ -77,7 +77,7 @@ static void efx_mcdi_copyin(struct efx_nic *efx, unsigned cmd,
 	u32 xflags, seqno;
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
-	BUG_ON(inlen & 3 || inlen >= 0x100);
+	BUG_ON(inlen & 3 || inlen >= MC_SMEM_PDU_LEN);
 
 	seqno = mcdi->seqno & SEQ_MASK;
 	xflags = 0;
@@ -111,7 +111,7 @@ static void efx_mcdi_copyout(struct efx_nic *efx, u8 *outbuf, size_t outlen)
 	int i;
 
 	BUG_ON(atomic_read(&mcdi->state) == MCDI_STATE_QUIESCENT);
-	BUG_ON(outlen & 3 || outlen >= 0x100);
+	BUG_ON(outlen & 3 || outlen >= MC_SMEM_PDU_LEN);
 
 	for (i = 0; i < outlen; i += 4)
 		*((__le32 *)(outbuf + i)) = _efx_readd(efx, pdu + 4 + i);
@@ -210,7 +210,7 @@ out:
 /* Test and clear MC-rebooted flag for this port/function */
 int efx_mcdi_poll_reboot(struct efx_nic *efx)
 {
-	unsigned int addr = FR_CZ_MC_TREG_SMEM + MCDI_REBOOT_FLAG(efx);
+	unsigned int addr = FR_CZ_MC_TREG_SMEM + MCDI_STATUS(efx);
 	efx_dword_t reg;
 	uint32_t value;
 
@@ -384,6 +384,11 @@ int efx_mcdi_rpc(struct efx_nic *efx, unsigned cmd,
 			netif_dbg(efx, hw, efx->net_dev,
 				  "MC command 0x%x inlen %d failed rc=%d\n",
 				  cmd, (int)inlen, -rc);
+
+		if (rc == -EIO || rc == -EINTR) {
+			msleep(MCDI_STATUS_SLEEP_MS);
+			efx_mcdi_poll_reboot(efx);
+		}
 	}
 
 	efx_mcdi_release(mcdi);
@@ -465,9 +470,19 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 			mcdi->resplen = 0;
 			++mcdi->credits;
 		}
-	} else
+	} else {
+		int count;
+
 		/* Nobody was waiting for an MCDI request, so trigger a reset */
 		efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
+
+		/* Consume the status word since efx_mcdi_rpc_finish() won't */
+		for (count = 0; count < MCDI_STATUS_DELAY_COUNT; ++count) {
+			if (efx_mcdi_poll_reboot(efx))
+				break;
+			udelay(MCDI_STATUS_DELAY_US);
+		}
+	}
 
 	spin_unlock(&mcdi->iface_lock);
 }
@@ -500,49 +515,6 @@ static void efx_mcdi_process_link_change(struct efx_nic *efx, efx_qword_t *ev)
 	efx_mcdi_phy_check_fcntl(efx, lpa);
 
 	efx_link_status_changed(efx);
-}
-
-static const char *sensor_names[] = {
-	[MC_CMD_SENSOR_CONTROLLER_TEMP] = "Controller temp. sensor",
-	[MC_CMD_SENSOR_PHY_COMMON_TEMP] = "PHY shared temp. sensor",
-	[MC_CMD_SENSOR_CONTROLLER_COOLING] = "Controller cooling",
-	[MC_CMD_SENSOR_PHY0_TEMP] = "PHY 0 temp. sensor",
-	[MC_CMD_SENSOR_PHY0_COOLING] = "PHY 0 cooling",
-	[MC_CMD_SENSOR_PHY1_TEMP] = "PHY 1 temp. sensor",
-	[MC_CMD_SENSOR_PHY1_COOLING] = "PHY 1 cooling",
-	[MC_CMD_SENSOR_IN_1V0] = "1.0V supply sensor",
-	[MC_CMD_SENSOR_IN_1V2] = "1.2V supply sensor",
-	[MC_CMD_SENSOR_IN_1V8] = "1.8V supply sensor",
-	[MC_CMD_SENSOR_IN_2V5] = "2.5V supply sensor",
-	[MC_CMD_SENSOR_IN_3V3] = "3.3V supply sensor",
-	[MC_CMD_SENSOR_IN_12V0] = "12V supply sensor"
-};
-
-static const char *sensor_status_names[] = {
-	[MC_CMD_SENSOR_STATE_OK] = "OK",
-	[MC_CMD_SENSOR_STATE_WARNING] = "Warning",
-	[MC_CMD_SENSOR_STATE_FATAL] = "Fatal",
-	[MC_CMD_SENSOR_STATE_BROKEN] = "Device failure",
-};
-
-static void efx_mcdi_sensor_event(struct efx_nic *efx, efx_qword_t *ev)
-{
-	unsigned int monitor, state, value;
-	const char *name, *state_txt;
-	monitor = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_MONITOR);
-	state = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_STATE);
-	value = EFX_QWORD_FIELD(*ev, MCDI_EVENT_SENSOREVT_VALUE);
-	/* Deal gracefully with the board having more drivers than we
-	 * know about, but do not expect new sensor states. */
-	name = (monitor >= ARRAY_SIZE(sensor_names))
-				    ? "No sensor name available" :
-				    sensor_names[monitor];
-	EFX_BUG_ON_PARANOID(state >= ARRAY_SIZE(sensor_status_names));
-	state_txt = sensor_status_names[state];
-
-	netif_err(efx, hw, efx->net_dev,
-		  "Sensor %d (%s) reports condition '%s' for raw value %d\n",
-		  monitor, name, state_txt, value);
 }
 
 /* Called from  falcon_process_eventq for MCDI events */
@@ -588,6 +560,9 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 	case MCDI_EVENT_CODE_MAC_STATS_DMA:
 		/* MAC stats are gather lazily.  We can ignore this. */
 		break;
+	case MCDI_EVENT_CODE_FLR:
+		efx_sriov_flr(efx, MCDI_EVENT_FIELD(*event, FLR_VF));
+		break;
 
 	default:
 		netif_err(efx, hw, efx->net_dev, "Unknown MCDI event 0x%x\n",
@@ -604,7 +579,7 @@ void efx_mcdi_process_event(struct efx_channel *channel,
 
 void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 {
-	u8 outbuf[ALIGN(MC_CMD_GET_VERSION_V1_OUT_LEN, 4)];
+	u8 outbuf[ALIGN(MC_CMD_GET_VERSION_OUT_LEN, 4)];
 	size_t outlength;
 	const __le16 *ver_words;
 	int rc;
@@ -616,7 +591,7 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	if (rc)
 		goto fail;
 
-	if (outlength < MC_CMD_GET_VERSION_V1_OUT_LEN) {
+	if (outlength < MC_CMD_GET_VERSION_OUT_LEN) {
 		rc = -EIO;
 		goto fail;
 	}
@@ -663,9 +638,9 @@ fail:
 }
 
 int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
-			   u16 *fw_subtype_list)
+			   u16 *fw_subtype_list, u32 *capabilities)
 {
-	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LEN];
+	uint8_t outbuf[MC_CMD_GET_BOARD_CFG_OUT_LENMIN];
 	size_t outlen;
 	int port_num = efx_port_num(efx);
 	int offset;
@@ -678,7 +653,7 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	if (rc)
 		goto fail;
 
-	if (outlen < MC_CMD_GET_BOARD_CFG_OUT_LEN) {
+	if (outlen < MC_CMD_GET_BOARD_CFG_OUT_LENMIN) {
 		rc = -EIO;
 		goto fail;
 	}
@@ -691,7 +666,16 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 	if (fw_subtype_list)
 		memcpy(fw_subtype_list,
 		       outbuf + MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_OFST,
-		       MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_LEN);
+		       MC_CMD_GET_BOARD_CFG_OUT_FW_SUBTYPE_LIST_MINNUM *
+		       sizeof(fw_subtype_list[0]));
+	if (capabilities) {
+		if (port_num)
+			*capabilities = MCDI_DWORD(outbuf,
+					GET_BOARD_CFG_OUT_CAPABILITIES_PORT1);
+		else
+			*capabilities = MCDI_DWORD(outbuf,
+					GET_BOARD_CFG_OUT_CAPABILITIES_PORT0);
+	}
 
 	return 0;
 
@@ -779,7 +763,7 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 	*size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_SIZE);
 	*erase_size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_ERASESIZE);
 	*protected_out = !!(MCDI_DWORD(outbuf, NVRAM_INFO_OUT_FLAGS) &
-				(1 << MC_CMD_NVRAM_PROTECTED_LBN));
+				(1 << MC_CMD_NVRAM_INFO_OUT_PROTECTED_LBN));
 	return 0;
 
 fail:
@@ -1060,7 +1044,7 @@ void efx_mcdi_set_id_led(struct efx_nic *efx, enum efx_led_mode mode)
 
 int efx_mcdi_reset_port(struct efx_nic *efx)
 {
-	int rc = efx_mcdi_rpc(efx, MC_CMD_PORT_RESET, NULL, 0, NULL, 0, NULL);
+	int rc = efx_mcdi_rpc(efx, MC_CMD_ENTITY_RESET, NULL, 0, NULL, 0, NULL);
 	if (rc)
 		netif_err(efx, hw, efx->net_dev, "%s: failed rc=%d\n",
 			  __func__, rc);
@@ -1173,6 +1157,37 @@ fail:
 	return rc;
 }
 
+int efx_mcdi_flush_rxqs(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+	struct efx_rx_queue *rx_queue;
+	__le32 *qid;
+	int rc, count;
+
+	qid = kmalloc(EFX_MAX_CHANNELS * sizeof(*qid), GFP_KERNEL);
+	if (qid == NULL)
+		return -ENOMEM;
+
+	count = 0;
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_rx_queue(rx_queue, channel) {
+			if (rx_queue->flush_pending) {
+				rx_queue->flush_pending = false;
+				atomic_dec(&efx->rxq_flush_pending);
+				qid[count++] = cpu_to_le32(
+					efx_rx_queue_index(rx_queue));
+			}
+		}
+	}
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_FLUSH_RX_QUEUES, (u8 *)qid,
+			  count * sizeof(*qid), NULL, 0, NULL);
+	WARN_ON(rc > 0);
+
+	kfree(qid);
+
+	return rc;
+}
 
 int efx_mcdi_wol_filter_reset(struct efx_nic *efx)
 {

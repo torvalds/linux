@@ -96,7 +96,6 @@ struct virtio_driver {
 	void (*config_changed)(struct virtio_device *dev);
 #ifdef CONFIG_PM
 	int (*freeze)(struct virtio_device *dev);
-	int (*thaw)(struct virtio_device *dev);
 	int (*restore)(struct virtio_device *dev);
 #endif
 };

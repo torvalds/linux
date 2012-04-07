@@ -621,7 +621,7 @@ static inline void cpu_to_le16_buf(u16 *buf, uint nwords)
 /*
  * convert binary srom data into linked list of srom variable items.
  */
-static void
+static int
 _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 {
 	struct brcms_srom_list_head *entry;
@@ -638,6 +638,9 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 
 	/* first store the srom revision */
 	entry = kzalloc(sizeof(struct brcms_srom_list_head), GFP_KERNEL);
+	if (!entry)
+		return -ENOMEM;
+
 	entry->varid = BRCMS_SROM_REV;
 	entry->var_type = BRCMS_SROM_UNUMBER;
 	entry->uval = sromrev;
@@ -715,6 +718,8 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 
 		entry = kzalloc(sizeof(struct brcms_srom_list_head) +
 				extra_space, GFP_KERNEL);
+		if (!entry)
+			return -ENOMEM;
 		entry->varid = id;
 		entry->var_type = type;
 		if (flags & SRFL_ETHADDR) {
@@ -754,6 +759,8 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 			entry =
 			    kzalloc(sizeof(struct brcms_srom_list_head),
 				    GFP_KERNEL);
+			if (!entry)
+				return -ENOMEM;
 			entry->varid = srv->varid+p;
 			entry->var_type = BRCMS_SROM_UNUMBER;
 			entry->uval = val;
@@ -761,6 +768,7 @@ _initvars_srom_pci(u8 sromrev, u16 *srom, struct list_head *var_list)
 		}
 		pb += psz;
 	}
+	return 0;
 }
 
 /*
@@ -906,7 +914,9 @@ int srom_var_init(struct si_pub *sih)
 		INIT_LIST_HEAD(&sii->var_list);
 
 		/* parse SROM into name=value pairs. */
-		_initvars_srom_pci(sromrev, srom, &sii->var_list);
+		err = _initvars_srom_pci(sromrev, srom, &sii->var_list);
+		if (err)
+			srom_free_vars(sih);
 	}
 
 errout:

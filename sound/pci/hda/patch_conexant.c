@@ -1607,7 +1607,7 @@ static void cxt5051_update_speaker(struct hda_codec *codec)
 	pinctl = (!spec->hp_present && spec->cur_eapd) ? PIN_OUT : 0;
 	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			    pinctl);
-	/* on ideapad there is an aditional speaker (subwoofer) to mute */
+	/* on ideapad there is an additional speaker (subwoofer) to mute */
 	if (spec->ideapad)
 		snd_hda_codec_write(codec, 0x1b, 0,
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,

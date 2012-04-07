@@ -1,33 +1,33 @@
 
 /*
  *
-  Copyright (c) Eicon Networks, 2002.
+ Copyright (c) Eicon Networks, 2002.
  *
-  This source file is supplied for the use with
-  Eicon Networks range of DIVA Server Adapters.
+ This source file is supplied for the use with
+ Eicon Networks range of DIVA Server Adapters.
  *
-  Eicon File Revision :    2.1
+ Eicon File Revision :    2.1
  *
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; either version 2, or (at your option)
-  any later version.
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2, or (at your option)
+ any later version.
  *
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the GNU General Public License for more details.
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY OF ANY KIND WHATSOEVER INCLUDING ANY
+ implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ See the GNU General Public License for more details.
  *
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
  */
-#ifndef DSP_DEFS_H_  
+#ifndef DSP_DEFS_H_
 #define DSP_DEFS_H_
 #include "dspdids.h"
 /*---------------------------------------------------------------------------*/
-#define dsp_download_reserve_space(fp,length)
+#define dsp_download_reserve_space(fp, length)
 /*****************************************************************************/
 /*
  * OS file access abstraction layer
@@ -35,25 +35,25 @@
  * I/O functions returns -1 on error, 0 on EOF
  */
 struct _OsFileHandle_;
-typedef long (  * OsFileIo)  (struct _OsFileHandle_    *handle,
-                                void                     *buffer,
-                                long                       size) ;
-typedef long (  * OsFileSeek)(struct _OsFileHandle_    *handle,
-                                long                       position,
-                                int                        mode) ;
-typedef long (  * OsCardLoad)(struct _OsFileHandle_    *handle,
-                                long                       length,
-                                void                         *   *addr) ;
+typedef long (*OsFileIo)(struct _OsFileHandle_ *handle,
+			 void *buffer,
+			 long size);
+typedef long (*OsFileSeek)(struct _OsFileHandle_ *handle,
+			   long position,
+			   int mode);
+typedef long (*OsCardLoad)(struct _OsFileHandle_    *handle,
+			   long length,
+			   void **addr);
 typedef struct _OsFileHandle_
-{ void       *sysFileDesc ;
- unsigned long sysFileSize ;
- OsFileIo      sysFileRead ;
- OsFileSeek    sysFileSeek ;
- void       *sysLoadDesc ;
- OsCardLoad    sysCardLoad ;
-} OsFileHandle ;
-extern OsFileHandle *OsOpenFile (char *path_name) ;
-extern void          OsCloseFile (OsFileHandle *fp) ;
+{ void       *sysFileDesc;
+	unsigned long sysFileSize;
+	OsFileIo      sysFileRead;
+	OsFileSeek    sysFileSeek;
+	void       *sysLoadDesc;
+	OsCardLoad    sysCardLoad;
+} OsFileHandle;
+extern OsFileHandle *OsOpenFile(char *path_name);
+extern void          OsCloseFile(OsFileHandle *fp);
 /*****************************************************************************/
 #define DSP_TELINDUS_FILE "dspdload.bin"
 /* special DSP file for BRI cards for Qsig and CornetN because of missing memory */
@@ -93,109 +93,109 @@ extern void          OsCloseFile (OsFileHandle *fp) ;
 #define DSP_FILE_FORMAT_VERSION_BCD         0x0100
 typedef struct tag_dsp_combifile_header
 {
-  char                  format_identification[DSP_COMBIFILE_FORMAT_IDENTIFICATION_SIZE];
-  word                  format_version_bcd;
-  word                  header_size;
-  word                  combifile_description_size;
-  word                  directory_entries;
-  word                  directory_size;
-  word                  download_count;
-  word                  usage_mask_size;
+	char                  format_identification[DSP_COMBIFILE_FORMAT_IDENTIFICATION_SIZE];
+	word                  format_version_bcd;
+	word                  header_size;
+	word                  combifile_description_size;
+	word                  directory_entries;
+	word                  directory_size;
+	word                  download_count;
+	word                  usage_mask_size;
 } t_dsp_combifile_header;
 typedef struct tag_dsp_combifile_directory_entry
 {
-  word                  card_type_number;
-  word                  file_set_number;
+	word                  card_type_number;
+	word                  file_set_number;
 } t_dsp_combifile_directory_entry;
 typedef struct tag_dsp_file_header
 {
-  char                  format_identification[DSP_FILE_FORMAT_IDENTIFICATION_SIZE];
-  word                  format_version_bcd;
-  word                  download_id;
-  word                  download_flags;
-  word                  required_processing_power;
-  word                  interface_channel_count;
-  word                  header_size;
-  word                  download_description_size;
-  word                  memory_block_table_size;
-  word                  memory_block_count;
-  word                  segment_table_size;
-  word                  segment_count;
-  word                  symbol_table_size;
-  word                  symbol_count;
-  word                  total_data_size_dm;
-  word                  data_block_count_dm;
-  word                  total_data_size_pm;
-  word                  data_block_count_pm;
+	char                  format_identification[DSP_FILE_FORMAT_IDENTIFICATION_SIZE];
+	word                  format_version_bcd;
+	word                  download_id;
+	word                  download_flags;
+	word                  required_processing_power;
+	word                  interface_channel_count;
+	word                  header_size;
+	word                  download_description_size;
+	word                  memory_block_table_size;
+	word                  memory_block_count;
+	word                  segment_table_size;
+	word                  segment_count;
+	word                  symbol_table_size;
+	word                  symbol_count;
+	word                  total_data_size_dm;
+	word                  data_block_count_dm;
+	word                  total_data_size_pm;
+	word                  data_block_count_pm;
 } t_dsp_file_header;
 typedef struct tag_dsp_memory_block_desc
 {
-  word                  alias_memory_block;
-  word                  memory_type;
-  word                  address;
-  word                  size;             /* DSP words */
+	word                  alias_memory_block;
+	word                  memory_type;
+	word                  address;
+	word                  size;             /* DSP words */
 } t_dsp_memory_block_desc;
 typedef struct tag_dsp_segment_desc
 {
-  word                  memory_block;
-  word                  attributes;
-  word                  base;
-  word                  size;
-  word                  alignment;        /* ==0 -> no other legal start address than base */
+	word                  memory_block;
+	word                  attributes;
+	word                  base;
+	word                  size;
+	word                  alignment;        /* ==0 -> no other legal start address than base */
 } t_dsp_segment_desc;
 typedef struct tag_dsp_symbol_desc
 {
-  word                  symbol_id;
-  word                  segment;
-  word                  offset;
-  word                  size;             /* DSP words */
+	word                  symbol_id;
+	word                  segment;
+	word                  offset;
+	word                  size;             /* DSP words */
 } t_dsp_symbol_desc;
 typedef struct tag_dsp_data_block_header
 {
-  word                  attributes;
-  word                  segment;
-  word                  offset;
-  word                  size;             /* DSP words */
+	word                  attributes;
+	word                  segment;
+	word                  offset;
+	word                  size;             /* DSP words */
 } t_dsp_data_block_header;
 typedef struct tag_dsp_download_desc
 {
-  word                  download_id;
-  word                  download_flags;
-  word                  required_processing_power;
-  word                  interface_channel_count;
-  word                  excess_header_size;
-  word                  memory_block_count;
-  word                  segment_count;
-  word                  symbol_count;
-  word                  data_block_count_dm;
-  word                  data_block_count_pm;
-  byte   *            p_excess_header_data;
-  char   *            p_download_description;
-  t_dsp_memory_block_desc   *p_memory_block_table;
-  t_dsp_segment_desc   *p_segment_table;
-  t_dsp_symbol_desc   *p_symbol_table;
-  word   *            p_data_blocks_dm;
-  word   *            p_data_blocks_pm;
+	word                  download_id;
+	word                  download_flags;
+	word                  required_processing_power;
+	word                  interface_channel_count;
+	word                  excess_header_size;
+	word                  memory_block_count;
+	word                  segment_count;
+	word                  symbol_count;
+	word                  data_block_count_dm;
+	word                  data_block_count_pm;
+	byte *p_excess_header_data;
+	char *p_download_description;
+	t_dsp_memory_block_desc *p_memory_block_table;
+	t_dsp_segment_desc *p_segment_table;
+	t_dsp_symbol_desc *p_symbol_table;
+	word *p_data_blocks_dm;
+	word *p_data_blocks_pm;
 } t_dsp_desc;
 typedef struct tag_dsp_portable_download_desc /* be sure to keep native alignment for MAESTRA's */
 {
-  word                  download_id;
-  word                  download_flags;
-  word                  required_processing_power;
-  word                  interface_channel_count;
-  word                  excess_header_size;
-  word                  memory_block_count;
-  word                  segment_count;
-  word                  symbol_count;
-  word                  data_block_count_dm;
-  word                  data_block_count_pm;
-  dword                 p_excess_header_data;
-  dword                 p_download_description;
-  dword                 p_memory_block_table;
-  dword                 p_segment_table;
-  dword                 p_symbol_table;
-  dword                 p_data_blocks_dm;
-  dword                 p_data_blocks_pm;
+	word                  download_id;
+	word                  download_flags;
+	word                  required_processing_power;
+	word                  interface_channel_count;
+	word                  excess_header_size;
+	word                  memory_block_count;
+	word                  segment_count;
+	word                  symbol_count;
+	word                  data_block_count_dm;
+	word                  data_block_count_pm;
+	dword                 p_excess_header_data;
+	dword                 p_download_description;
+	dword                 p_memory_block_table;
+	dword                 p_segment_table;
+	dword                 p_symbol_table;
+	dword                 p_data_blocks_dm;
+	dword                 p_data_blocks_pm;
 } t_dsp_portable_desc;
 #define DSP_DOWNLOAD_INDEX_KERNEL               0
 #define DSP30TX_DOWNLOAD_INDEX_KERNEL           1
@@ -204,7 +204,7 @@ typedef struct tag_dsp_portable_download_desc /* be sure to keep native alignmen
 #define DSP_DOWNLOAD_MAX_SEGMENTS         16
 #define DSP_UDATA_REQUEST_RECONFIGURE     0
 /*
-parameters:
+  parameters:
   <word> reconfigure delay (in 8kHz samples)
   <word> reconfigure code
   <byte> reconfigure hdlc preamble flags
@@ -229,11 +229,11 @@ parameters:
 #define DSP_RECONFIGURE_V17_12000         11
 #define DSP_RECONFIGURE_V17_14400         12
 /*
-data indications if transparent framer
+  data indications if transparent framer
   <byte> data 0
   <byte> data 1
   ...
-data indications if HDLC framer
+  data indications if HDLC framer
   <byte> data 0
   <byte> data 1
   ...
@@ -243,17 +243,17 @@ data indications if HDLC framer
 */
 #define DSP_UDATA_INDICATION_SYNC         0
 /*
-returns:
+  returns:
   <word> time of sync (sampled from counter at 8kHz)
 */
 #define DSP_UDATA_INDICATION_DCD_OFF      1
 /*
-returns:
+  returns:
   <word> time of DCD off (sampled from counter at 8kHz)
 */
 #define DSP_UDATA_INDICATION_DCD_ON       2
 /*
-returns:
+  returns:
   <word> time of DCD on (sampled from counter at 8kHz)
   <byte> connected norm
   <word> connected options
@@ -261,12 +261,12 @@ returns:
 */
 #define DSP_UDATA_INDICATION_CTS_OFF      3
 /*
-returns:
+  returns:
   <word> time of CTS off (sampled from counter at 8kHz)
 */
 #define DSP_UDATA_INDICATION_CTS_ON       4
 /*
-returns:
+  returns:
   <word> time of CTS on (sampled from counter at 8kHz)
   <byte> connected norm
   <word> connected options
@@ -292,10 +292,10 @@ returns:
 #define DSP_CONNECTED_NORM_V17              17
 #define DSP_CONNECTED_OPTION_TRELLIS        0x0001
 /*---------------------------------------------------------------------------*/
-extern char *dsp_read_file (OsFileHandle          *fp,
-                            word                     card_type_number,
-                            word                  *p_dsp_download_count,
-                            t_dsp_desc            *p_dsp_download_table,
-                            t_dsp_portable_desc   *p_dsp_portable_download_table) ;
+extern char *dsp_read_file(OsFileHandle *fp,
+			   word card_type_number,
+			   word *p_dsp_download_count,
+			   t_dsp_desc *p_dsp_download_table,
+			   t_dsp_portable_desc *p_dsp_portable_download_table);
 /*---------------------------------------------------------------------------*/
-#endif /* DSP_DEFS_H_ */  
+#endif /* DSP_DEFS_H_ */

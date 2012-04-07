@@ -73,7 +73,6 @@
  */
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/bitops.h>
 #include <linux/capability.h>
 #include <linux/cpu.h>
@@ -134,7 +133,7 @@
 #include <linux/inetdevice.h>
 #include <linux/cpu_rmap.h>
 #include <linux/net_tstamp.h>
-#include <linux/jump_label.h>
+#include <linux/static_key.h>
 #include <net/flow_keys.h>
 
 #include "net-sysfs.h"
@@ -446,7 +445,7 @@ void __dev_remove_pack(struct packet_type *pt)
 		}
 	}
 
-	printk(KERN_WARNING "dev_remove_pack: %p not found.\n", pt);
+	pr_warn("dev_remove_pack: %p not found\n", pt);
 out:
 	spin_unlock(&ptype_lock);
 }
@@ -848,21 +847,21 @@ EXPORT_SYMBOL(dev_get_by_flags_rcu);
  *	to allow sysfs to work.  We also disallow any kind of
  *	whitespace.
  */
-int dev_valid_name(const char *name)
+bool dev_valid_name(const char *name)
 {
 	if (*name == '\0')
-		return 0;
+		return false;
 	if (strlen(name) >= IFNAMSIZ)
-		return 0;
+		return false;
 	if (!strcmp(name, ".") || !strcmp(name, ".."))
-		return 0;
+		return false;
 
 	while (*name) {
 		if (*name == '/' || isspace(*name))
-			return 0;
+			return false;
 		name++;
 	}
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(dev_valid_name);
 
@@ -1039,8 +1038,7 @@ rollback:
 			memcpy(dev->name, oldname, IFNAMSIZ);
 			goto rollback;
 		} else {
-			printk(KERN_ERR
-			       "%s: name change rollback failed: %d.\n",
+			pr_err("%s: name change rollback failed: %d\n",
 			       dev->name, ret);
 		}
 	}
@@ -1139,9 +1137,8 @@ void dev_load(struct net *net, const char *name)
 		no_module = request_module("netdev-%s", name);
 	if (no_module && capable(CAP_SYS_MODULE)) {
 		if (!request_module("%s", name))
-			pr_err("Loading kernel module for a network device "
-"with CAP_SYS_MODULE (deprecated).  Use CAP_NET_ADMIN and alias netdev-%s "
-"instead\n", name);
+			pr_err("Loading kernel module for a network device with CAP_SYS_MODULE (deprecated).  Use CAP_NET_ADMIN and alias netdev-%s instead.\n",
+			       name);
 	}
 }
 EXPORT_SYMBOL(dev_load);
@@ -1441,11 +1438,11 @@ int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
 
-static struct jump_label_key netstamp_needed __read_mostly;
+static struct static_key netstamp_needed __read_mostly;
 #ifdef HAVE_JUMP_LABEL
-/* We are not allowed to call jump_label_dec() from irq context
+/* We are not allowed to call static_key_slow_dec() from irq context
  * If net_disable_timestamp() is called from irq context, defer the
- * jump_label_dec() calls.
+ * static_key_slow_dec() calls.
  */
 static atomic_t netstamp_needed_deferred;
 #endif
@@ -1457,12 +1454,12 @@ void net_enable_timestamp(void)
 
 	if (deferred) {
 		while (--deferred)
-			jump_label_dec(&netstamp_needed);
+			static_key_slow_dec(&netstamp_needed);
 		return;
 	}
 #endif
 	WARN_ON(in_interrupt());
-	jump_label_inc(&netstamp_needed);
+	static_key_slow_inc(&netstamp_needed);
 }
 EXPORT_SYMBOL(net_enable_timestamp);
 
@@ -1474,19 +1471,19 @@ void net_disable_timestamp(void)
 		return;
 	}
 #endif
-	jump_label_dec(&netstamp_needed);
+	static_key_slow_dec(&netstamp_needed);
 }
 EXPORT_SYMBOL(net_disable_timestamp);
 
 static inline void net_timestamp_set(struct sk_buff *skb)
 {
 	skb->tstamp.tv64 = 0;
-	if (static_branch(&netstamp_needed))
+	if (static_key_false(&netstamp_needed))
 		__net_timestamp(skb);
 }
 
 #define net_timestamp_check(COND, SKB)			\
-	if (static_branch(&netstamp_needed)) {		\
+	if (static_key_false(&netstamp_needed)) {		\
 		if ((COND) && !(SKB)->tstamp.tv64)	\
 			__net_timestamp(SKB);		\
 	}						\
@@ -1655,10 +1652,9 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 			if (skb_network_header(skb2) < skb2->data ||
 			    skb2->network_header > skb2->tail) {
 				if (net_ratelimit())
-					printk(KERN_CRIT "protocol %04x is "
-					       "buggy, dev %s\n",
-					       ntohs(skb2->protocol),
-					       dev->name);
+					pr_crit("protocol %04x is buggy, dev %s\n",
+						ntohs(skb2->protocol),
+						dev->name);
 				skb_reset_network_header(skb2);
 			}
 
@@ -1691,9 +1687,7 @@ static void netif_setup_tc(struct net_device *dev, unsigned int txq)
 
 	/* If TC0 is invalidated disable TC mapping */
 	if (tc->offset + tc->count > txq) {
-		pr_warning("Number of in use tx queues changed "
-			   "invalidating tc mappings. Priority "
-			   "traffic classification disabled!\n");
+		pr_warn("Number of in use tx queues changed invalidating tc mappings. Priority traffic classification disabled!\n");
 		dev->num_tc = 0;
 		return;
 	}
@@ -1704,11 +1698,8 @@ static void netif_setup_tc(struct net_device *dev, unsigned int txq)
 
 		tc = &dev->tc_to_txq[q];
 		if (tc->offset + tc->count > txq) {
-			pr_warning("Number of in use tx queues "
-				   "changed. Priority %i to tc "
-				   "mapping %i is no longer valid "
-				   "setting map to 0\n",
-				   i, q);
+			pr_warn("Number of in use tx queues changed. Priority %i to tc mapping %i is no longer valid. Setting map to 0\n",
+				i, q);
 			netdev_set_prio_tc_map(dev, i, 0);
 		}
 	}
@@ -2014,8 +2005,7 @@ EXPORT_SYMBOL(skb_gso_segment);
 void netdev_rx_csum_fault(struct net_device *dev)
 {
 	if (net_ratelimit()) {
-		printk(KERN_ERR "%s: hw csum failure.\n",
-			dev ? dev->name : "<unknown>");
+		pr_err("%s: hw csum failure\n", dev ? dev->name : "<unknown>");
 		dump_stack();
 	}
 }
@@ -2332,9 +2322,9 @@ static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
 {
 	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
 		if (net_ratelimit()) {
-			pr_warning("%s selects TX queue %d, but "
-				"real number of TX queues is %d\n",
-				dev->name, queue_index, dev->real_num_tx_queues);
+			pr_warn("%s selects TX queue %d, but real number of TX queues is %d\n",
+				dev->name, queue_index,
+				dev->real_num_tx_queues);
 		}
 		return 0;
 	}
@@ -2578,16 +2568,16 @@ int dev_queue_xmit(struct sk_buff *skb)
 			}
 			HARD_TX_UNLOCK(dev, txq);
 			if (net_ratelimit())
-				printk(KERN_CRIT "Virtual device %s asks to "
-				       "queue packet!\n", dev->name);
+				pr_crit("Virtual device %s asks to queue packet!\n",
+					dev->name);
 		} else {
 			/* Recursion is detected! It is possible,
 			 * unfortunately
 			 */
 recursion_alert:
 			if (net_ratelimit())
-				printk(KERN_CRIT "Dead loop on virtual device "
-				       "%s, fix it urgently!\n", dev->name);
+				pr_crit("Dead loop on virtual device %s, fix it urgently!\n",
+					dev->name);
 		}
 	}
 
@@ -2660,7 +2650,7 @@ EXPORT_SYMBOL(__skb_get_rxhash);
 struct rps_sock_flow_table __rcu *rps_sock_flow_table __read_mostly;
 EXPORT_SYMBOL(rps_sock_flow_table);
 
-struct jump_label_key rps_needed __read_mostly;
+struct static_key rps_needed __read_mostly;
 
 static struct rps_dev_flow *
 set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
@@ -2945,7 +2935,7 @@ int netif_rx(struct sk_buff *skb)
 
 	trace_netif_rx(skb);
 #ifdef CONFIG_RPS
-	if (static_branch(&rps_needed))	{
+	if (static_key_false(&rps_needed)) {
 		struct rps_dev_flow voidflow, *rflow = &voidflow;
 		int cpu;
 
@@ -3069,8 +3059,8 @@ static int ing_filter(struct sk_buff *skb, struct netdev_queue *rxq)
 
 	if (unlikely(MAX_RED_LOOP < ttl++)) {
 		if (net_ratelimit())
-			pr_warning( "Redir loop detected Dropping packet (%d->%d)\n",
-			       skb->skb_iif, dev->ifindex);
+			pr_warn("Redir loop detected Dropping packet (%d->%d)\n",
+				skb->skb_iif, dev->ifindex);
 		return TC_ACT_SHOT;
 	}
 
@@ -3309,7 +3299,7 @@ int netif_receive_skb(struct sk_buff *skb)
 		return NET_RX_SUCCESS;
 
 #ifdef CONFIG_RPS
-	if (static_branch(&rps_needed)) {
+	if (static_key_false(&rps_needed)) {
 		struct rps_dev_flow voidflow, *rflow = &voidflow;
 		int cpu, ret;
 
@@ -3569,7 +3559,8 @@ EXPORT_SYMBOL(napi_gro_receive);
 static void napi_reuse_skb(struct napi_struct *napi, struct sk_buff *skb)
 {
 	__skb_pull(skb, skb_headlen(skb));
-	skb_reserve(skb, NET_IP_ALIGN - skb_headroom(skb));
+	/* restore the reserve we had after netdev_alloc_skb_ip_align() */
+	skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN - skb_headroom(skb));
 	skb->vlan_tci = 0;
 	skb->dev = napi->dev;
 	skb->skb_iif = 0;
@@ -4497,16 +4488,15 @@ static int __dev_set_promiscuity(struct net_device *dev, int inc)
 			dev->flags &= ~IFF_PROMISC;
 		else {
 			dev->promiscuity -= inc;
-			printk(KERN_WARNING "%s: promiscuity touches roof, "
-				"set promiscuity failed, promiscuity feature "
-				"of device might be broken.\n", dev->name);
+			pr_warn("%s: promiscuity touches roof, set promiscuity failed. promiscuity feature of device might be broken.\n",
+				dev->name);
 			return -EOVERFLOW;
 		}
 	}
 	if (dev->flags != old_flags) {
-		printk(KERN_INFO "device %s %s promiscuous mode\n",
-		       dev->name, (dev->flags & IFF_PROMISC) ? "entered" :
-							       "left");
+		pr_info("device %s %s promiscuous mode\n",
+			dev->name,
+			dev->flags & IFF_PROMISC ? "entered" : "left");
 		if (audit_enabled) {
 			current_uid_gid(&uid, &gid);
 			audit_log(current->audit_context, GFP_ATOMIC,
@@ -4579,9 +4569,8 @@ int dev_set_allmulti(struct net_device *dev, int inc)
 			dev->flags &= ~IFF_ALLMULTI;
 		else {
 			dev->allmulti -= inc;
-			printk(KERN_WARNING "%s: allmulti touches roof, "
-				"set allmulti failed, allmulti feature of "
-				"device might be broken.\n", dev->name);
+			pr_warn("%s: allmulti touches roof, set allmulti failed. allmulti feature of device might be broken.\n",
+				dev->name);
 			return -EOVERFLOW;
 		}
 	}
@@ -5238,8 +5227,8 @@ static void rollback_registered_many(struct list_head *head)
 		 * devices and proceed with the remaining.
 		 */
 		if (dev->reg_state == NETREG_UNINITIALIZED) {
-			pr_debug("unregister_netdevice: device %s/%p never "
-				 "was registered\n", dev->name, dev);
+			pr_debug("unregister_netdevice: device %s/%p never was registered\n",
+				 dev->name, dev);
 
 			WARN_ON(1);
 			list_del(&dev->unreg_list);
@@ -5471,7 +5460,7 @@ static int netif_alloc_rx_queues(struct net_device *dev)
 
 	rx = kcalloc(count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
 	if (!rx) {
-		pr_err("netdev: Unable to allocate %u rx queues.\n", count);
+		pr_err("netdev: Unable to allocate %u rx queues\n", count);
 		return -ENOMEM;
 	}
 	dev->_rx = rx;
@@ -5505,8 +5494,7 @@ static int netif_alloc_netdev_queues(struct net_device *dev)
 
 	tx = kcalloc(count, sizeof(struct netdev_queue), GFP_KERNEL);
 	if (!tx) {
-		pr_err("netdev: Unable to allocate %u tx queues.\n",
-		       count);
+		pr_err("netdev: Unable to allocate %u tx queues\n", count);
 		return -ENOMEM;
 	}
 	dev->_tx = tx;
@@ -5765,10 +5753,8 @@ static void netdev_wait_allrefs(struct net_device *dev)
 		refcnt = netdev_refcnt_read(dev);
 
 		if (time_after(jiffies, warning_time + 10 * HZ)) {
-			printk(KERN_EMERG "unregister_netdevice: "
-			       "waiting for %s to become free. Usage "
-			       "count = %d\n",
-			       dev->name, refcnt);
+			pr_emerg("unregister_netdevice: waiting for %s to become free. Usage count = %d\n",
+				 dev->name, refcnt);
 			warning_time = jiffies;
 		}
 	}
@@ -5819,7 +5805,7 @@ void netdev_run_todo(void)
 		list_del(&dev->todo_list);
 
 		if (unlikely(dev->reg_state != NETREG_UNREGISTERING)) {
-			printk(KERN_ERR "network todo '%s' but state %d\n",
+			pr_err("network todo '%s' but state %d\n",
 			       dev->name, dev->reg_state);
 			dump_stack();
 			continue;
@@ -5848,12 +5834,12 @@ void netdev_run_todo(void)
 /* Convert net_device_stats to rtnl_link_stats64.  They have the same
  * fields in the same order, with only the type differing.
  */
-static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
-				    const struct net_device_stats *netdev_stats)
+void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
+			     const struct net_device_stats *netdev_stats)
 {
 #if BITS_PER_LONG == 64
-        BUILD_BUG_ON(sizeof(*stats64) != sizeof(*netdev_stats));
-        memcpy(stats64, netdev_stats, sizeof(*stats64));
+	BUILD_BUG_ON(sizeof(*stats64) != sizeof(*netdev_stats));
+	memcpy(stats64, netdev_stats, sizeof(*stats64));
 #else
 	size_t i, n = sizeof(*stats64) / sizeof(u64);
 	const unsigned long *src = (const unsigned long *)netdev_stats;
@@ -5865,6 +5851,7 @@ static void netdev_stats_to_stats64(struct rtnl_link_stats64 *stats64,
 		dst[i] = src[i];
 #endif
 }
+EXPORT_SYMBOL(netdev_stats_to_stats64);
 
 /**
  *	dev_get_stats	- get network device statistics
@@ -5935,15 +5922,13 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
 	if (txqs < 1) {
-		pr_err("alloc_netdev: Unable to allocate device "
-		       "with zero queues.\n");
+		pr_err("alloc_netdev: Unable to allocate device with zero queues\n");
 		return NULL;
 	}
 
 #ifdef CONFIG_RPS
 	if (rxqs < 1) {
-		pr_err("alloc_netdev: Unable to allocate device "
-		       "with zero RX queues.\n");
+		pr_err("alloc_netdev: Unable to allocate device with zero RX queues\n");
 		return NULL;
 	}
 #endif
@@ -5959,7 +5944,7 @@ struct net_device *alloc_netdev_mqs(int sizeof_priv, const char *name,
 
 	p = kzalloc(alloc_size, GFP_KERNEL);
 	if (!p) {
-		printk(KERN_ERR "alloc_netdev: Unable to allocate device.\n");
+		pr_err("alloc_netdev: Unable to allocate device\n");
 		return NULL;
 	}
 
@@ -6492,8 +6477,8 @@ static void __net_exit default_device_exit(struct net *net)
 		snprintf(fb_name, IFNAMSIZ, "dev%d", dev->ifindex);
 		err = dev_change_net_namespace(dev, &init_net, fb_name);
 		if (err) {
-			printk(KERN_EMERG "%s: failed to move %s to init_net: %d\n",
-				__func__, dev->name, err);
+			pr_emerg("%s: failed to move %s to init_net: %d\n",
+				 __func__, dev->name, err);
 			BUG();
 		}
 	}

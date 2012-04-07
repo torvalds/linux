@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,6 @@
 #include <linux/init.h>
 #include <linux/sched.h>
 
-#include "iwl-wifi.h"
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
@@ -52,7 +51,7 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	struct iwlagn_tx_power_dbm_cmd tx_power_cmd;
 	u8 tx_ant_cfg_cmd;
 
-	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->shrd->status),
+	if (WARN_ONCE(test_bit(STATUS_SCAN_HW, &priv->status),
 		      "TX Power requested while scanning!\n"))
 		return -EAGAIN;
 
@@ -77,17 +76,19 @@ int iwlagn_send_tx_power(struct iwl_priv *priv)
 	tx_power_cmd.flags = IWLAGN_TX_POWER_NO_CLOSED;
 	tx_power_cmd.srv_chan_lmt = IWLAGN_TX_POWER_AUTO;
 
-	if (IWL_UCODE_API(priv->ucode_ver) == 1)
+	if (IWL_UCODE_API(priv->fw->ucode_ver) == 1)
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD_V1;
 	else
 		tx_ant_cfg_cmd = REPLY_TX_POWER_DBM_CMD;
 
-	return iwl_trans_send_cmd_pdu(trans(priv), tx_ant_cfg_cmd, CMD_SYNC,
+	return iwl_dvm_send_cmd_pdu(priv, tx_ant_cfg_cmd, CMD_SYNC,
 			sizeof(tx_power_cmd), &tx_power_cmd);
 }
 
 void iwlagn_temperature(struct iwl_priv *priv)
 {
+	lockdep_assert_held(&priv->statistics.lock);
+
 	/* store temperature from correct statistics (in Celsius) */
 	priv->temperature = le32_to_cpu(priv->statistics.common.temperature);
 	iwl_tt_handler(priv);
@@ -233,19 +234,19 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
 				IWL_PAN_SCD_MULTICAST_MSK;
 
-	if (cfg(priv)->sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
 		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
 		       flush_cmd.fifo_control);
 	flush_cmd.flush_control = cpu_to_le16(flush_control);
 
-	return iwl_trans_send_cmd(trans(priv), &cmd);
+	return iwl_dvm_send_cmd(priv, &cmd);
 }
 
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 {
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 	ieee80211_stop_queues(priv->hw);
 	if (iwlagn_txfifo_flush(priv, IWL_DROP_ALL)) {
 		IWL_ERR(priv, "flush request fail\n");
@@ -255,7 +256,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 	iwl_trans_wait_tx_queue_empty(trans(priv));
 done:
 	ieee80211_wake_queues(priv->hw);
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 /*
@@ -434,12 +435,12 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	if (cfg(priv)->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_2000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
+		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_2000), &bt_cmd_2000);
 	} else {
 		memcpy(&bt_cmd_6000.basic, &basic,
 			sizeof(basic));
-		ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_BT_CONFIG,
+		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
 			CMD_SYNC, sizeof(bt_cmd_6000), &bt_cmd_6000);
 	}
 	if (ret)
@@ -452,7 +453,7 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena)
 	struct iwl_rxon_context *ctx, *found_ctx = NULL;
 	bool found_ap = false;
 
-	lockdep_assert_held(&priv->shrd->mutex);
+	lockdep_assert_held(&priv->mutex);
 
 	/* Check whether AP or GO mode is active. */
 	if (rssi_ena) {
@@ -565,7 +566,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 		break;
 	}
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	/*
 	 * We can not send command to firmware while scanning. When the scan
@@ -574,7 +575,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	 * STATUS_SCANNING to avoid race when queue_work two times from
 	 * different notifications, but quit and not perform any work at all.
 	 */
-	if (test_bit(STATUS_SCAN_HW, &priv->shrd->status))
+	if (test_bit(STATUS_SCAN_HW, &priv->status))
 		goto out;
 
 	iwl_update_chain_flags(priv);
@@ -593,7 +594,7 @@ static void iwlagn_bt_traffic_change_work(struct work_struct *work)
 	 */
 	iwlagn_bt_coex_rssi_monitor(priv);
 out:
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 /*
@@ -700,17 +701,16 @@ static void iwlagn_set_kill_msk(struct iwl_priv *priv,
 		priv->kill_cts_mask = bt_kill_cts_msg[kill_msk];
 
 		/* schedule to send runtime bt_config */
-		queue_work(priv->shrd->workqueue, &priv->bt_runtime_config);
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
 	}
 }
 
 int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
-				  struct iwl_rx_mem_buffer *rxb,
+				  struct iwl_rx_cmd_buffer *rxb,
 				  struct iwl_device_cmd *cmd)
 {
-	unsigned long flags;
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_bt_coex_profile_notif *coex = &pkt->u.bt_coex_profile_notif;
+	struct iwl_bt_coex_profile_notif *coex = (void *)pkt->data;
 	struct iwl_bt_uart_msg *uart_msg = &coex->last_bt_uart_msg;
 
 	if (priv->bt_enable_flag == IWLAGN_BT_FLAG_COEX_MODE_DISABLED) {
@@ -745,7 +745,7 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 					IWL_BT_COEX_TRAFFIC_LOAD_NONE;
 			}
 			priv->bt_status = coex->bt_status;
-			queue_work(priv->shrd->workqueue,
+			queue_work(priv->workqueue,
 				   &priv->bt_traffic_change_work);
 		}
 	}
@@ -754,9 +754,7 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 
 	/* FIXME: based on notification, adjust the prio_boost */
 
-	spin_lock_irqsave(&priv->shrd->lock, flags);
 	priv->bt_ci_compliance = coex->bt_ci_compliance;
-	spin_unlock_irqrestore(&priv->shrd->lock, flags);
 	return 0;
 }
 
@@ -959,7 +957,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 			       struct ieee80211_key_conf *key,
 			       void *_data)
 {
-	struct iwl_priv *priv = hw->priv;
+	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct wowlan_key_data *data = _data;
 	struct iwl_rxon_context *ctx = data->ctx;
 	struct aes_sc *aes_sc, *aes_tx_sc = NULL;
@@ -971,7 +969,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 	u16 p1k[IWLAGN_P1K_SIZE];
 	int ret, i;
 
-	mutex_lock(&priv->shrd->mutex);
+	mutex_lock(&priv->mutex);
 
 	if ((key->cipher == WLAN_CIPHER_SUITE_WEP40 ||
 	     key->cipher == WLAN_CIPHER_SUITE_WEP104) &&
@@ -1077,7 +1075,7 @@ static void iwlagn_wowlan_program_keys(struct ieee80211_hw *hw,
 		break;
 	}
 
-	mutex_unlock(&priv->shrd->mutex);
+	mutex_unlock(&priv->mutex);
 }
 
 int iwlagn_send_patterns(struct iwl_priv *priv,
@@ -1117,13 +1115,12 @@ int iwlagn_send_patterns(struct iwl_priv *priv,
 	}
 
 	cmd.data[0] = pattern_cmd;
-	err = iwl_trans_send_cmd(trans(priv), &cmd);
+	err = iwl_dvm_send_cmd(priv, &cmd);
 	kfree(pattern_cmd);
 	return err;
 }
 
-int iwlagn_suspend(struct iwl_priv *priv,
-		struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
+int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 {
 	struct iwlagn_wowlan_wakeup_filter_cmd wakeup_filter_cmd;
 	struct iwl_rxon_cmd rxon;
@@ -1192,11 +1189,12 @@ int iwlagn_suspend(struct iwl_priv *priv,
 
 	memcpy(&rxon, &ctx->active, sizeof(rxon));
 
+	priv->ucode_loaded = false;
 	iwl_trans_stop_device(trans(priv));
 
-	priv->shrd->wowlan = true;
+	priv->wowlan = true;
 
-	ret = iwl_load_ucode_wait_alive(trans(priv), IWL_UCODE_WOWLAN);
+	ret = iwl_load_ucode_wait_alive(priv, IWL_UCODE_WOWLAN);
 	if (ret)
 		goto out;
 
@@ -1224,11 +1222,11 @@ int iwlagn_suspend(struct iwl_priv *priv,
 		 * constraints. Since we're in the suspend path
 		 * that isn't really a problem though.
 		 */
-		mutex_unlock(&priv->shrd->mutex);
+		mutex_unlock(&priv->mutex);
 		ieee80211_iter_keys(priv->hw, ctx->vif,
 				    iwlagn_wowlan_program_keys,
 				    &key_data);
-		mutex_lock(&priv->shrd->mutex);
+		mutex_lock(&priv->mutex);
 		if (key_data.error) {
 			ret = -EIO;
 			goto out;
@@ -1240,16 +1238,16 @@ int iwlagn_suspend(struct iwl_priv *priv,
 				.flags = CMD_SYNC,
 				.data[0] = key_data.rsc_tsc,
 				.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-				.len[0] = sizeof(key_data.rsc_tsc),
+				.len[0] = sizeof(*key_data.rsc_tsc),
 			};
 
-			ret = iwl_trans_send_cmd(trans(priv), &rsc_tsc_cmd);
+			ret = iwl_dvm_send_cmd(priv, &rsc_tsc_cmd);
 			if (ret)
 				goto out;
 		}
 
 		if (key_data.use_tkip) {
-			ret = iwl_trans_send_cmd_pdu(trans(priv),
+			ret = iwl_dvm_send_cmd_pdu(priv,
 						 REPLY_WOWLAN_TKIP_PARAMS,
 						 CMD_SYNC, sizeof(tkip_cmd),
 						 &tkip_cmd);
@@ -1265,7 +1263,7 @@ int iwlagn_suspend(struct iwl_priv *priv,
 			kek_kck_cmd.kek_len = cpu_to_le16(NL80211_KEK_LEN);
 			kek_kck_cmd.replay_ctr = priv->replay_ctr;
 
-			ret = iwl_trans_send_cmd_pdu(trans(priv),
+			ret = iwl_dvm_send_cmd_pdu(priv,
 						 REPLY_WOWLAN_KEK_KCK_MATERIAL,
 						 CMD_SYNC, sizeof(kek_kck_cmd),
 						 &kek_kck_cmd);
@@ -1274,12 +1272,12 @@ int iwlagn_suspend(struct iwl_priv *priv,
 		}
 	}
 
-	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_D3_CONFIG, CMD_SYNC,
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_D3_CONFIG, CMD_SYNC,
 				     sizeof(d3_cfg_cmd), &d3_cfg_cmd);
 	if (ret)
 		goto out;
 
-	ret = iwl_trans_send_cmd_pdu(trans(priv), REPLY_WOWLAN_WAKEUP_FILTER,
+	ret = iwl_dvm_send_cmd_pdu(priv, REPLY_WOWLAN_WAKEUP_FILTER,
 				 CMD_SYNC, sizeof(wakeup_filter_cmd),
 				 &wakeup_filter_cmd);
 	if (ret)
@@ -1291,3 +1289,41 @@ int iwlagn_suspend(struct iwl_priv *priv,
 	return ret;
 }
 #endif
+
+int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
+{
+	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
+		IWL_WARN(priv, "Not sending command - %s KILL\n",
+			 iwl_is_rfkill(priv) ? "RF" : "CT");
+		return -EIO;
+	}
+
+	/*
+	 * Synchronous commands from this op-mode must hold
+	 * the mutex, this ensures we don't try to send two
+	 * (or more) synchronous commands at a time.
+	 */
+	if (cmd->flags & CMD_SYNC)
+		lockdep_assert_held(&priv->mutex);
+
+	if (priv->ucode_owner == IWL_OWNERSHIP_TM &&
+	    !(cmd->flags & CMD_ON_DEMAND)) {
+		IWL_DEBUG_HC(priv, "tm own the uCode, no regular hcmd send\n");
+		return -EIO;
+	}
+
+	return iwl_trans_send_cmd(trans(priv), cmd);
+}
+
+int iwl_dvm_send_cmd_pdu(struct iwl_priv *priv, u8 id,
+			 u32 flags, u16 len, const void *data)
+{
+	struct iwl_host_cmd cmd = {
+		.id = id,
+		.len = { len, },
+		.data = { data, },
+		.flags = flags,
+	};
+
+	return iwl_dvm_send_cmd(priv, &cmd);
+}

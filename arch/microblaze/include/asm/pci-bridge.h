@@ -10,7 +10,6 @@
 #include <linux/pci.h>
 #include <linux/list.h>
 #include <linux/ioport.h>
-#include <asm-generic/pci-bridge.h>
 
 struct device_node;
 

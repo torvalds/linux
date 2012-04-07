@@ -29,6 +29,7 @@ config SPARC
 	select GENERIC_IRQ_SHOW
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select GENERIC_PCI_IOMAP
+	select HAVE_NMI_WATCHDOG if SPARC64
 
 config SPARC32
 	def_bool !64BIT
@@ -576,6 +577,7 @@ config COMPAT
 	depends on SPARC64
 	default y
 	select COMPAT_BINFMT_ELF
+	select ARCH_WANT_OLD_COMPAT_IPC
 
 config SYSVIPC_COMPAT
 	bool

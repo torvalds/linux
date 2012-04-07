@@ -34,9 +34,12 @@
 #include <mach/ep93xx_spi.h>
 #include <mach/gpio-ep93xx.h>
 
+#include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
+
+#include "soc.h"
 
 /*************************************************************************
  * Static I/O mappings for the FPGA
@@ -361,6 +364,7 @@ MACHINE_START(VISION_EP9307, "Vision Engraving Systems EP9307")
 	.atag_offset	= 0x100,
 	.map_io		= vision_map_io,
 	.init_irq	= ep93xx_init_irq,
+	.handle_irq	= vic_handle_irq,
 	.timer		= &ep93xx_timer,
 	.init_machine	= vision_init_machine,
 	.restart	= ep93xx_restart,

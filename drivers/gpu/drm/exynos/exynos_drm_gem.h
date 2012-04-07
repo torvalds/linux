@@ -36,11 +36,15 @@
  * @dma_addr: bus address(accessed by dma) to allocated memory region.
  *	- this address could be physical address without IOMMU and
  *	device address with IOMMU.
+ * @sgt: sg table to transfer page data.
+ * @pages: contain all pages to allocated memory region.
  * @size: size of allocated memory region.
  */
 struct exynos_drm_gem_buf {
 	void __iomem		*kvaddr;
 	dma_addr_t		dma_addr;
+	struct sg_table		*sgt;
+	struct page		**pages;
 	unsigned long		size;
 };
 
@@ -55,6 +59,8 @@ struct exynos_drm_gem_buf {
  *	by user request or at framebuffer creation.
  *	continuous memory region allocated by user request
  *	or at framebuffer creation.
+ * @size: total memory size to physically non-continuous memory region.
+ * @flags: indicate memory type to allocated buffer and cache attruibute.
  *
  * P.S. this object would be transfered to user as kms_bo.handle so
  *	user can access the buffer through kms_bo.handle.
@@ -62,6 +68,8 @@ struct exynos_drm_gem_buf {
 struct exynos_drm_gem_obj {
 	struct drm_gem_object		base;
 	struct exynos_drm_gem_buf	*buffer;
+	unsigned long			size;
+	unsigned int			flags;
 };
 
 /* destroy a buffer with gem object */
@@ -69,7 +77,8 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj);
 
 /* create a new buffer with gem object */
 struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
-						 unsigned long size);
+						unsigned int flags,
+						unsigned long size);
 
 /*
  * request gem object creation and buffer allocation as the size
@@ -78,6 +87,24 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
  */
 int exynos_drm_gem_create_ioctl(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
+
+/*
+ * get dma address from gem handle and this function could be used for
+ * other drivers such as 2d/3d acceleration drivers.
+ * with this function call, gem object reference count would be increased.
+ */
+void *exynos_drm_gem_get_dma_addr(struct drm_device *dev,
+					unsigned int gem_handle,
+					struct drm_file *file_priv);
+
+/*
+ * put dma address from gem handle and this function could be used for
+ * other drivers such as 2d/3d acceleration drivers.
+ * with this function call, gem object reference count would be decreased.
+ */
+void exynos_drm_gem_put_dma_addr(struct drm_device *dev,
+					unsigned int gem_handle,
+					struct drm_file *file_priv);
 
 /* get buffer offset to map to user space. */
 int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,

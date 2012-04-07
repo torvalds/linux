@@ -60,7 +60,7 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 	int release = 0;
 
 	if (!page || page->index) {
-		page = grab_cache_page(inode->i_mapping, 0);
+		page = find_or_create_page(inode->i_mapping, 0, GFP_NOFS);
 		if (!page)
 			return -ENOMEM;
 		release = 1;
@@ -930,7 +930,7 @@ static int gfs2_block_truncate_page(struct address_space *mapping, loff_t from)
 	struct page *page;
 	int err;
 
-	page = grab_cache_page(mapping, index);
+	page = find_or_create_page(mapping, index, GFP_NOFS);
 	if (!page)
 		return 0;
 

@@ -130,10 +130,12 @@ enum {
 	Opt_nodirstat,
 	Opt_rbytes,
 	Opt_norbytes,
+	Opt_asyncreaddir,
 	Opt_noasyncreaddir,
 	Opt_dcache,
 	Opt_nodcache,
 	Opt_ino32,
+	Opt_noino32,
 };
 
 static match_table_t fsopt_tokens = {
@@ -153,10 +155,12 @@ static match_table_t fsopt_tokens = {
 	{Opt_nodirstat, "nodirstat"},
 	{Opt_rbytes, "rbytes"},
 	{Opt_norbytes, "norbytes"},
+	{Opt_asyncreaddir, "asyncreaddir"},
 	{Opt_noasyncreaddir, "noasyncreaddir"},
 	{Opt_dcache, "dcache"},
 	{Opt_nodcache, "nodcache"},
 	{Opt_ino32, "ino32"},
+	{Opt_noino32, "noino32"},
 	{-1, NULL}
 };
 
@@ -232,6 +236,9 @@ static int parse_fsopt_token(char *c, void *private)
 	case Opt_norbytes:
 		fsopt->flags &= ~CEPH_MOUNT_OPT_RBYTES;
 		break;
+	case Opt_asyncreaddir:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_NOASYNCREADDIR;
+		break;
 	case Opt_noasyncreaddir:
 		fsopt->flags |= CEPH_MOUNT_OPT_NOASYNCREADDIR;
 		break;
@@ -243,6 +250,9 @@ static int parse_fsopt_token(char *c, void *private)
 		break;
 	case Opt_ino32:
 		fsopt->flags |= CEPH_MOUNT_OPT_INO32;
+		break;
+	case Opt_noino32:
+		fsopt->flags &= ~CEPH_MOUNT_OPT_INO32;
 		break;
 	default:
 		BUG_ON(token);
@@ -334,10 +344,12 @@ static int parse_mount_options(struct ceph_mount_options **pfsopt,
 	*path += 2;
 	dout("server path '%s'\n", *path);
 
-	err = ceph_parse_options(popt, options, dev_name, dev_name_end,
+	*popt = ceph_parse_options(options, dev_name, dev_name_end,
 				 parse_fsopt_token, (void *)fsopt);
-	if (err)
+	if (IS_ERR(*popt)) {
+		err = PTR_ERR(*popt);
 		goto out;
+	}
 
 	/* success */
 	*pfsopt = fsopt;
@@ -655,9 +667,8 @@ static struct dentry *open_root_dentry(struct ceph_fs_client *fsc,
 		dout("open_root_inode success\n");
 		if (ceph_ino(inode) == CEPH_INO_ROOT &&
 		    fsc->sb->s_root == NULL) {
-			root = d_alloc_root(inode);
+			root = d_make_root(inode);
 			if (!root) {
-				iput(inode);
 				root = ERR_PTR(-ENOMEM);
 				goto out;
 			}
@@ -927,6 +938,7 @@ static int __init init_ceph(void)
 	if (ret)
 		goto out;
 
+	ceph_xattr_init();
 	ret = register_filesystem(&ceph_fs_type);
 	if (ret)
 		goto out_icache;
@@ -936,6 +948,7 @@ static int __init init_ceph(void)
 	return 0;
 
 out_icache:
+	ceph_xattr_exit();
 	destroy_caches();
 out:
 	return ret;
@@ -945,6 +958,7 @@ static void __exit exit_ceph(void)
 {
 	dout("exit_ceph\n");
 	unregister_filesystem(&ceph_fs_type);
+	ceph_xattr_exit();
 	destroy_caches();
 }
 

@@ -32,7 +32,6 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 #include <asm/uaccess.h>
@@ -80,9 +79,7 @@ void __noreturn cpu_idle(void)
 #endif
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 

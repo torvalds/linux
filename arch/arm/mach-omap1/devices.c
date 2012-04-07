@@ -15,20 +15,20 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
 #include <linux/spi/spi.h>
 
-#include <mach/camera.h>
-#include <mach/hardware.h>
 #include <asm/mach/map.h>
 
-#include "common.h"
 #include <plat/tc.h>
 #include <plat/board.h>
 #include <plat/mux.h>
 #include <plat/mmc.h>
 #include <plat/omap7xx.h>
 
+#include <mach/camera.h>
+#include <mach/hardware.h>
+
+#include "common.h"
 #include "clock.h"
 
 /*-------------------------------------------------------------------------*/

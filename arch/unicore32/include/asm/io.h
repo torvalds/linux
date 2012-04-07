@@ -16,7 +16,6 @@
 
 #include <asm/byteorder.h>
 #include <asm/memory.h>
-#include <asm/system.h>
 
 #define PCI_IOBASE	PKUNITY_PCILIO_BASE
 #include <asm-generic/io.h>

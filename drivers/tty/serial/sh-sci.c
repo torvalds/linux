@@ -1229,17 +1229,20 @@ static void sci_dma_tx_complete(void *arg)
 	port->icount.tx += sg_dma_len(&s->sg_tx);
 
 	async_tx_ack(s->desc_tx);
-	s->cookie_tx = -EINVAL;
 	s->desc_tx = NULL;
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	if (!uart_circ_empty(xmit)) {
+		s->cookie_tx = 0;
 		schedule_work(&s->work_tx);
-	} else if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
-		u16 ctrl = sci_in(port, SCSCR);
-		sci_out(port, SCSCR, ctrl & ~SCSCR_TIE);
+	} else {
+		s->cookie_tx = -EINVAL;
+		if (port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
+			u16 ctrl = sci_in(port, SCSCR);
+			sci_out(port, SCSCR, ctrl & ~SCSCR_TIE);
+		}
 	}
 
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -1338,7 +1341,7 @@ static void sci_submit_rx(struct sci_port *s)
 		struct scatterlist *sg = &s->sg_rx[i];
 		struct dma_async_tx_descriptor *desc;
 
-		desc = chan->device->device_prep_slave_sg(chan,
+		desc = dmaengine_prep_slave_sg(chan,
 			sg, 1, DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT);
 
 		if (desc) {
@@ -1453,7 +1456,7 @@ static void work_fn_tx(struct work_struct *work)
 
 	BUG_ON(!sg_dma_len(sg));
 
-	desc = chan->device->device_prep_slave_sg(chan,
+	desc = dmaengine_prep_slave_sg(chan,
 			sg, s->sg_len_tx, DMA_MEM_TO_DEV,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
@@ -1501,8 +1504,10 @@ static void sci_start_tx(struct uart_port *port)
 	}
 
 	if (s->chan_tx && !uart_circ_empty(&s->port.state->xmit) &&
-	    s->cookie_tx < 0)
+	    s->cookie_tx < 0) {
+		s->cookie_tx = 0;
 		schedule_work(&s->work_tx);
+	}
 #endif
 
 	if (!s->chan_tx || port->type == PORT_SCIFA || port->type == PORT_SCIFB) {
@@ -1710,6 +1715,8 @@ static int sci_startup(struct uart_port *port)
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
 
+	pm_runtime_put_noidle(port->dev);
+
 	sci_port_enable(s);
 
 	ret = sci_request_irq(s);
@@ -1737,6 +1744,8 @@ static void sci_shutdown(struct uart_port *port)
 	sci_free_irq(s);
 
 	sci_port_disable(s);
+
+	pm_runtime_get_noresume(port->dev);
 }
 
 static unsigned int sci_scbrr_calc(unsigned int algo_id, unsigned int bps,
@@ -2075,6 +2084,7 @@ static int __devinit sci_init_single(struct platform_device *dev,
 		sci_init_gpios(sci_port);
 
 		pm_runtime_irq_safe(&dev->dev);
+		pm_runtime_get_noresume(&dev->dev);
 		pm_runtime_enable(&dev->dev);
 	}
 

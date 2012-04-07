@@ -53,6 +53,12 @@ static int xenbus_probe_frontend(struct xen_bus_type *bus, const char *type,
 	char *nodename;
 	int err;
 
+	/* ignore console/0 */
+	if (!strncmp(type, "console", 7) && !strncmp(name, "0", 1)) {
+		DPRINTK("Ignoring buggy device entry console/0");
+		return 0;
+	}
+
 	nodename = kasprintf(GFP_KERNEL, "%s/%s/%s", bus->root, type, name);
 	if (!nodename)
 		return -ENOMEM;

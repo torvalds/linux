@@ -41,7 +41,7 @@
 
 #define B1_PROT_64KBIT_HDLC        0x0001
 #define B1_PROT_64KBIT_TRANSPARENT 0x0002
-#define B1_PROT_V110_ASYNCH        0x0004 
+#define B1_PROT_V110_ASYNCH        0x0004
 #define B1_PROT_V110_SYNCH         0x0008
 #define B1_PROT_T30                0x0010
 #define B1_PROT_64KBIT_INV_HDLC    0x0020
@@ -199,14 +199,14 @@ typedef struct HYSDN_CARD {
 		char *version[HYSDN_MAXVERSION];
 
 		char infobuf[128];	/* for function procinfo */
-		
+
 		struct HYSDN_CARD  *card;
 		struct capi_ctr capi_ctrl;
 		struct sk_buff *skbs[HYSDN_MAX_CAPI_SKB];
 		int in_idx, out_idx;	/* indexes to buffer ring */
 		int sk_count;		/* number of buffers currently in ring */
 		struct sk_buff *tx_skb;	/* buffer for tx operation */
-	  
+
 		struct list_head ncci_head;
 	} *hyctrlinfo;
 #endif /* CONFIG_HYSDN_CAPI */
@@ -235,11 +235,11 @@ extern void hysdn_procconf_release(void);	/* deinit proc config filesys */
 /* hysdn_proclog.c */
 extern int hysdn_proclog_init(hysdn_card *);	/* init proc log entry */
 extern void hysdn_proclog_release(hysdn_card *);	/* deinit proc log entry */
-extern void hysdn_addlog(hysdn_card *, char *,...);	/* output data to log */
+extern void hysdn_addlog(hysdn_card *, char *, ...);	/* output data to log */
 extern void hysdn_card_errlog(hysdn_card *, tErrLogEntry *, int);	/* output card log */
 
 /* boardergo.c */
-extern int ergo_inithardware(hysdn_card * card);	/* get hardware -> module init */
+extern int ergo_inithardware(hysdn_card *card);	/* get hardware -> module init */
 
 /* hysdn_boot.c */
 extern int pof_write_close(hysdn_card *);	/* close proc file after writing pof */
@@ -249,31 +249,31 @@ extern int EvalSysrTokData(hysdn_card *, unsigned char *, int);		/* Check Sysrea
 
 /* hysdn_sched.c */
 extern int hysdn_sched_tx(hysdn_card *, unsigned char *,
-			unsigned short volatile *, unsigned short volatile *,
-			unsigned short);
+			  unsigned short volatile *, unsigned short volatile *,
+			  unsigned short);
 extern int hysdn_sched_rx(hysdn_card *, unsigned char *, unsigned short,
-			unsigned short);
+			  unsigned short);
 extern int hysdn_tx_cfgline(hysdn_card *, unsigned char *,
-			unsigned short);	/* send one cfg line */
+			    unsigned short);	/* send one cfg line */
 
 /* hysdn_net.c */
-extern unsigned int hynet_enable; 
+extern unsigned int hynet_enable;
 extern int hysdn_net_create(hysdn_card *);	/* create a new net device */
 extern int hysdn_net_release(hysdn_card *);	/* delete the device */
 extern char *hysdn_net_getname(hysdn_card *);	/* get name of net interface */
 extern void hysdn_tx_netack(hysdn_card *);	/* acknowledge a packet tx */
 extern struct sk_buff *hysdn_tx_netget(hysdn_card *);	/* get next network packet */
 extern void hysdn_rx_netpkt(hysdn_card *, unsigned char *,
-			unsigned short);	/* rxed packet from network */
+			    unsigned short);	/* rxed packet from network */
 
 #ifdef CONFIG_HYSDN_CAPI
-extern unsigned int hycapi_enable; 
+extern unsigned int hycapi_enable;
 extern int hycapi_capi_create(hysdn_card *);	/* create a new capi device */
 extern int hycapi_capi_release(hysdn_card *);	/* delete the device */
 extern int hycapi_capi_stop(hysdn_card *card);   /* suspend */
-extern void hycapi_rx_capipkt(hysdn_card * card, unsigned char * buf,
-				unsigned short len);
-extern void hycapi_tx_capiack(hysdn_card * card);
+extern void hycapi_rx_capipkt(hysdn_card *card, unsigned char *buf,
+			      unsigned short len);
+extern void hycapi_tx_capiack(hysdn_card *card);
 extern struct sk_buff *hycapi_tx_capiget(hysdn_card *card);
 extern int hycapi_init(void);
 extern void hycapi_cleanup(void);

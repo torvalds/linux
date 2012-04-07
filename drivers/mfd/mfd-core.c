@@ -123,7 +123,7 @@ static int mfd_add_device(struct device *parent, int id,
 		}
 
 		if (!cell->ignore_resource_conflicts) {
-			ret = acpi_check_resource_conflict(res);
+			ret = acpi_check_resource_conflict(&res[r]);
 			if (ret)
 				goto fail_res;
 		}
@@ -162,7 +162,7 @@ int mfd_add_devices(struct device *parent, int id,
 	atomic_t *cnts;
 
 	/* initialize reference counting for all cells */
-	cnts = kcalloc(sizeof(*cnts), n_devs, GFP_KERNEL);
+	cnts = kcalloc(n_devs, sizeof(*cnts), GFP_KERNEL);
 	if (!cnts)
 		return -ENOMEM;
 

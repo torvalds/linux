@@ -19,11 +19,11 @@
  */
 
 #include <linux/err.h>
-#include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/io.h>
 
 #include <plat/dma.h>
 #include <plat/tc.h>

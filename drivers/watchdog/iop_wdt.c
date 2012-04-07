@@ -24,6 +24,8 @@
  *	Dan Williams <dan.j.williams@intel.com>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -34,7 +36,7 @@
 #include <linux/uaccess.h>
 #include <mach/hardware.h>
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static unsigned long wdt_status;
 static unsigned long boot_status;
 static DEFINE_SPINLOCK(wdt_lock);
@@ -85,7 +87,7 @@ static int wdt_disable(void)
 		write_wdtcr(IOP_WDTCR_DIS);
 		clear_bit(WDT_ENABLED, &wdt_status);
 		spin_unlock(&wdt_lock);
-		printk(KERN_INFO "WATCHDOG: Disabled\n");
+		pr_info("Disabled\n");
 		return 0;
 	} else
 		return 1;
@@ -197,8 +199,8 @@ static int iop_wdt_release(struct inode *inode, struct file *file)
 	 */
 	if (state != 0) {
 		wdt_enable();
-		printk(KERN_CRIT "WATCHDOG: Device closed unexpectedly - "
-		       "reset in %lu seconds\n", iop_watchdog_timeout());
+		pr_crit("Device closed unexpectedly - reset in %lu seconds\n",
+			iop_watchdog_timeout());
 	}
 
 	clear_bit(WDT_IN_USE, &wdt_status);
@@ -238,8 +240,7 @@ static int __init iop_wdt_init(void)
 	   with an open */
 	ret = misc_register(&iop_wdt_miscdev);
 	if (ret == 0)
-		printk(KERN_INFO "iop watchdog timer: timeout %lu sec\n",
-		       iop_watchdog_timeout());
+		pr_info("timeout %lu sec\n", iop_watchdog_timeout());
 
 	return ret;
 }
@@ -252,7 +253,7 @@ static void __exit iop_wdt_exit(void)
 module_init(iop_wdt_init);
 module_exit(iop_wdt_exit);
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 MODULE_AUTHOR("Curt E Bruns <curt.e.bruns@intel.com>");

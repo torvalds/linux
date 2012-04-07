@@ -46,6 +46,25 @@
 void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);
 
+void avivo_wait_for_vblank(struct radeon_device *rdev, int crtc)
+{
+	struct radeon_crtc *radeon_crtc = rdev->mode_info.crtcs[crtc];
+	int i;
+
+	if (RREG32(AVIVO_D1CRTC_CONTROL + radeon_crtc->crtc_offset) & AVIVO_CRTC_EN) {
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if (!(RREG32(AVIVO_D1CRTC_STATUS + radeon_crtc->crtc_offset) & AVIVO_D1CRTC_V_BLANK))
+				break;
+			udelay(1);
+		}
+		for (i = 0; i < rdev->usec_timeout; i++) {
+			if (RREG32(AVIVO_D1CRTC_STATUS + radeon_crtc->crtc_offset) & AVIVO_D1CRTC_V_BLANK)
+				break;
+			udelay(1);
+		}
+	}
+}
+
 void rs600_pre_page_flip(struct radeon_device *rdev, int crtc)
 {
 	/* enable the pflip int */
@@ -175,7 +194,7 @@ void rs600_pm_misc(struct radeon_device *rdev)
 	/* set pcie lanes */
 	if ((rdev->flags & RADEON_IS_PCIE) &&
 	    !(rdev->flags & RADEON_IS_IGP) &&
-	    rdev->asic->set_pcie_lanes &&
+	    rdev->asic->pm.set_pcie_lanes &&
 	    (ps->pcie_lanes !=
 	     rdev->pm.power_state[rdev->pm.current_power_state_index].pcie_lanes)) {
 		radeon_set_pcie_lanes(rdev,
@@ -864,7 +883,7 @@ static int rs600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r100_ib_test(rdev);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
@@ -876,6 +895,8 @@ static int rs600_startup(struct radeon_device *rdev)
 
 int rs600_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	rs600_gart_disable(rdev);
 	/* Resume clock before doing reset */
@@ -894,7 +915,11 @@ int rs600_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return rs600_startup(rdev);
+	r = rs600_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int rs600_suspend(struct radeon_device *rdev)

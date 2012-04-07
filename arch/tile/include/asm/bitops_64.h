@@ -17,7 +17,6 @@
 
 #include <linux/compiler.h>
 #include <linux/atomic.h>
-#include <asm/system.h>
 
 /* See <asm/bitops.h> for API comments. */
 

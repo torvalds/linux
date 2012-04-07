@@ -182,11 +182,7 @@ static void tick_nohz_stop_idle(int cpu, ktime_t now)
 
 static ktime_t tick_nohz_start_idle(int cpu, struct tick_sched *ts)
 {
-	ktime_t now;
-
-	now = ktime_get();
-
-	update_ts_time_stats(cpu, ts, now, NULL);
+	ktime_t now = ktime_get();
 
 	ts->idle_entrytime = now;
 	ts->idle_active = 1;
@@ -562,19 +558,20 @@ void tick_nohz_idle_exit(void)
 
 	local_irq_disable();
 
-	if (ts->idle_active || (ts->inidle && ts->tick_stopped))
+	WARN_ON_ONCE(!ts->inidle);
+
+	ts->inidle = 0;
+
+	if (ts->idle_active || ts->tick_stopped)
 		now = ktime_get();
 
 	if (ts->idle_active)
 		tick_nohz_stop_idle(cpu, now);
 
-	if (!ts->inidle || !ts->tick_stopped) {
-		ts->inidle = 0;
+	if (!ts->tick_stopped) {
 		local_irq_enable();
 		return;
 	}
-
-	ts->inidle = 0;
 
 	/* Update jiffies first */
 	select_nohz_load_balancer(0);

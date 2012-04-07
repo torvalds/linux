@@ -523,11 +523,12 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 {
 	int i, err = 0;
 	struct threshold_bank *b = NULL;
-	struct device *dev = mce_device[cpu];
+	struct device *dev = per_cpu(mce_device, cpu);
 	char name[32];
 
 	sprintf(name, "threshold_bank%i", bank);
 
+#ifdef CONFIG_SMP
 	if (cpu_data(cpu).cpu_core_id && shared_bank[bank]) {	/* symlink */
 		i = cpumask_first(cpu_llc_shared_mask(cpu));
 
@@ -553,6 +554,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 		goto out;
 	}
+#endif
 
 	b = kzalloc(sizeof(struct threshold_bank), GFP_KERNEL);
 	if (!b) {
@@ -585,7 +587,7 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 		if (i == cpu)
 			continue;
 
-		dev = mce_device[i];
+		dev = per_cpu(mce_device, i);
 		if (dev)
 			err = sysfs_create_link(&dev->kobj,b->kobj, name);
 		if (err)
@@ -665,7 +667,8 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 #ifdef CONFIG_SMP
 	/* sibling symlink */
 	if (shared_bank[bank] && b->blocks->cpu != cpu) {
-		sysfs_remove_link(&mce_device[cpu]->kobj, name);
+		dev = per_cpu(mce_device, cpu);
+		sysfs_remove_link(&dev->kobj, name);
 		per_cpu(threshold_banks, cpu)[bank] = NULL;
 
 		return;
@@ -677,7 +680,7 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 		if (i == cpu)
 			continue;
 
-		dev = mce_device[i];
+		dev = per_cpu(mce_device, i);
 		if (dev)
 			sysfs_remove_link(&dev->kobj, name);
 		per_cpu(threshold_banks, i)[bank] = NULL;
