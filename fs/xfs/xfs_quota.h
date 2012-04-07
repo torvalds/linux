@@ -174,6 +174,8 @@ typedef struct xfs_qoff_logformat {
 #define XFS_UQUOTA_ACTIVE	0x0100  /* uquotas are being turned off */
 #define XFS_PQUOTA_ACTIVE	0x0200  /* pquotas are being turned off */
 #define XFS_GQUOTA_ACTIVE	0x0400  /* gquotas are being turned off */
+#define XFS_ALL_QUOTA_ACTIVE	\
+	(XFS_UQUOTA_ACTIVE | XFS_PQUOTA_ACTIVE | XFS_GQUOTA_ACTIVE)
 
 /*
  * Checking XFS_IS_*QUOTA_ON() while holding any inode lock guarantees

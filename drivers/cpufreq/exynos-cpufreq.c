@@ -210,6 +210,8 @@ static int exynos_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	cpufreq_frequency_table_get_attr(exynos_info->freq_table, policy->cpu);
 
+	locking_frequency = exynos_getspeed(0);
+
 	/* set the transition latency value */
 	policy->cpuinfo.transition_latency = 100000;
 
@@ -252,6 +254,10 @@ static int __init exynos_cpufreq_init(void)
 
 	if (soc_is_exynos4210())
 		ret = exynos4210_cpufreq_init(exynos_info);
+	else if (soc_is_exynos4212() || soc_is_exynos4412())
+		ret = exynos4x12_cpufreq_init(exynos_info);
+	else if (soc_is_exynos5250())
+		ret = exynos5250_cpufreq_init(exynos_info);
 	else
 		pr_err("%s: CPU type not found\n", __func__);
 

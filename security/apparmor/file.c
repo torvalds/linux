@@ -173,8 +173,6 @@ static u32 map_old_perms(u32 old)
 	if (old & 0x40)	/* AA_EXEC_MMAP */
 		new |= AA_EXEC_MMAP;
 
-	new |= AA_MAY_META_READ;
-
 	return new;
 }
 
@@ -212,10 +210,13 @@ static struct file_perms compute_perms(struct aa_dfa *dfa, unsigned int state,
 		perms.quiet = map_old_perms(dfa_other_quiet(dfa, state));
 		perms.xindex = dfa_other_xindex(dfa, state);
 	}
+	perms.allow |= AA_MAY_META_READ;
 
 	/* change_profile wasn't determined by ownership in old mapping */
 	if (ACCEPT_TABLE(dfa)[state] & 0x80000000)
 		perms.allow |= AA_MAY_CHANGE_PROFILE;
+	if (ACCEPT_TABLE(dfa)[state] & 0x40000000)
+		perms.allow |= AA_MAY_ONEXEC;
 
 	return perms;
 }
@@ -279,22 +280,16 @@ int aa_path_perm(int op, struct aa_profile *profile, struct path *path,
 	int error;
 
 	flags |= profile->path_flags | (S_ISDIR(cond->mode) ? PATH_IS_DIR : 0);
-	error = aa_get_name(path, flags, &buffer, &name);
+	error = aa_path_name(path, flags, &buffer, &name, &info);
 	if (error) {
 		if (error == -ENOENT && is_deleted(path->dentry)) {
 			/* Access to open files that are deleted are
 			 * give a pass (implicit delegation)
 			 */
 			error = 0;
+			info = NULL;
 			perms.allow = request;
-		} else if (error == -ENOENT)
-			info = "Failed name lookup - deleted entry";
-		else if (error == -ESTALE)
-			info = "Failed name lookup - disconnected path";
-		else if (error == -ENAMETOOLONG)
-			info = "Failed name lookup - name too long";
-		else
-			info = "Failed name lookup";
+		}
 	} else {
 		aa_str_perms(profile->file.dfa, profile->file.start, name, cond,
 			     &perms);
@@ -365,12 +360,14 @@ int aa_path_link(struct aa_profile *profile, struct dentry *old_dentry,
 	lperms = nullperms;
 
 	/* buffer freed below, lname is pointer in buffer */
-	error = aa_get_name(&link, profile->path_flags, &buffer, &lname);
+	error = aa_path_name(&link, profile->path_flags, &buffer, &lname,
+			     &info);
 	if (error)
 		goto audit;
 
 	/* buffer2 freed below, tname is pointer in buffer2 */
-	error = aa_get_name(&target, profile->path_flags, &buffer2, &tname);
+	error = aa_path_name(&target, profile->path_flags, &buffer2, &tname,
+			     &info);
 	if (error)
 		goto audit;
 

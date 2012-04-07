@@ -527,6 +527,7 @@ static int enc28j60_set_mac_address(struct net_device *dev, void *addr)
 	if (!is_valid_ether_addr(address->sa_data))
 		return -EADDRNOTAVAIL;
 
+	dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 	memcpy(dev->dev_addr, address->sa_data, dev->addr_len);
 	return enc28j60_set_hw_macaddr(dev);
 }
@@ -954,14 +955,13 @@ static void enc28j60_hw_rx(struct net_device *ndev)
 		if (len > MAX_FRAMELEN)
 			ndev->stats.rx_over_errors++;
 	} else {
-		skb = dev_alloc_skb(len + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(ndev, len + NET_IP_ALIGN);
 		if (!skb) {
 			if (netif_msg_rx_err(priv))
 				dev_err(&ndev->dev,
 					"out of memory for Rx'd frame\n");
 			ndev->stats.rx_dropped++;
 		} else {
-			skb->dev = ndev;
 			skb_reserve(skb, NET_IP_ALIGN);
 			/* copy the packet from the receive buffer */
 			enc28j60_mem_read(priv,
@@ -1553,9 +1553,6 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 
 	dev = alloc_etherdev(sizeof(struct enc28j60_net));
 	if (!dev) {
-		if (netif_msg_drv(&debug))
-			dev_err(&spi->dev, DRV_NAME
-				": unable to alloc new ethernet\n");
 		ret = -ENOMEM;
 		goto error_alloc;
 	}
@@ -1579,7 +1576,7 @@ static int __devinit enc28j60_probe(struct spi_device *spi)
 		ret = -EIO;
 		goto error_irq;
 	}
-	random_ether_addr(dev->dev_addr);
+	eth_hw_addr_random(dev);
 	enc28j60_set_hw_macaddr(dev);
 
 	/* Board setup must set the relevant edge trigger type;

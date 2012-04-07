@@ -24,12 +24,14 @@ enum u300_gpio_variant {
  * @ports: number of GPIO block ports
  * @gpio_base: first GPIO number for this block (use a free range)
  * @gpio_irq_base: first GPIO IRQ number for this block (use a free range)
+ * @pinctrl_device: pin control device to spawn as child
  */
 struct u300_gpio_platform {
 	enum u300_gpio_variant variant;
 	u8 ports;
 	int gpio_base;
 	int gpio_irq_base;
+	struct platform_device *pinctrl_device;
 };
 
 #endif /* __MACH_U300_GPIO_U300_H */

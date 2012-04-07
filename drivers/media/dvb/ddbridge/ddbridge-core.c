@@ -578,6 +578,7 @@ static int demod_attach_drxk(struct ddb_input *input)
 	struct drxk_config config;
 
 	memset(&config, 0, sizeof(config));
+	config.microcode_name = "drxk_a3.mc";
 	config.adr = 0x29 + (input->nr & 1);
 
 	fe = input->fe = dvb_attach(drxk_attach, &config, i2c);

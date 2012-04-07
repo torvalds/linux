@@ -128,6 +128,22 @@ structs, ioctls) must be noted in more detail in the history chapter
 applications. -->
 
       <revision>
+	<revnumber>3.4</revnumber>
+	<date>2012-01-25</date>
+	<authorinitials>sn</authorinitials>
+	<revremark>Added <link linkend="jpeg-controls">JPEG compression
+	    control class.</link>
+	</revremark>
+      </revision>
+
+      <revision>
+	<revnumber>3.3</revnumber>
+	<date>2012-01-11</date>
+	<authorinitials>hv</authorinitials>
+	<revremark>Added device_caps field to struct v4l2_capabilities.</revremark>
+      </revision>
+
+      <revision>
 	<revnumber>3.2</revnumber>
 	<date>2011-08-26</date>
 	<authorinitials>hv</authorinitials>
@@ -417,7 +433,7 @@ and discussions on the V4L mailing list.</revremark>
 </partinfo>
 
 <title>Video for Linux Two API Specification</title>
- <subtitle>Revision 3.2</subtitle>
+ <subtitle>Revision 3.3</subtitle>
 
   <chapter id="common">
     &sub-common;
@@ -473,6 +489,7 @@ and discussions on the V4L mailing list.</revremark>
     &sub-cropcap;
     &sub-dbg-g-chip-ident;
     &sub-dbg-g-register;
+    &sub-decoder-cmd;
     &sub-dqevent;
     &sub-encoder-cmd;
     &sub-enumaudio;

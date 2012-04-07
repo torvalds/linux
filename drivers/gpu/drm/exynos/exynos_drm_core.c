@@ -32,7 +32,6 @@
 #include "exynos_drm_connector.h"
 #include "exynos_drm_fbdev.h"
 
-static DEFINE_MUTEX(exynos_drm_mutex);
 static LIST_HEAD(exynos_drm_subdrv_list);
 static struct drm_device *drm_dev;
 
@@ -59,6 +58,9 @@ static int exynos_drm_subdrv_probe(struct drm_device *dev,
 		if (ret)
 			return ret;
 	}
+
+	if (subdrv->is_local)
+		return 0;
 
 	/* create and initialize a encoder for this sub driver. */
 	encoder = exynos_drm_encoder_create(dev, &subdrv->manager,
@@ -116,22 +118,16 @@ int exynos_drm_device_register(struct drm_device *dev)
 	if (!dev)
 		return -EINVAL;
 
-	if (drm_dev) {
-		DRM_ERROR("Already drm device were registered\n");
-		return -EBUSY;
-	}
+	drm_dev = dev;
 
-	mutex_lock(&exynos_drm_mutex);
 	list_for_each_entry_safe(subdrv, n, &exynos_drm_subdrv_list, list) {
+		subdrv->drm_dev = dev;
 		err = exynos_drm_subdrv_probe(dev, subdrv);
 		if (err) {
 			DRM_DEBUG("exynos drm subdrv probe failed.\n");
 			list_del(&subdrv->list);
 		}
 	}
-
-	drm_dev = dev;
-	mutex_unlock(&exynos_drm_mutex);
 
 	return 0;
 }
@@ -143,86 +139,28 @@ int exynos_drm_device_unregister(struct drm_device *dev)
 
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
-	if (!dev || dev != drm_dev) {
+	if (!dev) {
 		WARN(1, "Unexpected drm device unregister!\n");
 		return -EINVAL;
 	}
 
-	mutex_lock(&exynos_drm_mutex);
 	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list)
 		exynos_drm_subdrv_remove(dev, subdrv);
 
 	drm_dev = NULL;
-	mutex_unlock(&exynos_drm_mutex);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_drm_device_unregister);
 
-static int exynos_drm_mode_group_reinit(struct drm_device *dev)
-{
-	struct drm_mode_group *group = &dev->primary->mode_group;
-	uint32_t *id_list = group->id_list;
-	int ret;
-
-	DRM_DEBUG_DRIVER("%s\n", __FILE__);
-
-	ret = drm_mode_group_init_legacy_group(dev, group);
-	if (ret < 0)
-		return ret;
-
-	kfree(id_list);
-	return 0;
-}
-
 int exynos_drm_subdrv_register(struct exynos_drm_subdrv *subdrv)
 {
-	int err;
-
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
 	if (!subdrv)
 		return -EINVAL;
 
-	mutex_lock(&exynos_drm_mutex);
-	if (drm_dev) {
-		err = exynos_drm_subdrv_probe(drm_dev, subdrv);
-		if (err) {
-			DRM_ERROR("failed to probe exynos drm subdrv\n");
-			mutex_unlock(&exynos_drm_mutex);
-			return err;
-		}
-
-		/* setup possible_clones. */
-		exynos_drm_encoder_setup(drm_dev);
-
-		/*
-		 * if any specific driver such as fimd or hdmi driver called
-		 * exynos_drm_subdrv_register() later than drm_load(),
-		 * the fb helper should be re-initialized and re-configured.
-		 */
-		err = exynos_drm_fbdev_reinit(drm_dev);
-		if (err) {
-			DRM_ERROR("failed to reinitialize exynos drm fbdev\n");
-			exynos_drm_subdrv_remove(drm_dev, subdrv);
-			mutex_unlock(&exynos_drm_mutex);
-			return err;
-		}
-
-		err = exynos_drm_mode_group_reinit(drm_dev);
-		if (err) {
-			DRM_ERROR("failed to reinitialize mode group\n");
-			exynos_drm_fbdev_fini(drm_dev);
-			exynos_drm_subdrv_remove(drm_dev, subdrv);
-			mutex_unlock(&exynos_drm_mutex);
-			return err;
-		}
-	}
-
-	subdrv->drm_dev = drm_dev;
-
 	list_add_tail(&subdrv->list, &exynos_drm_subdrv_list);
-	mutex_unlock(&exynos_drm_mutex);
 
 	return 0;
 }
@@ -230,46 +168,48 @@ EXPORT_SYMBOL_GPL(exynos_drm_subdrv_register);
 
 int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *subdrv)
 {
-	int ret = -EFAULT;
-
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
-	if (!subdrv) {
-		DRM_DEBUG("Unexpected exynos drm subdrv unregister!\n");
-		return ret;
-	}
+	if (!subdrv)
+		return -EINVAL;
 
-	mutex_lock(&exynos_drm_mutex);
-	if (drm_dev) {
-		exynos_drm_subdrv_remove(drm_dev, subdrv);
-		list_del(&subdrv->list);
+	list_del(&subdrv->list);
 
-		/*
-		 * fb helper should be updated once a sub driver is released
-		 * to re-configure crtc and connector and also to re-setup
-		 * drm framebuffer.
-		 */
-		ret = exynos_drm_fbdev_reinit(drm_dev);
-		if (ret < 0) {
-			DRM_ERROR("failed fb helper reinit.\n");
-			goto fail;
-		}
-
-		ret = exynos_drm_mode_group_reinit(drm_dev);
-		if (ret < 0) {
-			DRM_ERROR("failed drm mode group reinit.\n");
-			goto fail;
-		}
-	}
-
-fail:
-	mutex_unlock(&exynos_drm_mutex);
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(exynos_drm_subdrv_unregister);
 
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM Core Driver");
-MODULE_LICENSE("GPL");
+int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
+{
+	struct exynos_drm_subdrv *subdrv;
+	int ret;
+
+	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list) {
+		if (subdrv->open) {
+			ret = subdrv->open(dev, subdrv->manager.dev, file);
+			if (ret)
+				goto err;
+		}
+	}
+
+	return 0;
+
+err:
+	list_for_each_entry_reverse(subdrv, &subdrv->list, list) {
+		if (subdrv->close)
+			subdrv->close(dev, subdrv->manager.dev, file);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(exynos_drm_subdrv_open);
+
+void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file)
+{
+	struct exynos_drm_subdrv *subdrv;
+
+	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list) {
+		if (subdrv->close)
+			subdrv->close(dev, subdrv->manager.dev, file);
+	}
+}
+EXPORT_SYMBOL_GPL(exynos_drm_subdrv_close);

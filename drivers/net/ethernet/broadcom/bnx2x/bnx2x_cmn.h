@@ -1,6 +1,6 @@
 /* bnx2x_cmn.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2011 Broadcom Corporation
+ * Copyright (c) 2007-2012 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -379,8 +379,8 @@ void bnx2x_set_q_rx_mode(struct bnx2x *bp, u8 cl_id,
 			 unsigned long ramrod_flags);
 
 /* Parity errors related */
-void bnx2x_inc_load_cnt(struct bnx2x *bp);
-u32 bnx2x_dec_load_cnt(struct bnx2x *bp);
+void bnx2x_set_pf_load(struct bnx2x *bp);
+bool bnx2x_clear_pf_load(struct bnx2x *bp);
 bool bnx2x_chk_parity_attn(struct bnx2x *bp, bool *global, bool print);
 bool bnx2x_reset_is_done(struct bnx2x *bp, int engine);
 void bnx2x_set_reset_in_progress(struct bnx2x *bp);
@@ -534,8 +534,9 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu);
  */
 int bnx2x_fcoe_get_wwn(struct net_device *dev, u64 *wwn, int type);
 #endif
+
 netdev_features_t bnx2x_fix_features(struct net_device *dev,
-	netdev_features_t features);
+				     netdev_features_t features);
 int bnx2x_set_features(struct net_device *dev, netdev_features_t features);
 
 /**
@@ -597,7 +598,7 @@ static inline void bnx2x_igu_ack_sb_gen(struct bnx2x *bp, u8 igu_sb_id,
 			 (update << IGU_REGULAR_BUPDATE_SHIFT) |
 			 (op << IGU_REGULAR_ENABLE_INT_SHIFT));
 
-	DP(NETIF_MSG_HW, "write 0x%08x to IGU addr 0x%x\n",
+	DP(NETIF_MSG_INTR, "write 0x%08x to IGU addr 0x%x\n",
 	   cmd_data.sb_id_and_flags, igu_addr);
 	REG_WR(bp, igu_addr, cmd_data.sb_id_and_flags);
 
@@ -614,8 +615,7 @@ static inline void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func,
 	u32 igu_addr_ctl = IGU_REG_COMMAND_REG_CTRL;
 	u32 igu_addr_ack = IGU_REG_CSTORM_TYPE_0_SB_CLEANUP + (idu_sb_id/32)*4;
 	u32 sb_bit =  1 << (idu_sb_id%32);
-	u32 func_encode = func |
-			((is_Pf == true ? 1 : 0) << IGU_FID_ENCODE_IS_PF_SHIFT);
+	u32 func_encode = func | (is_Pf ? 1 : 0) << IGU_FID_ENCODE_IS_PF_SHIFT;
 	u32 addr_encode = IGU_CMD_E2_PROD_UPD_BASE + idu_sb_id;
 
 	/* Not supported in BC mode */
@@ -648,8 +648,8 @@ static inline void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func,
 
 
 	if (!(REG_RD(bp, igu_addr_ack) & sb_bit)) {
-		DP(NETIF_MSG_HW, "Unable to finish IGU cleanup: "
-			  "idu_sb_id %d offset %d bit %d (cnt %d)\n",
+		DP(NETIF_MSG_HW,
+		   "Unable to finish IGU cleanup: idu_sb_id %d offset %d bit %d (cnt %d)\n",
 			  idu_sb_id, idu_sb_id/32, idu_sb_id%32, cnt);
 	}
 }
@@ -668,8 +668,6 @@ static inline void bnx2x_hc_ack_sb(struct bnx2x *bp, u8 sb_id,
 			 (update << IGU_ACK_REGISTER_UPDATE_INDEX_SHIFT) |
 			 (op << IGU_ACK_REGISTER_INTERRUPT_MODE_SHIFT));
 
-	DP(BNX2X_MSG_OFF, "write 0x%08x to HC addr 0x%x\n",
-	   (*(u32 *)&igu_ack), hc_addr);
 	REG_WR(bp, hc_addr, (*(u32 *)&igu_ack));
 
 	/* Make sure that ACK is written */
@@ -703,9 +701,6 @@ static inline u16 bnx2x_hc_ack_int(struct bnx2x *bp)
 		       COMMAND_REG_SIMD_MASK);
 	u32 result = REG_RD(bp, hc_addr);
 
-	DP(BNX2X_MSG_OFF, "read 0x%08x from HC addr 0x%x\n",
-	   result, hc_addr);
-
 	barrier();
 	return result;
 }
@@ -715,7 +710,7 @@ static inline u16 bnx2x_igu_ack_int(struct bnx2x *bp)
 	u32 igu_addr = (BAR_IGU_INTMEM + IGU_REG_SISR_MDPC_WMASK_LSB_UPPER*8);
 	u32 result = REG_RD(bp, igu_addr);
 
-	DP(NETIF_MSG_HW, "read 0x%08x from IGU addr 0x%x\n",
+	DP(NETIF_MSG_INTR, "read 0x%08x from IGU addr 0x%x\n",
 	   result, igu_addr);
 
 	barrier();
@@ -893,13 +888,16 @@ static inline int bnx2x_alloc_rx_sge(struct bnx2x *bp,
 	struct eth_rx_sge *sge = &fp->rx_sge_ring[index];
 	dma_addr_t mapping;
 
-	if (unlikely(page == NULL))
+	if (unlikely(page == NULL)) {
+		BNX2X_ERR("Can't alloc sge\n");
 		return -ENOMEM;
+	}
 
 	mapping = dma_map_page(&bp->pdev->dev, page, 0,
 			       SGE_PAGE_SIZE*PAGES_PER_SGE, DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		__free_pages(page, PAGES_PER_SGE_SHIFT);
+		BNX2X_ERR("Can't map sge\n");
 		return -ENOMEM;
 	}
 
@@ -929,6 +927,7 @@ static inline int bnx2x_alloc_rx_data(struct bnx2x *bp,
 				 DMA_FROM_DEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		kfree(data);
+		BNX2X_ERR("Can't map rx data\n");
 		return -ENOMEM;
 	}
 
@@ -971,7 +970,7 @@ static inline void bnx2x_reuse_rx_data(struct bnx2x_fastpath *fp,
  */
 static inline int bnx2x_func_start(struct bnx2x *bp)
 {
-	struct bnx2x_func_state_params func_params = {0};
+	struct bnx2x_func_state_params func_params = {NULL};
 	struct bnx2x_func_start_params *start_params =
 		&func_params.params.start;
 
@@ -984,10 +983,11 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 	/* Function parameters */
 	start_params->mf_mode = bp->mf_mode;
 	start_params->sd_vlan_tag = bp->mf_ov;
-	if (CHIP_IS_E1x(bp))
-		start_params->network_cos_mode = OVERRIDE_COS;
-	else
+
+	if (CHIP_IS_E2(bp) || CHIP_IS_E3(bp))
 		start_params->network_cos_mode = STATIC_COS;
+	else /* CHIP_IS_E1X */
+		start_params->network_cos_mode = FW_WRR;
 
 	return bnx2x_func_state_change(bp, &func_params);
 }
@@ -1142,7 +1142,7 @@ static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 {
 	struct bnx2x *bp = fp->bp;
 	u16 ring_prod, cqe_ring_prod;
-	int i;
+	int i, failure_cnt = 0;
 
 	fp->rx_comp_cons = 0;
 	cqe_ring_prod = ring_prod = 0;
@@ -1152,18 +1152,17 @@ static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 	 */
 	for (i = 0; i < rx_ring_size; i++) {
 		if (bnx2x_alloc_rx_data(bp, fp, ring_prod) < 0) {
-			fp->eth_q_stats.rx_skb_alloc_failed++;
+			failure_cnt++;
 			continue;
 		}
 		ring_prod = NEXT_RX_IDX(ring_prod);
 		cqe_ring_prod = NEXT_RCQ_IDX(cqe_ring_prod);
-		WARN_ON(ring_prod <= (i - fp->eth_q_stats.rx_skb_alloc_failed));
+		WARN_ON(ring_prod <= (i - failure_cnt));
 	}
 
-	if (fp->eth_q_stats.rx_skb_alloc_failed)
-		BNX2X_ERR("was only able to allocate "
-			  "%d rx skbs on queue[%d]\n",
-			  (i - fp->eth_q_stats.rx_skb_alloc_failed), fp->index);
+	if (failure_cnt)
+		BNX2X_ERR("was only able to allocate %d rx skbs on queue[%d]\n",
+			  i - failure_cnt, fp->index);
 
 	fp->rx_bd_prod = ring_prod;
 	/* Limit the CQE producer by the CQE ring size */
@@ -1171,7 +1170,9 @@ static inline int bnx2x_alloc_rx_bds(struct bnx2x_fastpath *fp,
 			       cqe_ring_prod);
 	fp->rx_pkt = fp->rx_calls = 0;
 
-	return i - fp->eth_q_stats.rx_skb_alloc_failed;
+	fp->eth_q_stats.rx_skb_alloc_failed += failure_cnt;
+
+	return i - failure_cnt;
 }
 
 /* Statistics ID are global per chip/path, while Client IDs for E1x are per
@@ -1297,7 +1298,7 @@ static inline void bnx2x_init_txdata(struct bnx2x *bp,
 	txdata->txq_index = txq_index;
 	txdata->tx_cons_sb = tx_cons_sb;
 
-	DP(BNX2X_MSG_SP, "created tx data cid %d, txq %d\n",
+	DP(NETIF_MSG_IFUP, "created tx data cid %d, txq %d\n",
 	   txdata->cid, txdata->txq_index);
 }
 
@@ -1342,7 +1343,7 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 	bnx2x_init_txdata(bp, &bnx2x_fcoe(bp, txdata[0]),
 			  fp->cid, FCOE_TXQ_IDX(bp), BNX2X_FCOE_L2_TX_INDEX);
 
-	DP(BNX2X_MSG_SP, "created fcoe tx data (fp index %d)\n", fp->index);
+	DP(NETIF_MSG_IFUP, "created fcoe tx data (fp index %d)\n", fp->index);
 
 	/* qZone id equals to FW (per path) client id */
 	bnx2x_fcoe(bp, cl_qzone_id) = bnx2x_fp_qzone_id(fp);
@@ -1361,8 +1362,8 @@ static inline void bnx2x_init_fcoe_fp(struct bnx2x *bp)
 			     BP_FUNC(bp), bnx2x_sp(bp, q_rdata),
 			     bnx2x_sp_mapping(bp, q_rdata), q_type);
 
-	DP(NETIF_MSG_IFUP, "queue[%d]: bnx2x_init_sb(%p,%p) cl_id %d fw_sb %d "
-			   "igu_sb %d\n",
+	DP(NETIF_MSG_IFUP,
+	   "queue[%d]: bnx2x_init_sb(%p,%p) cl_id %d fw_sb %d igu_sb %d\n",
 	   fp->index, bp, fp->status_blk.e2_sb, fp->cl_id, fp->fw_sb_id,
 	   fp->igu_sb_id);
 }
@@ -1375,8 +1376,7 @@ static inline int bnx2x_clean_tx_queue(struct bnx2x *bp,
 
 	while (bnx2x_has_tx_work_unload(txdata)) {
 		if (!cnt) {
-			BNX2X_ERR("timeout waiting for queue[%d]: "
-				 "txdata->tx_pkt_prod(%d) != txdata->tx_pkt_cons(%d)\n",
+			BNX2X_ERR("timeout waiting for queue[%d]: txdata->tx_pkt_prod(%d) != txdata->tx_pkt_cons(%d)\n",
 				  txdata->txq_index, txdata->tx_pkt_prod,
 				  txdata->tx_pkt_cons);
 #ifdef BNX2X_STOP_ON_ERROR
@@ -1453,8 +1453,8 @@ static inline bool bnx2x_wait_sp_comp(struct bnx2x *bp, unsigned long mask)
 
 	netif_addr_lock_bh(bp->dev);
 	if (bp->sp_state & mask) {
-		BNX2X_ERR("Filtering completion timed out. sp_state 0x%lx, "
-			  "mask 0x%lx\n", bp->sp_state, mask);
+		BNX2X_ERR("Filtering completion timed out. sp_state 0x%lx, mask 0x%lx\n",
+			  bp->sp_state, mask);
 		netif_addr_unlock_bh(bp->dev);
 		return false;
 	}
@@ -1490,13 +1490,113 @@ static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
 	u16 max_cfg = (mf_cfg & FUNC_MF_CFG_MAX_BW_MASK) >>
 			      FUNC_MF_CFG_MAX_BW_SHIFT;
 	if (!max_cfg) {
-		DP(NETIF_MSG_LINK,
+		DP(NETIF_MSG_IFUP | BNX2X_MSG_ETHTOOL,
 		   "Max BW configured to 0 - using 100 instead\n");
 		max_cfg = 100;
 	}
 	return max_cfg;
 }
 
+/* checks if HW supports GRO for given MTU */
+static inline bool bnx2x_mtu_allows_gro(int mtu)
+{
+	/* gro frags per page */
+	int fpp = SGE_PAGE_SIZE / (mtu - ETH_MAX_TPA_HEADER_SIZE);
+
+	/*
+	 * 1. number of frags should not grow above MAX_SKB_FRAGS
+	 * 2. frag must fit the page
+	 */
+	return mtu <= SGE_PAGE_SIZE && (U_ETH_SGL_SIZE * fpp) <= MAX_SKB_FRAGS;
+}
+
+static inline bool bnx2x_need_gro_check(int mtu)
+{
+	return (SGE_PAGES / (mtu - ETH_MAX_TPA_HEADER_SIZE - 1)) !=
+		(SGE_PAGES / (mtu - ETH_MIN_TPA_HEADER_SIZE + 1));
+}
+
+/**
+ * bnx2x_bz_fp - zero content of the fastpath structure.
+ *
+ * @bp:		driver handle
+ * @index:	fastpath index to be zeroed
+ *
+ * Makes sure the contents of the bp->fp[index].napi is kept
+ * intact.
+ */
+static inline void bnx2x_bz_fp(struct bnx2x *bp, int index)
+{
+	struct bnx2x_fastpath *fp = &bp->fp[index];
+	struct napi_struct orig_napi = fp->napi;
+	/* bzero bnx2x_fastpath contents */
+	if (bp->stats_init)
+		memset(fp, 0, sizeof(*fp));
+	else {
+		/* Keep Queue statistics */
+		struct bnx2x_eth_q_stats *tmp_eth_q_stats;
+		struct bnx2x_eth_q_stats_old *tmp_eth_q_stats_old;
+
+		tmp_eth_q_stats = kzalloc(sizeof(struct bnx2x_eth_q_stats),
+					  GFP_KERNEL);
+		if (tmp_eth_q_stats)
+			memcpy(tmp_eth_q_stats, &fp->eth_q_stats,
+			       sizeof(struct bnx2x_eth_q_stats));
+
+		tmp_eth_q_stats_old =
+			kzalloc(sizeof(struct bnx2x_eth_q_stats_old),
+				GFP_KERNEL);
+		if (tmp_eth_q_stats_old)
+			memcpy(tmp_eth_q_stats_old, &fp->eth_q_stats_old,
+			       sizeof(struct bnx2x_eth_q_stats_old));
+
+		memset(fp, 0, sizeof(*fp));
+
+		if (tmp_eth_q_stats) {
+			memcpy(&fp->eth_q_stats, tmp_eth_q_stats,
+				   sizeof(struct bnx2x_eth_q_stats));
+			kfree(tmp_eth_q_stats);
+		}
+
+		if (tmp_eth_q_stats_old) {
+			memcpy(&fp->eth_q_stats_old, tmp_eth_q_stats_old,
+			       sizeof(struct bnx2x_eth_q_stats_old));
+			kfree(tmp_eth_q_stats_old);
+		}
+
+	}
+
+	/* Restore the NAPI object as it has been already initialized */
+	fp->napi = orig_napi;
+
+	fp->bp = bp;
+	fp->index = index;
+	if (IS_ETH_FP(fp))
+		fp->max_cos = bp->max_cos;
+	else
+		/* Special queues support only one CoS */
+		fp->max_cos = 1;
+
+	/*
+	 * set the tpa flag for each queue. The tpa flag determines the queue
+	 * minimal size so it must be set prior to queue memory allocation
+	 */
+	fp->disable_tpa = !(bp->flags & TPA_ENABLE_FLAG ||
+				  (bp->flags & GRO_ENABLE_FLAG &&
+				   bnx2x_mtu_allows_gro(bp->dev->mtu)));
+	if (bp->flags & TPA_ENABLE_FLAG)
+		fp->mode = TPA_MODE_LRO;
+	else if (bp->flags & GRO_ENABLE_FLAG)
+		fp->mode = TPA_MODE_GRO;
+
+#ifdef BCM_CNIC
+	/* We don't want TPA on an FCoE L2 ring */
+	if (IS_FCOE_FP(fp))
+		fp->disable_tpa = 1;
+#endif
+}
+
+#ifdef BCM_CNIC
 /**
  * bnx2x_get_iscsi_info - update iSCSI params according to licensing info.
  *
@@ -1504,7 +1604,7 @@ static inline u16 bnx2x_extract_max_cfg(struct bnx2x *bp, u32 mf_cfg)
  *
  */
 void bnx2x_get_iscsi_info(struct bnx2x *bp);
-
+#endif
 /* returns func by VN for current port */
 static inline int func_by_vn(struct bnx2x *bp, int vn)
 {
@@ -1545,7 +1645,7 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 {
 	if (SHMEM2_HAS(bp, drv_flags)) {
 		u32 drv_flags;
-		bnx2x_acquire_hw_lock(bp, HW_LOCK_DRV_FLAGS);
+		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_DRV_FLAGS);
 		drv_flags = SHMEM2_RD(bp, drv_flags);
 
 		if (set)
@@ -1554,8 +1654,8 @@ static inline void bnx2x_update_drv_flags(struct bnx2x *bp, u32 flags, u32 set)
 			RESET_FLAGS(drv_flags, flags);
 
 		SHMEM2_WR(bp, drv_flags, drv_flags);
-		DP(NETIF_MSG_HW, "drv_flags 0x%08x\n", drv_flags);
-		bnx2x_release_hw_lock(bp, HW_LOCK_DRV_FLAGS);
+		DP(NETIF_MSG_IFUP, "drv_flags 0x%08x\n", drv_flags);
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_DRV_FLAGS);
 	}
 }
 
@@ -1564,7 +1664,7 @@ static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
 	if (is_valid_ether_addr(addr))
 		return true;
 #ifdef BCM_CNIC
-	if (is_zero_ether_addr(addr) && IS_MF_ISCSI_SD(bp))
+	if (is_zero_ether_addr(addr) && IS_MF_STORAGE_SD(bp))
 		return true;
 #endif
 	return false;

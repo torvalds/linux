@@ -41,7 +41,6 @@
 #include <linux/of_platform.h>
 
 #include <asm/segment.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -207,18 +206,18 @@ void __init setup_cpuinfo(void)
  * Handles the pointer to the device tree that this kernel is to use
  * for establishing the available platform devices.
  *
- * For now, this is limited to using the built-in device tree.  In the future,
- * it is intended that this function will take a pointer to the device tree
- * that is potentially built-in, but potentially also passed in by the
- * bootloader, or discovered by some equally clever means...
+ * Falls back on built-in device tree in case null pointer is passed.
  */
 
-void __init or32_early_setup(void)
+void __init or32_early_setup(unsigned int fdt)
 {
-
-	early_init_devtree(__dtb_start);
-
-	printk(KERN_INFO "Compiled-in FDT at 0x%p\n", __dtb_start);
+	if (fdt) {
+		early_init_devtree((void*) fdt);
+		printk(KERN_INFO "FDT at 0x%08x\n", fdt);
+	} else {
+		early_init_devtree(__dtb_start);
+		printk(KERN_INFO "Compiled-in FDT at %p\n", __dtb_start);
+	}
 }
 
 static int __init openrisc_device_probe(void)

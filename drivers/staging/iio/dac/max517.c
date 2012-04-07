@@ -179,19 +179,26 @@ static struct attribute_group max518_attribute_group = {
 	.attrs = max518_attributes,
 };
 
-static int max517_suspend(struct i2c_client *client, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int max517_suspend(struct device *dev)
 {
 	u8 outbuf = COMMAND_PD;
 
-	return i2c_master_send(client, &outbuf, 1);
+	return i2c_master_send(to_i2c_client(dev), &outbuf, 1);
 }
 
-static int max517_resume(struct i2c_client *client)
+static int max517_resume(struct device *dev)
 {
 	u8 outbuf = 0;
 
-	return i2c_master_send(client, &outbuf, 1);
+	return i2c_master_send(to_i2c_client(dev), &outbuf, 1);
 }
+
+static SIMPLE_DEV_PM_OPS(max517_pm_ops, max517_suspend, max517_resume);
+#define MAX517_PM_OPS (&max517_pm_ops)
+#else
+#define MAX517_PM_OPS NULL
+#endif
 
 static const struct iio_info max517_info = {
 	.attrs = &max517_attribute_group,
@@ -273,11 +280,10 @@ MODULE_DEVICE_TABLE(i2c, max517_id);
 static struct i2c_driver max517_driver = {
 	.driver = {
 		.name	= MAX517_DRV_NAME,
+		.pm		= MAX517_PM_OPS,
 	},
 	.probe		= max517_probe,
 	.remove		= max517_remove,
-	.suspend	= max517_suspend,
-	.resume		= max517_resume,
 	.id_table	= max517_id,
 };
 module_i2c_driver(max517_driver);

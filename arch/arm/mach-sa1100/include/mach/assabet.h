@@ -85,21 +85,18 @@ extern void ASSABET_BCR_frob(unsigned int mask, unsigned int set);
 #define ASSABET_BSR_RAD_RI	(1 << 31)
 
 
-/* GPIOs for which the generic definition doesn't say much */
+/* GPIOs (bitmasks) for which the generic definition doesn't say much */
 #define ASSABET_GPIO_RADIO_IRQ		GPIO_GPIO (14)	/* Radio interrupt request  */
 #define ASSABET_GPIO_PS_MODE_SYNC	GPIO_GPIO (16)	/* Power supply mode/sync   */
 #define ASSABET_GPIO_STEREO_64FS_CLK	GPIO_GPIO (19)	/* SSP UDA1341 clock input  */
-#define ASSABET_GPIO_CF_IRQ		GPIO_GPIO (21)	/* CF IRQ   */
-#define ASSABET_GPIO_CF_CD		GPIO_GPIO (22)	/* CF CD */
-#define ASSABET_GPIO_CF_BVD2		GPIO_GPIO (24)	/* CF BVD */
 #define ASSABET_GPIO_GFX_IRQ		GPIO_GPIO (24)	/* Graphics IRQ */
-#define ASSABET_GPIO_CF_BVD1		GPIO_GPIO (25)	/* CF BVD */
 #define ASSABET_GPIO_BATT_LOW		GPIO_GPIO (26)	/* Low battery */
 #define ASSABET_GPIO_RCLK		GPIO_GPIO (26)	/* CCLK/2  */
 
-#define ASSABET_IRQ_GPIO_CF_IRQ		IRQ_GPIO21
-#define ASSABET_IRQ_GPIO_CF_CD		IRQ_GPIO22
-#define ASSABET_IRQ_GPIO_CF_BVD2	IRQ_GPIO24
-#define ASSABET_IRQ_GPIO_CF_BVD1	IRQ_GPIO25
+/* These are gpiolib GPIO numbers, not bitmasks */
+#define ASSABET_GPIO_CF_IRQ		21	/* CF IRQ */
+#define ASSABET_GPIO_CF_CD		22	/* CF CD  */
+#define ASSABET_GPIO_CF_BVD2		24	/* CF BVD / IOSPKR */
+#define ASSABET_GPIO_CF_BVD1		25	/* CF BVD / IOSTSCHG */
 
 #endif

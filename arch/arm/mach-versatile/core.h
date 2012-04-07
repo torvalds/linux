@@ -36,20 +36,10 @@ extern unsigned int mmc_status(struct device *dev);
 extern struct of_dev_auxdata versatile_auxdata_lookup[];
 #endif
 
-#define AMBA_DEVICE(name,busid,base,plat)			\
-static struct amba_device name##_device = {			\
-	.dev		= {					\
-		.coherent_dma_mask = ~0,			\
-		.init_name = busid,				\
-		.platform_data = plat,				\
-	},							\
-	.res		= {					\
-		.start	= VERSATILE_##base##_BASE,		\
-		.end	= (VERSATILE_##base##_BASE) + SZ_4K - 1,\
-		.flags	= IORESOURCE_MEM,			\
-	},							\
-	.dma_mask	= ~0,					\
-	.irq		= base##_IRQ,				\
-}
+#define APB_DEVICE(name, busid, base, plat)	\
+static AMBA_APB_DEVICE(name, busid, 0, VERSATILE_##base##_BASE, base##_IRQ, plat)
+
+#define AHB_DEVICE(name, busid, base, plat)	\
+static AMBA_AHB_DEVICE(name, busid, 0, VERSATILE_##base##_BASE, base##_IRQ, plat)
 
 #endif

@@ -80,12 +80,8 @@ static struct of_device_id msm_dt_gic_match[] __initdata = {
 
 static void __init msm8x60_dt_init(void)
 {
-	struct device_node *node;
-
-	node = of_find_matching_node_by_address(NULL, msm_dt_gic_match,
-			MSM8X60_QGIC_DIST_PHYS);
-	if (node)
-		irq_domain_add_simple(node, GIC_SPI_START);
+	irq_domain_generate_simple(msm_dt_gic_match, MSM8X60_QGIC_DIST_PHYS,
+				GIC_SPI_START);
 
 	if (of_machine_is_compatible("qcom,msm8660-surf")) {
 		printk(KERN_INFO "Init surf UART registers\n");

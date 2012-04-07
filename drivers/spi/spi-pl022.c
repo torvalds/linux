@@ -29,7 +29,6 @@
 #include <linux/errno.h>
 #include <linux/interrupt.h>
 #include <linux/spi/spi.h>
-#include <linux/workqueue.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -330,12 +329,13 @@ struct vendor_data {
  * @clk: outgoing clock "SPICLK" for the SPI bus
  * @master: SPI framework hookup
  * @master_info: controller-specific data from machine setup
- * @workqueue: a workqueue on which any spi_message request is queued
- * @pump_messages: work struct for scheduling work to the workqueue
+ * @kworker: thread struct for message pump
+ * @kworker_task: pointer to task for message pump kworker thread
+ * @pump_messages: work struct for scheduling work to the message pump
  * @queue_lock: spinlock to syncronise access to message queue
  * @queue: message queue
- * @busy: workqueue is busy
- * @running: workqueue is running
+ * @busy: message pump is busy
+ * @running: message pump is running
  * @pump_transfers: Tasklet used in Interrupt Transfer mode
  * @cur_msg: Pointer to current spi_message being processed
  * @cur_transfer: Pointer to current spi_transfer
@@ -365,14 +365,7 @@ struct pl022 {
 	struct clk			*clk;
 	struct spi_master		*master;
 	struct pl022_ssp_controller	*master_info;
-	/* Driver message queue */
-	struct workqueue_struct		*workqueue;
-	struct work_struct		pump_messages;
-	spinlock_t			queue_lock;
-	struct list_head		queue;
-	bool				busy;
-	bool				running;
-	/* Message transfer pump */
+	/* Message per-transfer pump */
 	struct tasklet_struct		pump_transfers;
 	struct spi_message		*cur_msg;
 	struct spi_transfer		*cur_transfer;
@@ -394,6 +387,7 @@ struct pl022 {
 	struct sg_table			sgt_rx;
 	struct sg_table			sgt_tx;
 	char				*dummypage;
+	bool				dma_running;
 #endif
 };
 
@@ -448,8 +442,6 @@ static void null_cs_control(u32 command)
 static void giveback(struct pl022 *pl022)
 {
 	struct spi_transfer *last_transfer;
-	unsigned long flags;
-	struct spi_message *msg;
 	pl022->next_msg_cs_active = false;
 
 	last_transfer = list_entry(pl022->cur_msg->transfers.prev,
@@ -477,15 +469,8 @@ static void giveback(struct pl022 *pl022)
 		 * sent the current message could be unloaded, which
 		 * could invalidate the cs_control() callback...
 		 */
-
 		/* get a pointer to the next message, if any */
-		spin_lock_irqsave(&pl022->queue_lock, flags);
-		if (list_empty(&pl022->queue))
-			next_msg = NULL;
-		else
-			next_msg = list_entry(pl022->queue.next,
-					struct spi_message, queue);
-		spin_unlock_irqrestore(&pl022->queue_lock, flags);
+		next_msg = spi_get_next_queued_message(pl022->master);
 
 		/*
 		 * see if the next and current messages point
@@ -497,19 +482,13 @@ static void giveback(struct pl022 *pl022)
 			pl022->cur_chip->cs_control(SSP_CHIP_DESELECT);
 		else
 			pl022->next_msg_cs_active = true;
+
 	}
 
-	spin_lock_irqsave(&pl022->queue_lock, flags);
-	msg = pl022->cur_msg;
 	pl022->cur_msg = NULL;
 	pl022->cur_transfer = NULL;
 	pl022->cur_chip = NULL;
-	queue_work(pl022->workqueue, &pl022->pump_messages);
-	spin_unlock_irqrestore(&pl022->queue_lock, flags);
-
-	msg->state = NULL;
-	if (msg->complete)
-		msg->complete(msg->context);
+	spi_finalize_current_message(pl022->master);
 }
 
 /**
@@ -901,10 +880,12 @@ static int configure_dma(struct pl022 *pl022)
 	struct dma_slave_config rx_conf = {
 		.src_addr = SSP_DR(pl022->phybase),
 		.direction = DMA_DEV_TO_MEM,
+		.device_fc = false,
 	};
 	struct dma_slave_config tx_conf = {
 		.dst_addr = SSP_DR(pl022->phybase),
 		.direction = DMA_MEM_TO_DEV,
+		.device_fc = false,
 	};
 	unsigned int pages;
 	int ret;
@@ -1038,7 +1019,7 @@ static int configure_dma(struct pl022 *pl022)
 		goto err_tx_sgmap;
 
 	/* Send both scatterlists */
-	rxdesc = rxchan->device->device_prep_slave_sg(rxchan,
+	rxdesc = dmaengine_prep_slave_sg(rxchan,
 				      pl022->sgt_rx.sgl,
 				      rx_sglen,
 				      DMA_DEV_TO_MEM,
@@ -1046,7 +1027,7 @@ static int configure_dma(struct pl022 *pl022)
 	if (!rxdesc)
 		goto err_rxdesc;
 
-	txdesc = txchan->device->device_prep_slave_sg(txchan,
+	txdesc = dmaengine_prep_slave_sg(txchan,
 				      pl022->sgt_tx.sgl,
 				      tx_sglen,
 				      DMA_MEM_TO_DEV,
@@ -1063,6 +1044,7 @@ static int configure_dma(struct pl022 *pl022)
 	dmaengine_submit(txdesc);
 	dma_async_issue_pending(rxchan);
 	dma_async_issue_pending(txchan);
+	pl022->dma_running = true;
 
 	return 0;
 
@@ -1141,11 +1123,12 @@ static void terminate_dma(struct pl022 *pl022)
 	dmaengine_terminate_all(rxchan);
 	dmaengine_terminate_all(txchan);
 	unmap_free_dma_scatter(pl022);
+	pl022->dma_running = false;
 }
 
 static void pl022_dma_remove(struct pl022 *pl022)
 {
-	if (pl022->busy)
+	if (pl022->dma_running)
 		terminate_dma(pl022);
 	if (pl022->dma_tx_channel)
 		dma_release_channel(pl022->dma_tx_channel);
@@ -1493,73 +1476,20 @@ out:
 	return;
 }
 
-/**
- * pump_messages - Workqueue function which processes spi message queue
- * @data: pointer to private data of SSP driver
- *
- * This function checks if there is any spi message in the queue that
- * needs processing and delegate control to appropriate function
- * do_polling_transfer()/do_interrupt_dma_transfer()
- * based on the kind of the transfer
- *
- */
-static void pump_messages(struct work_struct *work)
+static int pl022_transfer_one_message(struct spi_master *master,
+				      struct spi_message *msg)
 {
-	struct pl022 *pl022 =
-		container_of(work, struct pl022, pump_messages);
-	unsigned long flags;
-	bool was_busy = false;
-
-	/* Lock queue and check for queue work */
-	spin_lock_irqsave(&pl022->queue_lock, flags);
-	if (list_empty(&pl022->queue) || !pl022->running) {
-		if (pl022->busy) {
-			/* nothing more to do - disable spi/ssp and power off */
-			writew((readw(SSP_CR1(pl022->virtbase)) &
-				(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
-
-			if (pl022->master_info->autosuspend_delay > 0) {
-				pm_runtime_mark_last_busy(&pl022->adev->dev);
-				pm_runtime_put_autosuspend(&pl022->adev->dev);
-			} else {
-				pm_runtime_put(&pl022->adev->dev);
-			}
-		}
-		pl022->busy = false;
-		spin_unlock_irqrestore(&pl022->queue_lock, flags);
-		return;
-	}
-
-	/* Make sure we are not already running a message */
-	if (pl022->cur_msg) {
-		spin_unlock_irqrestore(&pl022->queue_lock, flags);
-		return;
-	}
-	/* Extract head of queue */
-	pl022->cur_msg =
-	    list_entry(pl022->queue.next, struct spi_message, queue);
-
-	list_del_init(&pl022->cur_msg->queue);
-	if (pl022->busy)
-		was_busy = true;
-	else
-		pl022->busy = true;
-	spin_unlock_irqrestore(&pl022->queue_lock, flags);
+	struct pl022 *pl022 = spi_master_get_devdata(master);
 
 	/* Initial message state */
-	pl022->cur_msg->state = STATE_START;
-	pl022->cur_transfer = list_entry(pl022->cur_msg->transfers.next,
-					    struct spi_transfer, transfer_list);
+	pl022->cur_msg = msg;
+	msg->state = STATE_START;
+
+	pl022->cur_transfer = list_entry(msg->transfers.next,
+					 struct spi_transfer, transfer_list);
 
 	/* Setup the SPI using the per chip configuration */
-	pl022->cur_chip = spi_get_ctldata(pl022->cur_msg->spi);
-	if (!was_busy)
-		/*
-		 * We enable the core voltage and clocks here, then the clocks
-		 * and core will be disabled when this workqueue is run again
-		 * and there is no more work to be done.
-		 */
-		pm_runtime_get_sync(&pl022->adev->dev);
+	pl022->cur_chip = spi_get_ctldata(msg->spi);
 
 	restore_state(pl022);
 	flush(pl022);
@@ -1568,94 +1498,36 @@ static void pump_messages(struct work_struct *work)
 		do_polling_transfer(pl022);
 	else
 		do_interrupt_dma_transfer(pl022);
-}
-
-static int __init init_queue(struct pl022 *pl022)
-{
-	INIT_LIST_HEAD(&pl022->queue);
-	spin_lock_init(&pl022->queue_lock);
-
-	pl022->running = false;
-	pl022->busy = false;
-
-	tasklet_init(&pl022->pump_transfers, pump_transfers,
-			(unsigned long)pl022);
-
-	INIT_WORK(&pl022->pump_messages, pump_messages);
-	pl022->workqueue = create_singlethread_workqueue(
-					dev_name(pl022->master->dev.parent));
-	if (pl022->workqueue == NULL)
-		return -EBUSY;
 
 	return 0;
 }
 
-static int start_queue(struct pl022 *pl022)
+static int pl022_prepare_transfer_hardware(struct spi_master *master)
 {
-	unsigned long flags;
+	struct pl022 *pl022 = spi_master_get_devdata(master);
 
-	spin_lock_irqsave(&pl022->queue_lock, flags);
-
-	if (pl022->running || pl022->busy) {
-		spin_unlock_irqrestore(&pl022->queue_lock, flags);
-		return -EBUSY;
-	}
-
-	pl022->running = true;
-	pl022->cur_msg = NULL;
-	pl022->cur_transfer = NULL;
-	pl022->cur_chip = NULL;
-	pl022->next_msg_cs_active = false;
-	spin_unlock_irqrestore(&pl022->queue_lock, flags);
-
-	queue_work(pl022->workqueue, &pl022->pump_messages);
-
+	/*
+	 * Just make sure we have all we need to run the transfer by syncing
+	 * with the runtime PM framework.
+	 */
+	pm_runtime_get_sync(&pl022->adev->dev);
 	return 0;
 }
 
-static int stop_queue(struct pl022 *pl022)
+static int pl022_unprepare_transfer_hardware(struct spi_master *master)
 {
-	unsigned long flags;
-	unsigned limit = 500;
-	int status = 0;
+	struct pl022 *pl022 = spi_master_get_devdata(master);
 
-	spin_lock_irqsave(&pl022->queue_lock, flags);
+	/* nothing more to do - disable spi/ssp and power off */
+	writew((readw(SSP_CR1(pl022->virtbase)) &
+		(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
 
-	/* This is a bit lame, but is optimized for the common execution path.
-	 * A wait_queue on the pl022->busy could be used, but then the common
-	 * execution path (pump_messages) would be required to call wake_up or
-	 * friends on every SPI message. Do this instead */
-	while ((!list_empty(&pl022->queue) || pl022->busy) && limit--) {
-		spin_unlock_irqrestore(&pl022->queue_lock, flags);
-		msleep(10);
-		spin_lock_irqsave(&pl022->queue_lock, flags);
+	if (pl022->master_info->autosuspend_delay > 0) {
+		pm_runtime_mark_last_busy(&pl022->adev->dev);
+		pm_runtime_put_autosuspend(&pl022->adev->dev);
+	} else {
+		pm_runtime_put(&pl022->adev->dev);
 	}
-
-	if (!list_empty(&pl022->queue) || pl022->busy)
-		status = -EBUSY;
-	else
-		pl022->running = false;
-
-	spin_unlock_irqrestore(&pl022->queue_lock, flags);
-
-	return status;
-}
-
-static int destroy_queue(struct pl022 *pl022)
-{
-	int status;
-
-	status = stop_queue(pl022);
-	/* we are unloading the module or failing to load (only two calls
-	 * to this routine), and neither call can handle a return value.
-	 * However, destroy_workqueue calls flush_workqueue, and that will
-	 * block until all work is done.  If the reason that stop_queue
-	 * timed out is that the work will never finish, then it does no
-	 * good to call destroy_workqueue, so return anyway. */
-	if (status != 0)
-		return status;
-
-	destroy_workqueue(pl022->workqueue);
 
 	return 0;
 }
@@ -1773,38 +1645,6 @@ static int verify_controller_parameters(struct pl022 *pl022,
 			return -EINVAL;
 		}
 	}
-	return 0;
-}
-
-/**
- * pl022_transfer - transfer function registered to SPI master framework
- * @spi: spi device which is requesting transfer
- * @msg: spi message which is to handled is queued to driver queue
- *
- * This function is registered to the SPI framework for this SPI master
- * controller. It will queue the spi_message in the queue of driver if
- * the queue is not stopped and return.
- */
-static int pl022_transfer(struct spi_device *spi, struct spi_message *msg)
-{
-	struct pl022 *pl022 = spi_master_get_devdata(spi->master);
-	unsigned long flags;
-
-	spin_lock_irqsave(&pl022->queue_lock, flags);
-
-	if (!pl022->running) {
-		spin_unlock_irqrestore(&pl022->queue_lock, flags);
-		return -ESHUTDOWN;
-	}
-	msg->actual_length = 0;
-	msg->status = -EINPROGRESS;
-	msg->state = STATE_START;
-
-	list_add_tail(&msg->queue, &pl022->queue);
-	if (pl022->running && !pl022->busy)
-		queue_work(pl022->workqueue, &pl022->pump_messages);
-
-	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 	return 0;
 }
 
@@ -2170,7 +2010,10 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->num_chipselect = platform_info->num_chipselect;
 	master->cleanup = pl022_cleanup;
 	master->setup = pl022_setup;
-	master->transfer = pl022_transfer;
+	master->prepare_transfer_hardware = pl022_prepare_transfer_hardware;
+	master->transfer_one_message = pl022_transfer_one_message;
+	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
+	master->rt = platform_info->rt;
 
 	/*
 	 * Supports mode 0-3, loopback, and active low CS. Transfers are
@@ -2214,6 +2057,10 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_clk_en;
 	}
 
+	/* Initialize transfer pump */
+	tasklet_init(&pl022->pump_transfers, pump_transfers,
+		     (unsigned long)pl022);
+
 	/* Disable SSP */
 	writew((readw(SSP_CR1(pl022->virtbase)) & (~SSP_CR1_MASK_SSE)),
 	       SSP_CR1(pl022->virtbase));
@@ -2233,17 +2080,6 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 			platform_info->enable_dma = 0;
 	}
 
-	/* Initialize and start queue */
-	status = init_queue(pl022);
-	if (status != 0) {
-		dev_err(&adev->dev, "probe - problem initializing queue\n");
-		goto err_init_queue;
-	}
-	status = start_queue(pl022);
-	if (status != 0) {
-		dev_err(&adev->dev, "probe - problem starting queue\n");
-		goto err_start_queue;
-	}
 	/* Register with the SPI framework */
 	amba_set_drvdata(adev, pl022);
 	status = spi_register_master(master);
@@ -2269,9 +2105,6 @@ pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	return 0;
 
  err_spi_register:
- err_start_queue:
- err_init_queue:
-	destroy_queue(pl022);
 	if (platform_info->enable_dma)
 		pl022_dma_remove(pl022);
 
@@ -2307,9 +2140,6 @@ pl022_remove(struct amba_device *adev)
 	 */
 	pm_runtime_get_noresume(&adev->dev);
 
-	/* Remove the queue */
-	if (destroy_queue(pl022) != 0)
-		dev_err(&adev->dev, "queue remove failed\n");
 	load_ssp_default_config(pl022);
 	if (pl022->master_info->enable_dma)
 		pl022_dma_remove(pl022);
@@ -2331,12 +2161,12 @@ pl022_remove(struct amba_device *adev)
 static int pl022_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
-	int status = 0;
+	int ret;
 
-	status = stop_queue(pl022);
-	if (status) {
-		dev_warn(dev, "suspend cannot stop queue\n");
-		return status;
+	ret = spi_master_suspend(pl022->master);
+	if (ret) {
+		dev_warn(dev, "cannot suspend master\n");
+		return ret;
 	}
 
 	dev_dbg(dev, "suspended\n");
@@ -2346,16 +2176,16 @@ static int pl022_suspend(struct device *dev)
 static int pl022_resume(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
-	int status = 0;
+	int ret;
 
 	/* Start the queue running */
-	status = start_queue(pl022);
-	if (status)
-		dev_err(dev, "problem starting queue (%d)\n", status);
+	ret = spi_master_resume(pl022->master);
+	if (ret)
+		dev_err(dev, "problem starting queue (%d)\n", ret);
 	else
 		dev_dbg(dev, "resumed\n");
 
-	return status;
+	return ret;
 }
 #endif	/* CONFIG_PM */
 

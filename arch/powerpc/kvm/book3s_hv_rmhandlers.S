@@ -601,6 +601,30 @@ kvmppc_interrupt:
 
 	stw	r12,VCPU_TRAP(r9)
 
+	/* Save HEIR (HV emulation assist reg) in last_inst
+	   if this is an HEI (HV emulation interrupt, e40) */
+	li	r3,KVM_INST_FETCH_FAILED
+BEGIN_FTR_SECTION
+	cmpwi	r12,BOOK3S_INTERRUPT_H_EMUL_ASSIST
+	bne	11f
+	mfspr	r3,SPRN_HEIR
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
+11:	stw	r3,VCPU_LAST_INST(r9)
+
+	/* these are volatile across C function calls */
+	mfctr	r3
+	mfxer	r4
+	std	r3, VCPU_CTR(r9)
+	stw	r4, VCPU_XER(r9)
+
+BEGIN_FTR_SECTION
+	/* If this is a page table miss then see if it's theirs or ours */
+	cmpwi	r12, BOOK3S_INTERRUPT_H_DATA_STORAGE
+	beq	kvmppc_hdsi
+	cmpwi	r12, BOOK3S_INTERRUPT_H_INST_STORAGE
+	beq	kvmppc_hisi
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
+
 	/* See if this is a leftover HDEC interrupt */
 	cmpwi	r12,BOOK3S_INTERRUPT_HV_DECREMENTER
 	bne	2f
@@ -608,7 +632,7 @@ kvmppc_interrupt:
 	cmpwi	r3,0
 	bge	ignore_hdec
 2:
-	/* See if this is something we can handle in real mode */
+	/* See if this is an hcall we can handle in real mode */
 	cmpwi	r12,BOOK3S_INTERRUPT_SYSCALL
 	beq	hcall_try_real_mode
 
@@ -624,6 +648,7 @@ BEGIN_FTR_SECTION
 1:
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
 
+nohpte_cont:
 hcall_real_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	/* Save DEC */
 	mfspr	r5,SPRN_DEC
@@ -632,36 +657,21 @@ hcall_real_cont:		/* r9 = vcpu, r12 = trap, r13 = paca */
 	add	r5,r5,r6
 	std	r5,VCPU_DEC_EXPIRES(r9)
 
-	/* Save HEIR (HV emulation assist reg) in last_inst
-	   if this is an HEI (HV emulation interrupt, e40) */
-	li	r3,-1
-BEGIN_FTR_SECTION
-	cmpwi	r12,BOOK3S_INTERRUPT_H_EMUL_ASSIST
-	bne	11f
-	mfspr	r3,SPRN_HEIR
-END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
-11:	stw	r3,VCPU_LAST_INST(r9)
-
 	/* Save more register state  */
-	mfxer	r5
 	mfdar	r6
 	mfdsisr	r7
-	mfctr	r8
-
-	stw	r5, VCPU_XER(r9)
 	std	r6, VCPU_DAR(r9)
 	stw	r7, VCPU_DSISR(r9)
-	std	r8, VCPU_CTR(r9)
-	/* grab HDAR & HDSISR if HV data storage interrupt (HDSI) */
 BEGIN_FTR_SECTION
+	/* don't overwrite fault_dar/fault_dsisr if HDSI */
 	cmpwi	r12,BOOK3S_INTERRUPT_H_DATA_STORAGE
 	beq	6f
 END_FTR_SECTION_IFSET(CPU_FTR_ARCH_206)
-7:	std	r6, VCPU_FAULT_DAR(r9)
+	std	r6, VCPU_FAULT_DAR(r9)
 	stw	r7, VCPU_FAULT_DSISR(r9)
 
 	/* Save guest CTRL register, set runlatch to 1 */
-	mfspr	r6,SPRN_CTRLF
+6:	mfspr	r6,SPRN_CTRLF
 	stw	r6,VCPU_CTRL(r9)
 	andi.	r0,r6,1
 	bne	4f
@@ -1094,9 +1104,131 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_201)
 	mtspr	SPRN_HSRR1, r7
 	ba	0x500
 
-6:	mfspr	r6,SPRN_HDAR
-	mfspr	r7,SPRN_HDSISR
-	b	7b
+/*
+ * Check whether an HDSI is an HPTE not found fault or something else.
+ * If it is an HPTE not found fault that is due to the guest accessing
+ * a page that they have mapped but which we have paged out, then
+ * we continue on with the guest exit path.  In all other cases,
+ * reflect the HDSI to the guest as a DSI.
+ */
+kvmppc_hdsi:
+	mfspr	r4, SPRN_HDAR
+	mfspr	r6, SPRN_HDSISR
+	/* HPTE not found fault or protection fault? */
+	andis.	r0, r6, (DSISR_NOHPTE | DSISR_PROTFAULT)@h
+	beq	1f			/* if not, send it to the guest */
+	andi.	r0, r11, MSR_DR		/* data relocation enabled? */
+	beq	3f
+	clrrdi	r0, r4, 28
+	PPC_SLBFEE_DOT(r5, r0)		/* if so, look up SLB */
+	bne	1f			/* if no SLB entry found */
+4:	std	r4, VCPU_FAULT_DAR(r9)
+	stw	r6, VCPU_FAULT_DSISR(r9)
+
+	/* Search the hash table. */
+	mr	r3, r9			/* vcpu pointer */
+	li	r7, 1			/* data fault */
+	bl	.kvmppc_hpte_hv_fault
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	ld	r10, VCPU_PC(r9)
+	ld	r11, VCPU_MSR(r9)
+	li	r12, BOOK3S_INTERRUPT_H_DATA_STORAGE
+	cmpdi	r3, 0			/* retry the instruction */
+	beq	6f
+	cmpdi	r3, -1			/* handle in kernel mode */
+	beq	nohpte_cont
+	cmpdi	r3, -2			/* MMIO emulation; need instr word */
+	beq	2f
+
+	/* Synthesize a DSI for the guest */
+	ld	r4, VCPU_FAULT_DAR(r9)
+	mr	r6, r3
+1:	mtspr	SPRN_DAR, r4
+	mtspr	SPRN_DSISR, r6
+	mtspr	SPRN_SRR0, r10
+	mtspr	SPRN_SRR1, r11
+	li	r10, BOOK3S_INTERRUPT_DATA_STORAGE
+	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
+	rotldi	r11, r11, 63
+6:	ld	r7, VCPU_CTR(r9)
+	lwz	r8, VCPU_XER(r9)
+	mtctr	r7
+	mtxer	r8
+	mr	r4, r9
+	b	fast_guest_return
+
+3:	ld	r5, VCPU_KVM(r9)	/* not relocated, use VRMA */
+	ld	r5, KVM_VRMA_SLB_V(r5)
+	b	4b
+
+	/* If this is for emulated MMIO, load the instruction word */
+2:	li	r8, KVM_INST_FETCH_FAILED	/* In case lwz faults */
+
+	/* Set guest mode to 'jump over instruction' so if lwz faults
+	 * we'll just continue at the next IP. */
+	li	r0, KVM_GUEST_MODE_SKIP
+	stb	r0, HSTATE_IN_GUEST(r13)
+
+	/* Do the access with MSR:DR enabled */
+	mfmsr	r3
+	ori	r4, r3, MSR_DR		/* Enable paging for data */
+	mtmsrd	r4
+	lwz	r8, 0(r10)
+	mtmsrd	r3
+
+	/* Store the result */
+	stw	r8, VCPU_LAST_INST(r9)
+
+	/* Unset guest mode. */
+	li	r0, KVM_GUEST_MODE_NONE
+	stb	r0, HSTATE_IN_GUEST(r13)
+	b	nohpte_cont
+
+/*
+ * Similarly for an HISI, reflect it to the guest as an ISI unless
+ * it is an HPTE not found fault for a page that we have paged out.
+ */
+kvmppc_hisi:
+	andis.	r0, r11, SRR1_ISI_NOPT@h
+	beq	1f
+	andi.	r0, r11, MSR_IR		/* instruction relocation enabled? */
+	beq	3f
+	clrrdi	r0, r10, 28
+	PPC_SLBFEE_DOT(r5, r0)		/* if so, look up SLB */
+	bne	1f			/* if no SLB entry found */
+4:
+	/* Search the hash table. */
+	mr	r3, r9			/* vcpu pointer */
+	mr	r4, r10
+	mr	r6, r11
+	li	r7, 0			/* instruction fault */
+	bl	.kvmppc_hpte_hv_fault
+	ld	r9, HSTATE_KVM_VCPU(r13)
+	ld	r10, VCPU_PC(r9)
+	ld	r11, VCPU_MSR(r9)
+	li	r12, BOOK3S_INTERRUPT_H_INST_STORAGE
+	cmpdi	r3, 0			/* retry the instruction */
+	beq	6f
+	cmpdi	r3, -1			/* handle in kernel mode */
+	beq	nohpte_cont
+
+	/* Synthesize an ISI for the guest */
+	mr	r11, r3
+1:	mtspr	SPRN_SRR0, r10
+	mtspr	SPRN_SRR1, r11
+	li	r10, BOOK3S_INTERRUPT_INST_STORAGE
+	li	r11, (MSR_ME << 1) | 1	/* synthesize MSR_SF | MSR_ME */
+	rotldi	r11, r11, 63
+6:	ld	r7, VCPU_CTR(r9)
+	lwz	r8, VCPU_XER(r9)
+	mtctr	r7
+	mtxer	r8
+	mr	r4, r9
+	b	fast_guest_return
+
+3:	ld	r6, VCPU_KVM(r9)	/* not relocated, use VRMA */
+	ld	r5, KVM_VRMA_SLB_V(r6)
+	b	4b
 
 /*
  * Try to handle an hcall in real mode.

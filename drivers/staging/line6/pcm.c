@@ -52,9 +52,9 @@ static ssize_t pcm_set_impulse_volume(struct device *dev,
 	line6pcm->impulse_volume = value;
 
 	if (value > 0)
-		line6_pcm_start(line6pcm, MASK_PCM_IMPULSE);
+		line6_pcm_acquire(line6pcm, LINE6_BITS_PCM_IMPULSE);
 	else
-		line6_pcm_stop(line6pcm, MASK_PCM_IMPULSE);
+		line6_pcm_release(line6pcm, LINE6_BITS_PCM_IMPULSE);
 
 	return count;
 }
@@ -92,29 +92,43 @@ static bool test_flags(unsigned long flags0, unsigned long flags1,
 	return ((flags0 & mask) == 0) && ((flags1 & mask) != 0);
 }
 
-int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels)
+int line6_pcm_acquire(struct snd_line6_pcm *line6pcm, int channels)
 {
 	unsigned long flags_old =
 	    __sync_fetch_and_or(&line6pcm->flags, channels);
 	unsigned long flags_new = flags_old | channels;
+	unsigned long flags_final = flags_old;
 	int err = 0;
 	
 	line6pcm->prev_fbuf = NULL;
 
-	if (test_flags(flags_old, flags_new, MASK_CAPTURE)) {
+	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_BUFFER)) {
+		/* We may be invoked multiple times in a row so allocate once only */
+		if (!line6pcm->buffer_in) {
+			line6pcm->buffer_in =
+				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+					line6pcm->max_packet_size, GFP_KERNEL);
+
+			if (!line6pcm->buffer_in) {
+				dev_err(line6pcm->line6->ifcdev,
+					"cannot malloc capture buffer\n");
+				err = -ENOMEM;
+				goto pcm_acquire_error;
+			}
+
+			flags_final |= channels & LINE6_BITS_CAPTURE_BUFFER;
+		}
+	}
+
+	if (test_flags(flags_old, flags_new, LINE6_BITS_CAPTURE_STREAM)) {
 		/*
 		   Waiting for completion of active URBs in the stop handler is
 		   a bug, we therefore report an error if capturing is restarted
 		   too soon.
 		 */
-		if (line6pcm->active_urb_in | line6pcm->unlink_urb_in)
+		if (line6pcm->active_urb_in | line6pcm->unlink_urb_in) {
+			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
 			return -EBUSY;
-
-		if (!(flags_new & MASK_PCM_ALSA_CAPTURE)) {
-			err = line6_alloc_capture_buffer(line6pcm);
-
-			if (err < 0)
-				goto pcm_start_error;
 		}
 
 		line6pcm->count_in = 0;
@@ -122,55 +136,78 @@ int line6_pcm_start(struct snd_line6_pcm *line6pcm, int channels)
 		err = line6_submit_audio_in_all_urbs(line6pcm);
 
 		if (err < 0)
-			goto pcm_start_error;
+			goto pcm_acquire_error;
+
+		flags_final |= channels & LINE6_BITS_CAPTURE_STREAM;
 	}
 
-	if (test_flags(flags_old, flags_new, MASK_PLAYBACK)) {
+	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_BUFFER)) {
+		/* We may be invoked multiple times in a row so allocate once only */
+		if (!line6pcm->buffer_out) {
+			line6pcm->buffer_out =
+				kmalloc(LINE6_ISO_BUFFERS * LINE6_ISO_PACKETS *
+					line6pcm->max_packet_size, GFP_KERNEL);
+
+			if (!line6pcm->buffer_out) {
+				dev_err(line6pcm->line6->ifcdev,
+					"cannot malloc playback buffer\n");
+				err = -ENOMEM;
+				goto pcm_acquire_error;
+			}
+
+			flags_final |= channels & LINE6_BITS_PLAYBACK_BUFFER;
+		}
+	}
+
+	if (test_flags(flags_old, flags_new, LINE6_BITS_PLAYBACK_STREAM)) {
 		/*
-		   See comment above regarding PCM restart.
-		 */
-		if (line6pcm->active_urb_out | line6pcm->unlink_urb_out)
+		  See comment above regarding PCM restart.
+		*/
+		if (line6pcm->active_urb_out | line6pcm->unlink_urb_out) {
+			dev_err(line6pcm->line6->ifcdev, "Device not yet ready\n");
 			return -EBUSY;
-
-		if (!(flags_new & MASK_PCM_ALSA_PLAYBACK)) {
-			err = line6_alloc_playback_buffer(line6pcm);
-
-			if (err < 0)
-				goto pcm_start_error;
 		}
 
 		line6pcm->count_out = 0;
 		err = line6_submit_audio_out_all_urbs(line6pcm);
 
 		if (err < 0)
-			goto pcm_start_error;
+			goto pcm_acquire_error;
+
+		flags_final |= channels & LINE6_BITS_PLAYBACK_STREAM;
 	}
 
 	return 0;
 
-pcm_start_error:
-	__sync_fetch_and_and(&line6pcm->flags, ~channels);
+pcm_acquire_error:
+	/*
+	   If not all requested resources/streams could be obtained, release
+	   those which were successfully obtained (if any).
+	*/
+	line6_pcm_release(line6pcm, flags_final & channels);
 	return err;
 }
 
-int line6_pcm_stop(struct snd_line6_pcm *line6pcm, int channels)
+int line6_pcm_release(struct snd_line6_pcm *line6pcm, int channels)
 {
 	unsigned long flags_old =
 	    __sync_fetch_and_and(&line6pcm->flags, ~channels);
 	unsigned long flags_new = flags_old & ~channels;
 
-	if (test_flags(flags_new, flags_old, MASK_CAPTURE)) {
+	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_STREAM))
 		line6_unlink_audio_in_urbs(line6pcm);
 
-		if (!(flags_old & MASK_PCM_ALSA_CAPTURE))
-			line6_free_capture_buffer(line6pcm);
+	if (test_flags(flags_new, flags_old, LINE6_BITS_CAPTURE_BUFFER)) {
+		line6_wait_clear_audio_in_urbs(line6pcm);
+		line6_free_capture_buffer(line6pcm);
 	}
 
-	if (test_flags(flags_new, flags_old, MASK_PLAYBACK)) {
+	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_STREAM))
 		line6_unlink_audio_out_urbs(line6pcm);
 
-		if (!(flags_old & MASK_PCM_ALSA_PLAYBACK))
-			line6_free_playback_buffer(line6pcm);
+	if (test_flags(flags_new, flags_old, LINE6_BITS_PLAYBACK_BUFFER)) {
+		line6_wait_clear_audio_out_urbs(line6pcm);
+		line6_free_playback_buffer(line6pcm);
 	}
 
 	return 0;
@@ -185,7 +222,7 @@ int snd_line6_trigger(struct snd_pcm_substream *substream, int cmd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&line6pcm->lock_trigger, flags);
-	clear_bit(BIT_PREPARED, &line6pcm->flags);
+	clear_bit(LINE6_INDEX_PREPARED, &line6pcm->flags);
 
 	snd_pcm_group_for_each_entry(s, substream) {
 		switch (s->stream) {
@@ -498,13 +535,13 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		if ((line6pcm->flags & MASK_PLAYBACK) == 0)
+		if ((line6pcm->flags & LINE6_BITS_PLAYBACK_STREAM) == 0)
 			line6_unlink_wait_clear_audio_out_urbs(line6pcm);
 
 		break;
 
 	case SNDRV_PCM_STREAM_CAPTURE:
-		if ((line6pcm->flags & MASK_CAPTURE) == 0)
+		if ((line6pcm->flags & LINE6_BITS_CAPTURE_STREAM) == 0)
 			line6_unlink_wait_clear_audio_in_urbs(line6pcm);
 
 		break;
@@ -513,7 +550,7 @@ int snd_line6_prepare(struct snd_pcm_substream *substream)
 		MISSING_CASE;
 	}
 
-	if (!test_and_set_bit(BIT_PREPARED, &line6pcm->flags)) {
+	if (!test_and_set_bit(LINE6_INDEX_PREPARED, &line6pcm->flags)) {
 		line6pcm->count_out = 0;
 		line6pcm->pos_out = 0;
 		line6pcm->pos_out_done = 0;

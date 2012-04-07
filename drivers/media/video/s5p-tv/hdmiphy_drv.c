@@ -175,14 +175,4 @@ static struct i2c_driver hdmiphy_driver = {
 	.id_table = hdmiphy_id,
 };
 
-static int __init hdmiphy_init(void)
-{
-	return i2c_add_driver(&hdmiphy_driver);
-}
-module_init(hdmiphy_init);
-
-static void __exit hdmiphy_exit(void)
-{
-	i2c_del_driver(&hdmiphy_driver);
-}
-module_exit(hdmiphy_exit);
+module_i2c_driver(hdmiphy_driver);

@@ -344,6 +344,9 @@ static int __devinit mc13783_regulator_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s id %d\n", __func__, pdev->id);
 
+	if (!pdata)
+		return -EINVAL;
+
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv) +
 			pdata->num_regulators * sizeof(priv->regulators[0]),
 			GFP_KERNEL);

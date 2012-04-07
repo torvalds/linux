@@ -217,7 +217,7 @@ struct mv_udc {
 	struct work_struct	vbus_work;
 	struct workqueue_struct *qwork;
 
-	struct otg_transceiver	*transceiver;
+	struct usb_phy		*transceiver;
 
 	struct mv_usb_platform_data     *pdata;
 

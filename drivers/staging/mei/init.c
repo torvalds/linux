@@ -1,7 +1,7 @@
 /*
  *
  * Intel Management Engine Interface (Intel MEI) Linux driver
- * Copyright (c) 2003-2011, Intel Corporation.
+ * Copyright (c) 2003-2012, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -362,11 +362,11 @@ void mei_host_start_message(struct mei_device *dev)
 	host_start_req =
 	    (struct hbm_host_version_request *) &dev->wr_msg_buf[1];
 	memset(host_start_req, 0, sizeof(struct hbm_host_version_request));
-	host_start_req->cmd.cmd = HOST_START_REQ_CMD;
+	host_start_req->hbm_cmd = HOST_START_REQ_CMD;
 	host_start_req->host_version.major_version = HBM_MAJOR_VERSION;
 	host_start_req->host_version.minor_version = HBM_MINOR_VERSION;
 	dev->recvd_msg = false;
-	if (!mei_write_message(dev, mei_hdr, (unsigned char *)host_start_req,
+	if (mei_write_message(dev, mei_hdr, (unsigned char *)host_start_req,
 				       mei_hdr->length)) {
 		dev_dbg(&dev->pdev->dev, "write send version message to FW fail.\n");
 		dev->mei_state = MEI_RESETING;
@@ -398,8 +398,8 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 
 	host_enum_req = (struct hbm_host_enum_request *) &dev->wr_msg_buf[1];
 	memset(host_enum_req, 0, sizeof(struct hbm_host_enum_request));
-	host_enum_req->cmd.cmd = HOST_ENUM_REQ_CMD;
-	if (!mei_write_message(dev, mei_hdr, (unsigned char *)host_enum_req,
+	host_enum_req->hbm_cmd = HOST_ENUM_REQ_CMD;
+	if (mei_write_message(dev, mei_hdr, (unsigned char *)host_enum_req,
 				mei_hdr->length)) {
 		dev->mei_state = MEI_RESETING;
 		dev_dbg(&dev->pdev->dev, "write send enumeration request message to FW fail.\n");
@@ -407,7 +407,7 @@ void mei_host_enum_clients_message(struct mei_device *dev)
 	}
 	dev->init_clients_state = MEI_ENUM_CLIENTS_MESSAGE;
 	dev->init_clients_timer = INIT_CLIENTS_TIMEOUT;
-	return ;
+	return;
 }
 
 
@@ -482,10 +482,10 @@ int mei_host_client_properties(struct mei_device *dev)
 
 		memset(host_cli_req, 0, sizeof(struct hbm_props_request));
 
-		host_cli_req->cmd.cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
+		host_cli_req->hbm_cmd = HOST_CLIENT_PROPERTIES_REQ_CMD;
 		host_cli_req->address = b;
 
-		if (!mei_write_message(dev, mei_header,
+		if (mei_write_message(dev, mei_header,
 				(unsigned char *)host_cli_req,
 				mei_header->length)) {
 			dev->mei_state = MEI_RESETING;
@@ -608,7 +608,7 @@ void mei_host_init_iamthif(struct mei_device *dev)
 
 	dev->iamthif_msg_buf = msg_buf;
 
-	if (!mei_connect(dev, &dev->iamthif_cl)) {
+	if (mei_connect(dev, &dev->iamthif_cl)) {
 		dev_dbg(&dev->pdev->dev, "Failed to connect to AMTHI client\n");
 		dev->iamthif_cl.state = MEI_FILE_DISCONNECTED;
 		dev->iamthif_cl.host_client_id = 0;
@@ -670,14 +670,12 @@ int mei_disconnect_host_client(struct mei_device *dev, struct mei_cl *cl)
 	if (dev->mei_host_buffer_is_empty) {
 		dev->mei_host_buffer_is_empty = false;
 		if (mei_disconnect(dev, cl)) {
-			mdelay(10); /* Wait for hardware disconnection ready */
-			list_add_tail(&cb->cb_list,
-				&dev->ctrl_rd_list.mei_cb.cb_list);
-		} else {
 			rets = -ENODEV;
 			dev_dbg(&dev->pdev->dev, "failed to call mei_disconnect.\n");
 			goto free;
 		}
+		mdelay(10); /* Wait for hardware disconnection ready */
+		list_add_tail(&cb->cb_list, &dev->ctrl_rd_list.mei_cb.cb_list);
 	} else {
 		dev_dbg(&dev->pdev->dev, "add disconnect cb to control write list\n");
 		list_add_tail(&cb->cb_list,

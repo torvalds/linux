@@ -32,9 +32,9 @@
 #include <linux/module.h>
 #include "drm.h"
 
-#define MAX_CRTC	2
+#define MAX_CRTC	3
 #define MAX_PLANE	5
-#define MAX_FB_BUFFER	3
+#define MAX_FB_BUFFER	4
 #define DEFAULT_ZPOS	-1
 
 struct drm_device;
@@ -50,6 +50,8 @@ enum exynos_drm_output_type {
 	EXYNOS_DISPLAY_TYPE_LCD,
 	/* HDMI Interface. */
 	EXYNOS_DISPLAY_TYPE_HDMI,
+	/* Virtual Display Interface. */
+	EXYNOS_DISPLAY_TYPE_VIDI,
 };
 
 /*
@@ -155,8 +157,10 @@ struct exynos_drm_display_ops {
  *
  * @dpms: control device power.
  * @apply: set timing, vblank and overlay data to registers.
+ * @mode_fixup: fix mode data comparing to hw specific display mode.
  * @mode_set: convert drm_display_mode to hw specific display mode and
  *	      would be called by encoder->mode_set().
+ * @get_max_resol: get maximum resolution to specific hardware.
  * @commit: set current hw specific display mode to hw.
  * @enable_vblank: specific driver callback for enabling vblank interrupt.
  * @disable_vblank: specific driver callback for disabling vblank interrupt.
@@ -164,7 +168,13 @@ struct exynos_drm_display_ops {
 struct exynos_drm_manager_ops {
 	void (*dpms)(struct device *subdrv_dev, int mode);
 	void (*apply)(struct device *subdrv_dev);
+	void (*mode_fixup)(struct device *subdrv_dev,
+				struct drm_connector *connector,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode);
 	void (*mode_set)(struct device *subdrv_dev, void *mode);
+	void (*get_max_resol)(struct device *subdrv_dev, unsigned int *width,
+				unsigned int *height);
 	void (*commit)(struct device *subdrv_dev);
 	int (*enable_vblank)(struct device *subdrv_dev);
 	void (*disable_vblank)(struct device *subdrv_dev);
@@ -217,10 +227,13 @@ struct exynos_drm_private {
  * @list: sub driver has its own list object to register to exynos drm driver.
  * @drm_dev: pointer to drm_device and this pointer would be set
  *	when sub driver calls exynos_drm_subdrv_register().
+ * @is_local: appear encoder and connector disrelated device.
  * @probe: this callback would be called by exynos drm driver after
  *	subdrv is registered to it.
  * @remove: this callback is used to release resources created
  *	by probe callback.
+ * @open: this would be called with drm device file open.
+ * @close: this would be called with drm device file close.
  * @manager: subdrv has its own manager to control a hardware appropriately
  *	and we can access a hardware drawing on this manager.
  * @encoder: encoder object owned by this sub driver.
@@ -229,9 +242,14 @@ struct exynos_drm_private {
 struct exynos_drm_subdrv {
 	struct list_head list;
 	struct drm_device *drm_dev;
+	bool is_local;
 
 	int (*probe)(struct drm_device *drm_dev, struct device *dev);
 	void (*remove)(struct drm_device *dev);
+	int (*open)(struct drm_device *drm_dev, struct device *dev,
+			struct drm_file *file);
+	void (*close)(struct drm_device *drm_dev, struct device *dev,
+			struct drm_file *file);
 
 	struct exynos_drm_manager manager;
 	struct drm_encoder *encoder;
@@ -254,15 +272,19 @@ int exynos_drm_device_unregister(struct drm_device *dev);
  * this function would be called by sub drivers such as display controller
  * or hdmi driver to register this sub driver object to exynos drm driver
  * and when a sub driver is registered to exynos drm driver a probe callback
- * of the sub driver is called and creates its own encoder and connector
- * and then fb helper and drm mode group would be re-initialized.
+ * of the sub driver is called and creates its own encoder and connector.
  */
 int exynos_drm_subdrv_register(struct exynos_drm_subdrv *drm_subdrv);
 
-/*
- * this function removes subdrv list from exynos drm driver and fb helper
- * and drm mode group would be re-initialized.
- */
+/* this function removes subdrv list from exynos drm driver */
 int exynos_drm_subdrv_unregister(struct exynos_drm_subdrv *drm_subdrv);
 
+int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file);
+void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file);
+
+extern struct platform_driver fimd_driver;
+extern struct platform_driver hdmi_driver;
+extern struct platform_driver mixer_driver;
+extern struct platform_driver exynos_drm_common_hdmi_driver;
+extern struct platform_driver vidi_driver;
 #endif

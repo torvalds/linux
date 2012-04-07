@@ -41,6 +41,7 @@
 #include <sound/atmel-ac97c.h>
 #include <linux/serial.h>
 #include <linux/platform_data/macb.h>
+#include <linux/platform_data/atmel.h>
 
  /* USB Device */
 struct at91_udc_data {
@@ -98,18 +99,6 @@ extern void __init at91_add_device_usbh(struct at91_usbh_data *data);
 extern void __init at91_add_device_usbh_ohci(struct at91_usbh_data *data);
 extern void __init at91_add_device_usbh_ehci(struct at91_usbh_data *data);
 
- /* NAND / SmartMedia */
-struct atmel_nand_data {
-	int		enable_pin;	/* chip enable */
-	int		det_pin;	/* card detect */
-	int		rdy_pin;	/* ready/busy */
-	u8              rdy_pin_active_low;     /* rdy_pin value is inverted */
-	u8		ale;		/* address line number connected to ALE */
-	u8		cle;		/* address line number connected to CLE */
-	u8		bus_width_16;	/* buswidth is 16 bit */
-	struct mtd_partition *parts;
-	unsigned int	num_parts;
-};
 extern void __init at91_add_device_nand(struct atmel_nand_data *data);
 
  /* I2C*/
@@ -179,7 +168,9 @@ extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);
 extern void __init at91_add_device_ac97(struct ac97c_platform_data *data);
 
  /* ISI */
-extern void __init at91_add_device_isi(void);
+struct isi_platform_data;
+extern void __init at91_add_device_isi(struct isi_platform_data *data,
+		bool use_pck_as_mck);
 
  /* Touchscreen Controller */
 struct at91_tsadcc_data {

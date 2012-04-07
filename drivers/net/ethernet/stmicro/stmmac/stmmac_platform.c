@@ -24,7 +24,47 @@
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
 #include "stmmac.h"
+
+#ifdef CONFIG_OF
+static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
+					    struct plat_stmmacenet_data *plat,
+					    const char **mac)
+{
+	struct device_node *np = pdev->dev.of_node;
+
+	if (!np)
+		return -ENODEV;
+
+	*mac = of_get_mac_address(np);
+	plat->interface = of_get_phy_mode(np);
+	plat->mdio_bus_data = devm_kzalloc(&pdev->dev,
+					   sizeof(struct stmmac_mdio_bus_data),
+					   GFP_KERNEL);
+
+	/*
+	 * Currently only the properties needed on SPEAr600
+	 * are provided. All other properties should be added
+	 * once needed on other platforms.
+	 */
+	if (of_device_is_compatible(np, "st,spear600-gmac")) {
+		plat->pbl = 8;
+		plat->has_gmac = 1;
+		plat->pmt = 1;
+	}
+
+	return 0;
+}
+#else
+static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
+					    struct plat_stmmacenet_data *plat,
+					    const char **mac)
+{
+	return -ENOSYS;
+}
+#endif /* CONFIG_OF */
 
 /**
  * stmmac_pltfr_probe
@@ -39,7 +79,8 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 	struct resource *res;
 	void __iomem *addr = NULL;
 	struct stmmac_priv *priv = NULL;
-	struct plat_stmmacenet_data *plat_dat;
+	struct plat_stmmacenet_data *plat_dat = NULL;
+	const char *mac = NULL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -58,7 +99,25 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto out_release_region;
 	}
-	plat_dat = pdev->dev.platform_data;
+
+	if (pdev->dev.of_node) {
+		plat_dat = devm_kzalloc(&pdev->dev,
+					sizeof(struct plat_stmmacenet_data),
+					GFP_KERNEL);
+		if (!plat_dat) {
+			pr_err("%s: ERROR: no memory", __func__);
+			ret = -ENOMEM;
+			goto out_unmap;
+		}
+
+		ret = stmmac_probe_config_dt(pdev, plat_dat, &mac);
+		if (ret) {
+			pr_err("%s: main dt probe failed", __func__);
+			goto out_unmap;
+		}
+	} else {
+		plat_dat = pdev->dev.platform_data;
+	}
 
 	/* Custom initialisation (if needed)*/
 	if (plat_dat->init) {
@@ -72,6 +131,10 @@ static int stmmac_pltfr_probe(struct platform_device *pdev)
 		pr_err("%s: main driver probe failed", __func__);
 		goto out_unmap;
 	}
+
+	/* Get MAC address if available (DT) */
+	if (mac)
+		memcpy(priv->dev->dev_addr, mac, ETH_ALEN);
 
 	/* Get the MAC information */
 	priv->dev->irq = platform_get_irq_byname(pdev, "macirq");
@@ -178,6 +241,12 @@ static const struct dev_pm_ops stmmac_pltfr_pm_ops = {
 static const struct dev_pm_ops stmmac_pltfr_pm_ops;
 #endif /* CONFIG_PM */
 
+static const struct of_device_id stmmac_dt_ids[] = {
+	{ .compatible = "st,spear600-gmac", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, stmmac_dt_ids);
+
 static struct platform_driver stmmac_driver = {
 	.probe = stmmac_pltfr_probe,
 	.remove = stmmac_pltfr_remove,
@@ -185,6 +254,7 @@ static struct platform_driver stmmac_driver = {
 		   .name = STMMAC_RESOURCE_NAME,
 		   .owner = THIS_MODULE,
 		   .pm = &stmmac_pltfr_pm_ops,
+		   .of_match_table = of_match_ptr(stmmac_dt_ids),
 		   },
 };
 

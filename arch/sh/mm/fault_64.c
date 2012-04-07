@@ -33,7 +33,6 @@
 #include <linux/mm.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
-#include <asm/system.h>
 #include <asm/tlb.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>

@@ -6,6 +6,14 @@ config ATH9K_DFS_DEBUGFS
 	def_bool y
 	depends on ATH9K_DEBUGFS && ATH9K_DFS_CERTIFIED
 
+config ATH9K_BTCOEX_SUPPORT
+	bool "Atheros bluetooth coexistence support"
+	depends on (ATH9K || ATH9K_HTC)
+	default y
+	---help---
+	  Say Y, if you want to use the ath9k/ath9k_htc radios together with
+	  Bluetooth modules in the same system.
+
 config ATH9K
 	tristate "Atheros 802.11n wireless cards support"
 	depends on MAC80211
@@ -73,6 +81,14 @@ config ATH9K_DFS_CERTIFIED
 	  developed. At this point enabling this option won't do anything
 	  except increase code size.
 
+config ATH9K_MAC_DEBUG
+	bool "Atheros MAC statistics"
+	depends on ATH9K_DEBUGFS
+	default y
+	---help---
+	  This option enables collection of statistics for Rx/Tx status
+	  data and some other MAC related statistics
+
 config ATH9K_RATE_CONTROL
 	bool "Atheros ath9k rate control"
 	depends on ATH9K
@@ -80,14 +96,6 @@ config ATH9K_RATE_CONTROL
 	---help---
 	  Say Y, if you want to use the ath9k specific rate control
 	  module instead of minstrel_ht.
-
-config ATH9K_BTCOEX_SUPPORT
-	bool "Atheros ath9k bluetooth coexistence support"
-	depends on ATH9K
-	default y
-	---help---
-	  Say Y, if you want to use the ath9k radios together with
-	  Bluetooth modules in the same system.
 
 config ATH9K_HTC
        tristate "Atheros HTC based wireless cards support"

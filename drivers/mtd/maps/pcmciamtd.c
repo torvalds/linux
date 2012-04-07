@@ -14,7 +14,6 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -295,13 +294,24 @@ static void pcmcia_copy_to(struct map_info *map, unsigned long to, const void *f
 }
 
 
+static DEFINE_SPINLOCK(pcmcia_vpp_lock);
+static int pcmcia_vpp_refcnt;
 static void pcmciamtd_set_vpp(struct map_info *map, int on)
 {
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
 	struct pcmcia_device *link = dev->p_dev;
+	unsigned long flags;
 
 	pr_debug("dev = %p on = %d vpp = %d\n\n", dev, on, dev->vpp);
-	pcmcia_fixup_vpp(link, on ? dev->vpp : 0);
+	spin_lock_irqsave(&pcmcia_vpp_lock, flags);
+	if (on) {
+		if (++pcmcia_vpp_refcnt == 1)   /* first nested 'on' */
+			pcmcia_fixup_vpp(link, dev->vpp);
+	} else {
+		if (--pcmcia_vpp_refcnt == 0)   /* last nested 'off' */
+			pcmcia_fixup_vpp(link, 0);
+	}
+	spin_unlock_irqrestore(&pcmcia_vpp_lock, flags);
 }
 
 

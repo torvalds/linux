@@ -12,7 +12,6 @@
 #include <linux/pci.h>
 #include <linux/serial_8250.h>
 #include <asm/mach-types.h>
-#include <asm/system.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/pci.h>
@@ -497,6 +496,7 @@ subsys_initcall(gmlr_pci_init);
 MACHINE_START(GORAMO_MLR, "MultiLink")
 	/* Maintainer: Krzysztof Halasa */
 	.map_io		= ixp4xx_map_io,
+	.init_early	= ixp4xx_init_early,
 	.init_irq	= ixp4xx_init_irq,
 	.timer		= &ixp4xx_timer,
 	.atag_offset	= 0x100,

@@ -625,7 +625,6 @@ static struct usb_driver ch341_driver = {
 	.resume		= usb_serial_resume,
 	.reset_resume	= ch341_reset_resume,
 	.id_table	= id_table,
-	.no_dynamic_id	= 1,
 	.supports_autosuspend =	1,
 };
 
@@ -635,7 +634,6 @@ static struct usb_serial_driver ch341_device = {
 		.name	= "ch341-uart",
 	},
 	.id_table          = id_table,
-	.usb_driver        = &ch341_driver,
 	.num_ports         = 1,
 	.open              = ch341_open,
 	.dtr_rts	   = ch341_dtr_rts,
@@ -650,30 +648,13 @@ static struct usb_serial_driver ch341_device = {
 	.attach            = ch341_attach,
 };
 
-static int __init ch341_init(void)
-{
-	int retval;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&ch341_device, NULL
+};
 
-	retval = usb_serial_register(&ch341_device);
-	if (retval)
-		return retval;
-	retval = usb_register(&ch341_driver);
-	if (retval)
-		usb_serial_deregister(&ch341_device);
-	return retval;
-}
+module_usb_serial_driver(ch341_driver, serial_drivers);
 
-static void __exit ch341_exit(void)
-{
-	usb_deregister(&ch341_driver);
-	usb_serial_deregister(&ch341_device);
-}
-
-module_init(ch341_init);
-module_exit(ch341_exit);
 MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-
-/* EOF ch341.c */

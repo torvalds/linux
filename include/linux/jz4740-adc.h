@@ -2,7 +2,7 @@
 #ifndef __LINUX_JZ4740_ADC
 #define __LINUX_JZ4740_ADC
 
-#include <linux/device.h>
+struct device;
 
 /*
  * jz4740_adc_set_config - Configure a JZ4740 adc device

@@ -211,9 +211,3 @@ void exynos_drm_mode_config_init(struct drm_device *dev)
 
 	dev->mode_config.funcs = &exynos_drm_mode_config_funcs;
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM FB Driver");
-MODULE_LICENSE("GPL");

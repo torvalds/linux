@@ -519,6 +519,20 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 			ext_csd[EXT_CSD_CACHE_SIZE + 1] << 8 |
 			ext_csd[EXT_CSD_CACHE_SIZE + 2] << 16 |
 			ext_csd[EXT_CSD_CACHE_SIZE + 3] << 24;
+
+		if (ext_csd[EXT_CSD_DATA_SECTOR_SIZE] == 1)
+			card->ext_csd.data_sector_size = 4096;
+		else
+			card->ext_csd.data_sector_size = 512;
+
+		if ((ext_csd[EXT_CSD_DATA_TAG_SUPPORT] & 1) &&
+		    (ext_csd[EXT_CSD_TAG_UNIT_SIZE] <= 8)) {
+			card->ext_csd.data_tag_unit_size =
+			((unsigned int) 1 << ext_csd[EXT_CSD_TAG_UNIT_SIZE]) *
+			(card->ext_csd.data_sector_size);
+		} else {
+			card->ext_csd.data_tag_unit_size = 0;
+		}
 	}
 
 out:
@@ -938,7 +952,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 * If enhanced_area_en is TRUE, host needs to enable ERASE_GRP_DEF
 	 * bit.  This bit will be lost every time after a reset or power off.
 	 */
-	if (card->ext_csd.enhanced_area_en) {
+	if (card->ext_csd.enhanced_area_en ||
+	    (card->ext_csd.rev >= 3 && (host->caps2 & MMC_CAP2_HC_ERASE_SZ))) {
 		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
 				 EXT_CSD_ERASE_GROUP_DEF, 1,
 				 card->ext_csd.generic_cmd6_time);
@@ -1033,22 +1048,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	}
 
 	/*
-	 * Enable HPI feature (if supported)
-	 */
-	if (card->ext_csd.hpi) {
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-			EXT_CSD_HPI_MGMT, 1, 0);
-		if (err && err != -EBADMSG)
-			goto free_card;
-		if (err) {
-			pr_warning("%s: Enabling HPI failed\n",
-				   mmc_hostname(card->host));
-			err = 0;
-		} else
-			card->ext_csd.hpi_en = 1;
-	}
-
-	/*
 	 * Compute bus speed.
 	 */
 	max_dtr = (unsigned int)-1;
@@ -1097,9 +1096,12 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 		 * 4. execute tuning for HS200
 		 */
 		if ((host->caps2 & MMC_CAP2_HS200) &&
-		    card->host->ops->execute_tuning)
+		    card->host->ops->execute_tuning) {
+			mmc_host_clk_hold(card->host);
 			err = card->host->ops->execute_tuning(card->host,
 				MMC_SEND_TUNING_BLOCK_HS200);
+			mmc_host_clk_release(card->host);
+		}
 		if (err) {
 			pr_warning("%s: tuning execution failed\n",
 				   mmc_hostname(card->host));
@@ -1216,6 +1218,23 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			mmc_set_timing(card->host, MMC_TIMING_UHS_DDR50);
 			mmc_set_bus_width(card->host, bus_width);
 		}
+	}
+
+	/*
+	 * Enable HPI feature (if supported)
+	 */
+	if (card->ext_csd.hpi) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+				EXT_CSD_HPI_MGMT, 1,
+				card->ext_csd.generic_cmd6_time);
+		if (err && err != -EBADMSG)
+			goto free_card;
+		if (err) {
+			pr_warning("%s: Enabling HPI failed\n",
+				   mmc_hostname(card->host));
+			err = 0;
+		} else
+			card->ext_csd.hpi_en = 1;
 	}
 
 	/*

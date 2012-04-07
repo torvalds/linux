@@ -60,7 +60,6 @@
 #endif
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <linux/mroute6.h>
 
 MODULE_AUTHOR("Cast of dozens");
@@ -214,6 +213,7 @@ lookup_protocol:
 	inet->mc_ttl	= 1;
 	inet->mc_index	= 0;
 	inet->mc_list	= NULL;
+	inet->rcv_tos	= 0;
 
 	if (ipv4_config.no_pmtu_disc)
 		inet->pmtudisc = IP_PMTUDISC_DONT;

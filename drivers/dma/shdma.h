@@ -30,7 +30,6 @@ enum dmae_pm_state {
 };
 
 struct sh_dmae_chan {
-	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
 	spinlock_t desc_lock;		/* Descriptor operation lock */
 	struct list_head ld_queue;	/* Link descriptors queue */
 	struct list_head ld_free;	/* Link descriptors free */

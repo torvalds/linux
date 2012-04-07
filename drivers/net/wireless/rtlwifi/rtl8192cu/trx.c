@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2009-2010  Realtek Corporation. All rights reserved.
+ * Copyright(c) 2009-2012  Realtek Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -108,7 +108,7 @@ static void _TwoOutEpMapping(struct ieee80211_hw *hw, bool bIsChipB,
 
 	if (bwificfg) { /* for WMM */
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 ("USB Chip-B & WMM Setting.....\n"));
+			 "USB Chip-B & WMM Setting.....\n");
 		ep_map->ep_mapping[RTL_TXQ_BE]	= 2;
 		ep_map->ep_mapping[RTL_TXQ_BK]	= 3;
 		ep_map->ep_mapping[RTL_TXQ_VI]	= 3;
@@ -118,7 +118,7 @@ static void _TwoOutEpMapping(struct ieee80211_hw *hw, bool bIsChipB,
 		ep_map->ep_mapping[RTL_TXQ_HI]	= 2;
 	} else { /* typical setting */
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 ("USB typical Setting.....\n"));
+			 "USB typical Setting.....\n");
 		ep_map->ep_mapping[RTL_TXQ_BE]	= 3;
 		ep_map->ep_mapping[RTL_TXQ_BK]	= 3;
 		ep_map->ep_mapping[RTL_TXQ_VI]	= 2;
@@ -135,7 +135,7 @@ static void _ThreeOutEpMapping(struct ieee80211_hw *hw, bool  bwificfg,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	if (bwificfg) { /* for WMM */
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 ("USB 3EP Setting for WMM.....\n"));
+			 "USB 3EP Setting for WMM.....\n");
 		ep_map->ep_mapping[RTL_TXQ_BE]	= 5;
 		ep_map->ep_mapping[RTL_TXQ_BK]	= 3;
 		ep_map->ep_mapping[RTL_TXQ_VI]	= 3;
@@ -145,7 +145,7 @@ static void _ThreeOutEpMapping(struct ieee80211_hw *hw, bool  bwificfg,
 		ep_map->ep_mapping[RTL_TXQ_HI]	= 2;
 	} else { /* typical setting */
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 ("USB 3EP Setting for typical.....\n"));
+			 "USB 3EP Setting for typical.....\n");
 		ep_map->ep_mapping[RTL_TXQ_BE]	= 5;
 		ep_map->ep_mapping[RTL_TXQ_BK]	= 5;
 		ep_map->ep_mapping[RTL_TXQ_VI]	= 3;
@@ -244,8 +244,8 @@ u16 rtl8192cu_mq_to_hwq(__le16 fc, u16 mac80211_queue_index)
 		break;
 	default:
 		hw_queue_index = RTL_TXQ_BE;
-		RT_ASSERT(false, ("QSLT_BE queue, skb_queue:%d\n",
-			  mac80211_queue_index));
+		RT_ASSERT(false, "QSLT_BE queue, skb_queue:%d\n",
+			  mac80211_queue_index);
 		break;
 	}
 out:
@@ -270,23 +270,23 @@ static enum rtl_desc_qsel _rtl8192cu_mq_to_descq(struct ieee80211_hw *hw,
 	case 0:	/* VO */
 		qsel = QSLT_VO;
 		RT_TRACE(rtlpriv, COMP_USB, DBG_DMESG,
-			 ("VO queue, set qsel = 0x%x\n", QSLT_VO));
+			 "VO queue, set qsel = 0x%x\n", QSLT_VO);
 		break;
 	case 1:	/* VI */
 		qsel = QSLT_VI;
 		RT_TRACE(rtlpriv, COMP_USB, DBG_DMESG,
-			 ("VI queue, set qsel = 0x%x\n", QSLT_VI));
+			 "VI queue, set qsel = 0x%x\n", QSLT_VI);
 		break;
 	case 3:	/* BK */
 		qsel = QSLT_BK;
 		RT_TRACE(rtlpriv, COMP_USB, DBG_DMESG,
-			 ("BK queue, set qsel = 0x%x\n", QSLT_BK));
+			 "BK queue, set qsel = 0x%x\n", QSLT_BK);
 		break;
 	case 2:	/* BE */
 	default:
 		qsel = QSLT_BE;
 		RT_TRACE(rtlpriv, COMP_USB, DBG_DMESG,
-			 ("BE queue, set qsel = 0x%x\n", QSLT_BE));
+			 "BE queue, set qsel = 0x%x\n", QSLT_BE);
 		break;
 	}
 out:
@@ -422,17 +422,17 @@ static void _rtl_rx_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bv = ieee80211_is_probe_resp(fc);
 	if (bv)
 		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 ("Got probe response frame.\n"));
+			 "Got probe response frame\n");
 	if (ieee80211_is_beacon(fc))
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-			 ("Got beacon frame.\n"));
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "Got beacon frame\n");
 	if (ieee80211_is_data(fc))
-		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, ("Got data frame.\n"));
+		RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG, "Got data frame\n");
 	RT_TRACE(rtlpriv, COMP_INIT, DBG_DMESG,
-		 ("Fram: fc = 0x%X addr1 = 0x%02X:0x%02X:0x%02X:0x%02X:0x%02X:"
-		 "0x%02X\n", fc, (u32)hdr->addr1[0], (u32)hdr->addr1[1],
-		 (u32)hdr->addr1[2], (u32)hdr->addr1[3], (u32)hdr->addr1[4],
-		 (u32)hdr->addr1[5]));
+		 "Fram: fc = 0x%X addr1 = 0x%02X:0x%02X:0x%02X:0x%02X:0x%02X:0x%02X\n",
+		 fc,
+		 (u32)hdr->addr1[0], (u32)hdr->addr1[1],
+		 (u32)hdr->addr1[2], (u32)hdr->addr1[3],
+		 (u32)hdr->addr1[4], (u32)hdr->addr1[5]);
 	memcpy(IEEE80211_SKB_RXCB(skb), rx_status, sizeof(*rx_status));
 	ieee80211_rx_irqsafe(hw, skb);
 }
@@ -594,7 +594,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 	if (ieee80211_is_data_qos(fc)) {
 		if (mac->rdg_en) {
 			RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE,
-				 ("Enable RDG function.\n"));
+				 "Enable RDG function\n");
 			SET_TX_DESC_RDG_ENABLE(txdesc, 1);
 			SET_TX_DESC_HTC(txdesc, 1);
 		}
@@ -620,7 +620,7 @@ void rtl92cu_tx_fill_desc(struct ieee80211_hw *hw,
 		SET_TX_DESC_BMC(txdesc, 1);
 	_rtl_fill_usb_tx_desc(txdesc);
 	_rtl_tx_desc_checksum(txdesc);
-	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, (" %s ==>\n", __func__));
+	RT_TRACE(rtlpriv, COMP_SEND, DBG_TRACE, "==>\n");
 }
 
 void rtl92cu_fill_fake_txdesc(struct ieee80211_hw *hw, u8 * pDesc,
@@ -677,7 +677,7 @@ void rtl92cu_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		SET_TX_DESC_HWSEQ_EN(pdesc, 1);
 		SET_TX_DESC_PKT_ID(pdesc, 8);
 	}
-	RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_LOUD, "H2C Tx Cmd Content\n",
+	RT_PRINT_DATA(rtlpriv, COMP_CMD, DBG_LOUD, "H2C Tx Cmd Content",
 		      pdesc, RTL_TX_DESC_SIZE);
 }
 

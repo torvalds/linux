@@ -54,7 +54,6 @@
 #include <asm/pgtable.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 #include <asm/thread_info.h>
 #include <asm/unistd.h>
 #include <asm/errno.h>

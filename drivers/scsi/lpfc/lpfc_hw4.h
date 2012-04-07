@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2009 Emulex.  All rights reserved.                *
+ * Copyright (C) 2009-2012 Emulex.  All rights reserved.                *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  *                                                                 *
@@ -321,6 +321,10 @@ struct lpfc_cqe {
 #define CQE_STATUS_CMD_REJECT		0xb
 #define CQE_STATUS_FCP_TGT_LENCHECK	0xc
 #define CQE_STATUS_NEED_BUFF_ENTRY	0xf
+#define CQE_STATUS_DI_ERROR		0x16
+
+/* Used when mapping CQE status to IOCB */
+#define LPFC_IOCB_STATUS_MASK		0xf
 
 /* Status returned by hardware (valid only if status = CQE_STATUS_SUCCESS). */
 #define CQE_HW_STATUS_NO_ERR		0x0
@@ -333,6 +337,12 @@ struct lpfc_cqe {
 #define CQE_CODE_RECEIVE		0x4
 #define CQE_CODE_XRI_ABORTED		0x5
 #define CQE_CODE_RECEIVE_V1		0x9
+
+/*
+ * Define mask value for xri_aborted and wcqe completed CQE extended status.
+ * Currently, extended status is limited to 9 bits (0x0 -> 0x103) .
+ */
+#define WCQE_PARAM_MASK		0x1FF;
 
 /* completion queue entry for wqe completions */
 struct lpfc_wcqe_complete {
@@ -348,6 +358,21 @@ struct lpfc_wcqe_complete {
 #define lpfc_wcqe_c_hw_status_WORD	word0
 	uint32_t total_data_placed;
 	uint32_t parameter;
+#define lpfc_wcqe_c_bg_edir_SHIFT	5
+#define lpfc_wcqe_c_bg_edir_MASK	0x00000001
+#define lpfc_wcqe_c_bg_edir_WORD	parameter
+#define lpfc_wcqe_c_bg_tdpv_SHIFT	3
+#define lpfc_wcqe_c_bg_tdpv_MASK	0x00000001
+#define lpfc_wcqe_c_bg_tdpv_WORD	parameter
+#define lpfc_wcqe_c_bg_re_SHIFT		2
+#define lpfc_wcqe_c_bg_re_MASK		0x00000001
+#define lpfc_wcqe_c_bg_re_WORD		parameter
+#define lpfc_wcqe_c_bg_ae_SHIFT		1
+#define lpfc_wcqe_c_bg_ae_MASK		0x00000001
+#define lpfc_wcqe_c_bg_ae_WORD		parameter
+#define lpfc_wcqe_c_bg_ge_SHIFT		0
+#define lpfc_wcqe_c_bg_ge_MASK		0x00000001
+#define lpfc_wcqe_c_bg_ge_WORD		parameter
 	uint32_t word3;
 #define lpfc_wcqe_c_valid_SHIFT		lpfc_cqe_valid_SHIFT
 #define lpfc_wcqe_c_valid_MASK		lpfc_cqe_valid_MASK
@@ -359,8 +384,8 @@ struct lpfc_wcqe_complete {
 #define lpfc_wcqe_c_pv_MASK		0x00000001
 #define lpfc_wcqe_c_pv_WORD		word3
 #define lpfc_wcqe_c_priority_SHIFT	24
-#define lpfc_wcqe_c_priority_MASK		0x00000007
-#define lpfc_wcqe_c_priority_WORD		word3
+#define lpfc_wcqe_c_priority_MASK	0x00000007
+#define lpfc_wcqe_c_priority_WORD	word3
 #define lpfc_wcqe_c_code_SHIFT		lpfc_cqe_code_SHIFT
 #define lpfc_wcqe_c_code_MASK		lpfc_cqe_code_MASK
 #define lpfc_wcqe_c_code_WORD		lpfc_cqe_code_WORD
@@ -715,12 +740,20 @@ struct lpfc_register {
 #define lpfc_eqcq_doorbell_eqci_SHIFT		9
 #define lpfc_eqcq_doorbell_eqci_MASK		0x0001
 #define lpfc_eqcq_doorbell_eqci_WORD		word0
-#define lpfc_eqcq_doorbell_cqid_SHIFT		0
-#define lpfc_eqcq_doorbell_cqid_MASK		0x03FF
-#define lpfc_eqcq_doorbell_cqid_WORD		word0
-#define lpfc_eqcq_doorbell_eqid_SHIFT		0
-#define lpfc_eqcq_doorbell_eqid_MASK		0x01FF
-#define lpfc_eqcq_doorbell_eqid_WORD		word0
+#define lpfc_eqcq_doorbell_cqid_lo_SHIFT	0
+#define lpfc_eqcq_doorbell_cqid_lo_MASK		0x03FF
+#define lpfc_eqcq_doorbell_cqid_lo_WORD		word0
+#define lpfc_eqcq_doorbell_cqid_hi_SHIFT	11
+#define lpfc_eqcq_doorbell_cqid_hi_MASK		0x001F
+#define lpfc_eqcq_doorbell_cqid_hi_WORD		word0
+#define lpfc_eqcq_doorbell_eqid_lo_SHIFT	0
+#define lpfc_eqcq_doorbell_eqid_lo_MASK		0x01FF
+#define lpfc_eqcq_doorbell_eqid_lo_WORD		word0
+#define lpfc_eqcq_doorbell_eqid_hi_SHIFT	11
+#define lpfc_eqcq_doorbell_eqid_hi_MASK		0x001F
+#define lpfc_eqcq_doorbell_eqid_hi_WORD		word0
+#define LPFC_CQID_HI_FIELD_SHIFT		10
+#define LPFC_EQID_HI_FIELD_SHIFT		9
 
 #define LPFC_BMBX			0x0160
 #define lpfc_bmbx_addr_SHIFT		2
@@ -3313,7 +3346,11 @@ struct xmit_bls_rsp64_wqe {
 	uint32_t rsrvd4;
 	struct wqe_did	wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
-	uint32_t rsvd_12_15[4];
+	uint32_t word12;
+#define xmit_bls_rsp64_temprpi_SHIFT  0
+#define xmit_bls_rsp64_temprpi_MASK   0x0000ffff
+#define xmit_bls_rsp64_temprpi_WORD   word12
+	uint32_t rsvd_13_15[3];
 };
 
 struct wqe_rctl_dfctl {

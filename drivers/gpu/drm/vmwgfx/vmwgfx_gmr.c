@@ -136,10 +136,10 @@ static int vmw_gmr_build_descriptors(struct list_head *desc_pages,
 
 		if (likely(page_virtual != NULL)) {
 			desc_virtual->ppn = page_to_pfn(page);
-			kunmap_atomic(page_virtual, KM_USER0);
+			kunmap_atomic(page_virtual);
 		}
 
-		page_virtual = kmap_atomic(page, KM_USER0);
+		page_virtual = kmap_atomic(page);
 		desc_virtual = page_virtual - 1;
 		prev_pfn = ~(0UL);
 
@@ -169,7 +169,7 @@ static int vmw_gmr_build_descriptors(struct list_head *desc_pages,
 	}
 
 	if (likely(page_virtual != NULL))
-		kunmap_atomic(page_virtual, KM_USER0);
+		kunmap_atomic(page_virtual);
 
 	return 0;
 out_err:

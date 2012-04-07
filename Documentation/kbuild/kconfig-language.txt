@@ -117,7 +117,7 @@ applicable everywhere (see syntax).
   This attribute is only applicable to menu blocks, if the condition is
   false, the menu block is not displayed to the user (the symbols
   contained there can still be selected by other symbols, though). It is
-  similar to a conditional "prompt" attribude for individual menu
+  similar to a conditional "prompt" attribute for individual menu
   entries. Default value of "visible" is true.
 
 - numerical ranges: "range" <symbol> <symbol> ["if" <expr>]

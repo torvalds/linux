@@ -498,6 +498,37 @@ int genl_unregister_family(struct genl_family *family)
 }
 EXPORT_SYMBOL(genl_unregister_family);
 
+/**
+ * genlmsg_put - Add generic netlink header to netlink message
+ * @skb: socket buffer holding the message
+ * @pid: netlink pid the message is addressed to
+ * @seq: sequence number (usually the one of the sender)
+ * @family: generic netlink family
+ * @flags netlink message flags
+ * @cmd: generic netlink command
+ *
+ * Returns pointer to user specific header
+ */
+void *genlmsg_put(struct sk_buff *skb, u32 pid, u32 seq,
+				struct genl_family *family, int flags, u8 cmd)
+{
+	struct nlmsghdr *nlh;
+	struct genlmsghdr *hdr;
+
+	nlh = nlmsg_put(skb, pid, seq, family->id, GENL_HDRLEN +
+			family->hdrsize, flags);
+	if (nlh == NULL)
+		return NULL;
+
+	hdr = nlmsg_data(nlh);
+	hdr->cmd = cmd;
+	hdr->version = family->version;
+	hdr->reserved = 0;
+
+	return (char *) hdr + GENL_HDRLEN;
+}
+EXPORT_SYMBOL(genlmsg_put);
+
 static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct genl_ops *ops;
@@ -532,8 +563,13 @@ static int genl_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 			return -EOPNOTSUPP;
 
 		genl_unlock();
-		err = netlink_dump_start(net->genl_sock, skb, nlh,
-					 ops->dumpit, ops->done, 0);
+		{
+			struct netlink_dump_control c = {
+				.dump = ops->dumpit,
+				.done = ops->done,
+			};
+			err = netlink_dump_start(net->genl_sock, skb, nlh, &c);
+		}
 		genl_lock();
 		return err;
 	}

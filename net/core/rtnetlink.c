@@ -38,7 +38,6 @@
 #include <linux/pci.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <linux/inet.h>
 #include <linux/netdevice.h>
@@ -1133,6 +1132,8 @@ static const struct nla_policy ifla_vf_policy[IFLA_VF_MAX+1] = {
 				    .len = sizeof(struct ifla_vf_vlan) },
 	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
 				    .len = sizeof(struct ifla_vf_tx_rate) },
+	[IFLA_VF_SPOOFCHK]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_spoofchk) },
 };
 
 static const struct nla_policy ifla_port_policy[IFLA_PORT_MAX+1] = {
@@ -2019,8 +2020,13 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		__rtnl_unlock();
 		rtnl = net->rtnl;
-		err = netlink_dump_start(rtnl, skb, nlh, dumpit,
-					 NULL, min_dump_alloc);
+		{
+			struct netlink_dump_control c = {
+				.dump		= dumpit,
+				.min_dump_alloc	= min_dump_alloc,
+			};
+			err = netlink_dump_start(rtnl, skb, nlh, &c);
+		}
 		rtnl_lock();
 		return err;
 	}

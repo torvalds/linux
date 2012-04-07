@@ -31,11 +31,10 @@
 #include <asm/uaccess.h>
 
 /*
- * Note that the native side is already converted to a timespec, because
- * that's what we want anyway.
+ * Get/set struct timeval with struct timespec on the native side
  */
-static int compat_get_timeval(struct timespec *o,
-		struct compat_timeval __user *i)
+static int compat_get_timeval_convert(struct timespec *o,
+				      struct compat_timeval __user *i)
 {
 	long usec;
 
@@ -46,8 +45,8 @@ static int compat_get_timeval(struct timespec *o,
 	return 0;
 }
 
-static int compat_put_timeval(struct compat_timeval __user *o,
-		struct timeval *i)
+static int compat_put_timeval_convert(struct compat_timeval __user *o,
+				      struct timeval *i)
 {
 	return (put_user(i->tv_sec, &o->tv_sec) ||
 		put_user(i->tv_usec, &o->tv_usec)) ? -EFAULT : 0;
@@ -117,7 +116,7 @@ asmlinkage long compat_sys_gettimeofday(struct compat_timeval __user *tv,
 	if (tv) {
 		struct timeval ktv;
 		do_gettimeofday(&ktv);
-		if (compat_put_timeval(tv, &ktv))
+		if (compat_put_timeval_convert(tv, &ktv))
 			return -EFAULT;
 	}
 	if (tz) {
@@ -135,7 +134,7 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 	struct timezone ktz;
 
 	if (tv) {
-		if (compat_get_timeval(&kts, tv))
+		if (compat_get_timeval_convert(&kts, tv))
 			return -EFAULT;
 	}
 	if (tz) {
@@ -146,12 +145,29 @@ asmlinkage long compat_sys_settimeofday(struct compat_timeval __user *tv,
 	return do_sys_settimeofday(tv ? &kts : NULL, tz ? &ktz : NULL);
 }
 
+int get_compat_timeval(struct timeval *tv, const struct compat_timeval __user *ctv)
+{
+	return (!access_ok(VERIFY_READ, ctv, sizeof(*ctv)) ||
+			__get_user(tv->tv_sec, &ctv->tv_sec) ||
+			__get_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
+}
+EXPORT_SYMBOL_GPL(get_compat_timeval);
+
+int put_compat_timeval(const struct timeval *tv, struct compat_timeval __user *ctv)
+{
+	return (!access_ok(VERIFY_WRITE, ctv, sizeof(*ctv)) ||
+			__put_user(tv->tv_sec, &ctv->tv_sec) ||
+			__put_user(tv->tv_usec, &ctv->tv_usec)) ? -EFAULT : 0;
+}
+EXPORT_SYMBOL_GPL(put_compat_timeval);
+
 int get_compat_timespec(struct timespec *ts, const struct compat_timespec __user *cts)
 {
 	return (!access_ok(VERIFY_READ, cts, sizeof(*cts)) ||
 			__get_user(ts->tv_sec, &cts->tv_sec) ||
 			__get_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
 }
+EXPORT_SYMBOL_GPL(get_compat_timespec);
 
 int put_compat_timespec(const struct timespec *ts, struct compat_timespec __user *cts)
 {
@@ -160,6 +176,42 @@ int put_compat_timespec(const struct timespec *ts, struct compat_timespec __user
 			__put_user(ts->tv_nsec, &cts->tv_nsec)) ? -EFAULT : 0;
 }
 EXPORT_SYMBOL_GPL(put_compat_timespec);
+
+int compat_get_timeval(struct timeval *tv, const void __user *utv)
+{
+	if (COMPAT_USE_64BIT_TIME)
+		return copy_from_user(tv, utv, sizeof *tv) ? -EFAULT : 0;
+	else
+		return get_compat_timeval(tv, utv);
+}
+EXPORT_SYMBOL_GPL(compat_get_timeval);
+
+int compat_put_timeval(const struct timeval *tv, void __user *utv)
+{
+	if (COMPAT_USE_64BIT_TIME)
+		return copy_to_user(utv, tv, sizeof *tv) ? -EFAULT : 0;
+	else
+		return put_compat_timeval(tv, utv);
+}
+EXPORT_SYMBOL_GPL(compat_put_timeval);
+
+int compat_get_timespec(struct timespec *ts, const void __user *uts)
+{
+	if (COMPAT_USE_64BIT_TIME)
+		return copy_from_user(ts, uts, sizeof *ts) ? -EFAULT : 0;
+	else
+		return get_compat_timespec(ts, uts);
+}
+EXPORT_SYMBOL_GPL(compat_get_timespec);
+
+int compat_put_timespec(const struct timespec *ts, void __user *uts)
+{
+	if (COMPAT_USE_64BIT_TIME)
+		return copy_to_user(uts, ts, sizeof *ts) ? -EFAULT : 0;
+	else
+		return put_compat_timespec(ts, uts);
+}
+EXPORT_SYMBOL_GPL(compat_put_timespec);
 
 static long compat_nanosleep_restart(struct restart_block *restart)
 {

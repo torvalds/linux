@@ -13,7 +13,6 @@
 #endif
 
 #include <asm/byteorder.h>
-#include <asm/system.h>
 
 /*
  * clear_bit() doesn't provide any barrier for the compiler

@@ -236,7 +236,7 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 
 /*
  * Rather then using noinline to prevent stack consumption, use
- * noinline_for_stack instead.  For documentaiton reasons.
+ * noinline_for_stack instead.  For documentation reasons.
  */
 #define noinline_for_stack noinline
 

@@ -220,14 +220,9 @@ static void __cpuinit smp_callin(void)
 	 * Update loops_per_jiffy in cpu_data. Previous call to
 	 * smp_store_cpu_info() stored a value that is close but not as
 	 * accurate as the value just calculated.
-	 *
-	 * Need to enable IRQs because it can take longer and then
-	 * the NMI watchdog might kill us.
 	 */
-	local_irq_enable();
 	calibrate_delay();
 	cpu_data(cpuid).loops_per_jiffy = loops_per_jiffy;
-	local_irq_disable();
 	pr_debug("Stack at about %p\n", &cpuid);
 
 	/*
@@ -256,6 +251,7 @@ notrace static void __cpuinit start_secondary(void *unused)
 	 * most necessary things.
 	 */
 	cpu_init();
+	x86_cpuinit.early_percpu_clock_init();
 	preempt_disable();
 	smp_callin();
 
@@ -291,19 +287,6 @@ notrace static void __cpuinit start_secondary(void *unused)
 	ipi_call_unlock();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 	x86_platform.nmi_init();
-
-	/*
-	 * Wait until the cpu which brought this one up marked it
-	 * online before enabling interrupts. If we don't do that then
-	 * we can end up waking up the softirq thread before this cpu
-	 * reached the active state, which makes the scheduler unhappy
-	 * and schedule the softirq thread on the wrong cpu. This is
-	 * only observable with forced threaded interrupts, but in
-	 * theory it could also happen w/o them. It's just way harder
-	 * to achieve.
-	 */
-	while (!cpumask_test_cpu(smp_processor_id(), cpu_active_mask))
-		cpu_relax();
 
 	/* enable local interrupts */
 	local_irq_enable();
@@ -741,8 +724,6 @@ do_rest:
 	 * the targeted processor.
 	 */
 
-	printk(KERN_DEBUG "smpboot cpu %d: start_ip = %lx\n", cpu, start_ip);
-
 	atomic_set(&init_deasserted, 0);
 
 	if (get_uv_system_type() != UV_NON_UNIQUE_APIC) {
@@ -792,9 +773,10 @@ do_rest:
 			schedule();
 		}
 
-		if (cpumask_test_cpu(cpu, cpu_callin_mask))
+		if (cpumask_test_cpu(cpu, cpu_callin_mask)) {
+			print_cpu_msr(&cpu_data(cpu));
 			pr_debug("CPU%d: has booted.\n", cpu);
-		else {
+		} else {
 			boot_error = 1;
 			if (*(volatile u32 *)TRAMPOLINE_SYM(trampoline_status)
 			    == 0xA5A5A5A5)
@@ -848,7 +830,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 
 	if (apicid == BAD_APICID || apicid == boot_cpu_physical_apicid ||
 	    !physid_isset(apicid, phys_cpu_present_map) ||
-	    (!x2apic_mode && apicid >= 255)) {
+	    !apic->apic_id_valid(apicid)) {
 		printk(KERN_ERR "%s: bad cpu %d\n", __func__, cpu);
 		return -EINVAL;
 	}

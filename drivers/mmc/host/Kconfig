@@ -395,7 +395,7 @@ config MMC_SPI
 
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
-	depends on ARCH_S3C2410
+	depends on ARCH_S3C24XX
 	help
 	  This selects a driver for the MCI interface found in
           Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
@@ -532,6 +532,31 @@ config MMC_DW_IDMAC
 	  This selects support for the internal DMAC block within the Synopsys
 	  Designware Mobile Storage IP block. This disables the external DMA
 	  interface.
+
+config MMC_DW_PLTFM
+	tristate "Synopsys Designware MCI Support as platform device"
+	depends on MMC_DW
+	default y
+	help
+	  This selects the common helper functions support for Host Controller
+	  Interface based platform driver. Please select this option if the IP
+	  is present as a platform device. This is the common interface for the
+	  Synopsys Designware IP.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say Y.
+
+config MMC_DW_PCI
+	tristate "Synopsys Designware MCI support on PCI bus"
+	depends on MMC_DW && PCI
+	help
+	  This selects the PCI bus for the Synopsys Designware Mobile Storage IP.
+	  Select this option if the IP is present on PCI platform.
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
 
 config MMC_SH_MMCIF
 	tristate "SuperH Internal MMCIF support"

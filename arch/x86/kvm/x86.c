@@ -57,6 +57,7 @@
 #include <asm/mtrr.h>
 #include <asm/mce.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h> /* Ugh! */
 #include <asm/xcr.h>
 #include <asm/pvclock.h>
 #include <asm/div64.h>
@@ -95,6 +96,10 @@ bool kvm_has_tsc_control;
 EXPORT_SYMBOL_GPL(kvm_has_tsc_control);
 u32  kvm_max_guest_tsc_khz;
 EXPORT_SYMBOL_GPL(kvm_max_guest_tsc_khz);
+
+/* tsc tolerance in parts per million - default to 1/2 of the NTP threshold */
+static u32 tsc_tolerance_ppm = 250;
+module_param(tsc_tolerance_ppm, uint, S_IRUGO | S_IWUSR);
 
 #define KVM_NR_SHARED_MSRS 16
 
@@ -968,50 +973,51 @@ static inline u64 get_kernel_ns(void)
 static DEFINE_PER_CPU(unsigned long, cpu_tsc_khz);
 unsigned long max_tsc_khz;
 
-static inline int kvm_tsc_changes_freq(void)
-{
-	int cpu = get_cpu();
-	int ret = !boot_cpu_has(X86_FEATURE_CONSTANT_TSC) &&
-		  cpufreq_quick_get(cpu) != 0;
-	put_cpu();
-	return ret;
-}
-
-u64 vcpu_tsc_khz(struct kvm_vcpu *vcpu)
-{
-	if (vcpu->arch.virtual_tsc_khz)
-		return vcpu->arch.virtual_tsc_khz;
-	else
-		return __this_cpu_read(cpu_tsc_khz);
-}
-
 static inline u64 nsec_to_cycles(struct kvm_vcpu *vcpu, u64 nsec)
 {
-	u64 ret;
-
-	WARN_ON(preemptible());
-	if (kvm_tsc_changes_freq())
-		printk_once(KERN_WARNING
-		 "kvm: unreliable cycle conversion on adjustable rate TSC\n");
-	ret = nsec * vcpu_tsc_khz(vcpu);
-	do_div(ret, USEC_PER_SEC);
-	return ret;
+	return pvclock_scale_delta(nsec, vcpu->arch.virtual_tsc_mult,
+				   vcpu->arch.virtual_tsc_shift);
 }
 
-static void kvm_init_tsc_catchup(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
+static u32 adjust_tsc_khz(u32 khz, s32 ppm)
 {
+	u64 v = (u64)khz * (1000000 + ppm);
+	do_div(v, 1000000);
+	return v;
+}
+
+static void kvm_set_tsc_khz(struct kvm_vcpu *vcpu, u32 this_tsc_khz)
+{
+	u32 thresh_lo, thresh_hi;
+	int use_scaling = 0;
+
 	/* Compute a scale to convert nanoseconds in TSC cycles */
 	kvm_get_time_scale(this_tsc_khz, NSEC_PER_SEC / 1000,
-			   &vcpu->arch.tsc_catchup_shift,
-			   &vcpu->arch.tsc_catchup_mult);
+			   &vcpu->arch.virtual_tsc_shift,
+			   &vcpu->arch.virtual_tsc_mult);
+	vcpu->arch.virtual_tsc_khz = this_tsc_khz;
+
+	/*
+	 * Compute the variation in TSC rate which is acceptable
+	 * within the range of tolerance and decide if the
+	 * rate being applied is within that bounds of the hardware
+	 * rate.  If so, no scaling or compensation need be done.
+	 */
+	thresh_lo = adjust_tsc_khz(tsc_khz, -tsc_tolerance_ppm);
+	thresh_hi = adjust_tsc_khz(tsc_khz, tsc_tolerance_ppm);
+	if (this_tsc_khz < thresh_lo || this_tsc_khz > thresh_hi) {
+		pr_debug("kvm: requested TSC rate %u falls outside tolerance [%u,%u]\n", this_tsc_khz, thresh_lo, thresh_hi);
+		use_scaling = 1;
+	}
+	kvm_x86_ops->set_tsc_khz(vcpu, this_tsc_khz, use_scaling);
 }
 
 static u64 compute_guest_tsc(struct kvm_vcpu *vcpu, s64 kernel_ns)
 {
-	u64 tsc = pvclock_scale_delta(kernel_ns-vcpu->arch.last_tsc_nsec,
-				      vcpu->arch.tsc_catchup_mult,
-				      vcpu->arch.tsc_catchup_shift);
-	tsc += vcpu->arch.last_tsc_write;
+	u64 tsc = pvclock_scale_delta(kernel_ns-vcpu->arch.this_tsc_nsec,
+				      vcpu->arch.virtual_tsc_mult,
+				      vcpu->arch.virtual_tsc_shift);
+	tsc += vcpu->arch.this_tsc_write;
 	return tsc;
 }
 
@@ -1020,48 +1026,88 @@ void kvm_write_tsc(struct kvm_vcpu *vcpu, u64 data)
 	struct kvm *kvm = vcpu->kvm;
 	u64 offset, ns, elapsed;
 	unsigned long flags;
-	s64 sdiff;
+	s64 usdiff;
 
 	raw_spin_lock_irqsave(&kvm->arch.tsc_write_lock, flags);
 	offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
 	ns = get_kernel_ns();
 	elapsed = ns - kvm->arch.last_tsc_nsec;
-	sdiff = data - kvm->arch.last_tsc_write;
-	if (sdiff < 0)
-		sdiff = -sdiff;
+
+	/* n.b - signed multiplication and division required */
+	usdiff = data - kvm->arch.last_tsc_write;
+#ifdef CONFIG_X86_64
+	usdiff = (usdiff * 1000) / vcpu->arch.virtual_tsc_khz;
+#else
+	/* do_div() only does unsigned */
+	asm("idivl %2; xor %%edx, %%edx"
+	    : "=A"(usdiff)
+	    : "A"(usdiff * 1000), "rm"(vcpu->arch.virtual_tsc_khz));
+#endif
+	do_div(elapsed, 1000);
+	usdiff -= elapsed;
+	if (usdiff < 0)
+		usdiff = -usdiff;
 
 	/*
-	 * Special case: close write to TSC within 5 seconds of
-	 * another CPU is interpreted as an attempt to synchronize
-	 * The 5 seconds is to accommodate host load / swapping as
-	 * well as any reset of TSC during the boot process.
-	 *
-	 * In that case, for a reliable TSC, we can match TSC offsets,
-	 * or make a best guest using elapsed value.
-	 */
-	if (sdiff < nsec_to_cycles(vcpu, 5ULL * NSEC_PER_SEC) &&
-	    elapsed < 5ULL * NSEC_PER_SEC) {
+	 * Special case: TSC write with a small delta (1 second) of virtual
+	 * cycle time against real time is interpreted as an attempt to
+	 * synchronize the CPU.
+         *
+	 * For a reliable TSC, we can match TSC offsets, and for an unstable
+	 * TSC, we add elapsed time in this computation.  We could let the
+	 * compensation code attempt to catch up if we fall behind, but
+	 * it's better to try to match offsets from the beginning.
+         */
+	if (usdiff < USEC_PER_SEC &&
+	    vcpu->arch.virtual_tsc_khz == kvm->arch.last_tsc_khz) {
 		if (!check_tsc_unstable()) {
-			offset = kvm->arch.last_tsc_offset;
+			offset = kvm->arch.cur_tsc_offset;
 			pr_debug("kvm: matched tsc offset for %llu\n", data);
 		} else {
 			u64 delta = nsec_to_cycles(vcpu, elapsed);
-			offset += delta;
+			data += delta;
+			offset = kvm_x86_ops->compute_tsc_offset(vcpu, data);
 			pr_debug("kvm: adjusted tsc offset by %llu\n", delta);
 		}
-		ns = kvm->arch.last_tsc_nsec;
+	} else {
+		/*
+		 * We split periods of matched TSC writes into generations.
+		 * For each generation, we track the original measured
+		 * nanosecond time, offset, and write, so if TSCs are in
+		 * sync, we can match exact offset, and if not, we can match
+		 * exact software computaion in compute_guest_tsc()
+		 *
+		 * These values are tracked in kvm->arch.cur_xxx variables.
+		 */
+		kvm->arch.cur_tsc_generation++;
+		kvm->arch.cur_tsc_nsec = ns;
+		kvm->arch.cur_tsc_write = data;
+		kvm->arch.cur_tsc_offset = offset;
+		pr_debug("kvm: new tsc generation %u, clock %llu\n",
+			 kvm->arch.cur_tsc_generation, data);
 	}
+
+	/*
+	 * We also track th most recent recorded KHZ, write and time to
+	 * allow the matching interval to be extended at each write.
+	 */
 	kvm->arch.last_tsc_nsec = ns;
 	kvm->arch.last_tsc_write = data;
-	kvm->arch.last_tsc_offset = offset;
-	kvm_x86_ops->write_tsc_offset(vcpu, offset);
-	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
+	kvm->arch.last_tsc_khz = vcpu->arch.virtual_tsc_khz;
 
 	/* Reset of TSC must disable overshoot protection below */
 	vcpu->arch.hv_clock.tsc_timestamp = 0;
-	vcpu->arch.last_tsc_write = data;
-	vcpu->arch.last_tsc_nsec = ns;
+	vcpu->arch.last_guest_tsc = data;
+
+	/* Keep track of which generation this VCPU has synchronized to */
+	vcpu->arch.this_tsc_generation = kvm->arch.cur_tsc_generation;
+	vcpu->arch.this_tsc_nsec = kvm->arch.cur_tsc_nsec;
+	vcpu->arch.this_tsc_write = kvm->arch.cur_tsc_write;
+
+	kvm_x86_ops->write_tsc_offset(vcpu, offset);
+	raw_spin_unlock_irqrestore(&kvm->arch.tsc_write_lock, flags);
 }
+
 EXPORT_SYMBOL_GPL(kvm_write_tsc);
 
 static int kvm_guest_time_update(struct kvm_vcpu *v)
@@ -1077,7 +1123,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	local_irq_save(flags);
 	tsc_timestamp = kvm_x86_ops->read_l1_tsc(v);
 	kernel_ns = get_kernel_ns();
-	this_tsc_khz = vcpu_tsc_khz(v);
+	this_tsc_khz = __get_cpu_var(cpu_tsc_khz);
 	if (unlikely(this_tsc_khz == 0)) {
 		local_irq_restore(flags);
 		kvm_make_request(KVM_REQ_CLOCK_UPDATE, v);
@@ -1097,7 +1143,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	if (vcpu->tsc_catchup) {
 		u64 tsc = compute_guest_tsc(v, kernel_ns);
 		if (tsc > tsc_timestamp) {
-			kvm_x86_ops->adjust_tsc_offset(v, tsc - tsc_timestamp);
+			adjust_tsc_offset_guest(v, tsc - tsc_timestamp);
 			tsc_timestamp = tsc;
 		}
 	}
@@ -1129,7 +1175,7 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	 * observed by the guest and ensure the new system time is greater.
 	 */
 	max_kernel_ns = 0;
-	if (vcpu->hv_clock.tsc_timestamp && vcpu->last_guest_tsc) {
+	if (vcpu->hv_clock.tsc_timestamp) {
 		max_kernel_ns = vcpu->last_guest_tsc -
 				vcpu->hv_clock.tsc_timestamp;
 		max_kernel_ns = pvclock_scale_delta(max_kernel_ns,
@@ -1162,12 +1208,12 @@ static int kvm_guest_time_update(struct kvm_vcpu *v)
 	 */
 	vcpu->hv_clock.version += 2;
 
-	shared_kaddr = kmap_atomic(vcpu->time_page, KM_USER0);
+	shared_kaddr = kmap_atomic(vcpu->time_page);
 
 	memcpy(shared_kaddr + vcpu->time_offset, &vcpu->hv_clock,
 	       sizeof(vcpu->hv_clock));
 
-	kunmap_atomic(shared_kaddr, KM_USER0);
+	kunmap_atomic(shared_kaddr);
 
 	mark_page_dirty(v->kvm, vcpu->time >> PAGE_SHIFT);
 	return 0;
@@ -1503,6 +1549,7 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 	case MSR_K7_HWCR:
 		data &= ~(u64)0x40;	/* ignore flush filter disable */
 		data &= ~(u64)0x100;	/* ignore ignne emulation enable */
+		data &= ~(u64)0x8;	/* ignore TLB cache disable */
 		if (data != 0) {
 			pr_unimpl(vcpu, "unimplemented HWCR wrmsr: 0x%llx\n",
 				data);
@@ -1674,6 +1721,16 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		 * counterpart for further detail.
 		 */
 		pr_unimpl(vcpu, "ignored wrmsr: 0x%x data %llx\n", msr, data);
+		break;
+	case MSR_AMD64_OSVW_ID_LENGTH:
+		if (!guest_cpuid_has_osvw(vcpu))
+			return 1;
+		vcpu->arch.osvw.length = data;
+		break;
+	case MSR_AMD64_OSVW_STATUS:
+		if (!guest_cpuid_has_osvw(vcpu))
+			return 1;
+		vcpu->arch.osvw.status = data;
 		break;
 	default:
 		if (msr && (msr == vcpu->kvm->arch.xen_hvm_config.msr))
@@ -1959,6 +2016,16 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 *pdata)
 		 */
 		data = 0xbe702111;
 		break;
+	case MSR_AMD64_OSVW_ID_LENGTH:
+		if (!guest_cpuid_has_osvw(vcpu))
+			return 1;
+		data = vcpu->arch.osvw.length;
+		break;
+	case MSR_AMD64_OSVW_STATUS:
+		if (!guest_cpuid_has_osvw(vcpu))
+			return 1;
+		data = vcpu->arch.osvw.status;
+		break;
 	default:
 		if (kvm_pmu_msr(vcpu, msr))
 			return kvm_pmu_get_msr(vcpu, msr, pdata);
@@ -2079,6 +2146,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_XSAVE:
 	case KVM_CAP_ASYNC_PF:
 	case KVM_CAP_GET_TSC_KHZ:
+	case KVM_CAP_PCI_2_3:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -2213,19 +2281,23 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	}
 
 	kvm_x86_ops->vcpu_load(vcpu, cpu);
+
+	/* Apply any externally detected TSC adjustments (due to suspend) */
+	if (unlikely(vcpu->arch.tsc_offset_adjustment)) {
+		adjust_tsc_offset_host(vcpu, vcpu->arch.tsc_offset_adjustment);
+		vcpu->arch.tsc_offset_adjustment = 0;
+		set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+	}
+
 	if (unlikely(vcpu->cpu != cpu) || check_tsc_unstable()) {
-		/* Make sure TSC doesn't go backwards */
-		s64 tsc_delta;
-		u64 tsc;
-
-		tsc = kvm_x86_ops->read_l1_tsc(vcpu);
-		tsc_delta = !vcpu->arch.last_guest_tsc ? 0 :
-			     tsc - vcpu->arch.last_guest_tsc;
-
+		s64 tsc_delta = !vcpu->arch.last_host_tsc ? 0 :
+				native_read_tsc() - vcpu->arch.last_host_tsc;
 		if (tsc_delta < 0)
 			mark_tsc_unstable("KVM discovered backwards TSC");
 		if (check_tsc_unstable()) {
-			kvm_x86_ops->adjust_tsc_offset(vcpu, -tsc_delta);
+			u64 offset = kvm_x86_ops->compute_tsc_offset(vcpu,
+						vcpu->arch.last_guest_tsc);
+			kvm_x86_ops->write_tsc_offset(vcpu, offset);
 			vcpu->arch.tsc_catchup = 1;
 		}
 		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
@@ -2242,7 +2314,7 @@ void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	kvm_x86_ops->vcpu_put(vcpu);
 	kvm_put_guest_fpu(vcpu);
-	vcpu->arch.last_guest_tsc = kvm_x86_ops->read_l1_tsc(vcpu);
+	vcpu->arch.last_host_tsc = native_read_tsc();
 }
 
 static int kvm_vcpu_ioctl_get_lapic(struct kvm_vcpu *vcpu,
@@ -2784,26 +2856,21 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		u32 user_tsc_khz;
 
 		r = -EINVAL;
-		if (!kvm_has_tsc_control)
-			break;
-
 		user_tsc_khz = (u32)arg;
 
 		if (user_tsc_khz >= kvm_max_guest_tsc_khz)
 			goto out;
 
-		kvm_x86_ops->set_tsc_khz(vcpu, user_tsc_khz);
+		if (user_tsc_khz == 0)
+			user_tsc_khz = tsc_khz;
+
+		kvm_set_tsc_khz(vcpu, user_tsc_khz);
 
 		r = 0;
 		goto out;
 	}
 	case KVM_GET_TSC_KHZ: {
-		r = -EIO;
-		if (check_tsc_unstable())
-			goto out;
-
-		r = vcpu_tsc_khz(vcpu);
-
+		r = vcpu->arch.virtual_tsc_khz;
 		goto out;
 	}
 	default:
@@ -2812,6 +2879,11 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 out:
 	kfree(u.buffer);
 	return r;
+}
+
+int kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
+{
+	return VM_FAULT_SIGBUS;
 }
 
 static int kvm_vm_ioctl_set_tss_addr(struct kvm *kvm, unsigned long addr)
@@ -2997,6 +3069,8 @@ static void write_protect_slot(struct kvm *kvm,
 			       unsigned long *dirty_bitmap,
 			       unsigned long nr_dirty_pages)
 {
+	spin_lock(&kvm->mmu_lock);
+
 	/* Not many dirty pages compared to # of shadow pages. */
 	if (nr_dirty_pages < kvm->arch.n_used_mmu_pages) {
 		unsigned long gfn_offset;
@@ -3004,16 +3078,13 @@ static void write_protect_slot(struct kvm *kvm,
 		for_each_set_bit(gfn_offset, dirty_bitmap, memslot->npages) {
 			unsigned long gfn = memslot->base_gfn + gfn_offset;
 
-			spin_lock(&kvm->mmu_lock);
 			kvm_mmu_rmap_write_protect(kvm, gfn, memslot);
-			spin_unlock(&kvm->mmu_lock);
 		}
 		kvm_flush_remote_tlbs(kvm);
-	} else {
-		spin_lock(&kvm->mmu_lock);
+	} else
 		kvm_mmu_slot_remove_write_access(kvm, memslot->id);
-		spin_unlock(&kvm->mmu_lock);
-	}
+
+	spin_unlock(&kvm->mmu_lock);
 }
 
 /*
@@ -3131,6 +3202,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		mutex_lock(&kvm->lock);
 		r = -EEXIST;
 		if (kvm->arch.vpic)
+			goto create_irqchip_unlock;
+		r = -EINVAL;
+		if (atomic_read(&kvm->online_vcpus))
 			goto create_irqchip_unlock;
 		r = -ENOMEM;
 		vpic = kvm_create_pic(kvm);
@@ -3848,7 +3922,7 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 		goto emul_write;
 	}
 
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	kaddr += offset_in_page(gpa);
 	switch (bytes) {
 	case 1:
@@ -3866,7 +3940,7 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
 	default:
 		BUG();
 	}
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	kvm_release_page_dirty(page);
 
 	if (!exchanged)
@@ -4062,6 +4136,11 @@ static int emulator_set_cr(struct x86_emulate_ctxt *ctxt, int cr, ulong val)
 	return res;
 }
 
+static void emulator_set_rflags(struct x86_emulate_ctxt *ctxt, ulong val)
+{
+	kvm_set_rflags(emul_to_vcpu(ctxt), val);
+}
+
 static int emulator_get_cpl(struct x86_emulate_ctxt *ctxt)
 {
 	return kvm_x86_ops->get_cpl(emul_to_vcpu(ctxt));
@@ -4243,6 +4322,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.set_idt	     = emulator_set_idt,
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
+	.set_rflags          = emulator_set_rflags,
 	.cpl                 = emulator_get_cpl,
 	.get_dr              = emulator_get_dr,
 	.set_dr              = emulator_set_dr,
@@ -5287,6 +5367,8 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 		profile_hit(KVM_PROFILING, (void *)rip);
 	}
 
+	if (unlikely(vcpu->arch.tsc_always_catchup))
+		kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
 
 	kvm_lapic_sync_from_vapic(vcpu);
 
@@ -5586,15 +5668,15 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int reason,
-		    bool has_error_code, u32 error_code)
+int kvm_task_switch(struct kvm_vcpu *vcpu, u16 tss_selector, int idt_index,
+		    int reason, bool has_error_code, u32 error_code)
 {
 	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
 	int ret;
 
 	init_emulate_ctxt(vcpu);
 
-	ret = emulator_task_switch(ctxt, tss_selector, reason,
+	ret = emulator_task_switch(ctxt, tss_selector, idt_index, reason,
 				   has_error_code, error_code);
 
 	if (ret)
@@ -5927,13 +6009,88 @@ int kvm_arch_hardware_enable(void *garbage)
 	struct kvm *kvm;
 	struct kvm_vcpu *vcpu;
 	int i;
+	int ret;
+	u64 local_tsc;
+	u64 max_tsc = 0;
+	bool stable, backwards_tsc = false;
 
 	kvm_shared_msr_cpu_online();
-	list_for_each_entry(kvm, &vm_list, vm_list)
-		kvm_for_each_vcpu(i, vcpu, kvm)
-			if (vcpu->cpu == smp_processor_id())
-				kvm_make_request(KVM_REQ_CLOCK_UPDATE, vcpu);
-	return kvm_x86_ops->hardware_enable(garbage);
+	ret = kvm_x86_ops->hardware_enable(garbage);
+	if (ret != 0)
+		return ret;
+
+	local_tsc = native_read_tsc();
+	stable = !check_tsc_unstable();
+	list_for_each_entry(kvm, &vm_list, vm_list) {
+		kvm_for_each_vcpu(i, vcpu, kvm) {
+			if (!stable && vcpu->cpu == smp_processor_id())
+				set_bit(KVM_REQ_CLOCK_UPDATE, &vcpu->requests);
+			if (stable && vcpu->arch.last_host_tsc > local_tsc) {
+				backwards_tsc = true;
+				if (vcpu->arch.last_host_tsc > max_tsc)
+					max_tsc = vcpu->arch.last_host_tsc;
+			}
+		}
+	}
+
+	/*
+	 * Sometimes, even reliable TSCs go backwards.  This happens on
+	 * platforms that reset TSC during suspend or hibernate actions, but
+	 * maintain synchronization.  We must compensate.  Fortunately, we can
+	 * detect that condition here, which happens early in CPU bringup,
+	 * before any KVM threads can be running.  Unfortunately, we can't
+	 * bring the TSCs fully up to date with real time, as we aren't yet far
+	 * enough into CPU bringup that we know how much real time has actually
+	 * elapsed; our helper function, get_kernel_ns() will be using boot
+	 * variables that haven't been updated yet.
+	 *
+	 * So we simply find the maximum observed TSC above, then record the
+	 * adjustment to TSC in each VCPU.  When the VCPU later gets loaded,
+	 * the adjustment will be applied.  Note that we accumulate
+	 * adjustments, in case multiple suspend cycles happen before some VCPU
+	 * gets a chance to run again.  In the event that no KVM threads get a
+	 * chance to run, we will miss the entire elapsed period, as we'll have
+	 * reset last_host_tsc, so VCPUs will not have the TSC adjusted and may
+	 * loose cycle time.  This isn't too big a deal, since the loss will be
+	 * uniform across all VCPUs (not to mention the scenario is extremely
+	 * unlikely). It is possible that a second hibernate recovery happens
+	 * much faster than a first, causing the observed TSC here to be
+	 * smaller; this would require additional padding adjustment, which is
+	 * why we set last_host_tsc to the local tsc observed here.
+	 *
+	 * N.B. - this code below runs only on platforms with reliable TSC,
+	 * as that is the only way backwards_tsc is set above.  Also note
+	 * that this runs for ALL vcpus, which is not a bug; all VCPUs should
+	 * have the same delta_cyc adjustment applied if backwards_tsc
+	 * is detected.  Note further, this adjustment is only done once,
+	 * as we reset last_host_tsc on all VCPUs to stop this from being
+	 * called multiple times (one for each physical CPU bringup).
+	 *
+	 * Platforms with unnreliable TSCs don't have to deal with this, they
+	 * will be compensated by the logic in vcpu_load, which sets the TSC to
+	 * catchup mode.  This will catchup all VCPUs to real time, but cannot
+	 * guarantee that they stay in perfect synchronization.
+	 */
+	if (backwards_tsc) {
+		u64 delta_cyc = max_tsc - local_tsc;
+		list_for_each_entry(kvm, &vm_list, vm_list) {
+			kvm_for_each_vcpu(i, vcpu, kvm) {
+				vcpu->arch.tsc_offset_adjustment += delta_cyc;
+				vcpu->arch.last_host_tsc = local_tsc;
+			}
+
+			/*
+			 * We have to disable TSC offset matching.. if you were
+			 * booting a VM while issuing an S4 host suspend....
+			 * you may have some problem.  Solving this issue is
+			 * left as an exercise to the reader.
+			 */
+			kvm->arch.last_tsc_nsec = 0;
+			kvm->arch.last_tsc_write = 0;
+		}
+
+	}
+	return 0;
 }
 
 void kvm_arch_hardware_disable(void *garbage)
@@ -5955,6 +6112,11 @@ void kvm_arch_hardware_unsetup(void)
 void kvm_arch_check_processor_compat(void *rtn)
 {
 	kvm_x86_ops->check_processor_compatibility(rtn);
+}
+
+bool kvm_vcpu_compatible(struct kvm_vcpu *vcpu)
+{
+	return irqchip_in_kernel(vcpu->kvm) == (vcpu->arch.apic != NULL);
 }
 
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
@@ -5979,7 +6141,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	}
 	vcpu->arch.pio_data = page_address(page);
 
-	kvm_init_tsc_catchup(vcpu, max_tsc_khz);
+	kvm_set_tsc_khz(vcpu, max_tsc_khz);
 
 	r = kvm_mmu_create(vcpu);
 	if (r < 0)
@@ -6031,8 +6193,11 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 	free_page((unsigned long)vcpu->arch.pio_data);
 }
 
-int kvm_arch_init_vm(struct kvm *kvm)
+int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
+	if (type)
+		return -EINVAL;
+
 	INIT_LIST_HEAD(&kvm->arch.active_mmu_pages);
 	INIT_LIST_HEAD(&kvm->arch.assigned_dev_head);
 
@@ -6090,6 +6255,65 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		put_page(kvm->arch.apic_access_page);
 	if (kvm->arch.ept_identity_pagetable)
 		put_page(kvm->arch.ept_identity_pagetable);
+}
+
+void kvm_arch_free_memslot(struct kvm_memory_slot *free,
+			   struct kvm_memory_slot *dont)
+{
+	int i;
+
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		if (!dont || free->arch.lpage_info[i] != dont->arch.lpage_info[i]) {
+			vfree(free->arch.lpage_info[i]);
+			free->arch.lpage_info[i] = NULL;
+		}
+	}
+}
+
+int kvm_arch_create_memslot(struct kvm_memory_slot *slot, unsigned long npages)
+{
+	int i;
+
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		unsigned long ugfn;
+		int lpages;
+		int level = i + 2;
+
+		lpages = gfn_to_index(slot->base_gfn + npages - 1,
+				      slot->base_gfn, level) + 1;
+
+		slot->arch.lpage_info[i] =
+			vzalloc(lpages * sizeof(*slot->arch.lpage_info[i]));
+		if (!slot->arch.lpage_info[i])
+			goto out_free;
+
+		if (slot->base_gfn & (KVM_PAGES_PER_HPAGE(level) - 1))
+			slot->arch.lpage_info[i][0].write_count = 1;
+		if ((slot->base_gfn + npages) & (KVM_PAGES_PER_HPAGE(level) - 1))
+			slot->arch.lpage_info[i][lpages - 1].write_count = 1;
+		ugfn = slot->userspace_addr >> PAGE_SHIFT;
+		/*
+		 * If the gfn and userspace address are not aligned wrt each
+		 * other, or if explicitly asked to, disable large page
+		 * support for this slot
+		 */
+		if ((slot->base_gfn ^ ugfn) & (KVM_PAGES_PER_HPAGE(level) - 1) ||
+		    !kvm_largepages_enabled()) {
+			unsigned long j;
+
+			for (j = 0; j < lpages; ++j)
+				slot->arch.lpage_info[i][j].write_count = 1;
+		}
+	}
+
+	return 0;
+
+out_free:
+	for (i = 0; i < KVM_NR_PAGE_SIZES - 1; ++i) {
+		vfree(slot->arch.lpage_info[i]);
+		slot->arch.lpage_info[i] = NULL;
+	}
+	return -ENOMEM;
 }
 
 int kvm_arch_prepare_memory_region(struct kvm *kvm,

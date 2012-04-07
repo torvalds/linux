@@ -24,7 +24,44 @@ extern unsigned short vdso_sync_cpuid;
 extern struct page *vdso_pages[];
 static unsigned vdso_size;
 
-static void __init patch_vdso(void *vdso, size_t len)
+#ifdef CONFIG_X86_X32_ABI
+extern char vdsox32_start[], vdsox32_end[];
+extern struct page *vdsox32_pages[];
+static unsigned vdsox32_size;
+
+static void __init patch_vdsox32(void *vdso, size_t len)
+{
+	Elf32_Ehdr *hdr = vdso;
+	Elf32_Shdr *sechdrs, *alt_sec = 0;
+	char *secstrings;
+	void *alt_data;
+	int i;
+
+	BUG_ON(len < sizeof(Elf32_Ehdr));
+	BUG_ON(memcmp(hdr->e_ident, ELFMAG, SELFMAG) != 0);
+
+	sechdrs = (void *)hdr + hdr->e_shoff;
+	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+
+	for (i = 1; i < hdr->e_shnum; i++) {
+		Elf32_Shdr *shdr = &sechdrs[i];
+		if (!strcmp(secstrings + shdr->sh_name, ".altinstructions")) {
+			alt_sec = shdr;
+			goto found;
+		}
+	}
+
+	/* If we get here, it's probably a bug. */
+	pr_warning("patch_vdsox32: .altinstructions not found\n");
+	return;  /* nothing to patch */
+
+found:
+	alt_data = (void *)hdr + alt_sec->sh_offset;
+	apply_alternatives(alt_data, alt_data + alt_sec->sh_size);
+}
+#endif
+
+static void __init patch_vdso64(void *vdso, size_t len)
 {
 	Elf64_Ehdr *hdr = vdso;
 	Elf64_Shdr *sechdrs, *alt_sec = 0;
@@ -47,7 +84,7 @@ static void __init patch_vdso(void *vdso, size_t len)
 	}
 
 	/* If we get here, it's probably a bug. */
-	pr_warning("patch_vdso: .altinstructions not found\n");
+	pr_warning("patch_vdso64: .altinstructions not found\n");
 	return;  /* nothing to patch */
 
 found:
@@ -60,11 +97,19 @@ static int __init init_vdso(void)
 	int npages = (vdso_end - vdso_start + PAGE_SIZE - 1) / PAGE_SIZE;
 	int i;
 
-	patch_vdso(vdso_start, vdso_end - vdso_start);
+	patch_vdso64(vdso_start, vdso_end - vdso_start);
 
 	vdso_size = npages << PAGE_SHIFT;
 	for (i = 0; i < npages; i++)
 		vdso_pages[i] = virt_to_page(vdso_start + i*PAGE_SIZE);
+
+#ifdef CONFIG_X86_X32_ABI
+	patch_vdsox32(vdsox32_start, vdsox32_end - vdsox32_start);
+	npages = (vdsox32_end - vdsox32_start + PAGE_SIZE - 1) / PAGE_SIZE;
+	vdsox32_size = npages << PAGE_SHIFT;
+	for (i = 0; i < npages; i++)
+		vdsox32_pages[i] = virt_to_page(vdsox32_start + i*PAGE_SIZE);
+#endif
 
 	return 0;
 }
@@ -103,7 +148,10 @@ static unsigned long vdso_addr(unsigned long start, unsigned len)
 
 /* Setup a VMA at program startup for the vsyscall page.
    Not called for compat tasks */
-int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+static int setup_additional_pages(struct linux_binprm *bprm,
+				  int uses_interp,
+				  struct page **pages,
+				  unsigned size)
 {
 	struct mm_struct *mm = current->mm;
 	unsigned long addr;
@@ -113,8 +161,8 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 		return 0;
 
 	down_write(&mm->mmap_sem);
-	addr = vdso_addr(mm->start_stack, vdso_size);
-	addr = get_unmapped_area(NULL, addr, vdso_size, 0, 0);
+	addr = vdso_addr(mm->start_stack, size);
+	addr = get_unmapped_area(NULL, addr, size, 0, 0);
 	if (IS_ERR_VALUE(addr)) {
 		ret = addr;
 		goto up_fail;
@@ -122,11 +170,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 
 	current->mm->context.vdso = (void *)addr;
 
-	ret = install_special_mapping(mm, addr, vdso_size,
+	ret = install_special_mapping(mm, addr, size,
 				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-				      VM_ALWAYSDUMP,
-				      vdso_pages);
+				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				      pages);
 	if (ret) {
 		current->mm->context.vdso = NULL;
 		goto up_fail;
@@ -136,6 +183,20 @@ up_fail:
 	up_write(&mm->mmap_sem);
 	return ret;
 }
+
+int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+{
+	return setup_additional_pages(bprm, uses_interp, vdso_pages,
+				      vdso_size);
+}
+
+#ifdef CONFIG_X86_X32_ABI
+int x32_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
+{
+	return setup_additional_pages(bprm, uses_interp, vdsox32_pages,
+				      vdsox32_size);
+}
+#endif
 
 static __init int vdso_setup(char *s)
 {

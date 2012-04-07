@@ -35,7 +35,6 @@
 #include <asm/io.h>         /* CRIS_LED_* I/O functions */
 #include <asm/irq.h>
 #include <asm/dma.h>
-#include <asm/system.h>
 #include <asm/ethernet.h>
 #include <asm/cache.h>
 #include <arch/io_interface_mux.h>

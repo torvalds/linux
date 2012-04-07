@@ -1631,7 +1631,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read parent ID: %d\n", ret);
-		goto err_regmap;
+		goto err;
 	}
 	switch (ret) {
 	case 0x6204:
@@ -1640,20 +1640,20 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	default:
 		dev_err(wm831x->dev, "Device is not a WM831x: ID %x\n", ret);
 		ret = -EINVAL;
-		goto err_regmap;
+		goto err;
 	}
 
 	ret = wm831x_reg_read(wm831x, WM831X_REVISION);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read revision: %d\n", ret);
-		goto err_regmap;
+		goto err;
 	}
 	rev = (ret & WM831X_PARENT_REV_MASK) >> WM831X_PARENT_REV_SHIFT;
 
 	ret = wm831x_reg_read(wm831x, WM831X_RESET_ID);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read device ID: %d\n", ret);
-		goto err_regmap;
+		goto err;
 	}
 
 	/* Some engineering samples do not have the ID set, rely on
@@ -1728,7 +1728,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	default:
 		dev_err(wm831x->dev, "Unknown WM831x device %04x\n", ret);
 		ret = -EINVAL;
-		goto err_regmap;
+		goto err;
 	}
 
 	/* This will need revisiting in future but is OK for all
@@ -1742,7 +1742,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	ret = wm831x_reg_read(wm831x, WM831X_SECURITY_KEY);
 	if (ret < 0) {
 		dev_err(wm831x->dev, "Failed to read security key: %d\n", ret);
-		goto err_regmap;
+		goto err;
 	}
 	if (ret != 0) {
 		dev_warn(wm831x->dev, "Security key had non-zero value %x\n",
@@ -1755,7 +1755,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 		ret = pdata->pre_init(wm831x);
 		if (ret != 0) {
 			dev_err(wm831x->dev, "pre_init() failed: %d\n", ret);
-			goto err_regmap;
+			goto err;
 		}
 	}
 
@@ -1778,7 +1778,7 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 	ret = wm831x_irq_init(wm831x, irq);
 	if (ret != 0)
-		goto err_regmap;
+		goto err;
 
 	wm831x_auxadc_init(wm831x);
 
@@ -1874,9 +1874,8 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 
 err_irq:
 	wm831x_irq_exit(wm831x);
-err_regmap:
+err:
 	mfd_remove_devices(wm831x->dev);
-	regmap_exit(wm831x->regmap);
 	return ret;
 }
 
@@ -1887,7 +1886,6 @@ void wm831x_device_exit(struct wm831x *wm831x)
 	if (wm831x->irq_base)
 		free_irq(wm831x->irq_base + WM831X_IRQ_AUXADC_DATA, wm831x);
 	wm831x_irq_exit(wm831x);
-	regmap_exit(wm831x->regmap);
 }
 
 int wm831x_device_suspend(struct wm831x *wm831x)

@@ -157,7 +157,6 @@ static bool intel_dvo_mode_fixup(struct drm_encoder *encoder,
 		C(vsync_end);
 		C(vtotal);
 		C(clock);
-		drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
 #undef C
 	}
 

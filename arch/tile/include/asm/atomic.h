@@ -20,7 +20,7 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
-#include <asm/system.h>
+#include <linux/types.h>
 
 #define ATOMIC_INIT(i)	{ (i) }
 

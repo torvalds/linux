@@ -917,14 +917,6 @@ xfs_create(
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = B_TRUE;
 
-	/*
-	 * Check for directory link count overflow.
-	 */
-	if (is_dir && dp->i_d.di_nlink >= XFS_MAXLINK) {
-		error = XFS_ERROR(EMLINK);
-		goto out_trans_cancel;
-	}
-
 	xfs_bmap_init(&free_list, &first_block);
 
 	/*
@@ -1427,14 +1419,6 @@ xfs_link(
 
 	xfs_trans_ijoin(tp, sip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, tdp, XFS_ILOCK_EXCL);
-
-	/*
-	 * If the source has too many links, we can't make any more to it.
-	 */
-	if (sip->i_d.di_nlink >= XFS_MAXLINK) {
-		error = XFS_ERROR(EMLINK);
-		goto error_return;
-	}
 
 	/*
 	 * If we are using project inheritance, we only allow hard link

@@ -917,19 +917,8 @@ static int f75375_detect(struct i2c_client *client,
 	return 0;
 }
 
-static int __init sensors_f75375_init(void)
-{
-	return i2c_add_driver(&f75375_driver);
-}
-
-static void __exit sensors_f75375_exit(void)
-{
-	i2c_del_driver(&f75375_driver);
-}
+module_i2c_driver(f75375_driver);
 
 MODULE_AUTHOR("Riku Voipio");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("F75373/F75375/F75387 hardware monitoring driver");
-
-module_init(sensors_f75375_init);
-module_exit(sensors_f75375_exit);

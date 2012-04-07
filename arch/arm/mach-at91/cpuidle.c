@@ -33,14 +33,7 @@ static int at91_enter_idle(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			       int index)
 {
-	u32 saved_lpr;
-
-	__asm__("b 1f; .align 5; 1:\n"
-	"	mcr p15, 0, r0, c7, c10, 4");	/* drain write buffer */
-
-	saved_lpr = sdram_selfrefresh_enable();
-	cpu_do_idle();
-	sdram_selfrefresh_disable(saved_lpr);
+	at91_standby();
 
 	return index;
 }

@@ -406,6 +406,7 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 	/* SSID */
 	req->ssid.status = P80211ENUM_msgitem_status_data_ok;
 	req->ssid.data.len = le16_to_cpu(item->ssid.len);
+	req->ssid.data.len = min_t(u16, req->ssid.data.len, WLAN_BSSID_LEN);
 	memcpy(req->ssid.data.data, item->ssid.data, req->ssid.data.len);
 
 	/* supported rates */

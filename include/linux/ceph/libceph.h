@@ -7,6 +7,7 @@
 #include <linux/backing-dev.h>
 #include <linux/completion.h>
 #include <linux/exportfs.h>
+#include <linux/bug.h>
 #include <linux/fs.h>
 #include <linux/mempool.h>
 #include <linux/pagemap.h>
@@ -207,7 +208,7 @@ extern struct kmem_cache *ceph_cap_cachep;
 extern struct kmem_cache *ceph_dentry_cachep;
 extern struct kmem_cache *ceph_file_cachep;
 
-extern int ceph_parse_options(struct ceph_options **popt, char *options,
+extern struct ceph_options *ceph_parse_options(char *options,
 			      const char *dev_name, const char *dev_name_end,
 			      int (*parse_extra_token)(char *c, void *private),
 			      void *private);

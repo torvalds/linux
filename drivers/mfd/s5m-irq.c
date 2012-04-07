@@ -342,7 +342,10 @@ int s5m_irq_resume(struct s5m87xx_dev *s5m87xx)
 			s5m8767_irq_thread(s5m87xx->irq_base, s5m87xx);
 			break;
 		default:
-			break;
+			dev_err(s5m87xx->dev,
+				"Unknown device type %d\n",
+				s5m87xx->device_type);
+			return -EINVAL;
 
 		}
 	}
@@ -444,7 +447,9 @@ int s5m_irq_init(struct s5m87xx_dev *s5m87xx)
 		}
 		break;
 	default:
-		break;
+		dev_err(s5m87xx->dev,
+			"Unknown device type %d\n", s5m87xx->device_type);
+		return -EINVAL;
 	}
 
 	if (!s5m87xx->ono)
@@ -467,12 +472,15 @@ int s5m_irq_init(struct s5m87xx_dev *s5m87xx)
 					IRQF_ONESHOT, "s5m87xx-ono", s5m87xx);
 		break;
 	default:
+		ret = -EINVAL;
 		break;
 	}
 
-	if (ret)
+	if (ret) {
 		dev_err(s5m87xx->dev, "Failed to request IRQ %d: %d\n",
 			s5m87xx->ono, ret);
+		return ret;
+	}
 
 	return 0;
 }

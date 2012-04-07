@@ -713,6 +713,21 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The filter can be disabled or changed to another
 			driver later using sysfs.
 
+	drm_kms_helper.edid_firmware=[<connector>:]<file>
+			Broken monitors, graphic adapters and KVMs may
+			send no or incorrect EDID data sets. This parameter
+			allows to specify an EDID data set in the
+			/lib/firmware directory that is used instead.
+			Generic built-in EDID data sets are used, if one of
+			edid/1024x768.bin, edid/1280x1024.bin,
+			edid/1680x1050.bin, or edid/1920x1080.bin is given
+			and no file with the same name exists. Details and
+			instructions how to build your own EDID data are
+			available in Documentation/EDID/HOWTO.txt. An EDID
+			data set will only be used for a particular connector,
+			if its name and a colon are prepended to the EDID
+			name.
+
 	dscc4.setup=	[NET]
 
 	earlycon=	[KNL] Output early console device and options.
@@ -950,7 +965,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			     controller
 	i8042.nopnp	[HW] Don't use ACPIPnP / PnPBIOS to discover KBD/AUX
 			     controllers
-	i8042.notimeout	[HW] Ignore timeout condition signalled by conroller
+	i8042.notimeout	[HW] Ignore timeout condition signalled by controller
 	i8042.reset	[HW] Reset the controller during init and cleanup
 	i8042.unlock	[HW] Unlock (ignore) the keylock
 
@@ -1070,8 +1085,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			nosid	disable Source ID checking
 			no_x2apic_optout
 				BIOS x2APIC opt-out request will be ignored
-
-	inttest=	[IA-64]
 
 	iomem=		Disable strict checking of access to MMIO memory
 		strict	regions from userspace.
@@ -1657,6 +1670,14 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			of returning the full 64-bit number.
 			The default is to return 64-bit inode numbers.
 
+	nfs.max_session_slots=
+			[NFSv4.1] Sets the maximum number of session slots
+			the client will attempt to negotiate with the server.
+			This limits the number of simultaneous RPC requests
+			that the client can send to the NFSv4.1 server.
+			Note that there is little point in setting this
+			value higher than the max_tcp_slot_table_limit.
+
 	nfs.nfs4_disable_idmapping=
 			[NFSv4] When set to the default of '1', this option
 			ensures that both the RPC level authentication
@@ -1669,6 +1690,27 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			will be autodetected by the client, and it will fall
 			back to using the idmapper.
 			To turn off this behaviour, set the value to '0'.
+
+	nfs.send_implementation_id =
+			[NFSv4.1] Send client implementation identification
+			information in exchange_id requests.
+			If zero, no implementation identification information
+			will be sent.
+			The default is to send the implementation identification
+			information.
+
+	nfsd.nfs4_disable_idmapping=
+			[NFSv4] When set to the default of '1', the NFSv4
+			server will return only numeric uids and gids to
+			clients using auth_sys, and will accept numeric uids
+			and gids from such clients.  This is intended to ease
+			migration from NFSv2/v3.
+
+	objlayoutdriver.osd_login_prog=
+			[NFS] [OBJLAYOUT] sets the pathname to the program which
+			is used to automatically discover and login into new
+			osd-targets. Please see:
+			Documentation/filesystems/pnfs.txt for more explanations
 
 	nmi_debug=	[KNL,AVR32,SH] Specify one or more actions to take
 			when a NMI is triggered.
@@ -1832,6 +1874,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nonmi_ipi	[X86] Disable using NMI IPIs during panic/reboot to
 			shutdown the other cpus.  Instead use the REBOOT_VECTOR
 			irq.
+
+	nomodule	Disable module load
 
 	nopat		[X86] Disable PAT (page attribute table extension of
 			pagetables) support.
@@ -2109,14 +2153,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				the default.
 				off: Turn ECRC off
 				on: Turn ECRC on.
-		realloc		reallocate PCI resources if allocations done by BIOS
-				are erroneous.
+		realloc=	Enable/disable reallocating PCI bridge resources
+				if allocations done by BIOS are too small to
+				accommodate resources required by all child
+				devices.
+				off: Turn realloc off
+				on: Turn realloc on
+		realloc		same as realloc=on
+		noari		do not use PCIe ARI.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
 		off	Disable ASPM.
 		force	Enable ASPM even on devices that claim not to support it.
 			WARNING: Forcing ASPM on may cause system lockups.
+
+	pcie_hp=	[PCIE] PCI Express Hotplug driver options:
+		nomsi	Do not use MSI for PCI Express Native Hotplug (this
+			makes all PCIe ports use INTx for hotplug services).
 
 	pcie_ports=	[PCIE] PCIe ports handling:
 		auto	Ask the BIOS whether or not to use native PCIe services
@@ -2440,7 +2494,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			For more information see Documentation/vm/slub.txt.
 
 	slub_min_order=	[MM, SLUB]
-			Determines the mininum page order for slabs. Must be
+			Determines the minimum page order for slabs. Must be
 			lower than slub_max_order.
 			For more information see Documentation/vm/slub.txt.
 
@@ -2606,7 +2660,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	threadirqs	[KNL]
 			Force threading of all interrupt handlers except those
-			marked explicitely IRQF_NO_THREAD.
+			marked explicitly IRQF_NO_THREAD.
 
 	topology=	[S390]
 			Format: {off | on}
@@ -2634,6 +2688,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			[FTRACE] Set and start specified trace events in order
 			to facilitate early boot debugging.
 			See also Documentation/trace/events.txt
+
+	transparent_hugepage=
+			[KNL]
+			Format: [always|madvise|never]
+			Can be used to control the default behavior of the system
+			with respect to transparent hugepages.
+			See Documentation/vm/transhuge.txt for more details.
 
 	tsc=		Disable clocksource stability checks for TSC.
 			Format: <string>

@@ -4,6 +4,7 @@
 #include <linux/mmzone.h>
 #include <linux/spinlock.h>
 #include <linux/notifier.h>
+#include <linux/bug.h>
 
 struct page;
 struct zone;

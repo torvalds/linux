@@ -26,6 +26,8 @@
  *	Use the driver model and standard identifiers; handle bigger timeouts.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
@@ -183,7 +185,7 @@ static int omap_wdt_release(struct inode *inode, struct file *file)
 
 	pm_runtime_put_sync(wdev->dev);
 #else
-	printk(KERN_CRIT "omap_wdt: Unexpected close, not stopping!\n");
+	pr_crit("Unexpected close, not stopping!\n");
 #endif
 	wdev->omap_wdt_users = 0;
 
