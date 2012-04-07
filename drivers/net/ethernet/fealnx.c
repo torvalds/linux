@@ -923,7 +923,6 @@ static int netdev_open(struct net_device *dev)
 	np->reset_timer.data = (unsigned long) dev;
 	np->reset_timer.function = reset_timer;
 	np->reset_timer_armed = 0;
-out:
 	return rc;
 }
 
