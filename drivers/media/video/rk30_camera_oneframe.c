@@ -1812,7 +1812,7 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
     struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk_camera_dev *pcdev = ici->priv;
     struct rk_camera_frmivalenum *fival_list = NULL;
-    struct v4l2_frmivalenum *fival_head;
+    struct v4l2_frmivalenum *fival_head = NULL;
     int i,ret = 0,index;
     
     index = fival->index & 0x00ffffff;
@@ -1845,12 +1845,20 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
             RKCAMERA_TR("%s: fival_list is NULL\n",__FUNCTION__);
             ret = -EINVAL;
         }
-    } else {
-        if (strcmp(dev_name(pcdev->icd->pdev),pcdev->pdata->info[0].dev_name) == 0) {
-            fival_head = pcdev->pdata->info[0].fival;
-        } else {
-            fival_head = pcdev->pdata->info[1].fival;
+    }  else {  
+
+        for (i=0; i<RK_CAM_NUM; i++) {
+            if (pcdev->pdata->info[i].dev_name && (strcmp(dev_name(pcdev->icd->pdev),pcdev->pdata->info[i].dev_name) == 0)) {
+                fival_head = pcdev->pdata->info[i].fival;
+            }
         }
+        
+        if (fival_head == NULL) {
+            RKCAMERA_TR("%s: %s is not registered in rk_camera_platform_data!!",__FUNCTION__,dev_name(pcdev->icd->pdev));
+            ret = -EINVAL;
+            goto rk_camera_enum_frameintervals_end;
+        }
+        
         i = 0;
         while (fival_head->width && fival_head->height) {
             if ((fival->pixel_format == fival_head->pixel_format)
@@ -1866,20 +1874,20 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
 
         if ((i == index) && (fival->height == fival_head->height) && (fival->width == fival_head->width)) {
             memcpy(fival, fival_head, sizeof(struct v4l2_frmivalenum));
-            RKCAMERA_DG("%s %dx%d@%c%c%c%c framerate : %d/%d\n", dev_name(&pcdev->icd->dev),
+            RKCAMERA_DG("%s %dx%d@%c%c%c%c framerate : %d/%d\n", dev_name(pcdev->icd->pdev),
                 fival->width, fival->height,
                 fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
 			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
 			     fival->discrete.denominator,fival->discrete.numerator);			    
         } else {
             if (index == 0)
-                RKCAMERA_TR("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(&pcdev->icd->dev),
+                RKCAMERA_TR("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(pcdev->icd->pdev),
                     fival->width,fival->height, 
                     fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
     			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
     			    index);
             else
-                RKCAMERA_DG("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(&pcdev->icd->dev),
+                RKCAMERA_DG("%s have not catch %d%d@%c%c%c%c index(%d) framerate\n",dev_name(pcdev->icd->pdev),
                     fival->width,fival->height, 
                     fival->pixel_format & 0xFF, (fival->pixel_format >> 8) & 0xFF,
     			    (fival->pixel_format >> 16) & 0xFF, (fival->pixel_format >> 24),
@@ -1887,7 +1895,7 @@ int rk_camera_enum_frameintervals(struct soc_camera_device *icd, struct v4l2_frm
             ret = -EINVAL;
         }
     }
-
+rk_camera_enum_frameintervals_end:
     return ret;
 }
 
