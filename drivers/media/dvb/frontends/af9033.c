@@ -29,6 +29,10 @@ struct af9033_state {
 	u32 bandwidth_hz;
 	bool ts_mode_parallel;
 	bool ts_mode_serial;
+
+	u32 ber;
+	u32 ucb;
+	unsigned long last_stat_check;
 };
 
 /* write multiple registers */
@@ -772,16 +776,73 @@ err:
 	return ret;
 }
 
+static int af9033_update_ch_stat(struct af9033_state *state)
+{
+	int ret = 0;
+	u32 err_cnt, bit_cnt;
+	u16 abort_cnt;
+	u8 buf[7];
+
+	/* only update data every half second */
+	if (time_after(jiffies, state->last_stat_check + msecs_to_jiffies(500))) {
+		ret = af9033_rd_regs(state, 0x800032, buf, sizeof(buf));
+		if (ret < 0)
+			goto err;
+		/* in 8 byte packets? */
+		abort_cnt = (buf[1] << 8) + buf[0];
+		/* in bits */
+		err_cnt = (buf[4] << 16) + (buf[3] << 8) + buf[2];
+		/* in 8 byte packets? always(?) 0x2710 = 10000 */
+		bit_cnt = (buf[6] << 8) + buf[5];
+
+		if (bit_cnt < abort_cnt) {
+			abort_cnt = 1000;
+			state->ber = 0xffffffff;
+		} else {
+			/* 8 byte packets, that have not been rejected already */
+			bit_cnt -= (u32)abort_cnt;
+			if (bit_cnt == 0) {
+				state->ber = 0xffffffff;
+			} else {
+				err_cnt -= (u32)abort_cnt * 8 * 8;
+				bit_cnt *= 8 * 8;
+				state->ber = err_cnt * (0xffffffff / bit_cnt);
+			}
+		}
+		state->ucb += abort_cnt;
+		state->last_stat_check = jiffies;
+	}
+
+	return 0;
+err:
+	pr_debug("%s: failed=%d\n", __func__, ret);
+	return ret;
+}
+
 static int af9033_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	*ber = 0;
+	struct af9033_state *state = fe->demodulator_priv;
+	int ret;
+
+	ret = af9033_update_ch_stat(state);
+	if (ret < 0)
+		return ret;
+
+	*ber = state->ber;
 
 	return 0;
 }
 
 static int af9033_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	*ucblocks = 0;
+	struct af9033_state *state = fe->demodulator_priv;
+	int ret;
+
+	ret = af9033_update_ch_stat(state);
+	if (ret < 0)
+		return ret;
+
+	*ucblocks = state->ucb;
 
 	return 0;
 }
