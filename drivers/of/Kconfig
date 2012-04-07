@@ -67,12 +67,6 @@ config OF_NET
 	depends on NETDEVICES
 	def_bool y
 
-config OF_SPI
-	def_tristate SPI
-	depends on SPI && !SPARC
-	help
-	  OpenFirmware SPI accessors
-
 config OF_MDIO
 	def_tristate PHYLIB
 	depends on PHYLIB
