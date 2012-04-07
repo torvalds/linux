@@ -48,6 +48,7 @@ int hdmi_sys_init(void)
 	hdmi->hotplug			= HDMI_HPD_REMOVED;
 	hdmi->state				= HDMI_SLEEP;
 	hdmi->enable			= HDMI_ENABLE;
+	hdmi->autoconfig		= HDMI_ENABLE;
 	
 	hdmi->vic				= HDMI_VIDEO_DEFAULT_MODE;
 	hdmi->audio.channel 	= HDMI_AUDIO_DEFAULT_CHANNEL;
@@ -152,6 +153,9 @@ void hdmi_work(struct work_struct *work)
 			return;
 		}			
 	}
+	else if(hotplug == HDMI_HPD_REMOVED)
+		rk30_hdmi_removed();
+	
 	do {
 		state_last = hdmi->state;
 		switch(hdmi->state)

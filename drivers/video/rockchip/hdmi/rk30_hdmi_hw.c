@@ -144,7 +144,7 @@ static void rk30_hdmi_config_phy(unsigned char vic)
 			rk30_hdmi_config_phy_reg(0x168, 0xDA);
 			rk30_hdmi_config_phy_reg(0x16c, 0xA2);
 			rk30_hdmi_config_phy_reg(0x170, 0x0e);
-			rk30_hdmi_config_phy_reg(0x174, 0x22);
+			rk30_hdmi_config_phy_reg(0x174, 0x20);
 			rk30_hdmi_config_phy_reg(0x178, 0x00);
 			break;
 			
