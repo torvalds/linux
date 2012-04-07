@@ -304,9 +304,9 @@ static int rk30_gpiolib_pull_updown(struct gpio_chip *chip, unsigned offset, uns
 
 	spin_lock_irqsave(&bank->lock, flags);
 	if(offset>=16)	
-	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0H_PULL + bank->id * 8, offset_to_bit(offset-16), !enable);
-	else
-	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0L_PULL + bank->id * 8, offset_to_bit(offset), !enable);
+	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0H_PULL + bank->id * 8, (1<<offset) | offset_to_bit(offset-16), !enable);
+	else	
+	rk30_gpio_bit_op((void *__iomem) RK30_GRF_BASE, GRF_GPIO0L_PULL + bank->id * 8, (1<<(offset+16)) | offset_to_bit(offset), !enable);
 	spin_unlock_irqrestore(&bank->lock, flags);
 
 	return 0;
