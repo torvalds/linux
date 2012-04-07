@@ -427,10 +427,11 @@ static void rk29_spi_dma_rxcb(void *buf_id,
 	//if (!(dws->state & TXBUSY))
 	//	complete(&dws->rx_completion);
 	
+	spin_unlock_irqrestore(&dws->lock, flags);
+	
 	//DMA could not lose intterupt
 	transfer_complete(dws);
 
-	spin_unlock_irqrestore(&dws->lock, flags);
 }
 
 static void rk29_spi_dma_txcb(void *buf_id,
@@ -452,10 +453,11 @@ static void rk29_spi_dma_txcb(void *buf_id,
 	//if (!(dws->state & RXBUSY)) 
 	//	complete(&dws->tx_completion);
 
+	spin_unlock_irqrestore(&dws->lock, flags);
+	
 	//DMA could not lose intterupt
 	transfer_complete(dws);
 
-	spin_unlock_irqrestore(&dws->lock, flags);
 }
 
 
