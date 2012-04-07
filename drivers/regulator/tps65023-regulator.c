@@ -394,16 +394,16 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
 	if (!init_data)
 		return -EIO;
 
-	tps = kzalloc(sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc(&client->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
 
-	tps->regmap = regmap_init_i2c(client, &tps65023_regmap_config);
+	tps->regmap = devm_regmap_init_i2c(client, &tps65023_regmap_config);
 	if (IS_ERR(tps->regmap)) {
 		error = PTR_ERR(tps->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
 			error);
-		goto fail_alloc;
+		return error;
 	}
 
 	/* common for all regulators */
@@ -449,10 +449,6 @@ static int __devinit tps_65023_probe(struct i2c_client *client,
  fail:
 	while (--i >= 0)
 		regulator_unregister(tps->rdev[i]);
-
-	regmap_exit(tps->regmap);
- fail_alloc:
-	kfree(tps);
 	return error;
 }
 
@@ -463,10 +459,6 @@ static int __devexit tps_65023_remove(struct i2c_client *client)
 
 	for (i = 0; i < TPS65023_NUM_REGULATOR; i++)
 		regulator_unregister(tps->rdev[i]);
-
-	regmap_exit(tps->regmap);
-	kfree(tps);
-
 	return 0;
 }
 
