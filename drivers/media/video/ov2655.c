@@ -69,10 +69,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
-#define CONFIG_SENSOR_I2C_SPEED     100000       /* Hz */
+#define CONFIG_SENSOR_I2C_SPEED     350000       /* Hz */
 /* Sensor write register continues by preempt_disable/preempt_enable for current process not be scheduled */
 #define CONFIG_SENSOR_I2C_NOSCHED   0
-#define CONFIG_SENSOR_I2C_RDWRCHK   1
+#define CONFIG_SENSOR_I2C_RDWRCHK   0
 
 #define COLOR_TEMPERATURE_CLOUDY_DN  6500
 #define COLOR_TEMPERATURE_CLOUDY_UP    8000
@@ -85,6 +85,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
 #define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
+
+#define SENSOR_AF_IS_ERR    (0x00<<0)
+#define SENSOR_AF_IS_OK		(0x01<<0)
 #define SENSOR_INIT_IS_ERR   (0x00<<28)
 #define SENSOR_INIT_IS_OK    (0x01<<28)
 
@@ -322,7 +325,10 @@ static struct reginfo sensor_init_data[] =
     {0x0, 0x0}   //end flag
 
 };
-
+static struct reginfo sensor_720p[]=
+{
+    {0x0, 0x0}   //end flag
+};
 /* 1600X1200 UXGA */
 static struct reginfo sensor_uxga[] =
 {
@@ -368,6 +374,7 @@ static struct reginfo sensor_uxga[] =
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
+#if 0
     {0x300E, 0x34},
     {0x3011, 0x00},
     {0x3012, 0x00},
@@ -402,7 +409,7 @@ static struct reginfo sensor_sxga[] =
     {0x331C, 0x00},
     {0x331D, 0x6C},
     {0x3302, 0x11},
-
+#endif
     {0x0, 0x0},
 };
 static struct reginfo sensor_xga[] =
@@ -1384,8 +1391,12 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg);
 static int sensor_resume(struct soc_camera_device *icd);
 static int sensor_set_bus_param(struct soc_camera_device *icd,unsigned long flags);
 static unsigned long sensor_query_bus_param(struct soc_camera_device *icd);
+#if CONFIG_SENSOR_Effect
 static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+#endif
+#if CONFIG_SENSOR_WhiteBalance
 static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+#endif
 static int sensor_deactivate(struct i2c_client *client);
 
 static struct soc_camera_ops sensor_ops =
@@ -1685,8 +1696,8 @@ static s32 sensor_init_width = 640;
 static s32 sensor_init_height = 480;
 static unsigned long sensor_init_busparam = (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING|SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |SOCAM_DATA_ACTIVE_HIGH | SOCAM_DATAWIDTH_8  |SOCAM_MCLK_24MHZ);
 static enum v4l2_mbus_pixelcode sensor_init_pixelcode = V4L2_MBUS_FMT_YUYV8_2X8;
-static struct reginfo* sensor_init_data_p = NULL;
-static struct reginfo* sensor_init_winseq_p = NULL;
+static struct reginfo* sensor_init_data_p = sensor_init_data;
+static struct reginfo* sensor_init_winseq_p = sensor_vga;
 static struct reginfo* sensor_init_winseq_board = NULL;
 
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
@@ -1795,7 +1806,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     }
 
     pid |= (value & 0xff);
-    printk("\n %s  pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
+    SENSOR_DG("\n %s  pid = 0x%x\n", SENSOR_NAME_STRING(), pid);
     if (pid == SENSOR_ID) {
         sensor->model = SENSOR_V4L2_IDENT;
     } else {
@@ -2091,6 +2102,12 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         set_w = 800;
         set_h = 600;
     }
+    else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
+    {
+        winseqe_set_addr = sensor_720p;
+        set_w = 1280;
+        set_h = 720;
+    }
 	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
     {
         winseqe_set_addr = sensor_xga;
@@ -2236,6 +2253,11 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         set_w = 800;
         set_h = 600;
     }
+    else if (((set_w <= 1280) && (set_h <= 720)) && sensor_720p[0].reg)
+    {
+        set_w = 1280;
+        set_h = 720;
+    }
 	else if (((set_w <= 1024) && (set_h <= 768)) && sensor_xga[0].reg)
     {
         set_w = 1024;
@@ -2250,6 +2272,11 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     {
         set_w = 1600;
         set_h = 1200;
+    }
+    else
+    {              /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
+        set_w = SENSOR_INIT_WIDTH;
+        set_h = SENSOR_INIT_HEIGHT;		
     }
 
     mf->width = set_w;
@@ -2486,29 +2513,29 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
     digitalzoom_cur = sensor->info_priv.digitalzoom;
     digitalzoom_total = qctrl_info->maximum;
 
-    if ((*value > 0) && (digitalzoom_cur >= digitalzoom_total))
+    if ((value > 0) && (digitalzoom_cur >= digitalzoom_total))
     {
         SENSOR_TR("%s digitalzoom is maximum - %x\n", SENSOR_NAME_STRING(), digitalzoom_cur);
         return -EINVAL;
     }
 
-    if  ((*value < 0) && (digitalzoom_cur <= qctrl_info->minimum))
+    if  ((value < 0) && (digitalzoom_cur <= qctrl_info->minimum))
     {
         SENSOR_TR("%s digitalzoom is minimum - %x\n", SENSOR_NAME_STRING(), digitalzoom_cur);
         return -EINVAL;
     }
 
-    if ((*value > 0) && ((digitalzoom_cur + *value) > digitalzoom_total))
+    if ((value > 0) && ((digitalzoom_cur + value) > digitalzoom_total))
     {
-        *value = digitalzoom_total - digitalzoom_cur;
+        value = digitalzoom_total - digitalzoom_cur;
     }
 
-    if ((*value < 0) && ((digitalzoom_cur + *value) < 0))
+    if ((value < 0) && ((digitalzoom_cur + value) < 0))
     {
-        *value = 0 - digitalzoom_cur;
+        value = 0 - digitalzoom_cur;
     }
 
-    digitalzoom_cur += *value;
+    digitalzoom_cur += value;
 
     if (sensor_ZoomSeqe[digitalzoom_cur] != NULL)
     {
@@ -2517,7 +2544,7 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
             SENSOR_TR("%s..%s WriteReg Fail.. \n",SENSOR_NAME_STRING(), __FUNCTION__);
             return -EINVAL;
         }
-        SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, *value);
+        SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, value);
         return 0;
     }
 
@@ -2997,7 +3024,7 @@ static int sensor_video_probe(struct soc_camera_device *icd,
         ret = -ENODEV;
         goto sensor_video_probe_err;
     }
-    sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
+
     return 0;
 
 sensor_video_probe_err:
@@ -3008,7 +3035,10 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;  
     struct sensor *sensor = to_sensor(client);
-    int ret = 0,i;
+    int ret = 0;
+#if CONFIG_SENSOR_Flash	
+    int i;
+#endif
     
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
