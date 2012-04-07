@@ -72,8 +72,13 @@ static int debug_port_init(struct platform_device *pdev)
 		(void)rk_fiq_read(t, UART_RX);
 	/* enable rx and lsr interrupt */
 	rk_fiq_write(t, UART_IER_RLSI | UART_IER_RDI, UART_IER);
-	/* interrupt on every character when receive,but we can enable fifo for TX*/
-	rk_fiq_write(t, 0x01, UART_FCR);
+	/* interrupt on every character when receive,but we can enable fifo for TX
+	I found that if we enable the RX fifo, some problem may vanish such as when
+	you continuously input characters in the command line the uart irq may be disable
+	because of the uart irq is served when CPU is at IRQ exception,but it is
+	found unregistered, so it is disable.
+	hhb@rock-chips.com */
+	rk_fiq_write(t, 0xc1, UART_FCR);
 
 	return 0;
 }
