@@ -5,6 +5,8 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
+#include <asm/io.h>
+
 #include <mach/dma.h>
 #include <mach/dma_regs.h>
 #include <mach/system.h>

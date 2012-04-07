@@ -21,21 +21,11 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
-
-#include <linux/io.h>
 #include <asm/proc-fns.h>
-#include <mach/hardware.h>
-#include <mach/platform.h>
-
-extern struct bus_type sw_subsys;
 
 static inline void arch_idle(void)
 {
 	cpu_do_idle();
-}
-
-static inline void arch_reset(char mode, const char *cmd)
-{
 }
 
 #endif

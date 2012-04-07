@@ -21,6 +21,7 @@
 #include <asm/hardware/icst.h>
 #include <asm/hardware/vic.h>
 #include <asm/mach-types.h>
+#include <asm/delay.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -38,6 +39,10 @@
  * Global vars definitions
  *
  */
+static void sun3i_restart(char mode, const char *cmd)
+{
+}
+
 static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device *clk)
 {
 	volatile u32 ctrl;
@@ -259,6 +264,7 @@ MACHINE_START(SUN3I, "sun3i")
         .init_irq       = softwinner_init_irq,
         .timer          = &softwinner_timer,
         .init_machine   = softwinner_init,
+	.restart	= sun3i_restart,
 MACHINE_END
 
 extern void _eLIBs_CleanFlushDCacheRegion(void *addr, __u32 len);

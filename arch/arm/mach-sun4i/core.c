@@ -41,6 +41,7 @@
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
+#include <asm/delay.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -278,6 +279,16 @@ void __init sw_core_init_irq(void)
  * Global vars definitions
  *
  */
+static void sun4i_restart(char mode, const char *cmd)
+{
+	/* use watch-dog to reset system */
+	#define WATCH_DOG_CTRL_REG  (SW_VA_TIMERC_IO_BASE + 0x0094)
+	*(volatile unsigned int *)WATCH_DOG_CTRL_REG = 0;
+	__delay(100000);
+	*(volatile unsigned int *)WATCH_DOG_CTRL_REG = 3;
+	while(1);
+}
+
 static void timer_set_mode(enum clock_event_mode mode, struct clock_event_device *clk)
 {
 	volatile u32 ctrl;
@@ -440,5 +451,6 @@ MACHINE_START(SUN4I, "sun4i")
 	.init_irq       = sw_core_init_irq,
 	.init_machine   = sw_core_init,
 	.reserve        = sw_core_reserve,
+	.restart	= sun4i_restart,
 MACHINE_END
 
