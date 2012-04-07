@@ -117,16 +117,14 @@ config HVC_TILE
 	select HVC_DRIVER
 	def_bool y
 
-# Please note: TILE-Gx support is not yet finalized; this is
-# the preliminary support.  TILE-Gx drivers are only provided
-# with the alpha or beta test versions for Tilera customers.
 config TILEGX
-	depends on EXPERIMENTAL
 	bool "Building with TILE-Gx (64-bit) compiler and toolchain"
 
+config TILEPRO
+	def_bool !TILEGX
+
 config 64BIT
-	depends on TILEGX
-	def_bool y
+	def_bool TILEGX
 
 config ARCH_DEFCONFIG
 	string
