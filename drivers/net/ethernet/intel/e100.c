@@ -1759,6 +1759,7 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 		skb->data, skb->len, PCI_DMA_TODEVICE));
 	/* check for mapping failure? */
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
+	skb_tx_timestamp(skb);
 }
 
 static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,
