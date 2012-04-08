@@ -491,10 +491,9 @@ s32 v4l2_ctrl_g_ctrl(struct v4l2_ctrl *ctrl);
 int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val);
 
 /* Internal helper functions that deal with control events. */
-void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
-		struct v4l2_subscribed_event *sev);
-void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
-		struct v4l2_subscribed_event *sev);
+extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
+void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);
+void v4l2_ctrl_merge(const struct v4l2_event *old, struct v4l2_event *new);
 
 struct file;
 /* Can be used as a vidioc_log_status function that just dumps all controls

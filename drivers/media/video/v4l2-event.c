@@ -25,7 +25,6 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-ctrls.h>
 
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -203,30 +202,11 @@ int v4l2_event_pending(struct v4l2_fh *fh)
 }
 EXPORT_SYMBOL_GPL(v4l2_event_pending);
 
-static void ctrls_replace(struct v4l2_event *old, const struct v4l2_event *new)
-{
-	u32 old_changes = old->u.ctrl.changes;
-
-	old->u.ctrl = new->u.ctrl;
-	old->u.ctrl.changes |= old_changes;
-}
-
-static void ctrls_merge(const struct v4l2_event *old, struct v4l2_event *new)
-{
-	new->u.ctrl.changes |= old->u.ctrl.changes;
-}
-
-static const struct v4l2_subscribed_event_ops ctrl_ops = {
-	.replace = ctrls_replace,
-	.merge = ctrls_merge,
-};
-
 int v4l2_event_subscribe(struct v4l2_fh *fh,
 			 struct v4l2_event_subscription *sub, unsigned elems,
 			 const struct v4l2_subscribed_event_ops *ops)
 {
 	struct v4l2_subscribed_event *sev, *found_ev;
-	struct v4l2_ctrl *ctrl = NULL;
 	unsigned long flags;
 	unsigned i;
 
@@ -235,11 +215,6 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 
 	if (elems < 1)
 		elems = 1;
-	if (sub->type == V4L2_EVENT_CTRL) {
-		ctrl = v4l2_ctrl_find(fh->ctrl_handler, sub->id);
-		if (ctrl == NULL)
-			return -EINVAL;
-	}
 
 	sev = kzalloc(sizeof(*sev) + sizeof(struct v4l2_kevent) * elems, GFP_KERNEL);
 	if (!sev)
@@ -251,9 +226,6 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 	sev->flags = sub->flags;
 	sev->fh = fh;
 	sev->ops = ops;
-	if (ctrl) {
-		sev->ops = &ctrl_ops;
-	}
 
 	spin_lock_irqsave(&fh->vdev->fh_lock, flags);
 	found_ev = v4l2_event_subscribed(fh, sub->type, sub->id);
@@ -274,10 +246,6 @@ int v4l2_event_subscribe(struct v4l2_fh *fh,
 			return ret;
 		}
 	}
-
-	/* v4l2_ctrl_add_event uses a mutex, so do this outside the spin lock */
-	if (ctrl)
-		v4l2_ctrl_add_event(ctrl, sev);
 
 	/* Mark as ready for use */
 	sev->elems = elems;
@@ -337,13 +305,6 @@ int v4l2_event_unsubscribe(struct v4l2_fh *fh,
 
 	if (sev && sev->ops && sev->ops->del)
 		sev->ops->del(sev);
-
-	if (sev && sev->type == V4L2_EVENT_CTRL) {
-		struct v4l2_ctrl *ctrl = v4l2_ctrl_find(fh->ctrl_handler, sev->id);
-
-		if (ctrl)
-			v4l2_ctrl_del_event(ctrl, sev);
-	}
 
 	kfree(sev);
 
