@@ -392,10 +392,11 @@ static int mt9m032_set_pad_format(struct v4l2_subdev *subdev,
 	}
 
 	/* Scaling is not supported, the format is thus fixed. */
-	ret = mt9m032_get_pad_format(subdev, fh, fmt);
+	fmt->format = *__mt9m032_get_pad_format(sensor, fh, fmt->which);
+	ret = 0;
 
 done:
-	mutex_lock(&sensor->lock);
+	mutex_unlock(&sensor->lock);
 	return ret;
 }
 
