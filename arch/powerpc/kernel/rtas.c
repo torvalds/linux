@@ -33,7 +33,6 @@
 #include <asm/firmware.h>
 #include <asm/page.h>
 #include <asm/param.h>
-#include <asm/system.h>
 #include <asm/delay.h>
 #include <asm/uaccess.h>
 #include <asm/udbg.h>
@@ -716,7 +715,6 @@ static int __rtas_suspend_last_cpu(struct rtas_suspend_me_data *data, int wake_w
 	int cpu;
 
 	slb_set_size(SLB_MIN_SIZE);
-	stop_topology_update();
 	printk(KERN_DEBUG "calling ibm,suspend-me on cpu %i\n", smp_processor_id());
 
 	while (rc == H_MULTI_THREADS_ACTIVE && !atomic_read(&data->done) &&
@@ -732,7 +730,6 @@ static int __rtas_suspend_last_cpu(struct rtas_suspend_me_data *data, int wake_w
 		rc = atomic_read(&data->error);
 
 	atomic_set(&data->error, rc);
-	start_topology_update();
 	pSeries_coalesce_init();
 
 	if (wake_when_done) {
@@ -846,6 +843,7 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 	atomic_set(&data.error, 0);
 	data.token = rtas_token("ibm,suspend-me");
 	data.complete = &done;
+	stop_topology_update();
 
 	/* Call function on all CPUs.  One of us will make the
 	 * rtas call
@@ -858,6 +856,8 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 	if (atomic_read(&data.error) != 0)
 		printk(KERN_ERR "Error doing global join\n");
 
+	start_topology_update();
+
 	return atomic_read(&data.error);
 }
 #else /* CONFIG_PPC_PSERIES */
@@ -866,6 +866,40 @@ int rtas_ibm_suspend_me(struct rtas_args *args)
 	return -ENOSYS;
 }
 #endif
+
+/**
+ * Find a specific pseries error log in an RTAS extended event log.
+ * @log: RTAS error/event log
+ * @section_id: two character section identifier
+ *
+ * Returns a pointer to the specified errorlog or NULL if not found.
+ */
+struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
+					      uint16_t section_id)
+{
+	struct rtas_ext_event_log_v6 *ext_log =
+		(struct rtas_ext_event_log_v6 *)log->buffer;
+	struct pseries_errorlog *sect;
+	unsigned char *p, *log_end;
+
+	/* Check that we understand the format */
+	if (log->extended_log_length < sizeof(struct rtas_ext_event_log_v6) ||
+	    ext_log->log_format != RTAS_V6EXT_LOG_FORMAT_EVENT_LOG ||
+	    ext_log->company_id != RTAS_V6EXT_COMPANY_ID_IBM)
+		return NULL;
+
+	log_end = log->buffer + log->extended_log_length;
+	p = ext_log->vendor_log;
+
+	while (p < log_end) {
+		sect = (struct pseries_errorlog *)p;
+		if (sect->id == section_id)
+			return sect;
+		p += sect->length;
+	}
+
+	return NULL;
+}
 
 asmlinkage int ppc_rtas(struct rtas_args __user *uargs)
 {

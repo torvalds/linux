@@ -101,14 +101,13 @@ static const struct backlight_ops pcf50633_bl_ops = {
 
 static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 {
-	int ret;
 	struct pcf50633_bl *pcf_bl;
 	struct device *parent = pdev->dev.parent;
 	struct pcf50633_platform_data *pcf50633_data = parent->platform_data;
 	struct pcf50633_bl_platform_data *pdata = pcf50633_data->backlight_data;
 	struct backlight_properties bl_props;
 
-	pcf_bl = kzalloc(sizeof(*pcf_bl), GFP_KERNEL);
+	pcf_bl = devm_kzalloc(&pdev->dev, sizeof(*pcf_bl), GFP_KERNEL);
 	if (!pcf_bl)
 		return -ENOMEM;
 
@@ -129,10 +128,8 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 	pcf_bl->bl = backlight_device_register(pdev->name, &pdev->dev, pcf_bl,
 						&pcf50633_bl_ops, &bl_props);
 
-	if (IS_ERR(pcf_bl->bl)) {
-		ret = PTR_ERR(pcf_bl->bl);
-		goto err_free;
-	}
+	if (IS_ERR(pcf_bl->bl))
+		return PTR_ERR(pcf_bl->bl);
 
 	platform_set_drvdata(pdev, pcf_bl);
 
@@ -145,11 +142,6 @@ static int __devinit pcf50633_bl_probe(struct platform_device *pdev)
 	backlight_update_status(pcf_bl->bl);
 
 	return 0;
-
-err_free:
-	kfree(pcf_bl);
-
-	return ret;
 }
 
 static int __devexit pcf50633_bl_remove(struct platform_device *pdev)
@@ -159,8 +151,6 @@ static int __devexit pcf50633_bl_remove(struct platform_device *pdev)
 	backlight_device_unregister(pcf_bl->bl);
 
 	platform_set_drvdata(pdev, NULL);
-
-	kfree(pcf_bl);
 
 	return 0;
 }

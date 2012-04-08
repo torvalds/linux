@@ -431,11 +431,11 @@ enable_hwirq(struct inf_hw *hw)
 		break;
 	case INF_GAZEL_R685:
 		outb(GAZEL_ISAC_EN + GAZEL_HSCX_EN + GAZEL_PCI_EN,
-			(u32)hw->cfg.start + GAZEL_INCSR);
+		     (u32)hw->cfg.start + GAZEL_INCSR);
 		break;
 	case INF_GAZEL_R753:
 		outb(GAZEL_IPAC_EN + GAZEL_PCI_EN,
-			(u32)hw->cfg.start + GAZEL_INCSR);
+		     (u32)hw->cfg.start + GAZEL_INCSR);
 		break;
 	default:
 		break;
@@ -511,21 +511,21 @@ reset_inf(struct inf_hw *hw)
 		/* Workaround PCI9060 */
 		outb(9, (u32)hw->cfg.start + 0x69);
 		outb(DIVA_RESET_BIT | DIVA_LED_A,
-			(u32)hw->cfg.start + DIVA_PCI_CTRL);
+		     (u32)hw->cfg.start + DIVA_PCI_CTRL);
 		break;
 	case INF_DIVA201:
 		writel(PITA_PARA_SOFTRESET | PITA_PARA_MPX_MODE,
-			hw->cfg.p + PITA_MISC_REG);
+		       hw->cfg.p + PITA_MISC_REG);
 		mdelay(1);
 		writel(PITA_PARA_MPX_MODE, hw->cfg.p + PITA_MISC_REG);
 		mdelay(10);
 		break;
 	case INF_DIVA202:
 		writel(PITA_PARA_SOFTRESET | PITA_PARA_MPX_MODE,
-			hw->cfg.p + PITA_MISC_REG);
+		       hw->cfg.p + PITA_MISC_REG);
 		mdelay(1);
 		writel(PITA_PARA_MPX_MODE | PITA_SER_SOFTRESET,
-			hw->cfg.p + PITA_MISC_REG);
+		       hw->cfg.p + PITA_MISC_REG);
 		mdelay(10);
 		break;
 	case INF_SPEEDWIN:
@@ -630,7 +630,7 @@ init_irq(struct inf_hw *hw)
 		msleep_interruptible(10);
 		if (debug & DEBUG_HW)
 			pr_notice("%s: IRQ %d count %d\n", hw->name,
-				hw->irq, hw->irqcnt);
+				  hw->irq, hw->irqcnt);
 		if (!hw->irqcnt) {
 			pr_info("%s: IRQ(%d) got no requests during init %d\n",
 				hw->name, hw->irq, 3 - cnt);
@@ -672,11 +672,11 @@ setup_io(struct inf_hw *hw)
 		hw->cfg.size = pci_resource_len(hw->pdev, hw->ci->cfg_bar);
 		if (hw->ci->cfg_mode == AM_MEMIO) {
 			if (!request_mem_region(hw->cfg.start, hw->cfg.size,
-			    hw->name))
+						hw->name))
 				err = -EBUSY;
 		} else {
 			if (!request_region(hw->cfg.start, hw->cfg.size,
-			    hw->name))
+					    hw->name))
 				err = -EBUSY;
 		}
 		if (err) {
@@ -690,8 +690,8 @@ setup_io(struct inf_hw *hw)
 		hw->cfg.mode = hw->ci->cfg_mode;
 		if (debug & DEBUG_HW)
 			pr_notice("%s: IO cfg %lx (%lu bytes) mode%d\n",
-				hw->name, (ulong)hw->cfg.start,
-				(ulong)hw->cfg.size, hw->ci->cfg_mode);
+				  hw->name, (ulong)hw->cfg.start,
+				  (ulong)hw->cfg.size, hw->ci->cfg_mode);
 
 	}
 	if (hw->ci->addr_mode) {
@@ -699,11 +699,11 @@ setup_io(struct inf_hw *hw)
 		hw->addr.size = pci_resource_len(hw->pdev, hw->ci->addr_bar);
 		if (hw->ci->addr_mode == AM_MEMIO) {
 			if (!request_mem_region(hw->addr.start, hw->addr.size,
-			    hw->name))
+						hw->name))
 				err = -EBUSY;
 		} else {
 			if (!request_region(hw->addr.start, hw->addr.size,
-			    hw->name))
+					    hw->name))
 				err = -EBUSY;
 		}
 		if (err) {
@@ -717,8 +717,8 @@ setup_io(struct inf_hw *hw)
 		hw->addr.mode = hw->ci->addr_mode;
 		if (debug & DEBUG_HW)
 			pr_notice("%s: IO addr %lx (%lu bytes) mode%d\n",
-				hw->name, (ulong)hw->addr.start,
-				(ulong)hw->addr.size, hw->ci->addr_mode);
+				  hw->name, (ulong)hw->addr.start,
+				  (ulong)hw->addr.size, hw->ci->addr_mode);
 
 	}
 
@@ -903,7 +903,7 @@ setup_instance(struct inf_hw *card)
 	ulong flags;
 
 	snprintf(card->name, MISDN_MAX_IDLEN - 1, "%s.%d", card->ci->name,
-		inf_cnt + 1);
+		 inf_cnt + 1);
 	write_lock_irqsave(&card_lock, flags);
 	list_add_tail(&card->list, &Cards);
 	write_unlock_irqrestore(&card_lock, flags);
@@ -928,7 +928,7 @@ setup_instance(struct inf_hw *card)
 		goto error_setup;
 
 	err = mISDN_register_device(&card->ipac.isac.dch.dev,
-		&card->pdev->dev, card->name);
+				    &card->pdev->dev, card->name);
 	if (err)
 		goto error;
 
@@ -1099,7 +1099,7 @@ inf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -EINVAL;
 	} else
 		pr_notice("mISDN: found adapter %s at %s\n",
-			card->ci->full, pci_name(pdev));
+			  card->ci->full, pci_name(pdev));
 
 	card->irq = pdev->irq;
 	pci_set_drvdata(pdev, card);

@@ -178,6 +178,9 @@ static int g2d_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct g2d_ctx *ctx = container_of(ctrl->handler, struct g2d_ctx,
 								ctrl_handler);
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->dev->ctrl_lock, flags);
 	switch (ctrl->id) {
 	case V4L2_CID_COLORFX:
 		if (ctrl->val == V4L2_COLORFX_NEGATIVE)
@@ -185,10 +188,13 @@ static int g2d_s_ctrl(struct v4l2_ctrl *ctrl)
 		else
 			ctx->rop = ROP4_COPY;
 		break;
-	default:
-		v4l2_err(&ctx->dev->v4l2_dev, "unknown control\n");
-		return -EINVAL;
+
+	case V4L2_CID_HFLIP:
+		ctx->flip = ctx->ctrl_hflip->val | (ctx->ctrl_vflip->val << 1);
+		break;
+
 	}
+	spin_unlock_irqrestore(&ctx->dev->ctrl_lock, flags);
 	return 0;
 }
 
@@ -200,11 +206,13 @@ int g2d_setup_ctrls(struct g2d_ctx *ctx)
 {
 	struct g2d_dev *dev = ctx->dev;
 
-	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 1);
-	if (ctx->ctrl_handler.error) {
-		v4l2_err(&dev->v4l2_dev, "v4l2_ctrl_handler_init failed\n");
-		return ctx->ctrl_handler.error;
-	}
+	v4l2_ctrl_handler_init(&ctx->ctrl_handler, 3);
+
+	ctx->ctrl_hflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &g2d_ctrl_ops,
+						V4L2_CID_HFLIP, 0, 1, 1, 0);
+
+	ctx->ctrl_vflip = v4l2_ctrl_new_std(&ctx->ctrl_handler, &g2d_ctrl_ops,
+						V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	v4l2_ctrl_new_std_menu(
 		&ctx->ctrl_handler,
@@ -215,9 +223,13 @@ int g2d_setup_ctrls(struct g2d_ctx *ctx)
 		V4L2_COLORFX_NONE);
 
 	if (ctx->ctrl_handler.error) {
-		v4l2_err(&dev->v4l2_dev, "v4l2_ctrl_handler_init failed\n");
-		return ctx->ctrl_handler.error;
+		int err = ctx->ctrl_handler.error;
+		v4l2_err(&dev->v4l2_dev, "g2d_setup_ctrls failed\n");
+		v4l2_ctrl_handler_free(&ctx->ctrl_handler);
+		return err;
 	}
+
+	v4l2_ctrl_cluster(2, &ctx->ctrl_hflip);
 
 	return 0;
 }
@@ -547,6 +559,7 @@ static void device_run(void *prv)
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
 	struct vb2_buffer *src, *dst;
+	unsigned long flags;
 	u32 cmd = 0;
 
 	dev->curr = ctx;
@@ -557,6 +570,8 @@ static void device_run(void *prv)
 	clk_enable(dev->gate);
 	g2d_reset(dev);
 
+	spin_lock_irqsave(&dev->ctrl_lock, flags);
+
 	g2d_set_src_size(dev, &ctx->in);
 	g2d_set_src_addr(dev, vb2_dma_contig_plane_dma_addr(src, 0));
 
@@ -564,11 +579,15 @@ static void device_run(void *prv)
 	g2d_set_dst_addr(dev, vb2_dma_contig_plane_dma_addr(dst, 0));
 
 	g2d_set_rop4(dev, ctx->rop);
+	g2d_set_flip(dev, ctx->flip);
+
 	if (ctx->in.c_width != ctx->out.c_width ||
 		ctx->in.c_height != ctx->out.c_height)
 		cmd |= g2d_cmd_stretch(1);
 	g2d_set_cmd(dev, cmd);
 	g2d_start(dev);
+
+	spin_unlock_irqrestore(&dev->ctrl_lock, flags);
 }
 
 static irqreturn_t g2d_isr(int irq, void *prv)
@@ -658,7 +677,7 @@ static int g2d_probe(struct platform_device *pdev)
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev)
 		return -ENOMEM;
-	spin_lock_init(&dev->irqlock);
+	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
 	init_waitqueue_head(&dev->irq_queue);
@@ -693,18 +712,30 @@ static int g2d_probe(struct platform_device *pdev)
 		goto unmap_regs;
 	}
 
+	ret = clk_prepare(dev->clk);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare g2d clock\n");
+		goto put_clk;
+	}
+
 	dev->gate = clk_get(&pdev->dev, "fimg2d");
 	if (IS_ERR_OR_NULL(dev->gate)) {
 		dev_err(&pdev->dev, "failed to get g2d clock gate\n");
 		ret = -ENXIO;
-		goto put_clk;
+		goto unprep_clk;
+	}
+
+	ret = clk_prepare(dev->gate);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to prepare g2d clock gate\n");
+		goto put_clk_gate;
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "failed to find IRQ\n");
 		ret = -ENXIO;
-		goto put_clk_gate;
+		goto unprep_clk_gate;
 	}
 
 	dev->irq = res->start;
@@ -764,8 +795,12 @@ alloc_ctx_cleanup:
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 rel_irq:
 	free_irq(dev->irq, dev);
+unprep_clk_gate:
+	clk_unprepare(dev->gate);
 put_clk_gate:
 	clk_put(dev->gate);
+unprep_clk:
+	clk_unprepare(dev->clk);
 put_clk:
 	clk_put(dev->clk);
 unmap_regs:
@@ -787,7 +822,9 @@ static int g2d_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&dev->v4l2_dev);
 	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 	free_irq(dev->irq, dev);
+	clk_unprepare(dev->gate);
 	clk_put(dev->gate);
+	clk_unprepare(dev->clk);
 	clk_put(dev->clk);
 	iounmap(dev->regs);
 	release_resource(dev->res_regs);

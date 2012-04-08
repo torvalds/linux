@@ -43,17 +43,23 @@ Format: 10x mA i.e 10 means 1.0 mA
 example platform data:
 
 Note: chan_nr can have values between 0 and 2.
+The name of each channel can be configurable.
+If the name field is not defined, the default name will be set to 'xxxx:channelN'
+(XXXX : pdata->label or i2c client name, N : channel number)
 
 static struct lp5521_led_config lp5521_led_config[] = {
         {
+		.name = "red",
                 .chan_nr        = 0,
                 .led_current    = 50,
 		.max_current    = 130,
         }, {
+		.name = "green",
                 .chan_nr        = 1,
                 .led_current    = 0,
 		.max_current    = 130,
         }, {
+		.name = "blue",
                 .chan_nr        = 2,
                 .led_current    = 0,
 		.max_current    = 130,
@@ -86,3 +92,60 @@ static struct lp5521_platform_data lp5521_platform_data = {
 
 If the current is set to 0 in the platform data, that channel is
 disabled and it is not visible in the sysfs.
+
+The 'update_config' : CONFIG register (ADDR 08h)
+This value is platform-specific data.
+If update_config is not defined, the CONFIG register is set with
+'LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO | LP5521_R_TO_BATT'.
+(Enable auto-powersave, set charge pump to auto, red to battery)
+
+example of update_config :
+
+#define LP5521_CONFIGS	(LP5521_PWM_HF | LP5521_PWRSAVE_EN | \
+			LP5521_CP_MODE_AUTO | LP5521_R_TO_BATT | \
+			LP5521_CLK_INT)
+
+static struct lp5521_platform_data lp5521_pdata = {
+	.led_config = lp5521_led_config,
+	.num_channels = ARRAY_SIZE(lp5521_led_config),
+	.clock_mode = LP5521_CLOCK_INT,
+	.update_config = LP5521_CONFIGS,
+};
+
+LED patterns : LP5521 has autonomous operation without external control.
+Pattern data can be defined in the platform data.
+
+example of led pattern data :
+
+/* RGB(50,5,0) 500ms on, 500ms off, infinite loop */
+static u8 pattern_red[] = {
+		0x40, 0x32, 0x60, 0x00,	0x40, 0x00, 0x60, 0x00,
+		};
+
+static u8 pattern_green[] = {
+		0x40, 0x05, 0x60, 0x00, 0x40, 0x00, 0x60, 0x00,
+		};
+
+static struct lp5521_led_pattern board_led_patterns[] = {
+	{
+		.r = pattern_red,
+		.g = pattern_green,
+		.size_r = ARRAY_SIZE(pattern_red),
+		.size_g = ARRAY_SIZE(pattern_green),
+	},
+};
+
+static struct lp5521_platform_data lp5521_platform_data = {
+        .led_config     = lp5521_led_config,
+        .num_channels   = ARRAY_SIZE(lp5521_led_config),
+        .clock_mode     = LP5521_CLOCK_EXT,
+	.patterns = board_led_patterns,
+	.num_patterns = ARRAY_SIZE(board_led_patterns),
+};
+
+Then predefined led pattern(s) can be executed via the sysfs.
+To start the pattern #1,
+# echo 1 > /sys/bus/i2c/devices/xxxx/led_pattern
+(xxxx : i2c bus & slave address)
+To end the pattern,
+# echo 0 > /sys/bus/i2c/devices/xxxx/led_pattern

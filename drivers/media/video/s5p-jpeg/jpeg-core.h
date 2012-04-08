@@ -14,6 +14,8 @@
 #define JPEG_CORE_H_
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-ctrls.h>
 
 #define S5P_JPEG_M2M_NAME		"s5p-jpeg"
 
@@ -47,6 +49,7 @@
 /**
  * struct s5p_jpeg - JPEG IP abstraction
  * @lock:		the mutex protecting this structure
+ * @slock:		spinlock protecting the device contexts
  * @v4l2_dev:		v4l2 device for mem2mem mode
  * @vfd_encoder:	video device node for encoder mem2mem mode
  * @vfd_decoder:	video device node for decoder mem2mem mode
@@ -60,6 +63,7 @@
  */
 struct s5p_jpeg {
 	struct mutex		lock;
+	struct spinlock		slock;
 
 	struct v4l2_device	v4l2_dev;
 	struct video_device	*vfd_encoder;
@@ -117,15 +121,20 @@ struct s5p_jpeg_q_data {
  * @out_q:		source (output) queue information
  * @cap_fmt:		destination (capture) queue queue information
  * @hdr_parsed:		set if header has been parsed during decompression
+ * @ctrl_handler:	controls handler
  */
 struct s5p_jpeg_ctx {
 	struct s5p_jpeg		*jpeg;
 	unsigned int		mode;
-	unsigned int		compr_quality;
+	unsigned short		compr_quality;
+	unsigned short		restart_interval;
+	unsigned short		subsampling;
 	struct v4l2_m2m_ctx	*m2m_ctx;
 	struct s5p_jpeg_q_data	out_q;
 	struct s5p_jpeg_q_data	cap_q;
+	struct v4l2_fh		fh;
 	bool			hdr_parsed;
+	struct v4l2_ctrl_handler ctrl_handler;
 };
 
 /**

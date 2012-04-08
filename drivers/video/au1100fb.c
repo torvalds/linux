@@ -477,7 +477,8 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	u32 sys_clksrc;
 
 	/* Allocate new device private */
-	fbdev = kzalloc(sizeof(struct au1100fb_device), GFP_KERNEL);
+	fbdev = devm_kzalloc(&dev->dev, sizeof(struct au1100fb_device),
+			     GFP_KERNEL);
 	if (!fbdev) {
 		print_err("fail to allocate device private record");
 		return -ENOMEM;
@@ -498,8 +499,9 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	au1100fb_fix.mmio_start = regs_res->start;
 	au1100fb_fix.mmio_len = resource_size(regs_res);
 
-	if (!request_mem_region(au1100fb_fix.mmio_start, au1100fb_fix.mmio_len,
-				DRIVER_NAME)) {
+	if (!devm_request_mem_region(au1100fb_fix.mmio_start,
+				     au1100fb_fix.mmio_len,
+				     DRIVER_NAME)) {
 		print_err("fail to lock memory region at 0x%08lx",
 				au1100fb_fix.mmio_start);
 		return -EBUSY;
@@ -514,8 +516,9 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	fbdev->fb_len = fbdev->panel->xres * fbdev->panel->yres *
 		  	(fbdev->panel->bpp >> 3) * AU1100FB_NBR_VIDEO_BUFFERS;
 
-	fbdev->fb_mem = dma_alloc_coherent(&dev->dev, PAGE_ALIGN(fbdev->fb_len),
-					&fbdev->fb_phys, GFP_KERNEL);
+	fbdev->fb_mem = dmam_alloc_coherent(&dev->dev, &dev->dev,
+					    PAGE_ALIGN(fbdev->fb_len),
+					    &fbdev->fb_phys, GFP_KERNEL);
 	if (!fbdev->fb_mem) {
 		print_err("fail to allocate frambuffer (size: %dK))",
 			  fbdev->fb_len / 1024);
@@ -557,14 +560,14 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	fbdev->info.fbops = &au1100fb_ops;
 	fbdev->info.fix = au1100fb_fix;
 
-	if (!(fbdev->info.pseudo_palette = kzalloc(sizeof(u32) * 16, GFP_KERNEL))) {
+	fbdev->info.pseudo_palette =
+		devm_kzalloc(&dev->dev, sizeof(u32) * 16, GFP_KERNEL);
+	if (!fbdev->info.pseudo_palette)
 		return -ENOMEM;
-	}
 
 	if (fb_alloc_cmap(&fbdev->info.cmap, AU1100_LCD_NBR_PALETTE_ENTRIES, 0) < 0) {
 		print_err("Fail to allocate colormap (%d entries)",
 			   AU1100_LCD_NBR_PALETTE_ENTRIES);
-		kfree(fbdev->info.pseudo_palette);
 		return -EFAULT;
 	}
 
@@ -582,9 +585,6 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	return 0;
 
 failed:
-	if (fbdev->regs) {
-		release_mem_region(fbdev->regs_phys, fbdev->regs_len);
-	}
 	if (fbdev->fb_mem) {
 		dma_free_noncoherent(&dev->dev, fbdev->fb_len, fbdev->fb_mem,
 				     fbdev->fb_phys);
@@ -592,10 +592,9 @@ failed:
 	if (fbdev->info.cmap.len != 0) {
 		fb_dealloc_cmap(&fbdev->info.cmap);
 	}
-	kfree(fbdev);
 	platform_set_drvdata(dev, NULL);
 
-	return 0;
+	return -ENODEV;
 }
 
 int au1100fb_drv_remove(struct platform_device *dev)
@@ -615,14 +614,7 @@ int au1100fb_drv_remove(struct platform_device *dev)
 	/* Clean up all probe data */
 	unregister_framebuffer(&fbdev->info);
 
-	release_mem_region(fbdev->regs_phys, fbdev->regs_len);
-
-	dma_free_coherent(&dev->dev, PAGE_ALIGN(fbdev->fb_len), fbdev->fb_mem,
-			  fbdev->fb_phys);
-
 	fb_dealloc_cmap(&fbdev->info.cmap);
-	kfree(fbdev->info.pseudo_palette);
-	kfree((void*)fbdev);
 
 	return 0;
 }

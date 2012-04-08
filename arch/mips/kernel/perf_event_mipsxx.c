@@ -606,6 +606,10 @@ static int mipspmu_event_init(struct perf_event *event)
 {
 	int err = 0;
 
+	/* does not support taken branch sampling */
+	if (has_branch_stack(event))
+		return -EOPNOTSUPP;
+
 	switch (event->attr.type) {
 	case PERF_TYPE_RAW:
 	case PERF_TYPE_HARDWARE:

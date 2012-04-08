@@ -77,10 +77,7 @@ static int tcp_out_of_resources(struct sock *sk, int do_reset)
 	if (sk->sk_err_soft)
 		shift++;
 
-	if (tcp_too_many_orphans(sk, shift)) {
-		if (net_ratelimit())
-			printk(KERN_INFO "Out of socket memory\n");
-
+	if (tcp_check_oom(sk, shift)) {
 		/* Catch exceptional cases, when connection requires reset.
 		 *      1. Last segment was sent recently. */
 		if ((s32)(tcp_time_stamp - tp->lsndtime) <= TCP_TIMEWAIT_LEN ||
@@ -336,16 +333,18 @@ void tcp_retransmit_timer(struct sock *sk)
 		 */
 		struct inet_sock *inet = inet_sk(sk);
 		if (sk->sk_family == AF_INET) {
-			LIMIT_NETDEBUG(KERN_DEBUG "TCP: Peer %pI4:%u/%u unexpectedly shrunk window %u:%u (repaired)\n",
-			       &inet->inet_daddr, ntohs(inet->inet_dport),
-			       inet->inet_num, tp->snd_una, tp->snd_nxt);
+			LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("Peer %pI4:%u/%u unexpectedly shrunk window %u:%u (repaired)\n"),
+				       &inet->inet_daddr,
+				       ntohs(inet->inet_dport), inet->inet_num,
+				       tp->snd_una, tp->snd_nxt);
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		else if (sk->sk_family == AF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
-			LIMIT_NETDEBUG(KERN_DEBUG "TCP: Peer %pI6:%u/%u unexpectedly shrunk window %u:%u (repaired)\n",
-			       &np->daddr, ntohs(inet->inet_dport),
-			       inet->inet_num, tp->snd_una, tp->snd_nxt);
+			LIMIT_NETDEBUG(KERN_DEBUG pr_fmt("Peer %pI6:%u/%u unexpectedly shrunk window %u:%u (repaired)\n"),
+				       &np->daddr,
+				       ntohs(inet->inet_dport), inet->inet_num,
+				       tp->snd_una, tp->snd_nxt);
 		}
 #endif
 		if (tcp_time_stamp - tp->rcv_tstamp > TCP_RTO_MAX) {

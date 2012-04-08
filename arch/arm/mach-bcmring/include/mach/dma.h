@@ -26,15 +26,9 @@
 /* ---- Include Files ---------------------------------------------------- */
 
 #include <linux/kernel.h>
-#include <linux/wait.h>
 #include <linux/semaphore.h>
 #include <csp/dmacHw.h>
 #include <mach/timer.h>
-#include <linux/scatterlist.h>
-#include <linux/dma-mapping.h>
-#include <linux/mm.h>
-#include <linux/vmalloc.h>
-#include <linux/pagemap.h>
 
 /* ---- Constants and Types ---------------------------------------------- */
 
@@ -110,78 +104,6 @@ typedef struct {
 	size_t bytesAllocated;	/* Number of bytes allocated in the descriptor ring */
 
 } DMA_DescriptorRing_t;
-
-/****************************************************************************
-*
-*   The DMA_MemType_t and DMA_MemMap_t are helper structures used to setup
-*   DMA chains from a variety of memory sources.
-*
-*****************************************************************************/
-
-#define DMA_MEM_MAP_MIN_SIZE    4096	/* Pages less than this size are better */
-					/* off not being DMA'd. */
-
-typedef enum {
-	DMA_MEM_TYPE_NONE,	/* Not a valid setting */
-	DMA_MEM_TYPE_VMALLOC,	/* Memory came from vmalloc call */
-	DMA_MEM_TYPE_KMALLOC,	/* Memory came from kmalloc call */
-	DMA_MEM_TYPE_DMA,	/* Memory came from dma_alloc_xxx call */
-	DMA_MEM_TYPE_USER,	/* Memory came from user space. */
-
-} DMA_MemType_t;
-
-/* A segment represents a physically and virtually contiguous chunk of memory. */
-/* i.e. each segment can be DMA'd */
-/* A user of the DMA code will add memory regions. Each region may need to be */
-/* represented by one or more segments. */
-
-typedef struct {
-	void *virtAddr;		/* Virtual address used for this segment */
-	dma_addr_t physAddr;	/* Physical address this segment maps to */
-	size_t numBytes;	/* Size of the segment, in bytes */
-
-} DMA_Segment_t;
-
-/* A region represents a virtually contiguous chunk of memory, which may be */
-/* made up of multiple segments. */
-
-typedef struct {
-	DMA_MemType_t memType;
-	void *virtAddr;
-	size_t numBytes;
-
-	/* Each region (virtually contiguous) consists of one or more segments. Each */
-	/* segment is virtually and physically contiguous. */
-
-	int numSegmentsUsed;
-	int numSegmentsAllocated;
-	DMA_Segment_t *segment;
-
-	/* When a region corresponds to user memory, we need to lock all of the pages */
-	/* down before we can figure out the physical addresses. The lockedPage array contains */
-	/* the pages that were locked, and which subsequently need to be unlocked once the */
-	/* memory is unmapped. */
-
-	unsigned numLockedPages;
-	struct page **lockedPages;
-
-} DMA_Region_t;
-
-typedef struct {
-	int inUse;		/* Is this mapping currently being used? */
-	struct semaphore lock;	/* Acquired when using this structure */
-	enum dma_data_direction dir;	/* Direction this transfer is intended for */
-
-	/* In the event that we're mapping user memory, we need to know which task */
-	/* the memory is for, so that we can obtain the correct mm locks. */
-
-	struct task_struct *userTask;
-
-	int numRegionsUsed;
-	int numRegionsAllocated;
-	DMA_Region_t *region;
-
-} DMA_MemMap_t;
 
 /****************************************************************************
 *
@@ -566,124 +488,6 @@ int dma_alloc_double_dst_descriptors(DMA_Handle_t handle,	/* DMA Handle */
 				     dma_addr_t dstData1,	/* Physical address of first destination buffer */
 				     dma_addr_t dstData2,	/* Physical address of second destination buffer */
 				     size_t numBytes	/* Number of bytes in each destination buffer */
-    );
-
-/****************************************************************************/
-/**
-*   Initializes a DMA_MemMap_t data structure
-*/
-/****************************************************************************/
-
-int dma_init_mem_map(DMA_MemMap_t *memMap	/* Stores state information about the map */
-    );
-
-/****************************************************************************/
-/**
-*   Releases any memory currently being held by a memory mapping structure.
-*/
-/****************************************************************************/
-
-int dma_term_mem_map(DMA_MemMap_t *memMap	/* Stores state information about the map */
-    );
-
-/****************************************************************************/
-/**
-*   Looks at a memory address and categorizes it.
-*
-*   @return One of the values from the DMA_MemType_t enumeration.
-*/
-/****************************************************************************/
-
-DMA_MemType_t dma_mem_type(void *addr);
-
-/****************************************************************************/
-/**
-*   Sets the process (aka userTask) associated with a mem map. This is
-*   required if user-mode segments will be added to the mapping.
-*/
-/****************************************************************************/
-
-static inline void dma_mem_map_set_user_task(DMA_MemMap_t *memMap,
-					     struct task_struct *task)
-{
-	memMap->userTask = task;
-}
-
-/****************************************************************************/
-/**
-*   Looks at a memory address and determines if we support DMA'ing to/from
-*   that type of memory.
-*
-*   @return boolean -
-*               return value != 0 means dma supported
-*               return value == 0 means dma not supported
-*/
-/****************************************************************************/
-
-int dma_mem_supports_dma(void *addr);
-
-/****************************************************************************/
-/**
-*   Initializes a memory map for use. Since this function acquires a
-*   sempaphore within the memory map, it is VERY important that dma_unmap
-*   be called when you're finished using the map.
-*/
-/****************************************************************************/
-
-int dma_map_start(DMA_MemMap_t *memMap,	/* Stores state information about the map */
-		  enum dma_data_direction dir	/* Direction that the mapping will be going */
-    );
-
-/****************************************************************************/
-/**
-*   Adds a segment of memory to a memory map.
-*
-*   @return     0 on success, error code otherwise.
-*/
-/****************************************************************************/
-
-int dma_map_add_region(DMA_MemMap_t *memMap,	/* Stores state information about the map */
-		       void *mem,	/* Virtual address that we want to get a map of */
-		       size_t numBytes	/* Number of bytes being mapped */
-    );
-
-/****************************************************************************/
-/**
-*   Creates a descriptor ring from a memory mapping.
-*
-*   @return 0 on success, error code otherwise.
-*/
-/****************************************************************************/
-
-int dma_map_create_descriptor_ring(DMA_Device_t dev,	/* DMA device (where the ring is stored) */
-				   DMA_MemMap_t *memMap,	/* Memory map that will be used */
-				   dma_addr_t devPhysAddr	/* Physical address of device */
-    );
-
-/****************************************************************************/
-/**
-*   Maps in a memory region such that it can be used for performing a DMA.
-*
-*   @return
-*/
-/****************************************************************************/
-
-int dma_map_mem(DMA_MemMap_t *memMap,	/* Stores state information about the map */
-		void *addr,	/* Virtual address that we want to get a map of */
-		size_t count,	/* Number of bytes being mapped */
-		enum dma_data_direction dir	/* Direction that the mapping will be going */
-    );
-
-/****************************************************************************/
-/**
-*   Maps in a memory region such that it can be used for performing a DMA.
-*
-*   @return
-*/
-/****************************************************************************/
-
-int dma_unmap(DMA_MemMap_t *memMap,	/* Stores state information about the map */
-	      int dirtied	/* non-zero if any of the pages were modified */
     );
 
 /****************************************************************************/

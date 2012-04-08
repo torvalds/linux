@@ -22,7 +22,6 @@
 #include <asm/registers.h>
 #include <linux/irq.h>
 #include <linux/hardirq.h>
-#include <asm/system.h>
 
 /*
  * show_regs - print pt_regs structure

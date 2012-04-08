@@ -30,6 +30,7 @@
 
 struct exynos_drm_manager;
 
+void exynos_drm_encoder_setup(struct drm_device *dev);
 struct drm_encoder *exynos_drm_encoder_create(struct drm_device *dev,
 					       struct exynos_drm_manager *mgr,
 					       unsigned int possible_crtcs);

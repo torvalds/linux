@@ -31,7 +31,7 @@
 #include "atom.h"
 #include "rs690d.h"
 
-static int rs690_mc_wait_for_idle(struct radeon_device *rdev)
+int rs690_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	uint32_t tmp;
@@ -647,7 +647,7 @@ static int rs690_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r100_ib_test(rdev);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
@@ -659,6 +659,8 @@ static int rs690_startup(struct radeon_device *rdev)
 
 int rs690_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	rs400_gart_disable(rdev);
 	/* Resume clock before doing reset */
@@ -677,7 +679,11 @@ int rs690_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return rs690_startup(rdev);
+	r = rs690_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int rs690_suspend(struct radeon_device *rdev)

@@ -744,3 +744,9 @@ il4965_ucode_general_stats_read(struct file *file, char __user *user_buf,
 	kfree(buf);
 	return ret;
 }
+
+const struct il_debugfs_ops il4965_debugfs_ops = {
+	.rx_stats_read = il4965_ucode_rx_stats_read,
+	.tx_stats_read = il4965_ucode_tx_stats_read,
+	.general_stats_read = il4965_ucode_general_stats_read,
+};

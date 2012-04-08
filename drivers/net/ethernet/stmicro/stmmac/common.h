@@ -67,6 +67,7 @@ struct stmmac_extra_stats {
 	unsigned long ipc_csum_error;
 	unsigned long rx_collision;
 	unsigned long rx_crc;
+	unsigned long dribbling_bit;
 	unsigned long rx_length;
 	unsigned long rx_mii;
 	unsigned long rx_multicast;

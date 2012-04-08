@@ -239,8 +239,8 @@ typedef struct xlog_res {
 } xlog_res_t;
 
 typedef struct xlog_ticket {
-	wait_queue_head_t  t_wait;	 /* ticket wait queue */
 	struct list_head   t_queue;	 /* reserve/write queue */
+	struct task_struct *t_task;	 /* task that owns this ticket */
 	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
 	atomic_t	   t_ref;	 /* ticket reference count       : 4  */
 	int		   t_curr_res;	 /* current reservation in bytes : 4  */
@@ -470,6 +470,16 @@ struct xfs_cil {
 #define XLOG_CIL_HARD_SPACE_LIMIT(log)	(3 * (log->l_logsize >> 4))
 
 /*
+ * ticket grant locks, queues and accounting have their own cachlines
+ * as these are quite hot and can be operated on concurrently.
+ */
+struct xlog_grant_head {
+	spinlock_t		lock ____cacheline_aligned_in_smp;
+	struct list_head	waiters;
+	atomic64_t		grant;
+};
+
+/*
  * The reservation head lsn is not made up of a cycle number and block number.
  * Instead, it uses a cycle number and byte number.  Logs don't expect to
  * overflow 31 bits worth of byte offset, so using a byte number will mean
@@ -520,17 +530,8 @@ typedef struct log {
 	/* lsn of 1st LR with unflushed * buffers */
 	atomic64_t		l_tail_lsn ____cacheline_aligned_in_smp;
 
-	/*
-	 * ticket grant locks, queues and accounting have their own cachlines
-	 * as these are quite hot and can be operated on concurrently.
-	 */
-	spinlock_t		l_grant_reserve_lock ____cacheline_aligned_in_smp;
-	struct list_head	l_reserveq;
-	atomic64_t		l_grant_reserve_head;
-
-	spinlock_t		l_grant_write_lock ____cacheline_aligned_in_smp;
-	struct list_head	l_writeq;
-	atomic64_t		l_grant_write_head;
+	struct xlog_grant_head	l_reserve_head;
+	struct xlog_grant_head	l_write_head;
 
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
@@ -545,14 +546,13 @@ typedef struct log {
 #define XLOG_FORCED_SHUTDOWN(log)	((log)->l_flags & XLOG_IO_ERROR)
 
 /* common routines */
-extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);
 extern int	 xlog_recover(xlog_t *log);
 extern int	 xlog_recover_finish(xlog_t *log);
 extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
 
 extern kmem_zone_t *xfs_log_ticket_zone;
 struct xlog_ticket *xlog_ticket_alloc(struct log *log, int unit_bytes,
-				int count, char client, uint xflags,
+				int count, char client, bool permanent,
 				int alloc_flags);
 
 

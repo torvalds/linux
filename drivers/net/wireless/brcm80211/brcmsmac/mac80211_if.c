@@ -15,6 +15,7 @@
  */
 
 #define __UNDEF_NO_VERSION__
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/etherdevice.h>
 #include <linux/sched.h>
@@ -96,10 +97,10 @@ static struct bcma_device_id brcms_coreid_table[] = {
 };
 MODULE_DEVICE_TABLE(bcma, brcms_coreid_table);
 
-#ifdef BCMDBG
+#ifdef DEBUG
 static int msglevel = 0xdeadbeef;
 module_param(msglevel, int, 0);
-#endif				/* BCMDBG */
+#endif				/* DEBUG */
 
 static struct ieee80211_channel brcms_2ghz_chantable[] = {
 	CHAN2GHZ(1, 2412, IEEE80211_CHAN_NO_HT40MINUS),
@@ -857,7 +858,7 @@ static void brcms_free(struct brcms_info *wl)
 	/* free timers */
 	for (t = wl->timers; t; t = next) {
 		next = t->next;
-#ifdef BCMDBG
+#ifdef DEBUG
 		kfree(t->name);
 #endif
 		kfree(t);
@@ -1121,8 +1122,7 @@ static int __devinit brcms_bcma_probe(struct bcma_device *pdev)
 
 	wl = brcms_attach(pdev);
 	if (!wl) {
-		pr_err("%s: %s: brcms_attach failed!\n", KBUILD_MODNAME,
-		       __func__);
+		pr_err("%s: brcms_attach failed!\n", __func__);
 		return -ENODEV;
 	}
 	return 0;
@@ -1136,8 +1136,8 @@ static int brcms_suspend(struct bcma_device *pdev)
 	hw = bcma_get_drvdata(pdev);
 	wl = hw->priv;
 	if (!wl) {
-		wiphy_err(wl->wiphy,
-			  "brcms_suspend: bcma_get_drvdata failed\n");
+		pr_err("%s: %s: no driver private struct!\n", KBUILD_MODNAME,
+		       __func__);
 		return -ENODEV;
 	}
 
@@ -1169,25 +1169,31 @@ static struct bcma_driver brcms_bcma_driver = {
 /**
  * This is the main entry point for the brcmsmac driver.
  *
- * This function determines if a device pointed to by pdev is a WL device,
- * and if so, performs a brcms_attach() on it.
- *
+ * This function is scheduled upon module initialization and
+ * does the driver registration, which result in brcms_bcma_probe()
+ * call resulting in the driver bringup.
  */
-static int __init brcms_module_init(void)
+static void brcms_driver_init(struct work_struct *work)
 {
-	int error = -ENODEV;
-
-#ifdef BCMDBG
-	if (msglevel != 0xdeadbeef)
-		brcm_msg_level = msglevel;
-#endif				/* BCMDBG */
+	int error;
 
 	error = bcma_driver_register(&brcms_bcma_driver);
-	printk(KERN_ERR "%s: register returned %d\n", __func__, error);
-	if (!error)
-		return 0;
+	if (error)
+		pr_err("%s: register returned %d\n", __func__, error);
+}
 
-	return error;
+static DECLARE_WORK(brcms_driver_work, brcms_driver_init);
+
+static int __init brcms_module_init(void)
+{
+#ifdef DEBUG
+	if (msglevel != 0xdeadbeef)
+		brcm_msg_level = msglevel;
+#endif
+	if (!schedule_work(&brcms_driver_work))
+		return -EBUSY;
+
+	return 0;
 }
 
 /**
@@ -1199,6 +1205,7 @@ static int __init brcms_module_init(void)
  */
 static void __exit brcms_module_exit(void)
 {
+	cancel_work_sync(&brcms_driver_work);
 	bcma_driver_unregister(&brcms_bcma_driver);
 }
 
@@ -1367,7 +1374,7 @@ struct brcms_timer *brcms_init_timer(struct brcms_info *wl,
 	t->next = wl->timers;
 	wl->timers = t;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	t->name = kmalloc(strlen(name) + 1, GFP_ATOMIC);
 	if (t->name)
 		strcpy(t->name, name);
@@ -1386,7 +1393,7 @@ void brcms_add_timer(struct brcms_timer *t, uint ms, int periodic)
 {
 	struct ieee80211_hw *hw = t->wl->pub->ieee_hw;
 
-#ifdef BCMDBG
+#ifdef DEBUG
 	if (t->set)
 		wiphy_err(hw->wiphy, "%s: Already set. Name: %s, per %d\n",
 			  __func__, t->name, periodic);
@@ -1431,7 +1438,7 @@ void brcms_free_timer(struct brcms_timer *t)
 
 	if (wl->timers == t) {
 		wl->timers = wl->timers->next;
-#ifdef BCMDBG
+#ifdef DEBUG
 		kfree(t->name);
 #endif
 		kfree(t);
@@ -1443,7 +1450,7 @@ void brcms_free_timer(struct brcms_timer *t)
 	while (tmp) {
 		if (tmp->next == t) {
 			tmp->next = t->next;
-#ifdef BCMDBG
+#ifdef DEBUG
 			kfree(t->name);
 #endif
 			kfree(t);

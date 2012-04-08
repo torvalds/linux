@@ -157,7 +157,8 @@ static int kcore_update_ram(void)
 
 #ifdef CONFIG_SPARSEMEM_VMEMMAP
 /* calculate vmemmap's address from given system ram pfn and register it */
-int get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
+static int
+get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
 {
 	unsigned long pfn = __pa(ent->addr) >> PAGE_SHIFT;
 	unsigned long nr_pages = ent->size >> PAGE_SHIFT;
@@ -189,7 +190,8 @@ int get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
 
 }
 #else
-int get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
+static int
+get_sparsemem_vmemmap_info(struct kcore_list *ent, struct list_head *head)
 {
 	return 1;
 }

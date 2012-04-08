@@ -429,7 +429,7 @@ ecryptfs_miscdev_write(struct file *file, const char __user *buf,
 		goto memdup;
 	} else if (count < MIN_MSG_PKT_SIZE || count > MAX_MSG_PKT_SIZE) {
 		printk(KERN_WARNING "%s: Acceptable packet size range is "
-		       "[%d-%lu], but amount of data written is [%zu].",
+		       "[%d-%zu], but amount of data written is [%zu].",
 		       __func__, MIN_MSG_PKT_SIZE, MAX_MSG_PKT_SIZE, count);
 		return -EINVAL;
 	}

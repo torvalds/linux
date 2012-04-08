@@ -142,7 +142,7 @@ failed2:
 failed1:
 	pci_dev_put(dev);
 	mutex_lock(&iov->dev->sriov->lock);
-	pci_remove_bus_device(virtfn);
+	pci_stop_and_remove_bus_device(virtfn);
 	virtfn_remove_bus(dev->bus, virtfn_bus(dev, id));
 	mutex_unlock(&iov->dev->sriov->lock);
 
@@ -173,10 +173,16 @@ static void virtfn_remove(struct pci_dev *dev, int id, int reset)
 
 	sprintf(buf, "virtfn%u", id);
 	sysfs_remove_link(&dev->dev.kobj, buf);
-	sysfs_remove_link(&virtfn->dev.kobj, "physfn");
+	/*
+	 * pci_stop_dev() could have been called for this virtfn already,
+	 * so the directory for the virtfn may have been removed before.
+	 * Double check to avoid spurious sysfs warnings.
+	 */
+	if (virtfn->dev.kobj.sd)
+		sysfs_remove_link(&virtfn->dev.kobj, "physfn");
 
 	mutex_lock(&iov->dev->sriov->lock);
-	pci_remove_bus_device(virtfn);
+	pci_stop_and_remove_bus_device(virtfn);
 	virtfn_remove_bus(dev->bus, virtfn_bus(dev, id));
 	mutex_unlock(&iov->dev->sriov->lock);
 
@@ -347,8 +353,6 @@ static int sriov_enable(struct pci_dev *dev, int nr_virtfn)
 			return rc;
 	}
 
-	pci_write_config_dword(dev, iov->pos + PCI_SRIOV_SYS_PGSIZE, iov->pgsz);
-
 	iov->ctrl |= PCI_SRIOV_CTRL_VFE | PCI_SRIOV_CTRL_MSE;
 	pci_cfg_access_lock(dev);
 	pci_write_config_word(dev, iov->pos + PCI_SRIOV_CTRL, iov->ctrl);
@@ -466,6 +470,7 @@ found:
 		return -EIO;
 
 	pgsz &= ~(pgsz - 1);
+	pci_write_config_dword(dev, pos + PCI_SRIOV_SYS_PGSIZE, pgsz);
 
 	nres = 0;
 	for (i = 0; i < PCI_SRIOV_NUM_BARS; i++) {

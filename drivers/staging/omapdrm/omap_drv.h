@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <drm/drmP.h>
+#include <drm/drm_crtc_helper.h>
 #include "omap_drm.h"
 #include "omap_priv.h"
 
@@ -41,12 +42,21 @@
 struct omap_drm_private {
 	unsigned int num_crtcs;
 	struct drm_crtc *crtcs[8];
+
+	unsigned int num_planes;
+	struct drm_plane *planes[8];
+
 	unsigned int num_encoders;
 	struct drm_encoder *encoders[8];
+
 	unsigned int num_connectors;
 	struct drm_connector *connectors[8];
 
 	struct drm_fb_helper *fbdev;
+
+	struct workqueue_struct *wq;
+
+	struct list_head obj_list;
 
 	bool has_dmm;
 };
@@ -54,6 +64,9 @@ struct omap_drm_private {
 #ifdef CONFIG_DEBUG_FS
 int omap_debugfs_init(struct drm_minor *minor);
 void omap_debugfs_cleanup(struct drm_minor *minor);
+void omap_framebuffer_describe(struct drm_framebuffer *fb, struct seq_file *m);
+void omap_gem_describe(struct drm_gem_object *obj, struct seq_file *m);
+void omap_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
 
 struct drm_fb_helper *omap_fbdev_init(struct drm_device *dev);
@@ -61,7 +74,19 @@ void omap_fbdev_free(struct drm_device *dev);
 
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 		struct omap_overlay *ovl, int id);
-struct omap_overlay *omap_crtc_get_overlay(struct drm_crtc *crtc);
+
+struct drm_plane *omap_plane_init(struct drm_device *dev,
+		struct omap_overlay *ovl, unsigned int possible_crtcs,
+		bool priv);
+int omap_plane_dpms(struct drm_plane *plane, int mode);
+int omap_plane_mode_set(struct drm_plane *plane,
+		struct drm_crtc *crtc, struct drm_framebuffer *fb,
+		int crtc_x, int crtc_y,
+		unsigned int crtc_w, unsigned int crtc_h,
+		uint32_t src_x, uint32_t src_y,
+		uint32_t src_w, uint32_t src_h);
+void omap_plane_on_endwin(struct drm_plane *plane,
+		void (*fxn)(void *), void *arg);
 
 struct drm_encoder *omap_encoder_init(struct drm_device *dev,
 		struct omap_overlay_manager *mgr);
@@ -79,13 +104,18 @@ void omap_connector_mode_set(struct drm_connector *connector,
 void omap_connector_flush(struct drm_connector *connector,
 		int x, int y, int w, int h);
 
+uint32_t omap_framebuffer_get_formats(uint32_t *pixel_formats,
+		uint32_t max_formats, enum omap_color_mode supported_modes);
 struct drm_framebuffer *omap_framebuffer_create(struct drm_device *dev,
-		struct drm_file *file, struct drm_mode_fb_cmd *mode_cmd);
+		struct drm_file *file, struct drm_mode_fb_cmd2 *mode_cmd);
 struct drm_framebuffer *omap_framebuffer_init(struct drm_device *dev,
-		struct drm_mode_fb_cmd *mode_cmd, struct drm_gem_object *bo);
-struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb);
-int omap_framebuffer_get_buffer(struct drm_framebuffer *fb, int x, int y,
-		void **vaddr, dma_addr_t *paddr, unsigned int *screen_width);
+		struct drm_mode_fb_cmd2 *mode_cmd, struct drm_gem_object **bos);
+struct drm_gem_object *omap_framebuffer_bo(struct drm_framebuffer *fb, int p);
+int omap_framebuffer_replace(struct drm_framebuffer *a,
+		struct drm_framebuffer *b, void *arg,
+		void (*unpin)(void *arg, struct drm_gem_object *bo));
+void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
+		struct omap_overlay_info *info);
 struct drm_connector *omap_framebuffer_get_next_connector(
 		struct drm_framebuffer *fb, struct drm_connector *from);
 void omap_framebuffer_flush(struct drm_framebuffer *fb,
@@ -130,6 +160,31 @@ static inline int align_pitch(int pitch, int width, int bpp)
 	 * restrictive stride requirement..
 	 */
 	return ALIGN(pitch, 8 * bytespp);
+}
+
+/* should these be made into common util helpers?
+ */
+
+static inline int objects_lookup(struct drm_device *dev,
+		struct drm_file *filp, uint32_t pixel_format,
+		struct drm_gem_object **bos, uint32_t *handles)
+{
+	int i, n = drm_format_num_planes(pixel_format);
+
+	for (i = 0; i < n; i++) {
+		bos[i] = drm_gem_object_lookup(dev, filp, handles[i]);
+		if (!bos[i]) {
+			goto fail;
+		}
+	}
+
+	return 0;
+
+fail:
+	while (--i > 0) {
+		drm_gem_object_unreference_unlocked(bos[i]);
+	}
+	return -ENOENT;
 }
 
 #endif /* __OMAP_DRV_H__ */

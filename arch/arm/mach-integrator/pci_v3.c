@@ -30,9 +30,9 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
-#include <asm/irq.h>
+#include <mach/irqs.h>
+
 #include <asm/signal.h>
-#include <asm/system.h>
 #include <asm/mach/pci.h>
 #include <asm/irq_regs.h>
 
@@ -378,9 +378,10 @@ static int __init pci_v3_setup_resources(struct pci_sys_data *sys)
 	 * the mem resource for this bus
 	 * the prefetch mem resource for this bus
 	 */
-	pci_add_resource(&sys->resources, &ioport_resource);
-	pci_add_resource(&sys->resources, &non_mem);
-	pci_add_resource(&sys->resources, &pre_mem);
+	pci_add_resource_offset(&sys->resources,
+				&ioport_resource, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &non_mem, sys->mem_offset);
+	pci_add_resource_offset(&sys->resources, &pre_mem, sys->mem_offset);
 
 	return 1;
 }

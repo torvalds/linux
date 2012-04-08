@@ -306,9 +306,19 @@ int zd_op_start(struct ieee80211_hw *hw)
 	r = set_mc_hash(mac);
 	if (r)
 		goto disable_int;
+
+	/* Wait after setting the multicast hash table and powering on
+	 * the radio otherwise interface bring up will fail. This matches
+	 * what the vendor driver did.
+	 */
+	msleep(10);
+
 	r = zd_chip_switch_radio_on(chip);
-	if (r < 0)
+	if (r < 0) {
+		dev_err(zd_chip_dev(chip),
+			"%s: failed to set radio on\n", __func__);
 		goto disable_int;
+	}
 	r = zd_chip_enable_rxtx(chip);
 	if (r < 0)
 		goto disable_radio;
@@ -865,6 +875,14 @@ static int fill_ctrlset(struct zd_mac *mac,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	ZD_ASSERT(frag_len <= 0xffff);
+
+	/*
+	 * Firmware computes the duration itself (for all frames except PSPoll)
+	 * and needs the field set to 0 at input, otherwise firmware messes up
+	 * duration_id and sets bits 14 and 15 on.
+	 */
+	if (!ieee80211_is_pspoll(hdr->frame_control))
+		hdr->duration_id = 0;
 
 	txrate = ieee80211_get_tx_rate(mac->hw, info);
 

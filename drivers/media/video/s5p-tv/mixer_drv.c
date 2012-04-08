@@ -444,7 +444,7 @@ static int __devexit mxr_remove(struct platform_device *pdev)
 
 	kfree(mdev);
 
-	dev_info(dev, "remove sucessful\n");
+	dev_info(dev, "remove successful\n");
 	return 0;
 }
 

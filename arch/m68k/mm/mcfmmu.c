@@ -87,7 +87,7 @@ void __init paging_init(void)
 
 int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 {
-	unsigned long flags, mmuar;
+	unsigned long flags, mmuar, mmutr;
 	struct mm_struct *mm;
 	pgd_t *pgd;
 	pmd_t *pmd;
@@ -137,9 +137,10 @@ int cf_tlb_miss(struct pt_regs *regs, int write, int dtlb, int extension_word)
 	if (!pte_dirty(*pte) && !KMAPAREA(mmuar))
 		set_pte(pte, pte_wrprotect(*pte));
 
-	mmu_write(MMUTR, (mmuar & PAGE_MASK) | (asid << MMUTR_IDN) |
-		(((int)(pte->pte) & (int)CF_PAGE_MMUTR_MASK)
-		>> CF_PAGE_MMUTR_SHIFT) | MMUTR_V);
+	mmutr = (mmuar & PAGE_MASK) | (asid << MMUTR_IDN) | MMUTR_V;
+	if ((mmuar < TASK_UNMAPPED_BASE) || (mmuar >= TASK_SIZE))
+		mmutr |= (pte->pte & CF_PAGE_MMUTR_MASK) >> CF_PAGE_MMUTR_SHIFT;
+	mmu_write(MMUTR, mmutr);
 
 	mmu_write(MMUDR, (pte_val(*pte) & PAGE_MASK) |
 		((pte->pte) & CF_PAGE_MMUDR_MASK) | MMUDR_SZ_8KB | MMUDR_X);

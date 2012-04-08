@@ -91,56 +91,52 @@ static struct snd_soc_card qi_lb60 = {
 	.num_dapm_routes = ARRAY_SIZE(qi_lb60_routes),
 };
 
-static struct platform_device *qi_lb60_snd_device;
-
 static const struct gpio qi_lb60_gpios[] = {
 	{ QI_LB60_SND_GPIO, GPIOF_OUT_INIT_LOW, "SND" },
 	{ QI_LB60_AMP_GPIO, GPIOF_OUT_INIT_LOW, "AMP" },
 };
 
-static int __init qi_lb60_init(void)
+static int __devinit qi_lb60_probe(struct platform_device *pdev)
 {
+	struct snd_soc_card *card = &qi_lb60;
 	int ret;
 
-	qi_lb60_snd_device = platform_device_alloc("soc-audio", -1);
-
-	if (!qi_lb60_snd_device)
-		return -ENOMEM;
-
 	ret = gpio_request_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
+	if (ret)
+		return ret;
+
+	card->dev = &pdev->dev;
+
+	ret = snd_soc_register_card(card);
 	if (ret) {
-		pr_err("qi_lb60 snd: Failed to request gpios: %d\n", ret);
-		goto err_device_put;
+		dev_err(&pdev->dev, "snd_soc_register_card() failed: %d\n",
+			ret);
+		gpio_free_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
 	}
-
-	platform_set_drvdata(qi_lb60_snd_device, &qi_lb60);
-
-	ret = platform_device_add(qi_lb60_snd_device);
-	if (ret) {
-		pr_err("qi_lb60 snd: Failed to add snd soc device: %d\n", ret);
-		goto err_unset_pdata;
-	}
-
-	 return 0;
-
-err_unset_pdata:
-	platform_set_drvdata(qi_lb60_snd_device, NULL);
-/*err_gpio_free_array:*/
-	gpio_free_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
-err_device_put:
-	platform_device_put(qi_lb60_snd_device);
-
 	return ret;
 }
-module_init(qi_lb60_init);
 
-static void __exit qi_lb60_exit(void)
+static int __devexit qi_lb60_remove(struct platform_device *pdev)
 {
-	platform_device_unregister(qi_lb60_snd_device);
+	struct snd_soc_card *card = platform_get_drvdata(pdev);
+
+	snd_soc_unregister_card(card);
 	gpio_free_array(qi_lb60_gpios, ARRAY_SIZE(qi_lb60_gpios));
+	return 0;
 }
-module_exit(qi_lb60_exit);
+
+static struct platform_driver qi_lb60_driver = {
+	.driver		= {
+		.name	= "qi-lb60-audio",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= qi_lb60_probe,
+	.remove		= __devexit_p(qi_lb60_remove),
+};
+
+module_platform_driver(qi_lb60_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("ALSA SoC QI LB60 Audio support");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("platform:qi-lb60-audio");

@@ -173,18 +173,7 @@ static struct platform_driver ad7606_driver = {
 	},
 };
 
-static int __init ad7606_init(void)
-{
-	return platform_driver_register(&ad7606_driver);
-}
-
-static void __exit ad7606_cleanup(void)
-{
-	platform_driver_unregister(&ad7606_driver);
-}
-
-module_init(ad7606_init);
-module_exit(ad7606_cleanup);
+module_platform_driver(ad7606_driver);
 
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
 MODULE_DESCRIPTION("Analog Devices AD7606 ADC");

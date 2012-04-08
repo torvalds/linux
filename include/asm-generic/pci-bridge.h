@@ -45,6 +45,11 @@ static inline void pci_add_flags(int flags)
 	pci_flags |= flags;
 }
 
+static inline void pci_clear_flags(int flags)
+{
+	pci_flags &= ~flags;
+}
+
 static inline int pci_has_flag(int flag)
 {
 	return pci_flags & flag;
@@ -52,6 +57,7 @@ static inline int pci_has_flag(int flag)
 #else
 static inline void pci_set_flags(int flags) { }
 static inline void pci_add_flags(int flags) { }
+static inline void pci_clear_flags(int flags) { }
 static inline int pci_has_flag(int flag)
 {
 	return 0;

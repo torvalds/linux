@@ -603,6 +603,8 @@ static int nilfs_ioctl_clean_segments(struct inode *inode, struct file *filp,
 	nsegs = argv[4].v_nmembs;
 	if (argv[4].v_size != argsz[4])
 		goto out;
+	if (nsegs > UINT_MAX / sizeof(__u64))
+		goto out;
 
 	/*
 	 * argv[4] points to segment numbers this ioctl cleans.  We

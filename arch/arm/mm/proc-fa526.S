@@ -22,7 +22,6 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include <asm/system.h>
 
 #include "proc-macros.S"
 

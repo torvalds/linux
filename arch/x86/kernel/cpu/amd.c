@@ -5,6 +5,7 @@
 #include <linux/mm.h>
 
 #include <linux/io.h>
+#include <linux/sched.h>
 #include <asm/processor.h>
 #include <asm/apic.h>
 #include <asm/cpu.h>
@@ -456,6 +457,8 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 	if (c->x86_power & (1 << 8)) {
 		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 		set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC);
+		if (!check_tsc_unstable())
+			sched_clock_stable = 1;
 	}
 
 #ifdef CONFIG_X86_64

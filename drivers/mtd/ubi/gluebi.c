@@ -174,11 +174,7 @@ static int gluebi_read(struct mtd_info *mtd, loff_t from, size_t len,
 	int err = 0, lnum, offs, total_read;
 	struct gluebi_device *gluebi;
 
-	if (len < 0 || from < 0 || from + len > mtd->size)
-		return -EINVAL;
-
 	gluebi = container_of(mtd, struct gluebi_device, mtd);
-
 	lnum = div_u64_rem(from, mtd->erasesize, &offs);
 	total_read = len;
 	while (total_read) {
@@ -218,14 +214,7 @@ static int gluebi_write(struct mtd_info *mtd, loff_t to, size_t len,
 	int err = 0, lnum, offs, total_written;
 	struct gluebi_device *gluebi;
 
-	if (len < 0 || to < 0 || len + to > mtd->size)
-		return -EINVAL;
-
 	gluebi = container_of(mtd, struct gluebi_device, mtd);
-
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
-
 	lnum = div_u64_rem(to, mtd->erasesize, &offs);
 
 	if (len % mtd->writesize || offs % mtd->writesize)
@@ -265,20 +254,12 @@ static int gluebi_erase(struct mtd_info *mtd, struct erase_info *instr)
 	int err, i, lnum, count;
 	struct gluebi_device *gluebi;
 
-	if (instr->addr < 0 || instr->addr > mtd->size - mtd->erasesize)
-		return -EINVAL;
-	if (instr->len < 0 || instr->addr + instr->len > mtd->size)
-		return -EINVAL;
 	if (mtd_mod_by_ws(instr->addr, mtd) || mtd_mod_by_ws(instr->len, mtd))
 		return -EINVAL;
 
 	lnum = mtd_div_by_eb(instr->addr, mtd);
 	count = mtd_div_by_eb(instr->len, mtd);
-
 	gluebi = container_of(mtd, struct gluebi_device, mtd);
-
-	if (!(mtd->flags & MTD_WRITEABLE))
-		return -EROFS;
 
 	for (i = 0; i < count - 1; i++) {
 		err = ubi_leb_unmap(gluebi->desc, lnum + i);
@@ -340,11 +321,11 @@ static int gluebi_create(struct ubi_device_info *di,
 	mtd->owner      = THIS_MODULE;
 	mtd->writesize  = di->min_io_size;
 	mtd->erasesize  = vi->usable_leb_size;
-	mtd->read       = gluebi_read;
-	mtd->write      = gluebi_write;
-	mtd->erase      = gluebi_erase;
-	mtd->get_device = gluebi_get_device;
-	mtd->put_device = gluebi_put_device;
+	mtd->_read       = gluebi_read;
+	mtd->_write      = gluebi_write;
+	mtd->_erase      = gluebi_erase;
+	mtd->_get_device = gluebi_get_device;
+	mtd->_put_device = gluebi_put_device;
 
 	/*
 	 * In case of dynamic a volume, MTD device size is just volume size. In

@@ -20,6 +20,10 @@
 /*     BTCOEX     */
 /******************/
 
+#define ATH_HTC_BTCOEX_PRODUCT_ID "wb193"
+
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+
 /*
  * Detects if there is any priority bt traffic
  */
@@ -111,12 +115,9 @@ static void ath_btcoex_duty_cycle_work(struct work_struct *work)
 	ath9k_hw_btcoex_enable(priv->ah);
 }
 
-void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
+static void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
 {
 	struct ath_btcoex *btcoex = &priv->btcoex;
-
-	if (ath9k_hw_get_btcoex_scheme(priv->ah) == ATH_BTCOEX_CFG_NONE)
-		return;
 
 	btcoex->btcoex_period = ATH_BTCOEX_DEF_BT_PERIOD;
 	btcoex->btcoex_no_stomp = (100 - ATH_BTCOEX_DEF_DUTY_CYCLE) *
@@ -131,13 +132,10 @@ void ath_htc_init_btcoex_work(struct ath9k_htc_priv *priv)
  * (Re)start btcoex work
  */
 
-void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
+static void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 {
 	struct ath_btcoex *btcoex = &priv->btcoex;
 	struct ath_hw *ah = priv->ah;
-
-	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_NONE)
-		return;
 
 	ath_dbg(ath9k_hw_common(ah), BTCOEX, "Starting btcoex work\n");
 
@@ -151,14 +149,65 @@ void ath_htc_resume_btcoex_work(struct ath9k_htc_priv *priv)
 /*
  * Cancel btcoex and bt duty cycle work.
  */
-void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv)
+static void ath_htc_cancel_btcoex_work(struct ath9k_htc_priv *priv)
 {
-	if (ath9k_hw_get_btcoex_scheme(priv->ah) == ATH_BTCOEX_CFG_NONE)
-		return;
-
 	cancel_delayed_work_sync(&priv->coex_period_work);
 	cancel_delayed_work_sync(&priv->duty_cycle_work);
 }
+
+void ath9k_htc_start_btcoex(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+
+	if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE) {
+		ath9k_hw_btcoex_set_weight(ah, AR_BT_COEX_WGHT,
+					   AR_STOMP_LOW_WLAN_WGHT);
+		ath9k_hw_btcoex_enable(ah);
+		ath_htc_resume_btcoex_work(priv);
+	}
+}
+
+void ath9k_htc_stop_btcoex(struct ath9k_htc_priv *priv)
+{
+	struct ath_hw *ah = priv->ah;
+
+	if (ah->btcoex_hw.enabled &&
+	    ath9k_hw_get_btcoex_scheme(ah) != ATH_BTCOEX_CFG_NONE) {
+		ath9k_hw_btcoex_disable(ah);
+		if (ah->btcoex_hw.scheme == ATH_BTCOEX_CFG_3WIRE)
+			ath_htc_cancel_btcoex_work(priv);
+	}
+}
+
+void ath9k_htc_init_btcoex(struct ath9k_htc_priv *priv, char *product)
+{
+	struct ath_hw *ah = priv->ah;
+	int qnum;
+
+	if (product && strncmp(product, ATH_HTC_BTCOEX_PRODUCT_ID, 5) == 0) {
+		ah->btcoex_hw.scheme = ATH_BTCOEX_CFG_3WIRE;
+	}
+
+	switch (ath9k_hw_get_btcoex_scheme(priv->ah)) {
+	case ATH_BTCOEX_CFG_NONE:
+		break;
+	case ATH_BTCOEX_CFG_3WIRE:
+		priv->ah->btcoex_hw.btactive_gpio = 7;
+		priv->ah->btcoex_hw.btpriority_gpio = 6;
+		priv->ah->btcoex_hw.wlanactive_gpio = 8;
+		priv->btcoex.bt_stomp_type = ATH_BTCOEX_STOMP_LOW;
+		ath9k_hw_btcoex_init_3wire(priv->ah);
+		ath_htc_init_btcoex_work(priv);
+		qnum = priv->hwq_map[WME_AC_BE];
+		ath9k_hw_init_btcoex_hw(priv->ah, qnum);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+}
+
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
 /*******/
 /* LED */

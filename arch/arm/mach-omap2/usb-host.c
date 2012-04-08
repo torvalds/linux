@@ -54,7 +54,7 @@ static struct omap_device_pm_latency omap_uhhtll_latency[] = {
 /*
  * setup_ehci_io_mux - initialize IO pad mux for USBHOST
  */
-static void setup_ehci_io_mux(const enum usbhs_omap_port_mode *port_mode)
+static void __init setup_ehci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 {
 	switch (port_mode[0]) {
 	case OMAP_EHCI_PORT_MODE_PHY:
@@ -197,7 +197,8 @@ static void setup_ehci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 	return;
 }
 
-static void setup_4430ehci_io_mux(const enum usbhs_omap_port_mode *port_mode)
+static
+void __init setup_4430ehci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 {
 	switch (port_mode[0]) {
 	case OMAP_EHCI_PORT_MODE_PHY:
@@ -315,7 +316,7 @@ static void setup_4430ehci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 	}
 }
 
-static void setup_ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
+static void __init setup_ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 {
 	switch (port_mode[0]) {
 	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DATSE0:
@@ -412,7 +413,8 @@ static void setup_ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 	}
 }
 
-static void setup_4430ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
+static
+void __init setup_4430ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 {
 	switch (port_mode[0]) {
 	case OMAP_OHCI_PORT_MODE_PHY_6PIN_DATSE0:
@@ -486,7 +488,7 @@ static void setup_4430ohci_io_mux(const enum usbhs_omap_port_mode *port_mode)
 void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 {
 	struct omap_hwmod	*oh[2];
-	struct omap_device	*od;
+	struct platform_device	*pdev;
 	int			bus_id = -1;
 	int			i;
 
@@ -522,11 +524,11 @@ void __init usbhs_init(const struct usbhs_omap_board_data *pdata)
 		return;
 	}
 
-	od = omap_device_build_ss(OMAP_USBHS_DEVICE, bus_id, oh, 2,
+	pdev = omap_device_build_ss(OMAP_USBHS_DEVICE, bus_id, oh, 2,
 				(void *)&usbhs_data, sizeof(usbhs_data),
 				omap_uhhtll_latency,
 				ARRAY_SIZE(omap_uhhtll_latency), false);
-	if (IS_ERR(od)) {
+	if (IS_ERR(pdev)) {
 		pr_err("Could not build hwmod devices %s,%s\n",
 			USBHS_UHH_HWMODNAME, USBHS_TLL_HWMODNAME);
 		return;

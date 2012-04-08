@@ -414,10 +414,6 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	unsigned fb_bpp, fb_depth, fb_offset, fb_pitch, fb_size;
 	int ret;
 
-	/* XXX These shouldn't be hardcoded. */
-	initial_width = 800;
-	initial_height = 600;
-
 	fb_bpp = 32;
 	fb_depth = 24;
 
@@ -425,8 +421,8 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	fb_width = min(vmw_priv->fb_max_width, (unsigned)2048);
 	fb_height = min(vmw_priv->fb_max_height, (unsigned)2048);
 
-	initial_width = min(fb_width, initial_width);
-	initial_height = min(fb_height, initial_height);
+	initial_width = min(vmw_priv->initial_width, fb_width);
+	initial_height = min(vmw_priv->initial_height, fb_height);
 
 	fb_pitch = fb_width * fb_bpp / 8;
 	fb_size = fb_pitch * fb_height;
@@ -515,19 +511,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	info->var.xres = initial_width;
 	info->var.yres = initial_height;
 
-#if 0
-	info->pixmap.size = 64*1024;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
-#else
-	info->pixmap.size = 0;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
-#endif
+	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	info->apertures = alloc_apertures(1);
 	if (!info->apertures) {

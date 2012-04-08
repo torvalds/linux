@@ -57,6 +57,17 @@ static const char * const as102_device_names[] = {
 	NULL /* Terminating entry */
 };
 
+/* eLNA configuration: devices built on the reference design work best
+   with 0xA0, while custom designs seem to require 0xC0 */
+static uint8_t const as102_elna_cfg[] = {
+	0xA0,
+	0xC0,
+	0xC0,
+	0xA0,
+	0xA0,
+	0x00 /* Terminating entry */
+};
+
 struct usb_driver as102_usb_driver = {
 	.name		= DRIVER_FULL_NAME,
 	.probe		= as102_usb_probe,
@@ -270,6 +281,8 @@ static int as102_alloc_usb_stream_buffer(struct as102_dev_t *dev)
 		}
 
 		urb->transfer_buffer = dev->stream + (i * AS102_USB_BUF_SIZE);
+		urb->transfer_dma = dev->dma_addr + (i * AS102_USB_BUF_SIZE);
+		urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 		urb->transfer_buffer_length = AS102_USB_BUF_SIZE;
 
 		dev->stream_urb[i] = urb;
@@ -369,8 +382,10 @@ static int as102_usb_probe(struct usb_interface *intf,
 	/* Assign the user-friendly device name */
 	for (i = 0; i < (sizeof(as102_usb_id_table) /
 			 sizeof(struct usb_device_id)); i++) {
-		if (id == &as102_usb_id_table[i])
+		if (id == &as102_usb_id_table[i]) {
 			as102_dev->name = as102_device_names[i];
+			as102_dev->elna_cfg = as102_elna_cfg[i];
+		}
 	}
 
 	if (as102_dev->name == NULL)

@@ -227,6 +227,9 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 			     struct ieee80211_vif *vif)
 {
 	struct p54_common *priv = dev->priv;
+	int err;
+
+	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
 
 	mutex_lock(&priv->conf_mutex);
 	if (priv->mode != NL80211_IFTYPE_MONITOR) {
@@ -249,9 +252,9 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 	}
 
 	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
-	p54_setup_mac(priv);
+	err = p54_setup_mac(priv);
 	mutex_unlock(&priv->conf_mutex);
-	return 0;
+	return err;
 }
 
 static void p54_remove_interface(struct ieee80211_hw *dev,
@@ -734,7 +737,6 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_SUPPORTS_PS |
 		     IEEE80211_HW_PS_NULLFUNC_STACK |
-		     IEEE80211_HW_BEACON_FILTER |
 		     IEEE80211_HW_REPORTS_TX_ACK_STATUS;
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |

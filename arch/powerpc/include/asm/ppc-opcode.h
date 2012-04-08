@@ -45,6 +45,7 @@
 #define PPC_INST_MFSPR_DSCR_MASK	0xfc1fffff
 #define PPC_INST_MTSPR_DSCR		0x7c1103a6
 #define PPC_INST_MTSPR_DSCR_MASK	0xfc1fffff
+#define PPC_INST_SLBFEE			0x7c0007a7
 
 #define PPC_INST_STRING			0x7c00042a
 #define PPC_INST_STRING_MASK		0xfc0007fe
@@ -183,7 +184,8 @@
 					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
 #define PPC_ERATSX_DOT(t, a, w)	stringify_in_c(.long PPC_INST_ERATSX_DOT | \
 					__PPC_RS(t) | __PPC_RA(a) | __PPC_RB(b))
-
+#define PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE | \
+					__PPC_RT(t) | __PPC_RB(b))
 
 /*
  * Define what the VSX XX1 form instructions will look like, then add

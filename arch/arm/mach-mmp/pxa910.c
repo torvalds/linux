@@ -92,6 +92,7 @@ static APBC_CLK(pwm2, PXA910_PWM2, 1, 13000000);
 static APBC_CLK(pwm3, PXA910_PWM3, 1, 13000000);
 static APBC_CLK(pwm4, PXA910_PWM4, 1, 13000000);
 static APBC_CLK(gpio, PXA910_GPIO, 0, 13000000);
+static APBC_CLK(rtc, PXA910_RTC, 8, 32768);
 
 static APMU_CLK(nand, NAND, 0x19b, 156000000);
 static APMU_CLK(u2o, USB, 0x1b, 480000000);
@@ -109,6 +110,7 @@ static struct clk_lookup pxa910_clkregs[] = {
 	INIT_CLKREG(&clk_nand, "pxa3xx-nand", NULL),
 	INIT_CLKREG(&clk_gpio, "pxa-gpio", NULL),
 	INIT_CLKREG(&clk_u2o, "pxa-u2o", "U2OCLK"),
+	INIT_CLKREG(&clk_rtc, "sa1100-rtc", NULL),
 };
 
 static int __init pxa910_init(void)
@@ -173,6 +175,7 @@ struct resource pxa910_resource_gpio[] = {
 	}, {
 		.start	= IRQ_PXA910_AP_GPIO,
 		.end	= IRQ_PXA910_AP_GPIO,
+		.name	= "gpio_mux",
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -182,4 +185,29 @@ struct platform_device pxa910_device_gpio = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(pxa910_resource_gpio),
 	.resource	= pxa910_resource_gpio,
+};
+
+static struct resource pxa910_resource_rtc[] = {
+	{
+		.start	= 0xd4010000,
+		.end	= 0xd401003f,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PXA910_RTC_INT,
+		.end	= IRQ_PXA910_RTC_INT,
+		.name	= "rtc 1Hz",
+		.flags	= IORESOURCE_IRQ,
+	}, {
+		.start	= IRQ_PXA910_RTC_ALARM,
+		.end	= IRQ_PXA910_RTC_ALARM,
+		.name	= "rtc alarm",
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa910_device_rtc = {
+	.name		= "sa1100-rtc",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(pxa910_resource_rtc),
+	.resource	= pxa910_resource_rtc,
 };

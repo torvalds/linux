@@ -83,8 +83,18 @@ struct pt_regs {
 
 #ifndef __ASSEMBLY__
 
-#define instruction_pointer(regs) ((regs)->nip)
-#define user_stack_pointer(regs) ((regs)->gpr[1])
+#define GET_IP(regs)		((regs)->nip)
+#define GET_USP(regs)		((regs)->gpr[1])
+#define GET_FP(regs)		(0)
+#define SET_FP(regs, val)
+
+#ifdef CONFIG_SMP
+extern unsigned long profile_pc(struct pt_regs *regs);
+#define profile_pc profile_pc
+#endif
+
+#include <asm-generic/ptrace.h>
+
 #define kernel_stack_pointer(regs) ((regs)->gpr[1])
 static inline int is_syscall_success(struct pt_regs *regs)
 {
@@ -98,12 +108,6 @@ static inline long regs_return_value(struct pt_regs *regs)
 	else
 		return -regs->gpr[3];
 }
-
-#ifdef CONFIG_SMP
-extern unsigned long profile_pc(struct pt_regs *regs);
-#else
-#define profile_pc(regs) instruction_pointer(regs)
-#endif
 
 #ifdef __powerpc64__
 #define user_mode(regs) ((((regs)->msr) >> MSR_PR_LG) & 0x1)

@@ -2120,7 +2120,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	    FN_AUDATA3, 0, 0, 0 }
 	},
 	{ PINMUX_CFG_REG_VAR("IPSR4", 0xfffc0030, 32,
-			     3, 1, 1, 1, 1, 1, 1, 3, 3, 1,
+			     3, 1, 1, 1, 1, 1, 1, 3, 3,
 			     1, 1, 1, 1, 1, 1, 3, 3, 3, 2) {
 	    /* IP4_31_29 [3] */
 	    FN_DU1_DB0, FN_VI2_DATA4_VI2_B4, FN_SCL2_B, FN_SD3_DAT0,

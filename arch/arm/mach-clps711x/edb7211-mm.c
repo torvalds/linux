@@ -21,6 +21,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/bug.h>
 
 #include <mach/hardware.h>
 #include <asm/page.h>

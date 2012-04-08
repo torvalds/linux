@@ -2328,19 +2328,11 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 		((new_mtu) < IPV6_MIN_MTU))
 		return -EINVAL;
 
-	if (new_mtu > 4000) {
-		jme->reg_rxcs &= ~RXCS_FIFOTHNP;
-		jme->reg_rxcs |= RXCS_FIFOTHNP_64QW;
-		jme_restart_rx_engine(jme);
-	} else {
-		jme->reg_rxcs &= ~RXCS_FIFOTHNP;
-		jme->reg_rxcs |= RXCS_FIFOTHNP_128QW;
-		jme_restart_rx_engine(jme);
-	}
 
 	netdev->mtu = new_mtu;
 	netdev_update_features(netdev);
 
+	jme_restart_rx_engine(jme);
 	jme_reset_link(jme);
 
 	return 0;
@@ -2999,7 +2991,6 @@ jme_init_one(struct pci_dev *pdev,
 	 */
 	netdev = alloc_etherdev(sizeof(*jme));
 	if (!netdev) {
-		pr_err("Cannot allocate netdev structure\n");
 		rc = -ENOMEM;
 		goto err_out_release_regions;
 	}

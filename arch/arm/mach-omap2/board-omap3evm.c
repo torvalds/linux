@@ -114,15 +114,6 @@ static struct omap_smsc911x_platform_data smsc911x_cfg = {
 
 static inline void __init omap3evm_init_smsc911x(void)
 {
-	struct clk *l3ck;
-	unsigned int rate;
-
-	l3ck = clk_get(NULL, "l3_ck");
-	if (IS_ERR(l3ck))
-		rate = 100000000;
-	else
-		rate = clk_get_rate(l3ck);
-
 	/* Configure ethernet controller reset gpio */
 	if (cpu_is_omap3430()) {
 		if (get_omap3_evm_rev() == OMAP3EVM_BOARD_GEN_1)
@@ -317,6 +308,7 @@ static struct omap2_hsmmc_info mmc[] = {
 		.caps		= MMC_CAP_4_BIT_DATA,
 		.gpio_cd	= -EINVAL,
 		.gpio_wp	= 63,
+		.deferred	= true,
 	},
 #ifdef CONFIG_WL12XX_PLATFORM_DATA
 	{
@@ -361,9 +353,8 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	int r, lcd_bl_en;
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
-	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
 	mmc[0].gpio_cd = gpio + 0;
-	omap2_hsmmc_init(mmc);
+	omap_hsmmc_late_init(mmc);
 
 	/*
 	 * Most GPIOs are for USB OTG.  Some are mostly sent to
@@ -381,7 +372,7 @@ static int omap3evm_twl_gpio_setup(struct device *dev,
 	gpio_request_one(gpio + 7, GPIOF_OUT_INIT_LOW, "EN_DVI");
 
 	/* TWL4030_GPIO_MAX + 1 == ledB (out, active low LED) */
-	gpio_leds[2].gpio = gpio + TWL4030_GPIO_MAX + 1;
+	gpio_leds[0].gpio = gpio + TWL4030_GPIO_MAX + 1;
 
 	platform_device_register(&leds_gpio);
 
@@ -487,7 +478,6 @@ static struct platform_device omap3evm_wlan_regulator = {
 };
 
 struct wl12xx_platform_data omap3evm_wlan_data __initdata = {
-	.irq = OMAP_GPIO_IRQ(OMAP3EVM_WLAN_IRQ_GPIO),
 	.board_ref_clock = WL12XX_REFCLOCK_38, /* 38.4 MHz */
 };
 #endif
@@ -617,9 +607,31 @@ static struct gpio omap3_evm_ehci_gpios[] __initdata = {
 	{ OMAP3_EVM_EHCI_SELECT, GPIOF_OUT_INIT_LOW,   "select EHCI port" },
 };
 
+static void __init omap3_evm_wl12xx_init(void)
+{
+#ifdef CONFIG_WL12XX_PLATFORM_DATA
+	int ret;
+
+	/* WL12xx WLAN Init */
+	omap3evm_wlan_data.irq = gpio_to_irq(OMAP3EVM_WLAN_IRQ_GPIO);
+	ret = wl12xx_set_platform_data(&omap3evm_wlan_data);
+	if (ret)
+		pr_err("error setting wl12xx data: %d\n", ret);
+	ret = platform_device_register(&omap3evm_wlan_regulator);
+	if (ret)
+		pr_err("error registering wl12xx device: %d\n", ret);
+#endif
+}
+
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	if (cpu_is_omap3630())
 		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
@@ -628,6 +640,9 @@ static void __init omap3_evm_init(void)
 
 	omap_board_config = omap3_evm_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);
+
+	omap_mux_init_gpio(63, OMAP_PIN_INPUT);
+	omap_hsmmc_init(mmc);
 
 	omap3_evm_i2c_init();
 
@@ -665,13 +680,7 @@ static void __init omap3_evm_init(void)
 	omap_ads7846_init(1, OMAP3_EVM_TS_GPIO, 310, NULL);
 	omap3evm_init_smsc911x();
 	omap3_evm_display_init();
-
-#ifdef CONFIG_WL12XX_PLATFORM_DATA
-	/* WL12xx WLAN Init */
-	if (wl12xx_set_platform_data(&omap3evm_wlan_data))
-		pr_err("error setting wl12xx data\n");
-	platform_device_register(&omap3evm_wlan_regulator);
-#endif
+	omap3_evm_wl12xx_init();
 }
 
 MACHINE_START(OMAP3EVM, "OMAP3 EVM")

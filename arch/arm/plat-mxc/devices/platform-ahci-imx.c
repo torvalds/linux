@@ -60,9 +60,9 @@ static int imx_sata_init(struct device *dev, void __iomem *addr)
 		dev_err(dev, "no sata clock.\n");
 		return PTR_ERR(sata_clk);
 	}
-	ret = clk_enable(sata_clk);
+	ret = clk_prepare_enable(sata_clk);
 	if (ret) {
-		dev_err(dev, "can't enable sata clock.\n");
+		dev_err(dev, "can't prepare/enable sata clock.\n");
 		goto put_sata_clk;
 	}
 
@@ -73,9 +73,9 @@ static int imx_sata_init(struct device *dev, void __iomem *addr)
 		ret = PTR_ERR(sata_ref_clk);
 		goto release_sata_clk;
 	}
-	ret = clk_enable(sata_ref_clk);
+	ret = clk_prepare_enable(sata_ref_clk);
 	if (ret) {
-		dev_err(dev, "can't enable sata ref clock.\n");
+		dev_err(dev, "can't prepare/enable sata ref clock.\n");
 		goto put_sata_ref_clk;
 	}
 
@@ -104,11 +104,11 @@ static int imx_sata_init(struct device *dev, void __iomem *addr)
 	return 0;
 
 release_sata_ref_clk:
-	clk_disable(sata_ref_clk);
+	clk_disable_unprepare(sata_ref_clk);
 put_sata_ref_clk:
 	clk_put(sata_ref_clk);
 release_sata_clk:
-	clk_disable(sata_clk);
+	clk_disable_unprepare(sata_clk);
 put_sata_clk:
 	clk_put(sata_clk);
 
@@ -117,10 +117,10 @@ put_sata_clk:
 
 static void imx_sata_exit(struct device *dev)
 {
-	clk_disable(sata_ref_clk);
+	clk_disable_unprepare(sata_ref_clk);
 	clk_put(sata_ref_clk);
 
-	clk_disable(sata_clk);
+	clk_disable_unprepare(sata_clk);
 	clk_put(sata_clk);
 
 }

@@ -70,6 +70,8 @@ struct conexant_spec {
 	const struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
 	hda_nid_t vmaster_nid;
+	struct hda_vmaster_mute_hook vmaster_mute;
+	bool vmaster_mute_led;
 
 	const struct hda_verb *init_verbs[5];	/* initialization verbs
 						 * don't forget NULL
@@ -465,21 +467,8 @@ static const struct snd_kcontrol_new cxt_beep_mixer[] = {
 };
 #endif
 
-static const char * const slave_vols[] = {
-	"Headphone Playback Volume",
-	"Speaker Playback Volume",
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"CLFE Playback Volume",
-	NULL
-};
-
-static const char * const slave_sws[] = {
-	"Headphone Playback Switch",
-	"Speaker Playback Switch",
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"CLFE Playback Switch",
+static const char * const slave_pfxs[] = {
+	"Headphone", "Speaker", "Front", "Surround", "CLFE",
 	NULL
 };
 
@@ -519,14 +508,17 @@ static int conexant_build_controls(struct hda_codec *codec)
 		snd_hda_set_vmaster_tlv(codec, spec->vmaster_nid,
 					HDA_OUTPUT, vmaster_tlv);
 		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, slave_vols);
+					  vmaster_tlv, slave_pfxs,
+					  "Playback Volume");
 		if (err < 0)
 			return err;
 	}
 	if (spec->vmaster_nid &&
 	    !snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
-		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, slave_sws);
+		err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
+					    NULL, slave_pfxs,
+					    "Playback Switch", true,
+					    &spec->vmaster_mute.sw_kctl);
 		if (err < 0)
 			return err;
 	}
@@ -3034,7 +3026,6 @@ static const struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "Lenovo U350", CXT5066_ASUS),
 	SND_PCI_QUIRK(0x17aa, 0x38af, "Lenovo G560", CXT5066_ASUS),
 	SND_PCI_QUIRK(0x17aa, 0x3938, "Lenovo G565", CXT5066_AUTO),
-	SND_PCI_QUIRK_VENDOR(0x17aa, "Lenovo", CXT5066_IDEAPAD), /* Fallback for Lenovos without dock mic */
 	SND_PCI_QUIRK(0x1b0a, 0x2092, "CyberpowerPC Gamer Xplorer N57001", CXT5066_AUTO),
 	{}
 };
@@ -3482,7 +3473,7 @@ static int cx_automute_mode_info(struct snd_kcontrol *kcontrol,
 		"Disabled", "Enabled"
 	};
 	static const char * const texts3[] = {
-		"Disabled", "Speaker Only", "Line-Out+Speaker"
+		"Disabled", "Speaker Only", "Line Out+Speaker"
 	};
 	const char * const *texts;
 
@@ -3943,6 +3934,63 @@ static void enable_unsol_pins(struct hda_codec *codec, int num_pins,
 		snd_hda_jack_detect_enable(codec, pins[i], action);
 }
 
+static bool found_in_nid_list(hda_nid_t nid, const hda_nid_t *list, int nums)
+{
+	int i;
+	for (i = 0; i < nums; i++)
+		if (list[i] == nid)
+			return true;
+	return false;
+}
+
+/* is the given NID found in any of autocfg items? */
+static bool found_in_autocfg(struct auto_pin_cfg *cfg, hda_nid_t nid)
+{
+	int i;
+
+	if (found_in_nid_list(nid, cfg->line_out_pins, cfg->line_outs) ||
+	    found_in_nid_list(nid, cfg->hp_pins, cfg->hp_outs) ||
+	    found_in_nid_list(nid, cfg->speaker_pins, cfg->speaker_outs) ||
+	    found_in_nid_list(nid, cfg->dig_out_pins, cfg->dig_outs))
+		return true;
+	for (i = 0; i < cfg->num_inputs; i++)
+		if (cfg->inputs[i].pin == nid)
+			return true;
+	if (cfg->dig_in_pin == nid)
+		return true;
+	return false;
+}
+
+/* clear unsol-event tags on unused pins; Conexant codecs seem to leave
+ * invalid unsol tags by some reason
+ */
+static void clear_unsol_on_unused_pins(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	struct auto_pin_cfg *cfg = &spec->autocfg;
+	int i;
+
+	for (i = 0; i < codec->init_pins.used; i++) {
+		struct hda_pincfg *pin = snd_array_elem(&codec->init_pins, i);
+		if (!found_in_autocfg(cfg, pin->nid))
+			snd_hda_codec_write(codec, pin->nid, 0,
+					    AC_VERB_SET_UNSOLICITED_ENABLE, 0);
+	}
+}
+
+/* turn on/off EAPD according to Master switch */
+static void cx_auto_vmaster_hook(void *private_data, int enabled)
+{
+	struct hda_codec *codec = private_data;
+	struct conexant_spec *spec = codec->spec;
+
+	if (enabled && spec->pin_eapd_ctrls) {
+		cx_auto_update_speakers(codec);
+		return;
+	}
+	cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, enabled);
+}
+
 static void cx_auto_init_output(struct hda_codec *codec)
 {
 	struct conexant_spec *spec = codec->spec;
@@ -3983,6 +4031,7 @@ static void cx_auto_init_output(struct hda_codec *codec)
 	/* turn on all EAPDs if no individual EAPD control is available */
 	if (!spec->pin_eapd_ctrls)
 		cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, true);
+	clear_unsol_on_unused_pins(codec);
 }
 
 static void cx_auto_init_input(struct hda_codec *codec)
@@ -4046,11 +4095,13 @@ static void cx_auto_init_digital(struct hda_codec *codec)
 
 static int cx_auto_init(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
 	/*snd_hda_sequence_write(codec, cx_auto_init_verbs);*/
 	cx_auto_init_output(codec);
 	cx_auto_init_input(codec);
 	cx_auto_init_digital(codec);
 	snd_hda_jack_report_sync(codec);
+	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
 	return 0;
 }
 
@@ -4079,7 +4130,8 @@ static int cx_auto_add_volume_idx(struct hda_codec *codec, const char *basename,
 		err = snd_hda_ctl_add(codec, nid, kctl);
 		if (err < 0)
 			return err;
-		if (!(query_amp_caps(codec, nid, hda_dir) & AC_AMPCAP_MUTE))
+		if (!(query_amp_caps(codec, nid, hda_dir) &
+		      (AC_AMPCAP_MUTE | AC_AMPCAP_MIN_MUTE)))
 			break;
 	}
 	return 0;
@@ -4295,6 +4347,13 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	err = snd_hda_jack_add_kctls(codec, &spec->autocfg);
 	if (err < 0)
 		return err;
+	if (spec->vmaster_mute.sw_kctl) {
+		spec->vmaster_mute.hook = cx_auto_vmaster_hook;
+		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute,
+					       spec->vmaster_mute_led);
+		if (err < 0)
+			return err;
+	}
 	return 0;
 }
 
@@ -4318,7 +4377,6 @@ static int cx_auto_search_adcs(struct hda_codec *codec)
 	spec->adc_nids = spec->private_adc_nids;
 	return 0;
 }
-
 
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
@@ -4367,6 +4425,7 @@ static const struct cxt_pincfg cxt_pincfg_lenovo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
 	{ 0x17, 0x21a11000 }, /* dock-mic */
 	{ 0x19, 0x2121103f }, /* dock-HP */
+	{ 0x1c, 0x21440100 }, /* dock SPDIF out */
 	{}
 };
 
@@ -4378,6 +4437,22 @@ static const struct snd_pci_quirk cxt_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT_PINCFG_LENOVO_X200),
 	{}
 };
+
+/* add "fake" mute amp-caps to DACs on cx5051 so that mixer mute switches
+ * can be created (bko#42825)
+ */
+static void add_cx5051_fake_mutes(struct hda_codec *codec)
+{
+	static hda_nid_t out_nids[] = {
+		0x10, 0x11, 0
+	};
+	hda_nid_t *p;
+
+	for (p = out_nids; *p; p++)
+		snd_hda_override_amp_caps(codec, *p, HDA_OUTPUT,
+					  AC_AMPCAP_MIN_MUTE |
+					  query_amp_caps(codec, *p, HDA_OUTPUT));
+}
 
 static int patch_conexant_auto(struct hda_codec *codec)
 {
@@ -4397,9 +4472,24 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	case 0x14f15045:
 		spec->single_adc_amp = 1;
 		break;
+	case 0x14f15051:
+		add_cx5051_fake_mutes(codec);
+		break;
 	}
 
 	apply_pin_fixup(codec, cxt_fixups, cxt_pincfg_tbl);
+
+	/* Show mute-led control only on HP laptops
+	 * This is a sort of white-list: on HP laptops, EAPD corresponds
+	 * only to the mute-LED without actualy amp function.  Meanwhile,
+	 * others may use EAPD really as an amp switch, so it might be
+	 * not good to expose it blindly.
+	 */
+	switch (codec->subsystem_id >> 16) {
+	case 0x103c:
+		spec->vmaster_mute_led = 1;
+		break;
+	}
 
 	err = cx_auto_search_adcs(codec);
 	if (err < 0)
@@ -4414,6 +4504,18 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	codec->patch_ops = cx_auto_patch_ops;
 	if (spec->beep_amp)
 		snd_hda_attach_beep_device(codec, spec->beep_amp);
+
+	/* Some laptops with Conexant chips show stalls in S3 resume,
+	 * which falls into the single-cmd mode.
+	 * Better to make reset, then.
+	 */
+	if (!codec->bus->sync_write) {
+		snd_printd("hda_codec: "
+			   "Enable sync_write for stable communication\n");
+		codec->bus->sync_write = 1;
+		codec->bus->allow_bus_reset = 1;
+	}
+
 	return 0;
 }
 

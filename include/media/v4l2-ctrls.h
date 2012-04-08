@@ -22,7 +22,6 @@
 #define _V4L2_CTRLS_H
 
 #include <linux/list.h>
-#include <linux/device.h>
 #include <linux/videodev2.h>
 
 /* forward references */
@@ -33,6 +32,7 @@ struct video_device;
 struct v4l2_subdev;
 struct v4l2_subscribed_event;
 struct v4l2_fh;
+struct poll_table_struct;
 
 /** struct v4l2_ctrl_ops - The control operations that the driver has to provide.
   * @g_volatile_ctrl: Get a new value for this control. Generally only relevant
@@ -491,6 +491,18 @@ void v4l2_ctrl_add_event(struct v4l2_ctrl *ctrl,
 		struct v4l2_subscribed_event *sev);
 void v4l2_ctrl_del_event(struct v4l2_ctrl *ctrl,
 		struct v4l2_subscribed_event *sev);
+
+/* Can be used as a vidioc_log_status function that just dumps all controls
+   associated with the filehandle. */
+int v4l2_ctrl_log_status(struct file *file, void *fh);
+
+/* Can be used as a vidioc_subscribe_event function that just subscribes
+   control events. */
+int v4l2_ctrl_subscribe_event(struct v4l2_fh *fh,
+				struct v4l2_event_subscription *sub);
+
+/* Can be used as a poll function that just polls for control events. */
+unsigned int v4l2_ctrl_poll(struct file *file, struct poll_table_struct *wait);
 
 /* Helpers for ioctl_ops. If hdl == NULL then they will all return -EINVAL. */
 int v4l2_queryctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_queryctrl *qc);

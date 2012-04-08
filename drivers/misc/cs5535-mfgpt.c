@@ -246,7 +246,7 @@ EXPORT_SYMBOL_GPL(cs5535_mfgpt_write);
  * Jordan tells me that he and Mitch once played w/ it, but it's unclear
  * what the results of that were (and they experienced some instability).
  */
-static void __init reset_all_timers(void)
+static void __devinit reset_all_timers(void)
 {
 	uint32_t val, dummy;
 
@@ -262,7 +262,7 @@ static void __init reset_all_timers(void)
  * In other cases (such as with VSAless OpenFirmware), the system firmware
  * leaves timers available for us to use.
  */
-static int __init scan_timers(struct cs5535_mfgpt_chip *mfgpt)
+static int __devinit scan_timers(struct cs5535_mfgpt_chip *mfgpt)
 {
 	struct cs5535_mfgpt_timer timer = { .chip = mfgpt };
 	unsigned long flags;

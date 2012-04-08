@@ -229,6 +229,7 @@ struct iscsi_cmd *iscsit_allocate_se_cmd_for_tmr(
 {
 	struct iscsi_cmd *cmd;
 	struct se_cmd *se_cmd;
+	int rc;
 	u8 tcm_function;
 
 	cmd = iscsit_allocate_cmd(conn, GFP_KERNEL);
@@ -286,10 +287,8 @@ struct iscsi_cmd *iscsit_allocate_se_cmd_for_tmr(
 		goto out;
 	}
 
-	se_cmd->se_tmr_req = core_tmr_alloc_req(se_cmd,
-				cmd->tmr_req, tcm_function,
-				GFP_KERNEL);
-	if (!se_cmd->se_tmr_req)
+	rc = core_tmr_alloc_req(se_cmd, cmd->tmr_req, tcm_function, GFP_KERNEL);
+	if (rc < 0)
 		goto out;
 
 	cmd->tmr_req->se_tmr_req = se_cmd->se_tmr_req;
@@ -849,6 +848,17 @@ void iscsit_free_cmd(struct iscsi_cmd *cmd)
 	case ISCSI_OP_SCSI_TMFUNC:
 		transport_generic_free_cmd(&cmd->se_cmd, 1);
 		break;
+	case ISCSI_OP_REJECT:
+		/*
+		 * Handle special case for REJECT when iscsi_add_reject*() has
+		 * overwritten the original iscsi_opcode assignment, and the
+		 * associated cmd->se_cmd needs to be released.
+		 */
+		if (cmd->se_cmd.se_tfo != NULL) {
+			transport_generic_free_cmd(&cmd->se_cmd, 1);
+			break;
+		}
+		/* Fall-through */
 	default:
 		iscsit_release_cmd(cmd);
 		break;

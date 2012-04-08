@@ -29,7 +29,6 @@
 #include <asm/irq.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/system.h>
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 
@@ -134,11 +133,11 @@ static void ixdp2400_pci_postinit(void)
 
 	if (ixdp2x00_master_npu()) {
 		dev = pci_get_bus_and_slot(1, IXDP2400_SLAVE_ENET_DEVFN);
-		pci_remove_bus_device(dev);
+		pci_stop_and_remove_bus_device(dev);
 		pci_dev_put(dev);
 	} else {
 		dev = pci_get_bus_and_slot(1, IXDP2400_MASTER_ENET_DEVFN);
-		pci_remove_bus_device(dev);
+		pci_stop_and_remove_bus_device(dev);
 		pci_dev_put(dev);
 
 		ixdp2x00_slave_pci_postinit();

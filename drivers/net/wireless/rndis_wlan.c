@@ -518,7 +518,7 @@ struct rndis_wlan_private {
 	__le32 current_command_oid;
 
 	/* encryption stuff */
-	int  encr_tx_key_index;
+	u8 encr_tx_key_index;
 	struct rndis_wlan_encr_key encr_keys[RNDIS_WLAN_NUM_KEYS];
 	int  wpa_version;
 
@@ -634,7 +634,7 @@ static u32 get_bcm4320_power_dbm(struct rndis_wlan_private *priv)
 	}
 }
 
-static bool is_wpa_key(struct rndis_wlan_private *priv, int idx)
+static bool is_wpa_key(struct rndis_wlan_private *priv, u8 idx)
 {
 	int cipher = priv->encr_keys[idx].cipher;
 
@@ -1350,7 +1350,7 @@ static int set_channel(struct usbnet *usbdev, int channel)
 }
 
 static struct ieee80211_channel *get_current_channel(struct usbnet *usbdev,
-						     u16 *beacon_interval)
+						     u32 *beacon_period)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ieee80211_channel *channel;
@@ -1370,14 +1370,14 @@ static struct ieee80211_channel *get_current_channel(struct usbnet *usbdev,
 	if (!channel)
 		return NULL;
 
-	if (beacon_interval)
-		*beacon_interval = le16_to_cpu(config.beacon_period);
+	if (beacon_period)
+		*beacon_period = le32_to_cpu(config.beacon_period);
 	return channel;
 }
 
 /* index must be 0 - N, as per NDIS  */
 static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
-								int index)
+								u8 index)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ndis_80211_wep_key ndis_key;
@@ -1387,13 +1387,15 @@ static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	netdev_dbg(usbdev->net, "%s(idx: %d, len: %d)\n",
 		   __func__, index, key_len);
 
-	if ((key_len != 5 && key_len != 13) || index < 0 || index > 3)
+	if (index >= RNDIS_WLAN_NUM_KEYS)
 		return -EINVAL;
 
 	if (key_len == 5)
 		cipher = WLAN_CIPHER_SUITE_WEP40;
-	else
+	else if (key_len == 13)
 		cipher = WLAN_CIPHER_SUITE_WEP104;
+	else
+		return -EINVAL;
 
 	memset(&ndis_key, 0, sizeof(ndis_key));
 
@@ -1428,7 +1430,7 @@ static int add_wep_key(struct usbnet *usbdev, const u8 *key, int key_len,
 }
 
 static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
-			int index, const u8 *addr, const u8 *rx_seq,
+			u8 index, const u8 *addr, const u8 *rx_seq,
 			int seq_len, u32 cipher, __le32 flags)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
@@ -1436,7 +1438,7 @@ static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	bool is_addr_ok;
 	int ret;
 
-	if (index < 0 || index >= 4) {
+	if (index >= RNDIS_WLAN_NUM_KEYS) {
 		netdev_dbg(usbdev->net, "%s(): index out of range (%i)\n",
 			   __func__, index);
 		return -EINVAL;
@@ -1524,7 +1526,7 @@ static int add_wpa_key(struct usbnet *usbdev, const u8 *key, int key_len,
 	return 0;
 }
 
-static int restore_key(struct usbnet *usbdev, int key_idx)
+static int restore_key(struct usbnet *usbdev, u8 key_idx)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct rndis_wlan_encr_key key;
@@ -1550,13 +1552,13 @@ static void restore_keys(struct usbnet *usbdev)
 		restore_key(usbdev, i);
 }
 
-static void clear_key(struct rndis_wlan_private *priv, int idx)
+static void clear_key(struct rndis_wlan_private *priv, u8 idx)
 {
 	memset(&priv->encr_keys[idx], 0, sizeof(priv->encr_keys[idx]));
 }
 
 /* remove_key is for both wep and wpa */
-static int remove_key(struct usbnet *usbdev, int index, const u8 *bssid)
+static int remove_key(struct usbnet *usbdev, u8 index, const u8 *bssid)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ndis_80211_remove_key remove_key;
@@ -1790,9 +1792,9 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
-	int i, len, count, newlen, err;
+	int i, newlen, err;
+	unsigned int count;
 
-	len = le32_to_cpu(pmkids->length);
 	count = le32_to_cpu(pmkids->bssid_info_count);
 
 	if (count > max_pmkids)
@@ -1831,9 +1833,9 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 						struct cfg80211_pmksa *pmksa,
 						int max_pmkids)
 {
-	int i, err, len, count, newlen;
+	int i, err, newlen;
+	unsigned int count;
 
-	len = le32_to_cpu(pmkids->length);
 	count = le32_to_cpu(pmkids->bssid_info_count);
 
 	if (count > max_pmkids)
@@ -2683,7 +2685,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	s32 signal;
 	u64 timestamp;
 	u16 capability;
-	u16 beacon_interval = 0;
+	u32 beacon_period = 0;
 	__le32 rssi;
 	u8 ie_buf[34];
 	int len, ret, ie_len;
@@ -2708,7 +2710,7 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	}
 
 	/* Get channel and beacon interval */
-	channel = get_current_channel(usbdev, &beacon_interval);
+	channel = get_current_channel(usbdev, &beacon_period);
 	if (!channel) {
 		netdev_warn(usbdev->net, "%s(): could not get channel.\n",
 					__func__);
@@ -2738,11 +2740,11 @@ static void rndis_wlan_craft_connected_bss(struct usbnet *usbdev, u8 *bssid,
 	netdev_dbg(usbdev->net, "%s(): channel:%d(freq), bssid:[%pM], tsf:%d, "
 		"capa:%x, beacon int:%d, resp_ie(len:%d, essid:'%.32s'), "
 		"signal:%d\n", __func__, (channel ? channel->center_freq : -1),
-		bssid, (u32)timestamp, capability, beacon_interval, ie_len,
+		bssid, (u32)timestamp, capability, beacon_period, ie_len,
 		ssid.essid, signal);
 
 	bss = cfg80211_inform_bss(priv->wdev.wiphy, channel, bssid,
-		timestamp, capability, beacon_interval, ie_buf, ie_len,
+		timestamp, capability, beacon_period, ie_buf, ie_len,
 		signal, GFP_KERNEL);
 	cfg80211_put_bss(bss);
 }
@@ -2755,9 +2757,10 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct ndis_80211_assoc_info *info = NULL;
 	u8 bssid[ETH_ALEN];
-	int resp_ie_len, req_ie_len;
+	unsigned int resp_ie_len, req_ie_len;
+	unsigned int offset;
 	u8 *req_ie, *resp_ie;
-	int ret, offset;
+	int ret;
 	bool roamed = false;
 	bool match_bss;
 
@@ -2785,7 +2788,9 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 		ret = get_association_info(usbdev, info, CONTROL_BUFFER_SIZE);
 		if (!ret) {
 			req_ie_len = le32_to_cpu(info->req_ie_length);
-			if (req_ie_len > 0) {
+			if (req_ie_len > CONTROL_BUFFER_SIZE)
+				req_ie_len = CONTROL_BUFFER_SIZE;
+			if (req_ie_len != 0) {
 				offset = le32_to_cpu(info->offset_req_ies);
 
 				if (offset > CONTROL_BUFFER_SIZE)
@@ -2799,7 +2804,9 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 			}
 
 			resp_ie_len = le32_to_cpu(info->resp_ie_length);
-			if (resp_ie_len > 0) {
+			if (resp_ie_len > CONTROL_BUFFER_SIZE)
+				resp_ie_len = CONTROL_BUFFER_SIZE;
+			if (resp_ie_len != 0) {
 				offset = le32_to_cpu(info->offset_resp_ies);
 
 				if (offset > CONTROL_BUFFER_SIZE)
@@ -3038,7 +3045,7 @@ static void rndis_wlan_media_specific_indication(struct usbnet *usbdev,
 			struct rndis_indicate *msg, int buflen)
 {
 	struct ndis_80211_status_indication *indication;
-	int len, offset;
+	unsigned int len, offset;
 
 	offset = offsetof(struct rndis_indicate, status) +
 			le32_to_cpu(msg->offset);
@@ -3050,7 +3057,7 @@ static void rndis_wlan_media_specific_indication(struct usbnet *usbdev,
 		return;
 	}
 
-	if (offset + len > buflen) {
+	if (len > buflen || offset > buflen || offset + len > buflen) {
 		netdev_info(usbdev->net, "media specific indication, too large to fit to buffer (%i > %i)\n",
 			    offset + len, buflen);
 		return;

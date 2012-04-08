@@ -37,6 +37,9 @@
  *  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <linux/kmod.h>
+#include <linux/moduleparam.h>
+#include <linux/ratelimit.h>
 #include <scsi/osd_initiator.h>
 #include "objlayout.h"
 
@@ -156,7 +159,7 @@ last_byte_offset(u64 start, u64 len)
 	return end > start ? end - 1 : NFS4_MAX_UINT64;
 }
 
-void _fix_verify_io_params(struct pnfs_layout_segment *lseg,
+static void _fix_verify_io_params(struct pnfs_layout_segment *lseg,
 			   struct page ***p_pages, unsigned *p_pgbase,
 			   u64 offset, unsigned long count)
 {
@@ -490,9 +493,9 @@ encode_accumulated_error(struct objlayout *objlay, __be32 *p)
 			if (!ioerr->oer_errno)
 				continue;
 
-			printk(KERN_ERR "%s: err[%d]: errno=%d is_write=%d "
-				"dev(%llx:%llx) par=0x%llx obj=0x%llx "
-				"offset=0x%llx length=0x%llx\n",
+			printk(KERN_ERR "NFS: %s: err[%d]: errno=%d "
+				"is_write=%d dev(%llx:%llx) par=0x%llx "
+				"obj=0x%llx offset=0x%llx length=0x%llx\n",
 				__func__, i, ioerr->oer_errno,
 				ioerr->oer_iswrite,
 				_DEVID_LO(&ioerr->oer_component.oid_device_id),
@@ -650,4 +653,135 @@ void objlayout_put_deviceinfo(struct pnfs_osd_deviceaddr *deviceaddr)
 
 	__free_page(odi->page);
 	kfree(odi);
+}
+
+enum {
+	OBJLAYOUT_MAX_URI_LEN = 256, OBJLAYOUT_MAX_OSDNAME_LEN = 64,
+	OBJLAYOUT_MAX_SYSID_HEX_LEN = OSD_SYSTEMID_LEN * 2 + 1,
+	OSD_LOGIN_UPCALL_PATHLEN  = 256
+};
+
+static char osd_login_prog[OSD_LOGIN_UPCALL_PATHLEN] = "/sbin/osd_login";
+
+module_param_string(osd_login_prog, osd_login_prog, sizeof(osd_login_prog),
+		    0600);
+MODULE_PARM_DESC(osd_login_prog, "Path to the osd_login upcall program");
+
+struct __auto_login {
+	char uri[OBJLAYOUT_MAX_URI_LEN];
+	char osdname[OBJLAYOUT_MAX_OSDNAME_LEN];
+	char systemid_hex[OBJLAYOUT_MAX_SYSID_HEX_LEN];
+};
+
+static int __objlayout_upcall(struct __auto_login *login)
+{
+	static char *envp[] = { "HOME=/",
+		"TERM=linux",
+		"PATH=/sbin:/usr/sbin:/bin:/usr/bin",
+		NULL
+	};
+	char *argv[8];
+	int ret;
+
+	if (unlikely(!osd_login_prog[0])) {
+		dprintk("%s: osd_login_prog is disabled\n", __func__);
+		return -EACCES;
+	}
+
+	dprintk("%s uri: %s\n", __func__, login->uri);
+	dprintk("%s osdname %s\n", __func__, login->osdname);
+	dprintk("%s systemid_hex %s\n", __func__, login->systemid_hex);
+
+	argv[0] = (char *)osd_login_prog;
+	argv[1] = "-u";
+	argv[2] = login->uri;
+	argv[3] = "-o";
+	argv[4] = login->osdname;
+	argv[5] = "-s";
+	argv[6] = login->systemid_hex;
+	argv[7] = NULL;
+
+	ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_PROC);
+	/*
+	 * Disable the upcall mechanism if we're getting an ENOENT or
+	 * EACCES error. The admin can re-enable it on the fly by using
+	 * sysfs to set the objlayoutdriver.osd_login_prog module parameter once
+	 * the problem has been fixed.
+	 */
+	if (ret == -ENOENT || ret == -EACCES) {
+		printk(KERN_ERR "PNFS-OBJ: %s was not found please set "
+			"objlayoutdriver.osd_login_prog kernel parameter!\n",
+			osd_login_prog);
+		osd_login_prog[0] = '\0';
+	}
+	dprintk("%s %s return value: %d\n", __func__, osd_login_prog, ret);
+
+	return ret;
+}
+
+/* Assume dest is all zeros */
+static void __copy_nfsS_and_zero_terminate(struct nfs4_string s,
+					   char *dest, int max_len,
+					   const char *var_name)
+{
+	if (!s.len)
+		return;
+
+	if (s.len >= max_len) {
+		pr_warn_ratelimited(
+			"objlayout_autologin: %s: s.len(%d) >= max_len(%d)",
+			var_name, s.len, max_len);
+		s.len = max_len - 1; /* space for null terminator */
+	}
+
+	memcpy(dest, s.data, s.len);
+}
+
+/* Assume sysid is all zeros */
+static void _sysid_2_hex(struct nfs4_string s,
+		  char sysid[OBJLAYOUT_MAX_SYSID_HEX_LEN])
+{
+	int i;
+	char *cur;
+
+	if (!s.len)
+		return;
+
+	if (s.len != OSD_SYSTEMID_LEN) {
+		pr_warn_ratelimited(
+		    "objlayout_autologin: systemid_len(%d) != OSD_SYSTEMID_LEN",
+		    s.len);
+		if (s.len > OSD_SYSTEMID_LEN)
+			s.len = OSD_SYSTEMID_LEN;
+	}
+
+	cur = sysid;
+	for (i = 0; i < s.len; i++)
+		cur = hex_byte_pack(cur, s.data[i]);
+}
+
+int objlayout_autologin(struct pnfs_osd_deviceaddr *deviceaddr)
+{
+	int rc;
+	struct __auto_login login;
+
+	if (!deviceaddr->oda_targetaddr.ota_netaddr.r_addr.len)
+		return -ENODEV;
+
+	memset(&login, 0, sizeof(login));
+	__copy_nfsS_and_zero_terminate(
+		deviceaddr->oda_targetaddr.ota_netaddr.r_addr,
+		login.uri, sizeof(login.uri), "URI");
+
+	__copy_nfsS_and_zero_terminate(
+		deviceaddr->oda_osdname,
+		login.osdname, sizeof(login.osdname), "OSDNAME");
+
+	_sysid_2_hex(deviceaddr->oda_systemid, login.systemid_hex);
+
+	rc = __objlayout_upcall(&login);
+	if (rc > 0) /* script returns positive values */
+		rc = -ENODEV;
+
+	return rc;
 }

@@ -128,6 +128,26 @@ url="http://www.ijg.org">http://www.ijg.org</ulink>)</corpauthor>
       <subtitle>Version 1.02</subtitle>
     </biblioentry>
 
+    <biblioentry id="itu-t81">
+      <abbrev>ITU-T.81</abbrev>
+      <authorgroup>
+	<corpauthor>International Telecommunication Union
+(<ulink url="http://www.itu.int">http://www.itu.int</ulink>)</corpauthor>
+      </authorgroup>
+      <title>ITU-T Recommendation T.81
+"Information Technology &mdash; Digital Compression and Coding of Continous-Tone
+Still Images &mdash; Requirements and Guidelines"</title>
+    </biblioentry>
+
+    <biblioentry id="w3c-jpeg-jfif">
+      <abbrev>W3C JPEG JFIF</abbrev>
+      <authorgroup>
+	<corpauthor>The World Wide Web Consortium (<ulink
+url="http://www.w3.org/Graphics/JPEG">http://www.w3.org</ulink>)</corpauthor>
+      </authorgroup>
+      <title>JPEG JFIF</title>
+    </biblioentry>
+
     <biblioentry id="smpte12m">
       <abbrev>SMPTE&nbsp;12M</abbrev>
       <authorgroup>

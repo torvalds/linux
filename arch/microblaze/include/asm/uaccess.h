@@ -80,7 +80,7 @@ extern unsigned long search_exception_table(unsigned long);
 static inline int ___range_ok(unsigned long addr, unsigned long size)
 {
 	return ((addr < memory_start) ||
-		((addr + size) > memory_end));
+		((addr + size - 1) > (memory_start + memory_size - 1)));
 }
 
 #define __range_ok(addr, size) \

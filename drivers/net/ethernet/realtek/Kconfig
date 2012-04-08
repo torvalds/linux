@@ -24,11 +24,11 @@ config ATP
 	select CRC32
 	---help---
 	  This is a network (Ethernet) device which attaches to your parallel
-	  port. Read <file:drivers/net/atp.c> as well as the Ethernet-HOWTO,
-	  available from <http://www.tldp.org/docs.html#howto>, if you
-	  want to use this.  If you intend to use this driver, you should have
-	  said N to the "Parallel printer support", because the two drivers
-	  don't like each other.
+	  port. Read <file:drivers/net/ethernet/realtek/atp.c> as well as the
+	  Ethernet-HOWTO, available from <http://www.tldp.org/docs.html#howto>,
+	  if you want to use this.  If you intend to use this driver, you
+	  should have said N to the "Parallel printer support", because the two
+	  drivers don't like each other.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called atp.

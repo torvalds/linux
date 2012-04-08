@@ -31,6 +31,7 @@
 #include <asm/iommu.h>
 #include <asm/tce.h>
 #include <asm/abs_addr.h>
+#include <asm/firmware.h>
 
 #include "powernv.h"
 #include "pci.h"
@@ -52,32 +53,38 @@ static int pnv_msi_check_device(struct pci_dev* pdev, int nvec, int type)
 
 static unsigned int pnv_get_one_msi(struct pnv_phb *phb)
 {
-	unsigned int id;
+	unsigned long flags;
+	unsigned int id, rc;
 
-	spin_lock(&phb->lock);
+	spin_lock_irqsave(&phb->lock, flags);
+
 	id = find_next_zero_bit(phb->msi_map, phb->msi_count, phb->msi_next);
 	if (id >= phb->msi_count && phb->msi_next)
 		id = find_next_zero_bit(phb->msi_map, phb->msi_count, 0);
 	if (id >= phb->msi_count) {
-		spin_unlock(&phb->lock);
-		return 0;
+		rc = 0;
+		goto out;
 	}
 	__set_bit(id, phb->msi_map);
-	spin_unlock(&phb->lock);
-	return id + phb->msi_base;
+	rc = id + phb->msi_base;
+out:
+	spin_unlock_irqrestore(&phb->lock, flags);
+	return rc;
 }
 
 static void pnv_put_msi(struct pnv_phb *phb, unsigned int hwirq)
 {
+	unsigned long flags;
 	unsigned int id;
 
 	if (WARN_ON(hwirq < phb->msi_base ||
 		    hwirq >= (phb->msi_base + phb->msi_count)))
 		return;
 	id = hwirq - phb->msi_base;
-	spin_lock(&phb->lock);
+
+	spin_lock_irqsave(&phb->lock, flags);
 	__clear_bit(id, phb->msi_map);
-	spin_unlock(&phb->lock);
+	spin_unlock_irqrestore(&phb->lock, flags);
 }
 
 static int pnv_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
@@ -555,10 +562,7 @@ void __init pnv_pci_init(void)
 {
 	struct device_node *np;
 
-	pci_set_flags(PCI_CAN_SKIP_ISA_ALIGN);
-
-	/* We do not want to just probe */
-	pci_probe_only = 0;
+	pci_add_flags(PCI_CAN_SKIP_ISA_ALIGN);
 
 	/* OPAL absent, try POPAL first then RTAS detection of PHBs */
 	if (!firmware_has_feature(FW_FEATURE_OPAL)) {

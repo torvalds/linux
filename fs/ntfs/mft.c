@@ -1,7 +1,7 @@
 /**
  * mft.c - NTFS kernel mft record operations. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.
+ * Copyright (c) 2001-2012 Anton Altaparmakov and Tuxera Inc.
  * Copyright (c) 2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or

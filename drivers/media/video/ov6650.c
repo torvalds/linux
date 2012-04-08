@@ -1046,18 +1046,7 @@ static struct i2c_driver ov6650_i2c_driver = {
 	.id_table = ov6650_id,
 };
 
-static int __init ov6650_module_init(void)
-{
-	return i2c_add_driver(&ov6650_i2c_driver);
-}
-
-static void __exit ov6650_module_exit(void)
-{
-	i2c_del_driver(&ov6650_i2c_driver);
-}
-
-module_init(ov6650_module_init);
-module_exit(ov6650_module_exit);
+module_i2c_driver(ov6650_i2c_driver);
 
 MODULE_DESCRIPTION("SoC Camera driver for OmniVision OV6650");
 MODULE_AUTHOR("Janusz Krzysztofik <jkrzyszt@tis.icnet.pl>");

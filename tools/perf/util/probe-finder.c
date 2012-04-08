@@ -30,7 +30,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#include <ctype.h>
 #include <dwarf-regs.h>
 
 #include <linux/bitops.h>
@@ -672,7 +671,7 @@ static int find_variable(Dwarf_Die *sc_die, struct probe_finder *pf)
 static int convert_to_trace_point(Dwarf_Die *sp_die, Dwarf_Addr paddr,
 				  bool retprobe, struct probe_trace_point *tp)
 {
-	Dwarf_Addr eaddr;
+	Dwarf_Addr eaddr, highaddr;
 	const char *name;
 
 	/* Copy the name of probe point */
@@ -682,6 +681,16 @@ static int convert_to_trace_point(Dwarf_Die *sp_die, Dwarf_Addr paddr,
 			pr_warning("Failed to get entry address of %s\n",
 				   dwarf_diename(sp_die));
 			return -ENOENT;
+		}
+		if (dwarf_highpc(sp_die, &highaddr) != 0) {
+			pr_warning("Failed to get end address of %s\n",
+				   dwarf_diename(sp_die));
+			return -ENOENT;
+		}
+		if (paddr > highaddr) {
+			pr_warning("Offset specified is greater than size of %s\n",
+				   dwarf_diename(sp_die));
+			return -EINVAL;
 		}
 		tp->symbol = strdup(name);
 		if (tp->symbol == NULL)
@@ -963,10 +972,12 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 	struct dwarf_callback_param *param = data;
 	struct probe_finder *pf = param->data;
 	struct perf_probe_point *pp = &pf->pev->point;
+	Dwarf_Attribute attr;
 
 	/* Check tag and diename */
 	if (dwarf_tag(sp_die) != DW_TAG_subprogram ||
-	    !die_compare_name(sp_die, pp->function))
+	    !die_compare_name(sp_die, pp->function) ||
+	    dwarf_attr(sp_die, DW_AT_declaration, &attr))
 		return DWARF_CB_OK;
 
 	/* Check declared file */

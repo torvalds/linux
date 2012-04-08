@@ -1787,6 +1787,7 @@ static struct usb_driver sddr09_driver = {
 	.post_reset =	usb_stor_post_reset,
 	.id_table =	sddr09_usb_ids,
 	.soft_unbind =	1,
+	.no_dynamic_id = 1,
 };
 
 module_usb_driver(sddr09_driver);

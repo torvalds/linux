@@ -28,7 +28,6 @@
 
 #include <linux/compiler.h>
 #include <linux/string.h>
-#include <asm/system.h>
 
 /* Reset the FPA11 chip.  Called to initialize and reset the emulator. */
 static void resetFPA11(void)

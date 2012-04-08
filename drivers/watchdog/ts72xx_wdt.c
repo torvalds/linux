@@ -34,8 +34,8 @@ MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds. "
 			  __MODULE_STRING(TS72XX_WDT_DEFAULT_TIMEOUT)
 			  ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
 
 /**

@@ -590,6 +590,11 @@ struct omap_dss_device {
 	int (*get_backlight)(struct omap_dss_device *dssdev);
 };
 
+struct omap_dss_hdmi_data
+{
+	int hpd_gpio;
+};
+
 struct omap_dss_driver {
 	struct device_driver driver;
 

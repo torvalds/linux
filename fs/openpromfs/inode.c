@@ -408,13 +408,12 @@ static int openprom_fill_super(struct super_block *s, void *data, int silent)
 	oi->type = op_inode_node;
 	oi->u.node = of_find_node_by_path("/");
 
-	s->s_root = d_alloc_root(root_inode);
+	s->s_root = d_make_root(root_inode);
 	if (!s->s_root)
 		goto out_no_root_dentry;
 	return 0;
 
 out_no_root_dentry:
-	iput(root_inode);
 	ret = -ENOMEM;
 out_no_root:
 	printk("openprom_fill_super: get root inode failed\n");

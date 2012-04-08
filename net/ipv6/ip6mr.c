@@ -16,7 +16,6 @@
  *
  */
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/types.h>
 #include <linux/sched.h>
@@ -1926,8 +1925,10 @@ static int ip6mr_forward2(struct net *net, struct mr6_table *mrt,
 	};
 
 	dst = ip6_route_output(net, NULL, &fl6);
-	if (!dst)
+	if (dst->error) {
+		dst_release(dst);
 		goto out_free;
+	}
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);

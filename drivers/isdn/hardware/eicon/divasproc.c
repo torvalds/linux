@@ -55,7 +55,7 @@ extern struct proc_dir_entry *proc_net_eicon;
 static struct proc_dir_entry *divas_proc_entry = NULL;
 
 static ssize_t
-divas_read(struct file *file, char __user *buf, size_t count, loff_t * off)
+divas_read(struct file *file, char __user *buf, size_t count, loff_t *off)
 {
 	int len = 0;
 	int cadapter;
@@ -94,12 +94,12 @@ divas_read(struct file *file, char __user *buf, size_t count, loff_t * off)
 }
 
 static ssize_t
-divas_write(struct file *file, const char __user *buf, size_t count, loff_t * off)
+divas_write(struct file *file, const char __user *buf, size_t count, loff_t *off)
 {
 	return (-ENODEV);
 }
 
-static unsigned int divas_poll(struct file *file, poll_table * wait)
+static unsigned int divas_poll(struct file *file, poll_table *wait)
 {
 	return (POLLERR);
 }
@@ -127,7 +127,7 @@ static const struct file_operations divas_fops = {
 int create_divas_proc(void)
 {
 	divas_proc_entry = proc_create(divas_proc_name, S_IFREG | S_IRUGO,
-					proc_net_eicon, &divas_fops);
+				       proc_net_eicon, &divas_fops);
 	if (!divas_proc_entry)
 		return (0);
 
@@ -155,11 +155,11 @@ static ssize_t grp_opt_proc_write(struct file *file, const char __user *buffer,
 		switch (c) {
 		case '0':
 			IoAdapter->capi_cfg.cfg_1 &=
-			    ~DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON;
+				~DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON;
 			break;
 		case '1':
 			IoAdapter->capi_cfg.cfg_1 |=
-			    DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON;
+				DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON;
 			break;
 		default:
 			return (-EINVAL);
@@ -182,11 +182,11 @@ static ssize_t d_l1_down_proc_write(struct file *file, const char __user *buffer
 		switch (c) {
 		case '0':
 			IoAdapter->capi_cfg.cfg_1 &=
-			    ~DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON;
+				~DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON;
 			break;
 		case '1':
 			IoAdapter->capi_cfg.cfg_1 |=
-			    DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON;
+				DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON;
 			break;
 		default:
 			return (-EINVAL);
@@ -202,9 +202,9 @@ static int d_l1_down_proc_show(struct seq_file *m, void *v)
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	seq_printf(m, "%s\n",
-		       (IoAdapter->capi_cfg.
-			cfg_1 & DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON) ? "1" :
-		       "0");
+		   (IoAdapter->capi_cfg.
+		    cfg_1 & DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON) ? "1" :
+		   "0");
 	return 0;
 }
 
@@ -228,9 +228,9 @@ static int grp_opt_proc_show(struct seq_file *m, void *v)
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	seq_printf(m, "%s\n",
-		       (IoAdapter->capi_cfg.
-			cfg_1 & DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON)
-		       ? "1" : "0");
+		   (IoAdapter->capi_cfg.
+		    cfg_1 & DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON)
+		   ? "1" : "0");
 	return 0;
 }
 
@@ -281,7 +281,7 @@ static int info_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "DSP state   : %08x\n", a->dsp_mask);
 	seq_printf(m, "Channels    : %02d\n", IoAdapter->Properties.Channels);
 	seq_printf(m, "E. max/used : %03d/%03d\n",
-		       IoAdapter->e_max, IoAdapter->e_count);
+		   IoAdapter->e_max, IoAdapter->e_count);
 	diva_get_vserial_number(IoAdapter, tmpser);
 	seq_printf(m, "Serial      : %s\n", tmpser);
 	seq_printf(m, "IRQ         : %d\n", IoAdapter->irq_info.irq_nr);
@@ -289,8 +289,8 @@ static int info_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "CardOrdinal : %d\n", a->CardOrdinal);
 	seq_printf(m, "Controller  : %d\n", a->controller);
 	seq_printf(m, "Bus-Type    : %s\n",
-		       (a->Bus ==
-			DIVAS_XDI_ADAPTER_BUS_ISA) ? "ISA" : "PCI");
+		   (a->Bus ==
+		    DIVAS_XDI_ADAPTER_BUS_ISA) ? "ISA" : "PCI");
 	seq_printf(m, "Port-Name   : %s\n", a->port_name);
 	if (a->Bus == DIVAS_XDI_ADAPTER_BUS_PCI) {
 		seq_printf(m, "PCI-bus     : %d\n", a->resources.pci.bus);
@@ -298,15 +298,15 @@ static int info_proc_show(struct seq_file *m, void *v)
 		for (i = 0; i < 8; i++) {
 			if (a->resources.pci.bar[i]) {
 				seq_printf(m,
-					    "Mem / I/O %d : 0x%x / mapped : 0x%lx",
-					    i, a->resources.pci.bar[i],
-					    (unsigned long) a->resources.
-					    pci.addr[i]);
+					   "Mem / I/O %d : 0x%x / mapped : 0x%lx",
+					   i, a->resources.pci.bar[i],
+					   (unsigned long) a->resources.
+					   pci.addr[i]);
 				if (a->resources.pci.length[i]) {
 					seq_printf(m,
-						    " / length : %d",
-						    a->resources.pci.
-						    length[i]);
+						   " / length : %d",
+						   a->resources.pci.
+						   length[i]);
 				}
 				seq_putc(m, '\n');
 			}
@@ -314,7 +314,7 @@ static int info_proc_show(struct seq_file *m, void *v)
 	}
 	if ((!a->xdi_adapter.port) &&
 	    ((!a->xdi_adapter.ram) ||
-	    (!a->xdi_adapter.reset)
+	     (!a->xdi_adapter.reset)
 	     || (!a->xdi_adapter.cfg))) {
 		if (!IoAdapter->irq_info.irq_nr) {
 			p = "slave";
@@ -352,9 +352,9 @@ static const struct file_operations info_proc_fops = {
 */
 
 /* --------------------------------------------------------------------------
-    Create adapter directory and files in proc file system
+   Create adapter directory and files in proc file system
    -------------------------------------------------------------------------- */
-int create_adapter_proc(diva_os_xdi_adapter_t * a)
+int create_adapter_proc(diva_os_xdi_adapter_t *a)
 {
 	struct proc_dir_entry *de, *pe;
 	char tmp[16];
@@ -385,9 +385,9 @@ int create_adapter_proc(diva_os_xdi_adapter_t * a)
 }
 
 /* --------------------------------------------------------------------------
-    Remove adapter directory and files in proc file system
+   Remove adapter directory and files in proc file system
    -------------------------------------------------------------------------- */
-void remove_adapter_proc(diva_os_xdi_adapter_t * a)
+void remove_adapter_proc(diva_os_xdi_adapter_t *a)
 {
 	char tmp[16];
 

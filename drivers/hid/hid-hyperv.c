@@ -548,6 +548,7 @@ static int mousevsc_remove(struct hv_device *dev)
 	struct mousevsc_dev *input_dev = hv_get_drvdata(dev);
 
 	vmbus_close(dev->channel);
+	hid_hw_stop(input_dev->hid_device);
 	hid_destroy_device(input_dev->hid_device);
 	mousevsc_free_device(input_dev);
 

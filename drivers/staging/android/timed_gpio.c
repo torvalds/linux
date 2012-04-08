@@ -29,9 +29,9 @@ struct timed_gpio_data {
 	struct timed_output_dev dev;
 	struct hrtimer timer;
 	spinlock_t lock;
-	unsigned 	gpio;
-	int 		max_timeout;
-	u8 		active_low;
+	unsigned gpio;
+	int max_timeout;
+	u8 active_low;
 };
 
 static enum hrtimer_restart gpio_timer_func(struct hrtimer *timer)

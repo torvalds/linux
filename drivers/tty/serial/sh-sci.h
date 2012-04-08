@@ -20,10 +20,10 @@
     defined(CONFIG_ARCH_SH7372) || \
     defined(CONFIG_ARCH_R8A7740)
 
-# define SCxSR_RDxF_CLEAR(port)	 (sci_in(port, SCxSR) & 0xfffc)
-# define SCxSR_ERROR_CLEAR(port) (sci_in(port, SCxSR) & 0xfd73)
-# define SCxSR_TDxE_CLEAR(port)	 (sci_in(port, SCxSR) & 0xffdf)
-# define SCxSR_BREAK_CLEAR(port) (sci_in(port, SCxSR) & 0xffe3)
+# define SCxSR_RDxF_CLEAR(port)	 (serial_port_in(port, SCxSR) & 0xfffc)
+# define SCxSR_ERROR_CLEAR(port) (serial_port_in(port, SCxSR) & 0xfd73)
+# define SCxSR_TDxE_CLEAR(port)	 (serial_port_in(port, SCxSR) & 0xffdf)
+# define SCxSR_BREAK_CLEAR(port) (serial_port_in(port, SCxSR) & 0xffe3)
 #else
 # define SCxSR_RDxF_CLEAR(port)	 (((port)->type == PORT_SCI) ? 0xbc : 0x00fc)
 # define SCxSR_ERROR_CLEAR(port) (((port)->type == PORT_SCI) ? 0xc4 : 0x0073)

@@ -150,7 +150,8 @@ err_out:
 		platform_device_put(omap_iommu_pdev[i]);
 	return err;
 }
-module_init(omap_iommu_init);
+/* must be ready before omap3isp is probed */
+subsys_initcall(omap_iommu_init);
 
 static void __exit omap_iommu_exit(void)
 {

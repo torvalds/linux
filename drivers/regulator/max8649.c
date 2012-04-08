@@ -101,8 +101,7 @@ static int max8649_set_voltage(struct regulator_dev *rdev,
 			min_uV, max_uV);
 		return -EINVAL;
 	}
-	data = (min_uV - MAX8649_DCDC_VMIN + MAX8649_DCDC_STEP - 1)
-		/ MAX8649_DCDC_STEP;
+	data = DIV_ROUND_UP(min_uV - MAX8649_DCDC_VMIN, MAX8649_DCDC_STEP);
 	mask = MAX8649_VOL_MASK;
 	*selector = data & mask;
 
@@ -150,7 +149,7 @@ static int max8649_enable_time(struct regulator_dev *rdev)
 	if (ret != 0)
 		return ret;
 	val &= MAX8649_VOL_MASK;
-	voltage = max8649_list_voltage(rdev, (unsigned char)ret); /* uV */
+	voltage = max8649_list_voltage(rdev, (unsigned char)val); /* uV */
 
 	/* get rate */
 	ret = regmap_read(info->regmap, MAX8649_RAMP, &val);
@@ -270,7 +269,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 			ret);
 		goto out;
 	}
-	dev_info(info->dev, "Detected MAX8649 (ID:%x)\n", ret);
+	dev_info(info->dev, "Detected MAX8649 (ID:%x)\n", val);
 
 	/* enable VID0 & VID1 */
 	regmap_update_bits(info->regmap, MAX8649_CONTROL, MAX8649_VID_MASK, 0);

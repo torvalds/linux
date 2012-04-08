@@ -28,12 +28,12 @@
 #include <plat/mcspi.h>
 #include <plat/mcbsp.h>
 #include <plat/mmc.h>
-#include <plat/i2c.h>
 #include <plat/dmtimer.h>
 #include <plat/common.h>
 
 #include "omap_hwmod_common_data.h"
 
+#include "smartreflex.h"
 #include "cm1_44xx.h"
 #include "cm2_44xx.h"
 #include "prm44xx.h"
@@ -1031,6 +1031,7 @@ static struct omap_hwmod_dma_info omap44xx_dmic_sdma_reqs[] = {
 
 static struct omap_hwmod_addr_space omap44xx_dmic_addrs[] = {
 	{
+		.name		= "mpu",
 		.pa_start	= 0x4012e000,
 		.pa_end		= 0x4012e07f,
 		.flags		= ADDR_TYPE_RT
@@ -1049,6 +1050,7 @@ static struct omap_hwmod_ocp_if omap44xx_l4_abe__dmic = {
 
 static struct omap_hwmod_addr_space omap44xx_dmic_dma_addrs[] = {
 	{
+		.name		= "dma",
 		.pa_start	= 0x4902e000,
 		.pa_end		= 0x4902e07f,
 		.flags		= ADDR_TYPE_RT
@@ -2994,6 +2996,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcbsp1_slaves[] = {
 	&omap44xx_l4_abe__mcbsp1_dma,
 };
 
+static struct omap_hwmod_opt_clk mcbsp1_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "pad_clks_ck" },
+	{ .role = "prcm_clk", .clk = "mcbsp1_sync_mux_ck" },
+};
+
 static struct omap_hwmod omap44xx_mcbsp1_hwmod = {
 	.name		= "mcbsp1",
 	.class		= &omap44xx_mcbsp_hwmod_class,
@@ -3010,6 +3017,8 @@ static struct omap_hwmod omap44xx_mcbsp1_hwmod = {
 	},
 	.slaves		= omap44xx_mcbsp1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcbsp1_slaves),
+	.opt_clks	= mcbsp1_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp1_opt_clks),
 };
 
 /* mcbsp2 */
@@ -3069,6 +3078,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcbsp2_slaves[] = {
 	&omap44xx_l4_abe__mcbsp2_dma,
 };
 
+static struct omap_hwmod_opt_clk mcbsp2_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "pad_clks_ck" },
+	{ .role = "prcm_clk", .clk = "mcbsp2_sync_mux_ck" },
+};
+
 static struct omap_hwmod omap44xx_mcbsp2_hwmod = {
 	.name		= "mcbsp2",
 	.class		= &omap44xx_mcbsp_hwmod_class,
@@ -3085,6 +3099,8 @@ static struct omap_hwmod omap44xx_mcbsp2_hwmod = {
 	},
 	.slaves		= omap44xx_mcbsp2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcbsp2_slaves),
+	.opt_clks	= mcbsp2_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp2_opt_clks),
 };
 
 /* mcbsp3 */
@@ -3144,6 +3160,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcbsp3_slaves[] = {
 	&omap44xx_l4_abe__mcbsp3_dma,
 };
 
+static struct omap_hwmod_opt_clk mcbsp3_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "pad_clks_ck" },
+	{ .role = "prcm_clk", .clk = "mcbsp3_sync_mux_ck" },
+};
+
 static struct omap_hwmod omap44xx_mcbsp3_hwmod = {
 	.name		= "mcbsp3",
 	.class		= &omap44xx_mcbsp_hwmod_class,
@@ -3160,6 +3181,8 @@ static struct omap_hwmod omap44xx_mcbsp3_hwmod = {
 	},
 	.slaves		= omap44xx_mcbsp3_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcbsp3_slaves),
+	.opt_clks	= mcbsp3_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp3_opt_clks),
 };
 
 /* mcbsp4 */
@@ -3198,6 +3221,11 @@ static struct omap_hwmod_ocp_if *omap44xx_mcbsp4_slaves[] = {
 	&omap44xx_l4_per__mcbsp4,
 };
 
+static struct omap_hwmod_opt_clk mcbsp4_opt_clks[] = {
+	{ .role = "pad_fck", .clk = "pad_clks_ck" },
+	{ .role = "prcm_clk", .clk = "mcbsp4_sync_mux_ck" },
+};
+
 static struct omap_hwmod omap44xx_mcbsp4_hwmod = {
 	.name		= "mcbsp4",
 	.class		= &omap44xx_mcbsp_hwmod_class,
@@ -3214,6 +3242,8 @@ static struct omap_hwmod omap44xx_mcbsp4_hwmod = {
 	},
 	.slaves		= omap44xx_mcbsp4_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_mcbsp4_slaves),
+	.opt_clks	= mcbsp4_opt_clks,
+	.opt_clks_cnt	= ARRAY_SIZE(mcbsp4_opt_clks),
 };
 
 /*
@@ -3961,6 +3991,10 @@ static struct omap_hwmod_class omap44xx_smartreflex_hwmod_class = {
 };
 
 /* smartreflex_core */
+static struct omap_smartreflex_dev_attr smartreflex_core_dev_attr = {
+	.sensor_voltdm_name   = "core",
+};
+
 static struct omap_hwmod omap44xx_smartreflex_core_hwmod;
 static struct omap_hwmod_irq_info omap44xx_smartreflex_core_irqs[] = {
 	{ .irq = 19 + OMAP44XX_IRQ_GIC_START },
@@ -3997,7 +4031,6 @@ static struct omap_hwmod omap44xx_smartreflex_core_hwmod = {
 	.mpu_irqs	= omap44xx_smartreflex_core_irqs,
 
 	.main_clk	= "smartreflex_core_fck",
-	.vdd_name	= "core",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_ALWON_SR_CORE_CLKCTRL_OFFSET,
@@ -4007,9 +4040,14 @@ static struct omap_hwmod omap44xx_smartreflex_core_hwmod = {
 	},
 	.slaves		= omap44xx_smartreflex_core_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_smartreflex_core_slaves),
+	.dev_attr	= &smartreflex_core_dev_attr,
 };
 
 /* smartreflex_iva */
+static struct omap_smartreflex_dev_attr smartreflex_iva_dev_attr = {
+	.sensor_voltdm_name	= "iva",
+};
+
 static struct omap_hwmod omap44xx_smartreflex_iva_hwmod;
 static struct omap_hwmod_irq_info omap44xx_smartreflex_iva_irqs[] = {
 	{ .irq = 102 + OMAP44XX_IRQ_GIC_START },
@@ -4045,7 +4083,6 @@ static struct omap_hwmod omap44xx_smartreflex_iva_hwmod = {
 	.clkdm_name	= "l4_ao_clkdm",
 	.mpu_irqs	= omap44xx_smartreflex_iva_irqs,
 	.main_clk	= "smartreflex_iva_fck",
-	.vdd_name	= "iva",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_ALWON_SR_IVA_CLKCTRL_OFFSET,
@@ -4055,9 +4092,14 @@ static struct omap_hwmod omap44xx_smartreflex_iva_hwmod = {
 	},
 	.slaves		= omap44xx_smartreflex_iva_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_smartreflex_iva_slaves),
+	.dev_attr	= &smartreflex_iva_dev_attr,
 };
 
 /* smartreflex_mpu */
+static struct omap_smartreflex_dev_attr smartreflex_mpu_dev_attr = {
+	.sensor_voltdm_name	= "mpu",
+};
+
 static struct omap_hwmod omap44xx_smartreflex_mpu_hwmod;
 static struct omap_hwmod_irq_info omap44xx_smartreflex_mpu_irqs[] = {
 	{ .irq = 18 + OMAP44XX_IRQ_GIC_START },
@@ -4093,7 +4135,6 @@ static struct omap_hwmod omap44xx_smartreflex_mpu_hwmod = {
 	.clkdm_name	= "l4_ao_clkdm",
 	.mpu_irqs	= omap44xx_smartreflex_mpu_irqs,
 	.main_clk	= "smartreflex_mpu_fck",
-	.vdd_name	= "mpu",
 	.prcm = {
 		.omap4 = {
 			.clkctrl_offs = OMAP4_CM_ALWON_SR_MPU_CLKCTRL_OFFSET,
@@ -4103,6 +4144,7 @@ static struct omap_hwmod omap44xx_smartreflex_mpu_hwmod = {
 	},
 	.slaves		= omap44xx_smartreflex_mpu_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap44xx_smartreflex_mpu_slaves),
+	.dev_attr	= &smartreflex_mpu_dev_attr,
 };
 
 /*

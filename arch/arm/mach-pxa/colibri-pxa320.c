@@ -256,6 +256,7 @@ MACHINE_START(COLIBRI320, "Toradex Colibri PXA320")
 	.atag_offset	= 0x100,
 	.init_machine	= colibri_pxa320_init,
 	.map_io		= pxa3xx_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa3xx_init_irq,
 	.handle_irq	= pxa3xx_handle_irq,
 	.timer		= &pxa_timer,

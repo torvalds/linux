@@ -245,6 +245,8 @@
  *	TCP_CLOSE		socket is finished
  */
 
+#define pr_fmt(fmt) "TCP: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -858,7 +860,7 @@ wait_for_memory:
 	}
 
 out:
-	if (copied)
+	if (copied && !(flags & MSG_SENDPAGE_NOTLAST))
 		tcp_push(sk, flags, mss_now, tp->nonagle);
 	return copied;
 
@@ -1675,7 +1677,8 @@ do_prequeue:
 
 				if (tp->ucopy.dma_cookie < 0) {
 
-					printk(KERN_ALERT "dma_cookie < 0\n");
+					pr_alert("%s: dma_cookie < 0\n",
+						 __func__);
 
 					/* Exception. Bailout! */
 					if (!copied)
@@ -1876,6 +1879,20 @@ void tcp_shutdown(struct sock *sk, int how)
 }
 EXPORT_SYMBOL(tcp_shutdown);
 
+bool tcp_check_oom(struct sock *sk, int shift)
+{
+	bool too_many_orphans, out_of_socket_memory;
+
+	too_many_orphans = tcp_too_many_orphans(sk, shift);
+	out_of_socket_memory = tcp_out_of_memory(sk);
+
+	if (too_many_orphans && net_ratelimit())
+		pr_info("too many orphaned sockets\n");
+	if (out_of_socket_memory && net_ratelimit())
+		pr_info("out of memory -- consider tuning tcp_mem\n");
+	return too_many_orphans || out_of_socket_memory;
+}
+
 void tcp_close(struct sock *sk, long timeout)
 {
 	struct sk_buff *skb;
@@ -2015,10 +2032,7 @@ adjudge_to_death:
 	}
 	if (sk->sk_state != TCP_CLOSE) {
 		sk_mem_reclaim(sk);
-		if (tcp_too_many_orphans(sk, 0)) {
-			if (net_ratelimit())
-				printk(KERN_INFO "TCP: too many of orphaned "
-				       "sockets\n");
+		if (tcp_check_oom(sk, 0)) {
 			tcp_set_state(sk, TCP_CLOSE);
 			tcp_send_active_reset(sk, GFP_ATOMIC);
 			NET_INC_STATS_BH(sock_net(sk),
@@ -3218,7 +3232,6 @@ __setup("thash_entries=", set_thash_entries);
 
 void tcp_init_mem(struct net *net)
 {
-	/* Set per-socket limits to no more than 1/128 the pressure threshold */
 	unsigned long limit = nr_free_buffer_pages() / 8;
 	limit = max(limit, 128UL);
 	net->ipv4.sysctl_tcp_mem[0] = limit / 4 * 3;
@@ -3230,7 +3243,8 @@ void __init tcp_init(void)
 {
 	struct sk_buff *skb = NULL;
 	unsigned long limit;
-	int i, max_share, cnt;
+	int max_share, cnt;
+	unsigned int i;
 	unsigned long jiffy = jiffies;
 
 	BUILD_BUG_ON(sizeof(struct tcp_skb_cb) > sizeof(skb->cb));
@@ -3273,7 +3287,7 @@ void __init tcp_init(void)
 					&tcp_hashinfo.bhash_size,
 					NULL,
 					64 * 1024);
-	tcp_hashinfo.bhash_size = 1 << tcp_hashinfo.bhash_size;
+	tcp_hashinfo.bhash_size = 1U << tcp_hashinfo.bhash_size;
 	for (i = 0; i < tcp_hashinfo.bhash_size; i++) {
 		spin_lock_init(&tcp_hashinfo.bhash[i].lock);
 		INIT_HLIST_HEAD(&tcp_hashinfo.bhash[i].chain);
@@ -3287,7 +3301,8 @@ void __init tcp_init(void)
 	sysctl_max_syn_backlog = max(128, cnt / 256);
 
 	tcp_init_mem(&init_net);
-	limit = nr_free_buffer_pages() / 8;
+	/* Set per-socket limits to no more than 1/128 the pressure threshold */
+	limit = nr_free_buffer_pages() << (PAGE_SHIFT - 10);
 	limit = max(limit, 128UL);
 	max_share = min(4UL*1024*1024, limit);
 
@@ -3299,9 +3314,8 @@ void __init tcp_init(void)
 	sysctl_tcp_rmem[1] = 87380;
 	sysctl_tcp_rmem[2] = max(87380, max_share);
 
-	printk(KERN_INFO "TCP: Hash tables configured "
-	       "(established %u bind %u)\n",
-	       tcp_hashinfo.ehash_mask + 1, tcp_hashinfo.bhash_size);
+	pr_info("Hash tables configured (established %u bind %u)\n",
+		tcp_hashinfo.ehash_mask + 1, tcp_hashinfo.bhash_size);
 
 	tcp_register_congestion_control(&tcp_reno);
 

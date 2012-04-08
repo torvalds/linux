@@ -361,6 +361,14 @@ config DVB_USB_EC168
 	help
 	  Say Y here to support the E3C EC168 DVB-T USB2.0 receiver.
 
+config DVB_USB_AZ6007
+	tristate "AzureWave 6007 and clones DVB-T/C USB2.0 support"
+	depends on DVB_USB
+	select DVB_DRXK if !DVB_FE_CUSTOMISE
+	select MEDIA_TUNER_MT2063 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support theAfatech AF9005 based DVB-T/DVB-C receivers.
+
 config DVB_USB_AZ6027
 	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"
 	depends on DVB_USB
@@ -378,6 +386,7 @@ config DVB_USB_LME2510
 	select DVB_IX2505V if !DVB_FE_CUSTOMISE
 	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_PLL if !DVB_FE_CUSTOMISE
+	select DVB_M88RS2000 if !DVB_FE_CUSTOMISE
 	help
 	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0 .
 
@@ -403,3 +412,13 @@ config DVB_USB_MXL111SF
 	select VIDEO_TVEEPROM
 	help
 	  Say Y here to support the MxL111SF USB2.0 DTV receiver.
+
+config DVB_USB_RTL28XXU
+	tristate "Realtek RTL28xxU DVB USB support"
+	depends on DVB_USB && EXPERIMENTAL
+	select DVB_RTL2830
+	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MT2060 if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
+	help
+	  Say Y here to support the Realtek RTL28xxU DVB USB receiver.

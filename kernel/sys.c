@@ -444,6 +444,15 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	                magic2 != LINUX_REBOOT_MAGIC2C))
 		return -EINVAL;
 
+	/*
+	 * If pid namespaces are enabled and the current task is in a child
+	 * pid_namespace, the command is handled by reboot_pid_ns() which will
+	 * call do_exit().
+	 */
+	ret = reboot_pid_ns(task_active_pid_ns(current), cmd);
+	if (ret)
+		return ret;
+
 	/* Instead of trying to make the power_off code look like
 	 * halt when pm_power_off is not set do it the easy way.
 	 */
@@ -1706,7 +1715,7 @@ static int prctl_set_mm(int opt, unsigned long addr,
 	if (arg4 | arg5)
 		return -EINVAL;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_RESOURCE))
 		return -EPERM;
 
 	if (addr >= TASK_SIZE)
@@ -1961,6 +1970,14 @@ SYSCALL_DEFINE5(prctl, int, option, unsigned long, arg2, unsigned long, arg3,
 			break;
 		case PR_SET_MM:
 			error = prctl_set_mm(arg2, arg3, arg4, arg5);
+			break;
+		case PR_SET_CHILD_SUBREAPER:
+			me->signal->is_child_subreaper = !!arg2;
+			error = 0;
+			break;
+		case PR_GET_CHILD_SUBREAPER:
+			error = put_user(me->signal->is_child_subreaper,
+					 (int __user *) arg2);
 			break;
 		default:
 			error = -EINVAL;

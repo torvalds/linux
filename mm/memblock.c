@@ -99,9 +99,6 @@ phys_addr_t __init_memblock memblock_find_in_range_node(phys_addr_t start,
 	phys_addr_t this_start, this_end, cand;
 	u64 i;
 
-	/* align @size to avoid excessive fragmentation on reserved array */
-	size = round_up(size, align);
-
 	/* pump up @end */
 	if (end == MEMBLOCK_ALLOC_ACCESSIBLE)
 		end = memblock.current_limit;
@@ -730,6 +727,9 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
 					int nid)
 {
 	phys_addr_t found;
+
+	/* align @size to avoid excessive fragmentation on reserved array */
+	size = round_up(size, align);
 
 	found = memblock_find_in_range_node(0, max_addr, size, align, nid);
 	if (found && !memblock_reserve(found, size))

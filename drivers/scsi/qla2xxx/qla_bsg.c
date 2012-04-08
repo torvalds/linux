@@ -11,29 +11,36 @@
 #include <linux/delay.h>
 
 /* BSG support for ELS/CT pass through */
-inline srb_t *
-qla2x00_get_ctx_bsg_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size)
+void
+qla2x00_bsg_job_done(void *data, void *ptr, int res)
 {
-	srb_t *sp;
+	srb_t *sp = (srb_t *)ptr;
+	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
+	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
+
+	bsg_job->reply->result = res;
+	bsg_job->job_done(bsg_job);
+	sp->free(vha, sp);
+}
+
+void
+qla2x00_bsg_sp_free(void *data, void *ptr)
+{
+	srb_t *sp = (srb_t *)ptr;
+	struct scsi_qla_host *vha = (scsi_qla_host_t *)data;
+	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
 	struct qla_hw_data *ha = vha->hw;
-	struct srb_ctx *ctx;
 
-	sp = mempool_alloc(ha->srb_mempool, GFP_KERNEL);
-	if (!sp)
-		goto done;
-	ctx = kzalloc(size, GFP_KERNEL);
-	if (!ctx) {
-		mempool_free(sp, ha->srb_mempool);
-		sp = NULL;
-		goto done;
-	}
+	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
+	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
 
-	memset(sp, 0, sizeof(*sp));
-	sp->fcport = fcport;
-	sp->ctx = ctx;
-	ctx->iocbs = 1;
-done:
-	return sp;
+	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
+	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+
+	if (sp->type == SRB_CT_CMD ||
+	    sp->type == SRB_ELS_CMD_HST)
+		kfree(sp->fcport);
+	mempool_free(sp, vha->hw->srb_mempool);
 }
 
 int
@@ -101,17 +108,8 @@ qla24xx_proc_fcp_prio_cfg_cmd(struct fc_bsg_job *bsg_job)
 	uint32_t len;
 	uint32_t oper;
 
-	bsg_job->reply->reply_payload_rcv_len = 0;
-
 	if (!(IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha) || IS_QLA82XX(ha))) {
 		ret = -EINVAL;
-		goto exit_fcp_prio_cfg;
-	}
-
-	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-		ret = -EBUSY;
 		goto exit_fcp_prio_cfg;
 	}
 
@@ -224,6 +222,7 @@ exit_fcp_prio_cfg:
 	bsg_job->job_done(bsg_job);
 	return ret;
 }
+
 static int
 qla2x00_process_els(struct fc_bsg_job *bsg_job)
 {
@@ -237,7 +236,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	int req_sg_cnt, rsp_sg_cnt;
 	int rval =  (DRIVER_ERROR << 16);
 	uint16_t nextlid = 0;
-	struct srb_ctx *els;
 
 	if (bsg_job->request->msgcode == FC_BSG_RPT_ELS) {
 		rport = bsg_job->rport;
@@ -344,20 +342,21 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	}
 
 	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_ctx));
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
 		rval = -ENOMEM;
 		goto done_unmap_sg;
 	}
 
-	els = sp->ctx;
-	els->type =
+	sp->type =
 		(bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
 		SRB_ELS_CMD_RPT : SRB_ELS_CMD_HST);
-	els->name =
+	sp->name =
 		(bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
 		"bsg_els_rpt" : "bsg_els_hst");
-	els->u.bsg_job = bsg_job;
+	sp->u.bsg_job = bsg_job;
+	sp->free = qla2x00_bsg_sp_free;
+	sp->done = qla2x00_bsg_job_done;
 
 	ql_dbg(ql_dbg_user, vha, 0x700a,
 	    "bsg rqst type: %s els type: %x - loop-id=%x "
@@ -369,7 +368,6 @@ qla2x00_process_els(struct fc_bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x700e,
 		    "qla2x00_start_sp failed = %d\n", rval);
-		kfree(sp->ctx);
 		mempool_free(sp, ha->srb_mempool);
 		rval = -EIO;
 		goto done_unmap_sg;
@@ -416,7 +414,6 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	uint16_t loop_id;
 	struct fc_port *fcport;
 	char  *type = "FC_BSG_HST_CT";
-	struct srb_ctx *ct;
 
 	req_sg_cnt =
 		dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
@@ -493,19 +490,20 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	fcport->loop_id = loop_id;
 
 	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_ctx));
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
 	if (!sp) {
 		ql_log(ql_log_warn, vha, 0x7015,
-		    "qla2x00_get_ctx_bsg_sp failed.\n");
+		    "qla2x00_get_sp failed.\n");
 		rval = -ENOMEM;
 		goto done_free_fcport;
 	}
 
-	ct = sp->ctx;
-	ct->type = SRB_CT_CMD;
-	ct->name = "bsg_ct";
-	ct->iocbs = qla24xx_calc_ct_iocbs(req_sg_cnt + rsp_sg_cnt);
-	ct->u.bsg_job = bsg_job;
+	sp->type = SRB_CT_CMD;
+	sp->name = "bsg_ct";
+	sp->iocbs = qla24xx_calc_ct_iocbs(req_sg_cnt + rsp_sg_cnt);
+	sp->u.bsg_job = bsg_job;
+	sp->free = qla2x00_bsg_sp_free;
+	sp->done = qla2x00_bsg_job_done;
 
 	ql_dbg(ql_dbg_user, vha, 0x7016,
 	    "bsg rqst type: %s else type: %x - "
@@ -518,7 +516,6 @@ qla2x00_process_ct(struct fc_bsg_job *bsg_job)
 	if (rval != QLA_SUCCESS) {
 		ql_log(ql_log_warn, vha, 0x7017,
 		    "qla2x00_start_sp failed=%d.\n", rval);
-		kfree(sp->ctx);
 		mempool_free(sp, ha->srb_mempool);
 		rval = -EIO;
 		goto done_free_fcport;
@@ -547,7 +544,7 @@ qla81xx_set_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	int rval = 0;
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 		goto done_set_internal;
 
 	new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
@@ -589,7 +586,7 @@ qla81xx_reset_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
 	uint16_t new_config[4];
 	struct qla_hw_data *ha = vha->hw;
 
-	if (!IS_QLA81XX(ha))
+	if (!IS_QLA81XX(ha) && !IS_QLA83XX(ha))
 		goto done_reset_internal;
 
 	memset(new_config, 0 , sizeof(new_config));
@@ -645,13 +642,6 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	uint8_t *rsp_data = NULL;
 	dma_addr_t rsp_data_dma;
 	uint32_t rsp_data_len;
-
-	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-		ql_log(ql_log_warn, vha, 0x7018, "Abort active or needed.\n");
-		return -EBUSY;
-	}
 
 	if (!vha->flags.online) {
 		ql_log(ql_log_warn, vha, 0x7019, "Host is not online.\n");
@@ -721,7 +711,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 	if ((ha->current_topology == ISP_CFG_F ||
 	    (atomic_read(&vha->loop_state) == LOOP_DOWN) ||
-	    (IS_QLA81XX(ha) &&
+	    ((IS_QLA81XX(ha) || IS_QLA83XX(ha)) &&
 	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
 	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
 		elreq.options == EXTERNAL_LOOPBACK) {
@@ -731,13 +721,12 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 		command_sent = INT_DEF_LB_ECHO_CMD;
 		rval = qla2x00_echo_test(vha, &elreq, response);
 	} else {
-		if (IS_QLA81XX(ha)) {
+		if (IS_QLA81XX(ha) || IS_QLA8031(ha)) {
 			memset(config, 0, sizeof(config));
 			memset(new_config, 0, sizeof(new_config));
 			if (qla81xx_get_port_config(vha, config)) {
 				ql_log(ql_log_warn, vha, 0x701f,
 				    "Get port config failed.\n");
-				bsg_job->reply->reply_payload_rcv_len = 0;
 				bsg_job->reply->result = (DID_ERROR << 16);
 				rval = -EPERM;
 				goto done_free_dma_req;
@@ -751,8 +740,6 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 					new_config)) {
 					ql_log(ql_log_warn, vha, 0x7024,
 					    "Internal loopback failed.\n");
-					bsg_job->reply->reply_payload_rcv_len =
-						0;
 					bsg_job->reply->result =
 						(DID_ERROR << 16);
 					rval = -EPERM;
@@ -764,8 +751,6 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 				 */
 				if (qla81xx_reset_internal_loopback(vha,
 					config, 1)) {
-					bsg_job->reply->reply_payload_rcv_len =
-						0;
 					bsg_job->reply->result =
 						(DID_ERROR << 16);
 					rval = -EPERM;
@@ -802,7 +787,6 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 					    "MPI reset failed.\n");
 				}
 
-				bsg_job->reply->reply_payload_rcv_len = 0;
 				bsg_job->reply->result = (DID_ERROR << 16);
 				rval = -EIO;
 				goto done_free_dma_req;
@@ -827,7 +811,6 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 		fw_sts_ptr += sizeof(response);
 		*fw_sts_ptr = command_sent;
 		rval = 0;
-		bsg_job->reply->reply_payload_rcv_len = 0;
 		bsg_job->reply->result = (DID_ERROR << 16);
 	} else {
 		ql_dbg(ql_dbg_user, vha, 0x702d,
@@ -874,13 +857,6 @@ qla84xx_reset(struct fc_bsg_job *bsg_job)
 	int rval = 0;
 	uint32_t flag;
 
-	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-	    test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-		ql_log(ql_log_warn, vha, 0x702e, "Abort active or needed.\n");
-		return -EBUSY;
-	}
-
 	if (!IS_QLA84XX(ha)) {
 		ql_dbg(ql_dbg_user, vha, 0x702f, "Not 84xx, exiting.\n");
 		return -EINVAL;
@@ -893,7 +869,7 @@ qla84xx_reset(struct fc_bsg_job *bsg_job)
 	if (rval) {
 		ql_log(ql_log_warn, vha, 0x7030,
 		    "Vendor request 84xx reset failed.\n");
-		rval = bsg_job->reply->reply_payload_rcv_len = 0;
+		rval = 0;
 		bsg_job->reply->result = (DID_ERROR << 16);
 
 	} else {
@@ -921,11 +897,6 @@ qla84xx_updatefw(struct fc_bsg_job *bsg_job)
 	uint16_t options;
 	uint32_t flag;
 	uint32_t fw_ver;
-
-	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags))
-		return -EBUSY;
 
 	if (!IS_QLA84XX(ha)) {
 		ql_dbg(ql_dbg_user, vha, 0x7032,
@@ -997,9 +968,8 @@ qla84xx_updatefw(struct fc_bsg_job *bsg_job)
 		ql_log(ql_log_warn, vha, 0x7037,
 		    "Vendor request 84xx updatefw failed.\n");
 
-		rval = bsg_job->reply->reply_payload_rcv_len = 0;
+		rval = 0;
 		bsg_job->reply->result = (DID_ERROR << 16);
-
 	} else {
 		ql_dbg(ql_dbg_user, vha, 0x7038,
 		    "Vendor request 84xx updatefw completed.\n");
@@ -1035,14 +1005,6 @@ qla84xx_mgmt_cmd(struct fc_bsg_job *bsg_job)
 	uint32_t sg_cnt;
 	uint32_t data_len = 0;
 	uint32_t dma_direction = DMA_NONE;
-
-	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-		ql_log(ql_log_warn, vha, 0x7039,
-		    "Abort active or needed.\n");
-		return -EBUSY;
-	}
 
 	if (!IS_QLA84XX(ha)) {
 		ql_log(ql_log_warn, vha, 0x703a,
@@ -1193,7 +1155,7 @@ qla84xx_mgmt_cmd(struct fc_bsg_job *bsg_job)
 		ql_log(ql_log_warn, vha, 0x7043,
 		    "Vendor request 84xx mgmt failed.\n");
 
-		rval = bsg_job->reply->reply_payload_rcv_len = 0;
+		rval = 0;
 		bsg_job->reply->result = (DID_ERROR << 16);
 
 	} else {
@@ -1243,15 +1205,6 @@ qla24xx_iidma(struct fc_bsg_job *bsg_job)
 	fc_port_t *fcport = NULL;
 	uint16_t mb[MAILBOX_REGISTER_COUNT];
 	uint8_t *rsp_ptr = NULL;
-
-	bsg_job->reply->reply_payload_rcv_len = 0;
-
-	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-		ql_log(ql_log_warn, vha, 0x7045, "abort active or needed.\n");
-		return -EBUSY;
-	}
 
 	if (!IS_IIDMA_CAPABLE(vha->hw)) {
 		ql_log(ql_log_info, vha, 0x7046, "iiDMA not supported.\n");
@@ -1345,8 +1298,6 @@ qla2x00_optrom_setup(struct fc_bsg_job *bsg_job, scsi_qla_host_t *vha,
 	int valid = 0;
 	struct qla_hw_data *ha = vha->hw;
 
-	bsg_job->reply->reply_payload_rcv_len = 0;
-
 	if (unlikely(pci_channel_offline(ha->pdev)))
 		return -EINVAL;
 
@@ -1372,7 +1323,7 @@ qla2x00_optrom_setup(struct fc_bsg_job *bsg_job, scsi_qla_host_t *vha,
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
 		else if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha) ||
-		    IS_QLA8XXX_TYPE(ha))
+		    IS_CNA_CAPABLE(ha) || IS_QLA2031(ha))
 			valid = 1;
 		if (!valid) {
 			ql_log(ql_log_warn, vha, 0x7058,
@@ -1658,6 +1609,9 @@ qla24xx_bsg_request(struct fc_bsg_job *bsg_job)
 	struct Scsi_Host *host;
 	scsi_qla_host_t *vha;
 
+	/* In case no data transferred. */
+	bsg_job->reply->reply_payload_rcv_len = 0;
+
 	if (bsg_job->request->msgcode == FC_BSG_RPT_ELS) {
 		rport = bsg_job->rport;
 		fcport = *(fc_port_t **) rport->dd_data;
@@ -1666,6 +1620,15 @@ qla24xx_bsg_request(struct fc_bsg_job *bsg_job)
 	} else {
 		host = bsg_job->shost;
 		vha = shost_priv(host);
+	}
+
+	if (qla2x00_reset_active(vha)) {
+		ql_dbg(ql_dbg_user, vha, 0x709f,
+		    "BSG: ISP abort active/needed -- cmd=%d.\n",
+		    bsg_job->request->msgcode);
+		bsg_job->reply->result = (DID_ERROR << 16);
+		bsg_job->job_done(bsg_job);
+		return -EBUSY;
 	}
 
 	ql_dbg(ql_dbg_user, vha, 0x7000,
@@ -1687,6 +1650,7 @@ qla24xx_bsg_request(struct fc_bsg_job *bsg_job)
 	case FC_BSG_RPT_CT:
 	default:
 		ql_log(ql_log_warn, vha, 0x705a, "Unsupported BSG request.\n");
+		bsg_job->reply->result = ret;
 		break;
 	}
 	return ret;
@@ -1701,7 +1665,6 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 	int cnt, que;
 	unsigned long flags;
 	struct req_que *req;
-	struct srb_ctx *sp_bsg;
 
 	/* find the bsg job from the active list of commands */
 	spin_lock_irqsave(&ha->hardware_lock, flags);
@@ -1713,11 +1676,9 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
-				sp_bsg = sp->ctx;
-
-				if (((sp_bsg->type == SRB_CT_CMD) ||
-					(sp_bsg->type == SRB_ELS_CMD_HST))
-					&& (sp_bsg->u.bsg_job == bsg_job)) {
+				if (((sp->type == SRB_CT_CMD) ||
+					(sp->type == SRB_ELS_CMD_HST))
+					&& (sp->u.bsg_job == bsg_job)) {
 					spin_unlock_irqrestore(&ha->hardware_lock, flags);
 					if (ha->isp_ops->abort_command(sp)) {
 						ql_log(ql_log_warn, vha, 0x7089,
@@ -1747,7 +1708,6 @@ done:
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	if (bsg_job->request->msgcode == FC_BSG_HST_CT)
 		kfree(sp->fcport);
-	kfree(sp->ctx);
 	mempool_free(sp, ha->srb_mempool);
 	return 0;
 }

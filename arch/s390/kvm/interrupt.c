@@ -134,7 +134,7 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		if (rc == -EFAULT)
 			exception = 1;
 
-		rc = put_guest_u16(vcpu, __LC_CPU_ADDRESS, inti->emerg.code);
+		rc = put_guest_u16(vcpu, __LC_EXT_CPU_ADDR, inti->emerg.code);
 		if (rc == -EFAULT)
 			exception = 1;
 
@@ -156,7 +156,7 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		if (rc == -EFAULT)
 			exception = 1;
 
-		rc = put_guest_u16(vcpu, __LC_CPU_ADDRESS, inti->extcall.code);
+		rc = put_guest_u16(vcpu, __LC_EXT_CPU_ADDR, inti->extcall.code);
 		if (rc == -EFAULT)
 			exception = 1;
 
@@ -202,7 +202,7 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		if (rc == -EFAULT)
 			exception = 1;
 
-		rc = put_guest_u16(vcpu, __LC_CPU_ADDRESS, 0x0d00);
+		rc = put_guest_u16(vcpu, __LC_EXT_CPU_ADDR, 0x0d00);
 		if (rc == -EFAULT)
 			exception = 1;
 
@@ -236,8 +236,7 @@ static void __do_deliver_interrupt(struct kvm_vcpu *vcpu,
 		VCPU_EVENT(vcpu, 4, "interrupt: set prefix to %x",
 			   inti->prefix.address);
 		vcpu->stat.deliver_prefix_signal++;
-		vcpu->arch.sie_block->prefix = inti->prefix.address;
-		vcpu->arch.sie_block->ihcpu = 0xffff;
+		kvm_s390_set_prefix(vcpu, inti->prefix.address);
 		break;
 
 	case KVM_S390_RESTART:

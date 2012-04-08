@@ -137,6 +137,8 @@ int blk_attempt_req_merge(struct request_queue *q, struct request *rq,
 				struct request *next);
 void blk_recalc_rq_segments(struct request *rq);
 void blk_rq_set_mixed_merge(struct request *rq);
+bool blk_rq_merge_ok(struct request *rq, struct bio *bio);
+int blk_try_merge(struct request *rq, struct bio *bio);
 
 void blk_queue_congestion_threshold(struct request_queue *q);
 
@@ -162,22 +164,6 @@ static inline int queue_congestion_on_threshold(struct request_queue *q)
 static inline int queue_congestion_off_threshold(struct request_queue *q)
 {
 	return q->nr_congestion_off;
-}
-
-static inline int blk_cpu_to_group(int cpu)
-{
-	int group = NR_CPUS;
-#ifdef CONFIG_SCHED_MC
-	const struct cpumask *mask = cpu_coregroup_mask(cpu);
-	group = cpumask_first(mask);
-#elif defined(CONFIG_SCHED_SMT)
-	group = cpumask_first(topology_thread_cpumask(cpu));
-#else
-	return cpu;
-#endif
-	if (likely(group < NR_CPUS))
-		return group;
-	return cpu;
 }
 
 /*

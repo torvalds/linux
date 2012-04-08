@@ -53,9 +53,8 @@ void rv515_debugfs(struct radeon_device *rdev)
 	}
 }
 
-void rv515_ring_start(struct radeon_device *rdev)
+void rv515_ring_start(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
 	r = radeon_ring_lock(rdev, ring, 64);
@@ -413,7 +412,7 @@ static int rv515_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r100_ib_test(rdev);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
@@ -424,6 +423,8 @@ static int rv515_startup(struct radeon_device *rdev)
 
 int rv515_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
@@ -443,7 +444,11 @@ int rv515_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return rv515_startup(rdev);
+	r =  rv515_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int rv515_suspend(struct radeon_device *rdev)

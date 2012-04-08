@@ -77,6 +77,8 @@
 #include <asm/processor.h>
 #include "intel_ips.h"
 
+#include <asm-generic/io-64-nonatomic-lo-hi.h>
+
 #define PCI_DEVICE_ID_INTEL_THERMAL_SENSOR 0x3b32
 
 /*
@@ -344,19 +346,6 @@ struct ips_driver {
 static bool
 ips_gpu_turbo_enabled(struct ips_driver *ips);
 
-#ifndef readq
-static inline __u64 readq(const volatile void __iomem *addr)
-{
-	const volatile u32 __iomem *p = addr;
-	u32 low, high;
-
-	low = readl(p);
-	high = readl(p + 1);
-
-	return low + ((u64)high << 32);
-}
-#endif
-
 /**
  * ips_cpu_busy - is CPU busy?
  * @ips: IPS driver struct
@@ -620,25 +609,16 @@ static bool mcp_exceeded(struct ips_driver *ips)
 	bool ret = false;
 	u32 temp_limit;
 	u32 avg_power;
-	const char *msg = "MCP limit exceeded: ";
 
 	spin_lock_irqsave(&ips->turbo_status_lock, flags);
 
 	temp_limit = ips->mcp_temp_limit * 100;
-	if (ips->mcp_avg_temp > temp_limit) {
-		dev_info(&ips->dev->dev,
-			"%sAvg temp %u, limit %u\n", msg, ips->mcp_avg_temp,
-			temp_limit);
+	if (ips->mcp_avg_temp > temp_limit)
 		ret = true;
-	}
 
 	avg_power = ips->cpu_avg_power + ips->mch_avg_power;
-	if (avg_power > ips->mcp_power_limit) {
-		dev_info(&ips->dev->dev,
-			"%sAvg power %u, limit %u\n", msg, avg_power,
-			ips->mcp_power_limit);
+	if (avg_power > ips->mcp_power_limit)
 		ret = true;
-	}
 
 	spin_unlock_irqrestore(&ips->turbo_status_lock, flags);
 

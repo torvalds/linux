@@ -86,6 +86,7 @@
 
 #include <asm/microcode.h>
 #include <asm/processor.h>
+#include <asm/cpu_device_id.h>
 
 MODULE_DESCRIPTION("Microcode Update Driver");
 MODULE_AUTHOR("Tigran Aivazian <tigran@aivazian.fsnet.co.uk>");
@@ -503,6 +504,20 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 static struct notifier_block __refdata mc_cpu_notifier = {
 	.notifier_call	= mc_cpu_callback,
 };
+
+#ifdef MODULE
+/* Autoload on Intel and AMD systems */
+static const struct x86_cpu_id microcode_id[] = {
+#ifdef CONFIG_MICROCODE_INTEL
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, },
+#endif
+#ifdef CONFIG_MICROCODE_AMD
+	{ X86_VENDOR_AMD, X86_FAMILY_ANY, X86_MODEL_ANY, },
+#endif
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, microcode_id);
+#endif
 
 static int __init microcode_init(void)
 {

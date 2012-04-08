@@ -55,7 +55,6 @@
 #include <linux/crc32.h>
 
 #include <asm/bootinfo.h>
-#include <asm/system.h>
 #include <asm/bitops.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -1108,10 +1107,9 @@ static int korina_probe(struct platform_device *pdev)
 	int rc;
 
 	dev = alloc_etherdev(sizeof(struct korina_private));
-	if (!dev) {
-		printk(KERN_ERR DRV_NAME ": alloc_etherdev failed\n");
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = netdev_priv(dev);
 
@@ -1150,7 +1148,6 @@ static int korina_probe(struct platform_device *pdev)
 
 	lp->td_ring = kmalloc(TD_RING_SIZE + RD_RING_SIZE, GFP_KERNEL);
 	if (!lp->td_ring) {
-		printk(KERN_ERR DRV_NAME ": cannot allocate descriptors\n");
 		rc = -ENXIO;
 		goto probe_err_td_ring;
 	}

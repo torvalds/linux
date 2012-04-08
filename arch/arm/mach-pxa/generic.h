@@ -49,7 +49,6 @@ extern unsigned pxa3xx_get_clk_frequency_khz(int);
 #endif
 
 extern struct syscore_ops pxa_irq_syscore_ops;
-extern struct syscore_ops pxa_gpio_syscore_ops;
 extern struct syscore_ops pxa2xx_mfp_syscore_ops;
 extern struct syscore_ops pxa3xx_mfp_syscore_ops;
 

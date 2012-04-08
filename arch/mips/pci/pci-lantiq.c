@@ -270,7 +270,8 @@ static int __devinit ltq_pci_probe(struct platform_device *pdev)
 {
 	struct ltq_pci_data *ltq_pci_data =
 		(struct ltq_pci_data *) pdev->dev.platform_data;
-	pci_probe_only = 0;
+
+	pci_clear_flags(PCI_PROBE_ONLY);
 	ltq_pci_irq_map = ltq_pci_data->irq;
 	ltq_pci_membase = ioremap_nocache(PCI_CR_BASE_ADDR, PCI_CR_SIZE);
 	ltq_pci_mapped_cfg =

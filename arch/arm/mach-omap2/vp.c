@@ -41,6 +41,11 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	u32 val, sys_clk_rate, timeout, waittime;
 	u32 vddmin, vddmax, vstepmin, vstepmax;
 
+	if (!voltdm->pmic || !voltdm->pmic->uv_to_vsel) {
+		pr_err("%s: No PMIC info for vdd_%s\n", __func__, voltdm->name);
+		return;
+	}
+
 	if (!voltdm->read || !voltdm->write) {
 		pr_err("%s: No read/write API for accessing vdd_%s regs\n",
 			__func__, voltdm->name);
@@ -56,8 +61,8 @@ void __init omap_vp_init(struct voltagedomain *voltdm)
 	vddmin = voltdm->pmic->vp_vddmin;
 	vddmax = voltdm->pmic->vp_vddmax;
 
-	waittime = ((voltdm->pmic->step_size / voltdm->pmic->slew_rate) *
-		    sys_clk_rate) / 1000;
+	waittime = DIV_ROUND_UP(voltdm->pmic->step_size * sys_clk_rate,
+				1000 * voltdm->pmic->slew_rate);
 	vstepmin = voltdm->pmic->vp_vstepmin;
 	vstepmax = voltdm->pmic->vp_vstepmax;
 

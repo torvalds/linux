@@ -50,6 +50,29 @@ nv50_sor_nr(struct drm_device *dev)
 	return 4;
 }
 
+u32
+nv50_display_active_crtcs(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	u32 mask = 0;
+	int i;
+
+	if (dev_priv->chipset  < 0x90 ||
+	    dev_priv->chipset == 0x92 ||
+	    dev_priv->chipset == 0xa0) {
+		for (i = 0; i < 2; i++)
+			mask |= nv_rd32(dev, NV50_PDISPLAY_SOR_MODE_CTRL_C(i));
+	} else {
+		for (i = 0; i < 4; i++)
+			mask |= nv_rd32(dev, NV90_PDISPLAY_SOR_MODE_CTRL_C(i));
+	}
+
+	for (i = 0; i < 3; i++)
+		mask |= nv_rd32(dev, NV50_PDISPLAY_DAC_MODE_CTRL_C(i));
+
+	return mask & 3;
+}
+
 static int
 evo_icmd(struct drm_device *dev, int ch, u32 mthd, u32 data)
 {
@@ -451,15 +474,15 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		}
 
 		if (dev_priv->chipset < 0xc0) {
-			BEGIN_RING(chan, NvSubSw, 0x0060, 2);
+			BEGIN_RING(chan, 0, 0x0060, 2);
 			OUT_RING  (chan, NvEvoSema0 + nv_crtc->index);
 			OUT_RING  (chan, dispc->sem.offset);
-			BEGIN_RING(chan, NvSubSw, 0x006c, 1);
+			BEGIN_RING(chan, 0, 0x006c, 1);
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
-			BEGIN_RING(chan, NvSubSw, 0x0064, 2);
+			BEGIN_RING(chan, 0, 0x0064, 2);
 			OUT_RING  (chan, dispc->sem.offset ^ 0x10);
 			OUT_RING  (chan, 0x74b1e000);
-			BEGIN_RING(chan, NvSubSw, 0x0060, 1);
+			BEGIN_RING(chan, 0, 0x0060, 1);
 			if (dev_priv->chipset < 0x84)
 				OUT_RING  (chan, NvSema);
 			else
@@ -467,12 +490,12 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		} else {
 			u64 offset = chan->dispc_vma[nv_crtc->index].offset;
 			offset += dispc->sem.offset;
-			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset));
 			OUT_RING  (chan, 0xf00d0000 | dispc->sem.value);
 			OUT_RING  (chan, 0x1002);
-			BEGIN_NVC0(chan, 2, NvSubM2MF, 0x0010, 4);
+			BEGIN_NVC0(chan, 2, 0, 0x0010, 4);
 			OUT_RING  (chan, upper_32_bits(offset));
 			OUT_RING  (chan, lower_32_bits(offset ^ 0x10));
 			OUT_RING  (chan, 0x74b1e000);
@@ -840,9 +863,9 @@ nv50_display_unk20_handler(struct drm_device *dev)
 	if (type == OUTPUT_DP) {
 		int link = !(dcb->dpconf.sor.link & 1);
 		if ((mc & 0x000f0000) == 0x00020000)
-			nouveau_dp_tu_update(dev, or, link, pclk, 18);
+			nv50_sor_dp_calc_tu(dev, or, link, pclk, 18);
 		else
-			nouveau_dp_tu_update(dev, or, link, pclk, 24);
+			nv50_sor_dp_calc_tu(dev, or, link, pclk, 24);
 	}
 
 	if (dcb->type != OUTPUT_ANALOG) {
