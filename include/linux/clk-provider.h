@@ -172,6 +172,8 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
 		const char *parent_name, unsigned long flags,
 		unsigned long fixed_rate);
 
+void of_fixed_clk_setup(struct device_node *np);
+
 /**
  * struct clk_gate - gating clock
  *
