@@ -157,8 +157,6 @@ struct uvc_control_mapping {
 	struct list_head list;
 	struct list_head ev_subs;
 
-	struct uvc_control_info *ctrl;
-
 	__u32 id;
 	__u8 name[32];
 	__u8 entity[16];
