@@ -1058,6 +1058,7 @@ wbcir_probe(struct pnp_dev *device, const struct pnp_device_id *dev_id)
 		goto exit_unregister_led;
 	}
 
+	data->dev->driver_type = RC_DRIVER_IR_RAW;
 	data->dev->driver_name = WBCIR_NAME;
 	data->dev->input_name = WBCIR_NAME;
 	data->dev->input_phys = "wbcir/cir0";
