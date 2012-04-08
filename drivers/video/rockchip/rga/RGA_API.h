@@ -7,7 +7,7 @@
 #define ENABLE      1
 #define DISABLE     0
 
-uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1);
+int32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1);
 
 
 #endif

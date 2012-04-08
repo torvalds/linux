@@ -375,6 +375,7 @@ typedef struct rga_service_info {
     atomic_t            cmd_num;
     atomic_t            src_format_swt;
     int                 last_prc_src_format;
+    atomic_t            rga_working;
 
     struct mutex	mutex;	// mutex
 } rga_service_info;

@@ -78,7 +78,7 @@ matrix_cal(const struct rga_req *msg, TILE_INFO *tile)
 }
 
 
-uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
+int32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
 {
     
     struct rga_req *mp;
@@ -91,9 +91,21 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
     daw = dah = 0;
             
     mp = msg1;
+
+    if(msg->dst.act_w == 0) 
+    {
+        printk("%s, [%d] rga dst act_w is zero\n", __FUNCTION__, __LINE__);
+        return -EINVAL;
+    }
+
+    if (msg->dst.act_h == 0)
+    {
+        printk("%s, [%d] rga dst act_w is zero\n", __FUNCTION__, __LINE__);
+        return -EINVAL;
+    }
     w_ratio = (msg->src.act_w << 16) / msg->dst.act_w;
     h_ratio = (msg->src.act_h << 16) / msg->dst.act_h;
-   
+    
     memcpy(msg1, msg, sizeof(struct rga_req));
 
     msg->dst.format = msg->src.format;
@@ -116,6 +128,10 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
         if((IS_YUV_420(msg->dst.format)) && (daw & 1)) {
             msg->src.act_w = (daw - 1) << 3;                                                    
         }
+    }
+    else
+    {
+        daw = msg->src.act_w;
     }
 
     pl = (RGA_pixel_width_init(msg->src.format));
@@ -141,6 +157,10 @@ uint32_t RGA_gen_two_pro(struct rga_req *msg, struct rga_req *msg1)
         if((IS_YUV(msg->dst.format)) && (dah & 1)) {
             msg->src.act_h = (dah - 1) << 3;                                                    
         }
+    }
+    else
+    {
+        dah = msg->dst.act_h;
     }
     
     msg->dst.act_h = dah;

@@ -1290,6 +1290,12 @@ RGA_set_pre_scale_reg_info(u8 *base, const struct rga_req *msg)
    dst_width = msg->dst.act_w;
    dst_height = msg->dst.act_h;
 
+   if((dst_width == 0) || (dst_height == 0))
+   {
+        printk("pre scale reg info error ratio is divide zero\n");
+        return -EINVAL;    
+   }
+
    h_ratio = (src_width <<16) / dst_width;
    v_ratio = (src_height<<16) / dst_height;
 
@@ -1438,7 +1444,7 @@ Author:
 Date:        
     20012-2-2 10:59:25 
 **************************************************************/
-unsigned int
+int
 RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base)
 {
     TILE_INFO tile;
@@ -1467,6 +1473,7 @@ RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base)
             RGA_set_color_palette_reg_info(base, msg);
             break;
         case color_fill_mode :
+            RGA_set_alpha_rop(base, msg);
             RGA_set_dst(base, msg);    
             RGA_set_color(base, msg);
             RGA_set_pat(base, msg);
@@ -1486,7 +1493,8 @@ RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base)
         case pre_scaling_mode :
             RGA_set_src(base, msg);
             RGA_set_dst(base, msg); 
-            RGA_set_pre_scale_reg_info(base, msg);
+            if(RGA_set_pre_scale_reg_info(base, msg) == -EINVAL)
+                return -1;
             break;
         case update_palette_table_mode :
             if (RGA_set_update_palette_table_reg_info(base, msg)) {

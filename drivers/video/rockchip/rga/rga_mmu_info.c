@@ -386,22 +386,19 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     {               
         /* cal src buf mmu info */                     
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                        req->src.format, req->src.vir_w, (req->src.act_h + req->src.y_offset),
+                                        req->src.format, req->src.vir_w, req->src.vir_h,
                                         &SrcStart);
         if(SrcMemSize == 0) {
             return -EINVAL;                
         }
-        
-
+      
         /* cal dst buf mmu info */    
         DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                        req->dst.format, req->dst.vir_w, (req->dst.act_h + req->dst.y_offset),
+                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
                                         &DstStart);        
         if(DstMemSize == 0) {
             return -EINVAL; 
         }
-
-        //DstMemSize += 1;
         
         CMDMemSize = 0;
         /* cal cmd buf mmu info */
@@ -420,7 +417,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
             break;                
         }
         
-        MMU_Base = (uint32_t *)kmalloc((AllSize + 1)* sizeof(uint32_t), GFP_KERNEL);      
+        MMU_Base = (uint32_t *)kmalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);      
         if(MMU_Base == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -1400,6 +1397,7 @@ int rga_set_mmu_info(struct rga_reg *reg, struct rga_req *req)
             ret = rga_mmu_info_color_palette_mode(reg, req);
             break;
         case color_fill_mode :
+            //printk("color_fill_mode is enable\n");
             ret = rga_mmu_info_color_fill_mode(reg, req);
             break;
         case line_point_drawing_mode :
@@ -1409,6 +1407,7 @@ int rga_set_mmu_info(struct rga_reg *reg, struct rga_req *req)
             ret = rga_mmu_info_blur_sharp_filter_mode(reg, req);
             break;
         case pre_scaling_mode :
+            //printk("pre_scaleing_mode is enable\n");
             ret = rga_mmu_info_pre_scale_mode(reg, req);
             break;
         case update_palette_table_mode :

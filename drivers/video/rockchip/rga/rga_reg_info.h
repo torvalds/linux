@@ -457,6 +457,6 @@
 void matrix_cal(const struct rga_req *msg, TILE_INFO *tile);
 
 
-unsigned int RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base);
+int RGA_gen_reg_info(const struct rga_req *msg, unsigned char *base);
 uint8_t   RGA_pixel_width_init(uint32_t format);
 
