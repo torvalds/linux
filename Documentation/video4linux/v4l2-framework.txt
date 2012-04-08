@@ -945,21 +945,35 @@ fast.
 
 Useful functions:
 
-- v4l2_event_queue()
+void v4l2_event_queue(struct video_device *vdev, const struct v4l2_event *ev)
 
   Queue events to video device. The driver's only responsibility is to fill
   in the type and the data fields. The other fields will be filled in by
   V4L2.
 
-- v4l2_event_subscribe()
+int v4l2_event_subscribe(struct v4l2_fh *fh,
+			 struct v4l2_event_subscription *sub, unsigned elems,
+			 const struct v4l2_subscribed_event_ops *ops)
 
   The video_device->ioctl_ops->vidioc_subscribe_event must check the driver
   is able to produce events with specified event id. Then it calls
-  v4l2_event_subscribe() to subscribe the event. The last argument is the
-  size of the event queue for this event. If it is 0, then the framework
-  will fill in a default value (this depends on the event type).
+  v4l2_event_subscribe() to subscribe the event.
 
-- v4l2_event_unsubscribe()
+  The elems argument is the size of the event queue for this event. If it is 0,
+  then the framework will fill in a default value (this depends on the event
+  type).
+
+  The ops argument allows the driver to specify a number of callbacks:
+  * add:     called when a new listener gets added (subscribing to the same
+             event twice will only cause this callback to get called once)
+  * del:     called when a listener stops listening
+  * replace: replace event 'old' with event 'new'.
+  * merge:   merge event 'old' into event 'new'.
+  All 4 callbacks are optional, if you don't want to specify any callbacks
+  the ops argument itself maybe NULL.
+
+int v4l2_event_unsubscribe(struct v4l2_fh *fh,
+			   struct v4l2_event_subscription *sub)
 
   vidioc_unsubscribe_event in struct v4l2_ioctl_ops. A driver may use
   v4l2_event_unsubscribe() directly unless it wants to be involved in
@@ -968,7 +982,7 @@ Useful functions:
   The special type V4L2_EVENT_ALL may be used to unsubscribe all events. The
   drivers may want to handle this in a special way.
 
-- v4l2_event_pending()
+int v4l2_event_pending(struct v4l2_fh *fh)
 
   Returns the number of pending events. Useful when implementing poll.
 
