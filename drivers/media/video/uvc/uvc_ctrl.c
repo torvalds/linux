@@ -1177,9 +1177,39 @@ static void uvc_ctrl_send_event(struct uvc_fh *handle,
 
 	list_for_each_entry(sev, &mapping->ev_subs, node) {
 		if (sev->fh && (sev->fh != &handle->vfh ||
-		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK)))
+		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK) ||
+		    (changes & V4L2_EVENT_CTRL_CH_FLAGS)))
 			v4l2_event_queue_fh(sev->fh, &ev);
 	}
+}
+
+static void uvc_ctrl_send_slave_event(struct uvc_fh *handle,
+	struct uvc_control *master, u32 slave_id,
+	const struct v4l2_ext_control *xctrls, unsigned int xctrls_count)
+{
+	struct uvc_control_mapping *mapping = NULL;
+	struct uvc_control *ctrl = NULL;
+	u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
+	unsigned int i;
+	s32 val = 0;
+
+	/*
+	 * We can skip sending an event for the slave if the slave
+	 * is being modified in the same transaction.
+	 */
+	for (i = 0; i < xctrls_count; i++) {
+		if (xctrls[i].id == slave_id)
+			return;
+	}
+
+	__uvc_find_control(master->entity, slave_id, &mapping, &ctrl, 0);
+	if (ctrl == NULL)
+		return;
+
+	if (__uvc_ctrl_get(handle->chain, ctrl, mapping, &val) == 0)
+		changes |= V4L2_EVENT_CTRL_CH_VALUE;
+
+	uvc_ctrl_send_event(handle, ctrl, mapping, val, changes);
 }
 
 static void uvc_ctrl_send_events(struct uvc_fh *handle,
@@ -1187,12 +1217,36 @@ static void uvc_ctrl_send_events(struct uvc_fh *handle,
 {
 	struct uvc_control_mapping *mapping;
 	struct uvc_control *ctrl;
+	u32 changes = V4L2_EVENT_CTRL_CH_VALUE;
 	unsigned int i;
+	unsigned int j;
 
 	for (i = 0; i < xctrls_count; ++i) {
 		ctrl = uvc_find_control(handle->chain, xctrls[i].id, &mapping);
+
+		for (j = 0; j < ARRAY_SIZE(mapping->slave_ids); ++j) {
+			if (!mapping->slave_ids[j])
+				break;
+			uvc_ctrl_send_slave_event(handle, ctrl,
+						  mapping->slave_ids[j],
+						  xctrls, xctrls_count);
+		}
+
+		/*
+		 * If the master is being modified in the same transaction
+		 * flags may change too.
+		 */
+		if (mapping->master_id) {
+			for (j = 0; j < xctrls_count; j++) {
+				if (xctrls[j].id == mapping->master_id) {
+					changes |= V4L2_EVENT_CTRL_CH_FLAGS;
+					break;
+				}
+			}
+		}
+
 		uvc_ctrl_send_event(handle, ctrl, mapping, xctrls[i].value,
-				    V4L2_EVENT_CTRL_CH_VALUE);
+				    changes);
 	}
 }
 
