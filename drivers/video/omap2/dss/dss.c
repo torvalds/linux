@@ -123,6 +123,12 @@ static const struct dss_features omap44xx_dss_feats __initconst = {
 	.clk_name		=	"dpll_per_m5x2_ck",
 };
 
+static const struct dss_features omap54xx_dss_feats __initconst = {
+	.fck_div_max		=	64,
+	.dss_fck_multiplier	=	1,
+	.clk_name		=	"dpll_per_h12x2_ck",
+};
+
 static inline void dss_write_reg(const struct dss_reg idx, u32 val)
 {
 	__raw_writel(val, dss.base + idx.idx);
@@ -740,6 +746,8 @@ static int __init dss_init_features(struct device *dev)
 		src = &omap3630_dss_feats;
 	else if (cpu_is_omap44xx())
 		src = &omap44xx_dss_feats;
+	else if (soc_is_omap54xx())
+		src = &omap54xx_dss_feats;
 	else
 		return -ENODEV;
 
