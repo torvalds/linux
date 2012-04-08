@@ -1097,7 +1097,8 @@ static int uvc_v4l2_put_xu_mapping(const struct uvc_xu_control_mapping *kp,
 	    __put_user(kp->menu_count, &up->menu_count))
 		return -EFAULT;
 
-	__clear_user(up->reserved, sizeof(up->reserved));
+	if (__clear_user(up->reserved, sizeof(up->reserved)))
+		return -EFAULT;
 
 	if (kp->menu_count == 0)
 		return 0;
