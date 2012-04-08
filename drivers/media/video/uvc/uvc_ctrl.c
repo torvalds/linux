@@ -21,6 +21,7 @@
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
 #include <linux/atomic.h>
+#include <media/v4l2-ctrls.h>
 
 #include "uvcvideo.h"
 
@@ -1102,6 +1103,117 @@ done:
 	return ret;
 }
 
+/* --------------------------------------------------------------------------
+ * Ctrl event handling
+ */
+
+static void uvc_ctrl_fill_event(struct uvc_video_chain *chain,
+	struct v4l2_event *ev,
+	struct uvc_control *ctrl,
+	struct uvc_control_mapping *mapping,
+	s32 value, u32 changes)
+{
+	struct v4l2_queryctrl v4l2_ctrl;
+
+	__uvc_query_v4l2_ctrl(chain, ctrl, mapping, &v4l2_ctrl);
+
+	memset(ev->reserved, 0, sizeof(ev->reserved));
+	ev->type = V4L2_EVENT_CTRL;
+	ev->id = v4l2_ctrl.id;
+	ev->u.ctrl.value = value;
+	ev->u.ctrl.changes = changes;
+	ev->u.ctrl.type = v4l2_ctrl.type;
+	ev->u.ctrl.flags = v4l2_ctrl.flags;
+	ev->u.ctrl.minimum = v4l2_ctrl.minimum;
+	ev->u.ctrl.maximum = v4l2_ctrl.maximum;
+	ev->u.ctrl.step = v4l2_ctrl.step;
+	ev->u.ctrl.default_value = v4l2_ctrl.default_value;
+}
+
+static void uvc_ctrl_send_event(struct uvc_fh *handle,
+	struct uvc_control *ctrl, struct uvc_control_mapping *mapping,
+	s32 value, u32 changes)
+{
+	struct v4l2_subscribed_event *sev;
+	struct v4l2_event ev;
+
+	if (list_empty(&mapping->ev_subs))
+		return;
+
+	uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, value, changes);
+
+	list_for_each_entry(sev, &mapping->ev_subs, node) {
+		if (sev->fh && (sev->fh != &handle->vfh ||
+		    (sev->flags & V4L2_EVENT_SUB_FL_ALLOW_FEEDBACK)))
+			v4l2_event_queue_fh(sev->fh, &ev);
+	}
+}
+
+static void uvc_ctrl_send_events(struct uvc_fh *handle,
+	const struct v4l2_ext_control *xctrls, unsigned int xctrls_count)
+{
+	struct uvc_control_mapping *mapping;
+	struct uvc_control *ctrl;
+	unsigned int i;
+
+	for (i = 0; i < xctrls_count; ++i) {
+		ctrl = uvc_find_control(handle->chain, xctrls[i].id, &mapping);
+		uvc_ctrl_send_event(handle, ctrl, mapping, xctrls[i].value,
+				    V4L2_EVENT_CTRL_CH_VALUE);
+	}
+}
+
+static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev)
+{
+	struct uvc_fh *handle = container_of(sev->fh, struct uvc_fh, vfh);
+	struct uvc_control_mapping *mapping;
+	struct uvc_control *ctrl;
+	int ret;
+
+	ret = mutex_lock_interruptible(&handle->chain->ctrl_mutex);
+	if (ret < 0)
+		return -ERESTARTSYS;
+
+	ctrl = uvc_find_control(handle->chain, sev->id, &mapping);
+	if (ctrl == NULL) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	list_add_tail(&sev->node, &mapping->ev_subs);
+	if (sev->flags & V4L2_EVENT_SUB_FL_SEND_INITIAL) {
+		struct v4l2_event ev;
+		u32 changes = V4L2_EVENT_CTRL_CH_FLAGS;
+		s32 val = 0;
+
+		if (__uvc_ctrl_get(handle->chain, ctrl, mapping, &val) == 0)
+			changes |= V4L2_EVENT_CTRL_CH_VALUE;
+
+		uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, val,
+				    changes);
+		v4l2_event_queue_fh(sev->fh, &ev);
+	}
+
+done:
+	mutex_unlock(&handle->chain->ctrl_mutex);
+	return ret;
+}
+
+static void uvc_ctrl_del_event(struct v4l2_subscribed_event *sev)
+{
+	struct uvc_fh *handle = container_of(sev->fh, struct uvc_fh, vfh);
+
+	mutex_lock(&handle->chain->ctrl_mutex);
+	list_del(&sev->node);
+	mutex_unlock(&handle->chain->ctrl_mutex);
+}
+
+const struct v4l2_subscribed_event_ops uvc_ctrl_sub_ev_ops = {
+	.add = uvc_ctrl_add_event,
+	.del = uvc_ctrl_del_event,
+	.replace = v4l2_ctrl_replace,
+	.merge = v4l2_ctrl_merge,
+};
 
 /* --------------------------------------------------------------------------
  * Control transactions
@@ -1179,8 +1291,11 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 	return 0;
 }
 
-int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback)
+int __uvc_ctrl_commit(struct uvc_fh *handle, int rollback,
+		      const struct v4l2_ext_control *xctrls,
+		      unsigned int xctrls_count)
 {
+	struct uvc_video_chain *chain = handle->chain;
 	struct uvc_entity *entity;
 	int ret = 0;
 
@@ -1191,6 +1306,8 @@ int __uvc_ctrl_commit(struct uvc_video_chain *chain, int rollback)
 			goto done;
 	}
 
+	if (!rollback)
+		uvc_ctrl_send_events(handle, xctrls, xctrls_count);
 done:
 	mutex_unlock(&chain->ctrl_mutex);
 	return ret;
@@ -1661,6 +1778,8 @@ static int __uvc_ctrl_add_mapping(struct uvc_device *dev,
 	map = kmemdup(mapping, sizeof(*mapping), GFP_KERNEL);
 	if (map == NULL)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&map->ev_subs);
 
 	size = sizeof(*mapping->menu_info) * mapping->menu_count;
 	map->menu_info = kmemdup(mapping->menu_info, size, GFP_KERNEL);

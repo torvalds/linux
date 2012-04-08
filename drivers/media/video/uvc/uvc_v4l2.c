@@ -25,6 +25,8 @@
 #include <linux/atomic.h>
 
 #include <media/v4l2-common.h>
+#include <media/v4l2-ctrls.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
 
 #include "uvcvideo.h"
@@ -505,6 +507,8 @@ static int uvc_v4l2_open(struct file *file)
 		}
 	}
 
+	v4l2_fh_init(&handle->vfh, stream->vdev);
+	v4l2_fh_add(&handle->vfh);
 	handle->chain = stream->chain;
 	handle->stream = stream;
 	handle->state = UVC_HANDLE_PASSIVE;
@@ -528,6 +532,8 @@ static int uvc_v4l2_release(struct file *file)
 
 	/* Release the file handle. */
 	uvc_dismiss_privileges(handle);
+	v4l2_fh_del(&handle->vfh);
+	v4l2_fh_exit(&handle->vfh);
 	kfree(handle);
 	file->private_data = NULL;
 
@@ -584,7 +590,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 			return ret;
 
 		ret = uvc_ctrl_get(chain, &xctrl);
-		uvc_ctrl_rollback(chain);
+		uvc_ctrl_rollback(handle);
 		if (ret >= 0)
 			ctrl->value = xctrl.value;
 		break;
@@ -605,10 +611,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		ret = uvc_ctrl_set(chain, &xctrl);
 		if (ret < 0) {
-			uvc_ctrl_rollback(chain);
+			uvc_ctrl_rollback(handle);
 			return ret;
 		}
-		ret = uvc_ctrl_commit(chain);
+		ret = uvc_ctrl_commit(handle, &xctrl, 1);
 		if (ret == 0)
 			ctrl->value = xctrl.value;
 		break;
@@ -630,13 +636,13 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		for (i = 0; i < ctrls->count; ++ctrl, ++i) {
 			ret = uvc_ctrl_get(chain, ctrl);
 			if (ret < 0) {
-				uvc_ctrl_rollback(chain);
+				uvc_ctrl_rollback(handle);
 				ctrls->error_idx = i;
 				return ret;
 			}
 		}
 		ctrls->error_idx = 0;
-		ret = uvc_ctrl_rollback(chain);
+		ret = uvc_ctrl_rollback(handle);
 		break;
 	}
 
@@ -654,7 +660,7 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		for (i = 0; i < ctrls->count; ++ctrl, ++i) {
 			ret = uvc_ctrl_set(chain, ctrl);
 			if (ret < 0) {
-				uvc_ctrl_rollback(chain);
+				uvc_ctrl_rollback(handle);
 				ctrls->error_idx = i;
 				return ret;
 			}
@@ -663,9 +669,10 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		ctrls->error_idx = 0;
 
 		if (cmd == VIDIOC_S_EXT_CTRLS)
-			ret = uvc_ctrl_commit(chain);
+			ret = uvc_ctrl_commit(handle,
+					      ctrls->controls, ctrls->count);
 		else
-			ret = uvc_ctrl_rollback(chain);
+			ret = uvc_ctrl_rollback(handle);
 		break;
 	}
 
@@ -989,6 +996,26 @@ static long uvc_v4l2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 		return uvc_video_enable(stream, 0);
 	}
+
+	case VIDIOC_SUBSCRIBE_EVENT:
+	{
+		struct v4l2_event_subscription *sub = arg;
+
+		switch (sub->type) {
+		case V4L2_EVENT_CTRL:
+			return v4l2_event_subscribe(&handle->vfh, sub, 0,
+						    &uvc_ctrl_sub_ev_ops);
+		default:
+			return -EINVAL;
+		}
+	}
+
+	case VIDIOC_UNSUBSCRIBE_EVENT:
+		return v4l2_event_unsubscribe(&handle->vfh, arg);
+
+	case VIDIOC_DQEVENT:
+		return v4l2_event_dequeue(&handle->vfh, arg,
+					  file->f_flags & O_NONBLOCK);
 
 	/* Analog video standards make no sense for digital cameras. */
 	case VIDIOC_ENUMSTD:
