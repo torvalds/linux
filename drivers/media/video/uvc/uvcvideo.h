@@ -172,6 +172,10 @@ struct uvc_control_mapping {
 	struct uvc_menu_info *menu_info;
 	__u32 menu_count;
 
+	__u32 master_id;
+	__s32 master_manual;
+	__u32 slave_ids[2];
+
 	__s32 (*get) (struct uvc_control_mapping *mapping, __u8 query,
 		      const __u8 *data);
 	void (*set) (struct uvc_control_mapping *mapping, __s32 value,
