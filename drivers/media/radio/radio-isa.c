@@ -150,14 +150,6 @@ static int radio_isa_log_status(struct file *file, void *priv)
 	return 0;
 }
 
-static int radio_isa_subscribe_event(struct v4l2_fh *fh,
-				struct v4l2_event_subscription *sub)
-{
-	if (sub->type == V4L2_EVENT_CTRL)
-		return v4l2_event_subscribe(fh, sub, 0);
-	return -EINVAL;
-}
-
 static const struct v4l2_ctrl_ops radio_isa_ctrl_ops = {
 	.s_ctrl = radio_isa_s_ctrl,
 };
@@ -177,7 +169,7 @@ static const struct v4l2_ioctl_ops radio_isa_ioctl_ops = {
 	.vidioc_g_frequency = radio_isa_g_frequency,
 	.vidioc_s_frequency = radio_isa_s_frequency,
 	.vidioc_log_status  = radio_isa_log_status,
-	.vidioc_subscribe_event   = radio_isa_subscribe_event,
+	.vidioc_subscribe_event   = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
