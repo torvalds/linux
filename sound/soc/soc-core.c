@@ -1416,7 +1416,7 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 	struct snd_soc_codec_conf *codec_conf;
 	enum snd_soc_compress_type compress_type;
 	struct snd_soc_dai_link *dai_link;
-	int ret, i, order;
+	int ret, i, order, dai_fmt;
 
 	mutex_lock_nested(&card->mutex, SND_SOC_CARD_CLASS_INIT);
 
@@ -1525,17 +1525,46 @@ static int snd_soc_instantiate_card(struct snd_soc_card *card)
 
 	for (i = 0; i < card->num_links; i++) {
 		dai_link = &card->dai_link[i];
+		dai_fmt = dai_link->dai_fmt;
 
-		if (dai_link->dai_fmt) {
+		if (dai_fmt) {
 			ret = snd_soc_dai_set_fmt(card->rtd[i].codec_dai,
-						  dai_link->dai_fmt);
+						  dai_fmt);
 			if (ret != 0 && ret != -ENOTSUPP)
 				dev_warn(card->rtd[i].codec_dai->dev,
 					 "Failed to set DAI format: %d\n",
 					 ret);
+		}
+
+		/* If this is a regular CPU link there will be a platform */
+		if (dai_fmt && dai_link->platform_name) {
+			ret = snd_soc_dai_set_fmt(card->rtd[i].cpu_dai,
+						  dai_fmt);
+			if (ret != 0 && ret != -ENOTSUPP)
+				dev_warn(card->rtd[i].cpu_dai->dev,
+					 "Failed to set DAI format: %d\n",
+					 ret);
+		} else if (dai_fmt) {
+			/* Flip the polarity for the "CPU" end */
+			dai_fmt &= ~SND_SOC_DAIFMT_MASTER_MASK;
+			switch (dai_link->dai_fmt &
+				SND_SOC_DAIFMT_MASTER_MASK) {
+			case SND_SOC_DAIFMT_CBM_CFM:
+				dai_fmt |= SND_SOC_DAIFMT_CBS_CFS;
+				break;
+			case SND_SOC_DAIFMT_CBM_CFS:
+				dai_fmt |= SND_SOC_DAIFMT_CBS_CFM;
+				break;
+			case SND_SOC_DAIFMT_CBS_CFM:
+				dai_fmt |= SND_SOC_DAIFMT_CBM_CFS;
+				break;
+			case SND_SOC_DAIFMT_CBS_CFS:
+				dai_fmt |= SND_SOC_DAIFMT_CBM_CFM;
+				break;
+			}
 
 			ret = snd_soc_dai_set_fmt(card->rtd[i].cpu_dai,
-						  dai_link->dai_fmt);
+						  dai_fmt);
 			if (ret != 0 && ret != -ENOTSUPP)
 				dev_warn(card->rtd[i].cpu_dai->dev,
 					 "Failed to set DAI format: %d\n",
