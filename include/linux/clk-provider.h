@@ -347,5 +347,19 @@ void __clk_unprepare(struct clk *clk);
 void __clk_reparent(struct clk *clk, struct clk *new_parent);
 unsigned long __clk_round_rate(struct clk *clk, unsigned long rate);
 
+struct of_device_id;
+
+typedef void (*of_clk_init_cb_t)(struct device_node *);
+
+int of_clk_add_provider(struct device_node *np,
+			struct clk *(*clk_src_get)(struct of_phandle_args *args,
+						   void *data),
+			void *data);
+void of_clk_del_provider(struct device_node *np);
+struct clk *of_clk_src_simple_get(struct of_phandle_args *clkspec,
+				  void *data);
+const char *of_clk_get_parent_name(struct device_node *np, int index);
+void of_clk_init(const struct of_device_id *matches);
+
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PROVIDER_H */
