@@ -391,6 +391,7 @@ struct fw_iso_buffer {
 	enum dma_data_direction direction;
 	struct page **pages;
 	int page_count;
+	int page_count_mapped;
 };
 
 int fw_iso_buffer_init(struct fw_iso_buffer *buffer, struct fw_card *card,
