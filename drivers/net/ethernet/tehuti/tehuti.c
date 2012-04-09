@@ -341,8 +341,8 @@ static int bdx_fw_load(struct bdx_priv *priv)
 out:
 	if (master)
 		WRITE_REG(priv, regINIT_SEMAPHORE, 1);
-	if (fw)
-		release_firmware(fw);
+
+	release_firmware(fw);
 
 	if (rc) {
 		netdev_err(priv->ndev, "firmware loading failed\n");
