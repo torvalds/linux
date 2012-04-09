@@ -2818,7 +2818,7 @@ static int em_rdpmc(struct x86_emulate_ctxt *ctxt)
 
 static int em_mov(struct x86_emulate_ctxt *ctxt)
 {
-	ctxt->dst.val = ctxt->src.val;
+	memcpy(ctxt->dst.valptr, ctxt->src.valptr, ctxt->op_bytes);
 	return X86EMUL_CONTINUE;
 }
 
@@ -2896,12 +2896,6 @@ static int em_mov_sreg_rm(struct x86_emulate_ctxt *ctxt)
 	/* Disable writeback. */
 	ctxt->dst.type = OP_NONE;
 	return load_segment_descriptor(ctxt, sel, ctxt->modrm_reg);
-}
-
-static int em_movdqu(struct x86_emulate_ctxt *ctxt)
-{
-	memcpy(&ctxt->dst.vec_val, &ctxt->src.vec_val, ctxt->op_bytes);
-	return X86EMUL_CONTINUE;
 }
 
 static int em_invlpg(struct x86_emulate_ctxt *ctxt)
@@ -3443,7 +3437,7 @@ static struct opcode group11[] = {
 };
 
 static struct gprefix pfx_0f_6f_0f_7f = {
-	N, N, N, I(Sse | Unaligned, em_movdqu),
+	N, I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
 };
 
 static struct opcode opcode_table[256] = {
