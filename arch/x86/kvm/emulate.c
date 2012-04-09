@@ -3440,6 +3440,10 @@ static struct gprefix pfx_0f_6f_0f_7f = {
 	N, I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
 };
 
+static struct gprefix pfx_vmovntpx = {
+	I(0, em_mov), N, N, N,
+};
+
 static struct opcode opcode_table[256] = {
 	/* 0x00 - 0x07 */
 	I6ALU(Lock, em_add),
@@ -3571,7 +3575,8 @@ static struct opcode twobyte_table[256] = {
 	IIP(ModRM | SrcMem | Priv | Op3264, em_cr_write, cr_write, check_cr_write),
 	IIP(ModRM | SrcMem | Priv | Op3264, em_dr_write, dr_write, check_dr_write),
 	N, N, N, N,
-	N, N, N, N, N, N, N, N,
+	N, N, N, GP(ModRM | DstMem | SrcReg | Sse | Mov | Aligned, &pfx_vmovntpx),
+	N, N, N, N,
 	/* 0x30 - 0x3F */
 	II(ImplicitOps | Priv, em_wrmsr, wrmsr),
 	IIP(ImplicitOps, em_rdtsc, rdtsc, check_rdtsc),
