@@ -215,23 +215,7 @@ static struct i2c_driver wm1250_ev1_i2c_driver = {
 	.id_table = wm1250_ev1_i2c_id,
 };
 
-static int __init wm1250_ev1_modinit(void)
-{
-	int ret = 0;
-
-	ret = i2c_add_driver(&wm1250_ev1_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register WM1250-EV1 I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(wm1250_ev1_modinit);
-
-static void __exit wm1250_ev1_exit(void)
-{
-	i2c_del_driver(&wm1250_ev1_i2c_driver);
-}
-module_exit(wm1250_ev1_exit);
+module_i2c_driver(wm1250_ev1_i2c_driver);
 
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
 MODULE_DESCRIPTION("WM1250-EV1 audio I/O module driver");
