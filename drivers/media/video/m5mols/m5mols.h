@@ -163,6 +163,7 @@ struct m5mols_version {
  * @auto_exposure: auto/manual exposure control
  * @exposure_bias: exposure compensation control
  * @exposure: manual exposure control
+ * @metering: exposure metering control
  * @auto_iso: auto/manual ISO sensitivity control
  * @iso: manual ISO sensitivity control
  * @auto_wb: auto white balance control
@@ -198,6 +199,7 @@ struct m5mols_info {
 		struct v4l2_ctrl *auto_exposure;
 		struct v4l2_ctrl *exposure_bias;
 		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *metering;
 	};
 	struct {
 		/* iso/auto iso cluster */

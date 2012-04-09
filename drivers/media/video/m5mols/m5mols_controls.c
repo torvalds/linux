@@ -227,7 +227,25 @@ int m5mols_lock_3a(struct m5mols_info *info, bool lock)
 	return ret;
 }
 
-/* Set exposure/auto exposure cluster */
+static int m5mols_set_metering_mode(struct m5mols_info *info, int mode)
+{
+	unsigned int metering;
+
+	switch (mode) {
+	case V4L2_EXPOSURE_METERING_CENTER_WEIGHTED:
+		metering = REG_AE_CENTER;
+		break;
+	case V4L2_EXPOSURE_METERING_SPOT:
+		metering = REG_AE_SPOT;
+		break;
+	default:
+		metering = REG_AE_ALL;
+		break;
+	}
+
+	return m5mols_write(&info->sd, AE_MODE, metering);
+}
+
 static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 {
 	struct v4l2_subdev *sd = &info->sd;
@@ -238,12 +256,14 @@ static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 		return ret;
 
 	if (exposure == V4L2_EXPOSURE_AUTO) {
-		ret = m5mols_write(sd, AE_MODE, REG_AE_ALL);
+		ret = m5mols_set_metering_mode(info, info->metering->val);
 		if (ret < 0)
 			return ret;
 
-		v4l2_dbg(1, m5mols_debug, sd, "%s: exposure bias: %#x\n",
-			 __func__, info->exposure_bias->val);
+		v4l2_dbg(1, m5mols_debug, sd,
+			 "%s: exposure bias: %#x, metering: %#x\n",
+			 __func__, info->exposure_bias->val,
+			 info->metering->val);
 
 		return m5mols_write(sd, AE_INDEX, info->exposure_bias->val);
 	}
@@ -532,6 +552,10 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 			ARRAY_SIZE(ev_bias_qmenu)/2 - 1,
 			ev_bias_qmenu);
 
+	info->metering = v4l2_ctrl_new_std_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_METERING,
+			2, ~0x7, V4L2_EXPOSURE_METERING_AVERAGE);
+
 	/* ISO control cluster */
 	info->auto_iso = v4l2_ctrl_new_std_menu(&info->handle, &m5mols_ctrl_ops,
 			V4L2_CID_ISO_SENSITIVITY_AUTO, 1, ~0x03, 1);
@@ -562,7 +586,7 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 		return ret;
 	}
 
-	v4l2_ctrl_auto_cluster(3, &info->auto_exposure, 1, false);
+	v4l2_ctrl_auto_cluster(4, &info->auto_exposure, 1, false);
 	info->auto_iso->flags |= V4L2_CTRL_FLAG_VOLATILE |
 				V4L2_CTRL_FLAG_UPDATE;
 	v4l2_ctrl_auto_cluster(2, &info->auto_iso, 0, false);
