@@ -79,18 +79,18 @@ struct rga_drvdata {
   	struct device dev;
 	void *rga_base;
 	int irq0;
-
-	struct clk *aclk_rga;
-	struct clk *hclk_rga;
 	
 	struct delayed_work power_off_work;
-	bool enable;        						//clk enable or disable
 	void (*rga_irq_callback)(int rga_retval);   //callback function used by aync call
 };
 
 
 static struct rga_drvdata *drvdata = NULL;
 rga_service_info rga_service;
+
+static struct clk *aclk_rga;
+static struct clk *hclk_rga;
+
 
 static int rga_blit_async(rga_session *session, struct rga_req *req);
 static void rga_del_running_list(void);
@@ -210,13 +210,14 @@ static void rga_power_on(void)
 {
 	//printk("rga_power_on\n");
 	//cancel_delayed_work_sync(&drvdata->power_off_work);
-	if (drvdata->enable)
+	if (rga_service.enable)
 		return;
-   
-	clk_enable(drvdata->aclk_rga);
-	clk_enable(drvdata->hclk_rga);
 
-	drvdata->enable = true;
+    spin_lock_bh(&rga_service.lock);
+	clk_enable(aclk_rga);
+	clk_enable(hclk_rga);
+	rga_service.enable = true;
+    spin_unlock_bh(&rga_service.lock);
 }
 
 
@@ -225,7 +226,7 @@ static void rga_power_off(void)
     int total_running;
     
     printk("rga_power_off\n");
-	if(!drvdata->enable)
+	if(!rga_service.enable)
 		return;
 
     total_running = atomic_read(&rga_service.total_running);
@@ -236,20 +237,16 @@ static void rga_power_off(void)
         rga_dump();
 	}
     
-	clk_disable(drvdata->aclk_rga);
-	clk_disable(drvdata->hclk_rga);
+	clk_disable(aclk_rga);
+	clk_disable(hclk_rga);
 
-	drvdata->enable = false;
+	rga_service.enable = false;
 }
-
-
-
 
 static int rga_flush(rga_session *session, unsigned long arg)
 {	
     int ret = 0;
     int ret_timeout;
-
     
     #if RGA_TEST_FLUSH_TIME
     ktime_t start;
@@ -257,9 +254,7 @@ static int rga_flush(rga_session *session, unsigned long arg)
     start = ktime_get();
     #endif
 
-    ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);
-
-    
+    ret_timeout = wait_event_interruptible_timeout(session->wait, atomic_read(&session->done), RGA_TIMEOUT_DELAY);    
     
 	if (unlikely(ret_timeout < 0)) {
 		pr_err("flush pid %d wait task ret %d\n", session->pid, ret);                    
@@ -306,13 +301,15 @@ static int rga_check_param(const struct rga_req *req)
 {
 	/*RGA can support up to 8192*8192 resolution in RGB format,but we limit the image size to 8191*8191 here*/
 	//check src width and height
-	if (unlikely((req->src.act_w <= 0) || (req->src.act_w > 8191) || (req->src.act_h <= 0) || (req->src.act_h > 8191))) {
+	if (unlikely((req->src.act_w <= 0) || (req->src.act_w > 8191) || (req->src.act_h <= 0) || (req->src.act_h > 8191))) 
+    {
 		ERR("invalid source resolution act_w = %d, act_h = %d\n", req->src.act_w, req->src.act_h);
 		return  -EINVAL;
 	}
 
 	//check dst width and height
-	if (unlikely((req->dst.act_w <= 0) || (req->dst.act_w > 2048) || (req->dst.act_h <= 0) || (req->dst.act_h > 2048))) {
+	if (unlikely((req->dst.act_w <= 0) || (req->dst.act_w > 2048) || (req->dst.act_h <= 0) || (req->dst.act_h > 2048))) 
+    {
 		ERR("invalid destination resolution act_w = %d, act_h = %d\n", req->dst.act_w, req->dst.act_h);
 		return	-EINVAL;
 	}
@@ -585,7 +582,7 @@ static void rga_try_set_reg(uint32_t num)
 }
 
 
-#if RGA_TEST  
+#if 1//RGA_TEST  
 static void print_info(struct rga_req *req)
 {      
     printk("src.yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x\n", 
@@ -658,18 +655,18 @@ static int rga_blit(rga_session *session, struct rga_req *req)
             if(NULL == req2) {
                 return -EFAULT;            
             }
-
+            
             ret = RGA_gen_two_pro(req, req2);            
             if(ret == -EINVAL) {
                 break;
-            }            
+            }
 
             ret = rga_check_param(req);
         	if(ret == -EINVAL) {
                 printk("req 1 argument is inval\n");
                 break;
         	}
-                                             
+                                                         
             ret = rga_check_param(req2);
         	if(ret == -EINVAL) {
                 printk("req 2 argument is inval\n");
@@ -933,23 +930,23 @@ static int rga_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	uint32_t enable;
     
-    enable = drvdata->enable;    
-	//rga_power_off(NULL);    
-    drvdata->enable = enable;
+    enable = rga_service.enable;    
+	rga_power_off();    
+    rga_service.enable = enable;
 
 	return 0;
 }
 
 static int rga_resume(struct platform_device *pdev)
 {    
-    //rga_power_on();    
+    rga_power_on();    
 	return 0;
 }
 
 static void rga_shutdown(struct platform_device *pdev)
 {
 	pr_cont("shutdown...");	    
-	//rga_power_off();    
+	rga_power_off();    
     pr_cont("done\n");
 }
 
@@ -983,7 +980,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
     atomic_set(&rga_service.total_running, 0);
     atomic_set(&rga_service.src_format_swt, 0);
     rga_service.last_prc_src_format = 1; /* default is yuv first*/
-    data->enable = 0;
+    rga_service.enable = false;
           
 	if(NULL == data)
 	{
@@ -991,23 +988,23 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		return  -ENOMEM;
 	}
 	
-	data->aclk_rga = clk_get(NULL, "aclk_rga");    
-	if (IS_ERR(data->aclk_rga))
+	aclk_rga = clk_get(NULL, "aclk_rga");    
+	if (IS_ERR(aclk_rga))
 	{
 		ERR("failed to find rga axi clock source.\n");
 		ret = -ENOENT;
 		goto err_clock;
 	}
 
-	data->hclk_rga = clk_get(NULL, "hclk_rga");
-	if (IS_ERR(data->hclk_rga))
+	hclk_rga = clk_get(NULL, "hclk_rga");
+	if (IS_ERR(hclk_rga))
 	{
 		ERR("failed to find rga ahb clock source.\n");
 		ret = -ENOENT;
 		goto err_clock;
 	}
 
-    //rga_power_on();
+    rga_power_on();
     
 	/* map the memory */
     if (!request_mem_region(RK30_RGA_PHYS, RK30_RGA_SIZE, "rga_io")) 
@@ -1042,7 +1039,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&rga_service.mutex);
-	data->enable = false;
+	rga_service.enable = false;
 	INIT_DELAYED_WORK(&data->power_off_work, rga_power_off);
 	data->rga_irq_callback = NULL;
 	
@@ -1056,7 +1053,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		goto err_misc_register;
 	}
 
-    //rga_power_off();
+    rga_power_off();
     
 	DBG("RGA Driver loaded succesfully\n");
 
@@ -1082,12 +1079,12 @@ static int rga_drv_remove(struct platform_device *pdev)
 	free_irq(data->irq0, &data->miscdev);
     iounmap((void __iomem *)(data->rga_base));            
 
-    if(data->aclk_rga) {
-		clk_put(data->aclk_rga);
+    if(aclk_rga) {
+		clk_put(aclk_rga);
 	}
 	
-	if(data->hclk_rga) {
-		clk_put(data->hclk_rga);
+	if(hclk_rga) {
+		clk_put(hclk_rga);
 	}
 
     kfree(data);
