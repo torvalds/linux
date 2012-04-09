@@ -12,6 +12,7 @@ config HAVE_MACH_CLKDEV
 config COMMON_CLK
 	bool
 	select HAVE_CLK_PREPARE
+	select CLKDEV_LOOKUP
 	---help---
 	  The common clock framework is a single definition of struct
 	  clk, useful across many platforms, as well as an
