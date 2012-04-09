@@ -121,6 +121,12 @@
 #define MTIP_FLAG_REBUILD_BIT			5
 #define MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT	8
 
+/* below are bit numbers in 'dd_flag' defined in driver_data */
+#define MTIP_DD_FLAG_REMOVE_PENDING_BIT		1
+#define MTIP_DD_FLAG_RESUME_BIT			2
+#define MTIP_DD_FLAG_CLEANUP_BIT		3
+#define MTIP_DD_FLAG_INIT_DONE_BIT		4
+
 /* Register Frame Information Structure (FIS), host to device. */
 struct host_to_dev_fis {
 	/*
@@ -404,13 +410,9 @@ struct driver_data {
 
 	unsigned slot_groups; /* number of slot groups the product supports */
 
-	atomic_t drv_cleanup_done; /* Atomic variable for SRSI */
-
 	unsigned long index; /* Index to determine the disk name */
 
-	unsigned int ftlrebuildflag; /* FTL rebuild flag */
-
-	atomic_t resumeflag; /* Atomic variable to track suspend/resume */
+	unsigned long dd_flag; /* NOTE: use atomic bit operations on this */
 
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 };
