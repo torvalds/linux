@@ -997,13 +997,6 @@ lpfc_debugfs_dumpDataDif_write(struct file *file, const char __user *buf,
 	return nbytes;
 }
 
-static int
-lpfc_debugfs_dif_err_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t
 lpfc_debugfs_dif_err_read(struct file *file, char __user *buf,
 	size_t nbytes, loff_t *ppos)
@@ -3541,7 +3534,7 @@ static const struct file_operations lpfc_debugfs_op_dumpDif = {
 #undef lpfc_debugfs_op_dif_err
 static const struct file_operations lpfc_debugfs_op_dif_err = {
 	.owner =	THIS_MODULE,
-	.open =		lpfc_debugfs_dif_err_open,
+	.open =		simple_open,
 	.llseek =	lpfc_debugfs_lseek,
 	.read =		lpfc_debugfs_dif_err_read,
 	.write =	lpfc_debugfs_dif_err_write,

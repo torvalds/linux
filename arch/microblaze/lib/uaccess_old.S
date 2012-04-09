@@ -122,22 +122,22 @@ __strnlen_user:
 15:	swi	r24, r5, 0x0018 + offset;	\
 16:	swi	r25, r5, 0x001C + offset;	\
 	.section __ex_table,"a";		\
-	.word	1b, 0f;				\
-	.word	2b, 0f;				\
-	.word	3b, 0f;				\
-	.word	4b, 0f;				\
-	.word	5b, 0f;				\
-	.word	6b, 0f;				\
-	.word	7b, 0f;				\
-	.word	8b, 0f;				\
-	.word	9b, 0f;				\
-	.word	10b, 0f;			\
-	.word	11b, 0f;			\
-	.word	12b, 0f;			\
-	.word	13b, 0f;			\
-	.word	14b, 0f;			\
-	.word	15b, 0f;			\
-	.word	16b, 0f;			\
+	.word	1b, 33f;			\
+	.word	2b, 33f;			\
+	.word	3b, 33f;			\
+	.word	4b, 33f;			\
+	.word	5b, 33f;			\
+	.word	6b, 33f;			\
+	.word	7b, 33f;			\
+	.word	8b, 33f;			\
+	.word	9b, 33f;			\
+	.word	10b, 33f;			\
+	.word	11b, 33f;			\
+	.word	12b, 33f;			\
+	.word	13b, 33f;			\
+	.word	14b, 33f;			\
+	.word	15b, 33f;			\
+	.word	16b, 33f;			\
 	.text
 
 #define COPY_80(offset)	\
@@ -190,14 +190,17 @@ w2:	sw	r4, r5, r3
 
 .align 4 /* Alignment is important to keep icache happy */
 page:	/* Create room on stack and save registers for storign values */
-	addik   r1, r1, -32
-	swi	r19, r1, 4
-	swi	r20, r1, 8
-	swi	r21, r1, 12
-	swi	r22, r1, 16
-	swi	r23, r1, 20
-	swi	r24, r1, 24
-	swi	r25, r1, 28
+	addik   r1, r1, -40
+	swi	r5, r1, 0
+	swi	r6, r1, 4
+	swi	r7, r1, 8
+	swi	r19, r1, 12
+	swi	r20, r1, 16
+	swi	r21, r1, 20
+	swi	r22, r1, 24
+	swi	r23, r1, 28
+	swi	r24, r1, 32
+	swi	r25, r1, 36
 loop:	/* r4, r19, r20, r21, r22, r23, r24, r25 are used for storing values */
 	/* Loop unrolling to get performance boost */
 	COPY_80(0x000);
@@ -205,21 +208,44 @@ loop:	/* r4, r19, r20, r21, r22, r23, r24, r25 are used for storing values */
 	COPY_80(0x100);
 	COPY_80(0x180);
 	/* copy loop */
-	addik	r6, r6, 0x200
-	addik	r7, r7, -0x200
-	bneid	r7, loop
-	addik	r5, r5, 0x200
+	addik   r6, r6, 0x200
+	addik   r7, r7, -0x200
+	bneid   r7, loop
+	addik   r5, r5, 0x200
+
 	/* Restore register content */
-	lwi	r19, r1, 4
-	lwi	r20, r1, 8
-	lwi	r21, r1, 12
-	lwi	r22, r1, 16
-	lwi	r23, r1, 20
-	lwi	r24, r1, 24
-	lwi	r25, r1, 28
-	addik   r1, r1, 32
+	lwi	r5, r1, 0
+	lwi	r6, r1, 4
+	lwi	r7, r1, 8
+	lwi	r19, r1, 12
+	lwi	r20, r1, 16
+	lwi	r21, r1, 20
+	lwi	r22, r1, 24
+	lwi	r23, r1, 28
+	lwi	r24, r1, 32
+	lwi	r25, r1, 36
+	addik   r1, r1, 40
 	/* return back */
+	addik	r3, r0, 0
+	rtsd	r15, 8
+	nop
+
+/* Fault case - return temp count */
+33:
 	addik	r3, r7, 0
+	/* Restore register content */
+	lwi	r5, r1, 0
+	lwi	r6, r1, 4
+	lwi	r7, r1, 8
+	lwi	r19, r1, 12
+	lwi	r20, r1, 16
+	lwi	r21, r1, 20
+	lwi	r22, r1, 24
+	lwi	r23, r1, 28
+	lwi	r24, r1, 32
+	lwi	r25, r1, 36
+	addik   r1, r1, 40
+	/* return back */
 	rtsd	r15, 8
 	nop
 

@@ -21,10 +21,9 @@
 	 */
 
 	.macro addruart, rp, rv, tmp
-		mov	\rp, #0x10000000
-		ldr	\rp, [\rp, #0x0]
-		and	\rp, \rp, #0xf00000
-		teq	\rp, #0x500000		@@ EXYNOS5
+		mrc	p15, 0, \tmp, c0, c0, 0
+		and	\tmp, \tmp, #0xf0
+		teq	\tmp, #0xf0		@@ A15
 		ldreq	\rp, =EXYNOS5_PA_UART
 		movne	\rp, #EXYNOS4_PA_UART	@@ EXYNOS4
 		ldr	\rv, =S3C_VA_UART
