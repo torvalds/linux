@@ -3936,7 +3936,7 @@ err_irq:
 	return ret;
 }
 
-static int  wm8994_codec_remove(struct snd_soc_codec *codec)
+static int wm8994_codec_remove(struct snd_soc_codec *codec)
 {
 	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
 	struct wm8994 *control = wm8994->wm8994;
@@ -3977,14 +3977,10 @@ static int  wm8994_codec_remove(struct snd_soc_codec *codec)
 			free_irq(wm8994->micdet_irq, wm8994);
 		break;
 	}
-	if (wm8994->mbc)
-		release_firmware(wm8994->mbc);
-	if (wm8994->mbc_vss)
-		release_firmware(wm8994->mbc_vss);
-	if (wm8994->enh_eq)
-		release_firmware(wm8994->enh_eq);
+	release_firmware(wm8994->mbc);
+	release_firmware(wm8994->mbc_vss);
+	release_firmware(wm8994->enh_eq);
 	kfree(wm8994->retune_mobile_texts);
-
 	return 0;
 }
 
